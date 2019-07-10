@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4703316
+﻿INTSourceChangelist:6417091
 Availability: Public
 Crumbs: 
 Title:在Niagara中创建Sprite粒子效果
@@ -7,18 +7,13 @@ Type:how-to
 Version: 4.21
 Parent: Engine/Niagara/HowTo
 Order: 6
+skilllevel:Beginner
 Tags: Niagara
 Tags: Early Access
+prereq: Engine/Niagara/HowTo/EnableNiagara
+hero-image:Sprite_Banner_01.png
 
-事先必须了解的主题
-
-在阅读本文前应对以下主题有所了解。如尚不了解，请先浏览以下主题再继续阅读。
-
-*   [启用Niagara插件](Engine/Niagara/HowTo/EnableNiagara "Describes how you can enable the Niagara.")
- 
 有一种常用的视觉效果技巧是将纹理和材质渲染为面向镜头的2D平面图，这称为*Sprite*。在以下操作指南中，我们将为使用Sprite而设置Niagara发射器。将包含Niagara发射器的Niagara系统放置在关卡中时，你将看到该关卡中显示的效果。
-
-![](Sprite_Banner_01.png "Sprite_Banner_01.png")
 
 [REGION:note]
 **事先必须完成的步骤：**
@@ -26,7 +21,6 @@ Tags: Early Access
 本操作指南使用 **M\_smoke\_subUV** 材质，它包含在 **初学者内容包** 中。如果你尚未将该材质或初学者内容添加到你的项目，请确保进行添加。
 [/REGION]
 
-(#steps)
 ## 步骤
 
 1.  首先，在 **内容浏览器** 中单击右键，从显示的菜单中选择 **FX > Niagara发射器（FX > Niagara Emitter）**，以创建 **Niagara 发射器**。Niagara发射器向导将显示。 
@@ -109,7 +103,6 @@ Tags: Early Access
 27.  单击 **编译（Compile）** 和 **保存（Save）** 按钮以应用和保存你的更改，然后关闭Smoke Niagara系统。
 28.在内容浏览器中，将 **Smoke** Niagara系统拖到关卡视口。
 
-(#endresult)
 ## 最终结果
 
 完成本操作指南中的步骤后，放置在关卡中的Niagara系统将播放Niagara发射器，从而产生想要的效果（如下面的视频所示）。

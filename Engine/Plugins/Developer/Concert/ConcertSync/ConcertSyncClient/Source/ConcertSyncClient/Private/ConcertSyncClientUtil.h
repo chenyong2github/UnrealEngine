@@ -17,6 +17,7 @@ class FConcertLocalIdentifierTable;
 
 struct FConcertObjectId;
 struct FConcertWorldNodeId;
+struct FConcertSessionVersionInfo;
 struct FConcertSerializedPropertyData;
 
 namespace ConcertSyncClientUtil
@@ -61,9 +62,13 @@ namespace ConcertSyncClientUtil
 
 	void UpdatePendingKillState(UObject* InObj, const bool bIsPendingKill);
 
+	bool ObjectIdsMatch(const FConcertObjectId& One, const FConcertObjectId& Two);
+
+	int32 GetObjectPathDepth(UObject* InObjToTest);
+
 	FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNewName, const FName InNewOuterPath, const bool bAllowCreate);
 	
-	bool ImportPropertyData(const FConcertLocalIdentifierTable* InLocalIdentifierTable, const FConcertSyncWorldRemapper& InWorldRemapper, UObject* InObj, const FName InPropertyName, const TArray<uint8>& InSerializedData);
+	bool ImportPropertyData(const FConcertLocalIdentifierTable* InLocalIdentifierTable, const FConcertSyncWorldRemapper& InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const FName InPropertyName, const TArray<uint8>& InSerializedData);
 
 	TArray<FName> GetRootProperties(const TArray<FName>& InChangedProperties);
 

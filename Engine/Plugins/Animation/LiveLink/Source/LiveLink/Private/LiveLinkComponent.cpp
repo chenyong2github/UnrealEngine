@@ -4,6 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Features/IModularFeatures.h"
 #include "GameFramework/Actor.h"
+#include "Roles/LiveLinkAnimationRole.h"
 
 // Sets default values for this component's properties
 ULiveLinkComponent::ULiveLinkComponent()
@@ -63,10 +64,18 @@ bool ULiveLinkComponent::HasLiveLinkClient()
 
 void ULiveLinkComponent::GetAvailableSubjectNames(TArray<FName>& SubjectNames)
 {
-	SubjectNames.Empty();
 	if (HasLiveLinkClient())
 	{
-		LiveLinkClient->GetSubjectNames(SubjectNames);
+		TArray<FLiveLinkSubjectKey> SubjectKeys = LiveLinkClient->GetSubjects(false, true);
+		SubjectNames.Reset(SubjectKeys.Num());
+		for (const FLiveLinkSubjectKey& SubjectKey : SubjectKeys)
+		{
+			SubjectNames.Add(SubjectKey.SubjectName);
+		}
+	}
+	else
+	{
+		SubjectNames.Reset();
 	}
 }
 
@@ -75,17 +84,36 @@ void ULiveLinkComponent::GetSubjectData(const FName SubjectName, bool& bSuccess,
 	bSuccess = false;
 	if (HasLiveLinkClient())
 	{
-		if (const FLiveLinkSubjectFrame* SubjectFrame = LiveLinkClient->GetSubjectData(SubjectName))
+		FLiveLinkSubjectFrameData FrameData;
+		if (LiveLinkClient->EvaluateFrame_AnyThread(SubjectName, ULiveLinkAnimationRole::StaticClass(), FrameData))
 		{
-			SubjectFrameHandle.SetCachedFrame(MakeShared<FCachedSubjectFrame>(SubjectFrame));
-			bSuccess = true;
+			const FLiveLinkSkeletonStaticData* SkeletonData = FrameData.StaticData.Cast<FLiveLinkSkeletonStaticData>();
+			const FLiveLinkAnimationFrameData* AnimationFrameData = FrameData.FrameData.Cast<FLiveLinkAnimationFrameData>();
+			FLiveLinkBlueprintDataStruct BlueprintDataWrapper(FSubjectFrameHandle::StaticStruct(), &SubjectFrameHandle);
+
+			if (SkeletonData == nullptr)
+			{
+				FFrame::KismetExecutionMessage(TEXT("Could not get subject data. Static data was invalid."), ELogVerbosity::Error);
+				return;
+			}
+
+			if (AnimationFrameData == nullptr)
+			{
+				FFrame::KismetExecutionMessage(TEXT("Could not get subject data. Frame data was invalid."), ELogVerbosity::Error);
+				return;
+			}
+
+			bSuccess = ULiveLinkAnimationRole::StaticClass()->GetDefaultObject<ULiveLinkAnimationRole>()->InitializeBlueprintData(FrameData, BlueprintDataWrapper);
 		}
+
 	}
 }
 
 void ULiveLinkComponent::GetSubjectDataAtWorldTime(const FName SubjectName, const float WorldTime, bool& bSuccess, FSubjectFrameHandle& SubjectFrameHandle)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	GetSubjectDataAtTime(SubjectName, (double)WorldTime, bSuccess, SubjectFrameHandle);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void ULiveLinkComponent::GetSubjectDataAtTime(const FName SubjectName, const double WorldTime, bool& bSuccess, FSubjectFrameHandle& SubjectFrameHandle)
@@ -93,10 +121,26 @@ void ULiveLinkComponent::GetSubjectDataAtTime(const FName SubjectName, const dou
 	bSuccess = false;
 	if (HasLiveLinkClient())
 	{
-		if (const FLiveLinkSubjectFrame* SubjectFrame = LiveLinkClient->GetSubjectDataAtWorldTime(SubjectName, WorldTime))
+		FLiveLinkSubjectFrameData FrameData;
+		if (LiveLinkClient->EvaluateFrameAtWorldTime_AnyThread(SubjectName, WorldTime, ULiveLinkAnimationRole::StaticClass(), FrameData))
 		{
-			SubjectFrameHandle.SetCachedFrame(MakeShared<FCachedSubjectFrame>(SubjectFrame));
-			bSuccess = true;
+			const FLiveLinkSkeletonStaticData* SkeletonData = FrameData.StaticData.Cast<FLiveLinkSkeletonStaticData>();
+			const FLiveLinkAnimationFrameData* AnimationFrameData = FrameData.FrameData.Cast<FLiveLinkAnimationFrameData>();
+			FLiveLinkBlueprintDataStruct BlueprintDataWrapper(FSubjectFrameHandle::StaticStruct(), &SubjectFrameHandle);
+
+			if (SkeletonData == nullptr)
+			{
+				FFrame::KismetExecutionMessage(TEXT("Could not get subject data. Static data was invalid."), ELogVerbosity::Error);
+				return;
+			}
+
+			if (AnimationFrameData == nullptr)
+			{
+				FFrame::KismetExecutionMessage(TEXT("Could not get subject data. Frame data was invalid."), ELogVerbosity::Error);
+				return;
+			}
+
+			bSuccess = ULiveLinkAnimationRole::StaticClass()->GetDefaultObject<ULiveLinkAnimationRole>()->InitializeBlueprintData(FrameData, BlueprintDataWrapper);
 		}
 	}
 }
@@ -106,10 +150,26 @@ void ULiveLinkComponent::GetSubjectDataAtSceneTime(const FName SubjectName, cons
 	bSuccess = false;
 	if (HasLiveLinkClient())
 	{
-		if (const FLiveLinkSubjectFrame* SubjectFrame = LiveLinkClient->GetSubjectDataAtSceneTime(SubjectName, SceneTime))
+		FLiveLinkSubjectFrameData FrameData;
+		if (LiveLinkClient->EvaluateFrameAtSceneTime_AnyThread(SubjectName, SceneTime, ULiveLinkAnimationRole::StaticClass(), FrameData))
 		{
-			SubjectFrameHandle.SetCachedFrame(MakeShared<FCachedSubjectFrame>(SubjectFrame));
-			bSuccess = true;
+			const FLiveLinkSkeletonStaticData* SkeletonData = FrameData.StaticData.Cast<FLiveLinkSkeletonStaticData>();
+			const FLiveLinkAnimationFrameData* AnimationFrameData = FrameData.FrameData.Cast<FLiveLinkAnimationFrameData>();
+			FLiveLinkBlueprintDataStruct BlueprintDataWrapper(FSubjectFrameHandle::StaticStruct(), &SubjectFrameHandle);
+
+			if (SkeletonData == nullptr)
+			{
+				FFrame::KismetExecutionMessage(TEXT("Could not get subject data. Static data was invalid."), ELogVerbosity::Error);
+				return;
+			}
+
+			if (AnimationFrameData == nullptr)
+			{
+				FFrame::KismetExecutionMessage(TEXT("Could not get subject data. Frame data was invalid."), ELogVerbosity::Error);
+				return;
+			}
+			
+			bSuccess = ULiveLinkAnimationRole::StaticClass()->GetDefaultObject<ULiveLinkAnimationRole>()->InitializeBlueprintData(FrameData, BlueprintDataWrapper);
 		}
 	}
 }

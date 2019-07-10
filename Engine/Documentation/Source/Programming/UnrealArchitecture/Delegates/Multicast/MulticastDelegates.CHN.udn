@@ -1,53 +1,59 @@
-﻿Availability:Public
-Title: 多播代理
+﻿INTSourceChangelist:3386371
+Availability:Public
+Title: 多播委托
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture, Programming/UnrealArchitecture/Delegates
-Description: 可以绑定到多个函数上并可以一次性执行它们的代理。
+Description:可以绑定到多个函数并一次性同时执行它们的委托。
+Version: 4.9
 
-多播代理的功能和单播代理几乎一样。区别是它们对目标为弱引用，可以和结构体一起使用，可以很方便地进行拷贝，等等。
-和普通代理一样，多播代理可被载入/保存，并远程触发；但是，多播代理的函数无法使用返回值。最好将它们用于方便地传递代理集合。
+多播委托拥有大部分与单播委托相同的功能。它们只拥有对对象的弱引用，可以与结构体一起使用，可以四处轻松复制等等。  
+就像常规委托一样，多播委托可以远程加载/保存和触发；但多播委托函数不能使用返回值。它们最适合用来
+四处轻松传递一组委托。
 
-[](Programming/UnrealArchitecture/Delegates\Events) 是特定类型的多播代理，同时具有对`Broadcast()`, `IsBound()`, 和 `Clear()`函数的受限访问。
+[](Programming/UnrealArchitecture/Delegates\Events)是一种特殊类型的多播委托，它在访问“Broadcast()”、“IsBound()”和“Clear()”函数时会受到限制。
 
-(#DeclaringMulti-castDelegates)
-## 声明多播代理
+(#declaringmulti-castdelegates)
 
-多播代理的声明方式和[声明标准代理](Programming/UnrealArchitecture/Delegates#声明代理)一样，只是它们使用针对多播代理的宏变种。
+## 声明多播委托
 
-| 声明宏 | 描述|
+多播委托在声明方式上与[声明标准委托](Programming/UnrealArchitecture/Delegates#DeclaringDelegates)相同，只是前者使用特定于多播委托的宏变体。
+
+| 声明宏 | 说明 |
 | --- | --- |
-| `DECLARE_MULTICAST_DELEGATE[_Const, _RetVal, etc.]( DelegateName )` | 创建一个多播的多播代理。|
-| `DECLARE_DYNAMIC_MULTICAST_DELEGATE[_Const, _RetVal, etc.]( DelegateName )` | 创建一个动态的多播代理。|
-| `DECLARE_DYNAMIC_MULTICAST_DELEGATE[_Const, _RetVal, etc.]( DelegateName )` |  创建一个封装的动态多播代理。|
+| `DECLARE_MULTICAST_DELEGATE[_RetVal, etc.]( DelegateName )` | 创建一个多播委托。|
+| `DECLARE_DYNAMIC_MULTICAST_DELEGATE[_RetVal, etc.]( DelegateName )` | 创建一个动态多播委托。|
 
-(#BindingMulti-CastDelegates)
-## 绑定多播代理
+(# Binding Multi-Cast Delegates)
 
-多播代理在代理触发时可能会调用多个函数绑定。因此，绑定函数在语句中看起来更为像是数组。
+## 绑定多播委托
 
-| 函数| 描述|
+多播委托可以绑定多个函数，当委托触发时，将调用所有这些函数。因此，绑定函数在语义上与数组更加类似。
+
+| 函数 | 说明 |
 | --- | --- |
-| `Add()` | 添加函数代理到此多播代理的调用列表。|
-| `AddStatic()` | 添加一个原始的C++指针全局函数代理。|
-| `AddRaw()` | 添加一个原始的C++指针代理。原始指针不使用任何引用，所以如果从代理的底层删除了该对象，那么调用它可能是不安全的。因此，当调用Execute()时一定要小心!|
-| `AddSP()` | 添加一个基于共享指针（快速，非线程安全）的成员函数代理。共享指针代理保持到您的对象的弱引用。|
-| `AddUObject()` | 添加一个基于UObject的成员函数代理。UObject 代理保持到您的对象的弱引用。|
-| `Remove()` | 将函数从这个多播代理的调用列表中移除(性能为O(N))。请注意代理的顺序可能不会被保留！ |
-| `RemoveAll()` | 将所有函数从与特定UserObject绑定的多播代理的调用列表中移除。请注意代理的顺序可能不会被保留！|
+| “Add()” | 将函数委托添加到该多播委托的调用列表中。|
+| “AddStatic()” | 添加原始C++指针全局函数委托。|
+| “AddRaw()” | 添加原始C++指针委托。原始指针不使用任何类型的引用，因此如果从委托下面删除了对象，则调用此函数可能不安全。调用Execute()时请小心！|
+| “AddSP()” | 添加基于共享指针的（快速、非线程安全）成员函数委托。共享指针委托保留对对象的弱引用。|
+| “AddUObject()” | 添加基于UObject的成员函数委托。UObject委托保留对对象的弱引用。|
+| “Remove()” | 从该多播委托的调用列表中删除函数（性能为O(N)）。请注意，委托的顺序可能不会被保留！|
+| “RemoveAll()” | 从该多播委托的调用列表中删除绑定到指定UserObject的所有函数。请注意，委托的顺序可能不会被保留！|
 
 [REGION:tip]
-`RemoveAll()`将会移除所有与提供的指针绑定的注册代理！ 不与对象指针绑定的原始代理将不会被此函数移除！
+“RemoveAll()”将删除绑定到所提供指针的所有已注册委托。切记，未绑定到对象指针的原始委托不会被该函数所删除！
 [/REGION]
 
-请参照 `DelegateSignatureImpl.inl` (located in `..\UE4\Engine\Source\Runtime\Core\Public\Templates\`) 文件获得关于这些函数的变种、参数及实现相关的信息。
+请参阅“DelegateSignatureImpl.inl”（位于“..\UE4\Engine\Source\Runtime\Core\Public\Delegates\”中）了解这些函数的变体、参数和实现。
 
-## 多播代理执行
+(#Multi-Cast Execution)
 
-多播代理允许您附加多个函数代理，然后通过调用多播代理的  `Broadcast()` 函数一次性执行所有函数代理。多播代理的签名不能使用返回值。
+## 多播执行
 
-任何时候在多播代理上调用 `Broadcast()` 函数都是安全的，即时它没有绑定任何函数也可以。唯一需要注意的时候是您使用代理初始化输出变量时，这样做一般是非常不好的。
+多播委托允许您附加多个函数委托，然后通过调用多播委托的“Broadcast()”函数一次性同时执行它们。多播委托签名不得使用返回值。
 
-当调用 `Broadcast()` 函数时，绑定函数的执行顺序是不确定的。可能并不按照函数的添加顺序执行。
+在多播委托上调用“Broadcast()”总是安全的，即使是在没有任何绑定时也是如此。唯一需要注意的是，如果您使用委托来初始化输出变量，通常会带来非常不利的后果。
 
-| 函数| 描述|
+调用“Broadcast()”时绑定函数的执行顺序尚未定义。执行顺序可能与函数的添加顺序不相同。
+
+| 函数 | 说明 |
 | --- | --- |
-| `Broadcast()` | 广播该代理到所有绑定对象，可能过期的对象除外。|
+| “Broadcast()” | 将该委托广播给所有绑定的对象，但可能已过期的对象除外。|

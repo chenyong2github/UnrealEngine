@@ -9,9 +9,10 @@
 #include "CoreMinimal.h"
 #include "RenderResource.h"
 #include "Templates/ScopedPointer.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "SceneManagement.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
+#include "PrimitiveSceneProxy.h"
 #include "Templates/UniquePtr.h"
 
 class FLightPrimitiveInteraction;
@@ -82,21 +83,57 @@ struct FSortedLightSceneInfo
 			uint32 bShadowed : 1;
 			/** Whether the light uses lighting channels. */
 			uint32 bUsesLightingChannels : 1;
+			/** Whether the light is NOT a simple light - they always support tiled/clustered but may want to be selected separately. */
+			uint32 bIsNotSimpleLight : 1;
 			/** True if the light doesn't support tiled deferred, logic is inverted so that lights that DO support tiled deferred will sort first in list */
 			uint32 bTiledDeferredNotSupported : 1;
+			/** 
+			 * True if the light doesn't support clustered deferred, logic is inverted so that lights that DO support clustered deferred will sort first in list 
+			 * Super-set of lights supporting tiled, so the tiled lights will end up in the first part of this range.
+			 */
+			uint32 bClusteredDeferredNotSupported : 1;
 		} Fields;
 		/** Sort key bits packed into an integer. */
 		int32 Packed;
 	} SortKey;
 
 	const FLightSceneInfo* LightSceneInfo;
+	int32 SimpleLightIndex;
 
 	/** Initialization constructor. */
 	explicit FSortedLightSceneInfo(const FLightSceneInfo* InLightSceneInfo)
-		: LightSceneInfo(InLightSceneInfo)
+		: LightSceneInfo(InLightSceneInfo),
+		SimpleLightIndex(-1)
 	{
 		SortKey.Packed = 0;
+		SortKey.Fields.bIsNotSimpleLight = 1;
 	}
+
+	explicit FSortedLightSceneInfo(int32 InSimpleLightIndex)
+		: LightSceneInfo(nullptr),
+		SimpleLightIndex(InSimpleLightIndex)
+	{
+		SortKey.Packed = 0;
+		SortKey.Fields.bIsNotSimpleLight = 0;
+	}
+};
+
+/** 
+ * Stores info about sorted lights and ranges. 
+ * The sort-key in FSortedLightSceneInfo gives rise to the following order:
+ *  [SimpleLights,Tiled/Clustered,LightFunction/Shadow/LightChannels/TextureProfile]
+ */
+struct FSortedLightSetSceneInfo
+{
+	int SimpleLightsEnd;
+	int TiledSupportedEnd;
+	int ClusteredSupportedEnd;
+
+	/** First light with shadow map or */
+	int AttenuationLightStart;
+
+	FSimpleLightArray SimpleLights;
+	TArray<FSortedLightSceneInfo, SceneRenderingAllocator> SortedLights;
 };
 
 template <>
@@ -298,18 +335,4 @@ struct FLightOctreeSemantics
 		VectorRegister OffsetReg = VectorLoadFloat3_W0(&Offset);
 		Element.BoundingSphereVector = VectorAdd(Element.BoundingSphereVector, OffsetReg);
 	}
-};
-
-/** Stores lighting information for the clustered forward shading path */
-struct FClusteredLightsSceneInfo
-{
-	FIntPoint TileSize;			// In pixels
-	FIntVector GridSize;		// In tiles (x,y) + slices (z)
-	FVector4 LightGridZParams;
-
-	// Index of the light in this array corresponds to the bit set in the grid.
-	TArray<FLightSceneInfoCompact> ClusteredLights;
-
-	// The light grid.  Size is >= GridSize.
-	FTexture3DRHIRef LightGridTex;
 };

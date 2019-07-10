@@ -9,7 +9,7 @@
 /**
  * Base class for target platforms.
  */
-class FTargetPlatformBase
+class TARGETPLATFORM_VTABLE FTargetPlatformBase
 	: public ITargetPlatform
 {
 public:
@@ -261,6 +261,9 @@ public:
 			return TPlatformProperties::SupportsMemoryMappedAudio();
 		case ETargetPlatformFeatures::MemoryMappedAnimation:
 			return TPlatformProperties::SupportsMemoryMappedAnimation();
+
+		case ETargetPlatformFeatures::VirtualTextureStreaming:
+			return TPlatformProperties::SupportsVirtualTextureStreaming();
 
 		case ETargetPlatformFeatures::SdkConnectDisconnect:
 		case ETargetPlatformFeatures::UserCredentials:

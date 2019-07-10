@@ -2,6 +2,7 @@
 
 #include "ConcertClientDataStore.h"
 #include "IConcertSession.h"
+#include "ConcertSyncClientLiveSession.h"
 
 //------------------------------------------------------------------------------
 // Utilities for internal usage.
@@ -18,15 +19,15 @@ static const uint32 CompareExchangePayloadSizeOptimizationThreshold = 64;
 // FConcertClientDataStore implementation.
 //------------------------------------------------------------------------------
 
-FConcertClientDataStore::FConcertClientDataStore(TSharedRef<IConcertClientSession> InSession)
-	: Session(MoveTemp(InSession))
+FConcertClientDataStore::FConcertClientDataStore(TSharedRef<FConcertSyncClientLiveSession> InLiveSession)
+	: LiveSession(MoveTemp(InLiveSession))
 {
-	Session->RegisterCustomEventHandler<FConcertDataStore_ReplicateEvent>(this, &FConcertClientDataStore::OnReplicationEvent);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertDataStore_ReplicateEvent>(this, &FConcertClientDataStore::OnReplicationEvent);
 }
 
 FConcertClientDataStore::~FConcertClientDataStore()
 {
-	Session->UnregisterCustomEventHandler<FConcertDataStore_ReplicateEvent>();
+	LiveSession->GetSession().UnregisterCustomEventHandler<FConcertDataStore_ReplicateEvent>(this);
 }
 
 TFuture<FConcertDataStoreResult> FConcertClientDataStore::InternalFetchOrAdd(const FName& Key, const UScriptStruct* Type, const FName& TypeName, const void* Value)
@@ -48,7 +49,7 @@ TFuture<FConcertDataStoreResult> FConcertClientDataStore::InternalFetchOrAdd(con
 	FetchOrAddRequest.TypeName = TypeName;
 	FetchOrAddRequest.SerializedValue.SetPayload(Type, Value);
 
-	return Session->SendCustomRequest<FConcertDataStore_FetchOrAddRequest, FConcertDataStore_Response>(FetchOrAddRequest, Session->GetSessionServerEndpointId()).Next(
+	return LiveSession->GetSession().SendCustomRequest<FConcertDataStore_FetchOrAddRequest, FConcertDataStore_Response>(FetchOrAddRequest, LiveSession->GetSession().GetSessionServerEndpointId()).Next(
 		[this, SentKey = Key, SentTypeName = TypeName, SentValue = FetchOrAddRequest.SerializedValue](const FConcertDataStore_Response& Response)
 	{
 		return HandleResponse(SentKey, SentTypeName, SentValue, Response);
@@ -112,7 +113,7 @@ TFuture<FConcertDataStoreResult> FConcertClientDataStore::InternalCompareExchang
 	// Serialize the desired value in the request.
 	CompareExchangeRequest.Desired.SetPayload(Type, Desired);
 
-	return Session->SendCustomRequest<FConcertDataStore_CompareExchangeRequest, FConcertDataStore_Response>(CompareExchangeRequest, Session->GetSessionServerEndpointId()).Next(
+	return LiveSession->GetSession().SendCustomRequest<FConcertDataStore_CompareExchangeRequest, FConcertDataStore_Response>(CompareExchangeRequest, LiveSession->GetSession().GetSessionServerEndpointId()).Next(
 		[this, SentKey = Key, SentTypeName = TypeName, SentValue = CompareExchangeRequest.Desired](const FConcertDataStore_Response& Response)
 	{
 		return HandleResponse(SentKey, SentTypeName, SentValue, Response);
@@ -243,7 +244,7 @@ namespace ConcertDataStoreTestUtils
 class FConcertClientDataStoreTest : public FConcertClientDataStore
 {
 public:
-	FConcertClientDataStoreTest(TSharedRef<IConcertClientSession> Session) : FConcertClientDataStore(MoveTemp(Session)) {}
+	FConcertClientDataStoreTest(TSharedRef<IConcertClientSession> Session) : FConcertClientDataStore(MakeShared<FConcertSyncClientLiveSession>(MoveTemp(Session), EConcertSyncSessionFlags::None)) {}
 
 	// Change the accessibility of those methods from protected to public.
 	using FConcertClientDataStore::GetCachedValue;

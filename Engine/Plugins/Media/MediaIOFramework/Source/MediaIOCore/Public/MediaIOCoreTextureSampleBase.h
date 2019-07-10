@@ -29,8 +29,9 @@ public:
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InFrameRate The framerate of the media that produce the sample.
 	 * @param InTimecode The sample timecode if available.
+	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
 	 */
-	bool Initialize(const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode);
+	bool Initialize(const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
 
 	/**
 	 * Initialize the sample.
@@ -43,8 +44,9 @@ public:
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InFrameRate The framerate of the media that produce the sample.
 	 * @param InTimecode The sample timecode if available.
+	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
 	 */
-	bool Initialize(TArray<uint8> InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode);
+	bool Initialize(TArray<uint8> InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
 
 	/**
 	 * Initialize the sample.
@@ -71,8 +73,9 @@ public:
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InFrameRate The framerate of the media that produce the sample.
 	 * @param InTimecode The sample timecode if available.
+	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
 	 */
-	bool SetProperties(uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode);
+	bool SetProperties(uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
 
 	/**
 	 * Initialize the sample with half it's original height and take only the odd or even line.
@@ -85,9 +88,9 @@ public:
 	 * @param InSampleFormat The sample format of the video buffer.
 	 * @param InTime The sample time (in the player's own clock).
 	 * @param InTimecode The sample timecode if available.
+	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
 	 */
-	bool InitializeWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode);
-
+	bool InitializeWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
 	/**
 	 * Set the sample buffer with half it's original height and take only the odd or even line.
 	 *
@@ -179,7 +182,7 @@ public:
 
 	virtual bool IsOutputSrgb() const override
 	{
-		return true;
+		return bIsSRGBInput;
 	}
 
 public:
@@ -216,5 +219,8 @@ protected:
 
 	/** Pointer to raw pixels */
 	TArray<uint8> Buffer;
+
+	/** Wheter the sample is in sRGB space and requires an explicit conversion to linear */
+	bool bIsSRGBInput;
 };
 

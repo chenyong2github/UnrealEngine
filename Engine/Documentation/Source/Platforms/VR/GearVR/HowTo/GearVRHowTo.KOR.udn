@@ -1,0 +1,31 @@
+﻿INTSourceChangelist:6541836
+Availability: Public
+Crumbs: %ROOT% 
+Title: Gear VR 안내서
+Description: Gear VR 과 UE4 작업을 위한 단계별 안내서입니다.
+Type: how-to
+Version: 4.17
+Parent: Platforms/VR/GearVR
+Order:1
+Tags:VR
+topic-image:GearVR_How_To_Header.png
+
+Gear VR 안내서에서는 UE4 와 Gear VR 을 함께 사용할 수 있도록 하는 방법을 단계별로 안내해 드립니다.
+
+## 초급
+
+Gear VR HMD 에서 UE4 프로젝트 카메라를 사용할 수 있도록 구성하는 방법과 Gear VR 프로젝트 크기를 줄이는 방법을 안내해 드립니다.
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/GearVR" org:"flat")]
+
+## 중급
+
+Gear VR 컨트롤러 사용법과 Gear VR 글로벌 메뉴 구성법을 안내해 드립니다.
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/GearVR" org:"flat")]
+
+## 고급
+
+Gear VR 프로젝트 디버깅 방법을 안내해 드립니다.
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Advanced" parent:"Platforms/VR/GearVR" org:"flat")]

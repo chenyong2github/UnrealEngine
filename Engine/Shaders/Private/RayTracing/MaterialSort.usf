@@ -1,3 +1,4 @@
+#include "../Common.ush"
 #include "RayTracingCommon.ush"
 
 #if DIM_SORT_SIZE == 0
@@ -20,7 +21,7 @@
 	#error Unknown sorting size
 #endif
 
-#define NUM_BINS  64
+#define NUM_BINS  128
 
 groupshared uint Bins[NUM_BINS];
 groupshared uint Offsets[NUM_BINS];
@@ -53,7 +54,7 @@ void MaterialSortLocal(uint3 DispatchThread : SV_DispatchThreadID, uint3 GroupTh
 	uint Slot[NUM_ELEMENTS / NUM_THREADS];
 
 	//get counts
-	[unroll]
+	[unroll(NUM_ELEMENTS/NUM_THREADS)]
 	for (int i = GroupThread.x; i < NUM_ELEMENTS ; i += NUM_THREADS)
 	{
 		uint Index = GroupBase + i;
@@ -83,7 +84,7 @@ void MaterialSortLocal(uint3 DispatchThread : SV_DispatchThreadID, uint3 GroupTh
 	GroupMemoryBarrierWithGroupSync();
 	
 	//write data
-	[unroll]
+	[unroll(NUM_ELEMENTS/NUM_THREADS)]
 	for (int i = GroupThread.x; i < NUM_ELEMENTS; i += NUM_THREADS)
 	{
 		uint Index = GroupBase + i;

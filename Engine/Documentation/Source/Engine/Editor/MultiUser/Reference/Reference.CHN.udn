@@ -1,0 +1,276 @@
+﻿INTSourceChangelist:6095128
+Availability: Public
+Title: 多用户编辑参考
+Description: 包含多用户编辑中涉及的项目设置、控制台命令和命令行参数的参考信息。
+Type: reference
+Version: 4.22
+Parent: Engine/Editor/MultiUser
+Tags: Reference
+Tags: Early Access
+Tags: Multi-User Editing
+topic-image: multiusereditingref-topic.png
+Order: 2
+
+
+[TOC]
+
+本页面包含多用户编辑系统的要求、设置、命令行参数和控制台命令的相关信息。
+
+##项目设置
+
+当您您在项目中激活多用户编辑插件时，您可以在 **项目设置（Project Settings）** 窗口的 **插件（Plugins ）> 多用户编辑（Multi-User Editing）** 下访问以下设置。
+
+[REGION:lightbox]
+[![多用户编辑设置](multiuserediting-settings.png "Multi-User Editing settings")](multiuserediting-settings.png)  
+*单击查看大图。*
+[/REGION]
+
+| 设置 | 描述 |
+| --- | --- |
+| [REGION:tablesection]**客户端设置**[/REGION] ||
+| **自动连接（Auto Connect）** | 启用此设置可使虚幻编辑器在每次打开此项目时，立即尝试与默认服务器和其下方设置的默认会话名称建立连接。|
+| **默认服务器URL（Default Server URL）** | 对当您单击工具栏中的 **上线（Go Live）** 按钮或启用 **自动连接（Auto Connect）** 设置时多用户编辑系统试图连接的服务器名称进行设置。必须将其设置为服务器所在的电脑的主机名，如 **会话浏览器（Session Browser）** 窗口所示。|
+| **默认会话名称（Default Session Name）** | 对当您单击工具栏中的 **上线（Go Live）** 按钮或启用 **自动连接（Auto Connect）** 设置时，多用户编辑系统尝试连接的会话名称进行设置。如果在默认服务器上，以该名字命名的会话尚未创建，服务器将启动一个新会话。|
+| **默认恢复的会话（Default Session to Restore）** | 如果要在单击工具栏中的 **上线（Go Live）** 按钮或启用 **自动连接（Auto Connect）** 设置时，恢复已保存的会话，请输入该会话的名称。|
+| **会话默认另存名（Default Save Session As）** | 如果您希望单击工具栏中的 **上线（Go Live）** 按钮或启用 **自动连接（Auto Connect）** 设置时，多用户编辑系统保存其打开的会话，请输入希望该会话另存时的命名。|
+| **显示名称（Display Name）** | 在对其他用户可见的所有在线状态信息中，设置您的识别名称。|
+| **化身颜色（Avatar Color）** | 在对其他用户可见的所有在线状态信息中，设置多用户编辑系统与您关联的颜色。|
+| **桌面化身Actor类（Desktop Avatar Actor Class）** | [INCLUDE:#excerpt_0] |
+| **VR化身Actor类（VRAvatar Actor Class）** | [INCLUDE:#excerpt_1] |
+| [REGION:tablesection]**客户端设置——高级**[/REGION] ||
+| **发现超时（Discovery Timeout）** | 如果先前发现的服务器没有在此时间范围内响应消息，它将被视为超时，并从 **多用户浏览器** 的列表中删除。 |
+| **会话更新计时频率（Session Tick Frequency）** | 确定虚幻编辑器实例处理会话更新的频率。|
+| **延迟补偿（Latency Compensation）** | 确定当处理涉及Sequencer播放等对时间敏感的操作的传入事务时，虚幻编辑器实例应该采用的补偿数额。|
+| [REGION:tablesection]**端点设置**[/REGION] ||
+| **启用日志记录（Enable Logging）** | [INCLUDE:#excerpt_logging] |
+| **清除已处理消息的延迟（Purge Processed Message Delay）** | 对于已处理的任何会话状态消息，确定虚幻编辑器实例在将其从内存中删除之前所应等待的时间。|
+| **远程端点超时（Remote Endpoint Timeout）** | 如果虚幻编辑器的远程实例没有对消息在该时间范围内进行响应，它将被视为超时，并从当前会话中删除。|
+
+<!--
+[EXCERPT:excerpt_0]
+设置当您使用标准键盘和鼠标与虚幻编辑器交互时，多用户编辑系统在其他用户的关卡视口中用于代表您的类。  
+如果想要对默认化身进行更改，您可以从内置的 **DesktopPresence** 类中派生自己的蓝图类，并根据您的需求对其进行自定义。
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+设置在您使用VR头戴设备和控制器通过VR编辑系统在关卡中工作时，多用户编辑系统在其他用户的关卡视口中用于代表您的类。  
+如果想要对默认化身进行更改，您可以从内置的 **VRPresence** 类中派生自己的蓝图类，并根据您的需求对其进行自定义。
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_logging]
+确定此虚幻编辑器实例是否应记录关于当前会话的详细信息。
+[REGION:note]
+激活此选项会在短时间内消耗大量磁盘空间。
+[/REGION]
+[/EXCERPT]
+-->
+
+您还可以在 **插件（Plugins）> 多用户事务（Multi-User Transactions）** 下访问以下设置。
+
+[REGION:lightbox]
+[![多用户编辑事务设置](multiuserediting-transactionsettings.png "Multi-User Editing transaction settings")](multiuserediting-transactionsettings.png)  
+*单击查看大图。*
+[/REGION]
+[REGION:note]
+在您多次使用默认值对多用户编辑系统完成操作，并对该系统工作原理建立深刻理解之前，请避免调整这些设置。更改这些设置会影响系统的稳定性。
+[/REGION]
+
+| 设置 | 描述 |
+| --- | --- |
+| [REGION:tablesection]**事务设置**[/REGION] ||
+| **每秒快照事务数（Snapshot Transactions Per Second）** | 当您与工具或功能按钮交互时，为了与其他客户端实现更改的实时同步，多用户编辑系统每秒所发送的事务数量，例如，当在关卡视口中拖动Actor，或在Actor的 **细节（Details）** 面板中拖动滑块时。|
+| **包含对象类过滤器（Include Object Class Filters）** | 当此列表为空时，为了对所有类的类型进行修改，多用户编辑系统会自动发送事务。如果您坚持只对某些特定类的修改进行同步，可以在此列表中指定这些类。此列表中默认显示的值，都已经过测试，并被判断为足够稳定，可以公开。|
+| **排除事务类过滤器（Exclude Transaction Class Filters）** | [INCLUDE:#excerpt_2] |
+| **允许的瞬态属性（Allowed Transient Properties）** | [INCLUDE:#excerpt_transient] |
+| [REGION:tablesection]**事务设置 — 高级**[/REGION] ||
+| **交互的编辑器热重载（Interactive Editor Hot Reload）** | 确定当虚幻编辑器需要将已完成加载的资源替换为相同资源的其他版本，应如何处理。当连接至您的会话的另一个用户对该资源进行修改并保存时，就会发生这种情况。当您离开会话而不保存更改时，也会发生这种情况，编辑器需要把您在会话中修改的内容替换为您加入会话时的初始内容。如果继续禁用此设置，您新加载的内容会立即替换以前所加载的内容。如果希望系统提示您是否重新加载每个修改后的资源，请启用此设置。|
+| **在PIE中显示在线状态（Show Presence in PIE）** | 确定当您处于 **在编辑器中运行（PIE）** 会话时，是否应显示其他用户的在线状态信息。|
+
+<!--
+[EXCERPT:excerpt_2]
+如果您希望限制多用户编辑系统，避免同步对某些类的更改，可以在此列表中指定这些类。任何事务，只要涉及了更改这些被排除的类的对象，都不会被同步。  
+该列表的优先级高于前文的 **包含对象类过滤器（Include Object Class Filters）** 列表。
+[REGION:note]
+默认情况下，该列表包括地形类。在保存包含地形的关卡之前，您对地形所做的任何修改都不会被同步。
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_transient]
+包含瞬态类属性的列表，它们始终会被同步，虽然通常会被过滤掉。编辑器中默认条目同步Actor的可视性。如果希望在同一关卡工作的不同用户能够显示和隐藏不同的Actor集，您可以从列表中将这些默认条目删除。
+[REGION:note]
+如果需要更改这些值，请直接在 `Saved/Config/<platform>/Engine.ini` 文件的 `[/Script/ConcertSyncCore.ConcertSyncConfig]` 分段进行修改，切勿在UI中修改。
+[/REGION]
+[/EXCERPT]
+-->
+
+##虚幻多用户服务器的命令行参数
+
+我们在“入门”页面说明了，如何从虚幻编辑器的UI内启动多用户编辑系统的服务器组件。但是，您也可以在任何安装了虚幻引擎的电脑上从命令行启动此服务器。  
+
+如果从命令行运行服务器，则不需要在该电脑上运行项目。服务器只记录事务和修改后的资源；它不必提供完整的项目内容。只有加入会话的电脑需要有项目内容的副本。
+
+您可以在虚幻引擎安装文件夹中找到多用户编辑服务器，位于 `Engine/Binaries/<platform>/UnrealMultiUserServer.exe`。启动它时，可以在命令行上提供以下可选参数控制其行为。
+
+| 参数 | 描述 |
+| --- | --- |
+| **-ConcertSession=<session_name>** | [INCLUDE:#excerpt_3] |
+| **-ConcertProject=<uproject_name>** | [INCLUDE:#excerpt_4] |
+| **-ConcertVersion=<engine_version>** | [INCLUDE:#excerpt_5] |
+| **-ConcertRevision=<changelist_number>** | [INCLUDE:#excerpt_6] |
+| **-ConcertIgnore** | [INCLUDE:#excerpt_ignore] |
+| **-ConcertClean** | [INCLUDE:#excerpt_clean] |
+| **-ConcertSaveSessionAs=<session_name>** | [INCLUDE:#excerpt_7] |
+| **-ConcertSessionToRestore=<session_name>** | 如果您已经指定了一个 **-ConcertSession**，则可以使用此参数还原该服务器曾用该指定名称保存的会话，而不是创建新会话。|
+
+<!--
+[EXCERPT:excerpt_3]
+如果已指定，服务器会在启动时创建一个以此命名的新会话。例如：  
+`-ConcertSession=DemoSession`
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
+如果您已经指定了一个 **-ConcertSession**，服务器会把 **ConcertProject** 的值设置为与该会话相关联的虚幻引擎项目的名称。它所允许连接的虚幻编辑器实例，必须正在运行同名项目。例如：  
+`-ConcertProject=MyUprojectName`
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_5]
+如果您已经指定了一个 **-ConcertSession**，服务器会使用 **ConcertVersion** 的值作为与该会话相关联的虚幻引擎的版本。它所允许连接的虚幻编辑器实例，必须使用相同的版本构建。例如：  
+`-ConcertVersion=4.22.0-123456`
+[REGION:tip]
+要获取此版本号，请打开虚幻编辑器，从主菜单选择 **帮助（Help）> 关于虚幻编辑器...（About Unreal Editor...）**。
+[/REGION]
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_6]
+如果您已经指定了一个 **-ConcertSession**，服务器会使用 **ConcertRevsion** 的值作为与会话相关的基础源代码控制变更列表。它要求连入的虚幻编辑器实例，具备有效的源代码管理、已签出了相同版本的内容、没有本地修改。例如：  
+`-ConcertRevision=4725058`
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_7]
+如果您已经指定了一个 **-ConcertSession**，那么如果服务器在会话删除之前被关闭，将使用 **ConcertSaveSessionAs** 的值来定义用来另存会话数据的名称。这种指定名称的方式，相当于当您在虚幻编辑器UI中创建新会话时，设置 **会话数据管理（Session Data Management）> 会话另存为（Save Session As）**。  
+保存会话并关闭服务器后，您可以使用 **ConcertSessionToRestore** 参数再次启动服务器，从而恢复该会话的状态。
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_ignore]
+如果想要避免多用户编辑服务器对连接的虚幻编辑器实例与每个会话相关联的项目名称、引擎版本和内容源代码管理变更列表是否匹配进行验证，请将此值添加到命令行。
+[REGION:note]
+虽然有时允许客户端在项目内容中存在细微差异的情况下进行连接可能很有用，但是在典型工作流中您应该避免对此设置的依赖，从而防止由于内容在不同客户端上的不同步而导致的任何意外操作。
+[/REGION]
+[/EXCERPT]
+-->
+<!--
+[EXCERPT:excerpt_clean]
+如果您希望服务器在启动时，从其临时存储目录中删除所有现有会话文件，请将此值添加至命令行。
+[REGION:note]
+这将删除所有保存的会话。
+[/REGION]
+[/EXCERPT]
+-->
+
+##虚幻编辑器命令行参数
+
+如果从命令行启动虚幻编辑器，您可以使用以下参数来对多用户编辑系统进行控制。这些参数是上文 [项目设置（Project Settings）](#项目设置) 下列出的一些设置的默认值。
+
+| 参数 | 描述 |
+| --- | --- |
+| **-ConcertAutoConnect** | 为您的项目启用 **自动连接（Auto Connect）** 设置。启动后，虚幻编辑器将立即尝试与默认服务器和为其配置的会话建立连接。您可以提前在 **项目设置（Project Settings）** 中对此默认会话配置进行设置，或者使用以下参数在命令行中进行指定。|
+| **-ConcertServer=<server_name>** | 设置项目的 **默认服务器URL（Default Server URL）** 的值。|
+| **-ConcertSession=<session_name>** | 设置项目的 **默认会话名称（Default Session Name）** 的值。|
+| **-ConcertSaveSessionAs=<session_name>** | 设置项目的 **默认的会话另存名称（Default Save Session As）** 的值。|
+| **-ConcertSessionToRestore=<session_name>** | 设置项目的 **默认恢复的会话（Default Session to Restore）** 的值。|
+| **-ConcertDisplayName=<user_name>** | 设置项目的 **显示名称（Display Name）** 的值。|
+
+##控制台命令
+
+本部分列出了影响多用户编辑系统的虚幻引擎控制台命令。
+
+| 命令 | 说明 |
+| --- | --- |
+| `Concert.DefaultConnect` | 如果您在项目设置（Project Settings）中，已经设置了 **默认服务器URL（Default Server URL）** 和 **默认会话名称（Default Session Name）**，并且尚未连接至多用户编辑会话，此控制台命令会立即尝试将您连接至默认服务器和会话。|
+| `Concert.Disconnect` | 如果连接存在，会断开您与当前的会话的连接。|
+| `Concert.EnableOpenRemoteSequencer` | [INCLUDE:#excerpt_8] |
+| `Concert.EnablePresence` | 启用此设置后，对于每个在同一关卡工作并且在“项目设置（Project Settings）”中设置了 **桌面化身Actor类（Desktop Avatar Actor Class）** 或 **VR化身Actor类（VRAvatar Actor Class）** 的其他用户，您都将在关卡视口中看到一个Actor，该Actor代表了该用户的当前位置和视点。|
+| `Concert.EnableSequencePlayer` | [INCLUDE:#excerpt_9] |
+| `Concert.OpenBrowser` | 打开 **多用户浏览器（Multi-User Browser）** 窗口。相当于从工具栏中的 **上线（Go Live）** 按钮中选择 **会话浏览器（Session Browser）**。|
+| `Concert.OpenSettings` | [INCLUDE:#excerpt_10] |
+
+<!--
+[EXCERPT:excerpt_8]
+启用了该设置的用户，在Sequencer UI中打开关卡序列或主序列时，多用户编辑系统都会自动为同一会话中也启用了此设置的所有其他用户打开Sequencer UI ，并加载相同的序列。  
+默认情况下，此设置被禁用。输入 `Concert.EnableOpenRemoteSequencer 1` 启用该设置，或 `Concert.EnableOpenRemoteSequencer 0` 禁用该设置。
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_9]
+默认情况下，多用户编辑系统仅会在Sequencer UI中打开的序列相同的虚幻编辑器实例之间，同步Sequencer播放事件。  
+如果您想让Sequencer播放事件与在 `-游戏` 模式下运行的虚幻编辑器实例同步，请启用此设置。  
+默认情况下，此设置被禁用。输入 `Concert.EnableOpenRemoteSequencer 1` 启用该设置，或 `Concert.EnableOpenRemoteSequencer 0` 禁用该设置。您必须为每个以您想要响应这些播放事件的 `-游戏` 参数开始的虚幻编辑器实例启用该设置。
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_10]
+打开 **项目设置（Project Settings）** 窗口至 **插件（Plugins）- 多用户编辑（Multi-User Editing）****** 页面。相当于从工具栏中的 **上线（Go Live）** 按钮中选择 **多用户设置（Multi-User Settings）**。  
+有关这些设置的细节，请参见上文中的 [项目设置（Project Settings）](#项目设置)。
+[/EXCERPT:excerpt_10]
+-->
+
+##高级联网
+
+如果在您的网络上，无法按照“入门”页面中的说明启动多用户编辑系统，请尝试使用以下方法，对您服务器的IP地址和虚幻编辑器实例进行设置。
+
+
+###设置本地IP地址
+
+如果您的电脑有多个网卡或适配器，您可能需要更改多用户编辑服务在与其他端点通信时使用的IP地址。
+
+为虚幻编辑器设置本地IP地址的方法:
+
+1. 从主菜单中选择 **编辑（Edit）> 项目设置（Project Settings）**。
+
+1. 在 **项目设置（Project Settings）** 窗口， 转至 **插件（Plugins）> UDP消息（UDP Messaging）** 部分，找到 **传输（Transport）>** **单播端点（Unicast Endpoint）** 设置。  
+    ![单播端点](multiuserediting-network-unicastendpoint.png "Unicast Endpoint")
+
+1. 将此属性的值设置为您希望虚幻编辑器使用的网络适配器的IP地址。一定要使用端口 **0**。  
+    例如， `192.168.10.73:0`。
+
+设置多用户编辑服务器的本地IP的方法：
+
+1. 如果您的服务器已在运行，请将其关闭。
+
+1. 在您的虚幻引擎安装文件夹中，打开 `Engine/Programs/UnrealMultiUserServer/Saved/Config/<platform>` 文件夹，并在文本编辑器中打开 `Engine.ini` 文件。如果该文件不存在，请新建文件。
+
+1. 将以下设置添加到文件中：
+    
+        [/Script/UdpMessaging.UdpMessagingSettings]
+        EnableTransport=True
+        UnicastEndpoint=192.168.0.73:0
+        MulticastEndpoint=230.0.0.1:6666
+        MulticastTimeToLive=1
+        EnableTunnel=False
+        TunnelUnicastEndpoint=
+        TunnelMulticastEndpoint=
+    
+
+1. 将 `UnicastEndpoint` 的值设置为您希望虚幻编辑器（Unreal Editor）使用的网络适配器的IP地址。一定要使用端口 **0**。
+
+1. 保存文件并重新启动服务器。
+
+###为虚幻编辑器指定服务器地址
+
+如果您已经启动了多用户编辑服务器，但是在该LAN或VPN上运行的虚幻编辑器无法自动检测到该服务器，您可以尝试将该服务器的IP地址指定为虚幻编辑器的静态端点。
+
+1. 从主菜单中选择 **编辑（Edit）> 项目设置（Project Settings）**。
+
+1. 在 **项目设置（Project Settings）** 窗口，转至 **插件（Plugins）> UDP消息（UDP Messaging）** 部分。展开 **传输（Transport）** 部分下的高级设置，并找到 **静态端点（Static Endpoints）** 设置。  
+    ![静态端点列表](multiuserediting-network-staticendpoints.png "Static Endpoints list")
+
+1. 按下 **+** 向列表添加一个新项目，并将新项目的值设置为服务器的IP地址。确保输入多播端点使用的端口，通常为 **6666**。  
+    ![设置服务器的IP地址](multiuserediting-network-staticendpoints-added.png "Set the server's IP address")

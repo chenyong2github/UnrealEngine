@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3429254
+INTSourceChangelist:3429254
 Availability:Public
-Title:게임플레이 프레임워크 간단 참고서
+Title:게임플레이 프레임워크 간단 레퍼런스
 Crumbs:%ROOT%, Gameplay, Gameplay/Framework
 Description:게임의 프레임워크를 이루는 게임 규칙, 캐릭터, 컨트롤러, 유저 인터페이스 등에 대한 클래스 간단 개요입니다.
 Version: 4.9

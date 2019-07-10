@@ -234,7 +234,7 @@ struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface
 	//////////////////////////////////////////////////////////////////////////
 
 	// #PHYS2 - These should be on the scene, but immediate mode stops us for now, eventually that should spawn its own minimal IM scene and these should move
-	static FPhysicsActorHandle CreateActor(const FActorCreationParams& Params);
+	static void CreateActor(const FActorCreationParams& Params, FPhysicsActorHandle& Handle);
 	static void ReleaseActor(FPhysicsActorHandle_PhysX& InHandle, FPhysScene* InScene = nullptr, bool bNeverDeferRelease = false);
 	//////////////////////////////////////////////////////////////////////////
 
@@ -298,10 +298,10 @@ struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface
 	static void SetLinearDamping_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, float InDamping);
 	static void SetAngularDamping_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, float InDamping);
 
-	static void AddForce_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InForce);
-	static void AddTorque_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InTorque);
-	static void AddForceMassIndependent_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InForce);
-	static void AddTorqueMassIndependent_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InTorque);
+	static void AddImpulse_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InForce);
+	static void AddAngularImpulseInRadians_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InTorque);
+	static void AddVelocity_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InForce);
+	static void AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InTorque);
 	static void AddImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InImpulse, const FVector& InLocation);
 	static void AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle, const FVector& InOrigin, float InRadius, float InStrength, ERadialImpulseFalloff InFalloff, bool bInVelChange);
 
@@ -411,10 +411,10 @@ template <>
 ENGINE_API int32 FPhysicsInterface_PhysX::GetAllShapes_AssumedLocked(const FPhysicsActorHandle_PhysX& InActorHandle, PhysicsInterfaceTypes::FInlineShapeArray& OutShapes);
 
 template<>
-bool FGenericPhysicsInterface::GeomSweepMulti(const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FQuat& InGeomRot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams /*= FCollisionObjectQueryParams::DefaultObjectQueryParam*/);
+ENGINE_API bool FGenericPhysicsInterface::GeomSweepMulti(const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FQuat& InGeomRot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams /*= FCollisionObjectQueryParams::DefaultObjectQueryParam*/);
 
 template<>
-bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams);
+ENGINE_API bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams);
 
 
 #endif

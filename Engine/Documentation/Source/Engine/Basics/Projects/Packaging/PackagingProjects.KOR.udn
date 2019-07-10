@@ -1,33 +1,32 @@
-﻿INTSourceChangelist:3718578
+﻿INTSourceChangelist:6635900
 Availability:Public
 Title:프로젝트 패키징
-Crumbs:
 Description:언리얼 게임 프로젝트의 배포용 패키지 만들기입니다.
 type:overview
 skilllevel:Intermediate
-version: 4.16
+version: 4.19
 parent:Engine/Basics/Projects
 
-[TOC(start:2)]
-
-
+[TOC(start:2 end:3)]
 
 [EXCERPT:Intro]
 언리얼 프로젝트를 사용자에 배포하기 전, 올바른 방식으로 패키지를 만들어야 합니다. 패키징을 통해 모든 코드와 콘텐츠가 최신인지, 타깃 플랫폼에서 실행하기에 적합한 포맷으로 되어있는지를 확인합니다.
 [/EXCERPT:Intro]
 
-패키징 프로세스 도중에는 여러가지가 단계별로 수행됩니다. 프로젝트에 커스텀 소스 코드가 있을 경우, 이 코드 먼저 컴파일합니다. 그런 다음 필수 콘텐츠 전부를 타깃 플랫폼에서 사용 가능한 포맷으로 변환, 다른 말로 "쿠킹"합니다. 그 이후 컴파일된 코드와 쿠킹된 콘텐츠를 묶어 Windows용 인스톨러와 같은 배포가능 세트 파일로 만듭니다.
+패키징 프로세스 도중에는 여러가지가 단계별로 수행됩니다. 프로젝트별 소스 코드가 먼저 컴파일합니다. 그런 다음 필수 콘텐츠 전부를 타깃 플랫폼에서 사용 가능한 포맷으로 변환, 다른 말로 "쿠킹"합니다. 그 이후 컴파일된 코드와 쿠킹된 콘텐츠를 묶어 Windows용 인스톨러와 같은 배포가능 세트 파일로 만듭니다.
 
-메인 **파일** 메뉴 아래 **Package Project** (프로젝트 패키지)라는 옵션이 있습니다. 그 서브 메뉴에는 패키지를 만들 수 있는 대상 플랫폼이 전부 표시됩니다. 패키징의 목적은 하나의 맵이 아닌 전체 게임을 테스트하거나, 제출/배포용 게임을 준비하는 것입니다.
+메인 **파일** 메뉴 아래 **Package Project** (프로젝트 패키지)라는 옵션이 있습니다. 그 서브 메뉴에는 패키지를 만들 수 있는 대상 플랫폼이 전부 표시됩니다.
 
-[REGION:note]Android에서 패키징하는 경우, 여러가지 선택사항이 있습니다. 자세한 정보는 Android 텍스처 포맷 관련 부분을 참고해 주시기 바랍니다.[/REGION]
+[REGION:note]
+Android에서 패키징하는 경우, 여러가지 선택사항이 있습니다. 자세한 정보는 [](Platforms/MObile/Android/Reference) 문서를 참고하세요.
+[/REGION]
 
 패키징 전 설정할 수 있는 **고급** 옵션도 몇 가지 있습니다.
 
 
 ## 게임 디폴트 맵 설정
 
-게임을 패키징하기 전 먼저 패키징된 게임 시작시 로드할 **게임 디폴트 맵** 을 설정해야 합니다. 맵을 설정하지 않고 공백 프로젝트를 사용중이면 패키징된 게임 시작시 검정 화면만 보입니다. 일인칭 템플릿 또는 삼인칭 템플릿같은 템플릿 맵 중 하나를 사용했다면 시작 맵이 로드됩니다.
+게임을 패키징하기 전 먼저 패키징된 게임 시작시 로드할 **게임 디폴트 맵** 을 설정해야 합니다. 맵을 설정하지 않고 기본 프로젝트를 사용중이면 패키징된 게임 시작시 검정 화면만 보입니다. 일인칭 템플릿 또는 삼인칭 템플릿같은 템플릿 맵 중 하나를 사용했다면 시작 맵이 로드됩니다.
 
 게임 디폴트 맵 설정을 위해서는 에디터의 메인 메뉴에서 **편집 > 프로젝트 세팅 > 맵 & 모드** 를 클릭합니다:
 
@@ -99,8 +98,7 @@ mac
 [/PARAM]
 [/OBJECT]
 
-상태 표시의 '취소' 버튼을 누르면 활성 패키징 프로세스를 취소시킬 수 있습니다. '로그 표시' 링크를 클릭하면 자세한 출력 로그 정보를 확인할 수도 있습니다. 출력 로그는 패키징 프로세스가 성공적으로 끝나지 않은 경우 무엇이 잘못되었는지 알아낼 때 좋습니다.
-
+상태 표시의 '취소' 버튼으로 패키징 프로세스를 중단할 수도 있습니다. 추가로 Show Log (로그 표시) 링크를 사용하여 자세한 출력 로그 정보를 표시하면, 패키징 프로세스가 실패했을 때 무엇이 잘못되었는지 확인하거나, 제품에 버그가 될 수 있는 경고를 잡아낼 수 있습니다.
 [OBJECT:ToggleButtonContent]
 [PARAMLITERAL:category]
 OS
@@ -129,9 +127,9 @@ mac
 [/PARAM]
 [/OBJECT]
 
-익숙하지 않은 분들의 경우, 오류나 경고같은 중요 로그 메시지들은 일반 메시지 로그 창에 로그로 기록됩니다:
-
+오류나 경고같은 가장 중요한 로그 메시지들은 일반 메시지 로그 창에 로그로 기록됩니다:
 ![](message_log.png)
+
 [OBJECT:ToggleButtonContent]
 [PARAMLITERAL:category]
 OS
@@ -164,42 +162,11 @@ mac
 이 창이 보이지 않으면, **창 > 개발자 툴 > 출력 로그 / 메시지 로그** 옵션으로 열 수 있습니다.
 [/REGION]
  
-## 패키징된 게임 실행하기
-
-패키징을 하면, 패키징 프로세스 결과물을 출력할 디렉터리를 선택하는 창이 뜹니다. 패키징된 게임은 플랫폼에 맞는 서브디렉터리에 들어갑니다. 예를 들어 `C:/PackagedOutput/` 이라는 디렉터리를 선택한 경우, Windows 빌드는 `C:/PackagedOutput/WindowsNoEditor/` 에 들어갑니다. 그 서브디렉터리에서, 플랫폼에 맞는 포맷의 패키징된 게임을 찾을 수 있습니다. 예를 들어 Windows 게임은 `.exe` 파일, Android 게임은 `.apk` 와 `.obb` 파일에 `.bat` 인스톨러 포함, iOS 게임은 `.ipa` 파일이 있습니다. 생성되는 파일 수와 유형은 타깃 플랫폼에 따라 다릅니다. 다음 이미지는 `WindowsNoEditor` 서브디렉터리의 Windows 프로젝트 출력 예제를 보여줍니다:
-
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-windows
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](results.png)
-[/PARAM]
-[/OBJECT]
-
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-mac
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](results_MAC.png)
-[/PARAM]
-[/OBJECT]
 ## 배포
 
 App Store 나 Google Play Store 에 iOS 또는 Android 게임을 제출하려면, Distribution (배포) 모드로 게임 패키지를 만들어 줘야 합니다. 그 방법은 **패키징** 메뉴의 **패키징 세팅** 옵션에서 Distribution (배포) 체크박스를 체크합니다.
 
-iOS 에서는 애플의 개발자 웹사이트에서 배포 Certificate 와 MobileProvision 을 만들어 줘야 합니다. Development Certificate 와 같은 방식으로 Distribution Certificate 를 설치한 다음, 배포 Provision 이름에 "Distro_" 접두사를 붙여줍니다 (즉 Distro_MyProject.mobileprovision 과 MyProject.mobileprovision 이 됩니다).
+iOS 에서는 애플의 개발자 웹사이트에서 배포 Certificate 와 MobileProvision 을 만들어 줘야 합니다. Development Certificate 와 같은 방식으로 Distribution Certificate 를 설치한 다음, 배포 Provision 이름에 "Distro_" 접두사를 붙여줍니다 (즉 `Distro_MyProject.mobileprovision` 과 `MyProject.mobileprovision` 이 됩니다).
 
 Android에서는 .apk 파일 사이닝을 할 키를 만들어준 다음, SigningConfig.xml 라는 파일을 포함해서 저희 빌드 툴에 약간의 정보를 줘야 합니다. 이 파일은 설치된 Engine 디렉터리에 (`Engine/Build/Android/Java/`) 존재합니다. 이 파일을 편집하면, 모든 프로젝트에 적용됩니다. 하지만 이 파일을 프로젝트의 `Build/Android/` (Java 를 뺀) 디렉터리에 복사하면,  해당 프로젝트에만 사용됩니다. 키 생성법과 그 파일을 채우는 법은 파일 자체에서 찾아볼 수 있습니다.
 
@@ -212,9 +179,10 @@ Android에서는 .apk 파일 사이닝을 할 키를 만들어준 다음, Signin
 
  현재 다음과 같은 옵션이 포함됩니다:
 
+[REGION:simpletable]
 | 옵션 | 설명 |
 | ------ | ----------- |
-| Build Configuration | 빌드 환경설정 - 코드 기반 프로젝트를 컴파일할 빌드 환경설정입니다. 코드 프로젝트 디버깅의 경우 DebugGame 을 선택합니다. 참고로 블루프린트 전용 프로젝트는 이 옵션이 없습니다. 그 외 디버깅은 최소한으로 지원하지만 퍼포먼스가 좋은 개발용으로는 대부분 Development 를 선택합니다. 최종 출하 빌드의 경우, 디버깅 정보와 (화면상에 디버그 메시지를 출력하거나 디버그 셰이프를 그리는 등의) 디버깅 특화 기능이 제거된 Shipping 을 선택합니다. |
+| **Build Configuration** | [INCLUDE:#excerpt_0] |
 | Staging Directory | 스테이징 디렉터리 - 패키징된 빌드가 들어가게 될 디렉터리입니다. 타깃 디렉터리 선택 창에서 다른 디렉터리를 선택하면 자동으로 업데이트됩니다. |
 | Full Rebuild | 풀 빌드 - 코드를 전부 컴파일할지 입니다. 끄면 수정된 코드만 컴파일합니다. 패키징 프로세스 속도가 빨라질 수 있습니다. Shipping 빌드의 경우 누락되거나 오래된 것이 없는지 확실히 하기 위해 항상 풀 리빌드를 해야 합니다. 이 옵션은 기본으로 켜져 있습니다. |
 | Use Pak File | Pak 파일 사용 - 프로젝트의 애셋들을 개별 파일로 놔둘지 하나의 패키지로 만들지 입니다. 켜면 모든 애셋은 하나의 .pak 파일에 들어가며, 끄면 모든 파일을 일일이 복사합니다. 프로젝트에 애셋 파일이 많은 경우, Pak 를 사용하면 전송해야 하는 파일 양이 줄어들어 배포가 쉬워질 수 있습니다. 이 옵션은 기본으로 꺼져 있습니다. |
@@ -226,14 +194,61 @@ Android에서는 .apk 파일 사이닝을 할 키를 만들어준 다음, Signin
 [PUBLISH:Licensee]
 | Directories to Always Cook | 항상 쿠킹할 디렉터리 - 항상 쿠킹을 해야하는 파일이 들어있는 디렉터리 목록입니다. 기본적으로 패키징 기능상 게임에서 참조된 모든 콘텐츠를 자동 감지하여 쿠킹하긴 합니다만, 커스텀 슬레이트 UI 에 쓰이는 텍스처와 같이 일부 필수 콘텐츠가 직접 참조되지 않은 경우가 있습니다. 그러한 콘텐츠가 들어있는 디렉터리는 이 목록에도 넣어줘야 패키지에 포함됩니다. |
 [/PUBLISH:Licensee]
+[/REGION]
+<!--
+[EXCERPT:excerpt_0]
+빌드 구성 - 코드 기반 프로젝트를 컴파일할 빌드 구성입니다. 코드 프로젝트 디버깅의 경우 DebugGame 을 선택합니다. 참고로 블루프린트 전용 프로젝트는 이 옵션이 없습니다. 그 외 디버깅은 최소한으로 지원하지만 퍼포먼스가 좋은 개발용으로는 대부분 Development 를 선택합니다. 최종 출하 빌드의 경우, 디버깅 정보와 (화면상에 디버그 메시지를 출력하거나 디버그 셰이프를 그리는 등의) 디버깅 특화 기능이 제거된 Shipping 을 선택합니다.
+[REGION:note]
+블루프린트 전용 프로젝트의 경우 DebugGame 빌드를 생성하는 옵션이 없습니다.
+[/REGION]
+[/EXCERPT:excerpt_0]
 
+-->
+
+## 서명 및 암호화
+
+[REGION:note]
+언리얼 엔진 4.22 이후 데스크톱 플랫폼에 (Windows, Mac, Linux) 업계 표준 [OpenSSL](https://www.openssl.org/) 라이브러리를 통합했습니다.
+[/REGION]
+
+프로젝트를 출시할 때 `.Pak` 파일을 서명하거나 암호화하여 데이터 추출이나 부당 변경을 방지할 수 있습니다. 프로젝트의 암호화 세팅을 활성화, 비활성화, 또는 조정하려면 **프로젝트 세팅** 메뉴의 **Crypto** (암호화) 섹션을 찾습니다.
+
+![](CryptoSettings.png "CryptoSettings.png")
+[REGION:caption]
+**프로젝트 세팅** 메뉴의 암호화 옵션입니다.
+[/REGION]
+
+이 메뉴에서 사용할 수 있는 옵션은 다음과 같습니다.
+
+[REGION:simpletable]
+| 옵션 | 설명 |
+| --- | --- |
+| **Encrypt Pak INI Files** | Pak INI 파일 암호화 - 프로젝트의 `.pak` 파일에 존재하는 모든 `.ini` 파일을 암호화합니다. 그러면 최소한의 런타임 비용으로 제품의 구성 데이터를 마이닝 또는 부당 변경을 방지할 수 있습니다. |
+| **Encrypt Pak Index** | Pak 인덱스 암호화 - `.pak` 파일 인덱스를 암호화하여, 최소한의 런타임 비용으로 UnrealPak 파일 열고 확인하고 제품의 `.pak` 파일을 언패킹하지 못하도록 합니다. |
+| **Encrypt UAsset Files** | UAsset 파일 암호화 - `.pak` 파일의 `.uasset` 파일을 암호화합니다. 이 파일에는 안에 포함된 애셋에 대한 헤더 정보만 있을 뿐, 실제 애셋 데이터 자체는 없습니다. 이 데이터를 암호화하면 데이터 보안성이 향상되지만 약간의 런타임 비용이 추가되고 데이터 엔트로피가 증가하여 패치 크기가 커질 수 있습니다. |
+| **Encrypt Assets** | [INCLUDE:#excerpt_1] |
+| **Enable Pak Signing** | Pak 서명 활성화 - .pak 파일 서명을 활성화 또는 비활성화합니다. |
+[/REGION]
+
+<!--
+[EXCERPT:excerpt_1]
+애셋 암호화 - `.pak` 파일 안의 모든 애셋을 완전 암호화합니다.
+
+[REGION:note]
+이 설정은 런타임 파일 I/O 퍼포먼스에 영향을 주며, 최종 패키지 데이터의 엔트로피 양을 증가시켜, 배포 패칭 시스템 효율을 떨어뜨립니다.
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
+
+추가로 서명 또는 암호화 키를 설정하거나 지울 수도 있습니다.
 
 ## 콘텐츠 쿠킹
 
 개발자로서 새 게임이나 변경된 게임에 대한 반복작업을 할 때, 모든 것을 스테이징 디렉터리에 패키징하여 넣은 다음 거기서 그것을 실행하는 지루한 프로세스 전체를 항상 반복하고 싶지는 않을 것입니다. 그래서 **파일 > 콘텐츠 쿠킹 > [플랫폼 이름]** 을 선택하면 패키징 없이 특정 타깃 플랫폼용 콘텐츠만 쿠킹하는 것도 가능합니다.
 
+[REGION:note]
 이 기능은 프로젝트의 로컬 디벨로퍼 워크스페이스에 있는 콘텐츠를 업데이트할 뿐, 스테이징 디렉터리에 애셋을 복사하지는 않는다는 점 유념해 주시기 바랍니다. 로컬 디벨로퍼 워크스페이스에서 게임을 바로 실행하여 빠른 반복작업을 할 수 있습니다.
-
+[/REGION]
 
 ## 로드 시간 최적화
 
@@ -249,25 +264,31 @@ Android에서는 .apk 파일 사이닝을 할 키를 만들어준 다음, Signin
 
 ### .pak 파일 압축
 
-* 프로젝트에 .pak 파일 압축을 사용하려면, 프로젝트 세팅 - Packing (패키징) 섹션을 찾습니다. 거기서 Packaging (패키징) 제목줄의 고급 옵션 부분을 열면 나타나는 Create compressed cooked packages (압축 쿠킹 패키지 생성) 옵션을 체크합니다.
+* 프로젝트에 `.pak` 파일 압축을 사용하려면, 프로젝트 세팅 - Packing (패키징) 섹션을 찾습니다. 거기서 Packaging (패키징) 제목줄의 고급 옵션 부분을 열면 나타나는 Create compressed cooked packages (압축 쿠킹 패키지 생성) 옵션을 체크합니다.
 
-* 대부분의 플랫폼에서는 자동 압축을 제공하지 않기에, .pak 파일을 압축하면 로드 시간이 단축되지만, 고려해야 할 상황이 몇 가지 있습니다:
+* 대부분의 플랫폼에서는 자동 압축을 제공하지 않기에, `.pak` 파일을 압축하면 로드 시간이 단축되지만, 고려해야 할 상황이 몇 가지 있습니다:
 
+[REGION:simpletable]
 | 플랫폼 | 추천 |
 | -- | -- |
-| Sony PlayStation 4 | 모든 PlayStation4 타이틀에 자동 적용되는 압축과 .pak 파일 압축은 중복되어 파일 크기가 줄어드는 혜택 없이 압축 작업만 중복하게 됩니다. 그러므로 PlayStation 4 릴리즈의 경우 .pak 파일 압축은 하지 않는 것이 좋습니다. |
+| Sony PlayStation 4 | 모든 PlayStation4 타이틀에 자동 적용되는 압축과 .pak 파일 압축은 중복되어 파일 크기가 줄어드는 혜택 없이 압축 작업만 중복하게 됩니다. 그러므로 PlayStation 4 릴리즈의 경우 `.pak` 파일 압축은 하지 않는 것이 좋습니다. |
 | Nintendo Switch | 압축된 파일 로드가 더 빠를 수도 있지만, 데이터 압축을 푸는 데 걸리는 시간이 더 오래 걸릴 수도 있습니다. Switch 타이틀의 경우 타이틀마다 직접 테스트해 보고 결정하는 것이 좋습니다. |
 | Microsoft XBoxOne | XBoxOne 플랫폼에서 가장 빠른 로드 시간을 내기 위해서는 압축이 매우 중요합니다. |
-| Steam | 사용자가 다운로드하는 도중 파일을 압축하므로, 다운로드 시간은 압축중인 게임의 .pak 파일에 영향받지 않습니다. 하지만 미압축 파일의 경우 Steam 의 차등 패치 시스템이 나을 것입니다. 압축된 .pak 파일은 소비자 시스템의 디스크 공간을 절약해 주지만, 패치할 때 다운로드 시간은 길어집니다. |
+| Steam | 사용자가 다운로드하는 도중 파일을 압축하므로, 다운로드 시간은 압축중인 게임의 `.pak` 파일에 영향받지 않습니다. 하지만 미압축 파일의 경우 Steam 의 차등 패치 시스템이 나을 것입니다. 압축된 `.pak` 파일은 소비자 시스템의 디스크 공간을 절약해 주지만, 패치할 때 다운로드 시간은 길어집니다. |
+| **Oculus**| Do not enable compression of the `.pak` file. The Oculus patch system cannot properly process a compressed `.pak` file. Also, compressing the `.pak` file will not reduce the size of the file. |
+[/REGION]
 
 ![Project Settings - Compress Pak 옵션](Project_Settings_PakCompression.png)
-[REGION:caption]이 박스를 체크하면 .pak 파일의 압축을 켤 수 있습니다.[/REGION]
+[REGION:caption]
+이 박스를 체크하면 .pak 파일의 압축을 켤 수 있습니다.
+[/REGION]
 
-### .pak 파일 순서
+### pak 파일 순서
 
-로드 시간 단축을 위해서는 .pak 파일 순서를 잘 지정하는 것이 중요합니다. .pak 파일 최적의 순서를 지정하는 데 도움을 드리기 위해, UE4 에서는 데이터 애셋의 필요 순서를 알아내어 더욱 빠른 로딩 패키지를 제작하기 위한 툴 세트가 제공됩니다. 개념적으로, 이 프로세스는 프로파일 주도형 최적화와 비슷합니다. .pak 파일 순서 지정 방법은 다음과 같습니다:
+로드 시간 단축을 위해서는 `.pak` 파일 순서를 잘 지정하는 것이 중요합니다. `.pak` 파일 최적의 순서를 지정하는 데 도움을 드리기 위해, UE4 에서는 데이터 애셋의 필요 순서를 알아내어 더욱 빠른 로딩 패키지를 제작하기 위한 툴 세트가 제공됩니다. 개념적으로, 이 프로세스는 프로파일 주도형 최적화와 비슷합니다. `.pak` 파일 순서 지정 방법은 다음과 같습니다:
 
-1. -fileopenlog 명령줄 옵션으로 패키지 게임을 빌드하고 실행시켜, 엔진이 파일을 여는 순서를 기록하도록 하는 것입니다.
+1. `-fileopenlog` 명령줄 옵션으로 패키지 게임을 빌드하고 실행시켜, 엔진이 파일을 여는 순서를 기록하도록 하는 것입니다.
+
 1. 게임 주요 영역을 전부 확인하세요. 모든 레벨, 모든 플레이가능 캐릭터, 모든 무기, 모든 비히클 등을 로드하세요. 모든 것이 로드했으면, 게임을 종료합니다.
 
 1. [OBJECT:ToggleButtonContent]
@@ -298,6 +319,6 @@ Android에서는 .apk 파일 사이닝을 할 키를 만들어준 다음, Signin
     [/PARAM]
     [/OBJECT]
 
-1. 로그 파일을 배치하고, .pak 파일을 리빌드합니다. 그러면 이번 것과 앞으로 생성되는 모든 .pak 파일은 로그 파일에 나타난 파일 순서를 사용할 것입니다.
+1. 로그 파일을 배치하고, `.pak` 파일을 리빌드합니다. 그러면 이번 것과 앞으로 생성되는 모든 `.pak` 파일은 로그 파일에 나타난 파일 순서를 사용할 것입니다.
 
-프로덕션 환경에서는, 이 로그 파일을 소스 컨트롤에 체크 인 하고, 주기적으로 -fileopenlog 를 붙여 실행한 뒤 주기적으로 업데이트해 주는 것은 물론, 게임 발매 준비가 되면 마지막으로 한 번 더 실행시킨 뒤 포함시켜 줘야 할 것입니다.
+프로덕션 환경에서는, 이 로그 파일을 소스 컨트롤에 체크 인 하고, 주기적으로 `-fileopenlog` 를 붙여 실행한 뒤 주기적으로 업데이트해 주는 것은 물론, 게임 발매 준비가 되면 마지막으로 한 번 더 실행시킨 뒤 포함시켜 줘야 할 것입니다.

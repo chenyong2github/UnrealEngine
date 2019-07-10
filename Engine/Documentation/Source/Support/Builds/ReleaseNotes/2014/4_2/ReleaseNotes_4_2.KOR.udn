@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:6537038
 Title: 언리얼 엔진 4.2 릴리즈 노트
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.2
-order:2
-
+Order: 42
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
@@ -50,7 +49,7 @@ QA_APPROVED_UE4_BUILD_MINIMUM
 ![](vehicleProps2.png)(w:935)
 
 * 관련 문서입니다:
-	* [](Engine/Physics/Vehicles/VehcileContentCreation)
+	* [](Engine/Physics/Vehicles/VehicleContentCreation)
 	* [](Engine/Physics/Vehicles/VehicleUserGuide)
 
 #### 신규: 카메라 애니메이션 시스템!
@@ -163,7 +162,7 @@ QA_APPROVED_UE4_BUILD_MINIMUM
 * 함수의 노멀 부분을 재수정하여, 이제 모든 오브젝트 로테이션에 대해서도 정상 작동합니다. 라이팅과 스페큘러가 정확해집니다!
 	
 새 입력:
-* **UVs for Thickness (V2)**: 두께용 UV - 두께(tip 에서 base 까지) 그레디언트를 다른 UV 채널에 저장할 수 있습니다. 파이프 또는 가지 하나만이 아닌 전체 나무 길이를 포함시켜야 하는 나무의 경우 두께를 UV1 과 2 에 저장하면 됩니다.
+* **UVs for Thickness (V2)**: 두께용 UV - 두께(tip 에서 base 까지) 그레이디언트를 다른 UV 채널에 저장할 수 있습니다. 파이프 또는 가지 하나만이 아닌 전체 나무 길이를 포함시켜야 하는 나무의 경우 두께를 UV1 과 2 에 저장하면 됩니다.
 * **UVs for Texturing (V2)**: 텍스처용 UV - 파이프에 적용하고자 하는 텍스처에 대한 UV 입니다. 여기에는 수학식을 포함시켜 스케일을 적용하여 시차 적용량을 알려줘야 합니다. 3D 시차 보정 결과가 필요할 때만 필요한 옵션입니다.
 * **DeriveNormalZ (Bool)**: 노멀 Z 파생 - 체크하면 셰이더는 DeriveNormalZ 를 사용하여 노멀의 높이를 계산합니다. 훨씬 예쁜 '둥근' 모양이 납니다. False 인 경우, 0 을 중심으로 한 구체의 절반 높이 평균인 0.62 라 가정합니다. 노멀을 구하기 위해 CustomUV 를 사용하려는 경우, DeriveNormalZ 를 False 로 하거나, 스플라인 메시 중앙에 버텍스가 한 줄 필요합니다. 버텍스를 추가하지 않고 CustomUV 를 사용한 경우, 전체 메시에 걸쳐 노멀의 높이가 0 으로 나올 것입니다.
 * **AngleCorrectedNormals (Bool)**: 각도 보정 노멀 - 부가 노멀 텍스처 적용시 각도 보정된 노멀을 사용할지 여부입니다. 정확도가 높아지지만 비용도 비싸집니다.
@@ -281,10 +280,10 @@ GitHub 에서 작업중인 개발자들의 경우, 프로젝트를 Windows XP �
 
 **문서**
 * [](Engine/Physics/Vehicles/VehicleUserGuide) - 언리얼 엔진 4 에서의 비히클 셋업 방법 안내서입니다.
-* [](Engine/Physics/Vehicles/VehcileContentCreation) - 비히클용 아트 콘텐츠 셋업 방법입니다.
+* [](Engine/Physics/Vehicles/VehicleContentCreation) - 비히클용 아트 콘텐츠 셋업 방법입니다.
 * [](Engine/Rendering/ParticleSystems/UserGuide) - 캐스케이드 사용 안내서 업데이트입니다.
 * 텍스처 페인팅 - 에디터 안에서 텍스처와 버텍스 칠하기 기능입니다.
-* [](Engine/Audio) - 언리얼 엔진 4 의 청각 관련 모든 부분에 대한 참고서입니다.
+* [](Engine/Audio) - 언리얼 엔진 4 의 청각 관련 모든 부분에 대한 레퍼런스입니다.
 * 콘텐츠 예제 문서 정리 - 다양한 기능에 대한 콘텐츠 예제를 한 눈에 알아볼 수 있도록 목차 페이지를 새단장했습니다.
 
 **에디터내 튜토리얼**
@@ -799,7 +798,7 @@ GitHub 에서 작업중인 개발자들의 경우, 프로젝트를 Windows XP �
 * BOM 없는 파일은 이제 ANSI 가 아닌 UTF-8 로 간주됩니다.
 * TSharedPtr, TWeakPtr, TSharedRef 는 이제 이동을 인식합니다.
 * **TSharedPtr** 할당이 다수 들어있는 함수의 빌드 시간이 개선되었습니다.
-* 이름변경된 애셋을 블루프린트 CDO 에서 레퍼런싱하는 경우, 더이상 코드에 레퍼런싱되는 것에 대해 잘못된 경고가 나지 않습니다.
+* 이름변경된 애셋을 블루프린트 CDO 에서 참조하는 경우, 더이상 코드에 참조되는 것에 대해 잘못된 경고가 나지 않습니다.
 * raw 포인터 유형의 **UProperty** 를 **TAssetPtr** 로 변경할 수 있게 되었으며, 그 프로퍼티는 태깅된 프로퍼티 serialize 도중 고쳐질 것입니다.
 * **SpawnParameters** 칸에 약간의 문서를 추가했습니다. 관련된 블루프린트가 프레임 독립적인 turn/look 을 갖도록 리팩터링했습니다. **APawn::EnableInput** 의 문제를 고쳤습니다. 전략 게임 미니맵 버그를 고쳤습니다. 슈팅 게임 샘플의 로켓 런처(및 ammo)를 복귀시켰습니다.
 * 콘텐츠 브라우저에 월드 애셋 표시를 지원하고 월드를 보통의 애셋으로 취급하도록 인프라스트럭처를 업데이트했습니다.

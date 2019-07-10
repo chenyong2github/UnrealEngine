@@ -25,6 +25,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Regenerate Layers (RenderThread)"), STAT_Landsca
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Regenerate Layers Heightmap (GameThread)"), STAT_LandscapeLayersRegenerateHeightmaps, STATGROUP_Landscape, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Resolve Layers Heightmaps"), STAT_LandscapeLayersResolveHeightmaps, STATGROUP_Landscape, );
 
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Resolve Layers Texture"), STAT_LandscapeLayersResolveTexture, STATGROUP_Landscape, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Regenerate Layers Weightmap (GameThread)"), STAT_LandscapeLayersRegenerateWeightmaps, STATGROUP_Landscape, );
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Resolve Layers Weightmaps"), STAT_LandscapeLayersResolveWeightmaps, STATGROUP_Landscape, );

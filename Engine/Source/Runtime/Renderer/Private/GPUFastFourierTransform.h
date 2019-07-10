@@ -502,45 +502,45 @@ namespace GPUFFTComputeShaderUtils
 	class FComputeParamterValueSetter
 	{
 	public:
-		FComputeParamterValueSetter(FRHICommandList& CmdList, const FComputeShaderRHIParamRef& ShaderRHIParamRef) :
-			RHICmdList(&CmdList), ShaderRHI(&ShaderRHIParamRef) {}
+		FComputeParamterValueSetter(FRHICommandList& CmdList, FRHIComputeShader* InShaderRHI) :
+			RHICmdList(&CmdList), ShaderRHI(InShaderRHI) {}
 
 
 		template < typename TValue >
 		inline FComputeParamterValueSetter& operator()(FShaderParameter& Parameter, const TValue& Value)
 		{
-			SetShaderValue(*RHICmdList, *ShaderRHI, Parameter, Value);
+			SetShaderValue(*RHICmdList, ShaderRHI, Parameter, Value);
 			return *this;
 		}
 
 		template <typename TValue>
 		inline FComputeParamterValueSetter& operator()(FShaderParameter& Parameter, const TValue* Value, const uint32 NumElements)
 		{
-			SetShaderValueArray(*RHICmdList, *ShaderRHI, Parameter, Value, NumElements);
+			SetShaderValueArray(*RHICmdList, ShaderRHI, Parameter, Value, NumElements);
 			return *this;
 		}
 
-		inline FComputeParamterValueSetter& operator()(FShaderResourceParameter& TextureParameter, const FTextureRHIParamRef& TextureRHI)
+		inline FComputeParamterValueSetter& operator()(FShaderResourceParameter& TextureParameter, FRHITexture* TextureRHI)
 		{
 			if (TextureParameter.IsBound())
 			{
-				SetTextureParameter(*RHICmdList, *ShaderRHI, TextureParameter, TextureRHI);
+				SetTextureParameter(*RHICmdList, ShaderRHI, TextureParameter, TextureRHI);
 			}
 			return *this;
 		}
 
 
 		template <ESamplerFilter Filter, ESamplerAddressMode AddressMode>
-		inline FComputeParamterValueSetter& Set(FShaderResourceParameter& TextureParameter, FShaderResourceParameter& SamplerParameter, const FTextureRHIParamRef& TextureRHI)
+		inline FComputeParamterValueSetter& Set(FShaderResourceParameter& TextureParameter, FShaderResourceParameter& SamplerParameter, FRHITexture* TextureRHI)
 		{
-			SetTextureParameter(*RHICmdList, *ShaderRHI, TextureParameter, SamplerParameter,
+			SetTextureParameter(*RHICmdList, ShaderRHI, TextureParameter, SamplerParameter,
 				TStaticSamplerState<Filter, AddressMode, AddressMode, AddressMode>::GetRHI(), TextureRHI);
 			return *this;
 		}
 
 	private:
 		FRHICommandList* RHICmdList;
-		const FComputeShaderRHIParamRef* ShaderRHI;
+		FRHIComputeShader* ShaderRHI;
 	};
 
 	class FComputeParameterBinder
@@ -571,10 +571,10 @@ namespace GPUFFTComputeShaderUtils
 
 		// Factory method.
 		template <typename ComputeShaderT>
-		inline static FScopedUAVBind BindOutput(FRHICommandListImmediate& CmdList, ComputeShaderT& Shader, const FUnorderedAccessViewRHIRef& BufferUAV)
+		inline static FScopedUAVBind BindOutput(FRHICommandListImmediate& CmdList, ComputeShaderT* Shader, const FUnorderedAccessViewRHIRef& BufferUAV)
 		{
-			const FComputeShaderRHIParamRef ShaderRHI = Shader.GetComputeShader();
-			const uint32 BaseIndex = Shader.DestinationResourceParamter().GetBaseIndex();
+			FRHIComputeShader* ShaderRHI = Shader->GetComputeShader();
+			const uint32 BaseIndex = Shader->DestinationResourceParameter().GetBaseIndex();
 			return FScopedUAVBind(CmdList, ShaderRHI, BaseIndex, BufferUAV);
 		}
 
@@ -589,14 +589,14 @@ namespace GPUFFTComputeShaderUtils
 	private:
 		FScopedUAVBind();
 
-		FScopedUAVBind(FRHICommandListImmediate& CmdList, const FComputeShaderRHIParamRef ShaderRHI, const uint32 BaseIndex, const FUnorderedAccessViewRHIRef& BufferUAV)
+		FScopedUAVBind(FRHICommandListImmediate& CmdList, FRHIComputeShader* ShaderRHI, const uint32 BaseIndex, const FUnorderedAccessViewRHIRef& BufferUAV)
 			:ComputeShader(ShaderRHI), RHICmdList(&CmdList), Index(BaseIndex)
 		{
 			RHICmdList->SetUAVParameter(ComputeShader, Index, BufferUAV);
 		}
 
 
-		const FComputeShaderRHIParamRef ComputeShader;
+		FRHIComputeShader* ComputeShader;
 		FRHICommandListImmediate* RHICmdList;
 		uint32 Index;
 	};

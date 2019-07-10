@@ -3,11 +3,11 @@
 
 #include "PhysXCookHelper.h"
 #include "PhysXSupport.h"
-#include "Physics/IPhysXCookingModule.h"
+#include "IPhysXCookingModule.h"
 
 #if WITH_PHYSX
 
-#include "Physics/IPhysXCooking.h"
+#include "IPhysXCooking.h"
 
 FPhysXCookHelper::FPhysXCookHelper(IPhysXCookingModule* InPhysXCookingModule)
 	: PhysXCookingModule(InPhysXCookingModule)

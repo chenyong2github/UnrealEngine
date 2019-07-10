@@ -13,6 +13,9 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDebugSafeZoneChanged, const FMargin&, bool);
 
 class FActiveTimerHandle;
+#if WITH_ACCESSIBILITY
+class FSlateAccessibleMessageHandler;
+#endif
 class FSlateApplicationBase;
 class FWidgetPath;
 class IToolTip;
@@ -134,6 +137,13 @@ public:
 	virtual TSharedPtr<SWindow> GetActiveTopLevelWindow() const = 0;
 
 	/**
+	 * Get a list of all top-level windows in the application, excluding virtual windows.
+	 *
+	 * @return An array of all current top-level SWindows.
+	 */
+	virtual const TArray<TSharedRef<SWindow>> GetTopLevelWindows() const = 0;
+
+	/**
 	 * Gets the global application icon.
 	 *
 	 * @return The icon.
@@ -228,6 +238,15 @@ public:
 
 	/** @return	Returns true if there are any pop-up menus summoned */
 	virtual bool AnyMenusVisible() const = 0;
+
+#if WITH_ACCESSIBILITY
+	/** 
+	 * Accessor for the accessible message handler. One must always exist, even if it's never activated.
+	 *
+	 * @return A reference to the assigned accessible message handler
+	 */
+	TSharedRef<FSlateAccessibleMessageHandler> GetAccessibleMessageHandler() const { return AccessibleMessageHandler; }
+#endif
 protected:
 	/**
 	 * Implementation of GetMouseCaptor which can be overridden without warnings.
@@ -573,6 +592,11 @@ public:
 #endif
 
 protected:
+#if WITH_ACCESSIBILITY
+	/** Manager for widgets and application to interact with accessibility API */
+	TSharedRef<FSlateAccessibleMessageHandler> AccessibleMessageHandler;
+#endif
+
 	/** multicast delegate to broadcast when a global invalidate is requested */
 	FOnGlobalInvalidate OnGlobalInvalidateEvent;
 

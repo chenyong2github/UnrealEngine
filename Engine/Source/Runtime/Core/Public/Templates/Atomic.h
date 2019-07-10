@@ -154,6 +154,27 @@ namespace UE4Atomic_Private
 		return *(const T*)&Result;
 	}
 
+	template <typename T>
+	FORCEINLINE T AndExchange(volatile T* Element, T AndValue)
+	{
+		auto Result = FPlatformAtomics::InterlockedAnd((volatile TUnderlyingIntegerType_T<T>*)Element, (TUnderlyingIntegerType_T<T>)AndValue);
+		return *(const T*)&Result;
+	}
+
+	template <typename T>
+	FORCEINLINE T OrExchange(volatile T* Element, T OrValue)
+	{
+		auto Result = FPlatformAtomics::InterlockedOr((volatile TUnderlyingIntegerType_T<T>*)Element, (TUnderlyingIntegerType_T<T>)OrValue);
+		return *(const T*)&Result;
+	}
+
+	template <typename T>
+	FORCEINLINE T XorExchange(volatile T* Element, T XorValue)
+	{
+		auto Result = FPlatformAtomics::InterlockedXor((volatile TUnderlyingIntegerType_T<T>*)Element, (TUnderlyingIntegerType_T<T>)XorValue);
+		return *(const T*)&Result;
+	}
+
 	template <typename T, bool bIsVoidPointer, bool bIsIntegral, bool bCanUsePlatformAtomics>
 	struct TAtomicBaseType
 	{
@@ -341,13 +362,57 @@ public:
 	/**
 	 * Performs Element -= Value, returning a copy of the new value of the element.
 	 *
-	 * @param  Value  The value to add to the element.
+	 * @param  Value  The value to subtract from the element.
 	 *
 	 * @return A copy of the new, decremented value.
 	 */
 	FORCEINLINE T operator-=(DiffType Value)
 	{
 		return UE4Atomic_Private::SubExchange(&this->Element, Value) - Value;
+	}
+
+	/**
+	 * Increments Element and returns a copy of the previous value of the element.
+	 *
+	 * @return A copy of the previous, unincremented value.
+	 */
+	FORCEINLINE T IncrementExchange()
+	{
+		return UE4Atomic_Private::IncrementExchange(&this->Element);
+	}
+
+	/**
+	 * Decrements Element and returns a copy of the previous value of the element.
+	 *
+	 * @return A copy of the previous, undecremented value.
+	 */
+	FORCEINLINE T DecrementExchange()
+	{
+		return UE4Atomic_Private::DecrementExchange(&this->Element);
+	}
+
+	/**
+	 * Adds Value to Element and returns a copy of the previous value of the element.
+	 *
+	 * @param  Value  The value to add to the element.
+	 *
+	 * @return A copy of the previous, unincremented value.
+	 */
+	FORCEINLINE T AddExchange(DiffType Value)
+	{
+		return UE4Atomic_Private::AddExchange(&this->Element, Value);
+	}
+
+	/**
+	 * Subtracts Value from Element and returns a copy of the previous value of the element.
+	 *
+	 * @param  Value  The value to subtract from the element.
+	 *
+	 * @return A copy of the previous, undecremented value.
+	 */
+	FORCEINLINE T SubExchange(DiffType Value)
+	{
+		return UE4Atomic_Private::SubExchange(&this->Element, Value);
 	}
 
 protected:
@@ -377,7 +442,78 @@ template <typename T>
 struct TAtomicBase_Integral : public TAtomicBase_Arithmetic<T, T>
 {
 public:
-	// TODO: Bitwise ops
+	/**
+	 * Performs Element &= Value, returning a copy of the new value of the element.
+	 *
+	 * @param  Value  The value to and the element with.
+	 *
+	 * @return A copy of the new value.
+	 */
+	FORCEINLINE T operator&=(const T Value)
+	{
+		return UE4Atomic_Private::AndExchange(&this->Element, Value) & Value;
+	}
+
+	/**
+	 * Performs Element |= Value, returning a copy of the new value of the element.
+	 *
+	 * @param  Value  The value to or the element with.
+	 *
+	 * @return A copy of the new value.
+	 */
+	FORCEINLINE T operator|=(const T Value)
+	{
+		return UE4Atomic_Private::OrExchange(&this->Element, Value) | Value;
+	}
+
+	/**
+	 * Performs Element ^= Value, returning a copy of the new value of the element.
+	 *
+	 * @param  Value  The value to xor the element with.
+	 *
+	 * @return A copy of the new value.
+	 */
+	FORCEINLINE T operator^=(const T Value)
+	{
+		return UE4Atomic_Private::XorExchange(&this->Element, Value) ^ Value;
+	}
+
+	/**
+	 * Performs Element &= Value, returning a copy of the previous value of the element.
+	 *
+	 * @param  Value  The value to and the element with.
+	 *
+	 * @return A copy of the previous value.
+	 */
+	FORCEINLINE T AndExchange(const T Value)
+	{
+		return UE4Atomic_Private::AndExchange(&this->Element, Value);
+	}
+
+	/**
+	 * Performs Element |= Value, returning a copy of the previous value of the element.
+	 *
+	 * @param  Value  The value to or the element with.
+	 *
+	 * @return A copy of the previous value.
+	 */
+	FORCEINLINE T OrExchange(const T Value)
+	{
+		return UE4Atomic_Private::OrExchange(&this->Element, Value);
+	}
+
+	/**
+	 * Performs Element ^= Value, returning a copy of the previous value of the element.
+	 *
+	 * @param  Value  The value to xor the element with.
+	 *
+	 * @return A copy of the previous value.
+	 */
+	FORCEINLINE T XorExchange(const T Value)
+	{
+		return UE4Atomic_Private::XorExchange(&this->Element, Value);
+	}
+
 
 protected:
 	TAtomicBase_Integral() = default;

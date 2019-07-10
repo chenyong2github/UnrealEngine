@@ -143,6 +143,7 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	virtual bool ShowPaletteIconOnNode() const override{ return false; }
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
+	virtual FString GetPinMetaData(FName InPinName, FName InKey) override;
 	// End of UEdGraphNode interface
 
 	// UK2Node interface

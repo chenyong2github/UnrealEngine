@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6430399
 Availability: Public
 Title:动画工具
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona
@@ -35,7 +35,7 @@ tags:Animation Tools
 %Engine\Animation\Persona\Modes\Mesh:TopicCompact%
 %Engine\Animation\Persona\Modes\Animation:TopicCompact%
 %Engine\Animation\Persona\Modes\Graph:TopicCompact%
-%Engine\Physics/PhAT/PhysicsAssetEditor:TopicCompact%
+%Engine\Physics/PhysicsAssetEditor:TopicCompact%
 [/REGION]
 [/EXCERPT]
 

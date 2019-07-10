@@ -51,7 +51,21 @@ void glGetObjectLabelEXT (GLenum type, GLuint object, GLsizei bufSize, GLsizei *
 #endif
 
 
+#ifndef GL_TEXTURE_1D
+#define GL_TEXTURE_1D			0x0DE0
+#endif
 
+#ifndef GL_TEXTURE_1D_ARRAY
+#define GL_TEXTURE_1D_ARRAY		0x8C18
+#endif
+
+#ifndef GL_TEXTURE_2D_ARRAY
+#define GL_TEXTURE_2D_ARRAY		0x8C1A
+#endif
+
+#ifndef GL_TEXTURE_RECTANGLE
+#define GL_TEXTURE_RECTANGLE	0x84F5
+#endif
 
 /** Unreal tokens that maps to different OpenGL tokens by platform. */
 #ifndef GL_DRAW_FRAMEBUFFER
@@ -90,6 +104,11 @@ struct FHTML5OpenGL : public FOpenGLES2
 		// (The fastest way to upload dynamic vertex data in WebGL is to precreate a VBO with glBufferData() at load time,
 		// and use glBufferSubData() to upload to it each frame)
 		return true;
+	}
+
+	static FORCEINLINE void	CopyTexSubImage1D(GLenum Target, GLint Level, GLint XOffset, GLint X, GLint Y, GLsizei Width)
+	{
+		check(0);
 	}
 
 	static FORCEINLINE bool SupportsMapBuffer()							{ return false; }

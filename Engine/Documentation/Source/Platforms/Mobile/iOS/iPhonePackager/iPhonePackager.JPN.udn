@@ -1,0 +1,54 @@
+﻿INTSourceChangelist:6549201
+Availability: Public
+Crumbs: 
+Title: iPhone Packager
+Description: この操作ガイドでは、IPhonePackager ツールを使用して、テスト用に IPA を iOS デバイスに配置する方法について説明します。
+Type: 
+Version: 4.20
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: 
+topic-image: iOS_QS_Editor_TopicImage.png
+topic-icon: %ROOT%/ue4_icon.png
+
+
+![](IPhonePackager_Hero_Image.png "IPhonePackager_Hero_Image.png")
+
+Apple の Software Development Kit (SDK) の変更により、Windows ベースの PC を使用しているときに iTunes を使用して IPA をロードすることはできなくなりました。 Windows ベースの PC から IPA をロードするには、**IPhonePackager** ツールを使用する必要があります。下の操作ガイドでは、このツールの使用方法について説明します。
+
+[REGION:note]
+この操作ガイドでは、iOS ゲーム開発のドキュメントの [](Platforms/Mobile/iOS/QuickStart)セクションにあるすべての項目を完了した上で、iOS デバイスにデプロイできる IPA があることを前提としています。
+[/REGION]
+
+## ステップ
+
+次のセクションでは、iPhone Packager ツールの場所と、それを使用して UE4 iOS プロジェクトを iPhone または iPad にデプロイする方法について説明します。
+
+1.  まず、 **UE4 エンジン** のインストール フォルダの **「Engine\\Binaries\\DotNET\\IOS」** に移動し、 **IPhonePackager** ツールを見つける必要があります。
+	![IPhonePackager_Tool_Location .png](IPhonePackager_Tool_Location.png "IPhonePackager_Tool_Location.png")
+2.  次に、 **「IPhonePackager.exe」** を見つけて、ダブルクリックして開きます。
+	![](IPhonePackager_EXE-1.png "IPhonePackager_EXE-1.png")
+    
+3.  IPhonePackager ツールが開いたら、すぐに **[Cancel]** ボタンを押してツール全体を表示します。
+	![](IPhonePackager_CancelButton.png "IPhonePackager_CancelButton.png")
+    
+4.  IPhonePackager ツールが開いた状態で、上部にある 3 つのタブから **[Advanced Tools]** タブをクリックします。
+	![](IPhonePackager_Advanced_Tools.png "IPhonePackager_Advanced_Tools.png")
+    
+5.  [Advanced Tools] タブを開いた状態で、 **[Install IPA to hardware…]** オプションをクリックします。
+	![](IPhonePackager_InstallIPAToHardware.png "IPhonePackager_InstallIPAToHardware.png")
+    
+6.  インストールする IPA を見つけて選択し、**[Open]** ボタンをクリックしてインストール プロセスを開始します。 
+	![](IPhonePackager_LocateIPA.png "IPhonePackager_LocateIPA.png")
+    
+7.  IPhonePackager ツールを起動したときに開く**コマンドライン ウィンドウ**をクリックすると、IPA のインストールの進行状況が確認できます。
+	![](IPhonePackager_CommandLineWindow.png "IPhonePackager_CommandLineWindow.png")  
+    
+
+## 最終結果
+
+IPhonePackager ツールが完了すると、以下の図のように、iPhone または iPad にインストールされた IPA が表示されます。
+
+![IPhonePackager_EndResult.png](IPhonePackager_EndResult-resize283x502.png "IPhonePackager_EndResult.png")
+
+[](#)[](#)

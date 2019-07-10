@@ -185,20 +185,17 @@ TArray<FFunctionCaller>& UVariantObjectBinding::GetFunctionCallers()
 	return FunctionCallers;
 }
 
-void UVariantObjectBinding::RemoveFunctionCallers(const TArray<FFunctionCaller>& InFunctionCallers)
+void UVariantObjectBinding::RemoveFunctionCallers(const TArray<FFunctionCaller*>& InFunctionCallers)
 {
 	Modify();
 
 #if WITH_EDITORONLY_DATA
-	TSet<UK2Node_FunctionEntry*> EntryNodes;
-	for (const FFunctionCaller& Caller : InFunctionCallers)
+	// It's ok that we're passing pointers everywhere since the ultimate consumer of the "remove function callers"
+	// callstack is this very function, and we're the object that actually owns these FunctionCallers, so they
+	// won't go out of scope untill we touch them
+	FunctionCallers.RemoveAll([&](const FFunctionCaller& Item)
 	{
-		EntryNodes.Add(Caller.GetFunctionEntry());
-	}
-
-	FunctionCallers.RemoveAll([&EntryNodes](const FFunctionCaller& Item)
-	{
-		return EntryNodes.Contains(Item.GetFunctionEntry());
+		return InFunctionCallers.Contains(&Item);
 	});
 #endif
 }

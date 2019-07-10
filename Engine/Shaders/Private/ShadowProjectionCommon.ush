@@ -149,7 +149,7 @@ void CalcCubemapVectorAndFaceIndex(float3 NormalizedLightVector, float ShadowFil
 }
 
 /** Computes shadowing for a given world position from a cubemap shadowmap used on a point light. */
-float CubemapHardwarePCF(float3 WorldPosition, float3 LightPosition, float LightInvRadius, float DepthBias)
+float CubemapHardwarePCF(float3 WorldPosition, float3 LightPosition, float LightInvRadius, float DepthBias, float SlopeDepthBias, float MaxSlopeDepthBias)
 {
 	float Shadow = 1;
 
@@ -190,7 +190,7 @@ float CubemapHardwarePCF(float3 WorldPosition, float3 LightPosition, float Light
 
 		// Calculate the Z buffer value that would have been stored for this position in the shadow map
 		float CompareDistance = ShadowPosition.z / ShadowPosition.w;
-		float ShadowDepthBias = - DepthBias / ShadowPosition.w;
+		float ShadowDepthBias = - (DepthBias + SlopeDepthBias) / ShadowPosition.w;
 
 		Shadow = 0;
 

@@ -11,6 +11,7 @@
 #include "ResolveShader.h"
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
+#include "Math/PackedVector.h"
 
 static inline DXGI_FORMAT ConvertTypelessToUnorm(DXGI_FORMAT Format)
 {
@@ -231,7 +232,7 @@ void FD3D12CommandContext::ResolveTextureUsingShader(
 * @param SourceSurface - surface with a resolve texture to copy to
 * @param ResolveParams - optional resolve params
 */
-void FD3D12CommandContext::RHICopyToResolveTarget(FTextureRHIParamRef SourceTextureRHI, FTextureRHIParamRef DestTextureRHI, const FResolveParams& ResolveParams)
+void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FResolveParams& ResolveParams)
 {
 	if (!SourceTextureRHI || !DestTextureRHI)
 	{
@@ -527,7 +528,7 @@ void FD3D12DynamicRHI::RHIMultiGPULockstep(FRHIGPUMask GPUMask)
 	}
 }
 
-void FD3D12DynamicRHI::RHITransferTexture(FTexture2DRHIParamRef TextureRHI, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool PullData)
+void FD3D12DynamicRHI::RHITransferTexture(FRHITexture2D* TextureRHI, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool PullData)
 {
 	FD3D12Adapter& Adapter = GetAdapter();
 
@@ -569,87 +570,6 @@ void FD3D12DynamicRHI::RHITransferTexture(FTexture2DRHIParamRef TextureRHI, FInt
 
 	DEBUG_RHI_EXECUTE_COMMAND_LIST(this);
 }
-
-/**
-* Helper for storing IEEE 32 bit float components
-*/
-struct FFloatIEEE
-{
-	union
-	{
-		struct
-		{
-			uint32	Mantissa : 23, Exponent : 8, Sign : 1;
-		} Components;
-
-		float	Float;
-	};
-};
-
-/**
-* Helper for storing 16 bit float components
-*/
-struct FD3DFloat16
-{
-	union
-	{
-		struct
-		{
-			uint16	Mantissa : 10, Exponent : 5, Sign : 1;
-		} Components;
-
-		uint16	Encoded;
-	};
-
-	/**
-	* @return full 32 bit float from the 16 bit value
-	*/
-	operator float()
-	{
-		FFloatIEEE	Result;
-
-		Result.Components.Sign = Components.Sign;
-		Result.Components.Exponent = Components.Exponent - 15 + 127; // Stored exponents are biased by half their range.
-		Result.Components.Mantissa = FMath::Min<uint32>(FMath::FloorToInt((float)Components.Mantissa / 1024.0f * 8388608.0f), (1 << 23) - 1);
-
-		return Result.Float;
-	}
-};
-
-/**
-* Helper for storing DXGI_FORMAT_R11G11B10_FLOAT components
-*/
-struct FD3DFloatR11G11B10
-{
-	// http://msdn.microsoft.com/En-US/library/bb173059(v=VS.85).aspx
-	uint32 R_Mantissa : 6;
-	uint32 R_Exponent : 5;
-	uint32 G_Mantissa : 6;
-	uint32 G_Exponent : 5;
-	uint32 B_Mantissa : 5;
-	uint32 B_Exponent : 5;
-
-	/**
-	* @return decompress into three 32 bit float
-	*/
-	operator FLinearColor()
-	{
-		FFloatIEEE	Result[3];
-
-		Result[0].Components.Sign = 0;
-		Result[0].Components.Exponent = R_Exponent - 15 + 127;
-		Result[0].Components.Mantissa = FMath::Min<uint32>(FMath::FloorToInt((float)R_Mantissa / 32.0f * 8388608.0f), (1 << 23) - 1);
-		Result[1].Components.Sign = 0;
-		Result[1].Components.Exponent = G_Exponent - 15 + 127;
-		Result[1].Components.Mantissa = FMath::Min<uint32>(FMath::FloorToInt((float)G_Mantissa / 64.0f * 8388608.0f), (1 << 23) - 1);
-		Result[2].Components.Sign = 0;
-		Result[2].Components.Exponent = B_Exponent - 15 + 127;
-		Result[2].Components.Mantissa = FMath::Min<uint32>(FMath::FloorToInt((float)B_Mantissa / 64.0f * 8388608.0f), (1 << 23) - 1);
-
-		return FLinearColor(Result[0].Float, Result[1].Float, Result[2].Float);
-	}
-};
-
 
 static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 {
@@ -741,7 +661,7 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 	return BytesPerPixel;
 }
 
-TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FTextureRHIParamRef TextureRHI, FIntRect InRect, FIntRect& StagingRectOUT, FReadSurfaceDataFlags InFlags, D3D12_PLACED_SUBRESOURCE_FOOTPRINT &readbackHeapDesc)
+TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FRHITexture* TextureRHI, FIntRect InRect, FIntRect& StagingRectOUT, FReadSurfaceDataFlags InFlags, D3D12_PLACED_SUBRESOURCE_FOOTPRINT &readbackHeapDesc)
 {
 	FD3D12Device* Device = GetRHIDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
@@ -799,7 +719,11 @@ TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FTextureRHIPara
 	if (InTexture2D->IsCubemap())
 	{
 		uint32 D3DFace = GetD3D12CubeFace(InFlags.GetCubeFace());
-		Subresource = CalcSubresource(0, D3DFace, 1);
+		Subresource = CalcSubresource(InFlags.GetMip(), D3DFace, TextureRHI->GetNumMips());
+	}
+	else
+	{
+		Subresource = CalcSubresource(InFlags.GetMip(), 0, TextureRHI->GetNumMips());
 	}
 
 	D3D12_BOX* RectPtr = nullptr; // API prefers NULL for entire texture.
@@ -847,7 +771,7 @@ TRefCountPtr<FD3D12Resource> FD3D12DynamicRHI::GetStagingTexture(FTextureRHIPara
 	return TempTexture2D;
 }
 
-void FD3D12DynamicRHI::ReadSurfaceDataNoMSAARaw(FTextureRHIParamRef TextureRHI, FIntRect InRect, TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
+void FD3D12DynamicRHI::ReadSurfaceDataNoMSAARaw(FRHITexture* TextureRHI, FIntRect InRect, TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	FD3D12TextureBase* Texture = GetD3D12TextureFromRHITexture(TextureRHI);
 
@@ -865,16 +789,20 @@ void FD3D12DynamicRHI::ReadSurfaceDataNoMSAARaw(FTextureRHIParamRef TextureRHI, 
 	OutData.Empty();
 	OutData.AddUninitialized(SizeX * SizeY * BytesPerPixel);
 
+	uint32 BytesPerLine = BytesPerPixel * InRect.Width();
+	const uint32 XBytesAligned = Align((uint32)readBackHeapDesc.Footprint.Width * BytesPerPixel, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	uint32 SrcStart = StagingRect.Min.X * BytesPerPixel + StagingRect.Min.Y * XBytesAligned;
+
+	// Determine the subresource index.
+	uint32 Subresource = CalcSubresource(InFlags.GetMip(), 0, TextureRHI->GetNumMips());
+
 	// Lock the staging resource.
 	void* pData;
-	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, nullptr, &pData));
-
-	uint32 BytesPerLine = BytesPerPixel * InRect.Width();
-
-	const uint32 XBytesAligned = Align((uint32)readBackHeapDesc.Footprint.Width * BytesPerPixel, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	D3D12_RANGE ReadRange = { SrcStart, SrcStart + XBytesAligned * (SizeY - 1) + BytesPerLine };
+	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(Subresource, &ReadRange, &pData));
 
 	uint8* DestPtr = OutData.GetData();
-	uint8* SrcPtr = (uint8*)pData + StagingRect.Min.X * BytesPerPixel + StagingRect.Min.Y * XBytesAligned;
+	uint8* SrcPtr = (uint8*)pData + SrcStart;
 	for (uint32 Y = 0; Y < SizeY; Y++)
 	{
 		memcpy(DestPtr, SrcPtr, BytesPerLine);
@@ -985,11 +913,11 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 		FPlane	MinValue(0.0f, 0.0f, 0.0f, 0.0f),
 			MaxValue(1.0f, 1.0f, 1.0f, 1.0f);
 
-		check(sizeof(FD3DFloat16) == sizeof(uint16));
+		check(sizeof(FFloat16) == sizeof(uint16));
 
 		for (uint32 Y = 0; Y < Height; Y++)
 		{
-			FD3DFloat16* SrcPtr = (FD3DFloat16*)(In + Y * SrcPitch);
+			FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
 
 			for (uint32 X = 0; X < Width; X++)
 			{
@@ -1007,7 +935,7 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 
 		for (uint32 Y = 0; Y < Height; Y++)
 		{
-			FD3DFloat16* SrcPtr = (FD3DFloat16*)(In + Y * SrcPitch);
+			FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
 			FColor* DestPtr = Out + Y * Width;
 
 			for (uint32 X = 0; X < Width; X++)
@@ -1026,16 +954,16 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 	}
 	else if (Format == DXGI_FORMAT_R11G11B10_FLOAT)
 	{
-		check(sizeof(FD3DFloatR11G11B10) == sizeof(uint32));
+		check(sizeof(FFloat3Packed) == sizeof(uint32));
 
 		for (uint32 Y = 0; Y < Height; Y++)
 		{
-			FD3DFloatR11G11B10* SrcPtr = (FD3DFloatR11G11B10*)(In + Y * SrcPitch);
+			FFloat3Packed* SrcPtr = (FFloat3Packed*)(In + Y * SrcPitch);
 			FColor* DestPtr = Out + Y * Width;
 
 			for (uint32 X = 0; X < Width; X++)
 			{
-				FLinearColor Value = *SrcPtr;
+				FLinearColor Value = (*SrcPtr).ToLinearColor();
 
 				FColor NormalizedColor = Value.ToFColor(bLinearToGamma);
 				FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
@@ -1180,7 +1108,7 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 	}
 }
 
-void FD3D12DynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntRect InRect, TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags)
+void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRect, TArray<FColor>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	if (!ensure(TextureRHI))
 	{
@@ -1239,7 +1167,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntRe
 	ConvertRAWSurfaceDataToFColor((DXGI_FORMAT)FormatInfo.PlatformFormat, SizeX, SizeY, OutDataRaw.GetData(), SrcPitch, OutData.GetData(), InFlags);
 }
 
-void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous& RHICmdList, FTextureRHIParamRef TextureRHI, FIntRect InRect, TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
+void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous& RHICmdList, FRHITexture* TextureRHI, FIntRect InRect, TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
 {
 	FD3D12Device* Device = GetRHIDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
@@ -1315,7 +1243,11 @@ void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 	if (InTexture2D->IsCubemap())
 	{
 		uint32 D3DFace = GetD3D12CubeFace(InFlags.GetCubeFace());
-		Subresource = CalcSubresource(0, D3DFace, 1);
+		Subresource = CalcSubresource(InFlags.GetMip(), D3DFace, TextureRHI->GetNumMips());
+	}
+	else
+	{
+		Subresource = CalcSubresource(InFlags.GetMip(), 0, TextureRHI->GetNumMips());
 	}
 
 	// Setup the descriptions for the copy to the readback heap.
@@ -1396,7 +1328,7 @@ void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous
 	}
 }
 
-void FD3D12DynamicRHI::RHIMapStagingSurface(FTextureRHIParamRef TextureRHI, void*& OutData, int32& OutWidth, int32& OutHeight)
+void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, void*& OutData, int32& OutWidth, int32& OutHeight)
 {
 	FD3D12Resource* Texture = GetD3D12TextureFromRHITexture(TextureRHI)->GetResource();
 
@@ -1414,7 +1346,8 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FTextureRHIParamRef TextureRHI, void
 		GetRHIDevice()->GetCommandListManager().WaitForCompletion(SyncPoint);
 
 	void* pData;
-	HRESULT Result = Texture->GetResource()->Map(0, nullptr, &pData);
+	D3D12_RANGE ReadRange = { 0, Texture->GetDesc().Width };
+	HRESULT Result = Texture->GetResource()->Map(0, &ReadRange, &pData);
 	if (Result == DXGI_ERROR_DEVICE_REMOVED)
 	{
 		// When reading back to the CPU, we have to watch out for DXGI_ERROR_DEVICE_REMOVED
@@ -1433,7 +1366,7 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FTextureRHIParamRef TextureRHI, void
 
 		const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& readBackHeapDesc = DestTexture2D->GetReadBackHeapDesc();
 		OutData = pData;
-		OutWidth = readBackHeapDesc.Footprint.Width;
+		OutWidth = readBackHeapDesc.Footprint.RowPitch / BytesPerPixel;
 		OutHeight = readBackHeapDesc.Footprint.Height;
 
 		// MS: It seems like the second frame in some scenes comes into RHIMapStagingSurface BEFORE the copy to the staging texture, thus the readbackHeapDesc isn't set. This could be bug in UE4.
@@ -1447,14 +1380,14 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FTextureRHIParamRef TextureRHI, void
 	}
 }
 
-void FD3D12DynamicRHI::RHIUnmapStagingSurface(FTextureRHIParamRef TextureRHI)
+void FD3D12DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI)
 {
 	ID3D12Resource* Texture = GetD3D12TextureFromRHITexture(TextureRHI)->GetResource()->GetResource();
 
 	Texture->Unmap(0, nullptr);
 }
 
-void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, FIntRect InRect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex)
+void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect InRect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex)
 {
 	FD3D12Device* Device = GetRHIDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
@@ -1559,7 +1492,8 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, F
 
 	// Lock the staging resource.
 	void* pData;
-	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, nullptr, &pData));
+	D3D12_RANGE Range = { 0, MipBytesAligned };
+	VERIFYD3D12RESULT(TempTexture2D->GetResource()->Map(0, &Range, &pData));
 
 	// Presize the array
 	int32 TotalCount = SizeX * SizeY;
@@ -1581,7 +1515,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, F
 	TempTexture2D->GetResource()->Unmap(0, nullptr);
 }
 
-void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FTextureRHIParamRef TextureRHI, FIntRect InRect, FIntPoint ZMinMax, TArray<FFloat16Color>& OutData)
+void FD3D12DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRect InRect, FIntPoint ZMinMax, TArray<FFloat16Color>& OutData)
 {
 	FD3D12Device* Device = GetRHIDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();

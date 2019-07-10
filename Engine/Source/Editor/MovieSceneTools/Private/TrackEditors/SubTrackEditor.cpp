@@ -27,6 +27,8 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "MovieSceneTimeHelpers.h"
 
+#include "CommonMovieSceneTools.h"
+
 namespace SubTrackEditorConstants
 {
 	const float TrackHeight = 50.0f;
@@ -67,7 +69,6 @@ public:
 	{
 		return &SectionObject;
 	}
-
 	virtual FText GetSectionTitle() const override
 	{
 		if(SectionObject.GetSequence())
@@ -113,7 +114,8 @@ public:
 		int32 LayerId = InPainter.PaintSectionBackground();
 
 		ESlateDrawEffect DrawEffects = InPainter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-
+		
+		
 		TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
 		if (SectionRange.GetLowerBound().IsOpen() || SectionRange.GetUpperBound().IsOpen())
 		{
@@ -233,6 +235,23 @@ public:
 				DrawEffects,
 				FColor(200, 200, 200)
 			);
+
+
+			TSharedPtr<ISequencer> SequencerPtr = Sequencer.Pin();
+			if (InPainter.bIsSelected && SequencerPtr.IsValid())
+			{
+				FFrameTime CurrentTime = SequencerPtr->GetLocalTime().Time;
+				if (SectionRange.Contains(CurrentTime.FrameNumber))
+				{
+					UMovieScene* SubSequenceMovieScene = SectionObject.GetSequence()->GetMovieScene();
+					const FFrameRate DisplayRate = SubSequenceMovieScene->GetDisplayRate();
+					const FFrameRate TickResolution = SubSequenceMovieScene->GetTickResolution();
+					const FFrameNumber CurrentFrameNumber = ConvertFrameTime(CurrentTime * SectionObject.OuterToInnerTransform(), TickResolution, DisplayRate).FloorToFrame();
+
+					DrawFrameNumberHint(InPainter, CurrentTime, CurrentFrameNumber.Value);
+				}
+			}
+
 		}
 		else if (UMovieSceneSubSection::GetRecordingSection() == &SectionObject)
 		{
@@ -389,9 +408,7 @@ private:
 	/** Display name of the section */
 	FText DisplayName;
 
-	/** The section we are visualizing */
 	UMovieSceneSubSection& SectionObject;
-
 	/** Sequencer interface */
 	TWeakPtr<ISequencer> Sequencer;
 
@@ -636,9 +653,8 @@ void FSubTrackEditor::HandleAddSubTrackMenuEntryExecute()
 
 	if (GetSequencer().IsValid())
 	{
-		GetSequencer()->OnAddTrack(NewTrack);
+		GetSequencer()->OnAddTrack(NewTrack, FGuid());
 	}
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 }
 
 /** Helper function - get the first PIE world (or first PIE client world if there is more than one) */

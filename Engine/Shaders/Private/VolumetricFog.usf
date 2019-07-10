@@ -192,10 +192,11 @@ float InverseSquaredLightDistanceBiasScale;
 
 void InjectShadowedLocalLightPS(
 	FWriteToSliceGeometryOutput Input,
-	in float4 SvPosition : SV_Position,
 	out float4 OutScattering : SV_Target0
 	)
 {
+	float4 SvPosition = Input.Vertex.Position;
+
 	OutScattering = 0;
 
 	uint3 GridCoordinate = uint3(SvPosition.xy, Input.LayerIndex);

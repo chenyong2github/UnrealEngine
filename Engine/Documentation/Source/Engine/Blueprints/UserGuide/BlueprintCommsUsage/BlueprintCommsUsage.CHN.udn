@@ -21,7 +21,6 @@ topic-image:Engine/Blueprints/UserGuide/bp_comms_topic.png
 
 使用蓝图时，如需在蓝图之间传递或共享信息，需要使用一种形式的 **蓝图通信**。可根据需求使用数种不同类型的通信。此页面讲述最常用的方法并提供帮助链接和使用情况范例。 
 
-(#DirectBlueprintCommunication)
 ## 直接蓝图通信
 
 ![](Engine/Blueprints/UserGuide/BlueprintCommsUsage/BPComHowTo/2_9.png)
@@ -32,7 +31,6 @@ topic-image:Engine/Blueprints/UserGuide/bp_comms_topic.png
 请查看 **[](Engine/Blueprints/UserGuide/BlueprintComms)** 以了解详情。 
 [/REGION]
 
-(#WhentoUseIt...)
 ### 何时使用
 
 以下范例讲述何时使用 **直接蓝图通信**： 
@@ -45,7 +43,6 @@ topic-image:Engine/Blueprints/UserGuide/bp_comms_topic.png
 [/REGION]
 
 	
-(#EventDispatchers)
 ## 事件分配器
 
 ![](OpenDoorEventDispatch.png)
@@ -58,7 +55,6 @@ topic-image:Engine/Blueprints/UserGuide/bp_comms_topic.png
 可在 **[](Engine/Blueprints/UserGuide/EventDispatcher)** 中查阅详细内容。 
 [/REGION]
 
-(#WhentoUseIt...)
 ### 何时使用
  
 **事件分配器** 使用时机的例子： 
@@ -75,7 +71,6 @@ topic-image:Engine/Blueprints/UserGuide/bp_comms_topic.png
 [/REGION]
 
 
-(#BlueprintInterfaces)
 ## 蓝图接口
 
 ![](InterfaceNodes.png)
@@ -90,7 +85,6 @@ topic-image:Engine/Blueprints/UserGuide/bp_comms_topic.png
 可在 **[](Engine/Blueprints/UserGuide/Types/Interface/UsingInterfaces)** 中查阅详细内容。 
 [/REGION]
 
-(#WhentoUseIt...)
 ### 何时使用
 
 在以下情况实例中，**蓝图接口** 非常适合于通信： 
@@ -105,7 +99,6 @@ topic-image:Engine/Blueprints/UserGuide/bp_comms_topic.png
 [/REGION]
 
 
-(#BlueprintCasting)
 ## 蓝图投射
 
 ![](Engine/Blueprints/UserGuide/BlueprintCommsUsage/BPComHowTo/Event6.png)

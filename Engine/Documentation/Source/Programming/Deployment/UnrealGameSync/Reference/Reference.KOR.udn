@@ -1,4 +1,4 @@
-INTSourceChangelist:4527375
+INTSourceChangelist:6368681
 Availability: Public
 Crumbs: 
 Title: UGS 레퍼런스
@@ -27,6 +27,7 @@ UGS 배포 방식은 직접 선택할 수 있지만, 유의해야 할 사항이 
 
 내부적으로 언리얼 프로젝트를 디플로이하는 데 사용하는 툴은 다음과 같습니다.
 
+[REGION:simpletable]
 | **툴** | **설명** |
 | --- | --- |
 | **UnrealGameSync (UGS)** | **Perforce** 에서 동기화 및 빌드하는 메인 툴입니다. |
@@ -34,6 +35,7 @@ UGS 배포 방식은 직접 선택할 수 있지만, 유의해야 할 사항이 
 | **UnrealGameSyncMetadataServer** | [INCLUDE:#excerpt_0] |
 | **Installer** | [INCLUDE:#excerpt_1] |
 | **PostBadgeStatus** | CIS 결과를 UGS 가 읽어오는 데이터베이스에 밀어 넣는 작은 유틸리티입니다. |
+[/REGION]
 
 [COMMENT:none]
 [EXCERPT:excerpt_1]
@@ -110,7 +112,7 @@ Metadata Server 는 반드시 IIS 7.0 이상 및 .NET 4.0 이 설치된 Windows 
 같은 제약이 로컬 빌드와 함께 압축 에디터 바이너리에도 적용되므로, UGS 는 코드 변경 이후 그에 일치하는 바이너리가 없으면 변경목록을 (콘텐츠일지라도) 동기화할 수 없습니다. 수정한 파일이 `*.cpp`, `*.h`, `*.cs`, `*.usf`, `*.ush` 만 아니라면 기존 제출한 바이너리를 사용하여 콘텐츠 전용 변경은 동기화 허용합니다.
 [/REGION]
 
-자유롭게 사용할 수 있도록 제공해 드린 예제 [BuildGraph](Programming/Development/BuildGraph) 스크립트를 통해 빌드 머신에서 올바른 포맷으로 에디터 바이너리를 생성하고 제출하는 법을 살펴볼 수 있습니다. 샘플 스크립트 위치는 다음과 같습니다.  
+자유롭게 사용할 수 있도록 제공해 드린 예제 [BuildGraph](Programming/BuildTools/AutomationTool/BuildGraph) 스크립트를 통해 빌드 머신에서 올바른 포맷으로 에디터 바이너리를 생성하고 제출하는 법을 살펴볼 수 있습니다. 샘플 스크립트 위치는 다음과 같습니다.  
 
 `Engine/Build/Graph/Examples/BuildEditorAndTools.xml`
 
@@ -148,7 +150,8 @@ BuildEditorAndTools.xml 사용법 관련 추가 정보는 파일 시작 부분�
             +DescriptionBadges=(Pattern="(?i)#\\s*jira\\s*:?\\s+([A-Za-z]+-[0-9]+)", Name="$1", Group="Jira", Color="#c0c0c0", HoverColor="#e0e0e0", Url="https://jira.it.yourcompany.net/browse/$1")
     
     이 예제에서 사용된 어트리뷰트는 다음과 같습니다.
-    
+
+    [REGION:simpletable]
     | 어트리뷰트 | 설명 |
     | --- | --- |
     | **Pattern** | 패턴 - 일치할 정규표현식을 지정합니다. 일치 텍스트 일부분을 캡처할 수 있으며, 나중에 대체할 수 있습니다. |
@@ -157,6 +160,7 @@ BuildEditorAndTools.xml 사용법 관련 추가 정보는 파일 시작 부분�
     | **Color** | 색 - 배지의 색을 16 진 RGB 값으로 지정합니다. |
     | **HoverColor** | 호버 색 - 배지에 마우스 커서를 올렸을 때의 색을 16 진 RGB 값으로 지정합니다. |
     | **Url** | 배지를 클릭하면 C# Process.Open 으로 열 경로를 지정합니다. |
+    [/REGION]
     
 *   특정 브랜치에 해당하는 상태 패널 색과 함께 "오늘의 메시지"를 추가합니다.
     
@@ -174,8 +178,7 @@ BuildEditorAndTools.xml 사용법 관련 추가 정보는 파일 시작 부분�
     
     마지막으로 `:icon:` 아이콘 문법도 있으나 현재는 `:alert:` 만 지원합니다.
 
-*   CIS 표시 열을 사용자 정의합니다.
-    
+*   CIS 표시 열을 사용자 정의합니다.    
 
         [Default]
         ColumnWidth_CIS=580

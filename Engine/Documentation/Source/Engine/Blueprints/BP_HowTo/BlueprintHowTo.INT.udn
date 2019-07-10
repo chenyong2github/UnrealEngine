@@ -17,6 +17,25 @@ If you are new to [](Engine/Blueprints) in Unreal Engine 4, these Blueprint How 
 
 When you are ready and have an understanding of the core aspects behind Blueprints, Gameplay oriented Blueprint How To's can be found in the [](Gameplay) which illustrate gameplay related elements like Spawning/Destroying Actors, Respawning (OnDestroyed), Using Timers, and more. 
 
+<!-- removing for now
+[REGION:tip]
+If you are new to Blueprints or Visual Scripting, you may want to also check out the **Blueprint Essential Concepts** video tutorial series. This series covers the fundamentals and core concepts to working with Blueprints in Unreal Engine 4, how Blueprints relate to traditional programming, a tour of the Blueprint Editor UI, Components, Graphs, and some of the caveats to using Blueprint. 
+[OBJECT:TopicCompact]
+	[PARAM:image]
+		![](BlueprintEssentialsUA.png)
+	[/PARAM]
+	[PARAM:icon]
+		![](%ROOT%/blueprint_icon.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+		Blueprint Essential Concepts Class
+	[/PARAM]
+	[PARAMLITERAL:path]
+		https://academy.unrealengine.com/Class/blueprint-essential-concepts
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
 
 ## Beginner
 [DIR(output:"fancy" type:"how-to" skill:"Beginner" parent:"Engine/Blueprints/BP_HowTo" org:"hierarchy")]

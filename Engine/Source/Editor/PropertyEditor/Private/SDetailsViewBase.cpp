@@ -23,6 +23,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Classes/EditorStyleSettings.h"
 #include "DetailLayoutHelpers.h"
+#include "EditConditionParser.h"
 
 SDetailsViewBase::~SDetailsViewBase()
 {
@@ -430,6 +431,16 @@ void SDetailsViewBase::SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly InIsPro
 	IsPropertyReadOnlyDelegate = InIsPropertyReadOnly;
 }
 
+void SDetailsViewBase::SetIsCustomRowVisibilityFilteredDelegate(FIsCustomRowVisibilityFiltered InIsCustomRowVisibilityFilteredDelegate)
+{
+	IsCustomRowVisibilityFilteredDelegate = InIsCustomRowVisibilityFilteredDelegate;
+};
+
+void SDetailsViewBase::SetIsCustomRowVisibleDelegate(FIsCustomRowVisible InIsCustomRowVisible)
+{
+	IsCustomRowVisibleDelegate = InIsCustomRowVisible;
+}
+
 void SDetailsViewBase::SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled IsPropertyEditingEnabled)
 {
 	IsPropertyEditingEnabledDelegate = IsPropertyEditingEnabled;
@@ -482,6 +493,16 @@ TSharedPtr<FAssetThumbnailPool> SDetailsViewBase::GetThumbnailPool() const
 	return ThumbnailPool;
 }
 
+TSharedPtr<FEditConditionParser> SDetailsViewBase::GetEditConditionParser() const
+{
+	if (!EditConditionParser.IsValid())
+	{
+		EditConditionParser = MakeShareable(new FEditConditionParser);
+	}
+
+	return EditConditionParser;
+}
+
 void SDetailsViewBase::NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	OnFinishedChangingPropertiesDelegate.Broadcast(PropertyChangedEvent);
@@ -531,6 +552,20 @@ bool SDetailsViewBase::IsPropertyVisible( const FPropertyAndParent& PropertyAndP
 bool SDetailsViewBase::IsPropertyReadOnly( const FPropertyAndParent& PropertyAndParent ) const
 {
 	return IsPropertyReadOnlyDelegate.IsBound() ? IsPropertyReadOnlyDelegate.Execute(PropertyAndParent) : false;
+}
+
+bool SDetailsViewBase::IsCustomRowVisibilityFiltered() const
+{
+	if (!IsCustomRowVisibleDelegate.IsBound())
+	{
+		return false;
+	}
+	return IsCustomRowVisibilityFilteredDelegate.IsBound() ? IsCustomRowVisibilityFilteredDelegate.Execute() : true;
+}
+
+bool SDetailsViewBase::IsCustomRowVisible(FName InRowName, FName InParentName) const
+{
+	return IsCustomRowVisibleDelegate.IsBound() ? IsCustomRowVisibleDelegate.Execute(InRowName, InParentName) : true;
 }
 
 TSharedPtr<IPropertyUtilities> SDetailsViewBase::GetPropertyUtilities()
@@ -1035,7 +1070,7 @@ void SDetailsViewBase::UpdateFilteredDetails()
 
 	FDetailNodeList InitialRootNodeList;
 	
-	NumVisbleTopLevelObjectNodes = 0;
+	NumVisibleTopLevelObjectNodes = 0;
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 
 	if( GetDefault<UEditorStyleSettings>()->bShowAllAdvancedDetails )
@@ -1070,7 +1105,7 @@ void SDetailsViewBase::UpdateFilteredDetails()
 				if (LayoutRoots.Num() > 0)
 				{
 					// A top level object nodes has a non-filtered away root so add one to the total number we have
-					++NumVisbleTopLevelObjectNodes;
+					++NumVisibleTopLevelObjectNodes;
 
 					InitialRootNodeList.Append(LayoutRoots);
 				}

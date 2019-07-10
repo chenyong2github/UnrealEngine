@@ -87,8 +87,6 @@
 	#define VULKAN_HAS_PHYSICAL_DEVICE_PROPERTIES2				0
 #endif
 
-#define VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS						1
-
 #define VULKAN_ENABLE_AGGRESSIVE_STATS							0
 
 #define VULKAN_REUSE_FENCES										1
@@ -174,6 +172,13 @@
 #else
 	#define VULKAN_SUPPORTS_DEBUG_UTILS							0
 #endif
+
+#ifdef VK_EXT_memory_priority
+#define VULKAN_SUPPORTS_MEMORY_PRIORITY							1
+#else
+#define VULKAN_SUPPORTS_MEMORY_PRIORITY							0
+#endif
+
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVulkanRHI, Log, All);

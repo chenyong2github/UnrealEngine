@@ -130,7 +130,7 @@ public:
 					}
 				}
 
-				for (FInputActionKeyMapping ActionMapping : InputSettings->ActionMappings)
+				for (FInputActionKeyMapping ActionMapping : InputSettings->GetActionMappings())
 				{
 					if (ActionMapping.Key.IsGamepadKey())
 					{
@@ -138,7 +138,7 @@ public:
 					}
 				}
 
-				for (FInputAxisKeyMapping AxisMapping : InputSettings->AxisMappings)
+				for (FInputAxisKeyMapping AxisMapping : InputSettings->GetAxisMappings())
 				{
 					if (AxisMapping.Key.IsGamepadKey() || AxisMapping.Key == EKeys::MouseX || AxisMapping.Key == EKeys::MouseY)
 					{

@@ -1,7 +1,11 @@
-﻿Availability:Public
-Title: 动画合成物
-Crumbs: %ROOT%, Engine, Engine/Animation
-Description: 动画合成物是把多个动画组合到一起并将它们作为独立单元对待的一种方法。
+﻿INTSourceChangelist:6411933
+Availability:Public
+Title: 动画合成
+Description:动画合成作为一种将多个动画组合在一起将它们作为单个单元进行处理的方法。
+version: 4.9
+tags:Animation Assets
+type:overview
+topic-image:AnimationgComposite_topic.png
 
 [REGION:fullwidth]
 ![](AnimationCompositeHeader.png)
@@ -9,60 +13,107 @@ Description: 动画合成物是把多个动画组合到一起并将它们作为�
 
 [TOC(start:2 end:2)]
 
-## 概述
 
-在某些情况下，有时您可能需要取入多个动画序列，并将它们"组合"到一起，以便可以将它们作为一个动画序列应用，而不是许多个序列。这就是 **动画合成物** 的作用。Animation Composite(动画合成物)是一种动画资源，用于让您把多个动画组合到一起，并将它们当做一个独立的单元对待。然而，合成物仅是简单地附加动画，不提供任何动画混合功能。
+在某些情况下，您可能会遇到这样的情况：您需要将多个动画序列拼接在一起，这样就可以将它们当作一个序列而不是多个序列来使用。这正是 **动画合成** 的目的。动画合成是一种动画资源，专门设计用于允许您将多个动画组合在一起以作为单个单元进行处理。但是，请注意合成只是追加动画；它不提供任何混合能力。
 
-动画合成物也可以具有它们自己的一套[通知](Engine/Animation/Sequences\Notifies)和[曲线](Engine/Animation/Sequences\Curves)。关于这些主题的更多信息，请参照各自相关的文档。
+[REGION:note]
+动画合成还可以有自己的[通知](Engine/Animation/Sequences\Notifies)组和[曲线](Engine/Animation/Sequences\Curves)组。 
+[/REGION]
 
-## 创建一个合成物
+## 创建合成
 
-创建一个新的动画合成物，就像在 **内容浏览器** 中添加一个新的资源那样简单。
+在 **内容浏览器（Content Browser）** 中，可以通过**单击右键**（或选择 **新增（Add New）**，选择 **动画（Animation）**，然后从上下文菜单中选择 **动画合成（Animation Composite）**，创建一个新的动画合成。 
 
 ![](AnimationCompositeContextMenu.png)
 
-[REGION:caption]
-在 **内容浏览器** 中右击，并从关联菜单中选择  **Animation（动画） > Animation Composite（动画合成物）** 。另一种方法是使用 ![](button_NewAsset.png) 按钮。
-[/REGION]
-
-您还需要指定和您的新合成物相关联的[骨架资源](Engine/Animation/Skeleton)。
+您还需要指定与新的动画合成关联的[骨架资源](Engine/Animation/Skeleton)。 
 
 ![](PickSkeleton.png)
 
 [REGION:caption]
-从您的项目中提供的骨架列表中选择该骨架：
+从项目中可用的框架列表中选择框架。
 [/REGION]
 
-然后，您需要命名您的合成物。
+然后，需要命名合成。
 
 ![](NameComposite.png)
 
-现在就创建好了您的合成物，并可以进行编辑了!
+现在已创建合成，可以进行编辑！
 
-## 编辑器合成物
+## 编辑合成物
 
-双击一个合成物，将会以动画模式打开Persona，且选中了该合成物以供进行编辑。
+ **双击** 合成物将以动画模式打开Persona，同时将选定此合成物，可以进行编辑。
 
-![](AnimationCompositeEdit.png)(w:500)
+![](AnimationCompositeEdit.png)(w:600)
 
-在动画编辑器面板的顶部，您将看到Composite Track(合成轨迹)。
+[REGION:caption]
+将在位于 **Persona** 右下角的 **资源浏览器（Asset Browser）** 中突出显示此动画合成。
+[/REGION]
+
+在 **资源浏览器（Asset Browser）** 面板顶部，您将看到 **合成轨迹（Composite Tracks）**。
 
 ![](CompositeTrack.png)(w:600)
 
-要想向该合成物添加新的动画序列，只需将这些序列简单地拖拽到合成轨迹中即可。随着您将更多地动画序列拖拽得到该合成轨迹中，这些序列将自动地附加起来。
+要将动画序列添加到此合成物，将它们从 **资源浏览器（Asset Browser）** 中拖放至 **合成轨迹（Composite Tracks）** 中。
 
-![](AddingAnimationsToComposite.png)(w:700)
+![](AddingAnimationsToComposite.png)(w:900)
 
-[REGION:note]
-当您将一个资源从资源浏览器拖出时，您可以看到资源编辑器变为灰掉状态，这是警告您 **当前正在预览另一个资源** 。这是正常的行为。只需继续将那个动画序列拖拽到该合成轨迹上即可。
+[REGION:caption]
+当您拖入更多序列时，它们将自动进行附加。
 [/REGION]
 
-你可以通过拖拽动画序列来沿着合成轨迹移动它们，可以通过右击这些轨迹并从关联菜单中选择 **Delete Segment（删除片段）** 来把它们从轨迹中删除。
+您可以通过拖动序列来沿 **合成轨迹（Composite Tracks）** 移动它们。您还可以通过 **右键单击** 轨迹并从上下文菜单中选择 **删除分段（Delete Segment）** 来删除轨迹。
 
 ![](DeleteSegment.png)
 
 ## 使用合成物
 
-一旦组合完成，在动画蓝图的动画图表中将仅把该合成物作为一个动画序列对待。
+一旦组合好，动画合成就像[动画蓝图](Engine\Animation\AnimBlueprints)的动画图表中的[动画序列](Engine\Animation\Sequences)一样进行处理。
 
 ![](PlayComposite.png)
+
+[REGION:note]
+有关 **动画蓝图（Animation Blueprints）** 中的动画播放的详细信息，请参阅[](Engine/Animation/Sequences/UserGuide)。
+[/REGION]
+
+您还可以在另一动画合成中或[**AnimMontage**](Engine/Animation/AnimMontage)中嵌入动画合成。
+
+下面，创建了一个动画合成，然后将它放置在了AnimMontage中。 
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+qm0KEa8K1A8
+[/PARAMLITERAL]
+[/OBJECT]
+
+
+
+## 动画资源详细信息
+
+当在 **Persona** 中打开动画合成时，可以在 **动画资源详细信息（Anim Asset Details）** 面板中调整几个属性，这些属性可以决定如何处理此资源。这些属性包括调整播放速度、将任何元数据指定给此资源以及下表中列出的其他属性。 
+
+![](AnimAssetDetailsComposite.png)
+
+|合成属性||
+|---|---|
+|[REGION:tablesection]Additive设置（Additive Settings）[/REGION]||
+|**预览基础姿势（Preview Base Pose）**| Additive混合空间的预览基础姿势。|
+|[REGION:tablesection]长度（Length）[/REGION]||
+|**序列长度（Sequence Length）**| 以1.0的速度播放时此动画序列的长度（秒）（不可调整）。|
+|[REGION:tablesection]动画（Animation）[/REGION]||
+|**率比例（Rate Scale）**| 整体调整此动画播放率的数字。|
+|**骨架（Skeleton）**| 此资源可播放骨架的指针（不可调整）。|
+|[REGION:tablesection]元数据（Meta Data）[/REGION]||
+|**元数据（Meta Data）**| 它是可以与资源一起保存的元数据。元数据是派生自动画元数据类的可设为蓝图类。这允许您将自定义元数据添加到动画资源（动画序列、动画蒙太奇、动画合成和混合空间全部受到支持）。您可以在C++中通过调用“GetMetaData()”方法或在动画蒙太奇上使用“GetSectionMetaData()”来查询动画资源中的数据。|
+|[REGION:tablesection]缩略图（Thumbnail）[/REGION]||
+| **轨道俯仰角（Orbit Pitch）**| 围绕资源的轨道摄像机的俯仰角。|
+| **轨道偏航角（Orbit Yaw）** | 围绕资源的轨道摄像机的偏航角。|
+| **轨道缩放（Orbit Zoom）** | 从边界球体到资源的距离的偏移量。
+
+

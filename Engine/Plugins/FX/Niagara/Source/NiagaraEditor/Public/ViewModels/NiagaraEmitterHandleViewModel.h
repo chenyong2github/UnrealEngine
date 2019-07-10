@@ -47,12 +47,6 @@ public:
 	/** Gets the text representation of the emitter handle name. */
 	NIAGARAEDITOR_API FText GetNameText() const;
 
-	/** Gets the text representation of the source emitter handle name. */
-	NIAGARAEDITOR_API FText GetSourceNameText() const;
-
-	/** Gets the text representation of the emitter handle name. */
-	NIAGARAEDITOR_API FText GetSourcePathNameText() const;
-
 	/** Called when the contents of the name text control is committed. */
 	NIAGARAEDITOR_API void OnNameTextComitted(const FText& InText, ETextCommit::Type CommitInfo);
 
@@ -84,10 +78,6 @@ public:
 
 	/** Gets the view model for the emitter this handle references. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterViewModel> GetEmitterViewModel();
-
-
-	/** Opens the source emitter in a stand alone asset editor. */
-	void OpenSourceEmitter();
 
 	/** Gets a multicast delegate which is called any time a property on the handle changes. */
 	FOnPropertyChanged& OnPropertyChanged();

@@ -1,4 +1,4 @@
-availability:Public
+Availability: Docs
 title:1. Project Setup
 description:Going over the Project Setup for creating a Height Map painter.
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets

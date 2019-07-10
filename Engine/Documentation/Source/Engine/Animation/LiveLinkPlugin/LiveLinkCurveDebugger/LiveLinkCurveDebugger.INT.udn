@@ -1,0 +1,62 @@
+Availability: Public
+Title: Live Link Curve Debugger
+Description: Using the Live Link Curve Debugger, you can quickly see what the output is of various Live Link curves are in an easy to debug manner. 
+Type: overview
+Version: 4.22
+Parent: Engine/Animation/LiveLinkPlugin
+Tags: Animation
+Tags: Live Link
+Tags: Experimental
+topic-image: CurveDebugger-1.png
+social-image: CurveDebugger-1.png
+topic-icon: CurveDebugger-1.png
+Order: 4
+
+
+[TOC (start:2 end:2)]
+
+When streaming content into Unreal Engine 4 (UE4) using the [Live Link](Engine/Animation/LiveLinkPlugin) Plugin, you may want to view the various curves and values that are active. The **Live Link Curve Debugger **is a tool that enables you to quickly see what the output is of various Live Link curves are in an easy to debug manner. 
+
+## Enabling Live Link Curve Debugger
+
+In order to use the Live Link Curve Debugger, you will first need to enable it from the **Plugins **menu:
+
+1.  From the **Edit** menu, select **Plugins**.   
+    
+	![](01_PluginMenu.png "01_PluginMenu.png")
+
+1.  In the **Plugins **menu under **Animation**, enable both **Live Link **and **Live Link Curve Debug UI **options, and restart the Editor.   
+    
+	![](02_EnableLiveLinkOptions.png "02_EnableLiveLinkOptions.png")
+
+1.  From the **Window **option, under **Developer Tools**, select **Live Link Curve Debugger**.   
+    
+	![](03_DebuggerWindow.png "03_DebuggerWindow.png")  
+    
+	The **Live Link Curve Debugger** window will open.   
+    
+	![](04_DebuggerWindowOpen.png "04_DebuggerWindowOpen.png")
+
+## Using Live Link Curve Debugger
+
+Once connected to [Maya with Live Link](Engine\Animation\LiveLinkPlugin\ConnectingUnrealEngine4toMayawithLiveLink) or [Motion Builder with Live Link](Engine\Animation\LiveLinkPlugin\ConnectingLiveLinktoMobu), the content you have in your application will be accessible within UE4, include any animation curves. With the Live Link Curve Debugger, you can see a list of all the curves and curve values for the currently selected **Subject Name** which you can define by clicking the **Live Link Subject Name **drop-down menu and selecting your Subject. 
+
+![](DebuggerWindowSubject.png "DebuggerWindowSubject.png")
+
+Once you select a Subject, any curves will be displayed in the window along with their values. 
+
+[REGION:lightbox]
+[![](CurveDebugger-1.png)(w:900)](CurveDebugger-1.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+[REGION:note]
+If you haven't specified a Subject Name, as soon as one connects with some curves, the debugger will switch to that one. You can change this selection by clicking the **Live Link Subject Name** drop-down (in Editor or a Desktop build) or by typing **LiveLinkDebugger Next** in the command-line to cycle through different subject names (on other client builds)
+[/REGION]
+
+Inside a client you can also use the command-line to show the Live Link Debugger with the command: **LiveLinkDebugger Show**
+
+[REGION:tip]
+Optionally you may specify a Live Link Subject Name to start with in the command-line by using the command **LiveLinkDebugger Show** *SubjectName* (the name of your Subject).
+[/REGION]

@@ -541,7 +541,15 @@ int FPyWrapperMap::Init(FPyWrapperMap* InSelf, const FPyWrapperOwnerContext& InO
 
 			MapInstanceToUse = FMemory::Malloc(PropToUse->GetSize(), PropToUse->GetMinAlignment());
 			PropToUse->InitializeValue(MapInstanceToUse);
-			PropToUse->CopyCompleteValue(MapInstanceToUse, InValue);
+			if (InConversionMethod == EPyConversionMethod::Steal)
+			{
+				FScriptMapHelper SelfScriptMapHelper(PropToUse, MapInstanceToUse);
+				SelfScriptMapHelper.MoveAssign(InValue);
+			}
+			else
+			{
+				PropToUse->CopyCompleteValue(MapInstanceToUse, InValue);
+			}
 		}
 		break;
 

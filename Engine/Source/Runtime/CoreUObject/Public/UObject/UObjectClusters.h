@@ -7,7 +7,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/UObjectArray.h"
 
 #ifndef UE_GCCLUSTER_VERBOSE_LOGGING
 #define UE_GCCLUSTER_VERBOSE_LOGGING (0 && !UE_BUILD_SHIPPING)
@@ -16,7 +15,7 @@
 #if !UE_BUILD_SHIPPING
 
 // Dumps a single cluster to log
-COREUOBJECT_API void DumpClusterToLog(const FUObjectCluster& Cluster, bool bHierarchy, bool bIndexOnly);
+COREUOBJECT_API void DumpClusterToLog(const struct FUObjectCluster& Cluster, bool bHierarchy, bool bIndexOnly);
 
 // Dumps all clusters to log.
 COREUOBJECT_API void ListClusters(const TArray<FString>& Args);

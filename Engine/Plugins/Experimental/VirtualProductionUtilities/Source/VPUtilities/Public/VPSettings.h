@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "UObject/Object.h"
+#include "Engine/DeveloperSettings.h"
 #include "VPSettings.generated.h"
 
 /**
@@ -37,12 +38,29 @@ protected:
 public:
 	const FGameplayTagContainer& GetRoles() const { return bIsCommandLineRolesValid ? CommandLineRoles : Roles; }
 
+#if WITH_EDITORONLY_DATA
+	/** When enabled, the virtual production role(s) will be displayed in the main editor UI. */
+	UPROPERTY(config, EditAnywhere, Category="Virtual Production")
+	bool bShowRoleInEditor;
+
+	/** Notify when the virtual production roles have changed. */
+	FSimpleMulticastDelegate OnRolesChanged;
+
+	UPROPERTY(config, EditAnywhere, Category = "Virtual Production", DisplayName = "Director Name")
+	FString DirectorName;
+
+	UPROPERTY(config, EditAnywhere, Category = "Virtual Production", DisplayName = "Project Name")
+	FString ShowName;
+
+#endif
+
 public:
 #if WITH_EDITOR
 	//~ UObject interface
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	//~ End UObject interface
 
-	FSimpleMulticastDelegate OnRolesChanged;
+
 #endif //WITH_EDITOR
+
 };

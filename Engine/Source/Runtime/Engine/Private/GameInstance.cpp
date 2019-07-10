@@ -28,6 +28,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "Misc/PackageName.h"
+#include "Net/ReplayPlaylistTracker.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -475,11 +476,22 @@ void UGameInstance::StartGameInstance()
 #if !UE_SERVER
 	// Parse replay name if specified on cmdline
 	FString ReplayCommand;
-	if ( FParse::Value( Tmp, TEXT( "-REPLAY=" ), ReplayCommand ) )
+	if (FParse::Value(Tmp, TEXT("-REPLAY="), ReplayCommand))
 	{
-		if(PlayReplay( ReplayCommand ))
+		if (PlayReplay(ReplayCommand))
 		{
 			return;
+		}
+	}
+	else if (FParse::Value(Tmp, TEXT("-REPLAYPLAYLIST="), ReplayCommand, false))
+	{
+		FReplayPlaylistParams Params;
+		if (ReplayCommand.ParseIntoArray(Params.Playlist, TEXT(",")))
+		{
+			if (PlayReplayPlaylist(Params))
+			{
+				return;
+			}
 		}
 	}
 #endif // !UE_SERVER
@@ -1100,6 +1112,27 @@ bool UGameInstance::PlayReplay(const FString& Name, UWorld* WorldOverride, const
 	}
 
 	return true;
+}
+
+class FGameInstanceReplayPlaylistHelper
+{
+private:
+
+	friend class UGameInstance;
+
+	static const bool StartReplay(const FReplayPlaylistParams& PlaylistParams, UGameInstance* GameInstance)
+	{
+		// Can't use MakeShared directly since the PlaylistTracker constructor is private.
+		// Also, the Playlist Tracker will manage holding onto references to itself.
+		return TSharedRef<FReplayPlaylistTracker>(new FReplayPlaylistTracker(PlaylistParams, GameInstance))->Start();
+	}
+};
+
+bool UGameInstance::PlayReplayPlaylist(const FReplayPlaylistParams& PlaylistParams)
+{
+	LLM_SCOPE(ELLMTag::Networking);
+
+	return FGameInstanceReplayPlaylistHelper::StartReplay(PlaylistParams, this);
 }
 
 void UGameInstance::AddUserToReplay(const FString& UserString)

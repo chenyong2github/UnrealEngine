@@ -83,6 +83,7 @@ public:
 	virtual void SelectionChanged() override;
 	virtual FVector GetWidgetLocation() const override;
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
+	virtual bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const override;
 	// End of FEdMode interface
 
 	// FGCObject interface
@@ -108,7 +109,7 @@ public:
 	*
 	* @param	InPolygons	An array to fill with the selected polygons.
 	*/
-	virtual void GetSelectedPolygons( TArray<FGeomPoly*>& InPolygons );
+	virtual void GetSelectedPolygons( TArray<FGeomPoly*>& InPolygons ) const;
 
 	/**
 	* Returns true if the user has polygons selected.
@@ -125,7 +126,7 @@ public:
 	*
 	* @param	InEdges	An array to fill with the selected edges.
 	*/
-	virtual void GetSelectedEdges( TArray<FGeomEdge*>& InEdges );
+	virtual void GetSelectedEdges( TArray<FGeomEdge*>& InEdges ) const;
 
 	/**
 	* Returns true if the user has edges selected.
@@ -145,7 +146,7 @@ public:
 	/**
 	 * Fills an array with all selected vertices.
 	 */
-	virtual void GetSelectedVertices( TArray<FGeomVertex*>& InVerts );
+	virtual void GetSelectedVertices( TArray<FGeomVertex*>& InVerts ) const;
 
 	/**
 	 * Utility function that allow you to poll and see if certain sub elements are currently selected.

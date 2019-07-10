@@ -1,0 +1,18 @@
+﻿INTSourceChangelist:6016341
+Availability: Public
+Crumbs: 
+Title:实验性功能
+Description:仍不稳定且不能在交付项目时使用的功能。
+Type:landing
+Version: 4.20
+Parent: %ROOT%
+Order: 110
+Tags:
+topic-icon:experimental_icon.png
+
+
+[REGION:warning]
+我们有时会提供一些实验性功能，便于用户尝试，提供反馈并了解我们的计划。**我们不建议使用实验性功能交付项目**。请记住，我们不保证在实验性阶段创建的资源的向后兼容性，这些功能的API随时可能更改，我们可能会自行移除所有或某些实验性功能，而不另行通知。
+[/REGION]
+
+[DIR(output:"topic" tags:"Experimental" tags:"Landing Page" end:"1")]

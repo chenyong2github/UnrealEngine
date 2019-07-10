@@ -2,6 +2,10 @@
 
 #include "Widgets/Images/SImage.h"
 #include "Rendering/DrawElements.h"
+#include "Widgets/IToolTip.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#endif
 
 void SImage::Construct( const FArguments& InArgs )
 {
@@ -74,3 +78,10 @@ void SImage::SetImage(TAttribute<const FSlateBrush*> InImage)
 		Invalidate(EInvalidateWidget::LayoutAndVolatility);
 	}
 }
+
+#if WITH_ACCESSIBILITY
+TSharedRef<FSlateAccessibleWidget> SImage::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleImage(SharedThis(this)));
+}
+#endif

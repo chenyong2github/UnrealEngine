@@ -72,11 +72,11 @@ Unreal Engine では、ハンドヘルドの iOS と Android デバイスを既�
 
 ### iOS
 
-iOS AR 前提条件の詳細情報については、 [](Platforms/AR/HandheldAR/ARKitPrerequisites) トピックを参照してください。更に、 Unreal Engine と iOS デバイスの基本的な設定については、 Unreal Engine のドキュメントの [](Platforms/iOS) セクションを参照してください。   
+iOS AR 前提条件の詳細情報については、 [](Platforms/AR/HandheldAR/ARKitPrerequisites) トピックを参照してください。更に、 Unreal Engine と iOS デバイスの基本的な設定については、 Unreal Engine のドキュメントの [](Platforms/Mobile/iOS) セクションを参照してください。   
 
 ### Android
 
-Android AR 前提条件の詳細情報については、 [](Platforms/AR/HandheldAR/ARCorePrerequisites) トピックを参照してください。Unreal Engine と Android デバイスの基本的な設定については、 Unreal Engine のドキュメントの [](Platforms/Android/GettingStarted) セクションを参照してください。 
+Android AR 前提条件の詳細情報については、 [](Platforms/AR/HandheldAR/ARCorePrerequisites) トピックを参照してください。Unreal Engine と Android デバイスの基本的な設定については、 Unreal Engine のドキュメントの [](Platforms/Mobile/Android/GettingStarted) セクションを参照してください。 
 
 ## Unreal Engine で AR の使用を開始する
 

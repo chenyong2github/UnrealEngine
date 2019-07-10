@@ -9,6 +9,7 @@
 
 TArray<FNiagaraVariable> FNiagaraConstants::SystemParameters;
 TArray<FNiagaraVariable> FNiagaraConstants::TranslatorParameters;
+TArray<FNiagaraVariable> FNiagaraConstants::SwitchParameters;
 TMap<FName, FNiagaraVariable> FNiagaraConstants::UpdatedSystemParameters;
 TMap<FNiagaraVariable, FText> FNiagaraConstants::SystemStrMap;
 TArray<FNiagaraVariable> FNiagaraConstants::Attributes;
@@ -69,6 +70,14 @@ void FNiagaraConstants::Init()
 	if (TranslatorParameters.Num() == 0)
 	{
 		TranslatorParameters.Add(TRANSLATOR_PARAM_BEGIN_DEFAULTS);
+	}
+
+	if (SwitchParameters.Num() == 0)
+	{
+		SwitchParameters.Add(SYS_PARAM_EMITTER_LOCALSPACE);
+		SwitchParameters.Add(SYS_PARAM_EMITTER_DETERMINISM);
+		SwitchParameters.Add(SYS_PARAM_EMITTER_SIMULATION_TARGET);
+		SwitchParameters.Add(SYS_PARAM_SCRIPT_USAGE);
 	}
 
 	if (UpdatedSystemParameters.Num() == 0)
@@ -390,7 +399,7 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONID, LOCTEXT("RibbonIDDesc", "Sets the ribbon id for a particle. Particles with the same ribbon id will be connected into a ribbon."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH, LOCTEXT("RibbonWidthDesc", "Sets the ribbon width for a particle, in UE4 units."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, LOCTEXT("RibbonTwistDesc", "Sets the ribbon twist for a particle, in degrees."));
-		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, LOCTEXT("RibbonFacingDesc", "Sets the facing vector of the ribbon at the particle position."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, LOCTEXT("RibbonFacingDesc", "Sets the facing vector of the ribbon at the particle position, or the side vector the ribbon's width is extended along, depending on the selected facing mode."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, LOCTEXT("RibbonLinkOrderDesc", "Explicit order for linking particles within a ribbon. Particles of the same ribbon id will be connected into a ribbon in incrementing order of this attribute value."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_ID, LOCTEXT("IDDesc", "Engine managed particle attribute that is a persistent ID for each particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_UNIQUE_ID, LOCTEXT("UniqueIDDesc", "Engine managed particle attribute that is a unique ID for each particle. The ID is incremented for each new particle spawned.")); 
@@ -442,6 +451,12 @@ const TArray<FNiagaraVariable>& FNiagaraConstants::GetTranslatorConstants()
 	return TranslatorParameters;
 }
 
+const TArray<FNiagaraVariable>& FNiagaraConstants::GetStaticSwitchConstants()
+{
+	check(SwitchParameters.Num() != 0);
+	return SwitchParameters;
+}
+
 bool FNiagaraConstants::IsEngineManagedAttribute(const FNiagaraVariable& Var)
 {
 	return EngineManagedAttributes.Contains(Var);
@@ -467,15 +482,20 @@ FNiagaraVariable FNiagaraConstants::UpdateEngineConstant(const FNiagaraVariable&
 
 }
 
-
 const FNiagaraVariable* FNiagaraConstants::FindEngineConstant(const FNiagaraVariable& InVar)
 {
-	const TArray<FNiagaraVariable>& LocalSystemParameters = GetEngineConstants();
-	const FNiagaraVariable* FoundSystemVar = LocalSystemParameters.FindByPredicate([&](const FNiagaraVariable& Var)
+	return GetEngineConstants().FindByPredicate([&](const FNiagaraVariable& Var)
 	{
 		return Var.GetName() == InVar.GetName();
 	});
-	return FoundSystemVar;
+}
+
+const FNiagaraVariable * FNiagaraConstants::FindStaticSwitchConstant(const FName& InName)
+{
+	return GetStaticSwitchConstants().FindByPredicate([&](const FNiagaraVariable& Var)
+	{
+		return Var.GetName() == InName;
+	});
 }
 
 FText FNiagaraConstants::GetEngineConstantDescription(const FNiagaraVariable& InAttribute)

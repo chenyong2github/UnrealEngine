@@ -1,0 +1,163 @@
+﻿INTSourceChangelist:6910440
+Availability: Public
+Crumbs: 
+Title: UMG Rich Text Block
+Description: UMG RichTextBlock はスタイル変更、インライン イメージ、ハイパーリングなどのマークアップをサポートする、よりフレキシブルなテキスト ブロックを提供します。UMG RichTextBlock は Decorator クラスに対応しているので、プロジェクトに必要なマークアップの動作の定義を記述することができます。
+Type: 
+Version: 4.21
+Parent: Engine/UMG/UserGuide
+Order: 
+Tags: UMG UI Designer
+Tags: UMG
+Tags: Rich Text Block
+
+
+Unreal Motion Graphics (UMG) が提供するテキスト ブロックでも様々なスタイル オプションとカスタマイズ機能を用意していますが、スタイル変更、インライン イメージ、ハイパーリングなどのマークアップをサポートするよりフレキシブルなテキスト ブロックのオプションが必要になることがあります。
+
+**RichTextBlock** はデータ テーブル アセットを使用して追加したスタイルとカスタマイズ機能を管理します。データ テーブル アセットによって、自作のスタイルを作成したり、プロジェクトに必要な動作を定義する Decorator クラスを書くことができます。自作の Decorator クラスを書く際の取り掛かりとして使用していただけるように **RichTextBlockImageDecorator** というサンプル Decorator クラスを含めました。UMG の RichTextBlock についてもっと学んで自作の Decorator クラスを書けるようになるためには以下の手順に従ってください。
+
+## データ テーブル アセットの作成と割当て
+
+スタイルを Rich Text Block ウィジェットに適用する前に、 **Data Table** アセットを作成してください。データ テーブル アセットを使用して、UMG の Rich Text Block で使用可能な様々なデータ タグの作成ができます。データ テーブル アセットによって、テキスト スタイルや、リッチ テキストでインラインを使用するイメージを定義できます。
+
+[REGION:lightbox]
+[![](CreateDataTableAsset_DTAEditor.png)(w:500)](CreateDataTableAsset_DTAEditor.png)
+
+*クリックしてフルサイズで表示*
+[/REGION]
+
+データ テーブル アセットは、コンテンツ ブラウザで **[新規追加]** をクリックすることにより、他のアセットと同様に作成することができます。さらに **[その他 > データテーブル]** を選択します。
+![](AddNewDataTableAsset.png)(w:350)
+
+**[Pick Structure]** ボックスが表示されたら、 **[Rich Image Row]** または **[Rich Text Style Row]** を選択します。
+![](CreateDataTableAsset_PickStructure.png)
+
+[REGION:note]
+[Rich Image Row] は、Decorator クラスの詳細がある、カスタム Decorator クラスを使用します。
+[/REGION]
+
+### Rich Image Row データ タイプ
+
+Rich Image Row データ タイプは、UMG の RichTextBlock 中のインライン テキストと共に使用される様々なカスタマイゼーション オプションとイメージを保持するサンプルとして提供されるカスタム Decorator クラスです。以下の手順は、Rich Image Row データ タイプの使用方法の例を示しています。
+
+[REGION:lightbox]
+[![CreateDataTableAsset_DTAEditor.png](InlineImages_RichImageRowDT.png)(w:450)](InlineImages_RichImageRowDT.png)
+
+*クリックしてフルサイズで表示*
+[/REGION]
+
+1. データ テーブル アセットを作成して、 **[Pick Structure]** ボックスが表示されたら、 **[Rich Image Row]** を選択します。
+2. Rich Text Block で使用したい各インライン イメージのためのデータ テーブル アセットの行を作成して、イメージに使用したい **[Appearance]** の下の各種のプロパティを設定します。
+3. 行の追加が終わったら **[保存]** をクリックして データ テーブル アセットを閉じます。
+
+[REGION:note]
+これらの設定の詳細については [](Engine/UMG/UserGuide/UMGRichTextBlockProperties) を参照してください。
+[/REGION]
+
+### Rich Text Style Row データ タイプ
+
+Rich Text Style Row データ タイプは UMG の RichTextBlock 内のテキストに使用されるフォントの各種スタイルとカスタマイゼーションの設定を可能にするデフォルトの Decorator クラスです。
+
+[REGION:lightbox]
+[![](CreateDataTableAsset_DTAEditor.png)](CreateDataTableAsset_DTAEditor.png)
+
+*Rich Text Style Rowクリックしてフルサイズで表示*
+[/REGION]
+
+RichTextBlock で使用したいスタイルのデータ テーブル アセットの行を作成して、 **[Appearance]** の下に各フォントで使用したいプロパティを設定します。
+
+[REGION:note]
+これらの設定の詳細については [](Engine/UMG/UserGuide/UMGRichTextBlockProperties) を参照してください。
+[/REGION]
+
+### データ テーブル アセットにスタイルやイメージ行を追加する
+
+データ テーブル アセットにスタイルやイメージ行を追加するには以下の手順に従ってください。
+
+1. **データ テーブル** アセットを作成したら、ダブルクリックして **Data Table Editor** で開きます。
+2. **[行エディタ]** パネルで **プラス記号** (**+**) のアイコンをクリックして行を追加します。
+3. リッチ テキスト スタイルのデータ テーブル アセットの最初の行で、 **[Row Name (行名)]** フィールドに **「Default」** と入力します。これにより、適用される他のスタイルが無い場合の、プロジェクトのテキストのデフォルト スタイルの詳細が作成されます。リッチ テキスト データ テーブル アセットおよびリッチ イメージ データ テーブル アセットで、各行の行名が、行のスタイルやイメージを Rich Text Block ウィジェットに適用する際のブラケットで使用されるタグになります。
+
+[REGION:note]
+最初の「Default」行以外は任意の行名を付けられます。プレフィックスやキャメル ケースやその他命名規則に制限されることなく使用できます。
+[/REGION]
+[REGION:lightbox]
+[![](CreateDataTableAsset_AddStyleRows.png)(w:500)](CreateDataTableAsset_AddStyleRows.png)
+
+*クリックしてフルサイズで表示*
+[/REGION]
+
+### データ テーブル アセットのスタイルやイメージを削除する
+
+データ テーブル アセットの行を削除したい場合、まず削除したい行を選択します。そして、 **[行エディタ]** パネルの **プラス記号** (**+**) アイコンの隣にある **X** アイコンをクリックします。
+
+[REGION:lightbox]
+[![CreateDataTableAsset_AddStyleRows.png](CreateDataTableAsset_DeleteStyleRows.png)(w:600)](CreateDataTableAsset_DeleteStyleRows.png)
+[/REGION]*クリックしてフルサイズで表示*
+
+## UMG UI デザイナで Rich Text Block ウィジェットを使用する
+
+Rich Text Block 行や Rich Image Row でデータ テーブル アセットを作成した場合、 [UMG UI デザイナ](Engine/UMG) を使用して Rich Text Block ウィジェットを Designer Viewport に追加できます。
+
+### Rich Text Block ウィジェットの追加
+
+**[Palette (パレット)]** パネルの左で **Rich Text Block** までスクロール ダウンします。Rich Text Block を **Graph** にドラッグします。大きなサイズのテキストを使用している場合、縮尺を変えたりリサイズできます。
+
+![](AddRichTextBlock_DragRichTextBoxToGraph.png)
+[REGION:note]
+テキスト ボックスはテキスト サイズに合うように自動で伸縮しません。ボックスをテキスト サイズに合うようにリサイズしないと、テキストが途切れて正しく表示されないことがあります。
+[/REGION]
+
+### データ テーブル アセットを Rich Text Block に割り当てる
+
+Rich Text Block ウィジェットをグラフに追加して選択したら、右の[詳細] パネルを使用して、 **[Appearance]** セクションの **Rich Text Style Row** または **Rich Image Row** を適用します。
+![](UMGRTB-AssignDataTable-01.png)(w:400)
+
+**[Text Style Set]** を使用して、Rich Text Style Row を適用します。データ テーブル アセットで作成したスタイルを命名した **Row Name** を使用して参照できます。
+
+**Decorator クラス** を使用して、プロジェクトのために作成したカスタムの Decorator クラスを適用します。この例では、リッチ テキストを伴うインライン イメージを作成するために提供された Rich Image Row の Decorator クラスを使用します。
+
+### スタイルをテキストに適用する
+
+データ テーブル アセットを Rich Text Block ウィジェットに割り当てたら、スタイルをテキストに適用します。スタイルを適用するには以下の手順に従います。
+
+1. **[詳細]** パネルの **[Content]** セクションを探します。
+    ![](ApplyStyleToText_01.png)
+2. Rich Text Block の **Text** フィールドにテキストを入力します。
+3. データ テーブル アセットの **[Default]** 行で選択したスタイルのテキスト表示になります。例えば「This is some rich text!」と入力すれば、単にデータ テーブル アセットが参照するデフォルトの **Appearance** の値を使用して表示されます。
+4. テキストに異なるスタイルを適用するには、 **<StyleName>Text</>** フォーマットを使用して、ブラケットで囲んだスタイル行の名前を入力します。
+    例：`This is some <RichText.Emphasis>rich</> text!`  
+    ![](AddStyleToRTB_1.png)
+    [REGION:tip]
+    Rich Text Block のデータ テーブル アセット行名を参照する際の行名に大文字小文字は区別されません。
+    [/REGION]
+
+## Decorator クラス
+
+Rich Text Block でスタイル付けしたテキスト以外のものを含める場合は、Decorator クラスを作成します。Decorator クラスを作成する場合は、 [スレート](Programming/Slate) を使用可能にする自作のマークアップ タグをセットアップして、テキスト内でその他の要素をシームレスにレンダリングします。 
+
+### Decorator の使用
+
+自作の Decorator クラス の使用を始めやすくするために、 Rich Text Block の使用時にテキストにインライン イメージを追加できる **RichTextBlockImageDecorator** を使用したサンプルをビルトインで含めました。
+
+自作の Decorator クラスを参照するデータ テーブル アセットを作成するには、上記の [「データ テーブル アセットの作成と割当て」](Engine/UMG/UserGuide/UMGRichTextBlock#データ テーブルアセットの作成と割当て) セクションを参照してください。
+
+自作の Decorator クラスを作成して使用するには、サンプルの RichTextBlockImageDecorator クラスを継承して、データ テーブル アセットのサブクラスをポイントする必要があります。以下の手順はその一例です。
+
+1. 新規ブループリント クラスを作成して、親クラスとして RichTextBlockImageDecorator を選択します。
+2. 新規ブループリントを開き、データ テーブルを **Image Set** プロパティに割り当てます。
+    [REGION:note]
+    RichTextBlockImageDecorator クラスは親クラスのリストに表示されません。代わりに、RichTextBlockImageDecorator を C++ クラスとして継承します。次に、C++ ファイルのデータ テーブル アセットを割り当てるか、 **Blueprintable** を ヘッダ先頭の UCLASS マクロに追加して、サブクラスをブループリントとして継承します。
+    [/REGION]
+3. Decorator クラス をセットアップしたら、UMG で Rich Text Block の Decorator クラスの配列に追加します。次に、マークアップ **&lt;img id="*ImageNameFromTable*"/&gt;** (「*ImageNameFromTable*」は割り当てたRow Name) を使用したデータ テーブルからのイメージを挿入します。ウィジェットを再コンパイルするとぐにイメージが表示されます。
+    ![](UsingDecorators_InlineImage.png)
+
+### 新規 Decorator の追加
+
+Unreal Engine によって `RichTextBlockImageDecorator` がサンプル Decorator クラスとして提供されていれば、テキストを伴う任意のインラインを追加するスレートを利用する、カスタマイズした Decorator クラスの定義が可能です。これを実現するには、2 つのクラス、 `URichTextBlockDecorator` と `FRichTextDecorator` を書きます。これらのクラスをセットアップしたら、 `DecoratorClasses` 配列を使用して任意の RichTextBlock に Decorator を追加して、Decorator でテキストを解析するマークアップが使用できるようになります。
+
+`URichTextBlockDecorator` は `SharedPtr` を 重い作業を行うために作成する `FRichTextDecorator` インスタンスに返す `CreateDecorator` を実装する `UObject` を定義します。またここには任意のプロパティとユーティリティ関数を実装できます。これにより、デザイナーが Decorator をブループリントとしてサブクラス化することができるようになります。必要な任意のデータが利用できます。`RichTextBlockImageDecorator` はイメージのテーブルを利用するためのデータ テーブルのプロパティを定義することを覚えておいてください。ブループリントで修正するものはすべてこちらの `UObject`に存在します。
+
+[REGION:note]
+Rich Text Block と データ テーブル アセット プロパティの完全なリストについては [](Engine/UMG/UserGuide/UMGRichTextBlockProperties) のページを参照してください。
+[/REGION]

@@ -95,11 +95,11 @@ namespace BuildPatchServices
 		, bProcessingComplete(false)
 	{
 		ThreadTrigger = FPlatformProcess::GetSynchEventFromPool(true);
-		ProcessingWorkerFuture = Async<void>(EAsyncExecution::Thread, [this]()
+		ProcessingWorkerFuture = Async(EAsyncExecution::Thread, [this]()
 		{
 			ProcessingWorkerThread();
 		});
-		OutputWorkerFuture = Async<void>(EAsyncExecution::Thread, [this]()
+		OutputWorkerFuture = Async(EAsyncExecution::Thread, [this]()
 		{
 			OutputWorkerThread();
 		});

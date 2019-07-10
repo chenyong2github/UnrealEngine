@@ -19,6 +19,7 @@ const FName FoliageEditAppIdentifier = FName(TEXT("FoliageEdApp"));
 #include "FoliageType_Actor.h"
 #include "InstancedFoliageActor.h"
 #include "FoliageEdMode.h"
+#include "FoliageEditActions.h"
 #include "PropertyEditorModule.h"
 #include "FoliageTypeDetails.h"
 #include "ProceduralFoliageComponent.h"
@@ -52,6 +53,8 @@ public:
 			true, 400
 			);
 
+		FFoliageEditCommands::Register();
+
 		// Register the details customizer
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout("FoliageType", FOnGetDetailCustomizationInstance::CreateStatic(&FFoliageTypeDetails::MakeInstance));
@@ -76,7 +79,7 @@ public:
 
 		SubscribeEvents();
 #endif
-
+		
 		// Register thumbnail renderer
 		UThumbnailManager::Get().RegisterCustomRenderer(UFoliageType_InstancedStaticMesh::StaticClass(), UFoliageType_ISMThumbnailRenderer::StaticClass());
 		UThumbnailManager::Get().RegisterCustomRenderer(UFoliageType_Actor::StaticClass(), UFoliageType_ActorThumbnailRenderer::StaticClass());
@@ -87,6 +90,8 @@ public:
 	 */
 	virtual void ShutdownModule() override
 	{
+		FFoliageEditCommands::Unregister();
+
 		FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Foliage);
 
 		if (!UObjectInitialized())

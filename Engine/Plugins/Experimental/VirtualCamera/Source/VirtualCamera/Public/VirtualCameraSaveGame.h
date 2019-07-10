@@ -45,7 +45,7 @@ struct FVirtualCameraAxisSettings
 	bool bIsFrozen;
 
 	/** The amount of stabilization that can be applied to an axis */
-	UPROPERTY(meta = (ClampMin = "0.0", ClampMax = "0.97"))
+	UPROPERTY()
 	float StabilizationScale;
 
 	/** The scale that a user's movement should be adjusted by in game */

@@ -1,30 +1,40 @@
-title:Enabling the HLOD System
-description:This how-to covers how to enable the HLOD system in your Unreal Engine 4 project.
-crumbs:
-availability:Public
-version:4.13
-related:Engine/HLOD/Overview
-related:Engine/HLOD/Reference
-skilllevel:beginner
-order:1
-parent:Engine/HLOD/HowTo
-type:how-to
+Availability: Public
+Title: Enabling the HLOD System
+Description: Describes how to enable the HLOD system inside your Unreal Engine 4 projects. 
+Type: how-to
+Version: 4.22
+Parent: Engine/HLOD/HowTo
+Tags: HLOD
+topic-image: HLOD_howto_Topic_01.png
+social-image: HLOD_howto_Topic_01.png
+topic-icon: HLOD_howto_Topic_01.png
+SkillLevel: Beginner
+Related: Engine/HLOD/Overview
+Related: Engine/HLOD/Reference
 tags:HLOD
-topic-image:Engine/HLOD/HowTo/HLOD_howto_Topic_01.png
 
-The **Hierarchical Level of Detail System** (HLOD) must be enabled on each Level that wants to make use of it. Follow the steps below to enable the Hierarchical LOD System.
+
+[TOC (start:2 end:2)]
+
+The **Hierarchical Level of Detail (HLOD)** system must be enabled on each Level that wants to make use of it. You can enable the HLOD system by following the steps described on this page. 
 
 ## Steps
 
-1. Enable by going to **World Settings -> LODSystem -> Enable Hierarchical LODSystem**
+1.  From the Level Editor Toolbar, click the **Settings** button, and select **World Settings**.   
+    ![](WorldSettingsMenu.png "WorldSettingsMenu.png")
 
-	[REGION:raw]
-	![image alt text](Engine/HLOD/Overview/image_0.png)
-	[/REGION]
+2.  Next, inside the **World Settings** menu under **LODSystem**, enable the **Enable Hierarchical LODSystem** option.   
+    ![](EnableHLODOptions.png "EnableHLODOptions.png")
 
-1. Once this is enabled you can go to the **Main Menu -> Window -> Hierarchical LOD Outliner** to set up how HLODs are generated for your scene.
+3.  Finally, go to the **Window** option and select **Hierarchical LOD Outliner**.   
+    ![](HLOD_Window_Menu.png "HLOD_Window_Menu.png")
 
-	[REGION:raw]
-	![image alt text](Engine/HLOD/Overview/image_1.png)
-	[/REGION]
+## End Result
 
+The **Hierarchical LOD Outliner** window will open where you can define the parameters for your desired HLOD setup. 
+
+![](HLOD_Window.png "HLOD_Window.png")
+
+[REGION:note]
+Please see [Building Hierarchical Level of Detail Meshes](Engine/HLOD/HowTo/BuildingHLODs) for more information on HLOD setup.
+[/REGION]

@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Crumbs: %ROOT%
 Title:3 - 电视机蓝图设置 - 组件
 Description:在本节中，我们要创建电视机蓝图并设置它的组件。 
@@ -12,7 +12,9 @@ type:multi-step
 order:3
 tags:Media Framework
 tags:Blueprints
- 
+
+## 页面已被合并，标记为Docs。 
+  
 [NAV]
 
 在前几步中，我们设置了媒体内容并创建了用于播放视频的材质。 

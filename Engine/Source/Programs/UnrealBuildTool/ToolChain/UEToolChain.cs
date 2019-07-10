@@ -29,6 +29,17 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
+		public virtual CPPOutput CompileISPCFiles(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir,List<Action> Actions)
+		{
+			CPPOutput Result = new CPPOutput();
+			return Result;
+		}
+		public virtual CPPOutput GenerateISPCHeaders(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		{
+			CPPOutput Result = new CPPOutput();
+			return Result;
+		}
+
 		public abstract FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions);
 		public virtual FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)
 		{

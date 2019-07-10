@@ -146,7 +146,7 @@ public:
 	/** Is the specified net driver for our reservation beacon? */
 	bool IsNetDriverFromReservationBeacon(const UNetDriver* InNetDriver) const;
 
-	void DisconnectParty();
+	virtual void DisconnectParty();
 
 	template <typename MemberT = UPartyMember>
 	TArray<MemberT*> GetPartyMembers() const

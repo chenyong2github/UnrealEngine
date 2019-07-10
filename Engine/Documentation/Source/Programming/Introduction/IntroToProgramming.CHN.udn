@@ -9,7 +9,6 @@ tags:Programming
 
 ![image alt text](image_0.png)
 
-(#unrealc++isawesome!)
 ## 虚幻C++太棒了！
 
 本指南主要介绍如何在虚幻引擎中编写C++代码。不必担心，虚幻引擎中的C++编程十分有趣，入门也很简单！我们通常会认为虚幻C++是“辅助C++”，因为我们有很多功能可以让所有人都能更简单的使用C++。
@@ -20,7 +19,6 @@ tags:Programming
 
 在虚幻引擎中，您可以编写“纯传统C++代码”，但阅读本指南并学习有关虚幻编程模型的基本知识后，您会取得更大的成功。接下来我们将详细介绍。
 
-(#c++andblueprints)
 ## C++与蓝图
 
 虚幻引擎提供了两种创建新Gameplay元素的方法：C++和蓝图视觉脚本。程序员利用C++即可添加基础Gameplay系统，然后设计师可基于这些系统进行构建或利用这些系统为某个特定关卡或游戏本身创建自定义Gameplay。在这些情况下，C++程序员在他们喜欢的IDE（通常是Microsoft Visual Studio或Apple Xcode）中工作，设计师则在虚幻编辑器的蓝图编辑器中工作。
@@ -29,7 +27,6 @@ Gameplay API和框架类在这两个系统中都可以使用，可以单独使�
 
 言至于此，我们来看看C++程序员为设计师创建构建块的典型工作流程。在此情况下，我们将创建一个类，稍后设计师或程序员可以通过蓝图扩展此类。在该类中，我们将创建一些设计师可以设置的属性，并且我们将根据这些属性派生新值。整个过程使用我们提供的工具和C++宏就可以完成，非常简单。
 
-(#classwizard)
 ### 类向导
 
 首先，使用虚幻编辑器中的类向导来生成稍后将通过蓝图扩展的基本C++类。下图显示了向导的第一步，即创建新Actor。
@@ -39,7 +36,7 @@ Gameplay API和框架类在这两个系统中都可以使用，可以单独使�
 该流程中的第二步是告诉向导，您已经生成的类的名称。这是使用默认名称的第二步。
 
 ![image alt text](image_2.png)
-选择创建类后，向导会生成文件，并打开您的开发环境，便于您开始编辑。下面是为您生成的类定义。有关类向导的更多信息，请单击该[链接](Programming/Development/ManagingGameCode/CppClassWizard)。
+选择创建类后，向导会生成文件，并打开您的开发环境，便于您开始编辑。下面是为您生成的类定义。有关类向导的更多信息，请单击[该链接](Programming/Development/ManagingGameCode/CppClassWizard)。
 
 	#include "GameFramework/Actor.h"
 	#include "MyActor.generated.h"
@@ -61,7 +58,7 @@ Gameplay API和框架类在这两个系统中都可以使用，可以单独使�
 		virtual void BeginPlay() override;
 	};
 
-类向导指定 **BeginPlay()** 和 **Tick()** 作为重载来生成类。**BeginPlay()** 事件告诉您Actor以可运行状态进入了游戏。这是启动类Gameplay逻辑的好位置。**Tick()** 每帧调用一次，使用自上次调用传递以来经过的时间。您可以在这里执行任何重复逻辑。但是，如果您不需要该功能，最好将其移除，这样对性能有益。如果将其移除，确保移除构造函数中指示应开始发生tick事件的相应行。下面的构造函数就包含所提及的行。
+类向导指定 `BeginPlay` 和 `Tick` 作为重载来生成类。`BeginPlay` 事件告诉您Actor以可运行状态进入了游戏。这是启动类Gameplay逻辑的好位置。`Tick` 每帧调用一次，使用自上次调用传递以来经过的时间。您可以在这里执行任何重复逻辑。但是，如果您不需要该功能，最好将其移除，这样对性能有益。如果将其移除，确保移除构造函数中指示应开始发生tick事件的相应行。下面的构造函数就包含所提及的行。
 
 	AMyActor::AMyActor()
 
@@ -73,10 +70,9 @@ Gameplay API和框架类在这两个系统中都可以使用，可以单独使�
 
 	}
 
-(#makingapropertyshowupintheeditor)
 ### 让属性出现在编辑器中
 
-创建类后，现在让我们创建一些设计师可以在虚幻编辑器中设置的属性。将属性公开给编辑器非常简单，只需要使用专用宏 **UPROPERTY()** 即可实现。您只需在属性声明前使用 **UPROPERTY(EditAnywhere)** 即可，如以下类中所示。
+创建类后，现在让我们创建一些设计师可以在虚幻编辑器中设置的属性。将属性公开给编辑器非常简单，只需要使用说明符 `UPROPERTY` 即可实现。您只需在属性声明的上一行加入 `UPROPERTY(EditAnywhere)` 即可，如以下类中所示。
 
 	UCLASS()
 	class AMyActor : public AActor
@@ -90,7 +86,7 @@ Gameplay API和框架类在这两个系统中都可以使用，可以单独使�
 		...
 	};
 
-只要完成上述操作，即可在编辑器中编辑该值。还有更多方法可以控制编辑该值的方式和位置。方法是将更多信息传递到 **UPROPERTY()** 宏。例如，如果您想要TotalDamage属性出现在包含相关属性的某个部分中，可以使用分类功能。具体请参见下面的属性声明。
+只要完成上述操作，即可在编辑器中编辑该值。还有更多方法可以控制编辑该值的方式和位置。方法是将更多信息传递到 `UPROPERTY` 说明符。例如，如果您想要TotalDamage属性出现在包含相关属性的某个部分中，可以使用分类功能。具体请参见下面的属性声明。
 
 	UPROPERTY(EditAnywhere, Category="Damage")
 	int32 TotalDamage;
@@ -102,7 +98,7 @@ Gameplay API和框架类在这两个系统中都可以使用，可以单独使�
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Damage")
 	int32 TotalDamage;
 
-如您所见，有一个特定于蓝图的参数，让属性可供读取。有一个单独的选项 BlueprintReadOnly，如果您希望属性在蓝图中被视为常量，可以使用这个选项。还有一些选项可用来控制将属性公开给引擎的方式。要查看更多选项，请单击该[链接](Programming/UnrealArchitecture/Reference/Properties/Specifiers)。
+如您所见，有一个说明符可以让属性在蓝图图表中可供读写。有一个单独的说明符 `BlueprintReadOnly`，如果您希望属性在蓝图中被视为常量，可以使用这个选项。还有一些选项可用来控制将属性公开给编辑器的方式。要查看更多选项，请单击该[链接](Programming/UnrealArchitecture/Reference/Properties/Specifiers)。
 
 再继续以下部分前，我们来向该样本类添加几个属性。已经有一个属性可以控制该Actor将释放出的总伤害量，但让我们更进一步，让这个伤害随着时间而逐渐释放出来。下面的代码添加了一个可以由设计师设置的属性，以及一个对设计师可见但不能更改的属性。
 
@@ -124,11 +120,10 @@ Gameplay API和框架类在这两个系统中都可以使用，可以单独使�
 		...
 	};
 
-DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的值使用设计师的设置计算得出（请参见下一节）。VisibleAnywhere标志将该属性标记为在虚幻编辑器中可见，但不可编辑。Transient标志意味着，它不会保存或从磁盘加载；它就是一个派生的非持久值。下图显示作为类默认值一部分的属性。
+DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的值使用设计师的设置计算得出（请参见下一节）。`VisibleAnywhere` 说明符将该属性标记为在虚幻编辑器中可见，但不可编辑。`Transient` 说明符意味着，它不会保存或从磁盘加载；它就是一个派生的非持久值，所以没有必要存储它。下图显示作为类默认值一部分的属性。
 
 ![image alt text](image_3.png)
 
-(#settingdefaultsinmyconstructor)
 ### 在我的构造函数中设置默认值
 
 在构造函数中为属性设置默认值的方式与典型的C++类一样。下面是两个在构造函数中设置默认值的示例，它们在功能上是等效的。
@@ -149,7 +144,7 @@ DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的�
 
 ![image alt text](image_4.png)
 
-为了按实例支持设计师设置属性，还会从给定对象的实例数据加载值。该数据在构造函数之后应用。您可以根据设计师设置值创建默认值，方法是钩入 **PostInitProperties()** 调用链中。下面示例展示了 **TotalDamage** 和 **DamageTimeInSeconds** 为设计师指定值的流程。尽管它们是设计师指定的，但您仍可以为它们提供合理的默认值，就像上述示例一样。 
+为了按实例支持设计师设置属性，还会从给定对象的实例数据加载值。该数据在构造函数之后应用。您可以根据设计师设置值创建默认值，方法是钩入 `PostInitProperties()` 调用链中。下面示例展示了 `TotalDamage` 和 `DamageTimeInSeconds` 为设计师指定值的流程。尽管它们是设计师指定的，但您仍可以为它们提供合理的默认值，就像上述示例一样。 
 [REGION:note]
 如果您不提供属性的默认值，引擎会自动将该属性设置为0或空指针（如果是指针类型）。
 [/REGION]
@@ -159,11 +154,10 @@ DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的�
 		DamagePerSecond = TotalDamage / DamageTimeInSeconds;
 	}
 
-这里同样是添加了上述 **PostInitProperties()** 代码后的属性视图。
+这里同样是添加了上述 `PostInitProperties()` 代码后的属性视图。
 
 ![image alt text](image_5.png)
 
-(#hotreloading)
 ###热重载
 
 虚幻有一个非常帮的功能，如果您已习惯于在其他项目中进行C++编程，可能会对这个功能感到惊奇。您不必关闭编辑器就可以编译C++更改！有两种方法可以达到这个目的：
@@ -180,24 +174,23 @@ DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的�
 
 在本教程的后续章节中，您将用到这个功能。
 
-(#extendingac++classviablueprints)
 ### 通过蓝图扩展C++类
 
 目前，我们已经用C++类向导创建了简单的Gameplay类，并添加了一些可供设计师设置的属性。现在来看一看设计师如何在我们已经完成的简要基础工作上开始创建独特的类。
 
-首先要根据AMyActor类创建新的蓝图类。请注意下图中，所选基类的名称显示为MyActor，而不是AMyActor。这是故意为之，目的是向设计师隐藏工具所用的命名约定，让名称对设计师而言更加友好。
+首先要根据 `AMyActor` 类创建新的蓝图类。请注意下图中，所选基类的名称显示为 **MyActor**，而不是 **AMyActor**。这是故意为之，目的是向设计师隐藏工具所用的命名约定，让名称对设计师而言更加友好。
 
 ![image alt text](image_8.png)
 
-选取了 **选择（Select）** 后，会为您创建一个新的默认命名的蓝图类。在本例中，我将名称设置为CustomActor1，如下面 **内容浏览器** 截图中所示。
+选取了 **选择（Select）** 后，会为您创建一个新的默认命名的蓝图类。在本例中，我将名称设置为 **CustomActor1**，如下面 **内容浏览器** 截图中所示。
 
 ![image alt text](image_9.png)
 
-这是我们将以设计师角色自定义的第一个类。首先，我们将更改伤害属性的默认值。在本例中，设计师将 **TotalDamage** 更改为300，将释放该伤害所需的时间更改为2秒。这是这些属性现在的样子。
+这是我们将以设计师角色自定义的第一个类。首先，我们将更改伤害属性的默认值。在本例中，设计师将 `TotalDamage` 更改为300，将释放该伤害所需的时间更改为2秒。这是这些属性现在的样子。
 
 ![image alt text](image_10.png)
 
-我们计算的值与预期不符。它应该是150，但默认值仍然是200。其原因是我们仅计算了从加载过程初始化属性后的每秒伤害值。虚幻编辑器中的运行时更改没有考虑在内。这个问题有一种简单的解决方案，因为引擎会在编辑器中发生变化时通知目标对象。下面的代码显示了为了计算派生值在编辑器中发生变化时的值而添加的钩。
+我们计算的值与预期不符。它应该是150，但默认值仍然是200。其原因是我们仅计算了从加载过程初始化属性后的每秒伤害值。编辑器中的运行时更改没有考虑在内。这个问题有一种简单的解决方案，因为引擎会在编辑器中发生变化时通知目标对象。下面的代码显示了为了计算派生值在编辑器中发生变化时的值而添加的钩。
 
 	void AMyActor::PostInitProperties()
 	{
@@ -220,11 +213,10 @@ DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的�
 	}
 	#endif
 
-需要注意的一点是，**PostEditChangeProperty()** 方法位于特定于编辑器的#ifdef内部。这样才能仅构建游戏所需的代码，删除任何多余的、导致可执行文件大小增大的代码。现在，我们已经编译了代码，**DamagePerSecond** 值与我们预期的值匹配，如下图所示。
+需要注意的一点是，`PostEditChangeProperty` 方法位于特定于编辑器的 `#ifdef` 内部。这样才能仅构建游戏所需的代码，删除任何多余的、导致可执行文件大小增大的代码。现在，我们已经编译了代码，`DamagePerSecond` 值与我们预期的值匹配，如下图所示。
 
 ![image alt text](image_11.png)
 
-(#callingfunctionsacrossthec++andblueprintboundary)
 ### 在C++和蓝图边界中调用函数
 
 目前，我们已经展示了如何将属性公开给蓝图，但还有最后一个入门主题需要介绍，然后才能更深入地探索引擎。在创建Gameplay系统期间，设计师将需要能够调用C++程序员创建的函数，而且Gameplay程序员能够从C++代码调用蓝图中实现的函数。首先我们来让CalculateValues()能够从蓝图调用。将函数公开给蓝图就像公开属性一样简单。只需在函数声明前放置一个宏即可！以下代码片段显示了所需内容。
@@ -232,7 +224,7 @@ DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的�
 	UFUNCTION(BlueprintCallable, Category="Damage")
 	void CalculateValues();
 
-**UFUNCTION()** 宏负责处理将C++函数公开给反射系统。BlueprintCallable选项将其公开给蓝图虚拟机，因此用户可以从蓝图图表内调用函数。下图显示了类别对快捷菜单的影响：
+`UFUNCTION()` 宏负责处理将C++函数公开给反射系统。`BlueprintCallable` 选项将其公开给蓝图虚拟机。每一个公开给蓝图的函数都需要一个与之关联的类别，这样右键点击快捷菜单的功能才能正确生效。下图显示了类别对快捷菜单的影响：
 
 ![image alt text](image_12.png)
 
@@ -263,17 +255,14 @@ DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的�
 
 现在我们已经介绍了与设计师合作构建Gameplay功能的常见Gameplay程序员工作流程和方法，接下来该由您自己选择前进方向了。您可以继续阅读本文，进一步了解如何在引擎中使用C++，也可以直接参见我们在启动程序中提供的样本来获得更多实践经验。 
 
-(#divingdeeper)
 ## 深入探索
 
 看来您决定继续阅读本文。很好。下面的讨论主题将围绕着Gameplay类层级展开。在本节中，我们首先介绍基本构建块，然后介绍它们彼此之间的关系。这里我们将说明虚幻引擎如何使用继承与复合来构建自定义Gameplay功能。
 
-(#gameplayclasses:)
 ### Gameplay类：对象、Actor和组件
 
 从大部分Gameplay类可以派生出4种主要类型的类。它们分别是 **UObject**、**AActor**、**UActorComponent** 和 **UStruct**。下面几节将说明其中每一种构建块。当然，您可以创建不从任何类派生的类型，但它们不会参与到引擎中构建的功能。在 **UObject** 层级外部创建的典型类用法是：集成第三方库、包裹操作系统特定功能等。
 
-(#unrealobjects(uobject))
 #### 虚幻对象（UObject）
 
 虚幻引擎中的基本构建块叫做UObject。该类结合 **UClass**，可以提供引擎中的多个最重要的基本服务：
@@ -287,7 +276,6 @@ DamageTimeInSeconds是设计师可以修改的属性。DamagePerSecond属性的�
 
 从UObject派生的每个类都会创建有一个UClass，UClass包含有关该类实例的所有元数据。UObject和UClass一起位于Gameplay对象在其生命周期所有作用的最根部位置。如果要解释UClass和UObject的差异在哪里，最合适的方法是UClass描述的是UObject实例的样子、可序列化和联网的属性等。大多数Gameplay开发不会直接从UObject派生，而是从AActor和UActorComponent派生。您无需知道UClass/UObject工作方式细节，这并不影响您编写Gameplay代码，知道这些系统的存在即可。
 
-(#aactor)
 #### AActor
 
 AActor是将会成为Gameplay体验的一部分的对象。AActor由设计师放在关卡中，或者通过Gameplay系统在运行时创建。可以放入关卡的所有对象都是从该类扩展而来的。示例包括 **AStaticMeshActor**、**ACameraActor** 和 **APointLight** Actor。AActor派生自UObject，因此可以使用上一节所列的所有标准功能。AActor可以显式销毁，方法是使用Gameplay代码（C++或蓝图），或者在所属关卡从内存中卸载时通过标准的垃圾回收机制销毁。AActor负责游戏对象的高级行为。AActor还是可以在联网时复制的基本类型。在网络复制期间，AActor还可以分发由该AActor拥有的、需要网络支持的任何UActorComponent的信息。
@@ -302,7 +290,6 @@ AActor包含在AActor生命周期中调用的一系列事件。以下列表是�
 
 请参见[](Programming/UnrealArchitecture/Actors)以了解有关AActor的更详细讨论。
 
-(#runtimelifecycle)
 ##### 运行时生命周期
 
 我们在上文讨论了AActor生命周期的一小部分。对于关卡中放置的Actor，了解生命周期是很容易想象的到的：Actor加载并存在，最终关卡被卸载后，Actor被销毁。那么运行时创建和破坏的流程是怎样的呢？虚幻引擎在运行时产生时调用AActor创建。产生Actor比在游戏中创建普通对象稍微复杂一点。原因是AActor需要注册到多个运行时系统才能满足其所有需要。需要设置Actor的初始位置和旋转。物理可能需要知道这些信息。负责告诉Actor执行tick事件的管理器也需要知道。诸如此类。因此，我们有一种方法专门用来产生Actor，叫做 **UWorld::SpawnActor()**。成功产生Actor后，会调用它的 **BeginPlay()** 方法，下一帧调用 **Tick()**。
@@ -311,7 +298,6 @@ Actor生命周期结束时，您可以调用 **Destroy()** 来将它销毁。在
 
 要进一步了解产生Actor的信息，请参阅[](Programming/UnrealArchitecture/Actors/Spawning)页面。
 
-(#uactorcomponent)
 #### UActorComponent
 
 UActorComponent有自己的行为，通常负责在许多类型AActor之间共享的功能，例如，提供视觉网格体、粒子效果、摄像机视角和物理互动。AActor通常提供与其游戏总体角色有关的高级目标，而UActorComponent通常执行用于支持这些更高级目标的单独任务。组件也可以与其他组件相连接，或者可以成为Actor的根组件。一个组件只能连接到一个父组件或Actor，但可以连接多个子Actor。您可以想象一个组件树。子组件的位置、旋转和缩放相对于其父组件或Actor。
@@ -321,7 +307,6 @@ Actor和组件有很多用法，一种方法是将Actor-组件关系视为Actor�
 * RootComponent——这是AActor的一个成员，用于保存AActor组件树中的顶级组件。
 * Ticking——在所属AActor的Tick()过程中执行tick事件的组件。
 
-(#dissectingthefirstpersoncharacter)
 ##### 分解第一人称角色
 
 在过去几节中，我们讲了很多，也演示了很多。为了描绘AActor及其UActorComponent之间的关系，接下来将深入根据第一人称模板生成新项目时创建的蓝图。下图是 **FirstPersonCharacter** Actor的 **组件** 树。**RootComponent** 是 **CapsuleComponent**。与 **CapsuleComponent** 相连的是 **ArrowComponent**、**Mesh** 组件和 **FirstPersonCameraComponent**。最末端组件是Mesh1P组件，它的父代是 **FirstPersonCameraComponent**，意味着第一人称网格体相对于第一人称摄像机。 
@@ -334,19 +319,16 @@ Actor和组件有很多用法，一种方法是将Actor-组件关系视为Actor�
 
 这个组件树与一个Actor类相连。如示例所示，您可以使用继承和复合构建复杂Gameplay对象。如果想要自定义现有AActor或UActorComponent，可以使用继承。如果希望许多不同的AActor类型共享功能，可以使用复合。
 
-(#ustruct)
 #### UStruct
 
 要使用UStruct，您不必从任何特定类扩展，只需用USTRUCT()标记该结构体，构建工具就会为您完成基本工作。与UObject不同的是，UStruct不会被垃圾回收。如果您要创建它们的动态实例，必须自行管理其生命周期。UStruct应该是纯传统数据类型，包含UObject反射支持，可以在虚幻编辑器、蓝图操控、序列化、联网等中编辑。
 
 现在，我们已经介绍了Gameplay类构造中使用的基本层级，接下来又到了您选择的时候。您可以在[此处](Programming/UnrealArchitecture/Reference/Classes)继续阅读Gameplay类内容，访问启动程序中具有更多信息的样本，也可以继续探索更多用于构建游戏的C++功能。
 
-(#divingdeeperstill)
 ## 继续深入探索
 
 显然您还想继续学习。让我们继续深入探索引擎的工作方式。
 
-(#unrealreflectionsystem)
 ### 虚幻反射系统
 
 [博文：虚幻属性系统（反射）](https://www.unrealengine.com/blog/unreal-property-system-reflection)
@@ -371,16 +353,16 @@ Gameplay类利用特殊标记，因此在继续之前，先来介绍一下虚幻
 	public:
 		MyUObject();
 
-		UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="Example")
+		UPROPERTY(BlueprintReadOnly, EditAnywhere)
 		float ExampleProperty;
 
-		UFUNCTION(BlueprintCallable, Category="Example")
+		UFUNCTION(BlueprintCallable)
 		void ExampleFunction();
 	};
 
 首先您会注意到包含了“MyClass.generated.h”。虚幻将生成所有反射数据并放入该文件中。您必须将该文件作为声明类型的标头文件中的最后一个包含语句，将其包含进去。
 
-该示例中的UCLASS、UPROPERTY和UFUNCTION标记包含一些其他说明符。这些虽不是必需的，但为了演示目的，已经添加了一些常见说明符。说明符可以启用或修改特定行为或属性。
+该示例中的UCLASS、UPROPERTY和UFUNCTION标记包含一些其他说明符。这些虽不是必需的，但为了演示目的，已经添加了一些常见说明符。这样我们可以指定特定行为或属性。
 
 * **Blueprintable** - 该类可以由蓝图扩展。
 * **BlueprintReadOnly** - 该属性可以从蓝图读取，但不能写入蓝图。
@@ -398,7 +380,6 @@ Gameplay类利用特殊标记，因此在继续之前，先来介绍一下虚幻
 
 [USTRUCT说明符列表](Programming/UnrealArchitecture/Reference/Structs/Specifiers)
 
-(#object/actoriterators)
 ### 对象/Actor迭代器
 
 对象迭代器是非常有用的工具，可用来迭代特定UObject类型及其子类的所有实例。
@@ -437,14 +418,12 @@ Actor迭代器与对象迭代器十分类似，但仅适用于从AActor派生的
 由于AActor派生自UObject，因此您也可以使用 **TObjectIterator** 来查找AActor的实例。只是在PIE中需要谨慎！
 [/REGION]
 
-(#memorymanagementandgarbagecollection)
 ## 内存管理和垃圾回收
 
 在本节中，我们将介绍基本内存管理和UE4中的垃圾回收系统。
 
 [Wiki：垃圾回收和动态内存分配](https://wiki.unrealengine.com/Garbage_Collection_%26_Dynamic_Memory_Allocation)
 
-(#uobjectsandgarbagecollection)
 ### UObject和垃圾回收
 
 UE4使用反射系统来实现垃圾回收系统。通过垃圾回收，您将不必手动删除UObject，只需维护对它们的有效引用即可。您的类需要派生自UObject才能对其进行垃圾回收。下面是我们将使用的简单示例类：
@@ -466,7 +445,6 @@ UE4使用反射系统来实现垃圾回收系统。通过垃圾回收，您将�
 
 当我们调用上述函数时，我们会创建一个新UObject，但不会在任何UPROPERTY中存储指向它的指针，因此它不是根集的一部分。最终，垃圾回收程序会检测到该对象无法访问，从而将其销毁。
 
-(#actorsandgarbagecollection)
 ### Actor和垃圾回收
 
 Actor通常不会被垃圾回收。一旦产生后，必须手动对它们调用 **Destroy()**。它们将不会被立即删除，而是在下次垃圾回收时进行清理。
@@ -508,12 +486,10 @@ Actor通常不会被垃圾回收。一旦产生后，必须手动对它们调用
 
 这一点很重要，因为正如之前所说，调用了Destroy()的Actor会在垃圾回收程序下次运行时才会删除。您可以检查 **IsPendingKill()** 方法，来确认UObject是否正在等待删除。如果该方法返回true，您应将对象视为已销毁，不要再使用它。
 
-(#ustructs)
 ### UStructs
 
 如前所述，UStructs是UObject的轻量级版本。因此，不能将UStructs垃圾回收。如果必需使用UStructs的动态实例，可以使用智能指针，我们稍后将进行介绍。
 
-(#non-uobjectreferences)
 ### 非对象引用
 
 通常，非UObject也能够添加对对象的引用并防止垃圾回收。为此，对象必须派生自 **FGCObject** 并覆盖其 **AddReferencedObjects** 类。
@@ -536,7 +512,6 @@ Actor通常不会被垃圾回收。一旦产生后，必须手动对它们调用
 
 我们使用 **FReferenceCollector** 来手动添加对需要且不希望垃圾回收的UObject的硬引用。当该对象被删除且其析构函数运行时，该对象将自动清除其所添加的所有引用。
 
-(#classnamingprefixes)
 ### 类命名前缀
 
 虚幻引擎提供了一些在构建过程中生成代码的工具。这些工具会期待看到一些类命名，并在名称与预期不符时触发警告或错误。以下类前缀列表描述了工具期望的名称。
@@ -549,7 +524,6 @@ Actor通常不会被垃圾回收。一旦产生后，必须手动对它们调用
 * 派生自 **SWidget** 的类（Slate UI）带有前缀 **S**，如SButton。
 * 其他类的前缀为[字母F](https://forums.unrealengine.com/showthread.php?60061-Unreal-trivia-What-does-the-F-prefix-on-classes-and-structs-stand-for)，如FVector。
 
-(#numerictypes)
 ### 数字类型
 
 由于不同平台有不同的基本类型大小，如 **短整型**、**整型** 和 **长整型**，因此UE4提供以下类型供您备选：
@@ -563,14 +537,12 @@ Actor通常不会被垃圾回收。一旦产生后，必须手动对它们调用
 
 虚幻引擎有一个模板`TNumericLimits<t>`，用于查找值类型可以拥有的最小和最大范围。有关更多信息，请单击该[链接](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/Math/TNumericLimits/index.html)。
 
-(#strings)
 ### 字符串
 
 UE4提供多个不同的类，便于您根据需要处理字符串。
 
 [完整主题：字符串处理](Programming/UnrealArchitecture/StringHandling)
 
-(#fstring)
 #### FString
 
 **FString** 是一个可变字符串，类似于std::string。FString拥有很多方法，方便您处理字符串。要创建新的FString，请使用 **TEXT()** 宏：
@@ -579,7 +551,6 @@ FString MyStr = TEXT("Hello, Unreal 4!").
 
 [完整主题：FString API](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/Containers/FString/index.html)
 
-(#ftext)
 #### FText
 
 **FText** 类似于FString，但旨在用于本地化文本。要创建新的FText，请使用 **NSLOCTEXT** 宏。该宏将使用默认语言的名称空间、键和值。
@@ -600,14 +571,12 @@ FString MyStr = TEXT("Hello, Unreal 4!").
 
 [完整主题：FText API](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/Internationalization/FText/index.html)
 
-(#fname)
 #### FName
 
 **FName** 存储通常反复出现的字符串作为辨识符，以在比较时节省内存和CPU时间。如果有多个对象引用一个字符串，FName使用较小的存储空间 **索引** 来映射到给定字符串，而不是在引用它的每个对象中多次存储完整字符串。这样会将字符串内容存储一次，节省在多个对象中使用该字符串时占用的内存。通过检查确认 **NameA.Index** 是否等于 **NameB.Index** 可以快速比较两个字符串，避免检查字符串中的每一个字符是否相同。
 
 [完整主题：FName API](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/UObject/FName/index.html)
 
-(#tchar)
 #### TCHAR
 
 **TCHAR** 是独立于所用字符集存储字符的方法，字符集或许会因平台而异。实际上，UE4字符串使用TCHAR数组来存储 **UTF-16** 编码的数据。您可以使用重载的解除引用运算符（它返回TCHAR）来访问原始数据。  
@@ -631,14 +600,12 @@ FChar类型定义为`TChar<TCHAR>`（因为它列示在该API中）。
 
 [完整主题：TChar API](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/Misc/TChar/index.html)
 
-(#containers)
 ### 容器
 
 容器是一种类，它的主要功能是存储数据集合。最常见的这些类包括 **TArray**、**TMap** 和 **TSet**。每个类都会自动调节大小，因此增长到您所需的大小。
 
 [完整主题：容器API](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/Containers/index.html)
 
-(#tarray)
 #### TArray
 
 在所有三个容器中，您在虚幻引擎4中将会使用的主要容器是TArray，它的功能与 **std::vector** 十分相似，但会提供更多功能。以下是一些常见操作：
@@ -692,7 +659,6 @@ TArray添加了对其元素进行垃圾回收的好处。这样会假设TArray�
 
 [完整主题：TArray API](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/Containers/TArray/index.html)
 
-(#tmap)
 #### TMap
 
 **TMap** 是键-值对的集合，类似于 **std::map**。TMap具有一些根据元素键查找、添加和移除元素的快速方法。您可以使用任意类型来表示键，因为它定义有 **GetTypeHash** 函数，我们稍后将进行介绍。
@@ -769,7 +735,6 @@ TArray添加了对其元素进行垃圾回收的好处。这样会假设TArray�
 
 [完整主题：TMap API](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/Containers/TMapBase/index.html)
 
-(#tset)
 #### TSet
 
 **TSet** 存储唯一值集合，类似于 **std::set**。通过 **AddUnique** 和 **Contains** 方法，TArray已经可以用作集。但是，TSet可以更快地实现这些运算，但不能像TArray一样将它们用作UPROPERTY。TSet也不会像TArray那样对元素编制索引。
@@ -801,7 +766,6 @@ TArray添加了对其元素进行垃圾回收的好处。这样会假设TArray�
 
 请记住，目前，唯一能标记为UPROPERTY的容器类是TArray。这意味着，其他容器类不能复制、保存或对其元素进行垃圾回收。
 
-(#containeriterators)
 #### 容器迭代器
 
 通过使用迭代器，您可以循环遍历容器的所有元素。以下是该迭代器语法的示例，使用的是TSet。
@@ -836,7 +800,6 @@ TArray添加了对其元素进行垃圾回收的好处。这样会假设TArray�
 	// 将迭代器复位到第一个元素
 	EnemyIterator.Reset();
 
-(#for-eachloop)
 #### For-each循环
 
 迭代器虽然好用，但如果您只想每个元素循环一次，未免有点麻烦。每个容器类还支持for each风格的语法来循环元素。TArray和TSet返回各个元素，而TMap返回键-值对。
@@ -867,12 +830,11 @@ TArray添加了对其元素进行垃圾回收的好处。这样会假设TArray�
 
 请记住，**auto** 关键字不会自动指定指针/引用，您需要自行添加。
 
-(#usingyourowntypeswithtset/tmap(hashfunctions))
 #### 将您自己的类型与TSet/TMap（散列函数）一起使用
 
 TSet和TMap需要在内部使用*散列函数*。如果您创建自己的类，想要在TSet中使用它或者用作指向TMap的键，则需要先创建自己的散列函数。大部分通常想要这样使用的UE4类型已经定义了自己的散列函数。
 
-散列函数使用指向您的类型的常量指针/引用，并返回uint64。该返回值称为对象的*散列代码*，应该是特定于该对象的伪唯一数字。两个相同的对象应该始终返回相同的散列代码。
+散列函数使用指向您的类型的常量指针/引用，并返回uint64。该返回值称为对象的 *散列代码*，应该是特定于该对象的伪唯一数字。两个相同的对象应该始终返回相同的散列代码。
 
 	class FMyClass
 	{
@@ -896,7 +858,7 @@ TSet和TMap需要在内部使用*散列函数*。如果您创建自己的类，�
 		}
 	};
 
-现在，TSet&lt;FMyClass&gt;和TMap&lt;FMyClass, ...&gt;在对键进行散列处理时将使用正确的散列函数。如果使用指针作为键（即，`TSet<FMyClass*>`），则还要实现`uint32 GetTypeHash(const FMyClass* MyClass)`。
+现在，`TSet<FMyClass>` 和 `TMap<FMyClass, ...>` 在对键进行散列处理时将使用正确的散列函数。如果使用指针作为键（即，`TSet<FMyClass*>`），则还要实现`uint32 GetTypeHash(const FMyClass* MyClass)`。
 
 [博文：值得了解的UE4库](https://www.unrealengine.com/blog/ue4-libraries-you-should-know-about)
 

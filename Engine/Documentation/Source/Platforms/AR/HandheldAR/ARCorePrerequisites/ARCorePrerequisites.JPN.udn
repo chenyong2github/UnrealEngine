@@ -16,7 +16,7 @@ Unreal Engine は Android デバイスを既にサポートしており、新し
 
 ## 一般前提条件
 
-Unreal Engine と Android デバイスの基本的な設定については、 Unreal Engine のドキュメントの [Android Game Development](Platforms/Android) セクションを参照してください。
+Unreal Engine と Android デバイスの基本的な設定については、 Unreal Engine のドキュメントの [Android Game Development](Platforms/Mobile/Android) セクションを参照してください。
 
 **ARCore 1.1 前提条件**
 

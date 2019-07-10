@@ -28,7 +28,6 @@ order:11
 您可以使用这些方法依据各种标准在场景中搜索 Actor，同时还可根据需要进行访问或修改。 
 
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/FindingActors" org:"hierarchy" end:"1")]

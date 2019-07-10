@@ -45,8 +45,9 @@ void RayTracingDynamicMeshGS(triangle FRayTracingDynamicMeshVSToGS Inputs[3], in
 }
 
 #if COMPUTESHADER
-uint NumMaxVertices;
-uint NumCPUVertices;
+uint VertexBufferSize;
+uint NumVertices;
+uint MinVertexIndex;
 RWBuffer<float> RWVertexPositions;
 
 [numthreads(256, 1, 1)]
@@ -54,21 +55,30 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 { 
 	ResolvedView = ResolveView();
 
-	uint VertexIndex = DispatchThreadId.x;
-	
-	if (VertexIndex >= NumMaxVertices) return;
+	if (DispatchThreadId.x >= VertexBufferSize) return;
 
-	uint NumActualVertices = NumCPUVertices > 0 ? NumCPUVertices : GetNumRayTracingDynamicMeshVerticesIndirect();
-	if (VertexIndex < NumActualVertices)
+	bool bUsingIndirectDraw = GetNumRayTracingDynamicMeshVerticesIndirect() > 0;
+	
+	uint NumActualVertices = NumVertices > 0 ? NumVertices : GetNumRayTracingDynamicMeshVerticesIndirect();
+	
+	uint VertexIndex = MinVertexIndex + DispatchThreadId.x;
+	
+	if (DispatchThreadId.x < NumActualVertices)
 	{
 		FVertexFactoryInput Input = LoadVertexFactoryInput(VertexIndex / 3, VertexIndex % 3);
 		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-		float3 WorldPosition = (VertexFactoryGetWorldPosition(Input, VFIntermediates) - float4(ResolvedView.PreViewTranslation, 0.0f)).xyz;
+		float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
+
+		WorldPosition.xyz -= ResolvedView.PreViewTranslation;
+		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+
 		RWVertexPositions[VertexIndex * 3 + 0] = WorldPosition.x;
 		RWVertexPositions[VertexIndex * 3 + 1] = WorldPosition.y;
 		RWVertexPositions[VertexIndex * 3 + 2] = WorldPosition.z;
 	}
-	else
+	else if (bUsingIndirectDraw)
 	{
 		RWVertexPositions[VertexIndex * 3 + 0] = asfloat(0xFFFFFFFF);
 		RWVertexPositions[VertexIndex * 3 + 1] = 0;

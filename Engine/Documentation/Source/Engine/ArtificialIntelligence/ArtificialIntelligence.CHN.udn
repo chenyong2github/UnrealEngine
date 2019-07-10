@@ -1,0 +1,28 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:AI
+Description:介绍虚幻引擎4的AI系统，其可用于在项目中创建高可信度的AI实体。 
+Version:4.21
+Parent:Engine
+Tags:AI
+Tags:Artificial Intelligence
+Tags:Behavior Trees
+Tags:EQS
+Tags:Perception
+topic-image:AI_Landing_Page_Image.png
+social-image:AI_Landing_Page_Image.png
+topic-icon:AI_Landing_Page_Image.png
+Order:34
+
+
+  
+
+![](AI_Landing_Page_Image.png "AI_Landing_Page_Image.png")
+
+用户可以同时使用多个系统，在虚幻引擎4（UE4）项目中创建角色或其他实体的AI。在项目中创建高可信度AI时，从分支为不同决策或行动的 **行为树**，到通过 **环境查询系统（EQS）** 运行查询来获得环境信息，再到使用 **AI感知（AI Perception）** 系统获取感官信息（如视觉、声音或伤害信息），所有这些系统都发挥着关键的作用。此外，所有这些工具都可以通过 **AI调试（AI Debugging）** 工具进行调试，帮助用户了解AI在特定时间的思维和行为。 
+
+在UE4中打造AI和使用这些系统时，构建AI的好思路如下：**行为树** 处理决策进程，**AI感知** 系统将源自环境的刺激（例如感官信息）传输到行为树，然后 **EQS** 处理关于环境本身的查询。欲知这些系统的更多信息，请参阅以下部分。 
+
+## 概要
+
+[DIR(output:"topic" parent:"Engine/ArtificialIntelligence" org:"hierarchys")]

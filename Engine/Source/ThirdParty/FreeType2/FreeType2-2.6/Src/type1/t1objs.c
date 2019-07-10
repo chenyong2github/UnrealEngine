@@ -77,16 +77,16 @@
     T1_Size  size = (T1_Size)t1size;
 
 
-    if ( size->root.internal )
+    if ( size->root._internal )
     {
       PSH_Globals_Funcs  funcs;
 
 
       funcs = T1_Size_Get_Globals_Funcs( size );
       if ( funcs )
-        funcs->destroy( (PSH_Globals)size->root.internal );
+        funcs->destroy( (PSH_Globals)size->root._internal );
 
-      size->root.internal = NULL;
+      size->root._internal = NULL;
     }
   }
 
@@ -108,7 +108,7 @@
       error = funcs->create( size->root.face->memory,
                              &face->type1.private_dict, &globals );
       if ( !error )
-        size->root.internal = (FT_Size_Internal)(void*)globals;
+        size->root._internal = (FT_Size_Internal)(void*)globals;
     }
 
     return error;
@@ -126,7 +126,7 @@
     FT_Request_Metrics( size->root.face, req );
 
     if ( funcs )
-      funcs->set_scale( (PSH_Globals)size->root.internal,
+      funcs->set_scale( (PSH_Globals)size->root._internal,
                         size->root.metrics.x_scale,
                         size->root.metrics.y_scale,
                         0, 0 );

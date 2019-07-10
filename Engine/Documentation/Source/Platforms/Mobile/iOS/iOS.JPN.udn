@@ -1,0 +1,25 @@
+﻿INTSourceChangelist:3782314
+Availability:Public
+Title: iOS ゲームの開発
+Crumbs:%ROOT%, Platforms
+Description:iOS プラットフォーム向けゲームの開発
+Platform:iOS
+Navigation:platform
+Version:4.9
+type:landing
+parent:Platforms/Mobile
+tags:Mobile
+tags:iOS
+topic-image:iOSGameDevelopment_topic.png
+
+## はじめよう
+
+[DIR(output:"topiccompact" parent:"Platforms/Mobile/iOS" type:"quick start")]
+
+## iOS の操作方法
+
+[DIR(end:"1" output:"listbutton" type:"how-to" parent:"Platforms/Mobile/iOS")]
+
+## 一般的な iOS ゲームの開発
+
+[DIR(end:"1" output:"listbutton" type:"overview" parent:"Platforms/Mobile/iOS")]

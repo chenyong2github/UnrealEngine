@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3367470
+INTSourceChangelist:3367470
 Availability:Public
 Title: 언리얼 엔진 4.7 업데이트 노트
 Description:
@@ -144,7 +144,7 @@ Github: [https://github.com/EpicGames/UnrealEngine/releases/tag/4.7.3-release](h
 
 * UE-11369 "Two Bone IK" 노드에 클릭하면 크래시
 
-* UE-11185 Blueprint Function Library 의 함수 중 그 라이브러리의 다른 함수를 레퍼런싱한 함수는 프로젝트를 닫고 다시 연 이후 저장할 수 없음
+* UE-11185 Blueprint Function Library 의 함수 중 그 라이브러리의 다른 함수를 참조한 함수는 프로젝트를 닫고 다시 연 이후 저장할 수 없음
 
 * UE-11322 BP 노드 새로고침/이동/삭제 후 크래시
 
@@ -152,7 +152,7 @@ Github: [https://github.com/EpicGames/UnrealEngine/releases/tag/4.7.3-release](h
 
 * UE-11302 iPad 에 디플로이 불가
 
-* UE-11692 히트 프락시를 렌더링할 때 크래시
+* UE-11692 히트 프록시를 렌더링할 때 크래시
 
 * UE-11304 빠진 파일이 있어 CrossCompilerTools 컴파일 불가
 

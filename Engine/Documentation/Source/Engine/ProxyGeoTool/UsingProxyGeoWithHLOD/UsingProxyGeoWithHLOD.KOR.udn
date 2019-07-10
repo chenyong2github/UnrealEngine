@@ -1,0 +1,58 @@
+INTSourceChangelist:6675204
+Availability: Public
+Crumbs: 
+Title: HLOD 와 함께 프록시 지오메트리 툴 사용
+Description: 언리얼 엔진 4 레퍼런스 및 가이드를 포함한 제품 문서입니다.
+Type: how-to
+SkillLevel:Advanced
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: ProxyGeometry
+Tags: Optmization
+
+
+여기서는 [계층형 레벨 오브 디테일](Engine/HLOD) (HLOD) 시스템과 함께 프록시 지오메트리 툴을 사용하는 법을 살펴 봅니다. 이 두 툴을 같이 사용하면 프레임당 화면에 그려지는 트라이앵글 수도 드로 콜 수도 줄여 언리얼 엔진 4 (UE4) 프로젝트 렌더링 퍼포먼스를 향상시킬 수 있습니다.
+
+## 단계
+
+1.  먼저 프로젝트의 [월드 세팅](Engine/Levels/WorldSettings) 에서 **LODSystem** (LOD 시스템) 메뉴 옵션을 표시합니다.   
+
+    ![](Proxy_Geo_HT_WHLOD_01.png)
+
+1.  LODSystem 메뉴에서 다음 두 옵션을 활성화합니다.   
+
+    ![](Proxy_Geo_HT_WHLOD_02.png)
+    
+    | **프로퍼티 이름** | **설명** |
+    |---|---|
+    | **Enable Hierarchical LOD System** | 계층형 LOD 시스템 활성화 - 이 레벨에 HLOD 시스템을 사용하도록 합니다. |
+    | **Simplify Mesh** | 메시 단순화 - 프록시 지오메트리 스태틱 메시 단순화를 활성화합니다. |
+    
+1.  **창 > 계층형 LOD 아웃라이너** 를 선택하여 **계층형 LOD 아웃라이너** 툴을 엽니다.
+
+    ![](Proxy_Geo_HT_WHLOD_03.png "Proxy_Geo_HT_WHLOD_03.png")
+
+1.  **계층형 LOD 아웃라이너** 의 **클러스터 생성** 버튼을 누르고 완료되면 **프록시 메시 생성** 버튼을 눌러 HLOD 및 프록시 지오메트리 생성 프로세스를 시작합니다.  
+
+    ![](Proxy_Geo_HT_WHLOD_04.png "Proxy_Geo_HT_WHLOD_04.png")
+
+## 최종 결과
+
+계층형 LOD 툴 프로세스가 완료되면 트라이앵글이 얼마나 제거되었는지 확인하고, 슬라이더를 앞뒤로 움직여 결과물을 원본과 비교해 볼 수도 있습니다.  
+
+![](Proxy_Geo_HT_WHLOD_05.png "Proxy_Geo_HT_WHLOD_05.png")
+
+아래는 기본 세팅과 **Simplify Mesh** 옵션을 활성화한 상태에서 얻을 수 있는 결과 유형 이미지 비교입니다.  
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![HLOD & 프록시 지오 실행 전](Proxy_Geo_HT_WHLOD_Before.png) 
+[/PARAM]
+[PARAM:after]
+![HLOD & 프록시 지오 실행 후](Proxy_Geo_HT_WHLOD_After.png) 
+[/PARAM]
+[/OBJECT]
+
+[](#)[](#)

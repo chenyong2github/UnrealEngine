@@ -1,0 +1,88 @@
+INTSourceChangelist:6650380
+Availability: Public
+Crumbs: 
+Title: 블루프린트와 Python 에서 프록시 지오메트리 툴 사용하기
+Description: 언리얼 에디터에서 실행하는 블루프린트 또는 Python 스크립트에서 프록시 지오메트리 툴을 호출하여 애셋 준비 워크플로를 자동화하는 법입니다.
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.21
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: 
+
+
+블루프린트 및 Python 스크립트에서 프록시 지오메트리 툴을 호출할 수 있습니다. 그러면 애셋 생성 및 데이터 준비 파이프라인을 자동화하고, 언리얼 에디터 안에서 실행하는 스크립트로 스태틱 메시 액터와 그 머티리얼을 합쳐 단순화할 수 있습니다. 약간의 시각적 정밀도 비용으로 렌더링 퍼포먼스를 크게 향상시킬 수 있습니다.
+
+예를 들어 이 휠 어셈블리에 포함된 스태틱 메시 액터는 147 개, 트라이앵글은 총 900,000 개이며, 각 메시마다 머티리얼 별도입니다. GPU 에서 드로 콜이 수백 단위로 추가됩니다. 프록시 지오메트리 툴을 실행한 이후, 액터를 하나의 머티리얼 하나의 모델로 병합하면, 드로 콜 하나로 렌더링할 수 있습니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![이전: 스태틱 메시 147 개](proxygeom-wheel-before-1.png) 
+[/PARAM]
+[PARAM:after]
+![이후: 스태틱 메시 1 개](proxygeom-wheel-after.png) 
+[/PARAM]
+[/OBJECT]
+
+트라이앵글 수 역시 97% 감소합니다. 이로 인해 약간의 변형이 생겼지만, 스크립트에서 세팅을 조정하여 단순화와 시각적 퀄리티 사이 바른 균형을 찾을 수 있습니다.
+
+프록시 지오메트리 툴은 비교적 복잡한 지오메트리 변환 과정을 거치며, 그 작업을 제어하는 세팅을 다수 제공하므로, 에디터의 UI 에서 툴 사용을 시작할 것을 권합니다. 툴과 그 설정, 기대하는 효과를 잘 파악하고 있을 때만 스크립트에서 호출하도록 하세요. 자세한 정보는 이 글의 나머지를 참고하세요.
+
+[REGION:note]
+**선행 조건:** Editor Scripting Utilities (에디터 스크립팅 유틸리티) 플러그인을 미리 설치한 상태여야 합니다. 자세한 내용은 [](Engine/Editor/ScriptingAndAutomation) 문서를 참고하세요.
+[/REGION]
+
+언어 선택
+
+블루프린트
+
+Python
+
+프록시 지오메트리 툴은 **Editor Level Library > Create Proxy Mesh Actor** 노드를 통해 노출되어 있습니다.
+
+![Create Proxy Mesh Actor](proxy-scripting-createproxymeshactor.png "Create Proxy Mesh Actor")
+
+이 노드에 필요한 입력은 다음과 같습니다.
+
+*   병합하려는 모든 스태틱 메시 액터가 들어있는 배열. 참고로 스태틱 메시 액터여야 하며, 스태틱 메시 컴포넌트가 포함된 액터는 안됩니다.
+*   프록시 지오메트리 툴이 사용하는 세팅이 들어있는 **Editor Scripting Create Proxy Mesh Actor Options** 오브젝트. 이 오브젝트는 프록시 지오메트리 툴의 UI 에 표시된 대부분의 세팅을 노출합니다.  
+    이 오브젝트 중 하나를 가져오려면, **Merge Options** 입력을 왼쪽으로 드래그하고 **Make EditorScriptingCreateProxyMeshActorOptions** 를 선택합니다.  
+    ![Make an options object](proxygeom-script-makeoptions.png "Make an options object")  
+    이 오브젝트를 사용하면 프록시 지오메트리 툴에 대한 세팅을 제공할 수 있습니다. 세부 설정 대부분은 다른 오브젝트에 제공되며, **Mesh Proxy Settings** 입력에 전달합니다. 이 오브젝트 중 하나를 가져오려면 위 단계를 반복합니다. **Mesh Proxy Settings** 입력을 드래그하고 **Make MeshProxySettings** 를 선택합니다.  
+    ![Make a mesh settings object](proxygeom-script-makemeshsettings.png "Make a mesh settings object")  
+    
+
+예를 들어, 다음 스니펫은 현재 레벨 뷰포트 및 월드 아웃라이너에 선택된 모든 액터를 받아 프록시 메시로 병합, 결과를 지정한 위치와 이름의 애셋에 저장한 뒤, 레벨의 원본 스태틱 메시 액터를 새로 생성된 프록시 애셋의 단일 인스턴스로 대체합니다.
+
+[REGION:lightbox]
+[![Proxy Geometry Blueprint example](proxygeom-scripting-example.png "Proxy Geometry Blueprint example")](proxygeom-scripting-example.png)
+
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+프록시 지오메트리 툴은 `unreal.EditorLevelLibrary.create_proxy_mesh_actor()` 함수로 노출되어 있습니다. 이 함수에 전달해야 하는 파라미터는 다음과 같습니다.
+
+*   병합할 모든 스태틱 메시 액터가 들어있는 배열. 스태틱 메시 액터여야 하며, 스태틱 메시 컴포넌트가 포함된 액터는 안됩니다.
+*   프록시 지오메트리 툴이 사용하는 세팅이 들어있는 `unreal.EditorScriptingCreateProxyMeshActorOptions` 오브젝트. 이 오브젝트는 프록시 지오메트리 툴의 UI 에 표시된 대부분의 세팅을 노출합니다.
+
+예를 들어 다음 스니펫은 레벨의 모든 스태틱 메시 액터를 받아 프록시 메시로 병합, 그 결과를 Proxy 라는 애셋에 저장하고, 레벨의 원본 스태틱 메시 액터를 그 Proxy 애셋 단일 인스턴스로 교체합니다.
+
+    import unreal
+    actors = unreal.EditorLevelLibrary.get_selected_level_actors()
+    merge_options = unreal.EditorScriptingCreateProxyMeshActorOptions()
+    merge_options.base_package_name = "/Game/Proxy"
+    merge_options.destroy_source_actors = False
+    merge_options.new_actor_label = "Proxy"
+    merge_options.spawn_merged_actor = True
+    merge_options.mesh_proxy_settings.set_editor_property("allow_adjacency", False)
+    merge_options.mesh_proxy_settings.set_editor_property("allow_distance_field", False)
+    merge_options.mesh_proxy_settings.set_editor_property("allow_vertex_colors", False)
+    merge_options.mesh_proxy_settings.set_editor_property("calculate_correct_lod_model", True)
+    merge_options.mesh_proxy_settings.set_editor_property("compute_light_map_resolution", True)
+    merge_options.mesh_proxy_settings.set_editor_property("create_collision", False)
+    merge_options.mesh_proxy_settings.set_editor_property("generate_lightmap_u_vs", True)
+    merge_options.mesh_proxy_settings.set_editor_property("merge_distance", 1.0)
+    merge_options.mesh_proxy_settings.set_editor_property("voxel_size", 0.1)
+    merged_actor = unreal.EditorLevelLibrary.create_proxy_mesh_actor(actors, merge_options)
+
+[](#)[](#)

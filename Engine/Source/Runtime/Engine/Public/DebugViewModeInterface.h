@@ -29,8 +29,8 @@ public:
 			: BlendState(nullptr)
 			, DepthStencilState(nullptr)
 		{}
-		FBlendStateRHIParamRef			BlendState;
-		FDepthStencilStateRHIParamRef	DepthStencilState;
+		FRHIBlendState*			BlendState;
+		FRHIDepthStencilState*	DepthStencilState;
 	};
 
 	FDebugViewModeInterface(
@@ -48,7 +48,7 @@ public:
 	virtual ~FDebugViewModeInterface() {}
 
 	virtual FDebugViewModePS* GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const = 0;
-	virtual void SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState) const;
+	virtual void SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const;
 
 	/** The shader class name, used to filter out shaders that need to be compiled. */
 	const TCHAR* PixelShaderName;

@@ -897,19 +897,3 @@ void MainSSAOSmoothCS(
 	SSAOSmoothResult[DestPixelPos] = Result * 0.25;
 }
 #endif
-
-
-// used if StaticFraction > small number
-void BasePassAOPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor : SV_Target0)
-{
-	float2 UV = UVAndScreenPos.xy;
-
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-
-	float StaticFraction = ScreenSpaceAOParams[3].z;
-
-	// can be optimized
-	float AOMask = (ScreenSpaceData.GBuffer.ShadingModelID != SHADINGMODELID_UNLIT);
-
-	OutColor = lerp(1.0f, ScreenSpaceData.AmbientOcclusion * ScreenSpaceData.GBuffer.GBufferAO, AOMask * StaticFraction);
-}

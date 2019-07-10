@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3489715
+INTSourceChangelist:3489715
 Availability:Public
 Title:Intersection
 Description:두 세트의 교집합을 구해 결과 세트에 할당합니다.
@@ -36,7 +36,7 @@ Set A 와 Set B 의 교집합을 시각적으로 나타내면 다음 도표와 �
 | `Item 5` | `Item 8`  |                                  |
 
 [REGION:note]
-공백 세트로 교집합을 구할 때는, [](Engine/Blueprints/UserGuide/Sets/SetNodes/Clear) 노드를 사용하세요.
+빈 세트로 교집합을 구할 때는, [](Engine/Blueprints/UserGuide/Sets/SetNodes/Clear) 노드를 사용하세요.
 [/REGION]
 
 ##입력

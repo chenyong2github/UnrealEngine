@@ -271,8 +271,8 @@ private:
 	/** Add callstack information to the crash report xml */
 	void AddPortableCallStack() const;
 
-    /** Produces a hash based on the offsets of the portable callstack and adds it to the xml */
-    void AddPortableCallStackHash() const;
+	/** Produces a hash based on the offsets of the portable callstack and adds it to the xml */
+	void AddPortableCallStackHash() const;
 
 	/** Writes header information to the buffer. */
 	void AddHeader() const;

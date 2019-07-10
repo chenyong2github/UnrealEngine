@@ -1106,6 +1106,21 @@ public:
 		NewClass->SetSuperStruct(InSuperClass);
 	}
 
+	FPythonGeneratedClassBuilder(UPythonGeneratedClass* InOldClass, UClass* InSuperClass)
+		: ClassName(InOldClass->GetName())
+		, PyType(InOldClass->PyType)
+		, OldClass(InOldClass)
+		, NewClass(nullptr)
+	{
+		UObject* ClassOuter = GetPythonTypeContainer();
+
+		// Create a new class with a temporary name; we will rename it as part of Finalize
+		const FString NewClassName = MakeUniqueObjectName(ClassOuter, UPythonGeneratedClass::StaticClass(), *FString::Printf(TEXT("%s_NEWINST"), *ClassName)).ToString();
+		NewClass = NewObject<UPythonGeneratedClass>(ClassOuter, *NewClassName, RF_Public | RF_Standalone | RF_Transient);
+		NewClass->SetMetaData(TEXT("BlueprintType"), TEXT("true"));
+		NewClass->SetSuperStruct(InSuperClass);
+	}
+
 	~FPythonGeneratedClassBuilder()
 	{
 		// If NewClass is still set at this point, if means Finalize wasn't called and we should destroy the partially built class
@@ -1687,6 +1702,7 @@ void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
 	}
 }
 
+
 void UPythonGeneratedClass::ReleasePythonResources()
 {
 	PyType.Reset();
@@ -1694,6 +1710,12 @@ void UPythonGeneratedClass::ReleasePythonResources()
 	PropertyDefs.Reset();
 	FunctionDefs.Reset();
 	PyMetaData = FPyWrapperObjectMetaData();
+}
+
+bool UPythonGeneratedClass::IsFunctionImplementedInScript(FName InFunctionName) const
+{
+	UFunction* Function = FindFunctionByName(InFunctionName);
+	return Function && Function->GetOuter() && Function->GetOuter()->IsA(UPythonGeneratedClass::StaticClass());
 }
 
 UPythonGeneratedClass* UPythonGeneratedClass::GenerateClass(PyTypeObject* InPyType)
@@ -1770,7 +1792,7 @@ bool UPythonGeneratedClass::ReparentDerivedClasses(UPythonGeneratedClass* InOldP
 
 	for (UClass* DerivedClass : DerivedClasses)
 	{
-		if (DerivedClass->HasAnyClassFlags(CLASS_Native))
+		if (DerivedClass->HasAnyClassFlags(CLASS_Native | CLASS_NewerVersionExists))
 		{
 			continue;
 		}
@@ -1789,7 +1811,7 @@ bool UPythonGeneratedClass::ReparentDerivedClasses(UPythonGeneratedClass* InOldP
 UPythonGeneratedClass* UPythonGeneratedClass::ReparentClass(UPythonGeneratedClass* InOldClass, UPythonGeneratedClass* InNewParent)
 {
 	// Builder used to generate the class
-	FPythonGeneratedClassBuilder PythonClassBuilder(InOldClass->GetName(), InNewParent, InOldClass->PyType);
+	FPythonGeneratedClassBuilder PythonClassBuilder(InOldClass, InNewParent);
 
 	// Copy the data from the old class
 	if (!PythonClassBuilder.CopyFunctionsFromOldClass())
@@ -1812,114 +1834,46 @@ UPythonGeneratedClass* UPythonGeneratedClass::ReparentClass(UPythonGeneratedClas
 
 DEFINE_FUNCTION(UPythonGeneratedClass::CallPythonFunction)
 {
-	// Get the correct class from the UFunction so that we can perform static dispatch to the correct type
-	const UPythonGeneratedClass* This = CastChecked<UPythonGeneratedClass>(Stack.Node->GetOwnerClass());
+	// Note: This function *must not* return until InvokePythonCallableFromUnrealFunctionThunk has been called, as we need to step over the correct amount of data from the bytecode stack!
+
+	const UFunction* Func = Stack.CurrentNativeFunction;
 
 	// Find the Python function to call
 	TSharedPtr<PyGenUtil::FFunctionDef> FuncDef;
 	{
-		const TSharedPtr<PyGenUtil::FFunctionDef>* FuncDefPtr = This->FunctionDefs.FindByPredicate([&Stack](const TSharedPtr<PyGenUtil::FFunctionDef>& InFuncDef)
+		// Get the correct class from the UFunction so that we can perform static dispatch to the correct type
+		const UPythonGeneratedClass* This = CastChecked<UPythonGeneratedClass>(Func->GetOwnerClass());
+
+		const TSharedPtr<PyGenUtil::FFunctionDef>* FuncDefPtr = This->FunctionDefs.FindByPredicate([Func](const TSharedPtr<PyGenUtil::FFunctionDef>& InFuncDef)
 		{
-			return InFuncDef->GeneratedWrappedMethod.MethodFunc.Func == Stack.Node;
+			return InFuncDef->GeneratedWrappedMethod.MethodFunc.Func == Func;
 		});
 		FuncDef = FuncDefPtr ? *FuncDefPtr : nullptr;
-	}
-	if (!FuncDef.IsValid())
-	{
-		UE_LOG(LogPython, Error, TEXT("Failed to find Python function for '%s' on '%s'"), *Stack.Node->GetName(), *This->GetName());
+
+		if (!FuncDef.IsValid())
+		{
+			UE_LOG(LogPython, Error, TEXT("Failed to find Python function for '%s' on '%s'"), *Func->GetName(), *This->GetName());
+		}
 	}
 
 	// Find the Python object to call the function on
 	FPyObjectPtr PySelf;
-	if (!Stack.Node->HasAnyFunctionFlags(FUNC_Static))
+	bool bSelfError = false;
+	if (!Func->HasAnyFunctionFlags(FUNC_Static))
 	{
 		FPyScopedGIL GIL;
 		PySelf = FPyObjectPtr::StealReference((PyObject*)FPyWrapperObjectFactory::Get().CreateInstance(P_THIS_OBJECT));
 		if (!PySelf)
 		{
 			UE_LOG(LogPython, Error, TEXT("Failed to create a Python wrapper for '%s'"), *P_THIS_OBJECT->GetName());
-			return;
+			bSelfError = true;
 		}
 	}
-
-	auto DoCall = [&]() -> bool
-	{
-		if (Stack.Node->Children == nullptr)
-		{
-			// Simple case, no parameters or return value
-			FPyObjectPtr PyArgs;
-			if (PySelf)
-			{
-				PyArgs = FPyObjectPtr::StealReference(PyTuple_New(1));
-				PyTuple_SetItem(PyArgs, 0, PySelf.Release()); // SetItem steals the reference
-			}
-			FPyObjectPtr RetVals = FPyObjectPtr::StealReference(PyObject_CallObject(FuncDef->PyFunction, PyArgs));
-			if (!RetVals)
-			{
-				return false;
-			}
-		}
-		else
-		{
-			// Complex case, parameters or return value
-			TArray<FPyObjectPtr, TInlineAllocator<4>> PyParams;
-
-			// Get the value of the input params for the Python args
-			{
-				int32 ArgIndex = 0;
-				for (const PyGenUtil::FGeneratedWrappedMethodParameter& ParamDef : FuncDef->GeneratedWrappedMethod.MethodFunc.InputParams)
-				{
-					FPyObjectPtr& PyParam = PyParams.AddDefaulted_GetRef();
-					if (!PyConversion::PythonizeProperty_InContainer(ParamDef.ParamProp, Stack.Locals, 0, PyParam.Get()))
-					{
-						PyUtil::SetPythonError(PyExc_TypeError, FuncDef->PyFunction, *FString::Printf(TEXT("Failed to convert argument at pos '%d' when calling function '%s' on '%s'"), ArgIndex + 1, *Stack.Node->GetName(), *P_THIS_OBJECT->GetName()));
-						return false;
-					}
-					++ArgIndex;
-				}
-			}
-
-			const int32 PyParamOffset = (PySelf ? 1 : 0);
-			FPyObjectPtr PyArgs = FPyObjectPtr::StealReference(PyTuple_New(PyParams.Num() + PyParamOffset));
-			if (PySelf)
-			{
-				PyTuple_SetItem(PyArgs, 0, PySelf.Release()); // SetItem steals the reference
-			}
-			for (int32 PyParamIndex = 0; PyParamIndex < PyParams.Num(); ++PyParamIndex)
-			{
-				PyTuple_SetItem(PyArgs, PyParamIndex + PyParamOffset, PyParams[PyParamIndex].Release()); // SetItem steals the reference
-			}
-
-			FPyObjectPtr RetVals = FPyObjectPtr::StealReference(PyObject_CallObject(FuncDef->PyFunction, PyArgs));
-			if (!RetVals)
-			{
-				return false;
-			}
-
-			if (!PyGenUtil::UnpackReturnValues(RetVals, Stack.Locals, FuncDef->GeneratedWrappedMethod.MethodFunc.OutputParams, *PyUtil::GetErrorContext(FuncDef->PyFunction), *FString::Printf(TEXT("function '%s' on '%s'"), *Stack.Node->GetName(), *P_THIS_OBJECT->GetName())))
-			{
-				return false;
-			}
-
-			// Copy the data back out of the function call
-			if (const UProperty* ReturnProp = Stack.Node->GetReturnProperty())
-			{
-				ReturnProp->CopyCompleteValue(RESULT_PARAM, ReturnProp->ContainerPtrToValuePtr<void>(Stack.Locals));
-			}
-			for (FOutParmRec* OutParamRec = Stack.OutParms; OutParamRec; OutParamRec = OutParamRec->NextOutParm)
-			{
-				OutParamRec->Property->CopyCompleteValue(OutParamRec->PropAddr, OutParamRec->Property->ContainerPtrToValuePtr<void>(Stack.Locals));
-			}
-		}
-
-		return true;
-	};
 
 	// Execute Python code within this block
 	{
 		FPyScopedGIL GIL;
-
-		if (!DoCall())
+		if (!PyGenUtil::InvokePythonCallableFromUnrealFunctionThunk(PySelf, FuncDef ? FuncDef->PyFunction.GetPtr() : nullptr, Func, Context, Stack, RESULT_PARAM) || bSelfError)
 		{
 			PyUtil::ReThrowPythonError();
 		}

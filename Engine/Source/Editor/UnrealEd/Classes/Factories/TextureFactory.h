@@ -10,6 +10,23 @@
 #include "ImportSettings.h"
 #include "TextureFactory.generated.h"
 
+struct FImportImage
+{
+	TArray<uint8> RawData;
+	ETextureSourceFormat Format = TSF_Invalid;
+	TextureCompressionSettings CompressionSettings = TC_Default;
+	int32 NumMips;
+	int32 SizeX = 0;
+	int32 SizeY = 0;
+	bool SRGB = true;
+
+	void Init2D(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData = nullptr);
+	void Init2DWithMips(int32 InSizeX, int32 InSizeY, int32 InNumMips, ETextureSourceFormat InFormat, const void* InData = nullptr);
+
+	int32 GetMipSize(int32 InMipIndex) const;
+	void* GetMipData(int32 InMipIndex);
+};
+
 
 class UTexture2D;
 class UTextureCube;
@@ -170,8 +187,13 @@ private:
 	*/
 	static bool IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FFeedbackContext* Warn);
 
+	/** Import image file into generic image struct, may be easily copied to FTextureSource */
+	bool ImportImage(const uint8* Buffer, uint32 Length, FFeedbackContext* Warn, bool bAllowNonPowerOfTwo, FImportImage& OutImage);
+
 	/** used by CreateTexture() */
 	UTexture* ImportTexture(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn);
+
+	UTexture* ImportTextureUDIM(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, const TCHAR* Type, const TMap<int32, FString>& UDIMIndexToFile, FFeedbackContext* Warn);
 
 	/** Applies import settings directly to the texture after import */
 	void ApplyAutoImportSettings(UTexture* Texture);

@@ -24,7 +24,7 @@
  * increases the graphs knowledge of that resource's lifetime. This can cause an increase in memory use or prevent passes
  * from overlapping their execution. An example is ClearUnusedGraphResources() that can automatically null out resource
  * references unused by a shader for passes that have only on shader. Warnings will be emitted if a resource is not used
- * in a pass (thanks to FRDGResource::bIsActuallyUsedByPass)
+ * in a pass (thanks to FRDGResource::MarkResourceAsUsed())
  *
  * The lambda scope of a pass execution may happen any time after FRDGBuilder::AddPass(). For debugging purpose, it may
  * happen directly in the AddPass() with the immediate mode. When a bug is happening during pass execution, immediate mode
@@ -56,7 +56,9 @@
  * or FPixelShaderUtils.
  */
 
+#include "RenderGraphDefinitions.h"
 #include "RenderGraphResources.h"
+#include "RenderGraphPass.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "ShaderParameterStruct.h"

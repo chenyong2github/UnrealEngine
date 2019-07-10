@@ -65,7 +65,9 @@ struct crn_file_info {
   uint32 m_total_palette_size;
   uint32 m_tables_size;
   uint32 m_levels;
-  uint32 m_level_compressed_size[cCRNMaxLevels];
+  //UE4_BEGIN
+  //uint32 m_level_compressed_size[cCRNMaxLevels];
+  //UE4_END
   uint32 m_color_endpoint_palette_entries;
   uint32 m_color_selector_palette_entries;
   uint32 m_alpha_endpoint_palette_entries;
@@ -181,11 +183,6 @@ const void* crnd_get_level_data(const void* pData, uint32 data_size, uint32 leve
 // Returns the compressed size of the texture's header and compression tables (but no levels).
 uint32 crnd_get_segmented_file_size(const void* pData, uint32 data_size);
 
-//UE4_BEGIN
-// Return the offset into the mipmap data for a specific level. offset starting at return value of crnd_get_level_data with level_index=0
-uint32 crnd_get_segmented_level_offset(const void* pData, uint32 data_size, uint32 level_index, uint32* pSize);
-//UE4_END
-
 // Creates a "segmented" CRN texture from a normal CRN texture. The new texture will be created at pBase_data, and will be crnd_get_base_data_size() bytes long.
 // base_data_size must be >= crnd_get_base_data_size().
 // The base data will contain the CRN header and compression tables, but no mipmap data.
@@ -195,6 +192,15 @@ bool crnd_create_segmented_file(const void* pData, uint32 data_size, void* pBase
 
 // Low-level CRN file header cracking.
 namespace crnd {
+
+//UE4_BEGIN
+template<unsigned int N> struct unpack_helper;
+template<> struct unpack_helper<1u> { static unsigned int unpack(const unsigned char* buf) { return buf[0]; } };
+template<> struct unpack_helper<2u> { static unsigned int unpack(const unsigned char* buf) { return (buf[0] << 8U) | buf[1]; } };
+template<> struct unpack_helper<3u> { static unsigned int unpack(const unsigned char* buf) { return (buf[0] << 16U) | (buf[1] << 8U) | (buf[2]); } };
+template<> struct unpack_helper<4u> { static unsigned int unpack(const unsigned char* buf) { return (buf[0] << 24U) | (buf[1] << 16U) | (buf[2] << 8U) | (buf[3]); } };
+//UE4_END
+
 template <unsigned int N>
 struct crn_packed_uint {
   inline crn_packed_uint() {}
@@ -223,18 +229,12 @@ struct crn_packed_uint {
   }
 
   inline operator unsigned int() const {
-    switch (N) {
-      case 1:
-        return m_buf[0];
-      case 2:
-        return (m_buf[0] << 8U) | m_buf[1];
-      case 3:
-        return (m_buf[0] << 16U) | (m_buf[1] << 8U) | (m_buf[2]);
-      default:
-        return (m_buf[0] << 24U) | (m_buf[1] << 16U) | (m_buf[2] << 8U) | (m_buf[3]);
-    }
+    //UE4_BEGIN
+    // Some compilers don't like previous implementation which had out-of-bounds access to m_buf in never-taken code branches
+    return unpack_helper<N>::unpack(m_buf);
+    //UE4_END
   }
-
+  
   unsigned char m_buf[N];
 };
 

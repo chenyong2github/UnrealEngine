@@ -1059,6 +1059,9 @@ void UFbxImportUI::ResetToDefault()
 	StaticMeshImportData->ReloadConfig();
 	SkeletalMeshImportData->ReloadConfig();
 	TextureImportData->ReloadConfig();
+	
+	//Make sure the UI do not display the Base Material
+	TextureImportData->bUseBaseMaterial = false;
 }
 
 namespace ImportCompareHelper

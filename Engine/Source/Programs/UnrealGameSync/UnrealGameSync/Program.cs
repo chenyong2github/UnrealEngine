@@ -85,17 +85,68 @@ namespace UnrealGameSync
 			using(TelemetryWriter Telemetry = new TelemetryWriter(DeploymentSettings.ApiUrl, Path.Combine(DataFolder, "Telemetry.log")))
 			{
 				AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-				using(UpdateMonitor UpdateMonitor = new UpdateMonitor(new PerforceConnection(UserName, null, ServerAndPort), UpdatePath))
-				{
-					ProgramApplicationContext Context = new ProgramApplicationContext(UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable);
-					Application.Run(Context);
 
-					if(UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
+				// Create the log file
+				using (TimestampLogWriter Log = new TimestampLogWriter(new BoundedLogWriter(Path.Combine(DataFolder, "UnrealGameSync.log"))))
+				{
+					Log.WriteLine("Application version: {0}", Assembly.GetExecutingAssembly().GetName().Version);
+					Log.WriteLine("Started at {0}", DateTime.Now.ToString());
+
+					if (ServerAndPort == null || UserName == null)
 					{
-						InstanceMutex.Close();
-						bool bLaunchUnstable = UpdateMonitor.RelaunchUnstable ?? bUnstable;
-						Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchUnstable? " -unstable" : ""));
+						Log.WriteLine("Missing server settings; finding defaults.");
+						GetDefaultServerSettings(ref ServerAndPort, ref UserName, Log);
+						Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, UpdatePath);
 					}
+
+					PerforceConnection DefaultConnection = new PerforceConnection(UserName, null, ServerAndPort);
+					using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultConnection, UpdatePath))
+					{
+						ProgramApplicationContext Context = new ProgramApplicationContext(DefaultConnection, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, Log);
+						Application.Run(Context);
+
+						if(UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
+						{
+							InstanceMutex.Close();
+							bool bLaunchUnstable = UpdateMonitor.RelaunchUnstable ?? bUnstable;
+							Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchUnstable? " -unstable" : ""));
+						}
+					}
+				}
+			}
+		}
+
+		public static void GetDefaultServerSettings(ref string ServerAndPort, ref string UserName, TextWriter Log)
+		{
+			// Read the P4PORT setting for the server, if necessary. Change to the project folder if set, so we can respect the contents of any P4CONFIG file.
+			if(ServerAndPort == null)
+			{
+				PerforceConnection Perforce = new PerforceConnection(UserName, null, null);
+
+				string NewServerAndPort;
+				if (Perforce.GetSetting("P4PORT", out NewServerAndPort, Log))
+				{
+					ServerAndPort = NewServerAndPort;
+				}
+				else
+				{
+					ServerAndPort = PerforceConnection.DefaultServerAndPort;
+				}
+			}
+
+			// Update the server and username from the reported server info if it's not set
+			if(UserName == null)
+			{
+				PerforceConnection Perforce = new PerforceConnection(UserName, null, ServerAndPort);
+
+				PerforceInfoRecord PerforceInfo;
+				if(Perforce.Info(out PerforceInfo, Log) && !String.IsNullOrEmpty(PerforceInfo.UserName))
+				{
+					UserName = PerforceInfo.UserName;
+				}
+				else
+				{
+					UserName = Environment.UserName;
 				}
 			}
 		}

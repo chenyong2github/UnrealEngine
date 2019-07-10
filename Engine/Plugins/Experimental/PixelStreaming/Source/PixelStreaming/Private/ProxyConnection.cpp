@@ -18,9 +18,12 @@ FProxyConnection::FProxyConnection(const FString& IP, uint16 Port, FStreamer& St
 	InputDevice(FModuleManager::Get().GetModuleChecked<FPixelStreamingPlugin>("PixelStreaming").GetInputDevicePtr()),
 	Socket(nullptr),
 	Listener(nullptr),
+	ReceiveStringMaxAcceptedLength(1024),
 	ExitRequested(false),
 	Thread(TEXT("WebRTC Proxy Connection"), [this, IP, Port]() { Run(IP, Port); })
-{}
+{
+	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingReceiveStringMaxLength="), ReceiveStringMaxAcceptedLength);
+}
 
 FProxyConnection::~FProxyConnection()
 {
@@ -156,10 +159,10 @@ namespace ProxyConnectionImpl
 		return false;\
 	}
 
-bool ReceiveString(FSocket* Socket, FString& OutString)
+bool ReceiveString(FSocket* Socket, FString& OutString, uint16 MaxAllowedLength)
 {
 	READFROMSOCKET(uint16, StrLen);
-	if (StrLen > 1024)
+	if (StrLen > MaxAllowedLength)
 	{
 		return false; // to avoid OOM by malicious browser scripts
 	}
@@ -278,7 +281,7 @@ void FProxyConnection::InitReceiveHandlers()
 	INPUT_HANDLER(UIInteraction,
 	{
 		FString Descriptor;
-		if (ReceiveString(Socket, Descriptor))
+		if (ReceiveString(Socket, Descriptor, ReceiveStringMaxAcceptedLength))
 		{
 			UE_LOG(PixelStreamingInput, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
 			InputDevice->ProcessUIInteraction(Descriptor);
@@ -288,7 +291,7 @@ void FProxyConnection::InitReceiveHandlers()
 	INPUT_HANDLER(Command,
 	{
 		FString Descriptor;
-		if (ReceiveString(Socket, Descriptor))
+		if (ReceiveString(Socket, Descriptor, ReceiveStringMaxAcceptedLength))
 		{
 			UE_LOG(PixelStreamingInput, Verbose, TEXT("Command: %s"), *Descriptor);
 			InputDevice->ProcessCommand(Descriptor);

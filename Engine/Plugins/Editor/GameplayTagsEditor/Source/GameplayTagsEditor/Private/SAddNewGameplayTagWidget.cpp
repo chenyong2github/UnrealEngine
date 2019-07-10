@@ -6,6 +6,7 @@
 #include "GameplayTagsEditorModule.h"
 #include "GameplayTagsModule.h"
 #include "Widgets/Input/SButton.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "AddNewGameplayTagWidget"
 
@@ -32,6 +33,7 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 	bShouldGetKeyboardFocus = false;
 
 	OnGameplayTagAdded = InArgs._OnGameplayTagAdded;
+	IsValidTag = InArgs._IsValidTag;
 	PopulateTagSources();
 
 	IGameplayTagsModule::OnTagSettingsChanged.AddRaw(this, &SAddNewGameplayTagWidget::PopulateTagSources);
@@ -244,12 +246,25 @@ void SAddNewGameplayTagWidget::CreateNewGameplayTag()
 		return;
 	}
 
-	FString TagName = TagNameTextBox->GetText().ToString();
+	FText TagNameAsText = TagNameTextBox->GetText();
+	FString TagName = TagNameAsText.ToString();
 	FString TagComment = TagCommentTextBox->GetText().ToString();
 	FName TagSource = *TagSourcesComboBox->GetSelectedItem().Get();
 
 	if (TagName.IsEmpty())
 	{
+		return;
+	}
+
+	// check to see if this is a valid tag
+	// first check the base rules for all tags then look for any additional rules in the delegate
+	FText ErrorMsg;
+	if (!UGameplayTagsManager::Get().IsValidGameplayTagString(TagName, &ErrorMsg) || 
+		(IsValidTag.IsBound() && !IsValidTag.Execute(TagName, &ErrorMsg))
+		)
+	{
+		FText MessageTitle(LOCTEXT("InvalidTag", "Invalid Tag"));
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg, &MessageTitle);
 		return;
 	}
 

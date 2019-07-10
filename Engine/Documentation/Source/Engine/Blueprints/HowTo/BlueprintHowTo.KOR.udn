@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6440897
 Availability: Public
 Title:블루프린트 통신 프로젝트
 Crumbs: %ROOT%, Engine, Engine/Blueprints
@@ -28,7 +28,7 @@ topic-image:BPCommTopic.png
 
 ## 단계
 	
-[DIR(output:"checkpoint" parent:"Engine\Blueprints\HowTo")]
+[DIR(output:"listbutton" parent:"Engine\Blueprints\HowTo")]
 
 [REGION:call_to_action]
 [클릭하면 시작합니다.](Engine\Blueprints\HowTo/BPHT_1 "%Engine\Blueprints\HowTo\BPHT_1:description%")

@@ -1,0 +1,128 @@
+﻿INTSourceChangelist:6408898
+Availability: Public
+Crumbs: 
+Title: 地理位置准确的太阳定位
+Description: 通过指定您的关卡在地球上的位置、日期和时间，控制太阳的位置。
+Type: 
+Version: 4.21
+Parent: Engine/Rendering/LightingAndShadows
+Order: 
+Tags: Lighting
+Tags: Early Access
+Tags: sun positioning
+topic-image: sunpos-topic.png
+hero-image: sunpos-hero.png
+
+
+在某些情况下，太阳在天空中的位置不以审美为目的。相反，它是一个关键的设计因素。
+
+这在大型构架和构造项目中往往是如此的，而且任何时候当您需要生成逼真的渲染图来显示真实的阳光和阴影模式时，也可能如此。
+
+在这些情况下，您需要能够根据用于控制太阳在地球真实天空中的位置的相同数学方程，将太阳精确地放置在虚幻引擎关卡中。这些复杂的方程包含许多设置，包括观察者在地球上的地理位置、日期和时间。
+
+ **太阳位置计算器（Sun Position Calculator）** 插件在虚幻引擎中为您求解这些数学方程。您定义纬度、经度、基点、日期和时间。然后，太阳位置计算器与虚幻引擎中的默认天空球协同工作，将日轮放置在天空球中，并在关卡中确定主定向光源的方向。
+
+## 新手入门
+
+[REGION:note]
+ **先决条件**：太阳定位器使用默认的 **BP_SkySphere**，您将发现，在虚幻编辑器中创建的大多数新关卡中已经设置了它。您必须确保您的关卡包含一个 **BP_SkySphere** 实例。
+[/REGION]
+
+开始操作：
+
+1. 从主菜单选择 **编辑（Edit）> 插件（Plugins）**。
+2. 在 **杂项（Misc）** 类别下找到 **太阳位置计算器（Sun Position Calculator）** 插件，并选中其 **启用（Enabled）** 复选框。  
+    ![Enable the Sun Position Calculator](sunpos-enble.png "Enable the Sun Position Calculator")
+3. 单击 **立即重启（Restart Now）** 以应用更改并重新打开虚幻编辑器。  
+    ![Restart Now](sunpos-3-restart.png "Restart Now")
+4. 在 **内容浏览器（Content Browser）** 中，打开 **源（Sources）** 面板。  
+    ![Sources](sunpos-4-sources.png "Sources")
+5. 在 **内容浏览器（Content Browser）** 的右下方打开 **查看选项（View Options）** 菜单，并启用 **显示引擎内容（Show Engine Content）** 和 **显示插件内容（Show Plugin Content）**。  
+    ![Show Engine and Plugin Content](sunpos-5-viewoptions.png "Show Engine and Plugin Content")
+6. 在 **太阳位置内容（SunPosition Content）** 文件夹中找到 **BP_SunPosition** 资源，并将其拖至视口中。  
+    ![Drag and drop the BP_SunPosition](sunpos-6-dragdrop.png "Drag and drop the BP_SunPosition")
+它由一个看起来像罗盘的基点的小工具表示。（该小工具只出现在虚幻编辑器中，当您运行项目时不出现）
+7. 在视口中选择该小工具，或者在 **世界大纲视图（World Outliner）** 中选择 **BP_SunPosition** Actor。  
+    ![Select the BP_SunPosition](sunpos-7-select.png "Select the BP_SunPosition")
+8. 在 **详细信息（Details）** 面板中，设置控制太阳位置的场景属性。  
+    ![Set the location, date, and time](sunpos-8-details.png "Set the location, date, and time")  
+    
+    | 设置 | 说明 |
+    | --- | --- |
+    | **纬度（Latitude）** | 对赤道以南的坐标使用负值，对赤道以北的坐标使用正值。|
+    | **经度（Longitude）** | 对子午线以西的坐标使用负值，对子午线以东的坐标使用正值。|
+    | **时区（Time Zone）** | 设置该值以指示您的场景与协调世界时(UTC)或格林威治标准时间(GMT)偏差的小时数。|
+    | **北偏移（North Offset）** | [INCLUDE:#excerpt_9] |
+    | **日期（Date）** 和 **时间（Time）** | 设置您想要模拟的一年中的时间和一天中的时间。|
+    
+
+[COMMENT:none]
+[EXCERPT:excerpt_9]
+控制您的关卡中的对象与罗盘的基点之间的关系。改变该控件还将旋转 **BP_SunPosition** 小工具在关卡中的可视位置。调整该值，直到该小工具上显示的基点相对于关卡中的对象正确定向为止。
+[REGION:note]
+不要使用旋转工具在关卡视口中旋转该小工具本身。仅使用该北偏移（North Offset）设置来控制基点。
+[/REGION]
+[/EXCERPT:excerpt_9]
+[/COMMENT]
+
+    
+
+当您更改了这些属性的值时，您应该会在虚幻编辑器中看到太阳在天空中移动，阴影也发生了改变。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ MqLpNQaKLN0
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 在运行时修改设置
+
+您可以在运行时更改 **BP_SunPosition** Actor的设置。这允许您基于UI空间或其他游戏进程事件驱动太阳的位置和光线角度。
+
+1. 为了能够在运行时改变阳光的角度，您需要将关卡中的定向光源设置为可移动（Movable）。在 **世界大纲视图（World Outliner）** 或关卡视口中选择定向光源，在 **详细信息（Details）**面板中找到 **移动性（Mobility）** 设置，并将其设置为 **可移动（Movable）**。  
+    ![Light Mobility](sunpos-runtime-1-movable.png "Light Mobility")
+2. 当您想要在运行时修改蓝图脚本中的一个值时，您需要一个指向您的关卡中包含的 **BP_SunPosition** Actor 的对象引用。可以使用 **获取类的所有Actor（Get All Actors of Class）** 节点来动态检索它，如下所示：  
+    ![Get a reference to the BP_SunPosition Actor](sunpos-runtime-2-getvariable.png "Get a reference to the BP_SunPosition Actor")  
+    [REGION:note]
+    由于 **获取类的所有Actor（Get All Actors of Class）** 开销较高，所以最好只执行一次（例如在加载关卡或构造控件时），并将结果保存到变量中，而不是每次需要获取或设置值时都执行一次。
+    [/REGION]
+3. 有了对象引用后，从其输出端口向右拖动，展开 **变量（Variables）**类别以找到 **获取（Get）** 和 **设置（Set）** 节点的列表，您可以使用该列表来检索和设置在虚幻编辑器的 **详细信息（Details）** 面板中公开的相同值。  
+    ![Get and Set API for the BP_SunPosition Actor](sunpos-runtime-3-getsetapi.png "Get and Set API for the BP_SunPosition Actor")
+4. 将所需的值设置为新的值。完成后，从 **BP_SunPosition** 变量的输出端口向右拖动，并调用其 **更新太阳（Update Sun）** 节点。  
+    ![Update Sun function](sunpos-runtime-4-updatesun.png "Update Sun function")
+
+例如，下面来自控件蓝图的一个片段设置了一个UI滑条，该滑条可将小时更改为早上6点到晚上10点之间的任意值。
+
+[REGION:lightbox]
+[![Example of changing the sun position at runtime](sunpos-runtime-example.png "Example of changing the sun position at runtime")](sunpos-runtime-example.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+在操作中，该滑动条是这样的：
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 0e9c4pcwZO8
+ [/PARAMLITERAL]
+[/OBJECT]

@@ -13,16 +13,21 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateDependencyModuleNames.AddRange(
+            PublicDependencyModuleNames.AddRange(
+                new string[] {
+                    "WmfMediaFactory"
+                    });
+
+            PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
 					"CoreUObject",
                     "Engine",
                     "MediaUtils",
-					"Projects",
-					"RenderCore",
+                    "Projects",
+                    "RenderCore",
                     "RHI",
-					"UtilityShaders",
+                    "UtilityShaders",
                     "WmfMediaFactory",
                 });
 
@@ -41,6 +46,7 @@ namespace UnrealBuildTool.Rules
 					"WmfMedia/Private",
 					"WmfMedia/Private/Player",
 					"WmfMedia/Private/Wmf",
+                    "WmfMedia/Private/WmfMediaCodec",
                     "../../../../Source/Runtime/Windows/D3D11RHI/Private",
                     "../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
                 });
@@ -61,7 +67,7 @@ namespace UnrealBuildTool.Rules
 				PublicDelayLoadDLLs.Add("mfplat.dll");
 				PublicDelayLoadDLLs.Add("mfplay.dll");
 				PublicDelayLoadDLLs.Add("shlwapi.dll");
-			}
+            }
 		}
 	}
 }

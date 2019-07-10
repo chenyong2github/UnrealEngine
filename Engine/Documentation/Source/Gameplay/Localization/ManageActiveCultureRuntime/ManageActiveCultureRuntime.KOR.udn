@@ -1,0 +1,163 @@
+INTSourceChangelist:6511521
+Availability: Public
+Crumbs: 
+Title: 런타임에 활성 컬처 관리
+Description: 활성 컬처 쿼리, 적용, 오버라이드 방법을 설명합니다. 현지화 프리뷰, 컬처 리매핑, 컬처 제한에 대해서도 다룹니다.
+Type: 
+Version: 4.22
+Parent: Gameplay/Localization
+Order: 8
+Tags: Localization
+Tags: active culture
+Tags: culture remapping
+
+
+## 컬처 쿼리 및 적용
+
+언리얼 엔진 4 (UE4)의 **Active Culture** (활성 컬처)가 가리키는 것은 다음 셋 중 하나입니다.
+
+*   **language** 언어 \- 어느 현지화 데이터를 사용할지 결정할 때 사용합니다.
+
+*   **locale** 로케일 \- 국제화 라이브러리 내 숫자/날짜/시간/등의 포맷을 제어할 때 사용합니다.
+
+*   **Asset group culture** 애셋 그룹 컬처 \- [애셋 그룹](Gameplay/Localization/Asset#애셋그룹생성) 은 기본 프로젝트 언어와 다른 컬처를 할당할 수 있는 애셋 클래스 그룹을 만들 수 있습니다.
+
+활성 컬처를 변경하면 이 모든 것을 한번에 설정할 수 있습니다. 하지만 프로젝트에서 애셋 그룹을 사용하려면, (게임에서는 종종 같은 값으로 설정하는) 언어와 로케일, 애셋 그룹을 별도의 세팅으로 분리해서 취급하는 것이 좋습니다.
+
+UE4 는 이 분리를 단순하게 만들어 주며, C++ 및 블루프린트 양쪽에서 세팅 관리에 사용할 수 있는 유틸리티도 제공합니다.
+
+### 활성 컬처 구하기
+
+내재된 활성 컬처 정보는 `FInternationalization` 싱글톤에 저장되지만, `UKismetInternationalizationLibrary` 에 제공되는 작은 래퍼 함수 세트로 C++ 및 블루프린트 양쪽에서 정보에 일관성있게 액세스할 수 있습니다.
+
+| 함수 | 설명 |
+| --- | --- |
+| **[GetCurrentLanguage](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FInternationalization/GetCurrentLanguage/index.html)** | 현재 활성 언어를 IETF 언어 태그로 구합니다. |
+| **[GetCurrentLocale](https://api.unrealengine.com/INT/API/Runtime/Engine/Kismet/UKismetInternationalizationLibra-/GetCurrentLocale/index.html)** | 활성 로케일을 IETF 언어 태그로 구합니다. |
+| **[GetCurrentAssetGroupCulture](https://api.unrealengine.com/INT/API/Runtime/Engine/Kismet/UKismetInternationalizationLibra-/GetCurrentAssetG-/index.html)** | 네임드 애셋 그룹에 대한 컬처를 IETF 언어 태그로 구합니다. |
+
+### 활성 컬처 설정
+
+내재된 활성 컬처 정보는 `FInternationalization` 싱글톤에 저장되지만, `UKismetInternationalizationLibrary` 에 제공되는 작은 래퍼 함수 세트로 C++ 및 블루프린트 양쪽에서 값을 설정할 수 있습니다. 옵션으로 사용자별 환경설정 파일에 새로운 세팅을 유지해서 저장하는 방법도 제공합니다.
+
+| 함수 | 설명 |
+| --- | --- |
+| **[SetCurrentCulture](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FInternationalization/SetCurrentCulture/index.html)** | IETF 언어 태그에서 활성 컬처를 (언어, 로케일, 모든 애셋 그룹) 설정합니다. |
+| **[SetCurrentLanguage](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FInternationalization/SetCurrentLanguage/index.html)** | IETF 언어 태그에서 활성 언어를 설정합니다. |
+| **[SetCurrentLocale](https://api.unrealengine.com/INT/API/Runtime/Engine/Kismet/UKismetInternationalizationLibra-/SetCurrentLocale/index.html)** | IETF 언어 태그에서 활성 로케일을 설정합니다. |
+| **[SetCurrentLanguageAndLocale](https://api.unrealengine.com/INT/API/Runtime/Engine/Kismet/UKismetInternationalizationLibra-/SetCurrentLangua-/index.html)** | IETF 언어 태그에서 활성 언어와 로케일을 설정합니다. |
+| **[SetCurrentAssetGroupCulture](https://api.unrealengine.com/INT/API/Runtime/Engine/Kismet/UKismetInternationalizationLibra-/SetCurrentAssetG-/index.html)** | IETF 언어 태그에서 네임드 애셋 그룹에 대한 컬처를 설정합니다. |
+| **[ClearCurrentAssetGroupCulture](https://api.unrealengine.com/INT/API/Runtime/Engine/Kismet/UKismetInternationalizationLibra-/ClearCurrentAsse-/index.html)** | 네임드 애셋 그룹에 대한 컬처를 지웁니다 (활성 언어로 되돌아갑니다). |
+
+shipping 빌드가 아니라면 엔진 콘솔 명령으로도 컬처를 변경할 수 있습니다.
+
+**예:**
+
+    culture=fr
+    language=fr
+    locale=fr
+
+### 사용가능한 언어 쿼리
+
+내재된 사용가능 언어 정보는 `FTextLocalizationManager` 싱글톤에 저장되지만, `UKismetInternationalizationLibrary` 에 제공되는 작은 래퍼 함수 세트로 C++ 및 블루프린트 양쪽에서 정보에 일관성있게 액세스할 수 있습니다.
+
+| 함수 | 설명 |
+| --- | --- |
+| **[GetNativeCulture](https://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FPolyglotTextData/GetNativeCulture/index.html)** | 현지화 카테고리의 네이티브 컬처를 IETF 언어 태그로 구합니다. |
+| **[GetLocalizedCultures](http://api.unrealengine.com/INT/API/Runtime/Core/Internationalization/FPolyglotTextData/GetLocalizedCultures/index.html)** | 사용가능한 현지화 데이터가 있는 컬처 목록을 IETF 언어 태그로 구합니다. |
+| **GetSuitableCulture** | 사용가능한 컬처 목록에서 가장 적합한 컬처를 구합니다. |
+| **GetCultureDisplayName** | 컬처의 표시명을 IETF 언어 태그에서 구합니다. |
+
+### 기본 컬처 오버라이드
+
+UE4 는 활성 언어와 로케일에 대해 내재된 플랫폼 레이어를 쿼리하여 기본 컬처를 결정합니다. 플랫폼 언어가 지원되지 않으면, UE4 는 현지화 타깃의 네이티브 언어로 돌아갑니다. 출시 프로젝트에서는, 이 동작을 오버라이드할 수 없을 것입니다. 하지만, 개발 도중에는 다른 언어를 테스트하는 데 이 오버라이드가 유용할 수 있습니다.
+
+프로젝트의 기본 세팅은 일반적으로 DefaultGame.ini 에 정의합니다. 이 예제에서는 컬처를 프랑스어로 설정합니다.
+
+**예:**
+
+    [Internationalization]
+    culture=fr
+
+이 예제에서는 언어와 로케일을 프랑스어로, 오디오 애셋은 일본어로 설정합니다.
+
+**예:**
+
+    [Internationalization]
+    language=fr
+    locale=fr
+    [Internationalization.AssetGroupCultures]
+    +Audio=ja
+
+명령줄 옵션으로도 세팅을 오버라이드할 수 있습니다.
+
+**예:**
+
+    -culture=fr
+    -language=fr
+    -locale=fr
+
+## 현지화 프리뷰
+
+현지화 프리뷰는 에디터를 벗어나지 않고 프로젝트 현지화 데이터를 미리볼 수 있는 방법을 제공하며, **Preview Game Language** (게임 언어 프리뷰) 세팅으로 설정할 수 있습니다. 이 세팅을 변경하는 방법은 다음과 같습니다.
+
+1.  에디터 메뉴 바에서 **편집 > 에디터 개인설정** 을 선택합니다.  
+    [REGION:lightbox]
+    [![](LocalizationPreview-01.png)](LocalizationPreview-01.png)
+    
+    *여기를 클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+
+2.  **에디터 개인설정** 대화창에서 **일반** 아래 **Region and Language** (지역과 언어)를 클릭합니다.  
+    [REGION:lightbox]
+    [![](LocalizationPreview-02.png)](LocalizationPreview-02.png)
+    
+    *여기를 클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+
+3.  **Preview Game Language** (게임 언어 프리뷰) 옆 드롭다운을 클릭하고 미리보려는 언어를 선택합니다.
+
+프리뷰는 에디터에서 플레이 (PIE) 실행 도중 자동 활성화되며, 에디터에서 실행되는 독립형 인스턴스에 자동 전달됩니다. 이 프리뷰는 UMG 에디터에서 위젯을 다른 언어로 미리볼 때도 사용할 수 있습니다. 프리뷰 실행 도중, 모든 편집가능 텍스트 칸은 읽기 전용이 되어 번역 데이터가 소스 데이터를 덮어쓰는 실수를 방지합니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ Juf9O3Cri2c
+ [/PARAMLITERAL]
+[/OBJECT]
+
+[REGION:note]
+PIE 및 UMG 프리뷰에 보이는 프로젝트의 런타임 표현이 항상 완전 정확하지는 않은데, 언어 또는 로케일 세팅에 영향을 주지 않고 현지화 데이터만 로드하기 때문입니다. 정확한 표현을 원하면, 에디터에서 독립형 인스턴스를 (에디터에 `-game` 옵션을 붙여서) 실행하세요.
+[/REGION]
+
+## 컬처 리매핑
+
+컬처 리매핑은 한 컬처 코드를 다른 코드로 리매핑하는 방법을 제공하며, 문자나 국가 코드로 처리할 수 없는 지역적 변형을 처리할 때 좋습니다. 컬처 리매핑은 `DefaultGame.ini` 파일에 있으며, IETF 언어 태그 짝을 세미콜론으로 구분합니다.
+
+**예:**
+
+    [Internationalization]
+    +CultureMappings="es-MX;es-419"
+
+## 컬처 제한
+
+컬처 제한은 특정 컬처를 활성화 또는 비활성화하는 방법을 제공하며, 빌드 별 환경설정 단위로 지정할 수 있습니다. 컬처 제한은 테스트에는 필요하지만 프로젝트 출시 버전에는 필요치 않은 언어를 비활성화할 때 좋습니다.
+
+컬처 제한은 일반적으로 `DefaultGame.ini` 파일에 있으며, IETF 언어 태그로 설정합니다. 제한을 적용할 빌드 구성 목록을 포함시킬 수 있습니다 (목록에 빌드 구성이 없으면 모든 빌드 구성에 제한을 적용한다는 뜻입니다).
+
+**예:**
+
+    [Internationalization]
+    ;모든 빌드 구성에 프랑스어만 활성화
+    +EnabledCultures="fr"
+    [Internationalization]
+    ;test 및 shipping 빌드 구성에 프랑스어만 활성화
+    +EnabledCultures="fr;Test,Shipping"
+    [Internationalization]
+    ;shipping 빌드 구성에 독일어 비활성화
+    +DisabledCultures="de;Shipping"

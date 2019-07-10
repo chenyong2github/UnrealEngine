@@ -1,143 +1,224 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:3761485
 Availability:Public
 Title:媒体框架总览
 Crumbs:%ROOT%, Engine
-Description:虚幻引擎 4 中的媒体框架功能总览 
-Navigation:topic
-parent:Engine/MediaFramework
-order:2
-Version:4.13
-Related:Engine\MediaFramework\TechReference
-Related:Engine\MediaFramework\HowTo
+Description:描述在UE4中使用媒体框架工具进行视频播放的核心特性和功能。
+Type: Overview
+SkillLevel: Beginner
+Version: 4.18
+Parent: Engine/MediaFramework
+Order: 1
+Tags: Media
+Tags: Video Playback
+Related: Engine\MediaFramework\TechReference
+Related: Engine\MediaFramework\HowTo
 
 [TOC(start:2 end:2)]
 
-**媒体框架（Media Framework）** 利用数个资源在虚幻引擎 4 中播放视频。在 **媒体播放器** 资源中可对视频进行拖动、暂停或倒回，并通过 [C++](Programming) 或 [](Engine/Blueprints) 进行控制。无论是需要在关卡中的一块表面上播放视频，还是创建一个 [](Engine/UMG) 界面让玩家控制视频播放，首先需要指定 **媒体源**，以便引擎找到媒体资源。
+**媒体框架** 利用数个资源在虚幻引擎4中播放视频。在 **媒体播放器** 资源中可对视频进行拖动、暂停或倒回，并通过[C++](Programming)或[](Engine/Blueprints)进行控制。 
+无论是需要在关卡中的一块表面上播放视频，还是创建一个带[UMG](Engine/UMG)的UI元素让玩家控制视频播放，首先需要指定 **媒体源**，以便引擎找到媒体资源。
+
+(#mediasourcetypes)
 
 ## 媒体源类型
 
-可使用数个不同媒体源资源定义媒体来源。无论文件是项目的一部分，还是从网页上进行流送，或者是平台特定的媒体，在播放视频前都需要定义源。点击 **Add New** 按钮，然后在 **Media** 部分指定所需的源类型，即可在 **Content Browser** 中添加媒体源。  
+可使用数个不同媒体源资源来定义媒体来源。 
+无论文件是项目的一部分，还是从网页上进行流送，或者是平台特定的媒体，在播放视频前都需要定义源。
+点击 **新增（Add New）** 按钮，然后在 **媒体（Media）** 部分指定要使用的源类型，在 **内容浏览器** 中添加一个媒体源。 
 
 ![](MediaSource.png)
 
-[REGION:note]
-在 [](Engine\MediaFramework\TechReference\) 页面可查看支持文件类型和 URL 的内容。 
-[/REGION]
+(#filemediasource)
 
 ### 文件媒体源
 
 ![](MediaSource_File.png)
 
-**文件媒体源（File Media Source）** 资源用于保存在设备或共享本地网络文件中的媒体文件。可在 **File Path** 部分指定媒体文件存放路径。媒体文件可保存在任意路径下，但建议将其保存在项目的 **Content/Movies** 文件夹中，然后指向此文件。此操作可确保媒体文件与项目正常打包。指向此路径外的文件时将出现黄色感叹号警告。 
+**文件媒体源** 资源用于保存在设备或共享本地网络文件中的媒体文件。可在 **文件路径** 部分指定媒体文件存放路径。 
 
-这种类型的源资源可用于将整个媒体文件载入内存，然后启用 **Precache File** 选项进行播放。基于文件大小，缓存时间将存在差异，因此选择此项时需将其纳入考虑。 
+[REGION:tip]
+媒体文件可保存在任意路径下，但建议将其保存在项目的 **Content/Movies** 文件夹中，然后指向此文件。 
+此操作可确保媒体文件随项目正常打包。指向此路径外的文件时将出现黄色感叹号警告（如上所示）。 
+[/REGION]
 
-每个源资源支持一个 **Default Player** 域中的命名，以便为该资源识别适当的原生媒体播放器。如将此域中留空，将自动检测媒体播放器。 
+此类源资源可将整个媒体文件载入内存，然后启用 **预缓存文件（Precache File）** 选项（在 **高级选项** 部分下）进行播放。 
+基于文件大小的不同，缓存时间将存在差异，因此选择此项时需将其纳入考量。 
+每个文件媒体源资源能够以逐平台基础（如下所示）覆盖其本地媒体播放器插件（用于播放媒体的插件），也可以自动选择播放器插件。 
 
 [REGION:note]
-请查阅 [](Engine\MediaFramework\HowTo\FileMediaSource) 指南，了解如何使用文件媒体源资源。 
+并非所有播放器均支持预缓存。当前只有 **MfMedia**、**PS4Media** 和 **WmfMedia** 播放器插件支持。 
 [/REGION]
+
+![](PlatformOverride.png)
+
+[REGION:note]
+请查阅[](Engine\MediaFramework\HowTo\FileMediaSource)指南，了解如何使用文件媒体源资源。 
+[/REGION]
+
+
+(#image(img)mediasource)
+
+### 图像（Img）媒体源
+
+![](ImgMediaSource.png)
+
+**图像媒体源** 资源可用于播放保存在设备上的图像序列，或从共享本地网络中进行播放，其中 **序列路径** 域将指向序列中的首个图像。 
+图像必须为支持的格式，并按顺序命名（例如：_MyImage01.exr_ or _MyImage_01.exr_），以便引擎找到并填充序列中剩余的图像。 
+
+在高级选项中可定义序列图像的 **每秒帧率覆盖（Frames Per Second Override）** 和任意 **代理覆盖（Proxy Overrides）**。和其他源资源一样，可使用 **播放器覆盖（Player Overrides）** 基于媒体播放的平台类型来定义播放器插件。 
+
+[REGION:note]
+请查阅[](Engine\MediaFramework\HowTo\ImgMediaSource)指南，了解如何使用图像媒体源资源。 
+[/REGION]
+
+
+
+(#streammediasource)
 
 ### 流送媒体源
 
 ![](MediaSource_Stream.png)
 
-**流送媒体源（Stream Media Source）** 资源使用 URL 作为媒体的源，并从互联网进行获取。当前版本不支持链接到 YouTube 或 DailyMotion 式的 URL，需要直接链接到托管文件。注意：以上显示的 URL 只是一个范例，无法使用。
+**流送媒体源** 资源使用URL作为媒体的源，并从互联网上进行获取。当前版本不支持链接到YouTube或DailyMotion式的URL，需要直接链接到托管文件。 
+和文件媒体源资源一样，可以逐平台为基础覆盖流送媒体源的播放器插件，或自动选择播放器插件。 
 
 [REGION:note]
-请查阅 [](Engine\MediaFramework\HowTo\StreamMediaSource) 指南，了解如何使用流送媒体源资源。 
+请查阅[](Engine\MediaFramework\HowTo\StreamMediaSource)指南，了解如何使用流送媒体源资源。 
 [/REGION]
+
+(#platformmediasource)
 
 ### 平台媒体源
 
 ![](MediaSource_Platform.png)
 
-**平台媒体源（Platform Media Source）** 资源支持以每个平台为基础覆盖媒体源。如目标平台未指定源，可指定使用的媒体源并定义每个平台的媒体源。 
+**平台媒体源** 资源支持以逐平台为基础覆盖媒体源。 
+举例而言，您希望只在Android设备或只在PS4上播放特定视频。 
+在 **媒体源** 部分可指定哪些视频在哪些平台上播放。 
+使用平台媒体源时，必须为每个平台选择媒体源。 
 
-例如您希望只在安卓设备或只在 PS4 上播放特定视频。在 **Media Sources** 部分可指定哪些视频在哪些平台上播放。如 Media Source 为空，则将使用 **默认源**。 
-
-[REGION:warning]
-平台媒体源资源仍在实验阶段，在 4.13 版本中无法正常使用。计划在 4.14 版本中推出。
+[REGION:note]
+请查阅[](Engine\MediaFramework\HowTo\PlatformMedia\)指南，了解如何使用平台媒体源资源。 
 [/REGION]
 
+(#mediaplaylists)
 
 ## 媒体播放列表
 
-媒体源资源可进行单个播放，使用 **媒体播放列表（Media Playlist）** 资源可按顺序播放多个媒体源。创建数个媒体源资源后可将它们添加到媒体播放列表，在此将自动循环，按定义的顺序播放每个资源。通过 **Content Browser** 中 **Media** 部分下的 **Add New** 按钮即可创建媒体播放列表。 
+媒体源资源可进行单个播放，使用 **媒体播放列表** 资源可按顺序播放多个媒体源。 
+创建数个媒体源资源后可将它们添加到媒体播放列表，在此将自动循环，按定义的顺序播放每个资源。
+通过**内容浏览器** 中 **媒体（Media）** 部分下的 **新增（Add New）** 按钮即可创建媒体播放列表。 
 
 ![](MediaPlaylistButton.png)
 
-可在媒体播放列表窗口（下图）的 **Playlist** 部分下定义需要添加的源资源并指定播放顺序。创建的所有媒体源资源将显示在下方的 **Media Library** 窗口中，可双击资源将其添加到播放列表末尾。 
+创建并打开媒体播放列表后，媒体播放列表编辑器将打开： 
 
 ![](CustomizedPlaylist.png)
 
+[REGION:warning]
+从4.18.1版本开始，**循环** 选项将不再使播放列表循环。如需循环播放列表，可以在 **媒体播放器** 资源中设置 **循环** 选项。 
+[/REGION]
+
+可在媒体播放列表编辑器中定义需要添加的源资源，并指定播放顺序。 
+创建的所有媒体源资源将显示在下方的 **媒体库（Media Library）** 窗口中，双击资源即可将其添加到播放列表末尾（或使用“项目”部分下的 **+** 按钮进行添加）。
 除非经蓝图脚本指定，媒体播放列表可混合每种媒体源类型并按顺序播放。 
 
-[REGION:note]
-请查阅 [](Engine\MediaFramework\HowTo\MediaPlaylists) 指南，了解如何使用媒体播放列表资源。 
-[/REGION]
-
-## 媒体声波
-
-创建 **媒体声波（Media Sound Wave）** 资源，以便播放与视频关联的音频。  
-
-![](MediaPlayerSound.png)
-
-通过 **Media** 下的 **Add New** 按钮选择 **Media Sound Wave** 资源。 
-
-![](MediaPlayerSoundWindow.png)
-
-媒体声波资源拥有 **Debug**、**Concurrency** 和 **Attenuation** 设置，可对它们进行调整，定义资源的处理方式。连接到媒体播放器资源时，附加到视频源的音频将随视频自动播放。通常可沿用新建媒体声波资源的默认设置。如需对声音的感知进行控制，可对 Concurrency 和 Attenuation 设置进行调整。 
 
 [REGION:note]
-可在 [](Engine/Audio) 部分查阅虚幻引擎 4 中使用音频的更多细节内容。 
+请查阅[](Engine\MediaFramework\HowTo\MediaPlaylists)指南，了解如何使用媒体播放列表资源。 
 [/REGION]
 
+(#mediasoundcomponent)
+
+## 媒体音效组件
+
+要使音效随视频播放，需要创建一个 **媒体音效** 组件并将其添加到关卡中播放媒体的蓝图或Actor。 
+
+[REGION:warning]
+在引擎4.18版之前，**媒体声波** 资源用于生成音效，现已废弃。如果当前在使用这些资源，则需要将其从关卡中删除，并关联媒体音效资源和指定的媒体播放器，以便生成视频的音频。 
+[/REGION]
+
+以下关卡中有一个静态网格体，**细节** 面板中也已添加一个媒体音效组件。 
+
+![](MediaSoundComponent.png)
+
+将媒体音效组件添加到actor或蓝图后，需要将媒体音效组件指向一个 **媒体播放器** 资源。 
+
+![](MediaSoundComponent_AssignedPlayer.png)
+
+媒体音效组件在 **细节** 面板中提供了 **通道**、**衰减**、**并发性** 和其他[音频](Engine/Audio)相关的设置，可用于定义音效的感知方式。 
+连接到媒体播放器资源时，附加到视频源的音频将随视频自动播放。 
+通常而言，可沿用媒体音效组件的默认设置。然而，如果需要对音效进行更多控制，可对并发性、衰减和其他设置进行调整。 
+
+[REGION:warning]
+音频混成器当前不支持 **环绕** 通道设置，其将在未来的引擎版本中加入。 
+[/REGION]
+
+
+(#mediatextures)
 
 ## 媒体纹理
 
-**媒体纹理（Media Texture）** 资源用于从媒体播放器资源渲染视频轨。 
+**媒体纹理** 资源用于从媒体播放器资源渲染视频轨迹。 
 
 ![](MediaTexture.png)
 
-媒体声波提供音频，而媒体纹理提供媒体源资源的视觉效果。 
-媒体纹理资源可包含在 [](Engine/Rendering/Materials/) 中，然后再应用到关卡中的模型（如公告牌、电视或显示器）进行显示，使视频在游戏世界中的物体上播放。 
+媒体音效组件提供音频，而媒体纹理提供媒体源资源的视觉效果。 
+媒体纹理资源可包含在[](Engine/Rendering/Materials/)中，然后再应用到关卡中的网格体（如公告板、电视或显示器）进行显示，使视频在游戏世界中的物体上播放。 
+创建媒体纹理资源时，需要在 **媒体播放器（Media Player）** 下的 **细节（Details）** 面板中定义要引用的媒体播放器。 
 
 ![](MediaTextureWindow.png)
 
-上图中，带媒体纹理资源的材质已被创建并应用到关卡中的静态网格体。 
-在 [纹理编辑器](Engine/Content/Types/Textures/Properties/Interface) 中，媒体纹理显示在关卡中其所在材质的相同播放位置。 
-除标准 [](Engine/Content/Types/Textures/Properties) 外，媒体纹理接受 **Clamped**、**Mirror** 或 **World** 值的 XY 轴 **Addressing** 值。 
+下方含媒体纹理资源的材质已被创建并应用到关卡中的静态网格体上。 
+在[纹理编辑器](Engine/Content/Types/Textures/Properties/Interface)中，媒体纹理显示的播放位置与其在关卡中材质所处的位置相同。 
+除标准[](Engine/Content/Types/Textures/Properties)外，媒体纹理接受X和Y轴 **寻址（Addressing）** 值为 **锁定（Clamped）**、**镜像（Mirror）** 或 **场景（World）**。 
 
-[REGION:note]
-请在 [](Engine\MediaFramework\HowTo) 部分查阅媒体纹理播放视频的设置和使用指南。 
+![](SampleMediaTexture.png)
+
+材质使用一个 **Texture Sample** 节点，其将引用媒体纹理资源。 
+在Texture Sample节点上，**采样器类型（Sampler Type）** 必须设为 **第三方（External）**，才能进行播放。 
+此设置是引擎进行的优化，用于解码媒体文件。 
+
+![](SamplerType.png)
+
+[REGION:warning]
+针对使用在引擎4.18版之前创建的媒体纹理的材质，需要将 **采样器类型（Sampler Type）** 手动设为 **第三方（External）**。 
 [/REGION]
+
+(#mediaplayerassets)
 
 ## 媒体播放器资源
 
-拥有媒体源或媒体播放列表后，即可使用 **媒体播放器（Media Player）** 资源播放资源。媒体播放器资源需要使用媒体纹理生成视频播放、使用媒体声波生成与视频关联的音频。通过 **Content Browser** 中 **Media** 部分下的 **Add New** 按钮即可创建媒体播放器资源。 
+拥有媒体源或媒体播放列表后，即可使用 **媒体播放器** 资源来播放资源。 
+媒体播放器资源需要使用媒体纹理来生成视频播放；使用媒体音效组件来生成视频关联的音频。 
+通过 **内容浏览器** 中 **媒体（Media）** 部分下的 **新增（Add New）** 按钮即可创建媒体播放器资源。 
 
 ![](MediaPlayer.png)
 
-创建媒体播放器资源时将出现 **Create Media Player** 窗口（下图），询问是否需要创建并链接资源到媒体播放器。这将自动创建并指定与媒体播放器资源关联的媒体纹理和媒体声波文件。 
+创建媒体播放器资源时将出现 **创建媒体播放器（Create Media Player）** 窗口（如下图所示），询问是否需要创建并链接资源到媒体播放器。 
+这将自动创建并指定与正在创建的媒体播放器资源相关联的媒体纹理文件。 
 
 ![](CreateMediaPlayer.png)
 
-**双击** 媒体播放器资源将打开 **媒体播放器窗口**： 
+双击媒体播放器资源将打开 **媒体播放编辑器**： 
 
 ![](MediaPlayerWindow.png)
 
-在媒体播放器窗口中可播放并预览创建的所有媒体源资源（创建的源媒体显示在 **Media Library** 面板中）。可使用顶部的工具栏播放、暂停、倒回、或跳至视频的开头和结尾。当前正在播放视频的媒体播放列表将显示在 **Playlist** 窗口的右上角。 
+在媒体播放编辑器中可以预览项目中的所有媒体源资源，可以播放、暂停、倒回或快进（如支持）媒体。 
+也可以定义媒体播放器资源的播放设置：打开时媒体从何处开始自动播放、媒体是否循环播放（如支持），或是否从播放列表随机选择源进行播放（如使用播放列表）。 
 
-在 **Details** 面板的右下角可定义 **Playback** 的选项或指定与媒体播放器相关的 **声波** 和 **视频纹理**（或 **图片纹理**）。此外 **Info** 面板将显示源的信息，如流送类型、编解码、取样率、维度等。 
-
-[REGION:warning]
-当前尚无媒体播放器插件实现静态图像纹理输出，此功能尚在实验阶段。
+[REGION:note]
+欲知媒体编辑器和选项详解，请参阅[媒体编辑器参考](Engine\MediaFramework\MediaEditorReference)文档页面。 
 [/REGION]
+
+
+(#mediaassets&scripting)
 
 ## 媒体资源和脚本编写
 
-媒体播放器资源设置完成并链接资源后，即可在游戏会话中进行播放。如需在游戏中播放媒体，首先需要通过蓝图或 C++ 打开媒体源资源。先在包含对媒体播放器资源引用的任意蓝图中创建一个 [变量](Engine/Blueprints/UserGuide/Variables/)。 
+媒体播放器资源设置完成并链接媒体纹理和媒体音效组件（如视频含音频）后，即可在游戏会话中进行播放。 
+如需在游戏中播放媒体，首先需要通过蓝图或C++创建一个对媒体播放器资源的引用。 
+执行此操作的方法是在任意蓝图中创建一个 **媒体播放器** 变量类型的[变量](Engine/Blueprints/UserGuide/Variables/)，并设置变量的 **默认值** 引用所需的媒体播放器。 
 
 ![](MediaPlayerDetailsSet.png)
 
@@ -147,33 +228,45 @@ Related:Engine\MediaFramework\HowTo
 
 | 选项 | 描述 |
 | -------- | ----------- |
-| **Open Playlist** | 打开指定播放列表中的第一个媒体源。|
-| **Open Playlist Index** | 打开指定播放列表中指定的媒体源。|
-| **Open Source** | 打开指定的媒体源（文件媒体、流送媒体或平台媒体）。|
-| **Open URL** | 打开指定的媒体 URL。|
-| **Reopen** | 重新打开当前打开的媒体或播放列表。|
+| **打开文件（Open File）** | 打开电脑上指定路径中的一个媒体文件。 |
+| **打开播放列表（Open Playlist）** | 打开指定播放列表中的第一个媒体源。 |
+| **打开播放列表索引（Open Playlist Index）** | 打开指定播放列表中的指定媒体源。 |
+| **打开源（Open Source）** | 打开指定的媒体源（文件媒体、流送媒体或平台媒体）。 |
+| **打开URL（Open URL）** | 打开指定的媒体URL。 |
+| **重新打开（Reopen）** | 重新打开当前打开的媒体或播放列表。 |
 
-新建媒体播放器资源的 **Play on Open** 选项为默认开启，意味着打开媒体源时它将自动开始播放视频。 
-Play on Open 复选框使用方便，但不强制要求。如不需要媒体在成功打开后自动播放，可挂钩到 **OnMediaOpened** 蓝图事件。 
-如取消勾选 Play on Open 选项（下图所示），则需要在媒体源打开后调用 **Play** 函数。 
+新创建媒体播放器资源的 **打开时播放（Play on Open）** 选项为默认开启，意味着打开媒体源时将自动开始播放视频。 
+可在媒体播放器资源中取消勾选此选项，使源在打开时不进行播放，只在通过蓝图或C++进行显式调用时才开始播放。 
 
 ![](UncheckPlayOnOpen.png)
 
-下图中我们在 **Event BeginPlay** 节点上打开了媒体播放列表，并在 **Right Mouse Button** 为 **Pressed** 状态下时播放 **Media Player**。 
+如不希望媒体在成功打开后自动播放，可挂钩到 **Play** 蓝图事件。 
 
 ![](PlayWhenPressed.png)
 
-[REGION:note]
-如未在媒体源打开时自动播放而是使用 Play 函数进行播放，建议不要在 Open Source 或 Open Playlist 调用后直接连接 Play 调用。 
-这是因为媒体源需要一定时间打开，未打开前 Play 命令将返回 false，视频将无法播放。
+[REGION:caption]
+上图中我们在 **Event BeginPlay** 节点上打开了媒体播放列表，只在 **鼠标右键（Right Mouse Button）** 为 **按下（Pressed）** 状态下时播放 **媒体播放器（Media Player）**。 
 [/REGION]
 
-可从媒体播放器引用调用其他函数（如 [Binding Events](Engine/Blueprints/UserGuide/EventDispatcher/BindingAndUnbinding/)）到播放的多个状态（如视频暂停或视频终止）。 
-还可在媒体播放器引用后调用多个不同函数，如检查视频能否被暂停、视频是否正在播放、视频是否设为循环、访问播放速度信息等。 
+[REGION:note]
+如未在媒体源打开时自动播放，而是使用Play函数进行播放，建议不要在Open Source或Open Playlist调用后直接连接Play调用。 
+这是因为媒体源需要一定时间打开，未打开前Play命令将返回false，视频将无法播放。在这些实例中，可能需要使用绑定到 **On Media Opened** 调用的[绑定事件](Engine/Blueprints/UserGuide/EventDispatcher/BindingAndUnbinding/)。 
+[/REGION]
+
+![](OnMediaOpened.png)
+
+[REGION:caption]
+上图中我们打开了一个流送媒体源并将媒体播放器绑定到On Media Opened，其将发射一个事件，在完全打开后播放媒体。 
+[/REGION]
+
+
+可将带媒体播放器引用的其他函数绑定到播放的多个状态（举例而言：如视频播放暂停或视频播放结束）。 
+还可在媒体播放器引用后调用多个不同函数，如检查视频能否被暂停、检查视频是否正在播放、视频是否设为循环，以及访问播放速度信息等。 
+如需查看这些选项，从媒体播放器引用连出引线，然后在蓝图快捷菜单的 **媒体播放器（Media Player）** 部分下查看。 
 
 ![](MediaPlayerNodes.png)
 
-如需查看这些选项，从媒体播放器引用连出引线，然后在蓝图快捷菜单的 **Media Player** 部分下查看。 
+
 
 
 

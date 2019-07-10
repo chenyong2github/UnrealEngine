@@ -20,7 +20,7 @@ Installed Build プロセスでは、Unreal Engine 4 (UE4) の Installed Build �
 
 ## Installed Build を作成する
 
-Installed Build は [BuildGraph`[UE4Root]/Engine/Build/InstalledBuild.xml` の Installed Build スクリプトによる ](Programming/Development/BuildGraph) スクリプティング システム を使用して作成することができます。
+Installed Build は [BuildGraph`[UE4Root]/Engine/Build/InstalledBuild.xml` の Installed Build スクリプトによる ](Programming/BuildTools/AutomationTool/BuildGraph) スクリプティング システム を使用して作成することができます。
 
 **Installed Build を作成するには**
 

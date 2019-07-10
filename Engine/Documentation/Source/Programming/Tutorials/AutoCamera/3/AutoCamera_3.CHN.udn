@@ -1,7 +1,10 @@
-﻿Availability: Public
+﻿INTSourceChangelist:6061750
+Availability: docs
 Title:3. 在世界中放置相机Director（导演）
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/AutoCamera
 Description:在世界中放置相机Director并分配相机到其中
+
+## 此页面已被合并，不再需要。
 
 [VAR:Steps]
 [OBJECT:Navigation]

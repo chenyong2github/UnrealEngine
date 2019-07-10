@@ -1,9 +1,9 @@
-﻿INTSourceChangelist:3967023
+﻿INTSourceChangelist:6324570
 Availability: Public
 Title:3. 블루프린트로 C++ 확장 및 덮어쓰기
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/VariablesTimersEvents
 Description:블루프린트를 사용하여 C++ 함수성을 보조하거나 덮어씁니다.
-version:4.9
+version:4.21
 [VAR:Steps]
 [OBJECT:Navigation]
 	[PARAM:previous]
@@ -133,6 +133,7 @@ version:4.9
 	// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 	#include "HowTo_VTE.h"
+	#include "Components/TextRenderComponent.h"
 	#include "Countdown.h"
 
 	// Sets default values
@@ -188,5 +189,6 @@ version:4.9
 		//Change to a special readout
 		CountdownText->SetText(TEXT("GO!"));
 	}
+
 
 

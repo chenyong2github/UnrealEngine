@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:Mesh 타입데이터
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
@@ -27,7 +27,7 @@ topic-image:LootBucket.png
 | **Mesh Alignment** | 메시 정렬 - 메시를 렌더링할 때 사용할 정렬법입니다. 이 프로퍼티 덕을 보려면 Required 모듈의 _Screen Alignment_ 프로퍼티를 *꼭* _PSA_TypeSpecific_ 으로 설정해야 합니다. 제공되는 옵션은 다음과 같습니다: [INCLUDE:#MeshAlignmentOption] |
 | **Override Material** | 머티리얼 덮어쓰기 - _True_ 면 스태틱 메시 모델에 적용된 머티리얼이 아닌 (Required 모듈에 할당된) 이미터의 머티리얼을 사용하여 메시를 렌더링합니다. 머티리얼을 할당해 줘야 하는 메시에 UV 채널이 여럿 필요한 경우, 또는 코드용 머티리얼 할당을 파라미터화 해야하는 경우, 메시 머티리얼 모듈에 쓰기 좋은 옵션 되겠습니다. |
 | [REGION:tablesection]Orientation (오리엔테이션)[/REGION] ||
-| **Pitch** | 핏치 - 사용되는 스태틱 메시에 적용할 '미리' 회전 핏치(각도)입니다. |
+| **Pitch** | 피치 - 사용되는 스태틱 메시에 적용할 '미리' 회전 피치(각도)입니다. |
 | **Roll** | 롤 - 사용되는 스태틱 메시에 적용할 '미리' 회전 롤(각도)입니다. |
 | **Yaw** | 요 - 사용되는 스태틱 메시에 적용할 '미리' 회전 요(각도)입니다. |
 | **Axis Lock Option** | 축 잠금 옵션 - 메시를 잠글 축입니다. TypeSpecific 메시 정렬과 LockAxis 모듈을 덮어씁니다. 제공되는 옵션은 다음과 같습니다: [INCLUDE:#AxisLockOption] |

@@ -614,29 +614,25 @@ void UNiagaraGraph::FindInputNodes(TArray<UNiagaraNodeInput*>& OutInputNodes, UN
 	}
 }
 
-TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs() const
+TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOnly) const
 {
+	TArray<UEdGraphNode*> NodesToProcess = bReachableOnly ? FindReachbleNodes() : Nodes;
+
 	TArray<FNiagaraVariable> Result;
-	for (UEdGraphNode* Node : Nodes)
+	for (UEdGraphNode* Node : NodesToProcess)
 	{
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
-		if (SwitchNode)
+		if (SwitchNode && !SwitchNode->IsSetByCompiler())
 		{
 			FNiagaraVariable Variable(SwitchNode->GetInputType(), SwitchNode->InputParameterName);
 			Result.AddUnique(Variable);
 		}
 
-		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node);
-		if (FunctionNode)
+		if (UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node))
 		{
 			for (const FNiagaraPropagatedVariable& Propagated : FunctionNode->PropagatedStaticSwitchParameters)
 			{
-				FNiagaraVariable Variable = Propagated.SwitchParameter;
-				if (!Propagated.PropagatedName.IsEmpty())
-				{
-					Variable.SetName(FName(*Propagated.PropagatedName));
-				}
-				Result.AddUnique(Variable);
+				Result.AddUnique(Propagated.ToVariable());
 			}			
 		}
 	}
@@ -645,6 +641,58 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs() const
 		return Left.GetName().LexicalLess(Right.GetName());
 	});
 	return Result;
+}
+
+TArray<UEdGraphNode*> UNiagaraGraph::FindReachbleNodes() const
+{
+	TArray<UEdGraphNode*> ResultNodes;
+	TArray<UNiagaraNodeOutput*> OutNodes;
+	FindOutputNodes(OutNodes);
+	ResultNodes.Append(OutNodes);
+
+	for (int i = 0; i < ResultNodes.Num(); i++)
+	{
+		UEdGraphNode* Node = ResultNodes[i];
+		if (Node == nullptr)
+		{
+			continue;
+		}
+		
+		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
+		if (SwitchNode)
+		{
+			TArray<UEdGraphPin*> OutPins;
+			SwitchNode->GetOutputPins(OutPins);
+			for (UEdGraphPin* Pin : OutPins)
+			{
+				UEdGraphPin* TracedPin = SwitchNode->GetTracedOutputPin(Pin, false);
+				if (TracedPin && TracedPin != Pin)
+				{
+					ResultNodes.AddUnique(TracedPin->GetOwningNode());
+				}
+			}
+		}
+		else
+		{
+			TArray<UEdGraphPin*> InputPins;
+			for (UEdGraphPin* Pin : Node->GetAllPins())
+			{
+				if (!Pin || Pin->Direction != EEdGraphPinDirection::EGPD_Input)
+				{
+					continue;
+				}
+				for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
+				{
+					if (!LinkedPin)
+					{
+						continue;
+					}
+					ResultNodes.AddUnique(LinkedPin->GetOwningNode());
+				}
+			}
+		}
+	}
+	return ResultNodes;
 }
 
 void UNiagaraGraph::GetParameters(TArray<FNiagaraVariable>& Inputs, TArray<FNiagaraVariable>& Outputs)const
@@ -1115,6 +1163,11 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 	RebuildNumericCache();
 }
 
+void UNiagaraGraph::CopyCachedReferencesMap(UNiagaraGraph* TargetGraph)
+{
+	TargetGraph->ParameterToReferencesMap = ParameterToReferencesMap;
+}
+
 const class UEdGraphSchema_Niagara* UNiagaraGraph::GetNiagaraSchema() const
 {
 	return Cast<UEdGraphSchema_Niagara>(GetSchema());
@@ -1540,7 +1593,8 @@ void UNiagaraGraph::RefreshParameterReferences() const
 	const UEdGraphSchema_Niagara* NiagaraSchema = Cast<UEdGraphSchema_Niagara>(Schema);
 	for (UEdGraphNode* Node : Nodes)
 	{
-		if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node))
+		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
+		if (SwitchNode && !SwitchNode->IsSetByCompiler())
 		{
 			FNiagaraVariable Variable(SwitchNode->GetInputType(), SwitchNode->InputParameterName);
 			AddStaticParameterReference(Variable, SwitchNode);
@@ -1549,12 +1603,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		{
 			for (const FNiagaraPropagatedVariable& Propagated : FunctionNode->PropagatedStaticSwitchParameters)
 			{
-				FNiagaraVariable Variable = Propagated.SwitchParameter;
-				if (!Propagated.PropagatedName.IsEmpty())
-				{
-					Variable.SetName(FName(*Propagated.PropagatedName));
-				}
-				AddStaticParameterReference(Variable, FunctionNode);
+				AddStaticParameterReference(Propagated.ToVariable(), FunctionNode);
 			}
 		}
 

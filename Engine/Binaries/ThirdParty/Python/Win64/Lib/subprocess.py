@@ -40,6 +40,8 @@ import gc
 import signal
 import errno
 
+from pprint import pprint # TEMP: CIS BUGHUNT
+
 # Exception classes used by this module.
 class CalledProcessError(Exception):
     """This exception is raised when a process run by check_call() or
@@ -638,12 +640,24 @@ class Popen(object):
                                          env,
                                          cwd,
                                          startupinfo)
-            except pywintypes.error, e:
+# EPIC EDIT start -- nick.shin 2019-06-21 -- UE-76599
+#            except pywintypes.error, e:
+            except (OSError, pywintypes.error) as e:
                 # Translate pywintypes.error to WindowsError, which is
                 # a subclass of OSError.  FIXME: We should really
                 # translate errno using _sys_errlist (or similar), but
                 # how can this be done from Python?
-                raise WindowsError(*e.args)
+#                raise WindowsError(*e.args)
+                # ERROR_ACCESS_DENIED (winerror 5) is received when the
+                # process already died.
+                print('NICKNICK: subprocess.py START OF CIS BUGHUNT DUMP')
+                print(executable)
+                print(args)
+                pprint(vars(e)) # TEMP CIS BUGHUNT
+                print('NICKNICK: subprocess.py END OF CIS BUGHUNT DUMP')
+                if e.winerror != 5:
+                    raise WindowsError(*e.args)
+# EPIC EDIT end -- nick.shin 2019-06-21 -- UE-76599
             finally:
                 # Child is launched. Close the parent's copy of those pipe
                 # handles that only the child should have open.  You need

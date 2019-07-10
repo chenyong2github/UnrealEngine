@@ -103,7 +103,8 @@ struct FAnalyticsEventAttribute
 		case AttrTypeEnum::JsonFragment:
 			return AttrValueString;
 		case AttrTypeEnum::Number:
-			if (AttrValueNumber - FMath::TruncToFloat(AttrValueNumber) == 0.0)
+			// From CL #3669417 : Integer numbers are formatted as "1" and not "1.00"
+			if (AttrValueNumber - FMath::FloorToDouble(AttrValueNumber) == 0.0)
 				return LexToSanitizedString((int64)AttrValueNumber);
 			return LexToSanitizedString(AttrValueNumber);
 		case AttrTypeEnum::Boolean:

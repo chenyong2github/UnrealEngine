@@ -251,7 +251,7 @@ struct FLandscapeComponentMaterialOverride
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
+	UPROPERTY(EditAnywhere, Category = LandscapeComponent, meta=(UIMin=0, UIMax=8, ClampMin=0, ClampMax=8))
 	FPerPlatformInt LODIndex;
 
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
@@ -308,17 +308,22 @@ enum ELandscapeComponentUpdateFlag : uint32
 	// Will update Component clients: Navigation data, Foliage, Grass, etc.
 	Component_Update_Client = 1 << 3,
 	// Will update Component clients while editing
-	Component_Update_Client_Editing = 1 << 4
+	Component_Update_Client_Editing = 1 << 4,
+	// Will compute component approximated bounds
+	Component_Update_Approximated_Bounds = 1 << 5
 };
 
 enum ELandscapeLayerUpdateMode : uint32
 { 
 	Update_Heightmap_All = 1 << 0,
 	Update_Heightmap_Editing = 1 << 1,
-	Update_Weightmap_All = 1 << 2,
-	Update_Weightmap_Editing = 1 << 3,
+	Update_Heightmap_Editing_NoCollision = 1 << 2,
+	Update_Weightmap_All = 1 << 3,
+	Update_Weightmap_Editing = 1 << 4,
+	Update_Weightmap_Editing_NoCollision = 1 << 5,
 	Update_All = Update_Weightmap_All | Update_Heightmap_All,
 	Update_All_Editing = Update_Weightmap_Editing | Update_Heightmap_Editing,
+	Update_All_Editing_NoCollision = Update_Weightmap_Editing_NoCollision | Update_Heightmap_Editing_NoCollision,
 	// In cases where we couldn't update the clients right away this flag will be set in RegenerateLayersContent
 	Update_Client_Deferred = 1 << 4,
 	// Update landscape component clients while editing
@@ -327,7 +332,15 @@ enum ELandscapeLayerUpdateMode : uint32
 
 #endif
 
-UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
+UENUM()
+enum ELandscapeClearMode
+{
+	Clear_Weightmap = 1 << 0 UMETA(DisplayName = "Paint"),
+	Clear_Heightmap = 1 << 1 UMETA(DisplayName = "Sculpt"),
+	Clear_All = Clear_Weightmap | Clear_Heightmap UMETA(DisplayName = "All")
+};
+
+UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility, VirtualTexture), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -458,12 +471,12 @@ public:
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the negative Z axis, positive value increases bound size */
-	UPROPERTY(EditAnywhere, Category=LandscapeComponent, meta=(EditCondition="bOverrideBounds"))
+	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
 	float NegativeZBoundsExtension;
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the positive Z axis, positive value increases bound size */
-	UPROPERTY(EditAnywhere, Category=LandscapeComponent, meta=(EditCondition="bOverrideBounds"))
+	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
 	float PositiveZBoundsExtension;
 
 	/** StaticLightingResolution overriding per component, default value 0 means no overriding */
@@ -589,12 +602,16 @@ public:
 	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual bool IsPrecomputedLightingValid() const override;
 
+	virtual TArray<URuntimeVirtualTexture*> const& GetRuntimeVirtualTextures() const override;
+	virtual ERuntimeVirtualTextureMainPassType GetVirtualTextureRenderPassType() const override;
+
 	LANDSCAPE_API UTexture2D* GetHeightmap(bool InReturnEditingHeightmap = false) const;
 	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false) const;
 
 	LANDSCAPE_API TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false) const;
+	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const;
 
 #if WITH_EDITOR
 	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);
@@ -749,7 +766,7 @@ public:
 	/**
 	 * Recalculate cached bounds using height values.
 	 */
-	LANDSCAPE_API void UpdateCachedBounds();
+	LANDSCAPE_API void UpdateCachedBounds(bool bInApproximateBounds = false);
 
 	/**
 	 * Update the MaterialInstance parameters to match the layer and weightmaps for this component
@@ -891,8 +908,8 @@ public:
 
 	LANDSCAPE_API bool IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask) const;
 	LANDSCAPE_API void ClearUpdateFlagsForModes(uint32 InModeMask);
-	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false);
-	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false);
+	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
+	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
 	LANDSCAPE_API void RequestEditingClientUpdate();
 	LANDSCAPE_API void RequestDeferredClientUpdate();
 	LANDSCAPE_API uint32 ComputeWeightmapsHash();

@@ -812,9 +812,10 @@ void FSplineComponentVisualizer::DuplicateKey()
 	SelectedKeysSorted.Sort([](int32 A, int32 B) { return A > B; });
 
 	// Insert duplicates into the list, highest index first, so that the lower indices remain the same
-	FInterpCurveVector& SplinePosition = SplineComp->SplineCurves.Position;
-	FInterpCurveQuat& SplineRotation = SplineComp->SplineCurves.Rotation;
-	FInterpCurveVector& SplineScale = SplineComp->SplineCurves.Scale;
+	FInterpCurveVector& SplinePosition = SplineComp->GetSplinePointsPosition();
+	FInterpCurveQuat& SplineRotation = SplineComp->GetSplinePointsRotation();
+	FInterpCurveVector& SplineScale = SplineComp->GetSplinePointsScale();
+	USplineMetadata* SplineMetadata = SplineComp->GetSplinePointsMetadata();
 
 	for (int32 SelectedKeyIndex : SelectedKeysSorted)
 	{
@@ -823,6 +824,11 @@ void FSplineComponentVisualizer::DuplicateKey()
 		SplinePosition.Points.Insert(FInterpCurvePoint<FVector>(SplinePosition.Points[SelectedKeyIndex]), SelectedKeyIndex);
 		SplineRotation.Points.Insert(FInterpCurvePoint<FQuat>(SplineRotation.Points[SelectedKeyIndex]), SelectedKeyIndex);
 		SplineScale.Points.Insert(FInterpCurvePoint<FVector>(SplineScale.Points[SelectedKeyIndex]), SelectedKeyIndex);
+
+		if (SplineMetadata)
+		{
+			SplineMetadata->DuplicatePoint(SelectedKeyIndex);
+		}
 
 		// Adjust input keys of subsequent points
 		for (int Index = SelectedKeyIndex + 1; Index < SplinePosition.Points.Num(); Index++)
@@ -891,7 +897,8 @@ void FSplineComponentVisualizer::OnAddKey()
 	FInterpCurveVector& SplinePosition = SplineComp->GetSplinePointsPosition();
 	FInterpCurveQuat& SplineRotation = SplineComp->GetSplinePointsRotation();
 	FInterpCurveVector& SplineScale = SplineComp->GetSplinePointsScale();
-
+	USplineMetadata* SplineMetadata = SplineComp->GetSplinePointsMetadata();
+	
 	FInterpCurvePoint<FVector> NewPoint(
 		SelectedSegmentIndex,
 		SplineComp->GetComponentTransform().InverseTransformPosition(SelectedSplinePosition),
@@ -916,6 +923,10 @@ void FSplineComponentVisualizer::OnAddKey()
 	SplinePosition.Points.Insert(NewPoint, SelectedSegmentIndex + 1);
 	SplineRotation.Points.Insert(NewRotPoint, SelectedSegmentIndex + 1);
 	SplineScale.Points.Insert(NewScalePoint, SelectedSegmentIndex + 1);
+	if (SplineMetadata)
+	{
+		SplineMetadata->InsertPoint(SelectedSegmentIndex, SelectedSegmentIndex + 1);
+	}
 
 	// Adjust input keys of subsequent points
 	for (int Index = SelectedSegmentIndex + 1; Index < SplinePosition.Points.Num(); Index++)
@@ -964,12 +975,18 @@ void FSplineComponentVisualizer::OnDeleteKey()
 	SelectedKeysSorted.Sort([](int32 A, int32 B) { return A > B; });
 
 	// Delete selected keys from list, highest index first
-	FInterpCurveVector& SplinePosition = SplineComp->SplineCurves.Position;
-	FInterpCurveQuat& SplineRotation = SplineComp->SplineCurves.Rotation;
-	FInterpCurveVector& SplineScale = SplineComp->SplineCurves.Scale;
-
+	FInterpCurveVector& SplinePosition = SplineComp->GetSplinePointsPosition();
+	FInterpCurveQuat& SplineRotation = SplineComp->GetSplinePointsRotation();
+	FInterpCurveVector& SplineScale = SplineComp->GetSplinePointsScale();
+	USplineMetadata* SplineMetadata = SplineComp->GetSplinePointsMetadata();
+		
 	for (int32 SelectedKeyIndex : SelectedKeysSorted)
 	{
+		if (SplineMetadata)
+		{
+			SplineMetadata->RemovePoint(SelectedKeyIndex);
+		}
+		
 		SplinePosition.Points.RemoveAt(SelectedKeyIndex);
 		SplineRotation.Points.RemoveAt(SelectedKeyIndex);
 		SplineScale.Points.RemoveAt(SelectedKeyIndex);

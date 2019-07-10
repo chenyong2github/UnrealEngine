@@ -2,7 +2,7 @@
 Availability: Public
 Crumbs: 
 Title: 게임플레이 어트리뷰트 및 게임플레이 이펙트
-Description: Gameplay Ability System 내 Attribute 및 Effect 에 대한 개요입니다.
+Description: Gameplay Ability System 안의 Attribute 및 Effect 에 대한 개요입니다.
 Type: 
 Version: 4.20
 Parent: Gameplay/GameplayAbilitySystem
@@ -31,17 +31,17 @@ UE4 프로젝트에서의 구성 방식은 [](Resources/SampleGames/ARPG/Gamepla
 어트리뷰트 세트를 생성하려면, `UAttributeSet` 를 생성하고 Gameplay Attribute Data (게임플레이 어트리뷰트 데이터) 멤버를 추가하여 `UPROPERTY` 태그를 붙입니다. 예를 들어 "health" 어트리뷰트만 들어있는 어트리뷰트 세트는 다음과 같습니다.
 
 
-UCLASS()
-class USimpleAttributeSet : public UAttributeSet
-{
-GENERATED_BODY()
-public:
-/** 기본값을 설정합니다. 예를 들어, Health 는 양수로 설정해야 합니다. */
-USimpleAttributeSet();
-/** 피해를 얼마나 받으면 죽는지를 나타냅니다. */
-UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
-FGameplayAttributeData Health;
-};
+	UCLASS()
+	class USimpleAttributeSet : public UAttributeSet
+	{
+		GENERATED_BODY()
+	public:
+		/** 기본값을 설정합니다. 예를 들어, Health 는 양수로 설정해야 합니다. */
+		USimpleAttributeSet();
+		/** 죽기 전까지 흡수할 수 있는 대미지 양을 측정합니다. */
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
+		FGameplayAttributeData Health;
+	};
 
 
 *최소 어트리뷰트 세트로, 어트리뷰트가 단 하나입니다.*

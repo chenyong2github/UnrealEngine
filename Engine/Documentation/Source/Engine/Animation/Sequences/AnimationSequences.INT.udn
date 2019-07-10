@@ -1,10 +1,9 @@
 Availability: Public
-Crumbs: 
 Title: Animation Sequences
 Description: individual assets containing all of the transform data making up a single animation.
-Type: 
+Type:overview
 Version: 4.14
-Parent: 
+Parent: Engine/Animation
 Order: 
 Tags: Animation, Animation Assets
 

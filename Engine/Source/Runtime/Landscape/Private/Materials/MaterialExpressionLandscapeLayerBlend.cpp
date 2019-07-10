@@ -2,6 +2,7 @@
 
 #include "Materials/MaterialExpressionLandscapeLayerBlend.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture.h"
 #include "EngineGlobals.h"
 #include "MaterialCompiler.h"
 #if WITH_EDITOR
@@ -286,7 +287,7 @@ int32 UMaterialExpressionLandscapeLayerBlend::Compile(class FMaterialCompiler* C
 }
 #endif // WITH_EDITOR
 
-UTexture* UMaterialExpressionLandscapeLayerBlend::GetReferencedTexture()
+UObject* UMaterialExpressionLandscapeLayerBlend::GetReferencedTexture() const
 {
 	return GEngine->WeightMapPlaceholderTexture;
 }

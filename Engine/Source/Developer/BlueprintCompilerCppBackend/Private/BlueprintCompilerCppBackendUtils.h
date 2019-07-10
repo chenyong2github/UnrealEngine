@@ -350,12 +350,25 @@ struct FEmitDefaultValueHelper
 		Dot,
 	};
 
+	/** Allows callers to control the behavior of emitting code to initialize properties. */
+	enum class EPropertyGenerationControlFlags
+	{
+		/** Normal operation (default). */
+		None = 0,
+		/** Allow transient properties to be emitted. By default, transient properties are skipped. */
+		AllowTransient = 1 << 0,
+		/** Allow protected properties to be treated as an accessible property. By default, protected properties will use the inaccessible property path, which emits some extra code. */
+		AllowProtected = 1 << 1,
+		/** Emit code to construct the value before assigning it. By default, it's assumed that the value has already been constructed. */
+		IncludeFirstConstructionLine = 1 << 2
+	};
+
 	// OuterPath ends context/outer name (or empty, if the scope is "this")
-	static void OuterGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& OuterPath, const uint8* DataContainer, const uint8* OptionalDefaultDataContainer, EPropertyAccessOperator AccessOperator, bool bAllowProtected = false);
+	static void OuterGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& OuterPath, const uint8* DataContainer, const uint8* OptionalDefaultDataContainer, EPropertyAccessOperator AccessOperator, EPropertyGenerationControlFlags ControlFlags = EPropertyGenerationControlFlags::None);
 
 
 	// PathToMember ends with variable name
-	static void InnerGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& PathToMember, const uint8* ValuePtr, const uint8* DefaultValuePtr, bool bWithoutFirstConstructionLine = false);
+	static void InnerGenerate(FEmitterLocalContext& Context, const UProperty* Property, const FString& PathToMember, const uint8* ValuePtr, const uint8* DefaultValuePtr, EPropertyGenerationControlFlags ControlFlags = EPropertyGenerationControlFlags::None);
 
 	// Creates the subobject (of class) returns it's native local name, 
 	// returns empty string if cannot handle
@@ -380,6 +393,8 @@ private:
 		, TArray<FString>& NativeCreatedComponentProperties, const USCS_Node* ParentNode, TArray<FNonativeComponentData>& ComponentsToInit
 		, bool bBlockRecursion);
 };
+
+ENUM_CLASS_FLAGS(FEmitDefaultValueHelper::EPropertyGenerationControlFlags);
 
 struct FBackendHelperUMG
 {

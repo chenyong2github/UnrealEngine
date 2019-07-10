@@ -6,7 +6,7 @@
 #include "SceneOutlinerPublicTypes.h"
 #include "SceneOutlinerDragDrop.h"
 #include "SceneOutlinerStandaloneTypes.h"
-#include "FractureToolDelegates.h"
+#include "SceneOutlinerDelegates.h"
 #include "GeometryCollection/GeometryCollectionTreeItem.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
@@ -128,7 +128,7 @@ void FGeometryCollectionBoneDropTarget::OnDrop(FDragDropPayload& DraggedObjects,
 	// Report errors
 	EditorErrors.Notify(NSLOCTEXT("ActorAttachmentError", "AttachmentsFailed", "Attachments Failed!"));
 
-	FFractureToolDelegates::Get().OnComponentsUpdated.Broadcast();
+	FSceneOutlinerDelegates::Get().OnComponentsUpdated.Broadcast();
 }
 
 FGeometryCollectionBoneTreeItem::FGeometryCollectionBoneTreeItem(UActorComponent* InComponent, FGeometryCollectionTreeItem* InParentTreeItem, uint32 BoneIndex)
@@ -162,20 +162,20 @@ FTreeItemPtr FGeometryCollectionBoneTreeItem::FindParent(const FTreeItemMap& Exi
 	{
 		if (const UGeometryCollection* GeometryCollectionObject = GCComponent->GetRestCollection())
 		{
-			TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 			{
-				const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GeometryCollection->BoneHierarchy;
+				const TManagedArray<int32>& Parents = GeometryCollection->Parent;
 
-				if (Hierarchy[BoneIndex].Parent == FGeometryCollectionBoneNode::InvalidBone)
+				if (Parents[BoneIndex] == FGeometryCollection::Invalid)
 				{
 					return ExistingItems.FindRef(ComponentPtr);
 				}
-				else
+					else
 				{
 					const TArray<FTreeItemRef>& ParentSubComponentItems = ParentTreeItem->GetSubComponentItems();
-					check(Hierarchy[BoneIndex].Parent < ParentSubComponentItems.Num());
-					return ParentTreeItem->GetSubComponentItems()[Hierarchy[BoneIndex].Parent];
+					check(Parents[BoneIndex] < ParentSubComponentItems.Num());
+					return ParentTreeItem->GetSubComponentItems()[Parents[BoneIndex]];
 				}
 			}
 		}
@@ -204,11 +204,10 @@ FString FGeometryCollectionBoneTreeItem::GetDisplayString() const
 		{
 			if (const UGeometryCollection* GeometryCollectionObject = GCComponent->GetRestCollection())
 			{
-				TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 				{
-					const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GeometryCollection->BoneHierarchy;
-					const TManagedArray<FString>& BoneName = *GeometryCollection->BoneName;
+					const TManagedArray<FString>& BoneName = GeometryCollection->BoneName;
 					return (BoneIndex < BoneName.Num()) ? BoneName[BoneIndex] : FString();
 				}
 			}
@@ -275,15 +274,15 @@ void FGeometryCollectionBoneTreeItem::RenameSubComponent(const FText& InName)
 		return;
 	}
 	UGeometryCollectionComponent* GCComponent = Cast<UGeometryCollectionComponent>(ComponentPtr);
-	FGeometryCollectionEdit ScopedEdit = GCComponent->EditRestCollection(false);
+	FGeometryCollectionEdit ScopedEdit = GCComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
 	if (UGeometryCollection* GeometryCollectionObject = ScopedEdit.GetRestCollection())
 	{
-		TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 		{
-			if (GeometryCollection && BoneIndex < GeometryCollection->BoneName->Num())
+			if (GeometryCollection && BoneIndex < GeometryCollection->BoneName.Num())
 			{
-				TManagedArray<FString>& BoneNames = *GeometryCollection->BoneName;
+				TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
 				if (BoneNames[BoneIndex] != InName.ToString())
 				{
 					const FScopedTransaction Transaction(LOCTEXT("SceneOutlinerRenameSubComponentTransaction", "Rename Sub-component"));
@@ -303,16 +302,16 @@ FString FGeometryCollectionBoneTreeItem::GetTypeName() const
 		UGeometryCollectionComponent* GCComponent = Cast<UGeometryCollectionComponent>(ComponentPtr);
 		if (GCComponent && GCComponent->GetRestCollection() && GCComponent->GetRestCollection()->GetGeometryCollection() )
 		{
-			const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GCComponent->GetRestCollection()->GetGeometryCollection()->BoneHierarchy;
-			if (BoneIndex >= Hierarchy.Num())
+			const TManagedArray<int32>& Parents = GCComponent->GetRestCollection()->GetGeometryCollection()->Parent;
+			if (BoneIndex >= Parents.Num())
 			{
 				return LOCTEXT("DeletedBoneTypeName", "Deleted Bone").ToString();
 			}
-			if (Hierarchy[BoneIndex].Parent == FGeometryCollectionBoneNode::InvalidBone)
+			if (Parents[BoneIndex] == FGeometryCollection::Invalid)
 			{
 				return LOCTEXT("RootBoneTypeName", "Root Bone").ToString();
 			}
-			if (Hierarchy[BoneIndex].IsGeometry())
+			if (GCComponent->GetRestCollection()->GetGeometryCollection()->IsGeometry(BoneIndex))
 			{
 				return LOCTEXT("GeometryBoneTypeName", "Geometry Bone").ToString();
 			}

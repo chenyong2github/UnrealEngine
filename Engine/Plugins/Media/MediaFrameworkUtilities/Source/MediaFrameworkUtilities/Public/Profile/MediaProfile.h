@@ -24,11 +24,11 @@ class MEDIAFRAMEWORKUTILITIES_API UMediaProfile : public UObject
 private:
 
 	/** Media sources. */
-	UPROPERTY(EditAnywhere, Instanced, Category="Inputs")
+	UPROPERTY(EditAnywhere, Instanced, Category="Inputs", EditFixedSize, meta=(EditFixedOrder))
 	TArray<UMediaSource*> MediaSources;
 
 	/** Media outputs. */
-	UPROPERTY(EditAnywhere, Instanced, Category="Outputs")
+	UPROPERTY(EditAnywhere, Instanced, Category="Outputs", EditFixedSize, meta=(EditFixedOrder))
 	TArray<UMediaOutput*> MediaOutputs;
 
 	/** Override the Engine's Timecode provider defined in the project settings. */
@@ -116,4 +116,9 @@ public:
 	 * Will change the engine's timecode provider & custom time step and redirect the media profile source/output proxy for the correct media source/output.
 	 */
 	bool IsMediaSourceAffectedByProfile(UMediaSource* InMediaSource);
+
+	/**
+	 * Update the number of sources and outputs to the number to proxies.
+	 */
+	void FixNumSourcesAndOutputs();
 };

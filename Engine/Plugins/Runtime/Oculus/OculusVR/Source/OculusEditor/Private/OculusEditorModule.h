@@ -32,6 +32,7 @@ public:
 
 public:
 	static const FName OculusPerfTabName;
+	static const FName OculusPlatToolTabName;
 
 private:
 
@@ -39,6 +40,7 @@ private:
 	void AddMenuExtension(FMenuBuilder& Builder);
 
 	TSharedRef<class SDockTab> OnSpawnPluginTab(const class FSpawnTabArgs& SpawnTabArgs);
+	TSharedRef<class SDockTab> OnSpawnPlatToolTab(const class FSpawnTabArgs& SpawnTabArgs);
 
 private:
 	TSharedPtr<class FUICommandList> PluginCommands;
@@ -56,5 +58,6 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 	// End of IDetailCustomization interface
 
-	FReply PluginClickFn(bool text);
+	FReply PluginClickPerfFn(bool text);
+	FReply PluginClickPlatFn(bool text);
 };

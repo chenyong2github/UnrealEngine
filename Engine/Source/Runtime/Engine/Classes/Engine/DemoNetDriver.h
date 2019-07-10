@@ -475,7 +475,14 @@ private:
 
 	TArray<TUniquePtr<FDeltaCheckpointData>> PlaybackDeltaCheckpointData;
 	
-public:	
+	TSharedPtr<struct FReplayPlaylistTracker> PlaylistTracker;
+
+public:
+
+	void SetPlayingPlaylist(TSharedPtr<struct FReplayPlaylistTracker> InPlaylistTracker)
+	{
+		PlaylistTracker = InPlaylistTracker;
+	}
 
 	virtual void Serialize(FArchive& Ar) override;
 
@@ -1019,7 +1026,7 @@ private:
 	// Maintain a quick lookup for loaded levels directly to LevelStatus
 	TMap<const ULevel*, int32> LevelStatusIndexByLevel;
 
-	// List of seen level statuses indices (in ALlLevelStatuses).
+	// List of seen level statuses indices (in AllLevelStatuses).
 	TArray<int32> SeenLevelStatuses;
 
 	// Time of the last packet we've processed (in seconds).

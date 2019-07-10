@@ -6,8 +6,11 @@
 
 namespace Chaos
 {
+template <typename T, int d>
+class TKinematicGeometryParticleHandle;
+
 template<class T, int d>
-class TKinematicGeometryParticles : public TGeometryParticles<T, d>
+class CHAOS_API TKinematicGeometryParticles : public TGeometryParticles<T, d>
 {
   public:
 	TKinematicGeometryParticles()
@@ -37,8 +40,27 @@ class TKinematicGeometryParticles : public TGeometryParticles<T, d>
 		return FString::Printf(TEXT("%s, MV:%s, MW:%s"), *BaseString, *V(index).ToString(), *W(index).ToString());
 	}
 
+	typedef TKinematicGeometryParticleHandle<T, d> THandleType;
+	const THandleType* Handle(int32 Index) const;
+
+	//cannot be reference because double pointer would allow for badness, but still useful to have non const access to handle
+	THandleType* Handle(int32 Index);
+
+	void Serialize(FChaosArchive& Ar)
+	{
+		TGeometryParticles<T, d>::Serialize(Ar);
+		Ar << MV << MW;
+	}
+
   private:
 	TArrayCollectionArray<TVector<T, d>> MV;
 	TArrayCollectionArray<TVector<T, d>> MW;
 };
+
+template <typename T, int d>
+FChaosArchive& operator<<(FChaosArchive& Ar, TKinematicGeometryParticles<T, d>& Particles)
+{
+	Particles.Serialize(Ar);
+	return Ar;
+}
 }

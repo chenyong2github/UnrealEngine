@@ -6,6 +6,7 @@
 #include "OVR_Types.h"
 #include "OVR_Platform_Defs.h"
 
+#include "OVR_AbuseReportOptions.h"
 #include "OVR_UserAndRoomArray.h"
 #include "OVR_UserArray.h"
 #include "OVR_UserOptions.h"
@@ -169,6 +170,17 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_User_GetSdkAccounts();
 /// If no error occurred, the message will contain a payload of type ::ovrUserProofHandle.
 /// Extract the payload from the message handle with ::ovr_Message_GetUserProof().
 OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_User_GetUserProof();
+
+/// Launch the flow for sending a friend request to a user.
+/// \param userID User ID of user to send a friend request to
+///
+/// A message with type ::ovrMessage_User_LaunchFriendRequestFlow will be generated in response.
+///
+/// First call ::ovr_Message_IsError() to check if an error occurred.
+///
+/// If no error occurred, the message will contain a payload of type ::ovrLaunchFriendRequestFlowResultHandle.
+/// Extract the payload from the message handle with ::ovr_Message_GetLaunchFriendRequestFlowResult().
+OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_User_LaunchFriendRequestFlow(ovrID userID);
 
 /// Launch the profile of the given user. The profile surfaces information
 /// about the user and supports relevant actions that the viewer may take on

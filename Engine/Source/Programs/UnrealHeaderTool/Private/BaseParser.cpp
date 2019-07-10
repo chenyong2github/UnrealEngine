@@ -120,6 +120,9 @@ namespace
 
 			FMetadataKeyword& EarlyAccessFeature = Dictionary.Add(TEXT("EarlyAccessPreview"), EMetadataValueArgument::None);
 			EarlyAccessFeature.InsertAddAction(TEXT("DevelopmentStatus"), TEXT("EarlyAccess"));
+
+			FMetadataKeyword& DocumentationPolicy = Dictionary.Add(TEXT("DocumentationPolicy"), EMetadataValueArgument::None);
+			DocumentationPolicy.InsertAddAction(TEXT("DocumentationPolicy"), TEXT("Strict"));
 		}
 
 		return Dictionary.Find(Keyword);
@@ -1036,7 +1039,7 @@ bool FBaseParser::ReadOptionalCommaSeparatedListInParens(TArray<FString>& Items,
 
 void FBaseParser::ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FString& RequiredAPIMacroIfPresent, const TCHAR* FailureMessage)
 {
-	// Expecting Name | (MODULE_API Name)
+	// Expecting Name | (MODULE_API Name) | (MODULE_VTABLE Name)
 	FToken NameToken;
 
 	// Read an identifier
@@ -1057,6 +1060,19 @@ void FBaseParser::ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FS
 			FError::Throwf(TEXT("Missing %s name"), FailureMessage);
 		}
 		DeclaredName = NameToken.Identifier;
+	}
+	else if (NameTokenStr.EndsWith(TEXT("_VTABLE"), ESearchCase::CaseSensitive))
+	{
+		// Read the real name
+		if (!GetIdentifier(NameToken))
+		{
+			FError::Throwf(TEXT("Missing %s name"), FailureMessage);
+		}
+
+		DeclaredName = NameToken.Identifier;
+
+		// Not required for things such a Minimal. Only used for Linux/Mac which just exposes the vtable for link-age
+		RequiredAPIMacroIfPresent.Empty();
 	}
 	else
 	{

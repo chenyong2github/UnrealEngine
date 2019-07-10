@@ -9,7 +9,6 @@
 #include "Serializers/MovieSceneSpawnSerialization.h"
 #include "Serializers/MovieSceneAnimationSerialization.h"
 #include "Serializers/MovieSceneSerializedType.h"
-#include "Serializers/MovieSceneLiveLinkSerialization.h"
 
 
 //#include "FrameDebuggerServer.h"
@@ -19,7 +18,8 @@ DEFINE_LOG_CATEGORY(MovieSceneSerialization);
 
 
 const FGuid FTempCustomVersion::GUID(0xCB8AB0CD, 0xE78C4BDE, 0xA8621393, 0x14E9EF62);
-FCustomVersionRegistration GRegisterLiveLinkCustomVersion(FTempCustomVersion::GUID, FTempCustomVersion::LatestVersion, TEXT("LiveLinkCustomVersion"));
+FCustomVersionRegistration GRegisterLiveLinkMovieSectionCustomVersion(FTempCustomVersion::GUID, FTempCustomVersion::LatestVersion, TEXT("LiveLinkCustomVersion"));
+
 const int64 MovieSceneSerializationNamespace::InvalidOffset = -1;
 const float MovieSceneSerializationNamespace::SerializerSleepTime = 0.2f;
 bool MovieSceneSerializationNamespace::bAutoSerialize = false;
@@ -106,13 +106,3 @@ FMovieSceneSerializerRunnable<FSerializedTypeFileHeader, FSerializedTypeFileHead
 template<> SERIALIZEDRECORDERINTERFACE_API
 FRunnableThread* TMovieSceneSerializer<FSerializedTypeFileHeader, FSerializedTypeFileHeader>::Thread = nullptr;
 
-template<> SERIALIZEDRECORDERINTERFACE_API
-FMovieSceneSerializerRunnable<FLiveLinkFileHeader, FLiveLinkFrame>* TMovieSceneSerializer<FLiveLinkFileHeader, FLiveLinkFrame>::Runnable = nullptr;
-template<> SERIALIZEDRECORDERINTERFACE_API
-FRunnableThread* TMovieSceneSerializer<FLiveLinkFileHeader, FLiveLinkFrame>::Thread = nullptr;
-
-
-template<> SERIALIZEDRECORDERINTERFACE_API
-FMovieSceneSerializerRunnable<FLiveLinkManifestHeader, FLiveLinkManifestHeader>* TMovieSceneSerializer<FLiveLinkManifestHeader, FLiveLinkManifestHeader>::Runnable = nullptr;
-template<> SERIALIZEDRECORDERINTERFACE_API
-FRunnableThread* TMovieSceneSerializer<FLiveLinkManifestHeader, FLiveLinkManifestHeader>::Thread = nullptr;

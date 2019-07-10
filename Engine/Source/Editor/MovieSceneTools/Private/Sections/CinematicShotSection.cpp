@@ -18,6 +18,7 @@
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "CommonMovieSceneTools.h"
 
 #define LOCTEXT_NAMESPACE "FCinematicShotSection"
 
@@ -391,6 +392,22 @@ int32 FCinematicShotSection::OnPaintSection(FSequencerSectionPainter& InPainter)
 			ESlateDrawEffect::None,
 			FColor(128, 32, 32)	// 0, 75, 50 (HSV)
 		);
+	}
+
+	TSharedPtr<ISequencer> Sequencer = SequencerPtr.Pin();
+
+	if (InPainter.bIsSelected && Sequencer.IsValid())
+	{
+		FFrameTime CurrentTime = Sequencer->GetLocalTime().Time;
+		if (SectionRange.Contains(CurrentTime.FrameNumber))
+		{
+			UMovieScene* SubSequenceMovieScene = SectionObject.GetSequence()->GetMovieScene();
+			const FFrameRate DisplayRate = SubSequenceMovieScene->GetDisplayRate();
+			const FFrameRate TickResolution = SubSequenceMovieScene->GetTickResolution();
+			const FFrameNumber CurrentFrameNumber = ConvertFrameTime(CurrentTime * SectionObject.OuterToInnerTransform(), TickResolution, DisplayRate).FloorToFrame();
+
+			DrawFrameNumberHint(InPainter, CurrentTime, CurrentFrameNumber.Value);
+		}
 	}
 
 	return InPainter.LayerId;

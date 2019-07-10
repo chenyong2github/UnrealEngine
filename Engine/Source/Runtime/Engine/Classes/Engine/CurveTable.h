@@ -36,7 +36,7 @@ enum class ECurveTableMode : uint8
  * Imported spreadsheet table as curves.
  */
 UCLASS(MinimalAPI)
-class UCurveTable
+class ENGINE_VTABLE UCurveTable
 	: public UObject
 	, public FCurveOwnerInterface
 {
@@ -210,7 +210,7 @@ protected:
 	 */
 	static FName MakeValidName(const FString& InString);
 
-	static int32 GlobalCachedCurveID;
+	ENGINE_API static int32 GlobalCachedCurveID;
 
 private:
 

@@ -118,7 +118,7 @@ private:
 	bool b32Bit;
 };
 
-class FRawStaticIndexBuffer : public FIndexBuffer
+class ENGINE_VTABLE FRawStaticIndexBuffer : public FIndexBuffer
 {
 public:	
 	/**
@@ -246,7 +246,7 @@ public:
 
 	/** Take over ownership of IntermediateBuffer */
 	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FIndexBufferRHIParamRef IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	void InitRHIForStreaming(FRHIIndexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
 	{
 		if (IndexBufferRHI && IntermediateBuffer)
 		{
@@ -324,7 +324,7 @@ public:
 	virtual int32 GetResourceDataSize() const = 0;
 
 	// @param guaranteed only to be valid if the vertex buffer is valid and the buffer was created with the SRV flags
-	FShaderResourceViewRHIParamRef GetSRV() const
+	FRHIShaderResourceView* GetSRV() const
 	{
 		return SRVValue;
 	}

@@ -1,0 +1,138 @@
+﻿INTSourceChangelist:6424577
+Availability: Public
+Title: Steam VR开发要求
+Description: Steam VR开发要求，包括硬件、软件和SDK信息。 
+Type: reference
+Version: 4.21
+Parent: Platforms/VR/SteamVR
+Tags: VR
+Tags: Specifications
+Tags: Steam
+Order: 11
+
+
+[TOC (start:2 end:2)]
+
+在本页中，您将了解开始为[Steam VR](Platforms/VR/SteamVR)平台开发所需的硬件和软件开发工具包(SDK)要求。   
+
+  
+
+## 虚幻引擎4.22
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | [INCLUDE:#excerpt_0] |
+| **支持的VR头戴设备** | VIVE、Oculus和Windows Mixed Reality头戴设备。|
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | [INCLUDE:#excerpt_1] |
+| **SDK版本** | 1.39 |
+
+<!--
+[EXCERPT:excerpt_0]
+请参阅[VIVE的系统和硬件要求](https://www.vive.com/us/support/vive/category_howto/what-are-the-system-requirements.html)。  
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/pcsdk/latest/concepts/gsg-intro/#gsg_intro)。  
+请参阅[Windows Mixed Reality系统和硬件要求](https://support.microsoft.com/en-us/help/4039260/windows-10-mixed-reality-pc-hardware-guidelines)。
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+请参阅[VIVE的系统和硬件要求](https://www.vive.com/us/support/vive/category_howto/what-are-the-system-requirements.html)。  
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/pcsdk/latest/concepts/gsg-intro/#gsg_intro)。  
+请参阅[Windows Mixed Reality系统和硬件要求](https://support.microsoft.com/en-us/help/4039260/windows-10-mixed-reality-pc-hardware-guidelines)。
+[/EXCERPT:excerpt_1]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.21
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | [INCLUDE:#excerpt_2] |
+| **支持的VR头戴设备** | VIVE、Oculus和Windows Mixed Reality头戴设备。|
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | [INCLUDE:#excerpt_3] |
+| **SDK版本** | 1.39 |
+
+<!--
+[EXCERPT:excerpt_2]
+请参阅[VIVE的系统和硬件要求](https://www.vive.com/us/support/vive/category_howto/what-are-the-system-requirements.html)。  
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/pcsdk/latest/concepts/gsg-intro/#gsg_intro)。  
+请参阅[Windows Mixed Reality系统和硬件要求](https://support.microsoft.com/en-us/help/4039260/windows-10-mixed-reality-pc-hardware-guidelines)。
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+请参阅[VIVE的系统和硬件要求](https://www.vive.com/us/support/vive/category_howto/what-are-the-system-requirements.html)。  
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/pcsdk/latest/concepts/gsg-intro/#gsg_intro)。  
+请参阅[Windows Mixed Reality系统和硬件要求](https://support.microsoft.com/en-us/help/4039260/windows-10-mixed-reality-pc-hardware-guidelines)。
+[/EXCERPT:excerpt_3]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.20
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | [INCLUDE:#excerpt_4] |
+| **支持的VR头戴设备** | VIVE、Oculus和Windows Mixed Reality头戴设备。|
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | [INCLUDE:#excerpt_5] |
+| **SDK版本** | 1.39 |
+
+<!--
+[EXCERPT:excerpt_4]
+请参阅[VIVE的系统和硬件要求](https://www.vive.com/us/support/vive/category_howto/what-are-the-system-requirements.html)。  
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/pcsdk/latest/concepts/gsg-intro/#gsg_intro)。  
+请参阅[Windows Mixed Reality系统和硬件要求](https://support.microsoft.com/en-us/help/4039260/windows-10-mixed-reality-pc-hardware-guidelines)。
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_5]
+请参阅[VIVE的系统和硬件要求](https://www.vive.com/us/support/vive/category_howto/what-are-the-system-requirements.html)。  
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/pcsdk/latest/concepts/gsg-intro/#gsg_intro)。  
+请参阅[Windows Mixed Reality系统和硬件要求](https://support.microsoft.com/en-us/help/4039260/windows-10-mixed-reality-pc-hardware-guidelines)。
+[/EXCERPT:excerpt_5]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]
+
+## 虚幻引擎4.19
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | [INCLUDE:#excerpt_6] |
+| **支持的VR头戴设备** | VIVE、Oculus和Windows Mixed Reality头戴设备。|
+| 软件要求 ||
+| --- | --- |
+| **桌面操作系统** | [INCLUDE:#excerpt_7] |
+| **SDK版本** | 1.39 |
+
+<!--
+[EXCERPT:excerpt_6]
+请参阅[VIVE的系统和硬件要求](https://www.vive.com/us/support/vive/category_howto/what-are-the-system-requirements.html)。  
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/pcsdk/latest/concepts/gsg-intro/#gsg_intro)。  
+请参阅[Windows Mixed Reality系统和硬件要求](https://support.microsoft.com/en-us/help/4039260/windows-10-mixed-reality-pc-hardware-guidelines)。
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_7]
+请参阅[VIVE的系统和硬件要求](https://www.vive.com/us/support/vive/category_howto/what-are-the-system-requirements.html)。  
+请参阅[Oculus的系统和硬件要求](https://developer.oculus.com/documentation/pcsdk/latest/concepts/gsg-intro/#gsg_intro)。  
+请参阅[Windows Mixed Reality系统和硬件要求](https://support.microsoft.com/en-us/help/4039260/windows-10-mixed-reality-pc-hardware-guidelines)。
+[/EXCERPT:excerpt_7]
+-->
+
+[REGION:note]
+当前支持的SDK版本可在“UEBuildTODO.cs”中找到。您可以在“[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO”文件夹中找到它。
+[/REGION]

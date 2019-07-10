@@ -1,84 +1,75 @@
-﻿Availability:Public
-Title: 蓝图类型
+INTSourceChangelist: 3736175
+Availability:Public
+Title:蓝图类型
 Crumbs: %ROOT%, Engine/Blueprints
-Description:不同类型蓝图的信息概要.
+Description:提供关于不同类型蓝图的信息的起始页面。
 version: 4.9
+tags:Blueprints
 
 
-有时候第一眼看上去很难说是哪一类的 **蓝图** ，当进入**Blueprint Macro Libraries** 以及 **Blueprint Classes**. 一个好的经验是需要询问自己
+有时候很难看一眼就决定应该使用哪种类型的 **蓝图**，特别是 
+在涉及 **蓝图宏库** 和 **蓝图类** 的时候。有一条很管用的经验法则，就是问你自己：
 
-* _是否有多个实例?_
+* _是不是有多个实例？_
 
-如果你有以到两个实例 (例如, 一个可以被打开和关闭的电视), 
-如果需要创建蓝图类，它有可能是有相关代码存在的蓝图类。 
-如果不是，只是你想要建立一些帮助功能 (类似于找到所有小于X尺寸的Actors), 这些就只需要Blueprint Macro Library.
+如果你的实例不止一两个（例如一台电视机，可以用枪打爆，也可以打开/关闭）， 
+那么也许合理做法是创建一个蓝图类，并在其中设置相关代码。 
+如果没有那么多，而且你只需要一些帮助程序函数（例如查找X单位中的所有Actor），那么 
+在蓝图宏库中设置是最理想的。
 
 
 [EXCERPT:Main]
 
-##Level Blueprint
+(#levelblueprint)
+## 关卡蓝图
 
 ![](level_blueprint_test_image.png)(w:250)
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/LevelBlueprint#Intro]
 
-想要获得这部分更多的信息, 请查阅 [](Engine/Blueprints/UserGuide/Types/LevelBlueprint).
+要了解关于这部分的更多信息，请参见[](Engine/Blueprints/UserGuide/Types/LevelBlueprint)。
 
 
-##Blueprint Class
+(#blueprintclass)
+## 蓝图类
 
 ![](class_blueprint_test_image.png)(w:250)
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/ClassBlueprint#Intro]
 
-想要获得这部分更多的信息, 请查阅 [](Engine/Blueprints/UserGuide/Types/ClassBlueprint).
+要了解关于这部分的更多信息，请参见[](Engine/Blueprints/UserGuide/Types/ClassBlueprint)。
 
 [/EXCERPT:Main]
 
 
 [EXCERPT:Types]
 
-##Data-Only Blueprint
+(#data-onlyblueprint)
+## 仅数据蓝图
 
 ![](data_blueprint.png)(w:250)
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/ClassBlueprint#DataBlueprint]
 
-想要获得这部分更多的信息, 请查阅 [Data-Only Blueprint](Engine/Blueprints/UserGuide/Types/ClassBlueprint).
+要了解关于这部分的更多信息，请参见[仅数据蓝图](Engine/Blueprints/UserGuide/Types/ClassBlueprint#Data-OnlyBlueprint)。
 
-##Blueprint Interface
+(#blueprintinterface)
+## 蓝图接口
 
 ![](blueprint_interface.png)(w:250)
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/Interface#Intro]
 
-想要获得这部分更多的信息, 请查阅 [](Engine/Blueprints/UserGuide/Types/Interface).
+要了解关于这部分的更多信息，请参见[](Engine/Blueprints/UserGuide/Types/Interface)。
 
-##Blueprint Macro Library
+(#blueprintmacrolibrary)
+## 蓝图宏库
 
 ![](macro_blueprint.png)(w:250)
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/MacroLibrary#Intro]
 
-想要获得这部分更多的信息, 请查阅 [](Engine/Blueprints/UserGuide/Types/MacroLibrary).
-
-
-[COMMENT:none]
-
-[OBJECT:IconSection]
-	[PARAM:icon]
-		![Blueprints](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		Blueprint Utilities
-	[/PARAM]
-	[PARAM:description]
-		A **Blueprint Utility**, a.k.a. a **Blutility**, is an editor-only _Blueprint_ that can be used to perform editor actions or extend 
-		editor functionality. These can expose [](Engine/Blueprints/UserGuide/Events) with no parameters as buttons in the UI 
-		and have the ability to execute any functions exposed to _Blueprints_ and act on the current set of selected Actors in the viewport.
-	[/PARAM]
-[/OBJECT]
-
-[/COMMENT]
+要了解关于这部分的更多信息，请参见[](Engine/Blueprints/UserGuide/Types/MacroLibrary)。
 
 [/EXCERPT:Types]
+

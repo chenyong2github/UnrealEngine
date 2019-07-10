@@ -11,8 +11,6 @@ SkillLevel: Advanced
 
 Forking and cloning our source code from GitHub is a great way to get started with Unreal.
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

@@ -1,18 +1,16 @@
 Availability: Public
 Title:Creating Virtual Keyboard Interactions
-Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
-Description:Demonstrates how you can create and interaction with a 3D Virtual Keyboard with UMG. 
+Description:Demonstrates how you can create and interaction with a 3D Virtual Keyboard with UMG.
+Type: how-to
 Version: 4.15
-SkillLevel: Advanced
-parent:Engine/UMG/HowTo
+parent: Engine/UMG/HowTo
 order:4
-checkpoint: editorqs
-tags:UMG UI Designer
+tags: UMG UI Designer
+SkillLevel: Advanced
 
-If you are looking to create a 3D keypad or virtual keyboard that allows a player to enter specified characters, you can do so with a combination of the [Widget Interaction](Engine\UMG\UserGuide\WidgetInteraction) component and [Widget](Engine/Components/Widget) components. 
-The Widget Interaction component will help facilitate which "buttons" are clicked on and processes sending the characters through to a Widget component in an Actor that will handle the display.
+If you are looking to create a 3D keypad or virtual keyboard that allows a player to enter specified characters, you can do so with a combination of the [Widget Interaction](Engine/UMG/UserGuide/WidgetInteraction) component and [Widget](Engine/Components/Widget) components. The Widget Interaction component will help facilitate which "buttons" are clicked on and processes sending the characters through to a Widget component in an Actor that will handle the display.
 
-In this how-to, we create a keypad that can be interacted with in and provides entries to a text box. 
+In this how-to, we create a keypad that can be interacted with in and provides entries to a text box.
 
 [OBJECT:EmbeddedVideo]
 [PARAMLITERAL:width]
@@ -26,22 +24,184 @@ N2Fo4izRgh0
 [/PARAMLITERAL]
 [/OBJECT]
 
-_At the end of this guide, you will have a keypad and display that appears inside the 3D game world and can be interacted with._
+*At the end of this guide, you will have a keypad and display that appears inside the 3D game world and can be interacted with.*
 
-One important aspect in setting this up will be to determine the Widgets that are (or are not) focusable. If the Text Box that displays the characters the player enters is set to focusable and the buttons that the player clicks on to send characters through is also focusable, the Text Box would lose player focus when a button (or any other widget) is clicked on and not receive the commands issued. 
+One important aspect in setting this up will be to determine the Widgets that are (or are not) focusable. If the Text Box that displays the characters the player enters is set to focusable and the buttons that the player clicks on to send characters through is also focusable, the Text Box would lose player focus when a button (or any other widget) is clicked on and not receive the commands issued.
 
-The first step, however, is to set up our character with the Widget Interaction component and create the assets to display our UI. 
+The first step, however, is to set up our character with the Widget Interaction component and create the assets to display our UI.
 
-## Steps
+## 1 - Character Setup
 
-[REGION:buttonlist]
-* [](Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup)
-* [](Engine\UMG\HowTo\VirtualKeyboards\WidgetSetup)
-* [](Engine\UMG\HowTo\VirtualKeyboards\ActorSetup)
-[/REGION]
+1.  Inside the **Content/FirstPersonBP/Blueprints** folder, open the **FirstPersonCharacter** Blueprint.
 
-[REGION:call_to_action]
-	[Click to Start](Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup "%Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup:title%")
-[/REGION]
+1.  Add a **WidgetInteraction** component attached to the **Sphere** then zero out the **Location** and **Show Debug** in the **Details** panel.
 
+    ![](Keypad01.jpg)
 
+    Our Widget Interaction component will now point in the direction that player points the gun indicated in-game by a debug marker.
+
+1.  In the **Graph**, add a **Right Mouse Button** Event and drag in the **Widget Interaction** Component.
+
+1.  Off **Widget Interaction** add **Press Pointer Key** and **Release Pointer Key** both set to **Left Mouse Button** and connect as shown.
+
+    ![](Keypad02.jpg)
+
+    Widgets respond to mouse/touch interaction via Left Mouse Button click or touch controls and we can simulate that using the **Press Pointer Key** function. In our example we use the **Right Mouse Button** to simulate a Left Mouse Button click, however, you could use a gamepad button press or even Motion Controller Trigger press to fire off the Press Pointer Key function.
+
+1.  In the **Content Browser** create two **Class Blueprints** based on **Actor** and two **Widget Blueprints**.
+
+    ![](Keypad03.jpg)
+
+    For the two Actor Blueprints, call one **Keypad** (to represent the keypad entry) and the other **KeypadDisplay** (to represent and display the values entered from the Keypad). For the Widget Blueprints use the same names as the Actor Blueprints, however, to distinguish them, suffix them with **WB** (for Widget Blueprint).
+
+**Section Result**
+
+Our project is ready to go and our character can interact with Widgets in the world, next we'll set up our interactive Widgets.
+
+## 2 - Widget Blueprint Setup
+
+In this step, we create the layout of our interactive UI Widgets and script what happens when clicking a button.
+
+1.  Open the **KeypadDisplayWB** and replace the **Canvas Panel** in the Hierarchy with a **TextBox** wrapped with a **Size Box**.
+
+    ![](Keypad04a.png)
+
+1.  For the **Size Box**, set to **Desired on Screen** and override the **Width** and **Height** to **100x50**.
+
+    ![](Keypad04.png)
+
+1.  For the **Text Box**, set **Hint Text** to **1212** and adjust the **Font Size** to **28**.
+
+    ![](Keypad05.png)
+
+    For example, the player must use the keypad to enter the text 1212 to signal a successful entry but you could use any value you wish.
+
+1.  Open the **KeypadWB** and set the **Hierarchy** up to create 3 Buttons with the text **0**, **1** and **2** on them as shown below.
+
+    ![](Keypad06.png)
+
+    You may also want to press **F2** on each of the Buttons in the Hierarchy to change their names to reflect which button they are.
+
+1.  Add a second **Horizontal Box** containing two **Buttons** with text on them, one set to **Del** the other set to **Ent**.
+
+    ![](Keypad07.png)
+
+    Our keypad will only have three numerical buttons and two others for deleting (**Del**) or committing (**Ent**) entries.
+
+1.  Hold **Ctrl** and select each of your Buttons, then set the **Is Focusable** option to **False** for each.
+
+    ![](Keypad08.png)
+
+    In order for our setup to work, we need to ensure that no other widgets we interact with will take focus away from the Keypad Display widget. If we left these set to true, when we go to click on a button, focus will be taken away from the Keypad Display and shifted to the button preventing us from passing the key press and value over to the Keypad Display.
+
+1.  On the **Graph**, add **OnClicked** Events for each of the Buttons.
+
+    ![](Keypad09.png)
+
+1.  Create two **Variables**, a **String** type called **CharToSend** and a **WidgetInteractionComponent** called **WidgetInteraction**.
+
+    ![](Keypad10.png)
+
+1.  Hold **Alt** and drag in **CharToSend** and connect to the **OnClicked** Events then set the variable value as shown.
+
+    ![](Keypad11.png)
+
+1.  Hold **Ctrl** and drag in **WidgetInteraction** then off it **Send Key Char** and connect **CharToSend** and the **OnClicked** Events.
+
+    ![](Keypad12.png)
+
+    We use the **Send Key Char** function here as Text Boxes in Slate do not get Keys sent directly to them, for example, they don't recognize that the A key was pressed so send A through.Instead, they listen for Send Char, that way the lower level system operating code can do things like determining if Shift was held down while pressing the A key or if Caps Lock was on while pressing A.
+
+1.  Off the **Del** OnClicked Event, use the **Press and Release Key** set to **Backspace** from the **WidgetInteraction** variable.
+
+    ![](Keypad13.png)
+
+1.  Create an **Event Dispatcher** called **EnterPressed** and call it from **OnClicked(Ent)**.
+
+    ![](Keypad14.png)
+
+**Section Result**
+
+Our Widget Blueprints are set up to display our keypad and keypad display, next we will add them as Widget Components to our Actor Blueprints so that we can have them appear inside our level. By the end of the next step, we should be able to test out our system and interact with both elements during gameplay.
+
+## 3 - Actor Setup & Testing
+
+In this final section, we add our Widget Blueprints as **Widget** Components to our Actors and define what happens when the player clicks on the **Enter** Button, checking to see if the entered text is the same as our **GoalText**. With everything in place, we give it a test to see the end result which prints **Success** to the screen if the code is correct or **Wrong Code** if the code is incorrect.
+
+1.  Open the **KeypadDisplay** Blueprint and add a **Widget** component with class set to **KeypadDisplayWB** and **Draw at Desired Size**.
+
+    ![](Keypad15.png)
+
+    Draw at Desired Size is a quick way to cause the render target to automatically match the desired size inside the Widget Blueprint.
+
+1.  Open the **Keypad** Blueprint and add a **Widget** component with class set to **KeypadWB** and **Draw at Desired Size**.
+
+1.  Uncheck the **Window Focusable** option for this Widget Component.
+
+    ![](Keypad16.png)
+
+    We don't want this component to take focus away from the Keypad Display widget, so this needs to be unchecked.
+
+1.  Also inside **Keypad**, add a **WidgetInteraction** component with **Enable Hit Testing** set to false.
+
+    ![](Keypad17.png)
+
+    We add this WidgetInteraction component so that we don't have to get a reference to the WidgetInteraction component in the player character and we disable Hit Testing as we don't want it to generate any hover effects. WidgetInteraction components by default are set to **Virtual User Index 0** when they are created and all of them communicate using the Virtual User Index ID. Since the WidgetInteraction component in the player character is also using Virtual User Index 0, this is the same as getting a reference to it.
+
+1.  On the Graph of **Keypad**, off **Event Begin Play** take the **Widget** component and **Get User Widget Object** to **Cast to KeypadWB**.
+
+    ![](Keypad18.png)
+
+1.  Off the **As Keypad WB** pin, **Set Widget Interaction** and pass through the **WidgetInteraction** component from Step 4.
+
+1.  Also off the **As Keypad WB** pin, call the **Assign Enter Pressed** which will create an **Enter Pressed** Custom Event.
+
+    ![](Keypad19.png)
+
+    Now when we click on the Enter button this custom event will be called which we can use to check if the correct code was entered.
+
+1.  Create a **Variable** of the **Keypad Display** Actor type called **TargetDisplay** and set it to **Editable**.
+
+    ![](Keypad20.png)
+
+1.  Create a **Variable** of the **Text** type called **GoalText**, then **Compile** and set the **Default Value** to **1212**.
+
+    ![](Keypad21.png)
+
+1.  Hold **Ctrl** and drag in **TargetDisplay** to get the **Widget** and **User Widget Object** then **Cast to KeypadDisplayWB**.
+
+    ![](Keypad22.png)
+
+1.  Off the **As Keypad Display WB** pin, get the **Editable Text Box** and **GetText(Text Box)** to see if it **Equals** **Goal Text**.
+
+    ![](Keypad23.png)
+
+1.  Add a **Branch** with two **Print Strings** where off **True** (use Success) and **False** (use Wrong Code).
+
+    ![](Keypad24.png)
+
+1.  Drag the **Keypad** and **KeypadDisplay** Blueprints into the level and rotate/position them as desired.
+
+1.  In the **Details** panel for the **Keypad** Actor, set the **Target Display** variable to the **KeypadDisplay** in the level.
+
+    ![](Keypad25.png)
+
+1.  Play in the level.
+
+### End Result
+
+Approach the keypad display and **Right-click** in it to focus on it. You can look at the buttons and **Right-click** on them to issue the **Send Key Char** command and pass through the value to the display. We are using the Right Mouse button to interact with the widgets in the level, but you could swap this to use gamepad or Motion Controller button presses as well.
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+N2Fo4izRgh0
+[/PARAMLITERAL]
+[/OBJECT]
+
+While this example only prints to the screen if the correct code was entered or not, you could instead fire off some event that opens a door, spawns an enemy or any other form of gameplay related event.

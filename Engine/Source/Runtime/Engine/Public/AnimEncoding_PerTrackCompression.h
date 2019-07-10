@@ -20,24 +20,22 @@ public:
 	/**
 	 * Handles Byte-swapping incoming animation data from a MemoryReader
 	 *
-	 * @param	Seq					An Animation Sequence to contain the read data.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	MemoryReader		The MemoryReader object to read from.
 	 * @param	SourceArVersion		The version of the archive that the data is coming from.
 	 */
-	virtual void ByteSwapIn(UAnimSequence& Seq, FMemoryReader& MemoryReader) override;
+	virtual void ByteSwapIn(FUECompressedAnimData& CompressedData, FMemoryReader& MemoryReader) override;
 
 	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
 	 *
-	 * @param	Seq					An Animation Sequence to write.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	SerializedData		The output buffer.
 	 * @param	ForceByteSwapping	true is byte swapping is not optional.
 	 */
 	virtual void ByteSwapOut(
-		UAnimSequence& Seq,
-		TArray<uint8>& SerializedData, 
-		bool ForceByteSwapping,
-		bool bMaintainComponentOrder=false) override;
+		FUECompressedAnimData& CompressedData,
+		FMemoryWriter& MemoryWriter) override;
 
 	/**
 	 * Extracts a single BoneAtom from an Animation Sequence.
@@ -99,13 +97,12 @@ protected:
 	/**
 	 * Handles Byte-swapping a single track of animation data from a MemoryReader or to a MemoryWriter
 	 *
-	 * @param	Seq					The Animation Sequence being operated on.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	MemoryStream		The MemoryReader or MemoryWriter object to read from/write to.
 	 * @param	Offset				The starting offset into the compressed byte stream for this track (can be INDEX_NONE to indicate an identity track)
-	 * @param	bMaintainComponentOrder Should we maintain the order of track components (trans/rot/scale) in the byte stream (if false the output will always be T/R/S regardless of input order)
 	 */
 	template<class TArchive>
-	static void ByteSwapOneTrack(UAnimSequence& Seq, TArchive& MemoryStream, int32 Offset, bool bMaintainComponentOrder = false);
+	static void ByteSwapOneTrack(FUECompressedAnimData& CompressedData, TArchive& MemoryStream, int32 BufferStart, int32 Offset);
 
 	/**
 	 * Preserves 4 byte alignment within a stream

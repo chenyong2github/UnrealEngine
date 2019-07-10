@@ -14,6 +14,13 @@ enum class ESocketProtocolFamily : uint8
 	IPv6
 };
 
+/** Used for indicating the socket network protocol to be used in addressing and socket creation */
+namespace FNetworkProtocolTypes
+{
+	SOCKETS_API extern const FName IPv4;
+	SOCKETS_API extern const FName IPv6;
+}
+
 /** Indicates the type of socket being used (streaming or datagram) */
 enum ESocketType
 {

@@ -39,7 +39,7 @@ struct FGroupData
 	FText GroupText;
 
 	/** Sort order of the group */
-	uint8 SortOrder;
+	uint32 SortOrder;
 
 	/** Array of channels within this group */
 	TArray<FChannelData, TInlineAllocator<4>> Channels;

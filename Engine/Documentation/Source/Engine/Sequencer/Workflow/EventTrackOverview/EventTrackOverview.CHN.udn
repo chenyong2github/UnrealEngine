@@ -1,0 +1,199 @@
+INTSourceChangelist:5061560
+Availability: Public
+Crumbs: 
+Title:事件轨迹概述
+Description:介绍使用Sequencer事件轨迹触发事件时可用的功能。 
+Type: 
+Version: 4.21
+Parent: Engine/Sequencer/Workflow
+Order: 
+Tags: Sequencer
+Tags: Event Track
+
+
+借助 **事件轨迹**，你可以对过场动画中你希望执行某些形式的脚本功能的点进行定义。可能在过场动画中，你希望打开宝箱的锁，使玩家获得他们可以收集的物品。或者你可能希望在玩家周围生成一些粒子效果。无论对于哪种情况，你都可以使用事件轨迹来触发单个设置了关键帧的事件或每帧都重复的事件片段。 
+
+本页面将概述部分可用功能以及与在Sequencer中使用事件轨迹相关联的底层系统。 
+
+(#addingevents)
+## 添加事件
+
+要在序列中添加 **事件轨迹**，单击 **+ 轨迹（+ Track）** 按钮并选择 **事件（Event）轨迹**。   
+
+![](AddingAnEventTrack.png "AddingAnEventTrack.png")
+
+添加好事件轨迹后，你可以在序列中的指定帧处添加片段或单个关键帧，作为事件。   
+
+![](AddedKeyframeType.png "AddedKeyframeType.png")
+
+添加好事件后，你可以使用 **导演** 蓝图为该事件编写脚本功能。
+
+[REGION:note]
+请参阅[通过Sequencer调用事件](Engine/Sequencer/HowTo/TracksEvent)指南，获取创建和使用事件轨迹的分步指南。
+[/REGION]
+
+(#directorblueprints)
+## 导演蓝图
+
+**导演** 蓝图是给定序列可用于指导其播放和为触发事件生成必要字节代码的任何[蓝图](Engine/Blueprints)类型（下图展示了一个 **关卡序列导演** 蓝图）。 
+
+[REGION:lightbox]
+[![](DirectorBlueprint.png)(w:900)](DirectorBlueprint.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
+
+  
+在导演蓝图中，你可为一个或多个给定目标提供希望发生的脚本功能。你也可以使用导演蓝图调用其他蓝图实现的并且可在受到调用时执行的[蓝图接口](Engine/Blueprints/UserGuide/Types/Interface)。  
+
+为了支持给定序列类型的事件，事件必须定义与其导演蓝图交互的方式。可通过纯编辑器 **影片场景序列编辑器**（按序列类型注册）实现此目的。每个序列类型都可以定义其专属的导演蓝图种类。 
+
+例如： 
+
+*   **关卡序列事件**——创建其专属的关卡序列导演和生成类。 
+*   **小部件动画事件**——使用拥有动画的[小部件蓝图](Engine/UMG/UserGuide/WidgetBlueprints)。引申开来，给定小部件的所有动画都将使用同一个导演（小部件实例本身）。 
+*   **Actor序列事件**——使用拥有蓝图，或者，如果Actor序列作为原始实例化组件存在，则使用关卡蓝图。 
+
+[REGION:note]
+截止4.21版本，导演蓝图都不支持[控制绑定](Engine/Animation/ControlRig)。
+[/REGION]
+
+在存在子序列的情况下，将为尝试使用其导演实例的所有子序列创建导演实例。另外，导演实例由事件轨迹按需创建，它们并非可通过 **内容浏览器** 访问的资源（但是，在未来版本迭代中，情况可能会变化）。 
+
+当你创建 **事件端点** 或从事件轨迹的已定义关键帧或片段访问它时，导演蓝图将自动打开。 
+
+(#eventendpoints)
+## 事件端点
+
+**事件端点** 授予访问关联的导演类蓝图的权限，将在你双击事件轨迹的关键帧或重复片段时自动被创建。你也可以通过右键单击关键帧或重复片段，然后在情境菜单中选择 **属性（Properties）** 选项的方法创建新端点。   
+
+![](CreatingAnEndPoint.png "CreatingAnEndPoint.png")
+
+新创建的端点将尝试为端点定义合理的默认引脚（类型为实例的对象绑定），但是，你可以更改或删除它。   
+
+![](EndpointOutPin.png "EndpointOutPin.png")
+
+端点的引脚数可以为0或1。当未指定引脚时，无论是否为该事件指定了有效对象，事件都将始终被触发（此为没有 **事件接收者** 的 **主轨迹** 的默认值）。当存在单个对象或接口引脚时，如果对象类型正确或实现接口，事件将被触发（每个绑定对象一次）。所有其他函数签名都无法与Sequencer事件兼容，因此都无法触发。 
+
+“事件（Event）”属性部分还提供了一些选项，可供你绑定到现有兼容函数，或快速将新端点自动连接到目标类上可通过蓝图调用的函数。   
+
+![](EndPointBindings.png "EndPointBindings.png")
+
+如上图中所示，我们拥有一些可以绑定到的 **现有** 端点（名称为 **禁用HUD（Disable HUD）** 或 **启用AI（Enable AI）**），或者，我们可以创建到重置骨架网格体上的动画动态效果等蓝图可调用函数的 **快速绑定**。指定好事件端点之后，可通过双击事件或单击“属性（Properties）”菜单中的放大镜图标直接浏览到该事件的定义。
+
+(#endpointsandinterfaces)
+### 端点和接口
+
+在导演蓝图中定义端点时,你可以实现 **蓝图接口**，以与不同蓝图甚至 **关卡蓝图** 通信。如下所示，我们创建了事件和端点。我们也通过 **类设置** 选项实现了蓝图接口。 
+
+![](Interface_01.PNG "Interface_01.PNG")
+
+当我们执行样本函数的消息调用时，实现接口的任何蓝图（包括下面所示的 **关卡蓝图**）都将执行其关联的事件。 
+
+![](Interface_02.PNG "Interface_02.PNG")
+
+如上图中所示，**关卡蓝图** 收到来自接口的调用，执行向屏幕输出文本的 **输出字符串（Print String）**。 
+
+[REGION:note]
+请参阅[蓝图接口](Engine/Blueprints/UserGuide/Types/Interface)文档，了解更多信息。
+[/REGION]
+
+(#eventtargets)
+## 事件目标
+
+存在多个不同选项，可供你定义应在哪些目标事件上触发。为了保持继承性和一致性，部分选项将持续受到支持。当为单个事件指定了多个目标时，事件将多次被触发，每个目标一次。  
+  
+请参阅下列各个部分，了解可用的目标类型和与每个目标类型相关的更多信息。 
+
+(#eventreceivers)
+### 事件接收者
+
+借助 **事件接收者**，你可以定义一系列对象绑定，在这些对象绑定上，可触发轨迹中的事件。如果为空，事件将在播放环境的默认事件情境中触发，例如关卡蓝图或小部件蓝图。   
+  
+你可从事件轨迹的“属性（Properties）”菜单中指定 **事件接收者**，方法是在 **轨迹（Tracks）** 窗口中右键单击 **事件轨迹**。   
+
+![](EventReciever_RightClick.png "EventReciever_RightClick.png")
+
+单击 **事件接收者（Event Receivers）** 旁的 **+** 号后，你就可以从序列层级（甚至在父项或子项上）中指定对象绑定。 
+
+![](AssignedEventReciever.png "AssignedEventReciever.png")
+
+如上图中所示，我们选择 **ThirdPersonCharacter** 作为对象绑定。由于我们指定了事件接收者，当我们添加事件端点时，我们就清楚目标对象是什么，从而可以访问或执行该对象上的任何脚本。 
+
+![](ChangeTargetType-1.png "ChangeTargetType-1.png")
+
+如上图中所示，我们将“目标（Target）”引脚类型更改为 **ThirdPersonCharacter** 对象引用。事件被执行时，Sequencer将从内部执行[强制转换](Engine/Blueprints/UserGuide/CastNodes)，以确认对象类型的匹配情况，如果不匹配，将不触发。如果匹配，你就可以访问该对象上的属性、组件或者调用任何函数或脚本。 
+
+[REGION:note]
+事件接收者影响轨迹中的所有事件片段并且遵从绑定覆盖。
+[/REGION]
+
+(#objectbindings)
+### 对象绑定
+
+除了向序列中添加事件轨迹之外，你还可以向序列层级中的现有对象添加事件轨迹。此操作会为事件轨迹创建 **对象绑定**，在对象绑定上，事件端点的目标对象将绑定到你向其添加事件轨迹的对象。 
+
+[REGION:note]
+对象绑定仅在未为轨迹指定事件接收者时绑定到事件端点。
+[/REGION]
+
+例如，如下图中所示，我们向序列添加了角色蓝图。然后我们向序列添加了骨架网格体，再接着我们添加了指定给骨架网格体的动画蓝图实例。另外，我们还为动画蓝图轨迹添加了事件轨迹。 
+
+![](ObjectBinding_01-1.PNG "ObjectBinding_01-1.PNG")
+
+当我们为事件添加关键帧并指定事件端点时，在 **快速绑定（Quick Binding）** 部分下，我们可以访问与动画蓝图相关的函数调用。 
+
+![](ObjectBinding_02-1.PNG "ObjectBinding_02-1.PNG")
+
+使用快速绑定，关联的导演蓝图将自动被设置好。如下图中所示，我们绑定到 **重置动态效果（Reset Dynamics）** 函数调用。   
+
+![](ObjectBinding_03-1.PNG "ObjectBinding_03-1.PNG")
+
+(#additionaleventrecievers)
+### 额外事件接收者
+
+你可以通过 **关卡序列Actor** 的 **细节（Details）** 面板指定 **额外事件接收者**。 
+
+![](AdditionalEventReceivers.PNG "AdditionalEventReceivers.PNG")
+
+通过添加用户定义的一系列世界场景中的Actor，除关卡脚本Actor之外，此设置还允许你指定事件情境。如上图中所示，我们指定关卡中存在的ThirdPersonCharacter。此设置将提供调用事件时的情境和如下图中所示定义事件端点时的目标，在事件端点上，我们指示与角色关联的网格体以模拟物理并更改碰撞配置文件。 
+
+![](SimulateExample.png "SimulateExample.png")
+
+(#eventsectiontypes)
+## 事件片段类型
+
+事件轨迹同时支持设置了关键帧的个体事件和片段：
+
+*   **触发器（Trigger）片段**——定义事件信道，每个事件信道都可拥有其专属的端点或者使用同一个端点。当事件在求值时被遍历时，它们将被触发。
+*   **重复（Repeater）片段**——定义每次求值时都会被触发的单个事件和端点。  
+    
+
+通过单击事件轨迹上的 **片段（Section）** 按钮并选择所需类型，你可以添加事件片段。   
+
+![](Section_01_update.png "Section_01_update.png")
+
+如果希望更轻松地在时间轴上移动片段及其所有关键帧，触发器（Trigger）片段对于将多个设置了关键帧的事件集合到一起非常有用。下图中的触发器（Trigger）片段具有两个关键帧。我们可以抓起触发器（Trigger）片段并将它移动到时间轴上我们需要的位置，移动时，事件间的帧数将保持不变。 
+
+![](TriggerSection_01.PNG "TriggerSection_01.PNG")
+
+重复（Repeater）片段将在片段时长的每帧上触发指定的事件和端点。   
+
+![](RepeaterSection.PNG "RepeaterSection.PNG")
+
+如上图中所示，我们拥有一个重复（Repeater）片段（第30帧到第75帧，名称为 **输出字符串事件（Print String Event）**。对于指定的帧范围，该事件将在每帧上向屏幕输出文本。对于需要在序列的特定时长的每帧上都触发某个事件的情况，重复（Repeater）片段非常有用。 
+
+(#frequentlyaskedquestions)
+## 常见问题及解答
+
+以下是使用Sequencer中的事件轨迹时可能会碰到的一些问题： 
+
+*   **如何触发关卡蓝图中的事件？**
+    *   方法是，在关卡序列中添加主轨迹，在关卡蓝图中添加蓝图接口，并且将引脚类型更改为蓝图接口且从端点调用蓝图接口函数。 
+*   **对于具有多个对象的绑定，事件如何触发？**
+    *   对于可强制转换为引脚类型的每个绑定对象，事件端点都将触发。
+*   **在事件端点上，引脚类型代表什么？**
+    *   位于对象绑定上时，对象将被强制转换为引脚类型，并且仅在对象匹配时被触发。位于主轨迹上时，如果关卡蓝图与引脚类型匹配，事件将被触发。
+*   **如何触发UMG中的事件？**
+    *   与关卡序列的方法完全相同——小部件本身是主事件轨迹的情境。在对象绑定上，绑定小部件是事件轨迹的情境。

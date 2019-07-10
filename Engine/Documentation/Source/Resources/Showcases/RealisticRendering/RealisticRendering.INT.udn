@@ -1,24 +1,23 @@
 Availability: Public
-Title:Realistic Rendering 
-Crumbs:%ROOT%, Resources
-Description:An overview of the Realistic Rendering included with UE4.
-Related: Engine/Rendering/LightingAndShadows/Lightmass
-Related: Engine/Rendering\LightingAndShadows
+Title: Realistic Rendering
+Description: An overview of the Realistic Rendering included with UE4.
+Version: 4.9
+Parent: Resources/Showcases
+Tags: showcases
+topic-image: RealisticRendering_Topic.png
 Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
 Related: Engine/Rendering/LightingAndShadows/IESLightProfiles
-Related: Engine/Actors/FogEffects\AtmosphericFog
-Related: Engine/Rendering/Materials
-Related: Engine/Rendering/Materials/PhysicallyBased
+Related: Engine/Rendering/LightingAndShadows/Lightmass
 Related: Engine/Rendering/Materials/LayeredMaterials
-Version: 4.9
-topic-image:RealisticRendering_Topic.png
+Related: Engine/Rendering/Materials/PhysicallyBased
+Related: Engine/Rendering/Materials
+
+
+[TOC (start:2 end:2)]
 
 [REGION:fullwidth]
 ![](RealisticRenderingHeader.png)
 [/REGION]
-
-[TOC(start:2 end:2)]
-
 
 This example shows off the realistic rendering possibilities of Unreal Engine 4. The goal was to create a small scene that had the look and feel of an architectural rendering, as those produced by CG rendering engines such as VRay and Mental Ray. However, the primary stipulation in this case was that all assets be game-ready, meaning that no high-poly modeling could be used. Everything in the scene had to be created such that one could make an actual and practical game using these methods. 
 
@@ -179,13 +178,7 @@ The Materials involved with the carpet include:
 * _M_Carpet_Mat_Inst_
 
 
-
-
-
-
-
-
-[COMMENT:none]
+<!--
 Inclusions-----
 [EXCERPT:BaseColor]
 [OBJECT:SliderSequence]
@@ -349,4 +342,4 @@ For more information, please see the [Stationary Lights](Engine/Rendering/Lighti
 [/EXCERPT:InverseSquared]
 
 -----------------
-[/COMMENT]
+-->

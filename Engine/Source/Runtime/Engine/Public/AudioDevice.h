@@ -26,6 +26,7 @@
  */
 
 class FArchive;
+class FAudioDevice;
 class FAudioEffectsManager;
 class FCanvas;
 class FOutputDevice;
@@ -49,6 +50,7 @@ class USoundWave;
 class UWorld;
 
 struct FActiveSound;
+struct FAttenuationFocusData;
 struct FAudioComponentParam;
 struct FAudioQualitySettings;
 struct FRotator;
@@ -268,7 +270,6 @@ struct FActivatedReverb
 struct FAttenuationListenerData
 {
 	FVector ListenerToSoundDir;
-	FTransform ListenerTransform;
 	float AttenuationDistance;
 	float ListenerToSoundDistance;
 
@@ -276,30 +277,24 @@ struct FAttenuationListenerData
 	// Non-attenuation distance for calculating surround sound speaker maps for sources w/ spread
 	float ListenerToSoundDistanceForPanning;
 
-	bool bDataComputed;
+	FTransform ListenerTransform;
+	const FTransform SoundTransform;
+	const FSoundAttenuationSettings* AttenuationSettings;
 
-	FAttenuationListenerData()
+	/** Computes and returns some geometry related to the listener and the given sound transform. */
+	static FAttenuationListenerData Create(const FAudioDevice& AudioDevice, const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings);
+
+private:
+	FAttenuationListenerData(const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings)
 		: ListenerToSoundDir(FVector::ZeroVector)
 		, AttenuationDistance(0.0f)
 		, ListenerToSoundDistance(0.0f)
 		, ListenerToSoundDistanceForPanning(0.0f)
-		, bDataComputed(false)
-	{}
-};
-
-struct FAttenuationFocusData
-{
-	float FocusFactor;
-	float DistanceScale;
-	float PriorityScale;
-	float VolumeScale;
-
-	FAttenuationFocusData()
-		: FocusFactor(1.0f)
-		, DistanceScale(1.0f)
-		, PriorityScale(1.0f)
-		, VolumeScale(1.0f)
-	{}
+		, ListenerTransform(InListenerTransform)
+		, SoundTransform(InSoundTransform)
+		, AttenuationSettings(&InAttenuationSettings)
+	{
+	}
 };
 
 /*
@@ -325,7 +320,8 @@ struct FGlobalFocusSettings
 		, NonFocusVolumeScale(1.0f)
 		, FocusPriorityScale(1.0f)
 		, NonFocusPriorityScale(1.0f)
-	{}
+	{
+	}
 };
 
 /** Interface to register a device changed listener to respond to audio device changes. */
@@ -505,8 +501,8 @@ public:
 	 */
 	void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
 
-	/** 
-	 * Allows audio rendering command queue to flush during audio device flush. 
+	/**
+	 * Allows audio rendering command queue to flush during audio device flush.
 	 * @param bPumpSynchronously must be called in situations where the audio render thread is not being called.
 	 */
 	virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) {}
@@ -950,6 +946,25 @@ public:
 		}, GET_STATID(STAT_SetHRTFEnabledForAll));
 	}
 
+	/** Whether or not HRTF is disabled. */
+	bool IsHRTFDisabled() const;
+
+	void SetHRTFDisabled(bool InIsHRTFDisabled)
+	{
+		const bool bNewHRTFDisabled = InIsHRTFDisabled;
+
+		bHRTFDisabled_OnGameThread = bNewHRTFDisabled;
+
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetHRTFDisabled"), STAT_SetHRTFDisabled, STATGROUP_AudioThreadCommands);
+
+		FAudioDevice* AudioDevice = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDevice, bNewHRTFDisabled]()
+		{
+			AudioDevice->bHRTFDisabled = bNewHRTFDisabled;
+
+		}, GET_STATID(STAT_SetHRTFDisabled));
+	}
+
 	void SetSpatializationInterfaceEnabled(bool InbSpatializationInterfaceEnabled)
 	{
 		FAudioThread::SuspendAudioThread();
@@ -969,14 +984,11 @@ public:
 
 	void SetDeviceMuted(bool bMuted);
 
-	/** Computes and returns some geometry related to the listener and the given sound transform. */
-	void GetAttenuationListenerData(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform* InListenerTransform = nullptr) const;
-
 	/** Returns the azimuth angle of the sound relative to the sound's nearest listener. Used for 3d audio calculations. */
-	void GetAzimuth(FAttenuationListenerData& OutListenerData, const USoundBase* Sound, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform& ListenerTransform, float& OutAzimuth, float& AbsoluteAzimuth) const;
+	void GetAzimuth(const FAttenuationListenerData& OutListenerData, float& OutAzimuth, float& AbsoluteAzimuth) const;
 
 	/** Returns the focus factor of a sound based on its position and listener data. */
-	float GetFocusFactor(FAttenuationListenerData& OutListenerData, const USoundBase* Sound, const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const;
+	float GetFocusFactor(const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const;
 
 	/** Gets the max distance and focus factor of a sound. */
 	void GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float& OutMaxDistance, float& OutFocusFactor);
@@ -1083,6 +1095,12 @@ public:
 	bool IsReverbPluginEnabled() const
 	{
 		return bReverbInterfaceEnabled;
+	}
+
+	/** Whether or not the reverb plugin is bypassing the master reverb. */
+	bool IsReverbPluginBypassingMasterReverb() const
+	{
+		return IsReverbPluginEnabled() && bReverbPluginBypassesMasterReverb;
 	}
 
 	static bool IsReverbPluginLoaded()
@@ -1449,7 +1467,19 @@ public:
 	/** Returns the game's delta time */
 	float GetGameDeltaTime() const;
 
-	void UpdateVirtualLoops();
+	/** Whether device is using listener attenuation override or not. */
+	bool IsUsingListenerAttenuationOverride() const
+	{
+		return bUseListenerAttenuationOverride;
+	}
+
+	/** Returns the listener attenuation override */
+	const FVector& GetListenerAttenuationOverride() const
+	{
+		return ListenerAttenuationOverride;
+	}
+
+	void UpdateVirtualLoops(bool bForceUpdate);
 
 	/** Sets the update delta time for the audio frame */
 	virtual void UpdateDeviceDeltaTime()
@@ -1679,7 +1709,10 @@ private:
 	FActivatedReverb HighestPriorityActivatedReverb;
 
 	/** Gamethread representation of whether HRTF is enabled for all 3d sounds. (not bitpacked to avoid thread issues) */
-	bool bHRTFEnabledForAll_OnGameThread:1;
+	bool bHRTFEnabledForAll_OnGameThread;
+
+	/** Gamethread representation of whether HRTF is disabbled for all 3d sounds. */
+	bool bHRTFDisabled_OnGameThread;
 
 	uint8 bGameWasTicking:1;
 
@@ -1714,13 +1747,17 @@ private:
 	uint8 bSpatializationInterfaceEnabled:1;
 	uint8 bOcclusionInterfaceEnabled:1;
 	uint8 bReverbInterfaceEnabled:1;
+	uint8 bReverbPluginBypassesMasterReverb:1;
 	uint8 bModulationInterfaceEnabled:1;
 
 	/** Whether or not we've initialized plugin listeners array. */
 	uint8 bPluginListenersInitialized:1;
 
-	/** Whether HRTF is enabled for all 3d sounds. */
+	/** Whether HRTF is enabled for all 3d sounds. This will automatically make all 3d mono sounds HRTF spatialized. */
 	uint8 bHRTFEnabledForAll:1;
+
+	/** Whether or not HRTF is disabled. This will make any sounds which are set to HRTF spatialize to spatialize with panning. */
+	uint8 bHRTFDisabled:1;
 
 	/** Whether the audio device is active (current audio device in-focus in PIE) */
 	uint8 bIsDeviceMuted:1;

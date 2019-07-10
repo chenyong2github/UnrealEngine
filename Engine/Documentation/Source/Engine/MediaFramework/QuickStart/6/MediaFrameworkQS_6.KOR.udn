@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Title:6 - 직접 해보기!
 Crumbs:%ROOT%
 Description:예제에 추가로 직접 해볼 수 있는 것들과 추가 문서에 대한 링크입니다.
@@ -12,6 +12,8 @@ type:multi-step
 order:6
 tags:Media Framework
 tags:Blueprints
+
+## Marked as Docs as the page has been combined into one page. 
  
 [NAV]
 

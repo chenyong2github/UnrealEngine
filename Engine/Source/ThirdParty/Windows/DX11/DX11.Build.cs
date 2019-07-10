@@ -7,7 +7,17 @@ public class DX11 : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		string DirectXSDKDir = "";
+		if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
+			Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
+			Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		}
+		else
+		{
+			DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		}
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
@@ -42,6 +52,17 @@ public class DX11 : ModuleRules
 		{
 			PublicDefinitions.Add("WITH_D3DX_LIBS=0");
 		}
+
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			PublicDefinitions.Add("WITH_D3DX_LIBS=0");
+			PublicAdditionalLibraries.AddRange(
+				new string[] {
+				"dxguid.lib",
+				}
+				);
+		}
+
 	}
 }
 

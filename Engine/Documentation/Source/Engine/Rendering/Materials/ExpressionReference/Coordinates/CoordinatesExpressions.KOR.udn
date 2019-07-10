@@ -44,7 +44,7 @@ LightmapUVs 는 2채널 벡터값 형태로 라이트맵 UV 텍스처 좌표를 
 Panner 는 텍스처를 패닝 또는 이동시키는 데 사용할 수 있는 UV 텍스처 좌표를 출력하는 표현식입니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **SpeedX** | 좌표를 U 방향으로 패닝시킬 속력을 나타냅니다. |
 | **SpeedY** | 좌표를 V 방향으로 패닝시킬 속력을 나타냅니다. |
@@ -71,7 +71,7 @@ Panner 는 Time 입력에 따라 변하는 UV 를 생성합니다. Coordinate �
 Rotator 는 회전하는 텍스처를 만드는 데 사용할 수 있는 2채널 벡터값 형태로 UV 텍스처 좌표를 출력하는 표현식입니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **CenterX** | 회전 중심으로 사용할 U 좌표를 나타냅니다. |
 | **CenterY** | 회전 중심으로 사용할 V 좌표를 나타냅니다. |
@@ -92,12 +92,12 @@ SceneColor 나 SceneDepth 표현식을 사용할 때와 마찬가지로 텍셀 �
 
 ScreenPosition 은 현재 렌더링되고 있는 픽셀의 화면 공간 위치를 출력하는 표현식입니다.
 
-[COMMENT:none]
+<!--
 | Item | Description |
 | -------- | ----------- |
 | [REGION:tablesection]Properties[/REGION] ||
 | **Screen Align** | If true, ScreenPosition divides the position by the homogeneous coordinate and maps the position to [0,0] - [1,1] for screen alignment. |
-[/COMMENT]
+-->
 
 [REGION:fullwidth]
 ![ScreenPositionExample.png](ScreenPositionExample.png)
@@ -108,7 +108,7 @@ ScreenPosition 은 현재 렌더링되고 있는 픽셀의 화면 공간 위치�
 TextureCoordinate 는 2채널 벡터값 형태로 UV 텍스처 좌표를 출력하여, 머티리얼에 다른 UV 채널을 사용하거나 타일링을 지정하거나 메시 UV 에 다른 작업을 하거나 할 수 있는 표현식입니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Coordinate Index** | 사용할 UV 채널을 나타냅니다. |
 | **UTiling** | U 방향 타일링 양을 나타냅니다. |

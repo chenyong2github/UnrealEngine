@@ -76,7 +76,7 @@ public:
 	virtual void GetAllTargetedShaderFormats( TArray<FName>& OutFormats ) const override;
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings() const override;
 
-	virtual void GetTextureFormats( const UTexture* InTexture, TArray<FName>& OutFormats ) const override;
+	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override;
 
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override;
 

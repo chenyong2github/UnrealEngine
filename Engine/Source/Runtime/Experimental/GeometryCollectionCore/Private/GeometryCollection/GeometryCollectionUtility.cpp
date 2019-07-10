@@ -14,41 +14,30 @@ DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionUtilityLogging, Log, All);
 
 namespace GeometryCollection
 {
-	TSharedPtr<FGeometryCollection> MakeCubeElement(const FTransform& center, FVector Scale)
+	TSharedPtr<FGeometryCollection> MakeCubeElement(const FTransform& center, FVector Scale, int NumberOfMaterials)
 	{
-		FGeometryCollection * RestCollection = new FGeometryCollection();
+		FGeometryCollection* RestCollection = new FGeometryCollection();
 
 		int NumNewVertices = 8; // 8 vertices per cube
 		int VerticesIndex = RestCollection->AddElements(NumNewVertices, FGeometryCollection::VerticesGroup);
-		TSharedRef<TManagedArray<FVector> > VerticesRef = RestCollection->GetAttribute<FVector>("Vertex", FGeometryCollection::VerticesGroup);
-		TSharedRef<TManagedArray<FVector> > NormalsRef = RestCollection->GetAttribute<FVector>("Normal", FGeometryCollection::VerticesGroup);
-		TSharedRef<TManagedArray<FVector> > TangentURef = RestCollection->GetAttribute<FVector>("TangentU", FGeometryCollection::VerticesGroup);
-		TSharedRef<TManagedArray<FVector> > TangentVRef = RestCollection->GetAttribute<FVector>("TangentV", FGeometryCollection::VerticesGroup);
-		TSharedRef<TManagedArray<FVector2D> > UVsRef = RestCollection->GetAttribute<FVector2D>("UV", FGeometryCollection::VerticesGroup);
-		TSharedRef<TManagedArray<FLinearColor> > ColorsRef = RestCollection->GetAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup);
-
+		
 		int NumNewIndices = 2 * 6; // two triangles per face
 		int IndicesIndex = RestCollection->AddElements(NumNewIndices, FGeometryCollection::FacesGroup);
-		TSharedRef<TManagedArray<FIntVector> > IndicesRef = RestCollection->GetAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
-		TSharedRef<TManagedArray<bool> > VisibleRef = RestCollection->GetAttribute<bool>("Visible", FGeometryCollection::FacesGroup);
-		TSharedRef<TManagedArray<int32> > MaterialIndexRef = RestCollection->GetAttribute<int32>("MaterialIndex", FGeometryCollection::FacesGroup);
-		TSharedRef<TManagedArray<int32> > MaterialIDRef = RestCollection->GetAttribute<int32>("MaterialID", FGeometryCollection::FacesGroup);
-
+		
 		int NumNewParticles = 1; // 1 particle for this geometry structure
 		int ParticlesIndex = RestCollection->AddElements(NumNewParticles, FGeometryCollection::TransformGroup);
-		TSharedRef<TManagedArray<FTransform> > TransformRef = RestCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
 
-		TManagedArray<FVector>& Vertices = *VerticesRef;
-		TManagedArray<FVector>&  Normals = *NormalsRef;
-		TManagedArray<FVector>&  TangentU = *TangentURef;
-		TManagedArray<FVector>&  TangentV = *TangentVRef;
-		TManagedArray<FVector2D>&  UVs = *UVsRef;
-		TManagedArray<FLinearColor>&  Colors = *ColorsRef;
-		TManagedArray<FIntVector>&  Indices = *IndicesRef;
-		TManagedArray<bool>&  Visible = *VisibleRef;
-		TManagedArray<int32>&  MaterialIndex = *MaterialIndexRef;
-		TManagedArray<int32>&  MaterialID = *MaterialIDRef;
-		TManagedArray<FTransform>&  Transform= *TransformRef;
+		TManagedArray<FVector>& Vertices = RestCollection->Vertex;
+		TManagedArray<FVector>&  Normals = RestCollection->Normal;
+		TManagedArray<FVector>&  TangentU = RestCollection->TangentU;
+		TManagedArray<FVector>&  TangentV = RestCollection->TangentV;
+		TManagedArray<FVector2D>&  UVs = RestCollection->UV;
+		TManagedArray<FLinearColor>&  Colors = RestCollection->Color;
+		TManagedArray<FIntVector>&  Indices = RestCollection->Indices;
+		TManagedArray<bool>&  Visible = RestCollection->Visible;
+		TManagedArray<int32>&  MaterialIndex = RestCollection->MaterialIndex;
+		TManagedArray<int32>&  MaterialID = RestCollection->MaterialID;
+		TManagedArray<FTransform>&  Transform = RestCollection->Transform;
 
 		// set the particle information
 		Transform[0] = center;
@@ -114,13 +103,15 @@ namespace GeometryCollection
 		Indices[10] = FIntVector(Index + 7,Index + 3,Index + 1);
 		Indices[11] = FIntVector(Index + 1,Index + 5,Index + 7);
 
+		// distribute the number of materials equally between the 12 faces
+		check(NumberOfMaterials <= 12 && (12 % NumberOfMaterials)==0); // preferably divisible into 12
+		int NumberOfEachMaterial = 12 / NumberOfMaterials;
 		for (int i = 0; i < 12;i++)
 		{
 			Visible[i] = true;
 
-			// first 6 triangles are material 0 and the next material 1
 			MaterialIndex[i] = i;
-			MaterialID[i] = i < 6 ? 0 : 1;
+			MaterialID[i] = i / NumberOfEachMaterial;
 		}
 
 		for (int IndexIdx = 0; IndexIdx < 12; IndexIdx++)
@@ -138,24 +129,20 @@ namespace GeometryCollection
 		// GeometryGroup
 		GeometryCollection::AddGeometryProperties(RestCollection);
 
-		// add 2 material sections to simulate 2 materials on the object
-		TSharedRef<TManagedArray<FGeometryCollectionSection> > SectionsRef = RestCollection->GetAttribute<FGeometryCollectionSection>("Sections", FGeometryCollection::MaterialGroup);
-		TManagedArray<FGeometryCollectionSection>&  Sections = *SectionsRef;
-		// the first 6 indices are material 0
-		int Element = RestCollection->AddElements(1, FGeometryCollection::MaterialGroup);
-		Sections[Element].MaterialID = 0;
-		Sections[Element].FirstIndex = 0;
-		Sections[Element].NumTriangles = 6;
-		Sections[Element].MinVertexIndex = 0;
-		Sections[Element].MaxVertexIndex = Vertices.Num() - 1;
+		// add the material sections to simulate NumberOfMaterials on the object
+		TManagedArray<FGeometryCollectionSection>&  Sections = RestCollection->Sections;
 
-		// the second 6 indices are material 1
-		Element = RestCollection->AddElements(1, FGeometryCollection::MaterialGroup);
-		Sections[Element].MaterialID = 1;
-		Sections[Element].FirstIndex = 6 * 3;
-		Sections[Element].NumTriangles = 6;
-		Sections[Element].MinVertexIndex = 0;
-		Sections[Element].MaxVertexIndex = Vertices.Num() - 1;
+
+		// the first 6 indices are material 0
+		int FirstElement = RestCollection->AddElements(NumberOfMaterials, FGeometryCollection::MaterialGroup);
+		for (int Element = 0; Element < NumberOfMaterials; Element++)
+		{
+			Sections[Element].MaterialID = Element;
+			Sections[Element].FirstIndex = (Element * NumberOfEachMaterial) * 3;
+			Sections[Element].NumTriangles = NumberOfEachMaterial;
+			Sections[Element].MinVertexIndex = 0;
+			Sections[Element].MaxVertexIndex = Vertices.Num() - 1;
+		}
 
 		return TSharedPtr<FGeometryCollection>(RestCollection);
 	}
@@ -200,9 +187,9 @@ namespace GeometryCollection
 		int32 TransformIndex0 = Collection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(9, 0, 0)), FVector(1.0)));
 		int32 TransformIndex1 = Collection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(-9, 0, 0)), FVector(1.0)));
 
-		TManagedArray<int32>& VertexCount = *Collection->VertexCount;
-		TManagedArray<int32>& VertexStart = *Collection->VertexStart;
-		TManagedArray<FVector> & Vertex = *Collection->Vertex;
+		TManagedArray<int32>& VertexCount = Collection->VertexCount;
+		TManagedArray<int32>& VertexStart = Collection->VertexStart;
+		TManagedArray<FVector> & Vertex = Collection->Vertex;
 		
 		TArray<int32> ReverseMap;
 		GeometryCollectionAlgo::BuildTransformGroupToGeometryGroupMap(*Collection, ReverseMap);
@@ -216,16 +203,19 @@ namespace GeometryCollection
 			Vertex[i] -= FVector(1, 0, 0);
 		}
 
-		TManagedArray<FString> & Names = *Collection->BoneName;
+		TManagedArray<FString> & Names = Collection->BoneName;
 		Names[ParentIndex] = "Root";
 		Names[TransformIndex0] = "RGB1";
 		Names[TransformIndex1] = "RGB2";
 
-		(*Collection->BoneHierarchy)[ParentIndex].Parent = FGeometryCollection::Invalid;
-		(*Collection->BoneHierarchy)[ParentIndex].Children.Add(TransformIndex0);
-		(*Collection->BoneHierarchy)[ParentIndex].Children.Add(TransformIndex1);
-		(*Collection->BoneHierarchy)[TransformIndex0].Parent = ParentIndex;
-		(*Collection->BoneHierarchy)[TransformIndex1].Parent = ParentIndex;
+		TManagedArray<int32> & Parents = Collection->Parent;
+		TManagedArray<TSet<int32>>& Children = Collection->Children;
+
+		Parents[ParentIndex] = FGeometryCollection::Invalid;
+		Children[ParentIndex].Add(TransformIndex0);
+		Children[ParentIndex].Add(TransformIndex1);
+		Parents[TransformIndex0] = ParentIndex;
+		Parents[TransformIndex1] = ParentIndex;
 	}
 
 
@@ -242,15 +232,15 @@ namespace GeometryCollection
 		//  ......2
 		//  .........3
 		//  ............4
-		(*Collection->BoneHierarchy)[TransformIndex0].Parent = FGeometryCollection::Invalid;
-		(*Collection->BoneHierarchy)[TransformIndex0].Children.Add(TransformIndex1);
-		(*Collection->BoneHierarchy)[TransformIndex1].Parent = TransformIndex0;
-		(*Collection->BoneHierarchy)[TransformIndex1].Children.Add(TransformIndex2);
-		(*Collection->BoneHierarchy)[TransformIndex2].Parent = TransformIndex1;
-		(*Collection->BoneHierarchy)[TransformIndex2].Children.Add(TransformIndex3);
-		(*Collection->BoneHierarchy)[TransformIndex3].Parent = TransformIndex2;
-		(*Collection->BoneHierarchy)[TransformIndex3].Children.Add(TransformIndex4);
-		(*Collection->BoneHierarchy)[TransformIndex4].Parent = TransformIndex3;
+		(Collection->Parent)[TransformIndex0] = FGeometryCollection::Invalid;
+		(Collection->Children)[TransformIndex0].Add(TransformIndex1);
+		(Collection->Parent)[TransformIndex1] = TransformIndex0;
+		(Collection->Children)[TransformIndex1].Add(TransformIndex2);
+		(Collection->Parent)[TransformIndex2] = TransformIndex1;
+		(Collection->Children)[TransformIndex2].Add(TransformIndex3);
+		(Collection->Parent)[TransformIndex3] = TransformIndex2;
+		(Collection->Children)[TransformIndex3].Add(TransformIndex4);
+		(Collection->Parent)[TransformIndex4] = TransformIndex3;
 	}
 
 	void AddGeometryProperties(FGeometryCollection * Collection)
@@ -259,26 +249,27 @@ namespace GeometryCollection
 		{
 			if (!Collection->NumElements(FGeometryCollection::GeometryGroup))
 			{
-				int32 NumVertices = Collection->Vertex->Num();
+				int32 NumVertices = Collection->Vertex.Num();
 				if (NumVertices)
 				{
 					// transforms group
-					TManagedArray<FTransform>& Transform = *Collection->Transform;
+					TManagedArray<FTransform>& Transform = Collection->Transform;
+					TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
 					// vertices group
-					TManagedArray<int32> & BoneMap = *Collection->BoneMap;
-					TManagedArray<FVector> & Vertex = *Collection->Vertex;
+					TManagedArray<int32> & BoneMap = Collection->BoneMap;
+					TManagedArray<FVector> & Vertex = Collection->Vertex;
 					// faces
-					TManagedArray<FIntVector> & FaceIndices = *Collection->Indices;
+					TManagedArray<FIntVector> & FaceIndices = Collection->Indices;
 
 					// geometry group
-					TManagedArray<int32>& TransformIndex = *Collection->TransformIndex;
-					TManagedArray<FBox>& BoundingBox = *Collection->BoundingBox;
-					TManagedArray<float>& InnerRadius = *Collection->InnerRadius;
-					TManagedArray<float>& OuterRadius = *Collection->OuterRadius;
-					TManagedArray<int32>& VertexCount = *Collection->VertexCount;
-					TManagedArray<int32>& VertexStart = *Collection->VertexStart;
-					TManagedArray<int32>& FaceCount = *Collection->FaceCount;
-					TManagedArray<int32>& FaceStart = *Collection->FaceStart;
+					TManagedArray<int32>& TransformIndex = Collection->TransformIndex;
+					TManagedArray<FBox>& BoundingBox = Collection->BoundingBox;
+					TManagedArray<float>& InnerRadius = Collection->InnerRadius;
+					TManagedArray<float>& OuterRadius = Collection->OuterRadius;
+					TManagedArray<int32>& VertexCount = Collection->VertexCount;
+					TManagedArray<int32>& VertexStart = Collection->VertexStart;
+					TManagedArray<int32>& FaceCount = Collection->FaceCount;
+					TManagedArray<int32>& FaceStart = Collection->FaceStart;
 
 					// gather unique geometries
 					TSet<int32> TransformIndexOfGeometry;
@@ -296,6 +287,7 @@ namespace GeometryCollection
 					for (int32 Index = 0; Index < GeometryIndices.Num(); Index++)
 					{
 						ReverseMap[GeometryIndices[Index]] = Index;
+						TransformToGeometryIndex[GeometryIndices[Index]] = Index;
 
 						TransformIndex[Index] = GeometryIndices[Index];
 						BoundingBox[Index].Init();
@@ -342,7 +334,7 @@ namespace GeometryCollection
 					{
 						if (VertexCount[GeometryIndex])
 						{
-							Center[GeometryIndex] / VertexCount[GeometryIndex];
+							Center[GeometryIndex] /= VertexCount[GeometryIndex];
 						}
 					}
 
@@ -423,12 +415,12 @@ namespace GeometryCollection
 	{
 		// if the material indices are not setup then they will all be zero, then this is an old asset needing updated
 		if (Collection->NumElements(FGeometryCollection::FacesGroup) 
-			&& (*Collection->MaterialIndex)[0] == (*Collection->MaterialIndex)[1] && (*Collection->MaterialIndex)[0] == 0)
+			&& (Collection->MaterialIndex)[0] == (Collection->MaterialIndex)[1] && (Collection->MaterialIndex)[0] == 0)
 		{
 			int NumVisited = 0;
 			// fill in the material IDs
-			TManagedArray<FGeometryCollectionSection>& Section = *Collection->Sections;
-			TManagedArray<int32>& MaterialID = *Collection->MaterialID;
+			TManagedArray<FGeometryCollectionSection>& Section = Collection->Sections;
+			TManagedArray<int32>& MaterialID = Collection->MaterialID;
 			for (int i = 0; i < Section.Num(); i++)
 			{
 				int first = Section[i].FirstIndex / 3;
@@ -450,5 +442,3 @@ namespace GeometryCollection
 	}
 
 }
-
-

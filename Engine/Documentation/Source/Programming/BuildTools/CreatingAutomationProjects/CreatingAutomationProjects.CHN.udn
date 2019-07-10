@@ -1,0 +1,502 @@
+﻿INTSourceChangelist:6142688
+Availability: Docs
+Title: 创建自动化项目
+Description: 此指南为开发者讲述如何新建自动化项目，以延展自动化工具。
+Type: how-to
+Version: 4.22
+Parent: Programming/BuildTools/AutomationTool
+Tags: AutomationTool
+SkillLevel: Advanced
+Order: 1
+Related: Programming/BuildTools/AutomationTool/ReferenceManual
+Crumbs:
+
+
+[TOC (start:2 end:4)]
+
+[REGION:quote]
+ **必备条件：** 将[开发环境](Programming/Development)设为以正确的[编译配置](Programming/Development/BuildConfigurations)来[从源代码编译虚幻引擎](Programming/Development/BuildingUnrealEngine)。
+[/REGION]
+将**自动化工具** 用于构建、烘焙和测试游戏等操作是提高团队生产力的一个好方法。此外，创建和运行您自有的自动化工具命令后，您的团队便能根据项目需求来定制和部署自动化。
+
+  
+继续阅读，了解如何设置和创建自动化项目。
+
+[REGION:warning]
+ **警告：** 自动化工具已用于自动化执行Epic内部项目中的大量进程和任务。此工具免费试用，但我们提供的支持等级也有所限制。
+[/REGION]
+
+## 什么是自动化工具？
+
+提到“自动化项目”时，我们指的是作为自动化工具扩展的独立代码项目，而自动化工具是执行特定C#命令（脚本）的通用工具。常见脚本可包括：编译、烘焙和运行游戏项目、编译派生数据缓存（DDC），或运行自动化测试。
+
+## 自动化项目设置
+
+[REGION:note]
+ **注意：** 继续之前，在 **Visual Studio 2017** 中打开虚幻引擎4解决方案文件（`UE4.sln`）之前必须对引擎至少进行一次编译。
+[/REGION]
+
+开发人员通常希望在规划自动化项目时包含并组织域特定的脚本；为了实现目的，他们将实现独立项目。为了使脚本命令在运行自动化工具时可用，开发人员需要添加拥有正确设置的脚本，将该项目与自动化工具链接起来。
+
+### 添加新项目
+
+1.  在Visual Studio中右键单击项目文件夹并选择 **添加（Add）> 新建项目...（New Project...）**
+
+1.  **添加新项目（Add New Project）** 菜单打开后，选择 **类库（.NET Framework）（Class Library (.NET Framework)）** Visual C#选项：以下设置用于说明之用：
+    *   **名称（Name）：** `SampleScript.Automation`
+    
+    *   **路径（Location）：** `~\..\Engine\Source\Programs\`
+    
+    *   **框架（Framework）：** .NET Framework 4.5
+    
+    *   [REGION:note]
+        **注意：** 
+        
+        *   **名称（Name）：** 项目的生成脚本查找一个带 `*.Automation.csproj` 扩展名的 `*.csproj` 文件
+        
+        *   **路径（Location）：** 您可以将项目保存在 **Build** 或 **Source** 目录中。对于 `Build` 目录而言，它需要存在于 `Build` 目录中，此目录旁有一个可发现的 `*.uproj` 文件，这意味着游戏存在于 `UE4Games.uprojdirs` 文件中列出的一个目录之下。
+        
+        *   **框架（Framework）：** 编写此文时，我们使用的是 **.NET 4.5** 框架
+        
+        *   最后，注意项目无法放置在拥有 `*.build.cs` 或 `*.target.cs` 文件的路径（或文件夹）中
+        [/REGION]
+        
+
+1.  为便于说明，右键单击 `SampleScript.Automation` \> `Class1.cs` 文件，选择 **重命名（Rename）**，然后重命名文件来读取 `SampleScript.Automation.cs`。
+
+### 更新项目属性
+
+解决方案拥有一个新的自动化项目后，便可以开始更新项目的属性，包括它的编译配置和程序集信息。
+
+#### 编译配置设置
+
+选中 **SampleScript** 自动化项目后：
+
+1.  打开 **编译（Build）** \> **配置管理器...（Configuration Manager...）**。
+
+1.  在 **配置管理器（Configuration Manager）** 菜单中从 **配置（Configuration）** 下拉菜单（在 `SampleScript.Automation` **项目（Project）** 配置行中）中选择 **发布（Release）**。
+
+1.  **编辑项目配置（Edit Project Configurations）** 菜单打开后，选择 **开发（Development）** (1)，然后单击 **关闭（Close）** (2)。
+
+1.  此时，您需要验证开发编译配置未对您的代码进行优化，为验证这一点，请右键单击 `SampleScript.Automation` 并选择 **属性（Properties）**，打开项目的属性菜单。
+
+1.  现在单击 **编译（Build）** 选项卡来验证开发编译配置的 **优化代码（Optimize code）** 设置未启用。如果 **优化代码（Optimize code）** 已启用，则清除勾选框。
+
+现在可以用以下步骤更新装配信息。
+
+#### 程序集信息设置
+
+在项目的属性菜单中选择 **应用程序（Application）** 选项卡后：
+
+1.  单击 **程序集信息...（Assembly Information...）**。
+
+1.  打开 **程序集信息（Assembly Information）** 对话框后，可根据需要更新项目的程序集信息。为了便于说明，我们用以下值对程序集信息字段进行了更新：
+    *   **标题（Title）：** `SampleScript.Automation`
+    
+    *   **描述（Description）：** 这是自动化脚本样本。
+    
+    *   **公司（Company）：** Epic Games, Inc.
+    
+    *   **产品（Product）：** `SampleScript.Automation`
+    
+    *   **版权（Copyright）：** 版权所有 © Epic Games, Inc. 2019
+    
+    *   **商标（Trademark）：** Unreal Engine 4
+    
+    *   [REGION:note]
+        **注意：** 如需了解程序集信息域的更多内容，请参阅微软的概览，其讲述了[程序集信息对话框](https://docs.microsoft.com/en-us/visualstudio/ide/reference/assembly-information-dialog-box)。
+        [/REGION]
+        
+
+1.  验证 **使程序集变为COM可见（Make assembly COM-Visible）** 已禁用(1)，然后单击 **确认（Ok）** (2)关闭 **程序集信息（Assembly Information）** 对话框。
+
+### 设置项目编译输出路径
+
+在项目的属性菜单中选择 **编译（Build）** 选项卡后：
+
+1.  选择 **所有配置（All Configurations）**。
+
+1.  现在将 **输出路径：（Output path:）** 设为项目的自动化脚本目录（参见下方的范例）。
+    [REGION:note]
+    **注意：** 
+    
+    *   可以使用 **浏览...（Browse...）** 或输入输出路径
+    
+    *   输出路径相对于项目的根目录，所以必须使用 '`..`' 来通过父目录进行导航
+    
+    *   如未正确设置项目的输出路径，自动化工具不会发现自动化命令
+    [/REGION]
+    
+
+1.  关闭Visual Studio并运行 `GenerateProjectFiles.bat`。
+
+1.  如需验证设置，请打开生成的虚幻引擎4解决方案文件（`UE4.sln`），并导航到 **解决方案浏览器（Solution Explorer）** 中的 `UE4 > 程序（Programs）> 自动化（Automation）` 来定位自动化项目（参见下面的示例）。
+
+## 自动化工具命令
+
+要创建一个新命令（或“脚本”），您需要创建一个派生自自动化工具的 `BuildCommand` 类的新命令类，但在此之前，您首先需要添加所需的程序集引用来链接 `AutomationUtils` 库。
+
+### 添加需要的程序集引用
+
+1.  在 **解决方案浏览器** 中的 `程序（Programs）> 自动化（Automation）` 下找到项目。
+
+1.  在项目列表下右键单击 **引用（References）** 并选择 **添加引用...（Add Reference...）**。
+
+1.  在 **引用管理器（Reference Manager）** **项目（Projects）** 菜单中，找到并选择 **AutomationUtils.Automation** (1)，然后单击 **确认（OK）** (2)。
+
+此时，您便已准备好开始创作首个命令类。
+
+### 创作命令类
+
+在开始这些步骤之前，请确保自动化项目的范围中存在有一个 `*.cs` 源文件。在以下示例中有一个名为 `SampleScript.Automation.cs` 的源文件，我们将在此处编写一个范例命令，使其在成功退出之前打印出一个Fibonacci序列。
+
+1.  如要开始添加新的范例命令，请打开 `SampleScript.Automation.cs`，在其中应该可以找到以下代码：
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        
+        namespace SampleScript.Automation
+        {
+            public class Class1
+            {
+            }
+        }
+    
+
+1.  首先包含 `AutomationTool` 命名空间：
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class Class1
+            {
+            }
+        }
+    
+
+1.  现在用名称为 `SampleCommand` 的 `BuildCommand` 子类替代 `Class1`：
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+            }
+        }
+    
+
+1.  将以下代码添加到 `SampleCommand`：
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+        
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+        
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    Console.Write(" ..." + System.Environment.NewLine);
+                    
+                    return ExitCode.Success;
+                }
+            }
+        }
+    
+    [REGION:note]
+    **注意：** 覆盖 `Execute()` 方法提供了一个很好的“钩点”，帮助您验证命令是否成功运行。
+    [/REGION]
+    
+
+1.  最后，右键单击 `SampleScript.Automation` 并选择 **编译（Build）** ，编译自动化项目。
+
+您现在可以运行 `SampleCommand`，它在返回 `Success` 退出代码前将打印一个Fibonacci数字序列。
+
+### 运行命令
+
+以下步骤描述了用自动化工具运行 `SampleCommand` 的几种方法中的一种：
+
+1.  首先打开 **命令行**。
+
+1.  现在导航到 `[UE4 Root]\Engine\Build\BatchFiles`，在此处可找到 `RunUAT` 批处理文件。
+
+1.  输入 `RunUAT.bat SampleCommand -nocompile`，运行命令。
+
+#### 最终结果
+
+此时，批处理文件运行自动化工具(1)，用 `-nocompile` 参数解析命令行(2)，打印Fibonacci序列(3)，确认成功编译(4)，并打印 `success` 退出代码。
+
+### 更新命令
+
+现在，假设您想更新 `SampleCommand` 来递归式计算和打印Fibonacci序列中的下个值。
+
+1.  如要更新现有命令，请打开 `SampleScript.Automation.cs`，其中应有以下代码：
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    Console.Write(" ..." + System.Environment.NewLine);
+                    
+                    return ExitCode.Success;
+                }
+            }
+        }
+    
+
+1.  首先删除以下语句：
+    
+        Console.Write(" ..." + System.Environment.NewLine);
+    
+
+1.  现在将以下代码添加到 `SampleCommand`：
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    //Test base case
+                    //n /= 0;
+                    Console.Write(" " + F(n) + ", ..." + System.Environment.NewLine);
+        
+                    return ExitCode.Success;
+                }
+        
+                public static int F(int n)
+                {
+                    if (n <= 1) //Base condition
+                    {
+                        return n;
+                    }
+                    else
+                    {
+                        return F(n - 1) + F(n - 2);
+                    }
+                }
+            }
+        }
+    
+
+1.  最后，保存源文件，然后在编译和运行 **命令行** 中的 `SampleCommand`。
+
+#### RunUAT批处理文件
+
+1.  打开 **命令提示符（Command Prompt）**，然后导航至 `[UE4根目录]\Engine\Build\BatchFiles`。
+
+1.  现在输入 `RunUAT.bat SampleCommand`，编译并运行更新的命令。
+
+此时，批处理文件运行自动化工具(1)，用 `-nocompile` 参数解析命令行(2)，用递归计算的第n个值打印Fibonacci序列(3)，确认成功编译(4)，并打印 `Success` 退出代码(5)。
+
+##### 注释
+
+您已经在几个不同情况下使用了RunUAT批处理文件，在使用它时需要注意一些其他要点：
+
+*   它用作自动化工具设置脚本。
+
+*   如果在运行批处理文件之前将其复制到其他路径，批处理文件将无法使用。因为它将默认位于 `[UE4Root]/Engine/Build/BatchFiles` 目录中。
+
+*   如果从编译版本运行UE4，它将默认使用 `-compile` 参数。如果从已安装的版本运行UE4，它将使用 `-nocompile` 参数。
+
+### 调试命令
+
+通过Fibonacci序列生成器的递归版本对 `SampleCommand` 进行更新后，需要考虑开发者用以下步骤对递归算法的基础条件进行测试：
+
+1.  打开 `SampleScript.Automation.cs` 应该可以找到以下代码：
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    //Test base case
+                    //n /= 0;
+                    Console.Write(" " + F(n) + ", ..." + System.Environment.NewLine);
+        
+                    return ExitCode.Success;
+                }
+        
+                public static int F(int n)
+                {
+                    if (n <= 1)
+                    {
+                        return n;
+                    }
+                    else
+                    {
+                        return F(n - 1) + F(n - 2);
+                    }
+                }
+            }
+        }
+    
+
+1.  现在请取消对以下语句的注释，测试递归算法的基本情况：
+    
+        //n /= 0;
+    
+
+1.  我们之前在以下代码中引入了未定义的行为：
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    //Test base case
+                    n /= 0;
+                    Console.Write(" " + F(n) + ", ..." + System.Environment.NewLine);
+        
+                    return ExitCode.Success;
+                }
+        
+                public static int F(int n)
+                {
+                    if (n <= 1)
+                    {
+                        return n;
+                    }
+                    else
+                    {
+                        return F(n - 1) + F(n - 2);
+                    }
+                }
+            }
+        }
+    
+
+1.  为便于说明，我们现在假设：在保存源文件并从 **命令提示符（Command Prompt）** 执行 `RunUAT.bat` 之前，除以零的bug未被注意。
+    *   此时，批处理文件运行自动化工具(1)，使用 `-compile` 参数解析命令行(2)，打印非递归Fibonacci序列(3)，并在打印 `Error_Unknown` 退出代码(5)之前抛出 `除以零` 异常(4)，确认编译失败(6)。
+
+1.  自动化工具的日志告诉我们需要在特定行（上图中的第27行）中修复代码，因此请继续将语句设为如下所示：
+    
+        n = 0;
+    
+
+1.  修复bug后，在 **命令提示符（Command Prompt）** 中输入 `RunUAT.bat SampleCommand`，编译并运行自动化工具。
+
+#### 最终结果
+
+此时，批处理文件运行自动化工具(1)，用 `-compile` 参数解析命令行(2)，编译自动化脚本(3)，打印Fibonacci序列(4)，打印递归Fibonacci方法的基本情况输出(5)，确认成功编译(6)，并打印Success exit代码(7)。
+
+## 额外讲解
+
+*   如果自动化工具报告它无法找到您的命令，请确保输出路径设置正确。如果 `*.dll` 文件没有保存到正确的文件夹，自动化工具便不会加载它。
+
+*   要阅读一些示例脚本，请导航到 `[UE4根目录]\Engine\Source\Programs\AutomationTool\Scripts`。
+
+*   可用不同的冗余度等级来运行工具，详情请参见[自动化工具参考手册](Programming/BuildTools/AutomationTool/ReferenceManual)。

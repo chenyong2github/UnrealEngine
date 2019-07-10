@@ -1,90 +1,83 @@
-﻿INTSourceChangelist:3151855
+﻿INTSourceChangelist:3782314
 Availability:Public
-Title: 后处理效果
+Title: 后期处理效果
 Crumbs: %ROOT%, Engine
-Description: 在最终渲染前对当前已渲染的场景添加整体特效
+Description:在渲染前应用于整个渲染场景的效果。
 Navigation:topic
-Version: 4.9
+Version: 4.15
 parent:Engine/Rendering
 order:5
 type:landing
+tags:Rendering
+Topic-image:ppe_topic.png
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Rendering/PostProcessEffects:title%](Engine/Rendering/PostProcessEffects/ppe_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/tech_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/PostProcessEffects:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/PostProcessEffects:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/PostProcessEffects]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Rendering/PostProcessEffects:title%](Engine/Rendering/PostProcessEffects/ppe_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/tech_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/PostProcessEffects:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/PostProcessEffects:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/PostProcessEffects]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
 [REGION:banner]
-![Post Process Effects](ppe_landing_banner.png)
+![Post Process Effects](ppe_landing_banner1.png)
 [/REGION]
 
 [EXCERPT:Intro]
-虚幻引擎提供了后处理特效的功能，美术人员和设计人员能够调整整个场景的视觉体验。这些元素和效果包括 Bloom（在明亮物体上的 HDR Bloom），环境光遮挡，以及色调映射。
+虚幻引擎提供后期处理效果，允许美术师和设计师调整场景的整体外观和感觉。元素和效果的示例包括泛光（明亮对象上的HDR泛光效果）、环境遮挡和色调映射。
 [/EXCERPT:Intro]
 
-## 后处理体积
+(#physically-basedpostprocess)
 
-**PostProcessVolume** 是一种特殊的体积，用于放置在场景关卡中。由于虚幻引擎 4 不再使用后处理链，这些体积目前是用于控制后处理参数的唯一手段。这套新系统目前尚未完全完成，我们将会更多的开放可编程能力，但我们希望大部分情况都能被这套系统妥善的处理。这将让美术/策划人员更容易的使用，并让程序员更容易来优化。
+## 基于物理的后期处理
 
-在虚幻引擎 4 中，每个 PostProcessVolume 实质上是一个类型的混合层。其他混合层可以来自游戏代码（比如命中特效），UI 代码（比如暂停菜单），摄像机（比如暗角效果），或者 Matinee（旧胶片效果）。每个混合层都能有自己的权重值，这样混合效果能容易控制。
+从虚幻引擎4.15版起，默认情况下启用电影色调映射器，与[学院颜色编码系统(ACES)](http://www.oscars.org/science-technology/sci-tech-projects/aces)设置的标准相匹配。 
+这使得UE4中的色调映射器可以轻松地面向多种显示类型，包括高动态范围(HDR)显示。向ACES标准的转变确保了在多种格式和显示之间保持一致的颜色， 
+同时也作为一种方式来 _前瞻性地适应_ 所使用的源，而无需针对其他介质对其进行调整。 
 
-混合的做法始终是 Lerp（线性插值），当前启用的体积将会参与混合。一个 PostProcessVolume 尽在 Camera 在该体积内才会参与混合，除非体积的 **Unbound** 选项被勾选，这时该体积作用于整个场景。
+电影色调映射器提供以下额外的好处：
 
-在 PostProcessVolume 中的属性说明如下：
+* 对于电视和电影，符合ACES标准。
+* 额外的颜色分级和白平衡控制。
+* 现在，自发光颜色在物理上以一种更正确的方式泛光。
 
-| 属性 | 描述 |
+[REGION:warning]
+对于您可能开发的内容，新的电影色调映射器与之前版本的UE4中的色调映射器看起来会有所不同。要使用旧的色调映射器，可以输入以下控制台命令：
+	r.TonemapperFilm 0
+[/REGION]
+
+
+(#postprocessvolume)
+
+## 后期处理体积
+
+ **后期处理体积（PostProcessVolume）** 是可以添加到关卡的一种特殊类型的体积，由于虚幻引擎4不使用后期处理链，因此目前这些体积是操作后期处理参数的唯一方法。新系统还不完整，我们将公开一些可编程性，但是我们希望系统能够很好地处理常见的情况。这会使得美术师/设计师更容易使用该系统，程序员也更容易对它进行优化。
+
+在虚幻引擎4中，每个后期处理体积本质上只是一种混合层类型。其他混合层可能来自游戏代码（例如碰撞效果）、UI代码（例如暂停菜单）、摄像机（例如晕映）或Matinee（老电影效果）。每一层可以有一个权重，所以它会很容易混合效果。
+
+混合总是使用插值（线性插值）来完成，而且只有已启用的体积进行混合。除非选中了 **解除绑定（Unbound）** 属性，否则只有当摄像机在后期处理体积的边界内时才会应用该体积。
+
+下面将介绍在后期处理体积中找到的属性：
+
+| 属性 | 说明 |
 | -------- | ----------- |
-| **Settings** | 体积的 [后处理设置](#BookmarkPostProcessSettings)，大部分属性前的勾选框定义了该行的属性是否使用该体积的 **Blend Weight** 参与混合。
-| **Priority** | 当多个体积重叠时定义它们参与混合的次序。高优先级的体积会被当前重叠的其他体积更早计算。
-| **Blend Radius** | 体积周围基于虚幻单位的距离，用于该体积开始参与混合的起始位置。
-| **Blend Weight** | 该体积的影响因素。0 代表没有效果，1代表完全的效果。
-| **Enabled** | 定义该体积是否参与后处理效果。如果勾选的话，该体积则参与混合计算。
-| **Unbound** | 定义该体积是否考虑边界，如果勾选的话，该体积将作用于整个场景而无视边界。如果没有勾选，该体积只在它的边界内起效。
+| **设置（Settings）** | 体积的[后期处理设置](#PostProcessSettings)。大多数属性前面的复选框定义体积中的行是否使用体积的 **混合权重（Blend Weight）** 进行混合。
+| **优先级（Priority）** | 定义多个体积混合在一起的顺序。具有最高优先级的体积优先于所有其他重叠体积。
+| **混合半径（Blend Radius）** | 在体积周围与体积的设置发生混合处的距离，以虚幻单位计量。
+| **混合权重（Blend Weight）** | 体积的属性具有的影响量。0表示无效果；1表示全效果。
+| **已启用（Enabled）** | 体积是否影响后期处理。如果为 _true_，将使用体积的设置进行混合。
+| **解除绑定（Unbound）** | 是否考虑体积的边界。如果为 _true_，体积将影响整个场景，而无论其边界如何。如果 _false_，体积将只影响其边界以内。
 
-(#BookmarkPostProcessSettings)
 
-### 后处理设置
+(#postprocesssettings)
 
-后处理设置都是一些用于后处理效果的属性，控制这些属性或者覆盖这些属性。这些属性在 `UScene` 类中定义。**PostProcessVolume** 包含了一个 `FPostProcessSettings` 的结构体作为 `Settings` 属性，其中包含了每个属性定义，并能够在体积中对他们进行覆写。
+### 后期处理设置
 
-对于每个可用设置的描述，查看以下这些相关特效的页面来了解详情。
+后期处理设置是各种后期处理效果的所有属性，可以对它们进行控制或覆盖。这些属性在“UScene”类中声明。**后期处理体积（PostProcessVolume）** 包含一个“FPostProcessSettings”结构体，作为它的“Settings”属性，该属性包含所有这些属性，并允许体积覆盖它们。
 
-## 特效
+有关每个可用设置的描述，请参阅下面的页面了解相应的效果。
+
+(#effects)
+
+## 效果
+
+[DIR(output:"topiccompact" parent:"Engine/Rendering/PostProcessEffects" org:"hierarchy" tags:"Post Process" end:"1")]
+
+
+[COMMENT:none]
+-
 
 [REGION:topics fourth]
 [OBJECT:TopicCompact]
@@ -222,4 +215,6 @@ type:landing
 [/REGION]
 
 
+-
+[/COMMENT]
 

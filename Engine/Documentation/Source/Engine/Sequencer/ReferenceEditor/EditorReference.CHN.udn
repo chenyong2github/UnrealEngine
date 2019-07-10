@@ -1,185 +1,207 @@
-﻿INTSourceChangelist:3007666
+﻿INTSourceChangelist:3672177
 Availability:Public
-Title:Sequencer 编辑器参考
-Crumbs:%ROOT%, Engine
-Description:Sequencer 编辑器的 UI 和控件参考页面。 
-Navigation:topic
+Title: Sequencer编辑器引用
+Crumbs: %ROOT%, Engine
+Description:Sequencer编辑器的UI和控制引用页面。 
+Type: Reference
+Version: 4.17
 parent:Engine/Sequencer
-Skilllevel: beginner
-order:1
-Version:4.12
-Related:Engine\Sequencer\Overview
-Related:Engine/Sequencer/HowTo
+Order: 1
+Tags: Sequencer
+Related: Engine\Sequencer\Overview
+Related: Engine/Sequencer/HowTo
 
-本页概述 **Sequencer** 编辑器的每个窗口、选项和控件。 
+[TOC(start:2 end:2)]
 
-### Sequencer 编辑器界面
+此页面概述了Sequencer编辑器中包含的界面元素和选项，例如 **树状图（Tree View）**，您可以在其中选择要在 **Sequencer** 中使用的轨迹类型，以及 **轨迹区域（Tracks Area）**，您可以在其中为最终将塑造过场动画的轨迹之属性变化设置关键帧。 
+无论您希望创建什么类型的过场动画，此页面都将帮助您了解Sequencer中每个不同的界面元素以及可用的选项。 
 
+
+
+(#sequencereditorinterface)
+
+## Sequencer编辑器界面
 
 ![](SequencerEditorCallouts.png)
 
-
 [REGION:note]
-新的 **关卡序列** 中不会有任何内容，上图仅用于演示。 
+新的 **关卡序列（Level Sequences）** 中将不包含任何内容，以上所示图像仅供演示之用。 
 [/REGION]
 
 1. [工具栏](#toolbar)
-1. [序列面包屑](#sequencebreadcrumbs)
-1. [添加/过滤轨道](#add/filtertracks)
+1. [序列痕迹](#sequencebreadcrumbs)
+1. [添加/过滤轨迹](#add/filtertracks)
 1. [时间轴](#timeline)
-1. [轨道窗口](#trackswindow)
-1. [关键帧窗口](#keyframewindow)
+1. [树状图](#treeview)
+1. [轨迹区域（Tracks Area）](#tracksarea)
 1. [播放控件](#playbackcontrols)
 
 (#toolbar)
+
 ## 工具栏
 
 ![](Toolbar.png)
 
-下面是每个工具栏按钮的说明，按它们在工具栏上从左到右显示的顺序排列。
+以下是对工具栏上从左到右所列示之各个工具栏按钮的说明。
 
 | 图标 | 说明 |
 | ---- | ----------- |
 | ![](tb_1.png) | 保存当前关卡序列。|
-| ![](tb_2.png) | 用另一个名称保存当前关卡序列。|
-| ![](SearchIcon.png) | 在内容浏览器中查找当前查看的序列资产。|
-| ![](tb_4.png) | 打开“渲染过场动画设置”（Render Movie Settings）窗口，您可以在其中将序列作为过场动画或图像序列输出。|
-| ![](tb_5.png) | 打开“一般选项”（General Options）菜单，其中包含用于定义 Sequencer 功能的设置。|
-| ![](tb_6.png) | 启用/禁用“全部设键”（Key All）选项。在启用此选项和自动设键选项的情况下，确定当进行更改时是为轨道的所有属性设键，还是仅为更改的属性设键。|
-| ![](tb_7.png) | 启用/禁用不同的自动设键选项。此选项在默认情况下是禁用的，但可以设置为自动为所有项目设键或自动为动画项目设键。|
-| ![](tb_8.png) | 为关键帧窗口启用/禁用栅格捕捉以及栅格捕捉选项。|
-| ![](tb_9.png) | 允许调整时间捕捉间隔。|
-| ![](tb_10.png) | 打开 [**曲线编辑器**](Engine/UI/CurveEditor)，通过它可以微调在关键帧窗口中放置的动画键。|
+| ![](tb_2.png) | 用不同的名称保存当前关卡序列。|
+| ![](SearchIcon.png) | 在内容浏览器中查找当前查看的序列资源。|
+| ![](cameraicon.png) | 创建一个新摄像机，并将其设置为当前摄像机切换。|
+| ![](tb_4.png) | 打开渲染视频设置（Render Movie Settings）窗口，该窗口允许您将序列输出为电影或图像序列。|
+| ![](UndoIcon.png) | 将任何由sequencer动画化的对象恢复到其原始状态(Ctrl+R)。|
+| ![](tb_5.png) | 打开“通用选项（General Options）”菜单，其中包含用于定义Sequencer功能的设置。|
+| ![](PlaybackIcon.png) | 打开播放选项（Playback Options）菜单。|
+| ![](SelectEditOptions.png) | 打开选择/编辑选项（Select/Edit Options）菜单。|
+| ![](tb_6.png) | 启用/禁用全部设置关键帧（Key All）选项。启用此选项和启用自动设置关键帧后，将确定在进行更改时是否为所有属性设置关键帧，还是仅为更改的属性设置关键帧。|
+| ![](tb_7.png) | 启用/禁用不同的自动设置关键帧（Auto-Key）选项。默认情况下，此选项是禁用的，但可以设置为自动全部设置关键帧（Auto-key All）或对动画化项自动设置关键帧（Auto-key Animated）。|
+| ![](SequenceEditOptions.png) | 打开序列编辑选项（Sequence Edit Options）菜单。|
+| ![](tb_8.png) | 启用/禁用轨迹区域的网格对齐以及网格对齐选项。|
+| ![](tb_9.png) | 允许调整时间对齐间隔。|
+| ![](tb_10.png) | 打开[曲线编辑器](Engine/UI/CurveEditor)，它允许您微调放置在轨迹区域的动画关键帧。|
 
 (#sequencebreadcrumbs)
-## 序列面包屑
 
-根据您的工作流程，您可以选择创建多个 **关卡序列** 作为场景，并将每个这些场景放置到作为“主”关卡序列的新关卡序列中，该关卡序列可将这些场景作为 **镜头** 轨道的组成部分连续播放。 
-在这种情况下，您可以通过在关键帧窗口中 **双击** 每个场景从主关卡序列直接跳转到其中。 
+## 序列痕迹
 
-在下图中，我们有一个名为 _shot_06_ 的关卡序列，它在另一个名为 _Master_ 的关卡序列中。
+根据您的工作流程，您可以选择创建几个 **关卡序列（Level Sequences）** 作为场景，并将这些场景中的每一个放置在一个新的关卡序列中，该关卡序列是您的“主”关卡序列，它作为 **镜头（Shots）** 轨迹的一部分连续播放这些场景。 
+在这些情况下，您可以直接从您的主关卡序列跳转到各个场景，方法是在轨迹区域内双击这些场景。 
+
+在下图中，我们的另一个关卡序列内包含着一个关卡序列，而前者正是我们的“主”序列。
 
 ![](SequenceBreadcrumbs1.png)
 
-我们可以单击 _Master_ 面包屑回到包含 _shot_06_ 关卡序列和其他序列的主关卡序列。 
+我们可以单击顶部的痕迹以返回包含所有镜头的主关卡序列。
 
 ![](SequenceBreadcrumbs2.png)
 
 (#add/filtertracks)
-## 添加/过滤轨道
 
-**添加（Add）**按钮允许您从关卡将 **轨道** 或 [**Actor**](Engine/Actors) 添加到 **Sequencer**，然后您可在 Sequencer 中操纵过场动画。
+## 添加/过滤轨迹
+
+ **轨迹（Track）** 按钮允许您从您的关卡将添加 **轨迹（Tracks）** 或[Actor](Engine/Actors)到 **Sequencer**，然后您可以使用该Sequencer来制作您的过场动画。
 
 ![](AddOption.png)
 
-在关卡中选中 Actor 后，单击**添加（Add）**按钮可以快速从菜单选择它。如果您没有选中 Actor，可以从 **选择 Actor（Choose Actor）**部分选择一个。 
+当您选中的关卡中有Actor时，请单击 **轨迹（Track）** 按钮并在 **Actor到Sequencer（Actor to Sequencer）** 下查看，您所选择的Actor将显示在上下文菜单的最上方，以便您快速添加它。 
+如果所选的关卡中没有Actor，在单击 **Actor到Sequencer（Actor to Sequencer）** 时，您仍可以从上下文菜单中选择该关卡中存在的任何其他Actor。 
+
+以下是您可以添加到Sequencer的可用轨迹，单击下面的各个链接可查看使用各个轨迹之示例的指导页面。
 
 
-可以添加到 Sequencer 的可用轨道如下所示，单击下面的各个链接可查看操作方式页面以获取各个轨道的用法示例。
-
-
-| 轨道 | 说明 |
+| 轨迹 | 说明 |
 | ---- | ----------- |
-| 添加文件夹 | 您可以添加用于包含轨道的文件夹以方便整理。|
-| 音频轨道 | 添加一条主音频轨道，它可用于播放声音。|
-| [**事件轨道**](Engine\Sequencer\HowTo\TracksEvent) | 添加一条事件轨道，它可用于提示和启动蓝图脚本（当前只能在关卡蓝图中）。|
-| [**镜头切换轨道**](Engine\Sequencer\HowTo\TracksCameraCut) | 允许您在与 Sequencer 关联的多台摄像机之间切换，提供摄像机视角。|
-| [**镜头轨道**](Engine\Sequencer\HowTo\TracksShot) | 允许您添加关卡序列作为“镜头”，其中还可以有可以切入切出的 **副镜头**。|
-| [**播放速率轨道**](Engine\Sequencer\HowTo\TracksPlayRate) | 添加一条可用于操纵序列的播放速率的轨道。|
-| [**子轨道**](Engine\Sequencer\HowTo\TracksSub) | 添加一条可以包含其他关卡序列的子轨道。这可以用来创建序列的多个副本，让不同的用户进行处理，而不改变原序列。|
-| [**消退轨道**](Engine\Sequencer\HowTo\TracksFade) | 添加一条允许您控制序列的淡入/淡出的轨道。|
-| [**关卡可见性轨道**](Engine\Sequencer\HowTo\TracksLevelVisibility) | 这可用于设置关键帧和控制关卡的可见性。|
+| 添加文件夹（Add Folder） | 您可以添加文件夹，以包含用于组织目的的轨迹。|
+| [音频轨迹](Engine\Sequencer\HowTo\TracksAudio) | 添加可用于播放声音的主音频轨迹。|
+| [事件轨迹](Engine\Sequencer\HowTo\TracksEvent) | 添加可用于发出信号和启动蓝图脚本的轨迹示例（目前仅在关卡蓝图中）。|
+| [摄像机切换轨迹](Engine\Sequencer\HowTo\TracksCameraCut) | 允许您在与Sequencer相关的摄像机之间切换，并提供摄像机视角。|
+| [镜头轨迹](Engine\Sequencer\HowTo\TracksShot) | 允许您添加关卡序列作为“镜头”，镜头中可以有可以交换进来或出去的 **拍摄**。|
+| [播放速率轨迹](Engine\Sequencer\HowTo\TracksPlayRate) | 添加可用于操作序列的播放速率的轨迹。|
+| [子场景轨迹](Engine\Sequencer\HowTo\TracksSub) | 添加可以包含其他关卡序列的子轨迹。这对于创建一个序列的多个副本非常有用，不同的用户可以在不更改原始序列的情况下使用这些副本。|
+| [消退轨迹](Engine\Sequencer\HowTo\TracksFade) | 添加一个使您可以控制序列淡入/淡出的轨迹。|
+| [关卡可视性轨迹](Engine\Sequencer\HowTo\TracksLevelVisibility) | 此轨迹可以用于设置关键帧和控制关卡的可见性。|
+| [材质参数集轨迹](Engine/Sequencer/HowTo/TracksMaterialParameter) | 此轨迹可用于驱动Sequencer内的材质参数集。|
 
-**过滤（Filter）**选项允许您过滤 **轨道窗口**，从而只显示已经从关卡添加到序列的 Actor。
+**过滤器（Filter）** 选项允许您过滤 **树状图（Tree View）**，但只针对从关卡添加到序列中的Actor。
 
 ![](FilterOption.png)
 
 (#timeline)
+
 ## 时间轴
 
 ![](Timeline.png)
 
-**时间轴** 以 **绿色**（开始）和 **红色**（结束）标记显示序列的播放范围。时间轴标记显示序列的当前时间，而您可以通过 **左键单击** 并沿时间轴拖动来改变此设置。
+ **时间轴（Timeline）** 用 **绿色（Green）**（开始）和 **红色（Red）**（结束）标记指示序列的播放范围。序列的当前时间由时间轴标记指示，您可以通过单击鼠标左键沿时间轴拖动来擦除该标记。
 
-可以在时间轴上 **右键单击** 并通过快捷菜单定义新的开始/停止点，如下图所示。 
+您可以右键单击时间轴，从上下文菜单中定义新的开始点/停止点，如下图所示。 
 
 ![](Timeline2.png)
 
 [REGION:tip]
-序列将从开始标记一直持续播放到结束标记为止，即使您的内容不能完全填满到序列结束点（或超出结束标记之外）也不例外。在 **常规选项** 中，有一个选项可以使内容保持在片段界限内，以确保序列中没有空白。 
+即使您的内容没有完全达到序列结尾（或超过结束标记），您的序列都将从开始标记继续播放一直到结束标记。在 **播放选项（Playback Options）** 中，有一个选项可以将内容保持在片段边界内，这将确保在序列期间没有死空间。 
 
 ![](KeepInSectionBounds.png)
 [/REGION]
 
-(#trackswindow)
-## 轨道窗口
 
-在 **轨道** 窗口中可以确定您要在序列中执行的操作类型。 
+(#treeview)
+
+## 树状图
+
+ **树状图（Tree View）** 是您确定在序列期间要执行的操作类型之处。 
 
 ![](tracks1.png)
 
-在上例中我们有一个用于在序列中切换摄像机视角的 **镜头切换** 轨道，用于为场景提供视图的 **电影摄像机 Actor**，以及两个作为场景中角色的 **骨骼网格 Actor**。
+在上图中，我们有一个 **摄像机切换** 轨迹，用于在我们的序列期间切换摄像机角度，有一个 **动画摄像机Actor（Cine Camera Actor）** 提供场景的视图，以及两个 **骨架网格体Actor（Skeletal Mesh Actors）**（它们是我们的场景中的角色）。
 
-Sequencer 与上下文有关，并允许您在适当情况下向每条轨道添加子轨道，这可提供更多选项。
-例如在下图中，我们将一条 **CameraComponent** 轨道添加到我们的“电影摄像机 Actor”，它使我们能够在需要时添加另一条子轨道来调整场景中摄像机的部分属性。 
+Sequencer是上下文相关的，它将允许您添加子轨迹（如果适用）到每个轨迹，这些轨迹将为您提供额外的选项。
+例如，在下图中，我们添加了一个 **摄像机组件（CameraComponent）** 轨迹到我们的动画摄像机Actor（Cine Camera Actor）中，这使我们能够添加另一个子轨迹来调整我们的场景中摄像机的一些属性（如果我们希望如此）。 
 
 ![](tracks2.png)
 
-您还可以在轨道窗口中为轨道添加关键帧，以定义时间轴上特定点的属性。
+您还可以从树状图中为您的轨迹添加关键帧，以在时间轴上的特定点定义属性。
 
 ![](AddKeyFrameButton.png)
 
-您可以在选中轨道的情况下单击 **+** 关键帧按钮或按 **Enter** 键来添加。 
+您可以单击 **+** 关键帧按钮或在选定轨迹后按下 **Enter** 键。 
 
-(#keyframewindow)
-## 关键帧窗口
+
+(#tracksarea)
+
+## 轨迹区域
 
 ![](KeyframeWindow.png)
 
-在 **关键帧** 窗口中可以调节每条轨道中的内容。您可以调整您添加的任何关键帧，修剪/拆分或淡入/淡出片段，以及选择 **右键单击** 快捷菜单（见下图）中提供的多种其他选项。 
+ **轨迹区域（Tracks Area）** 是调整各个轨迹内容的地方。您可以调整添加的任何关键帧，剪辑/分割、锥入/锥出分段以及 **右键单击** 上下文菜单（如下图所示）中的其他几个选项。 
 
 ![](RightClickContext1.png)
 
-在上图中，**右键单击** 转换轨道上的关键帧可以更改键插值类型，也可以选择其他可从 **属性（Properties）** 弹出菜单调整的选项，该菜单会根据您右键单击的内容类型而更新。 
+在上图中，在变形轨迹的关键帧上 **右键单击**，可以更改关键帧插值类型以及可以从 **属性（Properties）** 界面中调整的其他选项，这些选项根据您右键单击的内容类型进行更新。 
 
-在下图中，通过 **右键单击** 分配到动画轨道的动画以及选择属性，我们可以更改当前分配的动画以及调整与动画本身相关的属性，例如开始/结束偏移和播放速率等。 
+在下图中，**右键单击** 分配到动画轨迹的动画并选择属性，可以更改当前分配的动画，以及调整与动画本身相关的属性，如开始/结束偏移值和播放速率等。 
 
 ![](RightClickProperties.png)
 
-### 在关键帧窗口中导航
+(#navigatingthetracksarea)
 
-下面是您可以用于在关键帧窗口中导航的方法和快捷键。 
+### 导航轨迹区域
+
+以下是您可以用来导航轨迹区域的方法和快捷方式。 
 
 [INCLUDE:Engine\Sequencer\Workflow\CheatSheet#keyframe]
 
 [REGION:note]
-要获取键盘组合键及其他快捷键的完整列表，请参阅 [**Sequencer 速查表**](Engine\Sequencer\Workflow\CheatSheet) 页面。 
+有关键盘绑定和其他快捷方式的完整列表，请参阅[Sequencer速查表](Engine\Sequencer\Workflow\CheatSheet)页面。 
 [/REGION]
 
 (#playbackcontrols)
+
 ## 播放控件
 
 ![](PlaybackControls.png)
 
-**播放控件** 位于 Sequencer 编辑器的左下角，类似于标准媒体播放器应用程序。在默认虚幻编辑器布局下，主关卡视口中也会显示相同的播放控件。最后，在使用 [**过场动画视口**](Engine\Sequencer\HowTo\ViewportOptions) 时，播放控件将显示在视口内。 
+ **播放控件（Playback Controls）** 可以在Sequencer编辑器的左下角找到，它与标准媒体播放器应用程序类似。如果使用默认的虚幻编辑器布局，主关卡视口中也会显示相同的播放控件。最后，使用[过场动画视口](Engine\Sequencer\HowTo\ViewportOptions)时，播放控件将显示在视口内部。 
 
-标准播放控件如下： 
+标准播放控件（Standard Playback Controls）如下所示： 
 
 | 命令 | 说明 |
 | ---- | ----------- |
-| ![](playback1.png) | 将播放起始位置设置为时间标记指示的当前位置。|
-| ![](playback2.png) | 跳转到播放起始位置。|
-| ![](playback3.png) | 跳转到所选轨道中的上一个键。|
-| ![](playback4.png) | 跳转到上一帧。|
+| ![](playback1.png) | 将播放开始位置设置为时间标记所指示的当前位置。|
+| ![](playback2.png) | 跳转到播放开始位置。|
+| ![](playback3.png) | 跳转到所选轨迹的前一个关键帧。
+| ![](playback4.png) | 跳转到上一个帧。|
 | ![](playback5.png) | 从时间标记的位置播放或暂停关卡序列。|
 | ![](playback6.png) | 向前跳一帧。|
-| ![](playback7.png) | 跳转到所选轨道中的下一个键。|
+| ![](playback7.png) | 跳转到所选轨迹中的下一个关键帧。|
 | ![](playback8.png) | 跳转到播放结束位置。|
-| ![](playback9.png) | 将播放结束位置设置为时间标记指示的当前位置。|
-|![](playback10b.png) / ![](playback10.png) | 播放期间在关卡序列循环方式之间切换。|
+| ![](playback9.png) | 将播放结束位置设置为时间标记所指示的当前位置。|
+|![](playback10b.png) / ![](playback10.png) | 播放期间在循环关卡序列之间切换。|
 
 [REGION:note]
-过场动画视口内播放控件的功能与上文所述相同。 
+过场动画视口内播放控件的功能与上面相同。 
 [/REGION]
 
 

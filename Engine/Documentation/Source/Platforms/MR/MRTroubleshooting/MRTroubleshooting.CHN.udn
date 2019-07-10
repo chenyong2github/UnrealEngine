@@ -29,7 +29,7 @@ reference-image:MR_CaptureFlicker.gif
 
 ## 捕捉在旁观者模式中不显示
 
-MRC框架使用[虚拟现实旁观者模式](Platforms/VR/VRSpectatorScreen)来显示合成的场景。这意味着混合现实捕捉仅当在虚拟现实下运行时才会显示。如果你的项目也使用观众画面，那么你需要使用条件语句对使用它们的位置进行校正检查。存在有助于实现这一检查的MRC方法：
+MRC框架使用[虚拟现实旁观者模式](Platforms/VR/DevelopVR/VRSpectatorScreen)来显示合成的场景。这意味着混合现实捕捉仅当在虚拟现实下运行时才会显示。如果你的项目也使用观众画面，那么你需要使用条件语句对使用它们的位置进行校正检查。存在有助于实现这一检查的MRC方法：
 
 **Get Mixed Reality Capture Texture**  
 返回Capture Texture，如果不存在，则返回空指针。

@@ -6,7 +6,7 @@
 #include "NavFilters/NavigationQueryFilter.h"
 #include "AI/NavigationSystemConfig.h"
 #include "AI/Navigation/NavLinkDefinition.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "AI/NavigationModifier.h"
 
 

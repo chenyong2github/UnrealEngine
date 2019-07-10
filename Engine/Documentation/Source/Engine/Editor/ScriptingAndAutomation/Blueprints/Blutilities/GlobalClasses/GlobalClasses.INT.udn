@@ -1,0 +1,70 @@
+﻿Availability: Public
+Crumbs:
+Title: Global Blutility Classes and the Blutility Shelf
+Description: Describes how to create global Blueprint utility classes, and how to call their functions from the Content Browser or from a customizable shelf.
+Type: how-to
+Version: 4.22
+Parent: Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities
+SkillLevel: Beginner
+Tags: Experimental
+Tags: scripting
+Tags: editor
+Tags: Blutilities
+Order:0
+
+
+
+[TOC]
+
+![Global Editor Utilities](blutility-classes-banner.png "Global Editor Utilities")
+
+The instructions on this page show you how to create and use a **Global Editor Utility** Blueprint class.
+
+With typical Blueprint classes, you need to drop an instance of the Blueprint class into a Level in order to call its in-Editor functions and custom events, as described on the [Scripting the Editor using Blueprints](Engine/Editor/ScriptingAndAutomation/Blueprints) page. However, when you're creating utilities to extend the Editor, your scripts often don't have a dependency on a particular Level. For example, if you create a utility script that manipulates Assets in your Project's Content Browser, dropping an instance of that class into a Level doesn't help it do its job.
+
+When you create a Global Editor Utility Blueprint class, you can call its in-Editor functions and custom events from the Content Browser, or from a new Blutility Shelf panel that you can customize to hold the Global Editor Utility classes you need.
+
+[REGION:note]
+**Prerequisites:**
+
+*   You must have enabled the experimental Blutility feature, as described under [Blueprint Utilities (Blutilities)](Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities).
+[/REGION]
+
+## Steps
+
+1.  In the **Content Browser**, right-click the folder where you want to create your new Blueprint utility class, and choose **Blueprints > Blutility** from the contextual menu.  
+    ![Create new Blutility](bp-blutility-menu.png "Create new Blutility")
+
+2.  Choose the `GlobalEditorUtilityBase` as your parent class, and click **Select**.  
+    ![GlobalEditorUtilityBase parent class](bp-global-editor-utility-base.png "GlobalEditorUtilityBase parent class")
+
+3.  To edit the Blueprint graph for your new class, right-click it and choose **Edit Blueprint** from the contextual menu.
+    [REGION:note]
+    Unlike typical Blueprints, double-clicking a Global Editor Utility class doesn't open its graph for editing. Instead, it opens a window that provides access to all functions and custom events in that Blueprint that have been marked with the **Call in Editor** setting.
+    [/REGION]
+    
+4.  Either create a new function for your Blueprint class, or create a new **Custom Event** node in the Event Graph and enable its **Call in Editor** setting. From the output port of this function or custom event, create the Blueprint logic that you want your utility to carry out.  
+    For example, this graph iterates through each Asset in the Project and removes all collision shapes assigned to all Static Mesh Assets:
+    [REGION:lightbox]
+    [![Global utility example](blutility-classes-example.png "Global utility example")](blutility-classes-example.png)
+    [/REGION]
+	[REGION:caption]
+	*Click for full image.*
+	[/REGION]
+    [REGION:note]
+    Your Custom Event or function can't have any inputs. If it has any inputs, it won't be listed later when you open the Blutility from the **Content Browser** or from the **Blutility Shelf**.
+    [/REGION]
+    
+5.  **Save** and **Compile** your Blueprint class.
+
+## End Result
+
+Double-click your Blueprint class in the Content Browser to open a new window that lists all of the functions and Custom Events that have the **Call In Editor** setting enabled. Click any button to trigger the corresponding Blueprint graph you created in your Blutility class.  
+
+![](blutility-classes-trigger.png "blutility-classes-trigger.png")
+
+Instead of having to navigate to your Blutility classes in the **Content Browser** in order to launch your utility functions, you can access all of the Blutility classes you've created in the **Blutility Shelf** panel:
+
+![Blutility Shelf](bp-blutility-shelf.png "Blutility Shelf")
+
+Open this panel by choosing **Window > Blutility Shelf** from the main menu.

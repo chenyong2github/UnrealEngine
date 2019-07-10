@@ -1,120 +1,269 @@
-﻿Title:Visual Logger
-Availability:Public
-Crumbs:
+Availability: Public
+Title: Visual Logger
 Description: Tool that captures state from actors and then displays it visually in game or editor.
+Parent: Gameplay
+Order: 8
 
-There's a class of gameplay bugs that are hard to track down just via user reports. These types of bugs typically involve complicated steps where the AI has made a decision based upon the state of the game at the time. A user reporting an issue for a case like this can only report on the observable results. This makes tracking down issues related to specific gameplay state very difficult. UE4 does have a tool to help in this regard. We call it Visual Logger. At its core, it is similar to the logging system you've seen before with the ability to capture state from the actor being logged and then display it visually in game or editor after the fact. This is a powerful tool that lets you see the gameplay state at the time of the issue coupled with the user's report. By viewing that data, you can compare what you'd expect to happen to the data and underlying code.
 
-To see the Visual Logger in action, use the menu in **Windows | Developer Tools | Visual Logger**. In versions prior to 4.7, use the console command "VisLog". Here's a session from StrategyGame. The first image shows the Visual Logger and the second image is from the viewport in the editor. Notice that there is a purple line indicating the selected AI's path and a red location marker at the selected point in the timeline.
+[TOC (start:2 end:3)]
 
-![image alt text](image_0.png)
-[REGION:caption]The Visual Logger in action[/REGION]
+The **Visual Logger** is a powerful debugging tool that creates and records visual representations of the gameplay state, and provides the ability to review this data in the Editor. Developers can see debug output live during a play session, or review it in the Editor after the session is over, making it much easier to resolve gameplay bugs that are hard to track down based only on user reports or game footage. The ability to record information for later review is especially important when working with rare or difficult-to-reproduce bugs. For example, an unexpected AI behavior may be caused by a game state variable that changes for a single frame can be studied after the fact by recording the data and scrubbing through the frames around the moment when the bug happened.
 
-![image alt text](image_1.png)
-[REGION:caption]The level viewport in the editor showing the Visual Logger presenting information[/REGION]
+To activate the Visual Logger, use the menu in **Windows > Developer Tools > Visual Logger**. In Unreal Engine versions prior to 4.7, enter the console command "VisLog". If you are in the Editor, the Visual Logger viewport will also open.
 
-The highlighted area in the image below shows the list of Actors that have logged information to the Visual Logger during the recorded session. There's also a search bar to quickly find an Actor's log information by name.
+![](image_1.png)
 
-![image alt text](image_2.png)
-[REGION:caption]The Actor list and search option[/REGION]
+[REGION:caption]
+Using the Visual Logger during a session of the Epic Games sample, StrategyGame. The purple line indicates the AI's path, and the red location marker shows the selected point in the timeline.
+[/REGION]
 
-The next image highlights the timeline view. The scrubber in that image is at the 23.53 second mark. StrategyAIController_1 is selected so any information in the other areas are from that Actor at that time. The colored horizontal bars are logged events. The time bar can be scrubbed back and forth to update the other areas with a particular snapshot in time.
+## The Visual Logger Viewport
 
-![image alt text](image_3.png)
-[REGION:caption]The timeline area[/REGION]
+In the Editor, the Visual Logger viewport provides the ability to review Visual Logger output from pre-recorded sessions, enabling developers to review a bug after the fact.
 
-In the highlighted portion in the lower left quadrant of the image below, the Visual Logger shows any snapshot data that was captured for that Actor at the time specified in the timeline. This data is captured once in a given frame that the Actor requests a visual log entry using the UE_VLOG() macro. Multiple visual logging calls in the same frame reuse the same data for that frame. The data captured as part of the snapshot can be categorized and customized for your game (see the later section for a code example).
+![](image_0.png)
 
-![image alt text](image_4.png)
-[REGION:caption]The Actor snapshot area with custom categories expanded[/REGION]
+[REGION:caption]
+The Visual Logger viewport in the Editor.
+[/REGION]
 
-The highlighted area in the image below surrounds the logging area of the Visual Logger. It shows the category the log was written to, plus the log message itself. If there are multiple log messages per frame, they'll show up as a list in that area.
+The viewport contains a list of all Actors that logged any visualization data, a detailed snapshot of the status of the Actor selected in the Actor list, a text window for displaying debug message output, and a time bar to enable scrubbing through the recorded data.
 
-![image alt text](image_5.png)
-[REGION:caption]The log area where messages are displayed[/REGION]
+### The Actor List
 
-Now that you know what the major areas of the Visual Logger do, let's take a look at how to add support for it in your game. In the image below, the 1st person template was used to create a new project named GDC, which was used for a presentation at GDC. One function was added to capture state information about the Actor and one UE_VLOG() macro call was added to trigger the capture for Visual Logging.
+The highlighted area in the following image shows the list of Actors that have logged information to the Visual Logger during the recorded session. There is also a search bar to help users find a specific Actor's log information quickly.
 
-![image alt text](image_6.png)
-[REGION:caption]Visual Logger with example data[/REGION]
+![](image_2.png)
 
-In order to fill the snapshot area of the tool, you need to override one virtual function, GrabDebugSnapshot(). This function is implemented as part of Actor, so if you don't wish to provide custom information, you can skip this step. The Visual Logger can be compiled out depending on your build settings, so you must wrap the function declaration with the appropriate header. Below is the code added to GDCCharacter.h for the snapshot support:
+[REGION:caption]
+The Actor list and its search bar.
+[/REGION]
 
-	#if ENABLE_VISUAL_LOG
-		/** Appends information about this actor to the visual logger */
-		virtual void GrabDebugSnapshot(FVisualLogEntry* Snapshot) const override;
-	#endif
+### The Actor Snapshot View
 
-The implementation of this method, seen below, adds one category and one entry in that category. Again, this is wrapped within the proper #ifdef in case the build setting compiles out Visual Logger support. This code was added to GDCCharacter.cpp.
+Any data that an Actor collects with the `UE_VLOG` macro will appear in the highlighted area of the following image. The Visual Logger will display data coming from the Actor selected in the Actor list, at the time indicated by the timeline scrubber. Data that the Visual Logger captures as part of the snapshot can be categorized and customized in your game's code, and you can expand or collapse these categories.
 
-	#if ENABLE_VISUAL_LOG
-	void AGDCCharacter::GrabDebugSnapshot(FVisualLogEntry* Snapshot) const
-	{
-		Super::GrabDebugSnapshot(Snapshot);
-		const int32 CatIndex = Snapshot->Status.AddZeroed();
-		FVisualLogStatusCategory& PlaceableCategory = Snapshot->Status[CatIndex];
-		PlaceableCategory.Category = TEXT("GDC Sample");
-		PlaceableCategory.Add(TEXT("Projectile Class"), ProjectileClass != nullptr ? ProjectileClass->GetName() : TEXT("None"));
-	}
-	#endif
+[REGION:note]
+Making multiple visual logging calls in the same frame and from the same Actor will overwrite the previously-captured data.
+[/REGION]
 
-This function is only called once the Actor logs data to the Visual Logger. For example purposes, the firing of a projectile was logged so that it was easy to trigger and add to the 1st person template code. In the OnFire() function below, notice the UE_VLOG() macro usage. That is how you tell the Visual Logger that you want to capture data for an Actor. As stated previously, on the first use of that macro the Visual Logger will make a call to GrabDebugSnapshot() to gather the data needed for display in the snapshot pane. The macro compiles out like any other UE_LOG() macro, so there's no need to wrap it in an #ifdef explicitly.
+![](image_6.png)
 
-	void AGDCCharacter::OnFire()
-	{
-		// try and fire a projectile
-		if (ProjectileClass != NULL)
-		{
-			const FRotator SpawnRotation = GetControlRotation();
+[REGION:caption]
+The Actor snapshot area with custom categories expanded.
+[/REGION]
 
-			// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
-			const FVector SpawnLocation = GetActorLocation() + SpawnRotation.RotateVector(GunOffset);
-			UWorld* const World = GetWorld();
-			if (World != NULL)
-			{
-				// spawn the projectile at the muzzle
-				World->SpawnActor<AGDCProjectile>(ProjectileClass, SpawnLocation, SpawnRotation);
-				UE_VLOG(this, LogFPChar, Verbose, TEXT("Fired projectile (%s) from location (%s) with rotation (%s)"), 
-					*ProjectileClass->GetName(),
-					*SpawnLocation.ToString(), 
-					*SpawnRotation.ToString());
-			}
-		}
+### The Text Window
 
-		// try and play the sound if specified
-		if (FireSound != NULL)
-		{
-			UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
-		}
+The Visual Logger's text window shows log messages from the current frame, broken up into categories. Multiple log messages recorded in the same category and the same frame will show up as a list.
 
-		// try and play a firing animation if specified
-		if(FireAnimation != NULL)
-		{
-			// Get the animation object for the arms mesh
-			UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
-			if(AnimInstance != NULL)
-			{
-				AnimInstance->Montage_Play(FireAnimation, 1.f);
-			}
-		}
-	}
+![](image_5.png)
 
-Not only can you log text information, you can log visual shape information like you saw in the StrategyGame level viewport earlier. This is a powerful feature because it helps you visualize what is going on in the game. Here's an image showing the different types of shapes that can be visually logged.
+[REGION:caption]
+The text window area where debug messages appear.
+[/REGION]
 
-![image alt text](image_7.jpg)
-[REGION:caption]Path information, cylinder, cone, capsule, box example shapes[/REGION]
+### The Timeline
 
-The following macros provide support for logging shapes.
+The timeline view features a bar that advances (or rewinds) the logger to any point in time you choose. In the image below, the scrubber is at the 23.53 second mark, and the Actor list has "StrategyAIController_1" selected. By scrubbing the time bar, you can view the selected Actor's status and the text window at different times in the recorded log data.
 
-* UE_VLOG_SEGMENT
-* UE_VLOG_LOCATION
-* UE_VLOG_BOX (axis aligned box)
-* UE_VLOG_OBOX (oriented box)
-* UE_VLOG_CONE
-* UE_VLOG_CYLINDER
-* UE_VLOG_CAPSULE
+![](image_3.png)
 
-Each of these macros requires different parameters to record the shape information. You can find the macros in VisualLogger.h to see what each one needs for logging.
+[REGION:caption]
+The timeline area.
+[/REGION]
 
-One last thing to mention about the Visual Logger is that you can save these files to disk for later debugging sessions. If you have your QA always record these sessions, then they can attach them to any defect tracking entry that they create. Then you load the corresponding level and the Visual Logger file to see what happened. This tool should help speed up your debugging efforts tremendously.
+## Adding Visual Logger Support
 
+There are three types of data that you can add to the Visual Logger:
+
+| Data Type | Output Description |
+| --- | --- |
+| Actor Snapshots | These will appear in the Actor snapshot area, and should update once per frame while the actor exists. |
+| Log Messages | All text that you log with the Visual Logger will appear in the text window. Text appears on a single-frame basis. |
+| Debug Shapes | You can draw a variety of shapes into the game world. These shapes can last for multiple frames, and have many adjustable parameters, such as size and color. |
+
+### Taking Actor Snapshots
+
+To add data to the Actor Shapshot View, override the `AActor` function, `GrabDebugSnapshot`. Because this function only exists in builds with Visual Logging enabled, be sure to check the `ENABLE_VISUAL_LOG` macro around any code related to this feature. For example, your Actor's class definition would include a block of code that looks like this:
+
+    #if ENABLE_VISUAL_LOG
+        // Appends information about this actor to the visual logger.
+        virtual void GrabDebugSnapshot(FVisualLogEntry* Snapshot) const override;
+    #endif
+
+The following sample code was part of a GDC demo that added Visual Logging to a customized version of the First-Person Shooter template's Character class called `AGDCCharacter`. This code adds a single entry under the "GDC Sample" category. The entry is labeled "Projectile Class" and contains the type of projectile that the Character spawns when firing.
+
+    #if ENABLE_VISUAL_LOG
+    void AGDCCharacter::GrabDebugSnapshot(FVisualLogEntry* Snapshot) const
+    {
+        Super::GrabDebugSnapshot(Snapshot);
+        const int32 CatIndex = Snapshot->Status.AddZeroed();
+        FVisualLogStatusCategory& PlaceableCategory = Snapshot->Status[CatIndex];
+        PlaceableCategory.Category = TEXT("GDC Sample");
+        PlaceableCategory.Add(TEXT("Projectile Class"), ProjectileClass != nullptr ? ProjectileClass->GetName() : TEXT("None"));
+    }
+    #endif
+
+[REGION:note]
+This function will run automatically on the first call to the Visual Logger. Add any information that you want to see in the Actor Snapshot View into this function.
+[/REGION]
+
+![](image_6.png)
+
+[REGION:caption]
+Visual Logger with the Actor Snapshot of an `AGDCCharacter`.
+[/REGION]
+
+### Logging Text
+
+You can log to the Text Window with the `UE_VLOG` macro. The Text Window displays information on a per-frame bases, so only text logged in the current frame will show up as you scrub through the recorded data. You can log text from anywhere, and the `UE_VLOG` macro will cleanly remove itself from compilation in builds that don't support the Visual Logging system, so it is safe to use without checking the `ENABLE_VISUAL_LOG` macro. The macro takes parameters indicating the Actor associated with the text, the log category and verbosity level (used for filtering the display), and the text itself.
+
+In the following sample code, our customized Character uses `UE_VLOG` to log information after firing a projectile:
+
+    void AGDCCharacter::OnFire()
+    {
+        // Try to fire a projectile
+        if (ProjectileClass != NULL)
+        {
+            // Collect our aim rotation.
+            const FRotator SpawnRotation = GetControlRotation();
+            // MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position.
+            const FVector SpawnLocation = GetActorLocation() + SpawnRotation.RotateVector(GunOffset);
+            UWorld* const World = GetWorld();
+            if (World != NULL)
+            {
+                // Spawn the projectile into the world at the muzzle's location.
+                World->SpawnActor<AGDCProjectile>(ProjectileClass, SpawnLocation, SpawnRotation);
+                // Log this event with the Visual Logger.
+                UE_VLOG(this, LogFPChar, Verbose, TEXT("Fired projectile (%s) from location (%s) with rotation (%s)"), 
+                    *ProjectileClass->GetName(),
+                    *SpawnLocation.ToString(), 
+                    *SpawnRotation.ToString());
+            }
+        }
+        // ...
+    }
+
+![](image_6.png)
+
+[REGION:caption]
+Visual Logger showing debug text from our `AGDCCharacter`.
+[/REGION]
+[REGION:note]
+If you want to send a duplicate message to the standard log, you can use the `UE_VLOG_UELOG` macro instead of calling `UE_VLOG` followed by `UE_LOG` with the same data.
+[/REGION]
+
+### Drawing Debug Shapes
+
+The ability to log shape information in the game world is a powerful feature because it helps you visualize what is going on. The following image shows some of the different types of shapes that the Visual Logger supports.
+
+![](image_7.jpg)
+
+[REGION:caption]
+Path information, cylinder, cone, capsule, and box shapes.
+[/REGION]
+
+The following macros provide support for logging shapes. Each macro requires an Actor that owns the shape, a log category and verbosity level, several additional, shape-defining parameters (depending on the shape), and the text that will accompany the shape. The following table provides information about the available shapes and the additional parameters each shape requires.
+
+<!---
+[EXCERPT:Segment]
+`FVector` Start Point
+
+`FVector` End Point
+
+`FColor` Color
+[/EXCERPT:Segment]
+[EXCERPT:SegmentThick]
+`FVector` Start Point
+
+`FVector` End Point
+
+`FColor` Color
+
+`float` Thickness
+[/EXCERPT:SegmentThick]
+[EXCERPT:Location]
+`FVector` Location
+
+`float` Radius
+
+`FColor` Color
+[/EXCERPT:Location]
+[EXCERPT:Box]
+`FVector` Center Location
+
+`FColor` Color
+[/EXCERPT:Box]
+[EXCERPT:OBox]
+`FVector` Center Location
+
+`FMatrix` Box Rotation
+
+`FColor` Color
+[/EXCERPT:OBox]
+[EXCERPT:Cone]
+`FVector` Origin Point
+
+`FVector` Cone Direction
+
+`float` Cone Length
+
+`float` Cone Angle In Degrees
+
+`FColor` Color
+[/EXCERPT:Cone]
+[EXCERPT:Cylinder]
+`FVector` Start Point
+
+`FVector` End Point
+
+`float` Cylinder Radius
+
+`FColor` Color
+[/EXCERPT:Cylinder]
+[EXCERPT:Capsule]
+`FVector` Center Point
+
+`float` Half-Height
+
+`float` Radius
+
+`FMatrix` Capsule Rotation
+
+`FColor` Color
+[/EXCERPT:Capsule]
+[EXCERPT:Mesh]
+`TArray<FVector>` Mesh Vertices
+    
+`TArray<int32>` Triangle Indices (must be in groups of three)
+    
+`FColor` Color
+[/EXCERPT:Mesh]
+[EXCERPT:ConvexPoly]
+`TArray<FVector>` Hull Points
+    
+`FColor` Color
+[/EXCERPT:ConvexPoly]
+[EXCERPT:Arrow]
+`FVector` Tail Location
+    
+`FVector` Head Location
+    
+`FColor` Color
+[/EXCERPT:Arrow]
+--->
+
+| Shape | Description | Additional Parameters |
+| --- | --- | --- |
+| `UE_VLOG_SEGMENT` | A one-pixel-thick line segment. | [INCLUDE:#Segment] |
+| `UE_VLOG_SEGMENT_THICK` | A line segment with variable thickness. | [INCLUDE:#SegmentThick] |
+| `UE_VLOG_LOCATION` | A sphere. | [INCLUDE:#Location] |
+| `UE_VLOG_BOX` | An axis-aligned box. | [INCLUDE:#Box] |
+| `UE_VLOG_OBOX` | A rotated box. | [INCLUDE:#OBox] |
+| `UE_VLOG_CONE` | A cone. | [INCLUDE:#Cone] |
+| `UE_VLOG_CYLINDER` | A cylinder. | [INCLUDE:#Cylinder] |
+| `UE_VLOG_CAPSULE` | A capsule. | [INCLUDE:#Capsule] |
+| `UE_VLOG_MESH` | A 3D Mesh. | [INCLUDE:#Mesh] |
+| `UE_VLOG_CONVEXPOLY` | A 2D convex-hull polygon. | [INCLUDE:#ConvexPoly] |
+| `UE_VLOG_ARROW` | A line segment with an arrowhead. | [INCLUDE:#Arrow] |

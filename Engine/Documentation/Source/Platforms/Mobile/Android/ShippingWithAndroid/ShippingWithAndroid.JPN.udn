@@ -1,0 +1,98 @@
+﻿INTSourceChangelist:5646017
+Availability: Public
+Crumbs: 
+Title: Android でシッピングする
+Description: Google Play ストアでの UE4 を使ったゲームのセットアップを説明します。
+Type: 
+Version: 4.20
+Parent: Platforms/Mobile/Android/
+Order: 
+Tags: mobile
+Tags: Android
+
+
+Unreal Engine 4 (UE4) を使用したモバイル プロジェクトのビルドが完了したら、次のステップは、それを[｢Google Play｣](https://developer.android.com/distribute/google-play/)ストアで配布する準備をすることです。次のドキュメントでは、Google Play ストアで UE4 プロジェクトを入手するときの、問題が発生する可能性のある様々な項目について説明します。
+
+[REGION:note]
+Google Play ストアは、外観、レイアウト、ワークフローが予告なしで定期的に変更されます。このため、このガイドの情報の一部が別の場所を指していたり、別の名前を使用していたり、完全に削除されている可能性があります。探している情報が見つからない場合、または見つかった情報が古くなっている場合は、[｢Google Play ストアの公式ヘルプ ページ｣](https://support.google.com/googleplay/android-developer/?hl=en#topic=3450769)を必ず確認してください。
+[/REGION]
+
+## Google Play Console
+
+[｢Google Play Console｣](https://developer.android.com/distribute/console/)は、Google Play ストアで UE4 プロジェクトをアップロード、管理、リリースするために使用される Web ポータルです。Google Play Console から、プロジェクトをリリース用に設定して自動テストを実行するなど、様々なタスクを実行できます。新規ユーザーの獲得状況や、様々な Android 対応ハードウェアで UE4 プロジェクトがどの程度うまく機能しているかを追跡できます。
+
+## Google Play ストアのリスト
+
+プロジェクトを表示して Google Play ストアからダウンロードするには、まず Google Play Console の **[Dashboard(ダッシュボード)]** セクションにある、灰色のチェックマーク ボックスが付いている様々なセクションすべてに入力する必要があります。
+
+![Shipping With Android_01.png](ShippingWithAndroid_01.png "Shipping With Android_01.png")
+
+[REGION:note]
+必ず各セクションをよく読み、必要な情報とファイルを用意してください。
+[/REGION]
+セクションが正常に完了すると、灰色のチェックボックスが次の図のように緑色に変わります。
+
+![Shipping With Android_02.png](ShippingWithAndroid_02.png "Shipping With Android_02.png")
+
+ダッシュボードの必要な各セクションの横に緑色のチェックマークが表示されたら、アプリケーションは、Google Play ストアでリリースするために Google によってレビューされる準備が整いました。
+
+  
+  
+
+## Google Play ストアの APK サイズ
+
+Google Play ストアでは、アップロードされるすべての **APK** に対して **100 MB** のサイズ制限があります。アプリケーションが **100 MB** の制限を超え、より多くのデータが必要な場合、残りのコンテンツを **Opaque binary blob** (OBB) ファイルに配置する必要があります。**OBB** の最大サイズは **2 GB** です。UE4 APK を Google Play Console にアップロードした後、APK を アルファ版、ベータ版、リリース版に組み込めるようになるまでに少なくとも **45 分**かかりますが、**それ以上** かかることもあります。このため、最初に **[App Releases (アプリのリリース)]** セクションを記入してから、残りの必要な情報を記入するのが一般的な方法です。
+
+## Google Play Console API の変更
+
+Google Play では、2018年8月1日以降、新しいアプリが少なくとも Android 8.0 (API レベル 26) をターゲットとすること、そして、2018年11月1日以降は Android 8.0 をターゲットとしてアップデートすることを要求されるようになりました。UE4 バージョン 4.21 ではこの変更が考慮されていますが、それ以前のバージョンで作成されたプロジェクトはすべて、この新しい変更に対応するためアップデートする必要があります。
+
+この新しい変更により、UE4 プロジェクトが、ファイルを保存するときなど、適宜 OS の特定の機能を利用する権限をユーザーに要求するようにさせる必要があります。これまでは、アプリケーションの初回実行時に、ユーザーに対して必要なすべての権限を付与するよう要求していました。 UE4 バージョン 4.21 (およびそれ以降) で権限の要求を管理しやすくするには、**[Plugins]** メニューの **[Android]** セクションにある **[Android Runtime Permission]** を使用してください。
+
+[REGION:lightbox]
+[![](ShippingWithAndroid_03.png)(w:800px)](ShippingWithAndroid_03.png)
+[/REGION]
+
+クリックしてフルサイズで表示。
+
+## Project SDK Override
+
+**[Project SDK Override]** を使用すると、プロジェクトごとに、Android SDK のどのバージョンを使用してプロジェクトをコンパイルするかを変更できます。これらのオプションは、**[Project Settings (プロジェクト設定)]** \> **[Android]** \> **[Project SDK Override]**にあります。
+
+[REGION:lightbox]
+[![](AndroidSDKOverride.png)(w:800px)](AndroidSDKOverride.png)
+[/REGION]
+[REGION:caption]
+クリックしてフルサイズで表示。
+[/REGION]
+
+
+| **Android の設定**| **説明**|
+| ---| ---|
+| **SDK API レベル**| エンジン コードの Java の部分をコンパイルするために使用される Java API を制御します。|
+| **NDK API レベル**| C++ コードが準拠しているコンパイラ ツールチェーンを制御します。これは、互換性を持つことになるネイティブ コードの Android バージョンを制限する可能性があります。|
+
+[REGION:note]
+フィールドを空白のままにすると、グローバルな Android SDK プロジェクト設定が使用されます。
+[/REGION]
+
+
+## Android SDK Version
+
+Android の **[Minimum SDK Version]** 入力は、アプリをインストールできる最小 OS バージョンの判断に便利です。**[Target SDK Version]** は、API の想定される動作を Android OS に通知します。どの SDK バージョンがどの Android OS で使用されているのかわからない場合は、[｢コード名、タグ、およびビルド番号｣](https://source.android.com/setup/start/build-numbers) のページを参照してください。
+
+[REGION:lightbox]
+[![](AndroidSDKVersion.png)(w:800px)](AndroidSDKVersion.png)
+[/REGION]
+[REGION:caption]
+クリックしてフルサイズで表示。
+[/REGION]
+
+| **設定**|  **説明**|
+| ---| ---|
+| **Minimum SDK Version**| アプリをインストールできる最小 OS バージョンを制御します。これは、Google Play ストアで、アプリケーションがストア内でどのデバイスによって見られているのかをフィルタリングするためにも使用されます。|
+| **Target SDK Version**| これにより、API の想定される動作が Android OS に通知されます。 これを特定の API レベルに設定することで、コードが Android のリリースで導入された機能や変更に対して確実に対応できるようになります。|
+
+[REGION:note]
+UE4 の古いバージョンを使用しているプロジェクトがあり、それを Google Play ストアにシッピングしたい場合は、**[Target SDK]** を**｢26｣**に設定する必要があります。これにより、[Minimum SDK Version] が十分である限り、Android SDK 26 を搭載していない可能性のある古いデバイスでもアプリを実行できるようになります。
+[/REGION]

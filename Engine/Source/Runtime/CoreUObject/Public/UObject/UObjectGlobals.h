@@ -2676,7 +2676,7 @@ namespace UE4CodeGen_Private
 	#define IF_WITH_EDITORONLY_DATA(x, y) y
 #endif
 
-/** Enum used by UDataValidationManager to see if an asset has been validated for correctness */
+/** Enum used by DataValidation plugin to see if an asset has been validated for correctness */
 enum class EDataValidationResult : uint8
 {
 	/** Asset has failed validation */

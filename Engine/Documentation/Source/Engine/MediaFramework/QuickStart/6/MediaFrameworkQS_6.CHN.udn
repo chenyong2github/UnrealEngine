@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Title:6 - 自己动手！
 Crumbs:%ROOT%
 Description:本节提供了一些本示例中可供尝试的额外内容以及更多相关文档的链接。 
@@ -12,6 +12,8 @@ type:multi-step
 order:6
 tags:Media Framework
 tags:Blueprints
+ 
+## 页面已被合并，标记为Docs。 
  
 [NAV]
 

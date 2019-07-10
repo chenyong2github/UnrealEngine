@@ -53,10 +53,10 @@ struct FConcertSerializedObjectData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	bool bAllowCreate;
+	bool bAllowCreate = false;
 
 	UPROPERTY()
-	bool bIsPendingKill;
+	bool bIsPendingKill = false;
 
 	UPROPERTY()
 	FName NewName;
@@ -89,7 +89,7 @@ struct FConcertExportedObject
 	FConcertObjectId ObjectId;
 
 	UPROPERTY()
-	int32 ObjectPathDepth;
+	int32 ObjectPathDepth = 0;
 
 	UPROPERTY()
 	FConcertSerializedObjectData ObjectData;
@@ -116,7 +116,10 @@ struct FConcertTransactionEventBase
 	FGuid TransactionEndpointId;
 
 	UPROPERTY()
-	uint8 TransactionUpdateIndex;
+	uint8 TransactionUpdateIndex = 0;
+
+	UPROPERTY()
+	int32 VersionIndex = INDEX_NONE;
 
 	UPROPERTY()
 	TArray<FName> ModifiedPackages;

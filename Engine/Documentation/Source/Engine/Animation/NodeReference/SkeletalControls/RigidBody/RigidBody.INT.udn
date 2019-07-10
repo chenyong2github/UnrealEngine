@@ -10,8 +10,8 @@ tags:Animation
 tags:Animation Blueprint
 tags:Skeletal Controls
 topic-image:RigidBodyNode.png
-Related: Engine/Physics/PhAT
-Related: Engine/Physics/PhAT/Reference
+Related: Engine/Physics/PhysicsAssetEditor
+Related: Engine/Physics/PhysicsAssetEditor/Reference
 Related: Engine/Animation/AnimBlueprints/AnimGraph
 Related: Engine/Animation/NodeReference/Blend
 
@@ -59,7 +59,7 @@ The table below outlines the available input and output pins along with a defini
 
 ## Example RigidBody Node Setup
 
-Before using this node, inside your [Physics Asset](Engine/Physics/PhAT) select and set the [](Engine/Physics/PhysicsBodies) you want to simulate to **Simulated**. 
+Before using this node, inside your [Physics Asset](Engine/Physics/PhysicsAssetEditor) select and set the [](Engine/Physics/PhysicsBodies) you want to simulate to **Simulated**. 
 
 ![](RigidBody_02.png)
 

@@ -52,6 +52,11 @@ To improve your productivity, several shortcuts have been built into the Sequenc
 | **Ctrl + G** | Go to a set time/frame in the sequence. |
 | **I** | Sets the start of Selection Range. |
 | **O** | Sets the end of Selection Range. |
+| **M** | Adds/Removes a Frame Marker at the current mouse location. |
+| **Ctrl + Shift + , (comma key)** | Jumps the timeline to the previous marker. |
+| **Ctrl + Shift + . (period key)** | Jumps the timeline to the next marker. |
+| **Ctrl + Left Arrow** | Move selected keys and sections 1 frame to the left. |
+| **Ctrl + Right Arrow** | Move selected keys and sections 1 frame to the right. |
 [/EXCERPT:keyframe]
 
 ### Key Interpolation Shortcuts

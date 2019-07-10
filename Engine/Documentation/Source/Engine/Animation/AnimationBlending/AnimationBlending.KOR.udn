@@ -1,9 +1,11 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:6413515
 Availability:Public
 Title: 블렌드 스페이스
-Crumbs: %ROOT%, Engine, Engine/Animation
 description:하나의 스켈레탈 메시에 두 개이 애니메이션을 부드럽게 전환하는 방법입니다.
 version: 4.9
+tags:Animation
+tags:Animation Features
+tags:Animation Blending
 topic-image:BlendingAnimations_topic.png
 
 

@@ -1,0 +1,485 @@
+﻿INTSourceChangelist:6622979
+Availability: Public
+Crumbs: 
+Title: UMG Rich Text Block のプロパティ
+Description: このページでは、UMG Rich Text Block ウィジェットで使用される Rich Text Block とデータ テーブル アセットのプロパティをリストします。
+Type: 
+Version: 4.20
+Parent: Engine/UMG/UserGuide
+Order: 
+Tags: UMG
+Tags: Rich Text Block
+
+
+このリファレンス ページは Rich Text Block ウィジェットに設定可能なプロパティをリストします。また、データ テーブル アセットで使用される Rich Image Row と Rich Test Style 行のデータ タイプのプロパティもリストします。
+
+## Rich Text Block のプロパティ
+
+| プロパティ| 説明|
+| ---| ---|
+| [REGION:tablesection]スロット (Canvas パネル スロット)[/REGION]||
+| **Anchors**|[INCLUDE:#excerpt_0]|
+| **Alignment**|Alignment はウィジェットのピボット ポイントです。左上の (0,0) から始まり、右下の (1,1) で終わります。アライメント ポイントを移動することでウィジェットの原点を移動させることができます。|
+| **Size To Content**|AutoSize が true のとき、ウィジェットで必要となるサイズが使用されます。|
+| **ZOrder**|このウィジェットをレンダリングする優先順位を表します。値が高いと後でレンダリングされ、上部に表示されます。値が低いと初めにレンダリングされ下部に表示されます。|
+| [REGION:tablesection]コンテンツ[/REGION]||
+| **Text**|ウィジェットに表示されるテキストです。|
+| [REGION:tablesection]Appearance (外観)[/REGION]||
+| **Text Style Set**| データ テーブル アセットを保持して、テキストとイメージ スタイルで使用されるリッチ テキストの装飾を利用可能にします。|
+| [REGION:tablesection]Decorator クラス[/REGION]||
+| **Justification**| テキストのマージンへの揃え方を設定します。|
+| **Margin**| テキスト領域の周縁部の余白の広さを設定します。|
+| **Line Height Percentage**| 各ラインの高さの縮尺率を設定します。|
+| [REGION:tablesection]折返し[/REGION]||
+| **Auto Wrap Text**| テキストをウィジェットのために計算された水平スペースに基づいて自動的に折返す場合は true をセットします。|
+| **Wrap Text At**| テキストがこの幅の値より長いときに新しいラインで折り返すかどうかを決定します。この値がゼロかマイナスの場合は折り返しません。|
+| **Wrapping Policy**| [INCLUDE:#excerpt_1] |
+| [REGION:tablesection]動作[/REGION]||
+| **Tool Tip Text**| ユーザーがウィジェットにマウス カーソルをかざしたときに表示されるツールチップ テキスト。|
+| **Is Enabled**| ウィジェットがユーザーとのインタラクションで修正可能か否かを設定します。|
+| **Visibility**| [INCLUDE:#excerpt_2] |
+| **Render Opacity**| ウィジェットのオパシティ (不透明性)。|
+| **Tool Tip Widget**| ユーザーがウィジェットにマウスをかざしたときに表示されるツールチップ ウィジェット。|
+| **Cursor**| [INCLUDE:#excerpt_3] |
+| [REGION:tablesection]レンダリングの変形[/REGION]||
+| **Transform**| [INCLUDE:#excerpt_4] |
+| **Pivot**| レンダリングの変形軸が変形が適用される場所を制御します。これは回転などを行う正規座標です。|
+| [REGION:tablesection]パフォーマンス[/REGION]||
+| **Is Volatile**| true のとき、ウィジェットやその子ジオメトリまたはレイアウト情報がキャッシュされないようにします。このウィジェットがフレーム毎に変化しても Invalidation panel に入れたい場合は、フレーム毎に無効化する代わりに volatile とマークします。これにより、Invalidation panel が実際に何かをキャッシュするのを防ぎます。|
+| [REGION:tablesection]クリッピング[/REGION]||
+| **Clipping**| [INCLUDE:#excerpt_5] |
+| [REGION:tablesection]ナビゲーション[/REGION]||
+| **Left**| [INCLUDE:#excerpt_6] |
+| **Right**| [INCLUDE:#excerpt_7] |
+| **Up**| [INCLUDE:#excerpt_8] |
+| **Down**| [INCLUDE:#excerpt_9] |
+| **Next**| [INCLUDE:#excerpt_10] |
+| **Previous**| [INCLUDE:#excerpt_11] |
+| [REGION:tablesection]ローカライゼーション[/REGION]||
+| **Text Shaping Method**| [INCLUDE:#excerpt_12] |
+| **Text Flow Direction**| [INCLUDE:#excerpt_13] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_13]
+このウィジェット内のテキストが下記のどちらのテキスト フローを使用するかを設定します。設定されなければ、Get Default Text Flow Direction によって設定したデフォルト値を使用します。
+
+*   **Auto** \-テキストのパラグラフごとにフローの方向を自動検出します。
+*   **Left to Right** \-テキストが左から右へフローするように強制します。
+*   **Right to Left** \-テキストが右から左へフローするように強制します。
+
+[/EXCERPT:excerpt_13]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_12]
+このウィジェット内のテキストが下記のどちらのテキスト シェイピング メソッドを使用するかを設定します。設定されなければ、Get Default Text Shaping Method によって設定したデフォルト値を使用します。
+
+*   **Auto** \-テキストを読む方向に基づいて、可能な限り最速のシェイピング メソッド (Kerning Only または Full Shaping) を自動選択します。左から右へのテキストは Kerning Only メソッドを、右から左へのテキストは Full Shaping メソッドを使用します。
+*   **Kerning Only** \-カーニング データのみ使用した擬似シェイピングを提供します。フル シェイピングより高速ですが、右から左または双方向の複雑な文字 (アラビア文字など) はレンダリングしません。テキスト ブロックがシンプルな文字 (数字など) のみ表示することが分かっている場合の最適化として有用です。
+*   **Full Shaping** \-右から左または双方向の複雑な文字 (アラビア文字など) の正確なレンダリングを可能にする完全なシェイピングを提供します。すべての言語で合字 (リガチャ) による置き換えを提供します (たとえば英語の「fi」を合成した文字)。
+
+[/EXCERPT:excerpt_12]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_11]
+Previous 使用時のナビゲーションを定義します。
+
+*   **Escape** \-ナビゲーションがウィジェットの境界にエスケープすることを許可します。
+*   **Stop** \-ナビゲーションがウィジェットの境界で停止します。
+*   **Wrap** \-ナビゲーションがオブジェクトの反対側の境界で折り返します。
+*   **Explicit** \-ナビゲーションが特定のウィジェットに移動します。
+*   **Custom** \-カスタム機能により、ウィジェット自体またはその子がナビゲートから離れた時にどのウィジェットがナビゲートされるか決定します。
+
+[/EXCERPT:excerpt_11]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_10]
+Next 使用時のナビゲーションを定義します。
+
+*   **Escape** \-ナビゲーションがウィジェットの境界にエスケープすることを許可します。
+*   **Stop** \-ナビゲーションがウィジェットの境界で停止します。
+*   **Wrap** \-ナビゲーションがオブジェクトの反対側の境界で折り返します。
+*   **Explicit** \-ナビゲーションが特定のウィジェットに移動します。
+*   **Custom** \-カスタム機能により、ウィジェット自体またはその子がナビゲートから離れた時にどのウィジェットがナビゲートされるかを決定します。
+*   **Custom Boundary** \-カスタム機能により、境界にヒットしたときにどのウィジェットがナビゲートされるかを決定します。
+
+[/EXCERPT:excerpt_10]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+Down 使用時のナビゲーションを定義します。
+
+*   **Escape** \-ナビゲーションがウィジェットの境界にエスケープすることを許可します。
+*   **Stop** \-ナビゲーションがウィジェットの境界で停止します。
+*   **Wrap** \-ナビゲーションがオブジェクトの反対側の境界で折り返します。
+*   **Explicit** \-ナビゲーションが特定のウィジェットに移動します。
+*   **Custom** \-カスタム機能により、ウィジェット自体またはその子がナビゲートから離れた時にどのウィジェットがナビゲートされるかを決定します。
+*   **Custom Boundary** \-カスタム機能により、境界にヒットしたときにどのウィジェットがナビゲートされるかを決定します。
+
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_8]
+Up 使用時のナビゲーションを定義します。
+
+*   **Escape** \-ナビゲーションがウィジェットの境界にエスケープすることを許可します。
+*   **Stop** \-ナビゲーションがウィジェットの境界で停止します。
+*   **Wrap** \-ナビゲーションがオブジェクトの反対側の境界で折り返します。
+*   **Explicit** \-ナビゲーションが特定のウィジェットに移動します。
+*   **Custom** \-カスタム機能により、ウィジェット自体またはその子がナビゲートから離れた時にどのウィジェットがナビゲートされるかを決定します。
+*   **Custom Boundary** \-カスタム機能により、境界にヒットしたときにどのウィジェットがナビゲートされるかを決定します。
+
+[/EXCERPT:excerpt_8]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+Right 使用時のナビゲーションを定義します。
+
+*   **Escape** \-ナビゲーションがウィジェットの境界にエスケープすることを許可します。
+*   **Stop** \-ナビゲーションがウィジェットの境界で停止します。
+*   **Wrap** \-ナビゲーションがオブジェクトの反対側の境界で折り返します。
+*   **Explicit** \-ナビゲーションが特定のウィジェットに移動します。
+*   **Custom** \-カスタム機能により、ウィジェット自体またはその子がナビゲートから離れた時にどのウィジェットがナビゲートされるかを決定します。
+*   **Custom Boundary** \-カスタム機能により、境界にヒットしたときにどのウィジェットがナビゲートされるかを決定します。
+
+[/EXCERPT:excerpt_7]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_6]
+Left 使用時のナビゲーションを定義します。
+
+*   **Escape** \-ナビゲーションがウィジェットの境界にエスケープすることを許可します。
+*   **Stop** \-ナビゲーションがウィジェットの境界で停止します。
+*   **Wrap** \-ナビゲーションがオブジェクトの反対側の境界で折り返します。
+*   **Explicit** \-ナビゲーションが特定のウィジェットに移動します。
+*   **Custom** \-カスタム機能により、ウィジェット自体またはその子がナビゲートから離れた時にどのウィジェットがナビゲートされるかを決定します。
+*   **Custom Boundary** \-カスタム機能により、境界にヒットしたときにどのウィジェットがナビゲートされるかを決定します。
+
+[/EXCERPT:excerpt_6]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+このウィジェットのクリッピングの動作方法を制御します。通常、はみ出たコンテンツが見えてしまうのを防ぐためにクリッピングが有効になり、ウィジェットの境界からはみ出たコンテンツはレンダリングされ続けます。
+[REGION:note]
+異なるクリッピング スペースの要素を 1 つにまとめることができないので、クリッピングが適用されるとパフォーマンス上の負荷が発生します。パネルで本当に境界の外側にコンテンツが表示されないようにする必要がある場合を除いて有効にしないでください。
+[/REGION]
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+ウィジェットのレンダリングの変形により、任意の 2D 変形をウィジェットに適用できるようにします。
+
+*   **Translation** \-スレート ユニットでウィジェットを XY 座標で平行移動させる量。
+*   **Scale** \-スレート ユニットでウィジェットに適用する XY 座標での縮尺量。
+*   **Shear** \-スレート ユニットでウィジェットに適用する XY 座標での切取り量。
+*   **Angle** \-ウィジェットを回転させる角度数。
+
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_3]
+マウスをウィジェットにかざしたときに表示されるカーソル。
+
+*   **None** \-マウス カーソルを非表示にします。
+*   **Default** \-デフォルトの矢印カーソル。
+*   **Text Edit Beam** \-テキストが編集可能であることを示します。
+*   **Resize Left Right** \-水平矢印カーソルをリサイズします。
+*   **Resize Up Down** \-垂直矢印カーソルをリサイズします。
+*   **Resize South East** \-前方 2 方向の矢印カーソルをリサイズ。
+*   **Resize South West** \-後方 2 方向の矢印カーソルをリサイズ。
+*   **Cardinal Cross** \-何かが動いていることを示します。
+*   **Crosshairs** \-通常、選択ボックスを何かの周りでドラッグすることによる、正確な選択を示します。
+*   **Hand** \-指差しが付いた手のカーソルを使用します。
+*   **Grab Hand** \-何かつかめることを示す開いた手のカーソルを使用します。
+*   **Grab Hand Closed** \-何かを掴んだことを示す閉じた手のカーソルを使用します。
+*   **Slashed Circle** \-アクションが完了できないことを示すカーソル。
+*   **Eye Dropper** \-色の選択が可能であることを示します。
+
+[/EXCERPT:excerpt_3]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_2]
+ウィジェットの視認性を設定します。
+
+*   **Visible** \-ウィジェットが表示され、カーソルで操作可能です。
+*   **Collapsed** \-ウィジェットは表示されず、レイアウト中のスペースを占有しません。スペースを専有しないのでクリックできません。
+*   **Hidden** \-ウィジェットは表示されませんが、レイアウト スペースを専有します。隠れているので操作できません。
+*   **Hit Test Invisible** \-ウィジェットは単なる鑑賞物としてユーザーに表示されます。このウィジェットはカーソルのヒット テストでは認識されません。
+*   **Self Hit Test Invisible** \-子ウィジェットに適用されない以外は Self Hit Test Invisible と同じです。
+
+[/EXCERPT:excerpt_2]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_1]
+以下の折返しポリシーが使用されます。
+
+*   **Default Wrapping** \-フォールバックなし。与えられた改行イテレータのみ使用します。
+*   **Allow per-Character Wrapping** \-ワードが長すぎる場合に、文字ごとの折り返しにフォールバックします。
+
+[/EXCERPT:excerpt_1]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0]
+選択したウィジェットのアンカーの場所を設定します。
+
+*   **Minimum** \-左と上、最小限のアンカーを保持します。
+*   **Maximum** \-右と下、最大限のアンカーを保持します。
+
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+
+## データ テーブル アセットのプロパティ
+
+### Rich Image Row
+
+以下の、Rich Text Block ウィジェットで使用されるイメージのスタイルを制御する Rich Image Row のデータ テーブル アセットのプロパティを設定します。
+
+  
+| プロパティ| 説明|
+| ---| ---|
+| **Image**| このブラシのレンダリングをするイメージ。割り当てるアセットには、テクスチャ、マテリアル インターフェース、アトラス化したテクスチャ インターフェースをアセットとして割り当てることができます。|
+| **Image Size**| スレート ユニットでのリソースのサイズ。|
+| **Tint**| イメージに適用される色合い。|
+| **Draw As**| [INCLUDE:#excerpt_14] |
+| **Tiling**| [INCLUDE:#excerpt_15] |
+| **Preview**| [INCLUDE:#excerpt_16] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_16]
+プレビュー ボックスでのイメージの表示方法を設定します。
+
+**水平配置**
+
+*   **Fill** \-イメージがプレビュー ボックスを水平に埋めます。
+*   **Left** \-イメージがプレビュー ボックスの左に並びます。
+*   **Center** \-イメージがプレビュー ボックスの中央に配置されます。
+*   **Right** \-イメージがプレビュー ボックスの右に並びます。
+
+**垂直配置**
+
+*   **Fill** \-イメージがプレビュー ボックスを垂直に埋めます。
+*   **Top** \-イメージがプレビュー ボックスの上に並びます。
+*   **Center** \-イメージがプレビュー ボックスの中央に配置されます。
+*   **Bottom** \-イメージがプレビュー ボックスの下に並びます。
+
+[/EXCERPT:excerpt_16]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_86]
+
+[/EXCERPT:excerpt_86]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_15]
+イメージ モードでのイメージのタイリング方法。
+
+*   **Horizontal** \-イメージを水平にタイリングします。
+*   **Vertical** \-イメージを垂直にタイリングします。
+*   **Both** \-イメージを両方向にタイリングします。
+
+[/EXCERPT:excerpt_15]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_14]
+イメージの描画方法。
+
+*   **Box** \-側面と中央がマージンに基づいて広げられた 3x3 のボックスを描画します。
+*   **Border** \-側面が貼り付けられ、中央が空洞の、3x3 の境界を描画します。
+*   **Image** \-イメージを描画します。マージンは無視します。
+
+[/EXCERPT:excerpt_14]
+-
+[/COMMENT]
+
+
+### Rich Text Style Row
+
+以下の、**Rich Text Block** ウィジェットで使用されるテキストのスタイルを制御する **Rich Text Style Row** のデータ テーブル アセットのプロパティを設定します。
+
+| プロパティ| 説明|
+| ---| ---|
+| [REGION:tablesection]フォント[/REGION]||
+| **Font Family**| フォント オブジェクト (UMG または スレート ウィジェット スタイル アセットから使用された時に有効)|
+| **Typeface**| デフォルトの書体から使用されるフォント名。初期状態で何も選択されていなければ、最初のエントリ (太字) が使用されます。|
+| **Size**| ポイント値のフォント サイズが単位になります。ポイントからスレート ユニットへの変換は 96 dpi で実行します。このため、レイアウトや UI のモックアップのプロトタイプ作りに Photoshop のようなツールを使用している場合、デフォルトの dpi 値を 72 dpi から 96 dpi に変更してください。|
+| **Font Material**| フォントのレンダリング時に使用するマテリアル。|
+| **Outline Settings**| [INCLUDE:#excerpt_17] |
+| **Color**| テキストの色と不透明性。|
+| **Shadow Offset**| シャドウがオフセットされる量です。オフセットが 0 はシャドウが無いことを表します。|
+| **Shadow Color and Opacity**| シャドウの色と不透明性。|
+| **Shadow Background Color**| 選択したテキストの背景色。|
+| **Highlight Color**| ハイライトしたテキストの色。|
+| [REGION:tablesection]Highlight Shape[/REGION]||
+| **Image**| このブラシのレンダリングをするイメージ。割り当てるアセットには、テクスチャ、マテリアル インターフェース、アトラス化したテクスチャ インターフェースをアセットとして割り当てることができます。|
+| **Image Size**| スレート ユニットでのリソースのサイズ。|
+| **Tint**| イメージに適用される色合い。|
+| **Draw As**| [INCLUDE:#excerpt_18] |
+| **Tiling**| [INCLUDE:#excerpt_19] |
+| **Preview**| [INCLUDE:#excerpt_20] |
+| [REGION:tablesection]Underline Brush[/REGION]||
+| **Image**| このブラシのレンダリングをするイメージ。割り当てるアセットには、テクスチャ、マテリアル インターフェース、アトラス化したテクスチャ インターフェースをアセットとして割り当てることができます。|
+| **Image Size**| スレート ユニットでのリソースのサイズ。|
+| **Tint**| イメージに適用される色合い。|
+| **Draw As**| [INCLUDE:#excerpt_21] |
+| **Tiling**| [INCLUDE:#excerpt_22] |
+| **Preview**| [INCLUDE:#excerpt_23] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_23]
+プレビュー ボックスでのイメージの表示方法を設定します。
+
+**水平配置**
+
+*   **Fill** \-イメージがプレビュー ボックスを水平に埋めます。
+*   **Left** \-イメージがプレビュー ボックスの左に並びます。
+*   **Center** \-イメージがプレビュー ボックスの中央に配置されます。
+*   **Right** \-イメージがプレビュー ボックスの右に並びます。
+
+**垂直配置**
+
+*   **Fill** \-イメージがプレビュー ボックスを垂直に埋めます。
+*   **Top** \-イメージがプレビュー ボックスの上に並びます。
+*   **Center** \-イメージがプレビュー ボックスの中央に配置されます。
+*   **Bottom** \-イメージがプレビュー ボックスの下に並びます。
+
+[/EXCERPT:excerpt_23]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_22]
+イメージ モードでのイメージのタイリング方法。
+
+*   **Horizontal** \-イメージを水平にタイリングします。
+*   **Vertical** \-イメージを垂直にタイリングします。
+*   **Both** \-イメージを両方向にタイリングします。
+
+[/EXCERPT:excerpt_22]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_21]
+イメージの描画方法。
+
+*   **Box** \-側面と中央がマージンに基づいて広げられた 3x3 のボックスを描画します。
+*   **Border** \-側面が貼り付けられ、中央が空洞の、3x3 の境界を描画します。
+*   **Image - イメージを描画します。マージンは無視します。**
+
+[/EXCERPT:excerpt_21]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_20]
+プレビュー ボックスでのイメージの表示方法を設定します。
+
+**水平配置**
+
+*   **Fill** \-イメージがプレビュー ボックスを水平に埋めます。
+*   **Left** \-イメージがプレビュー ボックスの左に並びます。
+*   **Center** \-イメージがプレビュー ボックスの中央に配置されます。
+*   **Right** \-イメージがプレビュー ボックスの右に並びます。
+
+**垂直配置**
+
+*   **Fill** \-イメージがプレビュー ボックスを垂直に埋めます。
+*   **Top** \-イメージがプレビュー ボックスの上に並びます。
+*   **Center** \-イメージがプレビュー ボックスの中央に配置されます。
+*   **Bottom** \-イメージがプレビュー ボックスの下に並びます。
+
+[/EXCERPT:excerpt_20]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_19]
+イメージ モードでのイメージの貼り付け方法。
+
+*   **Horizontal** \-イメージを水平に貼り付けます。
+*   **Vertical** \-イメージを垂直に貼り付けます。
+*   **Both** \-イメージを両方向に貼り付けます。
+
+[/EXCERPT:excerpt_19]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_18]
+イメージの描画方法。
+
+*   **Box** \-側面と中央がマージンに基づいて広げられた 3x3 のボックスを描画します。
+*   **Border** \-側面が貼り付けられ、中央が空洞の、3x3 の境界を描画します。
+*   **Image - イメージを描画します。マージンは無視します。**
+
+[/EXCERPT:excerpt_18]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_17]
+輪郭をフォントに適用するための設定。
+
+*   **Outline Size** \-スレート ユニットでの輪郭のサイズ (フォント スケール 1.0、単位はピクセル)
+*   **Separate Fill Alpha** \-有効にすると、埋めた領域の輪郭は完全に半透明になります。別個に埋めるアルファ値の使用が可能になります。この機能を有効にした場合のトレードオフは、内側の輪郭の境界が埋めた領域と重なる完全に不透明で埋めた部分で画質が若干悪くなることです。
+*   **Outline Color - このフォントの文字の輪郭の色。**
+
+[/EXCERPT:excerpt_17]
+-
+[/COMMENT]

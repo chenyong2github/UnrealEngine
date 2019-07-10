@@ -7,7 +7,7 @@ Crumbs:
 This value controls the blend between an animation that is playing, and the Physics Asset Tool's physical simulation. Values greater than 0.0 will have some amount of physics applied to them, while a value of 1.0 means the skeletal mesh is completely controlled by the Physics Asset.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:PhysicsBlend]
@@ -20,7 +20,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
  This is the time between poking ragdoll and starting to blend back.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:PokePauseTime]
@@ -33,7 +33,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
 This is the time taken to blend from physics to animation.
  
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:PokeBlendTime]
@@ -61,7 +61,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
  This is the gap between the floor & physics object.
 
  [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:FloorGap]
@@ -74,7 +74,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
  This is the scale factor for the gravity used in the simulation.
 
  [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:GravScale]
@@ -87,7 +87,7 @@ Engine/Physics/PhAT/Properties#physicsassettoolproperties
  This is the linear damping of mouse spring forces.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:HandleLinearDamping]
@@ -103,7 +103,7 @@ While using Ctrl +  Right Click while Simulating in the Physics Asset Tool, this
 With a low Handle Linear Damping value and a low Handle Linear Stiffness, you will not be able to affect the position of the Physics Body.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:HandleLinearStiffness]
@@ -127,7 +127,7 @@ While using Ctrl +  Right Click while Simulating in the Physics Asset Tool, this
 ![](PhAT_AngularStiffness.png)
 
  [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:HandleAngularStiffness]
@@ -148,7 +148,7 @@ While in Simulating in the Physics Asset Tool, this defines how quickly the Phys
 The strength in newtons applied during a "ctrl + left  click" poke during simulation. For most things, the default 100 newtons will not give much of a reaction. For humanoid characters 1500 newtons is a good slap. 15000 newtons is a solid hit with blunt weapon of some sort. Above that and the reaction is like getting hit with a vehicle.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:PokeStrength]
@@ -196,7 +196,7 @@ This will show the Physics Constraints in the Physics Asset Tool as points inste
 ![](PhAT_ConstPoint.png)
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:bShowConstraintsAsPoints]
@@ -223,7 +223,7 @@ The crosses that visualize where the constraints are located are set to be the s
 Increasing this value will scale the crosses up, while reducing it will scale them down.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsassettoolproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsassettoolproperties
 [/VAR]
 
 [/EXCERPT:ConstraintDrawSize]

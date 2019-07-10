@@ -1,4 +1,4 @@
-﻿INTSourceChangeList:3801260
+﻿INTSourceChangeList:6187230
 Availability:Public
 Title:蓝图样条组件属性参考
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:包含在蓝图样条组件的编辑器中可用的所有属性的�
 Navigation:topic
 parent:Engine/BlueprintSplines
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 version:4.13
 type:reference
 tags:Splines
@@ -14,12 +14,9 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 本页面包含了一个在 **蓝图样条组件（Blueprint Spline Components）** 中可用属性的参考列表。如果在 **蓝图编辑器（Blueprint Editor）** 中选择了 **蓝图样条组件（Blueprint Spline Component）**，是 **根组件（Root Component）**，或者在 **关卡编辑器（Level Editor）** 中选择了该组件，则显示的属性将略有不同。
 
-(#properties)
 ## 属性
 
 [EXCERPT:PropTransformCat]
-(#transform)
-
 ### 变形
 
 ![](TransformCatRef.png)
@@ -34,8 +31,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 [/EXCERPT]
 
 [EXCERPT:PropSocketsCat]
-(#sockets)
-
 ### 套接字
 
 ![](SocketsCatRef.png)
@@ -50,8 +45,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropSplineCat]
-(#spline)
-
 ### 样条
 
 ![](BPS_SplineCatRef.png)
@@ -66,8 +59,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 | **闭环（Closed Loop）** | %doxygen:USplineComponent::bClosedLoop% |
 | **默认向上矢量（Default Up Vector）** | %doxygen:USplineComponent::DefaultUpVector% |
 [/REGION]
-
-(###advanced)
 
 ### 高级
 
@@ -85,8 +76,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropEditorCat]
-(#editor)
-
 ### 编辑器
 
 ![](BPS_EditorCatRef.png)
@@ -105,8 +94,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropSelectedPointsCat]
-(#selectedpoints)
-
 ### 选中的点
 
 ![](BPS_SelectedPointsRef.png)
@@ -128,8 +115,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropTagsCat]
-(#tags)
-
 ### 标签
 
 ![](TagsCatRef.png)
@@ -144,8 +129,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropActivationCat]
-(#activation)
-
 ### 激活
 
 ![](ActivationCatRef.png)
@@ -160,8 +143,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 
 [EXCERPT:PropEventsCat]
-(#events)
-
 ### 事件
 
 ![](EventsCatRef.png)

@@ -16,9 +16,6 @@ struct FCallbackDummy
 template <typename T>
 using FPhysicsHitCallback = FCallbackDummy<T>;
 
-class FPxQueryFilterCallback;
-using FPhysicsQueryFilterCallback = FPxQueryFilterCallback;
-
 // Needed by low level SQ calls. Right now there's no specific locking for LLI
 // #PHYS2 update as locking becomes necessary
 struct FScopedSceneReadLock

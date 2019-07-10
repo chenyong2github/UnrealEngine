@@ -6,7 +6,7 @@ Crumbs:
 
 The name of the Bone this Physics Body is associated with. In Blueprint interactions, to gain access to a Physics Body of a Bone in a Physics Asset, you will need to provide a Bone Name.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:BoneName]
@@ -18,7 +18,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 Each Physics Body in a Physics Asset can be used to calculate the bounds of the Skeletal Mesh, but there is a performance overhead for each Physics Body used in this calculation. In many setups, you may have a Physics Body that assists with proper hit detection (twist bones on the arms), or perhaps the animation of the Skeletal Mesh makes it so some Physics Bodies never leave the bounds created by the other Physics Bodies. In these cases, there is some minor performance gain to be had by disabling the ability for these ineffective Physics Bodies from adding to the bounds calculation.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:bConsiderForBounds]
@@ -34,7 +34,7 @@ Unfixed - Do not Follow Owner, but remain unfixed.
 Within the Physics Asset Tool, Default and Unfixed (with a constraint) will appear identical.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:PhysicsType]
@@ -47,7 +47,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 Overrides the PhysMaterial for this specific Physics Body for use in Simple Collision (collision involving convex hulls or default Physics shapes such as spheres, boxes, and sphyls). This can give a specific Physics Body different properties, such as giving a Physics Body that defines a shoe more rubbery properties. Or if a Physics Body encompasses metal body armor, then it can have the same properties.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:PhysMaterial]
@@ -60,7 +60,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 Overrides the Walkable Slope settings for this physics body. Allows the angle at which the slope is determined to be walkable to be customised. 
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:WalkableSlopeOverride]
@@ -77,7 +77,7 @@ Defines if a Physics Body will actually collide with anything. In a Physics Asse
 The back wheel on this vehicle has its Collision Response disabled.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:CollisionReponse]

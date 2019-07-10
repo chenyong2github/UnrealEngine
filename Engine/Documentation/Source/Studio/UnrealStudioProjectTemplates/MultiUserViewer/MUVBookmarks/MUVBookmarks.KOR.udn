@@ -1,0 +1,80 @@
+INTSourceChangelist:6551686
+Availability: Public
+Crumbs: 
+Title: 멀티 유저 뷰어 템플릿에서 북마크 작업
+Description: 레벨에 북마크를 배치하여 시점 프리셋을 만들고, 그 북마크에 단축키를 할당하는 방법을 설명합니다.
+Type: how-to
+SkillLevel: beginner
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 2
+Tags: how to
+Tags: multi-user viewer
+
+
+멀티 유저 뷰어에 제공되는 내장된 블루프린트 애셋 유형인 Bookmark (북마크)는, 레벨에 미리 지정한 위치와 카메라 뷰를 구성하는 데 쓰입니다. 데스크톱 사용자는 이렇게 지정해 둔 위치로 런타임에 쉽게 텔레포트할 수 있습니다.
+
+여기서는 레벨에 새 북마크를 배치하는 법, 키보드의 숫자 키를 누를 때 여러 북마크 사이를 빠르게 텔레포트할 수 있도록 단축키를 구성하는 법을 설명합니다.
+
+## 북마크 배치
+
+북마크는 레벨 아무 데나 배치할 수 있습니다. 하지만 가장 좋은 곳은:
+
+*   바닥 위치,
+*   콜리전 메시가 구성된 스태틱 메시 바로 위입니다. [멀티 유저 뷰어에 자신의 콘텐츠 사용](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent) 문서를 참고하세요.
+
+그렇게 하지 않으면, 캐릭터가 걷기 내비게이션 모드일 때, 텔레포트 후 바닥에 또는 바닥을 뚫고 떨어질 수 있습니다.
+
+### 단계
+
+북마크를 배치하려면:
+
+1.  각 북마크는 레벨에 **BP_Bookmark** 블루프린트 클래스의 인스턴스로 나타납니다. 이 클래스는 **콘텐츠 브라우저** 의 *MultiUserViewer/Blueprints/Bookmark* 폴더에서 찾을 수 있습니다.  
+    ![BP_Bookmark Asset](multiuserviewer-bookmark-asset.png "BP_Bookmark Asset")
+2.  새 북마크를 구성하려면, **콘텐츠 브라우저** 에서 **BP_Bookmark** 를 끌어 레벨에 놓습니다.  
+    ![북마크를 레벨로 드래그](multiuserviewer-bookmark-place.png "북마크를 레벨로 드래그")
+3.  뷰포트 또는 **월드 아웃라이너** 에서 북마크 액터를 선택하고 레벨의 원하는 위치와 방향으로 움직입니다.
+    [REGION:note]
+    움직이는 것이 북마크 액터인지, 그 자손 카메라 컴포넌트만 움직이는 것은 아닌지 확인하세요.
+    [/REGION]
+    [REGION:tip]
+    액터 **파일럿** 기능으로 쉽고 빠르게 원하는 대로 시점을 설정할 수 있습니다. [뷰포트에서 액터 파일럿](Engine/UI/LevelEditor/Viewports/ActorLocking) 문서를 참고하세요.
+    [/REGION]
+
+### 최종 결과
+
+데스크톱 모드에서 세션에 참가하는 사용자는 화살표 키를 사용하여 레벨에 추가한 모든 북마크를 차례대로 순환하며 텔레포트할 수 있습니다.
+
+## 북마크에 순서 및 단축키 할당
+
+기본적으로 사용자가 좌우 화살표 키를 눌러 레벨의 북마크를 순환할 때, 미리 정한 순서를 따르지 않습니다. 하지만 Bookmark Directory (북마크 디렉터리)를 사용하면 순서는 물론 개별 북마크에 키보드의 숫자 키를 지정할 수 있습니다.
+
+### 단계
+
+순서와 단축키를 구성하려면:
+
+1.  레벨에 이미 **BP_BookmarkDirectory** 액터가 있는 경우, 뷰포트 또는 **월드 아웃라이너** 에서 찾아 선택합니다.  
+    ![월드 아웃라이너의 북마크 디렉터리](multiuserviewer-directory-select.png "월드 아웃라이너의 북마크 디렉터리")  
+    또는 **콘텐츠 브라우저** 에서 *MultiUserViewer/Blueprints/Bookmark* 폴더의 **BP_BlueprintDirectory** 를 찾아 레벨에 드래그하면 새 인스턴스가 생깁니다.  
+    ![북마크 디렉터리를 레벨에 드래그](multiuserviewer-directory-place.png "북마크 디렉터리를 레벨에 드래그")
+2.  **디테일** 패널에서 북마크 목록이 둘 보이는데, 각각 레벨의 **BP_Bookmark** 인스턴스를 가리킬 수 있습니다.  
+    ![북마크 디렉터리 디테일](multiuserviewer-directory-details.png "북마크 디렉터리 디테일")
+    *   **1 - 모든 북마크 (좌우 화살표 키로 순환) -** 이 목록에 정의한 순서대로 화살표 키를 눌러 레벨의 북마크를 순환합니다.  
+        사용자가 처음 오른쪽 화살표 키를 누르면, 목록의 `0` 위치에 있는 북마크로 이동합니다. 오른쪽 화살표 키를 다시 누르면 목록의 다음 항목으로 이동합니다. 왼쪽 화살표 키를 누르면 목록의 이전 항목으로 이동합니다. 시퀀스 끝에 도달하면, 목록의 첫 북마크로 되돌아갑니다.  
+        [REGION:note]
+        레벨에 **BP_BookmarkDirectory** 를 배치하면, 화살표 키는 목록에 없는 북마크를 무시합니다.
+        [/REGION]
+        [REGION:tip]
+        **Refresh All Bookmarks List** (모든 북마크 목록 새로고침) 버튼을 사용하면 현재 레벨의 모든 북마크가 목록에 자동 추가되므로, 배열에 하나씩 추가할 필요가 없습니다.
+        [/REGION]
+    *   **2 - 단축키 북마크 (0-9 키) -** 이 목록을 사용하면 북마크를 특정 숫자 키에 지정할 수 있습니다.  
+        사용자가 키보드의 숫자 키 중 하나를 누르면, 그 숫자가 이 목록에 있는 레벨의 북마크에 매핑되고, 사용자는 해당 북마크로 텔레포트합니다.
+        [REGION:tip]
+        **모든 북마크** 목록에 북마크 시퀀스를 구성해 둔 경우, **Auto Assign Hot Key Bookmarks** (단축키 북마크 자동 할당) 버튼을 누르면 그 북마크 처음 열 개를 이 목록에 순서대로 추가합니다.
+        [/REGION]
+
+### 최종 결과
+
+북마크를 **All Bookmarks (Left Or Right Arrows To Cycle)** (모든 북마크 (좌우 화살표 키로 순환)) 배열에 추가하면, 데스크톱 모드로 세션에 참가한 사용자가 좌우 화살표 키를 누르면 배열에 추가한 북마크를 추가한 순서대로 순환합니다.
+
+북마크를 **Hot Key Bookmarks (0-9 Keys)** (단축키 북마크 (0-9 키)) 배열에 추가하면, 데스크톱 모드로 세션에 참가한 사용자가 배열에 구성해 둔 숫자 단축키 중 하나를 누르면 즉시 그 숫자 키에 묶인 북마크 위치로 텔레포트합니다.

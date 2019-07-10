@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3244012
+﻿INTSourceChangelist:6421534
 Availability:Public
 Title: 시퀀서 일람표
 Crumbs: %ROOT%, Engine
@@ -53,6 +53,11 @@ tags:Sequencer
 | **Ctrl + G** | 시퀀스의 설정된 시간/프레임 위치로 이동합니다. |
 | **I** | 선택 범위의 시작을 설정합니다. |
 | **O** | 선택 범위의 끝을 설정합니다. |
+| **M** | 현재 마우스 위치에 프레임 마커를 추가/제거합니다. |
+| **Ctrl + Shift + , (쉼표 키)** | 타임라인을 이전 마커로 이동합니다. |
+| **Ctrl + Shift + . (마침표 키)** | 타임라인을 다음 마커로 이동합니다. |
+| **Ctrl + 왼쪽 화살표** | 선택된 키와 섹션을 1 프레임 왼쪽으로 이동합니다. |
+| **Ctrl + 오른쪽 화살표** | 선택된 키와 섹션을 1 프레임 오른쪽으로 이동합니다. |
 [/EXCERPT:keyframe]
 
 ### 키 보간 단축키

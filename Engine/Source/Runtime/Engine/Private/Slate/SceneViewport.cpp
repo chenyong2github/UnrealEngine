@@ -198,7 +198,7 @@ void FSceneViewport::SetMouse( int32 X, int32 Y )
 {
 	const FVector2D NormalizedLocalMousePosition = FVector2D(X, Y) / GetSizeXY();
 	FVector2D AbsolutePos = CachedGeometry.LocalToAbsolute(NormalizedLocalMousePosition * CachedGeometry.GetLocalSize());
-	FSlateApplication::Get().SetCursorPos( AbsolutePos );
+	FSlateApplication::Get().SetCursorPos( AbsolutePos.RoundToVector() );
 	CachedCursorPos = FIntPoint(X, Y);
 }
 
@@ -1334,7 +1334,7 @@ void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, E
 				IHeadMountedDisplay::MonitorInfo MonitorInfo;
 				if (GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->GetHMDMonitorInfo(MonitorInfo))
 				{
-					if (MonitorInfo.DesktopX > 0 || MonitorInfo.DesktopY > 0)
+					if (MonitorInfo.DesktopX > 0 || MonitorInfo.DesktopY > 0 || MonitorInfo.ResolutionX > 0 || MonitorInfo.ResolutionY > 0)
 					{
 						NewWindowSize.X = MonitorInfo.ResolutionX;
 						NewWindowSize.Y = MonitorInfo.ResolutionY;
@@ -1394,6 +1394,11 @@ void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, E
 			UCanvas::UpdateAllCanvasSafeZoneData();
 		}
 	}
+}
+
+bool FSceneViewport::HasFixedSize() const
+{
+	return bForceViewportSize;
 }
 
 void FSceneViewport::SetFixedViewportSize(uint32 NewViewportSizeX, uint32 NewViewportSizeY)

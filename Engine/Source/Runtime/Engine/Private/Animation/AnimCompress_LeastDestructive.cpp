@@ -17,13 +17,11 @@ UAnimCompress_LeastDestructive::UAnimCompress_LeastDestructive(const FObjectInit
 
 
 #if WITH_EDITOR
-void UAnimCompress_LeastDestructive::DoReduction(UAnimSequence* AnimSeq, const TArray<FBoneData>& BoneData)
+void UAnimCompress_LeastDestructive::DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult)
 {
 	UAnimCompress* BitwiseCompressor = NewObject<UAnimCompress_BitwiseCompressOnly>();
 	BitwiseCompressor->RotationCompressionFormat = ACF_Float96NoW;
 	BitwiseCompressor->TranslationCompressionFormat = ACF_None;
-	BitwiseCompressor->Reduce(AnimSeq, false, BoneData);
-
-	AnimSeq->CompressionScheme = BitwiseCompressor;
+	BitwiseCompressor->Reduce(CompressibleAnimData, OutResult);
 }
 #endif // WITH_EDITOR

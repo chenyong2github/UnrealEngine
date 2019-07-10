@@ -61,7 +61,7 @@ namespace
 		if (!file::IsDirectory(attributes))
 		{
 			// this is not a directory, but a full path
-			LC_SUCCESS_USER("Using %S at path %S", type, path.c_str());
+// EPIC REMOVED			LC_SUCCESS_USER("Using %S at path %S", type, path.c_str());
 			return path;
 		}
 

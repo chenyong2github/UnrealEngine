@@ -63,6 +63,17 @@ enum class ETimecodeSynchronizationTimecodeType
 };
 
 /**
+ * Enumerates possible framerate source
+ */
+UENUM()
+enum class ETimecodeSynchronizationFrameRateSources: uint8
+{
+	EngineCustomTimeStepFrameRate UMETA(ToolTip="Frame Rate of engine custom time step if it is of type UFixedFrameRateCustomTimeStep."),
+	CustomFrameRate UMETA(ToolTip = "Custom Frame Rate selected by the user.")
+};
+
+
+/**
  * Enumerates Synchronization related events.
  */
 enum class ETimecodeSynchronizationEvent
@@ -310,6 +321,24 @@ public:
 	 */
 	void AddRuntimeTimeSynchronizationSource(UTimeSynchronizationSource* Source);
 
+	/**
+	 * Get Current System Frame Time which is synchronized
+	 *
+	 * @return FrameTime
+	 */
+	FFrameTime GetCurrentSystemFrameTime() const
+	{
+		if (CurrentSystemFrameTime.IsSet())
+		{
+			return CurrentSystemFrameTime.GetValue();
+		}
+		else
+		{
+			return FFrameTime();
+		}
+	}
+
+
 private:
 
 	/** Synchronization states */
@@ -405,16 +434,13 @@ private:
 	FFrameTime GetProviderFrameTime() const;
 
 public:
-	/** The fixed framerate to use. */
-	UPROPERTY(EditAnywhere, Category="Genlock", Meta=(DisplayName="Enable"))
-	bool bUseCustomTimeStep;
 
-	/** Custom strategy to tick in a interval. */
-	UPROPERTY(EditAnywhere, Instanced, Category="Genlock", Meta=(EditCondition="bUseCustomTimeStep", DisplayName="Genlock Source"))
-	UFixedFrameRateCustomTimeStep* CustomTimeStep;
+	/** Frame Rate Source. */
+	UPROPERTY(EditAnywhere, Category = "Frame Rate Settings", Meta = (DisplayName = "Frame Rate Source"))
+	ETimecodeSynchronizationFrameRateSources FrameRateSource;
 
 	/** The fixed framerate to use. */
-	UPROPERTY(EditAnywhere, Category="Genlock", Meta=(EditCondition="!bUseCustomTimeStep", ClampMin="15.0"))
+	UPROPERTY(EditAnywhere, Category="Frame Rate Settings", Meta=(ClampMin="15.0"))
 	FFrameRate FixedFrameRate;
 
 public:
@@ -423,14 +449,14 @@ public:
 	ETimecodeSynchronizationTimecodeType TimecodeProviderType;
 
 	/** Custom strategy to tick in a interval. */
-	UPROPERTY(EditAnywhere, Instanced, Category="Timecode Provider", Meta=(EditCondition="IN_CPP", DisplayName="Timecode Source"))
+	UPROPERTY(EditAnywhere, Instanced, Category="Timecode Provider", Meta=(DisplayName="Timecode Source"))
 	UTimecodeProvider* TimecodeProvider;
 
 	/**
 	 * Index of the source that drives the synchronized Timecode.
 	 * The source need to be timecoded and flag as bUseForSynchronization
 	 */
-	UPROPERTY(EditAnywhere, Category="Timecode Provider", Meta=(EditCondition="IN_CPP"))
+	UPROPERTY(EditAnywhere, Category="Timecode Provider")
 	int32 MasterSynchronizationSourceIndex;
 
 public:
@@ -463,14 +489,14 @@ private:
 	TArray<UTimeSynchronizationSource*> DynamicSources;
 
 	/** What mode will be used for synchronization. */
-	UPROPERTY(EditAnywhere, Category = "Synchronization", Meta=(EditCondition="IN_CPP"))
+	UPROPERTY(EditAnywhere, Category = "Synchronization")
 	ETimecodeSynchronizationSyncMode SyncMode;
 
 	/**
 	 * When UserDefined mode is used, the number of frames delayed from the Provider's timecode.
 	 * Negative values indicate the used timecode will be ahead of the Provider's.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Synchronization", Meta=(EditCondition = "IN_CPP", ClampMin="-640", ClampMax="640"))
+	UPROPERTY(EditAnywhere, Category = "Synchronization", Meta=(ClampMin="-640", ClampMax="640"))
 	int32 FrameOffset;
 
 	/**
@@ -478,11 +504,11 @@ private:
 	 * For Auto mode, this represents the number of frames behind the newest synced frame.
 	 * For AutoModeOldest, the is the of frames ahead of the last synced frame.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Synchronization", Meta = (EditCondition = "IN_CPP", ClampMin = "0", ClampMax = "640"))
+	UPROPERTY(EditAnywhere, Category = "Synchronization", Meta = (ClampMin = "0", ClampMax = "640"))
 	int32 AutoFrameOffset = 3;
 
 	/** Whether or not the specified Provider's timecode rolls over. (Rollover is expected to occur at Timecode 24:00:00:00). */
-	UPROPERTY(EditAnywhere, Category = "Synchronization", Meta=(EditCondition="IN_CPP"))
+	UPROPERTY(EditAnywhere, Category = "Synchronization")
 	bool bWithRollover = false;
 
 	/** Sources used for synchronization */

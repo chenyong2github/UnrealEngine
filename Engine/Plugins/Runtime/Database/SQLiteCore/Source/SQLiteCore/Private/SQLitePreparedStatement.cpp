@@ -6,6 +6,10 @@
 
 #include "Misc/AssertionMacros.h"
 #include "Containers/StringConv.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogSQLitePreparedStatement, Log, All);
 
 FSQLitePreparedStatement::FSQLitePreparedStatement()
 	: Statement(nullptr)
@@ -76,7 +80,13 @@ bool FSQLitePreparedStatement::Create(FSQLiteDatabase& InDatabase, const TCHAR* 
 		PrepFlags |= SQLITE_PREPARE_PERSISTENT;
 	}
 
-	return sqlite3_prepare_v3(InDatabase.Database, TCHAR_TO_UTF8(InStatement), -1, PrepFlags, &Statement, nullptr) == SQLITE_OK;
+	if (sqlite3_prepare_v3(InDatabase.Database, TCHAR_TO_UTF8(InStatement), -1, PrepFlags, &Statement, nullptr) != SQLITE_OK)
+	{
+		UE_LOG(LogSQLitePreparedStatement, Warning, TEXT("Failed to create prepared statement from '%s': %s"), InStatement, *InDatabase.GetLastError());
+		return false;
+	}
+
+	return true;
 }
 
 bool FSQLitePreparedStatement::Destroy()
@@ -221,6 +231,16 @@ bool FSQLitePreparedStatement::SetBindingValueByIndex(const int32 InBindingIndex
 	return SetBindingValueByIndex_Integer(InBindingIndex, InValue);
 }
 
+bool FSQLitePreparedStatement::SetBindingValueByName(const TCHAR* InBindingName, const FDateTime InValue)
+{
+	return SetBindingValueByIndex(GetBindingIndexByName(InBindingName), InValue);
+}
+
+bool FSQLitePreparedStatement::SetBindingValueByIndex(const int32 InBindingIndex, const FDateTime InValue)
+{
+	return SetBindingValueByIndex(InBindingIndex, InValue.ToUnixTimestamp());
+}
+
 template <typename T>
 bool FSQLitePreparedStatement::SetBindingValueByName_Real(const TCHAR* InBindingName, const T InValue)
 {
@@ -283,6 +303,30 @@ bool FSQLitePreparedStatement::SetBindingValueByIndex(const int32 InBindingIndex
 	return SetBindingValueByIndex(InBindingIndex, *InValue);
 }
 
+bool FSQLitePreparedStatement::SetBindingValueByName(const TCHAR* InBindingName, const FName InValue)
+{
+	return SetBindingValueByName(InBindingName, *InValue.ToString());
+}
+
+bool FSQLitePreparedStatement::SetBindingValueByIndex(const int32 InBindingIndex, const FName InValue)
+{
+	return SetBindingValueByIndex(InBindingIndex, *InValue.ToString());
+}
+
+bool FSQLitePreparedStatement::SetBindingValueByName(const TCHAR* InBindingName, const FText& InValue)
+{
+	FString TextStr;
+	FTextStringHelper::WriteToBuffer(TextStr, InValue);
+	return SetBindingValueByName(InBindingName, TextStr);
+}
+
+bool FSQLitePreparedStatement::SetBindingValueByIndex(const int32 InBindingIndex, const FText& InValue)
+{
+	FString TextStr;
+	FTextStringHelper::WriteToBuffer(TextStr, InValue);
+	return SetBindingValueByIndex(InBindingIndex, TextStr);
+}
+
 bool FSQLitePreparedStatement::SetBindingValueByName(const TCHAR* InBindingName, TArrayView<const uint8> InBlobData, const bool bCopy)
 {
 	return SetBindingValueByName(InBindingName, InBlobData.GetData(), InBlobData.Num(), bCopy);
@@ -308,6 +352,21 @@ bool FSQLitePreparedStatement::SetBindingValueByIndex(const int32 InBindingIndex
 	return sqlite3_bind_blob(Statement, InBindingIndex, InBlobData, InBlobDataSizeBytes, bCopy ? SQLITE_TRANSIENT : SQLITE_STATIC) == SQLITE_OK;
 }
 
+bool FSQLitePreparedStatement::SetBindingValueByName(const TCHAR* InBindingName, const FGuid& InValue)
+{
+	return SetBindingValueByIndex(GetBindingIndexByName(InBindingName), InValue);
+}
+
+bool FSQLitePreparedStatement::SetBindingValueByIndex(const int32 InBindingIndex, const FGuid& InValue)
+{
+	TArray<uint8> GuidBytes;
+	{
+		FMemoryWriter GuidWriter(GuidBytes);
+		GuidWriter << const_cast<FGuid&>(InValue);
+	}
+	return SetBindingValueByIndex(InBindingIndex, GuidBytes, true);
+}
+
 bool FSQLitePreparedStatement::SetBindingValueByName(const TCHAR* InBindingName)
 {
 	return SetBindingValueByIndex(GetBindingIndexByName(InBindingName));
@@ -321,6 +380,43 @@ bool FSQLitePreparedStatement::SetBindingValueByIndex(const int32 InBindingIndex
 	}
 
 	return sqlite3_bind_null(Statement, InBindingIndex) == SQLITE_OK;
+}
+
+bool FSQLitePreparedStatement::Execute()
+{
+	return Execute([](const FSQLitePreparedStatement&)
+	{
+		return ESQLitePreparedStatementExecuteRowResult::Continue; // Execute everything
+	}) != INDEX_NONE;
+}
+
+int64 FSQLitePreparedStatement::Execute(TFunctionRef<ESQLitePreparedStatementExecuteRowResult(const FSQLitePreparedStatement&)> InCallback)
+{
+	checkf(IsValid() && !IsActive(), TEXT("SQLite statement must be valid and not-active!"));
+
+	// Step it to completion (or error)
+	int64 RowCount = 0;
+	ESQLitePreparedStatementStepResult StepResult = ESQLitePreparedStatementStepResult::Done;
+	while ((StepResult = Step()) == ESQLitePreparedStatementStepResult::Row)
+	{
+		++RowCount;
+
+		const ESQLitePreparedStatementExecuteRowResult RowResult = InCallback(*this);
+		if (RowResult != ESQLitePreparedStatementExecuteRowResult::Continue)
+		{
+			if (RowResult == ESQLitePreparedStatementExecuteRowResult::Error)
+			{
+				StepResult = ESQLitePreparedStatementStepResult::Error;
+			}
+			break;
+		}
+	}
+
+	Reset();
+
+	return StepResult == ESQLitePreparedStatementStepResult::Error
+		? INDEX_NONE
+		: RowCount;
 }
 
 ESQLitePreparedStatementStepResult FSQLitePreparedStatement::Step()
@@ -451,6 +547,22 @@ bool FSQLitePreparedStatement::GetColumnValueByIndex(const int32 InColumnIndex, 
 	return GetColumnValueByIndex_Integer(InColumnIndex, OutValue);
 }
 
+bool FSQLitePreparedStatement::GetColumnValueByName(const TCHAR* InColumnName, FDateTime& OutValue) const
+{
+	return GetColumnValueByIndex(GetColumnIndexByName(InColumnName), OutValue);
+}
+
+bool FSQLitePreparedStatement::GetColumnValueByIndex(const int32 InColumnIndex, FDateTime& OutValue) const
+{
+	int64 UnixTimestamp = 0;
+	if (GetColumnValueByIndex(InColumnIndex, UnixTimestamp))
+	{
+		OutValue = FDateTime::FromUnixTimestamp(UnixTimestamp);
+		return true;
+	}
+	return false;
+}
+
 template <typename T>
 bool FSQLitePreparedStatement::GetColumnValueByName_Real(const TCHAR* InColumnName, T& OutValue) const
 {
@@ -506,6 +618,40 @@ bool FSQLitePreparedStatement::GetColumnValueByIndex(const int32 InColumnIndex, 
 	return true;
 }
 
+bool FSQLitePreparedStatement::GetColumnValueByName(const TCHAR* InColumnName, FName& OutValue) const
+{
+	return GetColumnValueByIndex(GetColumnIndexByName(InColumnName), OutValue);
+}
+
+bool FSQLitePreparedStatement::GetColumnValueByIndex(const int32 InColumnIndex, FName& OutValue) const
+{
+	if (!Statement || !IsValidColumnIndex(InColumnIndex))
+	{
+		return false;
+	}
+
+	const char* ColumnValueUTF8 = (const char*)sqlite3_column_text(Statement, InColumnIndex);
+	OutValue = FName(ColumnValueUTF8 ? UTF8_TO_TCHAR(ColumnValueUTF8) : TEXT(""));
+	return true;
+}
+
+bool FSQLitePreparedStatement::GetColumnValueByName(const TCHAR* InColumnName, FText& OutValue) const
+{
+	return GetColumnValueByIndex(GetColumnIndexByName(InColumnName), OutValue);
+}
+
+bool FSQLitePreparedStatement::GetColumnValueByIndex(const int32 InColumnIndex, FText& OutValue) const
+{
+	if (!Statement || !IsValidColumnIndex(InColumnIndex))
+	{
+		return false;
+	}
+
+	const char* ColumnValueUTF8 = (const char*)sqlite3_column_text(Statement, InColumnIndex);
+	OutValue = FTextStringHelper::CreateFromBuffer(ColumnValueUTF8 ? UTF8_TO_TCHAR(ColumnValueUTF8) : TEXT(""));
+	return true;
+}
+
 bool FSQLitePreparedStatement::GetColumnValueByName(const TCHAR* InColumnName, TArray<uint8>& OutValue) const
 {
 	return GetColumnValueByIndex(GetColumnIndexByName(InColumnName), OutValue);
@@ -525,6 +671,23 @@ bool FSQLitePreparedStatement::GetColumnValueByIndex(const int32 InColumnIndex, 
 	OutValue.Append(ColumnValueBlob, ColumnValueBlobSizeBytes);
 
 	return true;
+}
+
+bool FSQLitePreparedStatement::GetColumnValueByName(const TCHAR* InColumnName, FGuid& OutValue) const
+{
+	return GetColumnValueByIndex(GetColumnIndexByName(InColumnName), OutValue);
+}
+
+bool FSQLitePreparedStatement::GetColumnValueByIndex(const int32 InColumnIndex, FGuid& OutValue) const
+{
+	TArray<uint8> GuidBytes;
+	if (GetColumnValueByIndex(InColumnIndex, GuidBytes))
+	{
+		FMemoryReader GuidReader(GuidBytes);
+		GuidReader << OutValue;
+		return !GuidReader.GetError();
+	}
+	return false;
 }
 
 bool FSQLitePreparedStatement::GetColumnTypeByName(const TCHAR* InColumnName, ESQLiteColumnType& OutColumnType) const

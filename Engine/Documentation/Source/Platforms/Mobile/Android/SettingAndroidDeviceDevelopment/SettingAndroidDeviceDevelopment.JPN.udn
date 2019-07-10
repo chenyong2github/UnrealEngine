@@ -155,9 +155,9 @@ When completed, you will now have an Android-based smartphone that is ready for 
 
 1.  Connect the Android device to your Linux computer with a USB cable.
 2.  Open the Settings application on your Android device.  
-    [![](LinuxAndroid_Step17.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step17.png)
+    [![](LinuxAndroid_Step17.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step17.png)
 3.  Tap Developer Options to open the Developer Options menu.  
-    [![](LinuxAndroid_Step18.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step18.png)
+    [![](LinuxAndroid_Step18.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step18.png)
     [REGION:note]
     If you don't see this item, you'll need to enable Developer Options on your device. To enable Developer Options, open the Settings application, scroll to the bottom and select About phone. After selecting About phone scroll to the bottom and tap Build number seven (7) times. For additional instructions on how to enable Developer Options on Android devices, visit Android's User Guide.
     [/REGION]
@@ -165,13 +165,13 @@ When completed, you will now have an Android-based smartphone that is ready for 
 ## Enabling USB Debugging
 
 1.  From the **Developer Options** menu, enable **USB debugging**.  
-    [![](LinuxAndroid_Step19.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step19.png)
+    [![](LinuxAndroid_Step19.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step19.png)
 2.  A window should appear, confirming your selection to enable USB debugging. After reading the prompt, tap the **OK** button.  
-    [![](LinuxAndroid_Step20.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step20.png)
+    [![](LinuxAndroid_Step20.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step20.png)
 3.  USB debugging is now enabled.  
     ![](LinuxAndroid_Step20Note.png)
 4.  Now, disconnect the Android device from its USB cable, plugging it back in after a few seconds. If you're connecting a device running Android 4.2.2 or higher, the following dialog will appear, asking whether you should accept an RSA key that allows debugging through your Linux computer. Select the checkbox next to **Always allow from this computer** before tapping the **OK** button.  
-    [![](LinuxAndroid_Step21.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Android/GettingStarted/LinuxAndroid_Step21.png)
+    [![](LinuxAndroid_Step21.png)](http://dnnrz1gqa.evoqondemand.com/en-us/Platforms/Mobile/Android/GettingStarted/LinuxAndroid_Step21.png)
 
 ## End Result
 

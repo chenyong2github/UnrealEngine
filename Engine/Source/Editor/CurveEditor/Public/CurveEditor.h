@@ -294,16 +294,6 @@ public:
 	void RemoveTreeItem(FCurveEditorTreeItemID ItemID);
 
 	/**
-	 * Retrieve an event that is broadcast any time the tree changes
-	 */
-	FSimpleMulticastDelegate& OnTreeChanged();
-
-	/**
-	 * Set the current tree selection
-	 */
-	void SetDirectTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems);
-
-	/**
 	 * Check whether this tree item is selected
 	 */
 	ECurveEditorTreeSelectionState GetTreeSelectionState(FCurveEditorTreeItemID TreeItemID) const;
@@ -312,6 +302,22 @@ public:
 	 * Retrieve the current tree selection
 	 */
 	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& GetTreeSelection() const;
+
+	/**
+	 * Access the curve editor tree.
+	 */
+	FCurveEditorTree* GetTree()
+	{
+		return &Tree;
+	}
+
+	/**
+	 * Access the curve editor tree.
+	 */
+	const FCurveEditorTree* GetTree() const
+	{
+		return &Tree;
+	}
 
 	/**
 	 * Retrieve a serial number that is incremented any time a curve is added or removed

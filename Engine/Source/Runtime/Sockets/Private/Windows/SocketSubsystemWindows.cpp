@@ -71,7 +71,7 @@ void FSocketSubsystemWindows::Destroy()
 /* FSocketSubsystemBSD overrides
 *****************************************************************************/
 
-FSocket* FSocketSubsystemWindows::CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType)
+FSocket* FSocketSubsystemWindows::CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType)
 {
 	FSocketBSD* NewSocket = (FSocketBSD*)FSocketSubsystemBSD::CreateSocket(SocketType, SocketDescription, ProtocolType);
 
@@ -134,7 +134,7 @@ ESocketErrors FSocketSubsystemWindows::GetLastErrorCode()
 
 bool FSocketSubsystemWindows::GetLocalAdapterAddresses( TArray<TSharedPtr<FInternetAddr> >& OutAdresses )
 {
-	ULONG Flags = GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_FRIENDLY_NAME;
+	ULONG Flags = GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_FRIENDLY_NAME;
 	ULONG Result;
 	ULONG Size = 0;
 	ULONG Family = (PLATFORM_HAS_BSD_IPV6_SOCKETS) ? AF_UNSPEC : AF_INET;
@@ -172,7 +172,7 @@ bool FSocketSubsystemWindows::GetLocalAdapterAddresses( TArray<TSharedPtr<FInter
 					const sockaddr_storage* RawAddress = (const sockaddr_storage*)(UnicastAddress->Address.lpSockaddr);
 					TSharedRef<FInternetAddrBSD> NewAddress = MakeShareable(new FInternetAddrBSD(this));
 					NewAddress->SetIp(*RawAddress);
-					NewAddress->SetScopeId(ntohl(AdapterAddress->Ipv6IfIndex));
+					NewAddress->SetScopeId((RawAddress->ss_family == AF_INET) ? ntohl(AdapterAddress->IfIndex) : ntohl(AdapterAddress->Ipv6IfIndex));
 					OutAdresses.Add(NewAddress);
 				}
 			}

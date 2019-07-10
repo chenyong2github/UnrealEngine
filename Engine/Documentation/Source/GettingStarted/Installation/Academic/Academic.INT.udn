@@ -1,0 +1,198 @@
+Availability: Public
+Title: Academic Installation
+Description: An overview of how to install the Launcher and Unreal Engine 4 in academic environments.
+Type: overview
+Version: 4.20
+Parent: GettingStarted/Installation
+Tags: Installation
+Order: 1
+
+
+[TOC (start:2 end:3)]
+
+![](UE4AcademicInstallation_banner.png "UE4AcademicInstallation_banner.png")
+
+As universities, colleges, and trade schools continue to offer Unreal Engine 4 (UE4) to students and faculty, one of the most frequently asked questions we get from these users is how to distribute UE4 on school computers without exposing the academic account being used to access the engine. If you're installing UE4 in an academic environment, this document describes how deployment automation can be used to distibute academic installations of UE4.
+
+## Installing UE4 and Content
+
+Typically, schools install UE4 on several computers, for example, in a computer lab or instruction room. At this time, we don't provide a silent (or one-step) installer for UE4, which means that the installer needs to be manually run at least once on a machine in the academic environment. Rather than mirroring the install machine or manually running the installer on the rest of the computers in the classroom, we've automated part of the deployment process. 
+
+Perform the following steps to install UE4 in an academic environment:
+
+### Using the Launcher
+
+[REGION:note]
+If your school's network is behind a proxy server, it's a best practice to use the [UE4 on GitHub](https://www.unrealengine.com/en-US/ue4-on-github) build because the Launcher won't run behind the server. If, however, you prefer to use the Launcher version behind the proxy server, contact your IT department to have them open port 7777 or 7778. Keep in mind, though, that opening these ports doesn't always enable the Launcher to open or update behind a proxy server.
+[/REGION]
+
+1.  Download the latest installers using the following links:
+    *   [PC Version](https://launcher-service-prod06.ol.epicgames.com/launcher/api/installer/download/UnrealEngineInstaller.msi)
+    
+    *   [macOS Version](https://launcher-service-prod06.ol.epicgames.com/launcher/api/installer/download/UnrealEngine.dmg)
+
+1.  [Run the installer](GettingStarted/Installation) on the machine you'd like to make an image from.
+
+1.  After the installer finishes its routine, the Launcher automatically runs, enabling you to log in with your Epic Games credentials.
+
+1.  If the latest version of UE4 doesn't download automatically, you can either select the **Install Engine** button (1) or select the **Library** sidebar option (2) to download engine version you'd like your students to use.   
+    [REGION:lightbox]
+    [![](AcademicInstallLauncher_Step4.png)(w:720)](AcademicInstallLauncher_Step4.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    1.  As an example, download [Unreal Engine 4.20.2](Support/Builds/ReleaseNotes/4_20) by first selecting the **Library** sidebar option.  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step4a.png)(w:720)](AcademicInstallLauncher_Step4a.png)
+        [/REGION]
+        [REGION:caption]
+        Click for full image.
+        [/REGION]
+          
+    1.  Now, select the **Engine Versions** (**+**) icon.  
+        ![](AcademicInstallLauncher_Step4b.png "AcademicInstallLauncher_Step4b.png")
+    
+    1.  Open the drop-down list to select the engine version you'd like to download. For purposes of illustration, select version **4.20.2**.  
+        ![](AcademicInstallLauncher_Step4c.png "AcademicInstallLauncher_Step4c.png")
+    
+    1.  Finally, select the **Install** button and follow the Installer's prompts to get Unreal Engine 4.20.2 onto your machine.  
+        ![](AcademicInstallLauncher_Step4d.png "AcademicInstallLauncher_Step4d.png")
+
+1.  Some instructors use our learning samples in their curricula, and let's suppose, for example, an instructor teaching side-scrolling gameplay wants to use our platformer sample as a teaching tool. To download a side-scrolling platformer, they will need to select the **Learn** sidebar option (1) and scroll down to select [Platformer Game](Resources/SampleGames/PlatformerGame) (2).  
+    [REGION:lightbox]
+    [![](AcademicInstallLauncher_Step5.png)(w:720)](AcademicInstallLauncher_Step5.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    1.  From Platformer Game's Content Detail menu, select **Create Project** to start setting up the project.  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step5a.png "AcademicInstallLauncher_Step5a.png")(w:720)](AcademicInstallLauncher_Step5a.png)
+        [/REGION]
+        [REGION:caption]
+        Click for full image.
+        [/REGION]
+        [REGION:note]
+        Before downloading a learning sample, refer to the **Supported Platforms** and **Supported Engine Version** sections of the **Content Detail** menu, which we update when deploying new releases.
+        [/REGION]
+        
+    1.  Set the project's name, its installation folder, and engine version (we're using version 4.20) before selecting the **Create** button.  
+        ![](AcademicInstallLauncher_Step5b.png "AcademicInstallLauncher_Step5b.png")
+    
+    1.  When Platformer Game is done installing, you'll see it in the **Library > Vault** menu.  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step5c.png)(w:720)](AcademicInstallLauncher_Step5c.png)
+        [/REGION]
+        [REGION:caption]
+        Click for full image.
+        [/REGION]
+        
+
+1.  If you see any automatically created projects in the **Library > My Projects** menu, delete them.  
+    [REGION:warning]
+    If you don't delete projects that the Launcher automatically creates for you, it may cause problems for users on share-machines using the same projects.
+    [/REGION]
+    
+
+1.  After removing all of the automatically-created projects, you can mirror this machine's setup to the rest of your class's computers. Alternatively, you can save this machines image so that you can distribute it out to your lab's computers.
+
+### From GitHub
+
+Visit the following pages (in order) to learn how to download, install, and update UE4 from GitHub:  
+
+1.  [Accessing Unreal Engine 4 on GitHub](https://www.unrealengine.com/en-US/ue4-on-github)
+
+1.  [Downloading Unreal Engine Source Code](GettingStarted/DownloadingUnrealEngine)
+
+1.  [Updating to the Latest Changes from Epic](GettingStarted/DownloadingUnrealEngine/UpdatingSourceCode)
+
+## Performing Updates
+
+After installing UE4, you're ready to use the engine and some free content in an academic environment. It's important, however, to plan for updates because when new versions of UE4 are released, or when engine content is released, you can update the mirror or push out new content to install machines by copying the relevant files, which you can automate with a script.
+
+Read through the following sections to learn how to update UE4 and engine content in an academic environment:
+
+### Using the Launcher
+
+1.  From a central machine, open the Launcher and navigate to the **Library** menu.
+
+1.  Select the **Engine Versions** (**+**) icon.
+
+1.  After the Launcher downloads the the latest version of UE4, you can update the mirror.
+
+[REGION:tip]
+If you don't want to perform updates using the Launcher, read through the following section to learn how to copy updates to lab machines with UE4.
+[/REGION]
+
+### Copying UE4 and Content
+
+1.  Copy the following directories from the base machine to every machine that you'd like to update:
+    *   C:\\Program Files (x86)\\Epic Games\\Launcher\\VaultCache
+    
+    *   C:\\Program Files (x86)\\Epic Games\\<Engine Version>  
+        [REGION:note]
+        If you're copying a specific version, for example, version 4.20, you can copy C:\\Program Files (x86)\\Epic Games\\4.20, otherwise, you can use the wildcard character (*****) to automate the copy operation for all engine versions, which looks like C:\\Program Files (x86)\\Epic Games\**4.***
+        [/REGION]
+        
+
+1.  Make the following directory on every machine that you'd like to update, \[Local Drive Letter\]\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests.
+
+1.  Assuming you've recently downloaded the engine, copy the most recently downloaded manifest from C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests to the machine's local manifest directory (from the previous step).  
+    [REGION:note]
+    As an example, the manifest file might look something like, ~\\Manifests\**6CB2FA12345680D212345678B525AE86.manifest**.
+    [/REGION]
+    
+
+1.  To verify you've copy the most recently downloaded manifest, open the manifest file in a text editor and search for "AppNameString".
+
+After following these steps, the Launcher automatically detects updates when a user runs the Launcher. This is true for new engine versions and downloaded content from the Marketplace. 
+
+[REGION:tip]
+If you'd like to disable the Launcher from automatically detecting updates, read through the following section.
+[/REGION]
+
+## Disabling Automatic Updates
+
+By default, the Launcher automatically checks for updates during its launch routine. To prevent Launcher updates from taking up class time, perform the following steps:
+
+1.  Right-click the **EpicGamesLauncher - Shortcut** to open the Launcher's Right Click menu.
+
+1.  Select the **Properties** command to open the file's **Properties** menu.
+
+1.  Locate the **Target:** property and add the -noselfupdate command to the end of the target line.
+
+[REGION:tip]
+Don't forget to re-enable Launcher updates when class isn't in session.
+[/REGION]
+
+## Best Practices for Students
+
+There are scenarios that might impact your students' ability to access UE4 (or downloaded content). For example, your school might regularly wipe computers for security (or resource) reasons, which might affect a student's progress in-class. To help those students, we've collected the following best practices for some common scenarios they might face while using UE4 in an academic environment.
+
+### During Network Outages
+
+Students can run the Launcher during network outages by selecting the **Skip Sign In** option, which is located in the Launcher's network connectivity dialog window.
+
+[REGION:lightbox]
+[![](AcademicInstallLauncher_StudentBP_NetOut.png)(w:720)](AcademicInstallLauncher_StudentBP_NetOut.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+After signing-in **Offline** mode, students can access UE4, their projects, and previously downloaded content.
+
+### Preparing for Memory Wipes
+
+If your school has a policy of wiping computer (or drive) memory on a regular schedule, returning student computers to their base image, students must save their work in a directory that won't be wiped (or cleared). 
+
+1.  For example, suppose a student creates a new Strategy Game project from their Vault on the Library tab.  
+    ![](AcademicInstall_PreparingforMemWipes-1.png "AcademicInstall_PreparingforMemWipes-1.png")
+
+1.  When creating the new project, the student should specify a folder (or network directory, such as a Sandbox drive) that won't be removed when their computer is re-imaged.  
+    ![](AcademicInstall_PreparingforMemWipes_1-1.png "AcademicInstall_PreparingforMemWipes_1-1.png")
+
+[REGION:note]
+As long as your school's policy allows it, students typically download additional content using the Launcher, however, if the downloaded content isn't saved off the mirrored drive, the content will most likely be wiped during re-imaging.
+[/REGION]

@@ -52,7 +52,7 @@ public:
 	static jmethodID AndroidThunkJava_GetMetaDataLong;
 	static jmethodID AndroidThunkJava_GetMetaDataFloat;
 	static jmethodID AndroidThunkJava_GetMetaDataString;
-	static jmethodID AndroidThunkJava_IsGearVRApplication;
+	static jmethodID AndroidThunkJava_IsOculusMobileApplication;
 	static jmethodID AndroidThunkJava_ShowHiddenAlertDialog;
 	static jmethodID AndroidThunkJava_LocalNotificationScheduleAtTime;
 	static jmethodID AndroidThunkJava_LocalNotificationClearAll;

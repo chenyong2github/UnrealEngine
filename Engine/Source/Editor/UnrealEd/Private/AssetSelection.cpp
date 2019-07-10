@@ -45,6 +45,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Settings/LevelEditorMiscSettings.h"
+#include "Engine/LevelStreaming.h"
 #include "Engine/LevelBounds.h"
 #include "SourceControlHelpers.h"
 #include "Dialogs/Dialogs.h"
@@ -431,6 +432,11 @@ namespace ActorPlacementUtils
 			// if this is the only level
 			return true;
 		}
+		if (GIsRunningUnattendedScript)
+		{
+			// Don't prompt user for checks in unattended mode
+			return true;
+		}
 		if (InLevel && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelBeforeCheckout && SourceControlHelpers::IsAvailable())
 		{
 			FString FileName = SourceControlHelpers::PackageFilename(InLevel->GetPathName());
@@ -448,9 +454,31 @@ namespace ActorPlacementUtils
 				}
 			}
 		}
+		if (InLevel && InLevel->OwningWorld)
+		{
+			int32 LevelCount = InLevel->OwningWorld->GetStreamingLevels().Num();
+			int32 NumLockedLevels = 0;
+			// Check for streaming level count b/c we know there is > 1 streaming level
+			for (ULevelStreaming* StreamingLevel : InLevel->OwningWorld->GetStreamingLevels())
+			{
+				StreamingLevel->bLocked ? NumLockedLevels++ : 0;
+			}
+			// If there is only one unlocked level, a) ours is the unlocked level b/c of the previous IsLevelLocked test and b) we shouldn't try to check for level bounds on the next test
+			if (LevelCount - NumLockedLevels == 1)
+			{
+				return true;
+			}
+		}
 		if (InLevel && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelOutsideBounds)
 		{
 			FBox CurrentLevelBounds = ALevelBounds::CalculateLevelBounds(InLevel);
+			FVector BoundsExtent = CurrentLevelBounds.GetExtent();
+			if (BoundsExtent.X < GetDefault<ULevelEditorMiscSettings>()->MinimumBoundsForCheckingSize.X
+				&& BoundsExtent.Y < GetDefault<ULevelEditorMiscSettings>()->MinimumBoundsForCheckingSize.Y
+				&& BoundsExtent.Z < GetDefault<ULevelEditorMiscSettings>()->MinimumBoundsForCheckingSize.Z)
+			{
+				return true;
+			}
 			FVector ExpandedScale = FVector(1.0f + (GetDefault<ULevelEditorMiscSettings>()->PercentageThresholdForPrompt / 100.0f));
 			FTransform ExpandedScaleTransform = FTransform::Identity;
 			ExpandedScaleTransform.SetScale3D(ExpandedScale);

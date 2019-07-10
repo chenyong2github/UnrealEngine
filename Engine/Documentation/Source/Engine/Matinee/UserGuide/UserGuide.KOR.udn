@@ -1,11 +1,11 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6260072
 Availability: Public
 Title:마티네 사용 안내서
 Crumbs: %ROOT%, Engine, Engine/Matinee
 Description:Matinee, 마티네 에디터를 사용하여 게임내 프로퍼티와 액터에 애니메이션을 주는 방법 안내서입니다.
 Version: 4.9
 SkillLevel:Beginner
-topic-image:Engine/Matinee_topic.png
+topic-image:Engine/Matinee/matinee_topic.png
 
 [REGION:fullwidth]
 ![](MatineeOverview.png)(w:800)

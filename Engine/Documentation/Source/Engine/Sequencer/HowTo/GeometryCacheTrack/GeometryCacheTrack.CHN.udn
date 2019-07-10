@@ -1,18 +1,24 @@
-﻿INTSourceChangelist:4640840
+﻿INTSourceChangelist:6016341
 Availability: Public
-Crumbs: 
+Crumbs:
 Title:使用几何体缓存轨迹
 Description:说明如何添加和使用几何体缓存轨迹在Sequencer中拉动播放和利用几何体轨迹资源。 
-Type: 
-Version: 4.21
-Parent: 
-Order: 
+Type: how-to
+Version: 4.22
+Parent: Engine/Sequencer/HowTo
 Tags: Sequencer
 Tags: Experimental
 Tags: Landing Page
 Tags: Geometry Cache
 Tags: Alembic
+topic-image: Sequencer_Alembic_Topic.png
+social-image: Sequencer_Alembic_Topic.png
+topic-icon: Sequencer_Alembic_Topic.png
+SkillLevel: Intermediate
+Related: Engine/Content/AlembicImporter
 
+
+[TOC (start:2 end:2)]
 
 新增（试验阶段）**几何体缓存轨迹（Geometry Cache Track）** 使您可以拉动播放 **几何体缓存** 并以帧精度将其渲染出来。将Alembic文件导入虚幻引擎4（UE4）并添加到关卡后，可以将其添加到 **关卡序列** 并添加 **几何体缓存轨迹** 来播放内容。
 
@@ -35,19 +41,21 @@ Tags: Alembic
 在本操作指南中，我们使用 **蓝图第三人称** 模板项目。您还需要一个Alembic文件来导入到引擎中。如果您没有自己的资源，下载该[样本文件](https://epicgames.box.com/s/l74nagy14ttaium5j41gu61ljz4v5rul)。
 [/REGION]
 
-2.  将Alembic文件作为[几何体缓存](https://docs.unrealengine.com/en-us/Engine/Content/AlembicImporter#importasgeometrycache)导入UE4，并定义您所需的设置。  
-    ![](GeoCache_01-2.png "GeoCache_01-2.png")
+1.  将Alembic文件作为[几何体缓存](Engine/Content/AlembicImporter#importasgeometrycache)导入UE4，并定义您所需的设置。  
+    ![](UsingGeometryCache_ImportWindow.png "UsingGeometryCache_ImportWindow.png")
 
-5.  将 **几何体缓存** 放入关卡，然后创建 **关卡序列**，并使用 **添加轨迹（\+ Track）** 按钮将其添加到 **Sequencer**。   
+2.  将 **几何体缓存** 放入关卡，然后创建 **关卡序列**，并使用 **添加轨迹（\+ Track）** 按钮将其添加到 **Sequencer**。   
     ![](GeoCache_02.png "GeoCache_02.png")
 
-8.  单击新建轨迹的 **添加轨迹（\+ Track）** 按钮，然后从 **轨迹（Tracks）** 菜单中选择 **几何体缓存（Geometry Cache）**。   
+3.  单击新建轨迹的 **添加轨迹（\+ Track）** 按钮，然后从 **轨迹（Tracks）** 菜单中选择 **几何体缓存（Geometry Cache）**。   
     ![](GeoCache_03.png "GeoCache_03.png")
 
-11. 拉动 **时间轴（Timeline）** 以查看播放效果。  
+4.  拉动 **时间轴（Timeline）** 以查看播放效果。  
+    ![](GeometryCache_Example.png "GeometryCache_Example.png")
     [REGION:note]
     在关卡中选择“播放”（Play）之前，还可以将 **关卡序列** 设置为 **自动播放（Auto Play）**。
     [/REGION]
+    
 
 (#endresult)
 ## 最终结果
@@ -66,12 +74,13 @@ Tags: Alembic
  [/PARAMLITERAL]
 [/OBJECT]
 
-在 **轨迹（Tracks）窗口** 中右键单击轨迹，可以访问几何体缓存的属性。从属性菜单，更改当前使用的 **几何体缓存** 资源，添加 **起点偏移（Start Offset）** 或 **终点偏移** **（End Offset）**，或者调解 **播放速度（Play Rate）**。现在允许调解 **分段（Section）** 选项以及是否在 **反向（Reverse）** 播放动画。   
+在 **轨迹（Tracks）窗口** 中右键单击轨迹，可以访问几何体缓存的属性。从属性菜单，更改当前使用的 **几何体缓存** 资源，添加 **起点偏移（Start Offset）** 或 **终点偏移** **（End Offset）**，或者调整 **播放速度（Play Rate）**。现在有调整 **分段（Section）** 本身的选项以及是否在 **反向（Reverse）** 播放动画。   
 
 ![](GeoCache_04.png "GeoCache_04.png")
 
 右键单击快捷菜单中的 **属性（Properties）** 下面，提供几何体缓存轨迹的下列属性： 
 
+  
 | 属性 | 说明 |
 | --- | --- |
 | **几何体缓存（Geometry Cache）** | 指定要播放的几何体缓存资源。|

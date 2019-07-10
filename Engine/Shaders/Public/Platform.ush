@@ -440,6 +440,7 @@
 
 /** Avoids flow control constructs. */
 #define UNROLL [unroll]
+#define UNROLL_N(N) [unroll(N)]
 
 /** Gives preference to flow control constructs. */
 #define LOOP [loop]
@@ -459,11 +460,18 @@
 #define EARLYDEPTHSTENCIL [earlydepthstencil]
 #endif
 
+#ifndef DEPTHSTENCIL_EARLYTEST_LATEWRITE
+#define DEPTHSTENCIL_EARLYTEST_LATEWRITE EARLYDEPTHSTENCIL
+#endif
 
 // ---------------------------------------------------- Compiler attribute fallbacks
 
 #ifndef UNROLL
 #define UNROLL
+#endif
+
+#ifndef UNROLL_N
+#define UNROLL_N(N)
 #endif
 
 #ifndef LOOP
@@ -641,6 +649,12 @@ float4 max3( float4 a, float4 b, float4 c )
 
 #endif
 
+#if !defined(COMPILER_SUPPORTS_UNPACKBYTEN)
+float UnpackByte0(uint v) { return float(v & 0xff); }
+float UnpackByte1(uint v) { return float((v >> 8) & 0xff); }
+float UnpackByte2(uint v) { return float((v >> 16) & 0xff); }
+float UnpackByte3(uint v) { return float(v >> 24); }
+#endif // !COMPILER_SUPPORTS_UNPACKBYTEN
 
 #if COMPILER_HLSLCC
 #define ddx_fine(x) ddx(x)

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6440897
 Availability: Public
 Title:蓝图通信项目
 Crumbs: %ROOT%, Engine, Engine/Blueprints
@@ -25,10 +25,9 @@ topic-image:BPCommTopic.png
 
 在这个简短游戏范例中，玩家按下键时将在角色蓝图中生成一个可破坏静态网格体。石块生成和发射的位置将在放置于关卡内的生成点之中随机进行选择，因此我们必须将生成位置从关卡传输给角色蓝图。我们还将获取保存在角色蓝图中的信息（扣动扳机的次数或剩下要发射的石块、每次扣下扳机剩余的子弹数量和玩家得分），并将此信息传递到HUD，使其显示在屏幕上。 
 
-(#steps)
 ## 步骤
 	
-[DIR(output:"checkpoint" parent:"Engine\Blueprints\HowTo")]
+[DIR(output:"listbutton" parent:"Engine\Blueprints\HowTo")]
 
 [REGION:call_to_action]
 [点击开始](Engine\Blueprints\HowTo/BPHT_1 "%Engine\Blueprints\HowTo\BPHT_1:description%")

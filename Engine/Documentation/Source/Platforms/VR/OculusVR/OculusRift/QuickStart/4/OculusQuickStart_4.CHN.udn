@@ -1,0 +1,40 @@
+﻿INTSourceChangelist:6109506
+Availability: Docs
+Crumbs: %ROOT%
+Title: 4.设置 Oculus Rift 硬件
+Description: 连接并更新 Oculus Rift 头戴设备
+ype: quick start
+SkillLevel: Beginner
+Version: 4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order: 4
+Checkpoint: RIFTQS
+
+[NAV]
+
+此章节说明如何完成 Oculus Rift 头戴设备及其他外设的设置。
+
+[region:warning]
+首次将 Oculus Rift 与电脑连接时，Rift 软件可能要求您更新 Rift 的固件。请不要跳过此步骤，否则您的 Rift 可能无法正常配合 UE4 使用！
+[/region]
+
+1. Rift 的驱动安装完成后，将出现以下画面。 
+	按下 **Next** 键，根据屏幕上的说明开始 Rift 设置。
+
+	![](Rift_Setup_Screen_00.png)
+
+[region:note]
+如在 Rift 设置过程中需要帮助，点击左下角的 **Get Help** 链接即可获得帮助。
+[/region]
+
+为便于参考，每个设置部分右下角的帮助链接已列于下方。链接的排序与其在设置过程中出现的顺序一致。
+
+* [**Rift 初始设置帮助**](https://support.oculus.com/674612489309093) 
+* [**Rift 保养与维修**](https://support.oculus.com/1659691017629165) 
+* [**使用头戴设备**](https://support.oculus.com/674612489309093) 
+* [**Oculus 遥控**](https://support.oculus.com/835449819935261) 
+* [**设置 Xbox 控制器（无线模式）**](https://support.oculus.com/1560296144292386) 
+* [**触摸设置**](https://support.oculus.com/857827607684748?locale=en_US&ref=oculus-pc-app)
+
+[NAV]
+

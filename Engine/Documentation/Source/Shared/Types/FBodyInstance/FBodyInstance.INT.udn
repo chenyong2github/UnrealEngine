@@ -105,7 +105,7 @@ Engine/Physics/PhysicsBodies#physics
 
 This adds a drag like effect to the rotation of the Physics Body, but more accurately it defines how much the Physics Body resists rotating. This is easiest to think of like a draw bridge: the Angular Damping works like the chains supporting the draw bridge, slowing its decent to the open state.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties
+Engine/Physics/PhysicsAssetEditor/Properties
 [/VAR]
 [/EXCERPT:AngularDamping]
 
@@ -115,7 +115,7 @@ Engine/Physics/PhAT/Properties
 
 This adds a drag like effect to the Physics Body, but more accurately it defines how much the Physics Body resists moving. For a falling Physics Body this will slow the decent, potentially making it appear as if it is falling through water or sludge.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties
+Engine/Physics/PhysicsAssetEditor/Properties
 [/VAR]
 [/EXCERPT:LinearDamping]
 

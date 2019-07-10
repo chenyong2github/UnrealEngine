@@ -305,7 +305,7 @@ public:
 			return Channel->PreInfinityExtrap;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get pre-infinity extrapolation."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get pre-infinity extrapolation."), ELogVerbosity::Error);
 		return ERichCurveExtrapolation::RCCE_None;
 	}
 
@@ -323,7 +323,7 @@ public:
 			return;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set pre-infinity extrapolation."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set pre-infinity extrapolation."), ELogVerbosity::Error);
 	}
 
 	/**
@@ -338,7 +338,7 @@ public:
 			return Channel->PostInfinityExtrap;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get post-infinity extrapolation."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to get post-infinity extrapolation."), ELogVerbosity::Error);
 		return ERichCurveExtrapolation::RCCE_None;
 	}
 
@@ -356,7 +356,7 @@ public:
 			return;
 		}
 
-		UE_LOG(LogMovieScene, Error, TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set post-infinity extrapolation."));
+		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set post-infinity extrapolation."), ELogVerbosity::Error);
 	}
 
 	/**

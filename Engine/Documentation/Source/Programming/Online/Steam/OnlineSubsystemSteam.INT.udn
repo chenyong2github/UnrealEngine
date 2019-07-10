@@ -1,148 +1,165 @@
-Availability:Public
+Availability: Public
+Crumbs: 
 Title: Online Subsystem Steam
-Crumbs:%ROOT%, Programming
-Description:An overview of Online Subsystem Steam, including how to set up your project for distribution on Valve's Steam platform.
-Version: 4.17
-Type: Overview
-SkillLevel:Advanced
+Description: An overview of Online Subsystem Steam, including how to set up your project for distribution on Valve's Steam platform.
+Type: overview
+Version: 4.22
 Parent: Programming/Online
-Order:
-Tags:Steam
+Order: 
+Tags: Steam
 Tags: Online Subsystem
+
+
 Contributors: Valve
 
-[TOC(start:2 end:2)]
-
-[EXCERPT:Intro] 
-The **Online Subsystem Steam API** enables you to ship Unreal Engine 4 (UE4) applications to Valve's Steam platform. 
+The **Online Subsystem Steam API** enables you to ship Unreal Engine 4 (UE4) applications to [Valve's Steam platform](https://partner.steamgames.com/).
 The main purpose of the **Steam** module is to help you distribute your application with a set of features (such as matchmaking and leaderboards) to Steam users.
-Additionally, the Steam module implements several of the interfaces being exposed by the [Online Subsystem](Programming/Online), supporting most of what is offered by the Steamworks Software Development Kit (SDK). 
-[/EXCERPT:Intro]
+Additionally, the Steam module implements several of the interfaces being exposed by the [Online Subsystem](Programming/Online), supporting most of what is offered by the Steamworks Software Development Kit (SDK).
 
-Some of the available Steam Interfaces include: 
+Some of the available Steam Interfaces include:
 
-* Matchmaking (Lobbies and GameServer APIs)
-* Leaderboards
-* Achievements
-* Voice
-* UserCloud
-* SharedCloud
-* External UI
+*   Matchmaking (Lobbies and GameServer APIs)
+*   Leaderboards
+*   Achievements
+*   Voice
+*   UserCloud
+*   SharedCloud
+*   External UI
 
+[REGION:note]
 Reference our [Online Subsystem Steam API Reference](https://docs.unrealengine.com/latest/INT/API/Plugins/OnlineSubsystemSteam/FOnlineSubsystemSteam/index.html) for a more complete listing of currently available Steam Interfaces.
+[/REGION]
 
 ## Meeting Valve's Requirements
 
-The Steam Subsystem requires additional setup through [Valve Steamworks](https://partner.steamgames.com/?goto=%2Fhome). 
+The Steam Subsystem requires additional setup through [Valve Steamworks](https://partner.steamgames.com/?goto=%2Fhome).
 Please contact [Valve](http://www.valvesoftware.com/contact/) and reference their [Steamworks SDK Documentation](https://partner.steamgames.com/doc/home) to make sure that your application meets Valve's requirements before attempting to use Steam with UE4.
 
 ## Downloading Steamworks
 
-If your application meets Valve's requirements, go ahead and download the latest version of the [Steamworks SDK](https://partner.steamgames.com/). The SDK needs to be unzipped and copied to `/YourUnrealEnginePath/Engine/Source/ThirdParty/Steamworks/Steam[Current Version]/sdk`
+If your application meets Valve's requirements, go ahead and download the latest version of the [Steamworks SDK](https://partner.steamgames.com/).
+The SDK needs to be unzipped and copied to `/YourUnrealEnginePath/Engine/Source/ThirdParty/Steamworks/Steam[Current Version]/sdk`
 
 [REGION:note]
 If you're updating your project's Steamworks SDK, make sure to update the `[Current Version]` in your project's Steamworks path:  
-`/YourUnrealEnginePath/Engine/Source/ThirdParty/Steamworks/`**Steam[Current Version]**`/sdk`  
-You'll also need to update `Steamworks.build.cs`, which is located in the project directory.
+`/YourUnrealEnginePath/Engine/Source/ThirdParty/Steamworks/`**Steam\[Current Version\]**`/sdk`  
+You'll also need to update `Steamworks.build.cs`, which is located in the project directory.  
 ![](SteamworksCSFile.png)  
 In this example, the `[Current Version]` is formatted as `v139`.
 [/REGION]
 
-###Compiling UE4
+### Compiling UE4
 
-If you're compiling UE4 from source, the following steps should be taken:
+If you're [compiling Unreal Engine 4 from source](Programming/Development/BuildingUnrealEngine), the following steps should be taken:
 
-1.	Open `OnlineSubsystemSteamPrivatePCH.h` (being located in `..\..\Plugins\Online\OnlineSubsystemSteam\Source\Private\`), where you'll find the following line of code, defining the root location of the Steamworks SDK:
+1.  Open "OnlineSubsystemSteamPrivatePCH.h" (located in "..\\..\\Plugins\\Online\\OnlineSubsystemSteam\\Source\\Private\\"), where you'll find the following line of code, defining the root location of the Steamworks SDK:
 
-		#define STEAM_SDK_ROOT_PATH TEXT("Binaries/ThirdParty/Steamworks")
+        #define STEAM_SDK_ROOT_PATH TEXT("Binaries/ThirdParty/Steamworks")
 
-1.	You'll want to modify the line to read:
+2.  You'll want to modify the line to read:
 
-		#define STEAM_SDK_VER TEXT("Steam[Current Version]")
+        #define STEAM_SDK_VER TEXT("Steam[Current Version]")
 
 ## Setting up the Steamworks SDK
 
-Using Steam against the precompiled version of the engine should only require copying some of the dynamically linked libraries (*.dll) from Valve's SDK into the appropriate folders. 
-If you intend to recompile the engine against the source, putting the SDK in the right place is required as well. Now, copy the relevant redistributable files from the `/redistributable_bin/` directory of the SDK to the following locations:  
-%Globals:osselect_linux%
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-		[REGION:note]
-			Some of the 64 bit libraries can be found in your Steam client directory (at the time of this writing, Valve didn't include all of the libraries in the SDK).
-		[/REGION]
-		`/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/Win64`
-		* steam_api64.dll
-		* steamclient64.dll
-		* tier0_s64.dll
-		* vstdlib_s64.dll
+Using Steam against the precompiled version of the engine should only require copying some of the dynamically linked libraries from Valve's SDK into the appropriate folders. If you intend to recompile the engine against the source, putting the SDK in the right place is required as well. Now, copy the relevant redistributable files from the `/redistributable_bin/` directory of the SDK to the following locations:
 
-		`/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/Win32`
-		* steam_api.dll
-		* steamclient.dll
-		* tier0_s.dll
-		* vstdlib_s.dll
-	[/PARAM]
-[/OBJECT]
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-		`/YourUnrealEnginePath/EngineOrGameFolder/Binaries/Mac/YourGame.app/Contents/MacOS`
-		* libsteam_api.dylib (from `/redistributable_bin/osx32` - the [dynamic library](https://developer.apple.com/library/content/documentation/DeveloperTools/Conceptual/DynamicLibraries/000-Introduction/Introduction.html#//apple_ref/doc/uid/TP40001908-SW1) (*.dylib) has both 32 and 64 bit support)
-	[/PARAM]
-[/OBJECT]
-[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+        [REGION:note]
+            Some of the 64 bit libraries can be found in your Steam client directory (at the time of this writing, Valve didn't include all of the libraries in the SDK).
+        [/REGION]
+		
+        `/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/Win64`
+        * steam_api64.dll
+        * steamclient64.dll
+        * tier0_s64.dll
+        * vstdlib_s64.dll
+
+        `/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/Win32`
+        * steam_api.dll
+        * steamclient.dll
+        * tier0_s.dll
+        * vstdlib_s.dll
+		
 		[REGION:note]
-			Linux users must link and ship the following file alongside the executable.
+		Both `tier0_s.dll` and `vstdlib_s.dll` files are only required when explicitly linking against them using the "-force_steamclient_link" flag for dedicated server builds. Client builds never need these files.
 		[/REGION]
-		* libsteam_api.so
-	[/PARAM]
+    [/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+		In UE4 version 4.22 and earlier:
+        `/YourUnrealEnginePath/EngineOrGameFolder/Binaries/Mac/YourGame.app/Contents/MacOS`
+        * `libsteam_api.dylib` (from `/redistributable_bin/osx32` - the [dynamic library](https://developer.apple.com/library/content/documentation/DeveloperTools/Conceptual/DynamicLibraries/000-Introduction/Introduction.html#//apple_ref/doc/uid/TP40001908-SW1) (*.dylib) has both 32 and 64 bit support)
+		
+		Starting in UE4 version 4.23, Mac users must also run the following command:
+		`/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/Mac/`
+		* `libsteam_api.dylib`, generated by running the following command:
+		
+			install_name_tool -id @rpath/libsteam_api.dylib /redistributable_bin/osx32/libsteam_api.dylib
+    [/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    linux
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+        [REGION:note]
+        Linux users must link and ship the following files alongside the executable.
+        [/REGION]
+		
+		`/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/i686-unknown-linux-gnu/libsteam_api.so`
+		* redistibutable_bin/linux32/libsteam_api.so
+		
+		`/YourUnrealEnginePath/Engine/Binaries/ThirdParty/Steamworks/Steam[Current Version]/x86_64-unknown-linux-gnu/libsteam_api.so`
+		* redistibutable_bin/linux64/libsteam_api.so
+    [/PARAM]
 [/OBJECT]
 
 ## Steam App ID
 
-All games using the Steam Online Subsystem must have a valid application ID because the Steamworks API won't initialize if it doesn't know your application's Steam App ID. 
-Before initializing Steam, UE4 will generate `steam_appid.txt` (during a graceful shutdown of the engine, UE4 deletes this file). 
-It's important to note that `steam_appid.txt` must be located in the same directory as your application's executable file because Steam will look for the text file in the current working directory. 
-Additionally, the file should not be included in any Steam images. 
+All games using the Steam Online Subsystem must have a valid application ID because the Steamworks API won't initialize if it doesn't know your application's Steam App ID.
+Before initializing Steam, UE4 will generate `steam_appid.txt` (during a graceful shutdown of the engine, UE4 deletes this file).
+It's important to note that `steam_appid.txt` must be located in the same directory as your application's executable file because Steam will look for the text file in the current working directory.
+Additionally, the file should not be included in any Steam images.
 
 If you open `steam_appid.txt`, you'll see a **SteamDevAppId** entry, which is a field that hints your application's ID to Steam.
-This makes it unnecessary to launch the game using the Steam client (although it must be running). 
+This makes it unnecessary to launch the game using the Steam client (although it must be running).
 
 [REGION:tip]
 If you want to test your application, you can use a **SteamDevAppId** of `480`, which is a test App ID that is shared by all developers.
 Although you can test most Steam Interfaces with the aforementioned test App ID, your application will need a Steam App ID before being shipped.
 [/REGION]
 
-###Shipping Builds
+### Shipping Builds
 
-In shipping builds, the engine will check to make sure that the logged-in user is properly subscribed to the game and will shutdown if the engine's test returns false (this is one way to help secure the game). Additionally, using Steam DRM (see the Steamworks SDK) should further protect the game from being tampered with.
+In shipping builds, the engine will check to make sure that the logged-in user is properly subscribed to the game and will shutdown if the engine's test returns false (this is one way to help secure the game).
+Additionally, using Steam DRM (see the Steamworks SDK) should further protect the game from being tampered with.
 
 ## Configuring your Application's Settings
 
@@ -150,68 +167,134 @@ In shipping builds, the engine will check to make sure that the logged-in user i
 If you're creating a new project using the **Unreal Project Browser**, **Online Subsystem** settings shouldn't exist in `DefaultEngine.ini`; however, if you're modifying one of our Sample Projects, the **Online Subsystem** settings might already exist.
 [/REGION]
 
-Now that you've set up the Steamworks SDK for your application (along with setting up the Steam App ID), you're ready to configure your application's settings to use Online Subsystem Steam. 
+Now that you've set up the Steamworks SDK for your application (along with setting up the Steam App ID), you're ready to configure your application's settings to use Online Subsystem Steam.
 
-###Steps
+### Steps
 
-1.	Getting started, open you application's `DefaultEngine.ini` file.
+1.  Open your project's `DefaultEngine.ini` file and add the following setting:
+    
+        [/Script/Engine.GameEngine]
+        +NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
+    
+    **NetDriverDefinitions** describes the net drivers available to UE4 with the following properties being defined:
+    * **DefName** is the unique name of this net driver definition.
+    * **DriverClassName** is the class name of the primary net driver.
+    * **DriverClassNameFallBack** is the class name of the fallback net driver if the primary net driver class fails to initialize.
 
-1.	Add the following setting:
+1.    To tell UE4 to use Online Subsystem Steam, add the following setting:
 
-	    [/Script/Engine.GameEngine]
-		+NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
+        [OnlineSubsystem]
+        DefaultPlatformService=Steam
 
-	**NetDriverDefinitions** describes the net drivers available to UE4 with the following properties being defined:
-	* **DefName** is the unique name of this net driver definition.
-	* **DriverClassName** is the class name of the primary net driver.
-	* **DriverClassNameFallBack** is the class name of the fallback net driver if the primary net driver class fails to initialize.
+1.    Now that you've told UE4 that you want your application to use the Steam Online Subsystem, you'll need to configure the **OnlineSubsystemSteam** module by adding the following settings:
 
-1.	To tell UE4 to use Online Subsystem Steam, add the following setting:
+        [OnlineSubsystemSteam]
+        bEnabled=true
+        SteamDevAppId=480
 
-		[OnlineSubsystem]
-		DefaultPlatformService=Steam
+1.    Finally, you'll want to specify the Steam class to the Net Driver for the application's connections: 
 
-1.	Now that you've told UE4 that you want your application to use the Steam Online Subsystem, you'll need to configure the **OnlineSubsystemSteam** module by adding the following settings:
-
-		[OnlineSubsystemSteam]
-		bEnabled=true
-		SteamDevAppId=480
-
-1.	Finally, you'll want to specify the Steam class to the Net Driver for the application's connections: 
-
-		[/Script/OnlineSubsystemSteam.SteamNetDriver]
-		NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
+        [/Script/OnlineSubsystemSteam.SteamNetDriver]
+        NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
 
 ###End Result
 
 At the end of this brief guide, your application's `DefaultEngine.ini` file should look like the following setting block. If you want to see how other projects set up and use the Online Subsystem, please refer to our library of Sample Projects.
 
 #### Finished Settings
-    
+
 **DefaultEngine.ini**
 
-	[/Script/Engine.GameEngine]
-	+NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
-			
-	[OnlineSubsystem]
-	DefaultPlatformService=Steam
+    [/Script/Engine.GameEngine]
+    +NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
+
+    [OnlineSubsystem]
+    DefaultPlatformService=Steam
+
+    [OnlineSubsystemSteam]
+    bEnabled=true
+    SteamDevAppId=480
+
+    [/Script/OnlineSubsystemSteam.SteamNetDriver]
+    NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
+
+## Servers and Lobbies
+
+Steam supports peer-to-peer matchmaking (for both dedicated and listen server games) through lobbies, and provides the ability to run dedicated servers. Lobbies give users the ability to learn information about game servers, and are usually used to convey game-specific information about listen server games, such as what map or mode is being played. Users can also see the number of other users connected to a lobby without joining, through the matchmaking system. Dedicated servers are separate binaries from lobbies, as their task is to run and host the server-side portion of the game. For more information about Steam's features, implementation, or developer interface, please refer to the [partner documentation](https://partner.steamgames.com/doc/home) on the Steam site.
+
+### Lobby Details
+
+Lobbies are essentially chat rooms that exist as peer-to-peer instances on Steam's backend service. Unlike servers, no information about a lobby is available before joining, such as ping times or current number of other users. They are typically used for listen servers. To set up a lobby, set the `bUsesPresence` flag to `true`.
+
+### Server Details
+
+To set up a server instance, make sure the `bUsesPresence` flag is `false`. Dedicated servers require the following three macros, and all three must match the values from Steam's dedicated server tool page, found on the partner panel. The Steam network will not show the dedicated server if these values do not match:
+
+[REGION:simpletable]
+| UE4 Macro | Steam Name | Description |
+| --- | --- | --- |
+| `UE4_PROJECT_STEAMPRODUCTNAME` | `STEAMPRODUCTNAME` | Valve recommends that this be a build ID, although it is typical to use your AppID (as a string), or a light product name without any extra symbols. [REGION:note]Changing this field, such as when updating your build ID, will cause Steam to ignore all active servers with the old name for matchmaking purposes, and will require you to modify your tool information in the partner backend.[/REGION] |
+| `UE4_PROJECT_STEAMGAMEDIR` | `STEAMGAMEDIR` | This is usually the folder name of your game, and cannot contain spaces or symbols. It is not required for this to be a folder name at all, as long as it is a name without spaces or symbols. |
+| `UE4_PROJECT_STEAMGAMEDESC` | `STEAMGAMEDESC` | Valve recommends that you set this as the full name of your product. |
+| `UE4_PROJECT_STEAMSHIPPINGID` | N/A | To launch outside of Steam in UE4 version 4.22 and higher, this macro must contain the product's Steam ID. |
+[/REGION]
+
+[REGION:note]
+In UE4 version 4.22, you can specify these values in your game's `Target.cs` file. You can also write the Steam ID into a build by defining `UE4_PROJECT_STEAMSHIPPINGID`. All build configurations require this, and you cannot launch outside of Steam without it.
+
+For versions before 4.22, edit `OnlineSessionAsyncServerSteam.cpp` so that it contains your game's values.
+[/REGION]
+
+For information about distributing a dedicated server build, please refer to [Steam's partner documentation](https://partner.steamgames.com/doc/sdk/uploading/distributing_gs).
+
+
+## Steam Online Authentication
+
+Steam features a special authentication system that controls access to some of the unique server-related functionality the platform offers, such as advertising servers and player counts, retrieving and reacting to ban lists (both publisher and Valve Anti-Cheat bans), and performing license checks.
+Unreal Engine 4 provides the ability to interface with this functionality through the `FOnlineAuthSteam` class.
+Once your application is set up to use the Steam Online Subsystem, it is ready to take advantage of these features by enabling the **SteamAuth** packet handler component.
+
+### Enabling SteamAuth
+
+To enable SteamAuth, add the following to "DefaultEngine.ini", or to the platform-specific engine .ini file (such as "WindowsEngine.ini", "LinuxEngine.ini", or "MacEngine.ini") for each platform that is intended to support Steam Online Authentication:
+
+    [PacketHandlerComponents]
+    +Components=OnlineSubsystemSteam.SteamAuthComponentModuleInterface
+
+Once enabled, the Steam Online Subsystem interface (SteamOSS) function, `GetAuthInterface`, can be used to access SteamAuth functionality.
+
+[REGION:note]
+Enabling SteamAuth will cause the application to run authentication procedures (against the Steam service) for all joining players. By default, SteamAuth will kick players who fail this check will be kicked, but this behavior can be overridden.
+[/REGION]
+
+### SteamAuth Delegates
+
+There are two Delegates in the SteamAuth system that developers may wish to override: `OverrideFailureDelegate` and `OnAuthenticationResultDelegate`.
+
+`OverrideFailureDelegate` is called with the `FUniqueNetId` of a player when that player attempts to join the server without Steam authentication, or when that player loses Steam authentication during the session.
+By default, SteamAuth will kick the player from the game.
+However, if this Delegate is bound, the default behavior will be suspended, so developers will have to kick the player manually if that behavior is still desired.
+
+`OnAuthenticationResultDelegate` handles responses from Steam's authentication service, providing the `FUniqueNetId` of the player and a boolean indicating whether the authentication attempt succeeded.
+
+## Additional Notes
+
+### Using IPNetDriver
+
+By default, UE4's Steam OSS uses Steam Networking as the default socket subsystem. In 4.22, you can disable this behavior by setting `OnlineSubsystemSteam.bUseSteamNetworking` to `false`. To do this, add the following to "DefaultEngine.ini", or to the platform-specific engine .ini file (such as "WindowsEngine.ini", "LinuxEngine.ini", or "MacEngine.ini") for each platform you support:
 
 	[OnlineSubsystemSteam]
-	bEnabled=true
-	SteamDevAppId=480
-
-	[/Script/OnlineSubsystemSteam.SteamNetDriver]
-	NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
-    
-##Additional Notes
+	bUseSteamNetworking=false
+	
+In versions prior to 4.22, modify `SocketSubsystemSteam.cpp` where the `RegisterSocketSubsystem` function is called and change the `bool` parameter to be `false`. You will also need to change the netdrivers in your project configuration files.
 
 ### Module Setup
 
-Make sure to include the Unreal Engine Steam module as part of your project (see [](Programming/UnrealBuildSystem/TargetFiles) for additional help).
-Specifically, adding the following line in the construtor for `mygame.build.cs` should be enough to make sure that the Steam module is built along with your game. 
+Make sure to include the Unreal Engine Steam module as part of your project (see [UnrealBuildTool Target Files](Programming/BuildTools/UnrealBuildTool/TargetFiles) for additional help).
+Specifically, adding the following line in the construtor for `mygame.build.cs` should be enough to make sure that the Steam module is built along with your game.
 
     DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
 
 ### Steam Overlay on Mac
 
-Steam Overlay on Mac requires game to be launched using Steam client. For this, you first need to add the game to your library using "Add a Non-Steam Game to My Library" option from Steam's Games menu.
+The Steam Overlay on Mac requires launching your games through the Steam client. For this, you first need to add the game to your library using "Add a Non-Steam Game to My Library" option from Steam's "Games" menu.

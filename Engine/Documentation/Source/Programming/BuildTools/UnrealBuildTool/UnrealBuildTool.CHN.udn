@@ -1,0 +1,24 @@
+﻿INTSourceChangelist:6142688
+Availability: Public
+Title: 虚幻编译工具
+Description: 虚幻编译工具（UBT）负责管理通过各种编译配置来编译UE4源代码的过程。
+Parent: Programming/BuildTools
+Order: 0
+type: landing
+
+
+ **虚幻编译工具（UBT）** 是一个自定义工具，负责管理通过各种编译配置来编译虚幻引擎4（UE4）源代码的过程。请阅读 `BuildConfiguration.cs`，了解诸多用户可配置的编译选项。
+
+## 模块化架构
+
+UE4被划分为多个模块。每个模块都拥有控制其编译方式的.build.cs文件，包括定义模块相依性的选项、额外的库、包含路径等。这些模块被默认编译为DLL文件，并通过单一可执行文件进行加载。可选择在BuildConfiguration.cs文件中编译一个单块可执行文件。
+
+需要注意的是，开发环境任意项目文件（如Visual Studio的 `.sln` 或 `.vcproj` 文件）的编译进程均为独立进行。这些文件有助于进行编辑，因此提供了一个工具来动态生成它们（基于项目目录树内容）。使用保存在`[Root UE4]`目录下的 `GenerateProject.bat` 文件即可运行此工具。
+
+[REGION:note]
+ **注意：** 不时运行 `GenerateProject.bat` 将使代码编辑器与硬盘上正在添加（删除）的文件保持同步更新。
+[/REGION]
+
+## 主题
+
+[DIR(output:"topic" parent:"Programming/BuildTools/UnrealBuildTool" end:"1")]

@@ -6,8 +6,6 @@
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkCurveRemapSettings.generated.h" 
 
-// TODO Move Structs and Enum to Game Mode?
-
 class UPoseAsset;
 
 USTRUCT(BlueprintType)

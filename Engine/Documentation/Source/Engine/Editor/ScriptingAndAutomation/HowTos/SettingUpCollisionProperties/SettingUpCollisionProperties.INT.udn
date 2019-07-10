@@ -6,7 +6,7 @@ Version: 4.20
 type:how-to
 SkillLevel:Intermediate
 Parent: Engine/Editor/ScriptingAndAutomation/HowTos
-Order: 2
+Order: 1
 Tags: Blueprints
 Tags: Physics
 Tags: Collision

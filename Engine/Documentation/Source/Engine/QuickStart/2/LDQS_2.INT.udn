@@ -1,4 +1,4 @@
-﻿Availability: Public
+﻿Availability: docs
 Title:2 - Navigating the Viewport
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:Learn the different methods you can use to navigate the different viewports inside Unreal Engine 4. 
@@ -8,6 +8,8 @@ Related:Engine/UI/LevelEditor/Viewports
 Related:Engine/Levels
 Related:Engine/UI/LevelEditor/Viewports/ViewportControls
 checkpoint: editorqs
+
+## Marking as docs as the pages have been combined. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

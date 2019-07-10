@@ -304,6 +304,12 @@ private:
 	/** @return true if the passed in AssetData can be used to set the property based on the list of custom classes */
 	bool CanSetBasedOnCustomClasses( const FAssetData& InAssetData ) const;
 
+	/** @return true if the passed in AssetData can be used to set the property based on the game specific asset reference filter */
+	bool CanSetBasedOnAssetReferenceFilter( const FAssetData& InAssetData, FText* OutOptionalFailureReason = nullptr ) const;
+
+	/** @return Returns the property handle most relevant */
+	TSharedPtr<class IPropertyHandle> GetMostSpecificPropertyHandle() const;
+
 	/**
 	 * Gets the class of the supplied property for use within the PropertyEditorAsset widget. Asserts if the property
 	 * is not supported by the widget.

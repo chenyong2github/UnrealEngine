@@ -32,6 +32,10 @@ public class ApplicationCore : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, 
 				"XInput"
 				);
+            if (Target.bCompileWithAccessibilitySupport && !Target.bIsBuildingConsoleApplication)
+            {
+                PublicAdditionalLibraries.Add("uiautomationcore.lib");
+            }
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
@@ -57,12 +61,7 @@ public class ApplicationCore : ModuleRules
 				PrivateIncludePathModuleNames.Add("ImageWrapper");
 			}
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5 && Target.Architecture == "-win32")
-		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenAL");
-		}
-		else if (Target.Platform == UnrealTargetPlatform.HTML5 && Target.Architecture != "-win32")
+		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 			PrivateDependencyModuleNames.Add("HTML5JS");

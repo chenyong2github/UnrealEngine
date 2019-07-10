@@ -1,0 +1,14 @@
+Availability: Public
+Title: Experimental Features
+Description: Features that are still in flux and not quite ready for use in shipping projects.
+Type:landing
+Parent: %ROOT%
+Order: 110
+topic-icon:experimental_icon.png
+
+
+[REGION:warning]
+Features are sometimes made available in an Experimental state so you can try them out, provide feedback, and see what we are planning. **We do not recommend shipping projects with Experimental features**. Please keep in mind that we do not guarantee backward compatibility for assets created at the experimental stage, the APIs for these features are subject to change, and we may remove entire Experimental features or specific functionality at our discretion.
+[/REGION]
+
+[DIR(output:"topic" tags:"Experimental" tags:"Landing Page" end:"1")]

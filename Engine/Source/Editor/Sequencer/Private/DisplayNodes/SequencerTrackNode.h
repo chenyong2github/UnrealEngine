@@ -130,6 +130,7 @@ public:
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent() override;
 	virtual void GetChildKeyAreaNodesRecursively(TArray<TSharedRef<FSequencerSectionKeyAreaNode>>& OutNodes) const override;
 	virtual FText GetDisplayName() const override;
+	virtual FLinearColor GetDisplayNameColor() const override;
 	virtual float GetNodeHeight() const override;
 	virtual FNodePadding GetNodePadding() const override;
 	virtual ESequencerNode::Type GetType() const override;
@@ -152,6 +153,8 @@ private:
 	FReply CreateNewSection() const;
 
 	void ClearChildren();
+
+	void RemoveStaleChildren();
 
 private:
 

@@ -1,25 +1,21 @@
-﻿INTSourceChangelist:3716175
+﻿INTSourceChangelist:6407987
 Availability: Public
-Crumbs: %ROOT%
 Title: 使用距离场的粒子碰撞模式
 Description: 如何启用粒子系统，将距离场用于场景碰撞。
 Type: how-to
-SkillLevel:Intermediate
-Version:4.18
-Parent:Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo
-Related:Engine/Rendering/LightingAndShadows/MeshDistanceFields
-Related:Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference
-Related:Engine/Rendering/ParticleSystems
-Order:1
-Tags:Lighting
-Topic-image:DFParticleCollision_Topic.png
-Social-image:ParticleDF_Topic.png
+Version: 4.18
+Parent: Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo
+Tags: Lighting
+topic-image: DFParticleCollision_Topic.png
+social-image: ParticleDF_Topic.png
+SkillLevel: Intermediate
+Order: 1
+Related: Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference
+Related: Engine/Rendering/LightingAndShadows/MeshDistanceFields
+Related: Engine/Rendering/ParticleSystems
 
 
-[REGION:fullwidth raw]
 ![](DFParticleBanner.png)
-[/REGION]
-
 
 依赖场景深度时，在游戏中的粒子碰撞会受到限制，仅可以将摄像机视图中可用的粒子用于碰撞。对于寿命较长的粒子或在大面积区域中使用的粒子，在某些角度，场景深度不是特别精确。如果在项目中使用[网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields)，粒子的 **碰撞模式** 就可以使用整个场景进行碰撞，而非场景深度。
 
@@ -33,36 +29,33 @@ Social-image:ParticleDF_Topic.png
 该功能要求您在 **项目设置（Project Settings）** 的 **渲染（Rendering）** 部分中启用 **生成网格体距离场（Generate Mesh Distance Fields）**。请在此处查看如何[启用网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields#EnablingDistanceFields) （如果尚未启用）。
 [/REGION]
 
-1. 在 **内容浏览器（Content Browser）** 中，找到并打开任意 **粒子系统（Particle System）**，如果不存在立即可用的粒子系统则新建一个。 
-  ​
-  ![](ContentBrowser.png)(w:350)
+1.  在 **内容浏览器（Content Browser）** 中，找到并打开任意 **粒子系统（Particle System）**，如果不存在立即可用的粒子系统则新建一个。 
 
-  [REGION:tip]
-  粒子 **P_GPU_particles_collision2** 资源（位于[内容示例](Resources/ContentExamples)中）是只需要少量设置即可以使用的良好示例，可将其作为起点。
-  [/REGION]	
+    ![](ContentBrowser.png)(w:350)
 
-2. 双击已选择的粒子系统以打开[级联粒子编辑器（Cascade Particle Editor）](Engine/Rendering/ParticleSystems)。
-  ​
-  ![](Cascade.png)(w:900)
+    [REGION:tip]
+    粒子 **P_GPU_particles_collision2** 资源（位于[内容示例](Resources/ContentExamples)中）是只需要少量设置即可以使用的良好示例，可将其作为起点。
+    [/REGION]
 
-  ​
-3. 级联粒子编辑器（Cascade Particle Editor）打开后，在空白的地方右键单击，然后从模块列表中选择 **类型数据（Type Data）** > **新建GPU Sprite（New GPU Sprites）**。
-  ​
-  [REGION:raw]
-  ![](AddGPUmodule.png)(w:700)
-  [/REGION]
+1.  双击已选择的粒子系统以打开[级联粒子编辑器（Cascade Particle Editor）](Engine/Rendering/ParticleSystems)。
 
-4. 再次在空白的地方右键单击，然后从模块列表中选择 **碰撞（Collision）** > **碰撞（场景深度））（Collision(Scene Depth)）**。 
+    ![](Cascade.png)(w:900)
 
-  [REGION:raw]
-  ![](AddCollisionModule.png)(w:700)
-  [/REGION]
+1.  级联粒子编辑器（Cascade Particle Editor）打开后，在空白的地方右键单击，然后从模块列表中选择 **类型数据（Type Data）** > **新建GPU Sprite（New GPU Sprites）**。
 
-5. 选择 **碰撞（场景深度）（Collision (Scene Depth)）** 模块。导航至 **细节（Details）** 面板，然后从 **碰撞模式（Collision Mode）** 旁边的下拉菜单中选择 **距离场（Distance Field）**。
-  ​
-  ![](DetailsPanelCollisionMode.png)(w:350)
-  ​
+    [REGION:raw]
+    ![](AddGPUmodule.png)(w:700)
+    [/REGION]
 
+1.  再次在空白的地方右键单击，然后从模块列表中选择 **碰撞（Collision）** > **碰撞（场景深度））（Collision(Scene Depth)）**。 
+
+    [REGION:raw]
+    ![](AddCollisionModule.png)(w:700)
+    [/REGION]
+
+1.  选择 **碰撞（场景深度）（Collision (Scene Depth)）** 模块。导航至 **细节（Details）** 面板，然后从 **碰撞模式（Collision Mode）** 旁边的下拉菜单中选择 **距离场（Distance Field）**。
+
+    ![](DetailsPanelCollisionMode.png)(w:350)
 
 ## 最终结果
 
@@ -71,42 +64,29 @@ Social-image:ParticleDF_Topic.png
 
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:videoid]
-	r_G5AX1uUZ8
-	[/PARAMLITERAL]
-	[PARAMLITERAL:width]
-	75
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	73.5
-	[/PARAMLITERAL]
-	[PARAMLITERAL:units]
-	%
-	[/PARAMLITERAL]
-	[PARAMLITERAL:type]
-	simple
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ r_G5AX1uUZ8
+ [/PARAMLITERAL]
 [/OBJECT]
 
-在本示例中，粒子碰撞使用的是 **距离场（Distance Fields）** 碰撞。这些粒子始终会被具有生成的距离场的任何表面阻挡，无论其在摄像机视图中是否可见。随着摄像机移动到树下，树顶表面的粒子碰撞（在摄像机视图范围之外）仍将会影响这些粒子。 
+在本示例中，粒子碰撞使用的是 **距离场（Distance Fields）** 碰撞。这些粒子始终会被具有生成的距离场的任何表面阻挡，无论其在摄像机视图中是否可见。随着摄像机移动到树下，树顶表面的粒子碰撞（在摄像机视图范围之外）仍将会影响这些粒子。
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:videoid]
-	v3-BijTrwSQ
-	[/PARAMLITERAL]
-	[PARAMLITERAL:width]
-	75
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	73.5
-	[/PARAMLITERAL]
-	[PARAMLITERAL:units]
-	%
-	[/PARAMLITERAL]
-	[PARAMLITERAL:type]
-	simple
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ v3-BijTrwSQ
+ [/PARAMLITERAL]
 [/OBJECT]
 
 当 **场景深度（Scene Depth）** 碰撞用于粒子碰撞时，由于使用场景深度缓冲，粒子仅会被摄像机视图中可见的内容阻挡。因此，当摄像机移动到树下时，树顶表面的粒子碰撞（在摄像机视图范围之外）就不会继续影响这些粒子，从而使它们在摄像机前掉落在地上，即使它们本该被阻挡。
-

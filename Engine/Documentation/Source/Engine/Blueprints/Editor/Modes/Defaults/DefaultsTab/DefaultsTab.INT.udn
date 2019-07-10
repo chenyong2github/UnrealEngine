@@ -1,7 +1,7 @@
 Availability:Public
 Title: Blueprint Editor Defaults Tab
-Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor, Engine/Blueprints/Editor/Modes
-Description:An overview of the Blueprints Defaults tab
+Parent:Engine/Blueprints/Editor
+Description:An overview of the Blueprints Class Defaults tab
 version: 4.9
 tags:Blueprints
 
@@ -63,7 +63,7 @@ The properties defined inside the Class Defaults can also be accessed at runtime
 	* This may be limited in the future to exclude engine-specific class types. 
 * Adding a **GetClassDefaults** node to an Actor-based Blueprint class (for example) will currently default the input class pin's value to match the current Blueprint Class type when placed.
 
-	 
+
 
 
 

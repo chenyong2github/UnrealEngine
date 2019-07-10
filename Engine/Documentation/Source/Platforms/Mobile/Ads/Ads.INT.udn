@@ -27,8 +27,8 @@ In-game advertisements enable you to display ads to players of your game on mobi
 See the appropriate platform-specific page below for details on configuring in-game advertisements for each platform:
 
 [REGION:buttonlist]
-* [](Platforms/Android/Ads)
-* [](Platforms/iOS/Ads)
+* [](Platforms/Mobile/Android/Ads)
+* [](Platforms/Mobile/iOS/Ads)
 [/REGION]
 
 [EXCERPT:Usage]

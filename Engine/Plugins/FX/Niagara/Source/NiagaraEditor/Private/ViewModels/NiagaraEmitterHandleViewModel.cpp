@@ -162,24 +162,6 @@ FText FNiagaraEmitterHandleViewModel::GetNameText() const
 	return FText();
 }
 
-FText FNiagaraEmitterHandleViewModel::GetSourceNameText() const
-{
-	if (EmitterHandle && EmitterHandle->GetSource())
-	{
-		return FText::FromString(EmitterHandle->GetSource()->GetName()); 
-	}
-	return FText();
-}
-
-FText FNiagaraEmitterHandleViewModel::GetSourcePathNameText() const
-{
-	if (EmitterHandle && EmitterHandle->GetSource())
-	{
-		return FText::FromString(EmitterHandle->GetSource()->GetPathName());
-	}
-	return FText();
-}
-
 void FNiagaraEmitterHandleViewModel::OnNameTextComitted(const FText& InText, ETextCommit::Type CommitInfo)
 {
 	SetName(*InText.ToString());
@@ -238,19 +220,6 @@ FNiagaraEmitterHandle* FNiagaraEmitterHandleViewModel::GetEmitterHandle()
 TSharedPtr<FNiagaraEmitterViewModel> FNiagaraEmitterHandleViewModel::GetEmitterViewModel()
 {
 	return EmitterViewModel;
-}
-
-
-void FNiagaraEmitterHandleViewModel::OpenSourceEmitter()
-{
-	if (EmitterHandle)
-	{
-		UNiagaraEmitter* EmitterSource = const_cast<UNiagaraEmitter*>(EmitterHandle->GetSource());
-		if (EmitterSource)
-		{
-			FAssetEditorManager::Get().OpenEditorForAsset(EmitterSource);
-		}
-	}
 }
 
 FNiagaraEmitterHandleViewModel::FOnPropertyChanged& FNiagaraEmitterHandleViewModel::OnPropertyChanged()

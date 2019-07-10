@@ -1,0 +1,12 @@
+﻿INTSourceChangelist:6411555
+Availability: Public
+Title: 비히클
+Description: Vehicles
+Parent: Engine/Physics
+Type: landing
+hero-image: Vehicles_Banner.png
+
+
+언리얼 엔진 4 프로젝트에서 비히클(탈것)을 직접 만들고 싶은 분들을 위한 도움말입니다. UE4 의 전체 제작 프로세스로 시작해서, 외부 모델링 프로그램에서 비히클을 구성한 뒤, 비히클의 질량 중심을 조정하고 디버깅하는 등의 작업을 안내합니다.
+
+[DIR(output:"topic" parent:"Engine/Physics/Vehicles")]

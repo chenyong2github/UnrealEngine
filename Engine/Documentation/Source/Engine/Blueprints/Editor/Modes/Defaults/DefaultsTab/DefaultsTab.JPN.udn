@@ -1,7 +1,7 @@
 ﻿INTSourceChangelist:3244370
 Availability:Public
 Title:ブループリント エディタのデフォルト タブ
-Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor, Engine/Blueprints/Editor/Modes
+Parent:Engine/Blueprints/Editor
 Description::ブループリント デフォルト タブの概要ab
 version:4.9
 tags:Blueprints
@@ -64,7 +64,7 @@ Class Defaults 内に定義されたプロパティは、**Get Class Defaults** 
 	* エンジン固有のクラスタイプを除外するために、今後は制限される可能性があります。 
 * **GetClassDefaults** ノードを Actor ベースの Blueprint クラス (例えば) に追加すると、現時点では入力クラスのピンの値は配置された時に現在の Blueprint クラス タイプと一致します。
 
-	 
+
 
 
 

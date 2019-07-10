@@ -863,7 +863,7 @@ FORCEINLINE typename TEnableIf<TModels<CGetTypeHashable, CPPSTRUCT>::Value, uint
 /**
  * Reflection data for a standalone structure declared in a header or as a user defined struct
  */
-class UScriptStruct : public UStruct
+class COREUOBJECT_VTABLE UScriptStruct : public UStruct
 {
 public:
 	/** Interface to template to manage dynamic access to C++ struct construction and destruction **/
@@ -2775,7 +2775,10 @@ public:
 	 * @param InFunctionName	The name of the function to test
 	 * @return					True if the specified function exists and is implemented in a blueprint generated class
 	 */
-	virtual bool IsFunctionImplementedInBlueprint(FName InFunctionName) const;
+	virtual bool IsFunctionImplementedInScript(FName InFunctionName) const;
+
+	UE_DEPRECATED(4.23, "IsFunctionImplementedInBlueprint is deprecated, call IsFunctionImplementedInScript instead")
+	bool IsFunctionImplementedInBlueprint(FName InFunctionName) const { return IsFunctionImplementedInScript(InFunctionName); }
 
 	/**
 	 * Checks if the property exists on this class or a parent class.

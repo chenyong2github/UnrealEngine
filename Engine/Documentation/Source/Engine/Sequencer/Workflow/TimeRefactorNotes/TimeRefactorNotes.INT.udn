@@ -42,9 +42,18 @@ Bear in mind that Sequencer still supports evaluation of keyframe data using a f
 
 All timing information for a given sequence now resides on the **Display Rate** drop-down on the Sequencer toolbar where the tooltip describes the current sequence’s tick resolution:
 
-![image alt text](image_0.png)(w:624 h:314 convert:false)
+[REGION:lightbox]
+[![image alt text](image_0.png)(w:624 h:314 convert:false)](image_0.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
 
-This menu allows you to change the sequence’s Display Frame Rate, Time Display mode, and Evaluation Type. Common Display Rates that are compatible with the current sequence’s tick resolution are shown at the top level. It is possible to display using a frame rate that is incompatible with the tick resolution, but this is not advisable.
+This menu allows you to change the sequence’s Display Frame Rate, Time Display mode, and Evaluation Type. Common Display Rates that are compatible with the current sequence’s tick resolution are shown at the top level. 
+
+[REGION:warning]
+It is possible to display using a frame rate that is incompatible with the tick resolution, but this is not advisable.
+[/REGION]
 
 Once created, it is possible to change the tick resolution of the sequence but bear in mind that converting a sequence to a tick resolution that is not a multiple of its current resolution may result in section boundaries and keys being rounded to the new resolution which can be found in the **Advanced Options **menu.
 

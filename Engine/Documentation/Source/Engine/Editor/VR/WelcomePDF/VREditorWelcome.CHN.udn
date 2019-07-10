@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2911160
+﻿INTSourceChangelist:3108692
 Title:虚幻引擎 VR 编辑器
 Description:使用编辑器工具集的完整功能，结合专为 VR 设计的互动，在虚拟现实环境中构建世界场景。
 Crumbs:
@@ -20,6 +20,7 @@ skilllevel:intermediate
 
 尽情体验，请在 [虚幻引擎论坛](https://forums.unrealengine.com/showthread.php?99776-Unreal-Editor-in-VR-Official-megathread) 上多多反馈、分享灵感。
 
+(#EditinginVR)
 ## 在 VR 中进行编辑
 
 [INCLUDE:Engine/Editor/VR#main]
@@ -60,6 +61,7 @@ skilllevel:intermediate
 
 [INCLUDE:Engine/Editor/VR//EditorUI#main(offset:1)]
 
+(#Configuration)
 ## 配置
 
 VR 编辑器的多个方面均可使用 **控制台** 进行配置，以便满足在 VR 中工作的个人偏好。在控制台中输入 `vred` 可查看可用选项（如在位置之间瞬移的速度）的列表。可对这些选项进行调整，获得最佳体验。

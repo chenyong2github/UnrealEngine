@@ -85,12 +85,10 @@ void SAndroidLicenseDialog::Construct(const FArguments& InArgs)
 			{
 				int32 LicenseLength = LicenseEnd - LicenseStart;
 
-				int32 ConvertedLength = FUTF8ToTCHAR_Convert::ConvertedLength((ANSICHAR*)LicenseStart, LicenseLength);
-				TCHAR* ConvertedBuffer = (TCHAR*)FMemory::Malloc((ConvertedLength + 1) * sizeof(TCHAR));
-				FUTF8ToTCHAR_Convert::Convert(ConvertedBuffer, ConvertedLength, (ANSICHAR*)LicenseStart, LicenseLength);
-				ConvertedBuffer[ConvertedLength] = 0;
-				LicenseText = FString(ConvertedBuffer);
-				FMemory::Free(ConvertedBuffer);
+				{
+					const FUTF8ToTCHAR ConvertedString(reinterpret_cast<ANSICHAR*>(LicenseStart), LicenseLength);
+					LicenseText = FString(ConvertedString.Length(), ConvertedString.Get());
+				}
 
 				FSHA1::HashBuffer(LicenseStart, LicenseLength, LicenseHash.Hash);
 

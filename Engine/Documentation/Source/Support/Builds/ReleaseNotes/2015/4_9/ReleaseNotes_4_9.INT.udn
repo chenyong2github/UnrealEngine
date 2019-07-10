@@ -2,8 +2,7 @@ Availability:Public
 Title:Unreal Engine 4.9 Release Notes
 Crumbs:%ROOT%, Engine
 Description:
-order:9
-
+Order: 35
 This release brings hundreds of updates for Unreal Engine 4, including 129 improvements submitted by the community of Unreal Engine developers on GitHub! Thanks to all of these contributors to Unreal Engine 4.9:
 
 Andrew Zhilin (zoon), Artem V. Navrotskiy (bozaro), Artyom Sovetnikov, Ben Rog-Wilhelm(zorbathut), Ben Wiklund (bwiklund), Black Phoenix (PheonixBlack), Błażej Szczygieł (zaps166), Brad Grantham (bradgrantham), Brent Scriver (FineRedMist), Cengiz Terzibas (yaakuro), chipgw, Christian Radich (yoyohobo665), Christopher P. Yarger (cpyarger), Clay Chai (chaiyuntian), Cliff Jolly (ExpiredPopsicle), Dave Newson (dave-newson), Derek van Vliet (derekvanvliet), Dorgon Chang (dorgonman), ewirch, Felix Laurie von Massenbach (erbridge), Gabriel Hare (GabrielHare), gatools, Hakki Ozturk (ozturkhakki), HueyPark, JaredTherriault, Jason Spangler (Stormwind99), Javier Osset (Xaklse), Jeff Rous (JeffRous), JohnAlcatraz, Kitatus Studios (KitatusStudios), Konstantin Nosov (gildor2), korypostma, Lee Berger (MrCrowbar), Maarten Scholl (maartenscholl), Marat Radchenko (slonopotamus), marynate, Matthias Huerbe (MatzeOGH), Maxim (maxpestun), Michael Allar (Allar), Michael3DX, MiniTurtle, Moritz Wundke (moritz-wundke), Nako Sung (nakosung), Nari Demura (demuyan), Nastenko Michael (deM-on), Nathan Stocks (CleanCut), Niels Huylebroeck (red15), Pablo Zurita (pzurita), Patrick Flanagan (valtrain), Pedja Ljubomirovic (3dluvr), Philipp Smorygo (fsmorygo), Pierdek, Piotr Bąk (Pierdek), Quadtree, Rajko Stojadinovik (rajkosto), Rama (EverNewJoy), Rem (rveilleux), rlefebvre, Robert Khalikov (nbjk667), Russ Treadwell (trdwll), Salamanderrake, Sebastian Witkowski (witkowski-seb), Sébastien Rombauts (Srombauts), Simon Taylor (simontaylor81), Stephen Whittle (stephenwhittle), szyszq, TK-Master, Tobias Mollstam (mollstam), Tomasz Sterna (smokku), user37337, Victor Xie (FTPiano), Vladimir Ivanov (ArCorvus), Will Stahl (merlin91), yamashi, Zhi Kang Shao (zkshao)
@@ -638,7 +637,7 @@ The feature is unfinished. Shadow casting, normal map support, and indirect ligh
 
 * [Gear VR Global Menu](https://docs.unrealengine.com/latest/INT/Platforms/GearVR/GlobalMenu/index.html)
 
-* [Reducing APK Package Size](https://docs.unrealengine.com/latest/INT/Platforms/Android/ReducingAPKSize/index.html)
+* [Reducing APK Package Size](https://docs.unrealengine.com/latest/INT/Platforms/Mobile/Android/ReducingAPKSize/index.html)
 
 * [Mobile Content Scale Factor](https://docs.unrealengine.com/latest/INT/Platforms/Mobile/Performance/index.html#mobilecontentscalefactor)
 

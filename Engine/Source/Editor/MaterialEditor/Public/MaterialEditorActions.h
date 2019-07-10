@@ -86,6 +86,9 @@ public:
 	
 	/** Toggles live updating of the preview material. */
 	TSharedPtr< FUICommandInfo > ToggleLivePreview;
+	
+	/** Fade nodes which are not connected to the selected nodes. */
+	TSharedPtr< FUICommandInfo > ToggleHideUnrelatedNodes;
 
 	/** Toggles real time expression nodes */
 	TSharedPtr< FUICommandInfo > ToggleRealtimeExpressions;

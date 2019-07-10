@@ -296,8 +296,6 @@ void FMetalCommandEncoder::Reset(void)
 		RenderPassDesc = nil;
 	}
 	
-	static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-	if (bDeferredStoreActions)
 	{
 		for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 		{
@@ -741,8 +739,7 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 			if (RenderCommandEncoder)
 			{
 				check(!bSupportsFences || EncoderFence || !CommandList.IsImmediate());
-				static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-				if (bDeferredStoreActions && ParallelRenderCommandEncoder.GetPtr() == nil)
+				if (ParallelRenderCommandEncoder.GetPtr() == nil)
 				{
 					check(RenderPassDesc);
 					
@@ -848,8 +845,6 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 
 			if (ParallelRenderCommandEncoder && IsImmediate())
 			{
-				static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-				if (bDeferredStoreActions)
 				{
 					check(RenderPassDesc);
 					
@@ -1367,9 +1362,6 @@ void FMetalCommandEncoder::SetRenderPassDescriptor(mtlpp::RenderPassDescriptor R
 	{
 		SafeReleaseMetalRenderPassDescriptor(RenderPassDesc);
 		RenderPassDesc = RenderPass;
-		
-		static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-		if (bDeferredStoreActions)
 		{
 			for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 			{
@@ -1398,8 +1390,6 @@ void FMetalCommandEncoder::SetRenderPassDescriptor(mtlpp::RenderPassDescriptor R
 void FMetalCommandEncoder::SetRenderPassStoreActions(mtlpp::StoreAction const* const ColorStore, mtlpp::StoreAction const DepthStore, mtlpp::StoreAction const StencilStore)
 {
 	check(RenderPassDesc);
-	static bool bDeferredStoreActions = CommandList.GetCommandQueue().SupportsFeature(EMetalFeaturesDeferredStoreActions);
-	if (bDeferredStoreActions)
 	{
 		for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 		{
@@ -1711,6 +1701,18 @@ void FMetalCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FM
 	if (Texture)
 	{
 		FMetalCommandBufferDebugHelpers::TrackResource(CommandBuffer.GetPtr(), Texture.GetPtr());
+		uint8 Swizzle[4] = {0,0,0,0};
+		assert(sizeof(Swizzle) == sizeof(uint32));
+		if (Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+#if PLATFORM_MAC
+		 ||	Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+#endif
+		)
+		{
+			Swizzle[0] = Swizzle[1] = Swizzle[2] = Swizzle[3] = 1;
+		}
+		FMemory::Memcpy(&ShaderBuffers[uint32(FunctionType)].Lengths[(ML_MaxBuffers*2)+(index*2)], Swizzle, sizeof(Swizzle));
+		ShaderBuffers[uint32(FunctionType)].Lengths[(ML_MaxBuffers*2)+(index*2)+1] = 0;
 		TextureBindingHistory.Add(ns::AutoReleased<FMetalTexture>(Texture));
 	}
 }

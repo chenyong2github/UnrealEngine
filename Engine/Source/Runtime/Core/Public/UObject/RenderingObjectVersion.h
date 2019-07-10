@@ -79,6 +79,14 @@ struct CORE_API FRenderingObjectVersion
 
 		GeometryCacheFastDecoder,
 
+		LightmapHasShadowmapData,
+
+		// Removed old gaussian and bokeh DOF methods from deferred shading renderer.
+		DiaphragmDOFOnlyForDeferredShadingRenderer,
+
+		// Lightmaps replace ULightMapVirtualTexture (non-UTexture derived class) with ULightMapVirtualTexture2D (derived from UTexture)
+		VirtualTexturedLightmapsV2,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

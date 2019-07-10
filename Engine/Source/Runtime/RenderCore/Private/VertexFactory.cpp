@@ -178,40 +178,72 @@ FVertexFactoryType* FindVertexFactoryType(FName TypeName)
 	return NULL;
 }
 
-void FVertexFactory::GetStreams(ERHIFeatureLevel::Type InFeatureLevel, FVertexInputStreamArray& OutVertexStreams) const
+void FVertexFactory::GetStreams(ERHIFeatureLevel::Type InFeatureLevel, EVertexInputStreamType VertexStreamType, FVertexInputStreamArray& OutVertexStreams) const
 {
-	bool bSupportsVertexFetch = SupportsManualVertexFetch(InFeatureLevel);
 	check(IsInitialized());
-
-	for (int32 StreamIndex = 0;StreamIndex < Streams.Num();StreamIndex++)
+	if (VertexStreamType == EVertexInputStreamType::Default)
 	{
-		const FVertexStream& Stream = Streams[StreamIndex];
 
-		if (!(EnumHasAnyFlags(EVertexStreamUsage::ManualFetch, Stream.VertexStreamUsage) && bSupportsVertexFetch))
+		bool bSupportsVertexFetch = SupportsManualVertexFetch(InFeatureLevel);
+
+		for (int32 StreamIndex = 0;StreamIndex < Streams.Num();StreamIndex++)
 		{
-			if (!Stream.VertexBuffer)
+			const FVertexStream& Stream = Streams[StreamIndex];
+
+			if (!(EnumHasAnyFlags(EVertexStreamUsage::ManualFetch, Stream.VertexStreamUsage) && bSupportsVertexFetch))
 			{
-				OutVertexStreams.Add(FVertexInputStream(StreamIndex, 0, nullptr));
-			}
-			else
-			{
-				if (EnumHasAnyFlags(EVertexStreamUsage::Overridden, Stream.VertexStreamUsage) && !Stream.VertexBuffer->IsInitialized())
+				if (!Stream.VertexBuffer)
 				{
 					OutVertexStreams.Add(FVertexInputStream(StreamIndex, 0, nullptr));
 				}
 				else
 				{
-					checkf(Stream.VertexBuffer->IsInitialized(), TEXT("Vertex buffer was not initialized! Stream %u, Stride %u, Name %s"), StreamIndex, Stream.Stride, *Stream.VertexBuffer->GetFriendlyName());
-					OutVertexStreams.Add(FVertexInputStream(StreamIndex, Stream.Offset, Stream.VertexBuffer->VertexBufferRHI));
+					if (EnumHasAnyFlags(EVertexStreamUsage::Overridden, Stream.VertexStreamUsage) && !Stream.VertexBuffer->IsInitialized())
+					{
+						OutVertexStreams.Add(FVertexInputStream(StreamIndex, 0, nullptr));
+					}
+					else
+					{
+						checkf(Stream.VertexBuffer->IsInitialized(), TEXT("Vertex buffer was not initialized! Stream %u, Stride %u, Name %s"), StreamIndex, Stream.Stride, *Stream.VertexBuffer->GetFriendlyName());
+						OutVertexStreams.Add(FVertexInputStream(StreamIndex, Stream.Offset, Stream.VertexBuffer->VertexBufferRHI));
+					}
 				}
 			}
 		}
 	}
+	else if (VertexStreamType == EVertexInputStreamType::PositionOnly)
+	{
+		// Set the predefined vertex streams.
+		for (int32 StreamIndex = 0; StreamIndex < PositionStream.Num(); StreamIndex++)
+		{
+			const FVertexStream& Stream = PositionStream[StreamIndex];
+			check(Stream.VertexBuffer->IsInitialized());
+			OutVertexStreams.Add(FVertexInputStream(StreamIndex, Stream.Offset, Stream.VertexBuffer->VertexBufferRHI));
+		}
+	}
+	else if (VertexStreamType == EVertexInputStreamType::PositionAndNormalOnly)
+	{
+		// Set the predefined vertex streams.
+		for (int32 StreamIndex = 0; StreamIndex < PositionAndNormalStream.Num(); StreamIndex++)
+		{
+			const FVertexStream& Stream = PositionAndNormalStream[StreamIndex];
+			check(Stream.VertexBuffer->IsInitialized());
+			OutVertexStreams.Add(FVertexInputStream(StreamIndex, Stream.Offset, Stream.VertexBuffer->VertexBufferRHI));
+		}
+	}
+	else
+	{
+		// NOT_IMPLEMENTED
+	}
 }
 
-void FVertexFactory::OffsetInstanceStreams(uint32 InstanceOffset, bool bOperateOnPositionOnly, FVertexInputStreamArray& VertexStreams) const
+void FVertexFactory::OffsetInstanceStreams(uint32 InstanceOffset, EVertexInputStreamType VertexStreamType, FVertexInputStreamArray& VertexStreams) const
 {
-	const TArrayView<const FVertexStream>& StreamArray = bOperateOnPositionOnly ? MakeArrayView(PositionStream) : MakeArrayView(Streams);
+	const TArrayView<const FVertexStream>& StreamArray = 
+		  VertexStreamType == EVertexInputStreamType::PositionOnly ?			MakeArrayView(PositionStream) : 
+		( VertexStreamType == EVertexInputStreamType::PositionAndNormalOnly ?	MakeArrayView(PositionAndNormalStream) : 
+		/*VertexStreamType == EVertexInputStreamType::Default*/					MakeArrayView(Streams));
+
 	for (int32 StreamIndex = 0; StreamIndex < StreamArray.Num(); StreamIndex++)
 	{
 		const FVertexStream& Stream = StreamArray[StreamIndex];
@@ -229,27 +261,17 @@ void FVertexFactory::OffsetInstanceStreams(uint32 InstanceOffset, bool bOperateO
 	}
 }
 
-void FVertexFactory::GetPositionOnlyStream(FVertexInputStreamArray& OutVertexStreams) const
-{
-	check(IsInitialized());
-	// Set the predefined vertex streams.
-	for(int32 StreamIndex = 0;StreamIndex < PositionStream.Num();StreamIndex++)
-	{
-		const FVertexStream& Stream = PositionStream[StreamIndex];
-		check(Stream.VertexBuffer->IsInitialized());
-		OutVertexStreams.Add(FVertexInputStream(StreamIndex, Stream.Offset, Stream.VertexBuffer->VertexBufferRHI));
-	}
-}
-
 void FVertexFactory::ReleaseRHI()
 {
 	Declaration.SafeRelease();
 	PositionDeclaration.SafeRelease();
+	PositionAndNormalDeclaration.SafeRelease();
 	Streams.Empty();
 	PositionStream.Empty();
+	PositionAndNormalStream.Empty();
 }
 
-FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponent& Component,uint8 AttributeIndex)
+FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex)
 {
 	FVertexStream VertexStream;
 	VertexStream.VertexBuffer = Component.VertexBuffer;
@@ -260,7 +282,7 @@ FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponen
 	return FVertexElement(Streams.AddUnique(VertexStream),Component.Offset,Component.Type,AttributeIndex,VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
 }
 
-FVertexElement FVertexFactory::AccessPositionStreamComponent(const FVertexStreamComponent& Component,uint8 AttributeIndex)
+FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponent& Component,uint8 AttributeIndex, EVertexInputStreamType InputStreamType)
 {
 	FVertexStream VertexStream;
 	VertexStream.VertexBuffer = Component.VertexBuffer;
@@ -268,18 +290,30 @@ FVertexElement FVertexFactory::AccessPositionStreamComponent(const FVertexStream
 	VertexStream.Offset = Component.StreamOffset;
 	VertexStream.VertexStreamUsage = Component.VertexStreamUsage;
 
-	return FVertexElement(PositionStream.AddUnique(VertexStream),Component.Offset,Component.Type,AttributeIndex,VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
+	if (InputStreamType == EVertexInputStreamType::PositionOnly)
+		return FVertexElement(PositionStream.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
+	else if (InputStreamType == EVertexInputStreamType::PositionAndNormalOnly)
+		return FVertexElement(PositionAndNormalStream.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
+	else /* (InputStreamType == EVertexInputStreamType::Default) */
+		return FVertexElement(Streams.AddUnique(VertexStream), Component.Offset, Component.Type, AttributeIndex, VertexStream.Stride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, VertexStream.VertexStreamUsage));
 }
 
-void FVertexFactory::InitDeclaration(FVertexDeclarationElementList& Elements)
+void FVertexFactory::InitDeclaration(const FVertexDeclarationElementList& Elements, EVertexInputStreamType StreamType)
 {
-	// Create the vertex declaration for rendering the factory normally.
-	Declaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
-}
-
-void FVertexFactory::InitPositionDeclaration(const FVertexDeclarationElementList& Elements)
-{
-	PositionDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
+	
+	if (StreamType == EVertexInputStreamType::PositionOnly)
+	{
+		PositionDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
+	}
+	else if (StreamType == EVertexInputStreamType::PositionAndNormalOnly)
+	{
+		PositionAndNormalDeclaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
+	}
+	else // (StreamType == EVertexInputStreamType::Default)
+	{
+		// Create the vertex declaration for rendering the factory normally.
+		Declaration = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
+	}
 }
 
 FVertexFactoryParameterRef::FVertexFactoryParameterRef(FVertexFactoryType* InVertexFactoryType,const FShaderParameterMap& ParameterMap, EShaderFrequency InShaderFrequency, EShaderPlatform InShaderPlatform)

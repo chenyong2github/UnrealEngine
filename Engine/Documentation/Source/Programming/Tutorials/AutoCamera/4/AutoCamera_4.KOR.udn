@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6061750
+Availability: docs
 Title:4. 직접 해보기!
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/AutoCamera
 Description:추가적으로 살펴볼 아이디어입니다!
@@ -19,7 +19,7 @@ version:4.9
 [/OBJECT]
 [/VAR]
 
-
+## No longer needed as page has been combined.
 
 지금까지 배운 것을 토대로, 다음과 같은 작업을 해 봅시다:
 

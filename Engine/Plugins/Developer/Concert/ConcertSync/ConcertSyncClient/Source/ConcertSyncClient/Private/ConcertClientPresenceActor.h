@@ -28,7 +28,7 @@ public:
 	/** AActor interface */
 	virtual bool IsEditorOnly() const override final
 	{
-		return false;
+		return true;
 	}
 
 #if WITH_EDITOR

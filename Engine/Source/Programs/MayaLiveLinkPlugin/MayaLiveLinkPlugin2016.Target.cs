@@ -1,11 +1,11 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.Collections.Generic;
 
 public abstract class MayaLiveLinkPluginTargetBase : TargetRules
 {
-	public MayaLiveLinkPluginTargetBase(TargetInfo Target) : base(Target)
+	public MayaLiveLinkPluginTargetBase(TargetInfo Target, string LaunchModuleName) : base(Target)
 	{
 		Type = TargetType.Program;
 
@@ -18,14 +18,16 @@ public abstract class MayaLiveLinkPluginTargetBase : TargetRules
 		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;
-        bCompileICU = false;
-        bHasExports = true;
+		bCompileICU = false;
+		bHasExports = true;
 
 		bBuildInSolutionByDefault = false;
 
+		this.LaunchModuleName = LaunchModuleName;
+
 		// Add a post-build step that copies the output to a file with the .mll extension
-		string OutputName = "MayaLiveLinkPlugin";
-		if(Target.Configuration != UnrealTargetConfiguration.Development)
+		string OutputName = LaunchModuleName;
+		if (Target.Configuration != UnrealTargetConfiguration.Development)
 		{
 			OutputName = string.Format("{0}-{1}-{2}", OutputName, Target.Platform, Target.Configuration);
 		}
@@ -35,8 +37,7 @@ public abstract class MayaLiveLinkPluginTargetBase : TargetRules
 
 public class MayaLiveLinkPlugin2016Target : MayaLiveLinkPluginTargetBase
 {
-	public MayaLiveLinkPlugin2016Target(TargetInfo Target) : base(Target)
+	public MayaLiveLinkPlugin2016Target(TargetInfo Target) : base(Target, "MayaLiveLinkPlugin2016")
 	{
-		LaunchModuleName = "MayaLiveLinkPlugin2016";
 	}
 }

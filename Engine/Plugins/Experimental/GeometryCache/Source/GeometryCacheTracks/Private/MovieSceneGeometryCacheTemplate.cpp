@@ -29,6 +29,7 @@ struct FPreAnimatedGeometryCacheTokenProducer : IMovieScenePreAnimatedTokenProdu
 			{
 				UGeometryCacheComponent* Component = CastChecked<UGeometryCacheComponent>(&ObjectToRestore);
 				Component->SetManualTick(bInManualTick);
+				Component->ResetAnimationTime();
 			}
 			bool bInManualTick;
 		};

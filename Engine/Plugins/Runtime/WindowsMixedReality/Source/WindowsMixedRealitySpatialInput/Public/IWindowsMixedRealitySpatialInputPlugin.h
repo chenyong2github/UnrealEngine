@@ -23,6 +23,13 @@ public:
 		const TSharedRef<FGenericApplicationMessageHandler> & InMessageHandler) = 0;
 
 	/**
+	* Returns the Windows Mixed Reality Spatial Input Device associated with this InputDeviceModule.
+	*
+	* @return Shared pointer to the Input Device.
+	*/
+	virtual TSharedPtr<IInputDevice> GetInputDevice() = 0;
+
+	/**
 	* Singleton-like access to this module's interface.  This is just for convenience!
 	* Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
 	*

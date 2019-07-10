@@ -12,16 +12,16 @@ struct CONCERTSYNCCORE_API FTransactionClassFilter
 	GENERATED_BODY()
 
 	/**
-	 * Object class to filter transaction object on.
-	 */
-	UPROPERTY(config, EditAnywhere, Category="Sync Settings")
-	FSoftClassPath ObjectClass;
-
-	/**
-	 *	Optional Outer Class that will allow object only if their one of their outer match this class.
+	 *	Optional Outer Class that will allow object only if one of their outer match this class.
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Sync Settings")
 	FSoftClassPath ObjectOuterClass;
+
+	/**
+	 * Object classes to filter transaction object on.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Sync Settings")
+	TArray<FSoftClassPath> ObjectClasses;
 };
 
 UCLASS(config=Engine)

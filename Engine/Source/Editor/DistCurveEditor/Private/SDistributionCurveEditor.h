@@ -61,8 +61,6 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	/** IDistributionCurveEditor interface */
-	virtual void DrawViewport() override;
-	virtual bool GetNeedsRedraw() override;
 	virtual void RefreshViewport() override;
 	virtual void CurveChanged() override;
 	virtual void SetCurveVisible(const UObject* InCurve, bool bShow) override;

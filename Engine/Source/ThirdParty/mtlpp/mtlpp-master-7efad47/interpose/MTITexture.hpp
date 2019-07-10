@@ -6,6 +6,7 @@
 #include "imp_Texture.hpp"
 #include "MTIObject.hpp"
 #include "MTIResource.hpp"
+#include "MTITrace.hpp"
 
 MTLPP_BEGIN
 
@@ -50,6 +51,16 @@ struct MTITextureTrace : public IMPTable<id<MTLTexture>, MTITextureTrace>, publi
 	INTERPOSE_DECLARATION(Newtextureviewwithpixelformat, id<MTLTexture>, MTLPixelFormat );
 	INTERPOSE_DECLARATION(Newtextureviewwithpixelformattexturetypelevelsslices, id<MTLTexture>, MTLPixelFormat , MTLTextureType , NSRange , NSRange );
 };
+
+struct MTITraceNewTextureDescHandler : public MTITraceCommandHandler
+{
+	MTITraceNewTextureDescHandler();
+	
+	MTLTextureDescriptor* Trace(MTLTextureDescriptor* Desc);
+	
+	virtual void Handle(MTITraceCommand& Header, std::fstream& fs);
+};
+extern MTITraceNewTextureDescHandler GMTITraceNewTextureDescHandler;
 
 MTLPP_END
 

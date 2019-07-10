@@ -32,6 +32,7 @@
 #include "MaterialUtilities.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Templates/UniquePtr.h"
+#include "Materials/MaterialFunctionInstance.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditorUtilities"
 
@@ -687,22 +688,12 @@ void FMaterialEditorUtilities::BuildTextureStreamingData(UMaterialInterface* Upd
 		FScopedSlowTask SlowTask(2.f, (LOCTEXT("MaterialEditorUtilities_UpdatingTextureStreamingData", "Updating Texture Streaming Data")));
 		SlowTask.MakeDialog(true);
 
-		TSet<UMaterialInterface*> Materials;
-		Materials.Add(UpdatedMaterial);
-
 		// Clear the build data.
 		const TArray<FMaterialTextureInfo> EmptyTextureStreamingData;
+		UpdatedMaterial->SetTextureStreamingData(EmptyTextureStreamingData);
 
-		// Here we also update the parents as we just want to save the delta between the hierarchy.
-		// Since the instance may only override partially the parent params, we try to find what the child has overridden.
-		UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(UpdatedMaterial);
-		while (MaterialInstance)
-		{
-			// Clear the data in case the build is canceled.
-			MaterialInstance->SetTextureStreamingData(EmptyTextureStreamingData);
-			Materials.Add(MaterialInstance);
-			MaterialInstance = Cast<UMaterialInstance>(MaterialInstance->Parent);
-		};
+		TSet<UMaterialInterface*> Materials;
+		Materials.Add(UpdatedMaterial);
 
 		// Here we need a full rebuild since the shader changed. Although don't wait for previous shaders to fasten the process.
 		if (CompileDebugViewModeShaders(DVSM_OutputMaterialTextureScales, QualityLevel, FeatureLevel, true, false, Materials, &SlowTask))
@@ -715,6 +706,72 @@ void FMaterialEditorUtilities::BuildTextureStreamingData(UMaterialInterface* Upd
 			ExportErrors.OutputToLog();
 
 			CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
+		}
+	}
+}
+
+
+void FMaterialEditorUtilities::OnOpenMaterial(FAssetData InMaterial)
+{
+	UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(InMaterial.GetAsset());
+	OpenSelectedParentEditor(MaterialInterface);
+}
+
+void FMaterialEditorUtilities::OnOpenFunction(FAssetData InFunction)
+{
+	UMaterialFunctionInterface* MaterialFunctionInterface = Cast<UMaterialFunctionInterface>(InFunction.GetAsset());
+	OpenSelectedParentEditor(MaterialFunctionInterface);
+}
+
+void FMaterialEditorUtilities::OnShowMaterialInContentBrowser(FAssetData InMaterial)
+{
+	TArray<UObject*> SyncedObject;
+	SyncedObject.Add(InMaterial.GetAsset());
+	GEditor->SyncBrowserToObjects(SyncedObject);
+}
+
+void FMaterialEditorUtilities::OnShowFunctionInContentBrowser(FAssetData InFunction)
+{
+	TArray<UObject*> SyncedObject;
+	SyncedObject.Add(InFunction.GetAsset());
+	GEditor->SyncBrowserToObjects(SyncedObject);
+}
+
+void FMaterialEditorUtilities::OpenSelectedParentEditor(UMaterialInterface* InMaterialInterface)
+{
+	// See if its a material or material instance constant. 
+	if (ensure(InMaterialInterface))
+	{
+		if (InMaterialInterface->IsA(UMaterial::StaticClass()))
+		{
+			// Show material editor
+			UMaterial* Material = Cast<UMaterial>(InMaterialInterface);
+			FAssetEditorManager::Get().OpenEditorForAsset(Material);
+		}
+		else if (InMaterialInterface->IsA(UMaterialInstance::StaticClass()))
+		{
+			// Show material instance editor
+			UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(InMaterialInterface);
+			FAssetEditorManager::Get().OpenEditorForAsset(MaterialInstance);
+		}
+	}
+}
+
+void FMaterialEditorUtilities::OpenSelectedParentEditor(UMaterialFunctionInterface* InMaterialFunction)
+{
+	// See if its a material or material instance constant.  
+	if (ensure(InMaterialFunction) )
+	{
+		if (InMaterialFunction->IsA(UMaterialFunctionInstance::StaticClass()))
+		{
+			// Show function instance editor
+			UMaterialFunctionInstance* FunctionInstance = Cast<UMaterialFunctionInstance>(InMaterialFunction);
+			FAssetEditorManager::Get().OpenEditorForAsset(FunctionInstance);
+		}
+		else
+		{
+			// Show function editor
+			FAssetEditorManager::Get().OpenEditorForAsset(InMaterialFunction);
 		}
 	}
 }

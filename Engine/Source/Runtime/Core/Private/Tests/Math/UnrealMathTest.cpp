@@ -325,7 +325,10 @@ void TestVectorMatrixMultiply( void* Result, const void* Matrix1, const void* Ma
 VectorRegister TestVectorTransformVector(const VectorRegister&  VecP,  const void* MatrixM )
 {
 	typedef float Float4x4[4][4];
-	union { VectorRegister v; float f[4]; } Tmp, Result;
+	union U { 
+		VectorRegister v; float f[4]; 
+		FORCEINLINE U() : v() {}
+	} Tmp, Result;
 	Tmp.v = VecP;
 	const Float4x4& M = *((const Float4x4*)MatrixM);	
 
@@ -1070,6 +1073,18 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V2 = TestReferenceMod(V0, V1);
 	V3 = VectorMod(V0, V1);
 	LogTest( TEXT("VectorMod negative"), TestVectorsEqual(V2, V3));
+
+	// VectorSign
+	V0 = MakeVectorRegister(2.0f, -2.0f, 0.0f, -3.0f);
+	V2 = MakeVectorRegister(1.0f, -1.0f, 1.0f, -1.0f);
+	V3 = VectorSign(V0);
+	LogTest(TEXT("VectorSign"), TestVectorsEqual(V2, V3));
+
+	// VectorStep
+	V0 = MakeVectorRegister(2.0f, -2.0f, 0.0f, -3.0f);
+	V2 = MakeVectorRegister(1.0f, 0.0f, 1.0f, 0.0f);
+	V3 = VectorStep(V0);
+	LogTest(TEXT("VectorStep"), TestVectorsEqual(V2, V3));
 
 	FMatrix	M0, M1, M2, M3;
 	FVector Eye, LookAt, Up;	

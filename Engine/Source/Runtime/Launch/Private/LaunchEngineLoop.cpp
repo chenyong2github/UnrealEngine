@@ -1215,7 +1215,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	{
 		FString TraceHost;
-		if (FParse::Value(CmdLine, TEXT("tracehost"), TraceHost))
+		if (FParse::Value(CmdLine, TEXT("-tracehost="), TraceHost))
 		{
 			Trace::Connect(*TraceHost);
 		}
@@ -3216,8 +3216,9 @@ bool FEngineLoop::LoadStartupCoreModules()
 
 	SlowTask.EnterProgressFrame(10);
 #if WITH_EDITOR
-		FModuleManager::Get().LoadModuleChecked("UnrealEd");
-		FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
+	FModuleManager::Get().LoadModuleChecked("UnrealEd");
+	FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
+	FModuleManager::Get().LoadModuleChecked("LandscapeEditorUtilities");
 #endif //WITH_EDITOR
 
 	// Load UI modules
@@ -3302,7 +3303,6 @@ bool FEngineLoop::LoadStartupCoreModules()
 		FModuleManager::Get().LoadModule(TEXT("Blutility"));
 	}
 
-	//FModuleManager::Get().LoadModule(TEXT("VirtualTexturingEditor"));
 #endif //(WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 #if WITH_ENGINE
@@ -3690,15 +3690,6 @@ void FEngineLoop::Exit()
 	// Stop the rendering thread.
 	StopRenderingThread();
 
-	// Disable the PSO cache
-	FShaderPipelineCache::Shutdown();
-
-	// Close shader code map, if any
-	FShaderCodeLibrary::Shutdown();
-
-	// Tear down the RHI.
-	RHIExitAndStopRHIThread();
-
 #if !PLATFORM_ANDROID || PLATFORM_LUMIN // UnloadModules doesn't work on Android
 #if WITH_ENGINE
 	// Save the hot reload state
@@ -3714,6 +3705,15 @@ void FEngineLoop::Exit()
 	// order they were loaded in, so that systems can unregister and perform general clean up.
 	FModuleManager::Get().UnloadModulesAtShutdown();
 #endif // !ANDROID
+
+	// Disable the PSO cache
+	FShaderPipelineCache::Shutdown();
+
+	// Close shader code map, if any
+	FShaderCodeLibrary::Shutdown();
+
+	// Tear down the RHI.
+	RHIExitAndStopRHIThread();
 
 	DestroyMoviePlayer();
 

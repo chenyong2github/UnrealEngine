@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6426975
 Availability:Public
 Title:디바이스에서 실행하기
 Crumbs:%ROOT%, Engine, Engine/Deployment
@@ -15,7 +15,7 @@ Version: 4.9
 일반적으로 Windows나 Mac에서는 필요하지 않은데, 데이터 쿠킹 필요 없이 그냥 '플레이' 버튼을 사용하면 되기 때문입니다. 이 글에서는 모바일 플랫폼에서의 실행에 필요한 정보를 주로 
 다루겠습니다.
 
-Android의 경우, 여러가지 옵션이 있습니다. 자세한 정보는 [Android 텍스처 포맷](Platforms\Android\Reference#Android텍스처포맷) 부분을 참고하세요.
+Android의 경우, 여러가지 옵션이 있습니다. 자세한 정보는 [Android 텍스처 포맷](Platforms/Mobile/Android\Reference#Android텍스처포맷) 부분을 참고하세요.
 
 특정 플랫폼의 디바이스가 여럿인 경우, 여기서 선택할 수 있습니다. 플랫폼(과 디바이스)에 클릭하면, 에디터가 맵 쿠킹을 시작해서, 데이터를 디바이스에 설치한 다음, 
 디바이스에서 맵을 실행시킵니다.

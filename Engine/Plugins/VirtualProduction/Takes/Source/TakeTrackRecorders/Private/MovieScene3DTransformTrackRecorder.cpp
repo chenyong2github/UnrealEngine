@@ -11,6 +11,8 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "SequenceRecorderUtils.h"
+
 
 DEFINE_LOG_CATEGORY(TransformSerialization);
 
@@ -111,6 +113,45 @@ void UMovieScene3DTransformTrackRecorder::FinalizeTrackImpl()
  
  	SlowTask.EnterProgressFrame();
  
+	FTransform InvParentAnimationRootTransform = FTransform::Identity;
+	FName SocketName;
+	FName ComponentName;
+	AActor* ActorToRecord = Cast<AActor>(ObjectToRecord.Get());
+	if (ActorToRecord)
+	{
+		AActor* AttachedToActor = SequenceRecorderUtils::GetAttachment(ActorToRecord, SocketName, ComponentName);
+		if (AttachedToActor)
+		{
+			InvParentAnimationRootTransform = OwningTakeRecorderSource->GetRecordedActorAnimationInitialRootTransform(AttachedToActor).Inverse();
+			if (!InvParentAnimationRootTransform.Equals(FTransform::Identity))
+			{
+				if (DefaultTransform.IsSet())
+				{
+					FTransform DT = DefaultTransform.GetValue();
+					DT = DT * InvParentAnimationRootTransform;
+					DefaultTransform = DT;
+					FVector Translation = DT.GetTranslation();
+					FVector EulerRotation = DT.GetRotation().Rotator().Euler();
+					FVector Scale = DT.GetScale3D();
+					TArrayView<FMovieSceneFloatChannel*> FloatChannels = MovieSceneSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+					FloatChannels[0]->SetDefault(Translation.X);
+					FloatChannels[1]->SetDefault(Translation.Y);
+					FloatChannels[2]->SetDefault(Translation.Z);
+					FloatChannels[3]->SetDefault(EulerRotation.X);
+					FloatChannels[4]->SetDefault(EulerRotation.Y);
+					FloatChannels[5]->SetDefault(EulerRotation.Z);
+					FloatChannels[6]->SetDefault(Scale.X);
+					FloatChannels[7]->SetDefault(Scale.Y);
+					FloatChannels[8]->SetDefault(Scale.Z);
+				}
+				if (BufferedTransforms.Times.Num() > 0)
+				{
+					BufferedTransforms.PostMultTransform(InvParentAnimationRootTransform);
+				}
+			}
+		}
+	}
+
  	// Try to 're-wind' rotations that look like axis flips
  	// We need to do this as a post-process because the recorder cant reliably access 'wound' rotations:
  	// - Net quantize may use quaternions.
@@ -242,15 +283,7 @@ void UMovieScene3DTransformTrackRecorder::FinalizeTrackImpl()
 				FloatChannels[7]->SetDefault(FirstTransform.GetScale3D()[1]);
 				FloatChannels[8]->SetDefault(FirstTransform.GetScale3D()[2]);
 
-				// The section can be removed if this is a spawnable since the spawnable template should have the same default values
-				if (!TrackRecorderSettings.bRecordToPossessable && MovieSceneTrack.IsValid())
-				{
-					FString ObjectToRecordName = ObjectToRecord.IsValid() ? ObjectToRecord->GetName() : TEXT("Unnamed_Actor");
-					UE_LOG(LogTakesCore, Log, TEXT("Removed unused track (%s) for (%s)"), *MovieSceneTrack->GetTrackName().ToString(), *ObjectToRecordName);
-
-					MovieSceneTrack->RemoveSection(*MovieSceneSection);
-					MovieScene->RemoveTrack(*MovieSceneTrack);
-				}
+				//no longer remove spawnable transform tracks since they may not match the template
 			}
  		}
  	}
@@ -349,6 +382,7 @@ void UMovieScene3DTransformTrackRecorder::SetUpDefaultTransform()
 	FloatChannels[7]->SetDefault(Scale.Y);
 	FloatChannels[8]->SetDefault(Scale.Z);
 }
+
 bool UMovieScene3DTransformTrackRecorder::ResolveTransformToRecord(FTransform& OutTransform)
 {
  	if(USceneComponent* SceneComponent = Cast<USceneComponent>(ObjectToRecord.Get()))
@@ -415,8 +449,6 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 	UMovieSceneAnimationTrackRecorderSettings* AnimSettings = CastChecked<UMovieSceneAnimationTrackRecorderSettings>(AnimTrackRecorder->GetTrackRecorderSettings());
 	if (AnimSettings->bRemoveRootAnimation)
 	{
-		// Override the interpolation mode to use linear interpolation to avoid foot sliding
-		InterpolationMode = RCIM_Linear;
 		//Get All Animation Keys
 		FBufferedTransformKeys  AnimationKeys;
 
@@ -478,7 +510,6 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 				const FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 				const FFrameNumber StartTime = MovieSceneSection->GetInclusiveStartFrame();
 
-				// we may need to offset the transform here if the animation was not recorded on the root component
 				FTransform InvComponentTransform = AnimTrackRecorder->GetComponentTransform().Inverse();
 
 				const FRawAnimSequenceTrack& RawTrack = AnimSequence->GetRawAnimationData()[RootIndex];
@@ -514,7 +545,12 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 					}
 
 					FFrameNumber AnimationFrame = (AnimSequence->GetTimeAtFrame(KeyIndex) * TickResolution).FloorToFrame();
-					AnimationKeys.Add(InvComponentTransform * Transform * Relative, StartTime + AnimationFrame);
+					FTransform Total = InvComponentTransform * Transform * Relative;
+					AnimationKeys.Add(Total, StartTime + AnimationFrame);
+					if (KeyIndex == 0)
+					{
+						DefaultTransform = Total;
+					}
 				}
 			}
 		}

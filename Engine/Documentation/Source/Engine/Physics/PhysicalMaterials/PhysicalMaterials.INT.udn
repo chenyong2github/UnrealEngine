@@ -1,15 +1,14 @@
 Availability: Public
-Title:Physical Materials
-Crumbs: %ROOT%, Engine, Engine/Physics
-Description:Assets applied to physically simulated primitives directly or via materials used to configure and control physical properties used by the simulation.
+Title: Physical Materials
+Description: Assets applied to physically simulated primitives directly or via materials used to configure and control physical properties used by the simulation.
 Version: 4.9
+Parent: Engine/Physics
 
-[INCLUDE:Shared/Glossary/P/#Glossary_Physical_Material]
+**Physical Materials** are used to define the response of a physical object when interacting dynamically with the world. Physical Materials are fairly easy to use. Creating one will give you a set of default values, identical to the default physical material that is applied to all physics objects. Examples of this would be a character's dead body (ragdoll), a movable crate, and so on.
 
 ## Physical Materials Topics
 
-[REGION:buttonlist]
-* [](Engine/Physics/PhysicalMaterials/HowTo "%Engine/Physics/PhysicalMaterials/HowTo:description%")
-* [](Engine/Physics/PhysicalMaterials/Reference "%Engine/Physics/PhysicalMaterials/Reference:description%")
-[/REGION]
+*   [Physical Material How To Guides](Engine/Physics/PhysicalMaterials/HowTo "Various How To Guides focused on the creation and usage of Physical Materials.")
+    
 
+*   [Physical Materials Reference](Engine/Physics/PhysicalMaterials/Reference "Assets applied to physically simulated primitives directly or via materials used to configure and control physical properties used by the simulation.")

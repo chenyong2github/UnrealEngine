@@ -52,7 +52,7 @@ public:
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	UUniformGridSlot* AddChildToUniformGrid(UWidget* Content);
+	UUniformGridSlot* AddChildToUniformGrid(UWidget* Content, int32 InRow = 0, int32 InColumn = 0);
 
 public:
 

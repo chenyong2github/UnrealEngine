@@ -15,9 +15,9 @@ struct ENGINE_API FDelinquencyNameTimePair
 {
 public:
 
-	FDelinquencyNameTimePair(FName InName, float InTimeSeconds) :
-		Name(InName),
-		TimeSeconds(InTimeSeconds)
+	FDelinquencyNameTimePair(FName InName, float InTimeSeconds)
+		: Name(InName)
+		, TimeSeconds(InTimeSeconds)
 	{
 	}
 
@@ -124,9 +124,9 @@ private:
  */
 struct ENGINE_API FNetAsyncLoadDelinquencyAnalytics
 {
-	FNetAsyncLoadDelinquencyAnalytics() :
-		DelinquentAsyncLoads(0),
-		MaxConcurrentAsyncLoads(0)
+	FNetAsyncLoadDelinquencyAnalytics()
+		: DelinquentAsyncLoads(0)
+		, MaxConcurrentAsyncLoads(0)
 	{
 	}
 
@@ -169,9 +169,9 @@ struct ENGINE_API FNetAsyncLoadDelinquencyAnalytics
  */
 struct ENGINE_API FNetQueuedActorDelinquencyAnalytics
 {
-	FNetQueuedActorDelinquencyAnalytics() :
-		DelinquentQueuedActors(0),
-		MaxConcurrentQueuedActors(0)
+	FNetQueuedActorDelinquencyAnalytics()
+		: DelinquentQueuedActors(0)
+		, MaxConcurrentQueuedActors(0)
 	{
 	}
 
@@ -210,15 +210,17 @@ struct ENGINE_API FNetQueuedActorDelinquencyAnalytics
 /** Struct wrapping Per Net Connection saturation analytics. */
 struct ENGINE_API FNetConnectionSaturationAnalytics
 {
-	FNetConnectionSaturationAnalytics() :
-		NumberOfTrackedFrames(0),
-		NumberOfSaturatedFrames(0),
-		LongestRunOfSaturatedFrames(0),
-		NumberOfReplications(0),
-		NumberOfSaturatedReplications(0),
-		LongestRunOfSaturatedReplications(0),
-		CurrentRunOfSaturatedFrames(0),
-		CurrentRunOfSaturatedReplications(0)
+public:
+
+	FNetConnectionSaturationAnalytics()
+		: NumberOfTrackedFrames(0)
+		, NumberOfSaturatedFrames(0)
+		, LongestRunOfSaturatedFrames(0)
+		, NumberOfReplications(0)
+		, NumberOfSaturatedReplications(0)
+		, LongestRunOfSaturatedReplications(0)
+		, CurrentRunOfSaturatedFrames(0)
+		, CurrentRunOfSaturatedReplications(0)
 	{
 	}
 
@@ -282,4 +284,84 @@ private:
 
 	uint32 CurrentRunOfSaturatedFrames;
 	uint32 CurrentRunOfSaturatedReplications;
+};
+
+/** Struct wrapper Per Net Connection analytics for things like packet loss and jitter. */
+struct ENGINE_API FNetConnectionPacketAnalytics
+{
+public:
+
+	FNetConnectionPacketAnalytics()
+		: bSawPacketLossBurstThisFrame(false)
+		, NumberOfAcksThisFrame(0)
+		, NumberOfNaksThisFrame(0)
+		, NumberOfMissingPacketsThisFrame(0)
+		, NumberOfPacketsThisFrame(0)
+		, CurrentRunOfDroppedOutPackets(0)
+		, LongestRunOfDroppedOutPackets(0)
+		, LongestRunOfDroppedInPackets(0)
+		, NumberOfFramesWithBurstsOfPacketLoss(0)
+		, NumberOfFramesWithNoPackets(0)
+		, NumberOfTrackedFrames(0)
+	{
+	}
+
+	/** Longest number of consecutive dropped incoming packets that was tracked. */
+	const uint32 GetLongestRunOfDroppedInPackets() const
+	{
+		return LongestRunOfDroppedInPackets;
+	}
+
+	/** Longest number of consecutive outgoing packets that was tracked. */
+	const uint32 GetLongestRunOfDroppedOutPackets() const
+	{
+		return LongestRunOfDroppedOutPackets;
+	}
+
+	/** Number of frames where we saw bursts of packet loss. */
+	const uint32 GetNumberOfFramesWithBurstsOfPacketLoss() const
+	{
+		return NumberOfFramesWithBurstsOfPacketLoss;
+	}
+
+	/** The total number of frames where we were not notified of any packets (ACK, NAK, in or out). */
+	const uint32 GetNumberOfFramesWithNoPackets() const
+	{
+		return NumberOfFramesWithNoPackets;
+	}
+
+	/** Total number of frames that have been tracked. */
+	const uint64 GetNumberOfTrackedFrames() const
+	{
+		return NumberOfTrackedFrames;
+	}
+
+	/** Resets the state of tracking. */
+	void Reset();
+
+private:
+
+	friend class UNetConnection;
+
+	void TrackAck(int32 PacketId);
+	void TrackNak(int32 PacketId);
+	void TrackInPacket(uint32 InPacketId, uint32 NumberOfMissingPackets);
+
+	void Tick();
+
+	bool bSawPacketLossBurstThisFrame : 1;
+
+	uint32 NumberOfAcksThisFrame;
+	uint32 NumberOfNaksThisFrame;
+
+	uint32 NumberOfMissingPacketsThisFrame;
+	uint32 NumberOfPacketsThisFrame;
+
+	uint32 CurrentRunOfDroppedOutPackets;
+	uint32 LongestRunOfDroppedOutPackets;
+	uint32 LongestRunOfDroppedInPackets;
+
+	uint32 NumberOfFramesWithBurstsOfPacketLoss;
+	uint32 NumberOfFramesWithNoPackets;
+	uint64 NumberOfTrackedFrames;
 };

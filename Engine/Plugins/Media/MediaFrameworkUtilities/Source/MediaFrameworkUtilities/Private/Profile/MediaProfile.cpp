@@ -71,15 +71,13 @@ void UMediaProfile::Apply()
 		return;
 	}
 
+	// Make sure we have the same amount of souces and outputs as the number of proxies.
+	FixNumSourcesAndOutputs();
+
 	{
 		TArray<UProxyMediaSource*> SourceProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaSourceProxy();
-		if (MediaSources.Num() > SourceProxies.Num())
-		{
-			UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The MediaProfile '%s' has too many sources."), *GetName());
-		}
-
-		int32 Index = 0;
-		for (; Index < MediaSources.Num() && Index < SourceProxies.Num(); ++Index)
+		check(SourceProxies.Num() == MediaSources.Num());
+		for (int32 Index = 0; Index < MediaSources.Num(); ++Index)
 		{
 			UProxyMediaSource* Proxy = SourceProxies[Index];
 			if (Proxy)
@@ -87,40 +85,17 @@ void UMediaProfile::Apply()
 				Proxy->SetDynamicMediaSource(MediaSources[Index]);
 			}
 		}
-		// Reset the other proxies
-		for (; Index < SourceProxies.Num(); ++Index)
-		{
-			UProxyMediaSource* Proxy = SourceProxies[Index];
-			if (Proxy)
-			{
-				Proxy->SetDynamicMediaSource(nullptr);
-			}
-		}
 	}
 
 	{
 		TArray<UProxyMediaOutput*> OutputProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaOutputProxy();
-		if (MediaOutputs.Num() > OutputProxies.Num())
-		{
-			UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The MediaProfile '%s' has too many outputs."), *GetName());
-		}
-
-		int32 Index = 0;
-		for (; Index < MediaOutputs.Num() && Index < OutputProxies.Num(); ++Index)
+		check(OutputProxies.Num() == MediaOutputs.Num());
+		for (int32 Index = 0; Index < MediaOutputs.Num(); ++Index)
 		{
 			UProxyMediaOutput* Proxy = OutputProxies[Index];
 			if (Proxy)
 			{
 				Proxy->SetDynamicMediaOutput(MediaOutputs[Index]);
-			}
-		}
-		// Reset the other proxies
-		for (; Index < OutputProxies.Num(); ++Index)
-		{
-			UProxyMediaOutput* Proxy = OutputProxies[Index];
-			if (Proxy)
-			{
-				Proxy->SetDynamicMediaOutput(nullptr);
 			}
 		}
 	}
@@ -168,7 +143,7 @@ void UMediaProfile::Reset()
 	}
 
 	{
-		// Reset the proxies
+		// Reset the source proxies
 		TArray<UProxyMediaSource*> SourceProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaSourceProxy();
 		for (UProxyMediaSource* Proxy : SourceProxies)
 		{
@@ -180,6 +155,7 @@ void UMediaProfile::Reset()
 	}
 
 	{
+		// Reset the output proxies
 		TArray<UProxyMediaOutput*> OutputProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaOutputProxy();
 		for (UProxyMediaOutput* Proxy : OutputProxies)
 		{
@@ -191,6 +167,7 @@ void UMediaProfile::Reset()
 	}
 
 	{
+		// Reset the timecode provider
 		const UTimecodeProvider* CurrentTimecodeProvider = GEngine->GetTimecodeProvider();
 		if (CurrentTimecodeProvider)
 		{
@@ -202,6 +179,7 @@ void UMediaProfile::Reset()
 	}
 
 	{
+		// Reset the engine custom time step
 		const UEngineCustomTimeStep* CurrentCustomTimeStep = GEngine->GetCustomTimeStep();
 		if (CurrentCustomTimeStep)
 		{
@@ -210,5 +188,22 @@ void UMediaProfile::Reset()
 				GEngine->SetCustomTimeStep(GEngine->GetDefaultCustomTimeStep());
 			}
 		}
+	}
+}
+
+void UMediaProfile::FixNumSourcesAndOutputs()
+{
+	const int32 NumSourceProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaSourceProxy().Num();
+	if (MediaSources.Num() != NumSourceProxies)
+	{
+		MediaSources.SetNumZeroed(NumSourceProxies);
+		Modify();
+	}
+
+	const int32 NumOutputProxies = GetDefault<UMediaProfileSettings>()->GetAllMediaOutputProxy().Num();
+	if (MediaOutputs.Num() != NumOutputProxies)
+	{
+		Modify();
+		MediaOutputs.SetNumZeroed(NumOutputProxies);
 	}
 }

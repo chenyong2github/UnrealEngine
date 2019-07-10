@@ -34,6 +34,7 @@
 #include "NiagaraNodeWriteDataSet.h"
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraNodeFunctionCall.h"
+#include "NiagaraParameterMapHistory.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -622,26 +623,37 @@ void FNiagaraEditorUtilities::FixUpNumericPins(const UEdGraphSchema_Niagara* Sch
 	TraverseGraphFromOutputDepthFirst(Schema, Node, FixUpVisitor);
 }
 
-void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs)
+void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const FCompileConstantResolver& ConstantResolver)
 {
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+
 	for (UEdGraphNode* Node : Graph->Nodes)
 	{
 		// if there is a static switch node its value must be set by the caller
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
 		if (SwitchNode)
 		{
-			SwitchNode->IsValueSet = false;
-			for (UEdGraphPin* InputPin : CallInputs)
+			if (SwitchNode->IsSetByCompiler())
 			{
-				if (InputPin->GetFName().IsEqual(SwitchNode->InputParameterName))
+				SwitchNode->SetSwitchValue(ConstantResolver);
+			}
+			else
+			{
+				FEdGraphPinType VarType = Schema->TypeDefinitionToPinType(SwitchNode->GetInputType());
+				SwitchNode->ClearSwitchValue();
+				for (UEdGraphPin* InputPin : CallInputs)
 				{
-					int32 SwitchValue = 0;
-					SwitchNode->IsValueSet = ResolveConstantValue(InputPin, SwitchValue);
-					SwitchNode->SwitchValue = SwitchValue;
-					break;
+					if (InputPin->GetFName().IsEqual(SwitchNode->InputParameterName) && InputPin->PinType == VarType)
+					{
+						int32 SwitchValue = 0;
+						if (ResolveConstantValue(InputPin, SwitchValue))
+						{
+							SwitchNode->SetSwitchValue(SwitchValue);
+							break;
+						}
+					}
 				}
 			}
-			
 		}
 
 		// if there is a function node, it might have delegated some of the static switch values inside its script graph
@@ -657,7 +669,7 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, con
 					continue;
 				}
 				ValuePin->DefaultValue = FString();
-				FName PinName = SwitchValue.PropagatedName.IsEmpty() ? ValuePin->GetFName() : FName(*SwitchValue.PropagatedName);
+				FName PinName = SwitchValue.ToVariable().GetName();
 				for (UEdGraphPin* InputPin : CallInputs)
 				{
 					if (InputPin->GetFName().IsEqual(PinName) && InputPin->PinType == ValuePin->PinType)
@@ -801,7 +813,7 @@ void FNiagaraEditorUtilities::ResolveNumerics(UNiagaraGraph* SourceGraph, bool b
 	}
 }
 
-void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage)
+void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage, const FCompileConstantResolver& ConstantResolver)
 {
 	// Change any numeric inputs or outputs to match the types from the call node.
 	TArray<UNiagaraNodeInput*> InputNodes;
@@ -851,38 +863,9 @@ void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niaga
 			}
 		}
 	}
-
+	
 	FNiagaraEditorUtilities::FixUpNumericPins(Schema, OutputNode);
-	FNiagaraEditorUtilities::SetStaticSwitchConstants(Graph, CallInputs);
-}
-
-const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& FNiagaraEditorUtilities::GetCompiledGraphParameterMapReferences(UNiagaraGraph* Graph)
-{
-	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-
-	// We clone the graph to prevent any destructive changes to the source
-	UNiagaraGraph* NodeGraphDeepCopy = CastChecked<UNiagaraGraph>(FEdGraphUtilities::CloneGraph(Graph, GetTransientPackage(), 0, true));
-	TArray<UNiagaraNodeFunctionCall*> Nodes;
-	NodeGraphDeepCopy->GetNodesOfClass(Nodes);
-	for (int32 i = 0; i < Nodes.Num(); i++)
-	{
-		UNiagaraNodeFunctionCall* Node = Nodes[i];
-		ENiagaraScriptUsage ScriptUsage = Node->GetCalledUsage();
-		UNiagaraGraph* FunctionGraph = Node->GetCalledGraph();
-		if (FunctionGraph)
-		{
-			// We append all function nodes we find to the end of the queue, basically traversing the graph breadth-first
-			TArray<UNiagaraNodeFunctionCall*> SubFunctionNodes;
-			FunctionGraph->GetNodesOfClass(SubFunctionNodes);
-			Nodes.Append(SubFunctionNodes);
-
-			// We set the static switch values based on the function call inputs to prepare the parameter map history generation
-			TArray<UEdGraphPin*> CallInputs;
-			Node->GetInputPins(CallInputs);
-			SetStaticSwitchConstants(FunctionGraph, CallInputs);
-		}
-	}
-	return NodeGraphDeepCopy->GetParameterReferenceMap();
+	FNiagaraEditorUtilities::SetStaticSwitchConstants(Graph, CallInputs, ConstantResolver);
 }
 
 void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets)
@@ -898,22 +881,21 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 	ScriptFilter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Usage), UnqualifiedScriptUsageString);
 
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().GetAssets(ScriptFilter, OutFilteredScriptAssets);
+	TArray<FAssetData> FilteredScriptAssets;
+	AssetRegistryModule.Get().GetAssets(ScriptFilter, FilteredScriptAssets);
 
-	// We remove deprecated scripts separately as FARFilter does not support filtering by non-string tags.
-	if (InFilter.bIncludeDeprecatedScripts == false)
+	for (int i = 0; i < FilteredScriptAssets.Num(); ++i)
 	{
-		bool bScriptIsDeprecated = false;
-		bool bFoundDeprecatedTag = false;
-		for (int i = OutFilteredScriptAssets.Num() - 1; i >= 0; --i)
+		// Check if the script is deprecated
+		if (InFilter.bIncludeDeprecatedScripts == false)
 		{
-			bFoundDeprecatedTag = OutFilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated), bScriptIsDeprecated);
-			// If the asset does not have the metadata tag, check if it is loaded and if so check the bDeprecated value directly
+			bool bScriptIsDeprecated = false;
+			bool bFoundDeprecatedTag = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated), bScriptIsDeprecated);
 			if (bFoundDeprecatedTag == false)
 			{
-				if (OutFilteredScriptAssets[i].IsAssetLoaded())
+				if (FilteredScriptAssets[i].IsAssetLoaded())
 				{
-					UNiagaraScript* Script = static_cast<UNiagaraScript*>(OutFilteredScriptAssets[i].GetAsset());
+					UNiagaraScript* Script = static_cast<UNiagaraScript*>(FilteredScriptAssets[i].GetAsset());
 					if (Script != nullptr)
 					{
 						bScriptIsDeprecated = Script->bDeprecated;
@@ -922,26 +904,48 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 			}
 			if (bScriptIsDeprecated)
 			{
-				OutFilteredScriptAssets.RemoveAt(i);
+				continue;
 			}
 		}
-	}
-	// We remove scripts with non matching usage bitmasks separately as FARFilter does not support filtering by non-string tags.
-	if (InFilter.TargetUsageToMatch.IsSet())
-	{
-		FString BitfieldTagValue;
-		int32 BitfieldValue, TargetBit;
-		for (int i = OutFilteredScriptAssets.Num() - 1; i >= 0; --i)
-		{
-			BitfieldTagValue = OutFilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
-			BitfieldValue = FCString::Atoi(*BitfieldTagValue);
 
+		// Check if usage bitmask matches
+		if (InFilter.TargetUsageToMatch.IsSet())
+		{
+			FString BitfieldTagValue;
+			int32 BitfieldValue, TargetBit;
+			BitfieldTagValue = FilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
+			BitfieldValue = FCString::Atoi(*BitfieldTagValue);
 			TargetBit = (BitfieldValue >> (int32)InFilter.TargetUsageToMatch.GetValue()) & 1;
 			if (TargetBit != 1)
 			{
-				OutFilteredScriptAssets.RemoveAt(i);
+				continue;
 			}
 		}
+
+		// Check if library script
+		if (InFilter.bIncludeNonLibraryScripts == false)
+		{
+			bool bScriptIsLibrary = true;
+			bool bFoundLibScriptTag = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExposeToLibrary), bScriptIsLibrary);
+
+			if (bFoundLibScriptTag == false)
+			{
+				if (FilteredScriptAssets[i].IsAssetLoaded())
+				{
+					UNiagaraScript* Script = static_cast<UNiagaraScript*>(FilteredScriptAssets[i].GetAsset());
+					if (Script != nullptr)
+					{
+						bScriptIsLibrary = Script->bExposeToLibrary;
+					}
+				}
+			}
+			if (bScriptIsLibrary == false)
+			{
+				continue;
+			}
+		}
+
+		OutFilteredScriptAssets.Add(FilteredScriptAssets[i]);
 	}
 }
 
@@ -1068,7 +1072,7 @@ TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSy
 		{
 			for (auto EmitterHandle : ReferencedSystemViewModel.GetSystem().GetEmitterHandles())
 			{
-				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetSource()))
+				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetInstance()->GetParent()))
 				{
 					ReferencingComponents.Add(Component);
 				}

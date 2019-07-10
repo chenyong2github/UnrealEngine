@@ -127,24 +127,24 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 struct FLpvBaseWriteShaderParams
 {
 	FLpvWriteUniformBufferRef		UniformBuffer;
-	FTextureRHIParamRef				LpvBufferSRVs[7];
-	FUnorderedAccessViewRHIParamRef LpvBufferUAVs[7];
+	FRHITexture*				LpvBufferSRVs[7];
+	FRHIUnorderedAccessView* LpvBufferUAVs[7];
 
-	FShaderResourceViewRHIParamRef	VplListHeadBufferSRV;
-	FUnorderedAccessViewRHIParamRef VplListHeadBufferUAV;
-	FShaderResourceViewRHIParamRef	VplListBufferSRV;
-	FUnorderedAccessViewRHIParamRef VplListBufferUAV;
+	FRHIShaderResourceView*	VplListHeadBufferSRV;
+	FRHIUnorderedAccessView* VplListHeadBufferUAV;
+	FRHIShaderResourceView*	VplListBufferSRV;
+	FRHIUnorderedAccessView* VplListBufferUAV;
 
-	FTextureRHIParamRef				GvBufferSRVs[3];
-	FUnorderedAccessViewRHIParamRef GvBufferUAVs[3];
+	FRHITexture*				GvBufferSRVs[3];
+	FRHIUnorderedAccessView* GvBufferUAVs[3];
 
-	FShaderResourceViewRHIParamRef	GvListHeadBufferSRV;
-	FUnorderedAccessViewRHIParamRef GvListHeadBufferUAV;
-	FShaderResourceViewRHIParamRef	GvListBufferSRV;
-	FUnorderedAccessViewRHIParamRef GvListBufferUAV;
+	FRHIShaderResourceView*	GvListHeadBufferSRV;
+	FRHIUnorderedAccessView* GvListHeadBufferUAV;
+	FRHIShaderResourceView*	GvListBufferSRV;
+	FRHIUnorderedAccessView* GvListBufferUAV;
 
-	FUnorderedAccessViewRHIParamRef AOVolumeTextureUAV;
-	FTextureRHIParamRef				AOVolumeTextureSRV;
+	FRHIUnorderedAccessView* AOVolumeTextureUAV;
+	FRHITexture*				AOVolumeTextureSRV;
 };
 
 class FLightPropagationVolume : public FRefCountedObject
@@ -188,13 +188,13 @@ public:
 	FLpvWriteUniformBufferRef GetWriteUniformBuffer() const				{ return LpvWriteUniformBuffer.GetUniformBufferRef(); }
 	FLpvWriteUniformBufferRef GetRsmUniformBuffer() const				{ return RsmRenderUniformBuffer.GetUniformBufferRef(); }
 
-	FTextureRHIParamRef GetLpvBufferSrv( int i )						{ return LpvVolumeTextures[ 1-mWriteBufferIndex ][i]->GetRenderTargetItem().ShaderResourceTexture; }
+	FRHITexture* GetLpvBufferSrv( int i )						{ return LpvVolumeTextures[ 1-mWriteBufferIndex ][i]->GetRenderTargetItem().ShaderResourceTexture; }
 
-	FUnorderedAccessViewRHIParamRef GetVplListBufferUav()				{ return mVplListBuffer->UAV; }
-	FUnorderedAccessViewRHIParamRef GetVplListHeadBufferUav()			{ return mVplListHeadBuffer->UAV; }
+	FRHIUnorderedAccessView* GetVplListBufferUav()				{ return mVplListBuffer->UAV; }
+	FRHIUnorderedAccessView* GetVplListHeadBufferUav()			{ return mVplListHeadBuffer->UAV; }
 
-	FUnorderedAccessViewRHIParamRef GetGvListBufferUav()				{ return GvListBuffer->UAV; }
-	FUnorderedAccessViewRHIParamRef GetGvListHeadBufferUav()			{ return GvListHeadBuffer->UAV; }
+	FRHIUnorderedAccessView* GetGvListBufferUav()				{ return GvListBuffer->UAV; }
+	FRHIUnorderedAccessView* GetGvListHeadBufferUav()			{ return GvListHeadBuffer->UAV; }
 
 	bool IsEnabled() const												{ return bEnabled;	}
 	bool IsDirectionalOcclusionEnabled() const							{ return bDirectionalOcclusionEnabled; }
@@ -209,7 +209,7 @@ public:
 	void GetShadowInfo( const FProjectedShadowInfo& ProjectedShadowInfo, FRsmInfo& RsmInfoOut );
 
 	void ComputeDirectionalOcclusion(FRHICommandListImmediate& RHICmdList, FViewInfo& View);
-	FTextureRHIParamRef GetAOVolumeTextureSRV() { return AOVolumeTexture->GetRenderTargetItem().ShaderResourceTexture; }
+	FRHITexture* GetAOVolumeTextureSRV() { return AOVolumeTexture->GetRenderTargetItem().ShaderResourceTexture; }
 
 	TRefCountPtr<IPooledRenderTarget>	LpvVolumeTextures[2][7];		// double buffered
 	FRWByteAddressBuffer*				mVplListHeadBuffer;

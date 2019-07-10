@@ -1,47 +1,56 @@
-﻿INTSourceChangelist:0
-Availability: Public
+﻿INTSourceChangelist:6412189
+Availability:Public
 Crumbs: 
-Title: Building the PSO Cache
-Description: Going over how to generate the needed stablepc.csv file for PSO caching.
-Type: 
+Title: PSO キャッシュのビルド
+Description: PSO キャッシングに必要な「stablepc.csv」ファイルの生成方法について説明します。
+Type: how-to
+SkillLevel: advanced
 Version: 4.21
-Parent: Engine/Rendering/PSOCaching
+Parent: Engine/Rendering/PSO-Caching
 Order: 
 Topic-image:BuildingPSOCache_Topic_Image.png
+Related: Engine/Rendering/PSOCaching/BuildingUE4ProjectWithPSOCaching
 Tags: 
 
 
-In order for the **Pipeline State Object** (PSO) caching system to function correctly, it has to map the requested **Shaders** to the **Materials** that requested them.  This is accomplished by using the **ShaderPipelineCacheTools** commandlet to build a file that contains this mapping information. In the following How-To, we will take a look at how to use the ShaderPipelineCacheTools commandlet to build the needed files.
+**Pipeline State Object** (PSO) キャッシング システムが正常に機能するためには、マテリアルから要求された **シェーダ** を、要求元の **マテリアル** にマップする必要があります。  **[ShaderPipelineCacheTools]** コマンドレットを使用してマッピング情報を含めたファイルをビルドすることで実現します。 この操作ガイドでは、[ShaderPipelineCacheTools] コマンドレットを使用して必要なファイルをビルドする方法について説明します。
 
   
 
-## Steps
+## 手順
 
-1. First, on the root of your C drive, make a new folder called **PSOCaching**.
-2. Next, open up your UE4 project folder to the following location and look for the **scl.csv** file.  
-   **ProjectName\\Saved\\Cooked\\PlatformYouCookedFor\\ProjectName\\Metadata\\PipelineCaches** 
-   **![](SCL_CSV_File_Location.png "SCL_CSV_File_Location.png")**
-3. Copy the **scl.csv** file that has the name of your project into the **PSOCaching** folder that was created on the root of your C drive.
-4. Next, copy the **rec.upipelinecache** file, that was generated when the project was run on a target device, to the PSOCaching folder that was created on the C drive.  
+1. 最初に、C ドライブのルートに **「PSOCaching」** という名前で新規フォルダを作成します。
+
+2. 次に、UE4 プロジェクト フォルダの以下の場所を開いて、 **「scl.csv」** ファイルを探します。  
+    `ProjectName\Saved\Cooked\PlatfourmYouCookedFor\ProjectName\Metadata\PipelineCaches`  
+    [REGION:lightbox]
+    ![](SCL_CSV_File_Location.png)(w:800px)
+    [/REGION]
+    [REGION:caption]
+    クリックして画像を表示
+    [/REGION]
+
+3. Pipeline Caches フォルダにある両方の **「scl.csv」** ファイルを、C ドライブのルートに作成した **「PSOCaching」** フォルダにコピーします。
+4. 次に、プロジェクトを作成したドライブで起動したときに生成された **「rec.upipelinecache」** ファイルを C ドライブに作成した 「PSOCaching」フォルダにコピーします。  
     ![](Build_PSO_Needed_Files.png "Build_PSO_Needed_Files.png")
-5. To generate the needed files, we will need to use UE4 commandlet function. To use the commandlet function, first open up the **Engine\\Binaries\\Win64** folder and look for the **UE4Editor-Cmd.exe** file.![](Locate_UE4Editor_CMD_EXE.png "Locate_UE4Editor_CMD_EXE.png")
-6. Right-click the **UE4Editor-Cmd.exe** file, and from the displayed list select the **Create Shortcut** option.
-7. Move the newly created shortcut to the **PSOCaching** folder that was created on the root of your C drive.
-8. Right-click **UE4Editor-Cmd.exe - Shortcut**, and from the displayed menu select the **Properties** option.
-9. In the Target input, add the following command line parameters after the end of **UE4Editor-Cmd.exe**.
-    `ActionRPG -run=ShaderPipelineCacheTools expand C:\\PSOCaching\\*.rec.upipelinecache C:\\PSOCaching\\*.scl.csv ActionRPG\_SF\_ANDROID.stablepc.csv`
-10. Click **OK** to close the shortcut properties dialogue box and then double-click UE4Editor-Cmd.exe - Shortcut to run the commandlet.
-11. Once the commandlet is finished running, a new file called **stablepc.csv** is created and placed in the PSOCaching folder that was created on the root of the C drive.  
+5. 必要なファイルを生成するには、UE4 のコマンドレット関数を使用してください。 コマンドレット機能を使用するため、 **「Engine\\Binaries\\Win64」** フォルダを開き、 **「UE4Editor-Cmd.exe」** ファイルを探します。 ![](Locate_UE4Editor_CMD_EXE.png "Locate_UE4Editor_CMD_EXE.png")
+6. **「UE4Editor-Cmd.exe」** ファイルを右クリックして、表示されたリストから **[Create Shortcut]** オプションを選択します。
+7. 新規に作成されたショートカットを C ドライブのルートに作成された **「PSOCaching」** フォルダに移動します。
+8. **「UE4Editor-Cmd.exe - ショートカット」** を右クリックして、表示されたメニューから **[プロパティ]** オプションを選択します。
+9. [リンク先(T:)] の **UE4Editor-Cmd.exe** に続けて以下のコマンドライン パラメータを追加します。
+        ActionRPG -run=ShaderPipelineCacheTools expand C:/PSOCaching/*.rec.upipelinecache C:/PSOCaching/*.scl.csv ActionRPG_GLSL_ES3_1_ANDROID.stablepc.csv
+10. **[OK]** をクリックして、ショートカット プロパティのダイアログ ボックスを閉じ、「UE4Editor-Cmd.exe - Shortcut」をダブルクリックしてコマンドレットを実行します。
+11. コマンドレットの実行が完了すると、C ドライブのルートに作成した「PSOCaching」フォルダに **「stablepc.csv」** という名前のファイルが新規作成されます。  
     ![](Stable_PC_File.png "Stable_PC_File.png")
 
 [REGION:note]
-If you are not able to locate this file try checking in the Engine\\Binaries\\Win64 folder.
+ファイルが見つからなければ、「Engine\\Binaries\\Win64」フォルダを確認してみてください。
 [/REGION]
 
-## End Results
+## まとめ
 
-With the scl.csv and the rec.upipelinecache files now combined together to produce the **stablepc.csv** file, next we need to place the stablepc.csv file in a specific location so that it will be used when your UE4 project is being built.
+「scl.csv」と「rec.upipelinecache」ファイルを結合して **「stablepc.csv」** ファイルを作成したら、UE4 プロジェクトのビルド時に使用する場所へ「stablepc.csv」ファイルを移動する必要があります。
 
 [REGION:note]
-For more information on where the stablepc.csv files should go, check out the [Building A UE4 Project with PSO Caching How - To](Engine/Rendering/PSO-Caching/Building-A-UE4-Project-with-PSO-Caching).
+「stablepc.csv」の配置場所についての詳細については、[](Engine/Rendering/PSOCaching/BuildingUE4ProjectWithPSOCaching) を参照してください。
 [/REGION]

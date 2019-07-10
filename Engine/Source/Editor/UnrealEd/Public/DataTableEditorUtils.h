@@ -73,9 +73,10 @@ struct UNREALED_API FDataTableEditorUtils
 
 	static bool RemoveRow(UDataTable* DataTable, FName Name);
 	static uint8* AddRow(UDataTable* DataTable, FName RowName);
+	static uint8* DuplicateRow(UDataTable* DataTable, FName SourceRowName, FName RowName);
 	static bool RenameRow(UDataTable* DataTable, FName OldName, FName NewName);
 	static bool MoveRow(UDataTable* DataTable, FName RowName, ERowMoveDirection Direction, int32 NumRowsToMoveBy = 1);
-	static bool SelectRow(UDataTable* DataTable, FName RowName);
+	static bool SelectRow(const UDataTable* DataTable, FName RowName);
 	static bool DiffersFromDefault(UDataTable* DataTable, FName RowName);
 	static bool ResetToDefault(UDataTable* DataTable, FName RowName);
 
@@ -91,7 +92,7 @@ struct UNREALED_API FDataTableEditorUtils
 	static void GetPossibleStructAssetData(TArray<FAssetData>& StructAssets);
 	
 	/** Utility function which verifies that the specified struct type is viable for data tables */
-	static bool IsValidTableStruct(UScriptStruct* Struct);
+	static bool IsValidTableStruct(const UScriptStruct* Struct);
 
 	/** Tooltip text for the data table row type */
 	static FText GetRowTypeInfoTooltipText(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr);

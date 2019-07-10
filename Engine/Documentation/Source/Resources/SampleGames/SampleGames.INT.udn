@@ -4,22 +4,13 @@ Crumbs:%ROOT%, Resources
 Description:Full sample games demonstrating the implementation of various genres.
 Version: 4.9
 topic-image:Resources/SampleGames/StrategyGame/StrategyGameTopic.png
+hero-image:SampleGame_Image.png
 
 
 [EXCERPT:SampleGames]
-
-[REGION:fullwidth]
-[![](SampleGame_Image.png)](Resources/SampleGames)
-[/REGION]
-
-
 Example Game Projects are simplified gaming experiences created by Epic's developers and artists to allow you to see an approach to a specific game type. Naturally, these will not represent the _only_ way to create that particular type of game; rather, they show one possible approach.
 
 We intend users to analyze and pick apart these examples taking the parts that are most useful to them.  The documentation over each one is designed to aid in this process and provide some insight into how each game was designed and created. You may feel free to use any of these systems or elements in your own games.
 [/Excerpt:SampleGames]
 
-%Resources/SampleGames/UnrealMatch3:TopicCompact%
-%Resources/SampleGames/PlatformerGame:TopicCompact%
-%Resources/SampleGames/ShooterGame:TopicCompact%
-%Resources/SampleGames/StrategyGame:TopicCompact%
-%Resources/SampleGames/CardGame:TopicCompact%
+[DIR(output:"topic" parent:"Resources/SampleGames" end:"1")]

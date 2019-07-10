@@ -1,0 +1,548 @@
+title:Cinematic Depth of Field Method
+description:The following depth of field methods provides a cinematic look that closely resembles photography and film for desktop and console platforms using the Deferred rendering path.
+crumbs:
+availability:Public
+version:4.20
+parent:Engine/Rendering/PostProcessEffects/DepthOfField
+order:1
+type:overview
+tags:Post Process
+tags:Depth of Field
+topic-image:DOF_Cine_Topic.png
+
+[TOC]
+
+The following depth of field methods provides a cinematic look that closely resembles photography and film for desktop and console platforms using the Deferred Shading renderer and Clustered Forward renderer.
+
+## Cinematic
+
+[REGION:note]
+The new Circle DOF method replaces the "old" method as the default cinematic method and is enabled by default on supported hardware. The "old" method is deprecated for the Deferred Renderer starting with Unreal Engine 4.21.
+[/REGION]
+
+**Cinematic** DOF closely matches real-world cameras, similarly to Circle and Bokeh DOF, you can see circular shaped Bokeh (out-of-focus areas) with sharp [High Dynamic Range](Engine/Rendering/HDRDisplayOutput) (HDR) content. This method uses a procedural Bokeh simulation that provides dynamic resolution stability and alpha channel support while being faster, scalable, and optimized for projects developing on desktop and consoles.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Depth of Field Disabled](DOF_CINE_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Cinematic Depth of Field](DOF_CINE_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+### Focus the Shot's Subject
+
+The key to achieving an aesthetically pleasing depth of field effect is all in how the subject(s) of the shot is focused. There are three core factors that affect setting up Depth of Field for any given shot:
+
+*   Decide on the Lens **Focal Length** to use.
+
+*   Choose an appropriate **Aperture** (f-stop number).
+
+*   Choose a **Distance to your Subject(s)** from the camera.
+
+Let’s break down the elements that make up the camera and scene being captured in order to understand what’s going on when we adjust these settings:
+
+![](CamerElementsDiagram.png "CamerElementsDiagram.png")
+
+1.  Points in the Scene
+    1.  Red: Out of Focus
+    
+    1.  Blue: Perfectly in Focus
+    
+    1.  Green: Marginally in Focus
+
+1.  Focus Distance to Shot's Subject (1. ii)
+
+1.  Camera Lens
+
+1.  Lens Diaphragm (measured in F-Stop)
+
+1.  Lens Focal Length
+
+1.  Filmback / Image Sensor
+
+1.  Final Image Result
+
+[REGION:note]
+Take note that the rendered image on the right is inverted through the camera lens. Red is part of the background and more out of focus, Green is part of the foreground and marginally out of focus.
+[/REGION]
+
+Here we have the multiple points (1) representing objects captured by the camera to a defined **Focus Distance** (2), in this case, the blue subject. The **Aperture** (4) defines how blurred objects in the foreground and background will be that is not in focus, and, finally, the **Focal Length** (5) of the lens controls the field of view, or how zoomed in the image will be.
+
+#### Aperture
+
+The **Aperture**defines how sharp or blurred the foreground and background are based on the diameter of the **Diaphragm**which is controlled in f-stop.
+
+![](CameraElements_ApertureDiagram.png "CameraElements_ApertureDiagram.png")
+
+1.  Camera Lens
+
+1.  Lens Aperture Diaphragm measured in F-stop
+
+This diagram demonstrates the **Diaphragm** (2) blocking light passing through the **Lens** (1). The size of the Aperture (or f-stop number) sets how much light passes through the Lens in turn controlling how much the foreground and background is blurred  based on the Focus Distance of the shot.
+
+There are two elements that make up the Aperture; the **F-stop** number and the **Diaphragm**.
+
+![](CameraApertureParts1.png)
+
+1.  The **Aperture** is the diameter of the opening through which light passes. The Aperture is defined by Focal Length divided by an **F-stop** number.
+
+1.  The **Diaphragm** is the mechanical structure made up of multiple blades used to block light. It opens and closes based on the supplied F-stop.
+
+The lens Aperture is defined by the diameter of the Diaphragm which decreases as the F-stop number increases controlling how shallow or deep the depth of field effect is. See [Focus Distance](#focusdistance) for a diagram showing this effect.
+
+To demonstrate how the Aperture works, drag the slider to change the F-stop number between 1.4, 2.8, and 5.6. Smaller F-stop numbers create a shallower DOF with more background and foreground blur. Larger F-stops increase the depth of DOF with less blur.
+[REGION:note]
+Note that only the F-stop is being changed here, the Focus Distance and Focal Length remain constant at 7m and 75mm, respectively.
+[/REGION]
+
+[EXCERPT:DOFApertureDiagramSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	3
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	DOFApertureDiagram
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    
+
+	[/PARAM]
+    [PARAM:image_list]
+    ![](CameraElement_Aperture_1_4.png)
+![](CameraElement_Aperture_2_8.png)
+![](CameraElement_Aperture_5_6.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:DOFApertureDiagramSlider]
+
+[REGION:caption]
+Drag the slider to change the Aperture F-stop.
+[/REGION]
+[REGION:note]
+Normally when you would adjust the Aperture settings of a real camera, you’d have to also adjust the Exposure settings at the same time to maintain same light intensity received by the filmback/image sensor. However, in UE4, this is not a real camera, so adjusting the F-stop and Diaphragm does not control the light intensity.
+[/REGION]
+
+#### Focal Length
+
+The **Focal Length** is the distance from the center of the lens to the **Filmback** (or image sensor) measured in millimeters (mm).
+
+![](CameraElements_FocalLengthDiagram.png "CameraElements_FocalLengthDiagram.png")
+
+1.  Camera Lens
+
+1.  Focal Length
+
+To demonstrate how this works, drag the slider to change the Lens Focal Length to be between 50mm, 75mm, and 100mm. Notice how effectively it changes the shot's Field of View (FOV); as the focal length increases, the FOV decreases. You can think of the focal length as being similar to zooming in with a camera, except when doing so, the the out-of-focus areas of the shot in the background and foreground are becoming more pronounced. In the example below, you can see this when changing between a focal length of 50mm and 100mm; the shot appears mostly in focus throughout the foreground but when using 100mm focal length, it's easier to see that the background is more out of focus and the foreground has a minimal amount of blur too.
+
+[REGION:note]
+Note that the diagram and example here are only changing the lens Focal Length; the Focus Distance and F-stop remain constant at 7m and f/2.8, respectively.
+[/REGION]
+
+[EXCERPT:FocalLengthImageSeqSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	3
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	FocalLengthImageSeq
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    
+
+	[/PARAM]
+    [PARAM:image_list]
+    ![](CameraElements_FocalLength_50mm.png)
+![](CameraElements_FocalLength_75mm.png)
+![](CameraElements_FocalLength_100mm.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:FocalLengthImageSeqSlider]
+
+#### Focus Distance
+
+The **Focus Distance** is the distance from the center of the camera lens to the subject of the shot that is put into focus, creating a focal plane. The closer the camera is to the subject, the more the background will end up out-of-focus.
+
+![](CameraElements_FocusDistanceDiagram-1.png "CameraElements_FocusDistanceDiagram-1.png")
+
+1.  Focal Points in the Scene
+    1.  Red: Out of Focus
+    
+    1.  Blue: Perfectly in Focus
+    
+    1.  Green: Marginally in Focus
+
+1.  Focus Distance to the Subject (1b)
+
+1.  Camera Lens
+
+This diagram demonstrates objects (1) that make up the scene; background, shot subject, and foreground. The distance from the Lens (3) to the focal subject (2) - in this case the blue dot - is the Focus Distance. Areas in the background and foreground are blurred depending on the F-stop used and the Lens Focal Length.
+
+We can visualize the DOF Layers by using the **Show** dropdown in the **Viewport** to select **Advanced** \> **Depth of Field Layers**. In this instance, Green represents the foreground objects, Black is the area where objects are focused, and Blue are part of the background.  
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Rendered Scene](1_DepthOfFieldVisualization_2.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Depth of Field Layers Visualization](1_DepthOfFieldVisualization_1.png) 
+ [/PARAM]
+[/OBJECT]
+
+To demonstrate how this works, drag the slider to change the Focus Distance between 4m, 7m, and 10m. Adjusting the Focus Distance adjusts the Focal Plane (purple dotted line) in the scene, indicating where the in-focus region of the shot is. The blue reference point in the diagram uses the Character as the focal subject here, so as the camera shifts shot focus (black/gray area above) to different parts of the scene, objects in the foreground and background will shift too. Starting with 4m, the Police car in the foreground is in sharp focus and the character is out of focus in the background. The blue reference in the diagram indicates this with its focal point intersection in front of the filmback. At 7m, the character is completely in focus with background and foreground objects out of focus. At 10m, the construction barriers are in sharp focus and the character and Police car are out of focus in the foreground. The blue reference in the diagram indicates this since the intersection point extends beyond the filmback. Through all these Focus Distance changes, the DOF effect increases or decreases depending on an object being in the foreground or background.
+[REGION:note]
+Note that only the Focus Distance is being changed here; the F-stop and Focal Length remain constant at f/1.4 and 75mm, respectively.
+[/REGION]
+
+[EXCERPT:FocalLengthSliderSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	3
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	FocalLengthSlider
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    
+
+	[/PARAM]
+    [PARAM:image_list]
+    ![](FocusDistance_4m-2.png)
+![](FocusDistance_7m-2.png)
+![](FocusDistance_10m-3.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:FocalLengthSliderSlider]
+
+### Procedural Diaphragm Simulation
+
+The job of Depth of Field is to apply focal importance to a subject(s) in your scene. Just as importantly, areas that are out-of-focus can be as important. Unreal Engine 4’s depth of field simulates the lens diaphragm by enabling you to aesthetically control the shape of the Bokeh (out-of-focus areas) by adjusting the number and curvature of diaphragm blades.
+
+![](DoFShot3.png)
+
+For performance reasons, the diaphragm simulation is only supported on Engine Scalability settings of Epic and Cinematic. Lower quality settings will fall back to circle Bokeh shapes of equal area to ensure similar behavior with auto exposure functionality, in turn disabling the diaphragm blade simulation.
+
+#### Number of Diaphragm Blades
+
+The **Diaphragm** (or Iris) is the mechanism made up of blades that can adjust to aesthetically inform the look of Bokeh shapes. Using a lower number of blades will result in a polygon-shaped diaphragm whereas a higher number of blades improves the curvature of the diaphragm to appear more natural with rounded out-of-focus Bokeh.
+
+[EXCERPT:NumberDiaphragmBlades-1Slider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	4
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	NumberDiaphragmBlades-1
+	[/PARAMLITERAL]
+	[PARAM:caption]
+    
+
+	[/PARAM]
+	[PARAM:image_list]
+	![](Blades_4-2.png)
+	![](Blades_5-2.png)
+	![](Blades_8-2.png)
+	![](Blades_16-2.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:NumberDiaphragmBlades-1Slider]
+
+The number of diaphragm blades directly influences the shape of the Bokeh when the [Maximum Aperture](http://www.linktomaxaperturesectionofpage.com) is increased (minimum F-stop number is decreased).
+
+[EXCERPT:NumberofDiaphragmBlades-2Slider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	4
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	NumberofDiaphragmBlades-2
+	[/PARAMLITERAL]
+	[PARAM:caption]
+    
+
+	[/PARAM]
+	[PARAM:image_list]
+	![](Diaphragm_4_Zoomed-1.png)
+	![](Diaphragm_5_Zoomed-1.png)
+	![](Diaphragm_8_Zoomed-2.png)
+	![](Diaphragm_16_Zoomed-3.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:NumberofDiaphragmBlades-2Slider]
+
+#### Aperture and Max Aperture
+
+The **Aperture** is the opening of the lens controlled by the diameter of the **Diaphragm** which is measured in **F-stops**. The amount of light allowed to pass through the lens is controlled by the size of the aperture. Adjusting the size of the aperture sets the focal plane to adjust how in focus or out of focus areas outside of the focal region are.
+
+The following chart shows the correlation between aperture size (f-stop number), max aperture (min f-stop number) and depth of field effects.
+
+![](ApertureRange.png "ApertureRange.png")
+
+A larger aperture (lower f-stop number) has a shallow focal region, causing the foreground and background to become more out-of-focus. A small aperture (higher f-stop number) has a deeper focal region that includes more objects in focus in the foreground and background.
+
+[EXCERPT:ApertureComparisonSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	6
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	ApertureComparison
+	[/PARAMLITERAL]
+	[PARAM:caption]
+	Aperture F-stops: 1.4, 2.0, 2.8, 4.0, 5.6, 8.0
+	[/PARAM]
+	[PARAM:image_list]
+	![](ApertureStop_1_4.png)
+	![](ApertureStop_2_0.png)
+	![](ApertureStop_2_8.png)
+	![](ApertureStop_4_0.png)
+	![](ApertureStop_5_6.png)
+	![](ApertureStop_8_0.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:ApertureComparisonSlider]
+
+While the Aperture can be as small as you’d like, it can only ever be as large as the maximum size of the lens. The **Maximum Aperture** (measured in f-stop) defines how large the lens can be. This also defines the curvature of the blades that make up the diaphragm by limiting the size that the aperture can open; limiting the size of the aperture shortens the effective focal region which limits how out-of-focus areas can be.
+
+[EXCERPT:MaxApertureExampleSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	4
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	MaxApertureExample
+	[/PARAMLITERAL]
+	[PARAM:caption]
+	5 Diaphragm Blades with Different Max Aperture Values
+	[/PARAM]
+	[PARAM:image_list]
+	![](MaxApertureAndBokeh_1_4.png)
+	![](MaxApertureAndBokeh_2_0.png)
+	![](MaxApertureAndBokeh_2_8.png)
+	![](MaxApertureAndBokeh_4_0.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:MaxApertureExampleSlider]
+
+In this example, the **Number of Diaphragm Blades** is set to 5. With a smaller Aperture, the blades of the diaphragm become more visible in the Bokeh shapes. Using a larger Aperture (f-stop is equals to minimal f-stop) the Bokeh shapes will begin to become circular.
+
+In this example, a Cine Camera Actor is being used with the following values:
+
+*   **Min F-Stop**: 1.4
+
+*   **Max F-Stop**: 4.0
+
+*   **Diaphragm Blade Count**: 5
+
+*   **Current Aperture**: 1.4 - 4.0
+
+With these values, the F-stop can only accept values between **1.4** and **4.0**. As the depth of field effect is deepened with a larger F-stop (smaller aperture), the diaphragm blades become more visible in the Bokeh shapes.
+
+[REGION:note]
+Keep in mind that the aperture is not controlling the light intensity. This choice has been made so that you don’t have to continually adjust the exposure at the same time like with a real camera.
+[/REGION]
+
+### Cinematic DOF Settings
+
+#### Cinematic Camera
+
+The following settings are specific to the [Cinematic Camera Actor](Engine/Sequencer/HowTo/CineCameraActors). Note that you have access to the Camera and Depth of Field settings as well.
+
+|||
+| --- | --- |  
+| **Property** | **Description** |
+| **Filmback Settings** ||
+| **Sensor Width** | Sets the horizontal size of the filmback or digital sensor (measured in millimeters (mm)). |
+| **Lens Settings** ||
+| **Min Focal Length** | Sets the minimum focal length for the lens (measured in millimeters (mm)). |
+| **Max Focal Length** | Sets the maximum focal length for the lens (measured in millimeters (mm)). |
+| **Min FStop** | The maximum aperture for this lens. For example, 2.8 for an f/2.8 lens. This will also define the curvature of the blades of the diaphragm. |
+| **Max FStop** | The minimum aperture for this lens. For example, 8.0 for an f/8.0 lens. |
+| **Diaphragm Blade Count** | The number of blades that make up the diaphragm mechanism. |
+| **Focus Settings** ||
+| **Focus Method** | [INCLUDE:#excerpt_0] |
+| **Manual Focus Distance** | Set the manually-controlled focus distance. This is only available when the **Focus Method** is set to **Manual**. |
+| **Draw Debug Focus Plane** | Enable to draw a translucent plane at the current focus depth. This enables a visual way to track where the focus is for the shot. |
+| **Debug Focus Plane Color** | When this setting is enabled, it sets a color for **Draw Debug Focus Plane.** |
+| **Smooth Focus Changes** | Enable this to use interpolation to smooth out changes in focus distance. When disabled, the focus changes will be instantaneous. |
+| **Focus Smoothing Interp Speed** | Controls the interpolation speed when smoothing focus distance changes. This option is ignored if **Smooth Focus Changes** is not enabled. |
+| **Focus Offset** | This adds additional offset to focus depth which can be used to manually tweak focus if the chosen focus method needs adjustment. |
+| **Current Focal Length** | Controls the current focal length of the camera which controls the field of view (FOV) and zoom. |
+| **Current Aperture** | Sets the current aperture size based on an f-stop number. Note that this setting only accepts values that are within the **Min FStop** and **Max FStop** range. |
+| **Current Focal Distance** | Displays a read-only value that is used by the **Focus Settings**. |
+| **Current Horizontal FOV** | Displays a read-only value that is used by **Current Focal Length** and **Filmback Settings**. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+Select the camera focus method to use:   
+
+*   **None: **Disables DOF entirely.
+
+*   **Manual:** Allows for specifying or animating exact focus distances.  
+
+*   **Tracking:** Locks focus to a specific object in the shot.  
+
+[/EXCERPT:excerpt_0]
+-->
+
+#### Post Process Volume and Camera Actor
+
+The following settings are available with the [Cine Camera](Engine/Sequencer/HowTo/CineCameraActors), [Camera](Engine/Actors/CameraActors), and [Post Process Volumes](Engine/Rendering/PostProcessEffects).
+
+|||
+| --- | --- |  
+| **Property** | **Description** |
+| **Camera Settings** |  |
+| **Aperture (F-stop)** | Defines the opening of the camera lens. Aperture is 1/f-stop with typical lens going down to f/1.2 (larger opening). Larger numbers will reduce the DOF effect. |
+| **Maximum Aperture (minimum f-stop)** | Defines the maximum opening of the camera lens to control the curvature of the diaphragm. Set this to 0 to get straight blades. |
+| **Number of Diaphragm Blades** | Defines the number of blades of the diaphragm within the lens. Values between 4 and 16 can be used. |
+| **Depth of Field Settings** |  |
+| **Focal Distance** | The distance in which the depth of field effect should be sharp. This value is measured in Unreal Units (cm). |
+| **Depth Blur km for 50%** | Defines the distance at which the pixel is blurred with a radius half of Depth blur Radius. This is particularly useful to emulate cheap atmospheric scattering. |
+| **Depth Blur Radius** | Radius in pixels at 1080p resolution to apply according to distance from camera to emulate atmospheric scattering. |
+
+## Limitations
+
+*   OpenGL 4 still uses the "old" Circle DOF alogirthm since its RHI requires support for independent samplers to remove some visual artifacts. 
+
+### Useful Console Variables for Optimization
+
+The challenge of DOF is that it can vary depending on your content and how much importance has been given to the artistic direction of your game with DOF. With that in mind, the DOF implementation offers a variety of console variables ready to be customized per platform for developers to better control the performance budget allocated. 
+
+Below are some console variables that can be useful for binding Cinematic DOF performance.
+
+*   **r.DOF.Kernel.MaxBackgroundRadius:** The maximum size of the background blurring radius in horizontal screen space.
+
+*   **r.DOF.Kernel.MaxForegroundRadius:** The maximum size of the foreground blurring radius in horizontal screen space.
+
+*   **r.DOF.Scatter.MaxSpriteRatio:** The maximum ratio of scattered pixel quads as sprites. Useful to control DOF’s scattering upperbound.
+
+[REGION:note]
+Note that these are a good starting point and additional console variables can be found under **r.DOF.***.
+[/REGION]
+
+## Bokeh DOF Method (Legacy)
+
+[EXCERPT:DepthOfField_Bokeh]
+
+[REGION:warning]
+This depth of field method has been deprecated with Unreal Engine 4.21 for the Deferred and Desktop Forward Renderers.
+[/REGION]
+
+**Bokeh** DOF refers to the name of the shape that can be seen in photos or movies when objects are out of focus. This method renders a textured quad for each pixel using a user-specified texture to define a shape with which to reproduce the effect of a camera lens.
+
+The implementation only uses half-resolution to perform this intensive effect. It attempts to save render performance in areas where the effect is not noticeable by using Adaptive Depth of Field. Bokeh DOF is more costly than other DOF methods available in UE4, making this a prime candidate for cinematics and showcases where appealing visuals often outweigh any performance concerns in those situations.
+
+[/EXCERPT:DepthOfField_Bokeh]
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Depth of Field Disabled](DOF_Bokeh_Disabled.png) 
+	[/PARAM]
+	[PARAM:after]
+	![Bokeh Depth of Field](DOF_Bokeh_Enabled.png) 
+	[/PARAM]
+[/OBJECT]
+
+### Adaptive Depth of Field for Bokeh DoF
+
+Bokeh DOF is rendered at quarter-resolution (half-resolution in each direction) by default for performance reasons. In most cases, the downsampling is barely noticeable, which is perfectly acceptable; however, in some situations, it can lead to artifacts and unwanted results. Adaptive Depth of Field resolves these types of artifacts where possible.
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Adaptive DOF without Downsampling](dof_adaptive_0.png) 
+	[/PARAM]
+	[PARAM:after]
+	![Adaptive DOF with Downsampling](dof_adaptive_1.png) 
+	[/PARAM]
+[/OBJECT]
+
+The characters being blurred in the background appear blocky when using only the downsampled DOF technique. Also, some artifacts appear around the horns of the character in the foreground. Adaptive DOF eliminates these types of artifacts, and the background characters have a much smoother appearance.
+
+Adaptive DOF can be visualized by using the **Adaptive Depth of Field** show flag in the Level Viewport under **Show** \> **Visualize**. When enabled, an overlay is shown where the downsampled effect is being used (green) and where the full resolution effect is being used (red). The regular scene color is shown where no blurring is being applied.
+
+![](dof_adaptive_visualize.png "dof_adaptive_visualize.png")
+
+In general, you want the Adaptive DOF to display all green. The more red shown by the visualization, the more expensive the scene is to render each frame.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Adaptive DOF mostly optimized](dof_adaptive_good.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Adaptive DOF unoptimized ](dof_adaptive_bad.png) 
+ [/PARAM]
+[/OBJECT]
+
+### Bokeh DOF Settings
+
+The following settings are available with the Cine Camera, Camera, and Post Process Volumes, located under the Lens tab in the Depth of Field section.
+
+|||
+| --- | --- |  
+| **Property** | **Description** |
+| **Focal Distance** | The distance in which the depth of field effect should be sharp. This value is measured in Unreal Units (cm). |
+| **Near Transition Region** | The distance in Unreal Units from the focal region on the side nearer to the camera over which the scene transitions from focused to blurred when using Bokeh or Gaussian DOF. |
+| **Far Transition Region** | The distance in Unreal units from the focal region on the side farthest from the camera over which the scene transitions from focused to blurred when using Bokeh or Gaussian DOF. |
+| **Scale** | An overall scaling factor for Bokeh-based blurring. |
+| **Max Bokeh Size** | [INCLUDE:#excerpt_1] |
+| **Shape Texture** | [INCLUDE:#excerpt_2] |
+| **Occlusion** | Controls how much the blurred geometry extends beyond its usual silhouette and its opacity. A value of 0.18 gives a fairly natural occlusion result. A value of 0.4 may be necessary to solve layer color leaking issues. Very small values (less than 0.18) generally result in negating the blur effect, though can work well when objects are very near to the camera. |
+| **Color Threshold** | Controls the threshold where adaptive DOF switches to using full-resolution based on color. Smaller values cause more of the scene to use full-resolution processing. |
+| **Size Threshold** | Controls the threshold where adaptive DOF switches to using full-resolution based on size. Larger values cause more of the scene to use full-resolution processing. |
+
+<!--
+[EXCERPT:excerpt_1]
+
+The maximum size (in percent of the view width) of the blur for the Bokeh-based DOF.
+
+[REGION:note]
+Note that performance scales with the size.
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+A texture that defines the shape of the Bokeh when objects get out of focus.
+
+[REGION:note]
+Note that these cannot be blended with other Post Process Volumes.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+
+## External Resources
+
+*   [SIGGRAPH 2018 - "A Life of a Bokeh" by Guillaume Abadie](https://epicgames.box.com/s/s86j70iamxvsuu6j35pilypficznec04) (PowerPoint presentation ~150 mb)
+
+*   [Diaphragm (Optics)](https://en.wikipedia.org/wiki/Diaphragm_(optics))
+
+*   [Aperture](https://en.wikipedia.org/wiki/Aperture)
+
+*   [F-Number](https://en.wikipedia.org/wiki/F-number)
+
+*   [Understanding Factors that affect Depth of Field](https://photography.tutsplus.com/articles/understanding-the-factors-that-affect-depth-of-field--photo-6844)

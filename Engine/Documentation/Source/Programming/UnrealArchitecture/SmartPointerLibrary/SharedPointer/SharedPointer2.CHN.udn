@@ -1,0 +1,124 @@
+﻿INTSourceChangelist:6371055
+Availability: Public
+Title: 共享指针
+Description: 支持共享拥有权、自动无效、弱引用等项目的智能指针。
+Type: overview
+Version: 4.21
+Parent: Programming/UnrealArchitecture/SmartPointerLibrary
+Tags: Programming
+Order: 0
+
+
+[TOC]
+
+ **共享指针** 是既强健、又可为空的智能指针。共享指针固有包含基础智能指针的所有优点，可防止出现内存泄漏、悬挂指针、以及指向未初始化内存的指针，但它们也有其他功能，例如：
+
+*   **共享所有权：** 引用计数后，多个共享指针将确保其引用的数据对象不会被删除，前提是它们中的任意一个仍指向它。
+
+*   **自动无效：** 可安全引用易变对象，无需担心悬挂指针。
+
+*   **弱引用：** [弱指针](Programming/UnrealArchitecture/SmartPointLibrary/WeakPointer)可中断引用循环。
+
+*   **意向指示：** 区分拥有者（参见[共享引用](Programming/UnrealArchitecture/SmartPointerLibrary/SharedReference)）和观察者，并提供不可为空的引用。
+
+共享指针拥有一些值得注意的基本特性，其中包括：
+
+*   语法非常完善
+
+*   非侵入式（但能反射）
+
+*   线程安全（条件性）
+
+*   性能佳，占用内存少
+
+[REGION:note]
+共享指针类似于[共享引用](Programming/UnrealArchitecture/SmartPointerLibrary/SharedReference)，主要区别在于共享引用不可为空，因此总是存在引用有效对象。在共享引用和共享指针之间进行选择时，除非需要空对象或可为空对象，否则共享引用将成为首选项。
+[/REGION]
+
+## 声明和初始化
+
+因为共享指针可为空，所以无论是否有数据对象，都可以对其进行初始化。以下是新建共享指针的一些范例：
+
+    // 创建一个空白的共享指针
+    TSharedPtr<FMyObjectType> EmptyPointer;
+    // 为新对象创建一个共享指针
+    TSharedPtr<FMyObjectType> NewPointer(new FMyObjectType());
+    // 从共享引用创建一个共享指针
+    TSharedRef<FMyObjectType> NewReference(new FMyObjectType());
+    TSharedPtr<FMyObjectType> PointerFromReference = NewReference;
+    // 创建一个线程安全的共享指针
+    TSharedPtr<FMyObjectType, ESPMode::ThreadSafe> NewThreadsafePointer = MakeShared<FMyObjectType, ESPMode::ThreadSafe>(MyArgs);
+
+在第二个范例中，`NodePtr`实际上拥有新的 `FMyObjectType` 对象，因为没有其他共享指针引用该对象。如果 `NodePtr` 超出范围，而没有其他共享指针或共享引用指向该对象，那么该对象将被销毁。
+
+复制共享指针时，系统将向它引用的对象添加一个引用。
+
+    // 增加任意对象ExistingSharedPointer引用的引用数。
+    TSharedPtr<FMyObjectType> AnotherPointer = ExistingSharedPointer;
+
+对象将持续存在，直到不再有共享指针（或共享引用）引用它为止。
+
+可以使用 `Reset()` 函数、或分配一个空指针来重设共享指针，如下所示：
+
+    PointerOne.Reset();
+    PointerTwo = nullptr;
+    // PointerOne和PointerTwo现在都引用nullptr。
+
+您可以使用 `MoveTemp`（或 `MoveTempIfPossible`）函数将一个共享指针的内容转移到另一个共享指针，将原始的共享指针保留为空：
+
+    // 将PointerOne的内容移到PointerTwo。 PointerOne在这之后将引用nullptr。
+    PointerTwo = MoveTemp(PointerOne);
+    // 将PointerTwo的内容移至PointerOne。在此之后，PointerTwo将引用nullptr。
+    PointerOne = MoveTempIfPossible(PointerTwo);
+
+[REGION:note]
+`MoveTemp` 和 `MoveTempIfPossible` 的唯一不同之处仅在于 `MoveTemp` 包含静态断言，强制其只能在非常量左值（lvalue）上执行。
+[/REGION]
+
+## 取消引用和访问
+
+您可以用对待常规C++指针相同的方式来取消引用、调用方法和访问成员。在取消引用之前还应该像对待任何C++指针一样，调用 `IsValid` 函数或使用重载的 `bool` 运算符来执行空检查。
+
+    // 在取消引用之前检查节点是否引用了有效对象。
+    if (Node)
+    {
+        // 以下三行代码中的任意一行将取消引用节点，并在其对象上调用ListChildren：
+        Node->ListChildren();
+        Node.Get()->ListChildren();
+        (*Node).ListChildren();
+    }
+
+## 对比
+
+您可以测试共享指针彼此间的相等性。在此情境中，相等被定义为两个共享指针引用同一对象。
+
+    TSharedPtr<FTreeNode> NodeA, NodeB;
+    if (NodeA == NodeB)
+    {
+        // ...
+    }
+
+`IsValid` 函数和 `bool` 运算符将确定共享指针是否引用有效对象。您还可以调用 `Get`，查看它是否返回有效的（非空）对象指针。
+
+    if (Node.IsValid())
+    {
+        // ...
+    }
+    if (Node)
+    {
+        // ...
+    }
+    if (Node.Get() != nullptr)
+    {
+        // ...
+    }
+
+## 转换
+
+不允许进行隐式转换，因为它非常危险。举例而言，以下内容将不会编译：
+
+    TSharedPtr<float> Height = 45.0f;
+
+但MakeShareable()方法可用于显式。
+
+    TSharedPtr<float> Height = MakeShareable( new float( 45.0f ) );

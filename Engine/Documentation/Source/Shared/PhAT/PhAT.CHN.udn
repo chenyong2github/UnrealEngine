@@ -14,7 +14,7 @@ Crumbs:
 ![](PhAT_Sim.png)
 
 [VAR:ToolTipFullLink]
-Engine\Physics\PhAT\UserGuide#testing
+Engine\Physics\PhysicsAssetEditor\UserGuide#testing
 [/VAR]
 
 [/EXCERPT:SimulationNormal]
@@ -33,7 +33,7 @@ Engine\Physics\PhAT\UserGuide#testing
 ![](PhAT_Sim.png)
 
 [VAR:ToolTipFullLink]
-Engine\Physics\PhAT\UserGuide#testing
+Engine\Physics\PhysicsAssetEditor\UserGuide#testing
 [/VAR]
 
 [/EXCERPT:SimulationNoGravity]
@@ -147,7 +147,7 @@ Engine\Physics\PhAT\UserGuide#testing
 
 可与当前选中物理形体发生碰撞的物理形体将显示为蓝色，不进行碰撞的则为灰色。黄色的物理形体将被结合到当前选中的物理形体。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
+Engine/Physics/PhysicsAssetEditor/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 [/VAR]
 [/EXCERPT:EnableCollision]
 
@@ -162,7 +162,7 @@ Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 
 可与当前选中物理形体发生碰撞的物理形体将显示为蓝色，不进行碰撞的则为灰色。黄色的物理形体将被结合到当前选中的物理形体。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
+Engine/Physics/PhysicsAssetEditor/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 [/VAR]
 [/EXCERPT:DisableCollision]
 
@@ -174,7 +174,7 @@ Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 
 黄色的物理形体将被结合到当前选中的物理形体。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#welding
+Engine/Physics/PhysicsAssetEditor/UserGuide#welding
 [/VAR]
 [/EXCERPT:WeldToBody]
 
@@ -219,7 +219,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 设置约束属性，模拟球窝关节的运动。锁定所有轴上的线性运动但解开角运动。
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToBallAndSocket]
 
@@ -229,7 +229,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 使用“Q”键切换哪根轴为枢纽。
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToHinge]
 
@@ -239,7 +239,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 使用“Q”键切换哪根轴为柱轴。
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToPrismatic]
 
@@ -249,7 +249,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 使用“Q”键切换哪根轴为扭转运动轴。
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToSkeletal]
 

@@ -78,12 +78,12 @@ void FGlobalDynamicReadBuffer::Cleanup()
 }
 void FGlobalDynamicReadBuffer::InitRHI()
 {
-	UE_LOG(LogRendererCore, Log, TEXT("FGlobalReadBuffer::InitRHI"));
+	UE_LOG(LogRendererCore, Verbose, TEXT("FGlobalReadBuffer::InitRHI"));
 }
 
 void FGlobalDynamicReadBuffer::ReleaseRHI()
 {
-	UE_LOG(LogRendererCore, Log, TEXT("FGlobalReadBuffer::ReleaseRHI"));
+	UE_LOG(LogRendererCore, Verbose, TEXT("FGlobalReadBuffer::ReleaseRHI"));
 	Cleanup();
 }
 

@@ -1,0 +1,174 @@
+﻿INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: 데이터스미스에 CAD 파일 포맷 사용
+Description: 데이터스미스를 사용하여 CAD 파일 포맷에서 콘텐츠를 임포트할 때 적용되는 특수 고려 사항을 설명합니다.
+Type: overview
+Version: 4.22
+Parent: Studio/Datasmith/SoftwareInteropGuides
+Order: 3
+Tags: Enterprise
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: overview
+Tags: interop
+Tags: CAD
+topic-image: datasmith-cad-topic.png
+hero-image:datasmith-cad-banner.png
+
+
+여기서는 데이터스미스가 지원되는 대부분의 CAD 파일 포맷을 언리얼 에디터로 가져오는 방식을 설명합니다. [](Studio/Datasmith/Overview), [](Studio/Datasmith/Overview/ImportProcess) 문서의 기본적인 프로세스를 따르지만, CAD 파일 전용 특수 변환 동작이 추가됩니다. 데이터스미스를 사용해서 CAD 파일의 씬을 언리얼 에디터로 가져오려는 경우, 변환 방식은 어떻게 되는지, 언리얼 에디터에서 그 결과물을 어떻게 활용하는지 이해하는 데 도움이 될 것입니다.
+
+## CAD 워크플로
+
+데이터스미스는 대부분의 CAD 파일 유형에 **Direct** (직접) 워크플로를 사용합니다. 즉 CAD 씬을 [지원 파일 유형](Studio/Datasmith/SupportedSoftwareAndFileTypes) 중 하나로 저장하기만 하면 그 파일을 데이터스미스 CAD 임포터로 언리얼 에디터에 가져올 수 있다는 뜻입니다. [](Studio/Datasmith/HowTo/ImportingContent) 문서를 참고하세요.
+
+## 테셀레이션
+
+CAD 포맷에서 종종 커브와 수학 함수를 사용하여 표면과 입체면을 정의합니다. 제조 공정에서 사용하려면 이 표면의 정밀도와 부드러움이 필수입니다. 하지만 최신 GPU 칩은 트라이앵글 메시로 이루어진 표면의 렌더링에 고도로 최적화되어 있습니다. 언리얼같은 실시간 렌더러와 게임 엔진은 초당 수십장의 사진과 같은 실사 퀄리티 이미지를 만들기 위해 GPU 성능을 극한까지 끌어올려야 하는데, 여기에는 보통 트라이앵글 메시로 이루어진 지오메트리만 사용됩니다.
+
+데이터스미스는 CAD 파일의 곡면에서 이미 메시 표현이 없는 경우 가장 근접한 트라이앵글 메시를 자동 계산해서 이 간극을 채웁니다. 이 프로세스를 일컬어 *tessellation*, 테셀레이션이라 하며, CAD 데이터를 실시간 환경에서 사용하도록 준비할 때 필수 단계입니다.
+
+예를 들어 왼쪽 이미지는 기본 CAD 뷰어에서 렌더링한 표면을 나타냅니다. 오른쪽 이미지는 그 표면에 대해 생성된 트라이앵글 메시의 와이어프레임을 나타냅니다.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![파라메트릭 표면](cad-tessellation-example-surface.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![트라이앵글화된 메시](cad-tessellation-example-wireframe.png) 
+ [/PARAM]
+[/OBJECT]
+
+실시간 렌더링을 위한 표면 테셀레이션 작업에는 표면의 정확도와 렌더링 속도 사이 절충 작업이 수반됩니다.
+
+본질적으로 트라이앵글 메시는 원본 표면에 수학적으로 정확히 일치할 수가 없습니다. 테셀레이션은 항상 원본 표면을 일정한 수준의 디테일로 샘플링한 모형을 만들어 GPU 가 지오메트리를 더욱 빠르게 렌더링할 수 있도록 합니다. 보통 메시가 원본 표면에 가까울수록 더욱 복잡해집니다. 즉 트라이앵글 수는 많아지고 작아집니다. 렌더링이 좋아질 수는 있지만, GPU 비용이 높아집니다. 테셀레이션 메시의 정확도를 낮추면, 트라이앵글이 커지고 적어져 GPU 가 더욱 빨리 렌더링할 수 있지만, 각지거나 자글자글해 보여 원하는 시각적 충실도가 나오지 않을 수 있습니다.
+
+그래서 테셀레이션 프로세스의 목표는 메시의 트라이앵글 수를 최소화하고 시각적 충실도는 원본에 맞게 극대화하는 것입니다. 보통 표면이 부드럽고 평평한 곳에서는 비교적 큰 트라이앵글을 조금, 복잡하고 고르지 않은 표면에서는 비교적 작은 트라이앵글을 많이 사용하는 것을 목표로 한다는 뜻입니다.
+
+데이터스미스로 CAD 씬을 임포트할 때 조정할 수 있는 파라미터는 세 가지이며, 다음과 같습니다. 이 값을 조정하면 데이터스미스가 곡면에 대해 생성하는 스태틱 메시 지오메트리의 복잡도와 충실도를 제어할 수 있습니다.
+
+[REGION:tip]
+스태틱 메시 애셋을 개별 리임포트할 때도 똑같은 옵션을 설정할 수 있습니다. 이를 통해 씬의 전반적인 테셀레이션 값을 설정한 다음, 레벨 오브 디테일을 높이거나 낮춰야 하는 개별 오브젝트의 세팅을 덮어쓰면 됩니다. [](Studio/Datasmith/Overview/ReimportWorkflow) 문서도 참고하세요.
+[/REGION]
+
+### 현 허용치
+
+Chord Tolerance 는 가끔 현(chord 또는 sag) 오차라고도 하는데, 테셀레이션 면의 한 점이 원본 표면에 그에 해당하는 점에서 멀어질 수 있는 최대 거리를 정의합니다.
+
+![Chord tolerance examples](datasmith-cad-chordtolerance-whatis.png "Chord tolerance examples")
+
+이 파라미터 값을 낮추면 테셀레이션 표면이 원본 표면과 비슷하게 유지되어, 작은 트라이앵글이 많아집니다.
+
+이 세팅의 효과는 굴곡이 심한 부분에서 두드러지는데, 허용치 값을 높이면 생성되는 트라이앵글이 커져 표면의 부드러움이 감소합니다.
+
+[REGION:imagetable]
+|||
+|---|---|---|
+|[INCLUDE:#chordtolerance-1]|[INCLUDE:#chordtolerance-2]|[INCLUDE:#chordtolerance-3]|
+| 0.5mm: 37 500 트라이앵글 | 0.5mm: 37 500 트라이앵글 | 10mm: 13 500 트라이앵글 |
+[/REGION]
+
+<!--
+[EXCERPT:chordtolerance-1]
+[REGION:lightbox]
+[![](chordtolerance-1-1.png)(w:300)](chordtolerance-1-1.png "0.1mm: 134 000 triangles ")
+[/REGION]
+[/EXCERPT:chordtolerance-1]
+
+[EXCERPT:chordtolerance-2]
+[REGION:lightbox]
+[![](chordtolerance-2-1.png)(w:300)](chordtolerance-2-1.png " 0.5mm: 37 500 triangles ")
+[/REGION]
+[/EXCERPT:chordtolerance-2]
+
+[EXCERPT:chordtolerance-3]
+[REGION:lightbox]
+[![](chordtolerance-3-1.png)(w:300)](chordtolerance-3-1.png " 10mm: 13 500 triangles")
+[/REGION]
+[/EXCERPT:chordtolerance-3]
+-->
+
+### 최대 에지 길이
+
+Max Edge Length 는 테셀레이션 메시의 트라이앵글에서 에지 하나의 최대 길이를 제한하는 세팅입니다. 
+
+![Max edge length examples](datasmith-cad-maxedgelength-whatis.png "Max edge length examples")
+
+이 세팅의 효과는 모델의 평평한 부분에 가장 잘 드러납니다. 이 값을 너무 낮게 설정하면, 평평한 부분에 필요 이상으로 작은 트라이앵글이 많은 것이 보일 것입니다. 반면 이 값을 너무 높게 설정하거나 한계를 두지 않으면, 가끔 이상한 모양의 트라이앵글이 너무 길거나 얇게 나오므로, 역시 피하는 것이 좋습니다.
+
+이 값을 0 으로 설정하면, 데이터스미스는 생성되는 트라이앵글의 에지 길이에 제한을 두지 않습니다.
+
+[REGION:imagetable]
+|||
+|---|---|---|
+|[INCLUDE:#maxedgelength-1]|[INCLUDE:#maxedgelength-2]|[INCLUDE:#maxedgelength-3]|
+| 10mm: 128 000 트라이앵글 | 20mm: 43 700 트라이앵글 | 40mm: 21 000 트라이앵글 |
+[/REGION]
+
+<!--
+[EXCERPT:maxedgelength-1]
+[REGION:lightbox]
+[![](maxedgelength-1.png)(w:300)](maxedgelength-1.png "10mm: 128 000 triangles ")
+[/REGION]
+[/EXCERPT:maxedgelength-1]
+
+[EXCERPT:maxedgelength-2]
+[REGION:lightbox]
+[![](maxedgelength-2.png)(w:300)](maxedgelength-2.png " 20mm: 43 700 triangles ")
+[/REGION]
+[/EXCERPT:maxedgelength-2]
+
+[EXCERPT:maxedgelength-3]
+[REGION:lightbox]
+[![](maxedgelength-3.png)(w:300)](maxedgelength-3.png " 40mm: 21 000 triangles")
+[/REGION]
+[/EXCERPT:maxedgelength-3]
+-->
+
+### 노멀 허용치
+
+Normal Tolerance 는 테셀레이션 메시의 두 인접 트라이앵글 사이 벌어질 수 있는 최대 각도를 도 단위로 정의합니다.
+
+![Normal tolerance example](datasmith-cad-normaltolerance-whatis.png "Normal tolerance example")
+
+현 허용치와 마찬가지로 노멀 허용치도 테셀레이션 메시를 원본 메시에 가깝게 만드는 효과가 있습니다. 하지만 굴곡이 심한 부분의 디테일은 보존하면서 평평한 부분에 생성되는 트라이앵글에만 효과를 줄 때 특히 좋습니다.
+
+[REGION:imagetable]
+|||
+|---|---|---|
+|[INCLUDE:#normaltolerance-1]|[INCLUDE:#normaltolerance-2]|[INCLUDE:#normaltolerance-3]|
+| 5°: 295 000 트라이앵글 | 10°: 100 000 트라이앵글 | 40°: 21 500 트라이앵글 |
+[/REGION]
+
+<!--
+[EXCERPT:normaltolerance-1]
+[REGION:lightbox]
+[![](normaltolerance-1.png)(w:300)](normaltolerance-1.png "5°: 295 000 triangles ")
+[/REGION]
+[/EXCERPT:normaltolerance-1]
+
+[EXCERPT:normaltolerance-2]
+[REGION:lightbox]
+[![](normaltolerance-2.png)(w:300)](normaltolerance-2.png " 10°: 100 000 triangles ")
+[/REGION]
+[/EXCERPT:normaltolerance-2]
+
+[EXCERPT:normaltolerance-3]
+[REGION:lightbox]
+[![](normaltolerance-3.png)(w:300)](normaltolerance-3.png " 40°: 21 500 triangles")
+[/REGION]
+[/EXCERPT:normaltolerance-3]
+-->
+
+### 스티칭 기법
+
+**Stitching Technique** (스티칭 기법) 세팅은 테셀레이션 프로세스가 파라메트릭 표면이 실제로는 별개의 바디로 또는 바디 내 별도의 표면으로 모델링되었지만 연결된 것처럼 보이게 만드는 방식을 제어합니다.
+
+*   **Stitching Sew** (스티칭 바느질)은 근처 바디의 표면 사이 연결성을 테스트합니다. 그 표면이 연결된 것처럼 보이면, 그 바디를 동일한 스태틱 메시 애셋으로 합칩니다.
+    이 옵션을 사용하면 데이터스미스가 프로젝트에 만드는 스태틱 메시 애셋 수가 줄어들지만 처리 시간이 더 오래 걸릴 수 있습니다.
+
+*   **Stitching Heal** (스티칭 치유)는 하는 작업은 같지만 소스 씬에서 같은 바디에 속하는 표면만 다시 연결합니다. 데이터스미스가 같은 바디 내 별도의 표면 지오메트리를 연결해야 한다 감지한 경우, 스태틱 메시를 생성할 때 그 표면을 병합해서 같은 메시 엘리먼트 안에 넣습니다.
+    하지만 이 세팅을 비활성화하면, 데이터스미스는 소스 씬의 별개 오브젝트 다수를 하나의 스태틱 메시 애셋으로 합칩니다.
+
+*   **Stitching None** (스티칭 없음)은 스티칭 프로세스를 완전 생략합니다. 데이터스미스는 항상 소스 씬의 별개 바디 각각에 대해 별도의 스태틱 메시 애셋을 생성합니다. 이 바디 각각에 대해, 데이터스미스는 그 바디에 들어있는 표면 각각에 대해 스태틱 메시 애셋 내 별도의 메시 엘리먼트를 만듭니다.

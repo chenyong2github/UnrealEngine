@@ -33,7 +33,7 @@ public:
 	static void EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, int32 PolygonGroup, Nv::Blast::Mesh*& OutBlastMesh);
 	
 	/** Add Blast Mesh data to the provided Geometry Collection - indexed vertices version */
-	static void AddBlastMeshToGeometryCollection(Nv::Blast::FractureTool* BlastFractureTool, int32 FracturedChunkIndex, const FString& ParentName, const FTransform& ParentTransform, class UGeometryCollection* FracturedGeometryCollection, TArray<struct FGeneratedFracturedChunk>& GeneratedChunksOut, TArray<int32>& DeletedChunksOut);
+	static bool AddBlastMeshToGeometryCollection(Nv::Blast::FractureTool* BlastFractureTool, int32 FracturedChunkIndex, const FString& ParentName, const FTransform& ParentTransform, class UGeometryCollection* FracturedGeometryCollection, TArray<struct FGeneratedFracturedChunk>& GeneratedChunksOut, TArray<int32>& DeletedChunksOut);
 #endif
 
 	/** Write fracture hierarchy details to log file */
@@ -47,8 +47,8 @@ private:
 	static FVector CalcChunkDelta(Nv::Blast::Mesh* ChunkMesh, physx::PxVec3 Origin);
 
 	static FVector GetChunkCenter(Nv::Blast::Mesh* ChunkMesh, physx::PxVec3 Origin);
-	
-    static void GenerateGeometryCollectionFromBlastChunk(Nv::Blast::FractureTool* BlastFractureTool, int32 ChunkIndex, UGeometryCollection* FracturedGeometryCollectionObject, bool IsVisible, struct FGeneratedFracturedChunk& ChunkOut);
+
+	static bool GenerateGeometryCollectionFromBlastChunk(Nv::Blast::FractureTool* BlastFractureTool, int32 ChunkIndex, UGeometryCollection* FracturedGeometryCollectionObject, bool bIsFirstEverChunk, struct FGeneratedFracturedChunk& ChunkOut, bool bReindexMaterials = false);
 #endif
 
 	static int GetMaterialForIndex(const UGeometryCollection* GeometryCollection, int TriangleIndex);

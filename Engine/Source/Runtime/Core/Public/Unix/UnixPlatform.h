@@ -110,6 +110,12 @@ typedef FUnixPlatformTypes FPlatformTypes;
 
 #define ABSTRACT abstract
 
+// DLL export and import for types, only supported on clang
+#if defined(__clang__)
+#define DLLEXPORT_VTABLE	__attribute__ ((__type_visibility__("default")))
+#define DLLIMPORT_VTABLE	__attribute__ ((__type_visibility__("default")))
+#endif
+
 // DLL export and import definitions
 #define DLLEXPORT			__attribute__((visibility("default")))
 #define DLLIMPORT			__attribute__((visibility("default")))

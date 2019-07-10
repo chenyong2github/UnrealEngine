@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:블루프린트에서 액터 검색
 Crumbs: %ROOT%, Gameplay, Gameplay\HowTo\FindingActors
-Description:블루프린트에서 액터를 검색하는 비법 안내입니다.
+Description:블루프린트에서 액터를 검색하는 하우투 안내입니다.
 Version: 4.9
 SkillLevel: Intermediate
 type:how-to

@@ -86,12 +86,12 @@ namespace UnrealGameSync
 			OkBtn.Enabled = (WorkspaceListView.SelectedItems.Count == 1);
 		}
 
-		public static bool ShowModal(IWin32Window Owner, string ServerAndPort, string UserName, string WorkspaceName, TextWriter Log, out string NewWorkspaceName)
+		public static bool ShowModal(IWin32Window Owner, PerforceConnection Perforce, string WorkspaceName, TextWriter Log, out string NewWorkspaceName)
 		{
 			EnumerateWorkspacesTask EnumerateWorkspaces = new EnumerateWorkspacesTask();
 
 			string ErrorMessage;
-			ModalTaskResult Result = PerforceModalTask.Execute(Owner, null, ServerAndPort, UserName, EnumerateWorkspaces, "Finding workspaces", "Finding workspaces, please wait...", Log, out ErrorMessage);
+			ModalTaskResult Result = PerforceModalTask.Execute(Owner, Perforce, EnumerateWorkspaces, "Finding workspaces", "Finding workspaces, please wait...", Log, out ErrorMessage);
 			if(Result != ModalTaskResult.Succeeded)
 			{
 				if(!String.IsNullOrEmpty(ErrorMessage))

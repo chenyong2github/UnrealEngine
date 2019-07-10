@@ -39,11 +39,20 @@ void UTakeRecorderMicrophoneAudioSourceSettings::PostEditChangeProperty(FPropert
 	}
 }
 
-FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneName(ULevelSequence* InSequence) const
+FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneTrackName(ULevelSequence* InSequence) const
 {
 	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
 	{
-		return TakeMetaData->GetSlate() + TEXT("Audio");
+		return FString::Printf(TEXT("Audio_%s"), *TakeMetaData->GenerateAssetPath("{slate}"));
+	}
+	return TEXT("MicrophoneAudio");
+}
+
+FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneAssetName(ULevelSequence* InSequence) const
+{
+	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+	{
+		return FString::Printf(TEXT("Audio_%s"), *TakeMetaData->GenerateAssetPath("{slate}_{take}"));
 	}
 	return TEXT("MicrophoneAudio");
 }
@@ -100,6 +109,17 @@ TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PreRecording(UL
 		CachedAudioTrack->SetDisplayName(AudioTrackName);
 	}
 
+	FString PathToRecordTo = FPackageName::GetLongPackagePath(InSequence->GetOutermost()->GetPathName());
+	FString BaseName = InSequence->GetName();
+
+	AudioDirectory.Path = PathToRecordTo;
+	if (AudioSubDirectory.Len())
+	{
+		AudioDirectory.Path /= AudioSubDirectory;
+	}
+
+	AssetName = MakeNewAssetName(AudioDirectory.Path, BaseName);
+
 	return TArray<UTakeRecorderSource*>();
 }
 
@@ -115,18 +135,6 @@ void UTakeRecorderMicrophoneAudioSource::AddContentsToFolder(UMovieSceneFolder* 
 void UTakeRecorderMicrophoneAudioSource::StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence)
 {
 	Super::StartRecording(InSectionStartTimecode, InSectionFirstFrame, InSequence);
-
-	FString PathToRecordTo = FPackageName::GetLongPackagePath(InSequence->GetOutermost()->GetPathName());
-	FString BaseName = InSequence->GetName();
-
-	FDirectoryPath AudioDirectory;
-	AudioDirectory.Path = PathToRecordTo;
-	if (AudioSubDirectory.Len())
-	{
-		AudioDirectory.Path /= AudioSubDirectory;
-	}
-
-	FString AssetName = MakeNewAssetName(AudioDirectory.Path, BaseName);
 
 	ISequenceRecorder& Recorder = FModuleManager::Get().LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
 

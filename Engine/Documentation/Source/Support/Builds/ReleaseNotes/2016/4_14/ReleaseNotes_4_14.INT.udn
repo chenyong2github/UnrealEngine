@@ -3,7 +3,7 @@ Title: Unreal Engine 4.14 Release Notes
 Description: Release Notes for Unreal Engine 4.14
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:14
+Order: 30
 reference-image:image_6.gif
 reference-image:image_7.gif
 reference-image:image_9.gif
@@ -589,7 +589,11 @@ Materials now have access to a skeletal mesh's reference pose position for use i
 
 ## New: Improved Sequencer Shot Import/Export
 
-Movie recording with frame handles per shot.  Master sequences can now be rendered with extra frames at the start and end of each shot.  These extra frames are cut into and out of by an Edit Decision List (EDL), which can be used in an external video editing package to adjust the cuts between shots.![image alt text](image_59.gif)(w:929 convert:false)
+Movie recording with frame handles per shot.  Master sequences can now be rendered with extra frames at the start and end of each shot.  These extra frames are cut into and out of by an Edit Decision List (EDL), which can be used in an external video editing package to adjust the cuts between shots.
+
+[REGION:asyncgif]
+![image alt text](image_59.gif)(w:929)
+[/REGION]
 
 ## New: Improved Camera Rig Crane
 

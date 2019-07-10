@@ -53,6 +53,7 @@ FAdvancedPreviewScene::FAdvancedPreviewScene(ConstructionValues CVS, float InFlo
 	check(SkySphere);
 	SkyComponent->SetStaticMesh(SkySphere);
 	SkyComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SkyComponent->bVisibleInRayTracing = false;
 
 	UMaterial* SkyMaterial = LoadObject<UMaterial>(NULL, TEXT("/Engine/EditorMaterials/AssetViewer/M_SkyBox.M_SkyBox"), NULL, LOAD_None, NULL);
 	check(SkyMaterial);

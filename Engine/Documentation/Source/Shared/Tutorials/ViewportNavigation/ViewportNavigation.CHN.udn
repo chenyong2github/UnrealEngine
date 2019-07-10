@@ -1,10 +1,11 @@
-﻿INTSourceChangelist:1698095
+﻿INTSourceChangelist:3108692
 Availability:NoPublish
-Title:Camera Controls
+Title:镜头控制
 Crumbs:
 Description: 基本镜头控制介绍
 
 [EXCERPT:ViewportMove]
+(#Perspective-LeftMouseButton)
 ## 透视-鼠标左键
 
 ![](CameraLMB.png)
@@ -17,6 +18,7 @@ Description: 基本镜头控制介绍
 
 
 [EXCERPT:ViewportPanTilt]
+(#Perspective-RightMouseButton)
 ## 透视-鼠标右键
 
 ![](CameraRMB.png)
@@ -29,6 +31,7 @@ Description: 基本镜头控制介绍
 
 
 [EXCERPT:ViewportSlide]
+(#Perspective-Left&RightMouseButtons)
 ## 透视-鼠标左键和右键
 
 ![](CameraLMBRMB.png)
@@ -41,6 +44,7 @@ Description: 基本镜头控制介绍
 
 
 [EXCERPT:ViewportZoom]
+(#Perspective-MouseWheelScrolling)
 ## 透视-鼠标滚轮滚动
 
 ![](CameraScroll.png)

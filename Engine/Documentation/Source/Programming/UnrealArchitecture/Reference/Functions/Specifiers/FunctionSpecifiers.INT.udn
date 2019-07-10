@@ -1,14 +1,13 @@
 Availability:Public
 Title: Function Specifiers
-Crumbs:%ROOT%
 Description: Keywords used when declaring UFunctions to specify how the function behaves with various aspects of the Engine and Editor.
 Version: 4.18
 parent:Programming/UnrealArchitecture/Reference/Functions
 order:0
 type:reference
-topic-image:components_topic.png
 tags:UFUNCTION
 tags:Specifiers
+topic-image:%ROOT%/placeholder_topic.png
 
 [EXCERPT:main]
 

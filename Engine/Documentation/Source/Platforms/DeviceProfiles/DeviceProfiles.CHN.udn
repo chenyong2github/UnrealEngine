@@ -28,7 +28,6 @@ Order: 1
 
 参见主要[配置文件](Programming/Basics/ConfigurationFiles)文档，了解配置文件设定的相关详情。
 
-(#ios)
 ### iOS
 
 设备描述可用于设定iOS设备的游戏分辨率。`r.MobileContentScaleFactor` 属性与设备的“标称iOS分辨率”相关。举例而言，视网膜显示屏iPad的实际分辨率为2048x1536，但其标称分辨率则是1024x768，因此需使用2.0获取原生分辨率。如希望获得较高分辨率但不愿运行原生分辨率造成性能损失，可使用1.5之类的小数进行获取。
@@ -45,12 +44,10 @@ Order: 1
 
 可在 `Engine/Config` 的 `BaseDeviceProfiles` 中查看iOS设备描述。这些类目可通过插件系统进行设置，该系统的默认插件为 **iOSDeviceProfileSelector**。iOS设备类目实则为设备的命名。
 
-(#android)
 ### Android
 
 Android拥有层级式设备描述类目（`Engine/Config` 中的 `BaseDeviceProfiles.ini` 为例）。这些类目可通过插件系统进行设置，默认插件为 **AndroidDeviceProfileSelector**。
 
-(#memorybuckets)
 ## 内存桶
 
 使用者可以对拥有不同内存性能的不同平台运行虚幻引擎4（UE4）项目的方式进行指定，并添加 **内存桶** 指定其将使用的选项。要添加此性能，首先需要打开文本编辑程序中的项目 **Engine.ini** 文件（使用 **Android/AndroidEngine.ini**、**IOS/IOSEngine.ini**，或任意 **PlatformNameEngine.ini** 文件以平台为基础进行设置），然后添加以下信息：

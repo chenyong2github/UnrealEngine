@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability: Docs
 Title:공통 툴 메뉴 UI 항목
 Description:여러 레벨 에디터 툴에 공통인 메뉴 항목에 대한 설명 저장소입니다.
@@ -42,7 +42,7 @@ Crumbs:
 [/VAR]
 
 [VAR:MenuAssetSizeMap]
-* **사이즈 맵** - 이 애셋과 거기서 레퍼런싱하는 모든 것의 대략적 크기를 보여주는 대화식 맵을 표시합니다.
+* **사이즈 맵** - 이 애셋과 거기서 참조하는 모든 것의 대략적 크기를 보여주는 대화식 맵을 표시합니다.
 [/VAR]
 
 [VAR:MenuAssetReimport]

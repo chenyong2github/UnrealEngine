@@ -1,23 +1,27 @@
-﻿INTSourceChangelist:3599948
-Availability:Public
-Title:게임플레이 태그
-Crumbs: %ROOT%
+INTSourceChangelist:5061242
+Availability: Public
+Crumbs: 
+Title: 게임플레이 태그
 Description: 게임플레이 태그는 오브젝트 식별, 분류, 일치, 필터링에 사용 가능합니다.
-version: 4.15
-skilllevel:Intermediate
-Parent:Gameplay
-Order:
-type:overview
-tags:Gameplay
+Type: 
+Version: 4.15
+Parent: Gameplay
+Order: 
+Tags: Gameplay
 
-[toc(start:2 end:2)]
 
-**Gameplay Tags** (게임플레이 태그)는 사용자 정의 이름을 붙인 개념적 계층형 라벨입니다. 이 태그는 "." 글자로 구분되는 계층구조를 몇 단계든 가질 수 있습니다. 예를 들어 세 단계의 게임플레이 태그는 "Family.Genus.Species" 형태를 띄며, "Family" 가 계층구조에서 가장 넓은 식별자가 되고, "Species" 는 가장 구체적인 것이 됩니다. 참고로 "Family.Genus.Species" 가 존재한ㄴ다는 것은 "Family.Genus" 와 "Family" 게임플레이 태그 역시 존재한다는 것을 암시합니다. 개별 태그는 경량이며, `FGameplayTag` 를 사용합니다. 게임 오브젝트는 자주 다수의 태그를 갖기에 (`FGameplayTagContainer` 유형을 사용하는) **Gameplay Tag Containers** (게임플레이 태그 컨테이너)가 제공되어, 다양한 추가 질의 처리가 가능합니다. 게임플레이 태그 (또는 게임플레이 태그 컨테이너)는 아무 오브젝트에 추가하고 개념적 라벨을 할당한 뒤 프로젝트의 요구에 따라 식별, 일치, 분류, 필터 적용이 가능합니다.
+**Gameplay Tags** (게임플레이 태그)는 사용자 정의 이름을 붙인 개념적 계층형 라벨입니다. 이 태그는 "." 글자로 구분되는 계층구조를 몇 단계든 가질 수 있습니다. 예를 들어 세 단계의 게임플레이 태그는 "Family.Genus.Species" 형태를 띄며, "Family" 가 계층구조에서 가장 넓은 식별자가 되고, "Species" 는 가장 구체적인 것이 됩니다. 참고로 "Family.Genus.Species" 가 존재한ㄴ다는 것은 "Family.Genus" 와 "Family" 게임플레이 태그 역시 존재한다는 것을 암시합니다. 개별 태그는 경량이며, [`FGameplayTag`](https://api.unrealengine.com/INT/API/Runtime/GameplayTags/FGameplayTag/index.html) 를 사용합니다. 게임 오브젝트는 자주 다수의 태그를 갖기에 ([`FGameplayTagContainer`](https://api.unrealengine.com/INT/API/Runtime/GameplayTags/FGameplayTagContainer/index.html) 유형을 사용하는) **Gameplay Tag Containers** (게임플레이 태그 컨테이너)가 제공되어, 다양한 추가 질의 처리가 가능합니다. 게임플레이 태그 (또는 게임플레이 태그 컨테이너)는 아무 오브젝트에 추가하고 개념적 라벨을 할당한 뒤 프로젝트의 요구에 따라 식별, 일치, 분류, 필터 적용이 가능합니다.
 
 ### 게임플레이 태그 생성
-게임플레이 태그는 엔진의 중앙 태그 디렉터리에 추가해야 인식이 가능합니다. 에디터 기능을 통해 세 가지 방식으로 가능합니다. 태그는 **프로젝트 세팅** 메뉴에서, .ini 파일을 통해, 데이터 테이블 애셋을 생성하여, 총 세 가지 방법으로 수동 추가할 수 있습니다. 
+
+게임플레이 태그는 엔진의 중앙 태그 디렉터리에 추가해야 인식이 가능합니다. 에디터 기능을 통해 세 가지 방식으로 가능합니다. 태그를 생성( 또는 삭제)하는 방법은 세 가지입니다.
+
+*   **프로젝트 세팅** 메뉴에서 수동 추가 또는 제거
+*   "GameplayTags" 폴더에 .ini 파일 생성 및 편집
+*   데이터 테이블 애셋 생성
 
 이 세 가지 방법 모두 **프로젝트 세팅** 아래에서 **프로젝트** 섹션 아래 **Gameplay Tags** 탭에서 구성 가능합니다.
+
 ![Gameplay Tags menu in Project Settings](ProjectSettings.png)
 
 ### 태그 수동 추가
@@ -27,33 +31,78 @@ tags:Gameplay
 ![Manually Adding Tags in Project Settings](AddNewTag.png)
 
 #### .ini 파일 직접 편집
+
 별도의 .ini 파일을 사용해서 태그를 추가하려면, **Import Tags From Config** 옵션을 켜야 합니다. 그러면 프로젝트의 `Config/Tags/` 경로에서 찾은 각 .ini 파일에서 게임플레이 태그가 로드되어 쉽게 수동 편집할 수 있습니다. 에디터 실행 도중 이러한 편집을 한 경우, **Import Tags From Config** 옵션을 껐다 다시 켜면 파일을 다시 로드합니다. 이 파일 내 포맷은 다음과 같습니다:
 
-	[/Script/GameplayTags.GameplayTagsList]
-	GameplayTagList=(Tag="Vehicle.Air.Helicopter",DevComment="This is a custom tooltip!")
-	GameplayTagList=(Tag="Movement.Flying",DevComment="")
-	GameplayTagList=(Tag="Movement.Hovering",DevComment="")
-	GameplayTagList=(Tag="Movement.Landing",DevComment="")
+~~~
+<code class="language-cpp">[/Script/GameplayTags.GameplayTagsList]
+GameplayTagList=(Tag="Vehicle.Air.Helicopter",DevComment="This is a custom tooltip!")
+GameplayTagList=(Tag="Movement.Flying",DevComment="")
+GameplayTagList=(Tag="Movement.Hovering",DevComment="")
+GameplayTagList=(Tag="Movement.Landing",DevComment="")</code>
+~~~
 
 이 방법은 팀원이 자신의 태그를 추가하도록 하기에 편리한 방법인데, `Config/Tags` 의 .ini 파일은 원하는 작명 규칙으로 쉽게 이름지을 수 있는 텍스트 파일이기 때문입니다.
 
 "Developer Tag" 컨픽 파일은 **프로젝트 세팅** 의 **Gameplay Tags Developer** (게임플레이 태그 개발자) 메뉴에서 **Developer Config Name** (개발자 환경설정 이름)을 원하는 파일명으로 채우면 사용할 수 있습니다. 설정하면 개인적으로 기본 .ini 파일에 추가한 모든 태그가 지정된 .ini 파일에 대신 저장됩니다. 자신의 .ini 파일은 `Config/Tags` 폴더에 들어가며, 추가 변경 없이 다른 개발자에게 전달하거나 소스 컨트롤 시스템에 제출할 수 있습니다. 태그가 수천 개인 거대 프로젝트나, 특정 개발자가 만든 태그를 분류하기 위해서라거나, 아니면 특정 게임 기능으로 사용하기 위한 목적으로 유용하게 쓰일 수 있습니다. 이 기능은 완전 옵션이지만, 별도의 파일에 특정 태그를 저장하려는 팀이나 작업방식에 유용하게 쓰일 수 있습니다.
 
 #### 데이터 테이블 애셋
+
 마지막으로 태그는 `GameplayTagTableRow` 행 유형을 가진 [데이터 테이블](Gameplay/DataDriven) 애셋을 통해 추가할 수 있습니다. 이는 엑셀 스프레드시트 파일같은 외부 소스에서 게임플레이 태그를 임포트할 때 특히나 좋습니다만, 임포트할 파일 없이도 에디터 안에서 작업하여 직접 만들 수 있습니다. 애셋이 생성되면, **프로젝트 세팅** 메뉴의 **GameplayTagTableList** 에 추가하고, 그 안에 들어있는 모든 태그가 **게임플레이 태그 매니저** 에 추가됩니다. 참고로 이 시스템은 다중 애셋 표시를 지원하므로, 프로젝트의 태그를 여러 개의 스프레드 시트에 나누는 것이 작업방식이나 체계 정리에 도움이 된다면 그렇게도 할 수 있습니다.
 
 ![Gameplay Tags in a Data Table Asset](DataAsset.png)
 
-[REGION:caption]데이터 테이블 애셋은 .ini 파일이 아닌 언리얼 엔진 애셋을 사용하며, 다른 게임 애셋과 비슷하게 에디터 실행 도중 확인 및 변경 가능합니다.[/REGION]
+[REGION:caption]
+데이터 테이블 애셋은 .ini 파일이 아닌 언리얼 엔진 애셋을 사용하며, 다른 게임 애셋과 비슷하게 에디터 실행 도중 확인 및 변경 가능합니다.
+[/REGION]
 
 ### 게임플레이 태그 관리
-게임플레이 태그를 추가했으면, 그에 대한 레퍼런스 검색, 삭제, 이름변경 등의 관리가 가능합니다. 이러한 동작 모두 **프로젝트 세팅** 메뉴에서 태그 옆의 드롭다운으로 접근할 수 있습니다. 태그는 (수동 편집 또는 **프로젝트 세팅** 메뉴를 통해 추가된) .ini 파일을 통해 추가된 경우에만, 그리고 다른 것에 레퍼런싱되지 않은 경우에만 삭제할 수 있습니다. 태그 이름변경은 GameplayTagRedirects 목록에 추가 작업이 발생하며, 이름변경된 태그는 로드시 자동으로 수정됩니다.
+
+게임플레이 태그를 추가했으면, 그에 대한 레퍼런스 검색, 삭제, 이름변경 등의 관리가 가능합니다. 이러한 동작 모두 **프로젝트 세팅** 메뉴에서 태그 옆의 드롭다운으로 접근할 수 있습니다. 태그는 (수동 편집 또는 **프로젝트 세팅** 메뉴를 통해 추가된) .ini 파일을 통해 추가된 경우에만, 그리고 다른 것에 참조되지 않은 경우에만 삭제할 수 있습니다. 태그 이름변경은 GameplayTagRedirects 목록에 추가 작업이 발생하며, 이름변경된 태그는 로드시 자동으로 수정됩니다.
 
 ![Editing Individual Gameplay Tags In Project Settings](ProjectSettingsEditTag.png)
 
-[REGION:caption]게임플레이 태그는 프로젝트 세팅에서 드롭다운을 통해 편집할 수 있습니다.[/REGION]
+[REGION:caption]
+게임플레이 태그는 프로젝트 세팅에서 드롭다운을 통해 편집할 수 있습니다.
+[/REGION]
 
-### 게임플레이 태그 테스트 연산
+### 게임플레이 태그 편집 제한
+
+게임플레이 태그 에디터는 계층구조 내 어느 레벨에서든, 전권이 있는(authoritative) 사용자 목록에 따라 게임플레이 태그를 편집을 제한하는 기능을 지원합니다. 게임플레이 태그 편집 제한(Editing Restriction) 기능을 사용하려면, **프로젝트 세팅** 을 열고 **GameplayTags** (게임플레이 태그) 섹션 아래 **Advanced Gameplay Tags** (고급 게임플레이 태그) 계층구조를 엽니다. 게임플레이 태그 세트의 편집을 제한하려면, 먼저 태그를 저장할 "DefaultGameplayTags.ini" 이외 .ini 파일을 지정해야 합니다. 편집하려는 사용자가 연락할 수 있도록 제한시킨 태그의 소유자 역시 지정해야 합니다. 마지막으로, 게임플레이 태그 자체를 Restricted Tag List (제한된 태그 리스트)에 추가하면, 여기 나타나는 체크박스를 통해 목록에 없는 사용자의 자손 추가 권한을 설정할 수 있습니다. (목록의 소유자 이외) 사용자가 Restricted Tag List (제한된 태그 리스트) 편집을 시도하면, 경고창이 표시되어 소유자에게 권한을 받았는지 확인합니다. 사용자가 "Yes" 를 선택하지 않으면, 편집은 이루어지지 않습니다.
+
+![](RestrictedTagsUI.png "RestrictedTagsUI.png")
+
+*제한된 게임플레이 태그를 추가하는 인터페이스입니다. 체크박스는 사용자가 자손 태그를 추가할 수 있는 곳을 나타냅니다.*
+
+(목록의 소유자 이외) 사용자가 Restricted Tag List (제한된 태그 리스트)를 수정 시도하면 경고창이 표시됩니다.
+
+![](RestrictedTagWarning.png "RestrictedTagWarning.png")
+
+*제한된 태그 리스트를 소유하지 않은 사용자가 편집을 시도할 때 나타나는 경고/확인창입니다.*
+
+제한된 태그 리스트 구성이 완료되면, 정상 게임플레이 태그 리스트에 제한된 게임플레이 태그가 포함됩니다. 하지만 제한된 태그는 드룹다운의 "이름변경" 또는 "삭제" 옵션을 지원하지 않으며, 제한된 태그 리스트에서 박스를 체크한 태그 옆에만 "+" 버튼이 나타납니다.
+
+![](GameplayTagsUIWithRestrictedTags.png "GameplayTagsUIWithRestrictedTags.png")
+
+*표준 게임플레이 태그 리스트는 현재 사용자가 소유하지 않은 제한 태그에 "+" 버튼이 표시되지 않습니다.*
+
+![](RestrictedTagCaretMenu.png "RestrictedTagCaretMenu.png")
+
+*제한된 태그 리스트에 생성된 태그는 자체 드롭다운 메뉴에서 검색 옵션만 지원하며, "이름변경" 및 "삭제" 옵션은 사용할 수 없습니다.*
+
+현재 제한된 태그는 에디터에서 생성한 이후에는, 제한된 태그 리스트에서도 삭제할 수 없습니다. 하지만 .ini 파일에서는 삭제할 수 있습니다. 다음은 이 예제에 사용된 제한된 태그에 해당하는 "RestrictedTags.ini" 파일입니다. 이 파일에서 태그를 삭제하려면 간단히 그에 해당하는 "Tag" 항목 줄을 지우면 됩니다.
+
+~~~
+[/Script/GameplayTags.RestrictedGameplayTagsList]
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=False,Tag="RestrictedDesignTags",DevComment="These tags are controlled by the design lead")
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=False,Tag="RestrictedDesignTags.MajorTags",DevComment="These are restricted.")
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=True,Tag="RestrictedDesignTags.MajorTags.EditableTags",DevComment="This is not restricted, unlike its parent.")
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=True,Tag="RestrictedDesignTags.MinorTags",DevComment="These are not restricted.")
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=False,Tag="RestrictedDesignTags.MinorTags.Special",DevComment="This is restricted, unlike its parent.")
+~~~
+
+## 게임플레이 태그 테스트 연산
+
 테스트 연산이 다수 있는데, 모두 태그를 다른 태그에 일치시키는 개념을 기반으로 한 것으로, 게임플레이 태그 및 게임플레이 태그 컨테이너에서 수행할 수 있습니다. 이 함수 각각은 게임플레이 태그 또는 게임플레이 태그 컨테이너에서 호출할 수 있으며, 하나의 게임플레이 태그 또는 게임플레이 태그 컨테이너를 파라미터로 받습니다.
 
 다음 테이블은 태그 및 태그 컨테이너에 사용할 수 있는 연산 상세 내용입니다. 이 표에서 "A.1" 포맷은 단일 게임플레이 태그를 나타내는 반면, "{A.1}" 은 게임플레이 태그 컨테이너의 일부분 중 같은 태그를 나타냅니다. 태그가 여럿 있는 컨테이너는 "{A.1, B.1}" 포맷이 됩니다.
@@ -73,30 +122,38 @@ tags:Gameplay
 | {A.1, B.1} | HasAll | {A, B} | true |
 | {A.1, B.1} | HasAllExact | {A, B} | false |
 
-참고로 공백 또는 기본 게임플레이 태그 컨테이너를 입력 파라미터로 제공하면 `HasAll`, `HasAllExact`, `MatchesAll`, `MatchesAllExact` 를 제외한 모든 연산이 false 반환하게 됩니다. 이는 소스 세트에 없는 파라미터 컨테이너에 태그가 없다는 데 대한 정당화가 됩니다.
+참고로 게임플레이 태그 컨테이너를 비워 두거나 기본 입력 파라미터로 제공하면 `HasAll`, `HasAllExact`, `MatchesAll`, `MatchesAllExact` 를 제외한 모든 연산이 false 반환하게 됩니다. 이는 소스 세트에 없는 파라미터 컨테이너에 태그가 없다는 데 대한 정당화가 됩니다.
 
 예로 다음 블루프린트는 위 이름의 연산을 사용하여 테스트 액터가 게임에 스폰될 때 Gameplay Tag Container 에 `TestTag.One` 또는 `TestTag.Three` 가, 둘 다는 아닌 하나만 있는지 검사합니다. 이 테스트에는 시범으로 블루프린트의 리터럴 컨테이너 값을 사용하지만, 액터의 컨테이너에는 블루프린트( 또는 C++) 변수를 사용합니다.
 
-![블루프린트의 샘플 게임플레이 태그 연산](TagOperationsInBP.png)
+[REGION:lightbox]
+[](TagOperationsInBP.png)
 
-## 게임플레이 태그 쿼리
-게임플레이 태그 컨테이너에 대한 특정 유형 쿼리는 **Gameplay Tag Query** 변수에 저장하여 데이터 주도형으로 만들어, 변수나 코드 조각 하나 이상을 편집할 필요 없이 여러 곳에서 수행할 수 있도록 하여 속도를 올릴 수 있습니다. 게임플레이 태그 쿼리는 세 가지 기본 테스트에 제한됩니다:
+ [![블루프린트의 샘플 게임플레이 태그 연산](TagOperationsInBP.png)](TagOperationsInBP.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
 
-* **Any Tags Match** (아무 태그 일치)는 컨테이너에 쿼리의 태그 중 하나라도 있으면 성공합니다.
+### 게임플레이 태그 쿼리
 
-* **All Tags Match** (모든 태그 일치)는 컨테이너에 없는 태그가 쿼리에도 하나도 없는 경우 성공합니다 (쿼리에 태그가 존재하지 않는 경우도 포함합니다).
+**Gameplay Tag Query** (게임플레이 태그 쿼리) 변수는 Gameplay Tag Container (게임플레이 태그 컨테이너)에서 수행할 수 있는 특정 테스트 유형에 대한 캡슐화입니다. 이를 활용하여 테스트를 데이터 주도형으로 만들면, 변수나 코드 조각을 둘 이상 수정하지 않고도 여러 곳에서 같은 테스트를 할 수 있으며, 네이티브 코드로 대부분의 작업을 하도록 하여 테스트 속도를 높일 수 있습니다. 게임플레이 태그 쿼리가 수행할 수 있는 테스트 유형 세 가지는 다음과 같습니다.
 
-* **No Tags Match** (태그 일치 없음)은 컨테이너에 있는 태그가 쿼리에는 하나도 없는 경우 성공합니다 (쿼리에 태그가 존재하지 않는 경우도 포함합니다). 
+*   **Any Tags Match** (아무 태그 일치)는 컨테이너에 쿼리의 태그 중 하나라도 있으면 성공합니다.
+
+*   **All Tags Match** (모든 태그 일치)는 컨테이너에 없는 태그가 쿼리에도 하나도 없는 경우 성공합니다. *쿼리에 태그가 존재하지 않는 경우도 포함합니다.*
+
+*   **No Tags Match** (태그 일치 없음)은 컨테이너에 있는 태그가 쿼리에는 하나도 없는 경우 성공합니다. *쿼리에 태그가 존재하지 않는 경우도 포함합니다.*
 
 하지만 이 테스트는 세 가지 커다란 표현식으로 합칠 수 있으며, 이들 각각에는 부가 표현식이나 테스트 배열이 포함됩니다:
 
-* **Any Expressions Match** (아무 표현식 일치)는 하위 표현식 또는 테스트가 성공하면 성공합니다.
+*   **Any Expressions Match** (아무 표현식 일치)는 하위 표현식 또는 테스트가 성공하면 성공합니다.
+*   **All Expressions Match** (모든 표현식 일치)는 하위 표현식 또는 테스트가 실패한 것이 없으면 성공합니다. *여기에는 쿼리에 하위 표현식이나 테스트가 존재하지 않는 경우도 포함됩니다.*
+*   **No Expressions Match** (일치 표현식 없음)은 하위 표현식이나 테스트가 성공한 것이 없으면 성공합니다. *여기에는 쿼리에 하위 표현식 또는 테스트가 존재하지 않는 경우도 포함됩니다.*
 
-* **All Expressions Match** (모든 표현식 일치)는 하위 표현식 또는 테스트가 실패한 것이 없으면 성공합니다 (여기에는 쿼리에 하위 표현식이나 테스트가 존재하지 않는 경우도 포함됩니다).
-
-* **No Expressions Match** (일치 표현식 없음)은 하위 표현식이나 테스트가 성공한 것이 없으면 성공합니다 (여기에는 쿼리에 하위 표현식 또는 테스트가 존재하지 않는 경우도 포함됩니다).
-
-[REGION:note]참고로 세 가지 테스트 유형 모두 위 테이블 연산에 한해 "정확한" 일치입니다.[/REGION]
+[REGION:note]
+참고로 세 가지 테스트 유형 모두 위 테이블 연산에 한해 "정확한" 일치입니다.
+[/REGION]
 
 이전의 테스트를 재활용하여 소스 컨테이너에 `TestTag.One` 나 `TestTag.Three` 중 (둘 다는 아닌) 하나만 있고 `TestTag.Two` 는 없도록 하는 것을, 하나의 Gameplay Tag Query 로 만들 수 있습니다. 이 테스트에는 블루프린트( 또는 C++) 변수만 독점적으로 사용할텐데, 리터럴 값 역시 지원하기는 합니다. 테스트 쿼리 변수는 이와 같습니다:
 
@@ -104,10 +161,17 @@ tags:Gameplay
 
 이 쿼리 구성으로 우리 게임플레이 태그 컨테이너를 테스트 액터의 블루프린트에 있는 것에 대해 평가할 수 있는데, 다음과 같습니다:
 
-![블루프린트의 샘플 게임플레이 태그 쿼리](TagQueryInBP.png)
+[REGION:lightbox]
+[![블루프린트의 샘플 게임플레이 태그 쿼리](TagQueryInBP.png)](TagQueryInBP.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
 
 ## 게임에서 게임플레이 태그 사용
+
 게임의 오브젝트에 만든 태그를 적용하려면, 오브젝트에 Gameplay Tags (C++ 유형 `FGameplayTag`) 또는 Gameplay Tag Containers (C++ 유형 `FGameplayTagContainer`) 프로퍼티를 추가하면 됩니다. 또한 원하는 대로 오브젝트에 **Gameplay Tag Queries** (C++ 유형 `FGameplayTagQuery`) 추가도 가능하며, 블루프린트나 C++ 코드에서 직접 태그 연산을 사용할 수도 있습니다. 이 프로퍼티 추가가 완료되면, 다른 변수처럼 코드나 에디터에서 편집할 수 있습니다.
 
 ### C++ 에서 게임플레이 태그 빠른 접근
+
 `IGameplayTagAssetInterface` 는 C++ 에서 구현할 수 있습니다. 그 후 `GetOwnedGameplayTags` 함수를 오버라이드하면, 블루프린트를 접근하는 방식으로 해당 오브젝트에 태그가 할당된 게임플레이 태그 컨테이너를 채우는 방법을 만들 수 있습니다. 대부분의 경우 베이스 클래스에서 새로운 컨테이너로 태그를 복사한다는 뜻일 뿐이지만, 클래스 구현은 다수의 컨테이너에서 태그를 수집하고, 블루프린트 함수를 호출하여 블루프린트 선언 태그를 접근하거나, 필요한 다른 오브젝트를 접근할 수도 있습니다. 이러한 인터페이스의 장접은 표준화된 방식으로 다양한 오브젝트 유형과 상호작용할 수 있다는 것으로, 오브젝트를 명시적으로 형변환한 뒤 올바른 태그 변수(들)을 구하기 위해 가능한 유형마다 커스텀 코드를 작성하지 않아도 오브젝트 태그를 구할 수 있다는 점입니다. 이는 커대한 프로젝트에서 특히나 유용한데, 재현하기 어려운 버그를 방지하고 코드를 깔끔하고 빠르고 관리하기 쉽도록 만드는 데 도움이 될 수 있기 때문입니다.

@@ -34,7 +34,7 @@ public:
 		, _EnableStereoRendering(false)
 		, _PreMultipliedAlpha(true)
 		, _IgnoreTextureAlpha(true)
-		, _ViewportSize(FVector2D(320.0f, 240.0f))
+		, _ViewportSize(GetDefaultViewportSize())
 	{
 		_Clipping = EWidgetClipping::ClipToBoundsAlways;
 	}
@@ -43,7 +43,7 @@ public:
 
 		/** Whether or not to show the disabled effect when this viewport is disabled */
 		SLATE_ATTRIBUTE( bool, ShowEffectWhenDisabled )
-		
+
 		/** 
 		 * Whether or not to render directly to the window's backbuffer or an offscreen render target that is applied to the window later 
 		 * Rendering to an offscreen target is the most common option in the editor where there may be many frames which this viewport's interface may wish to not re-render but use a cached buffer instead
@@ -74,9 +74,11 @@ public:
 
 		/** The interface to be used by this viewport for rendering and I/O. */
 		SLATE_ARGUMENT(TSharedPtr<ISlateViewport>, ViewportInterface)
-		
+
 		/** Size of the viewport widget. */
 		SLATE_ATTRIBUTE(FVector2D, ViewportSize);
+
+		SLATE_API static FVector2D GetDefaultViewportSize();
 
 	SLATE_END_ARGS()
 

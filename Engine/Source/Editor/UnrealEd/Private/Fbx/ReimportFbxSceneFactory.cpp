@@ -1226,6 +1226,25 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 		return EReimportResult::Failed;
 	}
 
+	const TArray<UAssetUserData*>* UserData = Mesh->GetAssetUserDataArray();
+	TMap<UAssetUserData*, bool> UserDataCopy;
+	if (UserData)
+	{
+		for (int32 Idx = 0; Idx < UserData->Num(); Idx++)
+		{
+			if ((*UserData)[Idx] != nullptr)
+			{
+				UAssetUserData* DupObject = (UAssetUserData*)StaticDuplicateObject((*UserData)[Idx], GetTransientPackage());
+				bool bAddDupToRoot = !(DupObject->IsRooted());
+				if (bAddDupToRoot)
+				{
+					DupObject->AddToRoot();
+				}
+				UserDataCopy.Add(DupObject, bAddDupToRoot);
+			}
+		}
+	}
+
 	ApplyMeshInfoFbxOptions(MeshInfo);
 	//TODO support bBakePivotInVertex
 	bool Old_bBakePivotInVertex = GlobalImportSettings->bBakePivotInVertex;
@@ -1240,6 +1259,19 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 	if (FbxImporter->ReimportSkeletalMesh(Mesh, SkeletalMeshImportData, MeshInfo->UniqueId, &OutSkeletalMeshArray))
 	{
 		Mesh->AssetImportData->Update(FbxImportFileName);
+
+		// Copy user data to newly created mesh
+		for (auto Kvp : UserDataCopy)
+		{
+			UAssetUserData* UserDataObject = Kvp.Key;
+			if (Kvp.Value)
+			{
+				//if the duplicated temporary UObject was add to root, we must remove it from the root
+				UserDataObject->RemoveFromRoot();
+			}
+			UserDataObject->Rename(nullptr, Mesh, REN_DontCreateRedirectors | REN_DoNotDirty);
+			Mesh->AddAssetUserData(UserDataObject);
+		}
 
 		// Try to find the outer package so we can dirty it up
 		if (Mesh->GetOuter())
@@ -1432,14 +1464,20 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportStaticMesh(void* VoidFbx
 
 	FbxImporter->ApplyTransformSettingsToFbxNode(FbxImporter->Scene->GetRootNode(), StaticMeshImportData);
 	const TArray<UAssetUserData*>* UserData = Mesh->GetAssetUserDataArray();
-	TArray<UAssetUserData*> UserDataCopy;
+	TMap<UAssetUserData*, bool> UserDataCopy;
 	if (UserData)
 	{
 		for (int32 Idx = 0; Idx < UserData->Num(); Idx++)
 		{
 			if ((*UserData)[Idx] != nullptr)
 			{
-				UserDataCopy.Add((UAssetUserData*)StaticDuplicateObject((*UserData)[Idx], GetTransientPackage()));
+				UAssetUserData* DupObject = (UAssetUserData*)StaticDuplicateObject((*UserData)[Idx], GetTransientPackage());
+				bool bAddDupToRoot = !(DupObject->IsRooted());
+				if (bAddDupToRoot)
+				{
+					DupObject->AddToRoot();
+				}
+				UserDataCopy.Add(DupObject, bAddDupToRoot);
 			}
 		}
 	}
@@ -1466,10 +1504,16 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportStaticMesh(void* VoidFbx
 		Mesh->AssetImportData = StaticMeshImportData;
 
 		// Copy user data to newly created mesh
-		for (int32 Idx = 0; Idx < UserDataCopy.Num(); Idx++)
+		for (auto Kvp : UserDataCopy)
 		{
-			UserDataCopy[Idx]->Rename(nullptr, Mesh, REN_DontCreateRedirectors | REN_DoNotDirty);
-			Mesh->AddAssetUserData(UserDataCopy[Idx]);
+			UAssetUserData* UserDataObject = Kvp.Key;
+			if (Kvp.Value)
+			{
+				//if the duplicated temporary UObject was add to root, we must remove it from the root
+				UserDataObject->RemoveFromRoot();
+			}
+			UserDataObject->Rename(nullptr, Mesh, REN_DontCreateRedirectors | REN_DoNotDirty);
+			Mesh->AddAssetUserData(UserDataObject);
 		}
 
 		if (NavCollision)

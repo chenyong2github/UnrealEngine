@@ -2,7 +2,7 @@ Availability: Public
 Title:3. Extend and Override C++ with Blueprints
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/VariablesTimersEvents
 Description:Using Blueprints to supplement or replace C++ functionality.
-version:4.9
+version:4.21
 [VAR:Steps]
 [OBJECT:Navigation]
 	[PARAM:previous]
@@ -132,6 +132,7 @@ version:4.9
 	// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 	#include "HowTo_VTE.h"
+	#include "Components/TextRenderComponent.h"
 	#include "Countdown.h"
 
 	// Sets default values

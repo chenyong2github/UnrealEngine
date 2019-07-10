@@ -27,8 +27,8 @@ Leaderboards enable you to track and display high scores for players on a per-pl
 See the appropriate platform-specific page below for details on configuring leaderboards for each platform:
 
 [REGION:buttonlist]
-* [](Platforms/Android/Leaderboards)
-* [](Platforms/iOS/Leaderboards)
+* [](Platforms/Mobile/Android/Leaderboards)
+* [](Platforms/Mobile/iOS/Leaderboards)
 [/REGION]
 
 [EXCERPT:Usage]

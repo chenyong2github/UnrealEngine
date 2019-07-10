@@ -184,8 +184,9 @@ namespace UnrealBuildTool
 		/// <param name="TargetName">Target name being built</param>
 		/// <param name="Platform">The platform being built</param>
 		/// <param name="TargetType">Type of the target being built</param>
+		/// <param name="Architecture">The target architecture</param>
 		/// <returns>Path to the engine action history for this target</returns>
-		public static FileReference GetEngineLocation(string TargetName, UnrealTargetPlatform Platform, TargetType TargetType)
+		public static FileReference GetEngineLocation(string TargetName, UnrealTargetPlatform Platform, TargetType TargetType, string Architecture)
 		{
 			string AppName;
 			if(TargetType == TargetType.Program)
@@ -197,7 +198,7 @@ namespace UnrealBuildTool
 				AppName = UEBuildTarget.GetAppNameForTargetType(TargetType);
 			}
 
-			return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", Platform.ToString(), AppName, "ActionHistory.bin");
+			return FileReference.Combine(UnrealBuildTool.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, "ActionHistory.bin");
 		}
 
 		/// <summary>
@@ -206,10 +207,11 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile">Path to the project file</param>
 		/// <param name="Platform">Platform being built</param>
 		/// <param name="TargetName">Name of the target being built</param>
+		/// <param name="Architecture">The target architecture</param>
 		/// <returns>Path to the project action history</returns>
-		public static FileReference GetProjectLocation(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform)
+		public static FileReference GetProjectLocation(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, string Architecture)
 		{
-			return FileReference.Combine(ProjectFile.Directory, "Intermediate", "Build", Platform.ToString(), TargetName, "ActionHistory.bin");
+			return FileReference.Combine(ProjectFile.Directory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), Platform.ToString(), TargetName, "ActionHistory.dat");
 		}
 
 		/// <summary>
@@ -219,20 +221,21 @@ namespace UnrealBuildTool
 		/// <param name="TargetName">Name of the target</param>
 		/// <param name="Platform">Platform being built</param>
 		/// <param name="TargetType">The target type</param>
+		/// <param name="Architecture">The target architecture</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public static ActionHistory CreateHierarchy(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, TargetType TargetType)
+		public static ActionHistory CreateHierarchy(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, TargetType TargetType, string Architecture)
 		{
 			ActionHistory History = null;
 
 			if(ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
 			{
-				FileReference EngineCacheLocation = GetEngineLocation(TargetName, Platform, TargetType);
+				FileReference EngineCacheLocation = GetEngineLocation(TargetName, Platform, TargetType, Architecture);
 				History = FindOrAddHistory(EngineCacheLocation, UnrealBuildTool.EngineDirectory, History);
 			}
 
 			if(ProjectFile != null)
 			{
-				FileReference ProjectCacheLocation = GetProjectLocation(ProjectFile, TargetName, Platform);
+				FileReference ProjectCacheLocation = GetProjectLocation(ProjectFile, TargetName, Platform, Architecture);
 				History = FindOrAddHistory(ProjectCacheLocation, ProjectFile.Directory, History);
 			}
 
@@ -246,16 +249,17 @@ namespace UnrealBuildTool
 		/// <param name="TargetName">Name of the target</param>
 		/// <param name="Platform">Platform being built</param>
 		/// <param name="TargetType">The target type</param>
+		/// <param name="Architecture">The target architecture</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public static IEnumerable<FileReference> GetFilesToClean(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, TargetType TargetType)
+		public static IEnumerable<FileReference> GetFilesToClean(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, TargetType TargetType, string Architecture)
 		{
 			if(ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
 			{
-				yield return GetEngineLocation(TargetName, Platform, TargetType);
+				yield return GetEngineLocation(TargetName, Platform, TargetType, Architecture);
 			}
 			if(ProjectFile != null)
 			{
-				yield return GetProjectLocation(ProjectFile, TargetName, Platform);
+				yield return GetProjectLocation(ProjectFile, TargetName, Platform, Architecture);
 			}
 		}
 

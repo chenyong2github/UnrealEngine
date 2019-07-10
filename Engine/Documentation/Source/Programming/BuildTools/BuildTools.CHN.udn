@@ -1,0 +1,22 @@
+﻿INTSourceChangelist:6142688
+Availability: Public
+Title: 编译工具
+Description: 用于编译虚幻引擎和游戏项目的工具。
+Type: overview
+Parent: Programming
+Order: 22
+
+
+[REGION:fullwidth]
+![Unreal Build System](build.png)
+[/REGION]
+
+我们有一组用于自动执行编译虚幻引擎4(UE4)过程的工具，包括 **虚幻编译工具（UnrealBuildTool）** 和 **虚幻头工具（UnrealHeaderTool）**（以及其他工具），本指南提供了这些编译工具的概述，包括UE4模块化架构的简要概述。 
+
+[REGION:note]
+ **注意：**如果您想要在Mac OS X上调试虚幻编译工具或 **自动工具（AutomationTool）**，请安装[MonoDevelop 4.2.2](http://monodevelop.com/Download)和[Mono 3.2.7](http://www.go-mono.com/mono-downloads/download.html)。
+[/REGION]
+
+## 主题
+
+[DIR(output:"topic" parent:"Programming/BuildTools" end:"1")]

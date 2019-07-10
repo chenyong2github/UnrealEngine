@@ -1,154 +1,286 @@
-﻿INTSourceChangelist:4284256
+﻿INTSourceChangelist:6536708
 Availability: Public
 Crumbs: 
 Title: 在蓝图和Python中创建细节层级
-Description: 展示如何在虚幻编辑器中使用蓝图和Python自动设置细节层级（LOD）。
-Type:how-to
+Description: 显示如何使用蓝图和Python在虚幻编辑器中设置自动细节层级（LOD）。
+Type: how-to
+SkillLevel:Intermediate
 Version: 4.20
 Parent: Engine/Editor/ScriptingAndAutomation/HowTos
-SkillLevel:Intermediate
-Order: 1
-Tags: Blueprints, how-to, Python, scripting, editor, lods, levels of detail
+Order: 0
+Tags: Blueprints
+Tags: how-to
+Tags: Python
+Tags: scripting
+Tags: editor
+Tags: lods
+Tags: levels of detail
 
 
-为网格体创建细节层级（LOD）是一种在不牺牲视觉质量的情况下提高游戏性能和帧率的很好途径。
+为您的网格体创建细节层级（LOD）可以在不牺牲视觉质量的前提下提高游戏的性能和帧率。
 
-通常网格体的三角形越多，这些三角形在屏幕上越小，使用GPU渲染的难度就越大。如果尝试同时渲染过多精细的网格体，可能会降低帧速率。但是，通常并不需要在屏幕上以同样的保真度渲染每一个网格体：当网格体位于远处时，可以将其渲染为细节略少的网格体版本，减少其中包含的三角形，又不在视觉质量上产生明显的差异。
+一般来说，网格体中三角形越多，屏幕上三角形越小，GPU渲染它们就越困难。同时渲染太多的细节网格体会降低你的帧率。然而，通常不必将场景中的每一个网格体都以同样的保真度进行渲染：网格体若离得很远，通常可以换成不太详细的网格体，减少所包含的三角形，而不会在视觉质量上造成明显的差异。
 
-虚幻引擎4内置有LOD管理系统，根据每一帧中网格体占用的屏幕空间量自动选择最适合在运行时显示的网格体版本。该系统要求提前在编辑器中设置不同的网格体备用版本。  
+虚幻引擎4提供了一个内置的LOD管理系统，可以根据网格体当前在每个帧中占据的屏幕空间大小，自动选择要在运行时显示的网格体的最合适版本。此系统依赖于您提前在编辑器中设置这些网格体的不同替代版本。  
 
-编辑器可以逐步将网格体简化到指定的阈值，自动为静态网格体资源生成细节层级。有关该系统工作原理及其如何在静态网格体编辑器中设置的更多信息，请参阅[自动LOD生成](https://docs.unrealengine.com/en-us/Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration)。
+通过逐步将网格体简化为您指定的阈值，编辑器可以为静态网格体资源自动生成这些细节层级。有关此系统如何工作以及如何在静态网格体编辑器中设置的更多信息，请参阅[自动LOD生成](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration)。
 
 [REGION:lightbox]
-[![Level of Detail settings in the Static Mesh Editor](ALC_PM_00.png "Level of detail settings in the static mesh editor data-verified=")](ALC_PM_00.png)
-[/REGION]
-[REGION:caption]
-单击查看大图。
+[![Level of Detail settings in the Static Mesh Editor](ALC_PM_00.png "Level of Detail settings in the Static Mesh Editor")(w:1000)](ALC_PM_00.png)  
+*单击显示全图。*
 [/REGION]
 
-但是，即使编辑器可以自动生成这些LOD，可能也无法逐个打开项目中的每个静态网格体资源以将它们全部设置。你可以批量地编辑资源，但是如果想要根据静态网格体资源的特点对不同的静态网格体资源应用不同的设置，例如根据网格体中现存三角形的数量或网格体的命名规范应用不同的缩减设置，那么这个功能帮助不大。如果要在已编写脚本的自定义资源制作流程中，将创建LOD作为子步骤完成，这个功能的帮助也不大。在这些情况下，可以使用蓝图或Python来编写自动LOD创建系统的脚本。
+然而，即使编辑器可以自动生成这些LOD，您也不可能逐个打开项目中的静态网格体资源来设置。您可以批量编辑资源，但是如果您想根据不同的静态网格体资源的特性对它们应用不同的设置，那么这就没有帮助了。例如，您可能希望根据网格体中现有三角形的数量或根据资源命名惯例应用不同的简化设置。如果您希望在您编写了脚本的较大自定义资源管道中将LOD创建为子步骤，那么它也没有帮助。对于这类情况，可以使用蓝图或Python编写自动LOD创建系统的脚本。
 
-[REGION:note]
-如果还未安装 **Editor Scripting Utilities** 插件，需要进行安装。有关细节，请参阅[编辑器脚本编写和自动化](Engine/Editor/ScriptingAndAutomation)。
-[/REGION]
+ **先决条件：**如果您尚未进行此操作，则需要安装 **编辑器脚本工具插件（Editor Scripting Utilities Plugin）**。详情请参阅[编写脚本和自动执行编辑器](Engine/Editor/ScriptingAndAutomation)。
+
+## 创建新的细节层级
 
 %Globals:BlueprintOrPythonSelectVar%
 
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	BlueprintOrCPPSelect
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	blueprintimplementation
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	在 **编辑器脚本编写（Editor Scripting） > 静态网格体（Static Mesh）** 类别下可找到管理LOD所需的节点。
-
-	[REGION:note]
-	要使用这些节点，“蓝图”类必须衍生自“Editor-only”类，例如 **PlacedEditorUtilityBase** 类。有关细节，请参阅[使用蓝图编写编辑器脚本](Engine/Editor/ScriptingAndAutomation/Blueprints)。
-	[/REGION]
-
-	*   主节点 **设置LOD（Set Lods）** 自动为传递的静态网格体资源创建细节层级。要使用这个节点，需要为其设定一组缩减设置，定义屏幕大小阈值和每个要创建细节层级的三角形相对百分比。请参阅下面的示例。
-		[REGION:note]
-		第一个传递到 **EditorScriptingMeshReductionOptions** 节点的 **Reduction Settings** 输入的 **EditorScriptingMeshReductionSettings** 项目不会产生影响，因为LOD 0始终被认为以最高的细节层级显示网格体，其中包含所有的三角形。
-		[/REGION]
-	*   可以使用 **Get Lod Count** 和 **Get Lod Screen Sizes** 了解当前为静态网格体设置的细节层级的信息。
-	*   还可以使用 **Remove Lods** 删除所有现有的LOD（除了LOD 0，它始终是保留全部细节的网格体）。
-	*   设置LOD可以修改静态网格体资源。假设要保留所做的更改，还需稍后使用 **Save Asset** 或 **Save Loaded Asset** 等节点。
-
-	以下示例依次将每个静态网格体资源装入输入路径。如果发现某个资源的顶点数超过了最小阈值，就会为静态网格体额外设置三个LOD，之后再保存。
-
-	[REGION:lightbox]
-	[![Set LODs in Blueprints Example](set_lods_example.png "Set LODs in Blueprints Example")](set_lods_example.png)
-	[/REGION]
-	[REGION:caption]
-	单击查看大图。
-	[/REGION]
-	[/PARAM]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    blueprintimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_0]
+    [/PARAM]
 [/OBJECT]
+
+<!--
+[EXCERPT:excerpt_0]
+
+您将在 **编辑器脚本（Editor Scripting）> 静态网格体（Static Mesh）** 类别下找到管理LOD所需的节点。
+
+[REGION:note]
+要使用这些节点，您的蓝图类必须派生自仅编辑器类，例如 **PlacedEditorUtilityBase** 类。详情请参阅[使用蓝图编写编辑器脚本](Engine/Editor/ScriptingAndAutomation/Blueprints)。
+[/REGION]
+
+*   关键节点是 **Set Lods**，它自动为传入的静态网格体资源创建细节层级。要使用此节点，您需要为其提供一组简化设置，这些设置为您想要创建的每个细节层级定义屏幕大小阈值和相对三角形百分比。见下例。
+    [REGION:note]
+    您传递给 **EditorScriptingMeshReductionOptions** 节点的 **简化设置（Reduction Settings）** 输入的第一个 **EditorScriptingMeshReductionSettings** 项目不起作用。LOD 0总是包含网格体中的所有三角形。
+    [/REGION]
+    
+*   您可以使用 **获取LOD数量（Get Lod Count）** 和 **获取LOD屏幕大小（Get Lod Screen Sizes）** 获取关于当前为静态网格体设置的细节层级的信息。
+*   您也可以使用 **移除LOD（Remove Lods）** 移除所有现有LOD（除了LOD 0，它始终包含网格体中的所有三角形）。
+*   设置LOD将修改静态网格体资源。假设希望保留所做的更改，之后还需要使用 **保存资源（Save Asset）** 或 **保存加载的资源（Save Loaded Asset）** 之类的节点。
+
+下面的示例依次在输入路径中加载每个静态网格体资源。每当它发现顶点数大于最小阈值的资源时，它就为静态网格体设置三个额外的LOD，然后保存。
+
+[REGION:lightbox]
+[![Set LODs in Blueprints Example](set_lods_example.png "Set LODs in Blueprints Example")(w:1000)](set_lods_example.png)  
+*单击显示全图。*
+[/REGION]
+
+[/EXCERPT:excerpt_0]
+-->
 
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	BlueprintOrCPPSelect
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	pythonimplementation
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	LOD管理函数可在`unreal.EditorStaticMeshLibrary`类中找到。
-
-	*   主函数`unreal.EditorStaticMeshLibrary.set_lods()`自动为传递的静态网格体资源创建细节层级。要使用这个函数，需要传递`EditorScriptingMeshReductionOptions`对象，其中包括一组`EditorScriptingMeshReductionSettings`，用于定义屏幕大小阈值和每个要创建细节层级的三角形相对百分比。请参阅下面的示例。
-		[REGION:note]
-		在`EditorScriptingMeshReductionOptions.reduction_settings`数组中设定的第一个`EditorScriptingMeshReductionSettings`项目不会产生影响，因为LOD 0始终被认为以最高的细节层级显示网格体，其中包含所有的三角形。
-		[/REGION]
-	*   可以使用`unreal.EditorStaticMeshLibrary.get_lod_count()`和`unreal.EditorStaticMeshLibrary.get_lod_screen_sizes`了解当前为静态网格体设置的细节层级的信息。
-	*   还可以使用`unreal.EditorStaticMeshLibrary.remove_lods()`删除所有现存的LOD（除了LOD 0，它始终是包含全部细节的网格体）。
-	*   设置LOD可以修改静态网格体资源。假设要保留所做的更改，还需稍后使用`unreal.EditorAssetLibrary.save_asset()`或`unreal.EditorAssetLibrary.save_loaded_asset()`之类的函数。
-
-	以下示例依次将每个静态网格体资源装入输入路径。如果发现某个资源的顶点数超过了最小阈值，就会为静态网格体额外设置三个LOD，之后再保存。
-
-		import unrealasset_path = "/Game/studio"
-		# 我们定义一个为指定的静态网格体资源生成新LOD的函数。
-		def apply_lods(static_mesh):
-		# 检查网格体是否足够复杂。
-		顶点_的_数量 = unreal.EditorStaticMeshLibrary.get_number_verts(static_mesh, 0)
-		如果顶点_的_数量 < 10：
-			return
-		print("treating asset:" + static_mesh.get_name())
-		print("existing LOD count:" + str(unreal.EditorStaticMeshLibrary.get_lod_count(static_mesh)))
-		# 设置用于自动生成细节层级的选项。
-		选项 = unreal.EditorScriptingMeshReductionOptions()
-		# 我们要求设置三个新的细节层级。每个均有：
-		# - 屏幕空间阈值，在该阈值将显示此细节层级。
-		# - 在该级别应该保留的LOD 0中的三角形百分比/
-		options.reduction_settings = [ unreal.EditorScriptingMeshReductionSettings(1.0, 1.0),
-			unreal.EditorScriptingMeshReductionSettings(0.8, 0.75),
-			unreal.EditorScriptingMeshReductionSettings(0.6, 0.5),
-			unreal.EditorScriptingMeshReductionSettings(0.4, 0.25)
-		]
-		# 使用上面设置的屏幕空间阈值，而不是自动计算。
-		options.auto_compute_lod_screen_size = False
-		# 设置关于静态网格体资源的选项。
-		unreal.EditorStaticMeshLibrary.set_lods(static_mesh, options)
-		# 保存更改。
-		unreal.EditorAssetLibrary.save_loaded_asset(static_mesh)
-		print("new LOD count:“ + str(unreal.EditorStaticMeshLibrary.get_lod_count(static_mesh)))
-		# 获取路径中所有资源的列表。
-		all_assets = unreal.EditorAssetLibrary.list_assets(asset_path)
-		# 将它们全部装入内存。
-		all_assets_loaded = [unreal.EditorAssetLibrary.load_asset(a) for a in all_assets]
-		# 过滤该列表，使之只包含静态网格体。
-		static_mesh_assets = unreal.EditorFilterLibrary.by_class(all_assets_loaded, unreal.StaticMesh)
-		# 在列表中的每个静态网格体上运行上面的函数。
-		map(apply_lods, static_mesh_assets)
-
-	另一种方法是为每个静态网格体资源设置 **LOD Group** 选项。这个选项可让网格体使用项目 **BaseEngine.ini** 文件中的 `[StaticMeshLODSettings]` 分段中定义的预设LOD缩减设置之一，例如`LevelArchitecture`、`SmallProp`、`LargeProp`,或`HighDetail`。
-
-	例如：
-
-		import unreal
-		asset_path = "/Game/studio/"
-		def set_high_detail(static_mesh):
-		# 设置LOD组。
-		static_mesh.set_editor_property("lod_group", "HighDetail")
-		# 保存资源。
-		unreal.EditorAssetLibrary.save_loaded_asset(static_mesh)
-		# 获取路径中所有资源的列表。
-		all_assets = unreal.EditorAssetLibrary.list_assets(asset_path)
-		# 将它们全部装入内存。
-		all_assets_loaded = [unreal.EditorAssetLibrary.load_asset(a) for a in all_assets]
-		# 过滤该列表，使之只包含静态网格体。
-		static_mesh_assets = unreal.EditorFilterLibrary.by_class(all_assets_loaded, unreal.StaticMesh)
-		# 在列表中的每个静态网格体上运行上面的函数。
-		map(set_high_detail, static_mesh_assets)
-
-	[REGION:tip]
-	有关该系统工作原理及其如何在编辑器中使用的更多信息，请参阅[自动LOD生成](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration#usinglodgroups)。
-	[/REGION]
-	[/PARAM]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    pythonimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_1]
+    [/PARAM]
 [/OBJECT]
 
+<!--
+[EXCERPT:excerpt_1]
+
+您将在“unreal.EditorStaticMeshLibrary”类中找到LOD管理函数。
+
+*   关键函数是“unreal.EditorStaticMeshLibrary.set_lods()”，它自动为传入的静态网格体资源创建细节层级。要使用此函数，您需要传入一个“EditorScriptingMeshReductionOptions”对象，该对象包含一组“EditorScriptingMeshReductionSettings”，为您想要创建的每个细节层级定义屏幕大小阈值和相对三角形百分比。见下例。
+    [REGION:note]
+    您在“EditorScriptingMeshReductionOptions.reduction_settings”数组中设置的第一个“EditorScriptingMeshReductionSettings”项目不起作用。LOD 0总是包含网格体中的所有三角形。
+    [/REGION]
+    
+*   您可以使用 **unreal.EditorStaticMeshLibrary.get_lod_count()** 和 **unreal.EditorStaticMeshLibrary.get_lod_screen_sizes** 获取关于当前为静态网格体设置的细节层级的信息。
+*   您也可以使用 **unreal.EditorStaticMeshLibrary.remove_lods()** 来移除所有现有LOD（除了LOD 0，它始终包含网格体中的所有三角形）。
+*   设置LOD将修改静态网格体资源。假设您希望保留所做的更改，之后还需要使用“unreal.EditorAssetLibrary.save_asset()”或“unreal.EditorAssetLibrary.save_loaded_asset()”之类的函数。
+
+下面的示例依次在输入路径中加载每个静态网格体资源。每当它发现顶点数大于最小阈值的资源时，它就为静态网格体设置三个额外的LOD，然后保存。
+
+    import unreal
+    asset_path = "/Game/studio"
+    # 我们定义一个函数，该函数为指定的静态网格体资源生成新的LOD。
+    def apply_lods(static_mesh):
+        # 检查网格体是否足够复杂。
+        number_of_vertices = unreal.EditorStaticMeshLibrary.get_number_verts(static_mesh, 0)
+        if number_of_vertices < 10:
+            return
+        print("treating asset: " + static_mesh.get_name())
+        print("existing LOD count: " + str(unreal.EditorStaticMeshLibrary.get_lod_count(static_mesh)))
+        # 设置用于自动生成细节层级的选项。
+        options = unreal.EditorScriptingMeshReductionOptions()
+        # 我们请求三个细节层级。各个细节层级拥有：
+        # - 在该LOD层级上，应该保留来自详尽网格体的三角形的百分比
+        # - 此细节层级会显示时的屏幕空间阈值。
+        options.reduction_settings = [ unreal.EditorScriptingMeshReductionSettings(1.0, 1.0),
+            unreal.EditorScriptingMeshReductionSettings(0.8, 0.75),
+            unreal.EditorScriptingMeshReductionSettings(0.6, 0.5),
+            unreal.EditorScriptingMeshReductionSettings(0.4, 0.25)
+        ]
+        # 使用上述设置的屏幕空间阈值，而非自动计算。
+        options.auto_compute_lod_screen_size = False
+        # 在静态网格体资源上设置选项。
+        unreal.EditorStaticMeshLibrary.set_lods(static_mesh, options)
+        # 保存更改。
+        unreal.EditorAssetLibrary.save_loaded_asset(static_mesh)
+        print("new LOD count: " + str(unreal.EditorStaticMeshLibrary.get_lod_count(static_mesh)))
+    # 获取路径中所有资源的列表。
+    all_assets = unreal.EditorAssetLibrary.list_assets(asset_path)
+    # 将它们都加载到内存中。
+    all_assets_loaded = [unreal.EditorAssetLibrary.load_asset(a) for a in all_assets]
+    # 过滤列表以仅包括静态网格体。
+    static_mesh_assets = unreal.EditorFilterLibrary.by_class(all_assets_loaded, unreal.StaticMesh)
+    # 对列表中的各个静态网格体运行此函数。
+    map(apply_lods, static_mesh_assets)
+
+另一种方法是为每个静态网格体资源设置 **LOD组（LOD Group）** 选项。此选项使网格体使用项目的 **BaseEngine.ini** 文件的“[StaticMeshLODSettings]”部分中定义的预设置LOD简化设置之一，如“LevelArchitecture”、“SmallProp”、“LargeProp”或“HighDetail”。
+
+例如：
+
+    import unreal
+    asset_path = "/Game/studio/"
+    def set_high_detail(static_mesh):
+        # 设置LOD组。
+        static_mesh.set_editor_property("lod_group", "HighDetail")
+        # 保存资源。
+        unreal.EditorAssetLibrary.save_loaded_asset(static_mesh)
+    # 获取路径中所有资源的列表。
+    all_assets = unreal.EditorAssetLibrary.list_assets(asset_path)
+    # 将它们都加载到内存中。
+    all_assets_loaded = [unreal.EditorAssetLibrary.load_asset(a) for a in all_assets]
+    # 过滤列表以仅包括静态网格体。
+    static_mesh_assets = unreal.EditorFilterLibrary.by_class(all_assets_loaded, unreal.StaticMesh)
+    # 对列表中的各个静态网格体运行此函数。
+    map(set_high_detail, static_mesh_assets)
+
+[REGION:tip]
+有关此系统如何工作以及如何在编辑器中使用它的更多信息，请参阅[自动LOD生成](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration#usinglodgroups)。
+[/REGION]
+
+[/EXCERPT:excerpt_1]
+-->
+
+## 重用来自另一个静态网格体的LOD
+
+作为使用上述过程自动生成静态网格体LOD的替代方法，您可以使用静态网格体中已经存在的LOD（称为 *源* 静态网格体），并将其作为另一个静态网格体（称为 *目标* 静态网格体）的LOD重复使用。
+
+%Globals:BlueprintOrPythonSelectVar%
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    blueprintimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_2]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:excerpt_2]
+
+要在蓝图脚本中重复使用现有的LOD，请使用 **编辑器脚本（Editor Scripting）> 静态网格体（Static Mesh）> 从静态网格体设置LOD（Set Lod From Static Mesh）** 节点。 
+
+![Set Lod From Static Mesh](set_lod_from_static_mesh.png "Set Lod From Static Mesh")
+
+该节点需要以下输入：
+
+*   指向目标静态网格体的引用。这是要为其创建新LOD的静态网格体。您需要首先加载该资源，使用 **编辑器脚本（Editor Scripting）> 资源（Asset）> 加载资源（Load Asset）** 节点。
+*   要为目标静态网格体创建的LOD索引。
+    [REGION:warning]
+    如果目标静态网格体已经具有具有相同索引的LOD，则会覆盖它。
+    [/REGION]
+    
+*   指向源静态网格体的引用。这是一个静态网格体，它有一个您希望从目标静态网格体指向的现有LOD。同上，您需要首先加载该资源，使用 **编辑器脚本（Editor Scripting）> 资源（Asset）> 加载资源（Load Asset）** 节点。
+*   要用于目标静态网格体的源静态网格体中LOD的索引。
+*   一个布尔参数，它决定是否要尝试将源LOD中的材质插槽与目标静态网格体中已经存在的插槽合并。如果启用此设置，则函数将查找源几何体中与目标网格体中的部分分配相同材质的任何部分。如果找到任何部分，它将尝试重新映射LOD中的部分，以匹配目标静态网格体中的现有部分。这可以在两个静态网格体使用相同材质的情况下节省一些内存。如果禁用此设置，则源LOD中的所有网格体部分都将附加到目标静态网格体。
+
+设置LOD将修改目标静态网格体资源。假设希望保留所做的更改，之后还需要使用 **保存资源（Save Asset）** 或 **保存加载的资源（Save Loaded Asset）** 之类的节点。
+
+例如，下面的脚本从源静态网格体中取指定的LOD，并在目标静态网格体中以不同的指定LOD索引重复使用该几何体：
+
+[REGION:lightbox]
+[![Set Lod From Static Mesh example](set_lod_from_mesh_example.png "Set Lod From Static Mesh example")(w:1000)](set_lod_from_mesh_example.png)  
+*单击显示全图。*
+[/REGION]
+
+当运行来自静态网格体的 **Set Lod from Static Mesh** 节点时，将源静态网格体的LOD副本添加到目标静态网格体中。静态网格体资源之间没有正在进行的连接，因此从现在开始对源静态网格体所做的任何更改都不会自动影响目标静态网格体。
+
+[/EXCERPT:excerpt_2]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    pythonimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_3]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:excerpt_3]
+
+
+要重复使用Python脚本中的某个LOD，调用“unreal.EditorStaticMeshLibrary.set_lod_from_static_mesh()”函数。您需要传递此函数：
+
+*   目标静态网格体：这是要为其创建新LOD的静态网格体。您需要先加载此资源，使用“unreal.EditorAssetLibrary.load_asset()”函数。
+*   要为目标静态网格体创建的LOD索引。此值必须大于0。不能在目标静态网格体中替换LOD 0。
+    [REGION:warning]
+    如果目标静态网格体已经具有具有相同索引的LOD，则会覆盖它。
+    [/REGION]
+    
+*   源静态网格体。这是一个静态网格体，它有一个您希望从目标静态网格体指向的现有LOD。同上，您需要先加载此资源，使用“unreal.EditorAssetLibrary.load_asset()”函数。
+*   要用于目标静态网格体的源静态网格体中LOD的索引。
+*   一个布尔参数，它决定是否要努力合并目标静态网格体中的材质插槽。如果将此参数设置为“True”，则函数将查找源几何体中与目标网格体中的部分分配相同材质的任何部分。如果找到任何部分，它将尝试重新映射LOD中的部分，以匹配目标静态网格体中的现有部分。如果将此参数设置为“False”，则源LOD中的所有网格体部分都将附加到目标静态网格体。
+
+设置此LOD将修改静态网格体资源。假设您希望保留所做的更改，之后还需要使用“unreal.EditorAssetLibrary.save_asset()”或“unreal.EditorAssetLibrary.save_loaded_asset()”之类的函数。
+
+例如，以下脚本从简化的源静态网格体中获取LOD 0，并在更复杂的目标静态网格体中将该几何体重复使用为LOD 1：
+
+    import unreal
+    destination_name = "/Game/MyGeometries/Accumulator_case"
+    source_name = "/Game/MyGeometries/Simplified_box"
+    def set_mesh_as_lod(destination_name, source_name):
+        destination_mesh = unreal.EditorAssetLibrary.load_asset(destination_name)
+        source_mesh = unreal.EditorAssetLibrary.load_asset(source_name)
+        lod_count = unreal.EditorStaticMeshLibrary.get_lod_count(destination_mesh)
+        print("Current LOD count: " + str(lod_count))
+        slot_replaced = unreal.EditorStaticMeshLibrary.set_lod_from_static_mesh(destination_mesh, 1, source_mesh, 0, True)
+        if slot_replaced > 0:
+            print("Added mesh as LOD for slot " + str(slot_replaced))
+            lod_count = unreal.EditorStaticMeshLibrary.get_lod_count(destination_mesh)
+            print("New LOD count: " + str(lod_count))
+            unreal.EditorAssetLibrary.save_loaded_asset(destination_mesh)
+        else
+            unreal.log_error("Unable to add mesh as LOD!")
+    set_mesh_as_lod(destination_name, source_name)
+
+当“unreal.EditorStaticMeshLibrary.set_lod_from_static_mesh()”函数运行时，将源静态网格体的LOD副本添加到目标静态网格体中。静态网格体资源之间没有正在进行的连接，因此从现在开始对源静态网格体所做的任何更改都不会自动影响目标静态网格体。
+
+[/EXCERPT:excerpt_3]
+-->

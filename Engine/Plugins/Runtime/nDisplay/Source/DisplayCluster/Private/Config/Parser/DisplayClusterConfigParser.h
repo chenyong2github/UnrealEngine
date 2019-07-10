@@ -40,6 +40,7 @@ protected:
 	virtual void AddInput(const FDisplayClusterConfigInput& InCfgInput)             override final;
 	virtual void AddInputSetup(const FDisplayClusterConfigInputSetup& InCfgInputSetup)  override final;
 	virtual void AddCustom(const FDisplayClusterConfigCustom& InCfgCustom)          override final;
+	virtual void AddProjection(const FDisplayClusterConfigProjection& InCfgProjection) override final;
 
 private:
 	IDisplayClusterConfigParserListener* const ConfigParserListener;

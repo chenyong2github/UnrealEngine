@@ -346,7 +346,7 @@ namespace BuildPatchServices
 			, bExpectsMoreData(true)
 			, ThreadTrigger(FPlatformProcess::GetSynchEventFromPool(true))
 		{
-			FileManifestListFuture = Async<FFileManifestList>(EAsyncExecution::Thread, [this]() { return AsyncRun(); });
+			FileManifestListFuture = Async(EAsyncExecution::Thread, [this]() { return AsyncRun(); });
 		}
 
 		~FChunkMatchStomper()
@@ -635,7 +635,7 @@ namespace BuildPatchServices
 		RequestIdManifestB = DownloadService->RequestFile(Configuration.ManifestBUri, DownloadCompleteDelegate, DownloadProgressDelegate);
 
 		// Start the generation thread.
-		TFuture<TArray<FString>> Thread = Async<TArray<FString>>(EAsyncExecution::Thread, [this](){ return AsyncRun(); });
+		TFuture<TArray<FString>> Thread = Async(EAsyncExecution::Thread, [this](){ return AsyncRun(); });
 
 		// Main timers.
 		double DeltaTime = 0.0;
@@ -1200,7 +1200,7 @@ namespace BuildPatchServices
 		{
 			if (Download->WasSuccessful())
 			{
-				Async<void>(EAsyncExecution::ThreadPool, [Download, RelevantPromisePtr]()
+				Async(EAsyncExecution::ThreadPool, [Download, RelevantPromisePtr]()
 				{
 					FBuildPatchAppManifestPtr Manifest = MakeShareable(new FBuildPatchAppManifest());
 					if (!Manifest->DeserializeFromData(Download->GetData()))

@@ -1,9 +1,9 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6324570
 Availability: Public
 Title:변수, 타이머, 이벤트
 Crumbs:%ROOT%, GettingStarted, Programming/Tutorials
 Description:변수와 함수를 에디터에 노출시키고 타이머를 사용하여, 블루프린트로 C++ 함수를 덮어씁니다.
-version:4.9
+version:4.21
 type:how-to
 type:landing
 skilllevel:Beginner

@@ -54,6 +54,7 @@
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::Left/RightHandSourceId
+#include "VREditorFloatingUI.h"
 
 #define LOCTEXT_NAMESPACE "VREditorMode"
 
@@ -99,7 +100,7 @@ UVREditorMode::UVREditorMode() :
 	bStartedPlayFromVREditor( false ),
 	bStartedPlayFromVREditorSimulate( false ),
 	AssetContainer( nullptr )
-{
+{ 
 }
 
 void UVREditorMode::Init()
@@ -182,15 +183,16 @@ void UVREditorMode::Shutdown()
 
 void UVREditorMode::AllocateInteractors()
 {
-	const TSubclassOf<UVREditorInteractor> InteractorClass = GetDefault<UVRModeSettings>()->InteractorClass;
-
 	class UVREditorInteractor* LeftHandInteractor = nullptr;
 	class UVREditorInteractor* RightHandInteractor = nullptr;
 
-	if (InteractorClass)
+	const TSoftClassPtr<UVREditorInteractor> InteractorClassSoft = GetDefault<UVRModeSettings>()->InteractorClass;
+	InteractorClassSoft.LoadSynchronous();
+
+	if (InteractorClassSoft.IsValid())
 	{
-		LeftHandInteractor = NewObject<UVREditorInteractor>( GetTransientPackage(), InteractorClass );
-		RightHandInteractor = NewObject<UVREditorInteractor>( GetTransientPackage(), InteractorClass );
+		LeftHandInteractor = NewObject<UVREditorInteractor>(GetTransientPackage(), InteractorClassSoft.Get());
+		RightHandInteractor = NewObject<UVREditorInteractor>(GetTransientPackage(), InteractorClassSoft.Get());
 	}
 
 	if (LeftHandInteractor == nullptr)
@@ -761,11 +763,11 @@ void UVREditorMode::RefreshActorPreviewWidget(TSharedRef<SWidget> InWidget, int3
 	}
 }
 
-void UVREditorMode::UpdateExternalUMGUI(TSubclassOf<UUserWidget> InUMGClass, FName Name, FVector2D InSize)
+void UVREditorMode::UpdateExternalUMGUI(const FVREditorFloatingUICreationContext& CreationContext) 
 {
 	if (bActuallyUsingVR && UISystem != nullptr)
 	{
-		GetUISystem().UpdateExternalUMGUI(InUMGClass, Name, InSize);
+		GetUISystem().UpdateExternalUMGUI(CreationContext); 
 	}
 }
 

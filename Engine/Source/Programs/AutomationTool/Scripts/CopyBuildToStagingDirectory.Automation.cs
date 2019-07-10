@@ -1458,7 +1458,7 @@ public partial class Project : CommandUtils
 				continue;
 			}
 
-			IEnumerable<string> FilesEnumberable;
+			IReadOnlyList<string> FilesEnumberable;
 			if (PakRulesConfig.TryGetValues(SectionName, "Files", out FilesEnumberable))
 			{
 				// Only add if we have actual files, we can end up with none due to config overriding

@@ -1,41 +1,35 @@
-Availability:Public
-Title: Composure Editor
-Crumbs: %ROOT%, Engine
-Description:Composure is Unreal Engine 4's compositing editor used for compositing digital and real world footage together in real time in Unreal Engine 4. 
-Type: Landing
-Version: 4.17
-parent:Engine
-order:4
-topic-image:ComposureTopic.png
-related: Engine/Sequencer
-tags:Sequencer
-
-![](ComposureBanner.png)
-
-The **Composure** Editor can be used in conjunction with the Sequencer Editor to enable real time compositing of computer generated footage with real world footage much like you would see in movies and tv shows. From being able to match Camera Lens Distortion to being able to determine the difference between foreground and background objects, the Composure Editor works similarly to any other compositing software out there; the major difference is that Composure does everything in real time.
-
-On this page, you will find links to a number of different documents that cover the different aspects of using Composure in Unreal Engine 4 (UE4).  If you are new to Composure, it is recommended that you first check out the Composure Quick Start to get a better idea of how Composure can be used in conjunction with Sequencer.
-
-## Starting Out
-
-[DIR(output:"topic" parent:"Engine/Composure" org:"hierarchy" end:"1" tags:"Getting Started")]
-
-[COMMENT:none]
-
-## Essentials
+Availability: Public
+Title: Real-Time Compositing with Composure
+Description: In Composure, a graphics utility plugin available with Unreal Engine, we’ve added a new set of tools to make compositing a lot easier.
+Type:landing
+Version: 4.22
+Parent: Engine
+Tags: Composure
+Tags: Early Access
+Tags: Landing Page
+topic-image:CompositingOverview_Layered.png
+Order: 35
 
 
+[TOC (start:2 end:4)]
 
-## Guides
+![](CompositingOverview_Layered.png "CompositingOverview_Layered.png")
 
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Beginner")]
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Intermediate")]
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Advanced")]
+  
 
-## Samples
+In Composure, a graphics utility plugin available with Unreal Engine, we’ve added a new set of tools to make compositing a lot easier.
 
+Compositing is the act of combining visual elements from different sources into a single image. In the visual effects industry, compositing a single frame is usually an offline process and can take some time. With compositing built into the engine, users can easily visualize green-screened scenes combined with CG in real-time. This is especially helpful for previsualization, which enables directors to get a sense of what the final scene will look like, or for offline compositors to use as a guide. Compositing will run both in-editor and in-game.
 
-[/COMMENT]
+  
+
+## Getting Started
+
+[DIR(output:"topic" parent:"Engine/Composure" tags:"Getting Started")]
+
+## Reference
+
+[DIR(output:"topic" parent:"Engine/Composure" tags:"Reference")]
 
 
 

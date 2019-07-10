@@ -64,4 +64,4 @@ UE4 は多くのモジュールに分かれています。各モジュールに�
 ## 高度なトピック
 
 %Programming/UnrealBuildSystem/IWYUReferenceGuide:topic%
-%Programming/Development/BuildGraph:topic%
+%Programming/BuildTools/AutomationTool/BuildGraph:topic%

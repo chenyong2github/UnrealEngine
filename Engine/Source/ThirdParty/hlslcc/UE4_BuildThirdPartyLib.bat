@@ -4,8 +4,9 @@ pushd hlslcc\projects
 
 	p4 edit %THIRD_PARTY_CHANGELIST% ..\lib\...
 
-	REM vs2015 x64
-	pushd vs2015
+	REM vs2017 x64
+	pushd vs2017
+	REM FYI Files are still generated into libs/2015...
 	msbuild hlslcc.sln /target:Clean,hlslcc_lib /p:Platform=x64;Configuration="Debug"
 	msbuild hlslcc.sln /target:Clean,hlslcc_lib /p:Platform=x64;Configuration="Release"
 	popd

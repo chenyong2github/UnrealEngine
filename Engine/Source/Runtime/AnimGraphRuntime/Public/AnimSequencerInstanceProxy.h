@@ -6,6 +6,7 @@
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
 #include "AnimNodes/AnimNode_ApplyAdditive.h"
 #include "AnimNodes/AnimNode_MultiWayBlend.h"
+#include "AnimNodes/AnimNode_PoseSnapshot.h"
 #include "AnimSequencerInstanceProxy.generated.h"
 
 /** Base class for all 'players' that can attach to and be blended into a sequencer instance's output */
@@ -86,6 +87,9 @@ public:
 	/** Reset all nodes in this instance */
 	virtual void ResetNodes();
 
+	/** Reset the pose in this instance*/
+	virtual void ResetPose();
+
 protected:
 	/** Find a player of a specified type */
 	template<typename Type>
@@ -107,6 +111,7 @@ protected:
 	struct FAnimNode_ApplyAdditive SequencerRootNode;
 	struct FAnimNode_MultiWayBlend FullBodyBlendNode;
 	struct FAnimNode_MultiWayBlend AdditiveBlendNode;
+	struct FAnimNode_PoseSnapshot  SnapshotNode;
 
 	/** mapping from sequencer index to internal player index */
 	TMap<uint32, FSequencerPlayerBase*> SequencerToPlayerMap;

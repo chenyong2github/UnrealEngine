@@ -17,8 +17,8 @@
 class ISlateStyle;
 
 /** Simple struct for rich text styles */
-USTRUCT()
-struct FRichImageRow : public FTableRowBase
+USTRUCT(Blueprintable, BlueprintType)
+struct UMG_API FRichImageRow : public FTableRowBase
 {
 	GENERATED_USTRUCT_BODY()
 

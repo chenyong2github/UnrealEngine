@@ -19,6 +19,7 @@
 #include "Slate/WidgetTransform.h"
 #include "UObject/UObjectThreadContext.h"
 #include "GameFramework/PlayerController.h"
+#include "Blueprint/WidgetNavigation.h"
 
 #if WITH_EDITOR
 // This violates IWYU, but the alternative is .cpp includes that are invariably not within #if WITH_EDITOR and cause non-editor build failures
@@ -254,7 +255,7 @@ public:
 	/**
 	 * The parent slot of the UWidget.  Allows us to easily inline edit the layout controlling this widget.
 	 */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadOnly, Category=Layout, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(Instanced, TextExportTransient, EditAnywhere, BlueprintReadOnly, Category=Layout, meta=(ShowOnlyInnerProperties))
 	UPanelSlot* Slot;
 
 	/** A bindable delegate for bIsEnabled */
@@ -317,6 +318,32 @@ public:
 	/**  */
 	UPROPERTY(EditAnywhere, Category="Behavior", meta=(InlineEditConditionToggle))
 	uint8 bOverride_Cursor : 1;
+
+	/** Whether or not children of this widget can appear as distinct accessible widgets. */
+	UPROPERTY(EditAnywhere, Category = "Accessibility")
+	uint8 bCanChildrenBeAccessible : 1;
+
+	/** Whether or not the widget is accessible, and how to describe it. If set to custom, additional customization options will appear. */
+	UPROPERTY(EditAnywhere, Category = "Accessibility")
+	ESlateAccessibleBehavior AccessibleBehavior;
+
+	/** When AccessibleBehavior is set to Custom, this is the text that will be used to describe the widget. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accessibility", meta = (MultiLine = true))
+	FText AccessibleText;
+
+	UPROPERTY()
+	FGetText AccessibleTextDelegate;
+
+	/** How to describe this widget when it's being presented through a summary of a parent widget. If set to custom, additional customization options will appear. */
+	UPROPERTY(EditAnywhere, Category = "Accessibility", AdvancedDisplay)
+	ESlateAccessibleBehavior AccessibleSummaryBehavior;
+
+	/** When AccessibleSummaryBehavior is set to Custom, this is the text that will be used to describe the widget. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accessibility", meta = (MultiLine = true), AdvancedDisplay)
+	FText AccessibleSummaryText;
+
+	UPROPERTY()
+	FGetText AccessibleSummaryTextDelegate;
 
 protected:
 
@@ -426,7 +453,11 @@ public:
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderAngle(float Angle);
+	void SetRenderTransformAngle(float Angle);
+	
+	/** */
+	UFUNCTION(BlueprintCallable, Category = "Widget|Transform")
+	float GetRenderTransformAngle() const;
 	
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
@@ -583,8 +614,41 @@ public:
 	 *	@param Rule The rule to use when navigation is taking place
 	 *	@param WidgetToFocus When using the Explicit rule, focus on this widget
 	 */
+	UE_DEPRECATED(4.23, "SetNavigationRule is deprecated. Please use either SetNavigationRuleBase or SetNavigationRuleExplicit or SetNavigationRuleCustom or SetNavigationRuleCustomBoundary.")
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	void SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
+
+	/**
+	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for non Explicit, non Custom and non CustomBoundary Rules.
+	 *	@param Direction
+	 *	@param Rule The rule to use when navigation is taking place
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetNavigationRuleBase(EUINavigation Direction, EUINavigationRule Rule);
+
+	/**
+	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for Explicit Rule.
+	 *	@param Direction
+	 *	@param InWidget Focus on this widget instance
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetNavigationRuleExplicit(EUINavigation Direction, UWidget* InWidget);
+
+	/**
+	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for Custom Rule.
+	 *	@param Direction
+	 *	@param InCustomDelegate Custom Delegate that will be called
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetNavigationRuleCustom(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate);
+
+	/**
+	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for CustomBoundary Rule.
+	 *	@param Direction
+	 *	@param InCustomDelegate Custom Delegate that will be called
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetNavigationRuleCustomBoundary(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate);
 
 	/** Gets the parent widget */
 	UFUNCTION(BlueprintCallable, Category="Widget")
@@ -924,7 +988,12 @@ protected:
 		return FSlateColor(InLinearColor.Get());
 	}
 
-	void SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
+	void SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus = NAME_None, UWidget* InWidget = nullptr, FCustomWidgetNavigationDelegate InCustomDelegate = FCustomWidgetNavigationDelegate());
+
+#if WITH_ACCESSIBILITY
+	/** Gets the widget that accessibility properties should synchronize to. */
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const;
+#endif
 
 protected:
 	/** The underlying SWidget. */
@@ -972,4 +1041,6 @@ private:
 private:
 	PROPERTY_BINDING_IMPLEMENTATION(FText, ToolTipText);
 	PROPERTY_BINDING_IMPLEMENTATION(bool, bIsEnabled);
+	PROPERTY_BINDING_IMPLEMENTATION(FText, AccessibleText);
+	PROPERTY_BINDING_IMPLEMENTATION(FText, AccessibleSummaryText);
 };

@@ -2,6 +2,7 @@
 
 #include "Materials/MaterialExpressionLandscapeVisibilityMask.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture.h"
 #include "EngineGlobals.h"
 #include "MaterialCompiler.h"
 #include "Materials/Material.h"
@@ -49,7 +50,7 @@ int32 UMaterialExpressionLandscapeVisibilityMask::Compile(class FMaterialCompile
 }
 #endif // WITH_EDITOR
 
-UTexture* UMaterialExpressionLandscapeVisibilityMask::GetReferencedTexture()
+UObject* UMaterialExpressionLandscapeVisibilityMask::GetReferencedTexture() const
 {
 	return GEngine->WeightMapPlaceholderTexture;
 }

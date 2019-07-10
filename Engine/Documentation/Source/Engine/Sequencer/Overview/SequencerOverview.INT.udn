@@ -12,7 +12,7 @@ Tags: Sequencer
 The **Sequencer** Editor gives users the ability to create in-game cinematics with a specialized multi-track editor (similar to [Matinee](Engine/Matinee)). By creating **Level Sequences** and adding **Tracks**, users can define the makeup of each Track, which will determine the content for the scene. Tracks can consist of things like Animations (for animating a character), Transformations (moving things around in the scene), Audio (for including music or sound effects), and several other Track types.
 
 [REGION:note]
-As of the release of engine version 4.20, Sequencer has undergone some refactoring in terms of how time is represented to better support filmic pipelines and contexts where frame-accuracy is of huge importance. Please see [Sequencer Time Refactor Technical Notes](Engine/Sequencer/Workflow/SequencerTimeRefactorNotes) for more information.
+As of the release of engine version 4.20, Sequencer has undergone some refactoring in terms of how time is represented to better support filmic pipelines and contexts where frame-accuracy is of huge importance. Please see [Sequencer Time Refactor Technical Notes](Engine/Sequencer/Workflow/TimeRefactorNotes) for more information.
 [/REGION]
 
 ## Creating Level Sequences
@@ -363,7 +363,7 @@ Selecting the Render Movie button will display the **Render Movie Settings** win
 Click the **Capture Movie** button to start the capture process of recording your scene.
 
 [REGION:note]
-Please see [Render Movie Settings](Engine/Sequencer/Workflow/Render-Movie-Settings) for more information or [Rendering Out Cinematic Movies](Engine/Sequencer/HowTo/RenderMovies) for a step-by-step guide.
+Please see [Render Movie Settings](Engine/Sequencer/Workflow/RenderMovieSettings) for more information or [Rendering Out Cinematic Movies](Engine/Sequencer/HowTo/RenderMovies) for a step-by-step guide.
 [/REGION]
 
 ### Custom Burn-ins
@@ -427,7 +427,7 @@ Sequencer is very similar to Matinee, in that it uses the concept of "possessabl
 Sequencer also includes another form of manipulation, which is referred to as "spawnables", meaning that the object we are possessing does not yet exist and will be spawned by Sequencer. In this case, Sequencer will have authority over the spawned Actor and can determine its lifecycle. Since the object is spawned, it is not bound to a particular Level. Anything marked as spawnable can be used in any Level, so you could create a scene and have it take place in any environment, and reuse that scene in new Levels without having to recreate it.
 
 [REGION:note]
-Please see [Creating Spawnables](en-us/Engine/Sequencer/HowTo/Spawnables) for more information.
+Please see [Creating Spawnables](Engine/Sequencer/HowTo/Spawnables) for more information.
 [/REGION]
 
 ## Workflow Considerations

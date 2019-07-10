@@ -1,0 +1,47 @@
+﻿INTSourceChangelist:6430212
+Availability: Public
+Title: 工具栏
+Description: 编辑器顶部的一个栏，其中包含控制多个函数的按钮。
+Version: 4.9
+Parent: Engine/Blueprints/Editor
+Tags: Blueprints
+
+
+**工具栏** 默认显示在蓝图编辑器的左上方。通过蓝图编辑器工具栏按钮可轻松访问编辑蓝图时所需的常用命令。工具栏上的按钮根据开启的模式和当前编辑的蓝图类型而有所不同。
+
+[REGION:fullwidth]
+![](ToolbarBP.png)
+[/REGION]
+
+工具栏包含两个部分：
+
+*   **工具栏选项 ** \- 用于处理蓝图的工具。    
+
+*   **模式按钮** \- 可用于切换蓝图所处模式的按钮。
+    
+
+## 工具栏按钮
+
+[REGION:simpletable]  
+| 按钮 | 说明 |
+| --- | --- |
+| ![Compile Successful Button](bp_compile_successful.png) | 编译成功。单击此按钮可编译进行编辑的蓝图。编译过程的输出显示在消息日志的蓝图日志中。此按钮在调试过程中不可用。|
+| ![Compile Needed Button](bp_needs_compile.png) | 须对 *蓝图* 进行重新编译。单击此按钮可编译进行编辑的蓝图。编译过程的输出显示在消息日志的蓝图日志中。此按钮在调试过程中不可用。|
+| ![Compile Warning Button](compile_warning.png) | 编译过程中出现警告。单击此按钮可编译进行编辑的蓝图。编译过程的输出显示在消息日志的蓝图日志中。此按钮在调试过程中不可用。|
+| ![Compile Failed Button](compile_failed.png) | 编译失败。单击此按钮可编译进行编辑的蓝图。编译过程的输出显示在消息日志的蓝图日志中。此按钮在调试过程中不可用。|
+| ![Save Button](bp_save.png) | 保存当前蓝图。|
+| ![Find in Content Browser Button](bp_find_in_cb.png) | 呼出 **内容浏览器** 并导航到此资源。|
+| ![Search Button](bp_search.png) | 查找当前蓝图中对函数、事件、变量和引脚的引用。|
+| ![Blueprint Properties Button](bp_properties.png) | 打开 **详情（Details）** 面板中的蓝图属性。|
+| ![Blueprint Properties Button](defaults.png) | 显示详情（Details）选项卡中的类默认值（Class Defaults）面板 |
+| ![Simulate Button](bp_simulate.png) | 以模拟模式启动游戏。请参阅[在编辑器中模拟](Engine/UI/LevelEditor/InEditorTesting#SimulateInEditor)部分以了解更多信息。|
+| ![Play In Editor Button](bp_play_in.png) | 以正常播放模式启动游戏。单击此箭头可显示 **运行选项（Play Options）** 菜单。请参阅[在编辑器中运行](Engine/UI/LevelEditor/InEditorTesting#PlayInEditor)部分以了解更多信息。|
+| ![Pause Button](bp_pause.png) | 暂停模拟。模拟暂停后，工具栏上将出现 **继续（Resume）** 和 **帧跳跃（Frame Skip）** 按钮。|
+| ![Resume Button](bp_resume.png) | 命中断点或按下Pause按钮后继续执行。|
+| ![Frame Skip Button](bp_frameskip.png) | 前进一帧或一个tick。模拟暂停或命中断点时出现此按钮。|
+| ![Stop Button](bp_stop.png) | 停止游戏执行并退出在编辑器中模拟模式。|
+| ![Possess Button](bp_possess.png) | 从在编辑器中模拟模式切换到在编辑器中运行模式。附加到玩家控制器，实现普通游戏功能按钮。与 **Eject** 进行切换。|
+| ![Eject Button](bp_eject.png) | 从在编辑器中运行模式切换到在编辑器中模拟模式。从玩家控制器解绑，实现普通游戏功能按钮。与 **Possess** 进行切换。|
+| ![Step Button](bp_step.png) | 一次一个节点逐步执行图表。模拟时命中断点后出现此按钮。|
+| ![Debug Dropdown](bp_debug_dropdown.png) | 如关卡中拥有一个或多个 *蓝图* 实例，可通过此下拉菜单选择进行调试的实例。|
+[/REGION]

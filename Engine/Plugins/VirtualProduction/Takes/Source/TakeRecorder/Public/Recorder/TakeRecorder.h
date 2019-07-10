@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "UObject/StrongObjectPtr.h"
 #include "ISequencer.h"
 #include "Recorder/TakeRecorderParameters.h"
 #include "Serializers/MovieSceneManifestSerialization.h"
@@ -23,6 +24,8 @@ UENUM(BlueprintType)
 enum class ETakeRecorderState : uint8
 {
 	CountingDown,
+	PreRecord,
+	TickingAfterPre,
 	Started,
 	Stopped,
 	Cancelled,
@@ -123,9 +126,14 @@ public:
 private:
 
 	/**
-	 * Called after the countdown to start recording
+	 * Called after the countdown to PreRecord
 	 */
-	void Start();
+	void PreRecord();
+
+	/**
+	 * Called after PreRecord To Start
+	 */
+	void Start(const FTimecode& InTimecodeSource);
 
 	/**
 	 * Ticked by a tickable game object to performe any necessary time-sliced logic
@@ -159,6 +167,9 @@ private:
 
 private:
 
+	/** Called by Tick and Start to make sure we record at start */
+	void InternalTick(const FTimecode& InTimecodeSource, float DeltaTime);
+
 	virtual UWorld* GetWorld() const override;
 
 private:
@@ -168,6 +179,9 @@ private:
 
 	/** The state of this recorder instance */
 	ETakeRecorderState State;
+
+	/** FFrameTime in MovieScene Resolution we are at*/
+	FFrameTime CurrentFrameTime;
 
 	/** The asset that we should output recorded data into */
 	UPROPERTY(transient)
@@ -200,6 +214,9 @@ private:
 	/** Sequencer ptr that controls playback of the desination asset during the recording */
 	TWeakPtr<ISequencer> WeakSequencer;
 
+	/** Due a few ticks after the pre so we are set up with asset creation */
+	int32 NumberOfTicksAfterPre;
+
 	friend class FTickableTakeRecorder;
 
 private:
@@ -208,9 +225,6 @@ private:
 	 * Set the currently active take recorder instance
 	 */
 	static bool SetActiveRecorder(UTakeRecorder* NewActiveRecorder);
-
-	/** A pointer to the currently active recorder */
-	static UTakeRecorder* CurrentRecorder;
 
 	/** Event to trigger when a new recording is initialized */
 	static FOnTakeRecordingInitialized OnRecordingInitializedEvent;

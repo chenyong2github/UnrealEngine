@@ -80,7 +80,7 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 
 	virtual bool IsDependent(UMaterialFunctionInterface* OtherFunction) override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const override;
-	virtual void AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const override;
+	virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const override;
 
 #if WITH_EDITOR
 	virtual UMaterialInterface* GetPreviewMaterial() override;

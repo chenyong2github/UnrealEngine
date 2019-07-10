@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6187230
 Availability:Public
 Title:如何在视口中编辑样条组件
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:Null
 Navigation:topic
 parent:Engine/BlueprintSplines/HowTo
 order:2
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 related:Engine/BlueprintSplines/HowTo/EditSplineInConstScript
 version:4.13
 skilllevel:Beginner
@@ -21,7 +21,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 [/REGION]
 
 
-(#Steps)
 ## 步骤
 
 1. 将带 **样条组件** 的蓝图放置到关卡中。
@@ -54,7 +53,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 	开始编辑样条组件后，**Override Construction Script** 属性将设为 **True**，防止其覆盖内容。 
 	[/REGION]
 	
-(#Result)
 ## 结果
 
 编辑的样条虽不会对内容产生影响，但此数据有多种用途。查阅 [](Resources/ContentExamples/Blueprint_Splines) 文档和 **Content Examples** 项目中的额外信息。

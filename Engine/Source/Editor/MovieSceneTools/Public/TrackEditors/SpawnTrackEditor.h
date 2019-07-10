@@ -43,7 +43,7 @@ public:
 	// ISequencerTrackEditor interface
 
 	virtual UMovieSceneTrack* AddTrack(UMovieScene* FocusedMovieScene, const FGuid& ObjectHandle, TSubclassOf<class UMovieSceneTrack> TrackClass, FName UniqueTypeName) override;
-	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass) override;
+	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override  { return TSharedPtr<SWidget>(); }
 	virtual bool HandleAssetAdded(UObject* Asset, const FGuid& TargetObjectGuid) override { return false; }
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> Type) const override;
@@ -52,6 +52,6 @@ public:
 private:
 
 	/** Callback for executing the "Add Spawn Track" menu entry. */
-	void HandleAddSpawnTrackMenuEntryExecute(FGuid ObjectBinding);
+	void HandleAddSpawnTrackMenuEntryExecute(TArray<FGuid> ObjectBindings);
 	bool CanAddSpawnTrack(FGuid ObjectBinding) const;
 };

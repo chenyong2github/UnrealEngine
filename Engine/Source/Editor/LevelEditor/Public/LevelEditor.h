@@ -231,6 +231,7 @@ public:
 	virtual TArray<FLevelEditorMenuExtender>& GetAllLevelEditorToolbarSourceControlMenuExtenders() { return LevelEditorToolbarSourceControlMenuExtenders; }
 	virtual TArray<FLevelEditorMenuExtender>& GetAllLevelEditorToolbarCreateMenuExtenders() { return LevelEditorToolbarCreateMenuExtenders; }
 	virtual TArray<FLevelEditorMenuExtender>& GetAllLevelEditorToolbarPlayMenuExtenders() { return LevelEditorToolbarPlayMenuExtenders; }
+	virtual TArray<TSharedPtr<FExtender>>& GetAllLevelEditorToolbarBlueprintsMenuExtenders() { return LevelEditorToolbarBlueprintsMenuExtenders; }
 	virtual TArray<TSharedPtr<FExtender>>& GetAllLevelEditorToolbarCinematicsMenuExtenders() {return LevelEditorToolbarCinematicsMenuExtenders;}
 	virtual TArray<FLevelEditorMenuExtender>& GetAllLevelEditorLevelMenuExtenders() { return LevelEditorLevelMenuExtenders; }
 	
@@ -245,6 +246,20 @@ public:
 
 	DECLARE_EVENT_OneParam(ILevelEditor, FOnRegisterLayoutExtensions, FLayoutExtender&);
 	FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() { return RegisterLayoutExtensions; }
+
+	/** Add / Remove status bar item */
+	struct FStatusBarItem
+	{
+		/* Visiblility of the status bar item. */
+		TAttribute<EVisibility> Visibility;
+		/* Label of the status bar item. */
+		TAttribute<FText> Label;
+		/* Value of the status bar item. */
+		TAttribute<FText> Value;
+	};
+	const TMap<FName, FStatusBarItem>& GetStatusBarItems() const { return StatusBarItems; }
+	virtual void AddStatusBarItem(FName InStatusBarIdentifier, const FStatusBarItem& InStatusBarItem);
+	virtual void RemoveStatusBarItem(FName InStatusBarIdentifier);
 
 	/** Called when a new map is loaded */
 	DECLARE_EVENT( FLevelEditorModule, FNotificationBarChanged );
@@ -338,6 +353,7 @@ private:
 	TSharedPtr<FExtensibilityManager> ModeBarExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> NotificationBarExtensibilityManager;
 
+	TMap<FName, FStatusBarItem> StatusBarItems;
 	FNotificationBarChanged NotificationBarChangedEvent;
 
 	/** 
@@ -384,6 +400,7 @@ private:
 	TArray<FLevelEditorMenuExtender> LevelEditorToolbarCreateMenuExtenders;
 	TArray<FLevelEditorMenuExtender> LevelEditorToolbarPlayMenuExtenders;
 	TArray<TSharedPtr<FExtender>> LevelEditorToolbarCinematicsMenuExtenders;
+	TArray<TSharedPtr<FExtender>> LevelEditorToolbarBlueprintsMenuExtenders;
 	TArray<FLevelEditorMenuExtender> LevelEditorLevelMenuExtenders;
 
 	/* Pointer to the current level Editor instance */

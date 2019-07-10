@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "IdentifierTable/ConcertTransportArchives.h"
 
+struct FConcertSessionVersionInfo;
+
 namespace ConcertSyncUtil
 {
 	 bool CONCERTSYNCCORE_API ShouldSkipTransientProperty(const UProperty* Property);
@@ -64,7 +66,7 @@ private:
 class CONCERTSYNCCORE_API FConcertSyncObjectReader : public FConcertIdentifierReader
 {
 public:
-	FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, UObject* InObj, const TArray<uint8>& InBytes);
+	FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes);
 
 	void SerializeObject(UObject* InObject);
 	void SerializeProperty(UProperty* InProp, UObject* InObject);

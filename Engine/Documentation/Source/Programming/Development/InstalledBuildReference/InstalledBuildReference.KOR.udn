@@ -1,12 +1,12 @@
-﻿INTSourceChangelist:4604867
-Availability: Public
-Title: Installed Build 참고서
+INTSourceChangelist:6495804
+Availability: Docs
+Title: Installed Build 레퍼런스
 Crumbs: %ROOT%, Programming, Programming/Development
 Description:Installed Build 프로세스 설명 및 Installed Build 스크립트 작성법에 대한 개요입니다.
 version: 4.13
-parent:Programming/Development/BuildGraph
+parent:Programming/Development
 type:Reference
-related:Programming/Development/BuildGraph
+related:Programming/BuildTools/AutomationTool/BuildGraph
 related:Programming/UnrealBuildSystem
 related:Programming/Development/BuildConfigurations
 tags:Programming
@@ -45,7 +45,7 @@ Installed Build 제작은 기본 대상 플랫폼 구성, 툴과 에디터를 �
 
 ## Installed Build 제작
 
-Installed Builds 는 [](Programming/Development/BuildGraph) 스크립트 시스템에 Installed Build 스크립트를 사용해서 만들 수 있습니다. 스크립트 위치는 
+Installed Builds 는 [](Programming/BuildTools/AutomationTool/BuildGraph) 스크립트 시스템에 Installed Build 스크립트를 사용해서 만들 수 있습니다. 스크립트 위치는 
 `[UE4Root]/Engine/Build/InstalledBuild.xml` 입니다.
 
 **Installed Build 생성 방법:**

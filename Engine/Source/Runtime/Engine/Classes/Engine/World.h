@@ -49,11 +49,12 @@ class ULocalPlayer;
 class UMaterialParameterCollection;
 class UMaterialParameterCollectionInstance;
 class UModel;
-class UNavigationSystem;
+class UNavigationSystemBase;
 class UNetConnection;
 class UNetDriver;
 class UPrimitiveComponent;
 class UTexture2D;
+class FPhysScene_Chaos;
 struct FUniqueNetIdRepl;
 struct FEncryptionKeyResponse;
 
@@ -904,6 +905,10 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 	UPROPERTY(Transient)
 	TArray<UObject*>							PerModuleDataObjects;
 
+	// Level sequence actors to tick first
+	UPROPERTY(transient)
+	TArray<AActor*>								LevelSequenceActors;
+
 private:
 	/** Level collection. ULevels are referenced by FName (Package name) to avoid serialized references. Also contains offsets in world units */
 	UPROPERTY(Transient)
@@ -1289,6 +1294,16 @@ private:
 
 	/** Physics scene for this world. */
 	FPhysScene*									PhysicsScene;
+	// Note that this should be merged with PhysScene going forward but is needed for now.
+public:
+#if INCLUDE_CHAOS
+	/** Current global physics scene. */
+	TSharedPtr<FPhysScene_Chaos> PhysicsScene_Chaos;
+
+	/** Default global physics scene. */
+	TSharedPtr<FPhysScene_Chaos> DefaultPhysicsScene_Chaos;
+#endif
+private:
 
 	/** Array of components that need updates at the end of the frame */
 	UPROPERTY(Transient, NonTransactional)
@@ -1320,6 +1335,11 @@ private:
 
 	/** Utility function that is used to ensure that a World has the correct WorldSettings */
 	void RepairWorldSettings();
+	
+#if INCLUDE_CHAOS
+	/** Utility function that is used to ensure that a World has the correct ChaosActor */
+	void RepairChaosActors();
+#endif
 
 	/** Gameplay timers. */
 	class FTimerManager* TimerManager;
@@ -1370,6 +1390,11 @@ private:
 	
 	/** Broadcasts whenever the number of levels changes */
 	FOnLevelsChangedEvent LevelsChangedEvent;
+
+	DECLARE_EVENT(UWorld, FOnBeginTearingDownEvent);
+
+	/** Broadcasted on UWorld::BeginTearingDown */
+	FOnBeginTearingDownEvent BeginTearingDownEvent;
 
 #if WITH_EDITOR
 
@@ -2387,10 +2412,11 @@ public:
 
 	/**
 	 * Cleans up components, streaming data and assorted other intermediate data.
-	 * @param bSessionEnded whether to notify the viewport that the game session has ended
+	 * @param bSessionEnded whether to notify the viewport that the game session has ended.
 	 * @param NewWorld Optional new world that will be loaded after this world is cleaned up. Specify a new world to prevent it and it's sublevels from being GCed during map transitions.
+	 * @param bResetCleanedUpFlag wheter to reset the bCleanedUpWorld flag or not.
 	 */
-	void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true, UWorld* NewWorld = nullptr);
+	void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true, UWorld* NewWorld = nullptr, bool bResetCleanedUpFlag = true);
 	
 	/**
 	 * Invalidates the cached data used to render the levels' UModel.
@@ -2443,6 +2469,8 @@ public:
 	 */
 	void UpdateLevelStreaming();
 
+	/** Releases PhysicsScene manually */
+	void ReleasePhysicsScene();
 public:
 	/**
 	 * Flushes level streaming in blocking fashion and returns when all levels are loaded/ visible/ hidden
@@ -3220,6 +3248,9 @@ public:
 
 	/** Returns the LevelsChangedEvent member. */
 	FOnLevelsChangedEvent& OnLevelsChanged() { return LevelsChangedEvent; }
+
+	/** Returns the BeginTearingDownEvent member. */
+	FOnBeginTearingDownEvent& OnBeginTearingDown() { return BeginTearingDownEvent; }
 
 	/** Returns the actor count. */
 	int32 GetProgressDenominator();

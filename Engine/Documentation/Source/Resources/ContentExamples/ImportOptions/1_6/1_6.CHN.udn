@@ -1,7 +1,8 @@
-﻿Availability: Public
-Title:1.6 - 拖放动画
+﻿INTSourceChangelist:3782314
+Availability: Public
+Title:1.6 - 拖曳并放置动画
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/ImportOptions
-Description:拖放动画
+Description:拖曳并放置动画
 Related: Engine/Content/FBX/ImportOptions
 Related: Engine/Content/FBX/BestPractices
 Related: Engine/Content/FBX/StaticMeshes
@@ -11,58 +12,18 @@ Related: Engine/Content/FBX
 Related: Engine/Content/FBX/MorphTargets
 Related: Shared/Editor/FbxErrors
 Related: Engine/Content/FBX/Materials
-
-
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources\ContentExamples\ImportOptions\1_6:title%](%ROOT%\Resources\ContentExamples\ImportOptions\1_6\fbx_1_6_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/light_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources\ContentExamples\ImportOptions\1_6:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources\ContentExamples\ImportOptions\1_6:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources\ContentExamples\ImportOptions\1_6]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources\ContentExamples\ImportOptions\1_6:title%](%ROOT%\Resources\ContentExamples\ImportOptions\1_6\fbx_1_6_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/light_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources\ContentExamples\ImportOptions\1_6:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources\ContentExamples\ImportOptions\1_6:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources\ContentExamples\ImportOptions\1_6]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
+Version: 4.9
+topic-image:fbx_1_6_topic.png
 
 [REGION:fullwidth]
 ![](CE_1_6_001.png)
 [/REGION]
 
 [COMMENT:none]
- This information isn't represented anywhere but in this document, it needs to be moved to the content pipeline docs 
+ 除了在本文档中，这些信息不在任何其他地方显示，需要移动到内容管道文档中 
 [/COMMENT]
 
-
-需要对动画进行循环的 **骨架网格物体** 且同时在世界中停留在同一位置？您可以通过把 **骨架网格物体** 拖曳到世界中，并随后拖曳您想要在此 **骨架网格物体** 上播放的动画来完成。
+需要一个仅循环播放动画的 **骨架网格体（Skeletal Mesh）**，同时保留在场景中的同一位置上？您只需将您的骨架网格体拖放到场景中，然后将想要播放的动画拖放到该骨架网格体，即可做到这一点。
 
 
 

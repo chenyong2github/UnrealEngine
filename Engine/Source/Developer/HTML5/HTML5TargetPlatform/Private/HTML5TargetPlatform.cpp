@@ -149,11 +149,10 @@ const class FStaticMeshLODSettings& FHTML5TargetPlatform::GetStaticMeshLODSettin
 }
 
 
-void FHTML5TargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<FName>& OutFormats ) const
+void FHTML5TargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
 {
-	FName TextureFormatName = NAME_None;
-
 #if WITH_EDITOR
+
 	// Supported texture format names.
 	static FName NameDXT1(TEXT("DXT1"));
 	static FName NameDXT3(TEXT("DXT3"));
@@ -176,12 +175,18 @@ void FHTML5TargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<FN
 		|| (Texture->Source.GetSizeX() % 4 != 0)
 		|| (Texture->Source.GetSizeY() % 4 != 0);
 
+	const int32 NumLayers = Texture->Source.GetNumLayers();
+	TArray<FName>& OutFormatsForLayer = OutFormats.AddDefaulted_GetRef();
+	OutFormatsForLayer.Reserve(NumLayers);
 
-	ETextureSourceFormat SourceFormat = Texture->Source.GetFormat();
-
-	// Determine the pixel format of the (un/)compressed texture
-	if (bNoCompression)
+	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
+		const ETextureSourceFormat SourceFormat = Texture->Source.GetFormat(LayerIndex);
+		FName TextureFormatName = NAME_None;
+
+		// Determine the pixel format of the (un/)compressed texture
+		if (bNoCompression)
+		{
 			if (Texture->HasHDRSource())
 			{
 				TextureFormatName = NameBGRA8;
@@ -198,58 +203,59 @@ void FHTML5TargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<FN
 			{
 				TextureFormatName = NameRGBA8;
 			}
-	}
-	else if (Texture->CompressionSettings == TC_HDR
-		|| Texture->CompressionSettings == TC_HDR_Compressed)
-	{
-		TextureFormatName = NameRGBA16F;
-	}
-	else if (Texture->CompressionSettings == TC_Normalmap)
-	{
-		TextureFormatName =  NameDXT5;
-	}
-	else if (Texture->CompressionSettings == TC_Displacementmap)
-	{
-		TextureFormatName = NameG8;
-	}
-	else if (Texture->CompressionSettings == TC_VectorDisplacementmap)
-	{
-		TextureFormatName = NameRGBA8;
-	}
-	else if (Texture->CompressionSettings == TC_Grayscale)
-	{
-		TextureFormatName = NameG8;
-	}
-	else if( Texture->CompressionSettings == TC_Alpha)
-	{
-		TextureFormatName = NameDXT5;
-	}
-	else if (Texture->CompressionSettings == TC_DistanceFieldFont)
-	{
-		TextureFormatName = NameG8;
-	}
-	else if (Texture->CompressionNoAlpha)
-	{
-		TextureFormatName = NameDXT1;
-	}
-	else if (Texture->bDitherMipMapAlpha)
-	{
-		TextureFormatName = NameDXT5;
-	}
-	else
-	{
-		TextureFormatName = NameAutoDXT;
-	}
+		}
+		else if (Texture->CompressionSettings == TC_HDR
+			|| Texture->CompressionSettings == TC_HDR_Compressed)
+		{
+			TextureFormatName = NameRGBA16F;
+		}
+		else if (Texture->CompressionSettings == TC_Normalmap)
+		{
+			TextureFormatName = NameDXT5;
+		}
+		else if (Texture->CompressionSettings == TC_Displacementmap)
+		{
+			TextureFormatName = NameG8;
+		}
+		else if (Texture->CompressionSettings == TC_VectorDisplacementmap)
+		{
+			TextureFormatName = NameRGBA8;
+		}
+		else if (Texture->CompressionSettings == TC_Grayscale)
+		{
+			TextureFormatName = NameG8;
+		}
+		else if (Texture->CompressionSettings == TC_Alpha)
+		{
+			TextureFormatName = NameDXT5;
+		}
+		else if (Texture->CompressionSettings == TC_DistanceFieldFont)
+		{
+			TextureFormatName = NameG8;
+		}
+		else if (Texture->CompressionNoAlpha)
+		{
+			TextureFormatName = NameDXT1;
+		}
+		else if (Texture->bDitherMipMapAlpha)
+		{
+			TextureFormatName = NameDXT5;
+		}
+		else
+		{
+			TextureFormatName = NameAutoDXT;
+		}
 
-	// Some PC GPUs don't support sRGB read from G8 textures (e.g. AMD DX10 cards on ShaderModel3.0)
-	// This solution requires 4x more memory but a lot of PC HW emulate the format anyway
-	if ((TextureFormatName == NameG8) && Texture->SRGB && !SupportsFeature(ETargetPlatformFeatures::GrayscaleSRGB))
-	{
-		TextureFormatName = NameBGRA8;
-	}
-#endif
+		// Some PC GPUs don't support sRGB read from G8 textures (e.g. AMD DX10 cards on ShaderModel3.0)
+		// This solution requires 4x more memory but a lot of PC HW emulate the format anyway
+		if ((TextureFormatName == NameG8) && Texture->SRGB && !SupportsFeature(ETargetPlatformFeatures::GrayscaleSRGB))
+		{
+			TextureFormatName = NameBGRA8;
+		}
 
-	OutFormats.Add( TextureFormatName);
+		OutFormatsForLayer.Add(TextureFormatName);
+	}
+#endif // WITH_EDITOR
 }
 
 void FHTML5TargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const

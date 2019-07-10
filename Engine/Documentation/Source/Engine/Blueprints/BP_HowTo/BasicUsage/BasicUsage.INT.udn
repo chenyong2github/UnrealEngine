@@ -153,13 +153,13 @@ And here is an example of a conversion in progress.
 
 [INCLUDE:Engine/Blueprints/UserGuide/Variables#intro]
 
-You can create variables for your Blueprints from the **MyBlueprint** window, by clicking on the **Add Button** ![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\plus_Button.png) on the variable list header ![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\myblueprint_variable.png).
+You can create variables for your Blueprints from the **MyBlueprint** window, by clicking on the **Add Button (+)** on the variable list header.
+
+![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\myblueprint_variable.png)
 
 Once you have created a variable, you will need be able to define the properties of the variable. 
 
-[INCLUDE:Engine/Blueprints/UserGuide/Variables#addvariables]
-
-* See [](Engine/Blueprints/UserGuide/Variables) for more information on variable types and more on working with them. 
+* See [Blueprint Variables](Engine/Blueprints/UserGuide/Variables) for more information on variable types and more on working with them. 
 
 
 

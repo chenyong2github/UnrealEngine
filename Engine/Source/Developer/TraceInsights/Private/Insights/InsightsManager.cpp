@@ -8,6 +8,7 @@
 #include "Templates/UniquePtr.h"
 
 // Insights
+#include "Insights/IoProfilerManager.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -53,7 +54,6 @@ void FInsightsManager::PostConstructor()
 
 void FInsightsManager::BindCommands()
 {
-	ActionManager.Map_InsightsManager_Live();
 	ActionManager.Map_InsightsManager_Load();
 	ActionManager.Map_ToggleDebugInfo_Global();
 	ActionManager.Map_OpenSettings_Global();
@@ -141,6 +141,12 @@ void FInsightsManager::OnSessionChanged()
 		TimingProfilerManager->OnSessionChanged();
 	}
 
+	if (TSharedPtr<FIoProfilerManager> IoProfilerManager = FIoProfilerManager::Get())
+	{
+		// FIXME: make IoProfilerManager to register to SessionChangedEvent instead
+		IoProfilerManager->OnSessionChanged();
+	}
+
 	SessionChangedEvent.Broadcast();
 }
 
@@ -149,11 +155,11 @@ void FInsightsManager::OnSessionChanged()
 void FInsightsManager::SpawnAndActivateTabs()
 {
 	// Open tabs for profilers.
-	if (FGlobalTabmanager::Get()->CanSpawnTab(FInsightsManagerTabs::TimingProfilerTabId))
+	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::TimingProfilerTabId))
 	{
 		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::TimingProfilerTabId);
 	}
-	if (FGlobalTabmanager::Get()->CanSpawnTab(FInsightsManagerTabs::IoProfilerTabId))
+	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::IoProfilerTabId))
 	{
 		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::IoProfilerTabId);
 	}

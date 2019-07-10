@@ -2592,7 +2592,7 @@ const FNavigationRelevantData* UNavigationSystemV1::GetDataForObject(const UObje
 
 	const FOctreeElementId* OctreeID = GetObjectsNavOctreeId(Object);
 
-	if (OctreeID != nullptr && OctreeID->IsValidId() == true)
+	if (OctreeID != nullptr && NavOctree->IsValidElementId(*OctreeID))
 	{
 		return NavOctree->GetDataForID(*OctreeID);
 	}

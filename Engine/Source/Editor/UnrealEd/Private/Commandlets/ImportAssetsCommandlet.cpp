@@ -66,7 +66,6 @@ bool UImportAssetsCommandlet::ParseParams(const FString& InParams)
 
 	ParseCommandLine(*InParams, Tokens, Params, ParamVals);
 
-	const bool bEnoughParams = ParamVals.Num() > 1;
 	if( Params.Contains(TEXT("?")) || Params.Contains(TEXT("help") ) )
 	{
 		bShowHelp = true;
@@ -109,6 +108,7 @@ bool UImportAssetsCommandlet::ParseParams(const FString& InParams)
 	{
 		UE_LOG(LogAutomatedImport, Error, TEXT("Invalid Arguments.  Missing, Source (-source), Destination (-dest), or Import settings file (-importsettings)"));
 	}
+	const bool bEnoughParams = (ParamVals.Num() > 1) || !ImportSettingsPath.IsEmpty();
 
 	return bEnoughParams;
 }

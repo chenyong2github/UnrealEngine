@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title: 폰트 애셋 및 에디터
 Crumbs:%ROOT%, Engine, Engine/UMG, Engine/UMG/UserGuide
@@ -28,7 +28,7 @@ SkillLevel:Beginner
 
 ## 폰트 페이스 애셋
 
-**Font Face** (폰트 페이스) 애셋은 폰트를 임포트할 때 생성되며, 폰트 애셋에서 레퍼런싱할 수 있는 폰트 데이터를 저장합니다. 즉 같은 폰트 데이터를 여러 폰트 애셋, 
+**Font Face** (폰트 페이스) 애셋은 폰트를 임포트할 때 생성되며, 폰트 애셋에서 참조할 수 있는 폰트 데이터를 저장합니다. 즉 같은 폰트 데이터를 여러 폰트 애셋, 
 심지어 애셋 내 여러 타입 페이스에도 재사용하여 궁극적으로 메모리 사용량을 줄일 수 있다는 뜻입니다.
 
 ![](FontFaceWindow.png)(w:600)
@@ -111,7 +111,7 @@ SkillLevel:Beginner
 ![](DefaultFontFamily.png)(w:550)
 
 이 창에서는, 이 폰트 애셋에 사용할 기본 폰트 패밀리를 지정할 수 있습니다. 특정 폰트 스타일 버전을 추가하거나 (예를 들어 Normal,
-Bold, Italics, Underline, 등.) 각기 다른 폰트 스타일 모음을 하나의 Composite Font (합성 폰트)로 만들 수도 있습니다. 공백 폰트 애셋을 생성했다면, 
+Bold, Italics, Underline, 등.) 각기 다른 폰트 스타일 모음을 하나의 Composite Font (합성 폰트)로 만들 수도 있습니다. 빈 폰트 애셋을 생성했다면, 
 이 창 안에서 폰트를 할당할 수도 있습니다.
 
 #### 서브 폰트 패밀리

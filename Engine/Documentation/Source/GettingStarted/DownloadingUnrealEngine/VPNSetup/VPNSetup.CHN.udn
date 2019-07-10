@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6536723
 Availability: Licensee
 Title:设置VPN连接
 Crumbs:%ROOT%, Engine, Programming, Programming/Basics
 Description:连接Epic的虚拟专用网(VPN)以访问Perforce服务器和获取引擎的指南。
 version: 4.9
+Order: 0
 
 [TOC(start:2)]
 
@@ -16,7 +17,6 @@ Epic预留了 **北美东部标准时间每月第 2 个和第 4 个周日的上�
 [/REGION]
 
 
-(#connectivitypolicy)
 ## 连接规则
 
 VPN有两种方法连接到Epic。第一种方法允许工作室从内部工作站最多建立5个从VPN到Epic的代理服务器的开放式直接连接。第二种方法允许工作室将自己的代理直接连接到Epic的库，工作室的开发人员将从此处连接到他们的本地代理。从该本地代理到库允许两个并发VPN连接，一个为主连接，一个为备份连接。 
@@ -27,13 +27,11 @@ VPN有两种方法连接到Epic。第一种方法允许工作室从内部工作�
 
 
 
-(#supportedclients)
 ## 支持的客户端
 
 目前唯一支持用于创建VPN连接的客户端是是[Cisco](http://www.cisco.com)提供的AnyConnect VPN客户端。此客户端已经过测试和验证，可在所有版本的Windows上运行。
 
 
-(#requirements)
 ### 要求
 
  **一般（General）**
@@ -55,13 +53,11 @@ VPN有两种方法连接到Epic。第一种方法允许工作室从内部工作�
 
 
 
-(#clientinstallationandconfiguration)
 ## 客户端安装和配置
 
  **注意：**IPSEC/TCP VPN客户端已被淘汰。请使用SSL客户端。Linux客户端的系统要求可在[此处](http://www.cisco.com/en/US/docs/security/vpn_client/anyconnect/anyconnect25/release/notes/anyconnect25rn.html#wp949967)找到。
 
 
-(#windowsandlinuxinstallationviabrowser)
 ### Windows和Linux通过浏览器安装
 
 [EXCERPT:Browser]
@@ -123,7 +119,6 @@ VPN有两种方法连接到Epic。第一种方法允许工作室从内部工作�
 设置VPN连接后，您可以继续[设置Perforce](GettingStarted/DownloadingUnrealEngine/Perforce/Setup)。
 
 
-(#additionalnotes)
 #### 其他说明
 
 如果您运行的是Windows Vista，那么允许您使用Internet和在VPN以外的其他本地资源（连接时）的功能将无效。一旦断开连接，一切都应恢复正常。 
@@ -142,7 +137,6 @@ VPN有两种方法连接到Epic。第一种方法允许工作室从内部工作�
 确保添加正确的本地组（“用户（Users）”和“交互（Interactive）”)，使一切正常运行。
 
 
-(#windowsmanualinstallation)
 ### Windows手动安装
 
 AnyConnect VPN客户端可以从思科网站下载，网址如下：
@@ -152,7 +146,6 @@ AnyConnect VPN客户端可以从思科网站下载，网址如下：
 下载后，只需安装应用程序，然后继续前往[通过AnyConnect连接到VPN](#AnyConnect)了解有关如何使用它来连接到VPN的详细信息。
 
 
-(#linuxinstallationviaconsole)
 ### Linux通过控制台安装
 
 请使用本文底部所附的安装程序。
@@ -161,7 +154,6 @@ AnyConnect VPN客户端可以从思科网站下载，网址如下：
 
 
 
-(#connectingtothevpnviaanyconnect)
 ## 通过AnyConnect连接到VPN
 
 使用AnyConnect连接到VPN是一个简单的过程。
@@ -190,7 +182,6 @@ AnyConnect VPN客户端可以从思科网站下载，网址如下：
 
 
 
-(#connectingtothevpnviaopenconnect(unsupported))
 ## 通过OpenConnect连接到VPN（不支持）
 
 OpenConnect是AnyConnect的开源替代项。由于此包是使用许多Linux发行版本进行维护的，所以很可能使用的是Cisco不支持的发行版本。如果安装了以下包，您应该能够通过OpenConnect进行连接：
@@ -212,7 +203,6 @@ OpenConnect是AnyConnect的开源替代项。由于此包是使用许多Linux发
 
 
 
-(#eastasianvpnmirror)
 ## 东亚VPN镜像
 
 如果您还没有它，请前往[https://asiavpn.epicgames.com](https://asiavpn.epicgames.com)下载SSL VPN客户端。
@@ -220,8 +210,6 @@ OpenConnect是AnyConnect的开源替代项。由于此包是使用许多Linux发
 安装后，您只需在客户端中添加asiavpn.epicgames.com作为地址。
 
 
-
-(#troubleshooting)
 
 ## 故障排除
 
@@ -261,7 +249,6 @@ OpenConnect是AnyConnect的开源替代项。由于此包是使用许多Linux发
 
 
 
-(#directsupport)
 ## 直接支持
 
 如果您在连接到VPN时遇到任何问题，请执行以下操作：

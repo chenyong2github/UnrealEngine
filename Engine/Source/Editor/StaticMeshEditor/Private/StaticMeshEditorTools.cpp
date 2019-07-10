@@ -7,6 +7,7 @@
 #include "EngineDefines.h"
 #include "EditorStyleSet.h"
 #include "PropertyHandle.h"
+#include "IDetailGroup.h"
 #include "IDetailChildrenBuilder.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/FeedbackContext.h"
@@ -23,11 +24,13 @@
 #include "StaticMeshResources.h"
 #include "StaticMeshEditor.h"
 #include "PropertyCustomizationHelpers.h"
+#include "MaterialList.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "FbxMeshUtils.h"
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "SPerPlatformPropertiesWidget.h"
+#include "PlatformInfo.h"
 
 #include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"
@@ -89,15 +92,29 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	IDetailCategoryBuilder& CollisionCategory = DetailBuilder.EditCategory( "Collision", LOCTEXT("CollisionCategory", "Collision") );
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailBuilder.EditCategory("ImportSettings");
 
-	// Hide the ability to change the import settings object
 	TSharedRef<IPropertyHandle> ImportSettings = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, AssetImportData));
-	IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(ImportSettings);
-	Row.CustomWidget(true)
-		.NameContent()
-		[
-			ImportSettings->CreatePropertyNameWidget()
-		];
-	
+	if (!StaticMeshEditor.GetStaticMesh() || !StaticMeshEditor.GetStaticMesh()->AssetImportData->IsA<UFbxStaticMeshImportData>())
+	{
+		// Hide the ability to change the import settings object
+		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(ImportSettings);
+		Row.CustomWidget(true)
+			.NameContent()
+			[
+				ImportSettings->CreatePropertyNameWidget()
+			];
+	}
+	else
+	{
+		// If the AssetImportData is an instance of UFbxStaticMeshImportData we create a custom UI.
+		// Since DetailCustomization UI is not supported on instanced properties and because IDetailLayoutBuilder does not work well inside instanced objects scopes,
+		// we need to manually recreate the whole FbxStaticMeshImportData UI in order to customize it.
+		ImportSettings->MarkHiddenByCustomization();
+		VertexColorImportOptionHandle = ImportSettings->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxStaticMeshImportData, VertexColorImportOption));
+		VertexColorImportOverrideHandle = ImportSettings->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxStaticMeshImportData, VertexOverrideColor));
+		TMap<FName, IDetailGroup*> ExistingGroup;
+		PropertyCustomizationHelpers::MakeInstancedPropertyCustomUI(ExistingGroup, ImportSettingsCategory, ImportSettings, FOnInstancedPropertyIteration::CreateSP(this, &FStaticMeshDetails::OnInstancedFbxStaticMeshImportDataPropertyIteration));
+	}
+
 	DetailBuilder.EditCategory( "Navigation", FText::GetEmpty(), ECategoryPriority::Uncommon );
 
 	LevelOfDetailSettings = MakeShareable( new FLevelOfDetailSettingsLayout( StaticMeshEditor ) );
@@ -141,6 +158,38 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 			}
 		}
 	}
+}
+
+void FStaticMeshDetails::OnInstancedFbxStaticMeshImportDataPropertyIteration(IDetailCategoryBuilder& BaseCategory, IDetailGroup* PropertyGroup, TSharedRef<IPropertyHandle>& Property) const
+{
+	IDetailPropertyRow* Row = nullptr;
+
+	if (PropertyGroup)
+	{
+		Row = &PropertyGroup->AddPropertyRow(Property);
+	}
+	else
+	{
+		Row = &BaseCategory.AddProperty(Property);
+	}
+
+	if (Row)
+	{
+		//Vertex Override Color property should be disabled if we are not in override mode.
+		if (Property->IsValidHandle() && Property->GetProperty() == VertexColorImportOverrideHandle->GetProperty())
+		{
+			Row->IsEnabled(TAttribute<bool>(this, &FStaticMeshDetails::GetVertexOverrideColorEnabledState));
+		}
+	}
+}
+
+bool FStaticMeshDetails::GetVertexOverrideColorEnabledState() const
+{
+	uint8 VertexColorImportOption;
+	check(VertexColorImportOptionHandle.IsValid());
+	ensure(VertexColorImportOptionHandle->GetValue(VertexColorImportOption) == FPropertyAccess::Success);
+
+	return (VertexColorImportOption == EVertexColorImportOption::Override);
 }
 
 void SConvexDecomposition::Construct(const FArguments& InArgs)
@@ -627,6 +676,7 @@ void FMeshBuildSettingsLayout::GenerateChildContent( IDetailChildrenBuilder& Chi
 			.Z(this, &FMeshBuildSettingsLayout::GetBuildScaleZ)
 			.bColorAxisLabels(false)
 			.AllowResponsiveLayout(true)
+			.AllowSpin(false)
 			.OnXCommitted(this, &FMeshBuildSettingsLayout::OnBuildScaleXChanged)
 			.OnYCommitted(this, &FMeshBuildSettingsLayout::OnBuildScaleYChanged)
 			.OnZCommitted(this, &FMeshBuildSettingsLayout::OnBuildScaleZChanged)
@@ -3065,6 +3115,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 	.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
 	[
 		SNew(SPerPlatformPropertiesWidget)
+		.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1)
 		.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetMinLODWidget)
 		.OnAddPlatform(this, &FLevelOfDetailSettingsLayout::AddMinLODPlatformOverride)
 		.OnRemovePlatform(this, &FLevelOfDetailSettingsLayout::RemoveMinLODPlatformOverride)
@@ -3083,6 +3134,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 	.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
 	[
 		SNew(SPerPlatformPropertiesWidget)
+		.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1)
 		.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsWidget)
 		.OnAddPlatform(this, &FLevelOfDetailSettingsLayout::AddNumStreamedLODsPlatformOverride)
 		.OnRemovePlatform(this, &FLevelOfDetailSettingsLayout::RemoveNumStreamedLODsPlatformOverride)
@@ -3386,6 +3438,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 			.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
 			[
 				SNew(SPerPlatformPropertiesWidget)
+				.IsEnabled(this, &FLevelOfDetailSettingsLayout::CanChangeLODScreenSize)
 				.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetLODScreenSizeWidget, LODIndex)
 				.OnAddPlatform(this, &FLevelOfDetailSettingsLayout::AddLODScreenSizePlatformOverride, LODIndex)
 				.OnRemovePlatform(this, &FLevelOfDetailSettingsLayout::RemoveLODScreenSizePlatformOverride, LODIndex)

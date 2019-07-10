@@ -1,200 +1,232 @@
-﻿Availability:Public
+INTSourceChangelist:3426963
+Availability:Public
 Title:UnrealVS扩展
 Crumbs: %ROOT%, GettingStarted, Programming, Programming/Development/VisualStudioSetup
-Description:用于Visual Studio的安装，设置以及使用UnrealVS扩展的指南。
+Description:本指南说明如何安装、设置和使用Visual Studio的UnrealVS扩展。
+Version: 4.16
+Parent:Programming/Development/VisualStudioSetup
+Order:
+Type:overview
 
 [EXCERPT:Overview]
-Visual Studio的UnrealVS扩展提供了在使用虚幻引擎进行开发时对常见操作的轻松访问。
+Visual Studio的UnrealVS扩展使得在使用虚幻引擎4进行开发时可以轻松执行常见操作。
 
 ![](unrealvs_toolbar_cmd.png)
 
-功能包括：
+它的功能包括：
 
 * 设置启动项目。
-* 编译启动项目的可绑定命令。
+* 绑定构建启动项目的命令。
 * 设置命令行参数。
-* 批量编译项目。
-* 快速编译项目菜单。
+* 批量构建项目。
+* 快速构建项目菜单。
 
 [REGION:note]
-UnrealVS扩展 **无法** 与 **Visual Studio Express** 版本 共同运作。它仅与Visual Studio专业版兼容。
+UnrealVS扩展不适用于Visual Studio Express版本。它只与Visual Studio社区版和专业版兼容。
 [/REGION]
 [/EXCERPT:Overview]
 
 
+(#installationandsetup)
 ## 安装及设置
 
-**如需安装UnrealVS扩展:**
+**要安装UnrealVS扩展：**
 
-1. 在以下位置搜寻您的Visual Studio版本的扩展：
+1. 在以下位置找所用Visual Studio版本的扩展：
 
 		[UE4RootLocation]/Engine/Extras/UnrealVS/<VS-Version>/UnrealVS.vsix
 
-1. **双击** `UnrealVS.vsix`文件来开始安装。
+1. 运行`UnrealVS.vsix`文件以开始安装，只需 **双击** 该文件即可。
 
-1. UnrealVS扩展可用于特定的Visual Studio版本。请注意安装程序正在查找您的版本并且框体已经更新，然后点击![Install](button_install.png)按钮以继续。
+1. UnrealVS扩展用于特定的Visual Studio版本。确保安装程序查找到你的版本，并选中该复选框。接下来，单击 **安装（Install）** 按钮继续。
 
 	![](install_dialog.png)
-1. 在安装完成后，点击![Close](button_close.png)按钮。
+1. 安装完毕后，单击 **关闭（Close）** 按钮。
 
 	![Install Complete](install_complete_dialog.png)
 
-1. 运行Visual Studio并且在 **工具->扩展和更新...** 中，您应该可以看到该扩展。
+1. 运行Visual Studio，在 **工具->扩展和更新...（Tools->Extensions and Updates...）** 中，你应该可以看到该扩展。
 
 	![Extension Manager](extension_manager.png)
 
 	[REGION:note]
-	如果Visual Studio已经在运行，您需要在载入和显示扩展前重新启动。
+	如果Visual Studio已经在运行，需要将其重启才能加载和显示扩展。
+	[/REGION]
+	[REGION:tip]
+	扩展也会显示在 **帮助->关于Microsoft Visual Studio（Help->About Microsoft Visual Studio）** 对话框的“已安装的产品”列表中。
 	[/REGION]
 
-1. 扩展同时在 **帮助->关于微软Visual Studio** 对话框的已安装产品列表中显示。
-
-1. 转到 **视图->工具栏** 或对Visual Studio工具栏区域 **右键点击** ，然后选择 **UnrealVS** 以显示扩展的工具栏。
+1. 转到 **视图->工具栏（View->Toolbars）** 或 **右键单击** Visual Studio工具栏区域，然后选择 **UnrealVS** 以显示扩展的工具栏。
 
 	![UnrealVS Toolbar](unrealvs_toolbar_cmd.png)
 
-1. 默认情况下，工具栏出现在上方，但其内容可通过选择 **命令** 选项卡的 **UnrealVS** 工具栏的 **工具->自定义...** 来进行自定义。
+1. 默认情况下，工具栏显示如上，但其内容可进行自定义，步骤为在 **工具->自定义...（Tools->Customize...）** 下的 **命令** 选项卡中选择 **UnrealVS** 工具栏。
 
 	![UnrealVS Customize Toolbar](toolbar_customize.png)
 	
-1. 在自定义对话框中，选择 Categories（分类）列表的 **添加命令...** 并选择 **UnrealVS** 来查看可添加到工具栏的UnrealVS命令列表。
+1. 在 **自定义（Customize）** 对话框中选择 **添加命令...（Add Command...）**，然后从 **类别（Categories）** 列表中选择 **UnrealVS** 来查看可添加到工具栏的UnrealVS命令列表。
 
 	![UnrealVS Customize Commands](toolbar_customize_commands.png)
 
 
+(#setthestartupproject)
 ## 设置启动项目
 
-**启动项目** 下拉框是在 _启动项目_ 间快速设置或切换的方法。它会自动在解决方案中列出编译可执行程序的所有可用项目。从列表中选择项目并将其设置为当前的  _启动项目_ 。
+通过 **启动项目（Startup Project）** 下拉列表可快速设置和切换启动项目。 
+它可以自动列出所有可用于在解决方案中构建可执行文件的项目。
+从列表中选择项目并将其设置为当前的启动项目。
 
 ![](startup_project_menu.png)
 
-您可以变更位于UnrealVS选项的项目。如需只显示游戏项目，请转到 **工具->选项...** 并选择 **UnrealVS** 。
+你可以更改UnrealVS选项中列出的项目。要仅显示游戏项目，请转到 **工具->选项...（Tools->Options...）**，然后选择 **UnrealVS**。 
 
 ![](options_screen.png)
 
-### 编译启动项目
+(#buildstartupproject)
+### 构建启动项目
 
-扩展还包含了编译当前 _启动项目_ 的命令，它可被绑定到热键或其他正在运行的自定义命令上。
+扩展还包含了构建当前启动项目的命令。这些命令可绑定到 
+热键或其他运行自定义命令的方法上。
 
-**如需绑定命令到热键：**
+(#tobindthecommandtoahotkey:)
+#### 要将命令绑定到热键：
 
-1. 请转到 **工具->选项...** 并选择 **选项** 对话框的 **键盘** 。
+1. 转到 **工具->选项...（Tools->Options...）**，选择 **环境（Environment）** 树下的 **键盘（Keyboard）**。
 
-1. 在命令列表中选择 **_UnrealVS.BuildStartupProject_** 命令。
+1. 在命令列表中选择 **UnrealVS.BuildStartupProject** 命令。 
 
 	[REGION:tip]
-		在搜索框中输入'`UnrealVS`来筛选列表。
+		在搜索框中输入"UnrealVS"来过滤列表。
 	[/REGION]
 
 	![Filtered Command List](build_startup_search.png)
 
-1. 选中命令后，点击 **按下快捷键** 框体并随后按下您想要用于执行命令的按键组合。(例如， **Ctrl + Alt + Shift + B** 显示在下方的示例中）
+1. 选中命令后，单击 **按下快捷键（Press Shortcut Keys）** 框，然后按下要用于执行命令的按键组合。（例如，下方示例中显示的 **Ctrl + Alt + Shift + B**）
 
 	![Shortcut Keys](build_startup_keys.png)
 
 	[REGION:note]
-		您应该选择当前未被指派给另一个命令的按键组合。**Shortcut currently used by** （快捷方式当前正被使用）框体将告知您选定的组合当前已被使用的事实。
+		请不要选择已分配给其他命令的按键组合。 
+		如果输入的按键组合已被使用，将显示 **快捷键当前正被使用（Shortcut currently used by）**  
+		警告框。
 	[/REGION]
 
-1. 按下![Assign](button_assign.png)按钮来绑定按键到命令。这些按键被显示在 **Shortcuts for selected command** （选定命令的快捷方式）框体中。
+1. 按下 **分配（Assign）** 按钮将按键绑定到命令。这些按键会 
+	显示在 **选定命令的快捷键（Shortcuts for selected command）** 框中。
 
 	![Assigned Keys](build_startup_assigned.png)
 
-1. 点击 ![OK](button_ok.png) 按钮来保存修改。现在，当您使用快捷方式时，设置为 _启动项目_ 的项目会自动进行编译。
+1. 按下 **确定（OK）** 按钮保存更改。现在，当使用该快捷键时，将自动构建设置为“启动项目”的项目。
 
 
+(#commandlinearguments)
 ## 命令行参数
 
-** 命令行** 控制用于在运行调试会话时对当前项目设置 **命令参数**。这是通过项目 **属性** 来对其进行设置的快捷方式。实际上，此处的变更会在 **属性** 中被自动反映出来，反之亦然。
+**命令行** 功能按钮用于在运行调试会话时对当前项目设置 **命令参数** 
+。这为通过项目 **属性** 来设置提供了一条捷径。实际上， 
+这里所做的更改都会自动反映在 **属性** 中，反之亦然。
 
-在文本框中输入参数或使用下拉列表从最近的参数列表中选择。在调试会话启动时，它们将被传递到可执行程序中。
+在文本框中输入参数，或从下拉列表中的最近参数列表中进行选择。调试会话启动时，这些参数将被传递给 
+可执行文件。
 
 ![Command Arguments](unrealvs_toolbar_args.png)
 
 [REGION:note]
-	对编译虚幻引擎的游戏项目的项目配置自动添加项目名称到命令行，以告知编辑器可执行文件您正在使用的项目。
-	举例来说，如果您使用编译配置'Debug Editor'（调试编辑器）来编译QAGame，命令行将添加QAGame.uproject到命令参数而无需在框体中输入它。
-	如需启动QAGame的编辑器，您可以把 **命令行** 控制留空，编辑器将仍然会知道您正在运行的项目。
+	对构建虚幻编辑器的游戏项目使用项目配置，项目名称会自动添加到命令行，以使编辑器可执行文件知道你正在使用哪个项目。
+	例如，如果你使用构建配置“调试编辑器（Debug Editor）”来构建QAGame，命令行会将QAGame.uproject添加到命令参数，而无需在框中输入。
+	要启动QAGame编辑器，即使将 **命令行** 功能按钮留空，编辑器也会知道要运行哪个项目。
 [/REGION]
 
-请参阅[命令行参数](Programming/Basics/CommandLineArguments)以获得所有可用参数的列表。
+有关可用参数的完整列表，请参阅[命令行参数](Programming/Basics/CommandLineArguments)。
 
+(#refreshprojects)
 ## 刷新项目
 
-项目文件可使用[](Programming/UnrealBuildSystem/ProjectFileGenerator)在Visual Studio中生成。这使得同步和更新所有项目文件变得更快，因为您不必查看`.bat`文件并手动运行它。
+你可以使用[](Programming/UnrealBuildSystem/ProjectFileGenerator)在Visual Studio中生成项目文件。 
+由于不必手动查找和运行`.bat`文件， 
+可以更快地同步和更新所有项目文件。
 
-**如您想要刷新项目文件:**
+**要刷新项目文件：**
 
-1. 按下 **UnrealVS** 工具栏的刷新项目![Refresh Projects](button_refresh.png)按钮。
+1. 按下 **UnrealVS** 工具栏上的“刷新项目（Refresh Projects）”按钮。
 
-1. 项目生成过程将会随着 **输出** 窗口的出现而显示。
+![Refresh Projects](button_refresh.png)
+
+1. 项目生成过程的进度会显示在 **输出（Output）** 窗口中。
 
 	![Project Generator Output](refresh_output.png)
 
-1. 当提示您时，重新载入任意需要它的项目。
+1. 出现提示时，重新加载任意必要的项目。
 
-## 批量编译程序
+(#batchbuilder)
+## 批量构建程序
 
-**UnrealVS批量编译程序** 提供了一种方式让我们可以创建和运行自定义的编译任务的设置。它比Visual Studio中的 **编译->批量编译...** 选项更好用。
+**UnrealVS批量构建程序（UnrealVS Batch Builder）** 提供了一种方式让我们可以创建和运行一组自定义构建作业。它比Visual Studio中的 **构建->批量构建...（Build->Batch Build...）** 选项更好用。
 
-**如需打开批量编译程序窗口：**
+**要打开“批量构建程序”窗口：**
 
-1. 按下 **UnrealVS** 工具栏的批量编译程序![Batch Builder](button_batchbuilder.png)按钮或使用您指派给命令 _UnrealVS.BatchBuilder_ 的键盘快捷方式（请参阅以上的 **编译启动项目** 来获得对使用 **UnrealVS** 命令的键盘快捷方式进行设置的指南）。
+1. 按下 **UnrealVS** 工具栏上的“批量构建程序”按钮，或者使用分配给UnrealVS.BatchBuilder命令的键盘快捷键 
+（有关为 **UnrealVS** 命令设置键盘快捷键的说明，请参阅上面的 **构建启动项目**）。
 
-1. **UnrealVS批量编译程序** 窗口如图。
+![Batch Builder](button_batchbuilder.png)
+
+1. **UnrealVS批量构建程序** 窗口将出现。
 
 	![Batch Builder Window](batchbuilder_window.png)
 	
-	* 通过设置项目，配置，平台和任务类型来创建 **编译任务** 。
-	* 使用箭头按钮来添加/移除任务。
-	* 使用箭头按钮把选择的任务在列表中上/下移动。
-	* 控制将会对当前在组合中显示的 **任务设置** 进行编辑。
-	* 如需创建新建 **任务设置** ，在组合中输入新建名称。
-	* 您可以使用下拉列表选择已存的 **任务设置** 。
-	* **删除** 按钮会把选择的 **任务设置** 从列表中删除。
-	* 使用 **开始** 按钮来开始/停止当前 **任务设置** 上的批量编译任务。
-	* **任务设置** 被存储在.suo文件中以供载入的解决方案的下次使用。
+	* 通过设置项目、配置、平台和作业类型来创建 **构建作业**。
+	* 使用箭头按钮来添加/移除作业。
+	* 使用右侧箭头按钮把选择的作业在列表中上/下移动。
+	* 使用这些功能按钮来编辑在组合中显示的当前 **作业集**。
+	* 要创建新“作业集”，在组合中输入新的名称。
+	* 你可以在下拉列表中选择现有的作业集。
+	* **删除（Delete）** 按钮会把选择的作业集从列表中删除。
+	* 使用 **开始（Start）** 按钮来开始/停止当前作业集的批量构建任务。
+	* 作业集存储在.suo文件中，以便下次继续用于载入的解决方案。
 
-1. 当您点击 **开始** 时，出现的 **输出** 选项卡会显示编译版本的进度。
+1. 单击 **开始（Start）** 时，出现的 **输出（Output）** 选项卡会显示批量构建的进度。
 
 	![Batch Builder Window running](batchbuilder_window2.png)
 	
-	* 运行设置中的 **编译任务** 被显示在输出列表中。
-		* ![Queued Build Job](buildjob_lightgrey.png) - 排队任务
-		* ![Succeeded Build Job](buildjob_green.png) - 完成，后续任务
-		* ![Failed Build Job](buildjob_red.png) - 失败任务
-		* ![Cancelled Build Job](buildjob_orange.png) - 取消任务
-		* 当前的  **正在执行的编译任务以粗体显示**
-	* 当批量编译在运行时，会显示繁忙的动画处理和停止的按钮。
+	* 正在运行的作业集中的 **构建作业** 将显示在输出列表中。
+		* ![Queued Build Job](buildjob_lightgrey.png) - 排队作业
+		* ![Succeeded Build Job](buildjob_green.png) - 完成，成功作业
+		* ![Failed Build Job](buildjob_red.png) - 失败作业
+		* ![Cancelled Build Job](buildjob_orange.png) - 取消作业
+		* 当前正在执行的构建作业显示为粗体
+	* 当批量构建在运行时，会显示繁忙的动画和停止的按钮。
 	
-1. 您可以通过对 **输出选项卡** 的项目 **双击** 来查看来自于单个 **编译任务** 的输出，或者 **双击** 并从关联菜单中选择 **显示输出** 。
+1. 通过 **双击** **输出选项卡** 中的条目，或者 **单击鼠标右键** 并从情境菜单中选择 **显示输出（Show Output from）**，可以查看各个 **构建作业** 的输出。
 
 	![BatchBuild Output Pane](batchbuilder_outputpane.png)
 
 	[REGION:note]
-		单个项目的 **批量编译程序** 输出被显示在名称为 _UnrealVS - BatchBuild_ 的面板的Visual Studio **输出** 窗口中。
-		不要将其与显示当前/最近编译任务的输出的 _编译_ 面板弄混了。
+		各条目的 **批量构建程序** 输出显示在Visual Studio **输出（Output）** 窗口中名为UnrealVS - BatchBuild的窗格中。
+		不要将其与“构建（Build）”窗格弄混了，后者显示当前/上一构建作业的输出。
 	[/REGION]	
 	
-## 快速编译菜单
+(#quickbuildmenu)
+## 快速构建菜单
 
-**快速编译** 菜单提供了使用任意配置和平台组合而无需变更主要解决方案的编译配置来编译项目的简单方法。
+**快速构建（Quick Build）** 菜单为用户提供了一条捷径，让他们可以使用任意配置和平台组合来构建项目，而无需变更主解决方案构建配置。
 
 ![Quick Build Menu](menu_quickbuild.png)
 
-1. 在 **解决方案浏览器** 中 **右键点击** 项目节点。
+1. 在 **解决方案浏览器** 中 **右键单击** 项目节点。
 
-1. *UnrealVS快速编译* 菜单包含来自虚幻引擎解决方案中的可用平台的子菜单和编译配置。
+1. **UnrealVS快速构建（UnrealVS Quick Build）** 菜单包含虚幻引擎解决方案中可用的平台和构建配置的子菜单。
 
-1. 选择项目来编译选择的项目，平台和设置。比起在IDE中变更解决方案配置和解决方案平台，这要快得多，开始编译然后再次切换回配置和平台。
+1. 选择要用于构建所选项目、平台和配置的条目。这比在IDE中变更
+解决方案配置和解决方案平台、开始构建然后切回配置和平台快得多。
 
 [REGION:note]
-	比起在IDE中变更解决方案配置和平台要快得多！
+	比在IDE中变更解决方案配置和平台更快！
 [/REGION]	
 	
-## 使用UnrealVS源代码来运行
+(#workingwiththeunrealvssourcecode)
+## 使用UnrealVS源代码
 
-UnrealVS源代码位于[UE4RootLocation]/Engine/Source/Programs/UnrealVS/ folder。
+UnrealVS源代码位于 [UE4RootLocation]/Engine/Source/Programs/UnrealVS/文件夹中。  
 
-为能载入具有Visual Studio的UnrealVS项目文件，您需要安装兼容于UnrealVS的合适版本的Visual Studio的Visual Studio SDK。举例来说，当需要对版本直到Visual Studio 2013的支持时，您需要安装[Visual Studio 2013 SDK](http://www.microsoft.com/en-us/download/details.aspx?id=40758)，然后载入UnrealVS项目文件到Visual Studio 2013中。
+要将UnrealVS项目文件加载到Visual Studio中，必须为要用于编译UnrealVS的相应Visual Studio版本安装相应的Visual Studio SDK。例如，要最高支持Visual Studio 2015，你需要安装[Visual Studio 2015 SDK](https://msdn.microsoft.com/en-us/library/bb166441.aspx)，然后将UnrealVS项目文件加载到Visual Studio 2015中。
 

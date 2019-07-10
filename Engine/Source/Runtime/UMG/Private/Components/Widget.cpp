@@ -16,7 +16,6 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SToolTip.h"
 #include "Binding/PropertyBinding.h"
-#include "Blueprint/WidgetNavigation.h"
 #include "Logging/MessageLog.h"
 #include "Blueprint/UserWidget.h"
 #include "Slate/SObjectWidget.h"
@@ -162,6 +161,10 @@ UWidget::UWidget(const FObjectInitializer& ObjectInitializer)
 	RenderTransformPivot = FVector2D(0.5f, 0.5f);
 	Cursor = EMouseCursor::Default;
 
+	AccessibleBehavior = ESlateAccessibleBehavior::NotAccessible;
+	AccessibleSummaryBehavior = ESlateAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = true;
+
 #if WITH_EDITORONLY_DATA
 	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(UWidget::StaticClass(), &GatherWidgetForLocalization); }
 #endif
@@ -187,10 +190,15 @@ void UWidget::SetRenderShear(FVector2D Shear)
 	UpdateRenderTransform();
 }
 
-void UWidget::SetRenderAngle(float Angle)
+void UWidget::SetRenderTransformAngle(float Angle)
 {
 	RenderTransform.Angle = Angle;
 	UpdateRenderTransform();
+}
+
+float UWidget::GetRenderTransformAngle() const
+{
+	return RenderTransform.Angle;
 }
 
 void UWidget::SetRenderTranslation(FVector2D Translation)
@@ -595,7 +603,7 @@ FVector2D UWidget::GetDesiredSize() const
 	return FVector2D(0, 0);
 }
 
-void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus)
+void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus/* = NAME_None*/, UWidget* InWidget/* = nullptr*/, FCustomWidgetNavigationDelegate InCustomDelegate/* = FCustomWidgetNavigationDelegate()*/)
 {
 	if (Navigation == nullptr)
 	{
@@ -605,6 +613,8 @@ void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRu
 	FWidgetNavigationData NavigationData;
 	NavigationData.Rule = Rule;
 	NavigationData.WidgetToFocus = WidgetToFocus;
+	NavigationData.Widget = InWidget;
+	NavigationData.CustomDelegate = InCustomDelegate;
 	switch(Direction)
 	{
 		case EUINavigation::Up:
@@ -633,6 +643,37 @@ void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRu
 void UWidget::SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus)
 {
 	SetNavigationRuleInternal(Direction, Rule, WidgetToFocus);
+	BuildNavigation();
+}
+
+void UWidget::SetNavigationRuleBase(EUINavigation Direction, EUINavigationRule Rule)
+{
+	if (Rule == EUINavigationRule::Explicit || Rule == EUINavigationRule::Custom || Rule == EUINavigationRule::CustomBoundary)
+	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FMessageLog("PIE").Error(LOCTEXT("SetNavigationRuleBaseWrongRule", "Cannot use SetNavigationRuleBase with an Explicit or a Custom or a CustomBoundary Rule."));
+#endif
+		return;
+	}
+	SetNavigationRuleInternal(Direction, Rule);
+	BuildNavigation();
+}
+
+void UWidget::SetNavigationRuleExplicit(EUINavigation Direction, UWidget* InWidget)
+{
+	SetNavigationRuleInternal(Direction, EUINavigationRule::Explicit, NAME_None, InWidget);
+	BuildNavigation();
+}
+
+void UWidget::SetNavigationRuleCustom(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate)
+{
+	SetNavigationRuleInternal(Direction, EUINavigationRule::Custom, NAME_None, nullptr, InCustomDelegate);
+	BuildNavigation();
+}
+
+void UWidget::SetNavigationRuleCustomBoundary(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate)
+{
+	SetNavigationRuleInternal(Direction, EUINavigationRule::CustomBoundary, NAME_None, nullptr, InCustomDelegate);
 	BuildNavigation();
 }
 
@@ -1161,7 +1202,24 @@ void UWidget::SynchronizeProperties()
 	{
 		SafeWidget->SetToolTipText(PROPERTY_BINDING(FText, ToolTipText));
 	}
+
+#if WITH_ACCESSIBILITY
+	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();
+	if (AccessibleWidget.IsValid())
+	{
+		AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleBehavior, PROPERTY_BINDING(FText, AccessibleText), EAccessibleType::Main);
+		AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleSummaryBehavior, PROPERTY_BINDING(FText, AccessibleSummaryText), EAccessibleType::Summary);
+		AccessibleWidget->SetCanChildrenBeAccessible(bCanChildrenBeAccessible);
+	}
+#endif
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UWidget::GetAccessibleWidget() const
+{
+	return GetCachedWidget();
+}
+#endif
 
 UObject* UWidget::GetSourceAssetOrClass() const
 {

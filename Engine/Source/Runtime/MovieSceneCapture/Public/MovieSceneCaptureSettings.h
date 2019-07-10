@@ -50,6 +50,7 @@ struct MOVIESCENECAPTURE_API FMovieSceneCaptureSettings
 	 * {quality}	- The image compression quality setting
 	 * {material}   - The material/render pass
 	 * {shot}       - The name of the level sequence asset shot being played
+	 * {sequence}   - The name of the level sequence asset (ie. master) being played
 	 * {camera}     - The name of the current camera
 	 */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=General, DisplayName="Filename Format")
@@ -75,9 +76,17 @@ struct MOVIESCENECAPTURE_API FMovieSceneCaptureSettings
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=General, AdvancedDisplay, meta=(ClampMin=0, UIMin=0))
 	uint8 ZeroPadFrameNumbers;
 
-	/** The frame rate at which to capture */
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=CaptureSettings, meta=(ClampMin=1, UIMin=1, ClampMax=200, UIMax=200))
+	/** The sequence's frame rate at which to capture if "Use Custom Frame Rate" is not enabled */
+	UPROPERTY(transient, VisibleAnywhere, BlueprintReadWrite, Category = CaptureSettings, meta = (ClampMin = 1, UIMin = 1, ClampMax = 200, UIMax = 200))
 	FFrameRate FrameRate;
+
+	/** Specify using the custom frame rate as opposed to the sequence's display rate */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=CaptureSettings)
+	bool bUseCustomFrameRate;
+
+	/** The custom frame rate at which to capture if "Use Custom Frame Rate" is enabled */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=CaptureSettings, meta = (ClampMin = 1, UIMin = 1, ClampMax = 200, UIMax = 200, EditCondition=bUseCustomFrameRate))
+	FFrameRate CustomFrameRate;
 
 	/** The resolution at which to capture */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=CaptureSettings, meta=(ShowOnlyInnerProperties))
@@ -118,4 +127,7 @@ struct MOVIESCENECAPTURE_API FMovieSceneCaptureSettings
 	/** Number of sampler per pixel to be used when rendering the scene with the path tracer (if supported) */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = Cinematic, AdvancedDisplay, meta = (EditCondition = "bUsePathTracer", ClampMin = 1, UIMin = 1, UIMax = 4096))
 	int32 PathTracerSamplePerPixel;
+
+	/** Get which frame rate to use */
+	FFrameRate GetFrameRate() const { return bUseCustomFrameRate ? CustomFrameRate : FrameRate; }
 };

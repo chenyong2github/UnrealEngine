@@ -40,9 +40,9 @@ version: 4.9
 | 핀 | 설명 |
 | --- | ----------- |
 | [REGION:tablesection]**입력 핀**[/REGION] ||
-| Component Pose (공백) | 변환할 컴포넌트 스페이스 인풋 포즈입니다. |
+| Component Pose (Blank) | 변환할 컴포넌트 스페이스 인풋 포즈입니다. |
 | [REGION:tablesection]**출력 핀**[/REGION] ||
-| Local Pose (공백) | 변환 이후의 로컬 스페이스 포즈입니다. |
+| Local Pose (Blank) | 변환 이후의 로컬 스페이스 포즈입니다. |
 
 ## Local to Component
 
@@ -53,6 +53,6 @@ version: 4.9
 | 핀 | 설명 |
 | --- | ----------- |
 | [REGION:tablesection]**입력 핀**[/REGION] ||
-| Local Pose (공백) | 변환할 로컬 스페이스 인풋 포즈입니다. |
+| Local Pose (Blank) | 변환할 로컬 스페이스 인풋 포즈입니다. |
 | [REGION:tablesection]**출력 핀**[/REGION] ||
-| Component Pose (공백) | 변환 이후의 컴포넌트 스페이스 포즈입니다. |
+| Component Pose (Blank) | 변환 이후의 컴포넌트 스페이스 포즈입니다. |

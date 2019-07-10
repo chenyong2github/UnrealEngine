@@ -1,49 +1,16 @@
-﻿Availability: Public
-Title:反射示例
+INTSourceChangelist:3782314
+Availability: Public
+Title:反射 
 Crumbs:%ROOT%, Resources
-Description:UE4中包含的反射实例的概述。
-
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/Showcases/Reflections:title%](Reflections_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/rendering_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/Showcases/Reflections:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/Showcases/Reflections:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources/Showcases/Reflections]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/Showcases/Reflections:title%](Reflections_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/rendering_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/Showcases/Reflections:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/Showcases/Reflections:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources/Showcases/Reflections]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
+Description:UE4中包含的反射示例概述。
+Related: Engine/Rendering/LightingAndShadows/ReflectionEnvironment
+Related: Engine/Rendering\LightingAndShadows
+Related: Engine/Rendering/Materials
+Related: Engine/Rendering/PostProcessEffects/ScreenSpaceReflection
+Related: Resources/ContentExamples/Reflections/1_4
+Related: Resources/ContentExamples/Reflections/1_3
+Version: 4.9
+topic-image:Reflections_Topic.png
 
 
 [REGION:fullwidth]
@@ -52,15 +19,22 @@ Description:UE4中包含的反射实例的概述。
 
 [TOC(start:2 end:2)]
 
+本示例展示了虚幻引擎4的实时反射功能。场景展示了一个废弃的地铁终点站，其中有许多漏水、污秽的瓷砖、破烂的管道和其他废墟环境细节。在此文档中，我们将概要介绍该场景中运用的技术以及实现效果所用的功能。
 
+下图显示了此场景中开启和关闭混合时的反射，以展示其效果。
 
-## 概述
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+JZaQVznNBcA
+[/PARAMLITERAL]
+[/OBJECT]
 
-本示例展示了虚幻引擎4的实时反射能力。场景中展示了标志性的地铁车站，其中还包括了许多破败的环境细节，包括多处漏水，肮脏的墙面，损坏的水管等等。 本文中，我们将给出为带来这种特效所使用的技术和特性的高层次纲要。
-
-以下图片分别开启和关闭了此场景中反射的混合以展示这种特效。
-
-![](ReflectionsOnOff.gif)(convert:false)
 
 (#reflectionenvironment)
 ## 反射环境
@@ -69,63 +43,79 @@ Description:UE4中包含的反射实例的概述。
 
 ![](Engine/Rendering/LightingAndShadows/ReflectionEnvironment\reflection_environment.png)(w:600)
 
-如需获得关于反射环境和反射捕获的更多信息，请参阅[](Engine/Rendering/LightingAndShadows/ReflectionEnvironment)。
+有关反射环境和反射捕捉的更多信息，请参见[](Engine/Rendering/LightingAndShadows/ReflectionEnvironment)。
 
-## 反射捕获Actors
+(#reflectioncaptureactors)
+## 反射捕捉Actor
 
 ![](CaptureIcon.gif)
 
-反射捕获Actors是策略性地放置在整个关卡中并将反射数据装入反射环境中的对象。 
+反射捕捉Actor是精心放置在关卡各处的Object，它将反向数据馈送到反射环境中。 
 
 [INCLUDE:Engine/Rendering/LightingAndShadows/ReflectionEnvironment#RefCaptures]
 
 
-如需获得关于反射环境和反射捕获的更多信息，请参阅[](Engine/Rendering/LightingAndShadows/ReflectionEnvironment)。
+有关反射环境和反射捕捉的更多信息，请参见[](Engine/Rendering/LightingAndShadows/ReflectionEnvironment)。
 
+(#screenspacereflections)
 ## 屏幕空间反射
 
-屏幕空间反射是辅助放置对象到平面（如地面）的引擎特性。 它们被默认开启，并会和反射环境的结果相混合，从而使得反射具有更为完整的感觉。 
+屏幕空间反射是一种引擎功能，可帮助将Object置于地面之类的平坦表面上。它们在默认情况下是激活的，与反射环境的结果相混合，提供更全面的反射感。 
 
 ![](ScreenSpaceReflections.gif)
 
-屏幕空间反射默认在虚幻引擎4中开启，但可以使用控制台命令 _r.SSR.Quality 3_ 或 _r.SSR.Quality 0_ （根据设置不同而不同）来开关。
-以下是反射示例场景的结果，一个开启了屏幕空间反射(r.SSR为1），另一个关闭了屏幕空间反射(r.SSR为0）。
+默认情况下屏幕空间反射在虚幻引擎4中处于活动状态，但可以根据设置使用控制台命令_r.SSR.Quality 3_或_r.SSR.Quality 0_切换。
+下面是反射示例场景使用了屏幕空间反射（r.SSR设置为1）和未使用屏幕空间反射（r.SSR设置为0）的结果。
 
-![](SSROnOff.gif)(convert:false)
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+DUe4z3-5WvU
+[/PARAMLITERAL]
+[/OBJECT]
 
 
-## 反射考虑要素
+(#reflectionconsiderations)
+## 反射注意事项
 
-在使用反射来构建环境时，我们的美工要考虑以下几个问题：
+在创建为了利用反射而构建的场景时，美工要牢记几个注意事项：
 
+(#contrast)
 ### 对比
 
-反射在总体光照和阴影对比强烈的区域或更为显著和明显。 正如真实世界那样，反射会趋向于“出现”在本身较暗或其所在处较暗的地方，但会在强光处消失。 这就是为何我们在此例中选取地铁场景。 作为地下场景，不存在真实的自然光来源。 这几个灯具的位置摆放松散并相对较亮。 这样对于观看者或玩家来说，阴影和暗处将成为出现反射的主要位置。
+在有强烈的整体明亮感和阴影对比的区域，反射往往更为明显。和在真实世界中一样，如果环境整体处于黑暗中，本身也很阴暗，但是遭到了强光照射，反射往往会显得很“突出”。这就是为什么这个示例选择了使用地铁场景。在地下，没有真正的自然光源。少数灯具被布置在相隔很远的地方，而且它们相当明亮。这就意味着整体的阴影和黑暗会作为衬托，使反射效果在观看者或玩家眼中很醒目。
 
 ![](Contrast.png)(w:600)
 
 
-### 真实世界反射表面
+(#real-worldreflectivesurfaces)
+### 现实世界的反光表面
 
-除了对比外，还有很重要的一点是在创建真实反射时，需要考虑在真实世界中创建反射的表面类型。 本演示中，我们对地面选择了潮湿混凝土，在墙面选择了瓷砖。 在场景中的大多数位置处，水都在不停滴下并流得到处都是，这样就使得场景中的大部分位置可以产生反射。 当然，这样也意味着为使得场景更具观赏性，我们在创建材质时认真花功夫至关重要。 
+在创建逼真的反射效果时，除了利用对比，还应该考虑在现实世界中会形成反射的各类表面。在这个演示中，我们选择了在地面使用潮湿的水泥地，在墙上使用瓷砖。在大部分场景中都有滴水和流水，增加了大部分环境的反光度。当然，这也意味着明智地创建材质是得到良好效果的关键。 
 
-如需获得有关材质创建的更多信息，请查看[](Engine/Rendering/Materials) 以及 [](Engine/Rendering/Materials\PhysicallyBased)文件。
+有关材质创建的更多信息，请查看我们的[](Engine/Rendering/Materials)和[](Engine/Rendering/Materials\PhysicallyBased)文档。
 
 ![](Subway.png)(w:600)
 
 
 
-### 放置反射捕获
+(#placingreflectioncaptures)
+### 布置反射捕捉
 
 ![](ReflectionActors.png)(w:600)
 
-获取正确反射的关键是在您的场景中放置反射捕获Actors。 您首先可能会想把这些Actors放到您场景的不同位置，直到您获得较好的效果。 不过，在使用这些Actors时，要牢记一些规则：
+获得合适反射效果的关键是在场景的各处布置反射捕捉Actor。你可能首先想到的是把这些Actor布满场景，直到看到良好结果。但是，在使用这些Actor时，需要记住一些规则：
 
-* **Screen Space** （屏幕空间）-每个反射捕获Actor都会产生系统性能消耗，根据该Actor占据您屏幕空间的半径而产生不同的性能消耗。 这样的话，它们类似于粒子或动态光照。 这意味着您不能让捕获Actor的半径过大。
+* **屏幕空间**——每个反射捕捉Actor都会产生一些成本，具体取决于屏幕被其半径覆盖的范围。从这个角度来讲，它们类似于粒子或动态光源。也就是说，你应该注意避免将捕捉Actor的半径设得过大。
 
-* **Overlap** （重叠）- 反射捕获Actor的半径会产生重叠。 由于重叠的Actors会增加反射产生的每帧的性能消耗。 如果再加上由于屏幕空间的加大而造成的系统性能损耗，可能很快您就因性能消耗过大而无法在场景中放置更多的大半径的反射捕获Actors了。 
+* **重叠**——反射捕捉Actor的半径是可以重叠的。重叠的Actor会导致每个像素的反射成本增大。再加上屏幕空间所增加的成本，你可能很快就会发现，简单地用高半径的反射捕捉Actor覆盖场景在性能上是不可行的。 
 
-* **Hierarchical Placement** （分层放置）- 为节省资源且仍有不错的反射捕获Actors布局，使用分层布局将让您在重叠最小的情况下有好用的反射设置。 在此系统中，大半径的捕获Actors被放置在从背景获取捕获的位置，随后一系列较小的捕获Actors获取细节周围的反射。 
+* **层级布置**——为了在节省资源的同时得到良好的反射采集Actor布局，可以使用层级布局，这会让你获得重叠最少的可靠反射设置。在这样的系统中，要先布置一个大半径的捕捉Actor，获取来自背景的反射，然后布置一系列较小的捕捉Actor，获取细节相关的反射。 
 
 [REGION:raw]
 ![](LevelReflection.png)(w:600)
@@ -134,16 +124,14 @@ Description:UE4中包含的反射实例的概述。
 [REGION:simpletable]
 |||
 | --- | --- |
-| [REGION:red]**红色**[/REGION] | 大半径。 反射关卡和背景中的大多数内容。 |
-| [REGION:blue]**蓝色**[/REGION] | 更为本地化的反射。 捕获单个空间。 |
-| [REGION:green]**绿色**[/REGION] | 小半径的细节反射。 放置在需要小的重要细节的区域处。 |
+| [REGION:red]**红**[/REGION] | 大半径。反射关卡的大部分和背景。|
+| [REGION:blue]**蓝**[/REGION] | 比较局部化的反射。捕捉个别房间。|
+| [REGION:green]**GREEN**[/REGION] | 小半径的细节反射。放置于需要重要的小细节的区域。|
 [/REGION]
 
+(#relatedtopics)
 ## 相关主题
 
-* [](Engine/Rendering/LightingAndShadows/ReflectionEnvironment)
-* [](Engine/Rendering\LightingAndShadows)
-* [](Engine/Rendering/Materials)
 
 
 

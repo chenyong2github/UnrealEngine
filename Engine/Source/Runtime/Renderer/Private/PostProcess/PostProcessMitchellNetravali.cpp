@@ -89,9 +89,9 @@ void FRCPassMitchellNetravaliDownsample::Process(FRenderingCompositePassContext&
 	{
 		Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
 
-		auto ShaderMap = Context.GetShaderMap();
+		auto* ShaderMap = Context.GetShaderMap();
 		TShaderMapRef<FMitchellNetravaliDownsamplCS> Shader(ShaderMap);
-		const FComputeShaderRHIParamRef ShaderRHI = Shader->GetComputeShader();
+		FRHIComputeShader* ShaderRHI = Shader->GetComputeShader();
 
 		Context.RHICmdList.SetComputeShader(ShaderRHI);
 

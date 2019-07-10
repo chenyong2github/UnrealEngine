@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:5336361
 Availability:Public
 Title:モバイル プラットフォームでのポストプロセス エフェクトの使用方法
 Crumbs:
@@ -26,7 +26,7 @@ reference-image:Mobile_PostProcessEffect.gif
 [/region]
 
 ## モバイル デバイスのトーンマッパを有効にする
-モバイル デバイスで Tonemapper Post Processing オプションを使うためには、**r.tonemapperfilm** をデフォルト値の **0** から **1** へ変更する必要があります。アンリアル エンジン (UE4) でトーンマッパの変更や有効無効の切り替えを行うには、以下の手順に従います。 
+モバイル デバイスで Tonemapper Post Processing オプションを使うためには、**r.mobile.tonemapperfilm** をデフォルト値の **0** から **1** へ変更する必要があります。アンリアル エンジン (UE4) でトーンマッパの変更や有効無効の切り替えを行うには、以下の手順に従います。 
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
@@ -40,7 +40,7 @@ reference-image:Mobile_PostProcessEffect.gif
 
 ### コンソールを使ってトーンマッパ フィルムを有効にする
 UE4 エディタでトーンマッパを有効にするには、まず **Backtick key(`)** を押してコンソールを開いてから、トーンマッパを有効にする以下のコマンドを入力します。
-*  **r.tonemapperfilm 0** 
+*  **r.mobile.tonemapperfilm 0** 
 
 トーンマッパを無効にするには、コンソールを開いて、以下のコマンドを入力します。
 *  **r.Mobile.TonemapperFilm 0**
@@ -58,7 +58,7 @@ UE4 エディタでトーンマッパを有効にするには、まず **Backtic
 [/REGION]
 
 ### .INI ファイルを使ってトーンマッパ フィルムを有効にする
-プロジェクト全体でトーンマッパの有効無効を切り替えるには、プロジェクトの **DefaultEngine.ini** の **[Rendering Settings (レンダリング設定)]** セクションに **r.tonemapperfilm=1** を追加します。
+プロジェクト全体でトーンマッパの有効無効を切り替えるには、プロジェクトの **DefaultEngine.ini** の **[Rendering Settings (レンダリング設定)]** セクションに **r.mobile.tonemapperfilm=1** を追加します。
 
 [REGION:lightbox]
 [![](TM_Default_Engine_INI.png)(w:422)](TM_Default_Engine_INI.png)
@@ -77,7 +77,7 @@ UE4 エディタでトーンマッパを有効にするには、まず **Backtic
 [/REGION]
 
 ### モバイル デバイス上でトーンマッパを有効にする
-モバイル デバイス上でトーンマッパを有効にするには、**4 本の指** で同時に画面をタップして **コンソール ウィンドウ** を立ち上げます。有効にするには **r.tonemapperfilm 1**、無効にするには **r.tonemapperfilm 0** を入力します。
+モバイル デバイス上でトーンマッパを有効にするには、**4 本の指** で同時に画面をタップして **コンソール ウィンドウ** を立ち上げます。有効にするには **r.mobile.tonemapperfilm 1**、無効にするには **r.mobile.tonemapperfilm 0** を入力します。
 
 [REGION:lightbox]
 [![](TM_Phone_Console.png)(w:640)](TM_Phone_Console.png)
@@ -102,7 +102,7 @@ UE4 エディタでトーンマッパを有効にするには、まず **Backtic
 
 **[Color Grading]** セクションには、画像の色補正に使うプロパティがあります。
 
-|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|R.tonemapperfilm 値| 
+|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|r.mobile.tonemapperfilm 値| 
 |---------------------|-----------|----------------------|
 | [REGION:tablesection] White Balance [/REGION] |||
 |**Temp**|Yes|1|
@@ -143,7 +143,7 @@ UE4 エディタでトーンマッパを有効にするには、まず **Backtic
 **[Tonemapper]** セクションには、画像の色域の調整に使うプロパティがあります。
 
 
-|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|R.tonemapperfilm 値| 
+|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|r.mobile.tonemapperfilm 値| 
 |--------------------|-----------|--------------|
 |**Slope**|Yes|1|
 |**Toe**|Yes|1|
@@ -155,7 +155,7 @@ UE4 エディタでトーンマッパを有効にするには、まず **Backtic
 
 **[Mobile Tonemapper]** セクションには、画像の色域の調整に使うモバイル専用のプロパティがあります。
 
-|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|R.tonemapperfilm 値| 
+|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|r.mobile.tonemapperfilm 値| 
 |--------------------|-----------|--------------|
 |**Tint**|Yes|0|
 |**Saturation**|Yes|0|
@@ -175,7 +175,7 @@ UE4 エディタでトーンマッパを有効にするには、まず **Backtic
 
 **[Lens]** セクションには、ブルーム (Bloom) および DOF などの機能で画像に様々な視覚的調整を行うためのプロパティがあります。
 
-|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|R.tonemapperfilm 値| 
+|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|r.mobile.tonemapperfilm 値| 
 |--------------------|-----------|--------------|
 | [REGION:tablesection] Image Effects [/REGION] |||
 |**Chromatic Aberation**|Yes|0 & 1|
@@ -248,7 +248,7 @@ UE4 エディタでトーンマッパを有効にするには、まず **Backtic
 
 **[Rendering Features]** セクションには、カスタム深度やカスタム ステンシルなどの特定のポストプロセス マテリアを使って画像に視覚的な調整を行うためのプロパティがあります。 
 
-|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|R.tonemapperfilm 値| 
+|ポストプロセス プロパティ| サポートの有 (Yes) 無 (No)|r.mobile.tonemapperfilm 値| 
 |--------------------|-----------|--------------|
 | [REGION:tablesection] Post Process Materials [/REGION] |||
 |**Array**|Yes|1|

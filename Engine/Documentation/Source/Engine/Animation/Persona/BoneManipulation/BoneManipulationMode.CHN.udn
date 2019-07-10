@@ -1,36 +1,71 @@
-﻿Availability:Public
+﻿INTSourceChangelist:3217046
+Availability:Public
 Title:骨骼操作模式
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona
-Description:角色编辑器中的一种模式，允许您在预览动画资源的过程中平移或旋转骨骼。
-
-**骨骼操作模式** 是角色编辑器中的一种模式，在这种模式中，技术美工可以临时地平移或旋转骨骼，以便在预览动画过程中查找骨架网格物体上的植皮问题。
+Description:概述骨骼操作模式，此模式允许您在预览动画资源时平移或旋转骨骼。
+Related: Engine/Content/FBX/Animations
+Related: Engine/Content/Types/SkeletalMeshes
+Related: Engine/Animation/PhysicallyDrivenAnimation
+Related: Engine/Content/Tools/MayaRiggingTool
+version: 4.14
+type:reference
+topic-image:bonemanipulationmode.png
 
 ![Bone Manipulation Mode](Bones_TwoViews.png)
 
-**要想操作骨骼:**
-1. 在角色编辑器中打开一个骨架网格物体资源。
-1. 在 **资源浏览器** 的列表中选择一个动画资源，来使得骨骼操作模式可用。你可以在 **骨架** 、 **网格物体** 或 **动画** 模式中完成这个处理。(您可能要在操作该骨骼之前先暂停该动画。)
+在[动画编辑器](Engine/Animation/Persona/Modes/Animation)中，**骨骼操作模式（Bone Manipulation Mode）** 允许技术人员在预览动画时临时平移或旋转骨骼，以查找骨架网格体中的皮肤问题。 
+骨骼操作模式的另一个有用的方面是，您可以平移或旋转骨骼（例如，将某个角色的头部向上或向下倾斜），然后根据改变的骨骼位置使用[时间轴的记录](Engine/Animation/Sequences/Editor)选项，以创建一个新动画。  
 
-	![](Bones_SelectAnimation.png)
-1. 在 **骨架树** 面板中选择您想操作的骨骼。
+(#manipulatingbones)
 
-	![](Bones_SelectBone.png)
-1. 在该 **视口** 面板的顶部，选择平移或旋转图表来激活相应控件。
+## 操作骨骼
 
-	![Translation Widgets](Bones_Widgets.png)
-1. 使用所出现的控件来平移或旋转该骨骼。
-1. 播放动画来查找任何植皮问题。
+若要在动画播放期间在骨架网格体中操作骨骼，请执行以下操作： 
 
-关于使用平移及旋转控件的更多信息，请参照[交互式变换](Engine/Actors/Transform\#交互式变换)。
+1. 在[](Engine/Content/Browser)（或[资源浏览器](Engine/Animation/Persona/AssetBrowser)）中打开任一动画资源。 
+
+1. 在 **动画编辑器（Animation Editor）** 中，单击时间轴上的 **暂停（Pause）** 按钮以暂停动画。 
+
+	 ![](PauseAnimation.png)
+
+1. 单击 **骨架树（Skeleton Tree）** 选项卡，然后从 **树视图（Tree View）** 窗口中选择需要操作的骨骼。 
+
+	![](BoneSelection.png)
+
+1. 使用[变换控件](Engine/Actors/Transform\#InteractiveTransformation)平移（**W** 键）、旋转（**E** 键）或缩放（**R** 键）以选定骨骼。 
+
+	![](ModifyBone.png)
+
+	您还可以在视口顶部的工具栏中单击其中一个变换选项。 
+
+1. 播放修改骨骼变换后的动画。 
+
+	[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	V29k8E0K2jk
+	[/PARAMLITERAL]
+	[/OBJECT]
+
+	在上面的视频中，我们调整了两个不同的骨骼，旨在了解当骨骼处在不同的位置时动画会是什么样子。 
 
 [REGION:note]
-当您操作完该骨骼后，在选择不同的动画资源时该操作仍然持续，所以您可以在不同的动画上预览该修改效果。
+操作骨骼之后，当您选择不同的动画资源时，该操作将持续，因此您可以使用不同的动画预览更改。 
+当您关闭然后重新打开 **动画编辑器（Animation Editor）** 时，任何经过修改的骨骼都会返回到默认的平移、旋转或缩放状态。 
 [/REGION]
 
-**要想让骨骼恢复为其默认平移及旋转值:**
 
-* 在 **骨架树** 中选择另一根骨骼。
 
-[REGION:tip]
-关于给角色应用 **骨骼缩放** 的示例，您可以参照[动画内容示例](Resources\ContentExamples\Animation)页面的1.7部分。
-[/REGION]
+
+
+
+
+
+
+
+

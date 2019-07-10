@@ -47,6 +47,12 @@ void UMovieScene3DConstraintTrack::RemoveSection(UMovieSceneSection& Section)
 }
 
 
+void UMovieScene3DConstraintTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	ConstraintSections.RemoveAt(SectionIndex);
+}
+
+
 bool UMovieScene3DConstraintTrack::IsEmpty() const
 {
 	return ConstraintSections.Num() == 0;

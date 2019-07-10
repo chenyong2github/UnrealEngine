@@ -207,12 +207,12 @@ namespace UnrealGameSync
 			return NextNode;
 		}
 
-		public static bool ShowModal(IWin32Window Owner, string ServerAndPort, string UserName, string WorkspaceName, string WorkspacePath, TextWriter Log, out string NewWorkspacePath)
+		public static bool ShowModal(IWin32Window Owner, PerforceConnection Perforce, string WorkspaceName, string WorkspacePath, TextWriter Log, out string NewWorkspacePath)
 		{
 			EnumerateWorkspaceProjectsTask EnumerateProjectsTask = new EnumerateWorkspaceProjectsTask(WorkspaceName);
 
 			string ErrorMessage;
-			if(PerforceModalTask.Execute(Owner, null, ServerAndPort, UserName, EnumerateProjectsTask, "Finding Projects", "Finding projects, please wait...", Log, out ErrorMessage) != ModalTaskResult.Succeeded)
+			if(PerforceModalTask.Execute(Owner, Perforce, EnumerateProjectsTask, "Finding Projects", "Finding projects, please wait...", Log, out ErrorMessage) != ModalTaskResult.Succeeded)
 			{
 				if(!String.IsNullOrEmpty(ErrorMessage))
 				{

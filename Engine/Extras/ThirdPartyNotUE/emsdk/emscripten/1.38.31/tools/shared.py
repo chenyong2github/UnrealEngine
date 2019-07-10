@@ -22,6 +22,8 @@ import subprocess
 import sys
 import tempfile
 
+import platform
+
 if sys.version_info < (2, 7, 12):
 # EPIC EDIT start -- nick.shin 2019-05-29 -- UE-75005
 #  print('emscripten required python 2.7.12 or above', file=sys.stderr)
@@ -403,7 +405,11 @@ def expected_llvm_version():
 def get_clang_version():
   global actual_clang_version
   if actual_clang_version is None:
-    proc = check_call([CLANG, '--version'], stdout=PIPE)
+# EPIC EDIT start -- nick.shin 2019-06-20 -- UE-75306 UE-76260 UE-76599
+# python on windows is sometimes having a problem getting back to this when the call has already terminated
+#    proc = check_call([CLANG, '--version'], stdout=PIPE)
+    proc = run_process([CLANG, '--version'], stdout=PIPE, check=False)
+# EPIC EDIT end -- nick.shin 2019-06-20 -- UE-75306 UE-76260 UE-76599
     m = re.search(r'[Vv]ersion\s+(\d+\.\d+)', proc.stdout)
     actual_clang_version = m and m.group(1)
   return actual_clang_version
@@ -455,8 +461,11 @@ def check_llvm():
       return False
 
   if not Settings.WASM_BACKEND:
-    clang_v = run_process([CLANG, '--version'], stdout=PIPE).stdout
-    clang_v = clang_v.splitlines()[0]
+# EPIC EDIT start -- nick.shin 2019-06-14 -- UE-76260
+#    clang_v = run_process([CLANG, '--version'], stdout=PIPE).stdout
+#    clang_v = clang_v.splitlines()[0]
+    clang_v = get_clang_version()
+# EPIC EDIT end -- nick.shin 2019-06-14 -- UE-76260
     if '(emscripten ' not in clang_v:
       logger.error('clang version does not appear to include fastcomp (%s)', str(clang_v))
       return False
@@ -1413,7 +1422,13 @@ class Building(object):
   @staticmethod
   def get_multiprocessing_pool():
     if not Building.multiprocessing_pool:
-      cores = Building.get_num_cores()
+# EPIC EDIT start -- nick.shin 2019-05-29 -- UE-75306
+      if platform.system() == "Windows":
+        # reduce the incident of: "[Error 5] Access is denied" on Windows
+        cores = 1
+      else:
+        cores = Building.get_num_cores()
+# EPIC EDIT end -- nick.shin 2019-05-29 -- UE-75306
       if DEBUG:
         # When in EMCC_DEBUG mode, only use a single core in the pool, so that
         # logging is not all jumbled up.
@@ -1717,7 +1732,14 @@ class Building(object):
 
       for i, file in enumerate(files):
         if object_contents[i].returncode != 0:
-          logger.debug('llvm-nm failed on file ' + file + ': return code ' + str(object_contents[i].returncode) + ', error: ' + object_contents[i].output)
+# EPIC EDIT start -- nick.shin 2019-05-29 -- UE-75306
+# epic builds normally have ALL symbols accounted for...
+# even when using -s ERROR_ON_UNDEFINED_SYMBOLS=1 -- emscripten will sometimes not show what's missing
+# changing this to error will help show those missing symbols...
+# this has uncovered a possible race condition in get_multiprocessing_pool() above
+#          logger.debug('llvm-nm failed on file ' + file + ': return code ' + str(object_contents[i].returncode) + ', error: ' + object_contents[i].output)
+          logger.error('llvm-nm failed on file ' + file + ': return code ' + str(object_contents[i].returncode) + ', error: ' + object_contents[i].output)
+# EPIC EDIT end -- nick.shin 2019-05-29 -- UE-75306
         Building.uninternal_nm_cache[file] = object_contents[i]
       return object_contents
 

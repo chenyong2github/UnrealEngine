@@ -256,20 +256,38 @@ namespace UnrealBuildTool
 		/// <param name="TargetObject">Object to receive the settings</param>
 		public static void ReadSettings(DirectoryReference ProjectDir, UnrealTargetPlatform Platform, object TargetObject)
 		{
+			ReadSettings(ProjectDir, Platform, TargetObject, null);
+		}
+
+		/// <summary>
+		/// Read config settings for the given object
+		/// </summary>
+		/// <param name="ProjectDir">Path to the project directory</param>
+		/// <param name="Platform">The platform being built</param>
+		/// <param name="TargetObject">Object to receive the settings</param>
+		/// <param name="Tracker">Tracks the set of config values that were retrieved. May be null.</param>
+		internal static void ReadSettings(DirectoryReference ProjectDir, UnrealTargetPlatform Platform, object TargetObject, ConfigValueTracker Tracker)
+		{
 			List<ConfigField> Fields = FindConfigFieldsForType(TargetObject.GetType());
 			foreach(ConfigField Field in Fields)
 			{
 				// Read the hierarchy listed
 				ConfigHierarchy Hierarchy = ReadHierarchy(Field.Attribute.ConfigType, ProjectDir, Platform);
 
+				// Get the key name
+				string KeyName = Field.Attribute.KeyName ?? Field.FieldInfo.Name;
+
+				// Get the value(s) associated with this key
+				IReadOnlyList<string> Values;
+				Hierarchy.TryGetValues(Field.Attribute.SectionName, KeyName, out Values);
+
 				// Parse the values from the config files and update the target object
-				if(Field.AddElement == null)
+				if (Field.AddElement == null)
 				{
-					string Text;
-					if(Hierarchy.TryGetValue(Field.Attribute.SectionName, Field.Attribute.KeyName ?? Field.FieldInfo.Name, out Text))
+					if(Values != null && Values.Count == 1)
 					{
 						object Value;
-						if(TryParseValue(Text, Field.FieldInfo.FieldType, out Value))
+						if(TryParseValue(Values[0], Field.FieldInfo.FieldType, out Value))
 						{
 							Field.FieldInfo.SetValue(TargetObject, Value);
 						}
@@ -277,10 +295,9 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					IEnumerable<string> Items;
-					if(Hierarchy.TryGetValues(Field.Attribute.SectionName, Field.Attribute.KeyName ?? Field.FieldInfo.Name, out Items))
+					if(Values != null)
 					{
-						foreach(string Item in Items)
+						foreach(string Item in Values)
 						{
 							object Value;
 							if(TryParseValue(Item, Field.ElementType, out Value))
@@ -289,6 +306,12 @@ namespace UnrealBuildTool
 							}
 						}
 					}
+				}
+
+				// Save the dependency
+				if (Tracker != null)
+				{
+					Tracker.Add(Field.Attribute.ConfigType, ProjectDir, Platform, Field.Attribute.SectionName, KeyName, Values);
 				}
 			}
 		}

@@ -19,7 +19,7 @@ typedef FOnClusterEvent::FDelegate FOnClusterEventListener;
 class IDisplayClusterClusterManager
 {
 public:
-	virtual ~IDisplayClusterClusterManager()
+	virtual ~IDisplayClusterClusterManager() = 0
 	{ }
 
 	virtual bool IsMaster()         const = 0;

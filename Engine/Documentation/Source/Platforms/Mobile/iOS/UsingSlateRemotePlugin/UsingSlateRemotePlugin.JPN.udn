@@ -1,0 +1,45 @@
+﻿INTSourceChangelist:4898169
+Availability: Public
+Crumbs: 
+Title: iOS 開発用リモート セッション プラグインを使用する
+Description: Remote Slate Plugin (リモート スレート プラグイン) は、PC と同じネットワークに接続されている iOS デバイスからの入力をレプリケートすることを目的としているため、エディタから、またはローカルで実行されているパッケージ版のゲームまたはアプリからテストできます。
+Type: 
+Version: 4.21
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: iOS
+Tags: Slate Remote Plugin
+
+
+Remote Session Plugin (リモート セッション プラグイン) は、PC と同じネットワークに接続されている iOS デバイスからの入力をレプリケートすることを目的としているため、エディタから、またはローカルで実行されているパッケージ版のゲームまたはアプリからテストできます。Unreal Remote 2 アプリは Remote Session Plugin と連携して動作し、ゲームやアプリのテスト時に役立ちます。
+
+## Unreal Remote 2 アプリを入手する
+
+1. iOS デバイスで App Store にアクセスしてください。**｢Unreal Remote 2｣**を検索します。**[入手]** をタップします。
+    ![](UnrealRemote_AppStore.png)
+2. **Unreal Remote 2** アプリがデバイスにダウンロード･インストールされます。デバイスは PC と同じネットワークに接続されている必要があります。
+    ![](UnrealRemote_Installed.png)
+3. iOS デバイスでアプリケーションを起動し、PC の IP アドレスを入力してください。次に **[接続]** をタップします。
+    ![UnrealRemote_IPAddress.png](UnrealRemote_IPAddress-opt.png)
+
+## リモート セッション プラグインを有効にする
+
+1. Unreal Editor で、**[Edit (編集)] > [Plugins]** をクリックします。**[Plugins]** パネルが表示されます。
+    ![](EditPlugins.png)
+2. 左側のナビゲーション パネルで、**[Experimental]** までスクロールダウンします。**Remote Session Plugin** を見つけます。
+    ![](EnableRemoteSessionPlugin.png) **[Search (検索)]**バーを使用し、「remote」と入力してプラグインを見つけることもできます。
+    [REGION:warning]
+    検索バーを使用して「remote」と入力すると、検索結果に｢Slate Remote Plugin｣が表示されることがあります。しかし、これは古いバージョンのプラグインなので、有効にしないでください。**Remote Session Plugin のみ有効にしてください。**
+    [/REGION]
+3. **[Enabled]** チェックボックスをオンにします。変更を有効にするためのエディタの再起動を求める警告メッセージが表示されます。
+    ![](EnableSlateRemotePlugin-2.png)
+4. **[Restart Now]** をクリックしてエディタを再起動します。
+    
+5. Unreal Editor で、**[Play (プレイ)]** ボタンにあるドロップダウンの矢印をクリックします。これにより、プレイ状態オプションのメニューを表示します。**[New Editor Window (PIE) (新規エディタウィンドウ (PIE))]** または **[Standalone Game (スタンドアローンゲーム)]** を選択します。新しいウィンドウが開きます。
+    ![](EnableSlateRemotePlugin_step5.png)
+6. Unreal Engine エディタがアクティブ ウィンドウであることを確認してください。iOS デバイス上の Unreal Remote アプリからのやり取りは、入力マネジャーから受け取ります。以下のカテゴリのすべてのブループリント ノード (および対応するC++ API) は下記の使用可能な値を返します。
+    *   タッチ イベント
+    *   タッチ入力
+    *   ジェスチャー イベント
+    *   モーション イベント
+    *   モーションの値

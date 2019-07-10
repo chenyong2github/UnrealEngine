@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:이미시브 머티리얼 입력 사용
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials/HowTo
@@ -64,7 +64,7 @@ Emissive Lighting (이미시브 라이팅) 또는 UE4 에서 이미시브 머티
 	![](EM_Adding_Nodes_&_Textures_To_Material.png)
 
 	[region:tip]
-	이 비법에 사용되는 **Tech_Panel** 텍스처를 찾을 수 없다면, 프로젝트에 **시작용 콘텐츠** 가 포함되어 있지 않다는 뜻입니다.
+	이 하우투에 사용되는 **Tech_Panel** 텍스처를 찾을 수 없다면, 프로젝트에 **시작용 콘텐츠** 가 포함되어 있지 않다는 뜻입니다.
 	이 콘텐츠를 찾으려면, 시작용 콘텐츠를 포함시켜 프로젝트를 하나 더 만든 다음 [이주 툴](Engine/Content/Browser/UserGuide/Migrate) 을 사용하여
 	그 프로젝트의 텍스처를 현재 프로젝트로 이주시키면 됩니다.
 	[/region]

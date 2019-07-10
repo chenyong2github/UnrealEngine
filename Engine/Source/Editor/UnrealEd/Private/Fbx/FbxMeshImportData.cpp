@@ -9,6 +9,7 @@ UFbxMeshImportData::UFbxMeshImportData(const FObjectInitializer& ObjectInitializ
 	NormalImportMethod = FBXNIM_ComputeNormals;
 	NormalGenerationMethod = EFBXNormalGenerationMethod::MikkTSpace;
 	bBakePivotInVertex = false;
+	bReorderMaterialToFbxOrder = true;
 }
 
 bool UFbxMeshImportData::CanEditChange(const UProperty* InProperty) const

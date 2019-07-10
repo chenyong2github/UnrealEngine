@@ -1,11 +1,13 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6078243
+Availability:Docs
 Title: 4. 다수의 폴리지 타입 사용
 Crumbs:
 Description:이번 단계에서는 다수의 폴리지 타입과 작업하도록 폴리지 스포너 구성을 해 주겠습니다.
 Navigation:topic
 SkillLevel:Intermediate
 Version: 4.8
+
+## Set to Docs as the pages have been combined into one. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

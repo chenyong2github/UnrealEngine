@@ -39,16 +39,18 @@ typedef TWeakPtr<class SNotificationItem> SNotificationItemWeak;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FRecorderConnection
+struct FTraceSession
 {
 	Trace::FSessionHandle SessionHandle;
 	FText Name;
 	FText Uri;
+	bool bIsLive;
 
-	FRecorderConnection(const Trace::FSessionHandle InSessionHandle, const Trace::FSessionInfo& InSessionInfo)
+	FTraceSession(const Trace::FSessionHandle InSessionHandle, const Trace::FSessionInfo& InSessionInfo)
 		: SessionHandle(InSessionHandle)
 		, Name(FText::FromString(InSessionInfo.Name))
 		, Uri(FText::FromString(InSessionInfo.Uri))
+		, bIsLive(InSessionInfo.bIsLive)
 	{}
 };
 
@@ -68,37 +70,38 @@ public:
 	/** Constructs this widget. */
 	void Construct(const FArguments& InArgs);
 
-	void ManageLoadingProgressNotificationState(const FString& Filename, const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const float LoadingProgress);
-
 	void OpenSettings();
 	void CloseSettings();
 
 private:
+	TSharedRef<SWidget> ConstructSessionsPanel();
+	TSharedRef<SWidget> ConstructLoadPanel();
+	TSharedRef<SWidget> ConstructLocalSessionDirectoryPanel();
 	TSharedRef<SWidget> ConstructRecoderPanel();
-	TSharedRef<SWidget> ConstructModuleList();
+	TSharedRef<SWidget> ConstructConnectPanel();
 
-	/** Generate a new row for the Connections list view. */
-	TSharedRef<ITableRow> Connections_OnGenerateRow(TSharedPtr<FRecorderConnection> InConnection, const TSharedRef<STableViewBase>& OwnerTable);
+	/** Generate a new row for the TraceSessions list view. */
+	TSharedRef<ITableRow> TraceSessions_OnGenerateRow(TSharedPtr<FTraceSession> InConnection, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Callback for determining the visibility of the 'Please select a trace' overlay. */
 	EVisibility IsSessionOverlayVisible() const;
 
 	bool IsSessionValid() const;
 
-	void SendingServiceSideCapture_Cancel(const FString Filename);
-	void SendingServiceSideCapture_Load(const FString Filename);
+	bool Open_IsEnabled() const;
+	FReply Open_OnClicked();
 
-	bool Live_IsEnabled() const;
-	bool Last_IsEnabled() const;
-
-	FReply Live_OnClicked();
-	FReply Last_OnClicked();
-	FReply Load_OnClicked();
-
+	void OpenFileDialog();
 	void LoadTraceFile(const TCHAR* TraceFile);
 	void LoadSession(Trace::FSessionHandle SessionHandle);
 
 	TSharedRef<SWidget> MakeSessionListMenu();
+
+	void RefreshTraceSessionList();
+	void TraceSessions_OnSelectionChanged(TSharedPtr<FTraceSession> TraceSession, ESelectInfo::Type SelectInfo);
+	void TraceSessions_OnMouseButtonDoubleClick(TSharedPtr<FTraceSession> TraceSession);
+	EVisibility TraceSessions_Visibility() const;
+	FReply RefreshTraceSessions_OnClicked();
 
 	FText GetLocalSessionDirectory() const;
 	FReply ExploreLocalSessionDirectory_OnClicked();
@@ -109,15 +112,11 @@ private:
 	FReply StartTraceRecorder_OnClicked();
 	FReply StopTraceRecorder_OnClicked();
 
-	EVisibility Modules_Visibility() const;
-	ECheckBoxState Module_IsChecked(int32 ModuleIndex) const;
-	void Module_OnCheckStateChanged(ECheckBoxState NewRadioState, int32 ModuleIndex);
+	//EVisibility Modules_Visibility() const;
+	//ECheckBoxState Module_IsChecked(int32 ModuleIndex) const;
+	//void Module_OnCheckStateChanged(ECheckBoxState NewRadioState, int32 ModuleIndex);
 
-	FReply RefreshConnections_OnClicked();
 	FReply Connect_OnClicked();
-	void RefreshConnectionList();
-	void Connections_OnSelectionChanged(TSharedPtr<FRecorderConnection> Connection, ESelectInfo::Type SelectInfo);
-	EVisibility Connections_Visibility() const;
 
 	/** Updates the amount of time the profiler has been active. */
 	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
@@ -196,16 +195,14 @@ private:
 	/** Holds all widgets for the profiler window like menu bar, toolbar and tabs. */
 	TSharedPtr<SVerticalBox> MainContentPanel;
 
-	bool bIsAnyLiveSessionAvailable;
-	Trace::FSessionHandle LastLiveSessionHandle;
+	int32 AvailableSessionCount;
+	int32 LiveSessionCount;
 
-	bool bIsAnySessionAvailable;
-	Trace::FSessionHandle LastSessionHandle;
-
-	TSharedPtr<SListView<TSharedPtr<FRecorderConnection>>> ConnectionsListView;
-	TArray<TSharedPtr<FRecorderConnection>> Connections;
+	TSharedPtr<SListView<TSharedPtr<FTraceSession>>> TraceSessionsListView;
+	TArray<TSharedPtr<FTraceSession>> TraceSessions;
 	TSharedPtr<SEditableTextBox> HostTextBox;
-	TSharedPtr<FRecorderConnection> SelectedConnection;
-	TArray<Trace::FModuleInfo> AvailableModules;
-	TArray<bool> AvailableModulesEnabledState;
+	TSharedPtr<FTraceSession> SelectedTraceSession;
+
+	//TArray<Trace::FModuleInfo> AvailableModules;
+	//TArray<bool> AvailableModulesEnabledState;
 };

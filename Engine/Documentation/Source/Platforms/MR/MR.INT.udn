@@ -1,25 +1,30 @@
 Availability: Public
-Crumbs: %ROOT%, Platforms
 Title: Mixed Reality Development
 Description: Mixed Reality Development
 Platform: Mixed Reality
 Version: 4.20
 Parent: Platforms
+type:landing
 Order: 0
 Tags: MR
 Tags: Early Access
 Tags: Landing Page
+topic-image: MRDevelopment_Topic.png
 
 
 The Mixed Reality Capture (MRC) framework makes it easy for users to composite real players into a virtual play space.
 
 ## Getting Started
 
-%Platforms/MR/MROverview:topic%
-%Platforms/MR/MRQuickStart:topic%
-%Platforms/MR/MRHowToCaptureCalibrationTool:topic%
+[DIR(output:"topic" parent:"Platforms/MR" type:"overview" end:"1")]
+[DIR(output:"topic" parent:"Platforms/MR" type:"quick start" end:"1")]
+[DIR(output:"topic" parent:"Platforms/MR" type:"how-to" end:"1")]
+
+## Troubleshooting
+
+[DIR(output:"topic" parent:"Platforms/MR" tags:"troubleshooting" end:"1")]
 
 ## Reference
 
-%Platforms/MR/MRSupportedVideoDevices:topic%
-%Platforms/MR/MRTroubleshooting:topic%
+[DIR(output:"topic" parent:"Platforms/MR" type:"reference" end:"1")]
+

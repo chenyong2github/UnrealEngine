@@ -61,7 +61,7 @@ You can turn on/off casting shadows on a per element, per LOD basis (some areas 
 
 Inside of the **Viewport**, you can click the **Preview LODs** button to switch between the available LODs (it may also help to enable **Display Info**  for statistical information).
 
-![](PreviewLODs.png "PreviewLODs.png")
+![](previewLODs.png "previewLODs.png")
 
 Using the LOD Previewer, you can inspect the visual differences between LODs. Also, you can inspect statistical information about each LOD. For example, in the image below, the amount of triangles in LOD 2 is almost half the amount of triangles in LOD 0.
 
@@ -117,11 +117,11 @@ The following is an example of using Bake Pose to retain the hand pose of our ch
 
 ## Reduction Settings
 
-[REGION:warning]
-These options require the use of Simplygon. For more information on LODs and Reduction settings, please see the [Simplygon LODs](Engine/Content/Types/StaticMeshes/LOD) page.
-[/REGION]
+In addition to the options outlined above, each generated LOD allows for defining the **Reduction Settings** for optimization. 
 
-In addition to the options outlined above, each generated LOD allows for defining the **Reduction Settings** for optimization.
+[REGION:warning]
+As of engine release 4.22, UE4 support for Simplygon has been deprecated and will no longer be supported. You can continue to get updates from Simplygon but will have to do your own integration into the engine. As an alternative, we have our own internal solution which you can read more about on the [Skeletal Mesh Simplification](Engine/Content/Types/SkeletalMeshes/SkeletalMeshReductionTool) documentation pages.
+[/REGION]
 
 ![](ReductionSettingsOnly.png "ReductionSettingsOnly.png")
 
@@ -147,11 +147,11 @@ Reduction Settings that use a Bone List also allows whitelist joints (as wel
 
 ![](BoneFilterAction_01.png "BoneFilterAction_01.png")
 
-Use the **Bone Filter Action ****Option **to define your desired setting after adding Bones to the Bone List.
+Use the **Bone Filter Action Option** to define your desired setting after adding Bones to the Bone List.
 
 ## Sharing LOD Settings
 
-Skeletal Meshes can use a shared Data Asset of the **LOD Settings **Asset type instead of setting LOD information directly (this includes the ability to share Reduction Settings). Inside the **Asset Details **panel for a Skeletal Mesh, under **LOD Settings**, you can select which LOD Settings asset to use or click the **Generate Asset** button to generate a new LOD Settings asset based on the current settings. 
+Skeletal Meshes can use a shared Data Asset of the **LOD Settings** Asset type instead of setting LOD information directly (this includes the ability to share Reduction Settings). Inside the **Asset Details** panel for a Skeletal Mesh, under **LOD Settings**, you can select which LOD Settings asset to use or click the **Generate Asset** button to generate a new LOD Settings asset based on the current settings. 
 
 ![](LODSettings.png "LODSettings.png")
 
@@ -159,13 +159,13 @@ After selecting an LOD Settings Asset, options will be grayed out and use the in
 
 ![](AssignedLODSettings.png "AssignedLODSettings.png")  
 
-**To create a new LOD Settings Asset: **  
+**To create a new LOD Settings Asset:**  
 
-1\. In the **Content Browser **from the **Add New **button under **Miscellaneous**, select **Data Asset.**
+1\. In the **Content Browser** from the **Add New** button under **Miscellaneous**, select **Data Asset.**
 
 ![](DataAsset.png "DataAsset.png")
 
-2\. After creating the asset, assign the **SkeletalMeshLODSettings **as the class. 
+2\. After creating the asset, assign the **SkeletalMeshLODSettings** as the class. 
 
 ![](DataAssetClass.png "DataAssetClass.png")
 
@@ -179,7 +179,7 @@ The **Clothing** section associates an [APEX](Engine/Physics/Apex) clothing file
 
 ![](AddApex.png)
 
-Once you've imported your Apex file, you can adjust its [Physics Properties](Engine/Physics/PhAT/Reference) to achieve your desired results.
+Once you've imported your Apex file, you can adjust its [Physics Properties](Engine/Physics/PhysicsAssetEditor/Reference) to achieve your desired results.
 
 ![](OwenApexCloth.png)
 
@@ -195,7 +195,7 @@ In the **Mesh** section, you can see what [Skeleton](Engine/Animation/Skeleton) 
 
 ## Physics
 
-The **Physics** section allows you to **Enable Per Poly Collision** for the mesh, which uses skinned data for collision information. Per Poly Collision cannot be used for simulation. In most cases, you're better off using a **Physics Asset**. There is also the ability to assign a [Physics Asset](Engine/Physics/PhAT) to the Skeletal Mesh, which is used for processing physics and collision information. This is used for per-bone hit detection, accurate bounding box calculation, and ragdoll physics.
+The **Physics** section allows you to **Enable Per Poly Collision** for the mesh, which uses skinned data for collision information. Per Poly Collision cannot be used for simulation. In most cases, you're better off using a **Physics Asset**. There is also the ability to assign a [Physics Asset](Engine/Physics/PhysicsAssetEditor) to the Skeletal Mesh, which is used for processing physics and collision information. This is used for per-bone hit detection, accurate bounding box calculation, and ragdoll physics.
 
 ![](PhysicsSection.png)
 
@@ -259,10 +259,10 @@ You can also control whether or not the Post Process instance runs on a Skeleta
 
 ![](TogglePostProcess.png)
 
-Above, we have a Skeletal Mesh Component called **Mesh **in which we can call **Toggle Disable Post Process Blueprint **to toggle the state of the assigned Post Process Blueprint. We also use the **Get Post Process Instance **node to return the active Post Process Instance if one is assigned. This is set on the mesh that the component is using, and is evaluated immediately after the main instance.
+Above, we have a Skeletal Mesh Component called **Mesh** in which we can call **Toggle Disable Post Process Blueprint** to toggle the state of the assigned Post Process Blueprint. We also use the **Get Post Process Instance** node to return the active Post Process Instance if one is assigned. This is set on the mesh that the component is using, and is evaluated immediately after the main instance.
 
   
-You can also set the value directly inside the **Details **panel when the Skeletal Mesh Component is selected. 
+You can also set the value directly inside the **Details** panel when the Skeletal Mesh Component is selected. 
 
 ![](DetailsPanel.png "DetailsPanel.png")
 

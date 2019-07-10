@@ -120,7 +120,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(FFXSystemInterface*, FCreateCustomFXSystemDele
 /**
  * The interface to an effects system.
  */
-class FFXSystemInterface
+class ENGINE_VTABLE FFXSystemInterface
 {
 public:
 
@@ -128,11 +128,6 @@ public:
 	 * Create an effects system instance.
 	 */
 	ENGINE_API static FFXSystemInterface* Create(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform);
-
-	/**
-	 * Destroy an effects system instance.
-	 */
-	ENGINE_API static void Destroy(FFXSystemInterface* FXSystem);
 
 	/**
 	 * Register a custom FX system implementation.
@@ -148,6 +143,12 @@ public:
 	 * Return the interface bound to the given name.
 	 */
 	virtual FFXSystemInterface* GetInterface(const FName& InName) { return nullptr; };
+
+	/**
+	 * Destroy an effects system instance.
+	 */
+	ENGINE_API virtual void Destroy();
+
 
 	/**
 	 * Tick the effects system.
@@ -197,7 +198,7 @@ public:
 	 * Notification from the renderer that it is about to perform visibility
 	 * checks on FX belonging to this system.
 	 */
-	virtual void PreInitViews() = 0;
+	virtual void PreInitViews(FRHICommandListImmediate& RHICmdList) = 0;
 
 	virtual bool UsesGlobalDistanceField() const = 0;
 
@@ -205,28 +206,28 @@ public:
 	 * Notification from the renderer that it is about to draw FX belonging to
 	 * this system.
 	 */
-	virtual void PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData) = 0;
+	virtual void PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate) = 0;
 
 	/**
 	 * Notification from the renderer that opaque primitives have rendered.
 	 */
 	virtual void PostRenderOpaque(
 		FRHICommandListImmediate& RHICmdList, 
-		const FUniformBufferRHIParamRef ViewUniformBuffer, 
+		FRHIUniformBuffer* ViewUniformBuffer,
 		const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-		FUniformBufferRHIParamRef SceneTexturesUniformBuffer) = 0;
+		FRHIUniformBuffer* SceneTexturesUniformBuffer) = 0;
 
 	/**
 	 * Helper in case the data necessary for collision is not available.
 	 */
-	void PostRenderOpaque(FRHICommandListImmediate& RHICmdList) { PostRenderOpaque(RHICmdList, nullptr, nullptr, FUniformBufferRHIParamRef()); }
+	void PostRenderOpaque(FRHICommandListImmediate& RHICmdList) { PostRenderOpaque(RHICmdList, nullptr, nullptr, nullptr); }
 
 	bool IsPendingKill() const { return bIsPendingKill; }
 
 protected:
 
 	/** By making the destructor protected, an instance must be destroyed via FFXSystemInterface::Destroy. */
-	ENGINE_API virtual ~FFXSystemInterface();
+	ENGINE_API virtual ~FFXSystemInterface() {}
 
 private:
 

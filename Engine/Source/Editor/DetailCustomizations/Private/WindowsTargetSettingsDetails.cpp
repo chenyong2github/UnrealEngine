@@ -9,6 +9,7 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Styling/SlateTypes.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
@@ -31,6 +32,7 @@
 
 #if WITH_ENGINE
 #include "AudioDevice.h"
+#include "ContentStreaming.h"
 #endif 
 
 #define LOCTEXT_NAMESPACE "WindowsTargetSettingsDetails"
@@ -58,6 +60,10 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	{
 		FriendlyRHIName = LOCTEXT("DirectX10", "DirectX 10 (SM4)");
 	}
+	else if (InRHIName == TEXT("PCD3D_ES31"))
+	{
+		FriendlyRHIName = LOCTEXT("DirectXES31", "DirectX Mobile Emulation (ES3.1)");
+	}
 	else if (InRHIName == TEXT("GLSL_430"))
 	{
 		FriendlyRHIName = LOCTEXT("OpenGL4", "OpenGL 4 (SM5, Experimental)");
@@ -76,7 +82,7 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	}
 	else if (InRHIName == TEXT("GLSL_150_ES2") || InRHIName == TEXT("GLSL_150_ES31") || InRHIName == TEXT("GLSL_150")
 		|| InRHIName == TEXT("SF_VULKAN_ES31_ANDROID") || InRHIName == TEXT("SF_VULKAN_ES31")
-		|| InRHIName == TEXT("SF_VULKAN_SM4") || InRHIName == TEXT("PCD3D_ES2") || InRHIName == TEXT("PCD3D_ES31"))
+		|| InRHIName == TEXT("SF_VULKAN_SM4") || InRHIName == TEXT("PCD3D_ES2"))
 	{
 		// Explicitly remove these formats as they are obsolete/not quite supported; users can still target them by adding them as +TargetedRHIs in the TargetPlatform ini.
 		FriendlyRHIName = FText::GetEmpty();
@@ -331,7 +337,33 @@ void FWindowsTargetSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& Deta
 				.ToolTipText(LOCTEXT("AudioDevicesButtonToolTip", "Pick from the list of available audio devices"))
 			]
 	];
+
 	AudioPluginWidgetManager.BuildAudioCategory(DetailBuilder, EAudioPlatform::Windows);
+
+	// Here we add a callback when the 
+	TSharedPtr<IPropertyHandle> AudioStreamCachingPropertyHandle = DetailBuilder.GetProperty("bUseAudioStreamCaching");
+	IDetailCategoryBuilder& AudioStreamCachingCategory = DetailBuilder.EditCategory("Audio");
+	IDetailPropertyRow& AudioStreamCachingPropertyRow = AudioDeviceCategory.AddProperty(AudioStreamCachingPropertyHandle);
+	AudioStreamCachingPropertyRow.CustomWidget()
+		.NameContent()
+		[
+			AudioStreamCachingPropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MaxDesiredWidth(500.0f)
+		.MinDesiredWidth(100.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SCheckBox)
+				.OnCheckStateChanged(this, &FWindowsTargetSettingsDetails::HandleAudioStreamCachingToggled, AudioStreamCachingPropertyHandle)
+				.IsChecked(this, &FWindowsTargetSettingsDetails::GetAudioStreamCachingToggled, AudioStreamCachingPropertyHandle)
+				.ToolTipText(AudioStreamCachingPropertyHandle->GetToolTipText())
+			]
+		];
 }
 
 bool FWindowsTargetSettingsDetails::HandlePreExternalIconCopy(const FString& InChosenImage)
@@ -355,6 +387,30 @@ bool FWindowsTargetSettingsDetails::HandlePostExternalIconCopy(const FString& In
 void FWindowsTargetSettingsDetails::HandleAudioDeviceSelected(FString AudioDeviceName, TSharedPtr<IPropertyHandle> PropertyHandle)
 {
 	PropertyHandle->SetValue(AudioDeviceName);
+}
+
+void FWindowsTargetSettingsDetails::HandleAudioStreamCachingToggled(ECheckBoxState EnableStreamCaching, TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	PropertyHandle->SetValue(EnableStreamCaching == ECheckBoxState::Checked);
+
+#if WITH_ENGINE
+	IStreamingManager::Get().OnAudioStreamingParamsChanged();
+#endif
+}
+
+ECheckBoxState FWindowsTargetSettingsDetails::GetAudioStreamCachingToggled(TSharedPtr<IPropertyHandle> PropertyHandle) const
+{
+	bool bEnabled = false;
+	PropertyHandle->GetValue(bEnabled);
+
+	if (bEnabled)
+	{
+		return ECheckBoxState::Checked;
+	}
+	else
+	{
+		return ECheckBoxState::Unchecked;
+	}
 }
 
 FSlateColor FWindowsTargetSettingsDetails::HandleAudioDeviceBoxForegroundColor(TSharedPtr<IPropertyHandle> PropertyHandle) const

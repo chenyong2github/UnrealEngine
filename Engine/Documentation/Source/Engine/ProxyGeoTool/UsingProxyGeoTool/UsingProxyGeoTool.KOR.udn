@@ -1,0 +1,59 @@
+﻿INTSourceChangelist:6675182
+Availability: Public
+Crumbs: 
+Title: 프록시 지오메트리 툴 사용
+Description: UE4 프로젝트에서 프록시 지오메트리 툴을 활성화하는 방법을 살펴봅니다.
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 2
+Tags: Optmization
+Tags: Proxy Geometry Tool
+
+
+여기서는 프록시 지오메트리 툴을 사용해서 UE4 프로젝트 레벨에 사용할 스태틱 메시와 텍스처를 새로 만드는 법을 살펴 봅니다.
+
+## 단계
+
+1.  **프록시 지오메트리 툴** 은 **창 > 개발자 툴** 메뉴에서 **액터 병합** 옵션을 클릭해서 열 수 있는 액터 병합 툴의 일부입니다.
+
+    ![](ProxyLOD_05.png "ProxyLOD_05.png")
+
+1.  액터 병합 툴이 열리면, 상단에 아이콘이 두 개 보입니다. 두 번째 아이콘을 클릭하면 프록시 지오메트리 툴의 옵션을 열 수 있습니다.   
+
+    ![](ProxyLOD_04.png "ProxyLOD_04.png")
+
+    [REGION:note]
+    프록시 지오메트리 툴의 옵션은 레벨에서 스태틱 메시를 선택했을 때만 활성화됩니다.
+    [/REGION]
+    
+1.  레벨의 한 위치로 이동하여 스태틱 메시 선택을 시작합니다. 이 예제에서는 스태틱 메시를 21 개 선택했지만 원하는 만큼 선택해도 됩니다.  
+
+    ![](Proxy_Geo_HT_Using_01.png "Proxy_Geo_HT_Using_01.png")
+
+1.  선택한 채 액터 병합 창에서 **액터 병합** 버튼을 눌러 프록시 지오메트리 툴 생성 프로세스를 시작합니다.  
+
+    ![](Proxy_Geo_HT_Using_02.png "Proxy_Geo_HT_Using_02.png") 
+
+1.  메시지가 표시되면 프록시 지오메트리 툴이 새로 생성할 애셋의 **Name** 및 **Location** 를 입력합니다. 완료되면 **저장** 버튼을 눌러 프록시 지오메트리 툴 생성 프로세스를 계속합니다.  
+
+    ![](Proxy_Geo_HT_Using_03.png "Proxy_Geo_HT_Using_03.png")
+
+    [REGION:note]
+    프록시 지오메트리 툴의 완료까지 몇 분에서 몇 시간까지 걸릴 수 있습니다. 현재 진행률이 다음 창과 같이 표시됩니다.
+
+    ![](Proxy_Geo_HT_Using_04.png "Proxy_Geo_HT_Using_04.png")
+    [/REGION]
+    
+1.  프록시 지오메트리 툴이 완료되면, 콘텐츠 브라우저로 이동하여 위 단계에서 입력한 이름으로 검색하여 새로 생성된 애셋을 찾습니다.  
+
+    ![](Proxy_Geo_HT_Using_05.png "Proxy_Geo_HT_Using_05.png")
+
+## 최종 결과
+
+생성된 스태틱 메시를 보려면 콘텐츠 브라우저에서 생성된 스태틱 메시를 더블클릭합니다. 스태틱 메시 에디터에서 스태틱 메시를 볼 때, 감소된 트라이앵글 및 머티리얼 수를 확인하세요.   
+
+![](Proxy_Geo_HT_Using_06.png "Proxy_Geo_HT_Using_06.png")
+
+[](#)[](#)

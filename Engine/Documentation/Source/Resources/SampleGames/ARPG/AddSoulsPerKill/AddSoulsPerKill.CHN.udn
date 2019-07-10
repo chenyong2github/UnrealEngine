@@ -1,0 +1,142 @@
+﻿INTSourceChangelist:6190051
+Availability: Public
+Title: 添加每次杀敌时的随机灵魂数量
+Description: 介绍如何在玩家每次消灭敌人时奖励随机数量的灵魂。
+Type: how-to
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+topic-image: SoulsPerKill_Step5.png
+SkillLevel: Beginner
+Order: 3
+Related: Engine/Blueprints/UserGuide/Variables
+Related: Engine/Blueprints
+Related: Programming/UnrealArchitecture/Actors/Components
+
+
+[TOC (start:2 end:2)]
+
+在玩动作RPG（ARPG）时，玩家每消灭一个敌人就会得到一个灵魂。而玩家可以使用自己收集到的灵魂在商店购买药剂和武器。虽然这套系统中规中矩，但每消灭一个敌人奖励一个灵魂会让游戏进程显得单调乏味，而不是充满乐趣。在下面的操作指南中，我们将介绍如何设置我们的敌人，使得它们在被玩家消灭时奖励随机数量的灵魂。
+
+## 步骤：
+
+[REGION:note]
+动作RPG的最新版本将已经设置好下列内容并可运行。
+[/REGION]
+
+1.  首先，在 **内容浏览器** 中，找到 **BP_EnemyCharacter蓝图** 并双击将其打开。  
+    [REGION:lightbox]
+    [![](SoulsPerKill_Step1.png)(w:800)](SoulsPerKill_Step1.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  打开BP_EnemyCharacter蓝图后，单击 **函数（Functions）** 列表中的 **加号（+）** 按钮添加新函数，并将它命名为 **SpawnLoot**。  
+    ![](SoulsPerKill_Step2.png)
+
+
+1.  选择图表中的 **SpawnLoot** 节点，在 **细节（Details）** 面板中的 **输入（Inputs）** 部分下面，添加一个新的 **整数（Integer）** 输入，命名为 **Quantity**。   
+    ![](SoulsPerKill_Step3_1.png)
+
+
+1.  将下列节点添加到图表。这些节点将让我们可以在方框中的随机位置生成随机数量的灵魂。
+    ![](SoulsPerKill_Step3_2.png)(w:800)
+    
+    | 蓝图节点名称 | 默认值 |
+    | --- | --- |
+    | For Loop | 不适用 |
+    | Get Actor Location | 不适用 |
+    | Random Point in Bounding Box | **Box Extent X**:40, **Box Extent Y**:40, **Box Extent Z**:40 |
+    | Spawn Actor From Class | 不适用 |
+    
+
+1.  单击 **Spawn Actor From Class** 节点上的 **选择类（Select Class）** 输入，在显示的列表中搜索并选择 **BP_SoulItem** 蓝图。  
+    ![](SoulsPerKill_Step3_3.png "SoulsPerKill_Step3_3.png")
+
+1.  接下来，将 **GetActorLocation** 节点的 **返回值（Return Value）** 连接到 **Random Point in Bounding Box** 节点的 **原点（Origin）** 输入。这将确保灵魂生成时不会全都重叠在一起。  
+    ![](SoulsPerKill_Step3_4.png "SoulsPerKill_Step3_4.png")
+
+1.  将For Loop节点的输出 **循环体（LoopBody）** 连接到 **SpawnActor** 节点的输入，将 **Random Point in Bounding Box** 节点上的 **返回值（Return Value）** 输出连接到 **SpawnActor** 节点上的 **生成变换（Spawn Transform）** 输入。   
+    ![](SoulsPerKill_Step3_5.png "SoulsPerKill_Step3_5.png")
+
+1.  为了完成此函数，将 **SpawnLoot** 节点的 **输出** 连接到 **ForLoop** 节点的输入，然后将SpawnLoot节点的 **数量（Quantity）** 输出连接到ForLoop节点的 **最后索引（Last Index）** 输入。完成所有这些操作后，你的蓝图应该与下图类似：  
+    [REGION:lightbox]
+    [![](SoulsPerKill_Step3.png)(w:500px)](SoulsPerKill_Step3.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  现在，转到 **事件图表**，找到 **EventDestroyed** 事件。  
+    ![](SoulsPerKill_Step4.png "SoulsPerKill_Step4.png")
+
+1.  转至 **EventDestroyed** 的末尾，向事件图表添加下列节点：  
+    ![](SoulsPerKill_Step5.png "SoulsPerKill_Step5.png")     
+    
+    | 节点类型 | 节点名称 | 默认值 | 实例可编辑 |
+    | --- | --- | --- | --- |
+    | 整数 | SoulMIN | 1 | 是 |
+    | 整数 | SoulMAX | 1 | 是 |
+    | 生成战利品（Spawn Loot） | 不适用 | 不适用 | 不适用 |
+    
+    [REGION:note]
+    为了使 **SoulMIN** 和 **SoulMAX** 实例可编辑，转到 **变量（Variables）** 面板，单击变量名称旁边的 **眼睛** 图标。
+    [/REGION]
+    
+
+1.  有了以上节点，我们现在要设置它们，使得每当玩家消灭一个敌人，关卡中就会生成介于 **SoulMIN** 和 **SoulMAX** 之间的随机数量灵魂。为了实现这个机制，请按下图设置节点。  
+    ![](SoulsPerKill_Step6.png "SoulsPerKill_Step6.png")  
+    
+
+1.  设置完每次杀敌时的随机灵魂数量之后，将 **Set Collision Object Type** 的输出连接到 **Add Souls** 节点上的输入，如下图所示。 
+    [REGION:lightbox]
+    [![](SoulsPerKill_Step7.png)(w:500px)](SoulsPerKill_Step7.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    [REGION:note]
+    别忘了在我们的新逻辑后面重新连接“Parent:Destroyed”节点。
+    [/REGION]
+    
+
+1.  完成之后，按 **编译（Compile）** 和 **保存（Save）** 按钮，然后关闭 **BP_EnemyCharacter** 蓝图，打开 **NPC\_GoblinBP\_Level_01** 蓝图。  
+    ![](SoulsPerKill_Step8.png "SoulsPerKill_Step8.png")  
+    
+
+1.  在 **NPC\_GoblinBP\_Level_01** 蓝图打开的情况下，转到 **细节（Details）** 面板，在 **默认（Default）** 部分下寻找 **SoulMIN** 和 **SoulMAX** 输入。  
+    ![](SoulsPerKill_Step9-1.png "SoulsPerKill_Step9-1.png")
+
+1.  找到 **SoulMIN** 和 **SoulMAX** 输入后，在SoulMIN中输入数值1.0，在SoulMAX中输入数值3.0。  
+    ![](SoulsPerKill_Step10.png "SoulsPerKill_Step10.png")
+
+1.  现在打开其他NPC Goblin蓝图，输入下列 **SoulMIN** 和 **SoulMAX** 数字。完成这些操作后，确保 **编译（Compile）** 并 **保存（Save）** 每个蓝图。  
+    
+    | 蓝图名称 | SoulMIN | SoulMAX |
+    | --- | --- | --- |
+    | NPC Goblin Level 01 | 01 | 03 |
+    | Goblin NPC Level 02 | 03 | 05 |
+    | NPC Goblin Level 03 | 05 | 10 |
+    
+    [REGION:note]
+    我们上面的操作是根据哥布林NPC的级别设置不同的灵魂奖励数量。1级哥布林奖励的灵魂数量最少，3级哥布林奖励的灵魂数量最多。
+    [/REGION]
+    
+
+## 最终结果：
+
+现在当你启动ARPG时，玩家每消灭一个敌人就会得到随机数量的灵魂，如下列视频所示。  
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 3EwHMqILmRc
+ [/PARAMLITERAL]
+[/OBJECT]

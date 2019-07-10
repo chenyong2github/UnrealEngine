@@ -1,38 +1,34 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6666748
 Availability:Public
-Title:Unreal Match 3
+Title:虚幻三消游戏
 Crumbs:%ROOT%, Resources
 Description:展示移动游戏开发最佳方法的游戏实例（包含 Paper2D、UMG、排行榜、成就、内购、广告等）。
-Version:4.10
+Version: 4.10
 related:Platforms/Mobile
 related:Engine/Paper2D
 related:Engine/UMG
 related:Engine/Blueprints/TechnicalGuide
 topic-image:unrealmatch3_topic.png
+hero-image:match3_banner.png
 
-![](match3_banner.png)(convert:false)
 
+**虚幻三消游戏** 用于展示虚幻引擎4（UE4）的多样性和灵活性。 
+虚幻三消游戏为UE4开发者展示：如何打造针对中低端智能手机的移动游戏、如何在 UE4 项目中应用社交和盈利功能（如成就和内购）。
 
-**Unreal Match 3** 用于展示虚幻引擎 4（UE4）的多样性和灵活性。 
-Unreal Match 3 为 UE4 开发者展示：如何打造针对中低端智能手机的移动游戏、如何在 UE4 项目中应用社交和盈利功能（如成就和内购）。
-
-[REGION:center]
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-390
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-5qXTxzAq5tU
-[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	390
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	5qXTxzAq5tU
+	[/PARAMLITERAL]
 [/OBJECT]
-[/REGION]
 
-Unreal Match 3 项目使用了 UE4 工具集中的多种不同工具，在此介绍该项目中的部分要点。
+虚幻三消游戏项目使用了UE4工具集中的多种不同工具，在此介绍该项目中的部分要点。
 
-(#PlatformServices)
 ## 平台服务
 
 [REGION:topics third]
@@ -42,14 +38,12 @@ Unreal Match 3 项目使用了 UE4 工具集中的多种不同工具，在此介
 %Platforms/Mobile/Achievements:topic%
 [/REGION]
 
-(#Gameplay)
 ## 游戏性
 
 [REGION:topics third]
 %Gameplay/ForceFeedback:topic%
 [/REGION]
 
-(#UserInterface)
 ## 用户界面
 
 [REGION:topics third]
@@ -59,7 +53,6 @@ Unreal Match 3 项目使用了 UE4 工具集中的多种不同工具，在此介
 %Engine/UMG/HowTo/ScalingUI:topic%
 [/REGION]
 
-(#PerformanceandOptimization)
 ## 性能与优化
 
 [REGION:topics third]
@@ -67,7 +60,6 @@ Unreal Match 3 项目使用了 UE4 工具集中的多种不同工具，在此介
 %Engine/Performance/ReducingPackageSize:topic%
 [/REGION]
 
-(#TrainingStreams)
 ## 培训视频
 
 [REGION:topics third]

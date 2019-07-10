@@ -2,8 +2,7 @@ Availability:Public
 Title:Unreal Engine 4.12 Release Notes
 Crumbs:%ROOT%, Engine
 Description:
-order:12
-
+Order: 32
 Unreal Engine 4.12 Release Notes
 
 This release brings hundreds of updates for Unreal Engine 4, including 106 improvements submitted by the community of Unreal Engine developers on GitHub! Thanks to all of these contributors to Unreal Engine 4.12:

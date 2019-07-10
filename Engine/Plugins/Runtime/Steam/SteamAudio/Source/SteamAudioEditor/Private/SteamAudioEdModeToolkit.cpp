@@ -244,7 +244,7 @@ namespace SteamAudio
 		GEdModeTickable->SetDisplayText(NSLOCTEXT("SteamAudio", "ExportingSceneOBJ", "Exporting scene OBJ..."));
 		GEdModeTickable->CreateNotification();
 
-		Async<void>(EAsyncExecution::Thread, [&]()
+		Async(EAsyncExecution::Thread, [&]()
 		{
 			// Export the scene
 			UWorld* World = GEditor->GetLevelViewportClients()[0]->GetWorld();
@@ -290,7 +290,7 @@ namespace SteamAudio
 		GEdModeTickable->SetDisplayText(NSLOCTEXT("SteamAudio", "ExportingScene", "Exporting scene..."));
 		GEdModeTickable->CreateNotification();
 
-		Async<void>(EAsyncExecution::Thread, [&]()
+		Async(EAsyncExecution::Thread, [&]()
 		{
 			// Create the scene
 			UWorld* World = GEditor->GetLevelViewportClients()[0]->GetWorld();

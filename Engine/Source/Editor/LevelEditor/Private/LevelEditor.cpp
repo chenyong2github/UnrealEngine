@@ -564,6 +564,18 @@ TSharedPtr<SDockTab> FLevelEditorModule::GetLevelEditorTab() const
 	return LevelEditorInstanceTabPtr.Pin();
 }
 
+void FLevelEditorModule::AddStatusBarItem(FName InStatusBarIdentifier, const FStatusBarItem& InStatusBarItem)
+{
+	StatusBarItems.FindOrAdd(InStatusBarIdentifier) = InStatusBarItem;
+	BroadcastNotificationBarChanged();
+}
+
+void FLevelEditorModule::RemoveStatusBarItem(FName InStatusBarIdentifier)
+{
+	StatusBarItems.Remove(InStatusBarIdentifier);
+	BroadcastNotificationBarChanged();
+}
+
 TSharedRef<IViewportLayoutEntity> FLevelEditorModule::FactoryViewport(FName InTypeName, const FViewportConstructionArgs& ConstructionArgs) const
 {
 	const FViewportTypeDefinition* Definition = CustomViewports.Find(InTypeName);

@@ -25,12 +25,13 @@ public:
 	{}
 
 	/**
-	 * Applies the object template to a Destination object
+	 * Updates the Destination object with the values stored in the object template
 	 *
 	 * @param Destination	The object to apply this template to
-	 * @param bForce		Force the application of the template on all properties, even if they were changed from the previous template values.
+	 * @param bForce		Force the update of the template on all properties, even if they were changed from the previous template values.
+	 * @return The UObject on which the object template could be set on. Returns nullptr if the update has failed
 	 */
-	virtual void Apply( UObject* Destination, bool bForce = false ) {}
+	virtual UObject* UpdateObject(UObject* Destination, bool bForce = false) { return nullptr; }
 
 	/**
 	 * Fills this template properties with the values from the Source object.
@@ -42,8 +43,26 @@ public:
 	 */
 	virtual bool Equals( const UDatasmithObjectTemplate* Other ) const { return false; }
 
+	/**
+	 * Updates the Destination object with the values stored in the object template
+	 * If the update is successful, replaces the object template of the Destination object with itself
+	 *
+	 * @param Destination	The object to apply this template to
+	 * @param bForce		Force the update of the template on all properties, even if they were changed from the previous template values.
+	 */
+	void Apply( UObject* Destination, bool bForce = false );
+
 	// Is this template for an actor
 	const bool bIsActorTemplate = false;
+
+	/**
+	 * Returns the difference between the object template of the Destination object and the SourceTemplate
+	 * object template
+	 *
+	 * @param Destination		The object to get the difference from
+	 * @param SourceTemplate	The object template to compare to.
+	 */
+	static UDatasmithObjectTemplate* GetDifference(UObject* Destination, UDatasmithObjectTemplate* Source);
 };
 
 // Sets Destination->MemberName with the value of MemberName only if PreviousTemplate is null or has the same value for MemberName as the Destination.
@@ -64,6 +83,8 @@ public:
 struct DATASMITHCONTENT_API FDatasmithObjectTemplateUtils
 {
 	static bool HasObjectTemplates( UObject* Outer );
+
+	static class UDatasmithAssetUserData* FindOrCreateDatasmithUserData( UObject* Outer );
 
 	static TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* FindOrCreateObjectTemplates( UObject* Outer );
 

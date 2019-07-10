@@ -12,9 +12,6 @@ class USphereComponent;
 class UDisplayClusterSceneComponent;
 class UDisplayClusterSceneComponentSyncParent;
 
-class IPDisplayClusterGameManager;
-
-
 /**
  * VR root. This pawn represents VR hierarchy in the game.
  */
@@ -70,8 +67,6 @@ private:
 	
 	UPROPERTY()
 	UDisplayClusterSceneComponentSyncParent* DisplayClusterSyncCollisionOffset;
-
-	IPDisplayClusterGameManager* GameMgr = nullptr;
 
 	bool bIsCluster;
 };

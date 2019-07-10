@@ -38,7 +38,7 @@ bool UNiagaraStackEmitterPropertiesItem::CanResetToBase() const
 {
 	if (bCanResetToBaseCache.IsSet() == false)
 	{
-		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter.Get(), GetSystemViewModel()->GetSystem());
+		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 		if (BaseEmitter != nullptr && Emitter != BaseEmitter)
 		{
 			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
@@ -56,7 +56,7 @@ void UNiagaraStackEmitterPropertiesItem::ResetToBase()
 {
 	if (CanResetToBase())
 	{
-		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*Emitter.Get(), GetSystemViewModel()->GetSystem());
+		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
 		MergeManager->ResetEmitterEditablePropertySetToBase(*Emitter, *BaseEmitter);
 	}

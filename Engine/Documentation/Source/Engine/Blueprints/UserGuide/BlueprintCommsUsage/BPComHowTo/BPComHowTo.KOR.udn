@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3244370
+INTSourceChangelist:3244370
 Availability:Docs
-Title:블루프린트 통신 비법
+Title:블루프린트 통신 하우투
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/UserGuide, Engine/Blueprints/UserGuide/BlueprintCommsUsage
 Description:블루프린트 통신의 사양한 메서드 셋업 및 사용법 예제입니다.
 tags:Blueprints
@@ -392,7 +392,7 @@ tags:Blueprints
 
 	![](InterfaceExample2_8.png)
 
-	잊지 말고 **인터페이스 메시지** 를 구현하되, **함수 호출** 은 아닙니다.
+	잊지 말고 **인터페이스 메시지** 를 구현하지만, **함수 호출** 은 아닙니다.
 
 1. 아래 셋업을 다시 생성합니다.
 	

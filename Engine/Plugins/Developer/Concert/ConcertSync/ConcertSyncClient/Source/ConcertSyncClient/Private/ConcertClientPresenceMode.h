@@ -26,7 +26,6 @@ enum class EMapChangeType : uint8;
 //  3) Register and unregister event handlers in FConcertClientPresenceManager.
 
 class IConcertClientSession;
-struct FConcertClientInfo;
 
 class FConcertClientBasePresenceMode
 {
@@ -42,13 +41,13 @@ public:
 	/** Send events for this presence mode */
 	virtual void SendEvents(IConcertClientSession& Session);
 
+	/** Get the current head transformation */
+	FTransform GetHeadTransform();
+
 protected:
 
 	/** Set event update index on an event, used for out-of-order event handling */
 	virtual void SetUpdateIndex(IConcertClientSession& Session, const FName& InEventName, FConcertClientPresenceEventBase& OutEvent);
-
-	/** Get the current head transformation */
-	FTransform GetHeadTransform();
 
 	class FConcertClientPresenceManager* GetManager() const
 	{

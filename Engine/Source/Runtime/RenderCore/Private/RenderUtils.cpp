@@ -138,14 +138,15 @@ FPixelFormatInfo	GPixelFormats[PF_MAX] =
 
 	{ TEXT("R16G16B16A16_UINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_UNORM },
 	{ TEXT("R16G16B16A16_SINT"),1,			1,			1,			8,			4,				0,				1,				PF_R16G16B16A16_SNORM },
-	{ TEXT("PLATFORM_HDR_0"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_0 },
-	{ TEXT("PLATFORM_HDR_1"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_1 },
-	{ TEXT("PLATFORM_HDR_2"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_2 },
+	{ TEXT("PLATFORM_HDR_0"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_0   },
+	{ TEXT("PLATFORM_HDR_1"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_1   },
+	{ TEXT("PLATFORM_HDR_2"),	0,			0,			0,			0,			0,				0,				0,				PF_PLATFORM_HDR_2   },
 
 	// NV12 contains 2 textures: R8 luminance plane followed by R8G8 1/4 size chrominance plane.
 	// BlockSize/BlockBytes/NumComponents values don't make much sense for this format, so set them all to one.
-	{ TEXT("NV12"),				1,			1,			1,			1,			1,				0,				0,				PF_NV12 },
+	{ TEXT("NV12"),				1,			1,			1,			1,			1,				0,				0,				PF_NV12             },
 
+	{ TEXT("PF_R32G32_UINT"),   1,   		1,			1,			8,			2,				0,				1,				PF_R32G32_UINT      },
 };
 
 static struct FValidatePixelFormats
@@ -191,7 +192,7 @@ SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format)
  * A solid-colored 1x1 texture.
  */
 template <int32 R, int32 G, int32 B, int32 A>
-class FColoredTexture : public FTexture
+class FColoredTexture : public FTextureWithSRV
 {
 public:
 	// FResource interface.
@@ -211,6 +212,9 @@ public:
 		// Create the sampler state RHI resource.
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point,AM_Wrap,AM_Wrap,AM_Wrap);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
+
+		// Create a view of the texture
+		ShaderResourceViewRHI = RHICreateShaderResourceView(TextureRHI, 0u);
 	}
 
 	/** Returns the width of the texture in pixels. */
@@ -226,8 +230,10 @@ public:
 	}
 };
 
-FTexture* GWhiteTexture = new TGlobalResource<FColoredTexture<255,255,255,255> >;
-FTexture* GBlackTexture = new TGlobalResource<FColoredTexture<0,0,0,255> >;
+FTextureWithSRV* GWhiteTextureWithSRV = new TGlobalResource<FColoredTexture<255,255,255,255> >;
+FTextureWithSRV* GBlackTextureWithSRV = new TGlobalResource<FColoredTexture<0,0,0,255> >;
+FTexture* GWhiteTexture = GWhiteTextureWithSRV;
+FTexture* GBlackTexture = GBlackTextureWithSRV;
 
 /**
  * Bulk data interface for providing a single black color used to initialize a
@@ -343,7 +349,7 @@ public:
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
 			CreateInfo.DebugName = TEXT("BlackArrayTexture");
-			FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, TexCreate_ShaderResource, CreateInfo);
+			FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = TextureArray;
 
 			// Create the sampler state RHI resource.
@@ -1128,4 +1134,51 @@ RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntP
 	const uint32 Mask = ~(DividableBy - 1);
 	OutBufferSize.X = (InBufferSize.X + DividableBy - 1) & Mask;
 	OutBufferSize.Y = (InBufferSize.Y + DividableBy - 1) & Mask;
+}
+
+RENDERCORE_API bool UseVirtualTexturing(ERHIFeatureLevel::Type InFeatureLevel, const ITargetPlatform* TargetPlatform)
+{
+#if !PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING
+	if (GIsEditor == false)
+	{
+		return false;
+	}
+	else
+#endif
+	{
+		// only at SM5 
+		if (InFeatureLevel < ERHIFeatureLevel::SM5)
+		{
+			return false;
+		}
+
+		// does the platform supports it.
+#if WITH_EDITOR
+		if (GIsEditor && TargetPlatform == nullptr)
+		{
+			ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+			if (TPM)
+			{
+				TargetPlatform = TPM->GetRunningTargetPlatform();
+			}
+		}
+
+		if (TargetPlatform && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming) == false)
+		{
+			return false;
+		}
+#endif
+
+		// does the project has it enabled ?
+		static const auto CVarVirtualTextureLightmaps = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+		static const auto CVarVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+		check(CVarVirtualTextureLightmaps);
+		check(CVarVirtualTexture);
+		if (CVarVirtualTexture->GetValueOnAnyThread() == 0 && CVarVirtualTextureLightmaps->GetValueOnAnyThread() == 0)
+		{
+			return false;
+		}		
+
+		return true;
+	}
 }

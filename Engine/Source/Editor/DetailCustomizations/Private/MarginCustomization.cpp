@@ -23,6 +23,8 @@ void FMarginStructCustomization::CustomizeHeader( TSharedRef<class IPropertyHand
 	const FString& UVSpaceString( StructPropertyHandle->GetProperty()->GetMetaData( TEXT( "UVSpace" ) ) );
 	bIsMarginUsingUVSpace = UVSpaceString.Len() > 0 && UVSpaceString == TEXT( "true" );
 
+	NumericInterface = MakeShareable(new TDefaultNumericTypeInterface<float>);
+
 	uint32 NumChildren;
 	StructPropertyHandle->GetNumChildren( NumChildren );
 
@@ -102,6 +104,7 @@ TSharedRef<SWidget> FMarginStructCustomization::MakeChildPropertyWidget( int32 P
 		.MaxValue( bIsMarginUsingUVSpace ? 1.0f : TNumericLimits<float>::Max() )
 		.MinSliderValue( bIsMarginUsingUVSpace ? 0.0f : TNumericLimits<float>::Lowest() )
 		.MaxSliderValue( bIsMarginUsingUVSpace ? 1.0f : TNumericLimits<float>::Max()  )
+		.TypeInterface(NumericInterface)
 		.Label()
 		[
 			SNew( STextBlock )
@@ -141,10 +144,11 @@ void FMarginStructCustomization::OnMarginTextCommitted( const FText& InText, ETe
 
 				LeftString.TrimStartAndEndInline();
 
-				if( LeftString.IsNumeric() )
+				float Value = 0.f;
+				TOptional<float> NumericValue = NumericInterface->FromString(LeftString, Value);
+				if (NumericValue.IsSet())
 				{
-					float Value;
-					TTypeFromString<float>::FromString( Value, *LeftString );
+					Value = NumericValue.GetValue();
 					PropertyValues.Add( bIsMarginUsingUVSpace ? FMath::Clamp( Value, 0.0f, 1.0f ) : FMath::Max( Value, 0.0f ) );
 				}
 				else

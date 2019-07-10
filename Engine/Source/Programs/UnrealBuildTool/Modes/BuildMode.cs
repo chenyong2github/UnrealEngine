@@ -345,6 +345,14 @@ namespace UnrealBuildTool
 						{
 							TargetReceipt Receipt = TargetReceipt.Read(Makefile.ReceiptFile);
 							Log.TraceInformation("Deploying {0} {1} {2}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
+							
+							//@MIXEDREALITY_CHANGE : Begin project dir was missing.
+							if (Receipt.ProjectDir == null)
+							{
+								Receipt.ProjectDir = UnrealBuildTool.EngineDirectory;
+							}
+							//@MIXEDREALITY_CHANGE : End
+
 							UEBuildPlatform.GetBuildPlatform(Receipt.Platform).Deploy(Receipt);
 						}
 					}
@@ -454,7 +462,7 @@ namespace UnrealBuildTool
 				using(Timeline.ScopeEvent("UEBuildTarget.Build()"))
 				{
 					const bool bIsAssemblingBuild = true;
-					Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild);
+					Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild, TargetDescriptor.SingleFileToCompile);
 				}
 
 				// Save the pre-build scripts onto the makefile
@@ -529,6 +537,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Guard against a live coding session for this target being active
+			if(HotReloadMode != HotReloadMode.LiveCoding && HotReload.IsLiveCodingSessionActive(Makefile))
+			{
+				throw new BuildException("Unable to start regular build while Live Coding is active. Press Ctrl+Alt+F11 to trigger a Live Coding compile.");
+			}
+
 			// Get the root prerequisite actions
 			List<Action> PrerequisiteActions = GatherPrerequisiteActions(TargetDescriptor, Makefile);
 
@@ -572,14 +586,14 @@ namespace UnrealBuildTool
 			CppDependencyCache CppDependencies;
 			using(Timeline.ScopeEvent("Reading dependency cache"))
 			{
-				CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType);
+				CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
 			}
 
 			// Create the action history
 			ActionHistory History;
 			using(Timeline.ScopeEvent("Reading action history"))
 			{
-				History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefile.TargetType);
+				History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefile.TargetType, TargetDescriptor.Architecture);
 			}
 
 			// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.
@@ -596,6 +610,46 @@ namespace UnrealBuildTool
 			// Additional processing for hot reload
 			if (HotReloadMode == HotReloadMode.LiveCoding)
 			{
+				// Make sure we're not overwriting any lazy-loaded modules
+				if(TargetDescriptor.LiveCodingModules != null)
+				{
+					// Read the list of modules that we're allowed to build
+					string[] Lines = FileReference.ReadAllLines(TargetDescriptor.LiveCodingModules);
+
+					// Parse it out into a set of filenames
+					HashSet<string> AllowedOutputFileNames = new HashSet<string>(FileReference.Comparer);
+					foreach (string Line in Lines)
+					{
+						string TrimLine = Line.Trim();
+						if (TrimLine.Length > 0)
+						{
+							AllowedOutputFileNames.Add(Path.GetFileName(TrimLine));
+						}
+					}
+
+					// Find all the binaries that we're actually going to build
+					HashSet<FileReference> OutputFiles = new HashSet<FileReference>();
+					foreach (Action Action in TargetActionsToExecute)
+					{
+						if (Action.ActionType == ActionType.Link)
+						{
+							OutputFiles.UnionWith(Action.ProducedItems.Where(x => x.HasExtension(".exe") || x.HasExtension(".dll")).Select(x => x.Location));
+						}
+					}
+
+					// Find all the files that will be built that aren't allowed
+					List<FileReference> ProtectedOutputFiles = OutputFiles.Where(x => !AllowedOutputFileNames.Contains(x.GetFileName())).ToList();
+					if (ProtectedOutputFiles.Count > 0)
+					{
+						FileReference.WriteAllLines(new FileReference(TargetDescriptor.LiveCodingModules.FullName + ".out"), ProtectedOutputFiles.Select(x => x.ToString()));
+						foreach(FileReference ProtectedOutputFile in ProtectedOutputFiles)
+						{
+							Log.TraceInformation("Module {0} is not currently enabled for Live Coding", ProtectedOutputFile);
+						}
+						throw new CompilationResultException(CompilationResult.Canceled);
+					}
+				}
+
 				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
 				PrerequisiteActions = new List<Action>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(Makefile.Actions, PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);

@@ -31,6 +31,9 @@ namespace GeometryCollectionExample
 	bool GEOMETRYCOLLECTIONEXAMPLECORE_API GeometryDeleteAll(ExampleResponse&& R);
 
 	template<class T>
+	bool GEOMETRYCOLLECTIONEXAMPLECORE_API GeometrySwapFlat(ExampleResponse&& R);
+
+	template<class T>
 	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestFracturedGeometry(ExampleResponse&& R);
 	
 }

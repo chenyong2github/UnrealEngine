@@ -49,6 +49,11 @@ void UMovieSceneParticleParameterTrack::RemoveSection(UMovieSceneSection& Sectio
 	Sections.Remove(&Section);
 }
 
+void UMovieSceneParticleParameterTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	Sections.RemoveAt(SectionIndex);
+}
+
 bool UMovieSceneParticleParameterTrack::IsEmpty() const
 {
 	return Sections.Num() == 0;

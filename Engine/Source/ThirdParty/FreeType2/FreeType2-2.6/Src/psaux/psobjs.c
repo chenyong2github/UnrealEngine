@@ -1546,7 +1546,7 @@
       builder->current = &loader->current.outline;
       FT_GlyphLoader_Rewind( loader );
 
-      builder->hints_globals = size->internal;
+      builder->hints_globals = size->_internal;
       builder->hints_funcs   = NULL;
 
       if ( hinting )

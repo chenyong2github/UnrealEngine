@@ -136,6 +136,13 @@ bool FObjectPropertyNode::GetReadAddressUncached(FPropertyNode& InNode,
 		return false;
 	}
 
+	UStruct* OwnerStruct = InItemProperty->GetOwnerStruct();
+	if (!OwnerStruct || OwnerStruct->Children == nullptr)
+	{
+		// Verify that the property is not part of an invalid trash class
+		return false;
+	}
+
 	// Requesting a single selection?
 	if( InRequiresSingleSelection && GetNumObjects() > 1)
 	{

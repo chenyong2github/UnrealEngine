@@ -1,0 +1,31 @@
+﻿INTSourceChangelist:6106506
+Availability: Docs
+Crumbs: %ROOT%
+Title:3.创建并登陆 Oculus 账户
+Description:安装在 Oculus Rift 上运行UE4项目的必备软件。
+ype: quick start
+SkillLevel: Beginner
+Version: 4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order: 3
+Checkpoint:RIFTQS
+
+[NAV]
+
+此章节说明 Oculus Rift 安装完成后需要执行的操作。
+
+1. Oculus Rift 软件安装完成后，按下 **Next** 按钮开始硬件设置。
+
+	![](Rift_Finshed_Install_00.png)
+
+1. 将弹出提示选择 **登陆** 或 **创建账户**。您必须拥有 Oculus 账户才能继续。
+
+	![](Rift_Create_Account_LogIn_00.png)
+
+
+[NAV]
+
+
+
+
+

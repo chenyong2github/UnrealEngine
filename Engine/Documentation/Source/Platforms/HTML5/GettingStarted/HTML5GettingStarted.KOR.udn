@@ -1,35 +1,168 @@
-﻿INTSourceChangelist:3150518
-Availability:Public
-Title: HTML5 프로젝트 개발 시작하기
-Crumbs:%ROOT%, Platforms, Platforms/HTML5
-Description:HTML5 플랫폼용 개발을 위한 셋업입니다.
-Version: 4.11
-SkillLevel: Intermediate
-type:quick start
-parent:Platforms/HTML5
-tags:HTML5
+INTSourceChangelist:6506930
+Availability: Public
+Title: HTML5 프로젝트 개발
+Description: HTML5 개발을 위한 UE4 셋업 안내입니다.
+Version: 4.22
+Parent: Platforms/HTML5
+Tags: HTML5
+Tags: StartingOut
+Tags: Experimental
+Order: 0
 
 
-[REGION:todo]
-HTML5 파이프라인은 현재 실험단계 기능입니다. 일부 프로젝트는 HTML5 플랫폼용으로 제작되면 에지가 약간 거칠게 나오는 등, 정상 작동되지 않을 수 있습니다.
-[/REGION:todo]
+## HTML5 SDK 셋업
 
-HTML5 는 [Mozilla](https://www.mozilla.org/en-US/) 의 emscripten 툴 체인을 사용하여 C++ 를 Javascript 로 크로스 컴파일합니다. 4.9 이상 버전에는 emscripten 과 python 이 엔진 배포에 포함되어 있습니다.
-`Engine/Source/ThirdParty/HTML5/emsdk/` 에서 찾을 수는 있지만, HTML5 디플로이를 위해 별도의 환경설정이나 추가 설치가 필요치는 않습니다.
+언리얼 엔진 4 (UE4) HTML5 구현은 [Mozilla](http://kripken.github.io/emscripten-site/) 의 [Emscripten](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/Emscripten) 툴체인을 활용하여 UE4 의 C++ 코드를 Javascript 로 크로스 컴파일합니다. 에픽게임즈 런처 또는 에픽의 GitHub 저장소에서 UE4 를 다운로드하면 HTML5 개발에 필요한 모든 **Emscripten** 및 **Python** 파일이 포함되어 있습니다. 즉 별도의 셋업 단계나 소프트웨어를 추가 설치할 필요 없이 HTML5 프로젝트 제작을 시작할 수 있다는 뜻입니다.
 
-현재 HTML5 빌드를 실행하기 위해서는 64 비트 브라우저가 필수입니다.
+## HTML5 지원 웹 브라우저
 
-* [파이어폭스 nightly 다운로드](ftp://ftp.mozilla.org/pub/mozilla.org/firefox/nightly/latest-mozilla-central/)
-* [Chromium 빌드 다운로드](http://chromium.woolyss.com/#windows-64-bit)
+UE4 HTML5 프로젝트를 **32 비트** 웹 브라우저로 실행할 수도 있지만, **64 비트** 버전 웹 브라우저를 사용할 것을 강력 추천합니다. Google Chrome 및 Firefox 웹 브라우저 64 비트 버전을 찾을 수 있는 링크입니다.
 
+*   [Google Chrome 64 비트](https://www.google.com/chrome/beta/)
 
-설치한 후, 브라우저의 **Launch** (실행) 드롭다운 메뉴에서 [맵 실행](Engine/Deployment/Launching) 을 선택할 수 있습니다.
+*   [Firefox 64 비트](https://www.mozilla.org/en-US/firefox/all/)
 
-![](LaunchNightly.png)
+## 멀티스레드 지원
 
-**테스트 방법 [HTML5 패키지 프로젝트](Engine/Basics/Projects/Packaging):**
-1. **Package Project** (프로젝트 패키지) 컨텍스트 메뉴에서 **HTML5** 를 선택합니다.
-1. 프로젝트 패키징이 완료되면, 대상 위치를 열고 **HTML5LaunchHelper** 를 실행합니다.
-1. 이 창에서 로컬호스트 주소를 적습니다.
-	![](localhostinfo.png)
-1. 64 비트 브라우저에서 `[Localhost Address]/[ProjectName].html` 을 엽니다. 예를 들면, 위의 로컬호스트 주소와 `MyProject` 라는 이름으로 `http://localhost:8000/MyProject.html` 입니다.
+소스에서 빌드한 UE4 빌드의 경우 멀티스레드가 실험단계로 지원됩니다. 
+
+일부 브라우저는 특수 플래그를 붙여야 멀티스레드 모드로 실행 가능합니다.
+
+*   Chrome 의 경우 다음 플래그를 붙여야 합니다: `--js-flags=--experimental-wasm-threads --enable-features=WebAssembly,SharedArrayBuffer`. 또는 `chrome://flags/#enable-webassembly-threads` 에서 "WebAssembly threads support" 옵션으로 켜고 끌 수도 있습니다.
+
+*   Firefox nightly 에서는 `about:config` 에서 `javascript.options.shared_memory preference to true` 로 설정하여 SharedArrayBuffer 를 활성화할 수 있습니다.
+
+## HTML5 필수 프로젝트 셋업
+
+UE4 탑재 HTML5 프로젝트의 정상 작동을 위해서는 [프로젝트 세팅](Engine/UI/ProjectSettings) 에서 MSAA 를 비활성화해야 합니다. **프로젝트 세팅** > **렌더링**> **모바일** 에서 **Mobile MSAA** 옵션을 **No MSAA** 로 설정해야 합니다.
+
+[REGION:lightbox]
+[![](HTML5_Disable_MobileMSAA.png)(w:500px)](HTML5_Disable_MobileMSAA.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+## HTML5 빌드 유형
+
+HTML5 프로젝트 빌드를 만들 때, **Development Build** (개발 빌드) 또는 **Shipping Build** (출시 빌드)를 만드는 옵션이 있습니다. 프로젝트에 대해 만드는 빌드 유형은 수행하려는 작업에 따라 다릅니다. 
+
+**HTML5 개발 빌드:**   
+
+*   개발 빌드는 프로젝트를 출시하기 전 테스트 또는 디버깅할 때 사용합니다.
+
+*   개발 빌드는 미압축 파일만 빌드합니다.
+
+*   개발 빌드는 로컬 테스트 용이며 웹사이트 디플로이 용이 아닙니다. 
+
+    [REGION:note]
+    프로젝트를 빌드하면 생성되는 Readme.txt 에서 프로젝트 개발 빌드 관련 자세한 정보를 찾을 수 있습니다.
+    [/REGION]
+    
+
+**HTML5 출시 빌드:**
+
+*   출시 빌드는 프로젝트를 최종 사용자에게 출시할 준비가 되었을 때 사용합니다.
+
+*   출시 빌드는 파일을 압축할 수도 안할 수도 있습니다.
+
+*   출시 빌드는 다운로드 크기를 줄이기 위해 압축할 수 있습니다. 
+
+HTML5 빌드 출시를 위한 파일 압축 활성화 또는 비활성화 방법은 다음과 같습니다.
+
+1.  **프로젝트 세팅** > **플랫폼** > **HTML5** > **Packaging** 에서 **Compress files during shipping packaging** (출시 패키징 도중 파일 압축) 옵션이 활성화되었는지 확인합니다.  
+    [REGION:lightbox]
+    [![](HTML5_Compression_Enabled.png)(w:500px)](HTML5_Compression_Enabled.png)
+    [/REGION]
+    클릭하면 원본 이미지를 확인합니다.
+
+1.  또 **프로젝트 세팅** > **패키징** > **Packaging** 아래 **Use Pak File** 옵션 이름 옆 박스를 클릭해서 비활성화하는 것이 좋습니다.  
+    [REGION:lightbox]
+    [![](HTML5_Disable_PAK_File.png)(w:500px)](HTML5_Disable_PAK_File.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    프로젝트를 빌드할 때 생성되는 Readme.txt 파일에서 프로젝트 출시 빌드 관련 자세한 정보를 확인할 수 있습니다.
+    [/REGION]
+    
+
+## HTML5 프로젝트 실행
+
+호환 웹 브라우저 중 하나를 설치했으면 HTML5 프로젝트 중 하나를 테스트할 수 있습니다. 그 방법은 **메인 툴 바** 의 **실행** 버튼 옆 **고급 옵션** 드롭다운을 선택합니다. 표시되는 메뉴에서 사용하려는 브라우저를 클릭하여 선택하면 됩니다.  
+
+![](HTML5_Select_Web_Browser.png)
+
+## HTML5 프로젝트 패키징
+
+웹에 디플로이할 수 있는 HTML5 프로젝트 패키지를 만드는 방법은 다음과 같습니다.
+
+1.  **파일** > **프로젝트 패키지** 목록에서 **HTML5** 를 선택합니다.  
+    ![](HTML5_PackageProject.png "HTML5_PackageProject.png")
+
+1.  프로젝트를 저장할 폴더를 선택하고 **폴더 선택** 을 클릭해서 패키징 프로세스를 시작합니다.
+
+1.  프로젝트 패키징이 완료되면, 패키지가 저장된 폴더를 열고 **HTML5LaunchHelper.exe** 프로그램을 실행합니다.   
+    ![](HTML5_StartWebServer.png "HTML5_StartWebServer.png")
+
+1.  **HTML5LaunchHelper.exe** 프로그램은 로컬 호스트에서 압축된 파일을 제공하도록 구성된 웹 서버를 실행합니다. **HTML5LaunchHelper.exe** 프로그램이 실행되면 표시되는 명령줄 창에서 이 서버 진행률을 확인할 수 있습니다.  
+    ![](HTML5_WebServer.png "HTML5_WebServer.png")
+
+1.  선택한 64 비트 웹 브라우저를 열고 다음 URL 을 입력합니다: [**Localhost Address**]/[**ProjectName**].html. 그러면 아래 이미지처럼 웹 브라우저에서 UE4 HTML5 프로젝트가 로드됩니다.   
+    ![](HTML5_UE4_ThirdPerson_In_Browser.png "HTML5_UE4_ThirdPerson_In_Browser.png")
+    [REGION:note]
+    입력한 URL 은 프로젝트 이름을 땁니다. 위 프로젝트가 ThirdPerson 이므로 입력되는 주소는 http://localhost:8000/**ThirdPerson**.html 일 것입니다.
+    [/REGION]
+    
+
+## HTML5 Read Me 파일
+
+새 HTML5 프로젝트를 생성하면 UE4 가 생성하는 **Readme.txt** 라는 텍스트 파일이 있을 것입니다. 이 파일 안에는 HTML5 프로젝트를 로컬과 웹 양쪽에서 실행하는 데 필요한 추가 정보가 들어 있습니다. 
+
+![](HTML5_ReadMeHelp.png "HTML5_ReadMeHelp.png")
+
+## HTML5 파일 유형
+
+UE4 프로젝트를 개발용 또는 HTML5 디플로이 용으로 빌드할 때 파일을 압축하거나 하지 않는 옵션이 있습니다. 다음 표는 미압축 빌드에 어떤 파일이 필요한지와 이 파일에 어떤 정보가 포함되는지에 대한 분석입니다. 
+
+**Files Required for Non-Compressed Files Deployment** 미압축 파일 디플로이에 필요한 파일 - 미압축 빌드를 만들 때 생성되는 파일은 다음과 같습니다.  
+
+[REGION:simpletable]
+|파일 유형|설명|
+| --- | --- |
+| **<project>.js** | 메인 프로젝트 Javascript 코드입니다. |
+| **<project>.wasm** | 메인 게임 코드입니다. |
+| **<project>.data** | 게임 콘텐츠 Javascript 드라이버입니다. |
+| **<project>.html** | 랜딩 페이지입니다. |
+| **<project>.symbols** | 심볼입니다 (옵션이며 디버깅에 사용됩니다). |
+| **Utility.js** | 유틸리티 Javascript 코드입니다. |
+| **.htaccess** | 배포되는 구성 파일입니다. |
+[/REGION]
+
+**Files Required for Compressed Files Deployment** 압축 파일 대포에 필요한 파일 - 압축 빌드를 만들 때 생성되는 파일은 다음과 같습니다.
+
+[REGION:simpletable]
+|파일 유형|설명|
+| --- | --- |
+| **<project>.jsgz** | 압축되는 메인 프로젝트 Javascript 코드입니다. |
+| **<project>.wasmgz** | 압축되는 메인 게임 코드입니다. |
+| **<project>.datagz** | 압축되는 게임 콘텐츠입니다. |
+| **<project>.data.jsgz** | 압축되는 게임 콘텐츠 Javascript 드라이버입니다. |
+| **<project>.symbolsgz** | 압축되는 심볼입니다 (옵션이며 디버깅에 사용됩니다). |
+| **Utility.jsgz** | 압축되는 유틸리티 Javascript 코드입니다. |
+[/REGION]
+
+[REGION:note]
+파일 압축 버전을 사용할 때는 **.htaccess** 및 **.html** 파일 미압축 버전도 포함시켜 줘야 합니다.
+[/REGION]
+
+**Files not needed for Deployment** 디플로이에 필요치 않은 파일 - 프로젝트 압축 또는 미압축 버전을 만들 때 생성되는 파일은 다음과 같습니다. 그러나 이 파일은 프로젝트 개발 또는 테스트 중일 때만 필요합니다.
+
+[REGION:simpletable]
+|파일명|설명|
+| --- | --- |
+| **HTML5LaunchHelper.exe** | Windows 기반 PC 로컬에서 프로젝트를 확인하기 위한 로컬 웹 서버를 만드는 데 사용됩니다. |
+| **RunMacHTML5LaunchHelper.command** | Mac 로컬에서 프로젝트를 확인하기 위한 로컬 웹 서버를 만드는 데 사용됩니다. |
+| **Readme.txt** | HTMl5 용 UE4 프로젝트 디플로이 관련 추가 정보를 포함합니다. |
+[/REGION]

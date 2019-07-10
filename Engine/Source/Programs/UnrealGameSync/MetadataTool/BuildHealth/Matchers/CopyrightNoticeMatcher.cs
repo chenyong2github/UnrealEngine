@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MetadataTool
 {
-	class CopyrightNoticeMatcher : PatternMatcher
+	class CopyrightNoticeMatcher : GenericCodePatternMatcher
 	{
 		public override string Category => "Copyright";
 
@@ -27,14 +27,15 @@ namespace MetadataTool
 			{
 				if (FileMatch.Success)
 				{
-					SourceFileNames.Add(FileMatch.Groups[1].Value);
+					string SourceFileName = FileMatch.Groups[1].Value.Replace('\\', '/');
+					SourceFileNames.Add(SourceFileName);
 				}
 			}
 
 			// If we found any source files, create a diagnostic category for them
 			if (SourceFileNames.Count > 0)
 			{
-				BuildHealthIssue Issue = new BuildHealthIssue(Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
+				BuildHealthIssue Issue = new BuildHealthIssue(Job.Project, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, JobStep.Url, Diagnostic.Message, Diagnostic.Url));
 				Issue.FileNames.UnionWith(SourceFileNames);
 				Issues.Add(Issue);
 				return true;

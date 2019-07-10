@@ -1,27 +1,71 @@
-﻿INTSourceChangelist:2659215
+INTSourceChangelist:3351045
 Availability:Public
 Title:实用工具组件
-Crumbs:%ROOT%, Engine, Engine/Components
-Description:介绍了基于组件的实用工具及其用法。 
+Crumbs:
+Description:介绍实用工具组件及其使用。 
 Related: Engine/Blueprints/UserGuide/Components
+parent:Engine/Components
+order:
+tags:Components
+type:overview
 SkillLevel: Beginner
-Version: 4.9
+Version: 4.14
 
+[TOC (start:1 end:4)]
 
-## Application Lifecycle Component （应用程序生命周期组件）
+(#applicationlifecyclecomponent)
+## 应用程序生命周期组件
 
-**ApplicationLifecycleComponent** 用于从操作系统接收关于应用程序状态的通知（激活、挂起、终止等）。 
+**应用程序生命周期组件（ApplicationLifecycleComponent）** 处理从OS（操作系统）接收的关于应用程序的状态（开始、停止、结束等）的通知。 
 
-## Child Actor Component （子 Actor 组件）
+(#platformeventscomponent)
+## 平台事件组件
 
-**ChildActorComponent** 组件在注册后可以生成一个 Actor，取消注册时则将其销毁。 
+**平台事件组件（PlatformEventComponent）** 根据特定于平台的OS信息和事件来轮询和接收事件的功能。目前，该组件支持可翻转式笔记本电脑，提供关于平台是否为可翻转式笔记本电脑及其状态（笔记本电脑模式或平板电脑模式）的信息。为了无需不断轮询这些函数就能知道平台状态何时改变，可以绑定代理。当状态改变时，代理会通知代码（或蓝图）。
 
-## Scene Component （场景组件）
+(#childactorcomponent)
+## 子Actor组件
 
-**SceneComponent** 拥有一个变换形式并支持附加特性，但没有渲染或碰撞功能。它可以作为一个“虚拟”组件放在层级结构中用来偏移其他组件。 
+**子Actor组件（ChildActorComponent）** 是一个在注册时生成Actor并在取消注册时销毁Actor的组件。
 
+子Actor组件通过提供C++ 或蓝图资源来指定要生成的Actor。选择类或资源后，将显示 **子Actor模板（Child Actor Template）** 字段。你可以展开此字段并编辑指定子Actor或其组件的所有公开的可编辑字段，包括蓝图中声明的公共变量。
 
+![](ChildActorTemplate.png)
 
+(#scenecomponent)
+## 场景组件
 
+**场景组件（SceneComponent）** 具有变形和支持附件功能，但没有渲染或碰撞功能。它在层级中用作“虚拟”组件来偏移其他组件，或者与其子组件交互以使其像一个整体。例如，你可以移动或旋转子组件，使其全部可见或不可见，或者将其断开。有一点很重要，就是不要将场景组件作为组织工具过度使用，因为在生成包含这些组件的Actor时，每个组件都会占用相应的时间和内存。
 
+(#arrowcomponent)
+### 箭头组件
+
+**箭头组件（ArrowComponent）** 是一种场景组件，绘制为指向所面对方向的简单箭头。箭头组件尤其适用于调试插槽位置或方向等内容。这对于游戏中出现的服装、手持或附着的物体或者产生发射物的枪口特别有用。默认情况下，这些组件仅显示在编辑器中。要使其在游戏中可见，请取消选中`在游戏中隐藏（Hidden in Game）`复选框（显示在箭头组件的 **细节(Details)** 面板中）。
+
+![](HiddenInGame_Checkbox.png)
+
+在下面的图片中，箭头组件附着到虚幻引擎4中人体模型的index_03_r骨骼，表示该骨骼位于右手食指末端的指节处，指回第二个指节。如果要附着激光束组件来显示角色指尖的指向，可以添加一个略微偏移并旋转180度的插槽，然后将激光束组件附着在上面，或者记住在附着激光束组件时应将其从骨骼偏移。
+
+![](ArrowComponent.png)  
+
+(#splinecomponent)
+## 样条组件
+
+**样条组件（Spline Component）** 让用户可在关卡内绘制样条。它尤其适用于为移动Actor（例如火车、背景角色、摄像机等）指定路径。放置在关卡中时，具有样条组件的Actor将在组件位置显示一个点，该点通过一条线连接到不远处的第二个点。你可以右键单击该线并在单击位置添加新点，也可以单击某个点（不是唯一的点）将其删除、复制或更改样条中从一个点到下一个点的曲线。复制功能可以创建一个与当前点位于同一位置的新点，但在线中被认为是“下一个”点。使用标准移动和旋转工具可以在关卡内随意操纵样条点。有一个名为`时长（Duration）`的字段，显示在组件的 **细节（Details）** 面板中，可以设置样条查询范围的值。
+
+![](Spline_Duration.png)
+
+查询样条主要有以下三种方法： 
+* 通过点索引查询。使用这种方法可以对样条查询的信息包括用户在样条上放置的点的位置或旋转等。 
+* 通过距离查询。使用这种方法可以对样条查询的信息包括顺着样条移动后样条的旋转前向矢量。
+* 通过“时间”查询。使用这种方法，样条的长度替换为用户输入的`时长（Duration）`值，可以查询给定“时间”值时样条的距离、位置和旋转信息。第三种方法尤其适用于固定物体（例如沿着样条定义的轨迹移动的摄像机），因为设计者和程序员可以简单地根据摄像机沿样条移动的距离来查询摄像机的位置和旋转信息。 
+通过将“时长”设置为1.0然后提供插值“alpha”值，也可以很容易地进行样条插值或混合。
+
+在以下图片中，我们可以使用样条组件移动“提示”标记，显示玩家的去向。
+
+![](SplineComponent.png)  
+
+[REGION:note]
+使用样条组件创建的样条永远不会分叉为多个路径，或者包含成环形的回路或孤立的点。样条始终呈现为一条路径，每个样条点仅通过一次。
+[/REGION]
 

@@ -1,0 +1,80 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Improving Normals
+Description: Going over how to improve the normals on geometry that is generated using the Proxy Geometry Tool set.
+Type: how-to
+SkillLevel:Advanced
+Version: 4.20
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: 
+
+
+The extreme constraints on Fortnite memory usage call for very efficient use of Level of Detail (LOD) meshes. For most of the proxies, very small Base Color Textures where generated and no Normal map is used. Because of this, this approach requires the highest quality normals on the proxy mesh itself. In the following How-To we will take a look at how you can specify how the Normals of a Static Mesh are calculated when using the Proxy Geometry tools.
+
+![](HardEdgeSplit_10.png)(w:400px)
+
+## Steps
+
+In the following section we will take a look at how you can adjust the manner in which the generated Static Meshes Normals are calculated when using the Proxy Geometry tool.
+
+1.  First locate an object that requires you to create a Proxy Static Mesh for it. For this example, the following small house was constructed using only Static Meshes that can be found in the Starter Content.  
+    ![](GapFilling_01.png "GapFilling_01.png")
+2.  Next, open up the **Merge Actor **tool by going to **Window > Developer Tools > Merge Actors**.  
+     ![](GapFilling_02.png "GapFilling_02.png")
+3.  Inside the level, select all the Static Mesh Actors that make up the object for which you want to generate new geometry.   
+    ![](GapFilling_03.png "GapFilling_03.png")  
+    
+4.  In the Merge Actor tool, click the **second icon** to access the Proxy Geometry tool and then expand the **Proxy Settings**.  
+    ![](GapFilling_04.png "GapFilling_04.png")
+5.  Under the Proxy Settings, expand the **Material Settings** section and disable the **Normal Map** option.  
+    ![](HardEdegeSplit_01.png "HardEdegeSplit_01.png")
+    [REGION:note]
+    If you don't disable the Normals here, you will not see the correct results because you will be seeing the Normals from the Normal map, and not from the generated Static Mesh.
+    [/REGION]
+    
+6.  Next, click the box next to the **Hard Edge Angle** option to disable it. This disables all normal calculations on the generated Static Mesh.  
+    ![](HardEdegeSplit_02.png "HardEdegeSplit_02.png")
+7.  Next, click the **Merge Actors** button and input a name and location in the **Content Browser** for the newly created Static Mesh. Then click the **Save** button to start the merging process. 
+    [REGION:lightbox]
+    [![](GapFilling_06.png)](GapFilling_06.png)
+    [/REGION]
+    [](GapFilling_06.png) 
+8.  Once everything has completed, open up the newly created Static Mesh, which should look something like the following image.  
+    ![](HardEdegeSplit_03.png "HardEdegeSplit_03.png")
+9.  The above image is not what we want; we want the generated object to have Normals that look almost identical to the Normals of the object that it was generated from. To fix this issue, go to the Merge Actor tool and re-enable the Hard Edge Angle option.  
+    ![](HardEdegeSplit_04.png "HardEdegeSplit_04.png")
+10.  Once the Hard Edge Angle has been re-enabled, re-run the Merge Actors tool. When it has completed, you should now have a building that looks like the following image:  
+    ![](HardEdegeSplit_05.png "HardEdegeSplit_05.png")
+
+## End Results
+
+Getting the best results is going to take some time and iteration as each object could require slightly different settings to get the best results. Also keep in mind that when you are specifying a value for the Hard Edge Angle you could increase or decrease the number of vertices that are used in the generated Static Mesh. The following image comparison shows what happens a Static Mesh and it's vertices when setting the Hard Edge Angle to values of **0**, **5**, **10**, **50**, **80**, **130**, and **180**. 
+
+[EXCERPT:HardEdgeAngleComparisonSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	7
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	HardEdgeAngleComparison
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    The following image comparison shows the different shading and vertex counts when setting the Hard Edge Angle to values of 0, 5, 10, 50, 80, 130, and 180.	[/PARAM]
+    [PARAM:image_list]
+    ![](HardEdgeSplit_0.png)
+![](HardEdgeSplit_5.png)
+![](HardEdgeSplit_10.png)
+![](HardEdgeSplit_50.png)
+![](HardEdgeSplit_80.png)
+![](HardEdgeSplit_130.png)
+![](HardEdgeSplit_180.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:HardEdgeAngleComparisonSlider]
+
+[](#)[](#)

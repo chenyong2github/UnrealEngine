@@ -1,0 +1,30 @@
+﻿INTSourceChangelist:6409500
+Availability: Public
+Title: 多用户编辑
+Description: 让不同计算机上的多个用户进入一个共享的虚幻编辑器会话，实时协作以共同构建内容。
+Type: landing
+Version: 4.22
+Parent: Engine/Editor
+Tags: Early Access
+Tags: Landing Page
+Tags: Multi-User Editing
+Order: 12
+hero-image:multiuserediting-banner.png
+
+通过多用户编辑，您可以将虚幻编辑器的多个实例连接起来，以在共享编辑会话中展开协作，与您的团队成员和同事实时构建一个虚拟世界。
+
+[REGION:tip]
+多用户编辑已在大规模虚拟影视制作团队中进行设计和测试，在实时拍摄期间，可能会有数十位操作员在现场协作。这些操作员使用虚幻引擎设计、搭建和点亮虚拟场景，模拟剧组搭建实体布景的方式。这有助于导演、演员和剧组人员在排练和拍摄实景镜头时，看到将实景和CG内容结合在一起的效果，而不必等待后期制作。  
+要查看多用户编辑的实际操作，请观看 [SIGGRAPH 2018 实时虚拟制作演示](https://www.unrealengine.com/en-US/blog/multi-user-collaboration-and-unreal-engine-real-time-production)。  
+[![Reflections](reflections.png "Reflections")](https://www.unrealengine.com/en-US/blog/multi-user-collaboration-and-unreal-engine-real-time-production)
+[/REGION]
+
+虽然多用户编辑是在虚拟影视制作背景下开发的，但同类实时协作对于有多个用户需要处理同一内容的任何场景可能都有用。任何虚幻引擎开发项目都能够使用多用户编辑来缩短迭代时间，获取对更改的即时反馈并提高团队的创造力。
+
+## 入门
+
+[DIR(output:"topic" parent:"Engine/Editor/MultiUser" tags:"Getting Started")]
+
+## 参考
+
+[DIR(output:"topic" parent:"Engine/Editor/MultiUser" tags:"Reference")]

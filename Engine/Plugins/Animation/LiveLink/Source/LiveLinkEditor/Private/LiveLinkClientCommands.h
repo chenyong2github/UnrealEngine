@@ -10,7 +10,6 @@ class FLiveLinkClientCommands : public TCommands<FLiveLinkClientCommands>
 public:
 	FLiveLinkClientCommands();
 
-	TSharedPtr<FUICommandInfo> AddSource;
 	TSharedPtr<FUICommandInfo> RemoveSource;
 	TSharedPtr<FUICommandInfo> RemoveAllSources;
 

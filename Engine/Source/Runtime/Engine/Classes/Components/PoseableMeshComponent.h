@@ -18,8 +18,15 @@ class ENGINE_API UPoseableMeshComponent : public USkinnedMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 
+	// we need this for template function in the cpp
+	// skeletalmeshcomponent hides this property, so now creating extra getter for poseablemeshcomponent
+	// although it's fine for poseablemeshcomponent to have this as external
+	// note that their signature is different, but the template would workf ine
+	const TArray<FTransform>& GetBoneSpaceTransforms() const { return BoneSpaceTransforms; }
+
 	/** Temporary array of local-space (ie relative to parent bone) rotation/translation/scale for each bone. */
 	TArray<FTransform> BoneSpaceTransforms;
+public:
 
 	FBoneContainer RequiredBones;
 
@@ -51,7 +58,7 @@ class ENGINE_API UPoseableMeshComponent : public USkinnedMeshComponent
 	void ResetBoneTransformByName(FName BoneName);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	void CopyPoseFromSkeletalComponent(const USkeletalMeshComponent* InComponentToCopy);
+	void CopyPoseFromSkeletalComponent(USkeletalMeshComponent* InComponentToCopy);
 
 	//~ Begin USkinnedMeshComponent Interface
 	virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = NULL) override;

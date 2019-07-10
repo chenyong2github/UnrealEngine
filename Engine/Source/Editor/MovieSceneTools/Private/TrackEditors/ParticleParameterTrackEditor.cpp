@@ -46,20 +46,20 @@ TSharedPtr<SWidget> FParticleParameterTrackEditor::BuildOutlinerEditWidget( cons
 }
 
 
-void FParticleParameterTrackEditor::BuildObjectBindingTrackMenu( FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass )
+void FParticleParameterTrackEditor::BuildObjectBindingTrackMenu( FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass )
 {
 	if ( ObjectClass->IsChildOf( AEmitter::StaticClass() ) || ObjectClass->IsChildOf( UParticleSystemComponent::StaticClass() ) )
 	{
 		const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT( "AddParticleParameterTrack", "Particle Parameter Track" ),
+			LOCTEXT( "AddParticleParameterTrackLabel", "Particle Parameter Track" ),
 			LOCTEXT( "AddParticleParameterTrackTooltip", "Adds a track for controlling particle parameter values." ),
 			FSlateIcon(),
 			FUIAction
 			(
-				FExecuteAction::CreateSP( this, &FParticleParameterTrackEditor::AddParticleParameterTrack, ObjectBinding ),
-				FCanExecuteAction::CreateSP( this, &FParticleParameterTrackEditor::CanAddParticleParameterTrack, ObjectBinding )
+				FExecuteAction::CreateSP( this, &FParticleParameterTrackEditor::AddParticleParameterTrack, ObjectBindings ),
+				FCanExecuteAction::CreateSP( this, &FParticleParameterTrackEditor::CanAddParticleParameterTrack, ObjectBindings[0] )
 			));
 	}
 }
@@ -128,10 +128,16 @@ bool FParticleParameterTrackEditor::CanAddParticleParameterTrack( FGuid ObjectBi
 }
 
 
-void FParticleParameterTrackEditor::AddParticleParameterTrack( FGuid ObjectBinding )
+void FParticleParameterTrackEditor::AddParticleParameterTrack( TArray<FGuid> ObjectBindings )
 {
-	FindOrCreateTrackForObject( ObjectBinding, UMovieSceneParticleParameterTrack::StaticClass(), TrackName, true);
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
+	const FScopedTransaction Transaction(LOCTEXT("AddParticleParameterTrack", "Add particle parameter track"));
+
+	for (FGuid ObjectBinding : ObjectBindings)
+	{
+		FindOrCreateTrackForObject(ObjectBinding, UMovieSceneParticleParameterTrack::StaticClass(), TrackName, true);
+	}
+
+	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 
 

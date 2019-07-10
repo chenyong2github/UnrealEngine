@@ -152,10 +152,7 @@ void UControlRigGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNo
 	if (RigBlueprint != nullptr)
 	{
 		FString Left, Right;
-		if (!TargetPin.GetName().Split(TEXT("."), &Left, &Right))
-		{
-			return;
-		}
+		RigBlueprint->Model->SplitPinPath(TargetPin.GetName(), Left, Right);
 		if (RigBlueprint->ModelController->BreakLinks(*Left, *Right, TargetPin.Direction == EGPD_Input))
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
@@ -178,16 +175,9 @@ void UControlRigGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
 			SourcePin = Temp;
 		}
 		
-		FString SourceLeft, SourceRight;
-		if (!SourcePin->GetName().Split(TEXT("."), &SourceLeft, &SourceRight))
-		{
-			return;
-		}
-		FString TargetLeft, TargetRight;
-		if (!TargetPin->GetName().Split(TEXT("."), &TargetLeft, &TargetRight))
-		{
-			return;
-		}
+		FString SourceLeft, SourceRight, TargetLeft, TargetRight;
+		RigBlueprint->Model->SplitPinPath(SourcePin->GetName(), SourceLeft, SourceRight);
+		RigBlueprint->Model->SplitPinPath(TargetPin->GetName(), TargetLeft, TargetLeft);
 		if (RigBlueprint->ModelController->BreakLink(*SourceLeft, *SourceRight, *TargetLeft, *TargetRight))
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);

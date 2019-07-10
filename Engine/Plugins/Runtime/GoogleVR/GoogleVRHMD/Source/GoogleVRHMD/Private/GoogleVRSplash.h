@@ -29,7 +29,7 @@ public:
 
 	void Tick(float DeltaTime);
 	bool IsTickable() const;
-	void RenderStereoSplashScreen(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef DstTexture);
+	void RenderStereoSplashScreen(FRHICommandListImmediate& RHICmdList, FRHITexture2D* DstTexture);
 	void ForceRerenderSplashScreen();
 
 private:

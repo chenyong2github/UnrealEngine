@@ -416,6 +416,8 @@ static const TCHAR* GDefaultMaterialNames[MD_MAX] =
 	TEXT("engine-ini:/Script/Engine.Engine.DefaultPostProcessMaterialName"),
 	// User Interface 
 	TEXT("engine-ini:/Script/Engine.Engine.DefaultMaterialName"),
+	// Virtual Texture
+	TEXT("engine-ini:/Script/Engine.Engine.DefaultVirtualTextureMaterialName"),
 };
 
 void UMaterialInterface::InitDefaultMaterials()
@@ -946,11 +948,12 @@ void UMaterial::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQuality
 				if (CurrentResource == nullptr || (FeatureLevelIndex != FeatureLevel && !bAllFeatureLevels))
 					continue;
 
-				const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[3] =
+				const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4] =
 				{
 					&CurrentResource->GetUniform2DTextureExpressions(),
 					&CurrentResource->GetUniformCubeTextureExpressions(),
-					&CurrentResource->GetUniformVolumeTextureExpressions()
+					&CurrentResource->GetUniformVolumeTextureExpressions(),
+					&CurrentResource->GetUniformVirtualTextureExpressions()
 				};
 				for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(ExpressionsByType); TypeIndex++)
 				{
@@ -1009,15 +1012,16 @@ void UMaterial::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray
 
 		if (CurrentResource)
 		{
-			const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[3] =
+			const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4] =
 			{
 				&CurrentResource->GetUniform2DTextureExpressions(),
 				&CurrentResource->GetUniformCubeTextureExpressions(),
-				&CurrentResource->GetUniformVolumeTextureExpressions()
+				&CurrentResource->GetUniformVolumeTextureExpressions(),
+				&CurrentResource->GetUniformVirtualTextureExpressions()
 			};
 
 			// Try to prevent resizing since this would be expensive.
-			OutIndices.Empty(ExpressionsByType[0]->Num() + ExpressionsByType[1]->Num() + ExpressionsByType[2]->Num());
+			OutIndices.Empty(ExpressionsByType[0]->Num() + ExpressionsByType[1]->Num() + ExpressionsByType[2]->Num() + ExpressionsByType[3]->Num());
 
 			for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(ExpressionsByType); TypeIndex++)
 			{
@@ -1066,14 +1070,23 @@ void UMaterial::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent) const
 				TArray<UTexture*> Textures;
 				// GetTextureExpressionValues(MaterialResource, Textures);
 				{
-					const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[3] = { &MaterialResource->GetUniform2DTextureExpressions(), &MaterialResource->GetUniformCubeTextureExpressions(), &MaterialResource->GetUniformVolumeTextureExpressions() };
+					const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4]= 
+					{
+						&MaterialResource->GetUniform2DTextureExpressions(), 
+						&MaterialResource->GetUniformCubeTextureExpressions(), 
+						&MaterialResource->GetUniformVolumeTextureExpressions(),
+						&MaterialResource->GetUniformVirtualTextureExpressions(),
+					};
 					for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(ExpressionsByType); TypeIndex++)
 					{
 						for (FMaterialUniformExpressionTexture* Expression : *ExpressionsByType[TypeIndex])
 						{
 							UTexture* Texture = NULL;
 							Expression->GetGameThreadTextureValue(this, *MaterialResource, Texture, false);
-							Textures.AddUnique(Texture);
+							if (Texture)
+							{
+								Textures.AddUnique(Texture);
+							}
 						}
 					}
 				}
@@ -1113,11 +1126,12 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 	{
 		FMaterialResource* Resource = GetMaterialResource(FeatureLevelsToUpdate[i]);
 		// Iterate over both the 2D textures and cube texture expressions.
-		const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[3] =
+		const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4] =
 		{
 			&Resource->GetUniform2DTextureExpressions(),
 			&Resource->GetUniformCubeTextureExpressions(),
-			&Resource->GetUniformVolumeTextureExpressions()
+			&Resource->GetUniformVolumeTextureExpressions(),
+			&Resource->GetUniformVirtualTextureExpressions()
 		};
 		for(int32 TypeIndex = 0;TypeIndex < ARRAY_COUNT(ExpressionsByType);TypeIndex++)
 		{
@@ -1242,6 +1256,7 @@ bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
 		case MATUSAGE_MorphTargets: UsageValue = bUsedWithMorphTargets; break;
 		case MATUSAGE_SplineMesh: UsageValue = bUsedWithSplineMeshes; break;
 		case MATUSAGE_InstancedStaticMeshes: UsageValue = bUsedWithInstancedStaticMeshes; break;
+		case MATUSAGE_GeometryCollections: UsageValue = bUsedWithGeometryCollections; break;
 		case MATUSAGE_Clothing: UsageValue = bUsedWithClothing; break;
 		case MATUSAGE_GeometryCache: UsageValue = bUsedWithGeometryCache; break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
@@ -1362,6 +1377,10 @@ void UMaterial::SetUsageByFlag(EMaterialUsage Usage, bool NewValue)
 		{
 			bUsedWithInstancedStaticMeshes = NewValue; break;
 		}
+		case MATUSAGE_GeometryCollections:
+		{
+			bUsedWithGeometryCollections = NewValue; break;
+		}
 		case MATUSAGE_Clothing:
 		{
 			bUsedWithClothing = NewValue; break;
@@ -1394,6 +1413,7 @@ FString UMaterial::GetUsageName(EMaterialUsage Usage) const
 		case MATUSAGE_MorphTargets: UsageName = TEXT("bUsedWithMorphTargets"); break;
 		case MATUSAGE_SplineMesh: UsageName = TEXT("bUsedWithSplineMeshes"); break;
 		case MATUSAGE_InstancedStaticMeshes: UsageName = TEXT("bUsedWithInstancedStaticMeshes"); break;
+		case MATUSAGE_GeometryCollections: UsageName = TEXT("bUsedWithGeometryCollections"); break;
 		case MATUSAGE_Clothing: UsageName = TEXT("bUsedWithClothing"); break;
 		case MATUSAGE_GeometryCache: UsageName = TEXT("bUsedWithGeometryCache"); break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
@@ -1467,6 +1487,7 @@ static bool IsPrimitiveTypeUsageFlag(EMaterialUsage Usage)
 		|| Usage == MATUSAGE_MorphTargets
 		|| Usage == MATUSAGE_SplineMesh
 		|| Usage == MATUSAGE_InstancedStaticMeshes
+		|| Usage == MATUSAGE_GeometryCollections
 		|| Usage == MATUSAGE_Clothing
 		|| Usage == MATUSAGE_GeometryCache;
 }
@@ -1475,7 +1496,7 @@ bool UMaterial::NeedsSetMaterialUsage_Concurrent(bool &bOutHasUsage, EMaterialUs
 {
 	bOutHasUsage = true;
 	// Material usage is only relevant for materials that can be applied onto a mesh / use with different vertex factories.
-	if (MaterialDomain != MD_Surface && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_Volume)
+	if (MaterialDomain != MD_Surface && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_Volume && MaterialDomain != MD_RuntimeVirtualTexture)
 	{
 		bOutHasUsage = false;
 		return false;
@@ -1505,7 +1526,7 @@ bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage)
 	bNeedsRecompile = false;
 
 	// Material usage is only relevant for materials that can be applied onto a mesh / use with different vertex factories.
-	if (MaterialDomain != MD_Surface && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_Volume)
+	if (MaterialDomain != MD_Surface && MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_Volume && MaterialDomain != MD_RuntimeVirtualTexture)
 	{
 		return false;
 	}
@@ -1521,7 +1542,7 @@ bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage)
 			//Do not warn the user during automation testing
 			if (!GIsAutomationTesting)
 			{
-				UE_LOG(LogMaterial, Warning, TEXT("Material %s needed to have new flag set %s !"), *GetPathName(), *GetUsageName(Usage));
+				UE_LOG(LogMaterial, Display, TEXT("Material %s needed to have new flag set %s !"), *GetPathName(), *GetUsageName(Usage));
 			}
 
 			// Open a material update context so this material can be modified safely.
@@ -2853,7 +2874,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 			ResourcesToCache.Reset();
 			check(MaterialResources[LocalActiveQL][FeatureLevel]);
 			ResourcesToCache.Add(MaterialResources[LocalActiveQL][FeatureLevel]);
-			CacheShadersForResources(ShaderPlatform, ResourcesToCache, true);
+			CacheShadersForResources(ShaderPlatform, ResourcesToCache);
 		}
 
 		FString AdditionalFormatToCache = GCompileMaterialsForShaderFormatCVar->GetString();
@@ -2889,7 +2910,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId)
 	}
 }
 
-void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources)
+void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform)
 {
 	TArray<FMaterialResource*> ResourcesToCache;
 	ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
@@ -2915,7 +2936,7 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 		}
 	}
 
-	CacheShadersForResources(ShaderPlatform, ResourcesToCache, false);
+	CacheShadersForResources(ShaderPlatform, ResourcesToCache, TargetPlatform);
 
 	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
 	{
@@ -2923,14 +2944,14 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 	}
 }
 
-void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, bool bApplyCompletedShaderMapForRendering)
+void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform)
 {
 	RebuildExpressionTextureReferences();
 
 	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
 	{
 		FMaterialResource* CurrentResource = ResourcesToCache[ResourceIndex];
-		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, bApplyCompletedShaderMapForRendering);
+		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, TargetPlatform);
 
 		if (!bSuccess)
 		{
@@ -3733,7 +3754,7 @@ void UMaterial::PostLoad()
 			// Before caching shader resources we have to make sure all referenced textures have been post loaded
 			// as we depend on their resources being valid.
 			RebuildExpressionTextureReferences();
-			for (UTexture* Texture : ExpressionTextureReferences)
+			for (UObject* Texture : ExpressionTextureReferences)
 			{
 				if (Texture)
 				{
@@ -3856,7 +3877,7 @@ void UMaterial::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPl
 				const EShaderPlatform LegacyShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
 
 				// Begin caching shaders for the target platform and store the material resource being compiled into CachedMaterialResourcesForCooking
-				CacheResourceShadersForCooking(LegacyShaderPlatform, *CachedMaterialResourcesForPlatform);
+				CacheResourceShadersForCooking(LegacyShaderPlatform, *CachedMaterialResourcesForPlatform, TargetPlatform);
 			}
 		}
 	}
@@ -3933,7 +3954,8 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 		{
 			return BlendMode == BLEND_Masked ||
 			bCastDynamicShadowAsMasked ||
-			IsTranslucencyWritingCustomDepth();
+			IsTranslucencyWritingCustomDepth() ||
+			IsTranslucencyWritingVelocity();
 		}
 
 		if ( PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bCastDynamicShadowAsMasked) )
@@ -4003,7 +4025,7 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendMode))
 		{
-			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha);
+			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI || MaterialDomain == MD_RuntimeVirtualTexture || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha);
 		}
 	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, ShadingModel))
@@ -4015,10 +4037,11 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 		{
 			return MaterialDomain == MD_DeferredDecal;
 		}
-		else if (
-			FCString::Strncmp(*PropertyName, TEXT("bUsedWith"), 9) == 0 ||
-			FCString::Strcmp(*PropertyName, TEXT("bUsesDistortion")) == 0
-			)
+		else if (FCString::Strncmp(*PropertyName, TEXT("bUsedWith"), 9) == 0)
+		{
+			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_RuntimeVirtualTexture;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUsesDistortion))
 		{
 			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface;
 		}
@@ -4035,7 +4058,7 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUseTranslucencyVertexFog)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bComputeFogPerPixel))
 		{
-			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode);
+			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucencyLightingMode)
@@ -4048,7 +4071,7 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucentMultipleScatteringExtinction)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucentShadowStartOffset))
 		{
-			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode) && GetShadingModels().IsLit();
+			return MaterialDomain != MD_DeferredDecal && MaterialDomain != MD_RuntimeVirtualTexture && IsTranslucentBlendMode(BlendMode) && GetShadingModels().IsLit();
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, SubsurfaceProfile))
@@ -4385,7 +4408,7 @@ void UMaterial::RebuildShadingModelField()
 		GetAllExpressionsInMaterialAndFunctionsOfType(ShadingModelExpressions);
 
 		for (UMaterialExpressionShadingModel* MatExpr : ShadingModelExpressions)
-			{
+		{
 			ShadingModels.AddShadingModel(MatExpr->ShadingModel);
 		}
 
@@ -5294,7 +5317,7 @@ bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, T
 }
 #endif // WITH_EDITOR
 
-void UMaterial::AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const
+void UMaterial::AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
 {
 	for (int32 ExpressionIndex = 0; ExpressionIndex < Expressions.Num(); ExpressionIndex++)
 	{
@@ -5328,11 +5351,11 @@ void UMaterial::AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const
 		{
 			// Append even if null as textures can be stripped at cook without our knowledge
 			// so we want to maintain the indices. This will waste a small amount of memory
-			UTexture* ReferencedTexture = Expression->GetReferencedTexture();
+			UObject* ReferencedTexture = Expression->GetReferencedTexture();
 			checkf(!ReferencedTexture || Expression->CanReferenceTexture(), TEXT("This expression type missing an override for CanReferenceTexture?"));
 			if (Expression->CanReferenceTexture())
 			{
-				InOutTextures.Add(ReferencedTexture);
+				InOutTextures.AddUnique(ReferencedTexture);
 			}
 		}
 	}
@@ -5614,6 +5637,7 @@ FMaterialShadingModelField UMaterial::GetShadingModels() const
 		case MD_Volume:
 			return ShadingModels;
 		case MD_DeferredDecal:
+		case MD_RuntimeVirtualTexture:
 			return MSM_DefaultLit;
 
 		// Post process and light function materials must be rendered with the unlit model.
@@ -5648,6 +5672,11 @@ bool UMaterial::IsTranslucencyWritingCustomDepth() const
 	return AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode());
 }
 
+bool UMaterial::IsTranslucencyWritingVelocity() const
+{
+	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode());
+}
+
 bool UMaterial::IsMasked() const
 {
 	return GetBlendMode() == BLEND_Masked || (GetBlendMode() == BLEND_Translucent && GetCastDynamicShadowAsMasked());
@@ -5678,6 +5707,14 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	{
 		// light functions should already use MSM_Unlit but we also we don't want WorldPosOffset
 		return InProperty == MP_EmissiveColor;
+	}
+	else if (Domain == MD_RuntimeVirtualTexture)
+	{
+		return InProperty == MP_BaseColor 
+			|| InProperty == MP_Roughness 
+			|| InProperty == MP_Specular 
+			|| InProperty == MP_Normal 
+			|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode) && BlendMode != BLEND_Modulate);
 	}
 	else if (Domain == MD_DeferredDecal)
 	{
@@ -5845,7 +5882,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = false;
 		break;
 	case MP_Refraction:
-		Active = bIsTranslucentBlendMode && BlendMode != BLEND_Modulate;
+		Active = bIsTranslucentBlendMode && BlendMode != BLEND_AlphaHoldout && BlendMode != BLEND_Modulate;
 		break;
 	case MP_Opacity:
 		Active = bIsTranslucentBlendMode && BlendMode != BLEND_Modulate;
@@ -5886,8 +5923,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		Active = bHasTessellation;
 		break;
 	case MP_EmissiveColor:
-		// Emissive is always active, even for light functions and post process materials
-		Active = true;
+		// Emissive is always active, even for light functions and post process materials, 
+		// but not for AlphaHoldout
+		Active = BlendMode != BLEND_AlphaHoldout;
 		break;
 	case MP_WorldPositionOffset:
 		Active = true;

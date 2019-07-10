@@ -154,7 +154,7 @@ class UNiagaraGraph : public UEdGraph
 	void FindInputNodes(TArray<class UNiagaraNodeInput*>& OutInputNodes, FFindInputNodeOptions Options = FFindInputNodeOptions()) const;
 
 	/** Returns a list of variable inputs for all static switch nodes in the graph. */
-	TArray<FNiagaraVariable> FindStaticSwitchInputs() const;
+	TArray<FNiagaraVariable> FindStaticSwitchInputs(bool bReachableOnly = false) const;
 
 	/** Get an in-order traversal of a graph by the specified target output script usage.*/
 	void BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraversed, ENiagaraScriptUsage TargetUsage, FGuid TargetUsageId) const;
@@ -265,6 +265,8 @@ class UNiagaraGraph : public UEdGraph
 
 	void RebuildCachedCompileIds(bool bForce = false);
 
+	void CopyCachedReferencesMap(UNiagaraGraph* TargetGraph);
+
 protected:
 	void RebuildNumericCache();
 	bool bNeedNumericCacheRebuilt;
@@ -285,6 +287,9 @@ private:
 
 	/** A delegate that broadcasts a notification whenever the graph needs recompile due to structural change. */
 	FOnGraphChanged OnGraphNeedsRecompile;
+
+	/** Find all nodes in the graph that can be reached during compilation. */
+	TArray<UEdGraphNode*> FindReachbleNodes() const;
 	
 	/** The current change identifier for this graph overall. Used to sync status with UNiagaraScripts.*/
 	UPROPERTY()

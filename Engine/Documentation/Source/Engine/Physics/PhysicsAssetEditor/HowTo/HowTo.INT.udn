@@ -1,0 +1,21 @@
+Availability: Public
+Title:Physics Asset Editor How-To Directory
+Crumbs: %ROOT%, Engine, Engine/Physics, Engine/Physics/PhysicsAssetEditor
+Description:Landing page for the Physics Asset Tool how-to section.
+Navigation:topic
+parent:Engine/Physics/PhysicsAssetEditor
+type:landing
+order:1
+Version: 4.13
+tags:Physics 
+tags:how-to
+
+This page contains links to guides on how-to perform common tasks in the **Physics Asset Tool** (**PhAT**).
+
+## Beginner
+
+[DIR(output:"fancy" parent:"Engine/Physics/PhysicsAssetEditor/HowTo" org:"hierarchy" skill_level:"Beginner")]
+
+## Intermediate
+
+[DIR(output:"fancy" parent:"Engine/Physics/PhysicsAssetEditor/HowTo" org:"hierarchy" skill_level:"Intermediate")]

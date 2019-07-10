@@ -545,6 +545,15 @@ class ENGINE_API UParticleModule : public UObject
 	/** Returns whether this module is used in any GPU emitters. */
 	bool IsUsedInGPUEmitter()const;
 
+	/**
+	 * Retreive the random stream that should be used for the provided instance.
+	 *
+	 * @param	Owner			The emitter instance that owns this module
+	 *
+	 * @return FRandomStream&	The random stream to use for the provided instance.
+	 */
+	FRandomStream& GetRandomStream(FParticleEmitterInstance* Owner);
+
 #if WITH_EDITOR
 	virtual void PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph ) override;
 

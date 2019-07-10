@@ -11,7 +11,7 @@
 class IDisplayClusterConfigManager
 {
 public:
-	virtual ~IDisplayClusterConfigManager()
+	virtual ~IDisplayClusterConfigManager() = 0
 	{ }
 
 	virtual int32 GetClusterNodesAmount() const = 0;
@@ -52,6 +52,9 @@ public:
 
 	virtual TArray<FDisplayClusterConfigInputSetup> GetInputSetupRecords() const = 0;
 	virtual bool GetInputSetupRecord(const FString& id, FDisplayClusterConfigInputSetup& input) const = 0;
+
+	virtual TArray<FDisplayClusterConfigProjection> GetProjections() const = 0;
+	virtual bool GetProjection(const FString& id, FDisplayClusterConfigProjection& projection) const = 0;
 
 	virtual FDisplayClusterConfigGeneral GetConfigGeneral() const = 0;
 	virtual FDisplayClusterConfigStereo  GetConfigStereo()  const = 0;

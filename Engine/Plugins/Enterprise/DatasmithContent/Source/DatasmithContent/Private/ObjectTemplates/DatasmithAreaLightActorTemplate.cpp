@@ -10,17 +10,17 @@ UDatasmithAreaLightActorTemplate::UDatasmithAreaLightActorTemplate()
 	Load( ADatasmithAreaLightActor::StaticClass()->GetDefaultObject() );
 }
 
-void UDatasmithAreaLightActorTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithAreaLightActorTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	const USceneComponent* SceneComponent = Cast< USceneComponent >( Destination );
 	ADatasmithAreaLightActor* AreaLightActor = Cast< ADatasmithAreaLightActor >( SceneComponent ? SceneComponent->GetOwner() : Destination );
 
 	if ( !AreaLightActor )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithAreaLightActorTemplate* PreviousTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithAreaLightActorTemplate >( Destination ) : nullptr;
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( LightType, AreaLightActor, PreviousTemplate );
@@ -37,9 +37,9 @@ void UDatasmithAreaLightActorTemplate::Apply( UObject* Destination, bool bForce 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( SourceRadius, AreaLightActor, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( SourceLength, AreaLightActor, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( AttenuationRadius, AreaLightActor, PreviousTemplate );
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( AreaLightActor->GetRootComponent(), this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return AreaLightActor->GetRootComponent();
 }
 
 void UDatasmithAreaLightActorTemplate::Load( const UObject* Source )

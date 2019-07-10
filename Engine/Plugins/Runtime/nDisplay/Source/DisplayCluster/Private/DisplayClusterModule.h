@@ -61,9 +61,6 @@ public:
 
 
 public:
-	virtual FDisplayClusterBeforeStartSessionEvent& OnDisplayClusterBeforeStartSession() override
-	{ return DisplayClusterBeforeStartSessionEvent; }
-
 	virtual FDisplayClusterStartSessionEvent& OnDisplayClusterStartSession() override
 	{ return DisplayClusterStartSessionEvent; }
 
@@ -74,7 +71,6 @@ public:
 	{ return DisplayClusterPreTickEvent; }
 
 private:
-	FDisplayClusterBeforeStartSessionEvent   DisplayClusterBeforeStartSessionEvent;
 	FDisplayClusterStartSessionEvent         DisplayClusterStartSessionEvent;
 	FDisplayClusterEndSessionEvent           DisplayClusterEndSessionEvent;
 	FDisplayClusterPreTickEvent              DisplayClusterPreTickEvent;

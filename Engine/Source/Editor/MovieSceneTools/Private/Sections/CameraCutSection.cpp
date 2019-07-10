@@ -77,7 +77,19 @@ void FCameraCutSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const
 		return;
 	}
 
-	const AActor* CameraActor = GetCameraForFrame(Section->GetInclusiveStartFrame());
+	AActor* CameraActor = GetCameraForFrame(Section->GetInclusiveStartFrame());
+
+	if (CameraActor)
+	{
+		MenuBuilder.AddMenuSeparator();
+
+		MenuBuilder.AddMenuEntry(
+			FText::Format(LOCTEXT("SelectCameraTextFormat", "Select {0}"), FText::FromString(CameraActor->GetActorLabel())),
+			FText::Format(LOCTEXT("SelectCameraTooltipFormat", "Select {0}"), FText::FromString(CameraActor->GetActorLabel())),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FCameraCutSection::HandleSelectCameraMenuEntryExecute, CameraActor))
+		);
+	}
 
 	// get list of available cameras
 	TArray<AActor*> AllCameras;
@@ -182,6 +194,11 @@ FText FCameraCutSection::HandleThumbnailTextBlockText() const
 
 /* FCameraCutSection callbacks
  *****************************************************************************/
+
+void FCameraCutSection::HandleSelectCameraMenuEntryExecute(AActor* InCamera)
+{
+	GEditor->SelectActor(InCamera, true, true);
+}
 
 void FCameraCutSection::HandleSetCameraMenuEntryExecute(AActor* InCamera)
 {

@@ -178,6 +178,15 @@ public:
 	 */
 	typedef TFunction<void(FName, FName)> FLoadStringTableAssetCallback;
 
+	/** 
+	 * Check to see whether it is currently safe to attempt to find or load a string table asset.
+	 * @return True if it is safe to attempt to find or load a string table asset, false otherwise.
+	 */
+	static bool CanFindOrLoadStringTableAsset()
+	{
+		return !InstancePtr || InstancePtr->CanFindOrLoadStringTableAssetImpl();
+	}
+
 	/**
 	 * Load a string table asset by its name, potentially doing so asynchronously. 
 	 * @note If the string table is already loaded, or loading is perform synchronously, then the callback will be called before this function returns.
@@ -185,7 +194,7 @@ public:
 	 */
 	static int32 LoadStringTableAsset(const FName InTableId, FLoadStringTableAssetCallback InLoadedCallback = FLoadStringTableAssetCallback())
 	{
-		check(IsInGameThread());
+		check(CanFindOrLoadStringTableAsset());
 
 		if (InstancePtr)
 		{
@@ -206,7 +215,7 @@ public:
 	 */
 	static void FullyLoadStringTableAsset(FName& InOutTableId)
 	{
-		check(IsInGameThread());
+		check(CanFindOrLoadStringTableAsset());
 
 		if (InstancePtr)
 		{
@@ -217,6 +226,8 @@ public:
 	/** Redirect string table asset by its name */
 	static void RedirectStringTableAsset(FName& InOutTableId)
 	{
+		check(CanFindOrLoadStringTableAsset());
+
 		if (InstancePtr)
 		{
 			InstancePtr->RedirectStringTableAssetImpl(InOutTableId);
@@ -247,6 +258,7 @@ public:
 protected:
 	virtual ~IStringTableEngineBridge() {}
 
+	virtual bool CanFindOrLoadStringTableAssetImpl() = 0;
 	virtual int32 LoadStringTableAssetImpl(const FName InTableId, FLoadStringTableAssetCallback InLoadedCallback) = 0;
 	virtual void FullyLoadStringTableAssetImpl(FName& InOutTableId) = 0;
 	virtual void RedirectStringTableAssetImpl(FName& InOutTableId) = 0;

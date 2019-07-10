@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:언리얼 매치 3 의 UI 제작
 Crumbs:%ROOT%, Resources
@@ -119,7 +119,7 @@ Floating Score 스폰 위치 결정은 (**Content/Blueprints** 폴더의) **Game
 
 ![](YouWinScreen.png)(w:200 convert:false) ![](YouLoseScreen.png)(w:200 convert:false)
 
-Game Over (게임 오버) 화면은 (You Win 과 You Lose) **Content/UI** 폴더에서 **VictoryScreen** 위젯 블루프린트로 찾을 수 있습니다. 게임이 끝났을 때도 같은 위젯 블루프린트를 호출하되, 세션의 결과에 따라 업데이트됩니다.
+Game Over (게임 오버) 화면은 (You Win 과 You Lose) **Content/UI** 폴더에서 **VictoryScreen** 위젯 블루프린트로 찾을 수 있습니다. 게임이 끝났을 때도 같은 위젯 블루프린트를 호출하지만, 세션의 결과에 따라 업데이트됩니다.
 
 이겼으면, 파랑 배경과 획득한 메달이 표시됩니다. 졌으면, 빨강 배경과 "you lose" 텍스트로 대체되어 표시됩니다.
 

@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:2 - 应用 AnimDynamics
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/AnimHowTo, Engine/Animation/AnimHowTo/AnimDynamics
 Description:在这一步中，我们将 AnimDynamics 应用到角色身上的背带和炉子，使它们对运动作出反应。

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3367470
+INTSourceChangelist:3367470
 Availability:Public
 Title: 언리얼 엔진 4.14 업데이트 노트
 Description:
@@ -118,7 +118,7 @@ Github: [https://github.com/EpicGames/UnrealEngine/releases/tag/4.14.1-release](
 
 *  UE-39132	레벨에 액터를 추가할 때의 크래시를 고쳤습니다.
 
-*  UE-38353	씬 내 복제된 BSP 포함 UMG 애셋을 삭제한 것을 레퍼런싱하는 UMG 애니메이션 트랙 삭제 도중의 크래시를 고쳤습니다.
+*  UE-38353	씬 내 복제된 BSP 포함 UMG 애셋을 삭제한 것을 참조하는 UMG 애니메이션 트랙 삭제 도중의 크래시를 고쳤습니다.
 
 *  UE-39067	Oculus 터치 컨트롤러가 게임스레드를 빠르게 실행될 때 떨리던 것을 고쳤습니다.
 

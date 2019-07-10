@@ -1,12 +1,10 @@
-Availability: Docs
-Title:Volumes Overview
-Crumbs:%ROOT%, Engine, Engine/Actors, Engine/Actors/Volumes
+Availability: Public
+Title:Audio Volume Reference
+Parent: Engine/Actors/Volumes
 Description:Audio Volume reference details
 version:4.16
 type:reference
 
-
-### Audio Volume
 
 Several properties can be adjusted from the **Details** panel on this volume to allow for more control over its effects as seen below.
 
@@ -34,6 +32,4 @@ Several properties can be adjusted from the **Details** panel on this volume to 
 | **Interior LPF** | Lowpass Filter multiplier applied to interior sounds when outside (1.0 to apply the maximum LPF). |
 | **Interior LPFTime** | Time to fade to new Lowpass Filter level in seconds. |
 
-[COMMENT:none]
-For more information on Ambient Zones, please refer to the following documentation: [Ambient Zones Documentation](Engine/Audio/AmbientZones).
-[/COMMENT]
+

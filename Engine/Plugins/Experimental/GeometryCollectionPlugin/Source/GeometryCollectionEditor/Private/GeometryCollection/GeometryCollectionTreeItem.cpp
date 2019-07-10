@@ -25,12 +25,10 @@ FGeometryCollectionTreeItem::FGeometryCollectionTreeItem(UGeometryCollectionComp
 	const UGeometryCollection* GeometryCollectionObject = GeometryCollectionComponent->GetRestCollection();
 	if (GeometryCollectionObject && GeometryCollectionObject->GetGeometryCollection())
 	{
-		const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GeometryCollectionObject->GetGeometryCollection()->BoneHierarchy;
-
+		int NumElements = GeometryCollectionObject->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup);
 		// Add a sub item to the outliner tree for each of the bones/chunks in this GeometryCollection
-		for (int Element = 0; Element < Hierarchy.Num(); Element++)
+		for (int Element = 0; Element < NumElements; Element++)
 		{
-			const FGeometryCollectionBoneNode& Node = Hierarchy[Element];
 			FTreeItemRef NewItem = MakeShareable(new FGeometryCollectionBoneTreeItem(InGeometryCollection, this, Element));
 			SubComponentItems.Add(NewItem);
 		}
@@ -92,7 +90,7 @@ void FGeometryCollectionSelection::OnActorSelectionChanged(UObject* Object)
 				if (GeometryCollectionComponent)
 				{
 					FScopedColorEdit ScopedSelection = GeometryCollectionComponent->EditBoneSelection();
-					ScopedSelection.SetShowSelectedBones(false);
+					ScopedSelection.SetEnableBoneSelection(false);
 				}
 			}
 		}
@@ -116,7 +114,7 @@ void FGeometryCollectionSelection::OnActorSelectionChanged(UObject* Object)
 					{
 						// newly selected
 						FScopedColorEdit ScopedSelection = GeometryCollectionComponent->EditBoneSelection();
-						ScopedSelection.SetShowSelectedBones(true);
+						ScopedSelection.SetEnableBoneSelection(true);
 						SelectedActors.Push(Actor);
 					}
 				}
@@ -127,7 +125,9 @@ void FGeometryCollectionSelection::OnActorSelectionChanged(UObject* Object)
 
 void FGeometryCollectionSelection::OnSubComponentSelectionChanged(TArray<FSubComponentTreeItem*>& SubComponentItemSelection)
 {
+
 	bool Dirty = false;
+	
 	UGeometryCollectionComponent* LastGeometryCollectionComponent = nullptr;
 	for (FSubComponentTreeItem* Item : SubComponentItemSelection)
 	{
@@ -144,7 +144,7 @@ void FGeometryCollectionSelection::OnSubComponentSelectionChanged(TArray<FSubCom
 
 			if (const UGeometryCollection* MeshGeometryCollection = GeometryCollectionComponent->GetRestCollection())
 			{
-				TSharedPtr<FGeometryCollection> GeometryCollectionPtr = MeshGeometryCollection->GetGeometryCollection();
+				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = MeshGeometryCollection->GetGeometryCollection();
 				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 				{
 					FGeometryCollectionBoneTreeItem* BoneItem = static_cast<FGeometryCollectionBoneTreeItem*>(Item);

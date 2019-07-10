@@ -1,42 +1,321 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title: 关卡设计快速入门
-Crumbs: %ROOT%, GettingStarted
-Description: 虚幻编辑器基础知识入门及应用。
-prereq:GettingStarted/Installation
+﻿INTSourceChangelist:6582572
+Availability: Public
+Title: 关卡设计师快速入门
+Description: 了解并运用虚幻编辑器的基础知识。
+Tprereq:GettingStarted/Installation
 prereq:Engine/Basics/Projects/Browser
-SkillLevel: Beginner
+Type: quick start
+type:multi-step
 Version: 4.9
-parent:Engine/Editor
-order:1
-checkpoint: editorqs
-type:quick start
-topic-image:engine_qs_topic.png
+Parent: Engine/Editor
+topic-image: engine_qs_topic.png
+Order: 0
+
+[TOC (start:2 end:2)]
 
 ![](Finished.png)
 
-_在完成这篇指南后，您将会得到一个类似于上图中的房间的样子。_
+*在本指南结束时，您将拥有一个与上图类似的房间。*
 
-(#Goals)
-## 目标
+本虚幻编辑器快速入门指南的重点是带领您了解使用虚幻引擎4的基础知识。
 
-虚幻编辑器快速指南将会引导虚幻引擎 4 工作是的一些基础内容。
+学习完本教程后，您将了解以下内容：
 
-(#Objectives)
-## 任务
+*   如何导航视口。
+*   如何创建新关卡。
+*   如何在关卡中放置和编辑Actor。
+*   如何构建和运行关卡。
 
-当完成这份指南后，开发者应将懂得以下内容：
+## 1. 必要的设置
 
-*	如何在视口中移动、浏览。
-*	如何创建一个新的关卡。
-*	如何在关卡中摆放并编辑 Actor。
-*	如何构建并运行关卡。
+1.  在[安装虚幻引擎](GettingStarted/Installation)和启动虚幻编辑器后，您将首先看到 **项目浏览器**。
 
-(#Steps)
-## 步骤
+1.  单击 **新建项目（New Project）** 选项卡并选择 **空白** 蓝图模板，输入保存位置和名称，然后单击 **创建项目（Create Project）**。
+    
+    ![](NewProject_Windows.png)
+    
+    在 **新建项目（New Project）** 选项卡中，您可以根据几个不同的模板类型创建新项目，而“项目（Projects）”选项卡包含之前创建的所有项目或您已下载的示例。
 
-[DIR(output:"checkpoint" parent:"Engine/QuickStart" org:"hierarchy")]
+## 2. 导航视口
 
-[REGION:call_to_action]
-	[点击开始](Engine/QuickStart/1 "%Engine/QuickStart/1:title%")
+随着项目打开并准备就绪，您可能注意到的第一对象是位于虚幻编辑器中心的[视口](Engine/UI/LevelEditor/Viewports)。
+
+![](TableAndChairs.png)(w:720)
+
+您将在视口中执行大部分的关卡构建操作。我们在上一步骤中选择的模板项目包括一个小的示例[关卡](Engine/Levels)和一些可供我们开始使用的资源。使用这个小区域作为一个参考点，花点时间使用最常见的方法对虚幻引擎4内的视口进行导航，以熟悉[视口摄像机功能按钮](Engine/UI/LevelEditor/Viewports/ViewportControls)。
+
+
+### 标准功能按钮
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#StandardControls]
+
+[REGION:tip]
+要切换到[正交视图](https://www.youtube.com/watch?v=RoiQOwCg-4Q)，单击 **透视（Perspective）** 下拉框，然后选择一个正交视图模式。
+
+![](OrthographicViews.png)
 [/REGION]
+
+### WASD飞行功能按钮
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#GameControls]
+
+### 环绕、用移动车移动和追踪
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#MayaLikeControls]
+
+## 3. 创建新关卡
+
+接下来，我们将创建一个新的[关卡](Engine/Levels)，我们将使用它来构建我们的游戏环境。虽然有几种不同的方法可以创建新关卡，但我们将使用 **文件菜单（File Menu）** 方法，该方法将为我们提供关卡选择选项。
+
+1.  在虚幻编辑器中，单击 **文件菜单（File Menu）** 选项，然后选择 **新建关卡...（New Level...）**。
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        操作系统
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](FileMenu_Windows.png)  
+		[/PARAM]
+    [/OBJECT]
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        操作系统
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](FileMenu_Mac.png)
+        [/PARAM]
+    [/OBJECT]
+
+    这将打开 **新建关卡（New Level）** 对话窗口：
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        操作系统
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](NewLevel_Windows.png)
+        [/PARAM]
+    [/OBJECT]
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        操作系统
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](NewLevel_Mac.png)
+        [/PARAM]
+    [/OBJECT]
+
+    在 **默认（Default）** 关卡之上包括一些常用的构建关卡的资源，还有一个 **VR基本（VR-Basic）** 关卡，其中包括一些使用VR编辑器构建关卡的资源，**空关卡（Empty Level）** 是一个完全空白的关卡，没有任何资源。出于本指南的目的，我们将以一个完全为空的slate从头开始。
+
+1.  单击 **空关卡（Empty Level）** 以选中它。
+
+## 4. 在关卡中放置Actor
+
+在这一步骤中，我们将开始将[Actor](Engine/Actors)（例如光源或几何体等）放置到我们的空关卡中。我们将介绍向此关卡添加Actor的两种最常见的方法，一种方法是通过[放置模式](Engine/UI/LevelEditor/Modes/PlaceMode)，另一种方法是通过[内容浏览器](Engine/Content/Browser)。完成这一步骤后，您将了解如何将Actor放置在自己的关卡中，并可以开始操纵这些Actor来创建您的环境。
+
+1.  在 **模式面板（Modes Panel）** 中，启用 **方式模式（Place Mode）** 后，单击[BSP](Engine/Actors/Brushes)类别并选择 **方框（Box）**。 
+
+    ![](ModesPanel.png)
+
+1.  **左键单击** **方框（Box）** 并将其拖动到 **关卡视口（Level Viewport）** 中。 
+
+    ![](placeBox.png)
+
+    松开 **鼠标左键** 后，此 **方框（Box）** 将已被添加到此关卡中。
+
+    [](place2.png)
+
+1.  当仍选中此 **方框（Box）** 时，在[细节](Engine/UI/LevelEditor/Details)面板（编辑器的右下窗口）中，将 **位置（Location）** 和 **旋转（Rotation）** 都设置为 **0**。
+
+1.  将 **缩放比例（Scale）** 设置为 **4 x 4 x 0.1**。 
+
+    ![](resize_floor.png) 
+	
+    我们将用它来做地板，玩家可以在上面走动。
+
+1.  在 **模式面板（Modes Panel）** 中，选择 **光源（Lights）** 选项卡，然后将一个 **定向光源（Directional Light）** 拖放到关卡中地板的上方。 
+	
+    ![](placeLight.png)
+
+1.  在[平移工具](Engine/UI/LevelEditor/Viewports/ViewportControls)上，单击并向上拖动Z轴（蓝色）小工具，使其远离地面。 
+
+    ![](moveLight.png) 
+	
+    如果 **定向光源（Directional Light）** 未被选中，可以在 **关卡视口（Level Viewport）** 中左键单击它来重新选中它。
+
+1.  在 **模式面板（Modes Panel）** 中，选择 **视觉效果（Visual Effects）** 选项卡，并将[大气雾](Engine/Actors/FogEffects/AtmosphericFog)拖放到关卡中。 
+
+    ![](placeFog.png) 
+	
+    **大气雾（Atmospheric Fog）** Actor将在关卡中添加一个基础天空，关卡将被点亮，而不是一片漆黑。
+
+1.  从 **模式面板（Modes Panel）** 中的 **基本（Basic）** 选项卡中，将[玩家出生点](Engine/Actors/PlayerStart)拖放到关卡中。 
+	
+    ![](placeStart.png)
+
+1.  从 **模式面板（Modes Panel）** 中的 **体积（Volumes）** 选项卡中，将[Lightmass重要体积](Engine/Rendering/LightingAndShadows/Lightmass/Basics)拖放到关卡中。 
+
+    ![](placeVolume.png) 
+	
+    **Lightmass重要体积（Lightmass Importance Volume）** 用于控制和集中体积内的光照和阴影效果。当将Lightmass重要体积放置到关卡中时，此体积的默认大小并不覆盖我们的可玩区域，因此我们需要将其放大。
+
+1.  在 **关卡视口（Level Viewport）** 中，按 **R** 以切换到[缩放工具](Engine/UI/LevelEditor/Viewports/ViewportControls#transformcontrols)。
+
+1.  单击并拖动 **缩放工具（Scale Tool）** 中心的白色框，以便 **Lightmass重要体积（Lightmass Importance Volume）** 涵盖地板。 
+	
+    ![](scaleVolume.png)
+
+1.  在 **内容浏览器（Content Browser）** 中的 **内容（Content）** \> **初学者内容（StarterContent）** \> **道具（Props）** 下，将 **SM_TableRound** 拖放到关卡中。 
+	
+    ![](placeTable.png) 
+	
+    尝试使用 **移动工具（Move Tool）**（如果未选中，使用键盘快捷键 **W**）将桌子放置在地板的中央。
+
+1.  同样在 **内容（Content）** \> **初学者内容（StarterContent）** \> **道具（Props）** 下，将 **SM_Chair** 拖放到关卡中。 
+	
+    ![](addChair.png)
+
+1.  当 **关卡视口（Level Viewport）** 中选中了 **SM_Chair** 时，按 **E** 以访问[旋转工具](Engine/UI/LevelEditor/Viewports/ViewportControls#transformcontrols)。 
+	
+    ![](Rotate1.png)(w:440)
+
+1.  **左键单击** 并拖动 **蓝色** 轴弧线（道具将进行更新以显示读数）并旋转椅子使其朝向桌子。 
+	
+    ![](Rotate2.png)(w:440)
+
+1.  使用上面的放置方法，通过从 **模板面板（Modes Panel）**和 **内容浏览器（Content Browser）** 添加更多Actor来创建一个小场景。 
+	
+    ![](placeThings.png) 
+	
+    尝试添加一些光源、道具、墙壁和屋顶（可以在 **内容（Content）** \> **初学者内容（StarterContent）** \> **架构（Architecture）** 文件夹中找到它们）。
+
+## 5. 编辑放置的Actor
+
+在我们的关卡中放置了几个不同的 **Actor**，下一步涉及到[编辑Actor属性](GettingStarted/HowTo/DetailsPanel)，这可以更改Actor在关卡中的外观或使用方式，从而为我们提供一个更具自定义外观的关卡。我们首先将编辑我们的 **定向光源Actor（Directional Light Actor）** 的属性，然后将我们的注意力转移到将[材质](Engine/Rendering/Materials)应用于您在关卡中放置的一些[静态网格体Actor](Engine/Actors/StaticMeshActor)上。
+
+完成该步骤后，您将看到在何处访问和修改Actor的属性，以便您可以开始在自己的关卡中编辑和试验不同的设置。
+
+1.  通过在视口 **左键单击** **定向光源Actor（Directional Light Actor）**，来选择它。 
+	
+    ![](selectDL.png)
+
+1.  在 **细节面板（Details Panel）** 中，在 **光源（Light）** 类别下，启用 **大气太阳光（Atmosphere Sun Light）**。 
+
+    ![](enableSun.png) 
+	
+    根据您的定向光源Actor的旋转，天空颜色会发生改变，如果您旋转视口，您将看到太阳现在与定向光源Actor对齐。这是一个实时过程，因此您可以旋转定向光源Actor（按 **E** 切换到 **旋转模式（Rotation Mode）**），天空将随着夜间、日出、白天和日落而改变颜色。
+
+接下来，我们将更改您放置的一个 **静态网格体Actor（Static Mesh Actors）** 上的 **材质（Material）**，首先选择一个Actor。
+
+1.  选择Actor后，在 **细节（Details）** 面板的 **材质（Materials）** 下，单击 **元素0（Element 0）** 下的下拉框。 
+	
+    ![](material_1.png)(w:900)
+
+1.  在弹出菜单中，选择 **M\_Brick\_Clay_New** 材质。 
+	
+    ![](material_2.png)(w:900)
+
+1.  您关卡中的所有 **Actor** 都有许多属性可以在 **细节（Details）** 面板中进行调整。探索更改它们的设置！ 
+	
+    ![](beforeBake.png)(w:900) 
+	
+    在您的关卡中，尝试更改光源的 **光源颜色（Light Color）**，应用更多的 **材质（Materials）** 或者更改Actor的 **缩放（Scale）**。
+
+## 6. 运行构建过程
+
+现在，您可能已经注意到阴影中的“预览（Preview）”标签和墙壁下漏出的光线。
+
+![](beforeBake2.png)
+
+这是因为场景中的所有光源都是静态的，使用的是预先计算或者烘焙的照明，而这些照明还没有计算过。此处的“预览（Preview）”文本是为了提醒您，您当前在视口中看到的内容并不是您在游戏中看到的内容。
+
+在这一步中，我们将经历 **构建（Build）** 过程，该过程将构建所有关卡（预计算照明数据和可见性数据，生成任何导航网络并更新所有画笔模型）。我们还将看看 **构建选项（Build Options）** 中的 **光源质量（Light Quality）** 设置，在构建照明时，我们可以使用这些设置来调整照明的质量。
+
+1.  在主工具栏中，单击 **构建（Build）** 选项旁边的向下箭头。 
+	
+    ![](buildOptionsButton.png)
+
+1.  在 **光照质量（Lighting Quality）** 中，选择 **制作（Production）** 设置。 
+
+    ![](productionLighting.png) 
+	
+    这将向我们提供最高质量的照明，但在计算时间方面是最慢的，并将增加 **构建（Build）** 游戏所需的时间。我们的关卡是小关卡，所以它应该不会对我们造成太大影响，但当您处理较大的关卡时，应牢记这一点，因为当您创建关卡时，以及当在关卡“最后一个步骤”中切换为 **制作（Production）** 时， 您可能想要将它保留为中低级关卡设置。
+
+1.  等待 **构建（Build）** 完成。 
+	
+    ![](wait.png) 
+	
+    您将在虚幻编辑器的右下角看到进度，如上图所示。一旦 **构建（Build）** 过程完成，关卡照明将进行更新，以便更好地说明最终结果。 
+	
+    ![](built.png)
+
+1.  在主工具栏中，单击 **运行（Play）** 按钮以在编辑器中运行。 
+
+    ![](PlayInEditor.png) 
+	
+    使用 **WASD** 移动摄像机，使用 **鼠标** 摄像机，您可以在关卡周围移动。
+
+## 7. 看你的了！
+
+此时，您应该已经 **构建（Built）** 关卡照明，并已使用在编辑器中 **运行（Play）** 功能预览游戏。在此之前的每个步骤都旨在让您快速了解，即在虚幻编辑器中构建关卡时，如何执行最常见的操作。
+
+使用本指南提供的方法，尝试自己执行以下操作：
+
+![](update1.png)(w:830)
+
+*   将关卡的光照更改为月夜场景。
+*   添加另一个房间，将附属到第一个房间。
+
+![](update2.png)(h:380) ![](update4.png)(h:380)
+
+*   在附属的房间上，尝试将它抬高，并用楼梯将两个房间连接起来。
+*   添加一些灌木、一个沙发、书架和一个前门。
+
+![](update6.png)(w:830)
+
+*   添加不同颜色的不同种类光源。
+*   在一些Actor上使用不同的材质。
+
+[REGION:note]
+有关本快速入门指南中涵盖的主题以及整个编辑器的更多信息，请参阅[虚幻编辑器手册](Engine)。
+[/REGION]
+
+有关本快速入门介绍的细节：
+
+*   有关关卡编辑器的更多信息，请参阅：[关卡编辑器](Engine/UI/LevelEditor)
+
+*   有关视口的更多信息，请参阅：[视口](Engine/UI/LevelEditor/Viewports)
+
+*   有关虚幻编辑器中可用编辑模式的更多信息，请参阅：[关卡编辑器模式](Engine/UI/LevelEditor/Modes)
+
+*   有关内容浏览器的更多信息，请参阅：[内容浏览器](Engine/Content/Browser)
+
+*   有关细节面板（Details Panel）的更多信息，请参阅：[细节面板](Engine/UI/LevelEditor/Details)
+
+*   有关构建的更多信息，请参阅：[Lightmass](Engine/Rendering/LightingAndShadows/Lightmass)
+
+*   有关照明的更多信息，请参阅：[照明快速入门主页](Engine/Rendering/LightingAndShadows/QuickStart)

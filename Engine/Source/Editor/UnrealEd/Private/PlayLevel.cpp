@@ -36,6 +36,7 @@
 #include "Engine/Blueprint.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/GameInstance.h"
+#include "Engine/RendererSettings.h"
 #include "Engine/World.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "AI/NavigationSystemBase.h"
@@ -91,6 +92,8 @@
 #include "Engine/LocalPlayer.h"
 #include "Slate/SGameLayerManager.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Widgets/Input/SHyperlink.h"
+#include "Dialogs/CustomDialog.h"
 
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
@@ -104,6 +107,8 @@
 #include "EditorModeRegistry.h"
 #include "PhysicsManipulationMode.h"
 #include "CookerSettings.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/SBoxPanel.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayLevel, Log, All);
@@ -2270,6 +2275,66 @@ bool UEditorEngine::SpawnPlayFromHereStart( UWorld* World, AActor*& PlayerStart,
 	return true;
 }
 
+static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
+{
+	struct Local
+	{
+		static void OnHyperlinkClicked( TWeakObjectPtr<UBlueprint> InBlueprint )
+		{
+			if (UBlueprint* BlueprintToEdit = InBlueprint.Get())
+			{
+				// Open the blueprint
+				GEditor->EditObject( BlueprintToEdit );
+			}
+		}
+	};
+
+	TSharedRef<SVerticalBox> DialogContents = SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.Padding(0, 0, 0, 16)
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrors", "One or more blueprints has an unresolved compiler error, are you sure you want to Play in Editor?"))
+		];
+
+	for (UBlueprint* Blueprint : ErroredBlueprints)
+	{
+		TWeakObjectPtr<UBlueprint> BlueprintPtr = Blueprint;
+
+		DialogContents->AddSlot()
+			.AutoHeight()
+			.HAlign(HAlign_Left)
+			[
+				SNew(SHyperlink)
+				.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
+				.OnNavigate_Static(&Local::OnHyperlinkClicked, BlueprintPtr)
+				.Text(FText::FromString(Blueprint->GetName()))
+				.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"))
+			];
+	}
+
+	DialogContents->AddSlot()
+		.Padding(0, 16, 0, 0)
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrorsDelayedOpen", "Clicked blueprints will open once this dialog is closed."))
+		];
+
+	FText DialogTitle = NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrorsTitle", "Blueprint Compilation Errors");
+
+	FText OKText = NSLOCTEXT("PlayInEditor", "PrePIE_OkText", "Play in Editor");
+	FText CancelText = NSLOCTEXT("Dialogs", "EAppReturnTypeCancel", "Cancel");
+
+	TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
+		.Title(DialogTitle)
+		.IconBrush("NotificationList.DefaultMessage")
+		.DialogContent(DialogContents)
+		.Buttons( { SCustomDialog::FButton(OKText), SCustomDialog::FButton(CancelText) } );
+
+	int ButtonPressed = CustomDialog->ShowModal();
+	return ButtonPressed == 0;
+}
+
 void UEditorEngine::PlayInEditor( UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides )
 {
 	// Broadcast PreBeginPIE before checks that might block PIE below (BeginPIE is broadcast below after the checks)
@@ -2357,17 +2422,9 @@ void UEditorEngine::PlayInEditor( UWorld* InWorld, bool bInSimulateInEditor, FPl
 
 	if (ErroredBlueprints.Num() && !GIsDemoMode)
 	{
-		FString ErroredBlueprintList;
-		for (UBlueprint* Blueprint : ErroredBlueprints)
-		{
-			ErroredBlueprintList += FString::Printf(TEXT("\n   %s"), *Blueprint->GetName());
-		}
-
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("ErrorBlueprints"), FText::FromString(ErroredBlueprintList));
-
 		// There was at least one blueprint with an error, make sure the user is OK with that.
-		const bool bContinuePIE = EAppReturnType::Yes == FMessageDialog::Open( EAppMsgType::YesNo, FText::Format( NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrors", "One or more blueprints has an unresolved compiler error, are you sure you want to Play in Editor?{ErrorBlueprints}"), Args ) );
+		bool bContinuePIE = ShowBlueprintErrorDialog( ErroredBlueprints );
+
 		if ( !bContinuePIE )
 		{
 			FMessageLog("BlueprintLog").Open(EMessageSeverity::Warning);
@@ -3269,12 +3326,17 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 						ViewportOverlayWidgetRef
 					];
 
+				static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
+				const EAlphaChannelMode::Type PropagateAlpha = EAlphaChannelMode::FromInt(CVarPropagateAlpha->GetValueOnGameThread());
+				const bool bIgnoreTextureAlpha = (PropagateAlpha != EAlphaChannelMode::AllowThroughTonemapper);
+
 				PieViewportWidget = 
 					SNew( SViewport )
 						.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 						.EnableGammaCorrection( false )// Gamma correction in the game is handled in post processing in the scene renderer
 						.RenderDirectlyToWindow( bRenderDirectlyToWindow )
 						.EnableStereoRendering( bEnableStereoRendering )
+						.IgnoreTextureAlpha(bIgnoreTextureAlpha)
 						[
 							GameLayerManagerRef
 						];
@@ -3311,8 +3373,12 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 
 							if (index <= 0)
 							{
-								LevelEditorPlaySettings->NewWindowPosition.X = FPlatformMath::RoundToInt(PIEWindowPos.X);
-								LevelEditorPlaySettings->NewWindowPosition.Y = FPlatformMath::RoundToInt(PIEWindowPos.Y);
+								// only override the window position if the window isn't being centered
+								if (!LevelEditorPlaySettings->CenterNewWindow)
+								{
+									LevelEditorPlaySettings->NewWindowPosition.X = FPlatformMath::RoundToInt(PIEWindowPos.X);
+									LevelEditorPlaySettings->NewWindowPosition.Y = FPlatformMath::RoundToInt(PIEWindowPos.Y);
+								}
 							}
 							else
 							{
@@ -3363,9 +3429,6 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 				ViewportClient->SetViewportFrame(SlatePlayInEditorSession.SlatePlayInEditorWindowViewport.Get());
 				// Mark the viewport as PIE viewport
 				ViewportClient->Viewport->SetPlayInEditorViewport( ViewportClient->bIsPlayInEditorViewport );
-
-				// Ensure the window has a valid size before calling BeginPlay
-				PieWindow->ReshapeWindow(PieWindow->GetPositionInScreen(), FVector2D(NewWindowWidth, NewWindowHeight));
 
 				// Change the system resolution to match our window, to make sure game and slate window are kept syncronised
 				FSystemResolution::RequestResolutionChange(NewWindowWidth, NewWindowHeight, EWindowMode::Windowed);

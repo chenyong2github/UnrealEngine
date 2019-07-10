@@ -3,6 +3,7 @@ Title:Exponential Height Fog User Guide
 Crumbs: %ROOT%, Engine, Engine/Actors, Engine/Actors/FogEffects
 Description:Guide to creating height-based, distance fog in levels.
 topic-image:heightfog_topic.png
+tags:overview,fog effects,exponential height fog
 
 
 
@@ -35,6 +36,7 @@ Positioning the Exponential Height Fog Actor will determine the height of the fo
 
 In the Height Fog section, you can edit the following properties related to the component:
 
+[REGION:simpletable]
 |**Property** | **Description** |
 |---|---|
 | **Fog Density** | This is the global density factor, which can be thought of as the fog layer's thickness.|
@@ -48,11 +50,7 @@ In the Height Fog section, you can edit the following properties related to the 
 | **Visible** | Controls primary fog visibility. |
 | **Actor Hidden in Game** | Whether to hide the fog in game. |
 | **Editor Billboard Scale** | The scale to apply to any billboard components in editor builds. |
-
-
-
-
-
+[/REGION]
 
 ## Animating Exponential Height Fog
 

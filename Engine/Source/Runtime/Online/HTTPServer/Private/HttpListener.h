@@ -118,6 +118,4 @@ private:
 	static constexpr uint32 ListenerConnectionBacklogSize = 16;
 	/** Maximum send buffer size */
 	static constexpr uint32 ListenerBufferSize = 512 * 1024;
-	/** The interface to bind to */
-	static constexpr uint32 ListenerInterfaceAddress = 0x0;
 };

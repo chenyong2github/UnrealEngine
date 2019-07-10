@@ -1,14 +1,15 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:6412401
 Availability:Public
 Title:动画混合模式
-Crumbs:%ROOT%, Engine, Engine/Animation
 Description:各种动画姿势和过渡之间的不同混合功能的概述。  
-version:4.11
-Related:Engine\Animation\StateMachines\TransitionRules
-Related:Engine\Animation\StateMachines
-Related:Engine/UI/CurveEditor
-Related:Engine/Basics/Distributions
-Related:Engine/Animation/AnimMontage
+version: 4.11
+tags:Animation
+tags:Animation Features
+Related: Engine\Animation\StateMachines\TransitionRules
+Related: Engine\Animation\StateMachines
+Related: Engine/UI/CurveEditor
+Related: Engine/Basics/Distributions
+Related: Engine/Animation/AnimMontage
 Topic-image:AnimationgBlendModes_topic.png
 
 
@@ -31,7 +32,6 @@ Topic-image:AnimationgBlendModes_topic.png
 [/PARAMLITERAL]
 [/OBJECT]
 
-(#BlendModeTypes)
 ## 混合模式类型
 
 您可以选择许多不同的混合功能：线性、三次、三次厄尔密、正弦、二次、圆弧、指数和定制。 

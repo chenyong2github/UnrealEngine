@@ -1,0 +1,109 @@
+Availability: Public
+Title: Oculus Rift Quick Start
+Description: Instructions on setting up and launching UE4 projects with the Oculus Rift.
+Type: quick start
+Version: 4.17
+Parent: Platforms/VR/OculusVR/OculusRift
+Tags: VR
+Tags: Getting Started
+Tags: Oculus Rift
+topic-image: oculus_qs_topic.png
+Order: 8
+
+[TOC (start:2 end:2)]
+
+![](Oculus_Topic_Image.png)
+
+### Goals
+
+The Oculus Quick Start will walk you through setting up your computer and your Oculus Rift to be used with Unreal Engine 4 (UE4).
+
+### Objectives
+
+*   Download and install the needed software for the Oculus Rift Head Mounted Display (HMD) to work with your development PC.
+
+*   Create a new UE4 project that is targeted towards Oculus Rift VIrtual Reality (VR) development.
+
+*   Setting up the required project settings so your project can be used with the Oculus Rift VR HMD.
+
+## 1 - Oculus Rift Initial Setup
+
+In the following section, we will take a look at what software you need to install so that your Oculus Rift will work with Unreal Engine 4 (UE4).
+
+[REGION:note]
+You will need to be connected to the internet for 30 to 60 minutes while the Oculus runtimes are installing.
+[/REGION]
+    
+
+1.  Visit the [Oculus Setup page](https://www.oculus.com/setup/)[](https://www.oculus.com/en-us/setup/) and download the Oculus runtimes by clicking on the **Start Download** button in the center of the page.  
+    ![](OR_Download_Runtimes_00.png)
+
+1.  Once the **Oculus Setup** executable has finished downloading, double click on it to begin the install process.   
+    ![](Oculus_Rift_Exe_00.png "Oculus_Rift_Exe_00.png") 
+    [REGION:note]
+    During the install process, you will be asked to install device software from **Oculus VR, LLC**. When this is displayed, press the **Install** button to continue the installation.  
+    ![](Rift_Device_Software_Install_00.png)
+    [/REGION]
+    
+
+### End Result
+
+When the Oculus Rift software has completed installing, open the Oculus program and then go to the **Devices** tab. If everything has been setup correctly the Devices tab should look similar to the following image:  
+  ![](Oculus_Rift_DevicesTab_00.png "Oculus_Rift_DevicesTab_00.png")
+
+## 2 - Testing out the Rift and UE4
+
+In the following section, we will go over How To set up a new Unreal Engine 4 (UE4) project to work with the Oculus Rift.
+
+1.  Create a new blank **Blueprint** project with hardware set to **Mobile / Tablet**, graphics set to **Scalable 3D or 2D** and **No Starter Content**.
+    [REGION:lightbox]
+    [![](Rift_New_Project_00.png)(w:555)](Rift_New_Project_00.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Once UE4 has launched, go to the **Main Menu** and change the **Play** option from the default of **Selected Viewport** to **VR Preview**, pressing VR Preview to launch the level.  
+    ![](Rift_VR_Preview_00.png "Rift_VR_Preview_00.png")
+
+### End Result
+
+When the VR Preview launches, put on your HMD and you should now see the basic level being displayed. You should also have the ability to rotate your head around in any direction like in the video below.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 4xuNrwS3o-c
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 3 - On Your Own!
+
+Here are some additional resources that provide useful information for developing VR projects inside of Unreal Engine 4.
+
+### Documentation
+
+*   [Virtual Reality Development](Platforms/VR)
+    *   [VR Cheat Sheet](Platforms/VR/DevelopVR/CheatSheet)
+    
+    *   [Oculus Rift Best Practices](Platforms/VR/OculusVR/OculusRift/BestPractices)
+
+*   [Oculus Documentation](https://developer.oculus.com/documentation/)
+    *   [User Guide](https://support.oculus.com/857827607684748/)
+    
+    *   [Developer Guide](https://developer.oculus.com/documentation/unreal/latest/concepts/unreal-engine/)
+
+### Content to Try
+
+[REGION:imagetable]
+| [![](store_CouchKnights_screenshot_3.png)(w:420)](https://www.unrealengine.com/marketplace/couch-knights) | [![](store_Showdown_screenshot_5.png)(w:420)](https://www.unrealengine.com/marketplace/showdown-demo) |
+| ------------ | ---------------- |
+| CouchKnights | Showdown |
+| [![](store_VREditor_screenshot_5.png)(w:420)](Engine/Editor/VR) ||
+| VR Mode ||
+[/REGION]

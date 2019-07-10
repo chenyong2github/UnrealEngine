@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4357683
+INTSourceChangelist:4932321
 Availability: Public
 Crumbs: 
 Title: 액션 RPG 의 게임플레이 어빌리티 
@@ -8,6 +8,7 @@ Version: 4.20
 Parent: Resources/SampleGames/ARPG
 Order: 1
 Tags: 
+topic-image:GameplayAbilitiesinActionRPG.png
 
 
 **Action RPG (ARPG)** 샘플은 **Gameplay Abilities** (게임플레이 어빌리티) 플러그인을 사용하여 플레이어와 적 공격 및 생명력과 마나같은 스탯 수정을 처리했습니다. 이 문서는 [](Gameplay/GameplayAbilitySystem) 을 사용한 이유와 ARPG 게임 전용 기능을 추가하기 위해 커스터마이징한 방법을 설명합니다. Ability System (어빌리티 시스템)을 이루는 각 부분을 세부적으로 설명하는 문서 링크도 첨부합니다. 이 글의 문서 목록 순서대로 읽으면 모든 시스템이 함께 작동하는 방식을 보다 잘 이해할 수 있습니다. 

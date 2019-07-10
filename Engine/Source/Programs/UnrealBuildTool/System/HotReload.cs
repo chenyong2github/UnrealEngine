@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
@@ -120,6 +121,44 @@ namespace UnrealBuildTool
 
 	static class HotReload
 	{
+		/// <summary>
+		/// Checks whether a live coding session is currently active for a target. If so, we don't want to allow modifying any object files before they're loaded.
+		/// </summary>
+		/// <param name="Makefile">Makefile for the target being built</param>
+		/// <returns>True if a live coding session is active, false otherwise</returns>
+		public static bool IsLiveCodingSessionActive(TargetMakefile Makefile)
+		{
+			// Find the first output executable
+			FileItem Executable = Makefile.OutputItems.FirstOrDefault(x => x.HasExtension(".exe"));
+			if(Executable != null)
+			{
+				// Build the mutex name. This should match the name generated in LiveCodingModule.cpp.
+				StringBuilder MutexName = new StringBuilder("Global\\LiveCoding_");
+				for(int Idx = 0; Idx < Executable.AbsolutePath.Length; Idx++)
+				{
+					char Character = Executable.AbsolutePath[Idx];
+					if(Character == '/' || Character == '\\' || Character == ':')
+					{
+						MutexName.Append('+');
+					}
+					else
+					{
+						MutexName.Append(Character);
+					}
+				}
+				Log.TraceLog("Checking for live coding mutex: {0}", MutexName);
+
+				// Try to open the mutex
+				Mutex Mutex;
+				if(Mutex.TryOpenExisting(MutexName.ToString(), out Mutex))
+				{
+					Mutex.Dispose();
+					return true;
+				}
+			}
+			return false;
+		}
+
 		/// <summary>
 		/// Checks if the editor is currently running and this is a hot-reload
 		/// </summary>

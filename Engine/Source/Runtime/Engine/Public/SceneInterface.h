@@ -38,7 +38,7 @@ enum EBasePassDrawListType
  * An interface to the private scene manager implementation of a scene.  Use GetRendererModule().AllocateScene to create.
  * The scene
  */
-class FSceneInterface
+class ENGINE_VTABLE FSceneInterface
 {
 public:
 	FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel)
@@ -168,6 +168,12 @@ public:
 	virtual void AddPrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) {}
 	virtual void RemovePrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) {}
 
+	/** Add a runtime virtual texture object to the scene. */
+	virtual void AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) {}
+
+	/** Removes a runtime virtual texture object from the scene. */
+	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) {}
+
 	/** 
 	 * Retrieves primitive uniform shader parameters that are internal to the renderer.
 	 */
@@ -278,7 +284,7 @@ public:
 	 * Looks up the SpeedTree uniform buffer for the passed in vertex factory.
 	 * @param VertexFactory - The vertex factory registered for SpeedTree.
 	 */
-	virtual FUniformBufferRHIParamRef GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const = 0;
+	virtual FRHIUniformBuffer* GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const = 0;
 
 	/**
 	 * Release this scene and remove it from the rendering thread

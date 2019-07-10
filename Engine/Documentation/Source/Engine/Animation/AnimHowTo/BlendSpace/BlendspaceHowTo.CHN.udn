@@ -1,10 +1,9 @@
-﻿INTSourceChangelist:4326187
+﻿INTSourceChangelist:6413515
 Availability: Public
-Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Title:基于运动的混合
 Description:用于混合角色的行走和慢跑动画的混合空间示例。 
 Type: how-to
-skilllevel: Intermediate
+skilllevel:Advanced
 version: 4.16
 Parent: Engine\Animation\AnimHowTo
 Order: 1
@@ -24,8 +23,6 @@ Related: Engine/Animation/Skeleton
 在本操作指南中，我们将使用一个混合空间，根据角色的运动速度和运动方向来混合行走和慢跑动画。 
 
 ![](EndResultImage.png)
-
-(#steps)
 
 ## 步骤
 
@@ -164,8 +161,6 @@ Related: Engine/Animation/Skeleton
 
 1.	 单击 **编译（Compile）**，然后单击工具栏编辑器按钮中的 **播放（Play）**。 
 
-
-(#endresult)
 
 ## 最终结果
 

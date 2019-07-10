@@ -1,0 +1,194 @@
+﻿INTSourceChangelist:6427553
+Availability: Public
+Title: Unreal Studio 4.19 Release Notes
+Description: Release notes for the Unreal Studio offering for Unreal Engine 4.19
+Parent: Studio/Builds
+Version: 4.19
+Tags: Unreal Studio
+Tags: Release Notes
+Order: 25
+
+
+## Unreal Datasmith
+
+*Important details:*
+
+1.  *Because of important format changes, *.udatasmith files exported with previous versions (0.17 and before) will no longer import correctly in Unreal.*
+
+1.  *The 3ds Max exporter plugin is distributed and must be installed separately.  Consult the* [*installation guide for details*](Studio/Datasmith/HowTo/DownloadandInstall)
+
+### What is new for Datasmith
+
+#### Improvements:
+
+##### Photometric Lighting
+
+Unreal 4.19 supports lighting units and asymmetric IES profiles. Datasmith should now transport this information from 3ds Max correctly.
+
+Now, with similar lighting conditions (Photometric Lights or Vray IES lights and Physical Camera + Exposure), results in 3ds max and Unreal should be very similar.
+
+**New Project Template**
+
+The new Product Viewer template is available for Unreal Studio projects, which enables users to see models in VR, AR, or on a PC screen and perform basic viewing interactions. For additional information view the [Template Usage Guide.](Studio/UnrealStudioProjectTemplates)
+
+**Exporter Improvements**
+
+The 3Ds Max exporter has greatly improved performance with faster scene parsing, and visual feedback with a progress bar during the export.
+
+#### Other fixes (Datasmith for Autodesk 3ds Max)
+
+*   Crash on export due to Sky light
+
+*   Objects misplaced when non uniform xform and custom pivot
+
+*   Exporter plugin fails to install on clean machine
+
+*   3Ds Max becomes not responsive on export
+
+*   Pendant lights coming from 3DsMax are flipped in UE using Datasmith
+
+*   Color Correction Results Incorrect
+
+*   Really High HDR images are now resized correctly by exporter
+
+*   Environment Map in Vray Skydome not collected by exporter
+
+*   Unreal Editor Crashes On Import At Compiling Shaders
+
+*   Diffuse UV coordinates channel ID for maps import incorrectly in Unreal
+
+*   Meshes are removed from the StaticMeshComponent of the Mesh Actors
+
+*   Exporting from Max hangs
+
+*   Incorrect IES files brightness
+
+*   Crash on IGES file import
+
+*   Incorrect Export of Pivot Positions
+
+*   Cannot delete folders created by DS imports
+
+*   Wrong path used when importing Datasmith file from UI menu
+
+*   Datasmith doesn't import in the selected folder
+
+*   The sky isn't under the root actor when import through Datasmith
+
+*   Opening a Material Crashes the Editor
+
+*   Packaging won't work If Datasmith is enabled
+
+*   Packaged projects crashes with Datasmith lights
+
+*   Can't undo transforms done on hierarchies created by DS
+
+*   Crash when right-clicking mesh in Content Browser after disabling Datasmith plugins
+
+*   Editor crashes opening an Unreal Datasmith Project with Unreal Studio plugin installed
+
+#### Other fixes (Datasmith CAD Importer)
+
+*   CAD importer crash using file with zero polygons objects
+
+*   Color not imported from 3dm files
+
+*   Rhino Material issues with transparency, textures, emission and ambient color
+
+*   Cannot open some SolidWorks 2017 assembly files
+
+*   Inverted faces after CAD import
+
+*   Degenerate faces after CAD import
+
+*   Cannot delete material from content browser after CAD import
+
+*   Cleanup memory leaks on CAD import
+
+*   Duplicate material instances for colors after assembly import
+
+*   Wrong tessellation after import
+
+*   Cannot open large SLDASM assembly file
+
+*   Rhino material issues with basic textures and advanced settings
+
+#### Other fixes (Datasmith Importer with CityEngine)
+
+*   CityEngine crash - Array index out of bounds: -1 from an array of size 1 | UE4Editor_Core!FString::~FString()
+
+*   Importing a Datasmith CityEngine scene with 0.17 crashes UE
+
+#### Other fixes (Unreal Studio)
+
+*   Can’t add new c++ class to an unreal studio project
+
+*   Controllers not connected with VR preview
+
+#### Other fixes (Scripting and Python For Unreal)
+
+*   Cannot get project content directory in Python
+
+*   Crash in unreal.EditorAssetLibrary.make_directory python method
+
+*   Object not removed from datasmith scene after remove\_mesh\_actor
+
+## Updates to Datasmith v0.18 for Unreal Engine 4.19
+
+#### Version 0.182 - May 2, 2018
+
+Fixes
+
+*   Fixed an editor crash that could occur when deleting materials imported with Datasmith.
+
+#### Version 0.181 - April 19, 2018
+
+Fixes
+
+*   Avoid slow import and missing parts of JT files by temporally disabling metadata extraction.
+
+*   Improve memory usage when importing SolidWorks models.
+
+*   Product Viewer template use default plugins set to avoid full project compilation.
+
+#### Version 0.18 (4) - March 14, 2018
+
+Updates
+
+*   Datasmith version for the official UE 4.19.0 launch. No additional changes.
+
+#### Version 0.18 (3) - March 05, 2018
+
+Fixes
+
+*   Fixed the recent issue with being unable to import CAD files
+
+*   Fixed being unable to get the project content directory in Python
+
+*   Fixed some Rhino issues with textures and advanced settings
+
+*   Fixed objects being displaced when using a non-uniform xform and custom pivot (3ds Max)
+
+*   Fixed being unable to add a new C++ class to a Studio project
+
+*   Fixed Controllers not being connected with VR preview
+
+#### Version 0.18 (2) February 21, 2018
+
+Updates
+
+*   The new Product Viewer template is now available when you create a new Studio project. The template grants the ability to use Unreal as a design review tool,  
+    allowing you to see models in VR, AR, or on a PC screen and perform basic viewing interactions.
+
+#### Version 0.18 (1) - February 7, 2018
+
+Updates
+
+*   The 3Ds Max exporter has greatly improved performance with faster scene parsing, and visual feedback with a progress bar during the export.
+
+Fixes
+
+*   Fixed 3Ds Max becoming non responsive on export
+
+*   Fxied Pendant lights coming from 3DsMax are flipped in UE using Datasmith
+

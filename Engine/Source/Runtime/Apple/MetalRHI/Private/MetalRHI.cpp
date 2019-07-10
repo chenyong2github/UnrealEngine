@@ -23,12 +23,6 @@
 DEFINE_LOG_CATEGORY(LogMetal)
 
 bool GIsMetalInitialized = false;
-bool GMetalSupportsHeaps = false;
-bool GMetalSupportsIndirectArgumentBuffers = false;
-bool GMetalSupportsTileShaders = false;
-bool GMetalSupportsStoreActionOptions = false;
-bool GMetalSupportsDepthClipMode = false;
-bool GMetalCommandBufferHasStartEndTimeAPI = false;
 
 FMetalBufferFormat GMetalBufferFormats[PF_MAX];
 
@@ -358,23 +352,6 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	
 #endif
 
-	if (FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 13, 0}, (uint32[]){11, 0, 0}, (uint32[]){11, 0, 0}))
-	{
-		GMetalSupportsIndirectArgumentBuffers = true;
-		GMetalSupportsStoreActionOptions = true;
-	}
-	if (!PLATFORM_MAC && FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){0, 0, 0}, (uint32[]){11, 0, 0}, (uint32[]){11, 0, 0}))
-	{
-		GMetalSupportsTileShaders = true;
-	}
-	if (FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 11, 0}, (uint32[]){11, 0, 0}, (uint32[]){11, 0, 0}))
-	{
-		GMetalSupportsDepthClipMode = true;
-	}
-	if (FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 13, 0}, (uint32[]){10, 3, 0}, (uint32[]){10, 3, 0}))
-	{
-		GMetalCommandBufferHasStartEndTimeAPI = true;
-	}
 	
 	GRHISupportsCopyToTextureMultipleMips = true;
 		
@@ -600,6 +577,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GMetalBufferFormats[PF_ETC2_RGBA			] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
 	GMetalBufferFormats[PF_R32G32B32A32_UINT	] = { mtlpp::PixelFormat::RGBA32Uint, EMetalBufferFormat::RGBA32Uint };
 	GMetalBufferFormats[PF_R16G16_UINT			] = { mtlpp::PixelFormat::RG16Uint, EMetalBufferFormat::RG16Uint };
+	GMetalBufferFormats[PF_R32G32_UINT			] = { mtlpp::PixelFormat::RG32Uint, EMetalBufferFormat::RG32Uint };
 	GMetalBufferFormats[PF_ASTC_4x4             ] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
 	GMetalBufferFormats[PF_ASTC_6x6             ] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
 	GMetalBufferFormats[PF_ASTC_8x8             ] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
@@ -618,7 +596,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GMetalBufferFormats[PF_PLATFORM_HDR_1		] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
 	GMetalBufferFormats[PF_PLATFORM_HDR_2		] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
 	GMetalBufferFormats[PF_NV12					] = { mtlpp::PixelFormat::Invalid, EMetalBufferFormat::Unknown };
-
+		
 	// Initialize the platform pixel format map.
 	GPixelFormats[PF_Unknown			].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
 	GPixelFormats[PF_A32B32G32R32F		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA32Float;
@@ -627,6 +605,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GPixelFormats[PF_G16				].PlatformFormat	= (uint32)mtlpp::PixelFormat::R16Unorm;
 	GPixelFormats[PF_R32G32B32A32_UINT	].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA32Uint;
 	GPixelFormats[PF_R16G16_UINT		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG16Uint;
+	GPixelFormats[PF_R32G32_UINT		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG32Uint;
 		
 #if PLATFORM_IOS
     GPixelFormats[PF_DXT1				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
@@ -677,16 +656,9 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		GPixelFormats[PF_FloatR11G11B10		].Supported			= true;
 	}
 	
-	if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesStencilView) && FMetalCommandQueue::SupportsFeature(EMetalFeaturesCombinedDepthStencil) && !FParse::Param(FCommandLine::Get(),TEXT("metalforceseparatedepthstencil")))
-	{
 		GPixelFormats[PF_DepthStencil		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float_Stencil8;
 		GPixelFormats[PF_DepthStencil		].BlockBytes		= 4;
-	}
-	else
-	{
-		GPixelFormats[PF_DepthStencil		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float;
-		GPixelFormats[PF_DepthStencil		].BlockBytes		= 4;
-	}
+
 	GPixelFormats[PF_DepthStencil		].Supported			= true;
 	GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float;
 	GPixelFormats[PF_ShadowDepth		].BlockBytes		= 4;
@@ -848,23 +820,23 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 			if(![[NSFileManager defaultManager] fileExistsAtPath:TempDir])
 			{
 				[[NSFileManager defaultManager] createDirectoryAtPath:TempDir
-										  withIntermediateDirectories:YES
-														   attributes:nil
-																error:&Err];
+											withIntermediateDirectories:YES
+															 attributes:nil
+																  error:&Err];
 			}
 			
 			NSDirectoryEnumerator<NSString *> * Enum = [[NSFileManager defaultManager] enumeratorAtPath:DstPath];
 			for (NSString* Path in Enum)
 			{
 				[Enum skipDescendents];
-				
+
 				NSString* Dest = [NSString stringWithFormat:@"%@/%@", TempDir, Path];
 				if(![[NSFileManager defaultManager] fileExistsAtPath:Dest])
 				{
 					NSString* Src = [NSString stringWithFormat:@"%@/%@", DstPath, Path];
 					[[NSFileManager defaultManager] copyItemAtPath:Src
-															toPath:Dest
-															 error:&Err];
+																   toPath:Dest
+																	error:&Err];
 				}
 			}
 		}
@@ -882,7 +854,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (ImmediateContext.Profiler)
 		ImmediateContext.Profiler->BeginFrame();
 #endif
-	
+		
 	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
 	FRenderResource::InitPreRHIResources();	
 	

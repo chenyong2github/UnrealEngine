@@ -372,7 +372,7 @@ void AOUpsamplePS(
 	,out float4 OutSceneColor : SV_Target0
 	)
 {
-	float3 BentNormal = UpsampleDFAO(UVAndScreenPos);
+	float3 BentNormal = UpsampleDFAO(UVAndScreenPos.xy, CalcSceneDepth(UVAndScreenPos.xy));
 
 #if MODULATE_SCENE_COLOR
 	float Visibility = lerp(length(BentNormal), 1.0f, MinIndirectDiffuseOcclusion);

@@ -9,7 +9,6 @@ Parent:Engine/Actors
 type:overview
 order:1
 topic-image:actorplacement_topic.png
-track:LevelDesign_Beginner|8
 
 
 At the most fundamental level, an **Actor** is any Object that you can place in a level and this page will show you the various methods in which you can place those Actors inside your levels. 

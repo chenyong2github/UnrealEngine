@@ -607,6 +607,21 @@ float UMotionControllerComponent::GetParameterValue(FName InName, bool& bValueFo
 	return 0.f;
 }
 
+FVector UMotionControllerComponent::GetHandJointPosition(int jointIndex, bool& bValueFound)
+{
+	FVector outPosition;
+	if (InUseMotionController && InUseMotionController->GetHandJointPosition(MotionSource, jointIndex, outPosition))
+	{
+		bValueFound = true;
+		return outPosition;
+	}
+	else
+	{
+		bValueFound = false;
+		return FVector::ZeroVector;
+	}
+}
+
 
 void UMotionControllerComponent::OnDisplayModelLoaded(UPrimitiveComponent* InDisplayComponent)
 {

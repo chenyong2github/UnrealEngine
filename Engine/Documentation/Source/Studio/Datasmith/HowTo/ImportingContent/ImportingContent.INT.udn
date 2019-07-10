@@ -1,0 +1,74 @@
+Availability: Public
+Crumbs: 
+Title: Importing Datasmith Content into Unreal Engine 4
+Description: Detailed instructions on how to use Datasmith to bring files that you've created in supported 3D design applications into Unreal.
+Type: how-to
+Version: 4.22
+Parent: Studio/Datasmith/HowTo
+Order: 2
+Tags: Getting Started
+Tags: how to
+Tags: Datasmith
+Tags: overview
+Tags: beginner
+topic-image: datasmith-import-topic.png
+SkillLevel: Beginner
+Related: Studio/Datasmith/Overview
+Related: Studio/Datasmith/ImportOptions
+Related: Studio/Datasmith/HowTo/SettingUpUnrealProject
+Related: Studio/Datasmith/Overview/CustomizingImportProcess
+
+
+This page describes how to use Datasmith to import content from a supported 3D design application or file format into Unreal.
+
+[REGION:note]
+**Prerequisites:**
+
+*   You need to have the Datasmith Plugin installed for the version of Unreal Engine you're using. See [Downloading Unreal Engine 4 and Installing Datasmith](Studio/Datasmith/HowTo/DownloadandInstall).
+
+*   You must be working in an Unreal Studio project in order for Datasmith to import your content. See [Setting Up an Unreal Project to Use Datasmith](Studio/Datasmith/HowTo/SettingUpUnrealProject).
+
+*   For most file formats supported by Datasmith, you don't need any additional software to be installed on your computer. All you need is the file that you want to import. However, the following file formats have specific requirements:
+    *   **.wire -** In order to use Datasmith to import a *.wire* file, you must have a version of Autodesk Alias AutoStudio installed that is compatible with your *.wire* file.
+[/REGION]
+[REGION:tip]
+You can also use Python to automate the process of importing *.udatasmith* and CAD files. For details, see [Customizing the Datasmith Import Process](Studio/Datasmith/Overview/CustomizingImportProcess).
+[/REGION]
+
+1.  In the Unreal Editor, open the Project that you want to import your Datasmith content into.
+
+2.  If you want to bring your content into an existing Level in your Project, open it now. Otherwise, create a new Level or just use the default one.
+
+3.  From the main toolbar, find the **Datasmith** button:  
+    ![The Datasmith importer in the Toolbar](datasmith-toolbar-422.png "The Datasmith importer in the Toolbar")
+
+4.  Use the drop-down arrow to choose the type of Datasmith importer you need to use:  
+    ![List of Datasmith importers](datasmith-toolbar-importers-422.png "List of Datasmith importers")  
+    This choice depends on the type of source file you are importing.  
+    
+    *   If you have a *.udatasmith* file that you exported from 3ds Max or SketchUp, choose **Datasmith**.
+    
+    *   If you have a *.gltf* file, choose **GLTF**.
+    
+    *   If you have an *.fbx* file that you exported from VRED or Deltagen, choose **VRED** or **Deltagen**.
+    
+    *   For most other file formats, choose **CAD**.
+    
+    [REGION:note]
+    For a complete list, see [Datasmith Supported Software and File Types](Studio/Datasmith/SupportedSoftwareAndFileTypes).
+    [/REGION]
+
+5.  In the **Import** window, browse to and select the file you want to import. Click **Open**.  
+    ![Choose a file to import](DS_Import_2.png "Choose a file to import")
+
+6.  Choose a folder in your Project content for Datasmith to put the newly imported assets.  
+    ![Choose a content folder](DS_Import_3.png "Choose a content folder")
+    [REGION:tip]
+    If you want to create a new folder for your Datasmith content, right-click an existing folder in this window.
+    [/REGION]
+
+7.  Use the **Datasmith Import Options** window to select the types of content that you want to import from your source file, and set optional additional parameters that control the import process.  
+    ![Set import options](UnrealDSImportOptions-1.png "Set import options")  
+    The options that you can set here depend on the type of file you're importing. For details, see [Datasmith Import Options](Studio/Datasmith/ImportOptions).
+
+8.  Click **Import**. Datasmith reads your source file, creates new assets in your Project, and places the Datasmith Scene into your current Level. For details on this process, see the [Datasmith Overview](Studio/Datasmith/Overview).

@@ -31,6 +31,6 @@ version:4.9
 ## エンジンのビルドの作成
 
 [REGION:buttonlist]
-* [](Programming/Development/BuildGraph "%Programming/Development/BuildGraph:description%")
+* [](Programming/BuildTools/AutomationTool/BuildGraph "%Programming/BuildTools/AutomationTool/BuildGraph:description%")
 * [](Programming/Development/InstalledBuildReference "%Programming/Development/InstalledBuildReference:description%")
 [/REGION]

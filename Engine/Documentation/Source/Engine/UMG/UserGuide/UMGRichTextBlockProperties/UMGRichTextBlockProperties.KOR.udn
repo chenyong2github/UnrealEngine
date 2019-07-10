@@ -1,0 +1,482 @@
+INTSourceChangelist:6622979
+Availability: Public
+Crumbs: 
+Title: UMG 리치 텍스트 블록 프로퍼티
+Description: UMG Rich Text Block 위젯에 사용되는 리치 텍스트 블록 및 데이터 테이블 애셋 프로퍼티 목록입니다.
+Type: 
+Version: 4.20
+Parent: Engine/UMG/UserGuide/UMGRichTextBlock
+Order: 
+Tags: UMG
+Tags: Rich Text Block
+
+
+Rich Text Block (리치 텍스트 블록) 위젯에 설정할 수 있는 프로퍼티의 레퍼런스 페이지입니다. 데이터 테이블 애셋에 사용되는 Rich Image Row 및 Rich Test Style Row 데이터 유형의 프로퍼티도 나열합니다.
+
+## 리치 텍스트 블록 프로퍼티
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+| [REGION:tablesection]**Slot** 슬롯 (캔버스 패널 슬롯)[/REGION]||
+| **Anchors** | 앵커 - [INCLUDE:#excerpt_0]|
+| **Alignment** | 정렬 - 위젯의 피벗 포인트입니다. 좌상단 (0,0) 에서 시작, 우하단 (1,1) 에서 끝납니다. 정렬점을 옮기면 위젯 원점을 옮길 수 있습니다. |
+| **Size To Content** | 크기를 콘텐츠에 - AutoSize 가 true 면, 위젯의 원하는 크기를 사용합니다. |
+| **ZOrder** | Z 순서 - 이 위젯 렌더링의 우선 순위를 나타냅니다. 값이 클 수록 나중에 렌더링되어 위에 보이며, 낮을 수록 먼저 그려 아래 보입니다. |
+| [REGION:tablesection]**Content** 콘텐츠[/REGION]||
+| **Text** | 텍스트 - 위젯에 표시할 텍스트입니다. |
+| [REGION:tablesection]**Appearance** 외형[/REGION]||
+| **Text Style Set** | 텍스트 스타일 세트 - 데이터 테이블 애셋을 저장하며, 리치 텍스트 데코레이터를 텍스트와 이미지 스타일에 사용할 수 있도록 해줍니다. |
+| [REGION:tablesection]**Decorator Classes** 데코레이터 클래스[/REGION]||
+| **Justification** | 맞춤 - 여백 포함 텍스트 정렬 방식을 설정합니다. |
+| **Margin** | 여백 - 텍스트 영역 가장자리의 여백 양을 설정합니다. |
+| **Line Height Percentage** | 줄 높이 퍼센티지 - 각 줄의 높이에 적용할 스케일을 설정합니다. |
+| [REGION:tablesection]**Wrapping** 줄바꿈[/REGION]||
+| **Auto Wrap Text** | 텍스트 자동 줄바꿈 - true 면 이 위젯에 계산된 가로 공간에 맞게 텍스트를 자동 줄바꿉니다. |
+| **Wrap Text At** | 텍스트 줄바꿈 위치 - 텍스트 너비가 이만큼을 초과하면 텍스트를 줄바꿉니다. 값이 0 또는 음수면 줄바꿈이 일어나지 않습니다. |
+| **Wrapping Policy** | 줄바꿈 정책 - [INCLUDE:#excerpt_1] |
+| [REGION:tablesection]**Behavior** 행동[/REGION]||
+| **Tool Tip Text** | 툴팁 텍스트 - 사용자가 위젯에 마우스 커서를 올릴 때 표시할 툴팁 텍스트입니다. |
+| **Is Enabled** | 활성화 여부 - 사용자가 위젯을 대화식으로 수정할 수 있는지 여부를 설정합니다. |
+| **Visibility** | 가시성 - [INCLUDE:#excerpt_2] |
+| **Render Opacity** | 렌더 불투명도 - 위젯의 불투명도입니다. |
+| **Tool Tip Widget** | 툴팁 위젯 - 사용자가 위젯 위에 마우스를 올리면 표시되는 툴팁 위젯입니다. |
+| **Cursor** | 커서 - [INCLUDE:#excerpt_3] |
+| [REGION:tablesection]**Render Transform** 렌더 트랜스폼[/REGION]||
+| **Transform** | 트랜스폼 - [INCLUDE:#excerpt_4] |
+| **Pivot** | 피벗 - 트랜스폼을 적용할 위치를 제어하는 렌더 트랜스폼 피벗입니다. 회전같은 작업이 일어나는 정규화 중심 좌표입니다. |
+| [REGION:tablesection]**Performance** 퍼포먼스[/REGION]||
+| **Is Volatile** | 휘발성 여부 - true 면, 위젯 또는 그 자손 지오메트리 또는 레이아웃 정보를 캐시에 저장하지 않습니다. 이 위젯이 매 프레임 변하지만 인밸리데이션 패널에 유지하려는 경우, 매 프레임 인밸리데이트하기 보다는 이 마킹을 하면, 인밸리데이션 패널이 실제 매번 캐시하는 것을 방지할 수 있습니다. |
+| [REGION:tablesection]**Clipping** 클리핑[/REGION]||
+| **Clipping** | 클리핑 - [INCLUDE:#excerpt_5] |
+| [REGION:tablesection]**Navigation** 내비게이션[/REGION]||
+| **Left** | 왼쪽 - [INCLUDE:#excerpt_6] |
+| **Right** | 오른쪽 - [INCLUDE:#excerpt_7] |
+| **Up** | 위 - [INCLUDE:#excerpt_8] |
+| **Down** | 아래 - [INCLUDE:#excerpt_9] |
+| **Next** | 다음 - [INCLUDE:#excerpt_10] |
+| **Previous** | 이전 - [INCLUDE:#excerpt_11] |
+| [REGION:tablesection]**Localization** 현지화[/REGION]||
+| **Text Shaping Method** | 텍스트 모양 메서드 - [INCLUDE:#excerpt_12] |
+| **Text Flow Direction** | 텍스트 흐름 방향 - [INCLUDE:#excerpt_13] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_13]
+이 위젯 안에 사용된 텍스트의 흐름 방향입니다. 설정하지 않으면, Get Default Text Flow Direction 에 설정된 기본 방향을 사용합니다.
+
+*   **Auto** 자동 \- 텍스트에서 각 단락의 흐름 방향을 자동 감지합니다.
+*   **Left to Right** 왼쪽에서 오른쪽 \- 텍스트가 왼쪽에서 오른쪽으로 흐릅니다.
+*   **Right to Left** 오른쪽에서 왼쪽 \- 텍스트가 오른쪽에서 왼쪽으로 흐릅니다.
+
+[/EXCERPT:excerpt_13]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_12]
+이 위젯 안에서 텍스트가 사용할 모양 결정 방법입니다. 설정하지 않으면 Get Default Text Shaping Method 에 설정된 기본값을 사용합니다.
+
+*   **Auto** 자동 \- 텍스트 읽기 방향에 따라 가장 빠른 모양 결정 방법을 자동 선택합니다 (Kerning Only (장식꼬리만) 또는 Full Shaping (전체 모양)). 왼쪽에서 오른쪽 텍스트는 Kerning Only 메서드를, 오른쪽에서 왼쪽 텍스트는 Full Shaping 메서드를 사용합니다.
+*   **Kerning Only** 장식꼬리만 \- 장식꼬리 데이터만 사용해서 가짜 모양을 만듭니다. Full Shaping 보다 빠를 수 있지만 복잡한 오른쪽에서 왼쪽 또는 양방향 글리프(예: 아랍어)는 올바르게 렌더링되지 않습니다. 텍스트 블록이 단순한 글리프(예: 숫자)만 표시할 때 최적화로 좋습니다.
+*   **Full Shaping** 전체 모양 \- 복잡한 오른쪽에서 왼쪽 또는 양방향 글리프(예; 아랍어)의 정확한 렌더링이 가능합니다. 모든 언어에 대해 합자 교체를 (예: 영어에서 결합된 "fi" 글리프) 수행합니다.
+
+[/EXCERPT:excerpt_12]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_11]
+이전을 사용할 때의 내비게이션을 정의합니다.
+
+*   **Escape** 탈출 \- 내비게이션이 이 위젯 경계를 넘어갈 수 있습니다.
+*   **Stop** 중지 \- 내비게이션이 이 위젯 경계에서 멈춥니다.
+*   **Wrap** 줄바꿈 \- 내비게이션이 이 오브젝트 반대 경계로 줄바꿉니다.
+*   **Explicit** 명시 \- 내비게이션이 특정 위젯으로 이동합니다.
+*   **Custom** 커스텀 \- 자체 또는 자손 내비게이션에서 어떤 위짓으로 갈지 결정하는 커스텀 함수입니다.
+
+[/EXCERPT:excerpt_11]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_10]
+다음을 사용할 때의 내비게이션을 결정합니다.
+
+*   **Escape** 탈출 \- 내비게이션이 이 위젯 경계를 넘어갈 수 있습니다.
+*   **Stop** 중지 \- 내비게이션이 이 위젯 경계에서 멈춥니다.
+*   **Wrap** 줄바꿈 \- 내비게이션이 이 오브젝트 반대 경계로 줄바꿉니다.
+*   **Explicit** 명시 \- 내비게이션이 특정 위젯으로 이동합니다.
+*   **Custom** 커스텀 \- 자체 또는 자손 내비게이션에서 어떤 위짓으로 갈지 결정하는 커스텀 함수입니다.
+*   **Custom Boundary** 커스텀 경계 \- 경계에 닿았을 때 어느 위젯으로 내비게이션할지 커스텀 함수로 결정할 수 있습니다.
+
+[/EXCERPT:excerpt_10]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+아래를 사용할 때의 내비게이션을 결정합니다.
+
+*   **Escape** 탈출 \- 내비게이션이 이 위젯 경계를 넘어갈 수 있습니다.
+*   **Stop** 중지 \- 내비게이션이 이 위젯 경계에서 멈춥니다.
+*   **Wrap** 줄바꿈 \- 내비게이션이 이 오브젝트 반대 경계로 줄바꿉니다.
+*   **Explicit** 명시 \- 내비게이션이 특정 위젯으로 이동합니다.
+*   **Custom** 커스텀 \- 자체 또는 자손 내비게이션에서 어떤 위짓으로 갈지 결정하는 커스텀 함수입니다.
+*   **Custom Boundary** 커스텀 경계 \- 경계에 닿았을 때 어느 위젯으로 내비게이션할지 커스텀 함수로 결정할 수 있습니다.
+
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_8]
+위를 사용할 때의 내비게이션을 정의합니다.
+
+*   **Escape** 탈출 \- 내비게이션이 이 위젯 경계를 넘어갈 수 있습니다.
+*   **Stop** 중지 \- 내비게이션이 이 위젯 경계에서 멈춥니다.
+*   **Wrap** 줄바꿈 \- 내비게이션이 이 오브젝트 반대 경계로 줄바꿉니다.
+*   **Explicit** 명시 \- 내비게이션이 특정 위젯으로 이동합니다.
+*   **Custom** 커스텀 \- 자체 또는 자손 내비게이션에서 어떤 위짓으로 갈지 결정하는 커스텀 함수입니다.
+*   **Custom Boundary** 커스텀 경계 \- 경계에 닿았을 때 어느 위젯으로 내비게이션할지 커스텀 함수로 결정할 수 있습니다.
+
+[/EXCERPT:excerpt_8]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+오른쪽을 사용할 때의 내비게이션을 정의합니다.
+
+*   **Escape** 탈출 \- 내비게이션이 이 위젯 경계를 넘어갈 수 있습니다.
+*   **Stop** 중지 \- 내비게이션이 이 위젯 경계에서 멈춥니다.
+*   **Wrap** 줄바꿈 \- 내비게이션이 이 오브젝트 반대 경계로 줄바꿉니다.
+*   **Explicit** 명시 \- 내비게이션이 특정 위젯으로 이동합니다.
+*   **Custom** 커스텀 \- 자체 또는 자손 내비게이션에서 어떤 위짓으로 갈지 결정하는 커스텀 함수입니다.
+*   **Custom Boundary** 커스텀 경계 \- 경계에 닿았을 때 어느 위젯으로 내비게이션할지 커스텀 함수로 결정할 수 있습니다.
+
+[/EXCERPT:excerpt_7]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_6]
+왼쪽을 사용할 때의 내비게이션을 정의합니다.
+
+*   **Escape** 탈출 \- 내비게이션이 이 위젯 경계를 넘어갈 수 있습니다.
+*   **Stop** 중지 \- 내비게이션이 이 위젯 경계에서 멈춥니다.
+*   **Wrap** 줄바꿈 \- 내비게이션이 이 오브젝트 반대 경계로 줄바꿉니다.
+*   **Explicit** 명시 \- 내비게이션이 특정 위젯으로 이동합니다.
+*   **Custom** 커스텀 \- 자체 또는 자손 내비게이션에서 어떤 위짓으로 갈지 결정하는 커스텀 함수입니다.
+*   **Custom Boundary** 커스텀 경계 \- 경계에 닿았을 때 어느 위젯으로 내비게이션할지 커스텀 함수로 결정할 수 있습니다.
+
+[/EXCERPT:excerpt_6]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+이 위젯의 클리핑 동작 방식을 제어합니다. 보통은 위젯 경계를 넘는 콘텐츠는 계속 렌더링되지만, 클리핑을 활성화하면 넘치는 콘텐츠가 보이지 않습니다.
+[REGION:note]
+클리핑 공간이 다른 요소는 함께 일괄 처리할 수 없으므로, 클리핑이 적용될 때 퍼포먼스 비용이 발생합니다. 실제 경계를 넘는 콘텐츠 표시를 방지할 필요가 있지 않으면 클리핑은 활성화하지 마세요.
+[/REGION]
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+위젯의 렌더 트랜스폼은 위젯에 2D 트랜스폼을 임의 지정할 수 있습니다.
+
+*   **Translation** 이동 \- 위젯의 X 와 Y 방향으로 이 슬레이트 단위만큼 이동합니다.
+*   **Scale** 스케일 \- 위젯을 X 와 Y 방향으로 이 슬레이트 단위만큼 스케일 조절합니다.
+*   **Shear** 비틀기 \- 위젯을 X 와 Y 방향으로 이 슬레이트 단위만큼 비틉니다.
+*   **Angle** 각도 \- 위젯을 회전할 각도입니다.
+
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_3]
+위젯에 마우스를 올렸을 때 표시할 커서입니다.
+
+*   **None** 없음 \- 마우스 커서가 보이지 않습니다.
+*   **Default** 기본 \- 기본 화살표 커서입니다.
+*   **Text Edit Beam** 텍스트 편집 빔 \- 편집할 수 있는 텍스트를 나타냅니다.
+*   **Resize Left Right** 좌우 크기조정 \- 가로 크기조정 화살표 커서입니다.
+*   **Resize Up Down** 상하 크기조정 \- 세로 크기조정 커서입니다.
+*   **Resize South East** 남동 크기조정 \- 양방향 앞쪽 크기조정 화살표 커서입니다.
+*   **Resize South West** 남서 크기조정 \- 양방향 뒷쪽 크기조정 화살표 커서입니다.
+*   **Cardinal Cross** 대각 십자선 \- 무언가 이동 중임을 나타냅니다.
+*   **Crosshairs** 조준선 \- 정밀한 선택을 나타내며, 보통 선택 박스를 드래그하는 경우입니다.
+*   **Hand** 손 \- 손가락을 가리키는 손 커서입니다.
+*   **Grab Hand** 손 잡기 \- 뭔가 잡을 수 있음을 나타내는 열린 손입니다.
+*   **Grab Hand Closed** 손 잡기 닫힘 \- 뭔가 잡았음을 나타내는 닫힌 손입니다.
+*   **Slashed Circle** 금지 원 \- 작업을 완료할 수 없음을 나타내는 커서입니다.
+*   **Eye Dropper** 스포이드 \- 색을 선택할 수 있음을 나타냅니다.
+
+[/EXCERPT:excerpt_3]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_2]
+이 위젯의 가시성을 설정합니다.
+
+*   **Visible** 보임 \- 이 위젯이 보이고 커서와 상호작용할 수 있습니다.
+*   **Collapsed** 접힘 \- 이 위젯이 보이지 않고 레이아웃에서 공간을 차지하지 않습니다. 차지하는 공간이 없으므로 절대 클릭할 수 없습니다.
+*   **Hidden** 숨김 \- 이 위젯이 보이지 않지만 레이아웃 공간은 차지합니다. 숨겨져 있으므로 상호작용할 수 없습니다.
+*   **Hit Test Invisible** 히트 테스트 안보임 \- 이 위젯은 사용자에게 아트로만 보입니다. 커서의 히트 테스트는 절대 이 위젯을 보지 못합니다.
+*   **Self Hit Test Invisible** 자체 히트 테스트 안보임 \- 이 위젯은 Hit Test Invisible 과 같지만 자손 위젯에 적용되지 않습니다.
+
+[/EXCERPT:excerpt_2]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_1]
+사용할 줄바꿈 정책입니다.
+
+*   **Default Wrapping** 기본 줄바꿈 \- 예비 없이 주어진 줄바꿈 이터레이터만 사용합니다.
+*   **Allow per-Character Wrapping** 글자 단위 줄바꿈 허용 \- 단어가 너무 길면 글자 단위 줄바꿈으로 예비 전환합니다.
+
+[/EXCERPT:excerpt_1]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0]
+선택된 위젯의 앵커 위치를 설정합니다.
+
+*   **Minimum** 최소 \- 최소 앵커, 좌상단을 저장힙니다.
+*   **Maximum** 최대 \- 최대 앵커, 우하단을 저장합니다.
+
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+
+## 데이터 테이블 애셋 프로퍼티
+
+### Rich Image Row
+
+Rich Image Row 데이터 테이블 애셋의 프로퍼티 중 리치 텍스트 블록 위젯에 사용되는 이미지의 스타일을 제어합니다.
+
+  
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **Image** | 이미지 - 이 브러시에 렌더링할 이미지입니다. 할당된 애셋은 텍스처, 머티리얼, 또는 아틀라스드 텍스처 인터페이스를 구현하는 오브젝트일 수 있습니다. |
+| **Image Size** | 이미지 크기 - 리소스의 슬레이트 단위 크기입니다. |
+| **Tint** | 색조 - 이미지에 적용되는 색조입니다. |
+| **Draw As** | 다른 이름으로 그리기 - [INCLUDE:#excerpt_14] |
+| **Tiling** | 타일링 - [INCLUDE:#excerpt_15] |
+| **Preview** | 프리뷰 - [INCLUDE:#excerpt_16] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_16]
+프리뷰 박스의 이미지 표시 방식을 설정합니다. 
+**가로 정렬:**
+
+*   **Fill** 채우기 \- 프리뷰 박스에 이미지를 가로로 채웁니다.
+*   **Left** 왼쪽 \- 프리뷰 박스에 이미지를 왼쪽 정렬합니다.
+*   **Center** 가운데 \- 프리뷰 박스에 이미지를 가운데 정렬합니다.
+*   **Right** 오른쪽 \- 프리뷰 박스에 이미지를 오른쪽 정렬합니다.
+
+**세로 정렬:**
+
+*   **Fill** 채우기 \- 바운딩 박스에 이미지를 세로로 채웁니다.
+*   **Top** 위 \- 프리뷰 박스에 이미지를 위쪽 정렬합니다.
+*   **Center** 가운데 \- 프리뷰 박스에 이미지를 가운데 정렬합니다.
+*   **Bottom** 아래 \- 프리뷰 박스에 이미지를 아래쪽 정렬합니다.
+
+[/EXCERPT:excerpt_16]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_86]
+
+[/EXCERPT:excerpt_86]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_15]
+이미지 모드에 있을 때의 이미지 타일링 방법입니다.
+
+*   **Horizontal** 가로 \- 이미지를 가로 타일링합니다.
+*   **Vertical** 세로 \- 이미지를 세로 타일링합니다.
+*   **Both** 양쪽 \- 이미지를 양쪽 방향으로 타일링합니다.
+
+[/EXCERPT:excerpt_15]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_14]
+이미지를 그리는 방법입니다.
+
+*   **Box** 박스 \- 3x3 박스를 그리고 양쪽과 가운데는 여백에 따라 늘입니다.
+*   **Border** 테두리 \- 3x3 경계를 그리고 양쪽 타일과 가운데는 비웁니다.
+*   **Image** 이미지 \- 이미지를 그리고, 여백은 무시합니다.
+
+[/EXCERPT:excerpt_14]
+-
+[/COMMENT]
+
+
+### Rich Text Style Row
+
+**Rich Text Style Row** 데이터 테이블 애셋의 프로퍼티 중 리치 텍스트 블록 위젯에 사용되는 텍스트 스타일을 제어합니다.
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+| [REGION:tablesection]**Font** 폰트[/REGION] ||
+| **Font Family** | 폰트 패밀리 - 폰트 오브젝트입니다 (UMG 또는 슬레이트 위젯 스타일 애셋에서 사용할 때 유효합니다). |
+| **Typeface** | 서체 - 기본 서체에서 사용할 폰트 이름입니다. 처음에 아무것도 선택하지 않으면, 첫 항목을 (굵게) 사용합니다. |
+| **Size** | 크기 - 포인트 값으로 측정한 폰트 크기입니다. 포인트에서 슬레이트 유닛으로의 변환은 96 dpi 입니다. 즉 Photoshop 같은 툴에서 레이아웃과 UI 모형 프로토타입을 만드는 경우, 기본 dpi 측정 값을 72 dpi 에서 96 dpi 로 바꿨는지 확인하세요. |
+| **Font Material** | 폰트 머티리얼 - 이 폰트를 렌더링할 때 사용할 머티리얼입니다. |
+| **Outline Settings** | 윤곽선 세팅 - [INCLUDE:#excerpt_17] |
+| **Color** | 색 - 이 텍스트의 색과 불투명도입니다. |
+| **Shadow Offset** | 그림자 오프셋 - 그림자에 적용할 오프셋입니다. 0 은 그림자가 없다는 뜻입니다. |
+| **Shadow Color and Opacity** | 그림자 색과 불투명도 - 그림자의 색과 불투명도입니다. |
+| **Shadow Background Color** | 그림자 배경색 - 선택한 텍스트의 배경색입니다. |
+| **Highlight Color** | 강조색 - 강조된 텍스트의 색입니다. |
+| [REGION:tablesection]**Highlight Shape** 강조 모양[/REGION] ||
+| **Image** | 이미지 - 이 브러시에 렌더링할 이미지입니다. 할당된 애셋은 텍스처, 머티리얼, 또는 아틀라스드 텍스처 인터페이스를 구현하는 오브젝트일 수 있습니다. |
+| **Image Size** | 이미지 크기 - 리소스의 슬레이트 단위 크기입니다. |
+| **Tint** | 색조 - 이미지에 적용되는 색조입니다. |
+| **Draw As** | 다른 이름으로 그리기 - [INCLUDE:#excerpt_18] |
+| **Tiling** | 타일링 - [INCLUDE:#excerpt_19] |
+| **Preview** | 프리뷰 - [INCLUDE:#excerpt_20] |
+| [REGION:tablesection]**Underline Brush** 밑줄 브러시[/REGION] ||
+| **Image** | 이미지 - 이 브러시에 렌더링할 이미지입니다. 할당된 애셋은 텍스처, 머티리얼, 또는 아틀라스드 텍스처 인터페이스를 구현하는 오브젝트일 수 있습니다. |
+| **Image Size** | 이미지 크기 - 리소스의 슬레이트 단위 크기입니다. |
+| **Tint** | 색조 - 이미지에 적용되는 색조입니다. |
+| **Draw As** | 다른 이름으로 그리기 - [INCLUDE:#excerpt_21] |
+| **Tiling** | 타일링 - [INCLUDE:#excerpt_22] |
+| **Preview** | 프리뷰 - [INCLUDE:#excerpt_23] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_23]
+프리뷰 박스의 이미지 표시 방식을 설정합니다.  
+**가로 정렬:**
+
+*   **Fill** 채우기 \- 프리뷰 박스에 이미지를 가로로 채웁니다.
+*   **Left** 왼쪽 \- 프리뷰 박스에 이미지를 왼쪽 정렬합니다.
+*   **Center** 가운데 \- 프리뷰 박스에 이미지를 가운데 정렬합니다.
+*   **Right** 오른쪽 \- 프리뷰 박스에 이미지를 오른쪽 정렬합니다.
+
+**세로 정렬:**
+
+*   **Fill** 채우기 \- 바운딩 박스에 이미지를 세로로 채웁니다.
+*   **Top** 위 \- 프리뷰 박스에 이미지를 위쪽 정렬합니다.
+*   **Center** 가운데 \- 프리뷰 박스에 이미지를 가운데 정렬합니다.
+*   **Bottom** 아래 \- 프리뷰 박스에 이미지를 아래쪽 정렬합니다.
+
+[/EXCERPT:excerpt_23]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_22]
+이미지 모드에 있을 때의 이미지 타일링 방법입니다.
+
+*   **Horizontal** 가로 \- 이미지를 가로 타일링합니다.
+*   **Vertical** 세로 \- 이미지를 세로 타일링합니다.
+*   **Both** 양쪽 \- 이미지를 양쪽 방향으로 타일링합니다.
+
+[/EXCERPT:excerpt_22]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_21]
+이미지를 그리는 방법입니다.
+
+*   **Box** 박스 \- 3x3 박스를 그리고 양쪽과 가운데는 여백에 따라 늘입니다.
+*   **Border** 테두리 \- 3x3 경계를 그리고 양쪽 타일과 가운데는 비웁니다.
+*   **Image** 이미지 \- 이미지를 그리고, 여백은 무시합니다.**
+
+[/EXCERPT:excerpt_21]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_20]
+프리뷰 박스의 이미지 표시 방식을 설정합니다.  
+**가로 정렬:**
+
+*   **Fill** 채우기 \- 프리뷰 박스에 이미지를 가로로 채웁니다.
+*   **Left** 왼쪽 \- 프리뷰 박스에 이미지를 왼쪽 정렬합니다.
+*   **Center** 가운데 \- 프리뷰 박스에 이미지를 가운데 정렬합니다.
+*   **Right** 오른쪽 \- 프리뷰 박스에 이미지를 오른쪽 정렬합니다.
+
+**세로 정렬:**
+
+*   **Fill** 채우기 \- 바운딩 박스에 이미지를 세로로 채웁니다.
+*   **Top** 위 \- 프리뷰 박스에 이미지를 위쪽 정렬합니다.
+*   **Center** 가운데 \- 프리뷰 박스에 이미지를 가운데 정렬합니다.
+*   **Bottom** 아래 \- 프리뷰 박스에 이미지를 아래쪽 정렬합니다.
+
+[/EXCERPT:excerpt_20]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_19]
+이미지 모드에 있을 때의 이미지 타일링 방법입니다.
+
+*   **Horizontal** 가로 \- 이미지를 가로 타일링합니다.
+*   **Vertical** 세로 \- 이미지를 세로 타일링합니다.
+*   **Both** 양쪽 \- 이미지를 양쪽 방향으로 타일링합니다.
+
+[/EXCERPT:excerpt_19]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_18]
+이미지를 그리는 방법입니다.
+
+*   **Box** 박스 \- 3x3 박스를 그리고 양쪽과 가운데는 여백에 따라 늘입니다.
+*   **Border** 테두리 \- 3x3 경계를 그리고 양쪽 타일과 가운데는 비웁니다.
+*   **Image** 이미지 \- 이미지를 그리고, 여백은 무시합니다.**
+
+[/EXCERPT:excerpt_18]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_17]
+폰트에 윤곽선을 적용하는 세팅입니다.
+
+*   **Outline Size** 윤곽선 크기 \- 윤곽선의 슬레이트 유닛 단위 크기입니다 (1.0 폰트 스케일에서 이 단위는 픽셀입니다).
+*   **Separate Fill Alpha** 별도 채우기 알파 \- 활성화하면, 윤곽선은 채운 영역에 완전 반투명합니다. 별도의 채우기 알파 값을 사용할 수 있습니다. 이 옵션을 활성화하면 내부 윤곽선 테두리가 채우기 영역과 만나는 완전 불투명 채우기의 퀄리티가 약간 떨어집니다.
+*   **Outline Color 윤곽선 색 - 이 폰트의 글자에 대한 윤곽선 색입니다.**
+
+[/EXCERPT:excerpt_17]
+-
+[/COMMENT]

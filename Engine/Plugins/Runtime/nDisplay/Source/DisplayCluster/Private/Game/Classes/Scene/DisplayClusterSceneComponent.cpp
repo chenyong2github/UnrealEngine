@@ -5,9 +5,9 @@
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Game/IPDisplayClusterGameManager.h"
 #include "Input/IPDisplayClusterInputManager.h"
-#include "Misc/DisplayClusterLog.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 UDisplayClusterSceneComponent::UDisplayClusterSceneComponent(const FObjectInitializer& ObjectInitializer) :

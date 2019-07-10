@@ -68,4 +68,4 @@ to the actual level streaming object, you can modify and query its state. Using 
 By applying transforms and sending parameters to these copies, you can create procedural worlds. 
 
 * [](Engine/LevelStreaming/HowTo/StreamWithBlueprints "%Engine/LevelStreaming/HowTo/StreamWithBlueprints:description%")
-* [](Engine/LevelStreaming/HowTo/StreamWithC++ "%Engine/LevelStreaming/HowTo/StreamWithC++:description%")
+* [](Engine/LevelStreaming/HowTo/StreamWithCPP "%Engine/LevelStreaming/HowTo/StreamWithCPP:description%")

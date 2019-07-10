@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PhysicsInterfaceDeclares.h"
+#include "PhysicsCore.h"
 
 
 #if PHYSICS_INTERFACE_PHYSX
@@ -19,6 +20,7 @@
 #elif WITH_CHAOS
 
 #include "Physics/Experimental/PhysInterface_Chaos.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 
 #else
 

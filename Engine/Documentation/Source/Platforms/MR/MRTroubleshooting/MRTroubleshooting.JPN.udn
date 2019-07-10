@@ -29,7 +29,7 @@ MR キャプチャ ターゲット解像度 (デフォルトは 1080p) によっ
 
 ## キャプチャが Spectator Screen に表示されない
 
-MRC フレームワークは [Virtual Reality Spectator Screen](Platforms/VR/VRSpectatorScreen) を使用し、合成されたシーンを表示します。つまり Mixed Reality キャプチャが表示されるのは、Virtual Reality で動作しているときだけです。プロジェクトで Spectator Screen も使用する場合、条件付きで使用する場所を保護する必要があります。次の MRC メソッドが役立ちます。
+MRC フレームワークは [Virtual Reality Spectator Screen](Platforms/VR/DevelopVR/VRSpectatorScreen) を使用し、合成されたシーンを表示します。つまり Mixed Reality キャプチャが表示されるのは、Virtual Reality で動作しているときだけです。プロジェクトで Spectator Screen も使用する場合、条件付きで使用する場所を保護する必要があります。次の MRC メソッドが役立ちます。
 
 **Get Mixed Reality Capture Texture**
 キャプチャ テクスチャを返します。存在しない場合は nullptr を返します。

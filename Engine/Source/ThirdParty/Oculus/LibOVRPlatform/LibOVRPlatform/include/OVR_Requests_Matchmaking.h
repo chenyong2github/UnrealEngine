@@ -323,6 +323,10 @@
 /// \param pool A BROWSE type matchmaking pool.
 /// \param customQueryData Optional. Custom query data.
 ///
+/// <b>Error codes</b>
+/// - \b 100: Pool {pool_key} does not contain custom data key {key}. You can configure matchmaking custom data at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+/// - \b 12072: Unknown pool: {pool_key}. You can configure matchmaking pools at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+///
 /// A message with type ::ovrMessage_Matchmaking_Browse will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -347,6 +351,10 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_Browse(const char *pool, ovrMat
 /// \param pool A BROWSE type matchmaking pool.
 /// \param matchmakingOptions Additional matchmaking configuration for this request. Optional.
 ///
+/// <b>Error codes</b>
+/// - \b 100: Pool {pool_key} does not contain custom data key {key}. You can configure matchmaking custom data at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+/// - \b 12072: Unknown pool: {pool_key}. You can configure matchmaking pools at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+///
 /// A message with type ::ovrMessage_Matchmaking_Browse2 will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -358,6 +366,12 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_Browse2(const char *pool, ovrMa
 /// DEPRECATED. Use Cancel2.
 /// \param pool The pool in question.
 /// \param requestHash Used to find your entry in a queue.
+///
+/// <b>Error codes</b>
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is currently in another room (perhaps on another device), and thus is no longer in this room. Users can only be in one room at a time. If they are active on two different devices at once, there will be undefined behavior.
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not in the room (or any room). Perhaps they already left, or they stopped heartbeating. If this is a test environment, make sure you are not using the deprecated initialization methods ovr_PlatformInitializeStandaloneAccessToken (C++)/StandalonePlatform.Initialize(accessToken) (C#).
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not the owner of the room.
+/// - \b 100: Invalid room_id: {room_id}. Either the ID is not a valid room or the user does not have permission to see or act on the room.
 ///
 /// A message with type ::ovrMessage_Matchmaking_Cancel will be generated in response.
 ///
@@ -375,6 +389,12 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_Cancel(const char *pool, const 
 /// the user goes offline, the user/room will be timed out of the queue within
 /// 30 seconds.
 ///
+/// <b>Error codes</b>
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is currently in another room (perhaps on another device), and thus is no longer in this room. Users can only be in one room at a time. If they are active on two different devices at once, there will be undefined behavior.
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not in the room (or any room). Perhaps they already left, or they stopped heartbeating. If this is a test environment, make sure you are not using the deprecated initialization methods ovr_PlatformInitializeStandaloneAccessToken (C++)/StandalonePlatform.Initialize(accessToken) (C#).
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not the owner of the room.
+/// - \b 100: Invalid room_id: {room_id}. Either the ID is not a valid room or the user does not have permission to see or act on the room.
+///
 /// A message with type ::ovrMessage_Matchmaking_Cancel2 will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -387,6 +407,12 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_Cancel2();
 /// \param maxUsers Overrides the Max Users value, which is configured in pool settings of the Developer Dashboard.
 /// \param subscribeToUpdates If true, sends a message with type ovrNotification_Room_RoomUpdate when the room data changes, such as when users join or leave.
 /// \param customQueryData Optional.  See "Custom criteria" section above.
+///
+/// <b>Error codes</b>
+/// - \b 100: Pool {pool_key} does not contain custom data key {key}. You can configure matchmaking custom data at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+/// - \b 12051: Pool '{pool_key}' is configured for Quickmatch mode. In Quickmatch mode, rooms are created on users' behalf when a match is found. Specify Advanced Quickmatch or Browse mode to use this feature.
+/// - \b 12072: Unknown pool: {pool_key}. You can configure matchmaking pools at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+/// - \b 12089: You have asked to enqueue {num_users} users together, but this must be less than the maximum number of users in a room, {max_users}.
 ///
 /// A message with type ::ovrMessage_Matchmaking_CreateAndEnqueueRoom will be generated in response.
 ///
@@ -408,6 +434,12 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_CreateAndEnqueueRoom(const char
 /// set up pools and queries
 /// \param pool The matchmaking pool to use, which is defined for the app.
 /// \param matchmakingOptions Additional matchmaking configuration for this request. Optional.
+///
+/// <b>Error codes</b>
+/// - \b 100: Pool {pool_key} does not contain custom data key {key}. You can configure matchmaking custom data at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+/// - \b 12051: Pool '{pool_key}' is configured for Quickmatch mode. In Quickmatch mode, rooms are created on users' behalf when a match is found. Specify Advanced Quickmatch or Browse mode to use this feature.
+/// - \b 12072: Unknown pool: {pool_key}. You can configure matchmaking pools at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+/// - \b 12089: You have asked to enqueue {num_users} users together, but this must be less than the maximum number of users in a room, {max_users}.
 ///
 /// A message with type ::ovrMessage_Matchmaking_CreateAndEnqueueRoom2 will be generated in response.
 ///
@@ -457,6 +489,10 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_CreateRoom2(const char *pool, o
 /// \param pool The pool to enqueue in.
 /// \param customQueryData Optional.  See "Custom criteria" section above.
 ///
+/// <b>Error codes</b>
+/// - \b 100: Pool {pool_key} does not contain custom data key {key}. You can configure matchmaking custom data at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+/// - \b 12072: Unknown pool: {pool_key}. You can configure matchmaking pools at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+///
 /// A message with type ::ovrMessage_Matchmaking_Enqueue will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -479,6 +515,10 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_Enqueue(const char *pool, ovrMa
 /// \param pool The pool to enqueue in.
 /// \param matchmakingOptions Additional matchmaking configuration for this request. Optional.
 ///
+/// <b>Error codes</b>
+/// - \b 100: Pool {pool_key} does not contain custom data key {key}. You can configure matchmaking custom data at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+/// - \b 12072: Unknown pool: {pool_key}. You can configure matchmaking pools at https://dashboard.oculus.com/application/&lt;app_id&gt;/matchmaking
+///
 /// A message with type ::ovrMessage_Matchmaking_Enqueue2 will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -490,6 +530,13 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_Enqueue2(const char *pool, ovrM
 /// DEPRECATED. Please use ovr_Matchmaking_EnqueueRoom2() instead.
 /// \param roomID Returned either from ovrNotification_Matchmaking_MatchFound or from ovr_Matchmaking_CreateRoom().
 /// \param customQueryData Optional.  See the "Custom criteria" section above.
+///
+/// <b>Error codes</b>
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is currently in another room (perhaps on another device), and thus is no longer in this room. Users can only be in one room at a time. If they are active on two different devices at once, there will be undefined behavior.
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not in the room (or any room). Perhaps they already left, or they stopped heartbeating. If this is a test environment, make sure you are not using the deprecated initialization methods ovr_PlatformInitializeStandaloneAccessToken (C++)/StandalonePlatform.Initialize(accessToken) (C#).
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not the owner of the room.
+/// - \b 100: Invalid room_id: {room_id}. Either the ID is not a valid room or the user does not have permission to see or act on the room.
+/// - \b 12051: Pool '{pool_key}' is configured for Quickmatch mode. In Quickmatch mode, rooms are created on users' behalf when a match is found. Specify Advanced Quickmatch or Browse mode to use this feature.
 ///
 /// A message with type ::ovrMessage_Matchmaking_EnqueueRoom will be generated in response.
 ///
@@ -511,6 +558,13 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_EnqueueRoom(ovrID roomID, ovrMa
 /// If the user stops waiting, call ovr_Matchmaking_Cancel2().
 /// \param roomID Returned either from ovrNotification_Matchmaking_MatchFound or from ovr_Matchmaking_CreateRoom().
 /// \param matchmakingOptions Additional matchmaking configuration for this request. Optional.
+///
+/// <b>Error codes</b>
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is currently in another room (perhaps on another device), and thus is no longer in this room. Users can only be in one room at a time. If they are active on two different devices at once, there will be undefined behavior.
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not in the room (or any room). Perhaps they already left, or they stopped heartbeating. If this is a test environment, make sure you are not using the deprecated initialization methods ovr_PlatformInitializeStandaloneAccessToken (C++)/StandalonePlatform.Initialize(accessToken) (C#).
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not the owner of the room.
+/// - \b 100: Invalid room_id: {room_id}. Either the ID is not a valid room or the user does not have permission to see or act on the room.
+/// - \b 12051: Pool '{pool_key}' is configured for Quickmatch mode. In Quickmatch mode, rooms are created on users' behalf when a match is found. Specify Advanced Quickmatch or Browse mode to use this feature.
 ///
 /// A message with type ::ovrMessage_Matchmaking_EnqueueRoom2 will be generated in response.
 ///
@@ -577,6 +631,11 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_JoinRoom(ovrID roomID, bool sub
 /// \param data key value pairs
 /// \param numItems The length of data
 ///
+/// <b>Error codes</b>
+/// - \b 100: Parameter {parameter}: invalid user id: {user_id}
+/// - \b 100: Room id: {room_id}. The match associated with this room does not contain enough users. You must start the match with at least two users in the room. Result given: {result}.
+/// - \b 100: There is no active match associated with the room {room_id}.
+///
 /// A message with type ::ovrMessage_Matchmaking_ReportResultInsecure will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -591,6 +650,10 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Matchmaking_ReportResultInsecure(ovrID room
 /// Call after calling ovr_Room_Join2() when the players are present to begin a
 /// rated match for which you plan to report the results (using
 /// ovr_Matchmaking_ReportResultInsecure()).
+///
+/// <b>Error codes</b>
+/// - \b 100: There is no active match associated with the room {room_id}.
+/// - \b 100: You can only start matches, report matches, and track skill ratings in matchmaking rooms. {room_id} is a room, but it is not a matchmaking room.
 ///
 /// A message with type ::ovrMessage_Matchmaking_StartMatch will be generated in response.
 ///

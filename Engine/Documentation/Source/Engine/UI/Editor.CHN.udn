@@ -1,4 +1,4 @@
-INTSourceChangelist: 3810557
+﻿INTSourceChangelist: 6576319
 Availability:Public
 Title:虚幻编辑器界面
 Crumbs:%ROOT%, Engine
@@ -12,61 +12,50 @@ topic-icon:%ROOT%/editor_icon.png
 
 
 [EXCERPT:LevelEditor]
-(#thebasics)
 ## 简介
-
 
 如果您是初次接触该编辑器，熟悉一些有关用户界面和一般工作流程的基本概念将会十分有用。如果您是刚刚开始使用，则下面的一些主要主题能够帮助您进行一些实践操作。 
 
+%Engine/UI/LevelEditor:topic%
+%Engine/UI/LevelEditor/Viewports:topic%
+%Engine/UI/InterfaceOverview:topic%
+%Engine/UI/LevelEditor/InEditorTesting:topic%
 
-
-[REGION:topics fourth]
-%Engine/UI/LevelEditor:topiccompact%
-%Engine/UI/LevelEditor/Viewports:topiccompact%
-%Engine/UI/InterfaceOverview:topiccompact%
-%Engine/UI/LevelEditor/InEditorTesting:topiccompact%
-[/REGION]
-
-
-
-
-(#editors,browsers,andtools)
 ## 编辑器、浏览器和工具
 
 默认情况下，并不会显示虚幻编辑器的所有部分，因为这样需要太多屏幕空间。在您尝试编辑特定类型的资源时，只会显示某些部分。其他部分会在您尝试更改特定类型的属性时变为可用。还有一些其他属性是为了方便执行某些操作而存在的，例如将资源引入到关卡和环境中。
 
 [REGION:raw]
 [OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-windows
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](OpenParticleSystem_Windows.png)
-[/PARAM]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	windows
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	![](OpenParticleSystem_Windows.png)
+	[/PARAM]
 [/OBJECT]
 
 [OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-mac
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](OpenParticleSystem_Mac.png)
-[/PARAM]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	![](OpenParticleSystem_Mac.png)
+	[/PARAM]
 [/OBJECT]
 [/REGION]
 
 
-(#projectandassetaccess)
 ## 项目和资源访问权
 
 [REGION:buttonlist]
@@ -76,7 +65,6 @@ mac
 * [全局资源选取器](Engine/UI/GlobalAssetPicker " A fast-access tool for placing and editing your game assets directly from within the Viewport.")
 [/REGION]
 
-(#propertyediting)
 ## 属性编辑
 
 [REGION:buttonlist]
@@ -85,7 +73,6 @@ mac
 * [曲线编辑器](Engine/UI/CurveEditor "This panel makes the adjustment of function curves for properties that change over time.")	
 [/REGION]
 
-(#settingsandpreferences)
 ## 设置和首选项
 
 [REGION:buttonlist]
@@ -94,7 +81,6 @@ mac
 * [键绑定](Engine/UI/KeyBindings "A panel allowing you to change and create hotkeys for the editor.")
 [/REGION]
 
-(#videotutorials)
 ## 视频教程
 
 [DIR(output:"playlist" type:"playlist" playlist_id:"PLZlv_N0_O1gasd4IcOe9Cx9wHoBB7rxFl")]

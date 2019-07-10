@@ -280,13 +280,12 @@ public:
 	}
 
 
-	virtual void GetTextureFormats( const UTexture* InTexture, TArray<FName>& OutFormats ) const override
+	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override
 	{
 		if (!TProperties::IsServerOnly())
 		{
 			// just use the standard texture format name for this texture
-			FName TextureFormatName = GetDefaultTextureFormatName(this, InTexture, EngineSettings, false);
-			OutFormats.Add(TextureFormatName);
+			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, EngineSettings, false);
 		}
 	}
 

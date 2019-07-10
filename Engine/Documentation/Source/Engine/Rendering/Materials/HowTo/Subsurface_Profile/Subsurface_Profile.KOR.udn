@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:3810467
 Availability:Public
 Title: 머티리얼에 서브서피스 프로파일 사용법
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials
@@ -171,8 +171,8 @@ tags:Materials
 	
 ## 서브서피스 프로파일 머티리얼 적용하기
 1. 머티리얼 인스턴스가 생성되었으니, 새 머티리얼을 테스트할 차례입니다.
-	그러기 위해 메인 메뉴의 **파일** 아래 **새 레벨** 옵션을 선택하여 작업할 공백 레벨을 먼저 만들어 줘야 합니다.
-	어떤 유형의 레벨을 선택할 것인지 물어오면, **공백 레벨** 을 선택합니다.
+	그러기 위해 메인 메뉴의 **파일** 아래 **새 레벨** 옵션을 선택하여 작업할 기본 레벨을 먼저 만들어 줘야 합니다.
+	어떤 유형의 레벨을 선택할 것인지 물어오면, **기본 레벨** 을 선택합니다.
 	[OBJECT:EmbeddedVideo]
 	[PARAMLITERAL:width]
 	640

@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Crumbs: %ROOT%
 Title:4 - TV 블루프린트 구성 - 컨스트럭션 스크립트
 Description:컨스트럭션 스크립트를 사용하여 에디터에서 TV 블루프린트를 변경할 수 있는 파라미터를 몇 가지 구성합니다.
@@ -12,6 +12,8 @@ type:multi-step
 order:4
 tags:Media Framework
 tags:Blueprints
+
+## Marked as Docs as the page has been combined into one page. 
  
 [NAV]
 

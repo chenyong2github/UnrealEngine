@@ -1,57 +1,63 @@
-﻿INTSourceChangelist:2728788
+INTSourceChangelist:3623659
 Availability:Public
-Title:虚幻对象操作
 Crumbs: %ROOT%
-Description:UObject 系统功能总览。
-Version:4.9
+Title:虚幻Object处理
+Description:UObject系统的功能概述。
+Type: Reference
+Version: 4.16
+parent:UnrealArchitecture
+order:
+tags:Architecture
+related: Gameplay/Networking
+related: Programming/UnrealArchitecture/Reference/Properties
+related: Programming/UnrealArchitecture/TArrays
+
 
 [TOC (start:2 end:2)]
 
-使用适当的宏对类、属性和函数进行标记，将它们变为 UClasses、UProperties 和 UFunctions。这使得虚幻引擎可以对它们进行访问，使一些 
-后台处理功能得到实现。
+使用适当的宏标记类、属性和函数可以将它们转变为`UClasses`、`UProperties`和`UFunctions`。这让虚幻引擎能够访问它们，从而允许实现一些后台处理功能。
 
-(#garbagecollection)
-## 垃圾回收
-
-虚幻引擎实现了一个垃圾回收方案，定期清理不再被引用或被显式标记为待销毁的 UObject。引擎创建了一个引用图表，以确定使用中和被弃用的对象。此图表的根部是指定为“根集”的一套对象。任何对象都可被添加到根集。垃圾回收发生时，引擎从根集开始在已知 UObject 的引用树中搜索，从而追踪所有被引用的对象。未被引用的对象将被视为没有存在价值，将被移除。 
-
-此处表达了一个隐含意义 - 必须在要保留的对象上设置一个 UPROPERTY 引用。对 Actor 来说这经常会是例外，因为它们通常被链接回根集的对象所引用，例如它们所属于的等级。通过 `Destroy()` 可将 Actor 显式标记为待销毁。
-
-## 引用自动更新
-
-对象被垃圾回收清理时，对它的 UPROPERTY 引用将自动被更新为 NULL。这可避免指针出现摇晃，造成之后的问题，但这也意味着指针有时可能出乎意料地变为 NULL - 如果它们所指向的对象被显式标记为待销毁。因此，取消引用之前需要进行测试。
-
-请务必注意：此功能只适用于被 UPROPERTY 标记的对象引用。保存在裸指针中的对象引用无法被虚幻引擎识别，它不会自动清空，或阻止垃圾回收。注意：这并不意味着所有 UObject* 变量必须为UProperties。如需要一个非 UProperty 对象指针，可考虑使用 TWeakObjectPtr<>。这是一个弱指针，因此它无法阻止垃圾回收，但它在被访问前可被执行有效性查询。
-
-## 序列化
-
-当一个 UObject 被序列化时，所有 UProperty 数值将被自动书写或读取（除非被显式标记为“transient”）。例如，可在关卡中放置一个 AEnemy 实例，将其生命值设为 500，保存并成功重载，在 UClass 定义之外不编写代码行。
-
-UProperties 被添加或被移除时，既存内容的加载将无缝进行。新属性从新 CDO 复制获取默认值。被移除的属性将被悄然忽略。
-
-如需对行为进行自定义，可根据需求编写自定义初始化和版本化代码，但这并非常规操作。
-
-## 属性值更新
-
-UClass 的 CDO 发生变化时，引擎将尝试把这些变化智能应用到类的所有实例上（在它们被加载时）。对于一个特定的对象实例而言，如更新的变量与之前的默认之间不存在变化，其将被更新到新的默认对象。如变量已发生变化，则会假设数值被刻意进行设置，这些变化将不会被撤销。
-
-例如您保存了一个放置有数个 AEnemy 对象的关卡，并在 AEnemy 构建函数中将默认体力值设为 100。假设您将比较强壮的 Enemy_3 的体力值设为了 500。
-
-而现在您改变了想法，把默认体力值改为了 150。当您下次加载关卡时，虚幻引擎会了解您已经修改 CDO，并将除 Enemy_3 外所有 AEnemy 实例的体力值更新到 150。而 Enemy_3 的体力值为 500。
- 
+(#automaticpropertyinitialization)
 ## 自动属性初始化
 
-初始化时，在构建函数被调用之前，UObject 将被自动清零。整类、UProperties 和本地成员之类也会被执行此操作。成员可通过类构建函数中的自定义数值在随后进行初始化。
+在调用构造函数之前，`UObject`在初始化时自动归零。这针对整个类发生，`UProperties`和类似的原生成员。成员随后可以使用类构造函数中的自定义值进行初始化。
 
-## 编辑器整合
+(#automaticupdatingofreferences)
+## 自动更新引用
 
-编辑器理解 UObjects 和 UProperties，还可将这些数值自动公开进行编辑，而无需编写特殊代码。可选择将整合包含在蓝图可视化脚本系统中。有许多选项可对变量和函数的可访问性和公开性进行控制。
+`AActor`或`UActorComponent`被销毁或者从运行中删除时，对反射系统可见的对它的所有引用（`UProperty`指针和虚幻引擎容器类中存储的指针，如`TArray`）都将自动清空。这样的好处是防止悬挂指针持久存在并导致后续问题，但也意味着如果其他某段代码将`AActor`和`UActorComponent`指针销毁，这些指针也会变为空。最终的好处是空检查更可靠，因为会检测标准情况空指针和非空指针指向删除内存的情况。
 
-## 运行时类型信息
+必须理解的是，这种功能仅适用于标记了`UPROPERTY`或存储在虚幻引擎容器类中的`UActorComponent`或`AActor`引用。存储在原始指针中的Object引用对于虚幻引擎将为未知，并且不会自动清空，也不会妨碍垃圾回收。请注意，这不意味着所有`UObject*`变量都必须是`UProperties`。如果您需要的Object指针不是`UProperty`，请考虑使用`TWeakObjectPtr`。这是“弱”指针，意味着不会妨碍垃圾回收，但可以查询有效性，然后再接受访问，并且它所指向的Object要被销毁时，它将被设置为空。
 
-UObject 明确其为何种 UClass，运行时可作出类型相关的决定。 
+另一种被引用UObject UProperty自动清空的情况是对编辑器中的资源使用“强制删除（Force Delete）”。因此，作用于属于资源的UObject的所有代码都必须处理这些变为空的指针。
 
-在本地代码中，每个 UObject 类拥有一个设为其父类的自定义“Super” typedef，以便轻松控制覆盖行为。例如：
+(#serialization)
+## 序列化
+
+当`UObject`被序列化时，所有`UProperty`值都将被自动写入或读取，除非显式标记为“瞬时”或无法从后构造函数默认值进行更改。例如，您可以在关卡中放入`AEnemy`实例，将其“体力（Health）”设置为500，保存并成功地重新加载，而不必在`UClass`定义之外编写一行代码。
+
+当添加或删除UProperties时，系统会无缝处理加载预先存在的内容。新属性从新的CDO复制默认值。删除的属性将会被静默忽略。
+
+如果需要自定义行为，则可以覆盖`UObject::Serialize`函数。这对于检测数据错误，检查版本号或执行自动转换或更新（如果数据格式有所更改）十分有用。
+
+(#updatingofpropertyvalues)
+## 更新属性值
+
+当`UClass`的 **类默认对象**（CDO）更改，引擎将尝试在加载类的所有实例时对这些实例应用这些更改。对于给定Object实例，如果更新的变量值与旧CDO中的值相匹配，则将更新为它在新CDO中保存的值。如果变量包含任何其他值，系统会假设这个值是故意设置的，这些更改将会被保留。
+
+例如，假设您在一个关卡中放置了多个`AEnemy` Object并保存，然后将`AEnemy`构造函数中的默认Health值设置为100。再假设将Enemy_3的Health值设置为500，因为它特别难对付。现在，假设您改变注意了，将Health的默认值增加到150。下次加载关卡时，虚幻意识到您更改了CDO，并将使用旧默认Health值（100）的所有`AEnemy`实例更新为使用Health值150。Enemy_3的Health将保持在500，因为它不使用旧的默认值。
+ 
+(#editorintegration)
+## 编辑器集成
+
+编辑器理解`UObject`和`UProperties`，编辑器可以自动公开这些值以供编辑，而不必编写特殊代码。这可以选择在蓝图视觉脚本系统中融入集成。有许多选项可以控制变量和函数的可访问性和公开。
+
+(#run-timetypeinformationandcasting)
+## 运行时类型信息和类型转换
+
+由于`UObject`是虚幻引擎反射系统的一部分，它们始终知道它们是哪些`UClass`，并可以在运行时做出有关类型的决定和类型转换。
+
+在原生代码中，每个`UObject`类都将自定义`Super`类型定义设置为其父类，从而可以轻松控制覆盖行为。示例：
 
 
 	class AEnemy : public ACharacter
@@ -66,14 +72,14 @@ UObject 明确其为何种 UClass，运行时可作出类型相关的决定。
 	{
 		virtual void Speak()
 		{
-			Say("Powering up! ");
+			Say("Powering up!");
 			Super::Speak();
 		}
 	};
 
-如上所示，调用 Speak() 会使 MegaBoss 说出“Powering up! Time to fight!”。
+如您所见，调用`Speak`将会让MegaBoss说“Powering up!Time to fight!”。
 
-此外，使用模板化投射函数可将对象从基类安全投射到派生类，或使用 IsA() 查询对象是否为一个特定的类。例如：
+此外，您可以使用模板化Cast函数或者查询（如果Object是使用`IsA`的特定类）安全地将Object从基类转换为更衍生性类。另一个简短示例：
 
 	class ALegendaryWeapon : public AWeapon
 	{
@@ -93,12 +99,33 @@ UObject 明确其为何种 UClass，运行时可作出类型相关的决定。
 		}
 	};
 
-此处使用 Cast<> 尝试将 AEnemy 投射到 AMegaBoss。如讨论中的对象实际上不为 AMegaBoss（或其子类），投射将返回 NULL，以便进行恰当操作。在此例中，传奇武器没有效果。
+这里我们使用了`Cast`来尝试将`AEnemy`转换为`AMegaBoss`。如果所提及Object实际上不是`AMegaBoss`（或者其子类），则Cast会返回空指针，我们可以适当的做出反应。在以上代码中，`Incinerate`将仅对MegaBoss调用。
 
+
+(#garbagecollection)
+## 垃圾回收
+
+虚幻实现垃圾回收机制，不再被引用或已被显式标记为销毁的`UObject`将定期清除。引擎构建一个引用图表以确定哪些`UObject`仍在使用，哪些是孤立的。在该图表根部是一组指定为“根集”的`UObject`。任何`UObject`都可以添加到根集。当进行垃圾回收时，引擎将从根集开始，搜索已知`UObject`引用树来跟踪所有引用的`UObject`。任何未被引用的`UObject`（意味着未在树搜索中找到这些对象）将被假设为不再需要，因此被删除。
+
+一个实际的影响是，您通常需要保持对希望保持活跃的任何Object的`UPROPERTY`引用，或者将指向它的指针存储在`TArray`或其他引擎容器类中。Actor及其组件通常属于例外情况，因为Actor通常被链接回到根集的Object引用（例如它们所属的关卡），而Actor的组件被Actor自身引用。Actor可以显式标记为销毁，方法是调用它们的`Destroy`函数，这是从进行中游戏移除Actor的标准方法。组件可以使用`DestroyComponent`函数显式销毁，但它们通常在拥有它们的Actor从游戏中移除时被销毁。
+
+虚幻引擎4中的垃圾回收速度快，效率高，内置大量的优化功能，能够尽量降低开销，如多线程可访问性分析可以标识孤立Object，优化的反加密代码能够尽快从容器中移除Actor。还有一些其他功能以调节，以更精准地控制如何以及何时执行垃圾回收，大部分都可以在 **项目设置（Project Settings）** 中的 **引擎 - 垃圾回收（Engine - Garbage Collection）** 下找到。以下设置通常用于为项目调节垃圾回收器性能：
+| 设置 | 功能描述 |
+| --- | --- |
+| **创建垃圾回收器UObject集群（Create Garbage Collector UObject Clusters）** | 可以在项目设置中打开或关闭（默认打开）。如果打开，相关Object将被分组到一起归入垃圾回收集群，这样只需要检查集群自身即可，而不必检查每个Object。这意味着可以更快速地执行可访问性，因为整个集群将被视为一个对象，但也意味着该集群中的单个项目将被反加密，并准备在同一帧中删除，如果集群足够大，这样可能会导致卡顿。一般而言，集群创建会提高垃圾回收性能，缩短可访问性分析耗费的时间。|
+| **合并GC集群（Merge GC Clusters）** | 可以启用集群合并，这样当一个集群的对象引用另一个集群的对象时，让集群合并起来。请注意，清空导致合并的引用不会让新合并的集群瓦解或拆散。**创建垃圾回收器UObject集群（Create Garbage Collector UObject Clusters）** 也必须打开，该功能才能工作。这会使垃圾回收器反加密和销毁对象的频率降低，但一次反加密和销毁的对象数量会增加。此外，有些情况下不会对合并集群进行垃圾回收，因为对该集群中任何对象的任何引用都会阻止对整个集群进行垃圾回收。
+| **启用Actor集群（Actor Clustering Enabled）** | 通过在 **项目设置（Project Settings）** 中打开这个选项，并将`bCanBeInCluster`变量设置为`true`，或者覆盖代码中的`CanBeInCluster`函数以使其返回`true`，可以将Actor放入集群中。默认情况下，Actor和组件会将这个选项关闭，但静态网格体Actor和反射捕获组件除外。该功能可用于将应该一次性全部销毁的Actor分组在一起，通常是关卡中放置的不能被销毁的静态网格体，除非卸载包含这些网格体的子关卡。|
+| **启用蓝图集群（Blueprint Clustering Enabled）** | 蓝图的`UBlueprintGeneratedClass`和相关数据，如共享UPROPERTY和UFUNCTION数据，可以通过打开该设置来建立集群。必须要认识到的是，该集群引用蓝图生成的类自身，而不是蓝图的单个实例。|
+| **待清除终止对象之间的间隔（Time Between Purging Pending Kill Objects）** | 垃圾回收活动的频率可以在项目设置中调整。该高级控制对于防止卡顿尤其有用。通过缩短回收间隔，可以减少将在下一次可访问性分析阶段发现的无法访问的对象的可能数量，并避免同时清除大量Actor时可能会发生的卡顿。|
+
+![ProjectSettingsGarbageCollection.png](ProjectSettingsGarbageCollection.png)
+[REGION:caption]项目设置中的垃圾回收设置[/REGION]
+
+(#networkreplication)
 ## 网络复制
 
-UObject 系统包括一个稳定的功能集，实现网络通讯和多人游戏。
+`UObject`系统包含一组可靠的功能，能够促进[网络通信和多人游戏](Gameplay/Networking/)。
 
-在联网游戏中，UProperties 可被标记，以告知引擎对其数据进行复制。此处的常用模型为 - 变量在服务器上发生变化，之后引擎会检测到此变化并将其可靠地发送到所有客户端。变量通过复制发生变化时，客户端可选择性地接收回调函数。
+`UProperties`可以标记为告诉引擎[在网络游戏期间复制数据](Gameplay/Networking/Actors/Properties/)。常见模型是一个变量在服务器上发生更改，引擎检测到这个更改，并将其可靠地发送到所有客户端。当变量通过复制发生更改时，客户端可以选择性接收回调函数。
 
-UFunctions 还可被标记，以便在远程机器上执行。例如在客户端机器上调用“server”函数时，将导致函数在服务器机器上对 Actor 的服务器版本进行实际执行。从另一方面来说，可从服务器调用“client”函数，并在该 Actor 的拥有客户端版本上运行。
+`UFunctions`也可以标记为[在远程机器上执行](Gameplay/Networking/Actors/RPCs/)。例如，“server”函数在客户端上调用时，将会在服务器上执行这个函数以获取服务器版本的Actor。而另一方面，“client”函数可以从服务器调用，并在拥有这个函数的客户端版本的对应Actor上运行。

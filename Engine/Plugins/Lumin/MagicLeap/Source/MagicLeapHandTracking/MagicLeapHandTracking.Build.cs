@@ -29,7 +29,7 @@ namespace UnrealBuildTool.Rules
 					"MagicLeap",
 					"MLSDK",
 					"SlateCore",
-					"LiveLinkInterface"
+					"LiveLinkInterface",
 				}
 			);
 

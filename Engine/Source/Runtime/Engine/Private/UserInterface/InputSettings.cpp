@@ -121,7 +121,8 @@ void UInputSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 	const FName MemberPropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();
 
-	if (MemberPropertyName == "ActionMappings" || MemberPropertyName == "AxisMappings" || MemberPropertyName == "AxisConfig")
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, ActionMappings) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, AxisMappings) || 
+		MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, AxisConfig) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, SpeechMappings))
 	{
 		ForceRebuildKeymaps();
 		FEditorDelegates::OnActionAxisMappingsChanged.Broadcast();
@@ -134,6 +135,7 @@ void UInputSettings::SaveKeyMappings()
 {
 	ActionMappings.Sort();
 	AxisMappings.Sort();
+	SpeechMappings.Sort();
 	SaveConfig();
 }
 
@@ -226,17 +228,23 @@ void UInputSettings::RemoveAxisMapping(const FInputAxisKeyMapping& InKeyMapping,
 
 void UInputSettings::GetActionNames(TArray<FName>& ActionNames) const
 {
-	ActionNames.Empty();
+	ActionNames.Reset();
 
 	for (const FInputActionKeyMapping& ActionMapping : ActionMappings)
 	{
 		ActionNames.AddUnique(ActionMapping.ActionName);
 	}
+
+	for (const FInputActionSpeechMapping& SpeechMapping : SpeechMappings)
+	{
+		ActionNames.AddUnique(SpeechMapping.GetActionName());
+	}
+
 }
 
 void UInputSettings::GetAxisNames(TArray<FName>& AxisNames) const
 {
-	AxisNames.Empty();
+	AxisNames.Reset();
 
 	for (const FInputAxisKeyMapping& AxisMapping : AxisMappings)
 	{
@@ -251,3 +259,132 @@ void UInputSettings::ForceRebuildKeymaps()
 		It->ForceRebuildingKeyMaps(true);
 	}
 }
+
+
+FName UInputSettings::GetUniqueActionName(const FName BaseActionMappingName)
+{
+	static int32 NewMappingCount = 0;
+	FName NewActionMappingName;
+	bool bFoundUniqueName;
+
+	do
+	{
+		// Create a numbered name and check whether it's already been used
+		NewActionMappingName = FName(BaseActionMappingName, ++NewMappingCount);
+		bFoundUniqueName = true;
+
+		bFoundUniqueName = !(DoesActionExist(NewActionMappingName) || DoesSpeechExist(NewActionMappingName));
+	} while (!bFoundUniqueName);
+
+	return NewActionMappingName;
+}
+
+FName UInputSettings::GetUniqueAxisName(const FName BaseAxisMappingName)
+{
+	static int32 NewMappingCount = 0;
+	FName NewAxisMappingName;
+	bool bFoundUniqueName;
+
+	do
+	{
+		// Create a numbered name and check whether it's already been used
+		NewAxisMappingName = FName(BaseAxisMappingName, ++NewMappingCount);
+		bFoundUniqueName = true;
+		for (int32 Index = 0; Index < AxisMappings.Num(); ++Index)
+		{
+			if (AxisMappings[Index].AxisName == NewAxisMappingName)
+			{
+				bFoundUniqueName = false;
+				break;
+			}
+		}
+	} while (!bFoundUniqueName);
+
+	return NewAxisMappingName;
+}
+
+void UInputSettings::AddActionMapping(FInputActionKeyMapping& NewMapping)
+{
+	ActionMappings.Add(NewMapping);
+}
+
+void UInputSettings::AddAxisMapping(FInputAxisKeyMapping& NewMapping)
+{
+	AxisMappings.Add(NewMapping);
+}
+
+/** Ask for all the action mappings */
+const TArray <FInputActionKeyMapping>& UInputSettings::GetActionMappings() const
+{
+	return ActionMappings;
+}
+
+/** Ask for all the axis mappings */
+const TArray <FInputAxisKeyMapping>& UInputSettings::GetAxisMappings() const
+{
+	return AxisMappings;
+}
+
+const TArray <FInputActionSpeechMapping>& UInputSettings::GetSpeechMappings() const
+{
+	return SpeechMappings;
+}
+
+struct FMatchMappingByName
+{
+	FMatchMappingByName(const FName InName)
+		: Name(InName)
+	{
+	}
+
+	bool operator() (const FInputActionKeyMapping& ActionMapping)
+	{
+		return ActionMapping.ActionName == Name;
+	}
+
+	bool operator() (const FInputAxisKeyMapping& AxisMapping)
+	{
+		return AxisMapping.AxisName == Name;
+	}
+	
+	bool operator() (const FInputActionSpeechMapping& SpeechMapping)
+	{
+		return SpeechMapping.GetActionName() == Name;
+	}
+
+	FName Name;
+};
+
+/** Finds unique action name based on existing action names */
+bool UInputSettings::DoesActionExist(const FName InActionName)
+{
+	return (ActionMappings.FindByPredicate(FMatchMappingByName(InActionName)) != nullptr);
+}
+
+/** Finds unique axis name based on existing action names */
+bool UInputSettings::DoesAxisExist(const FName InAxisName)
+{
+	return (AxisMappings.FindByPredicate(FMatchMappingByName(InAxisName)) != nullptr);
+}
+
+/** Finds unique axis name based on existing action names */
+bool UInputSettings::DoesSpeechExist(const FName InSpeechName)
+{
+	return (SpeechMappings.FindByPredicate(FMatchMappingByName(InSpeechName)) != nullptr);
+}
+
+/** Get the member name for the details panel */
+const FName UInputSettings::GetActionMappingsPropertyName()
+{
+	static const FName ActionMappingsName = GET_MEMBER_NAME_CHECKED(UInputSettings, ActionMappings);
+	return ActionMappingsName;
+}
+
+/** Get the member name for the details panel */
+const FName UInputSettings::GetAxisMappingsPropertyName()
+{
+	static const FName AxisMappingsName = GET_MEMBER_NAME_CHECKED(UInputSettings, AxisMappings);
+	return AxisMappingsName;
+}
+
+

@@ -354,11 +354,11 @@ bool UNiagaraNode::CanAddToGraph(UNiagaraGraph* TargetGraph, FString& OutErrorMs
 	return true;
 }
 
-void UNiagaraNode::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
+void UNiagaraNode::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
 	if (bRecursive)
 	{
-		OutHistory.VisitInputPins(this);
+		OutHistory.VisitInputPins(this, bFilterForCompilation);
 	}
 }
 
@@ -545,7 +545,7 @@ ENiagaraNumericOutputTypeSelectionMode UNiagaraNode::GetNumericOutputTypeSelecti
 }
 
 
-UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin)
+UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation)
 {
 	if (LocallyOwnedOutputPin == nullptr)
 	{

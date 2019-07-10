@@ -62,6 +62,8 @@ public:
 	*/
 	virtual float GetCustomParameterValue(const FName MotionSource, FName ParameterName, bool& bOutValueFound) const override { bOutValueFound = false;  return 0.f; }
 
+	virtual bool GetHandJointPosition(const FName MotionSource, int jointIndex, FVector& OutPosition) const { return false; }
+
 private:
 	static FName ARCoreMotionSourceId;
 

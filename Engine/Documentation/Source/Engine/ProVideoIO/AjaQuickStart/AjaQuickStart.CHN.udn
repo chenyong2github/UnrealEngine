@@ -1,0 +1,242 @@
+﻿INTSourceChangelist:6537140
+Availability: Public
+Crumbs: 
+Title: AJA视频输入/输出快速入门
+Description: 从支持的AJA媒体卡获取视频放入到虚幻引擎，并将捕获的视频输出从虚幻引擎发送到AJA卡上的端口的详细指南。
+Type: quick start
+Version: 4.20
+Parent: Engine/ProVideoIO
+Order: 0
+Tags: Getting Started
+Tags: professional video
+topic-image: aja-qs-topic-421.png
+
+
+![](aja-qs-banner.png)
+
+在这个快速入门指南中，我们将介绍如何设置一个虚幻引擎项目来使用AJA Video Systems中的专业视频卡。在本指南的最后：
+
+*   您将在您的虚幻引擎项目内播放来自您的AJA卡的视频输入。
+*   您将能够从编辑器和运行时应用程序捕获相机视点，并将它们发送到AJA卡上的SDI端口。
+*   当您想进行设置以对视频输入进行更高级的调整时（比如校正镜头变形和应用色度抠像效果），您知道该怎么做。
+
+[REGION:tip]
+有关展示下述许多元素付诸实践的工作示例，请参阅Epic Games启动器的学习（Learn）选项卡所提供的 **[虚拟工作室](Resources/Showcases/VirtualStudio)** 展示。
+[/REGION]
+
+[REGION:note]
+ **先决条件：**
+
+*   确保您拥有AJA Video Systems支持的卡，并安装了必要的驱动程序和软件。详情请参阅[AJA媒体引用](Engine/ProVideoIO/AjaIOReference)页面。
+*   确保您的卡正常工作，并且您有一些视频输入传递到该卡的至少一个SDI端口。
+*   打开要与视频源集成的虚幻引擎项目。此页面显示了 **第三人称** 蓝图模板中的步骤，但是相同的步骤在任何项目中都同样适用。
+
+本指南中使用的AJA媒体组件构建在[媒体框架](Engine/MediaFramework)之上，我们将使用[蓝图](Engine/Blueprints)在运行时编写视频捕获过程的脚本。建议您对这些主题有一定的了解，但这不是必需的。
+[/REGION]
+
+## 1 - 设置项目
+
+在您从AJA卡获取视频输入，放入到虚幻引擎关卡中，并通过AJA卡的某个SDI端口发送来自虚幻引擎的输出之前，您需要做一些基本设置来获得AJA媒体播放器插件并在项目中启用它。
+
+### 步骤
+
+1. AJA媒体播放器插件在市场中有售。您需要从那里安装它。  
+    打开Epic Games启动器，转到 **市场（Marketplace）** 选项卡，搜索 **AJA媒体播放器（AJA Media Player）**。按照启动器中的说明将插件安装到您的虚幻引擎版本中。
+2. 在虚幻编辑器中打开您想要使用AJA视频输入/输出的项目。
+3. 在 **插件（Plugins）** 窗口中，查找 **Aja媒体播放器（Aja Media Player）** 插件。勾选其 **启用（Enabled）** 复选框。  
+
+    ![Enable the Aja Media Player Plugin](aja-qs-enable-plugin.png "Enable the Aja Media Player Plugin")  
+    
+4. 在 **媒体（Media）** 类别下找到 **媒体框架工具（Media Framework Utilities）** 插件。选中其 **启用（Enabled）** 复选框（如果尚未选中）。  
+
+    ![Enable the Media Framework Utilities Plugin](media-qs-utilities-enabled.png "Enable the Media Framework Utilities Plugin")
+5. 单击 **立即重启（Restart Now）** 重新启动虚幻编辑器并重新打开项目。
+  
+    ![Restart Now](media-qs-utilities-restart.png "Restart Now")
+
+### 最终结果
+
+您的项目现在已经准备好接受来自AJA卡的视频，并将渲染的输出发送到该卡。在接下来的章节中，我们将准备好并开始播放视频。
+
+## 2 - 在虚幻引擎中渲染视频输入
+
+在这个过程中，我们将使来自AJA卡的视频输入在虚幻编辑器的当前关卡中可见。此过程会用到媒体束，这是一种资源，它将媒体框架中涉及的几种不同类型的资源打包在一起，并提供对一些高级特性的控制，如镜头变形、色度抠像、颜色校正等。 
+
+### 步骤
+
+1. 在您的 **内容浏览器（Content Browser）** 中，展开 **源（Sources）** 面板(1)。右键单击并从上下文菜单(2)中选择 **新建文件夹（New Folder）**。  
+	![New Folder](aja-qs-2b-1-newfolder.png "New Folder")  
+	将您的新文件夹重命名为 **AJA**。  
+    
+2. 打开您的新文件夹，右键单击 **内容浏览器（Content Browser）** 并选择 **媒体（Media）> 媒体束（Media Bundle）**。
+    
+	![New Media Bundle](aja-qs-2b-2-newbundle.png "New Media Bundle")
+3. 将在内容浏览器中自动选择新资源的名称，因此可以为其提供描述性名称：
+    
+	![Name the Media Bundle](aja-qs-2b-3-filename.png "Name the Media Bundle")
+	
+	键入一个新名称，例如 **AjaMediaBundle**，然后按 **Enter**。媒体框架资源的新文件夹将自动创建在媒体束旁边，使用后缀 **_InnerAssets** 命名。 
+4. 单击 **内容浏览器（Content Browser）** 中的 **保存所有（Save All）** 按钮保存新资源。 
+ 
+	![Save All Assets](aja-qs-2b-4-saveall.png "Save All Assets")
+5. 双击新媒体束以编辑其属性。媒体束能够播放来自引擎支持的任何媒体源的视频，因此您需要告诉它您想从AJA卡获取视频。  
+    在 **媒体源（Media Source）** 属性中，从下拉列表中选择 **Aja媒体源（Aja Media Source）**：
+  
+	![Set the AJA Media Source](aja-qs-2b-4-sourcetype.png "Set the AJA Media Source")
+6. 一旦确定您希望媒体束处理的媒体源类型，您就可以设置该类型的源提供的任何配置属性。  
+    这里要为Aja媒体源设置的最重要的东西是 **配置（Configuration）** 设置，用于确保该束设置为从正确的设备和输入端口捕获视频，并使用与实际视频源相同的分辨率和帧速率。单击箭头以打开设置子菜单，选择与您的设置匹配的选项，然后单击子菜单中的 **应用（Apply）**。  
+    
+	![Aja Media Source Configuration](aja-qs-2b-5-configuration.png "Aja Media Source Configuration")  
+    根据所安装的设备，您看到的选项可能有所不同。有关您可以为AJA媒体源设置的所有属性的详细信息，请参阅[AJA媒体引用](Engine/ProVideoIO/AjaIOReference)页面。
+7. 如果想对传入的视频应用任何补偿以解决镜头失真的问题，您可以在 **镜头参数（Lens Parameters）** 部分设置镜头的物理属性。
+    
+	![Lens undistortion parameters](aja-qs-2b-6-lensdistortion.png "Lens undistortion parameters")  
+    
+	这些 **镜头参数（Lens Parameters）** 只是设置了镜头的物理属性。稍后编辑媒体束使用的材质实例时，您将实际激活镜头补偿。  
+    设置完媒体束的属性后，保存媒体束，并返回到内容浏览器中的 **AJA** 文件夹。
+8. 将您的 **AjaMediaBundle** 资源从内容浏览器拖到关卡视口中。  
+    
+	![Drag and drop the Media Bundle](aja-qs-2b-9-dragdrop.png "Drag and drop the Media Bundle")  
+    
+	您将看到一个新的平面出现，显示当前在为您的媒体束配置的端口上播放的视频。使用视口（Viewport）工具栏中的变形工具来移动、旋转和调整它的大小。  
+    如果您的媒体束没有自动开始播放，选择它，然后单击 **详细信息（Details）** 面板中的 **媒体束（Media Bundle）> 请求播放媒体（Request Play Media）** 按钮。  
+    
+	![Request Play Media](aja-request-play-media.png "Request Play Media")
+9. 现在，我们将了解如何将抠像和合成效果应用到视频流。  
+    回到媒体束编辑器中，单击工具栏中的 **打开材质编辑器（Open Material Editor）** 按钮，编辑这个媒体束用于将其传入视频源绘制到关卡中对象上的材质实例。  
+    
+	![Open Material Editor](aja-open-material-editr.png "Open Material Editor")  
+    [REGION:tip]
+    此材质实例保存在 **AjaMediaBundle_InnerAssets** 文件夹中，该文件夹是用您的媒体束自动创建的。  
+    ![Material Instance](aja-qs-2b-7-materialinstance.png "Material Instance")
+    [/REGION]
+10. 在材质实例编辑器中，您将看到为供您配置抠像、剪辑和颜色校正以及激活您在媒体束中设置的镜头失真校正而公开的许多属性。  
+    
+	![Material Instance Editor](aja-qs-2b-8-materialinstanceeditor.png "Material Instance Editor")  
+    当您在材质实例编辑器中调整设置时，您可以看到您的更改对在主关卡视口中播放的视频源的影响。
+    [REGION:tip]
+    您可能会发现在材质实例编辑器的预览面板中查看所做更改的效果更为方便。为此，临时启用 **IsValid** 设置，并将其值设置为“1.0”。  
+    ![IsValid](video-qs-preview-isvalid.png "IsValid")  
+    单击视口工具栏左上角的箭头，并在菜单中启用 **实时（Realtime）** 选项。  
+    ![Realtime viewport](aja-qs-2b-8-realtime.png "Realtime viewport")  
+    通过将预览网格体更改为平面或立方体，您将能够更容易地判断更改的效果。使用视口底部的控件：  
+    ![Preview mesh](aja-qs-2b-8-displayshape.png "Preview mesh")  
+    完成后，将 **IsValid** 设置返回到它的前一个值。
+    [/REGION]
+11. 更改完材质实例属性后，单击工具栏中的 **保存（Save）** 按钮。
+
+### 最终结果
+
+此时，您应该正在虚幻引擎关卡内的SDI端口上播放视频，并且应该了解如何设置更高级的功能，如镜头变形和色度抠像。
+
+如果您已经熟悉媒体框架，那么另一种将视频引入您的关卡的方法是在您的项目中创建一个新的 **AjaMediaSource** 资源，并使用您在上述过程中在媒体束中设置的相同源属性对其进行设置。然后，创建您自己的 **MediaPlayer** 和 **MediaTexture** 资源，以便在您的关卡上处理该源的播放。详情请参阅[媒体框架](Engine/MediaFramework)文档。但是，我们建议使用上述媒体束，以在易用性和专业高质视频特性之间取得最佳平衡。
+
+## 3 - 从虚幻编辑器输出采集
+
+在此过程中，您将设置一个AJA媒体输出对象，并使用虚幻编辑器中的 **媒体采集（Media Captures）** 面板将关卡中所选相机的视图输出到您的AJA卡。
+
+### 步骤
+
+1. 在内容浏览器中右键单击，选择 **媒体（Media）> Aja媒体输出（Aja Media Output）**。   
+    
+	![New AJA Media Output](aja-qs-3-1-newoutput.png "New AJA Media Output")    
+    将您的新资源命名为 **AjaMediaOutput**。
+2. 双击您的新资源打开它进行编辑。就像创建Aja媒体源一样，您必须设置 **配置（Configuration）** 属性来控制虚幻引擎发送到AJA卡的视频源属性。单击箭头以打开子菜单，选择与您的视频设置匹配的选项，然后单击子菜单中的 **应用（Apply）**。  
+    
+	![Aja Media Output Configuration](aja-qs-3-2-configuration.png "Aja Media Output Configuration")  
+    有关您可以在AJA媒体输出中设置的所有属性的详细信息，请参阅[AJA媒体引用](Engine/ProVideoIO/AjaIOReference)页面。完成后，保存并关闭您的媒体输出。
+3. 现在我们将在关卡中放置两个相机，为我们将发送到AJA卡的输出提供视点。在 **模式（Modes）** 面板中，打开 **过场动画（Cinematic）** 选项卡，并将 **过场动画相机Actor（Cine Camera Actor）** 的两个实例拖放到视口中。  
+    
+	![Drag and drop Cine Camera Actors](aja-qs-3-3-cinecameras.png "Drag and drop Cine Camera Actors")  
+    将相机放置在关卡中您想要的位置，这样它们就能显示场景上的不同视点。
+    [REGION:tip]
+    **导航** 相机是一种完全按照您想要的方式来设置相机视点的快速而简便的方法。请参阅[在视口中导航Actor](Engine/UI/LevelEditor/Viewports/ActorLocking)。
+    [/REGION]
+4. 从主菜单选择 **窗口（Window）> 媒体采集（Media Capture）**。您将使用 **媒体采集（Media Capture）** 窗口来控制编辑器何时向您的AJA端口发送输出，以及它在关卡中应该使用什么相机。  
+    
+	![Media Capture window](aja-qs-3-4-mediacapture.png "Media Capture window")
+5. 在 **媒体视口采集（Media Viewport Capture）** 区域下，找到 **视口采集（Viewport Captures）** 控件。单击 **+** 按钮将新的采集添加到此列表。  
+    
+	![Add a viewport capture](aja-qs-3-5-newcapture.png "Add a viewport capture")
+6. 展开新条目。首先，我们将添加想要从中进行采集的相机。在 **锁定的相机Actor（Locked Camera Actors）** 控件中，单击 **+** 按钮添加新条目。  
+    
+	![Add a camera actor](aja-qs-3-6-newcamera.png "Add a camera actor")   
+    然后，使用下拉列表选择您放置在关卡中的相机之一。  
+    
+	![Select the camera actor](aja-qs-3-6-selectcamera.png "Select the camera actor")  
+    重复相同的步骤将另一个相机添加到列表中。
+7. 现在，设置要采集这些相机的输出。将 **媒体输出（Media Output）** 控件设置为指向您在上面创建的新AJA媒体输出资源。为此，您可以在下拉列表中选择它，或者从内容浏览器中拖动AJA媒体输出资源并将其放入此槽中。  
+    
+	![Set the AJA Media Output](aja-qs-3-7-selectoutput.png "Set the AJA Media Output")
+8. 在窗口顶部，单击 **采集（Capture）** 按钮。  
+    
+	![Start capturing](aja-qs-3-8-capture.png "Start capturing")  
+    您将在窗口底部看到一个新框架，该框架显示要发送到AJA卡的输出的预览。如果您已经将这个端口连接到另一个下游设备，您应该会开始看到输出。  
+    
+	![Active Media Capture](aja-qs-output-8.png "Active Media Capture")
+9. 为此视口采集而添加到锁定的相机Actor（Locked Camera Actors）列表中的各个相机由视频预览上方的相应按钮表示。单击这些按钮在两个视图之间来回切换采集。  
+    
+	![Switch Cameras](aja-qs-output-9.png "Switch Cameras")
+
+### 最终结果
+
+现在您已经设置虚幻编辑器，以将您关卡中的相机输出流送到AJA卡上的端口。接下来，我们将看到如何在正在运行的虚幻引擎项目中使用蓝图脚本执行相同的操作。
+
+## 4 - 在运行时输出采集
+
+您在上一部分中使用的 **媒体采集（Media Capture）** 窗口是一种向AJA卡发送采集的实用且简单的方法。然而，它仅可在虚幻编辑器中使用。要在将项目作为独立应用程序运行时执行相同的操作，需要使用媒体输出提供的蓝图API。在这个过程中，我们将在关卡蓝图中设置一个简单的切换开关，在玩家按下键盘上的某个键时，该开关会启动或停止采集。
+
+[REGION:tip]
+Epic Games启动器的学习（Learn）选项卡所提供的 **[Virtual Studio](Resources/Showcases/VirtualStudio)** 展示包含一个UMG界面控件，演示如何从屏幕上的用户界面控制采集。
+[/REGION]
+
+### 步骤
+
+1. 从虚幻编辑器中的主工具栏中，选择 **蓝图（Blueprints）> 打开关卡蓝图（Open Level Blueprint）**。  
+    ![Open Level Blueprint](aja-qs-4-1-levelbp.png "Open Level Blueprint")
+2. 我们需要从您创建的AJA媒体输出资源开始，您将在该资源中标识要输出到的端口。在 **我的蓝图（My Blueprint）** 面板的 **变量（Variables）** 列表中，单击 **+** 按钮添加新变量。  
+    ![New Variable](aja-qs-4-2-newvar.png "New Variable")
+3. 在 **详细信息（Details）** 面板中，将 **变量名（Variable Name）** 设置为 **AjaMediaOutput**，并使用 **变量类型（Variable Type）** 下拉列表使其成为 **Aja媒体输出对象引用（Aja Media Output Object Reference）**。  
+    ![Aja Media Output Object Reference](aja-qs-4-3-vartype.png "Aja Media Output Object Reference")
+4. 启用 **可编辑实例（Instance Editable）** 设置(1)，并编译蓝图。然后，在 **默认值（Default Value）** 部分中，将变量设置为指向您在内容浏览器(2)中创建的AJA媒体输出资源。  
+    ![Set the default value](aja-qs-4-4-default.png "Set the default value")
+5. 按 **Ctrl**，将 **AjaMediaOutput** 从 **我的蓝图（My Blueprint）** 面板中的变量列表拖放到 **事件图表（Event Graph）** 中。  
+    ![Control+drag the AjaMediaOutput](aja-qs-4-5-dropvariablet.png "Control+drag the AjaMediaOutput")
+6. 单击并从 **AjaMediaOutput** 变量节点的输出端口拖动，选择 **媒体（Media）> 输出（Output）> 创建媒体采集（Create Media Capture）**。   
+    ![Create Media Capture](aja-qs-4-6-createcapture.png "Create Media Capture")  
+    将您的节点连接到 **事件BeginPlay（Event BeginPlay）** 节点，如下所示：  
+    ![Event Begin Play](aja-qs-4-6-eventplay.png "Event Begin Play")  
+    这将从Aja媒体输出创建一个新的媒体采集对象。媒体采集提供了两个主要的蓝图函数，我们将使用它们来控制采集：**采集活动场景视口（Capture Active Scene Viewport）** 和 **停止采集（Stop Capture）**。
+7. 首先，我们将把新媒体采集对象保存到它自己的变量中，这样我们就可以在其他地方再次访问它。单击并从 **创建媒体采集（Create Media Capture）** 节点的输出端口拖动，选择 **提升到变量（Promote to Variable）**。  
+    ![Promote to variable](aja-qs-4-7-promote.png "Promote to variable")  
+    在 **我的蓝图（My Blueprint）** 面板的变量列表中将新变量重命名为 **MediaCapture**。
+    [REGION:tip]
+    务必在这里将媒体采集保存为变量。如果不这样做，虚幻引擎的垃圾回收器可能会在您用完它之前自动销毁它。
+    [/REGION]
+8. 按 **Ctrl** 并将 **MediaCapture** 变量拖动到 **事件图表（Event Graph）** 中。  
+    ![Control+drag the MediaCapture](aja-qs-4-8-mediacapture.png "Control+drag the MediaCapture")  
+    
+9. 从 **MediaCapture** 变量节点的输出端口点击拖动，选择 **媒体（Media）> 输出（Output）> 采集活动场景视口（Capture Active Scene Viewport）**。再做一次，选择 **媒体（Media）> 输出（Output）> 停止采集（Stop Capture）**。  
+    ![Start and stop the capture](aja-qs-4-9-capturestop-1.png "Start and stop the capture")
+10. 右键单击 **事件图表（Event Graph）**，选择 **输入（Input）> 键盘事件（Keyboard Events）> P**。单击并拖动 **P** 节点的 **已按下（Pressed）** 输出，选择 **流程控制（Flow Control）> FlipFlop**。   
+    ![FlipFlop](aja-qs-4-10-pflipflop.png "FlipFlop")
+11. 将 **FlipFlop** 节点的 **A** 输出连接到 **采集活动场景视口（Capture Active Scene Viewport）** 节点的输入事件，将 **FlipFlop** 节点的 **B** 输出连接到 **停止采集（Stop Capture）** 节点的输入事件，如下图所示：  
+    ![Connect the nodes](aja-qs-4-11-done.png "Connect the nodes")
+12. 编译并保存蓝图，并尝试运行您的项目。单击主工具栏运行（Play）按钮旁边的箭头，选择 **新建编辑器窗口（在编辑器中运行）（New Editor Window (PIE)）** 或 **独立窗口运行（Standalone Game）** 选项。  
+    ![Launch the Project](aja-qs-4-12-pie.png "Launch the Project")  
+    [REGION:note]
+    只有当您在 **新建编辑器窗口（在编辑器中运行）（New Editor Window (PIE)）** 或 **独立窗口运行（Standalone Game）** 中运行项目时，来自编辑器的视频采集才会工作。它不能在默认的 **选中的视口（Selected Viewport）** 模式或 **模拟（Simulate）** 模式下工作。  
+    此外，项目的视口分辨率（即虚幻引擎生成的每个帧的渲染图像大小）必须与活动媒体配置文件中的输出分辨率集匹配，使它是输出视频源的正确大小。
+    [/REGION]  
+    项目启动后，您应该能够按键盘上的 **P** 按钮来切换将输出从引擎发送到AJA卡。
+
+### 最终结果
+
+至此，您应该对如何使用Aja媒体源、媒体束和媒体采集系统有了基本的了解，并且应该了解所有这些元素如何协力工作，以在虚幻引擎中输入和输出专业视频。
+
+## 自学
+
+现在您已经了解了使用AJA卡交换视频输入和输出的新项目的基本知识，您可以继续自学：
+
+*   在您的媒体束创建的材质实例中探索引擎内抠像解决方案。尝试将一些绿屏视频传递到卡的输入端口，并使用材质实例中的抠像控件来移除背景。
+*   浏览 **[Virtual Studio](Resources/Showcases/VirtualStudio)** 展示，看看它为这个基本设置添加了什么，比如它的屏幕上的UI，此UI可以在运行时切换相机和控制视频采集。

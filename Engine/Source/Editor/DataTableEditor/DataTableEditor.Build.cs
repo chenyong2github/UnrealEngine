@@ -12,6 +12,7 @@ public class DataTableEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"ApplicationCore",
 				"Engine",
                 "InputCore",
 				"Slate",

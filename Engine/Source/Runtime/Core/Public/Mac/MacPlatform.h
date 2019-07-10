@@ -91,8 +91,12 @@ typedef FMacPlatformTypes FPlatformTypes;
 #define OPERATOR_NEW_NOTHROW_SPEC  _NOEXCEPT
 #define OPERATOR_DELETE_NOTHROW_SPEC  _NOEXCEPT
 
+// DLL export and import for tpyes definitions
+#define DLLEXPORT_VTABLE	__attribute__ ((__type_visibility__("default")))
+#define DLLIMPORT_VTABLE	__attribute__ ((__type_visibility__("default")))
+
 // DLL export and import definitions
-#define DLLEXPORT
-#define DLLIMPORT
+#define DLLEXPORT			__attribute__((visibility("default")))
+#define DLLIMPORT			__attribute__((visibility("default")))
 
 #define MAC_MAX_PATH 1024

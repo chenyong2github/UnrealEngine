@@ -1,56 +1,260 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title: 媒体框架快速入门指南
-Crumbs: %ROOT%, Engine
-Description: 指导您如何在游戏关卡中使用媒体框架工具快速添加及播放视频。
-Navigation:topic
-parent:Engine/MediaFramework
-order:1
-Version: 4.18
-type:quick start
-checkpoint:mediaframeworkqs
-tags:Media Framework
-topic-image:MediaFrameworkTopic.png
+﻿INTSourceChangelist:6503306
+Availability: Public
+Title: Media Framework快速入门指南
+Description: 如何使用Media Framework工具在游戏关卡中快速添加和播放视频的指南。
+Type: quick start
+Version: 4.22
+Parent: Engine/MediaFramework
+Tags: Media Framework
+topic-image: MediaFrameworkHero.png
+Order: 2
+Related: Engine/Blueprints
+Related: Engine/Rendering/Materials
 
-![](MediaFrameworkHero.png)
 
-_在本指南末尾，关卡中将有多个播放不同内容的电视机，当角色站在电视机跟前时，可以打开或关闭电视机。_
+[TOC (start:2 end:2)]
 
-## 目标
+![](MediaFrameworkHero.png)(w:1080)
 
-在“媒体框架快速入门指南”中，我们将逐步讲解在关卡中设置可以播放视频的电视机的过程。 
-我们也将使用蓝图设置电视机，以使电视机上的内容可以变化，而且在关卡中可以放置多个电视机（如果你愿意，每个电视机上都可以播放不同的内容）。 
-如果不熟悉媒体框架工具，或者想要了解如何在关卡中的静态网格体上播放视频，本指南非常适合你。 
+*本指南结束时，您的关卡中会有一个电视在播放内容，您可以站在附近通过按键来打开或关闭电视。*
+
+### 目的
+
+在Media Framework快速入门指南中，我们将介绍如何设置可以在关卡中播放视频的电视（TV）。我们还使用蓝图设置TV，这样TV上的内容可以通过按按钮来打开。我们还通过 **细节（Details）** 面板公开Media Framework变量，以便快速更改TV上显示的内容。如果您是刚开始接触Media Framework工具，或者想要知道如何在关卡内的静态网格体上播放视频，本指南正适合您阅读。
 
 [REGION:note]
-本指南中包含一些使用[](Engine/Rendering/Materials)和[蓝图](Engine/Blueprints)来实现在电视机上播放视频的效果的设置。 
-我们建议大家提前了解一些与这些主题相关的知识，但是并非强制。 
+本指南包含一些使用[材质](Engine/Rendering/Materials)和[蓝图](Engine/Blueprints)的设置以实现在TV上播放视频的效果。建议事先学习一些本主题的预备知识，但不是强制性要求。
 [/REGION]
 
-## 目标
+### 目标
 
-在学完本教程后，开发人员将掌握下列知识：
+完成本教程后，开发者将掌握以下几点：
 
-*	如何导入媒体和使用不同的媒体源。 
-*	如何创建融入了用于播放媒体文件的媒体纹理的材质。 
-*	如何使用蓝图开始、停止和暂停媒体播放。 
-*	如何创建可以在其中指定要使用的媒体源的电视机蓝图。 
+*   如何导入媒体和使用不同的媒体源。
+*   如何创建包含用来播放媒体文件的媒体纹理的材质。
+*   如何使用蓝图开始和停止播放媒体。
+*   如何创建TV蓝图并在其中指定想要使用的媒体源。
+    
 
-## 步骤
+## 1 - 项目和材质设置
 
-[DIR(output:"checkpoint" parent:"Engine\MediaFramework\QuickStart" org:"hierarchy")]
+1. 使用 **ThirdPerson** 蓝图模板创建新项目，并为其指定任意名称。
 
-[REGION:call_to_action]
-	[单击此处开始学习](Engine\MediaFramework\QuickStart/1 "%Engine\MediaFramework\QuickStart/1:title%")
+	[REGION:lightbox]
+	[![](MediaFrameworkQS_01.png)(w:640)](MediaFrameworkQS_01.png)
+	[/REGION]
+	[REGION:caption]
+	单击查看大图。 
+	[/REGION]
+
+1. 将该[样本内容](Sample_Content.rar)提取到机器，然后将所有内容导入到引擎。 
+    
+	![](MediaFrameworkQS_02.png)
+
+    您可以选择创建一个新文件夹来保存所有样本内容。**材质** 将根据纹理资源自动创建。 
+
+1. 在 **M_TV_Inst** 材质中，删除 **矢量参数** 节点，添加一个 **纹理样本**，并将 **样本类型（Sample Type）** 设置为 **外部（External）**。 
+
+	![](MediaFrameworkQS_03.png)
+
+1. 添加 **纹理对象参数**，并将其命名为 **TV_Texture**，然后通过 **Tex** 引脚连接到 **纹理样本**。 
+
+1. 对于 **TV_Texture** 参数文本对象，将 **纹理** 更改为新的 **媒体纹理** 并将其命名为 **MediaPlayer_01_Video**。 
+
+	[REGION:lightbox]
+	[![](MediaFrameworkQS_04.png)(w:640)](MediaFrameworkQS_04.png)
+	[/REGION]
+	[REGION:caption]
+	单击查看大图。 
+	[/REGION]
+
+1. 单击放大镜图标以浏览并打开 **MediaPlayer_01_Video** 资源。 
+
+	![](MediaFrameworkQS_04b.png)    
+
+1. 单击 **媒体播放器（Media Player）** 下拉菜单，并创建 **媒体播放器** 资源，将其命名为 **MyMediaPlayer**。 
+      
+    ![](MediaFrameworkQS_04c.png)
+
+	当 **创建媒体播放器（Create Media Player）** 弹出菜单出现时，只需单击 **确定（Ok）** 即可，因为我们已经在上述步骤 5 中创建过了，因此不需要再创建一个 **媒体纹理**。 
+
+	![](MediaFrameworkQS_04d.png)
+
+1. 打开 **MyMediaPlayer** 资源，然后双击 **Gideon_1080p_H264** 文件，视频将会开始播放。 
+
+	[REGION:lightbox]
+	[![](MediaFrameworkQS_04e.png)(w:640)](MediaFrameworkQS_04e.png)
+	[/REGION]
+	[REGION:caption]
+	单击查看大图。 
+	[/REGION]
+
+1. 在 **M_TV_Inst** 材质中，添加 **TexCoord**，并将 **VTiling** 设置为 **2.0**，然后连接到 **纹理样本** 的 **UV** 引脚。 
+
+	![](MediaFrameworkQS_05.png)
+
+1. 再添加一个 **TextureSample**，并将 **纹理（Texture）** 设置为 **T_TV_M2** 资源。 
+
+	![](MediaFrameworkQS_06.png)
+
+1. 添加一个 **LinearInterpolate** 节点，将上一步中的 **纹理** 通过 **绿色** 通道连接到 **Alpha**。 
+
+	![](MediaFrameworkQS_07.png)
+
+1. 如下所示连接剩余引脚。 
+
+	[REGION:lightbox]
+	[![](MediaFrameworkQS_08.png)(w:640)](MediaFrameworkQS_08.png)
+	[/REGION]
+	[REGION:caption]
+	单击查看大图。 
+	[/REGION]
+
+### 分段结果
+
+我们已经设置了材质，它将使用 **媒体播放器** 和关联的 **媒体纹理** 资源播放我们的媒体。如果我们在 **内容浏览器** 中打开TV网格体，可能会注意到屏幕显示为黑色（某些情况下为白色）。 
+
+![](MediaFrameworkQS_08a.png)(w:720)
+
+要预览，可以打开媒体播放器资源，双击媒体源，此时媒体将在视口中的静态网格体TV上播放。 
+
+[REGION:lightbox]
+[![](MediaFrameworkQS_09.png)(w:640)](MediaFrameworkQS_09.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。 
 [/REGION]
 
 
+## 2 - TV蓝图 - 组件设置
+
+在该步骤中，我们创建使用TV静态网格体的蓝图，以及让TV能够在关卡中运行所需的其余组件。 
+
+1. 在 **内容浏览器** 中，单击 **新增（Add New）** 按钮并选择 **蓝图类（Blueprint Class）**。 
+
+	![](MediaFrameworkQS_010.png)
+
+1. 在 **选取父类（Pick Parent Class）** 菜单中，选择 **Actor** 并将蓝图命名为 **TV_BP**。 
+    
+	![](MediaFrameworkQS_011.png)  
+
+1. 在 **TV_BP** 资源中，单击 **添加组件（Add Component）** 按钮并选择 **静态网格体（Static Mesh）**。 
+
+	![](MediaFrameworkQS_012.png)
+
+1. 在 **静态网格体（Static Mesh）** 的 **细节（Details）** 面板中，将 **SM_TV** 指定为要使用的 **静态网格体**。 
+
+	![](MediaFrameworkQS_013.png)
+
+1. 添加 **箱体碰撞** 组件，然后调节大小并将箱体移到TV前面，如下所示。 
+
+	[REGION:lightbox]
+	[![](MediaFrameworkQS_014.png)(w:640)](MediaFrameworkQS_014.png)
+	[/REGION]
+	[REGION:caption]
+	单击查看大图。 
+	[/REGION]
+
+	我们将使用箱体碰撞来指示当玩家位于TV前面时玩家可以打开TV（我们不希望站在TV后面时能够打开TV）。 
+
+1. 添加 **MediaSound** 组件并在 **细节（Details）** 面板中为 **媒体播放器（Media Player）** 属性分配 **MyMediaPlayer** 资源。 
+
+	![](MediaFrameworkQS_015.png)
+
+	这将用于在 **媒体播放器** 中播放与定义的 **媒体源** 关联的音频。 
+
+1. 在 **箱体碰撞** 的 **细节（Details）** 面板中，添加 **组件开始重叠时（On Component Begin Overlap）** 和 **组件结束重叠时（On Component End Overlap）** 事件。 
+
+	![](MediaFrameworkQS_016.png)
+
+### 分段结果
+
+我们的TV蓝图设置妥当，接下来添加脚本功能，以便能够在站在TV旁边时通过按键来打开TV。 
 
 
+## 3 - TV蓝图 - 脚本设置
 
+在最后一步中，我们添加脚本功能，让玩家能够按按钮来打开或关闭TV。
 
+1. 在TV蓝图的 **事件图表** 中，使用 **获取玩家控制器（Get Player Controller）**、**启用输入（Enable Input）** 和 ** 禁用（Disable）** 输入，连接方式如下所示。 
 
+	[REGION:lightbox]
+	[![](MediaFrameworkQS_017.png)(w:640)](MediaFrameworkQS_017.png)
+	[/REGION]
+	[REGION:caption]
+	单击查看大图。 
+	[/REGION]
 
+1. 右键单击图表，添加 **P** 键盘事件（或者所需的按键），将 **按下（Pressed）** 连接到 **触发器（FlipFlop）** 节点。 
+    
+	![](MediaFrameworkQS_018.png)
 
+1. 右键单击图表并禁用 **情境关联（Context Sensitive）**，然后添加 **打开源（Open Source）** 节点。 
+
+	![](MediaFrameworkQS_019.png)
+
+1. 在 **打开源（Open Source）** 节点上，右键单击 **目标（Target）** 引脚，选择 **提升为变量（Promote to Variable）** 并将其命名为 **MediaPlayerforVideo**。 
+
+	![](MediaFrameworkQS_020.png)
+
+	在默认情况下，媒体播放器设置为 **打开即播放（Play on Open）**，这样会在打开时播放媒体。 
+
+	[REGION:note]
+	对于禁用了 **打开即播放（Play on Open）** 的媒体播放器，可以使用 **播放（Play）** 节点，后跟 **打开源（Open Source）** 调用。 
+	[/REGION]
+
+1. 将 **媒体源（Media Source）** 提升为变量，将其命名为 **SourceToOpen**。 
+
+1. 在 **变量（Variables）** 列表中，单击两个变量上的眼睛图标，将它们设为 **实例可编辑（Instance Editable）** 并按如下所示进行连接。 	
+
+	![](MediaFrameworkQS_021.png)
+
+1. 添加 **结束（Close）** 节点，将其连接到 **触发器（FlipFlop）** 的 **B** 引脚，并将 **目标（Target）** 设为 **MediaPlayerforVideo**。 
+
+	![](MediaFrameworkQS_022.png)
+
+1. 将 **TV_BP** 拖到关卡，然后在 **细节（Details）** 面板中，分配 **MyMediaPlayer** 和 **Gideon_1080p_H264** 资源。 
+
+	![](MediaFrameworkQS_023.png)
+	
+	我们将使用箱体碰撞来指示当玩家位于TV前面时玩家可以打开TV（我们不希望站在TV后面时能够打开TV）。 
+
+1. 在 **MyMediaPlayer** 资源中，启用 **循环（Loop）** 选项。 
+
+	![](MediaFrameworkQS_024.png)
+
+	这样视频开始播放后将自动循环视频，除非收到关闭指令。 
+
+1. 单击 **播放（Play）** 按钮以在关卡中播放。 
+
+### 最终结果
+
+在关卡中播放并接近TV时，按P按钮开始播放指定的媒体。再次按P将停止播放。 
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	9y7RfFJ-yP4
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
+[/OBJECT]
+
+## 4 - 看你的了！
+
+下面是一些额外操作，您可以使用Media Framework工具在您的项目中尝试操作： 
+
+*让玩家[控制TV的播放](Engine/MediaFramework/HowTo/ControllingPlayback)。
+*使用[媒体播放列表](Engine\MediaFramework\HowTo\MediaPlaylists\)作为媒体源，并允许玩家“更改TV频道”。
+*向拥有自己的媒体播放器、媒体声音和媒体源资源的关卡添加第二个TV蓝图。 
 
 

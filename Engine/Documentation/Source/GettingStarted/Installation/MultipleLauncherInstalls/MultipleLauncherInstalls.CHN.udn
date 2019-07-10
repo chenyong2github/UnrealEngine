@@ -1,0 +1,121 @@
+﻿INTSourceChangelist:6443090
+Availability: Public
+Title: 多个启动程序安装
+Description: 概述如何启用启动程序的PCB模式，以及如何添加Windows注册表安装路径覆盖（如果需要）。
+Type: overview
+Version: 4.20
+Parent: GettingStarted/Installation
+Tags: Installation
+Order: 0
+
+
+[TOC (start:2 end:3)]
+
+![](MultiLauncherInstall_OverviewImg-1.png "MultiLauncherInstall_OverviewImg-1.png")
+
+在多台计算机上安装Epic Games启动程序和虚幻引擎既耗时又难以维护，尤其是对于在学术、办公室或网吧环境中管理数十台甚至数百台计算机的IT人员和开发人员。为了帮助这些用户，我们更新了启动程序，提供更便于设置和更新应用程序（例如虚幻引擎4(UE4)）的功能。下面的概述介绍了如何在多台计算机上安装启动程序，以便轻松地设置和维护应用程序。 
+
+在本文档的最后，您将了解如何启用 **启动程序PCB模式（Launcher PCB Mode）**，如果需要，还将了解如何在启用PCB模式功能后设置 **Windows注册表安装路径覆盖（Windows Registry Install Path Override）**。
+
+[REGION:note]
+目前，只有Windows操作系统上支持这些功能。
+[/REGION]
+
+## 启动程序PCB模式
+
+在Windows上，启动程序通常将清单、动态文件和临时文件存储在系统的 **ProgramData** 文件夹中（例如，**\%programdata%\\Epic** 或 **C:\\ProgramData\\Epic**）。通常，如果办公室、学术或网吧管理员在服务器上安装了启动程序和虚幻引擎，而没有将程序数据镜像到客户端，他们会遇到安装问题，包括客户端无法找到游戏安装和应用程序的重新安装。
+
+有时，系统管理员需要运行一系列复杂的步骤来将程序数据文件夹镜像到客户端计算机上。为了简化他们的工作流程，启动程序现在支持 **PCB模式（PCB Mode）**。启用PCB模式后，启动程序将程序数据文件夹存储在其安装文件夹中。例如，网吧所有者将能够在服务器机器上设置启动程序，这样服务器的安装文件夹将被复制到它的客户端。对于安装文件夹中的所有程序数据文件，不需要执行额外的工作。
+
+[REGION:prereq]
+如果您以前从未安装过UE4，请花些时间阅读我们的初始安装指南，其中介绍了[安装虚幻引擎](GettingStarted/Installation)的基础知识。
+[/REGION]
+
+### 启用启动程序PCB模式
+
+执行以下步骤来启用启动程序PCB模式：
+
+1.  在进入下一步之前，至少在一台计算机（可以是一台服务器）上安装启动程序。稍后，我们将把这台计算机称为“原始计算机”。
+
+1.  在进入下一步之前，请确保启动程序已关闭。
+
+1.  要启用 **启动程序PCB模式（Launcher PCB Mode）**，请将 **Epic** 文件夹移动（或复制）到启动程序的安装目录中。为了便于说明，我们将Epic文件夹从“C:\ProgramData\Epic”移动到“C:\Program Files (x86)\Epic Games\Launcher”中。  
+    ![](MultiLauncherInstall_Step3.png "MultiLauncherInstall_Step3.png")
+
+[REGION:note]
+PCB模式试图简化用户从启动程序安装多个引擎的工作流。阅读“启动程序PCB模式”部分，了解关于这一新的启动程序模式的更多信息。
+[/REGION]
+1.  使用启动程序，将选择的引擎安装到新的计算机中。
+
+1.  最后，将启动程序和引擎的安装目录复制到新的计算机。
+
+[REGION:note]
+如果新计算机的引擎安装路径与原始计算机的安装路径不同，或者新计算机具有不同的驱动器号，则需要在启用启动程序PCB模式（Launcher PCB Mode）后添加 **注册表安装路径覆盖（Registry Install Path Override）**。
+[/REGION]
+
+### 禁用启动程序PCB模式
+
+要禁用此模式，请关闭启动程序，并将 **Epic** 文件夹从启动程序的安装目录移回 **程序（Program）** 目录，确保在移动后重新启动启动程序。
+
+[REGION:tip]
+我们建议您移动 **Epic** 文件夹而不是删除它，因为如果您从启动程序安装目录中删除该文件夹，您可能会丢失清单文件（无法修改的二进制文件），而这些清单文件用于告诉启动程序您的游戏或应用程序安装在何处。
+[/REGION]
+
+## Windows注册表安装路径覆盖
+
+启动程序将游戏和应用程序安装位置信息存储在清单文件中，而清单文件存在于系统的 **ProgramData** 文件夹中。此时，如果您将已安装的游戏或应用程序移动到新位置，启动程序将无法发现已移动的安装。这可能会出现问题，特别是对于那些将启动程序和游戏（或应用程序）安装移动到驱动器号或目录结构不同于原始安装机器的机器的用户。在将启动程序或其安装移动（或复制）到新机器的过程中，如果遇到问题，您可能需要指定一个注册表安装路径覆盖来指向复制或移动的游戏或应用程序文件夹。
+
+[REGION:note]
+通常，注册表安装路径覆盖用于PCB模式。
+[/REGION]
+
+在逐个游戏（或每个应用程序）的基础上，在Windows注册表中指定安装路径(InstallLocation)，**InstallLocation** 覆盖可以添加到以下注册表位置之一：
+
+*  “HKEY_LOCAL_MACHINE\SOFTWARE\Epic Games\EpicGamesLauncher\Overrides”
+
+*   “HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides”
+
+*   “HKEY_CURRENT_USER\SOFTWARE\Epic Games\EpicGamesLauncher\Overrides”
+
+*   “HKEY_CURRENT_USER\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides”
+
+[REGION:note]
+下一部分使用Windows 10中的[注册表](https://docs.microsoft.com/en-us/windows/desktop/sysinfo/registry)编辑器。
+[/REGION]
+
+### 添加注册表安装路径覆盖
+
+执行以下步骤来添加注册表安装路径覆盖:
+
+1.  在任务栏的搜索栏中，键入“regedit”。
+
+1.  选择 **regedit运行命令（regedit Run command）** 以打开 **注册表编辑器（Registry Editor）**。
+
+[REGION:note]
+您将使用 **注册表编辑器（Registry Editor）** 来添加InstallLocation覆盖子键，该子键可以添加到注册表安装路径覆盖部分中列出的任何注册表位置。为了便于说明，我们将该子键添加到以下键中：
+
+“HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides”
+[/REGION]
+1.  导航到以下注册表位置：“HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher”，同时确保选择 **EpicGamesLauncher** 键。
+
+1.  要为 **EpicGamesLauncher** 键创建一个新的子键，请选择 **编辑（Edit）** 菜单，将鼠标悬停在 **新建（New）** 选项上，然后选择 **Key** 命令。
+
+1.  将新子键命名为“Overrides”。
+
+1.  现在，重复前面的两个步骤，为Overrides创建一个新的子键，将其命名为“UE_4.18”。
+
+[REGION:tip]
+注册表路径的格式必须包含UE4的强制文件夹名，您可以在启动程序的 **安装对话框（Install Dialog）** 中找到该文件夹名。如下图所示，本例的强制文件夹名为 **UE_4.18**：  
+
+![](LauncherInstallDialog.png "LauncherInstallDialog.png")
+[/REGION]
+1.  选择 **编辑（Edit）** 菜单，将鼠标悬停在 **新建（New）** 选项上，然后选择 **String Value** 命令。
+
+1.  将新的String Value命名为“InstallLocation”。
+
+1.  最后，为 **InstallLocation** 定义数据值，匹配UE4的强制文件夹名。在本例中，我们使用 **C:\\Epic Games\\UE_4.18**。  
+    ![](InstallLocOverride_Step9.png "InstallLocOverride_Step9.png")
+
+[REGION:note]
+启动程序仅在启动时读取注册表值一次，因此，如果更新了注册表，需要重新启动启动程序，以便它能够发现进行的更改。
+[/REGION]

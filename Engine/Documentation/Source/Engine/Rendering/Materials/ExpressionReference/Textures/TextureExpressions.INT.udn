@@ -1,44 +1,40 @@
-Availability:Public
-Title:Texture Expressions
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/ExpressionReference
-Description:Expressions that sample and output textures.
+Availability: Public
+Title: Texture Expressions
+Description: Expressions that sample and output textures.
 Version: 4.9
-tags:Materials
+Parent: Engine/Rendering/Materials/ExpressionReference
+Tags: Materials
 
-[EXCERPT:TOC]
-[TOC(start:2)]
-[/EXCERPT:TOC]
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Font#FontSample]
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Font#FontSampleParameter]
 
+![](FontSampleParameterExample.png)
 
 ## SceneColor
 
 The **SceneColor** expression outputs the existing scene color.
 
 | Item | Description |
-| -------- | ----------- |
+| --- | --- |
 | [REGION:tablesection]Inputs[/REGION] ||
-| **OffsetFraction** | Takes in a 2D vector that offsets the scene color in screen space. Setting this to either 0,1 or 1,0 will provide a slightly brighter version of the scene color. Setting it to 1,1 will provide an even brighter result.  |
+| **OffsetFraction** | Takes in a 2D vector that offsets the scene color in screen space. Setting this to either 0,1 or 1,0 will provide a slightly brighter version of the scene color. Setting it to 1,1 will provide an even brighter result. |
 
-
-![SceneColorExample.png](SceneColorExample.png)
-
+![](SceneColorExample.png)
 
 ## SpriteTextureSampler
 
-A custom sprite material can be created by duplicating one of the existing ones, or creating a new material in the **Content Browser**.  When a sprite is rendered, the texture defined in a sprite asset will be piped into any texture parameters named "SpriteTexture" in the material. The SpriteTextureSampler node can be placed to do this automatically.  
+A custom sprite material can be created by duplicating one of the existing ones, or creating a new material in the **Content Browser**. When a sprite is rendered, the texture defined in a sprite asset will be piped into any texture parameters named "SpriteTexture" in the material. The SpriteTextureSampler node can be placed to do this automatically.
 
 ![](SpriteMaterial.png)(w:720)
 
-Sprite instances will pass in their color as a vertex color, but it can be used for anything in the material, not just tinting. 
+Sprite instances will pass in their color as a vertex color, but it can be used for anything in the material, not just tinting.
 
 | Item | Description |
-| -------- | ----------- |
+| --- | --- |
 | [REGION:tablesection]Properties[/REGION] ||
-| **Texture** | Specifies the texture sampled by the expression. To set the texture, first select a texture in the **Content Browser**.  Then, select the Texture property in the expression's property window and click the 'Use Current Selection' button. |
+| **Texture** | Specifies the texture sampled by the expression. To set the texture, first select a texture in the **Content Browser**. Then, select the Texture property in the expression's property window and click the 'Use Current Selection' button. |
 | **Sampler Type** | The type of data that will be sampled and output from the node. |
 | **MipValueMode** | Selects how to customize the sample's mip-level or derivatives from the default hardware computed. Affects the look and performance. |
 | [REGION:tablesection]Inputs[/REGION] ||
@@ -53,26 +49,14 @@ Sprite instances will pass in their color as a vertex color, but it can be used 
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Functions#TextureObject]
 
-
-[COMMENT:none]
--
-## Scene Texture
-
-
-## Texture Object
-
-
--
-[/COMMENT]
-
 ## TextureSample
 
 The **TextureSample** expression outputs the color value(s) from a texture. This texture can be a regular Texture2D (including normal maps), a cubemap, or a movie texture.
 
 | Item | Description |
-| -------- | ----------- |
+| --- | --- |
 | [REGION:tablesection]Properties[/REGION] ||
-| **Texture** | Specifies the texture sampled by the expression. To set the texture, first select a texture in the **Content Browser**.  Then, select the Texture property in the expression's property window and click the 'Use Current Selection' button. |
+| **Texture** | Specifies the texture sampled by the expression. To set the texture, first select a texture in the **Content Browser**. Then, select the Texture property in the expression's property window and click the 'Use Current Selection' button. |
 | **Sampler Type** | The type of data that will be sampled and output from the node. |
 | **MipValueMode** | Selects how to customize the sample's mip-level or derivatives from the default hardware computed. Affects the look and performance. |
 | [REGION:tablesection]Inputs[/REGION] ||
@@ -86,18 +70,17 @@ The **TextureSample** expression outputs the color value(s) from a texture. This
 | **B** | Outputs the blue channel of the color. |
 | **A** | Outputs the alpha channel of the color. If a texture does not contain an alpha channel, connecting the 'alpha' channel to something, while not technically illegal, will always result in zero (black). |
 
-
-![TextureSampleExample.png](TextureSampleExample.png)
+![](TextureSampleExample.png)
 
 For a better understanding of the DDX(UVs) and DDY(UVs) inputs, here is what you could do. But you need to keep in mind that this has the exact same output as with **MipValueMode** = **None**, but is slower. The DDX(UVs) and DDY(UVs) should only be used when you actually need to overide the default hardware computation because computing those values by a different way than using the DDX/DDY material expression.
 
-![SampleTextureDerivative.png](SampleTextureDerivative.png)
+![](SampleTextureDerivative.png)
 
 ## TextureProperty
 
 The **TextureProperty** exposes a texture's property of your choice such as the texture's size or texel size.
 
-![TextureProperty.png](TextureProperty.png)
+![](TextureProperty.png)
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Particles#ParticleSubUV]
 

@@ -11,11 +11,20 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/CommandLine.h"
 #include "Unix/UnixPlatformCrashContext.h"
+#include "Unix/UnixPlatformRealTimeSignals.h"
 #include "HAL/ExceptionHandling.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
 
 #include <link.h>
+#include <signal.h>
+
+#include "HAL/IConsoleManager.h"
+
+static TAutoConsoleVariable<float> CVarUnixPlatformThreadCallStackMaxWait(
+	TEXT("UnixPlatformThreadStackWalk.MaxWait"),
+	60.0f,
+	TEXT("The number of seconds allowed to spin before killing the process, with the assumption the signal handler has hung."));
 
 // Init'ed in UnixPlatformMemory. Once this is tested more we can remove this fallback flag
 extern bool CORE_API GFullCrashCallstack;
@@ -494,74 +503,89 @@ bool FUnixPlatformStackWalk::ProgramCounterToHumanReadableString( int32 CurrentC
 
 			// Get filename, source file and line number
 			FUnixCrashContext* UnixContext = static_cast< FUnixCrashContext* >( Context );
-			if (UnixContext)
+
+			// for ensure, use the fast path - do not even attempt to get detailed info as it will result in long hitch
+			bool bAddDetailedInfo = UnixContext ? UnixContext->GetType() != ECrashContextType::Ensure : false;
+
+			// Program counters in the backtrace point to the location from where the execution will be resumed (in all frames except the one where we crashed),
+			// which results in callstack pointing to the next lines in code. In order to determine the source line where the actual call happened, we need to go
+			// back to the line that had the "call" instruction. Since x86(-64) instructions vary in length, we cannot do it reliably without disassembling,
+			// just go back one byte - even if it's not the actual address of the call site.
+			int OffsetToCallsite = CurrentCallDepth > 0 ? 1 : 0;
+
+			FProgramCounterSymbolInfo TempSymbolInfo;
+
+			// We can print detail info out during ensures, the only reason not to is if fail to populate the symbol info all the way
+			bAddDetailedInfo = PopulateProgramCounterSymbolInfoFromSymbolFile(ProgramCounter - OffsetToCallsite, TempSymbolInfo);
+
+			if (bAddDetailedInfo)
 			{
-				// for ensure, use the fast path - do not even attempt to get detailed info as it will result in long hitch
-				bool bAddDetailedInfo = UnixContext->GetType() != ECrashContextType::Ensure;
+				// append Module!FunctionName() [Source.cpp:X] to HumanReadableString
+				FCStringAnsi::Strncat(HumanReadableString, TempSymbolInfo.ModuleName, HumanReadableStringSize);
+				FCStringAnsi::Strncat(HumanReadableString, "!", HumanReadableStringSize);
+				FCStringAnsi::Strncat(HumanReadableString, TempSymbolInfo.FunctionName, HumanReadableStringSize);
+				FCStringAnsi::Sprintf(TempArray, " [%s:%d]", TempSymbolInfo.Filename, TempSymbolInfo.LineNumber);
+				FCStringAnsi::Strncat(HumanReadableString, TempArray, HumanReadableStringSize);
 
-				// Program counters in the backtrace point to the location from where the execution will be resumed (in all frames except the one where we crashed),
-				// which results in callstack pointing to the next lines in code. In order to determine the source line where the actual call happened, we need to go
-				// back to the line that had the "call" instruction. Since x86(-64) instructions vary in length, we cannot do it reliably without disassembling,
-				// just go back one byte - even if it's not the actual address of the call site.
-				int OffsetToCallsite = CurrentCallDepth > 0 ? 1 : 0;
-
-				FProgramCounterSymbolInfo TempSymbolInfo;
-
-				// We can print detail info out during ensures, the only reason not to is if fail to populate the symbol info all the way
-				bAddDetailedInfo = PopulateProgramCounterSymbolInfoFromSymbolFile(ProgramCounter - OffsetToCallsite, TempSymbolInfo);
-
-				if (bAddDetailedInfo)
+				if (UnixContext)
 				{
-					// append Module!FunctionName() [Source.cpp:X] to HumanReadableString
-					FCStringAnsi::Strncat(HumanReadableString, TempSymbolInfo.ModuleName, HumanReadableStringSize);
-					FCStringAnsi::Strncat(HumanReadableString, "!", HumanReadableStringSize);
-					FCStringAnsi::Strncat(HumanReadableString, TempSymbolInfo.FunctionName, HumanReadableStringSize);
-					FCStringAnsi::Sprintf(TempArray, " [%s:%d]", TempSymbolInfo.Filename, TempSymbolInfo.LineNumber);
-					FCStringAnsi::Strncat(HumanReadableString, TempArray, HumanReadableStringSize);
-
 					// append Module!FunctioName [Source.cpp:X] to MinidumpCallstackInfo
 					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempSymbolInfo.ModuleName, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "!", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempSymbolInfo.FunctionName, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempArray, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 				}
-				else
+			}
+			else
+			{
+				const char* ModuleName   = nullptr;
+				const char* FunctionName = nullptr;
+
+				// We have failed to fully populate the SymbolInfo, but we could still have basic information. Lets try to print as much info as possible
+				if (TempSymbolInfo.ModuleName[0] != '\0')
 				{
-					const char* ModuleName   = nullptr;
-					const char* FunctionName = nullptr;
+					ModuleName = TempSymbolInfo.ModuleName;
+				}
 
-					// We have failed to fully populate the SymbolInfo, but we could still have basic information. Lets try to print as much info as possible
-					if (TempSymbolInfo.ModuleName[0] != '\0')
-					{
-						ModuleName = TempSymbolInfo.ModuleName;
-					}
+				if (TempSymbolInfo.FunctionName[0] != '\0')
+				{
+					FunctionName = TempSymbolInfo.FunctionName;
+				}
 
-					if (TempSymbolInfo.FunctionName[0] != '\0')
-					{
-						FunctionName = TempSymbolInfo.FunctionName;
-					}
+				FCStringAnsi::Strncat(HumanReadableString, ModuleName != nullptr ? ModuleName : "", HumanReadableStringSize);
+				FCStringAnsi::Strncat(HumanReadableString, "!", HumanReadableStringSize);
+				FCStringAnsi::Strncat(HumanReadableString, FunctionName != nullptr ? FunctionName : "UnknownFunction", HumanReadableStringSize);
+				FCStringAnsi::Strncat(HumanReadableString, FunctionName && TempSymbolInfo.SymbolDisplacement ? "(+": "(", HumanReadableStringSize);
 
-					FCStringAnsi::Strncat(HumanReadableString, ModuleName != nullptr ? ModuleName : "", HumanReadableStringSize);
-					FCStringAnsi::Strncat(HumanReadableString, "!", HumanReadableStringSize);
-					FCStringAnsi::Strncat(HumanReadableString, FunctionName != nullptr ? FunctionName : "UnknownFunction", HumanReadableStringSize);
-					FCStringAnsi::Strncat(HumanReadableString, FunctionName && TempSymbolInfo.SymbolDisplacement ? "(+": "(", HumanReadableStringSize);
-
+				if (UnixContext)
+				{
 					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, ModuleName != nullptr ? ModuleName : "Unknown", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "!", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, FunctionName != nullptr ? FunctionName : "UnknownFunction", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, FunctionName && TempSymbolInfo.SymbolDisplacement ? "(+": "(", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
-
-					if (TempSymbolInfo.SymbolDisplacement > 0x0)
-					{
-						FCStringAnsi::Sprintf(TempArray, "%p", TempSymbolInfo.SymbolDisplacement);
-						FCStringAnsi::Strncat(HumanReadableString, TempArray, HumanReadableStringSize);
-						FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempArray, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
-					}
-
-					FCStringAnsi::Strncat(HumanReadableString, ")", HumanReadableStringSize);
-					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, ")", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
 				}
 
+				if (TempSymbolInfo.SymbolDisplacement > 0x0)
+				{
+					FCStringAnsi::Sprintf(TempArray, "%p", TempSymbolInfo.SymbolDisplacement);
+					FCStringAnsi::Strncat(HumanReadableString, TempArray, HumanReadableStringSize);
+
+					if (UnixContext)
+					{
+						FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, TempArray, ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+					}
+				}
+
+				FCStringAnsi::Strncat(HumanReadableString, ")", HumanReadableStringSize);
+
+				if (UnixContext)
+				{
+					FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, ")", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);
+				}
+			}
+
+			if (UnixContext)
+			{
 				FCStringAnsi::Strncat(UnixContext->MinidumpCallstackInfo, "\r\n", ARRAY_COUNT( UnixContext->MinidumpCallstackInfo ) - 1);	// this one always uses Windows line terminators
 			}
 		}
@@ -674,19 +698,72 @@ uint32 FUnixPlatformStackWalk::CaptureStackBackTrace( uint64* BackTrace, uint32 
 	return (uint32)Size;
 }
 
-void FUnixPlatformStackWalk::ThreadStackWalkAndDump(ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, int32 IgnoreCount, uint32 ThreadId)
+namespace
 {
-	// This is intentional on servers. Right now we cannot symbolicate the other thread, so we crash it instead, which also helps in identifying lock ups
-	if (UE_SERVER)
+	void WaitForSignalHandlerToFinishOrCrash(ThreadStackUserData& ThreadStack)
 	{
-		if (kill(ThreadId, SIGQUIT) == 0)
+		float EndWaitTimestamp = FPlatformTime::Seconds() + CVarUnixPlatformThreadCallStackMaxWait.AsVariable()->GetFloat();
+		float CurrentTimestamp = FPlatformTime::Seconds();
+
+		while (!ThreadStack.bDone)
 		{
-			// do not exit, crash is imminent anyway (signals are delivered asynchronously)
-			for(;;)
+			if (CurrentTimestamp > EndWaitTimestamp)
 			{
+				// We have waited for as long as we should for the signal handler to finish. Assume it has hang and we need to kill our selfs
+				*(int*)0x10 = 0x0;
 			}
+
+			CurrentTimestamp = FPlatformTime::Seconds();
 		}
 	}
+
+	void GatherCallstackFromThread(ThreadStackUserData& ThreadStack, uint64 ThreadId)
+	{
+		sigval UserData;
+		UserData.sival_ptr = &ThreadStack;
+
+		siginfo_t info;
+		memset (&info, 0, sizeof (siginfo_t));
+		info.si_signo = THREAD_CALLSTACK_GENERATOR;
+		info.si_code  = SI_QUEUE;
+		info.si_pid   = syscall(SYS_getpid);
+		info.si_uid   = syscall(SYS_getuid);
+		info.si_value = UserData;
+
+		// Avoid using sigqueue here as if the ThreadId is already blocked and in a signal handler
+		// sigqueue will try a different thread signal handler and report the wrong callstack
+		if (syscall(SYS_rt_tgsigqueueinfo, info.si_pid, ThreadId, THREAD_CALLSTACK_GENERATOR, &info) == 0)
+		{
+			WaitForSignalHandlerToFinishOrCrash(ThreadStack);
+		}
+	}
+}
+
+void FUnixPlatformStackWalk::ThreadStackWalkAndDump(ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, int32 IgnoreCount, uint32 ThreadId)
+{
+	ThreadStackUserData ThreadCallStack;
+	ThreadCallStack.bCaptureCallStack = true;
+	ThreadCallStack.CallStackSize     = HumanReadableStringSize;
+	ThreadCallStack.CallStack         = HumanReadableString;
+	ThreadCallStack.BackTraceCount    = 0;
+	ThreadCallStack.bDone             = false;
+
+	GatherCallstackFromThread(ThreadCallStack, ThreadId);
+}
+
+uint32 FUnixPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth)
+{
+	ThreadStackUserData ThreadBackTrace;
+	ThreadBackTrace.bCaptureCallStack = false;
+	ThreadBackTrace.CallStackSize     = MaxDepth;
+	ThreadBackTrace.BackTrace         = BackTrace;
+	ThreadBackTrace.BackTraceCount    = 0;
+	ThreadBackTrace.bDone             = false;
+
+	GatherCallstackFromThread(ThreadBackTrace, ThreadId);
+
+	// The signal handler will set this value, we just have to make sure we wait for the signal handler we raised to finish
+	return ThreadBackTrace.BackTraceCount;
 }
 
 namespace
@@ -790,16 +867,7 @@ void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 	GCrashErrorMessage = ErrorMessage;
 	GCrashErrorType = ECrashContextType::Assert;
 
-	// Store NumStackFramesToIgnore in signal data	
-	sigval UserData;
-	UserData.sival_int = NumStackFramesToIgnore + 2; // +2 for this function and sigqueue()
-	sigqueue(getpid(),  SIGSEGV, UserData);
-	
-	// Make sure we never return
-	for (;;)
-	{
-		FPlatformProcess::Sleep(60.0f);
-	}
+	FPlatformMisc::RaiseException(1);
 }
 
 void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
@@ -807,16 +875,7 @@ void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 	GCrashErrorMessage = ErrorMessage;
 	GCrashErrorType = ECrashContextType::GPUCrash;
 
-	// Store NumStackFramesToIgnore in signal data	
-	sigval UserData;
-	UserData.sival_int = NumStackFramesToIgnore + 2; // +2 for this function and sigqueue()
-	sigqueue(getpid(),  SIGSEGV, UserData);
-	
-	// Make sure we never return
-	for (;;)
-	{
-		FPlatformProcess::Sleep(60.0f);
-	}
+	FPlatformMisc::RaiseException(1);
 }
 
 static FCriticalSection EnsureLock;

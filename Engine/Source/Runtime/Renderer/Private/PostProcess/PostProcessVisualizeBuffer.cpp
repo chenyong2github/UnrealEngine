@@ -60,7 +60,7 @@ public:
 	template <typename TRHICmdList>
 	void SetPS(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
@@ -71,7 +71,7 @@ public:
 	{
 		if (bDrawingTile && SourceTexture.IsBound())
 		{
-			const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+			FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 			SetTextureParameter(
 				RHICmdList, 

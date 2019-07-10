@@ -29,7 +29,8 @@ public:
 
 	/** Default constructor. */
 	FWmfMediaHardwareVideoDecodingTextureSample()
-		: FWmfMediaTextureSample()
+		: FWmfMediaTextureSample(),
+		Format(PF_Unknown)
 	{ }
 
 public:
@@ -46,7 +47,7 @@ public:
 	 * @param InCreateFlags texture create flag
 	 * @return The texture resource object that will hold the sample data.
 	 */
-	ID3D11Texture2D* InitializeSourceTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, FTimespan InTime, FTimespan InDuration, const FIntPoint& InDim, uint8 InFormat, EMediaTextureSampleFormat InMediaTextureSampleFormat);
+	ID3D11Texture2D* InitializeSourceTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, FTimespan InTime, FTimespan InDuration, const FIntPoint& InDim, EPixelFormat InFormat, EMediaTextureSampleFormat InMediaTextureSampleFormat);
 
 	/**
 	 * Get media texture sample converter if sample implements it
@@ -94,7 +95,7 @@ public:
 		DestinationTexture = RHICreateTexture2D(
 			Dim.X,
 			Dim.Y,
-			PF_NV12,
+			Format,
 			1,
 			1,
 			CreateFlags,
@@ -120,6 +121,9 @@ private:
 
 	/** Destination Texture resource (from Rendering device) */
 	FTexture2DRHIRef DestinationTexture;
+
+	/** Texture format */
+	EPixelFormat Format;
 };
 
 /** Implements a pool for WMF texture samples. */

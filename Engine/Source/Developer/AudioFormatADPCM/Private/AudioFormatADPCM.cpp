@@ -509,7 +509,19 @@ public:
 		return 0;
 	}
 
-	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 MaxChunkSize) const override
+	virtual int32 GetMinimumSizeForInitialChunk(FName Format, const TArray<uint8>& SrcBuffer) const override
+	{
+		uint8 const*	SrcData = SrcBuffer.GetData();
+		int32			SrcSize = SrcBuffer.Num();
+		uint32			BytesProcessed = 0;
+
+		FWaveModInfo	WaveInfo;
+		WaveInfo.ReadWaveInfo((uint8*)SrcData, SrcSize);
+
+		return WaveInfo.SampleDataStart - SrcData;
+	}
+
+	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 InitialMaxChunkSize, const int32 MaxChunkSize) const override
 	{
 		uint8 const*	SrcData = SrcBuffer.GetData();
 		int32			SrcSize = SrcBuffer.Num();
@@ -537,7 +549,9 @@ public:
 
 			// Add a new chunk for the header
 			int32 HeaderSize = WaveInfo.SampleDataStart - SrcData;
-			AddNewChunk(OutBuffers, MaxChunkSize);
+
+			check(InitialMaxChunkSize >= HeaderSize);
+			AddNewChunk(OutBuffers, InitialMaxChunkSize);
 			AddChunkData(OutBuffers, SrcData, HeaderSize);
 
 			int32 CurChunkDataSize = HeaderSize;

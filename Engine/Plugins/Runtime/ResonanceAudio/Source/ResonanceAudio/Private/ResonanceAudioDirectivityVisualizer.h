@@ -28,6 +28,9 @@ public:
 	void SetSettings(UResonanceAudioSpatializationSourceSettings* InSettings) { Settings = InSettings; };
 	UResonanceAudioSpatializationSourceSettings* GetSettings() const { return Settings; };
 
+
+	virtual void BeginDestroy() override;
+
 private:
 	// Controls the smoothness of mesh visualization.
 	const int CIRCLE_SECTIONS = 128;
@@ -42,8 +45,9 @@ private:
 	TArray<FVector2D> UV0;
 	TArray<FProcMeshTangent> Tangents;
 
-	UPROPERTY()
+#if SUPPORTS_PROCEDURAL_MESH
 	UProceduralMeshComponent* Mesh;
+#endif // !PLATFORM_HTML5
 
 	UPROPERTY()
 	UMaterial* Material;

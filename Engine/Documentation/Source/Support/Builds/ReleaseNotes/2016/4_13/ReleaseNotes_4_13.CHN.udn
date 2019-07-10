@@ -1,11 +1,27 @@
-﻿INTSourceChangelist:3112291
+﻿INTSourceChangelist:6537038
 Availability:Public
-Title:虚幻引擎 4.13 版本信息
+Title:虚幻引擎4.13版本说明
 Crumbs:%ROOT%, Engine
 Description:
-order:13
-
-虚幻引擎 4.13 发布信息 
+Order: 31
+reference-image:image_6.gif
+reference-image:image_7.gif
+reference-image:image_11.gif
+reference-image:image_17.gif
+reference-image:image_18.gif
+reference-image:image_19.gif
+reference-image:image_20.gif
+reference-image:image_23.gif
+reference-image:image_24.gif
+reference-image:image_25.gif
+reference-image:image_26.gif
+reference-image:image_27.gif
+reference-image:image_28.gif
+reference-image:image_29.gif
+reference-image:image_33.gif
+reference-image:image_41.gif
+reference-image:image_45.gif
+reference-image:image_52.gif
 
 这次的版本带来了数百个虚幻引擎 4 的更新，包括来自 GitHub 的社区成员们提交的 145 个改进！感谢所有为虚幻引擎 4 添砖加瓦贡献的人们：
 
@@ -33,7 +49,7 @@ alk3ovation, Allegorithmic (Allegorithmic), Alwin Tom (alwintom), Andreas Axelss
 
 Sequencer 中更新了一个新功能，实况录像，并在 [Siggraph Real-Time Live! 2016](https://www.unrealengine.com/blog/unreal-engine-4-powers-real-time-cinematography-at-siggraph) 上做了展示。
 
-![image alt text](image_1.jpg)(h:674 w:929 convert:false)
+![image alt text](image_1.jpg)(w:929 convert:false)
 
 Sequence 的 Recorder 能够捕获实时的游戏内容，包括所有的动画，声音和特效，捕获到一个独立的资源中，并可以使用 Sequencer 对它进一步进行编辑！这次的版本中的新功能包括：
 
@@ -49,7 +65,7 @@ Sequence 的 Recorder 能够捕获实时的游戏内容，包括所有的动画�
 
 当一个点光源或者聚光灯不移动的时候，我们能将该光源产生的阴影保存下来，并在下一帧中重用。现在这个功能被自动实现，对于周遭环境变化不大的时候，动态点光源和的聚光源的投影的性能在游戏中变得可以接受。
 
-![image alt text](image_2.jpg)(h:541 w:929 convert:false)
+![image alt text](image_2.jpg)(w:929 convert:false)
 
 上图中展示了 33 个能够产生投影的动态点光源，并且消耗非常的小：
 
@@ -81,15 +97,15 @@ Sequence 的 Recorder 能够捕获实时的游戏内容，包括所有的动画�
 
 这次我们为 Noise 材质节点添加了一个新的 Voronoi 的选项。Voronoi noise 有时也被称做 Worley 或者 Cellular noise，对 precedural material 的制作十分有帮助。
 
-![image alt text](image_3.jpg)(h:333 w:624 convert:false)
+![image alt text](image_3.jpg)(w:624 convert:false)
 
 Voronoi noise 可以用来生成一些熟悉的物理材质模式，比如大理石，请看下图中的雕塑。
 
-![image alt text](image_4.jpg)(h:377 w:624 convert:false)
+![image alt text](image_4.jpg)(w:624 convert:false)
 
 这个例子使用了 Voronoi noise 以及一项叫做 ‘gradient mapping’ 的技术来得到大理石的外观效果。
 
-![image alt text](image_5.jpg)(h:233 w:929 convert:false)
+![image alt text](image_5.jpg)(w:929 convert:false)
 
 从左至右：
 
@@ -119,15 +135,15 @@ Voronoi noise 有 4 个质量等级，越高等级下网格越小，但 Shading 
 
 这个新的蓝图函数 **Draw Material to Render Target** 绘制一个四边形的目标 render target，使用 **Emissive Color** 作为材质的输入。
 
-![image alt text](image_8.jpg)(h:149 w:661 convert:false)
+![image alt text](image_8.jpg)(w:661 convert:false)
 
 在开始游戏时，会先调用 **Begin Play**，该 render target 会填充为蓝色。可以此时右键点击该 render target，并存为一个静态贴图，以便能够被压缩。
 
-![image alt text](image_9.jpg)(h:164 w:500 convert:false)
+![image alt text](image_9.jpg)(w:500 convert:false)
 
 对于更高阶的 render target 绘制，使用 **Begin Draw Canvas to Render Target** 和 **End Draw Canvas to Render Target**。这能够有效的多次绘制到一个 render target 的子集上，还有通过 Canvas 物体的字图绘制的方法。
 
-![image alt text](image_10.jpg)(h:517 w:896 convert:false)
+![image alt text](image_10.jpg)(w:896 convert:false)
 
 利用蓝图绘制屏幕以外的渲染特性，使得快速实现各类渲染效果而不需要程序员的帮助成为可能。这里可能会很轻易的给 GPU 放上大量的 render target 所需的像素 Shader 计算工作。可以通过输入 'ProfileGPU' 来查看这些 draw call 信息（在 WorldTick 事件下）。
 
@@ -159,7 +175,7 @@ Voronoi noise 有 4 个质量等级，越高等级下网格越小，但 Shading 
 
 新增了一个功能，在预览静态网格体或者骨架网格体时可以设置预览时的场景。
 
-![image alt text](image_12.jpg)(h:232 w:929 convert:false)
+![image alt text](image_12.jpg)(w:929 convert:false)
 
 在静态网格体和骨架网格体的编辑器中有一个新的 Preview Scene Settings 面板界面。这里可以多个方案（场景）来预览模型，并且方案是可以被修改的：
 
@@ -169,7 +185,7 @@ Voronoi noise 有 4 个质量等级，越高等级下网格越小，但 Shading 
 
 * 后处理设置（基于后处理体积）
 
-![image alt text](image_13.jpg)(h:494 w:766 convert:false)
+![image alt text](image_13.jpg)(w:766 convert:false)
 
 我们还增加了一些示例用的功能：
 
@@ -183,11 +199,11 @@ Voronoi noise 有 4 个质量等级，越高等级下网格越小，但 Shading 
 
 新的模型贴花功能能够有效的将材质贴到一个静态网格体上，可以把它看作在网格体上的第二个网格体，但共享了原网格体的拓扑结构和材质。
 
-![image alt text](image_14.jpg)(h:326 w:428 convert:false)
+![image alt text](image_14.jpg)(w:428 convert:false)
 
 上图中的柱子每个都是一个基础的模型覆盖了另一个单独的破碎模型。如下面的线框图所示，左面的柱子使用了模型贴花来获得更好的颜色、法线、粗造度的混合效果。而右图则是简单的材质覆盖，这里做一个对比。
 
-![image alt text](image_15.jpg)(h:220 w:165 convert:false)![image alt text](image_16.jpg)(h:220 w:169 convert:false)
+![image alt text](image_15.jpg)(w:165 convert:false)![image alt text](image_16.jpg)(w:169 convert:false)
 
 和延迟贴花不同，这里没有涉及任何投射，因此一个典型的贴花模型，由于和模型紧贴，可能要在材质中包括一个表面的偏移，另外，还要小心对于 LOD 的模型，贴花可能会在 LOD 时造成不好的效果。
 
@@ -229,7 +245,7 @@ Voronoi noise 有 4 个质量等级，越高等级下网格越小，但 Shading 
 
 现在在移动设备上也能使用光通道了！这允许你有选择性的用指定的灯光影响物件。对于需要高级光照的动画来说相当有意义。
 
-![image alt text](image_21.jpg)(h:224 w:793 convert:false)
+![image alt text](image_21.jpg)(w:793 convert:false)
 
 * 在不同的通道中能支持多个方向光。
 
@@ -243,7 +259,7 @@ Voronoi noise 有 4 个质量等级，越高等级下网格越小，但 Shading 
 
 Mac Metal 现在能够默认开启 Shader Model 5 的支持了。这将使得所有 Mac OS X 10.11.6 的 Metal 上可用的特性都能在虚幻引擎 4 中得以使用。
 
-![image alt text](image_22.jpg)(h:521 w:925 convert:false)
+![image alt text](image_22.jpg)(w:925 convert:false)
 
 * 实现了 RHI 线程和平行调度分发渲染指令。
 
@@ -313,7 +329,7 @@ Mac Metal 现在能够默认开启 Shader Model 5 的支持了。这将使得所
 
 VR 编辑器中的移动工具也做了改进，更加易用并且还有一些新的特性！
 
-![image alt text](image_30.jpg)(h:442 w:466 convert:false)
+![image alt text](image_30.jpg)(w:466 convert:false)
 
 平移和旋转物体更加自然，在 VR 中也可以通过一个 2D 平面来一致的平移或缩放物体。之后我们还会对该工具做进一步的改进。
 
@@ -321,13 +337,13 @@ VR 编辑器中的移动工具也做了改进，更加易用并且还有一些�
 
 通过使用快速菜单，现在可以在手柄上增加一个手电筒，来照亮场景中的暗部，或者通过它来查看不同材质和灯光的交互效果。
 
-![image alt text](image_31.jpg)(h:333 w:466 convert:false)
+![image alt text](image_31.jpg)(w:466 convert:false)
 
 ## 新货：在 VR 编辑器中截屏
 
 现在可以直接在 VR 中截屏了！
 
-![image alt text](image_32.jpg)(h:392 w:604 convert:false)
+![image alt text](image_32.jpg)(w:604 convert:false)
 
 ## 新货：VR 编辑模式的自动启用
 
@@ -337,19 +353,19 @@ VR 编辑器中的移动工具也做了改进，更加易用并且还有一些�
 
 如果需要的话，在 VR 的试验功能处有一个设置来开关是否使用这个自动的功能。
 
-![image alt text](image_34.jpg)(h:84 w:384 convert:false)
+![image alt text](image_34.jpg)(w:384 convert:false)
 
 ## 新货：SEQUENCER 的导入/导出
 
 Sequencer 现在支持以 CMX EDL 文件格式的导入和导出，来回非线编编辑包的交互。
 
-![image alt text](image_35.jpg)(h:529 w:869 convert:false)
+![image alt text](image_35.jpg)(w:869 convert:false)
 
 上图显示了一个 sequence 的 shot 被导出到 Adobe Premiere Pro 中。每个 sequence 的 shot 被写成一个单独的视频文件，并被 EDL 文件引用。任何在 Premiere 中的改动则可以被重新导入到 UE4 的 Sequencer 中！
 
 Sequencer 导出 OpenEXR 文件的 HDR 数据功能现在扩展了一些，用户可以选择 HDR 数据编码时的色域设置。
 
-![image alt text](image_36.jpg)(h:220 w:492 convert:false)
+![image alt text](image_36.jpg)(w:492 convert:false)
 
 最后，Sequencer 现在支持直接导入 FBX 动画给一个物体或者一个轨道。也可以将动画轨道导出成 FBX！
 
@@ -357,7 +373,7 @@ Sequencer 导出 OpenEXR 文件的 HDR 数据功能现在扩展了一些，用�
 
 在将电影序列渲染成品时，可以为输出图片配置 “Burn-in”。这个功能能更方便的识别每个 Track Shot。
 
-![image alt text](image_37.jpg)(h:458 w:865 convert:false)
+![image alt text](image_37.jpg)(w:865 convert:false)
 
 ## 新货：媒体播放的框架结构翻新
 
@@ -427,7 +443,7 @@ Sequencer 导出 OpenEXR 文件的 HDR 数据功能现在扩展了一些，用�
 
 在每次版本中，我们对会将引擎对各大平台 SDK 更新到最新的版本。同样在这次的版本中，现在已经能够在 Windows 下使用二进制的 UE4 版本直接远程编译 iOS/tvOS 的项目了！
 
-![image alt text](image_39.jpg)(h:377 w:888 convert:false)
+![image alt text](image_39.jpg)(w:888 convert:false)
 
 * iOs/tvOS: 在 Windows 下使用 Unreal Engine Launcher 下载的二进制 UE4 版本已经可以直接编译具有代码的项目了。（当然仍然需要某处有一台 Mac 来远程编译）
 
@@ -459,7 +475,7 @@ Sequencer 导出 OpenEXR 文件的 HDR 数据功能现在扩展了一些，用�
 
 硬件的地形曲面细分现在更快了！现在地形的渲染只会在最高级的 LOD 上做硬件曲面细分，并将地形对次一级的 LOD 做渐变过渡。低级别的 LOD 不再做曲面细分，这将大幅提升性能，并对靠近摄像机部分的画面细节再次提升。
 
-![image alt text](image_40.jpg)(h:429 w:593 convert:false)
+![image alt text](image_40.jpg)(w:593 convert:false)
 
 在上图的可视化结果中，最高级别的 LOD 渲染时启用了曲面细分，而其他 LODs（颜色）渲染时则不使用曲面细分。
 
@@ -475,11 +491,11 @@ Sequencer 导出 OpenEXR 文件的 HDR 数据功能现在扩展了一些，用�
 
 Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Persona 中如果想要从曲线中预览一个 Pose，需要设置当前预览 Pose 资源。
 
-![image alt text](image_42.jpg)(h:152 w:348 convert:false)
+![image alt text](image_42.jpg)(w:348 convert:false)
 
 在动画图表中，可以使用 Pose Blender 节点（或者是 Pose By Name），根据输入曲线来输出 Pose 信息。
 
-![image alt text](image_43.jpg)(h:146 w:422 convert:false)
+![image alt text](image_43.jpg)(w:422 convert:false)
 
 为了支持这个系统，我们对如何处理附加混合的缩放做了改进。将来我们希望对其他资源也支持曲线（比如声音波形资源），以用来驱动 Pose 资源或者顶点变化。
 
@@ -503,7 +519,7 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 和新的 “蓝图绘制到 Render Target” 功能一起，场景捕获的功能做了改进并且更加有用了！
 
-![image alt text](image_46.jpg)(h:173 w:929 convert:false)
+![image alt text](image_46.jpg)(w:929 convert:false)
 
 * 现支持正交投射。
 
@@ -515,7 +531,7 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 * 新增了 ‘Hidden Actors’ 和 ‘Show Only Actors’ 数组，使用它们可以较容易的控制场景捕获时那些要被渲染。
 
-![image alt text](image_47.jpg)(h:312 w:364 convert:false)
+![image alt text](image_47.jpg)(w:364 convert:false)
 
 游戏的特定效果，比如战争迷雾，可以根据模型的可见性来决定是否在正交场景捕获是渲染，然后再使用 Draw Material To Render Target 对图像进行处理。
 
@@ -523,7 +539,7 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 有个新的 “像素法线偏移” 的折射模式，基于顶点法线，并根据像素法线和顶点法线的差异计算折射便宜。这倒不是基于物理的算法但能够使得平面的水面得到折射效果。
 
-![image alt text](image_48.jpg)(h:153 w:929 convert:false)
+![image alt text](image_48.jpg)(w:929 convert:false)
 
 左：简单的场景，没有折射
 
@@ -531,13 +547,13 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 右：像素法线偏移折射方法，根据法线贴图的差异计算
 
-![image alt text](image_49.jpg)(h:78 w:344 convert:false)
+![image alt text](image_49.jpg)(w:344 convert:false)
 
 ## 新货：来自射线跟踪的贴图坐标
 
 我们在项目设置中增加了一项支持来自射线跟踪下的贴图坐标（UV）。
 
-![image alt text](image_50.jpg)(h:330 w:297 convert:false)
+![image alt text](image_50.jpg)(w:297 convert:false)
 
 该选项在 项目设置 -> Physics -> Optimizations。在启用时，可以使用 ‘Find Collision UV’ 函数做一次碰撞检测并对任意 UV 通道在该碰撞处获取 UV 信息。该功能会使用额外一些内存，作为 UV 信息的一部分拷贝需要被保存到 CPU 访问的内存中。
 
@@ -547,7 +563,7 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 现在可以在蓝图编辑器中直接对 Spline 组件的控制点进行编辑。默认情况下会创建新的蓝图实例，也可以对关卡中放置的示例逐一覆盖。
 
-![image alt text](image_51.jpg)(h:445 w:929 convert:false)
+![image alt text](image_51.jpg)(w:929 convert:false)
 
 "Reset to Default" 操作可以将当前实例的 spline 恢复到蓝图类默认状态。任何对蓝图类的修改都会被自动的应用到那些没有做过自定义修改的实例上。
 
@@ -557,7 +573,7 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 原先并没有方法来精确的控制各个点和他们的缩放、倾向、角度信息。现在这些属性可以在当前选中 spline 时的细节面板中直接编辑了：
 
-![image alt text](image_53.jpg)(h:190 w:449 convert:false)
+![image alt text](image_53.jpg)(w:449 convert:false)
 
 **新的 spline 点属性**
 
@@ -565,11 +581,11 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 在 spline 可视化窗口中，Spline 组件细节面板上，菜单中有一个选项可以允许每个进入角和离去角的单独设置，而不再是锁定的状态：
 
-![image alt text](image_54.jpg)(h:220 w:190 convert:false)
+![image alt text](image_54.jpg)(w:190 convert:false)
 
 作为可以可以每个点设置输入值的结果，现在有另一个方法来定义一个封闭 spline 的循环位置的输入值：
 
-![image alt text](image_55.jpg)(h:192 w:454 convert:false)
+![image alt text](image_55.jpg)(w:454 convert:false)
 
 如果输入值或者循环点未被定义，那么仍然和以前一样，会从 0.0 处开始，并每个点增加 1.0。
 
@@ -577,23 +593,23 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 有时候，可能希望在蓝图的构造脚本中过程生成 spline。先前每个对 spline 的操作都会造成 spline 重新构建，现在，为了优化的目的，在每个 spline 点上操作后都能够指定 spline 是否需要重新构建。因此有一个转为更新 spline 用的节点。
 
-![image alt text](image_56.jpg)(h:413 w:918 convert:false)
+![image alt text](image_56.jpg)(w:918 convert:false)
 
 **为构建脚本输入 spline 点**
 
 有时候在 spline 可视化编辑器中编辑 spline，并在蓝图脚本中对它进一步改造。比如蓝图可以锁定所有的可编辑点到一个球体的表面，类似这样子：
 
-![image alt text](image_57.jpg)(h:456 w:929 convert:false)
+![image alt text](image_57.jpg)(w:929 convert:false)
 
 可以通过勾选 "Input Spline Points to Construction Script" 属性来实现：
 
-![image alt text](image_58.jpg)(h:196 w:452 convert:false)
+![image alt text](image_58.jpg)(w:452 convert:false)
 
 ## 新货：子动画蓝图
 
 现在，可以在动画蓝图中使用 ‘Sub Anim Instance’ 节点，来引用另一个子动画蓝图，这么做可以将一个巨大的动画蓝图分解成几个不同的部分，比如分解成 “运动” 部分和 “物理” 部分。
 
-![image alt text](image_59.jpg)(h:149 w:644 convert:false)
+![image alt text](image_59.jpg)(w:644 convert:false)
 
 子蓝图的成员变量可以被对外暴露并作为节点的输入引脚。子动画蓝图和它的外部蓝图必须使用同一个骨架结构。
 
@@ -601,7 +617,7 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 我们从 Persona 中医除了骨架曲线的分页，将这部分功能改进并作为动画曲线分页。这里可以对曲线进行重命名或删除曲线，以及预览曲线的数据。
 
-![image alt text](image_60.jpg)(h:381 w:622 convert:false)
+![image alt text](image_60.jpg)(w:622 convert:false)
 
 这里可以看到当前骨架下的所有曲线，或者来自上一个资源的当前活跃曲线。这里还可以根据特定类型对曲线进行过滤。请注意我们将默认曲线改称为“属性”，因此任何动画曲线都将有默认属性曲线。
 
@@ -611,7 +627,7 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 现在可以使用 Paper2D Sprite 作为 UMG 和 Slate 空间的 Brush 输入。除了可以对已有的 UI 有更好的使用外，这么做还对空间渲染带来很多优化效果，在很多平台上 drawcall 的数量始终很紧张。不同的 Sprite 可以作为同一个贴图数据并在 Slate 中整合在一起，渲染时共享同一个层面以提高效能。
 
-![image alt text](image_61.jpg)(h:257 w:460 convert:false)![image alt text](image_62.jpg)(h:258 w:460 convert:false)
+![image alt text](image_61.jpg)(w:460 convert:false)![image alt text](image_62.jpg)(w:460 convert:false)
 
 ## 更新：VR 中即时立体渲染的优化
 
@@ -621,7 +637,7 @@ Pose 由普通动画曲线驱动。在动画中都能看到这个曲线。在 Pe
 
 现在项目可以通过 GPU 在 硬件上计算 Shader Model 5 的顶点变形。这么做将释放更多的 CPU 计算性能。
 
-![image alt text](image_63.jpg)(h:194 w:520 convert:false)
+![image alt text](image_63.jpg)(w:520 convert:false)
 
 ## 更新：优化地形 SHADER 的内存
 
@@ -641,7 +657,7 @@ Combined Static 和 CSM 阴影模式在 4.12 中就有了，这个模式下，�
 
 可以在所有设备上启动自动化测试，并在 Session Frontend 中查看结果。
 
-![image alt text](image_64.jpg)(h:542 w:838 convert:false)
+![image alt text](image_64.jpg)(w:838 convert:false)
 
 ## 更新：安卓上的 OPENGL ES 3.1
 
@@ -649,13 +665,13 @@ Combined Static 和 CSM 阴影模式在 4.12 中就有了，这个模式下，�
 
 可以为项目打包同时选择 ES 2.0 和 ES 3.1 shader，设备会自动使用当前兼容下的最佳 shader 平台。
 
-![image alt text](image_65.jpg)(h:220 w:582 convert:false)
+![image alt text](image_65.jpg)(w:582 convert:false)
 
 ## 新货：移动平台打包引导
 
 我们添加了一个 Mobile Packaging Wizard 来帮助生成一个最小的需要上传到 AppStore 的程序以及其他可以通过云端下载的内容。
 
-![image alt text](image_66.jpg)(h:484 w:800 convert:false)
+![image alt text](image_66.jpg)(w:800 convert:false)
 
 * 这种类型的打包方式对具有固定 DLC 更新到大型游戏很常见
 
@@ -667,7 +683,7 @@ Combined Static 和 CSM 阴影模式在 4.12 中就有了，这个模式下，�
 
 在移动设备上，材质有一个选项可以在 Pixel Shader 上使用全精度（默认是中度精度），例如这么做对于使用世界坐标参与计算的材质就能带来效果的帮助。
 
-![image alt text](image_67.jpg)(h:92 w:260 convert:false)
+![image alt text](image_67.jpg)(w:260 convert:false)
 
 ## 新货：安卓设备的二进制 SHADER 缓存
 
@@ -711,9 +727,9 @@ Combined Static 和 CSM 阴影模式在 4.12 中就有了，这个模式下，�
 
 在蓝图中也暴露了这些功能，在 "Format Text" 的节点上的通配符输入引脚：
 
-![image alt text](image_68.jpg)(h:166 w:564 convert:false)
+![image alt text](image_68.jpg)(w:564 convert:false)
 
-![image alt text](image_69.jpg)(h:168 w:820 convert:false)
+![image alt text](image_69.jpg)(w:820 convert:false)
 
 如果预期会被多次调用 FText::Format(...) 的话，还可以预编译格式模式来重用。只需要新建并保存一个 FTextFormat 实例并将它作为模式传给 FText::Format(...)。
 
@@ -735,7 +751,7 @@ Combined Static 和 CSM 阴影模式在 4.12 中就有了，这个模式下，�
 
 BuildGraph 脚本可被用来创建自定义的UE4构建命令序列用以自动化构建。这些图（构建脚本）以 XML 脚本的形式，用类似 MSBuild，Ant 或者 NAnt 的语法，由一个有依赖 节点 的网络来组成各个 *任务*。
 
-![image alt text](image_70.jpg)(h:382 w:677 convert:false)
+![image alt text](image_70.jpg)(w:677 convert:false)
 
 一些 BuildGraph 脚本的示例存在了这里：Engine/Build/Graph/Examples/…
 

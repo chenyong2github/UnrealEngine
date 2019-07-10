@@ -1,7 +1,9 @@
-﻿Availability: Public
-Title:6. 发挥想象！
+﻿INTSourceChangelist:3782314
+Availability: Public
+Title:6. 自己动手！
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/UMG
-Description: 进一步探索的想法！
+Description:有关进一步探索的想法！
+version:4.14
 
 [VAR:Steps]
 [OBJECT:Navigation]
@@ -11,7 +13,7 @@ Description: 进一步探索的想法！
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[编程指南主页](Programming\Tutorials\)
+		[](Programming\Tutorials\UMG)
 	[/PARAM]
 	[PARAM:next]
 	[/PARAM]
@@ -21,20 +23,20 @@ Description: 进一步探索的想法！
 
 
 
-通过使用您已经掌握的内容，您可以进行如下操作：
+利用您所学到知识，尝试执行以下操作：
 
 * 同时打开多个菜单。
-* 让 **Widgets（控件）** 滑动到屏幕上，或从屏幕上消失，而不仅仅让它们出现。
-* 查看 **Widgets（控件）** 所支持的不同声音、风格和颜色属性。
-* 在您的 **Game Mode（游戏模式）** 中设置诸如难度等级、角色类和菜单中诸如此类的变量。
-* 创建在玩家按下按键时会弹出并暂停游戏、然后在菜单关闭时继续游戏的游戏内菜单。
-* 将您从上一教程中构建或学到的任意功能链接到 **UMG** 中构建的菜单。
+* 将 **控件（Widgets）** 滑动或淡入到屏幕上，而不是让它们显示在屏幕上。
+* 查看控件（Widgets）支持的不同声音、风格和颜色属性。
+* 从菜单中设置 **游戏（GameMode）** 中的变量，如难度级别、字符类等。
+* 创建一个游戏内菜单，当玩家按下一个键时，它会弹出对话框并暂停游戏，当它关闭时，它会继续游戏。
+* 将您从上一教程中构建或了解的任何功能链接到 **虚幻运动图形（Unreal Motion Graphics）** (UMG)中构建的菜单。
 
-对于本教程中提到的详细内容，请参考以下文件：
+有关本教程介绍的细节：
 
-* 如需学习UMG中关于设计游戏屏幕显示并使用已经可用的许多 **Widgets（控件）** ，请阅读[%Engine/UMG/UserGuide:title%](Engine/UMG/UserGuide) 或者[%Engine/UMG/UserGuide/WidgetTypeReference:title%](Engine/UMG/UserGuide/WidgetTypeReference) 页面。
-* 如需了解显示的变量和函数的更多信息，以及关于在您的菜单中使用 **Timers（计时器）** 和 **Events（事件）** 的信息，请查阅[%Programming/Tutorials/VariablesTimersEvents:title%](Programming/Tutorials/VariablesTimersEvents)页面。
-* 如需阅读更多教程，请参阅[%Programming/Tutorials:title%](Programming/Tutorials)页面。
+* 要了解如何在UMG中设计游戏屏幕和使用许多可用的控件，请阅读[%Engine/UMG/UserGuide:title%](Engine/UMG/UserGuide)或[%Engine/UMG/UserGuide/WidgetTypeReference:title%](Engine/UMG/UserGuide/WidgetTypeReference)页面。
+* 有关公开变量和函数以及有关使用菜单中的 **定时器（Timers）** 和 **事件（Events）**的更多信息，请尝试阅读[%Programming/Tutorials/VariablesTimersEvents:title%](Programming/Tutorials/VariablesTimersEvents)页面。
+* 有关进一步教程，请参阅[%Programming/Tutorials:title%](Programming/Tutorials)页面。
 
 
 

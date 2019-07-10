@@ -7,6 +7,7 @@ UCloudARPin::UCloudARPin()
 {
 	CloudState = ECloudARPinCloudState::NotHosted;
 	CloudID = FString("");
+	NativeResource = nullptr;
 }
 
 FString UCloudARPin::GetCloudID()

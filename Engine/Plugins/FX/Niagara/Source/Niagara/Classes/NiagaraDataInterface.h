@@ -257,6 +257,11 @@ public:
 	/** Determines if this type definition matches to a known data interface type.*/
 	static bool IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef);
 
+	/** Allows data interfaces to provide common functionality that will be shared across interfaces on that type. */
+	virtual void GetCommonHLSL(FString& OutHLSL)
+	{
+	}
+
 	virtual bool GetFunctionHLSL(const FName& DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 	{
 //		checkf(false, TEXT("Unefined HLSL in data interface. Interfaces need to be able to return HLSL for each function they define in GetFunctions."));

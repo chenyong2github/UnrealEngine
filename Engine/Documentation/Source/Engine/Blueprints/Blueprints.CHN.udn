@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6652343
 Availability:Public
 Title: 蓝图 - 可视化脚本
 Crumbs: %ROOT%, Engine
@@ -11,10 +11,7 @@ type:landing
 tags:Blueprints
 topic-image:Engine/Blueprints/kismet_topic.png
 topic-icon:%ROOT%/blueprint_icon.png
-
-[REGION:banner]
-![](k2_banner.gif)
-[/REGION]
+hero-image:k2_banner.gif
 
 [EXCERPT:Intro]
 虚幻引擎中的 **蓝图 - 可视化脚本系统** 是一个完整的游戏脚本系统，
@@ -27,79 +24,60 @@ topic-icon:%ROOT%/blueprint_icon.png
 通过这些标记，程序员能够很方便的创建一个基础系统，并交给策划进一步在蓝图中对这样的系统进行扩展。
 [/EXCERPT:Intro]
 
-(#GettingStarted)
+<!-- Removing link for now
+[REGION:tip]
+如果您是蓝图或可视化脚本方面的新手，还可以查看 **蓝图基础概念** 系列视频教程。此系列涵盖了在虚幻引擎4中使用蓝图的基础与核心概念、如果将蓝图与传统编程的关联、蓝图编辑器UI导览、组件、图表以及一些使用蓝图的禁忌。 
+
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	blueprint-essential-concepts
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	7144
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	蓝图基础概念
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	深入了解蓝图是什么以及你能用它做什么。
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	8
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
+
 ## 新手入门
 
 [REGION:topics third]
-%Engine/Blueprints/QuickStart:TopicCompact%
-%Engine/Blueprints/GettingStarted:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Blueprints:title%](BPVid.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		视频：蓝图简介 (v4.8)
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gY35ezlSQn1sWOGfh4C7ewO/EFXMW_UEDco/index.html
-	[/PARAMLITERAL]
-[/OBJECT]
+%Engine/Blueprints/QuickStart:Topic%
+%Engine/Blueprints/GettingStarted:Topic%
 [/REGION]
 
-(#GeneralScripting)
 ## 常规脚本编写
 
 [REGION:topics third]
-%Engine/Blueprints/Scripting:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Blueprints:title%](BlueprintEssentials.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		视频：蓝图基础
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1ga2b_ZaJoaR5dLHOFw4-MMl/zaVY5A0hqiI/index.html
-	[/PARAMLITERAL]
-[/OBJECT]
+%Engine/Blueprints/Scripting:Topic%
 [/REGION]
 
-(#BuildingBlueprints)
 ## 编译蓝图
 [REGION:topics third]
-%Engine/Blueprints/Anatomy:TopicCompact%
-%Engine/Blueprints/Workflow:TopicCompact%
-%Engine/Blueprints/BP_HowTo:TopicCompact%
-%Engine/Blueprints/UserGuide/CheatSheet:TopicCompact%
-%Engine/Blueprints/BestPractices:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![Blueprint Video Tutorials](BPTutorials.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		蓝图视频教程
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/Blueprints/index.html
-	[/PARAMLITERAL]
-[/OBJECT]
+%Engine/Blueprints/Anatomy:Topic%
+%Engine/Blueprints/Workflow:Topic%
+%Engine/Blueprints/BP_HowTo:Topic%
+%Engine/Blueprints/UserGuide/CheatSheet:Topic%
+%Engine/Blueprints/BestPractices:Topic%
 [/REGION]
 
-(#BlueprintCommunication)
 ## 蓝图通信
 [REGION:topics third]
-%Engine\Blueprints\UserGuide\BlueprintCommsUsage:topiccompact%
-%Engine/Blueprints\HowTo:topiccompact%
-[OBJECT:TopicCompact]
+%Engine\Blueprints\UserGuide\BlueprintCommsUsage:Topic%
+%Engine/Blueprints\HowTo:Topic%
+[OBJECT:Topic]
 	[PARAM:image]
 		![Livestream: Blueprint Communications](CommStream.png)
 	[/PARAM]
@@ -107,24 +85,22 @@ topic-icon:%ROOT%/blueprint_icon.png
 		![](%ROOT%/blueprint_icon.png)(convert:false)
 	[/PARAM]
 	[PARAM:title]
-		直播：蓝图通信
+		直播录像：蓝图通信
 	[/PARAM]
 	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu/EM_HYqQdToE/index.html
+		https://www.youtube.com/watch?v=EM_HYqQdToE&list=PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu
 	[/PARAMLITERAL]
 [/OBJECT]
-%Engine\Blueprints\UserGuide\BlueprintComms:topiccompact%
-%Engine\Blueprints\UserGuide\EventDispatcher:topiccompact%
-%Engine/Blueprints/UserGuide/Types/Interface:topiccompact%
+%Engine\Blueprints\UserGuide\BlueprintComms:Topic%
+%Engine\Blueprints\UserGuide\EventDispatcher:Topic%
+%Engine/Blueprints/UserGuide/Types/Interface:Topic%
 [/REGION]
 
-(#DoingMoreWithBlueprints)
 ## 蓝图进阶
 
-[REGION:topics third]
-%BlueprintAPI:TopicCompact%
-%Engine/Blueprints/Editor:TopicCompact%
-[OBJECT:TopicCompact]
+%BlueprintAPI:Topic%
+%Engine/Blueprints/Editor:Topic%
+[OBJECT:Topic]
 	[PARAM:image]
 		![Live Training Streams: Blueprints](BPLiveStream.png)
 	[/PARAM]
@@ -132,12 +108,12 @@ topic-icon:%ROOT%/blueprint_icon.png
 		![](%ROOT%/blueprint_icon.png)(convert:false)
 	[/PARAM]
 	[PARAM:title]
-		直播：蓝图
+		培训直播录像：蓝图
 	[/PARAM]
 	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu/index.html
+		https://www.youtube.com/playlist?list=PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu
 	[/PARAMLITERAL]
 [/OBJECT]
-[/REGION]
 
 [DIR(output:"topic" parent:"Engine/Blueprints" type:"overview" org:"hierarchy")]
+

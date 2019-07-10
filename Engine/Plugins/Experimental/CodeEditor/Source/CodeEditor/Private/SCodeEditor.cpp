@@ -32,12 +32,12 @@ void SCodeEditor::Construct(const FArguments& InArgs, UCodeProjectItem* InCodePr
 	HorizontalScrollbar = 
 		SNew(SScrollBar)
 		.Orientation(Orient_Horizontal)
-		.Thickness(FVector2D(10.0f, 10.0f));
+		.Thickness(FVector2D(14.0f, 14.0f));
 
 	VerticalScrollbar = 
 		SNew(SScrollBar)
 		.Orientation(Orient_Vertical)
-		.Thickness(FVector2D(10.0f, 10.0f));
+		.Thickness(FVector2D(14.0f, 14.0f));
 
 	ChildSlot
 	[

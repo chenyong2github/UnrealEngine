@@ -1,0 +1,48 @@
+﻿INTSourceChangelist:5500571
+Availability: Public
+Crumbs: 
+Title:多用户查看器的网络要求
+Description:介绍将多台计算机连接起来，共同用于设计审查体验时适用的要求和注意事项。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: Reference
+Tags: multi-user viewer
+topic-image:multiuserviewer-networking-topic.png
+
+
+本页面介绍使用多用户查看器模板将多台计算机连接起来，建立同一个运行时设计审查会话时涉及到的一些网络要求和注意事项。
+
+(#connectingoveralocalareanetwork)
+## 通过局域网连接
+
+[入门](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro)页面中的说明介绍了如何将在简单局域网中运行的多台计算机连接起来。只要满足下列条件，你使用此方案进行连接就应该没有问题：
+
+1.  所有计算机都连接到相同的网络。
+2.  所有计算机的标准虚幻引擎网络端口 **7777** 都处于打开状态，可与该网络通信。
+3.  未设置会阻止连接的中间网络组件，例如，路由器或网络地址遍历（NAT）服务。
+
+如果连接时遇到问题，请联系你的网络管理员。
+
+(#connectingacrossnetworks)
+## 跨网络连接
+
+如果需要让多台计算机跨多个子网或通过公开的互联网加入会话，你几乎肯定需要进行一些额外的网络配置。你需要遵循的具体步骤因网络配置而异。但是，一般而言：   
+
+*   服务器主机需从特定的IP地址对所有客户端可见。要满足此条件，你需要在路由器上设置NAT遍历规则并打开防火墙上的7777端口，以用于外部通信。
+*   需谨记，在同一个网络之外，服务器自动检测将无法正常工作。客户端用户需要手动指定他们要连接到的服务器的IP地址。
+
+[REGION:note]
+要避免延迟和滞后，最好在同一个网络中本地使用多用户查看器。
+[/REGION]
+
+(#bandwidthrequirements)
+## 带宽要求
+
+由于多用户查看器模板仅通过网络复制会话中用户的位置及视图方向和其激光笔等轻量级数据，网络带宽使用量应该相对较低。如果需要准确测量，你可以使用[网络分析器](Gameplay/Tools/NetworkProfiler)分析模板在网络上的表现。
+
+(#otherresources)
+## 其它资源
+
+要了解与虚幻引擎中的网络的工作原理相关的更多信息，请参阅[网络连接与多人游戏](Gameplay/Networking)部分中的文档。

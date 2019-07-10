@@ -12,6 +12,9 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SButton.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleWidgets.h"
+#endif
 
 enum class ETextFlowDirection : uint8;
 enum class ETextShapingMethod : uint8;
@@ -81,6 +84,12 @@ public:
 	{
 		return FCursorReply::Cursor( EMouseCursor::Hand );
 	}
+#if WITH_ACCESSIBILITY
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override
+	{
+		return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleHyperlink(SharedThis(this)));
+	}
+#endif
 
 protected:
 

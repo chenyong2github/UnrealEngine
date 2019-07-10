@@ -68,6 +68,8 @@ UAnimCompress_RemoveLinearKeys::UAnimCompress_RemoveLinearKeys(const FObjectInit
 }
 
 #if WITH_EDITOR
+
+#if USE_SEGMENTING_CONTEXT
 /**
  * Structure that holds the necessary information for performing linear key reduction.
  * Each segment will have its own instance. Each instance is independent.
@@ -106,6 +108,7 @@ struct FProcessAnimationTracksContext
 		, SegmentList(SegmentList_)
 	{}
 };
+#endif
 
 struct RotationAdapter
 {
@@ -341,6 +344,7 @@ void FilterLinearKeysTemplate(
 	}
 }
 
+#if USE_SEGMENTING_CONTEXT
 template <typename AdapterType>
 void FilterLinearKeysTemplate(
 	TArray<typename AdapterType::KeyType>& Keys,
@@ -546,20 +550,21 @@ void FilterLinearKeysTemplate(
 		Keys = NewKeys;
 	}
 }
+#endif
 
 void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
-	UAnimSequence* AnimSeq, 
-	const TArray<FBoneData>& BoneData, 
+	const FCompressibleAnimData& CompressibleAnimData,
+	FCompressibleAnimDataResult& OutCompressedData,
 	const TArray<FTransform>& RefPose,
 	int32 BoneIndex, // this bone index should be of skeleton, not mesh
 	bool UseRaw,
 	TArray<FTransform>& OutputWorldBones)
 {
-	const FBoneData& Bone		= BoneData[BoneIndex];
-	const int32 NumFrames		= AnimSeq->GetRawNumberOfFrames();
-	const float SequenceLength	= AnimSeq->SequenceLength;
+	const FBoneData& Bone		= CompressibleAnimData.BoneData[BoneIndex];
+	const int32 NumFrames		= CompressibleAnimData.NumFrames;
+	const float SequenceLength	= CompressibleAnimData.SequenceLength;
 	const int32 FrameStart		= (BoneIndex*NumFrames);
-	const int32 TrackIndex = AnimSeq->GetSkeleton()->GetAnimationTrackIndex(BoneIndex, AnimSeq, UseRaw);
+	const int32 TrackIndex = FAnimationUtils::GetAnimTrackIndexForSkeletonBone(BoneIndex, CompressibleAnimData.TrackToSkeletonMapTable);
 	
 	check(OutputWorldBones.Num() >= (FrameStart+NumFrames));
 
@@ -573,7 +578,7 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
 			float Time = (float)FrameIndex * TimePerFrame;
 			FTransform LocalAtom;
 
-			AnimSeq->GetBoneTransform(LocalAtom, TrackIndex, Time, UseRaw);
+			FAnimationUtils::ExtractTransformFromCompressionData(CompressibleAnimData, OutCompressedData, Time, TrackIndex, UseRaw, LocalAtom);
 
 			FQuat Rot = LocalAtom.GetRotation();
 			LocalAtom.SetRotation(EnforceShortestArc(FQuat::Identity, Rot));
@@ -781,6 +786,7 @@ static float FindKeyInterpolationData(const UAnimSequence& AnimSeq, const TArray
 	return InterpolationAlpha;
 }
 
+#if USE_SEGMENTING_CONTEXT
 FTransform UAnimCompress_RemoveLinearKeys::SampleSegment(const FProcessAnimationTracksContext& Context, int32 TrackIndex, float Time)
 {
 	FTransform Result;
@@ -903,6 +909,56 @@ FTransform UAnimCompress_RemoveLinearKeys::SampleSegment(const FProcessAnimation
 	return Result;
 }
 
+void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformRange(
+	FProcessAnimationTracksContext& Context,
+	int32 StartingBoneIndex,	// this bone index should be of skeleton, not mesh
+	int32 EndingBoneIndex)		// this bone index should be of skeleton, not mesh
+{
+	if (bUseDecompression)
+	{
+		// bitwise compress the tracks into the anim sequence buffers
+		// to make sure the data we've compressed so far is ready for solving
+		CompressUsingUnderlyingCompressor(Context.AnimSeq, Context.BoneData, Context.SegmentList, false);
+	}
+
+	// build all world-space transforms from this bone to the target end effector we are monitoring
+	// all parent transforms have been built already
+	for (int32 Index = StartingBoneIndex; Index <= EndingBoneIndex; ++Index)
+	{
+		UpdateWorldBoneTransformTable(Context, Index, false, Context.NewWorldBones);
+	}
+}
+
+void UAnimCompress_RemoveLinearKeys::UpdateBoneAtomList(
+	const FProcessAnimationTracksContext& Context,
+	int32 TrackIndex,
+	TArray<FTransform>& BoneAtoms) const
+{
+	const float FrameRate = GetFrameRate(Context.AnimSeq);
+	FAnimSequenceDecompressionContext DecompContext(&Context.AnimSeq);
+
+	BoneAtoms.Reset(Context.Segment.NumFrames);
+	for (int32 FrameIndex = 0; FrameIndex < Context.Segment.NumFrames; ++FrameIndex)
+	{
+		const float Time = (float)(FrameIndex + Context.Segment.StartFrame) / FrameRate;
+
+		FTransform LocalAtom;
+		if (bUseDecompression)
+		{
+			DecompContext.Seek(Time);
+			Context.AnimSeq.GetBoneTransform(LocalAtom, TrackIndex, DecompContext, false);
+		}
+		else
+		{
+			LocalAtom = SampleSegment(Context, TrackIndex, Time);
+		}
+
+		FQuat Rot = LocalAtom.GetRotation();
+		LocalAtom.SetRotation(EnforceShortestArc(FQuat::Identity, Rot));
+		BoneAtoms.Add(LocalAtom);
+	}
+}
+
 void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
 	const FProcessAnimationTracksContext& Context,
 	int32 BoneIndex,
@@ -975,10 +1031,10 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
 		}
 	}
 }
+#endif
 
 void UAnimCompress_RemoveLinearKeys::FilterBeforeMainKeyRemoval(
-	UAnimSequence* AnimSeq, 
-	const TArray<FBoneData>& BoneData, 
+	const FCompressibleAnimData& CompressibleAnimData,
 	TArray<FTranslationTrack>& TranslationData,
 	TArray<FRotationTrack>& RotationData, 
 	TArray<FScaleTrack>& ScaleData)
@@ -990,8 +1046,8 @@ void UAnimCompress_RemoveLinearKeys::FilterBeforeMainKeyRemoval(
 
 
 void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformRange(
-	UAnimSequence* AnimSeq, 
-	const TArray<FBoneData>& BoneData, 
+	const FCompressibleAnimData& CompressibleAnimData,
+	FCompressibleAnimDataResult& OutCompressedData,
 	const TArray<FTransform>& RefPose,
 	const TArray<FTranslationTrack>& PositionTracks,
 	const TArray<FRotationTrack>& RotationTracks,
@@ -1004,8 +1060,8 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformRange(
 	// bitwise compress the tracks into the anim sequence buffers
 	// to make sure the data we've compressed so far is ready for solving
 	CompressUsingUnderlyingCompressor(
-		AnimSeq,
-		BoneData, 
+		CompressibleAnimData,
+		OutCompressedData,
 		PositionTracks,
 		RotationTracks,
 		ScaleTracks,
@@ -1016,8 +1072,8 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformRange(
 	for ( int32 Index = StartingBoneIndex; Index <= EndingBoneIndex; ++Index )
 	{
 		UpdateWorldBoneTransformTable(
-			AnimSeq, 
-			BoneData, 
+			CompressibleAnimData,
+			OutCompressedData,
 			RefPose,
 			Index,
 			UseRaw,
@@ -1025,30 +1081,9 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformRange(
 	}
 }
 
-
-void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformRange(
-	FProcessAnimationTracksContext& Context,
-	int32 StartingBoneIndex,	// this bone index should be of skeleton, not mesh
-	int32 EndingBoneIndex)		// this bone index should be of skeleton, not mesh
-{
-	if (bUseDecompression)
-	{
-		// bitwise compress the tracks into the anim sequence buffers
-		// to make sure the data we've compressed so far is ready for solving
-		CompressUsingUnderlyingCompressor(Context.AnimSeq, Context.BoneData, Context.SegmentList, false);
-	}
-
-	// build all world-space transforms from this bone to the target end effector we are monitoring
-	// all parent transforms have been built already
-	for (int32 Index = StartingBoneIndex; Index <= EndingBoneIndex; ++Index)
-	{
-		UpdateWorldBoneTransformTable(Context, Index, false, Context.NewWorldBones);
-	}
-}
-
-
 void UAnimCompress_RemoveLinearKeys::UpdateBoneAtomList(
-	UAnimSequence* AnimSeq, 
+	const FCompressibleAnimData& CompressibleAnimData,
+	FCompressibleAnimDataResult& OutCompressedData,
 	int32 BoneIndex,
 	int32 TrackIndex,
 	int32 NumFrames,
@@ -1060,7 +1095,7 @@ void UAnimCompress_RemoveLinearKeys::UpdateBoneAtomList(
 	{
 		float Time = (float)FrameIndex * TimePerFrame;
 		FTransform LocalAtom;
-		AnimSeq->GetBoneTransform(LocalAtom, TrackIndex, Time, false);
+		FAnimationUtils::ExtractTransformFromCompressionData(CompressibleAnimData, OutCompressedData, Time, TrackIndex, false, LocalAtom);
 
 		FQuat Rot = LocalAtom.GetRotation();
 		LocalAtom.SetRotation( EnforceShortestArc(FQuat::Identity, Rot) );
@@ -1068,107 +1103,70 @@ void UAnimCompress_RemoveLinearKeys::UpdateBoneAtomList(
 	}
 }
 
-
-void UAnimCompress_RemoveLinearKeys::UpdateBoneAtomList(
-	const FProcessAnimationTracksContext& Context,
-	int32 TrackIndex,
-	TArray<FTransform>& BoneAtoms) const
-{
-	const float FrameRate = GetFrameRate(Context.AnimSeq);
-	FAnimSequenceDecompressionContext DecompContext(&Context.AnimSeq);
-
-	BoneAtoms.Reset(Context.Segment.NumFrames);
-	for (int32 FrameIndex = 0; FrameIndex < Context.Segment.NumFrames; ++FrameIndex)
-	{
-		const float Time = (float)(FrameIndex + Context.Segment.StartFrame) / FrameRate;
-
-		FTransform LocalAtom;
-		if (bUseDecompression)
-		{
-			DecompContext.Seek(Time);
-			Context.AnimSeq.GetBoneTransform(LocalAtom, TrackIndex, DecompContext, false);
-		}
-		else
-		{
-			LocalAtom = SampleSegment(Context, TrackIndex, Time);
-		}
-
-		FQuat Rot = LocalAtom.GetRotation();
-		LocalAtom.SetRotation(EnforceShortestArc(FQuat::Identity, Rot));
-		BoneAtoms.Add(LocalAtom);
-	}
-}
-
-
-bool UAnimCompress_RemoveLinearKeys::ConvertFromRelativeSpace(UAnimSequence* AnimSeq)
+void UAnimCompress_RemoveLinearKeys::ConvertFromRelativeSpace(FCompressibleAnimData& CompressibleAnimData)
 {
 	// if this is an additive animation, temporarily convert it out of relative-space
-	const bool bAdditiveAnimation = AnimSeq->IsValidAdditive();
-	if (bAdditiveAnimation)
+	check(CompressibleAnimData.bIsValidAdditive);
+	// convert the raw tracks out of additive-space
+	const int32 NumTracks = CompressibleAnimData.RawAnimationData.Num();
+	for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 	{
-		// convert the raw tracks out of additive-space
-		const int32 NumTracks = AnimSeq->GetRawAnimationData().Num();
-		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+		// bone index of skeleton
+		int32 const BoneIndex = CompressibleAnimData.TrackToSkeletonMapTable[TrackIndex].BoneTreeIndex;
+		bool const bIsRootBone = (BoneIndex == 0);
+
+		const FRawAnimSequenceTrack& BasePoseTrack = CompressibleAnimData.AdditiveBaseAnimationData[TrackIndex];
+		FRawAnimSequenceTrack& RawTrack	= CompressibleAnimData.RawAnimationData[TrackIndex];
+
+		// @note: we only extract the first frame, as we don't want to induce motion from the base pose
+		// only the motion from the additive data should matter.
+		const FVector& RefBonePos = BasePoseTrack.PosKeys[0];
+		const FQuat& RefBoneRotation = BasePoseTrack.RotKeys[0];
+
+		// Transform position keys.
+		for (int32 PosIndex = 0; PosIndex < RawTrack.PosKeys.Num(); ++PosIndex)
 		{
-			// bone index of skeleton
-			int32 const BoneIndex = AnimSeq->GetRawTrackToSkeletonMapTable()[TrackIndex].BoneTreeIndex;
-			bool const bIsRootBone = (BoneIndex == 0);
+			RawTrack.PosKeys[PosIndex] += RefBonePos;
+		}
 
-			const FRawAnimSequenceTrack& BasePoseTrack = AnimSeq->GetAdditiveBaseAnimationData()[TrackIndex];
-			FRawAnimSequenceTrack& RawTrack	= AnimSeq->GetRawAnimationTrack(TrackIndex);
+		// Transform rotation keys.
+		for (int32 RotIndex = 0; RotIndex < RawTrack.RotKeys.Num(); ++RotIndex)
+		{
+			RawTrack.RotKeys[RotIndex] = RawTrack.RotKeys[RotIndex] * RefBoneRotation;
+			RawTrack.RotKeys[RotIndex].Normalize();
+		}
 
-			// @note: we only extract the first frame, as we don't want to induce motion from the base pose
-			// only the motion from the additive data should matter.
-			const FVector& RefBonePos = BasePoseTrack.PosKeys[0];
-			const FQuat& RefBoneRotation = BasePoseTrack.RotKeys[0];
-
-			// Transform position keys.
-			for (int32 PosIndex = 0; PosIndex < RawTrack.PosKeys.Num(); ++PosIndex)
+		// make sure scale key exists
+		if (RawTrack.ScaleKeys.Num() > 0)
+		{
+			const FVector DefaultScale(1.f);
+			const FVector& RefBoneScale = (BasePoseTrack.ScaleKeys.Num() > 0)? BasePoseTrack.ScaleKeys[0] : DefaultScale;
+			for (int32 ScaleIndex = 0; ScaleIndex < RawTrack.ScaleKeys.Num(); ++ScaleIndex)
 			{
-				RawTrack.PosKeys[PosIndex] += RefBonePos;
-			}
-
-			// Transform rotation keys.
-			for (int32 RotIndex = 0; RotIndex < RawTrack.RotKeys.Num(); ++RotIndex)
-			{
-				RawTrack.RotKeys[RotIndex] = RawTrack.RotKeys[RotIndex] * RefBoneRotation;
-				RawTrack.RotKeys[RotIndex].Normalize();
-			}
-
-			// make sure scale key exists
-			if (RawTrack.ScaleKeys.Num() > 0)
-			{
-				const FVector DefaultScale(1.f);
-				const FVector& RefBoneScale = (BasePoseTrack.ScaleKeys.Num() > 0)? BasePoseTrack.ScaleKeys[0] : DefaultScale;
-				for (int32 ScaleIndex = 0; ScaleIndex < RawTrack.ScaleKeys.Num(); ++ScaleIndex)
-				{
-					RawTrack.ScaleKeys[ScaleIndex] = RefBoneScale * (DefaultScale + RawTrack.ScaleKeys[ScaleIndex]);
-				}
+				RawTrack.ScaleKeys[ScaleIndex] = RefBoneScale * (DefaultScale + RawTrack.ScaleKeys[ScaleIndex]);
 			}
 		}
 	}
-
-	return bAdditiveAnimation;
 }
 
-void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(
-	UAnimSequence* AnimSeq,
+void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpaceBoth(
+	FCompressibleAnimData& CompressibleAnimData,
 	TArray<FTranslationTrack>& TranslationData,
 	TArray<FRotationTrack>& RotationData, 
 	TArray<FScaleTrack>& ScaleData)
 {
-	ConvertToRelativeSpace(*AnimSeq);
-	ConvertToRelativeSpace(*AnimSeq, TranslationData, RotationData, ScaleData);
+	ConvertToRelativeSpace(CompressibleAnimData);
+	ConvertToRelativeSpace(CompressibleAnimData, TranslationData, RotationData, ScaleData);
 }
 
-void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(UAnimSequence& AnimSeq) const
+void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(FCompressibleAnimData& CompressibleAnimData) const
 {
 	// convert the raw tracks back to additive-space
-	const int32 NumTracks = AnimSeq.GetRawAnimationData().Num();
+	const int32 NumTracks = CompressibleAnimData.RawAnimationData.Num();
 	for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 	{
-		const FRawAnimSequenceTrack& BasePoseTrack = AnimSeq.GetAdditiveBaseAnimationData()[TrackIndex];
-		FRawAnimSequenceTrack& RawTrack = AnimSeq.GetRawAnimationTrack(TrackIndex);
+		const FRawAnimSequenceTrack& BasePoseTrack = CompressibleAnimData.AdditiveBaseAnimationData[TrackIndex];
+		FRawAnimSequenceTrack& RawTrack = CompressibleAnimData.RawAnimationData[TrackIndex];
 
 		// @note: we only extract the first frame, as we don't want to induce motion from the base pose
 		// only the motion from the additive data should matter.
@@ -1205,16 +1203,16 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(UAnimSequence& AnimS
 }
 
 void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(
-	const UAnimSequence& AnimSeq,
+	const FCompressibleAnimData& CompressibleAnimData,
 	TArray<FTranslationTrack>& TranslationData,
 	TArray<FRotationTrack>& RotationData,
 	TArray<FScaleTrack>& ScaleData) const
 {
 	// convert the raw tracks back to additive-space
-	const int32 NumTracks = AnimSeq.GetRawAnimationData().Num();
+	const int32 NumTracks = CompressibleAnimData.RawAnimationData.Num();
 	for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 	{
-		const FRawAnimSequenceTrack& BasePoseTrack = AnimSeq.GetAdditiveBaseAnimationData()[TrackIndex];
+		const FRawAnimSequenceTrack& BasePoseTrack = CompressibleAnimData.AdditiveBaseAnimationData[TrackIndex];
 
 		// @note: we only extract the first frame, as we don't want to induce motion from the base pose
 		// only the motion from the additive data should matter.
@@ -1252,21 +1250,21 @@ void UAnimCompress_RemoveLinearKeys::ConvertToRelativeSpace(
 }
 
 void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
-	UAnimSequence* AnimSeq, 
-	const TArray<FBoneData>& BoneData, 
+	const FCompressibleAnimData& CompressibleAnimData,
+	FCompressibleAnimDataResult& OutCompressedData,
 	TArray<FTranslationTrack>& PositionTracks,
 	TArray<FRotationTrack>& RotationTracks, 
 	TArray<FScaleTrack>& ScaleTracks)
 {
 	// extract all the data we'll need about the skeleton and animation sequence
-	const int32 NumBones			= BoneData.Num();
-	const int32 NumFrames			= AnimSeq->GetRawNumberOfFrames();
-	const float SequenceLength	= AnimSeq->SequenceLength;
+	const int32 NumBones			= CompressibleAnimData.BoneData.Num();
+	const int32 NumFrames			= CompressibleAnimData.NumFrames;
+	const float SequenceLength	= CompressibleAnimData.SequenceLength;
 	const int32 LastFrame = NumFrames-1;
 	const float FrameRate = (float)(LastFrame) / SequenceLength;
 	const float TimePerFrame = SequenceLength / (float)(LastFrame);
 
-	const TArray<FTransform>& RefPose = AnimSeq->GetSkeleton()->GetRefLocalPoses();
+	const TArray<FTransform>& RefPose = CompressibleAnimData.Skeleton->GetRefLocalPoses();
 	const bool bHasScale =  (ScaleTracks.Num() > 0);
 
 	// make sure the parent key scale is properly bound to 1.0 or more
@@ -1292,15 +1290,15 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 	{
 		// get the raw world-atoms for this bone
 		UpdateWorldBoneTransformTable(
-			AnimSeq, 
-			BoneData, 
+			CompressibleAnimData,
+			OutCompressedData,
 			RefPose,
 			BoneIndex,
 			true,
 			RawWorldBones);
 
 		// also record all end-effectors we find
-		const FBoneData& Bone = BoneData[BoneIndex];
+		const FBoneData& Bone = CompressibleAnimData.BoneData[BoneIndex];
 		if (Bone.IsEndEffector())
 		{
 			EndEffectors.Add(BoneIndex);
@@ -1311,10 +1309,10 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 	// for each bone...
 	for ( int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex )
 	{
-		const FBoneData& Bone = BoneData[BoneIndex];
+		const FBoneData& Bone = CompressibleAnimData.BoneData[BoneIndex];
 		const int32 ParentBoneIndex = Bone.GetParent();
 
-		const int32 TrackIndex = AnimSeq->GetSkeleton()->GetAnimationTrackIndex(BoneIndex, AnimSeq, true);
+		const int32 TrackIndex = FAnimationUtils::GetAnimTrackIndexForSkeletonBone(BoneIndex, CompressibleAnimData.TrackToSkeletonMapTable);
 
 		if (TrackIndex != INDEX_NONE)
 		{
@@ -1337,7 +1335,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 			for (int32 EffectorIndex=0; EffectorIndex < EndEffectors.Num(); ++EffectorIndex)
 			{
 				const int32 EffectorBoneIndex = EndEffectors[EffectorIndex];
-				const FBoneData& EffectorBoneData = BoneData[EffectorBoneIndex];
+				const FBoneData& EffectorBoneData = CompressibleAnimData.BoneData[EffectorBoneIndex];
 
 				int32 RootIndex = EffectorBoneData.BonesToRoot.Find(BoneIndex);
 				if (RootIndex != INDEX_NONE)
@@ -1371,8 +1369,8 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 				{
 					// update our bone table from the current bone through the last end effector we need to test
 					UpdateWorldBoneTransformRange(
-						AnimSeq, 
-						BoneData, 
+						CompressibleAnimData,
+						OutCompressedData,
 						RefPose,
 						PositionTracks,
 						RotationTracks,
@@ -1381,7 +1379,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						HighestTargetBoneIndex,
 						false,
 						NewWorldBones);
-
+					
 					FScaleTrack& ScaleTrack = ScaleTracks[TrackIndex];
 
 					// adjust all translation keys to align better with the destination
@@ -1422,8 +1420,8 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					{
 						// update our bone table from the current bone through the last end effector we need to test
 						UpdateWorldBoneTransformRange(
-							AnimSeq, 
-							BoneData, 
+							CompressibleAnimData,
+							OutCompressedData,
 							RefPose,
 							PositionTracks,
 							RotationTracks,
@@ -1480,8 +1478,8 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 				{
 					// update our bone table from the current bone through the last end effector we need to test
 					UpdateWorldBoneTransformRange(
-						AnimSeq, 
-						BoneData, 
+						CompressibleAnimData,
+						OutCompressedData,
 						RefPose,
 						PositionTracks,
 						RotationTracks,
@@ -1490,7 +1488,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						HighestTargetBoneIndex,
 						false,
 						NewWorldBones);
-
+					
 					// adjust all translation keys to align better with the destination
 					for ( int32 KeyIndex = 0; KeyIndex < NumPosKeys; ++KeyIndex )
 					{
@@ -1517,14 +1515,14 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 				{
 					const int32 NextParentBoneIndex= Bone.BonesToRoot[FamilyIndex];
 
-					GuideTrackIndex = AnimSeq->GetSkeleton()->GetAnimationTrackIndex(NextParentBoneIndex, AnimSeq, true);
+					GuideTrackIndex = FAnimationUtils::GetAnimTrackIndexForSkeletonBone(NextParentBoneIndex, CompressibleAnimData.TrackToSkeletonMapTable);
 				}
 			}
 
 			// update our bone table from the current bone through the last end effector we need to test
 			UpdateWorldBoneTransformRange(
-				AnimSeq, 
-				BoneData, 
+				CompressibleAnimData,
+				OutCompressedData,
 				RefPose,
 				PositionTracks,
 				RotationTracks,
@@ -1533,9 +1531,9 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 				HighestTargetBoneIndex,
 				false,
 				NewWorldBones);
-
+			
 			// rebuild the BoneAtoms table using the current set of keys
-			UpdateBoneAtomList(AnimSeq, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms); 
+			UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms);
 
 			// determine the EndEffectorTolerance. 
 			// We use the Maximum value by default, and the Minimum value
@@ -1584,12 +1582,12 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						MaxScaleDiff, 
 						EndEffectorTolerance,
 						EffectorDiffSocket,
-						BoneData);
+						CompressibleAnimData.BoneData);
 
 					// update our bone table from the current bone through the last end effector we need to test
 					UpdateWorldBoneTransformRange(
-						AnimSeq, 
-						BoneData, 
+						CompressibleAnimData,
+						OutCompressedData,
 						RefPose,
 						PositionTracks,
 						RotationTracks,
@@ -1598,9 +1596,9 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						HighestTargetBoneIndex,
 						false,
 						NewWorldBones);
-
+					
 					// rebuild the BoneAtoms table using the current set of keys
-					UpdateBoneAtomList(AnimSeq, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms); 
+					UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms);
 				}
 
 				// filter out translations we can approximate through interpolation
@@ -1619,12 +1617,12 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					MaxPosDiff, 
 					EndEffectorTolerance,
 					EffectorDiffSocket,
-					BoneData);
+					CompressibleAnimData.BoneData);
 
 				// update our bone table from the current bone through the last end effector we need to test
 				UpdateWorldBoneTransformRange(
-					AnimSeq, 
-					BoneData, 
+					CompressibleAnimData,
+					OutCompressedData,
 					RefPose,
 					PositionTracks,
 					RotationTracks,
@@ -1633,9 +1631,9 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					HighestTargetBoneIndex,
 					false,
 					NewWorldBones);
-
+				
 				// rebuild the BoneAtoms table using the current set of keys
-				UpdateBoneAtomList(AnimSeq, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms); 
+				UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms);
 
 				// filter out rotations we can approximate through interpolation
 				FilterLinearKeysTemplate<RotationAdapter>(
@@ -1653,14 +1651,14 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					MaxAngleDiff, 
 					EndEffectorTolerance,
 					EffectorDiffSocket,
-					BoneData);
+					CompressibleAnimData.BoneData);
 			}
 		}
 
 		// make sure the final compressed keys are repesented in our NewWorldBones table
 		UpdateWorldBoneTransformRange(
-			AnimSeq, 
-			BoneData, 
+			CompressibleAnimData,
+			OutCompressedData,
 			RefPose,
 			PositionTracks,
 			RotationTracks,
@@ -1672,7 +1670,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 	}
 };
 
-
+#if USE_SEGMENTING_CONTEXT
 static void CalculateBoneChainInformation(const FProcessAnimationTracksContext& Context, int32 BoneIndex, int32& OutHighestTargetBoneIndex, int32& OutFurthestTargetBoneIndex, int32& OutShortestChain, TArray<int32>& OutTargetBoneIndices)
 {
 	const int32 NumBones = Context.BoneData.Num();
@@ -1839,6 +1837,7 @@ void UAnimCompress_RemoveLinearKeys::PerformRetargeting(
 		}
 	}
 }
+#endif
 
 static int32 FindGuideTrackIndex(const FBoneData& Bone, const TArray<int32>& BoneIndexToTrackIndex, float ParentKeyScale)
 {
@@ -1855,7 +1854,7 @@ static int32 FindGuideTrackIndex(const FBoneData& Bone, const TArray<int32>& Bon
 
 	return GuideTrackIndex;
 }
-
+#if USE_SEGMENTING_CONTEXT
 void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(FProcessAnimationTracksContext& Context)
 {
 	const int32 NumBones = Context.BoneData.Num();
@@ -2130,7 +2129,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 	BoneIndexToTrackIndex.AddUninitialized(NumBones);
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 	{
-		BoneIndexToTrackIndex[BoneIndex] = AnimSeq.GetSkeleton()->GetAnimationTrackIndex(BoneIndex, &AnimSeq, true);
+		BoneIndexToTrackIndex[BoneIndex] = AnimSeq.GetSkeleton()->GetRawAnimationTrackIndex(BoneIndex, &AnimSeq);
 	}
 
 	// generate an array to hold the indices of our end effectors
@@ -2201,18 +2200,19 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 		TGraphTask<FAsyncCleanUpProcessAnimationTracksTask>::CreateTask(&AsyncTaskCompletionEvents, ENamedThreads::AnyThread).ConstructAndDispatchWhenReady(TaskGroupContext);
 	}
 }
-
+#endif
 
 void UAnimCompress_RemoveLinearKeys::CompressUsingUnderlyingCompressor(
-	UAnimSequence* AnimSeq,
-	const TArray<FBoneData>& BoneData,
+	const FCompressibleAnimData& CompressibleAnimData,
+	FCompressibleAnimDataResult& OutCompressedData,
 	const TArray<FTranslationTrack>& TranslationData,
 	const TArray<FRotationTrack>& RotationData,
 	const TArray<FScaleTrack>& ScaleData,
 	const bool bFinalPass)
 {
 	BitwiseCompressAnimationTracks(
-		AnimSeq,
+		CompressibleAnimData,
+		OutCompressedData,
 		static_cast<AnimationCompressionFormat>(TranslationCompressionFormat),
 		static_cast<AnimationCompressionFormat>(RotationCompressionFormat),
 		static_cast<AnimationCompressionFormat>(ScaleCompressionFormat),
@@ -2222,10 +2222,11 @@ void UAnimCompress_RemoveLinearKeys::CompressUsingUnderlyingCompressor(
 		true);
 
 	// record the proper runtime decompressor to use
-	AnimSeq->KeyEncodingFormat = AKF_VariableKeyLerp;
-	AnimationFormat_SetInterfaceLinks(*AnimSeq);
+	OutCompressedData.KeyEncodingFormat = AKF_VariableKeyLerp;
+	AnimationFormat_SetInterfaceLinks(OutCompressedData);
 }
 
+#if USE_SEGMENTING_CONTEXT
 void UAnimCompress_RemoveLinearKeys::CompressUsingUnderlyingCompressor(
 	UAnimSequence& AnimSeq,
 	const TArray<FBoneData>& BoneData,
@@ -2254,8 +2255,52 @@ void UAnimCompress_RemoveLinearKeys::CompressUsingUnderlyingCompressor(
 	// We could be invalid, set the links again
 	AnimationFormat_SetInterfaceLinks(AnimSeq);
 }
+#endif
 
-void UAnimCompress_RemoveLinearKeys::DoReduction(UAnimSequence* AnimSeq, const TArray<FBoneData>& BoneData)
+#define DO_RAW_DATA_DEBUG_LOGGING 0
+
+#if DO_RAW_DATA_DEBUG_LOGGING
+TArray<FVector>& GetKeysArray(const FTranslationTrack& Track)
+{
+	return Track.PosKeys;
+}
+
+TArray<FQuat>& GetKeysArray(const FRotationTrack& Track)
+{
+	return Track.RotKeys;
+}
+
+TArray<FVector>& GetKeysArray(const FScaleTrack& Track)
+{
+	return Track.ScaleKeys;
+}
+
+template<typename ArrayType>
+void DebugLogTrack(const TArray<ArrayType>& Data, int32 Track, const TCHAR* TrackName)
+{
+	if (Data.IsValidIndex(Track))
+	{
+		const ArrayType& Item = Data[Track];
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s : %i\n"), TrackName, Track);
+		DebugLogArray(GetKeysArray(Item));
+	}
+}
+
+void DebugLogTrackData(const TArray<FTranslationTrack>& TranslationData, const TArray<FRotationTrack>& RotationData, const TArray<FScaleTrack>& ScaleData, const TCHAR* Section)
+{
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Post Section: %s\n"), Section);
+	const int32 ArrayMax = FMath::Max(FMath::Max(TranslationData.Num(), RotationData.Num()), ScaleData.Num());
+
+	for (int i = 0; i < ArrayMax; ++i)
+	{
+		DebugLogTrack(TranslationData, i, TEXT("Translation"));
+		DebugLogTrack(RotationData, i, TEXT("Rotation"));
+		DebugLogTrack(ScaleData, i, TEXT("Scale"));
+	}
+}
+#endif
+
+void UAnimCompress_RemoveLinearKeys::DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult)
 {
 #if WITH_EDITORONLY_DATA
 	// Only need to do the heavy lifting if it will have some impact
@@ -2263,14 +2308,25 @@ void UAnimCompress_RemoveLinearKeys::DoReduction(UAnimSequence* AnimSeq, const T
 	const bool bRunningProcessor = bRetarget || bActuallyFilterLinearKeys;
 
 	// If the processor is to be run, then additive animations need to be converted from relative to absolute
-	const bool bNeedToConvertBackToAdditive = bRunningProcessor ? ConvertFromRelativeSpace(AnimSeq) : false;
+	const bool bNeedToConvertBackToAdditive = bRunningProcessor ? CompressibleAnimData.bIsValidAdditive : false;
+
+	FCompressibleAnimData TempConvertedAnimData;
+
+	if (bNeedToConvertBackToAdditive)
+	{
+		TempConvertedAnimData = CompressibleAnimData; // duplicate so we can safely convert to additive
+		ConvertFromRelativeSpace(TempConvertedAnimData);
+	}
+
+	const FCompressibleAnimData& CompressibleDataToOperateOn = bNeedToConvertBackToAdditive ? TempConvertedAnimData : CompressibleAnimData;
 
 	// Separate the raw data into tracks and remove trivial tracks (all the same value)
 	TArray<FTranslationTrack> TranslationData;
 	TArray<FRotationTrack> RotationData;
 	TArray<FScaleTrack> ScaleData;
-	SeparateRawDataIntoTracks(AnimSeq->GetRawAnimationData(), AnimSeq->SequenceLength, TranslationData, RotationData, ScaleData);
-	FilterBeforeMainKeyRemoval(AnimSeq, BoneData, TranslationData, RotationData, ScaleData);
+	SeparateRawDataIntoTracks(CompressibleDataToOperateOn.RawAnimationData, CompressibleDataToOperateOn.SequenceLength, TranslationData, RotationData, ScaleData);
+
+	FilterBeforeMainKeyRemoval(CompressibleDataToOperateOn, TranslationData, RotationData, ScaleData);
 
 #if USE_SEGMENTING_CONTEXT
 	if (bEnableSegmenting)
@@ -2325,17 +2381,6 @@ void UAnimCompress_RemoveLinearKeys::DoReduction(UAnimSequence* AnimSeq, const T
 			double ElapsedTime = FPlatformTime::Seconds() - TimeStart;
 			UE_LOG(LogAnimationCompression, Log, TEXT("ProcessAnimationTracks time is (%f) seconds"), ElapsedTime);
 #endif
-
-			// if previously additive, convert back to relative-space
-			if (bNeedToConvertBackToAdditive)
-			{
-				ConvertToRelativeSpace(*AnimSeq);
-
-				for (FAnimSegmentContext& Segment : RawSegments)
-				{
-					ConvertToRelativeSpace(*AnimSeq, Segment.TranslationData, Segment.RotationData, Segment.ScaleData);
-				}
-			}
 		}
 
 		// compress the final (possibly key-reduced) tracks into the anim sequence buffers
@@ -2355,8 +2400,8 @@ void UAnimCompress_RemoveLinearKeys::DoReduction(UAnimSequence* AnimSeq, const T
 #endif
 		// compress this animation without any key-reduction to prime the codec
 		CompressUsingUnderlyingCompressor(
-			AnimSeq,
-			BoneData, 
+			CompressibleDataToOperateOn,
+			OutResult,
 			TranslationData,
 			RotationData,
 			ScaleData,
@@ -2364,27 +2409,27 @@ void UAnimCompress_RemoveLinearKeys::DoReduction(UAnimSequence* AnimSeq, const T
 
 		// now remove the keys which can be approximated with linear interpolation
 		ProcessAnimationTracks(
-			AnimSeq,
-			BoneData,
+			CompressibleDataToOperateOn,
+			OutResult,
 			TranslationData,
 			RotationData, 
 			ScaleData);
+
 #if TIME_LINEAR_KEY_REMOVAL
 		double ElapsedTime = FPlatformTime::Seconds() - TimeStart;
 		UE_LOG(LogAnimationCompression, Log, TEXT("ProcessAnimationTracks time is (%f) seconds"),ElapsedTime);
 #endif
 
-		// if previously additive, convert back to relative-space
-		if( bNeedToConvertBackToAdditive )
+		if (bNeedToConvertBackToAdditive)
 		{
-			ConvertToRelativeSpace(AnimSeq, TranslationData, RotationData, ScaleData);
+			ConvertToRelativeSpace(CompressibleDataToOperateOn, TranslationData, RotationData, ScaleData);
 		}
 	}
 
 	// compress the final (possibly key-reduced) tracks into the anim sequence buffers
 	CompressUsingUnderlyingCompressor(
-		AnimSeq,
-		BoneData,
+		CompressibleAnimData,
+		OutResult,
 		TranslationData,
 		RotationData,
 		ScaleData,

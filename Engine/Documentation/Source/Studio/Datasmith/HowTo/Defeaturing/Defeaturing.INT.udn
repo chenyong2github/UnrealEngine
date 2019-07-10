@@ -1,0 +1,294 @@
+Availability: Public
+Crumbs: 
+Title: Simplifying Static Meshes by Defeaturing
+Description: Describes how to increase rendering performance by removing small holes and protrusions from Static Mesh geometry.
+Type: how-to
+skilllevel:Intermediate
+Version: 4.21
+Parent: Studio/Datasmith/HowTo
+Order: 7
+Tags: how to
+Tags: Datasmith
+Tags: intermediate
+hero-image:defeaturing-banner.png
+
+
+Defeaturing is a method of simplifying a mesh by removing protrusions and holes. This can increase rendering performance by decreasing the number of vertices and triangles the mesh contains.
+
+![](defeaturing-banner.png)
+
+Defeaturing can be particularly useful for geometry that comes from computer-aided design (CAD) applications. When parts and assemblies are designed and modeled for the purpose of physical manufacturing, they are often created with small features that are essential for the real-world objects being manufactured, but not necessary for real-time rendering.
+
+For example, this part from a fuel pump assembly contains 20,000 triangles. Removing some of the holes cuts that number almost in half. In this case, other parts in the assembly cover the modified areas, so the rendered result does not change noticeably when seen in context.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [INCLUDE:#fuelpump-before] | [INCLUDE:#fuelpump-after] |
+| Before: 20,617 triangles | After: 11,553 triangles |
+[/REGION]
+
+<!--
+[EXCERPT:fuelpump-before]
+[REGION:lightbox]
+[![](defeaturing-fuel-pump-before.png)(w:450)](defeaturing-fuel-pump-before.png "Before: 20,617 triangles")
+[/REGION]
+[/EXCERPT:fuelpump-before]
+
+[EXCERPT:fuelpump-after]
+[REGION:lightbox]
+[![](defeaturing-fuel-pump-after.png)(w:450)](defeaturing-fuel-pump-after.png "After: 11,553 triangles")
+[/REGION]
+[/EXCERPT:fuelpump-after]
+-->
+
+In addition, if you plan to create **Levels of Detail (LODs)** to further simplify your mesh when it takes up less screen space, creating the LODs from a defeatured mesh can help to make the mesh simplification less apparent. For example, with this small part from a crankshaft assembly, the small holes look very jagged when seen at less-detailed LOD levels. By defeaturing to remove the small holes before creating the LODs, the mesh looks far cleaner when seen at smaller sizes.
+
+[REGION:imagetable]
+||||
+|---|---|---|
+| [INCLUDE:#lod0] | [INCLUDE:#lod2] | [INCLUDE:#lod2defeatured] |
+| Original mesh | LOD 2 | Defeatured, then LODed |
+[/REGION]
+
+<!--
+[EXCERPT:lod0]
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-0.png)(w:300)](defeaturing-crankshaft-lod-0.png "Original mesh")
+[/REGION]
+[/EXCERPT:lod0]
+
+[EXCERPT:lod2]
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-2.png)(w:300)](defeaturing-crankshaft-lod-2.png "LOD 2")
+[/REGION]
+[/EXCERPT:lod2]
+
+[EXCERPT:lod2defeatured]
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-2-processed.png)(w:300)](defeaturing-crankshaft-lod-2-processed.png "Defeatured, then LODed")
+[/REGION]
+[/EXCERPT:lod2defeatured]
+-->
+
+The Unreal Editor offers the ability to defeature any Static Mesh Asset that you've imported from Datasmith or FBX.  
+
+[REGION:note]
+The defeaturing tools described on this page are currently only available in Unreal Studio Projects. For details on creating an Unreal Studio Project, or converting an existing Project, see [Setting Up an Unreal Project to Use Datasmith](Studio/Datasmith/HowTo/SettingUpUnrealProject).
+[/REGION]
+
+## Removable Features
+
+The following sections describe the types of features that the defeaturing tools can remove, and the measurements that you can supply to control the size of the features you want to remove.
+
+### Through Holes
+
+Through holes are holes in a surface that pass entirely through an object and out the other side.
+
+You can limit the size of the through holes you want to remove by specifying their maximum diameter.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [INCLUDE:#throughholesbefore] | [INCLUDE:#throughholesafter] |
+| Before removing through holes | After removing through holes |
+[/REGION]
+
+<!--
+[EXCERPT:throughholesbefore]
+[REGION:lightbox]
+[![](defeaturing-through-holes-before.png)(w:450)](defeaturing-through-holes-before.png "Before removing through holes")
+[/REGION]
+[/EXCERPT:throughholesbefore]
+
+[EXCERPT:throughholesafter]
+[REGION:lightbox]
+[![](defeaturing-through-holes-after.png)(w:450)](defeaturing-through-holes-after.png "After removing through holes")
+[/REGION]
+[/EXCERPT:throughholesafter]
+-->
+
+### Blind Holes
+
+Blind holes are holes in a surface that do not completely pass through the object. Instead, they have a bottom that is located at a certain depth from the surface.
+
+You can limit the size of the blind holes you want to remove by specifying the maximum diameter of the hole, and the maximum depth of the hole below the surface. Only holes that are smaller in *both* dimensions will be removed.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [INCLUDE:#blindholesbefore] | [INCLUDE:#blindholesafter] |
+| Before removing blind holes | After removing blind holes |
+[/REGION]
+
+<!--
+[EXCERPT:blindholesbefore]
+[REGION:lightbox]
+[![](defeaturing-blind-holes-before.png)(w:450)](defeaturing-blind-holes-before.png "Before removing blind holes")
+[/REGION]
+[/EXCERPT:blindholesbefore]
+
+[EXCERPT:blindholesafter]
+[REGION:lightbox]
+[![](defeaturing-blind-holes-after.png)(w:450)](defeaturing-blind-holes-after.png "After removing blind holes")
+[/REGION]
+[/EXCERPT:blindholesafter]
+-->
+
+### Protrusions
+
+Protrusions are bumps that rise up above the surrounding surface.
+
+You can limit the size of the protrusions you want to remove by specifying the maximum diameter of the protrusion, and the maximum height of the bump above the surface. Only protrusions that are smaller in *both* dimensions will be removed.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [INCLUDE:#protrusionsbefore] | [INCLUDE:#protrusionsafter] |
+| Before removing protrusions | After removing protrusions |
+[/REGION]
+
+<!--
+[EXCERPT:protrusionsbefore]
+[REGION:lightbox]
+[![](defeaturing-protrusion-before.png)(w:450)](defeaturing-protrusion-before.png "Before removing protrusions")
+[/REGION]
+[/EXCERPT:protrusionsbefore]
+
+[EXCERPT:protrusionsafter]
+[REGION:lightbox]
+[![](defeaturing-protrusion-after.png)(w:450)](defeaturing-protrusion-after.png "After removing protrusions")
+[/REGION]
+[/EXCERPT:protrusionsafter]
+-->
+
+## Defeaturing in the Static Mesh Editor
+
+1.  Open the Static Mesh that you want to modify in the Static Mesh Editor.  
+    You can double-click the Asset in the **Content Browser**, or right-click it and choose **Edit**. 
+2.  Open the **Mesh Editing** Toolbar.  
+    ![Open the Mesh Editing Toolbar](defeaturing-open-editing-toolbar.png "Open the Mesh Editing Toolbar")
+3.  Click the **Defeaturing** icon.   
+    ![Defeaturing](defeaturing-in-toolbar.png "Defeaturing")
+4.  You'll see a settings dialog, where you can configure the features you want to remove:  
+    ![Defeaturing settings](defeaturing_settings.png "Defeaturing settings")  
+    For each type of feature that you want to remove from your Static Mesh, check the corresponding option and set the maximum dimensions for that type of feature. 
+    [REGION:note]
+    Make sure to increase the maximum dimensions for each type of feature you select from their default values.
+    [/REGION]
+5.  Click **Proceed** to launch the defeaturing operation and modify the Static Mesh.  
+    ![Proceed](defeaturing_settings_proceed.png "Proceed")  
+    
+
+## Defeaturing in Editor Scripts
+
+You can remove through holes, blind holes, and protrusions in Blueprints and in Python.
+
+[REGION:note]
+**Prerequisite:** If you haven't already done so, you'll need to install the **Editor Scripting Utilities Plugin**. For details, see [Scripting and Automating the Editor](Engine/Editor/ScriptingandAutomation).
+[/REGION]
+
+%Globals:BlueprintOrPythonSelectVar%
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    blueprintimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#defeaturebp]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:defeaturebp]
+
+You can run the defeaturing tools on a Static Mesh Asset in Blueprints using the **Mesh Processing > Defeature Mesh** node.
+
+![Defeature Mesh node](defeature_mesh_bp.png "Defeature Mesh node")
+
+[REGION:note]
+To use this node, your Blueprint class must be derived from an Editor-only class, such as the **PlacedEditorUtilityBase** class. For details, see [Scripting the Editor using Blueprints](Engine/Editor/ScriptingandAutomation/Blueprints).
+[/REGION]
+
+You'll need to provide the following inputs for this node:
+
+*   A reference to the Static Mesh Asset that you want to modify. This Asset has to be loaded first, typically by a call to the **Editor Scripting > Asset > Load Asset** node.
+*   The index of the LOD that you want to modify on the Static Mesh. Use 0 unless you only want to defeature a specific LOD.
+*   A **MeshDefeaturingParameterObject** that controls what types of features should be removed from the Static Mesh, and the maximum size of the features you want to remove.  
+    To set up one of these objects:
+    1.  Add a new variable to the Blueprint by clicking the **\+ Variable** button in the **My Blueprint** panel.  
+        ![Add variable](defeaturing-add-variable.png "Add variable")
+    2.  Set the type of the variable to be a reference to a **Mesh Defeaturing Parameter Object**.  
+        ![Mesh Defeaturing Parameter Object](defeaturing-add-parameter-object.png "Mesh Defeaturing Parameter Object")
+    3.  Hold **Control** and drag the variable into the Blueprint graph to create a new node that gets the variable value.  
+        ![Drag and drop](defeaturing-drag-variable.png "Drag and drop")
+    4.  Drag right from the output port of the new variable node, and select from the **Variables** list the **Set** nodes for the settings that you need to modify.  
+        ![Defeaturing parameter API](defeaturing-parameter-api.png "Defeaturing parameter API")
+
+For example, the following script removes all through holes from a Static Mesh Asset as long as they are less than 5 cm in width:
+
+[REGION:lightbox]
+[![Defeaturing example](defeature_example_bp.png "Defeaturing example")](defeature_example_bp.png)  
+*Click for full image.*
+[/REGION]
+
+[/EXCERPT:defeaturebp]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    pythonimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#defeaturepy]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:defeaturepy]
+
+You can run the defeaturing tools on a Static Mesh Asset by calling the `unreal.EditorMeshProcessing.defeature_mesh()` function.
+
+You'll need to pass this function:
+
+*   The Static Mesh Asset that you want to modify. This Asset has to be loaded first, typically by a call to `unreal.EditorAssetLibrary.load_asset()`.
+*   The index of the LOD that you want to modify on the Static Mesh. Use 0 unless you only want to defeature a specific LOD.
+*   An `unreal.MeshDefeaturingParameterObject` that you create. Set up this object with the configuration parameters that control what types of features should be removed from the Static Mesh, and the maximum size of the features you want to remove.
+
+For example, the following script removes all through holes, blind holes, and protrusions in the Static Mesh, provided that they are less than the dimensions set in the  `unreal.MeshDefeaturingParameterObject`:
+
+    import unreal
+    asset_name = "/Game/Unreal_Sportbike/Geometries/0x25f0e0b7Unreal_Sportbike_geom_3180.Accumulator_case"
+    def defeature_mesh(mesh_name):
+	    # Load the Asset
+	    mesh_asset = unreal.EditorAssetLibrary.load_asset(mesh_name)
+	    # Create a parameter object
+	    options = unreal.MeshDefeaturingParameterObject()
+	    # Set up its properties
+	    options.fill_blind_holes = True
+	    options.filled_hole_max_diameter = 10
+	    options.filled_hole_max_depth = 5
+	    options.fill_through_holes = True
+	    options.through_hole_max_diameter = 10
+	    options.remove_protrusions = True
+	    options.protrusion_max_diameter = 10
+	    options.protrusion_max_height = 5
+	    # Run the defeaturing
+	    unreal.MeshProcessingLibrary.defeature_mesh(mesh_asset, 0, options)
+	    # Save the Asset
+	    unreal.EditorAssetLibrary.save_loaded_asset(mesh_asset)
+    defeature_mesh(asset_name)
+
+[/EXCERPT:defeaturepy]
+-->

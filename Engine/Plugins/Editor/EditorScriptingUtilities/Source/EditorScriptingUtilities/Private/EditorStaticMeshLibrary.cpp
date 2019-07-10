@@ -40,7 +40,7 @@
 
 /**
  *
- * Editor Scripting | DataPrep
+ * Editor Scripting | Dataprep
  *
  **/
 
@@ -111,12 +111,6 @@ namespace InternalEditorMeshLibrary
 		// Run actual util to do the work (if we have some valid input)
 		DecomposeMeshToHulls(BodySetup, Verts, CollidingIndices, HullCount, MaxHullVerts, HullPrecision);
 
-		// refresh collision change back to static mesh components
-		RefreshCollisionChange(*StaticMesh);
-
-		// Mark mesh as dirty
-		StaticMesh->MarkPackageDirty();
-
 		StaticMesh->bCustomizedCollision = true;	//mark the static mesh for collision customization
 
 		return true;
@@ -153,7 +147,7 @@ namespace InternalEditorMeshLibrary
 	}
 }
 
-int32 UEditorStaticMeshLibrary::SetLods(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions& ReductionOptions)
+int32 UEditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions& ReductionOptions, bool bApplyChanges)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -181,17 +175,21 @@ int32 UEditorStaticMeshLibrary::SetLods(UStaticMesh* StaticMesh, const FEditorSc
 		return -1;
 	}
 
-	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	// Close the mesh editor to prevent crashing. If changes are applied, reopen it after the mesh has been built.
 	bool bStaticMeshIsEdited = false;
+	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
 	if (AssetEditorManager.FindEditorForAsset(StaticMesh, false))
 	{
 		AssetEditorManager.CloseAllEditorsForAsset(StaticMesh);
 		bStaticMeshIsEdited = true;
 	}
 
+	if(bApplyChanges)
+	{
+		StaticMesh->Modify();
+	}
+
 	// Resize array of LODs to only keep LOD 0
-	StaticMesh->Modify();
 	StaticMesh->SetNumSourceModels(1);
 
 	// Set up LOD 0
@@ -221,13 +219,16 @@ int32 UEditorStaticMeshLibrary::SetLods(UStaticMesh* StaticMesh, const FEditorSc
 
 	StaticMesh->bAutoComputeLODScreenSize = ReductionOptions.bAutoComputeLODScreenSize ? 1 : 0;
 
-	// Request re-building of mesh with new LODs
-	StaticMesh->PostEditChange();
-
-	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
-	if (bStaticMeshIsEdited)
+	if(bApplyChanges)
 	{
-		AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		// Request re-building of mesh with new LODs
+		StaticMesh->PostEditChange();
+
+		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
+		if (bStaticMeshIsEdited)
+		{
+			AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		}
 	}
 
 	return LODIndex;
@@ -527,7 +528,7 @@ TArray<float> UEditorStaticMeshLibrary::GetLodScreenSizes(UStaticMesh* StaticMes
 
 }
 
-int32 UEditorStaticMeshLibrary::AddSimpleCollisions(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType ShapeType)
+int32 UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType ShapeType, bool bApplyChanges)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -602,13 +603,16 @@ int32 UEditorStaticMeshLibrary::AddSimpleCollisions(UStaticMesh* StaticMesh, con
 		}
 	}
 
-	// Request re-building of mesh with new collision shapes
-	StaticMesh->PostEditChange();
-
-	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
-	if (bStaticMeshIsEdited)
+	if(bApplyChanges)
 	{
-		AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		// Request re-building of mesh with new collision shapes
+		StaticMesh->PostEditChange();
+
+		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
+		if (bStaticMeshIsEdited)
+		{
+			AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		}
 	}
 
 	return PrimIndex;
@@ -689,7 +693,7 @@ int32 UEditorStaticMeshLibrary::GetConvexCollisionCount(UStaticMesh* StaticMesh)
 	return BodySetup->AggGeom.ConvexElems.Num();
 }
 
-bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisions(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
+bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -721,9 +725,12 @@ bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisions(UStaticMesh* Sta
 
 	if (StaticMesh->BodySetup)
 	{
-		// Remove simple collisions
-		StaticMesh->BodySetup->Modify();
+		if(bApplyChanges)
+		{
+			StaticMesh->BodySetup->Modify();
+		}
 
+		// Remove simple collisions
 		StaticMesh->BodySetup->RemoveSimpleCollision();
 
 		// refresh collision change back to static mesh components
@@ -733,19 +740,28 @@ bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisions(UStaticMesh* Sta
 	// Generate convex collision on mesh
 	bool bResult = InternalEditorMeshLibrary::GenerateConvexCollision(StaticMesh, HullCount, MaxHullVerts, HullPrecision);
 
-	// Request re-building of mesh following collision changes
-	StaticMesh->PostEditChange();
-
-	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
-	if (bStaticMeshIsEdited)
+	if(bApplyChanges)
 	{
-		AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		// refresh collision change back to static mesh components
+		RefreshCollisionChange(*StaticMesh);
+
+		// Mark mesh as dirty
+		StaticMesh->MarkPackageDirty();
+
+		// Request re-building of mesh following collision changes
+		StaticMesh->PostEditChange();
+
+		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
+		if (bStaticMeshIsEdited)
+		{
+			AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		}
 	}
 
 	return bResult;
 }
 
-bool UEditorStaticMeshLibrary::RemoveCollisions(UStaticMesh* StaticMesh)
+bool UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* StaticMesh, bool bApplyChanges)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -775,21 +791,27 @@ bool UEditorStaticMeshLibrary::RemoveCollisions(UStaticMesh* StaticMesh)
 		bStaticMeshIsEdited = true;
 	}
 
-	// Remove simple collisions
-	StaticMesh->BodySetup->Modify();
+	if(bApplyChanges)
+	{
+		StaticMesh->BodySetup->Modify();
+	}
 
+	// Remove simple collisions
 	StaticMesh->BodySetup->RemoveSimpleCollision();
 
 	// refresh collision change back to static mesh components
 	RefreshCollisionChange(*StaticMesh);
 
-	// Request re-building of mesh with new collision shapes
-	StaticMesh->PostEditChange();
-
-	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
-	if (bStaticMeshIsEdited)
+	if(bApplyChanges)
 	{
-		AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		// Request re-building of mesh with new collision shapes
+		StaticMesh->PostEditChange();
+
+		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
+		if (bStaticMeshIsEdited)
+		{
+			AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		}
 	}
 
 	return true;
@@ -1195,7 +1217,7 @@ bool UEditorStaticMeshLibrary::GeneratePlanarUVChannel(UStaticMesh* StaticMesh, 
 
 	FUVMapParameters UVParameters(Position, Orientation.Quaternion(), StaticMesh->GetBoundingBox().GetSize(), FVector::OneVector, Tiling );
 
-	TArray<FVector2D> TexCoords;
+	TMap<FVertexInstanceID, FVector2D> TexCoords;
 	FMeshDescriptionOperations::GeneratePlanarUV(*MeshDescription, UVParameters, TexCoords);
 
 	return StaticMesh->SetUVChannel(LODIndex, UVChannelIndex, TexCoords);
@@ -1219,7 +1241,7 @@ bool UEditorStaticMeshLibrary::GenerateCylindricalUVChannel(UStaticMesh* StaticM
 
 	FUVMapParameters UVParameters(Position, Orientation.Quaternion(), StaticMesh->GetBoundingBox().GetSize(), FVector::OneVector, Tiling);
 
-	TArray<FVector2D> TexCoords;
+	TMap<FVertexInstanceID, FVector2D> TexCoords;
 	FMeshDescriptionOperations::GenerateCylindricalUV(*MeshDescription, UVParameters, TexCoords);
 
 	return StaticMesh->SetUVChannel(LODIndex, UVChannelIndex, TexCoords);
@@ -1243,7 +1265,7 @@ bool UEditorStaticMeshLibrary::GenerateBoxUVChannel(UStaticMesh* StaticMesh, int
 
 	FUVMapParameters UVParameters(Position, Orientation.Quaternion(), Size, FVector::OneVector, FVector2D::UnitVector);
 
-	TArray<FVector2D> TexCoords;
+	TMap<FVertexInstanceID, FVector2D> TexCoords;
 	FMeshDescriptionOperations::GenerateBoxUV(*MeshDescription, UVParameters, TexCoords);
 
 	return StaticMesh->SetUVChannel(LODIndex, UVChannelIndex, TexCoords);

@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6536723
 Availability: Licensee
 Title:设置Perforce连接
 Crumbs:%ROOT%, Engine, Programming, Programming/Basics, GettingStarted/DownloadingUnrealEngine/Perforce
 Description:连接到Epic的Perforce服务器以获取虚幻引擎4版本的指南。
-version: 4.9
-
-[TOC(start:2)]
+version: 4.20
+Order: 3
 
 Epic Games通过一个可从外部访问的Perforce库，将经过QA批准的虚幻引擎4版本以及其他专门的代码更新 
 提供给被许可方。这是被许可方用于先 
@@ -27,7 +26,7 @@ Epic Games已与Perforce执行一份自定义许可协议。为了遵守此许�
 也违反与Epic的协议。
 
 有关从Epic的Perforce库下载虚幻引擎4的版本或修订版的完整过程在 
-[同步版本和Perforce](GettingStarted/DownloadingUnrealEngine/Perforce/Syncing)页面上有详细的说明。
+[使用Perforce下载虚幻引擎](GettingStarted/DownloadingUnrealEngine/Perforce/Basics)页面上有详细的说明。
 
 [REGION:warning]
 	为了保持我们的Perforce服务器平稳高效地运行，我们针对在不活跃期之后禁用和删除帐户 
@@ -43,7 +42,6 @@ Epic Games已与Perforce执行一份自定义许可协议。为了遵守此许�
 [/REGION]
 
 
-(#connectivitypolicy)
 ## 连接规则
 
 VPN有两种方法连接到Epic。第一种方法允许工作室从内部工作站最多建立5个 
@@ -58,14 +56,12 @@ VPN有两种方法连接到Epic。第一种方法允许工作室从内部工作�
 
 
 
-(#installationandconfiguration)
 ## 安装和配置
 
 为了连接到Epic的Perforce库，需要在机器上安装一个Perforce客户端， 
 用于下载和存储引擎版本。
 
 
-(#settingupp4V)
 ### 设置P4V
 
 P4V客户端是当前客户端，由Perforce提供。它通过图形接口提供对版本化文件 
@@ -80,7 +76,6 @@ P4V客户端是当前客户端，由Perforce提供。它通过图形接口提供
 有关如何设置P4V客户端以连接到Epic的Perforce库的指南，请参阅[设置P4V](GettingStarted/DownloadingUnrealEngine/Perforce/P4V)页面。
 
 
-(#settingupp4Win)
 ### 设置P4Win
 
 P4Win是当前多平台P4V客户端之前的Windows专用图形接口。如果您喜欢 
@@ -90,13 +85,11 @@ P4Win是当前多平台P4V客户端之前的Windows专用图形接口。如果�
 有关如何设置P4Win客户端以连接到Epic的Perforce库的指南，请参阅[设置P4Win](GettingStarted/DownloadingUnrealEngine/Perforce/P4Win)页面。
 
 
-(#additionaldownloads)
 ### 其他下载
 
 有关包括插件和其他工具在内的可用下载的完整列表，请参阅[Perforce下载](http://www.perforce.com/perforce/downloads/platform.html)页面。
 
 
-(#localperforceproxy)
 ### 本地Perforce代理
 
 这是供您运行自己的本地代理的一个选项。以下信息仅适用于希望有 
@@ -120,7 +113,6 @@ P4Win是当前多平台P4V客户端之前的Windows专用图形接口。如果�
 可在此处找到有关设置代理的说明：[http://www.perforce.com/perforce/r10.1/manuals/p4sag/09_p4p.html#1056059](http://www.perforce.com/perforce/r10.1/manuals/p4sag/09_p4p.html#1056059)
 
 
-(#remotedepot)
 ### 远程库
 
 请查看以下线程了解更多信息：
@@ -137,7 +129,6 @@ https://udn.epicgames.com/lists/showpost.php?list=unedit3&id=5885
 要设置远程库，请在[虚幻开发者网络](http://udn.unrealengine.com)上提交请求。
 
 
-(#characterencoding)
 ### 字符编码
 
 如果在Perforce中将Unicode文件存储为文本，它将添加0xd以匹配本地行尾；所以Unicode 
@@ -152,7 +143,6 @@ Perforce将UTF-8定义为Unicode。UTF-16是理想的选择，前提是没有意
 
 
 
-(#eastasianperforcemirror)
 ## 东亚Perforce镜像
 
 在[设置VPN连接](GettingStarted/DownloadingUnrealEngine/VPNSetup)并连接到[东亚VPN镜像](GettingStarted/DownloadingUnrealEngine/VPNSetup#EastAsianVPNMirror)后， 
@@ -174,11 +164,9 @@ Perforce将UTF-8定义为Unicode。UTF-16是理想的选择，前提是没有意
 
 
 
-(#maintenanceandsupport)
 ## 维护和支持
 
 
-(#proxymaintenance)
 ### 代理维护
 
 下面是一个脚本，它将帮助保持代理库整洁——防止其中充斥修订版。我们在 
@@ -205,7 +193,6 @@ Perforce将UTF-8定义为Unicode。UTF-16是理想的选择，前提是没有意
 默认情况下禁用最后访问日期。您需要执行“fsutil behavior set disablelastaccess 0”以重新启用最后访问日期。
 [/REGION]
 
-(#scheduleddowntime)
 ### 计划停机时间
 
 Epic的Perforce服务器在每个 **北美东部标准时间周日的凌晨 2 点关机约 4 小时（Sunday at 2am EST for about 4 hours）**， 
@@ -214,7 +201,6 @@ Epic的Perforce服务器在每个 **北美东部标准时间周日的凌晨 2 �
 都可能会受到影响，特别是网络/服务器资源。
 
 
-(#connectionissues)
 ### 连接问题
 
 如果您因任何原因无法连接到Perforce库，请在[虚幻开发者网络](http://udn.unrealengine.com)上发帖。

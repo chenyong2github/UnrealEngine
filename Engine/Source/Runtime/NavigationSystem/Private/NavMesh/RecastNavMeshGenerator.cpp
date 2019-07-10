@@ -298,8 +298,8 @@ static void StoreCollisionCache(FRecastGeometryExport& GeomExport)
 
 	HeaderInfo.Validation.DataSize = CacheSize;
 
-	// reserve + add combo to allocate exact amount (without any overhead/slack)
-	GeomExport.Data->CollisionData.Reserve(CacheSize);
+	// empty + add combo to allocate exact amount (without any overhead/slack)
+	GeomExport.Data->CollisionData.Empty(CacheSize);
 	GeomExport.Data->CollisionData.AddUninitialized(CacheSize);
 
 	// store collisions

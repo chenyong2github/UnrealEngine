@@ -3,7 +3,7 @@
   <Name>Oculus OSS Layer</Name>
   <Location>/Engine/Plugins/Online/OnlineSubsystemOculus/</Location>
   <Date>2016-11-11T15:00:44.5078183-05:00</Date>
-  <Function>Allows you to check for entitlements sold through the Oculus sotre, leaderboards, etc on their platform</Function>
+  <Function>Allows you to check for entitlements sold through the Oculus store, leaderboards, etc on their platform</Function>
   <Justification />
   <Eula>Custom agreement between Epic/Oculus - refer to IPP agreement</Eula>
   <RedistributeTo>

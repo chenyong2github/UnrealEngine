@@ -16,6 +16,7 @@ public class TargetPlatform : ModuleRules
 		PublicDependencyModuleNames.Add("LauncherPlatform");
 
 		PrivateIncludePathModuleNames.Add("Engine");
+		PrivateIncludePathModuleNames.Add("PhysicsCore");
 
 		// no need for all these modules if the program doesn't want developer tools at all (like UnrealFileServer)
 		if (!Target.bBuildRequiresCookedData && Target.bBuildDeveloperTools)

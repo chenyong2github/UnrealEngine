@@ -87,6 +87,9 @@ enum class ETargetPlatformFeatures
 
 	/* The platform supports sparse textures */
 	SparseTextures,
+	
+	/* Can we use the virtual texture streaming system on this platform. */
+	VirtualTextureStreaming,
 };
 
 
@@ -398,9 +401,10 @@ public:
 	 * Gets the format to use for a particular texture.
 	 *
 	 * @param Texture The texture to get the format for.
+	 * @param LayerIndex Index of layer within Texture to get the format for
 	 * @param OutFormats Will contain the list of supported formats.
 	 */
-	virtual void GetTextureFormats( const class UTexture* Texture, TArray<FName>& OutFormats ) const = 0;
+	virtual void GetTextureFormats( const class UTexture* Texture, TArray< TArray<FName> >& OutFormats ) const = 0;
 
 	/**
 	 * Gets the texture formats this platform can use

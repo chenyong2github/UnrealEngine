@@ -32,6 +32,8 @@ public:
 	virtual TOptional<EItemDropZone> CanDrop( FSequencerDisplayNodeDragDropOp& DragDropOp, EItemDropZone ItemDropZone ) const override;
 	virtual void Drop( const TArray<TSharedRef<FSequencerDisplayNode>>& DraggedNodes, EItemDropZone ItemDropZone ) override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+	virtual bool CanAddObjectBindingsMenu() const override { return true; }
+	virtual bool CanAddTracksMenu() const override { return true; }
 	virtual int32 GetSortingOrder() const override;
 	virtual void SetSortingOrder(const int32 InSortingOrder) override;
 	virtual void ModifyAndSetSortingOrder(const int32 InSortingOrder) override;

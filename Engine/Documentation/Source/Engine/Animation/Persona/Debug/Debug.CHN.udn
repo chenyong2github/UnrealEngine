@@ -1,27 +1,41 @@
-﻿INTSourceChangelist:2033304
+﻿INTSourceChangelist:3217533
 Availability:Public
-Title:Persona调试
+Title:动画蓝图调试
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona
-Description:关于Persona动画编辑器中的资源浏览器的用户指南。
+Description:概述如何启用动画蓝图编辑器的调试窗口来调试您的动画蓝图。 
+Related: Engine/Blueprints/UserGuide/Debugging
+Related: Engine/Animation/AnimBlueprints
+Related: Engine/Blueprints/Editor/UIComponents/Debug
+version: 4.14
+type:reference
+topic-image:AnimationDebugSmall.png
+tags:Animation
+tags:Blueprints
+tags:Debugging
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Animation/Persona/AssetBrowser:title%](Engine/Animation/animation_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/content_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Animation/Persona/AssetBrowser:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Animation/Persona/AssetBrowser:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Animation/Persona/AssetBrowser]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
+![](AnimationDebugWindow.png)
 
-[INCLUDE:Engine/Blueprints/UserGuide/Debugging#debugtab]
+在构造[](Engine/Animation/AnimBlueprints)并进行功能测试之后，您可能会遇到错误，并需要调试导致这些错误的原因，以便修复它们。 
+动画蓝图与[](Engine/Blueprints)系统共享很多功能，包括一些非常有用的调试工具，这些工具允许您查看变量值，把 **断点（Breakpoints）** 放在图表中的节点上以暂停执行流，以及通过属于已执行的蓝图的所有节点的追踪堆栈查看执行流。 
+
+默认情况下，动画蓝图编辑器中的 **调试（Debug）** 窗口是隐藏的，但是您可以从工具栏的 **窗口（Window）** 选项中启用它。 
+
+![](WindowOption.png)
+
+这将打开调试（Debug）窗口，如下所示。 
+
+![](DefaultDebugWindow.png)
+
+此窗口中的内容可能根据动画蓝图中的内容而变化。 
+
+您可以在动画蓝图中使用相同的[](Engine/Blueprints/UserGuide/Debugging)方法向查看列表添加断点或变量。 
+
+![](ExampleDebugging.png)
+
+上图中，断点被添加到 **AnimNotify_Jump** 事件中，当调用该节点以执行时，此事件将导致脚本暂停。 
+我们还观察了变量 **启用跳跃（Enable Jump）** 的值，通过这些调试选项，我们可以诊断在尝试执行附加到跳跃的动画通知时可能出现的任何问题。 
+也许_跳跃（Jump）_设置并不正确，或者我们使用的 **投射（Cast）** 节点失败，这是我们将在运行会话期间在调试器和动画蓝图中所看到的状况。 
+
+在工具栏的 **调试（Debug）** 选项下，您可以启用/禁用所有断点，删除所有断点或删除所有查看（停止查看所有变量）。 
+
+![](DebugMenuOption.png)

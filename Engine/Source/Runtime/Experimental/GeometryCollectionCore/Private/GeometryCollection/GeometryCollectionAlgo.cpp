@@ -1,14 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 /*=============================================================================
 	GeometryCollection.cpp: FGeometryCollection methods.
 =============================================================================*/
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollection.h"
-#include "GeometryCollection/GeometryCollectionBoneNode.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
 #include "Async/ParallelFor.h"
+#include "GeometryCollection/GeometryDynamicCollection.h"
 
 DEFINE_LOG_CATEGORY_STATIC(GeometryCollectionAlgoLog, Log, All);
 
@@ -17,7 +16,9 @@ namespace GeometryCollectionAlgo
 
 	void PrintParentHierarchyRecursive(int32 Index
 		, const TManagedArray<FTransform>& Transform
-		, const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy
+		, const TManagedArray<int32>& Parent
+		, const TManagedArray<TSet<int32>>& Children
+		, const TManagedArray<int32>& SimulationType
 		, const TManagedArray<FString>& BoneName
 		, int8 Tab = 0
 	)
@@ -25,53 +26,48 @@ namespace GeometryCollectionAlgo
 		check(Index >= 0);
 		check(Index < Transform.Num());
 		FString Buffer;
-		Buffer += FString::Printf(TEXT("(%+6.2f,%+6.2f,%+6.2f)"), Transform[Index].GetTranslation().X,
-			Transform[Index].GetTranslation().Y, Transform[Index].GetTranslation().Z);
+		Buffer += FString::Printf(TEXT("R(%+6.2f,%+6.2f,%+6.2f,%+6.2f) "), Transform[Index].GetRotation().X, Transform[Index].GetRotation().Y, Transform[Index].GetRotation().Z, Transform[Index].GetRotation().W);
+		Buffer += FString::Printf(TEXT("S(%+6.2f,%+6.2f,%+6.2f)"), Transform[Index].GetScale3D().X, Transform[Index].GetScale3D().Y, Transform[Index].GetScale3D().Z);
+		Buffer += FString::Printf(TEXT("T(%+6.2f,%+6.2f,%+6.2f)"), Transform[Index].GetTranslation().X, Transform[Index].GetTranslation().Y, Transform[Index].GetTranslation().Z);
 		for (int Tdx = 0; Tdx < Tab; Tdx++)
 			Buffer += " ";
-		Buffer += FString::Printf(TEXT("[%d] Name : '%s'  %s"), Index, *BoneName[Index], *Hierarchy[Index].ToString());
+		Buffer += FString::Printf(TEXT("[%d] Name : '%s'  Parent %d  SimulationType %d"), Index, *BoneName[Index], Parent[Index], SimulationType[Index]);
 
-		UE_LOG(GeometryCollectionAlgoLog, Verbose, TEXT("%s"), *Buffer);
+		UE_LOG(GeometryCollectionAlgoLog, Log, TEXT("%s"), *Buffer);
 
-		for (auto& ChildIndex : Hierarchy[Index].Children)
+		for (auto& ChildIndex : Children[Index])
 		{
-			PrintParentHierarchyRecursive(ChildIndex, Transform, Hierarchy, BoneName, Tab + 3);
+			PrintParentHierarchyRecursive(ChildIndex, Transform, Parent, Children, SimulationType, BoneName, Tab + 3);
 		}
 	}
 
 
-	void PrintParentHierarchy(const FGeometryCollection * Collection)
+	void PrintParentHierarchy(const FGeometryCollection* Collection)
 	{
 		check(Collection);
 
-		const TSharedRef< TManagedArray<FTransform> > TransformArray = Collection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-		const TManagedArray<FTransform>& Transform = *TransformArray;
-
-		const TSharedRef<TManagedArray<FString> > BoneNamesArray = Collection->GetAttribute<FString>("BoneName", FGeometryCollection::TransformGroup);
-		const TManagedArray<FString>& BoneName = *BoneNamesArray;
-
-		const TSharedRef<TManagedArray<FGeometryCollectionBoneNode> > HierarchyArray = Collection->GetAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FGeometryCollection::TransformGroup);
-		const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *HierarchyArray;
-
+		const TManagedArray<FTransform>& Transform = Collection->Transform;
+		const TManagedArray<FString>& BoneNames = Collection->BoneName;
+		const TManagedArray<int32>& Parent = Collection->Parent;
+		const TManagedArray<TSet<int32>>& Children = Collection->Children;
+		const TManagedArray<int32>& SimulationType = Collection->SimulationType;
 		int32 NumParticles = Collection->NumElements(FGeometryCollection::TransformGroup);
 		for (int32 Index = 0; Index < NumParticles; Index++)
 		{
-			if (Hierarchy[Index].Parent == FGeometryCollectionBoneNode::InvalidBone)
+			if (Parent[Index] == FGeometryCollection::Invalid)
 			{
-				PrintParentHierarchyRecursive(Index, Transform, Hierarchy, BoneName);
+				PrintParentHierarchyRecursive(Index, Transform, Parent, Children, SimulationType, BoneNames);
 			}
 		}
 	}
 
-	TSharedRef<TArray<int32> > ContiguousArray(int32 Length)
+	void ContiguousArray(TArray<int32> & Array, int32 Length)
 	{
-		TArray<int32> * Array = new TArray<int32>();
-		Array->SetNumUninitialized(Length);
-		ParallelFor(Length, [&](int32 Idx)
+		Array.SetNumUninitialized(Length);
+		for (int i = 0; i < Length; i++)
 		{
-			Array->operator[](Idx) = Idx;
-		});
-		return TSharedRef<TArray<int32> >(Array);
+			Array[i] = i;
+		}
 	}
 
 	void BuildIncrementMask(const TArray<int32> & SortedDeletionList, const int32 & Size, TArray<int32> & Mask)
@@ -79,11 +75,14 @@ namespace GeometryCollectionAlgo
 		Mask.SetNumUninitialized(Size);
 		for (int Index = 0, DelIndex = 0; Index < Size; Index++)
 		{
+
+			Mask[Index] = DelIndex;
+
 			if (DelIndex < SortedDeletionList.Num() && Index == SortedDeletionList[DelIndex])
 			{
 				DelIndex++;
 			}
-			Mask[Index] = DelIndex;
+
 		}
 	}
 
@@ -103,7 +102,7 @@ namespace GeometryCollectionAlgo
 	void BuildTransformGroupToGeometryGroupMap(const FGeometryCollection& GeometryCollection, TArray<int32> & TransformToGeometry)
 	{
 		int32 NumGeometryGroup = GeometryCollection.NumElements(FGeometryCollection::GeometryGroup);
-		const TManagedArray<int32>& TransformIndex = *GeometryCollection.TransformIndex;
+		const TManagedArray<int32>& TransformIndex = GeometryCollection.TransformIndex;
 		TransformToGeometry.Init(FGeometryCollection::Invalid, GeometryCollection.NumElements(FGeometryCollection::TransformGroup));
 		for (int32 i = 0; i < NumGeometryGroup; i++)
 		{
@@ -116,8 +115,8 @@ namespace GeometryCollectionAlgo
 	void BuildFaceGroupToGeometryGroupMap(const FGeometryCollection& GeometryCollection, const TArray<int32>& TransformToGeometryMap, TArray<int32> & FaceToGeometry)
 	{
 		check(TransformToGeometryMap.Num() == GeometryCollection.NumElements(FGeometryCollection::TransformGroup));
-		const TManagedArray<FIntVector>& Indices = *GeometryCollection.Indices;
-		const TManagedArray<int32>& BoneMap = *GeometryCollection.BoneMap;
+		const TManagedArray<FIntVector>& Indices = GeometryCollection.Indices;
+		const TManagedArray<int32>& BoneMap = GeometryCollection.BoneMap;
 
 		int32 NumTransforms = TransformToGeometryMap.Num();
 		int32 NumFaces = GeometryCollection.NumElements(FGeometryCollection::FacesGroup);
@@ -136,12 +135,11 @@ namespace GeometryCollectionAlgo
 		int32 DeletionListSize = SortedDeletionList.Num();
 		if (DeletionListSize)
 		{
-			ensureMsgf(DeletionListSize != 0, TEXT("TManagedArray::NewCopy( DeletionList ) DeletionList empty"));
-			ensureMsgf(DeletionListSize <= ListSize, TEXT("TManagedArray::NewCopy( DeletionList ) DeletionList larger than array"));
+			ensureMsgf(DeletionListSize <= ListSize, TEXT("TManagedArray::ValidateSortedList( DeletionList ) DeletionList larger than array"));
 			for (int32 Index = 0; Index < SortedDeletionList.Num(); Index++)
 			{
-				ensureMsgf(PreviousValue < SortedDeletionList[Index], TEXT("TManagedArray::NewCopy( DeletionList ) DeletionList not sorted"));
-				ensureMsgf(0 <= SortedDeletionList[Index] && SortedDeletionList[Index] < ListSize, TEXT("TManagedArray::NewCopy( DeletionList ) Index out of range"));
+				ensureMsgf(PreviousValue < SortedDeletionList[Index], TEXT("TManagedArray::ValidateSortedList( DeletionList ) DeletionList not sorted"));
+				ensureMsgf(0 <= SortedDeletionList[Index] && SortedDeletionList[Index] < ListSize, TEXT("TManagedArray::ValidateSortedList( DeletionList ) Index out of range"));
 				PreviousValue = SortedDeletionList[Index];
 			}
 		}
@@ -150,7 +148,7 @@ namespace GeometryCollectionAlgo
 
 	FVector AveragePosition(FGeometryCollection* Collection, const TArray<int32>& Indices)
 	{
-		TManagedArray<FTransform>& Transform = *Collection->Transform;
+		TManagedArray<FTransform>& Transform = Collection->Transform;
 		int32 NumIndices = Indices.Num();
 
 		FVector Translation(0);
@@ -168,16 +166,16 @@ namespace GeometryCollectionAlgo
 	bool HasMultipleRoots(FGeometryCollection * Collection)
 	{
 		int32 ParentCount = 0;
-		TManagedArray<FGeometryCollectionBoneNode>& BoneHierarchy = *Collection->BoneHierarchy;
-		for (int32 i = 0; i < BoneHierarchy.Num(); i++)
+		TManagedArray<int32>& Parents = Collection->Parent;
+		for (int32 i = 0; i < Parents.Num(); i++)
 		{
-			if (BoneHierarchy[i].Parent == FGeometryCollectionBoneNode::InvalidBone) ParentCount++;
+			if (Parents[i] == FGeometryCollection::Invalid) ParentCount++;
 			if (ParentCount > 1) return true;
 		}
 		return false;
 	}
 
-	bool HasCycleRec(TManagedArray<FGeometryCollectionBoneNode> & Hierarchy, int32 Node, TArray<bool> Visited)
+	bool HasCycleRec(TManagedArray<int32>& Parents, int32 Node, TArray<bool> Visited)
 	{
 		ensure(0 <= Node && Node < Visited.Num());
 
@@ -185,76 +183,77 @@ namespace GeometryCollectionAlgo
 			return true;
 		Visited[Node] = true;
 
-		if (Hierarchy[Node].Parent != FGeometryCollection::Invalid)
+		if (Parents[Node] != FGeometryCollection::Invalid)
 		{
-			return HasCycleRec(Hierarchy, Hierarchy[Node].Parent, Visited);
+			return HasCycleRec(Parents, Parents[Node], Visited);
 		}
 		return false;
 	}
-	bool HasCycle(TManagedArray<FGeometryCollectionBoneNode> & Hierarchy, int32 Node)
+	bool HasCycle(TManagedArray<int32>& Parents, int32 Node)
 	{
 		TArray<bool> Visited;
-		Visited.Init(false, Hierarchy.Num());
-		return HasCycleRec(Hierarchy, Node, Visited);
+		Visited.Init(false, Parents.Num());
+		return HasCycleRec(Parents, Node, Visited);
 	}
-	bool HasCycle(TManagedArray<FGeometryCollectionBoneNode> & Hierarchy, const TArray<int32>& SelectedBones)
+	bool HasCycle(TManagedArray<int32>& Parents, const TArray<int32>& SelectedBones)
 	{
 		bool result = false;
 		TArray<bool> Visited;
-		Visited.Init(false, Hierarchy.Num());
+		Visited.Init(false, Parents.Num());
 		for (int32 Index = 0; Index < SelectedBones.Num(); Index++)
 		{
-			result |= HasCycleRec(Hierarchy, SelectedBones[Index], Visited);
+			result |= HasCycleRec(Parents, SelectedBones[Index], Visited);
 		}
 		return result;
 	}
 
-	void ParentTransform(FGeometryCollection* GeometryCollection, const int32 TransformIndex, const int32 ChildIndex)
+	void ParentTransform(FTransformCollection* GeometryCollection, const int32 TransformIndex, const int32 ChildIndex)
 	{
 		TArray<int32> SelectedBones;
 		SelectedBones.Add(ChildIndex);
 		ParentTransforms(GeometryCollection, TransformIndex, SelectedBones);
 	}
 
-	void ParentTransforms(FGeometryCollection* GeometryCollection, const int32 TransformIndex,
+	void ParentTransforms(FTransformCollection* GeometryCollection, const int32 TransformIndex,
 		const TArray<int32>& SelectedBones)
 	{
 		check(GeometryCollection != nullptr);
 
-		TManagedArray<FTransform>& Transform = *GeometryCollection->Transform;
-		TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GeometryCollection->BoneHierarchy;
+		TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
+		TManagedArray<int32>& Parents = GeometryCollection->Parent;
+		TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 
-		if (ensure(-1 <= TransformIndex && TransformIndex < Hierarchy.Num()))
+		if (ensure(-1 <= TransformIndex && TransformIndex < GeometryCollection->NumElements(FGeometryCollection::TransformGroup)))
 		{
 			// pre calculate global positions
 			TArray<FTransform> GlobalTransform;
-			GeometryCollectionAlgo::GlobalMatrices(GeometryCollection, GlobalTransform);
+			GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, Parents, GlobalTransform);
 
 			// append children 
 			for (int32 Index = 0; Index < SelectedBones.Num(); Index++)
 			{
 				int32 BoneIndex = SelectedBones[Index];
-				if (ensure(0 <= BoneIndex && BoneIndex < Hierarchy.Num()))
+				if (ensure(0 <= BoneIndex && BoneIndex < Parents.Num()))
 				{
 					// remove entry in previous parent
-					int32 ParentIndex = Hierarchy[BoneIndex].Parent;
-					if (ParentIndex != FGeometryCollectionBoneNode::InvalidBone)
+					int32 ParentIndex = Parents[BoneIndex];
+					if (ParentIndex != FGeometryCollection::Invalid)
 					{
-						if (ensure(0 <= ParentIndex && ParentIndex < Hierarchy.Num()))
+						if (ensure(0 <= ParentIndex && ParentIndex < Parents.Num()))
 						{
-							Hierarchy[ParentIndex].Children.Remove(BoneIndex);
+							Children[ParentIndex].Remove(BoneIndex);
 						}
 					}
 
 					// set new parent
-					Hierarchy[BoneIndex].Parent = TransformIndex;
+					Parents[BoneIndex] = TransformIndex;
 				}
 			}
 
 			FTransform ParentInverse = FTransform::Identity;
 			if (TransformIndex != FGeometryCollection::Invalid)
 			{
-				Hierarchy[TransformIndex].Children.Append(SelectedBones);
+				Children[TransformIndex].Append(SelectedBones);
 				ParentInverse = GlobalTransform[TransformIndex].Inverse();
 			}
 
@@ -268,76 +267,197 @@ namespace GeometryCollectionAlgo
 		}
 
 		// error check for circular dependencies
-		ensure(!HasCycle(Hierarchy, TransformIndex));
-		ensure(!HasCycle(Hierarchy, SelectedBones));
+		ensure(!HasCycle(Parents, TransformIndex));
+		ensure(!HasCycle(Parents, SelectedBones));
 	}
 
-	struct CacheElement
+	void GlobalMatricesRecursive(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, TArray<FMatrix>& OutGlobalTransforms)
 	{
-		CacheElement() :Processed(false), Global() {}
-		bool Processed;
-		FTransform Global;
-	};
+		if (!IsTransformComputed[Index])
+		{
+			FMatrix Result = Transform[Index].ToMatrixWithScale();
+			if (Parents[Index] != FGeometryCollection::Invalid)
+			{
+				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, OutGlobalTransforms);
+				Result *= OutGlobalTransforms[Parents[Index]];
+			}
 
-	FTransform GlobalMatricesRecursive(const int32 & Index, const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy, const TManagedArray<FTransform>& Transform, TArray<CacheElement>& AccelerationStructure)
-	{
-		if (AccelerationStructure[Index].Processed)
-			return AccelerationStructure[Index].Global;
-
-		FTransform Result = Transform[Index];
-		if (Hierarchy[Index].Parent != FGeometryCollectionBoneNode::InvalidBone)
-			Result = Result * GlobalMatricesRecursive(Hierarchy[Index].Parent, Hierarchy, Transform, AccelerationStructure);
-
-		AccelerationStructure[Index].Global = Result;
-		AccelerationStructure[Index].Processed = true;
-		return AccelerationStructure[Index].Global;
+			OutGlobalTransforms[Index] = Result;
+			IsTransformComputed[Index] = true;
+		}
 	}
 
-	FTransform GlobalMatrix(const FTransformCollection* TransformCollection, int32 Index)
+	// #note: this verison returns an FTransform to support functionality for getting global matrices for an array of indices.
+	void GlobalMatricesRecursive(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, TArray<FTransform>& OutGlobalTransforms)
+	{
+		if (!IsTransformComputed[Index])
+		{
+			FTransform Result = Transform[Index];
+			if (Parents[Index] != FGeometryCollection::Invalid)
+			{
+				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, OutGlobalTransforms);
+				Result *= OutGlobalTransforms[Parents[Index]];
+			}
+
+			OutGlobalTransforms[Index] = Result;
+			IsTransformComputed[Index] = true;
+		}
+	}
+
+	FTransform GlobalMatricesRecursiveForIndices(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, TArray<FTransform>& TransformCache)
+	{
+		if (!IsTransformComputed[Index])
+		{
+			FTransform Result = Transform[Index];
+			if (Parents[Index] != FGeometryCollection::Invalid)
+			{
+				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, TransformCache);
+				Result *= TransformCache[Parents[Index]];
+			}
+
+			TransformCache[Index] = Result;
+			IsTransformComputed[Index] = true;
+		}
+
+		return TransformCache[Index];
+	}
+
+
+
+
+	FTransform GlobalMatrix(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, int32 Index)
 	{
 		FTransform Transform = FTransform::Identity;
 
-		TManagedArray<FTransform>& Transforms = *TransformCollection->Transform;
-		if (0 <= Index && Index < Transforms.Num())
+		if (0 <= Index && Index < RelativeTransforms.Num())
 		{
-			TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *TransformCollection->BoneHierarchy;
-
 			while (Index != FGeometryCollection::Invalid)
 			{
-				Transform = Transforms[Index] * Transform;
-				Index = Hierarchy[Index].Parent;
+				Transform = Transform * RelativeTransforms[Index];
+				Index = Parents[Index];
 			}
 		}
 		return Transform;
 	}
 
-	void GlobalMatrices(const FTransformCollection* TransformCollection, const TArray<int32>& Indices, TArray<FTransform> & Transforms)
+	void GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, const TArray<int32>& Indices, TArray<FTransform>& OutGlobalTransforms)
 	{
-		TArray<CacheElement> AccelerationStructures;
-		AccelerationStructures.AddDefaulted(TransformCollection->NumElements(FGeometryCollection::TransformGroup));
+		TArray<bool> IsTransformComputed;
+		IsTransformComputed.AddDefaulted(RelativeTransforms.Num());
 
-		TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *TransformCollection->BoneHierarchy;
-		TManagedArray<FTransform>& Transform = *TransformCollection->Transform;
+		TArray<FTransform> TransformCache;
+		TransformCache.SetNumUninitialized(RelativeTransforms.Num(), false);
 
-		Transforms.SetNumUninitialized(Indices.Num(), false);
-		for( int Idx=0; Idx<Indices.Num(); Idx++)
+		OutGlobalTransforms.SetNumUninitialized(Indices.Num(), false);
+		for (int Idx = 0; Idx < Indices.Num(); Idx++)
 		{
-			Transforms[Indices[Idx]] = GlobalMatricesRecursive(Indices[Idx], Hierarchy, Transform, AccelerationStructures);
+			OutGlobalTransforms[Idx] = GlobalMatricesRecursiveForIndices(Indices[Idx], Parents, RelativeTransforms, IsTransformComputed, TransformCache);
 		}
 	}
 
-	void GlobalMatrices(const FTransformCollection* TransformCollection, TArray<FTransform> & Transforms)
+	
+	void GlobalMatricesFromRoot(const int32 ParentTransformIndex, const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<TSet<int32>>& Children, TArray<FMatrix>& Transforms)
 	{
-		TArray<CacheElement> AccelerationStructures;
-		AccelerationStructures.AddDefaulted(TransformCollection->NumElements(FGeometryCollection::TransformGroup));
-
-		TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *TransformCollection->BoneHierarchy;
-		TManagedArray<FTransform>& Transform = *TransformCollection->Transform;
-
-		Transforms.SetNumUninitialized(Transform.Num(), false);
-		for(int Index=0; Index<Transform.Num(); Index++)
+		if (Children[ParentTransformIndex].Num() > 0)
 		{
-			Transforms[Index] = GlobalMatricesRecursive(Index, Hierarchy, Transform, AccelerationStructures);
+			for (int32 ChildIndex : Children[ParentTransformIndex])
+			{
+				Transforms[ChildIndex] = RelativeTransforms[ChildIndex].ToMatrixWithScale() * Transforms[ParentTransformIndex];
+				GlobalMatricesFromRoot(ChildIndex, RelativeTransforms, Children, Transforms);
+				
+			}
+		}
+	}
+
+	template<typename MatrixType>
+	void GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, TArray<MatrixType>& OutGlobalTransforms)
+	{
+		int32 NumTransforms = RelativeTransforms.Num();
+
+		TArray<bool> IsTransformComputed;
+		IsTransformComputed.AddDefaulted(NumTransforms);
+
+		OutGlobalTransforms.SetNumUninitialized(NumTransforms, false);
+
+		for (int BoneIdx = 0; BoneIdx < NumTransforms; ++BoneIdx)
+		{
+			GlobalMatricesRecursive(BoneIdx, Parents, RelativeTransforms, IsTransformComputed, OutGlobalTransforms);
+		}
+	}
+	template void GEOMETRYCOLLECTIONCORE_API GlobalMatrices<FTransform>(const TManagedArray<FTransform>&, const TManagedArray<int32>&, TArray<FTransform>&);
+	template void GEOMETRYCOLLECTIONCORE_API GlobalMatrices<FMatrix>(const TManagedArray<FTransform>&, const TManagedArray<int32>&, TArray<FMatrix>&);
+
+	void FloodForOverlappedPairs(int Level, int32 BoneIndex, TMap<int32, int32> &BoneToGroup, const TManagedArray<int32>& Levels, const TMap<int32, FBox>& BoundingBoxes, TSet<TTuple<int32, int32>>& OutOverlappedPairs)
+	{
+		if (Levels[BoneIndex] != Level)
+		{
+			return;
+		}
+
+		if (BoneToGroup[BoneIndex] > 0)
+		{
+			return;
+		}
+
+		BoneToGroup[BoneIndex] = 1;
+
+		const FBox& CurrentBoneBounds = BoundingBoxes[BoneIndex];
+
+		for (auto &BoneGroup : BoneToGroup)
+		{
+			if (BoneGroup.Value < 1 && BoneGroup.Key != BoneIndex) //ungrouped
+			{
+				const FBox& BoneBounds = BoundingBoxes[BoneGroup.Key];
+				if (CurrentBoneBounds.Intersect(BoneBounds))
+				{
+					auto TupleA = MakeTuple(BoneIndex, BoneGroup.Key);
+					auto TupleB = MakeTuple(BoneGroup.Key, BoneIndex);
+
+					if (!OutOverlappedPairs.Contains(TupleA) && !OutOverlappedPairs.Contains(TupleB))
+					{
+						OutOverlappedPairs.Add(TupleA);
+					}
+
+					FloodForOverlappedPairs(Level, BoneGroup.Key, BoneToGroup, Levels, BoundingBoxes, OutOverlappedPairs);
+				}
+			}
+		}
+	}
+
+	void GetOverlappedPairs(FGeometryCollection* GeometryCollection, int Level, TSet<TTuple<int32, int32>>& OutOverlappedPairs)
+	{
+		if (Level > 0)
+		{
+			const TManagedArray<int32>& Parents = GeometryCollection->Parent;
+			const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+
+			TArray<FTransform> Transforms;
+			GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, Parents, Transforms);
+
+			TArray<int32> TransformToGeometry;
+			GeometryCollectionAlgo::BuildTransformGroupToGeometryGroupMap(*GeometryCollection, TransformToGeometry);
+
+			const TManagedArray<FBox>& BoundingBoxes = GeometryCollection->BoundingBox;
+
+			TMap<int32, int32> BoneToGroup;
+			TMap<int32, FBox> WorldBounds;
+			for (int32 Element = 0, NumElement = Levels.Num(); Element < NumElement; ++Element)
+			{
+				if (Levels[Element] == Level)
+				{
+					const FBox& BoneBounds = BoundingBoxes[TransformToGeometry[Element]];
+					BoneToGroup.Add(Element, 0);
+					WorldBounds.Add(Element, BoneBounds.TransformBy(Transforms[Element]));
+				}
+			}
+
+			for (auto &Element : BoneToGroup)
+			{
+				if (Element.Value < 1)
+				{
+					FloodForOverlappedPairs(Level, Element.Key, BoneToGroup, Levels, WorldBounds, OutOverlappedPairs);
+				}
+			}
 		}
 	}
 
@@ -346,39 +466,308 @@ namespace GeometryCollectionAlgo
 		check(GeometryCollection);
 	}
 
-	DEFINE_LOG_CATEGORY_STATIC(LogGeoemtryCollectionClean, Verbose, All);
+	void ReCenterGeometryAroundCentreOfMass(FGeometryCollection* GeometryCollection, bool CenterAtOrigin/*=true*/)
+	{
+		check(GeometryCollection);
+
+		TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
+		if (Transform.Num())
+		{
+			const TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
+			TManagedArray<FVector>& Vertex = GeometryCollection->Vertex;
+
+			TArray<int32> SurfaceParticlesCount;
+			SurfaceParticlesCount.AddZeroed(GeometryCollection->NumElements(FGeometryCollection::TransformGroup));
+
+			TArray<FVector> CenterOfMass;
+			CenterOfMass.AddZeroed(GeometryCollection->NumElements(FGeometryCollection::TransformGroup));
+
+			for (int i = 0; i < Vertex.Num(); i++)
+			{
+				int32 ParticleIndex = BoneMap[i];
+				SurfaceParticlesCount[ParticleIndex]++;
+				CenterOfMass[ParticleIndex] += Vertex[i];
+			}
+
+			FVector CombinedCenterOfMassWorld(ForceInitToZero);
+			for (int i = 0; i < Transform.Num(); i++)
+			{
+				if (SurfaceParticlesCount[i])
+				{
+					CenterOfMass[i] /= SurfaceParticlesCount[i];
+
+					FTransform Tmp(CenterOfMass[i]);
+
+					// Translate back to original object space position (because vertex position will be centered at the origin), 
+					// then apply the original parent transform.  This ensures the pivot remains the same
+					Transform[i] = Tmp * Transform[i];
+					CombinedCenterOfMassWorld += Transform[i].GetTranslation();
+				}
+			}
+
+			CombinedCenterOfMassWorld /= Transform.Num();
+
+			for (int i = 0; i < Vertex.Num(); i++)
+			{
+				int32 ParticleIndex = BoneMap[i];
+				Vertex[i] -= CenterOfMass[ParticleIndex];
+			}
+
+			if (CenterAtOrigin)
+			{
+				for (int i = 0; i < Transform.Num(); i++)
+				{
+					FTransform Tmp(-CombinedCenterOfMassWorld);
+
+					// Apply the parent transform, then center at the origin
+					Transform[i] = Transform[i] * Tmp;
+				}
+			}
+		}
+	}
+
+	void FindOpenBoundaries(const FGeometryCollection* GeometryCollection, const float CoincidentVertexTolerance, TArray<TArray<TArray<int32>>> &BoundaryVertexIndices)
+	{
+		check(GeometryCollection);
+		int32 NumGeometries = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
+		BoundaryVertexIndices.SetNum(NumGeometries);
+
+		TMap<int32, int32> CoincidentVerticesMap;
+		TSet<int32> VertexToDeleteSet_unused; // not needed for this algorithm
+		ComputeCoincidentVertices(GeometryCollection, CoincidentVertexTolerance, CoincidentVerticesMap, VertexToDeleteSet_unused);
+
+		for (int32 GeometryIdx = 0; GeometryIdx < NumGeometries; GeometryIdx++)
+		{
+			// Swap VertexIndex in Indices array
+			const TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
+			TMultiMap<int32, int32> OpenEdges;
+			auto MapCoincident = [&](int32 VtxIndex)
+			{
+				if (CoincidentVerticesMap.Contains(VtxIndex))
+				{
+					return CoincidentVerticesMap[VtxIndex];
+				}
+				else
+				{
+					return VtxIndex;
+				}
+			};
+			auto AddEdge = [&](int32 a, int32 b)
+			{
+				a = MapCoincident(a);
+				b = MapCoincident(b);
+				if (!OpenEdges.RemoveSingle(b, a))
+				{
+					OpenEdges.Add(a, b);
+				}
+			};
+			int32 FaceStart = GeometryCollection->FaceStart[GeometryIdx];
+			int32 FaceEnd = FaceStart + GeometryCollection->FaceCount[GeometryIdx];
+			int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+			for (int32 IdxFace = FaceStart; IdxFace < FaceEnd; ++IdxFace)
+			{
+				AddEdge(Indices[IdxFace].X, Indices[IdxFace].Y);
+				AddEdge(Indices[IdxFace].Y, Indices[IdxFace].Z);
+				AddEdge(Indices[IdxFace].Z, Indices[IdxFace].X);
+			}
+			while (true)
+			{
+				const auto &EdgeIter = OpenEdges.CreateConstIterator();
+				if (!EdgeIter)
+				{
+					break;
+				}
+				int32 Start = EdgeIter.Key();
+				int32 Walk = EdgeIter.Value();
+				TArray<int32> &Boundary = BoundaryVertexIndices[GeometryIdx].Emplace_GetRef();
+				Boundary.Add(Start);
+				OpenEdges.RemoveSingle(Start, Walk);
+				while (Walk != Start)
+				{
+					Boundary.Add(Walk);
+					int32 Next = OpenEdges.FindChecked(Walk);
+					OpenEdges.RemoveSingle(Walk, Next);
+					Walk = Next;
+				}
+			}
+		}
+	}
+
+	void TriangulateBoundaries(FGeometryCollection* GeometryCollection, const TArray<TArray<TArray<int32>>> &BoundaryVertexIndices, bool bWoundClockwise, float MinTriangleAreaSq)
+	{
+		check(GeometryCollection);
+		int32 NumGeometries = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
+		check(BoundaryVertexIndices.Num() == NumGeometries);
+
+		TArray<TArray<FIntVector>> Faces;
+		Faces.SetNum(NumGeometries);
+
+		TMap<TPair<int32, int32>, int32> FaceCountPerEdge;
+		
+		auto AddTriToFaceCountPerEdge = [&FaceCountPerEdge](const FIntVector &Face)
+		{
+			auto AddEdge = [&FaceCountPerEdge](int32 A, int32 B)
+			{
+				FaceCountPerEdge.FindOrAdd(TPair<int32, int32>(FMath::Min(A, B), FMath::Max(A, B)))++;
+			};
+			AddEdge(Face.X, Face.Y);
+			AddEdge(Face.Y, Face.Z);
+			AddEdge(Face.Z, Face.X);
+		};
+
+		auto CandidateTriWouldMakeNonManifoldEdge = [&FaceCountPerEdge](int32 A, int32 B, int32 C)
+		{
+			auto GetCount = [&FaceCountPerEdge](int32 InnerA, int32 InnerB)
+			{
+				int32 *Count = FaceCountPerEdge.Find(TPair<int32, int32>(FMath::Min(InnerA, InnerB), FMath::Max(InnerA, InnerB)));
+				return Count ? *Count : 0;
+			};
+			return GetCount(A, B) > 1 || GetCount(B, C) > 1 || GetCount(C, A) > 1;
+		};
+
+		for (const FIntVector &Face : GeometryCollection->Indices)
+		{
+			AddTriToFaceCountPerEdge(Face);
+		}
+
+		for (int32 GeometryIdx = 0; GeometryIdx < NumGeometries; GeometryIdx++)
+		{
+			const TArray<TArray<int32>> &GeomBoundaries = BoundaryVertexIndices[GeometryIdx];
+			TArray<FIntVector> &GeomFaces = Faces[GeometryIdx];
+			// for v0 let's just put a fan here
+			for (const TArray<int32> Boundary : GeomBoundaries)
+			{
+				if (Boundary.Num() < 3)
+				{
+					continue;
+				}
+				int32 First = Boundary[0];
+				
+				for (int32 BoundaryIdx = 1; BoundaryIdx + 1 < Boundary.Num(); BoundaryIdx++)
+				{
+					int32 A = First, B = Boundary[BoundaryIdx], C = Boundary[BoundaryIdx + 1];
+
+					if (MinTriangleAreaSq > 0)
+					{
+						FVector p10 = GeometryCollection->Vertex[B] - GeometryCollection->Vertex[A];
+						FVector p20 = GeometryCollection->Vertex[C] - GeometryCollection->Vertex[A];
+						FVector Cross = FVector::CrossProduct(p20, p10);
+						if (Cross.SizeSquared() < MinTriangleAreaSq)
+						{
+							continue;
+						}
+					}
+
+					if (CandidateTriWouldMakeNonManifoldEdge(A, B, C))
+					{
+						continue;
+					}
+
+					if (bWoundClockwise)
+					{
+						GeomFaces.Add(FIntVector(A, C, B));
+					}
+					else
+					{
+						GeomFaces.Add(FIntVector(A, B, C));
+					}
+					
+				}
+			}
+		}
+
+		AddFaces(GeometryCollection, Faces);
+	}
+
+	void AddFaces(FGeometryCollection* GeometryCollection, const TArray<TArray<FIntVector>> &AddFaces)
+	{
+		check(GeometryCollection);
+		int32 NumGeometries = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
+		check(AddFaces.Num() == NumGeometries);
+
+		int32 AddCount = 0;
+		for (const TArray<FIntVector> &GeomFaces : AddFaces)
+		{
+			AddCount += GeomFaces.Num();
+		}
+		int32 OldNumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+		GeometryCollection->AddElements(AddCount, FGeometryCollection::FacesGroup);
+		int32 NewNumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+
+		TArray<int32> ShiftedOrder;
+		ShiftedOrder.SetNum(NewNumFaces);
+		int32 ShiftedIdx = 0;
+		int32 NewSpaceIdx = OldNumFaces;
+		for (int32 GeometryIdx = 0; GeometryIdx < NumGeometries; GeometryIdx++)
+		{
+			int32 OldStart = GeometryCollection->FaceStart[GeometryIdx];
+			int32 NewStart = ShiftedIdx;
+			int32 OldEnd = OldStart + GeometryCollection->FaceCount[GeometryIdx];
+			for (int32 OldFaceIdx = OldStart; OldFaceIdx < OldEnd; OldFaceIdx++)
+			{
+				ShiftedOrder[ShiftedIdx++] = OldFaceIdx;
+			}
+			int32 NumToAdd = AddFaces[GeometryIdx].Num();
+			for (int32 AddFaceIdx=0; AddFaceIdx < NumToAdd; AddFaceIdx++)
+			{
+				GeometryCollection->Indices[NewSpaceIdx] = AddFaces[GeometryIdx][AddFaceIdx];
+				GeometryCollection->Visible[NewSpaceIdx] = true;
+				// just copy material from one of the faces in the group
+				GeometryCollection->MaterialIndex[NewSpaceIdx] = GeometryCollection->MaterialIndex[OldStart];
+				GeometryCollection->MaterialID[NewSpaceIdx] = GeometryCollection->MaterialID[OldStart];
+				ShiftedOrder[ShiftedIdx++] = NewSpaceIdx;
+				NewSpaceIdx++;
+			}
+			GeometryCollection->FaceCount[GeometryIdx] += NumToAdd;
+			GeometryCollection->FaceStart[GeometryIdx] = NewStart;
+		}
+		GeometryCollection->ReorderElements(FGeometryCollection::FacesGroup, ShiftedOrder);
+		// fix face starts post-reorder (they will have been helpfully 'fixed' to point at their previous elements by the reorder call)
+		for (int32 GeometryIdx = 1; GeometryIdx < NumGeometries; GeometryIdx++)
+		{
+			GeometryCollection->FaceStart[GeometryIdx] = GeometryCollection->FaceStart[GeometryIdx - 1] + GeometryCollection->FaceCount[GeometryIdx - 1];
+		}
+	}
+
+	DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionClean, Verbose, All);
 
 	void ComputeCoincidentVertices(const FGeometryCollection* GeometryCollection, const float Tolerance, TMap<int32, int32>& CoincidentVerticesMap, TSet<int32>& VertexToDeleteSet)
 	{
 		check(GeometryCollection);
 
-		const TManagedArray<FVector>& VertexArray = *GeometryCollection->Vertex;
-		const TManagedArray<int32>& BoneMapArray = *GeometryCollection->BoneMap;
-		const TManagedArray<int32>& TransformIndexArray = *GeometryCollection->TransformIndex;
+		const TManagedArray<FVector>& VertexArray = GeometryCollection->Vertex;
+		const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
+		const TManagedArray<int32>& TransformIndexArray = GeometryCollection->TransformIndex;
 		int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
 		int32 NumGeometries = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
 
-		for (int32 IdxGeometry = 0; IdxGeometry < NumGeometries; ++IdxGeometry)
+		float ToleranceSquared = Tolerance * Tolerance;
+
+		FCriticalSection Mutex;
+
+		ParallelFor(NumGeometries, [&](int32 IdxGeometry)
 		{
+			TMap<int32, int32> LocalCoincidentVerticesMap;
+			TSet<int32> LocalVertexToDeleteSet;
 			int32 TransformIndex = TransformIndexArray[IdxGeometry];
 			for (int32 IdxVertex = 0; IdxVertex < NumVertices; ++IdxVertex)
 			{
 				if (BoneMapArray[IdxVertex] == TransformIndex)
 				{
-					if (!VertexToDeleteSet.Contains(IdxVertex))
+					if (!LocalVertexToDeleteSet.Contains(IdxVertex))
 					{
-						FVector Vertex = VertexArray[IdxVertex];
+						const FVector& Vertex = VertexArray[IdxVertex];
 						for (int32 IdxOtherVertex = 0; IdxOtherVertex < NumVertices; ++IdxOtherVertex)
 						{
 							if (BoneMapArray[IdxOtherVertex] == TransformIndex)
 							{
-								if (!VertexToDeleteSet.Contains(IdxOtherVertex) && (IdxVertex != IdxOtherVertex))
+								if ((IdxVertex != IdxOtherVertex) && !LocalVertexToDeleteSet.Contains(IdxOtherVertex))
 								{
-									FVector OtherVertex = VertexArray[IdxOtherVertex];
-									if ((Vertex - OtherVertex).Size() < Tolerance)
+									const FVector& OtherVertex = VertexArray[IdxOtherVertex];
+									if ((Vertex - OtherVertex).SizeSquared() < ToleranceSquared)
 									{
-										VertexToDeleteSet.Add(IdxOtherVertex);
-										CoincidentVerticesMap.Add(IdxOtherVertex, IdxVertex);
+										LocalVertexToDeleteSet.Add(IdxOtherVertex);
+										LocalCoincidentVerticesMap.Add(IdxOtherVertex, IdxVertex);
 									}
 								}
 							}
@@ -386,8 +775,16 @@ namespace GeometryCollectionAlgo
 					}
 				}
 			}
-		}
+			if (LocalVertexToDeleteSet.Num())
+			{
+				Mutex.Lock();
+				CoincidentVerticesMap.Append(LocalCoincidentVerticesMap);
+				VertexToDeleteSet.Append(LocalVertexToDeleteSet);
+				Mutex.Unlock();
+			}
+		});
 	}
+
 
 	void DeleteCoincidentVertices(FGeometryCollection* GeometryCollection, float Tolerance)
 	{
@@ -398,7 +795,7 @@ namespace GeometryCollectionAlgo
 		ComputeCoincidentVertices(GeometryCollection, Tolerance, CoincidentVerticesMap, VertexToDeleteSet);
 
 		// Swap VertexIndex in Indices array
-		TManagedArray<FIntVector>& IndicesArray = *GeometryCollection->Indices;
+		TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;
 		int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
 		for (int32 IdxFace = 0; IdxFace < NumFaces; ++IdxFace)
 		{
@@ -426,10 +823,9 @@ namespace GeometryCollectionAlgo
 	{
 		check(GeometryCollection);
 
-		const TManagedArray<FVector>& VertexArray = *GeometryCollection->Vertex;
-		const TManagedArray<FIntVector>& IndicesArray = *GeometryCollection->Indices;
-		const TManagedArray<FGeometryCollectionBoneNode>& BoneHierarchyArray = *GeometryCollection->BoneHierarchy;
-		const TManagedArray<int32>& BoneMapArray = *GeometryCollection->BoneMap;
+		const TManagedArray<FVector>& VertexArray = GeometryCollection->Vertex;
+		const TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;
+		const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
 
 		int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
 		int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
@@ -437,7 +833,7 @@ namespace GeometryCollectionAlgo
 		for (int32 IdxFace = 0; IdxFace < NumFaces; ++IdxFace)
 		{
 			int32 TransformIndex = BoneMapArray[IndicesArray[IdxFace][0]];
-			if (BoneHierarchyArray[TransformIndex].IsGeometry() && !BoneHierarchyArray[TransformIndex].IsClustered())
+			if (GeometryCollection->IsGeometry(TransformIndex) && !GeometryCollection->IsClustered(TransformIndex))
 			{
 				FVector Vertex0 = VertexArray[IndicesArray[IdxFace][0]];
 				FVector Vertex1 = VertexArray[IndicesArray[IdxFace][1]];
@@ -468,17 +864,16 @@ namespace GeometryCollectionAlgo
 	{
 		check(GeometryCollection);
 
-		const TManagedArray<FIntVector>& IndicesArray = *GeometryCollection->Indices;
-		const TManagedArray<bool>& VisibleArray = *GeometryCollection->Visible;
-		const TManagedArray<FGeometryCollectionBoneNode>& BoneHierarchyArray = *GeometryCollection->BoneHierarchy;
-		const TManagedArray<int32>& BoneMapArray = *GeometryCollection->BoneMap;
+		const TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;
+		const TManagedArray<bool>& VisibleArray = GeometryCollection->Visible;
+		const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
 
 		int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
 
 		for (int32 IdxFace = 0; IdxFace < NumFaces; ++IdxFace)
 		{
 			int32 TransformIndex = BoneMapArray[IndicesArray[IdxFace][0]];
-			if (BoneHierarchyArray[TransformIndex].IsGeometry() && !BoneHierarchyArray[TransformIndex].IsClustered())
+			if (GeometryCollection->IsGeometry(TransformIndex) && !GeometryCollection->IsClustered(TransformIndex))
 			{
 				if (!VisibleArray[IdxFace])
 				{
@@ -504,11 +899,10 @@ namespace GeometryCollectionAlgo
 	{
 		check(GeometryCollection);
 
-		const TManagedArray<FVector>& VertexArray = *GeometryCollection->Vertex;
-		const TManagedArray<int32>& BoneMapArray = *GeometryCollection->BoneMap;
-		const TManagedArray<int32>& TransformIndexArray = *GeometryCollection->TransformIndex;
-		const TManagedArray<FIntVector>& IndicesArray = *GeometryCollection->Indices;
-		const TManagedArray<FGeometryCollectionBoneNode>& BoneHierarchyArray = *GeometryCollection->BoneHierarchy;
+		const TManagedArray<FVector>& VertexArray = GeometryCollection->Vertex;
+		const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
+		const TManagedArray<int32>& TransformIndexArray = GeometryCollection->TransformIndex;
+		const TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;
 
 		int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
 		int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
@@ -547,7 +941,7 @@ namespace GeometryCollectionAlgo
 	{
 		check(GeometryCollection);
 
-		const TManagedArray<FIntVector>& IndicesArray = *GeometryCollection->Indices;
+		const TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;
 
 		int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
 
@@ -590,6 +984,198 @@ namespace GeometryCollectionAlgo
 		Buffer += FString::Printf(TEXT("Number of geometries = %d\n"), NumGeometries);
 		Buffer += FString::Printf(TEXT("Number of breakings = %d\n"), NumBreakings);
 		Buffer += FString::Printf(TEXT("------------------------------------------------------------\n\n"));
-		UE_LOG(LogGeoemtryCollectionClean, Log, TEXT("%s"), *Buffer);
+		UE_LOG(LogGeometryCollectionClean, Log, TEXT("%s"), *Buffer);
 	}
+
+	bool HasValidFacesFor(const FGeometryCollection* GeometryCollection, int32 GeometryIndex)
+	{
+		ensure(GeometryIndex < GeometryCollection->NumElements(FGeometryCollection::GeometryGroup));
+
+		int32 FaceStart = GeometryCollection->FaceStart[GeometryIndex];
+		int32 FaceCount = GeometryCollection->FaceCount[GeometryIndex];
+		int32 FaceEnd = FaceStart + FaceCount;
+
+		// check faces range within number of elements in faces group
+		int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+		if (FaceStart >= NumFaces)
+			return false;
+
+		if (FaceEnd > NumFaces)
+			return false;
+
+		// check faces index into valid elements of vertices group
+		int32 VertexStart = GeometryCollection->VertexStart[GeometryIndex];
+		int32 VertexCount = GeometryCollection->VertexCount[GeometryIndex];
+		int32 VertexEnd = VertexStart + VertexCount;
+
+		const TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
+		for (int FaceIdx = FaceStart; FaceIdx < FaceEnd; FaceIdx++)
+		{
+			const FIntVector& Face = Indices[FaceIdx];
+			for (int Idx = 0; Idx < 3; Idx++)
+			{
+				if (Face[Idx] < VertexStart || Face[Idx] >= VertexEnd)
+				{
+					return false;
+				}
+
+				int32 BoneAndTransformIndex = GeometryCollection->BoneMap[Face[Idx]];
+				int32 TestGeometryIndex = GeometryCollection->TransformToGeometryIndex[BoneAndTransformIndex];
+
+				if (GeometryIndex != TestGeometryIndex)
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool HasValidIndicesFor(const FGeometryCollection* GeometryCollection, int32 GeometryIndex)
+	{
+		ensure(GeometryIndex < GeometryCollection->NumElements(FGeometryCollection::GeometryGroup));
+
+		int32 VertexStart = GeometryCollection->VertexStart[GeometryIndex];
+		int32 VertexCount = GeometryCollection->VertexCount[GeometryIndex];
+		int32 VertexEnd = VertexStart + VertexCount;
+		
+		int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
+
+		if (VertexStart >= NumVertices)
+			return false;
+
+		if (VertexEnd > NumVertices)
+			return false;
+
+		for (int VertIdx = VertexStart; VertIdx < VertexEnd; VertIdx++)
+		{
+			int32 BoneAndTransformIndex = GeometryCollection->BoneMap[VertIdx];
+			int32 TestGeometryIndex = GeometryCollection->TransformToGeometryIndex[BoneAndTransformIndex];
+
+			if (GeometryIndex != TestGeometryIndex)
+				return false;
+		}
+
+		return true;
+	}
+
+	bool HasInvalidIndicesFor(const FGeometryCollection* GeometryCollection, int32 GeometryIndex)
+	{
+		ensure(GeometryIndex < GeometryCollection->NumElements(FGeometryCollection::GeometryGroup));
+
+		int32 VertexStart = GeometryCollection->VertexStart[GeometryIndex];
+		int32 VertexCount = GeometryCollection->VertexCount[GeometryIndex];
+		int32 VertexEnd = VertexStart + VertexCount;
+
+		int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
+
+		if (VertexStart >= NumVertices)
+			return true;
+
+		if (VertexEnd > NumVertices)
+			return true;
+
+		for (int32 VertIdx = 0 ; VertIdx < NumVertices ; ++VertIdx)
+		{
+			if (VertIdx >= VertexStart && VertIdx < VertexEnd)
+				continue;
+
+			int32 BoneAndTransformIndex = GeometryCollection->BoneMap[VertIdx];
+			int32 TestGeometryIndex = GeometryCollection->TransformToGeometryIndex[BoneAndTransformIndex];
+
+			if (GeometryIndex == TestGeometryIndex)
+				return true;
+
+		}
+
+		int32 OurTransformIndex = GeometryCollection->TransformIndex[GeometryIndex];
+		for (int32 GeomIdx=0, NumGeo = GeometryCollection->TransformIndex.Num(); GeomIdx < NumGeo; ++GeomIdx)
+		{
+			if (GeomIdx == GeometryIndex)
+				continue;
+
+			if (GeometryCollection->TransformIndex[GeomIdx] == OurTransformIndex)
+				return true;
+		}
+
+		return false;
+	}
+
+	bool HasResidualFaces(const FGeometryCollection* GeometryCollection)
+	{
+		int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
+		TArray<bool> IsUsed;
+		IsUsed.Init(false, NumFaces);
+
+		for (int32 GeometryIndex = 0, NumGeometry = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup) ; GeometryIndex < NumGeometry ; ++GeometryIndex)
+		{
+			int32 FaceStart = GeometryCollection->FaceStart[GeometryIndex];
+			int32 FaceCount = GeometryCollection->FaceCount[GeometryIndex];
+			int32 FaceEnd = FaceStart + FaceCount;
+
+			ensureMsgf(FaceStart < NumFaces, TEXT("Geometry %d has invalid face start index %d"), GeometryIndex, FaceStart);
+			ensureMsgf(FaceEnd <= NumFaces, TEXT("Geometry %d has invalid face end index %d"), GeometryIndex, FaceEnd);
+
+			for (int32 Idx = FaceStart; Idx < FaceEnd; Idx++)
+			{
+				IsUsed[Idx] = true;
+			}
+		}
+
+		for (bool Used : IsUsed)
+		{
+			if (Used == false)
+				return true;
+		}
+
+		return false;
+	}
+
+	bool HasResidualIndices(const FGeometryCollection* GeometryCollection)
+	{
+		int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
+		TArray<bool> IsUsed;
+		IsUsed.Init(false, NumVertices);
+
+		for (int32 GeometryIndex = 0, NumGeometry = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup); GeometryIndex < NumGeometry; ++GeometryIndex)
+		{
+			int32 VertexStart = GeometryCollection->VertexStart[GeometryIndex];
+			int32 VertexCount = GeometryCollection->VertexCount[GeometryIndex];
+			int32 VertexEnd = VertexStart + VertexCount;
+
+			ensureMsgf(VertexStart < NumVertices, TEXT("Geometry %d has invalid vertex start index %d"), GeometryIndex, VertexStart);
+			ensureMsgf(VertexEnd <= NumVertices, TEXT("Geometry %d has invalid vertex end index %d"), GeometryIndex, VertexEnd);
+
+			for (int32 Idx = VertexStart; Idx < VertexEnd; Idx++)
+			{
+				IsUsed[Idx] = true;
+			}
+		}
+
+		for (bool Used : IsUsed)
+		{
+			if (Used == false)
+				return true;
+		}
+
+		return false;
+	}
+
+	bool HasValidGeometryReferences(const FGeometryCollection* GeometryCollection)
+	{
+		for (int GeometryIndex = 0; GeometryIndex < GeometryCollection->NumElements(FGeometryCollection::GeometryGroup); GeometryIndex++)
+		{
+			if (!HasValidIndicesFor(GeometryCollection, GeometryIndex))
+				return false;
+
+			if (!HasValidFacesFor(GeometryCollection, GeometryIndex))
+				return false;
+
+			if (HasInvalidIndicesFor(GeometryCollection, GeometryIndex))
+				return false;
+		}
+
+		return true;
+	}
+
+
 }

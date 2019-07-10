@@ -136,6 +136,8 @@ void FAnimNode_MultiWayBlend::Evaluate_AnyThread(FPoseContext& Output)
 	if (SourcePoses.Num() > 0)
 	{
 		FAnimationRuntime::BlendPosesTogether(SourcePoses, SourceCurves, SourceWeights, Output.Pose, Output.Curve);
+		// normalize rotation - some cases, where additive is applied less than 1, it will use non normalized rotation
+		Output.Pose.NormalizeRotations();
 	}
 	else
 	{

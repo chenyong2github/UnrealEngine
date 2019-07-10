@@ -219,7 +219,7 @@ void AnimationFormat_GetAnimationPose(
  * @param	NumTransTracksWithOneKey	The total number of Translation Tracks found containing a single key.
  * @param	NumRotTracksWithOneKey		The total number of Rotation Tracks found containing a single key.
 */
-ENGINE_API void AnimationFormat_GetStats(const UAnimSequence* Seq, 
+ENGINE_API void AnimationFormat_GetStats(const FUECompressedAnimData& CompressedData, 
   								int32& NumTransTracks,
 								int32& NumRotTracks,
 								int32& NumScaleTracks,
@@ -239,7 +239,8 @@ ENGINE_API void AnimationFormat_GetStats(const UAnimSequence* Seq,
  *
  * @param	Seq					An Animation Sequence to setup links within.
 */
-void AnimationFormat_SetInterfaceLinks(UAnimSequence& Seq);
+template<typename CompressedDataType>
+void AnimationFormat_SetInterfaceLinks(CompressedDataType& CompressedData);
 
 #if WITH_EDITORONLY_DATA
 #define AC_UnalignedSwap( MemoryArchive, Data, Len )		\
@@ -273,26 +274,24 @@ public:
 	/**
 	 * Handles Byte-swapping incoming animation data from a MemoryReader
 	 *
-	 * @param	Seq					An Animation Sequence to contain the read data.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	MemoryReader		The MemoryReader object to read from.
 	 * @param	SourceArVersion		The version of the archive that the data is coming from.
 	 */
 	virtual void ByteSwapIn(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryReader& MemoryReader) PURE_VIRTUAL(AnimEncoding::ByteSwapIn,);
 
 	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
 	 *
-	 * @param	Seq					An Animation Sequence to write.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	SerializedData		The output buffer.
 	 * @param	ForceByteSwapping	true is byte swapping is not optional.
 	 */
 	virtual void ByteSwapOut(
-		UAnimSequence& Seq,
-		TArray<uint8>& SerializedData, 
-		bool ForceByteSwapping,
-		bool bMaintainComponentOrder=false) PURE_VIRTUAL(AnimEncoding::ByteSwapOut, );
+		FUECompressedAnimData& CompressedData,
+		FMemoryWriter& MemoryWriter) PURE_VIRTUAL(AnimEncoding::ByteSwapOut, );
 
 	/**
 	 * Extracts a single BoneAtom from an Animation Sequence.
@@ -350,6 +349,7 @@ public:
 		FAnimSequenceDecompressionContext& DecompContext) PURE_VIRTUAL(AnimEncoding::GetPoseScales,);
 #endif
 
+#if USE_SEGMENTING_CONTEXT
 	static FORCEINLINE float TimeToIndex(
 		const FAnimSequenceDecompressionContext& DecompContext,
 		const uint8* TimeMarkers,
@@ -359,30 +359,34 @@ public:
 		float SegmentRelativePos,
 		int32& FrameIndex0Out,
 		int32& FrameIndex1Out);
+#endif
 
 protected:
 
 	/**
 	 * Utility function to determine the two key indices to interpolate given a relative position in the animation
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	SequenceLength	The length of the anim sequence 
 	 * @param	RelativePos		The relative position to solve in the range [0,1] inclusive.
 	 * @param	NumKeys			The number of keys present in the track being solved.
+	 * @param	Interpolation	The Interpolation type of the sequence
 	 * @param	PosIndex0Out	Output value for the closest key index before the RelativePos specified.
 	 * @param	PosIndex1Out	Output value for the closest key index after the RelativePos specified.
 	 * @return	The rate at which to interpolate the two keys returned to obtain the final result.
 	 */
 	static float TimeToIndex(
-		const UAnimSequence& Seq,
+		float SequenceLength,
 		float RelativePos,
 		int32 NumKeys,
+		EAnimInterpolationType Interpolation,
 		int32 &PosIndex0Out,
 		int32 &PosIndex1Out);
 
 	/**
 	 * Utility function to determine the two key indices to interpolate given a relative position in the animation
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	Interpolation	The Interpolation type of the sequence
+	 * @param	NumberOfFrames	The number of frames in the original sequence
 	 * @param	FrameTable		The frame table containing a frame index for each key.
 	 * @param	RelativePos		The relative position to solve in the range [0,1] inclusive.
 	 * @param	NumKeys			The number of keys present in the track being solved.
@@ -391,7 +395,8 @@ protected:
 	 * @return	The rate at which to interpolate the two keys returned to obtain the final result.
 	 */
 	static float TimeToIndex(
-		const UAnimSequence& Seq,
+		EAnimInterpolationType Interpolation,
+		int32 NumberOfFrames,
 		const uint8* FrameTable,
 		float RelativePos,
 		int32 NumKeys,
@@ -461,30 +466,28 @@ public:
 	/**
 	 * Handles Byte-swapping incoming animation data from a MemoryReader
 	 *
-	 * @param	Seq					An Animation Sequence to contain the read data.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	MemoryReader		The MemoryReader object to read from.
 	 */
 	virtual void ByteSwapIn(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryReader& MemoryReader) override;
 
 	/**
 	 * Handles Byte-swapping outgoing animation data to an array of BYTEs
 	 *
-	 * @param	Seq					An Animation Sequence to write.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	SerializedData		The output buffer.
 	 * @param	ForceByteSwapping	true is byte swapping is not optional.
 	 */
 	virtual void ByteSwapOut(
-		UAnimSequence& Seq,
-		TArray<uint8>& SerializedData,
-		bool ForceByteSwapping,
-		bool bMaintainComponentOrder=false) override;
+		FUECompressedAnimData& CompressedData,
+		FMemoryWriter& MemoryWriter) override;
 
 	/**
 	 * Handles the ByteSwap of compressed animation data on import
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData		The compressed animation data being operated on.
 	 * @param	MemoryReader	The FMemoryReader to read from.
 	 * @param	Stream			The compressed animation data.
 	 * @param	NumKeys			The number of keys present in Stream.
@@ -492,7 +495,7 @@ public:
 	 * @return					The adjusted Stream position after import. 
 	 */
 	virtual void ByteSwapRotationIn(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryReader& MemoryReader,
 		uint8*& Stream,
 		int32 NumKeys) PURE_VIRTUAL(AnimEncoding::ByteSwapRotationIn,);
@@ -500,7 +503,7 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed animation data on import
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryReader	The FMemoryReader to read from.
 	 * @param	Stream			The compressed animation data.
 	 * @param	NumKeys			The number of keys present in Stream.
@@ -508,7 +511,7 @@ public:
 	 * @return					The adjusted Stream position after import. 
 	 */
 	virtual void ByteSwapTranslationIn(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryReader& MemoryReader,
 		uint8*& Stream,
 		int32 NumKeys) PURE_VIRTUAL(AnimEncoding::ByteSwapTranslationIn,);
@@ -516,7 +519,7 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed animation data on import
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryReader	The FMemoryReader to read from.
 	 * @param	Stream			The compressed animation data.
 	 * @param	NumKeys			The number of keys present in Stream.
@@ -524,7 +527,7 @@ public:
 	 * @return					The adjusted Stream position after import. 
 	 */
 	virtual void ByteSwapScaleIn(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryReader& MemoryReader,
 		uint8*& Stream,
 		int32 NumKeys) PURE_VIRTUAL(AnimEncoding::ByteSwapScaleIn,);
@@ -532,14 +535,14 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed animation data on export
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryWriter	The FMemoryReader to write to.
 	 * @param	Stream			The compressed animation data.
 	 * @param	NumKeys			The number of keys present in Stream.
 	 * @return					The adjusted Stream position after export. 
 	 */
 	virtual void ByteSwapRotationOut(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryWriter& MemoryWriter,
 		uint8*& Stream,
 		int32 NumKeys) PURE_VIRTUAL(AnimEncoding::ByteSwapRotationOut,);
@@ -547,14 +550,14 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed animation data on export
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryWriter	The FMemoryReader to write to.
 	 * @param	Stream			The compressed animation data.
 	 * @param	NumKeys			The number of keys present in Stream.
 	 * @return					The adjusted Stream position after export. 
 	 */
 	virtual void ByteSwapTranslationOut(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryWriter& MemoryWriter,
 		uint8*& Stream,
 		int32 NumKeys) PURE_VIRTUAL(AnimEncoding::ByteSwapTranslationOut,);
@@ -562,14 +565,14 @@ public:
 	/**
 	 * Handles the ByteSwap of compressed animation data on export
 	 *
-	 * @param	Seq				The UAnimSequence container.
+	 * @param	CompressedData	The compressed animation data being operated on.
 	 * @param	MemoryWriter	The FMemoryReader to write to.
 	 * @param	Stream			The compressed animation data.
 	 * @param	NumKeys			The number of keys present in Stream.
 	 * @return					The adjusted Stream position after export. 
 	 */
 	virtual void ByteSwapScaleOut(
-		UAnimSequence& Seq, 
+		FUECompressedAnimData& CompressedData,
 		FMemoryWriter& MemoryWriter,
 		uint8*& Stream,
 		int32 NumKeys) PURE_VIRTUAL(AnimEncoding::ByteSwapScaleOut,);
@@ -587,13 +590,13 @@ public:
  * @return	The rate at which to interpolate the two keys returned to obtain the final result.
  */
 FORCEINLINE float AnimEncoding::TimeToIndex(
-	const UAnimSequence& Seq,
+	float SequenceLength,
 	float RelativePos,
 	int32 NumKeys,
+	EAnimInterpolationType Interpolation,
 	int32 &PosIndex0Out,
 	int32 &PosIndex1Out)
 {
-	const float SequenceLength= Seq.SequenceLength;
 	float Alpha;
 
 	if (NumKeys < 2)
@@ -628,7 +631,7 @@ FORCEINLINE float AnimEncoding::TimeToIndex(
 			checkSlow(KeyPos >= 0.0f);
 			const float KeyPosFloor = floorf(KeyPos);
 			PosIndex0Out = FMath::Min( FMath::TruncToInt(KeyPosFloor), NumKeys );
-			Alpha = Seq.Interpolation == EAnimInterpolationType::Step ? 0.0f : KeyPos - KeyPosFloor;
+			Alpha = (Interpolation == EAnimInterpolationType::Step) ? 0.0f : KeyPos - KeyPosFloor;
 			PosIndex1Out = FMath::Min( PosIndex0Out + 1, NumKeys );
 		}
 	}
@@ -702,7 +705,8 @@ FORCEINLINE_DEBUGGABLE int32 FindLowKeyIndex(
  * @return	The rate at which to interpolate the two keys returned to obtain the final result.
  */
 FORCEINLINE float AnimEncoding::TimeToIndex(
-	const UAnimSequence& Seq,
+	EAnimInterpolationType Interpolation,
+	int32 NumberOfFrames,
 	const uint8* FrameTable,
 	float RelativePos,
 	int32 NumKeys,
@@ -715,7 +719,7 @@ FORCEINLINE float AnimEncoding::TimeToIndex(
 	
 	const int32 LastKey= NumKeys-1;
 	
-	int32 TotalFrames = Seq.GetCompressedNumberOfFrames()-1;
+	int32 TotalFrames = NumberOfFrames -1;
 	int32 EndingKey = LastKey;
 
 	if (NumKeys < 2 || RelativePos <= 0.f)
@@ -745,7 +749,7 @@ FORCEINLINE float AnimEncoding::TimeToIndex(
 		int32 HighFrame = 0;
 		
 		// find the pair of keys which surround our target frame index
-		if (Seq.GetCompressedNumberOfFrames() > 0xFF)
+		if (NumberOfFrames > 0xFF)
 		{
 			const uint16* Frames= (uint16*)FrameTable;
 			PosIndex0Out = FindLowKeyIndex<uint16>(Frames, NumKeys, FramePosFloor, KeyEstimate);
@@ -775,12 +779,13 @@ FORCEINLINE float AnimEncoding::TimeToIndex(
 		// compute the blend parameters for the keys we have found
 		int32 Delta= FMath::Max(HighFrame - LowFrame, 1);
 		const float Remainder = (FramePos - (float)LowFrame);
-		Alpha = Seq.Interpolation == EAnimInterpolationType::Step ? 0.f : (Remainder / (float)Delta);
+		Alpha = Interpolation == EAnimInterpolationType::Step ? 0.f : (Remainder / (float)Delta);
 	}
 	
 	return Alpha;
 }
 
+#if USE_SEGMENTING_CONTEXT
 float AnimEncoding::TimeToIndex(
 	const FAnimSequenceDecompressionContext& DecompContext,
 	const uint8* TimeMarkers,
@@ -845,9 +850,9 @@ float AnimEncoding::TimeToIndex(
 		// compute the blend parameters for the keys we have found
 		const int32 Delta = FMath::Max(HighFrame - LowFrame, 1);
 		const float Remainder = FramePos - (float)LowFrame;
-		Alpha = DecompContext.AnimSeq->Interpolation == EAnimInterpolationType::Step ? 0.f : (Remainder / (float)Delta);
+		Alpha = DecompContext.GetInterpolation() == EAnimInterpolationType::Step ? 0.f : (Remainder / (float)Delta);
 	}
 
 	return Alpha;
 }
-
+#endif

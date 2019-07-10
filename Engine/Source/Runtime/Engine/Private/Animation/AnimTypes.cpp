@@ -229,3 +229,19 @@ void FMarkerSyncData::CollectMarkersInRange(float PrevPosition, float NewPositio
 		}
 	}
 }
+
+#if 0 // Debug logging
+template <>
+void DebugLogArray(const TArray<FRawAnimSequenceTrack>& RawData)
+{
+	for (int32 i = 0; i < RawData.Num(); ++i)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Track :%i\nTran\n"), i);
+		DebugLogArray(RawData[i].PosKeys);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Rot\n"));
+		DebugLogArray(RawData[i].RotKeys);
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Scale\n"));
+		DebugLogArray(RawData[i].ScaleKeys);
+	}
+}
+#endif

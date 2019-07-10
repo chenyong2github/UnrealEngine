@@ -1,0 +1,252 @@
+﻿INTSourceChangelist:0
+Availability:docs
+Title:Skin Weight Profiles
+Description:Describes how you can use Skin Weight Profiles to improve visual fidelity on lower end platforms. 
+Type: overview
+Version: 4.23
+Parent: Engine\Animation
+topic-image: SkinWeightTopic.png
+social-image: SkinWeight_Social.png
+topic-icon: SkinWeightTopic.png
+Order: 2
+	
+
+[TOC(start:2 end:3)]
+
+The **Skin Weight Profile (SWP)** system enables you the ability to replace, a subset of, the original Skin Weights (SW) stored as part of a **Skeletal Mesh**. 
+While the use-cases for this system may vary, one possible use-case is to improve visual fidelity in situations or on certain platforms that disable any dynamic character parts. 
+
+For example in the video below, a character with a coat may have its dynamic parts disabled in order to improve performance on lower end platforms.
+When the foot is raised, this leads to undesirable clipping. Using Skin Weight Profiles, you can achieve a suitable alternative to using more expensive dynamics and mitigate the amount of clipping. 
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+jdpY2t3GnqI
+[/PARAMLITERAL]
+[/OBJECT]
+
+## Setup
+
+Skin Weight Profiles have to be imported and set up in the **Editor** in order to be able to use them at runtime. 
+
+### Importing a Profile
+
+Importing a profile is done inside the **Skeletal Mesh Editor**. You will need to provide an FBX file containing the different Skin Weights, a name for the profile, and optionally an LOD index. 
+
+1.	Inside the **Asset Details** panel for a **Skeletal Mesh**, click the **+** button under **Skin Weights** and **Import Skin Weight Profile**. 
+
+	![](ImportSkinWeight_01.png)
+
+1.	Select an FBX file containing Skin Weight data to import. 
+
+	![](ImportSkinWeight_02.png)
+		
+1.	Enter a **Profile Name** (and optionally an LOD index) and click **Import**. 
+
+	![](ImportSkinWeight_03.png)
+	
+	Your new Skin Weight Profile will be added as an array element inside the **Asset Details** panel. 
+	
+	![](ImportSkinWeight_05.png)	
+
+
+### Importing specific LOD data
+
+If you have **Skeletal Mesh** LODs that use custom LODs, meaning they were imported separately and not generated in-Engine, you will need to import a matching file containing the different Skin Weights. 
+These files can also be imported as part of a pre-existing SWP as illustrated below. 
+
+For your existing SWP, select which LOD you want to import weights for. 
+
+![](SkinWeightLOD_01.png)
+	
+After you select an FBX file containing Skin Weight data, it will show up under the **Source Files** section of the profile. 
+
+![](SkinWeightLOD_02.png)
+
+### Importing a Profile for a specific LOD
+
+If you want (or need) to override the original Skin Weight at a specific LOD level, you can do so during the import process by specifying which LOD index the imported file contains data for. 
+
+![](ImportLODIndex.png)
+
+### Reimporting a Profile
+
+If you update any of the source data for the Skin Weight Profile, you can reimport the files. If the stored file path does not exist any more, you will be prompted for a new file location. 
+
+To do so, click the **Reimport** icon for the SWP you wish to reimport. 
+
+![](ReimportSWP.png)
+
+[REGION:note]
+If you have multiple LODs, you can select which LOD you wish to reimport a SWP for from the reimport menu.
+[/REGION]
+
+#### Reimporting with a Different File
+
+Inside the **Skeletal Mesh Editor**, you can reimport Skin Weights from a different file by clicking the **...** icon and choosing a new file. 
+
+![](ReimportDifferentSWP.png)
+
+### Removing a Profile
+
+You can remove a Profile, or a LOD within a Profile, inside the **Skeletal Mesh Editor** by clicking the **Remove Profile** button. 
+
+![](RemoveProfile.png)
+
+[REGION:note]
+You can remove an entire SWP or LOD within a profile from the remove option. 
+[/REGION]
+
+### Previewing a Profile
+
+You can preview what the different Skin Weights for a specific SWP look like inside the [](Engine/Animation/Persona/Modes) in the Viewport, or during a Play in Editor session. 
+
+You can set a specific SWP for a Skinned Mesh component (or child class), by selecting it in the Viewport and selecting the desired profile to preview. 
+
+1.	Click the **Character** button, then under **Animation**, select your desired SWP under the **Skin Weight Profile** section. 
+
+	![](PreviewSkinWeight_01.png)
+	
+	Debug information will be displayed in the Viewport when selecting a SWP to preview. 
+	
+	![](PreviewSkinWeight_02.png)
+	
+	[REGION:note]
+	You can also preview Skin Weights inside the Main Level Editor Viewport through the **Details** panel and the **Skin Weights Profile** setting. 
+	
+	![](PreviewSkinWeight_04.png)
+	[/REGION]
+
+## Runtime Blueprint Exposed API
+
+At runtime, you can set up a SWP for a Skinned Mesh component (or any child-class) using the provided ([Blueprint](Engine/Blueprints) exposed) API.
+
+[REGION:fullwidth]
+| Name | Blueprint Node | Description |
+| --- | --- |--- |
+| **Set Skin Weight Profile** |  ![](SetSkinWeightProfile.png) | This will set the specific SWP according to the provided name (if it exists). |
+| **Clear Skin Weight Profile** |  ![](ClearSkinWeightProfile.png) |This will clear any previously set SWP. |
+| **Unload Skin Weight Profile** | ![](UnloadSkinWeightProfile.png) |This forcefully unloads deletes the Skin Weight Buffer for the provided name. |
+| **Get Current Skin Weight Profile** | ![](GetCurrentSkinWeight.png)  |Returns the name of the currently set SWP, ‘None’ otherwise. |
+| **Is Using Skin Weight Profile** |![](IsUsingSkinWeightProfile.png)  |Returns whether or not a profile is set. |
+[/REGION]
+
+
+## Scalability
+
+The system has the ability to load the default-set SWP at runtime, this can be performed using two paths: Static or Dynamic Paths.  
+
+### Static Path
+
+Using the **Static** path, during serialization of the Skeletal Mesh data, the system will check whether or not a default profile has been set, and if so it will be loaded. 
+It will take the original Skin Weight buffer and overwrite its data with that of the default profile. 
+This means that whenever a default SWP is loaded using the Static path, no more changes can be applied afterwards, and the original data will be lost until the Skeletal Mesh is reloaded. 
+
+[REGION:warning]
+If the user tries to change to the Dynamic path or try and set a SWP manually the system will cause an error.
+[/REGION]
+
+### Dynamic Path
+
+The **Dynamic** path, just like with the Static path, during serialization the default profile will be loaded. However, instead of overriding the original Skin Weight buffer, it will create a new one.
+Whenever any subsystem requests the buffer, it will return the override rather than the original. The benefit of this system is that it can be toggled at runtime, which is what sets it apart from the Static path. 
+
+### Default Profiles
+
+You can assign a default SWP profile inside the **Details** panel of the **Skeletal Mesh Editor** as well as override the original Skin Weights on a per-platform or LODIndex basis. 
+
+![](DefaultProfiles_02.png)
+
+In the image above, one SWP is assigned as the override for **Desktop** and another SWP is set for **Mobile**. 
+
+When assigning a SWP as the default profile, any additional profiles will be unable to be assigned as the default. 
+
+![](DefaultProfiles_01.png)
+
+When a default profile is assigned, any LOD below the LOD index set under **Default Profile from LODIndex** will override the Skin Weights of the Skeletal Mesh with Skin Weights from the profile. 
+
+![](DefaultProfiles_03.png)
+
+
+## Console Commands at Runtime
+
+The following console commands can be used at runtime while previewing the SWP system: 
+
+[REGION:fullwidth]
+| Name | Description |
+| --- | --- |
+| **a.SkinWeightProfile.LoadByDefaultMode** | Enables/disables run-time optimization to override the original skin weights with a profile designated as the default to replace it. Can be used to optimize memory for specific platforms or devices. [INCLUDE:#loadby] |
+| **a.SkinWeightProfile.DefaultLODOverride** | Override LOD index from which on the default Skin Weight Profile should override the Skeletal Mesh's default Skin Weights. [INCLUDE:#defaultlod] |
+| **a.SkinWeightProfile.AllowedFromLOD** | Override LOD index from which on the Skin Weight Profile can be applied.[INCLUDE:#allowedfrom] |
+<!-- Fortnite Specific
+| **Fort.SkinWeightManager.MaxSkinWeightProfileParts** | Maximum number of character parts that are allowed to load Skin Weigh Profiles concurrently. [INCLUDE:#fort1] |
+| **Fort.SkinWeightManager.ReleaseOnUnregister** | Whether or not to release the Skin Weight buffers whenever a Skeletal Mesh is unregistered. [INCLUDE:#fort2] |
+| **Fort.SkinWeightManager.Debug** | Whether or not to draw information about the loaded/pending release Skin Weight profiles. [INCLUDE:#fort3] |
+-->
+[/REGION]
+
+<!-- console tables
+[EXCERPT:loadby]
+[REGION:fullwidth]
+| Value | Description |
+| --- | --- |
+| **0** | Static disabled. |
+| **1** | Static enabled. |
+| **2** | Dynamic disabled. |
+| **3** | Dynamic enabled. |
+[/REGION]
+[/EXCERPT:loadby]
+
+[EXCERPT:defaultLOD]
+[REGION:fullwidth]
+| Value | Description |
+| --- | --- |
+| **-1** | Disabled. |
+| **0** | LOD index 0. |
+| **N** | LOD index N (where N is the LOD to load). |
+[/REGION]
+[/EXCERPT:defaultLOD]
+
+[EXCERPT:allowedfrom]
+[REGION:fullwidth]
+| Value | Description |
+| --- | --- |
+| **-1** | Disabled. |
+| **0** | LOD index 0. |
+| **N** | LOD index N (where N is the LOD to load). |
+[/REGION]
+[/EXCERPT:allowedfrom]
+
+[EXCERPT:fort1]
+[REGION:fullwidth]
+| Value | Description |
+| --- | --- |
+| **N** | Number of meshes allowed to load Skin Weight Profiles at runtime. |
+[/REGION]
+[/EXCERPT:fort1]
+
+[EXCERPT:fort2]
+[REGION:fullwidth]
+| Value | Description |
+| --- | --- |
+| **1** | Enabled. |
+| **0** | Disabled. |
+[/REGION]
+[/EXCERPT:fort2]
+
+[EXCERPT:fort3]
+[REGION:fullwidth]
+| Value | Description |
+| --- | --- |
+| **1** | Enabled. |
+| **0** | Disabled. |
+[/REGION]
+[/EXCERPT:fort3]
+-->
+

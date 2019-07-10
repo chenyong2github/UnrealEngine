@@ -157,7 +157,7 @@ void AVREditorDockableWindow::SetCollision(const ECollisionEnabled::Type InColli
 
 
 void AVREditorDockableWindow::TickManually( float DeltaTime )
-{
+{	
 	Super::TickManually( DeltaTime );
 
 	if( WidgetComponent->IsVisible() )
@@ -203,10 +203,12 @@ void AVREditorDockableWindow::TickManually( float DeltaTime )
 		const float AnimationOvershootAmount = 1.0f;	// @todo vreditor tweak
 		float EasedAimingAtMeFadeAlpha = UVREditorMode::OvershootEaseOut( AimingAtMeFadeAlpha, AnimationOvershootAmount );
 
-		// Only show our extra buttons and controls if the user is roughly aiming toward us.  This just reduces clutter.
-		DockButtonMeshComponent->SetVisibility(EasedAimingAtMeFadeAlpha > KINDA_SMALL_NUMBER ? true : false);
-		SelectionBarMeshComponent->SetVisibility( EasedAimingAtMeFadeAlpha > KINDA_SMALL_NUMBER ? true : false );
-		CloseButtonMeshComponent->SetVisibility( EasedAimingAtMeFadeAlpha > KINDA_SMALL_NUMBER ? true : false );
+		// Extra buttons can be completely disabled. 
+		// If enabled: only show our extra buttons and controls if the user is roughly aiming toward us to reduce visual clutter.
+		const bool bIsVisible = CreationContext.bHideWindowHandles ? false : (EasedAimingAtMeFadeAlpha > KINDA_SMALL_NUMBER ? true : false);		
+		DockButtonMeshComponent->SetVisibility(bIsVisible);
+		SelectionBarMeshComponent->SetVisibility(bIsVisible);
+		CloseButtonMeshComponent->SetVisibility(bIsVisible);		
 
 		EasedAimingAtMeFadeAlpha = FMath::Max( 0.001f, EasedAimingAtMeFadeAlpha );
 
@@ -456,6 +458,12 @@ void UDockableWindowDragOperation::ExecuteDrag( UViewportInteractor* Interactor,
 {
 	UVREditorInteractor* VREditorInteractor = Cast<UVREditorInteractor>( Interactor );
 	AVREditorDockableWindow* DockableWindow = Cast<AVREditorDockableWindow>( Interactable );
+
+	if (DockableWindow && DockableWindow->IsPendingKill())
+	{
+		return;
+	}
+
 	if ( VREditorInteractor && DockableWindow )
 	{
 		UVREditorUISystem& UISystem = DockableWindow->GetOwner();

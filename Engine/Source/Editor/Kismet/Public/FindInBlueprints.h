@@ -85,6 +85,22 @@ namespace FindInBlueprintsHelpers
 	void ExpandAllChildren(FSearchResult InTreeNode, TSharedPtr<STreeView<TSharedPtr<FFindInBlueprintsResult>>> InTreeView);
 }
 
+/** Class used to denote an empty search result */
+class FFindInBlueprintsNoResult : public FFindInBlueprintsResult
+{
+public:
+	FFindInBlueprintsNoResult(const FText& InDisplayText)
+		:FFindInBlueprintsResult(InDisplayText, nullptr)
+	{
+	}
+
+	virtual FReply OnClick() override
+	{
+		// Do nothing on click.
+		return FReply::Handled();
+	}
+};
+
 /** Graph nodes use this class to store their data */
 class FFindInBlueprintsGraphNode : public FFindInBlueprintsResult
 {

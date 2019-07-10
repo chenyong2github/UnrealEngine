@@ -1,0 +1,222 @@
+﻿INTSourceChangelist:6426975
+Availability: Public
+Title: 三星Gear VR UE4快速入门
+Description: 关于如何快速设置和部署项目以便与三星Gear VR头戴设备一起使用的说明。
+Type: quick start
+Version: 4.17
+Parent: Platforms/VR/GearVR
+Tags: VR
+Tags: Getting Started
+Tags: Gear VR
+topic-image: SamsungGearVRDevelopment_topic.png
+Order: 5
+
+[TOC (start:2 end:2)]
+
+![](GearVRHT_BannerImage_00.png "GearVRHT_BannerImage_00.png")
+
+## 目标
+
+Gear VR快速入门将引导您了解如何设置您的开发PC和三星智能手机，以便与Gear VR头戴设备一起使用。
+
+## 目的
+
+* 创建一个新的UE4项目，专门针对Gear VR开发。
+* 进行必要的项目设置，以便您的项目可以与Gear VR一起使用。
+* 部署和使用Gear VR HMD查看您的UE4项目。
+
+## 1 - Gear VR项目创建
+
+在Gear VR快速入门的下列部分中，我们将介绍如何设置一个可与Gear VR一起使用的新虚幻引擎4（UE4）项目。
+
+### 步骤
+
+1.  在[虚幻引擎启动器](http://tinyurl.com/oawb7x2)中，确保您下载并安装了UE4 **4.17** 版本或更高版本。然后，按下 **启动（Launch）** 按钮以打开 **虚幻项目浏览器（Unreal Project Browser）**。
+    [REGION:lightbox]
+    [![](GVR_New_Project_00.png)(w:550)](GVR_New_Project_00.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+2.  在虚幻项目浏览器的新建项目（New Project）选项卡中，创建一个基于 **蓝图** 的新项目，此项目为 **空白** 项目，使用以下设置。
+    [REGION:lightbox]
+    [![](GVR_New_Project_01.png)(w:550)](GVR_New_Project_01.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    *   **空白项目（Blank Project）**
+    
+    *   **移动设备/平板电脑（Mobile / Tablet）**
+    
+    *   **可扩展3D/2D（Scalable 3D/2D）**
+    
+    *   **没有初学者内容（No Starter Content）**
+
+3.  接下来，设置此项目的位置并为其命名。在本例中，名称将为 **GearVRQS**，但可以自由选择您想要的任何名称。完成后，按下 **创建项目（Create Project）** 按钮以创建此项目并加载UE4编辑器。
+    [REGION:lightbox]
+    [![](GVR_New_Project_02.png)(w:550)](GVR_New_Project_02.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+
+### 最终结果
+
+完成后，您现在应该创建了一个新的空白项目，可以对它进行设置以便与Gear VR一起使用。
+
+## 2 - Gear VR项目设置
+
+在Gear VR快速入门的下面部分，我们将介绍如何设置一个虚幻引擎4项目，以便它可以与Gear VR HMD一起使用。
+
+### 步骤
+
+1.  加载编辑器后，转到 **主工具栏（Main Toolbar）**，选择 **编辑（Edit）** \> **插件（Plugins）** 以打开插件菜单（Plugin Menu）。在插件菜单（Plugin Menu）中，选择 **虚拟现实（Virtual Reality）** 部分，确保 **OculusVR插件（OculusVR Plugin）** 已启用。
+    [REGION:lightbox]
+    [![](GVR_Plugin_Options_Toggle.png)(w:703)](GVR_Plugin_Options_Toggle.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    [REGION:note]
+    在之前的引擎版本中，Gear VR有自己的插件，需要启用它。如果您无法将Gear VR与您正在使用的虚幻引擎4版本一起使用，请务必检查VR插件（VR Plugins）部分，并启用Gear VR插件（如有）。
+    [/REGION]
+
+2.  对于任何部署到设备上的虚幻引擎项目，都需要至少保存一个关卡才能运行。要保留当前关卡，请转到 **工具栏（Toolbar）**，按下 **保存（Save）** 图标将其保存，并将其命名为 **GearVRQSMap**。
+    [REGION:lightbox]
+    [![](GVR_QS_Saved_Map.png)(w:299)](GVR_QS_Saved_Map.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+ 
+3.  接下来，从主菜单中，选择 **编辑（Edit）** \> **项目设置（Project Settings）**。在 **项目（Project）** 下的 **地图和模式（Maps & Modes）** 部分，找到 **默认地图（Default Maps）** ，并将其设置为刚刚在 **编辑器启动（Editor Start Up）** 和 **游戏默认地图（Game Default Map）** 中保存的关卡。
+    [REGION:lightbox]
+    [![](GVR_QS_Default_Maps.png)(w:546)](GVR_QS_Default_Maps.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+
+4.  现在，转到 **引擎（Engine）** \> **输入（Input）**。在 **移动（Mobile）** 部分，通过单击 **默认触摸界面（Default Touch Interface）** 输入框并从下拉框中选择 **无（None）**，将 **默认触摸界面（Default Touch Interface）** 设置为 **无（None）**。
+    [REGION:lightbox]
+    [![](GVR_QS_Remove_Touch.png)(w:546)](GVR_QS_Remove_Touch.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+5.  在 **平台（Platforms）** 中的 **Android** 下，转到 **APK打包（ApkPackaging）** 部分，按下 **立即配置（Configure Now）** 按钮，然后进行以下设置：
+    [REGION:lightbox]
+    [![](GVR_Android_SDK_Version.png)(w:546)](GVR_Android_SDK_Version.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    *   **最低SDK版本（Minimum SDK Version）**：19
+    
+    *   **目标SDK版本（Target SDK Version）**：19
+    
+    *   **在KitKat及以上版本设备上启用全屏沉浸模式（Enable FullScreen Immersive on KitKat and above devices）**：True
+
+6.  接下来，转到 **高级APK打包（Advanced APKPackaging）** 部分，并启用 **为Gear VR部署配置AndroidManifest（Configure the AndroidManifest for deployment to Gear VR）** 复选框。
+    [REGION:lightbox]
+    [![](GVR_Deployment_Checkbox.png)(w:546)](GVR_Deployment_Checkbox.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+
+7.  现在，单击 **Android SDK** 部分，确保构建项目所需的Android SDK工具指向您PC上的正确文件夹，并设置为以下API层级：
+    [REGION:lightbox]
+    [![](GVR_Android_SDK_Setup.png)(w:546)](GVR_Android_SDK_Setup.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+
+### 最终结果
+
+完成后，您将有一个准备就绪的虚幻引擎4项目，可随时部署和使用Gear VR HMD查看此项目。
+
+## 3 - Gear VR项目打包和部署
+
+在Gear VR快速入门的下面部分，我们将介绍如何启动您的UE4项目，以便使用Gear VR HMD查看它。
+
+### 步骤
+
+1.  首先，确保您的三星Galaxy智能手机通过USB线连接到您的开发PC，并且您的PC可以使用 **ADB** 命令 **ADB Devices** 查看此设备。
+    [REGION:note]
+    如果您不确定如何做到这一点，请务必查看[Gear VR先决条件](Platforms/VR/GearVR/Prerequisites)页面了解更多信息。
+    [/REGION]
+ 
+2.  在 **主菜单栏（Main Toolbar）** 中，单击 **启动（Launch）** 图标旁边的白色小三角形以打开 **在设备上启动选项（Options for Launching on a Device）**。
+    [REGION:lightbox]
+    [![](GVR_Deploy_To_Android.png)(w:550)](GVR_Deploy_To_Android.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+
+3.  从下拉列表中通过单击来选择您要部署的设备。
+    [REGION:lightbox]
+    [![](GVR_Deployed_Files.png)(w:550)](GVR_Deployed_Files.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    [REGION:note]
+    如果提示保存，即使您之前刚刚保存，也要再次保存，以确保最新的内容能够保存到您的设备上。
+    [/REGION]
+    
+4.  查看UE4编辑器的下角；将显示一个进度窗口，告诉您当前的打包阶段。如果这是您第一次打包项目，可能需要几分钟的时间，具体取决于您的项目的大小。
+    [REGION:lightbox]
+    [![](GVR_Deployment_Window.png)(w:550)](GVR_Deployment_Window.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    [REGION:note]
+    要查看当前打包过程中所发生活动的详细信息，请单击进度窗口中的 **显示输出日志（Show Output Log）** 链接。
+    [/REGION]
+	
+5.  当打包和安装过程完成后，将显示一则通知，并播放一个提示音。 
+
+### 最终结果
+
+您的项目完成打包并安装到您的设备后，即可启动此项目并使用您的三星Galaxy智能手机和Gear VR HMD查看它。执行此操作时，您应该会看到类似于下面视频的内容。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ Bq3Ov32Bwy8
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 4 - 看你的了！
+
+现在，您可以部署一个UE4项目并使用Gear VR HMD查看它，然后尝试使用您的项目执行以下操作。
+
+*   使用[迁移工具](Engine/Content/Browser/UserGuide/Migrate)将内容从其中一个移动内容示例移到您的项目中以供使用。
+
+*   调整[默认设备描述](Platforms/Mobile/Performance/TipsAndTricks)的设置，以确保您的项目在部署到基于Android的智能手机时能够尽可能快地运行。
+
+*   使用[GPU分析器](Engine/Performance/GPU)帮助您在构建项目时追踪其性能。
+
+有关本快速入门介绍的细节：
+
+*   有关设置Android SDK的更多信息，请参阅：[安装Android SDK](Platforms/Mobile/Android/InstallingAndroidCodeWorksAndroid)
+
+*   有关设置Android设备，以供UE4开发的更多信息，请参阅：[设置您的Android设备](Platforms/Mobile/Android/SettingAndroidDeviceDevelopment)
+
+*   有关Android设备支持哪些功能的更多信息，请参阅：[Android设备兼容性](Platforms/Mobile/Android/DeviceCompatibility)
+
+*   有关减小项目打包大小的更多信息，请参阅：[减小APK包大小](Platforms/Mobile/Android/ReducingAPKSize)

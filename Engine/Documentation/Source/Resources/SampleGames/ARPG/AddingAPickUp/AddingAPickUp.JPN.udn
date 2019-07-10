@@ -1,0 +1,162 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Adding A Pick Up
+Description: Taking a look at creating an item that can be placed in the world as a player pickup.
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+Order: 4
+Related: Engine/Blueprints/UserGuide/Variables
+Related: Engine/Blueprints
+Related: Programming/UnrealArchitecture/Actors/Components
+
+
+By default players of Action RPG (ARPG) can only use items that they purchase from the store. However, this does not mean that this is the only way that players can receive items. In the following how-to, we will go over creating a pickup that can be placed in the world and picked up by the player.
+
+## Steps
+
+1.  First, locate and then migrate the **SK\_Blunt\_Hambone** Skeletal Mesh and all of its assets from the [Infinity Blade Weapons](https://www.unrealengine.com/marketplace/infinity-blade-weapons) pack to the Action RPG project.
+
+1.  Next, create a new folder under **Items** called **Pickups**. 
+
+1.  Then drag the Blunt_Hambone folder on to the Pickups folder.  
+    ![](image6.png "image6.png")
+
+1.  Delete the following folders from the Blunt_Hambone folder as they do not conform the naming convention that the project uses.  
+    *   **InfinityBladesWeapons**
+    
+    *   **Weapons **
+    
+    *   **Blunt**
+
+1.  Next, remove the word **Blunt**  from the folder name and all of the various assets.  
+    [REGION:lightbox]
+    [![](Step5.png)(w:900)](Step5.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  With all of the needed content now added and re-named, make sure the Hambone folder is selected and then right-click in the **Content Browser** and from the displayed list, select the **Blueprint Class**  option.  
+    ![](image5.png "image5.png")
+
+1.  Name the new Blueprint **BP\_Pickup\_Hambone** and then double-click on it to open it up.
+    [REGION:lightbox]
+    [![](image15-1.png)(w:900)](image15-1.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  In the **Components** section add the following components with the following settings.  
+    ![](image9-1.png "image9-1.png")
+          
+    | Components Name | Components Value |
+    | --- | --- |
+    | Sphere Collision | Radius = 64 |
+    | Skeletal Mesh | SK_Hambone |
+    
+
+1.  Next, in the **Variables** section, create a new variable called **PotionType**  with a **Variable** **Type**  of **RPGItem**  and a default Potion Type of **Potion_Health**.  
+    ![](image13.png "image13.png")
+
+1.  Select the **Sphere**  collision in the Components tab and then in the **Details**  panel, under **Events**, click the while plus sign icon on the **On Component Begin Overlap** option to add it to the Event graph.  
+    ![](image17.png "image17.png")
+
+1.  The first node that needs to be added to the Event graph is a **Cast To BP_PlayerCharacter** node. This will make sure that only the player will be able to use the pickup and not the enemies. Once the node has been added, connect it to the **On Component Begin Overlap** node so that it matches the image below.
+    [REGION:lightbox]
+    [![image15-1.png](image3.png)(w:900)](image3.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  Next, we need to make sure that the pickup does not stop the player from moving as they run over it. To accomplish this add a Set Collision Enabled node to the Event graph and make sure the **New Type** input is set to **No Collision**.  When completed your Event graph should look like the image below.
+    [REGION:lightbox]
+    [![](image12.png)(w:900)](image12.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  Now we need to add the following nodes to the Event graph so that we can add the picked up item to the player's inventory.
+    
+    *   Add Inventory Item
+    
+    *   Get Player Controller BP
+    
+    *   Potion Type Reference
+    
+    ![](image10.png)
+    
+
+1.  To add the potion to the current inventory, first connect the **Potion Type** variable to the  **New Item** input on the **Add Inventory Item**  node and then connect the **Get Player Controller BP** to the **Target**  input on the Add Inventory Item. When completed connect your Blueprint should look like the following image:
+    [REGION:lightbox]
+    [![](image8.png)(w:600)](image8.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  Next, connect the **output** of the **Set Collision Enabled** node to the **input** on the **Add Inventory Item** node. This will make sure that we are adding the right item to the right inventory slot. When completed your Blueprint should look like the following image: 
+    [REGION:lightbox]
+    [![](image16.png)(w:900)](image16.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  Now add a **Set Slotted** Item and **Make RPGItemSlot**  nodes to the Event graph.
+
+    ![](image4.png)(w:600)
+    
+
+1.  Next, we need to set up the logic that will make sure that the item that was picked up will be slotted into the correct inventory location. To do this, connect the output of the **Make RPGItemSlot** into the **Item Slot** input on the **Set Slotted Item** node like in the image below.
+    [REGION:lightbox]
+    [![](image2.png)(w:500px)](image2.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  Next, connect the **output** of the **Add Inventory Item** to the input on the **Set Slotted Item** node. Then connect the **Target**  input on the  **Set Slotted Item** to the **Player Controller** and the Item **input** to the **Potion** **Type**  variable. Doing this will allow the item that was picked up to be added to the correct slot in the inventory. When all of this has been completed this portion of your Blueprint should look like the following image:
+    [REGION:lightbox]
+    [![](image11.png)(w:500px)](image11.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  Then add a **Destroy Actor** node and connect the **output** of the **Set Slotted Item** node to the **input** on the **Destroy Actor** node. This will make sure that when the player walks over this item to pick it up, the item will be removed from the world. When this has been completed, your Blueprint should look like the following image:
+    [REGION:lightbox]
+    [![](image14.png)(w:500px)](image14.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+1.  Finally, make sure to press the **Compile **and **Save** buttons to save your work.
+
+## End Results
+
+With the BP\_Pickup\_Hambone now complete, drag the BP\_Pickup\_Hambone Blueprint from the Content Browser into the ARPG level and then press the Play button. When the game loads, locate the pickup in the level and run over it with the player. As soon as the player comes in contact with the BP\_Pickup\_Hambone pickup, the pickup will disappear and the UI and inventory will update showing that a new potion was added. You can see an example of this in action in the following video.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 0N-9EVUYU1c
+ [/PARAMLITERAL]
+[/OBJECT]

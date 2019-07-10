@@ -1,6 +1,5 @@
 Availability:Public
 Title: Sequencer Editor
-Crumbs: %ROOT%, Engine
 Description:Sequencer is Unreal Engine 4's mult-track editor used for creating and previewing cinematic sequences in real time. 
 Navigation:topic
 parent:Engine
@@ -9,14 +8,13 @@ topic-image:sequencer_topic.png
 social-image:sequencer_social.png
 related: Engine/Matinee
 tags:Sequencer
+hero-image:SequencerBanner_hero.png
 
 [REGION:banner]
 ![](SequencerBanner.png)(convert:false)
 [/REGION]
 
-The **Sequencer** Editor is one of two cinematic editing tools inside Unreal Engine 4. Before Sequencer, the primary means of authoring cinematics was performed inside the [**Matinee**](Engine/Matinee) Editor.
-Similar to Matinee, Sequencer uses various specialized **Tracks** which are used to define the makeup of your scenes. 
-Add a couple of Skeletal Mesh Tracks to Sequencer, then add Animation Tracks to animate those Skeletal Meshes, throw in a Camera Track and Camera Cuts track to provide a perspective and cycle between cameras and you have the foundation for setting up a cinematic sequence. 
+The **Sequencer** Editor is the cinematic editing tool inside Unreal Engine 4. Sequencer uses various specialized Tracks which are used to define the makeup of your scenes. Add a couple of Skeletal Mesh **Tracks** to Sequencer, then add Animation Tracks to animate those Skeletal Meshes, throw in a Camera Track and Camera Cuts track to provide a perspective and cycle between cameras and you have the foundation for setting up a cinematic sequence.
 
 On this page you will find links to documenation regarding different aspects of the Sequencer Editor. 
 If you are new to Sequencer, it is recommended that you check out the **Essentials** section which includes a high-level overview of the Sequencer Editor, an Editor Reference which breaks down components of the Sequencer Editor, a Quick Start guide to quickly get you up and running, multiple How-to's which are one-off pages of how to perform certain tasks with Sequencer as well as a section on Workflow tips. 
@@ -25,18 +23,72 @@ The Sequencer Subway example project, available from the Learn tab in the Epic G
 
 ## Starting Out
 
-[DIR(output:"topic" parent:"Engine/Sequencer" org:"hierarchy" end:"1" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Sequencer" org:"hierarchy" end:"1" type:"quick start")]
+
+## Essentials
+
+[DIR(output:"topic" parent:"Engine/Sequencer/Workflow" org:"hierarchy")]
+[DIR(output:"topic" parent:"Engine/Sequencer/Overview" org:"hierarchy")]
 
 ## Guides
 
 [DIR(output:"fancy" parent:"Engine/Sequencer/HowTo" org:"hierarchy" skill_Level:"Beginner")]
+
 [DIR(output:"fancy" parent:"Engine/Sequencer/HowTo" org:"hierarchy" skill_Level:"Intermediate")]
-[DIR(output:"fancy" parent:"Engine/Sequencer/HowTo" org:"hierarchy" skill_Level:"Advanced")]
+
+[DIR(output:"fancy" parent:"Engine/Sequencer/HowTo" type:"how-to" org:"hierarchy" skill_Level:"Advanced")]
 
 
 ## Samples
 
 [DIR(output:"topiccompact" parent:"Resources/Showcases" tags:"Sequencer")]
 
+[REGION:section]
+[REGION:normaltitle]
+Related Courses
+[/REGION]
+[OBJECT:CourseLink]
+	[PARAMLITERAL:title]
+	Sequencer Training for Cinematic Shot Production
+	[/PARAMLITERAL]
+	[PARAMLITERAL:courseid]
+	Sequencer For Cinematics
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	7012
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	Discover the process of preparing your scene assembly for use with Sequencer during the rough layout phase.
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	1
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Advancing your Skills
+	[/PARAMLITERAL]
+	[PARAMLITERAL:engine_version]
+	4.20
+	[/PARAMLITERAL]
+[/OBJECT]
 
-
+[OBJECT:CourseLink]
+	[PARAMLITERAL:title]
+	Camera Sequencer for Architectural Visualization
+	[/PARAMLITERAL]
+	[PARAMLITERAL:courseid]
+	arch_sequencer
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	3109
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	Learn a high level approach the power of Unreal Engine’s Sequencer as it relates to creating architectural visualization.
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	12
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Master Level
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]

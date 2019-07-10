@@ -841,6 +841,8 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 
 	View->ViewLocation = OutViewLocation;
 	View->ViewRotation = OutViewRotation;
+	// Pass on the previous view transform from the view info (probably provided by the camera if set)
+	View->PreviousViewTransform = ViewInfo.PreviousViewTransform;
 
 	ViewFamily->Views.Add(View);
 

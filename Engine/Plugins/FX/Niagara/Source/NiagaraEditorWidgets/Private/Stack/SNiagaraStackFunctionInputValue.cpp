@@ -18,6 +18,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IStructureDetailsView.h"
@@ -31,6 +32,8 @@
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
 const float TextIconSize = 16;
+
+bool SNiagaraStackFunctionInputValue::bIncludeNonLibraryInputs = false;
 
 void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiagaraStackFunctionInput* InFunctionInput)
 {
@@ -467,7 +470,6 @@ TSharedRef<SExpanderArrow> SNiagaraStackFunctionInputValue::CreateCustomNiagaraF
 
 TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 {
-	TSharedPtr<SGraphActionMenu> SelectInputFunctionMenu;
 	TSharedRef<SBorder> MenuWidget = SNew(SBorder)
 	.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 	.Padding(5)
@@ -476,12 +478,45 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 		.WidthOverride(300)
 		.HeightOverride(400)
 		[
-			SAssignNew(SelectInputFunctionMenu, SGraphActionMenu)
-			.OnActionSelected(this, &SNiagaraStackFunctionInputValue::OnActionSelected)
-			.OnCollectAllActions(this, &SNiagaraStackFunctionInputValue::CollectAllActions)
-			.AutoExpandActionMenu(false)
-			.ShowFilterTextBox(true)
-			.OnCreateCustomRowExpander_Static(&CreateCustomNiagaraFunctionInputActionExpander)
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.Padding(1.0f)
+			[
+				SNew(SHorizontalBox)
+
+				// Search context description
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("FunctionInputValueTitle", "Edit value"))
+				]
+
+				// Library Only Toggle
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &SNiagaraStackFunctionInputValue::OnLibraryToggleChanged)
+					.IsChecked(this, &SNiagaraStackFunctionInputValue::LibraryToggleIsChecked)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("LibraryOnly", "Library Only"))
+					]
+				]
+			]
+			+SVerticalBox::Slot()
+			.FillHeight(15)
+			[
+				SAssignNew(SelectInputFunctionMenu, SGraphActionMenu)
+				.OnActionSelected(this, &SNiagaraStackFunctionInputValue::OnActionSelected)
+				.OnCollectAllActions(this, &SNiagaraStackFunctionInputValue::CollectAllActions)
+				.AutoExpandActionMenu(false)
+				.ShowFilterTextBox(true)
+				.OnCreateCustomRowExpander_Static(&CreateCustomNiagaraFunctionInputActionExpander)
+			]
 		]
 	];
 
@@ -529,11 +564,11 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 	{
 		const FText CategoryName = LOCTEXT("DynamicInputValueCategory", "Dynamic Inputs");
 		TArray<UNiagaraScript*> DynamicInputScripts;
-		FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts);
+		FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts, bIncludeNonLibraryInputs);
 		for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 		{
-			const FText DynamicInputText = FText::FromString(FName::NameToDisplayString(DynamicInputScript->GetName(), false));
-			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptAssetDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName());
+			const FText DynamicInputText = FText::FromString(FName::NameToDisplayString(DynamicInputScript->GetName() + (DynamicInputScript->bExposeToLibrary ? "" : "*"), false));
+			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptAssetDescription(DynamicInputScript->Description, *(DynamicInputScript->GetPathName() + (DynamicInputScript->bExposeToLibrary ? "" : "\n*Not exposed to library")));
 			TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::DynamicInputScriptSelected, DynamicInputScript)));
 			OutAllActions.AddAction(DynamicInputAction);
@@ -867,6 +902,17 @@ void SNiagaraStackFunctionInputValue::ShowReassignDynamicInputScriptMenu()
 	bool bAutoAdjustForDpiScale = false; // Don't adjust for dpi scale because the push menu command is expecting an unscaled position.
 	FVector2D MenuPosition = FSlateApplication::Get().CalculatePopupWindowPosition(ThisGeometry.GetLayoutBoundingRect(), MenuWidget->GetDesiredSize(), bAutoAdjustForDpiScale);
 	FSlateApplication::Get().PushMenu(AsShared(), FWidgetPath(), MenuWidget, MenuPosition, FPopupTransitionEffect::ContextMenu);
+}
+
+void SNiagaraStackFunctionInputValue::OnLibraryToggleChanged(ECheckBoxState CheckState)
+{
+	SNiagaraStackFunctionInputValue::bIncludeNonLibraryInputs = CheckState == ECheckBoxState::Unchecked;
+	SelectInputFunctionMenu->RefreshAllActions(true, false);
+}
+
+ECheckBoxState SNiagaraStackFunctionInputValue::LibraryToggleIsChecked() const
+{
+	return SNiagaraStackFunctionInputValue::bIncludeNonLibraryInputs ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 }
 
 #undef LOCTEXT_NAMESPACE

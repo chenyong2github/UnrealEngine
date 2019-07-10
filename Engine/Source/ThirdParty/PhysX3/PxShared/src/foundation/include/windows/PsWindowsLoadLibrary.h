@@ -35,6 +35,25 @@
 #include "windows/PsWindowsInclude.h"
 #include "foundation/windows/PxWindowsFoundationDelayLoadHook.h"
 
+// @ATG_CHANGE : BEGIN HoloLens support
+#if PX_HOLOLENS
+inline HMODULE LoadLibraryA(const char* libraryName)
+{
+	WCHAR libraryNameW[MAX_PATH];
+	int succ = MultiByteToWideChar(CP_ACP, 0, libraryName, -1, libraryNameW, _countof(libraryNameW));
+
+	if (succ < 0)
+		succ = 0;
+	if (succ < _countof(libraryNameW))
+		libraryNameW[succ] = 0;
+	else if (libraryNameW[_countof(libraryNameW) - 1])
+		libraryNameW[0] = 0;
+
+	return (succ > 0) ? ::LoadPackagedLibrary(libraryNameW, 0) : NULL;
+}
+#endif
+// @ATG_CHANGE : END
+
 namespace physx
 {
 namespace shdfnd

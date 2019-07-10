@@ -14,7 +14,6 @@ topic-image:Engine/UI/editor_topic.png
 
 Slate 是虚幻引擎中的自定义用户界面系统的名称。目前的编辑器中的界面大部分都是使用 Slate 来构建的。
 
-(#SlateTopics)
 ## Slate 主题
 
 [REGION:buttonlist]

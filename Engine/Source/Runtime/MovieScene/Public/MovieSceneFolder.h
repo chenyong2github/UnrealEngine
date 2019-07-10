@@ -53,6 +53,10 @@ class MOVIESCENE_API UMovieSceneFolder : public UObject
 	/** Called after this object has been deserialized */
 	virtual void PostLoad() override;
 
+	/** Searches for a guid in this folder and it's child folders, if found returns the folder containing the guid. */
+	UMovieSceneFolder* FindFolderContaining(const FGuid& InObjectBinding);
+
+
 	virtual void Serialize( FArchive& Archive );
 
 #if WITH_EDITORONLY_DATA

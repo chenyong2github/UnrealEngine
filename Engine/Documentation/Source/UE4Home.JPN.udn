@@ -1,75 +1,60 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6576030
 Availability:Public
-Title:アンリアル エンジン 4 のドキュメント
+Title: Unreal Engine 4 ドキュメント
 Crumbs:
-Description:アンリアル エンジン 4 を使いこなすためのリソース完全版
+Description: Unreal Engine 4 を使いこなすためのリソース完全版
 Navigation:home
 social-image:home_social.png
 type:landing
+toc:false
 
-[PUBLISH:Rocket]
-## 検索
+[DIR(end:"1" output:"role" org:"hierarchy" parent:"%ROOT%" type:"landing" path:"!API" path:"!EarlyAccessFeatures" path:"!ExperimentalFeatures")]
 
-[REGION:frontpage]
-	[OBJECT:SearchBox]
-		[PARAMLITERAL:path]
-		https://www.unrealengine.com/bing-search
-		[/PARAMLITERAL]
-		[PARAMLITERAL:placeholder]
-		検索したい言葉を入力してください
-		[/PARAMLITERAL]
-		[PARAM:message]
-		[/PARAM]
-		[PARAMLITERAL:label]
-			おすすめ検索：
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			クイック スタート
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			方法
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			C++
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			ブループリント
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			iOS
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			Android
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			アクタ
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			コンポーネント
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			マテリアル
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			ライティング
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			カメラ
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			UMG UI
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			シーケンサー
-		[/PARAMLITERAL]
-		[PARAMLITERAL:terms]
-			VR
-		[/PARAMLITERAL]
-	[/OBJECT]
-[/REGION]
+## プログラムとスクリプトリファレンス
 
-## おすすめトピック
+[OBJECT:Role]
+	[PARAM:icon]
+	![](%ROOT%/ue4_icon.png)
+	[/PARAM]
+	[PARAM:title]
+	Unreal Engine C++ API リファレンス
+	[/PARAM]
+	[PARAM:description]
+	Unreal Engine C++ API のリファレンス
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://docs.unrealengine.com/en-US/API/index.html
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:Role]
+	[PARAM:icon]
+	![](%ROOT%/ue4_icon.png)
+	[/PARAM]
+	[PARAM:title]
+	Unreal Engine Blueprint API リファレンス
+	[/PARAM]
+	[PARAM:description]
+	Unreal Engine Blueprint API のリファレンス
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://docs.unrealengine.com/en-US/BlueprintAPI/index.html
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:Role]
+	[PARAM:icon]
+	![](%ROOT%/ue4_icon.png)
+	[/PARAM]
+	[PARAM:title]
+	Unreal Engine Python API リファレンス
+	[/PARAM]
+	[PARAM:description]
+	Unreal Engine Python API のリファレンス
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://docs.unrealengine.com/en-US/PythonAPI/index.html
+	[/PARAMLITERAL]
+[/OBJECT]
 
-[/PUBLISH:Rocket]
+## Unreal Labs
 
-[DIR(end:"1" output:"role" org:"hierarchy" parent:"%ROOT%" type:"landing")]
+[DIR(end:"1" output:"role" org:"hierarchy" parent:"%ROOT%" type:"landing" path:"EarlyAccess,Experimental")]

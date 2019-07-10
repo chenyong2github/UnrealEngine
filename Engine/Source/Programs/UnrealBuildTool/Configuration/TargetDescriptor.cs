@@ -59,6 +59,12 @@ namespace UnrealBuildTool
 		public List<FileReference> WriteActionFiles = new List<FileReference>();
 
 		/// <summary>
+		/// Path to a file containing a list of modules that may be modified for live coding.
+		/// </summary>
+		[CommandLine("-LiveCodingModules=")]
+		public FileReference LiveCodingModules = null;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>

@@ -7,6 +7,7 @@ Version: 4.20
 Parent: Resources/SampleGames/ARPG
 Order: 1
 Tags: 
+topic-image:GameplayAbilitiesinActionRPG.png
 
 
 The **Action RPG (ARPG)** sample uses the **Gameplay Abilities** **Plugin** to handle performing player and enemy attacks and for modifying statistics like health and mana. The purpose of these documents is to explain why the [Gameplay Abilities System](https://docs.unrealengine.com/en-us/Gameplay/GameplayAbilitySystem) is used and how it was customized to add game-specific functionality for ARPG. On this page you will find links to various documents that break down the individual pieces that comprise the Abilities System. You will want to read the documents list in the page in the order they are listed to gain a better understanding on how all of these systems work together. 

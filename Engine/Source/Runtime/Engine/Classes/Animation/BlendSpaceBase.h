@@ -475,6 +475,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = BlendParametersTest)
 	struct FBlendParameter BlendParameters[3];
 
+	/** Reset to reference pose. It does apply different refpose based on additive or not*/
+	void ResetToRefPose(FCompactPose& OutPose);
+
 #if WITH_EDITOR
 private:
 	// Track whether we have updated markers so cached data can be updated

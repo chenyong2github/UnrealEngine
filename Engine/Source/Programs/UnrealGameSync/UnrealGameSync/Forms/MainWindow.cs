@@ -63,6 +63,7 @@ namespace UnrealGameSync
 		string ApiUrl;
 		string DataFolder;
 		string CacheFolder;
+		PerforceConnection DefaultConnection;
 		LineBasedTextWriter Log;
 		UserSettings Settings;
 		int TabMenu_TabIdx = -1;
@@ -88,7 +89,7 @@ namespace UnrealGameSync
 		Rectangle PrimaryWorkArea;
 		List<IssueAlertWindow> AlertWindows = new List<IssueAlertWindow>();
 
-		public MainWindow(UpdateMonitor InUpdateMonitor, string InApiUrl, string InDataFolder, string InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsResult[] StartupProjects, LineBasedTextWriter InLog, UserSettings InSettings)
+		public MainWindow(UpdateMonitor InUpdateMonitor, string InApiUrl, string InDataFolder, string InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsResult[] StartupProjects, PerforceConnection InDefaultConnection, LineBasedTextWriter InLog, UserSettings InSettings)
 		{
 			InitializeComponent();
 
@@ -100,6 +101,7 @@ namespace UnrealGameSync
 			bRestoreStateOnLoad = bInRestoreStateOnLoad;
 			OriginalExecutableFileName = InOriginalExecutableFileName;
 			bUnstable = bInUnstable;
+			DefaultConnection = InDefaultConnection;
 			Log = InLog;
 			Settings = InSettings;
 
@@ -217,7 +219,7 @@ namespace UnrealGameSync
 			string ProjectPath = Reader.ReadString();
 
 			AutomatedSyncWindow.WorkspaceInfo WorkspaceInfo;
-			if(!AutomatedSyncWindow.ShowModal(this, StreamName, ProjectPath, out WorkspaceInfo, Log))
+			if(!AutomatedSyncWindow.ShowModal(this, DefaultConnection, StreamName, ProjectPath, out WorkspaceInfo, Log))
 			{
 				return new AutomationRequestOutput(AutomationRequestResult.Canceled);
 			}
@@ -861,7 +863,7 @@ namespace UnrealGameSync
 		public void OpenNewProject()
 		{
 			DetectProjectSettingsTask DetectedProjectSettings;
-			if(OpenProjectWindow.ShowModal(this, null, out DetectedProjectSettings, Settings, DataFolder, CacheFolder, Log))
+			if(OpenProjectWindow.ShowModal(this, null, out DetectedProjectSettings, Settings, DataFolder, CacheFolder, DefaultConnection, Log))
 			{
 				int NewTabIdx = TryOpenProject(DetectedProjectSettings, -1, OpenProjectOptions.None);
 				if(NewTabIdx != -1)
@@ -913,7 +915,7 @@ namespace UnrealGameSync
 		public void EditSelectedProject(int TabIdx, UserSelectedProjectSettings SelectedProject)
 		{
 			DetectProjectSettingsTask DetectedProjectSettings;
-			if(OpenProjectWindow.ShowModal(this, SelectedProject, out DetectedProjectSettings, Settings, DataFolder, CacheFolder, Log))
+			if(OpenProjectWindow.ShowModal(this, SelectedProject, out DetectedProjectSettings, Settings, DataFolder, CacheFolder, DefaultConnection, Log))
 			{
 				int NewTabIdx = TryOpenProject(DetectedProjectSettings, TabIdx, OpenProjectOptions.None);
 				if(NewTabIdx != -1)
@@ -933,16 +935,18 @@ namespace UnrealGameSync
 			Log.WriteLine("Detecting settings for {0}", Project);
 			using(DetectProjectSettingsTask DetectProjectSettings = new DetectProjectSettingsTask(Project, DataFolder, CacheFolder, new PrefixedTextWriter("  ", Log)))
 			{
+				PerforceConnection Perforce = Utility.OverridePerforceSettings(DefaultConnection, Project.ServerAndPort, Project.UserName);
+
 				string ErrorMessage;
 
 				ModalTaskResult Result;
 				if((Options & OpenProjectOptions.Quiet) != 0)
 				{
-					Result = ModalTask.Execute(this, DetectProjectSettings, "Opening Project", "Opening project, please wait...", out ErrorMessage);
+					Result = ModalTask.Execute(this, new QuietDetectProjectSettingsTask(Perforce, DetectProjectSettings, Log), "Opening Project", "Opening project, please wait...", out ErrorMessage);
 				}
 				else
 				{
-					Result = PerforceModalTask.Execute(this, Project.LocalPath, Project.ServerAndPort, Project.UserName, DetectProjectSettings, "Opening Project", "Opening project, please wait...", Log, out ErrorMessage);
+					Result = PerforceModalTask.Execute(this, Perforce, DetectProjectSettings, "Opening Project", "Opening project, please wait...", Log, out ErrorMessage);
 				}
 
 				if(Result != ModalTaskResult.Succeeded)
@@ -1012,7 +1016,7 @@ namespace UnrealGameSync
 			if(IssueMonitor == null)
 			{
 				string LogFileName = Path.Combine(DataFolder, String.Format("IssueMonitor-{0}.log", ProjectSettings.PerforceClient.UserName));
-				IssueMonitor = new IssueMonitor(ApiUrl, ProjectSettings.PerforceClient.UserName, TimeSpan.FromSeconds(5.0), LogFileName);
+				IssueMonitor = new IssueMonitor(ApiUrl, ProjectSettings.PerforceClient.UserName, TimeSpan.FromSeconds(60.0), LogFileName);
 				IssueMonitor.OnIssuesChanged += IssueMonitor_OnUpdateAsync;
 				IssueMonitors.Add(IssueMonitor);
 			}
@@ -1211,7 +1215,7 @@ namespace UnrealGameSync
 
 		public void ModifyApplicationSettings()
 		{
-			bool? bRelaunchUnstable = ApplicationSettingsWindow.ShowModal(this, bUnstable, OriginalExecutableFileName, Settings, Log);
+			bool? bRelaunchUnstable = ApplicationSettingsWindow.ShowModal(this, DefaultConnection, bUnstable, OriginalExecutableFileName, Settings, Log);
 			if(bRelaunchUnstable.HasValue)
 			{
 				UpdateMonitor.TriggerUpdate(UpdateType.UserInitiated, bRelaunchUnstable);
@@ -1248,7 +1252,7 @@ namespace UnrealGameSync
 				foreach(IssueData Issue in Issues)
 				{
 					IssueAlertReason Reason = 0;
-					if(Issue.FixChange <= 0)
+					if(Issue.FixChange <= 0 && !Issue.ResolvedAt.HasValue)
 					{
 						if(Issue.Owner == null)
 						{
@@ -1261,11 +1265,15 @@ namespace UnrealGameSync
 								Reason |= IssueAlertReason.UnassignedTimer;
 							}
 						}
-						else
+						else if(!Issue.AcknowledgedAt.HasValue)
 						{
-							if(String.Compare(Issue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0 && !Issue.AcknowledgedAt.HasValue)
+							if(String.Compare(Issue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0)
 							{
 								Reason |= IssueAlertReason.Owner;
+							}
+							else if(Settings.NotifyUnacknowledgedMinutes >= 0 && Issue.RetrievedAt - Issue.CreatedAt >= TimeSpan.FromMinutes(Settings.NotifyUnacknowledgedMinutes))
+							{
+								Reason |= IssueAlertReason.UnacknowledgedTimer;
 							}
 						}
 						if(Settings.NotifyUnresolvedMinutes >= 0 && Issue.RetrievedAt - Issue.CreatedAt >= TimeSpan.FromMinutes(Settings.NotifyUnresolvedMinutes))

@@ -37,43 +37,43 @@ struct FPyTestStruct
 public:
 	FPyTestStruct();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	bool Bool;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	int32 Int;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	float Float;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	EPyTestEnum Enum;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FString String;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FName Name;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FText Text;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TArray<FString> StringArray;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TSet<FString> StringSet;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TMap<FString, int32> StringIntMap;
 
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="LegacyInt is deprecated. Please use Int instead."))
 	int32 LegacyInt_DEPRECATED;
 
-	UPROPERTY(EditInstanceOnly, Category = Python)
+	UPROPERTY(EditInstanceOnly, Category = "Python|Internal")
 	bool BoolInstanceOnly;
 
-	UPROPERTY(EditDefaultsOnly, Category = Python)
+	UPROPERTY(EditDefaultsOnly, Category = "Python|Internal")
 	bool BoolDefaultsOnly;
 };
 
@@ -94,22 +94,22 @@ class UPyTestStructLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptMethod="IsBoolSet;IsBoolSetOld"))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod="IsBoolSet;IsBoolSetOld"))
 	static bool IsBoolSet(const FPyTestStruct& InStruct);
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptMethod, DeprecatedFunction, DeprecationMessage="LegacyIsBoolSet is deprecated. Please use IsBoolSet instead."))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod, DeprecatedFunction, DeprecationMessage="LegacyIsBoolSet is deprecated. Please use IsBoolSet instead."))
 	static bool LegacyIsBoolSet(const FPyTestStruct& InStruct);
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptConstant="ConstantValue", ScriptConstantHost="PyTestStruct"))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptConstant="ConstantValue", ScriptConstantHost="PyTestStruct"))
 	static int32 GetConstantValue();
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
 	static FPyTestStruct AddInt(const FPyTestStruct& InStruct, const int32 InValue);
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
 	static FPyTestStruct AddFloat(const FPyTestStruct& InStruct, const float InValue);
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod, ScriptMethodSelfReturn, ScriptOperator="+;+="))
 	static FPyTestStruct AddStr(const FPyTestStruct& InStruct, const FString& InValue);
 };
 
@@ -124,94 +124,109 @@ class UPyTestObject : public UObject
 public:
 	UPyTestObject();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	bool Bool;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	int32 Int;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	float Float;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	EPyTestEnum Enum;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FString String;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FName Name;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FText Text;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TArray<FString> StringArray;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TSet<FString> StringSet;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TMap<FString, int32> StringIntMap;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FPyTestDelegate Delegate;
 
-	UPROPERTY(EditAnywhere, BlueprintAssignable, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintAssignable, Category = "Python|Internal")
 	FPyTestMulticastDelegate MulticastDelegate;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FPyTestStruct Struct;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TArray<FPyTestStruct> StructArray;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Python)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	FPyTestChildStruct ChildStruct;
 
-	UPROPERTY(EditInstanceOnly, Category = Python)
+	UPROPERTY(EditInstanceOnly, Category = "Python|Internal")
 	bool BoolInstanceOnly;
 
-	UPROPERTY(EditDefaultsOnly, Category = Python)
+	UPROPERTY(EditDefaultsOnly, Category = "Python|Internal")
 	bool BoolDefaultsOnly;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Python)
+	UFUNCTION(BlueprintImplementableEvent, Category = "Python|Internal")
 	int32 FuncBlueprintImplementable(const int32 InValue) const;
 
-	UFUNCTION(BlueprintNativeEvent, Category = Python)
+	UFUNCTION(BlueprintNativeEvent, Category = "Python|Internal")
 	int32 FuncBlueprintNative(const int32 InValue) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintNativeEvent, Category = "Python|Internal")
+	void FuncBlueprintNativeRef(UPARAM(ref) FPyTestStruct& InOutStruct) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	int32 CallFuncBlueprintImplementable(const int32 InValue) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	int32 CallFuncBlueprintNative(const int32 InValue) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
+	void CallFuncBlueprintNativeRef(UPARAM(ref) FPyTestStruct& InOutStruct) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	void FuncTakingPyTestStruct(const FPyTestStruct& InStruct) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	void FuncTakingPyTestChildStruct(const FPyTestChildStruct& InStruct) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python, meta=(DeprecatedFunction, DeprecationMessage="LegacyFuncTakingPyTestStruct is deprecated. Please use FuncTakingPyTestStruct instead."))
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal", meta=(DeprecatedFunction, DeprecationMessage="LegacyFuncTakingPyTestStruct is deprecated. Please use FuncTakingPyTestStruct instead."))
 	void LegacyFuncTakingPyTestStruct(const FPyTestStruct& InStruct) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	int32 FuncTakingPyTestDelegate(const FPyTestDelegate& InDelegate, const int32 InValue) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	int32 DelegatePropertyCallback(const int32 InValue) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	void MulticastDelegatePropertyCallback(FString InStr) const;
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
+	static TArray<int32> ReturnArray();
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
+	static TSet<int32> ReturnSet();
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
+	static TMap<int32, bool> ReturnMap();
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	static void EmitScriptError();
 
-	UFUNCTION(BlueprintCallable, Category = Python)
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	static void EmitScriptWarning();
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptConstant="ConstantValue"))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptConstant="ConstantValue"))
 	static int32 GetConstantValue();
 };
 
@@ -241,9 +256,9 @@ class UPyTestObjectLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptMethod="IsBoolSet"))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptMethod="IsBoolSet"))
 	static bool IsBoolSet(const UPyTestObject* InObj);
 
-	UFUNCTION(BlueprintPure, Category = Python, meta=(ScriptConstant="OtherConstantValue", ScriptConstantHost="PyTestObject"))
+	UFUNCTION(BlueprintPure, Category = "Python|Internal", meta=(ScriptConstant="OtherConstantValue", ScriptConstantHost="PyTestObject"))
 	static int32 GetOtherConstantValue();
 };

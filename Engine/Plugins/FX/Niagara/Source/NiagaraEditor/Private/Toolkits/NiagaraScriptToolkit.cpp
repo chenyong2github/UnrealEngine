@@ -120,7 +120,7 @@ void FNiagaraScriptToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 }
 
 void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UNiagaraScript* InputScript )
-{	
+{
 	check(InputScript != NULL);
 	OriginalNiagaraScript = InputScript;
 	ResetLoaders(GetTransientPackage()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
@@ -235,7 +235,7 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>( "NiagaraEditor" );
 	AddMenuExtender(NiagaraEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
-	NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().AddSP(this, &FNiagaraScriptToolkit::FocusGraphElement);
+	NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().AddSP(this, &FNiagaraScriptToolkit::FocusGraphElementIfSameScriptID);
 
 	SetupCommands();
 	ExtendToolbar();
@@ -628,6 +628,10 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 
 		// First see if it is directly called, as this will force a need to refresh from external changes...
 		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(It->GetSource());
+		if (!Source)
+		{
+			continue;
+		}
 		TArray<UNiagaraNode*> NiagaraNodes;
 		Source->NodeGraph->GetNodesOfClass<UNiagaraNode>(NiagaraNodes);
 		bool bRefreshed = false;
@@ -685,7 +689,7 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 				for (int32 i = 0; i < System->GetNumEmitters(); i++)
 				{
 					AffectedEmitters.AddUnique(System->GetEmitterHandle(i).GetInstance());
-					AffectedEmitters.AddUnique((UNiagaraEmitter*)System->GetEmitterHandle(i).GetSource());
+					AffectedEmitters.AddUnique((UNiagaraEmitter*)System->GetEmitterHandle(i).GetInstance()->GetParent());
 				}
 			}
 		}
@@ -744,45 +748,12 @@ void FNiagaraScriptToolkit::OnEditedScriptGraphChanged(const FEdGraphEditAction&
 	bEditedScriptHasPendingChanges = true;
 }
 
-void FNiagaraScriptToolkit::FocusGraphElement(const INiagaraScriptGraphFocusInfo* FocusInfo)
+void FNiagaraScriptToolkit::FocusGraphElementIfSameScriptID(const FNiagaraScriptIDAndGraphFocusInfo* FocusInfo)
 {
-	checkf(FocusInfo->GetFocusType() != INiagaraScriptGraphFocusInfo::ENiagaraScriptGraphFocusInfoType::None, TEXT("Failed to assign focus type to FocusInfo parameter!"));
-	
-	if (FocusInfo->GetScriptUniqueAssetID() != OriginalNiagaraScript->GetUniqueID())
+	if (FocusInfo->GetScriptUniqueAssetID() == OriginalNiagaraScript->GetUniqueID())
 	{
-		return;
+		NiagaraScriptGraphWidget->FocusGraphElement(FocusInfo->GetScriptGraphFocusInfo().Get());
 	}
-
-	if (FocusInfo->GetFocusType() == INiagaraScriptGraphFocusInfo::ENiagaraScriptGraphFocusInfoType::Node)
-	{
-		const FNiagaraScriptGraphNodeToFocusInfo* NodeFocusInfo = static_cast<const FNiagaraScriptGraphNodeToFocusInfo*>(FocusInfo);
-		const FGuid& NodeGuidToMatch = NodeFocusInfo->GetNodeGuidToFocus();
-		UEdGraphNode* const* NodeToFocus = ScriptViewModel->GetGraphViewModel()->GetGraph()->Nodes.FindByPredicate([&NodeGuidToMatch](const UEdGraphNode* Node) {return Node->NodeGuid == NodeGuidToMatch; });
-		if (NodeToFocus != nullptr && *NodeToFocus != nullptr)
-		{
-			NiagaraScriptGraphWidget->GetGraphEditor()->JumpToNode(*NodeToFocus);
-			return;
-		}
-		ensureMsgf(false, TEXT("Failed to find Node with matching GUID when focusing graph element. Was the graph edited out from underneath us?"));
-		return;
-	}
-	else if (FocusInfo->GetFocusType() == INiagaraScriptGraphFocusInfo::ENiagaraScriptGraphFocusInfoType::Pin)
-	{
-		const FNiagaraScriptGraphPinToFocusInfo* PinFocusInfo = static_cast<const FNiagaraScriptGraphPinToFocusInfo*>(FocusInfo);
-		const FGuid& PinGuidToMatch = PinFocusInfo->GetPinGuidToFocus();
-		for (const UEdGraphNode* Node : ScriptViewModel->GetGraphViewModel()->GetGraph()->Nodes)
-		{
-			const UEdGraphPin* const* PinToFocus = Node->Pins.FindByPredicate([&PinGuidToMatch](const UEdGraphPin* Pin) {return Pin->PersistentGuid == PinGuidToMatch; });
-			if (PinToFocus != nullptr && *PinToFocus != nullptr)
-			{
-				NiagaraScriptGraphWidget->GetGraphEditor()->JumpToPin(*PinToFocus);
-				return;
-			}
-		}
-		ensureMsgf(false, TEXT("Failed to find Pin with matching GUID when focusing graph element. Was the graph edited out from underneath us?"));
-		return;
-	}
-	checkf(false, TEXT("Requested focus for a graph element without specifying a Node or Pin to focus!"));
 }
 
 #undef LOCTEXT_NAMESPACE

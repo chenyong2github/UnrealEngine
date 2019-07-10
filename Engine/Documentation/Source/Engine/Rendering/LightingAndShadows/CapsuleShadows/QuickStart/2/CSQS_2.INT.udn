@@ -6,7 +6,7 @@ SkillLevel:Intermediate
 Version:4.15
 checkpoint: capsuleshadowsqs
 parent:Engine/Rendering/LightingAndShadows/CapsuleShadows/QuickStart
-Prereq: Engine/Physics/PhAT/HowTo/
+Prereq: Engine/Physics/PhysicsAssetEditor/HowTo/
 type:quick start
 order:2
 tags:Lighting
@@ -34,7 +34,7 @@ right-click, to bring up the context menu. From there, select **Create** > **Phy
 	Only use Sphyl bodies for the best result. Sphere bodies will also work, but they are not as flexible in their use with character Skeletal Meshes.
 	[/REGION]
 
-1. Next, the [Physics Asset Tool](Engine/Physics/PhAT) (PhAT) will open with your new Physics Asset for the Skeletal Mesh `SK_Mannequin`. 
+1. Next, the [Physics Asset Tool](Engine/Physics/PhysicsAssetEditor) (PhAT) will open with your new Physics Asset for the Skeletal Mesh `SK_Mannequin`. 
 
 	![](PA_Character.png)(w:500)
 

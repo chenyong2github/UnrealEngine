@@ -68,16 +68,16 @@ class FRemoteSessionARCameraVS :
 
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Material->GetMaterialDomain() == MD_PostProcess && !IsMobilePlatform(Platform);
+		return Parameters.Material->GetMaterialDomain() == MD_PostProcess && !IsMobilePlatform(Parameters.Platform);
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Platform, OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_AR_PASSTHROUGH"), 1);
 	}
 
@@ -89,7 +89,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
-		const FVertexShaderRHIParamRef ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = GetVertexShader();
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
 	}
 
@@ -109,17 +109,17 @@ class FRemoteSessionARCameraPS :
 
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Material->GetMaterialDomain() == MD_PostProcess && !IsMobilePlatform(Platform);
+		return Parameters.Material->GetMaterialDomain() == MD_PostProcess && !IsMobilePlatform(Parameters.Platform);
 	}
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const class FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Platform, OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
 		OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_HDR"), IsMobileHDR() ? 1 : 0);
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
 	}
 
 	FRemoteSessionARCameraPS() {}
@@ -135,7 +135,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* Material)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Material, *Material->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
 
 		for (uint32 InputIter = 0; InputIter < ePId_Input_MAX; ++InputIter)
@@ -344,7 +344,6 @@ static FName CameraImageParamName(TEXT("CameraImage"));
 
 FRemoteSessionARCameraChannel::FRemoteSessionARCameraChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
 	: IRemoteSessionChannel(InRole, InConnection)
-	, LastQueuedTimestamp(0.f)
 	, RenderingTextureIndex(0)
 	, Connection(InConnection)
 	, Role(InRole)
@@ -360,6 +359,7 @@ FRemoteSessionARCameraChannel::FRemoteSessionARCameraChannel(ERemoteSessionChann
 	
 	RenderingTextures[0] = nullptr;
 	RenderingTextures[1] = nullptr;
+	LastSetTexture = nullptr;
 	PPMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/RemoteSession/ARCameraPostProcess.ARCameraPostProcess"));
 	MaterialInstanceDynamic = UMaterialInstanceDynamic::Create(PPMaterial, GetTransientPackage());
 	if (MaterialInstanceDynamic != nullptr)
@@ -403,8 +403,10 @@ void FRemoteSessionARCameraChannel::Tick(const float InDeltaTime)
 #if PLATFORM_IOS
 	if (Role == ERemoteSessionChannelMode::Write)
 	{
-		QueueARCameraImage();
+		// Always send a complete compression task to make room for another
 		SendARCameraImage();
+		// Queue a compression task if we don't have one outstanding
+		QueueARCameraImage();
 	}
 #endif
 	if (Role == ERemoteSessionChannelMode::Read)
@@ -414,8 +416,13 @@ void FRemoteSessionARCameraChannel::Tick(const float InDeltaTime)
 		{
 			if (UTexture2D* NextTexture = RenderingTextures[RenderingTextureIndex.GetValue()])
 			{
-				// Update the texture to the current one
-				MaterialInstanceDynamic->SetTextureParameterValue(CameraImageParamName, NextTexture);
+				// Only update the material when then texture changes
+				if (LastSetTexture != NextTexture)
+				{
+					LastSetTexture = NextTexture;
+					// Update the texture to the current one
+					MaterialInstanceDynamic->SetTextureParameterValue(CameraImageParamName, NextTexture);
+				}
 			}
 		}
 	}
@@ -430,21 +437,19 @@ void FRemoteSessionARCameraChannel::QueueARCameraImage()
 		return;
 	}
 
+	// Don't queue multiple compression tasks at the same time or we get a well of despair on the GPU
+	if (CompressionTask.IsValid())
+	{
+		return;
+	}
+
 	UARTextureCameraImage* CameraImage = UARBlueprintLibrary::GetCameraImage();
 	if (CameraImage != nullptr)
     {
-        if (CameraImage->Timestamp > LastQueuedTimestamp)
-        {
-            TSharedPtr<FCompressionTask, ESPMode::ThreadSafe> CompressionTask = MakeShareable(new FCompressionTask());
-            CompressionTask->Width = CameraImage->Size.X;
-            CompressionTask->Height = CameraImage->Size.Y;
-            CompressionTask->AsyncTask = IAppleImageUtilsPlugin::Get().ConvertToJPEG(CameraImage, CVarJPEGQuality.GetValueOnGameThread(), !!CVarJPEGColor.GetValueOnGameThread(), !!CVarJPEGGpu.GetValueOnGameThread());
-            if (CompressionTask->AsyncTask.IsValid())
-            {
-                LastQueuedTimestamp = CameraImage->Timestamp;
-                CompressionQueue.Add(CompressionTask);
-            }
-        }
+		CompressionTask = MakeShareable(new FCompressionTask());
+		CompressionTask->Width = CameraImage->Size.X;
+		CompressionTask->Height = CameraImage->Size.Y;
+		CompressionTask->AsyncTask = IAppleImageUtilsPlugin::Get().ConvertToJPEG(CameraImage, CVarJPEGQuality.GetValueOnGameThread(), !!CVarJPEGColor.GetValueOnGameThread(), !!CVarJPEGGpu.GetValueOnGameThread());
     }
     else
     {
@@ -461,49 +466,34 @@ void FRemoteSessionARCameraChannel::SendARCameraImage()
 		return;
 	}
 
-	TSharedPtr<FCompressionTask, ESPMode::ThreadSafe> CompressionTask;
+	// Bail if there's nothing to do yet
+	if (!CompressionTask.IsValid() ||
+		(CompressionTask.IsValid() && !CompressionTask->AsyncTask->IsDone()))
 	{
-		int32 CompleteIndex = -1;
-		bool bFound = false;
-		for (int32 Index = 0; Index < CompressionQueue.Num() && bFound; Index++)
-		{
-			// Find the latest task that has completed
-			if (CompressionQueue[Index]->AsyncTask->IsDone())
-			{
-				CompleteIndex = Index;
-			}
-			// If this task isn't done, but the one before it is, then we're done
-			else if (CompleteIndex > -1 || Index == 0)
-			{
-				bFound = true;
-			}
-		}
-		if (CompleteIndex > -1)
-		{
-			// Grab the latest completed one
-			CompressionTask = CompressionQueue[CompleteIndex];
-			// And clear out all of the tasks between 0 and CompleteIndex
-			CompressionQueue.RemoveAt(0, CompleteIndex + 1);
-		}
+		return;
 	}
 
-	if (CompressionTask.IsValid() && !CompressionTask->AsyncTask->HadError())
+	if (!CompressionTask->AsyncTask->HadError())
 	{
-		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, CompressionTask]()
+		// Copy the task so we can start GPU compressing on another one
+		TSharedPtr<FCompressionTask, ESPMode::ThreadSafe> SendCompressionTask = CompressionTask;
+		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [this, SendCompressionTask]()
 		{
 			FBackChannelOSCMessage Msg(CAMERA_MESSAGE_ADDRESS);
-			Msg.Write(CompressionTask->Width);
-			Msg.Write(CompressionTask->Height);
-			Msg.Write(CompressionTask->AsyncTask->GetData());
+			Msg.Write(SendCompressionTask->Width);
+			Msg.Write(SendCompressionTask->Height);
+			Msg.Write(SendCompressionTask->AsyncTask->GetData());
 
 			Connection->SendPacket(Msg);
 		});
 	}
+	// Release this task so we can queue another one
+	CompressionTask.Reset();
 }
 
 UMaterialInterface* FRemoteSessionARCameraChannel::GetPostProcessMaterial() const
 {
-	return PPMaterial;
+	return MaterialInstanceDynamic;
 }
 
 void FRemoteSessionARCameraChannel::ReceiveARCameraImage(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
@@ -573,6 +563,7 @@ void FRemoteSessionARCameraChannel::UpdateRenderingTexture()
 		if (RenderingTextures[NextImage] == nullptr || DecompressedImage->Width != RenderingTextures[NextImage]->GetSizeX() || DecompressedImage->Height != RenderingTextures[NextImage]->GetSizeY())
 		{
 			RenderingTextures[NextImage] = UTexture2D::CreateTransient(DecompressedImage->Width, DecompressedImage->Height);
+			RenderingTextures[NextImage]->SRGB = 0;
 			RenderingTextures[NextImage]->UpdateResource();
 		}
 
@@ -580,7 +571,7 @@ void FRemoteSessionARCameraChannel::UpdateRenderingTexture()
 		FUpdateTextureRegion2D* Region = new FUpdateTextureRegion2D(0, 0, 0, 0, DecompressedImage->Width, DecompressedImage->Height);
 		TArray<uint8>* TextureData = new TArray<uint8>(MoveTemp(DecompressedImage->ImageData));
 
-		RenderingTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * DecompressedImage->Width, 8, TextureData->GetData(), [this, NextImage](auto InTextureData, auto InRegions)
+		RenderingTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * DecompressedImage->Width, sizeof(FColor), TextureData->GetData(), [this, NextImage](auto InTextureData, auto InRegions)
 		{
 			RenderingTextureIndex.Set(NextImage);
 			RenderingTexturesUpdateCount[NextImage].Decrement();

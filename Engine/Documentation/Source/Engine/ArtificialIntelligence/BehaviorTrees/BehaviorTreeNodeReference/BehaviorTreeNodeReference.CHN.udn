@@ -1,0 +1,48 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:行为树节点参考
+Description:概述在行为树编辑器中工作时可使用的各种节点。
+Type: reference
+Version:4.21
+Parent:Engine/ArtificialIntelligence/BehaviorTrees
+Tags:AI
+Tags:Behavior Trees
+Tags:Behavior Tree Essentials
+topic-image:BehaviorTreeNodes_Topic.png
+social-image:BehaviorTreeNodes_Topic.png
+topic-icon:BehaviorTreeNodes_Topic.png
+Order:3
+
+
+[TOC (start:2 end:2)]
+
+本页面提供了使用 **行为树编辑器** 时可用的默认节点详解的链接。**行为树** 节点有五种：
+
+  
+| 节点类型 | 描述 |
+| --- | --- |
+| **合成（Composite）** | 这种节点定义一个分支的根以及该分支如何被执行的基本规则。|
+| **任务（Task）** | 这种节点是行为树的叶子。这些节点是可执行的操作，它们没有输出连接。|
+| **装饰器（Decorator）** | 也称为条件语句。这种节点附着于另一个节点，决定着树中的一个分支，甚至单个节点是否能够被执行。|
+| **服务（Service）** | 这类节点附着在合成（Composite）节点上，只要其分支正在执行，它们就会以所定义的频率执行。这些节点常用于检查和更新黑板。它们取代了其他行为树系统中的传统平（Parallel）节点。|
+| **根（Root）** | [INCLUDE:#excerpt_0] |
+
+<!--
+[EXCERPT:excerpt_0]
+
+根（Root）节点是唯一的，是行为树的起点。它只能拥有一个连接，无法为其附着装饰器（Decorators）节点或服务（Services）节点。根节点没有自己的属性，但是选中它时将在 **细节（Details）** 面板中显示行为树属性，您可以在此处设置行为树的黑板资源。 
+
+![](RootNode-1.png "RootNode-1.png")
+
+[/EXCERPT:excerpt_0]
+-->
+
+欲知每种节点的更多内容，请参阅以下链接。 
+
+## 行为树节点类型
+
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference\BehaviorTreeNodeReferenceComposites:topic%
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference\BehaviorTreeNodeReferenceDecorators:topic%
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference\BehaviorTreeNodeReferenceServices:topic%
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference\BehaviorTreeNodeReferenceTasks:topic%
+

@@ -29,8 +29,17 @@ struct FPropertyAndParent
 /** Delegate called to see if a property should be visible */
 DECLARE_DELEGATE_RetVal_OneParam( bool, FIsPropertyVisible, const FPropertyAndParent& );
 
-/** Delegate called to see if a property should be visible */
+/** Delegate called to see if a property should be read-only */
 DECLARE_DELEGATE_RetVal_OneParam( bool, FIsPropertyReadOnly, const FPropertyAndParent& );
+
+/** 
+ * Delegate called to check if custom row visibility is filtered, 
+ * i.e. whether FIsCustomRowVisible delegate will always return true no matter the parameters. 
+ */
+DECLARE_DELEGATE_RetVal(bool, FIsCustomRowVisibilityFiltered);
+
+/** Delegate called to determine if a custom row should be visible. */
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FIsCustomRowVisible, FName /*InRowName*/, FName /*InParentName*/);
 
 /** Delegate called to get a detail layout for a specific object class */
 DECLARE_DELEGATE_RetVal( TSharedRef<class IDetailCustomization>, FOnGetDetailCustomizationInstance );

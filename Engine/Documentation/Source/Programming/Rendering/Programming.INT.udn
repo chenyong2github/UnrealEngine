@@ -12,6 +12,6 @@ The RHI module, which is the interface for rendering APIs, is another key module
 the other subpages below cover specific rendering topics.
 
  
-[DIR(parent:"Programming/Rendering" output:"listbutton" org:"hierarchy")]
+[DIR(parent:"Programming/Rendering" output:"listbutton" org:"hierarchy" end:"1")]
 
  

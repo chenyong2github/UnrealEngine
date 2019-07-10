@@ -40,12 +40,35 @@ public:
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
 		}
 
+		bool bIsLibraryScript = true;
+		bool bIsLibraryTagFound = false;
+		bIsLibraryTagFound = AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExposeToLibrary), bIsLibraryScript);
+		if (bIsLibraryTagFound == false)
+		{
+			if (AssetData.IsAssetLoaded())
+			{
+				UNiagaraScript* Script = static_cast<UNiagaraScript*>(AssetData.GetAsset());
+				if (Script != nullptr)
+				{
+					bIsLibraryScript = Script->bExposeToLibrary;
+				}
+			}
+		}
+
 		FString DisplayNameString = FName::NameToDisplayString(AssetData.AssetName.ToString(), false);
+		if (bIsLibraryScript == false)
+		{
+			DisplayNameString += "*";
+		}
 		FText DisplayName = FText::FromString(DisplayNameString);
 
 		FText AssetDescription;
 		AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Description), AssetDescription);
 		FText Description = FNiagaraEditorUtilities::FormatScriptAssetDescription(AssetDescription, AssetData.ObjectPath);
+		if (bIsLibraryScript == false)
+		{
+			Description = FText::Format(LOCTEXT("ScriptDescriptionWithLibraryCommentFormat", "{0}\n{1}"), Description, LOCTEXT("NotExposedToLibrary", "*Not exposed to library"));
+		}
 
 		FText Keywords;
 		AssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Keywords), Keywords);
@@ -160,7 +183,7 @@ public:
 
 	virtual void AddItemDirectly() override { unimplemented(); }
 
-	virtual void GenerateAddActions(TArray<TSharedRef<INiagaraStackItemGroupAddAction>>& OutAddActions) const override
+	virtual void GenerateAddActions(TArray<TSharedRef<INiagaraStackItemGroupAddAction>>& OutAddActions, const FNiagaraStackItemGroupAddOptions& AddProperties) const override
 	{
 		if (SystemViewModel.IsValid() == false || EmitterViewModel.IsValid() == false || OutputNode == nullptr)
 		{
@@ -172,6 +195,8 @@ public:
 		FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions ModuleScriptFilterOptions;
 		ModuleScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::Module;
 		ModuleScriptFilterOptions.TargetUsageToMatch = OutputNode->GetUsage();
+		ModuleScriptFilterOptions.bIncludeDeprecatedScripts = AddProperties.bIncludeDeprecated;
+		ModuleScriptFilterOptions.bIncludeNonLibraryScripts = AddProperties.bIncludeNonLibrary;
 		FNiagaraEditorUtilities::GetFilteredScriptAssets(ModuleScriptFilterOptions, ModuleAssets);
 		for (const FAssetData& ModuleAsset : ModuleAssets)
 		{
@@ -322,6 +347,8 @@ void UNiagaraStackScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 				ModuleSpacer = NewObject<UNiagaraStackModuleSpacer>(this);
 				ModuleSpacer->Initialize(CreateDefaultChildRequiredData(), GetScriptUsage(), ModuleSpacerKey, 1.4f, UNiagaraStackEntry::EStackRowStyle::None);
 				ModuleSpacer->OnStackSpacerAcceptDrop.BindUObject(this, &UNiagaraStackScriptItemGroup::AddParameterModuleToStack);
+				ModuleSpacer->OnStackSpacerRequestAssetDrop.BindUObject(this, &UNiagaraStackScriptItemGroup::CanAddAssetModuleToStack);
+				ModuleSpacer->OnStackSpacerAssetDrop.BindUObject(this, &UNiagaraStackScriptItemGroup::AddAssetModuleToStack);
 			}
 
 			NewChildren.Add(ModuleSpacer);
@@ -352,6 +379,8 @@ void UNiagaraStackScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 			ModuleSpacer = NewObject<UNiagaraStackModuleSpacer>(this);
 			ModuleSpacer->Initialize(CreateDefaultChildRequiredData(), GetScriptUsage(), ModuleSpacerKey, 1.4f, UNiagaraStackEntry::EStackRowStyle::None);
 			ModuleSpacer->OnStackSpacerAcceptDrop.BindUObject(this, &UNiagaraStackScriptItemGroup::AddParameterModuleToStack);
+			ModuleSpacer->OnStackSpacerRequestAssetDrop.BindUObject(this, &UNiagaraStackScriptItemGroup::CanAddAssetModuleToStack);
+			ModuleSpacer->OnStackSpacerAssetDrop.BindUObject(this, &UNiagaraStackScriptItemGroup::AddAssetModuleToStack);
 		}
 
 		NewChildren.Add(ModuleSpacer);
@@ -656,6 +685,40 @@ void UNiagaraStackScriptItemGroup::AddParameterModuleToStack(const UNiagaraStack
 
 	TSharedRef<FScriptGroupAddAction> AddAction = FScriptGroupAddAction::CreateExistingParameterModuleAction(InVariable);
 	AddUtilities->ExecuteAddAction(AddAction, TargetIndex);
+}
+
+void UNiagaraStackScriptItemGroup::AddAssetModuleToStack(const UNiagaraStackModuleSpacer* InModuleSpcaer, const FAssetData& InAsset)
+{
+	int32 TargetIndex = INDEX_NONE;
+	UNiagaraStackModuleItem** TargetModuleItemPtr = StackSpacerToModuleItemMap.Find(FObjectKey(InModuleSpcaer));
+	if (*TargetModuleItemPtr != nullptr)
+	{
+		UNiagaraStackModuleItem* TargetModuleItem = *TargetModuleItemPtr;
+		TargetIndex = TargetModuleItem->GetModuleIndex();
+	}
+
+	TSharedRef<FScriptGroupAddAction> AddAction = FScriptGroupAddAction::CreateAssetModuleAction(InAsset);
+	AddUtilities->ExecuteAddAction(AddAction, TargetIndex);
+}
+
+bool UNiagaraStackScriptItemGroup::CanAddAssetModuleToStack(const UNiagaraStackModuleSpacer* InModuleSpacer, const FAssetData& InAsset)
+{
+	const UEnum* NiagaraScriptUsageEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ENiagaraScriptUsage"), true);
+	FString AssetScriptUsageString = InAsset.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Usage));
+	int64 AssetScriptUsageValue = NiagaraScriptUsageEnum->GetValueByNameString(AssetScriptUsageString);
+	if (AssetScriptUsageValue == INDEX_NONE)
+	{
+		return false;
+	}
+	ENiagaraScriptUsage AssetScriptUsage = static_cast<ENiagaraScriptUsage>(AssetScriptUsageValue);
+	if (AssetScriptUsage != ENiagaraScriptUsage::Module)
+	{
+		return false;
+	}
+	FString BitfieldTagValue = InAsset.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
+	int32 BitfieldValue = FCString::Atoi(*BitfieldTagValue);
+	TArray<ENiagaraScriptUsage> SupportedUsages = UNiagaraScript::GetSupportedUsageContextsForBitmask(BitfieldValue);
+	return SupportedUsages.Contains(GetScriptUsage());
 }
 
 #undef LOCTEXT_NAMESPACE

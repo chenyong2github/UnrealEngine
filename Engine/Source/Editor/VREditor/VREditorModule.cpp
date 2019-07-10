@@ -11,6 +11,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "HeadMountedDisplayTypes.h"
+#include "VREditorFloatingUI.h"
 
 class FVREditorModule : public IVREditorModule
 {
@@ -36,7 +37,7 @@ public:
 	virtual bool IsVREditorModeActive() override;
 	virtual UVREditorMode* GetVRMode() override;
 	virtual void UpdateActorPreview(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor) override;
-	virtual void UpdateExternalUMGUI(TSubclassOf<UUserWidget> InUMGClass, FName Name, FVector2D InSize) override;
+	virtual void UpdateExternalUMGUI(const FVREditorFloatingUICreationContext& CreationContext) override;
 	virtual void UpdateExternalSlateUI(TSharedRef<SWidget> InSlateWidget, FName Name, FVector2D InSize) override;
 	virtual TSharedPtr<FExtender> GetRadialMenuExtender() override
 	{
@@ -116,10 +117,10 @@ void FVREditorModule::UpdateActorPreview(TSharedRef<SWidget> InWidget, int32 Ind
 {
 	GetVRMode()->RefreshActorPreviewWidget(InWidget, Index, Actor);
 }
-
-void FVREditorModule::UpdateExternalUMGUI(TSubclassOf<UUserWidget> InUMGClass, FName Name, FVector2D InSize)
+  
+void FVREditorModule::UpdateExternalUMGUI(const FVREditorFloatingUICreationContext& CreationContext)
 {
-	GetVRMode()->UpdateExternalUMGUI(InUMGClass, Name, InSize);
+	GetVRMode()->UpdateExternalUMGUI(CreationContext); 
 }
 
 void FVREditorModule::UpdateExternalSlateUI(TSharedRef<SWidget> InSlateWidget, FName Name, FVector2D InSize)

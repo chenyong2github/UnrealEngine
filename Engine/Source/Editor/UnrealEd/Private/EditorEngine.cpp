@@ -210,6 +210,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "RenderTargetPool.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -698,6 +699,84 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 	IBookmarkTypeTools& BookmarkTools = IBookmarkTypeTools::Get();
 	BookmarkTools.RegisterBookmarkTypeActions(MakeShared<FBookMark2DTypeActions>());
 	BookmarkTools.RegisterBookmarkTypeActions(MakeShared<FBookMarkTypeActions>());
+	
+	{
+		FAssetData NoAssetData;
+
+		TArray<UClass*> VolumeClasses;
+		TArray<UClass*> VolumeFactoryClasses;
+
+		// Create array of ActorFactory instances.
+		for (TObjectIterator<UClass> ObjectIt; ObjectIt; ++ObjectIt)
+		{
+			UClass* TestClass = *ObjectIt;
+			if (TestClass->IsChildOf(UActorFactory::StaticClass()))
+			{
+				if (!TestClass->HasAnyClassFlags(CLASS_Abstract))
+				{
+					// if the factory is a volume shape factory we create an instance for all volume types
+					if (TestClass->IsChildOf(UActorFactoryVolume::StaticClass()))
+					{
+						VolumeFactoryClasses.Add(TestClass);
+					}
+					else
+					{
+						UActorFactory* NewFactory = NewObject<UActorFactory>(GetTransientPackage(), TestClass);
+						check(NewFactory);
+						ActorFactories.Add(NewFactory);
+					}
+				}
+			}
+			else if (TestClass->IsChildOf(AVolume::StaticClass()) && TestClass != AVolume::StaticClass())
+			{
+				// we want classes derived from AVolume, but not AVolume itself
+				VolumeClasses.Add(TestClass);
+			}
+		}
+
+		ActorFactories.Reserve(ActorFactories.Num() + (VolumeFactoryClasses.Num() * VolumeClasses.Num()));
+		for (UClass* VolumeFactoryClass : VolumeFactoryClasses)
+		{
+			for (UClass* VolumeClass : VolumeClasses)
+			{
+				UActorFactory* NewFactory = NewObject<UActorFactory>(GetTransientPackage(), VolumeFactoryClass);
+				check(NewFactory);
+				NewFactory->NewActorClass = VolumeClass;
+				ActorFactories.Add(NewFactory);
+			}
+		}
+
+		FCoreUObjectDelegates::RegisterHotReloadAddedClassesDelegate.AddUObject(this, &UEditorEngine::CreateVolumeFactoriesForNewClasses);
+	}
+
+	// Used for sorting ActorFactory classes.
+	struct FCompareUActorFactoryByMenuPriority
+	{
+		FORCEINLINE bool operator()(const UActorFactory& A, const UActorFactory& B) const
+		{
+			if (B.MenuPriority == A.MenuPriority)
+			{
+				if (A.GetClass() != UActorFactory::StaticClass() && B.IsA(A.GetClass()))
+				{
+					return false;
+				}
+				else if (B.GetClass() != UActorFactory::StaticClass() && A.IsA(B.GetClass()))
+				{
+					return true;
+				}
+				else
+				{
+					return A.GetClass()->GetName() < B.GetClass()->GetName();
+				}
+			}
+			else
+			{
+				return B.MenuPriority < A.MenuPriority;
+			}
+		}
+	};
+	// Sort by menu priority.
+	ActorFactories.Sort(FCompareUActorFactoryByMenuPriority());
 }
 
 bool UEditorEngine::HandleOpenAsset(UObject* Asset)
@@ -861,6 +940,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("ModuleUI"),
 			TEXT("Toolbox"),
 			TEXT("ClassViewer"),
+			TEXT("StructViewer"),
 			TEXT("ContentBrowser"),
 			TEXT("AssetTools"),
 			TEXT("GraphEditor"),
@@ -969,84 +1049,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 	UModel::SetGlobalBSPTexelScale(BSPTexelScale);
 
 	GLog->EnableBacklog( false );
-
-	{
-		FAssetData NoAssetData;
-
-		TArray<UClass*> VolumeClasses;
-		TArray<UClass*> VolumeFactoryClasses;
-
-		// Create array of ActorFactory instances.
-		for (TObjectIterator<UClass> ObjectIt; ObjectIt; ++ObjectIt)
-		{
-			UClass* TestClass = *ObjectIt;
-			if (TestClass->IsChildOf(UActorFactory::StaticClass()))
-			{
-				if (!TestClass->HasAnyClassFlags(CLASS_Abstract))
-				{
-					// if the factory is a volume shape factory we create an instance for all volume types
-					if (TestClass->IsChildOf(UActorFactoryVolume::StaticClass()))
-					{
-						VolumeFactoryClasses.Add(TestClass);
-					}
-					else
-					{
-						UActorFactory* NewFactory = NewObject<UActorFactory>(GetTransientPackage(), TestClass);
-						check(NewFactory);
-						ActorFactories.Add(NewFactory);
-					}
-				}
-			}
-			else if (TestClass->IsChildOf(AVolume::StaticClass()) && TestClass != AVolume::StaticClass() )
-			{
-				// we want classes derived from AVolume, but not AVolume itself
-				VolumeClasses.Add( TestClass );
-			}
-		}
-
-		ActorFactories.Reserve(ActorFactories.Num() + (VolumeFactoryClasses.Num() * VolumeClasses.Num()));
-		for (UClass* VolumeFactoryClass : VolumeFactoryClasses)
-		{
-			for (UClass* VolumeClass : VolumeClasses)
-			{
-				UActorFactory* NewFactory = NewObject<UActorFactory>(GetTransientPackage(), VolumeFactoryClass);
-				check(NewFactory);
-				NewFactory->NewActorClass = VolumeClass;
-				ActorFactories.Add(NewFactory);
-			}
-		}
-
-		FCoreUObjectDelegates::RegisterHotReloadAddedClassesDelegate.AddUObject(this, &UEditorEngine::CreateVolumeFactoriesForNewClasses);
-	}
-
-	// Used for sorting ActorFactory classes.
-	struct FCompareUActorFactoryByMenuPriority
-	{
-		FORCEINLINE bool operator()(const UActorFactory& A, const UActorFactory& B) const
-		{
-			if (B.MenuPriority == A.MenuPriority)
-			{
-				if ( A.GetClass() != UActorFactory::StaticClass() && B.IsA(A.GetClass()) )
-				{
-					return false;
-				}
-				else if ( B.GetClass() != UActorFactory::StaticClass() && A.IsA(B.GetClass()) )
-				{
-					return true;
-				}
-				else
-				{
-					return A.GetClass()->GetName() < B.GetClass()->GetName();
-				}
-			}
-			else 
-			{
-				return B.MenuPriority < A.MenuPriority;
-			}
-		}
-	};
-	// Sort by menu priority.
-	ActorFactories.Sort( FCompareUActorFactoryByMenuPriority() );
 
 	// Load game user settings and apply
 	UGameUserSettings* MyGameUserSettings = GetGameUserSettings();
@@ -1892,7 +1894,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 					// Tick the GRenderingRealtimeClock, unless it's paused
 					GRenderingRealtimeClock.Tick(DeltaTime);
 				}
-				GetRendererModule().TickRenderTargetPool();
+				GRenderTargetPool.TickPoolElements();
 			});
 	}
 
@@ -7320,36 +7322,8 @@ bool UEditorEngine::IsOfflineShaderCompilerAvailable(UWorld* World)
 	return FMaterialStatsUtils::IsPlatformOfflineCompilerAvailable(RealPlatform);
 }
 
-void UEditorEngine::UpdateShaderComplexityMaterials(bool bForceUpdate)
-{
-	TSet<UWorld *> WorldSet;
-
-	for(FLevelEditorViewportClient* ViewportClient : LevelViewportClients)
-	{
-		auto ViewMode = ViewportClient->GetViewMode();
-		if (ViewMode == EViewModeIndex::VMI_ShaderComplexity || ViewMode == EViewModeIndex::VMI_ShaderComplexityWithQuadOverdraw)
-		{
-			WorldSet.Add(ViewportClient->GetWorld());
-		}
-	}
-
-	for (auto* SomeWorld : WorldSet)
-	{
-		bool bShadersEmulated = IsEditorShaderPlatformEmulated(SomeWorld);
-		if (bShadersEmulated || bForceUpdate)
-		{
-			bool bOfflineCompilerAvailable = IsOfflineShaderCompilerAvailable(SomeWorld);
-			if (bOfflineCompilerAvailable || bForceUpdate)
-			{
-				FEditorBuildUtils::CompileViewModeShaders(SomeWorld, VMI_ShaderComplexity);
-			}
-		}
-	}
-}
-
 void UEditorEngine::OnSceneMaterialsModified()
 {
-	UpdateShaderComplexityMaterials(false);
 }
 
 void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeatureLevel)
@@ -7388,14 +7362,6 @@ void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeat
 	GShaderCompilingManager->ProcessAsyncResults(false, true);
 
 	PreviewFeatureLevelChanged.Broadcast(InFeatureLevel);
-
-	// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
-	// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
-	// opportunity to switch to the new feature level first.
-	void ClearDebugViewMaterials(UMaterialInterface*);
-	ClearDebugViewMaterials(nullptr);
-
-	UpdateShaderComplexityMaterials(true);
 }
 
 void UEditorEngine::SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPreviewFeatureLevel)
@@ -7467,14 +7433,6 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	ERHIFeatureLevel::Type NewPreviewFeatureLevel = Settings->bIsFeatureLevelPreviewActive ? PreviewFeatureLevel : GMaxRHIFeatureLevel;
 
 	PreviewFeatureLevelChanged.Broadcast(NewPreviewFeatureLevel);
-	
-	// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
-	// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
-	// opportunity to switch to the new feature level first.
-	void ClearDebugViewMaterials(UMaterialInterface*);
-	ClearDebugViewMaterials(nullptr);
-
-	UpdateShaderComplexityMaterials(true);
 
 	GEditor->RedrawAllViewports();
 	

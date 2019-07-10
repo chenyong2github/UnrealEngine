@@ -1,0 +1,108 @@
+INTSourceChangelist:5531919
+Availability: Public
+Crumbs: 
+Title: 컨트롤 릭 애니메이션 블루프린트 노드
+Description: Control Rig, 컨트롤 릭 애니메이션 블루프린트 노드를 사용하여 컨트롤 릭 콘텐츠를 애니메이션 블루프린트에 통합하고 애니메잏션에서 릭 콘텐츠를 직접 블렌딩 또는 사용하는 법을 설명합니다. 
+Type: how-to
+Version: 4.21
+Parent: Engine/Animation/AnimHowTo
+Order: 
+SkillLevel:Advanced
+Tags: Animation Blueprints
+Tags: Experimental
+Tags: Rigging
+Tags: control rig list
+topic-image:ControlRigAnimBPTopic.png
+
+
+[컨트롤 릭 블루프린트](Engine/Animation/ControlRig/Blueprint) 를 만들었으면, [애니메이션 블루프린트](Engine/Animation/AnimBlueprints) 의 애님그래프 안에서 Control  Rig (컨트롤 릭) 노드를 사용하여 애니메이션 데이터를 컨트롤 릭 블루프린트에 제공된 콘텐츠로 보강할 수 있습니다. 그러면 애니메이션 블루프린트에 컨트롤 릭 블루프린트의 콘텐츠를 블렌딩하거나 기존 애니메이션 데이터 위에 컨트롤 릭 블루프린트의 콘텐츠를 레이어로 놓을 수 있습니다.
+
+아래 예제는 컨트롤 릭 블루프린트를 사용하여 하나의 조인트가 조준하면 다른 조인트가 따르도록 하는 방법을 보여줍니다. 컨트롤 릭을 생성해 두고, 컨트롤 릭 노드를 사용하여 그 콘텐츠를 애니메이션 재생 중인 기존 애니메이션 블루프린트에 통합합니다.
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	fhrbYhjUF80
+	[/PARAMLITERAL]
+[/OBJECT]
+
+## 단계
+
+이 예제에서는 새로운 **블루프린트 삼인칭 템플릿** 프로젝트를 사용하고 있습니다. 
+
+1.  [컨트롤 릭 플러그인 활성화](Engine/Animation/ControlRig) 이후 프로젝트에서 **신규 추가** 버튼을 눌러 **애니메이션** 아래 **컨트롤 릭** 을 선택합니다.  
+    ![](1_CRNode.png "1_CRNode.png")
+
+1.  부모 릭으로 **ControlRig** 을 선택한 뒤 **생성** 을 누르고 아무 이름이나 짓습니다.  
+    ![](2_CRNode.png "2_CRNode.png")  
+
+1.  컨트롤 릭 블루프린트 안에서, **계층구조** 탭에 우클릭하고 임포트 아래 **SK_Mannequin** 을 할당합니다.  
+    ![](3_CRNode.png "3_CRNode.png")
+
+1.  **프리뷰 씬 세팅** 탭에 **SK_Mannequin** 을 **프리뷰 메시** 로 할당합니다.  
+    ![](4_CRNode.png "4_CRNode.png")
+
+1.  컨트롤 릭 블루프린트를 컴파일합니다.  
+    ![](5_CRNode.png "5_CRNode.png")
+
+1.  그래프에 우클릭하고 **Rig Hierarchy Ref** (릭 계층구조 레퍼런스) 변수를 생성합니다.  
+    ![](6_CRNode.png "6_CRNode.png")
+
+1.  **Rig Hierarchy Ref** 의 **디테일** 패널에서 **Variable Name** (변수 이름)을 **Base_Hierarchy** 로 변경합니다.  
+    ![](7_CRNode.png "7_CRNode.png")  
+    그러면 계층구조로의 레퍼런스가 생성되는데, Base Hierarchy 처럼 좀 더 연관성있는 이름으로 변경하는 것이 좋습니다.  
+
+1.  출력 핀을 끌어놓고 **Get Joint Transform** 노드를 사용하여 **Joint** 는 **hand_r** 으로, **Type** 은 **Current** 로 설정합니다.  
+    ![](8_CRNode.png "8_CRNode.png")  
+    조준 대상 조인트가 되며, 그 조인트의 현재 트랜스폼 값을 구합니다.  
+
+1.  그래프에 우클릭하고 **Aim Constraint** 노드를 추가합니다.  
+    ![](9_CRNode.png "9_CRNode.png")  
+
+1.  블루프린트를 컴파일 합니다.
+
+1.  **Base_Hierarchy** 와 **Get Joint Transform** 노드를 **Aim Constraint** 에 다음과 같이 연결합니다.  
+    ![](10_CRNode.png "10_CRNode.png") 
+    **Joint** = **head**  
+    **Aim Vector Y** = **1.0**  
+    **Aim Target Weight** = **1.0**  1
+    여기서 헤드 조인트가 Y 축을 따라 오른손 트랜스폼으로 조준하도록 하고 있습니다.  
+
+1.  **콘텐츠 브라우저** 에서 **Content > Mannequin > Character > Mesh** 아래 **UE4\_Mannequin\_Skeleton** 에 우클릭하고 **Create > Anim Blueprint** (생성 > 애님 블루프린트)를 선택한 뒤 아무 이름이나 짓습니다.  
+    ![](11_CRNode.png "11_CRNode.png")  
+
+1.  애니메이션 블루프린트의 애님그래프 안에서 **Control Rig** 노드를 (**Control Rig Class** 할당 후) **Final Animation Pose** 에 연결합니다.  
+    ![](12_CRNode.png "12_CRNode.png")
+
+1.  **ThirdPersonIdle** 애니메이션을 추가하고 **Control Rig** 에 연결한 뒤 컴파일합니다.  
+    ![](13_CRNode.png "13_CRNode.png")  
+    캐릭터가 대기하며 오른손을 바라보기 시작합니다. 오른손이 움직이면서, 캐릭터가 자동으로 머리를 오른손 쪽으로 조준하기(바라보기) 시작합니다. 그래프에 Transform Modify Bone 노드를 추가하면 뷰포트 안에서 조작하면서 추가로 테스트할 수 있습니다.  
+
+1.  **Transform Modify Bone** 노드를 **Control Rig** 및 **Play ThirdPersonIdle** 애니메이션 사이에 추가합니다 (변환 노드가 자동 생성됩니다).  
+    ![](14_CRNode.png "14_CRNode.png")
+
+1.  **Transform Modify Bone** 의 **디테일** 패널에서 **Bone to Modify** 를 **upperarm_r**  로, **Rotation Mode** 를 to *Add to Existing** 으로 설정합니다.  
+    ![](15_CRNode.png "15_CRNode.png")
+
+1.  애니메이션 블루프린트를 컴파일합니다.
+
+## 최종 결과
+
+이제 뷰포트 안에서 오른팔을 회전하면 머리가 손 위치를 따릅니다. 또한 다른 애니메이션으로 변경하거나 Rotation Space 를 조정하여 다른 결과를 낼 수 있습니다.
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	fhrbYhjUF80
+	[/PARAMLITERAL]
+[/OBJECT]

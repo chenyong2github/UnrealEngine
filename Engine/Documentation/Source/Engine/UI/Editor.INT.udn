@@ -13,20 +13,12 @@ topic-icon:%ROOT%/editor_icon.png
 [EXCERPT:LevelEditor]
 ## The Basics
 
-
 If you are new to the editor, it will be useful to acquaint yourself with a few basic concepts regarding the user interface and general workflow. Below are a few primary topics to get your feet wet if you are just starting out. 
 
-
-
-[REGION:topics fourth]
-%Engine/UI/LevelEditor:topiccompact%
-%Engine/UI/LevelEditor/Viewports:topiccompact%
-%Engine/UI/InterfaceOverview:topiccompact%
-%Engine/UI/LevelEditor/InEditorTesting:topiccompact%
-[/REGION]
-
-
-
+%Engine/UI/LevelEditor:topic%
+%Engine/UI/LevelEditor/Viewports:topic%
+%Engine/UI/InterfaceOverview:topic%
+%Engine/UI/LevelEditor/InEditorTesting:topic%
 
 ## Editors, Browsers, and Tools
 
@@ -34,31 +26,31 @@ Not every part of Unreal Editor is exposed by default, as it would simply requir
 
 [REGION:raw]
 [OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-windows
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](OpenParticleSystem_Windows.png)
-[/PARAM]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	windows
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	![](OpenParticleSystem_Windows.png)
+	[/PARAM]
 [/OBJECT]
 
 [OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-mac
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](OpenParticleSystem_Mac.png)
-[/PARAM]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	![](OpenParticleSystem_Mac.png)
+	[/PARAM]
 [/OBJECT]
 [/REGION]
 
@@ -93,5 +85,3 @@ mac
 [DIR(output:"playlist" type:"playlist" playlist_id:"PLZlv_N0_O1gasd4IcOe9Cx9wHoBB7rxFl")]
 
 [/EXCERPT:LevelEditor]
-
-

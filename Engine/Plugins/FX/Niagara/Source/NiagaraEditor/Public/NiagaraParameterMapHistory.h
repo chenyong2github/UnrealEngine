@@ -5,11 +5,26 @@
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "Templates/Tuple.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 class UNiagaraNodeOutput;
 class UEdGraphPin;
 class UEdGraphNode;
 class UNiagaraParameterCollection;
+class FHlslNiagaraTranslator;
+
+class FCompileConstantResolver
+{
+public:
+	FCompileConstantResolver() : Emitter(nullptr), Translator(nullptr) {}
+	FCompileConstantResolver(UNiagaraEmitter* Emitter) : Emitter(Emitter), Translator(nullptr) {}
+	FCompileConstantResolver(FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator) {}
+
+	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
+private:
+	UNiagaraEmitter* Emitter;
+	FHlslNiagaraTranslator* Translator;
+};
 
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 
 * 	This class is meant to aid in UI and compilation of the graph. There are several main script types and each one interacts
@@ -280,10 +295,10 @@ public:
 	bool GetNodePreviouslyVisited(const class UNiagaraNode* Node) const;
 
 	/** If we haven't already visited the owning nodes, do so.*/
-	void VisitInputPins(const class UNiagaraNode*);
+	void VisitInputPins(const class UNiagaraNode*, bool bFilterForCompilation);
 	
 	/** If we haven't already visited the owning node, do so.*/
-	void VisitInputPin(const UEdGraphPin* Pin, const class UNiagaraNode*);
+	void VisitInputPin(const UEdGraphPin* Pin, const class UNiagaraNode*, bool bFilterForCompilation);
 
 	/**
 	* Record that a pin writes to the parameter map. The pin name is expected to be the namespaced parameter map version of the name. If any aliases are in place, they are removed.
@@ -298,7 +313,7 @@ public:
 	/**
 	* Record that a pin reads from the parameter map. The pin name is expected to be the namespaced parameter map version of the name. If any aliases are in place, they are removed.
 	*/
-	int32 HandleVariableRead(int32 ParameterMapIndex, const UEdGraphPin* InPin, bool RegisterReadsAsVariables, const UEdGraphPin* InDefaultPin, bool& OutUsedDefault);
+	int32 HandleVariableRead(int32 ParameterMapIndex, const UEdGraphPin* InPin, bool RegisterReadsAsVariables, const UEdGraphPin* InDefaultPin, bool bFilterForCompilation, bool& OutUsedDefault);
 
 	int32 HandleExternalVariableRead(int32 ParamMapIdx, const FName& InVarName);
 	
@@ -340,6 +355,8 @@ public:
 	/** Register any user or other external variables that could possibly be encountered but may not be declared explicitly. */
 	void RegisterEncounterableVariables(const TArray<FNiagaraVariable>& Variables);
 	const TArray<FNiagaraVariable>& GetEncounterableVariables() const {	return EncounterableExternalVariables;}
+
+	FCompileConstantResolver ConstantResolver;
 
 protected:
 	/**

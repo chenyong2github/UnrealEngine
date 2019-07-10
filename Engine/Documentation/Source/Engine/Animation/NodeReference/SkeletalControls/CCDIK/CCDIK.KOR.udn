@@ -1,0 +1,106 @@
+INTSourceChangelist:5294487
+Availability: Public
+Crumbs: 
+Title: CCDIK
+Description: IK 체인 구성 및 제어를 위해 CCDIK 스켈레탈 컨트롤 노드에 액세스하여 사용하는 방법입니다.
+Type: 
+Version: 4.21
+Parent: Engine/Animation/NodeReference/SkeletalControls
+Order: 
+Tags: Animation
+Tags: Experimental
+Tags: Landing Page
+Tags: CCDIK
+Tags: Skeletal Control
+Tags: IK
+
+
+**CCDIK **(Cyclic Coordinate Descent Inverse Kinematics, 순환 좌표 하강 역운동학) 스켈레탈 컨트롤 노드는 경량 IK 솔버로 ([FABRIK](Engine/Animation/NodeReference/Fabrik) 과 비슷하며) 보통 본 체인 구동에 쓰입니다. 하지만 FABRIK 와 달리, CCDIK 는 솔브 도중 본의 회전을 제한하려는 경우 유용하게 쓰일 수 있는 각 컨스트레인트를 정의하는 기능을 제공합니다. 
+
+CCDIK 노드는 아래 그림처럼 절차적 애니메이션 구동에 쓰일 수 있습니다. 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ mI9CGwtozOk
+ [/PARAMLITERAL]
+[/OBJECT]
+
+위 비디오에서 CCDIK 노드 프로퍼티의 **Solver** (솔버) 섹션을 사용하여 캐릭터의 왼쪽 어깨에 **Root Bone** (루트 본)을 설정했습니다. 그런 다음 **Tip Bone** (끝 본)을 캐릭터 검지 마지막 숫자로 설정합니다. **Effector Location** (이펙터 위치)를 조정할 때, IK 솔버가 인계하면, 체인의 본 각각이 따르고, 정의한 **Rotation Limit Per Joints** (조인트 당 회전 제한) 값을 기반으로 합니다. 이 각 제한은 본이 이상하게 회전하는 것을 방지하며 원하는 결과를 내기 위해서는 (본 단위로) 값을 조정해야 할 수 있습니다.  
+
+## 입력 및 출력 핀
+
+아래는 **CCDIK** 노드에 사용할 수 있는 **입력** 및 **출력** 핀입니다.
+
+![](CCDIK_Node.png "CCDIK_Node.png")
+
+| 핀 유형 | 설명 |
+| --- | --- |
+|[REGION:tablesection]입력 핀[/REGION] ||
+| **Effector Location** | 이펙터 위치 - (**Effector Location Space** 가 **Bone** 인 경우) Tip Bone 에 할당되는 대상 위치의 좌표계입니다. Target Location 으로 사용할 Target Bone 에서의 오프셋입니다. |
+| **Component Pose** | 컴포넌트 포즈 - 트랜스폼을 적용할 입력 포즈입니다. |
+| **Alpha** | 알파 - \[0.0, 1.0\] 범위의 float 값으로, Skeletal Control 에 적용되는 트랜스폼 가중치 결정을 위한 알파값으로 사용합니다. 0.0 은 입력 포즈에 최대 가중치를, 1.0 은 컨트롤이 계산한 트랜스폼에 최대 가중치를 줍니다. |
+|[REGION:tablesection]출력 핀[/REGION] ||
+| **Component Pose** | 컴포넌트 포즈 - 트랜스폼 적용 후 최종 포즈입니다. |
+
+
+## 노드 프로퍼티
+
+다음은 **디테일** 패널에서 사용할 수 있는 CCDIK 노드의 프로퍼티입니다.   
+
+![](CCDIK_Details.png "CCDIK_Details.png")
+
+| 옵션 | 설명 |
+| --- | --- |
+| [REGION:tablesection]이펙터 위치[/REGION] ||
+| **(As pin) Effector Location** | 이펙터 위치(를 핀으로) - 이 프로퍼티를 노드의 핀으로 표시할지 여부입니다. |
+| **Effector Location Space** | 이펙터 위치 공간 - 본의 위치를 설정할 좌표계입니다 (World Space, Component Space, Parent Bone Space, Bone Space). | 
+| **Effector Target** | 이펙터 대상 - **Effector Transform Space** 가 본이면, 이 값을 대상 본으로 사용합니다. |
+| [REGION:tablesection]솔버[/REGION] ||
+| **Tip Bone** | 끝 본 - 이 본을 체인의 끝(마지막) 본으로 지정합니다. |
+| **Root Bone** | 루트 본 - 이 본을 체인의 루트(처음) 본으로 지정합니다. |
+| **Precision** | 정밀도 - **Effector Location** 에서의 최종 끝 위치 델타에 대한 허용치입니다. |
+| **Max Iterations** | 최대 반복처리 - 허용할 반복처리 최대 횟수입니다 (퍼포먼스 제어용). |
+| **Start from Tail** | 꼬리에서 시작 - 조인트 회전 디버깅용 축을 그릴지 여부입니다. |
+| **Enable Rotation Limit** | 회전 제한 활성화 - **Effector Location** 에서의 최종 끝 위치 델타 허용치입니다. |
+| **Rotation Limit Per Joints** | 조인트 당 회전 제한 - 본 당 대칭형 회전 제한입니다. 인덱스 0 은 **Root Bone** 에, 마지막은 **Tip Bone** 에 일치합니다. |
+| [REGION:tablesection]퍼포먼스[/REGION] ||
+| **LOD Threshold** | LOD 한계치 - 이 노드에서 실행할 수 있는 최대 LOD 입니다. |
+| [REGION:tablesection]알파[/REGION] ||
+| **Alpha Input Type** | 알파 입력 유형 - 알파 입력 유형을 정의합니다 (Float Value, Boolean Value, Anim Curve Value). |
+| **(As pin)** | (핀으로) - 활성화하면 **알파** 프로퍼티를 노드의 핀으로 표시합니다. 비활성화하면 핀 표시를 제거합니다. |
+
+
+## 예제: 버튼 누름
+
+아래 비디오에서, CCDIK 노드와 [블루프린트](Engine/Blueprints) 를 약간 사용하여 캐릭터가 벽의 버튼을 누르게 만들고 있습니다. 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ -Fd-BZKQMsA
+ [/PARAMLITERAL]
+[/OBJECT]
+
+아래 애니메이션 블루프린트의 애님그래프 안에서, CCDIK 노드의 Effector Location 에 레벨 내 버튼의 위치를 구동하고 있습니다. 플레이어가 버튼 범위 안에 있고 해당하는 키를 누르면, CCDIK 노드를 사용하는 포즈로 블렌딩하여, 캐릭터가 Effector Location 를 향해 뻗(어 버튼을 누르)도록 만듭니다. 
+
+[REGION:lightbox]
+[![](CCDIK_AnimGraph.png)(w:900)](CCDIK_AnimGraph.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+아래는 clavicle_l (왼쪽 어깨)를 본 체인의 **Root Bone** 으로, index\_03\_l (왼쪽 검지 마지막 마디)를 **Tip Bone** 으로 할당합니다. 또한 **Rotation Limit Per Joints** (조인트 당 회전 제한) 섹션을 사용하여 각 본에 적용할 회전량을 결정합니다.   
+
+![](CCDIK_Example_Details.png "CCDIK_Example_Details.png")

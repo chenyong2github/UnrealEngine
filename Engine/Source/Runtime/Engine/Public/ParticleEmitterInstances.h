@@ -438,6 +438,8 @@ public:
 	uint32 GetModuleDataOffset(UParticleModule* Module);
 	/** Get pointer to emitter instance payload data for a particular module */
 	uint8* GetModuleInstanceData(UParticleModule* Module);
+	/** Get pointer to emitter instance random seed payload data for a particular module */
+	FParticleRandomSeedInstancePayload* GetModuleRandomSeedInstanceData(UParticleModule* Module);
 	virtual uint8* GetTypeDataModuleInstanceData();
 	virtual uint32 CalculateParticleStride(uint32 ParticleSize);
 	virtual void ResetBurstList();

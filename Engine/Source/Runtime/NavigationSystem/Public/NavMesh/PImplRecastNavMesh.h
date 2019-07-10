@@ -21,7 +21,6 @@
 #endif
 
 class FRecastNavMeshGenerator;
-class UNavigationSystem;
 
 #if WITH_RECAST
 

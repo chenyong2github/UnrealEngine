@@ -95,7 +95,7 @@ int32 USoundWaveProcedural::GeneratePCMData(uint8* PCMData, const int32 SamplesN
 		{
 			// Shrink the audio buffer size to the actual number of samples generated
 			const int32 BytesGenerated = NumSamplesGenerated * SampleByteSize;
-			check(BytesGenerated <= AudioBuffer.Num());
+			ensureAlwaysMsgf(BytesGenerated <= AudioBuffer.Num(), TEXT("Soundwave Procedural generated more bytes than expected (%d generated, %d expected)"), BytesGenerated, AudioBuffer.Num());
 			if (BytesGenerated < AudioBuffer.Num())
 			{
 				AudioBuffer.SetNum(BytesGenerated, false);

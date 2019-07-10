@@ -1,0 +1,78 @@
+﻿INTSourceChangelist:3622529
+Availability:Public
+Crumbs: %ROOT%
+Title:アイテムを HMD にアタッチする方法
+Description:アイテムを HMD にアタッチする方法の説明
+Type:Overview
+SkillLevel:Beginner
+Version:4.17
+parent:Platforms/VR/DevelopVR
+Order:4
+Tags:VR
+
+[TOC(start:2)]
+
+アンリアル エンジン 4 (UE4) で使用するヘッドマウント ディスプレイ (HMD) はどの種類の場合も、アイテムを HMD にアタッチする方法は一緒です。方法が同じなだけでなく、HMD とも完全に同期して移動します。このどぎゅメントでは、HMD にアイテムをアタッチする場合に必要なことを説明します。
+
+[region:note]
+ワールドでのプレイヤー位置を知りたい時は、Camera アクタの位置を取得することができるようになりました。
+[/region]
+
+
+## オブジェクトと HMD を連動させる設定
+
+スタティックメッシュ、パーティクルエフェクト、UI エレメント、その他いろいろなアイテムを HMD の移動に追従するようにするには、以下の設定を行います。 
+
+1. まず最初にポーンのブループリントを開いて、**[Viewport]** タブを開きます。
+
+	[REGION:lightbox]
+	[![](VR_Follow_HMD_Setup_00.png)(w:737)](VR_Follow_HMD_Setup_00.png)
+	[/REGION]
+
+	[REGION:caption]
+	クリックしてフルサイズで表示
+	[/REGION]
+
+1. **[Component (コンポーネント)]** タブの **[Add Component (コンポーネントを追加)]** オプションをクリックし、検索ボックスに **「Cube」** と入力し、表示された **Cube** メッシュをクリックしてコンポーネントとして追加します。
+
+	[REGION:lightbox]
+	[![](VR_Follow_HMD_Setup_01.png)(w:737)](VR_Follow_HMD_Setup_01.png)
+	[/REGION]
+
+	[REGION:caption]
+	クリックしてフルサイズで表示
+	[/REGION]
+
+1. その Cube スタティック メッシュを選んでカメラの上にドラッグし、カメラがそのメッシュの親になるようにします。
+
+	![](VR_Follow_HMD_Setup_02.png)
+
+1. 次に、ブループリントをコンパイルし、VR プレビュー オプションを使って UE4 エディタ内からプロジェクトを起動します。HMD を装着して頭を動かすと、以下の動画のようにキューブは頭の動きにぴったり付いていきます。
+
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		5brQDHHFR0w
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+
+## HMD とプレイヤーのワールド位置
+
+以下のようにブループリントを設定すると、Camera コンポーネントを使って HMD のワールド位置を素早く取得することができます。
+
+![](VR_Get_Player_Location_00.png)
+
+上の画像では、ユーザーがキーボードの T を押すと、ワールド内のカメラの X、Y、Z の位置がシーンとログ ウィンドウに出力されます。
+
+![](VR_Follow_HMD_Setup_03.png)

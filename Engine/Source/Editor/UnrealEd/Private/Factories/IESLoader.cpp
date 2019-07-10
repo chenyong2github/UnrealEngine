@@ -593,7 +593,23 @@ float FIESLoadHelper::Interpolate2D(float HAngle, float VAngle) const
 		{
 			if (HAngles.Last() > 0.f && HAngle > HAngles.Last())
 			{
-				HAngle = HAngles.Last() - FMath::Fmod(HAngle, HAngles.Last());
+				bool bFlipHAngle = false;
+
+				int32 HQuadrant = (int32)HAngle / HAngles.Last();
+
+				if ( HQuadrant == 1 || HQuadrant == 3 )
+				{
+					bFlipHAngle = true;
+				}
+
+				if ( bFlipHAngle )
+				{
+					HAngle = HAngles.Last() - FMath::Fmod(HAngle, HAngles.Last());
+				}
+				else
+				{
+					HAngle = FMath::Fmod(HAngle, HAngles.Last());
+				}
 			}
 			else if (HAngles[0] > 0.f && HAngle < HAngles[0])
 			{

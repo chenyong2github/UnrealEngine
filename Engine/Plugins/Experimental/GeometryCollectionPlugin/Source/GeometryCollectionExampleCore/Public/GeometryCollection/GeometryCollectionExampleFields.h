@@ -4,12 +4,19 @@
 #include "GeometryCollection/GeometryCollectionExample.h"
 
 namespace GeometryCollectionExample
-{	
+{
+	
+	template<class T>
+	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_NoiseSample(ExampleResponse&& R);
+
 	template<class T>
 	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_RadialIntMask(ExampleResponse&& R);
 
 	template<class T>
 	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_RadialFalloff(ExampleResponse&& R);
+
+	template<class T>
+	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_PlaneFalloff(ExampleResponse&& R);
 
 	template<class T>
 	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_UniformVector(ExampleResponse&& R);
@@ -45,8 +52,10 @@ namespace GeometryCollectionExample
 	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SumScalarLeftSide(ExampleResponse&& R);
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_ContextOverrides(ExampleResponse&& R);
+	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_Culling(ExampleResponse&& R);
 
 	template<class T>
-	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_DefaultRadialFalloff(ExampleResponse&& R);
+	bool GEOMETRYCOLLECTIONEXAMPLECORE_API Fields_SerializeAPI(ExampleResponse&& R);
+
+
 }

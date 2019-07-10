@@ -350,23 +350,27 @@ namespace UnrealBuildTool
 	{
 		public DirectoryItem SourceFolder;
 		public List<FileItem> HeaderFiles;
+		public bool bUsePrecompiled;
 
-		public UHTModuleHeaderInfo(DirectoryItem SourceFolder, List<FileItem> HeaderFiles)
+		public UHTModuleHeaderInfo(DirectoryItem SourceFolder, List<FileItem> HeaderFiles, bool bUsePrecompiled)
 		{
 			this.SourceFolder = SourceFolder;
 			this.HeaderFiles = HeaderFiles;
+			this.bUsePrecompiled = bUsePrecompiled;
 		}
 
 		public UHTModuleHeaderInfo(BinaryArchiveReader Reader)
 		{
 			SourceFolder = Reader.ReadDirectoryItem();
 			HeaderFiles = Reader.ReadList(() => Reader.ReadFileItem());
+			bUsePrecompiled = Reader.ReadBool();
 		}
 
 		public void Write(BinaryArchiveWriter Writer)
 		{
 			Writer.WriteDirectoryItem(SourceFolder);
 			Writer.WriteList(HeaderFiles, Item => Writer.WriteFileItem(Item));
+			Writer.WriteBool(bUsePrecompiled);
 		}
 	}
 
@@ -589,7 +593,7 @@ namespace UnrealBuildTool
 					ReflectedHeaderFiles.AddRange(Info.PublicUObjectHeaders);
 					ReflectedHeaderFiles.AddRange(Info.PublicUObjectClassesHeaders);
 					ReflectedHeaderFiles.AddRange(Info.PrivateUObjectHeaders);
-					UObjectModuleHeaders.Add(new UHTModuleHeaderInfo(ModuleDirectoryItem, ReflectedHeaderFiles));
+					UObjectModuleHeaders.Add(new UHTModuleHeaderInfo(ModuleDirectoryItem, ReflectedHeaderFiles, Module.Rules.bUsePrecompiled));
 				}
 				else
 				{
@@ -956,41 +960,20 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Run an external exe (and capture the output), given the exe path and the commandline.
-		/// </summary>
-		public static int RunExternalDotNETExecutable(string ExePath, string Commandline)
-		{
-#if NET_CORE
-			ProcessStartInfo ExeInfo = new ProcessStartInfo("dotnet", ExePath + " " + Commandline);
-#else
-			ProcessStartInfo ExeInfo = new ProcessStartInfo(ExePath, Commandline);
-#endif
-			Log.TraceVerbose("RunExternalExecutable {0} {1}", ExePath, Commandline);
-			ExeInfo.UseShellExecute = false;
-			ExeInfo.RedirectStandardOutput = true;
-			using (Process GameProcess = Process.Start(ExeInfo))
-			{
-				GameProcess.BeginOutputReadLine();
-				GameProcess.OutputDataReceived += PrintProcessOutputAsync;
-				GameProcess.WaitForExit();
-
-				return GameProcess.ExitCode;
-			}
-		}
-
-		/// <summary>
 		/// Run an external native executable (and capture the output), given the executable path and the commandline.
 		/// </summary>
 		public static int RunExternalNativeExecutable(FileReference ExePath, string Commandline)
 		{
-			ProcessStartInfo ExeInfo = new ProcessStartInfo(ExePath.FullName, Commandline);
 			Log.TraceVerbose("RunExternalExecutable {0} {1}", ExePath.FullName, Commandline);
-			ExeInfo.UseShellExecute = false;
-			ExeInfo.RedirectStandardOutput = true;
-			using (Process GameProcess = Process.Start(ExeInfo))
+			using (Process GameProcess = new Process())
 			{
-				GameProcess.BeginOutputReadLine();
+				GameProcess.StartInfo.FileName = ExePath.FullName;
+				GameProcess.StartInfo.Arguments = Commandline;
+				GameProcess.StartInfo.UseShellExecute = false;
+				GameProcess.StartInfo.RedirectStandardOutput = true;
 				GameProcess.OutputDataReceived += PrintProcessOutputAsync;
+				GameProcess.Start();
+				GameProcess.BeginOutputReadLine();
 				GameProcess.WaitForExit();
 
 				return GameProcess.ExitCode;
@@ -1049,6 +1032,20 @@ namespace UnrealBuildTool
 				else if(AreGeneratedCodeFilesOutOfDate(BuildConfiguration, UObjectModules, HeaderToolTimestampUtc, bIsGatheringBuild, bIsAssemblingBuild))
 				{
 					bUHTNeedsToRun = true;
+				}
+
+				// Check we're not using a different version of UHT
+				FileReference ToolInfoFile = ModuleInfoFileName.ChangeExtension(".uhtpath");
+				if(!bUHTNeedsToRun)
+				{
+					if(!FileReference.Exists(ToolInfoFile))
+					{
+						bUHTNeedsToRun = true;
+					}
+					else if(FileReference.ReadAllText(ToolInfoFile) != HeaderToolReceipt.FullName)
+					{
+						bUHTNeedsToRun = true;
+					}
 				}
 
 				// Get the file containing dependencies for the generated code
@@ -1171,6 +1168,10 @@ namespace UnrealBuildTool
 					}
 
 					Log.TraceInformation("Reflection code generated for {0} in {1} seconds", ActualTargetName, s.Elapsed.TotalSeconds);
+
+					// Update the tool info file
+					DirectoryReference.CreateDirectory(ToolInfoFile.Directory);
+					FileReference.WriteAllText(ToolInfoFile, HeaderToolReceipt.FullName);
 
 					// Now that UHT has successfully finished generating code, we need to update all cached FileItems in case their last write time has changed.
 					// Otherwise UBT might not detect changes UHT made.

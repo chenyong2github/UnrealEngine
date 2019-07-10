@@ -11,6 +11,7 @@
 class FSlateStyleSet;
 class FAssetTypeActions_GeometryCollection;
 class FAssetTypeActions_GeometryCollectionCache;
+class FGeometryCollectionAssetBroker;
 
 /**
  * The public interface to this module
@@ -55,6 +56,7 @@ private:
 	// Asset actions for new asset types
 	FAssetTypeActions_GeometryCollection* GeometryCollectionAssetActions;
 	FAssetTypeActions_GeometryCollectionCache* GeometryCollectionCacheAssetActions;
+	FGeometryCollectionAssetBroker* AssetBroker;
 
 	// Modular features
 	FOutlinerTraversalAccessor OutlinerTraversalAccessor;

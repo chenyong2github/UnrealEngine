@@ -1,0 +1,86 @@
+﻿INTSourceChangelist:6142688
+Availability: Public
+Title: 模块
+Description: UBT模块总览，包括属性描述。
+Version: 4.21
+Parent: Programming/BuildTools/UnrealBuildTool
+Order: 1
+
+
+[TOC (start:2 end:4)]
+
+模块是UE4的组成部分。引擎被实现为模块的大集合，并且游戏将提供自身的模块来对其进行扩充。每个模块封装一组功能，并且可以提供公共接口和编译环境（含有宏、包含路径等），以供其他模块使用。
+
+模块通过带有.build.cs扩展名的C#源文件声明，并存储在项目的 *Source* 目录下。属于模块的C++源代码存储在.build.cs文件旁或其子目录中。每个.build.cs文件声明一个从ModuleRules基类派生出的类，并设置属性控制其从其构造函数进行编译的方式。这些.build.cs文件由虚幻编译工具编译，并被构造来确定整体编译环境。
+
+.build.cs文件的典型结构如下。
+
+    using UnrealBuildTool;
+    using System.Collections.Generic;
+    public class MyModule : ModuleRules
+    {
+        public MyModule(ReadOnlyTargetRules Target) : base(Target)
+        {
+            // Settings go here
+        }
+    }
+
+## 读/写属性
+
+| 属性 | 描述 |
+| --- | --- |
+| 类型（ModuleType） | 模块类型 |
+| BinariesSubFolder (String) | 在编译DLL时将此模块放入Binaries/PLATFORM文件夹的子文件夹。这只能由通过搜索找到的模块使用，例如TargetPlatform或ShaderFormat模块。如果未使用FindModules来跟踪它们，便找不到这些模块。 |
+| OptimizeCode (CodeOptimization) | 此模块的代码应何时进行优化。 |
+| PrivatePCHHeaderFile (String) | 此模块的显式私有PCH。意味着此模块不会使用共享PCH。 |
+| SharedPCHHeaderFile (String) | 此模块提供的共享PCH的头文件名称。必须为公共C++头文件的有效相对路径。这应该只为大量其他C++模块包含的头文件进行设置。 |
+| ShortName (String) | 指定此模块中间项中间目录和文件的替换名称。在达到路径长度限制时十分实用。 |
+| PCHUsage（PCHUsageMode） | 此模块的预编译标头用法。 |
+| bTreatAsEngineModule (Boolean) | 此模块是否应视为引擎模块（如使用引擎定义、PCH、用DebugGame配置中启用的优化来编译，等等）。基于其创建源自的规则程序集来初始化为默认。 |
+| bUseBackwardsCompatibleDefaults (Boolean) | 是否对该模块使用向后兼容默认项。默认情况下，引擎模块将始终使用最新的默认设置，而项目模块则不使用（以支持更容易的迁移路径）。 |
+| bUseRTTI (Boolean) | 使用运行时类型信息。 |
+| bUseAVX (Boolean) | 使用AVX指令。 |
+| bEnableBufferSecurityChecks (Boolean) | 启用缓冲安全检查。通常应启用此功能，防止严重的安全风险。 |
+| bEnableExceptions (Boolean) | 启用异常处理。 |
+| bEnableObjCExceptions (Boolean) | 启用objective C异常处理。 |
+| bEnableShadowVariableWarnings (Boolean) | 启用阴影变量的警告。 |
+| bEnableUndefinedIdentifierWarnings (Boolean) | 在#if表达式中启用使用未定义辨识符的警告。 |
+| bFasterWithoutUnity (Boolean) | 如为true并启用了统一编译，则该模块将在没有统一的情况下编译。 |
+| MinSourceFilesForUnityBuildOverride (Int32) | 在统一编译之前，此模块中的源文件数量将为该模块激活。如设为-1以外的任意值，将覆盖由MinGameModuleSourceFilesForUnityBuild控制的默认设置。 |
+| MinFilesUsingPrecompiledHeaderOverride (Int32) | 如未非零，则覆盖BuildConfiguration.MinFilesUsingPrecompiledHeader。 |
+| bBuildLocallyWithSNDBS (Boolean) | 模块使用#import，因此使用SN-DBS编译时必须在本地编译。 |
+| IsRedistributableOverride (Nullable<Boolean>) | 此模块的重发布覆盖标签。 |
+| bOutputPubliclyDistributable (Boolean) | 此模块的输出是否可以公开发布，即使它在非公开发布的模块上存在代码/依赖性也同样如此（CarefullyRedist、NotForLicensees、NoRedist）。这应在计划发布二进制文件、而非源代码时使用。 |
+| WhitelistRestrictedFolders (List<String>) | 编译此二进制文件时要引用的白名单文件夹列表，但不传播受限的文件夹名称。 |
+| bEnforceIWYU (Boolean) | PCHUsage设为ExplicitOrSharedPCH时执行“包含您所使用”规则，使用单块标头（Engine.h、UnrealEd.h等）时则发出警告。并首先检查源文件是否包含匹配的标头。 |
+| bAddDefaultIncludePaths (Boolean) | 是否将所有默认包含路径添加到模块中（如Source/Classes文件夹、Source/Public下的子文件夹）。 |
+| bPrecompile (Boolean) | 是否应预编译此模块。默认为目标的bPrecompile标签。清除此标签可防止模块被预编译。 |
+| bUsePrecompiled (Boolean) | 此模块是否应使用预编译数据。对于从已安装的程序集创建的模块而言，此项始终为true。 |
+| PublicIncludePathModuleNames (List<String>) | 拥有头文件的模块名称列表（不需要路径）。我们模块的公共标头需要访问这些头文件，但不需要“导入”或连接。 |
+| PublicDependencyModuleNames (List<String>) | 公共依赖性模块名称列表（不需要路径）（自动执行私有/公共包含）。这些是公共源文件所需要的模块。 |
+| PrivateIncludePathModuleNames (List<String>) | 拥有头文件的模块名称列表（不需要路径）。我们模块的私有代码文件需要访问这些头文件，但不需要“导入”或连接。 |
+| PrivateDependencyModuleNames (List<String>) | 私有依赖性模块命名的列表。这些是我们私有代码所依赖、但公共包含文件中无依赖的模块。 |
+| CircularlyReferencedDependentModules (List<String>) | 出于旧有行为的原因，这不应在新代码中使用。这是应视为循环引用的模块依赖性列表。该模块必须已被添加到公共或私有依赖模块列表中。 |
+| PublicSystemIncludePaths (List<String>) | 系统/库包含路径的列表——通常用于外部（第三方）模块。这些是在解析标头依赖性时不进行检查的公共稳定头文件目录。 |
+| PublicIncludePaths (List<String>) | （当前不需要此设置，因为我们从 'Public' 文件夹中发现了所有文件）所有路径的列表，包括公开给其他模块的文件。 |
+| PrivateIncludePaths (List<String>) | 此模块内部包含文件（未公开给其他模块）的所有路径的列表（如果包含到 'Private' 路径，则需至少一个；如要避免相对路径，则需要更多）。 |
+| PublicLibraryPaths (List<String>) | 系统/库路径列表（.lib文件目录）——通常用于外部（第三方）模块。 |
+| PrivateRuntimeLibraryPaths (List<String>) | 运行时库的搜索路径列表（例如.so文件）。 |
+| PublicRuntimeLibraryPaths (List<String>) | 运行时库的搜索路径列表（例如.so文件）。 |
+| PublicAdditionalLibraries (List<String>) | 额外库的列表（.lib文件的名称，含扩展名）——通常用于外部（第三方）模块。 |
+| PublicFrameworks (List<String>) | XCode框架的列表（iOS和MacOS）。 |
+| PublicWeakFrameworks (List<String>) | 弱框架列表（用于操作系统版本转换）。 |
+| PublicAdditionalFrameworks (List<Framework>) | 额外框架列表——通常用于Mac和iOS上的外部（第三方）模块。 |
+| AdditionalBundleResources (List<BundleResource>) | 应复制到Mac或iOS应用程序包中的额外资源的列表。 |
+| PublicAdditionalShadowFiles (List<String>) | 用于在远程机（如iOS）上执行的编译，此列表包含额外文件，需要复制这些文件，应用程序才能成功连接。自动复制源/头文件和PCH。通常这只是预编译第三方库依赖性的列表。 |
+| PublicDelayLoadDLLs (List<String>) | 延迟加载DLL列表——通常用于外部（第三方）模块。 |
+| PrivateDefinitions (List<String>) | 此模块的私有编译器定义。 |
+| PublicDefinitions (List<String>) | 此模块的公共编译器定义。 |
+| DynamicallyLoadedModuleNames（List<String>） | 运行时此模块可能需要的额外模块。 |
+| RuntimeDependencies (RuntimeDependencyList) | 此模块在运行时所依赖文件的列表。这些文件将与目标一同暂存。 |
+| AdditionalPropertiesForReceipt (ReceiptPropertyList) | 添加到编译收据中的额外属性的列表。 |
+| PrecompileForTargets (PrecompileTargetsType) | 此模块将针对哪些目标进行预编译 |
+| ExternalDependencies (List<String>) | 修改后使makefile无效的第三方文件。相对路径相对于.build.cs文件进行解析。 |
+| bRequiresImplementModule (Nullable<Boolean>) | 此模块是否需要实现IMPLEMENT\_MODULE宏。大多数UE4模块都需要，因为我们使用IMPLEMENT\_MODULE宏来执行其他全局重载（如运算符新建/删除前进到GMalloc）。 |
+| bLegacyPublicIncludePaths (Nullable<Boolean>) | 此模块是否能使来自自其他模块的标头相对于其 'Public' 文件夹的根。这减少了必须传递给编译器的搜索路径的数量，提高了性能并减少了编译器命令行的长度。 |
+| CppStandard (CppStandardVersion) | 用于编译此模块的标准。 |

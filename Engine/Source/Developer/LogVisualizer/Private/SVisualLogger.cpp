@@ -806,7 +806,7 @@ void SVisualLogger::OnFiltersChanged()
 	{
 		FVisualLoggerDBRow* DBRow = &(*Iterator);
 		AllFutures.Add(
-			Async<void>(EAsyncExecution::TaskGraph, [this, DBRow]()
+			Async(EAsyncExecution::TaskGraph, [this, DBRow]()
 			{
 				const TArray<FVisualLogDevice::FVisualLogEntryItem>& Entries = DBRow->GetItems();
 				for (int32 Index = 0; Index < Entries.Num(); ++Index)
@@ -877,7 +877,7 @@ void SVisualLogger::OnFiltersSearchChanged(const FText& Filter)
 	{
 		FVisualLoggerDBRow* DBRow = &(*Iterator);
 			AllFutures.Add(
-				Async<void>(EAsyncExecution::TaskGraph, [this, DBRow]()
+				Async(EAsyncExecution::TaskGraph, [this, DBRow]()
 					{
 						const TArray<FVisualLogDevice::FVisualLogEntryItem>& Entries = DBRow->GetItems();
 						for (int32 Index = 0; Index < Entries.Num(); ++Index)

@@ -1,71 +1,74 @@
-﻿INTSourceChangelist:2624288
+INTSourceChangelist:3783201
 Availability:Public
-Title:虚幻编译系统
-Crumbs: %ROOT%, Programming
-Description:对引擎和游戏项目进行编译的虚幻引擎自定义编译系统。
-version:4.9
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Programming/UnrealBuildSystem:title%](Engine/build_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/build_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Programming/UnrealBuildSystem:title%
-	[/PARAM]
-	[PARAM:description]
-		%Programming/UnrealBuildSystem:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Programming/UnrealBuildSystem]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
+Title:虚幻构建系统
+Crumbs:
+Description:用于编译引擎和游戏项目的虚幻引擎自定义构建系统。
+version:4.15
+parent:Programming
+tags:Programming
+tags:Unreal Build System
+type:overview
+topic-image:Engine/build_topic.png
+
+[TOC (start:1 end:3)]
 
 [REGION:fullwidth]
-![Unreal Build System](build.png)
+![虚幻构建系统](build.png)
 [/REGION]
 
-### UnrealBuildTool
-**UnrealBuildTool**（简称 UBT）是一个自定义工具，管理多个编译配置中的 **虚幻引擎 4**（UE4）源代码编译过程。研究 BuildConfiguration.cs，探索诸多用户可配置的编译选项。
+**虚幻构建系统** 指的是自动处理构建虚幻引擎4（UE4）的工具集合。总的来说，UnrealBuildTool和UnrealHeaderTool为虚幻构建系统提供支持。
+本指南概括介绍UnrealBuildTool和UnrealHeaderTool，包含关于UE4模块化架构的简要讨论。如果您想要使用这组构建工具，我们还提供了一些指南，可帮助您设置和配置虚幻 
+构建系统来制作您自己的项目。最后，我们将提供一些适用于高级用户的指南，方便他们进一步了解Include-What-You-Use（IWYU）以来模型和BuildGraph脚本系统。
 
 [REGION:note]
-如需在 Mac OS X 上调试 UnrealBuildTool 或 UnrealAutomationTool，必须安装 [MonoDevelop 4.2.2](http://monodevelop.com/Download) 和 [Mono 3.2.7](http://www.go-mono.com/mono-downloads/download.html)。 
+如果您想要在Mac OS X上调试UnrealBuildTool或UnrealAutomationTool，请安装[MonoDevelop 4.2.2](http://monodevelop.com/Download)和[Mono 3.2.7](http://www.go-mono.com/mono-downloads/download.html)。 
 [/REGION]
 
-### UnrealHeaderTool
-**UnrealHeaderTool**（简称 UHT）是支持 UObject 系统的自定义解析和代码生成工具。代码编译在两个阶段中进行：
+(#unrealbuildtool)
+## UnrealBuildTool
 
-1.	UHT 被调用。它将解析 C++ 头中引擎相关类元数据，并生成自定义代码，以实现诸多 UObject 相关的功能。
-1.	普通 C++ 编译器被调用，以便对结果进行编译。
+**UnrealBuildTool**（UBT）是用于管理在各种构建配置中构建UE4源代码流程的自定义工具。查看`BuildConfiguration.cs`以探索各种 
+用户可配置构建选项。
 
-编译时，两个工具皆有可能出现错误，必须仔细检查。
+(#unrealheadertool)
+## UnrealHeaderTool
 
-### 项目文件
-开发环境任意项目文件（如 Visual Studio 的 .sln 或 .vcproj 文件）的编译过程均独立进行。这些文件有助于进行编辑，因此提供了一个工具，基于项目目录树内容进行动态文件生成。使用保存在 root /UE4 目录下的 [GenerateProjectFiles.bat](Programming\UnrealBuildSystem\ProjectFileGenerator) 文件即可运行此工具。时常运行该批处理文件有助于使代码编辑器和硬盘上添加或移除的代码文件之间达成同步。
+**UnrealHeaderTool**（UHT）是自定义解析和代码生成工具，可支持UObject系统。代码编译分两个阶段：
 
-### 模块化架构
-UE4 被划分为多个模块。每个模块都拥有控制其编译方式的 .build.cs 文件，包括定义模块相依性的选项、额外的库、包含路径等。
+1.	调用UHT，它解析虚幻相关类元数据的C++头，并生成自定义代码来实现各种UObject相关功能。
+1.	调用一般的C++编译器来编译结果。
 
-这些模块被默认编译为 DLL 文件，可通过单一可执行文件进行加载。可选择在 BuildConfiguration.cs 文件中编译一个单块可执行文件。
+在编译时，任一工具都可能产生错误，因此请务必仔细检查。
 
-## 概要
+(#modulararchitecture)
+## 模块化架构
 
-[REGION:buttonlist]
+UE4拆分成许多模块。每个模块都有`.build.cs`文件，用于控制该模块的构建方式，其中包含诸多选项，用于定义模块依赖关系、其他库、包含路径等。默认情况下，这些模块编译到DLL中，并由单个可执行文件加载。您可以选择在`BuildConfiguration.cs`文件中构建单体可执行文件。  
 
-		* [](Programming/UnrealBuildSystem/ProjectFileGenerator "%Programming/UnrealBuildSystem/ProjectFileGenerator:description%")
-		* [](Programming/Development/BuildingUnrealEngine "%Programming/Development/BuildingUnrealEngine:description%")
-	
+(#usingunrealbuildsystem)
+## 使用虚幻构建系统
+
+在使用虚幻构建系统之前，必须知道的是，对于开发环境，构建流程独立于任何项目文件单独执行，如`.sln`或`.vcproj`文件（针对Visual Studio）。但这些文件对于编辑目的十分有用， 
+因此我们提供了一个工具用来动态生成这些文件（根据项目目录树的内容）。您可以可以将这个工具与`[Root UE4]`目录中的`GenerateProject.bat`文件一起运行。
+
+[REGION:tip]
+时常运行`GenerateProject.bat`将保持代码编辑器中要添加到磁盘（或从磁盘移除）的文件为最新。
 [/REGION]
 
-## 设置和配置
+(#setup)
+### 设置
 
-[REGION:buttonlist]
+%Programming/UnrealBuildSystem/ProjectFileGenerator:topic%
+%Programming/Development/BuildingUnrealEngine:topic%
 
-		* [](Programming/UnrealBuildSystem/Configuration "%Programming/UnrealBuildSystem/Configuration:description%")
-		* [](Programming/UnrealBuildSystem/TargetFiles "%Programming/UnrealBuildSystem/TargetFiles:description%")
-	
-[/REGION]
+(#configuration)
+### 配置
 
+%Programming/UnrealBuildSystem/Configuration:topic%
+%Programming/UnrealBuildSystem/TargetFiles:topic%
+
+(#advancedtopics)
+## 高级主题
+
+%Programming/UnrealBuildSystem/IWYUReferenceGuide:topic%
+%Programming/BuildTools/AutomationTool/BuildGraph:topic%

@@ -17,7 +17,7 @@ class FCanvas;
 class FRenderTarget;
 
 UCLASS(config=Editor,MinimalAPI)
-class UBlueprintThumbnailRenderer : public UDefaultSizedThumbnailRenderer
+class UNREALED_VTABLE UBlueprintThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_UCLASS_BODY()
 

@@ -90,7 +90,6 @@ void TestBrdfIntegrityCS(
 		PDF = -1.0;
 	}
 
-	//#dxr_todo accumulate relative errors instead of flags?
 	float BrdfThreshold = 0.05;
 	float PdfThreshold = 0.05;
 	bool SampleOK = true;

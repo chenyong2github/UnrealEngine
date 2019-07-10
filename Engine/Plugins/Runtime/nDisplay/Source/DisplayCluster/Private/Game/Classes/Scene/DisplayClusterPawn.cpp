@@ -15,10 +15,10 @@
 
 #include "DisplayClusterSceneComponentSyncParent.h"
 
-#include "Misc/DisplayClusterLog.h"
-#include "DisplayClusterSettings.h"
 #include "DisplayClusterGameMode.h"
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
+#include "DisplayClusterSettings.h"
 
 
 ADisplayClusterPawn::ADisplayClusterPawn(const FObjectInitializer& ObjectInitializer) :
@@ -74,7 +74,7 @@ void ADisplayClusterPawn::BeginPlay()
 		return;
 	}
 
-	GameMgr = GDisplayCluster->GetPrivateGameMgr();
+	IPDisplayClusterGameManager* const GameMgr = GDisplayCluster->GetPrivateGameMgr();
 	bIsCluster = (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
 
 	// No collision by default

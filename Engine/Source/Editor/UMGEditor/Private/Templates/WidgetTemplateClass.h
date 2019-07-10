@@ -37,8 +37,14 @@ public:
 	/** Gets the tooltip widget for this palette item. */
 	virtual TSharedRef<IToolTip> GetToolTip() const override;
 
-	/** Gets the WidgetClass */
+	/** @param OutStrings - Returns an array of strings used for filtering/searching this widget template. */
+	virtual void GetFilterStrings(TArray<FString>& OutStrings) const override;
+
+	/** Gets the WidgetClass which might be null. */
 	TWeakObjectPtr<UClass> GetWidgetClass() const { return WidgetClass; }
+
+	/** Returns the asset data for this widget which might be invalid. */
+	FAssetData GetWidgetAssetData() { return WidgetAssetData; }
 
 protected:
 	/** Creates a widget template class without any class reference */

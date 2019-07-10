@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3967023
+INTSourceChangelist:3967023
 Availability: Public
 Title:3. 입력에 반응하는 C++ 코드 작성
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/PlayerCamera
@@ -114,13 +114,13 @@ version:4.9
 			SetActorRotation(NewRotation);
 		}
 
-		//카메라의 핏치를 회전하되, 항상 아래를 보도록 제한시킵니다
+		//카메라의 피치를 회전하지만, 항상 아래를 보도록 제한시킵니다
 		{
 			FRotator NewRotation = OurCameraSpringArm->GetComponentRotation();
 			NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch + CameraInput.Y, -80.0f, -15.0f);
 			OurCameraSpringArm->SetWorldRotation(NewRotation);
 		}
-	이 코드 블록은 **Pawn** 의 요를 마우스 X 축으로 직접 회전시키되, 카메라 시스템은 마우스 Y 축의 핏치 변화에만 반응합니다. **액터** 나 그 서브클래스를 회전시키면 실제로 루트 레벨의 **컴포넌트** 가 회전되어, 거기 붙어있는 모든 것에 간접적으로 영향을 끼칩니다.
+	이 코드 블록은 **Pawn** 의 요를 마우스 X 축으로 직접 회전시키되, 카메라 시스템은 마우스 Y 축의 피치 변화에만 반응합니다. **액터** 나 그 서브클래스를 회전시키면 실제로 루트 레벨의 **컴포넌트** 가 회전되어, 거기 붙어있는 모든 것에 간접적으로 영향을 끼칩니다.
 
 		//"MoveX" 와 "MoveY" 축에 따라 이동을 처리합니다
 		{

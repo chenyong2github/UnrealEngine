@@ -1,20 +1,19 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6186150
 Availability:Public
-Title:블루프린트 스플라인 비법
+Title:블루프린트 스플라인 하우투
 Crumbs: %ROOT%, Engine
-Description:다양한 블루프린트 스플라인 컴포넌트 및 블루프린트 스플라인 메시 컴포넌트 관련 비법입니다.
+Description:다양한 블루프린트 스플라인 컴포넌트 및 블루프린트 스플라인 메시 컴포넌트 관련 하우투입니다.
 Navigation:topic
 parent:Engine/BlueprintSplines
 order:3
-social-image:Splines_social.png
 version:4.13
 type:landing
 tags:Splines
-topic-image:Engine/Splines/Splines_topic.png
 
-Blueprint Spline Components (블루프린트 스플라인 컴포넌트) 및 Blueprint Spline Mesh Components (블루프린트 스플라인 메시 컴포넌트) 관련 비법은 아래와 같습니다.
 
-## 비법
+Blueprint Spline Components (블루프린트 스플라인 컴포넌트) 및 Blueprint Spline Mesh Components (블루프린트 스플라인 메시 컴포넌트) 관련 안내서는 아래와 같습니다.
+
+## 하우투
 
 [DIR(output:"fancy" parent:"Engine/BlueprintSplines/HowTo" org:"hierarchy" end:"1")]
 

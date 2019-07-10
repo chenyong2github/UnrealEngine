@@ -1,13 +1,11 @@
-﻿INTSourceChangelist:3750352
-Availability: Docs
-Title:体积概述
-Crumbs:%ROOT%, Engine, Engine/Actors, Engine/Actors/Volumes
+﻿INTSourceChangelist:6535113
+Availability: Public
+Title:施加伤害的体积参数
+Parent: Engine/Actors/Volumes
 Description:关于施加伤害的体积的参考细节
 version:4.16
 type:reference
 
-
-### 施加伤害的体积
 
 除了从物理体积分配的属性之外，施加伤害的体积还具有下面概述的一组特定属性。
 

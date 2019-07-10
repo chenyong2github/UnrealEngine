@@ -5,13 +5,13 @@
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Cluster/DisplayClusterClusterEvent.h"
-#include "Misc/DisplayClusterLog.h"
 #include "Network/Session/DisplayClusterSessionExternal.h"
 
 #include "Dom/JsonObject.h"
 #include "JsonObjectConverter.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterClusterEventsService::FDisplayClusterClusterEventsService(const FString& InAddr, const int32 InPort) :

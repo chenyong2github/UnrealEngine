@@ -26,13 +26,24 @@ public:
 	virtual bool IsUsingCorrectDisplayAdapter() const override;
 	virtual void* GetOvrpDevice() const override;
 	virtual FTextureRHIRef CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, uint32 InTexCreateFlags) override;
-	virtual void AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture) override;
 };
 
 
 FD3D11CustomPresent::FD3D11CustomPresent(FOculusHMD* InOculusHMD) :
-	FCustomPresent(InOculusHMD, ovrpRenderAPI_D3D11, PF_B8G8R8A8, true, true)
+	FCustomPresent(InOculusHMD, ovrpRenderAPI_D3D11, PF_B8G8R8A8, true)
 {
+	switch (GPixelFormats[PF_DepthStencil].PlatformFormat)
+	{
+	case DXGI_FORMAT_R24G8_TYPELESS:
+		DefaultDepthOvrpTextureFormat = ovrpTextureFormat_D24_S8;
+		break;
+	case DXGI_FORMAT_R32G8X24_TYPELESS:
+		DefaultDepthOvrpTextureFormat = ovrpTextureFormat_D32_S824_FP;
+		break;
+	default:
+		UE_LOG(LogHMD, Error, TEXT("Unrecognized depth buffer format"));
+		break;
+	}
 }
 
 
@@ -94,16 +105,6 @@ FTextureRHIRef FD3D11CustomPresent::CreateTexture_RenderThread(uint32 InSizeX, u
 		return nullptr;
 	}
 }
-
-
-void FD3D11CustomPresent::AliasTextureResources_RHIThread(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture)
-{
-	CheckInRHIThread();
-
-	FD3D11DynamicRHI* DynamicRHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
-	DynamicRHI->RHIAliasTextureResources(DestTexture, SrcTexture);
-}
-
 
 //-------------------------------------------------------------------------------------------------
 // APIs

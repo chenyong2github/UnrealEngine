@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3801260
-Availability:Docs
+﻿INTSourceChangelist:6535113
+Availability:Public
 Crumbs: %ROOT%
 Title: 构建操作：烘焙、打包、部署与运行
 Description: 概述了可用于虚幻引擎4项目的构建操作（烘焙、打包、运行与部署）。
@@ -8,13 +8,15 @@ SkillLevel:Intermediate
 Version:4.18
 Parent:Engine/Deployment
 Order:1
-Tags:Nintendo Switch
+Tags:Cooking
+Tags:Build Operations
+Tags:Deploy
 Topic-image:BuildOps_Topic.png
 
 [TOC(start:2 end:3)]
 
 
-在封装过程中使用的 [自动化工具](Programming/Automation)（有时缩写为UAT，代表虚幻自动化工具（Unreal Automation Tool））用于通过一系列实用程序脚本来处理虚幻引擎4（UE4）项目。对于封装过程，自动化工具使用特定的命令 **BuildCookRun**。这些构建操作针对平台转化内容，将其封装成平台自己的文件格式，部署到设备并自动运行项目（若条件允许）。该过程使你能够在开发过程中的任何时候将内容部署到给定的平台上进行测试、调试甚至完整分发项目。
+在封装过程中使用的 [自动化工具](Programming/Automation)（有时缩写为UAT，代表虚幻自动化工具（Unreal Automation Tool））用于通过一系列实用程序脚本来处理虚幻引擎4（UE4）项目。对于封装过程，自动化工具使用特定的命令 **BuildCookRun**。该指令能针对平台烘焙内容，将其封装成平台原生的文件格式用于分发，部署到设备并自动运行项目（若条件允许）。但打包项目并非只能直接使用UAT。你也可以使用文件菜单选择可用的平台，或使用命令行为特定平台烘焙并打包内容。
 
 
 以下是封装流程的不同阶段，它们也是UAT中 **BuildCookRun** 命令的组成部分：
@@ -22,7 +24,7 @@ Topic-image:BuildOps_Topic.png
 * **构建（Build）：**该阶段将为所选择的平台编译可执行文件。
 * **转化（Cook）：**该阶段通过在特殊模式下执行编辑器来转化内容。
 * **暂存（Stage）：**该阶段将可执行文件和内容复制到暂存区，它是开发目录以外的独立目录。
-* **归档（Archive）：**该阶段创建特定于平台的应用程序包，例如，在Android上为APK文件，在PlayStation 4上为PKG文件。
+* **打包（Package）:** 该阶段将项目打包成平台原生的分发格式。
 * **部署（Deploy）：**该阶段将构建版本部署到目标设备。
 * **运行（Run）：**该阶段在目标平台上启动已封装的项目。
 
@@ -30,10 +32,10 @@ Topic-image:BuildOps_Topic.png
 
 ## 封装方法
 
-由于你可以采用多种不同的方式将内容部署到目标平台上以进行测试、调试或准备发布成果，可以使用以下方法来测试程序包： 
+由于你可以采用多种不同的方式将内容部署到目标平台上以进行测试、调试或准备发布，你可以使用多种不同的方法来测试程序包： 
 
-* 你可以使用 [启动（Launch On）](#launchon) 来快速测试部分当前已加载的关卡并进行调试。
-* 你可以使用 [项目启动程序（Project Launcher）](#projectlauncher) 来使用默认配置文件或创建自定义的配置文件来针对项目的最新构建版本执行分析或调试等操作。
+* 你可以使用 [启动](#启动) 来快速测试部分当前已加载的关卡并进行调试。
+* 你可以使用 [项目启动程序](#项目启动程序) 来使用默认配置文件或创建自定义的配置文件来针对项目的最新构建版本执行分析或调试等操作。
 * 或者可以将已封装的游戏部署到主机或移动设备等平台。
 
 以下各部分将更加详细地介绍这些封装方法以及如何使用这些方法封装游戏。
@@ -52,7 +54,6 @@ Topic-image:BuildOps_Topic.png
 * 访问位于 **项目设置（Project Settings）** 中的“封装设置（Packaging Settings）”和“支持的平台（Support Platforms）”
 
 
-(#launchon)
 ### 启动
 
 借助主工具栏中的 **启动（Launch）** 按钮，你可以构建和部署当前已加载的关卡来轻松快速地测试项目。 
@@ -77,8 +78,7 @@ Topic-image:BuildOps_Topic.png
 
 
 
-(#projectlauncher) 
-### 项目启动程序（Project Launcher）
+### 项目启动程序
 
 [项目启动程序（Project Launcher）](Engine/Deployment/Releasing) 使你能够从单个位置甚至单个启动配置文件针对不同的平台进行部署。 
 
@@ -94,7 +94,6 @@ Topic-image:BuildOps_Topic.png
 [/REGION]
 
 
-(#customlaunchprofile)
 #### 自定义启动配置文件
 
 从“项目启动程序（Project Launcher）”，你可以创建可在所有平台或仅在你指定的平台上使用的 **自定义启动配置文件**。通过在配置文件中设置使用可用的构建操作转化、封装和部署内容的方式，你可以按照特定的方式构建内容。 
@@ -109,10 +108,13 @@ Topic-image:BuildOps_Topic.png
 
 
 
-(#commandline)
 ### 命令行
 
 [自动化工具](Programming/Automation) 使你能够使用命令行转化和封装游戏，而且由于所有构建操作都由UAT执行，如果提供有效的参数，可以使用 **RunUAT.bat** 文件直接在命令行中运行它。 
+
+[REGION:note]
+RunUAT文件可以在 `Engine/Build/BatchFiles` 中找到。Windows操作系统使用 **RunUAT.bat** 文件，而Mac/Linux系统系统使用 **RunUAT.sh**文件。
+[/REGION]
 
 可以使用以下命令行参数遵循 **UE4Editor.exe** 或 **UE4Editor-cmd.exe** 文件执行基本转化：
 
@@ -122,7 +124,7 @@ Topic-image:BuildOps_Topic.png
 
 	[UE4 Project]/Saved/Sandboxes/Cooked-[Platform]
 
-手动编写命令行参数可能比较耗时而且非常容易出错。因此，我们建议你使用 [自定义启动配置文件](#customlaunchprofile) 来准确地为你的构建版本生成命令行。任何输入的参数将通过命令行在 **输出日志（Output Log）** 窗口中自动生成。从 **BuildCookRun** 起的任何文本都可以作为命令行参数使用 **RunUAT.bat** 直接传递。
+手动编写命令行参数可能比较耗时而且非常容易造成意外错误。因此，我们建议你使用 [自定义启动配置文件](#自定义启动配置文件) 来准确地为你的构建版本生成命令行。在用于烘焙和编译项目时，在自定义启动配置文件中输入的任何参数都将在 **输出日志（Output Log）** 窗口中自动生成并显示命令行。从 **BuildCookRun** 起的任何文本都可以作为命令行参数使用 **RunUAT.bat** 直接传递。
 
 以下是从“项目启动程序（Project Launcher）”生成的输出以及需要手动编写以用于 **RunUAT.bat** 的等效命令行的示例：
 
@@ -143,7 +145,7 @@ Topic-image:BuildOps_Topic.png
 
 在虚幻引擎中，内容以受支持的特定格式针对平台存储（png格式用于存储纹理数据，WAV格式用于存储音频）。但是，该内容的格式可能是你的开发目标平台无法使用的格式。**转化** 过程将引擎使用的资源转换成可以在要部署到的平台上读取的资源。在某些情况下，转化的内容将被转换成仅可由目标平台读取的专有格式（例如，主机）。
 
-可以通过使用 [命令行](#commandline) 或通过使用 [项目启动程序（Project Launcher）](#projectlauncher) 及其编辑器界面为不同的平台转化内容。对于部分平台，必须首先转化所有内容，然后才能在设备上正常使用内容。你可能需要确认你针对其进行开发的目标平台是否属于这种情况。 
+可以通过使用 [命令行](#命令行) 或通过使用 [项目启动程序](#项目启动程序) 及其编辑器界面为不同的平台转化内容。对于部分平台，必须首先转化所有内容，然后才能在设备上正常使用内容。你可能需要确认你针对其进行开发的目标平台是否属于这种情况。 
 
 为项目转化内容的方法有两种：**按常规（By the book）** 和 **动态（On the fly）**。
 
@@ -155,7 +157,7 @@ Topic-image:BuildOps_Topic.png
 
 **按常规（By the book）** 转化方法提前执行整个转化过程，以使构建版本能够一次性部署转化后的资源，而非在运行关卡时按需部署（如果使用转化服务器）。如果开发者不对单个资源进行迭代，或希望游戏能够全速运行而不必等待服务器交付必需的转化后内容，该选项非常有用。通常需要在性能测试和可玩性测试中使用该方法。 
 
-按常规执行转化时，无需对构建版本进行额外的设置。使用“项目启动程序（Project Launcher）”来 [创建自定义启动配置文件](#customlaunchprofile)，然后在 **转化（Cook）** 部分中使用下拉菜单来选择 **按常规（By the book）**。
+按常规执行转化时，无需对构建版本进行额外的设置。使用“项目启动程序（Project Launcher）”来 [创建自定义启动配置文件](#自定义启动配置文件)，然后在 **转化（Cook）** 部分中使用下拉菜单来选择 **按常规（By the book）**。
 
 ![](CookByTheBookSettings.png)(w:950)
 
@@ -169,7 +171,7 @@ Topic-image:BuildOps_Topic.png
 
 
 [REGION:note]
-有关该转化方法及其可用设置的更多信息，请参阅 [项目启动程序（Project Launcher）](Engine/Deployment/ProjectLauncher#bythebook) 参考页面。
+有关该转化方法及其可用设置的更多信息，请参阅 [项目启动程序（Project Launcher）](Engine/Deployment/ProjectLauncher#按常规) 参考页面。
 [/REGION]
 
 
@@ -183,7 +185,7 @@ Topic-image:BuildOps_Topic.png
 
 		UE4Editor-cmd.exe [FullAbsolutePathToProject.uproject]-run=cook -targetplatform=Windows -cookonthefly
 
-在开发者的本地计算机上，访问“项目启动程序（Project Launcher）”中的[自定义启动配置文件](#customlaunchprofile)，然后在 **部署（Deploy）** 部分中，将部署方法设置为 **文件服务器（File Server）**。或者，可以使用 **默认部署平台（Default Deploy Platform）** 来选择单个平台或使用切换键来启用多个平台，以用于构建和部署构建版本。
+在开发者的本地计算机上，访问“项目启动程序（Project Launcher）”中的[自定义启动配置文件](#自定义启动配置文件)，然后在 **部署（Deploy）** 部分中，将部署方法设置为 **文件服务器（File Server）**。或者，可以使用 **默认部署平台（Default Deploy Platform）** 来选择单个平台或使用切换键来启用多个平台，以用于构建和部署构建版本。
 
 ![](Deploy_01.png)(w:950)
 
@@ -198,14 +200,14 @@ Topic-image:BuildOps_Topic.png
 
 
 [REGION:note]
-有关该转化方法及其可用设置的更多信息，请参阅 [项目启动程序（Project Launcher）](Engine/Deployment/ProjectLauncher#onthefly) 参考页面。
+有关该转化方法及其可用设置的更多信息，请参阅 [项目启动程序（Project Launcher）](Engine/Deployment/ProjectLauncher#动态) 参考页面。
 [/REGION]
 
 
 
 ## 部署构建版本
 
-要从“项目启动程序（Project Launcher）”部署构建版本，你必须具有已转化和封装的项目。可通过多种方法将这种类型的构建版本部署到平台。请在 [自定义启动配置文件](#customlaunchprofile) 下的 **部署（Deploy）** 部分中设置希望用于部署构建版本的方式。 
+要从“项目启动程序（Project Launcher）”部署构建版本，你必须具有已转化和封装的项目。可通过多种方法将这种类型的构建版本部署到平台。请在 [自定义启动配置文件](#自定义启动配置文件 下的 **部署（Deploy）** 部分中设置希望用于部署构建版本的方式。 
 
 ![](DeployBuildTypes.png)(w:950)
 
@@ -218,7 +220,7 @@ Topic-image:BuildOps_Topic.png
 
 
 [REGION:note]
-有关该部署方法及其可用设置的更多信息，请参阅 [项目启动程序（Project Launcher）](Engine/Deployment/ProjectLauncher#deploy) 参考页面。
+有关该部署方法及其可用设置的更多信息，请参阅 [项目启动程序（Project Launcher）](Engine/Deployment/ProjectLauncher#部署) 参考页面。
 [/REGION]
 
 

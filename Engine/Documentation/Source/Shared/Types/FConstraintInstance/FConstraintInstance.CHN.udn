@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2573164
+﻿INTSourceChangelist:3108692
 Availability:NoPublish
 Title:FConstraintInstance RTTs
 Crumbs:
@@ -359,7 +359,7 @@ Engine/Physics/Constraints/ConstraintsReference#sharedproperties
 
 启用角朝向驱动（Angular Orientation Drive）。和线性位置驱动相同，角朝向驱动将尝试达到与物理约束相关的所需旋转。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsconstraintproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsconstraintproperties
 [/VAR]
 
 [/EXCERPT:bAngularOrientationDrive]
@@ -374,7 +374,7 @@ Engine/Physics/PhAT/Properties#physicsconstraintproperties
 
 对一个目标速度启用角驱动。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsconstraintproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsconstraintproperties
 [/VAR]
 
 [/EXCERPT:bAngularVelocityDrive]

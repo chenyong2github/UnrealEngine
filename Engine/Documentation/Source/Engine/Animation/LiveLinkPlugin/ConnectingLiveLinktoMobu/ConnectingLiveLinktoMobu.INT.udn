@@ -28,21 +28,21 @@ In this how-to, we go through the setup process to connect Unreal Engine 4 (UE4)
 
 ## 1 - Project Setup
 
-1. Inside your UE4 project, from the **Menu Bar** under Edit, select **Plugins**.
+1.  Inside your UE4 project, from the **Menu Bar** under Edit, select **Plugins**.
 
     ![](Step_01-1.png)
 
-1. Under the **Animation** section, click **Enabled** for **Live Link** and **Yes** on the confirmation window, then restart the Editor.
+1.  Under the **Animation** section, click **Enabled** for **Live Link** and **Yes** on the confirmation window, then restart the Editor.
 
-   ![](Step_02-3.png)
+    ![](Step_02-3.png)
 
-   This will enable the Live Link Plugin which can be used to connect to external Digital Content Creation (DCC) tools. In order for your DCC tool to connect to UE4, you will need to enable the corresponding plugin. In this how-to we are establishing a connection with Motionbuilder, however, you could connect to Maya or your own tool (provided that tool has an exposed source to Live Link). 
+    This will enable the Live Link Plugin which can be used to connect to external Digital Content Creation (DCC) tools. In order for your DCC tool to connect to UE4, you will need to enable the corresponding plugin. In this how-to we are establishing a connection with Motionbuilder, however, you could connect to Maya or your own tool (provided that tool has an exposed source to Live Link). 
 
-1. In the **Content Browser** under the **Content > Mannequin > Animations** folder, open the **ThirdPersonWalk** animation.
+1.  In the **Content Browser** under the **Content > Mannequin > Animations** folder, open the **ThirdPersonWalk** animation.
 
     ![](ThirdPersonWalkImage.png)
 
-1. From the Toolbar, click **Export Asset**, then select **Preview Mesh**. 
+1.  From the Toolbar, click **Export Asset**, then select **Preview Mesh**. 
 
     ![](MobuHowTo_03.png)
 
@@ -54,17 +54,17 @@ In this how-to, we go through the setup process to connect Unreal Engine 4 (UE4)
 
     ![](MobuHowTo_03c.png)
 
-1. Download the **Motionbuilder** Plugin from the [GitHub Repository](https://github.com/ue4plugins/MobuLiveLink) and extract the zip files to your computer.
+1.  Download the **Motionbuilder** Plugin from the [GitHub Repository](https://github.com/ue4plugins/MobuLiveLink) and extract the zip files to your computer.
 
     ![](MobuFiles.png)
 
     After extracting the zip file, you will find folders for different versions of Motionbuilder as well as the plugin files needed to set up the plugin inside Mobu.
 
-1. Inside **Motionbuilder**, under **Settings** select **Preferences...**
+1.  Inside **Motionbuilder**, under **Settings** select **Preferences...**
 
     ![](MobuHowTo_04.png)
 
-1. Under **SDK** click the **Add** button and point to the extracted folder path and your version of Motionbuilder. 
+1.  Under **SDK** click the **Add** button and point to the extracted folder path and your version of Motionbuilder. 
 
     ![](MobuHowTo_05.png)
 
@@ -72,7 +72,7 @@ In this how-to, we go through the setup process to connect Unreal Engine 4 (UE4)
 
     ![](MobuHowTo_05b.png)
 
-1. On the confirmation window, click **Ok**, then restart Motionbuilder for the changes to take effect. 
+1.  On the confirmation window, click **Ok**, then restart Motionbuilder for the changes to take effect. 
 
     ![](MobuHowTo_05c.png)
 
@@ -82,7 +82,7 @@ In this how-to, we go through the setup process to connect Unreal Engine 4 (UE4)
 
     When you drag this asset into the Viewport, it enables you to  define what from your scene you want to stream. 
 
-1. **Open** the **ThirdPersonWalk_PreviewMesh** exported from UE4, then click **Open** on the **Open Options** menu.
+1.  **Open** the **ThirdPersonWalk_PreviewMesh** exported from UE4, then click **Open** on the **Open Options** menu.
 
     ![](MobuHowTo_06.png)
 
@@ -90,7 +90,7 @@ In this how-to, we go through the setup process to connect Unreal Engine 4 (UE4)
 
     ![](MobuHowTo_06b.png)
 
-1. In the **Asset Browser** under **Elements**, drag a **Camera** into the viewport. 
+1.  In the **Asset Browser** under **Elements**, drag a **Camera** into the viewport. 
 
     ![](MobuHowTo_07.png)
 

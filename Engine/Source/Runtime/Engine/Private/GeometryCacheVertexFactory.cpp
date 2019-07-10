@@ -53,7 +53,7 @@ public:
 		const class FSceneInterface* Scene,
 		const FSceneView* View,
 		const class FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* GenericVertexFactory,
 		const FMeshBatchElement& BatchElement,
@@ -186,9 +186,18 @@ void FGeometryCacheVertexVertexFactory::InitRHI()
 	// then initialize PositionStream and PositionDeclaration.
 	if (Data.PositionComponent.VertexBuffer != Data.TangentBasisComponents[0].VertexBuffer)
 	{
-		FVertexDeclarationElementList PositionOnlyStreamElements;
-		PositionOnlyStreamElements.Add(AccessPositionStreamComponent(Data.PositionComponent, 0));
-		InitPositionDeclaration(PositionOnlyStreamElements);
+		{
+			FVertexDeclarationElementList PositionOnlyStreamElements;
+			PositionOnlyStreamElements.Add(AccessStreamComponent(Data.PositionComponent, 0, EVertexInputStreamType::PositionOnly));
+			InitDeclaration(PositionOnlyStreamElements, EVertexInputStreamType::PositionOnly);
+		}
+
+		{
+			FVertexDeclarationElementList PositionAndNormalOnlyStreamElements;
+			PositionAndNormalOnlyStreamElements.Add(AccessStreamComponent(Data.PositionComponent, 0, EVertexInputStreamType::PositionAndNormalOnly));
+			PositionAndNormalOnlyStreamElements.Add(AccessStreamComponent(Data.TangentBasisComponents[1], 1, EVertexInputStreamType::PositionAndNormalOnly));
+			InitDeclaration(PositionAndNormalOnlyStreamElements, EVertexInputStreamType::PositionAndNormalOnly);
+		}
 	}
 
 	FVertexDeclarationElementList Elements;

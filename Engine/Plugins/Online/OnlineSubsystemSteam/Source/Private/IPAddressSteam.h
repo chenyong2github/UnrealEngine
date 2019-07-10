@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IPAddress.h"
+#include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineSubsystemSteamPackage.h"
 
@@ -165,17 +166,12 @@ public:
 
 	virtual uint32 GetTypeHash() const override
 	{
-		return GetConstTypeHash();
-	}
-
-	uint32 GetConstTypeHash() const
-	{
 		return ::GetTypeHash(ToString(true));
 	}
 
 	friend uint32 GetTypeHash(const FInternetAddrSteam& A)
 	{
-		return A.GetConstTypeHash();
+		return A.GetTypeHash();
 	}
 
 	/**
@@ -186,6 +182,11 @@ public:
 	virtual bool IsValid() const override
 	{
 		return SteamId.IsValid();
+	}
+
+	virtual FName GetProtocolType() const override
+	{
+		return FNetworkProtocolTypes::Steam;
 	}
 
 	virtual TSharedRef<FInternetAddr> Clone() const override

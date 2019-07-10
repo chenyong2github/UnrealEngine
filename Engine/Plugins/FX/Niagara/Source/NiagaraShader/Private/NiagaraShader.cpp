@@ -26,13 +26,12 @@
 IMPLEMENT_SHADER_TYPE(, FNiagaraShader, TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"),TEXT("SimulateMain"), SF_Compute)
 
 
-
 int32 GCreateNiagaraShadersOnLoad = 0;
 static FAutoConsoleVariableRef CVarCreateNiagaraShadersOnLoad(
 	TEXT("niagara.CreateShadersOnLoad"),
 	GCreateNiagaraShadersOnLoad,
 	TEXT("Whether to create Niagara's simulation shaders on load, which can reduce hitching, but use more memory.  Otherwise they will be created as needed.")
-	);
+);
 
 int32 GNiagaraSkipVectorVMBackendOptimizations = 0;
 static FAutoConsoleVariableRef CVarNiagaraSkipVectorVMBackendOptimizations(
@@ -1275,8 +1274,11 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	IntInputBufferParam.Bind(ParameterMap, TEXT("InputInt"));
 	FloatOutputBufferParam.Bind(ParameterMap, TEXT("OutputFloat"));
 	IntOutputBufferParam.Bind(ParameterMap, TEXT("OutputInt"));
-	OutputIndexBufferParam.Bind(ParameterMap, TEXT("DataSetIndices"));
-	InputIndexBufferParam.Bind(ParameterMap, TEXT("ReadDataSetIndices"));
+
+	InstanceCountsParam.Bind(ParameterMap, TEXT("InstanceCounts"));
+	ReadInstanceCountOffsetParam.Bind(ParameterMap, TEXT("ReadInstanceCountOffset"));
+	WriteInstanceCountOffsetParam.Bind(ParameterMap, TEXT("WriteInstanceCountOffset"));
+
 	EmitterTickCounterParam.Bind(ParameterMap, TEXT("EmitterTickCounter"));
 	NumEventsPerParticleParam.Bind(ParameterMap, TEXT("NumEventsPerParticle"));
 	NumParticlesPerEventParam.Bind(ParameterMap, TEXT("NumParticlesPerEvent"));
@@ -1284,7 +1286,6 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	NumSpawnedInstancesParam.Bind(ParameterMap, TEXT("SpawnedInstances"));
 	UpdateStartInstanceParam.Bind(ParameterMap, TEXT("UpdateStartInstance"));
-	NumIndicesPerInstanceParam.Bind(ParameterMap, TEXT("NumIndicesPerInstance"));
 
 	ComponentBufferSizeReadParam.Bind(ParameterMap, TEXT("ComponentBufferSizeRead"));
 	ComponentBufferSizeWriteParam.Bind(ParameterMap, TEXT("ComponentBufferSizeWrite"));
@@ -1323,11 +1324,9 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	ensure(FloatOutputBufferParam.IsBound() || IntOutputBufferParam.IsBound());	// we should have at least one output buffer we're writing to
 	ensure(ComponentBufferSizeWriteParam.IsBound());
-	ensure(OutputIndexBufferParam.IsBound());
-	ensure(InputIndexBufferParam.IsBound());
+	ensure(InstanceCountsParam.IsBound());
 	ensure(UpdateStartInstanceParam.IsBound());
 	ensure(NumSpawnedInstancesParam.IsBound());
-	ensure(NumIndicesPerInstanceParam.IsBound());
 }
 
 bool FNiagaraShader::Serialize(FArchive& Ar)
@@ -1341,7 +1340,11 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << IntInputBufferParam;
 	Ar << FloatOutputBufferParam;
 	Ar << IntOutputBufferParam;
-	Ar << InputIndexBufferParam;
+
+	Ar << InstanceCountsParam;
+	Ar << ReadInstanceCountOffsetParam;
+	Ar << WriteInstanceCountOffsetParam;
+
 	Ar << EmitterTickCounterParam;
 
 	Ar << NumSpawnedInstancesParam;
@@ -1366,8 +1369,6 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << CopyInstancesBeforeStartParam;
 	Ar << ViewUniformBufferParam;
 
-	Ar << OutputIndexBufferParam;
-	Ar << NumIndicesPerInstanceParam;
 	return bShaderHasOutdatedParameters;
 }
 

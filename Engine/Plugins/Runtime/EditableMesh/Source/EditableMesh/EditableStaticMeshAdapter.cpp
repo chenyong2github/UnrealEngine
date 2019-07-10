@@ -24,6 +24,17 @@ UEditableStaticMeshAdapter::UEditableStaticMeshAdapter()
 {
 }
 
+void UEditableStaticMeshAdapter::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	if (StaticMesh)
+	{
+		StaticMesh->ReleaseResources();
+	}
+}
+
+
 
 inline void UEditableStaticMeshAdapter::EnsureIndexBufferIs32Bit()
 {
@@ -268,13 +279,21 @@ void UEditableStaticMeshAdapter::InitEditableStaticMesh( UEditableMesh* Editable
 				for( uint32 RenderingSectionIndex = 0; RenderingSectionIndex < NumSections; ++RenderingSectionIndex )
 				{
 					const FStaticMeshSection& RenderingSection = StaticMeshLOD.Sections[ RenderingSectionIndex ];
-					const FStaticMaterial& StaticMaterial = StaticMesh->StaticMaterials[ RenderingSection.MaterialIndex ];
-					UMaterialInterface* MaterialInterface = StaticMaterial.MaterialInterface;
+					UMaterialInterface* MaterialInterface = nullptr;
+					FName MaterialSlotName = "";
+					FName MaterialAssetName = "";
+					if (RenderingSection.MaterialIndex != INDEX_NONE)
+					{
+						FStaticMaterial& StaticMaterial = StaticMesh->StaticMaterials[RenderingSection.MaterialIndex];
+						MaterialInterface = StaticMaterial.MaterialInterface;
+						MaterialSlotName = StaticMaterial.ImportedMaterialSlotName;
+						MaterialAssetName = FName(*MaterialInterface->GetPathName());
+					}
 
 					// Create a new polygon group
 					const FPolygonGroupID NewPolygonGroupID = MeshDescription->CreatePolygonGroup();
-					PolygonGroupImportedMaterialSlotNames[ NewPolygonGroupID ] = StaticMaterial.ImportedMaterialSlotName;
-					PolygonGroupMaterialAssetNames[ NewPolygonGroupID ] = FName( *MaterialInterface->GetPathName() );
+					PolygonGroupImportedMaterialSlotNames[NewPolygonGroupID] = MaterialSlotName;
+					PolygonGroupMaterialAssetNames[NewPolygonGroupID] = MaterialAssetName;
 					PolygonGroupCollision[ NewPolygonGroupID ] = RenderingSection.bEnableCollision;
 					PolygonGroupCastShadow[ NewPolygonGroupID ] = RenderingSection.bCastShadow;
 
@@ -644,7 +663,7 @@ void UEditableStaticMeshAdapter::OnRebuildRenderMesh( const UEditableMesh* Edita
 			check( RenderingPolygonGroup.Triangles.GetArraySize() <= RenderingPolygonGroup.MaxTriangles );
 
 			const int32 MaterialIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName( PolygonGroupImportedMaterialSlotNames[ PolygonGroupID ] );
-			check( MaterialIndex != INDEX_NONE );
+			//check( MaterialIndex != INDEX_NONE );
 			StaticMeshSection.MaterialIndex = MaterialIndex;
 			StaticMeshSection.bEnableCollision = PolygonGroupCollision[ PolygonGroupID ];
 			StaticMeshSection.bCastShadow = PolygonGroupCastShadow[ PolygonGroupID ];

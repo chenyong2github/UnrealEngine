@@ -1,108 +1,162 @@
-﻿INTSourceChangelist:3102822
+﻿INTSourceChangelist:3718347
 Availability:Public
-Title:在关卡中播放视频
+Title: 播放视频文件
 Crumbs:%ROOT%, Engine
-Description:说明如何使用 File Media 资源在关卡中播放视频。 
-parent:Engine/MediaFramework/HowTo
-order:3
-checkpoint: editorqs
-Version:4.13
-SkillLevel:Beginner
-Related:Engine\MediaFramework
+Description:演示如何使用文件媒体源资源在关卡内的静态网格体上播放视频文件。 
+Type: how-to
+SkillLevel: Beginner
+Version: 4.18
+Parent: Engine/MediaFramework/HowTo
+Order: 3
+Tags: Media Framework
+Tags: Video Playback
+Related: Engine\MediaFramework
 
-如需在关卡中的一个物体上（如电视机或显示器等物体）播放视频，可使用 **媒体框架（Media Framework）** 资源来执行。 
-在此指南中，我们在项目的 **Content** 文件夹中放置了一个视频文件，然后使用 **媒体播放器** 和相关资源（和一点 **蓝图可视化脚本**）在游戏进程中播放视频。 
+如果您正在寻求一种在关卡内播放视频的方式，无论是在关卡内在电视上播放，还是作为UI的一部分在后台播放，甚至是全屏播放，您都需要使用 **媒体框架（Media Framework）** 工具和媒体源（Media Source）资源。 
+虽然有不同的媒体源资源类型，但当您希望在虚幻引擎4(UE4)中播放一个存储在设备（例如计算机、电话或主机平台）上的视频文件时，使用的将是 **文件媒体源（File Media Source）** 资源。 
 
-[REGION:note]
-在此指南中，我们使用的是启用了 **Starter Content** 的 **Blueprint Third Person Template** 项目。
-此外还需要在电脑上存储一个 [支持的视频文件](Engine\MediaFramework\TechReference)，以便进行播放。可使用您的本地视频，或 **点击右键** 下载该 [视频样本](SampleVideo.mp4)。 
-[/REGION]
+在本教程中，我们使用文件媒体源资源在关卡内的静态网格体上播放视频。 
 
+![](MediaHero.png)
+
+(#steps)
 
 ## 步骤
 
-1.	在 **Content Browser** 中展开 **Sources Panel**，然后在 **Content** 下创建一个名为 **Movies** 的文件夹。 
+[REGION:note]
+对于本教程，我们使用的是已启用 **初学者内容包（Starter Content）** 的 **蓝图第三人称模板（Blueprint Third Person Template）** 项目。
+您还需要一个保存在计算机上的希望播放的[支持的视频文件](Engine\MediaFramework\TechReference)。您可以使用自己的视频，或者如果您没有视频，您可以右键单击并下载本教程的此[示例视频](SampleVideo.mp4)。 
+[/REGION]
+
+1.	在 **内容浏览器（Content Browser）** 中，展开 **源面板（Sources Panel）**，然后在 **内容（Content）** 下创建一个名为 **电影（Movies）** 的文件夹。 
 
 	![](FileMedia_01.png)
 
-1.	在 **Movies** 文件夹上 **点击右键** 并选择 **Show in Explorer**。 
+	[REGION:tip]
+	把媒体文件放置在项目的 **内容/电影（Content/Movies）** 文件夹中将确保媒体与项目一起正确打包。
+	[/REGION]
 
-	![](FileMedia_01b.png)
-
-1.	将视频文件拖入项目的 **Content/Movies** 文件夹。将视频文件放置在项目的 **Content/Movies** 文件夹中可确保视频正常打包。 
+1.	右键单击 **电影（Movies）** 文件夹并选择 **在资源管理器中显示（Show in Explorer）**。 
 
 	![](FileMedia_02.png)
 
-1.	在虚幻引擎的项目中，在 **Movies** 文件夹内 **点击右键**，然后在 **Media** 下选择 **File Media Source**。 
+1.	将所需的示例视频拖至项目的 **内容/电影（Content/Movies）** 文件夹中。 
 
 	![](FileMedia_03.png)
 
-1.	调用资源 **SampleVideo**，将其打开并将 **File Path** 指向 **Content/Movies** 文件夹中视频文件的位置。 
+	[REGION:warning]
+	为了将内容与项目一起打包和部署，媒体必须位于项目的 **内容/电影（Content/Movies）** 文件夹中。 
+	[/REGION]
+
+1.	在项目中，右键单击 **电影（Movies）** 文件夹，在 **媒体（Media）** 下选择 **文件媒体源（File Media Source）**，并调用资源 **SampleVideo**。 
 
 	![](FileMedia_04.png)
 
-1.	在 **Content Browser** 中 **点击右键**，然后在 **Media** 下选择 **Media Player** 资源。 
+1.	在文件媒体源资源中，在 **文件路径（File Path）** 下单击 **...** 按钮并指向计算机上的示例视频。 
 
 	![](FileMedia_05.png)
 
-1.	在 **Create Media Player** 窗口中勾选 **Audio output SoundWave asset** 和 **Video output Media Texture asset**。此操作将自动创建一个声波和媒体纹理资源（它将链接到播放必需的媒体播放器资源）。 
+1.	在 **电影（Movies）** 文件夹中再次单击右键，并在 **媒体（Media）** 下选择 **媒体播放器（Media Player）**。 
 
 	![](FileMedia_06.png)
 
-1.为新的媒体播放器资源命名。我们将媒体播放器资源称为 **SampleMedia**，也应用到声波和媒体纹理。 
+1.	在 **创建媒体播放器（Create Media Player）** 窗口中，启用 **视频输出媒体纹理资源（Video out Media Texture asset）** 选项，然后单击 **确定（OK）**。 
 
 	![](FileMedia_07.png)
 
-1.打开媒体播放器资源并 **双击** 媒体源资源后，它将开始播放。在 **Details** 面板的右下方的 **Output** 部分，声波和媒体纹理也已自动指定。 
+	这样将创建一个 **媒体纹理（Media Texture）** 资源，并自动将其指定给我们正在创建的媒体播放器。此媒体纹理负责播放媒体内容，我们可以使用它来创建一个 **材质**，在本指南的稍后部分，该材质将应用于关卡中的静态网格体。 
+
+1.	将媒体播放器和媒体纹理资源分别命名为 **MyPlayer** 和 **MyPlayer_Video**，然后打开 **MyPlayer** 媒体播放器资源。 
 
 	![](FileMedia_08.png)
 
-1.	在 **Content Browser** 的 **StarterContent/Shapes** 中，将一个 **Shape_Plane** 拖入关卡。我们将在此静态网格体上播放视频。 
+1.	双击 **媒体库（Media Library）** 部分中的 **SampleVideo**。 
 
 	![](FileMedia_09.png)
 
-1.	依照下图使用 **平移（W）**、**旋转（E）** 和 **缩放（R）** 工具对网格体进行调整。 
+	当双击媒体库（Media Library）部分中的文件媒体源资源时，视频将开始播放。这是因为在 **详细信息（Details）** 面板的 **播放（Playback）** 部分中启用了 ***打开即播放（Play on Open）** 选项。 
+	选中此选项后，每当打开媒体源资源时，它将自动开始播放，而无需明确地指示它开始播放。 
+
+	虽然我们的视频在媒体编辑器中播放，但在本指南的稍后部分，我们需要通过[蓝图可视化脚本](Engine/Blueprints)指示媒体播放器在游戏进程中打开我们的文件媒体源资源，从而使此文件将在我们玩游戏时开始播放。 
+
+1.	在 **模式（Modes）** 面板的 **基本（Basic）** 下，将一个 **平面** 拖至关卡中，并使用 **变换（Transform）** 工具根据需要移动/缩放网格体。
 
 	![](FileMedia_10.png)
 
-1.	按住 **Ctrl** 选中 **Sound Wave** 和 **Media Texture** 资源，将它们放置在关卡中的 **静态网格体** 上。此操作将自动创建一个 **材质** 并将其应用到静态网格体。 
+	在关卡中选择此 **平面** 后，使用 [变换工具](GettingStarted/HowTo/ManipulatingActors) 并 **平移(W)（Translate (W)）**、**旋转(E)（Rotate (E)）** 和 **缩放(R)（Scale (R)）** 网格体以获得所需外观。 
+
+1.	将 **MyPlayer_Video** 媒体纹理资源拖至关卡中的此 **平面** 内，以自动创建并指定一个新的 **材质**。 
 
 	![](FileMedia_11.png)
 
-1.	在工具栏上，点击 **Blueprints** 按钮和 **Open Level Blueprint**。 
+	当您将媒体纹理拖至关卡中的静态网格体上后，它会自动在 **内容浏览器（Content Browser）** 中创建一个新材质，并将其应用于关卡中的此网格体。 
+
+1.	在关卡中选择此 **平面** 后，在 **详细信息（Details）** 面板中单击 **添加组件（Add Component）** 按钮，搜索并添加 **媒体声音（Media Sound）**。 
 
 	![](FileMedia_12.png)
 
-1.	添加 **Media Player Reference** 类型的一个 **变量**（名为 **Media Player**），并将其设为 **SampleMedia** 媒体播放器资源。指定 **默认值** 之前可能需要进行 **编译**。 
+	**媒体声音（Media Sound）** 组件用于定义将与视频一起播放的音频。 
+
+1.	在 **详细信息（Details）** 面板中，选择新的 **媒体声音（Media Sound）** 组件，然后在 **媒体（Media）** 部分下，设置 **媒体播放器（Media Player）** 以使用 **MyPlayer**。 
 
 	![](FileMedia_13.png)
 
-1.	按住 **Ctrl** 拖入 **MediaPlayer** 变量，再 **点击右键** 添加一个 **Event Begin Play** 节点。 
+	此处，我们将媒体声音组件与媒体播放器资源相关联，这样它就知道从何处提取音频。 
+
+1.	在主工具栏（Main Toolbar）中，单击 **蓝图（Blueprints）** 按钮并选择 **打开关卡蓝图（Open Level Blueprint）**。 
 
 	![](FileMedia_14.png)
 
-1.	从 **MediaPlayer** 变量连出引线，使用设置为 **SampleVideo** 媒体源的 **Open Source** 节点，然后按下图所示进行连接。 
+	我们将使用 **关卡蓝图（Level Blueprint）**，并告诉我们的媒体播放器在游戏进程开始时打开我们的文件媒体源资源，这样它就会在关卡中开始播放。 
+
+1.	添加一个名为 **MediaPlayer**，类型为 **媒体播放器引用（Media Player Reference）** 的 **变量**，并将 **默认值（Default Value）** 设置为 **MyPlayer**。 
 
 	![](FileMedia_15.png)
 
-1.	关闭关卡蓝图，然后在编辑器中进行游戏。 
+	[REGION:note]
+	您可能需要创建此变量，然后单击 **编译（Compile）** 按钮以定义 **默认值（Default Value）**。 
+	[/REGION]
+
+1.	 按住 **Ctrl** 键并将 **MediaPlayer** 拖至图中，然后在图中单击右键，搜索并添加一个 **事件开始播放（Event Begin Play）** 节点。 
+
+	![](FileMedia_16.png)
+
+	现在我们有一个节点来表示游戏进程的开始以及对媒体播放器资源的引用。最后，我们需要告知我们的播放器打开一个媒体源。 
+
+1.	单击左键并拖动 **媒体播放器（Media Player）** 节点，使用 **打开源（Open Source）** 函数，将 **媒体源（Media Source）** 设置为 **SampleVideo**，并连接到 **事件开始播放（Event Begin Play）**。 
+
+	![](FileMedia_17.png)
+
+1.	关闭 **关卡蓝图（Level Blueprint）**，然后单击 **在编辑器中运行（Play in Editor）** 按钮。 
 
 	
+(#endresult)
+
 ## 最终结果
 
-在编辑器中进行游戏时，视频将在静态网格体上进行播放。 
+当您在编辑器中播放视频时，视频将在静态网格体上开始播放。 
 
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-360
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-zxyY2s6ZfrU
-[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	dcqiXWfkMHI
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
 [/OBJECT]
 
-**Media Player** 资源默认设为 **Play on Open**，因此调用 **Open Source** 函数时视频将自动开始播放。
-播放开始后可对媒体播放器资源发出更多命令，如暂停、倒回、停止。从 Media Player Reference 连出引线时，可从 **Media Player** 部分找到这些命令。
+ **媒体播放器（Media Player）** 资源在默认情况下设置为 **打开即播放（Play on Open）**，这就是在调用 **开放源（Open Source）** 函数时视频会自动开始播放的原因。
+当视频开始播放后，您还可以向媒体播放器资源发出其他命令，例如暂停、倒回或停止视频，这些命令可以在拖动媒体播放器引用（Media Player Reference）时在 **媒体播放器（Media Player）** 部分下找到。
+
+在本例中，我们选择将媒体内容放入项目的 ** 内容/电影（Content/Movies）** 文件夹中。虽然这不是必需的，但如果您希望打包项目，则建议您如此操作，因为该文件夹是唯一会自动将内容视作打包/部署过程的一部分而将其包含在内的文件夹。 
+您可以将文件媒体源资源指向此位置之外的文件夹，媒体会进行播放，但如果您要将其部署到移动设备，内容将不会作为部署的一部分包括在其中。  
+

@@ -1,11 +1,11 @@
-INTSourceChangelist:3801260
+﻿INTSourceChangelist:6361970
 Availability: Public
 Crumbs: %ROOT%
 Title:颜色分级和胶片色调映射器
 Description:用于调整场景颜色的色调映射器和颜色校正效果。
 Type: Overview
 SkillLevel:Beginner
-Version:4.16
+Version:4.22
 Parent:Engine/Rendering/PostProcessEffects
 related:Engine/Rendering/PostProcessEffects/UsingLUTs
 Order:4
@@ -16,65 +16,39 @@ Social-image:ColorGrading_Overview.png
 [TOC(start:2 end:3)]
 
 ![](ColorGrading_Overview.png)
-[REGION:caption]颜色分级工具使您能够更改场景的视觉效果和色调，例如本文中使用不同场景颜色显示场景的示例。[/REGION]
+[REGION:caption]
+颜色分级工具使您能够更改场景的视觉效果和色调，例如本文中使用不同场景颜色显示场景的示例。
+[/REGION]
 
-在虚幻引擎中，**颜色分级**一词涵盖了[高动态范围（HDR）显示输出](Engine/Rendering/HDRDisplayOutput)使用的色调映射功能（HDR到LDR转换），
-并改进了图像的颜色校正（用于筛选颜色变换的LDR颜色）处理。
+在虚幻引擎中，**颜色分级** 一词涵盖了[高动态范围（HDR）显示输出](Engine/Rendering/HDRDisplayOutput)使用的色调映射功能（HDR到LDR转换），并改进了图像的颜色校正（用于筛选颜色变换的LDR颜色）处理。
 
-(#tonemapping)
 ## 色调映射
 
 [EXCERPT:ToneMapping_Desc]
-**色调映射** 功能的目的是将广泛的高动态范围（HDR）颜色映射到显示器能够输出的低动态范围（LDR）。这是后期处理的最后一个阶段，
-经过法线渲染后，这个过程在后期处理期间执行。您可以将色调映射的过程想象成一种模拟胶片对光线的反应的方法。 
+**色调映射** 功能的目的是将广泛的高动态范围（HDR）颜色映射到显示器能够输出的低动态范围（LDR）。这是后期处理的最后一个阶段，经过法线渲染后，这个过程在后期处理期间执行。您可以将色调映射的过程想象成一种模拟胶片对光线的反应的方法。 
 [/EXCERPT:ToneMapping_Desc]
 
-(#academycolorencodingsystem(aces)filmictonemapper)
 ### 学院色彩编码系统（ACES）胶片色调映射器
 
-[REGION:note]
-从虚幻引擎4.15版本开始，胶片色调映射器作为默认色调映射器启用。之前开发的任何内容可能会因为这项更改而呈现不同的效果。要使用旧色调映射器， 
-可以输入以下控制台命令：
-
-	r.TonemapperFilm 0
-	
-输入以下内容，可以使用最接近“旧”色调映射器的色调映射器属性值：
-* **斜面（Slope）：**0.98
-* **末端（Toe）：**0.3
-* **肩部（Shoulder）：**0.22
-* **黑色调（Black Clip）：**0
-* **白色调（White Clip）：**0.025
-[/REGION]
-
-UE4中使用的胶片色调映射器符合[学院色彩编码系统（ACES）](http://www.oscars.org/science-technology/sci-tech-projects/aces)针对电视和电影 
-设定的行业标准。这样可确保在多种不同的格式和显示器之间保持颜色一致，同时确保源资料在未来的可用性，因为不必针对未来出现的 
-每种介质进行调整。该胶片色调映射器还使用UE4之前使用的相同全局色调映射器，唯一不同的是现在有一种胶片反应，意味着S形曲线现在能更好地模拟
-生胶片来打造更优质的总体外观。 
+UE4中使用的胶片色调映射器符合[学院色彩编码系统（ACES）](http://www.oscars.org/science-technology/sci-tech-projects/aces)针对电视和电影设定的行业标准。这样可确保在多种不同的格式和显示器之间保持颜色一致，同时确保源资料在未来的可用性，因为不必针对未来出现的每种介质进行调整。该胶片色调映射器还使用UE4之前使用的相同全局色调映射器，唯一不同的是现在有一种胶片反应，意味着S形曲线现在能更好地模拟生胶片来打造更优质的总体外观。 
 
 有明显不同的两个地方分别是泛光和曝光度。
 
-(#physicallycorrectemissiveandbloom)
 #### 物理更正自发光和泛光
 
-现在，自发光值在物理上是正确的，因此随着自发光率的增大，颜色会变浅，类似于彩色光在真实世界中的工作原理。颜色经过色调映射后，如果最终颜色
-足够量，能够开始让胶片/传感器变得饱和，颜色就会变白。
+现在，自发光值在物理上是正确的，因此随着自发光率的增大，颜色会变浅，类似于彩色光在真实世界中的工作原理。颜色经过色调映射后，如果最终颜色足够量，能够开始让胶片/传感器变得饱和，颜色就会变白。
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
 	![胶片色调映射器 | 自发光](Bloom_FilmicToneMapper.png)(w:700)
 	[/PARAM]
 	[PARAM:after]
-	![旧色调映射器 | 自发光](Bloom_OldToneMapper.png)(w:700)
+	![旧版色调映射器 | 自发光](Bloom_OldToneMapper.png)(w:700)
 	[/PARAM]
 [/OBJECT]
 
+该示例对比的是旧版色调映射器和新的胶片色调映射器。自发光率足够大时，颜色开始变白，这与旧色调映射器不同，旧版的值会变得过度饱和，导致材质区域失去细节。在胶片色调映射器中，您甚至可以看到，该场景中的泛光保持其物理上的正确度，同时也不会过度饱和，从而保留反射原色值。
 
-
-该示例对比的是“旧”色调映射器和新的胶片色调映射器。自发光率足够大时，颜色开始变白，这与旧色调映射器不同，旧版的值会
-变得过度饱和，导致材质区域失去细节。在胶片色调映射器中，您甚至可以看到，该场景中的泛光保持其物理上的正确度，同时 
-也不会过度饱和，从而保留反射原色值。
-
-(#exposurelevels)
 #### 曝光度
 
 曝光度在物理上是正确的，因此颜色仍保持其原有的形状，而不是失去细节。
@@ -88,22 +62,52 @@ UE4中使用的胶片色调映射器符合[学院色彩编码系统（ACES）](h
 	![胶片色调映射器 | 曝光偏差：3](Exposure_FilmicToneMapper.png)(w:700)
 	[/PARAM]
 	[PARAM:after]
-	![旧色调映射器 | 曝光偏差：3](Exposure_OldToneMapper.png)(w:700)
+	![旧版色调映射器 | 曝光偏差：3](Exposure_OldToneMapper.png)(w:700)
 	[/PARAM]
 [/OBJECT]
 
-在这个比较中，曝光偏差已经增加到值3，因此真实地展现了胶片色调映射器与“旧”色调映射器实现相比较的反应。此外，值3也意味着，经过处理的图像亮度是默认值0的八倍，如以上示例所示。
+在这个比较中，曝光偏差已经增加到值3，因此真实地展现了胶片色调映射器与旧版色调映射器实现相比较的反应。此外，值3也意味着，经过处理的图像亮度是默认值0的八倍，如以上示例所示。
 
-随着曝光度的增加，胶片和“旧”色调映射器之间的差异会变得越来越明显。胶片示例中的球体会继续保持其颜色和阴影的形状，即使它们看起来似乎更明亮一些。使用“旧”色调映射器的球体的颜色将开始与阴影混合起来。纯色球体确实会变得明亮，但你很难辨别出它们有较高的曝光值，而胶片色调映射器考虑了这一点。如果增大曝光值，胶片反应看起来就像一个自然的镜头效果。
+随着曝光度的增加，胶片和旧版色调映射器之间的差异会变得越来越明显。胶片示例中的球体会继续保持其颜色和阴影的形状，即使它们看起来似乎更明亮一些。使用旧版色调映射器的球体的颜色将开始与阴影混合起来。纯色球体确实会变得明亮，但你很难辨别出它们有较高的曝光值，而胶片色调映射器考虑了这一点。如果增大曝光值，胶片反应看起来就像一个自然的镜头效果。
 
-(#tonemappersettings)
+### 旧版色调映射器
+
+在虚幻引擎4.15版中，使用ACES标准的胶片色调映射器是默认开启的。由于这一改动，它可能会使您的现有内容外观发生变化。虽然我们还没有移除旧版色调映射器的计划和时间表，它仍将在未来的某个虚幻引擎版本中被废弃并移除。 
+
+以下是从示例项目“太阳神殿”中截取的普通场景，以供比较。此示例项目可以在Epic Games启动程序的“学习”面板中获取。
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![旧版色调映射器](1_4_14.png)(w:600)
+	[/PARAM]
+	[PARAM:after]
+	![胶片色调映射器](1_4_22.png)(w:600)
+	[/PARAM]
+[/OBJECT]
+
+如果您希望保持项目中旧版色调映射器的 *外观*，我们推荐使用后期处理体积并在 **胶片** 分段下设置以下值：
+
+* **斜面（Slope）：** 0.98
+* **末端（Toe）：** 0.3
+* **肩部（Shoulder）：** 0.22
+* **黑色调（Black Clip）：** 0
+* **白色调（White Clip）：** 0.025
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![旧版色调映射器](1_4_14.png)(w:600)
+	[/PARAM]
+	[PARAM:after]
+	![使用旧版色调映射器值的胶片色调映射器](1_4_22_legacysettings.png)(w:600)
+	[/PARAM]
+[/OBJECT]
+
 ### 色调映射器设置
 
 在后期处理体积的 **色调映射器（Tone Mapper）** 部分中，您会看到与ACES标准化生胶片相符的属性。您可以调节这些色调映射器控制，为项目模拟出其他类型的生胶片效果。 
 
 [REGION:note]
-建议在项目范围内对这些属性进行更改来打造特定的效果，而不是动态更改或逐个镜头的更改。相反，您应使用 
-[颜色分级](#colorcorrectionproperties)属性进行任何艺术效果调整。
+建议在项目范围内对这些属性进行更改来打造特定的效果，而不是动态更改或逐个镜头的更改。相反，您应使用[颜色分级](#颜色校正属性)属性进行任何艺术效果调整。
 [/REGION]
 
 ![](ToneMapperProperties.png)(w:500)
@@ -282,28 +286,20 @@ UE4中使用的胶片色调映射器符合[学院色彩编码系统（ACES）](h
 [/COMMENT]
 
 
-(#colorcorrection)
 ## 颜色校正
 
-颜色校正或颜色分级用于变更或增强场景的总体照明颜色。随着HDR显示器的出现，在处理前保持颜色
-原有的色彩变得非常重要。这样可确保正确显示颜色。  
+颜色校正或颜色分级用于变更或增强场景的总体照明颜色。随着HDR显示器的出现，在处理前保持颜色原有的色彩变得非常重要。这样可确保正确显示颜色。  
 
-在过去，颜色校正是通过[查找表（LUT）](Engine/Rendering/PostProcessEffects/UsingLUTs)实现的，而LUT使用的是LDR，显示器上输出的最终颜色 
-使用的是sRGB颜色空间。这在使用HDR显示器时会存在问题，因为LUT只是当前支持的、调节参数时所针对的显示器的一个快照，
-不能在HDR显示器上呈现相同的效果。为解决这类问题，[颜色校正控制](#colorcorrectionproperties)在场景引用的线性空间中完成其工作， 
-这意味着所有颜色都是先捕捉，再进行色调映射。这样就可以根据任何颜色校正仅调节一个HDR显示器上的颜色，然后在输出图像的所有显示器都能正确显示， 
-而无论是HDR还是LDR均无影响。
+在过去，颜色校正是通过[查找表（LUT）](Engine/Rendering/PostProcessEffects/UsingLUTs)实现的，而LUT使用的是LDR，显示器上输出的最终颜色使用的是sRGB颜色空间。这在使用HDR显示器时会存在问题，因为LUT只是当前支持的、调节参数时所针对的显示器的一个快照，不能在HDR显示器上呈现相同的效果。为解决这类问题，[颜色校正控制](#colorcorrectionproperties)在场景引用的线性空间中完成其工作，这意味着所有颜色都是先捕捉，再进行色调映射。这样就可以根据任何颜色校正仅调节一个HDR显示器上的颜色，然后在输出图像的所有显示器都能正确显示，而无论是HDR还是LDR均无影响。
 
 [REGION:note]
 如需进一步了解HDR管道以及如何有效利用以为您创造更优质内容的信息，请参阅[高动态范围显示输出](Engine/Rendering/HDRDisplayOutput)页面。
 [/REGION]
 
-(#colorcorrectionproperties)
 ### 颜色校正属性
 
-在后期处理体积的 **颜色分级** 部分中，您会找到能够对场景进行更多艺术效果控制的属性。 
+在后期处理体积的 **颜色分级** 部分中，您会找到能够对场景进行更多艺术效果控制的属性。
 
-(#settings)
 #### 设置
 
 [REGION:imagetable]
@@ -360,30 +356,20 @@ UE4中使用的胶片色调映射器符合[学院色彩编码系统（ACES）](h
 | **最小高亮（HighLights Min）** | 这是影响 **阴影** 部分中已经调整的颜色校正属性的属性乘数。|
 [/REGION]
 
-
-(#workflowforgoodcolorcorrection)
 ### 良好颜色校正的工作流
 
 在使用后期处理体积中的颜色分级工具时，应培养一些好的使用习惯。 
 
-* **色调映射器** 控制应针对项目范围外观进行设置。理想状态下，这些属性不应调整，更不应动态调整或逐个镜头的调整。 
-如有需要，可以使用[颜色分级](#colorcorrectionproperties)属性。
+* **色调映射器** 控制应针对项目范围外观进行设置。理想状态下，这些属性不应调整，更不应动态调整或逐个镜头的调整。如有需要，可以使用[颜色分级](#colorcorrectionproperties)属性。
 
-* 首先使用 **全局** 颜色校正属性对场景进行初始总体润色，然后再调整任何其他属性。大部分颜色分级更改应该使用 
-这些属性来完成。
+* 首先使用 **全局** 颜色校正属性对场景进行初始总体润色，然后再调整任何其他属性。大部分颜色分级更改应该使用这些属性来完成。
 
-* 不应尝试使用 **增益（Gain）** 属性来调节场景曝光度。该属性应该用于针对不同颜色进行微调。请改为使用 **曝光偏差（Exposure Bias）**，这个选项位于 **镜头（Lens）** > 
-**自动曝光（Auto-Exposure）** 部分中。
+* 不应尝试使用 **增益（Gain）** 属性来调节场景曝光度。该属性应该用于针对不同颜色进行微调。请改为使用 **曝光偏差（Exposure Bias）**，这个选项位于 **镜头（Lens）** > **自动曝光（Auto-Exposure）** 部分中。
 
-* 使用较小的 **偏移（Offset）** 让阴影或暗色区域显得更明亮一些。如果希望事物看起来有些模糊或泛光效果，可以设置更大的值，反之， 
-如果场景过于模糊或泛光过多，可以降低该值，从场景中剔除一些颜色。
+* 使用较小的 **偏移（Offset）** 让阴影或暗色区域显得更明亮一些。如果希望事物看起来有些模糊或泛光效果，可以设置更大的值，反之，如果场景过于模糊或泛光过多，可以降低该值，从场景中剔除一些颜色。
 
-* 改为使用[查找表（LUT）](Engine/Rendering/PostProcessEffects/UsingLUTs)来为场景着色，该操作发生在色调映射之后，因此应使用颜色分级属性 
-实现您想要的效果，以保持在所有输出显示器（LDR和HDR）上呈现一致的效果。但是，使用LUT设置色调，然后调整颜色校正来获得相似效果， 
-也是快速实现效果的好方法。
+* 改为使用[查找表（LUT）](Engine/Rendering/PostProcessEffects/UsingLUTs)来为场景着色，该操作发生在色调映射之后，因此应使用颜色分级属性实现您想要的效果，以保持在所有输出显示器（LDR和HDR）上呈现一致的效果。但是，使用LUT设置色调，然后调整颜色校正来获得相似效果，也是快速实现效果的好方法。
 
-
-(#trainingstreams)
 ## 培训视频
 
 [OBJECT:EmbeddedVideo]
@@ -404,10 +390,6 @@ UE4中使用的胶片色调映射器符合[学院色彩编码系统（ACES）](h
 	[/PARAMLITERAL]
 [/OBJECT]
 
-
-
-
-
 [COMMENT:none]
 
 [EXCERPT:ColorGradingLUT]
@@ -422,21 +404,27 @@ UE4中使用的胶片色调映射器符合[学院色彩编码系统（ACES）](h
 [REGION:lightbox]
 [![中性色调场景](lut_none.png)(w:300)](lut_none.png)
 [/REGION]
-[REGION:caption]单击查看大图。[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
 [/EXCERPT:colorgradingnone]
 
 [EXCERPT:colorgradinggreen]
 [REGION:lightbox]
 [![偏绿场景](lut_green.png)(w:300)](lut_green.png)
 [/REGION]
-[REGION:caption]单击查看大图。[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
 [/EXCERPT:colorgradinggreen]
 
 [EXCERPT:colorgradingred]
 [REGION:lightbox]
 [![偏红场景](lut_red.png)(w:300)](lut_red.png)
 [/REGION]
-[REGION:caption]单击查看大图。[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
 [/EXCERPT:colorgradingred]
 
 [/COMMENT]

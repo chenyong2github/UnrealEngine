@@ -7,14 +7,14 @@
 
 void FOculusAudioPlugin::StartupModule()
 {
-	FOculusAudioLibraryManager::Initialize();
+	FOculusAudioLibraryManager::Get().Initialize();
 	IModularFeatures::Get().RegisterModularFeature(FOculusSpatializationPluginFactory::GetModularFeatureName(), &PluginFactory);
-    IModularFeatures::Get().RegisterModularFeature(FOculusReverbPluginFactory::GetModularFeatureName(), &ReverbPluginFactory);
+	IModularFeatures::Get().RegisterModularFeature(FOculusReverbPluginFactory::GetModularFeatureName(), &ReverbPluginFactory);
 };
 
 void FOculusAudioPlugin::ShutdownModule()
 {
-	FOculusAudioLibraryManager::Shutdown();
+	FOculusAudioLibraryManager::Get().Shutdown();
 }
 
 void FOculusAudioPlugin::RegisterAudioDevice(FAudioDevice* AudioDeviceHandle)
@@ -25,17 +25,17 @@ void FOculusAudioPlugin::RegisterAudioDevice(FAudioDevice* AudioDeviceHandle)
 		return; // Not supported in old audio engine
 	}
 
-    if (!RegisteredAudioDevices.Contains(AudioDeviceHandle))
-    {
-        TAudioPluginListenerPtr ContextManager = TAudioPluginListenerPtr(new FOculusAudioContextManager());
-        AudioDeviceHandle->RegisterPluginListener(ContextManager);
-        RegisteredAudioDevices.Add(AudioDeviceHandle);
-    }
+	if (!RegisteredAudioDevices.Contains(AudioDeviceHandle))
+	{
+		TAudioPluginListenerPtr ContextManager = TAudioPluginListenerPtr(new FOculusAudioContextManager());
+		AudioDeviceHandle->RegisterPluginListener(ContextManager);
+		RegisteredAudioDevices.Add(AudioDeviceHandle);
+	}
 }
 
 void FOculusAudioPlugin::UnregisterAudioDevice(FAudioDevice* AudioDeviceHandle)
 {
-    RegisteredAudioDevices.Remove(AudioDeviceHandle);
+	RegisteredAudioDevices.Remove(AudioDeviceHandle);
 }
 
 IMPLEMENT_MODULE(FOculusAudioPlugin, OculusAudio)

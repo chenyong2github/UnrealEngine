@@ -7,10 +7,11 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
+#include "GeometryCollection/GeometryCollectionUtility.h"
 #include "MeshFractureSettings.h"
 #include "GeneratedFracturedChunk.h"
 #if PLATFORM_WINDOWS
-#include "NvBlast.h" 
+#include "NvBlast.h"
 #include "NvBlastAssert.h"
 #include "NvBlastGlobals.h"
 #include "NvBlastExtAuthoring.h"
@@ -99,71 +100,99 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, int3
 	TArray<PxVec2> BlastUVs;
 	TArray<PxVec3> BlastPositions;
 	TArray<PxVec3> BlastNormals;
-	TArray<uint32> BlastIndices;
-	TArray<int32> MaterialId;
+
+	BlastPositions.Reserve(VertexPositions.GetNumElements());
+	BlastNormals.Reserve(VertexPositions.GetNumElements());
+	BlastUVs.Reserve(VertexPositions.GetNumElements());
 
 	// push all positions
 	for(const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 	{
-		FVector P = VertexPositions[MeshDescription->GetVertexInstanceVertex(VertexInstanceID)];
-		BlastPositions.Push(PxVec3(P.X, P.Y, P.Z));
+		const FVector& P = VertexPositions[MeshDescription->GetVertexInstanceVertex(VertexInstanceID)];
+		BlastPositions.Emplace( P.X, P.Y, P.Z );
 
-		FVector N = VertexNormals[VertexInstanceID];
-		BlastNormals.Push(PxVec3(N.X, N.Y, N.Z));
+		const FVector& N = VertexNormals[VertexInstanceID];
+		BlastNormals.Emplace(N.X, N.Y, N.Z);
 
-		BlastUVs.Push(PxVec2(VertexUVs[VertexInstanceID].X, VertexUVs[VertexInstanceID].Y));
+		const FVector2D& UV = VertexUVs[VertexInstanceID];
+		BlastUVs.Emplace(UV.X, UV.Y);
 	}
 
 	const TArray<FPolygonID>& PolygonGroupIDs = MeshDescription->GetPolygonGroupPolygons(FPolygonGroupID(PolygonGroup));
 
-	TSharedPtr<FGeometryCollection> GeometryCollectionSPtr = GeometryCollection->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionSPtr = GeometryCollection->GetGeometryCollection();
 	FGeometryCollection* GeometryCollectionPtr = GeometryCollectionSPtr.Get();
 	check(GeometryCollectionPtr);
 
-	const TManagedArray<int32>& MaterialIDs = *GeometryCollectionPtr->MaterialID;
+	const TManagedArray<int32>& MaterialIDs = GeometryCollectionPtr->MaterialID;
 
-	if(PolygonGroupIDs.Num() > 0)
+
+	// We rebuild the arrays to remove un-indexed Vertices.
+	// PhysX bounds generation doesn't seem to like unconnected verts.
+	TMap<int32,int32> UsedVerticesMap;
+	TArray<PxVec3> UsedBlastPositions;
+	TArray<PxVec3> UsedBlastNormals;
+	TArray<PxVec2> UsedBlastUVs;
+	TArray<uint32> BlastIndices;
+	TArray<int32> MaterialId;
+
+	UsedBlastPositions.Reserve(BlastPositions.Num());
+	UsedBlastNormals.Reserve(BlastPositions.Num());
+	UsedBlastUVs.Reserve(BlastPositions.Num());
+	BlastIndices.Reserve(BlastPositions.Num());
+	MaterialId.Reserve(MaterialIDs.Num());
+
+	for(const FPolygonID PolygonID : PolygonGroupIDs)
 	{
-		for(const FPolygonID PolygonID : PolygonGroupIDs)
-		{
-			const TArray<FMeshTriangle>& MeshTriangles = MeshDescription->GetPolygonTriangles(PolygonID);
+		const TArray<FMeshTriangle>& MeshTriangles = MeshDescription->GetPolygonTriangles(PolygonID);
 
-			check(MeshTriangles.Num() == 1);
+		check(MeshTriangles.Num() == 1);
 
 #ifdef VALIDATE_INPUT
-			// does triangle match the geometry collection triangle
-			const FVertexInstanceID VertexInstanceID0 = MeshTriangles[0].GetVertexInstanceID(0);
-			const FVertexInstanceID VertexInstanceID1 = MeshTriangles[0].GetVertexInstanceID(1);
-			const FVertexInstanceID VertexInstanceID2 = MeshTriangles[0].GetVertexInstanceID(2);
+		// does triangle match the geometry collection triangle
+		const FVertexInstanceID VertexInstanceID0 = MeshTriangles[0].GetVertexInstanceID(0);
+		const FVertexInstanceID VertexInstanceID1 = MeshTriangles[0].GetVertexInstanceID(1);
+		const FVertexInstanceID VertexInstanceID2 = MeshTriangles[0].GetVertexInstanceID(2);
 
-			TManagedArray<FIntVector>&  Indices = *FGC->Indices;
-			FIntVector Ind = Indices[PolygonID.GetValue()];
-			check(VertexInstanceID0.GetValue() == Ind[0])
-				check(VertexInstanceID1.GetValue() == Ind[1])
-				check(VertexInstanceID2.GetValue() == Ind[2])
-				check(Visible[PolygonID.GetValue()]);
+		TManagedArray<FIntVector>&  Indices = *FGC->Indices;
+		FIntVector Ind = Indices[PolygonID.GetValue()];
+		check(VertexInstanceID0.GetValue() == Ind[0])
+			check(VertexInstanceID1.GetValue() == Ind[1])
+			check(VertexInstanceID2.GetValue() == Ind[2])
+			check(Visible[PolygonID.GetValue()]);
 #endif // VALIDATE_INPUT
 
-			for(const FMeshTriangle& MeshTriangle : MeshTriangles)
+		for(const FMeshTriangle& MeshTriangle : MeshTriangles)
+		{
+			for(int32 TriVertIndex = 0; TriVertIndex < 3; ++TriVertIndex)
 			{
-				for(int32 TriVertIndex = 0; TriVertIndex < 3; ++TriVertIndex)
+				const FVertexInstanceID VertexInstanceID = MeshTriangle.GetVertexInstanceID(TriVertIndex);
+				int32 VertexInstanceValue = VertexInstanceID.GetValue();
+				if (UsedVerticesMap.Contains(VertexInstanceValue))
 				{
-					const FVertexInstanceID VertexInstanceID = MeshTriangle.GetVertexInstanceID(TriVertIndex);
-					BlastIndices.Push(VertexInstanceID.GetValue());
+					BlastIndices.Push(UsedVerticesMap[VertexInstanceValue]);
 				}
-				if(GeometryCollection)
+				else
 				{
-					// Material setup coming directly from GeometryCollection bypassing MeshDescription!
-					int MaterialID = MaterialIDs[PolygonID.GetValue()];
-					MaterialId.Push(MaterialID);
+					UsedVerticesMap.Add(VertexInstanceValue,UsedBlastPositions.Num());
+					BlastIndices.Push(UsedVerticesMap[VertexInstanceValue]);
+					UsedBlastPositions.Emplace(BlastPositions[VertexInstanceValue]);
+					UsedBlastNormals.Emplace(BlastNormals[VertexInstanceValue]);
+					UsedBlastUVs.Emplace(BlastUVs[VertexInstanceValue]);
 				}
+			}
+			if(GeometryCollection)
+			{
+				// Material setup coming directly from GeometryCollection bypassing MeshDescription!
+				int MaterialID = MaterialIDs[PolygonID.GetValue()];
+				MaterialId.Push(MaterialID);
 			}
 		}
 	}
 
-	if(BlastPositions.Num())
+	if(UsedBlastPositions.Num())
 	{
-		OutBlastMesh = NvBlastExtAuthoringCreateMesh(BlastPositions.GetData(), BlastNormals.GetData(), BlastUVs.GetData(), BlastPositions.Num(), BlastIndices.GetData(), BlastIndices.Num());
+		OutBlastMesh = NvBlastExtAuthoringCreateMesh(UsedBlastPositions.GetData(), UsedBlastNormals.GetData(), UsedBlastUVs.GetData(), UsedBlastPositions.Num(), BlastIndices.GetData(), BlastIndices.Num());
 
 		int32 FacetCount = OutBlastMesh->getFacetCount();
 		Nv::Blast::Facet* facetBuffer = OutBlastMesh->getFacetsBufferWritable();
@@ -173,11 +202,10 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, int3
 			// retain the material ids coming from the geometry collection
 			facetBuffer[Facet].materialId = MaterialId[Facet];
 		}
-
 	}
 }
 
-void FMeshUtility::GenerateGeometryCollectionFromBlastChunk(Nv::Blast::FractureTool* BlastFractureTool, int32 ChunkIndex, UGeometryCollection* FracturedGeometryCollectionObject, bool IsVisible, FGeneratedFracturedChunk& ChunkOut)
+bool FMeshUtility::GenerateGeometryCollectionFromBlastChunk(Nv::Blast::FractureTool* BlastFractureTool, int32 ChunkIndex, UGeometryCollection* FracturedGeometryCollectionObject, bool bIsFirstEverChunk, FGeneratedFracturedChunk& ChunkOut, bool bReindexMaterials)
 {
 	// get shared vertices and index buffers for all chunks
 	Nv::Blast::Vertex* VertexBuffer = nullptr;
@@ -188,44 +216,33 @@ void FMeshUtility::GenerateGeometryCollectionFromBlastChunk(Nv::Blast::FractureT
 	const Nv::Blast::ChunkInfo& ChunkInfo = BlastFractureTool->getChunkInfo(ChunkIndex);
 	Nv::Blast::Mesh* ChunkMesh = ChunkInfo.meshData;
 
-	//UE_LOG(LogBlastMeshUtility, Log, TEXT("Blast to GC chunk %d, num verts %d:"), ChunkIndex, ChunkInfo.meshData->getVerticesCount());
-
-	//for (uint32 i = 0; i < ChunkInfo.meshData->getVerticesCount(); i++)
-	//{
-	//	const Nv::Blast::Vertex* VertexBuff = ChunkInfo.meshData->getVertices();
-
-	//	UE_LOG(LogBlastMeshUtility, Log, TEXT("  Vert[%i] (%3.2f, %3.2f, %3.2f), N(%3.2f, %3.2f, %3.2f)"),
-	//		i, VertexBuff[i].p.x, VertexBuff[i].p.y, VertexBuff[i].p.z,
-	//		VertexBuff[i].n.x, VertexBuff[i].n.y, VertexBuff[i].n.z);
-	//}
-
 	physx::PxVec3 Origin(0, 0, 0);
 
 	// make a geometry collection for each fractured chunk
 	// this new collection will be appended to the OutGeometryCollection
 	ChunkOut.GeometryCollectionObject = TSharedPtr<UGeometryCollection>(NewObject<UGeometryCollection>());
-	TSharedPtr<FGeometryCollection> NewGeometryCollectionPtr = ChunkOut.GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> NewGeometryCollectionPtr = ChunkOut.GeometryCollectionObject->GetGeometryCollection();
 	FGeometryCollection* GeometryCollection = NewGeometryCollectionPtr.Get();
 	check(GeometryCollection);
 
 	AddAdditionalAttributesIfRequired(*ChunkOut.GeometryCollectionObject);
 
 	// Geometry Collection Accessors - Verts Group
-	TManagedArray<FVector>& Vertices = *GeometryCollection->Vertex;
-	TManagedArray<FVector>& Normals = *GeometryCollection->Normal;
-	TManagedArray<FVector2D>& UVs = *GeometryCollection->UV;
+	TManagedArray<FVector>& Vertices = GeometryCollection->Vertex;
+	TManagedArray<FVector>& Normals = GeometryCollection->Normal;
+	TManagedArray<FVector2D>& UVs = GeometryCollection->UV;
 
 	// Geometry Collection Accessors - Geometry Group
-	TManagedArray<FIntVector>&  Indices = *GeometryCollection->Indices;
-	TManagedArray<bool>&  Visible = *GeometryCollection->Visible;
-	TManagedArray<int32>&  MaterialID = *GeometryCollection->MaterialID;
-	TManagedArray<int32>&  MaterialIndex = *GeometryCollection->MaterialIndex;
+	TManagedArray<FIntVector>&  Indices = GeometryCollection->Indices;
+	TManagedArray<bool>&  Visible = GeometryCollection->Visible;
+	TManagedArray<int32>&  MaterialID = GeometryCollection->MaterialID;
+	TManagedArray<int32>&  MaterialIndex = GeometryCollection->MaterialIndex;
 
 	// Geometry Collection Accessors - Transform Group
-	TManagedArray<FTransform> & Transforms = *GeometryCollection->Transform;
+	TManagedArray<FTransform> & Transforms = GeometryCollection->Transform;
 
-	// Geometry Collection Accessors - Material Group
-	TManagedArray<FGeometryCollectionSection> & Sections = *GeometryCollection->Sections;
+	// Geometry Collection Accessors - Material Group.g
+	// TManagedArray<FGeometryCollectionSection> & Sections = GeometryCollection->Sections;
 
 	uint32 BufIndex = IndexBufferOffsets[ChunkIndex];
 	uint32 NumIndices = (IndexBufferOffsets[ChunkIndex + 1] - IndexBufferOffsets[ChunkIndex]);
@@ -233,24 +250,31 @@ void FMeshUtility::GenerateGeometryCollectionFromBlastChunk(Nv::Blast::FractureT
 	Nv::Blast::Triangle* Triangles = nullptr;
 	uint32 NumTriangles = BlastFractureTool->getBaseMesh(ChunkIndex, Triangles);
 
+	ensure(NumIndices > 3);
+	ensure(NumTriangles > 3);
 	check(NumIndices == NumTriangles * 3);
+
+	if (NumIndices < 4 || NumTriangles < 4)
+	{
+		return false;
+	}
+
 	int NumMaterialsInChunk = 0;
 	int LastMaterialIndex = -1;
 
+	GeometryCollection->Reserve(NumTriangles, FGeometryCollection::FacesGroup);
+	GeometryCollection->Reserve(NumIndices, FGeometryCollection::VerticesGroup);
 	TMap<uint32, uint32> VertMapping;
 	for(uint32 VertIndex = 0; VertIndex < NumIndices; VertIndex += 3)
 	{
+		int32 IndicesIndex = GeometryCollection->AddElements(1, FGeometryCollection::FacesGroup);
 		const Nv::Blast::Triangle& Triangle = Triangles[VertIndex / 3];
 
-		// #todo(dmp): support multiple interior materials
-		int32 UseMaterialID = Triangle.materialId == MATERIAL_INTERIOR ? FracturedGeometryCollectionObject->GetInteriorMaterialIndex() : Triangle.materialId;
-
-		int32 IndicesIndex = GeometryCollection->AddElements(1, FGeometryCollection::FacesGroup);
 		uint32 BaseIndex = BufIndex + VertIndex;
 
 		uint32 RemappedIndex[3];
 
-		for(int TriVertIndex = 0; TriVertIndex < 3; TriVertIndex++)
+		for(int TriVertIndex = 0; TriVertIndex < 3; ++TriVertIndex)
 		{
 			uint32 NextIndex = BaseIndex + TriVertIndex;
 			uint32 BlastVertIndex = IndexBuffer[NextIndex];
@@ -274,7 +298,7 @@ void FMeshUtility::GenerateGeometryCollectionFromBlastChunk(Nv::Blast::FractureT
 
 				if(BlastVertex.n.magnitudeSquared() < 0.25f)
 				{
-					physx::PxVec3 Normal = Triangle.getNormal();
+					physx::PxVec3 Normal(Triangle.getNormal());
 					Normals[GCVerticesIndex] = FVector(-Normal.x, -Normal.y, -Normal.z);
 				}
 
@@ -285,37 +309,87 @@ void FMeshUtility::GenerateGeometryCollectionFromBlastChunk(Nv::Blast::FractureT
 		}
 
 		Indices[IndicesIndex] = FIntVector(RemappedIndex[0], RemappedIndex[1], RemappedIndex[2]);
-		Visible[IndicesIndex] = IsVisible;
-		MaterialID[IndicesIndex] = UseMaterialID;
+		Visible[IndicesIndex] = !bIsFirstEverChunk;
+
+		MaterialID[IndicesIndex] = Triangle.materialId;
+
 		MaterialIndex[IndicesIndex] = IndicesIndex;
+	}
+
+	// assign internal materials
+	// find most common non interior material
+	TMap<int32, int32> MaterialIDCount;
+	int32 MaxCount = 0;
+	int32 MostCommonMaterialID = -1;
+	for (int i = 0; i < GeometryCollection->NumElements(FGeometryCollection::FacesGroup); ++i)
+	{
+		int32 CurrID = MaterialID[i];
+		int32 &CurrCount = MaterialIDCount.FindOrAdd(CurrID);
+		CurrCount++;
+
+		if (CurrCount > MaxCount && CurrID != MATERIAL_INTERIOR)
+		{
+			MaxCount = CurrCount;
+			MostCommonMaterialID = CurrID;
+		}
+	}
+
+
+	// in this case, we likely have a piece that has all internal faces and no material id.
+	// #todo(dmp): We should be assigning a default internal material here - We'll use the internal material for 0 for now
+	if (MostCommonMaterialID == -1)
+	{
+		MostCommonMaterialID = 0;
+	}
+
+	// We know that the internal materials are the ones that come right after the surface materials
+	// #todo(dmp): formalize the mapping between material and internal material, perhaps on the GC
+	// if the most common material is an internal material, then just use this
+	int32 InternalMaterialID = MostCommonMaterialID % 2 == 0 ? MostCommonMaterialID + 1 : MostCommonMaterialID;
+
+	// Assign internal material to internal faces
+	for (int i = 0; i < GeometryCollection->NumElements(FGeometryCollection::FacesGroup); ++i)
+	{
+		if (MaterialID[i] == MATERIAL_INTERIOR)
+		{
+			MaterialID[i] = InternalMaterialID;
+		}
+	}
+
+	// Transfer color from original mesh to our new one.
+	FName ColorName("Color");
+	FGeometryCollection *BaseCollection = FracturedGeometryCollectionObject->GetGeometryCollection().Get();
+	GeometryCollection::AttributeTransfer<FLinearColor>(BaseCollection, GeometryCollection, ColorName, ColorName);
+
+	if (bReindexMaterials)
+	{
+		GeometryCollection->ReindexMaterials();
 	}
 
 	int ParticlesIndex = GeometryCollection->AddElements(1, FGeometryCollection::TransformGroup);
 	FTransform RelativeTransform = FTransform::Identity;
 	ChunkOut.ChunkLocation = CalcChunkDelta(ChunkMesh, Origin);
 	Transforms[ParticlesIndex] = FTransform::Identity;
+	if (!bIsFirstEverChunk)
+	{
+		GeometryCollectionAlgo::ReCenterGeometryAroundCentreOfMass(GeometryCollection, false);
+	}
 	GeometryCollectionAlgo::PrepareForSimulation(GeometryCollection, false);
+	return true;
 }
 
-void FMeshUtility::AddBlastMeshToGeometryCollection(Nv::Blast::FractureTool* BlastFractureTool, int32 FracturedChunkIndex, const FString& ParentName, const FTransform& ParentTransform, UGeometryCollection* FracturedGeometryCollectionObject, TArray<FGeneratedFracturedChunk>& GeneratedChunksOut, TArray<int32>& DeletedChunksOut)
+bool FMeshUtility::AddBlastMeshToGeometryCollection(Nv::Blast::FractureTool* BlastFractureTool, int32 FracturedChunkIndex, const FString& ParentName, const FTransform& ParentTransform, UGeometryCollection* FracturedGeometryCollectionObject, TArray<FGeneratedFracturedChunk>& GeneratedChunksOut, TArray<int32>& DeletedChunksOut)
 {
 	check(BlastFractureTool);
 	AddAdditionalAttributesIfRequired(*FracturedGeometryCollectionObject);
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = FracturedGeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollectionObject->GetGeometryCollection();
 	FGeometryCollection* FracturedGeometryCollection = GeometryCollectionPtr.Get();
 
-	TSharedRef<TManagedArray<FGeometryCollectionBoneNode > > HierarchyArray = FracturedGeometryCollection->GetAttribute<FGeometryCollectionBoneNode>("BoneHierarchy", FGeometryCollection::TransformGroup);
-
-	TManagedArray<FGeometryCollectionBoneNode >& Hierarchy = *HierarchyArray;
-
 	// keep note of chunks to delete - the ones we are now fracturing into smaller chunks
-	if(FracturedChunkIndex < Hierarchy.Num())
+	if(FracturedChunkIndex < FracturedGeometryCollection->NumElements(FGeometryCollection::TransformGroup))
 	{
-		TSharedRef<TManagedArray<int32> > BoneMapArray = FracturedGeometryCollection->GetAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup);
-		TSharedRef<TManagedArray<FIntVector> > IndicesArray = FracturedGeometryCollection->GetAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
-
-		TManagedArray<int32>& BoneMap = *BoneMapArray;
-		TManagedArray<FIntVector>&  Indices = *IndicesArray;
+		TManagedArray<int32>& BoneMap = FracturedGeometryCollection->BoneMap;
+		TManagedArray<FIntVector>&  Indices = FracturedGeometryCollection->Indices;
 
 		const int32 NumIndices = Indices.Num();
 		for(int32 Index = 0; Index < NumIndices; Index++)
@@ -333,52 +407,49 @@ void FMeshUtility::AddBlastMeshToGeometryCollection(Nv::Blast::FractureTool* Bla
 	uint32 NumChunks = BlastFractureTool->getChunkCount();
 
 	int32 RootBone = 0;
-	bool FirstEverRoot = true;
+	bool bIsFirstEverRoot = true;
 	if(FracturedGeometryCollection->NumElements(FGeometryCollection::TransformGroup) > 0)
 	{
-		FirstEverRoot = false;
+		bIsFirstEverRoot = false;
 		TArray<int32> RootBones;
 		FGeometryCollectionClusteringUtility::GetRootBones(FracturedGeometryCollection, RootBones);
 		check(RootBones.Num() == 1);
 		RootBone = RootBones[0];
 	}
 
+	bool bAllChunksGood = true;
+
 	for(uint32 ChunkIndex = 0; ChunkIndex < NumChunks; ChunkIndex++)
 	{
-		int32 ParentBone = FracturedChunkIndex;
-		bool IsVisible = true;
-		bool TheFirstEverChunk = (FirstEverRoot && ChunkIndex == 0);
-
-		if(TheFirstEverChunk)
-		{
-			ParentBone = FGeometryCollectionBoneNode::InvalidBone;
-		}
+		const bool bIsFirstEverChunk = (bIsFirstEverRoot && ChunkIndex == 0);
+		const int32 ParentBone = bIsFirstEverChunk ? FGeometryCollection::Invalid: FracturedChunkIndex;
 
 		// chunk 0 is the original model before fracture - when fracturing a fresh static mesh we keep level 0 geometry
 		// otherwise we discard the first 'intact' mesh that comes back from blast
-		if(ChunkIndex > 0 || FirstEverRoot)
+		if (ChunkIndex > 0 || bIsFirstEverRoot)
 		{
-			// hide the unfractured root mesh for now
-			if(TheFirstEverChunk)
-			{
-				IsVisible = false;
-			}
-
 			FGeneratedFracturedChunk ChunkOut;
 
-			GenerateGeometryCollectionFromBlastChunk(BlastFractureTool, ChunkIndex, FracturedGeometryCollectionObject, IsVisible, ChunkOut);
-			ChunkOut.FracturedChunkIndex = FracturedChunkIndex;
-			ChunkOut.FirstChunk = TheFirstEverChunk;
-			ChunkOut.ParentBone = ParentBone;
-			GeneratedChunksOut.Push(ChunkOut);
+			if (GenerateGeometryCollectionFromBlastChunk(BlastFractureTool, ChunkIndex, FracturedGeometryCollectionObject, bIsFirstEverChunk, ChunkOut))
+			{
+				ChunkOut.FracturedChunkIndex = FracturedChunkIndex;
+				ChunkOut.FirstChunk = bIsFirstEverChunk;
+				ChunkOut.ParentBone = ParentBone;
+				GeneratedChunksOut.Push(ChunkOut);
+			}
+			else
+			{
+				bAllChunksGood = false;
+			}
 		}
 	}
+	return bAllChunksGood;
 }
 #endif
 
 void FMeshUtility::AddAdditionalAttributesIfRequired(UGeometryCollection& OutGeometryCollectionObject)
 {
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = OutGeometryCollectionObject.GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = OutGeometryCollectionObject.GetGeometryCollection();
 	FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
 	check(OutGeometryCollection);
 
@@ -393,7 +464,7 @@ void FMeshUtility::AddAdditionalAttributesIfRequired(UGeometryCollection& OutGeo
 
 void FMeshUtility::LogHierarchy(const UGeometryCollection* GeometryCollectionObject)
 {
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 	FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
 	check(GeometryCollection);
 
@@ -403,22 +474,24 @@ void FMeshUtility::LogHierarchy(const UGeometryCollection* GeometryCollectionObj
 		GeometryCollection->NumElements(FGeometryCollection::GeometryGroup),
 		GeometryCollection->NumElements(FGeometryCollection::TransformGroup));
 
-	const TSharedRef<TManagedArray<FVector> > ExplodedVectorsArray = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
-	const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GeometryCollection->BoneHierarchy;
-	const TManagedArray<FVector>& ExplodedVectors = *ExplodedVectorsArray;
-	const TManagedArray<FTransform>& Transforms = *GeometryCollection->Transform;
-	const TManagedArray<FString>& BoneNames = *GeometryCollection->BoneName;
+	const TManagedArray<FVector>& ExplodedVectors = GeometryCollection->GetAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup);
+	const TManagedArray<FTransform>& Transforms = GeometryCollection->Transform;
+	const TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
+	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
+	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 
-	for(int BoneIndex = 0; BoneIndex < Hierarchy.Num(); BoneIndex++)
+	int NumElements = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+	for(int BoneIndex = 0; BoneIndex < NumElements; BoneIndex++)
 	{
 		const FTransform& Transform = Transforms[BoneIndex];
 		UE_LOG(LogBlastMeshUtility, Log, TEXT("Location %3.2f, %3.2f, %3.2f"), Transform.GetLocation().X, Transform.GetLocation().Y, Transform.GetLocation().Z);
 		UE_LOG(LogBlastMeshUtility, Log, TEXT("Scaling %3.2f, %3.2f, %3.2f"), Transform.GetScale3D().X, Transform.GetScale3D().Y, Transform.GetScale3D().Z);
 
 		UE_LOG(LogBlastMeshUtility, Log, TEXT("BoneID %d, Name %s, Level %d, IsGeometry %d, ParentBoneID %d, Vector (%3.2f, %3.2f, %3.2f)"),
-			BoneIndex, BoneNames[BoneIndex].GetCharArray().GetData(), Hierarchy[BoneIndex].Level, Hierarchy[BoneIndex].IsGeometry(), Hierarchy[BoneIndex].Parent, ExplodedVectors[BoneIndex].X, ExplodedVectors[BoneIndex].Y, ExplodedVectors[BoneIndex].Z);
+			BoneIndex, BoneNames[BoneIndex].GetCharArray().GetData(), Levels[BoneIndex], GeometryCollection->IsGeometry(BoneIndex), Parents[BoneIndex], ExplodedVectors[BoneIndex].X, ExplodedVectors[BoneIndex].Y, ExplodedVectors[BoneIndex].Z);
 
-		for(int32 Element : Hierarchy[BoneIndex].Children)
+		for(int32 Element : Children[BoneIndex])
 		{
 			UE_LOG(LogBlastMeshUtility, Log, TEXT("..ChildBoneID %d"), Element);
 		}
@@ -427,30 +500,25 @@ void FMeshUtility::LogHierarchy(const UGeometryCollection* GeometryCollectionObj
 
 void FMeshUtility::ValidateGeometryCollectionState(const UGeometryCollection* GeometryCollectionObject)
 {
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 	FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
 	check(GeometryCollection);
 
-	const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GeometryCollection->BoneHierarchy;
-	const TManagedArray<FString>& BoneNames = *GeometryCollection->BoneName;
+	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
+	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
+	const TManagedArray<FString>& BoneNames = GeometryCollection->BoneName;
 
 	// there should only ever be one root node
 	int NumRootNodes = 0;
-	const int32 NumBones = Hierarchy.Num();
+	const int32 NumBones = Parents.Num();
 	for(int HierarchyBoneIndex = 0; HierarchyBoneIndex < NumBones; HierarchyBoneIndex++)
 	{
-		if(Hierarchy[HierarchyBoneIndex].Parent == FGeometryCollectionBoneNode::InvalidBone)
+		if(Parents[HierarchyBoneIndex] == FGeometryCollection::Invalid)
 		{
 			NumRootNodes++;
 		}
 	}
 	check(NumRootNodes == 1);
-
-	// only leaf nodes should be marked as geometry nodes and all others are marked as transform nodes
-	for(int BoneIndex = 0; BoneIndex < Hierarchy.Num(); BoneIndex++)
-	{
-		check((Hierarchy[BoneIndex].Children.Num() > 0) == Hierarchy[BoneIndex].IsTransform());
-	}
 
 }
 
@@ -477,10 +545,10 @@ FVector FMeshUtility::GetChunkCenter(Nv::Blast::Mesh* ChunkMesh, physx::PxVec3 O
 
 int FMeshUtility::GetMaterialForIndex(const UGeometryCollection* GeometryCollectionObject, int TriangleIndex)
 {
-	TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 	FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
 	check(GeometryCollection);
 
-	const TManagedArray<int32>& MaterialIDs = *GeometryCollection->MaterialID;
+	const TManagedArray<int32>& MaterialIDs = GeometryCollection->MaterialID;
 	return MaterialIDs[TriangleIndex];
 }

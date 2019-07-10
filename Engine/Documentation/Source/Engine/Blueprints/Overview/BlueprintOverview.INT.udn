@@ -2,7 +2,7 @@ Availability:Public
 Title: Blueprint Overview
 Crumbs: %ROOT%, Engine, Engine/Blueprints
 Description: The Blueprint Overview page breaks down the anatomy of a Blueprint and the different types of Blueprints available. 
-version: 4.9
+version: 4.22
 parent:Engine/Blueprints
 order:2
 tags:Blueprints
@@ -40,8 +40,25 @@ and Blueprints compare.
 | Default Components  | Components List          | native constructor |
 [/EXCERPT:GameplayEquivalents]
 
-
-For more high-level introductory information about Blueprints, see [](Engine/Blueprints\GettingStarted).
+<!-- removing link for now
+[REGION:tip]
+If you are new to Blueprints or Visual Scripting, you may want to also check out the **Blueprint Essential Concepts** video tutorial series. This series covers the fundamentals and core concepts to working with Blueprints in Unreal Engine 4, how Blueprints relate to traditional programming, a tour of the Blueprint Editor UI, Components, Graphs, and some of the caveats to using Blueprint. 
+[OBJECT:TopicCompact]
+	[PARAM:image]
+		![](BlueprintEssentialsUA.png)
+	[/PARAM]
+	[PARAM:icon]
+		![](%ROOT%/blueprint_icon.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+		Blueprint Essential Concepts Class
+	[/PARAM]
+	[PARAMLITERAL:path]
+		https://academy.unrealengine.com/Class/blueprint-essential-concepts
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
 
 ## Types of Blueprints
 
@@ -72,7 +89,7 @@ events to defining interfaces or macros to be used by other Blueprints.
 
 ###Blueprint Utilities
 
-A **Blueprint Utility**, a.k.a. a **Blutility**, is an editor-only Blueprint that can be used to perform editor actions or extend 
+A **Blueprint Utility** (or **Blutility** for short), is an editor-only Blueprint that can be used to perform editor actions or extend 
 editor functionality. These can expose [](Engine/Blueprints/UserGuide/Events) with no parameters as buttons in the UI 
 and have the ability to execute any functions exposed to _Blueprints_ and act on the current set of selected Actors in the viewport.
 
@@ -106,15 +123,13 @@ and more.
 
 [/EXCERPT:Sections]
 
-[COMMENT:none]
-
 ### Blueprint Modes
 
 A Blueprint's _mode_ determines what is visible in its window. Although Level Blueprints contain only one mode, the Graph mode, Blueprint Classes contain three different modes:
 
-* **[Default Mode](Engine/Blueprints\Editor\Modes\Defaults)** - Where you set the defaults for the Blueprint.
-* **[Components Mode](Engine/Blueprints\Editor\Modes\Components)** - Where you add, remove, and modify the components that make up your Blueprint.
+* [Default Mode](Engine/Blueprints\Editor\Modes\Defaults) - Where you set the defaults for the Blueprint.
+* [Components Mode](Engine/Blueprints\Editor\Modes\Components) - Where you add, remove, and modify the components that make up your Blueprint.
 
-For more information about Blueprint Class modes, see [](Engine/Blueprints\Editor\Modes).
-
-[/COMMENT]
+[REGION:note]
+For more information, please see the [Blueprint Class Modes](Engine/Blueprints\Editor\Modes) documentation.
+[/REGION]

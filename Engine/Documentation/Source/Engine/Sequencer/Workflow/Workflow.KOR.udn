@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6572583
 Availability:Public
 Title: 시퀀서로 작업하기
 Crumbs: %ROOT%, Engine
@@ -9,8 +9,7 @@ parent:Engine/Sequencer
 order:5
 Version: 4.18
 tags:Sequencer
-
-![](Workflow_02.png)
+hero-image:Workflow_02.png
 
 
 시퀀서에서 콘텐츠 제작 속도를 높이기 위해 사용할 수 있는 여러가지 바로가기와 내장 단축키에 추가로, **시퀀스 레코더** 처럼 시네마틱용 콘텐츠 생성을 위해 사용할 수 있는 시퀀서 관련 기능도 있습니다.

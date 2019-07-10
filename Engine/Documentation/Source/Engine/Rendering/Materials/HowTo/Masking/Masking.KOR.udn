@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3242329
+INTSourceChangelist:3242329
 Availability: Public
 Title:텍스처 마스크 사용법
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/HowTo
@@ -19,7 +19,7 @@ tags:Materials
 
 3D 애셋 제작시 같은 머티리얼 내 여러가지 표면 유형을 정의하는 기능이 있었으면 싶을 때가 있습니다.
 간단하고 저렴한 해결책은, Texture Mask (텍스처 마스크)를 사용하여 어느 표면이 머티리얼의 어느 부분에 영향받도록 할 것인지 정의하면 됩니다.
-이번 비법에서는 언리얼 엔진 4 (UE4) 머티리얼 안에서 텍스처 마스킹을 사용하는 법에 대해 다뤄보겠습니다.
+이번 하우투에서는 언리얼 엔진 4 (UE4) 머티리얼 안에서 텍스처 마스킹을 사용하는 법에 대해 다뤄보겠습니다.
 
 ## 텍스처 마스크
 

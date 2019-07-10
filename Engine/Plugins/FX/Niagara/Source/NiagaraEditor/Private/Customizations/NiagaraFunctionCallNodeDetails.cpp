@@ -74,9 +74,13 @@ void FNiagaraFunctionCallNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 					{
 						Node->RemovePropagatedVariable(SwitchInput);
 					}
-					else if (NewState == ECheckBoxState::Checked && !Node->FindPropagatedVariable(SwitchInput))
+					else if (NewState == ECheckBoxState::Checked)
 					{
-						Node->PropagatedStaticSwitchParameters.Emplace(SwitchInput);
+						if (!Node->FindPropagatedVariable(SwitchInput))
+						{
+							Node->PropagatedStaticSwitchParameters.Emplace(SwitchInput);
+						}
+						CopyMetadataFromCalledGraph(SwitchInput);
 					}
 					Node->RefreshFromExternalChanges();
 				})
@@ -93,7 +97,9 @@ void FNiagaraFunctionCallNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 					FNiagaraPropagatedVariable* Propagated = Node->FindPropagatedVariable(SwitchInput);
 					if (Propagated)
 					{
+						FNiagaraVariable OldVar = Propagated->ToVariable();
 						Propagated->PropagatedName = NewText.ToString();
+						CopyMetadataForNameOverride(OldVar, Propagated->ToVariable());
 					}
 				})
 				.Text_Lambda([SwitchInput, this]()
@@ -108,6 +114,63 @@ void FNiagaraFunctionCallNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 			]
 		];
 	}
+}
+
+void FNiagaraFunctionCallNodeDetails::CopyMetadataFromCalledGraph(FNiagaraVariable FromVariable)
+{
+	UNiagaraGraph* NodeGraph = GetNodeGraph();
+	UNiagaraGraph* CalledGraph = GetCalledGraph();
+	if (!NodeGraph || !CalledGraph)
+	{
+		return;
+	}
+	if (NodeGraph->GetMetaData(FromVariable).IsSet())
+	{
+		return;
+	}
+	TOptional<FNiagaraVariableMetaData> OriginalData = CalledGraph->GetMetaData(FromVariable);
+	if (OriginalData.IsSet())
+	{
+		NodeGraph->SetMetaData(FromVariable, OriginalData.GetValue());
+		NodeGraph->NotifyGraphChanged();
+	}
+}
+
+void FNiagaraFunctionCallNodeDetails::CopyMetadataForNameOverride(FNiagaraVariable FromVariable, FNiagaraVariable ToVariable)
+{
+	UNiagaraGraph* NodeGraph = GetNodeGraph();
+	if (!NodeGraph)
+	{
+		return;
+	}
+	if (NodeGraph->GetMetaData(ToVariable).IsSet())
+	{
+		return;
+	}
+	TOptional<FNiagaraVariableMetaData> OriginalData = NodeGraph->GetMetaData(FromVariable);
+	if (OriginalData.IsSet())
+	{
+		NodeGraph->SetMetaData(ToVariable, OriginalData.GetValue());
+		NodeGraph->NotifyGraphChanged();
+	}
+}
+
+UNiagaraGraph* FNiagaraFunctionCallNodeDetails::GetNodeGraph()
+{
+	if (!Node.IsValid())
+	{
+		return nullptr;
+	}
+	return Node->GetNiagaraGraph();
+}
+
+UNiagaraGraph* FNiagaraFunctionCallNodeDetails::GetCalledGraph()
+{
+	if (!Node.IsValid())
+	{
+		return nullptr;
+	}
+	return Node->GetCalledGraph();
 }
 
 #undef LOCTEXT_NAMESPACE

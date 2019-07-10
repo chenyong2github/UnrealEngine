@@ -162,10 +162,15 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				switch ( SrcImage.GammaSpace )
 				{
 				case EGammaSpace::Linear:
-					for (int32 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+					ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int32 JobIndex)
 					{
-						DestColors[TexelIndex] = SrcColors[TexelIndex].ReinterpretAsLinear();
-					}
+						int32 StartIndex = JobIndex * TexelsPerJob;
+						int32 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
+						for (int32 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
+						{
+							DestColors[TexelIndex] = SrcColors[TexelIndex].ReinterpretAsLinear();
+						}
+					});
 					break;
 				case EGammaSpace::sRGB:
 					ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels](int32 JobIndex)
@@ -234,8 +239,50 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 	}
 }
 
+static FLinearColor SampleImage(const FLinearColor* Pixels, int Width, int Height, float X, float Y)
+{
+	const int32 TexelX0 = FMath::FloorToInt(X);
+	const int32 TexelY0 = FMath::FloorToInt(Y);
+	const int32 TexelX1 = FMath::Min(TexelX0 + 1, Width - 1);
+	const int32 TexelY1 = FMath::Min(TexelY0 + 1, Height - 1);
+	checkSlow(TexelX0 >= 0 && TexelX0 < Width);
+	checkSlow(TexelY0 >= 0 && TexelY0 < Width);
 
-/* FImage structors
+	const float FracX1 = FMath::Frac(X);
+	const float FracY1 = FMath::Frac(Y);
+	const float FracX0 = 1.0f - FracX1;
+	const float FracY0 = 1.0f - FracY1;
+	const FLinearColor& Color00 = Pixels[TexelY0 * Width + TexelX0];
+	const FLinearColor& Color01 = Pixels[TexelY1 * Width + TexelX0];
+	const FLinearColor& Color10 = Pixels[TexelY0 * Width + TexelX1];
+	const FLinearColor& Color11 = Pixels[TexelY1 * Width + TexelX1];
+	return
+		Color00 * (FracX0 * FracY0) +
+		Color01 * (FracX0 * FracY1) +
+		Color10 * (FracX1 * FracY0) +
+		Color11 * (FracX1 * FracY1);
+}
+
+static void ResizeImage(const FImage& SrcImage, FImage& DestImage)
+{
+	const FLinearColor* SrcPixels = SrcImage.AsRGBA32F();
+	FLinearColor* DestPixels = DestImage.AsRGBA32F();
+	const float DestToSrcScaleX = (float)SrcImage.SizeX / (float)DestImage.SizeX;
+	const float DestToSrcScaleY = (float)SrcImage.SizeY / (float)DestImage.SizeY;
+
+	for (int32 DestY = 0; DestY < DestImage.SizeY; ++DestY)
+	{
+		const float SrcY = (float)DestY * DestToSrcScaleY;
+		for (int32 DestX = 0; DestX < DestImage.SizeX; ++DestX)
+		{
+			const float SrcX = (float)DestX * DestToSrcScaleX;
+			const FLinearColor Color = SampleImage(SrcPixels, SrcImage.SizeX, SrcImage.SizeY, SrcX, SrcY);
+			DestPixels[DestY * DestImage.SizeX + DestX] = Color;
+		}
+	}
+}
+
+/* FImage constructors
  *****************************************************************************/
 
 FImage::FImage(int32 InSizeX, int32 InSizeY, int32 InNumSlices, ERawImageFormat::Type InFormat, EGammaSpace InGammaSpace)
@@ -296,6 +343,41 @@ void FImage::CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaS
 	CopyImage(*this, DestImage);
 }
 
+void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const
+{
+	check(NumSlices == 1); // only support 1 slice for now
+
+	FImage TempSrcImage;
+	const FImage* SrcImagePtr = this;
+	if (Format != ERawImageFormat::RGBA32F)
+	{
+		CopyTo(TempSrcImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+		SrcImagePtr = &TempSrcImage;
+	}
+
+	if (DestFormat == ERawImageFormat::RGBA32F)
+	{
+		DestImage.SizeX = DestSizeX;
+		DestImage.SizeY = DestSizeY;
+		DestImage.NumSlices = 1;
+		DestImage.Format = DestFormat;
+		DestImage.GammaSpace = DestGammaSpace;
+		InitImageStorage(DestImage);
+		ResizeImage(*SrcImagePtr, DestImage);
+	}
+	else
+	{
+		FImage TempDestImage;
+		TempDestImage.SizeX = DestSizeX;
+		TempDestImage.SizeY = DestSizeY;
+		TempDestImage.NumSlices = 1;
+		TempDestImage.Format = ERawImageFormat::RGBA32F;
+		TempDestImage.GammaSpace = DestGammaSpace;
+		InitImageStorage(TempDestImage);
+		ResizeImage(*SrcImagePtr, TempDestImage);
+		TempDestImage.CopyTo(DestImage, DestFormat, DestGammaSpace);
+	}
+}
 
 int32 FImage::GetBytesPerPixel() const
 {

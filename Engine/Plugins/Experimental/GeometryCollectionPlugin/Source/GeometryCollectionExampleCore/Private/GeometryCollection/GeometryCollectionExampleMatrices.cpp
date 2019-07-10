@@ -23,14 +23,14 @@ namespace GeometryCollectionExample
 		//  0
 		//  ...1
 		//  ......2
-		(*Collection->BoneHierarchy)[0].Parent = -1;
-		(*Collection->BoneHierarchy)[0].Children.Add(1);
-		(*Collection->BoneHierarchy)[1].Parent = 0;
-		(*Collection->BoneHierarchy)[1].Children.Add(2);
-		(*Collection->BoneHierarchy)[2].Parent = 1;
+		(Collection->Parent)[0] = -1;
+		(Collection->Children)[0].Add(1);
+		(Collection->Parent)[1] = 0;
+		(Collection->Children)[1].Add(2);
+		(Collection->Parent)[2] = 1;
 
 		TArray<FTransform> GlobalTransform;
-		GeometryCollectionAlgo::GlobalMatrices(Collection.Get(), GlobalTransform);
+		GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, GlobalTransform);
 
 		FVector Rot0 = GlobalTransform[0].GetRotation().Euler();
 		R.ExpectTrue(Rot0.Equals(FVector(0, 0, 90), 0.0001));
@@ -50,11 +50,11 @@ namespace GeometryCollectionExample
 		FVector Pos2 = GlobalTransform[2].GetTranslation();
 		R.ExpectTrue(Pos2.Equals(FVector(-10, 0, 0), 0.0001));
 
-		FTransform Frame = GeometryCollectionAlgo::GlobalMatrix(Collection.Get(), 2);
+		FTransform Frame = GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, 2);
 		R.ExpectTrue(Frame.GetRotation().Euler().Equals(FVector(0, 0, -90), 0.0001));
 		R.ExpectTrue(Frame.GetTranslation().Equals(FVector(-10, 0, 0), 0.0001));
 
-		Frame = GeometryCollectionAlgo::GlobalMatrix(Collection.Get(), 1);
+		Frame = GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, 1);
 		R.ExpectTrue(Frame.GetRotation().Euler().Equals(FVector(0, 0, -180), 0.0001));
 		R.ExpectTrue(Frame.GetTranslation().Equals(FVector(-10, 10, 0), 0.0001));
 
@@ -72,21 +72,21 @@ namespace GeometryCollectionExample
 		//  0
 		//  ...1
 		//  2
-		(*Collection->BoneHierarchy)[0].Parent = -1;
-		(*Collection->BoneHierarchy)[0].Children.Add(1);
-		(*Collection->BoneHierarchy)[1].Parent = 0;
-		(*Collection->BoneHierarchy)[2].Parent = -1;
+		(Collection->Parent)[0] = -1;
+		(Collection->Children)[0].Add(1);
+		(Collection->Parent)[1] = 0;
+		(Collection->Parent)[2] = -1;
 
 		//  0
 		//  ...1
 		//  ......2
 		TArray<int32> Bones = { 2 };
 		GeometryCollectionAlgo::ParentTransforms(Collection.Get(), 1, Bones);
-		R.ExpectTrue((*Collection->Transform)[2].GetTranslation().Equals(FVector(0, 10, 0), 0.0001));
-		R.ExpectTrue((*Collection->Transform)[2].GetRotation().Euler().Equals(FVector(0, 0, 90.), 0.0001));
+		R.ExpectTrue((Collection->Transform)[2].GetTranslation().Equals(FVector(0, 10, 0), 0.0001));
+		R.ExpectTrue((Collection->Transform)[2].GetRotation().Euler().Equals(FVector(0, 0, 90.), 0.0001));
 
 		TArray<FTransform> GlobalTransform;
-		GeometryCollectionAlgo::GlobalMatrices(Collection.Get(), GlobalTransform);
+		GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, GlobalTransform);
 
 		FVector Rot0 = GlobalTransform[0].GetRotation().Euler();
 		R.ExpectTrue(Rot0.Equals(FVector(0, 0, 90), 0.0001));
@@ -120,29 +120,29 @@ namespace GeometryCollectionExample
 		for (int i=0; i < 4; i++)
 		{
 			index = Collection.AddElements(1, FGeometryCollection::TransformGroup);
-			(*Collection.BoneHierarchy)[index].Parent = index - 1;
-			(*Collection.BoneHierarchy)[index].Children.Add(index+1);
+			(Collection.Parent)[index] = index - 1;
+			(Collection.Children)[index].Add(index+1);
 		}
-		(*Collection.BoneHierarchy)[index].Children.Empty();
+		(Collection.Children)[index].Empty();
 
-		(*Collection.Transform)[0] = FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0)), FVector(0, 0, 0));
-		(*Collection.Transform)[1] = FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(1, 0, 0));
-		(*Collection.Transform)[2] = FTransform(FQuat::MakeFromEuler(FVector(0, 90.,0)), FVector(1, 0, 0));
-		(*Collection.Transform)[3] = FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0)), FVector(1, 0, 0));
+		(Collection.Transform)[0] = FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0)), FVector(0, 0, 0));
+		(Collection.Transform)[1] = FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(1, 0, 0));
+		(Collection.Transform)[2] = FTransform(FQuat::MakeFromEuler(FVector(0, 90.,0)), FVector(1, 0, 0));
+		(Collection.Transform)[3] = FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0)), FVector(1, 0, 0));
 
 		TArray<FTransform> GlobalMatrices0;
-		GeometryCollectionAlgo::GlobalMatrices(&Collection, GlobalMatrices0);
+		GeometryCollectionAlgo::GlobalMatrices(Collection.Transform, Collection.Parent, GlobalMatrices0);
 
 		Collection.RelativeTransformation(1, FTransform(FQuat::MakeFromEuler(FVector(22, 90, 55)), FVector(17,11,13)));
 		Collection.RelativeTransformation(2, FTransform(FQuat::MakeFromEuler(FVector(22, 90, 55)), FVector(17, 11, 13)));
 
 		TArray<FTransform> GlobalMatrices1;
-		GeometryCollectionAlgo::GlobalMatrices(&Collection, GlobalMatrices1);
+		GeometryCollectionAlgo::GlobalMatrices(Collection.Transform, Collection.Parent, GlobalMatrices1);
 
 		
 		//for (int rdx = 0; rdx < GlobalMatrices0.Num(); rdx++)
 		//{
-		//	UE_LOG(GCTM_Log, Verbose, TEXT("... Position[%d] : (%3.5f,%3.5f,%3.5f)"), rdx, (*Collection.Transform)[rdx].GetTranslation().X, (*Collection.Transform)[rdx].GetTranslation().Y, (*Collection.Transform)[rdx].GetTranslation().Z);
+		//	UE_LOG(GCTM_Log, Verbose, TEXT("... Position[%d] : (%3.5f,%3.5f,%3.5f)"), rdx, (Collection.Transform)[rdx].GetTranslation().X, (Collection.Transform)[rdx].GetTranslation().Y, (Collection.Transform)[rdx].GetTranslation().Z);
 		//	UE_LOG(GCTM_Log, Verbose, TEXT("... GlobalM0[%d] : (%3.5f,%3.5f,%3.5f)"), rdx, GlobalMatrices0[rdx].GetTranslation().X, GlobalMatrices0[rdx].GetTranslation().Y, GlobalMatrices0[rdx].GetTranslation().Z);
 		//	UE_LOG(GCTM_Log, Verbose, TEXT("... GlobalM1[%d] : (%3.5f,%3.5f,%3.5f)"), rdx, GlobalMatrices1[rdx].GetTranslation().X, GlobalMatrices1[rdx].GetTranslation().Y, GlobalMatrices1[rdx].GetTranslation().Z);
 		//}

@@ -13,7 +13,7 @@ namespace
 {
 	// Returns an element type filled with a repeated byte
 	template <typename ElementType>
-	FORCEINLINE typename TEnableIf<sizeof(ElementType) != 1, ElementType>::Type GetByteFilledElement(uint8 Byte)
+	FORCEINLINE constexpr typename TEnableIf<sizeof(ElementType) != 1, ElementType>::Type GetByteFilledElement(uint8 Byte)
 	{
 		TUnsignedIntType_T<sizeof(ElementType)> Result = 0;
 
@@ -27,7 +27,7 @@ namespace
 	}
 
 	template <typename ElementType>
-	FORCEINLINE typename TEnableIf<sizeof(ElementType) == 1, ElementType>::Type GetByteFilledElement(uint8 Byte)
+	FORCEINLINE constexpr typename TEnableIf<sizeof(ElementType) == 1, ElementType>::Type GetByteFilledElement(uint8 Byte)
 	{
 		return (const ElementType&)Byte;
 	}
@@ -165,12 +165,181 @@ namespace
 		NativeVal = Data.GetNative()--;
 		AtomicVal = Data.GetAtomic()--;
 		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
 		Data.Check();
 
 		NativeVal = Data.GetNative()++;
 		AtomicVal = Data.GetAtomic()++;
 		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
 		Data.Check();
+
+		NativeVal = Data.GetNative()--;
+		AtomicVal = Data.GetAtomic().DecrementExchange();
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative()++;
+		AtomicVal = Data.GetAtomic().IncrementExchange();
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic().AddExchange(47);
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative() += 47;
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic().AddExchange(-11);
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative() += -11;
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic().SubExchange(2);
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative() -= 2;
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+
+		NativeVal = Data.GetNative();
+		AtomicVal = Data.GetAtomic().SubExchange(-9);
+		check(NativeVal == AtomicVal);
+		NativeVal = Data.GetNative() -= -9;
+		AtomicVal = Data.GetAtomic();
+		check(NativeVal == AtomicVal);
+		Data.Check();
+	}
+
+	template <typename ElementType>
+	void RunBitwiseOperationsAtomicTests()
+	{
+		ElementType NativeVal;
+		ElementType AtomicVal;
+
+		// And
+		{
+			constexpr ElementType Init = GetByteFilledElement<ElementType>(0x30);
+			constexpr ElementType AndValues[] = {GetByteFilledElement<ElementType>(0x66), GetByteFilledElement<ElementType>(0xFF), ElementType(0), };
+			constexpr ElementType ExpectedValues[] = {GetByteFilledElement<ElementType>(0x20), Init, ElementType(0), };
+
+			// operator &=
+			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(AndValues); ++TestIt)
+			{
+				TAtomicTestWrapper<ElementType> Data(Init);
+
+				AtomicVal = Data.GetAtomic() &= AndValues[TestIt];
+				NativeVal = Data.GetNative() &= AndValues[TestIt];
+				check(NativeVal == AtomicVal);
+
+				check(AtomicVal == ExpectedValues[TestIt]);
+				Data.Check();
+			}
+
+			// AndExchange
+			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(AndValues); ++TestIt)
+			{
+				TAtomicTestWrapper<ElementType> Data(Init);
+
+				AtomicVal = Data.GetAtomic().AndExchange(AndValues[TestIt]);
+				NativeVal = Data.GetNative();
+				check(NativeVal == AtomicVal);
+				NativeVal = Data.GetNative() &= AndValues[TestIt];
+				AtomicVal = Data.GetAtomic().Load();
+				check(NativeVal == AtomicVal);
+
+				check(AtomicVal == ExpectedValues[TestIt]);
+				Data.Check();
+			}
+		}
+
+		// Or
+		{
+			constexpr ElementType Init = GetByteFilledElement<ElementType>(0x30);
+			constexpr ElementType OrValues[] = {GetByteFilledElement<ElementType>(0x66), GetByteFilledElement<ElementType>(0xFF), ElementType(0), };
+			constexpr ElementType ExpectedValues[] = {GetByteFilledElement<ElementType>(0x76), GetByteFilledElement<ElementType>(0xFF), Init, };
+
+			// operator |=
+			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(OrValues); ++TestIt)
+			{
+				TAtomicTestWrapper<ElementType> Data(Init);
+
+				AtomicVal = Data.GetAtomic() |= OrValues[TestIt];
+				NativeVal = Data.GetNative() |= OrValues[TestIt];
+				check(NativeVal == AtomicVal);
+
+				check(AtomicVal == ExpectedValues[TestIt]);
+				Data.Check();
+			}
+
+			// OrExchange
+			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(OrValues); ++TestIt)
+			{
+				TAtomicTestWrapper<ElementType> Data(Init);
+
+				AtomicVal = Data.GetAtomic().OrExchange(OrValues[TestIt]);
+				NativeVal = Data.GetNative();
+				check(NativeVal == AtomicVal);
+				NativeVal = Data.GetNative() |= OrValues[TestIt];
+				AtomicVal = Data.GetAtomic().Load();
+				check(NativeVal == AtomicVal);
+
+				check(AtomicVal == ExpectedValues[TestIt]);
+				Data.Check();
+			}
+		}
+
+		// Xor
+		{
+			constexpr ElementType Init = GetByteFilledElement<ElementType>(0x30);
+			constexpr ElementType XorValues[] = {GetByteFilledElement<ElementType>(0x66), GetByteFilledElement<ElementType>(0xFF), ElementType(0), };
+			constexpr ElementType ExpectedValues[] = {GetByteFilledElement<ElementType>(0x56), GetByteFilledElement<ElementType>(~0x30), Init, };
+
+			// operator ^=
+			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(XorValues); ++TestIt)
+			{
+				TAtomicTestWrapper<ElementType> Data(Init);
+
+				AtomicVal = Data.GetAtomic() ^= XorValues[TestIt];
+				NativeVal = Data.GetNative() ^= XorValues[TestIt];
+				check(NativeVal == AtomicVal);
+
+				check(AtomicVal == ExpectedValues[TestIt]);
+				Data.Check();
+			}
+
+			// XorExchange
+			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(XorValues); ++TestIt)
+			{
+				TAtomicTestWrapper<ElementType> Data(Init);
+
+				AtomicVal = Data.GetAtomic().XorExchange(XorValues[TestIt]);
+				NativeVal = Data.GetNative();
+				check(NativeVal == AtomicVal);
+				NativeVal = Data.GetNative() ^= XorValues[TestIt];
+				AtomicVal = Data.GetAtomic().Load();
+				check(NativeVal == AtomicVal);
+
+				check(AtomicVal == ExpectedValues[TestIt]);
+				Data.Check();
+			}
+		}
 	}
 
 	template <typename ElementType>
@@ -179,6 +348,8 @@ namespace
 		RunBasicAtomicTests<ElementType>();
 
 		RunArithmeticAtomicTests<ElementType>(50);
+
+		RunBitwiseOperationsAtomicTests<ElementType>();
 	}
 
 	template <typename ElementType>

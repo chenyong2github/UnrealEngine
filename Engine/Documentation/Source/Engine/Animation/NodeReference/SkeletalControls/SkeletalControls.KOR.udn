@@ -32,7 +32,7 @@ topic-image:SkeletalControlTopicCompact.png
 | Component Pose | 컴포넌트 포즈 - 변환시킬 인풋 포즈입니다. |
 | Alpha | 알파 - _스켈레탈 컨트롤_ 로 적용할 `트랜스폼` 비중 결정을 위한 알파 값으로 사용할 **[0.0, 1.0]** 범위의 `float` (실수) 값입니다. 값이 **0.0** 이면 인풋 포즈에 최대 비중을, **1.0** 이면 컨트롤이 계산한 `트랜스폼` 에 최대 비중을 둡니다. |
 | [REGION:tablesection]**출력 핀**[/REGION] ||
-| Pose (공백) | 포즈 - `트랜스폼` 적용 이후 최종 포즈입니다. |
+| Pose (Blank) | 포즈 - `트랜스폼` 적용 이후 최종 포즈입니다. |
 
 [EXCERPT:LODThresh]
 ![](perf.png)

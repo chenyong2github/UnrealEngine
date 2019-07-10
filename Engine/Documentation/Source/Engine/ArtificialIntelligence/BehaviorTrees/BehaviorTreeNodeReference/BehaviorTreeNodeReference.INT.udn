@@ -1,0 +1,47 @@
+Availability: Docs
+Title: Behavior Tree Node Reference
+Description: Outlines the different types of nodes available when working in the Behavior Tree Editor.
+Type: reference
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/BehaviorTrees
+Tags: AI
+Tags: Behavior Trees
+Tags: Behavior Tree Essentials
+topic-image: BehaviorTreeNodes_Topic.png
+social-image: BehaviorTreeNodes_Topic.png
+topic-icon: BehaviorTreeNodes_Topic.png
+Order: 3
+
+
+[TOC (start:2 end:2)]
+
+This page provides links to a breakdown of the default nodes available when working with the **Behavior Tree Editor**. There are five types of **Behavior Tree** nodes:
+
+  
+| Node Type | Description |
+| --- | --- |
+| **Composite** | These are the nodes that define the root of a branch and the base rules for how that branch is executed. |
+| **Task** | These are the leaves of the Behavior Tree, these nodes are the actionable things to do and don't have an output connection. |
+| **Decorator** | Also known as conditionals. These attach to another node and make decisions on whether or not a branch in the tree, or even a single node, can be executed. |
+| **Service** | These attach to Composite nodes, and will execute at their defined frequency as long as their branch is being executed. These are often used to make checks and to update the Blackboard. These take the place of traditional Parallel nodes in other Behavior Tree systems. |
+| **Root** | [INCLUDE:#excerpt_0] |
+
+<!--
+[EXCERPT:excerpt_0]
+
+The Root node is unique and serves as the starting point for the Behavior Tree. It can only have one connection, and you cannot attach Decorators or Services to it. The Root node has no properties of its own, but selecting it will show the Behavior Tree properties in the **Details** panel, which is where you can set the Blackboard Asset of the Behavior Tree. 
+
+![](RootNode-1.png "RootNode-1.png")
+
+[/EXCERPT:excerpt_0]
+-->
+
+Please refer to the links below for additional information on each subject. 
+
+## Behavior Tree Node Types
+
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference\BehaviorTreeNodeReferenceComposites:topic%
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference\BehaviorTreeNodeReferenceDecorators:topic%
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference\BehaviorTreeNodeReferenceServices:topic%
+%Engine\ArtificialIntelligence\BehaviorTrees\BehaviorTreeNodeReference\BehaviorTreeNodeReferenceTasks:topic%
+

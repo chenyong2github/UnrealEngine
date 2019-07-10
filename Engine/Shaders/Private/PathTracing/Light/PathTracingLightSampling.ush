@@ -13,9 +13,6 @@ LightSampling.usf: Light sampling for next-event estimation
 #include "PathTracingSkyLight.ush"
 #include "PathTracingSpotLight.ush"
 
-// #dxr_todo: unify with GLightCountMaximum in c++ code
-static const uint LIGHT_COUNT_MAXIMUM = 64;
-
 void GenerateLightRay(RayDesc Ray, int LightId, float3 LightUV, out RayDesc OutLightRay)
 {
 	if (IsPointLight(LightId))
@@ -88,7 +85,7 @@ bool SampleLightSelection(
 	if (SceneLightsData.Count == 0) return false;
 
 	// Build irradiance estimate prefix sum
-	float IrradianceEstimate[LIGHT_COUNT_MAXIMUM];
+	float IrradianceEstimate[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 	EstimateLight(0, Ray, Payload, IrradianceEstimate[0]);
 	{
 		for (uint LightIndex = 1; LightIndex < SceneLightsData.Count; ++LightIndex)
@@ -140,7 +137,7 @@ void PdfLightSelection(
 	if (SceneLightsData.Count == 0) return;
 
 	// Build irradiance estimate prefix sum
-	float IrradianceEstimate[LIGHT_COUNT_MAXIMUM];
+	float IrradianceEstimate[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 	EstimateLight(0, Ray, Payload, IrradianceEstimate[0]);
 	{
 		for (uint LightIndex = 1; LightIndex < SceneLightsData.Count; ++LightIndex)

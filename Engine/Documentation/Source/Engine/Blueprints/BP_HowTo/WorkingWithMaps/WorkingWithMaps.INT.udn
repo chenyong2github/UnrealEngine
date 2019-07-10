@@ -1,41 +1,863 @@
-Availability:Public
-Title:Working with Maps
-Description:Learn how to work with Maps in Blueprints.
-Crumbs:%ROOT%
-Parent:Engine/Blueprints/Scripting
-Order:3
+Availability: Public
+Title: Working with Maps
+Description: Learn how to work with Maps in Blueprints.
+Type: how-to
 Version: 4.15
-Tags:Blueprint Map
-Tags:Blueprints
-Type:how-to
-Skilllevel:Advanced
-Checkpoint:HowToWorkWithMaps
-Topic-image:workingWithMaps_topicImage.png
-Related:Programming/UnrealArchitecture/TMap
+Parent: Engine/Blueprints/Scripting
+SkillLevel: Advanced
+Order: 13
+Related: Engine/Blueprints/UserGuide/Maps/MapNodes
+Related: Engine/Blueprints/UserGuide/Maps
+Related: Programming/UnrealArchitecture/TMap
+
+
+[TOC (start:2 end:3)]
 
 [REGION:imagetable]
-![](workingWithMaps_topicBanner.png)  
-_At the end of this tutorial, you'll gain experience working with Maps on Unreal Engine 4 (UE4)._
+![](workingWithMaps_topicBanner.png)
 [/REGION]
 
-After [](Engine/Blueprints/UserGuide/Arrays), there's a good reason why Blueprint Maps are so popular. They support efficient lookups and retrievals of values with the use of associated keys.
+After [Blueprint Arrays](Engine/Blueprints/UserGuide/Arrays), there's a good reason why **Blueprint Maps** are so popular. They support efficient look-ups and retrievals of values with the use of associated keys. At the end of this guide, you'll get some experience creating and editing Maps in the Blueprint scripting environment, querying and displaying items, and performing basic operations on Blueprint Maps in Unreal Engine 4 (UE4).
 
-## Goal
+## 1\. Required Setup
 
-This guide teaches you how to set up and work with a Blueprint Map.
+Before you can start working with Blueprint Maps, you'll have to set up your project to display the container's contents.  
 
-## Objectives
+1.  From the **Unreal Project Browser**, select the **New Project** tab, choose the **First Person** Blueprint project, and name your project **ExampleMapProject**.  
 
-After working through this tutorial, you'll know the following:
-
-* How to create and edit Maps in the Blueprint scripting environment.
-* How to query and display items being contained in a Blueprint Map.
-* How to perform basic operations on Blueprint Maps.
-
-## Steps
-
-[DIR(output:"checkpoint" parent:"Engine/Blueprints/BP_HowTo/WorkingWithMaps" org:"hierarchy")]
-
-[REGION:call_to_action]
-	[Click to Start](Engine/Blueprints/BP_HowTo/WorkingWithMaps/1 "%Engine/Blueprints/BP_HowTo/WorkingWithMaps/1:title%")
+[REGION:lightbox]
+[![](Step1_1.png)(w:900)](Step1_1.png)
 [/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+2.  Before creating your new project, please make sure that the project matches the following settings:  
+[REGION:lightbox]
+[![](Step1_1Note.png)(w:900)](Step1_1Note.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+3.  Double-click the **Blueprint** folder from the project's **Content Browser**.
+
+[REGION:lightbox]
+[![](Step1_2.png)(w:900)](Step1_2.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+4.  From the **Content Browser**, go ahead and click the **Add New** button, hovering your mouse cursor over the **Blueprint Class**, which is located under the **Create Basic Asset** pop-up menu.  
+
+[REGION:lightbox]
+[![](Step1_3.png)(w:900)](Step1_3.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+5.  After the **Pick Parent Class** menu opens, click the **All Classes** arrow to search for the **TextRender Actor** Blueprint Class.
+
+![](Step1_4.png "Step1_4.png")
+
+6.  Enter **TexRenderActor** in the **Search Bar**, selecting the **TextRenderActor** Blueprint Class before clicking the **Select** button.
+
+![](Step1_5.png "Step1_5.png")
+
+7.  At this point, you should have a new **TextRender Actor** located in your project's **Content Browser**. Go ahead and name the new Actor **DisplayMap**.
+
+[REGION:lightbox]
+[![](Step1_6.png)(w:900)](Step1_6.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+8.  Now, drag the **DisplayMap** TextRender Actor into Unreal Editor's **Perspective (3D) Viewport**.
+
+[REGION:lightbox]
+[![](Step1_7.png)(w:900)](Step1_7.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+9.  With the **DisplayMap** TextRender Actor selected, click the **\+ Add Component** button (located in the **Details** panel), and enter **Box Collision** into the **Search Bar**.
+
+[REGION:lightbox]
+[![](Step1_8.png)(w:900)](Step1_8.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+10.  After adding the **Box Collision Component** to the TextRender Actor, name the new Component, **Trigger Box**.
+
+[REGION:lightbox]
+[![](Step1_9.png)(w:900)](Step1_9.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+11.  Now, select the TextRender Component to view the Actor's **Transform** in the **Details** panel.
+
+[REGION:lightbox]
+[![](Step1_10.png)(w:900)](Step1_10.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+12.  Update the **Display Map** Actor's **Transform** to reflect the following values:
+
+![](Step1_11.png "Step1_11.png")
+
+13.  Now, change the **Display Map** Actor's **Horizontal Alignment** to be **Center** aligned (rather than **Left** aligned, which is the default **Horizontal Alignment** value).
+
+![](Step1_12.png "Step1_12.png")
+
+14.  Currently, the **Trigger Box** Component is **Hidden in Game**. Go ahead and clear the **Hidden in Game** check box (located in the **Rendering** menu of the **Details** panel) so that you can view the **Box Collision** Component in-game.
+
+![](Step1_13.png "Step1_13.png")
+
+[REGION:note]
+Having the ability to view **Box Collision** Components in-game is a great way to debug any potential issues with the underlying logic driving a triggered event.
+[/REGION]
+
+15.  If you enter PIE (or Play in Editor) mode, you'll notice that your projectiles will have a collision response to the **Display Map** collision box. Currently, we only want the **Display Map** collision response to trigger an event that allows us to display the contents of your Map containers. To do this, go to the **Collision** menu (located in the **Details** panel), click the **Collision Presets** drop-down list box, and select the **Custom...** option.
+
+![](Step1_14.png "Step1_14.png")
+
+16.  Finally, update the **Collision Presets** to reflect the following values:
+
+![](Step1_15.png "Step1_15.png")
+
+### Section Result
+
+[REGION:lightbox]
+[![](Step1_EndResult.png)(w:900)](Step1_EndResult.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+
+By now, you've created a new project, having also set up a new TextRender Actor, which will display the contents of a Blueprint Map container that you'll create, edit, and display in the next step.
+
+## 2\. Creating and Displaying a Blueprint Map
+
+Now that you've set up a **TextRender** Actor in your newly created project, you're ready to create a Blueprint Map container, the contents of which you'll display in-game.
+
+1.  From your project's **Content Browser**, double-click the **Display Set** TextRender Actor to open its Blueprint **Event Graph**.
+    [REGION:lightbox]
+    [![](Step2_1.png)(w:600)](Step2_1.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  If you see the following screen, go ahead and click the **Open Full Blueprint Editor** link to get started.
+    [REGION:lightbox]
+    [![](Step2_2.png)(w:600)](Step2_2.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  You should see the **Display Set** TextRender Actor Blueprint **Event Graph**, where you'll be able to add a Blueprint Map and its display logic.
+    [REGION:lightbox]
+    [![](Step2_3.png)(w:600)](Step2_3.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    If you don't see the aforementioned screen, go ahead and click the **Event Graph** tab to open the Actor's Blueprint Event Graph Editor.
+    [REGION:lightbox]
+    [![](Step2_3Note.png)(w:600)](Step2_3Note.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [/REGION]
+
+1.  Now is the time to create a Blueprint Map container, where you'll store some key-value pairs that you'll display later on. To create a new Blueprint Map, click the **\+ Add New** button (located in the **My Blueprint** panel) and select **Variable** from the drop-down list.  
+    ![](Step2_4.png)
+
+1.  Name your new variable, `Instruction Map`.  
+    ![](Step2_5.png)
+
+1.  Click the variable's **pin type** button, which is located next to the variable's name.  
+    ![](Step2_6.png)
+
+1.  Now, select the **Integer** variable type from the drop-down list.  
+    ![](Step2_7.png)
+
+1.  Click the variable's **container type** button, which is located next to the **Variable Type** drop-down list in the **Details** panel.  
+    ![](Step2_8.png)
+
+1.  Select the **Map** container type from the drop-down list.  
+    ![](Step2_9.png)
+
+1.  Now, it's time to define our Map's key-value property types. Currently, the key is an **Integer** type, which is the desired property type. The value type, however, isn't a **String** variable type, though. To change the value from being an **Integer** to being a **String**, go ahead and click on the value property type drop down list.  
+    ![](Step2_10.png)
+
+1.  Select **String** from the drop down list.  
+    ![](Step2_11.png)
+
+1.  At this point, you have a key-value pair that is of **Integer** and **String** types (respectively). Also, the Blueprint Graph reminds you that you need to compile the Blueprint in order to the define the items that you're going to store inside of the container. Go ahead and click the **Compile** button to get started.
+    [REGION:lightbox]
+    [![](Step2_12.png)(w:600)](Step2_12.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    Compiling the Blueprint replaces the container's **Default Value** message with an interface, enabling you to populate your container with key-value pairs, wherein the Map's keys are Integers and the values are Strings.
+    [/REGION]
+
+1.  If you already haven't done so, go ahead and click the **Save** button to save all of the work that you've done so far.
+    [REGION:lightbox]
+    [![](Step2_13.png)(w:600)](Step2_13.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    In general, it's always a good practice to save early, and save often.
+    [/REGION]
+
+1.  Click the **+** (Adds Element) button (located in the **Default Value** menu of the **Details** panel) to add a new key-value pair to the newly defined **Instruction Map** container.
+   
+    [REGION:lightbox]
+    [![](Step2_14.png)(w:600)](Step2_14.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Define your container's new key-value pair, defining the key as `1`, and defining the value as `WASD to run`. 
+
+    ![](Step2_15.png)
+
+1.  Repeat the previous two steps, making sure to fill your **Instruction Map** container with the following key-value pairs: 
+
+    ![](Step2_16.png)
+
+### Scripting the Logic
+
+Before you can display the contents of your newly created Blueprint Map, you'll need to write the necessary logic.
+
+1.  Now that you've defined your container, go ahead and drag the **Instruction Map** variable into the Blueprint Event Graph.
+    
+    [REGION:lightbox]
+    [![](Step2_17.png)(w:600)](Step2_17.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Select **Get** from the **Instruction Map** drop-down list.
+    
+    [REGION:lightbox]
+    [![](Step2_18.png)(w:600)](Step2_18.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Instruction Map** node and add the **Find** node from the **Map Utilities** interface.
+    
+    [REGION:lightbox]
+    [![](Step2_19.png)(w:600)](Step2_19.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    There are several ways to get values from a Map. For this part of the tutorial, we'll go ahead and increment an integer key to display the associated values contained in the **Instruction Map**.
+    [/REGION]
+
+1.  With the aforementioned note in mind, go ahead and click the **\+ Add New** button, selecting **Variable** from the drop-down list.
+    
+    ![](Step2_20.png)
+
+1.  Makes sure to set the variable's type to an **Integer** type, giving it the name, `Key`.
+    
+    ![](Step2_21.png)
+
+1.  After you've declared and defined your new **Integer** variable, drag **Key** into the Blueprint Event Graph, and select **Get** from the drop-down list.
+    
+    [REGION:lightbox]
+    [![](Step2_22.png)(w:600)](Step2_22.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Key** node, search for, and add the **IncrementInt** node.
+    
+    [REGION:lightbox]
+    [![](Step2_23.png)(w:600)](Step2_23.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, go ahead and connect the **IncrementInt** node to the **Find** node.
+    
+    [REGION:lightbox]
+    [![](Step2_24.png)(w:600)](Step2_24.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    For the purposes of this tutorial, you're going to use a time function to increment the **Key** variable.
+    [/REGION]
+
+1.  Drag off the **Event Tick** node, search for, and add the **Delay** node.
+    
+    [REGION:lightbox]
+    [![](Step2_25.png)(w:600)](Step2_25.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After you've set the delay duration to **2** seconds, connect the **Delay** node to the **IncrementInt** node.
+    
+    [REGION:lightbox]
+    [![](Step2_26.png)(w:600)](Step2_26.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Go ahead and drag off the **Event BeginPlay** node, search for, and connect to the **Branch** node.
+    
+    [REGION:lightbox]
+    [![](Step2_27.png)(w:600)](Step2_27.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Connect the **IncrementInt** node to the **Branch** node.
+    
+    [REGION:lightbox]
+    [![](Step2_28.png)(w:600)](Step2_28.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, connect the **Boolean** return value belonging to the **Find** node to the **Branch** node's **Condition** pin.
+    
+    [REGION:lightbox]
+    [![](Step2_29.png)(w:600)](Step2_29.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    If the **Find** node successfully locates the item in the Map, the node returns true. Otherwise, if the **Find** node returns false, there is no item contained in the Map that uses the provided key.
+    [/REGION]
+
+1.  Drag off the **Branch** node's **True** pin, search for, and connect to the **Set Text(TextRender)** node.
+    
+    [REGION:lightbox]
+    [![](Step2_30.png)(w:600)](Step2_30.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    This branch of your logic means that if there are valid key-value pairs in the container, go ahead and display the container's associated value(s).
+    [/REGION]
+
+1.  To display your container's values in-game, connect the **Find** node's return **Value** pin to the **Set Text** node's **Value** pin.
+    
+    [REGION:lightbox]
+    [![](Step2_31.png)(w:600)](Step2_31.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, drag off the **Branch** node's **False** pin, search for, and connect the **Set Text(TextRender)** node.
+    
+    [REGION:lightbox]
+    [![](Step2_32.png)(w:600)](Step2_32.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    This branch of your logic means that if there are no valid key-value pairs in the container, go ahead and display something else.
+    [/REGION]
+
+1.  Drag off the **Branch** node's **Value** pin, search for, and connect to the **ToText(string)** node.
+    
+    [REGION:lightbox]
+    [![](Step2_33.png)(w:600)](Step2_33.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, define the string to read, `Now, shoot the blocks!`.
+    
+    [REGION:lightbox]
+    [![](Step2_34.png)(w:600)](Step2_34.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After inspecting your completed script, go ahead and click the **Compile** button before going back to the Editor's **Viewport** interface.
+    
+    [REGION:lightbox]
+    [![](Step2_35.png)(w:600)](Step2_35.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  From the Editor's **Viewport** interface, click the **Play** button to see your newly implemented script at work.
+    
+    [REGION:lightbox]
+    [![](Step2_36.png)(w:600)](Step2_36.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+### Section Result
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:videoid]
+ DcskFd9UhlA
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+[/OBJECT]
+
+At this point in the guide, you've defined a new Blueprint Map, filled the container with key-value pairs, and displayed the values with some basic logic that you created in your **TextRender** Actor's Blueprint Event Graph. If you want to learn how to perform a slightly more advanced operation, please continue onto the next step, where you'll learn how to **Add** a key-value pair to a Map, subsequently displaying the Map's values.
+
+## 3\. Adding Keys and Values to a Map
+
+By now, you have a **TextRender** Actor displaying the associated values of a Blueprint Map that you defined in the previous step. In this step, you'll learn how to **Add** a key-value pair to a Map, subsequently displaying the Map's keys and associated values.
+
+1.  From your project's **Content Browser**, double-click the **Display Map** TextRender Actor to open its Blueprint **Event Graph**.
+    
+    [REGION:lightbox]
+    [![](Step3_1.png)(w:600)](Step3_1.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  You should see the **Display Map** TextRender Actor Blueprint **Event Graph**, where you'll be able to add a new Blueprint Map, which you'll be able to **Add** a new key-value pair to, ultimately displaying the Map's keys and associated values to the **Viewport**.
+    
+    [REGION:lightbox]
+    [![](Step3_2.png)(w:600)](Step3_2.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  At this point in the tutorial, you'll want to create a new Blueprint Map container for the upcoming **Add** operation. Go ahead and right-click on the **Instruction Map** variable and select **Duplicate** from the drop-down list to create a new Blueprint Map variable, naming it `Weapon Inventory Map`.
+    
+    ![](Step3_3.png)
+
+1.  Please make sure that the new Map container matches the following properties, where the key is a String and the value is an Integer:
+    
+    ![](Step3_4.png)
+    
+    [REGION:note]
+    For illustrative purposes, you're creating a weapon inventory Blueprint Map container, where the key is the weapon name and the value is how much ammunication is available for the weapon.
+    [/REGION]
+
+1.  If you select your new Blueprint Map, the **Default Value** message, saying `Please compile the blueprint`, should be visible.
+    
+    [REGION:lightbox]
+    [![](Step3_5.png)(w:600)](Step3_5.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Go ahead and click the **Compile** button.
+    
+    [REGION:lightbox]
+    [![](Step3_6.png)(w:600)](Step3_6.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After compiling the Blueprint, you should see the **Default Value** disappear, making way for a default key-value pair.
+    
+    [REGION:lightbox]
+    [![](Step3_7.png)(w:600)](Step3_7.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  At this point, the editor should also emit the following warning:
+    
+    [REGION:lightbox]
+    [![](Step3_8.png)(w:600)](Step3_8.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    UE4 emits this warning because you're duplicating **Instruction Map**, which is a Blueprint map having an Integer-String key-value property, to create a **Weapon Inventory Map**, which is a Blueprint Map having a String-Integer key-value property. During the duplication process, the engine parses key-value pairs belonging to **Instruction Map**, attempting to copy them into the key-value pairs for **Weapon Inventory Map**, which is undesired behavior.
+    
+    [REGION:lightbox]
+    [![](Step3_8Note.png)(w:600)](Step3_8Note.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [/REGION]
+
+1.  Go ahead and fill your new **Weapon Inventory Map** container with the following key-value pairs:
+    
+    ![](Step3_9.png)
+
+1.  Now, click the **Compile** button.
+    
+    [REGION:lightbox]
+    [![](Step3_10.png)(w:600)](Step3_10.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After filling the **Weapon Inventory Map** container with the appropriately typed key-value pairs, satisfying the new Blueprint Map's key-value property requirements, you should see the warning disappear.
+    
+    [REGION:lightbox]
+    [![](Step3_11.png)(w:600)](Step3_11.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Before you can add new logic to the existing Blueprint Event Graph, go ahead and drag the **Weapon Inventory Map** variable into the Blueprint.
+    
+    [REGION:lightbox]
+    [![](Step3_12.png)(w:600)](Step3_12.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+### Scripting the Logic
+
+1.  To get started with building your new logic, drag off the **Weapon Inventory Map** node and add the **Keys** node from the **Map Utilities** interface.
+    
+    [REGION:lightbox]
+    [![](Step3_13.png)(w:600)](Step3_13.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    The **Keys** node will output an Array of all keys that are present in your **Weapon Inventory Map**.
+    [/REGION]
+
+1.  Drag off the **Array** output pin belonging to the **Keys** node, search for, and add the **ForEachLoop** node.
+    
+    [REGION:lightbox]
+    [![](Step3_14.png)(w:600)](Step3_14.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, drag off the **Array Element** pin belonging to the **ForEachLoop** node, search for, and add the **Print String** node.
+    
+    [REGION:lightbox]
+    [![](Step3_15.png)(w:600)](Step3_15.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Right-click in the Blueprint Graph to open the **Context Menu**, where you'll search for and add **Event ActorBeginOverlap**.
+    
+    [REGION:lightbox]
+    [![](Step3_16.png)(w:600)](Step3_16.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Other Actor** pin of the **Event ActorBeginOverlap** node, search for, and add the **Cast To FirstPersonProjectile** node.
+    
+    [REGION:lightbox]
+    [![](Step3_17.png)(w:600)](Step3_17.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, connect the **Cast To FirstPersonProjectile** node to the **Keys** node.
+    
+    [REGION:lightbox]
+    [![](Step3_18.png)(w:600)](Step3_18.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+### Displaying your Map's Keys
+
+At this point, if you enter Play in Editor (PIE) mode, you'll be able to fire a projectile at the collision box for your **Display Map** Text Render Actor, where you'll be able to display an Array of keys that are contained in your **Weapon Inventory Map**.
+
+[REGION:lightbox]
+[![](Step3_DisplayingKeys.png)(w:600)](Step3_DisplayingKeys.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+### Finishing the Script
+
+1.  Now's the time to add a new key-value pair to your container. To do this, go ahead and drag the **Weapon Inventory Map** variable into the Blueprint.
+    
+    [REGION:lightbox]
+    [![](Step3_19.png)(w:600)](Step3_19.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Weapon Inventory Map** variable, adding the **Add** node from the **Map Utilities** interface.
+    
+    [REGION:lightbox]
+    [![](Step3_20.png)(w:600)](Step3_20.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, define the key-value pair that you'd like to add, defining `Weapon 6` as the key and `60` as the value.
+    
+    [REGION:lightbox]
+    [![](Step3_21.png)(w:600)](Step3_21.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Add** node's **Boolean Return Value** pin, search for, and add the **Branch** node.
+    
+    [REGION:lightbox]
+    [![](Step3_22.png)(w:600)](Step3_22.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Before you can set up the additional display logic, showing your added key, you'll need to drag the **Weapon Inventory Map** variable into the Blueprint.
+    
+    [REGION:lightbox]
+    [![](Step3_23.png)(w:600)](Step3_23.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, drag off the **Weapon Inventory Map** variable, adding the **Keys** node from the **Map Utilities** interface.
+    
+    [REGION:lightbox]
+    [![](Step3_24.png)(w:600)](Step3_24.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Array** output pin belonging to the **Keys** node, search for, and add the **ForEachLoop** node.
+    
+    [REGION:lightbox]
+    [![](Step3_25.png)(w:600)](Step3_25.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, drag off the **Array Element** pin belonging to the **ForEachLoop** node, search for, and add the **Print String** node.
+    
+    [REGION:lightbox]
+    [![](Step3_26.png)(w:600)](Step3_26.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Click on the **Text Color** box to open the **Color Picker** menu.
+    
+    [REGION:lightbox]
+    [![](Step3_27.png)(w:600)](Step3_27.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Go ahead and set the color to the following values:
+    
+    ![](Step3_28.png)
+
+1.  Again, before you can set up more display logic, showing your added value, you'll need to drag the **Weapon Inventory Map** variable into the Blueprint.
+    
+    [REGION:lightbox]
+    [![](Step3_29.png)(w:600)](Step3_29.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, drag off the **Weapon Inventory Map** variable, adding the **Values** node from the **Map Utilities** interface.
+    
+    [REGION:lightbox]
+    [![](Step3_30.png)(w:600)](Step3_30.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Array** output pin belonging to the **Values** node, search for, and add the **ForEachLoop** node.
+    
+    [REGION:lightbox]
+    [![](Step3_31.png)(w:600)](Step3_31.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, drag off the **Execute Output** pin belonging to the **ForEachLoop** node, search for, and add the **Print String** node.
+    
+    [REGION:lightbox]
+    [![](Step3_32.png)(w:600)](Step3_32.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Array Element** pin belonging to the **ForEachLoop** node, connecting it to the **In String** pin belonging to the **Print String** node.
+    
+    [REGION:lightbox]
+    [![](Step3_33.png)(w:600)](Step3_33.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Click on the **Text Color** box to open the **Color Picker** menu.
+    
+    [REGION:lightbox]
+    [![](Step3_34.png)(w:600)](Step3_34.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Go ahead and set the color to the following values:
+    
+    ![](Step3_35.png)
+
+1.  Connect the **Branch** node's **True** pin to the **Keys** node.
+    
+    [REGION:lightbox]
+    [![](Step3_36.png)(w:600)](Step3_36.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, connect the **Branch** node's **False** pin to the **Values** node.
+    
+    [REGION:lightbox]
+    [![](Step3_37.png)(w:600)](Step3_37.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  To complete the script's logic, go ahead and connect the **Cast Failed** pin of the **Cast To FirstPersonProjectile** node to the **Add** node.
+    
+    [REGION:lightbox]
+    [![](Step3_38.png)(w:600)](Step3_38.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After inspecting your completed script, go ahead and click the **Compile** button.
+    
+    [REGION:lightbox]
+    [![](Step3_39.png)(w:600)](Step3_39.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Finally, click the **Save** button before going back to the Editor's **Viewport** interface.
+    
+    [REGION:lightbox]
+    [![](Step3_40.png)(w:600)](Step3_40.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  From the Editor's **Viewport** interface, click the **Play** button to see the updated script at work.
+    
+    [REGION:lightbox]
+    [![](Step3_41.png)(w:600)](Step3_41.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+## End Result
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:videoid]
+ SJbsl6g7UME
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+[/OBJECT]
+
+As you can see from the video, when you initially fire a **First Person Projectile** the **Display Map** TextRender Actor's collision box, you'll see the original five keys being printed to the **Viewport**. Then, when you walk through the collision box, you'll see the new key being added, subsequently being printed. After backing out of the collision box, go ahead and fire another **First Person Projectile** to confirm the newly added key. Finally, when you walk through the collision box for a second time, you'll see all of the values being printed.

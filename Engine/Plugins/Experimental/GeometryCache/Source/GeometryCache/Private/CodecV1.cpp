@@ -832,18 +832,6 @@ void FCodecV1Encoder::WriteTables()
 
 #endif // WITH_EDITOR
 
-FCodecV1Decoder::FCodecV1Decoder()
-{
-	// Precalculate table mapping symbol index to non-raw bits. ((Sign ? -2 : 1) << NumRawBits)
-	for (int32 NumRawBits = 1; NumRawBits <= 30; NumRawBits++)
-	{
-		for (int32 Sign = 0; Sign <= 1; Sign++)
-		{
-			HighBitsLUT[2 + Sign + NumRawBits * 2] = (Sign ? -2 : 1) << NumRawBits;
-		}
-	}	
-}
-
 void FCodecV1Decoder::DecodeIndexStream(FHuffmanBitStreamReader& Reader, uint32* Stream, uint64 ElementOffset, uint32 ElementCount)
 {
 	const uint8* RawElementData = (const uint8*)Stream;
@@ -1043,6 +1031,19 @@ void FCodecV1Decoder::ReadCodedStreamDescription(FHuffmanBitStreamReader& Reader
 	VertexInfo.bConstantUV0 = (ReadBits(Reader, 1) == 1);
 	VertexInfo.bConstantColor0 = (ReadBits(Reader, 1) == 1);
 	VertexInfo.bConstantIndices = (ReadBits(Reader, 1) == 1);
+}
+
+int32 FCodecV1Decoder::CachedHighBitsLUT[64];
+void FCodecV1Decoder::InitLUT()
+{
+	// Precalculate table mapping symbol index to non-raw bits. ((Sign ? -2 : 1) << NumRawBits)
+	for (int32 NumRawBits = 1; NumRawBits <= 30; NumRawBits++)
+	{
+		for (int32 Sign = 0; Sign <= 1; Sign++)
+		{
+			CachedHighBitsLUT[2 + Sign + NumRawBits * 2] = (Sign ? -2 : 1) << NumRawBits;
+		}
+	}
 }
 
 DECLARE_CYCLE_STAT(TEXT("FCodecV1Decoder"), STAT_CodecV1Decoder, STATGROUP_GeometryCache);
@@ -1278,6 +1279,6 @@ int32 FCodecV1Decoder::ReadInt32(FHuffmanBitStreamReader& Reader, FHuffmanDecode
 	{
 		// At least one raw bit.
 		int32 NumRawBits = (Packed - 2) >> 1;
-		return ReadBitsNoRefill(Reader, NumRawBits) + HighBitsLUT[Packed];
+		return ReadBitsNoRefill(Reader, NumRawBits) + CachedHighBitsLUT[Packed];
 	}
 }

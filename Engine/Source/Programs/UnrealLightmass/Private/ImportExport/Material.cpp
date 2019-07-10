@@ -56,7 +56,7 @@ namespace Lightmass
 		else
 		{
 			// Materials with a translucent blend mode should always import transmission
-			check(BlendMode != BLEND_Translucent && BlendMode != BLEND_Additive && BlendMode != BLEND_Modulate && BlendMode != BLEND_AlphaComposite);
+			check(BlendMode != BLEND_Translucent && BlendMode != BLEND_Additive && BlendMode != BLEND_Modulate && BlendMode != BLEND_AlphaComposite && BlendMode != BLEND_AlphaHoldout);
 		}
 
 		// Normal

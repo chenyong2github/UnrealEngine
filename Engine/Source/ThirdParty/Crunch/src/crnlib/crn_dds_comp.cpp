@@ -30,10 +30,15 @@ void dds_comp::clear() {
 }
 
 bool dds_comp::create_dds_tex(mipmapped_texture& dds_tex) {
-  image_u8 images[cCRNMaxFaces][cCRNMaxLevels];
-
+  //UE4_BEGIN
+  vector<image_u8> images[cCRNMaxFaces];
+  //UE4_END
+  
   bool has_alpha = false;
   for (uint face_index = 0; face_index < m_pParams->m_faces; face_index++) {
+    //UE4_BEGIN
+    images[face_index].resize(m_pParams->m_levels);
+	//UE4_END
     for (uint level_index = 0; level_index < m_pParams->m_levels; level_index++) {
       const uint width = math::maximum(1U, m_pParams->m_width >> level_index);
       const uint height = math::maximum(1U, m_pParams->m_height >> level_index);

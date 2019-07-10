@@ -16,17 +16,16 @@
 
 #define LOCTEXT_NAMESPACE "AVREditorFloatingCameraUI"
 
-AVREditorFloatingCameraUI::AVREditorFloatingCameraUI():
-	Super()
+AVREditorFloatingCameraUI::AVREditorFloatingCameraUI()
+	: Super()
 {
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		return;
 	}
 
-	const UVREditorAssetContainer& AssetContainer = UVREditorMode::LoadAssetContainer();
-
 	{
+		const UVREditorAssetContainer& AssetContainer = UVREditorMode::LoadAssetContainer();
 		UStaticMesh* WindowMesh = AssetContainer.WindowMesh;
 		WindowMeshComponent->SetStaticMesh(WindowMesh);
 		check(WindowMeshComponent != nullptr);
@@ -35,8 +34,6 @@ AVREditorFloatingCameraUI::AVREditorFloatingCameraUI():
 
 void AVREditorFloatingCameraUI::SetLinkedActor(class AActor* InActor)
 {
-	const FScopedTransaction Transaction( LOCTEXT( "AVREditorFloatingCameraUI", "SetLinkedActor" ) );
-	Modify();
 	LinkedActor = InActor;
 }
 
@@ -49,7 +46,7 @@ FTransform AVREditorFloatingCameraUI::MakeCustomUITransform()
 		CameraTransform = LinkedActor->GetTransform();
 
 		const FTransform UIFlipTransform(FRotator(0.0f, 180.0f, 0.0f).Quaternion(), FVector::ZeroVector);
-		const FVector Offset = FVector(-25.0f, 0.0f, 80.0f);
+		const FVector Offset = FVector(-25.0f, 0.0f, 40.0f);
 		const FTransform OffsetTransform(FRotator::ZeroRotator, Offset);
 
 		UITransform = UIFlipTransform * OffsetTransform * CameraTransform;

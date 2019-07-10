@@ -1,0 +1,72 @@
+﻿INTSourceChangelist:6179138
+Availability: Public
+Crumbs: %ROOT%
+Title:Oculus前提条件
+Description:关于设置Oculus Rift以配合UE4使用的信息。
+Type:quick start
+Version: 4.16
+Parent: Platforms/VR/OculusVR/OculusRift
+Order: 1
+Tags: Oculus Rift
+Tags: Platform
+topic-image:PreRecProfiling_Topic_Image.png
+
+
+在下面的页面中，你将找到关于如何确保你的虚幻引擎4（UE4）项目能够使用Oculus Rift HMD的信息。 
+
+## 启用未知源 
+
+在你开发虚幻引擎4（UE4）虚拟现实（VR）项目时，最好启用 **未知源**，使你的应用程序不必经过Oculus注册和审核就能运行。要启用 **未知源（Unknown Sources）** 选项，需要执行以下步骤：
+
+1. 打开Oculus Store，然后单击右上角的 **齿轮** 图标以显示 **设置（Settings）** 菜单选项，再单击 **设置（Settings）**。
+
+	[REGION:lightbox]
+	[![](Platforms\VR\OculusVR\OculusRift\Rift_UKS_01.png)(w:512)](Platforms\VR\OculusVR\OculusRift\Rift_UKS_01.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击查看大图。
+	[/REGION]
+
+1. 在左侧，选择 **常规（General）** 部分。然后在 **未知源（Unknown Sources）** 部分，单击按钮以启用此选项。
+
+	[REGION:lightbox]
+	[![](Platforms\VR\OculusVR\OculusRift\Rift_UKS_02.png)(w:512)](Platforms\VR\OculusVR\OculusRift\Rift_UKS_02.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击查看大图。
+	[/REGION]
+
+1. 单击该按钮之后，将会显示一条消息。单击 **允许（Allow）** 按钮以继续。
+
+	[REGION:lightbox]
+	[![](Platforms\VR\OculusVR\OculusRift\Rift_UKS_03.png)(w:512)](Platforms\VR\OculusVR\OculusRift\Rift_UKS_03.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击查看大图。
+	[/REGION]
+
+1. 完成后，该按钮将变为蓝色，如下图所示。
+    
+	[REGION:lightbox]
+	[![](Platforms\VR\OculusVR\OculusRift\Rift_UKS_04.png)(w:512)](Platforms\VR\OculusVR\OculusRift\Rift_UKS_04.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击查看大图。
+	[/REGION]
+
+    [region:note]
+    要将此更改恢复为默认设置，再次单击该按钮，钩号将重新变为X。
+    [/region]
+
+## SteamVR故障诊断
+
+如果你遇到问题，无法让Oculus Rift运行，Oculus支持中心页面可以帮你解决大多数可能遇到的问题。
+
+[**Oculus支持中心**](https://support.oculus.com/)
+
+
+

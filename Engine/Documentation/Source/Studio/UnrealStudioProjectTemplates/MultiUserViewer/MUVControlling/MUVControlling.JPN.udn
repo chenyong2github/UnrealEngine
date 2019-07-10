@@ -1,0 +1,98 @@
+﻿INTSourceChangelist:5319966
+Availability: Public
+Crumbs: 
+Title: マルチユーザー ビューア テンプレートで動き回る
+Description: マルチユーザー ビューア テンプレートには、アプリケーション実行中にカメラを制御するためのオプションが備わっています。デスクトップのナビゲーション モードと VR のナビゲーション モードにおけるそれらの操作について説明します。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: Reference
+Tags: multi-user viewer
+reference-image: VR_teleport.jpg
+
+
+このページでは、シーン内を動き回るために、マルチユーザー ビューアで実行時にカメラを制御するさまざまな方法について説明します。 [デスクトップ](#デスクトップでの制御) と [VR](#VRでの制御) の両ナビゲーション モードにおける操作について説明します。
+
+## デスクトップでの制御
+
+デスクトップ モードには、歩き (walk) モードとフライ (fly) モードの 2 つの異なるナビゲーション 制御システムがあります。
+
+*   歩きモードでは、ユーザーは重力により地面に接地している状態に留め置かれ、コリジョン ボリュームが備わっているレベル内のオブジェクトとコリジョン (衝突) します。
+*   フライモードでは、シーン内のあらゆる方向に自由に飛び回ることができ、コリジョンが設定されているかどうかに関わらず、すべてのジオメトリを通り抜けることができます。
+    
+
+| 取りたい動作 | そのための操作 |
+| --- | --- |
+| 現在の位置からワールドを見回す | 右クリックしてドラッグする |
+| 現在の位置から前方、左に、後に、右に移動する | 右マウスボタンを押しながら **W** 、 **A** 、 **S** 、 **D** のキーを押す |
+| (ワールドのグローバルな Z 軸に沿って) 真上または真下に動く | [INCLUDE:#excerpt_7] |
+| 歩きモードとフライモードを切り替える | [INCLUDE:#excerpt_9] |
+| レーザーポインターをアクティブにする | ハイライト表示したいオブジェクトにマウスカーソルを移動してから左クリックする |
+| Bookmark の位置に移動する (最終に達した後は最初に戻る) | 左方向キーおよび右方向キー |
+| あらかじめ設定してある Bookmark の位置に移動する | 特定の Bookmark の位置に割り当てられている 0~9 の数字キーを押す。 [マルチユーザー ビューア テンプレートで Bookmark を使う](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVBookmarks) を参照。 |
+| アプリケーションを終了する |  **Esc** キーを押す。 |
+
+
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+**Spacebar** を押す。
+フライモード後に歩きモードに戻ると、重力が再度有効になります。その時にいる位置によって、地面に達するまで自由落下するか、あるいは直近の地表面に素早く移動させられます。
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+右マウスボタンを押したまま **Q** および **E** を押す。
+フライモードでのみ利用可能です。
+[/EXCERPT:excerpt_7]
+[/COMMENT]
+
+## VR での制御
+
+| 取りたい動作 | そのための操作 |
+| --- | --- |
+| 新たな位置にテレポートする | [INCLUDE:#excerpt_21] |
+| レーザーポインターをアクティブにする | どちらかのコントローラーのメインのトリガーボタンを押し、現実世界の空間でコントローラーを動かす。 |
+| アプリケーションを終了する | コンピュータのキーボードの  **Esc** キーを押す。 |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_21]
+どちらかのコントローラーのいずれかのフェースボタンまたは第二トリガーを押し続ける。  
+コントローラーから円弧状の図形が飛び出るとともに、ターゲット マーカーが地面の上に表示されるのが見えるはずです。このターゲット マーカーがテレポートの位置を示しています。現実世界の空間でコントローラーを動かすことによって、移動したい場所になるべくマーカーが近づくようにしてください。
+[REGION:asyncgif]
+![](VR_teleport.jpg)(convert:false)
+[/REGION]マーカーに付いている指針状のものは、テレポート後にユーザーがどの方向を向くかを示しています。この向きを制御するには、手首を回します。
+フェースボタンまたは第二トリガーを放すと、テレポートが完了します。
+[/EXCERPT:excerpt_21]
+-
+[/COMMENT]
+
+
+## Unreal Editor で VR を使ってテストする
+
+パッケージングされたバージョン (スタンドアロン バージョン) のマルチユーザー テンプレートを VR が設定されたコンピュータで起動する場合、標準的なデスクトップのコントロールか VR のコントロールのどちらを使って起動するか選択することができます。
+
+なお、Unreal Editor 内で VR のコントロールを使ってプロジェクトをテストすることもできます。その場合は、以下の手順に従います。
+
+1.  コンテンツ ブラウザ内で *MultiUserViewer/Blueprints/GameInstance* フォルダの中に置かれている **BP\_MultiUser\_GameInstance** というアセットを見つける。
+    ![BP_MultiUser_GameInstance](multiuserviewer-gameinstance.png "BP_MultiUser_GameInstance")  
+    
+2.  このアセットをダブルクリックしてブループリント エディタの中で開く。 
+    ![Game Instance Blueprint](multiuserviewer-gameinstance-bp.png "Game Instance Blueprint")  
+    
+3.  **Details** (詳細) パネルの中で **VRmode** というオプションを有効にする。
+    ![Game Instance Details panel](multiuserviewer-gameinstance-vrmode.png "Game Instance Details panel")  
+    
+4.  このブループリントを **Compile** (コンパイル) して **Save** (保存) する。
+5.  プレビューを開始するために、ツールバーの Play ボタンのとなりにある下向き三角矢印をクリックしてドロップダウン メニューを開き、 **VR Preview** を選択する。
+    ![VR Preview](multiuserviewer-gameinstance-preview.png "VR Preview")  
+    
+
+[REGION:note]
+アプリケーションをパッケージングする前に、必ず、この設定を無効に戻しておいてください！無効にしない場合は、パッケージングが予期しない結果となってしまいます。
+[/REGION]

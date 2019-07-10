@@ -47,6 +47,7 @@ namespace ELandscapeToolTargetType
 class ILandscapeEdModeInterface
 {
 public:
+	virtual void PostUpdateLayerContent() = 0;
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const = 0;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const = 0;
@@ -364,12 +365,14 @@ struct FHeightmapAccessor
 						
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
+			bool bUpdateNormals = false;
 
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
             // Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
+				bUpdateNormals = true;
 				for (ULandscapeComponent* Component : Components)
 				{
 					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
@@ -400,7 +403,7 @@ struct FHeightmapAccessor
 				}
 
 				// Update landscape.
-				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, Data, 0, true);
+				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, Data, 0, bUpdateNormals);
 
 				// Snap foliage for each component.
 				for (int32 Index = 0; Index < CollisionComponents.Num(); ++Index)
@@ -412,7 +415,7 @@ struct FHeightmapAccessor
 			else
 			{
 				// No foliage, just update landscape.
-				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, Data, 0, true);
+				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, Data, 0, bUpdateNormals);
 			}
 		}
 	}

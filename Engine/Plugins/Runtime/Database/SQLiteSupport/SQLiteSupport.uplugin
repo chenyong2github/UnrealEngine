@@ -18,7 +18,10 @@
 		{
 			"Name": "SQLiteSupport",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"BlacklistPlatforms": [
+				"HoloLens"
+			]
 		}
 	],
 	"Plugins": [

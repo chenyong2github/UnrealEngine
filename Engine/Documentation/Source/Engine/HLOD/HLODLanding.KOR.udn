@@ -1,28 +1,31 @@
-﻿INTSourceChangelist:3409833
-title:계층형 레벨 오브 디테일
-description:언리얼 엔진 4 의 계층형 레벨 오브 디테일 시스템 첫 페이지입니다.
-crumbs:
-availability:Public
-version:4.13
-parent:Engine
-order:13
-type:landing
-tags:HLOD
+﻿INTSourceChangelist:6519040
+Availability: Public
+Title: 계층형 레벨 오브 디테일
+Description: 언리얼 엔진 4 의 계층형 레벨 오브 디테일 시스템 첫 페이지입니다.
+Type: landing
+Version: 4.22
+Parent: Engine
+Order:13
+Tags: HLOD
 topic-image:defaultHLOD_topic.png
 social-image:HLOD_social.png
+topic-icon: defaultHLOD_topic.png
 
 ![](HLOD_header.png)
 
-[INCLUDE:Shared/Editor/HLOD#main]
+**Hierarchical Level of Detail** (계층형 레벨 오브 디테일, HLOD) 시스템은 퍼포먼스를 향상시키면서도 높은 퀄리티를 내기 위한 방편으로, 언리얼 엔진 4.11 이상에서 지원됩니다. HLOD 는 다수의 스태틱 메시 액터를 원거리에서 봤을 때 하나의 **스태틱 메시 액터** 로 합치는 기법입니다. 이를 통해 씬에 렌더링해야 하는 액터 수를 줄여, 프레임 당 드로 콜 수를 낮춰 퍼포먼스를 향상시키는 데 도움이 됩니다.
+
+시스템 사용법 관련 자세한 내용은 아래 각 부분을 참고하세요.
+
 
 ## 시작하기
 
 [DIR(output:"topic" type:"overview" parent:"Engine/HLOD")]
 
-## 안내서
+## 가이드
 
-[DIR(output:"topic" type:"how-to" parent:"Engine/HLOD")]
+[DIR(output:"topic" type:"landing" parent:"Engine/HLOD")]
 
-## 참고서
+## 레퍼런스
 
 [DIR(output:"topic" type:"reference" parent:"Engine/HLOD")]

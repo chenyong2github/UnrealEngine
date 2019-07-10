@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Animation/AnimCompressionTypes.h"
 #include "AnimCurveCompressionSettings.generated.h"
 
 class UAnimCurveCompressionCodec;
@@ -31,13 +32,12 @@ class ENGINE_API UAnimCurveCompressionSettings : public UObject
 	bool AreSettingsValid() const;
 
 	/*
-	 * Compresses the animation curves inside the supplied sequence.
-	 * Note that this will modify the animation sequence by populating the compressed bytes
-	 * and the codec used but it is left unchanged if compression fails.
+	 * Compresses the animation curves inside the supplied sequence data.
+	 * The resultant compressed data is applied to the OutCompressedData structure.
 	 */
-	bool Compress(UAnimSequence& AnimSeq) const;
+	bool Compress(const FCompressibleAnimData& AnimSeq, FCompressedAnimSequence& OutCompressedData) const;
 
 	/** Generates a DDC key that takes into account the current settings and selected codec. */
-	FString MakeDDCKey() const;
+	void PopulateDDCKey(FArchive& Ar) const;
 #endif
 };

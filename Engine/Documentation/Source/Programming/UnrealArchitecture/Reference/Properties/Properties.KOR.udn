@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3530743
+INTSourceChangelist:6411486
 Availability:Public
 Title: 프로퍼티
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference
-Description:게임플레이 클래스에 대한 프로퍼티 생성 및 구현 관련 참고서입니다.
+Description:게임플레이 클래스에 대한 프로퍼티 생성 및 구현 관련 레퍼런스입니다.
 type:reference
 skilllevel:beginner
 parent:Programming/UnrealArchitecture
@@ -58,7 +58,7 @@ tags:bitfield
 		ECB_Blue
 	};
 
-이 UENUM 을 생성한 이후 BitmaskEnum 메타 태그로 레퍼런싱할 수 있는데, 이런 식입니다:
+이 UENUM 을 생성한 이후 BitmaskEnum 메타 태그로 참조할 수 있는데, 이런 식입니다:
 
 	UPROPERTY(EditAnywhere, Meta = (Bitmask, BitmaskEnum = "EColorBits"))
 	int32 ColorFlags;

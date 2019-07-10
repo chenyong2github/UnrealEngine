@@ -94,6 +94,16 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, AdvancedDisplay, meta=(UIMin = "0", UIMax = "1"))
 	float ShadowBias;
 
+	/**
+	 * Controls how accurate self shadowing of whole scene shadows from this light are. This works in addition to shadow bias, by increasing the 
+	 * amount of bias depending on the slope of a surface.
+	 * At 0, shadows will start at the their caster surface, but there will be many self shadowing artifacts.
+	 * larger values, shadows will start further from their caster, and there won't be self shadowing artifacts but object might appear to fly.
+	 * around 0.5 seems to be a good tradeoff. This also affects the soft transition of shadows
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
+	float ShadowSlopeBias;
+
 	/** Amount to sharpen shadow filtering */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, AdvancedDisplay, meta=(UIMin = "0.0", UIMax = "1.0", DisplayName = "Shadow Filter Sharpen"))
 	float ShadowSharpen;
@@ -203,7 +213,7 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	 * They have less aliasing artifacts than standard shadowmaps, but inherit all the limitations of distance field representations (only uniform scale, no deformation).
 	 * These shadows have a low per-object cost (and don't depend on triangle count) so they are effective for distant shadows from a dynamic sun.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=DistanceFieldShadows, meta=(DisplayName = "RayTraced DistanceField Shadows"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=DistanceFieldShadows, meta=(DisplayName = "Distance Field Shadows"))
 	bool bUseRayTracedDistanceFieldShadows;
 
 	/** 
@@ -275,6 +285,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
 	void SetShadowBias(float NewValue);
+	
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
+	void SetShadowSlopeBias(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
 	void SetSpecularScale(float NewValue);
@@ -410,6 +423,8 @@ public:
 	const FLightComponentMapBuildData* GetLightComponentMapBuildData() const;
 
 	void InitializeStaticShadowDepthMap();
+
+	FLinearColor GetColoredLightBrightness() const;
 
 	/** 
 	 * Called when property is modified by InterpPropertyTracks

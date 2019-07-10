@@ -1,0 +1,123 @@
+INTSourceChangelist:6675298
+Availability: Public
+Crumbs: 
+Title: 프록시 지오메트리 툴 레퍼런스
+Description: 언리얼 엔진 4 레퍼런스 및 가이드 포함 제품 문서입니다.
+Type: reference
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: Proxy Geometry Tool
+Tags: Reference
+topic-image: ProxyGeoReferanceTopicImage_01.png
+
+
+## 레퍼런스
+
+![](Proxy_Geo_RF_01.png "Proxy_Geo_RF_01.png")
+
+다음은 프록시 지오메트리 툴에서 찾을 수 있는 각 세팅에 대한 프로퍼티 설명 표입니다.
+
+[REGION:simpletable]
+| **프로퍼티 이름** | **설명** |
+|---|---|
+| **Screen Size** | 화면 크기 - 결과 프록시 메시의 픽셀 단위 화면 크기입니다. |
+| **Override Spatial Sampling Distance** | 공간 샘플링 거리 오버라이드 - 프록시 LOD 병합에서 메시를 변환할 때의 오버라이드입니다. 경고: 큰 지오메트리에 샘플링 거리가 작으면 메모리 비용이 매우 높습니다. |
+| **Material Settings** | 머티리얼 세팅 - 머티리얼 단순화 세팅입니다. |
+| **Calculate Correct LOD Model** | 올바른 LOD 모델 계산 - 주어진 소스 메시 및 전환 크기를 고려해 올바른 LOD 모델을 계산할지 여부를 결정합니다. |
+| **Merge Distance** | 병합 거리 - 어느 거리의 메시를 서로 병합할지 결정하며, 멀리 있는 지오메트리의 문이나 창문같은 틈을 닫을 수 있습니다. |
+| **Unresolved Geometry Color** | 미해결 지오메트리 색 - 소스 지오메트리와 연관시킬 수 없는 LOD 지오메트리에 할당된 바탕색입니다. 예를 들어 Merge Distance 로 닫은 문과 창문같은 것입니다. |
+| **Transfer Distance Override** | 전송 거리 오버라이드 - 단순화된 지오메트리에 대한 텍스처를 발견할 때 사용되는 검색 거리 오버라이드입니다. 0 이 아닌 Merge Distance 세팅이 오목한 구석에 지오메트리를 새로 생성할 때 좋습니다. |
+| **Hard Edge Angle** | 하드 에지 각도 - 하드 에지를 도입할 면 사이 각도입니다. 참고: 버텍스 수를 늘리면 UV 이음새가 추가될 수 있습니다. 노멀 맵을 사용하지 않을 때만 추천합니다. |
+| **Normal Calculation Method** | 노멀 계산 메서드 - 단순화 지오메트리에 대해 노멀을 계산할 때 사용되는 메서드를 제어합니다. |
+| **Light Map Resolution** | 라이트 맵 해상도 - 라이트맵 해상도 크기입니다. |
+| **Compute Light Map Resolution** | 라이트 맵 해상도 계산 - 활성화하면 병합에 포함된 각 메시의 치수를 더하여 라이트 맵 해상도를 계산합니다. |
+| **Enable Volume Culling** | 볼륨 컬링 활성화 - 볼륨 컬링에서 지오메트리를 제외할 수 있습니다. |
+| **Allow Adjacency** | 인접성 허용 - 인접성 버퍼를 병합된 메시의 테셀레이션에 허용할지 여부입니다. |
+| **Allow Distance Field** | 디스턴스 필드 허용 - 이 메시에 대해 디스턴스 필드 계산을 허용할지 여부입니다. 원거리에서만 렌더링되는 메시의 경우 비활성화하면 메모리가 절약됩니다. |
+| **Reuse Mesh Lightmap UVs** | 메시 라이트맵 UV 재사용 - 머티리얼을 구울 때 소스 메시의 라이트맵 UV 를 재사용 시도할지 항상 새로운 세트를 생성할지 여부입니다. |
+| **Allow Vertex Colors** | 버텍스 컬러 허용 - 병합된 메시에 버텍스 컬러 저장을 허용할지 여부입니다. |
+| **Generate Lightmap UVs** | 라이트맵 UV 생성 - 병합된 메시에 대한 라이트맵 UV 생성 여부입니다. |
+[/REGION]
+
+다음 표는 프록시 지오메트리 툴과 같이 사용할 수 있는 각 [콘솔 명령](Programming/Development/Tools/ConsoleManager) 에 대한 설명입니다. 
+
+[REGION:simpletable]
+| **명령 이름** | **설명** |
+|---|---|
+| **r.ProxyLODChartColorVerts** | [INCLUDE:#excerpt_0] |
+| **r.ProxyLODCorrectCollapsedWalls** | [INCLUDE:#excerpt_1] |
+| **r.ProxyLODMaterialInParallel** | [INCLUDE:#excerpt_2] |
+| **r.ProxyLODMaxDilationSteps** | [INCLUDE:#excerpt_3] |
+| **r.ProxyLODMeshReductionModule** | 선택할 프록시 LOD 감소 모듈 이름입니다. 비워 두면 존재하는 것을 선택합니다. |
+| **r.ProxyLODRemeshOnly** | [INCLUDE:#excerpt_4] |
+| **r.ProxyLODSingleThreadSimplify** | [INCLUDE:#excerpt_5] |
+| **r.ProxyLODTransfer** | [INCLUDE:#excerpt_6] |
+| **r.ProxyLODUseTangentSpace** | [INCLUDE:#excerpt_7] |
+[/REGION]
+
+<!--
+[EXCERPT:excerpt_0]
+UV 차트로 버텍스 색상을 표현합니다. 기본값은 꺼져 있습니다.  
+0: 비활성화.  
+1: 활성화.
+[/EXCERPT:excerpt_0]
+-->
+
+<!--
+[EXCERPT:excerpt_1]
+ProxyLOD 시스팀에 상호 침투 면이 있는 벽을 보정 시도할지 여부입니다.  
+0: 비활성화 - 기본값입니다.  
+1: 활성화, 균열이 생길 수 있습니다.
+[/EXCERPT:excerpt_1]
+-->
+
+<!--
+[EXCERPT:excerpt_2]
+메시 단순화와 머티리얼 작업을 병렬 처리합니다.  
+0: 비활성화.  
+1: 활성화 - 기본값입니다.
+[/EXCERPT:excerpt_2]
+-->
+
+<!--
+[EXCERPT:excerpt_3]
+퍼포먼스 상의 이유로 틈 채우기에 사용되는 팽창 단계 횟수를 제한합니다. 최대값이 작으면 팽창 단계가 커지므로 틈 채우기 퀄리티에 영향을 줄 수 있습니다.  
+0: 틈 채우기를 비활성화합니다.  
+1: 활성화 - 기본값입니다.
+[/EXCERPT:excerpt_3]
+-->
+
+<!--
+[EXCERPT:excerpt_4]
+메시만 다시 입힙니다 (remesh). 단순화나 머티리얼은 없습니다.  
+0: 비활성화 - 단순화하고 머티리얼을 생성합니다. 기본값입니다.  
+1: 활성화 - 단순화 또는 머티리얼 생성하지 않습니다.
+[/EXCERPT:excerpt_4]
+-->
+
+<!--
+[EXCERPT:excerpt_5]
+단일 스레드 코드 패스를 사용합니다.  
+0: 멀티 스레드 - 기본값입니다.  
+1: 단일 스레드입니다.
+[/EXCERPT:excerpt_5]
+-->
+
+<!--
+[EXCERPT:excerpt_6]
+0: 양쪽으로 발사합니다.  
+1: 앞쪽을 선호합니다 - 기본값입니다.
+[/EXCERPT:excerpt_6]
+-->
+
+<!--
+[EXCERPT:excerpt_7]
+각 버텍스 위치에 Mikk-T 공간을 생성하는 옵션을 제어합니다. 기본값은 활성화입니다. 비활성화되면 (1,0,0) (0, 0, 1) (0,1,0) 탄젠트 공간을 노멀 맵 인코딩을 위해 각 버텍스에 더합니다.  
+0: 각 버텍스 위치의 월드 공간입니다.  
+1: 각 버텍스 위치의 탄젠트 공간 - 기본값입니다.
+[/EXCERPT:excerpt_7]
+-->
+
+[](#)[](#)

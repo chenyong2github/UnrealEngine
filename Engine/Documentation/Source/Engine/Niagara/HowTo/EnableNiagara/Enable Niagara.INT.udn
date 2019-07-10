@@ -8,7 +8,6 @@ Version: 4.17
 parent:Engine/Niagara/HowTo
 order:1
 tags:Niagara
-topic-image:
 
 Before you can begin to create visual effects using Niagara you will need to enable it via the **Plugins** menu. In the following How - to we go over what needs to be done in your UE4 project so that you can use Niagara.
 

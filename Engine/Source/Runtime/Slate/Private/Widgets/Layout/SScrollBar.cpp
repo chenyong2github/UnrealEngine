@@ -27,11 +27,12 @@ void SScrollBar::Construct(const FArguments& InArgs)
 
 	SBorder::Construct( SBorder::FArguments()
 		.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
+		.Padding(InArgs._Padding)
 		[
 			SNew(SVerticalBox)
 
 			+ SVerticalBox::Slot()
-			.FillHeight( 1 )
+			.FillHeight(1)
 			[
 				SNew(SBorder)
 				.BorderImage(BackgroundBrush)
@@ -55,10 +56,11 @@ void SScrollBar::Construct(const FArguments& InArgs)
 					.ThumbSlot()
 					[
 						SAssignNew(DragThumb, SBorder)
-						.BorderImage( this, &SScrollBar::GetDragThumbImage )
+						.BorderImage(this, &SScrollBar::GetDragThumbImage)
 						.ColorAndOpacity(this, &SScrollBar::GetThumbOpacity)
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
+						.Padding(0)
 						[
 							SAssignNew(ThicknessSpacer, SSpacer)
 							.Size(InArgs._Thickness)

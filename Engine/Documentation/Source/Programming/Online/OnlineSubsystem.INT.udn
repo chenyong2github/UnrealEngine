@@ -1,98 +1,53 @@
-Availability:Public
-Title:Online Subsystem Overview
-Crumbs:%ROOT%, Programming
-Description:Overview of the various systems related to the online platform.
-Version: 4.9
+Availability: Public
+Title: Online Subsystem
+Description: Overview of the various systems related to the online platform.
+Version: 4.21
+Parent: Programming
+Order: 16
 
 
-[TOC(start:2)]
+[TOC]
 
+The **Online Subsystem** and its interfaces provide a common way to access the functionality of online services such as Steam, Xbox Live, Facebook, and so on. When working on a game that ships on multiple platforms, or with support for multiple online services, the Online Subsystem ensures that the only changes developers need to make are configuration adjustments for each supported service.
 
-[EXCERPT:Intro] 
-The **Online** subsystem and its interfaces exist to provide a clear abstraction to common online functionality across the available set of platforms in a given environment.   **Platforms** in this context would refer to Steam, Xbox Live, Facebook, etc.
-Portability is one of the main goals.
-[/EXCERPT:Intro]
+## Design Philosophy
 
-## OnlineSubsystem module
+The Online Subsystem is fundamentally designed to handle asynchronous communication with a variety of online services. Since network connection speeds, server delays, and the running times of backend services are all unknown to the local machine, interactions with these systems take an unpredictable amount of time. To deal with this, the Online Subsystem uses [Delegates](Programming/UnrealArchitecture/Delegates) for all remote operations and guarantees that those Delegates will be called whenever a supported, asynchronous feature is used. In addition to providing the ability to respond to requests as they finish, and query in-flight requests. Delegates also provide a single code path to follow, removing the need for developers to write custom code to catch different success or failure conditions.
 
-### Basic design
+Modular, service-specific interfaces group supported features together. For example, the Friends Interface handles everything related to friends lists, the Achievements Interface handles listing, checking, and awarding Achievements, and so on. Interfaces exist for each feature group on each online service that supports it, although specific functions that a service does not support may simply return `false`. This design ensures that developers can write the same code for all online services.
 
-The base module OnlineSubsystem is responsible for regulating how platform specific modules are defined and registered with the engine.    All access to a platform service will go through this module.   When loaded, this module will in turn try to load the default platform service module specified in the engine.ini file.
+At a higher level, more complex operations use the [Online Asynchronous Task Manager](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/FOnlineAsyncTaskManager/index.html) to support sequential tasks, or tasks that run on different threads. Asynchronous tasks can describe their dependencies, enabling unrelated tasks to run independently and in parallel, while sequential tasks run serially. All interfaces within the Online Subsystem schedule tasks in this fashion to preserve consistency of operation.
 
-	[OnlineSubsystem]
-	DefaultPlatformService=<Default Platform Identifier>
-	
-If successful, this default online interface will be available via the static accessor when no parameter is specified.
+## Basic Structure and Usage
 
-	static IOnlineSubsystem* Get(const FName& SubsystemName = NAME_None)
-	
-Additional services are loaded on demand when called from this function with the proper identifier.   Invalid identifiers or failures to load the module will gracefully return NULL.  
+The base module, `OnlineSubsystem`, defines and registers service-specific modules with the Engine. During initialization, the Online Subsystem will try to load the default online service module specified in the "Engine.ini" file. All access to an online service will go through this module.
 
+    [OnlineSubsystem]
+    DefaultPlatformService=<Default Platform Identifier>
 
+If successful, the default online subsystem will be available via the static accessor when no parameter is specified.
 
-### Use of Delegates
+    static IOnlineSubsystem* Get(const FName& SubsystemName = NAME_None)
 
-Much like Unreal Engine 3 (UE3), the online subsystem will make heavy use of delegates when calling functions with asynchronous side effects.   It is important to respect the delegates and wait for the proper delegate to be called before calling functions further down a chain.  Failure to wait for an asynchronous task can cause crashes and unexpected, undefined behavior.   Waiting for delegates is especially important during connectivity failures such as a cable pull or other disconnect events.   The amount of time a task may take to finish may seem instantaneous in the ideal case, but can be upwards of almost a minute in the timeout case.
+Additional services load on-demand, when calls to this function request them. Invalid identifiers or failures to load the module will gracefully return `null`.
 
-The delegate interface is fairly straightforward, with each delegate clearly defined at the top of each interface header.   Every delegate has an `Add<DelegateName>`, `Clear<DelegateName>`, and `Trigger<DelegateName>` function (although Triggering delegates manually is discouraged).   Common practice is to Add() the delegate right before calling the appropriate function, and then Clear() the delegate from within itself.   
+## Interfaces
 
+The following interfaces are included in the Online Subsystem.
 
-### Interfaces
-
-Not all platforms will implement all interfaces and game code should plan accordingly.
-
-#### Profile 
-
-Interface definition for the online services profile services. Profile services are defined as anything related to a given user profile and its associated metadata (online presence, access permissions, etc).
-
-
-#### Friends
-
-Interface definition for the online services friends services.  Friends services are anything related to the maintenance of friends and friends lists.
-
-
-#### Sessions
-
-Interface definition for the online services session services. Session services are defined as anything related managing a session and its state.
-
-Details can be found on the [](Programming/Online/Interfaces/Session) page.
-
-#### Shared Cloud
-
-Provides the interface for sharing files already on the cloud (see [User Cloud](#UserCloud) with other users).
-
-
-#### User Cloud
-
-Provides the interface for per user cloud file storage.
-
-
-#### Leaderboards
-
-Provides the interface for accessing online leaderboards.
-
-
-#### Voice
-
-Provides the interface for voice communication over network while in the game.
-
-
-#### Achievements
-
-Provides the interface for reading/writing/unlocking achievements.
-
-#### External UI
-
-Provides the interface for accessing a given platform's external interfaces if available.
-
-
-## Reference
-
-[REGION:buttonlist]
-* [](Programming/Online/Interfaces/Session "%Programming/Online/Interfaces/Session:Description%")
-* [](Programming/Online/Types/ "%Programming/Online/Types:Description%")	
+[REGION:note]
+Some interfaces exist only for certain online services, depending on what functionality each service supports.
 [/REGION]
 
-
-   
-   
+| Interface | Feature Group Description |
+| --- | --- |
+| [Achievements](Programming/Online/AchievementsInterface) | Listing all achievements in a game, unlocking Achievements, and checking your own unlocked Achievements and those of other users. |
+| [External UI](Programming/Online/ExternalUIInterface) | Opening the built-in user interfaces for specific hardware platforms or online services. In some cases, services grant access to certain core features exclusively through this interface. |
+| [Friends](Programming/Online/FriendsInterface) | Anything related to friends and friends lists, such as adding users to your friends list, blocking and unblocking users, and listing players you have recently met online. |
+| [Leaderboard](Programming/Online/LeaderboardInterface) | Accessing online leaderboards, including registering your own scores (or times), and checking leaderboards for scores from your friends list or players around the world. |
+| [Online User](Programming/Online/OnlineUserInterface) | Collecting metadata about a user. |
+| [Presence](Programming/Online/PresenceInterface) | Setting the way that a user's online status will appear to other users, such as "Online", "Away", "Playing a game", and so on. |
+| [Purchase](Programming/Online/PurchaseInterface) | Making in-game purchases and reviewing the history of past purchases. |
+| [Session](Programming/Online/SessionInterface) | Creating, destroying, and managing online game sessions. Also includes searching for sessions and matchmaking systems. |
+| [Store](Programming/Online/StoreInterface) | Retrieving the categories and specific offers available for in-game purchase. |
+| [User Cloud](Programming/Online/UserCloudInterface) | Provides the interface for per user cloud file storage. |

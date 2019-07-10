@@ -1,4 +1,4 @@
-INTSourceChangelist:4323617
+INTSourceChangelist:6429916
 Availability:Public
 Title: 나이아가라 에디터
 Crumbs: %ROOT%, Engine
@@ -6,14 +6,13 @@ Description: 나이아가라는 파티클 이펙트를 실시간 확인하며 �
 Navigation:topic
 parent:Engine
 order:4
-topic-image:NiagaraBanner.png
+type:landing
+topic-image:Niagara_Topic.png
 social-image:NiagaraSocial.png
-related:Engine\Rendering\ParticleSystems
+hero-image:NiagaraBanner.png
+related:Engine/Rendering/ParticleSystems
 tags:Niagara
-
-[REGION:banner]
-![](NiagaraBanner.png)(convert:false)
-[/REGION]
+tags:Early Access
 
 **Niagara Editor** (나이아가라 에디터)는 언리얼 엔진 4 (UE4)에서 비주얼 이펙트를 만들고 편집할 수 있는 두 가지 툴 중 하나입니다. 나이아가라 이전 UE4 에서 비주얼 이펙트를 만들고 편집하는 주된 방법은 [캐스케이드](Engine\Rendering\ParticleSystems) 를 사용하는 것이었습니다. 나이아가라에도 캐스케이드에서 제공하는 것과 똑같은 파티클 조작 방식이 여럿 있지만, 나이아가라에서 비주얼 이펙트를 만들고 다루는 방식은 크게 다릅니다. 
 
@@ -25,22 +24,4 @@ tags:Niagara
 
 ## 가이드
 
-[DIR(output:"fancy" parent:"Engine/Niagara/HowTo" org:"hierarchy" end:"1" )]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+[DIR(output:"fancy" parent:"Engine/Niagara/HowTo" org:"hierarchy" end:"1")]

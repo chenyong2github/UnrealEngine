@@ -24,6 +24,7 @@ enum class EInstallBundleModuleInitResult : int
 	ManifestDownloadError,
 	BackgroundDownloadsIniDownloadError,
 	NoInternetConnectionError,
+	ConfigurationError,
 	Count
 };
 
@@ -42,6 +43,7 @@ inline const TCHAR* LexToString(EInstallBundleModuleInitResult Result)
 		TEXT("ManifestDownloadError"),
 		TEXT("BackgroundDownloadsIniDownloadError"),
 		TEXT("NoInternetConnectionError"),
+		TEXT("ConfigurationError"),
 	};
 	static_assert(static_cast<UnderType>(EInstallBundleModuleInitResult::Count) == ARRAY_COUNT(Strings), "");
 
@@ -105,15 +107,17 @@ inline const TCHAR* GetInstallBundlePauseReason(EInstallBundlePauseFlags Flags)
 
 enum class EInstallBundleRequestFlags : uint32
 {
-	None = 0,
-	CheckForCellularDataUsage = (1 << 0),
-	UseBackgroundDownloads = (1 << 1),
+	None											= 0,
+	CheckForCellularDataUsage						= (1 << 0),
+	UseBackgroundDownloads							= (1 << 1),
+	SendNotificationIfDownloadCompletesInBackground = (1 << 2),
 	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 
 enum class EInstallBundleStatus : int
 {
+	Requested,
 	QueuedForDownload,
 	Downloading,
 	QueuedForInstall,
@@ -129,6 +133,7 @@ inline const TCHAR* LexToString(EInstallBundleStatus Status)
 	using UnderType = __underlying_type(EInstallBundleStatus);
 	static const TCHAR* Strings[] =
 	{
+		TEXT("Requested"),
 		TEXT("QueuedForDownload"),
 		TEXT("Downloading"),
 		TEXT("QueuedForInstall"),
@@ -291,9 +296,11 @@ public:
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) = 0;
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;
 
-	virtual void GetContentState(FName BundleName, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback) = 0;
-	virtual void GetContentState(TArrayView<FName> BundleNames, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback) = 0;
+	virtual void GetContentState(FName BundleName, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
+	virtual void GetContentState(TArrayView<FName> BundleNames, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
 
+    virtual void CancelAllGetContentStateRequestsForTag(FName RequestTag) = 0;
+    
 	virtual FInstallBundleRequestInfo RequestRemoveBundle(FName BundleName) = 0;
 
 	virtual void RequestRemoveBundleOnNextInit(FName BundleName) = 0;

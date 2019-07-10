@@ -36,7 +36,7 @@ DEFINE_STAT(STAT_PixelBufferMemory);
 
 static FAutoConsoleVariable CVarUseVulkanRealUBs(
 	TEXT("r.Vulkan.UseRealUBs"),
-	0,
+	1,
 	TEXT("0: Emulate uniform buffers on Vulkan SM4/SM5 (debugging ONLY)\n")
 	TEXT("1: Use real uniform buffers [default]"),
 	ECVF_ReadOnly
@@ -48,6 +48,18 @@ static TAutoConsoleVariable<int32> CVarDisableEngineAndAppRegistration(
 	TEXT("If true, disables engine and app registration, to disable GPU driver optimizations during debugging and development\n")
 	TEXT("Changes will only take effect in new game/editor instances - can't be changed at runtime.\n"),
 	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarGraphicsAdapter(
+	TEXT("r.GraphicsAdapter"),
+	-1,
+	TEXT("User request to pick a specific graphics adapter (e.g. when using a integrated graphics card with a discrete one)\n")
+	TEXT("For Windows D3D, unless a specific adapter is chosen we reject Microsoft adapters because we don't want the software emulation.\n")
+	TEXT("This takes precedence over -prefer{AMD|NVidia|Intel} when the value is >= 0.\n")
+	TEXT(" -2: Take the first one that fulfills the criteria\n")
+	TEXT(" -1: Favour non integrated because there are usually faster (default)\n")
+	TEXT("  0: Adapter #0\n")
+	TEXT("  1: Adapter #1, ..."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 
 const FString FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)EResourceTransitionAccess::EMaxAccess + 1] =
@@ -791,7 +803,7 @@ RHI_API bool RHISupportsTessellation(const EShaderPlatform Platform)
 {
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
-		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) || (Platform == SP_METAL_SM5) /*|| (IsVulkanSM5Platform(Platform))*/;
+		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
 	}
 	return false;
 }
@@ -862,6 +874,14 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 		++OutRTInfo.NumColorRenderTargets;
 
 		OutRTInfo.bClearColor |= (LoadAction == ERenderTargetLoadAction::EClear);
+
+		ensure(!OutRTInfo.bHasResolveAttachments || ColorRenderTargets[Index].ResolveTarget);
+		if (ColorRenderTargets[Index].ResolveTarget)
+		{
+			OutRTInfo.bHasResolveAttachments = true;
+			OutRTInfo.ColorResolveRenderTarget[Index] = OutRTInfo.ColorRenderTarget[Index];
+			OutRTInfo.ColorResolveRenderTarget[Index].Texture = ColorRenderTargets[Index].ResolveTarget;
+		}
 	}
 
 	ERenderTargetActions DepthActions = GetDepthActions(DepthStencilRenderTarget.Action);

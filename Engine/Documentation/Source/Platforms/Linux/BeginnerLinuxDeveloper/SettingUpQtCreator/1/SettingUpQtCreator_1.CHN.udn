@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3810467
-Availability: Public
+﻿INTSourceChangelist:6093761
+Availability: Docs
 Title: 1 - 配置Qt Creator以构建UE4
 Crumbs:%ROOT%
 Description:学习如何配置您的集成开发环境（IDE），在调试和发布模式中构建虚幻引擎4（UE4）。

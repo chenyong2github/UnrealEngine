@@ -29,8 +29,8 @@ topic-image:topic.png
 在下方页面中查看在每个平台上进行成就配置的详细内容：
 
 [REGION:buttonlist]
-* [](Platforms/Android/Achievements)
-* [](Platforms/iOS/Achievements)
+* [](Platforms/Mobile/Android/Achievements)
+* [](Platforms/Mobile/iOS/Achievements)
 [/REGION]
 
 

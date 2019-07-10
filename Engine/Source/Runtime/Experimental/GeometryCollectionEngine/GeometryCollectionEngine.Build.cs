@@ -25,9 +25,18 @@ namespace UnrealBuildTool.Rules
                     "FieldSystemEngine",
                     "GeometryCollectionCore", 
                     "GeometryCollectionSimulationCore",
-	                "ChaosSolverEngine"
+	                "ChaosSolverEngine",
+                    "IntelISPC",
+					"PhysicsSQ"
                 }
                 );
+
+	        if (!Target.bBuildRequiresCookedData)
+			{
+	            DynamicallyLoadedModuleNames.AddRange(new string[] { "DerivedDataCache" });
+		    }
+
+			PrivateIncludePathModuleNames.Add("DerivedDataCache");
 
 			if(Target.bBuildEditor)
             {

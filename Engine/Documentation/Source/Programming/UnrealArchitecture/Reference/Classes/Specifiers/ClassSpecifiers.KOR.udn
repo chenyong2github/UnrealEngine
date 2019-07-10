@@ -1,15 +1,14 @@
-﻿INTSourceChangelist:3767127
+INTSourceChangelist:6576483
 Availability:Public
 Title: 클래스 지정자
-Crumbs:%ROOT%
 Description: 클래스가 엔진과 에디터의 다양한 부분과 어떻게 작동하는지를 지정하기 위해 UClass 선언시 사용되는 키워드입니다.
 type:reference
 Version: 4.18
 parent:Programming/UnrealArchitecture/Reference/Classes
 order:0
-topic-image:components_topic.png
 tags:UCLASS
 tags:Specifiers
+topic-image:%ROOT%/placeholder_topic.png
 
 
 [EXCERPT:main]
@@ -34,7 +33,7 @@ tags:Specifiers
 | `Deprecated` | 이 클래스는 폐기되어서 이 클래스의 오브젝트는 시리얼라이즈에 저장되지 않습니다. 이 지정자는 서브클래스에 상속됩니다. |
 | `DontAutoCollapseCategories=(Category, Category, ...)` | 부모 클래스에서 상속된 나열 카테고리에 대해 `AutoCollapseCategories` 지정자를 무효화시킵니다. |
 | `DontCollapseCategories` | 베이스 클래스에서 상속된 `CollapseCatogories` 지정자를 무효화시킵니다. |
-| `EditInlineNew` | 이 클래스의 오브젝트는 기존 애셋에서 레퍼런싱되는 것과 반대로, 언리얼 에디터 프로퍼티 창에서 생성할 수 있음을 나타냅니다. 기본 작동방식은, 기존 오브젝트로의 레퍼런스만 프로퍼티 창을 통해 할당할 수 있습니다. 이 지정자는 모든 자식 클래스에 전파되며, 자식 클래스에서는 `NotEditInlineNew` 지정자로 덮어쓸 수 있습니다. |
+| `EditInlineNew` | 이 클래스의 오브젝트는 기존 애셋에서 참조되는 것과 반대로, 언리얼 에디터 프로퍼티 창에서 생성할 수 있음을 나타냅니다. 기본 작동방식은, 기존 오브젝트로의 레퍼런스만 프로퍼티 창을 통해 할당할 수 있습니다. 이 지정자는 모든 자식 클래스에 전파되며, 자식 클래스에서는 `NotEditInlineNew` 지정자로 덮어쓸 수 있습니다. |
 | `HideCategories=(Category1, Category2, ...)` | 이 클래스의 오브젝트에 대해 언리얼 에디터 프로퍼티 창에서 숨겨야 하는 카테고리를 하나 이상 나열합니다. 카테고리 없이 선언된 프로퍼티를 숨기려면, 변수를 선언한 것과 같은 클래스 이름을 사용하면 됩니다. 이 지정자는 자식 클래스에 전파됩니다. |
 | `HideDropdown` | 이 클래스가 언리얼 에디터 프로퍼티 창에 콤보 박스로 나타나지 않도록 합니다. |
 | `HideFunctions=(Category1, Category2, ...)` | 프로퍼티 뷰어에서 지정된 카테고리의 모든 함수를 숨깁니다. |

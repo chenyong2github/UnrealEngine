@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6419705
 Availability: Public
 Title:示例与教学
 Crumbs:%ROOT%
@@ -14,7 +14,6 @@ topic-icon:%ROOT%/tutorial_icon.png
 
 为了帮助你快速了解使用UE4以及使用方法，并可以用它来创造内容。我们已经准备了一些内容提供给你下载，试玩以及分析。
 
-%Videos:topic%
 %Resources/Templates:topic%
 [OBJECT:Topic]
 	[PARAM:image]
@@ -31,7 +30,6 @@ topic-icon:%ROOT%/tutorial_icon.png
 	[/PARAMLITERAL]
 [/OBJECT]
 
-(#LearningResourceProjects)
 ## 学习资源工程
 
 [PUBLISH:Licensee]
@@ -46,7 +44,6 @@ topic-icon:%ROOT%/tutorial_icon.png
 %Resources/SampleGames:topic%
 
 
-(#CommunitySampleDocumentation)
 ## 社区示范文档
 
 %Resources/Community/SciFiBunk_MaterialInstancing:topic%

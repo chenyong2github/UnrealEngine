@@ -34,27 +34,27 @@ public:
 	virtual bool IsActorPickable( const AActor* const ParentActor, FGuid ObjectBinding, UMovieSceneSection* InSection) { return false; }
 
 	/** Actor socket was picked */
-	virtual void ActorSocketPicked(const FName SocketName, USceneComponent* Component, FActorPickerID ActorPickerID, FGuid ObjectBinding, UMovieSceneSection* Section) {}
+	virtual void ActorSocketPicked(const FName SocketName, USceneComponent* Component, FActorPickerID ActorPickerID, TArray<FGuid> ObjectBinding, UMovieSceneSection* Section) {}
 
 	/** Show a sub menu of the pickable actors */
-	void ShowActorSubMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding, UMovieSceneSection* Section);
+	void ShowActorSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneSection* Section);
 
 private: 
 
 	/** Actor was picked */
-	void ActorPicked(AActor* ParentActor, FGuid ObjectBinding, UMovieSceneSection* Section);
+	void ActorPicked(AActor* ParentActor, TArray<FGuid> ObjectBinding, UMovieSceneSection* Section);
 
 	/** Existing binding was picked */
-	void ExistingBindingPicked(FMovieSceneObjectBindingID ExistingBindingID, FGuid ObjectBinding, UMovieSceneSection* Section);
+	void ExistingBindingPicked(FMovieSceneObjectBindingID ExistingBindingID, TArray<FGuid> ObjectBindings, UMovieSceneSection* Section);
 
 	/** Actor and/or existing binding was picked */
-	void ActorPickerIDPicked(FActorPickerID, FGuid ObjectBinding, UMovieSceneSection* Section);
+	void ActorPickerIDPicked(FActorPickerID, const TArray<FGuid>& ObjectBindings, UMovieSceneSection* Section);
 
 	/** Actor component was picked */
-	void ActorComponentPicked(FString ComponentName, FActorPickerID ActorPickerID, FGuid ObjectBinding, UMovieSceneSection* Section);
+	void ActorComponentPicked(FString ComponentName, FActorPickerID ActorPickerID, TArray<FGuid> ObjectBindings, UMovieSceneSection* Section);
 
 	/** Interactively pick an actor from the viewport */
-	void PickActorInteractive(FGuid ObjectBinding, UMovieSceneSection* Section);
+	void PickActorInteractive(const TArray<FGuid>& ObjectBindings, UMovieSceneSection* Section);
 
 	/** A binding ID picker that allows us to create a new section from an existing binding */
 	TSharedPtr<FTrackEditorBindingIDPicker> BindingIDPicker;

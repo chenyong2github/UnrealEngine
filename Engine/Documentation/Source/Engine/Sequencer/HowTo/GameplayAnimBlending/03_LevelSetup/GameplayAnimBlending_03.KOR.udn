@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6419241
+Availability: Docs
 Title:3. 시네마틱 노출 변수 사용
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
 Description:이번 단계에서는 시네마틱 노출 변수를 시퀀스에 추가하고 시퀀스 재생 발동을 위한 메서드를 구성합니다.
@@ -10,7 +10,7 @@ order:3
 checkpoint: editorqs
 tags:Sequencer
 tags:Animation
-type:how-to
+type:multi-step
 
 [VAR:Steps]
 [OBJECT:Navigation]

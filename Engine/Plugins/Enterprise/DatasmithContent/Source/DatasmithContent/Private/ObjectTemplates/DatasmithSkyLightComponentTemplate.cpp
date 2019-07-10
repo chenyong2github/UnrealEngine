@@ -7,24 +7,24 @@ UDatasmithSkyLightComponentTemplate::UDatasmithSkyLightComponentTemplate()
 	Load( USkyLightComponent::StaticClass()->GetDefaultObject() );
 }
 
-void UDatasmithSkyLightComponentTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithSkyLightComponentTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	USkyLightComponent* SkyLightComponent = Cast< USkyLightComponent >( Destination );
 
 	if ( !SkyLightComponent )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithSkyLightComponentTemplate* PreviousTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithSkyLightComponentTemplate >( Destination ) : nullptr;
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( SourceType, SkyLightComponent, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( CubemapResolution, SkyLightComponent, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( Cubemap, SkyLightComponent, PreviousTemplate );
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( Destination, this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return Destination;
 }
 
 void UDatasmithSkyLightComponentTemplate::Load( const UObject* Source )

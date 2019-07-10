@@ -45,7 +45,7 @@ struct FMovieSceneChannelMetaData
 	/** True if this channel can be collapsed onto the top level track node */
 	uint8 bCanCollapseToTrack : 1;
 	/** A sort order for this channel. Channels are sorted by this order, then by name. Groups are sorted by the channel with the lowest sort order. */
-	uint8 SortOrder;
+	uint32 SortOrder;
 	/** This channel's unique name */
 	FName Name;
 	/** Text to display on this channel's key area node */

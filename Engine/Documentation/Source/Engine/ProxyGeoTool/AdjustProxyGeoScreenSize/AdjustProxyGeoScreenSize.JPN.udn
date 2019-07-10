@@ -1,0 +1,64 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Adjust Proxy Geometry Screen Size
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: how-to
+SkillLevel:Advanced
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: Optimization
+Tags: ProxyGeometryTool
+
+
+In the following How - To we, will take a look at using the **Spatial Sampling Distance** override parameter to manually adjust the feature minimum size that the system captures when it re-meshes all the Objects (before it simplifies). 
+
+## Steps
+
+1.  First, inside of any Unreal Engine 4 (UE4) level, select a few Static Meshes to work with.  
+    ![](Proxy_Geo_HT_OSS_02.png "Proxy_Geo_HT_OSS_02.png")
+2.  With the Static Meshes still selected open up the **Merge Actors** tool by going to  **Window > Developer Tools.**  Then from the displayed list, select the **Merge Actors** tool.  
+    ![](ProxyLOD_05.png "ProxyLOD_05.png")
+3.  When the Merge Actors tool opens, click on the **2nd** icon to access the **Proxy Geometry** tools. Then under **Proxy Settings**, expand the **Material Settings** section.  
+    ![](Proxy_Geo_HT_OSS_01.png "Proxy_Geo_HT_OSS_01.png")
+4.  Locate the **Override Spatial Sampling Distance** parameter and click on the box next to its name to enable it.  
+    ![](Proxy_Geo_HT_OSS_03.png "Proxy_Geo_HT_OSS_03.png")
+5.  Set the value of Override Spatial Sampling Distance to 100 and then press the **Merge Actors** button.  
+    ![](Proxy_Geo_HT_OSS_04.png "Proxy_Geo_HT_OSS_04.png")  
+    [REGION:note]
+    By default, the system computes a guess at this size based on the bounding box of the geometry and the requested **Screen Size**. If you look in the **Window > Developer Tool > Output Log**, you will see that the actual number used by the system will be written out. The larger this number is, the less simplification will be performed. The smaller the number is, more simplification will be performed.
+    [/REGION]
+    
+6.  Specify a name and location for the newly created Static Mesh and then press the **Save** button to begin to Proxy Geometry creation process.  
+    ![](Proxy_Geo_HT_OSS_05.png "Proxy_Geo_HT_OSS_05.png")
+
+## End Result
+
+When the process has completed you will now have a new Static Mesh, Material and Textures of all the Static Meshes you had selected in the first step of this How - To. The images below demonstrate the effects of setting the Override Spatial Sampling Distance to different values has on the created Static Mesh.
+
+[EXCERPT:OverrideSpatialSamplingDistanceSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	5
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	OverrideSpatialSamplingDistance
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    Override Spatial Sampling Distance = 0.5 | Override Spatial Sampling Distance = 1 | Override Spatial Sampling Distance = 10 | Override Spatial Sampling Distance = 100	[/PARAM]
+    [PARAM:image_list]
+    ![](Proxy_Geo_HT_OOS_Slider_Orginal.png)
+![](Proxy_Geo_HT_OOS_Slider_0.5.png)
+![](Proxy_Geo_HT_OOS_Slider_1.0.png)
+![](Proxy_Geo_HT_OOS_Slider_10.png)
+![](Proxy_Geo_HT_OOS_Slider_100.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:OverrideSpatialSamplingDistanceSlider]
+
+[](#)[](#)

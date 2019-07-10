@@ -29,7 +29,6 @@ float CalcSkyLightPdf(uint2 Pixel)
 	{
 		uint MipIndex = MipCount - Index - 1;
 
-		// #dxr_todo: Use float4?
 		float Cdf[4];
 		Cdf[0] = SampleMipTree(MipPixel, MipIndex);
 		Cdf[1] = Cdf[0] + SampleMipTree(MipPixel + uint2(1, 0), MipIndex);

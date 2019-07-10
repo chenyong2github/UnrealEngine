@@ -1,4 +1,4 @@
-Availability:Public
+Availability:Docs
 Crumbs: %ROOT%
 Title:4 - TV Blueprint Setup - Construction Script
 Description:In this step, we use the Construction Script to set up some parameters that we can change for the TV Blueprint within the editor. 
@@ -11,6 +11,8 @@ type:multi-step
 order:4
 tags:Media Framework
 tags:Blueprints
+
+## Marked as Docs as the page has been combined into one page. 
  
 [NAV]
 

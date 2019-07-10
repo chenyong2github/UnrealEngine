@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3403467
+INTSourceChangelist:3403467
 Availability: Public
 crumbs:
 Title: 폰트 임포트
@@ -30,7 +30,7 @@ topic-image:ImportingFonts_Topic.png
 
 
 [REGION:note]
-여기서는 **공백 템플릿** 프로젝트에 **시작용 콘텐츠** 은 없으며, 기본 **타깃 하드웨어** 및 **프로젝트 세팅** 을 사용하고 있습니다. 
+여기서는 **기본 템플릿** 프로젝트에 **시작용 콘텐츠** 은 없으며, 기본 **타깃 하드웨어** 및 **프로젝트 세팅** 을 사용하고 있습니다. 
 [/REGION]
 
 ## 콘텐츠 브라우저 사용

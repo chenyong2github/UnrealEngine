@@ -1,0 +1,127 @@
+INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: 오브젝트별 변환 세팅
+Description: 3ds Max 씬의 특정 오브젝트에 대해 선택된 변환 옵션을 지정하는 Datasmith Attribute Modifier 사용법을 설명합니다.
+Type: How-To
+skilllevel:Beginner
+Version: 4.22
+Parent: Studio/Datasmith/SoftwareInteropGuides/3dsMax
+Order: 2
+Tags: 3DS Max
+Tags: how to
+Tags: Datasmith
+topic-image: placeholder_topic.png
+topic-icon: ue4_icon.png
+
+
+3ds Max 용 데이터스미스 익스포터 플러그인을 설치하면, **Datasmith Attributes modifier** (데이터스미스 어트리뷰트 모디파이어)에 액세스할 수 있습니다. 이 모디파이어를 사용하면 개별 씬 오브젝트가 3ds Max 에서 언리얼 엔진으로 변환되는 방식을 사용자 정의할 수 있습니다. 예:
+
+*   언리얼 엔진에서 만든 라이트맵에 사용하려는 UV 채널 인덱스를 지정할 수 있습니다. [라이트맵 UV 인덱스 지정](#라이트맵UV인덱스지정) 부분을 참고하세요.
+*   씬의 오브젝트에 커스텀 콜리전 지오메트리를 지정할 수 있습니다. [커스텀 콜리전 볼륨 설정](#커스텀콜리전볼륨설정) 부분을 참고하세요.
+*   오브젝트를 전체 지오메트리 대신 단순화된 바운딩 박스만 익스포트할 수 있습니다. [바운딩 박스만 익스포트](#바운딩박스만익스포트) 부분을 참고하세요.
+
+다음 이미지는 선택된 씬 오브젝트에 할당된 **Datasmith Attributes** (데이터스미스 어트리뷰트) 모디파이어를 보여줍니다.
+
+[REGION:lightbox]
+[![Datasmith Attributes Modifier](modifier-in-context.png "Datasmith Attributes Modifier")(w:1000)](modifier-in-context.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+## 데이터스미스 어트리뷰트 모디파이어 적용
+
+3ds Max 씬의 오브젝트에 데이터스미스 어트리뷰트 모디파이어를 적용하는 방식은 다른 모디파이어 유형과 똑같습니다. 배경 정보는 3ds Max 의 [Modifiers](http://help.autodesk.com/view/3DSMAX/2019/ENU/?guid=GUID-79998C44-22AA-4485-9608-51630079E5A7) 관련 도움말을 참고하세요.
+
+### 단계
+
+1.  익스포트 세팅을 사용자 정의하려는 오브젝트를 선택합니다.
+2.  **Modify** (수정) 패널을 엽니다.
+3.  Modifier List (모디파이어 리스트) 드롭다운 메뉴에서 **OBJECT-SPACE MODIFIERS > Datasmith Attributes** 를 찾아 선택합니다.  
+    ![Modifier List](modifier-menu.png "Modifier List")
+
+### 최종 결과
+
+데이터스미스 어트리뷰트 모디파이어는 기본적으로 [](Studio/Datasmith/SoftwareInteropGuides/3dsMax) 에 설명된 동작을 변경하지 않도록 설정되어 있습니다. 그 기본 동작을 사용자 정의하려면 모디파이어에 대한 세팅을 변경해야 합니다. 모디파이어로 할 수 있는 작업 관련 자세한 내용은 다음 섹션을 참고하세요.
+
+## 라이트맵 UV 인덱스 지정
+
+기본적으로 데이터스미스는 씬의 지오메트리 오브젝트 각각에 대해 두 개의 UV 채널을 새로 생성합니다. 자세한 내용은 [](Studio/Datasmith/SoftwareInteropGuides/3dsMax) 문서를 참고하세요. 이 채널 중 하나가 라이트맵 UV 로, 미리계산한 라이팅을 저장합니다. 그러면 언리얼 엔진 안에 임포트된 씬의 모든 오브젝트가 스태틱 및 스테이셔너리 라이트와 호환됩니다. 자세한 정보는 [](Engine/Content/Types/StaticMeshes/HowTo/UVChannels) 문서를 참고하세요.
+
+그러나 3ds Max 에서는 오브젝트에 별도의 라이트맵을 만들 수 있습니다. 이 작업을 선택한 경우, 데이터스미스가 임포트할 때 추가 UV 세트를 자동 생성하지 않는 것이 좋습니다. 대신 오브젝트가 이미 만들어 둔 라이트맵 UV 를 사용하도록 설정하는 것이 좋습니다.
+
+### 단계
+
+1.  3ds Max 에서 만든 라이트맵 UV 가 있는 오브젝트에 데이터스미스 어트리뷰트 모디파이어를 선택하고 할당합니다. [데이터스미스 어트리뷰트 모디파이어 적용](#데이터스미스어트리뷰트모디파이어적용) 부분을 참고하세요.
+2.  데이터스미스 어트리뷰트 모디파이어에 대한 세팅에서, **Lightmap UVs** 세팅을 **Specify Lightmap Channel** 로 변경합니다.  
+    ![Specify Lightmap Channel](modifier-lightmap-uvs-select.png "Specify Lightmap Channel")
+3.  **Map Channel** (맵 채널) 세팅으로 이 모디파이어를 사용하는 오브젝트가 미리계산한 라이팅을 저장할 때 사용할 UV 채널 인덱스를 지정합니다.  
+    ![Map Channel](modifier-lightmap-uvs-index.png "Map Channel")
+
+### 최종 결과
+
+다음 번 이 씬을 익스포트하고 언리얼로 임포트할 때, 데이터스미스는 이 모디파이어 세팅을 적용한 씬 오브젝트에 대해 UV 채널을 새로 생성하지 않습니다. 대신 그 오브젝트가 지정한 **Map Channel** 을 사용하도록 합니다.
+
+[REGION:tip]
+세팅을 제대로 가져왔는지 확인하려면, 스태틱 메시 에디터에서 스태틱 메시 애셋을 엽니다. 디테일 패널에서 **General Settings > Light Map Coordinate Index** 세팅을 찾습니다.  
+![Light Map Coordinate Index](modifier-uv-coordinateindex.png "Light Map Coordinate Index")  
+이 값이 3ds Max 에 있는 UV 채널을 반영할 것입니다.
+[/REGION]
+[REGION:note]
+**Light Map Coordinate Index** 세팅에 실제 표시되는 인덱스 번호가 데이터스미스 어트리뷰트 모디파이어에 설정한 번호와 일치하지 않을 수 있습니다. 임포트 프로세스 도중 3ds Max 의 UV 채널 인덱스가 어떻게 변경되었는지에 따라 달라집니다 (자세한 내용은 [](Studio/Datasmith/SoftwareInteropGuides/3dsMax) 문서를 참고하세요).  
+인덱스가 기대하는 UV 레이아웃을 가리키는지 확인하려면, 스태틱 메시 에디터의 툴바에서 **UVs** 버튼을 클릭한 다음, **Light Map Coordinate Index** (라이트맵 좌표 인덱스) 세팅에 표시되는 인덱스 번호를 선택합니다. 뷰포트 좌하단에 커스텀 라이트맵이 보일 것입니다.
+[REGION:lightbox]
+[![Visualize UV index](modifier-uv-verify-select.png "Visualize UV index")(w:1000)](modifier-uv-verify-select.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[/REGION]
+
+## 커스텀 콜리전 볼륨 설정
+
+데이터스미스 어트리뷰트 모디파이어를 사용하여 언리얼 엔진에서 다른 씬 오브젝트에 대한 콜리전 메시로 사용하려는 오브젝트를 지정할 수 있습니다. 배경 정보는 [](Studio/Datasmith/SoftwareInteropGuides/3dsMax) 문서를 참고하세요.
+
+### 단계
+
+1.  씬에서 언리얼 엔진 물리 시뮬레이션을 다른 오브젝트로 대체하려는 오브젝트를 선택하고, 데이터스미스 어트리뷰트 모디파이어를 적용합니다. [데이터스미스 어트리뷰트 모디파이어 적용](#데이터스미스어트리뷰트모디파이어적용) 부분을 참고하세요.
+2.  데이터스미스 어트리뷰트 모디파이어 세팅의 **Collisions** (콜리전) 섹션 아래, **Use Custom Collision Mesh** (커스텀 콜리전 메시 사용) 옵션을 체크합니다.  
+    ![Use Custom Collision Mesh](modifier-collisions-use.png "Use Custom Collision Mesh")
+3.  **Pick Geometric Object** (지오메트리 오브젝트 선택)을 클릭합니다.  
+    ![Pick Geometric Object](modifier-collisions-pick.png "Pick Geometric Object")
+4.  3ds Max 뷰포트 또는 Outliner 패널에서 콜리전 메시로 사용할 객체를 선택합니다.
+    [REGION:note]
+    이 오브젝트가 [](Studio/Datasmith/SoftwareInteropGuides/3dsMax) 문서에 설명된 요건을 충족하는지 확인합니다. 완전히 볼록이고, 피벗 위치가 볼륨 기준 같은 위치에 있어야 합니다.
+    [/REGION]
+    
+
+### 최종 결과
+
+다음 번 이 씬을 익스포트하고 언리얼 에디터에 리임포트하면, 위 1 단계에서 데이터스미스 어트리뷰트 모디파이어를 할당한 오브젝트에 위 4 단계에서 선택한 오브젝트 모양으로 된 콜리전 볼륨이 새로 생겼을 것입니다.
+
+## 바운딩 박스만 익스포트
+
+경우에 따라 3ds Max 의 특정 씬 오브젝트에 언리얼 엔진과 다른 지오메트리를 사용하고 싶을 수 있습니다. 예를 들어 3ds Max 의 오프라인 렌더링에 사용하는 대단히 복잡하고 매우 세밀한 제오미트리는 가벼운 버전으로 대체하여 실시간 효율을 높일 수 있습니다.
+
+이 경우에도 씬에 이러한 오브젝트를 포함시켜야만 언리얼 에디터에서 오브젝트를 올바른 위치에 대체할 수 있습니다. 그러나 복잡한 오브젝트의 전체 지오메트리를 변환하면 익스포트와 임포트 프로세스가 더 오래 걸립니다. 프로젝트 콘텐츠에 불필요한 스태틱 메시 애셋이 많이 생기기도 합니다.
+
+데이터스미스 어트리뷰트 모디파이어를 사용해서 익스포트 프로세스 도중 특수 처리할 오브젝트에 마킹하면 두 가지 장점을 모두 활용할 수 있습니다. 전체 지오메트리를 익스포트하는 대신, 데이터스미스가 오브젝트의 3D 바운딩 박스에 따라 경량 지오메트리 표현을 새로 만들도록 할 수 있습니다. 이 오브젝트는 데이터스미스 씬에 원래 이름 원래 위치 그대로 포함되지만, 지오메트리가 단순한 바운딩 볼륨으로 엄청나게 간소화됩니다.
+
+### 단계
+
+1.  씬에서 언리얼 엔진 물리 시뮬레이션을 다른 오브젝트로 대체하려는 오브젝트를 선택하고, 데이터스미스 어트리뷰트 모디파이어를 적용합니다. [데이터스미스 어트리뷰트 모디파이어 적용](#데이터스미스어트리뷰트모디파이어적용) 부분을 참고하세요.
+2.  데이터스미스 어트리뷰트 모디파이어 세팅의 **Export Geometry As** 섹션 아래 **Bounding Geometry** 를 선택합니다.  
+    ![Export Geometry As Bounding Box](modifier-export-bb-setting.png "Export Geometry As Bounding Box")
+
+### 최종 결과
+
+데이터스미스를 사용하여 언리얼 에디터에 씬을 임포트한 이후, 데이터스미스 어트리뷰트 모디파이어로 마킹한 씬 오브젝트가 레벨에 원본 지오메트리로 표시되지 않는 것이 보일 것입니다. 지오메트리가 단순한 회색 바운딩 볼륨으로 대체됩니다.
+
+예를 들어 아래 이미지에서 3ds Max 씬 가운데 리프트 오브젝트는 바운딩 박스만 익스포트하도록 마킹되었습니다. 임포트 후 언리얼 엔진 레벨에 기본 머티리얼의 단순화된 볼륨으로만 나타납니다.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [REGION:lightbox][![](modifier-export-bb-before.png)(w:450)](modifier-export-bb-before.png "Geometry in 3ds Max")[/REGION] | [REGION:lightbox][![](modifier-export-bb-after.png)(w:450)](modifier-export-bb-after.png "Bounding boxes in UE4")[/REGION] |
+| 3ds Max 의 지오메트리 | UE4 의 바운딩 박스 |
+[/REGION]
+
+이 시점에서 단순화된 씬 요소를 다양한 방법으로 활용할 수 있습니다. 예를 들어 단순화된 오브젝트를 커스텀 스태틱 메시 애셋의 인스턴스로 대체할 수 있습니다. 또는 단순화된 액터를 뷰에서 숨기고, 그 (3D 공간 위치 및 바운딩 박스 크기같은) 정보만 다른 용도로 활용할 수도 있습니다.
+

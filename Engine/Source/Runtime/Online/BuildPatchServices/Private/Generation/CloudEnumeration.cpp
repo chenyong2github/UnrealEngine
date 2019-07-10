@@ -178,7 +178,7 @@ namespace BuildPatchServices
 
 	TFuture<FBuildPatchAppManifestPtr> FCloudEnumeration::AsyncLoadManifest(const FString& ManifestFilename)
 	{
-		return Async<FBuildPatchAppManifestPtr>(EAsyncExecution::ThreadPool, [this, ManifestFilename]() -> FBuildPatchAppManifestPtr
+		return Async(EAsyncExecution::ThreadPool, [this, ManifestFilename]() -> FBuildPatchAppManifestPtr
 		{
 			if (IFileManager::Get().GetTimeStamp(*ManifestFilename) < ManifestAgeThreshold)
 			{
@@ -205,7 +205,7 @@ namespace BuildPatchServices
 		typedef TTuple<TSet<uint32>, TMap<FGuid, uint32>> FWindowSizes;
 		// Check if this chunk will already beling to our matching feature level sub dir - ptr==ptr test is fine, no need to string compare.
 		const bool bMatchingChunkSubdir = FeatureLevelChunkSubdir == ManifestVersionHelpers::GetChunkSubdir(Manifest->GetFeatureLevel());
-		TFuture<FWindowSizes> CalculateChunkWindowSizesFuture = Async<FWindowSizes>(EAsyncExecution::TaskGraph, [&](){ return CalculateChunkWindowSizes(Manifest); });
+		TFuture<FWindowSizes> CalculateChunkWindowSizesFuture = Async(EAsyncExecution::TaskGraph, [&](){ return CalculateChunkWindowSizes(Manifest); });
 		TArray<FGuid> DataList;
 		Manifest->GetDataList(DataList);
 		if (!Manifest->IsFileDataManifest())

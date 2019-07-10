@@ -6,13 +6,15 @@
 
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Views/STableRow.h"
 
 #include "EditorStyleSet.h"
 
 
-void SCurveEditorTreePin::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID)
+void SCurveEditorTreePin::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& InTableRow)
 {
 	WeakCurveEditor = InCurveEditor;
+	WeakTableRow = InTableRow;
 	TreeItemID = InTreeItemID;
 
 	ChildSlot
@@ -103,8 +105,19 @@ bool SCurveEditorTreePin::IsPinnedRecursive(FCurveEditorTreeItemID InTreeItem, F
 
 EVisibility SCurveEditorTreePin::GetPinVisibility() const
 {
-	// ToDo: These should only be visible when hovering over the owning widget row.
-	return EVisibility::Visible;
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	TSharedPtr<ITableRow> Row = WeakTableRow.Pin();
+	TSharedPtr<SWidget> RowWidget = Row ? TSharedPtr<SWidget>(Row->AsWidget()) : nullptr;
+
+	if (RowWidget && RowWidget->IsHovered())
+	{
+		return EVisibility::Visible;
+	}
+	else if (CurveEditor && IsPinnedRecursive(TreeItemID, CurveEditor.Get()))
+	{
+		return EVisibility::Visible;
+	}
+	return EVisibility::Collapsed;
 }
 
 const FSlateBrush* SCurveEditorTreePin::GetPinBrush() const

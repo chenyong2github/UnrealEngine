@@ -22,7 +22,18 @@
 #include "USDImporterProjectSettings.h"
 #include "USDPrimResolverKind.h"
 
+#include "USDMemory.h"
 
+#if USE_USD_SDK
+#include "USDIncludesStart.h"
+
+#include "pxr/base/tf/token.h"
+#include "pxr/usd/usd/modelAPI.h"
+#include "pxr/usd/usd/stage.h"
+#include "pxr/usd/usd/variantSets.h"
+
+#include "USDIncludesEnd.h"
+#endif // #if USE_USD_SDK
 
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
 
@@ -145,13 +156,12 @@ UUSDImporter::UUSDImporter(const FObjectInitializer& Initializer)
 {
 }
 
+#if USE_USD_SDK
 TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, const TArray<FUsdAssetPrimToImport>& PrimsToImport)
 {
 	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ImportingUSDMeshes", "Importing USD Meshes"));
 	SlowTask.Visibility = ESlowTaskVisibility::ForceVisible;
 	int32 MeshCount = 0;
-
-	const FTransform& ConversionTransform = ImportContext.ConversionTransform;
 
 	EUsdMeshImportType MeshImportType = ImportContext.ImportOptions->MeshImportType;
 
@@ -160,7 +170,12 @@ TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, co
 
 	ImportContext.PathToImportAssetMap.Reserve(PrimsToImport.Num());
 
+	TArray<UObject*> ImportedAssets;
+
 	const FString& ContentDirectoryLocation = ImportContext.ImportPathName;
+
+	const FString RootPrimName = USDToUnreal::ConvertString( ImportContext.Stage.Get()->GetDefaultPrim().GetName().GetString().c_str() );
+	const FString RootPrimDirectoryLocation = RootPrimName + TEXT("/");
 
 	for (const FUsdAssetPrimToImport& PrimToImport : PrimsToImport)
 	{
@@ -173,43 +188,108 @@ TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, co
 
 		// when importing only one mesh we just use the existing package and name created
 		{
+			FScopedUsdAllocs UsdAllocs;
+			{
+				const pxr::UsdPrim& Prim = PrimToImport.Prim.Get();
 
-			const FString RawPrimName = USDToUnreal::ConvertString(PrimToImport.Prim->GetPrimName());
-			FString MeshName = ObjectTools::SanitizeObjectName(RawPrimName);
-
-			if (ImportContext.ImportOptions->bGenerateUniquePathPerUSDPrim)
-			{
-				FString USDPath = USDToUnreal::ConvertString(PrimToImport.Prim->GetPrimPath());
-				USDPath.RemoveFromStart(TEXT("/"));
-				USDPath.RemoveFromEnd(RawPrimName);
-				FinalPackagePathName /= (USDPath / MeshName);
-			}
-			else if (FPackageName::IsValidObjectPath(PrimToImport.AssetPath))
-			{
-				FinalPackagePathName = PrimToImport.AssetPath;
-			}
-			else if (!PrimToImport.AssetPath.IsEmpty())
-			{
-				FinalPackagePathName /= PrimToImport.AssetPath;
-			}
-			else
-			{
-				// Make unique names
-				int* ExistingCount = ExistingNamesToCount.Find(MeshName);
-				if (ExistingCount)
+				auto GetEnclosingModelPrim = []( const pxr::UsdPrim& Prim ) -> pxr::UsdPrim
 				{
-					MeshName += TEXT("_");
-					MeshName.AppendInt(*ExistingCount);
-					++(*ExistingCount);
+					pxr::UsdPrim ModelPrim = Prim.GetParent();
+
+					while ( ModelPrim )
+					{
+						if ( IUsdPrim::IsKindChildOf( ModelPrim, "model" ) )
+						{
+							break;
+						}
+						else
+						{
+							ModelPrim = ModelPrim.GetParent();
+						}
+					}
+
+					return ModelPrim.IsValid() ? ModelPrim : Prim;
+				};
+
+				const pxr::UsdPrim& ModelPrim = GetEnclosingModelPrim( Prim );
+
+				const FString RawPrimName = USDToUnreal::ConvertString(Prim.GetName().GetString());
+
+				pxr::UsdModelAPI ModelApi = pxr::UsdModelAPI( ModelPrim );
+
+				std::string RawAssetName;
+				ModelApi.GetAssetName( &RawAssetName );
+
+				FString AssetName = USDToUnreal::ConvertString( RawAssetName );
+				FString MeshName = ObjectTools::SanitizeObjectName(RawPrimName);
+
+				if (ImportContext.ImportOptions->bGenerateUniquePathPerUSDPrim)
+				{
+					FString USDPath = USDToUnreal::ConvertString(Prim.GetPrimPath().GetString().c_str());
+
+					pxr::SdfAssetPath AssetPath;
+					if ( ModelApi.GetAssetIdentifier( &AssetPath ) )
+					{
+						std::string AssetIdentifier = AssetPath.GetAssetPath();
+						USDPath = USDToUnreal::ConvertString(AssetIdentifier.c_str());
+
+						USDPath = FPaths::ConvertRelativePathToFull( RootPrimDirectoryLocation, USDPath );
+
+						FPackageName::TryConvertFilenameToLongPackageName( USDPath, USDPath );
+						USDPath.RemoveFromEnd( AssetName );
+					}
+
+					FString VariantName;
+
+					if ( ModelPrim.HasVariantSets() )
+					{
+						pxr::UsdVariantSet ModelVariantSet = ModelPrim.GetVariantSet( "modelingVariant" );
+						if ( ModelVariantSet.IsValid() )
+						{
+							std::string VariantSelection = ModelVariantSet.GetVariantSelection();
+
+							if ( VariantSelection.length() > 0 )
+							{
+								VariantName = USDToUnreal::ConvertString( VariantSelection.c_str() );
+							}
+						}
+					}
+
+					if ( !VariantName.IsEmpty() )
+					{
+						USDPath = USDPath / VariantName;
+					}
+
+					USDPath.RemoveFromStart(TEXT("/"));
+					USDPath.RemoveFromEnd(RawPrimName);
+					FinalPackagePathName /= (USDPath / MeshName);
+				}
+				else if (FPackageName::IsValidObjectPath(PrimToImport.AssetPath))
+				{
+					FinalPackagePathName = PrimToImport.AssetPath;
+				}
+				else if (!PrimToImport.AssetPath.IsEmpty())
+				{
+					FinalPackagePathName /= PrimToImport.AssetPath;
 				}
 				else
 				{
-					ExistingNamesToCount.Add(MeshName, 1);
+					// Make unique names
+					int* ExistingCount = ExistingNamesToCount.Find(MeshName);
+					if (ExistingCount)
+					{
+						MeshName += TEXT("_");
+						MeshName.AppendInt(*ExistingCount);
+						++(*ExistingCount);
+					}
+					else
+					{
+						ExistingNamesToCount.Add(MeshName, 1);
+					}
+
+					FinalPackagePathName / MeshName;
 				}
-
-				FinalPackagePathName / MeshName;
 			}
-
 
 			NewPackageName = UPackageTools::SanitizePackageName(FinalPackagePathName);
 		
@@ -227,7 +307,7 @@ TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, co
 			}
 			else
 			{
-				ImportContext.AddErrorMessage(EMessageSeverity::Warning, FText::Format(LOCTEXT("DuplicateMeshFound", "The mesh path '{0}' was found more than once.  Duplicates will be ignored"), FText::FromString(NewPackageName)));
+				ImportedAssets.Add( ImportContext.PathToImportAssetMap[NewPackageName] );
 			}
 
 		}
@@ -242,13 +322,11 @@ TArray<UObject*> UUSDImporter::ImportMeshes(FUsdImportContext& ImportContext, co
 
 				NewMesh->MarkPackageDirty();
 				ImportContext.PathToImportAssetMap.Add(NewPackageName, NewMesh);
+				ImportedAssets.Add(NewMesh);
 				++MeshCount;
 			}
 		}
 	}
-
-	TArray<UObject*> ImportedAssets;
-	ImportContext.PathToImportAssetMap.GenerateValueArray(ImportedAssets);
 
 	return ImportedAssets;
 }
@@ -264,6 +342,7 @@ UObject* UUSDImporter::ImportSingleMesh(FUsdImportContext& ImportContext, EUsdMe
 
 	return NewMesh;
 }
+#endif // #if USE_USD_SDK
 
 bool UUSDImporter::ShowImportOptions(UObject& ImportOptions)
 {
@@ -293,14 +372,14 @@ bool UUSDImporter::ShowImportOptions(UObject& ImportOptions)
 	return OptionsWindow->ShouldImport();
 }
 
-IUsdStage* UUSDImporter::ReadUSDFile(FUsdImportContext& ImportContext, const FString& Filename)
+#if USE_USD_SDK
+TUsdStore< pxr::UsdStageRefPtr > UUSDImporter::ReadUSDFile(FUsdImportContext& ImportContext, const FString& Filename)
 {
 	FString FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Filename);
 	FilePath = FPaths::GetPath(FilePath) + TEXT("/");
 	FString CleanFilename = FPaths::GetCleanFilename(Filename);
 
-	IUsdPrim* RootPrim = nullptr;
-	IUsdStage* Stage = UnrealUSDWrapper::ImportUSDFile(TCHAR_TO_ANSI(*FilePath), TCHAR_TO_ANSI(*CleanFilename));
+	TUsdStore< pxr::UsdStageRefPtr > Stage = UnrealUSDWrapper::ImportUSDFile(TCHAR_TO_ANSI(*FilePath), TCHAR_TO_ANSI(*CleanFilename));
 
 	const char* Errors = UnrealUSDWrapper::GetErrors();
 	if (Errors)
@@ -311,7 +390,7 @@ IUsdStage* UUSDImporter::ReadUSDFile(FUsdImportContext& ImportContext, const FSt
 	return Stage;
 }
 
-void FUsdImportContext::Init(UObject* InParent, const FString& InName, IUsdStage* InStage)
+void FUsdImportContext::Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage)
 {
 	Parent = InParent;
 	ObjectName = InName;
@@ -331,25 +410,13 @@ void FUsdImportContext::Init(UObject* InParent, const FString& InName, IUsdStage
 	PrimResolver = NewObject<UUSDPrimResolver>(GetTransientPackage(), ResolverClass);
 	PrimResolver->Init();
 
-	if(InStage->GetUpAxis() == EUsdUpAxis::ZAxis)
-	{
-		// A matrix that converts Z up right handed coordinate system to Z up left handed (unreal)
-		ConversionTransform = FTransform(FRotator(0, 180, 0));
-	}
-	else if (InStage->GetUpAxis() == EUsdUpAxis::YAxis)
-	{
-		ConversionTransform = FTransform(FRotator(0, 180, -90));
-	}
-	else if (InStage->GetUpAxis() == EUsdUpAxis::XAxis)
-	{
-		ConversionTransform = FTransform(FRotator(0, 0, 0));
-	}
 	Stage = InStage;
-	RootPrim = InStage->GetRootPrim();
+	RootPrim = (*InStage)->GetPseudoRoot();
 
 	bApplyWorldTransformToGeometry = false;
 	bFindUnrealAssetReferences = false;
 }
+#endif // #if USE_USD_SDK
 
 void FUsdImportContext::AddErrorMessage(EMessageSeverity::Type MessageSeverity, FText ErrorMessage)
 {

@@ -249,6 +249,10 @@ public:
 	
 	void SetViewportSize(uint32 NewSizeX,uint32 NewSizeY);
 	void SetFixedViewportSize(uint32 NewSizeX, uint32 NewSizeY);
+
+	/** Does the viewport has a fixed size */
+	bool HasFixedSize() const;
+
 	TSharedPtr<SWindow> FindWindow();
 
 	/** Should return true, if stereo rendering is allowed in this viewport */

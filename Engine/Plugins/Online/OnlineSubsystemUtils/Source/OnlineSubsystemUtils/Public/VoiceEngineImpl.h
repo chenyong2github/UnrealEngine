@@ -161,6 +161,7 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	const double DeviceChangeDelay = 2.0f;
 #endif
 
+protected:
 	/**
 	 * Determines if the specified index is the owner or not
 	 *
@@ -168,28 +169,29 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	 *
 	 * @return true if this is the owner, false otherwise
 	 */
-	FORCEINLINE bool IsOwningUser(uint32 UserIndex)
+	FORCEINLINE virtual bool IsOwningUser(uint32 UserIndex)
 	{
 		return UserIndex >= 0 && UserIndex < MAX_SPLITSCREEN_TALKERS && OwningUserIndex == UserIndex;
 	}
 
-	/** 
-	 * Update the internal state of the voice capturing state 
+	/** Start capturing voice data */
+	virtual void StartRecording() const;
+
+	/** Stop capturing voice data */
+	virtual void StopRecording() const;
+
+	/** Called when "last half second" is over */
+	virtual void StoppedRecording() const;
+
+	/** @return is active recording occurring at the moment */
+	virtual bool IsRecording() const { return bIsCapturing || bPendingFinalCapture; }
+
+private:
+	/**
+	 * Update the internal state of the voice capturing state
 	 * Handles possible continuation waiting for capture stop event
 	 */
 	void VoiceCaptureUpdate() const;
-
-	/** Start capturing voice data */
-	void StartRecording() const;
-
-	/** Stop capturing voice data */
-	void StopRecording() const;
-
-	/** Called when "last half second" is over */
-	void StoppedRecording() const;
-
-	/** @return is active recording occurring at the moment */
-	bool IsRecording() const { return bIsCapturing || bPendingFinalCapture; }
 
 	/**
 	 * Callback from streaming audio when data is requested for playback
@@ -298,15 +300,17 @@ private:
 	void OnPostLoadMap(UWorld*);
 
 protected:
-	IOnlineSubsystem*          GetOnlineSubSystem()         { return OnlineSubsystem; }
-	TSharedPtr<IVoiceCapture>& GetVoiceCapture()            { return VoiceCapture; }
-	TSharedPtr<IVoiceEncoder>& GetVoiceEncoder()            { return VoiceEncoder; }
-	FRemoteTalkerData&         GetRemoteTalkerBuffers()     { return RemoteTalkerBuffers; }
-	TArray<uint8>&             GetCompressedVoiceBuffer()   { return CompressedVoiceBuffer; }
-	TArray<uint8>&             GetDecompressedVoiceBuffer() { return DecompressedVoiceBuffer; }
-	FLocalVoiceData*           GetLocalPlayerVoiceData()    { return PlayerVoiceData; }
-	int32                      GetMaxVoiceRemainderSize();
-	void					   CreateSerializeHelper();
+	virtual IOnlineSubsystem*				 GetOnlineSubSystem()			{ return OnlineSubsystem; }
+	virtual const TSharedPtr<IVoiceCapture>& GetVoiceCapture() const		{ return VoiceCapture; }
+	virtual TSharedPtr<IVoiceCapture>&		 GetVoiceCapture()				{ return VoiceCapture; }
+	virtual const TSharedPtr<IVoiceEncoder>& GetVoiceEncoder() const		{ return VoiceEncoder; }
+	virtual TSharedPtr<IVoiceEncoder>&		 GetVoiceEncoder()				{ return VoiceEncoder; }
+	virtual FRemoteTalkerData&				 GetRemoteTalkerBuffers()		{ return RemoteTalkerBuffers; }
+	virtual TArray<uint8>&					 GetCompressedVoiceBuffer()		{ return CompressedVoiceBuffer; }
+	virtual TArray<uint8>&					 GetDecompressedVoiceBuffer()	{ return DecompressedVoiceBuffer; }
+	virtual FLocalVoiceData*				 GetLocalPlayerVoiceData()		{ return PlayerVoiceData; }
+	virtual int32							 GetMaxVoiceRemainderSize();
+	virtual void							 CreateSerializeHelper();
 
 	// Get Audio Device Changes on Windows
 #if PLATFORM_WINDOWS

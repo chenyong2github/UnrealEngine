@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3238697
+INTSourceChangelist:3238697
 Title:슬레이트 게임내 UI 퀵스타트
 Crumbs:
 Description:
@@ -500,7 +500,7 @@ Close Menu 는 반대의 작업을 합니다:
 		OptionsMenuHeaderText->SetFont(HeaderFontInfo);
 	}
 
-STextBlock 오브젝트로의 레퍼런스는 Construct 함수에서 SAssignNew 를 사용하여 유지되는데, 결과 위젯 오브젝트를 멤버 변수에 할당하기 위한 것으로, 이는 델리게이트 함수에서 레퍼런싱 가능합니다:
+STextBlock 오브젝트로의 레퍼런스는 Construct 함수에서 SAssignNew 를 사용하여 유지되는데, 결과 위젯 오브젝트를 멤버 변수에 할당하기 위한 것으로, 이는 델리게이트 함수에서 참조 가능합니다:
 
 	SAssignNew(OptionsMenuHeaderText, STextBlock)	// Header text
 	.TextStyle(&FMySlateStyle::Get().GetWidgetStyle<FTextBlockStyle>("RichText.Header"))

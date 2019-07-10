@@ -108,13 +108,23 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static void GetAllActorsWithInterface(const UObject* WorldContextObject, TSubclassOf<UInterface> Interface, TArray<AActor*>& OutActors);
 
 	/**
-	*	Find all Actors in the world with the specified tag.
-	*	This is a slow operation, use with caution e.g. do not use every frame.
-	*	@param	Tag			Tag to find. Must be specified or result array will be empty.
-	*	@param	OutActors	Output array of Actors of the specified tag.
-	*/
+	 *	Find all Actors in the world with the specified tag.
+	 *	This is a slow operation, use with caution e.g. do not use every frame.
+	 *	@param	Tag			Tag to find. Must be specified or result array will be empty.
+	 *	@param	OutActors	Output array of Actors of the specified tag.
+	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities",  meta=(WorldContext="WorldContextObject"))
 	static void GetAllActorsWithTag(const UObject* WorldContextObject, FName Tag, TArray<AActor*>& OutActors);
+
+	/**
+	 *	Find all Actors in the world of the specified class with the specified tag.
+	 *	This is a slow operation, use with caution e.g. do not use every frame.
+	 *	@param	Tag			Tag to find. Must be specified or result array will be empty.
+	 *	@param	ActorClass	Class of Actor to find. Must be specified or result array will be empty.
+	 *	@param	OutActors	Output array of Actors of the specified tag.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities", meta = (WorldContext = "WorldContextObject"))
+	static void GetAllActorsOfClassWithTag(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, FName Tag, TArray<AActor*>& OutActors);
 
 	// --- Player functions ------------------------------
 

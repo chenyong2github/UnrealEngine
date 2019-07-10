@@ -1,14 +1,13 @@
-﻿INTSourceChangelist:3244370
+﻿INTSourceChangelist:6440893
 Availability:Public
 Title:蓝图转换范例
-Crumbs: %ROOT%, Engine, Engine\Blueprints, Engine\Blueprints\BP_HowTo
 Description:使用蓝图转换，从一个蓝图到多个蓝图进行通信。 
-Related:Engine/Blueprints/UserGuide/CastNodes
-Related:Engine/Blueprints/UserGuide/BlueprintCommsUsage
-Related:Engine/Blueprints/UserGuide
-skilllevel:Advanced
-version:4.9
-Parent:Engine/Blueprints/HowTo
+Related: Engine/Blueprints/UserGuide/CastNodes
+Related: Engine/Blueprints/UserGuide/BlueprintCommsUsage
+Related: Engine/Blueprints/UserGuide
+skilllevel: Advanced
+version: 4.9
+Parent:Engine/Blueprints/BP_HowTo
 type:how-to
 tags:Data Types
 tags:Blueprints

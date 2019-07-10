@@ -345,26 +345,17 @@ static FORCEINLINE_DEBUGGABLE VectorRegister DecompressSingleTrackRotationVector
 
 #endif // USE_VECTOR_PTC_DECOMPRESSOR
 
-/**
- * Handles Byte-swapping a single track of animation data from a MemoryReader or to a MemoryWriter
- *
- * @param	Seq					The Animation Sequence being operated on.
- * @param	MemoryStream		The MemoryReader or MemoryWriter object to read from/write to.
- * @param	Offset				The starting offset into the compressed byte stream for this track (can be INDEX_NONE to indicate an identity track)
- */
 template<class TArchive>
-void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, TArchive& MemoryStream, int32 Offset, bool bMaintainComponentOrder)
+void AEFPerTrackCompressionCodec::ByteSwapOneTrack(FUECompressedAnimData& CompressedData, TArchive& MemoryStream, int32 BufferStart, int32 Offset)
 {
 	// Translation data.
 	if (Offset != INDEX_NONE)
 	{
 		checkSlow( (Offset % 4) == 0 && "CompressedByteStream not aligned to four bytes" );
 
-		if (bMaintainComponentOrder)
-		{
-			MemoryStream.Seek(Offset);
-		}
-		uint8* TrackData = Seq.CompressedByteStream.GetData() + Offset;
+		MemoryStream.Seek(BufferStart+Offset);
+
+		uint8* TrackData = CompressedData.CompressedByteStream.GetData() + Offset;
 
 		// Read the header
 		AC_UnalignedSwap(MemoryStream, TrackData, sizeof(int32));
@@ -382,6 +373,9 @@ void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, TArchive&
 		int32 KeyComponentSize = 0;
 		int32 KeyComponentCount = 0;
 		FAnimationCompression_PerTrackUtils::GetAllSizesFromFormat(KeyFormat, FormatFlags, /*OUT*/ KeyComponentCount, /*OUT*/ KeyComponentSize, /*OUT*/ FixedComponentCount, /*OUT*/ FixedComponentSize);
+
+		check(FixedComponentSize != 0);
+		check(KeyComponentSize != 0);
 
 		// Handle per-track metadata
 		for (int32 i = 0; i < FixedComponentCount; ++i)
@@ -404,7 +398,7 @@ void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, TArchive&
 			// Make sure the key->frame table is 4 byte aligned
 			PreservePadding(TrackData, MemoryStream);
 
-			const int32 FrameTableEntrySize = (Seq.GetCompressedNumberOfFrames() <= 0xFF) ? sizeof(uint8) : sizeof(uint16);
+			const int32 FrameTableEntrySize = (CompressedData.CompressedNumberOfFrames <= 0xFF) ? sizeof(uint8) : sizeof(uint16);
 			for (int32 i = 0; i < NumKeys; ++i)
 			{
 				AC_UnalignedSwap(MemoryStream, TrackData, FrameTableEntrySize);
@@ -416,8 +410,8 @@ void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, TArchive&
 	}
 }
 
-template void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, FMemoryReader& MemoryStream, int32 Offset, bool bMaintainComponentOrder);
-template void AEFPerTrackCompressionCodec::ByteSwapOneTrack(UAnimSequence& Seq, FMemoryWriter& MemoryStream, int32 Offset, bool bMaintainComponentOrder);
+template void AEFPerTrackCompressionCodec::ByteSwapOneTrack(FUECompressedAnimData& CompressedData, FMemoryReader& MemoryStream, int32 BufferStart, int32 Offset);
+template void AEFPerTrackCompressionCodec::ByteSwapOneTrack(FUECompressedAnimData& CompressedData, FMemoryWriter& MemoryStream, int32 BufferStart, int32 Offset);
 
 
 /**
@@ -451,42 +445,33 @@ void AEFPerTrackCompressionCodec::PreservePadding(uint8*& TrackData, FMemoryArch
 /**
  * Handles Byte-swapping incoming animation data from a MemoryReader
  *
- * @param	Seq					An Animation Sequence to contain the read data.
+ * @param	CompressedData		The compressed animation data being operated on.
  * @param	MemoryReader		The MemoryReader object to read from.
  */
 void AEFPerTrackCompressionCodec::ByteSwapIn(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryReader& MemoryReader)
 {
-	int32 OriginalNumBytes = MemoryReader.TotalSize();
-	Seq.CompressedByteStream.Empty(OriginalNumBytes);
-	Seq.CompressedByteStream.AddUninitialized(OriginalNumBytes);
+	const int64 BufferStart = MemoryReader.Tell();
+	int64 OriginalNumBytes = MemoryReader.TotalSize() - BufferStart;
+	check(OriginalNumBytes < INT_MAX);
+	int32 OriginalNumBytes32 = (int32)OriginalNumBytes;
+	check(CompressedData.CompressedByteStream.Num() == OriginalNumBytes);
 
-	if (Seq.CompressedSegments.Num() != 0)
-	{
-#if !PLATFORM_LITTLE_ENDIAN
-#error "Byte swapping needs to be implemented here to support big-endian platforms"
-#endif
-
-		// TODO: Byte swap the new format
-		MemoryReader.Serialize(Seq.CompressedByteStream.GetData(), Seq.CompressedByteStream.Num());
-		return;
-	}
-
-	const int32 NumTracks = Seq.CompressedTrackOffsets.Num() / 2;
-	const bool bHasScaleData = Seq.CompressedScaleOffsets.IsValid();
+	const int32 NumTracks = CompressedData.CompressedTrackOffsets.Num() / 2;
+	const bool bHasScaleData = CompressedData.CompressedScaleOffsets.IsValid();
 
 	for ( int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex )
 	{
-		const int32 OffsetTrans = Seq.CompressedTrackOffsets[TrackIndex*2+0];
-		ByteSwapOneTrack(Seq, MemoryReader, OffsetTrans);
+		const int32 OffsetTrans = CompressedData.CompressedTrackOffsets[TrackIndex*2+0];
+		ByteSwapOneTrack(CompressedData, MemoryReader, BufferStart, OffsetTrans);
 
-		const int32 OffsetRot = Seq.CompressedTrackOffsets[TrackIndex*2+1];
-		ByteSwapOneTrack(Seq, MemoryReader, OffsetRot);
+		const int32 OffsetRot = CompressedData.CompressedTrackOffsets[TrackIndex*2+1];
+		ByteSwapOneTrack(CompressedData, MemoryReader, BufferStart, OffsetRot);
 		if (bHasScaleData)
 		{
-			const int32 OffsetScale = Seq.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
-			ByteSwapOneTrack(Seq, MemoryReader, OffsetScale);
+			const int32 OffsetScale = CompressedData.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
+			ByteSwapOneTrack(CompressedData, MemoryReader, BufferStart, OffsetScale);
 		}
 	}
 }
@@ -495,40 +480,30 @@ void AEFPerTrackCompressionCodec::ByteSwapIn(
 /**
  * Handles Byte-swapping outgoing animation data to an array of BYTEs
  *
- * @param	Seq					An Animation Sequence to write.
+ * @param	CompressedData		The compressed animation data being operated on.
  * @param	SerializedData		The output buffer.
  * @param	ForceByteSwapping	true is byte swapping is not optional.
  */
 void AEFPerTrackCompressionCodec::ByteSwapOut(
-	UAnimSequence& Seq,
-	TArray<uint8>& SerializedData, 
-	bool ForceByteSwapping,
-	bool bMaintainComponentOrder)
+	FUECompressedAnimData& CompressedData,
+	FMemoryWriter& MemoryWriter)
 {
-	FMemoryWriter MemoryWriter(SerializedData, true);
-	MemoryWriter.SetByteSwapping(ForceByteSwapping);
+	const int32 BufferStart = MemoryWriter.Tell();
 
-	if (Seq.CompressedSegments.Num() != 0)
-	{
-		// TODO: Byte swap the new format
-		MemoryWriter.Serialize(Seq.CompressedByteStream.GetData(), Seq.CompressedByteStream.Num());
-		return;
-	}
-
-	const int32 NumTracks = Seq.CompressedTrackOffsets.Num() / 2;
-	const bool bHasScaleData = Seq.CompressedScaleOffsets.IsValid();
+	const int32 NumTracks = CompressedData.CompressedTrackOffsets.Num() / 2;
+	const bool bHasScaleData = CompressedData.CompressedScaleOffsets.IsValid();
 	for ( int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex )
 	{
-		const int32 OffsetTrans = Seq.CompressedTrackOffsets[TrackIndex*2+0];
-		ByteSwapOneTrack(Seq, MemoryWriter, OffsetTrans, bMaintainComponentOrder);
+		const int32 OffsetTrans = CompressedData.CompressedTrackOffsets[TrackIndex*2+0];
+		ByteSwapOneTrack(CompressedData, MemoryWriter, BufferStart, OffsetTrans);
 
-		const int32 OffsetRot = Seq.CompressedTrackOffsets[TrackIndex*2+1];
-		ByteSwapOneTrack(Seq, MemoryWriter, OffsetRot, bMaintainComponentOrder);
+		const int32 OffsetRot = CompressedData.CompressedTrackOffsets[TrackIndex*2+1];
+		ByteSwapOneTrack(CompressedData, MemoryWriter, BufferStart, OffsetRot);
 
 		if (bHasScaleData)
 		{
-			const int32 OffsetScale = Seq.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
-			ByteSwapOneTrack(Seq, MemoryWriter, OffsetScale, bMaintainComponentOrder);
+			const int32 OffsetScale = CompressedData.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
+			ByteSwapOneTrack(CompressedData, MemoryWriter, BufferStart, OffsetScale);
 		}
 	}
 }
@@ -608,12 +583,12 @@ void AEFPerTrackCompressionCodec::GetBoneAtomRotation(
 		{
 			if ((FormatFlags & 0x8) == 0)
 			{
-				Alpha = TimeToIndex(*DecompContext.AnimSeq, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetSequenceLength(), DecompContext.RelativePos, NumKeys, DecompContext.GetInterpolation(), Index0, Index1);
 			}
 			else
 			{
 				const uint8* RESTRICT FrameTable = Align(TrackData + FixedBytes + BytesPerKey * NumKeys, 4);
-				Alpha = TimeToIndex(*DecompContext.AnimSeq, FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetInterpolation(), DecompContext.GetCompressedNumberOfFrames(), FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
 			}
 		}
 
@@ -702,8 +677,9 @@ void AEFPerTrackCompressionCodec::GetBoneAtomTranslation(
 		int32 FixedBytes;
 		FAnimationCompression_PerTrackUtils::DecomposeHeader(Header, /*OUT*/ KeyFormat, /*OUT*/ NumKeys, /*OUT*/ FormatFlags, /*OUT*/BytesPerKey, /*OUT*/ FixedBytes);
 
-		checkf(KeyFormat != ACF_None, TEXT("[%s] contians invalid keyformat. NumKeys (%d), FormatFlags (%d), BytesPerKeys (%d), FixedBytes (%d)"), *DecompContext.AnimSeq->GetName(), NumKeys, FormatFlags, BytesPerKey, FixedBytes);
+		checkf(KeyFormat != ACF_None, TEXT("[%s] contians invalid keyformat. NumKeys (%d), FormatFlags (%d), BytesPerKeys (%d), FixedBytes (%d)"), *DecompContext.GetAnimFName().ToString(), NumKeys, FormatFlags, BytesPerKey, FixedBytes);
 
+		checkf(KeyFormat < ACF_MAX, TEXT("[%s] contians invalid keyformat. NumKeys (%d), FormatFlags (%d), BytesPerKeys (%d), FixedBytes (%d), PosKeysOffset (%d), TrackIndex (%d)"), *DecompContext.GetAnimFName().ToString(), NumKeys, FormatFlags, BytesPerKey, FixedBytes, PosKeysOffset, TrackIndex)
 		// Figure out the key indexes
 		int32 Index0 = 0;
 		int32 Index1 = 0;
@@ -715,12 +691,12 @@ void AEFPerTrackCompressionCodec::GetBoneAtomTranslation(
 		{
 			if ((FormatFlags & 0x8) == 0)
 			{
-				Alpha = TimeToIndex(*DecompContext.AnimSeq, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetSequenceLength(), DecompContext.RelativePos, NumKeys, DecompContext.GetInterpolation(), Index0, Index1);
 			}
 			else
 			{
 				const uint8* RESTRICT FrameTable = Align(TrackData + FixedBytes + BytesPerKey * NumKeys, 4);
-				Alpha = TimeToIndex(*DecompContext.AnimSeq, FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetInterpolation(), DecompContext.GetCompressedNumberOfFrames(), FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
 			}
 		}
 
@@ -819,12 +795,12 @@ void AEFPerTrackCompressionCodec::GetBoneAtomScale(
 		{
 			if ((FormatFlags & 0x8) == 0)
 			{
-				Alpha = TimeToIndex(*DecompContext.AnimSeq, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetSequenceLength(), DecompContext.RelativePos, NumKeys, DecompContext.GetInterpolation(), Index0, Index1);
 			}
 			else
 			{
 				const uint8* RESTRICT FrameTable = Align(TrackData + FixedBytes + BytesPerKey * NumKeys, 4);
-				Alpha = TimeToIndex(*DecompContext.AnimSeq, FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
+				Alpha = TimeToIndex(DecompContext.GetInterpolation(), DecompContext.GetCompressedNumberOfFrames(), FrameTable, DecompContext.RelativePos, NumKeys, Index0, Index1);
 			}
 		}
 

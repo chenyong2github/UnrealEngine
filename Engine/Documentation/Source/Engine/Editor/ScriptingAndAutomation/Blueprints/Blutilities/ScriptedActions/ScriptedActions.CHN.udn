@@ -1,0 +1,125 @@
+﻿INTSourceChangelist:6536708
+Availability: Public
+Crumbs:
+Title: 脚本化操作
+Description: 介绍如何创建蓝图工具，您可以通过右键单击内容浏览器中的资源或关卡中的Actor来调用这些工具。
+Type: how-to
+Version: 4.22
+Parent: Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities
+Tags: Experimental
+Tags: scripting
+Tags: editor
+Tags: Blutilities
+SkillLevel: Intermediate
+Order:1
+
+
+[TOC]
+
+![](scripted-actions-banner.png)
+
+ **脚本化操作** 是蓝图工具，您可以通过右键单击 **内容浏览器（Content Browser）** 中的一个或多个资源，或者通过右键单击 **关卡视口（Level Viewport）**（如上所示）或 **世界大纲视图（World Outliner）** 中的一个或多个Actor，来在虚幻编辑器中启动它们。
+
+当您需要蓝图工具来拥有对某一组资源或Actor的情境感知时，这种工作流程特别有用。通常，脚本化操作获得在运行操作时选择的资源或Actor的列表，然后修改这些对象或在其图表中考虑这些对象。
+
+本页的说明向您展示如何创建和启动这些类型的蓝图工具，以及如何自定义它们以仅应用于特定类型的资源或Actor。
+
+[REGION:note]
+ **先决条件：**您必须如[蓝图工具(Blutilities)](Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities)下所述启用了实验性Blutility功能。
+[/REGION]
+
+## 步骤
+
+在这一过程中，我们将从一个支持脚本化操作的父类创建一个新的蓝图类，并为该类设置一个新的事件图表，该类将显示为脚本化操作。
+
+1.  在 **内容浏览器（Content Browser）** 中，右键单击要创建新蓝图工具类的文件夹，并从快捷菜单中选择 **蓝图（Blueprints）> Blutility**。  
+    ![Create Blutility](scripted-actions-createclass.png "Create Blutility")
+
+2.  决定是想要在 **内容浏览器（Content Browser**）中选择的资源上还是在 **关卡视口（Level Viewport）** 或 **世界大纲视图（World Outliner）** 中选择的Actor上操作脚本化操作。
+    
+    *  如果想要在资源上操作脚本化操作，选择 **AssetActionUtility** 作为父类，然后按 **选择（Select）**。
+    
+    *  如果想要在Actor上操作脚本化操作，选择 **ActorActionUtility** 作为父类，然后按 **选择（Select）**。
+    
+    ![Choose ActorActionUtility or AssetActionUtility](scripted-actions-parent-1.png "Choose ActorActionUtility or AssetActionUtility")
+
+3.  在 **内容浏览器（Content Browser）** 中为新类指定一个描述性名称。  
+    ![Name your new class](scripted-actions-rename.png "Name your new class")  
+    当您运行该类的脚本化操作时，您不会看到该类名称。如果稍后需要修改脚本化操作或添加新操作，则只需要将该类与项目中的其他蓝图类区分开来。
+
+4.  右键单击新类，并从快捷菜单中选择 **编辑蓝图（Edit Blueprint）**。  
+    ![Edit Blueprint](scripted-actions-editbp.png "Edit Blueprint")
+
+5.  要为该类创建脚本化操作，您可以创建一个新函数，或者在该类的事件图表中创建一个新的 **Custom Event** 节点。  
+    [REGION:note]
+    确保在函数条目节点或Custom Event节点上选中了 **在编辑器中调用（Call in Editor）** 框。当您创建一个新函数时，将自动为您完成该操作，但如果您选择使用Custom Event节点，则必须自己完成该操作。
+    [/REGION]
+    例如，**AssetActionUtility** 上的新函数迭代内容浏览器中选择的资源列表，并在 **关卡视口（Level Viewport）** 中输出每个资源的名称。
+    [REGION:lightbox]
+    [![Asset Action example](scripted-actions-asset-example.png "Asset Action example")](scripted-actions-asset-example.png)*单击显示全图。*
+    [/REGION]
+    下图显示了在 **ActorActionUtility** 上实现的类似函数。
+    [REGION:lightbox]
+    [![Actor Action example](scripted-actions-actor-example.png "Actor Action example")](scripted-actions-actor-example.png)*单击显示全图。*
+    [/REGION]
+    [REGION:tip]
+    您将在 **开发（Development）> 编辑器（Editor）** 类别下找到一些对脚本化操作有用的蓝图节点，包括上面示例中显示的节点，这些节点返回脚本化操作运行时选择的对象列表：**Get Selected Assets**，它返回对 **内容浏览器（Content Browser）** 中选择的所有资源的引用数组，**Get Selection Set**，它返回当前在关卡中选择的Actor数组。
+    [/REGION]
+    
+6.  **保存（Save）** 并 **编译（Compile）** 蓝图类。
+
+## 最终结果
+
+保存并编译了蓝图类之后，您应该会在快捷菜单中看到一个新的 **脚本化操作（Scripted Actions）** 子菜单，用于资源或Actor，具体取决于您为蓝图类选择的父类。该子菜单包含您在蓝图类中设置的每个函数或Custom Event节点。
+
+例如，当您在 **内容浏览器（Content Browser）** 中右键单击一个或多个资源时：
+
+![Run a Scripted Action on selected Assets](scripted-actions-run-assets-1.png "Run a Scripted Action on selected Assets")
+
+或者当您在 **关卡视口（Level Viewport）** 或 **世界大纲视图（World Outliner）** 中右键单击一个或多个Actor时：
+
+![Run a Scripted Action on selected Actors](scripted-actions-run-actors-1.png "Run a Scripted Action on selected Actors")
+
+[REGION:tip]
+您在 **AssetActionUtility** 或 **ActorActionUtility** 类上设置的每个函数和Custom Event节点都可以作为快捷菜单中的一个单独的选项使用。在一个蓝图类中，您可以根据需要创建任意数量的不同脚本化操作。
+[/REGION]
+
+## 将操作限制为一个特定的类
+
+根据需要脚本化操作执行的工作，您可能想要它们仅针对特定类型的对象出现在快捷菜单中。
+
+例如，假设您创建了一个用于更改选定Actor上的材质的脚本化操作。在这种情况下，您可能想要该操作仅在用户右键单击静态网格体Actor时出现，而在用户右键单击光源Actor或蓝图时不出现。
+
+ **AssetActionUtility** 和 **ActorAssetUtility** 基类都提供了一个名为 **GetSupportedClass** 的内置函数。该函数确定需要选择的对象的类，以便蓝图类中的脚本化操作出现在快捷菜单中。每次用户右键单击一组资源或Actor时，都会调用该函数来获取 **AssetActionUtility** 或 **ActorAssetUtility** 类支持的类类型。如果返回了一个类类型，则将该返回值与用户当前选择的一组资源或Actor进行比较。如果这些资源或Actor中至少有一项具有与 **GetSupportedClass** 返回的类匹配的类，那么脚本化操作将出现在快捷菜单中。默认情况下，**GetSupportedClass** 函数不返回任何内容。这将使所有脚本化操作始终出现，而无论您选择了哪些类的资源或Actor。
+
+如果您想要改变这种默认行为，您可以覆盖类中的 **GetSupportedClass** 函数来返回一个特定的类类型：
+
+![Override GetSupportedClass](scripted-actions-override-getsupported.png "Override GetSupportedClass")
+
+例如，在 **ActorAssetUtility** 内该实现返回了 **StaticMeshActor** 类，因此当用户在打开快捷菜单时至少选择了一个静态网格体Actor时，该类中的脚本化操作将出现在快捷菜单中：
+
+![Scripted Actions appear for the supported class](scripted-actions-supportedclass-1.png "Scripted Actions appear for the supported class")
+
+但是，当用户只选择了其他类型的Actor时，该脚本化操作不会出现：
+
+![Scripted Actions do not appear for other classes](scripted-actions-unsupportedclass-1.png "Scripted Actions do not appear for other classes")
+
+[REGION:note]
+如果您选择了多个资源或Actor，则该行为是许可的：只要在选择的项目中 *至少有一项* 与 **GetSupportedClass** 返回的类相匹配，您的脚本化操作就会出现在快捷菜单中。即使您覆盖 **GetSupportedClass** 来限制操作所处理的类，也不能保证您在运行操作时只选择了该类的实例。在实现蓝图图表时，请记住这一点。
+[/REGION]
+
+## 动态输入
+
+与其他类型的编辑器蓝图工具不同，脚本化操作可以有输入。如果您向函数条目节点或Custom Event节点添加一个或多个输入，每次在编辑器中运行脚本化操作时，都会提示您提供该输入。当您的脚本需要一些额外的信息时，这将非常有用，这些信息在每次调用操作时可能有所不同。  
+
+例如，该函数有三个输入：一个字符串、一个Actor对象引用和一个材质对象引用：
+
+![A function with inputs](scripted-actions-inputs-1.png "A function with inputs")
+
+当您为该函数运行脚本化操作时，编辑器会弹出一个小窗口，让您设置这些输入值：
+
+![Set input values](scripted-actions-inputs-window-1.png "Set input values")
+
+[REGION:note]
+编辑器验证每个输入是否与其应该匹配的值类型相匹配。但是，它不能保证输入必然有值，或者这些值在任何特定的上下文中都有意义。请记住，您的脚本应该处理未指定的输入值，并验证用户提供的输入值。
+[/REGION]

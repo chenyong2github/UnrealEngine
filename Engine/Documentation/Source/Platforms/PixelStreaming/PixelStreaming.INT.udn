@@ -2,18 +2,15 @@ Availability: Public
 Crumbs: 
 Title: Pixel Streaming
 Description: Run your Unreal Engine application on a server in the cloud, and stream its rendered frames and audio to browsers and mobile devices over WebRTC.
-Type: 
+Type:landing
 Version: 4.21
 Parent: Platforms
 Order: 
 topic-image:PixelStreaming_Topic_01.png
 Tags: Early Access
-Tags: Landing Page
 Tags: Pixel Streaming
 Tags: Cloud Platform
-
-
-![](PixelStreaming_Banner_01.png "PixelStreaming_Banner_01.png")
+hero-image:PixelStreaming_Banner_01.png
 
 *Images courtesy of McLaren*
 

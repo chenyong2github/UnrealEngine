@@ -1,92 +1,74 @@
-﻿INTSourceChangelist:3020428
-Availability:Public
-Title:Look At
+﻿INTSourceChangelist:3490639
+Availability: Public
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/NodeReference, Engine/Animation/NodeReference/SkeletalControls
-Description:说明 Look At 控制器如何用于指定骨骼进行追踪或跟随另一根骨骼。 
-version:4.12
+Title:查看（Look At）
+Description:说明如何使用查看（Look At）控制指定一根骨骼跟踪或跟随另一根骨骼。 
+Type: Reference
+version: 4.16
+Parent: Engine/Animation/NodeReference/SkeletalControls
+Order: 1
+tags:Animation
+tags:Skeletal Controls
+tags:Animation Graph
+topic-image:LookAtnode.png
+Related: Engine/Animation/NodeReference/SkeletalControls
+Related: Engine/Animation/AnimBlueprints/AnimGraph
+Related: Engine/Animation/StateMachines
+Related: Engine/Animation/AnimBlueprints
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine\Animation\NodeReference\SkeletalControls\LookAt:title%](Engine\Animation\NodeReference\SkeletalControls\LookAt\LookAtnode.png)
-	[/PARAM]
-	[PARAM:title]
-		%Engine\Animation\NodeReference\SkeletalControls\LookAt:title%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine\Animation\NodeReference\SkeletalControls\LookAt]
-	[/PARAM]
-	[PARAM:description]
-		%Engine\Animation\NodeReference\SkeletalControls\LookAt:description%
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine\Animation\NodeReference\SkeletalControls\LookAt:title%](Engine\Animation\NodeReference\SkeletalControls\LookAt\LookAtnode.png)
-	[/PARAM]
-	[PARAM:title]
-		%Engine\Animation\NodeReference\SkeletalControls\LookAt:title%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine\Animation\NodeReference\SkeletalControls\LookAt]
-	[/PARAM]
-	[PARAM:description]
-		%Engine\Animation\NodeReference\SkeletalControls\LookAt:description%
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-
-
-**Look At** 骨骼控制器节点可用于指定骨骼进行追踪或跟随骨架中的另一根骨骼。 
+可以使用 **查看（Look At）** 骨架控制节点来在骨架中指定一根骨骼跟踪或跟随另一根骨骼。 
 
 ![](LookAtnode.png)
 
-下例中，角色左侧的两个包使用 **Look At** 控制器节点并设为跟随足骨。 
+下面，我们设置角色的头部骨骼跟随手部骨骼的位置。 
 
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-360
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-85dUv_jvIi4
-[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	FPfY1Nav1U0
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
 [/OBJECT]
 
-视口中的黄色调试线为一个可视化工具，可分辨 **Bone to Modify** 跟随的是哪个 **Look at Bone**。 
-
-[REGION:note]
-放大视频查看调试线，或在编辑器中进行尝试。 
-[/REGION]
+该节点还允许您设置是否使用相对于指定的 **查看骨骼** 的 **查看位置** 偏移，以及设置 **查看钳制值** 值、**内插类型** 和 **内插时间** 值。 
+可视化工具使您可以在视口内看到 **骨骼修改**、**查看骨骼**、限制角度、目标位置和内插值。 
 
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]**骨骼控制器**[/REGION] ||
-| **Bone to Modify** | 需要控制的骨骼名。这是进行修改的主骨骼链。|
-| **Look at Axis** | 对齐查看点的轴。|
-| **Use Look Up Axis** | 是否使用查找轴。|
-| **Look Up Axis** | 坐标系中的查找轴。|
-| **Look at Clamp** | Look at Clamp 数值（角度）。如 **Look at axis** 为 Z，将只使用 X 和 Y 的锁定角度。|
-| **Interpolation Type** | 使用的插值法。|
-| **Interpolation Time** | 插值中使用的时间。|
-| **Interpolation Trigger Threshold** | 触发插值的阈值。|
-| **Enable Debug** | 是否启用调试显示。|
-| [REGION:tablesection]**目标**[/REGION] ||
-| **Look at Bone** | 查看的目标骨骼。不可将 **Look At Location** 用作备选项，因为直接查询时骨骼位置存在延迟。|
-| **Look at Socket** | 查看的目标套接字。|
-| **Look at Location** | **Look At Bone** 为空时世界空间中的目标位置。|
+| [REGION:tablesection]**骨架控制**[/REGION] ||
+| **骨骼修改** | 控制骨骼的命名。这是进行修改的主骨骼链。|
+| **查看轴** | 对齐到查看点的轴|
+| **在本地空间中** | 是使用本地（Local）还是场景（World）空间。|
+| **使用查找轴** | 是否使用查找轴。|
+| **查找轴** | 对齐以查找的轴|
+| **查看钳制值** | 查看钳制值（度数）。如果查看轴是Z轴，则只使用X轴和Y轴的钳制值度数。|
+| **内插类型** | 要使用的插值方法。|
+| **内插时间** | 进行插值时到达目标所用的时间（例如，值3将导致在3秒内到达要查看的目标位置）。|
+| **内插触发器阈值** | 触发插值的阈值。|
+| [REGION:tablesection]**目标（Target）**[/REGION] ||
+| **查看骨骼** | 要查看的目标骨骼。您不能使用查看位置作为替代，因为如果您直接查询，将在骨骼位置上出现延迟。|
+| **查看插槽** | 要查看的目标插槽。|
+| **查看位置** | 要查看或偏移的位置，在设置查看骨骼或查看插槽时应用此位置。|
 
 
-| 引脚 | 描述 |
+| 引脚 | 说明 |
 | --- | ----------- |
-| [REGION:tablesection]**输入引脚**[/REGION] ||
-| **Component Pose** | 引入的姿态。|
-| **Alpha** | 当前的控制强度。|
+| [REGION:tablesection]**输入引脚（Input Pins）**[/REGION] ||
+| **组件姿势** | 进入的姿势。|
+| **Alpha（@@@）** | 此控制的当前强度。|
+
+ **查看（Look At）** 节点还受4.11中介绍的 **LOD阈值（LOD Threshold）** 系统的影响。您可以在 **查看（Look At）** 节点的 **详细信息面板（Details Panel）** 中找到相关设置。
+
+[INCLUDE:Engine/Animation/NodeReference/SkeletalControls#lodthresh]
 

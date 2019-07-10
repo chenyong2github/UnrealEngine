@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2782723
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:开放世界场景工具提示和技巧
 Crumbs:
@@ -19,6 +19,7 @@ Version:4.8
 如需了解开放世界场景工具使用的更多基础信息，请查阅 [程序化植物快速入门](Engine\OpenWorldTools\ProceduralFoliage\QuickStart) 或 [草地工具快速入门](Engine\OpenWorldTools\Grass\QuickStart)。
 [/region]
 
+(#GrassToolFoliageMeshCulling)
 ## 草地工具植物网格体消隐
 [region:warning]
 调整草地工具的消隐，渲染超远距离的静态网格体时须注意：如选项设置过高，可能导致显卡和/或 UE4 编辑器会话崩溃。
@@ -75,6 +76,7 @@ Version:4.8
 请注意：使用大于默认 0.0001 的数值可能引起性能问题。 
 如需增加 Foliage.MinimumScreenSize 的数值，必须先进行性能测试，确保对消隐执行的变更不会对项目整体性能产生较大影响。
 
+(#ProceduralFoliageVolumeBasedMasking)
 ## 基于程序化植物体积域的遮罩
 
 程序化生成整个森林可节约大量时间。如果需要限制特定树木只在特定区域生成，应该进行哪些操作？ 
@@ -113,6 +115,7 @@ Version:4.8
 例如阔叶树只在应用青草纹理的地形上生成。
 仔细观察会发现灌木和松树也只在其各自限制的地形上生成。
 
+(#TextureBasedMaskingfortheGrassTool)
 ## 草地工具基于纹理的遮罩
 
 控制植物网格体生成或不能生成的另一种方法：使用一个纹理作为遮罩对开放世界场景工具发出指令，使其在特定区域生成或不生成植物网格体。 
@@ -140,6 +143,7 @@ Version:4.8
 您可能已经注意到，草地和石块并非完全处于其生成的遮罩纹理区域中。 
 这是正常现象，通过静态网格体的颤抖和偏移获得更真实自然的效果。
 
+(#MathBasedMaskingfortheGrassTool)
 ## 草地工具基于数学的遮罩
 
 虽然纹理遮罩的使用方便而快捷，但有时会因为性能原因而无法承担额外的纹理数据，或不需要对放置进行过度控制。 
@@ -154,6 +158,7 @@ Version:4.8
 
 ![](T_Check_Pattern.png)
 
+(#NonRandomPlacementfortheGrassTool)
 ## 草地工具的非随机放置
 
 通过正确调整，草地工具还可用于模拟多种效果（如作物在田地中的生长）。 

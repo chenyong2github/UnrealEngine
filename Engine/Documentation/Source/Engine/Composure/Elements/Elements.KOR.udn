@@ -1,0 +1,95 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Compositing Elements Reference
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: reference
+Parent: Engine/Composure
+Tags: Early Access
+Tags:Reference
+Order: 3
+
+
+[TOC (start:2 end:4)]
+
+Elements are the individual building blocks used to construct a composite. Each Element represents either a layer of a comp, or the comp itself. They are level actors individually responsible for rendering a piece of the composited scene.
+
+![](image4.png "image4.png")
+
+There are many different Element types. All of which, you can configure and change. Elements are Blueprintable, and you can create your own custom Elements inheriting from by `ACompositingElement` (or its sub-classes).
+
+## Basic Compositing Elements
+
+### Empty Comp Shot
+
+This acts as the starting point for most comps. It doesn’t contain any Passes, and requires the user to fill it out.
+
+![](image13.png "image13.png")
+
+### Media Plate Element
+
+This preset Element comes with all the Passes needed to pipe a video into the compositing system, and apply **Chroma Keying** on top of it.
+
+![](image3.png "image3.png")
+
+![](image12.png "image12.png")
+
+### CG Layer Element
+
+This preset Element is responsible for rendering actor objects from the virtual scene. Use the **Capture Actors** property to specify which actors you want to include/exclude.
+
+![](image1.png "image1.png")
+
+![](image11.png "image11.png")
+
+### CG Matte Element
+
+This Element is like a plain **CG Layer** Element, but it renders the CG objects into a black/white mask texture. This is helpful for garbage matting, or setting up a holdout mask to be used with a keyer.
+
+![](image5.png "image5.png")
+
+![](image14.png "image14.png")
+
+![](image17.png "image17.png")
+
+Change the Element’s **Matte Type** property to invert the mask.
+
+### Texture Element
+
+This Element is a utility Element for introducing an external texture into the compositing system.
+
+![](image2.png "image2.png")
+
+## Advanced Element Types
+
+The Advanced Elements are available via the **All Classes** toggle in the **New Element** dialog. These additional Elements were created via Blueprints, and can be modified to suit specific use cases.
+[REGION:note]
+For the Advanced Elements to be listed, your first have to load their respective Blueprints. You can find the Advanced Element Blueprints in the content browser under the Composure Plugin's Blueprints/CompositingElements folder (make sure your content browser is set to view Engine and Plugin content).
+[/REGION]
+
+### Depth Element
+
+The Depth Element is similar to the CG Layer element, but produces an image which expresses the depth of the included actors.
+
+![](image19.png "image19.png")
+
+![](image10.png "image10.png")
+
+### Radial Element
+
+![](image9.png "image9.png")
+
+![](image16.png "image16.png")
+
+### Ramp Element
+
+![](image15.png "image15.png")
+
+![](image6.png "image6.png")
+
+### Roto Paint Element
+
+[REGION:asyncgif]
+![](image7.gif "image7.gif")(convert:false)
+[/REGION]
+
+![](image18.png "image18.png")

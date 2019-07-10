@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ILiveLinkSource.h"
 #include "LiveLinkTypes.h"
 #include "Misc/ScopeLock.h"
 #include "MessageEndpoint.h"
 #include "LatentActions.h"
 #include "Engine/LatentActionManager.h"
-#include "LiveLinkBlueprintStructs.h"
 #include "LiveLinkMessageBusFinder.generated.h"
 
 struct FLiveLinkPongMessage;
@@ -37,6 +37,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="LiveLink")
 	FString			MachineName;
 };
+
+typedef TSharedPtr<FProviderPollResult, ESPMode::ThreadSafe> FProviderPollResultPtr;
 
 // Asset for finding available Message Bus Sources.
 UCLASS(BlueprintType)

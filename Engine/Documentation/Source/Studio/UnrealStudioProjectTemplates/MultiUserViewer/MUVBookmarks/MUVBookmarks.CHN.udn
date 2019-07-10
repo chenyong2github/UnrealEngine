@@ -1,0 +1,85 @@
+INTSourceChangelist:5286457
+Availability: Public
+Crumbs: 
+Title:使用多用户查看器模板中的书签
+Description:介绍如何在关卡中放置书签以提供预设视点，以及如何将这些书签指定给热键。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: how to
+Tags: multi-user viewer
+
+
+多用户查看器提供称为书签的内置蓝图资源类型，你可以使用它在关卡中设置预先确定的位置和摄像机视图。在运行时桌面用户可以轻松传送到这些预先确定的位置。
+
+本页面介绍如何向关卡中放置新书签以及如何设置在用户按下键盘上的数字键时将用户在不同书签间传送的热键。
+
+(#placingabookmark)
+## 放置书签
+
+你可以在关卡中的任意位置放置新书签。但是，最好确保每个新书签都满足下列要求：
+
+*   位于地平面上。
+*   紧贴在设置有碰撞网格体的静态网格体正上方，如[将你自己的内容与多用户查看器配合使用](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent]中所述。
+
+否则，如果角色在行走寻路模式中，在传送后，它可能会跌倒在地或穿过地面掉下去。
+
+(#steps)
+### 步骤
+
+要放置书签：
+
+1.  使用 **BP_Bookmark** 蓝图类的实例在关卡中表示每个书签。你可在 **内容浏览器** 的 *MultiUserViewer/Blueprints/Bookmark* 文件夹中找到此类。  
+    ![BP_Bookmark资源](multiuserviewer-bookmark-asset.png "BP_Bookmark Asset")
+2.  要设置新书签，将 **BP_Bookmark** 从 **内容浏览器** 拖到关卡中。  
+    ![将书签拖到关卡中](multiuserviewer-bookmark-place.png "Drag a Bookmark into the Level")
+3.  在视口或 **世界大纲视图** 中选中“书签（Bookmark）”Actor并将其移动到你希望它在关卡中所处的位置并进行旋转。
+    [REGION:note]
+    确保你移动的是“书签（Bookmark）”Actor，而非仅移动了其子“摄像机（Camera）”组件。
+    [/REGION]
+    [REGION:tip]
+    **锁定** Actor是按照期望设置其视点的简单快捷的方法。请参阅[在视口中锁定Actor](Engine/UI/LevelEditor/Viewports/ActorLocking)。
+    [/REGION]
+
+(#endresult)
+### 最终结果
+
+以桌面模式加入会话的用户可以使用箭头键循环访问你添加到关卡中的所有书签（按顺序传送至每个书签）。
+
+(#assigningorderandhotkeystobookmarks)
+## 为书签指定顺序和热键
+
+默认情况下，当用户按下左右箭头键循环访问关卡中的书签时，序列不遵循预先确定的顺序。但是，你可以使用“书签目录（Bookmark Directory）”指定顺序，并为键盘上的数字键指定单独的书签。
+
+(#steps)
+### 步骤
+
+要设置顺序和热键：
+
+1.  如果关卡中已包含 **BP_BookmarkDirectory** Actor，查找它并在视口或 **世界大纲视图** 中选中它：  
+    ![世界大纲视图中的“书签目录（Bookmark Directory）”](multiuserviewer-directory-select.png "Bookmark Directory in the World Outliner")  
+    除此之外，还可以在 **内容浏览器** 的 *MultiUserViewer/Blueprints/Bookmark* 文件夹中找到 **BP_BlueprintDirectory** 并将它拖到关卡中，以创建新实例：  
+    ![将书签目录拖放到关卡中](multiuserviewer-directory-place.png "Dropping a bookmark directory into the Level")
+2.  在 **细节（Details）** 面板中，你将看到两个书签列表，每个书签都可以指向关卡中的 **BP_Bookmark** 的实例。  
+    ![书签目录细节（Details）](multiuserviewer-directory-details.png "Bookmark directory details")
+    *   **1 - 所有书签（按下左右箭头可循环）（All Bookmarks (Left Or Right Arrows To Cycle)） -** 使用此列表定义箭头键循环访问关卡中的书签的顺序。  
+        当用户首次按下右箭头键时，他们将移动到此列表中位置 `0` 处的书签。再次按下右箭头键时他们将移动到此列表中的下一项。按下左箭头键时他们将移动到此列表中的前一项。当到达序列末尾时，它将循环回到此列表中的第一个书签。  
+        [REGION:note]
+        在将 **BP_BookmarkDirectory** 放置到关卡中后，箭头键将忽略未包含在此列表中的所有书签。
+        [/REGION]
+        [REGION:tip]
+        使用 **刷新所有书签列表（Refresh All Bookmarks List）** 按钮可自动将当前关卡中的所有书签添加到列表中，这样，你就无需逐个将项添加到此数组中。
+        [/REGION]
+    *   **2 - 热键书签（0-9数字键）（Hot Key Bookmarks (0-9 Keys)） -** 使用此列表可将书签指定给特定数字热键。  
+        如果用户按下键盘上某一个数字键而且该数字已在此列表中映射到关卡中的某个书签，用户将传送至该书签。
+        [REGION:tip]
+        如果你在 **所有书签（All Bookmarks）** 列表中设置了书签序列，可以使用 **自动指定热键书签（Auto Assign Hot Key Bookmarks）** 按钮自动将那些书签中的前十个书签按顺序添加到此列表中。
+        [/REGION]
+
+(#endresult)
+### 最终结果
+
+如果你向 **所有书签（按下左右箭头可循环）（All Bookmarks (Left Or Right Arrows To Cycle)）** 数组中添加了书签，那么以桌面模式加入会话并按下左右箭头键的用户应该会按照你添加书签到数组中的顺序循环访问你添加到数组中的书签。
+
+如果你向 **热键书签（0-9数字键）（Hot Key Bookmarks (0-9 Keys)）** 数组中添加了书签，那么以桌面模式加入会话并按下你在此数组中设置的其中一个数字热键的用户应该会立即传送至你将该数字键绑定到的书签位置。

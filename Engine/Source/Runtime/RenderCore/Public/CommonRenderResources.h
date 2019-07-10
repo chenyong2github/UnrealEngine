@@ -91,11 +91,12 @@ public:
 extern RENDERCORE_API TGlobalResource<FScreenRectangleIndexBuffer> GScreenRectangleIndexBuffer;
 
 
-/** Vertex shader to draw a full screen quad that works on all platforms. */
-class RENDERCORE_API FVisualizeTextureVS : public FGlobalShader
+/** Vertex shader to draw a screen quad that works on all platforms. Does not have any shader parameters.
+ * The pixel shader should just use SV_Position. */
+class RENDERCORE_API FScreenVertexShaderVS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FVisualizeTextureVS);
-	SHADER_USE_PARAMETER_STRUCT(FVisualizeTextureVS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FScreenVertexShaderVS);
+	SHADER_USE_PARAMETER_STRUCT(FScreenVertexShaderVS, FGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) {
 		return true;

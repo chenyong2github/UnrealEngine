@@ -277,6 +277,34 @@ void DumpRapidIterationParamersForAsset(const TArray<FString>& Arguments)
 	}
 }
 
+void CompileEmitterStandAlone(UNiagaraEmitter* Emitter, TSet<UNiagaraEmitter*>& InOutCompiledEmitters)
+{
+	if (InOutCompiledEmitters.Contains(Emitter) == false)
+	{
+		if (Emitter->GetParent() != nullptr)
+		{
+			// If the emitter has a parent emitter make sure to compile that one first.
+			CompileEmitterStandAlone(Emitter->GetParent(), InOutCompiledEmitters);
+
+			if (Emitter->IsSynchronizedWithParent() == false)
+			{
+				// If compiling the parent caused it to become out of sync with the current emitter merge in changes before compiling.
+				Emitter->MergeChangesFromParent();
+			}
+		}
+
+		Emitter->MarkPackageDirty();
+		UNiagaraSystem* TransientSystem = NewObject<UNiagaraSystem>(GetTransientPackage(), NAME_None, RF_Transient);
+		UNiagaraSystemFactoryNew::InitializeSystem(TransientSystem, true);
+		TransientSystem->AddEmitterHandle(*Emitter, TEXT("Emitter"));
+		FNiagaraStackGraphUtilities::RebuildEmitterNodes(*TransientSystem);
+		TransientSystem->RequestCompile(false);
+		TransientSystem->WaitForCompilationComplete();
+
+		InOutCompiledEmitters.Add(Emitter);
+	}
+}
+
 void PreventSystemRecompile(FAssetData SystemAsset, TSet<UNiagaraEmitter*>& InOutCompiledEmitters)
 {
 	UNiagaraSystem* System = Cast<UNiagaraSystem>(SystemAsset.GetAsset());
@@ -284,22 +312,7 @@ void PreventSystemRecompile(FAssetData SystemAsset, TSet<UNiagaraEmitter*>& InOu
 	{
 		for (const FNiagaraEmitterHandle& EmitterHandle : System->GetEmitterHandles())
 		{
-			UNiagaraEmitter* SourceEmitter = const_cast<UNiagaraEmitter*>(EmitterHandle.GetSource());
-			if (SourceEmitter != nullptr)
-			{
-				if (InOutCompiledEmitters.Contains(SourceEmitter) == false)
-				{
-					SourceEmitter->MarkPackageDirty();
-					UNiagaraSystem* TransientSystem = NewObject<UNiagaraSystem>(GetTransientPackage(), NAME_None, RF_Transient);
-					UNiagaraSystemFactoryNew::InitializeSystem(TransientSystem, true);
-					TransientSystem->AddEmitterHandle(*SourceEmitter, TEXT("Emitter")); // TODO Frank.Fella, resolve this properly...
-					FNiagaraStackGraphUtilities::RebuildEmitterNodes(*TransientSystem);
-					TransientSystem->RequestCompile(false);
-					TransientSystem->WaitForCompilationComplete();
-					InOutCompiledEmitters.Add(SourceEmitter);
-				}
-				System->UpdateFromEmitterChanges(*SourceEmitter, false);
-			}
+			CompileEmitterStandAlone(EmitterHandle.GetInstance(), InOutCompiledEmitters);
 		}
 
 		System->MarkPackageDirty();
@@ -544,7 +557,7 @@ void FNiagaraEditorModule::StartupModule()
 
 	// Register the emitter merge handler.
 	ScriptMergeManager = MakeShared<FNiagaraScriptMergeManager>();
-	MergeEmitterHandle = NiagaraModule.RegisterOnMergeEmitter(INiagaraModule::FOnMergeEmitter::CreateSP(ScriptMergeManager.ToSharedRef(), &FNiagaraScriptMergeManager::MergeEmitter));
+	NiagaraModule.RegisterMergeManager(ScriptMergeManager.ToSharedRef());
 
 	// Register the script compiler
 	ScriptCompilerHandle = NiagaraModule.RegisterScriptCompiler(INiagaraModule::FScriptCompiler::CreateLambda([this](const FNiagaraCompileRequestDataBase* CompileRequest, const FNiagaraCompileOptions& Options)
@@ -645,7 +658,7 @@ void FNiagaraEditorModule::ShutdownModule()
 	INiagaraModule* NiagaraModule = FModuleManager::GetModulePtr<INiagaraModule>("Niagara");
 	if (NiagaraModule != nullptr)
 	{
-		NiagaraModule->UnregisterOnMergeEmitter(MergeEmitterHandle);
+		NiagaraModule->UnregisterMergeManager(ScriptMergeManager.ToSharedRef());
 		NiagaraModule->UnregisterOnCreateDefaultScriptSource(CreateDefaultScriptSourceHandle);
 		NiagaraModule->UnregisterScriptCompiler(ScriptCompilerHandle);
 		NiagaraModule->UnregisterPrecompiler(PrecompilerHandle);
@@ -713,23 +726,22 @@ TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> FNiagaraEditorModul
 	return TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe>();
 }
 
-TSharedRef<SWidget> FNiagaraEditorModule::CreateStackWidget(UNiagaraStackViewModel* StackViewModel) const
+
+void FNiagaraEditorModule::RegisterWidgetProvider(TSharedRef<INiagaraEditorWidgetProvider> InWidgetProvider)
 {
-	checkf(OnCreateStackWidget.IsBound(), TEXT("Can not create stack widget.  Stack creation delegate was never set."));
-	return OnCreateStackWidget.Execute(StackViewModel);
+	checkf(WidgetProvider.IsValid() == false, TEXT("Widget provider has already been set."));
+	WidgetProvider = InWidgetProvider;
 }
 
-FDelegateHandle FNiagaraEditorModule::SetOnCreateStackWidget(FOnCreateStackWidget InOnCreateStackWidget)
-{
-	checkf(OnCreateStackWidget.IsBound() == false, TEXT("Stack creation delegate already set."));
-	OnCreateStackWidget = InOnCreateStackWidget;
-	return OnCreateStackWidget.GetHandle();
+void FNiagaraEditorModule::UnregisterWidgetProvider(TSharedRef<INiagaraEditorWidgetProvider> InWidgetProvider)
+{	
+	checkf(WidgetProvider.IsValid() && WidgetProvider == InWidgetProvider, TEXT("Can only unregister the widget provider that was originally registered."));
+	WidgetProvider.Reset();
 }
 
-void FNiagaraEditorModule::ResetOnCreateStackWidget(FDelegateHandle Handle)
+TSharedRef<INiagaraEditorWidgetProvider> FNiagaraEditorModule::GetWidgetProvider() const
 {
-	checkf(OnCreateStackWidget.GetHandle() == Handle, TEXT("Can only reset the stack creation module with the handle it was created with."));
-	OnCreateStackWidget.Unbind();
+	return WidgetProvider.ToSharedRef();
 }
 
 TSharedRef<FNiagaraScriptMergeManager> FNiagaraEditorModule::GetScriptMergeManager() const

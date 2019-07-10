@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "TestPALLog.h"
 #include "Parent.h"
+#include "Misc/Guid.h"
 #include "Stats/StatsMisc.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -34,6 +35,8 @@ IMPLEMENT_APPLICATION(TestPAL, "TestPAL");
 #define ARG_THREAD_PRIO_TEST				"threadpriotest"
 #define ARG_INLINE_CALLSTACK_TEST			"inline"
 #define ARG_STRINGS_ALLOCATION_TEST			"stringsallocation"
+#define ARG_CREATEGUID_TEST					"createguid"
+#define ARG_THREADSTACK_TEST				"threadstack"
 
 namespace TestPAL
 {
@@ -500,12 +503,31 @@ int32 DynamicLibraryTest(const TCHAR* CommandLine)
 
 	if (PLATFORM_LINUX)
 	{
-		RootSteamPath = FPaths::EngineDir() / FString(TEXT("Binaries/ThirdParty/Steamworks/Steamv139/x86_64-unknown-linux-gnu/"));
+		RootSteamPath = FPaths::EngineDir() / FString(TEXT("Binaries/ThirdParty/Steamworks/*"));
+
+		IFileManager& PlatformFileManager = IFileManager::Get();
+		TArray<FString> FoundDirectories;
+		PlatformFileManager.FindFiles(FoundDirectories, *RootSteamPath, false, true);
+
+		// Just use the first directory we find, this test does not have to be very sophisticated.
+		if (FoundDirectories.Num() > 0)
+		{
+			// This only gives us directories, so remove the wildcard from our initial search
+			RootSteamPath.RemoveFromEnd(TEXT("*"));
+			// And append the directory name we found.
+			RootSteamPath += FoundDirectories[0];
+		}
+		else
+		{
+			UE_LOG(LogTestPAL, Fatal, TEXT("Could not find any steam versions."));
+		}
+
+		RootSteamPath += TEXT("/x86_64-unknown-linux-gnu/");
 		LibraryName = TEXT("libsteam_api.so");
 	}
 	else
 	{
-		UE_LOG(LogTestPAL, Fatal, TEXT("This test is not implemented for this platform."))
+		UE_LOG(LogTestPAL, Fatal, TEXT("This test is not implemented for this platform."));
 	}
 
 	FPlatformProcess::PushDllDirectory(*RootSteamPath);
@@ -520,7 +542,7 @@ int32 DynamicLibraryTest(const TCHAR* CommandLine)
 
 		if (SteamDLLHandle == nullptr)
 		{
-			UE_LOG(LogTestPAL, Fatal, TEXT("Could not load Steam library!"))
+			UE_LOG(LogTestPAL, Fatal, TEXT("Could not load Steam library!"));
 		}
 	}
 
@@ -673,6 +695,135 @@ int32 StringsAllocationTest(const TCHAR* CommandLine)
 	for(int32 i = 0; i < NumOfStrings; ++i)
 	{
 		delete Strings[i];
+	}
+
+	// GMalloc = OldGMalloc;
+	FEngineLoop::AppExit();
+	return 0;
+}
+
+/**
+ * Thread runnable
+ * bUseGenericMisc Whether to use FGenericPlatformMisc CreateGuid
+ */
+template<bool bUseGenericMisc>
+struct FCreateGuidThread : public FRunnable
+{
+	/** Number of CreateGuid calls to make. */
+	int32	NumCalls;
+
+	FCreateGuidThread(int32 InNumCalls)
+		:	FRunnable()
+		,	NumCalls(InNumCalls)
+	{
+	}
+
+	virtual uint32 Run()
+	{
+		FGuid Result;
+
+		for (int32 IdxRun = 0; IdxRun < NumCalls; ++IdxRun)
+		{
+			if (bUseGenericMisc)
+			{
+				FGenericPlatformMisc::CreateGuid(Result);
+			}
+			else
+			{
+				FPlatformMisc::CreateGuid(Result);
+			}
+		}
+
+		return 0;
+	}
+};
+
+
+/**
+ * CreateGuid test
+ */
+int32 CreateGuidTest(const TCHAR* CommandLine)
+{
+	FPlatformMisc::SetCrashHandler(NULL);
+	FPlatformMisc::SetGracefulTerminationHandler();
+
+	GEngineLoop.PreInit(CommandLine);
+	UE_LOG(LogTestPAL, Display, TEXT("Running CreateGuid test."));
+
+	TArray<FRunnable*> RunnableArray;
+	TArray<FRunnableThread*> ThreadArray;
+
+	UE_LOG(LogTestPAL, Display, TEXT("Accepted options:"));
+	UE_LOG(LogTestPAL, Display, TEXT("    -numthreads=N"));
+	UE_LOG(LogTestPAL, Display, TEXT("    -numcalls=N (how many times each thread will call CreateGuid)"));
+	UE_LOG(LogTestPAL, Display, TEXT("    -norandomguids (disable SYS_getrandom syscall)"));
+
+	int32 NumTestThreads = 4, NumCalls = 1000000;
+	if (FParse::Value(CommandLine, TEXT("numthreads="), NumTestThreads))
+	{
+		NumTestThreads = FMath::Max(1, NumTestThreads);
+	}
+	if (FParse::Value(CommandLine, TEXT("numcalls="), NumCalls))
+	{
+		NumCalls = FMath::Max(1, NumCalls);
+	}
+
+	// start all threads
+	for (int Idx = 0; Idx < 2; ++Idx )
+	{
+		bool bUseGenericMisc = (Idx == 0);
+		double WallTimeDuration = FPlatformTime::Seconds();
+
+		for (int IdxThread = 0; IdxThread < NumTestThreads; ++IdxThread)
+		{
+			RunnableArray.Add(bUseGenericMisc ?
+				static_cast<FRunnable*>(new FCreateGuidThread<true>(NumCalls)) :
+				static_cast<FRunnable*>(new FCreateGuidThread<false>(NumCalls)) );
+
+			ThreadArray.Add( FRunnableThread::Create(RunnableArray[IdxThread],
+				*FString::Printf(TEXT("GuidTest%d"), IdxThread)) );
+		}
+
+		GLog->FlushThreadedLogs();
+		GLog->Flush();
+
+		// join all threads
+		for (int IdxThread = 0; IdxThread < NumTestThreads; ++IdxThread)
+		{
+			ThreadArray[IdxThread]->WaitForCompletion();
+
+			delete ThreadArray[IdxThread];
+			ThreadArray[IdxThread] = nullptr;
+
+			delete RunnableArray[IdxThread];
+			RunnableArray[IdxThread] = nullptr;
+		}
+
+		WallTimeDuration = FPlatformTime::Seconds() - WallTimeDuration;
+
+		UE_LOG(LogTestPAL, Display, TEXT("--- Results for %s ---"),
+			bUseGenericMisc ? TEXT("FGenericPlatformMisc::CreateGuid") : TEXT("FPlatformMisc::CreateGuid"));
+		UE_LOG(LogTestPAL, Display, TEXT("Total wall time: %f seconds, Threads: %d, Calls: %d"),
+				WallTimeDuration, NumTestThreads, NumCalls);
+
+		ThreadArray.Empty();
+		RunnableArray.Empty();
+	}
+
+	// Spew out a small sample of GUIDs to visually check we haven't horribly broken something
+	UE_LOG(LogTestPAL, Display, TEXT("--- CreateGuid Samples ---"));
+
+	for (int Idx = 0; Idx < 20; ++Idx)
+	{
+		FGuid GuidPlatform;
+		FGuid GuidGeneric;
+
+		FPlatformMisc::CreateGuid(GuidPlatform);
+		FGenericPlatformMisc::CreateGuid(GuidGeneric);
+
+		UE_LOG(LogTestPAL, Display, TEXT("%3d GuidGeneric:%s GuidPlatform:%s"), Idx,
+			*GuidGeneric.ToString(EGuidFormats::DigitsWithHyphensInBraces),
+			*GuidPlatform.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 	}
 
 	// GMalloc = OldGMalloc;
@@ -1337,6 +1488,86 @@ int32 InlineCallstacksTest(const TCHAR* CommandLine)
 	return 0;
 }
 
+struct FThreadStackTest : public FRunnable
+{
+	FThreadStackTest(uint64 InThreadId = ~0) :
+		ThreadId(InThreadId)
+	{
+	}
+
+	uint64 ThreadId;
+
+	virtual uint32 Run()
+	{
+		// If we dont have a valid ThreadId lets use the threads id as default
+		if (ThreadId == ~0)
+		{
+			ThreadId = FPlatformTLS::GetCurrentThreadId();
+		}
+
+		// Hopefully this wont be to much extra stack space for a testing thread
+		const SIZE_T StackTraceSize = 65536;
+		ANSICHAR StackTrace[StackTraceSize] = {0};
+		FPlatformStackWalk::ThreadStackWalkAndDump(StackTrace, StackTraceSize, 0, ThreadId);
+
+		UE_LOG(LogTestPAL, Warning, TEXT("***** ThreadStackWalkAndDump for ThreadId(%lu) ******\n%s"), ThreadId, ANSI_TO_TCHAR(StackTrace));
+
+		const SIZE_T BackTraceSize = 100;
+		uint64 BackTrace[BackTraceSize];
+		int32 BackTraceCount = FPlatformStackWalk::CaptureThreadStackBackTrace(ThreadId, BackTrace, BackTraceSize);
+
+		UE_LOG(LogTestPAL, Warning, TEXT("***** CaptureThreadStackBackTrace for ThreadId(%lu) ******"), ThreadId);
+		for (int i = 0; i < BackTraceCount; i++)
+		{
+			UE_LOG(LogTestPAL, Warning, TEXT("0x%llx"), BackTrace[i]);
+		}
+		UE_LOG(LogTestPAL, Warning, TEXT("\n\n"));
+
+		UE_LOG(LogTestPAL, Warning, TEXT("***** ProgramCounterToHumanReadableString for BackTrace for ThreadId(%lu) ******"), ThreadId);
+		for (int i = 0; i < BackTraceCount; i++)
+		{
+			ANSICHAR TempString[1024] = {0};
+			FPlatformStackWalk::ProgramCounterToHumanReadableString(i, BackTrace[i], TempString, ARRAY_COUNT(TempString));
+
+			UE_LOG(LogTestPAL, Warning, TEXT("%s"), ANSI_TO_TCHAR(TempString));
+		}
+
+		return 0;
+	}
+};
+
+
+int32 ThreadTraceTest(const TCHAR* CommandLine)
+{
+	FPlatformMisc::SetCrashHandler(NULL);
+	FPlatformMisc::SetGracefulTerminationHandler();
+
+	GEngineLoop.PreInit(CommandLine);
+
+	// Dump the callstack/backtrace of the thread that is running
+	{
+		FThreadStackTest* ThreadStackTest = new FThreadStackTest;
+		FRunnableThread* Runnable = FRunnableThread::Create(ThreadStackTest, ANSI_TO_TCHAR("ThreadStackTest"), 0);
+
+		Runnable->WaitForCompletion();
+		delete ThreadStackTest;
+	}
+
+	// Dump the GGameThreadId callstack/backtrace from the thread
+	{
+		FThreadStackTest* ThreadStackTest = new FThreadStackTest(GGameThreadId);
+		FRunnableThread* Runnable = FRunnableThread::Create(ThreadStackTest, ANSI_TO_TCHAR("ThreadStackTest"), 0);
+
+		Runnable->WaitForCompletion();
+		delete ThreadStackTest;
+	}
+
+	FEngineLoop::AppPreExit();
+	FEngineLoop::AppExit();
+
+	return 0;
+}
+
 /**
  * Selects and runs one of test cases.
  *
@@ -1418,6 +1649,14 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 		{
 			return StringsAllocationTest(*TestPAL::CommandLine);
 		}
+		else if (!FCStringAnsi::Strcmp(ArgV[IdxArg], ARG_CREATEGUID_TEST))
+		{
+			return CreateGuidTest(*TestPAL::CommandLine);
+		}
+		else if (!FCStringAnsi::Strcmp(ArgV[IdxArg], ARG_THREADSTACK_TEST))
+		{
+			return ThreadTraceTest(*TestPAL::CommandLine);
+		}
 	}
 
 	FPlatformMisc::SetCrashHandler(NULL);
@@ -1443,6 +1682,9 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test by replaying a saved malloc history saved by -mallocsavereplay. Possible options: -replayfile=File, -stopafter=N (operation), -suppresserrors"), UTF8_TO_TCHAR(ARG_MALLOC_REPLAY));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test thread priorities."), UTF8_TO_TCHAR(ARG_THREAD_PRIO_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test inline callstacks through ensures and a final crash."), UTF8_TO_TCHAR(ARG_INLINE_CALLSTACK_TEST));
+	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test string allocations."), UTF8_TO_TCHAR(ARG_STRINGS_ALLOCATION_TEST));
+	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test CreateGuid."), UTF8_TO_TCHAR(ARG_CREATEGUID_TEST));
+	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test ThreadWalkStackAndDump and CaptureThreadBackTrace."), UTF8_TO_TCHAR(ARG_THREADSTACK_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT(""));
 	UE_LOG(LogTestPAL, Warning, TEXT("Pass one of those to run an appropriate test."));
 

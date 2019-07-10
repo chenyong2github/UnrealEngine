@@ -1364,10 +1364,6 @@ void ULevel::PreEditUndo()
 {
 	Super::PreEditUndo();
 
-	// Release the model's resources.
-	Model->BeginReleaseResources();
-	Model->ReleaseResourcesFence.Wait();
-
 	// Detach existing model components.  These are left in the array, so they are saved for undoing the undo.
 	for(int32 ComponentIndex = 0;ComponentIndex < ModelComponents.Num();ComponentIndex++)
 	{
@@ -1376,6 +1372,10 @@ void ULevel::PreEditUndo()
 			ModelComponents[ComponentIndex]->UnregisterComponent();
 		}
 	}
+
+	// Release the model's resources.
+	Model->BeginReleaseResources();
+	Model->ReleaseResourcesFence.Wait();
 
 	ReleaseRenderingResources();
 
@@ -1483,9 +1483,6 @@ void ULevel::InvalidateModelGeometry()
 	Model->Modify();
 	Modify();
 
-	// Begin releasing the model's resources.
-	Model->BeginReleaseResources();
-
 	// Remove existing model components.
 	for(int32 ComponentIndex = 0;ComponentIndex < ModelComponents.Num();ComponentIndex++)
 	{
@@ -1496,6 +1493,9 @@ void ULevel::InvalidateModelGeometry()
 		}
 	}
 	ModelComponents.Empty();
+
+	// Begin releasing the model's resources.
+	Model->BeginReleaseResources();
 }
 
 
@@ -1562,7 +1562,10 @@ void ULevel::CommitModelSurfaces()
 				{
 					if (Model->bOnlyRebuildMaterialIndexBuffers)
 					{
-						ModelComponents[ComponentIndex]->MarkRenderStateDirty();
+						// This is intentionally updated immediately. We just re-created vertex and index buffers
+						// without invalidating static meshes. Re-create all static meshes now so that mesh draw
+						// commands are refreshed.
+						ModelComponents[ComponentIndex]->RecreateRenderState_Concurrent();
 					}
 					else
 					{
@@ -1833,11 +1836,6 @@ void ULevel::RouteActorInitialize()
 					ActorsToBeginPlay.Add(Actor);
 				}
 			}
-
-			// Components are all set up, init touching state.
-			// Note: Not doing notifies here since loading or streaming in isn't actually conceptually beginning a touch.
-			//	     Rather, it was always touching and the mechanics of loading is just an implementation detail.
-			Actor->UpdateOverlaps(Actor->bGenerateOverlapEventsDuringLevelStreaming);
 		}
 	}
 
@@ -1846,7 +1844,7 @@ void ULevel::RouteActorInitialize()
 	{
 		AActor* Actor = ActorsToBeginPlay[ActorIndex];
 		SCOPE_CYCLE_COUNTER(STAT_ActorBeginPlay);
-		Actor->DispatchBeginPlay();
+		Actor->DispatchBeginPlay(/*bFromLevelStreaming*/ true);
 	}
 }
 

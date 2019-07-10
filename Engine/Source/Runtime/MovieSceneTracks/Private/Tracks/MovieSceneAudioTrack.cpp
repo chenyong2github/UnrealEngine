@@ -18,6 +18,7 @@
 UMovieSceneAudioTrack::UMovieSceneAudioTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(93, 95, 136);
 	RowHeight = 50;
@@ -62,6 +63,12 @@ void UMovieSceneAudioTrack::AddSection(UMovieSceneSection& Section)
 void UMovieSceneAudioTrack::RemoveSection(UMovieSceneSection& Section)
 {
 	AudioSections.Remove(&Section);
+}
+
+
+void UMovieSceneAudioTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	AudioSections.RemoveAt(SectionIndex);
 }
 
 
@@ -113,9 +120,6 @@ FMovieSceneTrackRowSegmentBlenderPtr UMovieSceneAudioTrack::GetRowSegmentBlender
 		{
 			// Run the default high pass filter for overlap priority
 			MovieSceneSegmentCompiler::FilterOutUnderlappingSections(BlendData);
-
-			// Weed out based on array index (legacy behaviour)
-			MovieSceneSegmentCompiler::BlendSegmentLegacySectionOrder(BlendData);
 		}
 	};
 	return FBlender();

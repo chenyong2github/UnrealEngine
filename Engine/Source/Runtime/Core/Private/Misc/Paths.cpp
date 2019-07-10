@@ -377,6 +377,12 @@ FString FPaths::ProjectLogDir()
 	{
 		return FPlatformProcess::UserLogsDir();
 	}
+#elif PLATFORM_ANDROID && USE_ANDROID_FILE
+	const FString* OverrideDir = IAndroidPlatformFile::GetOverrideLogDirectory();
+	if (OverrideDir != nullptr)
+	{
+		return *OverrideDir;
+	}
 #endif
 
 	return FPaths::ProjectSavedDir() + TEXT("Logs/");
@@ -1408,7 +1414,7 @@ bool FPaths::IsSamePath(const FString& PathA, const FString& PathB)
 	MakeStandardFilename(TmpA);
 	MakeStandardFilename(TmpB);
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
 	return FCString::Stricmp(*TmpA, *TmpB) == 0;
 #else
 	return FCString::Strcmp(*TmpA, *TmpB) == 0;

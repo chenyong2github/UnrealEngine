@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3429254
+INTSourceChangelist:3429254
 Availability: Public
 Title:블루프린트로 폰 빙의
 Crumbs: %ROOT%, Gameplay, Gameplay/HowTo/PossessPawns
@@ -38,7 +38,7 @@ Related: Gameplay/Framework/Controller/PlayerController
 
 	![](Pawns4b.png)(w:640)
 
-	그러면 레벨에 선택한 캐릭터 각각에 대한 레퍼런싱이 가능합니다.
+	그러면 레벨에 선택한 캐릭터 각각에 대한 참조이 가능합니다.
 
 1. 그래프 영역에 **우클릭** 한 다음 **1** 키보드 이벤트를 검색한 다음 선택합니다.
 

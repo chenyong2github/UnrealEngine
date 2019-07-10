@@ -11,13 +11,22 @@
 /////////////////////////////////////////////////////
 // UCircularThrobber
 
+static FSlateBrush* DefaultCircularThrobberBrushStyle = nullptr;
+
 UCircularThrobber::UCircularThrobber(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bEnableRadius(true)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FSlateBrush StaticBrushStyle = *FCoreStyle::Get().GetBrush("Throbber.CircleChunk");
-	Image = StaticBrushStyle;
+	if (DefaultCircularThrobberBrushStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultCircularThrobberBrushStyle = new FSlateBrush(*FCoreStyle::Get().GetBrush("Throbber.CircleChunk"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultCircularThrobberBrushStyle->UnlinkColors();
+	}
+
+	Image = *DefaultCircularThrobberBrushStyle;
 
 	NumberOfPieces = 6;
 	Period = 0.75f;

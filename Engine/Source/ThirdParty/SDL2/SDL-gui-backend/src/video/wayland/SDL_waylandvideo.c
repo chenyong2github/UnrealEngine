@@ -198,6 +198,12 @@ Wayland_CreateDevice(int devindex)
     device->Vulkan_CreateSurface = Wayland_Vulkan_CreateSurface;
 #endif
 
+    /* EG BEGIN */
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+    device->Vulkan_GetRequiredInstanceExtensions = Wayland_Vulkan_GetRequiredInstanceExtensions;
+#endif /* SDL_WITH_EPIC_EXTENSIONS */
+    /* EG END */
+
     device->free = Wayland_DeleteDevice;
 
     return device;

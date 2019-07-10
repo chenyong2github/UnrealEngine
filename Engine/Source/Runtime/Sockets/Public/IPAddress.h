@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
+#include "SocketTypes.h"
 
 /**
  * Represents an internet address. All data is in network byte order
@@ -159,6 +160,17 @@ public:
 	 * @return The new structure
 	 */
 	virtual TSharedRef<FInternetAddr> Clone() const = 0;
+
+	/**
+	 * Returns the protocol type name of the address data currently stored in this struct
+	 *
+	 * @return The type of the address. 
+	 *         If it's not known or overridden in a derived class, the return is None.
+	 */
+	virtual FName GetProtocolType() const
+	{
+		return NAME_None;
+	}
 };
 
 /**
@@ -388,3 +400,21 @@ struct FInternetAddrKeyMapFuncs : public BaseKeyFuncs<ValueType, TSharedRef<FInt
 	}
 };
 
+template<typename ValueType>
+struct FInternetAddrConstKeyMapFuncs : public BaseKeyFuncs<ValueType, TSharedRef<const FInternetAddr>, false>
+{
+	static FORCEINLINE const TSharedRef<const FInternetAddr>& GetSetKey(const TPair<TSharedRef<const FInternetAddr>, ValueType>& Element)
+	{
+		return Element.Key;
+	}
+
+	static FORCEINLINE bool Matches(const TSharedRef<const FInternetAddr>& A, const TSharedRef<const FInternetAddr>& B)
+	{
+		return *A == *B;
+	}
+
+	static FORCEINLINE uint32 GetKeyHash(const TSharedRef<const FInternetAddr>& Key)
+	{
+		return Key->GetTypeHash();
+	}
+};

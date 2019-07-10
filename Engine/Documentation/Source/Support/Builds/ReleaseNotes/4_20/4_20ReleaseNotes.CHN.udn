@@ -1,10 +1,10 @@
-﻿INTSourceChangelist:4605596
+﻿INTSourceChangelist:6537038
 Availability:Public
 Title: 虚幻引擎4.20版本说明
 Description: 虚幻引擎4.20版本说明
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:20
+Order: 24
 reference-image:image_13.gif
 reference-image:image_23.gif
 reference-image:image_16.gif
@@ -229,7 +229,7 @@ Fortnite的内存使用要求极为苛刻，因此需要高效地使用LOD。对
 
 * 根据项目在硬件上的有限资源，使用r.DOF.*控制台变量进行诸多可自定义的延展性设置。
 
-如需了解更多信息，请查阅[景深](https://docs.unrealengine.com/en-us/Engine/Rendering/PostProcessEffects/DepthOfField/CinematicDOFMethods)文档。
+如需了解更多信息，请查阅[景深](https://docs.unrealengine.com/en-us/Engine/Rendering/PostProcessEffects/DepthOfField/CinematicDOFMethodsDOFMethods)文档。
 
 ## 全新内容：Niagara视觉效果编辑器（早期体验版）
 
@@ -550,6 +550,14 @@ Epic对数字人类的探索从[照片级角色](https://docs.unrealengine.com/e
 
 欲知详情，请查阅[UMG安全区](https://docs.unrealengine.com/en-us/Engine/UMG/UserGuide/UMGSafeZones)。
 
+## 全新内容：UMG富文本块控件
+
+UMG现在可通过全新的富文本块控件支持富文本块样式及内联图片。和富文本控件不同，富文本块支持标记样式、内联图片、超链接等功能！它还能让你指定自己的装饰符并用它定义您的项目所需要的标记行为。
+
+![](UMGRichTextBlock.png)
+
+要使用该控件，您只需在UMG的Canvas面板上添加一个 **富文本块控件** 并创建一个数据表格资源来存储所有可以通过标记调用的文本样式和图片。在创建 **数据表格资源** 时，在您要添加图片或文本样式处选择可以被富文本块引用的 **富图片行** 或 **富文本样式行** 即可。T
+
 ## 全新内容：材质中的曲线图谱
 
 新版本中，材质可通过蓝图提供的额外支持，使用曲线图谱资源来保存和访问线性颜色曲线数据。曲线图谱使用的线性曲线颜色与旧版本中相同，不同之处是能够使用的线性颜色曲线数量与指定图谱的大小相同。 
@@ -684,14 +692,6 @@ Epic对数字人类的探索从[照片级角色](https://docs.unrealengine.com/e
 
 ![image alt text](image_33.png)(w:930 convert:false)
 
-## 全新内容：导航系统代码移至单独模块
-
-大部分导航系统相关的代码已从引擎代码的各处移出，并放入了全新的导航系统模块中。使用导航系统功能的游戏特定代码可能需要更新。
-
-您可下载一个[Python (3.5)脚本](https://epicgames.box.com/s/537wc3x95udak7uqq8wja19fyvbgz7ck)解析您的项目源代码，并找出需要更新的行。您也可以选择用脚本执行更改，但使用此选项必须谨慎，最好在版本控制系统的协助下使用。脚本选项就位于文件的顶部。 
-
-关于更新项目以适应这些改动的详细信息，请查看编程更新说明部分。
-
 ## 全新内容：移动平台镜面光照模型改良
 
  **移动平台** **镜面反应** 已改为默认使用 **GGX光照模型**。它改良了移动平台镜面质量，与 **SM5** 匹配更佳，但增加了着色器处理时间的少许开销。
@@ -721,6 +721,17 @@ Epic对数字人类的探索从[照片级角色](https://docs.unrealengine.com/e
 ## 全新内容：Steam认证
 
 新版本中加入了Steam认证功能！游戏现在可以添加一个数据包柄组件，连接到Steam的认证API，使其能够更好地进行服务器宣传、处理VAC/发行商的广告位，并提供更佳的客户端验证。功能启用后，加入服务器的客户端需要Steam进行认证才能进入游戏。未能通过认证的客户端默认将被踢出服务器。
+
+
+## 虚拟摄像机插件
+
+作为4.20的新增内容，虚拟摄像机插件可以让用户在虚拟制片环境中使用一台iPad Pro在虚幻引擎4（UE4）中驱动一台电影摄影机。有了ARKit，一台Vive Tracker或一套光学动作捕捉系统（如Vicon或Optitrack），iPad的位置与旋转就能被无线广播到PC，再由PC将视频传回iPad。
+
+诸如焦长、光圈、焦距和稳定性等摄像机设置都可以使用触摸输入调整。此外，虚拟摄像机还可以用于截取高分辨率截图、设置锚点、录制摄像机运动和其他与虚拟制片相关的任务。
+
+在Epic Games启动程序的“学习”页面上的 **引擎功能示例** 部分，有一个 **虚拟摄像机** 项目，其中包含一个可使用虚拟摄像机插件的示例场景以及相应的项目设置。
+
+更多详情，请参阅[虚拟摄像机插件](Engine/Plugins/VirtualCameraPlugin)文档
 
 ## 全新内容：Sequencer的帧准确度改良
 
@@ -2069,7 +2080,7 @@ GDC时，我们公布了Magic Leap One™：创造者早期体验版。我们与
 
 * **New:** The Editor now saves editor config to file first time a favorite folder is added in the Content Browser.
 
-##### **Foliage**
+##### Foliage
 
 * **New:** Added the bool Enable Density Scaling flag to Landscape Grass assets, to prevent density scaling for grass types with gameplay significance.
 
@@ -2891,7 +2902,7 @@ GDC时，我们公布了Magic Leap One™：创造者早期体验版。我们与
 
 * **New:** The Tile Grid color is now customizable.
 
-#### **Physics**
+#### Physics
 
 * **Bug Fix:** Fixed a cook warning with "Contains Physics Tri Mesh Data" returning true but "Get Physics Tri Mesh Data" returning false.
 

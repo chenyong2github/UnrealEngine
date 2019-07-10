@@ -9,7 +9,8 @@
 #include "MaterialEditingLibrary.generated.h"
 
 class UMaterialFunction;
-class MaterialInstance;
+class UMaterialInstance;
+
 
 /** Blueprint library for creating/editing Materials */
 UCLASS()
@@ -78,6 +79,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static bool SetMaterialUsage(UMaterial* Material, EMaterialUsage Usage, bool& bNeedsRecompile);
 
+	/**
+	 *	Check if a particular usage is enabled for the supplied material (e.g. SkeletalMesh, ParticleSprite etc)
+	 *	@param	Material			Material to check usage for
+	 *	@param	Usage				Usage type to check for this material
+	 */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static bool HasMaterialUsage(UMaterial* Material, EMaterialUsage Usage);
+
 	/** 
 	 *	Connect a material expression output to one of the material property inputs (e.g. diffuse color, opacity etc)
 	 *	@param	FromExpression		Expression to make connection from
@@ -108,6 +117,23 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static void LayoutMaterialExpressions(UMaterial* Material);
+
+	/** Get the default scalar (float) parameter value from a Material */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static float GetMaterialDefaultScalarParameterValue(UMaterial* Material, FName ParameterName);
+
+
+	/** Get the default texture parameter value from a Material  */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static UTexture* GetMaterialDefaultTextureParameterValue(UMaterial* Material, FName ParameterName);
+
+	/** Get the default vector parameter value from a Material */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static FLinearColor GetMaterialDefaultVectorParameterValue(UMaterial* Material, FName ParameterName);
+
+	/** Get the default static switch parameter value from a Material */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static bool GetMaterialDefaultStaticSwitchParameterValue(UMaterial* Material, FName ParameterName);
 
 	//////// MATERIAL FUNCTION EDITING
 
@@ -183,8 +209,71 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static bool SetMaterialInstanceVectorParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, FLinearColor Value);
 
+	/** Get the current static switch parameter value from a Material Instance */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static bool GetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName);
 
 	/** Called after making modifications to a Material Instance to recompile shaders etc. */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static void UpdateMaterialInstance(UMaterialInstanceConstant* Instance);
+
+	/** Gets all direct child mat instances */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetChildInstances(UMaterialInterface* Parent, TArray<FAssetData>& ChildInstances);
+
+	/** Gets all scalar parameter names */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetScalarParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
+
+	/** Gets all vector parameter names */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetVectorParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
+
+	/** Gets all texture parameter names */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetTextureParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
+
+	/** Gets all static switch parameter names */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetStaticSwitchParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
+
+	/**
+	*	Returns the path of the asset where the parameter originated, as well as true/false if it was found
+	*	@param	Material	The material or material instance you want to look up a parameter from
+	*	@param	ParameterName		The parameter name
+	*	@param	ParameterSource		The soft object path of the asset the parameter originates in 
+	*	@return	Whether or not the parameter was found in this material
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	bool GetScalarParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
+
+	/**
+	*	Returns the path of the asset where the parameter originated, as well as true/false if it was found
+	*	@param	Material	The material or material instance you want to look up a parameter from
+	*	@param	ParameterName		The parameter name
+	*	@param	ParameterSource		The soft object path of the asset the parameter originates in
+	*	@return	Whether or not the parameter was found in this material
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	bool GetVectorParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
+
+	/**
+	*	Returns the path of the asset where the parameter originated, as well as true/false if it was found
+	*	@param	Material	The material or material instance you want to look up a parameter from
+	*	@param	ParameterName		The parameter name
+	*	@param	ParameterSource		The soft object path of the asset the parameter originates in
+	*	@return	Whether or not the parameter was found in this material
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	bool GetTextureParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
+
+	/**
+	*	Returns the path of the asset where the parameter originated, as well as true/false if it was found
+	*	@param	Material	The material or material instance you want to look up a parameter from
+	*	@param	ParameterName		The parameter name
+	*	@param	ParameterSource		The soft object path of the asset the parameter originates in
+	*	@return	Whether or not the parameter was found in this material
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	bool GetStaticSwitchParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
 };

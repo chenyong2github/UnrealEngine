@@ -27,7 +27,7 @@ public:
 
 	FVector4 CenterAndExtent[GMaxGlobalDistanceFieldClipmaps];
 	FVector4 WorldToUVAddAndMul[GMaxGlobalDistanceFieldClipmaps];
-	FTextureRHIParamRef Textures[GMaxGlobalDistanceFieldClipmaps];
+	FRHITexture* Textures[GMaxGlobalDistanceFieldClipmaps];
 	float GlobalDFResolution;
 	float MaxDistance;
 };

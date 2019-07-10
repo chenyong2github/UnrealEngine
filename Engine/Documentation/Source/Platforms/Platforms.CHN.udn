@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4677050
+﻿INTSourceChangelist:6650139
 Availability:Public
 Title: 平台开发
 Crumbs:%ROOT%
@@ -10,29 +10,76 @@ order:8
 type:landing
 topic-icon:%ROOT%/platform_icon.png
 
-(#Mobile)
 ## 移动平台
 
 [DIR(end:"2" output:"topic" type:"landing" parent:"Platforms" tags:"Mobile" org:"hierarchy")]
 
-(#VirtualReality)
 ## 虚拟现实平台
 
 [DIR(end:"2" output:"topic" type:"landing" parent:"Platforms" tags:"VR" tags:"Platform" org:"hierarchy")]
 
-(#Desktop)
 ## 台式机平台
 
 [DIR(end:"2" output:"topic" type:"landing" parent:"Platforms" tags:"Desktop" org:"hierarchy")]
 
 [PUBLISH:licensee]
-(#Console)
 ## 主机平台
 
 [DIR(end:"2" output:"topic" type:"landing" parent:"Platforms" tags:"Console" org:"hierarchy")]
 [/PUBLISH:licensee]
+[PUBLISH:rocket]
+## 主机平台
+[OBJECT:Topic]
+	[PARAM:image]
+	![](Platforms/PS4/PS4Dev_Topic.png)
+	[/PARAM]
+	[PARAM:title]
+	%Platforms/PS4:title%
+	[/PARAM]
+	[PARAM:description]
+	%Platforms/PS4:description%
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://forums.unrealengine.com/development-discussion/playstation-4-development/1624372-unreal-engine-ps4-documentation
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:Topic]
+	[PARAM:image]
+	![](Platforms/Switch/SwitchDev_Topic.png)
+	[/PARAM]
+	[PARAM:title]
+	%Platforms/Switch:title%
+	[/PARAM]
+	[PARAM:description]
+	%Platforms/Switch:description%
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://forums.unrealengine.com/development-discussion/switch-development/1624375-unreal-engine-nintendo-switch-documentation
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:Topic]
+	[PARAM:image]
+	![](Platforms/XboxOne/XboxOne_Topic.png)
+	[/PARAM]
+	[PARAM:title]
+	%Platforms/XboxOne:title%
+	[/PARAM]
+	[PARAM:description]
+	%Platforms/XboxOne:description%
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://forums.unrealengine.com/development-discussion/xbox-one-development/1624374-unreal-engine-xbox-one-documentation
+	[/PARAMLITERAL]
+[/OBJECT]
+[/PUBLISH:rocket]
 
-(#CloudDeployment)
+[PUBLISH:rocket]
+## 主机平台
+%Platforms/PS4:topic%
+%Platforms/Switch:topic%
+%Platforms/XboxOne:topic%
+[/PUBLISH:rocket]
+
 ## 云部署
 
 %Platforms/PixelStreaming:topic%

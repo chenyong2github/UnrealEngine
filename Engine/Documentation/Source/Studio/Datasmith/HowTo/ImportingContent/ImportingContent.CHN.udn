@@ -1,0 +1,85 @@
+﻿INTSourceChangelist:5820897
+Availability: Public
+Crumbs: 
+Title: 将Datasmith内容导入到虚幻引擎4中
+Description: 
+Type: how-to
+Version: 4.22
+Parent: Studio/Datasmith/HowTo
+Order: 2
+Tags: Getting Started
+Tags: how to
+Tags: Datasmith
+Tags: overview
+Tags: beginner
+topic-image: datasmith-import-topic.png
+SkillLevel: Beginner
+Related: Studio/Datasmith/Overview
+Related: Studio/Datasmith/ImportOptions
+Related: Studio/Datasmith/HowTo/SettingUpUnrealProject
+Related: Studio/Datasmith/Overview/CustomizingImportProcess
+
+
+![](datasmith-setup-import-421.png) [](https://www.unrealengine.com/en-US/studio "Sign up for Unreal Studio") 
+[为3ds Max安装Datasmith插件](Studio/Datasmith/SoftwareInteropGuides/3dsMax/InstallingExporterPlugin "Install the Datasmith Plugin for 3ds Max") 
+[为SketchUp安装Datasmith插件](Studio/Datasmith/SoftwareInteropGuides/SketchUp/InstallingExporterPlugin "Install the Datasmith Plugin for SketchUp") 
+[为Revit安装Datasmith插件](Studio/Datasmith/SoftwareInteropGuides/Revit/InstallingExporterPlugin "Install the Datasmith Plugin for Revit") 
+[从VRED导出Datasmith内容](Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED/ExportingDatasmithContentfromVRED "Exporting Datasmith Content from VRED") 
+[从3ds Max导出Datasmith内容](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ExportingDatasmithContentfrom3dsMax "Export Datasmith content from 3ds Max") 
+[从SketchUp导出Datasmith内容](Studio/Datasmith/SoftwareInteropGuides/SketchUp/ExportingDatasmithContentfromSketchUp "Export Datasmith content from SketchUp") 
+[从Revit导出Datasmith内容](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit "Export Datasmith content from Revit") 
+[从VRED导出Datasmith内容](Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED/ExportingDatasmithContentfromVRED "Export Datasmith content from VRED") 
+[请参阅支持的软件和文件类型](Studio/Datasmith/SupportedSoftwareAndFileTypes "See the supported software and file types") 
+[安装虚幻引擎和Datasmith插件](Studio/Datasmith/HowTo/DownloadandInstall "Install Unreal Engine and the Datasmith Plugin") 
+[创建Unreal Studio项目](Studio/Datasmith/HowTo/SettingUpUnrealProject "Create an Unreal Studio Project") 
+[使用Datasmith导入内容](Studio/Datasmith/HowTo/ImportingContent "Use Datasmith to import your content")
+
+本页面介绍如何使用Datasmith将内容从支持的3D设计应用程序或文件格式导入到虚幻引擎中。
+
+[REGION:tip]
+您还可以使用Python来自动执行导入 *.udatasmith* 和CAD文件的过程。详情请参阅[自定义Datasmith导入过程](Studio/Datasmith/Overview/CustomizingImportProcess)。
+[/REGION]
+
+1.  在虚幻编辑器中，打开Datasmith内容要导入到的项目。
+    [REGION:note]
+    为了让Datasmith导入内容，您必须在一个Unreal Studio项目中操作。请参阅[设置一个Unreal项目来使用Datasmith](Studio/Datasmith/HowTo/SettingUpUnrealProject)。
+    [/REGION]
+    
+
+2.  如果您想要将内容带到项目中的一个现有关卡，现在就打开该关卡。否则，创建一个新的关卡，或者就使用默认关卡。
+
+3.  在主工具栏中，找到 **Datasmith** 按钮：  
+    ![The Datasmith importer in the Toolbar](datasmith-toolbar-422.png "The Datasmith importer in the Toolbar")
+
+4.  使用下拉箭头选择需要使用的Datasmith导入器类型：  
+    ![List of Datasmith importers](datasmith-toolbar-importers-422.png "List of Datasmith importers")  
+    该选择取决于要导入的源文件的类型。  
+    
+    *  如果您有一个从3ds Max或SketchUp导出的 *.udatasmith* 文件，选择 **Datasmith**。
+    
+    *   如果您有一个 *.gltf* 文件，选择 **GLTF**。
+    
+    *   如果您有一个从VRED或Deltagen导出的 *.fbx* 文件，选择 **VRED** 或 **Deltagen**。
+    
+    *   对于大多数其他文件格式，选择 **CAD**。
+    
+    [REGION:note]
+    有关完整列表，请参阅[Datasmith支持的软件和文件类型](Studio/Datasmith/SupportedSoftwareAndFileTypes)。
+    [/REGION]
+    
+
+5.  在 **导入（Import）** 窗口中，浏览到并选择要导入的文件。单击 **打开（Open）**。  
+    ![Choose a file to import](DS_Import_2.png "Choose a file to import")
+
+6.  在项目内容中为Datasmith选择一个文件夹来放置新导入的资源。  
+    ![Choose a content folder](DS_Import_3.png "Choose a content folder")
+    [REGION:tip]
+    如果您想要为Datasmith内容创建一个新文件夹，右键单击此窗口中的一个现有文件夹。
+    [/REGION]
+    
+
+7.  使用 **Datasmith导入选项（Datasmith Import Options）** 窗口选择要从源文件导入的内容类型，并设置控制导入过程的可选额外参数。  
+    ![Set import options](UnrealDSImportOptions-1.png "Set import options")  
+    此处可设置的选项取决于要导入文件的类型。详情请参阅[Datasmith导入选项](Studio/Datasmith/ImportOptions)。
+
+8.  单击 **导入（Import）**。Datasmith读取源文件，在项目中创建新资源，并将Datasmith场景放入当前关卡中。有关该过程的详情，请参阅[Datasmith概述](Studio/Datasmith/Overview)。

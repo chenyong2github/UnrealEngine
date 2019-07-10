@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:ParticleSystem 클래스
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
-Description:ParticleSystem 베이스 클래스에 대한 프로퍼티가 포함 기술 참고서입니다.
+Description:ParticleSystem 베이스 클래스에 대한 프로퍼티가 포함 기술 레퍼런스입니다.
 Version: 4.9
 tags:Particles
 

@@ -69,8 +69,8 @@ public:
 		Poses.Reset();
 		DesiredAlphas.Reset();
 	}
-private:
-	float GetTotalAlpha()
+
+	float GetTotalAlpha() const
 	{
 		float TotalAlpha = 0.f;
 
@@ -82,6 +82,7 @@ private:
 		return TotalAlpha;
 	}
 
+private:
 	// process new weights and then return out
 	void UpdateCachedAlphas();
 };

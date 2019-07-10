@@ -34,8 +34,6 @@ When compiling a UE4 solution, you are compiling our engine's source code togeth
 
 When compiling a UE4 project, you are only compiling your project's source code. The following build configurations are available when building your project this way:
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:Public
-Title:스프라이트 에디터 참고서
+Title:스프라이트 에디터 레퍼런스
 Crumbs: %ROOT%, Engine, Engine/Paper2D
 Description:UPaperSprite, 페이퍼 스프라이트 애셋 미리보기 및 편집용 툴입니다.
 Related: Engine\Paper2D\Sprites\Collision
@@ -55,7 +55,7 @@ SkillLevel: Beginner
 | ------ | ----------- |
 | **Save** | 저장 - 편집중인 스프라이트를 저장합니다. |
 | **Find in CB** | 콘텐츠 브라우저에서 찾기 - 콘텐츠 브라우저에서 편집중인 스프라이트를 표시합니다. |
-| **Src Tex** | 소스 텍스처 - 스프라이트가 레퍼런싱하고 있는 전체 텍스처 표시를 토글합니다. |
+| **Src Tex** | 소스 텍스처 - 스프라이트가 참조하고 있는 전체 텍스처 표시를 토글합니다. |
 | **Add Box** | 박스 추가 - 콜리전 편집 또는 지오메트리 렌더링시 부가 박스 폴리곤을 추가합니다. |
 | **Add Polygon** | 폴리곤 추가 - 콜리전 편집시나 지오메트리 렌더링시 폴리곤을 추가합니다. |
 | **Snap to pixel grid** | 픽셀 그리드로 스냅 - 콜리전 편집시나 지오메트리 렌더링시 픽셀 그리드에 모든 버텍스를 끌어붙입니다. |

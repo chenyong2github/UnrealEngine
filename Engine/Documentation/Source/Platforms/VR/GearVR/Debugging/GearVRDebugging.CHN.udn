@@ -1,0 +1,354 @@
+﻿INTSourceChangelist:3810467
+Availability:Public
+Crumbs: %ROOT%
+Title:三星Gear VR调试
+Description:对Gear VR头戴显示器应用程序进行调试。
+Type: Overview
+SkillLevel: Advanced
+Version: 4.17
+Parent: Platforms/VR/GearVR
+Order:3
+tags:VR
+tags:Gear VR
+Related: Platforms/Mobile/Performance
+Related: Engine/Performance
+Related: Engine/Performance/StatCommands
+Related: Platforms/Mobile/Textures
+Related: Platforms/Mobile/Materials
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
+prereq: Platforms\VR\GearVR\Prerequisites
+
+[TOC(start:2 end:3)]
+
+在目标设备上对项目进行调试十分重要，可对性能问题和其他可能存在的严重问题进行追踪。以下章节将介绍Gear VR项目的调试工具及其使用方法。
+
+(#enablinggearvrdevelopermode)
+### 启用Gear VR开发者模式
+不使用头戴显示器查看Gear VR项目时，访问虚幻引擎控制台之类的功能便更加便利，从而大大缩短问题的修复时间。以下部分将说明如何设置Gear VR项目，以便脱离头戴显示器进行查看。 
+
+[region:note]
+执行设置前，须在已关联设备签名的手机上安装Gear VR应用程序。可根据需要选择下载或编译应用程序。
+[/region]
+
+1. 首先，前往三星Galaxy智能手机的 **设置（Settings）** > **应用程序（Apps）**> **应用程序管理器（Application Manager）** > **Gear VR服务（Gear VR Service）**。
+    
+    [REGION:lightbox]
+    [![](T_GearVR_Dev_Mode_01.png)(w:600)](T_GearVR_Dev_Mode_01.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 然后点击 **存储（Storage）**，再点击 **管理存储（Manage Storage）**。
+  
+    [REGION:lightbox]
+    [![](T_GearVR_Dev_Mode_02.png)(w:500)](T_GearVR_Dev_Mode_02.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 然后在 **VR服务版本（VR Service Version）** 上点击 **6** 次。
+
+    [REGION:lightbox]
+    [![](T_GearVR_Dev_Mode_03.png)(w:300)](T_GearVR_Dev_Mode_03.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 操作完成后将开始扫描过程，完成后即可在屏幕上看到已启用的 **开发者模式（Developer Mode）**。
+
+    [REGION:lightbox]
+    [![](T_GearVR_Dev_Mode_04.png)(w:300)](T_GearVR_Dev_Mode_04.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 现在即可脱离头戴显示器运行并显示Gear VR项目。
+
+    [region:tip]
+    请注意：启用VR开发者模式对电池电量消耗极大。原因是覆盖了不使用Gear VR头戴显示器时关闭屏幕的设置。
+    [/region]
+
+(#disablinggearvrdevelopermode)
+### 禁用Gear VR开发者模式
+
+如需禁用VR开发者模式，将 **开发者模式（Developer Mode）** 滑条从 **开** 滑动至 **关** 即可。
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Developer Mode Disabled](Dev_Mode_Disable.png)
+	[/PARAM]
+	[PARAM:after]
+	![Developer Mode Enabled](Dev_Mode_Enable.png)
+	[/PARAM]
+[/OBJECT]
+
+
+(#enablingtheue4console)
+### 启用UE4控制台
+UE4控制台是一个强大的工具，可用于查看UE4中当前显示的数据，在某些情况下还可对这些数据产生影响。在移动设备上访问UE4控制台的方法和在电脑上访问有些许不同，详细说明如下。
+
+[region:tip]
+在电脑上访问时，在控制台中输入 **DumpConsoleCommands**，虚幻引擎便会在控制台中列出所有可用的控制台命令。
+[/region]
+
+1. 首先在手机上启用Gear VR开发者模式。之后即可脱离Gear VR头戴显示器运行并查看项目。如使用头戴显示器，则无法对手机屏幕进行触控操作。
+    
+    [REGION:lightbox]
+    [![](T_GearVR_Dev_Mode_04.png)(w:300)](T_GearVR_Dev_Mode_04.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 接下来点击项目图标运行Gear VR项目。项目运行后即可在手机上看到如下效果。
+    
+    [REGION:lightbox]
+    [![](T_App_On_Phone.png)(w:500)](T_App_On_Phone.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. Gear VR项目运行时，用 **四根** 手指同时点击屏幕即可打开虚幻引擎控制台。完成正确操作后，手机屏幕上将出现下图中的输入框。 
+
+    [REGION:lightbox]
+    [![](T_GearR_Open_Console.png)(w:500)](T_GearR_Open_Console.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 在输入框中输入希望执行的控制台命令，然后点击 **确认**。在此例中我们将使用 **Stat Memory** 命令，确定项目使用的内存量。 
+
+    [REGION:lightbox]
+    [![](T_GearR_Input_Command.png)(w:500)](T_GearR_Input_Command.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 按下 **确认** 键后，即可显示当前使用的内存量以及内存使用的出处。
+
+    [REGION:lightbox]
+    [![](T_GearR_Displaying_Memory.png)(w:500)](T_GearR_Displaying_Memory.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 调试完成后（或需要清除屏幕上的调试信息时），输入 **Stat None** 即可清除屏幕上的所有调试信息。
+
+    [region:tip]
+    进行Gear VR头戴显示器控制台调试的最佳选择是蓝牙键盘，无需从头戴显示器上取出手机便可使用控制台。
+    [/region]
+
+(#viewinggearvrdebuglogs)
+### 查看Gear VR调试日志
+开发3D项目时，调试日志的查看至关重要。调试日志中包含错误的重要信息和深入分析，在某些情况下甚至还可以为使用者提供修复建议。以下部分将说明如何从智能手机获取调试日志。
+
+[region:note]
+在Android官方文档中可查看[Logcat](http://developer.android.com/tools/help/logcat.html)的详细使用信息。
+[/region]
+
+1. 首先将安装有需要获取调试信息应用程序的智能手机通过USB接口插入电脑。
+
+1. 按下 **Windows键 + R键** 打开Windows命令窗口，在 **运行** 对话框中输入 **CMD**。 
+     
+     ![](T_Open_CMD_Prompt.png)(w:500)
+
+1. 按下 **Enter** 键启动Windows命令行。
+    
+    [REGION:lightbox]
+    [![](T_Windows_CMD.png)(w:500)](T_Windows_CMD.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 在命令行窗口中输入 **ADB Devices**，然后按下 **Enter** 键显示连接到电脑的设备。
+    
+    [REGION:lightbox]
+    [![](T_Windows_ADB_Devices.png)(w:500)](T_Windows_ADB_Devices.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+    [region:tip]
+    如 **ADB Devices** 中未列出设备，则需再次阅读[Gear VR必备条件](Platforms\VR\GearVR\Prerequisites)设置部分，然后再次尝试此步骤。 
+    [/region]
+
+1. 现在清理日志缓存，确保输入以下命令将获得当前的调试信息。
+
+        adb logcat -c
+
+    [REGION:lightbox]
+    [![](T_ADB_Clear_Log.png)(w:500)](T_ADB_Clear_Log.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 旧日志数据清理完成后，在智能手机上运行应用程序，输入下列命令获取日志信息。
+    
+        adb logcat -s UE4 OVR VrApi VrLib VRSVC HmdInfo >logoutput.txt
+
+    [REGION:lightbox]
+    [![](T_ADB_Get_Log.png)(w:500)](T_ADB_Get_Log.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+	[region:note]
+	如需即时查看输出的日志，省去命令行中的 **>logoutput.txt** 部分即可在命令行窗口中显示所有日志更新。
+	[/region]
+
+1. 按下键盘上的 **CTRL + C键** 即可完成日志获取，日志文件名为 **logoutput.txt**，保存在Windows的 **Users** 文件夹中。
+
+    [REGION:lightbox]
+    [![](T_ADB_Log_Location.png)(w:500)](T_ADB_Log_Location.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+    [region:note]
+    在打开的命令窗口中运行ADB logcat命令后，数据将继续输出到日志文件中。按下 **CTRL + C键** 后将停止对日志文件的写入。
+    [/region] 
+
+1. 在logcat命令中添加 **UE4**、**OVR**、**VrApi**、**VrLib**、**VRSVC** 和 **HmdInfo** 后，即可将这些信息加入到生成的日志文件中。 
+    在创建好的日志文件中搜索条目即可找到与其相关的所有调试信息。  
+    在下图的搜索范例中，OVR、UE4、Vrapi和VrApi条目及其相关信息均显示在日志文件中。
+    
+    [REGION:lightbox]
+    [![](T_ADB_Log_Info.png)(w:500)](T_ADB_Log_Info.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+如Gear VR项目无法启动，使用logcat命令即可准确查到问题所在及原因。此外还将获得问题的详细信息，可将其发布到[UE4论坛](https://forums.unrealengine.com/)或[答疑中心](https://answers.unrealengine.com/index.html)，便于获得问题的解决方案。
+
+(#wirelessdeploying&debugging)
+### 无线部署和调试
+
+使用Gear VR头戴显示器时无法获取调试信息或将项目部署到智能手机，因为唯一的USB接口已被显示器占用。可通过智能手机的Wi-Fi连接将调试信息传输到开发电脑，避开这一尴尬的局面。甚至还可利用此方法部署项目，但与USB连线传输相比，这种方法的速度奇慢。以下部分将讲述智能手机的设置方法，使其通过Wi-Fi发送调试信息并进行部署。
+
+[region:note]
+请注意：开发电脑和Galaxy Note 4处在同一网络时方可成功执行此操作。
+[/region]
+
+1. 按下 **Windows + R键** 打开Windows命令窗口，在打开的 **运行** 对话框中输入 **CMD**。
+    然后按下键盘上的 **Enter** 键或用鼠标点击 **确认** 键。 
+
+    ![](T_Open_CMD_Prompt.png)
+   
+1. 按下 **确认** 键后便会出现类似下图的Windows命令行窗口。
+    
+    [REGION:lightbox]
+    [![](T_Windows_CMD.png)(w:500)](T_Windows_CMD.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 输入下列命令查看智能手机的IP地址并做好记录。使用的IP地址为 **inet** 后的数字部分。
+    
+        adb shell ip -f inet addr show wlan0
+    
+    [REGION:lightbox]
+    [![](T_ADB_Phone_IP.png)(w:500)](T_ADB_Phone_IP.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 之后输入下列命令将网络连接改为 **TCP**，并设置被聆听的端口。
+
+        adb tcpip 5555
+    
+    [REGION:lightbox]
+    [![](T_ADB_Set_Port.png)(w:500)](T_ADB_Set_Port.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 端口设置好后，输入以下命令并按下Enter键即可连接到智能手机。
+    
+        adb connect 000.000.000.000 - 替换设备的IP地址。
+        
+1. 将显示 **连接到** 设备IP地址的消息。
+    
+	[REGION:lightbox]
+	[![](T_ADB_Connected.png)(w:500)](T_ADB_Connected.png)
+	[/REGION]
+
+	[REGION:caption]
+	点击查看全图。
+	[/REGION]
+
+1. 确保Wi-Fi连接正常，在命令行窗口中输入 **adb devices** 并按下Enter键，即可看到 **附加设备列表（List of devices attached）** 中唯一一个使用上述IP地址的设备。
+
+    [REGION:lightbox]
+    [![](T_ADB_Attached_IP.png)(w:500)](T_ADB_Attached_IP.png)
+    [/REGION]
+    
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+
+通过网络将智能手机和电脑相连之后，即可开始从智能手机获取调试信息，甚至直接通过网络将项目部署到手机。但请注意，通过网络将项目部署到手机的速度慢于USB连接线。
+
+(#returntowireddeploying&debugging)
+### 返回有线部署和调试
+
+在命令窗口中输入下列命令即可返回到USB连线部署和调试。
+ 
+     ADB USB
+
+[REGION:lightbox]
+[![](T_ADB_Detached.png)(w:500)](T_ADB_Detached.png)
+[/REGION]
+    
+[REGION:caption]
+点击查看全图。
+[/REGION]
+
+
+
+
+
+
+
+
+
+
+
+
+

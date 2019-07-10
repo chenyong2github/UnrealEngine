@@ -6,41 +6,34 @@ public class UnrealMultiUserServer : ModuleRules
 {
 	public UnrealMultiUserServer(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicIncludePaths.Add("Runtime/Launch/Public");
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Core",
+				"CoreUObject",
+				"Concert",
+				"ApplicationCore",					// for LaunchEngineLoop.cpp dependency
+				"Projects",							// for LaunchEngineLoop.cpp dependency
+			}
+		);
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"Launch",
+				"ConcertSyncCore",
+				"ConcertSyncServer",
+			}
+		);
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"Runtime/Launch/Private",           // for LaunchEngineLoop.cpp include
 			}
 		);
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-                "Core",
-				"ApplicationCore",
-                "Projects",
-                "CoreUObject",
-                "Messaging",
-                "MessagingCommon",
-           }
-        );
-        
-        // Networking Dependency
-        PrivateDependencyModuleNames.AddRange(
-            new string[] {
-                "Sockets",
-                "Networking",
-                "UdpMessaging",
-                "Concert",
-                "ConcertTransport",
-                "ConcertSyncServer",
-                "SessionServices",
-            }
-        );
 
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "Messaging",
-            }
-        );
-    }
+		DynamicallyLoadedModuleNames.AddRange(
+			new string[] {
+				"ConcertSyncServer",
+			}
+		);
+	}
 }

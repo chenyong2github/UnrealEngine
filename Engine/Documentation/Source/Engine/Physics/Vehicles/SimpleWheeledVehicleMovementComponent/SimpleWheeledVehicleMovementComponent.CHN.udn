@@ -1,14 +1,14 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:6411601
 Availability:Public
 Title:简单轮式载具移动组件
-Crumbs:
+Parent: Engine/Physics/Vehicles
 Description:简单轮式载具移动组件的虚幻引擎4蓝图载具使用指南。
-Parent: Engine/Vehicles/
 type:how-to
 prereq: Engine/Physics/Vehicles/VehicleUserGuide
 Version: 4.15
 SkillLevel: Advanced
 tags: vehicles
+Order:2
 
 **SimpleWheeledVehicleMovement** 组件无需复杂的引擎和传动模拟即可实现车轮悬挂和轮胎摩擦。利用此组件可轻松地针对继承自轮式载具运动组件的组件为单个轮胎施加扭矩，这些继承的组件可以让任意组件实现载具式运动，无需依赖于轮式载具Actor类。 
 

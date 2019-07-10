@@ -9,7 +9,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Async/Async.h"
 
-#include "NvVideoEncoder.h"
+#include "PixelStreamingNvVideoEncoder.h"
 #include "PixelStreamingCommon.h"
 #include "Utils.h"
 #include "ProxyConnection.h"
@@ -26,7 +26,7 @@ TAutoConsoleVariable<int32> CVarEncoderAverageBitRate(
 TAutoConsoleVariable<float> CVarEncoderMaxBitrate(
 	TEXT("Encoder.MaxBitrate"),
 	100000000,
-	TEXT("Max bitrate no matter what WebRTC says, in Mbps"),
+	TEXT("Max bitrate no matter what WebRTC says"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<FString> CVarEncoderTargetSize(
@@ -123,7 +123,7 @@ FStreamer::~FStreamer()
 
 void FStreamer::CreateVideoEncoder(const FTexture2DRHIRef& FrameBuffer)
 {
-	VideoEncoder.Reset(new FNvVideoEncoder(VideoEncoderSettings, FrameBuffer, [this](uint64 Timestamp, bool KeyFrame, const uint8* Data, uint32 Size)
+	VideoEncoder.Reset(new FPixelStreamingNvVideoEncoder(VideoEncoderSettings, FrameBuffer, [this](uint64 Timestamp, bool KeyFrame, const uint8* Data, uint32 Size)
 	{
 		SubmitVideoFrame(Timestamp, KeyFrame, Data, Size);
 	}));
@@ -237,7 +237,7 @@ void FStreamer::ForceIdrFrame()
 
 void FStreamer::UpdateEncoderSettings(const FTexture2DRHIRef& FrameBuffer, int32 Fps)
 {
-	float MaxBitrateMbps = CVarEncoderMaxBitrate.GetValueOnRenderThread();
+	float MaxBitrate = CVarEncoderMaxBitrate.GetValueOnRenderThread();
 
 	// HACK(andriy): We reduce WebRTC reported bitrate to compensate for B/W jitter. We have long pipeline
 	// before passing encoded frames to WebRTC and a couple of frames are already in the pipeline when
@@ -256,7 +256,7 @@ void FStreamer::UpdateEncoderSettings(const FTexture2DRHIRef& FrameBuffer, int32
 	float BitrateReduction = CVarStreamerBitrateReduction.GetValueOnRenderThread();
 	uint32 Bitrate = CVarEncoderAverageBitRate.GetValueOnRenderThread();
 	uint32 ReducedBitrate = static_cast<uint32>(Bitrate / 100.0 * (100.0 - BitrateReduction));
-	ReducedBitrate = FMath::Min(ReducedBitrate, static_cast<uint32>(MaxBitrateMbps * 1000 * 1000));
+	ReducedBitrate = FMath::Min(ReducedBitrate, static_cast<uint32>(MaxBitrate));
 	VideoEncoderSettings.AverageBitRate = ReducedBitrate;
 	SET_DWORD_STAT(STAT_PixelStreaming_EncodingBitrate, VideoEncoderSettings.AverageBitRate);
 
@@ -278,6 +278,10 @@ void FStreamer::UpdateEncoderSettings(const FTexture2DRHIRef& FrameBuffer, int32
 		{
 			VideoEncoderSettings.Width = FCString::Atoi(*TargetWidth);
 			VideoEncoderSettings.Height = FCString::Atoi(*TargetHeight);
+		}
+		else
+		{
+			UE_LOG(PixelStreaming, Error, TEXT("CVarEncoderTargetSize is not in a valid format. It should be e.g: \"1920x1080\""));
 		}
 	}
 }

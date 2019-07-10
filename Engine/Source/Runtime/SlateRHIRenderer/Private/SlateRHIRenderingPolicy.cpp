@@ -555,7 +555,7 @@ static bool UpdateScissorRect(
 				// because we're about to go back to rendering widgets "normally", but with the added effect that now
 				// we have the stencil buffer bound with a bunch of clipping zones rendered into it.
 				{
-					FDepthStencilStateRHIParamRef DSMaskRead =
+					FRHIDepthStencilState* DSMaskRead =
 						TStaticDepthStencilState<
 						/*bEnableDepthWrite*/ false
 						, /*DepthTest*/ CF_Always
@@ -628,7 +628,11 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 	static const FEngineShowFlags DefaultShowFlags(ESFIM_Game);
 
-	const float EngineGamma = GEngine ? GEngine->GetDisplayGamma() : 2.2f;
+	// Disable gammatization when back buffer is in float 16 format.
+	// Note that the final editor rendering won't compare 1:1 with 8/10 bit RGBA since blending
+	// of "manually" gammatized values is wrong as there is no de-gammatization of the destination buffer
+	// and re-gammatization of the resulting blending operation in the 8/10 bit RGBA path.
+	const float EngineGamma = (BackBuffer.GetRenderTargetTexture()->GetFormat() == PF_FloatRGBA) ? 1.0 : GEngine ? GEngine->GetDisplayGamma() : 2.2f;
 	const float DisplayGamma = bGammaCorrect ? EngineGamma : 1.0f;
 	const float DisplayContrast = GSlateContrast;
 
@@ -902,8 +906,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				}
 #endif
 
-				FSamplerStateRHIParamRef SamplerState = BilinearClamp;
-				FTextureRHIParamRef TextureRHI = GWhiteTexture->TextureRHI;
+				FRHISamplerState* SamplerState = BilinearClamp;
+				FRHITexture* TextureRHI = GWhiteTexture->TextureRHI;
 				if (ShaderResource)
 				{
 					ETextureSamplerFilter Filter = ETextureSamplerFilter::Bilinear;
@@ -922,9 +926,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					}
 					else
 					{
-						FTextureRHIParamRef NativeTextureRHI = ((TSlateTexture<FTexture2DRHIRef>*)ShaderResource)->GetTypedResource();
+						FRHITexture* NativeTextureRHI = ((TSlateTexture<FTexture2DRHIRef>*)ShaderResource)->GetTypedResource();
 						// Atlas textures that have no content are never initialized but null textures are invalid on many platforms.
-						TextureRHI = NativeTextureRHI ? NativeTextureRHI : (FTextureRHIParamRef)GWhiteTexture->TextureRHI;
+						TextureRHI = NativeTextureRHI ? NativeTextureRHI : (FRHITexture*)GWhiteTexture->TextureRHI;
 					}
 
 					if (EnumHasAllFlags(DrawFlags, (ESlateBatchDrawFlag::TileU | ESlateBatchDrawFlag::TileV)))

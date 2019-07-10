@@ -35,16 +35,8 @@ bool ExecuteDBProxyCommand(FSocket *Socket, const FString& Cmd)
  * Constructor.
  */
 FRemoteDatabaseConnection::FRemoteDatabaseConnection()
-: Socket(NULL)
+: Socket(nullptr)
 {
-	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-	check(SocketSubsystem);
-
-	// The socket won't work if secure connections are enabled, so don't try
-	if (SocketSubsystem->RequiresEncryptedPackets() == false)
-	{
-		Socket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("remote database connection"));
-	}
 }
 
 /**
@@ -58,7 +50,7 @@ FRemoteDatabaseConnection::~FRemoteDatabaseConnection()
 	if (Socket)
 	{
 		SocketSubsystem->DestroySocket(Socket);
-		Socket = NULL;
+		Socket = nullptr;
 	}
 }
 
@@ -74,23 +66,30 @@ FRemoteDatabaseConnection::~FRemoteDatabaseConnection()
 bool FRemoteDatabaseConnection::Open( const TCHAR* ConnectionString, const TCHAR* RemoteConnectionIP, const TCHAR* RemoteConnectionStringOverride )
 {
 	bool bIsValid = false;
-	if ( Socket )
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	check(SocketSubsystem);
+
+	TSharedRef<FInternetAddr> Address = SocketSubsystem->CreateInternetAddr();
+	Address->SetIp(RemoteConnectionIP, bIsValid);
+	Address->SetPort(10500);
+
+	// The socket won't work if secure connections are enabled, so don't try
+	if (SocketSubsystem->RequiresEncryptedPackets() == false && Socket == nullptr)
 	{
-		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-		check(SocketSubsystem);
+		Socket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("remote database connection"), Address->GetProtocolType());
+	}
+	else
+	{
+		bIsValid = false;
+	}
 
-		TSharedRef<FInternetAddr> Address = SocketSubsystem->CreateInternetAddr();
-		Address->SetIp(RemoteConnectionIP, bIsValid);
-		Address->SetPort(10500);
+	if (bIsValid && Socket)
+	{
+		bIsValid = Socket->Connect(*Address);
 
-		if(bIsValid)
+		if (bIsValid && RemoteConnectionStringOverride)
 		{
-			bIsValid = Socket->Connect(*Address);
-
-			if(bIsValid && RemoteConnectionStringOverride)
-			{
-				SetConnectionString(RemoteConnectionStringOverride);
-			}
+			SetConnectionString(RemoteConnectionStringOverride);
 		}
 	}
 	return bIsValid;
@@ -274,7 +273,7 @@ float FRemoteDataBaseRecordSet::GetFloat( const TCHAR* Column ) const
 }
 
 /** Constructor. */
-FRemoteDataBaseRecordSet::FRemoteDataBaseRecordSet(int32 ResultSetID, FSocket *Connection) : Socket(NULL)
+FRemoteDataBaseRecordSet::FRemoteDataBaseRecordSet(int32 ResultSetID, FSocket *Connection) : Socket(nullptr)
 {
 	check(ResultSetID >= 0);
 	check(Connection);

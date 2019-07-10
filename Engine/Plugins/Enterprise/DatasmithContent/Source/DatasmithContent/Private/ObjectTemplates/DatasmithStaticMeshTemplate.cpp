@@ -176,16 +176,16 @@ bool FDatasmithMeshSectionInfoMapTemplate::Equals( const FDatasmithMeshSectionIn
 	return bEquals;
 }
 
-void UDatasmithStaticMeshTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	UStaticMesh* StaticMesh = Cast< UStaticMesh >( Destination );
 
 	if ( !StaticMesh )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithStaticMeshTemplate* PreviousStaticMeshTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithStaticMeshTemplate >( StaticMesh ) : nullptr;
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( LightMapCoordinateIndex, StaticMesh, PreviousStaticMeshTemplate );
@@ -293,9 +293,9 @@ void UDatasmithStaticMeshTemplate::Apply( UObject* Destination, bool bForce )
 			}
 		}
 	}
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( Destination, this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return Destination;
 }
 
 void UDatasmithStaticMeshTemplate::Load( const UObject* Source )

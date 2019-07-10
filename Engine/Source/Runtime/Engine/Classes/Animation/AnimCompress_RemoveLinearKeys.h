@@ -106,7 +106,7 @@ class UAnimCompress_RemoveLinearKeys : public UAnimCompress
 protected:
 	//~ Begin UAnimCompress Interface
 #if WITH_EDITOR
-	virtual void DoReduction(class UAnimSequence* AnimSeq, const TArray<class FBoneData>& BoneData) override;
+	virtual void DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) override;
 	virtual void PopulateDDCKey(FArchive& Ar) override;
 #endif // WITH_EDITOR
 	//~ Begin UAnimCompress Interface
@@ -116,8 +116,7 @@ protected:
 	 * Pre-filters the tracks before running the main key removal algorithm
 	 */
 	virtual void FilterBeforeMainKeyRemoval(
-		UAnimSequence* AnimSeq, 
-		const TArray<FBoneData>& BoneData, 
+		const FCompressibleAnimData& CompressibleAnimData,
 		TArray<FTranslationTrack>& TranslationData,
 		TArray<FRotationTrack>& RotationData, 
 		TArray<FScaleTrack>& ScaleData);
@@ -126,13 +125,14 @@ protected:
 	 * Compresses the tracks passed in using the underlying compressor for this key removal codec
 	 */
 	virtual void CompressUsingUnderlyingCompressor(
-		UAnimSequence* AnimSeq, 
-		const TArray<FBoneData>& BoneData, 
+		const FCompressibleAnimData& CompressibleAnimData,
+		FCompressibleAnimDataResult& OutCompressedData,
 		const TArray<FTranslationTrack>& TranslationData,
 		const TArray<FRotationTrack>& RotationData,
 		const TArray<FScaleTrack>& ScaleData,
 		const bool bFinalPass);
 
+#if USE_SEGMENTING_CONTEXT
 	/**
 	 * Compresses the tracks passed in using the underlying compressor for this key removal codec for a single segment
 	 */
@@ -141,13 +141,14 @@ protected:
 		const TArray<FBoneData>& BoneData,
 		TArray<FAnimSegmentContext>& RawSegments,
 		const bool bFinalPass);
+#endif
 
 	/**
 	 * Updates the world bone transforms for a range of bone indices
 	 */
 	void UpdateWorldBoneTransformRange(
-		UAnimSequence* AnimSeq, 
-		const TArray<FBoneData>& BoneData, 
+		const FCompressibleAnimData& CompressibleAnimData,
+		FCompressibleAnimDataResult& OutCompressedData,
 		const TArray<FTransform>& RefPose,
 		const TArray<FTranslationTrack>& PositionTracks,
 		const TArray<FRotationTrack>& RotationTracks,
@@ -158,25 +159,38 @@ protected:
 		TArray<FTransform>& OutputWorldBones);
 
 	/**
+	 * To guide the key removal process, we need to maintain a table of world transforms
+	 * for the bones we are investigating. This helper function fills a row of the 
+	 * table for a specified bone.
+	 */
+	void UpdateWorldBoneTransformTable(
+		const FCompressibleAnimData& CompressibleAnimData,
+		FCompressibleAnimDataResult& OutCompressedData,
+		const TArray<FTransform>& RefPose,
+		int32 BoneIndex,
+		bool UseRaw,
+		TArray<FTransform>& OutputWorldBones);
+
+	/**
+	 * Creates a list of the bone atom result for every frame of a given track
+	 */
+	static void UpdateBoneAtomList(
+		const FCompressibleAnimData& CompressibleAnimData,
+		FCompressibleAnimDataResult& OutCompressedData,
+		int32 BoneIndex,
+		int32 TrackIndex,
+		int32 NumFrames,
+		float TimePerFrame,
+		TArray<FTransform>& BoneAtoms);
+
+#if USE_SEGMENTING_CONTEXT
+	/**
 	 * Updates the world bone transforms for a range of bone indices for a single segment
 	 */
 	void UpdateWorldBoneTransformRange(
 		FProcessAnimationTracksContext& Context,
 		int32 StartingBoneIndex,
 		int32 EndingBoneIndex);
-
-	/**
-	 * To guide the key removal process, we need to maintain a table of world transforms
-	 * for the bones we are investigating. This helper function fills a row of the 
-	 * table for a specified bone.
-	 */
-	void UpdateWorldBoneTransformTable(
-		UAnimSequence* AnimSeq,
-		const TArray<FBoneData>& BoneData,
-		const TArray<FTransform>& RefPose,
-		int32 BoneIndex,
-		bool UseRaw,
-		TArray<FTransform>& OutputWorldBones);
 
 	/**
 	 * To guide the key removal process, we need to maintain a table of world transforms
@@ -190,23 +204,13 @@ protected:
 		TArray<FTransform>& OutputWorldBones);
 
 	/**
-	 * Creates a list of the bone atom result for every frame of a given track
-	 */
-	static void UpdateBoneAtomList(
-		UAnimSequence* AnimSeq, 
-		int32 BoneIndex,
-		int32 TrackIndex,
-		int32 NumFrames,
-		float TimePerFrame,
-		TArray<FTransform>& BoneAtoms);
-
-	/**
 	 * Creates a list of the bone atom result for every frame of a given track for a single segment
 	 */
 	void UpdateBoneAtomList(
 		const FProcessAnimationTracksContext& Context,
 		int32 TrackIndex,
 		TArray<FTransform>& BoneAtoms) const;
+#endif
 
 	/**
 	 * If the passed in animation sequence is additive, converts it to absolute (using the frame 0 pose) and returns true
@@ -214,9 +218,8 @@ protected:
 	 *
 	 * @param AnimSeq			The animation sequence being compressed
 	 *
-	 * @return true if the animation was additive and has been converted to absolute space.
 	 */
-	bool ConvertFromRelativeSpace(UAnimSequence* AnimSeq);
+	void ConvertFromRelativeSpace(FCompressibleAnimData& CompressibleAnimData);
 
 	/**
 	 * Converts an absolute animation sequence and matching track data to a relative (additive) one.
@@ -227,7 +230,7 @@ protected:
 	 * @param ScaleData			Scale Tracks to convert to relative space
 	 *
 	 */
-	void ConvertToRelativeSpace(UAnimSequence* AnimSeq, TArray<FTranslationTrack>& TranslationData, TArray<FRotationTrack>& RotationData, TArray<FScaleTrack>& ScaleData);
+	void ConvertToRelativeSpaceBoth(FCompressibleAnimData& CompressibleAnimData, TArray<FTranslationTrack>& TranslationData, TArray<FRotationTrack>& RotationData, TArray<FScaleTrack>& ScaleData);
 
 	/**
 	 * Converts an absolute animation sequence to a relative (additive) one.
@@ -235,7 +238,7 @@ protected:
 	 * @param AnimSeq			The animation sequence being compressed and converted
 	 *
 	 */
-	void ConvertToRelativeSpace(UAnimSequence& AnimSeq) const;
+	void ConvertToRelativeSpace(FCompressibleAnimData& CompressibleAnimData) const;
 
 	/**
 	 * Converts track data to relative (additive) space.
@@ -246,7 +249,7 @@ protected:
 	 * @param ScaleData			Scale Tracks to convert to relative space
 	 *
 	 */
-	void ConvertToRelativeSpace(const UAnimSequence& AnimSeq, TArray<FTranslationTrack>& TranslationData, TArray<FRotationTrack>& RotationData, TArray<FScaleTrack>& ScaleData) const;
+	void ConvertToRelativeSpace(const FCompressibleAnimData& CompressibleAnimData, TArray<FTranslationTrack>& TranslationData, TArray<FRotationTrack>& RotationData, TArray<FScaleTrack>& ScaleData) const;
 
 
 	/**
@@ -262,12 +265,13 @@ protected:
 	 * @return				None.
 	 */
 	void ProcessAnimationTracks(
-		UAnimSequence* AnimSeq, 
-		const TArray<FBoneData>& BoneData, 
+		const FCompressibleAnimData& CompressibleAnimData,
+		FCompressibleAnimDataResult& OutCompressedData,
 		TArray<FTranslationTrack>& PositionTracks,
 		TArray<FRotationTrack>& RotationTracks, 
 		TArray<FScaleTrack>& ScaleTracks);
 
+#if USE_SEGMENTING_CONTEXT
 	/**
 	 * Locates spans of keys within the position and rotation tracks provided which can be estimated
 	 * through linear interpolation of the surrounding keys. The remaining key values are bit packed into
@@ -295,8 +299,10 @@ protected:
 	 * Samples a track within a segment at a specified time with the current track format.
 	 */
 	static FTransform SampleSegment(const FProcessAnimationTracksContext& Context, int32 TrackIndex, float Time);
+#endif
 
 private:
+#if USE_SEGMENTING_CONTEXT
 	/**
 	 * Performs the linear key reduction and retargetting for a single segment.
 	 * This can be called from multiple threads concurrently.
@@ -304,6 +310,7 @@ private:
 	void ProcessAnimationTracks(FProcessAnimationTracksContext& Context);
 
 	friend struct FAsyncProcessAnimationTracksTaskGroupContext;
+#endif
 
 #endif // WITH_EDITOR
 };

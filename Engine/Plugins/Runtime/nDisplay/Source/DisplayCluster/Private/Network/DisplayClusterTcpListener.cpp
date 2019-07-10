@@ -2,13 +2,14 @@
 
 #include "DisplayClusterTcpListener.h"
 
-#include "Misc/DisplayClusterLog.h"
 #include "HAL/RunnableThread.h"
 
 #include "Common/TcpSocketBuilder.h"
 
 #include "Misc/DisplayClusterAppExit.h"
 #include "Misc/DisplayClusterHelpers.h"
+
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterTcpListener::FDisplayClusterTcpListener(const FString& InName) :

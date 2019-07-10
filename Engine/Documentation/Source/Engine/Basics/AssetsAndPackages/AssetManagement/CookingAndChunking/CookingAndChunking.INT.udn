@@ -1,53 +1,144 @@
-Availability:Public
-Crumbs: %ROOT%
+Availability: Public
 Title: Cooking and Chunking
 Description: Cooking Content and Building .pak Files for Distribution
-Type: Overview
-SkillLevel: Intermediate
-Version: 4.17
+Type: overview
+Version: 4.19
 Parent: Engine/Basics/AssetsAndPackages/AssetManagement
-Order: 0
 Tags: Assets
 Tags: Asset Management
 Tags: Cooking
 Tags: Chunking
 Related: Engine/Basics/AssetsAndPackages/AssetManagement
 
-[TOC (start:2 end:3)]
 
-When you cook your game for release or test on non-editor platforms, **Chunking** can be used to split your data into several .pak files that can then be independently deployed. Chunking is now integrated into the Asset Manager, and it can be set up using **Primary Asset Labels** or **Rules Overrides**. The best example of chunking can be found in the ShooterGame sample project. ShooterGame establishes three chunks: Chunk 1 for the "Sanctuary" map, Chunk 2 for the "Highrise" map, and Chunk 0 for all other data. For [ShooterGame](Resources/SampleGames/ShooterGame), Primary Asset Labels were chosen, but we will discuss both methods.
+[TOC(start:2)]
+
+When you cook your game for release or test on non-editor platforms, **Chunking** can be used to split your data into several .pak files that can then be independently deployed. A **Chunk** is a numbered collection of Assets that can be independently deployed and downloaded. The first Chunk produced will be numbered zero, and by default will include all of the content used by the project. Using the Engine's [Packaging](Engine/Basics/Projects/Packaging) system, each Chunk will create an independent .pak file which can then be integrated into a platform-specific deployment system. Chunking is fully integrated into the Asset Manager, and it can be set up using **Primary Asset Labels** or **Rules Overrides**. An example of chunking can be found in the ShooterGame sample project, which establishes three Chunks: Chunk 1 for the "Sanctuary" map, Chunk 2 for the "Highrise" map, and Chunk 0 for all other data. For [ShooterGame](Resources/SampleGames/ShooterGame) , Primary Asset Labels were chosen, but we will discuss both methods.
+
+While setting up Chunking it may be beneficial to build a custom Asset Manager subclass and override certain virtual functions. For larger-scale games, this is strongly recommended. For example, the `SetPrimaryAssetRules` function may need to be overridden to set up game-specific Asset rules, such as manually assigning some content to a specific Chunk. You may also want to override the `ShouldSetManager` function, which is called to determine which Assets are managed by a specific Primary Asset ID. Each project can have its own custom rules for assigning content to Chunks depending on the individual project's needs. The Asset Manager is meant to be extended and customized as needed.
 
 ## Primary Asset Rules
 
-**Primary Asset Rules** are used to determine which Primary Assets have management authority of which Secondary Assets, as well as how to handle Assets during the cooking process. These Rules are defined by the `FPrimaryAssetRules` structure, and are used by the [Asset Manager](Engine\Basics\AssetsAndPackages\AssetManagement) to determine how to handle Assets at cook time. For detailed information on the options available within `FPrimaryAssetRules`, check its [API Page](API:FPrimaryAssetRules). You may also want to look up the Cooking Rules defined on the [`EPrimaryAssetCookRule` API Page](API:EPrimaryAssetCookRule).
+**Primary Asset Rules** are used to determine which Primary Assets have management authority of which Secondary Assets, as well as how to handle Assets during the cooking process. These Rules are defined by the `FPrimaryAssetRules` structure, and are used by the [Asset Manager](Engine/Basics/AssetsAndPackages/AssetManagement) to determine how to handle Assets at cook time. For detailed information on the options available within `FPrimaryAssetRules`, check its [API Page](https://api.unrealengine.com/INT/API/Runtime/Engine/Engine/FPrimaryAssetRules/index.html). You may also want to look up the Cooking Rules defined on the [`EPrimaryAssetCookRule` API Page](https://api.unrealengine.com/INT/API/Runtime/Engine/Engine/EPrimaryAssetCookRule/index.html).
 
 ## Primary Asset Labels
 
-**Primary Asset Label** is a minimal override of `UPrimaryDataAsset` that is set up to designate other assets for chunking and cooking. While they are not usually loaded during the game, they are used when cooking and chunking and can set up their own rules, lists, and priorities for other project assets. In the case of ShooterGame, labels were created to designate the assets that would be placed into the various chunks.
+**Primary Asset Label** is a minimal override of the `UPrimaryDataAsset` class that is set up to designate other assets for chunking and cooking. While they are not usually loaded during the game, they are used when cooking and chunking and can set up their own rules, lists, and priorities for other project assets. In the case of ShooterGame, labels were created to designate the assets that would be placed into the various Chunks.
+
+In addition to explicitly specifying Assets, Labels can be set up to manage all Assets in a directory using the **Label Assets In My Directory** option. Alternatively, you can manage all Assets in an [Editor Collection](Engine/Content/Browser/UserGuide/Collections) by setting the **Asset Collection** field.  
 
 ![](HighriseLabel.png)
 
-[REGION:caption]This Primary Asset Label, named "HighriseLabel", explicitly manages the game's "Highrise" map asset, and indicates that it belongs in Chunk 2.[/REGION]
+[REGION:caption]
+This Primary Asset Label, named "HighriseLabel", explicitly manages the game's "Highrise" map asset, and indicates that it belongs in Chunk 2.
+[/REGION]
 
 At this point, the asset for "Highrise" is associated with its own Primary Asset ID, "Map:/Game/Maps/Highrise", as well as the Primary Asset ID of "HighriseLabel", "PrimaryAssetLabel:HighriseLabel". Because the map has no Chunk ID of its own, the chunking process will use the Chunk ID found in "HighriseLabel", which is 2. In addition, all Secondary Assets in the map will be associated with Chunk 2. A similar setup will need to be made for the "Sanctuary" map and Chunk 1. Assets with no Chunk ID (or a negative Chunk ID) will go to Chunk 0, the default .pak file, which is also where this project's startup map, "ShooterEntry", will be stored. Secondary Assets that are referenced by multiple Primary Asset Labels will be associated with the highest-priority among those Labels. In the event that multiple Labels are tied for highest priority, the Asset will be associated with each Label.
 
 ![](ReferenceViewer.png)
 
-[REGION:caption]The Reference Viewer shows the management relationship of the Primary Asset Label and the level map.[/REGION]
+[REGION:caption]
+The Reference Viewer shows the management relationship of the Primary Asset Label and the level map.
+[/REGION]
 
 ![](Management.png)
 
-[REGION:caption]Double-clicking on "Map:/Game/Maps/Highrise" reveals that it is managed by "PrimaryAssetLabel:HighriseLabel".[/REGION]
+[REGION:caption]
+Double-clicking on "Map:/Game/Maps/Highrise" reveals that it is managed by "PrimaryAssetLabel:HighriseLabel".
+[/REGION]
 
 ## Rules Overrides
 
-**Rules Overrides** can be used to establish the priority and Chunk settings for a specific Primary Asset. To build our three-chunk setup for ShooterGame using Rules Overrides instead of Primary Asset Labels, the following section should be created in `DefaultGame.ini`:
+**Rules Overrides** can be used to establish the priority and Chunk settings for a specific Primary Asset. To build our three-Chunk setup for ShooterGame using Rules Overrides instead of Primary Asset Labels, the following section should be created in `DefaultGame.ini`:
 
-	[/Script/Engine.AssetManagerSettings]
-	+PrimaryAssetRules=(PrimaryAssetId="Map:/Game/Maps/Sanctuary",Rules=(Priority=-1,ChunkId=1,CookRule=Unknown))
-	+PrimaryAssetRules=(PrimaryAssetId="Map:/Game/Maps/Highrise",Rules=(Priority=-1,ChunkId=2,CookRule=Unknown))
-	+PrimaryAssetRules=(PrimaryAssetId="Map:/Game/Maps/ShooterEntry",Rules=(Priority=-1,ChunkId=0,CookRule=AlwaysCook))
+    [/Script/Engine.AssetManagerSettings]
+    +PrimaryAssetRules=(PrimaryAssetId="Map:/Game/Maps/Sanctuary",Rules=(Priority=-1,ChunkId=1,CookRule=Unknown))
+    +PrimaryAssetRuleses=(Prio=(PrimaryAssetId="Map:/Game/Maps/Highrise",Rulrity=-1,ChunkId=2,CookRule=Unknown))
+    +PrimaryAssetRules=(PrimaryAssetId="Map:/Game/Maps/ShooterEntry",Rules=(Priority=-1,ChunkId=0,CookRule=AlwaysCook))
 
-[REGION:caption]Cooking and chunking rules in the `DefaultGame.ini` file. We have added an explicit reference to the startup map, "ShooterEntry", in this example.[/REGION]
+[REGION:caption]
+Cooking and chunking rules in the `DefaultGame.ini` file. We have added an explicit reference to the startup map, "ShooterEntry", in this example.
+[/REGION]
 
 This sets our main game maps to be in specific chunks, which will cause all of their references to be added to those chunks as well. The final entry, governing Chunk 0, ensures that anything referenced by the map that loads when the game first starts up will be in Chunk 0, which is also the default Chunk. The priority value of -1 sets priority to the default value, which is 1.
+
+## Analyzing Asset-to-Chunk Assignments
+
+The Engine provides several built-in tools to audit your Chunks. Using these tools, you can see which Assets are assigned to which Chunks, and why.
+
+### Asset Audit Window
+
+To open the **Asset Audit Window**, open the **Windows** dropdown menu, expand **Developer Tools**, and choose **Asset Audit**.
+
+![](AssetAuditInMenu.png)
+
+![](AssetAuditEmpty.png "AssetAuditEmpty.png")
+
+Clicking the **Add Chunks** button will fill in the window with a summary of all Chunks that exist in the current project.
+
+![](AssetAuditPopulated.png "AssetAuditPopulated.png")
+
+[REGION:caption]
+In ShooterGame, Assets are distributed between three Chunks.
+[/REGION]
+
+To inspect an individual Chunk, right-click it and choose either the **Size Map** or the **Reference Viewer**.
+
+![](AssetAuditRightClick.png "AssetAuditRightClick.png")
+
+### Size Map
+
+The Size Map provides a visual representation of the type and size of each Asset contained within a Chunk. Assets are displayed as colored boxes with their icon or thumbnail in the box, and are scaled to represent the size of the Asset. Boxes nested within other boxes represent a parent-child reference relationship. For example, a texture that is referenced by a Material would appear inside the Material's box, because loading the Material implicitly involves loading the texture.
+
+In ShooterGame, Chunk 0 contains the Assets needed to display the game's menu and get into a match, while Chunks 1 and 2 are used for the game's playable Maps. As a result, Chunk 0 is smaller than the other Chunks, and also has a wider variety of Asset types. Here we can see the Asset breakdown and total shipping disk size for Chunks 0 and 1:
+
+![](SizeMapChunk0DiskSize.png "SizeMapChunk0DiskSize.png")
+
+[REGION:caption]
+Chunk 0 of ShooterGame contains many independent Assets, but is relatively small.
+[/REGION]
+
+![](SizeMapChunk1.png "SizeMapChunk1.png")
+
+[REGION:caption]
+Chunk 1 (pictured) and Chunk 2 contain the individual Maps in which the game takes place, so they feature a single, large group of connected Assets.
+[/REGION]
+
+The Size Map also supports visualization of the memory usage (in the Editor) of the Assets it contains. In-Editor memory size can be substantially different from a shipped product's disk space usage for the same group of Assets.
+
+![](SizeMapChunk0MemorySize.png "SizeMapChunk0MemorySize.png")
+
+[REGION:caption]
+Chunk 0 displayed in Memory Size mode. This mode scales box sizes based on the memory usage of the Assets in the Editor.
+[/REGION]
+
+Individual Assets can be examined or edited by right-clicking the Asset's box. You can use the mouse wheel to zoom in or out, or double-click an Asset to expand it so that it fills the window.
+
+![](SizeMapChunk0RightClick.png "SizeMapChunk0RightClick.png")
+
+[REGION:caption]
+The right-click menu for the "loading screen" texture Asset.
+[/REGION]
+
+### Reference Viewer
+
+The [Reference Viewer](Engine/Content/Browser/ReferenceViewer) generates a graph which represents inter-Asset references as a network of connections between the Assets themselves. Chunks and individual Assets can be examined with this tool. In our ShooterGame example, examining Chunk 1 reveals only two directly connected Assets: The "Sanctuary" Map, and the Primary Asset Label associated with Chunk 1.
+
+![](ReferenceViewerChunk1.png "ReferenceViewerChunk1.png")
+
+[REGION:caption]
+The Reference Viewer's graph of Assets directly referenced by Chunk 1 in ShooterGame. The sanctuary map asset's node has been right-clicked.
+[/REGION]
+
+Right-clicking a node in the Content Browser or Reference Viewer and choosing "Re-Center Graph" (or double-clicking the node in the Reference Viewer) will display that node's references. In the following image, we have recentered from Chunk 1 to the "Map:/Game/Maps/Sanctuary" node, revealing that the "Sanctuary" Map is referenced by two nodes (Chunk 1 and Chunk 1's Primary Asset Label) to its left, and references many child nodes to its right, such as the "M\_FFA\_Wall_01" Material:
+
+![](ReferenceViewerChunk1Map.png "ReferenceViewerChunk1Map.png")
+
+[REGION:caption]
+Examination of ShooterGame's "Sanctuary" Map (part of Chunk 1) in the Reference Viewer.
+[/REGION]
+[REGION:note]
+The graph shown above is not complete. It has been limited by the options set in the Reference Viewer. Limiting the scope of the graph can greatly reduce the time taken by the Engine in building it. For detailed information on those options, see the [Reference Viewer page](Engine/Content/Browser/ReferenceViewer).
+[/REGION]
+
+Crawling through references in this way, you can see exactly why a given Asset is associated with another Asset, or a Chunk. This can help to discover and remove unnecessary Asset references, or adjust your Chunking strategy to better fit your project's needs.

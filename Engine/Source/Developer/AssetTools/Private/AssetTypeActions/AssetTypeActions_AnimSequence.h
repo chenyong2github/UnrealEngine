@@ -35,6 +35,9 @@ private:
 	/** Handler for when Create AnimMontage is selected */
 	void ExecuteNewAnimMontage(TArray<TWeakObjectPtr<UAnimSequence>> Objects) const;
 
+	/** Handler for when Create AnimStreamable is selected */
+	void ExecuteNewAnimStreamable(TArray<TWeakObjectPtr<UAnimSequence>> Objects) const;
+
 	/** Handler for when Create Pose Asset is selected */
 	void ExecuteNewPoseAsset(TArray<TWeakObjectPtr<UAnimSequence>> Objects) const;
 

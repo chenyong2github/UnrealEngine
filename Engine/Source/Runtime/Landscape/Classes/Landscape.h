@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "LandscapeProxy.h"
-#include "LandscapeBPCustomBrush.h"
+#include "LandscapeBlueprintBrushBase.h"
 #include "Delegates/DelegateCombinations.h"
 
 #include "Landscape.generated.h"
@@ -89,44 +89,43 @@ struct FLandscapeLayerBrush
 	GENERATED_USTRUCT_BODY()
 
 	FLandscapeLayerBrush()
-		: BPCustomBrush(nullptr)
+#if WITH_EDITORONLY_DATA
+		: BlueprintBrush(nullptr)
+		, LandscapeSize(MAX_int32, MAX_int32)
+		, LandscapeRenderTargetSize(MAX_int32, MAX_int32)
+#endif
 	{}
 
-	FLandscapeLayerBrush(ALandscapeBlueprintCustomBrush* InBrush)
-		: BPCustomBrush(InBrush)
+	FLandscapeLayerBrush(ALandscapeBlueprintBrushBase* InBlueprintBrush)
+#if WITH_EDITORONLY_DATA
+		: BlueprintBrush(InBlueprintBrush)
+		, LandscapeSize(MAX_int32, MAX_int32)
+		, LandscapeRenderTargetSize(MAX_int32, MAX_int32)
+#endif
 	{}
 
 #if WITH_EDITOR
-	UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult)
-	{
-		if (BPCustomBrush != nullptr)
-		{
-			TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
-			return BPCustomBrush->Render(InIsHeightmap, InCombinedResult);
-		}
-
-		return nullptr;
-	}
-
-	bool IsInitialized() const 
-	{
-		return BPCustomBrush != nullptr ? BPCustomBrush->IsInitialized() : false;
-	}
-
-	void Initialize(const FIntRect& InBoundRect, const FIntPoint& InLandscapeRenderTargetSize)
-	{
-		if (BPCustomBrush != nullptr)
-		{
-			TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
-			FIntPoint LandscapeSize = InBoundRect.Max - InBoundRect.Min;
-			BPCustomBrush->Initialize(LandscapeSize, InLandscapeRenderTargetSize);
-			BPCustomBrush->SetIsInitialized(true);
-		}
-	}
+	UTextureRenderTarget2D* Render(bool InIsHeightmap, const FIntRect& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget, const FName& InWeightmapLayerName = NAME_None);
+	ALandscapeBlueprintBrushBase* GetBrush() const;
+	bool IsAffectingHeightmap() const;
+	bool IsAffectingWeightmapLayer(const FName& InWeightmapLayerName) const;
+	void SetOwner(ALandscape* InOwner);
 #endif
 
+private:
+
+#if WITH_EDITOR
+	bool Initialize(const FIntRect& InLandscapeExtent, UTextureRenderTarget2D* InLandscapeRenderTarget);
+#endif
+
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	ALandscapeBlueprintCustomBrush* BPCustomBrush;
+	ALandscapeBlueprintBrushBase* BlueprintBrush;
+
+	FTransform LandscapeTransform;
+	FIntPoint LandscapeSize;
+	FIntPoint LandscapeRenderTargetSize;
+#endif
 };
 
 UENUM()
@@ -179,13 +178,39 @@ struct FLandscapeLayer
 	TArray<FLandscapeLayerBrush> Brushes;
 
 	UPROPERTY()
-	TArray<int8> HeightmapBrushOrderIndices;
-
-	UPROPERTY()
-	TArray<int8> WeightmapBrushOrderIndices;
-
-	UPROPERTY()
 	TMap<ULandscapeLayerInfoObject*, bool> WeightmapLayerAllocationBlend; // True -> Substractive, False -> Additive
+};
+
+struct FLandscapeLayersCopyTextureParams
+{
+	FLandscapeLayersCopyTextureParams(const FString& InSourceResourceDebugName, FTextureResource* InSourceResource, const FString& InDestResourceDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource,
+		const FIntPoint& InInitialPositionOffset, int32 InSubSectionSizeQuad, int32 InNumSubSections, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex)
+		: SourceResourceDebugName(InSourceResourceDebugName)
+		, SourceResource(InSourceResource)
+		, DestResourceDebugName(InDestResourceDebugName)
+		, DestResource(InDestResource)
+		, DestCPUResource(InDestCPUResource)
+		, InitialPositionOffset(InInitialPositionOffset)
+		, SubSectionSizeQuad(InSubSectionSizeQuad)
+		, NumSubSections(InNumSubSections)
+		, SourceMip(InSourceCurrentMip)
+		, DestMip(InDestCurrentMip)
+		, SourceArrayIndex(InSourceArrayIndex)
+		, DestArrayIndex(InDestArrayIndex)
+	{}
+
+	FString SourceResourceDebugName;
+	FTextureResource* SourceResource;
+	FString DestResourceDebugName;
+	FTextureResource* DestResource;
+	FTextureResource* DestCPUResource;
+	FIntPoint InitialPositionOffset;
+	int32 SubSectionSizeQuad;
+	int32 NumSubSections;
+	uint8 SourceMip;
+	uint8 DestMip;
+	uint32 SourceArrayIndex;
+	uint32 DestArrayIndex;
 };
 
 UCLASS(MinimalAPI, showcategories=(Display, Movement, Collision, Lighting, LOD, Input), hidecategories=(Mobility))
@@ -220,6 +245,7 @@ public:
 	
 	//~ Begin UObject Interface.
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditUndo() override;
@@ -243,8 +269,8 @@ public:
 	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::Update_All);
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
-	LANDSCAPE_API FLandscapeLayer* DuplicateLayer(const FLandscapeLayer& InOtherLayer);
-	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
+	LANDSCAPE_API FLandscapeLayer* DuplicateLayerAndMoveBrushes(const FLandscapeLayer& InOtherLayer);
+	LANDSCAPE_API int32 CreateLayer(FName InName = NAME_None);
 	LANDSCAPE_API void CreateDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer(ALandscapeProxy* Proxy);
@@ -262,9 +288,14 @@ public:
 	LANDSCAPE_API struct FLandscapeLayer* GetLayer(int32 InLayerIndex);
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(int32 InLayerIndex) const;
 	LANDSCAPE_API const struct FLandscapeLayer* GetLayer(const FGuid& InLayerGuid) const;
+	LANDSCAPE_API int32 GetLayerIndex(FName InLayerName) const;
 	LANDSCAPE_API void ForEachLayer(TFunctionRef<void(struct FLandscapeLayer&)> Fn);
-	LANDSCAPE_API void ClearLayer(int32 InLayerIndex, TSet<ULandscapeComponent*>* InComponents = nullptr);
-	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>* InComponents = nullptr);
+	LANDSCAPE_API void GetUsedPaintLayers(int32 InLayerIndex, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const;
+	LANDSCAPE_API void GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const;
+	LANDSCAPE_API void ClearPaintLayer(int32 InLayerIndex, ULandscapeLayerInfoObject* InLayerInfo);
+	LANDSCAPE_API void ClearPaintLayer(const FGuid& InLayerGuid, ULandscapeLayerInfoObject* InLayerInfo);
+	LANDSCAPE_API void ClearLayer(int32 InLayerIndex, TSet<ULandscapeComponent*>* InComponents = nullptr, ELandscapeClearMode InClearMode = ELandscapeClearMode::Clear_All);
+	LANDSCAPE_API void ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>* InComponents = nullptr, ELandscapeClearMode InClearMode = ELandscapeClearMode::Clear_All);
 	LANDSCAPE_API void DeleteLayer(int32 InLayerIndex);
 	LANDSCAPE_API void DeleteLayers();
 	LANDSCAPE_API void SetEditingLayer(const FGuid& InLayerGuid = FGuid());
@@ -282,14 +313,13 @@ public:
 	LANDSCAPE_API bool IsLayerBlendSubstractive(int32 InLayerIndex, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
 	LANDSCAPE_API void SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
 
-	LANDSCAPE_API void AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
-	LANDSCAPE_API void RemoveBrushFromLayer(int32 InLayerIndex, int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
-	LANDSCAPE_API bool ReorderLayerBrush(int32 InLayerIndex, int32 InTargetType, int32 InStartingLayerBrushIndex, int32 InDestinationLayerBrushIndex);
-	LANDSCAPE_API bool AreAllBrushesCommitedToLayer(int32 InLayerIndex, int32 InTargetType);
-	LANDSCAPE_API void SetBrushesCommitStateForLayer(int32 InLayerIndex, int32 InTargetType, bool InCommited);
-	LANDSCAPE_API TArray<int8>& GetBrushesOrderForLayer(int32 InLayerIndex, int32 InTargetType);
-	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
-	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
+	LANDSCAPE_API void AddBrushToLayer(int32 InLayerIndex, class ALandscapeBlueprintBrushBase* InBrush);
+	LANDSCAPE_API void RemoveBrush(class ALandscapeBlueprintBrushBase* InBrush);
+	LANDSCAPE_API void RemoveBrushFromLayer(int32 InLayerIndex, class ALandscapeBlueprintBrushBase* InBrush);
+	LANDSCAPE_API bool ReorderLayerBrush(int32 InLayerIndex, int32 InStartingLayerBrushIndex, int32 InDestinationLayerBrushIndex);
+	LANDSCAPE_API class ALandscapeBlueprintBrushBase* GetBrushForLayer(int32 InLayerIndex, int8 BrushIndex) const;
+	LANDSCAPE_API TArray<class ALandscapeBlueprintBrushBase*> GetBrushesForLayer(int32 InLayerIndex) const;
+	LANDSCAPE_API void OnBlueprintBrushChanged();
 	
 	LANDSCAPE_API void OnPreSave();
 
@@ -345,9 +375,16 @@ private:
 	void DrawWeightmapComponentToRenderTargetMips(const TArray<FVector2D>& InTexturePositionsToDraw, UTexture* InReadWeightmap, bool InClearRTWrite, struct FLandscapeLayersWeightmapShaderParameters& InShaderParams) const;
 
 	void CopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
-							   uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
+						   uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
 	void CopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0),
-							   uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 uInDestArrayIndex = 0) const;
+						   uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
+
+	void AddDeferredCopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
+									  uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
+	void AddDeferredCopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0),
+									  uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
+
+	void CommitDeferredCopyLayersTexture();
 
 	void InitializeLayers();
 	void InitializeLandscapeLayersWeightmapUsage();
@@ -361,8 +398,11 @@ private:
 public:
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category=Experimental, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category=Landscape)
 	bool bCanHaveLayersContent = false;
+
+	DECLARE_EVENT(ALandscape, FLandscapeBlueprintBrushChangedDelegate);
+	FLandscapeBlueprintBrushChangedDelegate& OnBlueprintBrushChangedDelegate() { return LandscapeBlueprintBrushChangedDelegate; }
 
 	/** Target Landscape Layer for Landscape Splines */
 	UPROPERTY()
@@ -384,6 +424,7 @@ public:
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
 
 private:
+	FLandscapeBlueprintBrushChangedDelegate LandscapeBlueprintBrushChangedDelegate;
 
 	/** Components affected by landscape splines (used to partially clear Layer Reserved for Splines) */
 	UPROPERTY(Transient)
@@ -425,6 +466,8 @@ private:
 	
 	// Used in packing the material layer data contained into CombinedLayersWeightmapAllMaterialLayersResource to be set again for each component weightmap (size of the landscape)
 	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;
+
+	TArray<FLandscapeLayersCopyTextureParams> PendingCopyTextures;
 #endif
 
 protected:

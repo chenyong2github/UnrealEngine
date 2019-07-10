@@ -237,9 +237,9 @@ protected:
 
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return ShouldCacheLandscapeGrassShaders(Platform, Material, VertexFactoryType);
+		return ShouldCacheLandscapeGrassShaders(Parameters.Platform, Parameters.Material, Parameters.VertexFactoryType);
 	}
 
 	void GetShaderBindings(
@@ -273,9 +273,9 @@ class FLandscapeGrassWeightPS : public FMeshMaterialShader
 	FShaderParameter OutputPassParameter;
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material, const FVertexFactoryType* VertexFactoryType)
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return ShouldCacheLandscapeGrassShaders(Platform, Material, VertexFactoryType);
+		return ShouldCacheLandscapeGrassShaders(Parameters.Platform, Parameters.Material, Parameters.VertexFactoryType);
 	}
 
 	FLandscapeGrassWeightPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -1042,6 +1042,8 @@ public:
 //
 // UMaterialExpressionLandscapeGrassOutput
 //
+FName UMaterialExpressionLandscapeGrassOutput::PinDefaultName = TEXT("Input");
+
 UMaterialExpressionLandscapeGrassOutput::UMaterialExpressionLandscapeGrassOutput(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -1128,11 +1130,56 @@ void UMaterialExpressionLandscapeGrassOutput::PostEditChangeProperty(FPropertyCh
 		const FName PropertyName = PropertyChangedEvent.MemberProperty->GetFName();
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionLandscapeGrassOutput, GrassTypes))
 		{
+			for (FGrassInput& Input : GrassTypes)
+			{
+				ValidateInputName(Input);
+			}
+
 			if (GraphNode)
 			{
 				GraphNode->ReconstructNode();
 			}
 		}
+	}
+}
+
+void UMaterialExpressionLandscapeGrassOutput::ValidateInputName(FGrassInput& InInput) const
+{
+	if (Material != nullptr)
+	{
+		int32 NameIndex = 1;
+		bool bFoundValidName = false;
+
+		// Parameters cannot be named Name_None, use the default name instead
+		FName PotentialName = InInput.Name == NAME_None ? UMaterialExpressionLandscapeGrassOutput::PinDefaultName : InInput.Name;
+
+		// Find an available unique name
+		while (!bFoundValidName)
+		{
+			if (NameIndex != 1)
+			{
+				PotentialName.SetNumber(NameIndex);
+			}
+
+			bFoundValidName = true;
+
+			// Make sure the name is unique among others pins of this node
+			for (const FGrassInput& OtherInput : GrassTypes)
+			{
+				if (&OtherInput != &InInput)
+				{
+					if (OtherInput.Name == PotentialName)
+					{
+						bFoundValidName = false;
+						break;
+					}
+				}
+			}
+
+			++NameIndex;
+		}
+
+		InInput.Name = PotentialName;
 	}
 }
 #endif

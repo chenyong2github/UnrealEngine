@@ -572,6 +572,44 @@ TSharedRef<SGraphEditor> FSoundCueEditor::CreateGraphEditorWidget()
 			FExecuteAction::CreateSP( this, &FSoundCueEditor::DuplicateNodes ),
 			FCanExecuteAction::CreateSP( this, &FSoundCueEditor::CanDuplicateNodes )
 			);
+
+		// Alignment Commands
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnAlignTop)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesMiddle,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnAlignMiddle)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesBottom,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnAlignBottom)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesLeft,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnAlignLeft)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesCenter,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnAlignCenter)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesRight,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnAlignRight)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().StraightenConnections,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnStraightenConnections)
+		);
+
+		// Distribution Commands
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesHorizontally,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnDistributeNodesH)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesVertically,
+			FExecuteAction::CreateSP(this, &FSoundCueEditor::OnDistributeNodesV)
+		);
 	}
 
 	FGraphAppearanceInfo AppearanceInfo;
@@ -903,6 +941,78 @@ void FSoundCueEditor::RedoGraphAction()
 	SoundCueGraphEditor->ClearSelectionSet();
 
 	GEditor->RedoTransaction();
+}
+
+void FSoundCueEditor::OnAlignTop()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnAlignTop();
+	}
+}
+
+void FSoundCueEditor::OnAlignMiddle()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnAlignMiddle();
+	}
+}
+
+void FSoundCueEditor::OnAlignBottom()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnAlignBottom();
+	}
+}
+
+void FSoundCueEditor::OnAlignLeft()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnAlignLeft();
+	}
+}
+
+void FSoundCueEditor::OnAlignCenter()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnAlignCenter();
+	}
+}
+
+void FSoundCueEditor::OnAlignRight()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnAlignRight();
+	}
+}
+
+void FSoundCueEditor::OnStraightenConnections()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnStraightenConnections();
+	}
+}
+
+void FSoundCueEditor::OnDistributeNodesH()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnDistributeNodesH();
+	}
+}
+
+void FSoundCueEditor::OnDistributeNodesV()
+{
+	if (SoundCueGraphEditor.IsValid())
+	{
+		SoundCueGraphEditor->OnDistributeNodesV();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -19,33 +19,6 @@ namespace UnrealGameSync
 {
 	partial class ApplicationSettingsWindow : Form
 	{
-		class GetDefaultSettingsTask : IModalTask
-		{
-			TextWriter Log;
-
-			public string ServerAndPort;
-			public string UserName;
-
-			public GetDefaultSettingsTask(TextWriter Log)
-			{
-				this.Log = Log;
-			}
-
-			public bool Run(out string ErrorMessage)
-			{
-				if(PerforceModalTask.TryGetServerSettings(null, ref ServerAndPort, ref UserName, Log))
-				{
-					ErrorMessage = null;
-					return true;
-				}
-				else
-				{
-					ErrorMessage = "Unable to query server settings";
-					return false;
-				}
-			}
-		}
-
 		class PerforceTestConnectionTask : IPerforceModalTask
 		{
 			string DepotPath;
@@ -79,6 +52,7 @@ namespace UnrealGameSync
 		string InitialUserName;
 		string InitialDepotPath;
 		bool bInitialUnstable;
+		int InitialAutomationPortNumber;
 
 		bool? bRestartUnstable;
 
@@ -92,6 +66,8 @@ namespace UnrealGameSync
 
 			Utility.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
 			bInitialUnstable = bUnstable;
+
+			InitialAutomationPortNumber = AutomationServer.GetPortNumber();
 
 			this.AutomaticallyRunAtStartupCheckBox.Checked = IsAutomaticallyRunAtStartup();
 			this.KeepInTrayCheckBox.Checked = Settings.bKeepInTray;
@@ -109,16 +85,24 @@ namespace UnrealGameSync
 			this.DepotPathTextBox.CueBanner = DeploymentSettings.DefaultDepotPath;
 
 			this.UseUnstableBuildCheckBox.Checked = bUnstable;
+
+			if(InitialAutomationPortNumber > 0)
+			{
+				this.EnableAutomationCheckBox.Checked = true;
+				this.AutomationPortTextBox.Enabled = true;
+				this.AutomationPortTextBox.Text = InitialAutomationPortNumber.ToString();
+			}
+			else
+			{
+				this.EnableAutomationCheckBox.Checked = false;
+				this.AutomationPortTextBox.Enabled = false;
+				this.AutomationPortTextBox.Text = AutomationServer.DefaultPortNumber.ToString();
+			}
 		}
 
-		public static bool? ShowModal(IWin32Window Owner, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, TextWriter Log)
+		public static bool? ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, TextWriter Log)
 		{
-			GetDefaultSettingsTask DefaultSettings = new GetDefaultSettingsTask(Log);
-
-			string ErrorMessage;
-			ModalTask.Execute(Owner, DefaultSettings, "Checking Settings", "Checking settings, please wait...", out ErrorMessage);
-
-			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultSettings.ServerAndPort, DefaultSettings.UserName, bUnstable, OriginalExecutableFileName, Settings, Log);
+			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultConnection.ServerAndPort, DefaultConnection.UserName, bUnstable, OriginalExecutableFileName, Settings, Log);
 			if(ApplicationSettings.ShowDialog() == DialogResult.OK)
 			{
 				return ApplicationSettings.bRestartUnstable;
@@ -158,13 +142,20 @@ namespace UnrealGameSync
 
 			bool bUnstable = UseUnstableBuildCheckBox.Checked;
 
-			if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath || bUnstable != bInitialUnstable)
+
+			int AutomationPortNumber;
+			if(!EnableAutomationCheckBox.Checked || !int.TryParse(AutomationPortTextBox.Text, out AutomationPortNumber))
+			{
+				AutomationPortNumber = -1;
+			}
+			
+			if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath || bUnstable != bInitialUnstable || AutomationPortNumber != InitialAutomationPortNumber)
 			{
 				// Try to log in to the new server, and check the application is there
 				if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath)
 				{
 					string ErrorMessage;
-					ModalTaskResult Result = PerforceModalTask.Execute(this, null, ServerAndPort, UserName, new PerforceTestConnectionTask(DepotPath), "Connecting", "Checking connection, please wait...", Log, out ErrorMessage);
+					ModalTaskResult Result = PerforceModalTask.Execute(this, new PerforceConnection(UserName, null, ServerAndPort), new PerforceTestConnectionTask(DepotPath), "Connecting", "Checking connection, please wait...", Log, out ErrorMessage);
 					if(Result != ModalTaskResult.Succeeded)
 					{
 						if(Result == ModalTaskResult.Failed)
@@ -182,6 +173,7 @@ namespace UnrealGameSync
 
 				bRestartUnstable = UseUnstableBuildCheckBox.Checked;
 				Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+				AutomationServer.SetPortNumber(AutomationPortNumber);
 			}
 
 			RegistryKey Key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
@@ -208,6 +200,11 @@ namespace UnrealGameSync
 		{
 			DialogResult = DialogResult.Cancel;
 			Close();
+		}
+
+		private void EnableAutomationCheckBox_CheckedChanged(object sender, EventArgs e)
+		{
+			AutomationPortTextBox.Enabled = EnableAutomationCheckBox.Checked;
 		}
 	}
 }

@@ -2489,6 +2489,7 @@ void FPropertyHandleBase::OnCustomResetToDefault(const FResetToDefaultOverride& 
 {
 	if (OnCustomResetToDefault.OnResetToDefaultClicked().IsBound())
 	{
+		FScopedTransaction Transaction(LOCTEXT("PropertyCustomResetToDefault", "Custom Reset to Default"));
 		if (Implementation->GetPropertyUtilities().IsValid() && Implementation->GetPropertyUtilities()->GetNotifyHook() != nullptr)
 		{
 			Implementation->GetPropertyNode()->NotifyPreChange(Implementation->GetPropertyNode()->GetProperty(), Implementation->GetPropertyUtilities()->GetNotifyHook());

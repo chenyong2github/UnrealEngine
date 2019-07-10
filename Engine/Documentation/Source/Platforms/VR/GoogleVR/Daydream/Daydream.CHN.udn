@@ -1,0 +1,210 @@
+﻿INTSourceChangelist:3721937
+Availability: Public
+Crumbs: %ROOT%
+Title: Google VR和Daydream设备
+Description: 哪些Google VR功能为Daydream设备所特有。
+Type: Overview
+SkillLevel: Intermediate
+Version: 4.17
+Parent: Platforms/VR/GoogleVR
+Order: 2
+tags:Google VR
+tags:Daydream
+topic-image:Platforms\VR\GoogleVR\GoogleVR_Topic_Image.png
+
+[TOC(start:2)]
+
+[region:note]
+Google提供了一个非常详细的文档，它涵盖了您需要知道的所有内容，以便最大限度地利用Daydream。您可以通过访问[官方Google Daydream Unreal](https://developers.google.com/vr/unreal/)帮助网站查找这些文档。
+[/region]
+
+
+虽然Google VR几乎适用于任何基于Android的设备，但某些功能只适用于Daydream设备。在下一节中，我们将研究这些功能，以及需要执行什么操作才能在项目中使用它们。
+
+(#downloadinggoogledaydreamforunrealengine)
+
+## 为虚幻引擎下载Google Daydream
+
+Google Daydream现在提供了虚幻引擎二进制内容，您可以从Epic Games启动器下载该内容。您从Github下载和编译的虚幻引擎源代码中也包含了该内容。
+* [Epic Games启动器](https://www.epicgames.com/unrealtournament/download)
+* [Epic Games Github](https://github.com/EpicGames)
+
+(#androidndk12b)
+
+## Android NDK 12b
+
+若要访问Daydream的全部功能，您需要确保您的Android Works NDK版本已经更新到12b版本。有关安装Android Works的更多信息，请查看下面的链接。 
+
+* [设置Android Works](Platforms/Mobile/Android/GettingStarted/1)
+
+下载并安装后，您需要确保虚幻引擎项目使用新的NDK文件，方法是转到 **Android SDK**>**SDKConfig** 部分，将SDK API级别设置为 **matchndk**，将NDK API级别设置为 **android-24**。
+
+[REGION:lightbox]
+[![](GDaydream_New_NDK_00.png)(w:502)](GDaydream_New_NDK_00.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+(#usingscanlineracing)
+
+## 使用扫描线急速移动（Scanline Racing）
+
+ **扫描线急速移动（Scanline Racing）** 是Daydream设备所特有的功能，其启用时可以帮助缩短VR项目中的延迟。若要在您的Google VR项目中为Daydream设备启用扫描线急速移动，您需要执行以下操作。
+
+1. 打开您的 **项目设置（Project Settings）** 并转到 **平台（Platforms）** > **Android**。在 **APKPackaging** 部分下，进行以下设置： 
+
+    * 最低SDK版本（Minimum SDK Version）：**24**
+    * 目标SDK版本（Target SDK Version）：**24**
+
+    [REGION:lightbox]
+    [![](GDaydream_Arm64_Support_00.png)(w:502)](GDaydream_Arm64_Support_00.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+
+1. 在 **构建（Build）** 部分下，更改以下设置：
+    * 支持armv7（又名armeabi-v7a）：**禁用（Disabled）** 
+    * 支持arm64（又名arm64-v8a）：**启用**
+
+    [REGION:lightbox]
+    [![](GDaydream_Build_Support.png)(w:502)](GDaydream_Build_Support.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+
+    [region:note]
+    启用此功能将为您的第一次烘焙增加大量时间，因为arm64库需要编译。
+    [/region]
+
+1. 然后在 **高级APKPackaging（Advanced APKPackaging）** 部分下启用以下选项：
+    * 配置GoogleVR部署模式（Configure GoogleVR Deployment Mode）：**Daydream**
+    * 为持续性能模式（扫描线急速移动）配置GoogleVR（Configure GoogleVR for sustained-performance mode (scanline racing)）：**启用**
+
+    [REGION:lightbox]
+    [![](GDaydream_Scanline_Racing_Support_00.png)(w:502)](GDaydream_Scanline_Racing_Support_00.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+
+
+下一次您烘焙虚幻引擎项目并将其部署到Daydream设备时，低延迟渲染将会启用。
+
+(#daydreammotioncontrollers)
+
+## Daydream运动控制器
+
+支持运动控制器是Daydream设备的独特功能之一。若要了解如何为Daydream设备设置运动控制器，请查看以下教程：
+
+* [Google Daydream运动控制器](Platforms\VR\GoogleVR\HowTo\MotionController)
+
+
+(#trainingstreams)
+
+## 培训流
+
+这些培训流有助于提供一些额外的资源来设置您的运动控制器和使用运动控制器在虚拟现实中创建交互。 
+
+
+[OBJECT:VideoSeriesLink]
+    [PARAMLITERAL:title]
+    现场培训 - 设置VR运动控制器
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    6ALnsdQnkVQ
+    [/PARAMLITERAL]
+    [PARAMLITERAL:playlist]
+    PLZlv_N0_O1gY7G589Z3I5-Dz7AdFSIWaG
+    [/PARAMLITERAL]
+    [PARAMLITERAL:duration]
+    1:05:05
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAMLITERAL:linktype]
+    块
+    [/PARAMLITERAL]
+    [PARAMLITERAL:thumbnail]
+    https://i.ytimg.com/vi/6ALnsdQnkVQ/maxresdefault.jpg
+    [/PARAMLITERAL]
+[/OBJECT]
+
+[OBJECT:VideoSeriesLink]
+    [PARAMLITERAL:title]
+    01 - 蓝图在VR中创建与运动控制器的交互
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    eRNtgFo6iU0
+    [/PARAMLITERAL]
+    [PARAMLITERAL:playlist]
+    PLZlv_N0_O1gY7G589Z3I5-Dz7AdFSIWaG
+    [/PARAMLITERAL]
+    [PARAMLITERAL:duration]
+    59:50
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAMLITERAL:linktype]
+    块
+    [/PARAMLITERAL]
+    [PARAMLITERAL:thumbnail]
+    https://i.ytimg.com/vi/eRNtgFo6iU0/maxresdefault.jpg
+    [/PARAMLITERAL]
+[/OBJECT]
+
+[OBJECT:VideoSeriesLink]
+    [PARAMLITERAL:title]
+    02 - 蓝图在VR中创建与运动控制器的交互
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    utOahIZgKgc
+    [/PARAMLITERAL]
+    [PARAMLITERAL:playlist]
+    PLZlv_N0_O1gY7G589Z3I5-Dz7AdFSIWaG
+    [/PARAMLITERAL]
+    [PARAMLITERAL:duration]
+    57:44
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAMLITERAL:linktype]
+    块
+    [/PARAMLITERAL]
+    [PARAMLITERAL:thumbnail]
+    https://i.ytimg.com/vi/utOahIZgKgc/maxresdefault.jpg
+    [/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:VideoSeriesLink]
+    [PARAMLITERAL:title]
+    01 - 蓝图在VR中创建与运动控制器的交互
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    fcmRGkpWefY
+    [/PARAMLITERAL]
+    [PARAMLITERAL:playlist]
+    PLZlv_N0_O1gY7G589Z3I5-Dz7AdFSIWaG
+    [/PARAMLITERAL]
+    [PARAMLITERAL:duration]
+    48:20
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAMLITERAL:linktype]
+    块
+    [/PARAMLITERAL]
+    [PARAMLITERAL:thumbnail]
+    https://i.ytimg.com/vi/fcmRGkpWefY/maxresdefault.jpg
+    [/PARAMLITERAL]
+[/OBJECT]
+
+[region:blank]
+
+[/region]
+

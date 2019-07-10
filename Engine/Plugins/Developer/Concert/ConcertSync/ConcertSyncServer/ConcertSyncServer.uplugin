@@ -15,13 +15,13 @@
 	"Hidden": true,
 	"IsBetaVersion": true,
 	"Installed": false,
-	"SupportedPrograms": [ "UnrealMultiUserServer" ],
+	"SupportedPrograms": [ "UnrealMultiUserServer", "UnrealDisasterRecoveryService" ],
 	"Modules": [
 		{
 			"Name": "ConcertSyncServer",
 			"Type": "Developer",
 			"LoadingPhase": "Default",
-			"WhitelistPrograms": [ "UnrealMultiUserServer" ]
+			"WhitelistPrograms": [ "UnrealMultiUserServer", "UnrealDisasterRecoveryService" ]
 		}
 	],
 	"Plugins": [

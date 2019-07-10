@@ -1,0 +1,65 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Control Rig Sequences
+Description: Control Rig Sequences can be used to animate properties and drive Control Rig animation through keyframes within the Sequencer tool.
+Type: 
+Version: 4.21
+Parent: Engine/Animation/ControlRig
+Order: 
+Tags: Sequencer
+Tags: Experimental
+Tags: Rigging
+Tags: Control Rigs
+topic-image:ControlRigSequenceTopic.png
+
+
+After creating a [Control Rig Blueprint](Engine/Animation/ControlRig/Blueprint), you can use [Sequencer](Engine/Sequencer) to animate properties through a special type of Sequence called a **Control Rig Sequence**. Animation is achieved by interpolating between various keyed values across a timeline, similar to traditional animation software packages.
+
+## Creating a Control Rig Sequence
+
+To create a Control Rig Sequence:
+
+1.  First make sure that you have [enabled the Control Rig plugin](Engine/Animation/ControlRig#enablingthecontrolrigplugin) from the Plugins menu. 
+2.  From the **Content Browser**, click **Add New** then under **Animation**, select **ControlRig Sequence** and give it any name.  
+    ![](CreateRigSequence.png "CreateRigSequence.png")
+3.  Double-click on the  **ControlRig Sequence** asset to open it up in **Sequencer**.  
+    ![](OpenRigSequence.png "OpenRigSequence.png")  
+    
+4.  Click the **Track** button then under **Control Rig**, assign you desired **Control Rig Blueprint** asset.  
+    ![](AssignRigBlueprint.png "AssignRigBlueprint.png")  
+    The Sequence will update and add the Control Rig Blueprint. The **Modes** panel will also update to show the available and keyable properties.  
+    ![](ModesPanel.png "ModesPanel.png")
+
+## Animating an Actor
+
+With a Control Rig Sequence created, to animate an Actor, you will need to place the Skeletal Mesh associated with the Control Rig Sequence in your Level and assign it as the target Actor in the **Animation** tab of the **Modes** panel. 
+
+![](AssignedActor.png "AssignedActor.png")
+
+Under the **Units** section, any keyable properties will be displayed which you can add by clicking the **Add Key** icon next to the desired property you wish to keyframe. 
+
+[REGION:lightbox]
+[![](AddedKey.png)(w:900)](AddedKey.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]  
+
+This will add a key for the property to the Control Rig Sequence at the specified time. You can scrub the Timeline to a new time, then use the Transform widget in the Viewport (or enter in a value manually in Sequencer) to move the associated aspect of your Control Rig and keyframe the new value.
+
+![](NewKeyAdded.png "NewKeyAdded.png")
+
+In the example above, we are moving an end effector associated with a Skeletal Meshes right-arm and keyframing the new value which causes our character to interpolate from the starting value to the new key value.
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	Mk2ulJ7D12g
+	[/PARAMLITERAL]
+[/OBJECT]

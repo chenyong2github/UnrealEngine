@@ -1,134 +1,142 @@
-﻿Availability: Public
-Title:环境音Actor用户指南
+INTSourceChangelist:3750407
+Availability: Public
+Title:环境声（Ambient Sound）Actor用户指南
 Crumbs: %ROOT%, Engine, Engine/Audio
-Description:关于使用环境音Actor创建游戏中的环境音效和局部音效的指南。
+Description:将环境声（Ambient Sound）Actor用于创建游戏内环境和局部声音的指南。
+version: 4.9
+parent:Engine/Audio
+type:overview
+order:2
+
 
 [TOC(start:2 end:2)]
 
+通过使用 **环境声（Ambient Sound）Actor**，虚幻引擎4简化了创建或修改环境声的流程。当将 **声波** 或 **Sound Cue** 资源放置到关卡中时，使用该声音资源的环境声（Ambient Sound）Actor将被创建。环境声（Ambient Sound）Actor具有多个属性，可用于修改播放器接收声音的方式，我们将在本页面中对这些属性进行介绍。
+
+有关将文件作为[声波](Engine/Audio/WAV)导入或通过[Sound Cue](Engine/Audio/SoundCues/Editor)修改文件的更多信息，请参阅它们各自的页面，查看更多文档。 
 
 
-## 概述
+(#ambientsoundactor)
+## 环境声（Ambient Sound）Actor
 
-虚幻引擎4简化了处理流程，使得您可以通过应用 Ambient Sound Actor 来制作或修改环境音。 当将一个 **Sound Wave** 或 **Sound Cue** 资源放置到关卡中时，就会使用那个音效资源创建一个 **Ambient Sound Actor** 。 Ambient Sound Actor具有几个允许您修改玩家接受到该声音的方式的属性，本文对这些属性进行了介绍。
-
-关于将文件导入为[Sound Waves（声音波形）](Engine/Audio/WAV)或者通过[Sound Cues](Engine/Audio/SoundCues/Editor) 修改这些文件的信息，请分别参照其各自页面。 
-
-
-## Ambient Sound Actor（环境音Actor）
-
-
+[REGION:raw]
 ![](ambientActors.png)
+[/REGION]
 
-**Ambient Sound Actor** (左侧图片中的图标) 可以用于很多地方，比如循环播放的环境音及非循环播放的环境音。 
-一般， **Ambient Sound Actor** 和真实世界中的效果一致，您距离该声音越近，听上去声音就越大。 相反，一个正常时很大的声音，当您离远时听到的声音可能会变得更柔和。 
+环境声（Ambient Sound）Actor（其图标如左侧图中所示）可被用于多个目的，例如，环境循环声音以及非循环声音。 
+通常，环境声（Ambient Sound）Actor遵循现实世界中的规律——距离声音越近，可以听到的声音越大。相比之下，如果声音本身不是大得过分，那么距它越远它听起来越小。 
 
-如果将 **Ambient Sound Actor** 设置为 **Auto Activate（自动激活）** ，那么一旦创建后它（播放的开始处或者生成时）将会立即开始播放 ，即时玩家所处位置不能听到该声音也会进行播放。
+如果将环境声（Ambient Sound）Actor设置为 **自动激活（Auto Activate）**，它将在被创建（游戏开始时或生成时）后立即开始播放，即使玩家在所处的位置上听不到它也不例外。
 
-除非在  **Sound Wave** 中指定为 **Looping（循环）** 或者定义为  **Sound Cue** 资源的一部分，否则每次触发 **Ambient Sound Actor** 将仅播放一次它指向的音效资源。 
+每次触发时，环境声（Ambient Sound）Actor指向的声音资源仅会播放一次，除非你在声波中将它指定为 **循环（Looping）** 或将它定义为Sound Cue资源的一部分。 
 
-您可以使用几种不同的方法将  **Ambient Sound Actor** 添加到您的关卡中：
+你可以通过多种方法向关卡中添加环境声（Ambient Sound）Actor：
 
-第一种是在 **All Classes（所有类别）** 下的  **Modes（模式）** 面板中选择  **Ambient Sound Actor** ，并将其拖拽到您的关卡中，如下所示。 
+第一种方法是，从 **模式（Modes）** 面板的 **所有类（All Classes）** 下选择环境声（Ambient Sound）Actor，并将其拖放到关卡中，如下图中所示。 
 
 ![](ambient_modesmenu.png)(w:640)
 
-您也可以在 **Content Browser（内容浏览器）** 中突出选中一个   **Sound Wave** 或 **Sound Cue** ，然后在关卡中 **右击** 来弹出关联菜单并选择  **Place Actor（放置Actor）** 。 
+第二种方法是，在 **内容浏览器** 中使声波或Sound Cue突出显示，然后在关卡中 **右键单击** 以调出情境菜单，然后选择 **放置Actor（Place Actor）**。 
 
 ![](ambient_contextmenu.png)(h:540)
 
-最后一种方法，您可以在 **Content Browser（内容浏览器）** 中 **左击** 并拖拽 **Sound Wave** 或 **Sound Cue** 到您的关卡中。
+最后一种方法是，在 **内容浏览器** 中 **左键单击** 声波或Sound Cue并将它拖到关卡中。
 
-### 音效属性
+(#soundproperties)
+### 声音（Sound）属性
 
-如果没有相关音效资源，**Ambient Sound Actor** 是没有任何作用的。 
-您可以在 **Details（详细信息）** 面板中通过从 **Sound（音效）** 设置下拉菜单中选择一个资源，或者通过在 **Content Browser（内容浏览器）** 中突出选中一个资源并点击![](soundactor_cb_arrow.png) 按钮，来分配一个音效资源。
+如果没有相关的声音资源，环境声（Ambient Sound）Actor没有任何作用。 
+你可以在 **细节（Details）** 面板中指定声音资源，方法有两种，从 **声音（Sound）** 设置的下拉菜单中选择资源，或者在 **内容浏览器** 中使某个声音资源突出显示，然后单击 ![](soundactor_cb_arrow.png) 按钮。
 
  ![](assign_soundasset.png)
 
-一旦将一个 **Sound Cue** 资源分配作为一个关联音效，那么 **Edit（编辑）** 选项将会变为可用，以便您可以在  **Sound Cue Editor（音效编辑器）** 中打开 **Sound Cue** 进行编辑。 
-另一种方法是，您不必分配音效资源，而是选择 **New（新建)** 选项，这将会创建一个新的 **Sound Cue** 资源，并将会在 **Sound Cue Editor** 中打开它以供编辑。 
+在将Sound Cue资源指定为相关的声音后，**编辑（Edit）** 选项将处于可用状态，然后，你就可在 **Sound Cue编辑器** 中打开Sound Cue资源以进行编辑。 
+或者，你可以选择 **新建（New）** 选项，该选项将创建新Sound Cue资源并在 **Sound Cue编辑器** 中将它打开以供你编辑，而非指定声音资源。 
 
-**Play（播放）** 和 **Stop（暂停）** 允许您在编辑器中预览分配的音效，并且分别会开始 **Play（播放）** 及 **Stop（暂停）** 音效。 
+**播放（Play）** 和 **停止（Stop）** 选项可用于在编辑器中预览指定的声音，它们可分别启动声音播放和停止声音播放。 
 
-以下定义了 **Details（详细信息）** 面板的 **Sound（音效）** 部分的其他选项。 
+下面我们将解释 **细节（Details）** 面板的 **声音（Sound）** 部分中的其他选项。 
 
-| 属性 | 描述 |
+|属性| 说明 |
 | ------- | ------------ |
-| **Sound（音效）** | 指向一个 **Sound Wave** 或 **Sound Cue** 资源。 |
-| **Is UI Sound（是否是用户界面音效）** | 当游戏暂停时是否播放该音效资源。 |
-| **Volume Multiplier（音量系数）** | 用于设置音效总体音量的系数。 |
-| **Pitch Multiplier（音高系数）** | 用于设置音效总体音高的系数。 |
-| **Instance Parameters（实例参数）** | 允许为该音效添加基于每个实例的参数。  |
-| **Sound Class Override（音效类别覆盖）** | 是一个可以分配给音效资源的可选组。 |
+| **声音（Sound）** | 指向声波资源或Sound Cue资源。|
+| **是UI声音（Is UI Sound）** | 确定当游戏暂停时是否播放该声音资源。|
+| **音量乘数（Volume Multiplier）** | 应用的乘数，可设置声音的总体音量。|
+| **音高乘数（Pitch Multiplier）** | 应用的乘数，可设置声音的总体音高。|
+| **实例参数（Instance Parameters）** | 允许为该声音添加基于每个实例的参数。|
+| **声音类覆盖（Sound Class Override）** | 可选组，可为声音资源指定。|
 
 
-### 衰减属性
-衰减实质上是指当玩家远离一个声音过程中声音变弱的功能。 它使用两个半径进行处理： MinRadius(最小半径) 和 MaxRadius（最大半径）。 
-当您从声音的发源地移动到 MinRadius 时，声音的音量为 100%。 当您在 MinRadius（最小半径）和MaxRadius（最大半径）之间的空间内移动时，将会基于 **Distance Algorithm（距离算法）** 调整音量大小。  
-当位于MaxRadius（最大半径）之外的空间时，音量大小为 0%。
+(#attenuationproperties)
+### 衰减（Attenuation）属性
+衰减是随着玩家逐渐离开，声音的音量变小的能力。它需要使用MinRadius和MaxRadius这两个半径才能正常工作。 
+当你从声源处开始移动并穿过MinRadius时，声音的音量为100%。当你在MinRadius和MaxRadius之间的空间中移动时，音量等级将基于 **距离算法（Distance Algorithm）** 被调整。 
+在MaxRadius之外，声音的音量为0%。
 
-关于衰减的更多信息，请查看[距离模型衰减](Engine/Audio/DistanceModelAttenuation) 页面。 
+有关衰减的更多信息，请参阅[](Engine/Audio/DistanceModelAttenuation)页面。 
 
-以下定义了 **Details（详细信息）** 面板的 **Attenuation（衰减）** 部分可以修改的选项： 
+我们将在下面解释可在 **细节（Details）** 面板的 **衰减（Attenuation）** 部分下修改的属性： 
 
 ![](attenuation_settings.png)
 
-| 属性 | 描述 |
+|属性| 说明 |
 | ------- | ------------ |
-| **Allow Spatialization（允许空间化）** | 启用/禁用 是否空间化音频组件功能。 |
-| **Override Attenuation（覆盖衰减）** |使用资源的Attenuation（衰减）设置或Attenuation Override（衰减覆盖）的设置。 |
-| **Attenuation Settings（衰减设置）** | 指向并使用SoundAttenuation资源中分配的设置。  |
-| **Attenuation Overrides（衰减覆盖）** |覆盖并允许您修改Attenuation（衰减）设置。 |
+| **允许空间化（Allow Spatialization）** | 允许/禁止音频组件空间化。|
+| **覆盖衰减（Override Attenuation）** | 使用资源的“衰减（Attenuation）”设置还是“衰减覆盖（Attenuation Overrides）”设置。|
+| **衰减设置（Attenuation Settings）** | 指向并使用在SoundAttenuation资源中指定的设置。|
+| **衰减覆盖（Attenuation Overrides）** | 进行覆盖并允许你修改“衰减（Attenuation）”设置。|
 
 [REGION:tip]
-如果只是想控制多个Actor的设置，那么建议您在任何可能的时候都使用 **Sound Attenuation（音效衰减）** 对象。
+即便你只是想广泛控制多个Actor的这些设置，也应尽量使用 **声音衰减（Sound Attenuation）** 对象。
 [/REGION]
 
-当选中 **Override Attenuation（覆盖衰减）** 时，将会提供设置额外Attenuation(衰减)设置的选项： 
+当选中 **覆盖衰减（Override Attenuation）** 时，你就可以设置额外的“衰减（Attenuation）”设置了： 
 
-| 属性 | 描述 |
+|属性| 说明 |
 | ------- | ------------ |
-| **Attenuate（衰减）** | 通过体积激活应用衰减。 |
-| **Spatialize（空间化）** | 使声源放置在三维空间中。  |
-| **Distance Algorithm（距离算法）** | 用于衰减模型的体积和距离算法的类型。 |
-| **Attenuation Shape（衰减形状）** | 衰减体积的形状。 |
-| **Radius（半径）** | 体积的整体大小。 <BR> 默认情况下，体积形状设置为 **Sphere（球体）** 。 该选项将会根据所选的 **Attenuation Shape（衰减形状）** 进行改变。 |
-| **Falloff Distance（衰减距离）** | 发生衰减的距离。 |
-| **Non-Spatialized Radius（非空间化半径）** | 指出从距离多远处开始将声源作进行空间化处理。 |
-| **Attenuate with LPF（使用低通滤波器衰减）** | 通过低通滤波器启用衰减。 |
-| **LPFRadius Min（低通滤波器半径最小值）** | 开始应用低通滤波器的范围。 |
-| **LPFRadius Max（低通滤波器最大值）** | 开始应用低通滤波器最大值的范围。 |
+| **衰减（Attenuate）** | 允许通过体积使用衰减。|
+| **空间化（Spatialize）** | 使源能够放置在3D空间中。|
+| **距离算法（Distance Algorithm）** | 用于该衰减模型的“音量VS距离”算法类型。|
+| **衰减形状（Attenuation Shape）** | 衰减体积的形状。|
+| **半径（Radius）** | 体积的总体大小。默认情况下，体积形状设置为 **球体（Sphere）**。此选项将基于所选择的“衰减形状（Attenuation Shape）”变化。|
+| **衰减距离（Falloff Distance）** | 衰减发生的距离。|
+| **非空间化半径（Non-Spatialized Radius）** | 开始将声源作为“空间化”对待的距离。|
+| **通过LPF衰减（Attenuate with LPF）** | 启用通过低通滤波器进行的衰减。|
+| **最小LPF半径（LPFRadius Min）** | 开始应用低通滤波器的范围。|
+| **最大LPF半径（LPFRadius Max）** | 应用最大量的低通滤波器的范围。|
 
 [REGION:tip]
-为了能够让您对衰减体积进行更多的控制，虚幻引擎4允许您将  **Attenuation Shape（衰减形状）** 设置为四种不同的体积类型： **Sphere（球体）** 、 **Capsule（胶囊体）** 、 **Box（盒体）** 或 **Cone（圆锥体）** 。 
-一般，**Sphere（球体）** 体积是比较合理的选择，但是有时候您可能想更好地控制体积适应到关卡中的方式。 比如，使用 **Box（盒体）** 体积填充一个方形房间就会更好。 
+为使你对衰减体积具有更多的控制力，虚幻引擎4允许你将“衰减形状（Attenuation Shape）”设置为四种不同的体积类型：球体（Sphere）、**胶囊体（Capsule）**、**盒体（Box）** 或 **锥体（Cone）**。 
+一般来讲，“球体（Sphere）”体积是合理的选择，但是，在某些情况下，你可能希望对体积容纳在关卡中的方式进行更精细的控制。例如，在方型房间中填充“盒体（Box）”体积可能更为合理。 
 [/REGION]
 
-### 调制属性
-**Modulation（调制）** 设置允许您控制Pitch（音高）和 Volume（音量）的 最小/最大 调制量，以及设置High Frequency Gain Multiplier（高频增益系数）。 
+(#modulationproperties)
+### 调制（Modulation）属性
+**调制（Modulation）** 设置使你可以控制音高和音量的最小值和最大值调制以及设置“高频增益乘数（High Frequency Gain Multiplier）”。 
 
 ![](soundactor_modulation.png)
 
 
-| 属性 | 描述 |
+|属性| 说明 |
 | ------- | ------------ |
-| **Pitch Modulation Min(音高调制最小值)** | |
-| **Pitch Modulation Max(音高调制最大值）** | |
-| **Volume Modulation Min（体积调制最小值）** | |
-| **Volume Modulation Max（体积调制最大值）** | |
-| **High Frequency Gain Multiplier（高频增益系数）** | |
+| **音高调制最小值（Pitch Modulation Min）** | 指定随机确定音高乘数时使用的下限。|
+| **音高调制最大值（Pitch Modulation Max）** | 指定随机确定音高乘数时使用的上限。|
+| **音量调制最小值（Volume Modulation Min）** | 指定随机确定音量乘数时使用的下限。|
+| **音量调制最大值（Volume Modulation Max）** | 指定随机确定音量乘数时使用的上限。|
+| **高频增益乘数（High Frequency Gain Multiplier）** | 指定要应用给由该组件生成的声音的高频增益的乘数。|
 
-## 添加音频组件到蓝图
+(#addingaudiocomponentstoblueprints)
+## 向蓝图中添加“音频（Audio）”组件
 
-在 **Blueprint（蓝图）** 内的 **Component Mode（组件模式）** 中，选择 **Add Component（添加组件）** 按钮并选择 **Audio（音频）** 组件。 
+在 **蓝图** 的 **组件（Component）** 面板中，选择 **添加组件（Add Component）** 按钮并选择 **音频（Audio）** 组件。 
 
 ![](soundactor_componentstab.png)
 
- **Audio（音频）** 组件可以在 **Blueprints（蓝图）** 中进行引用，并且它的很多设置都可以使用不同类型的函数进行修改。
+可通过蓝图引用 **音频（Audio）** 组件，并且可使用不同类型的函数修改其多个设置。
 
 ![](soundactor_audiocomponent.png)(w:480)
 
- **Audio（音频）** 确实有一个可以使用的独特事件。 这个 **OnAudioFinished** 事件允许您在音频播放结束时或者在使用 **Stop（停止）** 函数将其永久暂停播放时触发一些事件。 
+**音频（Audio）** 组件拥有一个独特的事件，可供你使用。**OnAudioFinished** 事件使你能够在音频完成播放或音频由于 **停止（Stop）** 函数提前停止时触发事件。
 
 
 
@@ -138,12 +146,14 @@ Description:关于使用环境音Actor创建游戏中的环境音效和局部音
 
 
 
-## 音频体积
-如果想要更进一步地进行控制，您可以将 **Audio Volumes（音频体积）**  和 **Ambient Sound Actors** 结合使用。 关于如何使用 **Audio Volume（音频体积）** 的更多信息，请参照  [体积](Engine/Actors/Volumes) 页面的音频体积部分。 
+(#audiovolumes)
+## 音频体积（Audio Volume）
+为了更好地进行控制，你可以在使用 **环境声（Ambient Sound）Actor** 的同时使用 **音频体积（Audio Volume）**。有关如何使用“音频体积（Audio Volume）”的更多信息，请参阅 [体积](Engine/Actors/Volumes) 页面的“音频体积（Audio Volume）”部分。 
 
 [REGION:tip]
-对 **Audio Volume（音频体积）** 所做的修改不能在编辑器中实时地反映出来。  您需要重新构建包含该已编辑的体积的关卡内中的几何体，才能使得您的修改生效。 
+对“音频体积（Audio Volume）”进行的更改不会实时在编辑器中生效。要使更改生效，你需要重新构建包含所编辑的体积的关卡的几何体。 
 [/REGION]
+
 
 
 

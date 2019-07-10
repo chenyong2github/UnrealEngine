@@ -688,6 +688,15 @@ void USkinnedMeshComponent::ClearMotionVector()
 	}
 }
 
+void USkinnedMeshComponent::ForceMotionVector()
+{
+	if (MeshObject)
+	{
+		++CurrentBoneTransformRevisionNumber;
+		MeshObject->Update(PredictedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);
+	}
+}
+
 #if WITH_EDITOR
 
 bool USkinnedMeshComponent::CanEditChange(const UProperty* InProperty) const
@@ -934,7 +943,12 @@ void USkinnedMeshComponent::RebuildVisibilityArray()
 
 		// The following code relies on a complete hierarchy sorted from parent to children
 		TArray<uint8>& EditableBoneVisibilityStates = GetEditableBoneVisibilityStates();
-		check(EditableBoneVisibilityStates.Num() == SkeletalMesh->RefSkeleton.GetNum());
+		if (EditableBoneVisibilityStates.Num() != SkeletalMesh->RefSkeleton.GetNum())
+		{
+			UE_LOG(LogSkinnedMeshComp, Warning, TEXT("RebuildVisibilityArray() failed because EditableBoneVisibilityStates size: %d not equal to RefSkeleton bone count: %d."), EditableBoneVisibilityStates.Num(), SkeletalMesh->RefSkeleton.GetNum());
+			return;
+		}
+
 		for (int32 BoneId=0; BoneId < EditableBoneVisibilityStates.Num(); ++BoneId)
 		{
 			uint8 VisState = EditableBoneVisibilityStates[BoneId];

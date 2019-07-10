@@ -14,7 +14,7 @@
 #include "MfMediaTracks.h"
 #include "MfMediaUtils.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#include "Windows/WindowsHWrapper.h"
 	#include "Windows/AllowWindowsPlatformTypes.h"
 #else
@@ -383,7 +383,7 @@ bool FMfMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
 	// initialize presentation on a separate thread
 	const EAsyncExecution Execution = Precache ? EAsyncExecution::Thread : EAsyncExecution::ThreadPool;
 
-	Async<void>(Execution, [
+	Async(Execution, [
 		Archive, Url, Precache, LocalPlayerOptions,
 		Callback = TComPtr<FMfMediaSourceReaderCallback>(SourceReaderCallback),
 		SamplesPtr = TWeakPtr<FMediaSamples, ESPMode::ThreadSafe>(Samples),
@@ -763,7 +763,7 @@ void FMfMediaPlayer::ReceiveSourceReaderSample(IMFSample* Sample, HRESULT Status
 
 #undef LOCTEXT_NAMESPACE
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	#include "Windows/HideWindowsPlatformTypes.h"
 #else
 	#include "XboxOne/XboxOneHidePlatformTypes.h"

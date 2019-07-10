@@ -148,6 +148,11 @@ bool UGeometryCacheComponent::GetManualTick() const
 	return bManualTick;
 }
 
+void UGeometryCacheComponent::ResetAnimationTime()
+{
+	ElapsedTime = 0.0f;
+}
+
 void UGeometryCacheComponent::TickAtThisTime(const float Time, bool bInIsRunning, bool bInBackwards, bool bInIsLooping)
 {
 	if (bManualTick && GeometryCache && bRunning)

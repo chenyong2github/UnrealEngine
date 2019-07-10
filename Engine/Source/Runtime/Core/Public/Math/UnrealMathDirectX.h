@@ -2,7 +2,7 @@
 
 #pragma once
 
-#if __cplusplus_cli
+#if __cplusplus_cli && !PLATFORM_HOLOLENS
 // there are compile issues with this file in managed mode, so use the FPU version
 #include "Math/UnrealMathFPU.h"
 #else
@@ -1059,10 +1059,10 @@ FORCEINLINE VectorRegister VectorSign(const VectorRegister& X)
 FORCEINLINE VectorRegister VectorStep(const VectorRegister& X)
 {
 	return MakeVectorRegister(
-		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : -1.0f));
+		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : 0.0f));
 }
 
 //////////////////////////////////////////////////////////////////////////

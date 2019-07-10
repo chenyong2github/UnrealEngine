@@ -1,0 +1,133 @@
+﻿INTSourceChangelist:6573703
+Availability: Public
+Title: Steam VR 퀵 스타트
+Description: Steam VR 용 프로젝트의 빠른 셋업 및 디플로이 방법 안내서입니다.
+Version: 4.17
+Parent: Platforms/VR/SteamVR
+Tags: VR
+Tags: Getting Started
+Tags: SteamVR
+Order: 7
+
+![](SteamVRHT_BannerImage_00.png "SteamVRHT_BannerImage_00.png")
+
+## 목적
+
+Steam VR 퀵 스타트는 Vive HMD 헤드셋이 있는 PC 와 Steam VR 개발 셋업 방법을 안내해 드립니다.
+
+## 목표
+
+* Steam VR Development 타깃으로 하는 UE4 프로젝트를 새로 만듭니다.
+
+* 프로젝트에서 Steam VR 을 사용할 수 있도록 필수 프로젝트 세팅을 설정합니다.
+
+## 1 - SteamVR 초기 구성
+
+여기서는 SteamVR 을 사용할 수 있도록 언리얼 엔진 4 (UE4)를 구성하는 방법을 살펴봅니다.
+
+### 단계
+
+[REGION:note]
+SteamVR 개발 키트 각각에는 Valve 가 제공한 [상세 안내서](http://media.steampowered.com/apps/steamvr/vr_setup.pdf ) 가 포함되어 있어 올바른 구성법을 참고할 수 있습니다. 이 문서를 읽지 않으신 경우, 계속 진행하기 전 먼저 읽어보시기 바랍니다. 왜냐면 다음 정보는 Valve 의 문서에 포함된 정보에는 적합하지 않기 때문입니다.
+[/REGION]
+
+1.  Vive 머리 장착 디스플레이(HMD), 스팀 컨트롤러, 브레이크아웃 박스, 라이트하우스 베이스 스테이션 모두 포장을 풀고 전원이 들어온 상태에서 연결되어 Valve 의 [안내](http://media.steampowered.com/apps/steamvr/vr_setup.pdf) 대로 구성되었는지 확인합니다.
+
+1.  개발 PC 에 [Steam Client](http://store.steampowered.com/about/) 가 설치되지 않은 경우, 다운로드하여 설치합니다.
+
+1.  **SteamVR** 툴 설치를 위해서는, 마우스 커서를 Steam 의 **Library** 옵션에 올려 표시되는 메뉴에서 **Tools** 옵션을 선택합니다.  
+    ![](T_Launch_SteamVR_Tools.png)
+
+1.  Tools 섹션에서 상단의 검색창을 사용하여 **SteamVR** 을 검색합니다. SteamVR 을 찾았으면, 더블클릭하여 다운로드하고 설치합니다.
+    [REGION:lightbox]
+    [![](T_SteamTools_Software.png)(w:568)](T_SteamTools_Software.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    SteamVR 설치는 Steam Client 우상단의 **VR** 아이콘을 클릭한 다음 화면상의 안내에 따르는 것으로도 가능합니다.  
+    ![](T_SteamVR_Icon_Install.png)
+
+1.  Tools 메뉴의 **SteamVR** 옵션을 더블클릭하면 아래 그림과 같은 SteamVR 툴이 실행됩니다.  
+    ![](T_Steam_VR_Ready.png)
+    [REGION:note]
+    SteamVR 에 위 그림처럼 모든 디바이스가 표시되면 모든 것이 정상 작동한다는 뜻입니다. 디바이스가 회색으로 나타나면 문제가 있다는 뜻입니다. 문제가 있는 디바이스는 회색으로 표시되어 마우스 커서를 올리면 무엇이 잘못되었고 어떻게 하면 고칠 수 있는지 알 수 있습니다.
+    [/REGION]
+
+1.  UE4 에서 SteamVR 을 사용하기 전 반드시 SteamVR 작동 영역을 구성해 줘야 합니다. 그러기 위해서는 SteamVR 창에 우클릭하고 **Run Room Setup** 을 선택한 뒤 화면상의 지시에 따라 SteamVR 작동 영역을 구성합니다.  
+    ![](T_Steam_VR_App.png)
+
+### 최종 결과
+
+완료되면 SteamVR 셋업이 완료되어 UE4 에서 사용할 수 있을 것입니다. 
+
+## 2 - SteamVR 을 사용하도록 UE4 구성
+
+여기서는 SteamVR 을 사용하도록 UE4 프로젝트를 새로 구성하는 법을 살펴봅니다.
+
+### 단계
+
+[REGION:note]
+기존에 하지 않은 경우, SteamVR **Room Setup** 을 실행시켜 트래킹 영역을 설정하고 조정합니다. 그러지 않으면 SteamVR 이 UE4 와 정상 작동하지 않습니다.
+[/REGION]
+
+1.  하드웨어를 **모바일 / 타블렛**, 그래픽을 **스케일가능 3D 또는 2D**, **시작용 콘텐츠 없음** 으로 공백 블루프린트 기반 프로젝트를 새로 생성합니다.
+    [REGION:lightbox]
+    [![](T_CreateNewProject.png)(w:555)](T_CreateNewProject.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  프로젝트가 로드되면 **플레이** 버튼 옆의 작은 삼각형을 클릭하고 뜨는 메뉴에서 **VR 프리뷰** 옵션을 선택합니다.  
+    ![](Check_VR_Working_00.png)
+
+### 최종 결과
+
+VR 프리뷰 실행 후 HMD 를 쓰면 기본 레벨이 표시됩니다. 아래 비디오처럼 머리를 아무 방향이나 돌릴 수도 있습니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 4xuNrwS3o-c
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 3 - 직접 해보기!
+
+SteamVR 및 HTC Vive 를 통해 UE4 프로젝트를 볼 수 있게 되었으니, 프로젝트에 다음 항목을 추가해 보시기 바랍니다.
+
+* [이주 툴](Engine/Content/Browser/UserGuide/Migrate/) 을 사용하여 모바일 콘텐츠 예제 중 하나에서 사용중인 프로젝트로 콘텐츠를 이동시킵니다.
+
+* [모션 컨트롤러](Platforms/VR/DevelopVR/MotionController) 지원을 추가하여 현실에서처럼 VR 에서도 사용자가 오브젝트를 옮길 수 있도록 합니다.
+
+* [GPU 프로파일러](Engine/Performance/GPU/) 를 사용하면 프로젝트를 만들면서 퍼포먼스 트래킹에 도움이 됩니다.
+
+언리얼 엔진 4 에서 VR 프로젝트를 개발할 때 유용한 정보를 제공해 드리는 부가 자료입니다.
+
+### 문서
+
+*   [](Platforms/VR)
+    *   [](Platforms/VR/DevelopVR/CheatSheet)
+    
+    *   [](Platforms/VR/SteamVR/BestPractices)
+
+*   [SteamVR Documentation](https://support.steampowered.com/kb_article.php)
+    *   [User Guide](https://steamcommunity.com/steamvr)
+    
+    *   [Developer Guide](https://steamcommunity.com/steamvr)
+
+### 시도해 볼 콘텐츠
+
+[REGION:imagetable]
+| [![](store_CouchKnights_screenshot_3.png)(w:420)](https://www.unrealengine.com/marketplace/couch-knights) | [![](store_Showdown_screenshot_5.png)(w:420)](https://www.unrealengine.com/marketplace/showdown-demo) |
+| ------------ | ---------------- |
+| CouchKnights | Showdown |
+| [![](store_VREditor_screenshot_5.png)(w:420)](Engine/Editor/VR) ||
+| VR Mode ||
+[/REGION]

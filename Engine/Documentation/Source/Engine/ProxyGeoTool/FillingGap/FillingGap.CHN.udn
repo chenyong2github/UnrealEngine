@@ -1,0 +1,105 @@
+﻿INTSourceChangelist:6674855
+Availability: Public
+Crumbs: 
+Title: 填补间隙
+Description: 使用代理几何体工具在创建新几何体时自动填充间隙。
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.20
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: 
+
+
+对于水密几何体，代理几何体工具将自动丢弃任何不可接近的结构，如内墙、家具和封闭结构内的任何东西。为了实现理想的结果，我们应该在构建或修改源几何体时考虑到这一点，但由于游戏生成的限制，这并不总是可行的。为了方便从接近水密的源几何体生成有效的代理LOD，ProxyLOD工具现在可以选择使用基于关卡集的膨胀和侵蚀技术来闭合间隙。预期的用例主要是远处建筑物中的门窗，在下面的教程中，我们将了解如何设置代理几何体工具来自动闭合生成的几何体可能存在的任何间隙。
+
+![](GapFilling_10.png)(w:400px)
+
+## 步骤
+
+在下面部分，我们将了解如何确保在代理几何体工具生成的静态网格体上闭合任何开放的几何体。
+
+1.  首先，找到一个有您想要闭合开口的结构或对象。对于本例，下面的小房子仅使用可以在初学者内容包中找到的静态网格体构建。
+
+    ![](GapFilling_01.png "GapFilling_01.png")
+
+1.  下一步，转到 **窗口（Window）> 开发者工具（Developer Tools）> 合并Actor（Merge Actors）**，打开 **合并Actor（Merge Actors）** 工具。
+
+    ![](GapFilling_02.png "GapFilling_02.png")
+
+1.  在关卡内部，选择所有构成要为其生成新几何体的对象的静态网格体Actor。
+
+    ![](GapFilling_03.png "GapFilling_03.png")
+
+1.  在合并Actor工具中，单击 **第二个图标** 访问代理几何体工具，然后展开 **代理设置（Proxy Settings）**。
+
+    ![](GapFilling_04.png "GapFilling_04.png")
+
+1.  在代理设置（Proxy Settings）中，将 **合并距离（Merge Distance）** 值设置为 **120**。
+
+    ![](GapFilling_05.png "GapFilling_05.png")
+
+    [REGION:note]
+    合并距离（Merge Distance）参数告诉代理几何体工具应该闭合的距离。数字越小，将填补的间隔就越小，数字越大，填补的间隔就越大。
+    [/REGION]
+
+1.  接下来，单击 **合并Actor（Merge Actors）** 按钮，并在 **内容浏览器（Content Browser）** 中为新创建的静态网格体输入一个名称和位置。然后单击 **保存（Save）** 按钮启动合并流程。 
+
+    ![](GapFilling_06.png "GapFilling_06.png")
+
+1.  合并完成后，在内容浏览器中找到新创建的静态网格体，然后双击它，在 **静态网格体编辑器（Static Mesh Editor）** 中打开它。
+
+    ![](GapFilling_07.png "GapFilling_07.png")     
+ 
+1.  根据所选对象的不同，在创建超出预期的新几何体时，代理几何体工具可能会出现一些问题（如下图所示）：  
+
+    ![](GapFilling_08.png "GapFilling_08.png")
+
+1.  要修复这样的问题，首先重新选择组成对象的所有静态网格体。然后在合并Actor工具中，将 **合并距离（Merge Distance）** 的值增大到 **175\.**然后启用 **传输距离覆盖（Transfer Distance Override）**，并将其值设置为 **100**。
+
+    [REGION:lightbox]
+    [![](GapFilling_06.png)](GapFilling_06.png)
+    [/REGION]
+      
+    [REGION:note]
+    要更好地了解应该使用哪些值，请检查输出日志。输出日志告诉您，**空间采样距离（Spatial Sampling Distance）**（用于网格体重建的体素大小）和 **传输距离覆盖（Transfer Distance Override）**（材质距离）使用什么值。一旦知道使用了哪些值，就可以根据需要的结果增大或减小这些值。
+
+    ![](SamplingScaleMatDistance.png "SamplingScaleMatDistance.png")
+    [/REGION]
+    
+1.  完成后，单击合并Actor（Merge Actors）按钮再次开始该过程。当代理几何体生成完成后，对象现在看起来是这样的。
+
+    ![](GapFilling_10.png "GapFilling_10.png")
+
+    [REGION:note]
+    根据几何体的设置方式，您可能需使用不同的合并距离（Merge Distance）值和传输距离覆盖（Transfer Distance Override）值重复上述过程几次，直到得到满意的结果。
+    [/REGION]
+
+## 最终结果
+
+获得最好的结果需要一些时间和迭代，因为生成代理几何体的每个对象所需的合并距离（Merge Distance）值和传输距离覆盖（Transfer Distance Override）值都略有不同。在下面的图像对比中，您可以看到将合并距离（Merge Distance）值和传输距离覆盖（Transfer Distance Override）值设置为 **0、100、200**， 和 **300** 时可以得到的结果。
+
+[EXCERPT:FillingGapsExampleSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	4
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	FillingGapsExample
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    例如，当合并距离（Merge Distance）值和传输距离覆盖（Transfer Distance Override）值设置为0、100、200和300时，会发生什么。
+    [/PARAM]
+    [PARAM:image_list]
+    ![](SetTo0.png)
+    ![](SetTo100.png)
+    ![](SetTo200.png)
+    ![](SetTo300.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:FillingGapsExampleSlider]
+
+[](#)[](#)

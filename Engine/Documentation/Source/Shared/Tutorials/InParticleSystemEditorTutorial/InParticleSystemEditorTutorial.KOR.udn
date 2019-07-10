@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:캐스케이드 환영 튜토리얼
 Crumbs:
@@ -60,7 +60,7 @@ Description: 언리얼 엔진 4 의 모든 입문용 튜토리얼입니다.
 
 모듈은 파티클의 스폰 위치나 이동 방식, 색과 같은 속성에 영향을 끼칠 수 있습니다. 이러한 모듈은 파티클 이미터에 우클릭 컨텍스트 메뉴를 통해 추가시킬 수 있습니다.
 
-[파티클 시스템 참고서에서 모듈에 대해 자세히 알아보세요.](DOCLINK:Engine\Rendering\ParticleSystems\Reference)
+[파티클 시스템 레퍼런스에서 모듈에 대해 자세히 알아보세요.](DOCLINK:Engine\Rendering\ParticleSystems\Reference)
 
 [/EXCERPT:Stage3]
 

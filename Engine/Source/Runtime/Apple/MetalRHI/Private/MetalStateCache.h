@@ -43,7 +43,7 @@ public:
 	void SetBlendFactor(FLinearColor const& InBlendFactor);
 	void SetStencilRef(uint32 const InStencilRef);
 	void SetComputeShader(FMetalComputeShader* InComputeShader);
-	bool SetRenderTargetsInfo(FRHISetRenderTargetsInfo const& InRenderTargets, FMetalQueryBuffer* QueryBuffer, bool const bRestart);
+	bool SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets, FMetalQueryBuffer* QueryBuffer, bool const bRestart);
 	void InvalidateRenderTargets(void);
 	void SetRenderTargetsActive(bool const bActive);
 	void SetViewport(const mtlpp::Viewport& InViewport);
@@ -51,7 +51,7 @@ public:
 	void SetVertexStream(uint32 const Index, FMetalBuffer* Buffer, FMetalBufferData* Bytes, uint32 const Offset, uint32 const Length);
 	void SetGraphicsPipelineState(FMetalGraphicsPipelineState* State);
 	void SetIndexType(EMetalIndexType IndexType);
-	void BindUniformBuffer(EMetalShaderStages const Freq, uint32 const BufferIndex, FUniformBufferRHIParamRef BufferRHI);
+	void BindUniformBuffer(EMetalShaderStages const Freq, uint32 const BufferIndex, FRHIUniformBuffer* BufferRHI);
 	void SetDirtyUniformBuffers(EMetalShaderStages const Freq, uint32 const Dirty);
 	
 	/*
@@ -125,8 +125,8 @@ public:
 	FMetalGraphicsPipelineState* GetGraphicsPSO() const { return GraphicsPSO; }
 	FMetalComputeShader* GetComputeShader() const { return ComputeShader; }
 	CGSize GetFrameBufferSize() const { return FrameBufferSize; }
-	FRHISetRenderTargetsInfo const& GetRenderTargetsInfo() const { return RenderTargetsInfo; }
-	int32 GetNumRenderTargets() { return bHasValidColorTarget ? RenderTargetsInfo.NumColorRenderTargets : -1; }
+	FRHIRenderPassInfo const& GetRenderPassInfo() const { return RenderPassInfo; }
+	int32 GetNumRenderTargets() { return bHasValidColorTarget ? RenderPassInfo.GetNumColorRenderTargets() : -1; }
 	bool GetHasValidRenderTarget() const { return bHasValidRenderTarget; }
 	bool GetHasValidColorTarget() const { return bHasValidColorTarget; }
 	const mtlpp::Viewport& GetViewport(uint32 const Index) const { check(Index < ML_MaxViewports); return Viewport[Index]; }
@@ -136,7 +136,7 @@ public:
 	uint32 GetDirtyUniformBuffers(EMetalShaderStages const Freq) const { return DirtyUniformBuffers[Freq]; }
 	FMetalQueryBuffer* GetVisibilityResultsBuffer() const { return VisibilityResults; }
 	bool GetScissorRectEnabled() const { return bScissorRectEnabled; }
-	bool NeedsToSetRenderTarget(const FRHISetRenderTargetsInfo& RenderTargetsInfo);
+	bool NeedsToSetRenderTarget(const FRHIRenderPassInfo& RenderPassInfo);
 	bool HasValidDepthStencilSurface() const { return IsValidRef(DepthStencilSurface); }
 	EMetalIndexType GetIndexType() const { return IndexType; }
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
@@ -279,9 +279,11 @@ private:
 	uint32 ActiveViewports;
 	uint32 ActiveScissors;
 	
-	FRHISetRenderTargetsInfo RenderTargetsInfo;
+	FRHIRenderPassInfo RenderPassInfo;
 	FTextureRHIRef ColorTargets[MaxSimultaneousRenderTargets];
+	FTextureRHIRef ResolveTargets[MaxSimultaneousRenderTargets];
 	FTextureRHIRef DepthStencilSurface;
+	FTextureRHIRef DepthStencilResolve;
 	/** A fallback depth-stencil surface for draw calls that write to depth without a depth-stencil surface bound. */
 	FTexture2DRHIRef FallbackDepthStencilSurface;
 	FMetalBuffer DebugBuffer;

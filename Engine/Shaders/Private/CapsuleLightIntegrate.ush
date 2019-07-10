@@ -6,6 +6,7 @@
 #include "MonteCarlo.ush"
 #include "ShadingModels.ush"
 #include "CapsuleLight.ush"
+#include "SobolRandom.ush"
 
 Texture2D DummyRectLightTextureForCapsuleCompilerWarning;
 

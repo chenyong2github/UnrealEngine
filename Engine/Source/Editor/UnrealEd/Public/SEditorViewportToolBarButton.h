@@ -27,7 +27,7 @@ public:
 		/** Called when the button is clicked */
 		SLATE_EVENT( FOnClicked, OnClicked )
 		/** The button type to use */
-		SLATE_ARGUMENT( EUserInterfaceActionType::Type, ButtonType )
+		SLATE_ARGUMENT( EUserInterfaceActionType, ButtonType )
 		/** Checked state of the button */
 		SLATE_ATTRIBUTE( bool, IsChecked )
 		/** Style name of an image to use. Simple two state images are supported.  An image can be different depending on checked/unchecked state */

@@ -1,0 +1,37 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*==============================================================================
+	NiagaraDrawIndirectArgsGen.usf: Shader to copy sorted index buffers.
+==============================================================================*/
+
+#include "/Engine/Private/Common.ush"
+
+// Array of task info. Each being a draw indirect arg gen or instance count reset.
+// ArgGen = (InstanceCountBufferOffset, NumIndicesPerInstance)
+// InstanceCountClear = (InstanceCountBufferOffset)
+Buffer<uint> TaskInfos;
+
+RWBuffer<uint> RWInstanceCounts;
+RWBuffer<uint> RWDrawIndirectArgs;
+
+uint4 TaskCount; // (NumArgGenTasks, NumInstanceCountClearTasks, NumArgGenTasks + NumInstanceCountClearTasks, 0)
+
+[numthreads(THREAD_COUNT,1,1)]
+void MainCS(uint TaskIndex : SV_DispatchThreadID)
+{
+	if (TaskIndex < TaskCount.x)
+	{
+		const uint ArgOffset = NIAGARA_DRAW_INDIRECT_ARGS_SIZE * TaskIndex;
+		const uint InfoOffset = TaskIndex * 2;
+		RWDrawIndirectArgs[ArgOffset + 0] = TaskInfos[InfoOffset + 1]; // NumIndicesPerInstance
+		RWDrawIndirectArgs[ArgOffset + 1] = RWInstanceCounts[TaskInfos[InfoOffset + 0]]; // InstanceCount
+		RWDrawIndirectArgs[ArgOffset + 2] = 0; // StartIndexLocation
+		RWDrawIndirectArgs[ArgOffset + 3] = 0; // BaseVertexLocation
+		RWDrawIndirectArgs[ArgOffset + 4] = 0; // StartInstanceLocation
+	}
+	else if (TaskIndex < TaskCount.z)
+	{
+		const uint InfoOffset = TaskCount.x * 2 + (TaskIndex - TaskCount.x);
+		RWInstanceCounts[TaskInfos[InfoOffset + 0]] = 0;
+	}
+}

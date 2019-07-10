@@ -66,12 +66,25 @@ public:
 
 private:
 	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
+	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+	
 	TSharedRef<SDockTab> SpawnTab_FramesTrack(const FSpawnTabArgs& Args);
+	void OnFramesTrackTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+	
 	TSharedRef<SDockTab> SpawnTab_GraphTrack(const FSpawnTabArgs& Args);
+	void OnGraphTrackTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+	
 	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
+	void OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+	
 	TSharedRef<SDockTab> SpawnTab_Timers(const FSpawnTabArgs& Args);
+	void OnTimersTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+	
 	TSharedRef<SDockTab> SpawnTab_StatsCounters(const FSpawnTabArgs& Args);
+	void OnStatsCountersTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
 	TSharedRef<SDockTab> SpawnTab_LogView(const FSpawnTabArgs& Args);
+	void OnLogViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	/**
 	 * Fill the main menu with menu items.

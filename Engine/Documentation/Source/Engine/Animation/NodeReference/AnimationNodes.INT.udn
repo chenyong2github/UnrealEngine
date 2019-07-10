@@ -1,8 +1,10 @@
 Availability:Public
 Title: Animation Node Reference
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Descriptions of the various animation nodes available for use in Animation Blueprints.
 version: 4.9
+tags:Animation
+tags:Animation Features
+type:reference
 topic-image:AnimationgNodeReference_topic.png
 
 [EXCERPT:Intro]

@@ -5,6 +5,12 @@
 #include "LevelSequence.h"
 #include "AssetRegistryModule.h"
 
+namespace
+{
+	static UTakesCoreBlueprintLibrary::FOnTakeRecorderSlateChanged TakeRecorderSlateChanged;
+	static UTakesCoreBlueprintLibrary::FOnTakeRecorderTakeNumberChanged TakeRecorderTakeNumberChanged;
+}
+
 int32 UTakesCoreBlueprintLibrary::ComputeNextTakeNumber(const FString& Slate)
 {
 	int32 MaxTake = 0;
@@ -44,3 +50,25 @@ TArray<FAssetData> UTakesCoreBlueprintLibrary::FindTakes(const FString& Slate, i
 	
 	return AllAssets;
 }
+
+void UTakesCoreBlueprintLibrary::SetOnTakeRecorderSlateChanged(FOnTakeRecorderSlateChanged OnTakeRecorderSlateChanged)
+{
+	TakeRecorderSlateChanged = OnTakeRecorderSlateChanged;
+};
+
+void UTakesCoreBlueprintLibrary::SetOnTakeRecorderTakeNumberChanged(FOnTakeRecorderTakeNumberChanged OnTakeRecorderTakeNumberChanged)
+{
+	TakeRecorderTakeNumberChanged = OnTakeRecorderTakeNumberChanged;
+};
+
+void UTakesCoreBlueprintLibrary::OnTakeRecorderSlateChanged(const FString& InSlate)
+{
+	TakeRecorderSlateChanged.ExecuteIfBound(InSlate);
+}
+
+void UTakesCoreBlueprintLibrary::OnTakeRecorderTakeNumberChanged(int32 InTakeNumber)
+{
+	TakeRecorderTakeNumberChanged.ExecuteIfBound(InTakeNumber);
+}
+
+

@@ -1,13 +1,13 @@
-﻿INTSourceChangelist:2714483
+﻿INTSourceChangelist:3108692
 Availability: Public
-Title: 顶点色材质
+Title: 顶点颜色材质
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup
 Description: 如何创建使用顶点颜色的材质，以便您可以在网格物体描画模式中给其着色。
 Version: 4.9
 SkillLevel: Intermediate
 
 
-实际上有无数种应用顶颜色（Vertex Color） 材质表达式中的颜色的方法。但对于这个设置，我们将做得相对简单一些，仅通过乘法表达式把颜色加入到现有材质中。这使我们可以具备原始贴图，通过网格物体描画工具给其着色。
+实际上有无数种应用顶点颜色（Vertex Color） 材质表达式中的颜色的方法。但对于这个设置，我们将做得相对简单一些，仅通过乘法表达式把颜色加入到现有材质中。这使我们可以具备原始贴图，通过网格物体描画工具给其着色。
 
 首先，看一下示例网格物体：
 

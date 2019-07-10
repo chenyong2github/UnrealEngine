@@ -34,10 +34,12 @@ struct FUSDSceneImportContext : public FUsdImportContext
 
 	FCachedActorLabels ActorLabels;
 
-	virtual void Init(UObject* InParent, const FString& InName, class IUsdStage* InStage);
+#if USE_USD_SDK
+	virtual void Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage);
+#endif // #if USE_USD_SDK
 };
 
-/*
+
 UCLASS(transient)
 class UUSDSceneImportFactory : public USceneImportFactory, public IImportSettingsParser
 {
@@ -53,10 +55,12 @@ public:
 	// IImportSettingsParser interface
 	virtual void ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson) override;
 private:
+#if USE_USD_SDK
 	void GenerateSpawnables(TArray<FActorSpawnData>& OutRootSpawnData, int32& OutTotalNumSpawnables);
 	void RemoveExistingActors();
 	void SpawnActors(const TArray<FActorSpawnData>& SpawnDatas, FScopedSlowTask& SlowTask);
 	void OnActorSpawned(AActor* SpawnedActor, const FActorSpawnData& SpawnData);
+#endif // #if USE_USD_SDK
 private:
 	UPROPERTY()
 	FUSDSceneImportContext ImportContext;
@@ -64,4 +68,4 @@ private:
 	UPROPERTY()
 	UUSDSceneImportOptions* ImportOptions;
 };
-*/
+

@@ -62,8 +62,8 @@ void UOculusNetConnection::InitRemoteConnection(UNetDriver* InDriver, class FSoc
 		InMaxPacket == 0 ? MAX_PACKET_SIZE : InMaxPacket,
 		0);
 
-	auto OculusAddr = static_cast<const FInternetAddrOculus&>(InRemoteAddr);
-	PeerID = OculusAddr.GetID();
+	RemoteAddr = InRemoteAddr.Clone();
+	PeerID = StaticCastSharedPtr<FInternetAddrOculus>(RemoteAddr)->GetID();
 
 	// This is for a client that needs to log in, setup ClientLoginState and ExpectedClientLoginMsgType to reflect that
 	SetClientLoginState(EClientLoginState::LoggingIn);
@@ -154,12 +154,6 @@ void UOculusNetConnection::FinishDestroy()
 		UE_LOG(LogNet, Verbose, TEXT("Oculus Net Connection closed to %llu"), PeerID);
 		ovr_Net_Close(PeerID);
 	}
-}
-
-TSharedPtr<FInternetAddr> UOculusNetConnection::GetInternetAddr()
-{
-	// @todo #JIRA UENET-883: This should be based on NetConnection.RemoteAddr, when moved down from IPConnection
-	return MakeShareable(new FInternetAddrOculus(PeerID));
 }
 
 FString UOculusNetConnection::RemoteAddressToString()

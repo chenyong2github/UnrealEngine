@@ -11,10 +11,7 @@ tags:Particles
 related:Engine/Basics/Distributions
 related:Engine/Rendering/Materials/Editor
 topic-image:particles_topic.png
-
-[REGION:banner]
-![](effects_landing_banner.png)(convert:false)
-[/REGION]
+hero-image:effects_landing_banner.png
 
 [EXCERPT:Intro]
 Unreal Engine contains an extremely powerful and robust particle system, allowing artists to create mind-blowing visual effects ranging from smoke, sparks, and fire to far more intricate and otherworldly examples. 

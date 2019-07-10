@@ -21,6 +21,8 @@ public:
 	virtual bool GetIsEnabled() const override;
 
 protected:
+	virtual void FinalizeInternal() override;
+
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;

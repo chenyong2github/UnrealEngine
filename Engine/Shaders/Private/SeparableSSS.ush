@@ -111,15 +111,10 @@
 //-----------------------------------------------------------------------------
 // Porting Functions
 #define SSSSTexture2D Texture2D
-#define SSSSSampleLevelZero(tex, coord) tex.SampleLevel(LinearSampler, coord, 0)
-#define SSSSSampleLevelZeroPoint(tex, coord) tex.SampleLevel(PointSampler, coord, 0)
 #define SSSSSampleShadowmap(coord)	float4(0,0,0,0)	// todo: not used yet
-#define SSSSSampleMasking(texcoord)	(HasSubsurfaceProfile(GetScreenSpaceData(texcoord).GBuffer.ShadingModelID))	// todo: masking doesn't work with filtering ideally put in alpha to get it filtered
-#define SSSSSampleSceneColor(coord) SampleSetup(coord)
-#define SSSSSampleSceneColorPoint(coord) SampleSetup(coord) // todo: could be made point
-#define SSSSSampleProfileId(coord) SampleSetupProfileId(coord)
-#define SSSSSampleLevelZeroOffset(tex, coord, offset) tex.SampleLevel(LinearSampler, coord, 0, offset)
-#define SSSSSampleOffset(tex, coord, offset) SSSSSampleLevelZeroOffset(tex, coord, offset)
+#define SSSSSampleSceneColor(coord) GetSceneColor(coord)
+#define SSSSSampleSceneColorPoint(coord) GetSceneColor(coord) // todo: could be made point
+#define SSSSSampleProfileId(coord) GetSubsurfaceProfileId(coord)
 #define SSSSLerp(a, b, t) lerp(a, b, t)
 #define SSSSMad(a, b, c) mad(a, b, c)
 #define SSSSMul(v, m) mul(v, m)
@@ -195,7 +190,7 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
 	// we store the depth in alpha
 	float OutDepth = colorM.a;
 
-	colorM.a = ComputeMaskFromDepthInAlpha(colorM.a);
+	colorM.a = GetMaskFromDepthInAlpha(colorM.a);
 
 	// we don't need to process pixels that are not part of the subsurafce scattering (optimization, also prevents divide by later on)
 	BRANCH if(!colorM.a)
@@ -212,7 +207,7 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
     if (initStencil) // (Checked in compile time, it's optimized away)
         if (SSSStrength < 1 / 256.0f) discard;
 
-	float SSSScaleX = SSSParams.x;
+	float SSSScaleX = SubsurfaceParams.x;
 
 	float scale = SSSScaleX / OutDepth;
 
@@ -234,23 +229,23 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
 	float3 colorInvDiv = 0.00001f;
 
 	// center sample
-	colorInvDiv += GetKernel(SSSS_N_KERNELWEIGHTOFFSET, SubsurfaceProfileInt).rgb;
-	colorAccum = colorM.rgb * GetKernel(SSSS_N_KERNELWEIGHTOFFSET, SubsurfaceProfileInt).rgb;
+	colorInvDiv += GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET, SubsurfaceProfileInt).rgb;
+	colorAccum = colorM.rgb * GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET, SubsurfaceProfileInt).rgb;
 
-	float3 BoundaryColorBleed = GetProfileBoundaryColorBleed(GBufferData);
+	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(GBufferData);
 
 	// Accumulate the other samples:
     SSSS_UNROLL
 	for (int i = 1; i < SSSS_N_KERNELWEIGHTCOUNT; i++) 
 	{
 		// Kernel.a = 0..SUBSURFACE_KERNEL_SIZE (radius)
-		half4 Kernel = GetKernel(SSSS_N_KERNELWEIGHTOFFSET + i, SubsurfaceProfileInt);
+		half4 Kernel = GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + i, SubsurfaceProfileInt);
 
 		float4 LocalAccum = 0;
 
 		float2 UVOffset = Kernel.a * finalStep;
 		// The kernel is symtrical, we want to use that property.
-		// Half the GetKernel() calls (more expensive if done by texture)
+		// Half the GetSubsurfaceProfileKernel() calls (more expensive if done by texture)
 		// Half the weighting computations (saves 3mul per lookup sample)
 		SSSS_UNROLL
 		for (int Side = -1; Side <= 1; Side += 2)
@@ -263,18 +258,17 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
 
 
 			float LocalDepth = color.a;
-			
-			color.a = ComputeMaskFromDepthInAlpha(color.a);
+			color.a = GetMaskFromDepthInAlpha(color.a);
 
 #if SSSS_FOLLOW_SURFACE == 1
 			// If the difference in depth is huge, we weight the sample less or not at all
-			float s = saturate(12000.0f / 400000 * SSSParams.y *
-	//        float s = saturate(300.0f/400000 * SSSParams.y *
+			float s = saturate(12000.0f / 400000 * SubsurfaceParams.y *
+	//        float s = saturate(300.0f/400000 * SubsurfaceParams.y *
 				abs(OutDepth - LocalDepth));
 
 			color.a *= 1 - s;
 #endif
-			// approximation, ideally we would reconstruct the mask with ComputeMaskFromDepthInAlpha() and do manual bilinear filter
+			// approximation, ideally we would reconstruct the mask with GetMaskFromDepthInAlpha() and do manual bilinear filter
 			// needed?
 			color.rgb *= color.a * ColorTint;
 

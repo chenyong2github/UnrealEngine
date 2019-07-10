@@ -275,24 +275,33 @@ private:
 	/** Whether the node was created as part of an expansion step */
 	uint8 bIsIntermediateNode : 1;
 
+#if WITH_EDITORONLY_DATA
+	/** Whether this node is unrelated to the selected nodes or not */
+	uint8 bUnrelated : 1;
+
+#endif
+
 public:
+
 	/** Flag to check for compile error/warning */
 	UPROPERTY()
 	uint8 bHasCompilerMessage:1;
 
 	/** Comment bubble pinned state */
+
+
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	uint8 bCommentBubblePinned:1;
+	uint8 bCommentBubblePinned : 1;
 
 	/** Comment bubble visibility */
 	UPROPERTY()
-	uint8 bCommentBubbleVisible:1;
+	uint8 bCommentBubbleVisible : 1;
 
 	/** Make comment bubble visible */
 	UPROPERTY(Transient)
-	uint8 bCommentBubbleMakeVisible:1;
+	uint8 bCommentBubbleMakeVisible : 1;
 
-#if WITH_EDITORONLY_DATA
 	/** If true, this node can be renamed in the editor */
 	UPROPERTY()
 	uint8 bCanRenameNode:1;
@@ -357,6 +366,20 @@ public:
 	{
 		return bUserSetEnabledState;
 	}
+
+#if WITH_EDITOR
+	/** Set this node unrelated or not. */
+	FORCEINLINE void SetNodeUnrelated(bool bNodeUnrelated)
+	{
+		bUnrelated = bNodeUnrelated;
+	}
+
+	/** Determines whether this node is unrelated to the selected nodes or not. */
+	FORCEINLINE bool IsNodeUnrelated() const
+	{
+		return bUnrelated;
+	}
+#endif
 
 	/** Determines whether or not the node will compile in development mode. */
 	virtual bool IsInDevelopmentMode() const;

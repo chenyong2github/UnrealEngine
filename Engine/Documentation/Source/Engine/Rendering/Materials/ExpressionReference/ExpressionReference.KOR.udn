@@ -1,23 +1,21 @@
-INTSourceChangelist:4300247
+INTSourceChangelist:6429227
 Availability: Public
-title:머티리얼 표현식 참고서
+title:머티리얼 표현식 레퍼런스
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials
-Description:머티리얼 에디터에서 복잡한 노드기반 셰이더 네트워크를 만드는 데 쓰이는 머티리얼 표현식 전부에 대한 참고서입니다.
+Description:머티리얼 에디터에서 복잡한 노드기반 셰이더 네트워크를 만드는 데 쓰이는 머티리얼 표현식 전부에 대한 레퍼런스입니다.
 Version: 4.9
 parent:Engine/Rendering/Materials
 order:9
 topic-image:exp_ref_topic.png
 type:overview
 tags:Materials
+hero-image:compendium.png
 
-[REGION:banner]
-![Materials Compendium](compendium.png)
-[/REGION]
 
 [TOC (start:2 end:3)]
 
 
-이 페이지는 머티리얼 에디터에서 사용가능한 모든 머티리얼 표현식 표현식에 대한 참고서입니다. 머티리얼 표현식이란 레고 블록같은 조립식으로 언리얼 엔진 4 에서 작동하는 머티리얼을 만들어 내는 것을 것을 말합니다. 각 머티리얼 표현식은 하나 이상의 구체적인 값 세트를 출력하거나, 하나 이상의 입력값을 계산한 다음 결과를 출력하는 자체독립 블랙 박스입니다.
+이 페이지는 머티리얼 에디터에서 사용가능한 모든 머티리얼 표현식 표현식에 대한 레퍼런스입니다. 머티리얼 표현식이란 레고 블록같은 조립식으로 언리얼 엔진 4 에서 작동하는 머티리얼을 만들어 내는 것을 것을 말합니다. 각 머티리얼 표현식은 하나 이상의 구체적인 값 세트를 출력하거나, 하나 이상의 입력값을 계산한 다음 결과를 출력하는 자체독립 블랙 박스입니다.
 
 ## 파라미터
 
@@ -314,7 +312,7 @@ tags:Materials
 
 [**Custom**](Engine/Rendering/Materials\ExpressionReference\Custom)
 [REGION:indentedlist]
-* [Custom](Engine/Rendering/Materials\ExpressionReference\Custom#Custom)
+* [Custom](Engine/Rendering/Materials\ExpressionReference\Custom)
 [/REGION]
 
 
@@ -420,9 +418,9 @@ tags:Materials
 * [FontSample](Engine/Rendering/Materials\ExpressionReference\Textures#FontSample)
 * [FontSampleParameter](Engine/Rendering/Materials\ExpressionReference\Textures#FontSampleParameter)
 * [SceneColor](Engine/Rendering/Materials\ExpressionReference\Textures#SceneColor)
-[COMMENT:none]
+<!--
 * [SceneTexture](Engine/Rendering/Materials\ExpressionReference\Textures#SceneTexture)
-[/COMMENT]
+-->
 * [TextureObject](Engine/Rendering/Materials\ExpressionReference\Textures#TextureObject)
 * [TextureSample](Engine/Rendering/Materials\ExpressionReference\Textures#TextureSample)
 [/REGION]
@@ -438,9 +436,9 @@ tags:Materials
 * [DepthOfFieldFunction](Engine/Rendering/Materials\ExpressionReference\Utility#DepthOfFieldFunction)
 * [Desaturation](Engine/Rendering/Materials\ExpressionReference\Utility#Desaturation)
 * [Distance](Engine/Rendering/Materials\ExpressionReference\Utility#Distance)
-[COMMENT:none]
+<!--
 * [FeatureLevelSwitch](Engine/Rendering/Materials\ExpressionReference\Utility#FeatureLevelSwitch)
-[/COMMENT]
+-->
 * [Fresnel](Engine/Rendering/Materials\ExpressionReference\Utility#Fresnel)
 * [LightmassReplace](Engine/Rendering/Materials\ExpressionReference\Utility#LightmassReplace)
 * [LinearInterpolate](Engine/Rendering/Materials\ExpressionReference\Utility#LinearInterpolate)

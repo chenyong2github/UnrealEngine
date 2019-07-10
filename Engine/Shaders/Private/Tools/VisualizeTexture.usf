@@ -36,10 +36,10 @@ float3 TextureExtent;
 
 
 void VisualizeTexturePS(
-	FScreenVertexOutput Input,
+	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	float2 UV = Input.UV;
+	float2 UV = SvPosition / TextureExtent.xy;
 
 	// Longitude Latitude unwrapping
 	float3 SpherePos;
@@ -95,6 +95,14 @@ void VisualizeTexturePS(
 #elif TEXTURE_TYPE == 7
     float IntTexLookup = float(VisualizeUINT8Texture2D.Load(int3(UV * TextureExtent.xy, 0)));
 	float4 TexLookup = IntTexLookup.xxxx;
+#elif TEXTURE_TYPE == 8
+	// 32 bits int, rather arbitrarily visualized as spread over the rgba channels
+    int IntTexLookup = VisualizeUINT8Texture2D.Load(int3(UV * TextureExtent.xy, 0));
+	float4 TexLookup;
+	TexLookup.r = IntTexLookup & 0xFF;
+	TexLookup.g = (IntTexLookup >> 8) & 0xFF;
+	TexLookup.b = (IntTexLookup >> 16) & 0xFF;
+	TexLookup.a = (IntTexLookup >> 24) & 0xFF;
 #endif
 	
 	// Normal = 0, SceneDepth = 1 and ShadowDepth = 2

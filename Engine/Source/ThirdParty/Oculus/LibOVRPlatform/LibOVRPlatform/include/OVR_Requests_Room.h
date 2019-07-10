@@ -304,6 +304,11 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Room_GetNextRoomArrayPage(ovrRoomArrayHandl
 /// \param roomID The ID of your current room.
 /// \param inviteToken A user's invite token, returned by ovr_Room_GetInvitableUsers().
 ///
+/// <b>Error codes</b>
+/// - \b 100: The invite token has expired, the user will need to be reinvited to the room.
+/// - \b 100: The target user cannot join you in your current experience
+/// - \b 100: You cannot send an invite to a room you are not in
+///
 /// A message with type ::ovrMessage_Room_InviteUser will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -315,6 +320,13 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Room_InviteUser(ovrID roomID, const char *i
 /// Joins the target room (leaving the one you're currently in).
 /// \param roomID The room to join.
 /// \param subscribeToUpdates If true, sends a message with type ovrNotification_Room_RoomUpdate when room data changes, such as when users join or leave.
+///
+/// <b>Error codes</b>
+/// - \b 10: The room you're attempting to join is currently locked. Please try again later.
+/// - \b 10: You don't have permission to enter this room. You may need to be invited first.
+/// - \b 100: Invalid room_id: {room_id}. Either the ID is not a valid room or the user does not have permission to see or act on the room.
+/// - \b 100: The room you're attempting to join is full. Please try again later.
+/// - \b 100: This game isn't available. If it already started or was canceled, you can host a new game at any point.
 ///
 /// A message with type ::ovrMessage_Room_Join will be generated in response.
 ///
@@ -328,6 +340,13 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Room_Join(ovrID roomID, bool subscribeToUpd
 /// \param roomID The room to join.
 /// \param roomOptions Additional room configuration for this request. Optional.
 ///
+/// <b>Error codes</b>
+/// - \b 10: The room you're attempting to join is currently locked. Please try again later.
+/// - \b 10: You don't have permission to enter this room. You may need to be invited first.
+/// - \b 100: Invalid room_id: {room_id}. Either the ID is not a valid room or the user does not have permission to see or act on the room.
+/// - \b 100: The room you're attempting to join is full. Please try again later.
+/// - \b 100: This game isn't available. If it already started or was canceled, you can host a new game at any point.
+///
 /// A message with type ::ovrMessage_Room_Join2 will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -340,6 +359,11 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Room_Join2(ovrID roomID, ovrRoomOptionsHand
 /// \param roomID The room that you currently own (check ovr_Room_GetOwner()).
 /// \param userID The user to be kicked (cannot be yourself).
 /// \param kickDurationSeconds Length of the ban, in seconds.
+///
+/// <b>Error codes</b>
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not in the room (or any room). Perhaps they already left, or they stopped heartbeating. If this is a test environment, make sure you are not using the deprecated initialization methods ovr_PlatformInitializeStandaloneAccessToken (C++)/StandalonePlatform.Initialize(accessToken) (C#).
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not the owner of the room.
+/// - \b 100: You cannot remove yourself from room {room_id}
 ///
 /// A message with type ::ovrMessage_Room_KickUser will be generated in response.
 ///
@@ -377,6 +401,11 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Room_Leave(ovrID roomID);
 /// \param roomID The room that you currently own (check ovr_Room_GetOwner()).
 /// \param description The new name of the room.
 ///
+/// <b>Error codes</b>
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is currently in another room (perhaps on another device), and thus is no longer in this room. Users can only be in one room at a time. If they are active on two different devices at once, there will be undefined behavior.
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not in the room (or any room). Perhaps they already left, or they stopped heartbeating. If this is a test environment, make sure you are not using the deprecated initialization methods ovr_PlatformInitializeStandaloneAccessToken (C++)/StandalonePlatform.Initialize(accessToken) (C#).
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not the owner of the room.
+///
 /// A message with type ::ovrMessage_Room_SetDescription will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -394,6 +423,11 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Room_SetDescription(ovrID roomID, const cha
 /// \param data The key/value pairs to add or update; null values clear a given key.
 /// \param numItems The length of data
 ///
+/// <b>Error codes</b>
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is currently in another room (perhaps on another device), and thus is no longer in this room. Users can only be in one room at a time. If they are active on two different devices at once, there will be undefined behavior.
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not in the room (or any room). Perhaps they already left, or they stopped heartbeating. If this is a test environment, make sure you are not using the deprecated initialization methods ovr_PlatformInitializeStandaloneAccessToken (C++)/StandalonePlatform.Initialize(accessToken) (C#).
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not the owner of the room.
+///
 /// A message with type ::ovrMessage_Room_UpdateDataStore will be generated in response.
 ///
 /// First call ::ovr_Message_IsError() to check if an error occurred.
@@ -407,6 +441,11 @@ OVRP_PUBLIC_FUNCTION(ovrRequest) ovr_Room_UpdateDataStore(ovrID roomID, ovrKeyVa
 /// in the room at the time of lockdown WILL be able to rejoin.
 /// \param roomID The room whose membership you want to lock or unlock.
 /// \param membershipLockStatus The new LockStatus for the room
+///
+/// <b>Error codes</b>
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is currently in another room (perhaps on another device), and thus is no longer in this room. Users can only be in one room at a time. If they are active on two different devices at once, there will be undefined behavior.
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not in the room (or any room). Perhaps they already left, or they stopped heartbeating. If this is a test environment, make sure you are not using the deprecated initialization methods ovr_PlatformInitializeStandaloneAccessToken (C++)/StandalonePlatform.Initialize(accessToken) (C#).
+/// - \b 10: Room {room_id}: The user does not have permission to {cannot_action} because the user is not the owner of the room.
 ///
 /// A message with type ::ovrMessage_Room_UpdateMembershipLockStatus will be generated in response.
 ///

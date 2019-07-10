@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -204,7 +204,7 @@ public:
 	/** Function to force an update of the Actor Preview UI based on a change */
 	void UpdateActorPreviewUI(TSharedRef<SWidget> InWidget, int32 Index, AActor *InActor );
 
-	void UpdateExternalUMGUI(TSubclassOf<class UUserWidget> InUMGClass, FName Name, FVector2D InSize);
+	void UpdateExternalUMGUI(const struct FVREditorFloatingUICreationContext& CreationContext);
 
 	void UpdateExternalSlateUI(TSharedRef<SWidget> InWidget, FName Name, FVector2D InSize);
 

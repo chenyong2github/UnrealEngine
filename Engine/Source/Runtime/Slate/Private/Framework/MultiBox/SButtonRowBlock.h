@@ -44,7 +44,7 @@ public:
 	 * @param	UIAction				Action to execute when the button is clicked or when state should be checked
 	 * @param	UserInterfaceActionType	The style of button to display
 	 */
-	FButtonRowBlock( const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FSlateIcon& InIcon, const FUIAction& UIAction, const EUserInterfaceActionType::Type InUserInterfaceActionType );
+	FButtonRowBlock( const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FSlateIcon& InIcon, const FUIAction& UIAction, const EUserInterfaceActionType InUserInterfaceActionType );
 
 	/** FMultiBlock interface */
 	virtual bool HasIcon() const override;
@@ -73,7 +73,7 @@ private:
 
 	/** In the case where a command is not bound, the user interface action type to use.  If a command is bound, we
 	    simply use the action type associated with that command. */
-	EUserInterfaceActionType::Type UserInterfaceActionTypeOverride;
+	EUserInterfaceActionType UserInterfaceActionTypeOverride;
 };
 
 

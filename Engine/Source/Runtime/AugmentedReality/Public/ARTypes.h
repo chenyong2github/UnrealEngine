@@ -14,6 +14,16 @@ class UARLightEstimate;
 struct FARTraceResult;
 class UTexture2D;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTrackableAdded, UARTrackedGeometry*);
+typedef FOnTrackableAdded::FDelegate FOnTrackableAddedDelegate;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTrackableUpdated, UARTrackedGeometry*);
+typedef FOnTrackableUpdated::FDelegate FOnTrackableUpdatedDelegate;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTrackableRemoved, UARTrackedGeometry*);
+typedef FOnTrackableRemoved::FDelegate FOnTrackableRemovedDelegate;
+
+
 UENUM(BlueprintType, Category="AR AugmentedReality", meta=(Experimental))
 enum class EARTrackingState : uint8
 {
@@ -123,6 +133,44 @@ enum class EARWorldMappingState : uint8
 	Mapped
 };
 
+/** Describes the tracked plane orientation */
+UENUM(BlueprintType)
+enum class EARPlaneOrientation : uint8
+{
+	Horizontal,
+	Vertical,
+	/** For AR systems that can match planes to slopes */
+	Diagonal,
+};
+
+/** Indicates what type of object the scene understanding system thinks it is */
+UENUM(BlueprintType)
+enum class EARObjectClassification : uint8
+{
+	/** Not applicable to scene understanding */
+	NotApplicable,
+	/** Scene understanding doesn't know what this is */
+	Unknown,
+	/** A vertical plane that is a wall */
+	Wall,
+	/** A horizontal plane that is the ceiling */
+	Ceiling,
+	/** A horizontal plane that is the floor */
+	Floor,
+	/** A horizontal plane that is a table */
+	Table,
+	/** A horizontal plane that is a seat */
+	Seat,
+	/** A human face */
+	Face,
+	/** A recognized image in the scene */
+	Image,
+	/** A chunk of mesh that does not map to a specific object type but is seen by the AR system */
+	World,
+	/** A closed mesh that was identified in the scene */
+	SceneObject,
+	// Add other types here...
+};
 
 /** The current state of the AR subsystem including an optional explanation string. */
 USTRUCT(BlueprintType)
@@ -266,6 +314,8 @@ public:
 	/** @see FriendlyName */
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Object Detection")
 	const FString& GetFriendlyName() const { return FriendlyName; }
+	UFUNCTION(BlueprintCallable, Category = "AR AugmentedReality|Object Detection")
+	void SetFriendlyName(const FString& NewName) { FriendlyName = NewName; }
 
 	/** @see BoundingBox */
 	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Object Detection")
@@ -391,5 +441,10 @@ public:
 	int32 Height;
 
 	bool IsValidFormat() { return FPS > 0 && Width > 0 && Height > 0; }
+
+	friend FArchive& operator<<(FArchive& Ar, FARVideoFormat& Format)
+	{
+		return Ar << Format.FPS << Format.Width << Format.Height;
+	}
 };
 

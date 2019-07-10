@@ -1843,8 +1843,10 @@ struct CompressAnimationsFunctor
 
 				NumTotalSize += ResourceSize;
 				
+				FUECompressedAnimData& CompressedData = AnimSeq->CompressedData.CompressedDataStructure;
+
 				// Looking for PerTrackCompression using 96bit translation compression.
-				if( AnimSeq->KeyEncodingFormat == AKF_PerTrackCompression && AnimSeq->CompressedByteStream.Num() > 0 )
+				if( CompressedData.KeyEncodingFormat == AKF_PerTrackCompression && CompressedData.CompressedByteStream.Num() > 0 )
 				{
 					bool bCandidate = false;
 
@@ -1857,12 +1859,12 @@ struct CompressAnimationsFunctor
  						// Translation
 						{
 							// Use the CompressedTrackOffsets stream to find the data addresses
-							const int32* RESTRICT TrackDataForTransKey = AnimSeq->CompressedTrackOffsets.GetData() + (TrackIndex * 2);
+							const int32* RESTRICT TrackDataForTransKey = CompressedData.CompressedTrackOffsets.GetData() + (TrackIndex * 2);
 							const int32 TransKeysOffset = TrackDataForTransKey[0];
  							if( TransKeysOffset != INDEX_NONE )
  							{
-								const uint8* RESTRICT TrackData = AnimSeq->CompressedByteStream.GetData() + TransKeysOffset + 4;
-								const int32 Header = *((int32*)(AnimSeq->CompressedByteStream.GetData() + TransKeysOffset));
+								const uint8* RESTRICT TrackData = CompressedData.CompressedByteStream.GetData() + TransKeysOffset + 4;
+								const int32 Header = *((int32*)(CompressedData.CompressedByteStream.GetData() + TransKeysOffset));
 	 
  								int32 KeyFormat;
  								int32 NumKeys;
@@ -1962,12 +1964,12 @@ struct CompressAnimationsFunctor
 						// Rotation
 						{
 							// Use the CompressedTrackOffsets stream to find the data addresses
-							const int32* RESTRICT TrackDataForRotKey = AnimSeq->CompressedTrackOffsets.GetData() + (TrackIndex * 2);
+							const int32* RESTRICT TrackDataForRotKey = CompressedData.CompressedTrackOffsets.GetData() + (TrackIndex * 2);
 							const int32 RotKeysOffset = TrackDataForRotKey[1];
 							if( RotKeysOffset != INDEX_NONE )
 							{
-								const uint8* RESTRICT TrackData = AnimSeq->CompressedByteStream.GetData() + RotKeysOffset + 4;
-								const int32 Header = *((int32*)(AnimSeq->CompressedByteStream.GetData() + RotKeysOffset));
+								const uint8* RESTRICT TrackData = CompressedData.CompressedByteStream.GetData() + RotKeysOffset + 4;
+								const int32 Header = *((int32*)(CompressedData.CompressedByteStream.GetData() + RotKeysOffset));
 
 								int32 KeyFormat;
 								int32 NumKeys;
@@ -2023,11 +2025,11 @@ struct CompressAnimationsFunctor
 						// Scale
 						{
 							// Use the CompressedTrackOffsets stream to find the data addresses
-							const int32 ScaleKeysOffset = AnimSeq->CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
+							const int32 ScaleKeysOffset = CompressedData.CompressedScaleOffsets.GetOffsetData(TrackIndex, 0);
 							if( ScaleKeysOffset != INDEX_NONE )
 							{
-								const uint8* RESTRICT TrackData = AnimSeq->CompressedByteStream.GetData() + ScaleKeysOffset + 4;
-								const int32 Header = *((int32*)(AnimSeq->CompressedByteStream.GetData() + ScaleKeysOffset));
+								const uint8* RESTRICT TrackData = CompressedData.CompressedByteStream.GetData() + ScaleKeysOffset + 4;
+								const int32 Header = *((int32*)(CompressedData.CompressedByteStream.GetData() + ScaleKeysOffset));
 
 								int32 KeyFormat;
 								int32 NumKeys;

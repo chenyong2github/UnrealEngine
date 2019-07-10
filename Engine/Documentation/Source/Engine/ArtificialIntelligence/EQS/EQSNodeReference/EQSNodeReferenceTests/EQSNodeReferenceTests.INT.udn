@@ -1,0 +1,425 @@
+Availability: Docs
+Title: EQS Node Reference: Tests
+Description: Describes how to use Tests within EQS to generate the "best" option.
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/EQS/EQSNodeReference
+Tags: Experimental
+Tags: EQS
+Tags: AI
+Tags: Environmental Query System
+Tags: EQS Node Reference List
+topic-image: Tests_Topic.png
+social-image: Tests_Topic.png
+topic-icon: Tests_Topic.png
+Order: 1
+
+
+[TOC (start:2 end:2)]
+
+Within the Environmental Query System (EQS), a **Test **can be performed to determine which **Item **produced from a [Generator](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators) is the "best" option, given the [Context](Engine\ArtificialIntelligence\EQS\EQSNodeReference\EQSNodeReferenceContexts\) (or frame of reference). There are several Tests that are provided with the Engine that cover a good percentage of use cases, such as "can an Item trace (see) another Location" or "is the distance between and Item and its Context within a specified range".  You can add multiple Tests to a Generator which can be an effective way to narrow down the results, giving you the best possible option. 
+
+[REGION:note]
+If the default Engine Tests do not accomplish what you desire, you can create custom Tests through C++ code.
+[/REGION]
+
+## Common Test Properties
+
+Each Testtype has some unique properties to it that enable you to define how the Test is performed. However, for all Tests there are some common properties that are used to define what the purpose of the Test is for and what to do with the results. For example, is the Test used for filtering out results, or is it being used to score results and weight them, or a combination of both? You can define the **Test Purpose **among other properties from the **Details **panel when selecting the Test in the EQS Editor. 
+
+**Test Properties**  
+
+  
+| Property | Description |
+| --- | --- |
+| **Test Purpose** | [INCLUDE:#excerpt_0] |
+| **Test Comment** | Optional comment or explanation about what the Test is used for. This is useful when the purpose of the Test may not be clear, especially when there are multiple Tests of the same type. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+This defines what additional options are available in the Test and what the test should be used for.   
+
+  
+| Property | Description |
+| --- | --- |
+| **Filter Only** | Used to filter possible results. Items that fail the Test will be removed. |
+| **Score Only** | Used to score possible results. Items returned are given a weight value. |
+| **Filter and Score** | Used to filter and score results. |
+
+[/EXCERPT:excerpt_0]
+-->
+
+**Filter Properties**  
+
+The following options are available when **Test Purpose **is set to **Filter **(or set to **Filter and Score**):
+
+[REGION:note]
+Filtering is done before scoring to avoid calculating the score on filtered out items.
+[/REGION]
+
+  
+| Property | Description |
+| --- | --- |
+| **Bool Match ** | [INCLUDE:#excerpt_1] |
+| ****Multiple Context Filter Op**** | [INCLUDE:#excerpt_2] |
+| **Float Value Min** | [INCLUDE:#excerpt_3] |
+| **Float Value Max** | [INCLUDE:#excerpt_4] |
+| **Filter Type** | [INCLUDE:#excerpt_5] |
+
+<!--
+[EXCERPT:excerpt_1]
+
+This is the value (true or false) to match in order to grant a scoring factor. When performing a Test, not matching this value will not change the score. For example, on a **Trace **Test, true or false did we hit something? Or for **Pathing **does a path exist?   
+
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+Defines the filtering operator when the **Distance To **Context returns multiple items. **All Pass **means all Contexts must pass while **Any Pass **states at least one Context must pass.  
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+Filter any value less than or equal to this value. 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+Filter any value greater than or equal to this value. 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_5]
+
+Used to change the type of Filter applied to **Minimum**, **Maximum**, or a **Range **of values. Any values outside the values specified in the **Float Value Min** and/or **Float Value Max** properties will be culled out. 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_5]
+-->
+
+**Score Properites**  
+
+The following options are available when **Test Purpose **is set to **Score **(or set to **Filter and Score**).
+
+  
+| Property | Description |
+| --- | --- |
+| ******Multiple Context Filter Op****** | Defines the filtering operator when the **Distance To **Context returns multiple items. **All Pass **means all Contexts must pass while **Any Pass **states at least one Context must pass. |
+| ****Clamp Min Type**** | [INCLUDE:#excerpt_6] |
+| **Clamp Max Type** | [INCLUDE:#excerpt_7] |
+| **Scoring Equation** | [INCLUDE:#excerpt_8] |
+| **Scoring Factor** | [INCLUDE:#excerpt_9] |
+| **Normalization Type** | [INCLUDE:#excerpt_10] |
+| **Reference Value** | [INCLUDE:#excerpt_11] |
+
+<!--
+[EXCERPT:excerpt_6]
+
+Defines whether a **Specified Value **should be used to normalize the raw test value before applying the scoring formula, or if the **lowest** value found (Tested) should be used. 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_7]
+
+Defines whether a **Specified Value **should be used to normalize the raw test value before applying the scoring formula, or if the **highest** value found (Tested) should be used. 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+This modifies the score of the Test to adhere to a curve of the **Constant**, **Linear**, **Square**, **Inverse Linear**, or **Square Root **type. 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_9]
+
+The weight (factor) in which to multiply the normalized score after the scoring equation is applied. This value can be a negative number. 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_10]
+
+Specifies how to determine value span used to normalize score. **Absolute **(use 0 as the base of normalization range) or **Relative to Scores **(use the lowest Item score as the base of normalization range). 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_10]
+-->
+<!--
+[EXCERPT:excerpt_11]
+
+Used to normalize Test's results in such a way that the closer a value is to **Reference Value**, the higher normalized result it will produce. The value farthest away from **Reference Value**, will be normalized to 0, and all other values in between will get normalized linearly with the distance to **Reference Value**. 
+
+[REGION:note]
+This option is only available for **Distance** and **Dot** Tests.
+[/REGION]
+[/EXCERPT:excerpt_11]
+-->
+
+## Distance
+
+![](Test_Distance.png "Test_Distance.png")
+
+The **Distance **Test will return the direct distance between the Item and the chosen **Distance To **property.  If Distance To is more than one location, it averages the results of each distance check. 
+
+![](Test_Distance_Details-2.png "Test_Distance_Details-2.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Test Mode** | The method used to test Distance: in 3D space, in 2D as an XY plane, along the Z or Z (absolute) axis. |
+| **Distance To** | The Context that will be used to measure the distance to. |
+
+## Dot
+
+![](Test_Dot.png "Test_Dot.png")
+
+The **Dot **Test calculates the Dot Product of two vectors. These can be Context rotations, or the vector from one point to another. This Test is useful for determining if something is facing something else.
+
+![](Test_Dot_Details.png "Test_Dot_Details.png")
+
+The following properties are available for the **Dot **Test: 
+
+  
+| Property | Description |
+| --- | --- |
+| **Line A Mode** | [INCLUDE:#excerpt_12] |
+| **Line B Mode** | [INCLUDE:#excerpt_14] |
+| **Test Mode** | Whether the Test should calculate using the complete 3D vector or just the 2D heading vector of the **Line A **and **Line B **vectors. |
+| **Absolute Value** | This will make the Test return the Absolute Value of the Dot Product (a Dot Product returns a value from -1.0 to 1.0). |
+
+<!--
+[EXCERPT:excerpt_12]
+
+This is used to define the direction of the **first** line used by the Test. There are two methods you use to obtain the direction: 
+
+  
+| Property | Description |
+| --- | --- |
+| **Rotation** | The specified Context will be used as a direction. |
+| **Two Points** | Direction from Location of one Context to another. |
+
+[/EXCERPT:excerpt_12]
+-->
+<!--
+[EXCERPT:excerpt_14]
+
+This is used to define the direction of the **second** line used by the Test. There are two methods you can use to obtain the direction: 
+
+  
+| Property | Description |
+| --- | --- |
+| **Rotation** | The specified Context will be used as a direction. |
+| **Two Points** | Direction from Location of one Context to another. |
+
+[/EXCERPT:excerpt_14]
+-->
+
+## Gameplay Tags
+
+![](Test_Gameplay.png "Test_Gameplay.png")
+
+The **Gameplay Tags **Test enables you to specify a Tag to query and attempt to match in your Test. 
+
+![](Test_Gameplay_Details.png "Test_Gameplay_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Tag Query to Match** | Opens the [Gameplay Tags](Gameplay/Tags) Editor where you can specify the Tags to validate against. |
+
+## Overlap
+
+![](Test_Overlap.png "Test_Overlap.png")
+
+The **Overlap **Test can be used to determine if an Item (or Items) are within the bounds defined in the properties. 
+
+![](Test_Overlap_Details.png "Test_Overlap_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Extent X** | Shape parameter for the overlap along the X-axis. |
+| **Extent Y** | [INCLUDE:#excerpt_16] |
+| **Extent Z** | Shape parameter for the overlap along the Z-axis. |
+| **Shape Offset** | Offset from the Item location at which to test the overlap. For example, you may need to offset vertically to avoid overlaps with flat ground. |
+| **Overlap Channel** | Geometry trace [channel](Engine/Physics/Collision/Reference) used for overlap. |
+| **Overlap Shape** | The shape used for geometry overlap (**Box**, **Sphere**, or **Capsule**). |
+| **Only Blocking Hits** | if set, overlap will only look for [blocking hits](Engine/Physics/Tracing/Overview#hitresults). |
+| **Overlap Complex** | If set, overlap will only run on [complex collisions](Engine/Physics/SimpleVsComplex). |
+
+<!--
+[EXCERPT:excerpt_16]
+
+Shape parameter for the overlap along the Y-axis.  
+
+[/EXCERPT:excerpt_16]
+-->
+
+## Pathfinding
+
+![](Test_Path.png "Test_Path.png")
+
+The **Pathfinding **Test can be used to determine if a path exists to (or from) the Context, how expensive the path to (or from) the Context is, or how long the path is. 
+
+![](Test_Path_Details.png "Test_Path_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Test Mode** | [INCLUDE:#excerpt_17] |
+| **Context** | This is the Context to path to or from. |
+| **Path from Context** | Should the pathfinder go to (false) or from (true) the Context. |
+| **Filter Class** | The optional navigation filter to use in pathfinding. |
+| **Skip Unreachable** | If set, Items with failed paths will be invalidated. |
+
+<!--
+[EXCERPT:excerpt_17]
+
+The method in which to apply the Test:
+
+  
+| Property | Description |
+| --- | --- |
+| **Path Exist** | Does the path exist to (or from) the Context |
+| **Path Cost** | How expensive is the path to (or from) the Context. |
+| **Path Length** | How long is the path to (or from) the Context. |
+
+[/EXCERPT:excerpt_17]
+-->
+
+[REGION:note]
+When **Test Mode **is set to **Path Cost **or **Path Length**, the **Filter **and **Score **sections of the **Details **panel change to provide the options typically only available to the common properties outlined for **Dot **and **Distance **tests.
+[/REGION]
+
+## Pathfinding Batch
+
+![](Test_PathBatch.png "Test_PathBatch.png")
+
+The **Pathfinding **Test can be used to determine if a path exists to (or from) the Context, how expensive the path to (or from) the Context is, or how long the path is. Every processed Context (paths) will be scored depending on the defined **Test Mode**. 
+
+![](Test_PathBatch_Details.png "Test_PathBatch_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Test Mode** | [INCLUDE:#excerpt_20] |
+| **Context** | This is the Context that the AI should path to or from. |
+| **Path from Context** | Should the pathfinder go to (false) or from (true) the Context. |
+| **Filter Class** | The optional navigation filter to use in pathfinding. |
+| **Scan Range Multiplier** | The multiplier for max distance between point and Context. |
+| **Skip Unreachable** | If set, Items with failed paths will be invalidated. |
+
+<!--
+[EXCERPT:excerpt_20]
+
+The method in which to apply the Test:
+
+  
+| Property | Description |
+| --- | --- |
+| **Path Exist** | Does the path exist to (or from) the Context. |
+| **Path Cost** | How expensive is the path to (or from) the Context. |
+| **Path Length** | How long is the path to (or from) the Context. |
+
+[/EXCERPT:excerpt_20]
+-->
+
+[REGION:note]
+When **Test Mode **is set to **Path Cost **or **Path Length**, the **Filter **and **Score **sections of the **Details **panel change to provide the options typically only available to the common properties outlined for **Dot **and **Distance **tests.
+[/REGION]
+
+## Project
+
+![](Test_Project.png "Test_Project.png")
+
+The **Project **Test can be used to project the resulting Items onto the NavMesh (and which NavMesh data set to use).   
+
+This will move Items that may be inside walls or blocked, back onto the NavMesh, which can create bunching if a grid line happens to be just beyond the edge of the NavMesh.
+
+![](Test_Project_Details.png "Test_Project_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Trace Mode** | [INCLUDE:#excerpt_23] |
+| **Navigation Filter** | The (optional) navigation filter class to used. |
+| **Extent X** | Shape parameter for trace. |
+| **Project Down** | Search height is defined below the specified point. |
+| **Project Up** | Search Height is defined above the specified point. |
+| **Post Projection Vertical Offset** | [INCLUDE:#excerpt_25] |
+
+<!--
+[EXCERPT:excerpt_23]
+
+This is the shape used for geometry tracing:
+
+  
+| Property | Description |
+| --- | --- |
+| **Navigation** | Does the path exist to (or from) the Context. |
+| **Geometry** | How expensive is the path to (or from) the Context. |
+
+[/EXCERPT:excerpt_23]
+-->
+<!--
+[EXCERPT:excerpt_25]
+
+This value will be added to the resulting location's Z-axis. 
+
+[REGION:note]
+This can be useful when projecting points on navigation since the Navmesh is just an approximation of Level geometry and items may end up being under collide-able geometry which would, for example, falsify visibility tests.
+[/REGION]
+[/EXCERPT:excerpt_25]
+-->
+
+## Trace
+
+![](Test_Trace-1.png "Test_Trace-1.png")
+
+The **Trace **Test will [trace](Engine/Physics/Tracing/Overview) to (or from) an Item or Context and return if it hit it or not something. You can invert the result using the **Filter **option, **Bool Match**. One typical use-case for this type of test is to determine if an enemy can (or cannot) see a Player in the Level. 
+
+![](Test_Trace_Details-1.png "Test_Trace_Details-1.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Trace Channel** | This is the channel to perform the trace against. By default, **Visibility **and **Camera **are the available options however, additional channels can be added in the **Edit Menu > Project Settings > Physics > Trace Channels **section of the Project Settings. |
+| **Trace Shape** | The shape to perform the trace: **Line**, **Sphere**, **Box**, or **Capsule**. |
+| **Trace Complex** | Whether the trace should be against the mesh (complex) or just the simple collision. |
+| **Only Blocking Hits** | Whether the trace uses blocking or non-blocking traces in its results. |
+| **Trace from Context** | The Context to trace from, such as the Querier, an Item, or any custom Contexts you may have created. |
+| **Context** | This is the other end of the trace. |
+| **Item Height Offset** | This will add a Z offset, in cm, to the Item the Test is tracing to (or from). |
+| **Context Height Offset** | This will add a Z offset, in cm, to the Context the test is tracing to (or from). |

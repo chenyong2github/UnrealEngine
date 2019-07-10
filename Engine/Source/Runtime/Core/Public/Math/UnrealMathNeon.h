@@ -5,17 +5,52 @@
 PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
 
 // Include the intrinsic functions header
+#if ((PLATFORM_WINDOWS || PLATFORM_HOLOLENS) && PLATFORM_64BITS)
+#include <arm64_neon.h>
+#else
 #include <arm_neon.h>
+#endif
 
 /*=============================================================================
  *	Helpers:
  *============================================================================*/
 
+#ifdef _MSC_VER
+
+// MSVC NEON headers typedef float32x4_t and int32x4_t both to __n128
+// This wrapper type allows VectorRegister and VectorRegisterInt to be
+// discriminated for template specialization (e.g. FConstantHandler)
+//
+// This comes at the cost of having to define constructors for some
+// anonymous unions, because VectorRegister/VectorRegisterInt are no
+// longer trivially constructible. The optimizer should eliminate the
+// redundant zero initialization in these cases for non-MSVC (e.g. V()
+// is called now where it wasn't before)
+template<typename T, bool is_int>
+struct MS_ALIGN(alignof(T)) VectorRegisterWrapper
+{
+	FORCEINLINE VectorRegisterWrapper() {}
+	FORCEINLINE VectorRegisterWrapper(const T& vec) : m_vec(vec) {}
+
+	FORCEINLINE operator T&() { return m_vec; }
+	FORCEINLINE operator const T&() const { return m_vec; }
+
+	T m_vec;
+};
+
 /** 16-byte vector register type */
-typedef float32x4_t __attribute((aligned(16))) VectorRegister;
-typedef int32x4_t  __attribute((aligned(16))) VectorRegisterInt;
+typedef VectorRegisterWrapper<float32x4_t, false> VectorRegister;
+typedef VectorRegisterWrapper<int32x4_t, true> VectorRegisterInt;
+
+#define DECLARE_VECTOR_REGISTER(X, Y, Z, W) MakeVectorRegister( X, Y, Z, W )
+#else
+
+/** 16-byte vector register type */
+typedef float32x4_t GCC_ALIGN(16) VectorRegister;
+typedef int32x4_t  GCC_ALIGN(16) VectorRegisterInt;
 
 #define DECLARE_VECTOR_REGISTER(X, Y, Z, W) { X, Y, Z, W }
+#endif
 
 /**
  * Returns a bitwise equivalent vector based on 4 uint32s.
@@ -28,7 +63,10 @@ typedef int32x4_t  __attribute((aligned(16))) VectorRegisterInt;
  */
 FORCEINLINE VectorRegister MakeVectorRegister( uint32 X, uint32 Y, uint32 Z, uint32 W )
 {
-	union { VectorRegister V; uint32 F[4]; } Tmp;
+	union U {
+		VectorRegister V; uint32 F[4];
+		FORCEINLINE U() : V() {}
+	} Tmp;
 	Tmp.F[0] = X;
 	Tmp.F[1] = Y;
 	Tmp.F[2] = Z;
@@ -47,7 +85,10 @@ FORCEINLINE VectorRegister MakeVectorRegister( uint32 X, uint32 Y, uint32 Z, uin
  */
 FORCEINLINE VectorRegister MakeVectorRegister( float X, float Y, float Z, float W )
 {
-	union { VectorRegister V; float F[4]; } Tmp;
+	union U {
+		VectorRegister V; float F[4];
+		FORCEINLINE U() : V() {}
+	} Tmp;
 	Tmp.F[0] = X;
 	Tmp.F[1] = Y;
 	Tmp.F[2] = Z;
@@ -66,7 +107,10 @@ FORCEINLINE VectorRegister MakeVectorRegister( float X, float Y, float Z, float 
 */
 FORCEINLINE VectorRegisterInt MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, int32 W)
 {
-	union { VectorRegisterInt V; int32 I[4]; } Tmp;
+	union U {
+		VectorRegisterInt V; int32 I[4]; 
+		FORCEINLINE U() : V() {}
+	} Tmp;
 	Tmp.I[0] = X;
 	Tmp.I[1] = Y;
 	Tmp.I[2] = Z;
@@ -196,7 +240,10 @@ FORCEINLINE VectorRegister VectorLoadFloat1( const void *Ptr )
  */
 FORCEINLINE VectorRegister VectorSetFloat3( float X, float Y, float Z )
 {
-	union { VectorRegister V; float F[4]; } Tmp;
+	union U { 
+		VectorRegister V; float F[4]; 
+		FORCEINLINE U() : V() {}
+	} Tmp;
 	Tmp.F[0] = X;
 	Tmp.F[1] = Y;
 	Tmp.F[2] = Z;
@@ -211,7 +258,10 @@ FORCEINLINE VectorRegister VectorSetFloat3( float X, float Y, float Z )
 */
 FORCEINLINE VectorRegister VectorSetFloat1(float X)
 {
-	union { VectorRegister V; float F[4]; } Tmp;
+	union U { 
+		VectorRegister V; float F[4]; 
+		FORCEINLINE U() : V() {}
+	} Tmp;
 	Tmp.F[0] = X;
 	Tmp.F[1] = X;
 	Tmp.F[2] = X;
@@ -543,8 +593,41 @@ FORCEINLINE VectorRegister VectorBitwiseXor(const VectorRegister& Vec1, const Ve
  * @param W			Index for which component to use for W (literal 0-3)
  * @return			The swizzled vector
  */
+#ifndef __clang__
+FORCEINLINE VectorRegister VectorSwizzle
+(
+	VectorRegister V,
+	uint32 E0,
+	uint32 E1,
+	uint32 E2,
+	uint32 E3
+)
+{
+	check((E0 < 4) && (E1 < 4) && (E2 < 4) && (E3 < 4));
+	static const uint32_t ControlElement[4] =
+	{
+		0x03020100, // XM_SWIZZLE_X
+		0x07060504, // XM_SWIZZLE_Y
+		0x0B0A0908, // XM_SWIZZLE_Z
+		0x0F0E0D0C, // XM_SWIZZLE_W
+	};
 
+	int8x8x2_t tbl;
+	tbl.val[0] = vget_low_f32(V);
+	tbl.val[1] = vget_high_f32(V);
+
+	uint32x2_t idx = vcreate_u32(static_cast<uint64>(ControlElement[E0]) | (static_cast<uint64>(ControlElement[E1]) << 32));
+	const uint8x8_t rL = vtbl2_u8(tbl, idx);
+
+	idx = vcreate_u32(static_cast<uint64>(ControlElement[E2]) | (static_cast<uint64>(ControlElement[E3]) << 32));
+	const uint8x8_t rH = vtbl2_u8(tbl, idx);
+
+	return vcombine_f32(rL, rH);
+}
+#else
 #define VectorSwizzle( Vec, X, Y, Z, W ) __builtin_shufflevector(Vec, Vec, X, Y, Z, W)
+#endif // __clang__ 
+
 
 /**
 * Creates a vector through selecting two components from each vector via a shuffle mask.
@@ -557,7 +640,64 @@ FORCEINLINE VectorRegister VectorBitwiseXor(const VectorRegister& Vec1, const Ve
 * @param W			Index for which component of Vector2 to use for W (literal 0-3)
 * @return			The swizzled vector
 */
+#ifndef __clang__
+FORCEINLINE VectorRegister VectorShuffle
+(
+	VectorRegister V1,
+	VectorRegister V2,
+	uint32 PermuteX,
+	uint32 PermuteY,
+	uint32 PermuteZ,
+	uint32 PermuteW
+)
+{
+	check(PermuteX <= 7 && PermuteY <= 7 && PermuteZ <= 7 && PermuteW <= 7);
+
+	static const uint32 ControlElement[8] =
+	{
+		0x03020100, // XM_PERMUTE_0X
+		0x07060504, // XM_PERMUTE_0Y
+		0x0B0A0908, // XM_PERMUTE_0Z
+		0x0F0E0D0C, // XM_PERMUTE_0W
+		0x13121110, // XM_PERMUTE_1X
+		0x17161514, // XM_PERMUTE_1Y
+		0x1B1A1918, // XM_PERMUTE_1Z
+		0x1F1E1D1C, // XM_PERMUTE_1W
+	};
+
+	int8x8x4_t tbl;
+	tbl.val[0] = vget_low_f32(V1);
+	tbl.val[1] = vget_high_f32(V1);
+	tbl.val[2] = vget_low_f32(V2);
+	tbl.val[3] = vget_high_f32(V2);
+
+	uint32x2_t idx = vcreate_u32(static_cast<uint64>(ControlElement[PermuteX]) | (static_cast<uint64>(ControlElement[PermuteY]) << 32));
+	const uint8x8_t rL = vtbl4_u8(tbl, idx);
+
+	idx = vcreate_u32(static_cast<uint64>(ControlElement[PermuteZ]) | (static_cast<uint64>(ControlElement[PermuteW]) << 32));
+	const uint8x8_t rH = vtbl4_u8(tbl, idx);
+
+	return vcombine_f32(rL, rH);
+}
+#else
 #define VectorShuffle( Vec1, Vec2, X, Y, Z, W )	__builtin_shufflevector(Vec1, Vec2, X, Y, Z + 4, W + 4)
+#endif // __clang__ 
+
+/**
+ * Returns an integer bit-mask (0x00 - 0x0f) based on the sign-bit for each component in a vector.
+ *
+ * @param VecMask		Vector
+ * @return				Bit 0 = sign(VecMask.x), Bit 1 = sign(VecMask.y), Bit 2 = sign(VecMask.z), Bit 3 = sign(VecMask.w)
+ */
+FORCEINLINE uint32 VectorMaskBits(VectorRegister VecMask)
+{
+	uint32x4_t mmA = vandq_u32(vreinterpretq_u32_f32(VecMask), MakeVectorRegisterInt( 0x1, 0x2, 0x4, 0x8 )); // [0 1 2 3]
+	uint32x4_t mmB = vextq_u32(mmA, mmA, 2);                        // [2 3 0 1]
+	uint32x4_t mmC = vorrq_u32(mmA, mmB);                           // [0+2 1+3 0+2 1+3]
+	uint32x4_t mmD = vextq_u32(mmC, mmC, 3);                        // [1+3 0+2 1+3 0+2]
+	uint32x4_t mmE = vorrq_u32(mmC, mmD);                           // [0+1+2+3 ...]
+	return vgetq_lane_u32(mmE, 0);
+}
 
 
 /**
@@ -608,7 +748,10 @@ FORCEINLINE VectorRegister VectorCross( const VectorRegister& Vec1, const Vector
 FORCEINLINE VectorRegister VectorPow( const VectorRegister& Base, const VectorRegister& Exponent )
 {
 	//@TODO: Optimize this
-	union { VectorRegister V; float F[4]; } B, E;
+	union U { 
+		VectorRegister V; float F[4]; 
+		FORCEINLINE U() : V() {}
+	} B, E;
 	B.V = Base;
 	E.V = Exponent;
 	return MakeVectorRegister( powf(B.F[0], E.F[0]), powf(B.F[1], E.F[1]), powf(B.F[2], E.F[2]), powf(B.F[3], E.F[3]) );
@@ -1067,7 +1210,10 @@ FORCEINLINE VectorRegister VectorLoadURGB10A2N(void* Ptr)
 */
 FORCEINLINE void VectorStoreURGB10A2N(const VectorRegister& Vec, void* Ptr)
 {
-	union { VectorRegister V; float F[4]; } Tmp;
+	union U { 
+		VectorRegister V; float F[4]; 
+		FORCEINLINE U() : V() {}
+	} Tmp;
 	Tmp.V = VectorMax(Vec, MakeVectorRegister(0.0f, 0.0f, 0.0f, 0.0f));
 	Tmp.V = VectorMin(Tmp.V, MakeVectorRegister(1.0f, 1.0f, 1.0f, 1.0f));
 	Tmp.V = VectorMultiply(Tmp.V, MakeVectorRegister(1023.0f, 1023.0f, 1023.0f, 3.0f));
@@ -1169,7 +1315,10 @@ FORCEINLINE void VectorQuaternionMultiply( void* RESTRICT Result, const void* RE
 */
 FORCEINLINE void VectorSinCos(  VectorRegister* VSinAngles, VectorRegister* VCosAngles, const VectorRegister* VAngles )
 {	
-	union { VectorRegister v; float f[4]; } VecSin, VecCos, VecAngles;
+	union U { 
+		VectorRegister v; float f[4]; 
+		FORCEINLINE U() : v() {}
+	} VecSin, VecCos, VecAngles;
 	VecAngles.v = *VAngles;
 
 	FMath::SinCos(&VecSin.f[0], &VecCos.f[0], VecAngles.f[0]);
@@ -1294,20 +1443,20 @@ FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegist
 FORCEINLINE VectorRegister VectorSign(const VectorRegister& X)
 {
 	return MakeVectorRegister(
-		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : 0.0f),
-		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : 0.0f),
-		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : 0.0f),
-		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : 0.0f));
+		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : -1.0f),
+		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : -1.0f),
+		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : -1.0f),
+		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : -1.0f));
 }
 
 //TODO: Vectorize
 FORCEINLINE VectorRegister VectorStep(const VectorRegister& X)
 {
 	return MakeVectorRegister(
-		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : -1.0f),
-		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : -1.0f));
+		(float)(VectorGetComponent(X, 0) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 1) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 2) >= 0.0f ? 1.0f : 0.0f),
+		(float)(VectorGetComponent(X, 3) >= 0.0f ? 1.0f : 0.0f));
 }
 
 /**

@@ -11,6 +11,9 @@
             <string>The camera is used for augmenting reality.</string>
         </addElements>
 
+		<setBoolFromProperty result="bRequireDeviceSupportsARKit" ini="Engine" section="/Script/AppleARKit.AppleARKitSettings" property="bRequireDeviceSupportsARKit" default="true"/>
+		<if condition="bRequireDeviceSupportsARKit">
+			<true>
         <loopElements tag="dict">
             <setBool result="bReqKey" value="false"/>
 
@@ -39,6 +42,8 @@
 
             </loopElements>
         </loopElements>
+			</true>
+		</if>
     </iosPListUpdates>
 
 </root>

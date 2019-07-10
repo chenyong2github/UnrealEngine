@@ -268,7 +268,7 @@ void FImagePlateTrackEditor::OnAnimatedPropertyChanged(const FPropertyChangedPar
 	}
 }
 
-void FImagePlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass)
+void FImagePlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
 	// We only know how to add specific properties for image plates and components. Anything else must be keyed through the generic MediaPlayer property
 	if (!ObjectClass->IsChildOf(AImagePlate::StaticClass()) && !ObjectClass->IsChildOf(UImagePlateComponent::StaticClass()))
@@ -277,7 +277,7 @@ void FImagePlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuild
 	}
 
 	// Find the spawned object or its template
-	UObject* Object = GetSequencer()->FindSpawnedObjectOrTemplate(ObjectBinding);
+	UObject* Object = GetSequencer()->FindSpawnedObjectOrTemplate(ObjectBindings[0]);
 	if (!Object)
 	{
 		return;
@@ -323,7 +323,7 @@ void FImagePlateTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuild
 
 		bool bCanAddTrack = true;
 
-		const FMovieSceneBinding* Binding = MovieScene->GetBindings().FindByPredicate([=](const FMovieSceneBinding& InBinding){ return InBinding.GetObjectGuid() == ObjectBinding; });
+		const FMovieSceneBinding* Binding = MovieScene->GetBindings().FindByPredicate([=](const FMovieSceneBinding& InBinding){ return InBinding.GetObjectGuid() == ObjectBindings[0]; });
 		if (Binding)
 		{
 			FString PredicatePath = Path->ToString(TEXT("."));

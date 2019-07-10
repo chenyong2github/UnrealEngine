@@ -6,6 +6,7 @@
 #include "Serialization/DuplicatedObject.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/UObjectGlobals.h"
@@ -251,7 +252,8 @@ bool FActorComponentDuplicatedObjectData::Serialize(FArchive& Ar)
 		ObjectPersistentFlags = DuplicatedObject->GetFlags() & RF_Load;
 		if (ObjectClass)
 		{
-			FMemoryWriter Writer(ObjectData);
+			FMemoryWriter MemAr(ObjectData);
+			FObjectAndNameAsStringProxyArchive Writer(MemAr, false);
 			ObjectClass->SerializeTaggedProperties(Writer, (uint8*)DuplicatedObject, ObjectClass, nullptr);
 		}
 	}
@@ -276,7 +278,8 @@ bool FActorComponentDuplicatedObjectData::Serialize(FArchive& Ar)
 				DuplicatedObject = NewObject<UObject>(FoundOuter, ObjectClass, *ObjectName.ToString(), (EObjectFlags)ObjectPersistentFlags);
 
 				// Deserialize the duplicated object
-				FMemoryReader Reader(ObjectData);
+				FMemoryReader MemAr(ObjectData);
+				FObjectAndNameAsStringProxyArchive Reader(MemAr, false);
 				ObjectClass->SerializeTaggedProperties(Reader, (uint8*)DuplicatedObject, ObjectClass, nullptr);
 			}
 		}

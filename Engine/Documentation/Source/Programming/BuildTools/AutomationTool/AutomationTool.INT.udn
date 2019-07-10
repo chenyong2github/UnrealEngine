@@ -1,0 +1,13 @@
+Availability: Public
+Title: AutomationTool
+Description: AutomationTool is used to automate processes, including testing and building games.
+Type: landing
+Parent: Programming/BuildTools
+Order: 2
+
+
+**AutomationTool** is a generic system enabling developers to automate processes, including testing and building games. 
+
+## Topic
+
+%Programming/BuildTools/AutomationTool/BuildGraph:topic%

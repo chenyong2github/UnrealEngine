@@ -11,7 +11,7 @@ http://www.boost.org/LICENSE_1_0.txt)
 
 #include <boost/predef/make.h>
 #include <boost/predef/os/windows.h>
-#include <boost/predef/platform/windows_uwp.h>
+#include <boost/predef/platform/windows_hololens.h>
 #include <boost/predef/version_number.h>
 
 /*`
@@ -19,13 +19,13 @@ http://www.boost.org/LICENSE_1_0.txt)
 
 [@https://docs.microsoft.com/en-us/windows/uwp/get-started/universal-application-platform-guide UWP]
 for Windows Desktop development.  Also available if the Platform SDK is too
-old to support UWP.
+old to support HoloLens.
 
 [table
     [[__predef_symbol__] [__predef_version__]]
 
     [[`WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP`] [__predef_detection__]]
-    [[`!BOOST_PLAT_WINDOWS_UWP`] [__predef_detection__]]
+    [[`!BOOST_PLAT_WINDOWS_HOLOLENS`] [__predef_detection__]]
     ]
  */
 
@@ -33,7 +33,7 @@ old to support UWP.
 
 #if BOOST_OS_WINDOWS && \
     ((defined(WINAPI_FAMILY_DESKTOP_APP) && WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP) || \
-     !BOOST_PLAT_WINDOWS_UWP)
+     !BOOST_PLAT_WINDOWS_HOLOLENS)
 #   undef BOOST_PLAT_WINDOWS_DESKTOP
 #   define BOOST_PLAT_WINDOWS_DESKTOP BOOST_VERSION_NUMBER_AVAILABLE
 #endif

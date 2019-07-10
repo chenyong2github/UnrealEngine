@@ -1184,6 +1184,15 @@ public:
 		return FConstBitReference(GetData()[Index / NumBitsPerDWORD], 1 << (Index & (NumBitsPerDWORD - 1)));
 	}
 
+	void MoveAssign(FScriptBitArray& Other)
+	{
+		checkSlow(this != &Other);
+		Empty(0);
+		AllocatorInstance.MoveToEmpty(Other.AllocatorInstance);
+		NumBits = Other.NumBits; Other.NumBits = 0;
+		MaxBits = Other.MaxBits; Other.MaxBits = 0;
+	}
+
 	void Empty(int32 Slack = 0)
 	{
 		NumBits = 0;

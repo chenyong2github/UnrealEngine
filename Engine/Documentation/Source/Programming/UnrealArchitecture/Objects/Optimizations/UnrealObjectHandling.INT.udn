@@ -4,8 +4,8 @@ Title: Unreal Object Handling
 Description:Overview of the features of the UObject system.
 Type: Reference
 Version: 4.16
-parent:UnrealArchitecture
-order:
+parent:Programming/UnrealArchitecture
+order: 1
 tags:Architecture
 related: Gameplay/Networking
 related: Programming/UnrealArchitecture/Reference/Properties

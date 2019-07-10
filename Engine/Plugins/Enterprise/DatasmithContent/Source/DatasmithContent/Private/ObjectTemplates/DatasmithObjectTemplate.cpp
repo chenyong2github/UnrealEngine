@@ -4,38 +4,33 @@
 #include "DatasmithAssetUserData.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/Object.h"
+#include "UObject/StrongObjectPtr.h"
 #include "GameFramework/Actor.h"
 
 
-namespace
+namespace DatasmithObjectTemplateUtilsImpl
 {
-
-IInterface_AssetUserData* GetUserDataInterface(UObject* Outer)
-{
-#if WITH_EDITORONLY_DATA
-	if (Outer && Outer->GetClass()->IsChildOf(AActor::StaticClass()))
+	IInterface_AssetUserData* GetUserDataInterface(UObject* Outer)
 	{
-		// The root Component holds AssetUserData on behalf of the actor
-		Outer = Cast<AActor>(Outer)->GetRootComponent();
+		if (Outer && Outer->GetClass()->IsChildOf(AActor::StaticClass()))
+		{
+			// The root Component holds AssetUserData on behalf of the actor
+			Outer = Cast<AActor>(Outer)->GetRootComponent();
+		}
+
+		if (!Outer || !Outer->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()))
+		{
+			return nullptr;
+		}
+
+		return Cast< IInterface_AssetUserData >(Outer);
 	}
-
-	if (!Outer || !Outer->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()))
-	{
-		return nullptr;
-	}
-
-	return Cast< IInterface_AssetUserData >(Outer);
-#else
-	return nullptr;
-#endif // #if WITH_EDITORONLY_DATA
-}
-
 }
 
 bool FDatasmithObjectTemplateUtils::HasObjectTemplates(UObject* Outer)
 {
 #if WITH_EDITORONLY_DATA
-	IInterface_AssetUserData* AssetUserDataInterface = GetUserDataInterface(Outer);
+	IInterface_AssetUserData* AssetUserDataInterface = DatasmithObjectTemplateUtilsImpl::GetUserDataInterface(Outer);
 	if (!AssetUserDataInterface)
 	{
 		return false;
@@ -49,11 +44,9 @@ bool FDatasmithObjectTemplateUtils::HasObjectTemplates(UObject* Outer)
 #endif // #if WITH_EDITORONLY_DATA
 }
 
-
-TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates(UObject* Outer)
+UDatasmithAssetUserData* FDatasmithObjectTemplateUtils::FindOrCreateDatasmithUserData(UObject* Outer)
 {
-#if WITH_EDITORONLY_DATA
-	IInterface_AssetUserData* AssetUserDataInterface = GetUserDataInterface(Outer);
+	IInterface_AssetUserData* AssetUserDataInterface = DatasmithObjectTemplateUtilsImpl::GetUserDataInterface(Outer);
 	if (!AssetUserDataInterface)
 	{
 		return nullptr;
@@ -75,9 +68,27 @@ TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* FDat
 		AssetUserDataInterface->AddAssetUserData(UserData);
 	}
 
-	return &UserData->ObjectTemplates;
-#else
-	return nullptr;
+	return UserData;
+}
+
+TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* FDatasmithObjectTemplateUtils::FindOrCreateObjectTemplates(UObject* Outer)
+{
+#if WITH_EDITORONLY_DATA
+	if (UDatasmithAssetUserData* UserAssetData = FindOrCreateDatasmithUserData(Outer))
+	{
+		return &UserAssetData->ObjectTemplates;
+	}
+#endif // #if WITH_EDITORONLY_DATA
+return nullptr;
+}
+
+void UDatasmithObjectTemplate::Apply(UObject* Destination, bool bForce)
+{
+#if WITH_EDITORONLY_DATA
+	if(UObject* Object = UpdateObject(Destination, bForce))
+	{
+		FDatasmithObjectTemplateUtils::SetObjectTemplate(Object, this);
+	}
 #endif // #if WITH_EDITORONLY_DATA
 }
 
@@ -102,15 +113,19 @@ UDatasmithObjectTemplate* FDatasmithObjectTemplateUtils::GetObjectTemplate(UObje
 void FDatasmithObjectTemplateUtils::SetObjectTemplate(UObject* Outer, UDatasmithObjectTemplate* ObjectTemplate)
 {
 #if WITH_EDITORONLY_DATA
-	TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* ObjectTemplatesMap = FindOrCreateObjectTemplates(Outer);
-	ensure(ObjectTemplatesMap);
-
-	if (!ObjectTemplatesMap)
+	if (UDatasmithAssetUserData* UserData = FindOrCreateDatasmithUserData(Outer))
 	{
-		return;
-	}
+		TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >& ObjectTemplatesMap = UserData->ObjectTemplates;
+		ObjectTemplatesMap.FindOrAdd(ObjectTemplate->GetClass()) = ObjectTemplate;
+		ObjectTemplate->SetFlags(RF_Public);
 
-	ObjectTemplatesMap->FindOrAdd(ObjectTemplate->GetClass()) = ObjectTemplate;
+		if (ObjectTemplate->GetOuter() != UserData)
+		{
+			// The outer chain is important for most of the engine functionality.
+			// If it's not set properly the deep copy of object won't work properly
+			ObjectTemplate->Rename(nullptr, UserData, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+		}
+	}
 #endif // #if WITH_EDITORONLY_DATA
 }
 
@@ -126,3 +141,21 @@ bool FDatasmithObjectTemplateUtils::SetsEquals(const TSet<FName>& Left, const TS
 	return Left.Num() == Right.Num() && Left.Includes(Right);
 }
 
+UDatasmithObjectTemplate* UDatasmithObjectTemplate::GetDifference(UObject* Destination, UDatasmithObjectTemplate* SourceTemplate)
+{
+	// Cache the template of the Destination object
+	TStrongObjectPtr< UDatasmithObjectTemplate > DestinationTemplate{ NewObject< UDatasmithObjectTemplate >(GetTransientPackage(), SourceTemplate->GetClass()) };
+	DestinationTemplate->Load(Destination);
+
+	// Update the Destination object with the new template
+	SourceTemplate->UpdateObject(Destination);
+
+	// Create a new template based on the updated Destination object
+	UDatasmithObjectTemplate* DiffTemplate = NewObject< UDatasmithObjectTemplate >(GetTransientPackage(), SourceTemplate->GetClass());
+	DiffTemplate->Load(Destination);
+
+	// Restore Destination object to previous state
+	DestinationTemplate->UpdateObject(Destination, true);
+
+	return DiffTemplate;
+}

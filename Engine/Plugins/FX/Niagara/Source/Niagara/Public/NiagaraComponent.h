@@ -47,6 +47,7 @@ public:
 	void SetVectorParameter(FName ParameterName, FVector Param) override;
 	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
 	void SetActorParameter(FName ParameterName, class AActor* Param) override;
+	virtual UFXSystemAsset* GetFXSystemAsset() const override { return Asset; };
 	/********* UFXSystemComponent *********/
 
 private:

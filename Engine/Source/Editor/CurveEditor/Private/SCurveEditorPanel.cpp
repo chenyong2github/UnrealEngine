@@ -218,13 +218,13 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 			.Orientation(Orient_Horizontal)
 
 			+ SSplitter::Slot()
-			.Value(0.25f)
+			.Value(0.30f)
 			[
 				InArgs._TreeContent.Widget
 			]
 
 			+ SSplitter::Slot()
-			.Value(0.75f)
+			.Value(0.7f)
 			[
 				MainContent
 			]

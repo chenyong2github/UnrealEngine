@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3736300
-Availability: Public
+﻿INTSourceChangelist:6582681
+Availability: Docs
 Title: 6 - 직접 해보기!
 Crumbs:%ROOT%
 Description:직접 연습을 해봅니다.
@@ -25,7 +25,7 @@ Android 디바이스용 템플릿 모바일 UE4 프로젝트를 생성, 패키�
 
 ####Android 디바이스 호환성
 
-* [](Platforms\Android\DeviceCompatibility) 
+* [](Platforms/Mobile/Android\DeviceCompatibility) 
 * [](Platforms\DeviceProfiles)
 
 ####모바일 퍼포먼스
@@ -34,13 +34,13 @@ Android 디바이스용 템플릿 모바일 UE4 프로젝트를 생성, 패키�
 
 ####APK 패키지 크기 감소
 
-타깃 하드웨어 또는 소프트웨어 플랫폼에 따른 제약으로 인해 모바일 게임 크기도 제한할 필요가 있을 수 있습니다. 모바일 게임 크기를 줄여야 하는 상황에 닥치면, **Android Application Package** (APK) 파일 크기를 줄여야 합니다. 이 파일은 Android 운영 체제에서 모바일 어플리케이션의 배포용 패키지를 만드는 데 사용하는 커스텀 파일 포맷입니다. 자세한 내용은 [](Platforms/Android/ReducingAPKSize) 문서를 참고하여 패키지 게임 크기를 줄이는 방법을 확인하시기 바랍니다.
+타깃 하드웨어 또는 소프트웨어 플랫폼에 따른 제약으로 인해 모바일 게임 크기도 제한할 필요가 있을 수 있습니다. 모바일 게임 크기를 줄여야 하는 상황에 닥치면, **Android Application Package** (APK) 파일 크기를 줄여야 합니다. 이 파일은 Android 운영 체제에서 모바일 어플리케이션의 배포용 패키지를 만드는 데 사용하는 커스텀 파일 포맷입니다. 자세한 내용은 [](Platforms/Mobile/Android/ReducingAPKSize) 문서를 참고하여 패키지 게임 크기를 줄이는 방법을 확인하시기 바랍니다.
 
 ##모바일 콘텐츠 디자인
 
 Linux UE4 로 모바일 게임을 개발하는 데 관련해서 지금까지 배운 내용을 활용하려면, 디바이스에 지원되는 렌더링 피처를 활용할 수 있도록 게임 콘텐츠를 디자인해야 합니다. 다음 문서를 참고해 보세요:
 
-* [](Platforms\Mobile\Content) 
+* [](Platforms\Mobile\Meshes) 
 * [](Platforms\Mobile\Lighting) 
 * [](Platforms\Mobile\Materials) 
 * [](Platforms\Mobile\PostProcessEffects) 
@@ -52,7 +52,7 @@ Linux UE4 로 모바일 게임을 개발하는 데 관련해서 지금까지 배
 
 ##무선 네트워크를 통한 디플로이
 
-지금까지 모바일 게임 콘텐츠의 실전 팁 몇 가지를 살펴보고, 에디터로 모바일 게임을 미리보는 방법도 알았으니, 무선 네트워크를 통해 Android 디바이스에 게임을 디플로이할 준비가 되었습니다. [](Platforms/GearVR/Debugging) 문서에서 무선 네트워크를 통해 Android 디바이스에 UE4 프로젝트를 디플로이하는 방법 관련 상세 정보를 참고하시기 바랍니다.
+지금까지 모바일 게임 콘텐츠의 실전 팁 몇 가지를 살펴보고, 에디터로 모바일 게임을 미리보는 방법도 알았으니, 무선 네트워크를 통해 Android 디바이스에 게임을 디플로이할 준비가 되었습니다. [](Platforms/VR/GearVR/Debugging) 문서에서 무선 네트워크를 통해 Android 디바이스에 UE4 프로젝트를 디플로이하는 방법 관련 상세 정보를 참고하시기 바랍니다.
 
 ##직접 연습해보기
  

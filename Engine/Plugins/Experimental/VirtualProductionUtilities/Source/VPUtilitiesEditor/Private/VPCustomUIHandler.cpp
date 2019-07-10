@@ -13,14 +13,14 @@
 #include "UObject/ConstructorHelpers.h"
 #include "VREditorStyle.h"
 #include "VPUtilitiesEditorModule.h"
+#include "VPUtilitiesEditorSettings.h"
 #include "WidgetBlueprint.h"
 #include "Widgets/SWidget.h"
-
+#include "UI/VREditorFloatingUI.h"
+#include "VPScoutingSubsystem.h"
+#include "VPSettings.h"
 
 #define LOCTEXT_NAMESPACE "VPCustomUIHandler"
-
-static const FName VirtualProductionToolsLabel = TEXT("VirtualProductionTools");
-
 
 void UVPCustomUIHandler::Init()
 {
@@ -42,19 +42,18 @@ void UVPCustomUIHandler::Uninit()
 
 
 void UVPCustomUIHandler::FillVRRadialMenuWindows(FMenuBuilder& MenuBuilder)
-{
-	if (VirtualProductionWidget.Get() == nullptr)
+{	
+	const TSoftClassPtr<UEditorUtilityWidget> WidgetClass = GetDefault<UVPUtilitiesEditorSettings>()->VirtualScoutingUI;
+	WidgetClass.LoadSynchronous();
+	if (WidgetClass.IsValid())
 	{
-		UWidgetBlueprint* WidgetBlueprint = LoadObject<UWidgetBlueprint>(nullptr, TEXT("/VirtualProductionUtilities/Editor/VirtualProductionWidget.VirtualProductionWidget"));
-		if (WidgetBlueprint)
-		{
-			VirtualProductionWidget = WidgetBlueprint->GeneratedClass;
-		}
+		VirtualProductionWidget = WidgetClass.Get();
 	}
-
-	if (VirtualProductionWidget.Get() == nullptr)
+	
+	if (VirtualProductionWidget == nullptr)
 	{
-		UE_LOG(LogVPUtilitiesEditor, Warning, TEXT("/VirtualProductionUtilities/Editor/VirtualProductionWidget could not be found."));
+		UE_LOG(LogVPUtilitiesEditor, Warning, TEXT("UVPCustomUIHandler::FillVRRadialMenuWindows - Could not get default 'Virtual Scouting User Interface' from Virtual Production settings."));
+		return;
 	}
 
 	MenuBuilder.AddMenuEntry(
@@ -63,7 +62,7 @@ void UVPCustomUIHandler::FillVRRadialMenuWindows(FMenuBuilder& MenuBuilder)
 		FSlateIcon(), // FSlateIcon(FVREditorStyle::GetStyleSetName(), "VREditorStyle.WorldSpace"),
 		FUIAction
 		(
-			FExecuteAction::CreateUObject(this, &UVPCustomUIHandler::UpdateUMGUIForVR, VirtualProductionWidget, VirtualProductionToolsLabel, FVector2D(800.0f, 600.0f)),
+			FExecuteAction::CreateUObject(this, &UVPCustomUIHandler::UpdateUMGUIForVR, VirtualProductionWidget, UVPScoutingSubsystem::GetVProdPanelID(EVProdPanelIDs::Main), FVector2D(800.0f, 600.0f)),
 			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::DefaultCanExecuteAction)
 		),
 		NAME_None,
@@ -75,14 +74,18 @@ void UVPCustomUIHandler::FillVRRadialMenuWindows(FMenuBuilder& MenuBuilder)
 void UVPCustomUIHandler::UpdateUMGUIForVR(TSubclassOf<UUserWidget> InWidget, FName Name, FVector2D InSize)
 {
 	bool bPanelVisible = IVREditorModule::Get().GetVRMode()->GetUISystem().IsShowingEditorUIPanel(Name);
+	FVREditorFloatingUICreationContext CreationContext;
+	CreationContext.PanelID = Name;
+	CreationContext.PanelSize = InSize;
 
 	if (bPanelVisible)
-	{
-		IVREditorModule::Get().UpdateExternalUMGUI(nullptr, Name, InSize);
+	{	
+		IVREditorModule::Get().UpdateExternalUMGUI(CreationContext);
 	}
 	else
 	{
-		IVREditorModule::Get().UpdateExternalUMGUI(InWidget, Name, InSize);
+		CreationContext.WidgetClass = InWidget;
+		IVREditorModule::Get().UpdateExternalUMGUI(CreationContext);
 	}
 }
 

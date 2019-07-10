@@ -154,7 +154,7 @@ public:
 	void UpdateProfile(int32 AllocationId, const FSubsurfaceProfileStruct Settings);
 
 	// @return can be 0 if there is no SubsurfaceProfile
-	const struct IPooledRenderTarget* GetTexture(FRHICommandListImmediate& RHICmdList);
+	struct IPooledRenderTarget* GetTexture(FRHICommandListImmediate& RHICmdList);
 
 
 	//~ Begin FRenderResource Interface.

@@ -1,7 +1,6 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:6430399
 Availability:Public
 Title: 물리 기반 애니메이션
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:물리 기반 애니메이션 결과를 블렌딩하여 캐릭터에 래그돌 효과를 낼 수 있습니다.
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
@@ -9,6 +8,8 @@ Related: Engine/Animation/StateMachines
 Related: Gameplay/AI
 Related: Engine/Content/Tools/MayaRiggingTool
 version: 4.9
+tags:Animation
+tags:Animation Features
 topic-image:PhysicsBasedAnimation_topic.png
 
 [REGION:fullwidth]
@@ -20,7 +21,7 @@ topic-image:PhysicsBasedAnimation_topic.png
 
 이러한 개념의 실제 사례는 [콘텐츠 예제](Resources\ContentExamples\Animation) 프로젝트의 _PhysicalAnimation.umap_ 라는 이름의 맵에서 확인할 수 있습니다. 이 맵에는 애니메이션이 적용된 스켈레탈 메시 시리즈가 있습니다. 이들 각각에 일정한 방식으로 상호작용하여 기존 모션에 피직스 애니메이션이 일어나는 것을 확인할 수도 있습니다.
 
-유의할 점은, 스켈레탈 메시에 어떠한 형태로든 피직스를 적용시키려면, 메시에 피직스 애셋을 셋업하여 적용해야 한다는 점입니다. 그에 대한 부분은 [피직스 애셋 툴(PhAT)](Engine/Physics\PhAT) 관련 문서를 참고해 주시기 바랍니다.
+유의할 점은, 스켈레탈 메시에 어떠한 형태로든 피직스를 적용시키려면, 메시에 피직스 애셋을 셋업하여 적용해야 한다는 점입니다. 그에 대한 부분은 [피직스 애셋 툴(PhAT)](Engine/Physics/PhysicsAssetEditor) 관련 문서를 참고해 주시기 바랍니다.
 
 [REGION:note]
 이 예제에 사용된 스켈레탈 메시는 전체적으로 간단합니다. 이 예제에서처럼 블루프린트 액터의 이벤트 그래프에 간단히 사용한 방법 말고도, 애니메이션 블루프린틔 이벤트 그래프 안에서 간단히 **Set All Bodies Simulate Physics** 와 **Set All Bodies Below Physics Blend Weight** 노드를 활용하는 것으로, 같은 기법을 캐릭터나 폰에도 적용할 수 있습니다.
@@ -61,3 +62,7 @@ Content Examples 프로젝트에서 찾을 수 있는 PhysicalAnimation.umap 레
 
 
 [/REGION]
+
+
+
+

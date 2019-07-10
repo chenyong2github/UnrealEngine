@@ -1,4 +1,4 @@
-﻿Availability: Public
+﻿Availability: docs
 Title:4 - Placing Actors in the Level
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:Here we will begin placing and manipulating Actors in our level to build out our environment. 
@@ -10,6 +10,8 @@ Related:Engine/UI/LevelEditor/Details
 Related:Engine/Actors
 Related:Engine/Rendering/LightingAndShadows
 checkpoint: editorqs
+
+## Marking as docs as the pages have been combined. 
 
 
 [VAR:Steps]

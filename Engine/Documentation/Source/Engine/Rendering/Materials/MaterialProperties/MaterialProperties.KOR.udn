@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+INTSourceChangelist:3810557
 Availability: Public
 Title:머티리얼 프로퍼티
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/IntroductionToMaterials
@@ -81,8 +81,8 @@ tags:Materials
 | -------- | ----------- |
 | **Translucent Shadow Density Scale** | 반투명 그림자 밀도 스케일 - 이 반투명 머티리얼에 의해 다른 표면에 드리워진 그림자의 밀도를 설정합니다. 약간은 그림자에 대한 마스터 스케일 역할을 합니다. 0 으로 설정되면 그림자고 뭐고 없습니다. 값을 1 이상으로 높여감에 따라 드리워진 것이든 셀프든 그림자가 짙어 집니다. |
 | **Translucent Self Shadow Density Scale** | 반투명 셀프 섀도 밀도 스케일 - 이 머티리얼이 자신에게 드리우는 그림자의 밀도를 설정합니다. 연기 기둥 안쪽으로 드리워지는 그림자를 생각해 보시면 됩니다. |
-| **Translucent Self Shadow Second Density Scale** | 반투명 셀프 섀도 2차 밀도 스케일 - 베리에이션 사용으로 설정할 수 있는 2차 셀프 섀도 밀도입니다. 이 값과 _반투명 셀프 섀도 밀도 스케일_ 값 사이에 내부 그레디언트가 생성됩니다. |
-| **Translucent Self Shadow Second Opacity** | 반투명 셀프 섀도 2차 불투명도 - 2차 셀프 섀도잉에 대한 불투명도 값을 설정합니다. 1차 / 2차 셀프 섀도 사이의 그레디언트 이펙트의 스케일을 조절하는 수단이 됩니다. |
+| **Translucent Self Shadow Second Density Scale** | 반투명 셀프 섀도 2차 밀도 스케일 - 베리에이션 사용으로 설정할 수 있는 2차 셀프 섀도 밀도입니다. 이 값과 _반투명 셀프 섀도 밀도 스케일_ 값 사이에 내부 그레이디언트가 생성됩니다. |
+| **Translucent Self Shadow Second Opacity** | 반투명 셀프 섀도 2차 불투명도 - 2차 셀프 섀도잉에 대한 불투명도 값을 설정합니다. 1차 / 2차 셀프 섀도 사이의 그레이디언트 이펙트의 스케일을 조절하는 수단이 됩니다. |
 | **Translucent Backscattering Exponent** | 반투명 배후산란 지수 - 반투명에 서브서피스 셰이딩 모델을 채택할 때 사용되는 배후산란 효과를 조절합니다. 값이 커질수록 배후산란 하이라이트는 더욱 작고 밝아집니다. 이 값은 디렉셔널 라이트에서 형성되는 용적식 반투명 그림자 안에서만 사용됩니다. |
 | **Translucent Multiple Scattering Extinction** | 반투명 다중 산란 소멸 - 기본적으로 연기나 증기처럼 용적식 반투명 그림자를 지닌 오브젝트에 대한 그림자의 양을 나타내는 컬러 소멸 값을 나타냅니다. |
 | **Translucent Shadow Start Offset** | 반투명 그림자 시작 오프셋 - 반투명 볼륨 안에서 생성된 셀프 섀도의 월드 스페이스 오프셋 값입니다. 수치가 클 수록 그림자가 광원에서 멀어집니다. |
@@ -174,8 +174,8 @@ tags:Materials
 | -------- | ----------- |
 | **Primitive Type** | 프리미티브 유형 - 썸네일 프리뷰에 사용되는 프리미티브 모양 유형을 설정합니다. |
 | **Preview Mesh**   | 프리뷰 메시 - 썸네일 프리뷰에 사용되는 메시를 설정합니다. 프리미티브 유형이 **TPT_None** 으로 설정되어 있을 때만 작동합니다. |
-| **Orbit Pitch**    | 공전 핏치 - 오브젝트 주위를 공전하는 카메라의 핏치를 설정합니다. |
-| **Orbit Yaw**      | 공전 요 - 오브젝트 주위를 공전하는 카메라의 요를 설정합니다. |
+| **Orbit Pitch**    | 궤도 피치 - 오브젝트 중심 궤도를 도는 카메라의 피치를 설정합니다. |
+| **Orbit Yaw**      | 궤도 요 - 오브젝트 중심 궤도를 도는 카메라의 요를 설정합니다. |
 | **Orbit Zoom**     | 애셋에서 경계 구체 거리로부터의 오프셋입니다. |
 
 

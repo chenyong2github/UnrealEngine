@@ -49,7 +49,7 @@ bool create_compressed_texture(const crn_comp_params& params, crnlib::vector<uin
       ((local_params.m_file_type == cCRNFileTypeCRN) && ((local_params.m_flags & cCRNCompFlagManualPaletteSizes) != 0))) {
     if ((local_params.m_file_type == cCRNFileTypeCRN) ||
         ((local_params.m_file_type == cCRNFileTypeDDS) && (local_params.m_quality_level < cCRNMaxQualityLevel))) {
-      console::info("Compressing using quality level %i", local_params.m_quality_level);
+      console::info("Compressing using quality level %u", local_params.m_quality_level);
     }
     if (local_params.m_format == cCRNFmtDXT3) {
       if (local_params.m_file_type == cCRNFileTypeCRN)
@@ -208,10 +208,15 @@ bool create_compressed_texture(const crn_comp_params& params, crnlib::vector<uin
 }
 
 static bool create_dds_tex(const crn_comp_params& params, mipmapped_texture& dds_tex) {
-  image_u8 images[cCRNMaxFaces][cCRNMaxLevels];
+  //UE4_BEGIN
+  vector<image_u8> images[cCRNMaxFaces];
+  //UE4_END
 
   bool has_alpha = false;
   for (uint face_index = 0; face_index < params.m_faces; face_index++) {
+    //UE4_BEGIN
+    images[face_index].resize(params.m_levels);
+	//UE4_END
     for (uint level_index = 0; level_index < params.m_levels; level_index++) {
       const uint width = math::maximum(1U, params.m_width >> level_index);
       const uint height = math::maximum(1U, params.m_height >> level_index);

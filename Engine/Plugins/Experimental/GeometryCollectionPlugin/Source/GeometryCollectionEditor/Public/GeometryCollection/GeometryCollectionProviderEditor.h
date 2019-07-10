@@ -8,6 +8,6 @@ class FTargetCacheProviderEditor : public ITargetCacheProvider
 {
 public:
 
-	virtual UGeometryCollectionCache* GetCacheForCollection(UGeometryCollection* InCollection) override;
+	virtual UGeometryCollectionCache* GetCacheForCollection(const UGeometryCollection* InCollection) override;
 
 };

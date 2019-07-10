@@ -8,77 +8,116 @@ Version:4.20
 Parent:Engine/Rendering/PostProcessEffects
 Order:5
 Tags:Post Process
-Topic-image:Engine\Rendering\PostProcessEffects/DepthOfField/Cinematic/DOF_Cine_Topic.png
+Tags:Depth of Field
+Topic-image:DOF_Cine_Topic.png
+hero-image: 1_DepthOfFieldVisualization.png
 
-![image_0.png](image_0.png)
+[TOC (start:2 end:3)]
+
+![](DepthOfField_Banner.png "DepthOfField_Banner.png")
 
 [EXCERPT:DepthOfField_Desc]
-**Depth of Field **(DOF) applies a blur to the scene based on distance in front of or behind a focal point, similarly to what happens in real-world cameras. The effect can be used to draw the viewer’s attention on specific subject of shot based on dept, and adding an aesthetic to make the rendering appear more like a photograph or like a movie. 
+Similar to what happens with real-world cameras, **Depth of Field** (DOF) applies a blur to a scene based on the distance in front of, or behind, a focal point. The effect can be used to draw the viewer's attention to a specific subject of the shot based on depth and adds an aesthetic to make the rendering appear more like a photograph, or film. 
 [/EXCERPT:DepthOfField_Desc]
 
-
-# Depth of Field Types
+## Depth of Field Types
 
 There are several methods of performing depth of field effects in Unreal Engine 4 that you can use. These have been broken into two categories:
 
-* **Cinematic **methods generally provide a cinematic or filmic look to depth of field effects. The adjustments for these methods also align more with common camera options available in photography and cinematography. These methods are also considered too expensive for use with Mobile platforms but work well for Desktop and Console platforms.
+*   **Cinematic:** These methods provide a cinematic and filmic look to depth of field effects. The adjustments for these methods also align more with common camera options available in photography and cinematography. These methods are also considered too expensive for use with Mobile platforms but work well for Desktop and Console platforms. 
 
-* **Mobile** methods provide optimized and lower-cost depth of field options considered acceptable for Mobile platforms. 
+*   **Mobile:** This method provides optimized and lower-cost DOF options considered acceptable for Mobile platforms.   
+    
 
-[DIR(output:"topic" parent:"Engine/Rendering/PostProcessEffects/DepthOfField" end:"1" org:"hierarchy")]
+Select from the methods below to learn more about their features:
 
-# Depth of Field Implementation
+[DIR(output:"topic" parent:"Engine/Rendering/PostProcessEffects/DepthOfField")]
 
-Depth of Field is broken up into three layers; Near, Far, and the Focal Region. Each of these is processed separately and then later composited together to achieve the final effect. Objects in the Near and Far layers (objects not in the Focal Region) are always fully blurred. These layers are blended with the non-blurred scene. 
+## Implementation
 
-* Objects within the Focal Region (Black) use the non-blurred scene layer.
+Depth of Field is broken up into three layers (or region); Near, Far, and the Focal Region. Each of these is processed separately and then later composited together to achieve the final image effect. Objects in the Near and Far layers are always fully blurred. They are blended with the non-blurred scene to achieve the final result.    
 
-* Objects in the Near (Green) or Far (Blue) layers but outside any transition regions are fully blended to the blurred layer.
+![](DOF_LayerImplementation1.png "DOF_LayerImplementation1.png")
 
-* Objects within the transition area are blended linearly between the non-blurred scene layer and their blurred layer based on their position within the transition region.
+*   Objects within the Focal Region (Black) use the non-blurred scene layer. This layer can be very narrow—like here, where it is only focused on the character— or very wide, encompassing more of the scene's foreground and background.
 
-## Visualizing Depth of Field
+*   Objects in the Near (Green) or Far (Blue) that are outside any transition areas between the Focal Region and the Near or Far regions is fully blended to the blurred layer meaning they are out-of-focus.
 
-These layers, including transition regions, can be visualized using the **Depth of Field layers** showflag in the Level Viewport under **Show > Visualize**. 
+*   Objects within the transition area—like the area to the left of the car—are blended linearly between the non-blurred scene layer (for Near and Far) and their blurred layer based on their position within the transition of the Focal Region.
+
+### Visualizing Depth of Field
+
+These layers, including transition regions, can be visualized using the **Depth of Field Layers** showflag in the Level Viewport under **Show** \> **Visualize**.
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
-	![Scene View with Cinematic DoF](image_1.png)(w:998) 
+	![Scene](1_DepthOfFieldVisualization_SceneView.png) 
 	[/PARAM]
 	[PARAM:after]
-    ![Depth of Field Layers Vis with Cinematic DoF Enabled](image_2.png)(w:998) 
+	![Layer Visualization](1_DepthOfFieldVisualization.png) 
 	[/PARAM]
-	[PARAMLITERAL:position]
-	bottom
-	[/PARAMLITERAL]
 [/OBJECT]
 
-Visualizing the **Depth of Field Layers** also includes useful information relevant to the DOF method being used, such as values that are currently set or when moving the mouse around the scene, the distance from the camera to the Actor is displayed next to the mouse cursor. 
+Visualizing the **Depth of Field Layers** also includes useful information relevant to the DOF method being used, such as values that are currently set or when moving the mouse around the scene, the distance from the camera to the Actor is displayed next to the mouse cursor.
 
-![image_3.png](image_3.png)
+![](DepthOfFieldVisualization_Stats.png "DepthOfFieldVisualization_Stats.png")
 
-## Using DOF in the Editor
+### Using DOF in the Editor
 
-Using Depth of Field in Unreal Editor can be done in a few different ways; by placing a [Post Process Volume](https://docs.unrealengine.com/en-US/Engine/Rendering/PostProcessEffects), using a [Camera Actor](https://docs.unrealengine.com/en-us/Engine/Actors/CameraActors), or a [Cine Camera Actor](https://docs.unrealengine.com/en-us/Engine/Sequencer/HowTo/CineCameraActors). Each of these has access to the same [Depth of FIeld properties](http://www.linktopropertiesinpage.com) with the exception being that Cine Camera Actor has some additional industry standard settings for cameras and lenses. 
+Using Depth of Field in Unreal Editor can be done in a few different ways; by placing a [Post Process Volume](Engine/Rendering/PostProcessEffects), using a [Camera Actor](Engine/Actors/CameraActors), or a [Cine Camera Actor](Engine/Sequencer/HowTo/CineCameraActors). Each of these has access to DOF properties via the [Post Process Volume and Camera](Engine/Rendering/PostProcessEffects/DepthOfField/CinematicDOFMethods#postprocessvolumeandcameraactor). For [Cine Camera](Engine/Rendering/PostProcessEffects/DepthOfField/CinematicDOFMethods#cinematiccamera), there are some additional industry standard settings for cameras and lenses.  
+  
 
-The majority of settings used can be accessed under the **Lens** tab in the **Camera** and **Depth of Field** sections. When selecting a DOF method, the properties that affect that method will be editable with others being grayed out (even if they are enabled with a checkbox next to them). 
+The majority of settings used can be accessed under the **Lens** tab in the **Camera** and **Depth of Field** sections. When selecting a DOF method, the properties that affect that method will be editable with others being grayed out (even if they are enabled with a checkbox next to them).
 
-![image_4.png](image_4.png)
-
-When using a [Cine Camera Actor](https://docs.unrealengine.com/en-us/Engine/Sequencer/HowTo/CineCameraActors), replacing properties that affect depth of field can be found under the **Current Camera Settings** in the **Lens Settings** section. 
-
-![image_5.png](image_5.png)
-
-If you’re using a Camera or Cine Camera Actor, you can inhabit them using [Actor Piloting ](https://docs.unrealengine.com/en-us/Engine/UI/LevelEditor/Viewports/ActorLocking)in the Level Viewport by selecting the **Perspective** and choosing from one of the **Placed Cameras** in the scene. 
-
-![image_6.png](image_6.png)
-
+[REGION:lightbox]
+[![](DoFProperties.png "DoFProperties.png")(w:300)](DoFProperties.png)
+[/REGION]
+[REGION:caption]
+Click image for full size.
+[/REGION]
+When using a [Cine Camera Actor](Engine/Sequencer/HowTo/CineCameraActors), replacing properties that affect depth of field can be found under the **Current Camera Settings** in the **Lens Settings** section.
+[REGION:lightbox]
+[![](DoFProperties_CineCameraActor.png "DoFProperties_CineCameraActor.png")(w:300)](DoFProperties_CineCameraActor.png)
+[/REGION]
+[REGION:caption]
+Click image for full size.
+[/REGION]
+If you’re using a Camera or Cine Camera Actor, you can inhabit them using [Actor Piloting](Engine/UI/LevelEditor/Viewports/ActorLocking) in the Level Viewport by selecting the **Perspective** and choosing from one of the placed **Cameras** in the scene.
+[REGION:lightbox]
+[![](DepthOfField_PilotCamera.png "DepthOfField_PilotCamera.png")](DepthOfField_PilotCamera.png)
+[/REGION]
+[REGION:caption]
+Click image for full size.
+[/REGION]
 
 The Level Viewport will snap to the camera’s view and indicate that you are piloting and viewing what that camera sees.
 
-![image_7.png](image_7.png)
+![](DoF_PilotCamera_Status.png "DoF_PilotCamera_Status.png")
 
-Any properties changed in the Camera or Post Process Volume (if the camera is within it) will be shown in the Level Viewport. 
+Any properties that are changed in the Camera or Post Process Volume (if the Camera is within it) will immediately take effect in the viewport. 
 
-As an example to get something similar to the shot above, the key is to use a low **Aperture (F-stop)** to get a large Bokeh, move the camera or viewport close to an object and change the **Field of View **(FoV) to be lower. Then, adjust the **Focal Distance** to get some scene content to be out-of-focus in front of and behind the focal region (also called a Focal Plane). 
+To achieve similar results as the shot above, the key is to use a low **Aperture (F-stop**) to get a large Bokeh shape, move the camera or viewport position closer to an object and change the **Field of View** (FOV) to be lower. Then, adjust the **Focus Distance** to get some scene content to be out of focus in front and behind the focus plane.
 
+### Using Cinematic Camera's Debug Focus Plane
+
+While using the [Cine Camera Actor](Engine/Sequencer/HowTo/CineCameraActors), enable **Draw Debug Focus Plane** to see where focus is placed in your level.
+[REGION:lightbox]
+[![](DoFProperties_CineCameraActor_DrawFocusPlane.png "DoFProperties_CineCameraActor_DrawFocusPlane.png")(w:300)](DoFProperties_CineCameraActor_DrawFocusPlane.png)
+[/REGION]
+[REGION:caption]
+Click image for full size.
+[/REGION]
+When enabled, the focus plane will be drawn at the currently set **Manual Focus Distance** from the camera. In this case, the character is the focal point where everything is sharp and in focus. Anything in front or behind the focus plane will be out of focus.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Draw Debug Focus Plane: Disabled](DebugFocusPlane_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Draw Debug Focus Plane: Enabled](DebugFocusPlane_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+[REGION:note]
+Use **Debug Focus Plane Color** to customize the RGBA color values for the focus plane being drawn. This is helpful in scenes where it may be hard to see the focus plane being drawn.
+[/REGION]

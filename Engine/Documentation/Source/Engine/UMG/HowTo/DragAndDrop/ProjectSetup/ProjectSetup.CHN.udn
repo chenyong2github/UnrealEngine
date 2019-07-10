@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6093519
+Availability: docs
 Title:1.项目设置
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:现在创建所需资源和 DragAndDropOperation 类。 
@@ -14,6 +14,7 @@ tags:UMG UI Designer
 tags:UI
 type:how-to
 
+## 页面已被合并，标记为docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

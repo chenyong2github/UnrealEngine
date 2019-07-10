@@ -89,12 +89,18 @@ bool dxt_hc::compress(
   m_params = p;
 
   uint tile_derating[8] = {0, 1, 1, 2, 2, 2, 2, 3};
+  //UE4_BEGIN
+  m_color_derating.resize(p.m_num_levels);
+  //UE4_END
   for (uint level = 0; level < p.m_num_levels; level++) {
     float adaptive_tile_color_psnr_derating = p.m_adaptive_tile_color_psnr_derating;
     if (level && adaptive_tile_color_psnr_derating > .25f)
       adaptive_tile_color_psnr_derating = math::maximum(.25f, adaptive_tile_color_psnr_derating / powf(3.0f, static_cast<float>(level)));
-    for (uint e = 0; e < 8; e++)
-      m_color_derating[level][e] = math::lerp(0.0f, adaptive_tile_color_psnr_derating, tile_derating[e] / 3.0f);
+    for (uint e = 0; e < 8; e++) {
+	  //UE4_BEGIN
+      m_color_derating[level].v[e] = math::lerp(0.0f, adaptive_tile_color_psnr_derating, tile_derating[e] / 3.0f);
+	  //UE4_END
+    }
   }
   for (uint e = 0; e < 8; e++)
     m_alpha_derating[e] = math::lerp(0.0f, m_params.m_adaptive_tile_alpha_psnr_derating, tile_derating[e] / 3.0f);
@@ -364,7 +370,9 @@ void dxt_hc::determine_tiles_task(uint64 data, void*) {
           float quality = 0;
           if (m_has_color_blocks) {
             double peakSNR = total_error[cColor][e] ? log10(255.0f / sqrt(total_error[cColor][e] / 192.0)) * 20.0f : 999999.0f;
-            quality = (float)math::maximum<double>(peakSNR - m_color_derating[level][e], 0.0f);
+			//UE4_BEGIN
+            quality = (float)math::maximum<double>(peakSNR - m_color_derating[level].v[e], 0.0f);
+			//UE4_END
             if (m_num_alpha_blocks)
               quality *= m_params.m_adaptive_tile_color_alpha_weighting_ratio;
           }
@@ -454,7 +462,9 @@ void dxt_hc::determine_tiles_task_etc(uint64 data, void*) {
       for (uint e = 0; e < 3; e++) {
         float quality = 0;
         double peakSNR = total_error[e] ? log10(255.0f / sqrt(total_error[e] / 48.0)) * 20.0f : 999999.0f;
-        quality = (float)math::maximum<double>(peakSNR - m_color_derating[level][e], 0.0f);
+		//UE4_BEGIN
+        quality = (float)math::maximum<double>(peakSNR - m_color_derating[level].v[e], 0.0f);
+		//UE4_END
         if (quality > best_quality) {
           best_quality = quality;
           best_encoding = e;

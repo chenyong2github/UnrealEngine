@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:2750612
+﻿INTSourceChangelist:6340375
 Availability:Public
-Title:Beam 模块
-Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
-Description:借助 Beam TypeData 模块，这些模块用于对发射器行为进行配置。
-Version:4.9
+Title: Beam 模块
+Description: 借助 Beam TypeData 模块，这些模块用于对发射器行为进行配置。
+Version: 4.9
+Parent: Engine/Rendering/ParticleSystems/Reference
+Tags: Particles
 
 [TOC(start:2 end:3)]
 
@@ -14,6 +15,7 @@ Version:4.9
 
 **Beam Modifier** 模块可对光束的源点或目标进行修改。它拥有下列属性：
 
+[REGION:simpletable]
 | 属性 | 描述 |
 | ---- | ---- |
 |[REGION:tablesection]Modifier[/REGION]||
@@ -28,12 +30,12 @@ Version:4.9
 |[REGION:tablesection]Strength[/REGION]||
 | **Strength Options** | 和 _Strength_ 属性相关的选项。数值包括：[INCLUDE:#TangentOptions]|
 | **Strength** | 该强度值用于修改源点/目标的强度。|
-
+[/REGION]
 
 
 [COMMENT:none]
 ---------------Beam Modifier Includes--------------
-####包括
+#### Includes
 
 [EXCERPT:ModifierType]
 [REGION:simpletable]
@@ -99,6 +101,7 @@ TfgyUi-QAAg
 
 **Beam Noise** 模块可沿光束发射噪点。它拥有下列属性：
 
+[REGION:simpletable]
 | 属性 | 描述 |
 | ---- | ---- |
 |[REGION:tablesection]LowFreq[/REGION]||
@@ -121,7 +124,7 @@ TfgyUi-QAAg
 | **FrequencyDistance** | 放置噪点的距离。如该值为 0.0，则使用标准 Frequency/Frequency_LowRange 对确定噪点的频率。如该值不为 0.0，噪点将分布在指定的距离上，由静态频率值决定。因此在较短光束上的噪点数量较少，将随光束的延长自动增加噪点。|
 | **Apply Noise Scale** | 如为 _true_，将把 NoiseScale 应用至光束。|
 | **Noise Scale** | bApplyNoiseScale 为 _true_ 时应用至噪点范围的缩放因子。该 distribution 查找值的算法：出现的噪点数量除以噪点的最大数量（即频率）。|
-
+[/REGION]
 
 
 [COMMENT:none]
@@ -140,6 +143,7 @@ TfgyUi-QAAg
 
 **Beam Source** 模块为一个光束发射器应用单个源点。（如光束发射器中不存在源点模块，发射器位置将代替源点。）它拥有下列属性：
 
+[REGION:simpletable]
 | 属性 | 描述 |
 | ---- | ---- |
 |[REGION:tablesection]Source[/REGION]||
@@ -153,7 +157,7 @@ TfgyUi-QAAg
 | **Lock Source Tangent** | 如为 _true_，仅在生成时才可对源点切线进行设置。|
 | **Source Strength** | 一个浮点 distribution，用于定义每条光束源点切线的强度。使用当前的发射器时间获取数值。该强度的使用无视用于获取源点/源点切线的方法。|
 | **Lock Source Strength** | 如为 _true_，仅在生成时才可对源点强度进行设置。|
-
+[/REGION]
 
 
 
@@ -192,6 +196,7 @@ TfgyUi-QAAg
 
 **Beam Target** 模块为一个光束发射器应用单个目标。（如光束发射器中不存在目标模块，发射器假定光束将被定向使用。）它拥有下列属性：
 
+[REGION:simpletable]
 | 属性 | 描述 |
 | ---- | ---- |
 |[REGION:tablesection]Target[/REGION]||
@@ -206,7 +211,7 @@ TfgyUi-QAAg
 |**Target Strength** | 一个浮点 distribution，用于定义每条光束目标切线的强度。使用当前的发射器时间获取数值。该强度的使用无视用于获取目标/目标切线的方法。|
 |**Lock Target Strength** | 如为 _true_，仅在生成时才可对目标强度进行设置。|
 |**Lock Radius** | 当前光束端所在的球体半径，被视为目标点锁定。在应用含速度值集的光束时使用。|
-
+[/REGION]
 
 
 

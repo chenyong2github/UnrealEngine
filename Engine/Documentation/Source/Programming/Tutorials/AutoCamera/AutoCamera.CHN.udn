@@ -1,66 +1,344 @@
-﻿Availability: Public
-Title:游戏控制的相机
-Crumbs:%ROOT%, GettingStarted, Programming/Tutorials
-Description:学习在不同的视图间激活和切换。
+﻿INTSourceChangelist:6061750
+Availability: Public
+Title: 游戏控制的摄像机
+Description: 了解如何激活和切换不同的视角。
+Type: how-to
+Version: 4.9
+Parent: Programming/Tutorials
+SkillLevel: Beginner
+Order: 0
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![](newclass_topic.png)
-	[/PARAM]
-	[PARAM:title]
-		%Programming\Tutorials\AutoCamera:title%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Programming\Tutorials\AutoCamera]
-	[/PARAM]
-	[PARAM:description]
-		%Programming\Tutorials\AutoCamera:description%
-	[/PARAM]
-[/OBJECT]
-[/VAR]
 
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![](newclass_topic.png)
-	[/PARAM]
-	[PARAM:title]
-		%Programming\Tutorials\AutoCamera:title%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Programming\Tutorials\AutoCamera]
-	[/PARAM]
-	[PARAM:description]
-		%Programming\Tutorials\AutoCamera:description%
-	[/PARAM]
-[/OBJECT]
-[/VAR]
+[TOC (start:2 end:2)]
 
-本教程将会向您展示如何激活相机以及如何切换您激活的相机。
+本教程将会向您展示如何激活摄像机以及如何切换您激活的摄像机。
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	hwErvhNdc9c
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ hwErvhNdc9c
+ [/PARAMLITERAL]
 [/OBJECT]
 
-## 步骤
+## 1 - 在场景中放置摄像机
 
-[REGION:buttonlist]
-
-	* [](Programming\Tutorials\AutoCamera\1 "%Programming\Tutorials\AutoCamera\1:description%")
-	* [](Programming\Tutorials\AutoCamera\2 "%Programming\Tutorials\AutoCamera\2:description%")
-	* [](Programming\Tutorials\AutoCamera\3 "%Programming\Tutorials\AutoCamera\3:description%")
-	* [](Programming\Tutorials\AutoCamera\4 "%Programming\Tutorials\AutoCamera\4:description%")
-	
+[REGION:tip]
+如果您是 **虚幻引擎4** (UE4)的新手，您可需要先阅读我们的[编程快速入门教程](Programming\QuickStart)。对于本教程，我们假设您熟悉以下操作：创建项目，向项目添加C++代码，编译代码，以及在UE4中向 **Actor** 添加 **组件**
 [/REGION]
 
+1.  我们将从创建一个新的基本代码项目开始，名为“HowTo_AutoCamera”，其中包含初学者内容。我们需要做的第一件事是在我们的场景中创建两个摄像机。由于设置摄像机有多种方法，在这里我们将使用最常见的两种方法。对于我们的第一个摄像机，前往 **放置浏览器（Placement Browser）** 中的 **模式（Modes）** 选项卡，单击 **放置（Place）** 或按 **Shift+1**。在 **所有类（All Classes）** 部分，您将找到一个 **摄像机（Camera）** Actor。将其拖拽到 **关卡编辑器（Level Editor）** 中，并将其放置在合适的位置，以便它能清楚地看到我们的场景。  
+    
+	![](PlaceCameraActor.png)  
+    
+	完成此操作后，只要我们选择了新的 **摄像机Actor（Camera Actor）**，**关卡编辑器（Level Editor）** 窗口就会有一个画中画视图，显示该 **摄像机Actor（Camera Actor）** 可以看到的内容。 
+		
+	![](CameraOnePlacement.png)
 
+1.  对于我们的第二个摄像机，我们将使用一种更深入的方法，让我们可以进行更多的控制。首先，单击 **放置浏览器（Placement Browser）** 中 **模式（Mode）** 选项卡中的 **基本（Basic）**，并将一个 **立方体（Cube）** 拖放到 **关卡编辑器（Level Editor）** 窗口中。 
+	
+	![](PlaceCube.png)
+    
+	[REGION:note]
+    在这一步骤中，我们几乎可以使用任何Actor类。用我们在快速入门教程中创建的MyActor类来替代立方体（Cube）可能会很有趣。
+    [/REGION]
+    
 
+1.  放置我们的 **立方体（Cube）** Actor后，单击 **详细信息（Details）** 面板中的 **\+添加组件（\+ Add Component）** 按钮，来为 **立方体（Cube）** 添加 **摄像机组件（CameraComponent）**。您现在可以设置该 **摄像机组件（CameraComponent）** 的位置和旋转，让我们看到一个不同于我们之前放置的 **摄像机Actor（CameraActor）** 的场景视图。  
+      
+    ![](CameraTwoPlacement.png)
+
+1.  我们应该打开 **约束高宽比（Constrain Aspect Ratio）** 来自定义我们的 **摄像机组件（CameraComponent）**，以便它与我们的 **摄像机Actor（CameraActor）** 上的设置匹配。这会使摄像机视图之间的转换更流畅，但这不是必需的。 
+	
+	![](CameraAspect.png)
+
+设置好我们的场景后，我们现在可以开始创建控制摄像机视图的类。
+
+## 2 - 在C++中控制摄像机视图
+
+1.  我们现在可以创建一个C++类来控制摄像机视图了。在本教程中，我们可以扩展 **Actor** 为新类，我们将其称之为CameraDirector。
+    
+    ![](NameActorClass.png)
+    
+
+1.  在CameraDirector.h中，我们将以下代码添加到ACameraDirector类定义的底部位置：
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraOne;
+        
+        UPROPERTY(EditAnywhere)
+        AActor* CameraTwo;
+        
+        float TimeToNextCameraChange;
+    
+    [REGION:note]
+    **UPROPERTY** 宏使得变量对 **虚幻引擎** 可见。这样，当我们启动游戏或在将来的工作会话中重新载入关卡或项目时，这些变量中设置的值将不会被重置。我们还添加了 **EditAnywhere** 关键字，这允许我们在 **虚幻编辑器** 中设置摄像机1（CameraOne）和摄像机2（CameraTwo）。
+    [/REGION]
+    
+
+1.  在CameraDirector.cpp中，将以下代码行添加到文件的顶部位置，位于其它#include行的正下方：
+    
+        #include "Kismet/GameplayStatics.h"
+    
+    GameplayStatics头文件允许我们访问一些有用的通用函数，在本教程中我们需要使用其中一个函数。完成后，将以下代码添加到 **ACameraDirector::Tick** 的底部位置：
+    
+        const float TimeBetweenCameraChanges = 2.0f;
+        const float SmoothBlendTime = 0.75f;
+        TimeToNextCameraChange -= DeltaTime;
+        if (TimeToNextCameraChange <= 0.0f)
+        {
+            TimeToNextCameraChange += TimeBetweenCameraChanges;
+        
+            // 查找处理本地玩家控制的actor。
+            APlayerController* OurPlayerController = UGameplayStatics::GetPlayerController(this, 0);
+            if (OurPlayerController)
+            {
+                if ((OurPlayerController->GetViewTarget() != CameraOne) && (CameraOne != nullptr))
+                {
+                    // 立即切换到摄像机1。
+                    OurPlayerController->SetViewTarget(CameraOne);
+                }
+                else if ((OurPlayerController->GetViewTarget() != CameraTwo) && (CameraTwo != nullptr))
+                {
+                    // 平滑地混合到摄像机2。
+                    OurPlayerController->SetViewTargetWithBlend(CameraTwo, SmoothBlendTime);
+                }
+            }
+        }
+    
+    此代码将可以让我们每隔3秒在两个不同的摄像机间切换默认玩家的视图。
+    
+
+1.  现在我们的代码可进行编译，我们可以返回到 **虚幻编辑器（Unreal Editor）** 并按下 **编译（Compile）** 按钮。
+    
+
+无需其它代码。我们现在可以在场景中设置CameraDirector了。
+
+### 完成的代码
+
+ **MyPawn.h**
+
+    // 版权所有 1998-2017 Epic Games, Inc。保留所有权利。
+    
+    #pragma once
+    
+    #include "GameFramework/Actor.h"
+    #include "CameraDirector.generated.h"
+    
+    UCLASS()
+    class HOWTO_AUTOCAMERA_API ACameraDirector : public AActor
+    {
+        GENERATED_BODY()
+    
+    public: 
+        // 为此Actor的属性设置默认值
+        ACameraDirector();
+    
+    protected:
+        // 当游戏开始或生成时调用
+        virtual void BeginPlay() override;
+    
+    public:
+        // 每一帧调用
+        virtual void Tick( float DeltaSeconds ) override;
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraOne;
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraTwo;
+    
+        float TimeToNextCameraChange;
+    };
+
+ **MyPawn.cpp**
+
+    // 版权所有 1998-2017 Epic Games, Inc。保留所有权利。
+    
+    #include "HowTo_AutoCamera.h"
+    #include "CameraDirector.h"
+    #include "Kismet/GameplayStatics.h"
+    
+    // 设置默认值
+    ACameraDirector::ACameraDirector()
+    {
+        // 将此Actor设置为每一帧调用Tick()。如果不需要，可以关闭此选项来提高性能。
+        PrimaryActorTick.bCanEverTick = true;
+    
+    }
+    
+    // 当游戏开始或生成时调用
+    void ACameraDirector::BeginPlay()
+    {
+        Super::BeginPlay();
+    
+    }
+    
+    // 每一帧调用
+    void ACameraDirector::Tick( float DeltaTime )
+    {
+        Super::Tick( DeltaTime );
+    
+        const float TimeBetweenCameraChanges = 2.0f;
+        const float SmoothBlendTime = 0.75f;
+        TimeToNextCameraChange -= DeltaTime;
+        if (TimeToNextCameraChange <= 0.0f)
+        {
+            TimeToNextCameraChange += TimeBetweenCameraChanges;
+    
+            //查找处理本地玩家控制的Actor。
+            APlayerController* OurPlayerController = UGameplayStatics::GetPlayerController(this, 0);
+            if (OurPlayerController)
+            {
+                if ((OurPlayerController->GetViewTarget() != CameraOne) && (CameraOne != nullptr))
+                {
+                    //立即切换到摄像机1。
+                    OurPlayerController->SetViewTarget(CameraOne);
+                }
+                else if ((OurPlayerController->GetViewTarget() != CameraTwo) && (CameraTwo != nullptr))
+                {
+                    //平滑地混合到摄像机2。
+                    OurPlayerController->SetViewTargetWithBlend(CameraTwo, SmoothBlendTime);
+                }
+            }
+        }
+    }
+
+## 3 - 在场景中放置Camera Director
+
+1.  在代码编译完成后，我们可以将 **内容浏览器（Content Browser）** 中的新类的实例拖曳到 **关卡编辑器（Level Editor）** 中。
+    
+    ![](CameraDirectorInContentBrowser.png)
+    
+
+1.  接下来，我们需要设置摄像机1（CameraOne）和摄像机2（CameraTwo）变量。在 **World Outliner （世界大纲视图）** 中找到CameraDirector，并在 **详细信息面板（Details Panel）** 中进行编辑。
+    
+    ![](CameraDirectorDetails.png)
+    
+    单击标记为“无（None）”的下拉框，然后将变量设置为 **Cube（立方体）** 和我们之前创建的 **摄像机Actor （CameraActor）**。
+    
+    ![](CameraDirectorDetails2.png)
+    
+
+1.  如果我们按下播放（Play），我们将会看到与此视图对齐的摄像机：
+    
+    ![](CameraOneView.png)
+    
+    然后平滑混合到此视图：
+    
+    ![](CameraTwoView.png)
+    
+    需要等待几秒才会对齐。
+    
+
+我们现在的这个系统会完全基于游戏逻辑来移动玩家的摄像机。如果玩家在游戏中无法直接控制摄像机，或者混合摄像机视图十分有用时，我们可以修改代码以在这些游戏中使用。
+
+### 完成的代码
+
+ **MyPawn.h**
+
+    // 版权所有 1998-2017 Epic Games, Inc。保留所有权利。
+    
+    #pragma once
+    
+    #include "GameFramework/Actor.h"
+    #include "CameraDirector.generated.h"
+    
+    UCLASS()
+    class HOWTO_AUTOCAMERA_API ACameraDirector : public AActor
+    {
+        GENERATED_BODY()
+    
+    public: 
+        // 为此Actor的属性设置默认值
+        ACameraDirector();
+    
+    protected:
+        // 当游戏开始或生成时调用
+        virtual void BeginPlay() override;
+    
+    public:
+        // 每一帧调用
+        virtual void Tick( float DeltaSeconds ) override;
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraOne;
+    
+        UPROPERTY(EditAnywhere)
+        AActor* CameraTwo;
+    
+        float TimeToNextCameraChange;
+    };
+
+ **MyPawn.cpp**
+
+    // 版权所有 1998-2017 Epic Games, Inc。保留所有权利。
+    
+    #include "HowTo_AutoCamera.h"
+    #include "CameraDirector.h"
+    #include "Kismet/GameplayStatics.h"
+    
+    // 设置默认值
+    ACameraDirector::ACameraDirector()
+    {
+        // 将此Actor设置为每一帧调用Tick()。如果不需要，可以关闭此选项来提高性能。
+        PrimaryActorTick.bCanEverTick = true;
+    
+    }
+    
+    // 当游戏开始或生成时调用
+    void ACameraDirector::BeginPlay()
+    {
+        Super::BeginPlay();
+    
+    }
+    
+    // 每一帧调用
+    void ACameraDirector::Tick( float DeltaTime )
+    {
+        Super::Tick( DeltaTime );
+    
+        const float TimeBetweenCameraChanges = 2.0f;
+        const float SmoothBlendTime = 0.75f;
+        TimeToNextCameraChange -= DeltaTime;
+        if (TimeToNextCameraChange <= 0.0f)
+        {
+            TimeToNextCameraChange += TimeBetweenCameraChanges;
+    
+            //查找处理本地玩家控制的Actor。
+            APlayerController* OurPlayerController = UGameplayStatics::GetPlayerController(this, 0);
+            if (OurPlayerController)
+            {
+                if (CameraTwo && (OurPlayerController->GetViewTarget() == CameraOne))
+                {
+                    //平滑地混合到摄像机2。
+                    OurPlayerController->SetViewTargetWithBlend(CameraTwo, SmoothBlendTime);
+                }
+                else if (CameraOne)
+                {
+                    //立即切换到摄像机1。
+                    OurPlayerController->SetViewTarget(CameraOne);
+                }
+            }
+        }
+    }
+
+## 4 - 自主操作！
+
+利用您所学到知识，尝试执行以下操作：
+
+*   将摄像机附加到移动Actor上来创建摇臂或移动车镜头。
+
+*   使用一个[数组](Programming/UnrealArchitecture/TArrays)变量来存储摄像机，而不是摄像机1（CameraOne）和摄像机2（CameraTwo），这样您就可以遍历任意数量摄像机的序列，而不是仅仅两个。
+
+*   不要使用[Actor](Programming/UnrealArchitecture/Actors)指针来存储摄像机，而是创建一个[结构](Programming/UnrealArchitecture/Reference/Structs)来保持指针以及在更改视图之前的时间，并将时间混合到新视图中。
+
+有关本教程介绍的细节：
+
+*   有关摄像机以及其控制方法的更多信息，请参阅[摄像机](Gameplay/Framework/Camera)框架页面，或尝试[玩家控制的摄像机](Programming/Tutorials/PlayerCamera)教程。
+
+* 有关进一步教程，请参阅[C++编程教程]页面。

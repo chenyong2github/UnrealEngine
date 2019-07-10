@@ -10,4 +10,5 @@
 #if WITH_SLI || WITH_MGPU
 uint32 GNumAlternateFrameRenderingGroups = 1;
 uint32 GNumExplicitGPUsForRendering = 1;
+uint32 GVirtualMGPU = 0;
 #endif

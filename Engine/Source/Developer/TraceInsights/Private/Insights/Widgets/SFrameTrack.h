@@ -164,7 +164,7 @@ protected:
 	bool bIsRMB_Pressed;
 
 	/** True, if the user is currently interactively scrolling the view by holding the right mouse button and dragging. */
-	bool bIsRMB_Scrolling;
+	bool bIsScrolling;
 
 	//////////////////////////////////////////////////
 

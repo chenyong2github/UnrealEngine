@@ -12,9 +12,7 @@ tags:Materials
 
 %Description%
 
-(#BookmarkConstant)
-(#Constant)
-## Constant（常量）
+## Constant
 
 **Constant（常量）**表达式输出单个浮点值。这是最常用的表达式之一，并可连接到任何输入，而不必考虑该输入所需的通道数。例如，如果您将一个常量连接到需要 3 个矢量的输入，那么该常量值将用于全部 3 个元素。提供单个数值时，使用说明区域中的小三角形图标来折叠节点可能非常有用。
 
@@ -33,8 +31,7 @@ tags:Materials
 [/REGION]
 
 [EXCERPT:Constant2vector]
-(#Constant2Vector)
-## Constant2Vector（常量 2 矢量）
+## Constant2Vector
 
 **Constant2Vector（常量 2 矢量）**表达式输出双通道矢量值，即输出两个常量数值。
 
@@ -59,8 +56,7 @@ tags:Materials
 [/EXCERPT:Constant2vector]
 
 [EXCERPT:Constant3vector]
-(#Constant3Vector)
-## Constant3Vector（常量 3 矢量）
+## Constant3Vector
 
 **Constant3Vector（常量 3 矢量）**表达式输出三通道矢量值，即输出三个常量数值。您可以将 RGB 颜色看作 Constant3Vector（常量 3 矢量），其中每个通道都被赋予一种颜色（红色、绿色、蓝色）。
 
@@ -85,10 +81,9 @@ tags:Materials
 [/EXCERPT:Constant3vector]
 
 [EXCERPT:Constant4Vector]
-(#Constant4Vector)
-## Constant4Vector（常量 4 矢量）
+## Constant4Vector
 
-**Constant4Vector（常量 4 矢量）**表达式输出四通道矢量值，即输出四个常量数值。您可以将 RGBA 颜色看作 Constant4Vector（常量 4 矢量），其中每个通道都被赋予一种颜色（红色、绿色、蓝色、阿尔法）。
+**Constant4Vector（常量 4 矢量）**表达式输出四通道矢量值，即输出四个常量数值。您可以将 RGBA 颜色看作 Constant4Vector（常量 4 矢量），其中每个通道都被赋予一种颜色（红色、绿色、蓝色、alpha）。
 
 | 项目 | 说明 |
 | -------- | ----------- |
@@ -96,7 +91,7 @@ tags:Materials
 | **R** | 指定表达式所输出的矢量的红色（第一个）通道的浮点值。|
 | **G** | 指定表达式所输出的矢量的绿色（第二个）通道的浮点值。|
 | **B** | 指定表达式所输出的矢量的蓝色（第三个）通道的浮点值。|
-| **A** | 指定表达式所输出的矢量的阿尔法（第四个）通道的浮点值。|
+| **A** | 指定表达式所输出的矢量的alpha（第四个）通道的浮点值。|
 
 **示例：**(0.4, 0.6, 0.0, 1.0) 和 (1.05, -0.3, 0.3, 0.5)
 
@@ -109,8 +104,7 @@ tags:Materials
 [/EXCERPT:Constant4Vector]
 
 [EXCERPT:DiscanceCullFade]
-(#DistanceCullFade)
-## Distance Cull Fade（距离剔除消退）
+## Distance Cull Fade
 
 DistanceCullFade（距离剔除消退）表达式输出一个从黑色逐渐消退到白色的标量值，并可用于使对象进入剔除距离后逐渐消退。请注意，它不会使对象淡出。 
 
@@ -141,8 +135,7 @@ DistanceCullFade（距离剔除消退）表达式输出一个从黑色逐渐消�
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Particles#ParticleSpeed]
 
-(#PerInstanceFadeAmount)
-## PerInstanceFadeAmount（按实例消退量）
+## PerInstanceFadeAmount
 
 **PerInstanceFadeAmount（按实例消退量）**表达式输出一个浮点值，该值与应用于实例化静态网格（例如植物叶子）的消退量相关联。它是常量，但对于网格的每个实例，可以是不同的数值。
 
@@ -150,8 +143,7 @@ DistanceCullFade（距离剔除消退）表达式输出一个从黑色逐渐消�
 仅当应用于 InstancedStaticMesh（实例化静态网格）Actor 或其他利用 InstancedStaticMeshComponent（实例化静态网格组件）的 Actor 时，此表达式才有效。
 [/REGION]
 
-(#PerInstanceRandom)
-## PerInstanceRandom（按实例随机）
+## PerInstanceRandom
 
 **PerInstanceRandom（按实例随机）**表达式按材质所应用于的静态网格实例输出不同的随机浮点值。InstancedStaticMeshComponent（实例化静态网格组件）用于为实例设置随机浮点值，这个值将公开，以便可用于任何期望的内容（例如，窗外的随机光照水平）。它是常量，但对于网格的每个实例有所不同。
 
@@ -166,8 +158,7 @@ DistanceCullFade（距离剔除消退）表达式输出一个从黑色逐渐消�
 
 
 [EXCERPT:Time]
-(#Time)
-## Time（时间）
+## Time
 
 **Time（时间）**节点用来向材质（例如，[Panner（平移）](Engine/Rendering/Materials/ExpressionReference/Coordinates#Panner)、[Cosine（余弦）](Engine/Rendering/Materials/ExpressionReference/Math#Cosine) 或其他时间相关操作）添加经历时间。
 
@@ -184,15 +175,13 @@ DistanceCullFade（距离剔除消退）表达式输出一个从黑色逐渐消�
 
 
 [/EXCERPT:Time]
-(#TwoSidedSign)
-## TwoSidedSign（双面符号）
+## TwoSidedSign
 
 **TwoSidedSign（双面符号）**表达式适合在双面定制照明材质的背面翻转法线，以便与冯氏（Phong）明暗处理算法匹配。+1 表示双面材质的正面，-1 表示背面。
 
 ![exp_twosidedsign.png](exp_twosidedsign.png)
 
-(#VertexColor)
-## VertexColor（顶点颜色）
+## VertexColor
 
 **VertexColor（顶点颜色）**表达式是材质的访问点，用于访问影响精灵粒子发射器的颜色模块的输出。
 
@@ -203,14 +192,13 @@ DistanceCullFade（距离剔除消退）表达式输出一个从黑色逐渐消�
 | **R** | 输出颜色的红色通道。|
 | **G** | 输出颜色的绿色通道。|
 | **B** | 输出颜色的蓝色通道。|
-| **A** | 输出颜色的阿尔法通道。|
+| **A** | 输出颜色的alpha通道。|
 
 ![](VertexColorExample.png)
 
-以上网络将利用直接来自粒子系统的颜色和阿尔法数据。此类网络特别适合于实现火花等特殊效果。
+以上网络将利用直接来自粒子系统的颜色和alpha数据。此类网络特别适合于实现火花等特殊效果。
 
-(#ViewProperty)
-## ViewProperty（视图属性）
+## ViewProperty
 
 ViewProperty（视图属性）表达式输出依赖于视图的常量属性，例如视野或渲染目标大小。要访问的视图属性可配置，并且，输出类型取决于所配置的待访问属性。
 
@@ -228,8 +216,7 @@ ViewProperty（视图属性）表达式输出依赖于视图的常量属性，�
 ![ViewPropertyExampleFOV90.png](ViewPropertyExampleFOV90.png)
 [/REGION]
 
-(#PrecomputedAOMask)
-## PrecomputedAOMask（预先计算的 AO 蒙版）
+## PrecomputedAOMask
 
 **PrecomputedAOMask（预先计算的 AO 蒙版）**节点用来访问材质中光照系统计算的环境光遮蔽 (AO)，
  这可能很适合于过程式纹理贴图，或者在老化效果及尘埃随时间推移而缓慢积累的区域加入老化效果及尘埃。

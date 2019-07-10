@@ -427,7 +427,7 @@ static void InvertRemapTable( TSparseArray<int32>& InvertedRemapTable, const TSp
 }
 
 
-class FCompactChange : public FChange
+class FCompactChange : public FSwapChange
 {
 public:
 
@@ -459,7 +459,7 @@ struct FUncompactChangeInput
 };
 
 
-class FUncompactChange : public FChange
+class FUncompactChange : public FSwapChange
 {
 public:
 
@@ -2621,7 +2621,8 @@ void UEditableMesh::SetSubdivisionCount( const int32 NewSubdivisionCount )
 
 void UEditableMesh::MoveVertices( const TArray<FVertexToMove>& VerticesToMove )
 {
-	EM_ENTER( TEXT( "MoveVertices: %s" ), *LogHelpers::ArrayToString( VerticesToMove ) );
+	//EM_ENTER( TEXT( "MoveVertices: %s" ), *LogHelpers::ArrayToString( VerticesToMove ) );
+	EM_ENTER(TEXT("MoveVertices: [redacted]"));
 
 	static TSet< FPolygonID > VertexConnectedPolygons;
 	VertexConnectedPolygons.Reset();
@@ -4415,7 +4416,8 @@ void UEditableMesh::DeletePolygonGroups( const TArray<FPolygonGroupID>& PolygonG
 
 void UEditableMesh::SetVerticesAttributes( const TArray<FAttributesForVertex>& AttributesForVertices )
 {
-	EM_ENTER( TEXT( "SetVerticesAttributes: %s" ), *LogHelpers::ArrayToString( AttributesForVertices ) );
+	//EM_ENTER( TEXT( "SetVerticesAttributes: %s" ), *LogHelpers::ArrayToString( AttributesForVertices ) );
+	EM_ENTER(TEXT("SetVerticesAttributes: [redacted]"));
 
 	FSetVerticesAttributesChangeInput RevertInput;
 
@@ -6060,8 +6062,8 @@ void UEditableMesh::GeneratePolygonTangentsAndNormals( const TArray<FPolygonID>&
 	for( const FPolygonID PolygonID : PolygonIDs )
 	{
 		// Calculate the center of this polygon
-		FVector Center = FVector::ZeroVector;
-		const TArray<FVertexInstanceID>& VertexInstanceIDs = GetMeshDescription()->GetPolygonPerimeterVertexInstances( PolygonID );
+		FVector Center(ForceInitToZero);
+		const TArray<FVertexInstanceID>& VertexInstanceIDs = GetMeshDescription()->GetPolygonPerimeterVertexInstances(PolygonID);
 		for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
 		{
 			Center += VertexPositions[ GetMeshDescription()->GetVertexInstanceVertex( VertexInstanceID ) ];
@@ -6069,9 +6071,9 @@ void UEditableMesh::GeneratePolygonTangentsAndNormals( const TArray<FPolygonID>&
 		Center /= float( VertexInstanceIDs.Num() );
 
 		// Calculate the tangent basis for the polygon, based on the average of all constituent triangles
-		FVector Normal = FVector::ZeroVector;
-		FVector Tangent = FVector::ZeroVector;
-		FVector Binormal = FVector::ZeroVector;
+		FVector Normal(ForceInitToZero);
+		FVector Tangent(ForceInitToZero);
+		FVector Binormal(ForceInitToZero);
 
 		for( const FMeshTriangle& Triangle : GetMeshDescription()->GetPolygonTriangles( PolygonID ) )
 		{
@@ -6079,11 +6081,11 @@ void UEditableMesh::GeneratePolygonTangentsAndNormals( const TArray<FPolygonID>&
 			const FVertexID VertexID1 = GetMeshDescription()->GetVertexInstanceVertex( Triangle.VertexInstanceID1 );
 			const FVertexID VertexID2 = GetMeshDescription()->GetVertexInstanceVertex( Triangle.VertexInstanceID2 );
 
-			const FVector DPosition1 = VertexPositions[ VertexID1 ] - VertexPositions[ VertexID0 ];
-			const FVector DPosition2 = VertexPositions[ VertexID2 ] - VertexPositions[ VertexID0 ];
+			const FVector& DPosition1(VertexPositions[ VertexID1 ] - VertexPositions[ VertexID0 ]);
+			const FVector& DPosition2(VertexPositions[ VertexID2 ] - VertexPositions[ VertexID0 ]);
 
-			const FVector2D DUV1 = VertexUVs.Get( Triangle.VertexInstanceID1, 0 ) - VertexUVs.Get( Triangle.VertexInstanceID0, 0 );
-			const FVector2D DUV2 = VertexUVs.Get( Triangle.VertexInstanceID2, 0 ) - VertexUVs.Get( Triangle.VertexInstanceID0, 0 );
+			const FVector2D& DUV1(VertexUVs.Get( Triangle.VertexInstanceID1, 0 ) - VertexUVs.Get( Triangle.VertexInstanceID0, 0 ));
+			const FVector2D& DUV2(VertexUVs.Get( Triangle.VertexInstanceID2, 0 ) - VertexUVs.Get( Triangle.VertexInstanceID0, 0 ));
 
 			// We have a left-handed coordinate system, but a counter-clockwise winding order
 			// Hence normal calculation has to take the triangle vectors cross product in reverse.

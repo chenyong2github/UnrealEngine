@@ -14,7 +14,6 @@ order:6
 
 下面这个“设置”部分中的链接将通过示例介绍如何在蓝图中使用计时器。
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/UseTimers" org:"hierarchy" end:"1")]

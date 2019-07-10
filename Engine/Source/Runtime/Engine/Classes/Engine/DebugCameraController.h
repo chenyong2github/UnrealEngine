@@ -126,6 +126,14 @@ class ENGINE_API ADebugCameraController
 	/** Toggles camera orbit hitpoint */
 	void ToggleOrbitHitPoint();
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	/** Whether buffer visualization option should be enabled */
+	static bool EnableDebugBuffers();
+
+	/** Whether cycle viewmode option should be enabled */
+	static bool EnableDebugViewmodes();
+
 	/** Cycle view mode */
 	void CycleViewMode();
 
@@ -153,15 +161,17 @@ class ENGINE_API ADebugCameraController
 	/** Set buffer visualization full mode */
 	void SetBufferVisualizationFullMode(bool bFullMode);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
 	/** Update visualize buffer post processing settings */
 	void UpdateVisualizeBufferPostProcessing(FFinalPostProcessSettings& InOutPostProcessingSettings);
 
-#endif
+	/** Get visualization buffer's material name used by post processing settings */
+	FString GetBufferMaterialName(const FString& InBuffer);
 
-	/** Get selected visualization buffer */
-	FString GetSelectedBufferName();
+	/** Get current visualization buffer's material name */
+	FString GetSelectedBufferMaterialName();
+
+
+#endif
 
 public:
 
@@ -280,6 +290,8 @@ protected:
 
 	virtual void SetSpectatorPawn(class ASpectatorPawn* NewSpectatorPawn) override;
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
 	/** Get buffer visualization overview targets based on console var */
 	TArray<FString> GetBufferVisualizationOverviewTargets();
 
@@ -288,6 +300,8 @@ protected:
 
 	/** Get next buffer */
 	void GetNextBuffer(int32 Step = 1);
+
+#endif
 
 private:
 
@@ -302,9 +316,6 @@ private:
 
 	/** Current orbit radius, if orbit is enabled */
 	float OrbitRadius;
-
-	/** Last view mode index before buffer visualization overview was enabled, see enum EViewModeIndex for valid values */
-	int32 LastViewModeIndex;
 
 	/** Last index in settings array for cycle view modes */
 	int32 LastViewModeSettingsIndex;

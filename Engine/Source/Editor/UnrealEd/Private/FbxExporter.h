@@ -114,6 +114,12 @@ public:
 	virtual void ExportLevelMesh( ULevel* InLevel, bool bSelectedOnly, INodeNameAdapter& NodeNameAdapter , bool bSaveAnimSeq = true);
 
 	/**
+	* Exports the basic scene information to the FBX document, using the passed in Actors
+	*/
+	virtual void ExportLevelMesh(ULevel* InLevel, bool bExportLevelGeometry, TArray<AActor*>& ActorToExport, INodeNameAdapter& NodeNameAdapter, bool bSaveAnimSeq = true);
+
+
+	/**
 	 * Exports the given Matinee sequence information into a FBX document.
 	 * 
 	 * @return	true, if sucessful
@@ -363,8 +369,12 @@ private:
 
 	/**
 	 * Adds an Fbx Mesh to the FBX scene based on the data in the given FSkeletalMeshLODModel
+	 * @param SkelMesh			The SkeletalMesh we are exporting
+	 * @param MeshName			The SkeletalMesh name
+	 * @param LODIndex			The mesh LOD index we are exporting
+	 * @param AnimSeq			If an AnimSeq is provided and are exporting MorphTarget, the MorphTarget animation will be exported as well.
 	 */
-	FbxNode* CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* MeshName, int32 LODIndex);
+	FbxNode* CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* MeshName, int32 LODIndex, const UAnimSequence* AnimSeq = nullptr);
 
 	/**
 	 * Adds Fbx Clusters necessary to skin a skeletal mesh to the bones in the BoneNodes list
@@ -384,11 +394,25 @@ private:
 	/** Export SkeletalMeshComponent */
 	void ExportSkeletalMeshComponent(USkeletalMeshComponent* SkelMeshComp, const TCHAR* MeshName, FbxNode* ActorRootNode, bool bSaveAnimSeq = true);
 
+	/** Initializing the AnimStack playrate from the AnimSequence */
+	bool SetupAnimStack(const UAnimSequence* AnimSeq);
+
 	/**
 	 * Add the given animation sequence as rotation and translation tracks to the given list of bone nodes
 	 */
 	void ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq, const USkeletalMesh* SkelMesh, TArray<FbxNode*>& BoneNodes, FbxAnimLayer* AnimLayer,
 		float AnimStartOffset, float AnimEndOffset, float AnimPlayRate, float StartTime);
+
+	/**
+	 * Add the custom Curve data to the FbxAnimCurves passed in parameter by matching their name to the skeletal mesh custom curves.
+	 */
+	void ExportCustomAnimCurvesToFbx(const TMap<FName, FbxAnimCurve*>& CustomCurves, const UAnimSequence* AnimSeq,
+		float AnimStartOffset, float AnimEndOffset, float AnimPlayRate, float StartTime, float ValueScale = 1.f);
+
+	/**
+	 * Used internally to reuse the AnimSequence iteration code when exporting various kind of curves.
+	 */
+	void IterateInsideAnimSequence(const UAnimSequence* AnimSeq, float AnimStartOffset, float AnimEndOffset, float AnimPlayRate, float StartTime, TFunctionRef<void(float, FbxTime, bool)> IterationLambda);
 
 	/** 
 	 * The curve code doesn't differentiate between angles and other data, so an interpolation from 179 to -179
@@ -483,6 +507,8 @@ private:
 public:
 	/** Returns currently active FBX export options. Automation or UI dialog based options. */
 	UFbxExportOption* GetExportOptions();
+
+	bool bSceneGlobalTimeLineSet = false;
 };
 
 

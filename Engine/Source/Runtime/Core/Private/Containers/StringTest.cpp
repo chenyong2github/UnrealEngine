@@ -46,4 +46,44 @@ bool FStringSanitizeFloatTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringAppendIntTest, "System.Core.String.AppendInt", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FStringAppendIntTest::RunTest(const FString& Parameters)
+{
+	auto DoTest = [this](const TCHAR* Call, const FString& Result, const TCHAR* InExpected)
+	{
+		if (!Result.Equals(InExpected, ESearchCase::CaseSensitive))
+		{
+			AddError(FString::Printf(TEXT("'%s' failure: result '%s' (expected '%s')"), Call, *Result, InExpected));
+		}
+	};
+
+	{
+		FString Zero;
+		Zero.AppendInt(0);
+		DoTest(TEXT("AppendInt(0)"), Zero, TEXT("0"));
+	}
+
+	{
+		FString IntMin;
+		IntMin.AppendInt(MIN_int32);
+		DoTest(TEXT("AppendInt(MIN_int32)"), IntMin, TEXT("-2147483648"));
+	}
+
+	{
+		FString IntMin;
+		IntMin.AppendInt(MAX_int32);
+		DoTest(TEXT("AppendInt(MAX_int32)"), IntMin, TEXT("2147483647"));
+	}
+
+	{
+		FString AppendMultipleInts;
+		AppendMultipleInts.AppendInt(1);
+		AppendMultipleInts.AppendInt(-2);
+		AppendMultipleInts.AppendInt(3);
+		DoTest(TEXT("AppendInt(1);AppendInt(-2);AppendInt(3)"), AppendMultipleInts, TEXT("1-23"));
+	}
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

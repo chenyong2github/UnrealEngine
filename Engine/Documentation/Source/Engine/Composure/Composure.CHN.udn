@@ -1,46 +1,36 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:Composure 编辑器
-Crumbs: %ROOT%, Engine
-Description:Composure 是在虚幻引擎 4 中实时合成数字影像素材和真实影像素材的合成编辑器。 
-Type: Landing
-Version: 4.17
-parent:Engine
-order:4
-topic-image:ComposureTopic.png
-related: Engine/Sequencer
-tags:Sequencer
-
-![](ComposureBanner.png)
-
-**Composure** 编辑器可结合 Sequencer 编辑器使用，实时合成电脑生成和真实影像素材，最终形成电影或电视节目中的效果。Composure 的工作方式与其他合成软件相似，既可匹配摄像机光学变形，也可决定前景和背景物体的差别。主要区别是 Composure 中的全部操作均为实时执行。
-
-此页面包含大量文档链接，这些文档说明如何在虚幻引擎 4 中使用 Composure 的各个功能。如您刚开始使用 Composure，建议先阅读 Composure 快速入门，了解如何结合 Sequencer 使用 Composure。
-
-(#StartingOut)
-## 开始
-
-[DIR(output:"topic" parent:"Engine/Composure" org:"hierarchy" end:"1" tags:"Getting Started")]
-
-[COMMENT:none]
-
-(#Essentials)
-## 概要
+﻿INTSourceChangelist:6429916
+Availability: Public
+Title: 使用Composure的实时合成
+Description: 在虚幻引擎提供的图形工具插件Composure中，我们添加了一组新工具以便大幅简化合成工作。
+Type:landing
+Version: 4.22
+Parent: Engine
+Tags: Composure
+Tags: Early Access
+Tags: Landing Page
+topic-image:CompositingOverview_Layered.png
+Order: 35
 
 
+[TOC (start:2 end:4)]
 
-(#Guides)
-## 指南
+![](CompositingOverview_Layered.png "CompositingOverview_Layered.png")
 
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Beginner")]
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Intermediate")]
-[DIR(output:"fancy" parent:"Engine/Composure/HowTo" org:"hierarchy" skill_Level:"Advanced")]
+  
 
-(#Samples)
-## 示例
+在虚幻引擎提供的图形工具插件Composure中，我们添加了一组新工具以便大幅简化合成工作。
 
+合成是指将来自不同来源的视觉元素合并到一个图像的操作。在视觉效果行业中，合成单个帧通常是线下流程，可能需要一些时间。通过在引擎中内置合成，用户可以轻松地实时可视化绿幕场景与CG。这对于可视化预览尤其有用，这样导演可以大概了解最终场景的效果，或者供线下合成师用作参考。合成将在编辑器中和游戏中运行。
 
-[/COMMENT]
+  
+
+##入门
+
+[DIR(output:"topic" parent:"Engine/Composure" tags:"Getting Started")]
+
+##参考
+
+[DIR(output:"topic" parent:"Engine/Composure" tags:"Reference")]
 
 
 

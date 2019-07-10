@@ -1,0 +1,27 @@
+﻿INTSourceChangelist:3782314
+Availability:Public
+Crumbs: %ROOT%,  Platforms
+Title:Oculus 指南
+Description:如何结合 UE4 使用 Rift 的详细步骤指南。
+Type: how-to
+Version:4.17
+Parent:Platforms/VR/OculusVR/OculusRift
+Order:1
+Tags:Platform
+topic-image:Oculus_How_To_Header.png
+
+Oculus 指南中包含详细的步骤教程，指导用户如何结合 UE4 使用 Oculus Rift。
+
+(#Beginner)
+## 初级
+
+Oculus Rift 初级指南将说明如何设置 UE4 项目兼容 Rift 头戴显示器、控制器及 Guardian 系统。
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+
+(#Intermediate)
+## 中级
+
+Oculus Rift 中级指南将说明如何调整 Guardian 系统的颜色，如何使用触摸控制器选取对象，以及如何使用立体分层来显示信息。
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]

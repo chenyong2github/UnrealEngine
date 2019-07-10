@@ -7,119 +7,67 @@
 #include "Templates/TypeHash.h"
 #include "Misc/ScopeLock.h"
 #include "Async/AsyncFileHandle.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
+#include "HAL/IConsoleManager.h"
 
 DECLARE_STATS_GROUP(TEXT("Streaming File Cache"), STATGROUP_SFC, STATCAT_Advanced);
 
-//Use: SCOPE_CYCLE_COUNTER(STAT_SFC_CopyIntoCacheMemcpy);
-DECLARE_CYCLE_STAT(TEXT("Process Residency"), STAT_SFC_ProcessResidency, STATGROUP_SFC);
-DECLARE_CYCLE_STAT(TEXT("Process Completed Requests"), STAT_SFC_ProcessCompletedRequests, STATGROUP_SFC);
+DECLARE_CYCLE_STAT(TEXT("Create Handle"), STAT_SFC_CreateHandle, STATGROUP_SFC);
 DECLARE_CYCLE_STAT(TEXT("Read Data"), STAT_SFC_ReadData, STATGROUP_SFC);
-DECLARE_CYCLE_STAT(TEXT("Request Cache Lines"), STAT_SFC_RequestLines, STATGROUP_SFC);
 DECLARE_CYCLE_STAT(TEXT("EvictAll"), STAT_SFC_EvictAll, STATGROUP_SFC);
 
 // These below are pretty high throughput and probably should be removed once the system gets more mature
 DECLARE_CYCLE_STAT(TEXT("Find Eviction Candidate"), STAT_SFC_FindEvictionCandidate, STATGROUP_SFC);
-DECLARE_CYCLE_STAT(TEXT("Map Cache"), STAT_SFC_MapCache, STATGROUP_SFC);
-DECLARE_CYCLE_STAT(TEXT("Read Data Memcpy"), STAT_SFC_ReadDataMemcpy, STATGROUP_SFC);
-DECLARE_CYCLE_STAT(TEXT("Copy Into Cache Memcpy"), STAT_SFC_CopyIntoCacheMemcpy, STATGROUP_SFC);
 
 DEFINE_LOG_CATEGORY_STATIC(LogStreamingFileCache, Log, All);
 
 static const int CacheLineSize = 64 * 1024;
-static const int UnusedThreshold = 4;
-static const int IoBlockSize = 512 * 1024;
-static const int CacheLinesPerIOBlock = IoBlockSize / CacheLineSize;
 
 #define NUM_CACHE_BLOCKS 512
+
+static int32 MaxNumLiveRequests = 32;
+static FAutoConsoleVariableRef CVarNumLiveRequests(
+	TEXT("sfc.MaxNumLiveRequests"),
+	MaxNumLiveRequests,
+	TEXT("Number of read request that can be in flight. default 32\n")
+	, ECVF_Default
+);
 
 // 
 // Strongly typed ids to avoid confusion in the code
 // 
-
 template <int SetBlockSize, typename Parameter> class StrongBlockIdentifier
 {
-
 	static const int InvalidHandle = 0xFFFFFFFF;
 
 public:
+	static const int32 BlockSize = SetBlockSize;
 
-	StrongBlockIdentifier() : Id(InvalidHandle)
-	{
-
-	}
-
+	StrongBlockIdentifier() : Id(InvalidHandle) {}
 	explicit StrongBlockIdentifier(int32 SetId) : Id(SetId) {}
 
-	bool IsValid() const
-	{
-		return Id != InvalidHandle;
-	}
+	inline bool IsValid() const { return Id != InvalidHandle; }
+	inline int32 Get() const { checkSlow(IsValid()); return Id; }
 
-	int32 Get() const {
-		check(IsValid());
-		return Id;
-	}
-
-	StrongBlockIdentifier& operator++()
-	{
-		Id = Id + 1;
-		return *this;
-	}
-
-	StrongBlockIdentifier& operator--()
-	{
-		Id = Id - 1;
-		return *this;
-	}
-
-	StrongBlockIdentifier operator++(int)
-	{
-		StrongBlockIdentifier Temp(*this);
-		operator++();
-		return Temp;
-	}
-
-	StrongBlockIdentifier operator--(int)
-	{
-		StrongBlockIdentifier Temp(*this);
-		operator--();
-		return Temp;
-	}
+	inline StrongBlockIdentifier& operator++() { Id = Id + 1; return *this; }
+	inline StrongBlockIdentifier& operator--() { Id = Id - 1; return *this; }
+	inline StrongBlockIdentifier operator++(int) { StrongBlockIdentifier Temp(*this); operator++(); return Temp; }
+	inline StrongBlockIdentifier operator--(int) { StrongBlockIdentifier Temp(*this); operator--(); return Temp; }
 
 	// Get the offset in the file to read this block
-	int64 GetOffset()
-	{
-		check(IsValid());
-		return (int64_t)Id * (int64_t)BlockSize;
-	}
+	inline int64 GetOffset() const { checkSlow(IsValid()); return (int64)Id * (int64)BlockSize; }
+	inline int64 GetSize() const { checkSlow(IsValid()); return BlockSize; }
 
 	// Get the number of bytes that need to be read for this block
 	// takes into account incomplete blocks at the end of the file
-	int64 GetSize(int64 FileSize)
-	{
-		check(IsValid());
-		return FMath::Min((int64)BlockSize, FileSize - GetOffset());
-	}
+	inline int64 GetSize(int64 FileSize) const { checkSlow(IsValid()); return FMath::Min((int64)BlockSize, FileSize - GetOffset()); }
 
-	friend uint32 GetTypeHash(const StrongBlockIdentifier<SetBlockSize, Parameter>& Info)
-	{
-		return GetTypeHash(Info.Id);
-	}
+	friend inline uint32 GetTypeHash(const StrongBlockIdentifier<SetBlockSize, Parameter>& Info) { return GetTypeHash(Info.Id); }
 
-
-	bool operator== (const StrongBlockIdentifier<SetBlockSize, Parameter>&Other) const
-	{
-		return Id == Other.Id;
-	}
-
-	bool operator!= (const StrongBlockIdentifier<SetBlockSize, Parameter>&Other) const
-	{
-		return !(*this == Other);
-	}
-
-	static const int32 BlockSize = SetBlockSize;
+	inline bool operator==(const StrongBlockIdentifier<SetBlockSize, Parameter>&Other) const { return Id == Other.Id; }
+	inline bool operator!=(const StrongBlockIdentifier<SetBlockSize, Parameter>&Other) const { return Id != Other.Id; }
 
 private:
 	int32 Id;
@@ -127,7 +75,6 @@ private:
 
 using CacheLineID = StrongBlockIdentifier<CacheLineSize, struct CacheLineStrongType>; // Unique per file handle
 using CacheSlotID = StrongBlockIdentifier<CacheLineSize, struct CacheSlotStrongType>; // Unique per cache
-using IoBlockID = StrongBlockIdentifier<IoBlockSize, struct IoBlockStrongType>;
 
 class FFileCacheHandle;
 
@@ -135,332 +82,101 @@ class FFileCacheHandle;
 // A line: A fixed size block of a file on disc that can be brought into the cache
 // Slot: A fixed size piece of memory that can contain the data for a certain line in memory
 
-#define MIN_STATUS 0xFFFF			// A status value below this means the cache line is mapped to the cache slot corresponding to the value
-#define LOCKED MIN_STATUS + 1		// This status value means the line is currently locked by other code (there is no difference between read/write locking for now)
-#define UNAVAILABLE MIN_STATUS + 2	// This status value means the line is currently not available in memory (it was never loaded or has been evicted)
-
-/**
- * Per open file handle this manages the residency of the cache lines pertaining to that file.
- * This class is lock less and can be used from any thread.
- */
-class SharedResidency
-{
-public:
-
-	SharedResidency() {}
-	~SharedResidency() {
-		// Just do a sanity check that nothing is locked or resident anymore which would mean this instance can't be destroyed now
-		// If it's locked -> Something is still using this data and cleary it has to be finised before we can destroy
-		// IF it's resident -> If we destroy this class how can the EvictionPolicyManager ever correctly notify us of eviction
-		for (int i = 0; i < Lines.Num(); i++)
-		{
-			checkf(Lines[i] == UNAVAILABLE, TEXT("A cache line was still locked or resident"));
-		}
-	}
-
-	/**
-	 * Specify the number of cache lines to manage.
-	 */
-	void Initialize(int32 NumLines)
-	{
-		Lines.SetNumUninitialized(NumLines);
-		for (int i = 0; i < NumLines; i++)
-		{
-			Lines[i] = UNAVAILABLE;
-		}
-	}
-
-	/**
-	 * Return true if the data is resident. Note this is only exactly correct the moment this function runs
-	 * If Lock is called immediately after it may still fail because another thread caused it to be eviced in the meantime
-	 * If you want to test and hold guaranteed residency you simply have to call Lock and check the result.
-	 */
-	bool IsResident(CacheLineID Line)
-	{
-		return Lines[Line.Get()] < MIN_STATUS;
-	}
-
-	/**
-	 * Try to lock the cache line. If the data is available and can be locked
-	 * OutSlotId will contain the cache slot where the data can be found.	
-	 * returns true in OutResidencyStatus if the data is resident but currently not available for locking
-	 */
-	bool Lock(CacheLineID Line, CacheSlotID &OutSlotId, bool &OutResidencyStatus)
-	{
-		// Just lock the line whatever it's current status is right now
-		int32 SlotOrStatus = FPlatformAtomics::InterlockedExchange(&Lines[Line.Get()], LOCKED);
-		if (SlotOrStatus < MIN_STATUS)
-		{
-			OutSlotId = CacheSlotID(SlotOrStatus);
-			return true;
-		}
-		else if (SlotOrStatus == LOCKED)
-		{
-			// It was already locked not much to do about this...
-			OutResidencyStatus = true;
-			return false;
-		}
-		else if (SlotOrStatus == UNAVAILABLE)
-		{
-			// It was unavailable but now we changed the status to locked it so unlock it again
-			int32 OldStatus = FPlatformAtomics::InterlockedExchange(&Lines[Line.Get()], UNAVAILABLE);
-			check(OldStatus == LOCKED);
-			OutResidencyStatus = false;
-			return false;
-		}
-		else
-		{
-			checkf(false, TEXT("Invalid status value"));
-			return false;
-		}
-	}
-
-	/**
-	 * Unlock a previously locked page. Obviously only valid if the page was previously 
-	 * successfully locked
-	 */
-	void Unlock(CacheLineID Line, CacheSlotID Slot)
-	{
-		// We successfully locked this slot so put is back in for someone else
-		int OldSlotOrStatus = FPlatformAtomics::InterlockedExchange(&Lines[Line.Get()], Slot.Get());
-		check(OldSlotOrStatus == LOCKED); // We left it in the locked state so should still be there
-	}
-
-
-	// The memory at slotId now contains valid data for this line so now map it so other threads can start using it....
-	void Map(CacheLineID Line, CacheSlotID Slot)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SFC_MapCache);
-
-		// We spin here as another thread may temporary lock even UNAVAILABLE lines. This can only be very short and
-		// only happens in code this class has control over (in SharedResidency::Lock) as UNAVAILABLE lines can not be locked by user
-		// code.
-		int OldSlotOrStatus;
-		while (true)
-		{
-			OldSlotOrStatus = FPlatformAtomics::InterlockedCompareExchange(&Lines[Line.Get()], Slot.Get(), UNAVAILABLE);
-			if (OldSlotOrStatus < MIN_STATUS)
-			{
-				// It's already mapped to something this is a coding error
-				check(false);
-				return;
-			}
-			else if (OldSlotOrStatus == UNAVAILABLE)
-			{
-				// all went fine
-				return;
-			}
-			else if (OldSlotOrStatus == LOCKED)
-			{
-				// Try again until no longer locked...
-			}
-		}
-	}
-
-	// Try to evict the cache line
-	bool TryEvict(CacheLineID Line/*, CacheSlotID Slot*/)
-	{
-		/*// If it's available try to setting it to unmap, if it's not we can't really unmap it now as it's in use
-		if (FPlatformAtomics::InterlockedCompareExchange(&pages[pageID], UNAVAILABLE, slotID) != slotID)
-		{
-			... try evicting something else
-				return UNAVAILABLE;
-		}
-
-		return slotId->Available right now*/
-
-		CacheSlotID Slot;
-		bool Status;
-
-		if (Lock(Line, Slot, Status))
-		{
-			// Instead of unlocking it we just set it's status to unavailable
-			int OldSlotOrStatus = FPlatformAtomics::InterlockedExchange(&Lines[Line.Get()], UNAVAILABLE);
-			check(OldSlotOrStatus == LOCKED); // We left it in the locked state so should still be there
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-protected:
-
-	TArray<int32> Lines;
-};
-
-
-/////////
-
-// Uniquely identifies a cache line in a file
-// Should this be called LineInfo instead...?!?
-struct SlotInfo
-{
-	SlotInfo() : Handle(nullptr), Line(0) {}
-	SlotInfo(FFileCacheHandle *SetHandle, CacheLineID SetLine) : Handle(SetHandle), Line(SetLine) {}
-
-	FFileCacheHandle *Handle;
-	CacheLineID Line;
-
-	bool operator== (const SlotInfo &Other) const
-	{
-		return Handle == Other.Handle && Line == Other.Line;
-	}
-
-	friend uint32 GetTypeHash(const SlotInfo &Info)
-	{
-		return HashCombine(::GetTypeHash(Info.Line.Get()), PointerHash(Info.Handle));
-	}
-
-	/**
-	 * Check if the is currently empty. I.e doesn't contain data for any cache line
-	 */
-	inline bool IsEmpty()
-	{
-		return (Handle == nullptr);
-	}
-};
-
 ////////////////
 
-/**
- * Per cache (currently there's only once cache so this is a singleton) an instance of this class is created
- * to manage eviction of items in the cache.
- * 
- * Thread safety: This class is save to use from any thread.
- * Locking: Performance critical functions are lock less others may take locks.
- */
-class EvictionPolicyManager
+class FFileCache
 {
 public:
+	explicit FFileCache(int32 NumSlots);
 
-	EvictionPolicyManager(int NumSlots) : OutstandingMessages(0)
-	{
-		checkf(SlotInfos.Num() == 0, TEXT("EvictionPolicyManager was already initialized"));
-		SlotInfos.AddDefaulted(NumSlots);
-		for (int i = 0; i < NumSlots; i++)
-		{
-			LruHeap.Add(0, i);
-		}
-	}
-
-	/**
-	 * Notify the manager that a certain slot in the cache was used.
-	 * This is most of the time a non blocking lock less operation. 
-	 * If to many outstanding touches are queued the list will be flushed nonetheless
-	 */
-	void SendPageTouched(const SlotInfo &Info)
-	{
-		// FIXME: save the current time here too? In case it was queued a long time ago
-		Messages.Enqueue(Info);
-		FPlatformAtomics::InterlockedIncrement(&OutstandingMessages);
-
-		if (OutstandingMessages > 1024)
-		{
-			FScopeLock Lock(&CriticalSection);
-			ProcessMessages();
-		}
-	}
-
-	/**
-	 * Find a suitable cache slot and assign it to the specified cache line.
-	 * The returned cache slot id will not be returned by FindEvictionCandidate again
-	 * until it is made available for eviction again by calling MakeAvailableForEviction
-	 */
-	bool FindEvictionCandidate(const SlotInfo &NewOwner, CacheSlotID &OutCacheSlot);
-
-	/**
-	 * Make the cache item available for eviction again.
-	 */
-	void MakeAvailableForEviction(CacheSlotID &CacheSlot)
-	{
-		FScopeLock Lock(&CriticalSection);
-		LruHeap.Add(GetLruKey(), CacheSlot.Get() );
-	}
-
-	/**
-	 * Evict all items for the specified file.
-	 */
-	bool EvictAll(FFileCacheHandle *File);
-
-private:
-
-	void ProcessMessages()
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SFC_ProcessResidency);
-		SlotInfo Message;
-		while (Messages.Dequeue(Message))
-		{
-			FPlatformAtomics::InterlockedDecrement(&OutstandingMessages);
-			CacheSlotID Slot = ResidencyMap.FindRef(Message);
-			if (Slot.IsValid())
-			{
-				LruHeap.Update(GetLruKey(), Slot.Get());
-			}
-		}
-	}
-
-	int64 GetLruKey()
-	{
-		return FPlatformTime::Cycles64();
-	}
-
-	inline void SanityCheck()
-	{
-		check(ResidencyMap.Num() <= SlotInfos.Num());
-		check(LruHeap.Num() <= (uint32)SlotInfos.Num());
-	}
-
-	FCriticalSection CriticalSection;
-	TQueue<SlotInfo, EQueueMode::Mpsc> Messages;	// We only ever consume items in the critical section so there really is only a single consumer even if it runs on searate threads...
-	TArray<SlotInfo> SlotInfos;						// Cache slot -> SlotInfo lookup
-	TMap<SlotInfo, CacheSlotID> ResidencyMap;		// SlotInfo -> Cache slot lookup
-	FBinaryHeap<int64, uint32> LruHeap;
-	int32 OutstandingMessages;
-};
-
-EvictionPolicyManager &GetEvictionPolicy()
-{
-	static EvictionPolicyManager Manager(NUM_CACHE_BLOCKS);
-	return Manager;
-}
-
-/**
- * Simply manages cache memory. This is a rather uninteresting helper class
- * the real magic happens elsewhere.
- */
-template <class BlockType> class Cache
-{
-public:
-	Cache(int32 SizeInBytes)
-	{
-		SizeInBlocks = SizeInBytes / BlockType::BlockSize;
-		Memory = (uint8 *)FMemory::Malloc(SizeInBytes);
-	}
-
-	~Cache()
+	~FFileCache()
 	{
 		FMemory::Free(Memory);
 	}
 
-	uint8 *operator[] (BlockType &Block)
+	uint8* GetSlotMemory(CacheSlotID SlotID)
 	{
-		check(Block.Get() < SizeInBlocks);
-		return Memory + Block.Get() * BlockType::BlockSize;
+		check(SlotID.Get() < SlotInfo.Num() - 1);
+		check(IsSlotLocked(SlotID)); // slot must be locked in order to access memory
+		return Memory + SlotID.Get() * CacheSlotID::BlockSize;
 	}
 
-protected:
-	int32 SizeInBlocks;
-	uint8 *Memory;
+	CacheSlotID AcquireAndLockSlot(FFileCacheHandle* InHandle, CacheLineID InLineID);
+	bool IsSlotLocked(CacheSlotID InSlotID) const;
+	void LockSlot(CacheSlotID InSlotID);
+	void UnlockSlot(CacheSlotID InSlotID);
+
+	// if InFile is null, will evict all slots
+	bool EvictAll(FFileCacheHandle* InFile = nullptr);
+
+	struct FSlotInfo
+	{
+		FFileCacheHandle* Handle;
+		CacheLineID LineID;
+		int32 NextSlotIndex;
+		int32 PrevSlotIndex;
+		int32 LockCount;
+	};
+
+	void EvictFileCacheFromConsole()
+	{
+		EvictAll();
+	}
+
+	inline void UnlinkSlot(int32 SlotIndex)
+	{
+		check(SlotIndex != 0);
+		FSlotInfo& Info = SlotInfo[SlotIndex];
+		SlotInfo[Info.PrevSlotIndex].NextSlotIndex = Info.NextSlotIndex;
+		SlotInfo[Info.NextSlotIndex].PrevSlotIndex = Info.PrevSlotIndex;
+		Info.NextSlotIndex = Info.PrevSlotIndex = SlotIndex;
+	}
+
+	inline void LinkSlotTail(int32 SlotIndex)
+	{
+		check(SlotIndex != 0);
+		FSlotInfo& HeadInfo = SlotInfo[0];
+		FSlotInfo& Info = SlotInfo[SlotIndex];
+		check(Info.NextSlotIndex == SlotIndex);
+		check(Info.PrevSlotIndex == SlotIndex);
+
+		Info.NextSlotIndex = 0;
+		Info.PrevSlotIndex = HeadInfo.PrevSlotIndex;
+		SlotInfo[HeadInfo.PrevSlotIndex].NextSlotIndex = SlotIndex;
+		HeadInfo.PrevSlotIndex = SlotIndex;
+	}
+
+	inline void LinkSlotHead(int32 SlotIndex)
+	{
+		check(SlotIndex != 0);
+		FSlotInfo& HeadInfo = SlotInfo[0];
+		FSlotInfo& Info = SlotInfo[SlotIndex];
+		check(Info.NextSlotIndex == SlotIndex);
+		check(Info.PrevSlotIndex == SlotIndex);
+
+		Info.NextSlotIndex = HeadInfo.NextSlotIndex;
+		Info.PrevSlotIndex = 0;
+		SlotInfo[HeadInfo.NextSlotIndex].PrevSlotIndex = SlotIndex;
+		HeadInfo.NextSlotIndex = SlotIndex;
+	}
+
+	FCriticalSection CriticalSection;
+
+	FAutoConsoleCommand EvictFileCacheCommand;
+
+	TLockFreePointerListUnordered<IAsyncReadRequest, PLATFORM_CACHE_LINE_SIZE> CompletedRequests;
+
+	// allocated with an extra dummy entry at index0 for linked list head
+	TArray<FSlotInfo> SlotInfo;
+	uint8* Memory;
+	int32 NumFreeSlots;
 };
 
-Cache<CacheSlotID> &GetCache()
+static FFileCache &GetCache()
 {
-	static Cache<CacheSlotID> TheCache(CacheLineSize * NUM_CACHE_BLOCKS); // Large enough for now?
+	static FFileCache TheCache(NUM_CACHE_BLOCKS);
 	return TheCache;
 }
-
 
 ///////////////
 
@@ -468,20 +184,18 @@ class FFileCacheHandle : public IFileCacheHandle
 {
 public:
 
-	FFileCacheHandle();
+	FFileCacheHandle(IAsyncReadFileHandle* InHandle);
 	virtual ~FFileCacheHandle() override;
-	bool Initialize(const FString &FileName);
 
 	//
 	// Block helper functions. These are just convenience around basic math.
 	// 
-	 
+
 	/*
 	 * Get the block id that contains the specified offset
 	 */
 	template<typename BlockIDType> inline BlockIDType GetBlock(int64 Offset)
 	{
-		checkf(Offset < FileSize, TEXT("Offset beyond end of file"));
 		return BlockIDType(FMath::DivideAndRoundDown(Offset, (int64)BlockIDType::BlockSize));
 	}
 
@@ -493,466 +207,429 @@ public:
 	}
 
 	// Returns the offset within the first block covering the byte range to read from
-	template<typename BlockIDType> inline size_t GetBlockOffset(int64 Offset)
+	template<typename BlockIDType> inline int64 GetBlockOffset(int64 Offset)
 	{
 		return Offset - FMath::DivideAndRoundDown(Offset, (int64)BlockIDType::BlockSize) *  BlockIDType::BlockSize;
 	}
 
 	// Returns the size within the first cache line covering the byte range to read
-	template<typename BlockIDType> inline size_t GetBlockSize(int64 Offset, int64 Size)
+	template<typename BlockIDType> inline int64 GetBlockSize(int64 Offset, int64 Size)
 	{
 		int64 OffsetInBlock = GetBlockOffset<BlockIDType>(Offset);
 		return FMath::Min((int64)(BlockIDType::BlockSize - OffsetInBlock), Size - Offset);
 	}
 
-	IFileCacheReadBuffer* ReadData(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags) override;
+	IMemoryReadStreamRef ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority) override;
 
 	void WaitAll() override;
 
-	SharedResidency &GetSharedResidency()
-	{
-		return Residency;
-	}
-
-	CacheLineID GetFirstLine()
-	{
-		return CacheLineID(0);
-	}
-
-	// Returns a cache line past the end of the list
-	CacheLineID GetEndLine()
-	{
-		return CacheLineID(NumSlots);
-	}
+	void Evict(CacheLineID Line);
 
 private:
-
-	int64 FileSize;
-	int64 NumSlots;
-	IAsyncReadFileHandle *InnerHandle;
-	SharedResidency Residency;
-
-	struct CompletedRequest
+	struct FPendingRequest
 	{
-		CompletedRequest() : Data(nullptr), Offset(0), Size(0) {};
-		CompletedRequest(IAsyncReadRequest *SetData, int64 SetOffset, int64 SetSize) : Data(SetData), Offset(SetOffset), Size(SetSize) {};
-		IAsyncReadRequest *Data;
-		int64 Offset;
-		int64 Size;
+		FGraphEventRef Event;
 	};
 
-	TQueue<CompletedRequest> CompletedRequests; // Requests and relevant related info that have been completed
-	TArray<CompletedRequest> LiveRequests; // Request that have been created and need to be freed by us
+	TArray<CacheSlotID> LineToSlot;
+	TArray<FPendingRequest> LineToRequest;
 
-	void ProcessCompletedRequests();
-
-	void RequestLines(TArray<CacheLineID> &SortedLines);
+	int64 NumSlots;
+	int64 FileSize;
+	IAsyncReadFileHandle* InnerHandle;
+	FGraphEventRef SizeRequestEvent;
 };
 
 ///////////////
 
-/**
-* Find a suitable cache slot and assign it to the specified cache line.
-* FIXME: This gets the lock and usually we want to evict a whole bunch of lines at once when a big read request completes so it
-* may be a bit better perf-wise to buffer this?
-*/
-bool EvictionPolicyManager::FindEvictionCandidate(const SlotInfo &NewOwner, CacheSlotID &OutCacheSlot)
+FFileCache::FFileCache(int32 NumSlots)
+	: EvictFileCacheCommand(TEXT("r.VT.EvictFileCache"), TEXT("Evict all the file caches in the VT system."),
+		FConsoleCommandDelegate::CreateRaw(this, &FFileCache::EvictFileCacheFromConsole))
+	, NumFreeSlots(NumSlots)
+{
+	const int32 SizeInBytes = NumSlots * CacheSlotID::BlockSize;
+	Memory = (uint8*)FMemory::Malloc(SizeInBytes);
+
+	SlotInfo.AddUninitialized(NumSlots + 1);
+	for (int i = 0; i <= NumSlots; ++i)
+	{
+		FSlotInfo& Info = SlotInfo[i];
+		Info.Handle = nullptr;
+		Info.LineID = CacheLineID();
+		Info.LockCount = 0;
+		Info.NextSlotIndex = i + 1;
+		Info.PrevSlotIndex = i - 1;
+	}
+
+	// list is circular
+	SlotInfo[0].PrevSlotIndex = NumSlots;
+	SlotInfo[NumSlots].NextSlotIndex = 0;
+}
+
+CacheSlotID FFileCache::AcquireAndLockSlot(FFileCacheHandle* InHandle, CacheLineID InLineID)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SFC_FindEvictionCandidate);
 
-	FScopeLock Lock(&CriticalSection);
-	SanityCheck();
+	check(NumFreeSlots > 0);
+	--NumFreeSlots;
 
-	// Update the lru with recent info
-	// after this function returns this is not necessarily the absolute latest info
-	// but good enough
-	ProcessMessages();
+	const int32 SlotIndex = SlotInfo[0].NextSlotIndex;
+	check(SlotIndex != 0);
 
-	int32 NumLruItems = LruHeap.Num();
-
-	// We could stop trying to find an unlocked item here sooner or later... this is rather arbitrary
-	// in the end it should be pretty rare tough to find a lot of items locked
-	for (int Tries = 0; Tries < NumLruItems; Tries++) // Once we tried all items it means they;re all locked and we're all out of luck
+	FSlotInfo& Info = SlotInfo[SlotIndex];
+	check(Info.LockCount == 0); // slot should not be in free list if it's locked
+	if (Info.Handle)
 	{
-		int32 CacheSlot = LruHeap.Top();
-		SlotInfo &Info = SlotInfos[CacheSlot];
-		if (Info.IsEmpty())
-		{
-			// Never allocated before just return it
-			//UE_LOG(LogStreamingFileCache, Log, TEXT("Allocating new slot %i"), CacheSlot);
-			LruHeap.Pop();
-			Info = NewOwner;
-			OutCacheSlot = CacheSlotID(CacheSlot);
-			ResidencyMap.FindOrAdd(Info) = OutCacheSlot;
-			return true;
-		}
-		else
-		{
-			// It's already allocated try to evict it
-			if (Info.Handle->GetSharedResidency().TryEvict(Info.Line))
-			{
-				//UE_LOG(LogStreamingFileCache, Log, TEXT("Evicting slot %i (was %llu,%i)"), CacheSlot, (int64)Info.Handle, Info.Line.Get());
-
-				int32 NumRemoved = ResidencyMap.Remove(Info);
-				check(NumRemoved > 0);
-
-				LruHeap.Pop();
-				Info = NewOwner;
-				OutCacheSlot = CacheSlotID(CacheSlot);
-				ResidencyMap.FindOrAdd(Info) = OutCacheSlot;
-				return true;
-			}
-			else
-			{
-				//UE_LOG(LogStreamingFileCache, Log, TEXT("Could not evict slot %i, in use"), CacheSlot);
-
-				// This case should be pretty rare. If we get here it means we took the least recently used item but found it still
-				// locked. This probably means the cache is thrashing as "least recently" must still be "pretty recent" or at least
-				// recent enough that some code decided to keep it locked.
-				// 
-				// We can't really solve this here so we mark it as used just now so we won't try to evict it again for a while
-				// The loop in the containing scope will then test new least recently used in the hope we will succeed in evicting that.
-				// If this loop fails having tried all slots we'll just give up as this means all pages are locked.
-				LruHeap.Update(GetLruKey(), CacheSlot);
-			}
-		}
+		Info.Handle->Evict(Info.LineID);
 	}
 
-	return false;
+	Info.LockCount = 1;
+	Info.Handle = InHandle;
+	Info.LineID = InLineID;
+	UnlinkSlot(SlotIndex);
+
+	return CacheSlotID(SlotIndex - 1);
 }
 
-/**
-* Evict all items for the specified file.
-* Returns false if some items could not be evicted (e.g. because they are still locked)
-*/
-bool EvictionPolicyManager::EvictAll(FFileCacheHandle *File)
+bool FFileCache::IsSlotLocked(CacheSlotID InSlotID) const
+{
+	const int32 SlotIndex = InSlotID.Get() + 1;
+	const FSlotInfo& Info = SlotInfo[SlotIndex];
+	return Info.LockCount > 0;
+}
+
+void FFileCache::LockSlot(CacheSlotID InSlotID)
+{
+	const int32 SlotIndex = InSlotID.Get() + 1;
+	FSlotInfo& Info = SlotInfo[SlotIndex];
+	const int32 PrevLockCount = Info.LockCount;
+	if (PrevLockCount == 0)
+	{
+		check(NumFreeSlots > 0);
+		--NumFreeSlots;
+		UnlinkSlot(SlotIndex);
+	}
+	Info.LockCount = PrevLockCount + 1;
+}
+
+void FFileCache::UnlockSlot(CacheSlotID InSlotID)
+{
+	const int32 SlotIndex = InSlotID.Get() + 1;
+	const int32 PrevLockCount = SlotInfo[SlotIndex].LockCount;
+	check(PrevLockCount > 0);
+	if (PrevLockCount == 1)
+	{
+		// move slot back to the free list when it's unlocked
+		LinkSlotTail(SlotIndex);
+		++NumFreeSlots;
+		check(NumFreeSlots < SlotInfo.Num());
+	}
+	SlotInfo[SlotIndex].LockCount = PrevLockCount - 1;
+}
+
+bool FFileCache::EvictAll(FFileCacheHandle* InFile)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SFC_EvictAll);
 
 	FScopeLock Lock(&CriticalSection);
 
-	// Update the lru with recent info
-	// after this function returns this is not necessarily the absolute latest info
-	// but good enough
-	ProcessMessages();
-	SanityCheck();
-
-	bool AllOk = true;
-
-	for (CacheLineID Line = File->GetFirstLine(); Line != File->GetEndLine(); Line++)
+	bool bAllOK = true;
+	for (int SlotIndex = 1; SlotIndex < SlotInfo.Num(); ++SlotIndex)
 	{
-		SlotInfo Info(File, Line);
-		CacheSlotID Slot = ResidencyMap.FindRef(Info);
-		if (Slot.IsValid())
+		FSlotInfo& Info = SlotInfo[SlotIndex];
+		if (Info.Handle && ((Info.Handle == InFile) || InFile == nullptr))
 		{
-			// It's already allocated try to evict it
-			if (!Info.Handle->GetSharedResidency().TryEvict(Line))
+			if (Info.LockCount == 0)
 			{
-				AllOk = false;
+				Info.Handle->Evict(Info.LineID);
+				Info.Handle = nullptr;
+				Info.LineID = CacheLineID();
+	
+				// move evicted slots to the front of list so they'll be re-used more quickly
+				UnlinkSlot(SlotIndex);
+				LinkSlotHead(SlotIndex);
 			}
 			else
 			{
-				ResidencyMap.Remove(Info);
-				// Make it a prime candiate for reuse
-				LruHeap.Update(0, Slot.Get());
-				SlotInfos[Slot.Get()] = SlotInfo();
+				bAllOK = false;
 			}
 		}
 	}
 
-	return AllOk;
+	return bAllOK;
 }
-
-///////////////
 
 FFileCacheHandle::~FFileCacheHandle()
 {
+	if (SizeRequestEvent)
+	{
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(SizeRequestEvent);
+		SizeRequestEvent.SafeRelease();
+	}
+
 	if (InnerHandle)
 	{
 		WaitAll();
-		check(LiveRequests.Num() == 0);
-		bool result = GetEvictionPolicy().EvictAll(this);
+
+		const bool result = GetCache().EvictAll(this);
 		check(result);
 		delete InnerHandle;
 	}
 }
 
-FFileCacheHandle::FFileCacheHandle() : FileSize(0), InnerHandle(nullptr)
+FFileCacheHandle::FFileCacheHandle(IAsyncReadFileHandle* InHandle)
+	: NumSlots(0)
+	, FileSize(-1)
+	, InnerHandle(InHandle)
 {
+	FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
+	FAsyncFileCallBack SizeCallbackFunction = [this, CompletionEvent](bool bWasCancelled, IAsyncReadRequest* Request)
+	{
+		GetCache().CompletedRequests.Push(Request);
 
+		this->FileSize = Request->GetSizeResults();
+		check(this->FileSize > 0);
+
+		TArray<FBaseGraphTask*> NewTasks;
+		CompletionEvent->DispatchSubsequents(NewTasks);
+	};
+
+	SizeRequestEvent = CompletionEvent;
+	IAsyncReadRequest* SizeRequest = InHandle->SizeRequest(&SizeCallbackFunction);
+	check(SizeRequest);
 }
 
-bool FFileCacheHandle::Initialize(const FString &FileName)
+class FMemoryReadStreamCache : public IMemoryReadStream
 {
-	InnerHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FileName);
-	if (InnerHandle == nullptr)
+public:
+	virtual const void* Read(int64& OutSize, int64 InOffset, int64 InSize) override
 	{
-		return false;
+		FFileCache& Cache = GetCache();
+
+		const int64 Offset = InitialSlotOffset + InOffset;
+		const int32 SlotIndex = (int32)FMath::DivideAndRoundDown(Offset, (int64)CacheSlotID::BlockSize);
+		const int32 OffsetInSlot = Offset - SlotIndex * CacheSlotID::BlockSize;
+		const void* SlotMemory = Cache.GetSlotMemory(CacheSlots[SlotIndex]);
+
+		OutSize = FMath::Min(InSize, (int64)CacheSlotID::BlockSize - OffsetInSlot);
+		return (uint8*)SlotMemory + OffsetInSlot;
 	}
 
-	// Get the file size
-	IAsyncReadRequest *SizeRequest = InnerHandle->SizeRequest();
-	if (SizeRequest == nullptr)
+	virtual int64 GetSize() override
 	{
-		delete InnerHandle;
-		InnerHandle = nullptr;
-		return false;
-	}
-	
-	SizeRequest->WaitCompletion();
-	FileSize = SizeRequest->GetSizeResults();
-	delete SizeRequest;
-
-	if (FileSize < 0)
-	{
-		delete InnerHandle;
-		InnerHandle = nullptr;
-		return false;
+		return Size;
 	}
 
-	NumSlots = FMath::DivideAndRoundUp(FileSize, (int64)CacheLineSize);
-	Residency.Initialize((int32)NumSlots);
+	virtual ~FMemoryReadStreamCache()
+	{
+		FFileCache& Cache = GetCache();
+		FScopeLock CacheLock(&Cache.CriticalSection);
+		for (int i = 0; i < CacheSlots.Num(); ++i)
+		{
+			const CacheSlotID& SlotID = CacheSlots[i];
+			check(SlotID.IsValid());
+			Cache.UnlockSlot(SlotID);
+		}
+	}
 
-	return true;
-}
+	TArray<CacheSlotID> CacheSlots;
+	int64 InitialSlotOffset;
+	int64 Size;
+};
 
-IFileCacheReadBuffer *FFileCacheHandle::ReadData(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags)
+IMemoryReadStreamRef FFileCacheHandle::ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SFC_ReadData);
 
-	TArray<CacheLineID> ToRequest;
-	TMap<CacheLineID, CacheSlotID> ResidentPages;
-	TArray<CacheSlotID> LineIndexToMap;
+	const CacheLineID StartLine = GetBlock<CacheLineID>(Offset);
+	const CacheLineID EndLine = GetBlock<CacheLineID>(Offset + BytesToRead - 1);
 
-	checkf(Offset < FileSize, TEXT("Read beyond end of file"));
-	checkf(Offset+BytesToRead <= FileSize, TEXT("Read beyond end of file"));
-
-	// Lock any pages for reading
-	int32 NumCacheLines = GetNumBlocks<CacheLineID>(Offset, BytesToRead);
-	LineIndexToMap.AddDefaulted(NumCacheLines); // We could use a CacheLineID->CacheSlotId map here but this is probably lower overhead assuming most blocks are resident
-	bool AllLocked = true;
-
-	// This will fill the cache with any completed requests.
-	// FIXME: Note this may take some time to copy all the data to the cache
-	// a possible future avenue may be filling the cache from a separate job.
-	ProcessCompletedRequests();
-
-	CacheLineID Line = GetBlock<CacheLineID>(Offset);
-	for (int i=0; i<NumCacheLines; i++, Line++)
+	if (SizeRequestEvent && SizeRequestEvent->IsComplete())
 	{
-		GetEvictionPolicy().SendPageTouched(SlotInfo(this, Line));
+		SizeRequestEvent.SafeRelease();
 
-		CacheSlotID Slot;
-		bool AlreadyResident;
+		check(FileSize > 0);
 
-		if (Residency.Lock(Line, Slot, AlreadyResident))
+		// Make sure we haven't lazily allocated more slots than are in the file, then allocate the final number of slots
+		const int64 TotalNumSlots = FMath::DivideAndRoundUp(FileSize, (int64)CacheLineSize);
+		check(NumSlots <= TotalNumSlots);
+		NumSlots = TotalNumSlots;
+		LineToSlot.SetNum(TotalNumSlots, false);
+		LineToRequest.SetNum(TotalNumSlots, false);
+	}
+
+	int32 NumSlotsNeeded = 0;
+	for (CacheLineID LineID = StartLine; LineID.Get() <= EndLine.Get(); ++LineID)
+	{
+		if (LineID.Get() >= NumSlots || !LineToSlot[LineID.Get()].IsValid())
 		{
-			LineIndexToMap[i] = Slot;
+			++NumSlotsNeeded;
+		}
+	}
+
+	FFileCache& Cache = GetCache();
+
+	// Clean up any finished requests, this list is thread-safe, so can avoid taking the lock while we do this
+	uint32 NumCompletedRequests = 0u;
+	while (IAsyncReadRequest* Request = Cache.CompletedRequests.Pop())
+	{
+		// Requests are added to this list from the completed callback, but the final completion flag is not set until after callback is finished
+		// This means that there's a narrow window where the request is not technically considered to be complete yet
+		// If this happens, just push it back on the list for next time
+		if (!Request->PollCompletion())
+		{
+			Cache.CompletedRequests.Push(Request);
+			break;
+		}
+		delete Request;
+		++NumCompletedRequests;
+
+		// Throttle the number of requests we clean up to avoid stalling any single operation for too long
+		if (NumCompletedRequests >= 4u)
+		{
+			break;
+		}
+	}
+
+	FScopeLock CacheLock(&Cache.CriticalSection);
+	if (NumSlotsNeeded > Cache.NumFreeSlots)
+	{
+		// not enough free slots in the cache to service this request
+		return nullptr;
+	}
+
+	if (EndLine.Get() >= NumSlots)
+	{
+		// If we're still waiting on SizeRequest, may need to lazily allocate some slots to service this request
+		// If this happens after SizeRequest has completed, that means something must have gone wrong
+		check(SizeRequestEvent);
+		NumSlots = EndLine.Get() + 1;
+		LineToSlot.SetNum(NumSlots, false);
+		LineToRequest.SetNum(NumSlots, false);
+	}
+
+	FMemoryReadStreamCache* Result = new FMemoryReadStreamCache();
+	Result->CacheSlots.AddUninitialized(EndLine.Get() + 1 - StartLine.Get());
+	Result->InitialSlotOffset = GetBlockOffset<CacheLineID>(Offset);
+	Result->Size = BytesToRead;
+
+	bool bHasPendingSlot = false;
+	for (CacheLineID LineID = StartLine; LineID.Get() <= EndLine.Get(); ++LineID)
+	{
+		FPendingRequest& PendingRequest = LineToRequest[LineID.Get()];
+
+		CacheSlotID& SlotID = LineToSlot[LineID.Get()];
+		if (!SlotID.IsValid())
+		{
+			// no valid slot for this line, grab a new slot from cache and start a read request
+			SlotID = Cache.AcquireAndLockSlot(this, LineID);
+
+			// previous async request/event (if any) should be completed, if this is back in the free list
+			// clean them up now
+			if (PendingRequest.Event)
+			{
+				check(PendingRequest.Event->IsComplete());
+				PendingRequest.Event.SafeRelease();
+			}
+
+			FGraphEventRef CompletionEvent = FGraphEvent::CreateGraphEvent();
+			PendingRequest.Event = CompletionEvent;
+
+			// Function that performs the actual read
+			auto ReadRequestLamba = [this, LineID, SlotID, Priority, CompletionEvent]
+			{
+				check(this->FileSize >= 0);
+				const int64 LineSizeInFile = LineID.GetSize(this->FileSize);
+				const int64 LineOffsetInFile = LineID.GetOffset();
+				uint8* CacheSlotMemory = GetCache().GetSlotMemory(SlotID);
+
+				// callback triggered when async read operation is complete, used to signal task graph event
+				FAsyncFileCallBack ReadCallbackFunction = [CompletionEvent](bool bWasCancelled, IAsyncReadRequest* Request)
+				{
+					GetCache().CompletedRequests.Push(Request);
+
+					TArray<FBaseGraphTask*> NewTasks;
+					CompletionEvent->DispatchSubsequents(NewTasks);
+				};
+
+				this->InnerHandle->ReadRequest(LineOffsetInFile, LineSizeInFile, Priority, &ReadCallbackFunction, CacheSlotMemory);
+			};
+
+			if (FileSize >= 0)
+			{
+				// If FileSize >= 0, that means the async file size request has completed, we can perform the read immediately
+				ReadRequestLamba();
+			}
+			else
+			{
+				// Here we don't know the FileSize yet, so we schedule an async task to kick the read once the size request has completed
+				// It's important to know the size of the file before performing the read, to ensure that we don't read past end-of-file
+				FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(ReadRequestLamba), TStatId(), SizeRequestEvent);
+			}
 		}
 		else
 		{
-			AllLocked = false;
-
-			if (!AlreadyResident)
-			{
-				ToRequest.Add(Line);
-			}
+			Cache.LockSlot(SlotID);
 		}
-	}
 
-	if (ToRequest.Num() > 0)
-	{
-		RequestLines(ToRequest);
-	}
+		check(SlotID.IsValid());
+		Result->CacheSlots[LineID.Get() - StartLine.Get()] = SlotID;
 
-	FAllocatedFileCacheReadBuffer *ResultBuffer = nullptr;
-	if (AllLocked)
-	{
-		//UE_LOG(LogStreamingFileCache, Log, TEXT("Read hit cache %llu, %llu"), Offset, BytesToRead);
-
-		ResultBuffer = new FAllocatedFileCacheReadBuffer(BytesToRead);
-		int64 CurrentOffset = Offset;
-		int32 RelativeOffset = 0;
-
-		// Patch together the individual lines in one continuous block to return
-		CacheLineID Id = GetBlock<CacheLineID>(Offset);
-		for (int i = 0;  i < NumCacheLines; Id++, i++)
+		if (PendingRequest.Event && !PendingRequest.Event->IsComplete())
 		{
-			CacheSlotID Slot = LineIndexToMap[i];
-			check(Slot.IsValid());
-			uint8 *CacheSlotMemory = GetCache()[Slot];
-			size_t LineOffset = GetBlockOffset<CacheLineID>(CurrentOffset);
-			size_t LineSize = GetBlockSize<CacheLineID>(CurrentOffset, Offset+BytesToRead);
-			{
-				// It's a good thing if this is about the same as STAT_SFC_ReadData. This means the real cost is the
-				// memcpy not the anything else in the cache system.
-				SCOPE_CYCLE_COUNTER(STAT_SFC_ReadDataMemcpy);
-				FPlatformMemory::Memcpy((uint8 *)ResultBuffer->GetData() + RelativeOffset, CacheSlotMemory + LineOffset, LineSize);
-			}
-			CurrentOffset += LineSize;
-			RelativeOffset += LineSize;
+			// this line has a pending async request to read data
+			// will need to wait for this request to complete before data is valid
+			OutCompletionEvents.Add(PendingRequest.Event);
+			bHasPendingSlot = true;
 		}
-	}
-
-	// Unlock anything we locked
-	CacheLineID Id = GetBlock<CacheLineID>(Offset);
-	for (int i = 0; i < NumCacheLines; Id++, i++)
-	{
-		if (LineIndexToMap[i].IsValid())
+		else
 		{
-			Residency.Unlock(Id, LineIndexToMap[i]);
+			PendingRequest.Event.SafeRelease();
 		}
 	}
 
-	return ResultBuffer;
+	return Result;
 }
 
-void FFileCacheHandle::RequestLines(TArray<CacheLineID> &SortedLines)
+void FFileCacheHandle::Evict(CacheLineID LineID)
 {
-	SCOPE_CYCLE_COUNTER(STAT_SFC_RequestLines);
+	LineToSlot[LineID.Get()] = CacheSlotID();
 
-	// Figure out the data we should read for this request. 
-	// We always read data in larger chunks but the chunks are not aligned to this larger block size
-	// so we have a some of freedom on how to choose the chunks to load
-	// for now we just align to the first and then read until the last to be fine tuned later...
-	
-	for (int i = 0; i < SortedLines.Num(); i++)
+	FPendingRequest& PendingRequest = LineToRequest[LineID.Get()];
+	if (PendingRequest.Event)
 	{
-		int64 Offset = SortedLines[i].GetOffset();
-		int64 Limit = FMath::Min(Offset + IoBlockSize, FileSize);
-		int64 BytesToRead = Limit - Offset;
-
-		// Skip over cache lines covering the block we will schedule now
-		while (i < SortedLines.Num() && SortedLines[i].GetOffset() < Limit)
-		{
-			i++;
-		}
-
-		// Trim the request at the end with cache lines which are already resident
-		CacheLineID LastBlock = GetBlock<CacheLineID>(Limit - 1);
-		while (Residency.IsResident(LastBlock))
-		{
-			LastBlock--;
-		}
-
-		int64 TrimmedLimit = LastBlock.GetOffset() + LastBlock.GetSize(FileSize);
-		BytesToRead = TrimmedLimit - Offset;
-
-		if (TrimmedLimit < Limit)
-		{
-			//UE_LOG(LogStreamingFileCache, Log, TEXT("Trimmed  %llu kb from read request"), ((Limit-TrimmedLimit)/1024) );
-		}
-		
-		// Check if we already got a load request doing for this exact range
-		bool AlreadyLoading = false;
-		for (int r = 0; r < LiveRequests.Num(); r++)
-		{
-			if (LiveRequests[r].Offset == Offset && LiveRequests[r].Size == BytesToRead)
-			{
-				AlreadyLoading = true;
-				break;
-			}
-		}
-
-		if (!AlreadyLoading && LiveRequests.Num() < 32 )
-		{
-			FAsyncFileCallBack ReadCallbackFunction = [this, Offset, BytesToRead](bool bWasCancelled, IAsyncReadRequest* Request)
-			{
-				// Per mail discussion with gil 30/05/17:
-				// "You are not supposed to do anything that takes time in the callback and something like acquiring a separate lock could easily serialize what should be parallel operation."
-				// "But if locks are bad, what can you do in a callback function? Start a task, trigger an event, change a thread safe counter, push something on a lock free list...stuff like that."
-				CompletedRequests.Enqueue(CompletedRequest(Request, Offset, BytesToRead));
-			};
-
-			//UE_LOG(LogStreamingFileCache, Log, TEXT("Scheduling read %llu, %llu"), Offset, BytesToRead);
-
-			IAsyncReadRequest *Request = InnerHandle->ReadRequest(Offset, BytesToRead, AIOP_Normal, &ReadCallbackFunction);
-			LiveRequests.Add(CompletedRequest(Request, Offset, BytesToRead));
-		}
-	}
-}
-
-void FFileCacheHandle::ProcessCompletedRequests()
-{
-	SCOPE_CYCLE_COUNTER(STAT_SFC_ProcessCompletedRequests);
-
-	CompletedRequest Completed;
-	while (CompletedRequests.Dequeue(Completed))
-	{
-		//UE_LOG(LogStreamingFileCache, Log, TEXT("Processing completed read %llu, %llu"), Completed.Offset, Completed.Size);
-
-		int NumLines = GetNumBlocks<CacheLineID>(Completed.Offset, Completed.Size);
-		CacheLineID Line = GetBlock<CacheLineID>(Completed.Offset);
-		uint8* ReadData = Completed.Data->GetReadResults(); // We now own the memory in the ReadData pointer
-
-		for (int i = 0; i < NumLines; i++, Line++)
-		{
-			// If it's resident we don't have to do anything it was just double read and we discard the data read this time...
-			if (!Residency.IsResident(Line))
-			{
-				CacheSlotID Slot;
-				// FindEvictionCandidate and MakeAvailableForEviction both get the lock
-				// on ever call this should probably be batched. To avoid keeping the lock
-				// too long an approach where we do a lock-find-unlock followed by memcpy followed by lock-makeavail-unlock
-				// could be followed.
-				if (GetEvictionPolicy().FindEvictionCandidate( SlotInfo(this, Line), Slot))
-				{
-					size_t RelativeOffset = (size_t)(Line.GetOffset() - Completed.Offset);
-					{
-						SCOPE_CYCLE_COUNTER(STAT_SFC_CopyIntoCacheMemcpy);
-						FPlatformMemory::Memcpy(GetCache()[Slot], ReadData + RelativeOffset, Line.GetSize(FileSize));
-					}
-					Residency.Map(Line, Slot);
-
-					// Make it available for eviction again hmm is this usuefull to do this so soon
-					// this means that some requests may 'in theory' evict tiles that have just been loaded
-					// as part of this request (however unlikely as they are at the front of the lru)
-					GetEvictionPolicy().MakeAvailableForEviction(Slot);
-				}
-				else
-				{
-					// Hmm we throw away the data this is really bad so we should log this...
-				}
-			}
-		}
-
-		// Free the request now we're fully done with it
-		int NumRemoved = 0;
-		for (int i = 0; i < LiveRequests.Num(); i++)
-		{
-			if (LiveRequests[i].Data == Completed.Data)
-			{
-				check(LiveRequests[i].Offset == Completed.Offset);
-				check(LiveRequests[i].Size == Completed.Size);
-				NumRemoved++;
-				LiveRequests.RemoveAt(i);
-				break;
-			}
-		}
-
-		checkf(NumRemoved > 0, TEXT("Completed request was not in LiveRequests list"));
-		FMemory::Free(ReadData);
-		delete Completed.Data;
+		check(PendingRequest.Event->IsComplete());
+		PendingRequest.Event.SafeRelease();
 	}
 }
 
 void FFileCacheHandle::WaitAll()
 {
-	for (int i = 0; i < LiveRequests.Num(); i++)
+	for (int i = 0; i < LineToRequest.Num(); ++i)
 	{
-		LiveRequests[i].Data->WaitCompletion();
+		FPendingRequest& PendingRequest = LineToRequest[i];
+		if (PendingRequest.Event)
+		{
+			check(PendingRequest.Event->IsComplete());
+			PendingRequest.Event.SafeRelease();
+		}
 	}
-	ProcessCompletedRequests();
-	check(LiveRequests.Num() == 0);
 }
 
-IFileCacheHandle *IFileCacheHandle::CreateFileCacheHandle(const FString &FileName)
+void IFileCacheHandle::EvictAll()
 {
-	FFileCacheHandle *Handle = new FFileCacheHandle();
-	if (!Handle->Initialize(FileName))
+	GetCache().EvictAll();
+}
+
+IFileCacheHandle* IFileCacheHandle::CreateFileCacheHandle(const TCHAR* InFileName)
+{
+	SCOPE_CYCLE_COUNTER(STAT_SFC_CreateHandle);
+
+	IAsyncReadFileHandle* FileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(InFileName);
+	if (!FileHandle)
 	{
-		delete Handle;
 		return nullptr;
 	}
-	return Handle;
+
+	return new FFileCacheHandle(FileHandle);
 }

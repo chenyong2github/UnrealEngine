@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+﻿INTSourceChangelist:6278513
 Availability:Public
 Title:디렉터리 구조
 Crumbs: %ROOT%, Engine
@@ -17,7 +17,7 @@ order:25
 
 * **Engine** - 엔진을 이루는 모든 소스 코드, 콘텐츠 등이 포함되어 있습니다.
 * **Templates** - [새 프로젝트 생성시](Engine/Basics/Projects/Browser#새프로젝트만들기) 사용가능한 프로젝트 템플릿 모음입니다.
-* **GenerateProjectFiles.bat** - Visual Studio 에서 엔진과 게임 작업시 필요한 UE4 솔루션 및 프로젝트 파일 생성시 사용됩니다. 자세한 것은 [](Programming/UnrealBuildSystem/ProjectFileGenerator) 문서를 참고해 주세요.
+* **GenerateProjectFiles.bat** - Visual Studio 에서 엔진과 게임 작업시 필요한 UE4 솔루션 및 프로젝트 파일 생성시 사용됩니다. 자세한 것은 [](Programming/BuildTools/UnrealBuildTool/ProjectFilesForIDEs) 문서를 참고해 주세요.
 * **UE4Games.uprojectdirs** - UnrealBuildTool 이 기본으로 프로젝트를 찾아볼 곳을 알려주는 헬퍼 파일입니다.
 
 ## 공통 디렉터리

@@ -1,141 +1,144 @@
-﻿INTSourceChangelist:2604027
-Availability:Public
-Title:默认 Required 和 Spawn 模块
+INTSourceChangelist:3782314
+Availability: Public
+Title:默认必需的模块和生成模块
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
-Description:包含在发射器内，功能必需的模块。
-Version:4.9
+Description:发射器随附且其功能所必需的模块。
+Version: 4.9
+tags:Particles
 
 
 [TOC(start:2 end:3)]
 
-创建新发射器时将包含以下类和模块。它们始终存在，无法被删除。
+创建新的发射器时，以下类和模块始终存在。它们始终存在，不能被删除。
 
 
-## Required 模块
+(#requiredmodule)
+## 必需模块
 
-每个粒子发射器均包含此模块。该模块包含粒子发射器必需的所有属性。它包含以下属性：
+每个粒子发射器都包含这个模块，其中包含粒子发射器所需的所有属性。包括：
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Emitter[/REGION] ||
-| **Material** | 应用至粒子的材质。|
-| **Emitter Origin**| 3D 空间中发射器发射粒子的点（除非被其他模块单独指定）。|
-| **Emitter Rotation** | 应用至发射器本身的局部旋转。|
-| **Screen Alignment** | 粒子和摄像机之间的朝向关系。允许下列模式：[INCLUDE:#ScreenAlign] |
-| **Use Local Space** | 确定粒子发射器是否应用其父项的世界变换 (_false_) 或 (_true_)。如为 _true_，粒子发射器将在局部空间中执行所有操作。|
-| **Kill On Deactivate** | 确定粒子发射器停用是否会导致粒子被全部销毁。如为 _false_，发射器停用后存活的粒子仍将完成其生命周期。|
-| **Kill On Completed** | 确定粒子系统组件是否会在该发射器实例完成后将其销毁。|
-| **Sort mode** | 该发射器使用的分类模式。[INCLUDE:#SortMode] |
-| **Use Legacy Emitter Time** | 如为 _true_，由 EmitterDuration 调制 SecondsSinceCreation，从而计算发射器的 EmitterTime。因其可能会导致循环和变量市场的问题，新方法已应用。如为 _false_，将利用新方法，EmitterTime 将由每个标记的 DeltaTime 增加。它在发射器循环中利用当前的 EmitterDuration 调整 EmitterTime，实现恰当的循环/延迟行为。|
-| **Orbit Module Affects Velocity Alignment** | 如为 _true_，orbit 模块产生的运动将被应用至速度一致的粒子上。|
-| [REGION:tablesection]Duration[/REGION] ||
-| **Emitter Duration** | 确定发射器在循环前播放的时长（以秒为单位）。如设为 0，发射器将不会进行循环。|
-| **Emitter Duration Low** | 为发射器时长设定下限，以获得发射器市场的可变性。|
-| **Emitter Duration Use Range** | 如为 _true_，发射器将从启动时 _EmitterDurationLow_ 到 _EmitterDuration_ 的范围中选择一个时长。|
-| **Duration Recalc Each Loop** | 如为 _true_，发射器将在循环时 _EmitterDurationLow_ 到 _EmitterDuration_ 的范围中选择一个新的时长。|
-| **Emitter Loops** | 进入不活动状态前的循环次数。如设为 0，发射器将持续运行，“永远”循环。|
-| [REGION:tablesection]Delay[/REGION] ||
-| **Emitter Delay** | 启动发射器的时间延迟量。将使单个粒子系统中存在多个“令人惊艳的”发射器。应用范围时，它还可作为所选随机延迟值的上限。|
-| **Emitter Delay Low** | 应用范围时，它还可作为所选随机延迟值的下限。|
-| **Emitter Delay Use Range** | 如为 _true_，发射器的有效延迟值将在 [Emitter Delay Low, Emitter Delay] 的范围中随机选择。|
-| **Delay First Loop Only** | 如为 _true_，EmitterDelay 数值大于 0 且 EmitterLoops 数值大于 1 的发射器只在第一次循环时执行延迟。|
-| [REGION:tablesection]Sub UV[/REGION] ||
-| [REGION:note] Sub UV 数据表明发射器应该使用所应用贴图的子图像。此功能在粒子上添加简单动画时十分实用。[/REGION]||
-| **Interpolation Method** | 此列举说明在子图像之间进行插值的方法。其可为下列之一：[INCLUDE:#InterpMethod] |
-| **Sub Images_Horizontal** | 贴图水平（X）轴方向的贴图子图像数量。|
-| **Sub Images_Vertical** | 贴图垂直（Y）轴方向的贴图子图像数量。|
-| **Scale UV** | 说明应该对 UV 值进行调整，以“适合”子图像的尺寸。这仅用于网格体发射器。|
-| **Random Image Changes** | InterpolationMethod 设为 Random 时粒子生命周期中改变图像的次数。|
-| [REGION:tablesection]Macro UV[/REGION]||
-| [REGION:note] Macro UV 部分说明发射器应该使用 macro UV。它使单张图片连续被映射到多个粒子上，而并非单独映射到单个粒子上。需注意，如需使用该功能，应用至粒子的材质必须使用 _ParticleMacroUV_ 材质表现节点。[/REGION]||
-| **Override System Macro UV** | 如为 _true_，此处的设置将重叠系统 Macro UV 材质设置，在级联的发射器列表中取消所有发射器和模块的选择即可看到。|
-| **Macro UVPosition** | 所有 Macro UV 计算开始的局部空间位置。|
-| **Macro UVRadius** | 世界场景半径，超过此半径 Macro UV 材质将开始倾斜。|
-| [REGION:tablesection]Rendering[/REGION] ||
-| **Use Max Draw Count** | 如为 _true_，发射器将不会绘制数量超过 MaxDrawCount 的粒子。标记时所有粒子仍将被更新。|
-| **Max Draw Count** | 限制渲染的粒子数量。|
-| **UV Flipping Mode** | 以多种方式进行 Sprite 和 GPU particles UV 的翻动。[INCLUDE:#UVFlipping] |
-| [REGION:tablesection]Normals[/REGION] ||
-| **Emitter Normals Mode** | 该模式用于生成此发射器 LOD 的法线。[INCLUDE:#NormalsMode] |
-| **Normals Sphere Center** | 当 _Emitter Normals Mode_ 为 _ENM_Spherical_ 时，粒子法线创建后将背对 _Normals Sphere Center_。该值位于局部空间中。|
-| **Normals Cylinder Direction** | _Emitter Normals Mode_ 为 _ENM_Cylindrical_ 时，粒子法线创建后将背对在 _Normals Cylinder Direction_ 方向穿过 _Normals Sphere Center_ 的圆柱。该值位于局部空间中。|
+| [REGION:tablesection]发射器[/REGION] ||
+| **材质** | 要应用于粒子的材质。|
+| **发射器原点**| 3D空间中将从该发射器发射出粒子的点，除非其他模块另有指定。|
+| **发射器旋转** | 应用于发射器自身的局部旋转。|
+| **屏幕对齐** | 粒子相对于摄像头的朝向。允许以下模式：[INCLUDE:#ScreenAlign] |
+| **使用局部空间** | 指示粒子发射器是（_true_）否（_false_）应用其父代的场景变换。如果为_true_，粒子发射器将在局部空间执行所有操作。|
+| **停用时终止** | 指示粒子发射器是否应在停用时终止所有粒子。如果为_false_，任何存活粒子将在发射器停用时终止其生命。|
+| **完成时终止** | 指示粒子系统组件应在完成时终止该发射器实例。|
+| **排序模式** | 用于发射器的排序模式。[INCLUDE:#SortMode] |
+| **使用传统发射器时间** | 如果为_true_，则发射器的EmitterTime将通过用EmitterDuration调制SecondsSinceCreation来计算。由于这对循环和可变持续时间会导致问题，因此实现了一种新方法。如果为_false_，将使用这种新方法，发EmitterTime只需要在每个tick增加DeltaTime。当发射器循环时，它按当前EmitterDuration调整EmitterTime，产生正确的循环/延迟行为。|
+| **轨道模块影响速度调整** | 如果为_true_，则轨道模块生成的运动应用于速度一致的粒子。|
+| [REGION:tablesection]持续时间[/REGION] ||
+| **发射器持续时间** | 指示发射器在循环前运行的时间，以秒为单位。如果设置为0，发射器将永不循环。|
+| **发射器持续时间低** | 指定允许在发射器持续时间内变化的发射器持续时间的低端。|
+| **发射器持续时间使用范围** | 当为_true_时，发射器将在启动时从_EmitterDurationLow_到_EmitterDuration_的范围内选择持续时间。|
+| **每次循环重新计算持续时间** | 当为_true_时，发射器将在循环时从_EmitterDurationLow_到_EmitterDuration_的范围内选择一个新的持续时间。|
+| **发射器循环** | 进入不活动之前循环的次数。如果设置为0，发射器将持续运行，“永远”循环。|
+| [REGION:tablesection]延迟[/REGION] ||
+| **发射器延迟** | 延迟启动发射器的时间。允许在单个粒子系统内“交错”发射器。这也相当于使用范围时选择随机延迟值的上限。|
+| **发射器延迟低** | 使用范围时选择随机延迟值的下限。|
+| **发射器延迟使用范围** | 如果为_true_，发射器的有效延迟值将是从范围[发射器延迟低, 发射器延迟]中选择的随机值。|
+| **仅第一个循环延迟** | 当为_true_时，EmitterDelay大于0、EmitterLoops大于1的发射器将仅在第一次循环时执行延迟。|
+| [REGION:tablesection]子UV[/REGION] ||
+| [REGION:note]子UV数据指示发射器应利用所应用纹理的子图像。这对于在粒子上实现简单动画十分有用。[/REGION]||
+| **插值方法** | 指示用来在子图之间插值的方法的列举。可以是以下某个值：[INCLUDE:#InterpMethod] |
+| **子图_水平** | 纹理水平轴（x）上的纹理中的子图数量。|
+| **子图_垂直** | 纹理垂直轴（y）上的纹理中的子图数量。|
+| **缩放UV** | 指示应缩放UV值以正确`适应子图尺寸。这仅用于网格体发射器。|
+| **随机图像更改** | 在插值方法设置为随机时，在粒子生命周期内更改图像的次数。|
+| [REGION:tablesection]宏UV[/REGION] ||
+| [REGION:note]宏UV分段指示发射器应利用宏UV，允许单个图像连续地映射到多个粒子，而不是每个粒子单独映射。请注意，要利用这个功能，应用于粒子的材质必须利用_ParticleMacroUV_材质表达式节点。[/REGION]||
+| **覆盖系统宏UV** | 如果为_true_，这里的设置将覆盖系统宏UV设置，可以通过取消选择级联发射器列表中的所有发射器和模块来查看。|
+| **宏UV位置** | 局部空间位置，所有宏UV计算都始于这个位置。|
+| **宏UV半径** | 场景半径，超过这个半径的所有宏UV材质将开始平铺。|
+| [REGION:tablesection]渲染[/REGION] ||
+| **使用最大绘制计数** | 当为_true_时，发射器永远不会绘制超过“最大绘制计数”数量的粒子。所有粒子在tick时仍会更新。|
+| **最大绘制计数** | 限制渲染到的粒子数量。|
+| **UV翻转模式** | 以多种不同的方式启用Sprite和GPU粒子UV翻转。[INCLUDE:#UVFlipping] |
+| [REGION:tablesection]法线[/REGION] ||
+| **发射器法线模式** | 用于为该发射器LOD生成法线的模式。[INCLUDE:#NormalsMode] |
+| **法线球体中心** | 当_发射器法线模式_设置为_ENM_球形_，则创建的粒子法线是背对_法线球体中心_远离。该值位于局部空间。|
+| **法线圆柱体方向** | 当_发射器法线模式_为_ENM_圆柱体_时，则创建的粒子法线是背对圆柱体远离，穿过_法线球体中心_，沿着_法线圆柱体方向_移动。该值位于局部空间。|
 
 
 
-## Spawn 模块
+(#spawnmodule)
+## 产生模块
 
-每个粒子发射器均包含此模块。该模块包含确定粒子生成方式的所有属性。它包含以下属性：
+每个粒子发射器都包含这个模块，其中包含用于确定如何产生粒子的所有属性。包括：
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Spawn[/REGION] ||
-| **Rate** | 该浮点 distribution 确定在固定时间发射器的粒子生成率（每秒粒子数量）。|
-| **Rate Scale** | 应用至发射器 _Rate_ 的缩放因子。|
-| **Process Spawn Rate** | 如为 _true_，_Rate_ 将被处理。如多个 Spawn 模块“叠列”在一个发射器中且其中一个模块禁用了此属性，将不对发射器的 _Rates_ 进行处理。|
-| [REGION:tablesection]Burst[/REGION] ||
-| Burst 数据表明发射器应在指定时间强制释放特定数量的粒子。它包含以下属性：| |
-| **ParticleBurstMethod** | 在数据串中喷发粒子的方法。当前无视。|
-| **BurstList** | 整数 Count 和 CountLow 阵列，以及识别所需粒子喷发的浮点 Time 值。Time 在发射器生命周期的 [0..1] 范围中。如 CountLow 被设为 -1，发射器将在指定时间喷射 Count 粒子。另外，发射器在指定时间内将在 [CountLow..Count] 范围内喷射随机数量的粒子。|
-| **Process Burst list** | 如为 _true_，_Burst List_ 将被处理。如多个 Spawn 模块“叠列”在一个发射器中且其中一个模块禁用了此属性，将不对发射器的 _Burst Lists_ 进行处理。|
-| **Burst Scale** | 按此量对所有喷射输入进行调整。|
+| [REGION:tablesection]产生[/REGION] ||
+| **速度** | 该浮点分布提供给定时间发射器的粒子产生速度（每秒粒子数）。|
+| **速度比例** | 应用于发射器的_速度_的比例因子。|
+| **处理产生速度** | 如果为_true_，将处理_速度_。如果有多个产生模块“堆叠”在发射器中，并且有任何一个模块禁用了这个属性，则不会处理发射器的_速度_。|
+| [REGION:tablesection]爆发[/REGION] ||
+| 爆发数据指示发射器应在设定的时间强制发射指定数量的粒子。这个过程涉及以下成员：| |
+| **粒子爆发方法** | 通过爆发发射粒子时所用的方法。当前忽略。|
+| **爆发列表** | 一个整数数组，包括“计数”、“计数低”和浮点时间值，用于确定所需的粒子爆发。在发射器生命周期内，时间位于[0..1]范围内。如果“计数低”设置为-1，发射且将在给定时间爆发出“计数”数量的粒子。否则，发射器将在给定时间在范围[计数低..计数]范围内爆发出随机数量的粒子。|
+| **处理爆发列表** | 如果为_true_，将处理_爆发列表_。如果有多个产生模块“堆叠”在发射器中，并且有任何一个模块禁用了这个属性，则不会处理发射器的_爆发列表_。|
+| **爆发比例** | 按这个数量调节所有爆发条目。|
 
 
 
 
 [COMMENT:none]
- Begin RequiredModule Table Includes 
+ 开始必需模块表包含 
 [/COMMENT]
 [COMMENT:none]
 
 [EXCERPT:ScreenAlign]
 [REGION:simpletable]
-| 标记 | 描述 |
+| 标志 | 描述 |
 | --- | --- |
-| FacingCameraPosition | 粒子将旋转朝向摄像机位置，但无视摄像机旋转。|
-| Square | 等分缩放（强制为 X 设置），面对摄像机。|
-| Rectangle | 非等分缩放，面对摄像机。|
-| Velocity | 将粒子方向确定为正对摄像机和粒子移动的方向。允许非等分缩放。|
-| TypeSpecific | 使用类型数据模块中指出的对齐方法。（仅用于网格体）|
+| 面向摄像机位置 | 粒子将旋转以面向摄像机位置，但将忽略摄像机旋转。|
+| 正方形 | 等分缩放（强制为X设置），面向摄像机。|
+| 矩形 | 非等分缩放，面向摄像机。|
+| 速度 | 让粒子面向摄像机和粒子的移动方向。不允许非等分缩放。|
+| 类型特定 | 使用类型数据模块中指示的对齐方法。（仅限网格体）|
 [/REGION]
 [/EXCERPT:ScreenAlign]
 
 [EXCERPT:SortMode]
 [REGION:simpletable]
-| 模式 | 描述 |
+| 模式 | 说明 |
 | --- | --- |
-| _PSORTMODE_None_ |不执行排序。|
-| _PSORTMODE_ViewProjDepth_ |按基于视图投影的深度对粒子进行排序。|
-| _PSORTMODE_DistanceToView_ |按全局空间中粒子到摄像机的位置对粒子进行排序。|
-| _PSORTMODE_Age_OldestFirst_ |按年龄对粒子进行排序，优先绘制年龄较大的粒子。|
-| _PSORTMODE_Age_NewestFirst_ |按年龄对粒子进行排序，优先绘制年龄较小的粒子。|
+| _PSORTMODE_无_ |不执行排序。|
+| _PSORTMODE_视图投影_ | 根据视图投影按深度对粒子排序。|
+| _PSORTMODE_距离到视图_ | 在场景空间中，按粒子到摄像机的距离对粒子排序。|
+| _PSORTMODE_年龄_最老优先_ | 按年龄对粒子排序，最先绘制的粒子排在前面。|
+| _PSORTMODE_年龄_最新优先_ | 按年龄对粒子排序，最新绘制的粒子排在前面。|
 [/REGION]
 [/EXCERPT:SortMode]
 
 [EXCERPT:UVFlipping]
 [REGION:simpletable]
-| 模式 | 描述 |
+| 模式 | 说明 |
 | --- | --- |
-|None|不发生 UV 翻页。为默认状态。|
-|FlipUV|翻动 U 和 V 纹理坐标。|
-|U Only|只翻动 U 纹理坐标。|
-|V Only|只翻动 V 纹理坐标。|
-|Random Flip UV|在生成时随机一同翻动 U 和 V。|
-|Random Flip UV|在生成时随机翻动 U。|
-|Random Flip UV|在生成时随机翻动 V。|
-|Random Flip UV Independent|在生成时随机单独翻动 U 和 V。|
+|无|不发生UV翻转。这是默认值。|
+|翻转UV|翻转U和V纹理坐标。|
+|仅U|仅翻转U纹理坐标。|
+|仅V|翻转V纹理坐标。|
+|随机翻转UV|在产生时间同时随机翻转U和V。|
+|仅随机翻转U|在产生时间仅随机翻转U。|
+|仅随机翻转V|在产生时间仅随机翻转V。|
+|独立随即翻转UV|在产生时间单独随机翻转U和V。|
 [/REGION]
 [/EXCERPT:UVFlipping]
 
 
 [EXCERPT:InterpMethod]
 [REGION:simpletable]
-| 方法 | 描述 |
+| 方法 | 说明 |
 | --- | --- |
-| None | 不在此发射器上应用 SubUV 模块。|
-| Linear | 按指定顺序在子图像之间顺畅过度，当前子图像和下一子图像之间不存在混合。|
-| Linear_Blend | 按指定顺序在子图像之间顺畅过度，当前子图像和下一子图像之间存在混合。|
-| Random | 随机选取下一图像，当前图像和下一图像之间不存在混合。|
-| Random_Blend | 随机选取下一图像，当前图像和下一图像之间存在混合。|
+| 无 | 不对该发射器应用子UV模块。|
+| 线性 | 按给定顺序，平滑地在子图之间过渡，而不混合当前子图和下一个子图。|
+| 线性_混合 | 按给定顺序，平滑地在子图之间过渡，混合当前子图和下一个子图。|
+| 随机 | 随机选取下一个图像，不混合当前图像和下一个图像。|
+| 随机_混合 | 随机选取下一个图像，混合当前图像和下一个图像。|
 [/REGION]
 [/EXCERPT:InterpMethod]
 
@@ -143,15 +146,15 @@ Version:4.9
 
 [EXCERPT:NormalsMode]
 [REGION:simpletable]
-| 模式 | 描述 |
+| 模式 | 说明 |
 | --- | --- |
-| _ENM_CameraFacing_ | 默认模式，法线基于摄像机面对的几何体。|
-| _ENM_Spherical_ | 法线从以 NormalsSphereCenter 为中心的球体产生。|
-| _ENM_Cylindrical_ | 法线从一个穿过 NormalsSphereCenter，方向为 NormalsCylinderDirection 的圆柱体产生。|
+| _ENM_面向摄像机_ | 默认模式，法线基于面向摄像机的几何体。|
+| _ENM_球体_ | 从以法线球体中心为中心的球体生成法线。|
+| _ENM_圆柱体_ | 从圆柱体生成法线，穿过法线球体中心，沿着法线圆柱体方向。|
 [/REGION]
 [/EXCERPT:NormalsMode]
 
 [/COMMENT]
 [COMMENT:none]
- End RequiredModule Includes 
+ 结束必需模块包含 
 [/COMMENT]

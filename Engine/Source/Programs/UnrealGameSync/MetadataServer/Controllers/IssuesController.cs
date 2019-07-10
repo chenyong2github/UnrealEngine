@@ -45,6 +45,12 @@ namespace MetadataServer.Controllers
 			long IssueId = SqlConnector.AddIssue(Issue);
 			return new { Id = IssueId };
 		}
+
+		[HttpDelete]
+		public void Delete(long id)
+		{
+			SqlConnector.DeleteIssue(id);
+		}
 	}
 
 	public class IssueBuildsSubController : ApiController
@@ -56,9 +62,25 @@ namespace MetadataServer.Controllers
 		}
 
 		[HttpPost]
-		public void Post(long IssueId, [FromBody] IssueBuildData Data)
+		public object Post(long IssueId, [FromBody] IssueBuildData Data)
 		{
-			SqlConnector.AddBuild(IssueId, Data);
+			long BuildId = SqlConnector.AddBuild(IssueId, Data);
+			return new { Id = BuildId };
+		}
+	}
+
+	public class IssueDiagnosticsSubController : ApiController
+	{
+		[HttpGet]
+		public List<IssueDiagnosticData> Get(long IssueId)
+		{
+			return SqlConnector.GetDiagnostics(IssueId);
+		}
+
+		[HttpPost]
+		public void Post(long IssueId, [FromBody] IssueDiagnosticData Data)
+		{
+			SqlConnector.AddDiagnostic(IssueId, Data);
 		}
 	}
 

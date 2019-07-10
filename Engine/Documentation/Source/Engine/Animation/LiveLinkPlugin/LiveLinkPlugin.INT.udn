@@ -1,12 +1,14 @@
 Availability: Public
-Crumbs: 
 Title: Live Link Plugin
 Description: Describes how to enable and use the Live Link Plugin and features within the animation system in Unreal Engine 4. 
-Type:landing
+Type: overview
 Version: 4.19
 Parent: Engine/Animation
-Order: 1
-Tags: Animation, Animation Tools, Live Link
+Tags: Animation
+Tags: Animation Tools
+Tags: Live Link
+topic-image: LiveLink_01.png
+social-image: LiveLink_01_Social.png
 
 
 [OBJECT:EmbeddedVideo]
@@ -131,19 +133,17 @@ In Editor, Remap Assets can be created by using the **LiveLinkRemapAsset** class
 
 ![](RemapBlueprint-3.png)
 
- Inside the remap asset, you can override the function **Get Remapped Bone Name**.
-
+Inside the remap asset, you can override the function **Get Remapped Bone Name**.
   
 
 ![](RemapBlueprint2.png)
 
- This will enable you to transform the Bone Name in Editor.
-
+This will enable you to transform the Bone Name in Editor.
   
 
 ![](GetRemappedBone.png)
 
- In the example above, we are taking in Bone Name information from a Skeletal Mesh in Maya. That data is then being modified and mapped to the Bone Name naming convention in UE4.
+In the example above, we are taking in Bone Name information from a Skeletal Mesh in Maya. That data is then being modified and mapped to the Bone Name naming convention in UE4.
 
 For example in Maya, the naming convention used refers to our Bone Names as *CharacterName:BoneName.* In UE4, the Skeleton Asset uses just the *BoneName* portion. In order for Maya to stream data to the UE4 Skeleton, we use the Remap Asset and override the function **Get Remapped Bone Name** by splitting the string at the colon and only taking the string information following the colon, so just *BoneName* instead of *CharacterName:BoneName.*
 

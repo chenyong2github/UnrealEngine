@@ -272,6 +272,26 @@ void AActor::RerunConstructionScripts()
 		// Save info about attached actors
 		TArray<FAttachedActorInfo> AttachedActorInfos;
 
+		// Before we build the component instance data cache we need to make sure that instance components 
+		// are correctly in their AttachParent's AttachChildren array which may not be the case if they
+		// have not yet been registered
+		for (UActorComponent* Component : InstanceComponents)
+		{
+			if (Component && !Component->IsRegistered())
+			{
+				if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+				{
+					if (USceneComponent* AttachParent = SceneComp->GetAttachParent())
+					{
+						if (AttachParent->IsCreatedByConstructionScript())
+						{
+							SceneComp->AttachToComponent(AttachParent, FAttachmentTransformRules::KeepRelativeTransform, SceneComp->GetAttachSocketName());
+						}
+					}
+				}
+			}
+		}
+
 #if WITH_EDITOR
 		if (!CurrentTransactionAnnotation.IsValid())
 		{

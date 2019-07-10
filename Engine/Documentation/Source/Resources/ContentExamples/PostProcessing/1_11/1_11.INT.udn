@@ -22,5 +22,5 @@ Gaussian DoF blurs the scene using a standard Guassian blur. The Guassian method
 
 ## Bokeh
 
-[INCLUDE:Engine/Rendering\PostProcessEffects\DepthOfField\Cinematic#DepthOfField_Bokeh]
+[INCLUDE:Engine/Rendering\PostProcessEffects\DepthOfField\CinematicDOFMethods#DepthOfField_Bokeh]
 

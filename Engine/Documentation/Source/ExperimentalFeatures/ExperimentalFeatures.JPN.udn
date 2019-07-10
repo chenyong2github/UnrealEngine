@@ -1,0 +1,15 @@
+﻿INTSourceChangelist:6576377
+Availability:Public
+Title:実験的機能
+Description:リリースするプロジェクトで使用する準備ができていない開発中の機能。
+Type:landing
+Parent:%ROOT%
+Order:110
+topic-icon:experimental_icon.png
+
+
+[REGION:warning]
+時には、実験的段階の機能が利用可能になることがあります。どのような計画であるのか、実際に皆様に機能を試していただいた上でフィードバックを提供していただくことを期待しています。**実験的機能を使ってプロジェクトをリリースすることはおすすめしません。** 実験的段階の機能で作成されたアセットについては後方互換性を保証しません。API も変更の可能性があります。また、実験的機能の全体、または一部を取り除く意思決定を行う可能性もあります。
+[/REGION]
+
+[DIR(output:"topic" tags:"Experimental" tags:"Landing Page" end:"1")]

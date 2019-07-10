@@ -1,4 +1,4 @@
-availability:Public
+availability:Docs
 title:1. Project Setup
 description:Going over the Project Setup for creating Textures using Blueprints and Render Targets.
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
@@ -10,6 +10,8 @@ Navigation:multi-step
 tags: Render Targets
 order:1
 checkpoint:CTUB
+
+## Marking as Docs as the page has been combined. 
 
 [NAV]
 

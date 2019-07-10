@@ -8,7 +8,7 @@ Description:アンリアル エンジン 4 チュートリアル入門の内容
 
 Android のゲーム制作で必要な一部のコンポーネントが不足しています。既にAndroid SDK をインストール済みであっても何らかのコンポーネントや環境変数が不足している場合があります。
 
-[Android Development Setup](DOCLINK:Platforms/Android/GettingStarted)
+[Android Development Setup](DOCLINK:Platforms/Mobile/Android/GettingStarted)
 
 セットアップ手順を行ったら、アンリアル エディタ とアンリアル エンジンのランチャーを再起動します。これで Android のゲームを制作する準備が整います。
 

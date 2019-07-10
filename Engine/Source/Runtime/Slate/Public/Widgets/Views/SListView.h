@@ -409,6 +409,27 @@ public:
 
 			case EUINavigation::Down:
 				AttemptSelectIndex = CurSelectionIndex + NumItemsWide;
+
+				// The list might be jagged so attempt to determine if there's a partially filled row we can move to
+				if (!ItemsSourceRef.IsValidIndex(AttemptSelectIndex))
+				{
+					int32 NumItems = ItemsSourceRef.Num();
+					if (NumItems > 0)
+					{
+						// NumItemsWide should never be 0, ensuring for sanity
+						ensure(NumItemsWide > 0);
+
+						// calculate total number of rows and row of current index (1 index)
+						int32 NumRows = NumItems / NumItemsWide + (NumItems % NumItemsWide != 0 ? 1 : 0);
+						int32 CurRow = CurSelectionIndex / NumItems + 1;
+
+						// if not on final row, assume a jagged list and select the final item
+						if (CurRow < NumRows)
+						{
+							AttemptSelectIndex = NumItems - 1;
+						}
+					}
+				}
 				break;
 
 			default:
@@ -507,6 +528,7 @@ private:
 		 */
 		void OnItemSeen( ItemType InItem, TSharedRef<ITableRow> InGeneratedWidget)
 		{
+			ensure(TListTypeTraits<ItemType>::IsPtrValid(InItem));
 			TSharedRef<ITableRow>* LookupResult = ItemToWidgetMap.Find( InItem );
 			const bool bWidgetIsNewlyGenerated = (LookupResult == nullptr);
 			if ( bWidgetIsNewlyGenerated )
@@ -573,6 +595,26 @@ private:
 					{
 						WidgetToCleanUp->ResetRow();
 						OwnerList->OnRowReleased.ExecuteIfBound(WidgetToCleanUp);
+					}
+				}
+				else if(!TListTypeTraits<ItemType>::IsPtrValid(ItemToBeCleanedUp))
+				{
+					// If we get here, it means we have an invalid object. We will need to remove that object from both maps.
+					// This may happen for example when ItemType is a UObject* and the object is garbage collected.
+					auto Widget = WidgetMapToItem.FindKey(ItemToBeCleanedUp);
+					if (Widget != nullptr)
+					{
+						for (auto WidgetItemPair = ItemToWidgetMap.CreateIterator(); WidgetItemPair; ++WidgetItemPair)
+						{
+							const ITableRow* Item = &(WidgetItemPair.Value().Get());
+							if (Item == *Widget)
+							{
+								WidgetItemPair.RemoveCurrent();
+								break;
+							}
+						}
+
+						WidgetMapToItem.Remove(*Widget);
 					}
 				}
 			}
@@ -971,6 +1013,12 @@ public:
 			{
 				const ItemType& CurItem = (*SourceItems)[ItemIndex];
 
+				// We do not generatie a new widget if the CurItem is an invalid object.
+				if (!TListTypeTraits<ItemType>::IsPtrValid(CurItem))
+				{
+					continue;
+				}
+
 				const float ItemHeight = GenerateWidgetForItem(CurItem, ItemIndex, StartIndex, LayoutScaleMultiplier);
 
 				const bool bIsFirstItem = ItemIndex == StartIndex;
@@ -1029,6 +1077,11 @@ public:
 				for( int32 ItemIndex = StartIndex-1; HeightGeneratedSoFar < MyGeometry.GetLocalSize().Y && ItemIndex >= 0; --ItemIndex )
 				{
 					const ItemType& CurItem = (*SourceItems)[ItemIndex];
+					// When the item is not valid, we do not generate a widget for it.
+					if (!TListTypeTraits<ItemType>::IsPtrValid(CurItem))
+					{
+						continue;
+					}
 
 					const float ItemHeight = GenerateWidgetForItem(CurItem, ItemIndex, StartIndex, LayoutScaleMultiplier);
 
@@ -1054,6 +1107,7 @@ public:
 
 	float GenerateWidgetForItem( const ItemType& CurItem, int32 ItemIndex, int32 StartIndex, float LayoutScaleMultiplier )
 	{
+		ensure(TListTypeTraits<ItemType>::IsPtrValid(CurItem));
 		// Find a previously generated Widget for this item, if one exists.
 		TSharedPtr<ITableRow> WidgetForItem = WidgetGenerator.GetWidgetForItem( CurItem );
 		if ( !WidgetForItem.IsValid() )
@@ -1395,7 +1449,7 @@ public:
 	 */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector )
 	{
-		TListTypeTraits<ItemType>::AddReferencedObjects( Collector, WidgetGenerator.ItemsWithGeneratedWidgets, SelectedItems );
+		TListTypeTraits<ItemType>::AddReferencedObjects( Collector, WidgetGenerator.ItemsWithGeneratedWidgets, SelectedItems, WidgetGenerator.WidgetMapToItem );
 	}
 
 	/**
@@ -1606,6 +1660,13 @@ protected:
 				while( AbsScrollByAmount != 0 && ItemIndex < SourceItems->Num() && ItemIndex >= 0 )
 				{
 					const ItemType CurItem = (*SourceItems)[ ItemIndex ];
+					// If the CurItem is not valid, we do not generate a new widget for it, we skip it.
+					if (!TListTypeTraits<ItemType>::IsPtrValid(CurItem))
+					{
+						++ItemIndex;
+						continue;
+					}
+
 					TSharedPtr<ITableRow> RowWidget = WidgetGenerator.GetWidgetForItem( CurItem );
 					if ( !RowWidget.IsValid() )
 					{

@@ -1,0 +1,14 @@
+﻿INTSourceChangelist:6429925
+Availability: Public
+Title: 自动工具
+Description: 自动工具用于自动执行各个过程，包括测试和构建游戏。
+Type: landing
+Parent: Programming/BuildTools
+Order: 2
+
+
+ **自动工具（AutomationTool）** 是一个通用系统，允许开发人员自动执行各个过程，包括测试和构建游戏。 
+
+## 主题
+
+%Programming/BuildTools/AutomationTool/BuildGraph:topic%

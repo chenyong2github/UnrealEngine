@@ -1,13 +1,16 @@
-﻿INTSourceChangelist:4691578
+﻿INTSourceChangelist:6480841
 Availability: Public
 Crumbs: 
 Title: Android 및 iOS 용 로컬 알림
 Description: 언리얼 엔진 4 의 레퍼런스 및 가이드를 포함한 제품 문서입니다.
-Type: 
+Type:landing 
 Version: 4.21
 Parent: Platforms/Mobile
 Order: 
-Tags: mobileservices, Early Access, Landing Page
+skilllevel:Intermediate
+Tags: mobileservices
+tags:Early Access
+tags:Landing Page
 
 
 Local Notification (로컬 알림)은 언리얼 엔진 4 (UE4) 응용 프로그램 외부에 표시할 수 있는 메시지로, 사용자에게 변경 또는 업데이트 사항을 알립니다.  여기서는 Android 및 iOS 기기 양쪽에 작동하는 로컬 알림 설정 방법을 살펴봅니다.

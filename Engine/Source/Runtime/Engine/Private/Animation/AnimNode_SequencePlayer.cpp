@@ -32,6 +32,12 @@ void FAnimNode_SequencePlayer::Initialize_AnyThread(const FAnimationInitializeCo
 	FAnimNode_AssetPlayerBase::Initialize_AnyThread(Context);
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
+
+	if(Sequence && !ensureMsgf(!Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
+	{
+		Sequence = nullptr;
+	}
+
 	InternalTimeAccumulator = StartPosition;
 	PlayRateScaleBiasClamp.Reinitialize();
 
@@ -54,6 +60,11 @@ void FAnimNode_SequencePlayer::CacheBones_AnyThread(const FAnimationCacheBonesCo
 void FAnimNode_SequencePlayer::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
 {
 	GetEvaluateGraphExposedInputs().Execute(Context);
+
+	if(Sequence && !ensureMsgf(!Sequence->IsA<UAnimMontage>(), TEXT("Sequence players do not support anim montages.")))
+	{
+		Sequence = nullptr;
+	}
 
 	if ((Sequence != nullptr) && (Context.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
 	{

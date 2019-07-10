@@ -67,8 +67,8 @@ public:
 	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldArgsAndOutputDeviceDelegate& Command, uint32 Flags) override;
 	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithOutputDeviceDelegate& Command, uint32 Flags) override;
 	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleObject* FindConsoleObject(const TCHAR* Name) const override;
-	virtual IConsoleVariable* FindConsoleVariable(const TCHAR* Name) const override;
+	virtual IConsoleObject* FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls = true) const override;
+	virtual IConsoleVariable* FindConsoleVariable(const TCHAR* Name, bool bTrackFrequentCalls = true) const override;
 	virtual void ForEachConsoleObjectThatStartsWith(const FConsoleObjectVisitor& Visitor, const TCHAR* ThatStartsWith) const override;
 	virtual void ForEachConsoleObjectThatContains(const FConsoleObjectVisitor& Visitor, const TCHAR* ThatContains) const override;
 	virtual bool ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevice& Ar, UWorld* InWorld) override;
@@ -127,11 +127,12 @@ private: // ----------------------------------------------------
 	IConsoleObject* FindConsoleObjectUnfiltered(const TCHAR* Name) const;
 
 	/**
-	 * Unregisters a console variable or command, if that object was registered.  In the case of variables, this will actually only
-	 * "deactivate" the variable, so if it becomes registered again the state may persist.
+	 * Unregisters a console variable or command, if that object was registered.  For console variables, this will
+	 * actually only "deactivate" the variable so if it becomes registered again the state may persist
+	 * (unless bKeepState is false).
 	 *
 	 * @param	Name	Name of the console object to remove (not case sensitive)
-	 * @param bool bKeepState if the current state is kept in memory until a cvar with the same name is registered
+	 * @param	bKeepState	if the current state is kept in memory until a cvar with the same name is registered
 	 */
 	void UnregisterConsoleObject(const TCHAR* Name, bool bKeepState);
 

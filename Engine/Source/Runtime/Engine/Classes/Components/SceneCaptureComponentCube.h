@@ -22,6 +22,10 @@ class ENGINE_API USceneCaptureComponentCube : public USceneCaptureComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SceneCapture)
 	class UTextureRenderTargetCube* TextureTarget;
 
+	/** Preserve the rotation of the actor when updating the capture. The default behavior is to capture the cube aligned to the world axis system.  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SceneCapture)
+	bool bCaptureRotation;
+
 	/**
 		Omni-directional Stereo Capture
 

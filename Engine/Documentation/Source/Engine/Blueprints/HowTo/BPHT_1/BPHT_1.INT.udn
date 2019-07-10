@@ -1,4 +1,4 @@
-Availability: Public
+Availability:Docs
 Title:1. Required Asset Setup
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/HowTo
 Description:In this step we will set up the assets we will use in the project. 
@@ -74,7 +74,7 @@ We will now create some spawn points in our level to launch the shootable rock f
 	**Location** for **X** is **7.0m, 0.0m, 0.0m** and **Rotation** is **0.0, 40.0, 0.0**. 
 
 	[REGION:note]
-	By entering 7.0m, it may convert the value to 700cm which is the equivalent value. Check out the [World Scale](Platforms/VR/ContentSetup) section on the VR Best Practies page as it gives a breakdown of how Unreal Units are calculated as well as how to change the way measurements are displayed. 
+	By entering 7.0m, it may convert the value to 700cm which is the equivalent value. Check out the [World Scale](Platforms/VR/DevelopVR/ContentSetup) section on the VR Best Practies page as it gives a breakdown of how Unreal Units are calculated as well as how to change the way measurements are displayed. 
 	[/REGION]
 
 1.	In the level, with the **Target Point** selected, press **Ctrl+W** to duplicate it and set its **Details** as shown below. 

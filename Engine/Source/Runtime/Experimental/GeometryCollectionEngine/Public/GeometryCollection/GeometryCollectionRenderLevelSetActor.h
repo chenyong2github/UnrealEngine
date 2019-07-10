@@ -60,6 +60,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
 	bool RenderVolumeBoundingBox;
 
+	// Find/create the level set renderer singleton actor as required. Return whether the found or created actor.
+	static AGeometryCollectionRenderLevelSetActor* FindOrCreate(UWorld* World);
+
 	// Load a new level set to render
 	bool SetLevelSetToRender(const Chaos::TLevelSet<float, 3> &LevelSet, const FTransform &LocalToWorld);
 

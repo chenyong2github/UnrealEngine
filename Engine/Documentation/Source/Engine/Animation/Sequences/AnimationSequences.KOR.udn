@@ -1,11 +1,10 @@
-INTSourceChangelist:4828051
+INTSourceChangelist:6411833
 Availability: Public
-Crumbs: 
 Title: 애니메이션 시퀀스
 Description: Animation Sequence, 애니메이션 시퀀스 애셋은 한 애니메이션을 이루는 모든 트랜스폼 데이터가 들어있는 개별 애셋입니다.
-Type: 
+Type:overview
 Version: 4.14
-Parent: 
+Parent: Engine/Animation
 Order: 
 Tags: Animation, Animation Assets
 
@@ -165,6 +164,6 @@ AnimCompression (애님 압축)은 최적 코덱 화이트리스트를 사용�
 ### 썸네일
 
 | --- | --- |
-| **Orbit Pitch** | 공전 피치 - 애셋을 중심으로 공전하는 카메라의 피치(상하)입니다. |
-| **Orbit Yaw** | 공전 요 - 애셋을 중심으로 공전하는 카메라의 요(좌우)입니다. |
-| **Orbit Zoom** | 공전 줌 - 애셋에서의 바운드 구체 거리 오프셋입니다. |
+| **Orbit Pitch** | 궤도 피치 - 애셋을 중심으로 궤도하는 카메라의 피치(상하)입니다. |
+| **Orbit Yaw** | 궤도 요 - 애셋을 중심으로 궤도하는 카메라의 요(좌우)입니다. |
+| **Orbit Zoom** | 궤도 줌 - 애셋에서의 바운드 구체 거리 오프셋입니다. |

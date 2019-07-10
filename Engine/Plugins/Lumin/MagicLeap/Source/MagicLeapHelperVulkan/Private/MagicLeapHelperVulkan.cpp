@@ -290,10 +290,9 @@ bool FMagicLeapHelperVulkan::GetMediaTexture(FTextureRHIRef& ResultTexture, FSam
 	return false;
 }
 
-void FMagicLeapHelperVulkan::AliasMediaTexture(FTextureRHIParamRef DestTexture, FTextureRHIParamRef SrcTexture)
+void FMagicLeapHelperVulkan::AliasMediaTexture(FRHITexture* DestTexture, FRHITexture* SrcTexture)
 {
 #if PLATFORM_LUMIN
-	FVulkanDynamicRHI* const RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-	RHI->RHIAliasTextureResources(DestTexture, SrcTexture);
+	GDynamicRHI->RHIAliasTextureResources(DestTexture, SrcTexture);
 #endif
 }

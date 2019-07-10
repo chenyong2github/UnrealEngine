@@ -498,17 +498,17 @@ public:
 	FText ToUpper() const;
 
 	/**
-	 * Removes whitespace characters from the front of the string.
+	 * Removes any whitespace characters from the start of the text.
 	 */
 	static FText TrimPreceding( const FText& );
 
 	/**
-	 * Removes trailing whitespace characters
+	 * Removes any whitespace characters from the end of the text.
 	 */
 	static FText TrimTrailing( const FText& );
 
 	/**
-	 * Does both of the above without needing to create an additional FText in the interim.
+	 * Removes any whitespace characters from the start and end of the text.
 	 */
 	static FText TrimPrecedingAndTrailing( const FText& );
 

@@ -318,14 +318,19 @@ public:
 
 		if (CopyFromSegment != nullptr)
 		{
-			NewSegment->LayerName         = CopyFromSegment->LayerName;
-			NewSegment->SplineMeshes      = CopyFromSegment->SplineMeshes;
+			NewSegment->LayerName = CopyFromSegment->LayerName;
+			NewSegment->SplineMeshes = CopyFromSegment->SplineMeshes;
 			NewSegment->LDMaxDrawDistance = CopyFromSegment->LDMaxDrawDistance;
-			NewSegment->bRaiseTerrain     = CopyFromSegment->bRaiseTerrain;
-			NewSegment->bLowerTerrain     = CopyFromSegment->bLowerTerrain;
+			NewSegment->bRaiseTerrain = CopyFromSegment->bRaiseTerrain;
+			NewSegment->bLowerTerrain = CopyFromSegment->bLowerTerrain;
 			NewSegment->bPlaceSplineMeshesInStreamingLevels = CopyFromSegment->bPlaceSplineMeshesInStreamingLevels;
-			NewSegment->BodyInstance  = CopyFromSegment->BodyInstance;
-			NewSegment->bCastShadow       = CopyFromSegment->bCastShadow;
+			NewSegment->BodyInstance = CopyFromSegment->BodyInstance;
+			NewSegment->bCastShadow = CopyFromSegment->bCastShadow;
+			NewSegment->TranslucencySortPriority = CopyFromSegment->TranslucencySortPriority;
+			NewSegment->RuntimeVirtualTextures = CopyFromSegment->RuntimeVirtualTextures;
+			NewSegment->VirtualTextureLodBias = CopyFromSegment->VirtualTextureLodBias;
+			NewSegment->VirtualTextureCullMips = CopyFromSegment->VirtualTextureCullMips;
+			NewSegment->VirtualTextureRenderPassType = CopyFromSegment->VirtualTextureRenderPassType;
 		}
 
 		Start->ConnectedSegments.Add(FLandscapeSplineConnection(NewSegment, 0));
@@ -681,6 +686,11 @@ public:
 		NewSegment->bLowerTerrain = Segment->bLowerTerrain;
 		NewSegment->BodyInstance = Segment->BodyInstance;
 		NewSegment->bCastShadow = Segment->bCastShadow;
+		NewSegment->TranslucencySortPriority = Segment->TranslucencySortPriority;
+		NewSegment->RuntimeVirtualTextures = Segment->RuntimeVirtualTextures;
+		NewSegment->VirtualTextureLodBias = Segment->VirtualTextureLodBias;
+		NewSegment->VirtualTextureCullMips = Segment->VirtualTextureCullMips;
+		NewSegment->VirtualTextureRenderPassType = Segment->VirtualTextureRenderPassType;
 
 		Segment->Connections[0].TangentLen *= t;
 		Segment->Connections[1].ControlPoint->ConnectedSegments.Remove(FLandscapeSplineConnection(Segment, 1));
@@ -1028,17 +1038,47 @@ public:
 		if (ViewportClient->IsCtrlPressed())
 		{
 			LandscapeInfo = InTarget.LandscapeInfo.Get();
-			ALandscapeProxy* Landscape = LandscapeInfo->GetCurrentLevelLandscapeProxy(true);
-			if (!Landscape)
-			{
-				return false;
-			}
+			ALandscapeProxy* Landscape = nullptr;
 
+			// If we have a selection use the landscape of the selected spline
 			ULandscapeSplinesComponent* SplinesComponent = nullptr;
 			if (SelectedSplineControlPoints.Num() > 0)
 			{
 				ULandscapeSplineControlPoint* FirstPoint = *SelectedSplineControlPoints.CreateConstIterator();
 				SplinesComponent = FirstPoint->GetOuterULandscapeSplinesComponent();
+			
+				if (SplinesComponent)
+				{
+					Landscape = SplinesComponent->GetTypedOuter<ALandscapeProxy>();
+				}
+			}
+					
+			// Hit Test
+			if (!Landscape)
+			{
+				HHitProxy* HitProxy = ViewportClient->Viewport->GetHitProxy(ViewportClient->Viewport->GetMouseX(), ViewportClient->Viewport->GetMouseY());
+				if (HitProxy->IsA(HActor::StaticGetType()))
+				{
+					HActor* ActorProxy = (HActor*)HitProxy;
+					if (ALandscapeProxy* Proxy = Cast<ALandscapeProxy>(ActorProxy->Actor))
+					{
+						Landscape = Proxy;
+					}
+				}
+
+				
+			}
+
+			// Default to Current level Landscape
+			if (!Landscape)
+			{
+				Landscape = LandscapeInfo->GetCurrentLevelLandscapeProxy(true);
+			}
+
+			// No Landscape found
+			if (!Landscape)
+			{
+				return false;
 			}
 
 			if (!SplinesComponent)

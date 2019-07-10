@@ -92,7 +92,7 @@ protected:
 	 * an Actor that follows the possessed Pawn location, but that still has the full aim rotation (since a Pawn might
 	 * update only some components of the rotation).
 	 */
-	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category="Controller|Transform")
+	UPROPERTY(EditDefaultsOnly, Category="Controller|Transform")
 	uint8 bAttachToPawn:1;
 
 	/** Whether this controller is a PlayerController. */

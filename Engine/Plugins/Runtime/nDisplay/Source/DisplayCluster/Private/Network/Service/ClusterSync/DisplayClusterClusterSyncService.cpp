@@ -10,9 +10,9 @@
 #include "Network/Session/DisplayClusterSessionInternal.h"
 
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterLog.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterClusterSyncService::FDisplayClusterClusterSyncService(const FString& InAddr, const int32 InPort) :

@@ -17,7 +17,7 @@ class FCurveOwnerInterface;
 class FPaintArgs;
 class FSlateWindowElementList;
 
-struct FGradientStopMark
+struct UNREALED_API FGradientStopMark
 {
 public:
 

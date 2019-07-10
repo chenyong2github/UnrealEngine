@@ -130,8 +130,8 @@ namespace UnrealGameSync
 				case AlertButtonTheme.Strong:
 					Colors.ForeColor = Color.FromArgb(255, 255, 255);
 					Colors.BorderColor = Color.FromArgb(230, 232, 235);
-					Colors.BackgroundColor1 = Color.FromArgb(214, 69, 64);
-					Colors.BackgroundColor2 = Color.FromArgb(214, 69, 64);
+					Colors.BackgroundColor1 = Color.FromArgb(200, 74, 49);
+					Colors.BackgroundColor2 = Color.FromArgb(200, 74, 49); 
 					Colors.BackgroundColorHover1 = Color.FromArgb(222, 108, 86);
 					Colors.BackgroundColorHover2 = Color.FromArgb(222, 108, 86);
 					Colors.BackgroundColorDown1 = Color.FromArgb(204, 59, 54);

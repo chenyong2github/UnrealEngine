@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3244370
+INTSourceChangelist:6650353
 Availability:Public
 Title: 블루프린트 에디터 디폴트 탭
-Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor, Engine/Blueprints/Editor/Modes
-Description:클래스 디폴트 탭에 대한 개요입니다.
+Parent:Engine/Blueprints/Editor
+Description:블루프린트 클래스 디폴트 탭에 대한 개요입니다.
 version: 4.9
 tags:Blueprints
 
@@ -57,14 +57,14 @@ tags:Blueprints
 	* _Advanced View_ (고급 뷰) 태깅된 프로퍼티도 기본적으로 **고급** 노드 섹션에 숨겨집니다.
 * 오브젝트 레퍼런스 프로퍼티 기본값은 현재 노출되지 **않습니다**.
 	* 즉 예를 들면 현재는 블루프린트 클래스 내 컴포넌트 템플릿이나 다른 아키타입 프로퍼티 값을 접근할 수 없다는 뜻입니다.
-	* 현재 블루프린트에 읽기전용 레퍼런스 유형이 사용되지 않기 때문인데, 레퍼런싱된 오브젝트의 내부 상태를 변화시킬 수 없도록 하기 위해 곧 해야 할 작업이긴 합니다.
+	* 현재 블루프린트에 읽기전용 레퍼런스 유형이 사용되지 않기 때문인데, 참조된 오브젝트의 내부 상태를 변화시킬 수 없도록 하기 위해 곧 해야 할 작업이긴 합니다.
 * 오직 **BlueprintVisible** 또는 **BlueprintReadOnly** 프로퍼티만 현재 기본 접근에 노출되어 있습니다.
 	* 이는 컨텍스트 메뉴를 통해 노출된 "보통" 변수 Get 노드의 동작에 해당합니다.
 * 현재 _클래스_ 입력 드롭다운에는 **모든** UObject 파생 클래스 유형이 나열됩니다 (엔진 클래스 포함).
 	* 앞으로는 엔진 전용 클래스 유형은 제외되도록 제한될 수 있습니다.
 * (예로) Actor 기반 블루프린트 클래스에 **GetClassDefaults** 노드를 추가하면, 배치시 현재 입력 클래스 핀의 값을 기본적으로 현재 블루프린트 클래스 유형에 일치하도록 합니다.
 
-	 
+
 
 
 

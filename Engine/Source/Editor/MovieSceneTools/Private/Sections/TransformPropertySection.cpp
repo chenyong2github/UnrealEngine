@@ -136,7 +136,7 @@ bool FTransformSection::RequestDeleteCategory(const TArray<FName>& CategoryNameP
 		EMovieSceneTransformChannel Channel = TransformSection->GetMask().GetChannels();
 		EMovieSceneTransformChannel ChannelToRemove = TransformSection->GetMaskByName(CategoryName).GetChannels();
 
-		Channel = Channel ^ ChannelToRemove;
+		Channel &= ~ChannelToRemove;
 
 		TransformSection->SetMask(Channel);
 			
@@ -162,7 +162,7 @@ bool FTransformSection::RequestDeleteKeyArea(const TArray<FName>& KeyAreaNamePat
 		EMovieSceneTransformChannel Channel = TransformSection->GetMask().GetChannels();
 		EMovieSceneTransformChannel ChannelToRemove = TransformSection->GetMaskByName(KeyAreaName).GetChannels();
 
-		Channel = Channel ^ ChannelToRemove;
+		Channel &= ~ChannelToRemove;
 
 		TransformSection->SetMask(Channel);
 					

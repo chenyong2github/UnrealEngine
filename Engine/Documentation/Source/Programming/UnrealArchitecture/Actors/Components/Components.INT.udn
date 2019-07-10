@@ -1,137 +1,130 @@
-Availability:Public
+Availability: Public
 Title: Components
-Crumbs:%ROOT%, Programming
-Description:Explanation of Components and descriptions of the various types available.
+Description: Explanation of Components and descriptions of the various types available.
 Version: 4.9
+Parent: Programming/UnrealArchitecture/Actors
+Tags: component
+Order: 1
+
 
 [TOC (start:2 end:3)]
 
-
-[EXCERPT:Overview]
-**Components** are a special type of **Object** designed to be used as sub-objects within **Actors**. These are generally used in situations where it is necessary to have easily swappable parts in 
-order to change the behavior or functionality of some particular aspect of the owning Actor. For instance, a car is controlled and moves very differently from an aircraft, which is controlled and 
-moves differently from a boat, etc.; yet all of these are vehicles that share other commonalities. By using a Component to handle the controls and movement, the same vehicle can easily be made to behave 
-like any one of these specific types.
-[/EXCERPT:Overview]
-
-Contrary to the default behavior of sub-objects in general, Components created as sub-objects within an Actor are instanced, meaning each Actor instance of a particular class gets its own 
-unique instances of the Components. A simple way to visualize this is to imagine the vehicle described above. A **Car** class might use Components to represent the wheels of the car. Four **Wheel** 
-Components would be created as sub-objects in the default properties of the class and assigned to a `Wheels[]` array. When a new Car instance is created, new instances of the wheel Components 
-are created specifically for that Car. If this were not the case, when one Car in the world moved, the wheels of all Cars would turn; which is clearly not the desired behavior. Instancing 
-of Components by default simplifies the process of quickly adding unique sub-objects to Actors. 
-
-[REGION:note]
-Without Component instancing, all Component variables would need to be declared using the [Instanced](Programming\UnrealArchitecture\Reference\Properties\Specifiers) property specifier.
-[/REGION]
+**Components** are a special type of **Object** that **Actors** can attach to themselves as sub-objects. Components are useful for sharing common behaviors, such as the ability to display a visual representation, play sounds. They can also represent project-specific concepts, such as the way a vehicle interprets input and changes its own velocity and orientation. For example, a project with user-controllable cars, aircraft, and boats could implement the differences in vehicle control and movement by changing which Component a vehicle Actor uses.
 
 ## Actor Components
 
-**ActorComponent** is the base class for components that define reusable behavior that can be added to different types of Actors. These are generally used to associate geometry with an Actor, 
-in the form of collision geometry or rendered meshes, control how the Actor moves through the world, play sounds associated with the Actor, provide the ability for the Actor to cast light 
-and shadows onto the world, and more. In fact, everything the player sees or interacts with in the world when playing the game is actually the work of one type of ActorComponent or another. 
-ActorComponents that have a transform are known as **SceneComponents** and those that can be rendered are **PrimitiveComponents**.
+`UActorComponent` is the base class for all Components. Since Components are the only way to render meshes and images, implement collision, and play audio, everything the player sees or interacts with in the world when playing the game is ultimately the work of some type of Component.
+
+There are a few major classes to understand when creating your own Components: **Actor Components**, **Scene Components**, and **Primitive Components**.
+
+*   **Actor Components** (class `UActorComponent`) are most useful for abstract behaviors such as movement, inventory or attribute management, and other non-physical concepts. Actor Components do not have a transform, meaning they do not have any physical location or rotation in the world.
+
+*   **Scene Components** (class `USceneComponent`, a child of `UActorComponent`) support location-based behaviors that do not require a geometric representation. This includes spring arms, cameras, physical forces and constraints (but not physical objects), and even audio.
+
+*   **Primitive Components** (class `UPrimitiveComponent`, a child of `USceneComponent`) are Scene Components with geometric representation, which is generally used to render visual elements or to collide or overlap with physical objects. This includes Static or skeletal meshes, sprites or billboards, and particle systems as well as box, capsule, and sphere collision volumes.
 
 ### Registering Components
 
-In order for ActorComponents to be updated each frame and affect the scene, they must **register** with the scene. Registration is performed by calling `UActorComponent::RegisterComponent()`. 
+In order for Actor Components to update each frame and affect the scene, the Engine must **register** them. This happens automatically for Components created as sub-objects of an Actor during that Actor's spawning process. However, manual registration is available for Components created during play. The `RegisterComponent` function provides this functionality, with the requirement that the Component is associated with an Actor.
 
-	void UActorComponent::RegisterComponent()
-
-This function calls `UActorComponent::RegisterComponentWithScene()` to make sure that the ActorComponent is contained in the owning Actor's `Components[]` array, associate it with the 
-scene, and create the [render proxy](#SceneProxy) and [physics state](#PhysicsState) for the ActorComponent. 
-
-ActorComponents are automatically registered when the owning Actor is spawned, if they are created as sub-objects and added to the `Components[]` array in the default properties of the 
-Actor. They can be registered at any time during play by calling `UActorComponent::RegisterComponent()`, but be aware that registering a Component is a somewhat heavy operation, so it should 
-only be performed when necessary.
+[REGION:note]
+Registering a Component during play can impact performance, so you should do so only in cases where it is necessary.
+[/REGION]
 
 #### Register Events
 
-When a Component is registered, the events below are fired off.
+In the process of registering a Component, the Engine associates the Component with the scene, making it available for per-frame updates, as well as running the following `UActorComponent` functions:
 
+  
 | Function | Description |
-| -------- | ----------- |
-| UActorComponent::OnRegister() | Event to allow for additional initialization when registering a Component, if necessary. |
-| UActorComponent::CreateRenderState() | Initializes the render state for the Component. |
-| UActorComponent::OnCreatePhysicsState() | Initializes the physics state for the Component. |
+| --- | --- |
+| `OnRegister` | This function can be overridden to add code when registering a Component. |
+| `CreateRenderState` | Initializes the [render state](Programming/UnrealArchitecture/Actors/Components#sceneproxy) for the Component. |
+| `OnCreatePhysicsState` | Initializes the [physics state](Programming/UnrealArchitecture/Actors/Components#physicsstate) for the Component. |
 
+### Unregistering Components
 
-### UnRegistering Components
+To remove Actor Components from update, simulation, or rendering processes, you can unregister it with the `UnregisterComponent` function.
 
-ActorComponents can be unregistered as well to avoid them being updated, simulated, or rendered. Unregistering a Component is performed by calling `UActorComponent::UnregisterComponent()`. 
+#### Unregister Events
 
-	void UActorComponent::UnregisterComponent()
+The `UActorComponent` functions below run when a Component unregisters.
 
-#### UnRegister Events
-
-The events below are fired off when a Component is unregistered.
-
+  
 | Function | Description |
-| -------- | ----------- |
-| UActorComponent::OnUnRegister() | Event to allow for additional actions when unregistering a Component, if necessary. |
-| UActorComponent::DestroyRenderState() | Uninitializes the render state for the Component. |
-| UActorComponent::OnDestroyPhysicsState() | Uninitializes the physics state for the Component. |
-
+| --- | --- |
+| `OnUnregister` | This function can be overridden to add code when unregistering a Component. |
+| `DestroyRenderState` | Uninitializes the render state for the Component. |
+| `OnDestroyPhysicsState` | Uninitializes the physics state of the Component. |
 
 ### Updating
 
-ActorComponents have the ability to be updated each frame via their `TickComponent()` function. This allows Components to perform type-specific, per-frame calculations. For example, 
-**SkeletalMeshComponents** use `TickComponent()` to update animations and skeletal controllers, while **ParticleSystemComponents** use it to update the emitters of the system and check for particle 
-events to handle.
+Actor Components have the ability to update each frame in a manner similar to Actors. The `TickComponent` function enables Components to run code on each frame. For example, **USkeletalMeshComponent** uses its `TickComponent` function to update animations and skeletal controllers, while **UParticleSystemComponent** updates its emitters and handles particle events.
 
-In order for a Component to be updated, it must be registered, set to tick (`bComponentNeverTicks=false`), and have its tick function setup. 
+By default, Actor Components do not update. In order to make your Actor Component update each frame, you must enable ticking by setting `PrimaryComponentTick.bCanEverTick` to `true` in its constructor. After that, either in the constructor or elsewhere, you must call `PrimaryComponentTick.SetTickFunctionEnable(true)` to turn updates on. You can later deactivate ticking by calling `PrimaryComponentTick.SetTickFunctionEnable(false)`. If you know your Component will never need updates, or if you intend to call your own update function manually (perhaps from an owning Actor class), you can simply leave `PrimaryComponentTick.bCanEverTick` with its default `false` and get a slight performance boost.
 
 ### Render State
 
-An ActorComponent must have a render state created in order to be rendered. The render state of an ActorComponent also lets the engine know whether something has changed about the Component 
-that requires its render data to be updated. When such a change occurs, the render state is marked dirty. Then, at the end of the current frame, all dirty Components have their render data updated.
+In order to render, an Actor Component must create a render state. This render state also informs the Engine when something has changed about the Component that requires its render data to be updated. When such a change occurs, the render state is marked "dirty". If you build your own Components, you can mark render data as dirty with the `MarkRenderStateDirty` function. At the end of the frame, all dirty Components have their render data updated in the Engine. Scene Components (including Primitive Components) create render states by default, while Actor Components do not.
 
 ### Physics State
 
-In order to be simulated using the physics engine, an ActorComponent must have a physics state created. Unlike the render state, the physics state is never marked dirty as physics updates happen 
-immediately when changes occur. This is important as it keeps issues like frame-behind artifacts from happening.
+To interact with the Engine's physics simulation system, an Actor Component needs a physics state. Physics states update immediately when changes occur, preventing issues like "frame-behind" artifacts and removing the need for a "dirty" marker. By default, Actor Components and Scene Components do not have physics states, but Primitive Components do. Override the `ShouldCreatePhysicsState` function to determine whether or not instances of your Component class need physics states.
+
+[REGION:note]
+If your class uses physics, simply returning `true` is not advised. See the `UPrimitiveComponent` version of the function to get an idea of some of the situations in which you should not create a physics state, such as during the Component's destruction. You can also return `Super::ShouldCreatePhysicsState` in cases where you would normally return `true`.
+[/REGION]
+
+### Visualization Components
+
+Some Actors and Components have no visual representation, making them difficult to select, or have important properties that are not visible. Developers can add extra Components to display information while working in the Editor, but these extra Components are not needed during Play In Editor, or when running a packaged build. To address this, the Editor supports the concept of **Visualization Components**, which are ordinary Components that exist only when working in the Editor.
+
+To make a Visualization Component, create any regular Component and call `SetIsVisualizationComponent` on it. Since the Component does not need to exist outside of the Editor, all references to it should be inside of preprocessor checks against `WITH_EDITORONLY_DATA` or `WITH_EDITOR`. This will ensure that packaged builds are unaffected by these Components and are guaranteed not to reference them anywhere in code. As an example, the **Camera Component** uses several other Components to display helpful information in the Editor, including a **Draw Frustum Component** to show its view frustum. In the header file, the Draw Frustum Component is defined within the class as follows:
+
+    #if WITH_EDITORONLY_DATA
+        // The frustum component used to show visually where the camera field of view is
+        class UDrawFrustumComponent* DrawFrustum;
+        // ...
+    #endif
+
+Similarly, all references to this this Component will be inside of preprocessor checks against `WITH_EDITORONLY_DATA` in the source file. This code, inside of a `WITH_EDITORONLY_DATA` check within `OnRegister`, checks to see if the Camera Component is attached to a valid Actor, and then adds the Draw Frustum Component code:
+
+    void UCameraComponent::OnRegister()
+    {
+    #if WITH_EDITORONLY_DATA
+        if (AActor* MyOwner = GetOwner())
+        {
+            // ...
+            if (DrawFrustum == nullptr)
+            {
+                DrawFrustum = NewObject<UDrawFrustumComponent>(MyOwner, NAME_None, RF_Transactional | RF_TextExportTransient);
+                DrawFrustum->SetupAttachment(this);
+                DrawFrustum->SetIsVisualizationComponent(true);
+                // ...
+            }
+        }
+        // ...
+    #endif
+        Super::OnRegister();
+        // ... Additional code (to run in all builds) goes here ...
+    }
+
+`DrawFrustum` now exists only in the Editor and is considered a Visualization Component, meaning that it won't appear during in-Editor playtesting.
 
 ## Scene Components
 
-SceneComponents are an extension of ActorComponents that have a transform, i.e. location, rotation, and scale. The addition of a transform means SceneComponents can also be attached to one 
-another.
+A Scene Component is an Actor Component that exists at a specific physical position in the world. This position is defined by a **transform** (class [`FTransform`](https://api.unrealengine.com/INT/API/Runtime/Core/Math/FTransform/index.htm)), containing the location, rotation, and scale of the Component. Scene Components have the ability to form trees by attaching to each other, and Actors can designate a single Scene Component as "root", meaning that the Actor's world location, rotation, and scale are drawn from that Component.
 
 ### Attachment
 
-In Unreal Engine 4, all attachment is handled on the Component level and only SceneComponents can be attached to one another. SceneComponents have an `AttachParent` property that points to 
-the Component it is attached to. This is mainly used when an Actor contains multiple Components to keep them all attached, if this is the desired behavior. However, it can also be used to specify 
-a Component belonging to another Actor to attach a Component in one Actor to a Component in another Actor.
-
-This means that in order to attach one Actor to another, each of the Actors involved must contain at least one SceneComponent - as these are what will actually be attached - and the 
-SceneComponent of the Actor that is being attached must be the root Component. The reason for this should be apparent; each Component can only have one parent so if the attached Component 
-is not the root Component of the Actor being attached, that Component and any of its child Components are the only ones that will be attached. The root Component would remain unattached and 
-unaffected, as would the Actor as a whole since it relies on the root Component and its transform.
-
-### Component Transforms
-
-The `FTransform` struct contains a `Translation` vector, a `Rotation` quaternion, and a `Scale3D` vector. Each SceneComponent has its own `FTransform`, generally for internal use, that 
-describes its world-relative location, rotation, and scale. They also have an additional `RelativeLocation` vector, `RelativeRotation` rotator, and `RelativeScale3D` vector used which can act 
-as either relative to their parent Component or relative to the world. These are generally what are used when getting or setting the transform for a Component.
-
-By default, `RelativeLocation`, `RelativeRotation`, and `RelativeScale3D` are relative to their `AttachParent`. These values can be forced to be relative to the world using the `bAbsoluteLocation`, `bAbsoluteRotation`, and `bAbsoluteScale` properties. Setting any of these to `true` will cause the corresponding property to be world-relative.
-
-Even when using parent-relative transform values, it is still possible to set translation and rotation using absolute world values via the methods shown below:
-
-
-| Function | Description |
-| -------- | ----------- |
-| SceneComponent::SetWorldLocation() | Set the relative translation of this Component to put it at the supplied location in world space. |
-| SceneComponent::SetWorldRotation() | Set the relative rotation of this Component to put it at the supplied orientation in world space. |
+Only Scene Components (`USceneComponent` and its child classes) can attach to one another, due to the requirement for transforms to describe the spatial relationship between the child and parent Components. While a Scene Component can have any number of children, it can have only one parent, or can be placed directly in the world. The Scene Component system does not support attachment cycles. The two primary methods are `SetupAttachment`, which is useful in constructors and when dealing with Components that haven't been registered yet, and `AttachToComponent`, which attaches one Scene Component to another immediately and is useful during play. This attachment system also enables attaching Actors to each other by attaching the root Component of one Actor to a Component belonging to another.
 
 ## Primitive Components
 
-**PrimitiveComponents** are SceneComponents that contain or generate some sort of geometry, generally to be rendered or used as collision data. There are several subclasses for the various types 
-of geometry, but the most common by far are the **CapsuleComponent**, **StaticMeshComponent**, and **SkeletalMeshComponent**. CapsuleComponents generate geometry that is used for collision detection, 
-but not rendered; while StaticMeshComponents and SkeletalMeshComponents contain pre-built geometry that is rendered, but can also be used for collision detection.
+**Primitive Components** (class `UPrimitiveComponent`) are Scene Components that contain or generate some sort of geometry, generally for rendering or collision purposes. There are several subclasses for the various types of geometry, but the most common by far are the **Box Component**, **Capsule Component**, **Static Mesh Component**, and **Skeletal Mesh Component**. Box Component and Capsule Component generate invisible geometry for collision detection, while Static Mesh Component and Skeletal Mesh Component contain pre-built geometry that is rendered, and can also be used for collision detection if desired.
 
 ### Scene Proxy
 
-The `SceneProxy` of a PrimitiveComponent is an `FPrimitiveSceneProxy` instance that encapsulates the scene data that is mirrored in order to render the primitive in parallel to the game thread. 
-A subclass of `FPrimitiveSceneProxy` is created for each primitive type to hold the specific render data necessary to render that type of primitive.
+The **Scene Proxy** (class `FPrimitiveSceneProxy`) of a Primitive Component encapsulates scene data that the Engine uses to render the Component in parallel to the game thread. Each type of primitive has its own Scene Proxy child class to hold the specific render data it needs.
 
 See [Rendering System Overview](Programming/Rendering) for more details on primitives and rendering geometry.
-

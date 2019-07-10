@@ -6,11 +6,185 @@
 #include "Field/FieldSystem.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
 #include "GeometryCollectionSimulationTypes.h"
-#include "GeometryCollection/GeometryCollection.h"
+#include "Chaos/PBDRigidClustering.h"
+
+class FGeometryCollection;
+class FGeometryDynamicCollection;
+
+struct FSharedSimulationSizeSpecificData
+{
+	FSharedSimulationSizeSpecificData()
+		: MaxSize(0.f)
+		, CollisionType(ECollisionTypeEnum::Chaos_Surface_Volumetric)
+		, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Sphere)
+		, MinLevelSetResolution(5)
+		, MaxLevelSetResolution(10)
+		, MinClusterLevelSetResolution(25)
+		, MaxClusterLevelSetResolution(50)
+		, CollisionObjectReductionPercentage(0.f)
+		, CollisionParticlesFraction(1.f)
+	{
+	}
+
+	float MaxSize;
+	ECollisionTypeEnum CollisionType;
+	EImplicitTypeEnum ImplicitType;
+	int32 MinLevelSetResolution;
+	int32 MaxLevelSetResolution;
+	int32 MinClusterLevelSetResolution;
+	int32 MaxClusterLevelSetResolution;
+	float CollisionObjectReductionPercentage;
+	float CollisionParticlesFraction;
+
+	bool operator<(const FSharedSimulationSizeSpecificData& Rhs) const { return MaxSize < Rhs.MaxSize; }
+};
+
+//
+//
+//
+enum ESimulationInitializationState { Unintialized = 0, Activated, Created, Initialized };
+
 
 /**
 *  Simulation Parameters
 */
+struct FSharedSimulationParameters
+{
+	static constexpr float MaximumMassClamp = 1000;	//todo: this is way too low, need to handle this in a better way when combining with large inertia
+	FSharedSimulationParameters()
+	: bMassAsDensity(false)
+	, Mass(1.0)
+	, MinimumMassClamp(0.1)
+	{
+		SizeSpecificData.AddDefaulted();
+	}
+
+	FSharedSimulationParameters(ECollisionTypeEnum InCollisionType
+		,EImplicitTypeEnum InImplicitType
+		,int32 InMinLevelSetResolution
+		,int32 InMaxLevelSetResolution
+		,int32 InMinClusterLevelSetResolution
+		,int32 InMaxClusterLevelSetResolution
+		,bool InMassAsDensity
+		,float InMass
+		,float InMinimumMassClamp
+		,float InCollisionParticlesFraction)
+	: bMassAsDensity(InMassAsDensity)
+	, Mass(InMass)
+	, MinimumMassClamp(InMinimumMassClamp)
+	{
+		SizeSpecificData.AddDefaulted();
+		SizeSpecificData[0].CollisionType = InCollisionType;
+		SizeSpecificData[0].ImplicitType = InImplicitType;
+		SizeSpecificData[0].MinLevelSetResolution = InMinLevelSetResolution;
+		SizeSpecificData[0].MaxLevelSetResolution = InMaxLevelSetResolution;
+		SizeSpecificData[0].MinClusterLevelSetResolution = InMinClusterLevelSetResolution;
+		SizeSpecificData[0].MaxClusterLevelSetResolution = InMaxClusterLevelSetResolution;
+		SizeSpecificData[0].CollisionParticlesFraction = InCollisionParticlesFraction;
+	}
+
+	bool bMassAsDensity;
+	float Mass;
+	float MinimumMassClamp;
+	TArray<FSharedSimulationSizeSpecificData> SizeSpecificData;
+	TArray<int32> RemoveOnFractureIndices;
+};
+
+struct FCollisionDataSimulationParameters
+{
+	FCollisionDataSimulationParameters()
+		: DoGenerateCollisionData(false)
+		, SaveCollisionData(false)
+		, CollisionDataSizeMax(512)
+		, DoCollisionDataSpatialHash(false)
+		, CollisionDataSpatialHashRadius(50.f)
+		, MaxCollisionPerCell(1)
+	{}
+
+	FCollisionDataSimulationParameters(bool InDoGenerateCollisionData
+		, bool InSaveCollisionData
+		, int32 InCollisionDataSizeMax
+		, bool InDoCollisionDataSpatialHash
+		, float InCollisionDataSpatialHashRadius
+		, int32 InMaxCollisionPerCell)
+		: DoGenerateCollisionData(InDoGenerateCollisionData)
+		, SaveCollisionData(InSaveCollisionData)
+		, CollisionDataSizeMax(InCollisionDataSizeMax)
+		, DoCollisionDataSpatialHash(InDoCollisionDataSpatialHash)
+		, CollisionDataSpatialHashRadius(InCollisionDataSpatialHashRadius)
+		, MaxCollisionPerCell(InMaxCollisionPerCell)
+	{}
+
+	bool DoGenerateCollisionData;
+	bool SaveCollisionData;
+	int32 CollisionDataSizeMax;
+	bool DoCollisionDataSpatialHash;
+	float CollisionDataSpatialHashRadius;
+	int32 MaxCollisionPerCell;
+};
+
+struct FBreakingDataSimulationParameters
+{
+	FBreakingDataSimulationParameters()
+		: DoGenerateBreakingData(false)
+		, SaveBreakingData(false)
+		, BreakingDataSizeMax(512)
+		, DoBreakingDataSpatialHash(false)
+		, BreakingDataSpatialHashRadius(15.f)
+		, MaxBreakingPerCell(1)
+	{}
+
+	FBreakingDataSimulationParameters(bool InDoGenerateBreakingData
+		, bool InSaveBreakingData
+		, int32 InBreakingDataSizeMax
+		, bool InDoBreakingDataSpatialHash
+		, float InBreakingDataSpatialHashRadius
+		, int32 InMaxBreakingPerCell)
+		: DoGenerateBreakingData(InDoGenerateBreakingData)
+		, SaveBreakingData(InSaveBreakingData)
+		, BreakingDataSizeMax(InBreakingDataSizeMax)
+		, DoBreakingDataSpatialHash(InDoBreakingDataSpatialHash)
+		, BreakingDataSpatialHashRadius(InBreakingDataSpatialHashRadius)
+		, MaxBreakingPerCell(InMaxBreakingPerCell)
+	{}
+
+	bool DoGenerateBreakingData;
+	bool SaveBreakingData;
+	int32 BreakingDataSizeMax;
+	bool DoBreakingDataSpatialHash;
+	float BreakingDataSpatialHashRadius;
+	int32 MaxBreakingPerCell;
+};
+
+struct FTrailingDataSimulationParameters
+{
+	FTrailingDataSimulationParameters()
+		: DoGenerateTrailingData(false)
+		, SaveTrailingData(false)
+		, TrailingDataSizeMax(512)
+		, TrailingMinSpeedThreshold(200.f)
+		, TrailingMinVolumeThreshold(10000.f)
+	{}
+
+	FTrailingDataSimulationParameters(bool InDoGenerateTrailingData
+		, bool InSaveTrailingData
+		, int32 InTrailingDataSizeMax
+		, float InTrailingMinSpeedThreshold
+		, float InTrailingMinVolumeThreshold)
+		: DoGenerateTrailingData(InDoGenerateTrailingData)
+		, SaveTrailingData(InSaveTrailingData)
+		, TrailingDataSizeMax(InTrailingDataSizeMax)
+		, TrailingMinSpeedThreshold(InTrailingMinSpeedThreshold)
+		, TrailingMinVolumeThreshold(InTrailingMinVolumeThreshold)
+	{}
+
+	bool DoGenerateTrailingData;
+	bool SaveTrailingData;
+	int32 TrailingDataSizeMax;
+	float TrailingMinSpeedThreshold;
+	float TrailingMinVolumeThreshold;
+};
+
 struct FSimulationParameters
 {
 	FSimulationParameters()
@@ -20,22 +194,14 @@ struct FSimulationParameters
 		, RecordedTrack(nullptr)
 		, bOwnsTrack(false)
 		, Simulating(false)
-		, FieldSystem(nullptr)
 		, WorldTransform(FTransform::Identity)
-		, ObjectType(EObjectTypeEnum::Chaos_Object_Dynamic)
 		, EnableClustering(true)
+		, ClusterGroupIndex(0)
 		, MaxClusterLevel(100)
 		, DamageThreshold({250.f})
-		, CollisionType(ECollisionTypeEnum::Chaos_Surface_Volumetric)
-		, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Sphere)
-		, MinLevelSetResolution(5)
-		, MaxLevelSetResolution(10)
-		, MassAsDensity(false)
-		, Mass(1.0)
-		, MinimumMassClamp(0.1)
-		, CollisionParticlesFraction(1.0)
-		, Friction(0.3)
-		, Bouncyness(0.0)
+		, ClusterConnectionMethod(Chaos::FClusterCreationParameters<float>::EConnectionMethod::PointImplicit)
+		, CollisionGroup(0)
+		, CollisionSampleFraction(1.0)
 		, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_None)
 		, InitialLinearVelocity(FVector(0))
 		, InitialAngularVelocity(FVector(0))
@@ -43,117 +209,25 @@ struct FSimulationParameters
 		, CacheBeginTime(0.0f)
 		, ReverseCacheBeginTime(0.0f)
 		, bClearCache(false)
-		, SaveCollisionData(true)
-		, CollisionDataMaxSize(1024)
-		, DoCollisionDataSpatialHash(true)
-		, SpatialHashRadius(15.f)
-		, MaxCollisionPerCell(1)
-		, SaveTrailingData(true)
-		, TrailingDataSizeMax(1024)
-		, TrailingMinSpeedThreshold(100.f)
-		, TrailingMinVolumeThreshold(10000.f)
+		, InitializationState(ESimulationInitializationState::Unintialized)
+		, RemoveOnFractureEnabled(false)
 	{}
 
-	FSimulationParameters(
-		FString Name
-		, FGeometryCollection * RestCollectionIn
-		, FGeometryCollection * DynamicCollectionIn
-		, const FRecordedTransformTrack* InRecordedTrack
-		, bool OwnsTrackIn
-		, bool SimulatingIn
-		, const FFieldSystem* FieldSystemIn
-		, FTransform& WorldTransformIn
-		, EObjectTypeEnum ObjectTypeIn
-		, bool EnableClusteringIn
-		, int32 MaxClusterLevelIn
-		, TArray<float> DamageThresholdIn
-		, ECollisionTypeEnum CollisionTypeIn
-		, EImplicitTypeEnum ImplicitTypeIn
-		, int32 MinLevelSetResolutionIn
-		, int32 MaxLevelSetResolutionIn
-		, bool MassAsDensityIn
-		, float MassIn
-		, float MinimumMassClampIn
-		, float CollisionParticlesFractionIn
-		, float FrictionIn
-		, float BouncynessIn
-		, EInitialVelocityTypeEnum InitialVelocityTypeIn
-		, FVector InitialLinearVelocityIn
-		, FVector InitialAngularVelocityIn
-		, bool bClearCacheIn
-		, bool SaveCollisionDataIn
-		, int32 CollisionDataMaxSizeIn
-		, bool DoCollisionDataSpatialHashIn
-		, float SpatialHashRadiusIn
-		, int32 MaxCollisionPerCellIn
-		, bool SaveTrailingDataIn
-		, int32 TrailingDataSizeMaxIn
-		, float TrailingMinSpeedThresholdIn
-		, float TrailingMinVolumeThresholdIn
-		, EGeometryCollectionCacheType InCacheType
-		, float InCacheBeginTime
-		, float InReverseCacheBeginTime)
-		: RestCollection(RestCollectionIn)
-		, DynamicCollection(DynamicCollectionIn)
-		, RecordedTrack(InRecordedTrack)
-		, bOwnsTrack(OwnsTrackIn)
-		, Simulating(SimulatingIn)
-		, FieldSystem(FieldSystemIn)
-		, WorldTransform(WorldTransformIn)
-		, ObjectType(ObjectTypeIn)
-		, EnableClustering(EnableClusteringIn)
-		, MaxClusterLevel(MaxClusterLevelIn)
-		, DamageThreshold(DamageThresholdIn)
-		, CollisionType(CollisionTypeIn)
-		, ImplicitType(ImplicitTypeIn)
-		, MinLevelSetResolution(MinLevelSetResolutionIn)
-		, MaxLevelSetResolution(MaxLevelSetResolutionIn)
-		, MassAsDensity(MassAsDensityIn)
-		, Mass(MassIn)
-		, MinimumMassClamp(MinimumMassClampIn)
-		, CollisionParticlesFraction(CollisionParticlesFractionIn)
-		, Friction(FrictionIn)
-		, Bouncyness(BouncynessIn)
-		, InitialVelocityType(InitialVelocityTypeIn)
-		, InitialLinearVelocity(InitialLinearVelocityIn)
-		, InitialAngularVelocity(InitialAngularVelocityIn)
-		, CacheType(InCacheType)
-		, CacheBeginTime(InCacheBeginTime)
-		, ReverseCacheBeginTime(InReverseCacheBeginTime)
-		, bClearCache(bClearCacheIn)
-		, SaveCollisionData(SaveCollisionDataIn)
-		, CollisionDataMaxSize(CollisionDataMaxSizeIn)
-		, DoCollisionDataSpatialHash(DoCollisionDataSpatialHashIn)
-		, SpatialHashRadius(SpatialHashRadiusIn)
-		, MaxCollisionPerCell(MaxCollisionPerCellIn)
-		, SaveTrailingData(SaveTrailingDataIn)
-		, TrailingDataSizeMax(TrailingDataSizeMaxIn)
-		, TrailingMinSpeedThreshold(TrailingMinSpeedThresholdIn)
-		, TrailingMinVolumeThreshold(TrailingMinVolumeThresholdIn)
-	{}
 
 	FSimulationParameters(const FSimulationParameters& Other)
 		: RestCollection(Other.RestCollection)
 		, DynamicCollection(Other.DynamicCollection)
+		, InitializationCommands(Other.InitializationCommands)
 		, RecordedTrack(Other.RecordedTrack)
 		, bOwnsTrack(false)
 		, Simulating(Other.Simulating)
-		, FieldSystem(Other.FieldSystem)
 		, WorldTransform(Other.WorldTransform)
-		, ObjectType(Other.ObjectType)
-		, EnableClustering(Other.EnableClustering)
+		, ClusterGroupIndex(Other.ClusterGroupIndex)
 		, MaxClusterLevel(Other.MaxClusterLevel)
 		, DamageThreshold(Other.DamageThreshold)
-		, CollisionType(Other.CollisionType)
-		, ImplicitType(Other.ImplicitType)
-		, MinLevelSetResolution(Other.MinLevelSetResolution)
-		, MaxLevelSetResolution(Other.MaxLevelSetResolution)
-		, MassAsDensity(Other.MassAsDensity)
-		, Mass(Other.Mass)
-		, MinimumMassClamp(Other.MinimumMassClamp)
-		, CollisionParticlesFraction(Other.CollisionParticlesFraction)
-		, Friction(Other.Friction)
-		, Bouncyness(Other.Bouncyness)
+		, ClusterConnectionMethod(Other.ClusterConnectionMethod)
+		, CollisionGroup(Other.CollisionGroup)
+		, CollisionSampleFraction(Other.CollisionSampleFraction)
 		, InitialVelocityType(Other.InitialVelocityType)
 		, InitialLinearVelocity(Other.InitialLinearVelocity)
 		, InitialAngularVelocity(Other.InitialAngularVelocity)
@@ -161,15 +235,13 @@ struct FSimulationParameters
 		, CacheBeginTime(Other.CacheBeginTime)
 		, ReverseCacheBeginTime(Other.ReverseCacheBeginTime)
 		, bClearCache(Other.bClearCache)
-		, SaveCollisionData(Other.SaveCollisionData)
-		, CollisionDataMaxSize(Other.CollisionDataMaxSize)
-		, DoCollisionDataSpatialHash(Other.DoCollisionDataSpatialHash)
-		, SpatialHashRadius(Other.SpatialHashRadius)
-		, MaxCollisionPerCell(Other.MaxCollisionPerCell)
-		, SaveTrailingData(Other.SaveTrailingData)
-		, TrailingDataSizeMax(Other.TrailingDataSizeMax)
-		, TrailingMinSpeedThreshold(Other.TrailingMinSpeedThreshold)
-		, TrailingMinVolumeThreshold(Other.TrailingMinVolumeThreshold)
+		, PhysicalMaterial(Other.PhysicalMaterial)
+		, CollisionData(Other.CollisionData)
+		, BreakingData(Other.BreakingData)
+		, TrailingData(Other.TrailingData)
+		, Shared(Other.Shared)
+		, InitializationState(Other.InitializationState)
+		, RemoveOnFractureEnabled(false)
 	{}
 
 	~FSimulationParameters()
@@ -184,33 +256,24 @@ struct FSimulationParameters
 	bool IsCachePlaying() { return CacheType == EGeometryCollectionCacheType::Play || CacheType == EGeometryCollectionCacheType::RecordAndPlay; }
 
 	FString Name;
-	FGeometryCollection * RestCollection;
-	FGeometryCollection * DynamicCollection;
+	const FGeometryCollection* RestCollection;
+	FGeometryDynamicCollection* DynamicCollection;
+	TArray<FFieldSystemCommand> InitializationCommands;
 	const FRecordedTransformTrack* RecordedTrack;
 	bool bOwnsTrack;
 
 	bool Simulating;
 
-	const FFieldSystem* FieldSystem;
-
 	FTransform WorldTransform;
 
-	EObjectTypeEnum ObjectType;
-
 	bool EnableClustering;
+	int32 ClusterGroupIndex;
 	int32 MaxClusterLevel;
 	TArray<float> DamageThreshold;
+	Chaos::FClusterCreationParameters<float>::EConnectionMethod ClusterConnectionMethod;
 
-	ECollisionTypeEnum CollisionType;
-	EImplicitTypeEnum ImplicitType;
-	int32 MinLevelSetResolution;
-	int32 MaxLevelSetResolution;
-	bool MassAsDensity;
-	float Mass;
-	float MinimumMassClamp;
-	float CollisionParticlesFraction;
-	float Friction;
-	float Bouncyness;
+	int32 CollisionGroup;
+	float CollisionSampleFraction;
 
 	EInitialVelocityTypeEnum InitialVelocityType;
 	FVector InitialLinearVelocity;
@@ -220,13 +283,16 @@ struct FSimulationParameters
 	float CacheBeginTime;
 	float ReverseCacheBeginTime;
 	bool bClearCache;
-	bool SaveCollisionData;
-	int32 CollisionDataMaxSize;
-	bool DoCollisionDataSpatialHash;
-	float SpatialHashRadius;
-	int32 MaxCollisionPerCell;
-	bool SaveTrailingData;
-	int32 TrailingDataSizeMax;
-	float TrailingMinSpeedThreshold;
-	float TrailingMinVolumeThreshold;
+
+	Chaos::TSerializablePtr<Chaos::TChaosPhysicsMaterial<float>> PhysicalMaterial;
+
+	FCollisionDataSimulationParameters CollisionData;
+	FBreakingDataSimulationParameters BreakingData;
+	FTrailingDataSimulationParameters TrailingData;
+
+	FSharedSimulationParameters Shared;
+
+	ESimulationInitializationState InitializationState;
+
+	bool RemoveOnFractureEnabled;
 };

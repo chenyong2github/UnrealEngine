@@ -91,7 +91,7 @@ bool FSocketSubsystemUnix::HasNetworkDevice()
 	return true;
 }
 
-FSocket* FSocketSubsystemUnix::CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType)
+FSocket* FSocketSubsystemUnix::CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType)
 {
 	FSocketBSD* NewSocket = (FSocketBSD*)FSocketSubsystemBSD::CreateSocket(SocketType, SocketDescription, ProtocolType);
 
@@ -172,7 +172,7 @@ bool FSocketSubsystemUnix::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetA
 				// Don't write it to our list again though.
 				if (bHasMultihome && NewAddress == MultihomeAddress)
 				{
-					static_cast<FInternetAddrBSD&>(MultihomeAddress.Get()).SetScopeId(AddressInterface);
+					StaticCastSharedRef<FInternetAddrBSD>(MultihomeAddress)->SetScopeId(AddressInterface);
 				}
 				else
 				{

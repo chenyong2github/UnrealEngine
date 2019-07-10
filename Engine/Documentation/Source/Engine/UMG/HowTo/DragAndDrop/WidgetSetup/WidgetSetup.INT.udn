@@ -1,4 +1,4 @@
-Availability: Public
+Availability: docs
 Title:2. Widget Setup
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:In this step we script what happens when the Left Mouse Button is pressed. 
@@ -13,6 +13,7 @@ tags:UMG UI Designer
 tags:UI
 type:how-to
 
+## Set to docs as the page has been combined into a single page. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

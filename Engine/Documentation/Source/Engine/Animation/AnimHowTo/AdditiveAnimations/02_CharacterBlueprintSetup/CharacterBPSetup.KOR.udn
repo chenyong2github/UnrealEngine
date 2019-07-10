@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:2 - 캐릭터 블루프린트 업데이트
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:여기서는 캐릭터 블루프린트에서 무기 발사 시뮬레이션을 하는 스크립트를 짜 봅니다.

@@ -3,7 +3,8 @@
 #include "Network/DisplayClusterSocketOps.h"
 
 #include "DisplayClusterConstants.h"
-#include "Misc/DisplayClusterLog.h"
+#include "DisplayClusterLog.h"
+
 #include "Misc/ScopeLock.h"
 
 #include "Dom/JsonObject.h"

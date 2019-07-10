@@ -19,7 +19,7 @@ namespace MetadataServer.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -61,22 +61,25 @@ namespace MetadataServer.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to CREATE TABLE IF NOT EXISTS
-        ///[CIS] (
-        ///	[Id]           INTEGER       NOT NULL PRIMARY KEY AUTOINCREMENT,
-        ///	[ChangeNumber] INTEGER       NOT NULL,
-        ///	[BuildType]    NCHAR (32)    NOT NULL,
-        ///	[Result]       NCHAR (10)    NOT NULL,
-        ///	[Url]          VARCHAR (512) NOT NULL,
-        ///	[Project]      VARCHAR (256) NULL,
-        ///	[ArchivePath]  VARCHAR (512) NULL
+        ///   Looks up a localized string similar to CREATE DATABASE IF NOT EXISTS ugs_db;
+        ///
+        ///CREATE TABLE IF NOT EXISTS ugs_db.Projects (
+        ///	Id INT NOT NULL AUTO_INCREMENT,
+        ///	`Name` NVARCHAR(128) NOT NULL UNIQUE,
+        ///    PRIMARY KEY ( Id )
         ///);
         ///
-        ///CREATE TABLE IF NOT EXISTS
-        ///[Comments] (
-        ///	[Id]           INTEGER    	  NOT NULL PRIMARY KEY AUTOINCREMENT,
-        ///	[ChangeNumber] INTEGER        NOT NULL,
-        ///	[UserName]    [rest of string was truncated]&quot;;.
+        ///CREATE TABLE IF NOT EXISTS ugs_db.CIS (
+        ///    Id INT NOT NULL AUTO_INCREMENT,
+        ///    ChangeNumber INT NOT NULL,
+        ///    BuildType NCHAR(32) NOT NULL,
+        ///    Result NCHAR(10) NOT NULL,
+        ///    Url VARCHAR(512) NOT NULL,
+        ///    Project VARCHAR(512) NULL,
+        ///    ProjectId INTEGER NULL,
+        ///	ArchivePath VARCHAR(512) NULL,
+        ///    PRIMARY KEY ( Id ),
+        ///    FOREIGN [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string Setup {
             get {

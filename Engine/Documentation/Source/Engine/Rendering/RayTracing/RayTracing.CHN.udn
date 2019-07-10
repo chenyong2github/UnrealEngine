@@ -1,0 +1,450 @@
+﻿INTSourceChangelist:6033183
+Availability: Public
+Title: 实时光线追踪
+Description: 虚幻引擎4中的光线追踪的概述。
+Type: overview
+Version: 4.22
+Parent: Engine/Rendering
+Tags: Early Access
+Tags: Ray Tracing
+Order: 16
+
+
+[TOC (start:2 end:2)]
+
+![RayTracingBanner](RayTracingBanner.png "RayTracingBanner")
+
+  
+
+电影、电视和可视化领域长期使用光线追踪技术渲染照片般逼真的影像，但这种技术需要功能强大的计算机，而且渲染每一帧图像都很花时间。对于电影和电视，可能要花费许多个小时乃至许多天来渲染出高质量的影像序列，但是最终结果可以产生逼真的3D内容，能够与实拍影像无缝地混合在一起。对于建筑可视化公司，光线追踪意味着创作出美丽的渲染效果，可以供汽车业展示，也可展示内容丰富的家居或办公楼在一切完工时的景象，并且得到逼真的观看效果。    
+
+通过将虚幻引擎4（UE4）的技术与 **实时光线追踪**（RTRT）相结合，就可以创作出在细微光照效果上能够与许多脱机渲染器相媲美的交互式体验。实时光线追踪可以让影像看起来更自然，制作出面积光源下的柔和阴影、准确的环境光遮蔽、交互式的全局光照等效果。 
+
+## 虚幻引擎中的光线追踪
+
+UE4中的光线追踪包含两种技术：  
+
+*   一是混合的 **Ray Tracer**，将光线追踪功能与我们现有的光栅效果相结合。
+
+*   一是 **Path Tracer**，用于生成参考渲染器。
+
+### Ray Tracer
+
+Ray Tracer能够针对阴影、环境光遮蔽（AO）、反射、交互式全局光照和半透明实时生成光线追踪效果。它使用数量不多的采样配合降噪算法来实现这一点，可以得到在视觉上与真实情况极为近似的效果。例如用于阴影，可以根据与投影表面的距离或光源大小进行柔化，并且做出符合物理规律的接触硬化效果。  
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![未降噪的逐像素单采样阴影](UnDenoised.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![降噪后的逐像素单采样阴影](Denoised.png) 
+ [/PARAM]
+[/OBJECT]
+
+### Path Tracer
+
+Path Tracer是一款基于物理的无偏性路径追踪器，很适合渲染场景的参考图像。它与脱机渲染器类似，通过连续收集采样来工作，以它目前的状态更适合用于生成场景的真相渲染，而不是最终像素。
+
+要了解更多信息，请参见[Path Tracer](Engine/Rendering/RayTracing/PathTracer)。
+
+## 在你的项目中启用光线追踪
+
+请按照这些步骤在你的项目中启用光线追踪支持。 
+
+| 系统要求 |  |
+| --- | --- |
+| **操作系统** | [INCLUDE:#excerpt_0] |
+| **GPU** | 使用最新设备驱动程序的NVIDIA RTX系列显卡和某些支持DXR的GTX系列显卡。[REGION:note] 要了解更多信息，请在[此处](https://www.nvidia.com/en-us/geforce/news/geforce-gtx-dxr-ray-tracing-available-now)参见英伟达网站。[/REGION]|
+| **虚幻引擎版本** | 4.22或更高版本 |
+
+<!-- 
+[EXCERPT:excerpt_0]
+[Windows 10 RS5（构建版1809）或更高版本](https://support.microsoft.com/en-us/help/4028685/windows-10-get-the-update)  
+[REGION:note]
+请在Windows搜索栏中输入 **winver** 来确认你的Windows构建版本。
+[/REGION]
+[/EXCERPT:excerpt_0]
+-->
+
+### 启用DX12和光线追踪
+
+1.  转到主菜单，使用 **文件（File）** 菜单打开 **项目设置（Project Settings）**。  
+
+1. 在 **平台（Platforms）> Windows** 下面，使用 **默认RHI（Default RHI）** 下拉菜单选择 **DX12**。
+
+	![](EnableDX12Mode.png)
+
+1.  在 **引擎（Engine）> 渲染（Rendering）** 下面，启用 **光线追踪（Ray Tracing）**。  
+      
+    ![ProjectSetting_EnableRT](ProjectSetting_EnableRT.png "ProjectSetting_EnableRT")
+    [REGION:note]
+    要启用光线追踪，必须为项目启用 **支持计算皮肤缓存（Support Compute Skincache）**。如果尚未启用此设置，你会看到一个消息对话框，询问你是否要立即启用。如果是这样，请单击 **是（Yes）**。  
+    ![](SupportSkinCache.png)
+    [/REGION]
+    
+1.  **重新启动** 引擎来使编辑器带DX12启动，并为你的项目启用光线追踪。
+
+
+
+
+
+<!---
+### 使编辑器带DirectX 12启动
+
+目前，只能通过命令行启用DirectX 12（DX12）。为了进行我设置，你需要创建一个UE4Editor.exe的快捷方式，并添加命令行参数来启用DX12。
+
+1.  打开 **Epic Games启动程序**，在引擎的下拉菜单中选择 **创建快捷方式（Create Shortcut）**。这会在桌面上放置一个指向引擎二进制文件的快捷方式。  
+      
+    ![LauncherShortcut](LauncherShortcut.png "LauncherShortcut")  
+    
+
+1.  转到你新创建的UE4引擎二进制文件快捷方式。右键单击并从情境菜单中选择 **属性（Properties）**。然后在 **快捷方式（Shortcut）** 选项卡下面，将 **-dx12** 添加到 **目标（Target）** 文件路径的末尾。  
+      
+    ![RTRT_PropertiesShortcutCommandLineArgs636891472515688651](RTRT_PropertiesShortcutCommandLineArgs636891472515688651.png "RTRT_PropertiesShortcutCommandLineArgs636891472515688651")  
+    
+
+1.  单击 **确定（OK）** 利用设置，然后双击快捷方式以DX12模式运行编辑器。
+
+在虚幻编辑器打开后，你可以打开 **输出日志（Output Log）** 来验证是否使用了命令行。你应该会看到 `LogInit:Command Line:-dx12`，以及另一些有用的信息，例如你当前使用的Windows 10构建版本和GPU：  
+
+![OutputLog636891472979936361](OutputLog636891472979936361.png "OutputLog636891472979936361")
+
+### 启用光线追踪
+
+1.  转到主菜单，使用 **文件（File）** 菜单打开 **项目设置（Project Settings）**。  
+    
+
+1.  在 **引擎（Engine）> 渲染（Rendering）** 下面，启用 **光线追踪（Ray Tracing）**。  
+      
+    ![ProjectSetting_EnableRT](ProjectSetting_EnableRT.png "ProjectSetting_EnableRT")
+    [REGION:note]
+    要启用光线追踪，必须为项目启用 **支持计算皮肤缓存（Support Compute Skincache）**。如果尚未启用此设置，你会看到一个消息对话框，询问你是否要立即启用。如果是这样，请单击 **是（Yes）**。  
+    ![](SupportSkinCache.png)
+    [/REGION]
+    
+
+1.  **重新启动** 编辑器来为你的项目启用光线追踪。
+
+
+## 实时光线追踪功能
+
+### 光线追踪阴影
+
+**光线追踪阴影** 为环境中的物体模拟柔和的面积光照效果。这意味着根据光源的大小或光源角度，物体的阴影在靠近接触面的部分会比较锐利，离接触面越远就越柔和且变宽。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![使用阴影贴图的光栅阴影](RT_Shadows_Disabled-3.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光线追踪的柔和阴影](RT_Shadows_Enabled-3.png) 
+ [/PARAM]
+[/OBJECT]
+
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。
+
+--->
+
+
+## 实时光线追踪功能
+
+### 光线追踪阴影
+
+**光线追踪阴影** 为环境中的物体模拟柔和的面积光照效果。这意味着根据光源的大小或光源角度，物体的阴影在靠近接触面的部分会比较锐利，离接触面越远就越柔和且变宽。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![使用阴影贴图的光栅阴影](RT_Shadows_Disabled-3.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光线追踪的柔和阴影](RT_Shadows_Enabled-3.png) 
+ [/PARAM]
+[/OBJECT]
+
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。
+
+
+### 光线追踪反射
+
+**光线追踪反射**（RTR）模拟准确的环境反光，可支持多次反射，在反光表面呈现相互反射效果。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![屏幕空间反射](RT_Reflections_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光线追踪反射](RT_Reflections_Enabled-1.png) 
+ [/PARAM]
+[/OBJECT]
+
+与屏幕空间反射（SSR）、平面反射乃至反射探头相比，光线追踪反射可以动态地捕捉整个场景，在反射中可以看到的并不局限于静态捕捉图像或当前摄像机视野中的物体。
+
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。
+
+### 光线追踪半透明
+
+**光线追踪半透明**（RTT）能准确表现玻璃和液体材质，在透明表面上显示符合物理的正确反射、吸收和折射。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![光栅半透明](RT_Translucency_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光线追踪半透明](RT_Translucency_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。
+
+### 光线追踪环境光遮蔽
+
+**光线追踪环境光遮蔽**（RTAO）准确地对环境光照被遮挡的区域投射阴影，使物体更好地融入环境，例如在角落和墙壁相交处投射阴影，或者为裂缝或皮肤上的皱纹增添深度。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![屏幕空间环境光遮蔽（SSAO）](RT_AO_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光线追踪环境光遮蔽（RTAO）](RT_AO_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+与屏幕空间环境光遮蔽（SSAO）相比，RTAO能使物体融入环境，并为场景增加深度，使被间接照明的区域呈现自然的阴影。
+
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。
+
+### 光线追踪全局光照
+
+**光线追踪全局光照**（RTGI）向未被给定光源直接照射的区域添加实时交互反射光照。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![仅使用天空光照](RT_GI_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光线追踪全局光照 ](RT_GI_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+[REGION:note]
+RTGI在默认情况下是禁用的，目前被视作是试验性质的。要想启用它，可以向场景添加[后期处理体积](#后期处理体积)，然后启用 **光线追踪全局光照（Ray Traced Global Illumination）**，或者使用控制台变量 `r.RayTracing.Globalillumination 1`。
+[/REGION]
+
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。
+
+## 使用光线追踪功能
+
+### 后期处理体积
+
+在场景中使用[后期处理体积](Engine/Rendering/PostProcessEffects)来控制光线追踪和路径追踪功能及属性。可以将体积添加到内部和外部的不同区域，从而应用你所需要的功能和质量级别。你可以通过这些体积控制光线追踪反射、半透明、全局光照、环境光遮蔽和Path Tracer。
+
+1.  在 **模式（Modes）** 面板中，找到 **后期处理体积（Post Process Volume）** 并将它拖入 **关卡** 中。  
+    [REGION:lightbox]
+    [![RT_AddPPVToScene](RT_AddPPVToScene.png "RT_AddPPVToScene")(w:500)](RT_AddPPVToScene.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  在选中该体积的情况下，查看 **细节（Details）** 面板中的 **渲染功能（Rendering Features）**，找到可以调节的光线追踪和路径追踪功能及属性。  
+    [REGION:lightbox]
+    [![PPV_Settings](PPV_Settings.png "PPV_Settings")(w:250)](PPV_Settings.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。
+
+### 光源
+
+Ray Tracer对UE4中可用的所有类型光源都支持柔和区域阴影。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![光线追踪阴影：定向光源 | 光源角度：0.5357](RT_SoftShdows_0_537.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光线追踪阴影：定向光源 | 光源角度：2.0](RT_SoftShdows_2_5.png) 
+ [/PARAM]
+[/OBJECT]
+
+通过调节下列设置来控制阴影柔和度： 
+
+*   在 **定向光源** 上，设置 **光源角度（Source Angle）**。
+
+*   在 **点光源** 和 **聚光源** 上，设置 **光源半径（Source Radius）**。 
+
+*   在 **矩形光源** 上，设置 **挡光板角度（Barn Door Angle）** 和 **挡光板长度（Barn Door Length）** 来控制阴影柔和度。
+
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。
+
+### 天空光照
+
+在 **天空光照** 上，使用 **SLS捕捉场景（SLS Captured Scene）** 或 **SLS指定立方体贴图（SLS Specified Cubemap）** 配合光线追踪阴影来捕捉关卡的远端部分，并作为光源应用到场景。选取 **投射光线追踪阴影（Cast Raytraced Shadow）** 标志以在场景中启用天空光照。  
+
+![RT_SkyLight](RT_SkyLight.png "RT_SkyLight")
+
+[REGION:caption]
+在此场景中，使用了一个HDRI配合RTGI对场景进行照明。
+[/REGION]
+[REGION:note]
+要使RTGI配合天空光照发挥作用，请使用试验性的控制台变量 `r.RayTracing.GlobalIllumination.EvalSkylight` 启用RTGI来评估天空的光照。
+[/REGION]
+要了解更多信息，请参见[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。  
+
+### 光线追踪环境光遮蔽
+
+在场景中使用[后期处理体积](#后期处理体积)控制 **光线追踪环境光遮蔽**。在 **环境光遮蔽（Ambient Occlusion）**，你可以设置效果的 **强度（Intensity）** 和 **半径（Radius）** 来控制其大小和强度。 
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![光线追踪环境光遮蔽强度：0.75](RTAO_75.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光线追踪环境光遮蔽强度：1.0](RTAO_100.png) 
+ [/PARAM]
+[/OBJECT]
+
+## 性能与调试
+
+### 统计GPU
+
+使用控制台命令 `GPU Stats` 来检查相关的光线追踪GPU性能。你会找到已启用的光线追踪功能的相关信息，并了解在当前视图中为了渲染它们花费了多少帧时间。   
+
+![GPUStats1](GPUStats1.png "GPUStats1")
+
+### Stat D3D12RayTracing
+
+使用控制台命令 `Stat D3D12RayTracing` 来检查相关的光线追踪资源使用情况。
+
+![StatD3D12RayTracing](StatD3D12RayTracing.png "StatD3D12RayTracing")
+
+### 光线追踪调试视图模式
+
+在关卡视口下面，选择 **视图模式（View Mode）** 下拉菜单，然后选择 **光线追踪调试（Ray Tracing Debug）** 以选择可用的调试视图模式。 
+
+[REGION:lightbox]
+[![RT_DebugOptions](RT_DebugOptions.png "RT_DebugOptions")(w:300)](RT_DebugOptions.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
+
+### 评估降噪器质量
+
+通过执行下列操作来评估不同光线追踪效果的降噪器质量： 
+
+*   禁用 **临时抗锯齿（Temporal Anti-Aliasing）** 和 **景深（Depth of Field）**。
+    *   这两个设置在虚幻引擎的渲染器中都在线性色彩空间中运行。它们会使用一些HDR颜色加权技巧来避免在阴影和高光之间产生锯齿。
+
+*   请比较降噪后的逐像素单采样与未降噪的逐像素单采样。 
+    *   由于能量差异以及降噪器对阴影暗化过多，结果看起来不正确。但是，由于色调映射器的非线性运算，逐像素单采样看起来会比较明亮。 
+    
+    *   为了更好地对比，应该对照未降噪的逐像素 **多** 采样来测试降噪后的逐像素 **单** 采样。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![降噪后的逐像素单采样](RT_Denoiser_SingleSample.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![未降噪的逐像素多采样](RT_Denoiser_MultiSamples.png) 
+ [/PARAM]
+[/OBJECT]
+
+由于信息丢失，降噪后的逐像素单采样是不完美的。但是与未降噪的逐像素多采样相比，结果是一致的。 
+
+此外还要记住，降噪器最多支持每个像素四次采样，这可以提高质量并且更符合未降噪的逐像素多采样结果。
+
+## 附加说明
+
+### 材质 
+
+*   测试材质成本
+    *   复杂的材质可能会影响光线追踪功能的性能。使用控制台命令r.RayTracing.EnableMaterials可测试性能影响。
+
+*   Ray Tracing Quality Switch Replace节点 
+    *   通过此节点可以将影响RTGI、RT反射和RT半透明等功能的材质替换为复杂度较低的材质。   
+        [REGION:lightbox]
+        [![RT_MaterialSwitch](RT_MaterialSwitch.png "RT_MaterialSwitch")(w:500)](RT_MaterialSwitch.png)
+        [/REGION]
+        [REGION:caption]
+        单击查看大图。
+        [/REGION]
+        
+
+### 光线追踪功能优化  
+
+*   设置反射和半透明最大粗糙度
+    *   使用 **最大粗糙度（Max Roughness）** 设置材质上的光线追踪反射阈值。此设置可以在后期处理体积中完成，也可以使用控制台命令r.RayTracing.Reflections.MaxRoughness完成。 
+
+*   设置全局光照、反射和半透明的最大光线距离
+    *   这是分别为这些功能设置最大光线距离，从而降低它们在场景中的成本和贡献。
+    
+    *   分别对这些光线追踪功能使用控制台和 **MaxRayDistance** 控制台变量。你可以在r.RayTracing.*下面找到它们。
+
+### 关于光线追踪的几何考虑因素  
+
+*   带有小孔或许多小细节的几何体可能会影响性能，例如植物叶子和围栏。 
+
+*   室内环境渲染起来比室外环境慢。
+    *   例如，如果光线是从外部进入的，被直接光照的区域渲染起来比被间接光照的区域快。 
+    
+    *   此外，你还必须考虑其他要使用的光线追踪功能，例如反射和半透明
+
+## 支持光线追踪的功能
+
+[REGION:note]
+本列表的目的是让你了解当前支持的功能，并不打算详尽地列出 **虚幻引擎4.22** 中的光线追踪功能支持。
+[/REGION]
+
+| 功能 | 支持（是/否/部分）| 附加说明 |
+| --- | :---:| --- |
+| [REGION:tablesection]光源类型[/REGION] |||
+| **定向光源** | 是 |  |
+| **天空光照** | 是 |  |
+| **点光源** | 是 |  |
+| **聚光源** | 是 |  |
+| **矩形光源** | 是 |  |
+| [REGION:tablesection]光照功能[/REGION] |||
+| **自发光表面** | 部分 | 支持表面反光，但不发射光线和投射阴影。|
+| **光透射** | 否 | 对半透明阴影按不透明处理，意味着不会有彩色阴影或透过材质的光透射。|
+| **面积阴影** | 是 |  |
+| **IES轮廓** | 部分 | 在反射或半透明中不支持。|
+| **光源函数** | 否 |  |
+| **体积雾** | 否 |  |
+| **基于图像的光照（IBL）** | 是 | 支持使用天空光照的HDRI。|
+| [REGION:tablesection]材质：混合模式[/REGION] |||
+| **不透明** | 是 |  |
+| **遮罩** | 是 | 经过4.22.1热修复后，现在已支持遮罩材质 |
+| **半透明** | 部分 | 阴影被视作不透明。|
+| [REGION:tablesection]材质：着色模型 [/REGION] |||
+| **默认光照** | 是 |  |
+| **无光照** | 部分 |  |
+| **次表面和次表面轮廓** | 部分 | 能起作用，但光线追踪的结果不正确。它使用光栅管道。|
+| **预集成皮肤** | 部分 | 能起作用，但光线追踪的结果不正确。它使用光栅管道。|
+| **透明涂层** | 部分 | 无法在反射中读取二次法线，且仅在通过GBuffer数据交叉时可用。|
+| **双面植物叶子** | 是 |  |
+| **毛发** | 部分 | 能起作用，但光线追踪的结果不正确。它使用光栅管道。|
+| **布料** | 部分 | 能起作用，但光线追踪的结果不正确。它使用光栅管道。|
+| **材质函数** | 是 |  |
+| **双面** | 部分 | 尚不能正确处理半透明材质。|
+| **世界场景位置偏移** | 否 |  |
+| [REGION:tablesection]几何体类型[/REGION] |||
+| **骨架网格体** | 是 |  |
+| **静态网格体** | 是 |  |
+| **几何体缓存（Alembic）** | 是 |  |
+| **地形** | 否 |  |
+| **分层实例化静态网格体（HISM）** | 否 |  |
+| **植物叶子** | 否 |  |
+| **样条** | 否 |  |
+| **程序性网格体** | 否 |  |
+| **BSP笔刷** | 否 |  |
+| **细节水平（LOD）** | 是 | 尚不支持抖动LOD过渡。|
+| [REGION:tablesection]视觉效果（VFX）[/REGION] |||
+| **Niagara** | 部分 | 仅支持Sprite。尚不支持条带和网格体。|
+| **级联** | 否 |  |
+| [REGION:tablesection]平台支持[/REGION] |||
+| **虚拟现实（VR）** | 否 |  |

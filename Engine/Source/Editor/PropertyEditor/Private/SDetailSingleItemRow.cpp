@@ -221,6 +221,12 @@ FReply SDetailSingleItemRow::OnArrayDrop(const FDragDropEvent& DragDropEvent)
 	return FReply::Handled();
 }
 
+FReply SDetailSingleItemRow::OnArrayHeaderDrop(const FDragDropEvent& DragDropEvent)
+{
+	OnArrayDragLeave(DragDropEvent);
+	return FReply::Handled();
+}
+
 TSharedPtr<FPropertyNode> SDetailSingleItemRow::GetCopyPastePropertyNode() const
 {
 	TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
@@ -361,7 +367,15 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				ArrayDropDelegate = FOnTableRowDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayDrop);
 				SwappablePropertyNode = PropertyNode;
 			}
-
+			else if (PropertyNode.IsValid() 
+				&& Cast<UArrayProperty>(PropertyNode->GetProperty()) != nullptr // Is an array
+				&& Cast<UObjectProperty>(Cast<UArrayProperty>(PropertyNode->GetProperty())->Inner) != nullptr) // Is an object array
+			{
+				ArrayDragDelegate = FOnTableRowDragEnter::CreateSP(this, &SDetailSingleItemRow::OnArrayDragEnter);
+				ArrayDragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayDragLeave);
+				ArrayDropDelegate = FOnTableRowDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayHeaderDrop);
+			}
+			
 			InternalLeftColumnRowBox->AddSlot()
 				.Padding(0.0f, 0.0f)
 				.HAlign(HAlign_Left)
@@ -438,7 +452,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			}
 			else
 			{
-				Row.WholeRowWidget.Widget->SetEnabled(IsPropertyEditingEnabled);
+				InternalLeftColumnRowBox->SetEnabled(IsPropertyEditingEnabled);
 				InternalLeftColumnRowBox->AddSlot()
 					.HAlign(Row.WholeRowWidget.HorizontalAlignment)
 					.VAlign(Row.WholeRowWidget.VerticalAlignment)
@@ -687,6 +701,10 @@ const FSlateBrush* SDetailSingleItemRow::GetBorderImage() const
 	{
 		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Highlighted");
 	}
+	else if (bIsDragDropObject)
+	{
+		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Active");
+	}
 	else if (IsHovered() && !bIsHoveredDragTarget)
 	{
 		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Hovered");
@@ -788,6 +806,11 @@ bool SDetailSingleItemRow::IsHighlighted() const
 	return OwnerTreeNode.Pin()->IsHighlighted();
 }
 
+void SDetailSingleItemRow::SetIsDragDrop(bool bInIsDragDrop)
+{
+	bIsDragDropObject = bInIsDragDrop;
+}
+
 void SArrayRowHandle::Construct(const FArguments& InArgs)
 {
 	ParentRow = InArgs._ParentRow;
@@ -802,12 +825,10 @@ FReply SArrayRowHandle::OnDragDetected(const FGeometry& MyGeometry, const FPoint
 {
 	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 	{
-		{	
-			TSharedPtr<FDragDropOperation> DragDropOp = CreateDragDropOperation(ParentRow.Pin());
-			if (DragDropOp.IsValid())
-			{
-				return FReply::Handled().BeginDragDrop(DragDropOp.ToSharedRef());
-			}
+		TSharedPtr<FDragDropOperation> DragDropOp = CreateDragDropOperation(ParentRow.Pin());
+		if (DragDropOp.IsValid())
+		{
+			return FReply::Handled().BeginDragDrop(DragDropOp.ToSharedRef());
 		}
 	}
 
@@ -820,4 +841,47 @@ TSharedPtr<FArrayRowDragDropOp> SArrayRowHandle::CreateDragDropOperation(TShared
 	TSharedPtr<FArrayRowDragDropOp> Operation = MakeShareable(new FArrayRowDragDropOp(InRow));
 
 	return Operation;
+}
+
+FArrayRowDragDropOp::FArrayRowDragDropOp(TSharedPtr<SDetailSingleItemRow> InRow)
+{
+	Row = InRow;
+
+	TSharedPtr<SDetailSingleItemRow> RowPtr = nullptr;
+	if (Row.IsValid())
+	{
+		RowPtr = Row.Pin();
+		// mark row as being used for drag and drop
+		RowPtr->SetIsDragDrop(true);
+	}
+
+	DecoratorWidget = SNew(SBorder)
+		.Padding(8.f)
+		.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+		.Content()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("ArrayDragDrop", "PlaceRowHere", "Place Row Here"))
+			]
+		];
+
+	Construct();
+}
+
+void FArrayRowDragDropOp::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
+{
+	FDecoratedDragDropOp::OnDrop(bDropWasHandled, MouseEvent);
+
+	TSharedPtr<SDetailSingleItemRow> RowPtr = nullptr;
+	if (Row.IsValid())
+	{
+		RowPtr = Row.Pin();
+		// reset value
+		RowPtr->SetIsDragDrop(false);
+	}
 }

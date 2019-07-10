@@ -1,74 +1,103 @@
-﻿INTSourceChangelist:3038380
-Availability:Public
+﻿INTSourceChangelist:6110610
+Availability:Docs
 Title:4 - 您的第二个镜头
 Crumbs:%ROOT%
-Description:在此步骤中，我们将创建示例过场动画的第二个镜头。 
+Description:在这一步中，我们为示例过场动画创建第二个镜头。 
 SkillLevel:Beginner
-Version:4.12
-Related:Engine\Sequencer
-Related:Engine\Sequencer\Overview
+Version:4.18
 checkpoint: sequencerqs
 parent:Engine/Sequencer/QuickStart
-type:sequential
+type:multi-step
 order:4
+tags:Sequencer
  
 [NAV]
 
-现在您已经完成了第一个镜头，让我们利用学到的知识再创建一个镜头吧！
+既然您已经完成了第一个镜头，那么让我们利用学到的知识创造另一个镜头！
 
-这一次我们将把摄像机从角色前方推进到其脸部。 
+这一次我们将把相机从我们的角色前面推到他们的脸上。 
+
+(#steps)
 
 ## 步骤
 
-1. 	在 **内容浏览器** 中，选择 **Shot01** 关卡序列，，然后按 **Shift+W** 复制它。 
+1.	在 **内容浏览器（Content Browser）** 中，选择 **镜头01（Shot01）** 关卡序列并按 **Ctrl+W** 复制它。 
 
 	![](SequencerQS_4_1.png)
 
-	Shot01 已经有了我们要在第二个镜头中使用的大部分内容。 
+	这样将自动从 **镜头01（Shot01）** 中获取所有内容，并将其添加到 **镜头02（Shot02）**中，并为我们命名它。 
 
-1. 	在 **Shot02** 中，删除原有的 **CineCameraActor**，然后单击 **添加摄像机（Add Camera）**自动将其分配到镜头切换轨道，并使摄像机进入飞行模式。 
+1.	在 **镜头02（Shot02）** 中，删除现有的 **CineCameraActor** 并单击 **添加相机（Add Camera）** 按钮。 
 
 	![](SequencerQS_4_2.png)
 
-1. 	将摄像机移动到关卡中的骨骼网格 Actor 前方。 
+	在这里，我们将用一个新相机替换第一个相机，稍后我们将在本指南中从 **主（Master）** 轨迹切换到这个新相机。 
+
+1.	在 **过场动画视口（Cinematic Viewport）** 中将相机移动到关卡中的 **骨架网格体（Skeletal Mesh）** Actor的前面。 
 
 	![](SequencerQS_4_3.png)
 
 	[REGION:note]
-	您的 CineCameraActor 的名称可以和上图中不同，这没有任何问题。 
+	虽然您的 **Cine Camera Actor** 的名称可能与上面的不同，但这完全没有问题。 
 	[/REGION]
 
-1. 	在 Sequencer 中选择 **CineCameraActor** 轨道，按 **S** 添加摄像机的转换的关键帧。
+1.	在序列器（Sequencer）中选择 **CineCameraActor** 轨迹，并按下 **S** 键为相机的变换添加一个关键帧。
 
 	![](SequencerQS_4_3b.png)
 
-1. 	在摄像机的 **细节（Details）**面板中，使用 **滴管** 图标聚焦到角色身上。添加关键帧。 
+1.	在相机的 **详细信息（Details）** 面板中，将 **滴管（Eye Dropper）** 用于关卡中的角色上，然后为新值添加一个关键帧。 
 
 	![](SequencerQS_4_4.png)
 
 	[REGION:note]
-	您的值可以和上图不同，具体取决于放置摄像机的位置。 
+	根据您放置相机的位置，您的值可能与上面不同。 
 	[/REGION]
 
-1. 	在过场动画预览中，单击 **到结尾（To End）** 按钮跳转到序列结尾。 
+1.	在过场动画预览（Cinematic Preview）中单击 **到结尾处（To End）** 按钮以跳转到序列结尾处。 
 
-1. 	将摄像机移近角色，然后添加该位置的关键帧 (**S**)。 
+1.	将相机移到角色上，然后为该位置添加一个关键帧（**S** 键）。 
 
 	![](SequencerQS_4_5.png)
 
-1. 	在摄像机的 **细节（Details）**面板中，使用 **滴管** 图标聚焦到角色身上。添加关键帧。您应该有对应开始时的初始位置、焦点值以及结尾的关键帧。
+1.	在相机的 **详细信息（Details）** 面板中，将 **滴管（Eye Dropper）** 用于关卡中的角色上，然后为新值添加一个关键帧。 
 
 	![](SequencerQS_4_6.png) 
 
-1. 	在 **镜头切换** 轨道上单击 **摄像机锁定（Camera Lock）**切换按钮启用过场动画预览。 
+	您应在开始处添加初始位置和焦点值的关键帧，在结尾处也是如此。
+
+1.	单击 **相机切换（Camera Cuts）** 轨迹上的 **相机锁定（Camera Lock）** 切换按钮，以启用过场动画预览（Cinematic Preview）。 
 
 	![](SequencerQS_4_7.png)
 
+1.	移动到序列开始处，然后单击 **过场动画视口（Cinematic Viewport）** 中的 **预览播放（Preview Play）** 按钮。 
+
+
+(#endresult)
 
 ## 最终结果
 
-我们已经设置了序列的第二个镜头，在该镜头中摄像机从远处推进到角色附近。 
+我们已经设置了我们序列的第二个镜头，其中相机将从很远的地方开始并逐渐推近角色。 
 
-在下一步，我们将在 Master 关卡序列中使用 **镜头轨道** 将镜头连接起来。我们还要为其中一个镜头创建 **副镜头**（即其变体），以便快速切入切出。您将看到我们如何排列场景中的镜头顺序，离完成样本场景又近一步。 
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	RaarmLV5wwU
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
+[/OBJECT]
+
+
+在下一步中，我们将使用主关卡序列中的 **拍摄轨迹（Shot Track）** 将我们的镜头连接起来。我们还创建了其中一个镜头的 **取景（Take）**（或变体），它可以快速切换进来或出去。 
+随着我们进一步接近完成我们的样本场景，您还会看到我们如何安排或重新安排镜头在我们场景中的顺序。 
 
 [NAV]

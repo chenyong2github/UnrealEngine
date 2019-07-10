@@ -66,7 +66,7 @@ bool FSocketSubsystemMac::HasNetworkDevice()
 	return true;
 }
 
-class FSocketBSD* FSocketSubsystemMac::InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, ESocketProtocolFamily SocketProtocol)
+class FSocketBSD* FSocketSubsystemMac::InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol)
 {
 	// return a new socket object
 	FSocketMac* MacSock = new FSocketMac(Socket, SocketType, SocketDescription, SocketProtocol, this);

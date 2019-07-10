@@ -18,6 +18,7 @@
 #include "Logging/LogMacros.h"
 #include "Editor.h"
 #include "EditorSupportDelegates.h"
+#include "SceneOutlinerDelegates.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionCommandsLogging, NoLogging, All);
@@ -39,7 +40,7 @@ void FGeometryCollectionCommands::ToString(UWorld * World)
 
 void FGeometryCollectionCommands::WriteToHeaderFile(const TArray<FString>& Args, UWorld * World)
 {
-	if (Args.Num() > 0)
+	if (Args.Num() > 1)
 	{
 		if (USelection* SelectedActors = GEditor->GetSelectedActors())
 		{
@@ -68,7 +69,7 @@ void FGeometryCollectionCommands::WriteToHeaderFile(const TArray<FString>& Args,
 
 void FGeometryCollectionCommands::WriteToOBJFile(const TArray<FString>& Args, UWorld * World)
 {
-	if (Args.Num() > 0)
+	if (Args.Num() > 1)
 	{
 		if (USelection* SelectedActors = GEditor->GetSelectedActors())
 		{
@@ -129,6 +130,30 @@ void FGeometryCollectionCommands::PrintDetailedStatistics(UWorld * World)
 				return;
 			}
 		}
+	}
+}
+
+void FGeometryCollectionCommands::PrintDetailedStatisticsSummary(UWorld * World)
+{
+	if (USelection* SelectedActors = GEditor->GetSelectedActors())
+	{
+		TArray<const FGeometryCollection*> GeometryCollectionArray;
+
+		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+		{
+			if (AGeometryCollectionActor* Actor = Cast<AGeometryCollectionActor>(*Iter))
+			{
+				const UGeometryCollection* RestCollection = Actor->GetGeometryCollectionComponent()->GetRestCollection();
+				const FGeometryCollection* GeometryCollection = RestCollection->GetGeometryCollection().Get();
+
+				if (GeometryCollection != nullptr)
+				{
+					GeometryCollectionArray.Add(GeometryCollection);
+				}
+			}
+		}
+
+		GeometryCollectionEngineUtility::PrintDetailedStatisticsSummary(GeometryCollectionArray);
 	}
 }
 
@@ -208,15 +233,15 @@ int32 FGeometryCollectionCommands::EnsureSingleRoot(UGeometryCollection* RestCol
 {
 	if (RestCollection)
 	{
-		TManagedArray<FTransform>& Transform = *RestCollection->GetGeometryCollection()->Transform;
-		TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *RestCollection->GetGeometryCollection()->BoneHierarchy;
+		TManagedArray<FTransform>& Transform = RestCollection->GetGeometryCollection()->Transform;
+		TManagedArray<int32>& Parent = RestCollection->GetGeometryCollection()->Parent;
 		int32 NumElements = RestCollection->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup);
 		if (GeometryCollectionAlgo::HasMultipleRoots(RestCollection->GetGeometryCollection().Get()))
 		{
 			TArray<int32> RootIndices;
 			for (int32 Index = 0; Index < NumElements; Index++)
 			{
-				if (Hierarchy[Index].Parent == FGeometryCollectionBoneNode::InvalidBone)
+				if (Parent[Index] == FGeometryCollection::Invalid)
 				{
 					RootIndices.Add(Index);
 				}
@@ -230,7 +255,7 @@ int32 FGeometryCollectionCommands::EnsureSingleRoot(UGeometryCollection* RestCol
 		{
 			for (int32 Index = 0; Index < NumElements; Index++)
 			{
-				if (Hierarchy[Index].Parent == FGeometryCollectionBoneNode::InvalidBone)
+				if (Parent[Index] == FGeometryCollection::Invalid)
 				{
 					return Index;
 				}
@@ -246,13 +271,13 @@ int32 FGeometryCollectionCommands::EnsureSingleRoot(UGeometryCollection* RestCol
 void SplitAcrossYZPlaneRecursive(uint32 RootIndex, const FTransform & ParentTransform, UGeometryCollection* Collection)
 {
 	TSet<uint32> RootIndices;
-	TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *Collection->GetGeometryCollection()->BoneHierarchy;
-	TManagedArray<FTransform>& Transform = *Collection->GetGeometryCollection()->Transform;
+	TManagedArray<TSet<int32>>& Children = Collection->GetGeometryCollection()->Children;
+	TManagedArray<FTransform>& Transform = Collection->GetGeometryCollection()->Transform;
 
 	TArray<int32> SelectedBonesA, SelectedBonesB;
-	for (auto& ChildIndex : Hierarchy[RootIndex].Children)
+	for (auto& ChildIndex : Children[RootIndex])
 	{
-		if (Hierarchy[ChildIndex].Children.Num())
+		if (Children[ChildIndex].Num())
 		{
 			SplitAcrossYZPlaneRecursive(ChildIndex, ParentTransform, Collection);
 		}
@@ -301,10 +326,10 @@ void FGeometryCollectionCommands::SplitAcrossYZPlane(UWorld * World)
 
 				FGeometryCollectionCommands::EnsureSingleRoot(RestCollection);
 
-				TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *RestCollection->GetGeometryCollection()->BoneHierarchy;
-				for (int32 Index = 0; Index < Hierarchy.Num(); Index++)
+				TManagedArray<int32>& Parent = RestCollection->GetGeometryCollection()->Parent;
+				for (int32 Index = 0; Index < Parent.Num(); Index++)
 				{
-					if (Hierarchy[Index].Parent == FGeometryCollectionBoneNode::InvalidBone)
+					if (Parent[Index] == FGeometryCollection::Invalid)
 					{
 						SplitAcrossYZPlaneRecursive(Index, Actor->GetTransform(), RestCollection);
 					}
@@ -318,7 +343,7 @@ void FGeometryCollectionCommands::SplitAcrossYZPlane(UWorld * World)
 						if (LocalActor->GetGeometryCollectionComponent()->GetRestCollection() == RestCollection)
 						{
 							UE_LOG(UGeometryCollectionCommandsLogging, Log, TEXT("...%s"), *LocalActor->GetActorLabel());
-							LocalActor->GetGeometryCollectionComponent()->ResetDynamicCollection();
+							//LocalActor->GetGeometryCollectionComponent()->ResetDynamicCollection();
 						}
 					}
 				}
@@ -348,15 +373,16 @@ void FGeometryCollectionCommands::DeleteGeometry(const TArray<FString>& Args, UW
 						FString EntryName(Args[i]);
 						UE_LOG(UGeometryCollectionCommandsLogging, Log, TEXT("... %s"), *EntryName);
 
-						int32 IndexToRemove = Collection->GetGeometryCollection()->BoneName->Find(EntryName);
+						int32 IndexToRemove = Collection->GetGeometryCollection()->BoneName.Find(EntryName);
 						if (0 <= IndexToRemove)
 						{
 							Collection->RemoveElements(FGeometryCollection::TransformGroup, { IndexToRemove });
 
 							// @todo(MaterialReindexing) Deleteing the materials for now, until we support reindexing. 
 							int32 NumMaterials = Collection->NumElements(FGeometryCollection::MaterialGroup);
-							TSharedPtr< TArray<int32> > MaterialIndices = GeometryCollectionAlgo::ContiguousArray(NumMaterials);
-							Collection->RemoveElements(FGeometryCollection::MaterialGroup, *MaterialIndices);
+							TArray<int32> MaterialIndices;
+							GeometryCollectionAlgo::ContiguousArray(MaterialIndices, NumMaterials);
+							Collection->RemoveElements(FGeometryCollection::MaterialGroup, MaterialIndices);
 						}
 					}
 				}
@@ -397,6 +423,54 @@ void FGeometryCollectionCommands::SelectNone(const TArray<FString>& Args, UWorld
 	}
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 
+}
+
+void FGeometryCollectionCommands::SelectLessThenVolume(const TArray<FString>& Args, UWorld* World)
+{
+	float Volume = 2000.0f;
+	if (Args.Num() > 0)
+	{
+		Volume = FCString::Atof(*Args[0]);
+	}
+
+	
+	int32 SelectedBoneCount = 0;
+	if (USelection* SelectedActors = GEditor->GetSelectedActors())
+	{
+		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+		{
+			if (AGeometryCollectionActor* Actor = Cast<AGeometryCollectionActor>(*Iter))
+			{
+				const UGeometryCollection* RestCollection = Actor->GetGeometryCollectionComponent()->GetRestCollection();
+				FGeometryCollection* GeometryCollection = RestCollection->GetGeometryCollection().Get();
+				FScopedColorEdit EditBoneColor = Actor->GetGeometryCollectionComponent()->EditBoneSelection();
+				TArray<int32> SelectedBones( EditBoneColor.GetSelectedBones() );
+
+				for( int32 BoundingBoxIndex = 0, ni = GeometryCollection->BoundingBox.Num() ; BoundingBoxIndex < ni ; ++BoundingBoxIndex )
+				{
+					const FBox& BoundingBox = GeometryCollection->BoundingBox[BoundingBoxIndex];
+
+					if (BoundingBox.GetVolume() < Volume)
+					{
+						int32 BoneIndex = GeometryCollection->TransformIndex[BoundingBoxIndex];
+						SelectedBones.AddUnique(BoneIndex);
+						++SelectedBoneCount;
+					}
+				}
+
+				if(SelectedBoneCount > 0)
+				{
+					EditBoneColor.SetSelectedBones(SelectedBones);
+					EditBoneColor.SetHighlightedBones(SelectedBones);
+
+ 					SceneOutliner::FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.Broadcast(Actor->GetGeometryCollectionComponent());
+				}
+			}
+		}
+	}
+	UE_LOG(UGeometryCollectionCommandsLogging, Log, TEXT("Selected %d Bones"), SelectedBoneCount);
+
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 }
 
 void FGeometryCollectionCommands::SelectInverseGeometry(const TArray<FString>& Args, UWorld* World)
@@ -467,4 +541,24 @@ void FGeometryCollectionCommands::SetupTwoClusteredCubesAsset(UWorld * World)
 	}
 }
 
+void FGeometryCollectionCommands::HealGeometry(UWorld * World)
+{
+	if (USelection* SelectedActors = GEditor->GetSelectedActors())
+	{
+		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+		{
+			if (AGeometryCollectionActor* Actor = Cast<AGeometryCollectionActor>(*Iter))
+			{
+				const UGeometryCollection* RestCollection = Actor->GetGeometryCollectionComponent()->GetRestCollection();
+
+				TArray<TArray<TArray<int32>>> BoundaryVertexIndices;
+				GeometryCollectionAlgo::FindOpenBoundaries(RestCollection->GetGeometryCollection().Get(), 1e-2, BoundaryVertexIndices);
+				if (BoundaryVertexIndices.Num() > 0)
+				{
+					GeometryCollectionAlgo::TriangulateBoundaries(RestCollection->GetGeometryCollection().Get(), BoundaryVertexIndices);
+				}
+			}
+		}
+	}
+}
 

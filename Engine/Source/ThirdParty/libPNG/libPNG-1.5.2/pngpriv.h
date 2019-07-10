@@ -190,7 +190,10 @@ typedef PNG_CONST png_uint_16p FAR * png_const_uint_16pp;
 /* Memory model/platform independent fns */
 #ifndef PNG_ABORT
 #  ifdef _WINDOWS_
-#    define PNG_ABORT() ExitProcess(0)
+// @ATG_CHANGE : BEGIN HoloLens support
+// ExitProcess is not allowed for HoloLens, switching to another way to do the same action...
+#    define PNG_ABORT() do{TerminateProcess(GetCurrentProcess(),0); while(1); }while(FALSE)
+// @ATG_CHANGE : END
 #  else
 #    define PNG_ABORT() abort()
 #  endif
@@ -226,7 +229,9 @@ typedef PNG_CONST png_uint_16p FAR * png_const_uint_16pp;
 #    define CVT_PTR_NOCHECK(ptr) (ptr)
 #    define png_strcpy  lstrcpyA
 #    define png_strncpy lstrcpynA
-#    define png_strlen  lstrlenA
+// @ATG_CHANGE : BEGIN HoloLens support
+#    define png_strlen(str) MultiByteToWideChar(CP_ACP, 0, str, -1, NULL, 0)
+// @ATG_CHANGE : END
 #    define png_memcmp  memcmp
 #    define png_memcpy  CopyMemory
 #    define png_memset  memset

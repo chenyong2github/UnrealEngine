@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "ManagedArray.h"
+#include "GeometryCollection/TransformCollection.h"
 
-class FTransformCollection;
 class FGeometryCollection;
 
 namespace GeometryCollectionAlgo
@@ -33,13 +33,13 @@ namespace GeometryCollectionAlgo
 	GEOMETRYCOLLECTIONCORE_API 
 	PrintParentHierarchy(const FGeometryCollection * Collection);
 
-	/*
-	*  Generate a contiguous array of int32's from 0 to Length-1
+	/**
+	* Build a contiguous array of integers
 	*/
-	TSharedRef<TArray<int32> > 
-	GEOMETRYCOLLECTIONCORE_API 
-	ContiguousArray(int32 Length);
-
+	void
+	GEOMETRYCOLLECTIONCORE_API
+	ContiguousArray(TArray<int32> & Array, int32 Length);
+		
 	/**
 	* Offset list for re-incrementing deleted elements.
 	*/
@@ -72,7 +72,7 @@ namespace GeometryCollectionAlgo
 
 
 	/**
-	* Make sure the deletion list if correctly formed.
+	* Make sure the deletion list is correctly formed.
 	*/
 	void 
 	GEOMETRYCOLLECTIONCORE_API
@@ -90,28 +90,28 @@ namespace GeometryCollectionAlgo
 	*/
 	bool 
 	GEOMETRYCOLLECTIONCORE_API
-	HasCycle(TManagedArray<FGeometryCollectionBoneNode> & Hierarchy, int32 Node);
+	HasCycle(TManagedArray<int32>& Parents, int32 Node);
 
 	/*
 	*
 	*/
 	bool 
 	GEOMETRYCOLLECTIONCORE_API
-	HasCycle(TManagedArray<FGeometryCollectionBoneNode> & Hierarchy, const TArray<int32>& SelectedBones);
+	HasCycle(TManagedArray<int32>& Parents, const TArray<int32>& SelectedBones);
 
 	/*
 	* Parent a single transform
 	*/
 	void
 	GEOMETRYCOLLECTIONCORE_API 
-	ParentTransform(FGeometryCollection* GeometryCollection, const int32 TransformIndex, const int32 ChildIndex);
+	ParentTransform(FTransformCollection* GeometryCollection, const int32 TransformIndex, const int32 ChildIndex);
 		
 	/*
 	*  Parent the list of transforms to the selected index. 
 	*/
 	void 
 	GEOMETRYCOLLECTIONCORE_API 
-	ParentTransforms(FGeometryCollection* GeometryCollection, const int32 TransformIndex, const TArray<int32>& SelectedBones);
+	ParentTransforms(FTransformCollection* GeometryCollection, const int32 TransformIndex, const TArray<int32>& SelectedBones);
 
 	/*
 	*  Find the average position of the transforms.
@@ -124,31 +124,55 @@ namespace GeometryCollectionAlgo
 	/*
 	*  Global Matrices of the specified index.
 	*/
-	FTransform
-	GEOMETRYCOLLECTIONCORE_API
-	GlobalMatrix(const FTransformCollection* TransformCollection, int32 Index);
+	FTransform GEOMETRYCOLLECTIONCORE_API GlobalMatrix(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, int32 Index);
 
 
 	/*
 	*  Global Matrices of the collection based on list of indices
 	*/
-	void 
-	GEOMETRYCOLLECTIONCORE_API 
-	GlobalMatrices(const FTransformCollection* TransformCollection, const TArray<int32>& Indices, TArray<FTransform> & Transforms);
+	void GEOMETRYCOLLECTIONCORE_API GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, const TArray<int32>& Indices, TArray<FTransform>& Transforms);
+
+	/*
+	 *  Recursively traverse from a root node down
+	 */
+	void GEOMETRYCOLLECTIONCORE_API GlobalMatricesFromRoot(const int32 ParentTransformIndex, const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<TSet<int32>>& Children, TArray<FMatrix>& Transforms);
 
 	/*
 	*  Global Matrices of the collection, transforms will be resized to fit
 	*/
-	void 
-	GEOMETRYCOLLECTIONCORE_API 
-	GlobalMatrices(const FTransformCollection* TransformCollection, TArray<FTransform> & Transforms);
+	template<typename MatrixType>
+	void GEOMETRYCOLLECTIONCORE_API GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, TArray<MatrixType>& Transforms);
 
 	/*
-	*  Perpare for simulation moves the geometry to center of mass aligned, with option to re-center bones around origin of actor
+	*  Gets pairs of elements whose bounding boxes overlap.
+	*/
+	void GEOMETRYCOLLECTIONCORE_API GetOverlappedPairs(FGeometryCollection* Collection, int Level, TSet<TTuple<int32, int32>>& OutOverlappedPairs);
+	
+	/*
+	*  Prepare for simulation - placeholder function
 	*/
 	void 
 	GEOMETRYCOLLECTIONCORE_API
 	PrepareForSimulation(FGeometryCollection* GeometryCollection, bool CenterAtOrigin=true);
+
+	/*
+	*  Moves the geometry to center of mass aligned, with option to re-center bones around origin of actor
+	*/
+	void
+	GEOMETRYCOLLECTIONCORE_API
+	ReCenterGeometryAroundCentreOfMass(FGeometryCollection* GeometryCollection, bool CenterAtOrigin = true);
+
+	void
+	GEOMETRYCOLLECTIONCORE_API
+	FindOpenBoundaries(const FGeometryCollection* GeometryCollection, const float CoincidentVertexTolerance, TArray<TArray<TArray<int32>>> &BoundaryVertexIndices);
+
+	void
+	GEOMETRYCOLLECTIONCORE_API
+	TriangulateBoundaries(FGeometryCollection* GeometryCollection, const TArray<TArray<TArray<int32>>> &BoundaryVertexIndices, bool bWoundClockwise = true, float MinTriangleAreaSq = 1e-4);
+
+	void
+	GEOMETRYCOLLECTIONCORE_API
+	AddFaces(FGeometryCollection* GeometryCollection, const TArray<TArray<FIntVector>> &Faces);
 
 	void
 	GEOMETRYCOLLECTIONCORE_API
@@ -189,4 +213,47 @@ namespace GeometryCollectionAlgo
 	void
 	GEOMETRYCOLLECTIONCORE_API
 	PrintStatistics(const FGeometryCollection* GeometryCollection);
+
+	/*
+	* Geometry validation - Checks if the geometry group faces ranges fall within the size of the faces group
+	*/
+	bool
+	GEOMETRYCOLLECTIONCORE_API
+	HasValidFacesFor(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);
+
+	/*
+	* Geometry validation - Checks if the geometry group verts ranges fall within the size of the vertices group
+	*/
+	bool
+	GEOMETRYCOLLECTIONCORE_API
+	HasValidIndicesFor(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);
+
+	/*
+	* Geometry validation - Checks if the geometry group indices appear out of range
+	*/
+	bool
+	GEOMETRYCOLLECTIONCORE_API
+	HasInvalidIndicesFor(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);
+
+	/*
+	* Geometry validation - Checks if there are any faces that are not referenced by the geometry groups
+	*/
+	bool
+	GEOMETRYCOLLECTIONCORE_API
+	HasResidualFaces(const FGeometryCollection* GeometryCollection);
+
+	/*
+	* Geometry validation - Checks if there are any vertices that are not referenced by the geometry groups
+	*/
+	bool
+	GEOMETRYCOLLECTIONCORE_API
+	HasResidualIndices(const FGeometryCollection* GeometryCollection);
+
+	/*
+	* Performs all of the above geometry validation checks
+	*/
+	bool
+	GEOMETRYCOLLECTIONCORE_API
+	HasValidGeometryReferences(const FGeometryCollection* GeometryCollection);
+
 }

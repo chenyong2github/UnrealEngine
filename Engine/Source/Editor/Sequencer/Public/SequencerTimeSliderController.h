@@ -230,6 +230,13 @@ private:
 	 */
 	bool HitTestRangeEnd(const FScrubRangeToScreen& RangeToScreen, const TRange<double>& Range, float HitPixel) const;
 
+	/**
+	 * Hit test marks
+	 *
+	 * @return The mark index hit
+	 */
+	bool HitTestMark(const FScrubRangeToScreen& RangeToScreen, float HitPixel, int32& OutMarkIndex) const;
+
 	FFrameTime SnapTimeToNearestKey(const FScrubRangeToScreen& RangeToScreen, float CursorPos, FFrameTime InTime) const;
 
 	void SetPlaybackRangeStart(FFrameNumber NewStart);
@@ -238,7 +245,9 @@ private:
 	void SetSelectionRangeStart(FFrameNumber NewStart);
 	void SetSelectionRangeEnd(FFrameNumber NewEnd);
 
-	TSharedRef<SWidget> OpenSetPlaybackRangeMenu(FFrameNumber FrameNumber);
+	void SetMark(int32 InMarkIndex, FFrameNumber NewFrame);
+
+	TSharedRef<SWidget> OpenSetPlaybackRangeMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	FFrameTime ComputeScrubTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen) const;
 	FFrameTime ComputeFrameTimeFromMouse(const FGeometry& Geometry, FVector2D ScreenSpacePosition, FScrubRangeToScreen RangeToScreen, bool CheckSnapping = true) const;
 
@@ -289,11 +298,15 @@ private:
 		DRAG_PLAYBACK_END,
 		DRAG_SELECTION_START,
 		DRAG_SELECTION_END,
+		DRAG_MARK,
 		DRAG_NONE
 	};
 	
 	DragType MouseDragType;
 	
+	/** If mouse down was in time scrubbing region, only allow setting time when mouse is pressed down in the region */
+	bool bMouseDownInRegion;
+
 	/** If we are currently panning the panel */
 	bool bPanning;
 
@@ -305,6 +318,9 @@ private:
 
 	/** Range stack */
 	TArray<TRange<double>> ViewRangeStack;
+
+	/** Index of mark being edited */
+	int32 DragMarkIndex;
 
 	/** When > 0, we should not show context menus */
 	int32 ContextMenuSuppression;

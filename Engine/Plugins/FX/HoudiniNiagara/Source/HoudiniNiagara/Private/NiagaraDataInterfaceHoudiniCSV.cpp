@@ -2258,10 +2258,12 @@ struct FNiagaraDataInterfaceParametersCS_HoudiniCSV : public FNiagaraDataInterfa
 	{
 		check( IsInRenderingThread() );
 
-		const FComputeShaderRHIParamRef ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
 		FNiagaraDataInterfaceProxyHoudiniCSV* HoudiniDI = static_cast<FNiagaraDataInterfaceProxyHoudiniCSV*>(Context.DataInterface);
 		if ( !HoudiniDI )
+		{
 			return;
+		}
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumberOfRows, HoudiniDI->NumRows);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumberOfColumns, HoudiniDI->NumColumns);

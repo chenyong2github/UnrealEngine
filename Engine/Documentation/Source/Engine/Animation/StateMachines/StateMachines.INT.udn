@@ -3,14 +3,12 @@ Title: State Machines
 Crumbs: %ROOT%, Engine, Engine/Animation
 Description:State Machines allow Skeletal Animations to be broken up into various states, with full control over how blends occur from one state to another.
 version: 4.12
-tags:Assets
+tags:Animation Assets
+type:landing
 topic-image:Engine/Animation/Overview/StateMachineTopic.png
 related:Gameplay/HowTo/CharacterMovement/Blueprints
 related:Gameplay/HowTo/CharacterMovement/Blueprints
-
-[REGION:banner]
-![](StateMachineImage.png)
-[/REGION]
+hero-image:StateMachineImage.png
 
 [COMMENT:none]
 

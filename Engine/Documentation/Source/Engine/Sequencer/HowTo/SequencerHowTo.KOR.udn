@@ -1,9 +1,8 @@
-﻿INTSourceChangelist:4666683
+﻿INTSourceChangelist:6366670
 Availability: Public
 Title: 시퀀서 - 안내서
-Crumbs: %ROOT%, Engine, Engine\Sequencer
 Description:시퀀서 에디터로 시네마틱 시퀀스를 제작하는 법에 대한 안내서입니다.
-Related: Engine\Sequencer
+Related: Engine/Sequencer
 version: 4.17
 tags:Sequencer
 

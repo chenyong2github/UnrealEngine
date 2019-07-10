@@ -8,10 +8,8 @@
 
 void MainVS(
 	float2 InPosition : ATTRIBUTE0,
-	float2 InUV       : ATTRIBUTE1,
-	out FScreenVertexOutput Output
-	)
+	float2 InUV       : ATTRIBUTE1, // TODO: kill
+	out float4 Position : SV_POSITION)
 {
-	Output.UV = InUV;
-	Output.Position = float4(InPosition.x * 2.0 - 1.0, 1.0 - 2.0 * InPosition.y, 0, 1);
+	Position = float4(InPosition.x * 2.0 - 1.0, 1.0 - 2.0 * InPosition.y, 0, 1);
 }

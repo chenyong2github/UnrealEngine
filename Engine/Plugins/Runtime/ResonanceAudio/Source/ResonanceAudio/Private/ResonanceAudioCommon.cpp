@@ -62,84 +62,69 @@ namespace ResonanceAudio
 		return DynamicLibraryHandle;
 	}
 
-	vraudio::VrAudioApi* CreateResonanceAudioApi(void* DynamicLibraryHandle, size_t NumChannels, size_t NumFrames, int SampleRate) {
-		vraudio::VrAudioApi* (*create)(size_t, size_t, int);
-#if PLATFORM_LINUX || PLATFORM_MAC || PLATFORM_WINDOWS
-		if (DynamicLibraryHandle)
-		{
-			create = reinterpret_cast<vraudio::VrAudioApi* (*)(size_t, size_t, int)>(FPlatformProcess::GetDllExport(DynamicLibraryHandle, TEXT("CreateVrAudioApi")));
-		}
-		else
-		{
-			create = nullptr;
-		}
-#else
-		 // For the static case, or for Android.
-		return vraudio::CreateVrAudioApi(NumChannels, NumFrames, SampleRate);
-#endif
+	vraudio::ResonanceAudioApi* CreateResonanceAudioApi(void* DynamicLibraryHandle, size_t NumChannels, size_t NumFrames, int SampleRate) {
 
-		if (create == nullptr) {
-			UE_LOG(LogResonanceAudio, Log, TEXT("Failed to load the Create method from VrAudioApi."));
-			return nullptr;
-		}
-		return create(NumChannels, NumFrames, SampleRate);
+		 // For the static case, or for Android.
+		return vraudio::CreateResonanceAudioApi(NumChannels, NumFrames, SampleRate);
 	}
 
-	RaMaterialName ConvertToResonanceAudioMaterialName(ERaMaterialName UnrealMaterialName)
+	vraudio::MaterialName ConvertToResonanceMaterialName(ERaMaterialName UnrealMaterialName)
 	{
+		// These are rough estimates of what scalar gain coefficients may correspond to a given material,
+		// though many of these materials have similar gain coefficients and drastically different frequency characteristics.
 		switch (UnrealMaterialName)
 		{
 		case ERaMaterialName::TRANSPARENT:
-			return RaMaterialName::kTransparent;
+			return vraudio::MaterialName::kTransparent;
 		case ERaMaterialName::ACOUSTIC_CEILING_TILES:
-			return RaMaterialName::kAcousticCeilingTiles;
+			return vraudio::MaterialName::kAcousticCeilingTiles;
 		case ERaMaterialName::BRICK_BARE:
-			return RaMaterialName::kBrickBare;
+			return vraudio::MaterialName::kBrickBare;
 		case ERaMaterialName::BRICK_PAINTED:
-			return RaMaterialName::kBrickPainted;
+			return vraudio::MaterialName::kBrickPainted;
 		case ERaMaterialName::CONCRETE_BLOCK_COARSE:
-			return RaMaterialName::kConcreteBlockCoarse;
+			return vraudio::MaterialName::kConcreteBlockCoarse;
 		case ERaMaterialName::CONCRETE_BLOCK_PAINTED:
-			return RaMaterialName::kConcreteBlockPainted;
+			return vraudio::MaterialName::kConcreteBlockPainted;
 		case ERaMaterialName::CURTAIN_HEAVY:
-			return RaMaterialName::kCurtainHeavy;
+			return vraudio::MaterialName::kCurtainHeavy;
 		case ERaMaterialName::FIBER_GLASS_INSULATION:
-			return RaMaterialName::kFiberGlassInsulation;
+			return vraudio::MaterialName::kFiberGlassInsulation;
 		case ERaMaterialName::GLASS_THICK:
-			return RaMaterialName::kGlassThick;
+			return vraudio::MaterialName::kGlassThick;
 		case ERaMaterialName::GLASS_THIN:
-			return RaMaterialName::kGlassThin;
+			return vraudio::MaterialName::kGlassThin;
 		case ERaMaterialName::GRASS:
-			return RaMaterialName::kGrass;
+			return vraudio::MaterialName::kGrass;
 		case ERaMaterialName::LINOLEUM_ON_CONCRETE:
-			return RaMaterialName::kLinoleumOnConcrete;
+			return vraudio::MaterialName::kLinoleumOnConcrete;
 		case ERaMaterialName::MARBLE:
-			return RaMaterialName::kMarble;
+			return vraudio::MaterialName::kMarble;
 		case ERaMaterialName::METAL:
-			return RaMaterialName::kMetal;
+			return vraudio::MaterialName::kMarble;
 		case ERaMaterialName::PARQUET_ONCONCRETE:
-			return RaMaterialName::kParquetOnConcrete;
+			return vraudio::MaterialName::kParquetOnConcrete;
 		case ERaMaterialName::PLASTER_ROUGH:
-			return RaMaterialName::kPlasterRough;
+			return vraudio::MaterialName::kPlasterRough;
 		case ERaMaterialName::PLASTER_SMOOTH:
-			return RaMaterialName::kPlasterSmooth;
+			return vraudio::MaterialName::kPlasterSmooth;
 		case ERaMaterialName::PLYWOOD_PANEL:
-			return RaMaterialName::kPlywoodPanel;
+			return vraudio::MaterialName::kPlywoodPanel;
 		case ERaMaterialName::POLISHED_CONCRETE_OR_TILE:
-			return RaMaterialName::kPolishedConcreteOrTile;
+			return vraudio::MaterialName::kPolishedConcreteOrTile;
 		case ERaMaterialName::SHEETROCK:
-			return RaMaterialName::kSheetrock;
+			return vraudio::MaterialName::kSheetrock;
 		case ERaMaterialName::WATER_OR_ICE_SURFACE:
-			return RaMaterialName::kWaterOrIceSurface;
+			return vraudio::MaterialName::kWaterOrIceSurface;
 		case ERaMaterialName::WOOD_CEILING:
-			return RaMaterialName::kWoodCeiling;
+			return vraudio::MaterialName::kWoodCeiling;
 		case ERaMaterialName::WOOD_PANEL:
-			return RaMaterialName::kWoodPanel;
+			return vraudio::MaterialName::kWoodPanel;
 		case ERaMaterialName::UNIFORM:
-			return RaMaterialName::kUniform;
+			return vraudio::MaterialName::kUniform;
 		default:
 			UE_LOG(LogResonanceAudio, Error, TEXT("Acoustic Material does not exist. Returning Transparent Material."))
-			return RaMaterialName::kTransparent;
+			return vraudio::MaterialName::kTransparent;
 		}
 	}
 

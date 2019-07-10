@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2300790
+﻿INTSourceChangelist:3108692
 Availability:NoPublish
 Title:UPhysicsAsset
 Crumbs:
@@ -9,6 +9,6 @@ Description:PhysicsAsset类的概述
 PhysicsAsset定义了由SkeletalMesh使用的物理行为和碰撞。
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide
+Engine/Physics/PhysicsAssetEditor/UserGuide
 [/VAR]
 [/EXCERPT:UPhysicsAsset]

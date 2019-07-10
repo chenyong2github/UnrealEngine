@@ -398,6 +398,8 @@ private:
 class IConsoleCommandExecutor : public IModularFeature
 {
 public:
+	virtual ~IConsoleCommandExecutor() = default;
+
 	/**
 	 * Get the name identifying this modular feature set.
 	 */
@@ -626,23 +628,31 @@ struct CORE_API IConsoleManager
 	 * Unregisters a console object, if that object was registered. O(n), n is the console object count
 	 *
 	 * @param ConsoleObject - object to remove
-	 * @param bool bKeepState if the current state is kept in memory until a cvar with the same name is registered
+	 * @param bKeepState if the current state is kept in memory until a cvar with the same name is registered
 	 */
 	virtual void UnregisterConsoleObject( IConsoleObject* ConsoleObject, bool bKeepState = true) = 0;
+
+	/**
+	 * Unregisters a console variable or command by name, if an object of that name was registered.
+	 *
+	 * @param Name - name of object to remove
+	 * @param bKeepState if the current state is kept in memory until a cvar with the same name is registered
+	 */
+	virtual void UnregisterConsoleObject(const TCHAR* Name, bool bKeepState = true) = 0;
 
 	/**
 	 * Find a console variable
 	 * @param Name must not be 0
 	 * @return 0 if the object wasn't found
 	 */
-	virtual IConsoleVariable* FindConsoleVariable(const TCHAR* Name) const = 0;
+	virtual IConsoleVariable* FindConsoleVariable(const TCHAR* Name, bool bTrackFrequentCalls = true) const = 0;
 
 	/**
 	* Find a console variable or command
 	* @param Name must not be 0
 	* @return 0 if the object wasn't found
 	*/
-	virtual IConsoleObject* FindConsoleObject(const TCHAR* Name) const = 0;
+	virtual IConsoleObject* FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls = true) const = 0;
 
 	/**
 	 * Find a typed console variable (faster access to the value, no virtual function call)
@@ -1226,6 +1236,26 @@ public:
 	}
 
 	
+};
+
+/**
+ * Autoregistering console command with a world, arguments, and output device
+ */
+class CORE_API FAutoConsoleCommandWithWorldArgsAndOutputDevice : private FAutoConsoleObject
+{
+public:
+	/**
+	* Register a console command that takes arguments, a world argument and an output device
+	*
+	* @param	Name		The name of this command (must not be nullptr)
+	* @param	Help		Help text for this command
+	* @param	Command		The user function to call when this command is executed
+	* @param	Flags		Optional flags bitmask
+	*/
+	FAutoConsoleCommandWithWorldArgsAndOutputDevice(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldArgsAndOutputDeviceDelegate& Command, uint32 Flags = ECVF_Default)
+		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleCommand(Name, Help, Command, Flags))
+	{
+	}
 };
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConsoleResponse, Log, All);

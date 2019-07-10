@@ -163,6 +163,10 @@ protected:
 	//~ End UWidget Interface
 
 	void SlateOnCheckStateChangedCallback(ECheckBoxState NewState);
+
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+#endif
 	
 protected:
 	TSharedPtr<SCheckBox> MyCheckbox;

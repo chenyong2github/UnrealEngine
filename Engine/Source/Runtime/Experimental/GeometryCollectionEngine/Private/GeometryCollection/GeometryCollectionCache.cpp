@@ -24,7 +24,7 @@ void UGeometryCollectionCache::SetFromTrack(const FRecordedTransformTrack& InTra
 	CompatibleCollectionState = SupportedCollection ? SupportedCollection->GetStateGuid() : FGuid();
 }
 
-void UGeometryCollectionCache::SetSupportedCollection(UGeometryCollection* InCollection)
+void UGeometryCollectionCache::SetSupportedCollection(const UGeometryCollection* InCollection)
 {
 	if(InCollection != SupportedCollection)
 	{
@@ -41,7 +41,7 @@ void UGeometryCollectionCache::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 	OutTags.Add(FAssetRegistryTag(TagName_StateGuid, SupportedCollection ? CompatibleCollectionState.ToString() : FString(TEXT("INVALID")), FAssetRegistryTag::TT_Hidden));
 }
 
-UGeometryCollectionCache* UGeometryCollectionCache::CreateCacheForCollection(UGeometryCollection* InCollection)
+UGeometryCollectionCache* UGeometryCollectionCache::CreateCacheForCollection(const UGeometryCollection* InCollection)
 {
 	UGeometryCollectionCache* ResultCache = nullptr;
 
@@ -63,6 +63,24 @@ UGeometryCollectionCache* UGeometryCollectionCache::CreateCacheForCollection(UGe
 	}
 
 	return ResultCache;
+}
+
+bool UGeometryCollectionCache::CompatibleWithForRecord(const UGeometryCollection* InCollection)
+{
+	check(InCollection);
+
+	return InCollection == SupportedCollection;
+}
+
+bool UGeometryCollectionCache::CompatibleWithForPlayback(const UGeometryCollection* InCollection)
+{
+	check(InCollection);
+
+	const bool bStateGuidValid = GetCompatibleStateGuid().IsValid();
+	const bool bCollectionMatch = InCollection == SupportedCollection;
+	const bool bStatesMatch = bStateGuidValid && GetCompatibleStateGuid() == InCollection->GetStateGuid();
+
+	return bCollectionMatch && bStatesMatch;
 }
 
 void UGeometryCollectionCache::ProcessRawRecordedDataInternal(const FRecordedTransformTrack& InTrack)

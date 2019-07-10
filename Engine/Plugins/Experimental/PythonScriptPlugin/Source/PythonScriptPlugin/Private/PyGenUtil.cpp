@@ -9,8 +9,10 @@
 #include "PyWrapperStruct.h"
 #include "Internationalization/BreakIterator.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/FileHelper.h"
 #include "UObject/Class.h"
+#include "UObject/Stack.h"
 #include "UObject/Package.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
@@ -953,32 +955,32 @@ PyObject* PackReturnValues(const void* InBaseParamsAddr, const TArray<FGenerated
 	}
 }
 
-bool UnpackReturnValues(PyObject* InRetVals, void* InBaseParamsAddr, const TArray<FGeneratedWrappedMethodParameter>& InOutputParams, const TCHAR* InErrorCtxt, const TCHAR* InCallingCtxt)
+bool UnpackReturnValues(PyObject* InRetVals, const FOutParmRec* InOutputParms, const TCHAR* InErrorCtxt, const TCHAR* InCallingCtxt)
 {
-	if (!InOutputParams.Num())
+	if (!InOutputParms)
 	{
 		return true;
 	}
 
-	int32 ReturnPropIndex = 0;
+	const FOutParmRec* OutParamRec = InOutputParms;
 
 	// If we have multiple return values and the main return value is a bool, we expect None (for false) or the (potentially packed) return value without the bool (for true)
-	if (InOutputParams.Num() > 1 && InOutputParams[0].ParamProp->HasAnyPropertyFlags(CPF_ReturnParm) && InOutputParams[0].ParamProp->IsA<UBoolProperty>())
+	if (OutParamRec->NextOutParm && OutParamRec->Property->HasAnyPropertyFlags(CPF_ReturnParm) && OutParamRec->Property->IsA<UBoolProperty>())
 	{
-		const UBoolProperty* BoolReturn = CastChecked<const UBoolProperty>(InOutputParams[0].ParamProp);
+		const UBoolProperty* BoolReturn = CastChecked<const UBoolProperty>(OutParamRec->Property);
 		const bool bReturnValue = InRetVals != Py_None;
-		BoolReturn->SetPropertyValue(BoolReturn->ContainerPtrToValuePtr<void>(InBaseParamsAddr), bReturnValue);
+		BoolReturn->SetPropertyValue(OutParamRec->PropAddr, bReturnValue);
 
-		ReturnPropIndex = 1; // Start unpacking at the 1st out value
+		OutParamRec = OutParamRec->NextOutParm; // Start unpacking at the 1st out value
+		check(OutParamRec);
 	}
 
 	// Do we need to expect a packed tuple, or just a single value?
-	const int32 NumPropertiesToUnpack = InOutputParams.Num() - ReturnPropIndex;
-	if (NumPropertiesToUnpack == 1)
+	if (OutParamRec->NextOutParm == nullptr)
 	{
-		if (!PyConversion::NativizeProperty_InContainer(InRetVals, InOutputParams[ReturnPropIndex].ParamProp, InBaseParamsAddr, 0))
+		if (!PyConversion::NativizeProperty_Direct(InRetVals, OutParamRec->Property, OutParamRec->PropAddr))
 		{
-			PyUtil::SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert return property '%s' (%s) when calling %s"), *InOutputParams[ReturnPropIndex].ParamProp->GetName(), *InOutputParams[ReturnPropIndex].ParamProp->GetClass()->GetName(), InCallingCtxt));
+			PyUtil::SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert return property '%s' (%s) when calling %s"), *OutParamRec->Property->GetName(), *OutParamRec->Property->GetClass()->GetName(), InCallingCtxt));
 			return false;
 		}
 	}
@@ -990,6 +992,13 @@ bool UnpackReturnValues(PyObject* InRetVals, void* InBaseParamsAddr, const TArra
 			return false;
 		}
 
+		check(OutParamRec->NextOutParm);
+		int32 NumPropertiesToUnpack = 2; // We can start from 2 since we know we already have at least 2 output parameters to get to this code
+		for (const FOutParmRec* Tmp = OutParamRec->NextOutParm->NextOutParm; Tmp; Tmp = Tmp->NextOutParm)
+		{
+			++NumPropertiesToUnpack;
+		}
+
 		const int32 RetTupleSize = PyTuple_Size(InRetVals);
 		if (RetTupleSize != NumPropertiesToUnpack)
 		{
@@ -998,15 +1007,152 @@ bool UnpackReturnValues(PyObject* InRetVals, void* InBaseParamsAddr, const TArra
 		}
 
 		int32 RetTupleIndex = 0;
-		for (; ReturnPropIndex < InOutputParams.Num(); ++ReturnPropIndex)
+		do
 		{
 			PyObject* RetVal = PyTuple_GetItem(InRetVals, RetTupleIndex++);
-			if (!PyConversion::NativizeProperty_InContainer(RetVal, InOutputParams[ReturnPropIndex].ParamProp, InBaseParamsAddr, 0))
+			if (!PyConversion::NativizeProperty_Direct(RetVal, OutParamRec->Property, OutParamRec->PropAddr))
 			{
-				PyUtil::SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert return property '%s' (%s) when calling %s"), *InOutputParams[ReturnPropIndex].ParamProp->GetName(), *InOutputParams[ReturnPropIndex].ParamProp->GetClass()->GetName(), InCallingCtxt));
+				PyUtil::SetPythonError(PyExc_TypeError, InErrorCtxt, *FString::Printf(TEXT("Failed to convert return property '%s' (%s) when calling %s"), *OutParamRec->Property->GetName(), *OutParamRec->Property->GetClass()->GetName(), InCallingCtxt));
 				return false;
 			}
+			OutParamRec = OutParamRec->NextOutParm;
 		}
+		while (OutParamRec);
+	}
+
+	return true;
+}
+
+bool InvokePythonCallableFromUnrealFunctionThunk(FPyObjectPtr InSelf, PyObject* InCallable, const UFunction* InFunc, UObject* Context, FFrame& Stack, RESULT_DECL)
+{
+	// Allocate memory to store our local argument data
+	void* LocalStruct = FMemory_Alloca(InFunc->GetStructureSize());
+	InFunc->InitializeStruct(LocalStruct);
+	ON_SCOPE_EXIT
+	{
+		InFunc->DestroyStruct(LocalStruct);
+	};
+
+	// Stores information about inputs and outputs
+	FOutParmRec* OutParms = nullptr;
+	TArray<FPyObjectPtr, TInlineAllocator<4>> PyParams;
+
+	// Add any return property to the output params chain
+	if (UProperty* ReturnProp = InFunc->GetReturnProperty())
+	{
+		FOutParmRec* Out = (FOutParmRec*)FMemory_Alloca(sizeof(FOutParmRec));
+		Out->Property = ReturnProp;
+		Out->PropAddr = (uint8*)RESULT_PARAM;
+
+		// Link it to the head of the list, as UnpackReturnValues expects the return value to be first in the list
+		Out->NextOutParm = OutParms;
+		OutParms = Out;
+	}
+
+	// Get the value of the input params for the Python args, and cache the addresses that return and output data should be unpacked to
+	bool bProcessedInputs = true;
+	{
+		int32 ArgIndex = 0;
+		FOutParmRec** LastOut = &OutParms;
+
+		// We iterate the fields directly here as we need to process input and output properties in the 
+		// correct stack order, as we're potentially popping data off the bytecode stack
+		for (TFieldIterator<UProperty> ParamIt(InFunc); ParamIt; ++ParamIt)
+		{
+			UProperty* Param = *ParamIt;
+
+			// Skip the return value; it never has data on the bytecode stack and was added to the output params chain before this loop
+			if (Param->HasAnyPropertyFlags(CPF_ReturnParm))
+			{
+				continue;
+			}
+
+			// Step the property data to populate the local value
+			Stack.MostRecentPropertyAddress = nullptr;
+			void* LocalValue = Param->ContainerPtrToValuePtr<void>(LocalStruct);
+			Stack.StepCompiledIn<UProperty>(LocalValue);
+
+			void* ValueReadAddress = LocalValue;
+
+			// Add any output parameters to the output params chain
+			if (PyUtil::IsOutputParameter(Param))
+			{
+				CA_SUPPRESS(6263) // using _alloca in a loop
+				FOutParmRec* Out = (FOutParmRec*)FMemory_Alloca(sizeof(FOutParmRec));
+				Out->Property = Param;
+				Out->PropAddr = (Stack.MostRecentPropertyAddress) ? Stack.MostRecentPropertyAddress : (uint8*)LocalValue;
+				Out->NextOutParm = nullptr;
+
+				// If this value is also an input param (eg, UPARAM(ref)) then we need to read its input value from the output address too
+				ValueReadAddress = Out->PropAddr;
+
+				// Link it to the end of the list
+				if (*LastOut)
+				{
+					(*LastOut)->NextOutParm = Out;
+					LastOut = &(*LastOut)->NextOutParm;
+				}
+				else
+				{
+					*LastOut = Out;
+				}
+			}
+
+			// Convert any input parameters for use with Python
+			if (PyUtil::IsInputParameter(Param))
+			{
+				FPyObjectPtr& PyParam = PyParams.AddDefaulted_GetRef();
+				if (!PyConversion::PythonizeProperty_Direct(Param, ValueReadAddress, PyParam.Get()))
+				{
+					PyUtil::SetPythonError(PyExc_TypeError, InCallable ? *PyUtil::GetErrorContext(InCallable) : TEXT("<null>"), *FString::Printf(TEXT("Failed to convert argument at pos '%d' when calling function '%s' on '%s'"), ArgIndex + 1, *InFunc->GetName(), *P_THIS_OBJECT->GetName()));
+					bProcessedInputs = false;
+				}
+				++ArgIndex;
+			}
+		}
+	}
+
+	// Validate we reached the end of the parameters when stepping the bytecode stack
+	if (Stack.Code)
+	{
+		checkSlow(*Stack.Code == EX_EndFunctionParms);
+		++Stack.Code;
+	}
+
+	// If any errors happened during parameter processing then we can bail now that we've finished stepping the bytecode stack
+	// We can also bail if we have no Python callable to invoke
+	if (!bProcessedInputs || !InCallable)
+	{
+		return false;
+	}
+
+	// Prepare the arguments tuple for the Python callable
+	FPyObjectPtr PyArgs;
+	if (InSelf || PyParams.Num() > 0)
+	{
+		const int32 PyParamOffset = (InSelf ? 1 : 0);
+		PyArgs = FPyObjectPtr::StealReference(PyTuple_New(PyParams.Num() + PyParamOffset));
+		if (InSelf)
+		{
+			PyTuple_SetItem(PyArgs, 0, InSelf.Release()); // SetItem steals the reference
+		}
+		for (int32 PyParamIndex = 0; PyParamIndex < PyParams.Num(); ++PyParamIndex)
+		{
+			PyTuple_SetItem(PyArgs, PyParamIndex + PyParamOffset, PyParams[PyParamIndex].Release()); // SetItem steals the reference
+		}
+	}
+
+	// Invoke the Python callable
+	FPyObjectPtr RetVals = FPyObjectPtr::StealReference(PyObject_CallObject(InCallable, PyArgs));
+	if (!RetVals)
+	{
+		return false;
+	}
+
+	// Unpack any output values
+	if (!UnpackReturnValues(RetVals, OutParms, *PyUtil::GetErrorContext(InCallable), *FString::Printf(TEXT("function '%s' on '%s'"), *InFunc->GetName(), *P_THIS_OBJECT->GetName())))
+	{
+		return false;
 	}
 
 	return true;

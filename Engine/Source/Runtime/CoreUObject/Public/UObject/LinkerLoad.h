@@ -244,6 +244,11 @@ public:
 	 */
 	COREUOBJECT_API static bool RemoveKnownMissingPackage(FName PackageName);
 
+	/**
+	 * 
+	 */
+	COREUOBJECT_API static void OnNewFileAdded(const FString& Filename);
+
 	/** 
 	 * Checks if the linker has any objects in the export table that require loading.
 	 */

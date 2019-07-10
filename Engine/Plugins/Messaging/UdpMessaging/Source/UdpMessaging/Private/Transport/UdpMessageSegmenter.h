@@ -159,6 +159,7 @@ public:
 	 * Marks the specified segments for retransmission.
 	 *
 	 * @param Segments The data segments to retransmit.
+	 * @note this function is kept for legacy reasons to be used with FRetransmitChunk which still encodes its segment count on uint16. FRetransmitChunk aren't used in protocol 12 and newer.
 	 */
 	void MarkForRetransmission(const TArray<uint16>& Segments);
 

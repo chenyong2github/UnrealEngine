@@ -8,7 +8,7 @@
 FSSDSignalArray Mul(FSSDSignalArray Samples, float Scalar[MAX_SIGNAL_BATCH_SIZE])
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Mul(Samples.Array[BatchedSignalId], Scalar[BatchedSignalId]);
@@ -19,7 +19,7 @@ FSSDSignalArray Mul(FSSDSignalArray Samples, float Scalar[MAX_SIGNAL_BATCH_SIZE]
 FSSDSignalArray Add(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Add(SamplesA.Array[BatchedSignalId], SamplesB.Array[BatchedSignalId]);
@@ -30,7 +30,7 @@ FSSDSignalArray Add(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 FSSDSignalArray Minus(FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Minus(Samples.Array[BatchedSignalId]);
@@ -41,7 +41,7 @@ FSSDSignalArray Minus(FSSDSignalArray Samples)
 FSSDSignalArray Subtract(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Subtract(SamplesA.Array[BatchedSignalId], SamplesB.Array[BatchedSignalId]);
@@ -52,7 +52,7 @@ FSSDSignalArray Subtract(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 FSSDSignalArray Abs(FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Abs(Samples.Array[BatchedSignalId]);
@@ -63,7 +63,7 @@ FSSDSignalArray Abs(FSSDSignalArray Samples)
 FSSDSignalArray Sqrt(FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Sqrt(Samples.Array[BatchedSignalId]);
@@ -74,7 +74,7 @@ FSSDSignalArray Sqrt(FSSDSignalArray Samples)
 FSSDSignalArray Power(FSSDSignalArray Samples, float Exponent)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Power(Samples.Array[BatchedSignalId], Exponent);
@@ -85,7 +85,7 @@ FSSDSignalArray Power(FSSDSignalArray Samples, float Exponent)
 FSSDSignalArray Min(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Min(SamplesA.Array[BatchedSignalId], SamplesB.Array[BatchedSignalId]);
@@ -96,7 +96,7 @@ FSSDSignalArray Min(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 FSSDSignalArray Max(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Max(SamplesA.Array[BatchedSignalId], SamplesB.Array[BatchedSignalId]);
@@ -107,7 +107,7 @@ FSSDSignalArray Max(FSSDSignalArray SamplesA, FSSDSignalArray SamplesB)
 FSSDSignalArray Clamp(FSSDSignalArray Samples, FSSDSignalArray SamplesMin, FSSDSignalArray SamplesMax)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Clamp(Samples.Array[BatchedSignalId], SamplesMin.Array[BatchedSignalId], SamplesMax.Array[BatchedSignalId]);
@@ -118,7 +118,7 @@ FSSDSignalArray Clamp(FSSDSignalArray Samples, FSSDSignalArray SamplesMin, FSSDS
 FSSDSignalArray Lerp(FSSDSignalArray Samples0, FSSDSignalArray Samples1, float Interp[MAX_SIGNAL_BATCH_SIZE])
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = Lerp(Samples0.Array[BatchedSignalId], Samples1.Array[BatchedSignalId], Interp[BatchedSignalId]);
@@ -129,7 +129,7 @@ FSSDSignalArray Lerp(FSSDSignalArray Samples0, FSSDSignalArray Samples1, float I
 FSSDSignalArray NormalizeToOneSample(FSSDSignalArray Samples)
 {
 	FSSDSignalArray OutSamples;
-	FIX_UNROLL(MAX_SIGNAL_BATCH_SIZE)
+	UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 	for (uint BatchedSignalId = 0; BatchedSignalId < MAX_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 	{
 		OutSamples.Array[BatchedSignalId] = NormalizeToOneSample(Samples.Array[BatchedSignalId]);

@@ -223,7 +223,8 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
         }
     }
 
-	if (RHISupportsComputeShaders(GMaxRHIShaderPlatform) && InMorphTargets.Num() > 0)
+	// UseGPUMorphTargets() can be toggled only on SM5 atm
+	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5) && InMorphTargets.Num() > 0)
 	{
 		MorphTargetVertexInfoBuffers.VertexIndices.Empty();
 		MorphTargetVertexInfoBuffers.MorphDeltas.Empty();
@@ -765,10 +766,16 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 	if (Ar.IsLoading() && !!GSkinWeightProfilesLoadByDefaultMode)
 	{
 #if !WITH_EDITOR
-		// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
-		SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(OwnerMesh, Idx);
+		if ( GSkinWeightProfilesLoadByDefaultMode == 1)
+		{
+			// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
+			SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(OwnerMesh, Idx);
+		}
 #endif 	
-		SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(OwnerMesh, Idx);
+		if (GSkinWeightProfilesLoadByDefaultMode == 3)
+		{
+			SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(OwnerMesh, Idx);
+		}
 	}
 }
 

@@ -7,12 +7,12 @@ public class MainFrame : ModuleRules
 	public MainFrame(ReadOnlyTargetRules Target) : base(Target)
 	{
 
-        PublicDependencyModuleNames.AddRange(
-            new string[]
+		PublicDependencyModuleNames.AddRange(
+			new string[]
 			{
-                "Documentation",
+				"Documentation",
 			}
-        );
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -21,12 +21,12 @@ public class MainFrame : ModuleRules
 				"ApplicationCore",
 				"Engine",
 				"EngineSettings",
-                "InputCore",
+				"InputCore",
 				"RHI",
 				"RenderCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
+				"EditorStyle",
 				"SourceControl",
 				"SourceControlWindows",
 				"TargetPlatform",
@@ -37,8 +37,8 @@ public class MainFrame : ModuleRules
 				"UATHelper",
 				"TranslationEditor",
 				"Projects",
-                "DeviceProfileEditor",
-                "UndoHistory",
+				"DeviceProfileEditor",
+				"UndoHistory",
 				"Analytics",
 			}
 		);
@@ -50,20 +50,19 @@ public class MainFrame : ModuleRules
 				"GameProjectGeneration",
 				"ProjectTargetPlatformEditor",
 				"LevelEditor",
-                "OutputLog",
 				"Settings",
 				"SourceCodeAccess",
-                "Toolbox",
-                "LocalizationDashboard",
+				"Toolbox",
+				"LocalizationDashboard",
 			}
 		);
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-                "Editor/MainFrame/Private",
+				"Editor/MainFrame/Private",
 				"Editor/MainFrame/Private/Frame",
-                "Editor/MainFrame/Private/Menus",
-            }
+				"Editor/MainFrame/Private/Menus",
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -72,10 +71,9 @@ public class MainFrame : ModuleRules
 				"GameProjectGeneration",
 				"ProjectTargetPlatformEditor",
 				"LevelEditor",
-                "OutputLog",
 				"SourceCodeAccess",
 				"HotReload",
-                "LocalizationDashboard",
+				"LocalizationDashboard",
 			}
 		);
 	}

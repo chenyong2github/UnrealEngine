@@ -872,7 +872,7 @@ public:
 	 * @param	TexCoords			The texture coordinates to set on the UV channel.
 	 * @return true if the UV channel could be set.
 	 */
-	ENGINE_API bool SetUVChannel(int32 LODIndex, int32 UVChannelIndex, const TArray<FVector2D>& TexCoords);
+	ENGINE_API bool SetUVChannel(int32 LODIndex, int32 UVChannelIndex, const TMap<FVertexInstanceID, FVector2D>& TexCoords);
 
 #endif
 
@@ -1125,11 +1125,23 @@ public:
 	}
 
 	/**
+	 *	Add a socket object in this StaticMesh.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
+	ENGINE_API void AddSocket(UStaticMeshSocket* Socket);
+
+	/**
 	 *	Find a socket object in this StaticMesh by name.
 	 *	Entering NAME_None will return NULL. If there are multiple sockets with the same name, will return the first one.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
 	ENGINE_API class UStaticMeshSocket* FindSocket(FName InSocketName) const;
+
+	/**
+	 *	Remove a socket object in this StaticMesh by providing it's pointer. Use FindSocket() if needed.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
+	ENGINE_API void RemoveSocket(UStaticMeshSocket* Socket);
 
 	/**
 	 * Returns vertex color data by position.

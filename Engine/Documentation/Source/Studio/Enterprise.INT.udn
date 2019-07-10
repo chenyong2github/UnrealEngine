@@ -1,0 +1,33 @@
+Availability:Public
+Title: Unreal Studio
+Description:Using Unreal Engine for automotive, aviation, architecture, consumer electronics, and complex data visualization applications
+Crumbs:%ROOT%,
+version:4.19
+Parent:%ROOT%
+tags:Studio
+type:landing
+Order: 7
+topic-image:Enterprise_Topic.png
+topic-icon:%ROOT%/enterprise_icon.png
+hero-image:Enterprise_Hero.png
+
+
+Unreal Engine and its **real-time** interaction and rendering capabilities are well-suited for a huge range of projects across various non-gaming applications, including automotive, aviation, architecture, consumer electronics and complex data visualization.
+
+
+## Getting Started
+
+[DIR(output:"topic" org:"hierarchy" parent:"Studio" tags:"Getting Started" end:"1")]
+
+## Unreal Studio Tools
+
+%Studio/Datasmith:topic%
+%Engine/Editor/ScriptingAndAutomation/Python:topic%
+
+## Unreal Studio Release Notes
+
+[DIR(output:"topic" org:"hierarchy" parent:"Studio/Builds" end:"1")]
+
+## Additional Content Resources
+
+%Studio/Automotive/AutomotiveMaterialPack:topic%

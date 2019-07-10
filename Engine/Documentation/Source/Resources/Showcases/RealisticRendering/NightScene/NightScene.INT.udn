@@ -1,16 +1,18 @@
 Availability: Public
-Title:Night Scene Lighting
-Crumbs:%ROOT%, Resources,  Resources/Showcases, Resources/Showcases/RealisticRendering
-Description:An overview of the Night scene from the Realistic Rendering demolet included with UE4.
+Title: Night Scene Lighting
+Description: An overview of the Night scene from the Realistic Rendering demolet included with UE4.
+Version: 4.9
+Type: overview
+topic-image: RoomNight.png
+Parent: Resources/Showcases/RealisticRendering
+Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
+Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Directional
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Spot
-Related: Engine/Rendering/LightingAndShadows/Lightmass
-Related: Engine/Rendering\LightingAndShadows
-Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
-Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
 Related: Engine/Rendering/LightingAndShadows/IESLightProfiles
+Related: Engine/Rendering/LightingAndShadows/Lightmass
 Related: Resources/ContentExamples/Lighting/4_2
-Version: 4.9
+
 
 [REGION:fullwidth]
 ![](RoomNight.png)
@@ -25,15 +27,15 @@ There are 3 types of lights in use in the night scene.
 
 ## Setup Considerations
 
-The Night scene (_RoomNight.umap_) is similar to the Daylight scene. The Stationary Directional Light provides additional lighting, as if from a moon or street light. Here you can see the balcony both with and without this light:
+The Night scene (*RoomNight.umap*) is similar to the Daylight scene. The Stationary Directional Light provides additional lighting, as if from a moon or street light. Here you can see the balcony both with and without this light:
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![Moon Directional Light On](DirectionalLightMoon2.png)(w:600)
-	[/PARAM]
-	[PARAM:after]
-	![Moon Directional Light Off](DirectionalLightMoonOff2.png)(w:600)
-	[/PARAM]
+ [PARAM:before]
+ ![Moon Directional Light On](DirectionalLightMoon2.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Moon Directional Light Off](DirectionalLightMoonOff2.png) 
+ [/PARAM]
 [/OBJECT]
 
 

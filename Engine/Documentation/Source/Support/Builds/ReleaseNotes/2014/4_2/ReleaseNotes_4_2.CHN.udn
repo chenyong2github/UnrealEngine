@@ -1,26 +1,25 @@
-﻿INTSourceChangelist:1
-Title: 虚幻引擎 4.2 版本信息
+﻿INTSourceChangelist:6537038
+Title: 虚幻引擎4.2版本说明
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.2
-order:2
-
+Order: 42
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
-## Build Info
+## 版本信息
 
 [REGION:simpletable]
-| Item | Info |
+| 项目 | 信息 |
 | ---- | ---- |
-| **Labels** | [INCLUDE:#labels] |
-| **Built from Changelist #** | 2094635 (//depot/UE4-QA/Promotable-CL-2094635) |
-| **Branched from Changelist #** | 2093060 (//depot/UE4-Releases/4.2) |
-| **Branched from Changelist #** | 2069788 (//depot/UE4/Promotable-CL-2069788) |
-| **Visual Studio Version** | Microsoft Visual Studio 2013 12.0.21005.1 REL |
-| **Xcode Version** | 5.1.1 |
-| **DirectX** | June 2010 |
+| **标签** | [INCLUDE:#labels] |
+| **构建于变更列表#** | 2094635 (//depot/UE4-QA/Promotable-CL-2094635) |
+| **分支于变更列表#** | 2093060 (//depot/UE4-Releases/4.2) |
+| **分支于变更列表#** | 2069788 (//depot/UE4/Promotable-CL-2069788) |
+| **Visual Studio版本** | Microsoft Visual Studio 2013 12.0.21005.1 REL |
+| **Xcode版本** | 5.1.1 |
+| **DirectX** | 2010年6月 |
 [/REGION]
 
 [COMMENT:none]
@@ -34,208 +33,208 @@ QA_APPROVED_UE4_BUILD_MINIMUM
 [/COMMENT]
 [/PUBLISH:Licensee]
 
-## Major New Features
+## 主要新功能
 
-#### New: Sample Vehicle Game 
-Vehicles are now fully supported in Unreal Engine! This sample game features an off-road vehicle and a looping track within a desert setting. Race across sand dunes, rocky cliffs and ancient ruins, and try to beat your best time!
+#### 新内容：样本车辆游戏 
+虚幻引擎现在完全支持载具！这个样本游戏的特色是越野车辆和沙漠环境中的环形轨道。比赛穿越沙丘，岩石悬崖和古老的废墟，并尝试超越您最好的成绩！
 
 ![](veh02.png)
 
-* Out of the box support for 4WD, FWD, and RWD drive trains.
-* The default drive train simulation assumes 4 wheels; however it will work with any number of wheels.
-* As many gears you desire.
-* Automatic and semi-manual transmissions.
-* And it is all completely exposed to Blueprints!
+* 对四轮驱动，前轮驱动，和后轮驱动系的开箱即用支持。
+* 默认的传动系模拟假设4个车轮；然而，它可与任何数量的车轮配合使用。
+* 所需任意数量的挡位。
+* 自动和半手动变速器。
+* 它完全对蓝图公开！
 
 ![](vehicleProps2.png)(w:935)
 
-* Documentation can be found here:
-	* [Vehicle Content Guide](https://docs.unrealengine.com/latest/INT/Engine/Physics/Vehicles/VehcileContentCreation)
-	* [Vehicle Setup Guide](https://docs.unrealengine.com/latest/INT/Engine/Physics/Vehicles/VehicleUserGuide)
+* 文档可在此处找到：
+	* [载具内容指南](Engine/Physics/Vehicles/VehicleContentCreation)
+	* [载具设置指南](Engine/Physics/Vehicles/VehicleUserGuide)
 
-#### New: Camera Animation System
-Support for** CameraAnims** has now been added into Unreal Engine 4! These are very similar to CameraAnims from Unreal Engine 3, but now expanded with Blueprint support.
+#### 新内容：摄像机动画系统
+对 **摄像机动画** 的支持现已添加到虚幻引擎4！这些非常类似于虚幻引擎3的摄像机动画，但现在使用蓝图支持进行了扩展。
 
-* Conceptually, a **CameraAnim** is simply an animation that can be layered onto the in-game camera.  You can animate the camera position and rotation, FOV, and post process settings.
-* They can be created in the Content Browser, you can convert a track in Matinee to one, or you can import keyframes from external tools like Maya
+* 从概念上讲，一个 **摄像机动画** 只是一个动画，可以分层到游戏内的摄像机。您可以将摄像机的位置和旋转、FOV和后期处理设置动画化。
+* 它们可以在内容浏览器中创建，您可以将Matinee中的轨迹转换为一个轨迹，或者您可以从外部工具（如Maya）导入关键帧
 
 
 ![](cameraAnims.png)(w:935)
 
-* To edit a **CameraAnim**, simply double click the asset in the Content Browser like you would any other asset. The CameraAnim editor is slightly customized version of Matinee.  
-* Multiple **CameraAnimInsts** (up to 8 currently) can be active at once, all blending and contributing to the final camera settings.
+* 要编辑一个 **摄像机动画**，只需像编辑其他资源一样在内容浏览器中双击该资源。摄像机动画编辑器是略微将Matinee进行定制后的版本。  
+* 多个 **CameraAnimInst**（目前最多8个）可以同时处于活动状态，所有这些都混合在一起并促成最终的摄像机设置。
 
-#### New: User-Defined Structures for Blueprints
-**User Defined Structures** are a brand new asset that is now available for use from within the editor! 
-* A **User Defined Structure** can be created in the **Content Browser**. 
+#### 新内容：用于蓝图的用户定义的结构
+ **用户定义的结构** 是一个全新的资源，现在可以在编辑器中使用！ 
+* **用户定义的结构** 可以在 **内容浏览器（Content Browser）** 中创建。 
 
 ![](newStruct.png)
 
-They can be edited in the standalone editor by double clicking them in the **Content Browser**. Once you are done editing them, you can create a variable of a type of your new User Defined Structure in your Blueprints.
+可以在独立编辑器中编辑它们，方法是在 **内容浏览器（Content Browser）** 中双击它们。编辑完成后，可以在蓝图中创建新的用户定义的结构类型的变量。
 
 ![](stucts.png)(w:935)
 
-* Like vectors, rotators, and other structures, your **User Defined Structure** will have **Make** and **Break** nodes.
-	**User Defined Structures** should behave like native structures::USTRUCT(BlueprintType).
+* 像矢量、旋转体和其他结构一样，您的 **用户定义的结构** 将具有 **Make** 和 **Break** 节点。
+	**用户定义的结构** 应表现得如同原生结构::USTRUCT(BlueprintType)。
 
-#### New: Blueprint Function Library
-Users can now create a blueprint function library asset!  This allows you to create a nice library of Blueprint functions that can be used throughout your project!
+#### 新内容：蓝图函数库
+用户现在可以创建蓝图函数库资源！这允许您创建一个很好的蓝图函数库，可以在整个项目中使用！
 
 ![](blueprintFunctions.png)
 
-Unlike the Blueprint Macro Library, Blueprint Function Libraries don't require a Parent Class, and are able to be called by all Blueprints in the current project.
+与蓝图宏库不同，蓝图函数库不需要父类，并且能够被当前项目中的所有蓝图调用。
 
-#### New: Canvas Render Targets
--	You can now draw Canvas UI straight to a texture, and then map that texture to objects in your scene! 
--	This is currently only supported in C++.
--	A special thanks to community member James Tan for submitting this.
+#### 新内容：画布渲染目标
+-	现在您可以将画布UI直接绘制到纹理，然后将该纹理映射到场景中的对象！ 
+-	目前只在C++中支持此操作。
+-	特别感谢社区成员James Tan提交此内容。
 
-#### New: Vehicle Template
-We have a new project template that gives a simple automobile to start your new vehicle-based project with.  Both Blueprint and C++ versions of this template are available now!
+#### 新内容：载具模板
+我们有一个新的项目模板，它提供了一个简单的机动车以启动您的基于新载具的项目。此模板的蓝图版本和C++版本现在都已可用！
 
 [REGION:fullwidth]
 ![](VechicleTemp.png)
 [/REGION]
 
-#### New: FABRIK Inverse Kinematics Solver
-**FABRIK** stands for Forward And Backward Reaching Inverse Kinematic. It is an IK solver that works on a chain of bones of any arbitrary length!
+#### 新内容：FABRIK逆向运动学解算器
+**FABRIK** 表示前后延伸逆向运动学。它是一个IK解算器，计算任意长度的骨骼链！
 
 ![](FABRIK.png)
 
-* End Effector settings are the same as our TwoBone_IK node. It can be an absolute Transform, or a relative one (based on another bone from the same Skeleton).
-* In the Solver section, you define the chain of bones to use, from the 'Root' to the 'Tip'. The 'Tip' will try to reach the end effector location.
-* End Effector Rotation Source allows you to control the rotation (maintain component space, local space, match end effector target rotation).
-* Precision is how close it needs to get. The lower, the more precise it gets to the End Effector Target, but the more expensive. (Although from tests it does a really nice job, and much quicker than the CCD_IK node).
-* MaxIterations is there to control performance, and make sure edge cases will not take frame rate down.
+* 末端效应器设置与我们的TwoBone_IK节点相同。它可以是绝对变换，也可以是相对变换（基于同一骨架中的另一个骨骼）。
+* 在解算器部分中，定义要使用的骨骼链，从“根部”到“尖端”。“尖端”将尝试达到末端效应器位置。
+* 末端效应器旋转源允许您控制旋转（维护组件空间、局部空间、匹配末端效应器目标旋转）。
+* 精度是它需要接近的程度。越低，到达末端效应器目标的精确度就越高，但成本也就越高。（虽然从测试来看，它做得很好，比CCD_IK节点快得多）。
+* MaxIteration用于控制性能，并确保边缘情况不会降低帧率。
 
-Thanks to GitHub community member Stephen Whittle for this feature!
+感谢GitHub社区成员Stephen Whittle提供此功能！
 
-#### New: Animation Blueprint Asset Override Editor
-Persona now has the ability to override the assets used in **Play** and **Evaluate** nodes in parent animation blueprints from a child blueprint. 
+#### 新内容：动画蓝图资源覆盖编辑器
+Persona现在能够从子蓝图覆盖父蓝图中的 **Play** 和 **Evaluate** 节点中使用的资源。 
 
-The editor for this can be found in the **Window menu** in Persona:
+编辑器可以在Persona中的 **Window菜单** 中找到：
 
 ![](assetOverride.png)
 
-The editor collects all of the nodes that can have their animation asset overridden. New assets can be picked from the pickers on the right of the panel. This works with longer inheritance chains too and shows the most appropriate defaults for that blueprint based upon the blueprints further up in the hierarchy. Finally, the "eye" button will link you to the AnimGraph node you are overriding: 
+编辑器收集所有可以覆盖其动画资源的节点。新资源可以从面板右侧的选择器中选择。这也适用于更长的继承链，并根据层级中更高层的蓝图显示该蓝图最合适的默认值。+最后，“眼睛（eye）”按钮将把您链接到要覆盖的AnimGraph节点 
 
 ![](assetOverride03.png)
 
-#### New: Experimental Math Expression Node for Blueprints
-There is a new experimental plugin available for the Math Expression Node for Blueprints. This node enables you to simply type in an expression and it will make the input pins, output pins, and a collapsed graph that contains your math expression.
+#### 新内容：用于蓝图的实验数学表达式节点
+有一个新的实验性插件可以用于蓝图的数学表达式节点。这个节点允许您简单地输入一个表达式，它将生成输入引脚、输出引脚和包含数学表达式的重叠图表。
 
 ![](mathExpNode.png)
 
-* To use this node, simply activate the **Math Expression** plugin in the plugin manager. It will then appear in the right-click context menu of the Blueprint Graph Editor.
-* Once created, type in your expression. If you make a mistake, you can edit the expression by renaming the node.
+* 要使用此节点，只需在插件管理器中激活 **数学表达式** 插件。然后，它将出现在蓝图图表编辑器的右键单击上下文菜单中。
+* 创建后，输入表达式。如果出错，您可以通过重命名节点来编辑表达式。
 
 
-#### New: Improved Anim Notify Editor
-Multi-select support for **Anim Notifies** has been added into Persona! **Shift + click** adds to selection, and **Ctrl + click** toggles a notify selection.
+#### 新内容：改进的动画通知编辑器
+对 **动画通知** 的多选支持已添加到Persona中！**Shift + 单击** 添加到选择，**Ctrl + 单击** 切换通知选择。
 
-You can drag the selection around and it will remain within the notify panel while obeying snaps:
+您可以拖动选择，它将在服从捕捉的同时保持在通知面板内：
 
 ![](animNotify1.png)
 
-Copy/Paste works with groups too with a number of options: 
+复制/粘贴也适用于具有多个选项的组： 
 
 ![](animNotify2.png)
 
-* You can paste them at the absolute, relative, or original time, in relation from where they were copied.
+* 您可以将它们粘贴到绝对时间、相对时间或起始时间处，与复制它们的位置相关。
 
-#### New: Blueprint Cut and Paste for Components
-Cut/Copy/Paste commands have now been added to Components mode!
+#### 新内容：组件的蓝图剪切和粘贴
+剪切/复制/粘贴命令现已添加到组件模式！
 
 ![](CopyandPasteBlueprint01.png)
 
-* Select individual components and either right-click or use keyboard Cut/Paste commands to copy or move components around!
+* 选择单独的组件，右键单击或使用键盘剪切/粘贴命令以复制或移动组件！
 	
-* You can cut/copy components from one Blueprint and paste them right into another Blueprint!
+* 您可以从一个蓝图中剪切/复制组件，并将其粘贴到另一个蓝图中！
 
-	If the selection includes a hierarchy, it will be preserved in the pasted copy!
+	如果选择包含层级，它将保存在粘贴的副本中！
 
 
-#### New: UV Parallax for SplineThicken Material Function
-You can now add UV parallax to materials using the SplineThicken Material Function. This makes it look like your object is round! 
+#### 新内容：用于SplineThicken材质函数的UV视差
+现在，您可以使用SplineThicken材质函数将UV视差添加到材质中。这会让您的对象看起来是圆的！ 
 
 ![](spline1.png) ![](spine2.png)
 
-* The normals part of the function has been re-touched and they are now transforming correctly for all object rotations. This gives accurate lighting and specular!
+* 函数的法线部分已被修整，现在它们正为所有对象旋转进行正确转换。这提供了准确的照明和高光！
 	
-New inputs:
-* **UVs for Thickness (V2)**: This lets you specify a different UV channel for storing the thickness (tip to base) gradient. Useful to have this on UV1 or 2 for trees where there might be an overall tree length included,included not just a single pipe or branch etc.
-* **UVs for Texturing (V2)**: This is the UVs for any textures you want applied to the pipe. You need to include and scale math here so it knows how much to parallax by. This is only needed if you want the 3D parallax correction results.
-* **DeriveNormalZ (Bool)**: When checked, the shader will use DeriveNormalZ to compute the height of the normal. Gives much nicer 'round' shape. When false, 0.62 is assumed which is the average height of half a sphere centered at 0. If you want to use CustomUVs to solve the normal, you either need DeriveNormalZ to be false, or you need a row of vertices in the center of the spline mesh. If you do not have the added verts and use CustomUVs, it will say the normal has 0 height across the entire mesh.
-* **AngleCorrectedNormals (Bool)**: Whether to use angle corrected normals when applying the additional normal texture. More accurate but more expensive.
-* **AdditionalNormal (V3)**: Lets you specify an additional normalmap that will piggyback onto the vertexnormal transformation. 
+新输入：
+* **用于厚度的UV (V2)**：这允许您指定一个不同的UV通道来存储厚度（从顶部到底部）梯度。在UV1或2上使用这个函数对于包含整个树长的树很有用，包括的不仅仅是单个管道或分支等。
+* **用于纹理的UV (V2)**：这是您想应用到管道上的任何纹理的UV。您需要在这里包含和缩放数学，这样它就知道视差是多少。这仅在您想要三维视差校正结果时才需要使用。
+* **DeriveNormalZ（布尔）**：选中后，着色器将使用DeriveNormalZ来计算法线的高度。提供更好的“圆形”形状。当为false时，设0.62为以0为中心的半个球体的平均高度。如果您想使用CustomUV来解算法线，则需要DeriveNormalZ为false，或者需要样条网格体中心的一排顶点。如果没有增加顶点，并使用CustomUV，则法线在整个网格体上的高度为0。
+* **AngleCorrectedNormals（布尔）**：当应用额外的法线纹理时，是否使用角度校正法线。更精确，但更昂贵。
+* **AdditionalNormal (V3)**：允许您指定附加的法线贴图，它将借用顶点法线变换。 
 	
-New output:
-* **UVs with Parallax**: This gives the UVs to use for any textures you want to have the 3d parallax.
+新输出：
+* **视差UV（UVs with Parallax）**：这使得UV可以用于任何您想要使用3D视差的纹理。
 	
-	Currently the function only handles 1 texture coordinate, so if you want multiple textures to have the correction, they all need to use the same scale.
+	目前，该函数只处理一个纹理坐标，所以如果您想要多个纹理获得校正，它们都需要使用相同的缩放。
 
-#### New: Animation Debug Features
-There are a number of new Animation Debug commands at your disposal. First there is in game rendering of a skeletal mesh's bones:
+#### 新内容：动画调试功能
+您可以任意使用许多新的动画调试命令。首先是在游戏中渲染骨架网格体的骨骼：
 
 ![](animDebug1.png)
 
-This is enabled using the **ShowDebug Bones** console command. As seen above the bones are represented by individual white lines. 
-* An alternative look, matching the bones displayed in Persona, can be enabled via the **ShowDebugToggleSubCategory** 3DBones console command.
-* Next is the animation debug output, which can be enabled using the **ShowDebug Animation** console command.
+这是使用 **ShowDebug Bones** 控制台命令启用的。如上图所示，骨骼由单独的白线表示。 
+* 可以通过 **ShowDebugToggleSubCategory** 3DBones控制台命令启用与Persona中显示的骨骼相匹配的替代外观。
+* 接下来是动画调试输出，可以使用 *ShowDebug Animation** 控制台命令启用该输出。
 
 ![](AnimationDebug02.png)
 
-* This is split up into 5 sections, each of which can be toggled on and off using the **ShowDebugToggleSubCategory** command followed by the category name listed below e.g. ShowDebugToggleSubCategory SyncGroups
-	* **SyncGroups**: Displays the animation assets currently contributing to the final pose, organised by their sync group (or Ungrouped if they don't belong to a group). By default Blendspaces listed in this section show all their contributing animations / weights. To reduce screen space used by the output this can be toggled off with ShowDebugToggleSubCategory **FullBlendspaceDisplay**.
-	* **Montages**: Lists the montages currently being used by the character. The active montage is highlighted in green.
-	* **Curves**: List the curve values (in Name: Value pairs) that have been activated by the playing animation(s).
-	* **Notifies**: Display any notify states that are currently in effect.
-	* **Graph**: Displays the active pose graph. The display starts with the last node (the root node) which represents the final pose and goes on to list all the nodes that go into making that final pose. Nodes are represented in such a way as to keep their hierarchy, allowing the user to see which nodes are connected to what without having to refer to the original blueprint asset. Active nodes are coloured green and (if they have been toggled to display using **ShowDebugToggleSubCategory FullGraph** ) inactive nodes are coloured grey.
+* 它被分成5个部分，每个部分都可以使用 **ShowDebugToggleSubCategory** 命令和下面列出的类别名称来打开和关闭，例如ShowDebugToggleSubCategory SyncGroups
+	* **同步组（SyncGroups）**：显示当前对最终姿势有贡献的动画资源，由它们的同步组组织（如果不属于某个组，则不进行分组）。默认情况下，本节中列出的混合空间显示了它们的所有贡献动画/权重。要减少输出使用的屏幕空间，可以使用 ShowDebugToggleSubCategory **FullBlendspaceDisplay** 关闭该选项。
+	* **蒙太奇（Montages）**：列出角色当前使用的蒙太奇。活动的蒙太奇用绿色突出显示。
+	* **曲线（Curves）**：列示正在播放的动画已激活的曲线值（格式为名称: 值对）。
+	* **通知（Notifies）**：显示当前生效的任何通知状态。
+	* **图表（Graph）**：显示活动的姿势图表。从显示表示最终姿态的最后一个节点（根节点）开始，到列示生成最终姿态所需的所有节点。节点以保持其层级的方式表示，允许用户查看哪些节点连接到哪些节点，而无需参考原始蓝图资源。活动节点的颜色为绿色（如果它们已经被切换为使用 **ShowDebugToggleSubCategory FullGraph** 显示），非活动节点的颜色为灰色。
 
 
 
 
-#### New: Level Viewport Stats
-Many useful engine stats can be visualized over the viewport. You can now access these using the new "Stat" section under the viewport "Show" menu.
+#### 新内容：关卡视口统计数据
+许多有用的引擎统计数据都可以通过视口可视化。现在，您可以使用视口“显示（Show）”菜单下的新“统计数据（Stat）”部分来访问它们。
 
 ![](ViewportStats.png)
 
-* You can also toggle most of these stats by typing "Stat <name>" into a debug console prompt.  
-* By default the stats are not remembered between sessions, but you can turn that on by enabling "Save Engine Stats" in the editor's Viewport preferences section.
+* 您还可以通过在调试控制台提示符中键入“Stat <名称>”来切换大部分状态。  
+* 默认情况下，会话之间不会记住这些统计数据，但是您可以在编辑器的视口（Viewport）首选项部分中启用“保存引擎统计数据（Save Engine stats）”来打开它。
 
 
 
 
-#### New: OBJ Mesh File Format Support
-You can now import .obj files for static meshes!
-The file format is very simple so keep in mind that it does not support the following features:
-* Vertex color importing.
-* Collision importing.
-* Tangent and Bbinormal importing.
-* Transforms.
-* The model will be rotated if not modeled with Z up because with OBJ importing we have no way of getting the source coordinate system.
+#### 新内容：OBJ网格体文件格式支持
+您现在可以导入静态网格体的.obj文件！
+文件格式非常简单，因此请记住它不支持以下特性：
+* 顶点颜色导入。
+* 碰撞导入。
+* 切线和副法线导入。
+* 变换。
+* 如果不使用Z向上建模，模型将被旋转，因为使用OBJ导入，我们无法获得源坐标系。
 
-#### New: Upgraded FBX to 2014
-The FBX importer as now been upgraded to the 2014 version from Autodesk.  
-* This allows Tangent and binormals on mirrored meshes to be imported correctly
-* You can still use the earlier FBX plugins found in any Maya/Max version before 2014, but you may get a warning on import when using a very old file.
-
-
-#### New: Windows XP Support (preview)
-Developers working out of GitHub now have the ability to deploy your project to Windows XP.
-* To enable this, set WindowsPlatform.SupportWindowsXP to true in UnrealBuildTool, and edit your project's settings to enable OpenGL shader support.
-* When running on Windows XP, OpenGL is automatically used instead of DirectX 11 for rendering 
-* This feature is early in development and will be improved over time.
+#### 新内容：将FBX升级到2014
+FBX导入器现在已经从Autodesk升级到2014版。  
+* 这允许正确导入镜像网格体上的切线和副法线
+* 在2014年之前，您仍然可以使用在任何Maya/Max版本中找到的早期FBX插件，但是在使用非常旧的文件时，可能会在导入时收到警告。
 
 
-#### New: Improved Blueprint Support for Actor Destruction
-In the 4.2 Preview Notes it was listed that the EndPlay event would replace the Destroyed event in Blueprints, this is no longer the case for 4.2.
-* In Blueprints, the new Event EndPlay node will eventually replace the Event Destroyed. The Event EndPlay node should be used going forward.
-* EndPlay will not just fire when an Actor is explicitly destroyed, but will also execute anytime an Actor ceases to be in the World.  This includes a level transition, a streaming level being unloaded, a PIE session ending, or Destroy being called for an Actor
-* Also, the EndPlay node now gives the reason for it executing (Actor Destroyed, Level Transition, the end of Play in Editor, and Removed from World)
-* In C++, the AActor::Destroyed virtual function remains, however it is primarily intended for editor transaction purposes.
-* The C++ AActor::EndPlay virtual function takes an enumeration parameter indicating the reason the Actor has been removed from the World.
-* The AActor::OnRemoveFromWorld virtual function, previously called for each Actor when the streaming level they belong to was unloaded, has been removed and its functionality included in AActor::EndPlay.
+#### 新内容：Windows XP支持（预览）
+使用GitHub的开发人员现在可以将项目部署到Windows XP。
+* 要启用此功能，请在UnrealBuildTool中将WindowsPlatform.SupportWindowsXP设置为true，并编辑项目的设置以启用OpenGL着色器支持。
+* 在Windows XP上运行时，自动使用OpenGL而不是DirectX11进行渲染 
+* 该特性处于早期开发阶段，并将随着时间的推移而得到改进。
+
+
+#### 新内容：改进了对Actor销毁的蓝图支持
+在4.2预览说明中列出了EndPlay事件将替换蓝图中已销毁的事件，但4.2中不再是这种情况。
+* 在蓝图中，新的Event EndPlay节点最终将替换已销毁的事件。Event EndPlay节点应该向前使用。
+* EndPlay不仅会在Actor被显式销毁时触发，还会在Actor停止存在时执行。这包括一个关卡过渡、一个正在卸载的流送关卡、一个PIE会话结束或正在为Actor调用的销毁
+* 此外，EndPlay节点现在给出了执行它的原因（销毁Actor、关卡过渡、编辑器中运行结束以及从世界场景中删除）
+* 在C++中，AActor::Destroyed虚拟函数仍然存在，但是它主要用于编辑器事务目的。
+* C++ AActor::EndPlay虚拟函数接受一个枚举参数，该参数指示从世界场景中删除Actor的原因。
+* AActor::OnRemoveFromWorld虚拟函数（之前当每个Actor所属的流送关卡被卸载时会为这些Actor调用它们）现在已被删除，它的功能包含在AActor::EndPlay中。
 
 
 ## Release Notes
@@ -250,11 +249,11 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 
 ![](ScifiHallway.png)
 
-**New Pivot Painter Content Example Map** - Still images don't do this example justice. The Pivot Painter feature of Unreal Engine 4 can be used to add life quickly and efficiently to anything that needs some sort of ambient movement. 
+**New Pivot Painter Content Example Map** - Still images don't do this example justice.The Pivot Painter feature of Unreal Engine 4 can be used to add life quickly and efficiently to anything that needs some sort of ambient movement. 
 
 ![](PivotPainterMap.png)
 
-**New Audio Content Example Map** - Like the Pivot Painter map, the Audio Map is one you just need to load up and browse through. It shows off the basics of Sound Actors and various sound effects.
+**New Audio Content Example Map** - Like the Pivot Painter map, the Audio Map is one you just need to load up and browse through.It shows off the basics of Sound Actors and various sound effects.
 
 ![](AudioContentMap.png)
 
@@ -281,7 +280,7 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 
 **Documentation**
 * New: [Vehicle Setup Guide](Engine/Physics/Vehicles/VehicleUserGuide) - How to setup a vehicle in Unreal Engine 4.
-* New: [Vehicle Content Guide](Engine/Physics/Vehicles/VehcileContentCreation) - Setting up the art content for a vehicle.
+* New: [Vehicle Content Guide](Engine/Physics/Vehicles/VehicleContentCreation) - Setting up the art content for a vehicle.
 * New: [Particle User Guide](Engine/Rendering/ParticleSystems/UserGuide) - Cascade User guide updates.
 * Texture Painting - Painting textures and vertices in the editor.
 * [Audio Documentation Updates](Engine/Audio) - The reference for all things auditory in Unreal Engine 4.
@@ -318,7 +317,7 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 
 **Feed**
 * New: The feed is your one stop for all news and stories
-* New: New pinned stories to highlight important updates. You can dismiss them by clicking the pin Icon on each story.
+* New: New pinned stories to highlight important updates.You can dismiss them by clicking the pin Icon on each story.
 
 #### Editor and Tools
 
@@ -336,15 +335,15 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 * New: Simple and Group Stat Exec commands can now be triggered from the level viewport Show menu directly.
 * New: Added a one pane (1x1) editor viewport layout.
 * New:  The Editor now informs the user on the success of importing and exporting.
-* New: **AllowPreserveRatio** is now a metadata flag we scan for on **FVector UProperties**.  It causes a ratio lock to be added (like the one for scale) to the editor.
-* New: Unreal Engine 4 now supports applying the material to only to the sub-mesh that you drag the material onto.  If you are holding down the [Shift] key we'll apply the material to every slot (the old behaviour).
-* New: **UMG** work has begun, the **UMG / UMGEditor** modules exist but are highly volatile right now.  **UMG** can be enabled with -umg when running the editor.  It's extremely early and very buggy and not user friendly.
+* New: **AllowPreserveRatio** is now a metadata flag we scan for on **FVector UProperties**.It causes a ratio lock to be added (like the one for scale) to the editor.
+* New: Unreal Engine 4 now supports applying the material to only to the sub-mesh that you drag the material onto.If you are holding down the [Shift] key we'll apply the material to every slot (the old behaviour).
+* New: **UMG** work has begun, the **UMG / UMGEditor** modules exist but are highly volatile right now.**UMG** can be enabled with -umg when running the editor.It's extremely early and very buggy and not user friendly.
 * New: Added the ability to copy and paste location, rotation, and scale from the details panel.
 * New: Added an option to force loading movies to complete even if the game has finished loading.
 * New: Added an option to toggle whether or not loading movies can be skipped by a user.
 * New: Added an option in the preferences to ignore snapping to floors when dragging from the content browser.
-* Changed the UI for toggling between absolute and relative transform components.  You can now toggle this via the drop down arrow next to a transform property in the details panel
-* Changed the way actors are renamed when converted.  If a custom name is not present, the conversion process will be allowed to rename the actor.
+* Changed the UI for toggling between absolute and relative transform components.You can now toggle this via the drop down arrow next to a transform property in the details panel
+* Changed the way actors are renamed when converted.If a custom name is not present, the conversion process will be allowed to rename the actor.
 * Upgraded the FBX SDK to 2014.2.1 which makes all FBX 2014 files compatible with the editor.
 * New: In-game Slate UI is now visible in editor viewports when in immersive mode.
 * New: Added user-editable array of object query types to Radial Force components.
@@ -439,19 +438,19 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 * Removed sculpting-only options from flatten tool when in paint mode.
 
 **World Browser**
-* New: Added tiled landscape importing. Tiled heightmaps/weightmaps can be exported from an application like World Machine.
+* New: Added tiled landscape importing.Tiled heightmaps/weightmaps can be exported from an application like World Machine.
 
 **Audio**
 * New: Integrated **Omni Radius** from Unreal Engine 3.
 
 **Animation**
 * New: Native **Anim Notifies** and states are now supported.
-* New: Added a new cloth collision type which enables to interact between the character and other clothing objects, like a curtain. It just works with turning on the check box "Collide with Environment".
-* Added additional cloth visualization menus. You can see "Clothing" sub-menu when clicking "Show" menu in Persona. It only appears when the character has clothing.
+* New: Added a new cloth collision type which enables to interact between the character and other clothing objects, like a curtain.It just works with turning on the check box "Collide with Environment".
+* Added additional cloth visualization menus.You can see "Clothing" sub-menu when clicking "Show" menu in Persona.It only appears when the character has clothing.
 
 **Translation Editor**
 * New: Added Search functionality to Translation Editor with a new Search tab.
-* New: Added import/export to Portable Object (.po) format buttons to allow translation in 3rd party applications. On import, changes are shown in the "Changed on Import" tab.
+* New: Added import/export to Portable Object (.po) format buttons to allow translation in 3rd party applications.On import, changes are shown in the "Changed on Import" tab.
 * Increased the number of directories searched for Localization projects to include "LocalizationPath" directories specified in configuration files.
 
 **Blueprints**
@@ -545,8 +544,8 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 	* Accessible through the window menu in Persona, the new tab is named "Asset Override Editor."
 * New: Added native animation notify state to control start/stop on a looping particle emitter.
 * New: Motion axes can now be bound to input components in both C++ and Blueprints.
-* New: Asynchronous loading time limits can now be set per game. You can modify AsyncLoadingTimeLimit or PriorityAsyncLoadingExtraTime on UEngine. When priority loads happen during cases like seamless travel, it will use all available time even if blocked on I/O, for much higher throughput but a CPU cost.
-* New: Added **CreateInstance** function to **ULevelStreaming** and exposed it to Blueprints. This change allows to create a copy of existing level streaming object with a new unique name, so user will be able to stream-in/out multiple instances of a particular map package.
+* New: Asynchronous loading time limits can now be set per game.You can modify AsyncLoadingTimeLimit or PriorityAsyncLoadingExtraTime on UEngine.When priority loads happen during cases like seamless travel, it will use all available time even if blocked on I/O, for much higher throughput but a CPU cost.
+* New: Added **CreateInstance** function to **ULevelStreaming** and exposed it to Blueprints.This change allows to create a copy of existing level streaming object with a new unique name, so user will be able to stream-in/out multiple instances of a particular map package.
 * New: Made **Behavior Trees** a Blueprint type to allow Blueprint authors to use it as a property.
 * New: Added a Blueprint-implementable event "OnPosses" for **AIController**.
 * New: Introduced concept of generic **AIRequestID** to be used with AI requests like movement and EQS queries.
@@ -555,22 +554,22 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 	* Including Radial Force Components.
 * New: Touch input now supported on HUD hit boxes.
 * New: Mouse smoothing based on FOV properties now available in Input Project Settings.
-* New: You can now query for assets in the asset registry without including in-memory assets. This is almost never what you want to do, but it provides a good perf gain in some cases.
+* New: You can now query for assets in the asset registry without including in-memory assets.This is almost never what you want to do, but it provides a good perf gain in some cases.
 * New: Added **SCOPE_LOG_TIME_IN_SECONDS** to do the same **SCOPE_LOG_TIME** log, but in seconds instead of milliseconds.
 * New: Added sub-stepping support for mobile devices and non APEX builds.
 * New: Added Vehicle anim instance and wheel handler for vehicle.
 * New: Added simple Look at control.
 * Made foliage snap to *all* modified landscape components when sculpting, not just those in the current level.
 * Moved **SpringArmComponent** tick into **PostPhysics** to resolve some camera jitter
-* Upgraded NVTT (nVidia Texture Tools) to v2.0.8
-* Updated PVCT exporter to now export images with dimensions greater than 4096. Source image will come from 1st image in the mip chain where the largest dimension is <= 4096.
+* Upgraded NVTT (NVIDIA Texture Tools) to v2.0.8
+* Updated PVCT exporter to now export images with dimensions greater than 4096.Source image will come from 1st image in the mip chain where the largest dimension is <= 4096.
 * Reorganized a lot of vehicle tuning data for official release.
 	* Changed units from cm to m.
 	* Added and moved tuning variables for official release, any existing tuning will likely need some fixing up.
 * Updated the HUD hit box click and Component OnClick events to now respond to both double and single clicks.
-* Updated **Radial Damage** to now default to "unblocked" unless the visibility trace finds an explicit blockage.  Use bCanBeDamaged to toggle damagability.
+* Updated **Radial Damage** to now default to "unblocked" unless the visibility trace finds an explicit blockage.Use bCanBeDamaged to toggle damagability.
 * Updated **CreatePlayer** to now be callable from Blueprints.
-* Improved **PlayerStart** selection.  All **Player Starts** will be considered and preference will be given to "unoccupied" start points.
+* Improved **PlayerStart** selection.All **Player Starts** will be considered and preference will be given to "unoccupied" start points.
 * Refactored Streaming Manager so that it's not so specific to textures.
 * Optimized shadow clearing / resolving so that you can clear and resolve whole shadow targets rather than using subrects.
 * Updated **Behavior Trees** to clean up orphaned behavior tree nodes when the tree is regenerated.
@@ -586,7 +585,7 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 * Fixed an accounting error in **ToggleBetweenPIEandSIE** that caused **StartMatch** to never be called since the game mode thought there were no players, only spectators.
 * Fixed an issue running tappy chicken on PC Fixed an issue with control menus in vehicle game sample.
 * Fixed an issue that was preventing some folders from being properly removed during uninstall of Unreal Engine.
-* Fixed a crash at shutdown in **DirectoryWatcher**. Cancelled I/O requests must be completed before closing the handle and deleting the request.
+* Fixed a crash at shutdown in **DirectoryWatcher**.Cancelled I/O requests must be completed before closing the handle and deleting the request.
 * Fixed a bug that caused non-assert crashes to fail to produce a callstack in the log.
 * Fixed if statement logic in Blueprint loading that would only access a variable if it was NULL, instead of only if it was !NULL
 * Fixed Network connections to no longer time out in Play in Editor, after all, the servers are local.
@@ -611,10 +610,10 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 * Removed bUseSingleBodyPhysics from Skeletal Mesh.
 
 **Profiler**
-* New: Added first version of the thread view. To capture the data in the game use **stat startfileraw** console command.
+* New: Added first version of the thread view.To capture the data in the game use **stat startfileraw** console command.
 
 **Draw Debug Helpers**
-* New: Added support for displaying a Histogram of float values. Use **FDebugFloatHistory** to record samples, and **DrawDebugFloatHistory** to draw in game. Also available in Blueprints.
+* New: Added support for displaying a Histogram of float values.Use **FDebugFloatHistory** to record samples, and **DrawDebugFloatHistory** to draw in game.Also available in Blueprints.
 
 #### Audio
 * Override Attenuation now toggles which attenuation options are available in properties.
@@ -685,11 +684,11 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 **Android**
 * New: The Google Play Services library for Android is now included.
 * New: Achievements and leaderboards for Google Play on Android are now exposed through the new **OnlineSubsystemGooglePlay**.
-* New: Unreal Engine 4 now sorts ES2 landscape vertices in the order of first use, from lowest to highest LOD. This minimizes the **MaxVertexIndex** ranges for draw calls at each LOD and substantially improves performance on devices with Mali GPUs.
-* New: Added AdMob support for Android.  Add the AdMob Ad ID in the Android project settings, then use the Blueprint ad interface to show and hide ads.
+* New: Unreal Engine 4 now sorts ES2 landscape vertices in the order of first use, from lowest to highest LOD.This minimizes the **MaxVertexIndex** ranges for draw calls at each LOD and substantially improves performance on devices with Mali GPUs.
+* New: Added AdMob support for Android.Add the AdMob Ad ID in the Android project settings, then use the Blueprint ad interface to show and hide ads.
 * Enabled ES 3.0 GLSL shaders on all Android devices reporting ES 3.0 support, enabling reflection cubemap roughness lookup.
 * Fixed crash on devices that don't support floating point render targets.
-* Removed the -f from the rm commands generated in the installation batch file. Some devices (eg Galaxy S III) do not recognize the -f and fail to remove old versions of files.
+* Removed the -f from the rm commands generated in the installation batch file.Some devices (eg Galaxy S III) do not recognize the -f and fail to remove old versions of files.
 
 **iOS**
 * New: Motion Support added for iOS.
@@ -702,8 +701,8 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 * Improved performance when mousing over the Editor on Mac OS X.
 * Enable translucent self-shadowing on ShaderModel 4 renderers for the benefit of Mac OS X particularly.
 * Improved support for Mac <= GL 3.3 drivers that don't support rendering to 3D or 2D array textures.
-	* Older GPUs such as the ATi 4xx0 series, Nvidia 9xx0/1xx/3xx and Intel HD 3000 should now render, though performance will be lower than newer GPUs. 
-* Fixed the sky light irradiance on Nvidia cards under OS X.
+	* Older GPUs such as the ATi 4xx0 series, NVIDIA 9xx0/1xx/3xx and Intel HD 3000 should now render, though performance will be lower than newer GPUs. 
+* Fixed the sky light irradiance on NVIDIA cards under OS X.
 * Fixed (via work around) an OpenGL driver regression on AMD FirePro cards introduced in Mac OS X 10.9.3 that caused incorrect rendering of skinned models.
 	* This workaround has a small but noticeable performance penalty and will be removed after the fix for the driver bug has been released.
 * Fixed various minor rendering errors on the new Mac Pro's AMD FirePro cards on Mac OS X.
@@ -753,23 +752,23 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 * New: Add Character::OnWalkingOffLedge() event.
 	* Makes it easier to detect transition from walking -> falling, exclusive of jumping or other things that may cause the same transition in movement modes.
 * New: Added "hold-to-jump-higher" functionality to **ACharacter**.
-* Changed the **Match** state machine in **GameMode** to be explicit and based on the **MatchState** namespace, as opposed to being based on a set of bools. Renamed several functions in GameState and GameSession as well, if you have a native subclass you may need to rename functions. Here are the states and how things changed:
-	* **EnteringMap** is the initial state. Actors are not yet ticking and the world hasn't been fully initialized. It will transition to the next state when things are fully loaded.
-	* **WaitingToStart** (was **bWaitingToStartMatch**) is the next state, and **HandleMatchIsWaitingToStart** is called when entering. Actors are ticking, but players have not yet spawned in. It transitions to the next state if **ReadyToStartMatch** returns true, or if someone calls **StartMatch**.
-	* **InProgress** (was **bMatchIsInProgress**) is the next state, and HandleMatchHasStarted (split off from **StartMatch**) is called when entering, which calls **BeginPlay** on all actors. Normal gameplay is in progress. It transitions to the next state if **ReadyToEndMatch** returns true, or if someone calls **EndMatch**.
-	* **WaitingPostMatch** is the next state, and **HandleMatchHasEnded** (was **PerformEndGameHandling**) is called when entering. Actors are still ticking but new players are not accepted. It transitions to the next state when a map transfer starts.
-	* **LeavingMap** (was **bLevelChange**) is the last state, and HandleLeavingMap (was GameEnding) is called when entering. The match stays in this state while transfering to a new map.
-	* Aborted is the failure state, started from AbortMatch. This is set when there is an unrecoverable error.
-* Changed **AGameMode::bDelayedStart** into a new flag, **bStartPlayersAsSpectators**. If true, new players will initially spawn as spectators, if false they'll spawn directly as pawns. **bDelayedStart** now only affects rather the match should start immediately.
+* Changed the **Match** state machine in **GameMode** to be explicit and based on the **MatchState** namespace, as opposed to being based on a set of bools.Renamed several functions in GameState and GameSession as well, if you have a native subclass you may need to rename functions.Here are the states and how things changed:
+	* **EnteringMap** is the initial state.Actors are not yet ticking and the world hasn't been fully initialized.It will transition to the next state when things are fully loaded.
+	* **WaitingToStart** (was **bWaitingToStartMatch**) is the next state, and **HandleMatchIsWaitingToStart** is called when entering.Actors are ticking, but players have not yet spawned in. It transitions to the next state if **ReadyToStartMatch** returns true, or if someone calls **StartMatch**.
+	* **InProgress** (was **bMatchIsInProgress**) is the next state, and HandleMatchHasStarted (split off from **StartMatch**) is called when entering, which calls **BeginPlay** on all actors.Normal gameplay is in progress.It transitions to the next state if **ReadyToEndMatch** returns true, or if someone calls **EndMatch**.
+	* **WaitingPostMatch** is the next state, and **HandleMatchHasEnded** (was **PerformEndGameHandling**) is called when entering.Actors are still ticking but new players are not accepted.It transitions to the next state when a map transfer starts.
+	* **LeavingMap** (was **bLevelChange**) is the last state, and HandleLeavingMap (was GameEnding) is called when entering.The match stays in this state while transfering to a new map.
+	* Aborted is the failure state, started from AbortMatch.This is set when there is an unrecoverable error.
+* Changed **AGameMode::bDelayedStart** into a new flag, **bStartPlayersAsSpectators**.If true, new players will initially spawn as spectators, if false they'll spawn directly as pawns.**bDelayedStart** now only affects rather the match should start immediately.
 * Changed the maximum number of Physics Material Surface Types to 64.
 * Changed FCoreDelegates::OnObjectPropertyChanged to take the property change event as an additional parameter.
-* Changed **AActor::BeginPlay** to now happen earlier in some situations. It happens when the game state transitions to **WaitingToStart** or **InProgress** for the first time, previously it only happened when the match started. Renamed functions so **UWorld::BeginPlay** is what calls **AActor::BeginPlay**.
+* Changed **AActor::BeginPlay** to now happen earlier in some situations.It happens when the game state transitions to **WaitingToStart** or **InProgress** for the first time, previously it only happened when the match started.Renamed functions so **UWorld::BeginPlay** is what calls **AActor::BeginPlay**.
 * Moved Blackboard Component's reference over from BehaviorTreeComponent to BrainComponent.
 * Renamed Nav Movement Component's GetActorLocation to more appropriate GetActorFeetLocation.
 * Changed the preview attached asset type from raw pointer to **TAssetPtr**.
 * Changed the signature of **FAssetTools::CreateDiffProcess()** to take filepaths explicitly as separate params.
-	* Adds abstraction between the public API and the diff provider. API no longer exposes the diff command line format.
-* Updated **FAssetTools::CreateDiffProcess**. Any uses of will need to have the filenames removed from the arguments and passed in though the new New and Old filename variables.
+	* Adds abstraction between the public API and the diff provider.API no longer exposes the diff command line format.
+* Updated **FAssetTools::CreateDiffProcess**.Any uses of will need to have the filenames removed from the arguments and passed in though the new New and Old filename variables.
 * Fixed Stationary mobility from showing up on anything except subclasses of **ULightComponentBase**.
 * Fixed **FCoreStyle** initializing and failing per file when all of its assets are missing (Saves 1-2 seconds of load time on iPhone4 for games that don't use Slate).
 * Removed the obsolete 'Z' parameter in **UCanvas::DrawTile()**.
@@ -808,11 +807,11 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 
 #### Slate
 * New: The Slate Remote server (for UDK Remote iOS app) is now a plug-in (enabled by default).
-* New: The Slate module has been split into Slate and SlateCore in preparation for UMG. Detailed upgrade notes for this change:
+* New: The Slate module has been split into Slate and SlateCore in preparation for UMG.Detailed upgrade notes for this change:
 	* If your module previously had a module dependency to 'Slate', it now also needs a PrivateModuleDependency to 'SlateCore' in its Build.cs file.
 	* If your module exposes in any of its Public header files types that are now declared in SlateCore, it needs a PublicModuleDependency to 'SlateCore'.
 	* The ToolTip property type on SWidget has changed from SToolTip to IToolTip; change local variables to TSharedPtr<IToolTip> instead of TSharedPtr<SToolTip> where needed
-	* IToolTip is not a widget. If you need access to the actual widget that represents the tool tip, use IToolTip::AsWidget(); If you need access to the tool tip's content, use IToolTip::GetContentWidget().
+	* IToolTip is not a widget.If you need access to the actual widget that represents the tool tip, use IToolTip::AsWidget(); If you need access to the tool tip's content, use IToolTip::GetContentWidget().
 	* After syncing to this changelist you may have to clean your /Engine/Intermediate/Build/ directory and rebuild your entire project.
 	* If in your project you are getting linker errors for unresolved types that are now declared in SlateCore, you may be missing a dependency to 'SlateCore'.
 	* If in the Engine code you are getting linker errors for unresolved types that are now declared in SlateCore, you may need to rebuild the entire Engine.
@@ -821,12 +820,12 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 * Fixed the bug with losing collision settings when copying objects for custom settings.
 
 #### Rendering
-* New: **StreamingPauseRendering** allows some rendering to continue while blocking loads complete so that the game does not appear to hang. Default is to display the previous frame with an animated widget in the corner. This can be overridden by providing a custom **BeginStreamingPauseDelegate** and **EndStreamingPauseDelegate**.
+* New: **StreamingPauseRendering** allows some rendering to continue while blocking loads complete so that the game does not appear to hang.Default is to display the previous frame with an animated widget in the corner.This can be overridden by providing a custom **BeginStreamingPauseDelegate** and **EndStreamingPauseDelegate**.
 
 #### Blueprints
 * New: Added UK2Node_LatentOnlineCall which automatically creates entries for all static factory methods in UOnlineBlueprintCallProxyBase subclasses.
 * In **UK2Node** sub-classes, in **ExpandNode()**, users should now use the CompilerContext's **MovePinLinksToIntermediate/CopyPinLinksToIntermediate** instead of the schema's Move/CopyPinLinks.
-* A runtime check() will be triggered if users fail to do so. This is to facilitate more accurate Blueprint debugging. It allows us to easily map generated pins to ones the Blueprint user sees in the graph.
+* A runtime check() will be triggered if users fail to do so.This is to facilitate more accurate Blueprint debugging.It allows us to easily map generated pins to ones the Blueprint user sees in the graph.
 * Updated **UK2Node_BaseAsyncTask**, making it much easier to extend.
 
 #### UnrealHeaderTool
@@ -837,7 +836,7 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 #### Platforms
 
 **iOS**
-* iOS on PC will build content only projects entirely on PC, but now requires users to add their developer certificate to the PC. This can be done with IPP.
+* iOS on PC will build content only projects entirely on PC, but now requires users to add their developer certificate to the PC.This can be done with IPP.
 * Prevented delayed success adverts from being shown if they succeed after the app has requested hiding them.
 * Fixed various threading / logic issues in the iOS achievements implementation.
 
@@ -850,7 +849,7 @@ In the 4.2 Preview Notes it was listed that the EndPlay event would replace the 
 * Exposed ShowPlatformSpecificAchievementsScreen and ShowPlatformSpecificLeaderboardScreen for use on iOS and Android.
 
 #### PlatformMath Refactor 
-* Renamed Trunc, Round, Floor, Ceil to **TruncToInt**, **RoundToInt**, **FloorToInt**, **CeilToInt**. Added *ToFloat versions.
+* Renamed Trunc, Round, Floor, Ceil to **TruncToInt**, **RoundToInt**, **FloorToInt**, **CeilToInt**.Added *ToFloat versions.
 	* Old version should still compile but will generate a warning during compilation and need to be removed o
 
 

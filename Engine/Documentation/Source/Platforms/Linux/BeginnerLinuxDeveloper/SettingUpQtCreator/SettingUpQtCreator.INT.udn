@@ -1,42 +1,434 @@
 Availability: Public
 Title: How to Set up Qt Creator for UE4
-Crumbs:%ROOT%
-Description:Learn how to set up your IDE to build and run UE4 on Linux.
-Platform:Linux
+Description: Learn how to set up your IDE to build and run UE4 on Linux.
+Type: how-to
 Version: 4.14
-type:how to
-parent:Platforms/Linux
-order: 3
-tags:Linux
-SkillLevel:Beginner
-prereq:Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow
-topic-image:IDE_HowToTopic.png
+Parent: Platforms/Linux
+Tags: Linux
+topic-image: IDE_HowToTopic.png
+SkillLevel: Beginner
+Order: 3
+Related: Engine/Content/QuickStart
+Related: Engine/QuickStart
+Related: Programming/QuickStart
+Related: GettingStarted
 
+
+[TOC (start:2 end:2)]
 
 [REGION:imagetable]
 ![](CompiledEditor_LinuxIDE.png)(w:1280)  
 At the end of this tutorial, you'll have an **Integrated Development Environment** (IDE) configured to build and run Unreal Engine 4 (UE4).
 [/REGION]
 
-## Goal
+## 1 - Configuring Qt Creator to Build UE4
 
-The focus of this guide is to show you how to set up an IDE to build and run UE4. 
+While some developers like to use text editors and command line debuggers to modify their game's source code, most developers prefer to use an Integrated Development Environment (IDE) to edit, debug, and compile their code. If you're a game developer looking to set up an IDE to work with Unreal Engine 4 (UE4) in a Linux environment, this guide is for you.
 
-## Objectives
+Although we recognize that chosing an IDE is a matter of individual preference, we've configured UE4 to interface with three IDEs in Linux; specifically, Qt Creator, KDevelop, and Codelite. We don't endorse one IDE over another; however, as an example for learning purposes, we've chosen to show you how to configure Qt Creator to build and run UE4. By the end of this guide, you'll know how to configure your IDE to build and run UE4. Finally, you'll also learn how to set up the IDE to build and run new C++ (CPP) projects that you create from the Unreal Editor.
 
-After working through this tutorial, you'll know the following:
-
-* How to configure your IDE to build UE4 in debug and release mode.
-* How to configure your IDE to run UE4 in debug and release mode.
-* How to build UE4 from your IDE.
-* How to run UE4 from your IDE.
-* How to create and configure a new Blueprint project with UE4 from your IDE.
-* How to create and configure a new CPP project with UE4 from your IDE.
-
-## Steps
-
-[DIR(output:"checkpoint" parent:"Platforms/Linux/BeginnerLinuxDeveloper/SettingUpQtCreator" org:"hierarchy")]
-
-[REGION:call_to_action]
-	[Click to Start](Platforms/Linux/BeginnerLinuxDeveloper/SettingUpQtCreator/1 "%Platforms/Linux/BeginnerLinuxDeveloper/SettingUpQtCreator/1:title%")
+[REGION:note]
+Before we begin, please make sure that you've already set up your workflow using our [Linux Quick Start](Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow). Also, please make sure that [Qt Creator](https://wiki.qt.io/Install_Qt_5_on_Ubuntu) is installed on your machine.
 [/REGION]
+
+1.  Launch Qt Creator, opening the **Qt Welcome** menu.
+    [REGION:lightbox]
+    [![](SetupIDE_Step1.png)(w:720)](SetupIDE_Step1.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Click the **Open Project** button to open the Qt Project file browser.
+    [REGION:lightbox]
+    [![](SetupIDE_Step2.png)(w:720)](SetupIDE_Step2.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Navigate to the directory where you built UE4, select the UE4 Qt Project (**UE4.pro**) file, and click **Open**.
+    [REGION:lightbox]
+    [![](SetupIDE_Step3.png)(w:720)](SetupIDE_Step3.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  At this point, Qt Creator hasn't been configured to build UE4 in Debug and Release Mode. Click **Configure Project**, which is located in the **Configure Project** menu.
+    [REGION:lightbox]
+    [![](SetupIDE_Step4.png)(w:720)](SetupIDE_Step4.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Now, click **Projects** to enter into Projects mode, opening the **Build Settings** menu.
+    [REGION:lightbox]
+    [![](SetupIDE_Step5.png)(w:720)](SetupIDE_Step5.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    When you open the **Build Settings** menu, you'll notice that Qt Creator defaults its **Edit build configuration:** to **Debug** mode.
+    [REGION:lightbox]
+    [![](SetupIDE_Step5_Note.png)(w:347)](SetupIDE_Step5_Note.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [/REGION]
+    
+1.  Under the **Build Steps** section, clear the **qmake** build step by clicking on the **X** button next to the **Details** drop down menu.
+    [REGION:lightbox]
+    [![](SetupIDE_Step6Alt.png)(w:720)](SetupIDE_Step6Alt.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Now, clear the **Shadow build** checkbox to cancel the selection.
+    [REGION:lightbox]
+    [![](SetupIDE_Step7.png)(w:720)](SetupIDE_Step7.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    Shadow building allows you to build projects in a separate build directory with Qt Creator's qmake utility. Because UE4 is distributed with a custom Make file that makes use of [UnrealBuildTool](Programming/BuildTools/UnrealBuildTool), you don't need to use Qt Creator's qmake utility.
+    [/REGION]
+    
+1.  Now, click the **Details** drop down menu to open the input form for the **Make** build step. 
+    
+    ![](SetupIDE_Step8.png)
+
+1.  Enter `UE4Editor-Linux-Debug` into the **Make arguments:** text field. 
+    
+    ![](SetupIDE_Step9.png)
+
+1.  Under the **Clean Steps** section, click the **Details** drop down menu to open the input form for the **Make** clean step. 
+    
+    ![](SetupIDE_Step10.png)
+
+1.  Replace `clean` by entering `UE4Editor-Linux-Debug ARGS="-clean"` into the **Make arguments:** text field. 
+    
+    ![](SetupIDE_Step11.png)
+
+1.  Now, click the **Edit build configuration:** drop down menu and select **Release** to open the **Build Settings** for Release mode.
+    [REGION:lightbox]
+    [![](SetupIDE_Step12.png)(w:720)](SetupIDE_Step12.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Repeat Steps 6 through 11 to edit the build configuration settings for Release mode. Please make sure that your settings match the following image:  
+    ![](SetupIDE_Step13.png)
+    [REGION:note]
+    If you'd like to set up additional build configurations for your project, please refer to the Qt Creator [Build Settings Documentation](http://doc.qt.io/qtcreator/creator-build-settings.html), where they show you how to add as many build configurations as you might need.
+    [/REGION]
+    
+### Section Result
+
+[REGION:lightbox]
+[![](QtBuildSettings_UE4.png)(w:720)](QtBuildSettings_UE4.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+At this point, you've configured UE4 to build in both Debug and Release mode. Depending on your system's specifications, you may notice that UE4 runs slower while in Debug mode. For more information on the performance characteristics of available build configurations, please read through our [Build Configurations Reference](Programming/Development/BuildConfigurations) page. With this in mind, you're ready to configure Qt Creator to run UE4.
+
+## 2 - Configuring Qt Creator to Run UE4
+
+At this point, you've configured UE4 to build in both Debug and Release mode. Now, you're ready to configure Qt Creator to run UE4.
+
+1.  Click the **Run** button to open the **Run Settings** menu.
+    [REGION:lightbox]
+    [![](SetupIDE_Step10.png)(w:720)](SetupIDE_Step10.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Under the **Run** section, click **Browse**, located at the end of the **Executable:** text field.
+    [REGION:lightbox]
+    [![](SetupIDE_Step11.png)(w:720)](SetupIDE_Step11.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Navigate to the directory where the Editor's binary path is located, select **UE4Editor**, and click **Open**.
+    [REGION:lightbox]
+    [![](SetupIDE_Step12.png)(w:720)](SetupIDE_Step12.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Now, click **Browse**, located at the end of the **Working directory:** text field.
+    [REGION:lightbox]
+    [![](SetupIDE_Step13.png)(w:720)](SetupIDE_Step13.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Navigate to the directory where the Editor's binary path is located, select `[UE4ROOT]\Engine\Binaries\Linux`, and click **Choose**.
+    [REGION:lightbox]
+    [![](SetupIDE_Step14.png)(w:720)](SetupIDE_Step14.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+### Section Result
+
+[REGION:lightbox]
+[![](QtRunSettings_UE4.png)(w:720)](QtRunSettings_UE4.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+You're now ready to build and run UE4 with Qt Creator in both Debug and Release mode.
+
+## 3 - Building UE4 with Qt Creator
+
+Now that you've configured Qt Creator to build and run UE4, you're ready to run UE4 from the IDE. Before you run UE4 from the IDE, you'll want to open some output windows so that you can see UnrealBuildTool at work.
+
+1.  Click **Edit** to enter into Edit mode, opening Qt Creator's editor.
+    [REGION:lightbox]
+    [![](SetupIDE_Step15.png)(w:720)](SetupIDE_Step15.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    While in Edit mode, you can view, debug, and edit the CPP source code powering UE4.
+    [/REGION]
+    
+1.  By default, Qt Creator hides the main toolbar. Hover your mouse cursor over the top of the screen, touching the top edge to reveal the toolbar. 
+    
+    ![](SetupIDE_Step15A.png)
+
+1.  Now, open the **Window** menu, hovering over the **Output Panes** sub-menu, clicking **Compile Output**. Alternatively, you can press the **Alt+4** keyboard combination to open the **Compile Output** window pane. 
+    
+    ![](SetupIDE_Step15B.png)
+
+    [REGION:note]
+    Opening the **Compile Output** window pane allows you to watch for any errors while building UE4 from source.
+    [/REGION]
+   
+### Building UE4
+
+1.  Hover your mouse cursor over the top of the screen, touching the top edge to reveal the toolbar. 
+
+    ![](SetupIDE_Step15A.png)
+
+1.  To build UE4, open the **Build** menu and click **Build Project "UE4"**. Alternatively, you can press the **Ctrl+B** keyboard combination to build UE4. 
+
+    ![](SetupIDE_Step15C.png)
+
+### Section Result
+
+[REGION:lightbox]
+[![](SetupIDE_Step16.png)(w:720)](SetupIDE_Step16.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+At this point, you should see the compiler flushing messages to the **Compile Output** window inside of the IDE. Depending on your system's specifications, it may take anywhere from ten minutes to over an hour to compile the engine. If you want to shorten the time it takes to compile the engine from source, we recommend compiling the source code on a machine that has at least eight (8) gigabytes of RAM with a multi-core processor having at least eight (8) cores (including hyperthreading).
+
+## 4 - Running UE4 from Qt Creator
+
+Now that you've compiled the engine, you're ready to run the editor. During this step, you're going to use the IDE to run UE4.
+
+1.  If you want to view the status of your application while running UE4, you'll want to open the **Application Output** window pane. To open the **Application Output** window pane, press the **Alt+3** keyboard combination.
+    [REGION:lightbox]
+    [![](SetupIDE_Step17a.png)(w:720)](SetupIDE_Step17a.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  To run UE4 from the IDE, click **Run**. Alternatively, you can press the **Ctrl+R** keyboard combination to run UE4 from the IDE.
+    [REGION:lightbox]
+    [![](SetupIDE_Step17.png)(w:720)](SetupIDE_Step17.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+### Section Result
+
+[REGION:lightbox]
+[![](SetupIDE_Step18.png)(w:720)](SetupIDE_Step18.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+Congratulations! You should now see UE4 running from your IDE.
+
+## 5 - Creating a Blueprint Project
+
+You can create either Blueprint or CPP projects from the [Project Browser](Engine/Basics/Projects/Browser) in UE4. In this section, we'll show you how to create a new Blueprint project from UE4. For the purposes of this guide, let's suppose that you want to create a new Blueprint game with a flying mechanic. Fortunately, UE4 is shipped with the perfect template for you!
+
+1.  While in the **New Project** menu, make sure that the **Blueprint** menu is open.
+    [REGION:lightbox]
+    [![](SetupIDE_Step19.png)(w:720)](SetupIDE_Step19.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Select the **Flying** Blueprint project template and name the project `FlyingBP_Prj`.
+    [REGION:lightbox]
+    [![](SetupIDE_Step20.png)(w:720)](SetupIDE_Step20.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Finally, click **Create Project** to create your new Blueprint project using the Flying Blueprint project template.
+    [REGION:lightbox]
+    [![](SetupIDE_Step21.png)(w:720)](SetupIDE_Step21.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    Depending your system specifications, it may take a couple of minutes for UE4 to create your new Blueprint project.
+    [/REGION]
+    
+### Section Result
+
+[REGION:lightbox]
+[![](SetupIDE_Step22.png)(w:720)](SetupIDE_Step22.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+UE4 will launch your new Blueprint project without any additional steps.
+
+[REGION:lightbox]
+[![](SetupIDE_Step23.png)(w:720)](SetupIDE_Step23.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+Congratulations! You've just created a new Blueprint project from UE4 with the help of a Blueprint project template. Creating any type of Blueprint project, with or without a project template, is now within your reach. There are times; however, when you'll want to create and modify the source code driving your game. In the next section, we'll show you how to create a new CPP project from UE4.
+
+## 6 - Creating a C++ Project
+
+By now, you've learned how to configure your IDE to run UE4 in a Linux environment. Also, you've learned how to create a new Blueprint project using a Project template. In this section, we'll show you how to create a new C++ (CPP) project from UE4. For the purposes of this demonstration, let's suppose that you want to create a new CPP game with a driving mechanic.
+
+1.  While in the **New Project** menu, make sure that the **C++** menu is open.
+    [REGION:lightbox]
+    [![](SetupIDE_Step24.png)(w:720)](SetupIDE_Step24.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+   
+1.  Select the **Vehicle** CPP project template and name the project `DrivingCPP_Prj`.
+    [REGION:lightbox]
+    [![](SetupIDE_Step25.png)(w:720)](SetupIDE_Step25.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Finally, click **Create Project** to create your new CPP project using the Vehicle CPP project template.
+    [REGION:lightbox]
+    [![](SetupIDE_Step26.png)(w:720)](SetupIDE_Step26.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    Depending on your system specifications, it may take a couple of minutes for UE4 to create your new CPP project. After UE4 creates your new CPP project, an instance of Qt Creator for your new CPP project will be launched, closing UE4Editor in the process.
+    [/REGION]
+    
+1.  At this point, you should see Qt Creator's **Configure Project** menu in the newly launched instance of Qt Creator. Use what you've learned thus far to configure your new CPP project to have the following Build Settings for Debug Mode; 
+
+    ![](SetupIDE_Step27a.png) 
+    
+    And Release Mode:
+    
+    ![](SetupIDE_Step27.png)
+
+    [REGION:note]
+    At this time, project settings aren't inherited from the original UE4 Editor project settings. So, when you create a new UE4 CPP project using Qt Creator, you'll need to configure the project settings using the same steps that you learned earlier in this guide.
+    [/REGION]
+    
+1.  Now, configure your new CPP project to have the following Run Settings: 
+
+    ![](SetupIDE_Step28.png)
+
+1.  Switch to **Edit** mode in your IDE by clicking **Edit**, which is in the left panel of your IDE. Alternatively, you can press the **Ctrl+2** keyboard combination to open Qt Creator's **Edit Mode**.
+    [REGION:lightbox]
+    [![](SetupIDE_Step29.png)(w:720)](SetupIDE_Step29.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Now, click **Run**. Alternatively, you can press the **Ctrl+R** keyboard combination to run UE4 from the IDE.
+
+    [REGION:lightbox]
+    [![](SetupIDE_Step30.png)(w:720)](SetupIDE_Step30.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  After the **Missing DriveCPP_Prj Modules** dialogue box appears, click **Yes**.
+
+    [REGION:lightbox]
+    [![](SetupIDE_Step31.png)(w:720)](SetupIDE_Step31.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Depending on your system specifications, it may take several minutes for the IDE to build and launch your new CPP project.
+    [REGION:lightbox]
+    [![](SetupIDE_Step32.png)(w:720)](SetupIDE_Step32.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+### Section Result
+
+[REGION:lightbox]
+[![](SetupIDE_Step33.png)(w:720)](SetupIDE_Step33.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+Congratulations! You should now see your new CPP project running from inside of Qt Creator. Now that you've created and launched your new CPP project, you've learned everything you need to work on UE4 projects from an IDE in your Linux environment.
+
+## Getting Started with Unreal Engine
+
+As you worked your way through this tutorial, you learned:
+
+✓ How to configure your IDE to build and run UE4 in debug and release mode.  
+✓ How to build and run UE4 from your IDE.  
+✓ How to create and configure new Blueprint and C++ projects with UE4 from your IDE.  
+
+Now, learn how to use Unreal Engine by referring to our [Get Started with UE4](GettingStarted) documentation! Also, if you're looking to quickly get started producing content with UE4, you can also check out the following tutorials:
+
+*   [Artist Quick Start](Engine/Content/QuickStart)
+
+*   [Programming Quick Start](Programming/QuickStart)
+
+*   [Level Designer Quick Start](Engine/QuickStart)

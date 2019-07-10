@@ -331,7 +331,7 @@ void FXGEControllerModule::StartupModule()
 	bShutdown = false;
 	if (IsSupported())
 	{
-		WriteOutThreadFuture = Async<void>(EAsyncExecution::Thread, [this]() { WriteOutThreadProc(); });
+		WriteOutThreadFuture = Async(EAsyncExecution::Thread, [this]() { WriteOutThreadProc(); });
 	}
 
 	bInitialized = true;
@@ -446,7 +446,7 @@ void FXGEControllerModule::WriteOutThreadProc()
 		LastEventTime = FPlatformTime::Cycles();
 
 		// Launch the output thread
-		ReadBackThreadFuture = Async<void>(EAsyncExecution::Thread, [this]() { ReadBackThreadProc(); });
+		ReadBackThreadFuture = Async(EAsyncExecution::Thread, [this]() { ReadBackThreadProc(); });
 
 		// Main Tasks Loop
 		TArray<uint8> WriteBuffer;

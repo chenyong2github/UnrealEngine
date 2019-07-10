@@ -6,6 +6,7 @@ Type:
 Version: 4.20
 Parent: Engine/Rendering/LightingAndShadows/LightTypes
 Order: 2
+topic-image:rectlight_topic.png
 
 ![Rect Lights](rectlight_banner-1.png "Rect Lights")
 

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4677050
+﻿INTSourceChangelist:6675740
 Availability:Public
 Title:플랫폼 개발
 Crumbs:%ROOT%
@@ -28,6 +28,66 @@ topic-icon:%ROOT%/platform_icon.png
 
 [DIR(end:"2" output:"topic" type:"landing" parent:"Platforms" tags:"Console" org:"hierarchy")]
 [/PUBLISH:licensee]
+
+[PUBLISH:rocket]
+## 콘솔
+
+[REGION:note]
+문서를 액세스하려면 아래 나열된 플랫폼의 등록 개발자여야 합니다.
+[/REGION]
+
+[OBJECT:Topic]
+	[PARAM:image]
+	![](Platforms/PS4/PS4Dev_Topic.png)
+	[/PARAM]
+	[PARAM:title]
+	%Platforms/PS4:title%
+	[/PARAM]
+	[PARAM:description]
+	%Platforms/PS4:description%
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://forums.unrealengine.com/development-discussion/playstation-4-development/1624372-unreal-engine-ps4-documentation
+	[/PARAMLITERAL]
+	[PARAMLITERAL:gated]
+	true
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:Topic]
+	[PARAM:image]
+	![](Platforms/Switch/SwitchDev_Topic.png)
+	[/PARAM]
+	[PARAM:title]
+	%Platforms/Switch:title%
+	[/PARAM]
+	[PARAM:description]
+	%Platforms/Switch:description%
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://forums.unrealengine.com/development-discussion/switch-development/1624375-unreal-engine-nintendo-switch-documentation
+	[/PARAMLITERAL]
+	[PARAMLITERAL:gated]
+	true
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:Topic]
+	[PARAM:image]
+	![](Platforms/XboxOne/XboxOne_Topic.png)
+	[/PARAM]
+	[PARAM:title]
+	%Platforms/XboxOne:title%
+	[/PARAM]
+	[PARAM:description]
+	%Platforms/XboxOne:description%
+	[/PARAM]
+	[PARAMLITERAL:path]
+	https://forums.unrealengine.com/development-discussion/xbox-one-development/1624374-unreal-engine-xbox-one-documentation
+	[/PARAMLITERAL]
+	[PARAMLITERAL:gated]
+	true
+	[/PARAMLITERAL]
+[/OBJECT]
+[/PUBLISH:rocket]
 
 ## 클라우드 디플로이
 

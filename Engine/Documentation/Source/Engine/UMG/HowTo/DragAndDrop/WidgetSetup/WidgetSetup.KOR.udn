@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6093519
+Availability: docs
 Title:2. 위젯 셋업
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:여기서는 왼쪽 마우스 버튼을 눌렀을 때 벌어지는 일에 대한 스크립트를 작성합니다.
@@ -14,6 +14,7 @@ tags:UMG UI Designer
 tags:UI
 type:how-to
 
+## Set to docs as the page has been combined into a single page. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

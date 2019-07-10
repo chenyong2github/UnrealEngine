@@ -6,10 +6,6 @@
 
 #pragma once
 
-// Workarround for UE-66460
-#ifndef __USH_COMMON__
-#define __USH_COMMON__
-
 #include "/Engine/Public/Platform.ush"
 // These types are used for material translator generated code, or any functions the translated code can call
 #if PIXELSHADER
@@ -42,7 +38,9 @@
 #define SetSceneColorLayoutToFloat4(dest,value) dest.rgb = (value).rgb
 #endif
 
-#if (!COMPILER_GLSL_ES2 && !COMPILER_GLSL_ES3_1 && !COMPILER_VULKAN)
+#define SUPPORTS_TEXTURE_EXTERNAL		(COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1 || COMPILER_VULKAN)
+
+#if !SUPPORTS_TEXTURE_EXTERNAL
 #define TextureExternal Texture2D
 #endif
 
@@ -76,23 +74,18 @@ const static float MaxHalfFloat = 65504.0f;
 #define USE_RAYTRACED_TEXTURE_RAYCONE_LOD (RAYHITGROUPSHADER)
 #endif
 
-#if COMPILER_HLSLCC
-	// Workaround until UE-69158 gets fixed
-	#define ComputeRayConeLod(Tex)	0
-#else
 static float GlobalRayCone_TexArea;
 float ComputeRayConeLod(Texture2D Tex)
 {
 #if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	uint2 Dimensions;
 	Tex.GetDimensions(Dimensions.x, Dimensions.y);
-    int TexArea = Dimensions.x * Dimensions.y;
-    return 0.5f * log2(GlobalRayCone_TexArea * TexArea);
+	int TexArea = Dimensions.x * Dimensions.y;
+	return 0.5f * log2(GlobalRayCone_TexArea * TexArea);
 #else
-    return 0;
+    return 0.0f;
 #endif
 }
-#endif
 
 float  ClampToHalfFloatRange(float  X) { return clamp(X, float(0), MaxHalfFloat); }
 float2 ClampToHalfFloatRange(float2 X) { return clamp(X, float(0).xx, MaxHalfFloat.xx); }
@@ -200,7 +193,11 @@ MaterialFloat4 TextureCubeSampleGrad(TextureCube Tex, SamplerState Sampler, floa
 MaterialFloat4 TextureExternalSample(TextureExternal Tex, SamplerState Sampler, float2 UV)
 {
 #if !PIXELSHADER
-	return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex));
+	#if SUPPORTS_TEXTURE_EXTERNAL
+		return Tex.SampleLevel(Sampler, UV, 0);
+	#else
+		return Tex.SampleLevel(Sampler, UV, ComputeRayConeLod(Tex));
+	#endif
 #else
 	return Tex.Sample(Sampler, UV);
 #endif
@@ -208,6 +205,38 @@ MaterialFloat4 TextureExternalSample(TextureExternal Tex, SamplerState Sampler, 
 MaterialFloat4 TextureExternalSampleLevel(TextureExternal Tex, SamplerState Sampler, float2 UV, MaterialFloat Mip)
 {
 	return Tex.SampleLevel(Sampler, UV, Mip);
+}
+
+// Re-routed texture sampling for decals
+// On iOS and Android MALI devices decal UVs has issues with deriavatives on polygon edges resulting in 'wireframe' rendering artifacts (UE-50971)
+// to workaround we always sample top mip level
+MaterialFloat4 Texture1DSample_Decal(Texture1D Tex, SamplerState Sampler, float UV)
+{
+	return Texture1DSample(Tex, Sampler, UV);
+}
+MaterialFloat4 Texture2DSample_Decal(Texture2D Tex, SamplerState Sampler, float2 UV)
+{
+#if METAL_PROFILE || COMPILER_GLSL_ES3_1
+	return Texture2DSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
+#else
+	return Texture2DSample(Tex, Sampler, UV);
+#endif
+}
+MaterialFloat4 Texture3DSample_Decal(Texture3D Tex, SamplerState Sampler, float3 UV)
+{
+#if METAL_PROFILE || COMPILER_GLSL_ES3_1
+	return Texture3DSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
+#else
+	return Texture3DSample(Tex, Sampler, UV);
+#endif
+}
+MaterialFloat4 TextureCubeSample_Decal(TextureCube Tex, SamplerState Sampler, float3 UV)
+{
+#if METAL_PROFILE || COMPILER_GLSL_ES3_1
+	return TextureCubeSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
+#else
+	return TextureCubeSample(Tex, Sampler, UV);
+#endif
 }
 
 //converts an input 1d to 2d position. Useful for locating z frames that have been laid out in a 2d grid like a flipbook.
@@ -1586,6 +1615,17 @@ bool GetRayTracingQualitySwitch()
 #endif
 }
 
+// Used for the RuntimeVirtualTextureReplace material expression
+// Returns true if rendering to a runtime virtual texture page
+bool GetRuntimeVirtualTextureOutputSwitch()
+{
+#if VIRTUAL_TEXTURE_PAGE_RENDER
+	return true;
+#else
+	return false;
+#endif
+}
+
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 struct FWriteToSliceGeometryOutput
 {
@@ -1599,7 +1639,11 @@ struct FWriteToSliceGeometryOutput
 #define USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS	(NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1)
 
 /** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
-void DrawRectangle( in float4 InPosition, in float2 InTexCoord, out float4 OutPosition, out float2 OutTexCoord)
+void DrawRectangle(
+	in float4 InPosition,
+	in float2 InTexCoord,
+	out float4 OutPosition,
+	out float2 OutTexCoord)
 {
 	OutPosition = InPosition;
 	OutPosition.xy = -1.0f + 2.0f * (DrawRectangleParameters.PosScaleBias.zw + (InPosition.xy * DrawRectangleParameters.PosScaleBias.xy)) * DrawRectangleParameters.InvTargetSizeAndTextureSize.xy;
@@ -1607,8 +1651,19 @@ void DrawRectangle( in float4 InPosition, in float2 InTexCoord, out float4 OutPo
 	OutTexCoord.xy = (DrawRectangleParameters.UVScaleBias.zw + (InTexCoord.xy * DrawRectangleParameters.UVScaleBias.xy)) * DrawRectangleParameters.InvTargetSizeAndTextureSize.zw;
 }
 
+/** Helper variant for vertex shaders which need a separate output for SV_POSITION and packed UV / Screen position */
+void DrawRectangle(
+	in float4 InPosition,
+	in float2 InTexCoord,
+	out float4 OutPosition,
+	out float4 OutUVAndScreenPos)
+{
+	DrawRectangle(InPosition, InTexCoord, OutPosition, OutUVAndScreenPos.xy);
+	OutUVAndScreenPos.zw = OutPosition.xy;
+}
+
 /** Used for calculating vertex positions when drawing with DrawRectangle */
-void DrawRectangle( in float4 InPosition, out float4 OutPosition)
+void DrawRectangle(in float4 InPosition, out float4 OutPosition)
 {
 	OutPosition = InPosition;
 	OutPosition.xy = -1.0f + 2.0f * (DrawRectangleParameters.PosScaleBias.zw + (InPosition.xy * DrawRectangleParameters.PosScaleBias.xy)) * DrawRectangleParameters.InvTargetSizeAndTextureSize.xy;
@@ -1770,4 +1825,3 @@ struct FPixelShaderOut
 
 #endif // SUPPORTS_INDEPENDENT_SAMPLERS
 
-#endif // __USH_COMMON__

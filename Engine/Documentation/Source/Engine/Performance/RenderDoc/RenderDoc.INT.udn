@@ -1,0 +1,112 @@
+Availability: Public
+Title: RenderDoc
+Description: Taking a look at setting up and using RenderDoc with UE4 projects.
+Type: how-to
+Version: 4.21
+Parent: Engine/Performance
+Tags: Performance
+Tags: Profiling
+Tags: Performance & Profiling
+topic-image: RenderDocTopicImage.png
+SkillLevel: Advanced
+
+RenderDoc is a standalone open-source graphics debugger that allows you to quickly capture and inspect a single frame that is run on the GPU. RenderDoc supports any application that uses Vulkan, D3D11, OpenGL & OpenGL ES or D3D12 across Windows 7 - 10, Linux, or Android. In the following How-To will go over how to set up and use RenderDoc to profile your Unreal Engine 4 (UE4) project.
+
+## Steps
+
+Below you will find instructions that go over setting up and using RenderDoc to profile the rendering performance of your UE4 project.
+[REGION:note]
+For the best possible results, you should use RenderDoc with a cooked version of your UE4 project. If you are not sure how to cook your UE4 project please see the [UE4 Deployment documents](Engine/Deployment) for information on how to do this.
+[/REGION]
+
+1.  First, download the RenderDoc standalone program using the following link:
+    *   [https://renderdoc.org/](https://renderdoc.org/)
+
+1.  When RenderDoc has finished downloading, install RenderDoc to your development PC.  
+    ![](RenderDoc_1.png)
+
+1.  Once RenderDoc has finished installing, locate **qrenderdoc**.**exe** and double-click on it to launch it.  
+    [REGION:lightbox]
+    [![](RenderDoc_2.png)(w:500)](RenderDoc_2.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  When the RenderDoc program opens, from the main toolbar, select **Tools** > **Settings**.  
+    ![](RenderDoc_2_1.png)
+
+1.  By default, RenderDoc only creates temporary capture files when you capture. To make sure the capture files are saved for future use, set the **Directory for temporary capture files** and the **Default save directory for captures** to a directory on your PC.  
+    ![](RenderDoc_2_2.png)
+
+1.  Next, from the **main toolbar**, select **Launch** **Application**.  
+    ![](RenderDoc_launchapplication.png)
+
+1.  Click on the **ellipsis** next to **Executable** **Path** and then locate the **.EXE** you want to profile.  
+    [![](RenderDoc_4.png)(w:500)](RenderDoc_4.png)
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  In the **Capture Options**, make sure that **Capture** **Child** **Processes** is enabled or you will not be able to attach to your project.  
+    [REGION:lightbox]
+    [![RenderDoc_4.png](RenderDoc_5.png)(w:500)](RenderDoc_5.png)
+    [/REGION]
+    Click for full image.
+
+1.  Next, go to the **Actions** section and then press the **Launch** button. This will launch the project that was entered into the **Executable Path**.  
+    [REGION:lightbox]
+    [![RenderDoc_4.png](RenderDoc_6.png)(w:500)](RenderDoc_6.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    Depending on the size of your project you could have to wait for several minutes for the project to launch.
+    [/REGION]
+
+1.  When your project launches, you should see the RenderDoc generated text overlayed in the upper lefthand corner of the screen.   
+    [REGION:lightbox]
+    [![RenderDoc_4.png](RenderDoc_7.png)(w:500)](RenderDoc_7.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Make sure the project is the active window and press **F12** to initiate a capture. Each time you press F12 a new capture will take place. Once you have all of the captures you need close the project as you normally would.
+
+1.  From the RenderDoc main menu, go to **File** > **Open** **Capture** and from the displayed window select the capture you want to view, pressing the **Open** button to open the capture.  
+    ![](RenderDoc_8.png)
+    [REGION:note]
+    If you did not set the directory for RenderDoc captures to be saved, you can find the captures in the following location: **C:\\Users\\YourUserAccount\\AppData\\Local\\Temp\\RenderDoc**
+    [/REGION]
+
+1.  You can now view how the frame was constructed by clicking on the **Texture** **Viewer** and then clicking on the **Read**/**Write** events in the **Timeline**.  
+    [REGION:lightbox]
+    [![](RenderDoc_9.png)(w:500)](RenderDoc_9.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+## End Result
+
+With a RenderDoc capture now loaded up, you can see how the screen was constructed by clicking on the different **Read/Write** events in the **Timeline** as demonstrated in the video below.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:videoid]
+ PhLmOfWXV8Q
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+[/OBJECT]

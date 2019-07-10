@@ -713,6 +713,8 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(const TArray<uint8>& I
 			mtlpp::LanguageVersion MetalVersion;
 			switch(Header.Version)
 			{
+				case 6:
+				case 5:
 				case 4:
 					MetalVersion = mtlpp::LanguageVersion::Version2_1;
 					break;
@@ -740,7 +742,7 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(const TArray<uint8>& I
 					MetalVersion = mtlpp::LanguageVersion::Version1_0;
 	#endif
 					break;
-			}
+				}
 			CompileOptions.SetLanguageVersion(MetalVersion);
 			
 			ns::AutoReleasedError Error;
@@ -760,10 +762,6 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(const TArray<uint8>& I
 			GlslCodeNSString = NewShaderString;
 			[GlslCodeNSString retain];
 		}
-		
-		// Make sure that the current device can actually run with function constants otherwise bad things will happen!
-		UE_CLOG(bHasFunctionConstants && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFunctionConstants), LogMetal, Error, TEXT("Metal shader has function constants but current OS/device does not support them."));
-		UE_CLOG(bHasFunctionConstants && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFunctionConstants), LogMetal, Fatal, TEXT("%s"), *FString(GetSourceCode()));
 		
         GetCompiledFunction(true);
     }
@@ -1125,7 +1123,7 @@ FVertexShaderRHIRef FMetalDynamicRHI::RHICreateVertexShader(const TArray<uint8>&
 	}
 }
 
-FVertexShaderRHIRef FMetalDynamicRHI::RHICreateVertexShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FVertexShaderRHIRef FMetalDynamicRHI::RHICreateVertexShader(FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	@autoreleasepool {
 
@@ -1145,7 +1143,7 @@ FPixelShaderRHIRef FMetalDynamicRHI::RHICreatePixelShader(const TArray<uint8>& C
 	}
 }
 
-FPixelShaderRHIRef FMetalDynamicRHI::RHICreatePixelShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FPixelShaderRHIRef FMetalDynamicRHI::RHICreatePixelShader(FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	@autoreleasepool {
 	
@@ -1171,7 +1169,7 @@ FHullShaderRHIRef FMetalDynamicRHI::RHICreateHullShader(const TArray<uint8>& Cod
 	}
 }
 
-FHullShaderRHIRef FMetalDynamicRHI::RHICreateHullShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FHullShaderRHIRef FMetalDynamicRHI::RHICreateHullShader(FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	@autoreleasepool {
 	
@@ -1197,7 +1195,7 @@ FDomainShaderRHIRef FMetalDynamicRHI::RHICreateDomainShader(const TArray<uint8>&
 	}
 }
 
-FDomainShaderRHIRef FMetalDynamicRHI::RHICreateDomainShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FDomainShaderRHIRef FMetalDynamicRHI::RHICreateDomainShader(FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	@autoreleasepool {
 	
@@ -1219,7 +1217,7 @@ FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(const TArray<uin
 	}
 }
 
-FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShader(FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	@autoreleasepool {
 	
@@ -1239,7 +1237,7 @@ FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShaderWithStreamOutput(
 }
 
 FGeometryShaderRHIRef FMetalDynamicRHI::RHICreateGeometryShaderWithStreamOutput(const FStreamOutElementList& ElementList,
-	uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+	uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	@autoreleasepool {
 	
@@ -1258,7 +1256,7 @@ FComputeShaderRHIRef FMetalDynamicRHI::RHICreateComputeShader(const TArray<uint8
 	}
 }
 
-FComputeShaderRHIRef FMetalDynamicRHI::RHICreateComputeShader(FRHIShaderLibraryParamRef Library, FSHAHash Hash) 
+FComputeShaderRHIRef FMetalDynamicRHI::RHICreateComputeShader(FRHIShaderLibrary* Library, FSHAHash Hash)
 { 
 	@autoreleasepool {
 	
@@ -1274,7 +1272,7 @@ FVertexShaderRHIRef FMetalDynamicRHI::CreateVertexShader_RenderThread(class FRHI
 {
 	return RHICreateVertexShader(Code);
 }
-FVertexShaderRHIRef FMetalDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FVertexShaderRHIRef FMetalDynamicRHI::CreateVertexShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	return RHICreateVertexShader(Library, Hash);
 }
@@ -1282,7 +1280,7 @@ FPixelShaderRHIRef FMetalDynamicRHI::CreatePixelShader_RenderThread(class FRHICo
 {
 	return RHICreatePixelShader(Code);
 }
-FPixelShaderRHIRef FMetalDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FPixelShaderRHIRef FMetalDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	return RHICreatePixelShader(Library, Hash);
 }
@@ -1290,7 +1288,7 @@ FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShader_RenderThread(class 
 {
 	return RHICreateGeometryShader(Code);
 }
-FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	return RHICreateGeometryShader(Library, Hash);
 }
@@ -1298,7 +1296,7 @@ FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShaderWithStreamOutput_Ren
 {
 	return RHICreateGeometryShaderWithStreamOutput(Code, ElementList, NumStrides, Strides, RasterizedStream);
 }
-FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShaderWithStreamOutput_RenderThread(class FRHICommandListImmediate& RHICmdList, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FGeometryShaderRHIRef FMetalDynamicRHI::CreateGeometryShaderWithStreamOutput_RenderThread(class FRHICommandListImmediate& RHICmdList, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream, FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	return RHICreateGeometryShaderWithStreamOutput(ElementList, NumStrides, Strides, RasterizedStream, Library, Hash);
 }
@@ -1306,7 +1304,7 @@ FComputeShaderRHIRef FMetalDynamicRHI::CreateComputeShader_RenderThread(class FR
 {
 	return RHICreateComputeShader(Code);
 }
-FComputeShaderRHIRef FMetalDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FComputeShaderRHIRef FMetalDynamicRHI::CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	return RHICreateComputeShader(Library, Hash);
 }
@@ -1314,7 +1312,7 @@ FHullShaderRHIRef FMetalDynamicRHI::CreateHullShader_RenderThread(class FRHIComm
 {
 	return RHICreateHullShader(Code);
 }
-FHullShaderRHIRef FMetalDynamicRHI::CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FHullShaderRHIRef FMetalDynamicRHI::CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	return RHICreateHullShader(Library, Hash);
 }
@@ -1322,13 +1320,13 @@ FDomainShaderRHIRef FMetalDynamicRHI::CreateDomainShader_RenderThread(class FRHI
 {
 	return RHICreateDomainShader(Code);
 }
-FDomainShaderRHIRef FMetalDynamicRHI::CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibraryParamRef Library, FSHAHash Hash)
+FDomainShaderRHIRef FMetalDynamicRHI::CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIShaderLibrary* Library, FSHAHash Hash)
 {
 	return RHICreateDomainShader(Library, Hash);
 }
 
 static FCriticalSection LoadedShaderLibraryMutex;
-static TMap<FString, FRHIShaderLibraryParamRef> LoadedShaderLibraryMap;
+static TMap<FString, FRHIShaderLibrary*> LoadedShaderLibraryMap;
 
 FMetalShaderLibrary::FMetalShaderLibrary(EShaderPlatform InPlatform, FString const& Name, TArray<mtlpp::Library> InLibrary, FMetalShaderMap const& InMap, const FString& InShaderLibraryFilename)
 : FRHIShaderLibrary(InPlatform, Name)
@@ -1528,7 +1526,7 @@ FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Pl
 	}
 
 	FScopeLock Lock(&LoadedShaderLibraryMutex);
-	FRHIShaderLibraryParamRef* FoundShaderLibrary = LoadedShaderLibraryMap.Find(BinaryShaderFile);
+	FRHIShaderLibrary** FoundShaderLibrary = LoadedShaderLibraryMap.Find(BinaryShaderFile);
 	if (FoundShaderLibrary)
 	{
 		return *FoundShaderLibrary;
@@ -1586,12 +1584,12 @@ FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Pl
 }
 
 FBoundShaderStateRHIRef FMetalDynamicRHI::RHICreateBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI, 
-	FVertexShaderRHIParamRef VertexShaderRHI, 
-	FHullShaderRHIParamRef HullShaderRHI, 
-	FDomainShaderRHIParamRef DomainShaderRHI, 
-	FPixelShaderRHIParamRef PixelShaderRHI,
-	FGeometryShaderRHIParamRef GeometryShaderRHI
+	FRHIVertexDeclaration* VertexDeclarationRHI,
+	FRHIVertexShader* VertexShaderRHI,
+	FRHIHullShader* HullShaderRHI,
+	FRHIDomainShader* DomainShaderRHI,
+	FRHIPixelShader* PixelShaderRHI,
+	FRHIGeometryShader* GeometryShaderRHI
 	)
 {
 	NOT_SUPPORTED("RHICreateBoundShaderState");

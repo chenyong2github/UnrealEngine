@@ -858,21 +858,30 @@ bool FConcertSandboxPlatformFile::PersistSandbox(TArrayView<const FString> InFil
 	};
 
 	// We need to disable the sandbox while we do this
-	bool bSuccess = true;
+	bool bFullOperationSuccess = true;
 	TGuardValue<TAtomic<bool>, bool> DisableSandboxGuard(bSandboxEnabled, false);
 	for (const FString& File : InFiles)
 	{
 		FConcertSandboxPlatformFilePath FilePath = ToSandboxPath(File, true);
+		bool bSuccess = true;
 		if (IsPathDeleted(FilePath))
 		{
-			bSuccess &= DeleteFileWithSCC(*FilePath.GetNonSandboxPath());
+			bSuccess = DeleteFileWithSCC(*FilePath.GetNonSandboxPath());
 		}
 		else
 		{
-			bSuccess &= CopyFileWithSCC(*FilePath.GetNonSandboxPath(), *FilePath.GetSandboxPath());
+			bSuccess = CopyFileWithSCC(*FilePath.GetNonSandboxPath(), *FilePath.GetSandboxPath());
 		}
+
+		// if the file operation was successful, mark the file as persisted
+		if (bSuccess)
+		{
+			PersistedFiles.Add(File, LowerLevel->GetTimeStamp(*FilePath.GetSandboxPath()));
+		}
+
+		bFullOperationSuccess &= bSuccess;
 	}
-	return bSuccess;
+	return bFullOperationSuccess;
 }
 
 void FConcertSandboxPlatformFile::DiscardSandbox(TArray<FName>& OutPackagesPendingHotReload, TArray<FName>& OutPackagesPendingPurge)
@@ -983,6 +992,27 @@ void FConcertSandboxPlatformFile::DiscardSandbox(TArray<FName>& OutPackagesPendi
 #endif
 }
 
+void FConcertSandboxPlatformFile::AddFilesAsPersisted(TArrayView<const FString> InFiles)
+{
+	for (const FString& File : InFiles)
+	{
+		PersistedFiles.Add(File, GetTimeStamp(*File));
+	}
+}
+
+void FConcertSandboxPlatformFile::RemoveFilesAsPersisted(TArrayView<const FString> InFiles)
+{
+	for (const FString& File : InFiles)
+	{
+		PersistedFiles.Remove(File);
+	}
+}
+
+const TMap<FString, FDateTime>& FConcertSandboxPlatformFile::GetPersistedFiles() const
+{
+	return PersistedFiles;
+}
+
 TArray<FString> FConcertSandboxPlatformFile::GatherSandboxChangedFilenames() const
 {
 	TArray<FString> ChangedFiles;
@@ -1017,6 +1047,17 @@ TArray<FString> FConcertSandboxPlatformFile::GatherSandboxChangedFilenames() con
 			});
 		}
 	}
+
+	// Remove files marked as persisted already
+	ChangedFiles.RemoveAllSwap([this](const FString& InFile)
+	{
+		if (const FDateTime* ModifiedTime = PersistedFiles.Find(InFile))
+		{
+			return const_cast<FConcertSandboxPlatformFile*>(this)->GetTimeStamp(*InFile) <= *ModifiedTime;
+		}
+		return false;
+	});
+
 	return ChangedFiles;
 }
 

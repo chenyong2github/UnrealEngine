@@ -1,0 +1,45 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs:
+Title: Blueprint Utilities (Blutilities)
+Description: The experimental Blutilities feature gives you more ways to use Blueprints to create your own tools and workflows in the Unreal Editor.
+Type: overview
+Version: 4.22
+Parent: Editor/ScriptingAndAutomation/Blueprints
+Tags: Experimental
+Tags: scripting
+Tags: editor
+Tags: Landing Page
+Tags: Blueprint
+
+
+[TOC]
+
+![Blutilities](blutilities-banner.png "Blutilities")
+
+The Unreal Editor offers an experimental system for creating, managing, and using Blueprint utilities. When you enable this setting, you'll be able to design several new kinds of tools and workflows based on Blueprints that add new capabilities to the Editor. For example:  
+
+*   You can create Global Editor Utility Blueprint classes, then invoke their utility functions either from the Content Browser or from a customizable panel. For details, see [Global Blutility Classes and the Blutility Shelf](Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities/GlobalClasses).
+
+*   You can create Scripted Actions: Blueprint utility functions that you call from the right-click contextual menu on Assets or Actors. For details, see [Scripted Actions](Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities/ScriptedActions).
+
+*   You can create Editor Utility Widgets: UMG UI widgets that the Unreal Editor hosts inside dockable panels. For details, see [Editor Utility Widgets](Engine/UMG/UserGuide/EditorUtilityWidgets).
+
+## Enabling Blutilities
+
+To take advantage of any of the new features that Blutilities offer, you need to enable an experimental setting in your **Editor Preferences**.
+
+1.  From the main menu, choose **Edit > Editor Preferences**.
+
+2.  In the **Editor Preferences** window, find the **General > Experimental** category. Under **Tools**, check the option for **Editor Utility Blueprints (Blutility)**.  
+    [REGION:lightbox]
+    [![Enable Editor Utility Blueprints](bp-experimental-blutility.png "Enable Editor Utility Blueprints")](bp-experimental-blutility.png)*Click for full image.*
+    [/REGION]
+    
+
+## Blutility How-Tos
+
+[DIR(output:"fancy" parent:"Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities" skilllevel:"Beginner" end:"1")]
+[DIR(output:"fancy" parent:"Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities" skilllevel:"Intermediate" end:"1")]
+[DIR(output:"fancy" parent:"Engine/UMG/UserGuide" tags:"Editor Utility" end:"1")]
+

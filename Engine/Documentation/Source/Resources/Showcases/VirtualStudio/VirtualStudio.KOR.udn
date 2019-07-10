@@ -1,0 +1,212 @@
+INTSourceChangelist:5763278
+Availability: Public
+Crumbs: 
+Title: 버추얼 스튜디오
+Description: Virtual Studio 는 전문가급 SDI 카드와 장치를 사용해서 비디오 피드를 교환하는 언리얼 엔진 기능을 선보입니다.
+Type: 
+Version: 4.20
+Parent: Resources/Showcases
+Order: 
+Tags: showcases
+Tags: professional video
+
+
+![](virtual-studio-banner.png)
+
+Virtual Studio (버추얼 스튜디오)는 AJA Video Systems 및 Blackmagic Design 의 전문가급 비디오 카드와 통합되는 언리얼 엔진 기능을 선보입니다. 지원되는 카드가 있다면 이 프로젝트를 사용해서 언리얼 엔진을 비디오 프로덕션 파이프라인에 통합할 수 있습니다.
+
+이 쇼케이스는 현실의 발표자를 가상 무대 안의 가상 책상 뒤에 실시간 합성하도록 구성되어 있습니다. 동일한 개념과 구성을 활용하여 라이브 비디오를 언리얼 엔진 레벨로 가져와서 렌더링된 결과를 출력 피드로 캡처할 수도 있습니다.
+
+[REGION:tip]
+이 쇼케이스의 비디오 구성 관련 배경 정보는 [](Engine/ProVideoIO/AjaQuickStart) 및 [](Engine/ProVideoIO/BlackmagicQuickStart) 퀵스타트, [](Engine/ProVideoIO/MediaProfiles) 페이지를 참고하세요.
+[/REGION]
+
+## 비디오 I/O 구성 시작하기
+
+버추얼 스튜디오 쇼케이스는 세 가지 미디어 구성으로 이루어져 있으며, 각각 별도의 Media Profile Asset (미디어 프로파일 애셋)으로 정의되어 있습니다.
+
+*   **AJAMediaProfile\_24fps\_10bit** 는 SDI 입력 비디오 피드와 AJA Video Systems 장치의 출력 캡처를 교환합니다.  
+    기본적으로 Corvid 44 카드의 1, 2 번 포트에서 입력을 받아 10 비트 스트림을 사용하도록 구성되어 있습니다.
+*   **BlackmagicMediaProfile\_24fps\_10bit** 는 SDI 입력 비디오 피드와 Blackmagic Design 장치의 출력 캡처를 교환합니다.  
+    기본적으로 DeckLink Duo 2 카드의 1, 2 번 포트에서 입력을 받아 초당 24 프레임, 10 비트 스트림을 사용하도록 구성되어 있습니다.
+*   **FileMediaProfile** 는 기본적으로 디스크의 .mp4 파일에서 입력을 받도록 구성되어 있습니다.  
+    프로젝트를 시작하면 활성화되는 기본 구성이며, 지원되는 AJA 또는 Blackmagic 카드가 설치되어 있지 않은 경우에도 일부 비디오 재생을 즉시 확인할 수 있습니다.  
+    이 구성은 언리얼 엔진 또는 언리얼 에디터에서 비디오를 캡처하도록 셋업되지 않아서, 미디어 출력 구성이 전혀 없습니다. 즉 이 구성이 활성화된 동안에는 레벨에 비디오 피드가 입력은 되어도 출력은 되지 않습니다.
+
+이러한 여러 구성간에 전환하려면 툴바의 현재 미디어 프로파일 옆 아래 화살표를 누르고, 드롭다운 메뉴에서 **Select Profile** (프로파일 선택)을 클릭한 뒤 활성화할 미디어 프로파일을 선택합니다.  
+
+![Switch to a different Media Profile](virtual-studio-media-profile-select.png "Switch to a different Media Profile")
+
+기본 포트 할당 또는 (초당 프레임 수, 이미지 해상도, 색 깊이와 같은) 미디어 세팅을 컴퓨터에서 작업 중인 미디어 구성과 일치하도록 변경해야 하는 경우, 이 미디어 프로파일 애셋 중 하나를 더블클릭해서 열어 프로퍼티를 편집하면 됩니다. 미디어 프로파일 애셋은 VirtualSet/MediaProfiles 폴더 아래 있습니다.
+
+![Media Profile Assets](virtual-studio-media-profiles.png "Media Profile Assets")
+
+미디어 프로파일 작동 방식 관련 자세한 정보는 [](Engine/ProVideoIO/MediaProfiles) 문서를 참고하세요.
+
+## 미디어 소스 및 재생
+
+버추얼 스튜디오는 두 개의 미디어 번들을 사용하여 입력 비디오 피드를 가져와 레벨 뷰포트에 표시합니다. 
+
+*   기본적으로 하나만 보이도록 구성되어 있습니다. 이 피드는 씬의 발표자 책상 뒤에 합성되어 나타납니다.  
+    ![Video feed 1](virtual-studio-video-feed-1.png "Video feed 1")
+*   두 번째 비디오 피드는 언리얼 에디터에 숨겨져 있으며, 카메라를 전환할 때까지 기본으로 보이지 않습니다. 미디어 캡처 패널이나, 런타임에 온스크린 캡처 컨트롤을 사용해서 볼 수 있습니다. 자세한 내용은 아래 [온스크린 캡처 컨트롤](#온스크린캡처컨트롤) 부분을 확인하세요. 이 두 번째 피드가 언리얼 에디터 뷰포트에 강제로 나타나도록 하려면:  
+    
+    1.  **월드 아웃라이너** 에서 **VirtualSetMediaInput2** 액터를 선택합니다.  
+        ![Select VirtualSetMediaInput2](virtual-studio-select-virtualsetinput.png "Select VirtualSetMediaInput2")
+    2.  **디테일** 패널에서 **Plate > Show Plate in Editor** 옵션을 선택합니다.  
+        ![Show Plate in Editor](virtual-studio-show-plate.png "Show Plate in Editor")
+    
+    이 두 번째 피드 역시 발표자 책상 뒤에 합성되지만, 카메라에서 보이는 각도가 발표자 오른쪽으로 설계되어 있습니다.  
+    ![Video feed 2](virtual-studio-video-feed-2.png "Video feed 2")
+
+### 미디어 번들 구성
+
+발표자 책상 뒤 두 비디오 입력 면 각각은 미디어 번들 **VirtualSet/Media/VideoBundle_01** 및 **VirtualSet/Media/VideoBundle_02** 를 사용하도록 구성되어 있습니다. 이 각 번들에는 _InnerAssets 접미사가 붙은 자체 미디어 프레임워크 애셋이 저장된 폴더가 있습니다.  
+
+![Media Bundle Assets](virtual-studio-bundle-assets.png "Media Bundle Assets")
+
+미디어 번들을 처음부터 구성하는 방법은 [](Engine/ProVideoIO/AjaQuickStart) 또는 [](Engine/ProVideoIO/BlackmagicQuickStart) 문서를 참고하세요.
+
+버추얼 스튜디오의 미디어 번들 관련해서 한 가지 언급할 점은, 대부분의 미디어 번들 애셋이 사용하는 기본 블루프린트 클래스를 사용하지 않는다는 점입니다.
+
+일반적으로 미디어 번들 애셋을 레벨에 드래그하면 새로운 **BP\_MediaBundle\_Plane_16-9** 액터가 자동 스폰되어 레벨 3D 공간에 비디오를 나타냅니다. 이 기본 블루프린트에는 Plane 컴포넌트가 포함되며, 번들의 _InnerAssets 폴더에 생성된 미디어 텍스처를 가리키도록 자동 구성됩니다. 연관된 미디어 소스에서 오디오 재생을 처리하는 MediaSound 컴포넌트도 들어 있습니다.
+
+버추얼 스튜디오에서 미디어 번들 애셋은 레벨에 BP\_MediaBundle\_Plane_16-9 블루프린트 액터 **VirtualSet/Blueprints/VirtualSetMediaInput** 의 커스텀 서브클래스로 대신 표현됩니다. 이 서브클래스는 **월드 아웃라이너** 에서 특정 카메라 액터가 자손으로 할당될 것으로 예상한다는 점을 제외하고는 부모와 마찬가지로 작동합니다. 레벨의 두 비디오 면 각각에 카메라가 자손으로 붙은 것을 볼 수 있습니다.
+
+![Media Bundles and child cameras](virtual-studio-camera-children.png "Media Bundles and child cameras")
+
+커스텀 **VirtualSetMediaInput** 서브클래스는 에디터 뷰포트에서 플레이트를 표시하고 숨기는 기능과, 플레이트 및 그 할당된 카메라 사이 거리를 구성하는 기능을 추가합니다. **VirtualSetMediaInput1** 또는 **VirtualSetMediaInput2** 액터 중 하나를 선택하면, **디테일** 패널의 **Plate** 카테고리에서 이 옵션을 설정할 수 있습니다.
+
+![Plate Distance](virtual-studio-plate-settings.png "Plate Distance")
+
+블루프린트 클래스에 더블클릭하면 그 컨스트럭션 스크립트와 다른 함수를 통해 설정과 구현 방식을 확인할 수 있습니다.
+
+### 프록시 미디어 소스
+
+레벨의 두 미디어 번들 각각은 다른 프록시 미디어 소스 애셋에서 비디오 피드를 받도록 구성되어 있습니다. 예를 들어 **VideoBundle_01** 를 더블클릭하면, **MediaProxySource_01** 애셋을 소스로 사용하도록 구성된 것을 확인할 수 있습니다.  
+
+![Media Bundle source proxy](virtual-studio-bundle-proxy-config.png "Media Bundle source proxy")
+
+비슷하게 **VideoBundle_02** 역시 **MediaProxySource_02** 애셋을 소스로 사용하도록 구성되어 있습니다.
+
+**프로젝트 세팅** 패널을 (메인 메뉴의 **편집 > 프로젝트 세팅** 을 선택해서) 열고, **Plugins > Media Profile** 섹션에서 이 두 프록시 미디어 소스 애셋 각각이 **미디어 소스 프록시** 목록에도 참조된 것을 확인할 수 있습니다.  
+
+![Project Settings proxy configuration](virtual-studio-settings-proxy-config.png "Project Settings proxy configuration")
+
+이 목록의 슬롯 순서가 현재 미디어 프로파일의 슬롯 순서입니다. 예를 들어 **BlackmagicMediaProfile\_24fps\_10bit** 는 두 입력 미디어 소스로 구성되었습니다. 슬롯 0 은 카드의 포드 1 에서 입력 피드를 읽는 반면, 슬롯 1 은 카드의 포트 2 에서 입력 피드를 읽습니다.
+
+![Media Profile source configuration](virtual-studio-mediaprofile-proxies.png "Media Profile source configuration")
+
+이 구성 결과 Blackmagic Media Profile 활성화 동안 **VideoBundle_01** 은 한 프록시를 통해 카드의 포트 1 에서 입력 피드를 그리는 반면, **VideoBundle_02** 는 다른 프록시를 통해 카드의 포트 2 에서 입력 피드를 그립니다. 미디어 프로파일을 변경하면, 그 프록시는 입력 피드를 새 미디어 프로파일에 정의된 처음 두 입력 소스로 자동 리매핑하여, 레벨에 보이는 비디오 피드가 즉시 변경됩니다.
+
+미디어 프록시 작동 방식 관련 자세한 정보는 [](Engine/ProVideoIO/MediaProfiles) 문서를 참고하세요.
+
+### 키 설정 및 합성
+
+미디어 번들을 가운데 책상 뒤에 배치한 것은 가상 3D 레벨에 발표자가 앉은 것처럼 보이게 하려는 의도입니다. 이 효과를 적용하려면 입력 비디오 스트림에서 발표자 뒤 배경을 제거해야 합니다. 그 방법은 일반적으로 발표자를 그린 스크린 (또는 블루 스크린) 앞에 앉혀 녹화하고, 크로마 키 작업이나 휘도 필터링을 통해 배경을 제거합니다.
+
+이 쇼케이스에 사용된 것과 같은 미디어 번들은 머티리얼 인스턴스를 사용하도록 자동 구성되므로, 언리얼 엔진에서 크로마 키 작업과 휘도 필터링을 대신 할 수 있습니다.
+
+셋업 방법은 다음과 같습니다.
+
+1.  **콘텐츠 브라우저** 에서 셋업하려는 미디어 번들을 찾아 엽니다. 
+2.  미디어 번들 에디터의 툴바에서 **Open Material Editor** (머티리얼 에디터 열기) 버튼을 클릭하면 미디어 번들이 레벨의 오브젝트에 비디오 피드를 그리는 데 사용하는 머티리얼 인스턴스를 편집할 수 있습니다.  
+    ![Open Material Editor](open-material-editor-videobundle01.png "Open Material Editor")
+3.  머티리얼 인스턴스 에디터의 **디테일** 패널에서 **Keyer_00 - Setup** 섹션을 찾아 **EnableKeyer** 프로퍼티를 활성화합니다.  
+    ![Enable the Keyer](virtual-studio-enable-keyer.png "Enable the Keyer")
+4.  **EnableKeyer** 프로퍼티를 활성화한 상태에서, 머티리얼 인스턴스는 **디테일** 패널의 다른 **Keyer** 섹션에 새 프로퍼티가 보이도록 만듭니다. 이 프로퍼티를 사용하여 비디오 스트림에서 제거할 색을 구성하고, 픽셀 휘도에 따라 스트림에 필터를 적용하며, 스트림을 잘라내고 색 보정할 수 있습니다.  
+    ![Keying properties](virtual-studio-keying-active.png "Keying properties")  
+    
+
+## 출력 비디오 캡처
+
+[REGION:note]
+이 섹션의 안내에 따라 언리얼 엔진에서 비디오를 캡처하려면, 지원되는 AJA Video Systems 또는 Blackmagic Design 의 SDI 카드가 있어야 합니다.
+[/REGION]
+
+언리얼 에디터에서 AJA 또는 Blackmagic 카드로 비디오 전송을 시작하려면:  
+
+1.  메인 메뉴에서 **Window > Media Capture** (창 > 미디어 캡처)를 선택합니다. 이 툴을 사용하면 언리얼 엔진에서 출력을 받고자 하는 미디어 출력을 식별할 수 있습니다. 레벨의 어느 카메라 또는 어느 렌더 타깃에서 그 각 출력에 비디오를 보낼지 지정할 수도 있습니다.  
+    아래 이미지에서 **미디어 캡처** 창은 레벨의 두 카메라에서 **MediaOutput_01** 프록시 미디어 출력 애셋으로 방송하도록 구성되어 있습니다.   
+    ![MediaCapture panel configuration](virtual-studio-mediacapture-config.png "MediaCapture panel configuration")  
+    버추얼 스튜디오 샘플의 프로젝트 세팅은 **MediaOutput_01** 에 전송된 비디오를 활성 미디어 프로파일에 구성된 첫 번째 출력 소스로 리디렉션하도록 구성됩니다. **AjaMediaProfile\_24fps\_10bit** 또는 **BlackmagicMediaProfile\_24fps\_10bit** 미디어 프로파일을 사용하는 경우, 카드의 네 번째 포트로 출력을 전송하게 됩니다. 
+2.  창 상단의 **캡처** 아이콘을 클릭하면 캡처를 시작합니다.  
+    ![Capture](virtual-studio-capture-icon.png "Capture")
+3.  창 하단의 **Locked Camera Actors** (잠긴 카메라 액터) 목록에서 첫 카메라 시점을 보여주는 미리보기가 표시됩니다. 카드의 네 번째 포트에 비디오 장치가 연결된 경우, 같은 비디오가 그 포트로도 전송되는 것이 보입니다.  
+    ![Media Capture camera preview](virtual-studio-mediacapture-switch.png "Media Capture camera preview")  
+    **미디어 캡처** 창은 **잠긴 카메라 액터** 목록에 나타난 각 카메라에 대한 미리보기 위에 버튼을 배치합니다. 이 버튼을 사용하면 다른 시점 사이 출력을 전환합니다.
+
+또한 쇼케이스는 온스크린 컨트롤 UI 를 사용해서 런타임에 비디오 카드로 캡처를 전송하도록 구성되어 있습니다. 시작하려면:
+
+1.  툴바의 플레이 버튼 옆 화살표를 클릭하고, **새 에디터 창 (PIE)** 또는 **독립형 게임** 옵션을 선택합니다.
+    [REGION:note]
+    에디터의 비디오 캡처는 프로젝트를 **새 에디터 창 (PIE)** 또는 **독립형 게임** 으로 플레이할 때만 작동합니다. 기본 **선택된 뷰포트** 모드나 **시뮬레이트** 모드에서는 작동하지 않습니다.  
+    추가로 프로젝트의 뷰포트 해상도(, 즉 언리얼 엔진이 매 프레임 생성하는 렌더링된 이미지의 크기)는 활성 미디어 프로파일에 설정된 출력 해상도와 일치해야 출력 비디오 피드의 크기가 올바릅니다.
+    [/REGION]
+2.  시작하면 발표자 책상 정면 뷰, 좌상단에 컨트롤 몇 가지, 레벨의 각 카메라에 대한 섬네일 이미지가 표시됩니다.  
+    ![Virtual Studio runtime on-screen capture controls](virtual-studio-runtime-capture-ui.png "Virtual Studio runtime on-screen capture controls")
+    *   현재 카메라 뷰를 변경하려면 카메라 섬네일을 클릭하거나, **다음 카메라** 버튼(1)으로 카메라를 순환할 수 있습니다.
+    *   **Enable Video Output** (비디오 출력 활성화) 체크박스(2)를 토글하면 현재 뷰포트를 비디오 카드로 전송하는 것을 시작 및 중지할 수 있습니다.
+
+[REGION:tip]
+온스크린 런타임 캡처 컨트롤은 선택된 카메라 피드를 **MediaOutputProxy_01** 애셋, 즉 프로젝트 세팅에서 현재 미디어 프로파일에 구성된 첫 번째 출력에도 전송하도록 구성되어 있습니다. 이 구성 방법 관련 자세한 내용은 아래 [온스크린 캡처 컨트롤](#온스크린캡처컨트롤) 섹션을 참고하세요.
+[/REGION]
+
+### 온스크린 캡처 컨트롤
+
+Virtual Set/Blueprints 폴더 아래 온스크린 카메라 컨트롤 UI 에 대한 애셋을 찾을 수 있습니다.
+
+![On-screen capture control Assets](virtual-studio-ui-assets.png "On-screen capture control Assets")
+
+*   **CameraSwitcherUI** UMG 위젯에는 다음 카메라 버튼과 현재 뷰 캡처 토글 체크박스를 포함한 메인 온스크린 요소가 들어 있습니다.
+*   UI 를 클릭하면 벌어지는 모든 작업은 내부적으로 **CameraSwitcher** 블루프린트 클래스가 처리합니다. 그 이벤트 그래프를 확인하면 모든 카메라 전환 로직 구현을 확인할 수 있습니다. 비디오 캡처 시작 및 중지 관련 로직은 크게 두 곳에 있습니다.
+    
+    *   이벤트 그래프에서 **Create Media Capture** 노드는 **VideoOutputSettings** 변수에 구성된 **MediaOutputProxy_01** 애셋에서 미디어 캡처 오브젝트를 새로 생성하고, **Media Capture** (미디어 캡처)라는 변수에 저장합니다.  
+        ![Creating the Media Capture](virtual-studio-create-capture.png "Creating the Media Capture")
+    
+    *   **Enable Video Output** 함수에서 그 **Media Capture** 변수는 뷰포트 캡처를 시작 및 중지하는 데 사용됩니다.  
+        ![Starting and stopping the capture](virtual-studio-enablecapture.png "Starting and stopping the capture")
+*   **CameraSwitcher** 는 UI 가 관리해야 하는 모든 **VirtualSetMediaInput** 오브젝트 목록으로 구성해야 합니다. 레벨이 로드되면, **CameraSwitcherUI** 는 이 목록의 각 입력에 대해 새 섬네일을 자동 생성합니다.
+
+**CameraSwitcher** 블루프린트 클래스의 한 인스턴스를 레벨에 추가합니다. 뷰포트 또는 **월드 아웃라이너** 에서 이 액터를 선택하면, **디테일** 패널의 세팅을 사용하여 그 동작을 제어할 수 있습니다.  
+
+![Camera Switcher Details](virtual-studio-camera-switcher-details.png "Camera Switcher Details")
+
+| **프로퍼티** | **설명** |
+| --- | --- |
+| **Video Output** | **비디오 출력** |
+| **Enable Output by Default** | 기본으로 출력 활성화 - 활성화하면 프로젝트를 실행할 때 CameraSwitcher 가 비디오 캡처를 즉시 시작하고 **Video Output Settings** 에 설정된 미디어 출력으로 전송합니다. |
+| **Video Output Settings** | 비디오 출력 세팅 - CameraSwitcher 가 미디어 캡처를 생성하고 비디오 출력을 SDI 장치로 전송하는 데 사용하는 미디어 출력 애셋을 설정합니다. 이 애셋에 대한 세팅은 어느 장치, 그 장치의 어느 포트가 캡처한 비디오 스트림을 받을지 결정합니다. 기본적으로 이는 프로젝트 세팅에 설정된 VirtualSet/Media/MediaOutputProxy_01 애셋을 사용하여 그 출력을 (있는 경우) 활성 미디어 프로파일에 정의된 첫 번째 출력 포트로 전송합니다. |
+| **Cameras** | **카메라** |
+| **Camera List** | [INCLUDE:#excerpt_0] |
+| **User Interface** | **유저 인터페이스** |
+| **Show UI** | UI 표시 - 프로젝트를 실행하면 온스크린 CameraSwitcher UI 를 표시할지 여부를 결정합니다. |
+
+<!--
+-
+[EXCERPT:excerpt_0]
+카메라 목록 - 런타임에 CameraSwitcher 가 관리할 수 있는 모든 VirtualSetMediaInput 액터를 나열합니다.  
+프로젝트를 실행하면, CameraSwitcher UI 는 이 목록의 각 액터에 대한 카메라 섬네일 이미지를 생성하고, 그 액터가 관리 중인 비디오 입력 스트림을 표시합니다.  
+[/EXCERPT:excerpt_0]
+-
+-->
+
+
+## 비디오 벽
+
+발표자 왼쪽의 커다란 벽은 미디어 프로파일의 입력에 의존하지 않습니다. 거의 미디어 프레임워크에 제공되는 기본 구성 요소로 만들어 졌습니다.
+
+![Video Wall](virtual-studio-video-wall.png "Video Wall")
+
+비디오 벽에 사용된 미디어 프레임워크 애셋은 Mod/Textures/Video 폴더에서 찾을 수 있습니다.  
+
+![Video Wall Assets](video-wall-assets.png "Video Wall Assets")
+
+*   **EngineFeatures** 는 프로젝트의 Movies 폴더에서 찾을 수 있는 .mp4 파일에서 비디오를 읽도록 구성된 파일 미디어 소스입니다. **WallMediaPlayer** 는 그 **EngineFeatures** 파일 소스에서 비디오 재생을 제어합니다. 그 WallMediaPlayer 애셋이 생성되면, 해당하는 MediaTexture 애셋 **T_WallMediaPlayer** 을 자동 생성하여 비디오 소스에서 읽은 프레임을 받습니다.  
+    자체 비디오 파일 재생을 위한 이런 유형의 애셋을 만드는 단계별 안내는 [](Engine/MediaFramework/HowTo/FileMediaSource) 문서를 참고하세요.
+*   **M_WallVideoPlayer** 머티리얼은 **T_WallMediaPlayer** 미디어 텍스처에서 픽셀을 샘플링하여 **이미시브** 출력으로 전송합니다. 그러면 비디오가 화면에 렌더링될 때 조금 빛나는 효과가 생깁니다.  
+    ![Video Wall Material Graph](virtual-studio-video-wall-material.png "Video Wall Material Graph")
+*   마지막으로, **WallPlayerSetup** 블루프린트의 컨스트럭션 스크립트는 비디오 벽 반복 재생을 시작합니다. 이 클래스 인스턴스는 이미 레벨에 배치되어 있어, 레벨 로드 및 클래스 스폰 시마다 벽에 비디오 재생이 시작됩니다. 그런 식으로 비디오 벽은 언리얼 에디터에 있든 프로젝트를 실행하든 관계없이 항상 백그라운드에서 재생됩니다.  
+    [REGION:lightbox]
+    [![Video Wall Blueprint setup script](virtual-studio-video-wall-bp.png "Video Wall Blueprint setup script")](virtual-studio-video-wall-bp.png) *클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]

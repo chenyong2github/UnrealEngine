@@ -216,8 +216,8 @@ struct FBuffers
 		{
 			auto* Var = Buffers[i]->as_variable();
 			check(Var);
-			bool bIsStructuredBuffer = (!strncmp(Var->type->name, "RWStructuredBuffer<", 19) || !strncmp(Var->type->name, "StructuredBuffer<", 17));
-			bool bIsByteAddressBuffer = (!strncmp(Var->type->name, "RWByteAddressBuffer", 19) || !strncmp(Var->type->name, "ByteAddressBuffer", 17));
+			bool bIsStructuredBuffer = (Var->type->HlslName && (!strncmp(Var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(Var->type->HlslName, "StructuredBuffer<", 17)));
+			bool bIsByteAddressBuffer = (Var->type->HlslName && (!strncmp(Var->type->HlslName, "RWByteAddressBuffer", 19) || !strncmp(Var->type->HlslName, "ByteAddressBuffer", 17)));
 			if (Var->type->is_image())
 			{
 				IBuffers.push_back(Var);

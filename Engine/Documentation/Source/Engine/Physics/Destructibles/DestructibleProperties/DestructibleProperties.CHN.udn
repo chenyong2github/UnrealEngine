@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:4649792
-Availability:Public
+﻿INTSourceChangelist:6622979
+Availability:Docs
 Title:可破坏物属性矩阵
 Crumbs: %ROOT%, Engine
 Description:DestructibleMesh Editor 中可破坏 Actors 所有属性的描述。
@@ -9,10 +9,8 @@ Version:4.9
 ![Physics](Engine/Physics/physics_landing_banner.png)
 [/REGION]
 
-(#DestructibleMeshCategory)
 ## 可破坏网格体类型
 
-(#DefaultDestructibleParametersSubCategory)
 ### 默认可破坏物参数子类
 
 | 属性 | 描述 |
@@ -60,7 +58,6 @@ Version:4.9
 
 如需了解属性的物理和碰撞章节，请查阅 [**碰撞**](Engine/Physics/Collision) 文档。
 	
-(#SkeletalMeshSubCategory)
 ### 骨架网格体子类
 
 | **属性** | **描述** |
@@ -71,16 +68,13 @@ Version:4.9
 | **Force CPUSkinning** | 所有的蒙皮均默认为 GPU 蒙皮，将强制可破坏 Actor 使用 GPU 蒙皮。|
 | **Use Full Precision UVs** | 如为 _true_，此物体将使用 32 位 UV。如为 _true_，将使用 16 位 UV 节约内存。
 		
-(#TextureStreamingSubCategory)
 ### 纹理流子类
 | **属性** | **描述** |
 | -------- | --------- |
 | **Streaming Distance Multiplier** | 调整纹理使用 UV 0 流入/流出的距离。1.0 为默认值，更高的数值将增加流入分辨率。|
 
-(#ChunkParametersCategory)
 ## 体块参数类型
 
-(#ChunksSubCategory)
 ### 体块子类
 | **属性** | **描述** |
 | -------- | --------- |
@@ -90,17 +84,14 @@ Version:4.9
 | **Do Not Damage** | 将体块定义为不可形成碎屑。意味着无论此体块承受多大程度的损坏，都不会变为流动网格体粒子。注意：此项仅应用于无子项的体块。如体块拥有子项：1) 如未设置 doNotCrumble 标记，体块可能碎为其子项，之后其子项可能成为碎屑；2) 如可破坏模块的体块深度偏移 LOD 设定为此体块并无子项，则将应用 doNotCrumble 标记。|
 
 	
-(#FractureSettingsCategory)
 ## 破裂设置类型
 
-(#VoronoiSubCategory)
 ### Voronoi 子类
 
 | **属性** | **描述** |
 | ---- | -------- | 
 | **Cell Site Count** | 破裂过程中生成的体块数量。|
 
-(#GeneralSubCategory)
 ### 总体子类
 
 | **属性** | **描述** |

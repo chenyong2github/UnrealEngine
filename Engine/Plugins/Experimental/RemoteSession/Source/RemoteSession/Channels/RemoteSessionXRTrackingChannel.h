@@ -4,6 +4,7 @@
 
 #include "RemoteSessionChannel.h"
 #include "XRTrackingSystemBase.h"
+#include "ARSystem.h"
 
 class FBackChannelOSCMessage;
 class FBackChannelOSCDispatch;
@@ -12,8 +13,8 @@ class REMOTESESSION_API FXRTrackingProxy :
 	public FXRTrackingSystemBase
 {
 public:
-	FXRTrackingProxy()
-		: FXRTrackingSystemBase(nullptr)
+	FXRTrackingProxy(IARSystemSupport* InARSystemSupport)
+		: FXRTrackingSystemBase(InARSystemSupport)
 	{}
 		
 	virtual bool IsTracking(int32 DeviceId) override { return true; }
@@ -34,7 +35,7 @@ public:
 
 	FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection);
 
-	~FRemoteSessionXRTrackingChannel();
+	virtual ~FRemoteSessionXRTrackingChannel();
 
 	virtual void Tick(const float InDeltaTime) override;
 
@@ -50,6 +51,9 @@ public:
 	/* End IRemoteSessionChannel implementation */
 
 protected:
+	/** Only to be called by child classes */
+	FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection, IARSystemSupport* ARSystemSupport);
+
 	TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> Connection;
 	ERemoteSessionChannelMode Role;
 
@@ -58,6 +62,13 @@ protected:
 	/** Used to set the values from the remote client as the XRTracking's pose */
 	TSharedPtr<FXRTrackingProxy, ESPMode::ThreadSafe> ProxyXRSystem;
 
+	/** Used by a child class to pass in a AR system to use as part of the proxy */
+	IARSystemSupport* ARSystemSupport;
+
+private:
 	/** So we can manage callback lifetimes properly */
 	FDelegateHandle MessageCallbackHandle;
+
+	/** Used to finish construction of the class. Should be called from within the ctors */
+	void Init();
 };

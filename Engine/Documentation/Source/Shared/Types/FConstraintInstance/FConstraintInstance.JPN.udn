@@ -359,7 +359,7 @@ Engine/Physics/Constraints/ConstraintsReference#sharedproperties
 
 Angular Orientation Drive を有効にします。Linear Position Drive と酷似した Angular Orientation Drive は、 Physics Constraint との関連で理想的な回転を実現します。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsconstraintproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsconstraintproperties
 [/VAR]
 
 [/EXCERPT:bAngularOrientationDrive]
@@ -374,7 +374,7 @@ Engine/Physics/PhAT/Properties#physicsconstraintproperties
 
 角度操作をターゲットベロシティへ向けて有効にします。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsconstraintproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsconstraintproperties
 [/VAR]
 
 [/EXCERPT:bAngularVelocityDrive]

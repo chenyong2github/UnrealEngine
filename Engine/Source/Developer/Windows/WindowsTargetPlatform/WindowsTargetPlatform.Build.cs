@@ -12,7 +12,8 @@ public class WindowsTargetPlatform : ModuleRules
 				"CoreUObject",
 				"TargetPlatform",
 				"DesktopPlatform",
-			}
+                "AudioPlatformConfiguration",
+            }
 		);
 
 		PrivateIncludePathModuleNames.AddRange(

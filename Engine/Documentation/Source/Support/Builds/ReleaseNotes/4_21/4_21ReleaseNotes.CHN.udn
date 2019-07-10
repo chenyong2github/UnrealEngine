@@ -1,10 +1,10 @@
-﻿INTSourceChangelist:4605596
+﻿INTSourceChangelist:6537038
 Availability:Public
-Title: Unreal Engine 4.21 Release Notes
-Description: Release Notes for Unreal Engine 4.21
+Title: 虚幻引擎4.21版本说明
+Description: 虚幻引擎4.21版本说明
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:21
+Order: 23
 reference-image:image_22.gif
 
 ![image alt text](DOCS_BANNER_421.jpg)(convert:false)
@@ -140,7 +140,9 @@ Android Config Rules系统现在可用于帮助在项目启动过程的早期发
 
 * ** r.ProgramBinaryCache.Enable=1**
 
- **注**：有些设备不支持必需的程序二进制缓存扩展，这类设备将会退却到先前的行为。
+[REGION:note]
+ 注意：有些设备不支持必需的程序二进制缓存扩展，这类设备将会退却到先前的行为。
+[/REGION]
 
 #### Android上的模拟统一缓冲区
 
@@ -169,7 +171,9 @@ ConfigRules系统可以记录是否使用提供的小核心关联性掩码。如
 
 现在移动平台上支持颤化LOD过渡。现在如果启用该支持，那么带有启用了 **颤化LOD过渡（Dithered LOD transitions）** 选项的材质的Object将会近乎无缝地从一种细节层级（LOD）过渡到另一种细节层级。默认情况下，对移动平台禁用了颤化LOD过渡支持。要启用它，请转到 **项目设置（Project Settings）** > **渲染（Rendering）**> **移动（Mobile）**，然后选中 **允许颤化LOD过渡（Allow Dithered LOD Transitions）** 选项。
 
-注：**启用了** 颤化LOD过渡的材质将作为蒙版材质渲染。这可能在移动平台上造成负面性能影响。我们建议只对蒙版材质启用此效果。
+[REGION:note]
+注意：**启用了** 颤化LOD过渡的材质将作为蒙版材质渲染。这可能在移动平台上造成负面性能影响。我们建议只对蒙版材质启用此效果。
+[/REGION]
 
 ### 新增特性：转化程序性能
 
@@ -264,14 +268,6 @@ ConfigRules系统可以记录是否使用提供的小核心关联性掩码。如
 
 请参见 [CCDIK](https://docs.unrealengine.com/en-US/Engine/Animation/NodeReference/SkeletalControls/CCDIK) 骨骼控制节点了解更多信息。 
 
-#### 设置主姿势组件强制更新
-
-**设置主姿势组件（Set Master Pose Component）** 功能有了名为 **强制更新（Force Update）** 的第二个输入引脚，它可用于在运行时信息与主组件相同时跳过所有这些信息的更新，或者强制更新运行时信息。这个引脚仅适用于注册过程，因为注册过程是可以序列化的，并且需要刷新所有运行时数据。
-
-![image alt text](image_11.png)(w:624 h:378 convert:false)
-
-请参见 [主姿势组件](https://docs.unrealengine.com/en-us/Engine/Animation/Working-with-Modular-Characters#masterposecomponent) 了解更多信息。 
-
 #### 其他改进和更新
 
 * 实时动画蓝图重编译现在不是试验性功能了
@@ -344,7 +340,9 @@ Gauntlet提供了新的分析帮助程序，可以及时记录两个点之间的
 * 对10位输入、音频I/O和交错/PsF输入的支持。
 * 新的 **Blackmagic媒体播放器** 插件，支持Blackmagic Design的SDI卡。请参见 [Blackmagic视频I/O快速入门](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/BlackmagicQuickStart)。
 
-**注**：AJA媒体播放器和Blackmagic媒体播放器插件现在通过Epic Games Launcher的“商城（Marketplace）”选项卡提供，而不是随虚幻引擎自动安装。它们的源代码已 [在GitHub](https://github.com/ue4plugins) 上免费放出，为其他开发者提供了基于虚幻引擎的媒体核心API开发视频I/O插件的示范。
+[REGION:note]
+注意：AJA媒体播放器和Blackmagic媒体播放器插件现在通过Epic Games Launcher的“商城（Marketplace）”选项卡提供，而不是随虚幻引擎自动安装。它们的源代码已 [在GitHub](https://github.com/ue4plugins) 上免费放出，为其他开发者提供了基于虚幻引擎的媒体核心API开发视频I/O插件的示范。
+[/REGION]
 
 ### 新增特性：符合地理学的太阳定位（抢先体验）
 
@@ -484,12 +482,6 @@ DDoS（分布式拒绝服务）攻击通常干扰游戏服务器的方式是对�
 
 要了解更多信息，请参见 [物理光照单位](https://docs.unrealengine.com/en-us/Engine/Rendering/LightingAndShadows/PhysicalLightUnits)。 
 
-### 新增特性：Sequencer事件轨迹
-
-Sequencer事件轨迹已经彻底重构，现在事件与蓝图图的配合更紧密，因此用户体验的熟悉度和健壮性都大大提高。这一改进利用了蓝图和界面，提供的控制性和稳定性都要优于使用结构体有效负载和匿名事件的先前实现。 
-
-请参见 [事件轨迹概述](https://docs.unrealengine.com/en-us/Engine/Sequencer/Workflow/Event_Track_Overview) 和 [通过Sequencer调用事件](https://docs.unrealengine.com/en-us/Engine/Sequencer/HowTo/TracksEvent) 了解更多信息。 
-
 ### 新增特性：几何体缓存轨迹（试验性）
 
 新的（试验性）**几何体缓存轨迹** 允许你整理几何体缓存，并将它逐帧准确渲染出来。
@@ -551,6 +543,8 @@ Oculus Avatar SDK包含一个虚幻软件包，用于帮助开发人员实现Rif
 ### 新增特性：轮询遮挡
 
 虚幻引擎4现在支持轮询遮挡。ons.启用新添加的 *vr.RoundRobinOcclusion* 标记后，立体帧将使用交错模式在每帧为一个眼睛启动遮挡查询（即在奇数帧仅为左眼启动查询，在偶数帧仅为右眼启动查询）。这种方法使每帧的遮挡绘图调用次数减少了一半。在某些情况下，这可以大大提高性能。
+
+更多详情，请参见[可视性和遮挡剔除](Engine/Rendering/VisibilityCulling)。
 
 ### 新增特性：平台SDK升级
 

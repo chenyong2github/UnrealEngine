@@ -1,13 +1,14 @@
-﻿INTSourceChangelist:2108565
+﻿INTSourceChangelist:3108692
 Availability: Public
 Title:Matinee编辑器参考指南
 Crumbs:%ROOT%, Engine, Engine/Matinee
 Description:关于Matinee用户界面的介绍。
+Version: 4.9
+SkillLevel: Beginner
 
 [TOC (start:2 end:2)]
 
 
-## 概述
 
 以下屏幕截图显示了Matinee编辑器：
 
@@ -23,9 +24,11 @@ Description:关于Matinee用户界面的介绍。
 
 关于Matinee的更多信息，请参照[](Engine/Matinee/UserGuide)。
 
+(#MenuBar)
 ## 菜单栏
 
 
+(#File)
 ### 文件
 
 
@@ -44,6 +47,7 @@ Description:关于Matinee用户界面的介绍。
 请参照[导出及导入Matinee元数据](Engine/Matinee/UserGuide)页面获得关于这些主题的更多信息。
 
 
+(#Edit)
 ### 编辑
 
 
@@ -66,6 +70,7 @@ Description:关于Matinee用户界面的介绍。
 
 
 
+(#View)
 ### 视图
 
 
@@ -97,6 +102,7 @@ Description:关于Matinee用户界面的介绍。
 
 
 
+(#Window)
 ### 窗口
 
 
@@ -107,6 +113,7 @@ Description:关于Matinee用户界面的介绍。
 
 
 
+(#Toolbar)
 ## 工具栏
 
 以下是工具条上每个按钮的描述，按照它们在工具条上的出现顺序从左到右介绍。
@@ -135,18 +142,24 @@ Description:关于Matinee用户界面的介绍。
 | ![Movie button](Toolbar_Movie_button.png)| 从该Matinee序列创建一个视频。|
 
 
+(#CurveEditor)
 ## 曲线编辑器
 
-曲线编辑器允许您图形化地显示并编辑Matinee 序列中的轨迹使用的动画曲线。在 Matinee 中，其中具有可以在曲线编辑器中进行编辑的动画曲线的轨迹中包含 ![](curve_send_button.jpg) 开启按钮。点击这个按钮会将这个轨迹的曲线信息发送到曲线编辑器中，曲线在这里将会变为可见的，同时轨迹信息将会显示在轨迹列表中。
+**曲线编辑器** 允许您图形化地显示并编辑Matinee 序列中的轨迹使用的动画曲线。在 Matinee 中，其中具有可以在曲线编辑器中进行编辑的动画曲线的轨迹中包含 ![](curve_send_button.jpg) 开启按钮。点击这个按钮会将这个轨迹的曲线信息发送到曲线编辑器中，曲线在这里将会变为可见的，同时轨迹信息将会显示在轨迹列表中。
 
 ![Curve Editor](Matinee_CurveEditor.png)
 
 请参阅 [曲线编辑器用户指南](Engine/UI/CurveEditor)页面了解更多有关使用曲线编辑器中的曲线信息的详细情况。
 
+[REGION:tip]
+您还可以参阅 [](Engine\Matinee\HowTo\MHT_2) 页面，查看在 **移动轨迹** 中操作 **曲线编辑器** 的示例。 
+[/REGION]
 
+
+(#TrackView)
 ## 轨迹视图
 
-轨迹视图中包含了Matinee序列中所具有的所有文件夹、组及轨迹的列表，并在时间轴上显示了它们的关键帧信息，您可以在时间轴上编辑这些信息。它由以下几个部分组成：
+**轨迹视图** 中包含了Matinee序列中所具有的所有文件夹、组及轨迹的列表，并在时间轴上显示了它们的关键帧信息，您可以在时间轴上编辑这些信息。它由以下几个部分组成：
 
 ![Timeline Pane](Matinee_TimelinePanel_Callouts.png)
 
@@ -158,6 +171,7 @@ Description:关于Matinee用户界面的介绍。
 
 
 
+(#GroupTabs)
 ### 组选卡
 
 ![Group Tabs](Matinee_GroupTabs.png)
@@ -165,16 +179,18 @@ Description:关于Matinee用户界面的介绍。
 时间轴面板的顶部的选卡，显示了当前Matinee序列中存在的所有Group Tabs(组选卡)。组选项卡是一种根据组和轨迹的功能组织它们的简便方法。是否使用它们完全是一个可选项。对于非常简单的序列，您可能只需将所有组和轨迹保留在默认的 _All（所有）_ 选项卡中。但是对于复杂的序列，像那些用于创建游戏中过场动画的序列，您要尽量充分利用这些选项卡，因为序列中组和轨迹数量可能会快速增加并变得很难进行导航。_All（所有）_ 选项卡通常会显示序列中的所有组和轨迹，所以向一个对应的组选项卡中添加相关轨迹将会是查找并编辑这些组和轨迹的快捷简便方法。除那些默认情况下提供的选项卡外，您还可以创建您自己定义的选项卡，根据您所选择的标准条件组织您的组和轨迹。
 
 
+(#GroupandTrackList)
 ### 组和轨迹列表
 
 ![Group and Track List](Matinee_GroupsAndTracks.png)
 
-组和轨迹列表会显示当前选中的组选项卡中的所有组和轨迹。在一个新的 Matinee 序列中默认情况下为空。
+**组** 和**轨迹** 列表会显示当前选中的组选项卡中的所有组和轨迹。在一个新的 Matinee 序列中默认情况下为空。
 
 
+(#TimelineInfo)
 ###  时间轴信息
 
-时间轴信息面板显示了关于时间轴的信息，包括时间轴光标的当前位置和当前场景的总长度。
+**时间轴信息** 面板显示了关于时间轴的信息，包括时间轴光标的当前位置和当前场景的总长度。
 
 (#Timeline)
 
@@ -182,9 +198,10 @@ Description:关于Matinee用户界面的介绍。
 
 ![Timeline](Matinee_Timeline.png)
 
-时间轴是对序列中所有轨迹的全部关键帧的图形表示形式。它沿着底部水平方向显示了时间，其中还包含循环区（绿色）和序列本身（红色）的开始和结束标记。您可以直接在时间轴上选择并修改关键帧。有些关键帧只简单地显示为三角形，而其他关键帧则显示为后面带有颜色条的三角形。这些是具有特定持续时间的动画、声音等的关键帧。颜色条可以显示关键帧所触发的动作的持续时间。
+**时间轴** 是对序列中所有轨迹的全部关键帧的图形表示形式。它沿着底部水平方向显示了时间，其中还包含循环区（绿色）和序列本身（红色）的开始和结束标记。您可以直接在时间轴上选择并修改关键帧。有些关键帧只简单地显示为三角形，而其他关键帧则显示为后面带有颜色条的三角形。这些是具有特定持续时间的动画、声音等的关键帧。颜色条可以显示关键帧所触发的动作的持续时间。
 
 
+(#Details)
 ## 详细信息
 
 ![Properties Pane](Matinee_PropertiesPane.png)
@@ -192,9 +209,11 @@ Description:关于Matinee用户界面的介绍。
 **Details（详细信息）** 面板是一个标准的虚幻引擎详细信息窗口，显示了时间轴面板的轨迹列表中当前选中的文件夹、组或轨迹的详细信息。
 
 
+(#Controls)
 ## 操作
 
 
+(#MouseControls)
 ###鼠标操作
 
 | 操作 | 动作 |
@@ -204,6 +223,7 @@ Description:关于Matinee用户界面的介绍。
 | _Click on key（点击按键）_  | 选择关键帧 |
 
 
+(#KeyboardControls)
 ### 键盘操作
 
 | 操作 | 动作 |
@@ -214,6 +234,7 @@ Description:关于Matinee用户界面的介绍。
 | _Ctrl-Alt-Shift-拖拽_  | 盒式选择 (添加到当前选项)  |
 
 
+(#HotKeys)
 ### 热键
 
 | 操作 | 动作 |

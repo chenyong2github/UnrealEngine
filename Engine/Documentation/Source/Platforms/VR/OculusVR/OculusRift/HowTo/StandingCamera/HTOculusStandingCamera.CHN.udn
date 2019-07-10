@@ -1,0 +1,113 @@
+﻿INTSourceChangelist:3810467
+Availability: Public
+Crumbs: %ROOT%, Platforms
+Title:为Oculus Rift设置站立式相机
+Description:设置UE4相机，打造站立式Oculus Rift体验。
+Type: how-to
+Skilllevel:Beginner
+Version:4.17
+Parent: Platforms/VR/OculusVR/OculusRift/HowTo
+Order: 2
+tags:Basics
+topic-image:HT_Rift_Camera_Setup_Topic_Image.png
+
+![](Platforms\VR\DevelopVR\ContentSetup\VR_Standing_Experiance.png)
+
+开始用UE4开发Oculus Rift上的VR项目时，首先需要考虑的一点便是确定该体验为坐立式或站立式。以下指南将讲述如何设置站立式Oculus Rift体验的UE4项目VR相机。
+
+(#steps)
+## 步骤
+
+以下内容将讲述如何进行站立式Oculus Rift体验的Pawn设置。
+
+1. 首先打开或新建一个Pawn蓝图，然后前往 **视口** 标签的 **组件** 部分。在此处用以下命名添加以下两个组件，并将VRCamera设为VRCameraRoot的子项：
+    
+    [REGION:simpletable]
+	|组件命名| 值 |
+    |--------|------------|
+    |**场景**|VRCameraRoot|
+    |**相机**|VRCamera|
+	[/region]
+
+    [REGION:lightbox]
+    [![](HT_Rift_Camera_Setup_03.png)(w:224)](HT_Rift_Camera_Setup_03.png)
+    [/REGION]
+
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+    When 
+
+    [region:note]
+    无论您使用的是何种VR头戴显示器，Epic都推荐以此方式设置VR相机。因为它能在不实际移动相机的情况下实现相机位置的偏移。
+    [/region]
+
+1. 接下来打开Pawn蓝图，然后在 **事件图表（Event Graph）** 中从 **Event Begin Play** 节点连出引线，显示“可执行操作（Executable Actions）”列表。在列表中搜索 **Set Tracking Origin** 节点，点击并将其添加到事件图表。
+
+    [REGION:lightbox]
+    [![](HT_Rift_Camera_Setup_09.png)(w:555)](HT_Rift_Camera_Setup_09.png)
+    [/REGION]
+
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. Set Tracking Origin节点拥有两个选项：**地面平面（Floor Level）** 和 **视线平面（Eye Level）**。针对站立式体验，需要将Set Tracking Origin节点的 **原点** 保持为默认的 **地面平面**。
+    
+    [REGION:lightbox]
+    [![](HT_Rift_Camera_Setup_10.png)(w:555)](HT_Rift_Camera_Setup_10.png)
+    [/REGION]
+
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 将Pawn蓝图从内容浏览器拖入关卡，将其放置在关卡中0,0,0处。
+    [REGION:lightbox]
+    [![](HT_Rift_Camera_Setup_06.png)(w:555)](HT_Rift_Camera_Setup_06.png)
+    [/REGION]
+
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+1. 选中放置在关卡中的Pawn蓝图，然后在 **Pawn** 设置下的 **细节** 面板中将 **自动拥有玩家（Auto Possess Player）** 从 **禁用（Disabled）** 改为 **Player 0**。
+
+    [REGION:lightbox]
+    [![](HT_Rift_Standing_Camera_04.png)(w:353)](HT_Rift_Standing_Camera_04.png)
+    [/REGION]
+
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+## 最终结果
+
+最后前往 **主工具栏** 将 **播放模式（Play Mode）** 改为 **VR预览（VR Preview）**，然后按下 **播放** 按钮。您戴上Oculus Rift头戴显示器站立观察关卡时，将看到与以下视频相似的内容。 
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    stJAjmg6b4g
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+(#ue4projectdownloads)
+## UE4项目下载
+可使用以下链接下载用于创建此例的UE4项目。 
+
+* [**Oculus Rift站立式VR相机范例项目**](https://epicgames.box.com/s/qgoh6uk0f8ra4rtvp0jdrxygfb2n9ykv)
+
+

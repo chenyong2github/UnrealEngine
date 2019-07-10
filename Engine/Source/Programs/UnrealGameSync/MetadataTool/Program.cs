@@ -22,6 +22,7 @@ namespace MetadataTool
 			new CommandHandler_Http("GetIssue", "GET", "/api/issues/{id}"),
 			new CommandHandler_Http("GetIssues", "GET", "/api/issues", OptionalParams: new string[] { "includeresolved", "maxresults", "user" }),
 			new CommandHandler_Http("UpdateIssue", "PUT", "/api/issues/{Id}", typeof(CommandTypes.UpdateIssue)),
+			new CommandHandler_Http("DeleteIssue", "DELETE", "/api/issues/{Id}"),
 
 			// Builds
 			new CommandHandler_Http("AddBuild", "POST", "/api/issues/{Issue}/builds", typeof(CommandTypes.AddBuild)),
@@ -30,6 +31,10 @@ namespace MetadataTool
 			// Individual builds
 			new CommandHandler_Http("GetBuild", "GET", "/api/issuebuilds/{Build}"),
 			new CommandHandler_Http("UpdateBuild", "PUT", "/api/issuebuilds/{Build}", typeof(CommandTypes.UpdateBuild)),
+
+			// Diagnostics
+			new CommandHandler_Http("AddDiagnostic", "POST", "/api/issues/{Issue}/diagnostics", typeof(CommandTypes.AddDiagnostic)),
+			new CommandHandler_Http("GetDiagnostics", "GET", "/api/issues/{Issue}/diagnostics"),
 
 			// Watchers
 			new CommandHandler_Http("GetWatchers", "GET", "/api/issues/{Issue}/watchers"),

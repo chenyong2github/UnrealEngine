@@ -1,6 +1,5 @@
 Availability:Public
 Title: Setting Up a Character
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:A high-level overview of how to set up a basic character or Skeletal Mesh in Unreal Engine 4.
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
@@ -11,6 +10,9 @@ Related: Engine/Animation/AnimBlueprints/EventGraph
 Related: Engine/Animation/StateMachines
 Related: Gameplay/AI
 version: 4.9
+tags:Animation
+tags:Animation Features
+tags:Character Setup
 topic-image:SettingUpACharacter_topic.png
 
 [REGION:fullwidth]
@@ -21,7 +23,7 @@ topic-image:SettingUpACharacter_topic.png
 
 
 
-No matter your game project or genre, it is likely that at some point you are going to need some kind of animated character to move around in your environment. This may be a character that the player controls, or may be some AI-driven entity that interacts with the world in some way. Regardless, you are going to need to know how to set such characters up so that they can properly animate in your world. The purpose of this document is to give you a very high-level overview of how this is done, while guiding you to dedicated documents and examples for specific details. For our purposes, we will assume that you want to create a character that is controllable by the player in some way.
+No matter your game project or genre, it is likely that at some point you are going to need some kind of animated character to move around in your environment. This may be a character that the player controls or may be some AI-driven entity that interacts with the world in some way. Regardless, you are going to need to know how to set such characters up so that they can properly animate in your world. The purpose of this document is to give you a very high-level overview of how this is done, while guiding you to dedicated documents and examples for specific details. For our purposes, we will assume that you want to create a character that is controllable by the player in some way.
 
 [REGION:note]
 Throughout this document, we will make references to various scripting operations that can be done with Blueprints. Anything that can be done in Blueprints can also be done in C++, so you should not feel restricted solely to Blueprint visual scripting. The final section of this document contains references to example content showing the setup in both C++ and in Blueprints.
@@ -37,9 +39,9 @@ You can also find an example of the Playable Owen Character on the [Animation Co
 The primary workflow for character setup in UE4 is as follows:
 
 1. Create your art assets (Skeletal Meshes) and animations, using a 3rd party digital content creation (DCC) package such as 3ds Max or Maya.
-1. Import your Skeletal Meshes and animations into UE4, either creating a new Skeleton asset for new Skeletal Meshes, or reusing an existing Skeleton asset for identical or similar Skeletal Meshes.
+1. Import your Skeletal Meshes and animations into UE4 by creating a new Skeleton asset for new Skeletal Meshes or by reusing an existing Skeleton asset for identical or similar Skeletal Meshes.
 1. Create a PlayerController script or Blueprint to handle inputs from the player.
-1. Create a Character or Pawn script or Blueprint to parse inputs and control the actual movement (not skeletal animation) of the character.
+1. Create a Blueprint or script for a Character or Pawn to parse inputs and control the actual movement (not skeletal animation) of the character.
 1. Construct the Animation Blueprint for the character.
 1. Create a GameMode script or Blueprint that utilizes your custom PlayerController and any other custom script assets.
 1. Play your game!

@@ -5,7 +5,7 @@ Description: Advanced networking configuration and other considerations for host
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
-Order: 
+Order: 2
 topic-image:hosting-topic.png
 Tags: Guide
 Tags: Early Access

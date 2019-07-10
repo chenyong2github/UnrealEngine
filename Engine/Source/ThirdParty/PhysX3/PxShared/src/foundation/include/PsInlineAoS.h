@@ -35,7 +35,9 @@
 #if PX_WINDOWS
 #include "windows/PsWindowsTrigConstants.h"
 #include "windows/PsWindowsInlineAoS.h"
-#elif(PX_UNIX_FAMILY || PX_PS4 || PX_SWITCH)
+// @MIXEDREALITY_CHANGE : BEGIN ARM
+#elif(PX_UNIX_FAMILY || PX_PS4 || PX_SWITCH || PX_HOLOLENS)
+// @MIXEDREALITY_CHANGE : END
 #include "unix/PsUnixTrigConstants.h"
 #include "unix/PsUnixInlineAoS.h"
 #elif PX_XBOXONE

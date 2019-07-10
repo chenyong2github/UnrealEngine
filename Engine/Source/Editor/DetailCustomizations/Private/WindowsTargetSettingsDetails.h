@@ -38,6 +38,12 @@ private:
 	/** Handles when a new audio device is selected from list of available audio devices. */
 	void HandleAudioDeviceSelected(FString AudioDeviceName, TSharedPtr<IPropertyHandle> PropertyHandle);
 
+	/** Handles when Stream Caching is toggled. */
+	void HandleAudioStreamCachingToggled(ECheckBoxState bEnableStreamCaching, TSharedPtr<IPropertyHandle> PropertyHandle);
+
+	/** This gets the current value of the audio stream caching bool property. */
+	ECheckBoxState GetAudioStreamCachingToggled(TSharedPtr<IPropertyHandle> PropertyHandle) const;
+
 	/** Handles changing the foreground color of the audio device box. */
 	FSlateColor HandleAudioDeviceBoxForegroundColor(TSharedPtr<IPropertyHandle> PropertyHandle) const;
 

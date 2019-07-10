@@ -33,17 +33,26 @@ void SNewEmitterDialog::Construct(const FArguments& InArgs)
 				LOCTEXT("CreateFromTemplateLabel", "Create a new emitter from an emitter template"),
 				LOCTEXT("TemplatesPickerHeader", "Select a Template Emitter"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewEmitterDialog::GetSelectedEmitterTemplateAssets),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SAssignNew(TemplateAssetPicker, SNiagaraTemplateAssetPicker, UNiagaraEmitter::StaticClass())
 				.OnTemplateAssetActivated(this, &SNewEmitterDialog::OnTemplateAssetActivated)),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateFromOtherEmitterLabel", "Copy an existing emitter from your project content"),
 				LOCTEXT("ProjectEmitterPickerHeader", "Select a Project Emitter"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewEmitterDialog::GetSelectedProjectEmiterAssets),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
+				AssetPicker),
+			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
+				LOCTEXT("InheritFromOtherEmitterLabel", "Inherit from an existing emitter in your project content"),
+				LOCTEXT("InheritProjectEmitterPickerHeader", "Select a Parent Project Emitter"),
+				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewEmitterDialog::GetSelectedProjectEmiterAssets),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed::CreateSP(this, &SNewEmitterDialog::InheritanceOptionConfirmed),
 				AssetPicker),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateEmptyLabel", "Create an empty emitter with no modules or renderers (Advanced)"),
 				LOCTEXT("EmptyLabel", "Empty Emitter"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker(),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SNew(SBox)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -62,6 +71,11 @@ TOptional<FAssetData> SNewEmitterDialog::GetSelectedEmitterAsset()
 		return TOptional<FAssetData>(SelectedEmitterAssets[0]);
 	}
 	return TOptional<FAssetData>();
+}
+
+bool SNewEmitterDialog::GetUseInheritance() const
+{
+	return bUseInheritance;
 }
 
 void SNewEmitterDialog::GetSelectedEmitterTemplateAssets(TArray<FAssetData>& OutSelectedAssets)
@@ -99,6 +113,11 @@ void SNewEmitterDialog::OnEmitterAssetsActivated(const TArray<FAssetData>& Activ
 		ActivatedProjectAsset = ActivatedAssets[0];
 		ConfirmSelection();
 	}
+}
+
+void SNewEmitterDialog::InheritanceOptionConfirmed()
+{
+	bUseInheritance = true;
 }
 
 #undef LOCTEXT_NAMESPACE

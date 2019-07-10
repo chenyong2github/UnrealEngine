@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Framework/Text/TextRange.h"
 
 /**
  * Tokenize the text based upon the given rule set

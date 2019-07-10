@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:1 - Setting up the Animation to Blend
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:In this step, we update our player character and create an AnimMontage for the animation we want to layer in on top of our movement animations.

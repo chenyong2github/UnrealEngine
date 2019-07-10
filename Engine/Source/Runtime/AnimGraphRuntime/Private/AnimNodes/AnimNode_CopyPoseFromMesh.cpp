@@ -47,6 +47,14 @@ void FAnimNode_CopyPoseFromMesh::RefreshMeshComponent(USkeletalMeshComponent* Ta
 			{
 				ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
 			}
+			else if (InTargetMeshComponent)
+			{
+				// see if target mesh has changed
+				if (InTargetMeshComponent->SkeletalMesh != CurrentlyUsedTargetMesh.Get())
+				{
+					ReinitializeMeshComponent(InMeshComponent, InTargetMeshComponent);
+				}
+			}
 		}
 		// if not valid, but input mesh is
 		else if (!CurrentMeshComponent && InMeshComponent)
@@ -205,6 +213,7 @@ void FAnimNode_CopyPoseFromMesh::ReinitializeMeshComponent(USkeletalMeshComponen
 	CurrentlyUsedSourceMeshComponent.Reset();
 	// reset source mesh
 	CurrentlyUsedSourceMesh.Reset();
+	CurrentlyUsedTargetMesh.Reset();
 	BoneMapToSource.Reset();
 	CurveNameToUIDMap.Reset();
 
@@ -218,6 +227,7 @@ void FAnimNode_CopyPoseFromMesh::ReinitializeMeshComponent(USkeletalMeshComponen
 		{
 			CurrentlyUsedSourceMeshComponent = NewSourceMeshComponent;
 			CurrentlyUsedSourceMesh = SourceSkelMesh;
+			CurrentlyUsedTargetMesh = TargetSkelMesh;
 
 			if (SourceSkelMesh == TargetSkelMesh)
 			{

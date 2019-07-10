@@ -7,6 +7,12 @@
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
 
+FCborStructDeserializerBackend::FCborStructDeserializerBackend(FArchive& Archive)
+	: CborReader(&Archive)
+{}
+
+FCborStructDeserializerBackend::~FCborStructDeserializerBackend() = default;
+
 const FString& FCborStructDeserializerBackend::GetCurrentPropertyName() const
 {
 	return LastMapKey;
@@ -142,7 +148,7 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 	}
 	break;
 
-	// Strings, Names & Enumerations
+	// Strings, Names, Enumerations & Object/Class reference
 	case ECborCode::TextString:
 	{
 		FString StringValue = LastContext.AsString();
@@ -203,6 +209,26 @@ bool FCborStructDeserializerBackend::ReadProperty(UProperty* Property, UProperty
 		if (UClassProperty* ClassProperty = Cast<UClassProperty>(Property))
 		{
 			return StructDeserializerBackendUtilities::SetPropertyValue(ClassProperty, Outer, Data, ArrayIndex, LoadObject<UClass>(NULL, *StringValue, NULL, LOAD_NoWarn));
+		}
+
+		if (USoftClassProperty* SoftClassProperty = Cast<USoftClassProperty>(Property))
+		{
+			return StructDeserializerBackendUtilities::SetPropertyValue(SoftClassProperty, Outer, Data, ArrayIndex, FSoftObjectPtr(LoadObject<UClass>(nullptr, *StringValue, nullptr, LOAD_NoWarn)));
+		}
+
+		if (UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property))
+		{
+			return StructDeserializerBackendUtilities::SetPropertyValue(ObjectProperty, Outer, Data, ArrayIndex, StaticFindObject(ObjectProperty->PropertyClass, nullptr, *StringValue));
+		}
+
+		if (UWeakObjectProperty* WeakObjectProperty = Cast<UWeakObjectProperty>(Property))
+		{
+			return StructDeserializerBackendUtilities::SetPropertyValue(WeakObjectProperty, Outer, Data, ArrayIndex, FWeakObjectPtr(StaticFindObject(WeakObjectProperty->PropertyClass, nullptr, *StringValue)));
+		}
+
+		if (USoftObjectProperty* SoftObjectProperty = Cast<USoftObjectProperty>(Property))
+		{
+			return StructDeserializerBackendUtilities::SetPropertyValue(SoftObjectProperty, Outer, Data, ArrayIndex, FSoftObjectPtr(FSoftObjectPath(StringValue)));
 		}
 
 		UE_LOG(LogSerialization, Verbose, TEXT("String field %s with value '%s' is not supported in UProperty type %s (%s)"), *Property->GetFName().ToString(), *StringValue, *Property->GetClass()->GetName(), *GetDebugString());

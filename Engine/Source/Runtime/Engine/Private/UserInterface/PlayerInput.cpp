@@ -644,9 +644,22 @@ void UPlayerInput::ForceRebuildingKeyMaps(const bool bRestoreDefaults)
 {
 	if (bRestoreDefaults)
 	{
-		AxisConfig = GetDefault<UInputSettings>()->AxisConfig;
-		AxisMappings = GetDefault<UInputSettings>()->AxisMappings;
-		ActionMappings = GetDefault<UInputSettings>()->ActionMappings;
+		const UInputSettings* InputSettings = GetDefault<UInputSettings>();
+		if (InputSettings)
+		{
+			AxisConfig = InputSettings->AxisConfig;
+			AxisMappings = InputSettings->GetAxisMappings();
+			ActionMappings = InputSettings->GetActionMappings();
+
+			//append on speech action mappings
+			const TArray<FInputActionSpeechMapping>& SpeechMappings = InputSettings->GetSpeechMappings();
+			for (const FInputActionSpeechMapping& SpeechMapping : SpeechMappings)
+			{
+				FInputActionKeyMapping& ConvertedSpeechToActionMap = ActionMappings.AddDefaulted_GetRef();
+				ConvertedSpeechToActionMap.ActionName = SpeechMapping.GetActionName();
+				ConvertedSpeechToActionMap.Key = SpeechMapping.GetKeyName();
+			}
+		}
 	}
 
 	ActionKeyMap.Reset();

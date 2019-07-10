@@ -1,0 +1,49 @@
+Availability: Public
+Title: Material Analyzer
+Description: This page describes how to locate and use the Material Analyzer tool.
+Type: overview
+Version: 4.22
+Parent: Engine/Rendering/Materials
+Tags: Materials
+Tags: Material Analyzer
+Order: 17
+
+
+[TOC]
+
+The Material Analyzer is a developer tool that helps you identify and analyze all materials, or material instances, in your project. This enables you to make changes that can provide savings in permutations and storing data. When you select a material or material instance to analyze, the tool will find all descendants of that material (or all descendants of the material instance's parent material). The tool also finds all of the base property overrides, static switches, and static component mask parameters.
+
+## Opening the Material Analyzer
+
+1.  In the menu bar, click **Window > Developer Tools > Material Analyzer**. The **Material Analyzer** window opens.  
+    ![](WindowMenu-01.png)(w:350)
+
+1.  Click the dropdown next to **Material to Analyze**. Select the material or material instance you want to analyze.  
+    ![](MaterialAnalyzerWindow-01.png)(w:450)
+
+1.  The Material Analyzer tool displays a list of all instances of the material you selected.  
+    [REGION:lightbox]
+    [![](MaterialInstanceList.png)](MaterialInstanceList.png)
+    
+    *Click for full image*
+    [/REGION]
+    
+
+## Viewing the Suggestion List
+
+Below the material tree is a suggestion list. The suggestion list groups all the material instances with the same set of static overrides. You can click the arrow next to each line to see the specific instances identified.  
+![](SuggestionList.png)(w:700)
+
+## Create a Local Collection
+
+Each suggestion list has a **Create Local Collection** button. Click this button to place all the related instances into a local collection, so you can easily find them and update them to have more efficient parameter setups.  
+![](LocalCollectionButton.png)
+
+## Viewing the Static Switch Parameters List
+
+To see the static switch parameters for a material instance, click the arrow under the Static Switch Parameters column to display the full list. The columns are resizable, so you can move them if the text is cut off.  
+![](StaticSwitchParameters.png)(w:500)
+
+## Reparenting Material Instances
+
+You can reparent these material instances to a new instance that has those same static overrides, so that the reparented material instances just change their unique overrides. This can provide a savings in permutations and storing data. Make sure to remove all the static parameter overrides from the material instances you have reparented, or else the additional data is still stored.

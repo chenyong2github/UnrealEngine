@@ -1,97 +1,112 @@
-﻿Availability:Public
+﻿INTSourceChangelist:6224331
+Availability:Public
 Title:放置Actor
 Crumbs: %ROOT%, Engine, Engine/Actors
-Description:在关卡编辑器内向地图中添加Actor实例。
+Description:显示如何在关卡中放置Actor，例如道具、光源、摄像机等。+ 
+Related: Engine/UI/ClassViewer
+Related: GettingStarted\HowTo
+version: 4.9
+Parent:Engine/Actors
+type:overview
+order:1
 topic-image:actorplacement_topic.png
+
+
+在最基本的关卡上，**Actor** 是您可以放置在关卡中的任何对象，本页面将向您展示可以在关卡内放置这些Actor的各种方法。 
 
 [TOC(start:2)]
 
-## 概述
-
 [EXCERPT:Place01]
-每个地图刚开始时都是个白板。要想构建期望的环境或者布置世界，您就必须把actors放置到地图中。您可以使用两种不同的方法来完成这个处理，但是这两种方法都要用到 **内容浏览器** 。这两种方法都会创建某个特定类的一个新实例。然后您可以到处移动该实例或者修改它的属性。
-
-以下详述了把新Actor放置到地图中的不同方法。
+当您创建一个新项目时，打开项目时所加载的关卡通常是一个空白板。要构建所需的环境或填充场景，您必须在关卡中放置 **Actor**。您可以通过两种不同的方法来实现这一点，这两种方法都涉及到使用 **内容浏览器（Content Browser）**并创建一个新的Actor实例。然后可以移动关卡中的每个实例，或者修改其属性。
 [/EXCERPT:Place01]
 
 [REGION:note]
-当将Actor添加到您的关卡中时，也会将该Actor自动添加到场景大纲视图的列表中。场景大纲视图是一个面板，默认显示在虚幻编辑器左下角。关于场景大纲视图的更多信息，请参照[](Engine/UI/LevelEditor\SceneOutliner)。
+在关卡中添加Actor还会自动将它们添加到 **世界大纲视图（World Outliner）** 中的列表中，该列表是一个面板，默认位于虚幻编辑器右上角。有关 **世界大纲视图（World Outliner）** 的更多信息，请参阅 [世界大纲视图](Engine/UI/LevelEditor\SceneOutliner)。
 [/REGION]
 
-## 在放置模式中放置Actor
+## 在放置模式下放置Actor
 
 [EXCERPT:PlaceMode]
-在启用‘Place（放置）’模式的情况下，您可以通过从该面板中拖拽Actor到一个视口中来放置Actor。
+本节将向您显示如何在[放置模式](Engine/UI/LevelEditor/Modes/PlaceMode)时从 **模式（Modes）** 菜单放置Actor。 
 
-[REGION:fullwidth]
-![](place_mode_drag.png)
-[/REGION]
+1.  打开项目后，您将在屏幕的左上角看到 **模式（Modes）** 窗口。 
+
+	![](Place0.png)
+
+1.	当在 **放置（Place）** 模式(1)时，单击 **基本（Basic）** 选项卡(2)，然后 **左键单击** 并拖动Actor (3) 到 **关卡视口（Level Viewport）** 中。 
+
+	![](Place1.png)
+
+	在 **放置（Place）** 模式的每个选项卡上显示的每个Actor都可以拖放到关卡中。 
 [/EXCERPT:PlaceMode]
 
-## 使用关联菜单放置Actor
+## 使用上下文菜单放置Actor
 
-另一个方法是，您可以通过在 **内容浏览器** 中选择要添加的Actor，然后使用关联菜单将其添加到视口中。
+本节将演示如何通过 **上下文菜单** 从[内容浏览器](Engine/Content/Browser)将Actor放置在关卡中。 
 
-**使用关联菜单将Actor添加到您地图中:**
-* 在 **内容浏览器** 中选择该资源。
-* 在视口中右键点击来调出关联菜单。
-* 在关联菜单的 **Add Actor（添加Actor）**  部分选择该资源的名称。
+1.  在项目中，您将在屏幕的左上角看到 **内容浏览器（Content Browser）**。 
 
-	![Add Asset Context Menu](LE_Place_FromCB_2.png)
+	![](Place2.png)
 
-即时当您在 **内容浏览器** 中选择了一个特定资源时，您也可以选择添加一种不同类型的资源。通过打开该关联菜单的 **Add Actor(添加Actor)** 部分的弹出式菜单，您将看到可以添加的资源类型。
+1.	找到您想要放置的资源，可以是：**蓝图（Blueprints）**、**静态网格体（Static Meshes）**、**粒子效果（Particle Effects）**、**Sound Cue（Sound Cues）**、**骨架网格体（Skeletal Meshes）** 等等。
 
-![Add Asset Flyout](LE_Place_Flyout.png)
+1.	**左键单击** 该资源，使其高亮显示。 
 
-[REGION:tip]
-如果您在视口中选择了一个或多个Actor，并在 **内容浏览器** 中选择了一个资源，那么您可以选择将选中的Actor替换为选中的资源，只需通过在该关联菜单的 **Replace Selected Actors with（替换选中的Actor为）** 部分点击该资源的名称即可。
-[/REGION]
+	![](Place3.png)
 
-从 **内容浏览器** 放置到地图中的常见资源类型包括：
+1.	在 **关卡视口（Level Viewport）** 中，**右键单击** 任意位置以显示 **上下文菜单（Context Menu）**，然后在 **放置Actor（Place Actor）** 部分下选择该资源。
 
-* 蓝图
-* 粒子系统
-* 骨架网格物体
-* Sound Cue（声效）
-* 声音波形
-* 静态网格物体
+	![](Place4.png)
+
+	从 **上下文菜单（Context Menu）** 选择该资源后，您将看到它出现在关卡中。 
+
+您还可以选择添加不同类型的资产，即便您在 **内容浏览器（Content Browser）** 中选择了一个特定的资源。您可以通过在 **上下文菜单（Context Menu）** 的 **添加Actor（Add Actor）** 部分打开弹出菜单，查看可以添加的资源类型，如下图所示。 
+
+![](PlaceActorSubMenu.png)
+
+如果您在 **视口（Viewport）** 中选择了一个或多个Actor，并在 **内容浏览器（Content Browser）** 中选择一个资源，您可以通过在 **上下文菜单（Context Menu）** 的 **替换选中的Actor（Replace Selected Actors）** 部分中单击选中资源的名称，用该资源替换关卡中选中的Actor，如下图所示。如果您想要进行全面的更改并一次性切换多个资源，该功能可能十分有用。 
+
+![](ReplaceMenu.png)
 
 
-## 使用拖拽并放置操作来放置Actor
+## 使用拖放放置Actor
 
-除了通过视口关联菜单从 **内容浏览器*** 内将特定的类型的actor添加到地图中外，也可以通过从内容浏览器中简单地拖拽资源并将其放置到视口中您想放置actor的地方来实现。当您开始拖拽资源到视口中时，光标将会改变，以便您可以知道要添加到视口中的资源类型。
+除了能够通过 **视口上下文菜单（Viewport Context Menu）** 从 **内容浏览器（Content Browser）** 将特定类型的Actor添加到关卡，您还可以通过从 **内容浏览器（Content Browser）** 将资源拖放到一个 **视口（Viewports）** 中的所需位置，来将Actor添加到关卡中。当您开始将该资源拖放到 **视口（Viewports）** 中时，光标将发生改变，以便您知道该类型的资源将被拖放到 **视口（Viewport）** 中。
 
-[REGION:tip]
-如果您向三位透视口中拖拽了一个静态网格物体，那么当您拖拽时将会看到静态网格物体Actor出现。这使得可以轻松地将Actor放置到您期望的地方。
-[/REGION]
+1.  在项目中，您将在屏幕的左上角看到 **内容浏览器（Content Browser）**。 
 
-[REGION:fullwidth]
-![Drag and Drop](LE_Place_DragDrop.png)
-[/REGION]
+	![](Place2.png)
 
-当从内容浏览器中拖放并放置资源时，将会为相关类型的资源创建以下类型的actors：
+1.	找到要添加的资源，然后 **左键单击** 它并将它 **拖放** 到 **关卡视口（Level Viewport）** 中。 
 
-* **蓝图** - 放置该蓝图的一个实例。
-* *Particle System（粒子系统）* - 放置一个发射器。
-* *Skeletal Meshes（骨架网格物体）* - 放置一个SkeletalMeshActor
-* *Static Meshes（静态网格物体）* -放置一个StaticMeshActor。
-* *Sound Cue（音效）* - 放置一个 AmbientSound
-* **Sound Wave(声音波形)** - 放置一个AmbientSound
+	![](Place5.png)
 
-## 放置指定类的Actor
+当您从 **内容浏览器（Content Browser）** 拖放资源时，将为关联的资源类型创建以下类型的Actor：
 
-如果您想添加一个指定类的资源，那么您可以通过展开 **内容浏览器** 的 源视图 (![](AssetTree_button.png) ，并选择 **Classes**  文件夹。一旦定位到了该类，您可以像添加其他资源那样添加它。
+* **蓝图（Blueprint）** - 放置蓝图的一个实例
+* **粒子系统（Particle System）** - 放置一个发射器
+* **骨架网格体（Skeletal Mesh）** - 放置一个骨架网格体Actor
+* **静态网格体（Static Mesh）** - 放置一个静态网格体Actor
+* **Sound Cue** - 放置一个环境音效
+* **音波（Sound Wave）** - 放置一个环境音效
 
-关于 **内容浏览器** 的更多信息，请参照 [](Engine/Content/Browser/UI)。
 
-## 从类别查看器中放置Actor
+## 从类查看器放置Actor
 
-任何类型的可放置Actor（在类别查看器中显示为蓝色）都可以通过类别查看器添加到地图中，类别查看器可以通过点击 **窗口** 菜单上的 **类别查看器** 来打开。
+放置Actor的一个更高级方法是使用 **类查看器（Class Viewer）**，它是编辑器使用的类的一个层级列表。
 
-[REGION:fullwidth]
-![The Class Viewer](LE_ClassViewer.png)
-[/REGION]
+1.  要打开 **类查看器（Class Viewer）**，单击 **窗口（Window）**，单击 **开发者工具（Developer Tools）**，然后在 **杂项（Miscellaneous）** 下选择 **类查看器（Class Viewer）**。 
 
-要想从类别查看器中添加资源，请在类别查看器中选择您想添加的Actor的类别，并将其拖拽到视口中。
+	![](Place6.png)
 
-关于 **类别查看器** 的更多信息，请参照  [](Engine/UI/ClassViewer)。
+	将打开 **类查看器（Class Viewer）** 窗口。 
+
+	![](Place7.png)
+
+	在该窗口中，任何可以放置在关卡中的Actor都将被着色为 **蓝色（Blue）**。 
+
+1.	选择要放置的资源，然后将它 **拖放** 在 **关卡视口（Level Viewport）** 中。 
+
+	![](Place8.png)
+
+有关使用 **类查看器（Class Viewer）** 的更多信息，请参阅[](Engine/UI/ClassViewer)文档。

@@ -1,16 +1,107 @@
-﻿INTSourceChangelist:1954663
+INTSourceChangelist:3530743
 Availability:Public
-Title: 属性
+Title:属性
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference
-Description:对游戏类创建和应用属性的参考。
+Description:关于为Gameplay类创建和实现属性的参考。
+type:reference
+skilllevel:beginner
+parent:Programming/UnrealArchitecture
+Version: 4.16
+tags:variable
+tags:UPROPERTY
+tags:UENUM
+tags:enum
+tags:bitmask
+tags:bitfield
 
+(#propertydeclaration)
 ## 属性声明
 
-UProperty变量通过标准C++语法及额外的描述符号进行声明，描述符号包括变量修饰符以及放置于声明上的元数据。
+属性使用标准的C++变量语法声明，前面用UPROPERTY宏来定义属性元数据和变量说明符。
 
 	UPROPERTY([specifier, specifier, ...], [meta(key=value, key=value, ...)])
 	Type VariableName;
 
-### 属性修饰符
+(#coredatatypes)
+## 核心数据类型
+
+(#integers)
+### 整数
+整数数据类型转换是“int”或“uint”后跟位大小。
+
+|变量类型 | 说明 |
+| ------------| -------------|
+| **uint8**	 | 8位无符号|
+| **uint16**	| 16位无符号|
+| **uint32**	| 32位无符号|
+| **uint64**	| 64位无符号|
+| **int8**	| 8位有符号|
+| **int16**	| 16位有符号|
+| **int32**	| 32位有符号|
+| **int64** | 64位有符号|
+
+(#asbitmasks)
+#### 作为位掩码
+整数属性现在可以位掩码形式公开给编辑器。要将整数属性标记为位掩码，只需在meta分段中添加“bitmask”即可，如下所示：
+
+	UPROPERTY(EditAnywhere, Meta = (Bitmask))
+	int32 BasicBits;
+
+添加此元标记将使整数作为下拉列表形式可供编辑，它们使用笼统命名标记（“Flag 1”、“Flag 2”、“Flag 3”等等），可以 
+单独打开或关闭。
+
+![](GenericBitmask.png)
+
+为了自定义位标记名称，首先必须使用“bitflags”元标记来创建UENUM：
+
+	UENUM(Meta = (Bitflags))
+	enum class EColorBits
+	{
+		ECB_Red,
+		ECB_Green,
+		ECB_Blue
+	};
+
+创建该UENUM后，可以使用“BitmaskEnum”元标记来引用它，如：
+
+	UPROPERTY(EditAnywhere, Meta = (Bitmask, BitmaskEnum = "EColorBits"))
+	int32 ColorFlags;
+
+完成这个更改后，下拉框中列出的位标记将使用列举类条目的名称和值。在上述示例中， ECB_Red 
+值为0，表示它被选中时将激活位0（将ColorFlags增加1）。ECB_Green对应于位1（将ColorFlags增加2），ECB_Blue 
+对应于位2（将ColorFlags增加4）。
+
+![](CustomBitmask.png)
+
+[REGION:note]虽然列举类型包含超过32个条目，但在属性编辑器UI中，位掩码关联中只会看到 
+前32个值。同样，虽然可接受显式值条目，但显式值介于0-31的条目不会包含在下拉列表中。[/REGION]
+
+(#floatingpointtypes)
+### 浮点类型
+虚幻使用标准C++浮点类型、浮点和双精度。
+
+(#booleantypes)
+### 布尔类型
+布尔类型可以使用C++ ool关键字表示或表示为位域。
+
+	uint32 bIsHungry :1;
+	bool bIsThirsty;
+
+(#strings)
+### 字符串
+虚幻引擎4支持三种核心类型的字符串。
+* FString是典型的“动态字符数组”字符串类型。
+* FName是对全局字符串表中不可变且不区分大小写的字符串的引用。相较于FString，它的大小更小，更能高效的传递，但更难以操控。
+* FText是指定用于处理本地化的更可靠的字符串表示。
+
+对于大多数情况下，虚幻依靠TCHAR类型来表示字符。TEXT()宏可用于表示TCHAR文字。
+
+	MyDogPtr->DogName = FName(TEXT("Samson Aloysius"));
+
+有关这三种字符串类型、何时使用哪个类型以及如何使用它们的更多信息，请参阅[字符串处理文档](Programming/UnrealArchitecture/StringHandling)。
+
+(#propertyspecifiers)
+## 属性说明符
 
 [INCLUDE:Programming/UnrealArchitecture/Reference/Properties/Specifiers#main(offset:2)]
+

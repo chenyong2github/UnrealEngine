@@ -4,7 +4,7 @@ Crumbs: %ROOT%, Engine, Engine/Performance
 Description:パッケージ化したゲームのサイズを小さくする
 Skilllevel:Intermediate
 Version:4.12
-Related:Platforms/Android/ReducingAPKSize
+Related:Platforms/Mobile/Android/ReducingAPKSize
 Parent:Engine/Performance
 topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
 

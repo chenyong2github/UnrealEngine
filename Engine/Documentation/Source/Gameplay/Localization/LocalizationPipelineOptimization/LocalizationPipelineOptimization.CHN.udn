@@ -1,0 +1,52 @@
+﻿INTSourceChangelist:5662025
+Availability: Public
+Crumbs: 
+Title: 管道优化
+Description: 
+Type: 
+Version: 4.21
+Parent: Gameplay/Localization
+Order: 7
+Tags: Localization
+Tags: pipeline optimization
+
+
+(#gatheringassets)
+
+## 收集资源
+
+资源收集是使用最多资源的本地化管道的一部分。这是因为本地化通常必须加载资源（及其依赖项）来提取其中包含的本地化文本值。为了最大限度减少收集期间实际需要加载的资源数量，虚幻引擎4(UE4)在资源文件的标头中添加了一个“收集缓存”（在您保存时生成），这意味着只需要加载资源标头就可以收集文本。 
+
+转到内容浏览器中的 **资源本地化（Asset Localization）** 菜单并选择 **显示本地化缓存（Show Localization Cache）** 即可查看资源的当前缓存。  
+![](PipelineOpt-01.png)
+
+由于使用字节码，某些类型的资源（例如蓝图或具有非空白关卡蓝图的关卡）无法生成收集缓存。这是因为UE4从字节码中收集文本值，但字节码太不稳定，无法在保存时可靠缓存。
+
+在资源收集期间，由于字节码而未缓存的资源总数将打印到日志中。如果您发现您的资源收集花费了大部分时间从包含字节码的资源中收集，那么您可以考虑将这些资源中的文本移动到字符串表中，以便引用这些条目。
+
+[REGION:note]
+在资源收集期间，只加载包含传递“FText::ShouldGatherForLocalization”的序列化文本值的资源。文化不变文本、空白文本、只包含空格的文本以及字符串表引用都无法通过此检查。这就是为什么使用字符串表可以提高资源收集性能。
+[/REGION]
+
+(#validatingassetcaches)
+
+## 验证资源缓存
+
+有一些工具可用于帮助报告或修复项目中资源上陈旧和丢失的收集缓存。这些工具需要一段时间来运行，因为它们需要将所有资源加载到内存中。但是，如果您有大量未缓存的资源，他们可以大幅降低未来的开销。这些工具在正常的本地化Commandlet中作为额外参数运行。
+
+ **示例：**
+
+    -run=GatherText-config=Config/Localization/Game_Gather.ini 
+    -ReportStaleGatherCache
+
+[REGION:note]
+如果要从低于4.20的虚幻引擎4版本升级项目，至少应该运行“ReportStaleGatherCache”来验证缓存是最新缓存，因为陈旧的缓存可能会导致本地化问题。
+[/REGION]
+
+这些选项未在本地化控制板中公开。相反，您必须使用控制板为本地化目标生成的收集INI文件，并手动运行本地化Commandlet。
+
+| 参数 | 说明 |
+| --- | --- |
+| **ReportStaleGatherCache** | 为本地化目标生成一个“StaleGatherCacheReport.txt”文件及清单。该文件包含所有包含陈旧收集缓存的资源的列表。|
+| **FixStaleGatherCache** | 尝试通过重新保存所有包含陈旧收集缓存的资源来自动修复。|
+| **FixMissingGatherCache** | 对于太旧而无法拥有收集缓存的资源，它尝试通过重新保存丢失收集缓存的资源来自动修复。|

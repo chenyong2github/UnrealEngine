@@ -55,10 +55,14 @@ namespace UnrealGameSync
 
 			if(bStrongAlert ?? false)
 			{
-				Color StripeColor = bIsWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(214, 69, 64);
-				using(Brush StripeBrush = new SolidBrush(StripeColor))
+				Color StripeColor = bIsWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(200, 74, 49);//214, 69, 64);
+				using (Brush StripeBrush = new SolidBrush(StripeColor))
 				{
 					e.Graphics.FillRectangle(StripeBrush, 0, 0, Bounds.Width, Bounds.Height);
+				}
+				using (Pen Pen = new Pen(Color.FromArgb(255, 255, 255)))
+				{
+					e.Graphics.DrawRectangle(Pen, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
 				}
 			}
 			else
@@ -95,9 +99,16 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				if(String.Compare(NewIssue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0 && NewIssue.NominatedBy != null)
+				if(String.Compare(NewIssue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0)
 				{
-					OwnerTextBuilder.AppendFormat("You have been nominated to fix this issue by {0}.", Utility.FormatUserName(NewIssue.NominatedBy));
+					if(NewIssue.NominatedBy != null)
+					{
+						OwnerTextBuilder.AppendFormat("You have been nominated to fix this issue by {0}.", Utility.FormatUserName(NewIssue.NominatedBy));
+					}
+					else
+					{
+						OwnerTextBuilder.AppendFormat("Assigned to {0}.", Utility.FormatUserName(NewIssue.Owner));
+					}
 					bNewStrongAlert = true;
 				}
 				else
@@ -106,6 +117,10 @@ namespace UnrealGameSync
 					if(NewIssue.NominatedBy != null)
 					{
 						OwnerTextBuilder.AppendFormat(" by {0}", Utility.FormatUserName(NewIssue.NominatedBy));
+					}
+					if(!NewIssue.AcknowledgedAt.HasValue && (NewReason & IssueAlertReason.UnacknowledgedTimer) != 0)
+					{
+						OwnerTextBuilder.Append(" (not acknowledged)");
 					}
 					OwnerTextBuilder.Append(".");
 				}
@@ -117,12 +132,20 @@ namespace UnrealGameSync
 
 			Issue = NewIssue;
 
-			if(NewIssue.Summary != SummaryLabel.Text || OwnerText != OwnerLabel.Text || Reason != NewReason || bIsWarning != bNewIsWarning || bStrongAlert != bNewStrongAlert)
+			string Summary = NewIssue.Summary;
+
+			int MaxLength = 128;
+			if(Summary.Length > MaxLength)
+			{
+				Summary = Summary.Substring(0, MaxLength).TrimEnd() + "...";
+			}
+
+			if(Summary != SummaryLabel.Text || OwnerText != OwnerLabel.Text || Reason != NewReason || bIsWarning != bNewIsWarning || bStrongAlert != bNewStrongAlert)
 			{
 				Rectangle PrevBounds = Bounds;
 				SuspendLayout();
 
-				SummaryLabel.Text = NewIssue.Summary;
+				SummaryLabel.Text = Summary;
 				OwnerLabel.Text = OwnerText;
 
 				bool bForceUpdateButtons = false;
@@ -135,6 +158,7 @@ namespace UnrealGameSync
 						SummaryLabel.ForeColor = Color.FromArgb(255, 255, 255);
 						SummaryLabel.LinkColor = Color.FromArgb(255, 255, 255);
 						OwnerLabel.ForeColor = Color.FromArgb(255, 255, 255);
+						DetailsBtn.Theme = AlertButtonControl.AlertButtonTheme.Strong;
 						AcceptBtn.Theme = AlertButtonControl.AlertButtonTheme.Strong;
 						LatestBuildLinkLabel.LinkColor = Color.FromArgb(255, 255, 255);
 					}
@@ -143,6 +167,7 @@ namespace UnrealGameSync
 						SummaryLabel.ForeColor = Color.FromArgb(32, 32, 64);
 						SummaryLabel.LinkColor = Color.FromArgb(32, 32, 64);
 						OwnerLabel.ForeColor = Color.FromArgb(32, 32, 64);
+						DetailsBtn.Theme = AlertButtonControl.AlertButtonTheme.Normal;
 						AcceptBtn.Theme = AlertButtonControl.AlertButtonTheme.Green;
 						LatestBuildLinkLabel.LinkColor = Color.FromArgb(16, 102, 192);
 					}
@@ -160,10 +185,7 @@ namespace UnrealGameSync
 					Reason = NewReason;
 
 					List<Button> Buttons = new List<Button>();
-					if(!bStrongAlert.Value)
-					{
-						Buttons.Add(DetailsBtn);
-					}
+					Buttons.Add(DetailsBtn);
 					if((NewReason & IssueAlertReason.Owner) != 0)
 					{
 						AcceptBtn.Text = "Acknowledge";
@@ -174,6 +196,11 @@ namespace UnrealGameSync
 						AcceptBtn.Text = "Will Fix";
 						Buttons.Add(AcceptBtn);
 						DeclineBtn.Text = "Not Me";
+						Buttons.Add(DeclineBtn);
+					}
+					else
+					{
+						DeclineBtn.Text = "Dismiss";
 						Buttons.Add(DeclineBtn);
 					}
 

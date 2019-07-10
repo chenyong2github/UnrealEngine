@@ -1,13 +1,7 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6413741
 Availability:Public
 Title:材质 - 操作指南
-Crumbs:%ROOT%, Engine, Engine/Rendering/Materials
 Description:有关使用 Unreal Engine 4 中材质编辑器的各个方面的操作指南。 
-prereq: Engine/Rendering/Materials/Editor/Interface
-prereq: Engine/Rendering/Materials/MaterialInputs
-prereq: Engine/Rendering/Materials/Editor
-prereq: Engine/Rendering/Materials/IntroductionToMaterials
-prereq: Engine/Rendering/Materials/MaterialProperties
 Version: 4.15
 parent:Engine/Rendering/Materials
 order:3
@@ -22,7 +16,6 @@ tags:Materials
 
 从有关如何正确设置人体皮肤的提示，到分层材质使用技巧，操作教程对于想要进一步了解 UE4 材质编辑器的每个人都不可错过。
 
-(#CreatingaNewProject)
 ## 创建新项目
 
 如果您尚未创建新项目，请通过下列步骤创建新的 **Third Person** 项目。 
@@ -46,7 +39,6 @@ tags:Materials
 1. 定义上述每一项设置之后，单击 **创建项目（Create Project）**以创建新项目。 
 
 
-(#MaterialHow-To's)
 ## 材质操作指南 
 
 下面列出的操作指南涵盖有关材质的各种主题。 
@@ -54,17 +46,14 @@ tags:Materials
 
 [/COMMENT]
 
-(#StartingOut)
 ## 入门
 
 [DIR(output:"fancy" parent:"Engine/Rendering/Materials/HowTo" skill_level:"Beginner")]
 
-(#DoingMorewithMaterials)
 ## 进一步运用材质
 
 [DIR(output:"fancy" parent:"Engine/Rendering/Materials/HowTo" skill_level:"Intermediate")]
 
-(#PuttingItAllTogether)
 ## 通汇贯通
 
 [DIR(output:"fancy" parent:"Engine/Rendering/Materials/HowTo" skill_level:"Advanced")]

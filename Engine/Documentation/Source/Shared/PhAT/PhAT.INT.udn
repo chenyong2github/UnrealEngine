@@ -13,7 +13,7 @@ Also you can check to see how long the Physics Asset takes to come to rest and s
 ![](PhAT_Sim.png)
 
 [VAR:ToolTipFullLink]
-Engine\Physics\PhAT\UserGuide#testing
+Engine\Physics\PhysicsAssetEditor\UserGuide#testing
 [/VAR]
 
 [/EXCERPT:SimulationNormal]
@@ -32,7 +32,7 @@ Without gravity, unless some Physics Bodies are interpenetrating, the Physics As
 ![](PhAT_Sim.png)
 
 [VAR:ToolTipFullLink]
-Engine\Physics\PhAT\UserGuide#testing
+Engine\Physics\PhysicsAssetEditor\UserGuide#testing
 [/VAR]
 
 [/EXCERPT:SimulationNoGravity]
@@ -146,7 +146,7 @@ This will enable collision between two Physics Bodies in the Physics Asset. The 
 
 Physics Bodies that the currently selected Physics Body can collide with will appear bluish, while ones that will not collide are gray. Yellow Physics Bodies are welded to the currently selected Physics Body.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
+Engine/Physics/PhysicsAssetEditor/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 [/VAR]
 [/EXCERPT:EnableCollision]
 
@@ -161,7 +161,7 @@ This will disable collision between two Physics Bodies in the Physics Asset. The
 
 Physics Bodies that the currently selected Physics Body can collide with will appear bluish, while ones that will not collide are gray. Yellow Physics Bodies are welded to the currently selected Physics Body.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
+Engine/Physics/PhysicsAssetEditor/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 [/VAR]
 [/EXCERPT:DisableCollision]
 
@@ -173,7 +173,7 @@ Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 
 Yellow Physics Bodies are welded to the currently selected Physics Body.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#welding
+Engine/Physics/PhysicsAssetEditor/UserGuide#welding
 [/VAR]
 [/EXCERPT:WeldToBody]
 
@@ -218,7 +218,7 @@ If "Physics Blend" in the Anim category of the Physics Asset Tools options (dese
 
 Sets the Constraint's properties to mimic the motion of a Ball and Socket Joint. Locked linear motion but free angular motion on all axes.
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToBallAndSocket]
 
@@ -228,7 +228,7 @@ Sets the Constraint's properties to mimic the motion of a Hinge Joint. Locked li
 
 Using the "Q" key will cycle which axis is the hinge.
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToHinge]
 
@@ -238,7 +238,7 @@ Sets the Constraint's properties to mimic the motion of a Prismatic Joint. Locke
 
 Using the "Q" will cycle which axis is the prismatic axis.
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToPrismatic]
 
@@ -248,7 +248,7 @@ Sets the Constraint's properties to mimic the motion of a Skeletal Joint. Locked
 
 Using the "Q" key will cycle which axis is the Twist Motion axis.
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToSkeletal]
 

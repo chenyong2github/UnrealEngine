@@ -7,11 +7,14 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Features/IModularFeatures.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IXRTrackingSystem.h"
 #include "RemoteSession/RemoteSession.h"
 #include "RemoteSession/Channels/RemoteSessionInputChannel.h"
 #include "RemoteSession/Channels/RemoteSessionFrameBufferChannel.h"
 #include "RemoteSession/Channels/RemoteSessionXRTrackingChannel.h"
+#include "Roles/LiveLinkTransformRole.h"
+#include "Roles/LiveLinkTransformTypes.h"
 #include "VirtualCamera.h"
 #include "VPGameMode.h"
 #include "VPRootActor.h"
@@ -286,11 +289,15 @@ bool AVirtualCameraPlayerControllerBase::GetCurrentTrackerLocationAndRotation(FV
 		case ETrackerInputSource::LiveLink:
 			if (LiveLinkClient)
 			{
-				const FLiveLinkSubjectFrame* CurrentFrame = LiveLinkClient->GetSubjectData(LiveLinkTargetName);
-				if (CurrentFrame && CurrentFrame->Transforms.Num() > 0)
+				FLiveLinkSubjectFrameData EvaluateData;
+				if (LiveLinkClient->EvaluateFrame_AnyThread(LiveLinkTargetName, ULiveLinkTransformRole::StaticClass(), EvaluateData))
 				{
-					OutTrackerLocation = CurrentFrame->Transforms[0].GetLocation();
-					OutTrackerRotation = CurrentFrame->Transforms[0].GetRotation().Rotator();
+					FLiveLinkTransformFrameData* TransformFrameData = EvaluateData.FrameData.Cast<FLiveLinkTransformFrameData>();
+					if (TransformFrameData)
+					{
+						OutTrackerLocation = TransformFrameData->Transform.GetLocation();
+						OutTrackerRotation = TransformFrameData->Transform.GetRotation().Rotator();
+					}
 				}
 				return true;
 			}
@@ -440,40 +447,21 @@ void AVirtualCameraPlayerControllerBase::PilotTargetedCamera(AVirtualCameraPawnB
 	}
 
 	bool bAssignValues = false;
-	FConcertVirtualCameraCameraEvent CameraEvent;
+	FConcertVirtualCameraControllerEvent CameraEvent;
 	if (bCachedIsVirtualCameraControlledByRemoteSession)
 	{
 		CameraEvent.InputSource = InputSource;
+		CameraEvent.CameraData = FConcertVirtualCameraCameraData(PawnToFollow, CameraToFollow);
 
-		CameraEvent.CameraActorLocation = PawnToFollow->GetActorLocation();
-		CameraEvent.CameraActorRotation = PawnToFollow->GetActorRotation();
-		CameraEvent.CameraComponentLocation = CameraToFollow->RelativeLocation;
-		CameraEvent.CameraComponentRotation = CameraToFollow->RelativeRotation;
-
-		CameraEvent.CurrentAperture = CameraToFollow->CurrentAperture;
-		CameraEvent.CurrentFocalLength = CameraToFollow->CurrentFocalLength;
-		CameraEvent.FocusSettings = FConcertVirtualCameraCameraFocusData(CameraToFollow);
-		CameraEvent.LensSettings = CameraToFollow->LensSettings;
-		CameraEvent.FilmbackSettings = CameraToFollow->DesiredFilmbackSettings;
-
-		IVirtualCameraModule::Get().GetConcertVirtualCameraManager()->SendCameraEventData(CameraEvent);
+		IVirtualCameraModule::Get().GetConcertVirtualCameraManager()->SendControllerCameraEvent(CameraEvent);
 		bAssignValues = true;
 	}
 	else
 	{
-		bAssignValues = IVirtualCameraModule::Get().GetConcertVirtualCameraManager()->GetLatestCameraEventData(CameraEvent);
+		bAssignValues = IVirtualCameraModule::Get().GetConcertVirtualCameraManager()->GetLatestControllerCameraEvent(CameraEvent);
 		if (bAssignValues)
 		{
-			PawnToFollow->SetActorLocationAndRotation(CameraEvent.CameraActorLocation, CameraEvent.CameraActorRotation);
-			if (bCachedShouldUpdateTargetCameraTransform)
-			{
-				CameraToFollow->SetRelativeLocationAndRotation(CameraEvent.CameraComponentLocation, CameraEvent.CameraComponentRotation);
-			}
-			CameraToFollow->CurrentAperture = CameraEvent.CurrentAperture;
-			CameraToFollow->CurrentFocalLength = CameraEvent.CurrentFocalLength;
-			CameraToFollow->FocusSettings = CameraEvent.FocusSettings.ToCameraFocusSettings();
-			CameraToFollow->LensSettings = CameraEvent.LensSettings;
-			CameraToFollow->DesiredFilmbackSettings = CameraEvent.FilmbackSettings;
+			CameraEvent.CameraData.ApplyTo(PawnToFollow, CameraToFollow, bCachedShouldUpdateTargetCameraTransform);
 
 			if (CameraEvent.InputSource != InputSource)
 			{
@@ -485,7 +473,7 @@ void AVirtualCameraPlayerControllerBase::PilotTargetedCamera(AVirtualCameraPawnB
 	// Copy the info to the camera target camera
 	if (bAssignValues)
 	{
-		TargetCameraActor->SetActorLocationAndRotation(CameraEvent.CameraActorLocation, CameraEvent.CameraActorRotation);
+		TargetCameraActor->SetActorLocationAndRotation(CameraEvent.CameraData.CameraActorLocation, CameraEvent.CameraData.CameraActorRotation);
 		TargetCameraComponent->CurrentAperture = CameraToFollow->CurrentAperture;
 		TargetCameraComponent->CurrentFocalLength = CameraToFollow->CurrentFocalLength;
 		TargetCameraComponent->FocusSettings = CameraToFollow->FocusSettings;
@@ -1402,4 +1390,9 @@ bool AVirtualCameraPlayerControllerBase::ToggleAxisLock(const EVirtualCameraAxis
 	}
 
 	return false;
+}
+
+void AVirtualCameraPlayerControllerBase::ActivateGameViewport()
+{
+	FSlateApplication::Get().ActivateGameViewport();
 }

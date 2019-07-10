@@ -1,0 +1,66 @@
+﻿INTSourceChangelist:3721197
+Availability:Public
+Title:2.UE4 を SteamVR で使用するための設定
+Crumbs:%ROOT%, Platforms/VR/SteamVR
+Description:SteamVR と UE4 を連携させる設定方法
+Navigation:platform
+Version:4.17
+Skilllevel:Beginner
+Platform:SteamVR
+type:multi-step
+parent:Platforms/VR/SteamVR/QuickStart
+order:2
+Checkpoint:SteamVRQS
+tags:SteamVR
+
+[nav]
+
+次のセクションでは、新規アンリアル エンジン (UE4) プロジェクトと Steam VR を連携させるための設定方法を説明します。
+
+## ステップ
+
+[region:note]
+SteamVR の **Room Setup** を実行して VR トラック エリアの確立とキャリブレートを必ず行っておいてください。 
+これを行わないと、StreamVR と UE4 が正しく連動しません。
+[/region]
+
+1. ハードウェアが **[Mobile / Tablet]**、グラフィックスが **[Scalable 3D or 2D]**、**[No Starter Content]** の設定で、ブループリント ベースのブランクのプロジェクトを新規作成します。
+
+	[REGION:lightbox]
+	[![](T_CreateNewProject.png)(w:555)](T_CreateNewProject.png)
+	[/REGION]
+
+	[REGION:caption]
+	クリックしてフルサイズで表示
+	[/REGION]
+
+1. プロジェクトがロードされたら、**[Play (プレイ)]** ボタンの横の小さい三角をクリックし、表示されたメニューから **[VR Preview]** オプションを選択します。 
+
+	![](Check_VR_Working_00.png)
+
+1. VR プレビューの起動時に HMD を装着すると、基本レベルが表示され、以下の動画のように頭を自由に回すことができるようになります。
+
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		4xuNrwS3o-c
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+
+## 結果
+
+完了すると、SteamVR と HTC Vive HMDUE4 を使ってプロジェクトを表示できるようになります。
+
+[nav]
+

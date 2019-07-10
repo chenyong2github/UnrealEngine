@@ -233,8 +233,24 @@ void FTransaction::FObjectRecord::Load(FTransaction* Owner)
 
 		if (CustomChange.IsValid())
 		{
-			TUniquePtr<FChange> InvertedChange = CustomChange->Execute( Object.Get() );
-			CustomChange = MoveTemp( InvertedChange );
+			if (CustomChange->GetChangeType() == FChange::EChangeStyle::InPlaceSwap)
+			{
+				TUniquePtr<FChange> InvertedChange = CustomChange->Execute(Object.Get());
+				ensure(InvertedChange->GetChangeType() == FChange::EChangeStyle::InPlaceSwap);
+				CustomChange = MoveTemp(InvertedChange);
+			}
+			else
+			{
+				bool bIsRedo = (Owner->Inc == 1);
+				if (bIsRedo)
+				{
+					CustomChange->Apply(Object.Get());
+				}
+				else
+				{
+					CustomChange->Revert(Object.Get());
+				}
+			}
 		}
 		else
 		{
@@ -457,8 +473,8 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 		// Compare the data before the property block to see if something else in the object has changed
 		if (!OutDeltaChange.bHasNonPropertyChanges)
 		{
-			const int32 OldHeaderSize = StartOfOldPropertyBlock;
-			const int32 CurrentHeaderSize = StartOfNewPropertyBlock;
+			const int32 OldHeaderSize = FMath::Min(StartOfOldPropertyBlock, OldSerializedObject.Data.Num());
+			const int32 CurrentHeaderSize = FMath::Min(StartOfNewPropertyBlock, NewSerializedObject.Data.Num());
 
 			bool bIsHeaderIdentical = OldHeaderSize == CurrentHeaderSize;
 			if (bIsHeaderIdentical && CurrentHeaderSize > 0)
@@ -475,8 +491,8 @@ void FTransaction::FObjectRecord::Diff( const FTransaction* Owner, const FSerial
 		// Compare the data after the property block to see if something else in the object has changed
 		if (!OutDeltaChange.bHasNonPropertyChanges)
 		{
-			const int32 OldFooterSize = OldSerializedObject.Data.Num() - EndOfOldPropertyBlock;
-			const int32 CurrentFooterSize = NewSerializedObject.Data.Num() - EndOfNewPropertyBlock;
+			const int32 OldFooterSize = OldSerializedObject.Data.Num() - FMath::Max(EndOfOldPropertyBlock, 0);
+			const int32 CurrentFooterSize = NewSerializedObject.Data.Num() - FMath::Max(EndOfNewPropertyBlock, 0);
 
 			bool bIsFooterIdentical = OldFooterSize == CurrentFooterSize;
 			if (bIsFooterIdentical && CurrentFooterSize > 0)
@@ -511,6 +527,20 @@ int32 FTransaction::GetRecordCount() const
 	return Records.Num();
 }
 
+bool FTransaction::IsTransient() const
+{
+	bool bHasChanges = false;
+	for (const FObjectRecord& Record : Records)
+	{
+		if (Record.ContainsPieObject())
+		{
+			return true;
+		}
+		bHasChanges |= Record.HasChanges();
+	}
+	return !bHasChanges;
+}
+
 bool FTransaction::ContainsPieObjects() const
 {
 	for( const FObjectRecord& Record : Records )
@@ -520,7 +550,6 @@ bool FTransaction::ContainsPieObjects() const
 			return true;
 		}
 	}
-
 	return false;
 }
 
@@ -690,6 +719,11 @@ bool FTransaction::FObjectRecord::ContainsPieObject() const
 		return true;
 	}
 	return false;
+}
+
+bool FTransaction::FObjectRecord::HasChanges() const
+{
+	return DeltaChange.HasChanged() || CustomChange;
 }
 
 void FTransaction::AddReferencedObjects( FReferenceCollector& Collector )
@@ -967,7 +1001,6 @@ void FTransaction::Finalize()
 			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::Finalized, DeltaChange, ChangedObjectTransactionAnnotation, InitialSerializedObject.ObjectName, InitialSerializedObject.ObjectPathName, InitialSerializedObject.ObjectOuterPathName, InitialSerializedObject.ObjectClassPathName));
 		}
 	}
-
 	ChangedObjects.Reset();
 }
 
@@ -1133,9 +1166,8 @@ int32 UTransBuffer::End()
 				TransactionStateChangedDelegate.Broadcast(GUndo->GetContext(), ETransactionStateEventType::TransactionFinalized);
 				GUndo->EndOperation();
 
-				// PIE objects now generate transactions.
-				// Once the transaction is finalized however, they aren't kept in the undo buffer.
-				if (GUndo->ContainsPieObjects())
+				// Once the transaction is finalized, remove it from the undo buffer if it's flagged as transient. (i.e contains PIE objects is no-op)
+				if (GUndo->IsTransient())
 				{
 					check(UndoCount == 0);
 					UndoBuffer.Pop(false);
@@ -1250,11 +1282,11 @@ void UTransBuffer::Cancel( int32 StartIndex /*=0*/ )
 bool UTransBuffer::CanUndo( FText* Text )
 {
 	CheckState();
-	if( ActiveCount )
+	if (ActiveCount)
 	{
-		if( Text )
+		if (Text)
 		{
-			*Text = NSLOCTEXT("TransactionSystem", "CantUndoDuringTransaction", "(Can't undo while action is in progress)");
+			*Text = GUndo ? FText::Format(NSLOCTEXT("TransactionSystem", "CantUndoDuringTransactionX", "(Can't undo while '{0}' is in progress)"), GUndo->GetContext().Title) : NSLOCTEXT("TransactionSystem", "CantUndoDuringTransaction", "(Can't undo while action is in progress)");
 		}
 		return false;
 	}
@@ -1272,7 +1304,7 @@ bool UTransBuffer::CanUndo( FText* Text )
 		}
 	}
 
-	if( UndoBuffer.Num()==UndoCount )
+	if (UndoBuffer.Num() == UndoCount)
 	{
 		if( Text )
 		{
@@ -1291,7 +1323,7 @@ bool UTransBuffer::CanRedo( FText* Text )
 	{
 		if( Text )
 		{
-			*Text = NSLOCTEXT("TransactionSystem", "CantRedoDuringTransaction", "(Can't redo while action is in progress)");
+			*Text = GUndo ? FText::Format(NSLOCTEXT("TransactionSystem", "CantRedoDuringTransactionX", "(Can't redo while '{0}' is in progress)"), GUndo->GetContext().Title) : NSLOCTEXT("TransactionSystem", "CantRedoDuringTransaction", "(Can't redo while action is in progress)");
 		}
 		return 0;
 	}

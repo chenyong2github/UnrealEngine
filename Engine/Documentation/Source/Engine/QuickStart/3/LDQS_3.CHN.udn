@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6077702
+Availability: docs
 Title:3 - 新建一个关卡
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:在这一步中，我们将创建一个用于构建样本区域的全新关卡。 
@@ -8,6 +8,8 @@ Version:4.9
 Related:Engine/Levels
 Related:Engine/Content/Browser
 checkpoint: editorqs
+
+## 页面已被合并，标记为docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

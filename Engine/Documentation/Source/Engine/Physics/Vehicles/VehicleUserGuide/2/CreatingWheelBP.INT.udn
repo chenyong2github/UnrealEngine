@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 crumbs:%ROOT%
 Title: 2 - Creating a TireConfig Data Asset and Wheel Blueprint
 Description: In this step, we'll create the TireConfig Data Assets that we can use with our Wheel Blueprints for our Vehicle. 

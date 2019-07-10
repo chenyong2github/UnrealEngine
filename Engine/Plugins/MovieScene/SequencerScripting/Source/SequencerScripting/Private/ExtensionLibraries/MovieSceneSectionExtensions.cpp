@@ -93,7 +93,7 @@ void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, int32 S
 		}
 		else
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+			FFrame::KismetExecutionMessage(TEXT("Invalid range specified"), ELogVerbosity::Error);
 		}
 	}
 }
@@ -115,7 +115,7 @@ void UMovieSceneSectionExtensions::SetRangeSeconds(UMovieSceneSection* Section, 
 		}
 		else
 		{
-			UE_LOG(LogMovieScene, Error, TEXT("Invalid range specified"));
+			FFrame::KismetExecutionMessage(TEXT("Invalid range specified"), ELogVerbosity::Error);
 		}
 	}
 }
@@ -225,7 +225,7 @@ TArray<UMovieSceneScriptingChannel*> UMovieSceneSectionExtensions::GetChannels(U
 	TArray<UMovieSceneScriptingChannel*> Channels;
 	if (!Section)
 	{
-		UE_LOG(LogMovieScene, Error, TEXT("Cannot get channels for null section"));
+		FFrame::KismetExecutionMessage(TEXT("Cannot get channels for null section"), ELogVerbosity::Error);
 		return Channels;
 	}
 	FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
@@ -250,8 +250,8 @@ TArray<UMovieSceneScriptingChannel*> UMovieSceneSectionExtensions::FindChannelsB
 	TArray<UMovieSceneScriptingChannel*> Channels;
 	if (!Section)
 	{
- 		UE_LOG(LogMovieScene, Error, TEXT("Cannot get channels for null section"));
- 		return Channels;
+		FFrame::KismetExecutionMessage(TEXT("Cannot get channels for null section"), ELogVerbosity::Error);
+		return Channels;
 	}
  
 	FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
@@ -268,7 +268,7 @@ TArray<UMovieSceneScriptingChannel*> UMovieSceneSectionExtensions::FindChannelsB
 	else if (ChannelType == UMovieSceneScriptingActorReferenceChannel::StaticClass())	{ GetScriptingChannelsForChannel<FMovieSceneActorReferenceData, UMovieSceneScriptingActorReferenceChannel>(ChannelProxy, Sequence, Channels); }
 	else
 	{
-		UE_LOG(LogMovieScene, Error, TEXT("Unsupported ChannelType for FindChannelsByType!"));
+		FFrame::KismetExecutionMessage(TEXT("Unsupported ChannelType for FindChannelsByType!"), ELogVerbosity::Error);
 	}
 
 
@@ -304,6 +304,12 @@ bool GetSubSectionChain(UMovieSceneSubSection* InSubSection, UMovieSceneSequence
 
 int32 UMovieSceneSectionExtensions::GetParentSequenceFrame(UMovieSceneSubSection* InSubSection, int32 InFrame, UMovieSceneSequence* ParentSequence)
 {
+	if (InSubSection == nullptr || ParentSequence == nullptr)
+	{
+		UE_LOG(LogMovieScene, Error, TEXT("UMovieSceneSectionExtension::GetParentSequenceFrame failed because either sub section or parent sequence is null! SubSection: %s ParentSequence: %s"), InSubSection ? *InSubSection->GetFullName() : TEXT("None"), ParentSequence ? *ParentSequence->GetFullName() : TEXT("None"));
+		return InFrame;
+	}
+
 	TArray<UMovieSceneSubSection*> SubSectionChain;
 	GetSubSectionChain(InSubSection, ParentSequence, SubSectionChain);
 		

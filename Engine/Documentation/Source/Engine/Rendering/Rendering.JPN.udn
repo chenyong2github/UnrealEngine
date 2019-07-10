@@ -7,10 +7,7 @@ Version:4.9
 parent:Engine
 order:1
 topic-image:rendering_topic.png
-
-[REGION:banner]
-![](rendering_banner.png)(convert:false)
-[/REGION]
+hero-image:rendering_full.png
 
 [INCLUDE:Engine/Rendering/Overview#Intro]
 

@@ -6,10 +6,6 @@
 #include "DisplayClusterOperationMode.h"
 
 
-class ADisplayClusterGameMode;
-class ADisplayClusterSettings;
-
-
 /**
  * Private manager interface
  */
@@ -19,6 +15,7 @@ public:
 	virtual ~IPDisplayClusterManager() = 0
 	{ }
 
+public:
 	// Called at start to initialize internals
 	virtual bool Init(EDisplayClusterOperationMode OperationMode)
 	{ return true; }

@@ -25,7 +25,7 @@ Tags:mobile
 アンリアル エンジン (UE4) はモバイル デバイス上で様々なライティング機能をサポートしています。この機能はパフォーマンスに負荷をかけるので、処理の遅いモバイル デバイス上ではゲームのパフォーマンスを下げる原因になります。UE4 のほとんどのライティング機能は混合や一致が可能である一方、 
 これらの機能を以下のティアに分類する場合に役立ちます。モバイル ゲームのビルド時には、要求されるゲームのグラフの品質、
 モバイル ゲームのビルド時には、要求されるゲームのグラフの品質、およびサポート対象のデバイスの種類をもとに、使う機能を決定してください。エピックでテスト済みのデバイスおよび最適性については、
-[iOS 開発](Platforms/iOS/DeviceCompatibility) のデバイス互換性と [Android 開発](Platforms/Android/DeviceCompatibility) を参照してください。
+[iOS 開発](Platforms/Mobile/iOS/DeviceCompatibility) のデバイス互換性と [Android 開発](Platforms/Mobile/Android/DeviceCompatibility) を参照してください。
 
 ###LDR (Low Dynamic Range)
 

@@ -109,10 +109,12 @@ struct FShadowMapAllocation
 				// TODO: We currently only support one LOD of static lighting in foliage
 				// Need to create per-LOD instance data to fix that
 				MeshBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias = ShadowMap->GetCoordinateBias();
-				int32 RenderIndex = (Component->InstanceReorderTable.IsValidIndex(InstanceIndex) && Component->InstanceReorderTable[InstanceIndex] != INDEX_NONE) ? Component->InstanceReorderTable[InstanceIndex] : InstanceIndex;
-
-				Component->InstanceUpdateCmdBuffer.SetShadowMapData(RenderIndex, MeshBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias);
-				Component->MarkRenderStateDirty();
+				int32 RenderIndex = Component->InstanceReorderTable.IsValidIndex(InstanceIndex) ? Component->InstanceReorderTable[InstanceIndex] : InstanceIndex;
+				if (RenderIndex != INDEX_NONE)
+				{
+					Component->InstanceUpdateCmdBuffer.SetShadowMapData(RenderIndex, MeshBuildData->PerInstanceLightmapData[InstanceIndex].ShadowmapUVBias);
+					Component->MarkRenderStateDirty();
+				}
 			}
 		}
 	}
@@ -174,7 +176,7 @@ struct FShadowMapPendingTexture : FTextureLayout
 	 * Minimal initialization constructor.
 	 */
 	FShadowMapPendingTexture(uint32 InSizeX,uint32 InSizeY)
-		: FTextureLayout(4, 4, InSizeX, InSizeY, /* PowerOfTwo */ true, /* Force2To1Aspect */ false, /* AlignByFour */ true) // Min size is 4x4 in case of block compression.
+		: FTextureLayout(4, 4, InSizeX, InSizeY, /* PowerOfTwo */ true, /* Aspect */ ETextureLayoutAspectRatio::None, /* AlignByFour */ true) // Min size is 4x4 in case of block compression.
 		, Bounds(FBox(ForceInit))
 		, ShadowmapFlags(SMF_None)
 		, UnallocatedTexels(InSizeX * InSizeY)

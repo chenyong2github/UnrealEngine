@@ -175,7 +175,7 @@ TSharedPtr<SClothPaintTab> FClothPaintingModule::GetActiveClothTab(TWeakPtr<ISke
 
 	// If we can't summon this tab we will have spawned a placeholder which we can not cast as done below,
 	// there is no valid active clothing tab so return nullptr
-	if(TabManager->CanSpawnTab(FClothPaintTabSummoner::TabName))
+	if(TabManager->HasTabSpawner(FClothPaintTabSummoner::TabName))
 	{
 		TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(FTabId(FClothPaintTabSummoner::TabName));
 

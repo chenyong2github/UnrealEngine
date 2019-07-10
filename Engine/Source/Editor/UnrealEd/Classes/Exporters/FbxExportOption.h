@@ -44,12 +44,16 @@ public:
 	uint32 VertexColor : 1;
 
 	/** If enabled, export the level of detail */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = StaticMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
 	uint32 LevelOfDetail : 1;
 
 	/** If enabled, export collision */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = StaticMesh)
 	uint32 Collision : 1;
+
+	/** If enabled, export the morph targets */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = SkeletalMesh)
+	uint32 bExportMorphTargets : 1;
 
 	/** If enable, the preview mesh link to the exported animations will be also exported. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Animation)

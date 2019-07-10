@@ -63,55 +63,60 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 	}
 
 	IRendererModule& RendererModule = GetRendererModule();
+	using TOpaqueBlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>;
+	using TAlphaBlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>;
 
 	// Set render state
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	bool bLastNoAlpha = (RenderThreadLayers[LayersToRender[0]].Flags & LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) != 0;
-	if (bLastNoAlpha)
-	{
-		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
-	}
-	else
-	{
-		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
-	}
 
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None, true, false>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 	RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 	RHICmdList.SetViewport(RenderParams.Viewport.Min.X, RenderParams.Viewport.Min.Y, 0, RenderParams.Viewport.Max.X, RenderParams.Viewport.Max.Y, 1.0f);
 
-	// Set shader state
+	// Set initial shader state
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 	TShaderMapRef<FStereoLayerVS> VertexShader(ShaderMap);
 	TShaderMapRef<FStereoLayerPS> PixelShader(ShaderMap);
+	TShaderMapRef<FStereoLayerPS_External> PixelShader_External(ShaderMap);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+	// Force initialization of pipeline state on first iteration:
+	bool bLastWasOpaque = (RenderThreadLayers[LayersToRender[0]].Flags & LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) == 0;
+	bool bLastWasExternal = (RenderThreadLayers[LayersToRender[0]].Flags & LAYER_FLAG_TEX_EXTERNAL) == 0;
 
 	// For each layer
 	for (uint32 LayerIndex : LayersToRender)
 	{
 		const FLayerDesc& Layer = RenderThreadLayers[LayerIndex];
 		check(Layer.Texture.IsValid());
-		const bool bNoAlpha = (Layer.Flags & LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) != 0;
-		if (bNoAlpha != bLastNoAlpha)
+		const bool bIsOpaque = (Layer.Flags & LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) != 0;
+		const bool bIsExternal = (Layer.Flags & LAYER_FLAG_TEX_EXTERNAL) != 0;
+		bool bPipelineStateNeedsUpdate = false;
+
+		if (bIsOpaque != bLastWasOpaque)
+		{
+			bLastWasOpaque = bIsOpaque;
+			GraphicsPSOInit.BlendState = bIsOpaque ? TOpaqueBlendState::GetRHI() : TAlphaBlendState::GetRHI();
+			bPipelineStateNeedsUpdate = true;
+		}
+
+		if (bIsExternal != bLastWasExternal)
+		{
+			bLastWasExternal = bIsExternal;
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = bIsExternal ? GETSAFERHISHADER_PIXEL(*PixelShader_External) : GETSAFERHISHADER_PIXEL(*PixelShader);
+			bPipelineStateNeedsUpdate = true;
+		}
+
+		if (bPipelineStateNeedsUpdate)
 		{
 			// Updater render state
-			if (bNoAlpha)
-			{
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_InverseSourceAlpha, BF_Zero>::GetRHI();
-			}
-			else
-			{
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
-			}
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			bLastNoAlpha = bNoAlpha;
 		}
 
 		FMatrix LayerMatrix = ConvertTransform(Layer.Transform);

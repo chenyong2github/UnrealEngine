@@ -848,7 +848,8 @@ void UWheeledVehicleMovementComponent::OnDestroyPhysicsState()
 
 		FPhysXVehicleManager* VehicleManager = FPhysXVehicleManager::GetVehicleManagerFromScene(GetWorld()->GetPhysicsScene());
 		VehicleManager->RemoveVehicle( this );
-		PVehicle = NULL;
+		PVehicle = nullptr;
+		PVehicleDrive = nullptr;
 
 		if(MeshOnPhysicsStateChangeHandle.IsValid())
 		{

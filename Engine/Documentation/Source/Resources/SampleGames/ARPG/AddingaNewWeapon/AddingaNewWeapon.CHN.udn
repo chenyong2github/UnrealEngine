@@ -1,0 +1,123 @@
+﻿INTSourceChangelist:6190051
+Availability: Public
+Title: 添加新的武器
+Description: 介绍了如何对动作RPG添加新的武器。
+Type: how-to
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+topic-image: image5.png
+SkillLevel: Intermediate
+Order: 6
+Related: Engine/Blueprints/UserGuide/Variables
+Related: Engine/Blueprints/Scripting
+Related: Programming/UnrealArchitecture/Actors/Components
+
+
+[TOC (start:2 end:2)]
+
+动作RPG（ARPG）默认给玩家提供一件可以用于战斗的武器。随着游戏进行，玩家会从他们消灭的敌人身上收集到越来越多的灵魂，就可以解锁另外四种可使用的武器。在下面的操作指南中，我们将介绍如何在ARPG中添加玩家可以购买和使用的新武器。
+
+## 步骤
+
+1.  首先，找到 **Weapons** 文件夹，然后创建一个名为 **Blade_Talon** 的新文件夹。   
+	 ![](image1.png)
+    
+
+1.  接下来你需要找到一个用于武器的 **骨架网格体**。在本示例中，我们将使用[Infinity Blade Weapons](https://www.unrealengine.com/marketplace/infinity-blade-weapons)包中的 **SK\_Dual\_Blade_Talon** 骨架网格体。   
+    ![](image13.png)
+       
+
+1.  使用[迁移工具](Engine/Content/Browser/UserGuide/Migrate)帮助将 **SK\_Dual\_Blad_Talon** 骨架网格体及其所有资源从[Infinity Blade Weapons](https://www.unrealengine.com/marketplace/infinity-blade-weapons)包移动到动作RPG中的 **Blade_Talon** 文件夹。  
+    ![](image4.png)
+    
+
+1.  现在，删除每个资源名称中的“Dual”一词，并用合适的资源标记替换它。  
+    ![](image6.png)
+    
+
+1.  在 **内容浏览器** 中，转到 **蓝图（Blueprints）**  \> **Weapons** 文件夹，然后创建一个以 **WeaponActor** 作为 **父类** 的新蓝图，名称为 **BladeTalonActor**。  
+    ![](image11.png)
+    
+
+1.  打开BladeTalonActor蓝图，在 **组件（Components）** 选项卡中选择 **骨架网格体（继承）（SkeletalMesh(inherited)）** 选项。然后在 **细节（Details）** 面板中的 **网格体（Mesh）** 部分下面，将 **骨架网格体（Skeletal** **Mesh）** 改为指向 **SK\_Blade\_Talon** 骨架网格体。  
+    [REGION:lightbox]
+    [![](image3.png)(w:900)](image3.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  接下来，在 **组件（Component）** 选项卡中，选择 **胶囊体碰撞（继承）（CapsuleCollision (Inherited)）** 组件，然后在 **细节（Details）** 面板中的 **形状（Shape）** 部分下面，将 **胶囊体半高（Capsule** **Half** **Height）** 设置为 **49**，**胶囊体半径（Capsule** **Radius）** 设置为 **10**。  
+    [REGION:lightbox]
+    [![](image8.png)(w:900)](image8.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    因为胶囊体碰撞是用于判定是否击中的，所以务必要使整件武器都在胶囊体碰撞体积内部。
+
+1.  完成这些操作后，编译并保存你新创建的武器蓝图，然后找到 **Items\\Weapons** 文件夹。  
+    ![](image14.png)
+    
+
+1.  现在我们需要创建一个 **数据资源**，用于将Blade Talon剑的所有必需资源连接起来共同发挥作用。为此，首先在内容浏览器中 **右键单击**，然后在显示的列表中转至 **杂项（Miscellaneous）** 部分，再从显示的列表选择 **数据资源（Data Asset）** 选项。  
+    ![](image9.png)
+    
+
+1.  接下来，在 **选取数据资源类（Pick Data Asset Class）** 窗口中，在 **所有类（All Classes）** 部分下面的搜索框中输入 **RPGW** ，然后选择 **RPG武器物品（RPGWeaponItem）** 选项，按 **选择（Select）** 完成此过程。  
+    ![](image5.png)  
+    
+
+1.  将新创建的数据资源命名为 **Weapon_Talon**，然后双击将它打开。
+
+1.  在 **Weapon_Talon数据资源** 中的 **武器（Weapon）** 部分下，将 **武器Actor（Weapon** **Actor）** 设置为在第5步中创建的 **BladeTalonActor** **蓝图**。这样就可以确保在选择这件武器时，将使用正确的骨架网格体。  
+    ![](image2.png)
+    
+
+1.  接下来，我们需要设置在商店中查看此物品时将显示的所有信息。为此你需要展开“物品（Item）”部分，然后在下列部分中填写下列信息。
+
+    ![](image7.png)
+    
+    ||||
+    | --- | --- | --- |
+    | **属性** | **值** | **描述** |
+    | 物品类型（Item Type） | Weapon | 物品的类型。|
+    | 物品名称（Item Name） | Talon Sword | 物品的名称。这个名称将显示在商店中。|
+    | 物品描述（Item Description） | Short and dangerous!| 物品的描述。这个描述将显示在商店中。|
+    | 物品图标（Item Icon） | T\_UI\_Weapon_Sword | 将在商店中显示的图标。|
+    | 价格（Price） | 100 | 物品在商店中的售价。|
+    
+
+1.  现在我们需要设置这个资源可以达到的级别，以及玩家在物品栏中可以同时拥有这个资源的多少实例。为此，展开 **最大（Max）** 部分，为下列参数输入下列值。  
+	![](image7-1.png)
+    
+    ||||
+    | --- | --- | --- |
+    | **属性** | **值** | **描述** |
+    | 最大计数（Max Count） | 1 | 物品栏中可以同时存在的此资源的最大数量。|
+    | 最大级别（Max Level） | 1 | 此资源可以达到的最大级别。|
+    
+
+1.  现在我们需要设置当玩家装备此武器时将可使用哪种能力。为此请展开 **能力（Abilities）** 部分，将 **赋予能力（Granted** **Ability）** 输入设置为 **GA_PlayerSwordMelee**。   
+    ![](image7-2.png)
+    [REGION:note]
+    当使用 **GA_PlayerSwordMelee** 能力时，你将看到使用该武器时的轨迹。要消除这些轨迹，你需要设置一个新的 **玩法能力**，它要使用没有轨迹的 **要播放的蒙太奇（Montage** **To** **Play）**。
+    [/REGION]
+    
+
+## 最终结果
+
+现在 **Weapon_Talon** 数据资源已经设置完毕，务必保存所有资源，然后启动动作RPG。当游戏加载后打开商店，此时你应该看到Talon Sword作为你可以购买并使用的武器出现，如以下视频所示。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 63YWgUblGdQ
+ [/PARAMLITERAL]
+[/OBJECT]

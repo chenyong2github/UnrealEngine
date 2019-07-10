@@ -289,6 +289,23 @@ void FMetalUniformBuffer::InitIAB()
 						Desc.SetDataType(mtlpp::DataType::Texture);
 						Desc.SetTextureType(Surface->Texture.GetTextureType());
 						
+						union {
+							uint8 Components[4];
+							uint32 Packed;
+						} Swizzle;
+						Swizzle.Packed = 0;
+						assert(sizeof(Swizzle) == sizeof(uint32));
+						if (Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+#if PLATFORM_MAC
+						 ||	Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+#endif
+						)
+						{
+							Swizzle.Components[0] = Swizzle.Components[1] = Swizzle.Components[2] = Swizzle.Components[3] = 1;
+						}
+						BufferSizes.Add(Swizzle.Packed);
+						BufferSizes.Add(GMetalBufferFormats[Texture->GetFormat()].DataFormat);
+						
 						check(!Surface->Texture.IsAliasable());
 						NewIAB->IndirectArgumentResources.Add(Argument(Surface->Texture, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample)));
 					}
@@ -356,6 +373,23 @@ void FMetalUniformBuffer::InitIAB()
 						check (Surface != nullptr);
 						Desc.SetDataType(mtlpp::DataType::Texture);
 						Desc.SetTextureType(Surface->Texture.GetTextureType());
+						
+						union {
+							uint8 Components[4];
+							uint32 Packed;
+						} Swizzle;
+						Swizzle.Packed = 0;
+						assert(sizeof(Swizzle) == sizeof(uint32));
+						if (Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+#if PLATFORM_MAC
+						 ||	Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+#endif
+						)
+						{
+							Swizzle.Components[0] = Swizzle.Components[1] = Swizzle.Components[2] = Swizzle.Components[3] = 1;
+						}
+						BufferSizes.Add(Swizzle.Packed);
+						BufferSizes.Add(GMetalBufferFormats[Texture->GetFormat()].DataFormat);
 						
 						check(!Surface->Texture.IsAliasable());
 						NewIAB->IndirectArgumentResources.Add(Argument(Surface->Texture, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Write)));
@@ -425,6 +459,23 @@ void FMetalUniformBuffer::InitIAB()
 					Desc.SetDataType(mtlpp::DataType::Texture);
 					Desc.SetTextureType(Surface->Texture.GetTextureType());
 					
+					union {
+						uint8 Components[4];
+						uint32 Packed;
+					} Swizzle;
+					Swizzle.Packed = 0;
+					assert(sizeof(Swizzle) == sizeof(uint32));
+					if (Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+#if PLATFORM_MAC
+					 ||	Surface->Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+#endif
+					)
+					{
+						Swizzle.Components[0] = Swizzle.Components[1] = Swizzle.Components[2] = Swizzle.Components[3] = 1;
+					}
+					BufferSizes.Add(Swizzle.Packed);
+					BufferSizes.Add(GMetalBufferFormats[Texture->GetFormat()].DataFormat);
+					
 					check(!Surface->Texture.IsAliasable());
 					NewIAB->IndirectArgumentResources.Add(Argument(Surface->Texture, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample)));
 					break;
@@ -441,7 +492,7 @@ void FMetalUniformBuffer::InitIAB()
 			Desc.SetAccess(mtlpp::ArgumentAccess::ReadOnly);
 			Desc.SetDataType(mtlpp::DataType::Pointer);
 			
-			FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), BufferSizes.Num() * sizeof(uint32), 0, BUFFER_STORAGE_MODE);
+			FMetalPooledBufferArgs Args(GetMetalDeviceContext().GetDevice(), BufferSizes.Num() * sizeof(uint32), BUF_Dynamic, BUFFER_STORAGE_MODE);
 			NewIAB->IndirectArgumentBufferSideTable = GetMetalDeviceContext().CreatePooledBuffer(Args);
 			
 			FMemory::Memcpy(NewIAB->IndirectArgumentBufferSideTable.GetContents(), BufferSizes.GetData(), BufferSizes.Num() * sizeof(uint32));
@@ -468,7 +519,7 @@ void FMetalUniformBuffer::InitIAB()
 		
 		mtlpp::ArgumentEncoder Encoder = FMetalArgumentEncoderCache::Get().CreateEncoder(Arguments);
 		
-		NewIAB->IndirectArgumentBuffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Encoder.GetEncodedLength(), 16, 0, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)BUFFER_STORAGE_MODE << mtlpp::ResourceStorageModeShift)), true);
+		NewIAB->IndirectArgumentBuffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Encoder.GetEncodedLength(), 16, BUF_Dynamic, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)BUFFER_STORAGE_MODE << mtlpp::ResourceStorageModeShift)), true);
 		
 		Encoder.SetArgumentBuffer(NewIAB->IndirectArgumentBuffer, 0);
 		
@@ -632,7 +683,7 @@ struct FMetalRHICommandUpateUniformBuffer : public FRHICommand<FMetalRHICommandU
 	}
 };
 
-void FMetalDynamicRHI::RHIUpdateUniformBuffer(FUniformBufferRHIParamRef UniformBufferRHI, const void* Contents)
+void FMetalDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
 	@autoreleasepool {
 	// check((IsInRenderingThread() || IsInRHIThread()) && !IsInParallelRenderingThread());

@@ -157,6 +157,11 @@ float UKismetSystemLibrary::GetGameTimeInSeconds(UObject* WorldContextObject)
 	return World ? World->GetTimeSeconds() : 0.f;
 }
 
+int64 UKismetSystemLibrary::GetFrameCount()
+{
+	return (int64) GFrameCounter;
+}
+
 bool UKismetSystemLibrary::IsServer(UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);

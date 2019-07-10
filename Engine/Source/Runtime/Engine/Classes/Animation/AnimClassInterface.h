@@ -64,15 +64,19 @@ struct FAnimBlueprintFunction
 	TArray<int32> InputPoseNodeIndices;
 
 	/** The property of the output node, patched up during link */
+	UPROPERTY(transient)
 	UStructProperty* OutputPoseNodeProperty;
 
 	/** The properties of the input nodes, patched up during link */
+	UPROPERTY(transient)
 	TArray<UStructProperty*> InputPoseNodeProperties;
 
 	/** The input properties themselves */
+	UPROPERTY(transient)
 	TArray<UProperty*> InputProperties;
 
 	/** Whether this function is actually implemented by this class - it could just be a stub */
+	UPROPERTY(transient)
 	bool bImplemented;
 };
 

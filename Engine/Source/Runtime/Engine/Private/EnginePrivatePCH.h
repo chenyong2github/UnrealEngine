@@ -484,7 +484,7 @@
 #include "GameFramework/OnlineReplStructs.h"
 #include "PhysicsEngine/BodySetupEnums.h"
 #include "Animation/AnimSequenceBase.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Camera/CameraShake.h"
 #include "GameFramework/ForceFeedbackEffect.h"

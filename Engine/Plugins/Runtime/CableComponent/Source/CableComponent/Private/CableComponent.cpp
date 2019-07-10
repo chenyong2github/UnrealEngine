@@ -289,7 +289,7 @@ public:
 				GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
 				FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-				DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, UseEditorDepthTest(), bOutputVelocity);
+				DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, DrawsVelocity(), bOutputVelocity);
 				BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
 
 				BatchElement.FirstIndex = 0;
@@ -587,7 +587,7 @@ AActor* UCableComponent::GetAttachedActor() const
 
 USceneComponent* UCableComponent::GetAttachedComponent() const
 {
-	return AttachEndTo.GetComponent(GetOwner());
+	return Cast<USceneComponent>(AttachEndTo.GetComponent(GetOwner()));
 }
 
 void UCableComponent::GetCableParticleLocations(TArray<FVector>& Locations) const
@@ -606,7 +606,7 @@ void UCableComponent::GetEndPositions(FVector& OutStartPosition, FVector& OutEnd
 	OutStartPosition = GetComponentLocation();
 
 	// See if we want to attach the other end to some other component
-	USceneComponent* EndComponent = AttachEndTo.GetComponent(GetOwner());
+	USceneComponent* EndComponent = Cast<USceneComponent>(AttachEndTo.GetComponent(GetOwner()));
 	if(EndComponent == NULL)
 	{
 		EndComponent = this;

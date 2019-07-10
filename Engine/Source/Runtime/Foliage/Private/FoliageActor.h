@@ -5,13 +5,15 @@
 
 struct FFoliageActor : public FFoliageImpl
 {
-	TArray<TWeakObjectPtr<AActor>> ActorInstances;
-	UClass* ActorClass;
-	bool bInitialized;
+#if WITH_EDITORONLY_DATA
+	TArray<TWeakObjectPtr<AActor>> ActorInstances_Deprecated;
+#endif
 
+	TArray<AActor*> ActorInstances;
+	UClass* ActorClass;
+	
 	FFoliageActor()
 		: ActorClass(nullptr)
-		, bInitialized(false)
 	{
 	}
 

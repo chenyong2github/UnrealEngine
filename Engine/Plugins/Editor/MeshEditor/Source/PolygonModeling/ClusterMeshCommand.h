@@ -28,8 +28,8 @@ protected:
 	virtual void Execute(class IMeshEditorModeEditingContract& MeshEditorMode) override;
 
 private:
-	void ClusterMeshes(IMeshEditorModeEditingContract& MeshEditorMode, TArray<UEditableMesh*>& SelectedMeshes);
-	void ClusterMultipleMeshes(IMeshEditorModeEditingContract& MeshEditorMode, TArray<UEditableMesh*>& SelectedMeshes);
-	void ClusterChildBonesOfASingleMesh(IMeshEditorModeEditingContract& MeshEditorMode, TArray<UEditableMesh*>& SelectedMeshes);
+	void ClusterMeshes(IMeshEditorModeEditingContract& MeshEditorMode, TArray<AActor*>& SelectedActors);
+	void ClusterMultipleMeshes(IMeshEditorModeEditingContract& MeshEditorMode, TArray<AActor*>& SelectedActors);
+	void ClusterChildBonesOfASingleMesh(IMeshEditorModeEditingContract& MeshEditorMode, TArray<AActor*>& SelectedActors);
 	void ClusterSelectedBones(UEditableMesh* EditableMesh, UGeometryCollectionComponent* GeometryCollectionComponent);
 };

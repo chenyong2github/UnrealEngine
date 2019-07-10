@@ -1,0 +1,453 @@
+INTSourceChangelist:6618300
+Availability: Public
+Title: 애니메이션 버짓 얼로케이터
+Description: 스켈레탈 메시 컴포넌트 틱을 동적으로 스로틀 조절하여 애니메이션 데이터 처리에 걸리는 시간을 제한하는 시스템입니다.
+Type: overview
+Version: 4.22
+Parent: Engine/Animation
+Order: 34
+Tags: Animation
+Tags: Optimization
+Tags: Animation Features
+Tags: Performance
+Tags: Experimental
+Tags: animation budgeter
+topic-image: AnimBudgetTopic.png
+social-image: AnimBudgetTopic.png
+hero-image:AnimBudgetBanner.png
+
+**Animation Budget Allocator** (애니메이션 버짓 얼로케이터) 또는 **Anim Budgeter** (애님 버지터) 시스템은 스켈레탈 메시 컴포넌트 틱 속도를 동적으로 제어하여 애니메이션 데이터 실행에 소요되는 시간을 제한합니다. 고정 CPU 예산을 넘지 않도록 하면서 최소한의 시스템 오버헤드로 인지되는 애니메이션 퀄리티를 극대화시키려는 의도입니다.
+
+시스템에서 플랫폼별 고정 예산을 (게임 스레드에서 수행할 작업을 밀리초(ms) 단위로) 결정하면, 필요한 작업을 전부 할 수 있는지 줄여야 할지 알아냅니다. 작업량을 줄여야 하는 경우, 중요도에 따라 여러 영역을 대상으로 로드를 동적으로 조절해서 고정된 (게임 스레드) 예산에 맞춥니다. 그 영역은 다음과 같습니다.
+
+*   틱을 중지하고 [마스터 포즈 컴포넌트](Engine/Animation/WorkingwithModularCharacters) 를 사용합니다.
+
+*   업데이트 속도를 낮춥니다.
+
+*   업데이트 사이 보간을 (안)합니다. 
+
+## 애님 버지터 활성화
+
+애니메이션 버짓 얼로케이터, 또는 애님 버지터를 사용하려면, 먼저 **플러그인** 메뉴에서 활성화해야 합니다.
+
+1.  **편집 > 플러그인** 메뉴를 엽니다.   
+    ![](AnimBudget_EditMenu.png "AnimBudget_EditMenu.png")
+
+2.  **Programming** 아래 **Animation Budget Allocator** 플러그인을 활성화하고 에디터를 재시작합니다.   
+    [REGION:lightbox]
+    [![](AnimBudget_EnablePlugin.png)(w:900)](AnimBudget_EnablePlugin.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다.
+    [/REGION]
+    
+
+## 애님 버지터 사용법
+
+애님 버지터를 사용하려면, ` (물결표) 키를 누르고 다음 콘솔 명령을 입력합니다.
+
+*   활성화 - “a.Budget.Enabled 1”
+
+*   비활성화 - “a.Budget.Enabled 0”
+
+[REGION:note]
+플러그인을 활성화하면, 애님 버지터는 자동 활성화됩니다.
+[/REGION]
+
+애님 버지터는 블루프린트의 **Enable Animation Budget** 노드로도 켜고 끌 수 있습니다.
+
+![](AnimBudgetBPnode.png)
+
+[REGION:note]
+현재 블루프린트에 노출된 시스템 부분은 이뿐이며, 나머지 시스템은 콘솔 변수와 C++ API 호출 기반입니다.
+[/REGION]
+
+디버그 표시를 활성화하려면:
+
+[REGION:note]
+디버그 정보 표시 활성화는 현재 GitHUb 의 Master Branch 에서만 가능합니다. 4.23 에서 사용할 수 있는 곳이 많아질 예정입니다.
+[/REGION]
+
+*   디버그 표시 활성화 - “a.Budget.Debug.Enabled 1”
+
+*   디버그 표시 비활성화 - “a.Budget.Debug.Enabled 0”
+
+활성화되면 런타임에 그래프가 뷰포트 내부에 표시됩니다.
+
+![](AnimBudget_GraphBreakdown.png "AnimBudget_GraphBreakdown.png")
+
+그래프는 다음과 같이 구성됩니다.
+
+1.  약 20 프레임 커널에 걸쳐 스무딩을 적용한 ms 단위 시간입니다 (추세를 쉽게 읽을 수 있고 틱별로 걸린 시간입니다). 
+
+2.  총 시간
+
+3.  애님 예산 (점선)
+
+4.  퍼포먼스 (실선)
+
+퍼포먼스는 해야 하는 작업량에 따라 달라집니다. 아래에서 점선은 애님 버짓이고 실선은 퍼포먼스입니다. 현재 틱을 하는 캐릭터(플레이어)가 하나뿐이라 예산을 넘지 않았습니다.
+
+![](AnimBudget_0x0.png "AnimBudget_0x0.png")
+
+아래에서 캐릭터를 10개로 늘렸더니 퍼포먼스에 스파이크가 (노이즈 선이) 보입니다. 퍼포먼스 선은 두 개인데, 회색 선은 실제 시스템 퍼포먼스이며 시스템 부하에 따라 약간의 노이즈와 변동이 있습니다. 부드러운 흰색 선은 실제 시스템 퍼포먼스가 어떤지 더욱 잘 나타냅니다.  
+
+![](AnimBudget_3x3.png "AnimBudget_3x3.png")
+
+아래 마지막 예에서 캐릭터 수를 100 넘게 올리니 퍼포먼스가 할당된 예산(점선)에 올라가 있는 것이 보입니다.  
+
+[REGION:lightbox]
+![](AnimBudget_10x10.png)(w:900)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+[REGION:note]
+애니메이션에만 해당되며, 애니메이션 틱 빈도를 나타냅니다.
+[/REGION]
+
+애님 버지터는 예산 범위 내에서 시스템이 수행하는 전체 작업량을 유지하면서 시스템이 낼 수 있는 퀄리티를 극대화하려고 시도합니다. 가장 가까이 있고 중요한 메시는 최대한 빠른 프레임 속도로 실행하고, 멀리 있거나 중요도가 낮은 것들은 프레임 속도를 낮춰 봅니다. 수행할 총 작업량으로 예산을 채우는 동안 이 모든 작업을 수행합니다.
+
+각 스켈레탈 메시에 디버그 데이터가 보입니다.
+
+![](AnimBudget_CharacterDebugInfo.png "AnimBudget_CharacterDebugInfo.png")
+
+숫자는 메시 업데이트 속도입니다. 값이 1이면 매 프레임마다 틱과 업데이트가 일어나고 있다는 뜻입니다. 값이 5면 5 프레임마다 틱과 업데이트가 일어납니다.  
+
+예를 들어 [포트나이트](https://www.epicgames.com/fortnite/) 에서 캐릭터는 (머리, 몸, 가방 등) 여러 개의 스켈레탈 메시로 이루어지는데, 모두 지정된 시간에 틱이 일어납니다. 애님 버지터를 실행하면, 숫자 값으로 표시되는 메시 업데이트 빈도 외에도 텍스트 **Lo**, **Hi**, 또는 **I** 가 사용됩니다. 메시 틱 방식을 나타냅니다.  
+
+*   **Hi** (높은 디테일) - 스켈레탈 메시 컴포넌트이고 비싼 로직을 실행 중임을 뜻합니다. 
+
+*   **Lo** (낮은 디테일) - 비싼 로직(, 즉 추가적인 캐릭터 파츠나 멀리서 생략할 수 있는 비싼 작업)을 실행 중이지 않음을 뜻합니다. 
+
+*   **I** (보간) - 프레임 사이 스켈레탈 메시 보간이 일어난다는 뜻입니다. 
+
+아래 에제는 필요한 애니메이션 작업량에 따라 애님 버지터 업데이트와 우선순위 전환이 일어나는 방식을 보여줍니다.  
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ cBqqn2KY8fQ
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 애님 버지터 C++ API
+
+애님 버지터에 대한 C++ 파일은 다음 엔진 설치 폴더에서 액세스할 수 있습니다.
+
+*   Engine\\Plugins\\Runtime\\AnimationBudgetAllocator\\Source\\AnimationBudgetAllocator\\Public\
+
+아래는 **IAnimationBudgetAllocator.h** 입니다.
+
+    // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+    #pragma once
+    class USkeletalMeshComponentBudgeted;
+    class UWorld;
+    struct FAnimationBudgetAllocatorParameters;
+    /**
+     * 지정된 예산 유지를 위해 스켈레탈 메시 컴포넌트 틱 속도를 동적 관리합니다.
+     */
+    class IAnimationBudgetAllocator
+    {
+    public:
+        /** 지정된 월드에 대한 버지터를 가져옵니다. */
+        static ANIMATIONBUDGETALLOCATOR_API IAnimationBudgetAllocator* Get(UWorld* InWorld);
+        /**
+         * 버지터 시스템에 컴포넌트를 등록합니다. 컴포넌트가 이미 등록되어 있으면 이 함수는 아무것도 하지 않습니다.
+         * 호출되면:
+         * - 기본 틱 함수는 비활성화됩니다.
+         * - URO 는 활성화됩니다.
+         * - 병렬 애님 작업은 버지터를 경유합니다.
+         */
+        virtual void RegisterComponent(USkeletalMeshComponentBudgeted* InComponent) = 0;
+        /**
+         * 버지터 시스템에서 컴포넌트 등록을 해제합니다. 컴포넌트가 등록되지 않은 경우 이 함수는 아무것도 하지 않습니다.
+         * 호출되면:
+         * - 기본 틱 함수는 다시 활성화됩니다.
+         * - URO 는 다시 활성화됩니다.
+         * - 경유된 병렬 애님 작업은 내부 함수로 돌아옵니다.
+         */
+        virtual void UnregisterComponent(USkeletalMeshComponentBudgeted* InComponent) = 0;
+        /**
+         * 이 컴포넌트의 전제조건을 업데이트합니다. 전제조건이 외부적으로 변경되었을 수 있는 경우 호출해야 합니다.
+         */
+        virtual void UpdateComponentTickPrerequsites(USkeletalMeshComponentBudgeted* InComponent) = 0;
+        /**
+         * 지정된 컴포넌트에 대한 중요도와 다른 플래그를 설정합니다.
+         * 이 정보는 컴포넌트 틱 속도의 동적 제어에 사용됩니다.
+         */
+        virtual void SetComponentSignificance(USkeletalMeshComponentBudgeted* Component, float Significance, bool bNeverSkip = false, bool bTickEvenIfNotRendered = false, bool bAllowReducedWork = true, bool bForceInterpolate = false) = 0;
+        /** 지정된 컴포넌트의 틱 여부를 설정합니다. 버지터가 비활성화된 경우 Component->SetComponentTickEnabled(bShouldTick) 를 호출합니다. */
+        virtual void SetComponentTickEnabled(USkeletalMeshComponentBudgeted* Component, bool bShouldTick) = 0;
+        /** 지정된 컴포넌트의 틱 설정 여부를 구합니다.*/
+        virtual bool IsComponentTickEnabled(USkeletalMeshComponentBudgeted* Component) const = 0;
+        /** 컴포넌트에 대한 작업 감소를 알립니다. */
+        virtual void SetIsRunningReducedWork(USkeletalMeshComponentBudgeted* Component, bool bInReducedWork) = 0;
+        /** 틱 시간을 설정합니다. */
+        virtual void SetGameThreadLastTickTimeMs(int32 InManagerHandle, float InGameThreadLastTickTimeMs) = 0;
+        /** 작업 완료 시간을 설정합니다. */
+        virtual void SetGameThreadLastCompletionTimeMs(int32 InManagerHandle, float InGameThreadLastCompletionTimeMs) = 0;
+        /** 프레임당 시스템 틱입니다. */
+        virtual void Update(float DeltaSeconds) = 0;
+        /** 이 버짓 얼로케이터 활성화 여부를 설정합니다. */
+        virtual void SetEnabled(bool bInEnabled) = 0;
+        /** 이 버짓 얼로케이터 활성화 여부를 구합니다. */
+        virtual bool GetEnabled() const = 0;
+        /** 다양한 파라미터를 설정합니다. */
+        virtual void SetParameters(const FAnimationBudgetAllocatorParameters& InParameters) = 0;
+    };
+
+## 추가 콘솔 명령
+
+애님 버지터 디버깅에도 사용할 수 있는 콘솔 명령은 다음과 같습니다.
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **a.Budget.AlwaysTickFalloffAggression** | [INCLUDE:#excerpt_1] |
+| **a.Budget.BudgetFactorBeforeAggressiveReducedWork** | [INCLUDE:#excerpt_2] |
+| **a.Budget.BudgetFactorBeforeReduceWork** | [INCLUDE:#excerpt_3] |
+| **a.Budget.BudgetFactorBeforeReducedWorkEpsilon** | [INCLUDE:#excerpt_4] |
+| ****a.Budget.BudgetMs**** | [INCLUDE:#excerpt_5] |
+| **a.Budget.BudgetPressureSmoothingSpeed** | [INCLUDE:#excerpt_6] |
+| **a.Budget.Debug.Enabled** | [INCLUDE:#excerpt_7] |
+| **a.Budget.Debug.ShowAddresses** | [INCLUDE:#excerpt_8] |
+| **a.Budget.Enabled** | [INCLUDE:#excerpt_9] |
+| **a.Budget.GBudgetPressureBeforeEmergencyReducedWork** | [INCLUDE:#excerpt_10] |
+| **a.Budget.InitialEstimatedWorkUnitTime** | [INCLUDE:#excerpt_11] |
+| **a.Budget.InterpolationFalloffAggression** | [INCLUDE:#excerpt_12] |
+| **a.Budget.InterpolationMaxRate** | [INCLUDE:#excerpt_13] |
+| **a.Budget.InterpolationTickMultiplier** | [INCLUDE:#excerpt_14] |
+| **a.Budget.MaxInterpolatedComponents** | [INCLUDE:#excerpt_15] |
+| ****a.Budget.MaxTickedOffsreen**** | [INCLUDE:#excerpt_16] |
+| **a.Budget.MaxTickRate** | [INCLUDE:#excerpt_17] |
+| **a.Budget.MinQuality** | [INCLUDE:#excerpt_18] |
+| **a.Budget.ReducedWorkThrottleMaxInFrames** | [INCLUDE:#excerpt_19] |
+| **a.Budget.ReducedWorkThrottleMaxPerFrame** | [INCLUDE:#excerpt_20] |
+| **a.Budget.ReducedWorkThrottleMinInFrames** | [INCLUDE:#excerpt_21] |
+| **a.Budget.StateChangeThrottleInFrames** | [INCLUDE:#excerpt_22] |
+| **a.Budget.WorkUnitSmoothingSpeed** | [INCLUDE:#excerpt_23] |
+
+<!--
+[EXCERPT:excerpt_23]
+
+값 > 0.1, 기본 = 5.0  
+  
+평균 작업 단위가 측정 된 양에 수렴하는 속도입니다.  
+
+[/EXCERPT:excerpt_23]
+-->
+<!--
+[EXCERPT:excerpt_22]
+
+범위 \[1, 128\], 기본 = 30  
+  
+시스템 및 로드 노이즈로 인해 스로틀 값이 너무 자주 변경되는 것을 방지합니다.  
+
+[/EXCERPT:excerpt_22]
+-->
+<!--
+[EXCERPT:excerpt_21]
+
+범위 \[1, 255\], 기본 = 2  
+  
+시스템 및 로드 노이즈로 인해 감소되는 작업이 너무 자주 변경되는 것을 방지합니다. 예산 초과 압력이 있을 때는 (예: 적극적인 감소) 최소값을 사용합니다.  
+
+[/EXCERPT:excerpt_21]
+-->
+<!--
+[EXCERPT:excerpt_20]
+
+범위 \[1, 255\], 기본 = 4  
+  
+틱당 감소되는 작업 으로/에서 전환되는 컴포넌트 최대 수를 제어합니다.  
+
+[/EXCERPT:excerpt_20]
+-->
+<!--
+[EXCERPT:excerpt_19]
+
+범위 \[1, 255\], 기본 = 20  
+  
+시스템 및 로드 노이즈로 인해 감소되는 작업이 너무 자주 변경되는 것을 방지합니다. 예산 압력이 없을 때는 최대값을 사용합니다.
+
+[/EXCERPT:excerpt_19]
+-->
+<!--
+[EXCERPT:excerpt_18]
+
+값 \[0.0, 1.0\], 기본 = 0.0  
+  
+허용되는 최소 퀄리티 척도입니다. 퀄리티는 NumComponentsTickingThisFrame / NumComponentsThatWeNeedToTick 로 간단히 결정합니다.  
+  
+0.0 이 아니라면 시간 예산을 초과할 확률이 있습니다.  
+
+[/EXCERPT:excerpt_18]
+-->
+<!--
+[EXCERPT:excerpt_17]
+
+값 >= 1, 기본 = 10  
+  
+허용할 최대 틱 속도입니다. 이 옵션을 설정하면 예산 초과 확률이 있어도 개별 메시 퀄리티를 적정 수준으로 유지할 수 있습니다.  
+
+[/EXCERPT:excerpt_17]
+-->
+<!--
+[EXCERPT:excerpt_16]
+
+값 >= 1, 기본 = 4  
+  
+화면 밖 컴포넌트에 틱을 할 최대 개수입니다 (중요도 순).  
+
+[/EXCERPT:excerpt_16]
+-->
+<!--
+[EXCERPT:excerpt_15]
+
+범위 >= 0, 기본 = 16  
+  
+스로틀 조절 시작 전 보간할 컴포넌트 최대 개수입니다.  
+
+[/EXCERPT:excerpt_15]
+-->
+<!--
+[EXCERPT:excerpt_14]
+
+범위 \[0.1, 0.9\], 기본 = 0.75  
+  
+'정상' 틱에 비해 분산된 보간 틱이 걸릴 것으로 예상되는 값을 제어합니다.  
+
+[/EXCERPT:excerpt_14]
+-->
+<!--
+[EXCERPT:excerpt_13]
+
+값 > 1, 기본 = 6  
+  
+보간 시 틱이 일어나는 속도를 제어합니다.  
+
+[/EXCERPT:excerpt_13]
+-->
+<!--
+[EXCERPT:excerpt_12]
+
+범위 \[0.1, 0.9\], 기본 = 0.4  
+  
+부하가 걸리지 않았을 때 보간 컴포넌트 감쇠가 일어나는 속도를 제어합니다.  
+  
+값이 높을 수록 할당된 시간 예산을 초과했을 때 보간되는 컴포넌트 수를 더 많이 줄인다는 뜻입니다.  
+  
+컴포넌트는 시간 예산을 초과할 때만 보간됩니다.  
+
+[/EXCERPT:excerpt_12]
+-->
+<!--
+[EXCERPT:excerpt_11]
+
+값 > 0.0, 기본 = 0.08  
+  
+스켈레탈 메시 컴포넌트를 실행할 때 예상되는 평균 시간을 밀리초 단위로 제어합니다.  
+  
+이 값은 컴포넌트 첫 틱에만 적용되며, 그 이후는 틱에 걸리는 실제 시간을 사용합니다.  
+
+[/EXCERPT:excerpt_11]
+-->
+<!--
+[EXCERPT:excerpt_10]
+
+범위 > 0.0, 기본 = 2.5  
+  
+긴급 작업 축소가 일어나는 예산 압력을 제어합니다 (bAlwaysTick 설정되지 않은 모든 컴포넌트에 적용됩니다).  
+
+[/EXCERPT:excerpt_10]
+-->
+<!--
+[EXCERPT:excerpt_9]
+
+값: 0/1  
+  
+스켈레탈 메시 배치 시스템 활성화 여부를 제어합니다. 실행되는 스켈레탈 메시가 없을 때 설정해야 합니다.  
+
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+값: 0/1  
+  
+디버깅을 위한 컴포넌트 데이터 주소를 디버그 렌더링에 표시할지 여부를 제어합니다.  
+
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+
+값: 0/1  
+  
+애니메이션 버짓 얼로케이터에 대한 디버그 렌더링(을 지원하는 빌드에서) 활성화 여부를 제어합니다.  
+
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_6]
+
+범위 > 0.0, 기본 = 3.0  
+  
+작업 감소 스로틀 조절에 사용되는 예산 압력 값에 적용할 스무딩 양입니다.  
+
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+
+값 > 0.1, 기본 = 1.0  
+  
+스켈레탈 메시 작업 수행에 할당할 밀리초 단위 시간입니다.  
+  
+예산 초과일 경우 다양한 콘솔 변수가 활용됩니다. 예: a.Budget.AlwaysTickFalloffAggression, a.Budget.InterpolationFalloffAggression.  
+
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+범위 > 0.0, 기본 = 0.25  
+  
+예산 압력이 a.Budget.BudgetFactorBeforeReducedWork 빼기 이 값 미만일 때까지 작업 증가를 미룹니다.  
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+범위 > 1, 기본 = 1.5  
+  
+예산 압력이 이 값을 초과할 때까지 작업 감소를 미룹니다.  
+
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+범위 > 1, 기본 = 2.0  
+  
+예산 압력이 이 값을 초과하면 작업 감소를 보다 신속하게 적용합니다.  
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+범위 \[0.1, 0.9\], 기본 = 0.8  
+  
+부하가 걸리지 않았을 때 '항상 틱되는' 컴포넌트 감쇠가 일어나는 속도를 제어합니다.  
+  
+값이 높을 수록 할당된 시간 예산을 초과했을 때 항상 틱되는 컴포넌트 수를 더 많이 줄인다는 뜻입니다.  
+
+[/EXCERPT:excerpt_1]
+-->

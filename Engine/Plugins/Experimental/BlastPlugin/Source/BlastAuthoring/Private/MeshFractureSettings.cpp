@@ -27,17 +27,17 @@ static TArray<AActor*> GetSelectedActors()
 }
 
 UCommonFractureSettings::UCommonFractureSettings() : ViewMode(EMeshFractureLevel::AllLevels)
-	, ShowBoneColors(true), DeleteSourceMesh(true), FractureMode(EMeshFractureMode::Uniform), RemoveIslands(false), RandomSeed(99)
+	, ShowBoneColors(true), DeleteSourceMesh(true), AutoClusterGroupMode(EMeshAutoClusterMode::BoundingBox), FractureMode(EMeshFractureMode::Uniform), RemoveIslands(true), RandomSeed(-1), ChanceToFracture(1.0), bGroupFracture(true), RetainUnfracturedMeshes(true), bCancelOnBadGeo(false), bThreadedFracture(false), bHealHoles(false)
 {
 
 }
 
-UUniformFractureSettings::UUniformFractureSettings() : NumberVoronoiSites(10)
+UUniformFractureSettings::UUniformFractureSettings() : NumberVoronoiSitesMin(10), NumberVoronoiSitesMax(10)
 {
 
 }
 
-UClusterFractureSettings::UClusterFractureSettings() : NumberClusters(3), SitesPerCluster(3), ClusterRadius(1.0f)
+UClusterFractureSettings::UClusterFractureSettings() : NumberClustersMin(8), NumberClustersMax(8), SitesPerClusterMin(2), SitesPerClusterMax(30), ClusterRadiusPercentageMin(0.1), ClusterRadiusPercentageMax(0.2), ClusterRadius(0.0f)
 {
 
 }
@@ -47,27 +47,27 @@ URadialFractureSettings::URadialFractureSettings() : Center(FVector(0,0,0)), Nor
 
 }
 
-USlicingFractureSettings::USlicingFractureSettings() : SlicesX(3), SlicesY(3), SlicesZ(3), SliceAngleVariation(0.0f), SliceOffsetVariation(0.0f)
+USlicingFractureSettings::USlicingFractureSettings() : SlicesX(3), SlicesY(3), SlicesZ(3), SliceAngleVariation(0.0f), SliceOffsetVariation(0.0f), Amplitude(0.02), Frequency(5.0), OctaveNumber(2), SurfaceResolution(50)
 {
 
 }
 
 UPlaneCut::UPlaneCut() : Position(FVector(0,0,0)), Normal(FVector(0, 0, 1))
-{ 
-
-}
-
-UPlaneCutFractureSettings::UPlaneCutFractureSettings()
 {
 
 }
 
-UCutoutFractureSettings::UCutoutFractureSettings() : Transform(FTransform::Identity), Scale(FVector2D(-1, -1)), IsRelativeTransform(true), SnapThreshold(1.0f), SegmentationErrorThreshold(0.001f)
+UPlaneCutFractureSettings::UPlaneCutFractureSettings() : NumberOfCuts(3), CutChunkChance(1.0), Amplitude(0.0), Frequency(5.0), OctaveNumber(2), SurfaceResolution(50)
 {
 
 }
 
-UBrickFractureSettings::UBrickFractureSettings() : SlicesX(3), SlicesY(3), SlicesZ(3)
+UCutoutFractureSettings::UCutoutFractureSettings() : Transform(FTransform::Identity), Scale(FVector2D(-1, -1)), IsRelativeTransform(true), SnapThreshold(4.0f), SegmentationErrorThreshold(0.001f)
+{
+
+}
+
+UBrickFractureSettings::UBrickFractureSettings() : Forward(EMeshFractureBrickProjection::X), Up(EMeshFractureBrickProjection::Z), BrickLength(80.0f), /*BrickWidth(40.0f),*/ BrickHeight(30.0f), Amplitude(0.02), Frequency(5.0), OctaveNumber(2), SurfaceResolution(50)
 {
 
 }

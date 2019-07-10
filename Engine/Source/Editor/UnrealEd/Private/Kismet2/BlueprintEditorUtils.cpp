@@ -2156,6 +2156,13 @@ void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FProp
 		// Clear out the cache as the user may have added or removed a latent action to a macro graph
 		FBlueprintEditorUtils::ClearMacroCosmeticInfoCache(Blueprint);
 	}
+	
+	IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(Blueprint, false);
+	if (AssetEditor)
+	{
+		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
+		BlueprintEditor->UpdateNodesUnrelatedStatesAfterGraphChange();
+	}
 }
 
 bool FBlueprintEditorUtils::ShouldRegenerateBlueprint(UBlueprint* Blueprint)
@@ -7898,6 +7905,7 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintParentClassPicker( 
 	// Fill in options
 	FClassViewerInitializationOptions Options;
 	Options.Mode = EClassViewerMode::ClassPicker;
+	Options.bShowBackgroundBorder = false;
 
 	TSharedPtr<FBlueprintReparentFilter> Filter = MakeShareable(new FBlueprintReparentFilter);
 	Options.ClassFilter = Filter;
@@ -8058,6 +8066,7 @@ TSharedRef<SWidget> FBlueprintEditorUtils::ConstructBlueprintInterfaceClassPicke
 	// Fill in options
 	FClassViewerInitializationOptions Options;
 	Options.Mode = EClassViewerMode::ClassPicker;
+	Options.bShowBackgroundBorder = false;
 
 	TSharedPtr<FBlueprintInterfaceFilter> Filter = MakeShareable(new FBlueprintInterfaceFilter);
 	Options.ClassFilter = Filter;
@@ -9236,6 +9245,13 @@ FString FBlueprintEditorUtils::GetClassNameWithoutSuffix(const UClass* Class)
 	{
 		return LOCTEXT("ClassIsNull", "None").ToString();
 	}
+}
+
+FText FBlueprintEditorUtils::GetDeprecatedMemberMenuItemName(const FText& MemberName)
+{
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("MemberName"), MemberName);
+	return FText::Format(LOCTEXT("DeprecatedMemberMenuItemName", "{MemberName} (Deprecated)"), Args);
 }
 
 FText FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(const FText& MemberName, const FText& DetailedMessage)

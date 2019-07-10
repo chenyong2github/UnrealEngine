@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4499768
+﻿INTSourceChangelist:6173642
 Availability: Public
 Crumbs: 
 Title: 将二进制文件提交到Perforce
@@ -10,7 +10,7 @@ Order: 4
 Tags: 
 
 
-如果希望构建系统将编辑器二进制文件提交到Perforce以供美工们使用，我们在 `Engine\Build\Graph\Examples\BuildEditorAndTools.xml` 中提供了示例 [BuildGraph](Programming/Development/BuildGraph) 脚本，该脚本展示了编译二进制文件，将它们复制到暂存目录，以及（可选）将它们提交到Perforce的过程。
+如果希望构建系统将编辑器二进制文件提交到Perforce以供美工们使用，我们在 `Engine\Build\Graph\Examples\BuildEditorAndTools.xml` 中提供了示例 [BuildGraph](Programming/BuildTools/AutomationTool/BuildGraph) 脚本，该脚本展示了编译二进制文件，将它们复制到暂存目录，以及（可选）将它们提交到Perforce的过程。
 
 我们在脚本的顶部展示了用法示例和使用它时的各种可用选项的文档。
 

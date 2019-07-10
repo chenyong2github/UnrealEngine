@@ -74,7 +74,7 @@ template<class T> inline T dtClamp(T v, T mn, T mx) { return v < mn ? mn : (v > 
 /// Returns the square root of the value.
 ///  @param[in]		x	The value.
 ///  @return The square root of the vlaue.
-float dtSqrt(float x);
+NAVMESH_API float dtSqrt(float x);
 
 /// @}
 /// @name Vector helper functions.

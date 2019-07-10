@@ -17,6 +17,9 @@
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Streaming/StreamingManagerTexture.h"
 #include "AudioStreaming.h"
+#include "Animation/AnimationStreaming.h"
+#include "AudioStreamingCache.h"
+#include "AudioCompressionSettingsUtils.h"
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -752,8 +755,20 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 
 	AddOrRemoveTextureStreamingManagerIfNeeded(true);
 
-	AudioStreamingManager = new FAudioStreamingManager();
+	if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	{
+		FCachedAudioStreamingManagerParams Params = FPlatformCompressionUtilities::BuildCachedStreamingManagerParams();
+		AudioStreamingManager = new FCachedAudioStreamingManager(Params);
+	}
+	else
+	{
+		AudioStreamingManager = new FLegacyAudioStreamingManager();
+	}
+	
 	AddStreamingManager( AudioStreamingManager );
+
+	AnimationStreamingManager = new FAnimationStreamingManager();
+	AddStreamingManager(AnimationStreamingManager);
 }
 
 /**
@@ -948,8 +963,18 @@ IRenderAssetStreamingManager& FStreamingManagerCollection::GetTextureStreamingMa
 
 IAudioStreamingManager& FStreamingManagerCollection::GetAudioStreamingManager() const
 {
+#if WITH_EDITOR
+	FScopeLock ScopeLock(&AudioStreamingManagerCriticalSection);
+#endif
+
 	check(AudioStreamingManager);
 	return *AudioStreamingManager;
+}
+
+IAnimationStreamingManager& FStreamingManagerCollection::GetAnimationStreamingManager() const
+{
+	check(AnimationStreamingManager);
+	return *AnimationStreamingManager;
 }
 
 /** Don't stream world resources for the next NumFrames. */
@@ -1119,6 +1144,48 @@ void FStreamingManagerCollection::PropagateLightingScenarioChange()
 	}
 }
 
+#if WITH_EDITOR
+#include "AudioDevice.h"
+#include "AudioDeviceManager.h"
+
+void FStreamingManagerCollection::OnAudioStreamingParamsChanged()
+{
+	// Before we swap out the audio streaming manager, we'll need to stop all sounds running on all audio devices:
+	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
+	TArray<FAudioDevice*>& AudioDevices = DeviceManager->GetAudioDevices();
+	for (FAudioDevice* AudioDevice : AudioDevices)
+	{
+		if (AudioDevice)
+		{
+			AudioDevice->StopAllSounds(true);
+		}
+	}
+
+	FScopeLock ScopeLock(&AudioStreamingManagerCriticalSection);
+
+	RemoveStreamingManager(AudioStreamingManager);
+
+	delete AudioStreamingManager;
+	AudioStreamingManager = nullptr;
+
+	// Lastly, make sure we have the most up to date cook overrides cached:
+	FPlatformCompressionUtilities::RecacheCookOverrides();
+
+	// Finally, reinitialize the streaming manager.
+	if (FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	{
+		FCachedAudioStreamingManagerParams Params = FPlatformCompressionUtilities::BuildCachedStreamingManagerParams();
+		AudioStreamingManager = new FCachedAudioStreamingManager(Params);
+	}
+	else
+	{
+		AudioStreamingManager = new FLegacyAudioStreamingManager();
+	}
+
+	AddStreamingManager(AudioStreamingManager);
+}
+#endif
+
 void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(bool bIsInit)
 {
 	bool bUseTextureStreaming = false;
@@ -1264,4 +1331,83 @@ FArchive& operator<<( FArchive& Ar, FDynamicTextureInstance& TextureInstance )
 	Ar << TextureInstance.bAttached;
 	Ar << TextureInstance.OriginalRadius;
 	return Ar;
+}
+
+
+/*-----------------------------------------------------------------------------
+	Audio chunk handles. Used by the cached audio streaming manager.
+-----------------------------------------------------------------------------*/
+FAudioChunkHandle::FAudioChunkHandle()
+	: CachedData(nullptr)
+	, CachedDataNumBytes(0)
+	, CorrespondingWave(nullptr)
+	, CorrespondingWaveName()
+	, ChunkIndex(INDEX_NONE)
+{
+}
+
+FAudioChunkHandle::FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex)
+	: CachedData(InData)
+	, CachedDataNumBytes(NumBytes)
+	, CorrespondingWave(InSoundWave)
+	, CorrespondingWaveName(SoundWaveName)
+	, ChunkIndex(InChunkIndex)
+{
+}
+
+FAudioChunkHandle::FAudioChunkHandle(const FAudioChunkHandle& Other)
+{
+	*this = Other;
+}
+
+FAudioChunkHandle& FAudioChunkHandle::operator=(const FAudioChunkHandle& Other)
+{
+	// If this chunk was previously referencing another chunk, remove that chunk here.
+	if (IsValid())
+	{
+		IStreamingManager::Get().GetAudioStreamingManager().RemoveReferenceToChunk(*this);
+	}
+
+	CachedData = Other.CachedData;
+	CachedDataNumBytes = Other.CachedDataNumBytes;
+	CorrespondingWave = Other.CorrespondingWave;
+	CorrespondingWaveName = Other.CorrespondingWaveName;
+	ChunkIndex = Other.ChunkIndex;
+
+
+	if (IsValid())
+	{
+		// Increment the reference count for the new streaming chunk.
+		IStreamingManager::Get().GetAudioStreamingManager().AddReferenceToChunk(*this);
+	}
+
+	return *this;
+}
+
+FAudioChunkHandle::~FAudioChunkHandle()
+{
+	if (IsValid())
+	{
+		IStreamingManager::Get().GetAudioStreamingManager().RemoveReferenceToChunk(*this);
+	}
+}
+
+const uint8* FAudioChunkHandle::GetData() const
+{
+	return CachedData;
+}
+
+uint32 FAudioChunkHandle::Num() const
+{
+	return CachedDataNumBytes;
+}
+
+bool FAudioChunkHandle::IsValid() const
+{
+	return GetData() != nullptr;
+}
+
+FAudioChunkHandle IAudioStreamingManager::BuildChunkHandle(const uint8* InData, uint32 NumBytes, const USoundWave* InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex)
+{
+	return FAudioChunkHandle(InData, NumBytes, InSoundWave, SoundWaveName, InChunkIndex);
 }

@@ -26,9 +26,9 @@ class FVolumetricFogLightFunctionPS : public FMaterialShader
 	DECLARE_SHADER_TYPE(FVolumetricFogLightFunctionPS,Material);
 public:
 
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Material->IsLightFunction() && DoesPlatformSupportVolumetricFog(Platform);
+		return Parameters.Material->IsLightFunction() && DoesPlatformSupportVolumetricFog(Parameters.Platform);
 	}
 
 	FVolumetricFogLightFunctionPS() {}
@@ -50,7 +50,7 @@ public:
 		FVector2D LightFunctionTexelSizeValue,
 		const FMatrix& ShadowToWorldValue)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
 
@@ -103,7 +103,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 	FIntVector VolumetricFogGridSize,
 	float VolumetricFogMaxDistance,
 	FMatrix& OutLightFunctionWorldToShadow,
-	const FRDGTexture*& OutLightFunctionTexture,
+	FRDGTexture*& OutLightFunctionTexture,
 	bool& bOutUseDirectionalLightShadowing)
 {
 	OutLightFunctionWorldToShadow = FMatrix::Identity;

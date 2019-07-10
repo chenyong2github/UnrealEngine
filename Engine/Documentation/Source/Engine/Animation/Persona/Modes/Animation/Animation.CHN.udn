@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4326187
+﻿INTSourceChangelist:6184420
 Availability: Public
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona, Engine/Animation/Persona/Modes
 Title:动画编辑器
@@ -13,10 +13,6 @@ tags:FBX Importing
 tags:Tools
 topic-image:animEditor_topic.png
 
-[REGION:banner]
-![](AnimationBanner.png)
-[/REGION]
-
 
 [EXCERPT:Overview]
 使用 **动画编辑器** 可轻松地访问可用于骨架网格体的各种以动画为中心的资源。 
@@ -30,24 +26,20 @@ topic-image:animEditor_topic.png
 [/REGION]
 
 
-(#1.Toolbar)
 ## 1.工具栏
 
 动画编辑器中的 [工具栏](Engine/Animation/Persona/Toolbar) 提供用于保存对动画所做的任何更改或在内容浏览器中找到动画的选项。它也允许你创建新动画资源，定义压缩设置，调整Additive层轨迹或使用预览的当前姿势创建静态网格体。 
 工具栏最右侧的是 **编辑器工具栏**，它使你能够在虚幻引擎4中的不同动画工具间进行切换。 
 
-(#2.AssetDetails/SkeletonTree)
 ## 2.资源细节（Asset Details） / 骨架树（Skeleton Tree）
 
 [资源细节（Asset Details）](Engine\Animation\Persona\AnimAssetDetails) 选项卡提供使你能够定义动画资源的工作方式的选项，这些选项因你打开的动画资源的类型而异。 
 停靠在“资源细节（Asset Details）”旁边的是 [](Engine/Animation/Persona/SkeletonTree)，它显示当前骨架资源的骨骼层级，允许你创建/编辑插槽以及定义与动画重定向相关的设置。 
 
-(#3.Viewport)
 ## 3.视口
 
 [视口](Engine/Animation/Persona/Viewport) 窗口允许你预览选定的骨架网格体上的动画资源的播放并提供与资源相关的信息。你可以更改照明模式，显示或隐藏骨架的骨骼，调整动画播放速度，甚至将骨架网格体设置为在转盘上自动旋转，以便从各个角度查看它。 
 
-(#4.Details/PreviewSceneSettings)
 ## 4.细节（Details）/预览场景设置（Preview Scene Settings）
 
 [细节（Details）](Engine/UI/LevelEditor/Details) 面板与主编辑器相似，主要用于修改使用 **资源编辑器** 时已添加的选项。 
@@ -55,12 +47,10 @@ topic-image:animEditor_topic.png
 
 同样位于此部分的是 [预览设置](Engine\Animation\Persona\PreviewSettings) 选项卡，它使你能够定义要用作预览的 **动画模式（Animation Mode）** 或 **动画（Animation）** 等视口设置，切换用于预览的 **骨架网格体**，以及要应用的视口照明和后期处理设置，以便你可以在应用不同照明的情况下预览设置。 
 
-(#5. Asset Editor)
 ## 5.资源编辑器
 
 [资源编辑器](Engine/Animation/Persona/AssetEditor) 是上下文编辑器，其界面布局和选项会基于你打开的动画资源的类型发生变化。你可以在此窗口中修改动画序列、混合空间、动画蒙太奇或任何其他动画资源，以及从位于底部的工具栏播放动画或录制新动画。 
 
-(#6.AssetBrowser)
 ## 6.资源浏览器（Asset Browser）
 
 [](Engine\Animation\Persona\AssetBrowser) 允许你查看与当前骨架资源关联且可由其使用的所有动画资源。 

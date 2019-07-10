@@ -1,46 +1,1023 @@
-Availability:Public
-Title:Working with Sets
-Description:Learn how to work with Sets in Blueprints.
-Crumbs:%ROOT%
-Parent:Engine/Blueprints/Scripting
-Order:3
+Availability: Public
+Title: Working with Sets
+Description: Learn how to work with Sets in Blueprints.
+Type: how-to
 Version: 4.15
-Tags:Blueprint Set
-Tags:Blueprints
-Type:how-to
-Skilllevel:Advanced
-Checkpoint:HowToWorkWithSets
+Parent: Engine/Blueprints/Scripting
+SkillLevel: Advanced
+Order: 14
+Related: Engine/Blueprints/UserGuide/Sets/SetNodes
+Related: Engine/Blueprints/UserGuide/Sets
+Related: Programming/UnrealArchitecture/TSet
 Topic-image:workingWithSets_topicImage.png
-Related:Programming/UnrealArchitecture/TSet
+
+
+[TOC (start:2 end:3)]
 
 ![](workingWithSets_topicBanner.png)
+
+More often than not, [Blueprint Arrays](Engine/Blueprints/UserGuide/Arrays) are the container-of-choice for most design scenarios. Arrays, being an ordered list of items where duplicates are allowed, offer developers a container that is both ordered and flexible. There are times though, when developers, working with pools of items, aren't worried with the order of each item belonging to the pools, rather, they might be concerned with the uniqueness of the items belonging to the pools that they're drawing data from. This is where a **Blueprint Set** can help.
+
+At the end of this guide, you'll get some experience creating and editing Sets in the Blueprint scripting environment, querying and displaying items, and performing basic operations, including Intersections and Unions, on Blueprint Sets in Unreal Engine 4 (UE4).
+
+## 1\. Required Setup
+
+Before you can start working with Blueprint Sets, you'll have to set up your project to display the container's contents.
+
+1.  From the **Unreal Project Browser**, select the **New Project** tab, choose the **First Person** Blueprint project, and name your project, `ExampleSetProject`.
+
+    [REGION:lightbox]
+    [![](Step1_1.png)(w:600)](Step1_1.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Before creating your new project, please make sure that the project matches the following settings:
+
+    [REGION:lightbox]
+    [![](Step1_1Note.png)(w:600)](Step1_1Note.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Double-click the **Blueprints** folder from the project's **Content Browser**.
+
+    [REGION:lightbox]
+    [![](Step1_2.png)(w:600)](Step1_2.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  From the **Content Browser**, go ahead and click the **Add New** button, hovering your mouse curser over the **Blueprint Class**, which is located under the **Create Basic Asset** pop-up menu.
+
+    [REGION:lightbox]
+    [![](Step1_3.png)(w:600)](Step1_3.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After the **Pick Parent Class** menu opens, click the **All Classes** arrow to search for the **TextRender Actor** Blueprint Class.
+
+    ![](Step1_4.png)
+
+1.  Enter `TextRenderActor` in the **Search Bar**, selecting the **TextRenderActor** Blueprint Class before clicking the **Select** button.
+
+    ![](Step1_5.png)
+
+1.  At this point, you should have a new **TextRender Actor** located in your project's **Content Browser**. Go ahead and name the new Actor `DisplaySet`.
+
+    [REGION:lightbox]
+    [![](Step1_6.png)(w:600)](Step1_6.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, drag the `DisplaySet` TextRender Actor into Unreal Editor's **Perspective (3D) Viewport**.
+
+    [REGION:lightbox]
+    [![](Step1_7.png)(w:600)](Step1_7.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  With the **DisplaySet** TextRender Actor selected, click the **+ Add Component** button (located in the **Details** panel), and enter `Box Collision` into the **Search Bar**.
+
+    [REGION:lightbox]
+    [![](Step1_8.png)(w:600)](Step1_8.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After adding the **Box Collision Component** to the TextRender Actor, name the new Component, `Trigger Box`.
+
+    [REGION:lightbox]
+    [![](Step1_9.png)(w:600)](Step1_9.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, select the TextRender Component to view the Actor's **Transform** in the **Details** panel.
+
+    [REGION:lightbox]
+    [![](Step1_10.png)(w:600)](Step1_10.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Update the **Display Set** Actor's **Transform** to reflect the following values:
+
+    ![](Step1_11.png)
+
+1.  Now, change the **Display Set** Actor's **Horizontal Alignment** to be **Center** aligned (rather than **Left** aligned, which is the default **Horizonal Alignment** value).
+
+    ![](Step1_12.png)
+
+1.  Currently, the **Trigger Box** Component is **Hidden in Game**. Go ahead and clear the **Hidden in Game** check box (located in the **Rendering** menu of the **Details** panel) so that you can view the **Box Collision** Component in-game.
+
+    ![](Step1_13.png)
+
+    [REGION:note]
+    Having the ability to view **Box Collision** Components in-game is a great way to debug any potential issues with the underlying logic driving a triggered event.
+    [/REGION]
+
+1.  If you enter PIE (or Play in Editor) mode, you'll notice that your projectiles will have a collision response to the **Display Set** collision box. Currently, we only want the **Display Set** collision box to trigger an event that allows us to display the contents of your Set containers. To do this, go to the **Collision** menu (located in the **Details** panel), click the **Collision Presets** drop-down list box, and select the **Custom...** option. 
+
+    ![](Step1_14.png)
+
+1.  Finally, update the **Collision Presets** to reflect the following values:
+
+    ![](Step1_15.png)
+
+### Section Result
+
+[REGION:lightbox]
+    [![](Step1_EndResult.png)(w:600)](Step1_EndResult.png)
+[/REGION]
+
 [REGION:caption]
-At the end of this tutorial, you'll gain some experience working with Sets in Unreal Engine 4 (UE4).
+Click for full image.
 [/REGION]
 
-More often than not, [](Engine/Blueprints/UserGuide/Arrays) are the container-of-choice for most design scenarios. Arrays, being an ordered list of items where duplicates 
-are allowed, offer developers a container that is both ordered and flexible. There are times though, when developers, working with pools of 
-items, aren't worried with the order of each item belonging to the pools, rather, they might be concerned with the uniqueness of the items 
-belonging to the pools that they're drawing data from. 
+By now, you've created a new project, having also set up a new TextRender Actor, which will display the contents of a Blueprint Set container that you'll create, edit, and display in the next step.
 
-This is where a **Blueprint Set** might help.
+## 2\. Creating and Displaying a Blueprint Set
 
-## Goal
+Now that you've set up a **TextRender** Actor in your newly created project, you're ready to create a Blueprint Set container, the contents of which you'll display in-game.
 
-This guide teaches you how to set up and work with a Blueprint Set.
+1.  From your project's **Content Browser**, double-click the **Display Set** TextRender Actor to open its Blueprint **Event Graph**. 
 
-## Objectives
+    [REGION:lightbox]
+    [![](Step2_1.png)(w:600)](Step2_1.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
 
-After working through this tutorial, you'll know the following: 
+1.  If you see the following screen, go ahead and click the **Open Full Blueprint Editor** link to get started.
 
-* How to create and edit Sets in the Blueprint scripting environment. 
-* How to query and display items being contained in a Blueprint Set. 
-* How to perform some basic operations on Blueprint Sets, including Intersections and Unions.
+    [REGION:lightbox]
+    [![](Step2_2.png)(w:600)](Step2_2.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
 
-## Steps
+1.  You should see the **Display Set** TextRender Actor Blueprint **Event Graph**, where you'll be able to add a Blueprint Set and its diplay logic.
 
-[DIR(output:"checkpoint" parent:"Engine/Blueprints/BP_HowTo/WorkingWithSets" org:"hierarchy")]
+    [REGION:lightbox]
+    [![](Step2_3.png)(w:600)](Step2_3.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
 
-[REGION:call_to_action]
-	[Click to Start](Engine/Blueprints/BP_HowTo/WorkingWithSets/1 "%Engine/Blueprints/BP_HowTo/WorkingWithSets/1:title%")
-[/REGION]
+    [REGION:note]
+
+    If you don't see the aforementioned screen, go ahead and click the **Event Graph** tab to open the Actor's Blueprint Event Graph Editor.
+
+    [REGION:lightbox]
+    [![](Step2_3Note.png)(w:600)](Step2_3Note.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+    [/REGION]
+
+1.  Now is the time to create a Blueprint Set container, where you'll store some items that you'll display later on. To create a new Blueprint Set, click the **+ Add New** button (located in the **My Blueprint** panel) and select **Variable** from the drop-down list.
+
+    [REGION:lightbox]
+    [![](Step2_4.png)(w:600)](Step2_4.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Name your new variable, `Instruction Set`.
+
+    [REGION:lightbox]
+    [![](Step2_5.png)(w:600)](Step2_5.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Click the variable's **pin type** button, which is located next to the variable's name.
+
+    [REGION:lightbox]
+    [![](Step2_6.png)(w:600)](Step2_6.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, select the **String** variable type from the drop-down list.
+
+    [REGION:lightbox]
+    [![](Step2_7.png)(w:600)](Step2_7.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Click the variable's **container type** button, which is located next to the **Variable Type** drop-down list in the **Details** panel.
+
+    [REGION:lightbox]
+    [![](Step2_8.png)(w:600)](Step2_8.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, select the **Set** container type from the drop-down list.
+
+    [REGION:lightbox]
+    [![](Step2_9.png)(w:600)](Step2_9.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  At this point, the Blueprint Graph reminds you that you need to compile the Blueprint in order to define the items that you're going to store inside of the container. Go ahead and click the **Compile** button to get started.
+
+    [REGION:lightbox]
+    [![](Step2_10.png)(w:600)](Step2_10.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+    [REGION:note]
+    Compiling the Blueprint replaces the container's **Default Value** message with an interface, enabling you to populate your container with unique items (or elements) of String type.
+    [/REGION]    
+
+1.  If you already haven't done so, go ahead and click the **Save** button to save all of the work that you've done so far. 
+
+    [REGION:lightbox]
+    [![](Step2_11.png)(w:600)](Step2_11.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+    [REGION:tip]
+    In general, it's always a good practice to save early, and save often. 
+    [/REGION]
+
+1.  Click the **+** (Adds Element) button (located in the **Default Value** menu of the **Details** panel) to add a String type item to your newly defined **Instruction Set** container.
+
+    [REGION:lightbox]
+    [![](Step2_12.png)(w:600)](Step2_12.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Define your container's new item, defining the item as `Click`.
+
+    ![](Step2_13.png)
+
+1.  Repeat the previous two steps, making sure to fill your **Instruction Set** container with the following items: 
+
+    ![](Step2_14.png)
+
+### Scripting the Logic
+
+Before you can display the contents of your newly created Blueprint Set, you'll need to write the necessary logic.
+
+1.  Now that you've defined your container, go ahead and drag the **Instruction Set** variable into the Blueprint Event Graph. 
+
+    [REGION:lightbox]
+    [![](Step2_15.png)(w:600)](Step2_15.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Select **Get** from the **Instruction Set** drown-down list.
+
+    [REGION:lightbox]
+    [![](Step2_16.png)(w:600)](Step2_16.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Instruction Set** node and add the **To Array** node from the **Set Utilities** interface.
+
+    [REGION:lightbox]
+    [![](Step2_17.png)(w:600)](Step2_17.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Go ahead and drag off the **To Array** node, connecting it to a **Get** node.
+
+    [REGION:lightbox]
+    [![](Step2_18.png)(w:600)](Step2_18.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+    [REGION:note]
+    There are several ways to get items from a Set. One way is to query the Set with a specific key and another way is to iterate through the items in a set. For this part in the tutorial, we'll go ahead and use a counter variable to iterate our way through the **Instruction Set**.
+    [/REGION]
+
+1.  With the aforementioned note in mind, go ahead and click the **+ Add New** button, selecting **Variable** from the drop-down list.
+
+    [REGION:lightbox]
+    [![](Step2_19.png)(w:600)](Step2_19.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Make sure to set the new variable's type to an **Integer** type, giving it the name, `Counter`.
+
+    [REGION:lightbox]
+    [![](Step2_20.png)(w:600)](Step2_20.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After you've declared and defined your counter variable, drag **Counter** into the Blueprint Event Graph, and select **Get** from the drop-down list.
+
+    [REGION:lightbox]
+    [![](Step2_21.png)(w:600)](Step2_21.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Counter** node, search for, and add the **IncrementInt** node.
+
+    [REGION:lightbox]
+    [![](Step2_22.png)(w:600)](Step2_22.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, go ahead and connect the **IncrementInt** node to the **Get** node.
+
+    [REGION:lightbox]
+    [![](Step2_23.png)(w:600)](Step2_23.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+    [REGION:note]
+    For the purposes of this tutorial, you're going to use a timer function to increment the **Counter** variable.
+    [/REGION]
+
+1.  Drag off the **Event Tick** node, search for, and add the **Delay** node.
+
+    [REGION:lightbox]
+    [![](Step2_24.png)(w:600)](Step2_24.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After you've set the delay duration to **2** seconds, connect the **Delay** node to the **IncrementInt** node.
+
+    [REGION:lightbox]
+    [![](Step2_25.png)(w:600)](Step2_25.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Go ahead and connect the **Event BeginPlay** node to the **To Array** node.
+
+    [REGION:lightbox]
+    [![](Step2_26.png)(w:600)](Step2_26.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  At this point, you're ready to drag off the **To Array** node to search for, and connect the **Set Text** node in order to display your container's contents in-game.
+
+    [REGION:lightbox]
+    [![](Step2_27.png)(w:600)](Step2_27.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Connect the **Get** node to the **Value** pin (located in the **Set Text** node).
+
+    [REGION:lightbox]
+    [![](Step2_28.png)(w:600)](Step2_28.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, go ahead and connect the **Increment** node to the **Set Text** node.
+
+    [REGION:lightbox]
+    [![](Step2_29.png)(w:600)](Step2_29.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After inspecting your completed script, go ahead and click the **Compile** button before going back to the Editor's **Viewport** interface.
+
+    [REGION:lightbox]
+    [![](Step2_30.png)(w:600)](Step2_30.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  From the Editor's **Viewport** interface, click the **Play** button to see your newly implemented script at work.
+
+### Section Result
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    BdDdQhDveIY
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+At this point in the guide, you've defined a new Blueprint Set, filled the container with items, and displayed them with some basic logic that you created in your **TextRender** Actor's Blueprint Event Graph. If you want to learn how to perform a slightly more advanced operation, please continue onto the next step, where you'll learn how to perform an **Intersection** of two Blueprint Sets.
+
+## 3\. Performing an Intersection
+
+By now, you should have a **TextRender** Actor displaying the contents of a Blueprint Set that you defined in the previous step. In this step, you're going to learn how to perform an **Intersection** of two Blueprint Sets, ultimately printing the result of the Intersection in the game's **Viewport**.
+
+1.  From your project's **Content Browser**, double-click the **Display Set** TextRender Actor to open its Blueprint **Event Graph**. 
+
+    [REGION:lightbox]
+    [![](Step3_1.png)(w:600)](Step3_1.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  You should see the **Display Set** TextRender Actor Blueprint **Event Graph**, where you'll be able to add a new Blueprint Set to **Intersect** with the existing **Instruction Set**, ultimately displaying a resultant Set to the **Viewport**.
+
+    [REGION:lightbox]
+    [![](Step3_2.png)(w:600)](Step3_2.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  At this point in the tutorial, you'll want to create a couple of Blueprint Set containers for the upcoming Intersection. Go ahead and right-click on the **Instruction Set** variable and select **Duplicate** from the drop-down list to create two new Blueprint Set variables, naming them `Shorter Instruction Set` and `Resultant Instruction Set`.
+
+    ![](Step3_3.png)
+
+    [REGION:note]
+    Performing an Intersection on two Sets (typically) involves a Resultant Set, which will contain only those items that are common to both Sets
+    [/REGION]
+
+1.  You should now have two new Blueprint Set variables, which you duplicated from the existing **Instruction Set** variable. You should also notice that if you select one of your new Blueprint Sets (for example, **Resultant Instruction Set**), the **Default Value** message, saying `Please compile the blueprint`, should be visible.
+
+    [REGION:lightbox]
+    [![](Step3_4.png)(w:600)](Step3_4.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Go ahead and click the **Compile** button.
+
+    [REGION:lightbox]
+    [![](Step3_5.png)(w:600)](Step3_5.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After compiling your Blueprint, you should see the **Default Value** message disappear, making way for some existing elements. As you know, you performed a duplication of the existing **Instruction Set** variable to create two new variables, thereby duplicating the elements that were originally contained in the original Blueprint Set into the newly created containers.  
+
+    ![](Step3_6.png)
+
+    [REGION:note]
+    Please note that you can create new variables without having to duplicate existing variables.
+    [/REGION]
+
+1.  To clear the **Resultant Instruction Set**, go ahead and click the **Removes all items** button located in the **Default Value** menu.
+
+    [REGION:lightbox]
+    [![](Step3_7.png)(w:600)](Step3_7.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, clear the items (or elements) from the **Shorter Instruction Set**.
+
+    [REGION:lightbox]
+    [![](Step3_8.png)(w:600)](Step3_8.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Before you can add new logic to the existing Blueprint Event Graph, go ahead and drag the **Shorter Instruction Set** and **Instruction Set** variables into the Blueprint.
+
+    [REGION:lightbox]
+    [![](Step3_9.png)(w:600)](Step3_9.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+### Scripting the Logic
+
+1.  To get started with building your new logic, drag off the **Shorter Instruction Set** node and add the **Intersection** node from the **Set Utilities** interface.
+
+    [REGION:lightbox]
+    [![](Step3_10.png)(w:600)](Step3_10.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, connect the **Instruction Set** node to the **Intersection** node.
+
+    [REGION:lightbox]
+    [![](Step3_11.png)(w:600)](Step3_11.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Right-click in the Blueprint Graph to open the **Context Menu**, where you'll search for and add **Event ActorBeginOverlap**.
+
+    [REGION:lightbox]
+    [![](Step3_12.png)(w:600)](Step3_12.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Other Actor** pin of the **Event ActorBeginOverlap** node, search for, and add the **Cast To FirstPersonProjectile** node.
+
+    [REGION:lightbox]
+    [![](Step3_13.png)(w:600)](Step3_13.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, connect the **Cast To FirstPersonProjectile** node to the **Intersection** node.
+
+    [REGION:lightbox]
+    [![](Step3_14.png)(w:600)](Step3_14.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+    [REGION:note]
+    Basically, this means that if the First Person Projectile successfully collides with this Actor's collision box, call the **Intersection** node.
+    [/REGION]
+
+1.  After the **Intersection** node performs its operation on the **Shorter Instruction Set** and the **Instruction Set**, you'll want to store the results in the **Resultant Instruction Set** container. To do this, go ahead and drag off the **Intersection** node and add the **Set Resultant Instruction Set**
+
+    [REGION:lightbox]
+    [![](Step3_15.png)(w:600)](Step3_15.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **Set Resultant Instruction Set** node and add the **To Array** node from the **Set Utilities** interface.
+
+    [REGION:lightbox]
+    [![](Step3_16.png)(w:600)](Step3_16.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  To iterate through the Array's elements, go ahead and drag off the **To Array** node and add the **ForEachLoop** node.
+
+    [REGION:lightbox]
+    [![](Step3_17.png)(w:600)](Step3_17.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Connect the **To Array Node** with the **ForEachLoop** node.
+
+    [REGION:lightbox]
+    [![](Step3_18.png)(w:600)](Step3_18.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, you're ready to print the intersection's results to the **Viewport**. To do this, drag off the **Array Element** pin of the **ForEachLoop** node, search for, and add the **Print String** node.
+
+    [REGION:lightbox]
+    [![](Step3_19.png)(w:600)](Step3_19.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Connect the **ForEachLoop** node to the **Print String** node.
+
+    [REGION:lightbox]
+    [![](Step3_20.png)(w:600)](Step3_20.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  At this point, you're ready to determine what the **Resultant Instruction Set** will contain. Let's say, for this example, that you want the **Resultant Instruction Set** variable to only contain `Click`, `Left`, `Mouse`, and `Button`. The first thing you'll want to do, is to perform the intersection on paper: 
+
+    |Instruction Set|Shorter Instruction Set|Resultant Instruction Set (A ∩ B)|
+    | --- | --- | --- |  
+    | Click | Click | Click |
+    | the | Left | Left |
+    | Left | Mouse | Mouse |
+    | Mouse | Button | Button |
+    | Button |  |  |
+    | and |  |  |
+    | Fire |  |  |
+
+    [REGION:note]
+    As you can see from the paper-study you just performed, items common to both **Instruction Set** and **Shorter Instruction Set** are stored in the **Resultant Set** container. Whenever you're performing logical operations on Sets, it's good practice to perform the operation on paper (or a whiteboard) before scripting the logic into your Blueprint Graphs.
+    [/REGION]
+
+1.  Now that you know what items you want to store in the **Shorter Instruction Set** container, go ahead and select **Shorter Instruction Set** to inspect the container's contents.
+
+    [REGION:lightbox]
+    [![](Step3_21.png)(w:600)](Step3_21.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+    [REGION:note]
+    As you can see from the highlighted image, **Shorter Instruction Set** is currently empty. At this time, if you were to perform an intersection of **Shorter Instruction Set** with **Instruction Set**, the **Resultant Instruction Set** container would be empty.
+    [/REGION]
+
+1.  Go ahead and fill the **Shorter Instruction Set** container with the following elements:
+
+    ![](Step3_22.png)
+
+1.  After inspecting your completed script, go ahead and click the **Compile** button.
+
+    [REGION:lightbox]
+    [![](Step3_23.png)(w:600)](Step3_23.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Finally, click the **Save** button before going back to the Editor's **Viewport** interface.
+
+    [REGION:lightbox]
+    [![](Step3_24.png)(w:600)](Step3_24.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  From the Editor's **Viewport** interface, click the **Play** button to see the updated script at work.
+
+    [REGION:lightbox]
+    [![](Step3_25.png)(w:600)](Step3_25.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+### Section Result
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    1lK1w-Qssu0
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+As you can see from the video, when a First Person Projectile collides with the **Display Set** collision box, the contents of **Resultant Instruction Set** are printed to the **Viewport**. Looking at the printed items, you'll notice that the items contained in **Resultant Instruction Set** are not in any predictable order, which is a property of Blueprint Sets. Check out the next step to learn how to perform a **Union** of two Blueprint Sets.
+
+## 4\. Performing a Union
+
+In this step, the final one of this tutorial, you'll learn how to perform a **Union** of two Blueprint Sets, ultimately printing the result of the Union in the game's **Viewport**.
+
+1.  From your project's **Content Browser**, double-click the **Display Set** TextRender Actor to open its Blueprint **Event Graph**. 
+
+    [REGION:lightbox]
+    [![](Step4_1.png)(w:600)](Step4_1.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  At this point in the tutorial, you'll want to create a new Blueprint Set container for the upcoming Union. Go ahead and right-click on the **Shorter Instruction Set** Variable and select **Duplicate** from the drop-down list to create a new Blueprint Set variable, naming it `Longer Instruction Set`.
+
+    ![](Step4_2.png)
+
+1.  Now, go ahead and click the **Compile** button.
+
+    [REGION:lightbox]
+    [![](Step4_3.png)(w:600)](Step4_3.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Click the **Removes all items** button to clear all of the items from the **Longer Instruction Set**.
+
+    [REGION:lightbox]
+    [![](Step4_4.png)(w:600)](Step4_4.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Add the following items to your new **Longer Instruction Set** container:
+
+    ![](Step4_5.png)
+
+1.  Drag the **Longer Instruction Set** and the **Instruction Set** variables into the Blueprint Graph.
+
+    [REGION:lightbox]
+    [![](Step4_6.png)(w:600)](Step4_6.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+### Scripting the Logic
+
+1.  To get started with building your new logic, drag off the **Longer Instruction Set** and add the **Union** node from the **Set Utilities** interface.
+
+    [REGION:lightbox]
+    [![](Step4_7.png)(w:600)](Step4_7.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Connect the **Instruction Set** node to the **Union** node.
+
+    [REGION:lightbox]
+    [![](Step4_8.png)(w:600)](Step4_8.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Connect the **Cast Failed** pin of the **Cast To FirstPersonProjectile** node to the **Union** node.
+
+    [REGION:lightbox]
+    [![](Step4_9.png)(w:600)](Step4_9.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, drag off the **Union** node, search for, and add the **To Array** node.
+
+    [REGION:lightbox]
+    [![](Step4_10.png)(w:600)](Step4_10.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Drag off the **To Array** node, search for, and add the **ForEachLoop** node.
+
+    [REGION:lightbox]
+    [![](Step4_11.png)(w:600)](Step4_11.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Connect the **To Array** node to the **ForEachLoop** node.
+
+    [REGION:lightbox]
+    [![](Step4_12.png)(w:600)](Step4_12.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Now, you're ready to print the union's results to the **Viewport**. To do this, drag off the **Array Element** pin of the **ForEachLoop** node, search for, and add the **Print String** node.
+
+    [REGION:lightbox]
+    [![](Step4_13.png)(w:600)](Step4_13.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Connect the **ForEachLoop** node to the **Print String** node.
+
+    [REGION:lightbox]
+    [![](Step4_14.png)(w:600)](Step4_14.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Because you already have a debug message being printed, you'll want to change the color of the text being printed to the **Viewport**. To do this, go ahead and click the menu expansion arrow, which is located at the bottom of the **Print String** node.
+
+    [REGION:lightbox]
+    [![](Step4_15.png)(w:600)](Step4_15.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Click on the **Text Color** box to open the **Color Picker** menu.
+
+    [REGION:lightbox]
+    [![](Step4_16.png)(w:600)](Step4_16.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Go ahead and set the color to the following values:
+
+    ![](Step4_17.png)
+
+1.  Now, go ahead and click the **Compile** button.
+
+    [REGION:lightbox]
+    [![](Step4_18.png)(w:600)](Step4_18.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  After expecting your completed script, go ahead and click the **Save** button before returning to the Editor's **Viewport** interface.
+
+    [REGION:lightbox]
+    [![](Step4_19.png)(w:600)](Step4_19.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  From the Editor's **Viewport** interface, click the **Play** button to see the updated script at work.
+
+    [REGION:lightbox]
+    [![](Step4_20.png)(w:600)](Step4_20.png)
+    [/REGION]
+    
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+## End Result
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    3PevHZoBX3E
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+As you can see from the video, when the First Person Character collides with the **Display Set** collision box, the result of the **Union** is printed to the **Viewport**. Again, looking at the printed items, you'll notice that the items are not in any predictable order, which is a property of Blueprint Sets. As a final reminder, if you performed a Union operation of both Blueprint Sets on paper, you would have come up with the following result:
+
+|Instruction Set|Longer Instruction Set|Resultant Output (A ∪ B)|
+| --- | --- | --- |  
+| Click | your | Click |
+| the | Gun | the |
+| Left |  | Left |
+| Mouse |  | Mouse |
+| Button |  | Button |
+| and |  | and |
+| Fire |  | Fire |
+|  |  | your |
+|  |  | Gun |

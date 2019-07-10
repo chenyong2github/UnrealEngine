@@ -1,0 +1,229 @@
+﻿INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: Datasmith で Revit を使用する
+Description: Datasmith を使用して Autodesk Revit から Unreal Editor にシーンを取り込む際に特段考慮すべき事項を説明します。
+Type:landing
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides
+Order: 2
+topic-image:datasmith-revit-topic.png
+Tags: Datasmith
+Tags: overview
+Tags: interop
+Tags: Early Access
+Tags: Landing Page
+hero-image: datasmith-revit-compare-unreal.png
+
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Revit](datasmith-revit-compare-revit.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![UE4](datasmith-revit-compare-unreal.png) 
+ [/PARAM]
+[/OBJECT]
+
+Datasmith を使用して Autodesk Revit から Unreal Editor にシーンを取り込むにあたり、Datasmith によるシーンの処理方法について、[](Studio/Datasmith/Overview)および[](Studio/Datasmith/Overview/ImportProcess)で説明されている基本事項以外にも何点か追加で知っておくべきことがあります。
+
+[REGION:note]
+Revit 用の Datasmith Exporter プラグインは早期アクセス段階のため、Revit と Unreal Engine 間の主要なデータ型の変換機能の作成に取り組んでいます。 このプラグインをダウンロードして、ご自分のシーンでお試しいただくことはできますが、現時点で結果にいくつかの問題が発生する可能性があることに留意してください。 特に、以下のデータ型の変換機能の作成に取り組んでいます。
+
+*   シーン階層
+*   ピボット ポイント
+*   ライト
+*   カメラ
+*   マテリアルとテクスチャ
+*   UV 座標とテクスチャサイズ
+*   サーベイ ポイントとプロジェクト基準点
+
+今後数週間以内にアップデートを予定していますので、[Unreal Studio フォーラム](https://forums.unrealengine.com/unreal-engine/unreal-studio)をこまめにご確認ください。
+[/REGION]
+
+## Revit ワークフロー
+
+Datasmith は Revit に対して Export Plugin のワークフローを使用します。そのため、Datasmith を使用して Revit のコンテンツを Unreal Engine に取り込むには、以下を実行する必要があります。
+
+1.  Revit 用プラグインのインストール。 [](Studio/Datasmith/SoftwareInteropGuides/Revit/InstallingExporterPlugin)を参照してください。
+2.  Revit のコンテンツを*「.udatasmith」*ファイルにエクスポートします。 [](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit)を参照してください。
+3.  Datasmith インポータを使用して、エクスポートした*「.udatasmith」*ファイルを Unreal Editor に取り込みます。 [](Studio/Datasmith/HowTo/ImportingContent) を参照してください。
+
+## エクスポートする内容の制御
+
+Datasmith Exporter プラグインを使用してシーンをエクスポートするには、Revit で 3D ビューを選択してアクティブにする必要があります。 その 3D ビューの表示設定により、エクスポートされた *「.udatasmith」*ファイルに含める Revit ファイルの要素を定義します。 この操作を利用して、Unreal Engine にエクスポートするコンテンツを Revit 内で完全に制御することができます。
+
+既に Revit ファイルにある 3D ビューを使用することができます。 ただし、Unreal Engine に取り込むオブジェクトを完全に制御するには、Revit で新しい 3D ビューを設定し、リアルタイム ビジュアライゼーションに必要なオブジェクトだけが表示されるようにビューを設定することをお勧めします。
+
+Revit には、3D ビュー内のオブジェクトの表示設定を制御するための多くのツールとテクニックが用意されています。 例：
+
+* **[Graphics] > [Visibility (可視性) / Graphics Overrides]** を使用して、レベル内のさまざまなオブジェクトおよびオブジェクトのカテゴリ表示が制御できます。
+    [REGION:lightbox]
+    [![Revit Visibility (可視性) / Graphics Overrides](revit-visibility-overrides.png "Revit Visibility （可視性） / Graphics Overrides")(w:1000)](revit-visibility-overrides.png) *クリックしてフルサイズで表示*
+    [/REGION]
+* [セクション ボックス](http://help.autodesk.com/view/RVT/2019/ENU/?guid=GUID-C9EA51CB-3214-4BD8-AD55-3BEB1CCD15B6)を使用して、エクスポートしたジオメトリをカットすることができます。 セクション ボックス内のオブジェクトのみ Unreal Engine にエクスポートされます。 下の画像のウォール、フロア、家具などのように、オブジェクトがセクション ボックスの境界を越えてしまうと、そのジオメトリの表示は制限されることに留意してください。 Unreal Engine 内にエクスポートされたオブジェクトを表すスタティック メッシュ アセットには、セクション ボックス内にあるジオメトリのみが含まれています。
+    [REGION:lightbox]
+    [![Revit のセクション ボックスと Unreal Engine における表示結果](revit-unreal-sectionbox.png "Revit のセクション ボックスと Unreal Engine における表示結果")](revit-unreal-sectionbox.png) *クリックしてフルサイズで表示*
+    [/REGION]
+*Revit の **[Temporary Hide and Isolate]** 設定に留意します。
+*現在の 3D ビューに表示されているジオメトリック オブジェクトのみエクスポートされます。 非ジオメトリック オブジェクトは無視されます。
+
+[REGION:note]
+Datasmith Exporter は、Revit ビューポート内のオブジェクトの表示 / 非表示の選択は留意しますが、3D ビューの描画方法の制御に関する設定は考慮されません。 たとえば、3D ビュー用の **[Graphics] > [Graphic Display Options]** 設定 (リアリスティック やシェーディング モデル表示、キャスト シャドウなど) や **[Camera] > [Rendering Settings]** 設定 (ドラフトや高品質設定、照明スキームなど) は考慮されません。
+[/REGION]
+
+Revit 3D ビューでの表示 / 非表示の制御についての詳細は、Revit ヘルプ内の[「Visibility and Graphic Display in Project Views」](http://help.autodesk.com/view/RVT/2019/ENU/?guid=GUID-A2FC119B-51D7-4C2E-84ED-CD51983EC532)も参照してください。
+
+## ジオメトリ
+
+一般に、Revit シーン内で個別に選択できる要素は、Unreal では個別のスタティック メッシュ アセットとして変換されます。 いくつかの要素がレールなどの小さな部品で構成されている場合、さらに小さなスタティック メッシュに分割されることがあります。
+
+スタティック メッシュ アセットのジオメトリは、すべての場合において、ファイルをエクスポートした時点の Revit オブジェクトの寸法と一致するように設定されています。 パラメトリック設定とコンストレイントは、Unreal Engine に反映されません。 たとえば、Unreal Editor でフロアを上下に移動させても、Revit の場合のようにウォールの高さが新しい位置に合わせてストレッチしません。
+
+### インスタンス化
+
+2 つのオブジェクトが同じファミリに属していて、それらがまったく同じパラメータ値を持っている場合、両方のオブジェクトは同じスタティック メッシュ アセットのインスタンスとして Datasmith シーンに表示されます。
+
+### テッセレーション
+
+Datasmith は、Revit にビルトインされているテッセレーション機能を利用して、可能な限り最高の詳細度でシーン ジオメトリから三角ポリゴン メッシュを生成します。 ほとんどの場合、テッセレーションを使用することで Unreal Engine に最適なジオメトリを生成できます。 ただし、Revit で作成されたメッシュは、特に曲面サーフェスで高密度になることがあります。 例：
+
+![曲面サーフェスにおける高密度ジオメトリ](revit-tessellation.png "曲面サーフェスにおける高密度ジオメトリ")
+
+Datasmith は現時点で、インポート時にこれらのメッシュの再トポロジ化または単純化を行いません。 ただし、プロジェクト内でこれらのサーフェスが問題となる場合は、Unreal Editor が提供する[プロキシ ジオメトリ ツール](Engine/ProxyGeoTool)などのツールを使用して、これらサーフェスのメッシュの複雑さを軽減することができます。
+
+## マテリアルとテクスチャ
+
+Revit のシーンに含まれる各種サーフェスに対して、Datasmith によって新規のマテリアル アセットが Unreal Engine プロジェクト内に作成され、Datasmith シーン アセットの横の**「Materials」**フォルダに配置されます。 これらのマテリアルの目的は、Revit での作業で慣れ親しんだものが反映された一連のプロパティを提供しつつ、Revit で設定したサーフェスの外観を忠実に描くことにあります。
+
+[REGION:lightbox]
+[![](revit-material-definition.png)](revit-material-definition.png "Revit")
+[/REGION]
+
+Revit
+
+[REGION:lightbox]
+[![](unreal-material-definition.png)](unreal-material-definition.png "Unreal")
+[/REGION]
+
+Unreal
+
+Datasmith は現在、Revit で生成された拡散マップとカラー、透明度、カットアウト、バンプ設定から Unreal Engine マテリアルへの変換をサポートしています。
+
+Unreal Editor でマテリアルを変更する方法
+
+1.  **コンテンツ ブラウザ**で目的のマテリアルをダブルクリックします。 または、変更するマテリアルを使用するレベルのアクタを選択し、 [Details (詳細)] パネルでそのマテリアルをダブルクリックします。
+2.  上のマテリアル エディタが起動します。 [Details (詳細)] パネル上部の **[Parameter Groups (パラメータ グループ)]** セクションでこれらのパラメータを変更できます。 Unreal レンダラにより提供されている他のビルトイン パラメータを変更することもできます。
+3.  プロパティのデフォルト値をオーバーライドするには、変更するプロパティ名の左にあるチェックボックスをオンにして、マテリアルでそのプロパティをアクティベートします。 次に、そのプロパティで使用する値を設定します。
+
+[REGION:tip]
+各アセットはマテリアル インスタンスで、その親は Datasmith プラグインにビルトインされた **RevitMaster** マテリアルです。 この親マテリアルを開くと、マテリアル インスタンスで公開された各プロパティがマテリアル グラフ内でどのように関連付けられているかを確認することができます。
+[/REGION]
+
+### テクスチャと UV ラッピング
+
+Datasmith は、Revit マテリアルで使用したテクスチャをアセットにインポートし、Datasmith シーン アセットの横にある「Textures」フォルダに配置します。
+
+テクスチャ アセットを使用するマテリアルには、Revit テクスチャ エディタと同様のコントロールがあり、そのマテリアルを使用して 3D オブジェクトのサーフェスにテクスチャ マップを適用することができます。
+
+![テクスチャ マッピングと UV 設定](revit-uvs.png "テクスチャ マッピングと UV 設定")
+
+  
+
+1.  Revit の **[Position] > [Offset]** の値は、各マップ タイプの **UVOffsetX** および **UVOffsetY** の設定によって決まります。
+2.  Revit の **[Position] > [Rotation]** の値は、マップの種類ごとの **UVWAngle** 設定によって決まります。
+3.  Revit の **[Scale]** の値は実際の寸法に基づいており、Unreal Engine マテリアル内でスケール乗数に変換されます。 これらのスケール値の絶対値を大きくすると、オブジェクトのテクスチャが小さくなります。
+
+[REGION:note]
+Datasmith では、Checker、Noise、Tiles などのプロシージャル テクスチャは変換されません。
+[/REGION]
+
+## Datasmith のシーン階層を構築する
+
+Datasmith Exporter プラグインによって、Datasmith シーン内に親 / 子アクタの階層が生成され、Revit 内のシーンの全体的な構成が反映されます。 これにより、Revit で使い慣れた考え方に従い、Unreal Engine レベルでアクタを整理がすることができ、オブジェクトの発見や操作がしやすくなります。 
+
+このシーン階層は、以下のルールに従って構成されています。
+
+*   Revit の各 *レベル*  (地上階、レベル 1、レベル 2 など) は、Datasmith シーン階層内のアクタに個別に反映されます。
+*   各レベル内で、Revit の他のシーン要素を *ホスト* しているオブジェクトは、そのオブジェクトがホストしているオブジェクトの親になります。 
+*   Revit のレベルとホストを表す親アクタの下には、各ジオメトリック オブジェクトを表すスタティック メッシュ アクタがあります。
+
+たとえば、「Level 1」という名前のアクタには、ウォールを表すアクタが含まれています。 これらのアクタは、ウォールがホストするジオメトリック オブジェクト (ドア、窓、またはウォール セクション) を子に持つ別の親アクタとして順番に表されます。
+
+![Unreal Editor 内のシーン階層の例](scene-hierarchy.png "Unreal Editor 内のシーン階層の例")
+
+## ライト
+
+Datasmith では、ライトの強度として設定した物理的なユニットを維持したまま、Revit シーンから Unreal Engine にライトをインポートします。
+
+## カメラ
+
+Revit から 3D ビューをインポートするとき、Datasmith は Unreal Editor のレベルに単一の **CineCameraActor** を生成します。 このカメラの視野角を Revit 3D ビュー内のカメラの位置と向きに合わせて配置します。 レベル ビューポートまたは、**World Outliner (ワールド アウトライナー)** でこの CineCameraActor を選択した場合、**「.udatasmith」**ファイルのエクスポート時に Revit 3D ビューのクロップ領域とよく一致したビューポイントのプレビューが表示されます。
+
+[REGION:note]
+Datasmith では、正投影モードやチルト、シフト、クロップ領域のようなパースペクティブの補正など、Revit で使用可能な一部のカメラモードについては処理されません。
+[/REGION]
+
+最良の結果を得るためには、以下の設定を行います。
+
+1.  3D ビューの **[Camera] > [Projection Mode]** 設定を **[Perspective (パースペクティブ)]** に設定します。
+2.  Revit で 3D ビューのクロップ領域を設定して、Unreal Engine のカメラで設定したいビューに焦点を合わせます。
+3.  Revit でカメラのターゲットポイントがクロップ領域の中心にあることを確認します。 これを確認するには、他に平面図と立面図でカメラを表示します。  
+    パースペクティブをシフトしても、Unreal Engine での結果は期待通りにはなりません。
+
+たとえば、下の 3D ビューでは、クロップ領域を中心としたパースペクティブ カメラがあり、これは適切に変換されます。
+
+[REGION:imagetable]
+|||
+|---|---|
+| [REGION:lightbox][![](revit-camera-3d-crop-good.png)(w:450)](revit-camera-3d-crop-good.png)[/REGION] | [REGION:lightbox][![](revit-camera-plan-good.png)(w:450)](revit-camera-plan-good.png)[/REGION] |
+[/REGION]
+
+ただし、次の 3D ビューでは、クロップ領域が手動で調整されており、パースペクティブ領域の一方のエッジがターゲットポイントに対して不均等にシフトしています。 これはうまく変換されません。
+
+[REGION:imagetable]
+|||
+|---|---|
+| [REGION:lightbox][![](revit-camera-3d-crop-shifted.png)(w:450)](revit-camera-3d-crop-shifted.png)[/REGION] | [REGION:lightbox][![](revit-camera-plan-shifted.png)(w:450)](revit-camera-plan-shifted.png)[/REGION] |
+[/REGION]
+
+
+## カテゴリ
+
+シーン内の少なくとも 1 つのオブジェクトを含む Revit カテゴリは、それぞれ別のレイヤとして Unreal Editor に取り込まれます。
+
+![](revit_layers.png "revit_layers.png")
+
+Unreal Editor 内でこれらのレイヤを使用してカテゴリを表示または非表示にしたり、それらに割り当てられているオブジェクトの検査や選択ができます。
+
+Revit SDK からエクスポータに提供される情報には、カテゴリにリンクされていないシーン オブジェクトが含まれることに留意してください。 Revit 内でカテゴリが割り当てられていないオブジェクトは、Unreal Editor 内のどのレイヤにも割り当てられません。
+
+## メタデータ
+
+Datasmith は Revit オブジェクトに関するメタデータをインポートし、そのメタデータは Unreal Engine 内で各 Revit オブジェクトを表すアクタにアタッチされます。
+
+Unreal Engine で作成したランタイム エクスペリエンスで使用する可能性のあるメタデータのほとんどは、Datasmith メタデータとしてインポートされます。 これには、Revit で各オブジェクトに設定したインスタンス プロパティ、空ではないタイププロパティが含まれます。 インポートされるプロパティや、エディタ アセット準備スクリプトとランタイム ゲームプレイ スクリプトの中でそれらにアクセスする方法についての詳細は、[](Studio/Datasmith/Overview/UsingDatasmithMetadata)を参照してください。
+
+その他のいくつかの技術的な内部状態は、コンポーネント タグを使用して各アクタにアタッチされます。 以下の例のように、特に Unreal Editor でブループリントまたは Python スクリプトを使用してデータ準備を自動化する場合は、この情報がアクタの識別に役立つことがあります。
+
+*   **Revit.Instance.Depth. -** Revit シーン階層におけるオブジェクトのファミリ インスタンスまたはファミリ シンボルの深度。
+*   **Revit.Instance.Id. -** Revit ドキュメント内のオブジェクトのファミリ インスタンスまたはファミリシンボルの ID。
+*   **Revit.Host.Id. -** オブジェクトのファミリ インスタンスがホストされている場合、この値は Revit ドキュメント内のファミリ インスタンス ホストの ID を示します。
+
+![コンポーネント タグに保存されたメタデータ](metadata-component-tags.png "コンポーネント タグに保存されたメタデータ")
+
+## RPC オブジェクト
+
+リッチ フォトリアリスティック コンテンツ (RPC) オブジェクトは、Revit 内での使用に限ってライセンスされています。 したがって、Datasmith はこれらのオブジェクトと同じジオメトリと視覚的特性を維持したまま、それらをそのまま Unreal Engine に取り込むことはできません。
+
+代わりに、Revit シーンの各 RPC オブジェクトに対して、3D 空間内で同じ位置と向きを持つアクタを Datasmith シーンに配置します。
+
+![World Outliner (ワールド アウトライナー) における RPC アクタ](rpc-objects-in-outliner.png "World Outliner （ワールド アウトライナー） における RPC アクタ")
+
+Unreal Engine レベルでこれらの RPC オブジェクトを見つけるには、**Revit.RPC** コンポーネント タグが割り当てられているアクタを検索します。
+
+![RPC アクタのコンポーネント タグ](rpc-objects-component-tags.png "RPC アクタのコンポーネント タグ")
+
+[REGION:note]
+このページで使用された全てのシーンとモデルは、[Turbosquid](https://www.turbosquid.com/) のご厚意により提供されました。
+[/REGION]

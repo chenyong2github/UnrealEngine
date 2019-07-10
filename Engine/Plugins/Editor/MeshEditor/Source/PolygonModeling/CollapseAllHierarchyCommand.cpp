@@ -49,7 +49,7 @@ void UCollapseAllHierarchyCommand::Execute(IMeshEditorModeEditingContract& MeshE
 
 	CollapseHierarchies(MeshEditorMode, SelectedActors);
 
-	UpdateExplodedView(MeshEditorMode, EViewResetType::RESET_TRANSFORMS);
+	UpdateExplodedView(MeshEditorMode, EViewResetType::RESET_ALL);
 }
 
 void UCollapseAllHierarchyCommand::CollapseHierarchies(IMeshEditorModeEditingContract& MeshEditorMode, TArray<UEditableMesh*>& SelectedMeshes)
@@ -63,7 +63,7 @@ void UCollapseAllHierarchyCommand::CollapseHierarchies(IMeshEditorModeEditingCon
 				FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection();
 				if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
 				{
-					TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+					TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 					if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 					{
 						AddAdditionalAttributesIfRequired(GeometryCollectionObject);
@@ -72,14 +72,11 @@ void UCollapseAllHierarchyCommand::CollapseHierarchies(IMeshEditorModeEditingCon
 						//UE_LOG(LogCollapseAllHierarchyCommand, Log, TEXT("Hierarchy Before Collapsing ..."));
 						//LogHierarchy(GeometryCollectionObject);
 	
-						TManagedArray<FGeometryCollectionBoneNode>& Hierarchy = *GeometryCollection->BoneHierarchy;
-
 						TArray<int32> Elements;
 
-						for (int Element = 0; Element < Hierarchy.Num(); Element++)
+						for (int Element = 0; Element < GeometryCollectionObject->NumElements(FGeometryCollection::TransformGroup); Element++)
 						{
-							const FGeometryCollectionBoneNode& Node = Hierarchy[Element];
-							if (Node.IsGeometry())
+							if (GeometryCollection->Parent[Element] != FGeometryCollection::Invalid)
 							{
 								Elements.Add(Element);
 							}

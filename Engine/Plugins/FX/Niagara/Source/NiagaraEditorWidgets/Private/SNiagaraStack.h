@@ -72,7 +72,7 @@ private:
 	void ConstructHeaderWidget();
 	FSlateColor GetPinColor() const;
 	FReply PinButtonPressed();
-	FReply OpenSourceEmitter();
+	FReply OpenParentEmitter();
 	EVisibility GetEnableCheckboxVisibility() const;
 	EVisibility GetPinEmitterVisibility() const;
 	EVisibility GetOpenSourceEmitterVisibility() const;
@@ -100,7 +100,6 @@ private:
 	bool IsEntryFocusedInSearch(UNiagaraStackEntry* Entry) const;
 	
 	// Inline menu commands
-	bool CanOpenSourceEmitter() const;
 	void SetEmitterEnabled(bool bIsEnabled);
 	bool CheckEmitterEnabledStatus(bool bIsEnabled);
 	void ShowEmitterInContentBrowser();

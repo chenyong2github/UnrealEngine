@@ -1,43 +1,441 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6572990
 Availability: Public
 Title: 如何为UE4设置Qt Creator
-Crumbs:%ROOT%
-Description:学习如何设置您的集成开发环境（IDE），以在Linux上构建并运行虚幻引擎4（UE4）。
-Platform:Linux
+Description: 了解如何设置您的IDE以在Linux上构建和运行UE4。
+Type: how-to
 Version: 4.14
-type:how to
-parent:Platforms/Linux
-order: 3
-tags:Linux
-SkillLevel:Beginner
-prereq:Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow
-topic-image:IDE_HowToTopic.png
+Parent: Platforms/Linux
+Tags: Linux
+topic-image: IDE_HowToTopic.png
+SkillLevel: Beginner
+Order: 3
+Related: Engine/Content/QuickStart
+Related: Engine/QuickStart
+Related: Programming/QuickStart
+Related: GettingStarted
 
+
+[TOC (start:2 end:2)]
 
 [REGION:imagetable]
 ![](CompiledEditor_LinuxIDE.png)(w:1280)  
-本教程结束时，您将配置好 **集成开发环境**（IDE），以构建和运行虚幻引擎4（UE4）。
+在本教程的最后，您将配置一个 **集成开发环境**（IDE），以构建和运行虚幻引擎4（UE4）。
 [/REGION]
 
-## 目的
+## 1 - 配置Qt Creator以构建UE4
 
-本指南将重点介绍如何设置IDE以构建和运行UE4。 
+虽然有些开发者喜欢使用文本编辑器和命令行调试器来修改他们的游戏源代码，但大多数开发者更喜欢使用集成开发环境（IDE）来编辑、调试和编译他们的代码。如果您是一名游戏开发者，希望在Linux环境下设置一个IDE来使用虚幻引擎4(UE4)，那么本指南适合您。
 
-## 目标
+虽然我们认识到选择IDE取决于个人的偏好，但是我们已经将UE4配置为在Linux中与三个IDE连接；具体来说，是Qt Creator、KDevelop和Codelite。我们不偏向任何一个IDE；但是，作为一个学习用例，我们选择了向您展示如何配置Qt Creator来构建和运行UE4。在本指南的最后，您将了解如何配置IDE来构建和运行UE4。最后，您还将了解如何设置IDE来构建和运行从虚幻编辑器新建的C++（CPP）项目。
 
-学完本教程后，您将掌握下列知识：
-
-* 如何配置IDE以在调试和发布模式下构建UE4。
-* 如何配置IDE以在调试和发布模式下运行UE4。
-* 如何从IDE构建UE4。
-* 如何从IDE运行UE4。
-* 如何从IDE使用UE4创建和配置新的蓝图项目。
-* 如何从IDE使用UE4创建和配置新的CPP项目。
-
-## 步骤
-
-[DIR(output:"checkpoint" parent:"Platforms/Linux/BeginnerLinuxDeveloper/SettingUpQtCreator" org:"hierarchy")]
-
-[REGION:call_to_action]
-	[单击此处开始学习](Platforms/Linux/BeginnerLinuxDeveloper/SettingUpQtCreator/1 "%Platforms/Linux/BeginnerLinuxDeveloper/SettingUpQtCreator/1:title%")
+[REGION:note]
+在我们开始之前，请确保您已经使用我们的[Linux快速入门](Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow)设置了工作流程。此外，请确保[Qt Creator](https://wiki.qt.io/Install_Qt_5_on_Ubuntu)已安装在您的机器上。
 [/REGION]
+
+1.  启用Qt Creator，打开 **Qt欢迎（Qt Welcome）** 菜单。
+    [REGION:lightbox]
+    [![](SetupIDE_Step1.png)(w:720)](SetupIDE_Step1.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  单击 **打开项目（Open Project）** 按钮打开Qt项目文件浏览器。
+    [REGION:lightbox]
+    [![](SetupIDE_Step2.png)(w:720)](SetupIDE_Step2.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  导航到您构建UE4的目录，选择UE4 Qt项目（**UE4.pro**）文件，并单击 **打开（Open）**。
+    [REGION:lightbox]
+    [![](SetupIDE_Step3.png)(w:720)](SetupIDE_Step3.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  此时，Qt Creator尚未配置为在调试和发布模式下构建UE4。单击 **配置项目（Configure Project）**，该选项位于 **配置项目（Configure Project）** 菜单中。
+    [REGION:lightbox]
+    [![](SetupIDE_Step4.png)(w:720)](SetupIDE_Step4.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  现在单击 **项目（Projects）** 以进入项目模式，打开 **构建设置（Build Settings）** 菜单。
+    [REGION:lightbox]
+    [![](SetupIDE_Step5.png)(w:720)](SetupIDE_Step5.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    [REGION:note]
+    打开 **构建设置（Build Settings）** 菜单时，您将注意到Qt Creator默认将其 **编辑构建配置：（Edit build configuration:）** 设置为 **调试（Debug）** 模式。
+    [REGION:lightbox]
+    [![](SetupIDE_Step5_Note.png)(w:347)](SetupIDE_Step5_Note.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+	[/REGION]
+    
+1.  在 **构建步骤（Build Steps）** 部分下，单击 **详情（Details）** 下拉菜单旁边的 **X** 按钮，清除 **qmake** 构建步骤。
+
+    [REGION:lightbox]
+    [![](SetupIDE_Step6Alt.png)(w:720)](SetupIDE_Step6Alt.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  现在清除 **阴影构建（Shadow build）** 复选框以取消该选择。
+    [REGION:lightbox]
+    [![](SetupIDE_Step7.png)(w:720)](SetupIDE_Step7.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    [REGION:note]
+    阴影构建允许您使用Qt Creator的qmake工具在单独的构建目录中构建项目。因为UE4是使用[UnrealBuildTool]自定义Make文件分发的，该文件利用的是[UnrealBuildTool](Programming/BuildTools/UnrealBuildTool)，因此您不需要使用Qt Creator的qmake工具。
+    [/REGION]
+    
+1.  现在单击 **详情（Details）** 下拉菜单以打开 **Make** 构建步骤的输入表单。 
+	
+	![](SetupIDE_Step8.png)
+
+1.  将`UE4Editor-Linux-Debug`输入到 **Make arguments:** 文本字段。 
+	
+	![](SetupIDE_Step9.png)
+
+1.  在 **清除步骤（Clean Steps）** 部分下，单击 **详情（Details）** 下拉菜单以打开 **Make** 清除步骤的输入表单。 
+	
+	![](SetupIDE_Step10.png)
+
+1.  通过将`UE4Editor-Linux-Debug ARGS="-clean"`输入到 **Make arguments:** 文本字段中，以替换`clean`。 
+	
+	![](SetupIDE_Step11.png)
+
+1.  现在单击 **编辑构建配置：（Edit build configuration:）** 下拉菜单并选择 **发布（Release）** 以打开发布模式的 **构建设置（Build Settings）**。
+    [REGION:lightbox]
+    [![](SetupIDE_Step12.png)(w:720)](SetupIDE_Step12.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  重复步骤6到11，以编辑发布模式的构建配置设置。请确保您的设置与下图匹配：  
+    ![](SetupIDE_Step13.png)
+    [REGION:note]
+    如果您想为您的项目设置额外的构建配置，请参阅Qt Creator[构建设置文档](http://doc.qt.io/qtcreator/creator-build-settings.html)，其中向您展示了如何添加可能需要的尽可能多的构建配置。
+
+    [/REGION]
+    
+### 分段结果
+
+[REGION:lightbox]
+[![](QtBuildSettings_UE4.png)(w:720)](QtBuildSettings_UE4.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+此时，您已经将UE4配置为在调试和发布模式下进行构建。
+根据系统规格，您可能会注意到UE4在调试模式下运行得更慢。有关可用构建配置的性能特性的更多信息，请通读我们的[构建配置参考](Programming/Development/BuildConfigurations)页面。记住这一点，您就可以配置Qt Creator以运行UE4了。
+
+## 2 - 配置Qt Creator以运行UE4
+
+此时，您已经将UE4配置为在调试和发布模式下进行构建。现在，您已准备好配置Qt Creator以运行UE4了。
+
+1.  单击 **运行（Run）** 按钮打开 **运行设置（Run Settings）** 菜单。
+    [REGION:lightbox]
+    [![](SetupIDE_Step10.png)(w:720)](SetupIDE_Step10.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  在 **运行（Run）** 部分下，单击 **Executable:** 文本字段末尾处的 **浏览（Browse）**。
+    [REGION:lightbox]
+    [![](SetupIDE_Step11.png)(w:720)](SetupIDE_Step11.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  导航到编辑器的二进制文件路径所在目录，选择 **UE4编辑器（UE4Editor）**，并单击 **打开（Open）**。
+    [REGION:lightbox]
+    [![](SetupIDE_Step12.png)(w:720)](SetupIDE_Step12.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  现在单击 **Working directory:** 文本字段末尾处的 **浏览（Browse）**。
+    [REGION:lightbox]
+    [![](SetupIDE_Step13.png)(w:720)](SetupIDE_Step13.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  导航到编辑器的二进制文件路径所在的目录，选择`[UE4ROOT]\Engine\Binaries\Linux`，并单击 **选择（Choose）**。
+    [REGION:lightbox]
+    [![](SetupIDE_Step14.png)(w:720)](SetupIDE_Step14.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+### 分段结果
+
+[REGION:lightbox]
+[![](QtRunSettings_UE4.png)(w:720)](QtRunSettings_UE4.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+现在您已经准备好在调试和发布模式下使用Qt Creator构建和运行UE4。
+
+## 3 - 使用Qt Creator构建UE4
+
+既然已经配置Qt Creator来构建和运行UE4，那么就可以从IDE运行UE4了。在从IDE运行UE4之前，您需要打开一些输出窗口，以便能够看到工作中的UnrealBuildTool。
+
+1.  单击 **编辑（Edit）** 进入编辑模式，打开Qt Creator的编辑器。
+    [REGION:lightbox]
+    [![](SetupIDE_Step15.png)(w:720)](SetupIDE_Step15.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    [REGION:note]
+    在编辑模式下，可以查看、调试和编辑支持UE4的CPP源代码。
+    [/REGION]
+    
+1.  默认情况下，Qt Creator隐藏主工具栏。将鼠标光标悬停在屏幕顶部，触摸顶部边缘即可显示工具栏。 
+	
+	![](SetupIDE_Step15A.png)
+
+1.  现在，打开 **窗口（Window）** 菜单，将鼠标悬停在 **输出窗格（Output Panes）** 子菜单，单击 **编译输出（Compile Output）**。或者，您可以按 **Alt+4** 键盘组合键打开 **编译输出（Compile Output）** 窗口窗格。 
+	
+	![](SetupIDE_Step15B.png)
+
+    [REGION:note]
+    打开 **编译输出（Compile Output）** 窗口窗格，您可以在从源代码构建UE4时查看任何错误。
+    [/REGION]
+   
+### 构建UE4
+
+1.  将鼠标光标悬停在屏幕顶部，触摸顶部边缘即可显示工具栏。 
+
+	![](SetupIDE_Step15A.png)
+
+1.  要构建UE4，打开 **构建（Build）** 菜单并单击 **构建项目“UE4”（Build Project "UE4"）**。或者可以按 **Ctrl+B** 键盘组合键构建UE4。 
+
+	![](SetupIDE_Step15C.png)
+
+### 分段结果
+
+[REGION:lightbox]
+[![](SetupIDE_Step16.png)(w:720)](SetupIDE_Step16.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+此时，您应该看到编译器将消息刷新到IDE内的 **编译输出（Compile Output）** 窗口。根据系统规格，编译器可能需要10分钟到一个多小时不等的时间来编译引擎。如果您想缩短根据源代码编译引擎所需的时间，我们建议编译源代码的计算机至少有八（8）GB 的RAM和至少八（8）核的多核处理器（包括超线程）。
+
+## 4 - 从Qt Creator运行UE4
+
+现在已经编译了引擎，可以运行编辑器了。在此步骤中，您将使用IDE运行UE4。
+
+1.  如果您想在运行UE4时查看应用程序的状态，您需要打开 **应用程序输出（Application Output）** 窗口窗格。要打开 **应用程序输出（Application Output）** 窗口窗格，按 **Alt+3** 键盘组合键。
+    [REGION:lightbox]
+    [![](SetupIDE_Step17a.png)(w:720)](SetupIDE_Step17a.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  要从IDE运行UE4，单击 **运行（Run）**。或者可以按 **Ctrl+R** 键盘组合键从IDE运行UE4。
+    [REGION:lightbox]
+    [![](SetupIDE_Step17.png)(w:720)](SetupIDE_Step17.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+
+### 分段结果
+
+[REGION:lightbox]
+[![](SetupIDE_Step18.png)(w:720)](SetupIDE_Step18.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+祝贺您！现在应该看到从IDE运行UE4。
+
+## 5 - 创建蓝图项目
+
+您可以在UE4中从[项目浏览器](Engine/Basics/Projects/Browser)创建蓝图或CPP项目。在本节中，我们将向您展示如何从UE4创建一个新的蓝图项目。出于本指南的目的，让我们假设您想要创建一个带有飞行机制的新蓝图游戏。幸运的是，UE4附带适合您的完美模板！
+
+1.  在 **新建项目（New Project）** 菜单中，确保 **蓝图（Blueprint）** 菜单打开。
+    [REGION:lightbox]
+    [![](SetupIDE_Step19.png)(w:720)](SetupIDE_Step19.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  选择 **飞行（Flying）** 蓝图项目模板，并将项目命名为`FlyingBP_Prj`。
+    [REGION:lightbox]
+    [![](SetupIDE_Step20.png)(w:720)](SetupIDE_Step20.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  最后，单击 **创建项目（Create Project）**，以使用飞行蓝图项目模板创建新蓝图项目。
+    [REGION:lightbox]
+    [![](SetupIDE_Step21.png)(w:720)](SetupIDE_Step21.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    [REGION:note]
+    根据系统规格，UE4可能需要几分钟的时间来创建新的蓝图项目。
+    [/REGION]
+    
+### 分段结果
+
+[REGION:lightbox]
+[![](SetupIDE_Step22.png)(w:720)](SetupIDE_Step22.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+UE4将启动您的新蓝图项目，不需要任何额外步骤。
+
+[REGION:lightbox]
+[![](SetupIDE_Step23.png)(w:720)](SetupIDE_Step23.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+祝贺您！在蓝图项目模板的帮助下，您刚刚从UE4创建了一个新的蓝图项目。无论有没有项目模板，现在都能够创建任何类型的蓝图项目。然而，有些时候您会想要创建和修改驱动游戏的源代码。
+在下一部分中，我们将向您展示如何从UE4创建一个新的CPP项目。
+
+## 6 - 创建C++项目
+
+到目前为止，您已了解如何配置IDE以在Linux环境中运行UE4。此外，您还了解如何使用项目模板创建一个新的蓝图项目。在这一部分中，我们将向您展示如何从UE4创建一个新的C++(CPP)项目。为了本演示的目的，让我们假设您想要创建一个带有驾驶机制的新CPP游戏。
+
+1.  在 **新建项目（New Project）** 菜单中，确保 **C++** 菜单打开。
+    [REGION:lightbox]
+    [![](SetupIDE_Step24.png)(w:720)](SetupIDE_Step24.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+   
+1.  选择 **载具（Vehicle）** CPP项目模板，并将项目命名为`DrivingCPP_Prj`。
+    [REGION:lightbox]
+    [![](SetupIDE_Step25.png)(w:720)](SetupIDE_Step25.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  最后，单击 **创建项目（Create Project）**，以使用载具CPP项目模板创建新CPP项目。
+    [REGION:lightbox]
+    [![](SetupIDE_Step26.png)(w:720)](SetupIDE_Step26.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    [REGION:note]
+    根据系统规格，UE4可能需要几分钟的时间来创建新的CPP项目。在UE4创建新CPP项目后，将启动新CPP项目的Qt Creator实例，并在此过程中关闭UE4Editor。
+
+    [/REGION]
+    
+1.  此时，您应该在Qt Creator的新启动实例中看到Qt Creator的 **配置项目（Configure Project）** 菜单。使用到目前为止所学到的知识来配置新的CPP项目，使其具有以下调试模式的构建设置； 
+
+	![](SetupIDE_Step27a.png) 
+	
+	以及发布模式：
+	
+	![](SetupIDE_Step27.png)
+
+    [REGION:note]
+    此时，不会从原始UE4编辑器项目设置继承项目设置。因此，当您使用Qt Creator创建一个新的UE4 CPP项目时，您需要使用与在本指南前面学到的相同步骤来配置项目设置。
+    [/REGION]
+    
+1.  现在，配置您的新CPP项目，以具有以下运行设置： 
+
+	![](SetupIDE_Step28.png)
+
+1.  通过单击IDE左侧面板中的 **编辑（Edit）** 切换到IDE中的 **编辑（Edit）** 模式。或者，您可以按 **Ctrl+2** 键盘组合键打开Qt Creator的 **编辑模式（Edit Mode）**。
+    [REGION:lightbox]
+    [![](SetupIDE_Step29.png)(w:720)](SetupIDE_Step29.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  现在单击 **运行（Run）**。或者可以按 **Ctrl+R** 键盘组合键从IDE运行UE4。
+
+    [REGION:lightbox]
+    [![](SetupIDE_Step30.png)(w:720)](SetupIDE_Step30.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  在显示 **DriveCPP_Prj模块丢失（Missing DriveCPP_Prj Modules）** 对话框后，单击 **是（Yes）**。
+
+    [REGION:lightbox]
+    [![](SetupIDE_Step31.png)(w:720)](SetupIDE_Step31.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  根据系统规格，IDE可能需要几分钟的时间来构建和启动新的CPP项目。
+    [REGION:lightbox]
+    [![](SetupIDE_Step32.png)(w:720)](SetupIDE_Step32.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+### 分段结果
+
+[REGION:lightbox]
+[![](SetupIDE_Step33.png)(w:720)](SetupIDE_Step33.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+祝贺您！您现在应该看到您的新CPP项目从Qt Creator内部运行。现在已经创建并启动了新的CPP项目，您已经了解在Linux环境下从IDE处理UE4项目所需的所有知识。
+
+## 虚幻引擎入门
+
+在学习本教程的过程中，您了解到：
+
+
+✓ 如何配置IDE以在调试和发布模式下构建和运行UE4。  
+✓ 如何从IDE构建和运行UE4。  
+✓ 如何使用UE4从IDE创建和配置新的蓝图和C++项目。  
+
+现在，请参阅我们的[UE4入门](GettingStarted)文档，了解如何使用虚幻引擎！此外，如果您想快速开始用UE4制作内容，您也可以查看以下教程：
+
+*   [美工师快速入门](Engine/Content/QuickStart)
+
+*   [编程快速入门](Programming/QuickStart)
+
+*   [关卡设计师快速入门](Engine/QuickStart)

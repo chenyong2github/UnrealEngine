@@ -41,30 +41,18 @@ FRemoteSessionXRTrackingChannel::FRemoteSessionXRTrackingChannel(ERemoteSessionC
 	: IRemoteSessionChannel(InRole, InConnection)
 	, Connection(InConnection)
 	, Role(InRole)
+	, ARSystemSupport(nullptr)
 {
-	// If we are sending, we grab the data from GEngine->XRSystem, otherwise we back the current one up for restore later
-	XRSystem = GEngine->XRSystem;
-	
-	if (Role == ERemoteSessionChannelMode::Read)
-	{
-		// Make the proxy and set GEngine->XRSystem to it
-		ProxyXRSystem = MakeShared<FXRTrackingProxy, ESPMode::ThreadSafe>();
-		GEngine->XRSystem = ProxyXRSystem;
-		
-		auto Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionXRTrackingChannel::ReceiveXRTracking);
-		MessageCallbackHandle = Connection->AddMessageHandler(MESSAGE_ADDRESS, Delegate);
-		Connection->SetMessageOptions(MESSAGE_ADDRESS, 1);
-	}
-    else
-    {
-#if PLATFORM_IOS
-		if (UARBlueprintLibrary::GetARSessionStatus().Status != EARSessionStatus::Running)
-		{
-			UARSessionConfig* Config = NewObject<UARSessionConfig>();
-			UARBlueprintLibrary::StartARSession(Config);
-		}
-#endif
-    }
+	Init();
+}
+
+FRemoteSessionXRTrackingChannel::FRemoteSessionXRTrackingChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection, IARSystemSupport* InARSystemSupport)
+	: IRemoteSessionChannel(InRole, InConnection)
+	, Connection(InConnection)
+	, Role(InRole)
+	, ARSystemSupport(InARSystemSupport)
+{
+	Init();
 }
 
 FRemoteSessionXRTrackingChannel::~FRemoteSessionXRTrackingChannel()
@@ -83,6 +71,33 @@ FRemoteSessionXRTrackingChannel::~FRemoteSessionXRTrackingChannel()
 	// Release our xr trackers
 	XRSystem = nullptr;
 	ProxyXRSystem = nullptr;
+}
+
+void FRemoteSessionXRTrackingChannel::Init()
+{
+	// If we are sending, we grab the data from GEngine->XRSystem, otherwise we back the current one up for restore later
+	XRSystem = GEngine->XRSystem;
+
+	if (Role == ERemoteSessionChannelMode::Read)
+	{
+		// Make the proxy and set GEngine->XRSystem to it
+		ProxyXRSystem = MakeShared<FXRTrackingProxy, ESPMode::ThreadSafe>(ARSystemSupport);
+		GEngine->XRSystem = ProxyXRSystem;
+
+		auto Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionXRTrackingChannel::ReceiveXRTracking);
+		MessageCallbackHandle = Connection->AddMessageHandler(MESSAGE_ADDRESS, Delegate);
+		Connection->SetMessageOptions(MESSAGE_ADDRESS, 1);
+	}
+	else
+	{
+#if PLATFORM_IOS
+		if (UARBlueprintLibrary::GetARSessionStatus().Status != EARSessionStatus::Running)
+		{
+			UARSessionConfig* Config = NewObject<UARSessionConfig>();
+			UARBlueprintLibrary::StartARSession(Config);
+		}
+#endif
+	}
 }
 
 void FRemoteSessionXRTrackingChannel::Tick(const float InDeltaTime)

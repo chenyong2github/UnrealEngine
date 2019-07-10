@@ -2621,7 +2621,7 @@ inline TMap<const ULandscapeLayerInfoObject*, uint32> FLandscapeEditDataInterfac
 	for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 	{
 		const FWeightmapLayerAllocationInfo& Allocation = ComponentWeightmapLayerAllocations[LayerIdx];
-		if (Allocation.LayerInfo->bNoWeightBlend)
+		if (Allocation.LayerInfo == nullptr || Allocation.LayerInfo->bNoWeightBlend)
 		{
 			continue;
 		}
@@ -2890,6 +2890,12 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 					LayerNoWeightBlends[LayerIdx] = Allocation.LayerInfo->bNoWeightBlend;
 					LayerEditDataAllZero[LayerIdx] = true;
 				}
+				else
+				{
+					LayerDataPtrs[LayerIdx] = nullptr;
+					LayerNoWeightBlends[LayerIdx] = true;
+					LayerEditDataAllZero[LayerIdx] = false;
+				}
 			}
 
 			// Find the texture data corresponding to this vertex
@@ -2965,6 +2971,11 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 									// Adjust other layers' weights accordingly
 									for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 									{
+										if (LayerDataPtrs[LayerIdx] == nullptr)
+										{
+											continue;
+										}
+
 										uint8& ExistingWeight = LayerDataPtrs[LayerIdx][TexDataIndex];
 
 										if (LayerIdx == UpdateLayerIdx)
@@ -2991,6 +3002,11 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 										// Normalize
 										for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 										{
+											if (LayerDataPtrs[LayerIdx] == nullptr)
+											{
+												continue;
+											}
+
 											uint8& ExistingWeight = LayerDataPtrs[LayerIdx][TexDataIndex];
 
 											if (LayerNoWeightBlends[LayerIdx] == false)
@@ -3008,6 +3024,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 
 										if ((255 - OtherLayerWeightSum) && MaxLayerIdx >= 0)
 										{
+											// No need to check for nullptr here because MaxLayerIdx can only be set to a valid layer
 											LayerDataPtrs[MaxLayerIdx][TexDataIndex] += 255 - OtherLayerWeightSum;
 										}
 									}
@@ -3017,9 +3034,10 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 									// Adjust other layers' weights accordingly
 									for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 									{
-										// Exclude bNoWeightBlend layers
+										// Exclude bNoWeightBlend layers 
 										if (LayerIdx != UpdateLayerIdx && LayerNoWeightBlends[LayerIdx] == false)
 										{
+											// No need to check for nullptr here because invalid layers have LayerNoWeightBlends set to true.
 											OtherLayerWeightSum += LayerDataPtrs.IsValidIndex(LayerIdx) ? LayerDataPtrs[LayerIdx][TexDataIndex] : 0;
 										}
 									}
@@ -3034,6 +3052,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 											{
 												const int32 ReplacementLayerIndex = ComponentWeightmapLayerAllocations.IndexOfByPredicate([&](const FWeightmapLayerAllocationInfo& AllocationInfo) { return AllocationInfo.LayerInfo == ReplacementLayer; });
 
+												// No need to check for nullptr here because ChooseReplacementLayer can't return an invalid layer.
 												LayerDataPtrs[ReplacementLayerIndex][TexDataIndex] = 255 - NewWeight;
 												LayerEditDataAllZero[ReplacementLayerIndex] = false;
 											}
@@ -3049,12 +3068,18 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 											NewWeight = 255;
 										}
 
+										// No need to check for nullptr here because UpdateLayerIdx is always valid
 										LayerDataPtrs[UpdateLayerIdx][TexDataIndex] = NewWeight;
 									}
 									else
 									{
 										for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 										{
+											if (LayerDataPtrs[LayerIdx] == nullptr)
+											{
+												continue;
+											}
+
 											uint8& Weight = LayerDataPtrs[LayerIdx][TexDataIndex];
 
 											if (LayerIdx == UpdateLayerIdx)
@@ -3080,6 +3105,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 							}
 							else
 							{
+								// No need to check for nullptr here because UpdateLayerIdx is always valid
 								// Weight value set without adjusting other layers' weights
 								uint8& Weight = LayerDataPtrs[UpdateLayerIdx][TexDataIndex];
 								Weight = NewWeight;

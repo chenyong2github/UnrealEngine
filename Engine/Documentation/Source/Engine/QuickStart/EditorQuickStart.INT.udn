@@ -1,38 +1,319 @@
-Availability:Public
-Title:Level Designer Quick Start
-Crumbs: %ROOT%, GettingStarted
+Availability: Public
+Title: Level Designer Quick Start
 Description: Getting up and running with the basics of the Unreal Editor.
 prereq:GettingStarted/Installation
 prereq:Engine/Basics/Projects/Browser
-SkillLevel: Beginner
+Type: quick start
+type:multi-step
 Version: 4.9
-parent:Engine/Editor
-order:1
-checkpoint: editorqs
-type:quick start
-topic-image:engine_qs_topic.png
+Parent: Engine/Editor
+topic-image: engine_qs_topic.png
+Order: 0
+
+[TOC (start:2 end:2)]
 
 ![](Finished.png)
 
-_At the end of this guide, you'll have a room similar to the one pictured above._
-
-## Goals
+*At the end of this guide, you'll have a room similar to the one pictured above.*
 
 The focus of the Unreal Editor Quick Start Guide is to walk you through the basics of working with Unreal Engine 4.
 
-## Objectives
-
 After going through this tutorial, developers will know the following:
 
-*	How to navigate viewports.
-*	How to create a new level.
-*	How to place and edit actors in levels.
-*	How to build and run levels.
+*   How to navigate viewports.
+*   How to create a new level.
+*   How to place and edit actors in levels.
+*   How to build and run levels.
 
-## Steps
+## 1. Required Setup
 
-[DIR(output:"checkpoint" parent:"Engine/QuickStart" org:"hierarchy")]
+1. After [Installing Unreal Engine](GettingStarted/Installation) and launching the Unreal Editor, you will first be presented with the **Project Browser**. 
 
-[REGION:call_to_action]
-	[Click to Start](Engine/QuickStart/1 "%Engine/QuickStart/1:title%")
+1. Click the **New Project** tab and select the **Blank** Blueprint Template, enter a Save Location and Name, then click **Create Project**. 
+
+    ![](NewProject_Windows.png)
+
+    The **New Project** tab is where you can create new projects based off several different template types while the **Projects** tab contains any previously created projects or samples that you have downloaded. 
+
+## 2. Navigating the Viewport
+
+With the project open and ready to go, the first thing you may notice is the [Viewport](Engine/UI/LevelEditor/Viewports) in the center of the Unreal Editor.
+
+![](TableAndChairs.png)(w:720)
+
+Inside the Viewport is where you will do most of your level construction. The template project that we selected in the previous step includes a small sample [Level](Engine/Levels) and some assets for us to get us started with. Using this little area as a point of reference, take a moment to get used to the [Viewport Camera Controls](Engine/UI/LevelEditor/Viewports/ViewportControls) by using the most common methods of navigating the Viewport in Unreal Engine 4.
+
+### Standard Controls
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#StandardControls]
+
+[REGION:tip]
+To switch to an [Orthographic View](https://www.youtube.com/watch?v=RoiQOwCg-4Q), click the **Perspective** drop-down then select an Orthographic View Mode.
+
+![](OrthographicViews.png)
 [/REGION]
+
+### WASD Fly Controls
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#GameControls]
+
+### Orbit, Dolly, and Track
+
+[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#MayaLikeControls]
+
+## 3. Create a New Level
+
+Next we will create a new [Level](Engine/Levels) that we will use to build our game environment in. While there are several different ways in which you can create a new Level, we will use the **File Menu** method which we will present us with level selection options.
+
+1.  Inside the Unreal Editor, click the **File Menu** option then select **New Level...**.
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](FileMenu_Windows.png)
+        [/PARAM]
+    [/OBJECT]
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](FileMenu_Mac.png)
+        [/PARAM]
+    [/OBJECT]
+
+    This will open the **New Level** dialog window:
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](NewLevel_Windows.png)
+        [/PARAM]
+    [/OBJECT]
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](NewLevel_Mac.png)
+        [/PARAM]
+    [/OBJECT]
+
+    Above the **Default** level includes some of the commonly used assets for constructing levels, there is also a **VR-Basic** level which includes some assets for constructing levels with the VR Editor and **Empty Level** is a completely blank level with no assets. For the purposes of this guide we are going to start from scratch with a completely blank slate.
+
+1.  Click the **Empty Level** to select it.
+
+## 4. Placing Actors in the Level
+
+In this step we will begin placing [Actors](Engine/Actors) (which are things like lights or geometry for example) into our empty level. We will cover the two most common ways of adding Actors to the level, one of which is through [Place Mode](Engine/UI/LevelEditor/Modes/PlaceMode) and the other is through the [Content Browser](Engine/Content/Browser). After completing this step, you will know how to place Actors inside your own levels and can begin manipulating those Actors to create your environment.
+
+1.  In the **Modes Panel**, with **Place Mode** enabled, click the [BSP](Engine/Actors/Brushes) category and select the **Box**. 
+
+    ![](ModesPanel.png)
+
+1.  **Left-click** and drag the **Box** into the **Level Viewport**.
+
+    ![](placeBox.png)
+
+    Upon releasing the **Left Mouse Button**, the **Box** will be added to the level.
+
+    ![](place2.png)
+
+1.  With the **Box** still selected, in the [Details](Engine/UI/LevelEditor/Details) panel (lower-right window of the editor), set **Location** and **Rotation** all to **0**.
+
+1.  Set the **Scale** to **4 x 4 x 0.1**. 
+
+    ![](resize_floor.png)
+
+    We will use this as the floor in which the player can walk around on.
+
+1.  In the **Modes Panel** select the **Lights** tab, then drag-and-drop a **Directional Light** into the level on top of the floor. 
+
+    ![](placeLight.png)
+
+1.  On the on the [Translation Tool](Engine/UI/LevelEditor/Viewports/ViewportControls), click and drag the Z-Axis (Blue) gizmo up away from the surface of the floor. 
+
+    ![](moveLight.png)
+
+    If the **Directional Light** becomes unselected, you can re-select it by **Left-clicking** on it in the **Level Viewport**.
+
+1.  In the **Modes Panel**, select the **Visual Effects** tab and drag-and-drop an [Atmospheric Fog](Engine/Actors/FogEffects/AtmosphericFog) to the level. 
+
+    ![](placeFog.png)
+
+    The **Atmospheric Fog** Actor will add a basic sky to the level and the level will become illuminated instead of dark.
+
+1.  From the **Modes Panel** on the **Basic** tab, drag-and-drop a [Player Start](Engine/Actors/PlayerStart) into the level. 
+
+    ![](placeStart.png)
+
+1.  From the **Modes Panel** on the **Volumes** tab, drag-and-drop a [Lightmass Importance Volume](Engine/Rendering/LightingAndShadows/Lightmass/Basics) into the level. 
+
+    ![](placeVolume.png)
+
+    The **Lightmass Importance Volume** is used to control and concentrate lighting and shadowing affects within the volume. When placing the Lightmass Importance Volume in the level, the default size of the volume does not cover our playable area so we will need to scale it up.
+
+1.  Inside the **Level Viewport**, press **R** to switch to the [Scale Tool](Engine/UI/LevelEditor/Viewports/ViewportControls#transformcontrols).
+
+1.  Click and drag the white box in the center of the **Scale Tool** so that the **Lightmass Importance Volume** encapsulates the floor. 
+
+    ![](scaleVolume.png)
+
+1.  Inside the **Content Browser** under **Content** > **StarterContent** > **Props**, drag-and-drop the **SM_TableRound** into the level. 
+
+    ![](placeTable.png)
+
+    Try to place the table in the center of the floor using the **Move Tool** (Keyboard Shortcut **W** if it is not selected).
+
+1.  Also under **Content** > **StarterContent** > **Props**, drag-and-drop the **SM_Chair** into the level. 
+
+    ![](addChair.png)
+
+1.  With the **SM_Chair** selected inside the **Level Viewport**, press **E** to access the [Rotation Tool](Engine/UI/LevelEditor/Viewports/ViewportControls#transformcontrols). 
+
+    ![](Rotate1.png)(w:440)
+
+1.  **Left-click** and drag the **Blue** axis arc (the gizmo will update to show degrees) and rotate the chair to face the table. 
+
+    ![](Rotate2.png)(w:440)
+
+1.  Using the placement methods above, create a small scene by adding more Actors from the **Modes Panel** and **Content Browser**. 
+
+    ![](placeThings.png)
+
+    Try adding some lights, props, walls and a roof (found under the **Content** > **StarterContent** > **Architecture** folder).
+
+## 5. Editing Placed Actors
+
+With several different **Actors** placed inside our level, the next step involves [Editing Actor Properites](GettingStarted/HowTo/DetailsPanel) which can change the look or the way the Actor functions in the level, giving us a more customized looking level. We will start with editing the properties of our **Directional Light Actor** then shift our focus to applying [Materials](Engine/Rendering/Materials) to some of the [Static Mesh Actors](Engine/Actors/StaticMeshActor) that you have placed in your level.
+
+Once you have finished this step, you will have seen where to access and modify the properties of Actors so that you can begin editing and experimenting with different settings inside your own levels.
+
+1.  Select the **Directional Light Actor** by **Left-clicking** on it in the Viewport.
+
+    ![](selectDL.png)
+
+1.  In the **Details Panel** under the **Light** category, enable **Atmosphere Sun Light**:
+
+    ![](enableSun.png)
+
+    Depending on the rotation of your Directional Light Actor the sky color will change and if you rotate the Viewport around you will see that the sun now aligns with the Directional Light Actor. This is a real time process so you can rotate the Directional Light Actor (press **E** to switch to **Rotation Mode**) and the sky will change color from night, sunrise, day time, and sunset.
+
+Next we will change the **Material** on one of your placed **Static Mesh Actors** by first selecting it.
+
+1.  With your Actor selected, in the **Details** panel under **Materials**, click the drop-down box under **Element 0**. 
+
+    ![](material_1.png)(w:900)
+
+1.  In the pop-up window, select the **M\_Brick\_Clay_New** Material. 
+
+    ![](material_2.png)(w:900)
+
+1.  All **Actors** in your level have many properties for you to adjust inside the **Details** panel. Explore changing their settings!
+
+    ![](beforeBake.png)(w:900)
+
+    Try changing the **Light Color** of your lights, applying more **Materials** or changing the **Scale** of the Actors in your level.
+
+## 6. Running the Build Process
+
+By now you may have noticed the "Preview" labels in the shadows and the light leaking under walls.
+
+![](beforeBake2.png)
+
+This is because all the lights in the scene are static and use precomputed, or baked lighting, which has not been calculated yet. The "Preview" text is there to remind you that what you are seeing in the viewport currently is not what you will see in the game.
+
+In this step we will go through the **Build** process which will build all levels (precompute lighting data and visibility data, generate any navigation networks and update all brush models). We will also take a look at **Light Quality** settings inside of the **Build Options** which we can use to adjust the quality of our lighting when it is built.
+
+1.  From the Main Tool Bar, click the down-arrow next to the **Build** option. 
+
+    ![](buildOptionsButton.png)
+
+1.  Under **Lighting Quality**, choose the **Production** setting. 
+
+    ![](productionLighting.png)
+
+    This will give us the highest quality lighting but is the slowest in terms of computation time and will increase the time it takes to **Build** the game. Our level is small, so it should not impact us too much, but keep this in mind when you are working on larger levels as you may want to leave it on a mid-low level setting while creating your level and switching it to **Production** on a "final pass" at your level.
+
+1.  Wait for the **Build** to complete. 
+
+    ![](wait.png)
+
+    You will see the progress in the lower-right corner of the Unreal Editor as seen in the image above. Once the **Build** process has completed, the level lighting will update giving you a better indication of the final result. 
+
+    ![](built.png)
+
+1.  From the Main Toolbar, click the **Play** Button to play in the editor. 
+
+    ![](PlayInEditor.png)
+
+    Using **WASD** to move and the **Mouse** to turn the camera, you can fly around your level.
+
+## 7. On Your Own!
+
+At this point you should have **Built** the level lighting and previewed your game with the **Play** in Editor feature. Each of the steps leading up to this point have been aimed at getting you quickly up to speed on how to perform the most common actions when constructing levels inside the Unreal Editor.
+
+Using the methods that were provided during the course of this guide, try do to the following on your own:
+
+![](update1.png)(w:830)
+
+*   Change the lighting of the level to a moonlit, night scene.
+*   Add another room, attached to the first room.
+
+![](update2.png)(h:380) ![](update4.png)(h:380)
+
+*   On the attached room, try to make it elevated and join them with stairs.
+*   Add some bushes, a couch, shelves and a front door.
+
+![](update6.png)(w:830)
+
+*   Add different kinds of lights with different colors.
+*   Use different Materials on some of your Actors.
+
+[REGION:note]
+For more information on the topics covered in this quick start guide, and across the entire editor, see the [Unreal Editor Manual](Engine).
+[/REGION]
+
+As for specifics covered in this quick start:
+
+*   For more information on the Level Editor, see: [Level Editor](Engine/UI/LevelEditor)
+
+*   For more information on Viewports, see: [Viewports](Engine/UI/LevelEditor/Viewports)
+
+*   For more information on the Editing Modes available in Unreal Editor, 4 see: [Level Editor Modes](Engine/UI/LevelEditor/Modes)
+
+*   For more information on the Content Browser, see: [Content Browser](Engine/Content/Browser)
+
+*   For more information on the Details Panel, see: [Details Panel](Engine/UI/LevelEditor/Details)
+
+*   For more information on Building, see: [Lightmass](Engine/Rendering/LightingAndShadows/Lightmass)
+
+*   For more information on Lighting, see: [Lighting Quick Start Guide](Engine/Rendering/LightingAndShadows/QuickStart)

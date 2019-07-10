@@ -33,7 +33,10 @@ float3 CompositeReflectionCapturesAndSkylight(
 			break;
 		}
 
-	uint CaptureIndex = 0;
+		uint CaptureIndex = 0;
+#ifdef REFLECTION_COMPOSITE_NO_CULLING_DATA
+		CaptureIndex = TileCaptureIndex;	// Go from 0 to NumCapturesAffectingTile as absolute index in capture array
+#else
 	#if INSTANCED_STEREO
 		BRANCH
 		if (EyeIndex == 0)
@@ -49,6 +52,7 @@ float3 CompositeReflectionCapturesAndSkylight(
 			CaptureIndex = ForwardLightDataISR.CulledLightDataGrid[CaptureDataStartIndex + TileCaptureIndex];
 		}
 	#endif
+#endif
 
 			
 		float4 CapturePositionAndRadius = ReflectionCapture.PositionAndRadius[CaptureIndex];

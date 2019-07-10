@@ -6,6 +6,7 @@
 #include "Misc/Attribute.h"
 #include "Styling/ISlateStyle.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "MultiBoxDefs.generated.h"
 
 class SToolTip;
 class SWidget;
@@ -13,49 +14,47 @@ class SWidget;
 /**
  * Types of MultiBoxes
  */
-namespace EMultiBoxType
+UENUM(BlueprintType)
+enum class EMultiBoxType : uint8
 {
-	enum Type
-	{
-		/** Horizontal menu bar */
-		MenuBar,
+	/** Horizontal menu bar */
+	MenuBar,
 
-		/** Horizontal tool bar */
-		ToolBar,
+	/** Horizontal tool bar */
+	ToolBar,
 
-		/** Vertical tool bar */
-		VerticalToolBar,
+	/** Vertical tool bar */
+	VerticalToolBar,
 
-		/** Vertical menu (pull-down menu, or context menu) */
-		Menu,
+	/** Vertical menu (pull-down menu, or context menu) */
+	Menu,
 
-		/** Buttons arranged in rows, with a maximum number of buttons per row, like a toolbar but can have multiple rows*/
-		ButtonRow,
+	/** Buttons arranged in rows, with a maximum number of buttons per row, like a toolbar but can have multiple rows*/
+	ButtonRow,
 
-		/** Horizontal menu bar used as a tool bar */
-		ToolMenuBar
-	};
-}
+	/** Horizontal menu bar used as a tool bar */
+	ToolMenuBar
+};
+
 
 /**
  * Types of MultiBlocks
  */
-namespace EMultiBlockType
+UENUM(BlueprintType)
+enum class EMultiBlockType : uint8
 {
-	enum Type
-	{
-		None = 0,
-		ButtonRow,
-		EditableText,
-		Heading,
-		MenuEntry,
-		MenuSeparator,
-		ToolBarButton,
-		ToolBarComboButton,
-		ToolBarSeparator,
-		Widget,
-	};
-}
+	None = 0,
+	ButtonRow,
+	EditableText,
+	Heading,
+	MenuEntry,
+	MenuSeparator,
+	ToolBarButton,
+	ToolBarComboButton,
+	ToolBarSeparator,
+	Widget,
+};
+
 
 class SLATE_API FMultiBoxSettings
 {

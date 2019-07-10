@@ -1,0 +1,252 @@
+INTSourceChangelist:6409500
+Availability: Public
+Title: 멀티 유저 편집 시작하기
+Description: 프로젝트에 멀티 유저 편집 기능 설정을 돕는 단계별 안내입니다.
+Version: 4.22
+Parent: Engine/Editor/MultiUser
+Tags: Getting Started
+Tags: Early Access
+Tags: Multi-User Editing
+Type: quick start
+Order: 1
+topic-image: multiuserediting-qs-topic.png
+hero-image:multiuserediting-qs-banner.png
+
+이 퀵 스타트 페이지는 멀티 유저 편집 시스템의 기본적인 내용을 알려 드립니다. 이 튜토리얼을 마치면 배울 수 있는 내용은 다음과 같습니다.
+
+*   여러 컴퓨터가 한 세션에 같이 참여할 수 있도록 구성하는 방법.
+
+*   서버에서 세션 관리를 시작하는 방법.
+
+*   세션을 시작 및 참여하여 팀원과 같이 작업하는 방법.
+
+*   세션 작업 도중의 변경사항을 로컬 컴퓨터의 프로젝트에 지속시키는 방법.
+
+[REGION:note]
+**전제 조건:** 이 튜토리얼은 같은 호스트의 언리얼 에디터 다중 인스턴스로 실행할 수도 있지만, 여러 대의 컴퓨터에서 같은 세션에 연결하는 것이 훨씬 더 효과적입니다. 시작하려면:
+
+*   각 컴퓨터에 언리얼 엔진 동일 버전을 설치합니다.
+
+*   모든 컴퓨터가 같은 LAN 또는 VPN 에 연결되었는지 확인합니다.
+[/REGION]
+
+[REGION:tip]
+여기서는 [Virtual Camera](Engine/Plugins/VirtualCameraPlugin) (가상 카메라) 샘플 프로젝트를 사용했으며, 에픽게임즈 런처의 **학습** 탭에서 다운로드할 수 있습니다. 그러나 작업 중인 어느 언리얼 엔진 프로젝트에서도 똑같은 단계가 동일하게 잘 될 것입니다.
+[/REGION]
+
+## 1 - 프로젝트 구성
+
+언리얼 엔진 여러 인스턴스를 공유 세션에서 작업할 수 있도록 연결하기 전, 프로젝트에 **Multi-User Editing** (멀티 유저 편집) 플러그인을 활성화해야 합니다.
+
+1.  언리얼 에디터에서 프로젝트를 엽니다.
+
+1.  메인 메뉴에서 **편집 > 플러그인** 을 선택합니다.
+
+1.  **Developer** 카테고리 아래 **Multi-User Editing** (멀티 유저 편집) 플러그인을 찾아  **Enabled** (활성화됨) 박스를 체크합니다.  
+    ![Enable the Plugin](multiuserediting-gs-1-3-enable.png "Enable the Plugin")
+
+1.  **Yes** (예)를 클릭하여 확인합니다.  
+    ![Confirm](multiuserediting-gs-1-4-betaconfirm.png "Confirm")
+
+1.  **Restart Now** (지금 재시작)을 눌러 프로젝트를 재시작해야 변경사항이 적용됩니다.  
+    ![Restart Now](multiuserediting-gs-1-5-restart.png "Restart Now")
+
+## 2 - 여러 컴퓨터 구성
+
+같은 멀티 유저 편집 세션에 연결하려는 각 컴퓨터마다 언리얼 엔진 같은 버전이 설치되어 있어야 합니다.
+
+각 컴퓨터는 또 같은 언리얼 엔진 프로젝트 사본이 있어야 하며, 콘텐츠도 똑같아야 합니다.
+
+*   똑같이 만드는 일반적인 방법은 프로젝트를 Perforce, Git, 또는 Subversion 같은 버전 컨트롤 시스템에 저장한 뒤 모든 컴퓨터를 같은 revision 또는 changelist 에 동기화합니다.
+
+    [REGION:tip]
+    Perforce 를 사용하는 경우, UnrealGameSync (UGS) 를 사용하면 이 프로세스가 한결 쉬워집니다. 자세한 내용은 [UGS 문서](Programming/Deployment/UnrealGameSync) 를 참고하세요.
+    [/REGION]
+
+*   멀티 유저 편집 시스템은 소스 컨트롤이 필수가 아닙니다. 한 컴퓨터의 프로젝트 폴더를 세션에 참여하려는 다른 모든 컴퓨터로 복사하기만 해도 됩니다. 멀티 유저 편집 시스템 첫 테스트에는 이 방법이 좋을 것입니다. 그러나 이 방법에 의존하지 마세요. 팀의 실제 버전 컨트롤 시스템을 사용하는 것이 프로젝트 콘텐츠를 유지하고 관리하는 가장 안전한 방법입니다.
+
+각 컴퓨터에 프로젝트 사본을 만들었으면, 세션이 기록하는 현재상태 정보의 유용성을 높이기 위해 몇 가지 세팅을 사용자 정의하는 것이 좋습니다. 각 컴퓨터에서:
+
+1.  언리얼 에디터에서 프로젝트를 엽니다.
+
+1.  툴바의 **Go Live** (라이브 이동) 버튼 옆 화살표를 클릭하고 **Multi-User Settings...** (멀티 유저 세팅)을 선택합니다.  
+    ![Open the Multi-User Settings](multiuserediting-settings-menu.png "Open the Multi-User Settings")
+
+1.  **프로젝트 세팅** 창이 **플러그인 > Multi-User Editing** (멀티 유저 편집) 섹션에 열립니다.  
+    ![Multi-User Editing - presence settings](mutiuserediting-settings-presence.png "Multi-User Editing - presence settings") 지금은 다음과 같이 세팅을 변경하면 각 언리얼 에디터 인스턴스가 세션에 연결된 동안 다른 인스턴스에 보이도록 현재상태 정보를 사용자 정의합니다.
+    
+    | 세팅 | 설명 |
+    | --- | --- |
+    | **Display Name** | [INCLUDE:#excerpt_0] |
+    | **Avatar Color** | [INCLUDE:#excerpt_1] |
+    
+    [REGION:note]
+    이 패널에서 사용할 수 있는 세팅 관련 자세한 내용은 [](Engine/Editor/MultiUser/Reference) 문서도 참고하세요.
+    [/REGION]
+    
+<!--
+[EXCERPT:excerpt_0]
+표시명 - 멀티 유저 편집 시스템이 현재상태 정보와 이 컴퓨터에 대한 세션 히스토리를 표시할 때 사용할 이름을 설정합니다.  
+기본적으로 멀티 유저 편집 시스템은 호스트 운영 체제 현재 사용자에 대한 로그인 정보를 사용하도록 시도하지만, 경우에 따라 (예를 들어 같은 사용자 계정이 여러 컴퓨터에 로그인 된 경우) 이 값을 덮어쓰는 것이 좋을 수 있습니다.
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+아바타 색 - 현재 상태 정보와 세션 히스토리를 표시할 때 멀티 유저 시스템이 이 컴퓨터에 사용할 색을 설정합니다.  
+기본적으로 이 색은 (흰색) 모든 사용자에 대해 같지만, 각 컴퓨터에 다른 색을 할당하면 세션 히스토리 이해하기가 훨씬 쉬워집니다.
+[/EXCERPT:excerpt_1]
+-->
+
+## 3 - 서버 시작
+
+같이 연결하려는 각 컴퓨터에서 언리얼 엔진에 프로젝트를 열어 뒀으면, 그 컴퓨터에 공유되는 세션을 관리할 서버를 시작해야 합니다. 가장 쉬운 방법은 언리얼 에디터 해당 인스턴스 중 하나 안에서 하는 것입니다.
+
+툴바의 **Go Live** (라이브 이동) 버튼 옆 화살표를 클릭하고 **Multi-User Settings...** (멀티 유저 세팅)을 선택합니다.  
+    ![Launch Multi-User Server](multiuserediting-launchserver-menu.png "Launch Multi-User Server")
+
+1.  새 명령 창이 열립니다. 세션을 관리하고 프로젝트 콘텐츠를 변경하면서 서버는 주기적으로 이 창에 상태 메시지를 출력합니다. 예:  
+    ![Multi-User Server console](multiuser-server-console.png "Multi-User Server console")
+
+[REGION:tip]
+언리얼 엔진이 설치된 컴퓨터의 명령 줄에서 서버를 시작할 수도 있습니다. 자세한 내용은 [언리얼 멀티 유저 서버 명령줄 파라미터](Engine/Editor/MultiUser/Reference) 부분을 참고하세요.
+[/REGION]
+
+## 4 - 세션 시작
+
+컴퓨터 중 하나에서 서버를 실행했지만, 아직 그 서버에 연결된 언리얼 에디터 인스턴스가 없습니다. 인스턴스를 연결하려면, 세션을 새로 만들어야 합니다. 이 세션은 사용자가 이 프로젝트에 대해 수정한 애셋과 레벨의 모든 내용을 관리하고 공유합니다.
+
+새 세션을 생성하려면:
+
+1.  컴퓨터 중 하나에서 툴바의 **Go Live** (라이브 이동) 버튼 옆 화살표를 클릭하고 **Multi-User Settings...** (멀티 유저 세팅)을 선택합니다.  
+    ![Session Browser](multiuserediting-sessionbrowser-menu.png "Session Browser")  
+    그러면 **멀티 유저 브라우저** 창이 열립니다.  
+    ![Multi-User Browser](multiuserediting-qs-browser.png "Multi-User Browser")
+
+1.  아직 나열되는 세션 또는 클라이언트 정보가 없을 것입니다. 그러나 이 언리얼 에디터 인스턴스를 실행하는 컴퓨터가 네트워크에서 서버를 실행하는 컴퓨터를 확ㅇ니할 수 있는 한, 그 서버 컴퓨터의 이름이 **Available Servers** (사용가능 서버) 섹션에 이미 나열되어 있을 것입니다. Click its name.  
+    ![Click the server name](multiuserediting-qs-browser-select.png "Click the server name")
+    [REGION:note]
+    서버가 나열되지 않았지만 언리얼 에디터를 실행중인 컴퓨터와 같은 LAN 또는 VPN 에 있는 경우, 이 시점에서 멈추고 추가 네트워크 구성을 해야 할 수 있습니다. [고급 네트워킹](Engine/Editor/MultiUser/Reference) 부분을 참고하세요.
+    [/REGION]
+    서버 이름을 선택한 상태에서, **Available Sessions** (사용가능 세션) 카테고리 옆 **Create Session** (세션 생성) 버튼이 활성화됩니다 
+
+1.  **Create Session** (세션 생성)을 클릭합니다.  
+    ![Create Session](multiuserediting-qs-browser-createsession.png "Create Session")
+
+1.  **세션 생성** 대화창의 **Session Name** (세션 이름) 필드에 새 세션 이름을 입력합니다.  
+    ![Set the Session Name](multiuserediting-qs-createsessiondialog.png "Set the Session Name")
+
+1.  **생성** 을 클릭합니다.  
+    ![Create](multiuserediting-qs-create.png "Create")
+
+1.  새 세션이 **멀티 유저 브라우저** 창 **Available Sessions** (사용가능 세션) 카테고리 아래 나타나는 것이 보입니다.  
+    ![Multi-User Browser connected to a new session](multiuserediting-qs-browser-connected.png "Multi-User Browser connected to a new session")
+
+컴퓨터는 세션에 자동 연결되고, 툴바의 **Go Live** (라이브 이동) 버튼이 초록으로 바뀌며 연결되었음을 알립니다.
+
+![Multi-User Editor connected in the Toolbar](multiuserediting-qs-toolbarconnected.png "Multi-User Editor connected in the Toolbar")
+
+## 5 - 세션 참여
+
+서버를 실행했고, 그 컴퓨터 중 하나의 언리얼 에디터에서 해당 서버의 세션을 생성했으니, 다른 컴퓨터에서 실행 중인 언리얼 에디터 다른 인스턴스에서 같은 세션으로 연결할 수 있을 것입니다.
+
+세션에 참여하려는 다른 컴퓨터 각각에서:
+
+1.  툴바의 **Go Live** (라이브 이동) 버튼 옆 화살표를 클릭하고 **Multi-User Settings...** (멀티 유저 세팅)을 선택합니다.  
+    ![Session Browser](multiuserediting-sessionbrowser-menu.png "Session Browser")
+
+1.  **멀티 유저 브라우저** 패널 상단의 **Available Servers** (사용가능 서버) 목록에서 서버 호스트 이름이 보일 수 것입니다. 서버 이름을 클릭합니다.  
+    ![Select the server](multiuserediting-qs-browser-select-1.png "Select the server")
+
+1.  **사용가능 서버** 목록에 서버를 선택해 두면, 해당 서버가 관리하고 있는 모든 세션이 **Available Sessions** (사용가능 세션) 목록에 표시됩니다. 참여하려는 세션 이름을 찾아 초록 **Join** (참여) 아이콘을 클릭합니다.  
+    ![Join Session](multiuserediting-qs-joinsession.png "Join Session")
+    [REGION:tip]
+    세션 이름 위에 커서를 올리면 세션 소유자, 프로젝트 이름, (있다면) 소스 컨트롤 제공사 등이 보입니다. 이 정보는 어느 세션에 참여할지 알려줄 수 있습니다.  
+    ![Session tooltip](multiuserediting-qs-sessiontooltip.png "Session tooltip")
+    [/REGION]
+
+1.  연결되면 바로 **Connected Clients** (연결된 클라이언트) 목록에 현재 이 세션에 연결된 다른 모든 컴퓨터와 함께 자신의 컴퓨터를 포함시켜 업그레이드합니다.  
+    ![Multiple connected clients](multiuserediting-qs-bothconnected.png "Multiple connected clients")
+
+참여하기 전부터 이 세션에서 이미 작업 중인 다른 컴퓨터가 프로젝트의 레벨 또는 애셋을 변경한 경우, 언리얼 에디터 인스턴스는 서버에서 그 트랜잭션을 자동으로 가져와 공유 세션 작업 공간의 로컬 뷰에 변경사항을 적용합니다. 이제 다른 모든 참여자와 같은 콘텐츠를 작업하도록 잠기지만, 언리얼 에디터 UI 에서 콘텐츠를 필요한 방식으로 자유롭게 작업할 수 있습니다. 레벨 뷰포트에서 카메라 시점 이동, 콘텐츠 브라우저에서 새 폴더 탐색, 툴 전환, 새 창과 패널 열기 등과 같은 작업을 다른 사용자에게 영향을 주지 않고 할 수 있습니다.
+
+이제 여러 대의 컴퓨터가 하나의 세션에 연결되었으니, 한 컴퓨터에서 변경하면 같은 세션의 다른 컴퓨터에 어떻게 전파되는지 확인할 수 있습니다.
+
+## 6 - 공동 작업
+
+다중 사용자가 같은 라이브 세션에 연결되었으니, 모두 함께 가상 세계를 구축할 수 있습니다. 일반적인 방식으로 언리얼 엔진 프로젝트 작업을 하면서, 다른 사용자의 변경사항이 적용되는 것도 확인할 수 있습니다.
+
+라이트 작업 도중 기대할 수 있는 내용 관련 자세한 내용은 [](Engine/Editor/MultiUser/Overview) 문서를 참고하세요.
+
+[REGION:lightbox]
+[![Working together in the Level Viewport](multiuserediting-qs-worktogether.png "Working together in the Level Viewport")](multiuserediting-qs-worktogether.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+## 7 - 세션 변경사항 지속
+
+이 시점에서 팀원이 어느 정도 레벨과 프로젝트의 일부 애셋 변경사항을 진행했습니다. 그러나 그 트랜잭션이 컴퓨터의 프로젝트 콘텐츠를 이루는 실제 파일에는 아직 반영되지 않았습니다. 팀이 라이브 세션에서 한 작업을 유지하려면, 그 변경사항을 *persist* (지속)시켜야 멀티 유저 시스템이 처리한 모든 트랜잭션을 로컬 프로젝트 파일에 적용할 수 있습니다.
+
+소스 컨트롤 사용 여부와 관계 없이 변경사항 지속은 툴바의 **Source Control** (소스 컨트롤) 툴을 사용합니다.
+
+1.  툴바의 **소스 컨트롤** 버튼 옆 화살표를 클릭하고, **Persist Session Changes** (세션 변경사항 지속)을 선택합니다.  
+    ![Persist Session Changes](multiuserediting-qs-persistmenu.png "Persist Session Changes")
+
+1.  파일 지속 & 제출 창에서 라이브 세션 도중 수정된 모든 파일 목록을 볼 수 있습니다. 체크박스를 사용하여 수정된 파일 중 로컬 컴퓨터의 프로젝트에 적용할 파일을 선택합니다.  
+    ![Persist & Submit Files](multiuserediting-qs-persist-boxes.png "Persist & Submit Files")
+
+1.  세션을 시작 또는 참여할 때 구성한 소스 컨트롤 제공사가 있다면, 지속시킨 변경사항을 새 changelist 또는 revision 에 바로 제출하는 옵션이 있습니다.  
+    그 방법은:
+    1.  창 하단의 **Submit to Source Control** (소스 컨트롤에 제출) 옵션을 체크합니다.  
+        ![Submit to Source Control](multiuserediting-qs-persist-submitbox.png "Submit to Source Control")
+    
+    1.  일반 소스 컨트롤 워크플로와 마찬가지로, 제출하려는 변경사항의 설명을 설정해야 합니다. 창 상단의 **Changelist Description** 을 클릭하고 새 설명을 입력합니다.  
+        ![Set a changelist description](multiuserediting-qs-persist-changelist.png "Set a changelist description")
+    
+    1.  제출할 파일을 더 수정해야 하는 경우, 일반적인 소스 컨트롤 워크플로처럼 **Keep Files Checked Out** (파일 체크 아웃 유지) 옵션을 선택하면 됩니다.  
+        ![Keep Files Checked Out](multiuserediting-qs-persist-keep.png "Keep Files Checked Out")  파일을 즉시 제출하지 않으면, 멀티 유저 편집 시스템은 수정한 파일을 소스 컨트롤 제공사에서 자동 체크 아웃하여 세션의 변경사항을 적용하고 저장합니다. 선택한 경우 나중에 표준 소스 컨트롤 워크플로를 사용하여 추가 수정 및 제출이 가능합니다.
+
+1.  제출하려는 파일 목록에 만족하고, 원하는 소스 컨트롤 옵션을 설정했으면, **Submit** (제출)을 클릭합니다.  
+    ![Submit](multiuserediting-qs-persist-submit.png "Submit")
+
+세션에 연결된 상태로 유지되며, 원하는 만큼 계속 작업할 수 있습니다.
+
+## 8 - 정리
+
+자신과 팀원의 라이브 세션 도중 레벨 및 애셋 변경사항을 디스크의 프로젝트에 적용했고, 선택적으로 그 변경사항을 소스 컨트롤 시스템에 제출했으면, 아마 더이상 세션이 필요 없을 것입니다. 다시 시작할 때 같은 세션에 다시 참여할 수도 있지만, 오랜 기간 같은 세션에서 작업하기 보다는 업데이트된 변경 목록에서 정기적으로 새 편집 세션을 시작하는 것이 좋습니다.  
+
+더이상 세션이 필요하지 않으면 **세션 브라우저** 에서 삭제할 수 있습니다.
+
+[REGION:note]
+세션을 처음 생성한 사용자만 세션을 삭제할 수 있습니다. 다른 사용자는 해당 세션에 참여해도 **세션 브라우저** 에 그 옵션이 보이지 않습니다.
+[/REGION]
+
+1.  아직 세션을 종료하지 않은 경우 연결을 끊습니다. 세션에 연결한 상태에서는 삭제할 수 없습니다.  
+    연결을 끊는 가장 쉬운 방법은 툴바의 **라이브 이동** 버튼을 누르는 것입니다.  
+    ![Leave the current session from the Toolbar](multiuserediting-qs-toolbarconnected-1.png "Leave the current session from the Toolbar")  
+    **세션 브라우저** 의 **Leave this session** (이 세션 나가기) 아이콘을 클릭해도 됩니다.  
+    ![Leave the current session from the Session Browser](multiuserediting-qs-leavesession.png "Leave the current session from the Session Browser")
+
+1.  연결을 끊은 후 **세션 브라우저** 에서 **Delete this session** (이 세션 삭제) 아아콘을 클릭합니다.  
+    ![Delete the session](multiuserediting-qs-deletesession.png "Delete the session")
+
+1.  삭제를 확인합니다.  
+    ![Confirm deletion](multiuserediting-qs-disconnect-confirm.png "Confirm deletion")  
+    삭제한 세션에 다른 사용자가 연결된 경우 자동으로 연결이 끊깁니다.
+
+1.  마지막으로 잠깐 동안 공유 세션에 다시 연결할 필요가 없는 경우, 콘솔 창에서 **Ctrl+C** 를 눌러 서버를 중지할 수 있습니다.
+    [REGION:note]
+    단순히 콘솔 창을 닫지는 마세요. 그러면 서버가 비정상 종료로 간주합니다. 콘솔 창을 닫을 때 활성 상태인 세션은 다음 번 서버를 시작할 때 자동 복원됩니다.
+    [/REGION]
+    
+
+이제 이 튜토리얼을 시작했던 상태로 돌아왔습니다. 
+
+## 9 - 직접 해보기
+
+위 단계를 모두 성공적으로 진행했다면, 언리얼 에디터의 라이브 협업 워크플로를 처음 접해본 것입니다. 여러 컴퓨터에서 프로젝트를 구성하는 법, 그 컴퓨터를 하나의 공유 편집 세션으로 연결하는 법, 팀원과 함께 가상 사계를 구축하는 법을 배웠습니다. 이미 자신의 프로젝트 작업 팀에 어떻게 하면 이러한 워크플로를 실제로 활용할지 떠오를 것입니다. 이제 멀티 유저 편집 시스템의 즉각적인 협업, 반복 시간 제로, 창의적인 협력의 이점을 누릴 수 있게 되었습니다.
+
+*   멀티 유저 편집 시스템을 팀에 정기적으로 사용하기 시작하는 경우, **프로젝트 세팅** 에 기본 서버 이름과 세션 이름을 구성하는 것이 좋습니다. 구성해 두면 세션 브라우저를 거치지 않고도 툴바의 **라이브 이동** 버튼 한 번만 눌러도 기본 세션에 연결할 수 있습니다. 프로젝트를 열면 그 기본 세션에 자동 연결하도록 할 수도 있습니다.
+
+*   여러 사용자가 같은 애니메이션을 동기화시켜 재생해야 하는 경우, 멀티 유저 편집 시스템이 여러 사용자 간의 시퀀서 UI 작업을 동기화하도록 구성하면 됩니다. 각 사용자가 콘솔 명령으로 설정해야 합니다.
+
+수정해야 하는 세팅 관련 자세한 내용은 [](Engine/Editor/MultiUser/Reference) 문서를 참고하세요.

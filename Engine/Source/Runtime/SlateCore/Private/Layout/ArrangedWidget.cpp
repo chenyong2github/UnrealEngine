@@ -4,8 +4,13 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
-
-FArrangedWidget FArrangedWidget::NullWidget(SNullWidget::NullWidget, FGeometry());
+// Use function to initialize because SNullWidget::NullWidget is not statically initialized yet
+const FArrangedWidget& FArrangedWidget::GetNullWidget()
+{
+	static FArrangedWidget NullArrangedWidget(SNullWidget::NullWidget, FGeometry());
+	checkSlow(&SNullWidget::NullWidget.Get() != nullptr);
+	return NullArrangedWidget;
+}
 
 FString FArrangedWidget::ToString( ) const
 {
@@ -14,7 +19,7 @@ FString FArrangedWidget::ToString( ) const
 
 
 FWidgetAndPointer::FWidgetAndPointer()
-: FArrangedWidget(FArrangedWidget::NullWidget)
+: FArrangedWidget(FArrangedWidget::GetNullWidget())
 , PointerPosition(TSharedPtr<FVirtualPointerPosition>())
 {}
 

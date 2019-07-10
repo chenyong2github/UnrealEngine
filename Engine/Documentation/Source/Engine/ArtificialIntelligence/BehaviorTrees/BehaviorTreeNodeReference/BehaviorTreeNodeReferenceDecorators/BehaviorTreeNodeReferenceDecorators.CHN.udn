@@ -1,0 +1,515 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:行为树节点参考：装饰器节点
+Description:行为树装饰器节点的参考。
+Type: reference
+Version:4.21
+Parent:Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference
+Tags:AI
+Tags:Behavior Tree Node Reference
+topic-image:BehaviorTreeNodes_Decorator_Topic.png
+social-image:BehaviorTreeNodes_Decorator_Topic.png
+topic-icon:BehaviorTreeNodes_Decorator_Topic.png
+Order:1
+
+
+[TOC (start:2 end:2)]
+
+**装饰器节点**（在其他行为树系统中也称为条件语句）连接到[合成（Composite）](Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference/BehaviorTreeNodeReferenceComposites)或[任务（Task）](Engine/ArtificialIntelligence/BehaviorTrees/BehaviorTreeNodeReference/BehaviorTreeNodeReferenceTasks)节点，并定义树中的分支，甚至单个节点是否可以执行。
+
+## 黑板
+
+![](Decorators_01.png "Decorators_01.png")
+
+**黑板（Blackboard）** 节点将检查给定的 **黑板键（Blackboard Key）** 上是否设置了值。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **通知观察者（Notify Observer）** | [INCLUDE:#excerpt_0] |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_1] |
+| **键查询（Key Query）** | [INCLUDE:#excerpt_2] |
+| **黑板键（Blackboard Key）** | [INCLUDE:#excerpt_3] |
+| **节点名称（Node Name）** | 节点应该在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_0]
+
+|||
+| --- | --- |  
+| **结果改变时（On Result Change）** | 仅在条件改变时进行重新计算。|
+| **值改变时（On Value Change）** |仅在观察到的黑板键改变时进行重新计算。|
+
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+|||
+| --- | --- |  
+| **已经设置（Is Set）** | 数值是否已设置?|
+| **尚未设置（Is Not Set）** | 数值是否尚未设置？|
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+装饰器将运行的黑板键。   
+
+[/EXCERPT:excerpt_3]
+-->
+
+## 检查Gameplay标签条件
+
+![](Decorators_02.png "Decorators_02.png")
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **要检查的Actor（Actor to Check）** | 黑板键，包含了需要检查的Actor的引用。|
+| **要匹配的标签（Tags to Match）** | 装饰器是否应该匹配 **Gameplay标签（Gameplay Tags）** 属性中列出的 **任意（Any）** 或 **所有（Al）** 标签。|
+| **Gameplay标签（Gameplay Tags）** | 加载 **Gameplay标签（Gameplay Tag）** 编辑器，选择应在该装饰器中使用的标签。|
+| **反转条件（Inverse Condition）** | 是否反转此装饰器的结果，其中false变为true、true变为false。|
+| **节点名称（Node Name）** | 节点在行为树图中显示的名称。|
+
+## 比较黑板条目
+
+![](Decorators_03-1.png "Decorators_03-1.png")
+
+**比较黑板条目（Compare BBEntries）** 节点将比较两个 **黑板键** 的值，并根据结果（等于或不等）阻止或允许节点的执行。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_4] |
+| **运算符（Operator）** | [INCLUDE:#excerpt_6] |
+| **黑板键A（Blackboard Key A）** | 该比较中使用的第一个键。|
+| **黑板键B（Blackboard Key B）** | 该比较中使用的第二个键。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_4]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_6]
+
+|||
+| --- | --- |  
+| **相等（Is Equal To）** | 这两个键的值是否相等？|
+| **不等（Is Not Equal To）** | 这两个键的值是否不相等？|
+
+[/EXCERPT:excerpt_6]
+-->
+
+
+## 合成
+
+![](Decorators_04.png "Decorators_04.png")
+
+**合成装饰器（Composite Decorator）** 节点使您能够设置比内置节点更高级的逻辑，但复杂程度却不及完整的蓝图。将合成装饰器添加到节点后，双击合成装饰器，调出合成图表。右键单击图表区域即可以将装饰器节点添加为standalone节点，然后通过 **AND** 节点、**OR** 节点和 **NOT** 节点将它们连接在一起，以此创建更高级的逻辑：  
+
+[REGION:lightbox]
+[![](Decorators_04b.png)(w:900)](Decorators_04b.png)
+[/REGION]
+[REGION:caption]
+单击查看全图。
+[/REGION]
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **合成名称（Composite Name）** | 节点在行为树图表中显示的名称。|
+| **显示操作（Show Operations）** | 此属性会让操作以纯文本形式列出在节点上。|
+
+[REGION:note]
+以这种方式使用合成装饰器将影响内存和性能。也可以在C++中创建一个装饰器来执行同样的自定义行为，但效率更高。
+[/REGION]
+
+## 条件语句循环
+
+只要满足了 **键查询（Key Query）** 条件，该装饰器将使它所连接节点进行循环。  
+
+![](Decorators_05.png "Decorators_05.png")
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **键查询（Key Query）** | [INCLUDE:#excerpt_7] |
+| **黑板键（Blackboard Key）** | [INCLUDE:#excerpt_8] |
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_7]
+
+|||
+| --- | --- |  
+| **已经设置（Is Set）** | 数值是否已设置?|
+| **尚未设置（Is Not Set）** | 数值是否尚未设置？|
+
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+装饰器将运行的黑板键。   
+
+[/EXCERPT:excerpt_8]
+-->
+
+## 椎体检查
+
+![](Decorators_06-1.png "Decorators_06-1.png")
+
+**椎体检查（Cone Check）** 装饰器采用了三个矢量键：第一个确定椎体的起始位置，第二个用于定义锥体朝向的方向，第三个用于检查该位置是否在锥体内部。您可以使用 **锥体半角（Cone Half Angle）** 属性来定义锥体的角度。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_9] |
+| **Cone Half Angle** | 锥形的半角。例如，对于90度的锥体，该值应设置为45度。|
+| **椎体原点（Cone Origin）** | 锥体的起始位置（锥形尖端）。|
+| **椎体方向（Cone Direction）** | 锥体开口应指向的方向。|
+| **观察对象（Observed）** | 正在检查的位置或Actor是否位于锥体中。|
+| **条件反转（Inverse Condition）** | [INCLUDE:#excerpt_11] |
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_9]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_11]
+
+是否反转此装饰器的结果，其中false变为true、true变为false。  
+
+[/EXCERPT:excerpt_11]
+-->
+
+
+## 冷却
+
+![](Decorators_07.png "Decorators_07.png")
+
+**冷却（Cooldown）** 将锁定节点或分支的执行，直到冷却时间结束。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_12] |
+| **冷却时间（Cool Down time）** | 冷却装饰器应该锁定该节点执行的时间，以秒为单位。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_12]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_12]
+-->
+
+
+## 自定义装饰器
+
+![](CustomDecorator.png "CustomDecorator.png")
+
+您可以通过单击 **新建装饰器（New Decorator）** 按钮，用自己的自定义蓝图逻辑和（或）参数创建新的 **装饰器**。   
+
+![](NewDecoratorCreate.png "NewDecoratorCreate.png")
+
+您的自定义逻辑也将包含以下参数： 
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_14] |
+| **显示属性细节（Show Property Details）** | 显示节点上属性的细节信息。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+| **条件反转（Inverse Condition）** | [INCLUDE:#excerpt_16] |
+
+<!--
+[EXCERPT:excerpt_14]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_14]
+-->
+<!--
+[EXCERPT:excerpt_16]
+
+是否反转此装饰器的结果，其中false变为true、true变为false。  
+
+[/EXCERPT:excerpt_16]
+-->
+
+
+## 路径是否存在
+
+![](Decorators_08.png "Decorators_08.png")
+
+**路径是否存在（Does Path Exist）** 节点会检查是否可以在以下两个矢量之间创建路径：黑板键A（Blackboard Key A）和黑板键B（Blackboard Key B）
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_17] |
+| **黑板键A（Blackboard Key A）** | 路径中的第一个位置。|
+| **黑板键B（Blackboard Key B）** | 路径中的第二个位置。|
+| **路径查询类型（Path Query Type）** | [INCLUDE:#excerpt_19] |
+| **条件反转（Inverse Condition）** | [INCLUDE:#excerpt_20] |
+| **过滤器类（Filter Class）** | 应该使用哪些导航数据？如果设置为 **无（None）**，将使用默认导航数据。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_17]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_17]
+-->
+<!--
+[EXCERPT:excerpt_19]
+
+|||
+| --- | --- |  
+| **寻路网格体光线投射2D（NavMesh Raycast 2D）** | 极快 |
+| **分层查询（Hierarchical Query）** | 较快 |
+| **常规通道搜寻（Regular Path Finding）** | 缓慢 |
+
+[/EXCERPT:excerpt_19]
+-->
+<!--
+[EXCERPT:excerpt_20]
+
+是否反转此装饰器的结果，其中false变为true、true变为false。  
+
+[/EXCERPT:excerpt_20]
+-->
+
+## 强制成功
+
+![](Decorators_09.png "Decorators_09.png")
+
+**强制成功（Force Success）** 装饰器会将节点结果更改为成功。 
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+## 在位置处（Is At Location）
+
+![](Decorators_10.png "Decorators_10.png")
+
+**在位置处（Is At Location）** 装饰器节点将检查AI控制的Pawn是否位于给定位置。 
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **接受半径（Acceptable Radius）** | 被视为“在位置处”的距离阈值。|
+| **参数化接受半径（Parametrized Acceptable Radius）** | 基于参数的接受半径（Acceptable Radius）（例如 **随机数**）。|
+| **几何距离类型（Geometric Distance Type）** | **基于寻路的测试（Path Finding Based Test）** 被禁用时，该函数让您可以将距离类型设置为3D、2D或Z轴的数值。|
+| **使用寻路代理目标位置（Use Nav Agent Goal Location）** | [INCLUDE:#excerpt_21] |
+| **基于寻路的测试（Path Finding Based Test）** | 如启用，结果将与跟踪路径时完成的测试一致。如禁用，请使用 **距离类型（Distance Type）** 所配置的 **几何距离（Geometric Distance）**。|
+| **条件反转（Inverse Condition）** | [INCLUDE:#excerpt_22] |
+| **黑板键（Blackboard Key）** | 要测试的黑板键值。|
+| **节点名称（Node Name）** | 用户定义的节点名称。|
+
+<!--
+[EXCERPT:excerpt_21]
+
+如果移动至一个Actor，而该Actor是寻路代理（Nav Agent），那么我们会移动至其的寻路代理目标位置（Nav Agent Goal Location）。   
+
+[/EXCERPT:excerpt_21]
+-->
+<!--
+[EXCERPT:excerpt_22]
+
+是否反转此装饰器的结果，其中false变为true、true变为false。  
+
+[/EXCERPT:excerpt_22]
+-->
+
+
+## Is BBEntry Of Class
+
+![](Decorators_11.png "Decorators_11.png")
+
+**Is BBEntry Of Class** 装饰器节点用于确定所指定的黑板键是否属于指定的类。 
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_23] |
+| **测试类（Test Class）** | 针对黑板键属性对象的类进行测试的类类型。|
+| **黑板键（Blackboard Key）** | 被测试的黑板键。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_23]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_23]
+-->
+
+## 保持于椎体内
+
+![](Decorators_12.png "Decorators_12.png")
+
+**保持于椎体内（Keep in Cone）** 装饰器节点会根据所观察到的位置是否仍位于锥体内部来确定其条件。当节点首次拥有相关性时，将计算锥体的方向。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_25] |
+| **锥体半角（Cone Half Angle）** | 椎体的半角。举例而言，对于90度的锥体，该值应设置为45度。|
+| **椎体原点（Cone Origin）** | 锥体的起始位置（锥形尖端） |
+| **观察对象（Observed）** | 需要保持在椎体内部的位置或Actor。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_25]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_25]
+-->
+
+
+## 循环
+
+![](Decorators_13.png "Decorators_13.png")
+
+**循环（Loop）** 装饰器会对节点或分支进行多次循环或无限次循环。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **循环次数（Num Loops）** | 该循环运行的次数。|
+| **无限次循环（Infinite Loop）** | 该循环是否应当无限次运行?|
+| **无限次循环超时时间（Infinite Loop Timeout Time）** | 启用 **无限次循环（Infinite Loop）** 的超时时间数值（负值将永远循环）。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+## 设置标签冷却
+
+![](Decorators_14.png "Decorators_14.png")
+
+通过 **设置标签冷却（Set Tag Cooldown）** 可以设置Gameplay标签的冷却时长。   
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **标签冷却（Tag Cooldown）** | 用于冷却的Gameplay标签。|
+| **冷却时长（Cooldown Duration）** | 冷却的时长，以秒为单位。|
+| **加至现有时长（Add to Existing Duration）** | 如果给定的Gameplay标签上已有冷却时间，是否应增加更多？|
+| **节点名称（Node Name）** | 节点应该在行为树图中显示的名称。|
+
+## 标签冷却
+
+![](Decorators_15.png "Decorators_15.png")
+
+一个装饰器节点，其条件基于Gameplay标签的冷却计时器是否过期。 
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_27] |
+| **标签冷却（Tag Cooldown）** | 用于冷却的Gameplay标签。|
+| **冷却时长（Cooldown Duration）** | 冷却的时长，以秒为单位。|
+| **加至现有时长（Add to Existing Duration）** | 如果给定的Gameplay标签上已有冷却时间，是否应增加更多？|
+| **在停用时添加/设置冷却时长（Adds/Sets Cooldown on Deactivation）** | 当装饰器停用后，是否添加/设置冷却标签的值。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_27]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_27]
+-->
+
+## 时间限制
+
+![](Decorators_16.png "Decorators_16.png")
+
+**时间限制（Time Limit）** 装饰器会为一个分支或节点设置在终止其运行并失败前，完成运行所需的一段时间。每当该节点被聚焦时，计时器都会重置。
+
+  
+| 属性 | 描述 |
+| --- | --- |
+| **观察者中止（Observer Aborts）** | [INCLUDE:#excerpt_29] |
+| **时间限制（Time Limit）** | 节点运行失败前的时间限制，以秒为单位。|
+| **节点名称（Node Name）** | 节点在行为树图表中显示的名称。|
+
+<!--
+[EXCERPT:excerpt_29]
+
+|||
+| --- | --- |  
+| **无（None）** | 不中止执行。|
+| **自身（Self）** | 中止此节点自身和在其下运行的所有子树。|
+| **低优先级（Lower Priority）** | 中止此节点右侧的所有节点。|
+| **两者（Both）** | 中止此节点自身和在其下运行的所有子树，以及此节点右侧的所有节点。|
+
+[/EXCERPT:excerpt_29]
+-->

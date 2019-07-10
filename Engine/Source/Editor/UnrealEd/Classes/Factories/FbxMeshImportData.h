@@ -82,6 +82,10 @@ class UFbxMeshImportData : public UFbxAssetImportData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, AdvancedDisplay, Category = Mesh, meta=(ImportType="Mesh|GeoOnly"))
 	TEnumAsByte<enum EFBXNormalGenerationMethod::Type> NormalGenerationMethod;
 
+	/* If checked, The material list will be reorder to the same order has the FBX file. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, AdvancedDisplay, Category = Material, meta = (OBJRestrict = "true"))
+	bool bReorderMaterialToFbxOrder;
+
 	bool CanEditChange( const UProperty* InProperty ) const override;
 
 	//////////////////////////////////////////////////////////////////////////

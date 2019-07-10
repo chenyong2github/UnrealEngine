@@ -1,0 +1,36 @@
+﻿INTSourceChangelist:6572475
+Availability: Public
+Crumbs: 
+Title: Revit から Datasmith のコンテンツをエクスポートする
+Description: Unreal Editor にインポート可能な Datasmith ファイルに Revit のシーンをエクスポートする方法について説明します。
+Type: 
+skilllevel:Beginner
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides/Revit
+Order: 1
+Tags: how to
+Tags: Datasmith
+Tags: Early Access
+Tags: Revit
+
+
+Revit 用の Datasmith Exporter プラグインをインストールすると、**[Add-Ins]** リボンに新しいオプションが表示され、選択された 3D ビューを**「.udatasmith」**ファイルにエクスポートできるようになります。
+
+このファイル タイプを使用してシーンをエクスポートするには、Revit で以下のステップに従います。
+
+1.  **プロジェクト ブラウザ** で、エクスポートしたい 3D ビューを選択します。  
+    ![3D ビュー を選択](revit-select-3d-view.png "3D ビュー を選択")  
+    Datasmith Exporter プラグインは、現在の 3D ビューに定義されている表示設定を使用して、シーンのどの部分をエクスポートするかを決定します。 詳細については、[](Studio/Datasmith/SoftwareInteropGuides/Revit)を参照してください。
+2.  **[Add-Ins]** リボンを開きます。 **[Unreal Datasmith]** セクションで、**[Export 3D View]** をクリックします。  
+    ![Add-ins | Export 3D View](revit-toolbar.png "Add-ins | Export 3D View")
+3.  **[Export 3D View to Unreal Datasmith]** ウィンドウで、「.udatasmith」ファイルを保存する場所を参照し、**[File Name (ファイル名)]** ボックスを使用して新しいファイルに名前を付けます。  
+    ![保存場所とファイル名の設定](revit-ds-export-location.png "保存場所とファイル名の設定")
+4.  **[Save (保存)]** をクリックします。
+
+### 最終結果
+
+これで、新規の*「.udatasmith」*ファイルを Unreal Editor にインポートする準備が整いました。 [](Studio/Datasmith/HowTo/ImportingContent)および[](Studio/Datasmith/HowTo/ReimportingContent)を参照してください。
+
+[REGION:note]
+新規の *「.udatasmith」*ファイルと共に、このファイルと同じ名前に *_Assets* サフィックスが付いたフォルダが作成されます。 *「.udatasmith」*ファイルを別の場所に移動する場合は、このフォルダも同じ場所に移動してください。
+[/REGION]

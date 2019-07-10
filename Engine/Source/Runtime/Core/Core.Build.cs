@@ -68,6 +68,17 @@ public class Core : ModuleRules
 				PrivateDefinitions.Add("USE_BUNDLED_DBGHELP=0");
 			}
 		}
+		else if ((Target.Platform == UnrealTargetPlatform.HoloLens))
+		{
+			PublicIncludePaths.Add("Runtime/Core/Public/HoloLens");
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"zlib");
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"IntelTBB",
+				"XInput"
+				);
+		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
@@ -171,6 +182,11 @@ public class Core : ModuleRules
 			}
 		}
 
+		if( Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			PublicDefinitions.Add("WITH_VS_PERF_PROFILER=0");
+		}
+
 		WhitelistRestrictedFolders.Add("Private/NoRedist");
 
         if (Target.Platform == UnrealTargetPlatform.XboxOne)
@@ -178,7 +194,8 @@ public class Core : ModuleRules
             PublicDefinitions.Add("WITH_DIRECTXMATH=1");
         }
         else if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-                (Target.Platform == UnrealTargetPlatform.Win32))
+                (Target.Platform == UnrealTargetPlatform.Win32) ||
+				(Target.Platform == UnrealTargetPlatform.HoloLens))
         {
 			// To enable this requires Win8 SDK
             PublicDefinitions.Add("WITH_DIRECTXMATH=0");  // Enable to test on Win64/32.

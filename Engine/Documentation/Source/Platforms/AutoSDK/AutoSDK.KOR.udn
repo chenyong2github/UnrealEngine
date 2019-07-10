@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6426822
 Availability: Docs
 Crumbs: %ROOT%
 Title: AutoSDK 활성화 방법
@@ -37,8 +37,6 @@ AutoSDK 를 사용하기 전에는, **UE_SDKS_ROOT** 환경 변수를 설정해�
 	[/REGION]
 
 클라이언트 워크스페이스 정의에 디렉터리를 추가했으니, **UE_SDKS_ROOT** 환경 변수를 설정할 차례입니다.
-
-%Globals:OSSelect_Linux%
 
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]

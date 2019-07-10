@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4400933
+﻿INTSourceChangelist:6508296
 Availability: Public
 Crumbs: 
 Title: 증강 현실 퀵스타트
@@ -14,6 +14,11 @@ Tags: AR
 Tags: Mobile AR
 prereq: Platforms/AR/HandheldAR/ARKitPrerequisites
 prereq: Platforms/AR/HandheldAR/ARCorePrerequisites
+Related: Platforms/AR/HandheldAR/AROverview
+Related: Platforms/AR/HandheldAR/ARKitPrerequisites
+Related: Platforms/AR/HandheldAR/ARCorePrerequisites
+
+[TOC (start:2 end:3)]
 
 ![](AR_IntroShot.png "AR_IntroShot.png")
 
@@ -68,7 +73,7 @@ prereq: Platforms/AR/HandheldAR/ARCorePrerequisites
 
 | 세팅 | 값 |
 | --- | --- |
-| **Configure Project for Android** | <수동 구성 필수> |
+| **Configure Project for Android** | 수동 구성이 필요합니다. |
 
 프로젝트 셋업 UI 에 구성된 세팅입니다 (이전/이후):  
 ![](AR_ConfigureProject_ForAndroid_PRE.png "AR_ConfigureProject_ForAndroid_PRE.png")  

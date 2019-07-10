@@ -26,6 +26,13 @@ public class VirtualCamera : ModuleRules
 			}
 		);
 
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Slate",
+			}
+		);
+
 		if (Target.bBuildDeveloperTools)
 		{
 			PrivateDefinitions.Add("VIRTUALCAMERA_WITH_CONCERT=1");
@@ -33,6 +40,8 @@ public class VirtualCamera : ModuleRules
 				new string[]
 				{
 					"Concert",
+					"ConcertSyncClient",
+					"MultiUserClient",
 				}
 			);
 		}

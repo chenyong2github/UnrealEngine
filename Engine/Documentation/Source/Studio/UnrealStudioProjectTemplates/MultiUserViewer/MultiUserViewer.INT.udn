@@ -1,0 +1,53 @@
+Availability: Public
+Crumbs: 
+Title: Unreal Studio Multi-User Viewer Template
+Description: Describes how to get started doing collaborative VR and desktop design reviews with the Multi-User Viewer Template.
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates
+Order: 1
+Tags: Unreal Studio
+Tags: template
+Tags: Multi-user
+topic-image:multiuserviewer-topic.png
+hero-image:multiuserviewer-banner.png
+
+
+The Multi-User Viewer Template joins multiple people together in a shared experience of the same 3D content. It's intended to make it easier and quicker for your organization to review and communicate about designs in realtime, so that you can identify problems and iterate on the content more efficiently.
+
+Each participant can use a computer set up with a standard mouse and keyboard, or with a VR headset and motion controllers. Every participant sees an avatar of each other player, and can use a laser pointer tool to point out features of the environment to all other players.
+
+[REGION:lightbox]
+[![Review with multiple simulataneous users](multiuserviewer-overview.png "Review with multiple simulataneous users")](multiuserviewer-overview.png)  
+*Click for full image.*
+[/REGION]
+
+The Multi-User Viewer Template handles most of the difficult problems inherent in multi-viewer experiences, including setting up connections and replicating presence information between multiple computers. Use it as a starting point for your design review experiences, so that you can spend less time setting up networking and more time thinking about your designs.
+
+## Workflow
+
+The typical usage pattern for the Multi-User Viewer Template is:  
+
+1.  You create a new Project from the Template, or bring the Template content into your own existing Project.
+2.  You set up the Project with the content you want to share with others.  
+    This typically involves the same kinds of data import and look development tasks that you would do in any Unreal Engine Project. For details on specific considerations that you'll need to keep in mind when setting up your content, such as collisions and navigation meshes, see [Using Your Own Content with the Multi-User Viewer Template](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent).
+3.  You use the tools built in to the Unreal Editor to package your Project to an executable file.
+4.  You share that file with the people who need to be part of the collaborative review.
+5.  One person launches the packaged Unreal Engine application and starts it up in server mode.
+6.  Each other person who wants to be part of the same viewing session launches their copy of the application on a separate computer, and joins the server session.
+
+For a detailed tutorial that walks you through the steps above using the default content in the Template, see [Getting Started with the Multi-User Viewer](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro) .
+
+## Getting Started
+
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro:topic%
+
+## How-To Guides
+
+[DIR(output:"fancy" parent:"Studio/UnrealStudioProjectTemplates/MultiUserViewer" tags:"how to" end:"1")]
+
+## Reference
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling:topic%
+
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVNetworking:topic%
+

@@ -45,6 +45,7 @@
 #include "NiagaraShaderCompilationManager.h"
 
 #include "NiagaraEditorSettings.h"
+#include "NiagaraNodeStaticSwitch.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -409,10 +410,17 @@ FString FHlslNiagaraTranslator::GetFunctionDefinitions()
 		// data interface functions that should be defined differently.
 	}
 
+	// Check to see if we have interpolated spawn enabled, for the GPU we need to look for the additional defines
+	bool bHasInterpolatedSpawn = CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated;
+	if ( CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleGPUComputeScript )
+	{
+		bHasInterpolatedSpawn = CompileOptions.AdditionalDefines.Contains(TEXT("InterpolatedSpawn"));
+	}
+
 	//Add a few hard coded helper functions in.
 	FwdDeclString += TEXT("float GetSpawnInterpolation();");
 	//Add helper function to get the interpolation factor.
-	if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)
+	if ( bHasInterpolatedSpawn )
 	{
 		DefinitionsString += TEXT("float GetSpawnInterpolation()\n{\n");
 		DefinitionsString += TEXT("\treturn HackSpawnInterp;\n");
@@ -996,23 +1004,6 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 	if (FunctionCtx())
 		return TranslateResults;
 
-	// MASSIVE HACK - Tracked in JIRA UE-69298
-	// Hardcoded random function accessible from inner part of node implementation.
-	// It works for now at least and avoids exposing every random needed in the UI. 
-	// Temporary solution, it will be replaced when a design is validated.
-	if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		HlslOutput += TEXT(R"(
-		float NiagaraInternalNoise(uint u, uint v, uint s)
-		{
-			static uint RandomSeedOffset = 0;
-			uint Seed = (u * 1664525u + v) + s + RandomSeedOffset;
-			RandomSeedOffset += Seed;
-			return float(Rand3DPCG32(int3(u,v,Seed)).x) / 4294967296.0f;
-		}
-		)");
-	}
-
 	//Now evaluate all the code chunks to generate the shader code.
 	//FString HlslOutput;
 	if (TranslateResults.bHLSLGenSucceeded)
@@ -1029,6 +1020,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			{
 				int32 OutputIdx = 0;
 				//ensure the interpolated spawn constants are part of the parameter set.
+				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_TIME, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_DELTA_TIME, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_INV_DELTA_TIME, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_EXEC_COUNT, nullptr, 0, OutputIdx, nullptr);
@@ -1654,13 +1646,13 @@ void FHlslNiagaraTranslator::DefineDataSetWriteFunction(FString &HlslOutputStrin
 	HlslOutput += TEXT("}\n\n");
 }
 
-
-
 void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 {
+	FString InterfaceCommonHLSL;
 	FString InterfaceUniformHLSL;
 	FString InterfaceFunctionHLSL;
 	TArray<FString> BufferParamNames;
+	TSet<FName> InterfaceClasses;
 	for (uint32 i = 0; i < 32; i++)
 	{
 		BufferParamNames.Add(TEXT("DataInterfaceBuffer_") + FString::FromInt(i));
@@ -1676,6 +1668,12 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 		UNiagaraDataInterface* CDO = Cast<UNiagaraDataInterface>(*FoundCDO);
 		if (CDO && CDO->CanExecuteOnTarget(ENiagaraSimTarget::GPUComputeSim))
 		{
+			if ( !InterfaceClasses.Contains(Info.Type.GetFName()) )
+			{
+				CDO->GetCommonHLSL(InterfaceCommonHLSL);
+				InterfaceClasses.Add(Info.Type.GetFName());
+			}
+
 			FString OwnerIDString = Info.Name.ToString();
 			FString SanitizedOwnerIDString = GetSanitizedSymbolName(OwnerIDString, true);
 
@@ -1712,7 +1710,7 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 				, nullptr, nullptr);
 		}
 	}
-	InHlslOutput += InterfaceUniformHLSL + InterfaceFunctionHLSL;
+	InHlslOutput += InterfaceCommonHLSL + InterfaceUniformHLSL + InterfaceFunctionHLSL;
 }
 
 
@@ -2646,6 +2644,32 @@ bool FHlslNiagaraTranslator::ShouldInterpolateParameter(const FNiagaraVariable& 
 	return true;
 }
 
+void FHlslNiagaraTranslator::UpdateStaticSwitchConstants(UEdGraphNode* Node)
+{
+	if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node))
+	{
+		TArray<UNiagaraNodeStaticSwitch*> NodesToUpdate;
+		NodesToUpdate.Add(SwitchNode);
+
+		for (int i = 0; i < NodesToUpdate.Num(); i++)
+		{
+			SwitchNode->UpdateCompilerConstantValue(this);
+			
+			// also check direct upstream static switches, because they are otherwise skipped during the compilation and
+			// might be evaluated without their values set correctly.
+			TArray<UEdGraphPin*> InPins;
+			SwitchNode->GetInputPins(InPins);
+			for (UEdGraphPin* Pin : InPins)
+			{
+				if (UNiagaraNodeStaticSwitch* ConnectedNode = Cast<UNiagaraNodeStaticSwitch>(Pin->GetOwningNode()))
+				{
+					NodesToUpdate.AddUnique(ConnectedNode);
+				}
+			}
+		}
+	}
+}
+
 int32 FHlslNiagaraTranslator::GetRapidIterationParameter(const FNiagaraVariable& Parameter)
 {
 	if (!AddStructToDefinitionSet(Parameter.GetType()))
@@ -3366,6 +3390,20 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 			OutVar.SetValue(bEmitterDeterminism ? FNiagaraBool(true) : FNiagaraBool(false));
 			return true;
 		}
+		if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetSimulationTargetEnum(), TEXT("Emitter.SimulationTarget")))
+		{
+			FNiagaraInt32 EnumValue;
+			EnumValue.Value = (uint8) CompilationTarget;
+			OutVar.SetValue(EnumValue);
+			return true;
+		}
+	}
+	else if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)GetCurrentUsage();
+		OutVar.SetValue(EnumValue);
+		return true;
 	}
 	return false;
 }
@@ -4307,6 +4345,28 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 	// We need the generated string to generate the proper signature for now.
 	ActiveHistoryForFunctionCalls.EnterFunction(FunctionNode->GetFunctionName(), FunctionNode->FunctionScript, FunctionNode);
 
+	// Check if there are static switch parameters being set directly by a set node from the stack UI.
+	// This can happen if a module was changed and the original parameter was replaced by a static switch with the same name, but the emitter was not yet updated.
+	const FString* ModuleAlias = ActiveHistoryForFunctionCalls.GetModuleAlias();
+	if (ModuleAlias)
+	{
+		for (int32 i = 0; i < ParamMapHistories.Num(); i++)
+		{
+			for (int32 j = 0; j < ParamMapHistories[i].VariablesWithOriginalAliasesIntact.Num(); j++)
+			{
+				const FNiagaraVariable Var = ParamMapHistories[i].VariablesWithOriginalAliasesIntact[j];
+				FString VarStr = Var.GetName().ToString();
+				if (VarStr.StartsWith(*ModuleAlias))
+				{
+					VarStr = VarStr.Mid(ModuleAlias->Len() + 1);
+					if (FunctionNode->FindStaticSwitchInputPin(*VarStr))
+					{
+						Error(FText::Format(LOCTEXT("SwitchPinFoundForSetPin", "A switch node pin exists but is being set directly using Set node! Please use the stack UI to resolve the conflict. Output Pin: {0}"), FText::FromName(Var.GetName())), FunctionNode, nullptr);
+					}
+				}
+			}
+		}
+	}
 
 	// Remove input add pin if it exists
 	for (int32 i = 0; i < CallOutputs.Num(); i++)
@@ -5399,6 +5459,11 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_CompileOutputPin);
 
+	if (InPin)
+	{
+		UpdateStaticSwitchConstants(InPin->GetOwningNode());
+	}
+
 	// The incoming pin to compile may be pointing to a reroute node. If so, we just jump over it
 	// to where it really came from.
 	UEdGraphPin* Pin = UNiagaraNode::TraceOutputPin(const_cast<UEdGraphPin*>(InPin));
@@ -5475,7 +5540,7 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 	return Ret;
 }
 
-void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin) //@todo(message manager) rearrange syntax to fit with FNiagaraMessageManager
+void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin)
 {
 	FString NodePinStr = TEXT("");
 	FString NodePinPrefix = TEXT(" - ");

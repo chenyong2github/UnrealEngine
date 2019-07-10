@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3599948
+INTSourceChangelist:6407797
 Title: 게임플레이 안내
 Crumbs:%ROOT%
 Description:프로그래머와 비주얼 스크립터를 위한 게임플레이 함수성 개요 및 예제입니다.
@@ -21,7 +21,7 @@ topic-icon:%ROOT%/gameplay_icon.png
 ## 프레임워크
 
 언리얼 엔진 4 에는 게임 제작 시작을 돕고자 미리설정된 작동방식이 포함된 클래스가 여럿 있습니다. 
-이러한 구성 요소들과 그 서로간의 유기적인 작동방식에 대한 상세 정보는 프레임워크 개요 또는 간단 참고서에서 
+이러한 구성 요소들과 그 서로간의 유기적인 작동방식에 대한 상세 정보는 프레임워크 개요 또는 간단 레퍼런스에서 
 확인해 보시거나, 그냥 특정 클래스 페이지에 바로 점프해 보시기 바랍니다.
 
 [DIR(output:"role" path:"Gameplay/Framework" org:"flat" orderby:"parent,position")]
@@ -46,7 +46,7 @@ topic-icon:%ROOT%/gameplay_icon.png
 %Gameplay/Tools/NetworkProfiler:role%
 %Gameplay/Tools/VisualLogger:role%
 
-## 게임플레이 비법
+## 게임플레이 하우투
 
 여기서는 가장 흔한 게임플레이 상황 중 몇 가지를 생성하는 법을 단계별로 안내해 드리겠습니다.
 게임에 적 또는 픽업 스폰 방법이라든가, 카메라 앵글 변경, 플레이어 인풋 셋업 등등, 여기서는 블루프린트와 C++ 용 예제 셋업이 제공됩니다.

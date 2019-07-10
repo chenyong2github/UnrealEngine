@@ -1,7 +1,7 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:6426874
 Availability: Public
-Title: 빌드 환경설정 참고서
-Description: 솔루션 및 빌드 환경설정 참고서입니다.
+Title: 빌드 환경설정 레퍼런스
+Description: 솔루션 및 빌드 환경설정 레퍼런스입니다.
 Crumbs: %ROOT%, Programming, Programming/Development
 Prereq: GettingStarted/RecommendedSpecifications
 Related: GettingStarted/DownloadingUnrealEngine
@@ -34,8 +34,6 @@ UE4 솔루션을 컴파일할 때, 프로젝트의 소스 코드와 함께 엔�
 ### UE4 프로젝트용 빌드 환경설정
 
 UE4 프로젝트를 컴파일할 때, 프로젝트의 소스 코드만 컴파일합니다. 이런 식으로 프로젝트를 빌드할 때 사용할 수 있는 빌드 환경설정은 다음과 같습니다:
-
-%Globals:osselect_linux%
 
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]

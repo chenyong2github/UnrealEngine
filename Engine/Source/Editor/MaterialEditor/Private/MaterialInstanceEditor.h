@@ -144,12 +144,6 @@ private:
 	void ToggleShowAllMaterialParameters();
 	bool IsShowAllMaterialParametersChecked() const;
 
-	/** Commands for the Parents menu */
-	void OnOpenMaterial(TWeakObjectPtr<UMaterialInterface> InMaterial);
-	void OnOpenFunction(TWeakObjectPtr<UMaterialFunctionInterface> InFunction);
-	void OnShowMaterialInContentBrowser(TWeakObjectPtr<UMaterialInterface> InMaterial);
-	void OnShowFunctionInContentBrowser(TWeakObjectPtr<UMaterialFunctionInterface> InFunction);
-
 	/** Creates all internal widgets for the tabs to point at */
 	void CreateInternalWidgets();
 
@@ -218,10 +212,16 @@ private:
 	TSharedPtr<class SMaterialLayersFunctionsInstanceWrapper> MaterialLayersFunctionsInstance;
 
 	/** List of parents used to populate the inheritance list chain. */
-	TArray< TWeakObjectPtr<UMaterialInterface> > MaterialParentList;
+	TArray< FAssetData > MaterialParentList;
 
 	/** List of parents used to populate the inheritance list chain. */
-	TArray< TWeakObjectPtr<UMaterialFunctionInterface> > FunctionParentList;
+	TArray< FAssetData > FunctionParentList;
+
+	/** List of children used to populate the inheritance list chain. */
+	TArray< FAssetData > MaterialChildList;
+
+	/** List of children used to populate the inheritance list chain. */
+	TArray< FAssetData > FunctionChildList;
 
 	/** Object that stores all of the possible parameters we can edit. */
 	UMaterialEditorInstanceConstant* MaterialEditorInstance;

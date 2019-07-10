@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:6537038
 Availability:Public
 Title: 언리얼 엔진 4.15 릴리즈 노트
 Description: Release Notes for Unreal Engine 4.15
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:15
-
+Order: 29
 ![image alt text](image_0.png)(w:769 convert:false)
 
 ## 새로운 소식
@@ -558,7 +557,7 @@ Metal 지원에 이제 개발용으로 기본 켜지며 Xcode 와 별도로 실�
 
 ![image alt text](image_27.png)(w:648 convert:false)
 
-폰트 페이스는 이제 폰트 데이터를 저장하는 애셋으로, 이 애셋은 단순히 폰트 애셋에 레퍼런싱됩니다. 즉 같은 폰트 데이터를 다수의 폰트 애셋, 심지어 하나의 폰트 애셋 내 다수의 타입 페이스에서도 재사용할 수 있다는 뜻입니다. 기존 폰트 애셋은 로드 도중 내부 폰트 데이터를 삽입된 폰트 페이스 애셋으로 자동 업그레이드합니다. 폰트 에디터를 사용하여 삽입된 애셋을 실제 폰트 페이스 애셋으로 분리시키고 나중에 편집 및 공유할 수도 있습니다.
+폰트 페이스는 이제 폰트 데이터를 저장하는 애셋으로, 이 애셋은 단순히 폰트 애셋에 참조됩니다. 즉 같은 폰트 데이터를 다수의 폰트 애셋, 심지어 하나의 폰트 애셋 내 다수의 타입 페이스에서도 재사용할 수 있다는 뜻입니다. 기존 폰트 애셋은 로드 도중 내부 폰트 데이터를 삽입된 폰트 페이스 애셋으로 자동 업그레이드합니다. 폰트 에디터를 사용하여 삽입된 애셋을 실제 폰트 페이스 애셋으로 분리시키고 나중에 편집 및 공유할 수도 있습니다.
 
 ### 신기능: Linux ARM64 지원
 

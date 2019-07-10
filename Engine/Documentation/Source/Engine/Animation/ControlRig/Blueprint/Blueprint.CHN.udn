@@ -1,0 +1,156 @@
+﻿INTSourceChangelist:5531868
+Availability: Public
+Crumbs: 
+Title: Control Rig蓝图
+Description: Control Rig是可编辑脚本的绑定系统，Control Rig蓝图则是提供已编写脚本功能并设置绑定参数的资源。 
+Type:
+Version: 4.21
+Parent: Engine/Animation/ControlRig
+Order: 
+Tags: Experimental
+Tags: Control Rig
+Tags: Rigging
+Tags: Control Rig Blueprints
+topic-image:ControlRigBlueprintTopic.png
+
+
+Control Rig是可编辑脚本的绑定系统，**Control Rig蓝图** 则是提供已编写脚本功能并设置绑定参数的资源。启用Control Rig插件后可在 **内容浏览器** 中以下列步骤创建Control Rig蓝图：**创建高级资源（Create Advanced Asset） > 动画（Animation） > Control Rig**，点击 **新增（Add New）** 按钮（或右键快捷菜单）。
+
+![](ControlRigBlueprint.png "ControlRigBlueprint.png")
+
+创建资源后将会提示选择父Rig： 
+
+![](ParentRig.png "ParentRig.png")  
+通常需要选择基类 **ControlRig** 并点击 **创建（Create）**。创建的任何Control Rig蓝图将会被指定为父Rig。此方法可继承在新Control Rig蓝图内定义的任何功能。为Control Rig蓝图指定新命名并双击将其打开后，将显示主Control Rig编辑器。
+
+(#controlrigeditorui)
+## Control Rig编辑器UI
+
+![](ControlRigWindow_2.png "ControlRigWindow_2.png")
+
+1.  [菜单](Engine/Blueprints/Editor/UIComponents/Menu) / [主工具栏](Engine/Blueprints/Editor/UIComponents/Toolbar) \- 此类选项与蓝图编辑器相同，可提供编辑所需常用命令的快捷方式。例如：保存和打开资源、显示或隐藏各类绑定编辑器窗口、编译Control Rig蓝图、指定不同类设置和类默认属性。
+2.  [视口](Engine/Animation/Persona/Viewport) \- 视口与动画编辑器视口类似，可修改不同视口选项、查看模式、显示角色选项以及LOD选项。 
+3.  [Rig/层级](#importingaskeletalmeshhierarchy) \- 使用Rig选项卡可新增Rig单元，而使用层级选项卡可导入骨架网格体并作为层级使用。在层级选项卡上可新增关节、重命名关节或将其从右键快捷菜单中移除。 
+4.  [事件图表](Engine/Blueprints/UserGuide/EventGraph) / Rig图表 - 事件图表与蓝图编辑器内的事件图表类似，可在运行时执行脚本以驱动参数。Rig图表与动画蓝图的AnimGraph类似，因此可设置与节点网络有关的各种动画类型。在Rig图表中节点被统称为 **Rig单元**。 
+5.  [细节](Engine/Blueprints/Editor/UIComponents/Details)/[预览场景设置](Engine/Animation/Persona/PreviewSettings) \- 利用细节面板（与蓝图编辑器的细节面板相似）可在Rig单元和变量上编辑或修改属性值。利用预览场景设置面板可使用相应工具来快速修改视口中场景的外观，其与动画编辑器的预览场景设置选项卡类似。 
+
+(#importingaskeletalmeshhierarchy)
+## 导入骨架网格体层级
+
+如想使用Control Rig系统操纵骨架网格体，最快捷的方式便是将骨架网格体 **层级** 导入到Control Rig蓝图中。  
+
+要进行此操作，需在层级面板中点击右键，然后选择 **导入（Import）**。在导入滚出菜单中，点击 **节点（Node）** 下拉框并选择想导入的骨架网格体。  
+
+![](ImportSkeletalMesh.png "ImportSkeletalMesh.png")  
+系统将基于和所选骨架网格体关联的骨架来创建层级。可在 **网格体编辑器（窗口 > Control Rig）** 中设置命名规则，以设定所选Control Rig的映射配置。   
+
+![](ConfigureControlRig.png "ConfigureControlRig.png")  
+导入骨架网格体后将显示网格体的关节层级：  
+
+![](JointHierarchy.png "JointHierarchy.png")  
+右键点击关节可提供额外情景选项：  
+
+![](JointRightClick.png "JointRightClick.png")  
+在关节情景菜单中可将关节新增为所选关节的子项、删除关节、复制关节、重命名关节，或将额外网格体导入来添加至层级。
+
+导入骨架网格体并生成层级后，需要将骨架网格体指定为 **预览网格体**，以在视口中查看。可在 **预览场景设置** 选项卡中进行以上操作。  
+
+![](PreviewMesh.png "PreviewMesh.png")
+
+[REGION:warning]
+导入骨架网格体并指定相应预览网格体后，需点击编译（Compile）按钮编译蓝图。此方法可正确获得Rig图表中所建层级的引用（在该Rig图表中可开始以Rig单元来操纵关节）。
+[/REGION]
+
+(#controlriggraph)
+## Control Rig图表
+
+生成Control Rig的层级后获取层级引用便可在 **Rig图表** 中操纵关节，并使用各类 **Rig单元** 驱动所需关节。在右键快捷菜单中搜索 **Rig层级引用**（同样可在快捷菜单中的 **新变量（New Variable） > 结构（Structure）** 类目下找到）。
+
+![](RigHierarchyReference.png "RigHierarchyReference.png")  
+可在 **细节** 面板中重新命名变量。在下列例子中命名其为 **Base_Hierarchy**。  
+
+![](VariableRenamed.png "VariableRenamed.png")  
+利用对层级的引用可在不同 **Rig单元** 上执行运算或使用其来操纵关节。  
+
+(#typesofrigunits)
+### Rig单元类型
+
+Rig单元共有几种不同类型，主要分为以下两大类： 
+
+*   **运算符** \- 此类型由数据类型、数学表达式，或动作系统（约束、FKIK、IK样条和相似类型）构成。
+*   **操纵器** \- 此类型为Rig单元的特殊类型，其可从外部源控制变换（以便为关节设置动画或操纵关节）。  
+    
+
+在图表内点击右键打开快捷菜单，将出现以下Rig单元部分：  
+
+![](RigUnitSections.png "RigUnitSections.png")  
+
+(#example-twoboneik/fk)
+
+### 范例 - Two Bone IK / FK
+
+假设想要设置并移动角色的手臂，需要利用层级的引用，定义关节的 **TwoBoneIK/FK**，以及控制以上关节的 **Control Rig** 单元。  
+  
+可在 **变换** 部分下找到 **TwoBoneIK/FK** Rig单元。
+
+![](TwoBoneIK.png "TwoBoneIK.png")  
+在 **TwoBoneIK/FK** Rig单元上，可定义 **开始关节** 和 **结束关节**，也可指定以下范例中的 **层级引用**，将连接Rig Hierarchy Reference变量（将其称之为基础层级）。  
+
+![](TwoBoneIKJointSetup.png "TwoBoneIKJointSetup.png")  
+设置后需要在层级中操纵以下关节：
+
+![](3JointChain.png "3JointChain.png")  
+用作目标的变换统称为 **末端执行器**，且在 **TwoBoneIK/FK** Rig单元上有可用引脚。该变换将被专用 **Control** Rig单元驱动。  
+  
+在以下范例中，使用 **Control** Rig单元并将 **Result** 引脚插入到 **TwoBoneIK/FK** 的 **末端执行器** 中。为清晰起见，RightArm_Effector的Control将被用于驱动右臂，因此需重命名该Control。  
+
+![](RightArm_Effector.png "RightArm_Effector.png")  
+现在可选择该Control，然后在视口中移动控件来操纵它。同时可新增第二个Control作为 **极目标**（如下列视频所示）来控制手臂的旋转。极目标仅对位置有效。点击 **结果** 旁的扩展图标可扩展Rig单元上的额外参数（此方法可获取 **Translation** 引脚并将其插入到极目标中）。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	aUZsx5GorB8
+	[/PARAMLITERAL]
+[/OBJECT]
+
+编译蓝图时手臂可能会迅速返回原点（在此范例中）。通过提供 **初始变换** 信息，可提供Control Rig单元的初始变换。
+
+在 **Rig层级引用** 中，使用 **获取关节变换** 可指定获取变换信息的目标关节（例如结束关节或范例中的hand\_r）。在以下范例中，我们将hand\_r **初始** 变换数据用作Control Rig单元 **初始变换**。  
+
+![](GetJointTransform.png "GetJointTransform.png")  
+完成设置后可控制角色的右臂，如想控制左臂，可复制Rig单元网络并修改左臂的开始/结束关节。  
+
+[REGION:lightbox]
+[![](BothArmsSetup.png)(w:900)](BothArmsSetup.png)
+[/REGION]
+[REGION:caption]
+点击图片查看全图。
+[/REGION]
+
+(#example-applyfk)
+
+### 范例 - 应用FK
+
+如想控制单独关节，可使用 **Apply FK** 节点、层级的引用和 **Control** Rig单元（与Two Bone IK/FK范例类似）。  
+
+![](NeckControl_ApplyFK.png "NeckControl_ApplyFK.png")
+
+在 **应用FK** Rig单元上，将在 **全局空间** 中应用变换。范例中使用的关节是neck_01（角色的颈部关节）。将 **Control** Rig单元作为变换添加，便可使用控件在视口中操纵关节。  
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	9Xhn9PoqcY4
+	[/PARAMLITERAL]
+[/OBJECT]

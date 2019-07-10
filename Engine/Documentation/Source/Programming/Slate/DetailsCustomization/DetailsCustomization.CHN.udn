@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2744667
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:Details 面板自定义
 Crumbs:%ROOT%, Programming, Programming/Slate
@@ -9,6 +9,7 @@ version:4.9
 
 [TOC (start:2 end:3)]
 
+(#Setupinstructions)
 ## 设置说明
 
 1. 创建一个类进行属性自定义。这必须继承自 **ILayoutDetails**。
@@ -38,6 +39,7 @@ version:4.9
 	* 查看此文档和 `DetailCustomizations` 模块中的范例（如 PrimitiveComponentDetails.cpp 和 StaticMeshComponentDetails.cpp）。
 
 
+(#Customizing)
 ## 自定义
 
 在自定义类的 LayoutDetails 函数中处理所有自定义。此函数接受一个 **IDetailLayoutBuilder**。它是属性的接口和传回自定义控件的方式。
@@ -104,12 +106,14 @@ EditCategory 返回一个 **IDetailCategoryBuilder&**，其可用于将属性添
  
 ![](multibox_layout_horizontal.png)
 
+(#NotesAboutMultiboxStyleLayout)
 #### Multibox 式 layout 的要点
 
 * 它的功能不够强，但未来将按需加入更多功能。当前的设计功能是用于快速重组。
 * Slate 布局要求对属性（属性句柄）的更高级的访问。在需要对属性外观进行自定义时尤其如此。
 
 
+(#PropertyHandles)
 ### 属性句柄
 
 属性句柄两个主函数的作用是读写属性值，并使 Slate 自定义控件识别属性。细节视图/属性树访问属性的方式有些复杂，因此属性句柄将这些全部隐藏，执行撤销/重新执行、编辑前/后变更、包污染、世界切换等处理。 
@@ -252,6 +256,7 @@ EditCategory 返回一个 **IDetailCategoryBuilder&**，其可用于将属性添
             LightMapResValue.SetValue( NewValue )
       }
 
+(#SPropertyNotes)
 ##### SProperty 要点
 
 * 即时制作了自定义控件，`SProperty` 仍然固定显示重设为默认。`SProperty` 存在一个参数，可开启此行为。如存在一行属性时，便无需在每个属性上显示重设为默认，在最后显示一个大菜单即可。查看下方的 [SResetToDefaultMenu](#SResetToDefaultMenu)。
@@ -331,6 +336,7 @@ EditCategory 返回一个 **IDetailCategoryBuilder&**，其可用于将属性添
  
 ![](sarrayproperty.png)
 
+(#CustomizationDosandDont's)
 ### 自定义注意事项
 
 * 自定义属性和读写值时检查错误情况。注意：细节视图常同时查看多个对象，每个对象均拥有不同的值。自定义属性应足以处理多值的常见情况。
@@ -342,6 +348,7 @@ EditCategory 返回一个 **IDetailCategoryBuilder&**，其可用于将属性添
 (#AdvancedTips)
 ## 高级提示
 
+(#Accessingcomplicatedproperties.)
 ### 访问复杂属性
 
 无法通过属性名进行分解的属性即被定义为复杂属性。这通常为结构体中的属性。
@@ -388,10 +395,12 @@ EditCategory 返回一个 **IDetailCategoryBuilder&**，其可用于将属性添
 	| ChildName | 子项的属性名。它将进行递归，直到找到。不支持路径，阵列子项无法通过此方式访问。|
 
 
+(#AccessingArrays)
 ### 访问阵列
 
 可通过 `IPropertyHandle::AsArray` 访问阵列。如属性句柄为一个阵列，将返回一个 `IPropertyHandleArray`。它拥有添加、移除、插入、复制和获取阵列元素数量的函数。
 
+(#Hidingproperties)
 ### 隐藏属性
 
 调用 `IDetailLayoutBuilder::HideProperty` 后可完全隐藏属性。它接受一个名称/路径或属性句柄。

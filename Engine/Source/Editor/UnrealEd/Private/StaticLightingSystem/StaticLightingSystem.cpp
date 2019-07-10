@@ -40,6 +40,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/GeneratedMeshAreaLight.h"
 #include "Components/SkyLightComponent.h"
+#include "Atmosphere/AtmosphericFogComponent.h"
 #include "Components/ModelComponent.h"
 #include "Engine/LightMapTexture2D.h"
 #include "Editor.h"
@@ -2022,6 +2023,16 @@ void FStaticLightingSystem::GatherScene()
 		if (LMPortal->GetOwner() && World->ContainsActor(LMPortal->GetOwner()) && !LMPortal->IsPendingKill() && ShouldOperateOnLevel(LMPortal->GetOwner()->GetLevel()))
 		{
 			LightmassExporter->AddPortal(LMPortal);
+		}
+	}
+
+	for (TObjectIterator<UAtmosphericFogComponent> It; It; ++It)
+	{
+		UAtmosphericFogComponent* AtmosphericFog = *It;
+		if (AtmosphericFog->GetOwner() && World->ContainsActor(AtmosphericFog->GetOwner()) && !AtmosphericFog->IsPendingKill() && ShouldOperateOnLevel(AtmosphericFog->GetOwner()->GetLevel()))
+		{
+			LightmassExporter->SetAtmosphericComponent(AtmosphericFog);
+			break;	// We only register the first we find
 		}
 	}
 

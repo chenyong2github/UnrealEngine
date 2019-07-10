@@ -30,13 +30,13 @@ static FCriticalSection BoundShaderStateCacheLock;
 
 
 FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader,
-	FPixelShaderRHIParamRef PixelShader,
-	FHullShaderRHIParamRef HullShader,
-	FDomainShaderRHIParamRef DomainShader,
-	FGeometryShaderRHIParamRef GeometryShader,
-	FBoundShaderStateRHIParamRef InBoundShaderState,
+	FRHIVertexDeclaration* VertexDeclaration,
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
+	FRHIHullShader* HullShader,
+	FRHIDomainShader* DomainShader,
+	FRHIGeometryShader* GeometryShader,
+	FRHIBoundShaderState* InBoundShaderState,
 	bool bAddToSingleThreadedCache
 	):
 	BoundShaderState(InBoundShaderState),
@@ -50,10 +50,10 @@ FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 }
 
 FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader,
-	FPixelShaderRHIParamRef PixelShader,
-	FBoundShaderStateRHIParamRef InBoundShaderState,
+	FRHIVertexDeclaration* VertexDeclaration,
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
+	FRHIBoundShaderState* InBoundShaderState,
 	bool bAddToSingleThreadedCache
 	):
 	BoundShaderState(InBoundShaderState),
@@ -76,12 +76,12 @@ FCachedBoundShaderStateLink::~FCachedBoundShaderStateLink()
 }
 
 FCachedBoundShaderStateLink* GetCachedBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader,
-	FPixelShaderRHIParamRef PixelShader,
-	FHullShaderRHIParamRef HullShader,
-	FDomainShaderRHIParamRef DomainShader,
-	FGeometryShaderRHIParamRef GeometryShader
+	FRHIVertexDeclaration* VertexDeclaration,
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
+	FRHIHullShader* HullShader,
+	FRHIDomainShader* DomainShader,
+	FRHIGeometryShader* GeometryShader
 	)
 {
 	// Find the existing bound shader state in the cache.
@@ -104,12 +104,12 @@ void FCachedBoundShaderStateLink_Threadsafe::RemoveFromCache()
 
 
 FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
-	FVertexDeclarationRHIParamRef VertexDeclaration,
-	FVertexShaderRHIParamRef VertexShader,
-	FPixelShaderRHIParamRef PixelShader,
-	FHullShaderRHIParamRef HullShader,
-	FDomainShaderRHIParamRef DomainShader,
-	FGeometryShaderRHIParamRef GeometryShader
+	FRHIVertexDeclaration* VertexDeclaration,
+	FRHIVertexShader* VertexShader,
+	FRHIPixelShader* PixelShader,
+	FRHIHullShader* HullShader,
+	FRHIDomainShader* DomainShader,
+	FRHIGeometryShader* GeometryShader
 	)
 {
 	FScopeLock Lock(&BoundShaderStateCacheLock);

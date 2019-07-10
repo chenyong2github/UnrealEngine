@@ -1,69 +1,84 @@
-﻿Availability:Public
-Title:选择Actors
+﻿INTSourceChangelist:3429227
+Availability:Public
+Title:选择Actor
 Crumbs: %ROOT%, Engine, Engine/Actors
-Description:关于关卡编辑器视口中提供的选择Actors方法的概述。
+Description:概述用于在关卡编辑器视口中选择Actor的方法
+version: 4.9
+Parent:Engine/Actors
+type:overview
+order:2
 topic-image:actorselection_topic.png
+
 
 [TOC(start:2)]
 
-## 概述
 
-选择actor操作,尽管非常简单，但却是关卡编辑过程中非常重要的一部分。能够快速轻松地选择您想应用的Actor，将可以提高效率，加快设计过程。
 
-有很多种选择actor或actor组的方法， 下面对这些方法进行了详细介绍。
+选择Actor虽然在本质上很简单，但却是关卡编辑过程中的一个重要部分。能够快速、轻松地选择想要使用的Actor可以提高工作效率，加快设计过程。
 
+有许多不同的方法来选择Actor或Actor组。下面将详细介绍每种方法。
+
+
+(#simpleselection)
 
 ## 简单选择
 
-选择actor的最基本的方法是简单地在视口中 *左击* 它们。左击一个actor，将会取消当前选中的actor并选中一个新actor。如果在左击新（未选中的）actor的同时按下 **Ctrl** 键，那么新actor将会被添加到选中项中。如果您在单击选中的actor的同时按下 **Ctrl** 键，那么将从选中项中删除该Actor。
+选择Actor的最基本方法就是在视口中 **左键单击** 它们。单击一个Actor将取消选择当前选择的所有Actor，而选择该新的Actor。如果在单击一个新的（未选中）Actor时按住了 **Ctrl** 键，该新的Actor将被添加到选择中。如果在单击一个已选择的Actor时按住了 **Ctrl** 键，该Actor将从选择中删除。
 
-这个方法对于选择少量的actor或者几个散布在关卡中的独立的actor是非常有用的，但是当要选择大量actor时这个方法就会变得速度很慢而且非常麻烦。
+这种方法适用于选择少量的Actor或分布在图层上的几个孤立的Actor，但是对于选择大量的Actor来说，可能缓慢而冗长。
 
 [REGION:fullwidth]
 ![](LE_SelectedActors.png)
 [/REGION]
 
-当您选择多个Actor时，您可以将它们作为一个组合移动，您可以在 **详细信息** 面板中同时修改它们的属性。
+当您选择多个Actor时，您可以将它们作为一个组移动，并且您可以在 **详细信息（Details）** 面板中同时修改它们的属性。
 
 [REGION:tip]
-当您选中两个或多个Actor时，您可以将它们添加到一个组合中，以便更加轻松地进行选择及操作。关于组合Actor的更多信息，请参照[](Engine/Actors/Grouping)。
+当您选择两个或多个Actor时，您可以将它们添加到一个组中，以便更容易地进行选择和操作。有关对Actor进行分组的更多信息，请参阅[](Engine/Actors/Grouping)。
 [/REGION]
 
-## 通过场景大纲视图选择Actor
+(#selectingwiththeworldoutliner)
 
-**Scene Outliner(场景大纲视图)** 是虚幻编辑器中的一个面板，它包含了关卡中所有Actor的列表。就像您在视口中的操作一样，您也可以在该列表中选择及取消选择独立的Actor。另外，您可以通过点击一个Actor，按住 **Shift**,然后点击要选择的另一个Actor及列表中位于这两个Actor之间的所有Actor，来进行范围选择。
+## 使用世界大纲视图选择
+
+ **世界大纲视图（World Outliner）** 是虚幻编辑器中的一个面板，其中包含关卡中所有Actor的列表。您可以像在视口中一样在该列表中选择和取消选择各个Actor。此外，您还可以通过在该列表中单击一个Actor，按住 **Shift**，然后单击另一个Actor，来选择这些Actor以及它们之间的所有角色，进行范围选择。
 
 [REGION:note]
-在 **场景大纲视图** 中选择任何Actor，都会导致同时在视口中选择该Actor，反之亦然。
+在 **世界大纲视图（World Outliner）** 中选择任何Actor也会在视口中选择它，反之亦然。
 [/REGION]
 
-## 区域选择框选择
+(#marquee Selection)
 
-区域选择框选择是在视口中快速选中或取消选中某个特定区域中的一组actors的方法。这种类型的选择需要按下一个按键组合，并拖拽鼠标来定义选择框。当拖拽鼠标时，根据所按下的组合按键及鼠标按钮的不同，将会选中或取消选中方框内的actor。
+## 区域选择
+
+区域选择是一种快捷方法，可以在视口的特定区域内选择或取消选择一组Actor。这种类型的选择包括按住组合键并用鼠标拖动来定义一个框。根据组合键和拖动鼠标时按住的鼠标按键，将选择或取消该框内的所有Actor。
 
 [REGION:fullwidth]
 ![](Select_Marquee.png)
 [/REGION]
 
-以下表格显示了进行区域选择可能使用的按键组合。
+下表显示了区域选择时可能的键盘组合。
 
-| **键盘快捷方式** | **动作** |
+| **键盘快捷键** | **操作** |
 | ---------| ---------|
-| **鼠标左键** |  使用区域方框中包含的 actor 替换当前选中项。|
-| **Shift+鼠标左键** |  - 将区域方框中包含的 actor 添加到当前选中项中。|
-| **Ctrl+Alt+鼠标左键** | 从当前选中项中删除该区域方框中包含的任何选中的Actor。|
+| **（鼠标左键）LMB** | 用框中包含的Actor替换当前选择。|
+| **Shift+LMB** | 将框中包含的Actor添加到当前选择中。|
+| **Ctrl+Alt+LMB** | 将框中所有的已选择Actor从当前选择中删除。|
 
-## 高级选择技术
+(#advancedselectiontechniques)
 
-您可以选择具有相同特定属性（比如类别、资源类型或材质）的Actor。要想查看您的选择选项，请 **右击** 一个选中的Actor，点击 **选择** ，然后查看关联菜单上的选项列表。
+## 高级选择方法
+
+您可以选择共享类、资源类型或材质等特定事物的Actor。要查看选择选项，**右键单击** 所选的Actor，单击 **选择（Select）**，然后查看上下文菜单上的选项列表。
 
 [REGION:tip]
-根据您选择的对象的不同， **选择** 关联菜单上提供的选项也有所不同。比如，如果您选择了一个静态网格物体，那么看到的选项和您选择一个蓝图时呈现的选项是不同的。
+根据所选内容的不同，**选择（Select）** 上下文菜单上可用的选项也有所不同。例如，如果您选择了一个静态网格体，您将看到的选项与当您选择了一个蓝图时的所看到的选项不同。
 [/REGION]
 
 ![Select by Asset](LE_SelectClass.png)
 
-除了选择相关的Actor外，您还可以使用  **选择** 关联菜单做以下事情：
+除了选择相关Actor，您还可以使用 **选择（Select）** 上下文菜单执行以下操作：
 
-* 通过点击 **Invert Selection（反向选择）** 来反向选择当前选中项(换句话说，就是取消选择当前选中的项，并选择没有选中的所有项) 。
-* 通过点击 **Select Relevant Lights（选择相关光源）** 来选择影响您的Actor的光源。
+* 通过单击 **反向选择（Invert Selection） **，反转您当前的选择（换言之，取消选择所有已选择的内容，选择所有未选择的内容）。
+* 通过单击 **选择相关光源（Select Relevant Lights）**，选择影响您的Actor的光源。
+

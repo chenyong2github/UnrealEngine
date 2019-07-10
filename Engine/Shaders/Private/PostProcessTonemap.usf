@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	PostProcessTonemap.usf: PostProcessing tone mapping
+	PostProcessTonemap.usf: PostProcessing tone mapping  
 =============================================================================*/
 
 #include "Common.ush"
@@ -21,6 +21,7 @@
 	#define TONEMAPPER_OUTOUT_ACES1000nitScRGB 5
 	#define TONEMAPPER_OUTOUT_ACES2000nitScRGB 6
 	#define TONEMAPPER_OUTOUT_LinearEXR 7
+	#define TONEMAPPER_OUTOUT_NoToneCurve 8
 
 
 #ifndef DIM_OUTPUT_DEVICE
@@ -76,9 +77,10 @@ half3 ColorLookupTable( half3 LinearColor )
 {
 	float3 LUTEncodedColor;
 	// Encode as ST-2084 (Dolby PQ) values
-	#if (DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_LinearEXR)
-		LUTEncodedColor = LinearToST2084( LinearColor );
-
+	#if (DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_ACES2000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_LinearEXR || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve)
+		// ST2084 expects to receive linear values 0-10000 in nits.
+		// So the linear value must be multiplied by a scale factor to convert to nits.
+		LUTEncodedColor = LinearToST2084(LinearColor * LinearToNitsScale);
 	#else
 		LUTEncodedColor = LinToLog( LinearColor + LogToLin( 0 ) );
 
@@ -462,6 +464,13 @@ float4 TonemapCommonPS(
 
 	#else 
 
+		#if USE_MSAA
+			// look for PreTonemapMSAA 
+			SceneColor.rgb *= rcp(SceneColor.r*(-0.299) + SceneColor.g*(-0.587) + SceneColor.b*(-0.114) + 1.0);
+			// Try to kill negatives and NaNs here
+			SceneColor.rgb = max(SceneColor.rgb, 0); 
+		#endif
+	
 		half3 LinearColor = SceneColor.rgb * ColorScale0.rgb;
 
 		#if USE_BLOOM
@@ -470,6 +479,8 @@ float4 TonemapCommonPS(
 				BloomUV = FullViewUV.xy;
 			#endif
 			float4 CombinedBloom = Texture2DSample(PostprocessInput1, PostprocessInput1Sampler, BloomUV);
+			CombinedBloom.rgb *= OneOverPreExposure; // Standard bloom path, convolution path has bloom already in scene color.
+
 			float2 DirtViewportUV = (SvPosition.xy - float2(ViewportRect.xy)) * ViewportSize.zw;
 			float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMask.Mask, BloomDirtMask.MaskSampler, DirtViewportUV).rgb * BloomDirtMask.Tint.rgb;
 
@@ -514,7 +525,10 @@ float4 TonemapCommonPS(
 		half LuminanceForPostProcessAA  = dot(OutDeviceColor, half3(0.299f, 0.587f, 0.114f));
 
 		#if USE_GRAIN_QUANTIZATION
-			// Needs to go after tonemapping.
+			#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve
+				#error LinearNoToneCurve device requires no Grain Quantization
+			#endif
+			// Needs to go after tonemapping. 
 			#if USE_LINEAR_FLOAT_RT
 				half GrainQuantization = 1.0/1024.0;
 			#else
@@ -537,12 +551,13 @@ float4 TonemapCommonPS(
 
 		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_LinearEXR
 			OutColor.xyz = ST2084ToLinear(OutColor.xyz);
-
+		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve
+			OutColor.xyz = OutDeviceColor;
 		#endif
 
 	#endif
 	
-	#if POST_PROCESS_ALPHA == 2
+	#if POST_PROCESS_ALPHA == 2 || (POST_PROCESS_ALPHA == 1 && DIM_OUTPUT_DEVICE == TONEMAPPER_OUTOUT_NoToneCurve)
 		OutColor.a = SceneColor.a;
 	#endif
 
@@ -750,10 +765,7 @@ void MainPS_ES2(
 	}
 
 	#if USE_GAMMA_ONLY
-		#if USE_MSAA
-			SceneColor.rgb *= rcp(SceneColor.r*(-0.299) + SceneColor.g*(-0.587) + SceneColor.b*(-0.114) + 1.0);
-		#endif
-
+		
 		#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 			OutColor.rgb = pow(SceneColor.rgb, InverseGamma.x);
 		#else

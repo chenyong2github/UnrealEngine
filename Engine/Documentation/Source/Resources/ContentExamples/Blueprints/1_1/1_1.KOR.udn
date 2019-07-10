@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:1.1 - Hello World
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/Blueprints
@@ -66,8 +66,8 @@ Version: 4.9
 ## 컴포넌트
 이 셋업에 있는 컴포넌트는 딱 둘 입니다:
 
-* **빌보드 컴포넌트** 는 배치와 선택을 쉽게 하기 위해 사용됩니다. 이름은 기본 이름인 **Billboard1** 입니다. 블루프린트에서 레퍼런싱해 줄 일은 없습니다.
-* **텍스트 렌더 컴포넌트** 는 게임플레이 시작시 그 _Text_ 프로퍼티가 업데이트됩니다. 이름은 **HelloWorld** 이며, 텍스트 변경을 위해 이벤트 그래프에서 레퍼런싱해 줄 것입니다.
+* **빌보드 컴포넌트** 는 배치와 선택을 쉽게 하기 위해 사용됩니다. 이름은 기본 이름인 **Billboard1** 입니다. 블루프린트에서 참조해 줄 일은 없습니다.
+* **텍스트 렌더 컴포넌트** 는 게임플레이 시작시 그 _Text_ 프로퍼티가 업데이트됩니다. 이름은 **HelloWorld** 이며, 텍스트 변경을 위해 이벤트 그래프에서 참조해 줄 것입니다.
 
 ## 컨스트럭션 스크립트
 이 예제에서는 컨스트럭션 스크립트를 사용하지 않습니다. 왜냐면 레벨 편집 (컨스트럭션) 시간에 뭔가가 벌어지도록 할 필요가 없기 때문입니다.

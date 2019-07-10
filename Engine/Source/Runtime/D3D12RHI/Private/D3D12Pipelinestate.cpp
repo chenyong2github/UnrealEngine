@@ -116,7 +116,7 @@ FD3D12PipelineStateWorker::FD3D12PipelineStateWorker(FD3D12Adapter* Adapter, con
 
 
 /// @endcond
-
+#if defined(_M_IX86_FP) && _M_IX86_FP >= 2
 #ifndef __clang__
 
 FORCEINLINE uint32 SSE4_CRC32(const void* Data, SIZE_T NumBytes)
@@ -155,7 +155,7 @@ FORCEINLINE uint32 SSE4_CRC32(const void* Data, SIZE_T NumBytes)
 
 	return Hash;
 }
-
+#endif
 #endif
 
 uint32 FD3D12PipelineStateCacheBase::HashData(const void* Data, SIZE_T NumBytes)
@@ -163,11 +163,13 @@ uint32 FD3D12PipelineStateCacheBase::HashData(const void* Data, SIZE_T NumBytes)
 #ifdef __clang__
 	return FCrc::MemCrc32(Data, NumBytes);
 #else
+#if defined(_M_IX86_FP) && _M_IX86_FP >= 2
 	if (GCPUSupportsSSE4)
 	{
 		return SSE4_CRC32(Data, NumBytes);
 	}
 	else
+#endif
 	{
 		return FCrc::MemCrc32(Data, NumBytes);
 	}
@@ -217,12 +219,16 @@ SIZE_T FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12ComputePipelineStat
 FD3D12PipelineStateCacheBase::FD3D12PipelineStateCacheBase(FD3D12Adapter* InParent) :
 	FD3D12AdapterChild(InParent)
 {
+#if defined(_M_IX86_FP) && _M_IX86_FP >= 2
 	// Check for SSE4 support see: https://msdn.microsoft.com/en-us/library/vstudio/hskdteyh(v=vs.100).aspx
 	{
 		int32 cpui[4];
 		__cpuidex(cpui, 1, 0);
 		GCPUSupportsSSE4 = !!(cpui[SSE4_CPUID_ARRAY_INDEX] & SSE4_2);
 	}
+#else
+	GCPUSupportsSSE4 = false;
+#endif
 }
 
 FD3D12PipelineStateCacheBase::~FD3D12PipelineStateCacheBase()

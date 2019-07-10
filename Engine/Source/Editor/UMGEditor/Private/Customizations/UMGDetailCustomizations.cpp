@@ -25,6 +25,8 @@
 #include "Components/PanelSlot.h"
 #include "Details/SPropertyBinding.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "IDetailsView.h"
+#include "IDetailPropertyExtensionHandler.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -283,6 +285,11 @@ void FBlueprintWidgetCustomization::CustomizeDetails( IDetailLayoutBuilder& Deta
 	static const FName LayoutCategoryKey(TEXT("Layout"));
 	static const FName LocalizationCategoryKey(TEXT("Localization"));
 
+	static const FName AccessibleBehaviorKey(TEXT("AccessibleBehavior"));
+	static const FName AccessibleTextKey(TEXT("AccessibleText"));
+	static const FName AccessibleSummaryBehaviorKey(TEXT("AccessibleSummaryBehavior"));
+	static const FName AccessibleSummaryTextKey(TEXT("AccessibleSummaryText"));
+
 	DetailLayout.EditCategory(LocalizationCategoryKey, FText::GetEmpty(), ECategoryPriority::Uncommon);
 
 	TArray< TWeakObjectPtr<UObject> > OutObjects;
@@ -306,6 +313,9 @@ void FBlueprintWidgetCustomization::CustomizeDetails( IDetailLayoutBuilder& Deta
 			}
 		}
 	}
+
+	CustomizeAccessibilityProperty(DetailLayout, AccessibleBehaviorKey, AccessibleTextKey);
+	CustomizeAccessibilityProperty(DetailLayout, AccessibleSummaryBehaviorKey, AccessibleSummaryTextKey);
 
 	PerformBindingCustomization(DetailLayout);
 }
@@ -340,6 +350,68 @@ void FBlueprintWidgetCustomization::PerformBindingCustomization(IDetailLayoutBui
 			}
 		}
 	}
+}
+
+void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayoutBuilder& DetailLayout, const FName& BehaviorPropertyName, const FName& TextPropertyName)
+{
+	static const FName AccessibilityCategoryKey(TEXT("Accessibility"));
+
+	// Treat the *Behavior property as the "base" property for the row, and then add the *Text properties to the end of it.
+	IDetailCategoryBuilder& AccessibilityCategory = DetailLayout.EditCategory(AccessibilityCategoryKey);
+	TSharedRef<IPropertyHandle> AccessibleBehaviorPropertyHandle = DetailLayout.GetProperty(BehaviorPropertyName);
+	IDetailPropertyRow& AccessibilityRow = AccessibilityCategory.AddProperty(AccessibleBehaviorPropertyHandle);
+
+	TSharedRef<IPropertyHandle> AccessibleTextPropertyHandle = DetailLayout.GetProperty(TextPropertyName);
+	// Make sure the old *Text properties are hidden so we don't get duplicate widgets
+	DetailLayout.HideProperty(AccessibleTextPropertyHandle);
+	// The *Text properties are put into an HBox which will consist of the text box and the delegate's combo box.
+	// The combo box may not always be valid for the current selection, as its creation is determined by the ExtensionHandler.
+	TSharedRef<SHorizontalBox> CustomTextLayout = SNew(SHorizontalBox)
+	.Visibility(TAttribute<EVisibility>::Create([AccessibleBehaviorPropertyHandle]() -> EVisibility
+	{
+		// Toggle the visibility of the *Text properties on only if the *Behavior property is set to Custom
+		uint8 Behavior = 0;
+		AccessibleBehaviorPropertyHandle->GetValue(Behavior);
+		return (ESlateAccessibleBehavior)Behavior == ESlateAccessibleBehavior::Custom ? EVisibility::Visible : EVisibility::Hidden;
+	}))
+	+ SHorizontalBox::Slot()
+	.Padding(FMargin(4.0f, 0.0f))
+	[
+		AccessibleTextPropertyHandle->CreatePropertyValueWidget()
+	];
+
+	TSharedRef<SWidget> ExtensionWidget = const_cast<IDetailsView*>(DetailLayout.GetDetailsView())->GetExtensionHandler()->GenerateExtensionWidget(UWidget::StaticClass(), AccessibleTextPropertyHandle);
+	if (ExtensionWidget != SNullWidget::NullWidget)
+	{
+		CustomTextLayout->AddSlot()
+		.AutoWidth()
+		[
+			ExtensionWidget
+		];
+	}
+
+	TSharedPtr<SWidget> AccessibleBehaviorNameWidget, AccessibleBehaviorValueWidget;
+	AccessibilityRow.GetDefaultWidgets(AccessibleBehaviorNameWidget, AccessibleBehaviorValueWidget);
+
+	AccessibilityRow.CustomWidget()
+	.NameContent()
+	[
+		AccessibleBehaviorNameWidget.ToSharedRef()
+	]
+	.ValueContent()
+	.HAlign(HAlign_Fill)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			AccessibleBehaviorValueWidget.ToSharedRef()
+		]
+		+ SHorizontalBox::Slot()
+		[
+			CustomTextLayout
+		]
+	];
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -27,16 +27,25 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const EColumnSortMode::Type SStatsView::DefaultColumnSortMode(EColumnSortMode::Ascending);
-const FName SStatsView::DefaultColumnBeingSorted(FStatsViewColumns::NameColumnID);
+const EColumnSortMode::Type SStatsView::GetDefaultColumnSortMode()
+{
+	return EColumnSortMode::Ascending;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FName SStatsView::GetDefaultColumnBeingSorted()
+{
+	return FStatsViewColumns::NameColumnID;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SStatsView::SStatsView()
 	: bExpansionSaved(false)
 	, GroupingMode(EStatsGroupingMode::Flat)
-	, ColumnSortMode(DefaultColumnSortMode)
-	, ColumnBeingSorted(DefaultColumnBeingSorted)
+	, ColumnSortMode(GetDefaultColumnSortMode())
+	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
 {
 	FMemory::Memset(bStatsNodeIsVisible, 1);
 }
@@ -208,6 +217,9 @@ void SStatsView::Construct(const FArguments& InArgs)
 
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &SStatsView::InsightsManager_OnSessionChanged);
+
+	// Update the Session (i.e. when analysis session was already started).
+	InsightsManager_OnSessionChanged();
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -995,7 +1007,7 @@ void SStatsView::CreateGroups()
 	{
 		for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
 		{
-			const FName GroupName = *StatsNodePtr->GetName().GetPlainNameString().Left(1);
+			const FName GroupName = *StatsNodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
 
 			FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)
@@ -1160,12 +1172,7 @@ bool SStatsView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const EColu
 bool SStatsView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
 {
 	const FStatsViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	const bool bIsValid = Column.bCanBeSorted();
-
-	bool bCanExecute = ColumnBeingSorted != ColumnId ? true : ColumnSortMode != InSortMode;
-	bCanExecute = bCanExecute && bIsValid;
-
-	return bCanExecute;
+	return Column.bCanBeSorted();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1189,7 +1196,7 @@ bool SStatsView::ContextMenu_SortMode_IsChecked(const EColumnSortMode::Type InSo
 
 bool SStatsView::ContextMenu_SortMode_CanExecute(const EColumnSortMode::Type InSortMode) const
 {
-	return ColumnSortMode != InSortMode;
+	return true; //ColumnSortMode != InSortMode;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1213,7 +1220,7 @@ bool SStatsView::ContextMenu_SortByColumn_IsChecked(const FName ColumnId)
 
 bool SStatsView::ContextMenu_SortByColumn_CanExecute(const FName ColumnId) const
 {
-	return ColumnId != ColumnBeingSorted;
+	return true; //ColumnId != ColumnBeingSorted;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1289,8 +1296,8 @@ bool SStatsView::ContextMenu_ShowAllColumns_CanExecute() const
 
 void SStatsView::ContextMenu_ShowAllColumns_Execute()
 {
-	ColumnSortMode = DefaultColumnSortMode;
-	ColumnBeingSorted = DefaultColumnBeingSorted;
+	ColumnSortMode = GetDefaultColumnSortMode();
+	ColumnBeingSorted = GetDefaultColumnBeingSorted();
 
 	const int32 NumColumns = FStatsViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
@@ -1367,8 +1374,8 @@ bool SStatsView::ContextMenu_ResetColumns_CanExecute() const
 
 void SStatsView::ContextMenu_ResetColumns_Execute()
 {
-	ColumnSortMode = DefaultColumnSortMode;
-	ColumnBeingSorted = DefaultColumnBeingSorted;
+	ColumnSortMode = GetDefaultColumnSortMode();
+	ColumnBeingSorted = GetDefaultColumnBeingSorted();
 
 	const int32 NumColumns = FStatsViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)

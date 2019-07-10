@@ -1,7 +1,7 @@
-﻿INTSourceChangelist:3608492
+INTSourceChangelist:6409500
 Availability: Public
 Crumbs:%ROOT%
-Title:볼륨 참고서
+Title:볼륨 레퍼런스
 Description:Volume, 볼륨을 어떻게 배치하고 사용하면 레벨의 작동방식이나 구성 상태를 증강시킬 수 있는지에 대한 안내입니다.
 Type:Reference
 SkillLevel:Beginner
@@ -156,7 +156,7 @@ h:301
 
 [EXCERPT:LSV]
 레벨 스트리밍 볼륨은 [레벨 스트리밍](Engine/LevelStreaming) 프로세스를 보조하는 데 사용됩니다. 레벨 캡슐화는 물론, 플레이어의 볼륨 출입에 따라 메모리에서의 레벨 스트림 인/아웃 시기를 간단히 제어할 수 있습니다. 
-[/EXCERPT]
+[/EXCERPT:LSV]
 
 #### Nav Mesh Bounds Volume
 

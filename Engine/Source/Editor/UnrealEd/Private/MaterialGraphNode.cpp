@@ -553,7 +553,7 @@ void UMaterialGraphNode::CreateInputPins()
 		{
 			// Makes sure pin has a name for lookup purposes but user will never see it
 			NewPin->PinName = CreateUniquePinName(TEXT("Input"));
-			NewPin->PinFriendlyName = FText::FromString(TEXT(" "));
+			NewPin->PinFriendlyName = FText::FromString(TEXT(" "));;
 		}
 	}
 }
@@ -607,7 +607,7 @@ void UMaterialGraphNode::CreateOutputPins()
 		{
 			// Makes sure pin has a name for lookup purposes but user will never see it
 			NewPin->PinName = CreateUniquePinName(TEXT("Output"));
-			NewPin->PinFriendlyName = FText::FromString(TEXT(" "));
+			NewPin->PinFriendlyName = FText::FromString(TEXT(" "));;
 		}
 	}
 }

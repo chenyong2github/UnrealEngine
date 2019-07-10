@@ -47,6 +47,8 @@ public:
 	static bool SupportsASTCTextureFormats() { return true; }
 	static bool SupportsQuerySurfaceProperties() { return false; }
 
+	static bool RequiresMobileRenderer();
+
 	static void SetupFeatureLevels();
 
 	static bool SupportsStandardSwapchain() { return false; }

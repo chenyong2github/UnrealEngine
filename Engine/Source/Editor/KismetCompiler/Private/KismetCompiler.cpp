@@ -1695,7 +1695,7 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			Context.Function->SetMetaData(FBlueprintMetadata::MD_Tooltip, *FunctionMetaData.ToolTip.ToString());
 		}
 
-		// Set as blutility function
+		// Set as call in editor function
 		if (FunctionMetaData.bCallInEditor)
 		{
 			Context.Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
@@ -4230,6 +4230,9 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			}
 
 			PropagateValuesToCDO(NewCDO, OldCDO);
+
+			// Perform any fixup or caching based on the new CDO.
+			PostCDOCompiled();
 		}
 
 		// Note: The old->new CDO copy is deferred when regenerating, so we skip this step in that case.

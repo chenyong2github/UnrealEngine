@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3232956
+INTSourceChangelist:3232956
 Availability:Public
 Title: GPU 프로파일링
 Crumbs: %ROOT%, Engine
@@ -122,7 +122,7 @@ GPU 가 2x2 픽셀 블록의 트라이앵글을 처리한 뒤 약간 후 트라�
     DECLARE_FLOAT_COUNTER_STAT(TEXT("Postprocessing"), Stat_GPU_Postprocessing, STATGROUP_GPU);
 
 
-그러면 렌더링 스레드의 코드 블록은 해당 통계 이름을 레퍼런싱하는 SCOPED_GPU_STAT 매크로로 인스트루먼트 시킬 수 있습니다. 이는 SCOPED_DRAW_EVENT 와 비슷하게 작동합니다. 예:
+그러면 렌더링 스레드의 코드 블록은 해당 통계 이름을 참조하는 SCOPED_GPU_STAT 매크로로 인스트루먼트 시킬 수 있습니다. 이는 SCOPED_DRAW_EVENT 와 비슷하게 작동합니다. 예:
 
     SCOPED_GPU_STAT(RHICmdList, Stat_GPU_Postprocessing);
 

@@ -1,47 +1,1024 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:세트 작업
-Description:블루프린트에서 Set, 세트 작업 방법을 배워봅니다.
-Crumbs:%ROOT%
-Parent:Engine/Blueprints/Scripting
-Order:3
+﻿INTSourceChangelist:6412234
+Availability: Public
+Title: 세트 작업
+Description: 블루프린트에서 Set, 세트 작업 방법을 배워봅니다.
+Type: how-to
 Version: 4.15
-Tags:Blueprint Set
-Tags:Blueprints
-Type:how-to
-Skilllevel:Advanced
-Checkpoint:HowToWorkWithSets
+Parent: Engine/Blueprints/Scripting
+SkillLevel: Advanced
+Order: 14
+Related: Engine/Blueprints/UserGuide/Sets/SetNodes
+Related: Engine/Blueprints/UserGuide/Sets
+Related: Programming/UnrealArchitecture/TSet
 Topic-image:workingWithSets_topicImage.png
-Related:Programming/UnrealArchitecture/TSet
+
+
+[TOC (start:2 end:3)]
 
 ![](workingWithSets_topicBanner.png)
+
+보통은 [블루프린트 배열](Engine/Blueprints/UserGuide/Arrays) 이 대부분의 디자인 상황에 쓰이는 컨테이너입니다. 배열은 아이템이 순서대로 저장되며 중복 아이템도 허용되므로, 순서가 필요한 유연한 컨테이너 역할을 합니다. 하지만 어떤 아이템 풀을 대상으로 작업할 때, 풀에 속하는 각 아이템의 순서와는 상관 없이, 데이터를 뽑아 오는 풀에 그 아이템이 속하는지 고유성만 확인하면 될 때가 있습니다. 그럴 때 **Blueprint Set** (블루프린트 세트)가 도움이 됩니다.
+
+이 글을 마칠 즈음이면 블루프린트 스크립팅 환경에서 세트 생성 및 편집 방법, 블루프린트 세트에 들어있는 아이템 질의 및 표시 방법, 블루프린트 세트에 대한 교집합 및 합집합과 같은 기본적인 연산 수행 방법에 대한 경험이 쌓일 것입니다.
+
+## 1\. 필수 셋업
+
+블루프린트 세트 작업을 시작하기에 앞서, 컨테이너에 내용을 표시하도록 프로젝트 셋업을 해야 합니다.
+
+1.  **언리얼 프로젝트 브라우저** 에서 **새 프로젝트** 탭을 선택하고, **일인칭** 블루프린트 프로젝트를 선택한 뒤 프로젝트 이름을 `ExampleSetProject` 라 합니다.
+
+    [REGION:lightbox]
+    [![](Step1_1.png)(w:600)](Step1_1.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  새 프로젝트를 만들기 전, 세팅이 다음과 같이 되어있는지 확인하세요:
+
+    [REGION:lightbox]
+    [![](Step1_1Note.png)(w:600)](Step1_1Note.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  프로젝트의 **콘텐츠 브라우저** 에서 **Blueprints** 폴더를 더블클릭합니다.
+
+    [REGION:lightbox]
+    [![](Step1_2.png)(w:600)](Step1_2.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **콘텐츠 브라우저** 에서 **신규 추가** 버튼을 클릭하고 커서를 **블루프린트 클래스** 위에 올립니다. **기본 애셋 생성** 팝업 메뉴 아래 있습니다.
+
+    [REGION:lightbox]
+    [![](Step1_3.png)(w:600)](Step1_3.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **부모 클래스 선택** 메뉴가 열리면, **모든 클래스** 화살표를 클릭하여 **TextRender Actor** 블루프린트 클래스를 검색합니다.
+
+    ![](Step1_4.png)
+
+1.  **검색창** 에 `TextRenderActor` 라 입력하여 **TextRenderActor** 블루프린트트 클래스를 선택한 뒤 **선택** 버튼을 누릅니다.
+
+    ![](Step1_5.png)
+
+1.  이제, 프로젝트의 **콘텐츠 브라우저** 에 **TextRender Actor** 가 생겨 있을 것입니다. 새 액터 이름은  `DisplaySet` 입니다.
+
+    [REGION:lightbox]
+    [![](Step1_6.png)(w:600)](Step1_6.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이제 `DisplaySet` TextRender Actor 를 언리얼 에디터의 **원근 (3D) 뷰포트**.
+
+    [REGION:lightbox]
+    [![](Step1_7.png)(w:600)](Step1_7.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **DisplaySet** TextRender Actor 를 선택한 채 **디테일** 패널에 있는 **+ 컴포넌트 추가** 버튼을 누른 뒤, **검색창** 에 `Box Collision` 이라 입력합니다.
+
+    [REGION:lightbox]
+    [![](Step1_8.png)(w:600)](Step1_8.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  TextRender Actor 에 **Box Collision Component** 를 추가하고, 이름을 `Trigger Box` 라 합니다.
+
+    [REGION:lightbox]
+    [![](Step1_9.png)(w:600)](Step1_9.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이제 TextRender Component 를 선택하고 **디테일** 패널에서 액터의 **트랜스폼** 을 확인합니다.
+
+    [REGION:lightbox]
+    [![](Step1_10.png)(w:600)](Step1_10.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Display Set** 액터의 **트랜스폼** 값을 다음과 같이 변경합니다:
+
+    ![](Step1_11.png)
+
+1.  이제 **Display Set** 액터의 **Horizontal Alignment** 를 (기본값인 **Left** 가 아닌) **Center** 정렬로 변경합니다.
+
+    ![](Step1_12.png)
+
+1.  현재 **Trigger Box** 컴포넌트는 **Hidden in Game** (게임에서 숨겨진) 상태입니다. **디테일** 패널의 **렌더링** 메뉴에 위치한 **Hidden in Game** 박스 체크를 해제하면 게임내에서 **Box Collision** 컴포넌트를 확인할 수 있습니다.
+
+    ![](Step1_13.png)
+
+    [REGION:note]
+    게임내에서 **Box Collision** 컴포넌트를 확인할 수 있으면 트리거되는 이벤트를 구동시키는 하부 로직 관련 발생할 수 있는 문제를 디버깅하기에 매우 좋습니다.
+    [/REGION]
+
+1.  PIE (에디터에서 플레이) 모드에 들어가면, 프로젝타일이 **Display Set** 콜리전 박스에 콜리전 반응이 있는 것이 보입니다. 현재 **Display Set** 콜리전 박스만 세트 컨테이너 내용을 표시할 수 있는 이벤트를 발동시킬 수 있도록 하고 싶습니다. 그러기 위해서는 **디테일** 패널의 **Collision** 메뉴에서 **콜리전 프리셋** 드롭다운 리스트 박스를 클릭하고, **Custom...** 옵션을 선택합니다.
+
+    ![](Step1_14.png)
+
+1.  마지막으로 **콜리전 프리셋** 을 다음과 같이 변경합니다:
+
+    ![](Step1_15.png)
+
+### 섹션 결과
+
+[REGION:lightbox]
+    [![](Step1_EndResult.png)(w:600)](Step1_EndResult.png)
+[/REGION]
+
 [REGION:caption]
-이 튜토리얼을 통해 언리얼 엔진 4 (UE4) 의 Set (세트) 작업 경험을 쌓을 수 있습니다.
+클릭하면 원본 이미지를 확인합니다.
 [/REGION]
 
-대개 [](Engine/Blueprints/UserGuide/Arrays) 은 대부분의 디자인 상황에 쓰이는 컨테이너입니다. 
-배열은 아이템이 순서대로 저장되며 중복 아이템도 허용되므로, 순서가 필요한 유연한 컨테이너 역할을 합니다. 
-하지만 어떤 아이템 풀을 대상으로 작업할 때, 풀에 속하는 각 아이템의 순서와는 상관 없이, 
-데이터를 뽑아 오는 풀에 그 아이템이 속하는지 고유성만 확인하면 될 때가 있습니다.
+지금까지 새 프로젝트를 생성하여 블루프린트 세트 컨테이너 내용을 표시할 TextRender Actor 셋업 작업을 마쳤으니, 다음 단계에서는 이 액터를 생성, 편집, 표시해 보도록 하겠습니다.
 
-그럴 때 **Blueprint Set** (블루프린트 세트)가 도움이 됩니다.
+## 2\. 블루프린트 세트 생성 및 표시
 
-## 목적
+새로 생성된 프로젝트에 **TextRender** 액터 셋업을 마쳤으니, 블루프린트 세트 컨테이너를 만들어 게임내에서 그 내용을 표시할 준비가 되었습니다.
 
-블루프린트 세트 구성 및 작업 방법을 안내해 드립니다.
+1.  프로젝트의 **콘텐츠 브라우저** 에서 **Display Set** TextRender 액터를 더블클릭하여 블루프린트 **이벤트 그래프** 를 엽니다.
 
-## 목표
+    [REGION:lightbox]
+    [![](Step2_1.png)(w:600)](Step2_1.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
 
-이 튜토리얼에서 습득할 수 있는 지식은 다음과 같습니다:
+1.  다음 화면이 보이면, **풀 블루프린트 에디터 열기** 링크를 클릭하여 시작합니다.
 
-* 블루프린트 스크립팅 환경에서 세트 생성 및 편집 방법.
-* 블루프린트 세트에 들어있는 아이템 질의 및 표시 방법.
-* 블루프린트 세트에 대한 교집합 및 합집합과 같은 기본적인 연산 수행 방법.
+    [REGION:lightbox]
+    [![](Step2_2.png)(w:600)](Step2_2.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
 
-## 단계
+1.  **Display Set** TextRender 액터 블루프린트 **이벤트 그래프** 가 보일 것입니다. 여기서 블루프린트 세트와 그 표시 로직을 추가할 수 있을 것입니다.
 
-[DIR(output:"checkpoint" parent:"Engine/Blueprints/BP_HowTo/WorkingWithSets" org:"hierarchy")]
+    [REGION:lightbox]
+    [![](Step2_3.png)(w:600)](Step2_3.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
 
-[REGION:call_to_action]
-	[클릭하면 시작합니다.](Engine/Blueprints/BP_HowTo/WorkingWithSets/1 "%Engine/Blueprints/BP_HowTo/WorkingWithSets/1:title%")
-[/REGION]
+    [REGION:note]
+
+    앞서 말한 화면이 보이지 않는 경우, **이벤트 그래프** 탭을 클릭하여 액터의 블루프린트 이벤트 그래프 에디터를 엽니다.
+
+    [REGION:lightbox]
+    [![](Step2_3Note.png)(w:600)](Step2_3Note.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+    
+    [/REGION]
+
+1.  이제 블루프린트 세트 컨테이너를 만들 차례입니다. 여기에 나중에 표시할 아이템을 저장합니다. 블루프린트 세트를 새로 만들려면, **내 블루프린트** 패널의 **+ 신규 추가** 버튼을 클릭하고, 드롭다운 리스트에서 **변수** 를 선택합니다.
+
+    [REGION:lightbox]
+    [![](Step2_4.png)(w:600)](Step2_4.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  새 변수 이름은 `Instruction Set` 라 합니다.
+
+    [REGION:lightbox]
+    [![](Step2_5.png)(w:600)](Step2_5.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  변수의 **핀 유형** 버튼을 클릭합니다. 변수 이름 옆에 있습니다.
+
+    [REGION:lightbox]
+    [![](Step2_6.png)(w:600)](Step2_6.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  드롭다운 리스트에서 **String** 변수 유형을 선택합니다.
+
+    [REGION:lightbox]
+    [![](Step2_7.png)(w:600)](Step2_7.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  변수의 **컨테이너 유형** 버튼을 클릭합니다. **디테일** 패널의 **변수 유형** 드롭다운 리스트 옆에 있습니다.
+
+    [REGION:lightbox]
+    [![](Step2_8.png)(w:600)](Step2_8.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  드롭다운 리스트에서 **세트** 컨테이너 유형을 선택합니다.
+
+    [REGION:lightbox]
+    [![](Step2_9.png)(w:600)](Step2_9.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이제 블루프린트 그래프에서 블루프린트를 컴파일해야 컨테이너 안에 저장하려는 아이템을 정의할 수 있다고 알려줍니다. 계속해서 **컴파일** 버튼을 눌러 시작합니다.
+
+    [REGION:lightbox]
+    [![](Step2_10.png)(w:600)](Step2_10.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+    [REGION:note]
+    블루프린트를 컴파일하면 컨테이너의 **Default Value** 메시지가 인터페이스로 대체되어, 컨테이너를 String 유형 고유 아이템( 또는 엘리먼트)로 채울 수 있습니다.
+    [/REGION]    
+
+1.  아직 저장하지 않은 경우 **저장** 버튼을 눌러 지금까지 작업 내용을 저장합니다.
+
+    [REGION:lightbox]
+    [![](Step2_11.png)(w:600)](Step2_11.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+    [REGION:tip]
+    일반적으로 일찍 자주 저장하는 습관을 들이는 것이 좋습니다.
+    [/REGION]
+
+1.  **디테일** 패널의 **Default Value** 메뉴에 위치한 **+** (엘리먼트 추가) 버튼을 클릭하여 새로 정의된 **Instruction Set** 컨테이너에 String 유형 아이템을 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step2_12.png)(w:600)](Step2_12.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  컨테이너의 새 아이템을 `Click` 으로 정의합니다.
+
+    ![](Step2_13.png)
+
+1.  기존 두 단계를 반복합니다. **Instruction Set** 컨테이너를 다음 아이템으로 채웁니다:
+
+    ![](Step2_14.png)
+
+### 로직 스크립트 작성
+
+새로 생성한 블루프린트 세트 내용을 표시하기에 앞서, 필수 로직을 작성해야 합니다.
+
+1.  컨테이너를 정의했으니, **Instruction Set** 변수를 블루프린트 이벤트 그래프에 끌어 놓습니다.
+
+    [REGION:lightbox]
+    [![](Step2_15.png)(w:600)](Step2_15.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Instruction Set** 드롭다운 리스트에서 **Get** 을 선택합니다.
+
+    [REGION:lightbox]
+    [![](Step2_16.png)(w:600)](Step2_16.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Instruction Set** 노드를 끌어놓고 **Set Utilities** 인터페이스에서 **To Array** 노드를 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step2_17.png)(w:600)](Step2_17.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **To Array** 노드를 끌어 놓고 **Get** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step2_18.png)(w:600)](Step2_18.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+    [REGION:note]
+    세트에서 아이템을 구할 수 있는 방법은 여러가지 있습니다. 한 가지는 세트에 키를 지정하여 쿼리를 하는 것이고, 다른 하나는 세트의 아이템을 대상으로 반복처리하는 것입니다. 여기서는 카운터 변수를 사용하여 **Instruction Set** 를 대상으로 반복처리하도록 하겠습니다.
+    [/REGION]
+
+1.  앞서 말씀드린 점을 염두에 두고, **+ 신규 추가** 버튼을 클릭하고, 드롭다운 리스트에서 **변수** 를 선택합니다.
+
+    [REGION:lightbox]
+    [![](Step2_19.png)(w:600)](Step2_19.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  새 변수의 유형을 **Integer** 유형으로 설정하고 이름을 `Counter` 라 합니다.
+
+    [REGION:lightbox]
+    [![](Step2_20.png)(w:600)](Step2_20.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  카운터 변수를 선언하고 정의한 후, **Counter** 를 블루프린트 이벤트 그래프에 끌어 놓고, 드롭다운 목록에서 **Get** 을 선택합니다.
+
+    [REGION:lightbox]
+    [![](Step2_21.png)(w:600)](Step2_21.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Counter** 노드를 끌어 놓고, **IncrementInt** 노드를 검색 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step2_22.png)(w:600)](Step2_22.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **IncrementInt** 노드를 **Get** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step2_23.png)(w:600)](Step2_23.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+    [REGION:note]
+    여기서는 타이머 함수를 사용하여 **Counter** 변수를 증가시키도록 하겠습니다.
+    [/REGION]
+
+1.  **Event Tick** 노드를 끌어 놓고 **Delay** 노드를 검색 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step2_24.png)(w:600)](Step2_24.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  딜레이 기간을 **2** 초로 설정한 이후, **Delay** 노드를 **IncrementInt** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step2_25.png)(w:600)](Step2_25.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Event BeginPlay** 노드를 **To Array** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step2_26.png)(w:600)](Step2_26.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이제 **To Array** 노드를 끌어놓고 **Set Text** 노드를 검색 추가하여 게임내에서 컨테이너 내용을 표시할 준비가 되었습니다.
+
+    [REGION:lightbox]
+    [![](Step2_27.png)(w:600)](Step2_27.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Get** 노드를 **Set Text** 노드에 위치한 **Value** 핀에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step2_28.png)(w:600)](Step2_28.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Increment** 노드를 **Set Text** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step2_29.png)(w:600)](Step2_29.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  완성된 스크립트를 살펴본 후 **컴파일** 버튼을 누르고 에디터의 **뷰포트** 인터페이스로 돌아갑니다.
+
+    [REGION:lightbox]
+    [![](Step2_30.png)(w:600)](Step2_30.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  에디터의 **뷰포트** 인터페이스에서 **플레이** 버튼을 클릭하여 새로 구현한 스크립트가 작동되는 것을 확인합니다.
+
+### 섹션 결과
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    BdDdQhDveIY
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+현재 새 블루프린트 세트를 정의했고, 컨테이너에 아이템을 채웠으며, **TextRender** 액터의 블루프린트 이벤트 그래프에 만든 기본적인 로직으로 표시하도록 했습니다. 약간 더 고급 작업 방식에 대한 정보는 다음 단계에서 두 블루프린트 세트의 **Intersection** (교집합) 연산 방법을 참고하시기 바랍니다.
+
+## 3\. 블루프린트 세트 교집합 연산
+
+이제 이전 단계에서 정의한 블루프린트 세트의 내용을 표시하는 **TextRender** 액터가 있을 것입니다. 여기서는 두 블루프린트 세트의 **Intersection** (교집합) 연산을 한 뒤 그 결과를 게임 **뷰포트** 에 출력하는 법을 알아보겠습니다.
+
+1.  프로젝트의 **콘텐츠 브라우저** 에서 **Display Set** TextRender Actor 를 더블클릭하여 블루프린트 **이벤트 그래프** 를 엽니다.
+
+    [REGION:lightbox]
+    [![](Step3_1.png)(w:600)](Step3_1.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Display Set** TextRender 액터 블루프린트 **이벤트 그래프** 가 보일 것입니다. 여기서 새 블루프린트 세트를 추가하여 기존 **Instruction Set** 와 **Intersect** (교집합) 연산을 하고, 그 결과 세트를 **뷰포트** 에 표시하도록 하겠습니다.
+
+    [REGION:lightbox]
+    [![](Step3_2.png)(w:600)](Step3_2.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이 시점에서 교집합 연산을 위한 블루프린트 세트 컨테이너가 두 개 있어야 할 것입니다. **Instruction Set** 변수에 우클릭하고 드롭다운 리스트에서 **복제** 를 선택하여 블루프린트 세트 변수를 두 개 새로 만듭니다. 이름은 `Shorter Instruction Set` 와 `Resultant Instruction Set` 라 짓습니다.
+
+    ![](Step3_3.png)
+
+    [REGION:note]
+    (보통) 두 세트에 교집합 연산을 하면 Resultant Set 가 나오는데, 두 세트 모두에 공통인 아이템만 들어있게 됩니다.
+    [/REGION]
+
+1.  이제 기존 **Instruction Set** 에서 복제한 새로운 블루프린트 세트 변수가 두 개 생겼을 것입니다. 새 블루프린트 세트 중 하나(, 예로 **Resultant Instruction Set**) 를 선택하면 **Default Value** 메시지가 보일 것입니다.
+
+    [REGION:lightbox]
+    [![](Step3_4.png)(w:600)](Step3_4.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **컴파일** 버튼을 클릭합니다.
+
+    [REGION:lightbox]
+    [![](Step3_5.png)(w:600)](Step3_5.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  블루프린트를 컴파일한 후, **Default Value** 메시지가 사라져 기존 엘리먼트에 공간을 내주는 것이 보일 것입니다. 아시다시피 기존 **Instruction Set** 변수를 복제하여 변수를 둘 새로 만들었으므로, 원본 블루프린트 세트에 들어있는 엘리먼트가 새로 생성된 컨테이너에 복제된 것입니다.
+
+    ![](Step3_6.png)
+    
+    [REGION:note]
+    참고로 기존 변수를 복제하지 않고도 새 변수를 만들 수 있습니다.
+    [/REGION]
+
+1.  **Resultant Instruction Set** 를 비우기 위해 **Default Value** 메뉴에 위치한 **Removes all items** (모든 아이템 제거) 버튼을 클릭합니다.
+
+    [REGION:lightbox]
+    [![](Step3_7.png)(w:600)](Step3_7.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Shorter Instruction Set** 에서도 모든 아이템( 또는 엘리먼트들)을 비웁니다.
+
+    [REGION:lightbox]
+    [![](Step3_8.png)(w:600)](Step3_8.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  기존 블루프린트 이벤트 그래프에 새로운 로직을 추가하기에 앞서, **Shorter Instruction Set** 와 **Instruction Set** 변수를 끌어 블루프린트에 놓습니다.
+
+    [REGION:lightbox]
+    [![](Step3_9.png)(w:600)](Step3_9.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+### 로직 스크립트 작성
+
+1.  새로운 로직 작성을 시작하기 위해, **Shorter Instruction Set** 노드를 끌어 놓고 **Set Utilities** 인터페이스에서 **Intersection** 노드를 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step3_10.png)(w:600)](Step3_10.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Instruction Set** 노드를 **Intersection** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step3_11.png)(w:600)](Step3_11.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  블루프린트 그래프에 우클릭하여 **컨텍스트 메뉴** 를 열고, **Event ActorBeginOverlap** 을 검색 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step3_12.png)(w:600)](Step3_12.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Event ActorBeginOverlap** 노드의 **Other Actor** 핀을 끌어 놓고 **Cast To FirstPersonProjectile** 노드를 검색 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step3_13.png)(w:600)](Step3_13.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Cast To FirstPersonProjectile** 노드를 **Intersection** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step3_14.png)(w:600)](Step3_14.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+    [REGION:note]
+    기본적으로 First Person Projectile 가 이 액터의 콜리전 박스에 성공적으로 충돌하면, **Intersection** 노드를 호출하라는 뜻입니다.
+    [/REGION]
+
+1.  **Intersection** 노드가 **Shorter Instruction Set** 와 **Instruction Set** 에 대한 연산을 수행한 이후, 그 결과를 **Resultant Instruction Set** 컨테이너에 저장하려 합니다. 그러기 위해 **Intersection** 노드를 끌어 놓고 **Set Resultant Instruction Set** 를 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step3_15.png)(w:600)](Step3_15.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Set Resultant Instruction Set** 노드를 끌어 놓고 **Set Utilities** 인터페이스에서 **To Array** 노드를 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step3_16.png)(w:600)](Step3_16.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  배열의 엘리먼트를 대상으로 반복처리하기 위해, **To Array** 노드를 끌어 놓고 **ForEachLoop** 노드를 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step3_17.png)(w:600)](Step3_17.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **To Array Node** 노드를 **ForEachLoop** 노드와 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step3_18.png)(w:600)](Step3_18.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이제 교집합 결과를 **뷰포트** 에 출력할 준비가 되었습니다. **ForEachLoop** 노드의 **Array Element** 핀을 끌어 놓고, **Print String** 노드를 검색 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step3_19.png)(w:600)](Step3_19.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **ForEachLoop** 노드를 **Print String** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step3_20.png)(w:600)](Step3_20.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이제 **Resultant Instruction Set** 에 무엇을 저장할지 결정할 준비가 되었습니다. 예를 들어 **Resultant Instruction Set** 변수에 `Click`, `Left`, `Mouse`, `Button` 만 들어가기를 원한다 칩시다. 교집합 연산을 종이에 먼저 써 보면 이렇습니다:
+
+    |인스트럭션 세트|짧은 인스트럭션 세트|결과 인스트럭션 세트 (A ∩ B)|
+    | --- | --- | --- |  
+    | Click | Click | Click |
+    | the | Left | Left |
+    | Left | Mouse | Mouse |
+    | Mouse | Button | Button |
+    | Button |  |  |
+    | and |  |  |
+    | Fire |  |  |
+
+    [REGION:note]
+    방금 종이에 쓴 내용에서 알 수 있듯이, **Instruction Set** 와 **Shorter Instruction Set** 양쪽에 공통인 아이템이 **Resultant Set** 컨테이너에 저장됩니다. 세트에 논리 연산을 수행할 때마다, 종이(나 화이트보드)에 연산을 먼저 해 보고 블루프린트 그래프에 로직 스크립트를 작성하는 습관을 들이는 것이 좋습니다.
+    [/REGION]
+
+1.  **Shorter Instruction Set** 컨테이너에 저장하려는 아이템이 무엇인지 알았으니, **Shorter Instruction Set** 를 선택하여 컨테이너의 내용을 조사합니다.
+
+    [REGION:lightbox]
+    [![](Step3_21.png)(w:600)](Step3_21.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+    [REGION:note]
+    강조된 이미지에서 보시듯이, **Shorter Instruction Set** 는 현재 비어 있습니다. 이 시점에서, **Shorter Instruction Set** 와 **Instruction Set** 에 **Intersection** 연산을 한다면, **Resultant Instruction Set** 컨테이너에는 아무것도 없을 것입니다.
+    [/REGION]
+
+1.  **Shorter Instruction Set** 컨테이너를 다음 엘리먼트로 채웁니다:
+
+    ![](Step3_22.png)
+
+1.  완성된 스크립트를 살펴본 후 **컴파일** 버튼을 클릭합니다.
+
+    [REGION:lightbox]
+    [![](Step3_23.png)(w:600)](Step3_23.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  마지막으로 **저장** 버튼을 누르고 에디터의 **뷰포트** 인터페이스로 돌아갑니다.
+
+    [REGION:lightbox]
+    [![](Step3_24.png)(w:600)](Step3_24.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  에디터의 **뷰포트** 인터페이스에서 **플레이** 버튼을 클릭하여 업데이트된 스크립트가 작동하는 모습을 확인합니다.
+
+    [REGION:lightbox]
+    [![](Step3_25.png)(w:600)](Step3_25.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+### 섹션 결과
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    1lK1w-Qssu0
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+비디오에서 보시듯이 First Person Projectile 이 **Display Set** 콜리전 박스와 충돌하면, **Resultant Instruction Set** 내용이 **뷰포트** 에 출력됩니다. 출력된 아이템을 살펴보면, **Resultant Instruction Set** 에 들어있는 아이템의 순서를 예측할 수가 없는 것을 알 수 있는데, 블루프린트 세트의 특성입니다. **Union** (합집합) 연산 방법은 다음 단계를 확인해 보세요.
+
+## 4\. 블루프린트 세트 합집합
+
+이 최종 단계에서는 두 블루프린트 세트의 **Union** (합집합) 연산 후 그 결과를 게임 뷰포트에 출력해 보겠습니다.
+
+1.  프로젝트의 **콘텐츠 브라우저** 에서 **Display Set** TextRender Actor 에 클릭하여 블루프린트 **이벤트 그래프** 를 엽니다.
+
+    [REGION:lightbox]
+    [![](Step4_1.png)(w:600)](Step4_1.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이 시점에서 합집합에 쓸 새로운 블루프린트 세트 컨테이너가 필요합니다. **Shorter Instruction Set** 변수에 우클릭하고 드롭다운 리스트에서 **복제** 를 선택하여 블루프린트 세트 변수를 새로 만들고, 이름을 `Longer Instruction Set` 라 합니다.
+
+    ![](Step4_2.png)
+
+1.  **컴파일** 버튼을 클릭합니다.
+
+    [REGION:lightbox]
+    [![](Step4_3.png)(w:600)](Step4_3.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Removes all items** (모든 아이템 제거) 버튼을 클릭하여 **Longer Instruction Set** 에서 모든 아이템을 지웁니다.
+
+    [REGION:lightbox]
+    [![](Step4_4.png)(w:600)](Step4_4.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  새로운 **Longer Instruction Set** 컨테이너에 다음 아이템을 추가합니다:
+
+    ![](Step4_5.png)
+
+1.  **Longer Instruction Set** 와 **Instruction Set** 변수를 블루프린트 그래프에 끌어 놓습니다.
+
+    [REGION:lightbox]
+    [![](Step4_6.png)(w:600)](Step4_6.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+### 로직 스크립트 작성
+
+1.  새 로직 작성 시작은 **Longer Instruction Set** 를 끌어 놓고 **Set Utilities** 인터페이스에서 **Union** (합집합) 노드를 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step4_7.png)(w:600)](Step4_7.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Instruction Set** 노드를 **Union** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step4_8.png)(w:600)](Step4_8.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Cast To FirstPersonProjectile** 노드의 **Cast Failed** 핀을 **Union** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step4_9.png)(w:600)](Step4_9.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이제 **Union** 노드를 끌어 놓고, **To Array** 노드를 검색 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step4_10.png)(w:600)](Step4_10.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **To Array** 노드를 끌어 놓고 **ForEachLoop** 노드를 검색 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step4_11.png)(w:600)](Step4_11.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **To Array** 노드를 **ForEachLoop** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step4_12.png)(w:600)](Step4_12.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  합집합 결과를 **뷰포트** 에 출력할 준비가 되었습니다. **ForEachLoop** 노드의 **Array Element** 핀을 끌어 놓고 **Print String** 노드를 검색 추가합니다.
+
+    [REGION:lightbox]
+    [![](Step4_13.png)(w:600)](Step4_13.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **ForEachLoop** 노드를 **Print String** 노드에 연결합니다.
+
+    [REGION:lightbox]
+    [![](Step4_14.png)(w:600)](Step4_14.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  이미 디버그 메시지가 출력되는 것이 있으므로, **뷰포트** 에 출력되는 텍스트 색을 변경하는 것이 좋습니다. **Print String** 노드 하단의 메뉴 확장 화살표를 클릭합니다.
+
+    [REGION:lightbox]
+    [![](Step4_15.png)(w:600)](Step4_15.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  **Text Color** 박스를 클릭하여 **색 선택 툴** 메뉴를 엽니다.
+
+    [REGION:lightbox]
+    [![](Step4_16.png)(w:600)](Step4_16.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  색을 다음 값으로 설정합니다:
+
+    ![](Step4_17.png)
+
+1.  **컴파일** 버튼을 클릭합니다.
+
+    [REGION:lightbox]
+    [![](Step4_18.png)(w:600)](Step4_18.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  완성된 스크립트를 살펴본 후, **저장** 버튼을 누르고 에디터의 **뷰포트** 인터페이스로 돌아갑니다.
+
+    [REGION:lightbox]
+    [![](Step4_19.png)(w:600)](Step4_19.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+1.  에디터의 **뷰포트** 인터페이스에서 **플레이** 버튼을 클릭하여 업데이트한 스크립트가 작동되는 모습을 확인합니다.
+
+    [REGION:lightbox]
+    [![](Step4_20.png)(w:600)](Step4_20.png)
+    [/REGION]
+    
+    [REGION:caption]
+    클릭하면 원본 이미지를 확인합니다.
+    [/REGION]
+
+## 최종 결과
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    3PevHZoBX3E
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+위 비디오에서 보시듯이, First Person Character 가 **Display Set** 콜리전 박스와 충돌하면, **Union** 결과가 뷰포트에 출력됩니다. 여기서도 출력된 아이템을 살펴보면, 예측되는 순서로 나타나지 않는 것이 보이는데, 이는 블루프린트 세트의 속성입니다. 마지막으로 양쪽 블루프린트 세트의 합집합 연산을 종이에 해 보면, 다음과 같은 결과가 날 것입니다:
+
+|인스트럭션 세트|긴 인스트럭션 세트|결과 인스트럭션 세트 (A ∪ B)|
+| --- | --- | --- |  
+| Click | your | Click |
+| the | Gun | the |
+| Left |  | Left |
+| Mouse |  | Mouse |
+| Button |  | Button |
+| and |  | and |
+| Fire |  | Fire |
+|  |  | your |
+|  |  | Gun |

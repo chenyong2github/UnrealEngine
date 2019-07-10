@@ -1,0 +1,53 @@
+Availability: Public
+Crumbs: 
+Title: Vivox Plugin
+Description: Documentation for the Vivox Plugin, which enables to integrate voice and text communication into their games.
+Type: 
+Version: 4.22
+Parent: Engine/Plugins
+Order: 
+Tags: Vivox
+topic-image: Vivox_Topic_01.png
+
+
+![](Vivox_Banner_01.png "Vivox_Banner_01.png")
+
+This document provides information about signing up for Vivox’s Developer Portal, integration planning, implementation options, and security details.
+
+## Plugin Availability
+
+Vivox's Unreal Engine Plugin is available in the following:
+
+| Item | Availability |
+| --- | --- |
+| **Unreal Engine Version** | 4.22 or later |
+| **Operating Systems** | [INCLUDE:#excerpt_1] |
+| **Consoles** | [INCLUDE:#excerpt_2] |
+
+<!--
+[EXCERPT:excerpt_2]
+
+*   Xbox One
+*   PlayStation 4
+*   Nintendo Switch
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+*   Microsoft Windows 7, 8, and 10 (32 and 64-bit)
+*   macOS
+*   iOS
+*   Android
+
+[/EXCERPT:excerpt_1]
+-->
+
+## Getting Started
+
+[DIR(output:"topic" org:"hierarchy" parent:"Engine/Plugins/Vivox" tags:"getting started")]
+
+## Reference
+
+[DIR(output:"topic" org:"hierarchy" parent:"Engine/Plugins/Vivox" type:"reference")]

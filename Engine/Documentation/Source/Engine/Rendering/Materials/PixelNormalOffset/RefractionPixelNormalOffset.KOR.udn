@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6622979
 Availability: Public
-Title:굴절 모드: 픽셀 노멀 오프셋
+Title:픽셀 노멀 오프셋을 사용한 굴절
 Crumbs:
 Description:머티리얼의 Pixel Normal Offset, 픽셀 노멀 오프셋에 대한 Refraction, 굴절 모드 개요입니다.
 Related: Engine/Rendering/Materials

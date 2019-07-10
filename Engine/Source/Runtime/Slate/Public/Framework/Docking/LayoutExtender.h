@@ -16,7 +16,11 @@ enum class ELayoutExtensionPosition
 	/** Extend the layout before the specified element */
 	Before,
 	/** Extend the layout after the specified element */
-	After
+	After,
+	/** Extend the layout above the specified element in the parent splitter */
+	Above,
+	/** Extend the layout below the specified element in the parent splitter */
+	Below,
 };
 
 /** Class used for extending default layouts */
@@ -51,7 +55,7 @@ public:
 	 * @param OutValues				The container to populate with extended tabs
 	 */
 	template<typename AllocatorType>
-	void FindExtensions(FTabId TabId, ELayoutExtensionPosition Position, TArray<FTabManager::FTab, AllocatorType>& OutValues) const
+	void FindTabExtensions(FTabId TabId, ELayoutExtensionPosition Position, TArray<FTabManager::FTab, AllocatorType>& OutValues) const
 	{
 		OutValues.Reset();
 

@@ -8,27 +8,23 @@ related:Engine/Paper2D
 related:Engine/UMG
 related:Engine/Blueprints/TechnicalGuide
 topic-image:unrealmatch3_topic.png
-
-![](match3_banner.png)(convert:false)
-
+hero-image:match3_banner.png
 
 The **Unreal Match 3** sample game was created to showcase the versatility and flexibility of Unreal Engine 4 (UE4). 
 Unreal Match 3 will show UE4 developers how to create a mobile game that is targeted towards mid to lower end smart 
 phones as well has how to implement social and money making features like achievements and In App purchase into their UE4 projects.
 
-[REGION:center]
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-390
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-5qXTxzAq5tU
-[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	390
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	5qXTxzAq5tU
+	[/PARAMLITERAL]
 [/OBJECT]
-[/REGION]
 
 While the Unreal Match 3 project utilizes many different tools within the UE4 toolset, here are some of the major topics this project covers.
 

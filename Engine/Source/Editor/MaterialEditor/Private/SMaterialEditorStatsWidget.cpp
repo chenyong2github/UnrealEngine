@@ -570,11 +570,11 @@ void SMaterialEditorStatsWidget::Construct(const FArguments& InArgs)
 
 	const auto VerticalScrollbar = SNew(SScrollBar)
 		.Orientation(Orient_Vertical)
-		.Thickness(FVector2D(7.0f, 7.0f));
+		.Thickness(FVector2D(11.0f, 11.0f));
 
 	const auto HorizontalScrollbar = SNew(SScrollBar)
 		.Orientation(Orient_Horizontal)
-		.Thickness(FVector2D(7.0f, 7.0f));
+		.Thickness(FVector2D(11.0f, 11.0f));
 
 	this->ChildSlot
 	[

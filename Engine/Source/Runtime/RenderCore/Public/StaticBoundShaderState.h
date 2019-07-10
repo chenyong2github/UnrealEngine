@@ -34,18 +34,18 @@ public:
 	 * If this global bound shader state hasn't been initialized yet, initialize it.
 	 * @return The bound shader state RHI.
 	 */
-	FBoundShaderStateRHIParamRef GetInitializedRHI(
-		FVertexDeclarationRHIParamRef VertexDeclaration, 
-		FVertexShaderRHIParamRef VertexShader, 
-		FPixelShaderRHIParamRef PixelShader,
-		FGeometryShaderRHIParamRef GeometryShader
+	FRHIBoundShaderState* GetInitializedRHI(
+		FRHIVertexDeclaration* VertexDeclaration,
+		FRHIVertexShader* VertexShader,
+		FRHIPixelShader* PixelShader,
+		FRHIGeometryShader* GeometryShader
 		);
 
 	/**
 	 * If this global bound shader state has been initialized return it, otherwise return null. Can be called from any thread.
 	 * @return The bound shader state RHI.
 	 */
-	FBoundShaderStateRHIParamRef GetPreinitializedRHI();
+	FRHIBoundShaderState* GetPreinitializedRHI();
 
 private:
 
@@ -59,10 +59,10 @@ private:
 	RENDERCORE_API virtual void ReleaseRHI();
 
 #if DO_CHECK
-	FVertexDeclarationRHIParamRef BoundVertexDeclaration;
-	FVertexShaderRHIParamRef BoundVertexShader;
-	FPixelShaderRHIParamRef BoundPixelShader;
-	FGeometryShaderRHIParamRef BoundGeometryShader;
+	FRHIVertexDeclaration* BoundVertexDeclaration;
+	FRHIVertexShader* BoundVertexShader;
+	FRHIPixelShader* BoundPixelShader;
+	FRHIGeometryShader* BoundGeometryShader;
 #endif 
 };
 
@@ -71,7 +71,7 @@ typedef TGlobalResource<FGlobalBoundShaderStateResource> FGlobalBoundShaderState
 
 struct FGlobalBoundShaderStateArgs
 {
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI;
+	FRHIVertexDeclaration* VertexDeclarationRHI;
 	FShader* VertexShader;
 	FShader* PixelShader;
 	FShader* GeometryShader;

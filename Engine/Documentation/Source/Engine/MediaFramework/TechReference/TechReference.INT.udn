@@ -1,0 +1,165 @@
+Availability: Public
+Title: Media Framework Technical Reference
+Description: Technical information regarding Media Framework in Unreal Engine 4.
+Type: reference
+Version: 4.18
+Parent: Engine/MediaFramework
+Order: 3
+Crumbs:
+
+
+[TOC (start:2 end:2)]
+
+This page outlines the currently supported file extensions, URLs, and capture devices, as well as pointing out some troubleshooting tips on how to enable Media Framework with different platforms. There are some known platform-specific issues and limitations which we are currently investigating and trying to resolve, each of which has been identified in the Troubleshooting and Known Issues sections.
+
+[REGION:warning]
+If you are upgrading Media Framework content from a pre-4.18 project, see the [Upgrading Media Framework Content to 4.18](Engine/MediaFramework/TechReference/Upgrading) page to successfully update your project.
+[/REGION]
+
+## Supported Files, URLs & Capture Devices
+
+The table below indicates the supported file extensions based on each media player platform.
+
+*Click the image below to download a .xlsx version of the Supported Files & URLs spreadsheets.*
+
+[REGION:raw]
+[![](MediaFrameworkExtentions.png)](SupportedExtentions.xlsx)
+[/REGION]
+
+The list of supported file formats above is ongoing and support for additional file extensions will come online in future engine updates.
+
+[REGION:tip]
+For the best compatibility and performance, it is recommended to use **H.264** encoded **MP4 (.mp4)** container files.
+[/REGION]
+
+The table below shows the supported URLs based on media player platform.
+
+[REGION:raw]
+![](URLSheet.png)
+[/REGION]
+
+### Capture Devices
+
+Media Framework supports audio/video capture hardware on Windows (WmfMedia) and Android (AndroidCamera) as of 4.18 (consoles however, are not yet supported).
+
+[REGION:note]
+Please see the [Playing Live Video Captures](Engine/MediaFramework/HowTo/UsingWebCams) page for an example guide on working with capture devices.
+[/REGION]
+
+## WMF Media Configuration
+
+The following sections describe the configuration options that you can set for the WMF Media Plugin in your Project Settings.
+
+### Custom Codecs
+
+Windows Media Foundation (WMF) handles standard audio/video playback and recording on the Windows Platform, however, WMF is also extensible. By default, WMF supports a number of different formats, encoding, and file containers, but it can also be extended with the use of optional codec packs that can be downloaded and installed from the Internet. What this means, however, is that certain users may not have a particular codec needed to decode and playback a media file.
+
+In the past, Unreal Engine only supported default codecs that are supplied with WMF to ensure that everyone can handle and process media the same way. There may be times when you want to use a different method of encoding your media or your own proprietary media encoder that you want to ship your game with (for example, you ship your game with an installer that provides the needed encoder).
+
+You can now enable and allow non-standard codecs for **WMF Media** from the **Plugins** section of **Project Settings**.
+
+![Project Settings - WMF Media Plugin](ProjectSettings.png "Project Settings - WMF Media Plugin")
+
+By default, the player plugin will attempt to detect audio and video codecs that are not supported by the operating system (OS), requiring the user to install additional codec packs. If the player plugin detects an unsupported format when accessing the media, a warning message is provided in the **Output Log**.
+
+![](UnsupportedLog.png)
+
+Additionally, you can see media asset information inside a **Media Player** asset in the **Info** panel.
+
+![](MediaInfo.png)
+
+When enabling **Allow non-supported codecs**, the Plugin player will skip the check and allow the usage of non-standard codecs.
+
+### Playback Optimization
+
+The WMF Media Plugin offers some options that you can use to customize the way it decodes and plays back your media. If the Plugin doesn't play your media with the responsiveness, smoothness, or performance that you need, you can try enabling these options.
+
+![Playback optimization settings](ProjectSettings-optimization.png "Playback optimization settings")
+
+| Setting | Description |
+| --- | --- |
+| **Low Latency** | [INCLUDE:#excerpt_0] |
+| **Hardware Accelerated Video Decoding (Experimental)** | [INCLUDE:#excerpt_1] |
+
+<!--
+[EXCERPT:excerpt_0]
+This setting minimizes delays, or latency, in media playback. If your video playback tends to lag, this setting may help you achieve a faster response from the WMF Media Plugin. However, enabling this setting may adversely affect the quality of the video and/or audio.  
+Only works on Windows 8 or later.
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+Uses the GPU to decode video streams instead of the CPU. If your CPU is a bottleneck on your video performance, this setting may improve the smoothness of your video playback. It may also enable you to use more media at the same time, with larger resolutions.  
+Only works on Windows platforms, rendering with DirectX 11.  
+[REGION:note]
+This option is considered [Experimental](ExperimentalFeatures). **We do not recommend shipping projects with Experimental features.**
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
+
+## Troubleshooting
+
+As of engine 4.18 most player Plugins have had extensive logging added and will provide detailed logging of potential problems.
+
+To enable logging, add the following to your project's **Engine.ini** file:
+
+    [Core.Log]
+    LogMedia=VeryVerbose
+    LogMediaAssets=VeryVerbose
+    LogAndroidMedia=VeryVerbose
+    LogAvfMedia=VeryVerbose
+    LogMfMedia=VeryVerbose
+    LogPS4Media=VeryVerbose
+    LogWmfMedia=VeryVerbose
+
+If a media source fails to open or play, check the **Output Log** under the [Developer Tools](Engine/Tools/DevTools/) for additional details.
+
+You can also check information about a Media Source inside the Media Player asset and **Info** tab.
+
+![](InfoWindow.png)
+
+This will show what options are available for the media source, as well as the different Audio and Video streams and information about each stream.
+
+### Windows
+
+The Windows Media Foundation (WMF) based player Plugin WmfMedia has a number of limitations for MP4 containers.
+
+[REGION:note]
+See Microsoft's [MPEG-4 File Source](https://msdn.microsoft.com/en-us/library/windows/desktop/dd757766%28v=vs.85%29.aspx) page for more information.
+[/REGION]
+
+## Known Issues & Limitations
+
+**Media Framework** is still in development and there are some known issues and limitations which are outlined below.
+
+*   **Android**
+    
+    *   Audio currently plays via the OS and cannot be piped through UE4's Sound System.
+        
+
+*   **Editor**
+    
+    *   The Playlist UI inside the Media Player always has a playlist created internally.
+        
+    
+    *   Playlists can be saved from the Media Player, however, there is no way currently to edit the playlist in the Media Player.
+        
+    
+    *   Workaround - Save a Playlist from the Media Player then open and edit the Media Playlist asset.
+        
+
+*   **Sequencer**
+    
+    *   Media Playback will not render out properly when recording cinematics from Sequencer.
+        
+        *   We have this scheduled to release in the near future as we know this is important.
+            
+    
+    *   The ImgMedia Plugin will be synced with Sequencer.
+        
+
+*   **Windows**
+    
+    *   QuickTime movie (.mov) support on Windows 7 and later is currently unreliable.
+        
+        *   Workaround: This format is currently not recommended for use.

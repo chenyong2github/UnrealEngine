@@ -1,31 +1,73 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:0
 Availability: Public
-Title:자동 컨벡스 콜리전 툴을 사용하여 스태틱 메시에 콜리전 헐 추가
-Crumbs: %ROOT%, Engine, Engine/Physics, Engine/Physics/Collision
-Description:
+Title: Add a Collision Hull to a Static Mesh Using the Auto Convex Collision Tool
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: how-to
+Parent: Engine/Physics/Collision/HowTo
+SkillLevel: Advanced
 
 
-## 단계
+In the following How-To we will take a look at using the Auto Convex Collision tool to automatically create collision for Static Meshes.
 
-[REGION:raw]
-![](Engine/Physics/Collision/HowTo/COLREF_collisionMenu_Auto.png)
+[REGION:note]
+The Auto Convex Tool also uses a newer version of [V-HACD library](https://github.com/kmammou/v-hacd) that should give more accurate results.
 [/REGION]
 
-**스태틱 메시 에디터** 에는 다수의 컨벡스 헐을 사용해서 콜리전을 생성할 수 있는 기능이 있습니다.
+## Steps
 
-![](Engine/Physics/Collision/HowTo/Collision_CreateCollisionHullWithAutoConvex_0.png)
+1.  First open up the Static Mesh you want to add collision to in the Static Meshes Editor. For this example we will be using the **SM_Rock Mesh** that comes with the Starter Content.   
+    ![](HT_AddConvexHulls_01.png "HT_AddConvexHulls_01.png")
 
-이 라운딩 처리된 큐브는 **6 면체 단순화 콜리전** 으로도 될테지만, 그보다 복잡한 것이 필요하다 가정해 봅시다.
+2.  Next, open up the Auto Convex Collision tool by going to **Window** \> **Auto Convex Collision**. This will open up the Auto Convex Collision in the lower right hand corner of the Static Mesh Editor.  
+    ![](HT_AddConvexHulls_02.png "HT_AddConvexHulls_02.png")   
+    
+3.  Inside of the Auto Convex Collision tool set the following parameters with the following settings:  
+    ![](HT_AddConvexHulls_03.png "HT_AddConvexHulls_03.png")  
+    
+	[REGION:simpletable]
+    |Property Name|Value|
+    | --- | --- |  
+    | **Hull Count** | 32 |
+    | **Max Hull Verts** | 16 |
+    | **Hull Precision** | 50,000 |
+	[/REGION]
+    
+4.  When all of the above setting have been input, click the **Apply** button to begin the collision creation process.  
+    ![](HT_AddConvexHulls_07.png "HT_AddConvexHulls_07.png") 
+    [REGION:note]
+    Computation of the collison will now run as background task in the Static Mesh Editor. The progress of the collision creation will be shown in the following progress window.  
+    ![](HT_AddConvexHulls_06.png "HT_AddConvexHulls_06.png")
+    [/REGION]
+    
 
-메뉴에서 **콜리전 -> 자동 컨벡스 콜리전** 을 선택하면 우하단에 이 패널이 뜹니다:
+## End Result
 
-![](Engine/Physics/Collision/HowTo/Collision_CreateCollisionHullWithAutoConvex_1.png)
+When completed you can view the new collision,if not already enabled, by clicking on the Collision icon and then selecting the Simple Collision option from the drop down list. 
 
-* **Max Hulls** 최대 헐 - 오브젝트 모양에 가장 잘 맞도록 만들기 위한 헐 수를 결정합니다.
-* **Max Hull Verts** 최대 헐 버텍스 - 콜리전 헐 버텍스 최대 갯수입니다. 이 값을 늘리면 콜리전 헐의 최대 복잡도가 높아집니다.
-* **Apply** 적용 - 위 세팅에 따라 오브젝트에 콜리전을 추가합니다.
-* **Defaults** 기본 - **Max Hulls** 와 **Max Hull Verts** 를 위 그림에서 보이는 값으로 리셋시킵니다.
+![](HT_AddConvexHulls_05.png "HT_AddConvexHulls_05.png") 
 
-![](Engine/Physics/Collision/HowTo/Collision_CreateCollisionHullWithAutoConvex_2.png)
+![](HT_AddConvexHulls_04.png "HT_AddConvexHulls_04.png")
 
-보시듯이 자동 컨벡스 콜리전은 꽤나 정확합니다.
+The following image sequence shows what type of results you get when increasing the values of the Auto Convex Collision from the default settings to the maximum settings allowed.
+
+[EXCERPT:slider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	3
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	AutoConvexCollisionSettingsResults
+	[/PARAMLITERAL]
+	[PARAM:caption]
+	Auto Convex Collision Settings Results
+	[/PARAM]
+	[PARAM:image_list]
+	![](HT_AddConvexHulls_Default.png)
+	![](HT_AddConvexHulls_Medium.png)
+	![](HT_AddConvexHulls_High.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:slider]

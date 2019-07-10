@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6409500
 Availability:Public
 Title:引擎的各个功能
 Crumbs: %ROOT%
@@ -9,5 +9,6 @@ order:3
 topic-image:Engine/Rendering/rendering_topic.png
 topic-icon:%ROOT%/docs_icon.png
 type:landing
+toc:false
 
-[DIR(end:"1" output:"topiccompact" parent:"Engine" org:"hierarchy")]
+[DIR(end:"1" output:"topic" parent:"Engine" org:"hierarchy")]

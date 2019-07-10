@@ -105,6 +105,7 @@ struct FBufferedTransformKeys
 		}
 	}
 
+
 	void GetValueFromIndex(int32 CurIndex, FVector& OutLocation, FQuat& OutQuat, FVector& OutScale)
 	{
 		OutLocation.X = LocationX[CurIndex];
@@ -175,6 +176,34 @@ struct FBufferedTransformKeys
 				UE_LOG(LogTakesCore, Log, TEXT("Error When Collapsing Animation and Transform"));
 
 			}
+		}
+	}
+
+	void PostMultTransform(const FTransform &Transform)
+	{
+		CreateCachedQuats(); //do stuff in quat space to avoid flips
+		FVector OurLocation, OurScale;
+		FQuat OurQuat;
+		FTransform OurTransform;
+		for (int32 CurIndex = 0; CurIndex < Times.Num(); ++CurIndex)
+		{
+			GetValueFromIndex(CurIndex, OurLocation, OurQuat, OurScale);
+			OurTransform = FTransform(OurQuat, OurLocation, OurScale);
+
+			OurTransform = OurTransform * Transform;
+			//OurTransform = OurTransform * Transform.Inverse();
+			LocationX[CurIndex] = OurTransform.GetTranslation().X;
+			LocationY[CurIndex] = OurTransform.GetTranslation().Y;
+			LocationZ[CurIndex] = OurTransform.GetTranslation().Z;
+
+			FRotator WoundRoation = OurTransform.Rotator();
+			RotationX[CurIndex] = WoundRoation.Roll;
+			RotationY[CurIndex] = WoundRoation.Pitch;
+			RotationZ[CurIndex] = WoundRoation.Yaw;
+
+			ScaleX[CurIndex] = OurTransform.GetScale3D().X;
+			ScaleY[CurIndex] = OurTransform.GetScale3D().Y;
+			ScaleZ[CurIndex] = OurTransform.GetScale3D().Z;
 		}
 	}
 	/**

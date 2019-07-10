@@ -182,6 +182,19 @@ FText UKismetTextLibrary::Conv_IntToText(int32 Value, bool bAlwaysSign/* = false
 	return FText::AsNumber(Value, &NumberFormatOptions);
 }
 
+FText UKismetTextLibrary::Conv_Int64ToText(int64 Value, bool bAlwaysSign /*= false*/, bool bUseGrouping /*= true*/, int32 MinimumIntegralDigits /*= 1*/, int32 MaximumIntegralDigits /*= 324*/)
+{
+	// Only update the values that need to be changed from the default FNumberFormattingOptions, 
+	// as this lets us use the default formatter if possible (which is a performance win!)
+	FNumberFormattingOptions NumberFormatOptions;
+	NumberFormatOptions.AlwaysSign = bAlwaysSign;
+	NumberFormatOptions.UseGrouping = bUseGrouping;
+	NumberFormatOptions.MinimumIntegralDigits = MinimumIntegralDigits;
+	NumberFormatOptions.MaximumIntegralDigits = MaximumIntegralDigits;
+
+	return FText::AsNumber(Value, &NumberFormatOptions);
+}
+
 FText UKismetTextLibrary::Conv_FloatToText(float Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign/* = false*/, bool bUseGrouping/* = true*/, int32 MinimumIntegralDigits/* = 1*/, int32 MaximumIntegralDigits/* = 324*/, int32 MinimumFractionalDigits/* = 0*/, int32 MaximumFractionalDigits/* = 3*/)
 {
 	FNumberFormattingOptions NumberFormatOptions;

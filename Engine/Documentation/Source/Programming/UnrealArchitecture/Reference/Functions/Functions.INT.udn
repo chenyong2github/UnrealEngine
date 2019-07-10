@@ -1,10 +1,13 @@
-Availability:Public
-Title:Functions
-Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference
-Description:Reference to creating and implementing functions for gameplay classes.
-Version: 4.9
+Availability: Public
+Title: UFunctions
+Description: Reference to creating and implementing functions for gameplay classes.
+Type: reference
+Version: 4.18
+Parent: Programming/UnrealArchitecture/Reference
+Tags: UFUNCTION
+Tags: Specifiers
+Order: 0
 
-[TOC(start:2)]
 
 ## Function Declaration
 
@@ -29,14 +32,19 @@ to Blueprints. `UFunctions` can also be assigned as delegates within the default
 
 ### Function Parameter Specifiers
 
-$ Out : 
-Declares the parameter as being passed by reference allowing it to be modified by the function.		
-$ Optional : 
+|||
+|---|---|
+| Out | Declares the parameter as being passed by reference allowing it to be modified by the function. |
+| Optional | [INCLUDE:#optional] |
+
+<!--
+[EXCERPT:optional]
 With the optional keyword, you can make certain function parameters optional, as a convenience to the caller. The values for optional parameters which the caller does not specify depend on the function. 
 For example, the `SpawnActor` function takes an optional location and rotation, which default to the location and rotation of the spawning Actor's root component. The default value of optional arguments 
 can be specified by adding `= [value]`. For example: `function myFunc(optional int x = -1)`. In most cases, the default value for the type of variable, or zero (e.g. 0, false, "", none), is used when 
 no values is passed to an optional parameter.
-
+[/EXCERPT:optional]
+-->
 
 ## Function Implementations
 

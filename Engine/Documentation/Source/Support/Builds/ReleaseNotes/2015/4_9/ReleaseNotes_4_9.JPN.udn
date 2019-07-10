@@ -639,7 +639,7 @@ Runtime Asset Cache には、以下のような特徴があります。
 
 * [Gear VR Global Menu](https://docs.unrealengine.com/latest/INT/Platforms/GearVR/GlobalMenu/index.html)
 
-* [Reducing APK Package Size](https://docs.unrealengine.com/latest/INT/Platforms/Android/ReducingAPKSize/index.html)
+* [Reducing APK Package Size](https://docs.unrealengine.com/latest/INT/Platforms/Mobile/Android/ReducingAPKSize/index.html)
 
 * [Mobile Content Scale Factor](https://docs.unrealengine.com/latest/INT/Platforms/Mobile/Performance/index.html#mobilecontentscalefactor)
 

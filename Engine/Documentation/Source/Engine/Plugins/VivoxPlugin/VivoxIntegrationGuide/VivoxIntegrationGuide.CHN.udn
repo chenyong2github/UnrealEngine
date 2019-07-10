@@ -1,0 +1,264 @@
+﻿INTSourceChangelist:6036829
+Availability: Public
+Crumbs: 
+Title: Vivox集成指南
+Description: 一个基本的集成和规划指南，向开发人员展示如何为他们的游戏规划支持Vivox的语音和文本通信。
+Type: 
+Version: 4.22
+Parent: Engine/Plugins/VivoxPlugin
+Order: 
+Tags: Vivox
+Tags：Getting Started
+topic-image: Vivox_Integration_Topic_01.png
+
+
+![](Vivox_Banner_01.png "Vivox_Banner_01.png")
+
+  
+
+本文档提供有关注册Vivox开发人员门户、集成规划、实现选项和安全细节的信息。
+
+[REGION:note]
+ **注意：**在继续本概述之前，请确保在[Vivox开发人员门户](https://developer.vivox.com/register-ue4)中创建一个新帐户（如果您还没有注册）。
+[/REGION]
+
+(#licensingtermsandconditions)
+
+## 许可条款及条件
+
+如果一个用户正在评估虚幻引擎的Vivox插件，他们必须同意虚幻引擎用户Vivox评估许可协议(ELA)，如果用户对其虚幻引擎项目使用Vivox插件，他们必须满足虚幻引擎用户Vivox主服务协议(MSA)的条款和条件(MSA)。
+
+[REGION:note]
+ **注意：**要访问虚幻引擎4(UE4)，请与Epic Games签订[自定义许可协议](https://www.unrealengine.com/en-US/custom-licensing)或同意[虚幻引擎最终用户许可协议(EULA)](https://www.unrealengine.com/en-US/eula)。
+[/REGION]
+
+(#enablingtheplugin)
+
+## 启用插件
+
+要为您的项目启用Vivox插件，请遵循本流程：
+
+1.  在关卡编辑器工具栏的 **设置（Settings）** 下拉菜单中，选择 **插件（Plugins）** 打开插件浏览器。  
+    ![](EnableVivox_1.png "EnableVivox_1.png")
+2.  现在，从 **内置（Built-In）** 侧菜单中，打开 **在线平台（Online Platform）**，并启用Vivox插件。
+3.  最后，重新启动编辑器以完成此过程。
+
+重新启动虚幻编辑器后，将为您的项目启用内置的Vivox插件，所以请继续阅读以了解更多有关Vivox集成规划的信息。
+
+(#basicintegrationguide)
+
+## 基本集成指南
+
+以下集成指南是一个基本的概述，帮助您为自己的项目评估虚幻Vivox插件。在注册Vivox开发人员门户获得访问权限，添加并启用Vivox插件并同意所有许可条款和条件之后，您就可以开始进行集成计划了。
+
+  
+
+(#integrationplan)
+
+## 集成计划
+
+将Vivox集成到游戏中通常需要以下几个阶段：
+
+*   阶段1：规划和组织
+*   阶段2：基本实现
+*   阶段3：高级实现（可选）
+*   阶段4：安全
+
+在完成集成计划的前两个阶段之后，您的项目应该能够登录和注销，以及使用本地生成的Vivox访问令牌(VAT)加入和离开单个通道。第三阶段被认为是可选的，因为这意味着您打算集成高级服务，例如3D位置音频或主持人功能，通常需要额外的开发时间和未来的维护成本。最后一个阶段是提醒，用于确保您的实现是功能完整的。
+
+  
+
+(#phase1:)
+
+### 阶段1：规划和组织
+
+在规划阶段，必须做出下述项目的组织决策：
+
+*   **用户和通道管理**
+    *   决定用户ID和通道的命名方案。
+*   **游戏服务器交互**
+    *   决定如何将Vivox登录和通道管理服务作为游戏后端的一部分执行。
+*   **授权**
+    *   可选，用于确定哪些用户可以静音、禁止或踢除通道参与者。
+
+(#integrationpreparation)
+
+#### 集成准备
+
+该阶段有游戏服务器和游戏客户端任务。在初始开发期间，可以在客户端上执行游戏服务器操作，但是最终，您应该在最终启动之前将这些任务转移到安全的游戏服务器上。
+
+[REGION:tip]
+ **提示：**尽管我们意识到拥有游戏服务器并非必要条件，但拥有服务器被视为是最佳做法。
+[/REGION]
+
+以下小节包含主要集成元素的简要概述。
+
+(#loginmanagement)
+
+#### 登录管理
+
+登录Vivox服务的典型方法是将用户的游戏内帐户、角色ID或其他唯一数据与每个用户生成的非标识性的唯一Vivox用户ID关联起来。
+
+由于Vivox网络中可能有与您的用户关联的持久性数据，所以即使用户的游戏内帐户ID或角色ID发生了更改，也应该使分配给Vivox的用户ID与游戏帐户保持一致。
+
+访问Vivox服务需要VAT，因为这些令牌提供了以下安全措施：
+
+*   它们将客户端限制为单个服务器操作，例如登录或加入语音通道。
+*   它们只使用一次。
+*   它们的寿命很短（从生成开始，有效期为90秒）。
+
+登录Vivox网络需要一个令牌，游戏服务器应该安全地将该令牌提供给客户端（例如，使用安全的web服务）。
+
+有关令牌的生成和分发的详细信息可以在Vivox的访问令牌开发人员指南中找到，该指南可以在本指南的末尾找到。
+
+(#channel)
+
+#### 通道
+
+一个通道向两个或多个参与者提供语音聊天，通过适当地生成一个VAT来加入一个通道（或多个通道）。继续阅读，了解更多关于通道属性、类型和名称的信息。
+
+(#properties)
+
+##### 属性
+
+通道具有以下属性：
+
+*   它们是短暂存在的，只有在至少有一个占用者的情况下才会持续存在。
+*   它们没有持久状态，也不受Vivox网络中任何形式的访问控制的管理。
+*   访问通道（加入）以及安全的第三方操作（例如踢人或主持人静音）必须得到具有VAT的游戏服务器的授权，然后用户才能执行该操作。
+
+(#types)
+
+##### 类型
+
+选择通道类型时，请参考下表：
+
+| 通道类型 | 说明 | 典型用例 |
+| --- | --- | --- |
+| **非位置型（Non-positional）** | 所有用户都可以平等地听到对方的声音，而不受地理位置的限制。默认的非位置通道适用于大多数用例。| 通常，默认的非位置通道适用于大多数用例。|
+| **位置型（Positional）** | [INCLUDE:#excerpt_1] | 如果需要3D效果，比如基于距离的音量衰减，位置通道对于在游戏中提供真实的音频效果非常有用。|
+| **回音型（Echo）** | [INCLUDE:#excerpt_2] | 回音型通道对于内部开发和测试以及为用户设备提供音频测试环境都非常有用。|
+
+<!--
+[EXCERPT:excerpt_2]
+
+为测试目的，此通道支持用户自己的语音通信的传输和接收。
+
+[REGION:note]
+**注意：**此通道类型不允许用户之间通信。
+[/REGION]
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+一种特殊类型的通道，它使用户传输的音频能够从一个离散的位置型三维空间发出。
+
+[REGION:note]
+ **注意：**此通道类型需要将其他设置作为通道统一资源标识符(URI)的一部分传递。
+[/REGION]
+
+[/EXCERPT:excerpt_1]
+-->
+
+(#names)
+
+##### 名称
+
+您可以根据自己的命名惯例选择通道名称。通常情况下，通道命名和管理将您的游戏内社交实体（如公会或派对）与您选择的通道标识符进行关联。
+
+(#authorization)
+
+#### 授权
+
+所有安全操作；例如登录、加入通道和执行某些调节操作，都需要VAT形式的授权。该令牌可以在客户端上生成（用于原型设计或早期开发），也可以在服务器上生成（用于生产或后期开发）。一旦生成并销售，VAT将用于执行安全操作。
+
+所有安全操作都需要VAT授权才能成功实现。安全操作包括：  
+
+*   登录
+*   加入通道
+*   从通道踢出用户
+*   为通道中的所有其他用户对通道中的一个用户（或所有用户）执行静音或取消静音操作
+
+[REGION:note]
+ **注意：**对通道中的一个用户或所有用户的执行静音或取消静音操作（如上所述）与用户A为用户A对用户B执行静音操作不同。授权安全操作的推荐方法是，仅在适当的时候通过提供VAT来授权请求的操作。
+[/REGION]
+
+(#gameserverintegration)
+
+#### 游戏服务器集成
+
+在生产中，安全语音操作应该由一个独立的、受信任的一方（如游戏服务器）授权。游戏服务器应该创建VAT并以安全的方式将其传递给游戏客户端，然后由客户端将其提交给Vivox网络。
+
+有关VAT生成的详细信息，请参阅本指南末尾的访问令牌开发人员指南。
+
+(#phase2:)
+
+### 阶段2：基本实现
+
+以下（和建议的）基本实现阶段不使用游戏服务器。
+
+1.  为您的游戏启用VivoxVoiceChat插件。
+2.  选择一个用户ID。使用适当生成的VAT登录，该VAT可以由VivoxVoiceChat插件提供。在开发期间。
+    
+	[REGION:note]
+    访问令牌应该由您控制的服务器生成。
+    [/REGION]
+    
+3.  选择一个通道ID。使用适当生成的VAT加入通道，该VAT可以由VivoxVoiceChat插件提供。
+4.  可选择离开通道。
+5.  可选择注销Vivox服务。  
+    
+	[REGION:note]
+        
+    *   离开通道和注销不需要令牌。
+    *   要了解如何使用OpenSSL生成访问令牌，请阅读可用的示例代码，它位于：`/Engine/Source/ThirdParty/Vivox/tokengen/tokengen/tokengen.c`
+    *   要了解有关生成访问令牌的更多信息，请阅读[访问令牌开发人员指南](https://dnnrz1gqa.blob.core.windows.net/portals/attachments/Engine/Plugins/Vivox-Plugin/Vivox-Integration-Guide/UE4.21%20Access%20Token%20Dev%20Guide.pdf?sv=2017-04-17&sr=b&si=DNNFileManagerPolicy&sig=L6NWs2yk0oXuu%2BPL1IQ4tQBzrUH%2BLZQAKoCY8mbXDzQ%3D)。
+    [/REGION]
+    
+
+此时，您应该有了一个基本的实现，它可以加入和离开一个通道。建议在实现位置型通道之前使用非位置型通道。  
+
+[REGION:tip]
+在进入下一个阶段之前，验证音频功能是否正常是一个很好的惯例。
+[/REGION]
+
+(#phase3:)
+
+### 阶段3：高级实现（可选）
+
+一旦您的应用程序能够正确处理登录和注销以及使用本地生成的VAT进行单通道加入和离开，您就可以实现一些可选特性，比如：
+
+*   加入3D位置型通道并更新本地用户的3D位置。
+*   加入多个通道。
+*   本地和远程静音和取消静音
+*   处理花名册和发言指示器的通道及参与者事件。
+*   管理员/主持人，例如踢人和静音。
+
+[REGION:tip]
+在进入下一个阶段之前，验证这些附加特性是否正常工作是一个很好的惯例。
+[/REGION]
+
+(#phase4:)
+
+### 阶段4：安全
+
+此时，您的实现应该已经具备完整的功能。剩下的工作就是将决定Vivox用户ID、通道ID和VAT的逻辑移动到安全服务器。服务器可以是用于游戏服务的同一服务器，也可以是单独的服务。
+
+在此阶段完成时，客户端应用程序不应该再生成任何VAT，因为客户端生成的VAT会带来安全风险，而且由于客户端时钟漂移，它们常常是漏洞的来源。
+
+(#vivoxdeveloperportal)
+
+## Vivox开发人员门户
+
+现在您已经有了一个基本的实现计划，导航到Vivox站点来访问[Vivox开发人员门户](https://developer.vivox.com/register-ue4)。在那里，您可以阅读更多文档并下载Vivox Unreal Shooter样本，以了解更多关于如何利用Vivox Unreal SDK实现游戏内语音和文本通信的信息。 
+
+确保阅读以下文档：  
+
+*   [访问令牌开发人员指南](https://dnnrz1gqa.blob.core.windows.net/portals/attachments/Engine/Plugins/Vivox-Plugin/Vivox-Integration-Guide/UE4.21%20Access%20Token%20Dev%20Guide.pdf?sv=2017-04-17&sr=b&si=DNNFileManagerPolicy&sig=L6NWs2yk0oXuu%2BPL1IQ4tQBzrUH%2BLZQAKoCY8mbXDzQ%3D)
+    *   本文档概述了保护和授权游戏客户端和Vivox网络之间通信的必要步骤。
+*   [Server to Server Web API参考](https://dnnrz1gqa.blob.core.windows.net/portals/attachments/Engine/Plugins/Vivox-Plugin/Vivox-Integration-Guide/UE4.21%20Server%20to%20Server%20Web%20API%20Guide%20.pdf?sv=2017-04-17&sr=b&si=DNNFileManagerPolicy&sig=xrFPp5D2Fd3OmoygBUk8c%2FiKX4phf08sbjKuqjGfsSo%3D)
+    *   本文档说明了Vivox Server to Server Web API在帐户管理、通道管理和登录后的安全通信方面的功能和用法。
+
+[](#)[](#)

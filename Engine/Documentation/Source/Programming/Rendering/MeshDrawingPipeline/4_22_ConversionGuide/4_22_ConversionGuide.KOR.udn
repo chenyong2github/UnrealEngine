@@ -1,0 +1,68 @@
+﻿INTSourceChangelist:5993627
+Availability: Public
+Title: Mesh Drawing Pipeline Conversion Guide for Unreal Engine 4.22 
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: reference
+Version: 4.22
+Parent: Programming/Rendering/MeshDrawingPipeline
+Tags: Rendering
+Order: 0
+
+
+[TOC (start:2 end:2)]
+
+In the Unreal Engine's (UE4) 4.22 release, the [Mesh Drawing Pipeline](Programming/Rendering/MeshDrawingPipeline) was completely rewritten. The main change was moving from an **Immediate** mode, where visible draws are built every frame, to a **Retained** mode with all scene draws prepared in advance. This is an important change for being able to support upcoming technologies like DirectX Raytracing  (DXR) which requires the shader binding table for the entire scene, or GPU driven rendering, where the CPU must be able to prepare draws without knowing visibility.
+
+[REGION:note]
+For additional details about the Mesh Drawing Pipeline changes in UE4 4.22, see [Mesh Drawing Pipeline](Programming/Rendering/MeshDrawingPipeline) documentation and the Game Developer's Conference (GDC) presentation [Refactoring the Mesh Drawing Pipeline for Unreal Engine 4.22](https://www.youtube.com/watch).
+[/REGION]
+
+## Mesh Draw Commands
+
+In the old pipeline, mesh pass draw policies directly executed Rendering Hardware Interface (RHI) commands based on `FMeshBatch`. The new pipeline introduces a concept of mesh draw command `FMeshDrawCommand`, which act as an interface between `FMeshBatch` and RHI. Mesh draw command is a full standalone draw description. It stores everything that the RHI needs to know about a draw. This allows for caching and reusing the entire draw state together with their shader bindings.
+
+## Static Draw Lists and Primitive Sets
+
+In the 4.22 mesh rendering pipeline, static draw lists (`TStaticMeshDrawList`) and primitive sets (for example, `FTranslucentPrimSet`, `FCustomDepthPrimSet`) were replaced by `FParallelMeshDrawCommandPass`. `FParallelMeshDrawCommandPass` encapsulates a single per pass visible mesh draw command list.
+
+The new design has two important changes: 
+
+*   First, **per scene mesh lists** were replaced by **visible mesh lists**. Previously drawing a Static Mesh pass would traverse the entire list of per-pass Static Meshes in-scene (`TStaticMeshDrawList`) to select visible ones by checking `FViewInfo::StaticMeshVisibilityMap` for each Static Mesh. In the new design, drawing is just a simple traversal of a visible mesh draw command array (`FMeshDrawCommandPassSetupTaskContext::MeshDrawCommands`). The new approach scales better with increased scene complexity. 
+
+*   Secondly, an important change is how we merge static and dynamic mesh drawing lists, which simplifies the entire mesh drawing pipeline and also enables the renderer to sort static and dynamic draws together.
+
+This pipeline also has an immediate mode mesh rendering emulation through `DrawDynamicMeshPass` function. This is a very flexible rendering path but should only be used for non-performance critical mesh passes, as it doesn’t support caching, automatic instancing, and makes multiple dynamic memory allocations. For example, it replaces `DrawViewElements`, which was responsible for rendering Editor-only helper meshes.
+
+## Drawing Policies
+
+Drawing policies like `FDepthDrawingPolicy` or `FBasePassDrawingPolicy` were replaced by `FDepthPassMeshProcessor` and `FBasePassMeshProcessor`. Specific pass mesh processors are derived from a `FMeshProcessor` base class and are responsible for converting each `FMeshBatch` into a set of mesh draw commands for the pass. This is where final draw filtering happens, the shader permutation is selected and shader bindings are collected.
+
+## Shader Bindings
+
+Previously all shader parameters were directly set on `RHICmdList` by appropriate drawing policies. Now, all parameters are gathered into `FMeshDrawSingleShaderBindings`, which later are set on `RHICmdList` by calling `SetOnCommandList` during drawing. This is required to be able to cache the full draw state with shader bindings.
+
+The old pipeline used `FDrawingPolicyRenderState` to pass common high-level mesh pass render state, for example, like pass uniform buffer. The new pipeline renames `FDrawingPolicyRenderState` to `FMeshPassProcessorRenderState` without major changes to its functionality.
+
+Other parts of shader bindings were filled inside of shader’s `SetParameters` and `SetMesh` functions which were replaced by `GetShaderBindings` and `GetElementShaderBindings, and` pass per-draw parameters inside a customizable `ShaderElementDataType`.
+
+With the refactor, many loose parameters were pulled out into per-pass or other uniform buffers. This is the preferred way of setting parameters, and using loose parameters will disable automatic instancing, as well as incur a slowdown from causing a constant buffer update between each draw.
+
+Previously standard uniform buffers like `ViewUniformBuffer` or `DepthPassUniformBuffer` were recreated every frame with new data. In the new pipeline those are persistent and global (kept inside `FScene::FPersistentUniformBuffers`) instead of recreating them to pass new data — their contents are updated using new RHI function — to `RHIUpdateUniformBuffer`. This indirection enables shaders to receive per-frame data even though their mesh draw commands are cached.
+
+## FPrimitiveViewRelevance
+
+`FPrimitiveViewRelevance` was extended with two extra relevance flags:
+
+*   **bVelocityRelevance** is required for separate velocity pass.
+
+*   **bTranslucentSelfShadow** is required for translucency self shadow.
+
+Additionally, all dynamic draws now rely on view relevance, and disabling certain passes in view relevance will also disable its rendering.
+
+  
+
+## Shaders
+
+The new pipeline introduced GPUScene, which is a structured buffer containing primitive uniform buffer data for all the primitives in the scene. Currently only the local vertex factory (Static Mesh Component) and the SM5 feature level can utilize this rendering path. Shaders need to use `GetPrimitiveData(PrimitiveId)` instead of accessing the Primitive uniform buffer directly to compile with GPUScene enabled.  
+  
+Primitive data access is often used inside a **Custom Expression** Material node. For example, for accessing primitive’s bounding box. In order to convert those, `Primitive.Member` needs to be replaced with `GetPrimitiveData(Parameters.PrimitiveId).Member`.

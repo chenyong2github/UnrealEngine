@@ -1,0 +1,87 @@
+﻿INTSourceChangelist:4687713
+Availability: Public
+Crumbs: 
+Title: バージョン 4.21 物理技術メモ
+Description: 4.21 エンジンのリリースにおける物理インターフェースへの技術的変更点について説明します。 
+Type: 
+Version: 4.21
+Parent: Engine/Physics
+Order: 
+Tags: 
+
+
+[REGION:note]
+本ページでは、Unreal Engine 4.21 リリースで物理システムになされたリファクタリングについて概説します。
+[/REGION]
+
+4.21 エンジンのリリースにともない、詳細ではない、より抽象的なレベルで物理オブジェクトのオーナーシップの強化をサポートするため、物理インターフェースをリファクタリングしました。 そして、APEX Destruction での使用のみが推奨されていた **非同期シーン** は非推奨となりました。 **同期シーン** を使用しても、同じ視覚効果を得ることができます。
+
+これらの変更の結果、多くの物理関連の C++ コード API がリファクタリングされました。 機能的に API は同じなので、現在使用している方法とほぼ同様の方法で使えるはずです。 本ページでは、リファクタリングされた部分と参照ファイルの場所について概説します。 
+
+## 非同期シーンの廃止
+
+これまで、Apex Destruction のボディの保持には非同期シーンが使用されてきました。 これらのボディはフレームより遅れるため、エンジンは次のフレームが来ると結果を取得していました。
+
+これによる問題としては、ただその管理のみを処理するコード (例えば、非同期の場合はこれを実行、非同期ではない場合は別の処理を実行) が多数存在することで、破壊シーンにボディが多数あると、ゲーム スレッドに大きな影響を与えることがありました。 しかも、非同期シーンのボディはゲームプレイや同期シーンの他のボディとのインタラクションができませんでした。 非同期シーンを削除することにより、すべてのボディ間およびボディとゲームプレイ間のインタラクションが可能になります。
+
+非同期シーンを廃止したからといって、破壊できなくなるわけではありません。単に非同期シーンの部分がサポートされなくなるだけです。 破壊は完璧に動作しますが、メインの物理シーンの一部として動作するようになります。
+
+## 物理インターフェース
+
+物理インターフェースでは主に 2 つの機能を提供しています。
+
+1.  **依存関係の再構成** - 今後エンジンは PhysX を直接呼び出しません。 代わりに、物理関連の呼び出しは、すべて物理インターフェースを経由するようになりました。
+2.  **物理インタフェース向けの共通モデルを作成** - 物理インターフェースにより、Unreal とのインタラクションする共通のアプローチとなる物理ソリューションが使えるようになりました。
+
+インストール フォルダ **「Engine/Source/Runtime/Engine/Public/Physics」** の物理インターフェース ファイルでコードの変更を確認できます。 **Engine/Source/Runtime/Engine/Public/Physics**/**PhysicsInterfacePhysX** ファイルに、全関数の完全な定義があります。これには、Unreal が PhysX 関連の呼び出しをする際に必要となるものが含まれています。
+
+プロジェクトが `FBodyInstance` 内部の PhysX オブジェクトを直接操作しなくても何ら悪影響はありません。 `FBodyinstance` で公開されているメソッドはすべて新しいインターフェースを使用して再実装され、前回のリリースと使用方法は同じです。
+
+直接 PhysX データを操作したり PhysX 型などとインタラクションするコードが新しい API を使用するにはリファクタリングが必要となります。 こちらに `FBodyInstance::SetLinearVelocity` を使用した例を示します。  
+
+4.20:
+
+~~~
+ void FBodyInstance::SetLinearVelocity(const FVector& NewVel, bool bAddToCurrent)
+ {
+ #if WITH_PHYSX
+    ExecuteOnPxRigidBodyReadWrite(this, [&](PxRigidBody* PRigidBody)
+    {
+        PxVec3 PNewVel = U2PVector(NewVel);
+        if (bAddToCurrent)
+        {
+            const PxVec3 POldVel = PRigidBody->getLinearVelocity();
+            PNewVel += POldVel;
+        }
+        PRigidBody->setLinearVelocity(PNewVel);
+    });
+ #endif // WITH_PHYSX
+ }
+~~~
+
+4.21:
+
+~~~
+ void FBodyInstance::SetLinearVelocity(const FVector& NewVel, bool bAddToCurrent, bool bAutoWake)
+ {
+    FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+    {
+        if(FPhysicsInterface::IsRigidBody(Actor))
+        {
+            FVector FinalVelocity = NewVel;
+            if(bAddToCurrent)
+            {
+                FinalVelocity += FPhysicsInterface::GetLinearVelocity_AssumesLocked(Actor);
+            }
+            FPhysicsInterface::SetLinearVelocity_AssumesLocked(Actor, FinalVelocity);
+        }
+    });
+ }
+~~~
+
+新しいバージョンのロジックは同じですが、コードでは、PhysX 型ではなく柔軟性の高いハンドルを使用します。
+
+**Engine/Source/Runtime/Engine/Public/Physics/PhysicsInterfaceCore** ファイルでサポートする全種類のインターフェースが構築され、通信に必要な型は **Engine/Source/Runtime/Engine/Public/Physics/PhysicsInterfaceDeclares** ファイルに含まれます。 `FPhysicsActorHandle` などのシンプルな型を使用して、アクタと通信しても、エンジンは内部で派生した型の判別が可能です。  
+[REGION:warning]
+現状、サポートされ動作するのは PhysicsInterfacePhysX のみとなっています。 これ以外はまだまだ実験段階であり、想定通りに機能しない場合があります。
+[/REGION]

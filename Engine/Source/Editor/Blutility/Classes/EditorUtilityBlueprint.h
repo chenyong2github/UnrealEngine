@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /**
- * Blueprint for Blutility editor utilities
+ * Blueprint for editor utilities
  */
 
 #pragma once
@@ -12,7 +12,7 @@
 #include "EditorUtilityBlueprint.generated.h"
 
 UCLASS()
-class UEditorUtilityBlueprint : public UBlueprint
+class BLUTILITY_API UEditorUtilityBlueprint : public UBlueprint
 {
 	GENERATED_UCLASS_BODY()
 
@@ -22,6 +22,12 @@ class UEditorUtilityBlueprint : public UBlueprint
 	{
 		return false;
 	}
-	// End of UBlueprint interface
+	
 #endif
+
+#if WITH_EDITORONLY_DATA
+protected:
+	virtual void LoadModulesRequiredForCompilation() override;
+#endif
+// End of UBlueprint interface
 };

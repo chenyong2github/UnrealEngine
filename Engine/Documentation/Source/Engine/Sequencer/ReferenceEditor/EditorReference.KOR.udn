@@ -1,14 +1,13 @@
-﻿INTSourceChangelist:3672177
+INTSourceChangelist:6511521
 Availability:Public
-Title: 시퀀서 에디터 참고서
-Crumbs: %ROOT%, Engine
-Description:시퀀서 에디터의 UI 와 조작법 참고서입니다.
+Title: 시퀀서 에디터 레퍼런스
+Description:시퀀서 에디터의 UI 와 조작법 레퍼런스입니다.
 Type: Reference
 Version: 4.17
 parent:Engine/Sequencer
 Order: 1
 Tags: Sequencer
-Related: Engine\Sequencer\Overview
+Related: Engine/Sequencer/Overview
 Related: Engine/Sequencer/HowTo
 
 [TOC(start:2 end:2)]
@@ -58,6 +57,34 @@ Related: Engine/Sequencer/HowTo
 | ![](tb_9.png) | 타임 스내핑 간격을 조절할 수 있습니다. |
 | ![](tb_10.png) | [커브 에디터](Engine/UI/CurveEditor) 를 열어 트랙 영역에 배치된 애니메이션 키를 미세 조정할 수 있습니다. |
 
+## 시퀀서 커브 에디터
+
+커브 에디터에서 탄젠트 작어을 할 때, 실수 커브에 가중치 적용 탄젠트가 아래 그림과 같이 지원됩니다.
+
+![](WeightedCurves_03.gif "WeightedCurves_03.gif")
+
+커브 에디터 역시 각도 변화에 연속 오일러 각도를 지원합니다. 오일러 각도는 애니메이션 뒤집힘 방지에 필수인 -180 에서 180 으로 제한되지 않습니다.
+
+트랙의 **프로퍼티** 메뉴를 통해 3D 트랜스폼 섹션의 **Quaternion Rotation** (쿼터니언 회전)을 켜면 두 회전 값 사이를 부드럽게 보간하는 데 쿼터니언 보간을 활용할 수 있습니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:videoid]
+ OY_UYJQOxYs
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+[/OBJECT]
+
 ## 시퀀스 흔적
 
 작업방식에 따라 다수의 **레벨 시퀀스** 를 씬으로 생성한 다음 각각의 씬을 새 레벨 시퀀스에 배치하는 식으로 "마스터" 레벨 시퀀스를 만든 뒤, 그러한 씬을 **샷** 트랙의 일부로써 연달아 재생할 수 있습니다.
@@ -80,7 +107,7 @@ Related: Engine/Sequencer/HowTo
 레벨에 액터를 선택한 채 **Track** (트랙) 버튼을 클릭하고 **Actor to Sequencer** (액터를 시퀀서에) 아래 보면, 선택한 액터가 컨텍스트 메뉴 상단에 표시되어 빠르게 추가할 수 있습니다.
 레벨에 액터가 선택되어 있지 않은 상태에서 **Actor to Sequencer** (액터를 시퀀서에)를 클릭해도 여전히 컨텍스트 메뉴에서 레벨에 존재하는 다른 액터를 선택할 수 있습니다.
 
-시퀀서에 추가할 수 있는 트랙 목록은 아래와 같습니다. 아래 링크를 통해 각 트랙 사용 예제가 담긴 비법 페이지를 확인할 수 있습니다.
+시퀀서에 추가할 수 있는 트랙 목록은 아래와 같습니다. 아래 링크를 통해 각 트랙 사용 예제가 담긴 하우투 페이지를 확인할 수 있습니다.
 
 
 | 트랙 | 설명 |

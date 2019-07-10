@@ -10,7 +10,9 @@
 #include "VulkanContext.h"
 #include "VulkanMemory.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "RHIValidationContext.h"
 
+FVulkanDynamicRHI*	GVulkanRHI = nullptr;
 
 extern CORE_API bool GIsGPUCrashed;
 
@@ -117,13 +119,13 @@ FStagingBufferRHIRef FVulkanDynamicRHI::RHICreateStagingBuffer()
 	return new FVulkanStagingBuffer();
 }
 
-void* FVulkanDynamicRHI::RHILockStagingBuffer(FStagingBufferRHIParamRef StagingBufferRHI, uint32 Offset, uint32 NumBytes)
+void* FVulkanDynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
 	FVulkanStagingBuffer* StagingBuffer = ResourceCast(StagingBufferRHI);
 	return StagingBuffer->Lock(Offset, NumBytes);
 }
 
-void FVulkanDynamicRHI::RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBufferRHI)
+void FVulkanDynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBufferRHI)
 {
 	FVulkanStagingBuffer* StagingBuffer = ResourceCast(StagingBufferRHI);
 	StagingBuffer->Unlock();
@@ -204,9 +206,7 @@ void FVulkanGPUTiming::EndTiming(FVulkanCmdBuffer* CmdBuffer)
 		const uint32 QueryEndIndex = Pool->CurrentTimestamp * 2 + 1;
 		check(QueryEndIndex == QueryStartIndex + 1);	// Make sure they're adjacent indices.
 		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, Pool->GetHandle(), QueryEndIndex);
-		//check(CmdBuffer->IsOutsideRenderPass());
-		VulkanRHI::vkCmdCopyQueryPoolResults(CmdBuffer->GetHandle(), Pool->GetHandle(), QueryStartIndex, 2, Pool->ResultsBuffer->GetHandle(), sizeof(uint64) * QueryStartIndex, sizeof(uint64), VK_QUERY_RESULT_64_BIT);
-		VulkanRHI::vkCmdResetQueryPool(CmdBuffer->GetHandle(), Pool->GetHandle(), QueryStartIndex, 2);
+		CmdBuffer->AddPendingTimestampQuery(QueryStartIndex, 2, Pool->GetHandle(), Pool->ResultsBuffer->GetHandle());
 		Pool->TimestampListHandles[QueryEndIndex].CmdBuffer = CmdBuffer;
 		Pool->TimestampListHandles[QueryEndIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
 		Pool->NumIssuedTimestamps = FMath::Min<uint32>(Pool->NumIssuedTimestamps + 1, Pool->BufferSize);
@@ -583,6 +583,17 @@ namespace VulkanRHIBridge
 
 namespace VulkanRHI
 {
+#if ENABLE_RHI_VALIDATION
+	FVulkanCommandListContext& GetVulkanContext(class FValidationContext& CmdContext)
+	{
+		if (GValidationRHI && GValidationRHI->Context == &CmdContext)
+		{
+			return (FVulkanCommandListContext&)*CmdContext.RHIContext;
+		}
+
+		return (FVulkanCommandListContext&)CmdContext;
+	}
+#endif
 	VkBuffer CreateBuffer(FVulkanDevice* InDevice, VkDeviceSize Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryRequirements& OutMemoryRequirements)
 	{
 		VkDevice Device = InDevice->GetInstanceHandle();
@@ -609,6 +620,7 @@ namespace VulkanRHI
 	 */
 	void VerifyVulkanResult(VkResult Result, const ANSICHAR* VkFunction, const ANSICHAR* Filename, uint32 Line)
 	{
+		bool bDumpMemory = false;
 		FString ErrorString;
 		switch (Result)
 		{
@@ -618,8 +630,8 @@ namespace VulkanRHI
 		VKERRORCASE(VK_EVENT_SET); break;
 		VKERRORCASE(VK_EVENT_RESET); break;
 		VKERRORCASE(VK_INCOMPLETE); break;
-		VKERRORCASE(VK_ERROR_OUT_OF_HOST_MEMORY); break;
-		VKERRORCASE(VK_ERROR_OUT_OF_DEVICE_MEMORY); break;
+		VKERRORCASE(VK_ERROR_OUT_OF_HOST_MEMORY); bDumpMemory = true; break;
+		VKERRORCASE(VK_ERROR_OUT_OF_DEVICE_MEMORY); bDumpMemory = true; break;
 		VKERRORCASE(VK_ERROR_INITIALIZATION_FAILED); break;
 		VKERRORCASE(VK_ERROR_DEVICE_LOST); GIsGPUCrashed = true; break;
 		VKERRORCASE(VK_ERROR_MEMORY_MAP_FAILED); break;
@@ -659,12 +671,18 @@ namespace VulkanRHI
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 		if (GIsGPUCrashed && GGPUCrashDebuggingEnabled)
 		{
-			FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
-			FVulkanDevice* Device = RHI->GetDevice();
+			FVulkanDevice* Device = GVulkanRHI->GetDevice();
 			if (Device->GetOptionalExtensions().HasGPUCrashDumpExtensions())
 			{
 				Device->GetImmediateContext().GetGPUProfiler().DumpCrashMarkers(Device->GetCrashMarkerMappedPointer());
 			}
+		}
+#endif
+
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
+		if (bDumpMemory)
+		{
+			GVulkanRHI->DumpMemory();
 		}
 #endif
 

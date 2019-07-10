@@ -5,7 +5,7 @@ Title: Significance Manager
 Description: Significance Manager を使用して、プロジェクト固有の方法でパフォーマンスを調整します。
 Type: 
 Version: 4.20
-Parent: Performance
+Parent: Engine/Performance
 Order: 1
 Tags: Performance
 Tags: Significance Manager

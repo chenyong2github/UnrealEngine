@@ -680,7 +680,7 @@ void UBlueprintGeneratedClass::InitArrayPropertyFromCustomList(const UArrayPrope
 	}
 }
 
-bool UBlueprintGeneratedClass::IsFunctionImplementedInBlueprint(FName InFunctionName) const
+bool UBlueprintGeneratedClass::IsFunctionImplementedInScript(FName InFunctionName) const
 {
 	UFunction* Function = FindFunctionByName(InFunctionName);
 	return Function && Function->GetOuter() && Function->GetOuter()->IsA(UBlueprintGeneratedClass::StaticClass());

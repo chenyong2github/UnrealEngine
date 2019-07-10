@@ -3512,6 +3512,89 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "Math|Intersection", meta = (DisplayName = "Line Plane Intersection (Origin & Normal)"))
 	static bool LinePlaneIntersection_OriginNormal(const FVector& LineStart, const FVector& LineEnd, FVector PlaneOrigin, FVector PlaneNormal, float& T, FVector& Intersection);
 
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and the weight
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param Weight - The weight to blend with
+	 *
+	 * @return the next value in the series
+	 */
+	UFUNCTION(BlueprintPure, Category="Math|Smoothing", meta=(DisplayName="Weighted Moving Average Float"))
+	static float WeightedMovingAverage_Float(float CurrentSample, float PreviousSample, float Weight);
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and the weight
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param Weight - The weight to blend with
+	 *
+	 * @return the next value in the series
+	 */
+	UFUNCTION(BlueprintPure, Category="Math|Smoothing", meta=(DisplayName="Weighted Moving Average Vector"))
+	static FVector WeightedMovingAverage_FVector(FVector CurrentSample, FVector PreviousSample, float Weight);
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and the weight
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param Weight - The weight to blend with
+	 *
+	 * @return the next value in the series
+	 */
+	UFUNCTION(BlueprintPure, Category="Math|Smoothing", meta=(DisplayName="Weighted Moving Average Rotator"))
+	static FRotator WeightedMovingAverage_FRotator(FRotator CurrentSample, FRotator PreviousSample, float Weight);
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and a weight range.
+	 * The weight range is used to dynamically adjust based upon distance between the samples
+	 * This allows you to smooth a value more aggressively for small noise and let large movements be smoothed less (or vice versa)
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param MaxDistance - Distance to use as the blend between min weight or max weight
+	 * @param MinWeight - The weight use when the distance is small
+	 * @param MaxWeight - The weight use when the distance is large
+	 *
+	 * @return the next value in the series
+	 */
+	UFUNCTION(BlueprintPure, Category="Math|Smoothing", meta=(DisplayName="Dynamic Weighted Moving Average Float"))
+	static float DynamicWeightedMovingAverage_Float(float CurrentSample, float PreviousSample, float MaxDistance, float MinWeight, float MaxWeight);
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and a weight range.
+	 * The weight range is used to dynamically adjust based upon distance between the samples
+	 * This allows you to smooth a value more aggressively for small noise and let large movements be smoothed less (or vice versa)
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param MaxDistance - Distance to use as the blend between min weight or max weight
+	 * @param MinWeight - The weight use when the distance is small
+	 * @param MaxWeight - The weight use when the distance is large
+	 *
+	 * @return the next value in the series
+	 */
+	UFUNCTION(BlueprintPure, Category="Math|Smoothing", meta=(DisplayName="Dynamic Weighted Moving Average Vector"))
+	static FVector DynamicWeightedMovingAverage_FVector(FVector CurrentSample, FVector PreviousSample, float MaxDistance, float MinWeight, float MaxWeight);
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and a weight range.
+	 * The weight range is used to dynamically adjust based upon distance between the samples
+	 * This allows you to smooth a value more aggressively for small noise and let large movements be smoothed less (or vice versa)
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param MaxDistance - Distance to use as the blend between min weight or max weight
+	 * @param MinWeight - The weight use when the distance is small
+	 * @param MaxWeight - The weight use when the distance is large
+	 *
+	 * @return the next value in the series
+	 */
+	UFUNCTION(BlueprintPure, Category="Math|Smoothing", meta=(DisplayName="Dynamic Weighted Moving Average Rotator"))
+	static FRotator DynamicWeightedMovingAverage_FRotator(FRotator CurrentSample, FRotator PreviousSample, float MaxDistance, float MinWeight, float MaxWeight);
 
 private:
 

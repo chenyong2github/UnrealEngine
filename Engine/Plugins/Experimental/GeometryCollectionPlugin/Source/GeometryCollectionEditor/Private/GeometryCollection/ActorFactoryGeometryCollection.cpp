@@ -49,9 +49,6 @@ void UActorFactoryGeometryCollection::PostSpawnActor(UObject* Asset, AActor* New
 	// Change properties
 	NewGeometryCollectionActor->GetGeometryCollectionComponent()->SetRestCollection(GeometryCollection);
 
-	// add all of the materials from the UGeometryCollection
-	NewGeometryCollectionActor->GetGeometryCollectionComponent()->InitializeMaterials(GeometryCollection->Materials, GeometryCollection->GetInteriorMaterialIndex(), GeometryCollection->GetBoneSelectedMaterialIndex());
-
 	// Init Component
 	NewGeometryCollectionActor->GetGeometryCollectionComponent()->RegisterComponent();
 }

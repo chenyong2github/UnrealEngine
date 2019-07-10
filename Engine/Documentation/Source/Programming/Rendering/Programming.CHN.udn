@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3151855
+﻿INTSourceChangelist:6412189
 Availability:Public
 Title:图形编程
 Crumbs:%ROOT%, Programming
@@ -13,6 +13,6 @@ RHI 模块是渲染 API 的接口，是图形编程的另一个关键组件。[]
 子页面包含详细的渲染要点。
 
  
-[DIR(parent:"Programming/Rendering" output:"listbutton" org:"hierarchy")]
+[DIR(parent:"Programming/Rendering" output:"listbutton" org:"hierarchy" end:"1")]
 
  

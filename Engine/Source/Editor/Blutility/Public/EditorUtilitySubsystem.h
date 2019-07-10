@@ -10,6 +10,7 @@
 #include "EditorUtilitySubsystem.generated.h"
 
 class SWindow;
+class UEditorUtilityWidget;
 
 UCLASS(config = EditorPerProjectUserSettings)
 class BLUTILITY_API UEditorUtilitySubsystem : public UEditorSubsystem
@@ -36,6 +37,9 @@ public:
 	void ReleaseInstanceOfAsset(UObject* Asset);
 
 	bool TryRun(UObject* Asset);
+
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	UEditorUtilityWidget* SpawnAndRegisterTab(class UEditorUtilityWidgetBlueprint* InBlueprint);
 
 private:
 	

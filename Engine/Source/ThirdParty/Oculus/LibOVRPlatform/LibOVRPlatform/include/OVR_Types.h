@@ -27,10 +27,10 @@ const uint64_t invalidRequestID = 0;
 const uint64_t invalidMessageID = 0;
 
 typedef struct {
-  const char *key;
+  const char* key;
   ovrKeyValuePairType valueType;
 
-  const char *stringValue;
+  const char* stringValue;
   int intValue;
   double doubleValue;
 
@@ -39,33 +39,32 @@ typedef struct {
 /// Helper function for making an int ovrKeyValuePair.
 ///
 /// For example, ovrKeyValuePair_makeInt("key", 1);
-ovrKeyValuePair ovrKeyValuePair_makeInt(const char *key, int value);
+ovrKeyValuePair ovrKeyValuePair_makeInt(const char* key, int value);
 
 /// Helper function for making a double ovrKeyValuePair.
 ///
 /// For example, ovrKeyValuePair_makeDouble("key", 1.1);
-ovrKeyValuePair ovrKeyValuePair_makeDouble(const char *key, double value);
+ovrKeyValuePair ovrKeyValuePair_makeDouble(const char* key, double value);
 
 /// Helper function for making a string ovrKeyValuePair.
 ///
 /// For example, ovrKeyValuePair_makeString("key", "value");
-ovrKeyValuePair ovrKeyValuePair_makeString(const char *key, const char *value);
+ovrKeyValuePair ovrKeyValuePair_makeString(const char* key, const char* value);
 
 typedef struct {
-  const char *key;
+  const char* key;
   ovrMatchmakingCriterionImportance importance;
 
-  ovrKeyValuePair *parameterArray;
+  ovrKeyValuePair* parameterArray;
   unsigned int parameterArrayCount;
 
 } ovrMatchmakingCriterion;
 
-
 typedef struct {
-  ovrKeyValuePair *customQueryDataArray;
+  ovrKeyValuePair* customQueryDataArray;
   unsigned int customQueryDataArrayCount;
 
-  ovrMatchmakingCriterion *customQueryCriterionArray;
+  ovrMatchmakingCriterion* customQueryCriterionArray;
   unsigned int customQueryCriterionArrayCount;
 } ovrMatchmakingCustomQueryData;
 
@@ -75,7 +74,7 @@ typedef uint64_t ovrID;
 
 /// Convert a string into an ovrID.  Returns false if the input is
 /// malformed (either out of range, or not an integer).
-bool ovrID_FromString(ovrID *outId, const char* inId);
+bool ovrID_FromString(ovrID* outId, const char* inId);
 
 /// Convert an ID back into a string.  This function round trips with
 /// ovrID_FromString().  Note: the id format may change in the future.
@@ -83,18 +82,19 @@ bool ovrID_FromString(ovrID *outId, const char* inId);
 /// integer.
 ///
 /// Length of outParam should be > 20.
-bool ovrID_ToString(char *outParam, size_t bufferLength, ovrID id);
+bool ovrID_ToString(char* outParam, size_t bufferLength, ovrID id);
 
-typedef void(*LogFunctionPtr)(const char *, const char *);
+typedef void (*LogFunctionPtr)(const char*, const char*);
 extern LogFunctionPtr DoLogging;
 
 /// Callback used by the Voip subsystem for audio filtering
 ///
-typedef void(*VoipFilterCallback)(int16_t pcmData[], size_t pcmDataLength, int frequency, int numChannels);
+typedef void (
+    *VoipFilterCallback)(int16_t pcmData[], size_t pcmDataLength, int frequency, int numChannels);
 
 /// Callback used by the ovrMicrophone class to signal that data is available
 ///
-typedef void(*MicrophoneDataAvailableCallback)(void *);
+typedef void (*MicrophoneDataAvailableCallback)(void*);
 
 #ifdef __cplusplus
 }

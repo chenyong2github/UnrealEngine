@@ -4,27 +4,30 @@
 #include "ConcertDataStoreMessages.h"
 #include "IConcertSession.h"
 #include "IConcertSessionHandler.h"
+#include "ConcertSyncServerLiveSession.h"
 
-FConcertServerDataStore::FConcertServerDataStore(TSharedPtr<IConcertServerSession> InSession, bool bIsContentReplicationEnabled)
+FConcertServerDataStore::FConcertServerDataStore(TSharedRef<FConcertSyncServerLiveSession> InLiveSession, bool bIsContentReplicationEnabled)
 	: DataStore(FConcertDataStore::EUpdatePolicy::Overwrite)
-	, Session(MoveTemp(InSession))
+	, LiveSession(MoveTemp(InLiveSession))
 	, bContentReplicationEnabled(bIsContentReplicationEnabled)
 {
+	check(LiveSession->IsValidSession());
+
 	// Register the request handlers into the provider.
-	Session->RegisterCustomRequestHandler<FConcertDataStore_FetchOrAddRequest, FConcertDataStore_Response, FConcertServerDataStore>(this, &FConcertServerDataStore::OnFetchOrAdd);
-	Session->RegisterCustomRequestHandler<FConcertDataStore_CompareExchangeRequest, FConcertDataStore_Response, FConcertServerDataStore>(this, &FConcertServerDataStore::OnCompareExchange);
+	LiveSession->GetSession().RegisterCustomRequestHandler<FConcertDataStore_FetchOrAddRequest, FConcertDataStore_Response, FConcertServerDataStore>(this, &FConcertServerDataStore::OnFetchOrAdd);
+	LiveSession->GetSession().RegisterCustomRequestHandler<FConcertDataStore_CompareExchangeRequest, FConcertDataStore_Response, FConcertServerDataStore>(this, &FConcertServerDataStore::OnCompareExchange);
 
 	if (bContentReplicationEnabled)
 	{
-		Session->OnSessionClientChanged().AddRaw(this, &FConcertServerDataStore::OnSessionClientChanged);
+		LiveSession->GetSession().OnSessionClientChanged().AddRaw(this, &FConcertServerDataStore::OnSessionClientChanged);
 	}
 }
 
 FConcertServerDataStore::~FConcertServerDataStore()
 {
 	// Unregister the request handlers from the provider.
-	Session->UnregisterCustomRequestHandler<FConcertDataStore_FetchOrAddRequest>();
-	Session->UnregisterCustomRequestHandler<FConcertDataStore_CompareExchangeRequest>();
+	LiveSession->GetSession().UnregisterCustomRequestHandler<FConcertDataStore_FetchOrAddRequest>();
+	LiveSession->GetSession().UnregisterCustomRequestHandler<FConcertDataStore_CompareExchangeRequest>();
 }
 
 EConcertSessionResponseCode FConcertServerDataStore::OnFetchOrAdd(const FConcertSessionContext& Context, const FConcertDataStore_FetchOrAddRequest& Request, FConcertDataStore_Response& Response)
@@ -98,7 +101,7 @@ EConcertSessionResponseCode FConcertServerDataStore::OnCompareExchange(const FCo
 
 void FConcertServerDataStore::OnSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus Status, const FConcertSessionClientInfo& ClientInfo)
 {
-	check(Session.Get() == &InSession);
+	check(&LiveSession->GetSession() == &InSession);
 
 	if (Status == EConcertClientStatus::Connected && DataStore.GetSize() > 0)
 	{
@@ -110,7 +113,7 @@ void FConcertServerDataStore::OnSessionClientChanged(IConcertServerSession& InSe
 		});
 
 		// Replicate the current store content to the client.
-		Session->SendCustomEvent(ReplicateEvent, ClientInfo.ClientEndpointId, EConcertMessageFlags::ReliableOrdered);
+		LiveSession->GetSession().SendCustomEvent(ReplicateEvent, ClientInfo.ClientEndpointId, EConcertMessageFlags::ReliableOrdered);
 	}
 }
 
@@ -122,9 +125,9 @@ void FConcertServerDataStore::FireContentReplicationEvent(const FGuid& Instigato
 		ReplicateChangeEvent.Values.Add(FConcertDataStore_KeyValuePair{Key, Value});
 
 		// Push the updates to all clients, except the one who performed the change.
-		TArray<FGuid> ClientEndpointIds = Session->GetSessionClientEndpointIds();
+		TArray<FGuid> ClientEndpointIds = LiveSession->GetSession().GetSessionClientEndpointIds();
 		ClientEndpointIds.Remove(InstigatorEndpointId);
-		Session->SendCustomEvent(ReplicateChangeEvent, ClientEndpointIds, EConcertMessageFlags::ReliableOrdered);
+		LiveSession->GetSession().SendCustomEvent(ReplicateChangeEvent, ClientEndpointIds, EConcertMessageFlags::ReliableOrdered);
 	}
 }
 
@@ -135,9 +138,9 @@ namespace ConcertDataStoreTestUtils
 // integration without including any header files. This prevent leaking the ConcertServerDataStore.h in the module public includes since this is not
 // required for general usage. The function returns an opaque pointer because the class doesn't have any useful API, all the interaction is done
 // through the custom request/response/event protocol provided by the Session.
-CONCERTSYNCSERVER_API TSharedPtr<void> MakeConcerteServerDataStoreForTest(TSharedPtr<IConcertServerSession> Session, bool bEnableContentReplication)
+CONCERTSYNCSERVER_API TSharedPtr<void> MakeConcerteServerDataStoreForTest(TSharedRef<IConcertServerSession> Session, bool bEnableContentReplication)
 {
-	return MakeShared<FConcertServerDataStore>(MoveTemp(Session), bEnableContentReplication);
+	return MakeShared<FConcertServerDataStore>(MakeShared<FConcertSyncServerLiveSession>(MoveTemp(Session), EConcertSyncSessionFlags::None), bEnableContentReplication);
 }
 
 } // namespace ConcertDataStoreTestUtils

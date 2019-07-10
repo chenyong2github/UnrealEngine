@@ -240,7 +240,7 @@ public:
 };
 
 UCLASS(customConstructor, Abstract, MinimalAPI, transient, config=Engine)
-class UNetConnection : public UPlayer
+class ENGINE_VTABLE UNetConnection : public UPlayer
 {
 	GENERATED_UCLASS_BODY()
 
@@ -283,6 +283,9 @@ class UNetConnection : public UPlayer
 	uint32 InternalAck:1;					// Internally ack all packets, for 100% reliable connections.
 
 	struct FURL			URL;				// URL of the other side.
+	
+	/** The remote address of this connection, typically generated from the URL. */
+	TSharedPtr<FInternetAddr>	RemoteAddr;
 
 	// Track each type of bit used per-packet for bandwidth profiling
 
@@ -365,6 +368,7 @@ public:
 	double			LastTickTime;			// Last time of polling.
 	int32			QueuedBits;			// Bits assumed to be queued up.
 	int32			TickCount;				// Count of ticks.
+	uint32			LastProcessedFrame;   // The last frame where we gathered and processed actors for this connection
 	/** The last time an ack was received */
 	float			LastRecvAckTime;
 	/** Time when connection request was first initiated */
@@ -754,14 +758,28 @@ public:
 	ENGINE_API virtual void HandleClientPlayer( class APlayerController* PC, class UNetConnection* NetConnection );
 
 	/** @return the address of the connection as an integer */
+	UE_DEPRECATED(4.23, "Use GetRemoteAddr as it allows direct access to the RemoteAddr and allows for dynamic address sizing.")
 	virtual int32 GetAddrAsInt(void)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (RemoteAddr.IsValid())
+		{
+			uint32 OutAddr = 0;
+			// Get the host byte order ip addr
+			RemoteAddr->GetIp(OutAddr);
+			return (int32)OutAddr;
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return 0;
 	}
 
 	/** @return the port of the connection as an integer */
 	virtual int32 GetAddrPort(void)
 	{
+		if (RemoteAddr.IsValid())
+		{
+			return RemoteAddr->GetPort();
+		}
 		return 0;
 	}
 
@@ -771,7 +789,16 @@ public:
 	 *
 	 * @return	The platform specific FInternetAddr containing this connections address
 	 */
-	virtual TSharedPtr<FInternetAddr> GetInternetAddr() PURE_VIRTUAL(UNetConnection::GetInternetAddr,return TSharedPtr<FInternetAddr>(););
+	UE_DEPRECATED(4.23, "Use GetRemoteAddr to safely get the FInternetAddr tied to this connection")
+	virtual TSharedPtr<FInternetAddr> GetInternetAddr() { return ConstCastSharedPtr<FInternetAddr>(GetRemoteAddr()); }
+
+	/**
+	 * Return the platform specific FInternetAddr type, containing this connections address.
+	 * If nullptr is returned, connection is not added to MappedClientConnections, and can't receive net packets which depend on this.
+	 *
+	 * @return	The platform specific FInternetAddr containing this connections address
+	 */
+	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() { return RemoteAddr; }
 
 	/** closes the connection (including sending a close notify across the network) */
 	ENGINE_API void Close();
@@ -886,7 +913,14 @@ public:
 	* Gets a unique ID for the connection, this ID depends on the underlying connection
 	* For IP connections this is an IP Address and port, for steam this is a SteamID
 	*/
-	ENGINE_API virtual FString RemoteAddressToString() PURE_VIRTUAL(UNetConnection::RemoteAddressToString, return TEXT("Error"););
+	ENGINE_API virtual FString RemoteAddressToString()
+	{
+		if (RemoteAddr.IsValid())
+		{
+			return RemoteAddr->ToString(true);
+		}
+		return TEXT("Invalid");
+	}
 	
 	
 	/** Called by UActorChannel. Handles creating a new replicator for an actor */
@@ -899,7 +933,8 @@ public:
 	void PurgeAcks();
 
 	/** Send package map to the remote. */
-	void SendPackageMap();
+	UE_DEPRECATED(4.23, "This method will be removed.")
+	void SendPackageMap() {}
 
 	/** 
 	 * Appends the passed in data to the SendBuffer to be sent when FlushNet is called
@@ -1064,6 +1099,8 @@ public:
 	/** Removes stale entries from DormantReplicatorMap. */
 	void CleanupStaleDormantReplicators();
 
+	void PostTickDispatch();
+
 	/**
 	 * Flush the cache of sequenced packets waiting for a missing packet. Will flush only up to the next missing packet, unless bFlushWholeCache is set.
 	 *
@@ -1099,6 +1136,19 @@ public:
 
 	/** Resets the current saturation analytics. */
 	ENGINE_API void ResetSaturationAnalytics();
+
+	/**
+	 * Returns the current packet stability analytics and resets them.
+	 * This would be similar to calls to Get and Reset separately, except that the caller
+	 * will assume ownership of the data in this case.
+	 */
+	ENGINE_API void ConsumePacketAnalytics(FNetConnectionPacketAnalytics& Out);
+
+	/** Returns the current packet stability analytics. */
+	ENGINE_API const FNetConnectionPacketAnalytics& GetPacketAnalytics() const;
+
+	/** Resets the current packet stability analytics. */
+	ENGINE_API void ResetPacketAnalytics();
 
 	/**
 	 * Called to notify the connection that we attempted to replicate its actors this frame.
@@ -1224,6 +1274,7 @@ private:
 	int32 PacketOrderCacheCount;
 
 	FNetConnectionSaturationAnalytics SaturationAnalytics;
+	FNetConnectionPacketAnalytics PacketAnalytics;
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;
@@ -1297,7 +1348,6 @@ public:
 	virtual FString LowLevelGetRemoteAddress(bool bAppendPort=false) override { return FString(); }
 	virtual bool ClientHasInitializedLevelFor(const AActor* TestActor) const { return true; }
 
-
-	virtual TSharedPtr<FInternetAddr> GetInternetAddr() override { return TSharedPtr<FInternetAddr>(); }
+	virtual TSharedPtr<const FInternetAddr> GetRemoteAddr() override { return nullptr; }
 };
 

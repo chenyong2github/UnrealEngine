@@ -24,7 +24,7 @@ class UModel;
 /**
  * A render target.
  */
-class FRenderTarget
+class ENGINE_VTABLE FRenderTarget
 {
 public:
 
@@ -297,7 +297,7 @@ struct FStatHitchesData
  * Encapsulates the I/O of a viewport.
  * The viewport display is implemented using the platform independent RHI.
  */
-class FViewport : public FRenderTarget, protected FRenderResource
+class ENGINE_VTABLE FViewport : public FRenderTarget, protected FRenderResource
 {
 public:
 	/** delegate type for viewport resize events ( Params: FViewport* Viewport, uint32 ) */
@@ -317,7 +317,7 @@ public:
 	virtual void Destroy() = 0;
 
 	// New MouseCapture/MouseLock API
-	virtual bool HasMouseCapture() const				{ return true; }
+	virtual bool HasMouseCapture() const				{ return false; }
 	virtual bool HasFocus() const					{ return true; }
 	virtual bool IsForegroundWindow() const			{ return true; }
 	virtual void CaptureMouse( bool bCapture )		{ }
@@ -773,7 +773,7 @@ public:
 	virtual void RedrawRequested(FViewport* Viewport) { Viewport->Draw(); }
 	virtual void RequestInvalidateHitProxy(FViewport* Viewport) { Viewport->InvalidateHitProxy(); }
 	virtual void Draw(FViewport* Viewport,FCanvas* Canvas) {}
-	virtual void ProcessScreenShots(FViewport* Viewport) {}
+	virtual bool ProcessScreenShots(FViewport* Viewport) { return false; }
 	virtual UWorld* GetWorld() const { return NULL; }
 	virtual struct FEngineShowFlags* GetEngineShowFlags() { return NULL; }
 
@@ -1070,7 +1070,7 @@ extern ENGINE_API class FCommonViewportClient* GStatProcessingViewportClient;
  * Common functionality for game and editor viewport clients
  */
 
-class FCommonViewportClient : public FViewportClient
+class ENGINE_VTABLE FCommonViewportClient : public FViewportClient
 {
 public:
 	FCommonViewportClient()

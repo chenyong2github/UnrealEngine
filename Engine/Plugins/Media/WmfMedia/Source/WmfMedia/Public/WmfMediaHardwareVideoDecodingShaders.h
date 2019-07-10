@@ -57,6 +57,23 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, SrgbToLinear, InIsOutputSrgb ? 1 : 0); // Explicitly specify integer value, as using boolean falls over on XboxOne.
 	}
 
+	template<typename TShaderRHIParamRef>
+	void SetParameters(
+		FRHICommandListImmediate& RHICmdList,
+		const TShaderRHIParamRef ShaderRHI,
+		const FShaderResourceViewRHIRef& InTextureRGBA,
+		const bool InIsOutputSrgb
+	)
+	{
+		SetSRVParameter(RHICmdList, ShaderRHI, TextureY, InTextureRGBA);
+
+		SetSamplerParameter(RHICmdList, ShaderRHI, PointClampedSamplerY, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+		SetSamplerParameter(RHICmdList, ShaderRHI, BilinearClampedSamplerUV, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+
+		SetShaderValue(RHICmdList, ShaderRHI, ColorTransform, MediaShaders::CombineColorTransformAndOffset(MediaShaders::YuvToSrgbDefault, MediaShaders::YUVOffset8bits));
+		SetShaderValue(RHICmdList, ShaderRHI, SrgbToLinear, InIsOutputSrgb ? 1 : 0); // Explicitly specify integer value, as using boolean falls over on XboxOne.
+	}
+
 
 	virtual bool Serialize(FArchive& Ar) override
 	{
@@ -105,5 +122,38 @@ public:
 	{ }
 };
 
+class FHardwareVideoDecodingPassThroughPS : public FWmfMediaHardwareVideoDecodingShader
+{
+	DECLARE_SHADER_TYPE(FHardwareVideoDecodingPassThroughPS, Global);
+
+public:
+
+	/** Default constructor. */
+	FHardwareVideoDecodingPassThroughPS() {}
+
+	/** Initialization constructor. */
+	FHardwareVideoDecodingPassThroughPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FWmfMediaHardwareVideoDecodingShader(Initializer)
+	{ }
+};
+
+class FHardwareVideoDecodingY416PS : public FWmfMediaHardwareVideoDecodingShader
+{
+	DECLARE_SHADER_TYPE(FHardwareVideoDecodingY416PS, Global);
+
+public:
+
+	/** Default constructor. */
+	FHardwareVideoDecodingY416PS() {}
+
+	/** Initialization constructor. */
+	FHardwareVideoDecodingY416PS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FWmfMediaHardwareVideoDecodingShader(Initializer)
+	{ }
+};
+
+
 IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingVS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("MainVS"), SF_Vertex)
 IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingPS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("NV12ConvertPS"), SF_Pixel)
+IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingPassThroughPS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("PassThroughPS"), SF_Pixel)
+IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingY416PS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("Y416ConvertPS"), SF_Pixel)

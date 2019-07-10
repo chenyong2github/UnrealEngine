@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3736300
-Availability:Public
+﻿INTSourceChangelist:6093883
+Availability: Docs
 Title:4 - 部署关卡
 Crumbs:%ROOT%
 Description:学习如何将关卡从 UE4 部署到 Android 设备上。
@@ -33,7 +33,7 @@ Contributor:yaakuro
 
 如有兴趣了解当前支持纹理的更多内容，可参考下表中 Android 设备常见支持纹理的快速概览。
 
-[INCLUDE:Platforms/Android/Reference#androidformats]
+[INCLUDE:Platforms/Mobile/Android/Reference#androidformats]
 
 (#DeployingyourLevel)
 ## 部署关卡

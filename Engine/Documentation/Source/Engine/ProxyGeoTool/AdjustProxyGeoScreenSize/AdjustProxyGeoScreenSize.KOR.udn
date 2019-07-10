@@ -1,0 +1,64 @@
+INTSourceChangelist:6650380
+Availability: Public
+Crumbs: 
+Title: 프록시 지오메트리 화면 크기 조정
+Description: 언리얼 엔진 4 레퍼런스와 가이드를 포함한 제품 안내입니다.
+Type: how-to
+SkillLevel:Advanced
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: Optimization
+Tags: ProxyGeometryTool
+
+
+여기서는 **Spatial Sampling Distance** (공간 샘플링 거리) 오버라이드 파라미터를 사용하여 모든 오브젝트의 (단순화 전) 메시를 다시 입히는 작업을 할 때 시스템이 캡처할 피처 최소 크기를 수동 조정하는 방법을 살펴봅니다. 
+
+## 단계
+
+1.  먼저 언리얼 엔진 4 (UE4) 레벨에서 스태틱 메시를 몇 개 선택합니다.  
+    ![](Proxy_Geo_HT_OSS_02.png "Proxy_Geo_HT_OSS_02.png")
+2.  선택한 상태에서 **창 > 개발자 툴** 의 **Merge Actors** (액터 병합) 툴을 선택합니다.  
+    ![](ProxyLOD_05.png "ProxyLOD_05.png")
+3.  액터 병합 툴이 열리면, **2nd** (두 번째) 아이콘을 클릭하여 **Proxy Geometry** (프록시 지오메트리) 툴에 액세스합니다. 그리고 **Proxy Settings** (프록시 세팅) 아래 **Material Settings** (머티리얼 세팅) 섹션을 펼칩니다.  
+    ![](Proxy_Geo_HT_OSS_01.png "Proxy_Geo_HT_OSS_01.png")
+4.  **Override Spatial Sampling Distance** (공간 샘플링 거리 오버라이드) 파라미터를 찾아 그 이름 옆 박스를 클릭하여 활성화합니다.  
+    ![](Proxy_Geo_HT_OSS_03.png "Proxy_Geo_HT_OSS_03.png")
+5.  Override Spatial Sampling Distance 값을 100 으로 설정한 다음 **액터 병합** 버튼을 누릅니다.  
+    ![](Proxy_Geo_HT_OSS_04.png "Proxy_Geo_HT_OSS_04.png")  
+    [REGION:note]
+    기본적으로 시스템은 지오메트리의 바운딩 박스 크기와 요청된 **Screen Size** (화면 크기)에 따라 이 추측 크기를 계산합니다. **창 > 개발자 툴 > 출력 로그** 를 보면 시스템에 사용된 실제 숫자가 출력되는 것을 볼 수 있습니다. 이 숫자가 클 수록 단순화가 덜, 작을 수록 더 이루어집니다.
+    [/REGION]
+    
+6.  새로 생성할 스태틱 메시의 이름와 위치를 지정한 뒤 **저장** 버튼을 누르면 프록시 지오메트리 생성 프로세스가 시작됩니다.  
+    ![](Proxy_Geo_HT_OSS_05.png "Proxy_Geo_HT_OSS_05.png")
+
+## 최종 결과
+
+프로세스가 완료되면 첫 단계에서 선택한 모든 스태틱 메시에 대한 새로운 스태틱 메시, 머티리얼, 텍스처가 생깁니다. 아래 이미지는 생성된 메시의 Override Spatial Sampling Distance 를 다양한 값으로 설정했을 때의 효과를 보여줍니다.
+
+[EXCERPT:OverrideSpatialSamplingDistanceSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	5
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	OverrideSpatialSamplingDistance
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    Override Spatial Sampling Distance = 0.5 | Override Spatial Sampling Distance = 1 | Override Spatial Sampling Distance = 10 | Override Spatial Sampling Distance = 100	[/PARAM]
+    [PARAM:image_list]
+    ![](Proxy_Geo_HT_OOS_Slider_Orginal.png)
+![](Proxy_Geo_HT_OOS_Slider_0.5.png)
+![](Proxy_Geo_HT_OOS_Slider_1.0.png)
+![](Proxy_Geo_HT_OOS_Slider_10.png)
+![](Proxy_Geo_HT_OOS_Slider_100.png)
+	[/PARAM]
+[/OBJECT]
+[/EXCERPT:OverrideSpatialSamplingDistanceSlider]
+
+[](#)[](#)

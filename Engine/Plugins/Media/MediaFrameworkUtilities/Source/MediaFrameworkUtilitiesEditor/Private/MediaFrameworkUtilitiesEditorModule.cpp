@@ -7,6 +7,7 @@
 
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
+#include "LevelEditor.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "UObject/UObjectBase.h"
@@ -16,13 +17,20 @@
 #include "AssetTypeActions/AssetTypeActions_MediaProfile.h"
 #include "CaptureTab/SMediaFrameworkCapture.h"
 #include "MediaBundleActorDetails.h"
+#include "MediaBundleActorBase.h"
 #include "MediaBundleFactoryNew.h"
 #include "MediaFrameworkUtilitiesPlacement.h"
+#include "Profile/MediaProfileCustomization.h"
+#include "Profile/MediaProfile.h"
+#include "Profile/MediaProfileBlueprintLibrary.h"
+#include "Profile/MediaProfileSettings.h"
+#include "Profile/MediaProfileSettingsCustomization.h"
 #include "VideoInputTab/SMediaFrameworkVideoInput.h"
 #include "UI/MediaFrameworkUtilitiesEditorStyle.h"
 #include "UI/MediaProfileMenuEntry.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+
 
 
 #define LOCTEXT_NAMESPACE "MediaFrameworkEditor"
@@ -35,6 +43,7 @@ DEFINE_LOG_CATEGORY(LogMediaFrameworkUtilitiesEditor);
 class FMediaFrameworkUtilitiesEditorModule : public IModuleInterface
 {
 public:
+	FName NotificationBarIdentifier = TEXT("MediaProfile");
 
 	//~ IModuleInterface interface
 
@@ -57,11 +66,15 @@ public:
 				AssetTools.RegisterAssetTypeActions(InAssetTypeAction);
 			};
 
+			// register asset type actions
 			RegisterAssetTypeAction(MakeShared<FAssetTypeActions_MediaBundle>());
 			RegisterAssetTypeAction(MakeShared<FAssetTypeActions_MediaProfile>());
 
+			// register detail panel customization
 			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			PropertyModule.RegisterCustomClassLayout("MediaBundleActorBase", FOnGetDetailCustomizationInstance::CreateStatic(&FMediaBundleActorDetails::MakeInstance));
+			PropertyModule.RegisterCustomClassLayout(AMediaBundleActorBase::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FMediaBundleActorDetails::MakeInstance));
+			PropertyModule.RegisterCustomClassLayout(UMediaProfile::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FMediaProfileCustomization::MakeInstance));
+			PropertyModule.RegisterCustomClassLayout(UMediaProfileSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FMediaProfileSettingsCustomization::MakeInstance));
 
 			{
 				const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
@@ -74,6 +87,18 @@ public:
 				SMediaFrameworkVideoInput::RegisterNomadTabSpawner(MediaBrowserGroup);
 			}
 			FMediaProfileMenuEntry::Register();
+
+			{
+				FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
+				if (LevelEditorModule != nullptr)
+				{
+					FLevelEditorModule::FStatusBarItem Item;
+					Item.Label = LOCTEXT("MediaProfileLabel", "MediaProfile: ");
+					Item.Value = MakeAttributeLambda([]() { UObject* MediaProfile = UMediaProfileBlueprintLibrary::GetMediaProfile(); return MediaProfile ? FText::FromName(MediaProfile->GetFName()) : FText::GetEmpty(); });
+					Item.Visibility = MakeAttributeLambda([]() { return GetDefault<UMediaProfileEditorSettings>()->bDisplayInMainEditor ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; });
+					LevelEditorModule->AddStatusBarItem(NotificationBarIdentifier, Item);
+				}
+			}
 		}
 	}
 
@@ -81,12 +106,20 @@ public:
 	{
 		if (!GIsRequestingExit && GEditor && UObjectInitialized())
 		{
+			FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
+			if (LevelEditorModule != nullptr)
+			{
+				LevelEditorModule->RemoveStatusBarItem(NotificationBarIdentifier);
+			}
+
 			FMediaProfileMenuEntry::Unregister();
 			SMediaFrameworkVideoInput::UnregisterNomadTabSpawner();
 			SMediaFrameworkCapture::UnregisterNomadTabSpawner();
 
 			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			PropertyModule.UnregisterCustomClassLayout("MediaBundleActorBase");
+			PropertyModule.UnregisterCustomClassLayout(UMediaProfileSettings::StaticClass()->GetFName());
+			PropertyModule.UnregisterCustomClassLayout(UMediaProfile::StaticClass()->GetFName());
+			PropertyModule.UnregisterCustomClassLayout(AMediaBundleActorBase::StaticClass()->GetFName());
 
 			// Unregister AssetTypeActions
 			FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");

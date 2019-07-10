@@ -212,6 +212,10 @@ protected:
 
 	EVisibility GetTextWarningImageVisibility() const;
 
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+#endif
+
 protected:
 
 	TSharedPtr<STextBlock> MyTextBlock;

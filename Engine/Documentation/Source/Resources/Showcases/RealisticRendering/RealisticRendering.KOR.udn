@@ -1,25 +1,24 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6593862
 Availability: Public
 Title:실사 렌더링
-Crumbs:%ROOT%, Resources
 Description:UE4 에 포함된 Realistic Rendering, 실사 렌더링에 대한 개요입니다.
-Related: Engine/Rendering/LightingAndShadows/Lightmass
-Related: Engine/Rendering\LightingAndShadows
+Version: 4.9
+Parent: Resources/Showcases
+Tags: showcases
+topic-image: RealisticRendering_Topic.png
 Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
 Related: Engine/Rendering/LightingAndShadows/IESLightProfiles
-Related: Engine/Actors/FogEffects\AtmosphericFog
-Related: Engine/Rendering/Materials
-Related: Engine/Rendering/Materials/PhysicallyBased
+Related: Engine/Rendering/LightingAndShadows/Lightmass
 Related: Engine/Rendering/Materials/LayeredMaterials
-Version: 4.9
-topic-image:RealisticRendering_Topic.png
+Related: Engine/Rendering/Materials/PhysicallyBased
+Related: Engine/Rendering/Materials
+
+
+[TOC (start:2 end:2)]
 
 [REGION:fullwidth]
 ![](RealisticRenderingHeader.png)
 [/REGION]
-
-[TOC(start:2 end:2)]
-
 
 이 예제는 언리얼 엔진 4 의 실사 렌더링 가능성을 선보여 줍니다. 목표는 VRay 나 Mental Ray 같은 CG 렌더링 엔진으로 만든 것처럼 건축 렌더링에서의 외양과 느낌을 내는 작은 씬을 하나 만드는 것이었습니다. 그러나 이번 경우에서의 일차적인 조건은, 모든 애셋을 게임에서 쓸 수 있도록 해야 했기에, 하이 폴리 모델링은 사용할 수 없었습니다. 씬의 모든 것은 실제 게임을 제작하는 데 사용할 수 있는 방식으로 만들어야 했습니다.
 
@@ -180,13 +179,7 @@ UE4 의 물리 기반 머티리얼 시스템 관련 기술적 심도 깊은 정�
 * _M_Carpet_Mat_Inst_
 
 
-
-
-
-
-
-
-[COMMENT:none]
+<!--
 Inclusions-----
 [EXCERPT:BaseColor]
 [OBJECT:SliderSequence]
@@ -350,4 +343,4 @@ Inclusions-----
 [/EXCERPT:InverseSquared]
 
 -----------------
-[/COMMENT]
+-->

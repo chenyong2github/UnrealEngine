@@ -1,84 +1,187 @@
-﻿INTSourceChangelist:2661624
+INTSourceChangelist:3206402
 Availability: Public
-Title:使用重定向动画
+Title:使用重定位后的动画
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
-Description:如何为多个 Character 设置和使用重定向动画的示例。 
+Description:提供示例，说明如何为多个角色设置和使用重定位后的动画。 
 Related: Engine\Animation\AnimationRetargeting
-Related: Engine\Animation\RetargetingDifferentSkeletons
 Related: Engine\Animation\Skeleton
 Related: Engine\Animation\Overview
-version: 4.9
+version: 4.14
 skilllevel: Intermediate
 
-**动画重定向** 是重新利用现有动画以供多个 Character 使用的过程，从而使您无需创建全新动画，因为您可以改为在不同 Character 之间共享动画资源。 
+**动画重定位** 是对现有动画稍加修改后用于多个角色的过程，它使你无需创建全新的动画，因为你可以在多个角色间共享动画资源。 
 
-动画重定向有两种形式，一种是要与其共享动画的 Character 将和最初创建该动画的 Character 使用 **相同骨架**。另一种形式包含称为 **Rig** 的中介对象，该对象可让您从一个 Character 的骨架重定向动画，然后将该骨架的骨骼信息传递给使用两个骨架共用的 Rig 的 **不同骨架**。 
+存在两种形式的动画重定位，在第一种形式中，你要与之共享动画的角色的骨架使用了与最初为其创建动画的目标角色 **相同的骨架**。 
+在另一种形式的动画重定位中，需要使用称为 **骨架绑定（Rig）** 的中间对象，它使你能够对来自一个角色的骨架的动画进行重定位，然后将该骨架的骨骼信息传递给 **另一个骨架**（使用这两个骨架共享的骨架绑定）。 
 
-有关您要实现的动画重定向的类型，请参阅以下两个链接： 
+请参阅下面的两个链接执行所需类型的动画重定位： 
 
-[TOC(start:2)]
+[TOC(start:2 end:2)]
 
-## 使用相同骨架重定向
+(#retargetingusingthesameskeleton)
+## 使用相同骨架的重定位
 
-本部分将介绍如何设置 **骨架**，以将重定向动画用于所有使用该骨架的两足 Character。
+此部分介绍如何对 **骨架** 进行设置，以为使用该骨架的所有双足角色使用重定位后的动画。
 
-1.在 **内容浏览器** 内，打开用于每个 Character 的 **骨架** 资源。 
+(#steps)
+### 步骤
 
-1.	在 **Persona** 的 **骨架树** 中，选中 **Show Retargeting Options** 复选框。 
+1.  在 **内容浏览器** 中，打开用于每个角色的 **骨架** 资源。 
+
+1.	在 **骨架编辑器** 的 **骨架树（Skeleton Tree）** 窗口中，选中 **显示重定位选项（Show Retargeting Options）** 复选框。 
 
 	![](HowTo1.png)
 
-1.	在 **骨架树** 中 **右键单击** 您的 **根** 骨骼，然后选择 **Recursively Set Translation Retargeting Skeleton**。 
+1.	**右键单击** **骨架树** 中的 **根（Root）** 骨骼，然后选择 **递归地设置平移重定位骨架（Recursively Set Translation Retargeting Skeleton）**。 
 
 	![](HowTo2.png)
 
-	此操作将确保所有骨骼均使用骨架的静态转换（我们将修改某些骨骼，以便立即重定向）。 
+	此设置可以确保所有骨骼都使用该骨架的静态平移（稍后我们将修改特定骨骼以用于重定位）。 
 
-1.	找到 **Pelvis** 骨骼（或其对应的骨骼），然后单击下拉框并选择 **AnimationScaled**。 
+1.	找到 **骨盆（Pelvis）** 骨骼或与之相当的骨骼，然后单击下拉框并选择 **比例动画（AnimationScaled）**。 
 
 	![](HowTo3.png)
 
-	此操作将确保 Pelvis 骨骼位于合适的高度，并仍处于动画状态。要转换成动画和重定向的任何其他骨骼也应使用此设置。 
+	此设置可以确保该骨骼位于合适的高度，同时仍能活动。对于你希望平移能够被制成动画和重定位的任何其他骨骼，你也都应使用此设置。 
 
-1.	找到您正在使用的 **根** 骨骼、任何 **IK** 骨骼、任何 **武器** 骨骼或其他标记型骨骼，然后将其设置为 **动画**。 
+1.	找到 **根（Root）** 骨骼、**IK** 骨骼、你可能使用了的 **武器（Weapon）** 骨骼或其他标记式骨骼并将它们设置为 **动画（Animation）**。 
 
 	![](HowTo4.png)
 
-	通过将 **动画** 用作“骨骼转换重定向模式”，骨骼的转换将源于动画数据本身，并且没有任何更改。 
+	通过将 **动画（Animation）** 用作“骨骼平移重定位模式（Bone Translation Retargeting Mode）”，骨骼平移就会来自动画数据本身，不会更改。 
 
-	上图是设置为使用不同 **转换重定向** 方法的 **骨架树** 的示例。使用的方法各有不同，您可能必须针对不同骨骼试验不同方法，以产生所需的结果。	
+	[REGION:note]
+	你可能必须针对不同骨骼尝试不同的方法才能生成你想要的结果。	
+	[/REGION]
 
-1.	单击当前网格体旁的 **网格** 按钮，以调出网格体选择框，然后选择一个不同的网格体（不同的 Character）。 
+1.	在视口中单击 **场景设置（Scene Setup）** 按钮并选择另一个 **预览网格体（Preview Mesh）**。 
 
 	![](HowTo5.png)
 
-	在不同的 **骨骼网格体** 上试验不同的动画，以确保您的骨架已针对各个动画设置正确。 
+	针对不同的 **骨架网格体** 尝试不同的动画，以确保对于每个动画骨架的设置都正确。 
 
-1.	在视窗内单击 **Show**，然后选中 **NonRetarget Animation** 和 **Bones**，以显示普通骨架和重定向骨架。 
+1.	在视口中，单击 **显示（Show）** 并选中 **非重定位动画（NonRetarget Animation）**，然后在 **骨骼（Bone）** 下，选择 **所有层级（All Hierarchy）**，以使所有骨骼都显示。 
 
 	![](HowTo6.png)
+
+(#endresult)
+### 最终结果
 	
-	现在，您应可以在骨架上看到如下所示的画面。 
+现在你应可在骨架上看到与下图所示类似的结果。 
 
 [INCLUDE:Engine\Animation\AnimationRetargeting#aftertable]
 
-上图中显示为米黄色的部分是原始骨架，同时当前重定向的骨架显示为白色。当重定向应用于 Character 后，将在对等处理过程中剔除不同 Character 的比例差异，所应用的动画即可在各个 Character 上正常播放，并会在矮胖和高瘦的 Character 的相同位置描画出原始骨骼（米黄色骨骼）。 
+上图中以米黄色显示的是原骨架，以白色显示的是当前、重定位后的骨架。对角色应用重定位以后，系统就不再考虑它们的比例差异，应用的动画会在不同角色身上正常播放，原骨架（米黄色的骨架）将在矮小角色和高大角色身上的相同位置显示。 
+
+
+(#retargetingusingdifferentskeletons)
+## 使用不同骨架的重定位
+
+在此部分中，我们将介绍在使用不同骨架资源的两个角色中，从一个角色向另一个角色重定位动画的过程. 
+我们还要使用两个可通过 **商城** 免费获取的资源包，它们包含我们可用于重定位的额外骨架和动画。如果你已经准备好了两个可供使用的骨架资源，可以跳过下面的说明，使用这些资源。如果你没有准备好骨架，可以按照下面说明中列出的步骤操作，添加两个包。 
 
 [REGION:note]
-上述步骤旨在让您快速入门，学习如何为共享相同骨架资源的 Character 重定向动画。有关其他更详细的信息，请参阅[](Engine\Animation\AnimationRetargeting)文档。 
+在此示例中，我们使用可通过 **商城** 免费下载的下列资源。
+
+* 我们使用的源骨架是 **动画初学者包（Animation Starter Pack）** 中包含的 **UE4_Mannequin_Skeleton**。 
+* 我们使用的目标骨架是 **SK_Mannequin_Skeleton**，它包含在 **Infinity Blade:Warriors** 包中。
+
+安装以上两个包之后，你可以在虚幻启动程序中通过 **添加到项目（Add to project）** 按钮将它们添加到项目中。 
+
+![](AnimStarterPack.png)(w:300) ![](InfinityBladeWarriors.png)(w:300)
 [/REGION]
 
+(#steps)
+### 步骤
 
-## 使用不同骨架重定向
+1.	在 **内容浏览器** 中的 **Content/AnimStarterPack/UE4_Mannequin/Mesh** 文件夹下，打开 **UE4_Mannequin_Skeleton** 资源。 
 
-[INCLUDE:Engine\Animation\RetargetingDifferentSkeletons#guide]
+	![](Retarget1.png)
 
-[REGION:note]
-上述步骤说明了如何在两个不同骨架之间重定向动画，但是，您还可采取其他措施来改善重定向动画的质量。有关详细信息，请参阅 [](Engine\Animation\RetargetingDifferentSkeletons) 文档。 
-[/REGION]
+1.	单击 **重定位管理器（Retarget Manager）** 按钮，然后在 **设置骨架绑定（Set up Rig）** 下，单击 **选择骨架绑定（Select Rig）** 下拉菜单，选择 **选择人形骨架绑定（Select Humanoid Rig）**。 
 
+	![](Retarget2.png)
 
+1.	在 **内容浏览器** 中的 **Content/InfinityBladeWarriors/Character/CompleteCharacters** 文件夹下，打开 **SK_Mannequin_Skeleton** 资源。
+
+	![](Retarget3.png)
+
+1.	单击 **重定位管理器（Retarget Manager）** 按钮，然后在 **设置骨架绑定（Set up Rig）** 下，单击 **选择骨架绑定（Select Rig）** 下拉菜单，选择 **选择人形骨架绑定（Select Humanoid Rig）**。
+
+	![](Retarget4.png)
+
+1.	指定骨架绑定后，下一步需要使目标的骨骼与骨架绑定上的节点配对。 
+
+	![](Retarget5.png)
+
+	由于Infinity Blade:Warriors包使用了相同的命名规范和骨骼层级，将自动检测骨骼并将它们应用给骨架绑定。 
+
+	如果骨骼命名规范异于Epic骨架，你可能看到系统把“none”应用到骨架绑定中的每个骨骼： 
+
+	![](Retarget6.png)
+
+	在这种情况下，你将需要使用 **自动映射（Auto Mapping）** 功能或手动指定骨架中与骨架绑定上的节点最匹配的骨骼。 
+
+	[REGION:tip]
+	使用 **自动映射（Auto Mapping）** 功能时，建议你核对哪个骨骼已被指定给了骨架绑定上的哪个节点。 
+	自动映射（Auto Mapping）功能会基于骨骼位置和（或）骨骼命名规范尝试获取最匹配的骨骼并将它们指定给骨架绑定上的骨骼，但是它们可能并非在每种情况下都是可供使用的最佳骨骼。 
+	[/REGION]
 	
+1.	单击 **显示高级（Show Advanced）** 按钮，以在高级（Advanced）/基本（Base）配置间进行切换。
+
+	![](AdvancedConfig.png)
+
+	在此部分中，你可以为手指、IK骨骼或扭转/Roll骨骼指定与骨架绑定上的节点对应的骨架中的骨骼。 
+
+	[REGION:note]
+	与“基本（Base）”配置相似，“高级（Advanced）”中的骨骼也可能会被设置为“none”，具体取决于你需要设置的骨架。 
+	[/REGION]
+
+1.	在 **内容浏览器** 中的 **Content/AnimStarterPack** 下，选择一个要重定位到新骨架的动画。
+
+1.	**右键单击** 该动画，然后选择 **重定位动画资源（Retarget Anim Assets） -> 复制动画资源并重定位（Duplicate Anim Assets and Retarget）**。 
+
+	![](Retarget7.png)
+
+1.	在 **选择骨架（Select Skeleton）** 窗口中，你应该可在窗口上部看到目标骨架，选中它并单击 **重定位（Retarget）**。 
+
+	![](Retarget8.png)(w:840)
+
+	这样，你会将动画复制到指定的文件夹位置。你也可以在此窗口中指定“新资源名称（New Asset Name）”。 
+
+	[REGION:note]
+	为确保生成最佳重定位后的动画，**目标** 骨架应具有与源骨架相似的基本姿势。
+	如上，两个骨架都呈A字姿势，但是，你也可能碰到一个角色呈A字姿势，而另一个角色呈T字姿势的情况。 
+	你可以使用[重定位基本姿势](Engine/Animation/Persona/BasePoseManager)在重定位动画前修改姿势。 
+	[/REGION]
+
+(#endresult)
+### 最终结果
+
+新的重定位后的动画可供使用以其作为目标重定位动画的骨架资源的任何骨架网格体使用。 
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+FKlniDMGxL4
+[/PARAMLITERAL]
+[/OBJECT]
+
+
+尽管此示例是为了展示如何重定位动画，但是针对任何动画资源使用相同的 **右键单击** 方法之后，你都可以应用重定位了。 
+
+
+
+
+
+
+
+
 
 
 

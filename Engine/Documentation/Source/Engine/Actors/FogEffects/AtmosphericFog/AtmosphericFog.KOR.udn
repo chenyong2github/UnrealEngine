@@ -1,10 +1,11 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6340925
 Availability: Public
 Title:애트머스페릭 포그 사용 안내서
 Crumbs: %ROOT%, Engine, Engine/Actors, Engine/Actors/FogEffects
 Description:Atmospheric Fog, 애트머스페릭 포그 액터는 대기를 매개로 공기 밀도, 빛의 산란 등의 대기 표현에 사실감을 더해주는 액터입니다.
 version: 4.9
 topic-image:atmofog_topic.png
+tags: overview, fog effects, atmospheric fog
 
 [REGION:banner]
 ![Atmospheric Fog](atmofog_banner.png)
@@ -36,6 +37,7 @@ Atmospheric Fog (애트머스페릭 포그)는 지구의 대기권을 통과하�
 
 Atmospheric Fog 액터에 있는 프로퍼티는 다음과 같습니다:
 
+[REGION:simpletable]
 |**프로퍼티** | **설명** |
 | --- | --- |
 |[REGION:tablesection]Atmosphere (대기)[/REGION] ||
@@ -55,6 +57,7 @@ Atmospheric Fog 액터에 있는 프로퍼티는 다음과 같습니다:
 | **Precompute Params** | 미리계산 파라미터 - 이 그룹에 포함된 프로퍼티는 미리계산된 텍스처 데이터의 재계산을 요합니다. 여기에 포함되는 것은 다음과 같습니다:[INCLUDE:#PrecomputeParams]  |
 | **Visible** | 표시여부 - 안개 효과를 보이거나 숨깁니다. |
 | **Hidden in Game** | 게임에서 숨김 - 체크하면 이 이펙트는 게임에서 보이지 않습니다. |
+[/REGION]
 
 ## 그림으로 보는 예제 세팅
 [EXCERPT:examples]
@@ -67,7 +70,7 @@ Atmospheric Fog 액터에 있는 프로퍼티는 다음과 같습니다:
 [/REGION]
 [/EXCERPT:examples]
 [COMMENT:none]
--Includes
+---Includes---
 [EXCERPT:PrecomputeParams]
 [REGION:simpletable]
 	|**프로퍼티** | **설명** |
@@ -77,5 +80,5 @@ Atmospheric Fog 액터에 있는 프로퍼티는 다음과 같습니다:
 	| *Inscatter Altitude Sample* | 인스캐터 고도 샘플 - 인스캐터 컬러 샘플링 채취를 위한 여러가지 고도의 수치입니다. (3D 텍스처 차원 크기로, 1-32 입니다). |
 [/REGION]
 [/EXCERPT:PrecomputeParams]
-End Includes---
+---End of Includes---
 [/COMMENT]

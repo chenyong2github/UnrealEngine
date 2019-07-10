@@ -1363,6 +1363,8 @@ void UParticleModuleBeamNoise::Spawn(FParticleEmitterInstance* Owner, int32 Offs
 	UParticleSystemComponent*		Component	= Owner->Component;
 	UParticleModuleTypeDataBeam2*	BeamTD		= BeamInst->BeamTypeData;
 
+	FRandomStream& RandomStream = GetRandomStream(Owner);
+
 	SPAWN_INIT;
 
 	FBeam2TypeDataPayload*	BeamData			= NULL;
@@ -1395,7 +1397,7 @@ void UParticleModuleBeamNoise::Spawn(FParticleEmitterInstance* Owner, int32 Offs
 	int32 CalcFreq = Frequency;
 	if (Frequency_LowRange > 0)
 	{
-		CalcFreq = FMath::TruncToInt((FMath::SRand() * (Frequency - Frequency_LowRange)) + Frequency_LowRange);
+		CalcFreq = FMath::TruncToInt((RandomStream.FRand() * (Frequency - Frequency_LowRange)) + Frequency_LowRange);
 	}
 	BEAM2_TYPEDATA_SETFREQUENCY(BeamData->Lock_Max_NumNoisePoints, CalcFreq);
 	

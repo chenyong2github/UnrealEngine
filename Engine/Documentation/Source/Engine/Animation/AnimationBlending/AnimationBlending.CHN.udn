@@ -1,11 +1,15 @@
-﻿Availability:Public
+﻿INTSourceChangelist:6413515
+Availability:Public
 Title: 混合动画
-Crumbs: %ROOT%, Engine, Engine/Animation
-Description: 介绍了在虚幻引擎4中混合多个动画的各种方式。
+description:在一个骨架网格体上的两个动画之间平滑过渡
+version: 4.9
+tags:Animation
+tags:Animation Features
+tags:Animation Blending
+topic-image:BlendingAnimations_topic.png
 
-## 概述
 
-动画混合这个概念的意思是: 一个角色或骨架网格物体上的两个或多个动画之间进行平滑变换。在虚幻引擎4中，有多种可以应用这种混合的方式。在本文中，我们将概述介绍每种方式及它们是如何应用到您的角色上的。
+作为一个概念，动画混合仅仅意味着在一个角色或骨架网格上的两个或多个动画之间进行平滑过渡。在虚幻引擎4中，有多种方法可以应用这种混合。在本文中，我们将概述每种方法以及如何将它们应用于您的角色。
 
 ## 混合空间
 
@@ -13,18 +17,18 @@ Description: 介绍了在虚幻引擎4中混合多个动画的各种方式。
 ![](Engine/Animation/Blendspaces/BlendSpaceDirection.png)
 [/REGION]
 
-把动画混合到一起的一个最常用的方法是使用混合空间。
+混合动画最常用的方法之一是使用混合空间。
 
 [INCLUDE:Engine/Animation/Blendspaces#intro]
 
-关于混合空间的更多信息，请参照[](Engine/Animation/Blendspaces)文档。
+有关混合空间的更多信息，请参阅[](Engine/Animation/Blendspaces)文档。
 
-## 通过蓝图混合动画
+## 使用蓝图混合
 
 [REGION:fullwidth]
 ![](PersonaBlendAnimGraph.png)
 [/REGION]
 
-动画混合也可以直接通过动画蓝图中的动画图表处理。动画图表通过一系列不同的节点绘制动画数据姿势流程的图表，每个节点都以某种方式影响着姿势或动作的最终效果。有很多种专门设计的节点，用于来把多个姿势以同样地方法混合到一起。这些姿势可以是叠加的，也就是把两个动画基于带权重的偏移量或alpha值组合到一起，或者可以直接覆盖现有姿势。您可以指定一根特定的骨骼及其子骨骼直接播放某个动画。例如：一开始您可以让角色播放奔跑动画，接着有选择性地在右臂播放挥动动画。最终这个角色就可以边奔跑边挥手了。
+还可以通过动画蓝图中的AnimGraph直接处理动画混合。AnimGraph通过一系列不同的节点绘制动画姿势数据流，每个节点以某种方式对姿势或动作的最终外观做出贡献。专门设计了各种节点，用于帮助以某种方式将多个姿势混合在一起。它们可以是添加式的，基于加权偏差或Alpha值按字面结合两个动画，也可以是现有姿势的直接覆盖。您还可以将动画直接发送到骨骼中的特定骨骼及其所有子项。例如，您可以从包含一个正在奔跑的角色的动画开始，然后有选择地在右臂上应用一个挥手的动画。最终的结果将是角色正在一边奔跑一边挥手。
 
-要想了解如何使用蓝图处理动画混合，请参照[](Engine/Animation/AnimBlueprints)和[](Engine/Animation/NodeReference/Blend)。
+要了解如何使用蓝图处理动画混合，请参阅[](Engine/Animation/AnimBlueprints)和[](Engine/Animation/NodeReference/Blend)。

@@ -13,7 +13,6 @@
 #include "Widgets/Input/IVirtualKeyboardEntry.h"
 #include "Widgets/Text/ISlateEditableTextWidget.h"
 #include "Framework/Text/ITextLayoutMarshaller.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/TextLineHighlight.h"
 #include "Framework/Text/IRun.h"
 #include "Framework/Text/TextLayout.h"

@@ -3,7 +3,7 @@ Title:1.6 - 角度モーター
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/Physics
 Description: 物理のサンプル レベルの概要、サンプル 1.6:物理コンストレイント角度モーター
 Related:Engine/Physics/PhysicsBodies
-Related:Engine/Physics/PhAT/HowTo
+Related:Engine/Physics/PhysicsAssetEditor/HowTo
 Related:Engine/Physics/Constraints/ConstraintsReference
 Related:Engine/Physics/Constraints/ConstraintsUserGuide
 Related:Engine/Physics/Collision

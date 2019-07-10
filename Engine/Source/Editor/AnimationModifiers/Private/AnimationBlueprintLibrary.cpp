@@ -489,7 +489,7 @@ void UAnimationBlueprintLibrary::GetAnimationNotifyEventNames(const UAnimSequenc
 	}	
 }
 
-UAnimNotify* UAnimationBlueprintLibrary::AddAnimationNotifyEvent(UAnimSequence* AnimationSequence, FName NotifyTrackName, float StartTime, float Duration, TSubclassOf<UObject> NotifyClass)
+UAnimNotify* UAnimationBlueprintLibrary::AddAnimationNotifyEvent(UAnimSequence* AnimationSequence, FName NotifyTrackName, float StartTime, TSubclassOf<UAnimNotify> NotifyClass)
 {
 	UAnimNotify* Notify = nullptr;
 	if (AnimationSequence)
@@ -499,42 +499,32 @@ UAnimNotify* UAnimationBlueprintLibrary::AddAnimationNotifyEvent(UAnimSequence* 
 
 		if (bIsValidTrackName && bIsValidTime)
 		{
-			AnimationSequence->Notifies.AddDefaulted();
-			FAnimNotifyEvent& NewEvent = AnimationSequence->Notifies.Last();
+			FAnimNotifyEvent& NewEvent = AnimationSequence->Notifies.AddDefaulted_GetRef();
 
 			NewEvent.NotifyName = NAME_None;
 			NewEvent.Link(AnimationSequence, StartTime);
 			NewEvent.TriggerTimeOffset = GetTriggerTimeOffsetForType(AnimationSequence->CalculateOffsetForNotify(StartTime));
 			NewEvent.TrackIndex = GetTrackIndexForAnimationNotifyTrackName(AnimationSequence, NotifyTrackName);
+			NewEvent.NotifyStateClass = nullptr;
 
 			if (NotifyClass)
 			{
-				class UObject* AnimNotifyClass = NewObject<UObject>(AnimationSequence, NotifyClass, NAME_None, RF_Transactional);
-				NewEvent.NotifyStateClass = Cast<UAnimNotifyState>(AnimNotifyClass);
-				NewEvent.Notify = Cast<UAnimNotify>(AnimNotifyClass);
+				Notify = NewObject<UAnimNotify>(AnimationSequence, NotifyClass, NAME_None, RF_Transactional);
+				NewEvent.Notify = Notify;
 
-				// Setup name and duration for new event
-				if (NewEvent.NotifyStateClass)
-				{
-					NewEvent.NotifyName = FName(*NewEvent.NotifyStateClass->GetNotifyName());
-					NewEvent.SetDuration(Duration);
-					NewEvent.EndLink.Link(AnimationSequence, NewEvent.EndLink.GetTime());
-				}
-				else if(NewEvent.Notify)
+				// Setup name for new event
+				if(NewEvent.Notify)
 				{
 					NewEvent.NotifyName = FName(*NewEvent.Notify->GetNotifyName());
 				}
 			}
 			else
 			{
-				NewEvent.Notify = NULL;
-				NewEvent.NotifyStateClass = NULL;
+				NewEvent.Notify = nullptr;
 			}
 
 			// Refresh all cached data
-			AnimationSequence->RefreshCacheData();			
-
-			Notify = NewEvent.Notify;
+			AnimationSequence->RefreshCacheData();
 		}
 		else
 		{
@@ -557,6 +547,66 @@ UAnimNotify* UAnimationBlueprintLibrary::AddAnimationNotifyEvent(UAnimSequence* 
 	return Notify;
 }
 
+UAnimNotifyState* UAnimationBlueprintLibrary::AddAnimationNotifyStateEvent(UAnimSequence* AnimationSequence, FName NotifyTrackName, float StartTime, float Duration, TSubclassOf<UAnimNotifyState> NotifyStateClass)
+{
+	UAnimNotifyState* NotifyState = nullptr;
+	if (AnimationSequence)
+	{
+		const bool bIsValidTrackName = IsValidAnimNotifyTrackName(AnimationSequence, NotifyTrackName);
+		const bool bIsValidTime = IsValidTimeInternal(AnimationSequence, StartTime);
+
+		if (bIsValidTrackName && bIsValidTime)
+		{
+			FAnimNotifyEvent& NewEvent = AnimationSequence->Notifies.AddDefaulted_GetRef();
+
+			NewEvent.NotifyName = NAME_None;
+			NewEvent.Link(AnimationSequence, StartTime);
+			NewEvent.TriggerTimeOffset = GetTriggerTimeOffsetForType(AnimationSequence->CalculateOffsetForNotify(StartTime));
+			NewEvent.TrackIndex = GetTrackIndexForAnimationNotifyTrackName(AnimationSequence, NotifyTrackName);
+			NewEvent.Notify = nullptr;
+
+			if (NotifyStateClass)
+			{
+				NotifyState = NewObject<UAnimNotifyState>(AnimationSequence, NotifyStateClass, NAME_None, RF_Transactional);
+				NewEvent.NotifyStateClass = NotifyState;
+
+				// Setup name and duration for new event
+				if (NewEvent.NotifyStateClass)
+				{
+					NewEvent.NotifyName = FName(*NewEvent.NotifyStateClass->GetNotifyName());
+					NewEvent.SetDuration(Duration);
+					NewEvent.EndLink.Link(AnimationSequence, NewEvent.EndLink.GetTime());
+				}
+			}
+			else
+			{
+				NewEvent.NotifyStateClass = nullptr;
+			}
+
+			// Refresh all cached data
+			AnimationSequence->RefreshCacheData();			
+		}
+		else
+		{
+			if (!bIsValidTrackName)
+			{
+				UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Animation Notify Track %s does not exist on Animation Sequence %s"), *NotifyTrackName.ToString(), *AnimationSequence->GetName());
+			}
+
+			if (!bIsValidTime)
+			{
+				UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("%f is side of Animation Sequence %s range"), StartTime, *AnimationSequence->GetName());
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence for AddAnimationNotifyStateEvent"));
+	}
+
+	return NotifyState;
+}
+
 void UAnimationBlueprintLibrary::AddAnimationNotifyEventObject(UAnimSequence* AnimationSequence, float StartTime, UAnimNotify* Notify, FName NotifyTrackName)
 {
 	if (AnimationSequence)
@@ -568,14 +618,13 @@ void UAnimationBlueprintLibrary::AddAnimationNotifyEventObject(UAnimSequence* An
 
 		if (bValidNotify && bValidOuter && bIsValidTrackName && bIsValidTime)
 		{
-			AnimationSequence->Notifies.AddDefaulted();
-			FAnimNotifyEvent& NewEvent = AnimationSequence->Notifies.Last();
+			FAnimNotifyEvent& NewEvent = AnimationSequence->Notifies.AddDefaulted_GetRef();
 
 			NewEvent.NotifyName = NAME_None;
 			NewEvent.Link(AnimationSequence, StartTime);
 			NewEvent.TriggerTimeOffset = GetTriggerTimeOffsetForType(AnimationSequence->CalculateOffsetForNotify(StartTime));
 			NewEvent.TrackIndex = GetTrackIndexForAnimationNotifyTrackName(AnimationSequence, NotifyTrackName);
-			NewEvent.NotifyStateClass = Cast<UAnimNotifyState>(Notify);
+			NewEvent.NotifyStateClass = nullptr;
 			NewEvent.Notify = Notify;
 
 			// Refresh all cached data
@@ -609,7 +658,61 @@ void UAnimationBlueprintLibrary::AddAnimationNotifyEventObject(UAnimSequence* An
 	{
 		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence for AddAnimationNotifyEventObject"));
 	}
-	
+}
+
+void UAnimationBlueprintLibrary::AddAnimationNotifyStateEventObject(UAnimSequence* AnimationSequence, float StartTime, float Duration, UAnimNotifyState* NotifyState, FName NotifyTrackName)
+{
+	if (AnimationSequence)
+	{
+		const bool bValidNotifyState = NotifyState != nullptr;
+		const bool bValidOuter = bValidNotifyState && NotifyState->GetOuter() == AnimationSequence;
+		const bool bIsValidTrackName = IsValidAnimNotifyTrackName(AnimationSequence, NotifyTrackName);
+		const bool bIsValidTime = IsValidTimeInternal(AnimationSequence, StartTime);
+
+		if (bValidNotifyState && bValidOuter && bIsValidTrackName && bIsValidTime)
+		{
+			FAnimNotifyEvent& NewEvent = AnimationSequence->Notifies.AddDefaulted_GetRef();
+
+			NewEvent.NotifyName = NAME_None;
+			NewEvent.Link(AnimationSequence, StartTime);
+			NewEvent.TriggerTimeOffset = GetTriggerTimeOffsetForType(AnimationSequence->CalculateOffsetForNotify(StartTime));
+			NewEvent.TrackIndex = GetTrackIndexForAnimationNotifyTrackName(AnimationSequence, NotifyTrackName);
+			NewEvent.NotifyStateClass = NotifyState;
+			NewEvent.Notify = nullptr;
+			NewEvent.SetDuration(Duration);
+			NewEvent.EndLink.Link(AnimationSequence, NewEvent.EndLink.GetTime());
+
+			// Refresh all cached data
+			AnimationSequence->RefreshCacheData();
+		}
+		else
+		{
+			if (!bValidNotifyState)
+			{
+				UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Notify in AddAnimationNotifyEventObject"));
+			}
+
+			if (!bValidOuter)
+			{
+				const FString NotifyName = bValidNotifyState ? NotifyState->GetName() : "Invalid Notify";
+				UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Animation Notify %s Outer is not %s"), *NotifyName, *AnimationSequence->GetName());
+			}
+
+			if (!bIsValidTrackName)
+			{
+				UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Animation Notify Track %s does not exist on Animation Sequence %s"), *NotifyTrackName.ToString(), *AnimationSequence->GetName());
+			}
+
+			if (!bIsValidTime)
+			{
+				UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("%f is side of Animation Sequence %s range"), StartTime, *AnimationSequence->GetName());
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence for AddAnimationNotifyEventObject"));
+	}
 }
 
 static void ReplaceAnimNotifies_Helper(UAnimSequenceBase* AnimationSequence, UClass* OldNotifyClass, UClass* NewNotifyClass, FOnNotifyReplaced OnNotifyReplaced, FOnNotifyStateReplaced OnNotifyStateReplaced)

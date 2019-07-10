@@ -9,12 +9,7 @@ Parent: Engine/Niagara/HowTo
 Order: 3
 Tags: Niagara
 Tags: Early Access
-
-Prerequisite Topics
-
-This page assumes you have prior knowledge of the following topics. Please read them before proceeding.
-
-*   [Enable the Niagara Plugin](Engine/Niagara/HowTo/EnableNiagara "Describes how you can enable the Niagara Plugin.")
+prereq: Engine/Niagara/HowTo/EnableNiagara
 
 Spawning a Static Mesh instead of a [camera-facing sprite](Engine/Niagara/HowTo/SpriteEffect) can increase the realism of the effects you are creating. In the following How-To, we will show how to set up a Niagara Emitter to spawn Static Meshes instead of sprites.
 

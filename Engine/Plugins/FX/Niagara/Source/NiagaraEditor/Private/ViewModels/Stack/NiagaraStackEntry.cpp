@@ -391,7 +391,7 @@ bool UNiagaraStackEntry::HasBaseEmitter() const
 	if (bHasBaseEmitterCache.IsSet() == false)
 	{
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-		const UNiagaraEmitter* BaseEmitter = FNiagaraStackGraphUtilities::GetBaseEmitter(*GetEmitterViewModel()->GetEmitter(), GetSystemViewModel()->GetSystem());
+		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
 		bHasBaseEmitterCache = BaseEmitter != nullptr;
 	}
 	return bHasBaseEmitterCache.GetValue();

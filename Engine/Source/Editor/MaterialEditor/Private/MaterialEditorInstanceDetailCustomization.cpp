@@ -46,6 +46,7 @@
 #include "Materials/MaterialFunctionInstance.h"
 #include "Curves/CurveLinearColor.h"
 #include "IPropertyUtilities.h"
+#include "Engine/Texture.h"
 
 #define LOCTEXT_NAMESPACE "MaterialInstanceEditor"
 
@@ -474,6 +475,52 @@ void FMaterialInstanceParameterDetails::CreateParameterValueWidget(UDEditorParam
 			.EditCondition(IsParamEnabled, FOnBooleanValueChanged::CreateStatic(&FMaterialPropertyHelpers::OnOverrideParameter, Parameter, MaterialEditorInstance))
 			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FMaterialPropertyHelpers::ShouldShowExpression, Parameter, MaterialEditorInstance, ShowHiddenDelegate)))
 			.OverrideResetToDefault(ResetOverride);
+
+		// Textures need a special widget that filters based on VT or not
+		UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(Parameter);
+		if (TextureParam != nullptr)
+		{
+			UMaterial *Material = MaterialEditorInstance->SourceInstance->GetMaterial();
+			if (Material != nullptr)
+			{
+				UMaterialExpressionTextureSampleParameter* Expression = Material->FindExpressionByGUID<UMaterialExpressionTextureSampleParameter>(TextureParam->ExpressionId);
+				if (Expression != nullptr)
+				{
+					TWeakObjectPtr<UMaterialExpressionTextureSampleParameter> SamplerExpression = Expression;
+
+					PropertyRow.CustomWidget()
+					.NameContent()
+					[
+						ParameterValueProperty->CreatePropertyNameWidget()
+					]
+					.ValueContent()
+					.MaxDesiredWidth(TOptional<float>())
+					[
+						SNew(SObjectPropertyEntryBox)
+						.PropertyHandle(ParameterValueProperty)
+						.AllowedClass(UTexture::StaticClass())
+						.CustomResetToDefault(ResetOverride)
+						.ThumbnailPool(PropertyUtilities.Pin()->GetThumbnailPool())
+						.OnShouldFilterAsset_Lambda([SamplerExpression](const FAssetData& AssetData)
+						{
+							if (SamplerExpression.Get())
+							{
+								bool VirtualTextured = false;
+								AssetData.GetTagValue<bool>("VirtualTextureStreaming", VirtualTextured);
+
+								bool ExpressionIsVirtualTextured = IsVirtualSamplerType(SamplerExpression->SamplerType);
+
+								return VirtualTextured != ExpressionIsVirtualTextured;
+							}
+							else
+							{
+								return false;
+							}
+						})
+					];
+				}
+			}
+		}
 	}
 }
 

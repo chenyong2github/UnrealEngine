@@ -230,6 +230,32 @@ public:
 	bool ShouldDoVerticalPlaneDetection() const { return bVerticalPlaneDetection; }
 	
 	const TArray<uint8>& GetSerializedARCandidateImageDatabase() const;	
+
+
+	/** Whether the AR system should generate mesh data that can be rendered, collided against, nav mesh generated on, etc. */
+	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
+	bool bGenerateMeshDataFromTrackedGeometry;
+
+	/** Whether the AR system should generate collision data from the mesh data or not */
+	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
+	bool bGenerateCollisionForMeshData;
+
+	/** Whether the AR system should generate navigation mesh data from the mesh data or not */
+	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
+	bool bGenerateNavMeshForMeshData;
+
+	/** Whether the AR system render the mesh data as occlusion meshes or not */
+	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
+	bool bUseMeshDataForOcclusion;
+
+	/** Whether the AR system should render the mesh data in wireframe or not */
+	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
+	bool bRenderMeshDataInWireframe;
+
+	/** Whether the AR system should report scene objects (@see EARObjectClassification::SceneObject) */
+	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
+	bool bTrackSceneObjects;
+
 private:
 	//~ UObject interface
 	virtual void Serialize(FArchive& Ar) override;
@@ -297,7 +323,7 @@ protected:
 	EAREnvironmentCaptureProbeType EnvironmentCaptureProbeType;
 
 	/** A previously saved world that is to be loaded when the session starts */
-	UPROPERTY(VisibleAnywhere, Category="AR Settings")
+	UPROPERTY(VisibleAnywhere, Category="AR Settings | World Mapping")
 	TArray<uint8> WorldMapData;
 
 	/** A list of candidate objects to search for in the scene */

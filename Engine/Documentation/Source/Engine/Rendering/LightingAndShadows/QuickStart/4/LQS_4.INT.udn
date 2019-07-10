@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:4. Adding a Spot Light
 Crumbs:%ROOT%, GettingStarted, Engine\Rendering\LightingAndShadows\QuickStart
 Description:Here we will create a stylized looking light by using a Spot Light. 

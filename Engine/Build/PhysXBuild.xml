@@ -13,6 +13,7 @@
 	<Option Name="TargetWindowsCompilers" DefaultValue="VisualStudio2015" Description="Target Compilers"/>
 	<Option Name="WithWin32" DefaultValue="false" Description="Compile for Win32"/>
 	<Option Name="WithWin64" DefaultValue="false" Description="Compile for Win64"/>
+	<Option Name="WithHoloLens" DefaultValue="false" Description="Compile for HoloLens"/>
 	<Option Name="WithPS4" DefaultValue="false" Description="Compile for PS4"/>
 	<Option Name="WithXboxOne" DefaultValue="false" Description="Compile for Xbox One"/>
 	<Option Name="WithLinux" DefaultValue="false" Description="Compile for Linux"/>
@@ -46,6 +47,12 @@
 	<Agent Name="PhysX Win64" Type="EngineWin64;PhysX_CompileWin64;Win64">
 		<Node Name="Compile PhysX Win64">
 			<Command Name="BuildPhysX" Arguments="-TargetPlatforms=Win64 -TargetConfigs=&quot;$(TargetConfigs)&quot; -TargetWindowsCompilers=&quot;$(TargetWindowsCompilers)&quot; $(OtherArgs)"/>
+		</Node>
+	</Agent>
+	<!-- @MIXEDREALITY_CHANGE : BEGIN ARM -->
+	<Agent Name="PhysX HoloLens" Type="EngineWin64;PhysX_CompileWin64;Win64">
+		<Node Name="Compile PhysX HoloLens">
+			<Command Name="BuildPhysX" Arguments="-TargetPlatforms=ARM64 -TargetConfigs=&quot;$(TargetConfigs)&quot; -TargetWindowsCompilers=&quot;$(TargetWindowsCompilers)&quot; $(OtherArgs)"/>
 		</Node>
 	</Agent>
 	<Agent Name="PhysX PS4" Type="EngineWin64;PhysX_CompileWin64;Win64">
@@ -127,6 +134,7 @@
 	<Property Name="PhysXTargets" Value=""/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX Win32" If="$(WithWin32)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX Win64" If="$(WithWin64)"/>
+	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX HoloLens" If="$(WithHoloLens)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX PS4" If="$(WithPS4)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX XboxOne" If="$(WithXboxOne)"/>
 	<Property Name="PhysXTargets" Value="$(PhysXTargets);Compile PhysX Linux" If="$(WithLinux)"/>

@@ -965,14 +965,16 @@ FText SMediaPlayerEditorViewer::HandleTimerTextBlockToolTipText() const
 		return FText::GetEmpty();
 	}
 
-	FTimespan Remaining = MediaPlayer->GetDuration() - MediaPlayer->GetTime();
+	FTimespan Duration = MediaPlayer->GetDuration();
+	FTimespan Remaining = Duration - MediaPlayer->GetTime();
+	bool bInfiniteTimeRemaining = Duration == FTimespan::MaxValue();
 
-	if (Remaining <= FTimespan::Zero())
+	if (Remaining <= FTimespan::Zero() && !bInfiniteTimeRemaining)
 	{
 		return LOCTEXT("UnknownTimeRemainingTooltip", "Unknown time remaining");
 	}
 
-	if (Remaining == FTimespan::MaxValue())
+	if (Remaining == FTimespan::MaxValue() || bInfiniteTimeRemaining)
 	{
 		return LOCTEXT("InfiniteTimeRemainingTooltip", "Infinite time remaining");
 	}

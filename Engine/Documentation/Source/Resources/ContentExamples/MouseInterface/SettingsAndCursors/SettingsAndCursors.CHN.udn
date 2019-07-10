@@ -1,55 +1,60 @@
-﻿Availability: Public
-Title:鼠标互动属性
+﻿INTSourceChangelist:3108692
+Availability: Public
+Title:鼠标交互属性
 Crumbs:%ROOT%, Resources,  Resources/ContentExamples/MouseInterface
-Description:用于鼠标互动的属性和指针的分解说明
+Description:鼠标交互所用属性和指针详解。
+Version: 4.9
 
 
 [TOC(start:2 end:2)]
 
 
-## 概述
 
-下文是设置鼠标互动以及可用指针示例时使用的可用属性细分。 请注意显示的指针将会基于不同的操作系统而变化。
+以下内容是设置鼠标交互时可用属性的详解，并包含可用指针的样本。注意：显示的指针将基于操作系统而变化。
 
 
+
+(#mouseinterfaceproperties)
 
 ## 鼠标接口属性
 
-在玩家控制器类中，您将可以找到名称为 _Mouse Interface_ （鼠标接口）的属性分类。 这就是对基于指针的鼠标互动进行各项设置的地方。 属性如下所示：
+在PlayerController类中有一个名为 **鼠标接口（Mouse Interface）** 的属性类。基于指针的鼠标交互的所有设置均在此处发生。属性如下所示：
 
 | 属性 | 描述 |
-| ---- | ---- |
-| **Show Mouse Cursor** (显示鼠标指针） | 该属性判定鼠标指针是否可见。 请注意默认情况下鼠标指针直接使用操作系统的指针。 |
-| **Enable Click Events** （启用点击事件） | 该属性使点击事件得以处理。 不设置这个属性，您将无法点击物体。 |
-| **Enable Mouse Over Events** （启用鼠标悬停事件） | 该属性使悬停事件得以处理。 不设置这个属性，鼠标悬停无法正常运行。 |
-| **Default Mouse Cursor** （默认鼠标指针） | 该属性设置了鼠标指针的默认外观。 此选项可以在[可用指针](#可用指针)部分中找到。  |
-| **Default Click Trace Channel** （默认点击追溯通道）| 该属性设置了追溯系统将要使用的默认通道，以查看您点击了哪些物体。 默认设置为 _Visibiltiy_ （可见性）。 这就表示追溯会检查物体的可见度状态并仅在物体可见的情况下才返回true值。 我们换一种说法，也就是说您仅能与在游戏中 _可见_ 的物体进行互动。  |
+|----|----|
+| **显示鼠标指针（Show Mouse Cursor）** | 此属性将决定鼠标指针是否可见。注意：此项默认直接来自操作系统的指针。 |
+| **启用点击事件（Enable Click Events）** | 此属性将启动处理点击事件的功能。缺少此属性则无法进行鼠标点击。 |
+| **启用鼠标悬停事件（Enable Mouse Over Events）** | 此属性将启动处理鼠标悬停事件的功能。缺少此属性则无法进行鼠标悬停。 |
+| **默认鼠标指针（Default Mouse Cursor）** | 此属性将设置鼠标指针的默认外观。选项显示在[可用指针](#AvailableCursors)部分中。 |
+| **默认点击追踪通道（Default Click Trace Channel）** | 此属性将设置追踪系统用于查看点击被点击对象的默认通道。默认设置为 _Visibiltiy_。这意味着追踪将检查对象的可见性状态，并在对象为可见时才返回 _true_。换言之，只能与游戏中 _可见_ 的对象进行交互。  |
 
+
+(#availablecursors)
 
 ## 可用指针
 
-下方列表包含了所有可用指针，您一般在Windows的操作系统中可以见到它们。 不过，您不应由于它们的通常作用而感到拘束。 您可以按您所需，在游戏中使用任意指针。 但是您需要注意，许多电脑用户习惯于在非常特定的情况下看到这些指针，如果您不按照这些规则，可能会导致他们的困惑。
+以下列表包含所有可用指针，以及其在Windows操作系统中的外观。然而使用者也不会受限于常见用法，能以任意方式在游戏中使用。唯一需要注意的是许多计算机使用者习惯于在特定情况下看到特定的指针，脱离传统可能会引起迷惑。
 
 [REGION:note]
-	这次，鼠标指针直接照搬自操作系统。 以下指针是在使用Aero主题的Windows中截屏得到的。 在其它操作系统或主题中，鼠标的外观会有所不同。
+	此时，指针将直接从操作系统抽取而来。以下指针通过Windows上的航空（Aero）主题收集而来。在其他操作系统上或使用其他主题时，外观应该会有所不同。
 [/REGION]
 
-| 设置 | 描述 | 示例 |
+| 设置 | 描述 | 范例 |
 | --- | --- | :--: |
-| **None** （无） | 此设置会有效地隐藏指针。 然而此时依然要注意，因为指针的位置仍在被计算，所以依然会有悬停和点击事件。 | **N/A** |
-| **Default** （默认）| 该设置下为默认的箭头指针。 | ![](cursor_Default.png) | 
-| **Text Edit Beam** (文本编辑符）| 当文本区域可被编辑时，一般会出现该指针。 | ![](cursor_TextEditBeam.png) |
-| **Resize Left Right** (水平调整）| 该指针出现在任意可进行水平调整的窗口或UI资源的边缘处。 | ![](cursor_ResizeLeftRight.png) |
-| **Resize Up Down** (垂直调整）| 该指针出现在任意可进行垂直调整的窗口或UI资源的边缘处。 | ![](cursor_ResizeUpDown.png) |
-| **Resize South East** (沿东南斜线方向调整）| 该指针出现在任意可从右上角或右下角进行水平和垂直调整的窗口或UI资源的边缘处。  | ![](cursor_ResizeSouthEast.png) |
-| **Resize South West** (沿西南斜线方向调整）| 该指针出现在任意可从左上角或左下角进行水平和垂直调整的窗口或UI资源的边缘处。  | ![](cursor_ResizeSouthWest.png) |
-| **Cardinal Cross** (十字） | 当您从屏幕上拖动窗口时常能看到该指针。 | ![](cursor_cardinal.png) |
-| **Crosshairs** （准心）| 在执行不同的精确操作时，会出现该指针。 | ![](cursor_Crosshairs.png) |
-| **Hand**  （手）| 当您在超链接上悬停鼠标时，一般会出现这个指针。 | ![](cursor_Hand.png) |
-| **Grab Hand** （握手型）| 当您的鼠标停留在屏幕中试图拖动的物体上时，会出现该指针。 | ![](cursor_GrabHand.png) |
-| **Grab Hand Closed** （握紧手型）| 当您使用鼠标在屏幕中拖动物体时，一般会出现这个指针。 | ![](cursor_GrabHandClosed.png) |
-| **Slashed Circle** (不可用）| 当您尝试执行非法操作，例如将某项目拖动到其无法到达的位置时，会出现该指针。 | ![](cursor_SlashedCircle.png) |
-| **Eye Dropper** （滴管）| 当您对给定像素位置进行颜色取样时，最常见该指针。 | ![](cursor_EyeDropper.png) |
+| **None** | 此设置将隐藏指针，使用时须多加注意。但仍会计算指针位置，因此仍将获得鼠标悬停和点击事件。 | **N/A** |
+| **默认（Default）** | 这是默认的箭头指针。 | ![](cursor_Default.png) | 
+| **文本编辑条（Text Edit Beam）** | 出现可编辑文本域时通常会出现此指针。 | ![](cursor_TextEditBeam.png) |
+| **左右重调大小（Resize Left Right）** | 此指针将出现在能进行水平大小调整的窗口或UI资源上。 | ![](cursor_ResizeLeftRight.png) |
+| **上下重调大小（Resize Up Down）** | 此指针将出现在能进行垂直大小调整的窗口或UI资源上。 | ![](cursor_ResizeUpDown.png) |
+| **东南重调大小（Resize Up Down）** | 此指针将出现在能从右上角或右下角进行水平和垂直大小调整的窗口或UI资源上。 | ![](cursor_ResizeSouthEast.png) |
+| **西南重调大小（Resize Up Down）** | 此指针将出现在能从左上角或左下角进行水平和垂直大小调整的窗口或UI资源上。 | ![](cursor_ResizeSouthWest.png) |
+| **十字（Cardinal Cross）**  | 在屏幕上移动窗口时通常会出现此指针。 | ![](cursor_cardinal.png) |
+| **准星（Crosshairs）** | 执行各种精确操作时将出现此指针。 | ![](cursor_Crosshairs.png) |
+| **手（Hand）**  | 鼠标悬停在超链接上时通常会出现此指针。 | ![](cursor_Hand.png) |
+| **抓取（Grab Hand）** | 鼠标悬停在要在屏幕中拖动的对象上时会出现此指针。 | ![](cursor_GrabHand.png) |
+| **抓住（Grab Hand Closed）** | 在屏幕中拖动对象时通常会出现此指针。 | ![](cursor_GrabHandClosed.png) |
+| **禁止符（Slashed Circle）** | 尝试执行无效操作（如将物体拖到无法放置之处）时通常会出现此指针。 | ![](cursor_SlashedCircle.png) |
+| **滴管（Eye Dropper）** | 在给定像素位置处采样颜色时通常会出现此指针。 | ![](cursor_EyeDropper.png) |
 
 
 

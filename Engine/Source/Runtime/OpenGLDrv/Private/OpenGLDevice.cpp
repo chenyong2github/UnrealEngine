@@ -976,6 +976,11 @@ static void InitRHICapabilitiesForGL()
 				// The user should check for support for PF_G16R16 and implement a fallback if it's not supported!
 				SetupTextureFormat(PF_G16R16, FOpenGLTextureFormat(GL_RG16, GL_RG16, GL_RG, GL_UNSIGNED_SHORT, false, false));
 			}
+			if (FOpenGL::SupportsRG32UI())
+			{
+				// The user should check for support for PF_G32R32 and implement a fallback if it's not supported!
+				SetupTextureFormat(PF_R32G32_UINT, FOpenGLTextureFormat(GL_RG32UI, GL_RG32UI, GL_RG, GL_UNSIGNED_INT, false, false));
+			}
 		}
 		else
 		{

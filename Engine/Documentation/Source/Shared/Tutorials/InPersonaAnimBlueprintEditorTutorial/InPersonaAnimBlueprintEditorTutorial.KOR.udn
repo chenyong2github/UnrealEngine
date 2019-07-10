@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:페르소나 입문
 Crumbs:
@@ -138,7 +138,7 @@ State Machine(스테이트 머신)은 스켈레탈 메시의 애니메이션을 
 [애니메이션 블루프린트](DOCLINK:Engine/Animation/AnimBlueprints)
 [애님 그래프](DOCLINK:Engine/Animation/AnimBlueprints/AnimGraph)
 [이벤트 그래프](DOCLINK:Engine/Animation/AnimBlueprints/EventGraph)
-[애니메이션 블루프린트 인터페이스 참고서](DOCLINK:Engine/Animation/AnimBlueprints/Interface)
+[애니메이션 블루프린트 인터페이스 레퍼런스](DOCLINK:Engine/Animation/AnimBlueprints/Interface)
 [스테이트 머신](DOCLINK:Engine/Animation/StateMachines)
 
 ![](Stage1.png)

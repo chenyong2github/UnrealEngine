@@ -106,7 +106,7 @@ Engine/Physics/PhysicsBodies#physics
 
 这可为物理形体的旋转添加一个类似于阻力的效果，但它会更精确地定义物理形体抗拒旋转的程度。最简单的理解方法是将其视为一个吊桥：角阻尼的作用类似于支撑吊桥的链条，缓慢下降到打开状态。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties
+Engine/Physics/PhysicsAssetEditor/Properties
 [/VAR]
 [/EXCERPT:AngularDamping]
 
@@ -116,7 +116,7 @@ Engine/Physics/PhAT/Properties
 
 这可为物理形体添加一个类似于阻力的效果，但它会更精确地定义物理形体抗拒移动的程度。这将减慢物理形体的下坠速度，使其拥有坠入水或淤泥中的效果。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties
+Engine/Physics/PhysicsAssetEditor/Properties
 [/VAR]
 [/EXCERPT:LinearDamping]
 

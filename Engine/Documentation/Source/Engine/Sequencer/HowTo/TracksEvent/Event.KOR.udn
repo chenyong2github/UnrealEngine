@@ -1,213 +1,128 @@
-﻿INTSourceChangelist:3774504
+INTSourceChangelist:6419241
 Availability: Public
-Title:커스텀 이벤트 및 커스텀 구조체
-Crumbs:%ROOT%
-Description:이벤트 트랙을 사용하여 블루프린트에서 사용할 커스텀 구조체를 가진 커스텀 이벤트 호출 방법을 보여드립니다.
-Version: 4.18
-SkillLevel: Intermediate
-parent:Engine/Sequencer/HowTo
-order:1
-checkpoint: editorqs
-Related: Engine/Sequencer/Overview
-Related: Engine/Sequencer/ReferenceEditor
-tags:Sequencer
-type:how-to
+Crumbs: 
+Title: 시퀀서를 통한 이벤트 호출
+Description: 시퀀서의 이벤트 트랙을 사용하여 블루프린트에서 이벤트를 발동하는 법 예제입니다. 
+Type:how-to
+skilllevel:Intermediate
+Version: 4.21
+Parent: Engine/Sequencer/HowTo
+Order: 
+Tags: Sequencer
+Tags: Event Track
 
-**Event Track** (이벤트 트랙)을 사용하면 다수의 블루프린트 안에서 [블루프린트 스크립트](Engine/Blueprints) 를 실행할 수 있는 [커스텀 이벤트](Engine/Blueprints/UserGuide/Events/Custom) 호출이 가능합니다.
-커스텀 이벤트가 호출되면, 거기에 붙은 스크립트 역시도 실행되며, 필요에 따라 어떤 경우의 수만큼도 사용 가능합니다.
-이벤트 트랙을 사용하여 커스텀 이벤트를 호출할 때, 별도의 커스텀 [구조체](Engine/Blueprints/UserGuide/Variables/Structs) 를 같이 전달할 수 있는데, 이를 통해 그 안에 포함된 변수를 업데이트할 수 있습니다.
-레벨 시퀀스 재생 도중 다른 변수를 업데이트하고자 하는 상황에 유용하게 쓰일 수 있습니다.
 
-이 예제에서는 이벤트 트랙을 사용하여 레벨 블루프린트에서 오브젝트를 이동시키고 다른 블루프린트의 포인트 라이트를 켜고 끕니다.
+시퀀서를 통해 시네마틱을 재생할 때, 스크립트 기능을 개시하는 **이벤트** 를 발동하고픈 경우가 있습니다. 시네마틱 특정 시점에 문을 열거나, 파티클 이펙트를 스폰하고 플레이하거나 어떤 식으로든 플레이어에 영향을 주는 것입니다. **Event Track** (이벤트 트랙)에서 이벤트를 호출하려는 시네마틱의 정확한 프레임에 키를 설정합니다. 그런 다음 **Director** (디렉터) 클래스 블루프린트에서 **Event Endpoint** (이벤트 엔드포인트)를 사용하여 발생시키고자 하는 스크립트 기능을 제공합니다.
 
- ![](EndResultImage.png)
+여기서는 이벤트 트랙을 사용하여 캐릭터가 죽었다는 텍스트를 화면에 출력하도록 하겠습니다. 동시에 플레이어 이동을 비활성화하고 캐릭터에 물리 시뮬레이션을 적용합니다.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ dj0DHI-h26Y
+ [/PARAMLITERAL]
+[/OBJECT]
 
 ## 단계
 
 [REGION:note]
-여기서는 **블루프린트 삼인칭 템플릿** 프로젝트에 **시작용 콘텐츠** 를 포함시켜 사용하고 있습니다.
+여기서는 **블루프린트 삼인칭 템플릿** 프로젝트를 사용합니다.
 [/REGION]
 
-1.	**콘텐츠 브라우저** 에서 **Content/StarterContent/Shapes** 폴더 아래 **Shape_Cube** 메시를 끌어 레벨에 놓습니다.
+2.  메인 툴바의 **시네마틱** 버튼을 클릭한 뒤 **레벨 시퀀스 추가** 를 선택하고 이름과 저장 위치를 지정합니다.  
+    ![](UsingEventTracks_01.png "UsingEventTracks_01.png")
 
-	![](EventTrack1.png)
+5.  레벨 시퀀스의 **디테일** 패널에서 **Auto Play** (자동 재생) 옵션을 활성화합니다.   
+    ![](UsingEventTracks_02.png "UsingEventTracks_02.png")
 
-	메시를 레벨 내 아무데나 놓습니다.
+8.  레벨의 **ThirdPersonCharacter** 를 선택한 뒤 시퀀서의 **\+ 트랙** 버튼에서 추가합니다.   
+    ![](NewEventTrack_03.png "NewEventTrack_03.png")  
 
-1.	메시의 **디테일** 패널에서 메시를 **무버블** 로 설정합니다.
+11.  레벨의 **ThirdPersonCharacter** 에 우클릭한 뒤 **ThirdPersonCharacter 편집** 을 선택합니다.   
+    ![](NewEventTrack_04.png "NewEventTrack_04.png")  
+    **삼인칭 캐릭터 블루프린트** 안에, 시퀀서에서 호출되는 커스텀 이벤트를 추가합니다. 
 
-	![](EventTrack1b.png)
+14.  **이벤트 그래프** 에 우클릭하고 **Custom Event** (커스텀 이벤트)를 검색하여 추가합니다.   
+    ![](NewEventTrack_05.png "NewEventTrack_05.png")
 
-	그러면 게임플레이 도중 메시를 움직일 수 있습니다.
+17.  커스텀 이벤트 이름은 **KillPlayerText** 라 하고 **Print String** 노드에 *Kill My Player!*  텍스트를 String 으로 하여 연결합니다.   
+    ![](NewEventTrack_06.png "NewEventTrack_06.png")  
+    이 예제에서는 커스텀 이벤트가 호출되면 텍스트를 화면에 출력합니다. 원하는 스크립트 기능을 제공하고 커스텀 이벤트에 연결한 뒤 시퀀서에서 호출되었을 때 실행되도록 할 수도 있습니다.   
 
-1.	**콘텐츠 브라우저** 에서 **신규 추가** 버튼을 클릭하고, **블루프린트** 아래 **구조체** 옵션을 선택합니다.
+20.  **시퀀서** 에서 **ThirdPersonCharacter** 트랙에 **\+ 트랙** 버튼을 클릭하고 **Event** (이벤트)를 선택합니다.   
+    ![](NewEventTrack_07.png "NewEventTrack_07.png")
 
-	![](EventTrack2.png)
+23.  타임라인을 **60** 프레임으로 옮긴 뒤 **이벤트** 트랙의 **+** 부호를 클릭하여 이벤트 키를 추가합니다.   
+    ![](NewEventTrack_08.png "NewEventTrack_08.png")
 
-1.	이름을 **MyStruct** 라 한 뒤 애셋을 열고 **Vector** 변수를 추가, 이름을 **MoveCube** 라 합니다. 
+26.  새 키프레임에 우클릭한 다음 **프로퍼티** 아래 **Unbound** (언바운드)를 클릭하고 **Create New Endpoint** (새 엔드포인트 생성)을 선택합니다.   
+    ![](NewEventTrack_09.png "NewEventTrack_09.png")
+    
+    그러면 새로운 **Director Class** 블루프린트가 나타납니다.
+    
+    [REGION:lightbox]
+    [![](UsingEventTracks_06b.png)(w:900)](UsingEventTracks_06b.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다.
+    [/REGION]
+    
+    디렉터 블루프린트에서, 지정한 대상(들)에 대해 발생시킬 스크립트 기능을 지정할 수 있습니다. 또한 디렉터 블루프린트로 다른 블루프린트가 구현한 [블루프린트 인터페이스](Engine/Blueprints/UserGuide/Types/Interface) 를 호출하도록 하면 호출을 받았을 때 차례로 호출되도록 할 수 있습니다.
+    
+    [REGION:note]
+    자세한 정보는 [이벤트 트랙 개요](Engine/Sequencer/Workflow/EventTrackOverview) 문서를 참고하세요.
+    [/REGION]
 
-	![](EventTrack3.png)
+36.  **내 블루프린트** 패널에서 함수 이름을 **PrintKillPlayer** 로 변경하고 **Target** (타깃) 핀을 끌어놓은 뒤 **Kill Player Text** 라 합니다.
+    ![](NewEventTrack_10.png "NewEventTrack_10.png")  
+    이 예제의 타깃은 **ThirdPersonCharacter** 블루프린트입니다. 또한 **Target** 유형을 변경하면 지정한 타깃 유형 관련 함수에 액세스할 수 있습니다. 
 
-	[REGION:note]
-	여기서 변수 이름이 중요한데, 나중에 이 이름을 사용하여 레퍼런스를 지정할 것이기 때문입니다.
-	[/REGION]
+39.  **시퀀서** 에서 **ThirdPersonCharacter** 트랙에 대해 **CharacterMesh0** 를 추가합니다.   
+    ![](NewEventTrack_11.png "NewEventTrack_11.png")
 
-1.	레벨에 **Master** 라는 **레벨 시퀀스** 를 새로 추가한 뒤, **시퀀서** 안에서 **이벤트 트랙** 을 추가합니다.
+42.  **CharacterMesh0** 에서 **\+ 트랙** 버튼을 눌러 **이벤트** 트랙을 추가합니다.   
+    ![](NewEventTrack_12.png "NewEventTrack_12.png")
 
-	![](EventTrack4.png)
+45.  **이벤트** 트랙에서 **60** 프레임에 키를 추가한 뒤, 우클릭하고 **프로퍼티 > 퀵 바인딩 생성** 아래 **SetAllBodiesSimulatePhysics** 를 선택합니다.   
+    ![](NewEventTrack_13.png "NewEventTrack_13.png")  
+    이 이벤트 트랙에 대한 오브젝트 바인딩은 스켈레탈 메시 컴포넌트이므로, 이제 스켈레탈 메시에 관련된 **퀵 바인딩** 에 액세스할 수 있습니다. 이 함수를 선택하면 Event Endpoint 로의 노드를 자동 추가하고 그래프를 엽니다. 
 
-1.	타임라인을 **5** 프레임으로 옮기고 키를 추가한 뒤, 키에 우클릭하고 이벤트 이름을 **LiftCube** 라 합니다. **MyStruct** 를 할당하고 **Z** 값을 **100** 으로 설정합니다. 
+48.  **New Simulate** 는 활성화 설정한 뒤, **Set Collision Enabled** 노드를 추가하고 **Collision Enabled (Query and Physics)** 는 **New Type** 으로 설정합니다.   
+    ![](NewEventTrack_14.png "NewEventTrack_14.png")  
+    그러면 스켈레탈 메시에 물리 시뮬레이션이 시작되면서 콜리전이 활성화되어 바닥을 뚫고 떨어지지 않습니다. 
 
-	![](EventTrack5.png)
+51.  시퀀서에서 **ThirdPersonCharacter** 에 대해 **\+ 트랙** 버튼을 클릭하고 **CharMoveComp** 트랙을 추가합니다.
+   ![](NewEventTrack_15.png "NewEventTrack_15.png")
 
-	시퀀스에서 이 키프레임에 도달하면, 메시를 Z 축으로 100 유닛 위로 이동시키겠습니다.
-
-1.	타임라인을 **10** 프레임으로 옮기고 **]** 키를 눌러 시퀀스를 10 프레임에서 종료시킵니다.
-
-	![](EventTrack6.png)
-
-1.	레벨에서 추가한 메시와 레벨 시퀀스를 선택하고, 툴바의 **블루프린트** 버튼을 클릭한 뒤 **레벨 블루프린트 열기** 를 선택합니다.
-
-	![](EventTrack7.png)
-
-1.	**레벨 블루프린트** 에서 **우클릭** 하고 **Reference** (레퍼런스)를 검색한 뒤 **Create Reference to 2 selected Actors** (2 개의 선택된 액터로의 레퍼런스 생성)을 선택합니다. 
-
-	![](EventTrack8.png)
-
-1.	그래프에 우클릭하고 **1** 키보드 이벤트를 추가한 뒤 **Master** 레벨 시퀀스를 끌어놓고 **Set Playback Position** 노드를 검색 추가합니다.
-
-	![](EventTrack9.png)
-
-	[REGION:note]
-	그러면 플레이를 시작할 때마다 시퀀스를 리셋시켜 실제 재생 함수 호출을 내릴 수 있습니다.
-	[/REGION]	
-	
-1.	추가한 **Sequence Player** 노드를 끌어놓고 **Play** 노드를 사용하여 아래와 같이 연결합니다.
-
-	![](EventTrack10.png)
-
-1.	그래프에 **우클릭** 하고 **Custom Event** 를 생성하여 **LiftCube** 라 합니다. 
-
-	![](EventTrack11.png)
-
-	[REGION:warning]
-	Custom Event 이름은 시퀀서의 키에 지정한 **Event Name** 과 같아야 합니다. 그렇지 않으면 호출되지 않습니다.
-	[/REGION]
-
-1.	Custom Event 의 **디테일** 패널에서 **+** 버튼을 눌러 입력을 추가하고 이름을 **MoveCube**, 변수 유형은 **Vector** 로 합니다.
-
-	![](EventTrack12.png)
-
-	[REGION:warning]
-	이벤트 호출을 위한 조건은 다음과 같습니다:
-	*	입력 이름이 구조체에 사용된 이름과 같아야 합니다.
-	*	입력 수가 커스텀 구조체에 정의된 변수 개수와 일치해야 합니다.
-
-	예를 들어, 구조체 안에 변수가 둘 있는 경우, Custom Event 역시 올바른 변수 이름과 유형의 입력이 둘 있어야 합니다.
-	[/REGION]
-	
-1.	메시 레퍼런스를 끌어 놓고 **AddActorLocalOffset** 노드를 검색 추가합니다.
-
-	![](EventTrack13.png)
-
-1.	아래와 같이 **MoveCube** 벡터 핀을 **Delta Location** 핀에 연결하고 **LiftCube** 실행 핀을 **AddActorLocalOffset** 노드에 연결합니다.
-
-	![](EventTrack14.png)
-
-	에디터에서 플레이하고 **1** 키를 누를 때마다 큐브가 Z 축으로 올라갑니다.
-
-	[OBJECT:EmbeddedVideo]
-		[PARAMLITERAL:videoid]
-		wlLcUr8BXvY
-		[/PARAMLITERAL]
-		[PARAMLITERAL:width]
-		100
-		[/PARAMLITERAL]
-		[PARAMLITERAL:height]
-		56.25
-		[/PARAMLITERAL]
-		[PARAMLITERAL:units]
-		%
-		[/PARAMLITERAL]
-		[PARAMLITERAL:type]
-		simple
-		[/PARAMLITERAL]
-	[/OBJECT]
-
-	**레벨 블루프린트** 를 사용하여 **커스텀 이벤트** 를 실행하고 있으나, 실제 사용할 때는 다른 블루프린트 또는 다수의 블루프린트에 영향을 주고 싶을 때가 있을 수 있습니다.
-
-1.	**콘텐츠 브라우저** 에서 **Content/StarterContent/Blueprints** 아래 **Bluperint_CeilingLight** 블루프린트를 끌어 레벨에 놓습니다.
-
-	![](EventTrack15.png)
-
-1.	**마스터** 레벨 시퀀스의 **디테일** 패널에서 부가 옵션을 펼치고 **General** (일반) 아래 **Blueprint_CeilingLight** 를 **Additional Event Reciever** 로 추가합니다. 
-
-	![](EventTrack16.png)
-
-1.	**Blueprint_CeilingLight** 블루프린트를 열고 다음 스크립트를 추가합니다.
-
-	![](EventTrack17.png)
-
-	* 커스텀 이벤트를 만들어 **LiftCube** 라 합니다. **시퀀서** 의 **이벤트** 에 해당합니다.
-	* **Flip Flop** 노드를 사용하여 **Point Light** 의 **Set Intesnity** (강도 설정)을 **0** (꺼짐) 또는 **5000** (켜짐) 으로 합니다.
-
-	그러면 마스터 레벨 시퀀스를 재생할 때마다 라이트가 꺼졌다 켜졌다 하게 됩니다.
-	
-	[REGION:warning]
-	이 블루프린트에서 커스텀 구조체 **MoveCube** 를 사용하고 있지는 않지만, 이벤트가 호출되도록 하기 위해서는 여전히 추가해 줘야 합니다.
-	[/REGION] 
-
-1.	에디터에서 플레이합니다.
-
+54.  **CharMoveComp** 에 대한 **이벤트** 트랙과 **60** 프레임 위치에 이벤트 트랙을 추가하고 **Quick Binding** 으로 **DisableMovement** 을 호출합니다.
+   ![](NewEventTrack_16.png "NewEventTrack_16.png")  
+    여기서 타깃은 **Character Movement Component** 이며 이벤트를 사용하여 캐릭터의 물리 시뮬레이션 도중 이동 기능을 비활성화합니다.   
+   
+57.  **플레이** 버튼을 눌러 에디터에서 플레이합니다. 
 
 ## 최종 결과
 
-에디터에서 플레이하면, **1** 키를 누를 때마다 큐브가 Z 축으로 올라가고 불이 꺼졌다 켜졌다 합니다.
-
+에디터에서 플레이하고 잠시 후, 창 왼쪽 상단 구석에 텍스트가 나타나며 캐릭터가 바닥에 떨어지고 이동 기능은 비활성화됩니다. 
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:videoid]
-	Ftm9I_TEXYE
-	[/PARAMLITERAL]
-	[PARAMLITERAL:width]
-	100
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	56.25
-	[/PARAMLITERAL]
-	[PARAMLITERAL:units]
-	%
-	[/PARAMLITERAL]
-	[PARAMLITERAL:type]
-	simple
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ dj0DHI-h26Y
+ [/PARAMLITERAL]
 [/OBJECT]
 
-이 예제에서는, **레벨 블루프린트** 와 **시퀀서** 의 [](Engine/Blueprints/UserGuide/Types/ClassBlueprint) 안에서 이벤트를 호출하고 있습니다.
-시네마틱을 확인할 카메라를 할당하지 않은 대신 시퀀서와 블루프린트를 사용하여 스크립트 시퀀스를 수행하고 있습니다.
-프로젝트에서는 커스텀 이벤트 및 커스텀 구조체와 함께 이벤트 트랙을 사용하여 컷씬 도중 (플레이어가 생명령 증가, 새 무기, 기타 게임플레이 관련 효과 등) 
-시네마틱 시퀀스 내 정의된 지점에서 플레이어 정보를 업데이트할 수 있습니다.
+시퀀서 안에서 오브젝트에 이벤트 트랙을 추가하면 생성되는 오브젝트 바인딩에서 이벤트, 함수를 호출하거나 바인딩된 오브젝트의 프로퍼티에 액세스할 수 있습니다. 또한 이벤트 트랙은 레벨 블루프린트, UI 위젯 블루프린ㅌ 안에서 스크립트를 실행하거나, 블루프린트 인터페이스를 통한 다중 블루프린트 통신에도 사용할 수 있습니다. 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+[REGION:note]
+자세한 정보는 [이벤트 트랙 개요](Engine/Sequencer/Workflow/EventTrackOverview) 문서를 참고하세요.
+[/REGION]

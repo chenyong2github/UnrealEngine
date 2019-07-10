@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6077702
+Availability: docs
 Title: 7. 自己来！
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description: 使用前面的这些方法，改善关卡，添加更多内容，并阅读相关更多话题。
@@ -7,6 +7,7 @@ SkillLevel:Beginner
 Version:4.9
 checkpoint: editorqs
 
+## 页面已合并，标记为docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

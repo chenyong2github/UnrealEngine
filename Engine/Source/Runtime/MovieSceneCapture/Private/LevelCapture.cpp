@@ -17,7 +17,7 @@ void ULevelCapture::SetPrerequisiteActor(AActor* InPrerequisiteActor)
 
 void ULevelCapture::Initialize(TSharedPtr<FSceneViewport> InViewport, int32 PIEInstance)
 {
-	CaptureStrategy = MakeShareable(new FFixedTimeStepCaptureStrategy(Settings.FrameRate));
+	CaptureStrategy = MakeShareable(new FFixedTimeStepCaptureStrategy(Settings.GetFrameRate()));
 	CaptureStrategy->OnInitialize();
 	Super::Initialize(InViewport, PIEInstance);
 

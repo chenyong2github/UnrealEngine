@@ -528,6 +528,11 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 					: NSLOCTEXT("CoreUObject", "ReloadingPackages", "Reloading Packages");
 				ReloadingPackagesSlowTask.EnterProgressFrame(1, ProgressText);
 
+				{
+					FPackageReloadedEvent TempReloadEvent(ExistingPackage, nullptr, TMap<UObject*, UObject*>());
+					FCoreUObjectDelegates::OnPackageReloaded.Broadcast(EPackageReloadPhase::PrePackageLoad, &TempReloadEvent);
+				}
+
 				check(NewPackages.Refs.Num() == PackageIndex);
 				NewPackages.Refs.Emplace(PackageReloadInternal::LoadReplacementPackage(ExistingPackage, InPackagesToReload[PackageIndex].LoadFlags));
 

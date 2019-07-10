@@ -165,6 +165,11 @@ void UMovieSceneNiagaraEmitterTrack::RemoveSection(UMovieSceneSection& Section)
 	Sections.Remove(&Section);
 }
 
+void UMovieSceneNiagaraEmitterTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	Sections.RemoveAt(SectionIndex);
+}
+
 bool UMovieSceneNiagaraEmitterTrack::IsEmpty() const
 {
 	return Sections.Num() == 0;

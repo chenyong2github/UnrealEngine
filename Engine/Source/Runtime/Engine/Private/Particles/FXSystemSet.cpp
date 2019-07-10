@@ -10,11 +10,13 @@ FFXSystemInterface* FFXSystemSet::GetInterface(const FName& InName)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
-		check(FXSystem);
-		FFXSystemInterface* Res = FXSystem->GetInterface(InName);
-		if (Res)
+		if (FXSystem) // Can be null when called from ::Destroy()
 		{
-			return Res;
+			FXSystem = FXSystem->GetInterface(InName);
+			if (FXSystem)
+			{
+				return FXSystem;
+			}
 		}
 	}
 	return nullptr;
@@ -87,12 +89,12 @@ void FFXSystemSet::UpdateVectorField(UVectorFieldComponent* VectorFieldComponent
 	}
 }
 
-void FFXSystemSet::PreInitViews()
+void FFXSystemSet::PreInitViews(FRHICommandListImmediate& RHICmdList)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PreInitViews();
+		FXSystem->PreInitViews(RHICmdList);
 	}
 }
 
@@ -109,20 +111,20 @@ bool FFXSystemSet::UsesGlobalDistanceField() const
 	return false;
 }
 
-void FFXSystemSet::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData)
+void FFXSystemSet::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PreRender(RHICmdList, GlobalDistanceFieldParameterData);
+		FXSystem->PreRender(RHICmdList, GlobalDistanceFieldParameterData, bAllowGPUParticleSceneUpdate);
 	}
 }
 
 void FFXSystemSet::PostRenderOpaque(
 	FRHICommandListImmediate& RHICmdList,
-	const FUniformBufferRHIParamRef ViewUniformBuffer,
+	FRHIUniformBuffer* ViewUniformBuffer,
 	const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-	FUniformBufferRHIParamRef SceneTexturesUniformBuffer)
+	FRHIUniformBuffer* SceneTexturesUniformBuffer)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
@@ -136,12 +138,16 @@ void FFXSystemSet::PostRenderOpaque(
 	}
 }
 
-FFXSystemSet::~FFXSystemSet()
+void FFXSystemSet::Destroy()
 {
-	for (FFXSystemInterface* FXSystem : FXSystems)
+	for (FFXSystemInterface*& FXSystem : FXSystems)
 	{
+		// Here it is important that the FXSystem stays in the FXSystems array while destroy is being called.
+		// This is used to figure out from which world the destroyed FXSystem is owned (from UWorld::FXSystem->GetInterface())
 		check(FXSystem);
-		FFXSystemInterface::Destroy(FXSystem);
+		FXSystem->Destroy();
+		FXSystem = nullptr;
 	}
-	FXSystems.Empty();
+
+	FFXSystemInterface::Destroy();
 }

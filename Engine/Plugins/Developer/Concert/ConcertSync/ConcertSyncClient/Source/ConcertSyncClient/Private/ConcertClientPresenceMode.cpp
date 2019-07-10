@@ -79,8 +79,9 @@ void FConcertClientBasePresenceMode::SendEvents(IConcertClientSession& Session)
 
 	const FTransform PresenceHeadTransform = GetHeadTransform();
 
+	EEditorPlayMode EditorPlayModePlaceholder;
 	FConcertClientPresenceDataUpdateEvent PresenceDataUpdatedEvent;
-	PresenceDataUpdatedEvent.WorldPath = *World->GetPathName();
+	PresenceDataUpdatedEvent.WorldPath = *ParentManager->GetPresenceWorldPath(Session.GetSessionClientEndpointId(), EditorPlayModePlaceholder); // The Non-PIE world path, i.e. the "UEDPIE_%d_" decoration stripped away.
 	PresenceDataUpdatedEvent.Position = PresenceHeadTransform.GetLocation();
 	PresenceDataUpdatedEvent.Orientation = PresenceHeadTransform.GetRotation();
 

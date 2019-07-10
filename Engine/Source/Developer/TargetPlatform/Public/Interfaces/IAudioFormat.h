@@ -101,14 +101,23 @@ public:
 	virtual int32 Recompress( FName Format, const TArray<uint8>& SrcBuffer, FSoundQualityInfo& QualityInfo, TArray<uint8>& OutBuffer ) const = 0;
 
 	/**
+	 * Given the encoded buffer, returns the minimum number of bytes required to perform ICompressedAudioInfo::ReadCompressedInfo() or IStreamedCompressedInfo::ParseHeader() for this file.
+	 * 
+	 * @param Format the codec that SrcBuffer was compressed as.
+	 * @param SrcBuffer the compressed data that will later be split into individual chunks.
+	 */
+	virtual int32 GetMinimumSizeForInitialChunk(FName Format, const TArray<uint8>& SrcBuffer) const { return 0; }
+
+	/**
 	 * Splits compressed data into chunks suitable for streaming audio.
 	 *
 	 * @param SrcBuffer Pre-compressed data as an array of bytes.
 	 * @param OutBuffers Array of buffers that contain the chunks the original data was split into.
+	 * @param FirstChunkMaxSize The maximum size for the chunk that will be loaded inline with it's owning USoundWave asset.
 	 * @param MaxChunkSize The maximum chunk size for each chunk. The chunks will be zero-padded to match this chunk size in the bulk data serialization.
 	 * @return Whether bulk data could be split for streaming.
 	 */
-	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 MaxChunkSize) const {return false;}
+	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 FirstChunkMaxSize, const int32 MaxChunkSize) const {return false;}
 
 public:
 

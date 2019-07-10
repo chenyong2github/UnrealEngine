@@ -24,6 +24,9 @@
 #include "Framework/Application/SWindowTitleBar.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 #include "Framework/Application/IWidgetReflector.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -42,7 +45,7 @@
 	#define SLATE_HAS_WIDGET_REFLECTOR !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && PLATFORM_DESKTOP
 #endif
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/WindowsHWrapper.h"
 #endif
 #include "Debugging/SlateDebugging.h"
@@ -457,6 +460,13 @@ int32 GEnableCursorQueries = 1;
 FAutoConsoleVariableRef CVarAllowCursorQueries(
 	TEXT("Slate.EnableCursorQueries"),
 	GEnableCursorQueries,
+	TEXT("")
+);
+
+int32 bRequireFocusForGamepadInput = 0;
+FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
+	TEXT("Slate.RequireFocusForGamepadInput"),
+	bRequireFocusForGamepadInput,
 	TEXT("")
 );
 
@@ -882,9 +892,15 @@ void FPopupSupport::SendNotifications( const FWidgetPath& WidgetsUnderCursor )
 void FSlateApplication::SetPlatformApplication(const TSharedRef<class GenericApplication>& InPlatformApplication)
 {
 	PlatformApplication->SetMessageHandler(MakeShareable(new FGenericApplicationMessageHandler()));
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(MakeShareable(new FGenericAccessibleMessageHandler()));
+#endif
 
 	PlatformApplication = InPlatformApplication;
 	PlatformApplication->SetMessageHandler(CurrentApplication.ToSharedRef());
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler());
+#endif
 }
 
 void FSlateApplication::OverridePlatformApplication(TSharedPtr<class GenericApplication> InPlatformApplication)
@@ -910,6 +926,9 @@ TSharedRef<FSlateApplication> FSlateApplication::Create(const TSharedRef<class G
 
 	PlatformApplication = InPlatformApplication;
 	PlatformApplication->SetMessageHandler( CurrentApplication.ToSharedRef() );
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler());
+#endif
 
 	// The grid needs to know the size and coordinate system of the desktop.
 	// Some monitor setups have a primary monitor on the right and below the
@@ -1009,6 +1028,9 @@ FSlateApplication::FSlateApplication()
 	, AppIcon( FCoreStyle::Get().GetBrush("DefaultAppIcon") )
 	, VirtualDesktopRect( 0,0,0,0 )
 	, NavigationConfig(MakeShared<FNavigationConfig>())
+#if WITH_EDITOR
+	, EditorNavigationConfig(MakeShared<FNavigationConfig>())
+#endif
 	, SimulateGestures(false, (int32)EGestureEvent::Count)
 	, ProcessingInput(0)
 	, InputManager(MakeShared<FSlateDefaultInputMapping>())
@@ -1042,6 +1064,9 @@ FSlateApplication::FSlateApplication()
 	RegisterUser(MakeShareable(new FSlateUser(0, false)));
 
 	NavigationConfig->OnRegister();
+#if WITH_EDITOR
+	EditorNavigationConfig->OnRegister();
+#endif
 
 	SimulateGestures[(int32)EGestureEvent::LongPress] = true;
 
@@ -1589,7 +1614,7 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 
 void FSlateApplication::PollGameDeviceState()
 {
-	if( ActiveModalWindows.Num() == 0 && !GIntraFrameDebuggingGameThread )
+	if( ActiveModalWindows.Num() == 0 && !GIntraFrameDebuggingGameThread && (!bRequireFocusForGamepadInput || IsActive()))
 	{
 		// Don't poll when a modal window open or intra frame debugging is happening
 		PlatformApplication->PollGameDeviceState( GetDeltaTime() );
@@ -1851,6 +1876,10 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 
 			// Draw all windows
 			DrawWindows();
+
+#if WITH_ACCESSIBILITY
+			AccessibleMessageHandler->Tick();
+#endif
 		}
 
 		PostTickEvent.Broadcast(DeltaTime);
@@ -2076,13 +2105,53 @@ bool FSlateApplication::CanDisplayWindows() const
 	return Renderer.IsValid() && Renderer->AreShadersInitialized();
 }
 
+#if WITH_EDITOR
+static bool IsFocusInViewport(const TSet<TWeakPtr<SViewport>> Viewports, const FWeakWidgetPath& FocusPath)
+{
+	if (Viewports.Num() > 0)
+	{
+		for (const TWeakPtr<SWidget> FocusWidget : FocusPath.Widgets)
+		{
+			for (const TWeakPtr<SViewport> Viewport : Viewports)
+			{
+				if (FocusWidget == Viewport)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+#endif
+
 EUINavigation FSlateApplication::GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const
 {
+#if WITH_EDITOR
+	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
+	if (const FSlateUser* User = GetUser(GetUserIndexForKeyboard()))
+	{
+		if (!IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
+		{
+			return EditorNavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
+		}
+	}
+#endif
 	return NavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
 }
 
 EUINavigation FSlateApplication::GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent)
 {
+#if WITH_EDITOR
+	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
+	if (const FSlateUser* User = GetUser(GetUserIndexForKeyboard()))
+	{
+		if (!IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
+		{
+			return EditorNavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
+		}
+	}
+#endif
 	return NavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
 }
 
@@ -2473,6 +2542,10 @@ void FSlateApplication::InvalidateAllViewports()
 void FSlateApplication::RegisterGameViewport( TSharedRef<SViewport> InViewport )
 {
 	RegisterViewport(InViewport);
+
+#if WITH_EDITOR
+	AllGameViewports.Add(InViewport);
+#endif
 	
 	if (GameViewportWidget != InViewport)
 	{
@@ -2502,6 +2575,10 @@ void FSlateApplication::UnregisterGameViewport()
 
 	bIsFakingTouched = false;
 	bIsGameFakingTouch = false;
+
+#if WITH_EDITOR
+	AllGameViewports.Empty();
+#endif
 
 	if (GameViewportWidget.IsValid())
 	{
@@ -2955,6 +3032,9 @@ bool FSlateApplication::SetUserFocus(FSlateUser* User, const FWidgetPath& InFocu
 
 		// Let previously-focused widget know that it's losing focus
 		OldFocusedWidget->OnFocusLost(FocusEvent);
+#if WITH_ACCESSIBILITY
+		GetAccessibleMessageHandler()->OnWidgetEventRaised(OldFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, true, false);
+#endif
 	}
 
 #if SLATE_HAS_WIDGET_REFLECTOR
@@ -2988,6 +3068,10 @@ bool FSlateApplication::SetUserFocus(FSlateUser* User, const FWidgetPath& InFocu
 		}
 
 		NavigationConfig->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
+
+#if WITH_ACCESSIBILITY
+		GetAccessibleMessageHandler()->OnWidgetEventRaised(NewFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, false, true);
+#endif
 	}
 
 	return true;
@@ -4566,7 +4650,7 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const 
 	FWidgetPath WidgetPath;
 	FSlateApplication::Get().GeneratePathToWidgetChecked(Widget, WidgetPath);
 
-	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::NullWidget);
+	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::GetNullWidget());
 	FVector2D Position = ArrangedWidget.Geometry.AbsolutePosition;
 	FVector2D Size = ArrangedWidget.Geometry.GetDrawSize();
 	FVector2D WindowPosition = WidgetWindow->GetPositionInScreen();
@@ -4771,6 +4855,9 @@ void FSlateApplication::UnregisterUser(int32 UserIndex)
 		Users[UserIndex].Reset();
 
 		NavigationConfig->OnUserRemoved(UserIndex);
+#if WITH_EDITOR
+		EditorNavigationConfig->OnUserRemoved(UserIndex);
+#endif
 	}
 }
 
@@ -5350,8 +5437,8 @@ bool FSlateApplication::OnMouseDown(const TSharedPtr< FGenericWindow >& Platform
 
 bool FSlateApplication::OnMouseDown( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
-	// convert to touch event if we are faking it	
-	if (bIsFakingTouch || bIsGameFakingTouch)
+	// convert a left mouse button click to touch event if we are faking it
+	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = true;
 		return OnTouchStarted( PlatformWindow, PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0 );
@@ -6173,8 +6260,8 @@ bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button )
 
 bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
-	// convert to touch event if we are faking it	
-	if (bIsFakingTouch || bIsGameFakingTouch)
+	// convert left mouse click to touch event if we are faking it	
+	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = false;
 		return OnTouchEnded(PlatformApplication->Cursor->GetPosition(), 0, 0);
@@ -6340,7 +6427,8 @@ FReply FSlateApplication::RouteMouseWheelOrGestureEvent(const FWidgetPath& Widge
 
 bool FSlateApplication::OnMouseMove()
 {
-	if (bIsFakingTouched || bIsGameFakingTouch)
+	// If the left button is pressed we fake 
+	if ((bIsFakingTouched || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)
@@ -6382,7 +6470,8 @@ bool FSlateApplication::OnMouseMove()
 
 bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 {
-	if (bIsFakingTouched || bIsGameFakingTouch)
+    // We fake a move only if the left mous button is down
+	if ((bIsFakingTouch || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)
@@ -7589,122 +7678,48 @@ void FSlateApplication::InputPreProcessorsHelper::Tick(const float DeltaTime, FS
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleKeyDownEvent(SlateApp, InKeyEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &InKeyEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleKeyDownEvent(SlateApp, InKeyEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor.IsValid())
-		{
-			if (InputPreProcessor->HandleKeyUpEvent(SlateApp, InKeyEvent))
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &InKeyEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleKeyUpEvent(SlateApp, InKeyEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleAnalogInputEvent(SlateApp, InAnalogInputEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &InAnalogInputEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleAnalogInputEvent(SlateApp, InAnalogInputEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseMoveEvent(SlateApp, MouseEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseMoveEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseButtonDownEvent(SlateApp, MouseEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonDownEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonUpEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseButtonUpEvent(SlateApp, MouseEvent))
-		{
-			return true;
-		}
-	}
+	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonUpEvent(SlateApp, MouseEvent); });
 
-	return false;
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseButtonDoubleClickEvent(SlateApp, MouseEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &MouseEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseButtonDoubleClickEvent(SlateApp, MouseEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& WheelEvent, const FPointerEvent* GestureEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMouseWheelOrGestureEvent(SlateApp, WheelEvent, GestureEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &WheelEvent, &GestureEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMouseWheelOrGestureEvent(SlateApp, WheelEvent, GestureEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::HandleMotionDetectedEvent(FSlateApplication& SlateApp, const FMotionEvent& MotionEvent)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
-	{
-		if (InputPreProcessor->HandleMotionDetectedEvent(SlateApp, MotionEvent))
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return PreProcessInput([&SlateApp, &MotionEvent](TSharedPtr<IInputProcessor> Processor) { return Processor->HandleMotionDetectedEvent(SlateApp, MotionEvent); });
 }
 
 bool FSlateApplication::InputPreProcessorsHelper::Add(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index /*= INDEX_NONE*/)
@@ -7726,11 +7741,45 @@ bool FSlateApplication::InputPreProcessorsHelper::Add(TSharedPtr<IInputProcessor
 
 void FSlateApplication::InputPreProcessorsHelper::Remove(TSharedPtr<IInputProcessor> InputProcessor)
 {
-	InputPreProcessorList.Remove(InputProcessor);
+	if (bIsIteratingPreProcessors)
+	{
+		ProcessorsPendingRemoval.Add(InputProcessor);
+	}
+	else
+	{
+		InputPreProcessorList.Remove(InputProcessor);
+	}
 }
 
 void FSlateApplication::InputPreProcessorsHelper::RemoveAll()
 {
-	InputPreProcessorList.Reset();
+	if (bIsIteratingPreProcessors)
+	{
+		ProcessorsPendingRemoval.Append(InputPreProcessorList);
+	}
+	else
+	{
+		InputPreProcessorList.Reset();
+	}
 }
 
+
+bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun)
+{
+	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
+
+	bool bShouldExit = false;
+	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
+	{
+		if (ToRun(InputPreProcessor))
+		{
+			bShouldExit = true;
+			break;
+		}
+	}
+
+	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor){ return ProcessorsPendingRemoval.Contains(Processor); });
+	ProcessorsPendingRemoval.Reset();
+
+	return bShouldExit;
+}

@@ -108,6 +108,7 @@ enum EForceInit
 	ForceInitToZero
 };
 enum ENoInit {NoInit};
+enum EInPlace {InPlace};
 
 // Handle type to stably track users on a specific platform
 typedef int32 FPlatformUserId;

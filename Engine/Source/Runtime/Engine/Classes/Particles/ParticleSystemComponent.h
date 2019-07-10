@@ -34,6 +34,7 @@ class UAnimNotifyState;
 class FParticleDynamicData;
 class FParticleSystemSceneProxy;
 class UAnimNotifyState;
+class UFXSystemAsset;
 struct FDynamicEmitterDataBase;
 struct FDynamicEmitterReplayDataBase;
 struct FParticleAnimTrailEmitterInstance;
@@ -354,6 +355,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
 	virtual void SetActorParameter(FName ParameterName, class AActor* Param) {}
+
+	/** 
+	 * Get the referenced FXSystem asset.
+	*/
+	virtual UFXSystemAsset* GetFXSystemAsset() const { return nullptr; };
 };
 
 
@@ -482,7 +488,7 @@ private:
 	volatile bool bAsyncWorkOutstanding;
 	
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
-	void CancelAutoAttachment(bool bDetachFromParent);
+	void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
 
 	/** Handle into the FParticleSystemWorldManager. INDEX_NONE if this component does not have managed ticks. */
 	int32 ManagerHandle : 30;
@@ -1020,6 +1026,11 @@ public:
 	 */
 	void SetActorParameter(FName ParameterName, class AActor* Param) override;
 
+	/**
+	 * Get the referenced FXSystem asset.
+	*/
+	virtual UFXSystemAsset* GetFXSystemAsset() const { return Template; };
+
 	/** 
 	 *	Set a named material instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
@@ -1164,6 +1175,9 @@ public:
 	/** Static delegate called for all systems on an activation change. */
 	static FOnSystemPreActivationChange OnSystemPreActivationChange;
 
+	/** Stream of random values to use with this component */
+	FRandomStream RandomStream;
+
 private:
 	/** In some cases the async work for this PSC can be created externally by the manager. */
 	FORCEINLINE void SetAsyncWork(FGraphEventRef& InAsyncWork) { AsyncWork = InAsyncWork; }
@@ -1202,6 +1216,7 @@ public:
 	virtual void OnChildAttached(USceneComponent* ChildComponent)override;
 	virtual void OnChildDetached(USceneComponent* ChildComponent)override;
 
+	virtual void OnEndOfFrameUpdateDuringTick() override;
 protected:
 	virtual void CreateRenderState_Concurrent() override;
 	virtual void SendRenderTransform_Concurrent() override;
@@ -1218,6 +1233,18 @@ public:
 		ENSURE_AND_STALL,
 		SILENT, // this would only be appropriate for editor only or other unusual things that we never see in game
 	};
+	/** If there is async work outstanding, force it to be completed now **/
+	FORCEINLINE void ForceAsyncWorkCompletion(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread, bool InSkipUpdateDynamicDataDuringTick)
+	{
+		if (AsyncWork.GetReference())
+		{
+			const bool bSavedSkipUpdate = bSkipUpdateDynamicDataDuringTick;
+			bSkipUpdateDynamicDataDuringTick |= InSkipUpdateDynamicDataDuringTick;
+			WaitForAsyncAndFinalize(Behavior, bDefinitelyGameThread);
+			bSkipUpdateDynamicDataDuringTick = bSavedSkipUpdate;
+		}
+	}
+
 	/** If there is async work outstanding, force it to be completed now **/
 	FORCEINLINE void ForceAsyncWorkCompletion(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread = true) const
 	{

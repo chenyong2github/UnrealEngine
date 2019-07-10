@@ -15,7 +15,7 @@ http://www.boost.org/LICENSE_1_0.txt)
 #include <boost/predef/platform/mingw.h>
 #include <boost/predef/platform/mingw32.h>
 #include <boost/predef/platform/mingw64.h>
-#include <boost/predef/platform/windows_uwp.h>
+#include <boost/predef/platform/windows_hololens.h>
 #include <boost/predef/platform/windows_desktop.h>
 #include <boost/predef/platform/windows_phone.h>
 #include <boost/predef/platform/windows_server.h>

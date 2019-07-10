@@ -86,6 +86,8 @@ namespace SceneOutliner
 		/** true if this item exists in both the current world and PIE. */
 		bool bExistsInCurrentWorldAndPIE;
 
+		/** Cache the string displayed */
+		FString CachedDisplayString;
 	};
 
 } // namespace SceneOutliner

@@ -83,7 +83,7 @@ public:
 
 	bool HasDismissedStackIssues();
 
-	bool HasEmitterSource() const;
+	bool HasParentEmitter() const;
 	void RemoveEmitterSource();
 
 private:

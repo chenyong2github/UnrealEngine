@@ -1,0 +1,70 @@
+INTSourceChangelist:3782314
+Availability:Public
+Title:VR 虎の巻
+Crumbs:%ROOT%, Platforms, Platforms/VR/DevelopVR
+Description:VR 開発のクイックガイドとヒント
+Navigation:platform
+Version:4.17
+parent:Platforms/VR/DevelopVR
+type:overview
+
+[TOC(start:2)]
+
+[COMMENT:none]
+
+## キーボード ショートカット
+
+| ショートカット | 説明 |
+| --------| -------------|
+| **Control+R** | ヘッドセットを装着する前にゲームを起動してしまった場合、ゲームプレイ開始直後に使うと便利です。 |
+| **Alt+Enter** | VR モードを切り替えます。スタンドアローンのゲームのプレビュー ウィンドウをフル画面のステレオ モードにし、ゲーム ディスプレイをヘッドセットに送信します。|
+
+
+[/COMMENT]
+
+## VR ゲームを実行する
+アンリアル エンジン 4 (UE4) はニーズに応じて何通りかの方法で仮想現実 (VR) プロジェクトを実行できます。
+以下のセクションでは、UE4 エディタ内と UE4 エディタ外で UE4 VR プロジェクトを実行する最も一般的な方法を説明します。
+
+[region:note]
+UE4 の起動および実行方法についての詳細は、[アンリアル エンジンを実行する](GettingStarted/RunningUnrealEngine) を確認してください。
+[/region]
+
+### UE4 エディタから実行する
+UE4 バージョン 4.7 がリリースされて、**[Play in Editor]** オプションを [play in **Selected Viewport (PIE)**] から **[VR Preview]** オプションに変更すれば
+UE4 VR プロジェクトを UE4 エディタ内から直接見れるようになりました。
+
+ ![](VR_View_In_VR.png)
+
+### UE4 エディタ外から実行する
+**UE4Editor.exe** へのショートカットを作成し、以下のコマンドライン引数を与えれば、クックしていないスタンドアローン型ゲームを実行することもできます。 
+
+	UE4Editor.exe [MyProject] [MyMap] -game
+
+[REGION:tip]
+[MyProject] は、**.uproject** ファイルへの絶対パスまたは相対パスになることにご注意ください。
+[/REGION]
+
+
+
+
+## 便利な VR コンソール コマンド
+
+UE4 には、便利な [コンソール コマンド](GettingStarted/RunningUnrealEngine#usefulin-gamecommands) がいろいろあります。 
+こうしたコマンドは VR デバイスの使用時に発生する可能性のある問題をのデバッグに役立ちます。以下は、使用頻度が非常に高いコマンドのリストで、中には Oculus 固有のものもあります。 
+
+### 共通コマンド
+
+| コマンド | 説明 |
+| ------- | ----------- |
+| `Stereo On/Off` | ヘッドマウント ディスプレイ (HMD) デバイスのステレオ レンダリングを有効または無効にします。 |
+| `vr.PixelDensity` | VR パネルの解像度を設定します。品質をあげるには数値を高くします。パフォーマンスをあげるには数値を低くします。 |
+
+
+
+
+
+
+
+
+

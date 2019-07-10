@@ -90,7 +90,7 @@ void SNiagaraSelectedEmitterHandles::RefreshEmitterWidgets()
 		StackViewModels.Add(StackModel);
 		EmitterSplitter->AddSlot()
 		[
-			NiagaraEditorModule.CreateStackWidget(StackModel)
+			NiagaraEditorModule.GetWidgetProvider()->CreateStackView(*StackModel)
 		];
 	}
 	EmitterHandlesToDisplay.Empty();

@@ -1,4 +1,4 @@
-INTSourceChangelist:3809606
+﻿INTSourceChangelist:6192063
 Availability:Public
 Title:动画编辑器
 Crumbs: %ROOT%, Engine, Engine/Animation
@@ -7,6 +7,7 @@ version: 4.14
 parent:Engine/Animation
 topic-image:Engine/Animation/animation_topic.png
 reference-image:UpdatedPersonaWindowAnim.gif
+reference-image:UpdatedPersonaWindowAnim_Mac.gif
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
 Related: Engine/Animation/PhysicallyDrivenAnimation
@@ -72,7 +73,6 @@ mac
 在虚幻引擎版本4.14之前，合并的动画编辑器称为 **Persona**。在4.14中，该编辑器被拆解为四个独立的编辑器。虽然它们的功能基本相同，但部分界面发生了变化，现在，您可以同时打开不同状态的多个动画编辑器窗口。例如，您现在可以针对游戏中的每个 **动画序列** 打开一个选项卡，而不是只通过一个选项卡在它们之间进行切换（如果从 **资源浏览器** 中选择 **动画序列**，则仍保持这种行为）。
 [/REGION]
 
-(#openingaspecificanimationeditor)
 ## 打开特定动画编辑器
 
 [OBJECT:ToggleButtonContent]
@@ -118,7 +118,6 @@ mac
 您还可以 **右键单击** **内容浏览器** 中的任意上述资源，从快捷菜单中选择 **编辑** 来打开资源的关联编辑器！
 [/REGION]
 
-(#animationeditorsreference)
 ## 动画编辑器参考
 
 请参阅各个编辑器页面以了解有关其界面和用法的信息。

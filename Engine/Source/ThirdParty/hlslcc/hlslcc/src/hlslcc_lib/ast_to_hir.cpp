@@ -667,20 +667,31 @@ static bool make_types_compatible(ir_rvalue* &value_a, ir_rvalue* &value_b,
 
 	// Determine how many rows and columns to use.
 	unsigned rows = 0, cols = 0;
-	if (type_a->is_scalar() || type_b->is_scalar())
+	if (bAIsLHS)
 	{
-		rows = MAX2(type_a->vector_elements, type_b->vector_elements);
-		cols = MAX2(type_a->matrix_columns, type_b->matrix_columns);
-	}
-	else if (type_a->components() > type_b->components())
-	{
-		rows = type_b->vector_elements;
-		cols = type_b->matrix_columns;
+		// If LHS is an l-value of an assignment, LHS dictates the type dimension.
+		// Otherwise, swizzle operators might be generated that make it an r-value,
+		// which is not allowed on the left hand side of an assignment!
+		rows = type_a->vector_elements;
+		cols = type_a->matrix_columns;
 	}
 	else
 	{
-		rows = type_a->vector_elements;
-		cols = type_a->matrix_columns;
+		if (type_a->is_scalar() || type_b->is_scalar())
+		{
+			rows = MAX2(type_a->vector_elements, type_b->vector_elements);
+			cols = MAX2(type_a->matrix_columns, type_b->matrix_columns);
+		}
+		else if (type_a->components() > type_b->components())
+		{
+			rows = type_b->vector_elements;
+			cols = type_b->matrix_columns;
+		}
+		else
+		{
+			rows = type_a->vector_elements;
+			cols = type_a->matrix_columns;
+		}
 	}
 
 	// Now we know the desired type, try to convert.

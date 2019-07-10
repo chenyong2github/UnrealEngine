@@ -1,0 +1,59 @@
+﻿INTSourceChangelist:6675182
+Availability: Public
+Crumbs: 
+Title: 使用代理几何体工具
+Description: 在下面的教程中，我们将了解如何在UE4项目中使用代理几何体工具。
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 2
+Tags: Optmization
+Tags: Proxy Geometry Tool
+
+
+在下面的教程中，我们将了解如何使用代理几何体工具来为您的UE4项目创建新的静态几何体和纹理。
+
+## 步骤
+
+1.  **代理几何工具（Proxy Geometry Tools）** 是合并Actor工具的一部分，因此，要打开它们，需要转到 **窗口（Window）> 开发者工具（Developer Tools）**，然后单击 **合并Actor（Merge Actors）** 选项。
+
+    ![](ProxyLOD_05.png "ProxyLOD_05.png")
+
+1.  当合并Actor工具打开时，您应该会在顶部看到两个图标。单击第二个图标以显示代理几何体工具的选项。   
+
+    ![](ProxyLOD_04.png "ProxyLOD_04.png")
+
+    [REGION:note]
+    代理几何体工具中的选项只有在关卡中选择静态网格体时才会激活。
+    [/REGION]
+    
+1.  导航到关卡中的一个位置，然后开始选择静态网格体。在本例中，选择了21个静态网格体，但请随意选择所需数量的静态网格体。  
+
+    ![](Proxy_Geo_HT_Using_01.png "Proxy_Geo_HT_Using_01.png")
+
+1.  在静态网格体仍被选中的情况下，找到合并Actor（Merge Actors）窗口，然后按 **合并Actor（Merge Actors）** 按钮启动代理几何体工具的创建过程。  
+
+    ![](Proxy_Geo_HT_Using_02.png "Proxy_Geo_HT_Using_02.png") 
+
+1.  当出现提示时，为代理几何体工具将创建的新资源指定 **名称（Name）** 和 **位置（Location）**。完成后，按 **保存（Save）** 按钮继续代理几何体工具的创建过程。 
+
+    ![](Proxy_Geo_HT_Using_03.png "Proxy_Geo_HT_Using_03.png")
+
+    [REGION:note]
+    代理几何体工具完成所需的时间从几分钟到几个小时不等。当前的进度将在下面的窗口中显示。
+
+	![](Proxy_Geo_HT_Using_04.png "Proxy_Geo_HT_Using_04.png")
+    [/REGION]
+    
+1.  当代理几何体工具完成后，转到内容浏览器，通过输入步骤5中提供的名称搜索新创建的资源。  
+
+    ![](Proxy_Geo_HT_Using_05.png "Proxy_Geo_HT_Using_05.png")
+
+## 最终结果
+
+要查看创建的静态网格体，转到内容浏览器，双击生成的静态网格体。在静态网格体编辑器中查看静态网格体时，请注意减少的三角形和材质数量。   
+
+![](Proxy_Geo_HT_Using_06.png "Proxy_Geo_HT_Using_06.png")
+
+[](#)[](#)

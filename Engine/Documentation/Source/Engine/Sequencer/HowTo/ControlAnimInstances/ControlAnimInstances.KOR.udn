@@ -1,4 +1,4 @@
-INTSourceChangelist:4322984
+INTSourceChangelist:6419170
 Availability: Public
 Title: 시퀀서로 애님 인스턴스 제어
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
@@ -9,18 +9,18 @@ parent: Engine/Sequencer/HowTo
 order: 1
 tags: Sequencer
 type: how-to
+hero-image:image_0.png
 
 시퀀서 안에서 포제서블을 통해 애님 인스턴스의 변수 값을 변화시켜, 애님 블루프린트 변수나 함수 및 여러 콘텐츠를 직접 제어할 수 있게 되었습니다. 스켈레탈 메시 컴포넌트 트랙을 추가하면 애님 인스턴스 트랙에 접근할 수 있고, 여기에는 시네마틱에 노출되는 변수가 표시되어 키프레임에 사용할 수 있습니다. 
 
 여기서는, 시퀀서 안에서 그 변화를 키프레임 설정하여 애니메이션 블루프린트 안에 정된 다수의 애니메이션 포즈를 블렌딩합니다. 
 
-[REGION:banner]
-![image alt text](image_0.png)
-[/REGION]
 
 ## 단계
 
+[REGION:note]
 여기서는 새로운 **블루프린트 삼인칭** 템플릿 프로젝트를 사용합니다. 
+[/REGION]
 
 1. **Content/Mannequin/Character/Mesh** 폴더에서 **SK_Mannequin** 에 우클릭한 뒤 **생성** 아래 **애님 블루프린트** 를 선택하고 아무 이름이나 짓습니다. 
 

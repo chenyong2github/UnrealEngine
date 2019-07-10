@@ -1,11 +1,13 @@
-INTSourceChangelist:3810467
-Availability:Public
+﻿INTSourceChangelist:6078243
+Availability:Docs
 Title:1.创建植物叶子类型的Actor
 Crumbs:
 Description:创建并添加所有必需的Actor。
 Navigation:topic
 SkillLevel:Intermediate
 Version: 4.8
+
+## 页面已被合并，标记为Docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

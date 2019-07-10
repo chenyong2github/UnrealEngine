@@ -15,6 +15,8 @@
 #include "ReliabilityHandlerComponent.h"
 #include "PacketHandlerProfileConfig.h"
 
+#include "SocketSubsystem.h"
+
 // @todo #JohnB: There is quite a lot of inefficient copying of packet data going on.
 //					Redo the whole packet parsing/modification pipeline.
 
@@ -35,6 +37,7 @@ PacketHandler::PacketHandler(FDDoSDetection* InDDoS/*=nullptr*/)
 	, DDoS(InDDoS)
 	, LowLevelSendDel()
 	, LowLevelSendDel_Deprecated()
+	, NetDriverGetAddressFromString_Deprecated(nullptr)
 	, HandshakeCompleteDel()
 	, OutgoingPacket()
 	, IncomingPacket()
@@ -423,7 +426,8 @@ void HandlerComponent::CountBytes(FArchive& Ar) const
 	Ar.CountBytes(sizeof(*this), sizeof(*this));
 }
 
-const ProcessedPacket PacketHandler::Incoming_Internal(uint8* Packet, int32 CountBytes, bool bConnectionless, const FString& Address)
+
+const ProcessedPacket PacketHandler::Incoming_Internal(uint8* Packet, int32 CountBytes, bool bConnectionless, const TSharedPtr<const FInternetAddr>& Address)
 {
 	SCOPE_CYCLE_COUNTER(Stat_PacketHandler_Incoming_Internal);
 
@@ -516,7 +520,7 @@ const ProcessedPacket PacketHandler::Incoming_Internal(uint8* Packet, int32 Coun
 	}
 }
 
-const ProcessedPacket PacketHandler::Outgoing_Internal(uint8* Packet, int32 CountBits, FOutPacketTraits& Traits, bool bConnectionless, const FString& Address)
+const ProcessedPacket PacketHandler::Outgoing_Internal(uint8* Packet, int32 CountBits, FOutPacketTraits& Traits, bool bConnectionless, const TSharedPtr<const FInternetAddr>& Address)
 {
 	SCOPE_CYCLE_COUNTER(Stat_PacketHandler_Outgoing_Internal);
 
@@ -1004,3 +1008,32 @@ void FPacketHandlerComponentModuleInterface::ShutdownModule()
 	FPacketAudit::Destruct();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+TSharedPtr<const FInternetAddr> PacketHandler::GetAddressFromString(const FString& Address)
+{
+	if (NetDriverGetAddressFromString_Deprecated)
+	{
+		return NetDriverGetAddressFromString_Deprecated(Address);
+	}
+
+	return nullptr;
+}
+
+void BufferedPacket::SetAddressFromIP(const FString& InAddress)
+{
+	ISocketSubsystem* SocketSub = ISocketSubsystem::Get();
+	if (SocketSub != nullptr)
+	{
+		// TODO: @jleonard - Don't require the bracket removal here.
+		FString SanitizedAddress = InAddress;
+		SanitizedAddress.RemoveFromEnd(TEXT("]"));
+		SanitizedAddress.RemoveFromStart(TEXT("["));
+		TSharedPtr<FInternetAddr> NewAddress = SocketSub->GetAddressFromString(SanitizedAddress);
+		if (NewAddress.IsValid())
+		{
+			Address = NewAddress;
+		}
+	}
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -111,12 +111,8 @@ void FLevelVisibilityTrackEditor::OnAddTrack()
 	UMovieSceneLevelVisibilitySection* NewSection = AddNewSection( FocusedMovieScene, NewTrack, ELevelVisibility::Visible );
 	if (GetSequencer().IsValid())
 	{
-		GetSequencer()->OnAddTrack(NewTrack);
+		GetSequencer()->OnAddTrack(NewTrack, FGuid());
 	}
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
-	GetSequencer()->EmptySelection();
-	GetSequencer()->SelectSection(NewSection);
-	GetSequencer()->ThrobSectionSelection();
 }
 
 

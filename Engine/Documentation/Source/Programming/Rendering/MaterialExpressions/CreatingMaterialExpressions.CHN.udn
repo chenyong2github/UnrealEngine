@@ -1,52 +1,72 @@
-Availability:Docs
-Title:创建材质表达式
+INTSourceChangelist:3599948
+Availability: Docs
+Title:材质表达式技术指南
 Crumbs:%ROOT%, Programming, Programming/Rendering
+Description:关于如何创建新材质表达式以在材质编辑器中使用的指南。
+Version: 4.9
+tags:Rendering
 
-[TOC]
+[TOC (start:2 end:3)]
 
-
-
-## 概述
-
-在 UE4 中直接地创建一个新的材质表达式。作为示例，我将创建一个对输入端进行开平方的新的材质表达式，名称为 MaterialExpressionSquare。注意UE4中所有的材质表达式都是在MaterialExpressions.cpp中实现。
-
+在UE4中创建新材质表达式十分简单。例如，我将创建一个让输入呈正方形的新材质表达式，叫做MaterialExpressionSquare。请注意，UE4中的所有材质表达式都在`MaterialExpressions.cpp`中实现。
 
 
-## 脚本
 
-首先，增加一个继承 MaterialExpression 的一种新类型的引擎脚本文件。声明表达式的输入端和虚函数，比如：<br>  
+(#declaration)
+## 声明
 
-	class MaterialExpressionSquare extends MaterialExpression
-	   native(Material);
+首先，添加一个新引擎脚本文件，并使用从MaterialExpression衍生而来的新类型。声明该表达式的输入和虚拟函数，例如： 
 
-	var ExpressionInput   A;
+	MaterialExpressionSquare.h
 
-	cpptext
+	UCLASS(HeaderGroup=Material, collapsecategories, hidecategories=Object)
+	public class UMaterialExpressionSquare : public UMaterialExpression
 	{
-	   virtual int32 Compile(FMaterialCompiler* Compiler);
-	   virtual FString GetCaption() const;
-	   virtual void RemoveReferenceTo( UMaterialExpression* Expression );
+		GENERATED_UCLASS_BODY()
+
+		UPROPERTY()
+		FExpressionInput   A;
+
+	#if CPP
+		virtual int32 Compile(FMaterialCompiler* Compiler);
+		virtual FString GetCaption() const;
+	#endif
+
 	}
 
+如果要添加希望能在材质编辑器的属性页面中编辑的表达式变量，请务必在`UPROPERTY()`宏中定义类别：
 
-如果您正在添加材质编辑器中的属性页面内您想编辑的表达式变量，请记住在变量声明后面加上()，如下所示：
-
-	var() float ClampMin;
-
-
-编译脚本，UMaterialExpressionSquare声明将会被添加到EngineMaterialClasses.h中。
+	UPROPERTY(Category=MaterialExpressionSquare)
+	float ClampMin;
 
 
+(#implementation)
+## 实现
 
-## Native
+该构造函数用于设置属性的默认值。在该示例中，它向材质编辑器内部的表达式库中的各个类别分配材质表达式。
 
-接下来，在MaterialExpressions.cpp 中放置一个适当的IMPLEMENT_CLASS 宏，如下所示：<br>   
+	UMaterialExpressionSquare::UMaterialExpressionSquare(const FObjectInitializer& ObjectInitializer)
+		:Super(ObjectInitializer)
+	{
+		// 用于保存一次性初始化的结构体
+		struct FConstructorStatics
+		{
+			FName NAME_Particles;
+			FName NAME_Constants;
+			FConstructorStatics()
+				:NAME_Particles(TEXT("Particles"))
+				, NAME_Constants(TEXT("Constants"))
+			{
+			}
+		};
+		static FConstructorStatics ConstructorStatics;
 
-	IMPLEMENT_CLASS(UMaterialExpressionSquare);  
+		// 属性初始化
+		MenuCategories.Add(ConstructorStatics.NAME_Particles);
+		MenuCategories.Add(ConstructorStatics.NAME_Constants);
+	}
 
-  
-接下来，您需要为函数 Compile()、GetCaption()和RemoveReferenceTo()提供实现。Compile()函数调用在FMaterialCompiler 上的适当的函数。在这个例子中，我们可以使用现有的编译器功能(Mul)来实现Square (开平方)运算，但是您可能需要根据您的自定义表达式来添加新的材质编译器功能。<br>  
-
+`Compile()`在`FMaterialCompiler`上调用相应函数。在该示例中，我们可以使用现有的编译器功能（`Mul`）来实现正方形（Square），但根据自定义表达式，可能需要添加新的材质编译器功能。
 
 	int32 UMaterialExpressionSquare::Compile(FMaterialCompiler* Compiler)
 	{
@@ -62,20 +82,16 @@ Crumbs:%ROOT%, Programming, Programming/Rendering
 	   }
 	}
 
+`GetCaption()`返回在材质编辑器图表中作为节点说明显示的文本。
+
 	FString UMaterialExpressionSquare::GetCaption() const
 	{
 	   return TEXT("Square");
 	}
 
-	void UMaterialExpressionSquare::RemoveReferenceTo( UMaterialExpression* Expression )
-	{
-	   Super::RemoveReferenceTo( Expression );
-	   REMOVE_REFERENCE_TO( A, Expression );
-	}
 
+您的新材质表达式现在应该位于材质编辑器的列表中。在下面，您可以看到Square表达式的作用方式：  
 
-现在您的新的材质表达式应该在材质编辑器的表达式列表中了。这里您可以看到Square (开平方)表达式已经生效：  
-
-![SquareMaterialExpression.jpg](SquareMaterialExpression.jpg)
-
-
+[REGION:todo]
+![](MaterialExpression.png)
+[/REGION]

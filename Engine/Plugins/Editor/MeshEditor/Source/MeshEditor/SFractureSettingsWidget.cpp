@@ -130,7 +130,6 @@ void SFractureSettingsWidget::Construct(const FArguments& InArgs, IMeshEditorMod
 		]
 	];
 
-#ifdef CUTOUT_ENABLED
 	WidgetSwitcher->AddSlot(static_cast<int32>(EMeshFractureMode::Cutout))
 	[
 		SNew(SHorizontalBox)
@@ -148,8 +147,6 @@ void SFractureSettingsWidget::Construct(const FArguments& InArgs, IMeshEditorMod
 			BrickDetailsView->AsShared()
 		]
 		];
-
-#endif // CUTOUT_ENABLED
 
 	ChildSlot
 		[
@@ -249,13 +246,11 @@ void SFractureSettingsWidget::CreateDetailsView()
 	PlaneCutDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
 	PlaneCutDetailsView->SetObject(MeshFractureSettings->PlaneCutSettings, true);
 
-#ifdef CUTOUT_ENABLED
 	CutoutDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
 	CutoutDetailsView->SetObject(MeshFractureSettings->CutoutSettings, true);
 
 	BrickDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
 	BrickDetailsView->SetObject(MeshFractureSettings->BrickSettings, true);
-#endif
 }
 
 void SFractureSettingsWidget::OnDetailsPanelFinishedChangingProperties(const FPropertyChangedEvent& InEvent)

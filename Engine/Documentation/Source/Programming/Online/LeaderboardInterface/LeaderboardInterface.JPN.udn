@@ -1,0 +1,51 @@
+﻿INTSourceChangelist:5368333
+Availability: Public
+Crumbs: 
+Title: Leaderboard インターフェース
+Description: Leaderboard の読み取りとアップデートのためのオンライン サブシステムです。
+Type: 
+Version: 4.21
+Parent: Programming/Online
+Order: 
+Tags: online subsyste
+Tags: leaderboards
+
+
+Leaderboard は、ゲーム内でプレイヤーを友達や世界中の人たちとトップスコアを競わせる方法を提供します。
+ゲームにはスコアを獲得する複数のモードを持たせることができ、さらに各モードには独自の Leaderboard を持たせることができます。
+スコアリング モードでは、従来のポイント ベースのゲームのように、最高から最低の順にランク付けすることも、タイムアタック ゲームやレース ゲームのように最低から最高の順にランク付けすることもできます。
+Leaderboard インタフェースは、ゲーム内から Leaderboard を表示およびアップデートするために必要なツールをデベロッパーに提供します。
+
+## スコアリング方法
+
+Leaderboard のスコアを処理する方法の定義には 3 つの異なる側面があり、それぞれ列挙型で定義されています。
+
+*   [`ELeaderboardSort`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/ELeaderboardSort__Type/index.html) は、スコアが並べられているかどうかを指示します。スコアが並べられている場合は、昇順なのか降順なのかを示します。
+*   [`ELeaderboardFormat`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/ELeaderboardFormat__Type/index.html) は書式設定を制御します。
+スコアは、生 (raw) の数値 (ポイントなど)、または時間 (秒またはミリ秒単位のいずれか) になります。
+*   [`ELeaderboardUpdateMethod`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/ELeaderboardUpdateMethod__Type/index.html) は、Leaderboard がプレイヤーの最新のスコアを保持するのか、または (並べ替え方法に従って) そのプレイヤーの最良のスコアを保持するのかを示します。
+
+## Leaderboard のデータを取得する
+
+ゲームでサポートされる各 Leaderboard には、これまでにプレイしたことのあるユーザー アカウントごとにエントリが存在することがあるため、Leaderboard のデータが非常に大きくなる場合があります。
+こうした理由から、検索はチャンクで行われ、ゲームはいくつかの方法で Leaderboard の一部をリクエストできます。
+Leaderboard のデータを取得するすべての方法では、オンライン サービスに返させるテーブルの定義を保持する `FOnlineLeaderboardRead` 型 (関連するデータ型については [`FOnlineLeaderboardRead`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/FOnlineLeaderboardRead/index.html) を参照) のパラメータを受け取り、完了時に成否を示すために `bool` を使用して `FOnLeaderboardReadComplete` 型のデリゲートを呼び出します。
+次のクエリ オプションがサポートされています。
+
+| 関数| クエリの説明|
+| ---| ---|
+| `ReadLeaderboards` | 明示的なユーザーのリストを (`FUniqueId` で) 受け取り、それらのユーザーだけの Leaderboard スコアをリクエストします。|
+| `ReadLeaderboardsForFriends` | ローカル ユーザー インデックスに基づいて、そのユーザーの各 [友達](Programming/Online/FriendsInterface) の Leaderboard スコアを見つけます。|
+| `ReadLeaderboardsAroundRank` | ランクと範囲を受け取ります。世界中のトップ プレイヤーのリストを参照する際に便利です。指定したランクを中心に、指定した範囲 (上下) の Leaderboad スコアを取得します。例えば、ランクを「100」、範囲を「50」とした場合、50 位から 150 位にランキングされているプレイヤーのレコードをリクエストします。|
+| `ReadLeaderboardsAroundUser` | `ReadLeaderboardsAroundRank` に似ていますが、明示的なランクをユーザーの `FUniqueNetId` と置き換え、そのユーザーのランクの指定された範囲内のレコードを見つけます。この方法は、関数を複数回呼び出すことなく、世界ランキングにおける自分の立ち位置をプレイヤーに表示する際に便利です。|
+
+## Leaderboard のデータをアップロードする
+
+個々のプレイヤーのスコアを書き込むには、`WriteLeaderboards` を使用して、後でオンライン サービスに送信する予定のアップデート ([`FOnlineLeaderboardWrite`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/FOnlineLeaderboardWrite/index.html) 型) をキャッシュします。
+各 `FOnlineLeaderboardWrite` オブジェクトは、セッション名と (`FUniqueNetId` によって識別される) プレイヤーに関連付けられています。
+ゲームでセッション データをオンライン サービスのレコードにコミットする準備が整うと、`FlushLeaderboards` はキャッシュされたデータを送信してローカル システムから消去し、完了時にオンライン サブシステムの `OnLeaderboardFlushComplete` デリゲートを呼び出します。
+
+[REGION:note]
+`WriteLeaderboards` で一度にキャッシュできるアップデートは 5 つのみです。
+それ以上のアップデートは破棄されるため、そうなる前に必ず `FlushLeaderboards` を呼び出してください。
+[/REGION]

@@ -1,0 +1,152 @@
+INTSourceChangelist:6549201
+Availability: Public
+Title: iOS 및 tvOS 개발 요구 사항
+Description: 하드웨어, 소프트웨어, SDK 정보를 포함한 Apple iOS 개발 요구 사항입니다.
+Type: reference
+Version: 4.22
+Parent: Platforms/Mobile/iOS
+Tags: Specifications
+Tags: mobile
+Tags: iOS
+Tags: StartingOut
+Tags: tvOS
+topic-image: iOS_QS_Editor_TopicImage.png
+Order: 16
+
+[iOS 및 tvOS](Platforms/Mobile/iOS) 플랫폼 용으로 개발을 시작하는 데 필요한 하드웨어 및 소프트웨어 개발 키트 (SDK) 요구 사항을 확인할 수 있습니다.   
+
+## 언리얼 엔진 4.22
+
+### iOS 개발 요구 사항
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 디바이스 하드웨어** | [](Platforms/Mobile/iOS/DeviceCompatibility) 문서를 참고하세요. |
+| [REGION:tablesection]소프트웨어 요구사항[/REGION] ||
+| **데스크톱 운영 체제** | macOS 10.14 Mojave 이상. |
+| **SDK 버전** | iOS 12 이상. |
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+| **Xcode 버전** | 10.1 |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildIOS.cs` 에서 확인할 수 있습니다. 위치는 `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS` 입니다.
+[/REGION]
+
+### tvOS 개발 요구 사항
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 디바이스 하드웨어** | Apple TV |
+| [REGION:tablesection]소프트웨어 요구사항[/REGION] ||
+| **데스크톱 운영 체제** | macOS 10.14 Mojave 이상 |
+| **SDK 버전** | tvOS 12 이상 |
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+| **Xcode 버전** | 10.1 |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildTVOS.cs` 에서 확인할 수 있습니다. 위치는 `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS` 입니다.
+[/REGION]
+
+## 언리얼 엔진 4.21
+
+### iOS 개발 요구 사항
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 디바이스 하드웨어** | See [iOS Device Compatibility](Platforms/Mobile/iOS/DeviceCompatibility). |
+| [REGION:tablesection]소프트웨어 요구사항[/REGION] ||
+| **데스크톱 운영 체제** | macOS 10.14 Mojave 이상 |
+| **SDK 버전** | iOS 12 이상 |
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+| **Xcode 버전** | 9.4 |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildIOS.cs` 에서 확인할 수 있습니다. 위치는 `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS` 입니다.
+[/REGION]
+
+### tvOS 개발 요구 사항
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 디바이스 하드웨어** | Apple TV |
+| [REGION:tablesection]소프트웨어 요구사항[/REGION] ||
+| **데스크톱 운영 체제** | macOS 10.14 Mojave 이상 |
+| **SDK 버전** | tvOS 12 이상 |
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+| **Xcode 버전** | 9.4 |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildTVOS.cs` 에서 확인할 수 있습니다. 위치는 `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS` 입니다.
+[/REGION]
+
+## 언리얼 엔진 4.20
+
+### iOS 개발 요구 사항
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 디바이스 하드웨어** | See [iOS Device Compatibility](Platforms/Mobile/iOS/DeviceCompatibility). |
+| [REGION:tablesection]소프트웨어 요구사항[/REGION] ||
+| **데스크톱 운영 체제** | macOS 10.13 High Sierra 이상 |
+| **SDK 버전** | iOS 11 이상 |
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+| **Xcode 버전** | 9.4 |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildIOS.cs` 에서 확인할 수 있습니다. 위치는 `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS` 입니다.
+[/REGION]
+
+### tvOS 개발 요구 사항
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 디바이스 하드웨어** | Apple TV |
+| [REGION:tablesection]소프트웨어 요구사항[/REGION] ||
+| **데스크톱 운영 체제** | macOS 10.13 High Sierra 이상 |
+| **SDK 버전** | tvOS 11 이상 |
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+| **Xcode 버전** | 9.4 |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildTVOS.cs` 에서 확인할 수 있습니다. 위치는 `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS` 입니다.
+[/REGION]
+
+## 언리얼 엔진 4.19
+
+### iOS 개발 요구 사항
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 디바이스 하드웨어** | See [iOS Device Compatibility](Platforms/Mobile/iOS/DeviceCompatibility). |
+| [REGION:tablesection]소프트웨어 요구사항[/REGION] ||
+| **데스크톱 운영 체제** | macOS 10.13 High Sierra 이상 |
+| **SDK 버전** | iOS 11 이상 |
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+| **Xcode 버전** | 9.4 |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildIOS.cs` 에서 확인할 수 있습니다. 위치는 `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/Mobile/iOS` 입니다.
+[/REGION]
+
+### tvOS 개발 요구 사항
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 디바이스 하드웨어** | Apple TV |
+| [REGION:tablesection]소프트웨어 요구사항[/REGION] ||
+| **데스크톱 운영 체제** | macOS 10.13 High Sierra 이상 |
+| **SDK 버전** | tvOS 11 이상 |
+| **iTunes 버전** | [iTunes 11 이상](http://www.apple.com/itunes/) |
+| **Xcode 버전** | 9.4 |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildTVOS.cs` 에서 확인할 수 있습니다. 위치는 `[UE4 Root Directory]/Engine/Source/Programs/UnrealBuildTool/Platforms/TVOS` 입니다.
+[/REGION]

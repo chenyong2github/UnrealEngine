@@ -1,0 +1,44 @@
+Availability: Public
+Crumbs: 
+Title: Using Remote Session Plugin for iOS Development
+Description: The Remote Slate Plugin is meant to replicate the inputs from an iOS device, connected on the same network as your PC, so you can test your game or app from the editor, or from a locally running packaged version of the game or app.
+Type: 
+Version: 4.21
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: iOS
+Tags: Slate Remote Plugin
+
+
+The Remote Session Plugin is meant to replicate the inputs from an iOS device, connected on the same network as your PC, so you can test your game or app from the editor, or from a locally running packaged version of the game or app. The Unreal Remote 2 app works with the Remote Session Plugin to help you test your game or app.
+
+## Getting the Unreal Remote 2 App
+
+1.  Go to the App store on your iOS device. Search for **Unreal Remote 2**. Tap **Get** to download.  
+    ![](UnrealRemote_AppStore.png)
+2.  The **Unreal Remote 2** app downloads and installs on your device. The device should be connected to the same network as your PC.  
+    ![](UnrealRemote_Installed.png)
+3.  Start the application on the iOS device, and enter your PC's IP address. Then tap **Connect**.  
+    ![UnrealRemote_IPAddress.png](UnrealRemote_IPAddress-opt.png)
+
+## Enable Remote Session Plugin
+
+1.  In the Unreal Editor, click **Edit > Plugins**. The **Plugins** panel displays.  
+    ![](EditPlugins.png)
+2.  In the left navigation panel, scroll down to **Experimental**. Locate the **Remote Session Plugin**.  
+    ![](EnableRemoteSessionPlugin.png) You can also use the **Search** bar to locate the Plugin by typing in “remote”.
+    [REGION:warning]
+    If you use the Search bar and type in "remote," you might see the Slate Remote Plugin in your search results. This is an older version of the plugin and should not be enabled--**only enable the Remote Session Plugin**.
+    [/REGION]
+3.  Check the box for **Enabled**. A warning message appears stating that you need to restart the Editor for the change to take effect.  
+    ![](EnableSlateRemotePlugin-2.png)
+4.  Click **Restart Now** to restart the Editor.  
+    
+5.  In the Unreal Editor, click the dropdown arrow on the **Play** button. This displays a menu of play state options. Select either **New Editor Window (PIE)** or **Standalone Game**. A new window opens.  
+    ![](EnableSlateRemotePlugin_step5.png)
+6.  Make sure Unreal Engine Editor is the active window. The interaction from the Unreal Remote app on the iOS device will be received by the input manager. All Blueprint nodes (and corresponding C++ APIs) in the following categories will return usable values:
+    *   Touch events
+    *   Touch input
+    *   Gesture Events
+    *   Motion Events
+    *   Motion Values

@@ -2,7 +2,6 @@
 
 #include "NiagaraEditorWidgetsModule.h"
 #include "NiagaraEditorWidgetsStyle.h"
-#include "NiagaraEditorModule.h"
 #include "SNiagaraStack.h"
 #include "DetailCustomizations/NiagaraDataInterfaceCurveDetails.h"
 #include "DetailCustomizations/NiagaraDataInterfaceDetails.h"
@@ -83,10 +82,9 @@ void FNiagaraStackCurveEditorOptions::SetAreCurvesVisible(bool bInAreCurvesVisib
 void FNiagaraEditorWidgetsModule::StartupModule()
 {
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-	OnCreateStackWidgetHandle = NiagaraEditorModule.SetOnCreateStackWidget(FNiagaraEditorModule::FOnCreateStackWidget::CreateLambda([](UNiagaraStackViewModel* ViewModel)
-	{
-		return SNew(SNiagaraStack, ViewModel);
-	}));
+	WidgetProvider = MakeShared<FNiagaraEditorWidgetProvider>();
+	NiagaraEditorModule.RegisterWidgetProvider(WidgetProvider.ToSharedRef());
+
 	FNiagaraEditorWidgetsStyle::Initialize();
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -104,7 +102,7 @@ void FNiagaraEditorWidgetsModule::ShutdownModule()
 	FNiagaraEditorModule* NiagaraEditorModule = FModuleManager::GetModulePtr<FNiagaraEditorModule>("NiagaraEditor");
 	if (NiagaraEditorModule != nullptr)
 	{
-		NiagaraEditorModule->ResetOnCreateStackWidget(OnCreateStackWidgetHandle);
+		NiagaraEditorModule->UnregisterWidgetProvider(WidgetProvider.ToSharedRef());
 	}
 
 	FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
@@ -132,4 +130,14 @@ TSharedRef<FNiagaraStackCurveEditorOptions> FNiagaraEditorWidgetsModule::GetOrCr
 		(*StackCurveEditorOptions)->SetHeight(DefaultHeight);
 	}
 	return *StackCurveEditorOptions;
+}
+
+TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateStackView(UNiagaraStackViewModel& StackViewModel)
+{
+	return SNew(SNiagaraStack, &StackViewModel);
+}
+
+TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
+{
+	return SNullWidget::NullWidget;
 }

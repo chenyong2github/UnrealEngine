@@ -1,4 +1,4 @@
-﻿INTSoruceChangelist:3482403
+﻿INTSoruceChangelist:3782314
 Availability:Public
 Crumbs: %ROOT%
 Title:复制与粘贴区域
@@ -17,6 +17,7 @@ Topic-image:CopyPaste_Topic.png
 **复制/粘贴（Copy/Paste）** 工具可通过地形小工具将高度数据从地形的一个区域复制到另一个区域。也可导入能够粘贴到地形中的现有高度图，或将高度数据的选择区域作为其自身的高度图（.raw 文件）导出，以便在第三方软件中使用。 
 
 
+(#UsingtheCopy/PasteTool)
 ## 使用复制/粘贴工具
 
 [OBJECT:EmbeddedVideo]
@@ -40,6 +41,7 @@ Topic-image:CopyPaste_Topic.png
 
 在此展示中，可手动对小工具进行缩放，以复制一个区域并将其粘贴到另一个位置中。而区域选择（Region Selection）则用于绘制小工具可自动进行缩放匹配的区域，使其能被复制粘贴到另一个位置。
 
+(#Copy/PasteGizmo)
 ### 复制/粘贴小工具
 
 小工具（Gizmo）用于捕捉地形的高度数据，然后进行使用。它能帮助您轻松地移动地形的各个部分、从现有高度图中导入高度数据，或将高度数据导出到一个高度图文件中，在 World Machine 之类的第三方程序中使用。
@@ -55,6 +57,7 @@ Topic-image:CopyPaste_Topic.png
 如需了解小工具的使用方法，可在此处阅读 [Gizmo 工具](Engine/Landscape/Editing/Gizmos/) 的相关内容。 
 
 
+(#ToolSettings)
 ## 工具设置
 
 [REGION:imagetable]

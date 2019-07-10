@@ -175,12 +175,12 @@ void FPaperRenderSceneProxy::DebugDrawBodySetup(const FSceneView* View, int32 Vi
 
 			Collector.RegisterOneFrameMaterialProxy(SolidMaterialInstance);
 
-			BodySetup->AggGeom.GetAggGeom(GeomTransform, GetWireframeColor().ToFColor(true), SolidMaterialInstance, false, true, UseEditorDepthTest(), ViewIndex, Collector);
+			BodySetup->AggGeom.GetAggGeom(GeomTransform, GetWireframeColor().ToFColor(true), SolidMaterialInstance, false, true, DrawsVelocity(), ViewIndex, Collector);
 		}
 		else
 		{
 			// wireframe
-			BodySetup->AggGeom.GetAggGeom(GeomTransform, GetSelectionColor(CollisionColor, IsSelected(), IsHovered()).ToFColor(true), nullptr, ( Owner == nullptr ), false, UseEditorDepthTest(), ViewIndex, Collector);
+			BodySetup->AggGeom.GetAggGeom(GeomTransform, GetSelectionColor(CollisionColor, IsSelected(), IsHovered()).ToFColor(true), nullptr, ( Owner == nullptr ), false, DrawsVelocity(), ViewIndex, Collector);
 		}
 	}
 }
@@ -336,6 +336,13 @@ void FPaperRenderSceneProxy::GetBatchMesh(const FSceneView* View, class UMateria
 
 	const bool bIsWireframeView = View->Family->EngineShowFlags.Wireframe;
 
+	FMatrix PreviousLocalToWorld;
+
+	if (!GetScene().GetPreviousLocalToWorld(GetPrimitiveSceneInfo(), PreviousLocalToWorld))
+	{
+		PreviousLocalToWorld = GetLocalToWorld();
+	}
+
 	for (const FSpriteDrawCallRecord& Record : Batch)
 	{
 		if (Record.IsValid())
@@ -391,7 +398,7 @@ void FPaperRenderSceneProxy::GetBatchMesh(const FSceneView* View, class UMateria
 			Settings.bReceivesDecals = true;
 			Settings.bUseSelectionOutline = true;
 			Settings.CastShadow = bCastShadow;
-			DynamicMeshBuilder.GetMesh(GetLocalToWorld(), TextureOverrideMaterialProxy, DPG, Settings, nullptr, ViewIndex, Collector);
+			DynamicMeshBuilder.GetMesh(GetLocalToWorld(), PreviousLocalToWorld, TextureOverrideMaterialProxy, DPG, Settings, nullptr, ViewIndex, Collector);
 		}
 	}
 }

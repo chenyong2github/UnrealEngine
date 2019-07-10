@@ -11,8 +11,8 @@ tags:Animation
 tags:Animation Blueprint
 tags:Skeletal Controls
 topic-image:RigidBodyNode.png
-Related:Engine/Physics/PhAT
-Related:Engine/Physics/PhAT/Reference
+Related:Engine/Physics/PhysicsAssetEditor
+Related:Engine/Physics/PhysicsAssetEditor/Reference
 Related:Engine/Animation/AnimBlueprints/AnimGraph
 Related:Engine/Animation/NodeReference/Blend
 
@@ -60,7 +60,7 @@ Rigid Body ノードは [](Engine/Animation/AnimBlueprints) の **AnimGraph** �
 
 ## RigidBody ノードの設定例
 
-このノードを使用する前に、シミュレートする [](Engine/Physics/PhysicsBodies) を [[Physics Asset]](Engine/Physics/PhAT) で選択して **[Simulated]** に設定します。
+このノードを使用する前に、シミュレートする [](Engine/Physics/PhysicsBodies) を [[Physics Asset]](Engine/Physics/PhysicsAssetEditor) で選択して **[Simulated]** に設定します。
 
 ![](RigidBody_02.png)
 

@@ -132,6 +132,14 @@ struct TEvaluationTreeEntryContainer
 		return Ar << In.Entries << In.Items;
 	}
 
+	/**
+	 * Equality operator
+	 */
+	friend bool operator==(const TEvaluationTreeEntryContainer<ElementType>& A, const TEvaluationTreeEntryContainer<ElementType>& B)
+	{
+		return A.Entries == B.Entries && A.Items == B.Items;
+	}
+
 private:
 
 	/**
@@ -155,6 +163,14 @@ private:
 		{
 			Ar << In.StartIndex << In.Size << In.Capacity;
 			return Ar;
+		}
+
+		/**
+		 * Equality operator
+		 */
+		friend bool operator==(const FEntry& A, const FEntry& B)
+		{
+			return A.StartIndex == B.StartIndex && A.Size == B.Size && A.Capacity == B.Capacity;
 		}
 	};
 
@@ -263,6 +279,14 @@ struct FMovieSceneEvaluationTreeNode
 	friend FArchive& operator<<(FArchive& Ar, FMovieSceneEvaluationTreeNode& In)
 	{
 		return Ar << In.Range << In.Parent << In.ChildrenID << In.DataID;
+	}
+
+	/**
+	 * Equality operator
+	 */
+	friend bool operator==(const FMovieSceneEvaluationTreeNode& A, const FMovieSceneEvaluationTreeNode& B)
+	{
+		return A.Range == B.Range && A.Parent == B.Parent && A.ChildrenID == B.ChildrenID && A.DataID == B.DataID;
 	}
 
 	/** The time-range that this node represents */
@@ -629,6 +653,14 @@ struct TMovieSceneEvaluationTree : FMovieSceneEvaluationTree
 	{
 		auto& BaseTree = static_cast<FMovieSceneEvaluationTree&>(In);
 		return Ar << BaseTree << In.Data;
+	}
+
+	/**
+	 * Equality operator
+	 */
+	friend bool operator==(const TMovieSceneEvaluationTree<DataType>& A, const TMovieSceneEvaluationTree<DataType>& B)
+	{
+		return A.Data == B.Data && A.RootNode == B.RootNode && A.ChildNodes == B.ChildNodes;
 	}
 
 private:

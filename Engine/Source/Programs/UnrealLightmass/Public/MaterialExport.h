@@ -50,7 +50,8 @@ enum EBlendMode
     BLEND_Additive          =3,
     BLEND_Modulate          =4,
 	BLEND_AlphaComposite    =5,
-    BLEND_MAX               =6,
+	BLEND_AlphaHoldout      =6,
+	BLEND_MAX               =7,
 };
 
 struct FMaterialData

@@ -1,32 +1,56 @@
-﻿Availability: Public
-Title:1. 必备的项目设置
+INTSourceChangelist:3728517
+Availability: Public
+Title:1 - 必需的项目设置
 Crumbs:%ROOT%, Programming, Programming/QuickStart
-Description:使用我们所需的标准来创建新项目
+Description:使用我们所需的指定信息创建新项目
+SkillLevel: Beginner
+Version: 4.9
+parent:Programming/QuickStart
+order:1
+type:quick start
+type:multi-step
 
-[VAR:Steps]
-[OBJECT:Navigation]
-	[PARAM:previous]
-	[/PARAM]
-	[PARAM:current]
-	[/PARAM]
-	[PARAM:home]
-		[快速启动主页](Programming\QuickStart)
-	[/PARAM]
-	[PARAM:next]
-		[下一步](Programming\QuickStart\2 "%Programming\QuickStart\2:title%")
+[NAV]
+
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	windows
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	active_button_content
+	[/PARAMLITERAL]
+	[PARAM:content]
+	[REGION:note]
+	在开始本教程之前，应该事先安装了 **Visual Studio 2015** 桌面版（最好是社区或专业版）。有关设置说明，请参阅[](Programming/Development/VisualStudioSetup)。
+	[/REGION]
 	[/PARAM]
 [/OBJECT]
-[/VAR]
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	[REGION:note]
+	在开始本教程之前，您应事先安装 **Xcode 9**。
+	[/REGION]
+	[/PARAM]
+[/OBJECT]
 
 
-1. 从启动程序中打开 **虚幻引擎** 。 [](Engine/Basics/Projects/Browser)将会出现。
+1. 从启动程序打开 **虚幻引擎**。此时将显示[](Engine/Basics/Projects/Browser)。
 
-1. 点击 **New Project（新建项目）** 选项卡，然后选择 **C++** 选项卡。 在该处选择 **Basic Code（基础代码）** ，这样我们可以获得全新的起始点，确认设置了 "With Starter Content（和入门内容共同启动）"。  我们需要输入项目名称，就使用"QuickStart"吧。 现在可以点击 **Create Project（创建项目）** 并开始了。
+1. 单击 **新建项目（New Project）** 选项卡，然后选择 **C++** 选项卡。从这里，选择 **基本代码（Basic Code）**，这样我们就有了干净的起点，并确保设置 **含初学者内容包（With Starter Content）**。我们需要输入项目名称，所以使用“QuickStart”。现在可以单击 **创建项目（Create Project）** 并开始制作了。
 
 	[![](CreateProject.png)](CreateProject.png)
 
-----
+**虚幻编辑器（Unreal Editor）** 现在将打开新的项目。**Visual Studio** 也会打开，并加载项目已经创建的解决方案文件。
 
-**Unreal Editor（虚幻编辑器）** 现在将会打开新项目。 **Visual Studio** 也会打开，并载入项目刚创建的解决方案文件。
-
-
+[NAV]

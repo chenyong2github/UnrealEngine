@@ -10,7 +10,6 @@ Parent:Engine/Actors
 type:overview
 order:1
 topic-image:actorplacement_topic.png
-track:LevelDesign_Beginner|8
 
 
 最も基本的なレベルでは、 **アクタ** はレベルに配置可能なオブジェクトです。このページではアクタをレベルに配置する様々な方法について説明します。 

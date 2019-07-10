@@ -31,7 +31,7 @@ Inside of the Material editor, you will find that there are six special nodes th
 ![](Landscape_Mat_Palette.png)
 
 ### Landscape Layer Blend Node
-
+[EXCERPT:landscapelayerblendnode]
 The **LandscapeLayerBlend** node enables you to blend together multiple Textures or Material networks so that they can be used as Landscape layers. The LandscapeLayerBlend uses an array to store information about the Landscape layers. To add layers to this array clicking the plus sign icon that you see next to the entry: "0 elements".
 
 ![](Landscape_Add_To_Array.png)
@@ -73,9 +73,10 @@ Below is an example of the properties of the **Landscape Layer Blend** node for 
 To delete a layer, click the Drop-Down Arrow to the right of the layer's element number to open the context menu, and then click **Delete**.
 
 ![Delete Layer](Landscape_DeleteBlendLayer2.png)
+[/EXCERPT:landscapelayerblendnode]
 
 ### Landscape Layer Coords Node
-
+[EXCERPT:landscapelayercoordsnode]
 The **LandscapeLayerCoords** node generates UV coordinates that can be used to map Material networks to Landscape terrains.
 
 ![LandscapeLayerCoords Node](Landscape_Material_CoordsExp.png)
@@ -91,9 +92,9 @@ You can set the properties of the LandscapeLayerCoords node in the **Details** p
 | 5: | **Mapping Pan \[U\]** | The offset in the \[U\] direction to apply to the UV coordinates. |
 | 6: | **Mapping Pan \[V\]** | The offset in the \[V\] direction to apply to the UV coordinates. |
 | 7: | **Unlabeled Output** | Outputs the UV coordinates to map the material to the Landscape based on the given property values. |
-
+[/EXCERPT:landscapelayercoordsnode]
 ### Landscape Layer Switch Node
-
+[EXCERPT:landscapelayerswitchnode]
 The **LandscapeLayerSwitch** node allows you to exclude some Material operations when a particular layer is not contributing to a region of the Landscape. This allows you to optimize your Material by removing calculations that are not necessary when a particular layer's weight is zero.
 
 ![LandscapeLayerSwitch Node](LayerSwitchNode.png)
@@ -107,9 +108,9 @@ You can set the properties of the LandscapeLayerSwitch node in the **Details** p
 | 3: | **LayerUsed** | The result to use when the layer specified in the node's properties is in use by the current region of the Landscape. |
 | 4: | **LayerNotUsed** | The result to use when the layer is not used by the current region of the Landscape and has a weight of zero. |
 | 5: | **Unlabeled Output** | Either the **LayerUsed** or **LayerNotUsed** inputs, depending on whether or not the layer contributes to the particular region of the Landscape. |
-
+[/EXCERPT:landscapelayerswitchnode]
 ### Landscape Layer Weight Node
-
+[EXCERPT:landscapelayerweightnode]
 The **LandscapeLayerWeight** expression allows Material networks to be blended based on the weight for the associated layer obtained from the Landscape the Material is applied to.
 
 ![LandscapeLayerWeight Node](Landscape_Mat_LayerWeightNode.png)
@@ -124,9 +125,9 @@ You can set the properties of the LandscapeLayerWeight node in the **Details** p
 | 4: | **Base** | The network to blend this layer with. This is generally the result of any previous layer blending, but can be empty if this is the first layer. |
 | 5: | **Layer** | The network to blend together to create this layer. |
 | 6: | **Unlabeled Output** | Outputs the result of the blending between the **Base** and **Layer** inputs based on the layer weights of the layers involved. |
-
+[/EXCERPT:landscapelayerweightnode]
 ### Landscape Visibility Mask Node
-
+[EXCERPT:landscapevisibilitymasknode]
 The **LandscapeVisibilityMask** node is used for removing the visibility of parts of your Landscape, so you can create holes, for example, for creating caves.
 
 ![LandscapeVisibilityMask Node](Landscape_VisibilityMask.png)
@@ -140,7 +141,7 @@ You can set the properties of the LandscapeVisibilityMask node in the **Details*
 All you have to do to get this node to work correctly is to make sure that its output is connected to the **Opacity Mask** slot of your Material and that the **Materials Blend Mode** is set to **Masked**.
 
 ![](Landscape_VisibilityMaskSetup.png)
-
+[/EXCERPT:landscapevisibilitymasknode]
 ## Layer Blending
 
 The ability to blend multiple textures and materials networks into paintable Landscape layers is the basis for texturing Landscape terrains. In order to blend layers together, you can use either multiple **LandscapeLayerWeight** nodes or one to two **LandscapeLayerBlend** nodes depending on if you are using a Normal Map or not.

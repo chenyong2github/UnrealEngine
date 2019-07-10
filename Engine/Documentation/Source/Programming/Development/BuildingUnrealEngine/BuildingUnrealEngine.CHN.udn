@@ -15,8 +15,6 @@ topic-image:topic_buildingUE.png
 tags:Programming
 tags:Unreal Build System
 
-%Globals:osselect_linux%
-
 [TOC (start:2 end:3)]
 
 (#buildingunrealenginefromsource)

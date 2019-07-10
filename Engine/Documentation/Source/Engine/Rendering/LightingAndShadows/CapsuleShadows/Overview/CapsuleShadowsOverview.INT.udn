@@ -17,7 +17,7 @@ shadow mapping techniques.
 
 ## Character Capsule Representation
 
-A [Physics Asset](Engine/Physics/PhAT/) is used to create an appoximate representation of the character to support very soft shadowing. Since the capsules are attached to the bones of the character, this 
+A [Physics Asset](Engine/Physics/PhysicsAssetEditor/) is used to create an appoximate representation of the character to support very soft shadowing. Since the capsules are attached to the bones of the character, this 
 allows for the shadow to move and cast accurately within the scene. 
 
 [OBJECT:ComparisonSlider]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:블루프린트 인터페이스
 Crumbs: %ROOT%, Engine/Blueprints, Engine/Blueprints/UserGuide/Types
@@ -55,7 +55,7 @@ topic-image:Engine/Blueprints/UserGuide/Types/blueprint_interface.png
 
 ![](InterfaceEditor.png)
 
-인터페이스를 처음 만들면 NewFunction_0 이라는 이름의 공백 함수가 새로 생성되어, 이름을 변경할 수 있도록 선택된 상태로 나타납니다.
+인터페이스를 처음 만들면 NewFunction_0 이라는 이름의 빈 함수가 새로 생성되어, 이름을 변경할 수 있도록 선택된 상태로 나타납니다.
 
 ### 함수 추가
 

@@ -19,7 +19,8 @@ namespace UnrealBuildTool.Rules
                     "AnimGraphRuntime",
                     "AnimGraph",
                     "BlueprintGraph",
-                    "PhysXVehicles"
+                    "PhysXVehicles",
+					"PhysicsCore"
                 }
 			);
 

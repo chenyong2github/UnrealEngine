@@ -1,0 +1,98 @@
+﻿INTSourceChangelist:6549201
+Availability: Public
+Crumbs: 
+Title: 本地化iOS项目中的“plist”和“NSLocalizedString”
+Description: 本页面将显示如何识别项目代码中需要翻译的字符串。
+Type: 
+Version: 4.20
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: mobile
+Tags: iOS
+
+
+在某些情况下，您可能想要使用不同的语言部署iOS项目。如果要将iOS项目本地化，您必须识别并翻译代码中的所有字符串。要提交iOS应用程序，这是必要的。在本指南中，您将了解如何创建翻译代码中的字符串的文件。
+
+## 步骤
+
+1.  在“{UEProjectDir}/Build/IOS/Resources/Localization/”目录中为每种语言创建一个文件夹。将每个文件夹命名为“{LanguageCode}.lproj”。例如，“EN.lproj”，其中“EN”是英语的语言代码；“FR.lproj”，其中“FR”是法语的语言代码；“JA.lproj”，其中“JA”是日语的语言代码。
+    [REGION:note]
+    这里使用的语言代码是[ISO 639-2标准](http://www.loc.gov/standards/iso639-2/php/code_list.php)中使用的双字符代码。
+    [/REGION]
+2.  在每个语言文件夹中，创建一个名为“InfoPlist.strings”的文本文件。“InfoPlist.strings”文件将翻译iOS项目的“info.plist”文件中的所有字符串。
+3.  在每个语言文件夹中，创建一个名为“Localizable.strings”的文本文件。“Localizable.strings”文件将翻译iOS项目的所有代码文件中的所有字符串。
+
+例如，对于名为“Lovely Game”的应用程序，您的object-c代码包含以下行：
+
+    NSString* allRightText = NSLocalizedString(@"All right", @"All right");
+    NSString* cancelText = NSLocalizedString(@"Cancel", @"Cancel");
+
+下表显示了一些如何针对各种语言修改“InfoPlist.strings”文件和“Localizable.strings”文件的示例。
+
+  
+| 语言 | InfoPlist.strings文件代码 | Localizable.strings文件代码 |
+| --- | --- | --- |
+| 英语 | [INCLUDE:#excerpt_4] | [INCLUDE:#excerpt_5] |
+| 中文 | [INCLUDE:#excerpt_7] | [INCLUDE:#excerpt_8] |
+| 法语 | [INCLUDE:#excerpt_10] | [INCLUDE:#excerpt_11] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_11]
+`/* All right */`  
+`"All right" = "D'accord";`  
+`/* Cancel */`  
+`"Cancel" = "Annuler";`  
+[/EXCERPT:excerpt_11]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_10]
+`"CFBundleDisplayName" = "Beau Jeu";`
+`"NSCameraUsageDescription" = "L'appareil photo est nécessaire pour prendre une photo";`
+[/EXCERPT:excerpt_10]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_8]
+`/* OK */ ` 
+`"OK" = "确定";`  
+`/* Cancel */`  
+`"Cancel" = "取消";`
+[/EXCERPT:excerpt_8]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+`"CFBundleDisplayName" = "可爱的游戏";`
+`"NSCameraUsageDescription" = "需要摄像头用于拍照";`
+[/EXCERPT:excerpt_7]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+`/* All right */`  
+`"All right" = "All right"; ` 
+`/* Cancel */`  
+`"Cancel" = "Cancel";`
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+`"CFBundleDisplayName" = "Lovely Game";`
+`"NSCameraUsageDescription" = "The camera is needed to take a picture";`
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+
+## 最终结果
+
+当虚幻引擎打包您的项目以创建“.IPA”文件时，将复制使用本指南创建的“[UEProjectDir]/Build/IOS/Resources/Localization/”文件夹。您打包的iOS项目将会翻译所有字符串，因此您将可以随时向Apple提交您的iOS项目。

@@ -33,6 +33,10 @@
 	#include "UnrealEdGlobals.h"
 	#include "Editor/UnrealEdEngine.h"
 	#include "PackageTools.h"
+	#include "ObjectTools.h"
+	#include "Toolkits/AssetEditorManager.h"
+	#include "GameMapsSettings.h"
+	#include "FileHelpers.h"
 #endif
 
 namespace ConcertSyncClientUtil
@@ -55,6 +59,23 @@ void UpdatePendingKillState(UObject* InObj, const bool bIsPendingKill)
 	{
 		InObj->ClearPendingKill();
 	}
+}
+
+bool ObjectIdsMatch(const FConcertObjectId& One, const FConcertObjectId& Two)
+{
+	return One.ObjectClassPathName == Two.ObjectClassPathName
+		&& One.ObjectOuterPathName == Two.ObjectOuterPathName
+		&& One.ObjectName == Two.ObjectName;
+}
+
+int32 GetObjectPathDepth(UObject* InObjToTest)
+{
+	int32 Depth = 0;
+	for (UObject* Outer = InObjToTest; Outer; Outer = Outer->GetOuter())
+	{
+		++Depth;
+	}
+	return Depth;
 }
 
 FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNewName, const FName InNewOuterPath, const bool bAllowCreate)
@@ -179,12 +200,12 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 	return FGetObjectResult();
 }
 
-bool ImportPropertyData(const FConcertLocalIdentifierTable* InLocalIdentifierTable, const FConcertSyncWorldRemapper& InWorldRemapper, UObject* InObj, const FName InPropertyName, const TArray<uint8>& InSerializedData)
+bool ImportPropertyData(const FConcertLocalIdentifierTable* InLocalIdentifierTable, const FConcertSyncWorldRemapper& InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const FName InPropertyName, const TArray<uint8>& InSerializedData)
 {
 	UProperty* Prop = InObj->GetClass()->FindPropertyByName(InPropertyName);
 	if (Prop)
 	{
-		FConcertSyncObjectReader ObjectReader(InLocalIdentifierTable, InWorldRemapper, InObj, InSerializedData);
+		FConcertSyncObjectReader ObjectReader(InLocalIdentifierTable, InWorldRemapper, InVersionInfo, InObj, InSerializedData);
 		ObjectReader.SerializeProperty(Prop, InObj);
 		return !ObjectReader.GetError();
 	}
@@ -330,17 +351,28 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 		return;
 	}
 
-	auto MakeObjectPurgeable = [](UObject* InObject)
+	TArray<UObject*> ObjectsToPurge;
+	auto MakeObjectPurgeable = [&ObjectsToPurge](UObject* InObject)
 	{
+#if WITH_EDITOR
+		if (InObject->IsAsset())
+		{
+			FAssetEditorManager::Get().CloseAllEditorsForAsset(InObject);
+		}
+#endif
 		if (InObject->IsRooted())
 		{
 			InObject->RemoveFromRoot();
 		}
 		InObject->ClearFlags(RF_Public | RF_Standalone);
+		ObjectsToPurge.Add(InObject);
 	};
 
 	auto MakePackagePurgeable = [MakeObjectPurgeable](UPackage* InPackage)
 	{
+		// Prevent any message from the editor saying a package is not saved or doesn't exist on disk.
+		InPackage->SetDirtyFlag(false);
+
 		MakeObjectPurgeable(InPackage);
 		ForEachObjectWithOuter(InPackage, [MakeObjectPurgeable](UObject* InObject)
 		{
@@ -349,24 +381,50 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 	};
 
 #if WITH_EDITOR
-	// Clean-up any in-memory packages that should be purged
-	bool bRunGC = false;
-
+	// Get the current edited map package to check if we are purging it
+	bool bEditedMapPurged = false;
+	UWorld* EditedWorld = GEditor->GetEditorWorldContext().World();
+	UPackage* EditedMapPackage = EditedWorld ? EditedWorld->GetOutermost() : nullptr;
+	
+	// Clean-up any in-memory packages that should be purged and check if we are purging the current map
 	for (const FName PackageName : InPackageNames)
 	{
 		UPackage* ExistingPackage = FindPackage(nullptr, *PackageName.ToString());
 		if (ExistingPackage)
 		{
-			bRunGC = true;
 			MakePackagePurgeable(ExistingPackage);
+			bEditedMapPurged |= EditedMapPackage == ExistingPackage;
 		}
 	}
 
-	if (bRunGC)
+	// TODO: Revisit force replacing reference, current implementation is too aggressive and causes instability
+	// If we have any object that were made purgeable, null out their references so we can garbage collect
+	//if (ObjectsToPurge.Num() > 0)
+	//{
+	//	ObjectTools::ForceReplaceReferences(nullptr, ObjectsToPurge);
+	//
+	//}
+
+	// Check if the map being edited is going to be purged. (b/c it's being deleted)
+	if (bEditedMapPurged)
+	{
+		// The world being edited was purged and cannot be saved anymore, even with 'Save Current As', replace it by something sensible.
+		FString StartupMapPackage = GetDefault<UGameMapsSettings>()->EditorStartupMap.GetLongPackageName();
+		if (FPackageName::DoesPackageExist(StartupMapPackage))
+		{
+			UEditorLoadingAndSavingUtils::NewMapFromTemplate(StartupMapPackage, /*bSaveExistingMap*/false);
+		}
+		else
+		{
+			UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false);
+		}
+	}
+	// if we have object to purge but the map isn't one of them collect garbage (if we purged the map it has already been done)
+	else if (ObjectsToPurge.Num() > 0)
 	{
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}
-#endif
+#endif // WITH_EDITOR
 }
 
 }

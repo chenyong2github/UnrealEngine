@@ -147,7 +147,7 @@ namespace LocalizationConfigurationScript
 		GenerateImportDialogueScriptConfigFile(Target).WriteWithSCC(GetImportDialogueScriptConfigPath(Target));
 		GenerateExportDialogueScriptConfigFile(Target).WriteWithSCC(GetExportDialogueScriptConfigPath(Target));
 		GenerateImportDialogueConfigFile(Target).WriteWithSCC(GetImportDialogueConfigPath(Target));
-		GenerateCompileTextConfigFile(Target).Write(GetCompileTextConfigPath(Target));
+		GenerateCompileTextConfigFile(Target).WriteWithSCC(GetCompileTextConfigPath(Target));
 		GenerateWordCountReportConfigFile(Target).WriteWithSCC(GetWordCountReportConfigPath(Target));
 	}
 

@@ -22,4 +22,5 @@ public:
 protected:
 	// UAnimInstance interface
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
+	virtual void NativeInitializeAnimation() override;
 };

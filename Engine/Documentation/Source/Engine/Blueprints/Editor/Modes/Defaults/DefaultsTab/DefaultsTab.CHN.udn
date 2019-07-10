@@ -1,34 +1,76 @@
-﻿INTSourceChangelist:2085818
+﻿INTSourceChangelist:3244370
 Availability:Public
-Title: 蓝图编辑器默认值选卡
-Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor, Engine/Blueprints/Editor/Modes, Engine/Blueprints/Editor/Modes/Defaults
-Description:关于蓝图编辑器默认值选卡的概述。
+Title: 蓝图编辑器默认值选项卡
+Parent:Engine/Blueprints/Editor
+Description:概述蓝图默认值选项卡
+version: 4.9
+tags:Blueprints
 
-[TOC(start:2)]
 
-## 概述
+ **类默认值（Class Defaults）** 选项卡包含有关蓝图默认设置和属性的信息，以及有关蓝图包含的任何变量的信息。您可根据需要修改这些设置。
 
- **Blueprint Defaults（蓝图编辑器默认值）** 包含了关于蓝图的默认设置、属性及蓝图中包含的所有变量的信息。您可以修改这些设置来满足您自己的需要。
-
+[REGION:raw]
 ![](BP_DefaultsTab.png)
+[/REGION]
 
-**蓝图默认值** 选卡包含以下这些部分：
+ **类默认值（Class Defaults）** 选项卡包含以下部分：
 
-| 项目| 描述|
+| 项目 | 说明 |
 | ---- | ----------- |
-| **Default（默认）** | 如果您在创建某个变量时没有指定除 **Default** 之外的其他类目，那么这里则列出所有变量及它们的值。注意您必须编译该蓝图，才能在 **Blueprint Defaults(蓝图默认值)** 选卡中显示它的变量。|
-| **Rendering（渲染）** | 包含了和如何在游戏中渲染基于蓝图的Actor的相关属性的信息。|
-| **Replication(复制)** | 包含了指示您的actor如何在网络游戏中表现的属性相关的信息，比如它的网络优先级及同其他客户端的关联。|
-| **Input（输入）** | 包含了基于该蓝图的actor如何对输入做出反应的相关信息。|
-| **Actor** | 包含了基于这个蓝图的Actor相关的信息，比如它们是否会受到伤害。注意，对于关卡蓝图来说，在这部分中仅 **Tags（标签）** 属性是有用的。|
+| **默认（Default）** | 如果在创建变量时没有指定非 **默认（Default）** 类别，则列出所有变量及其值。注意，您必须编译蓝图才能在 **类默认值（Class Defaults）** 选项卡上显示其变量。|
+| **渲染（Rendering）** | 包含有关如何（以及是否）在游戏中渲染基于蓝图的Actor的相关属性信息。|
+| **复制（Replication）** | 包含有关属性的信息，这些属性指示Actor在网络游戏中的行为，例如其网络优先级和与其他客户端的相关性。|
+| **输入（Input）** | 包含有关Actor如何根据此蓝图响应输入的信息。|
+| **Actor** | 包含基于此蓝图的有关Actor的信息，例如它们是否可以被损坏。注意，对于关卡蓝图，在这一部分中只有 **标签（Tags）** 属性是相关的。|
 
 
 [REGION:note]
-如果您为变量创建自定义的类目，那么在编译完蓝图后 **蓝图默认值** 选卡也会显示这些类目。
+如果您为变量创建自定义类别，那么在编译蓝图之后，**类默认值（Class Defaults）** 选项卡也将显示这些类别。
 [/REGION]
 
-关于 **Defaults（默认）** 模式的更多信息，请参照 [](Engine/Blueprints\Editor\Modes\Defaults)。
+(#getclassdefaults)
 
-[INCLUDE:Engine/Blueprints/Editor/Modes#modes]
+## 获取类默认值
+
+您也可以通过使用 **获取类默认值（Get Class Defaults）** 蓝图节点在运行时访问类默认值（Class Defaults）中定义的属性。目标用例用于纯数据蓝图类类型和其他情况，在这些情况下，您可能不一定需要/想要创建实例来访问默认属性值。 
+
+ **若要访问获取类默认值节点，请执行以下操作**
+
+1. 在您的蓝图类或函数图表中 **右键单击**，并从上下文菜单中输入 **GetClassDefaults**。 
+
+	![](GetClassDefaults.png)
+
+1. 通过类选择器下拉菜单选择要访问的类。 
+
+	![](SelectClass.png)
+
+	您也可以使用函数调用或变量产生的类类型，如下面的示例所示。 
+
+	![](FromVariable.png)
+
+1. 选择节点后，您可以通过 **详细信息（Details）** 面板显示/隐藏引脚。 
+
+	![](DetailsPanel.png)
+
+ **用法说明**
+
+* 输出引脚（可访问的类属性）默认为显示，并且可以选择隐藏（类似于结构体断开/设置节点（Struct BreakSet Nodes）。 
+	* 默认情况下，父类属性当前是隐藏的，以减少输出引脚的数量。
+	* 标记为_高级视图（Advanced View）_的属性默认情况下也隐藏在 **高级（Advanced）** 节点部分中。
+* 对象参考属性默认值当前 **未** 公开。 
+	* 这意味着您目前无法访问蓝图类中组件模板或其他原型的默认属性值。 
+	* 这是因为我们目前没有在蓝图中强制使用只读引用类型，而且我们需要这样做以确保引用对象的内部状态无法被更改。\
+* 当前只公开 **蓝图可见（BlueprintVisible）** 或 **蓝图只读（BlueprintReadOnly）** 属性供默认访问。 
+	* 这与“法线”变量Get节点通过上下文菜单公开的行为相匹配。 
+* 目前，_类（Class）_输入下拉列表列示了 **所有** UOBject派生的类类型（包括引擎类）。 
+	* 未来，此列表可能会被限制为排除特定于引擎的类类型。 
+* 例如，如果您将一个 **获取类默认值（GetClassDefaults）** 节点添加到基于Actor的蓝图类中，则系统当前会默认将输入类引脚的值与放置时的当前蓝图类类型相匹配。
+
+
+
+
+
+
+
 
 

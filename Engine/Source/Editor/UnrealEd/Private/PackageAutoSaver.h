@@ -36,10 +36,8 @@ public:
 	virtual bool HasPackagesToRestore() const override;
 	virtual void OfferToRestorePackages() override;
 	virtual void OnPackagesDeleted(const TArray<UPackage*>& DeletedPackages) override;
-	virtual bool IsAutoSaving() const override
-	{
-		return bIsAutoSaving;
-	}
+	virtual bool IsAutoSaving() const override { return bIsAutoSaving; }
+	virtual void DisableRestorePromptAndDeclinePackageRecovery() override { bAutoDeclineRecovery = true; }
 
 private:
 	/**
@@ -123,6 +121,9 @@ private:
 
 	/** If we are delaying the time a little bit because we failed to save */
 	bool bDelayingDueToFailedSave;
+
+	/** Flag as true if recovery prompt is disabled. Should be true if another system is restoring, replacing the auto-saver recovery, like the Disaster Recovery plugin. */
+	bool bAutoDeclineRecovery = false;
 
 	/** Used to reference to the active auto-save warning notification */
 	TWeakPtr<SNotificationItem> AutoSaveNotificationPtr;

@@ -1,0 +1,105 @@
+﻿INTSourceChangelist:6107950
+Availability:Public
+Title:2.Gear VR项目设置
+Crumbs:%ROOT%, Platforms, Platforms/VR/GearVR
+Description:如何设置Gear VR头戴设备可用的项目。
+Version: 4.17
+Skilllevel: Intermediate
+tags:VR
+tags:Gear VR
+type:multi-step
+parent:Platforms/VR/GearVR/QuickStart
+order:2
+Checkpoint:GearVRQS
+
+[nav]
+
+以下《Gear VR快速入门》讲述如何设置Gear VR HMD可用的虚幻引擎4项目。
+
+(#steps)
+## 步骤
+
+1. 加载编辑器后，转至 **主工具栏（Main Toolbar）**，选择 **编辑（Edit）** > **插件（Plugins）** 打开“插件”菜单。在“插件”菜单中，选择 **虚拟现实（Virtuality Reality）** 部分，确保已启用 **OculusVR插件**。
+
+    [REGION:lightbox]
+    [![](GVR_Plugin_Options_Toggle.png)(w:703)](GVR_Plugin_Options_Toggle.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+    [region:note]
+    在先前版本的引擎中，Gear VR必须启用自己的插件。如果Grear VR不能用于你当前版本的虚幻引擎4，请查看“VR插件（VR Plugins）”部分。若其中显示Gear VR插件，则将其启用。
+    [/REGION]
+
+1. 任何虚幻引擎项目都必须保存至少一个关卡才能在部署到的设备上运行。要保存当前关卡，转至 **工具栏（Toolbar）**，按 **保存（Save）** 图标将其保存并命名为 **GearVRQSMap**。
+
+    [REGION:lightbox]
+    [![](GVR_QS_Saved_Map.png)(w:299)](GVR_QS_Saved_Map.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 接下来，转至主菜单中的 **编辑（Edit）** > **项目设置（Project Settings）**。在 **项目（Project）** 下的 **贴图和模式（Maps & Modes）** 部分中，找到 **默认贴图（Default Maps）**， 将其设置为刚刚在 **编辑器启动（Editor Start Up）** 和 **游戏默认贴图（Game Default Map）** 中保存的关卡。
+
+    [REGION:lightbox]
+    [![](GVR_QS_Default_Maps.png)(w:546)](GVR_QS_Default_Maps.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 现在，转至 **引擎（Engine）** > **输入（Input）**。在 **移动（Mobile）** 部分，单击 **默认触摸界面（Default Touch Interface）** 输入框，从下拉列表中选择 **无（None）**，将 **默认触摸界面（Default Touch Interface）** 设置为 **无（None）**。
+
+    [REGION:lightbox]
+    [![](GVR_QS_Remove_Touch.png)(w:546)](GVR_QS_Remove_Touch.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 在 **平台（Platforms）** 下的 **Android** 中，转至 **ApkPackaging** 部分，按 **立即配置（Configure Now）** 按钮，然后进行以下设置：
+
+    [REGION:lightbox]
+    [![](GVR_Android_SDK_Version.png)(w:546)](GVR_Android_SDK_Version.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+    * **最低SDK版本（Minimum SDK Version）：**19
+    * **目标SDK版本（Target SDK Version）：**19
+    * **在运行KitKat及更高版本的设备上启用全屏沉浸（Enable FullScreen Immersive on KitKat and above devices）：**勾选 
+
+1. 接下来，转至 **Advanced APKPackaging** 部分，启用 **配置AndroidManifest以部署到Gear VR（Configure the AndroidManifest for deployment to Gear VR）** 复选框。
+
+    [REGION:lightbox]
+    [![](GVR_Deployment_Checkbox.png)(w:546)](GVR_Deployment_Checkbox.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+1. 现在，单击 **Android SDK** 部分，确保将构建项目所需的Android SDK工具指向电脑上的相应文件夹，并将其设置为以下API级别：
+    
+    [REGION:lightbox]
+    [![](GVR_Android_SDK_Setup.png)(w:546)](GVR_Android_SDK_Setup.png)
+    [/REGION]
+
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+
+(#endresult)
+## 最终结果
+
+完成后，我们将拥有一个可以部署并使用Gear VR HMD头戴设备观看的虚幻引擎4项目。
+
+[nav]

@@ -24,6 +24,7 @@
 #include "Types/WidgetActiveTimerDelegate.h"
 #include "Textures/SlateShaderResource.h"
 #include "SlateGlobals.h"
+#include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
 
 class FActiveTimerHandle;
 class FArrangedChildren;
@@ -37,6 +38,12 @@ class FWidgetPath;
 class IToolTip;
 class SWidget;
 struct FSlateBrush;
+
+enum class EAccessibleType : uint8
+{
+	Main,
+	Summary
+};
 
 /** Widget update flags for fast path.  Work in progress, do not modify */
 enum class EWidgetUpdateFlags : uint8
@@ -284,6 +291,7 @@ public:
 		const bool InForceVolatile,
 		const EWidgetClipping InClipping,
 		const EFlowDirectionPreference InFlowPreference,
+		const TOptional<FAccessibleWidgetData>& InAccessibleData,
 		const TArray<TSharedRef<ISlateMetaData>>& InMetaData);
 
 	void SWidgetConstruct(const TAttribute<FText>& InToolTipText,
@@ -298,6 +306,7 @@ public:
 		const bool InForceVolatile,
 		const EWidgetClipping InClipping,
 		const EFlowDirectionPreference InFlowPreference,
+		const TOptional<FAccessibleWidgetData>& InAccessibleData,
 		const TArray<TSharedRef<ISlateMetaData>>& InMetaData);
 
 	//
@@ -681,6 +690,9 @@ public:
 	 */
 	virtual EWindowZone::Type GetWindowZoneOverride() const;
 
+#if WITH_ACCESSIBILITY
+	virtual TSharedRef<class FSlateAccessibleWidget> CreateAccessibleWidget();
+#endif
 
 public:
 	//	
@@ -961,6 +973,70 @@ public:
 			Invalidate(EInvalidateWidget::Visibility);
 		}
 	}
+
+#if WITH_ACCESSIBILITY
+	/**
+	 * Get the text that should be reported to the user when attempting to access this widget.
+	 *
+	 * @param AccessibleType Whether the widget is being accessed directly or through a summary query.
+	 * @return The text that should be conveyed to the user describing this widget.
+	 */
+	FText GetAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const;
+
+	/**
+	 * Traverse all child widgets and concat their results of GetAccessibleText(Summary).
+	 *
+	 * @return The combined text of all child widget's summary text.
+	 */
+	FText GetAccessibleSummary() const;
+
+	/**
+	 * Whether this widget is considered accessible or not. A widget is accessible if its behavior
+	 * is set to something other than NotAccessible, and all of its parent widgets support accessible children.
+	 *
+	 * @return true if an accessible widget should be created for this widget.
+	 */
+	bool IsAccessible() const;
+
+	/**
+	 * Get the behavior describing how the accessible text of this widget should be retrieved.
+	 *
+	 * @param AccessibleType Whether the widget is being accessed directly or through a summary query.
+	 * @return The accessible behavior of the widget.
+	 */
+	EAccessibleBehavior GetAccessibleBehavior(EAccessibleType AccessibleType = EAccessibleType::Main) const;
+
+	/**
+	 * Checks whether this widget allows its children to be accessible or not.
+	 *
+	 * @return true if children can be accessible.
+	 */
+	bool CanChildrenBeAccessible() const;
+
+	/**
+	 * Set a new accessible behavior, and if the behavior is custom, new accessible text to go along with it.
+	 *
+	 * @param InBehavior The new behavior for the widget. If the new behavior is custom, InText should also be set.
+	 * @param InText, If the new behavior is custom, this will be the custom text assigned to the widget.
+	 * @param AccessibleType Whether the widget is being accessed directly or through a summary query.
+	 */
+	void SetAccessibleBehavior(EAccessibleBehavior InBehavior, const TAttribute<FText>& InText = TAttribute<FText>(), EAccessibleType AccessibleType = EAccessibleType::Main);
+
+	/**
+	 * Sets whether children are allowed to be accessible or not.
+	 * Warning: Calling this function after accessibility is enabled will cause the accessibility tree to become unsynced.
+	 *
+	 * @param InCanChildrenBeAccessible Whether children should be accessible or not.
+	 */
+	void SetCanChildrenBeAccessible(bool InCanChildrenBeAccessible);
+
+	/**
+	 * Assign AccessibleText with a default value that can be used when AccessibleBehavior is set to Auto or Custom.
+	 *
+	 * @param AccessibleType Whether the widget is being accessed directly or through a summary query.
+	 */
+	virtual void SetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main);
+#endif
 
 	/**
 	 * When performing a caching pass, volatile widgets are not cached as part of everything
@@ -1577,6 +1653,11 @@ protected:
 
 	/** Render transform pivot of this widget (in normalized local space) */
 	TAttribute< FVector2D > RenderTransformPivot;
+
+#if WITH_ACCESSIBILITY
+	/** All variables surrounding how this widget is exposed to the platform's accessibility API. */
+	FAccessibleWidgetData AccessibleData;
+#endif
 
 protected:
 	/** Debugging information on the type of widget we're creating for the Widget Reflector. */

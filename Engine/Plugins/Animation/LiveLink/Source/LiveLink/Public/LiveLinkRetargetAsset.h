@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
 #include "LiveLinkRetargetAsset.generated.h"
 
 class USkeleton;
-struct FLiveLinkSubjectFrame;
+struct FLiveLinkAnimationFrameData;
+struct FLiveLinkSkeletonStaticData;
 struct FCompactPose;
 struct FBlendedCurve;
 
@@ -23,7 +25,7 @@ class LIVELINK_API ULiveLinkRetargetAsset : public UObject
 	void ApplyCurveValue(const USkeleton* Skeleton, const FName CurveName, const float CurveValue, FBlendedCurve& OutCurve) const;
 
 	// Builds curve data into OutCurve from the supplied live link frame
-	void BuildCurveData(const FLiveLinkSubjectFrame& InFrame, const FCompactPose& InPose, FBlendedCurve& OutCurve) const;
+	void BuildCurveData(const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, const FCompactPose& InPose, FBlendedCurve& OutCurve) const;
 
 	// Builds curve data into OutCurve from the supplied map of curve name to float
 	void BuildCurveData(const TMap<FName, float>& CurveMap, const FCompactPose& InPose, FBlendedCurve& OutCurve) const;
@@ -32,5 +34,5 @@ class LIVELINK_API ULiveLinkRetargetAsset : public UObject
 	virtual void Initialize() {}
 
 	// Build OutPose and OutCurve from the supplied InFrame.
-	virtual void BuildPoseForSubject(float DeltaTime, const FLiveLinkSubjectFrame& InFrame, FCompactPose& OutPose, FBlendedCurve& OutCurve) PURE_VIRTUAL(ULiveLinkRetargetAsset::BuildPoseForSubject, );
+	virtual void BuildPoseForSubject(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose, FBlendedCurve& OutCurve) PURE_VIRTUAL(ULiveLinkRetargetAsset::BuildPoseForSubject, );
 };

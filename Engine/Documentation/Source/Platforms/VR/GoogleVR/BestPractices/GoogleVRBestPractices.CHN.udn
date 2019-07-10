@@ -1,0 +1,159 @@
+INTSourceChangelist:3766375
+Availability:Public
+Crumbs: %ROOT%
+Title:GoogleVR最佳实践
+Description:有关如何充分利用GoogleVR UE4项目的信息。
+Type: Reference
+Version: 4.17
+parent:Platforms/VR/GoogleVR
+Order: 2
+tags:VR
+tags:Google VR
+Related: Platforms/Mobile/Performance
+Related: Engine/Performance
+Related: Engine/Performance/StatCommands
+Related: Platforms/Mobile/Textures
+Related: Platforms/Mobile/Materials
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
+
+[TOC(start:2 end:3)]
+
+在开发虚拟现实（VR）项目的内容时，为能向用户提供最佳的VR体验，需要采取一些步骤。在以下最佳实践指南中，我们将全面介绍如何在Google VR上为用户呈现最佳的项目体验。
+
+(#googlevrrenderingoptions)
+## GoogleVR渲染选项
+虽然将虚幻引擎与Google VR结合使用，可以打造身临其境的VR体验，但是由于硬件限制，使用Google VR时，虚幻引擎无法执行某些渲染功能。这些限制中许多与[移动设备](Platforms/Mobile/Performance)遇到的限制类似。
+但是，由于GoogleVR的独特渲染要求，我们还需要考虑一些额外的因素。下面将介绍这些要求及其对GoogleVR项目的影响。
+
+(#monoscopicfarfield)
+## 单视场远场
+**单视场远场（Monoscopic Far Field）** 渲染（或者更确切地说，混合单视场渲染）是虚幻引擎4（UE4）为VR移动应用程序提供的高级渲染功能。通常，单视场远场渲染可以提高包含大量远处内容的关卡的性能。这是因为远处物体在双眼中只渲染一次。Epic发现通过这种方式渲染远处物体，VR移动应用程序的性能得到了极大的提升。有关启用和使用单视场远场渲染的详细信息，请阅读下文。
+
+* [**单视场远场**](Platforms\VR\MonoFarFieldRendering) 
+
+(#mobilehdr)
+### 移动HDR
+移动HDR无法与GoogleVR配合使用，因此请将其禁用。 
+
+(postprocessing)
+### 后期处理
+由于GoogleVR严格的渲染要求，许多后期处理功能无法使用。下面列出了适用于GoogleVR的后期处理功能的完整列表。
+
+|后期处理部分 | 功能名称 | 说明 |
+| -------- | ---------- |------|
+| 自动曝光（Auto Exposure） | 曝光偏差（Exposure Bias） | 可以用于增强或减弱场景的亮度。|
+
+(#materials)
+### 材质
+GoogleVR项目的材质创建和交互与其他项目的材质创建和交互非常类似。你仍然可以使用材质编辑器创建材质，并且仍然可以在材质编辑器中使用各种材质节点。但是，在为GoogleVR创建材质时，为了使其与硬件兼容，需要遵守一些限制/注意事项。
+
+| 材质输入名称 | 说明 |
+| -------- | ---------- |
+| **基础色（Base Color）** | 定义材质整体颜色的基础色彩。|
+| **粗糙度（Roughness）** | 定义材质的整体粗糙度或平滑度。|
+| **金属感（Metallic）** | 定义材质的金属感。|
+| **高光度（Specular）** | 定义反射的强度，即材质的光泽度。|
+| **法线（Normal）** | 向表面添加细节，避免了进行代价不菲的建模。使用法线贴图可以在表面上形成皱纹或凹痕，与完全平坦或光滑的表面形成对比。|
+| **自发光（Emissive）** | 使材质部分发出辉光，形成光线发射的效果。|
+| **不透明度（Opacity）** | 定义给定像素的半透明度，大小从0.0到1.0。|
+| **不透明蒙版（Opacity Mask）** | 使个别像素变为完全不透明，或完全不可见。|
+
+[REGION:note]
+请记住，半透明和蒙版材质的渲染开销非常高，在智能手机之类的硬件上尤其如此。应尽量使用[不透明材质](Engine/Rendering/Materials/MaterialProperties/BlendModes)，降低渲染开销。
+[/region]
+
+(#material shading models)
+### 材质着色模型
+由于硬件限制，只有以下 **材质着色模型** 可用于GoogleVR项目：
+| 着色模型名称 | 说明 |
+| -------- | ---------- |
+| **默认光照（Default Lit）** | 顾名思义，“默认光照”是默认的着色模型，可能是用户最常使用的模型。这种着色模型将直接和间接照明以及镜面反射用于反射。|
+| **无光照（Unlit）** | 无光照着色模型仅输出颜色自发光，适用于火焰或发光物体等特效。|
+
+[region:note]
+无光照着色模型的开销最低，应在GoogleVR项目中尽量多使用。
+[/region]
+
+(#materialblendmodes)
+### 材质混合模式
+
+材质混合模式定义当前材质输出与背景上已绘制内容的混合方式。创建GoogleVR的内容时可使用以下材质混合模式。
+
+| 混合模式 | 说明 |
+| ---- | ----- |
+| **不透明（Opaque）** | 对实心物体而言，不透明材质的开销最低。但顾名思义，它不具有半透明度。这意味着不会出现过度绘制，每个材质像素的渲染时间均相同，具体取决于 **节点图表** 的复杂度。|
+| **遮罩（Masked）** | 如果希望在材质上不绘制某些像素，可以使用此模式。材质只在被遮罩的区域创建过度绘制。但材质绘制的每个像素只能是100%不透明，或100%透明。被遮罩的区域越大，出现的过度绘制越多。|
+| **半透明（Translucent）** | 开销最高的 **混合模式**。它可能看起来与遮罩或不透明相似，但无论是否实际透明，都会对性能产生额外的影响。|
+| **Additive** | 可以替代半透明（Translucent），开销更低。无需对像素进行分类即可直接添加到场景中。因此，Additive材质只能使其覆盖的像素变亮。材质上的黑色像素对场景没有影响。|
+| **调制（Modulated）** | 除了Additive之外，调制混合（Modulated blending）也是一种可以替代半透明（Translucent）的低开销方式，但颜色的强度随着场景中已存在的颜色而倍增。调制材质会使场景变暗，因为其颜色的映射范围为0.0到1.0。这些材质上的白色像素对场景没有影响。|
+[region:note]
+使用“调制”混合模式时须禁用 **单独半透明（Separate Translucency）**，否则材质无法正确编译。
+  ![](T_Separate_Trans.png)
+[/region]
+
+(#mobilespecificmaterialsettings)
+### 移动设备专用材质设置
+在 **主材质节点（Main Material Node）** 的 **细节面板（Details Panel）** 下，可找到一个名为 **移动（Mobile）** 的部分。此处的设置有助于减少移动设备上的材质渲染开销。
+| 属性 | 说明 |
+| -------- | ---------- |
+| **完全粗糙（Fully Rough）** | 启用后，将保存一些着色器ALU指令和一个采样器。它可在禁用高光度的同时有效保持整体反射能量。|
+| **使用光照贴图方向性（Use Lightmap Directionality）** | 禁用此属性后，光照贴图中的光照会变平，但开销更低。|
+
+(#customizeduvs)
+### 自定义UV
+使用[自定义UV](Engine/Rendering/Materials/CustomizedUVs)可在顶点着色器（而不是像素着色器）中执行特定的操作，以避免依赖纹理提取。执行简单操作（如执行UV操作以略微提升纹理效果）时，利用它可对至关重要的性能进行有效弥补。请尽量使用自定义UV执行所有UV操作，开发GoogleVR内容时尤其如此。
+
+[region:note]
+自定义UV目前只应用于部分组件类型，如静态网格体、骨架网格体、BSP、地形和网格体粒子。
+[/region]
+
+(#reflections)
+### 反射
+GoogleVR不支持屏幕空间反射（SSR），也就是说只能通过放置在关卡中的[反射捕捉Actor](Resources/ContentExamples/Reflections/1_4/)生成反射。 
+此外，请注意，由于受硬件限制，反射Actor生成的反射保真度不高。 
+
+(#googlevr&contentsetup)
+## GoogleVR与内容设置
+创建GoogleVR项目的美术内容时需要注意几点，以确保项目尽可能顺利地进行。下文将讲述制作GoogleVR的美术内容时需注意的要点：
+
+(#contenthardlimits)
+### 内容硬件限制
+由于移动设备的某些硬件限制，创建内容时必须遵守以下要求。如未遵守，可能导致项目无法正常使用。
+
+* 由于移动硬件不支持32位索引，所有网格体类型可拥有最多65,000个顶点，不能超过此数字。
+* 骨架网格体可拥有最多75块骨骼，不能超过此数字。
+
+(#meshconsiderations)
+### 网格体注意事项
+为GoogleVR项目创建网格体时须牢记下列信息，确保创建的内容与GoogleVR兼容。 
+
+* 3D网格体应使用尽可能少的[材质ID](Engine/Content/FBX/Materials)来减少绘制调用。
+* 尽量使用[静态网格体LOD](Engine/Content/FBX/StaticMeshes)。
+* 始终注意3D网格体多边形的数量，尽可能[减少多边形的数量](https://en.wikipedia.org/wiki/Low_poly)。
+* 确保为每个静态模型设置第二个UV集以利用[光照贴图](Engine/Content/Types/StaticMeshes/LightmapUnwrapping)。
+* 尽量尝试使用[Impostor Sprite](Engine/Content/Tools/RenderToTextureTools/3)代替远景静态网格体，以降低渲染开销。
+
+(#textureconsiderations)
+### 纹理注意事项
+为GoogleVR项目创建纹理时须牢记下列信息，确保创建的内容不会对项目整体性能产生不良影响。 
+
+* X轴或Y轴上的纹理尺寸不能超过2048像素。
+* 每个轴上的纹理大小必须为二的乘方。举例而言，图像宽度可以为128或256像素，但不能为129像素。
+* 虽然GoogleVR能够将最大512 MB的纹理加载到内存中，但建议在任何情况下都不要加载超过128 MB的纹理。
+* 尽量多使用正方形纹理（宽高相等，如1024x1024像素），因为其内存使用效率较高。
+* 尽量尝试使用[纹理图集](http://en.wikipedia.org/wiki/Texture_atlas)，减少内存中所需的纹理数量。
+* [RGB纹理遮罩/打包](Engine/Rendering/Materials/HowTo/Masking)可有效减少内存中的独特纹理。
+* 只能使用 **TC_Default** 和 **TC_NormalMap** 压缩设置。这是移动平台上仅有的两个能使用的设置。
+
+(#levelconsiderations)
+### 关卡注意事项
+在GoogleVR项目中实现最大关卡性能，是一个复杂的平衡工作，需要长时间调整方能达到最佳状态。以下建议能够助你快速找到关卡的哪些方面可能导致性能问题：
+
+* 始终保证已[构建](Engine/Rendering/LightingAndShadows/Lightmass)关卡的光照，确保尽可能最佳的性能。当需要重新构建光照时，编辑器将弹出“Lighting needs to be rebuilt”错误消息。
+* 务必将关卡中的所有光源设置为[静态](Engine/Rendering/LightingAndShadows/LightMobility/StaticLights)，因为其他光照选项的渲染开销较高。
+* 检查关卡是否使用[预计算可视性](Engine/Actors/Volumes)。如未使用，须将其添加至关卡，然后重新构建光照，使其在关卡的世界场景设置（World Settings）中启用。 
+* 无论从何视角，整个场景的绘制调用数不得超过100。在设备上可通过[stat openglrhi](Engine/Performance/StatCommands)命令查看，在电脑上可通过ES2预览器的[stat d3d11rhi](Engine/Performance/StatCommands)命令查看。
+* 无论从何视角，关卡中的三角形总数不得超过100,000。在设备上可通过[stat openglrhi](Engine/Performance/StatCommands)命令查看，在电脑上可通过ES2预览器的[stat d3d11rhi](Engine/Performance/StatCommands)命令查看。
+* 半透明和不透明遮罩材质的渲染开销极高，因此应在关卡中谨慎使用。
+* 经常对关卡执行[性能分析](Engine/Performance)，确保及时发现性能问题。

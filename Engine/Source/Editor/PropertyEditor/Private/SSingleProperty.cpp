@@ -90,6 +90,11 @@ public:
 		return false;
 	}
 
+	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const override
+	{
+		return nullptr;
+	}
+
 private:
 	TWeakPtr< SSingleProperty > View;
 };

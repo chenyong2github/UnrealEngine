@@ -34,6 +34,7 @@ bool FIOSVivoxVoiceChat::Initialize()
 	{
 		GConfig->GetBool(TEXT("VoiceChat.Vivox"), TEXT("bDisconnectInBackground"), bDisconnectInBackground, GEngineIni);
 		GConfig->GetFloat(TEXT("VoiceChat.Vivox"), TEXT("BackgroundDelayedDisconnectTime"), BackgroundDelayedDisconnectTime, GEngineIni);
+		GConfig->GetBool(TEXT("VoiceChat.Vivox"), TEXT("bEnableHardwareAEC"), bEnableHardwareAEC, GEngineIni);
 		
 		if (!ApplicationWillEnterBackgroundHandle.IsValid())
 		{
@@ -44,8 +45,6 @@ bool FIOSVivoxVoiceChat::Initialize()
 			ApplicationDidEnterForegroundHandle = FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FIOSVivoxVoiceChat::HandleApplicationHasEnteredForeground);
 		}
 	}
-
-	vx_set_platform_aec_enabled(1);
 
 	bInBackground = false;
 	bShouldReconnect = false;
@@ -70,9 +69,31 @@ bool FIOSVivoxVoiceChat::Uninitialize()
 	return FVivoxVoiceChat::Uninitialize();
 }
 
+void FIOSVivoxVoiceChat::SetSetting(const FString& Name, const FString& Value)
+{
+	if (Name == TEXT("HardwareAEC"))
+	{
+		OverrideEnableHardwareAEC = FCString::ToBool(*Value);
+		UpdateVoiceChatSettings();
+	}
+	else
+	{
+		FVivoxVoiceChat::SetSetting(Name, Value);
+	}
+}
+
+FString FIOSVivoxVoiceChat::GetSetting(const FString& Name)
+{
+	if (Name == TEXT("HardwareAEC"))
+	{
+		return LexToString(OverrideEnableHardwareAEC.Get(bEnableHardwareAEC));
+	}
+	return FVivoxVoiceChat::GetSetting(Name);
+}
+
 FDelegateHandle FIOSVivoxVoiceChat::StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate)
 {
-	FPlatformMisc::EnableVoiceChat(true);
+	EnableVoiceChat(true);
 	return FVivoxVoiceChat::StartRecording(Delegate);
 }
 
@@ -81,13 +102,13 @@ void FIOSVivoxVoiceChat::StopRecording(FDelegateHandle Handle)
 	FVivoxVoiceChat::StopRecording(Handle);
 	if (ConnectionState < EConnectionState::Connecting)
 	{
-		FPlatformMisc::EnableVoiceChat(false);
+		EnableVoiceChat(false);
 	}
 }
 
 void FIOSVivoxVoiceChat::onConnectCompleted(const VivoxClientApi::Uri& Server)
 {
-	FPlatformMisc::EnableVoiceChat(true);
+	EnableVoiceChat(true);
 	FVivoxVoiceChat::onConnectCompleted(Server);
 }
 
@@ -96,7 +117,7 @@ void FIOSVivoxVoiceChat::onDisconnected(const VivoxClientApi::Uri& Server, const
 	FVivoxVoiceChat::onDisconnected(Server, Status);
 	if (!bIsRecording)
 	{
-		FPlatformMisc::EnableVoiceChat(false);
+		EnableVoiceChat(false);
 	}
 }
 
@@ -217,3 +238,35 @@ void FIOSVivoxVoiceChat::Reconnect()
 	Connect(FOnVoiceChatConnectCompleteDelegate::CreateRaw(this, &FIOSVivoxVoiceChat::OnVoiceChatConnectComplete));
 	bShouldReconnect = false;
 }
+
+bool FIOSVivoxVoiceChat::IsHardwareAECEnabled() const
+{
+	return OverrideEnableHardwareAEC.Get(bEnableHardwareAEC);
+}
+
+void FIOSVivoxVoiceChat::EnableVoiceChat(bool bEnable)
+{
+	if (FPlatformMisc::IsVoiceChatEnabled() != bEnable)
+	{
+		if (IsHardwareAECEnabled())
+		{
+			[[IOSAppDelegate GetDelegate] EnableHighQualityVoiceChat:bEnable];
+			vx_set_platform_aec_enabled(bEnable ? 1 : 0);
+		}
+		FPlatformMisc::EnableVoiceChat(bEnable);
+	}
+}
+
+void FIOSVivoxVoiceChat::UpdateVoiceChatSettings()
+{
+	if (FPlatformMisc::IsVoiceChatEnabled())
+	{
+		// update the aec settings
+		const bool bEnableAEC = IsHardwareAECEnabled();
+		[[IOSAppDelegate GetDelegate] EnableHighQualityVoiceChat:bEnableAEC];
+		vx_set_platform_aec_enabled(bEnableAEC ? 1 : 0);
+		// reenable voice chat to apply the changes
+		FPlatformMisc::EnableVoiceChat(true);
+	}
+}
+

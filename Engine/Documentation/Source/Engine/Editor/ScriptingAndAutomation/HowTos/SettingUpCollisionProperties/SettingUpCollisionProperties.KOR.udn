@@ -1,4 +1,4 @@
-INTSourceChangelist:4284256
+INTSourceChangelist:6536708
 Availability: Public
 Crumbs: 
 Title: 블루프린트와 Python 에서 스태틱 메시로 콜리전 설정
@@ -7,7 +7,7 @@ Version: 4.20
 type:how-to
 SkillLevel:Intermediate
 Parent: Engine/Editor/ScriptingAndAutomation/HowTos
-Order: 2
+Order: 1
 Tags: Blueprints
 Tags: Physics
 Tags: Collision

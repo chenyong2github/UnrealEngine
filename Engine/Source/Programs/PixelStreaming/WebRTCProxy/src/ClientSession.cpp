@@ -23,7 +23,7 @@ namespace detail
 			return "kClosed";
 		else
 		{
-			checkfSlow(false, "Unknown enum value (%u). Revise code.", (uint32_t)Val);
+			checkfSlow(false, TEXT("Unknown enum value (%u). Revise code."), (uint32_t)Val);
 			return "Unknown";
 		}
 	};
@@ -46,7 +46,7 @@ namespace detail
 			return "kIceConnectionClosed";
 		else
 		{
-			checkfSlow(false, "Unknown enum value (%u). Revise code.", (uint32_t)Val);
+			checkfSlow(false, TEXT("Unknown enum value (%u). Revise code."), (uint32_t)Val);
 			return "Unknown";
 		}
 	};
@@ -61,7 +61,7 @@ namespace detail
 			return "kIceGatheringComplete";
 		else
 		{
-			checkfSlow(false, "Unknown enum value (%u). Revise code.", (uint32_t)Val);
+			checkfSlow(false, TEXT("Unknown enum value (%u). Revise code."), (uint32_t)Val);
 			return "Unknown";
 		}
 	};

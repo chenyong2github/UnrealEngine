@@ -13,10 +13,22 @@ class DATASMITHCONTENT_API ADatasmithSceneActor : public AActor
 
 public:
 
+	ADatasmithSceneActor();
+
+	virtual ~ADatasmithSceneActor();
+
 	UPROPERTY(VisibleAnywhere, Category="Datasmith")
 	class UDatasmithScene* Scene;
 
 	/** Map of all the actors related to this Datasmith Scene */
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
 	TMap< FName, TSoftObjectPtr< AActor > > RelatedActors;
+
+private:
+#if WITH_EDITOR
+	// Cleans the invalid Soft Object Ptr
+	void OnActorDeleted(AActor* ActorDeleted);
+
+	FDelegateHandle OnActorDeletedDelegateHandle;
+#endif // WITH_EDITOR
 };

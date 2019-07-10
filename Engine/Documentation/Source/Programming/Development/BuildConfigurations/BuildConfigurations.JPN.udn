@@ -35,8 +35,6 @@ UE4 ソリューションをコンパイルする場合、エンジンのソー�
 
 UE4 プロジェクトをコンパイルする場合、プロジェクトのソース コードのみをコンパイルしています。以下のビルド コンフィギュレーションは、以下のようにプロジェクトをビルドする場合に利用できます。
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

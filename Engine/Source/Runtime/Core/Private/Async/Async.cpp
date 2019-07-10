@@ -13,7 +13,7 @@ class FAsyncGraphTask
 public:
 
 	/** Creates and initializes a new instance. */
-	FAsyncGraphTask(ENamedThreads::Type InDesiredThread, TFunction<void()>&& InFunction)
+	FAsyncGraphTask(ENamedThreads::Type InDesiredThread, TUniqueFunction<void()>&& InFunction)
 		: DesiredThread(InDesiredThread)
 		, Function(MoveTemp(InFunction))
 	{ }
@@ -36,7 +36,7 @@ private:
 	ENamedThreads::Type DesiredThread;
 
 	/** The function to execute on the Task Graph. */
-	TFunction<void()> Function;
+	TUniqueFunction<void()> Function;
 };
 
 
@@ -51,7 +51,7 @@ CORE_API int32 FAsyncThreadIndex::GetNext() // @todo clang: Workaround for missi
 }
 #endif
 
-void AsyncTask(ENamedThreads::Type Thread, TFunction<void()> Function)
+void AsyncTask(ENamedThreads::Type Thread, TUniqueFunction<void()> Function)
 {
 	TGraphTask<FAsyncGraphTask>::CreateTask().ConstructAndDispatchWhenReady(Thread, MoveTemp(Function));
 }

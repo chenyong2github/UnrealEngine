@@ -60,6 +60,7 @@
 #include "KismetPins/SGraphPinText.h"
 #include "KismetPins/SGraphPinObject.h"
 #include "KismetPins/SGraphPinClass.h"
+#include "KismetPins/SGraphPinStruct.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "KismetPins/SGraphPinNum.h"
 #include "KismetPins/SGraphPinInteger.h"
@@ -272,7 +273,15 @@ TSharedPtr<SGraphPin> FNodeFactory::CreateK2PinWidget(UEdGraphPin* InPin)
 	}
 	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object)
 	{
-		return SNew(SGraphPinObject, InPin);
+		const UClass* ObjectMetaClass = Cast<UClass>(InPin->PinType.PinSubCategoryObject.Get());
+		if (ObjectMetaClass && ObjectMetaClass->IsChildOf<UScriptStruct>())
+		{
+			return SNew(SGraphPinStruct, InPin);
+		}
+		else
+		{
+			return SNew(SGraphPinObject, InPin);
+		}
 	}
 	else if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
 	{

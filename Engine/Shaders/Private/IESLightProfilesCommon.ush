@@ -63,4 +63,4 @@ float ComputeRayTracingLightProfileMultiplier(
 
 	return Result;
 }
-#endif // RAYHITGROUPSHADER || RAYGENSHADER
+#endif // RAYHITGROUPSHADER || RAYGENSHADER || RAYMISSSHADER

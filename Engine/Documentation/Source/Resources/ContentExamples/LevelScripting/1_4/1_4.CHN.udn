@@ -1,7 +1,8 @@
-﻿Availability: Docs
-Title:1.4 -Matinee过场动画工具
+﻿INTSourceChangelist:3108692
+Availability: Docs
+Title:1.4 - Matinee影片
 Crumbs:%ROOT%, Resources, Resources/ContentExamples/LevelScripting
-Description: 关卡脚本示例关卡概述，示例1.4： 用来对actor进行动画处理的Matinee过场动画工具
+Description:概述关卡脚本编写的示例关卡，示例1.4：Matinee影片用于设置Actor动画
 
 
 [VAR:TopicCompact]
@@ -26,7 +27,9 @@ Description: 关卡脚本示例关卡概述，示例1.4： 用来对actor进行�
 
 ![](levelscripting_1_4.png)
 
-本例中，当玩家穿过门并触碰触发器盒体时，Matinee动画工具会打断游戏并对不同的Actor进行动画处理。Matinee序列同时还包含了事件轨迹，这条轨迹在触发后会启动关卡脚本中的[时间轴](Engine/Blueprints\UserGuide\Timelines) ，而它会持续地在关卡中旋转定向光源。当与大气层雾Actor一起使用时，它会显示出太阳从头顶上穿越的效果，模拟一种简单的日夜循环。
+在本例中，当玩家走进门并触摸一个触发框时，Matinee影片便会中断游戏进程并为不同的Actor设置动画。Matinee序列还包括一个事件轨迹，当被触发时，该轨迹将在关卡脚本中启动一个[时间轴](Engine/Blueprints\UserGuide\Timelines)来在关卡中持续旋转定向光源。当与大气雾Actor一起使用时，它会产生太阳从头顶经过的效果，模拟一个简单的昼夜循环。
+
+(#levelscript)
 
 ## 关卡脚本
 
@@ -34,12 +37,12 @@ Description: 关卡脚本示例关卡概述，示例1.4： 用来对actor进行�
 [![](LevelScript_1_4_LS.png)](LevelScript_1_4_LS.png)
 [/REGION]
 [REGION:caption]
-点击以查看完整尺寸图片或 **右键点击** 并另存。
+单击查看完整尺寸或 **右键单击** 并按另存为（Save As）。
 [/REGION]
 
 
-过场动画模式： 当在关卡中选择Matinee  Actor时，会显示一些属性。由于此Matinee是游戏内过场动画的一个示例，过场动画模式选项 **Block Movement Input** （限制移动输入）,  **Disable Look at Input** （禁用输入的查看）, 以及 **Hide Player**  （隐藏玩家）均被启用，这样当Matinee在播放时，玩家无法移动且无法被看见。
+影片模式：当在关卡中选择Matinee Actor时，会公开许多属性。因为该Matinee是一个游戏中的影片示例，所以影片模式选项 **阻挡运动输入（Block Movement Input）**、**禁用查看输入（Disable Look at Input）** 和 **隐藏玩家（Hide Player）** 都已启用，因此当Matinee在播放时，玩家不能移动，也不可见。
 
-大气层雾: 关卡脚本是您控制环境效果或对环境效果进行动画处理的地方，环境效果包括了太阳的移动，雾，闪电等等。本例中，大气层雾Actor被用来与定向光源一起使用以创建一种非常基础的日/夜循环。关卡脚本中的时间轴会在旋转定向光源时变更其颜色，并且大气层雾Actor会根据定向光源面向的方向来自动调整雾的颜色以及日轮的位置。
+大气雾：关卡脚本通常是您控制环境效果或设置环境效果动画的地方，环境效果如太阳运动、雾、闪电等等。在本例中，使用一个大气雾Actor连同定向光源来创建一个非常基本的白昼/黑夜循环。关卡脚本中的时间轴旋转定向光源，同时改变其颜色，而大气雾Actor根据定向光源所朝向的方向自动调整雾颜色和日轮位置。
 
 [/REGION]

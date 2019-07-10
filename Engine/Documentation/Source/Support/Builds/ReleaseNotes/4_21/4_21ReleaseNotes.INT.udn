@@ -3,7 +3,7 @@ Title: Unreal Engine 4.21 Release Notes
 Description: Release Notes for Unreal Engine 4.21
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:21
+Order: 23
 reference-image:image_22.gif
 
 ![image alt text](DOCS_BANNER_421.jpg)(convert:false)
@@ -139,7 +139,9 @@ The Program Binary cache can be used to help improve Shader loading performance 
 
 * ** r.ProgramBinaryCache.Enable=1**
 
- **Note**: Some devices do not support the required program binary extension, such devices will fallback to the previous behavior.
+[REGION:note]
+ Note: Some devices do not support the required program binary extension, such devices will fallback to the previous behavior.
+[/REGION]
 
 #### Emulated Uniform Buffers on Android
 
@@ -168,7 +170,9 @@ Mobile particle effects that utilize the GPU for particle simulation have been s
 
 Dithered LOD transitions are now supported on mobile platforms. When enabled, objects with Materials that have **Dithered LOD transitions** option enabled will now fade from one Level Of Detail (LOD) to another in an almost seamless manner. By default support for Dithered LOD transitions is disabled for mobile platforms. To enable it, go to **Project Settings** > **Rendering **> **Mobile** and then check the** Allow Dithered LOD Transitions** option.
 
+[REGION:note]
 Note: Materials that have Dithered LOD transitions** enabled **will be rendered as Masked Materials. This could have a negative performance impact on mobile platforms. We recommend enabling this effect only on Masked Materials.
+[/REGION]
 
 ### New: Cooker Performance
 
@@ -263,14 +267,6 @@ Use the new CCDIK (Cyclic Coordinate Descent Inverse Kinematics) Skeletal Contro
 
 Please see [CCDIK](https://docs.unrealengine.com/en-US/Engine/Animation/NodeReference/SkeletalControls/CCDIK) Skeletal Control Node for more information. 
 
-#### Set Master Pose Component Force Update
-
-The **Set Master Pose Component** function has a second input pin called** Force Update** that can be used to skip updating all runtime info if that info is the same as the Master Component or force the updating of the runtime info. This only applies to the registration process as that can be serialized, at which point it will need to refresh all runtime data.
-
-![image alt text](image_11.png)(w:624 h:378 convert:false)
-
-Please see [Master Pose Component](https://docs.unrealengine.com/en-us/Engine/Animation/Working-with-Modular-Characters#masterposecomponent) for more information. 
-
 #### Miscellaneous Improvements and Updates
 
 * Live Animation Blueprint Recompilation is now non-experimental
@@ -343,7 +339,9 @@ In addition, this release adds:
 * Support for 10-bit input, audio I/O and interlaced/PsF inputs.
 * A new **Blackmagic Media Player** Plugin that supports SDI cards from Blackmagic Design. See the [Blackmagic Video I/O Quick Start](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/BlackmagicQuickStart).
 
+[REGION:note]
 **Note**: The AJA Media Player and Blackmagic Media Player Plugins are now available through the Marketplace tab in the Epic Games Launcher, instead of being installed automatically with the Unreal Engine. Their source is freely available [on GitHub](https://github.com/ue4plugins), to give other developers a model of how to develop video I/O plugins on top of the Engine's Media Core APIs.
+[/REGION]
 
 ### New: Geographically Accurate Sun Positioning (Early Access)
 
@@ -483,12 +481,6 @@ We have improved the workflow and usability for Physical Lighting Units based on
 
 For additional information, see [Physical Lighting Units](https://docs.unrealengine.com/en-us/Engine/Rendering/LightingAndShadows/PhysicalLightUnits). 
 
-### New: Sequencer Event Track
-
-The Sequencer Event Track has been completely refactored so that Events are now more tightly coupled to Blueprint graphs which makes it a much more familiar user-experience and more robust. By utilizing Blueprints and Interfaces, this offers better control and stability compared to the previous implementation which used struct payloads and anonymous named events. 
-
-Please see [Event Track Overview](https://docs.unrealengine.com/en-us/Engine/Sequencer/Workflow/Event_Track_Overview) and [Calling Events through Sequencer](https://docs.unrealengine.com/en-us/Engine/Sequencer/HowTo/TracksEvent) for more information. 
-
 ### New: Geometry Cache Track (Experimental)
 
 The new (and experimental) **Geometry Cache Track** allows you to scrub through a Geometry Cache and render it out with frame accuracy.
@@ -550,6 +542,8 @@ The Oculus Avatar SDK includes an Unreal package to assist developers in impleme
 ### New: Round Robin Occlusions
 
 Unreal Engine 4 now supports Round Robin Occlusions. With the newly added *vr.RoundRobinOcclusion* flag enabled, stereoscopic frames will kick off occlusion queries for one eye per frame using an alternating scheme (i.e. odd frames only kick off queries for the left eye, and even frames only kick off queries for the right). This approach cuts the number of occlusion draw calls per frame by half. In some situations, this improves performance significantly.
+
+For additional information, see [Visibility and Occlusion Culling.](Engine/Rendering/VisibilityCulling)
 
 ### New: Platform SDK Upgrades
 

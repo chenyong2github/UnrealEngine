@@ -8,6 +8,7 @@
 #include "Curves/KeyHandle.h"
 #include "CurveDataAbstraction.h"
 #include "ScopedTransaction.h"
+#include "CurveEditorSnapMetrics.h"
 
 class FCurveEditor;
 struct FPointerEvent;
@@ -115,4 +116,6 @@ private:
 	TArray<FKeyData> KeysByCurve;
 
 	FVector2D InitialMousePosition;
+
+	FCurveEditorAxisSnap::FSnapState SnappingState;
 };

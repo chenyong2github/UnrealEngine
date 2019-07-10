@@ -1,4 +1,4 @@
-INTSourceChangelist:4828948
+﻿INTSourceChangelist:6187621
 Availability: Public
 Crumbs: 
 Title:地形材质
@@ -15,12 +15,10 @@ Order: 2
 在[材质编辑器](Engine/Rendering/Materials/Editor)中，您可以像修改其他材质一样修改与地形一起使用的材质。
 [/REGION]
 
-(#layerweightsandordering)
 ## 图层权重和排序
 
-地形使用权重混合而不是阿尔法混合，因此任何位置的所有图层的混合系数之和将为1.0。这样做的优点是不存在顺序依赖性—您可以在任何时间绘制任何图层，其权重将增加，而其他现有图层的权重将减少。缺点则在于，当您将一个图层完全绘制到100%时，其他所有图层的权重值将为0%。在使用[绘制](Engine/Landscape/Editing/PaintMode#Paint)工具移除一个已100%绘制的图层时，这一点显而易见。该工具不知道用什么其他图层来替换您要移除的图层，因此该工具最终似乎不会执行任何操作。
+地形使用权重混合而不是阿尔法混合，因此任何位置的所有图层的混合系数之和将为1.0。这样做的优点是不存在顺序依赖性—您可以在任何时间绘制任何图层，其权重将增加，而其他现有图层的权重将减少。缺点则在于，当您将一个图层完全绘制到100%时，其他所有图层的权重值将为0%。在使用[绘制](Engine/Landscape/Editing/PaintMode#绘制)工具移除一个已100%绘制的图层时，这一点显而易见。该工具不知道用什么其他图层来替换您要移除的图层，因此该工具最终似乎不会执行任何操作。
 
-(#landscapespecificmaterialnodes)
 ## 地形特定的材质节点
 
 在材质编辑器中，您将发现有六种特殊节点可以与地形系统一起使用。您可以在 **情境（Context）** 菜单或在地形类别下的 **面板（Palette）** 菜单中找到所有节点。
@@ -33,11 +31,8 @@ Order: 2
 
 ![](Landscape_Mat_Palette.png)
 
-(#landscapelayerblendnode)
 ### 地形图层混合节点
-
-[EXCERPT:LandscapeLayerBlend]
-
+[EXCERPT:landscapelayerblendnode]
  **LandscapeLayerBlend** 节点允许您将多个纹理或材质网络混合在一起，以便它们可以用作地形图层。LandscapeLayerBlend 使用一个阵列存储有关地形图层的信息。若要向该阵列添加图层，请单击条目旁边的加号图标：“0个元素（0 elements）”。
 
 ![](Landscape_Add_To_Array.png)
@@ -51,7 +46,7 @@ Order: 2
 | 编号 | 属性 | 说明 |
 | --- | --- | --- |
 | 1: | **图层（Layers）** | 此节点所包含之图层的列表。您可以通过单击加号图标(![Plus Sign](icon_Landscape_PlusSign.png))来添加图层。|
-| 2: | **图层名称（Layer Name）** | 您给予图层的唯一名称。**图层名称（Layer Name）** 对应于在地形工具窗口中的[绘制节点](Engine/Landscape/Editing/PaintMode#Layers)中使用的图层名称。|
+| 2: | **图层名称（Layer Name）** | 您给予图层的唯一名称。**图层名称（Layer Name）** 对应于在地形工具窗口中的[绘制节点](Engine/Landscape/Editing/PaintMode#图层)中使用的图层名称。|
 | 3: | **混合类型（Blend Type）** | **LB_AlphaBlend**、**LB_HeightBlend** 或 **LB_WeightBlend**。这些将在本页稍后进行介绍。|
 | 4: | **预览权重（Preview Weight）** | 它用作图层的权重值，以在材质编辑器中预览混合效果。|
 | 5: | **常量图层输入（Const Layer Input）** | 它是为了在不希望使用纹理的情况下提供一个数值作为颜色。它主要用于调试有问题的图层。|
@@ -79,14 +74,10 @@ Order: 2
 若要删除一个图层，请单击图层元素号右侧的下拉箭头以打开情境菜单，然后单击 **删除（Delete）**。
 
 ![Delete Layer](Landscape_DeleteBlendLayer2.png)
+[/EXCERPT:landscapelayerblendnode]
 
-[/EXCERPT:LandscapeLayerBlend]
-
-(#landscapelayercoordsnode)
 ### 地形图层坐标节点
-
-[EXCERPT:TerrainLayerCoords]
-
+[EXCERPT:landscapelayercoordsnode]
  **LandscapeLayerCoords** 节点生成可用于将材质网络映射到地形的UV坐标。
 
 ![LandscapeLayerCoords Node](Landscape_Material_CoordsExp.png)
@@ -102,14 +93,9 @@ Order: 2
 | 5: | **映射平移\[U\]（Mapping Pan \[U\]）** | 要应用于UV坐标的\[U\]方向上的偏移。|
 | 6: | **映射平移\[V\]（Mapping Pan \[V\]）** | 要应用于UV坐标的\[V\]方向上的偏移。|
 | 7: | **无标记输出（Unlabeled Output）** | 输出UV坐标，以根据给定的属性值将材质映射到地形。|
-
-[/EXCERPT:TerrainLayerCoords]
-
-(#landscapelayerswitchnode)
+[/EXCERPT:landscapelayercoordsnode]
 ### 地形图层开关节点
-
-[EXCERPT:TerrainLayerSwitch]
-
+[EXCERPT:landscapelayerswitchnode]
 当某一特定图层没有对地形的一个区域做出贡献时，**LandscapeLayerSwitch** 节点允许您排除某些材质运算。这允许您在某一特定图层的权重为零时通过移除不必要的计算来优化材质。
 
 ![LandscapeLayerSwitch Node](LayerSwitchNode.png)
@@ -123,14 +109,9 @@ Order: 2
 | 3: | **已使用图层（LayerUsed）** | 当节点属性中指定的图层被地形的当前区域使用时要使用的结果。|
 | 4: | **未使用图层（LayerNotUsed）** | 当该图层不被地形的当前区域使用且权重为零时要使用的结果。|
 | 5: | **无标记输出（Unlabeled Output）** | **LayerUsed** 或 **LayerNotUsed** 输入，取决于该图层是否对地形的特定区域有贡献。|
-
-[/EXCERPT:TerrainLayerSwitch]
-
-(#landscapelayerweightnode)
+[/EXCERPT:landscapelayerswitchnode]
 ### 地形图层权重节点
-
-[EXCERPT:TerrainLayerWeight]
-
+[EXCERPT:landscapelayerweightnode]
  **LandscapeLayerWeight** 表达式允许基于相关图层的权重来混合材质网络，该相关图层从应用材质的地形中获得。
 
 ![LandscapeLayerWeight Node](Landscape_Mat_LayerWeightNode.png)
@@ -145,14 +126,9 @@ Order: 2
 | 4: | **底层（Base）** | 将与该图层混合的网络。它通常是所有之前图层混合的结果，但如果它是第一个图层，则可以为空。|
 | 5: | **图层（Layer）** | 将混合在一起以创建该图层的网络。|
 | 6: | **无标记输出（Unlabeled Output）** | 根据所涉及图层的图层权重，输出 **底层（Base）** 与 **图层（Layer）** 输入之间混合的结果。|
-
-[/EXCERPT:TerrainLayerWeight]
-
-[EXCERPT:landscapevisibilitymask]
-
-(#landscapevisibilitymasknode)
+[/EXCERPT:landscapelayerweightnode]
 ## 地形可视性遮罩节点
-
+[EXCERPT:landscapevisibilitymasknode]
  **LandscapeVisibilityMask** 节点用于移除地形的各个部分的可视性，以便您可以创建洞，例如用于创建洞穴。
 
 ![LandscapeVisibilityMask Node](Landscape_VisibilityMask.png)
@@ -166,15 +142,11 @@ Order: 2
 要使该节点正确工作，您所要做的是确保其输出连接到材质的 **不透明遮罩（Opacity Mask）** 槽，且 **材质混合节点（Materials Blend Mode）** 设置为 **遮罩（Masked）**。
 
 ![](Landscape_VisibilityMaskSetup.png)
-
-[/EXCERPT:landscapevisibilitymask]
-
-(#layerblending)
+[/EXCERPT:landscapevisibilitymasknode]
 ## 图层混合
 
 能够将多种纹理和材质网络混合到可绘制的地形图层中是对地形进行纹理处理的基础。为了将图层混合在一起，您可以使用多个 **LandscapeLayerWeight** 节点，也可以使用一到两个 **LandscapeLayerBlend** 节点，这取决于您是否使用法线贴图。
 
-(#usinglandscapelayerweightnodes)
 ### 使用地形图层权重节点
 
 设置和使用 **LandscapeLayerWeight** 节点是一个非常简单的过程，下面将对此进行概述。
@@ -215,7 +187,6 @@ Order: 2
 您可以通过更改 **LandscapeLayerWeight** 节点的 **预览权重（Preview Weight）** 属性，来预览不同权重在材质上的效果。
 [/REGION]
 
-(#usinglandscapelayerblendnodes)
 ### 使用地形图层混合节点
 
 作为使用 **LandscapeLayerWeight** 节点手动将图层混合在一起的替代方法，**LandscapeLayerBlend** 节点使用阿尔法混合或带基于高度的偏移的阿尔法混合将多个图层混合在一起。基于高度的偏移允许基于高度图输入将图层与其他图层混合。
@@ -257,7 +228,6 @@ Order: 2
 您可以通过更改 **LandscapeLayerBlend** 节点的 **预览权重（Preview Weight）** 属性，来预览不同权重在材质上的效果。
 [/REGION]
 
-(#landscapelayerblendtypes)
 ### 地形图层混合类型
 
 地形 **图层混合** 材质节点有三种不同的混合模式可供选择。当您试图获得一个不同的结果时，将使用每种不同的 **图层混合** 类型。
@@ -272,7 +242,6 @@ Order: 2
 
 ![](LB_HeightBlend.png)
 
-(#landscapelayerblendtechnicalinformation)
 ### 地形图层混合技术信息
 
 在后台，这些图层节点的行为类似于[静态切换参数](Engine/Rendering/Materials/ExpressionReference/Parameters#StaticSwitchParameter)节点，这允许您从使用材质的某一部分切换到使用另一部分。地形的每个组件都有自己的材质实例常量（MaterialInstanceConstant），它是从主要地形材质创建的，并且仅应用于该组件。如果某个特定的图层没有在某个特定的地形组件上使用，则连接到该图层的节点的分支树将被丢弃。这将降低材质的整体复杂性，允许应用于地形的材质包含任意数量的纹理样本，只要在任何单个组件上使用的样本数量不超过着色器模型规范所规定的最大数量（SM 3.0为16个）。这意味着，可以设置一个包含在地形上的任意位置使用的每个纹理或网络的主材质，它最终可以是一个非常复杂的网络集合，同时在硬件允许的参数范围内，仍保留应用于地形的各个组件的最终材质。
@@ -280,8 +249,6 @@ Order: 2
 [REGION:note]
 任何材质表达式的网络都可以连接到 **图层** 输入，而不是简单的 **TextureSample**。这使得执行更复杂的效果成为可能，例如根据图层的观看距离从细节纹理过渡到更大的宏纹理。
 [/REGION]
-
-(#landscapeholematerials)
 
 ## 地形洞材质
 
@@ -328,8 +295,6 @@ Order: 2
 有关使用绘图工具创建地形洞的信息，请参阅 [使用不透明遮罩创建洞](Engine/Landscape/Editing/SculptMode)。
 [/REGION]
 
-(#assigningmaterialstolandscapes)
-
 ## 将材质指定到地形
 
 为地形创建一个材质后，必须将该材质指定到关卡中的地形Actor（Landscape Actor），以便能够使用和查看它。您可以按照以下方式将材质指定到地形Actor。
@@ -362,7 +327,6 @@ Order: 2
 有关使用地形洞材质的信息，请参阅 [使用不透明遮罩创建洞](Engine/Landscape/Editing/SculptMode)。
 [/REGION]
 
-(#tessellationanddisplacement)
 ## 曲面细分和位移
 
 材质的 **曲面细分乘数（Tessellation Multipliers）** 和 **世界场景位移（World Displacement）** 信道可以与地形结合使用，以在地形靠近摄像机时提供更多的细节和变形。它们的使用与任何其他标准材质完全一样，并且图层混合可以与它们一起使用，就像与 **底线**、**法线** 或任何其他信道一样。地形还将仅在最高细节级别（LOD）渲染硬件曲面细分，当地形接近第二个LOD时它们将逐渐淡出。后续LOD将不再启用曲面细分，当在地形上针对位移启用了曲面细分时，这将大大提高性能。
@@ -377,7 +341,6 @@ Order: 2
 在上面的可视化中，渲染最高LOD（白色）时启用曲面细分，渲染其他LOD（彩色）时不启用曲面细分。
 [/REGION]
 
-(#mobilelandscapematerials)
 ## 移动地形材质
 
 移动地形不再局限于三个地形图层。虽然三个图层仍是一种优化情况，但只要有足够的纹理采样器（Texture Sampler），就可以支持任意数量的图层。地形图层分配现在采用[功能级别切换材质节点](Engine/Rendering/Materials/ExpressionReference/Utility)，允许单个PC或控制台地形材质也有一个用于移动设备的版本。下图显示了PC和控制台版本Fortnite Battle Royal中使用的地形在移动设备中使用时的情况。

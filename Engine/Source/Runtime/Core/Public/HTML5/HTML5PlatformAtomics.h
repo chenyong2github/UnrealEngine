@@ -105,7 +105,7 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 //		return __sync_lock_test_and_set(Value, Exchange);
 	}
 
-	static FORCEINLINE void* InterlockedExchangePtr(void** Dest, void* Exchange)
+	static FORCEINLINE void* InterlockedExchangePtr(void*volatile* Dest, void* Exchange)
 	{
 		return __sync_lock_test_and_set(Dest, Exchange);
 	}
@@ -129,6 +129,66 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 	{
 		return emscripten_atomic_cas_u64((void*)Dest, Comperand, Exchange);
 //		return __sync_val_compare_and_swap(Dest, Comperand, Exchange);
+	}
+
+	static FORCEINLINE int8 InterlockedAnd(volatile int8* Value, const int8 AndValue)
+	{
+		return __sync_fetch_and_and(Value, AndValue);
+	}
+
+	static FORCEINLINE int16 InterlockedAnd(volatile int16* Value, const int16 AndValue)
+	{
+		return __sync_fetch_and_and(Value, AndValue);
+	}
+
+	static FORCEINLINE int32 InterlockedAnd(volatile int32* Value, const int32 AndValue)
+	{
+		return __sync_fetch_and_and(Value, AndValue);
+	}
+
+	static FORCEINLINE int64 InterlockedAnd(volatile int64* Value, const int64 AndValue)
+	{
+		return __sync_fetch_and_and(Value, AndValue);
+	}
+
+	static FORCEINLINE int8 InterlockedOr(volatile int8* Value, const int8 OrValue)
+	{
+		return __sync_fetch_and_or(Value, OrValue);
+	}
+
+	static FORCEINLINE int16 InterlockedOr(volatile int16* Value, const int16 OrValue)
+	{
+		return __sync_fetch_and_or(Value, OrValue);
+	}
+
+	static FORCEINLINE int32 InterlockedOr(volatile int32* Value, const int32 OrValue)
+	{
+		return __sync_fetch_and_or(Value, OrValue);
+	}
+
+	static FORCEINLINE int64 InterlockedOr(volatile int64* Value, const int64 OrValue)
+	{
+		return __sync_fetch_and_or(Value, OrValue);
+	}
+
+	static FORCEINLINE int8 InterlockedXor(volatile int8* Value, const int8 XorValue)
+	{
+		return __sync_fetch_and_xor(Value, XorValue);
+	}
+
+	static FORCEINLINE int16 InterlockedXor(volatile int16* Value, const int16 XorValue)
+	{
+		return __sync_fetch_and_xor(Value, XorValue);
+	}
+
+	static FORCEINLINE int32 InterlockedXor(volatile int32* Value, const int32 XorValue)
+	{
+		return __sync_fetch_and_xor(Value, XorValue);
+	}
+
+	static FORCEINLINE int64 InterlockedXor(volatile int64* Value, const int64 XorValue)
+	{
+		return __sync_fetch_and_xor(Value, XorValue);
 	}
 
 	static FORCEINLINE int8 AtomicRead(volatile const int8* Src)
@@ -227,7 +287,7 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 		__atomic_store((volatile int64*)Src, &Val, __ATOMIC_RELAXED);
 	}
 
-	static FORCEINLINE void* InterlockedCompareExchangePointer(void** Dest, void* Exchange, void* Comperand)
+	static FORCEINLINE void* InterlockedCompareExchangePointer(void*volatile* Dest, void* Exchange, void* Comperand)
 	{
 		return __sync_val_compare_and_swap(Dest, Comperand, Exchange);
 	}
@@ -245,77 +305,85 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 {
 	static FORCEINLINE int8 InterlockedIncrement( volatile int8* Value )
 	{
-		*Value += 1;
-		return *Value;
+		const int8 TempValue = static_cast<int8>(static_cast<uint8>(*Value) + 1U);
+		*Value = TempValue;
+		return TempValue;
 	}
 
 	static FORCEINLINE int16 InterlockedIncrement( volatile int16* Value )
 	{
-		*Value += 1;
-		return *Value;
+		const int16 TempValue = static_cast<int16>(static_cast<uint16>(*Value) + 1U);
+		*Value = TempValue;
+		return TempValue;
 	}
 
 	static FORCEINLINE int32 InterlockedIncrement( volatile int32* Value )
 	{
-		*Value += 1;
-		return *Value;
+		const int32 TempValue = static_cast<int32>(static_cast<uint32>(*Value) + 1U);
+		*Value = TempValue;
+		return TempValue;
 	}
 
 	static FORCEINLINE int64 InterlockedIncrement( volatile int64* Value )
 	{
-		*Value += 1;
-		return *Value;
+		const int64 TempValue = static_cast<int64>(static_cast<uint64>(*Value) + 1ULL);
+		*Value = TempValue;
+		return TempValue;
 	}
 
 	static FORCEINLINE int8 InterlockedDecrement( volatile int8* Value )
 	{
-		*Value -= 1;
-		return *Value;
+		const int8 TempValue = static_cast<int8>(static_cast<uint8>(*Value) - 1U);
+		*Value = TempValue;
+		return TempValue;
 	}
 
 	static FORCEINLINE int16 InterlockedDecrement( volatile int16* Value )
 	{
-		*Value -= 1;
-		return *Value;
+		const int16 TempValue = static_cast<int16>(static_cast<uint16>(*Value) - 1U);
+		*Value = TempValue;
+		return TempValue;
 	}
 
 	static FORCEINLINE int32 InterlockedDecrement( volatile int32* Value )
 	{
-		*Value -= 1;
-		return *Value;
+		const int32 TempValue = static_cast<int32>(static_cast<uint32>(*Value) - 1U);
+		*Value = TempValue;
+		return TempValue;
 	}
 
 	static FORCEINLINE int64 InterlockedDecrement( volatile int64* Value )
 	{
-		*Value -=1;
-		return *Value;
+		const int64 TempValue = static_cast<int64>(static_cast<uint64>(*Value) - 1ULL);
+		*Value = TempValue;
+		return TempValue;
 	}
 
 	static FORCEINLINE int8 InterlockedAdd( volatile int8* Value, int8 Amount )
 	{
 		int8 Result = *Value;
-		*Value += Amount;
+		*Value = static_cast<int8>(static_cast<uint8>(Result) + static_cast<uint8>(Amount));
 		return Result;
 	}
 
 	static FORCEINLINE int16 InterlockedAdd( volatile int16* Value, int16 Amount )
 	{
 		int16 Result = *Value;
-		*Value += Amount;
+		*Value = static_cast<int16>(static_cast<uint16>(Result) + static_cast<uint16>(Amount));
 		return Result;
 	}
 
 	static FORCEINLINE int32 InterlockedAdd( volatile int32* Value, int32 Amount )
 	{
 		int32 Result = *Value;
-		*Value += Amount;
+		*Value = static_cast<int32>(static_cast<uint32>(Result) + static_cast<uint32>(Amount));
 		return Result;
 	}
 
 	static FORCEINLINE int64 InterlockedAdd( volatile int64* Value, int64 Amount )
 	{
 		int64 Result = *Value;
-		*Value += Amount;
+		*Value = static_cast<int64>(static_cast<uint64>(Result) + static_cast<uint64>(Amount));
 		return Result;
 	}
 
@@ -347,7 +415,7 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 		return Result;
 	}
 
-	static FORCEINLINE void* InterlockedExchangePtr( void** Dest, void* Exchange )
+	static FORCEINLINE void* InterlockedExchangePtr( void*volatile* Dest, void* Exchange )
 	{
 		void* Result = *Dest;
 		*Dest = Exchange;
@@ -391,6 +459,90 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 		{
 			*Dest = Exchange;
 		}
+		return Result;
+	}
+
+	static FORCEINLINE int8 InterlockedAnd(volatile int8* Value, const int8 AndValue)
+	{
+		const int8 Result = *Value;
+		*Value = Result & AndValue;
+		return Result;
+	}
+
+	static FORCEINLINE int16 InterlockedAnd(volatile int16* Value, const int16 AndValue)
+	{
+		const int16 Result = *Value;
+		*Value = Result & AndValue;
+		return Result;
+	}
+
+	static FORCEINLINE int32 InterlockedAnd(volatile int32* Value, const int32 AndValue)
+	{
+		const int32 Result = *Value;
+		*Value = Result & AndValue;
+		return Result;
+	}
+
+	static FORCEINLINE int64 InterlockedAnd(volatile int64* Value, const int64 AndValue)
+	{
+		const int64 Result = *Value;
+		*Value = Result & AndValue;
+		return Result;
+	}
+
+	static FORCEINLINE int8 InterlockedOr(volatile int8* Value, const int8 OrValue)
+	{
+		const int8 Result = *Value;
+		*Value = Result | OrValue;
+		return Result;
+	}
+
+	static FORCEINLINE int16 InterlockedOr(volatile int16* Value, const int16 OrValue)
+	{
+		const int16 Result = *Value;
+		*Value = Result | OrValue;
+		return Result;
+	}
+
+	static FORCEINLINE int32 InterlockedOr(volatile int32* Value, const int32 OrValue)
+	{
+		const int32 Result = *Value;
+		*Value = Result | OrValue;
+		return Result;
+	}
+
+	static FORCEINLINE int64 InterlockedOr(volatile int64* Value, const int64 OrValue)
+	{
+		const int64 Result = *Value;
+		*Value = Result | OrValue;
+		return Result;
+	}
+
+	static FORCEINLINE int8 InterlockedXor(volatile int8* Value, const int8 XorValue)
+	{
+		const int8 Result = *Value;
+		*Value = Result ^ XorValue;
+		return Result;
+	}
+
+	static FORCEINLINE int16 InterlockedXor(volatile int16* Value, const int16 XorValue)
+	{
+		const int16 Result = *Value;
+		*Value = Result ^ XorValue;
+		return Result;
+	}
+
+	static FORCEINLINE int32 InterlockedXor(volatile int32* Value, const int32 XorValue)
+	{
+		const int32 Result = *Value;
+		*Value = Result ^ XorValue;
+		return Result;
+	}
+
+	static FORCEINLINE int64 InterlockedXor(volatile int64* Value, const int64 XorValue)
+	{
+		const int64 Result = *Value;
+		*Value = Result ^ XorValue;
 		return Result;
 	}
 
@@ -474,7 +626,7 @@ struct CORE_API FHTML5PlatformAtomics	: public FGenericPlatformAtomics
 		*Src = Val;
 	}
 
-	static FORCEINLINE void* InterlockedCompareExchangePointer( void** Dest, void* Exchange, void* Comperand )
+	static FORCEINLINE void* InterlockedCompareExchangePointer( void*volatile* Dest, void* Exchange, void* Comperand )
 	{
 		void* Result = *Dest;
 		if (Result == Comperand)

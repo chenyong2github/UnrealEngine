@@ -11,7 +11,7 @@
 #include "RenderingThread.h"
 #include "SceneTypes.h"
 #include "HitProxies.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "Engine/Scene.h"
 #include "RendererInterface.h"
 
@@ -144,11 +144,11 @@ public:
 struct FPrimitiveFlagsCompact
 {
 	/** True if the primitive casts dynamic shadows. */
-	uint32 bCastDynamicShadow : 1;
+	uint8 bCastDynamicShadow : 1;
 	/** True if the primitive will cache static lighting. */
-	uint32 bStaticLighting : 1;
+	uint8 bStaticLighting : 1;
 	/** True if the primitive casts static shadows. */
-	uint32 bCastStaticShadow : 1;
+	uint8 bCastStaticShadow : 1;
 
 	FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy);
 };
@@ -168,6 +168,37 @@ public:
 
 	/** Initialization constructor. */
 	FPrimitiveSceneInfoCompact(FPrimitiveSceneInfo* InPrimitiveSceneInfo);
+};
+
+/** Flags needed for broad phase culling of runtime virtual texture page rendering. */
+struct FPrimitiveVirtualTextureFlags
+{
+	/** True if the primitive can render to virtual texture */
+	uint8 bRenderToVirtualTexture : 1;
+
+	/** Number of bits to reserve for the RuntimeVirtualTextureMask. If we use more than this number of runtime virtual textures in a scene we will trigger a slower path in rendering the VT pages. */
+	enum { RuntimeVirtualTexture_BitCount = 7 };
+	/** Mask of the allocated runtime virtual textures in the scene to render to. */
+	uint8 RuntimeVirtualTextureMask : RuntimeVirtualTexture_BitCount;
+};
+
+/** Lod data used for runtime virtual texture page rendering. Packed to reduce memory overhead since one of these is allocated per primitive. */
+struct FPrimitiveVirtualTextureLodInfo
+{
+	/** Minimum Lod for primitive in the runtime virtual texture. */
+	uint16 MinLod : 4;
+	/** Maximum Lod for primitive in the runtime virtual texture. */
+	uint16 MaxLod : 4;
+	/** Bias to use for Lod calculation in the runtime virtual texture. */
+	uint16 LodBias : 3;
+	/** 
+	 * Culling method used to remove the primitive from low mips of the runtime virtual texture.
+	 * 0: CullValue is the number of low mips for which we cull the primitive from the runtime virtual texture.
+	 * 1: CullValue is the pixel coverage threshold at which we cull the primitive from the runtime virtual texture. 
+	 */
+	uint16 CullMethod : 1;
+	/** Value used according to the CullMethod. */
+	uint16 CullValue : 4;
 };
 
 /** The type of the octree used by FScene to find primitives. */
@@ -438,6 +469,9 @@ public:
 	/** Helper function for writing out to the last render times to the game thread */
 	void UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const;
 
+	/** Updates static lighting uniform buffer, returns the number of entries needed for GPUScene */
+	int32 UpdateStaticLightingBuffer();
+
 #if RHI_RAYTRACING
 	RENDERER_API FRayTracingGeometryRHIRef GetStaticRayTracingGeometryInstance(int LodLevel);
 #endif
@@ -469,6 +503,8 @@ private:
 	/** If this is TRUE, this primitive's indirect lighting cache buffer needs to be updated before it can be rendered. */
 	bool bIndirectLightingCacheBufferDirty : 1;
 
+	bool bRegisteredVirtualTextureProducerCallback : 1;
+
 	/** Offset into the scene's lightmap data buffer, when GPUScene is enabled. */
 	int32 LightmapDataOffset;
 	/** Number of entries in the scene's lightmap data buffer. */
@@ -488,7 +524,7 @@ private:
 	void RemoveCachedMeshDrawCommands();
 
 #if RHI_RAYTRACING
-	TArray<FRayTracingGeometryRHIRef> RayTracingGeometries;
+	TArray<FRayTracingGeometry*> RayTracingGeometries;
 #endif
 };
 

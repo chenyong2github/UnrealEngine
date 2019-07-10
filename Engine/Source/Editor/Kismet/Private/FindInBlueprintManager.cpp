@@ -2588,7 +2588,7 @@ void FFindInBlueprintSearchManager::EnableGlobalFindResults(bool bEnable)
 		for (int32 TabIdx = 0; TabIdx < ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 		{
 			const FName TabID = GlobalFindResultsTabIDs[TabIdx];
-			if (!GlobalTabManager->CanSpawnTab(TabID))
+			if (!GlobalTabManager->HasTabSpawner(TabID))
 			{
 				const FText DisplayName = FText::Format(LOCTEXT("GlobalFindResultsDisplayName", "Find in Blueprints {0}"), FText::AsNumber(TabIdx + 1));
 
@@ -2623,7 +2623,7 @@ void FFindInBlueprintSearchManager::EnableGlobalFindResults(bool bEnable)
 		for (int32 TabIdx = 0; TabIdx < ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 		{
 			const FName TabID = GlobalFindResultsTabIDs[TabIdx];
-			if (GlobalTabManager->CanSpawnTab(TabID))
+			if (GlobalTabManager->HasTabSpawner(TabID))
 			{
 				GlobalTabManager->UnregisterNomadTabSpawner(TabID);
 			}
@@ -2644,7 +2644,7 @@ void FFindInBlueprintSearchManager::CloseOrphanedGlobalFindResultsTabs(TSharedPt
 		for (int32 TabIdx = 0; TabIdx < ARRAY_COUNT(GlobalFindResultsTabIDs); TabIdx++)
 		{
 			const FName TabID = GlobalFindResultsTabIDs[TabIdx];
-			if (!FGlobalTabmanager::Get()->CanSpawnTab(TabID))
+			if (!FGlobalTabmanager::Get()->HasTabSpawner(TabID))
 			{
 				TSharedPtr<SDockTab> OrphanedTab = TabManager->FindExistingLiveTab(FTabId(TabID));
 				if (OrphanedTab.IsValid())

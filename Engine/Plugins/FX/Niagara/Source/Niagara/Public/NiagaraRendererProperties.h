@@ -53,7 +53,7 @@ public:
 
 
 	// GPU simulation uses DrawIndirect, so the sim step needs to know indices per instance in order to prepare the draw call parameters
-	virtual uint32 GetNumIndicesPerInstance() { return 0; }
+	virtual uint32 GetNumIndicesPerInstance() const { return 0; }
 
 	virtual bool GetIsEnabled() const { return bIsEnabled; }
 	virtual void SetIsEnabled(bool bInIsEnabled) { bIsEnabled = bInIsEnabled; }

@@ -7,12 +7,21 @@
 
 class UProperty;
 class UStruct;
-class IUsdPrim;
 class FUsdAttribute;
 class AActor;
 struct FUsdImportContext;
 
-typedef TFunction<void(void*, const FUsdAttribute&, UProperty*, int32)> FStructSetterFunction;
+#if USE_USD_SDK
+#include "USDIncludesStart.h"
+#include "pxr/pxr.h"
+#include "USDIncludesEnd.h"
+
+PXR_NAMESPACE_OPEN_SCOPE
+	class UsdAttribute;
+	class UsdPrim;
+PXR_NAMESPACE_CLOSE_SCOPE
+
+typedef TFunction<void(void*, const pxr::UsdAttribute&, UProperty*, int32)> FStructSetterFunction;
 
 class FUSDPropertySetter
 {
@@ -22,7 +31,7 @@ public:
 	/**
 	 * Applies properties found on a UsdPrim (and possibly its children) to a spawned actor
 	 */
-	void ApplyPropertiesToActor(AActor* SpawnedActor, IUsdPrim* Prim, const FString& StartingPropertyPath);
+	void ApplyPropertiesToActor(AActor* SpawnedActor, const pxr::UsdPrim& Prim, const FString& StartingPropertyPath);
 
 	/**
 	 * Registers a setter for a struct type to set the struct in bulk instad of by individual inner property
@@ -32,22 +41,22 @@ private:
 	/**
 	 * Finds properties and addresses for those properties and applies them from values in USD attributes
 	 */
-	void ApplyPropertiesFromUsdAttributes(IUsdPrim* Prim, AActor* SpawnedActor, const FString& StartingPropertyPath);
+	void ApplyPropertiesFromUsdAttributes(const pxr::UsdPrim& Prim, AActor* SpawnedActor, const FString& StartingPropertyPath);
 
 	/**
 	 * Sets a property value from a USD Attribute
 	 */
-	void SetFromUSDValue(PropertyHelpers::FPropertyAddress& PropertyAddress, IUsdPrim* Prim, const FUsdAttribute& Attribute, int32 ArrayIndex);
+	void SetFromUSDValue(PropertyHelpers::FPropertyAddress& PropertyAddress, const pxr::UsdPrim& Prim, const pxr::UsdAttribute& Attribute, int32 ArrayIndex);
 
 	/**
 	 * Finds Key/Value pairs for TMap properties;
 	 */
-	bool FindMapKeyAndValues(IUsdPrim* Prim, const FUsdAttribute*& OutKey, TArray<const FUsdAttribute*>& OutValues);
+	bool FindMapKeyAndValues(const pxr::UsdPrim& Prim, pxr::UsdAttribute& OutKey, TArray<pxr::UsdAttribute>& OutValues);
 
 	/**
 	 * Verifies the result of trying to set a given usd attribute with a given usd property.  Will produce an error if the types are incompatible
 	 */
-	bool VerifyResult(bool bResult, const FUsdAttribute& Attribute, UProperty* Property);
+	bool VerifyResult(bool bResult, const pxr::UsdAttribute& Attribute, UProperty* Property);
 
 	/**
 	 * Combines two property paths into a single "." delimited property path
@@ -59,4 +68,4 @@ private:
 
 	FUsdImportContext& ImportContext;
 };
-
+#endif // #if USE_USD_SDK

@@ -43,4 +43,7 @@ private:
 
 	/** Boolean indicating whether this section layout builder has been given any layout or not */
 	bool bHasAnyLayout;
+
+	/** Stack of insertion indices for the current category level that define what child index the next node should be added as. */
+	TArray<int32, TInlineAllocator<1>> InsertIndexStack;
 };

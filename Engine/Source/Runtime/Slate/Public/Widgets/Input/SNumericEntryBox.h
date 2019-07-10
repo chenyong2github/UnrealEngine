@@ -106,6 +106,8 @@ public:
 		SLATE_ARGUMENT( bool, AllowSpin )
 		/** How many pixel the mouse must move to change the value of the delta step (only use if there is a spinbox allow) */
 		SLATE_ARGUMENT( int32, ShiftMouseMovePixelPerDelta )
+		/** If we're an unbounded spinbox, what value do we divide mouse movement by before multiplying by Delta. Requires Delta to be set. */
+		SLATE_ATTRIBUTE( int32, LinearDeltaSensitivity)
 		/** Tell us if we want to support dynamically changing of the max value using ctrl  (only use if there is a spinbox allow) */
 		SLATE_ATTRIBUTE(bool, SupportDynamicSliderMaxValue)
 		/** Tell us if we want to support dynamically changing of the min value using ctrl  (only use if there is a spinbox allow) */
@@ -132,11 +134,11 @@ public:
 		SLATE_ATTRIBUTE( float, MinDesiredValueWidth )
 		/** The text margin to use if overridden. */
 		SLATE_ATTRIBUTE( FMargin, OverrideTextMargin )
-		/** Called whenever the text is changed interactively by the user */
+		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT( FOnValueChanged, OnValueChanged )
 		/** Called whenever the text is committed.  This happens when the user presses enter or the text box loses focus. */
 		SLATE_EVENT( FOnValueCommitted, OnValueCommitted )
-		/** Called whenever the text is changed interactively by the user */
+		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT( FOnUndeterminedValueChanged, OnUndeterminedValueChanged )
 		/** Called whenever the text is committed.  This happens when the user presses enter or the text box loses focus. */
 		SLATE_EVENT( FOnUndeterminedValueCommitted, OnUndeterminedValueCommitted )
@@ -183,6 +185,7 @@ public:
 				.Value( this, &SNumericEntryBox<NumericType>::OnGetValueForSpinBox )
 				.Delta( InArgs._Delta )
 				.ShiftMouseMovePixelPerDelta(InArgs._ShiftMouseMovePixelPerDelta)
+				.LinearDeltaSensitivity(InArgs._LinearDeltaSensitivity)
 				.SupportDynamicSliderMaxValue(InArgs._SupportDynamicSliderMaxValue)
 				.SupportDynamicSliderMinValue(InArgs._SupportDynamicSliderMinValue)
 				.OnDynamicSliderMaxValueChanged(InArgs._OnDynamicSliderMaxValueChanged)

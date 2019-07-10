@@ -131,6 +131,8 @@ struct FTextureBuildSettings
 	mutable int32 VolumeSizeZ;
 	/** Can the texture be streamed */
 	uint32 bStreamable : 1;
+	/** Is the texture streamed using the VT system */
+	uint32 bVirtualStreamable : 1;
 	/** Whether to chroma key the image, replacing any pixels that match ChromaKeyColor with transparent black */
 	uint32 bChromaKeyTexture : 1;
 	/** How to stretch or pad the texture to a power of 2 size (if necessary); ETexturePowerOfTwoSetting::Type, opaque to avoid dependencies on Engine headers. */
@@ -143,6 +145,19 @@ struct FTextureBuildSettings
 	float ChromaKeyThreshold;
 	/** The quality of the compression algorithm (min 0 - lowest quality, highest cook speed, 4 - highest quality, lowest cook speed)*/
 	int32 CompressionQuality;
+	/** ETextureLossyCompressionAmount */
+	int32 LossyCompressionAmount;
+	/** TextureAddress, opaque to avoid dependencies on engine headers. How to address the texture (clamp, wrap, ...) for virtual textures this is baked into the build data, for regular textures this is ignored. */
+	int32 VirtualAddressingModeX;
+	int32 VirtualAddressingModeY;
+	/** Size in pixels of virtual texture tile, not including border */
+	int32 VirtualTextureTileSize;
+	/** Size in pixels of border on virtual texture tile */
+	int32 VirtualTextureBorderSize;
+	/** Is zlib compression enabled */
+	uint32 bVirtualTextureEnableCompressZlib : 1;
+	/** Is crunch compression enabled */
+	uint32 bVirtualTextureEnableCompressCrunch : 1;
 
 	/** Default settings. */
 	FTextureBuildSettings()
@@ -176,12 +191,20 @@ struct FTextureBuildSettings
 		, TopMipSize(0, 0)
 		, VolumeSizeZ(0)
 		, bStreamable(false)
+		, bVirtualStreamable(false)
 		, bChromaKeyTexture(false)
 		, PowerOfTwoMode(0 /*ETexturePowerOfTwoSetting::None*/)
 		, PaddingColor(FColor::Black)
 		, ChromaKeyColor(FColorList::Magenta)
 		, ChromaKeyThreshold(1.0f / 255.0f)
 		, CompressionQuality(-1)
+		, LossyCompressionAmount(0)
+		, VirtualAddressingModeX(0)
+		, VirtualAddressingModeY(0)
+		, VirtualTextureTileSize(0)
+		, VirtualTextureBorderSize(0)
+		, bVirtualTextureEnableCompressZlib(false)
+		, bVirtualTextureEnableCompressCrunch(false)
 	{
 	}
 

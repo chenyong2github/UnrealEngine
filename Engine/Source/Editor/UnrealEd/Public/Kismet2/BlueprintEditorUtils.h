@@ -349,7 +349,7 @@ public:
 					ExtraFunctionFlags |= FUNC_Static;
 				}
 				// We need to mark the function entry as editable so that we can
-				// set metadata on it if it is a blutility:
+				// set metadata on it if it is an editor utility blueprint/widget:
 				K2Schema->MarkFunctionEntryAsEditable(Graph, true);
 				if( IsEditorUtilityBlueprint( Blueprint ))
 				{
@@ -535,7 +535,7 @@ public:
 	/** Returns whether or not the blueprint is const during execution */
 	static bool IsBlueprintConst(const UBlueprint* Blueprint);
 
-	/** Returns whether or not the blueprint is a blutility */
+	/** Returns whether or not the blueprint is an editor utility blueprint or widget */
 	static bool IsEditorUtilityBlueprint(const UBlueprint* Blueprint);
 
 	/**
@@ -1658,6 +1658,13 @@ public:
 	 * Returns a class name for the specified class that has no automatic suffixes, but is otherwise unmodified.  Class can be nullptr.
 	 */
 	static FString GetClassNameWithoutSuffix(const UClass* Class);
+
+	/**
+	 * Returns a formatted menu item label for a deprecated variable or function member with the given name.
+	 *
+	 * @param MemberName		(Required) User-facing name of the deprecated variable or function.
+	 */
+	static FText GetDeprecatedMemberMenuItemName(const FText& MemberName);
 
 	/**
 	 * Returns a formatted warning message regarding usage of a deprecated variable or function member with the given name.

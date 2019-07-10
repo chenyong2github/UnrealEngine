@@ -2,8 +2,8 @@
 
 #include "SteamNetDriver.h"
 #include "OnlineSubsystemNames.h"
-#include "OnlineSubsystem.h"
 #include "SocketSubsystem.h"
+#include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemSteamPrivate.h"
 #include "SocketsSteam.h"
 #include "SteamNetConnection.h"
@@ -89,7 +89,7 @@ bool USteamNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectU
 		// If we are opening a Steam URL, create a Steam client socket
 		if (ConnectURL.Host.StartsWith(STEAM_URL_PREFIX))
 		{
-			Socket = SteamSockets->CreateSocket(FName(TEXT("SteamClientSocket")), TEXT("Unreal client (Steam)"));
+			Socket = SteamSockets->CreateSocket(FName(TEXT("SteamClientSocket")), TEXT("Unreal client (Steam)"), FNetworkProtocolTypes::Steam);
 		}
 		else
 		{
@@ -106,7 +106,7 @@ bool USteamNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool
 	if (SteamSockets && !ListenURL.HasOption(TEXT("bIsLanMatch")))
 	{
 		FName SocketTypeName = IsRunningDedicatedServer() ? FName(TEXT("SteamServerSocket")) : FName(TEXT("SteamClientSocket"));
-		Socket = SteamSockets->CreateSocket(SocketTypeName, TEXT("Unreal server (Steam)"));
+		Socket = SteamSockets->CreateSocket(SocketTypeName, TEXT("Unreal server (Steam)"), FNetworkProtocolTypes::Steam);
 	}
 	else
 	{

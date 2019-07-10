@@ -76,6 +76,9 @@ const TOptional<const FString> FNiagaraMessageManager::GetStringForScriptUsageIn
 	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
 		return TOptional<const FString>(TEXT("Particle Spawn Script Interpolated"));
 
+	case ENiagaraScriptUsage::ParticleGPUComputeScript:
+		return TOptional<const FString>(TEXT("Particle GPU Compute Script"));
+
 	case ENiagaraScriptUsage::ParticleUpdateScript:
 		return TOptional<const FString>(TEXT("Particle Update Script"));
 		
@@ -101,7 +104,6 @@ const TOptional<const FString> FNiagaraMessageManager::GetStringForScriptUsageIn
 		return TOptional<const FString>();
 
 	//unhandled cases
-	case ENiagaraScriptUsage::ParticleGPUComputeScript:
 	default:
 		ensureMsgf(false, TEXT("Tried to get script usage text for usage that is not handled!"));
 		return TOptional<const FString>();
@@ -499,13 +501,16 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 			FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 			if (InPinGUID.IsSet())
 			{
-				FNiagaraScriptGraphPinToFocusInfo PinToFocusInfo = FNiagaraScriptGraphPinToFocusInfo(ScriptAsset->GetUniqueID(), InPinGUID.GetValue());
-				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&PinToFocusInfo);
+				
+				TSharedRef<FNiagaraScriptGraphPinToFocusInfo> PinToFocusInfo = MakeShared<FNiagaraScriptGraphPinToFocusInfo>(InPinGUID.GetValue());
+				FNiagaraScriptIDAndGraphFocusInfo PinToFocusAndScriptID = FNiagaraScriptIDAndGraphFocusInfo(ScriptAsset->GetUniqueID(), PinToFocusInfo);
+				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&PinToFocusAndScriptID);
 			}
 			else if (InNodeGUID.IsSet())
 			{
-				FNiagaraScriptGraphNodeToFocusInfo NodeToFocusInfo = FNiagaraScriptGraphNodeToFocusInfo(ScriptAsset->GetUniqueID(), InNodeGUID.GetValue());
-				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&NodeToFocusInfo);
+				TSharedRef<FNiagaraScriptGraphNodeToFocusInfo> NodeToFocusInfo = MakeShared<FNiagaraScriptGraphNodeToFocusInfo>(InNodeGUID.GetValue());
+				FNiagaraScriptIDAndGraphFocusInfo NodeToFocusAndScriptID = FNiagaraScriptIDAndGraphFocusInfo(ScriptAsset->GetUniqueID(), NodeToFocusInfo);
+				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&NodeToFocusAndScriptID);
 			}
 		}
 		else

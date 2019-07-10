@@ -116,6 +116,22 @@ enum class EGoogleARCoreTrackingState : uint8
 };
 
 /**
+* @ingroup GoogleARCoreBase
+* 2d coordinate systems referenced by ARCore.
+*/
+UENUM(BlueprintType)
+enum class EGoogleARCoreCoordinates2DType : uint8
+{
+	/** ARCore normalized pass-through camera texture(for GPU usage) space with top-left (0.0f, 0.0f) and bottom-right(1.0f, 1.0f). */
+	Texture = 0,
+	/** ARCore normalized pass-through camera image(for CPU usage) space with top-left (0.0f, 0.0f) and bottom-right(1.0f, 1.0f). */
+	Image = 1,
+	/** UE4 normalized viewport space with top-left(0,0f ,0.0f) and bottom-right(1.0f, 1.0f) */
+	Viewport = 2
+};
+
+
+/**
  * A struct describes the ARCore light estimation.
  */
 USTRUCT(BlueprintType)
@@ -165,6 +181,57 @@ enum class EGoogleARCoreLineTraceChannel : uint8
 ENUM_CLASS_FLAGS(EGoogleARCoreLineTraceChannel);
 
 /**
+ * @ingroup GoogleARCoreBase
+ * Describes the orientation of the selected camera relative to the device display.
+ */
+UENUM(BlueprintType, Category = "GoogleARCore|CameraConfig")
+enum class EGoogleARCoreCameraFacing : uint8
+{
+	/* Camera facing away from user. */
+	Back = 1,
+	/* Camera facing towards user. */
+	Front = 2
+};
+
+/**
+ * @ingroup GoogleARCoreBase
+ * Describes the possible modes for Augmented Face detection.
+ */
+UENUM(BlueprintType, Category = "GoogleARCore|AugmentedFace")
+enum class EGoogleARCoreAugmentedFaceMode : uint8
+{
+	/* A mode where AugmentedFace detection is disabled. */
+	Disabled = 0,
+	/* A mode where AugmentedFace detection performs face pose, region pose and face mesh estimation. */
+	PoseAndMesh = 2,
+};
+
+/**
+ * @ingroup GoogleARCoreBase
+ * Describes the possible tracking failure reasons in ARCore.
+ */
+UENUM(BlueprintType, Category = "GoogleARCore|AugmentedFace")
+enum class EGoogleARCoreTrackingFailureReason : uint8
+{
+	/** Tracking is working normally, or ARCore session is not currently running. */
+	None = 0,
+	/**
+	 * Tracking lost due to bad internal state. Please try restarting the AR experience.
+	 * This should be seen rarely, and should be reported to and fixed by ARCore team.
+	 */
+	BadState = 1,
+	/** Tracking lost due to poor lighting conditions. Please move to a more brightly lit area */
+	InsufficientLight = 2,
+	/** Tracking lost due to excessive motion. Please  move device more slowly. */
+	ExcessiveMotion = 3,
+	/**
+	 * Tracking lost due to insufficient trackable features. Please move to area with more features,
+	 * such as corners, objects, surfaces with texture. Avoid blank walls and surfaces without detail.
+	 */
+	InsufficientFeatures = 4
+};
+
+/**
  * Camera configuration from ARCore.
  */
 USTRUCT(BlueprintType)
@@ -185,6 +252,10 @@ struct GOOGLEARCOREBASE_API FGoogleARCoreCameraConfig
 	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig")
 	FIntPoint CameraTextureResolution;
 
+	/** The id of the camera will be used in this CameraConfig. */
+	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig")
+	FString CameraID;
+
 	/**
 	 * Comparison operator.
 	 *
@@ -193,7 +264,9 @@ struct GOOGLEARCOREBASE_API FGoogleARCoreCameraConfig
 	 */
 	bool operator==(const FGoogleARCoreCameraConfig& OtherConfig) const
 	{
-		return CameraImageResolution == OtherConfig.CameraImageResolution && CameraTextureResolution == OtherConfig.CameraTextureResolution;
+		return CameraImageResolution == OtherConfig.CameraImageResolution
+			&& CameraTextureResolution == OtherConfig.CameraTextureResolution
+			&& CameraID == OtherConfig.CameraID;
 	}
 };
 

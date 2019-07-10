@@ -418,6 +418,13 @@ EPropertyDataValidationResult FPropertyNode::EnsureDataIsValid()
 		if (Property.IsValid())
 		{
 			UProperty* MyProperty = Property.Get();
+			UStruct* OwnerStruct = MyProperty->GetOwnerStruct();
+
+			if (!OwnerStruct || OwnerStruct->Children == nullptr)
+			{
+				//verify that the property is not part of an invalid trash class, treat it as an invalid object if it is which will cause a refresh
+				return EPropertyDataValidationResult::ObjectInvalid;
+			}
 
 			//verify that the number of container children is correct
 			UArrayProperty* ArrayProperty = Cast<UArrayProperty>(MyProperty);
@@ -725,6 +732,19 @@ TSharedPtr<FPropertyNode> FPropertyNode::FindChildPropertyNode( const FName InPr
 	return nullptr;
 }
 
+/**
+ * Returns whether this window's property is read only or has the CPF_EditConst flag.
+ */
+bool FPropertyNode::IsPropertyConst() const
+{
+	bool bIsPropertyConst = (HasNodeFlags(EPropertyNodeFlags::IsReadOnly) != 0);
+	if (!bIsPropertyConst && Property != nullptr)
+	{
+		bIsPropertyConst = (Property->PropertyFlags & CPF_EditConst) ? true : false;	
+	}
+
+	return bIsPropertyConst;
+}
 
 /** @return whether this window's property is constant (can't be edited by the user) */
 bool FPropertyNode::IsEditConst() const
@@ -734,23 +754,19 @@ bool FPropertyNode::IsEditConst() const
 		// Ask the objects whether this property can be changed
 		const FObjectPropertyNode* ObjectPropertyNode = FindObjectItemParent();
 
-		bIsEditConst = (HasNodeFlags(EPropertyNodeFlags::IsReadOnly) != 0);
+		bIsEditConst = IsPropertyConst();
 		if(!bIsEditConst && Property != nullptr && ObjectPropertyNode)
 		{
-			bIsEditConst = (Property->PropertyFlags & CPF_EditConst) ? true : false;
-			if(!bIsEditConst)
+			// travel up the chain to see if this property's owner struct is editconst - if it is, so is this property
+			FPropertyNode* NextParent = ParentNode;
+			while(NextParent != nullptr && Cast<UStructProperty>(NextParent->GetProperty()) != NULL)
 			{
-				// travel up the chain to see if this property's owner struct is editconst - if it is, so is this property
-				FPropertyNode* NextParent = ParentNode;
-				while(NextParent != nullptr && Cast<UStructProperty>(NextParent->GetProperty()) != NULL)
+				if(NextParent->IsEditConst())
 				{
-					if(NextParent->IsEditConst())
-					{
-						bIsEditConst = true;
-						break;
-					}
-					NextParent = NextParent->ParentNode;
+					bIsEditConst = true;
+					break;
 				}
+				NextParent = NextParent->ParentNode;
 			}
 
 			if(!bIsEditConst)

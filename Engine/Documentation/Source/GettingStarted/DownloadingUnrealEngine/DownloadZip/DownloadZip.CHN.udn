@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+﻿INTSourceChangelist:6426757
 Availability:NoPublish
 Title:从GitHub下载虚幻引擎Zip文件
 Crumbs:%ROOT%, GettingStarted, GettingStarted/DownloadingUnrealEngine
@@ -11,8 +11,6 @@ Version: 4.16
 SkillLevel: Advanced
 
 此页面将指导您如何从GitHub将源代码作为Zip文件进行下载。
-
-%Globals:osselect_linux%
 
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]

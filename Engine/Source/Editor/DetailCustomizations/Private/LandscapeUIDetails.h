@@ -24,11 +24,8 @@ public:
 	/** End IDetailCustomization interface */
 
 private:
-	void OnEditorExperimentalSettingsChanged(FName PropertyName);
 	void ToggleCanHaveLayersContent(ALandscape* Landscape);
 
 	/** Use MakeInstance to create an instance of this class */
 	FLandscapeUIDetails();
-
-	IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
 };

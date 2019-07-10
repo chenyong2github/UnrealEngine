@@ -12,13 +12,16 @@
 #include "DetailLayoutHelpers.h"
 #include "PropertyHandleImpl.h"
 #include "IPropertyGenerationUtilities.h"
+#include "EditConditionParser.h"
 
 class FPropertyRowGeneratorUtilities : public IPropertyUtilities
 {
 public:
 	FPropertyRowGeneratorUtilities(FPropertyRowGenerator& InGenerator)
 		: Generator(&InGenerator)
-	{}
+		, EditConditionParser(new FEditConditionParser)
+	{
+	}
 
 	void ResetGenerator()
 	{
@@ -87,8 +90,15 @@ public:
 	{
 		return Generator != nullptr && Generator->HasClassDefaultObject();
 	}
+
+	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const override
+	{
+		return EditConditionParser;
+	}
+
 private:
 	FPropertyRowGenerator* Generator;
+	TSharedPtr<FEditConditionParser> EditConditionParser;
 };
 
 

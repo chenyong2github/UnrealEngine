@@ -11,7 +11,7 @@
 
 class USkeletalMeshComponent;
 
-UENUM()
+UENUM(BlueprintType)
 enum EBoneModificationMode
 {
 	/** The modifier ignores this channel (keeps the existing bone translation, rotation, or scale). */

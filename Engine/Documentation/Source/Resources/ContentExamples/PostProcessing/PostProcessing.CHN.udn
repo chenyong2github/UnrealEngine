@@ -1,122 +1,55 @@
-﻿INTSourceChangelist:1759278
+INTSourceChangelist:3782314
 Availability: Public
-Title: 后期处理内容示例
+Title:后期处理内容示例
 Crumbs:%ROOT%, Resources, Resources/ContentExamples
-Description: 后期处理示例关卡概述
+Description:后期处理内容示例中提供的范例概述。
 Related: Engine/Rendering/Overview
 Related: Engine/Rendering/PostProcessEffects
 Related: Engine/Rendering/PostProcessEffects/PostProcessMaterials
 Related: Resources/Showcases/Stylized
 Version: 4.9
+topic-image:postprocessing_compact.png
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/ContentExamples/PostProcessing:title%](postprocessing_compact.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/rendering_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/PostProcessing:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/PostProcessing:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources/ContentExamples/PostProcessing]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/ContentExamples/PostProcessing:title%](postprocessing_compact.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/rendering_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/PostProcessing:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/PostProcessing:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources/ContentExamples/PostProcessing]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-Listed below are the examples provided inside the **PostProcessing** map:
-
-| Example | What is Demonstrated |
-| ------- | ------------ |
-| **[1.1 Default Settings](Resources\ContentExamples\PostProcessing\1_1)** | The default settings of a Post Process Volume (also the settings used when a camera is not within a Post Process Volume). |
-| **[1.2 Film](Resources\ContentExamples\PostProcessing\1_2)** | Film allows you to adjust the color of your scenes. |
-| **[1.3 SceneColor](Resources\ContentExamples\PostProcessing\1_3)** | Scene Color applies effects, instead of the color shifts seen in the Film section, to your scene (e.g. Vignette, Scene Fringe, and Tone Mapping effects are shown). |
-| **[1.4 Bloom](Resources\ContentExamples\PostProcessing\1_4)** | Bloom simulates the effects the eye perceives when viewing objects that appear very bright. |
-| **[1.5 Ambient Cubemap](Resources\ContentExamples\PostProcessing\1_5)** | The Ambient Cubemap lights the scene from a provided image. |
-| **[1.6 AutoExposure](Resources\ContentExamples\PostProcessing\1_6)** | Shows how to simulate the effect of the human eye adjusting to a bright environment when coming from a dark environment or vice versa with Auto Exposure.|
-| **[1.7 Lens Flares](Resources\ContentExamples\PostProcessing\1_7)** | Lens Flare simulates the scattering of light when viewing bright objects through imperfections found in camera lenses. |
-| **[1.8 Ambient Occlusion](Resources\ContentExamples\PostProcessing\1_8)** | An effect that approximates the attenuation of light due to occlusion. Best used as a subtle effect that darkens corners or crevices to make them appear more natural.|
-| **[1.9 Screenspace Reflection](Resources\ContentExamples\PostProcessing\1_9)** | Alters the appearance of objects in reflections where the Intensity, Quality, or Max Roughness can be set.  |
-| **[1.10 Global Illumination](Resources\ContentExamples\PostProcessing\1_10)** | How to affect the indirect lighting contribution coming from Lightmass in order to alter a scene's brightness, tint, or color. |
-| **[1.11 Depth Of Field](Resources\ContentExamples\PostProcessing\1_11)** | Applying a blur effect to a scene based on distance in front or behind a focal point with Depth of Field. |
-| **[1.12 Motion Blur](Resources\ContentExamples\PostProcessing\1_12)** | Generating a Motion Blur which blurs objects based on its motion. |
-| **[1.13 Screen Percentage](Resources\ContentExamples\PostProcessing\1_13)** | Through Screen Percentage, a scene is rendered at a lower resolution and then scaled up. The Screen Percentage value represents a percentage of the overall resolution of the scene. |
-| **[1.14 AA Method](Resources\ContentExamples\PostProcessing\1_14)** | Demonstrates Anti-Aliasing (or AA) which improves image quality by smoothing out the edges that appear jagged on screen. |
-| **[1.15 Blendables](Resources\ContentExamples\PostProcessing\1_15)** | Blendables are, in short, overlays that can be applied to the screen (e.g. screen warping or coloring). |
-| **[1.16 Priorities](Resources\ContentExamples\PostProcessing\1_16)** | Allows you to control which Post Process Volumes will override one another if they are overlapping. |
-| **[1.17 Blend Radius and Weight](Resources\ContentExamples\PostProcessing\1_17)** | Used to change the transition from one Post Process Volume to another over a distance (e.g. blend scene tint or color based on distance to an object). |
-| **[1.18 Unbound](Resources\ContentExamples\PostProcessing\1_18)** | This allows you to create a global Post Process effect without being constrained to being inside an actual volume (e.g. the effects are applied where ever you are in the world). |
-
-[COMMENT:none]
-
-[REGION:fullwidth]
-![](PostProcHeader.png)
+[REGION:banner]
+![](PostProcessing_Header.png)(convert:false)
+[/REGION]
 
 
+**后期处理** 图中提供的内容示例演示了如何在后期处理体积的内部和外部添加屏幕效果。通过调整后期处理体积的属性，你可以实现诸如镜头光晕、屏幕染色或模糊之类的效果， 还可以定义体积如何互相交互或与玩家交互。 
 
-## 概述
 
-
-欢迎来到 **Post Processing** （后期处理）内容示例！ [INCLUDE:Resources\ContentExamples\ExampleLevelOverview#ExampleLevel]
-
- 本关卡展示了不同的后期处理效果，通过Post Processing Volumes（后期处理空间）的方法来实现。 当您站在每个底座前时，您将会看到地面上的记号，显示您应该如何放置摄像机以查看所期望见到的效果。
+[REGION:note]
+你可以单击示例名称，来找到关于每个示例的更多资源。
+[/REGION]
  
- ![](PostProcessingDesignations.png)
 
-[EXCERPT:Topics]
-## 示例
+(#postprocessingmap)
+## 后期处理图
 
-[REGION:topics third]
-%Resources/ContentExamples/PostProcessing/1_1:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_2:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_3:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_4:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_5:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_6:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_7:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_8:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_9:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_10:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_11:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_12:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_13:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_14:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_15:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_16:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_17:TopicCompact%
-%Resources/ContentExamples/PostProcessing/1_18:TopicCompact%
-[/REGION]
-[/EXCERPT:Topics]
+![](PostProcessing_Map.png)(w:640)
 
-## 扩展阅读
+下面列出了 **后期处理** 图中提供的示例：
 
-* [后期处理特效](Engine/Rendering\PostProcessEffects)
+| 示例 | 展示的内容 |
+| ------- | ------------ |
+| **[1.1 默认设置](Resources\ContentExamples\PostProcessing\1_1)** | 后期处理体积的默认设置（也是摄像机不在后期处理体积内部时所用的设置）。|
+| **[1.2 胶片](Resources\ContentExamples\PostProcessing\1_2)** | 利用胶片你可以调整场景的颜色。|
+| **[1.3 场景颜色](Resources\ContentExamples\PostProcessing\1_3)** | 场景颜色对场景应用效果，取代在“胶片（Film）”部分可以见到的颜色偏移（例如显示晕映、场景边纹和色调映射等效果）。|
+| **[1.4 泛光](Resources\ContentExamples\PostProcessing\1_4)** | 泛光模拟在观看非常明亮的物体时眼睛所感受到的效果。|
+| **[1.5 环境立方体贴图](Resources\ContentExamples\PostProcessing\1_5)** | 环境立方体贴图从提供的图像对场景进行照明。|
+| **[1.6 自动曝光](Resources\ContentExamples\PostProcessing\1_6)** | 显示如何通过自动曝光模拟人眼从黑暗环境进入明亮环境（或反之）时的适应过程。|
+| **[1.7 镜头光晕](Resources\ContentExamples\PostProcessing\1_7)** | 镜头光晕模拟通过有瑕疵的摄像机镜头查看明亮物体时的光线散射。|
+| **[1.8 环境光遮蔽](Resources\ContentExamples\PostProcessing\1_8)** | 模拟因为遮蔽而造成的光线衰减的效果。最好用作使角落或裂隙变暗的细微效果，使其显得更自然。|
+| **[1.9 屏幕空间反射](Resources\ContentExamples\PostProcessing\1_9)** | 改变反射中物体的外观，可以设置强度、质量或最大粗糙度。|
+| **[1.10 全局光照](Resources\ContentExamples\PostProcessing\1_10)** | 如何影响来自Lightmass的间接光照，从而改变场景的亮度、色调或颜色。|
+| **[1.11 景深](Resources\ContentExamples\PostProcessing\1_11)** | 通过景深，根据在焦点前方或后方的距离对场景应用模糊效果。|
+| **[1.12 动态模糊](Resources\ContentExamples\PostProcessing\1_12)** | 生成动态模糊效果，根据物体的运动使其模糊。|
+| **[1.13 屏幕百分比](Resources\ContentExamples\PostProcessing\1_13)** | 通过屏幕百分比，以较低的分辨率渲染场景，然后放大。屏幕百分比数值代表场景整体分辨率的一定百分比。|
+| **[1.14 抗锯齿方法](Resources\ContentExamples\PostProcessing\1_14)** | 演示抗锯齿（AA），它使在屏幕上显得参差不齐的边缘变得平滑，从而提高图像质量。|
+| **[1.15 可混合资源](Resources\ContentExamples\PostProcessing\1_15)** | 简而言之，可混合资源就是可以应用于屏幕的覆层（例如屏幕变形或着色）。|
+| **[1.16 优先次序](Resources\ContentExamples\PostProcessing\1_16)** | 允许你控制后期处理体积在相互重叠时哪个覆盖另一个。|
+| **[1.17 混合半径和权重](Resources\ContentExamples\PostProcessing\1_17)** | 用于更改从一个后期处理体积经过一段距离到另一个后期处理体积的过渡（例如根据与Object的距离混合场景色调或颜色）。|
+| **[1.18 无边界](Resources\ContentExamples\PostProcessing\1_18)** | 此示例允许你创建全局后期处理效果，而不必被约束在实际体积内（例如你在世界场景中的任何位置都会应用该效果）。|
 
 
-[/REGION]
 
-[/COMMENT]

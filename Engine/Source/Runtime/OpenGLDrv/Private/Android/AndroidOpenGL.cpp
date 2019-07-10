@@ -143,8 +143,8 @@ FPlatformOpenGLDevice::FPlatformOpenGLDevice()
 {
 }
 
-// call out to JNI to see if the application was packaged for Gear VR
-extern bool AndroidThunkCpp_IsGearVRApplication();
+// call out to JNI to see if the application was packaged for Oculus Mobile
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
 
 
 // RenderDoc
@@ -158,7 +158,7 @@ void FPlatformOpenGLDevice::Init()
 	bRunningUnderRenderDoc = glIsEnabled(GL_DEBUG_TOOL_EXT) != GL_FALSE;
 
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("FPlatformOpenGLDevice:Init"));
-	bool bCreateSurface = !AndroidThunkCpp_IsGearVRApplication();
+	bool bCreateSurface = !AndroidThunkCpp_IsOculusMobileApplication();
 	AndroidEGL::GetInstance()->InitSurface(false, bCreateSurface);
 	PlatformRenderingContextSetup(this);
 
@@ -236,7 +236,7 @@ void PlatformSharedContextSetup(FPlatformOpenGLDevice* Device)
 
 void PlatformNULLContextSetup()
 {
-	AndroidEGL::GetInstance()->SetCurrentContext(EGL_NO_CONTEXT, EGL_NO_SURFACE);
+	AndroidEGL::GetInstance()->ReleaseContextOwnership();
 }
 
 EOpenGLCurrentContext PlatformOpenGLCurrentContext(FPlatformOpenGLDevice* Device)
@@ -457,7 +457,7 @@ void PlatformDestroyOpenGLDevice(FPlatformOpenGLDevice* Device)
 
 void FPlatformOpenGLDevice::SetCurrentRenderingContext()
 {
-	AndroidEGL::GetInstance()->SetCurrentRenderingContext();
+	AndroidEGL::GetInstance()->AcquireCurrentRenderingContext();
 }
 
 void PlatformLabelObjects()

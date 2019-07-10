@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6109847
+Availability: Docs
 Title:2.控件蓝图设置
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:在本文中，我们创建将在关卡中显示的键盘和键盘显示控件。 

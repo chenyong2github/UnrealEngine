@@ -1,0 +1,41 @@
+﻿INTSourceChangelist:6036829
+Availability: Public
+Crumbs: 
+Title: Vivox参考手册
+Description: 对将Vivox集成到项目中的开发人员非常有用的参考资料。
+Type: reference
+Version: 4.22
+Parent: Engine/Plugins/VivoxPlugin
+Order: 
+Tags: Vivox
+topic-image: Vivox_Topic_01.png
+
+
+(#inisetting)
+
+## INI设置
+
+下面是虚幻引擎的Vivox INI设置：
+
+    DefaultEngine.ini
+    [VoiceChat.Vivox]
+    ; 服务器网址来自于Vivox开发人员门户
+    ServerUrl=
+    ; 域名来自于Vivox开发人员门户
+    Domain=
+    ; 发行人来自于Vivox开发人员门户
+    Issuer=
+    ; 密钥来自于Vivox开发人员门户应在开发期间您在安全的服务器上生成令牌之前进行设置。
+    VivoxInsecureSecret=
+    ; 将bVADAutomaticParameterSelection设置为false，使用默认的语音活动检测（Voice Activity Detection）设置
+    bVADAutomaticParameterSelection=true
+    ; 将bEnableAudioDucking设置为true，以在iOS和XboxOne上启用语音回避。
+    bEnableAudioDucking=false
+
+(#consolecommand)
+
+## 控制台命令
+
+在开发期间调试问题时，通常会使用打印Vivox连接的状态信息，要执行该操作，在 **控制台（Console）** 中输入“VIVOX INFO”命令。
+
+[](#)[](#)

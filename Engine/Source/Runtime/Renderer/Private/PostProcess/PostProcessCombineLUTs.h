@@ -14,15 +14,16 @@
 class UTexture;
 class FFinalPostProcessSettings;
 
-bool UseVolumeTextureLUT(EShaderPlatform Platform);
+bool PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(EShaderPlatform Platform);
 
 // derives from TRenderingCompositePassBase<InputCount, OutputCount>
 class FRCPassPostProcessCombineLUTs : public TRenderingCompositePassBase<0, 1>
 {
 public:
-	FRCPassPostProcessCombineLUTs(EShaderPlatform InShaderPlatform, bool bInAllocateOutput, bool InIsComputePass)
+	FRCPassPostProcessCombineLUTs(EShaderPlatform InShaderPlatform, bool bInAllocateOutput, bool InIsComputePass, bool bInNeedFloatOutput)
 	: ShaderPlatform(InShaderPlatform)
 	, bAllocateOutput(bInAllocateOutput)
+	, bNeedFloatOutput(bInNeedFloatOutput)
 	{
 		bIsComputePass = InIsComputePass;
 		bPreferAsyncCompute = false;
@@ -38,16 +39,17 @@ public:
 	/** @return 0xffffffff if not found */
 	uint32 FindIndex(const FFinalPostProcessSettings& Settings, UTexture* Tex) const;
 
-	virtual FComputeFenceRHIParamRef GetComputePassEndFence() const override { return AsyncEndFence; }
+	virtual FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
 
 private:
 	template <typename TRHICmdList>
-	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV, int32 BlendCount, FTexture* Textures[], float Weights[]);
+	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV, int32 BlendCount, FTexture* Textures[], float Weights[]);
 
 	FComputeFenceRHIRef AsyncEndFence;
 
 	EShaderPlatform ShaderPlatform;
 	bool bAllocateOutput;
+	bool bNeedFloatOutput;
 };
 
 
@@ -65,10 +67,10 @@ public:
 	FColorRemapShaderParameters(const FShaderParameterMap& ParameterMap);
 
 	// Explicit declarations here because templates unresolved when used in other files
-	void Set(FRHICommandList& RHICmdList, const FPixelShaderRHIParamRef ShaderRHI);
+	void Set(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI);
 
 	template <typename TRHICmdList>
-	void Set(TRHICmdList& RHICmdList, const FComputeShaderRHIParamRef ShaderRHI);
+	void Set(TRHICmdList& RHICmdList, FRHIComputeShader* ShaderRHI);
 
 	friend FArchive& operator<<(FArchive& Ar,FColorRemapShaderParameters& P);
 

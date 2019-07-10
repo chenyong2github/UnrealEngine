@@ -73,7 +73,7 @@ private:
 
     //These are used internally to pause/resume things at the task level
 	void PauseAllActiveTasks();
-	void ResumeAllTasks();
+	void ResumeAllTasksWithoutPausedRequests();
 
     void PauseAllUnassociatedTasks();
     void UnpauseAllUnassociatedTasks();

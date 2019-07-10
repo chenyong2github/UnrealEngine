@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+INTSourceChangelist:6077702
+Availability: docs
 Title:3 - 새 레벨 생성
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:이번 단계에서는 새 레벨을 만들어 샘플 영역을 만들도록 하겠습니다.
@@ -93,9 +93,9 @@ checkpoint: editorqs
 	[/PARAM]
 	[/OBJECT]
 
-	위의 **디폴트** 레벨에는 레벨 제작시 흔히 사용되는 애셋이 약간 포함되어 있고, **VR-Basic** 레벨에는 VR 에디터로 레벨을 제작할 때 쓰이는 애셋이 포함되어 있으며, **공백 레벨** 은 애셋 없이 완전히 비어있는 레벨입니다. 이 가이드의 목적상 완전히 비어있는 레벨에서 시작하도록 하겠습니다.
+	위의 **디폴트** 레벨에는 레벨 제작시 흔히 사용되는 애셋이 약간 포함되어 있고, **VR-Basic** 레벨에는 VR 에디터로 레벨을 제작할 때 쓰이는 애셋이 포함되어 있으며, **기본 레벨** 은 애셋 없이 완전히 비어있는 레벨입니다. 이 가이드의 목적상 완전히 비어있는 레벨에서 시작하도록 하겠습니다.
 
-1. **공백 레벨** 을 클릭하여 선택합니다.
+1. **기본 레벨** 을 클릭하여 선택합니다.
 
 	
 ## 최종 결과

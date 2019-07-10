@@ -9,7 +9,6 @@
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessInput.h"
 #include "PostProcess/PostProcessing.h"
-#include "CompositionLighting/PostProcessAmbient.h"
 #include "CompositionLighting/PostProcessLpvIndirect.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "CompositionLighting/PostProcessDeferredDecals.h"
@@ -26,34 +25,6 @@ DECLARE_GPU_STAT_NAMED(CompositionBeforeBasePass, TEXT("Composition BeforeBasePa
 DECLARE_GPU_STAT_NAMED(CompositionPreLighting, TEXT("Composition PreLighting") );
 DECLARE_GPU_STAT_NAMED(CompositionLpvIndirect, TEXT("Composition LpvIndirect") );
 DECLARE_GPU_STAT_NAMED(CompositionPostLighting, TEXT("Composition PostLighting") );
-
-// -------------------------------------------------------
-
-static TAutoConsoleVariable<float> CVarSSSScale(
-	TEXT("r.SSS.Scale"),
-	1.0f,
-	TEXT("Affects the Screen space subsurface scattering pass")
-	TEXT("(use shadingmodel SubsurfaceProfile, get near to the object as the default)\n")
-	TEXT("is human skin which only scatters about 1.2cm)\n")
-	TEXT(" 0: off (if there is no object on the screen using this pass it should automatically disable the post process pass)\n")
-	TEXT("<1: scale scatter radius down (for testing)\n")
-	TEXT(" 1: use given radius form the Subsurface scattering asset (default)\n")
-	TEXT(">1: scale scatter radius up (for testing)"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarSSSHalfRes(
-	TEXT("r.SSS.HalfRes"),
-	1,
-	TEXT(" 0: full quality (not optimized, as reference)\n")
-	TEXT(" 1: parts of the algorithm runs in half resolution which is lower quality but faster (default)"),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
-static TAutoConsoleVariable<int32> CVarSubsurfaceScattering(
-	TEXT("r.SubsurfaceScattering"),
-	1,
-	TEXT(" 0: disabled\n")
-	TEXT(" 1: enabled (default)"),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarSSAOSmoothPass(
 	TEXT("r.AmbientOcclusion.Compute.Smooth"),
@@ -130,18 +101,9 @@ bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View)
 			&& !IsSimpleForwardShadingEnabled(View.GetShaderPlatform());
 	}
 #if RHI_RAYTRACING
-	bEnabled &= !ShouldRenderRayTracingAmbientOcclusion();
+	bEnabled &= !ShouldRenderRayTracingAmbientOcclusion(View);
 #endif
 	return bEnabled;
-}
-
-static void AddPostProcessingAmbientCubemap(FPostprocessContext& Context, FRenderingCompositeOutputRef AmbientOcclusion)
-{
-	FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbient());
-	Pass->SetInput(ePId_Input0, Context.FinalOutput);
-	Pass->SetInput(ePId_Input1, AmbientOcclusion);
-
-	Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
 }
 
 // @param Levels 0..3, how many different resolution levels we want to render
@@ -308,6 +270,7 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.ScreenSpaceAO);
 	
 	// so that the passes can register themselves to the graph
+	if(CanOverlayRayTracingOutput(View))
 	{
 		FMemMark Mark(FMemStack::Get());
 		FRenderingCompositePassContext CompositeContext(RHICmdList, View);
@@ -350,7 +313,7 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 		{
 			FRenderingCompositeOutputRef AmbientOcclusion;
 #if RHI_RAYTRACING
-			if (ShouldRenderRayTracingAmbientOcclusion() && SceneContext.bScreenSpaceAOIsValid)
+			if (ShouldRenderRayTracingAmbientOcclusion(View) && SceneContext.bScreenSpaceAOIsValid)
 			{
 				AmbientOcclusion = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(SceneContext.ScreenSpaceAO));
 			}
@@ -377,19 +340,6 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 						TEXT("Ambient occlusion decals are not supported with Async compute SSAO."));
 				}
 
-			}
-
-			if (SceneContext.bScreenSpaceAOIsValid && FSSAOHelper::IsBasePassAmbientOcclusionRequired(Context.View))
-			{
-				FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessBasePassAO());
-				Pass->AddDependency(Context.FinalOutput);
-
-				Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
-			}
-
-			if (IsAmbientCubemapPassRequired(Context.View))
-			{
-				AddPostProcessingAmbientCubemap(Context, AmbientOcclusion);
 			}
 		}
 
@@ -436,79 +386,6 @@ void FCompositionLighting::ProcessLpvIndirect(FRHICommandListImmediate& RHICmdLi
 	// we don't replace the final element with the scenecolor because this is what those passes should do by themself
 
 	CompositeContext.Process(Context.FinalOutput.GetPass(), TEXT("CompositionLighting"));
-}
-
-void FCompositionLighting::ProcessAfterLighting(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
-{
-	check(IsInRenderingThread());
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	{
-		FMemMark Mark(FMemStack::Get());
-		FRenderingCompositePassContext CompositeContext(RHICmdList, View);
-		FPostprocessContext Context(RHICmdList, CompositeContext.Graph, View);
-		FRenderingCompositeOutputRef AmbientOcclusion;
-
-		// Screen Space Subsurface Scattering
-		{
-			float Radius = CVarSSSScale.GetValueOnRenderThread();
-			bool bSimpleDynamicLighting = IsAnyForwardShadingEnabled(View.GetShaderPlatform());
-			bool bScreenSpaceSubsurfacePassNeeded = ((View.ShadingModelMaskInView & GetUseSubsurfaceProfileShadingModelMask()) != 0) && IsSubsurfacePostprocessRequired();
-			bool bSubsurfaceAllowed = CVarSubsurfaceScattering.GetValueOnRenderThread() == 1;
-
-			if (bScreenSpaceSubsurfacePassNeeded 
-				&& !bSimpleDynamicLighting 
-				&& bSubsurfaceAllowed)
-			{
-				bool bHalfRes = CVarSSSHalfRes.GetValueOnRenderThread() != 0;
-				bool bSingleViewportMode = View.Family->Views.Num() == 1;
-
-				if(Radius > 0 && View.Family->EngineShowFlags.SubsurfaceScattering)
-				{
-					FRenderingCompositePass* PassSetup = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSubsurfaceSetup(View, bHalfRes));
-					PassSetup->SetInput(ePId_Input0, Context.FinalOutput);
-
-					FRenderingCompositePass* PassX = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSubsurface(0, bHalfRes));
-					PassX->SetInput(ePId_Input0, PassSetup);
-
-					FRenderingCompositePass* PassY = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSubsurface(1, bHalfRes));
-					PassY->SetInput(ePId_Input0, PassX);
-					PassY->SetInput(ePId_Input1, PassSetup);
-
-					// full res composite pass, no blurring (Radius=0), replaces SceneColor
-					FRenderingCompositePass* RecombinePass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSubsurfaceRecombine(bHalfRes, bSingleViewportMode));
-					RecombinePass->SetInput(ePId_Input0, Context.FinalOutput);
-					RecombinePass->SetInput(ePId_Input1, PassY);
-					RecombinePass->SetInput(ePId_Input2, PassSetup);
-					Context.FinalOutput = FRenderingCompositeOutputRef(RecombinePass);
-				}
-				else
-				{
-					// needed for Scalability
-					FRenderingCompositePass* RecombinePass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessSubsurfaceRecombine(bHalfRes, bSingleViewportMode));
-					RecombinePass->SetInput(ePId_Input0, Context.FinalOutput);
-					Context.FinalOutput = FRenderingCompositeOutputRef(RecombinePass);
-				}
-			}
-		}
-
-		// The graph setup should be finished before this line ----------------------------------------
-
-		SCOPED_DRAW_EVENT(RHICmdList, CompositionAfterLighting);
-		SCOPED_GPU_STAT(RHICmdList, CompositionPostLighting);
-
-		// we don't replace the final element with the scenecolor because this is what those passes should do by themself
-
-		CompositeContext.Process(Context.FinalOutput.GetPass(), TEXT("CompositionLighting"));
-	}
-
-	// We only release the after the last view was processed (SplitScreen)
-	if(View.Family->Views[View.Family->Views.Num() - 1] == &View)
-	{
-		// The RT should be released as early as possible to allow sharing of that memory for other purposes.
-		// This becomes even more important with some limited VRam (XBoxOne).
-		SceneContext.SetLightAttenuation(0);
-	}
 }
 
 bool FCompositionLighting::CanProcessAsyncSSAO(TArray<FViewInfo>& Views)
@@ -612,11 +489,4 @@ void FCompositionLighting::GfxWaitForAsyncSSAO(FRHICommandListImmediate& RHICmdL
 		RHICmdList.WaitComputeFence(AsyncSSAOFence);
 		AsyncSSAOFence = nullptr;
 	}
-}
-
-bool FCompositionLighting::IsSubsurfacePostprocessRequired() const
-{
-	const bool bSSSEnabled = CVarSubsurfaceScattering->GetInt() != 0;
-	const bool bSSSScaleEnabled = CVarSSSScale.GetValueOnAnyThread() > 0.0f;
-	return (bSSSEnabled && bSSSScaleEnabled);	
 }

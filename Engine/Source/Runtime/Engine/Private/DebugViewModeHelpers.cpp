@@ -56,6 +56,8 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 	case DVSM_RequiredTextureResolution:
 	case DVSM_OutputMaterialTextureScales:
 		return FeatureLevel >= ERHIFeatureLevel::SM5 && (bForceTextureStreamingBuild || PlatformSupportsDebugViewShaders(Platform));
+	case DVSM_RayTracingDebug:
+		return FeatureLevel >= ERHIFeatureLevel::SM5 ;
 	default:
 		return false;
 	}

@@ -2885,8 +2885,21 @@ public:
 	{
 		Array->SwapMemory(A, B, ElementSize);
 	}
+
 	/**
-	 *	Used by memory counting archives to accumlate the size of this array.
+	 *	Move the allocation from another array and make it our own.
+	 *	@note The arrays MUST be of the same type, and this function will NOT validate that!
+	 *	@param InOtherArray The array to move the allocation from.
+	**/
+	void MoveAssign(void* InOtherArray)
+	{
+		FScriptArray* OtherArray = (FScriptArray*)InOtherArray;
+		checkSlow(OtherArray);
+		Array->MoveAssign(*OtherArray, ElementSize);
+	}
+
+	/**
+	 *	Used by memory counting archives to accumulate the size of this array.
 	 *	@param Ar archive to accumulate sizes
 	**/
 	void CountBytes( FArchive& Ar  ) const
@@ -3143,6 +3156,19 @@ public:
 	FORCEINLINE const uint8* GetPairPtr(int32 Index) const
 	{
 		return const_cast<FScriptMapHelper*>(this)->GetPairPtr(Index);
+	}
+
+	/**
+	 * Move the allocation from another map and make it our own.
+	 * @note The maps MUST be of the same type, and this function will NOT validate that!
+	 *
+	 * @param InOtherMap The map to move the allocation from.
+	 */
+	void MoveAssign(void* InOtherMap)
+	{
+		FScriptMap* OtherMap = (FScriptMap*)InOtherMap;
+		checkSlow(OtherMap);
+		Map->MoveAssign(*OtherMap, MapLayout);
 	}
 
 	/**
@@ -3693,6 +3719,19 @@ public:
 	FORCEINLINE const uint8* GetElementPtr(int32 Index) const
 	{
 		return const_cast<FScriptSetHelper*>(this)->GetElementPtr(Index);
+	}
+
+	/**
+	* Move the allocation from another set and make it our own.
+	* @note The sets MUST be of the same type, and this function will NOT validate that!
+	*
+	* @param InOtherSet The set to move the allocation from.
+	*/
+	void MoveAssign(void* InOtherSet)
+	{
+		FScriptSet* OtherSet = (FScriptSet*)InOtherSet;
+		checkSlow(OtherSet);
+		Set->MoveAssign(*OtherSet, SetLayout);
 	}
 
 	/**

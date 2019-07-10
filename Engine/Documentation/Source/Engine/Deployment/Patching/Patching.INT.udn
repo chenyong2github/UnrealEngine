@@ -1,111 +1,59 @@
-Availability:Public
-Title:Patching
-Crumbs:%ROOT%, Engine, Engine/Deployment
-Description:Creating updated content packages which allow you to update your project after release.
-skilllevel: Advanced
+Availability: Public
+Title: Patching Overview
+Description: Creating updated content packages which allow you to update your project after release.
+Version: 4.21
+Parent: Engine/Deployment
+Order: 2
 
-[TOC (start:2 end:2)]
 
-To update your project after release, you can use the patching process available through the Project Launcher. During patching, the engine compares all the content post-cook
-to the originally released cooked content, and uses that to determine what is included in a patch.  The smallest piece of content is a single package (like a .ulevel or .uasset), 
-so if anything changes in a package then the entire package will be included in the patch. The method you use to get the patch's .pak file to the users will depend on 
-your distribution platforms, but this procedure will allow you to create a much smaller .pak file that just contains the updated content. 
+[TOC (start:2 end:5)]
 
-[REGION:warning]
-Currently, distribution of the patches hasn't been resolved for all platforms. This procedure will walk you through creating the patch package file, as well as through testing the package file
-on Windows. 
+Once you have released your project, you will probably make updates to it after the initial release. This process is known as **patching**. Patching usually includes new content that addresses known issues, or that fixes vulnerabilities in the original release.
+
+## Different Methods for Patching
+
+There are several methods for creating patches, but they all use one of two approaches. One approach keeps files from the original release or previous patches, but adds a pointer to new content. The other approach is to transform the content in the original build using a binary patch.
+
+[REGION:note]
+**Note:** You can build patches in Unreal Engine 4 (UE4) for many different platforms. However, we do not support distribution of patches for your project. Each platform has their own system for uploading patch files, and for distributing those patch files to users. For information on these platform-specific distribution systems, see the documentation for that platform's Software Development Kit (SDK).
 [/REGION]
 
-You can patch a project you have previously released using a versioned release. Some things to keep in mind are:
-* Lock down the serialization code paths at the time of release.
-* Keep the released cooked content as the UnrealPak tool uses this to determine which content should be in the patch package file. 
-* At runtime, mount both pak files, with a higher priority for the patch file so any content within it is loaded first. 
+## Platform-Agnostic Patching Method
 
+There is a method for creating patches in Unreal Engine 4 that will technically work on any platform. This method packages the entire build with new content, while the changes between the two builds are placed in a sidecar file that is added to the original file. The new PAK file is labeled with a “_p” suffix. For example, if the original build file is called `MyGamesStuff.pak`, your patch file would be called `MyGamesStuff_p.pak`.
 
-## Creating a Patch
+### Windows Patching
 
-In this example, we are patching ShooterGame with a change to the weapon capacity and magazine size.
+Windows uses the method described in [Platform-Agnostic Patching Method](#platform-agnosticpatchingmethod) .
 
-![](PatchExample.png)
+[REGION:note]
+For more information on platform-agnostic patching, see [How to Create a Patch](Engine/Deployment/HowToCreatePatch).
+[/REGION]
 
-**After creating a release version:**
+[PUBLISH:XboxOne]
+## Xbox One Patching
 
-1. Open the **Project Launcher**, either from the **Windows** menu within Unreal Editor or using [Unreal Frontend](Engine/Deployment/UnrealFrontend).
+Xbox One performs a file comparison to distinguish new files from existing files. However, because UE4 packages all project elements into one file, Xbox One cannot use this file comparison system to distinguish new content from original content. That is because all content is packaged together into one PAK file. Because of this, if you want to patch Xbox One projects in UE4, you must use the method described in [Platform-Agnostic Patching Method](#platform-agnosticpatchingmethod).
 
-	![](1.png)
-1. Create a new Custom Launch Profile using the **+** button.
-	
-	![](2.png)
-1. You can double-click on the name and description of the profile to edit them.
+[/PUBLISH]
+[PUBLISH:PS4]
+## PS4 Patching
 
-	 ![](RenamePatch.png)
+Sony's method of patching is to separate the patch into data chunks. The system then compares the binary data in each of those chunks to the original data stored on the console. Only new data is downloaded to the console. Instead of creating a PAK file, like the platform-agnostic method, you would just create a new PS4 build that contains the new content. Then you would use the Sony SDK tools to upload the patch file to Sony's system, using the previous build as the first input and the new build as the second input.
 
-There are a number of settings for the patching process. The steps below break up the settings by category, and you will be able to access all needed settings either by clicking on the **Advanced Settings** dropdown menus
-or by setting the top dropdown (i.e. Cook: **By the Book**) which will change the available options. 
+[/PUBLISH]
+[PUBLISH:Switch]
+## Nintendo Switch Patching
 
-![](PatchSettings.png)
+The patching process for titles on the Nintendo Switch is somewhat complicated due to features unique to the Switch platform. Developers need to make sure that the patch interacts with the following areas with no negative consequences:
 
-### Project
-1. You can set the specific project to use, or use **Any Project** to patch the current project.
+*   Save Data
 
-### Build
-1. Set the build configuration to Shipping.
-1. Optionally, expand **Advanced Settings** if you need to build Unreal Automation Tool (UAT) as part of the patch process because you are creating the patch on a build machine.
+*   DLC content
 
+*   Local communication (connecting to other Switch consoles nearby)
 
-### Cook
-1. In the dropdown menu, select **By the Book** as the cooking method.
-1. Check the boxes for all platforms you would like to cook content for. In this example for Windows testing, we have selected **WindowsNoEditor**.
-1. Check the boxes for all cultures to cook localizations for.
-1. Check the boxes for all maps to cook. 
-	[Region:tip]
-	This will determine which content is cooked and then compared to the original package file. 
-	[/REGION]
-1. In **Release/DLC/Patching Settings**:
-	* Enter the version number to base the patch on.
-	* Check the **Generate Patch** checkbox.
-1. Expand **Advanced Settings** and make sure the following options are enabled, as well as any others you need for your specific project's distribution method. The below recommended options will minimize your patch size and are the best known defaults:
-	* **Compress content**
-	* **Save packages without versions**
-	* **Store all content in a single file (UnrealPak)**
-1. Also under **Advanced Settings**, set the cooker configuration to **Shipping**.
-
-### Package 
-1. Set the build to  **Package & store locally**. 
-
-### Deploy
-1. Set the build to **Do Not Deploy**.
-
-1. Navigate back to the main profile window using the **Back** button in the top right corner. 
-	
-	![](9.png)
-
-1. Click on the launch icon next to your **Patching** profile. 
-	
-	![](10.png)
-
-	The project launcher will go through the building, cooking, and packaging process. This may take some time depending on the complexity of your project.
-	
-	![](11.png)
-1. Once the operation is complete, close the window or click on **Done**. 
-	
-	![](12.png)
-
-
-**To test the patch on Windows:**
-
-1. Copy the pak file from `ShooterGame\Releases\1.0\WindowsNoEditor` to `ShooterGame\Saved\StagedBuilds\WindowsNoEditor\ShooterGame\Content\Paks`
-1. Run `ShooterGame.exe` from `ShooterGame\Saved\StagedBuilds\WindowsNoEditor`.
-
-## Installing a Patch
-
-The patching process creates a pak file in `[ProjectName]\Saved\StagedBuilds\[PlatformName]\[ProjectName]\Content\Paks`. This pak file is the patch that should be distributed to users.
-For example, on Windows, you would create an installer to copy that pak file into the user's `[ProjectName]\Releases\[VersionNumber]\[PlatformName]` folder, next to the original
-content pak file.  
-
-The patch pak file will automatically be mounted when it is located on the device in any of the pak search directories set in `FPakPlatformFile::GetPakFolders`.
-To prioritize patches, the mounting system uses a `_p` at the end of the filename to determine that it gets priority over other pak files. It can be renamed, but you need to include the 
-`_p.pak` at the end of the file name.
-
-If you build two patches from the same release version, they are both complete patches, so while installing the second patch, you should also remove the first. 
-
+[REGION:note]
+**Note:** For more information, see [Patching for Nintendo Switch](Platforms/Switch/Patching).
+[/REGION]
+[/PUBLISH]

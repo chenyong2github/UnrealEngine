@@ -1,17 +1,15 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6533332
 Availability: Public
 Title:가상 키보드 상호작용 생성
-Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:UMG 로 3D 가상 키보드를 만들고 상호작용하는 법에 대한 설명입니다.
+Type: how-to
 Version: 4.15
-SkillLevel: Advanced
-parent:Engine/UMG/HowTo
+parent: Engine/UMG/HowTo
 order:4
-checkpoint: editorqs
-tags:UMG UI Designer
+tags: UMG UI Designer
+SkillLevel: Advanced
 
-3D 키패드 또는 가상 키보드를 만들어 플레이어가 지정한 글자를 입력할 수 있도록 하려는 경우, [Widget Interaction](Engine\UMG\UserGuide\WidgetInteraction) 컴포넌트와 [Widget](Engine/Components/Widget) 컴포넌트를 조합하면 됩니다.
-Widget Interaction 컴포넌트는 어떤 버튼을 클릭했는지 알아내고, 표시를 담당하는 액터의 Widget 컴포넌트에 글자 전송 처리를 할 수 있도록 합니다.
+3D 키패드 또는 가상 키보드를 만들어 플레이어가 지정한 글자를 입력할 수 있도록 하려는 경우, [Widget Interaction](Engine/UMG/UserGuide/WidgetInteraction) 컴포넌트와 [Widget](Engine/Components/Widget) 컴포넌트를 조합하면 됩니다. Widget Interaction 컴포넌트는 어떤 버튼을 클릭했는지 알아내고, 표시를 담당하는 액터의 Widget 컴포넌트에 글자 전송 처리를 할 수 있도록 합니다.
 
 여기서는 상호작용 가능한 키패드를 만들고 텍스트 박스에 무언가 입력해 보도록 하겠습니다.
 
@@ -27,22 +25,184 @@ N2Fo4izRgh0
 [/PARAMLITERAL]
 [/OBJECT]
 
-_이 안내서를 마칠 때 즈음이면, 3D 게임 월드에 나타나 상호작용이 가능한 키패드와 디스플레이가 생겨 있을 것입니다._
+*이 안내서를 마칠 때 즈음이면, 3D 게임 월드에 나타나 상호작용이 가능한 키패드와 디스플레이가 생겨 있을 것입니다.*
 
 이와 같은 구성에 있어 한 가지 중요한 점은, 포커스가 가능한 (또는 가능하지 않은) 위젯을 가려내는 것입니다. 플레이어가 입력하는 글자를 표시하는 Text Box (텍스트 박스)가 포커스 가능하도록 설정되어 있고, 글자 전송을 위해 플레이어가 클릭하는 버튼 역시도 포커스 가능하도록 설정되어 있는 경우, 버튼(이나 다른 위젯)이 눌리면 플레이어 포커스가 잡히지 않아 내린 명령을 받지 못하게 될 것입니다.
 
 첫 단계는 캐릭터에 Widget Interaction 컴포넌트를 포함하여 구성하고, UI 표시를 위한 애셋을 생성하는 것입니다.
 
-## 단계
+## 1 - 캐릭터 구성
 
-[REGION:buttonlist]
-* [](Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup)
-* [](Engine\UMG\HowTo\VirtualKeyboards\WidgetSetup)
-* [](Engine\UMG\HowTo\VirtualKeyboards\ActorSetup)
-[/REGION]
+1.  **Content/FirstPersonBP/Blueprints** 폴더에서 **FirstPersonCharacter** 블루프린트를 엽니다.
 
-[REGION:call_to_action]
-	[클릭하면 시작합니다.](Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup "%Engine\UMG\HowTo\VirtualKeyboards\CharacterSetup:title%")
-[/REGION]
+1.  **WidgetInteraction** 컴포넌트를 추가하여 **Sphere** 에 붙이고, **디테일** 패널에서 **위치** 와 **Show Debug** (디버그 표시)를 초기화시킵니다.
 
+    ![](Keypad01.jpg)
 
+    이제 게임내에서 디버그 마커로 나타나는 총을 플레이어가 가리키고 있는 방향으로 Widget Interaction 컴포넌트가 향하게 됩니다.
+
+1.  **그래프** 에서 **Right Mouse Button** 이벤트를 추가한 뒤 **Widget Interaction** 컴포넌트를 끌어 놓습니다.
+
+1.  **Widget Interaction** 을 끌어 놓고 **Press Pointer Key** 와 **Release Pointer Key** 를 추가, 둘 다 **Left Mouse Button** 으로 설정한 뒤 아래와 같이 연결합니다.
+
+    ![](Keypad02.jpg)
+
+    위젯은 좌클릭 또는 터치 컨트롤을 통해 마우스/터치 상호작용에 반응하는데, 그러한 시뮬레이션에는 **Press Pointer Key** 함수를 사용합니다. 예제에서는 **Right Mouse Button** 으로 왼쪽 마우스 버튼 클릭을 시뮬레이션하고 있지만, 게임패드 버튼 심지어 모션 컨트롤러 트리거 누름으로도 Press Pointer Key 함수를 발동시킬 수 있습니다.
+
+1.  **콘텐츠 브라우저** 에서 **액터** 기반 **클래스 블루프린트** 를 둘 만듭니다.
+
+    ![](Keypad03.jpg)
+
+    하나는 (키패드 입력을 나타내기 위한) **Keypad** 라 하고, 다른 하나는 (Keypad 에서 입력한 값을 나타내고 표시하기 위한) **KeypadDisplay** 라 합니다. 위젯 블루프린트의 경우 액터 블루프린트와 같은 이름을 사용하지만, 구별을 위해 접미사를 (Widget Blueprint 앞자를 따서) **WB** 라 붙여줍니다.
+
+**중간 결과**
+
+프로젝트 준비가 완료되어 캐릭터가 월드의 위젯과 상호작용할 수 있게 되었습니다. 다음에는 상호작용형 위젯을 구성해 보도록 하겠습니다.
+
+## 2 - 위젯 블루프린트 구성
+
+여기서는 상호작용형 UI 위젯의 레이아웃을 만들어 버튼을 클릭했을 때 실행되는 스크립트를 만들도록 하겠습니다.
+
+1.  **KeypadDisplayWB** 를 열고 계층구조 패널의 **Canvas Panel** 을 **Size Box** 로 둘러싼 **TextBox** 로 대체합니다.
+
+    ![](Keypad04a.png)
+
+1.  **Size Box** 의 경우, **Desired on Screen** 으로 설정하고 **Width** 및 **Height** 를 **100x50** 으로 설정합니다.
+
+    ![](Keypad04.png)
+
+1.  **Text Box** 의 경우 **Hint Text** 를 **1212** 로 설정하고, **Font Size** 를 **28** 로 설정합니다.
+
+    ![](Keypad05.png)
+
+    예를 들어 플레이어는 키패드를 사용하여 1212 텍스트를 입력해야 입력 성공 신호를 보내는 것이지만, 값은 아무렇게나 해도 괜찮습니다.
+
+1.  **KeypadWB** 를 열고 **계층구조** 에 Button 을 셋 만들어 그 위에 아래와 같이 텍스트 **0**, **1**, **2** 가 표시되도록 구성합니다.
+
+    ![](Keypad06.png)
+
+    계층구조 내 각 버튼에 **F2** 키를 눌러 버튼 이름을 적당히 지어주는 것이 좋을 것입니다.
+    
+1.  두 번째 **Horizontal Box** 를 추가하고 그 안에 **Button** 을 둘 추가합니다. 그 중 하나에는 텍스트를 **Del** 로, 다른 하나에는 **Ent** 로 설정합니다.
+
+    ![](Keypad07.png)
+
+    키패드는 숫자 버튼 셋과 입력 내용 삭제 (**Del**) 또는 확인 (**Ent**) 버튼 둘로 구성됩니다.
+
+1.  **Ctrl** 키를 누르고 각 버튼을 선택한 뒤, 각각에 대해 **Is Focusable** 옵션을 **False** 로 설정합니다.
+
+    ![](Keypad08.png)
+
+    이 구성의 정상 작동을 위해서는, 상호작용이 가능한 다른 위젯이 Keypad Display 위젯에서 포커스를 앗아가지 않도록 해 줄 필요가 있습니다. 이들을 true 로 놔둔 상태에서 버튼을 클릭하면, Keypad Display 는 포커스를 잃고 버튼으로 전환되어 키 눌림 및 값을 Keypad Display 로 전송할 수 없게 될 것입니다.
+
+1.  **그래프** 에서 각 버튼에 대해 **OnClicked** 이벤트를 추가합니다.
+
+    ![](Keypad09.png)
+
+1.  **변수** 를 둘 생성합니다. **String** 유형의 **CharToSend** 와 **WidgetInteractionComponent** 유형의 **WidgetInteraction** 입니다.
+
+    ![](Keypad10.png)
+
+1.  **Alt** 키를 누르고 **CharToSend** 를 끌어 놓은 뒤 **OnClicked** 이벤트에 언결하고 아래와 같이 변수 값을 설정합니다.
+
+    ![](Keypad11.png)
+
+1.  **Ctrl** 키를 누른 상태에서 **WidgetInteraction** 을 끌어 놓고 거기에 **Send Key Char** 를 연결한 뒤, **CharToSend** 와 **OnClicked** 이벤트를 연결합니다.
+
+    ![](Keypad12.png)
+
+    여기서 **Send Key Char** 함수를 사용하는 이유는, 슬레이트의 텍스트 박스에는 키를 바로 전송할 수 없기 때문입니다. 예를 들어  A 키가 눌렸다고 인식하여 A 를 전송할 수가 없는 것입니다. 그 대신 Send Char 에 대해 리슨 상태로 대기하는데, 그렇게 하면 로우 레벨 시스템 운영 코드로 A 키를 누를 때 Shift 가 눌렸는지 아니면 A 를 누를 때 Caps Lock 이 켜져 있었는지 알아낼 수 있습니다.
+
+1.  **Del** OnClicked 이벤트에는 **WidgetInteraction** 변수에서 **Backspace** 로 설정된 **Press and Release Key** 를 사용합니다.
+
+    ![](Keypad13.png)
+
+1.  **이벤트 디스패처** 를 생성하여 **EnterPressed** 라 하고 **OnClicked(Ent)** 에서 호출합니다.
+
+    ![](Keypad14.png)
+
+**중간 결과**
+
+키패드와 키패드 디스플레이 표시를 위한 위젯 블루프린트 구성이 완료되었습니다. 다음에는 이들을 액터 블루프린트에 위젯 컴포넌트로 추가시켜 레벨에 나타나도록 만들겠습니다. 다음 단계가 끝날 즈음이면 시스템을 테스트하고 게임을 플레이하면서 두 요소를 상호작용해 볼 수 있을 것입니다.
+
+## 3 - 액터 구성 및 테스트
+
+이번 최종회에서는 위젯 블루프린트를 액터에 **Widget** 컴포넌트로 추가하고 플레이어가 **Enter** 버튼에 클릭하면 어떤 일이 벌어지는지를 정의합니다. 입력한 텍스트가 **GoalText** 와 같은지 비교하는 것입니다. 모든 준비가 다 되었다면, 최종 결과 확인을 하는 테스트를 통해 코드가 맞으면 화면에 **Success**, 틀리면 **Wrong Code** 라 출력합니다.
+
+1.  **KeypadDisplay** 블루프린트를 열고 **Widget** 컴포넌트를 추가, 클래스는 **KeypadDisplayWB** 와 **Draw at Desired Size** 로 설정합니다.
+
+    ![](Keypad15.png)
+
+    Draw at Desired Size 옵션으로 간편하게 렌더 타깃을 위젯 블루프린트 내 원하는 크기에 자동으로 맞출 수 있습니다.
+
+1.  **Keypad** 블루프린트를 열고 **Widget** 컴포넌트를 추가, 클래스는 **KeypadWB** 로, **Draw at Desired Size** 를 설정합니다..
+
+1.  이 위젯 컴포넌트에는 **Window Focusable** 옵션 체크를 해제합니다.
+
+    ![](Keypad16.png)
+
+    이 컴포넌트가 Keypad Display 위젯의 포커스를 앗아가지 않도록 해야 하므로, 체크를 해제시킵니다.
+
+1.  또 **Keypad** 안에 **WidgetInteraction** 컴포넌트를 추가하고 **Enable Hit Testing** 를 false 로 설정합니다.
+
+    ![](Keypad17.png)
+
+    이 WidgetInteraction 컴포넌트를 추가하는 이유는, 플레이어 캐릭터에 WidgetInteraction 컴포넌트로의 레퍼런스를 구하지 않아도 되도록 하기 위해서이고, Hit Testing 을 끄는 이유는 hover 이펙트를 생성하지 않도록 하기 위해서입니다. WidgetInteraction 컴포넌트는 생성시 기본적으로 **Virtual User Index 0** 으로 설정되며, 그 전부 Virtual User Index ID 를 사용하여 통신합니다. 플레이어 캐릭터의 WidgetInteraction 컴포넌트 역시 Virtaul User Index 0 을 사용하고 있으므로, 그에 대한 레퍼런스를 구하는 것과 같습니다.
+
+1.  **Keypad** 의 그래프에서, **Event Begin Play** 에는 **Widget** 컴포넌트를 잡아 **Get User Widget Object** 에서 **Cast to KeypadWB** 로 연결합니다.
+
+    ![](Keypad18.png)
+
+1.  **As Keypad WB** 핀에서는, **Set Widget Interaction** 후 4 단계의 **WidgetInteraction** 컴포넌트를 통과시킵니다.
+
+1.  또한 **As Keypad WB** 핀에서, **Assign Enter Pressed** 를 호출하여 **Enter Pressed** 커스텀 이벤트를 생성하도록 합니다.
+
+    ![](Keypad19.png)
+
+    이제 Enter 버튼을 클릭하면 이 커스텀 이벤트를 호출하여 입력한 코드가 맞는지 검사할 수 있습니다.
+
+1.  **Keypad Display** 액터 유형 변수를 만들어 **TargetDisplay** 라 하고 **Editable** 설정합니다.
+
+    ![](Keypad20.png)
+
+1.  **Text** 유형 변수를 만들어 **GoalText** 라 한 뒤, **컴파일** 후 **Default Value** 를 **1212** 라 설정합니다.
+
+    ![](Keypad21.png)
+
+1.  **Ctrl** 키를 누르고 **TargetDisplay** 를 끌어 놓아 **Widget** 및 **Get User Widget Object** 를 거쳐 **Cast to KeypadDisplayWB** 에 연결합니다.
+
+    ![](Keypad22.png)
+
+1.  **As Keypad Display WB** 핀에서, **Editable Text Box** 와 **GetText(Text Box)** 를 연결하여 **Goal Text** 와 **동일한지** 검사해 봅니다.
+
+    ![](Keypad23.png)
+
+1.  **분기 (Branch)** 에 **Print String** 을 둘 추가하고, 하나는 **True** 에 (Success 사용), 하나는 **False** 에 (Wrong Code 사용) 연결합니다.
+
+    ![](Keypad24.png)
+
+1.  **Keypad** 와 **KeypadDisplay** 블루프린트를 끌어 레벨에 놓고 원하는 대로 이동 및 회전시킵니다.
+
+1.  **Keypad** 액터에 대한 **디테일** 패널에서, **Target Display** 변수를 레벨의 **KeypadDisplay** 로 설정합니다.
+
+    ![](Keypad25.png)
+
+1.  레벨을 플레이합니다.
+
+### 최종 결과
+
+키패드 디스플레이에 다가가 **우클릭** 하여 포커스를 잡습니다. 버튼을 바라본 뒤 **우클릭** 하여 **Send Key Char** 명령을 내리고 그 값을 디스플레이에 전달합니다. 여기서는 우클릭으로 레벨의 위젯과 상호작용하고 있지만, 게임패드나 모션 컨트롤러 버튼으로 바꿔도 됩니다.
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+N2Fo4izRgh0
+[/PARAMLITERAL]
+[/OBJECT]
+
+이 예제는 입력한 코드가 맞는지 아닌지를 화면에 출력할 뿐이지만, 문이 열리도록 한다거나, 적이 스폰되도록 한다거나, 다른 형태의 게임플레이 관련 이벤트도 얼마든지 발동시킬 수 있습니다.

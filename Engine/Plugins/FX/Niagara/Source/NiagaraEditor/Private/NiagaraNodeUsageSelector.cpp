@@ -191,7 +191,7 @@ void UNiagaraNodeUsageSelector::AppendFunctionAliasForContext(const FNiagaraGrap
 	}
 }
 
-void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
+void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
@@ -223,7 +223,7 @@ void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHis
 
 			for (int32 i = 0; i < OutputVars.Num(); i++)
 			{
-				OutHistory.VisitInputPin(InputPins[VarIdx + i], this);
+				OutHistory.VisitInputPin(InputPins[VarIdx + i], this, bFilterForCompilation);
 			}
 		}
 	}

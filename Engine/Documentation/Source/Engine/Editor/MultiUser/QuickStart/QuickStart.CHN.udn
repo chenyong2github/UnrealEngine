@@ -1,0 +1,252 @@
+﻿INTSourceChangelist:6409500
+Availability: Public
+Title: 多用户编辑入门
+Description: 指导您的每步操作，帮助您在项目中启用并运行多用户编辑。
+Version: 4.22
+Parent: Engine/Editor/MultiUser
+Tags: Getting Started
+Tags: Early Access
+Tags: Multi-User Editing
+Type: quick start
+Order: 1
+topic-image: multiuserediting-qs-topic.png
+hero-image:multiuserediting-qs-banner.png
+
+本快速入门页面将让您了解多用户编辑（Multi-User Editing）系统的基础知识，帮助您使用该功能。完成本教程后，您会知道：
+
+*   如何对多台电脑进行设置，让它们能够同时加入会话。
+
+*   如何启动服务器来对会话进行管理。
+
+*   如何发起和加入会话，以便和团队成员共同工作。
+
+*   如何将在会话中所做的更改，保留到本地电脑上的项目内容中。
+
+[REGION:note]
+**先决条件：**操作本教程时，虽然可以用同一台主机上的虚幻编辑器的多个实例，但是效率更高的方法是，将多台不同的电脑连接至同一个会话。首先：
+
+*   在每台电脑上安装相同版本的虚幻引擎。
+
+*   确保所有电脑都连接到同一个局域网（LAN）或虚拟专用网络（VPN）。
+[/REGION]
+
+[REGION:tip]
+此过程中，使用的图像是[虚拟摄像机](Engine/Plugins/VirtualCameraPlugin#虚拟摄像机样本项目)样本项目，您可以从Epic游戏启动器的 **学习（Learn）** 选项卡中获取。然而，同样的步骤也适用于您正在进行的任何虚幻引擎项目。
+[/REGION]
+
+## 1 - 建立项目
+
+要将虚幻编辑器的多个实例连接在一起，从而在共享会话中进行工作，您需要先为该项目启用 **多用户编辑（Multi-User Editing）** 插件。
+
+1.  在虚幻编辑器中打开您的项目。
+
+1.  从主菜单中选择 **编辑（Edit）> 插件（Plugins）**。
+
+1.  在 **开发人员（Developer）** 类别下， 找到 **多用户编辑（Multi-User Editing）** 插件并选中相应的 **启用（Enabled）** 框。  
+    ![Enable the Plugin](multiuserediting-gs-1-3-enable.png "Enable the Plugin")
+
+1.  单击 **是（Yes）** 确认。  
+    ![Confirm](multiuserediting-gs-1-4-betaconfirm.png "Confirm")
+
+1.  单击 **立即重启（Restart Now）** 重新启动您的项目并应用该更改。  
+    ![Restart Now](multiuserediting-gs-1-5-restart.png "Restart Now")
+
+## 2 - 设置多台电脑
+
+每台连接至同一多用户编辑会话的电脑，都必须安装相同版本的虚幻引擎。
+
+该虚幻引擎项目在每台电脑上的副本必须相同，即每个副本都有完全相同的内容。
+
+*   通常实现这一点的方法是，将该项目存储在一个版本控制系统中，如Perforce、Git或Subversion，并将每台电脑同步至同一个版本或变更列表。
+
+    [REGION:tip]
+    如果您正在使用Perforce，也可以考虑使用虚幻游戏同步工具（UGS）来简化这个过程。有关详细信息，请参阅[UGS文档](Programming/Deployment/UnrealGameSync)。
+    [/REGION]
+
+*   多用户编辑系统并不对您使用源代码管理进行强制要求。您可以只将项目文件夹从一台电脑复制到需要加入同一会话的所有其它电脑中。这种方法在多用户编辑系统的初始测试中很有用。然而，要避免对这种方法产生依赖。在团队中，有效利用版本控制工具，是维护和共享项目内容的最安全方式。
+
+当您的每台电脑上都有了该项目的副本后，为了使会话所记录的在线状态信息更加有用，您需要自定义一些设置。在每台电脑上：
+
+1.  在虚幻编辑器中打开您的项目。
+
+1.  单击工具栏中 **上线（Go Live）** 按钮旁边的箭头，然后选择 **多用户设置...（Multi-User Settings...）**。  
+    ![Open the Multi-User Settings](multiuserediting-settings-menu.png "Open the Multi-User Settings")
+
+1.  **项目设置（Project Settings）** 窗口将打开至 **插件（Plugins）> 多用户编辑（Multi-User Editing）** 部分。  
+    ![Multi-User Editing - presence settings](mutiuserediting-settings-presence.png "Multi-User Editing - presence settings") 现在，为了自定义每个虚幻编辑器实例在连接到会话时向其他实例显示的在线状态信息，您可能需要更改以下设置。
+    
+    | 设置 | 说明 |
+    | --- | --- |
+    | **显示名称（Display Name）** | [INCLUDE:#excerpt_0] |
+    | **头像颜色（Avatar Color）** | [INCLUDE:#excerpt_1] |
+    
+    [REGION:note]
+    有关此面板中可用设置的细节，也可参见 [多用户编辑参考](Engine/Editor/MultiUser/Reference)。
+    [/REGION]
+    
+<!--
+[EXCERPT:excerpt_0]
+设置多用户编辑系统显示该电脑的在线状态信息和会话历史时所使用的名称。  
+默认状态下，多用户编辑系统会使用主机操作系统的当前用户的登录信息，但在某些情况下，您可能希望将其覆盖——例如，如果您在多台电脑上登录了相同的用户帐户。
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+设置多用户编辑系统在显示在线状态信息和会话历史时与此电脑关联的颜色。  
+默认状态下，该颜色对于所有用户都是相同的（白色），但是如果您为每台电脑分配了不同的颜色，就能够更轻松地理解会话历史记录。
+[/EXCERPT:excerpt_1]
+-->
+
+## 3 - 启动服务器
+
+当您在每台需要进行连接的电脑上，在虚幻编辑器中打开了项目后，您需要启动一台服务器，以便对这些电脑的共享会话进行管理。实现该目标的最简单的方法是在虚幻编辑器的任一实例中执行此操作。
+
+1.  单击工具栏（Toolbar）中 **上线（Go Live）** 按钮旁边的箭头，然后选择 **启动多用户服务器（Launch Multi-User Server）**。  
+    ![Launch Multi-User Server](multiuserediting-launchserver-menu.png "Launch Multi-User Server")
+
+1.  您将看到一个新打开的命令窗口。当您管理会话和更改项目内容时，该服务器会定期发送状态信息，并在此窗口中显示。例如：  
+    ![Multi-User Server console](multiuser-server-console.png "Multi-User Server console")
+
+[REGION:tip]
+您也可以在安装了虚幻引擎的任何电脑上，从命令行启动服务器。有关细节， 请参见“多用户编辑参考”页面的[虚幻多用户服务器的命令行参数](Engine/Editor/MultiUser/Reference#虚幻多用户服务器的命令行参数) 部分。
+[/REGION]
+
+## 4 - 开始会话
+
+现在，在您的一台电脑上运行着一台服务器，但是您的虚幻编辑器实例尚未连接至该服务器。为了实现该操作，您需要创建一个新的会话。此会话管理并共享连接的全部用户对该项目的资源和关卡做出的全部修改。
+
+创建新会话：
+
+1.  在其中一台电脑上，单击工具栏中 **上线（Go Live）** 按钮旁边的箭头，然后选择 **会话浏览器...（Session Browser...）**  
+    ![Session Browser](multiuserediting-sessionbrowser-menu.png "Session Browser")  
+    这会打开 **多用户浏览器（Multi-User Browser）** 窗口：  
+    ![Multi-User Browser](multiuserediting-qs-browser.png "Multi-User Browser")
+
+1.  这里尚未列出任何会话或客户端信息。但是，只要运行服务器的电脑，在网络上对运行此虚幻编辑器实例的电脑可见，那么运行该服务器的电脑的名称，就应该已被列在 **可用服务器（Available Servers）** 部分中。单击它的名称。  
+    ![Click the server name](multiuserediting-qs-browser-select.png "Click the server name")
+    [REGION:note]
+    如果您的服务器未被列出，但它与运行虚幻编辑器的电脑位于同一个LAN或VPN，此时您可能需要停下来进行一些额外的网络配置。请参见[多用户编辑参考](Engine/Editor/MultiUser/Reference)页面的[高级联网](Engine/Editor/MultiUser/Reference#高级联网)部分。
+    [/REGION]
+    当一个服务器的名称被选中时，**可用会话（Available Sessions）** 类别旁边的 **创建会话（Create Session）** 按钮将被启用。
+
+1.  单击 **创建会话（Create Session）**。  
+    ![Create Session](multiuserediting-qs-browser-createsession.png "Create Session")
+
+1.  在 **创建一个会话（Create A Session）** 对话框中，将新会话的名称输入 **会话名称（Session Name）** 字段。  
+    ![Set the Session Name](multiuserediting-qs-createsessiondialog.png "Set the Session Name")
+
+1.  单击 **创建（Create）**。  
+    ![Create](multiuserediting-qs-create.png "Create")
+
+1.  您可以在 **可用会话（Available Sessions）** 类别下的 **多用户浏览器（Multi-User Browser）** 窗口中看到新会话被列出，并在 **已连接客户端（Connected Clients）** 下看到自己的用户ID或电脑名。  
+    ![Multi-User Browser connected to a new session](multiuserediting-qs-browser-connected.png "Multi-User Browser connected to a new session")
+
+这台电脑会自动连接到会话，当工具栏中的 **上线（Go Live）** 按钮变为绿色时，表示您已连接。
+
+![Multi-User Editor connected in the Toolbar](multiuserediting-qs-toolbarconnected.png "Multi-User Editor connected in the Toolbar")
+
+## 5 - 加入会话
+
+现在，您已经有了正在运行的服务器，并且您已经用一台电脑上的虚幻编辑器在该服务器上创建了一个会话，您将能够从其他电脑运行的其他虚幻编辑器实例连接到同一会话。
+
+在需要加入会话的其它每台电脑上：
+
+1.  单击工具栏中 **上线（Go Live）** 按钮旁边的箭头，然后选择 **会话浏览器...（Session Browser...）**  
+    ![Session Browser](multiuserediting-sessionbrowser-menu.png "Session Browser")
+
+1.  在 **多用户浏览器（Multi-User Browser）** 面板的顶部，在 **可用服务器（Available Servers）** 列表中，您应该可以看到服务器主机的名称。单击服务器名称。  
+    ![Select the server](multiuserediting-qs-browser-select-1.png "Select the server")
+
+1.  当 **可用服务器（Available Servers）** 列表中的一台服务器被选中时，**可用会话（Available Servers）** 列表会显示该服务器正在管理的所有会话。找到想要加入的会话的名称，然后单击绿色的 **加入（Join）** 图标。  
+    ![Join Session](multiuserediting-qs-joinsession.png "Join Session")
+    [REGION:tip]
+    将鼠标放在任何会话的名称上，可以查看摘要，其内容包括会话所有者、项目名称、源代码管理变更列表（如果有）等。这些信息可以帮助您判断需要加入哪个会话。  
+    ![Session tooltip](multiuserediting-qs-sessiontooltip.png "Session tooltip")
+    [/REGION]
+
+1.  连接完成后，**已连接客户端（Connected Clients）** 列表将会立即更新，将您的电脑以及当前连接至该会话的所有其它电脑纳入列表。  
+    ![Multiple connected clients](multiuserediting-qs-bothconnected.png "Multiple connected clients")
+
+如果已经在此会话中工作的任何其他电脑，在您加入之前，已经对项目中的关卡或资源进行了更改，您的虚幻编辑器实例将自动从服务器获取这些事务，并将其应用至共享会话工作区的本地视图中。此时您只能处理与所有其他参与者相同的一批内容，但是在虚幻编辑器用户界面中，您可以用任何方式对该内容进行操作。您可以在不影响其他用户的情况下，进行在关卡视口中移动摄像机视点、在内容浏览器中浏览新文件夹、切换工具、打开新窗口和面板等操作。
+
+现在，多台电脑已连接至同一会话，我们可以在一台电脑上进行一些更改，并查看这些更改会如何传播至该会话中的其他电脑。
+
+## 6 - 共同工作
+
+现在，已有多个用户连接至同一个实时会话中，你们可以共同构建虚拟世界了。你们可以照常处理虚幻引擎项目，但是现在你们都能立即观察到彼此应用的更改。
+
+关于在线工作中的其它细节，请参见[多用户编辑概述](Engine/Editor/MultiUser/Overview)。
+
+[REGION:lightbox]
+[![Working together in the Level Viewport](multiuserediting-qs-worktogether.png "Working together in the Level Viewport")](multiuserediting-qs-worktogether.png)  
+*单击查看大图。*
+[/REGION]
+
+## 7 - 保留会话更改
+
+此时，您和您的团队可能已经对项目中的某个关卡和某些资源进行了一些更改。但是，这些事务尚未反映至在电脑上组成项目内容的实际文件中。如果您想保留团队在实时会话中完成的工作，您需要 *保存* 这些更改：从而将多用户编辑系统中处理的所有事务，应用到您的本地项目文件中。
+
+无论您是否正在使用源代码管理提供程序，都可以使用工具栏中的 **源代码管理（Source Control）** 来保留更改。
+
+1.  单击工具栏中 **源代码管理（Source Control）** 按钮旁边的箭头，然后选择 **保留会话更改（Persist Session Changes）**。  
+    ![Persist Session Changes](multiuserediting-qs-persistmenu.png "Persist Session Changes")
+
+1.  在“保存并提交文件（Persist & Submit Files）”窗口中，您将看到在实时会话期间修改的所有文件的列表。使用复选框，选出需要应用至本地电脑上项目文件的修改后文件。  
+    ![Persist & Submit Files](multiuserediting-qs-persist-boxes.png "Persist & Submit Files")
+
+1.  如果您在启动或加入会话时设置了源代码管理提供程序，您可以选择在新的变更表或修订版中，立即将您要保留的更改提交回该程序。  
+    若您想实现该过程：
+    1.选中窗口底部的 **提交至源代码管理（Submit to Source Control）** 选项。  
+        ![Submit to Source Control](multiuserediting-qs-persist-submitbox.png "Submit to Source Control")
+    
+    1.  就像在通常的源代码管理工作流中一样，您必须对所提交的更改进行描述。展开窗口顶部的 **变更列表描述（Changelist Description）** ，并在框中键入描述。  
+        ![Set a changelist description](multiuserediting-qs-persist-changelist.png "Set a changelist description")
+    
+    1.  如果您知道以后需要对提交的文件进行更多修改，您可以像通常的源代码管理工作流一样，选中 **保持文件为签出状态（Keep Files Checked Out）** 选项。  
+        ![Keep Files Checked Out](multiuserediting-qs-persist-keep.png “Keep Files Checked Out”)如果您没有选择立即提交，多用户编辑系统将自动从源代码管理提供程序签出修改后的文件，以便对在会话中所做的更改进行应用和保存。只要您愿意，您可以进行进一步的修改，然后使用标准源代码管理工作流进行提交。
+
+1.  如果您对要提交的文件列表满意，并且已经设置了所需的源代码管理选项，请单击 **提交（Submit）**。  
+    ![Submit](multiuserediting-qs-persist-submit.png "Submit")
+
+您与会话的连接不会断开，您可以想工作多久就工作多久。
+
+## 8 - 清理
+
+现在，您已经将您和团队在实时会话期间对关卡和资源所做的更改，应用到了磁盘上的项目中，并选择性地将这些更改提交回源代码管理系统，您可能不再需要会话了。虽然您可以重新加入并重新开始中断的会话，但是比起在旧的会话中长时间工作，定期从更新的变更表中建立新的编辑会话是个更好的做法。  
+
+当您不再需要会话时，可以使用 **会话浏览器** 将其删除。
+
+[REGION:note]
+只有最初创建会话的用户才能将其删除。其他用户即使参与了该会话，也无法在 **会话浏览器** 中看到该选项。
+[/REGION]
+
+1.  如果尚未断开，请断开与会话的连接。当您与会话保持连接时，无法将其删除。  
+    断开连接的最简单方法是，按下工具栏中的 **上线（Go Live）** 按钮：  
+    ![Leave the current session from the Toolbar](multiuserediting-qs-toolbarconnected-1.png "Leave the current session from the Toolbar")  
+    您也可以在 **会话浏览器** 中单击 **离开此会话（Leave this session）** 图标。  
+    ![Leave the current session from the Session Browser](multiuserediting-qs-leavesession.png "Leave the current session from the Session Browser")
+
+1.  断开连接后，单击 **会话浏览器** 中的 **删除此会话（Delete this session）** 图标。  
+    ![Delete the session](multiuserediting-qs-deletesession.png "Delete the session")
+
+1.  确认删除。  
+    ![Confirm deletion](multiuserediting-qs-disconnect-confirm.png "Confirm deletion")  
+    如有任何其他用户连接至您已删除的会话，将会自动断开连接。
+
+1.  最后，如果您知道以后暂时不需要重新连接到任何共享会话，可以通过在服务器的控制台窗口中按下 **Ctrl+C**，停止服务器。
+    [REGION:note]
+    不要仅关闭控制台窗口。服务器会将其视为异常关机。在您下次启动服务器时，那些当您关闭控制台窗口时仍处于活动状态的会话，将自动恢复。
+    [/REGION]
+    
+
+现在您回到了开始本教程的地方。 
+
+## 9 - 自己动手操作
+
+如果您已经成功地完成了上述所有步骤，那么您已经第一次体验了虚幻编辑器中的实时协作工作流。您已经学会了如何在多台电脑上设置项目，如何将这些电脑连接至同一共享编辑会话，以及如何与您的团队成员一起构建虚拟世界。您可能已经明白了如何在自己的项目团队中，在自己的项目上实施这些工作流——现在，您将能够享受多用户编辑带来的系统即时协作、零迭代时间以及创造性合作的优势。
+
+*   如果您开始在团队中经常使用多用户编辑系统，您可能希望在 **项目设置（Project Settings）** 中设置默认服务器名称和会话名称。该设置完成后，您可以通过单击工具栏中的 **上线（Go Live）** 按钮连接到默认会话，而不必使用会话浏览器。您也可以选择在打开项目时自动连接至默认会话。
+
+*   如果您需要多个用户同步播放相同的动画，您可以配置多用户编辑系统同步Sequencer用户界面中的操作，从而实现不同用户操作的同步。每个选择加入同步的用户，都需要设置一些控制台命令。
+
+有关需要修改的设置的详细信息，请参见 [多用户编辑参考](Engine/Editor/MultiUser/Reference)。

@@ -145,8 +145,54 @@ FAutoConsoleVariableRef CVarEnableBinauralAudioForAllSpatialSounds(
 	TEXT("Toggles binaural audio rendering for all spatial sounds if binaural rendering is available.\n"),
 	ECVF_Default);
 
+static int32 DisableBinauralSpatializationCVar = 0;
+FAutoConsoleVariableRef CVarDisableBinauralSpatialization(
+	TEXT("au.DisableBinauralSpatialization"),
+	DisableBinauralSpatializationCVar,
+	TEXT("Disables binaural spatialization.\n"),
+	ECVF_Default);
 
-using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
+namespace
+{
+	using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
+
+#if !UE_BUILD_SHIPPING
+	int32 PrecachedRealtime = 0;
+	int32 PrecachedNative = 0;
+	int32 TotalNativeSize = 0;
+	float AverageNativeLength = 0.f;
+	TMap<int32, int32> NativeChannelCount;
+	TMap<int32, int32> NativeSampleRateCount;
+#endif // !UE_BUILD_SHIPPING
+} // namespace <>
+
+
+FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& AudioDevice, const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings)
+{
+	FAttenuationListenerData ListenerData(InListenerTransform, InSoundTransform, InAttenuationSettings);
+
+	const FVector SoundTranslation = InSoundTransform.GetTranslation();
+	FVector ListenerToSound = SoundTranslation - InListenerTransform.GetTranslation();
+	ListenerToSound.ToDirectionAndLength(ListenerData.ListenerToSoundDir, ListenerData.ListenerToSoundDistance);
+
+	// Store the actual distance for surround-panning sources with spread (AudioMixer)
+	ListenerData.ListenerToSoundDistanceForPanning = ListenerData.ListenerToSoundDistance;
+
+	if (AudioDevice.IsUsingListenerAttenuationOverride())
+	{
+		const FVector& AttenuationOverride = AudioDevice.GetListenerAttenuationOverride();
+		ListenerData.ListenerToSoundDistance = (SoundTranslation - AttenuationOverride).Size();
+	}
+
+	const FSoundAttenuationSettings& AttenuationSettings = *ListenerData.AttenuationSettings;
+	if ((AttenuationSettings.bAttenuate && AttenuationSettings.AttenuationShape == EAttenuationShape::Sphere) || AttenuationSettings.bAttenuateWithLPF)
+	{
+		ListenerData.AttenuationDistance = FMath::Max(ListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.0f);
+	}
+
+	return MoveTemp(ListenerData);
+}
+
 
 /*-----------------------------------------------------------------------------
 	FAudioDevice implementation.
@@ -184,6 +230,7 @@ FAudioDevice::FAudioDevice()
 	, PlatformAudioHeadroom(1.0f)
 	, DefaultReverbSendLevel(0.0f)
 	, bHRTFEnabledForAll_OnGameThread(false)
+	, bHRTFDisabled_OnGameThread(false)
 	, bGameWasTicking(true)
 	, bDisableAudioCaching(false)
 	, bIsAudioDeviceHardwareInitialized(false)
@@ -198,9 +245,11 @@ FAudioDevice::FAudioDevice()
 	, bSpatializationInterfaceEnabled(false)
 	, bOcclusionInterfaceEnabled(false)
 	, bReverbInterfaceEnabled(false)
+	, bReverbPluginBypassesMasterReverb(false)
 	, bModulationInterfaceEnabled(false)
 	, bPluginListenersInitialized(false)
 	, bHRTFEnabledForAll(false)
+	, bHRTFDisabled(false)
 	, bIsDeviceMuted(false)
 	, bIsInitialized(false)
 	, AudioClock(0.0)
@@ -351,9 +400,9 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 	{
 		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
 		bReverbInterfaceEnabled = true;
+		bReverbPluginBypassesMasterReverb = ReverbPluginInterface->DoesReverbOverrideMasterReverb();
 		bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
 		UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
-
 	}
 	else
 	{
@@ -928,13 +977,6 @@ void FAudioDevice::ShowSoundClassHierarchy(FOutputDevice& Ar, USoundClass* InSou
 		}
 	}
 }
-
-int32 PrecachedRealtime = 0;
-int32 PrecachedNative = 0;
-int32 TotalNativeSize = 0;
-float AverageNativeLength = 0.f;
-TMap<int32, int32> NativeChannelCount;
-TMap<int32, int32> NativeSampleRateCount;
 
 bool FAudioDevice::HandleDumpSoundInfoCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
@@ -1708,6 +1750,17 @@ bool FAudioDevice::IsHRTFEnabledForAll() const
 	return (bHRTFEnabledForAll_OnGameThread || EnableBinauralAudioForAllSpatialSoundsCVar == 1) && IsSpatializationPluginEnabled();
 }
 
+bool FAudioDevice::IsHRTFDisabled() const
+{
+	if (IsInAudioThread())
+	{
+		return (bHRTFDisabled || DisableBinauralSpatializationCVar == 1);
+	}
+
+	check(IsInGameThread());
+	return (bHRTFDisabled_OnGameThread || DisableBinauralSpatializationCVar == 1);
+}
+
 void FAudioDevice::SetMixDebugState(EDebugState InDebugState)
 {
 	if (!IsInAudioThread())
@@ -2094,39 +2147,53 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 		ConcurrencyManager.UpdateQuietSoundsToStop();
 	}
 
-	// Remove all wave instances from the wave instance list that are stopping due to max concurrency
+	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
+	{
+		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
+		{
+			if (!ActiveSound->bShouldStopDueToMaxConcurrency)
+			{
+				continue;
+			}
+
+			if (ActiveSound->FadeOut == FActiveSound::EFadeOut::Concurrency)
+			{
+				continue;
+			}
+
+			if (ActiveSound->bIsStopping)
+			{
+				continue;
+			}
+
+			ConcurrencyManager.RemoveActiveSound(*ActiveSound);
+			ConcurrencyManager.FadeOutActiveSound(*ActiveSound);
+
+			const bool bDoRangeCheck = false;
+			FAudioVirtualLoop VirtualLoop;
+			if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
+			{
+				// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
+				ActiveSound->ClearAudioComponent();
+
+				if (USoundBase* Sound = ActiveSound->GetSound())
+				{
+					UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Invalidated by 'StopQuiestest' Concurrency Rule."), *Sound->GetName());
+				}
+				AddVirtualLoop(VirtualLoop);
+			}
+			ActiveSoundsCopy.RemoveAtSwap(i, 1, false);
+		}
+	}
+
+	// Remove all wave instances from the wave instance list that are stopping due to max concurrency.
+	// Must be after checking if sound must fade out due to concurrency to avoid pre-maturally removing
+	// wave instances prior to concurrency system marking as fading out.
 	for (int32 i = WaveInstances.Num() - 1; i >= 0; --i)
 	{
 		if (WaveInstances[i]->ShouldStopDueToMaxConcurrency())
 		{
 			WaveInstances.RemoveAtSwap(i, 1, false);
-		}
-	}
-
-	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
-	{
-		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
-		{
-			if (ActiveSound->bShouldStopDueToMaxConcurrency)
-			{
-				AddSoundToStop(ActiveSound);
-				const bool bDoRangeCheck = false;
-				FAudioVirtualLoop VirtualLoop;
-				if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
-				{
-					// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
-					ActiveSound->ClearAudioComponent();
-
-					const bool bIsAtMaxConcurrency = true;
-					VirtualLoop.CalculateUpdateInterval(bIsAtMaxConcurrency);
-					if (USoundBase* Sound = ActiveSound->GetSound())
-					{
-						UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Invalidated by 'StopQuiestest' Concurrency Rule."), *Sound->GetName());
-					}
-					AddVirtualLoop(VirtualLoop);
-				}
-				ActiveSoundsCopy.RemoveAtSwap(i, 1, false);
-			}
 		}
 	}
 }
@@ -2780,22 +2847,21 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 	}
 
 
-	FAudioDevice* AudioDevice = this;
-	FAudioThread::RunCommandOnAudioThread([AudioDevice, WorldID, InViewportIndex, ListenerTransformCopy, InDeltaSeconds]()
+	FAudioThread::RunCommandOnAudioThread([this, WorldID, InViewportIndex, ListenerTransformCopy, InDeltaSeconds]()
 	{
 		// Broadcast to a 3rd party plugin listener observer if enabled
-		for (TAudioPluginListenerPtr PluginManager : AudioDevice->PluginListeners)
+		for (TAudioPluginListenerPtr PluginManager : PluginListeners)
 		{
-			PluginManager->OnListenerUpdated(AudioDevice, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
+			PluginManager->OnListenerUpdated(this, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
 		}
 
-		TArray<FListener>& AudioThreadListeners = AudioDevice->Listeners;
+		TArray<FListener>& AudioThreadListeners = Listeners;
 		if (InViewportIndex >= AudioThreadListeners.Num())
 		{
 			const int32 NumListeners = InViewportIndex - AudioThreadListeners.Num() + 1;
 			for (int32 i = 0; i < NumListeners; ++i)
 			{
-				AudioThreadListeners.Add(FListener(AudioDevice));
+				AudioThreadListeners.Add(FListener(this));
 			}
 		}
 
@@ -2810,6 +2876,12 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 			logOrEnsureNanError(TEXT("FAudioDevice::SetListener has detected a NaN in Listener Velocity"));
 		}
 #endif
+
+		if (FAudioVirtualLoop::ShouldListenerMoveForceUpdate(Listener.Transform, ListenerTransformCopy))
+		{
+			const bool bForceUpdate = true;
+			UpdateVirtualLoops(bForceUpdate);
+		}
 
 		Listener.WorldID = WorldID;
 		Listener.Transform = ListenerTransformCopy;
@@ -3352,7 +3424,8 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 				if (ActiveSound->IsOneShot() && !ActiveSound->bIsPreviewSound)
 				{
 					// Don't stop a sound if it's playing effect chain tails or has effects playing, active sound will stop on its own in this case (in audio mixer).
-					if (!ActiveSound->Sound->SourceEffectChain || !ActiveSound->Sound->SourceEffectChain->bPlayEffectChainTails || ActiveSound->Sound->SourceEffectChain->Chain.Num() == 0)
+					USoundEffectSourcePresetChain* ActiveSourceEffectChain = ActiveSound->GetSourceEffectChain();
+					if (!ActiveSourceEffectChain || !ActiveSourceEffectChain->bPlayEffectChainTails || ActiveSourceEffectChain->Chain.Num() == 0)
 					{
 						const float Duration = ActiveSound->Sound->GetDuration();
 						if ((ActiveSound->Sound->HasDelayNode() || ActiveSound->Sound->HasConcatenatorNode()))
@@ -3808,7 +3881,8 @@ void FAudioDevice::Update(bool bGameTicking)
 		SCOPED_NAMED_EVENT(FAudioDevice_UpdateVirtualLoops, FColor::Blue);
 		// Update which loops should re-trigger due to coming back into proximity
 		// or allowed by concurrency re-evaluating in context of other sounds stopping
-		UpdateVirtualLoops();
+		const bool bForceUpdate = false;
+		UpdateVirtualLoops(bForceUpdate);
 	}
 
 	// update if baked analysis is enabled
@@ -4264,6 +4338,8 @@ bool FAudioDevice::RemoveVirtualLoop(FActiveSound& InActiveSound)
 
 	if (FAudioVirtualLoop* VirtualLoop = VirtualLoops.Find(&InActiveSound))
 	{
+		check(InActiveSound.bIsStopping);
+
 		const uint64 ComponentID = InActiveSound.GetAudioComponentID();
 		if (ComponentID > 0)
 		{
@@ -4394,7 +4470,11 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 			AudioComponentIDToActiveSoundMap.Remove(AudioComponentID);
 		}
 
-		if (!VirtualLoops.Contains(SoundToStop))
+		if (VirtualLoops.Contains(SoundToStop))
+		{
+			SoundToStop->bIsStopping = true;
+		}
+		else
 		{
 			ConcurrencyManager.RemoveActiveSound(*SoundToStop);
 		}
@@ -4609,22 +4689,20 @@ void FAudioDevice::GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld*
 
 		if (AttenuationSettingsToApply->bSpatialize && AttenuationSettingsToApply->bEnableListenerFocus)
 		{
+			const int32 ClosestListenerIndex = FindClosestListenerIndex(SoundTransform);
+			if (ClosestListenerIndex >= ListenerTransforms.Num())
+			{
+				UE_LOG(LogAudio, Warning, TEXT("Invalid ClosestListenerIndex. Sound max distance and focus factor calculation failed."));
+				return;
+			}
+
 			// Now scale the max distance based on the focus settings in the attenuation settings
-			FAttenuationListenerData ListenerData;
+			FAttenuationListenerData ListenerData = FAttenuationListenerData::Create(*this, ListenerTransforms[ClosestListenerIndex], SoundTransform, *AttenuationSettingsToApply);
+
 			float Azimuth = 0.0f;
 			float AbsoluteAzimuth = 0.0f;
-			const int32 ClosestListenerIndex = FindClosestListenerIndex(SoundTransform);
-			if (ClosestListenerIndex >= 0 && ClosestListenerIndex < ListenerTransforms.Num())
-			{
-				const FTransform& ListenerTransform = ListenerTransforms[ClosestListenerIndex];
-				GetAzimuth(ListenerData, Sound, SoundTransform, *AttenuationSettingsToApply, ListenerTransform, Azimuth, AbsoluteAzimuth);
-
-				OutFocusFactor = GetFocusFactor(ListenerData, Sound, Azimuth, *AttenuationSettingsToApply);
-			}
-			else
-			{
-				UE_LOG(LogAudio, Warning, TEXT("Failed to get max distance and focus factor of sound."));
-			}
+			GetAzimuth(ListenerData, Azimuth, AbsoluteAzimuth);
+			OutFocusFactor = GetFocusFactor(Azimuth, *AttenuationSettingsToApply);
 		}
 	}
 	else
@@ -4694,7 +4772,7 @@ bool FAudioDevice::SoundIsAudible(const FActiveSound& NewActiveSound)
 		return true;
 	}
 
-	const float ApparentMaxDistance = NewActiveSound.MaxDistance * NewActiveSound.FocusDistanceScale;
+	const float ApparentMaxDistance = NewActiveSound.MaxDistance * NewActiveSound.FocusData.DistanceScale;
 	if (LocationIsAudible(NewActiveSound.Transform.GetLocation(), ApparentMaxDistance))
 	{
 		return true;
@@ -4754,71 +4832,18 @@ int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform) c
 	return INDEX_NONE;
 }
 
-void FAudioDevice::GetAttenuationListenerData(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform* InListenerTransform) const
+void FAudioDevice::GetAzimuth(const FAttenuationListenerData& ListenerData, float& OutAzimuth, float& OutAbsoluteAzimuth) const
 {
-	// Only compute various components of the listener of it hasn't been computed yet
-	if (!OutListenerData.bDataComputed)
-	{
+	const FVector& ListenerForwardDir = ListenerData.ListenerTransform.GetUnitAxis(EAxis::X);
 
-		// Use the optional input listener param
-		if (InListenerTransform)
-		{
-			OutListenerData.ListenerTransform = *InListenerTransform;
-		}
-		// If not set, then we need to find the closest listener
-		else
-		{
-			const int32 ClosestListenerIndex = FindClosestListenerIndex(SoundTransform);
-			if (IsInAudioThread())
-			{
-				OutListenerData.ListenerTransform = Listeners[ClosestListenerIndex].Transform;
-			}
-			else if (IsInGameThread())
-			{
-				OutListenerData.ListenerTransform = ListenerTransforms[ClosestListenerIndex];
-			}
-		}
-
-		FVector ListenerToSound;
-		const FVector ListenerLocation = OutListenerData.ListenerTransform.GetTranslation();
-		ListenerToSound = SoundTransform.GetTranslation() - ListenerLocation;
-		ListenerToSound.ToDirectionAndLength(OutListenerData.ListenerToSoundDir, OutListenerData.ListenerToSoundDistance);
-
-		// store the actual distance for surround-panning sources with spread (AudioMixer)
-		OutListenerData.ListenerToSoundDistanceForPanning = OutListenerData.ListenerToSoundDistance;
-
-		if (bUseListenerAttenuationOverride)
-		{
-			ListenerToSound = SoundTransform.GetTranslation() - ListenerAttenuationOverride;
-			FVector Temp;
-			ListenerToSound.ToDirectionAndLength(Temp, OutListenerData.ListenerToSoundDistance);
-		}
-
-		OutListenerData.AttenuationDistance = 0.0f;
-
-		if ((AttenuationSettings.bAttenuate && AttenuationSettings.AttenuationShape == EAttenuationShape::Sphere) || AttenuationSettings.bAttenuateWithLPF)
-		{
-			OutListenerData.AttenuationDistance = FMath::Max(OutListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.f);
-		}
-
-		OutListenerData.bDataComputed = true;
-	}
-}
-
-void FAudioDevice::GetAzimuth(FAttenuationListenerData& OutListenerData, const USoundBase* Sound, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform& ListenerTransform, float& OutAzimuth, float& OutAbsoluteAzimuth) const
-{
-	GetAttenuationListenerData(OutListenerData, SoundTransform, AttenuationSettings, &ListenerTransform);
-
-	const FVector& ListenerForwardDir = OutListenerData.ListenerTransform.GetUnitAxis(EAxis::X);
-
-	const float SoundToListenerForwardDotProduct = FVector::DotProduct(ListenerForwardDir, OutListenerData.ListenerToSoundDir);
+	const float SoundToListenerForwardDotProduct = FVector::DotProduct(ListenerForwardDir, ListenerData.ListenerToSoundDir);
 	const float SoundListenerAngleRadians = FMath::Acos(SoundToListenerForwardDotProduct);
 
 	// Normal azimuth only goes to 180 (0 is in front, 180 is behind).
 	OutAzimuth = FMath::RadiansToDegrees(SoundListenerAngleRadians);
 
-	const FVector& ListenerRightDir = OutListenerData.ListenerTransform.GetUnitAxis(EAxis::Y);
-	const float SoundToListenerRightDotProduct = FVector::DotProduct(ListenerRightDir, OutListenerData.ListenerToSoundDir);
+	const FVector& ListenerRightDir = ListenerData.ListenerTransform.GetUnitAxis(EAxis::Y);
+	const float SoundToListenerRightDotProduct = FVector::DotProduct(ListenerRightDir, ListenerData.ListenerToSoundDir);
 
 	FVector AbsAzimuthVector2D = FVector(SoundToListenerForwardDotProduct, SoundToListenerRightDotProduct, 0.0f);
 	AbsAzimuthVector2D.Normalize();
@@ -4829,7 +4854,7 @@ void FAudioDevice::GetAzimuth(FAttenuationListenerData& OutListenerData, const U
 
 	if (AbsAzimuthVector2D.X > 0.0f && AbsAzimuthVector2D.Y < 0.0f)
 	{
-		OutAbsoluteAzimuth = 360 - OutAbsoluteAzimuth;
+		OutAbsoluteAzimuth = 360.0f - OutAbsoluteAzimuth;
 	}
 	else if (AbsAzimuthVector2D.X < 0.0f && AbsAzimuthVector2D.Y < 0.0f)
 	{
@@ -4837,14 +4862,12 @@ void FAudioDevice::GetAzimuth(FAttenuationListenerData& OutListenerData, const U
 	}
 	else if (AbsAzimuthVector2D.X < 0.0f && AbsAzimuthVector2D.Y > 0.0f)
 	{
-		OutAbsoluteAzimuth = 180 - OutAbsoluteAzimuth;
+		OutAbsoluteAzimuth = 180.0f - OutAbsoluteAzimuth;
 	}
 }
 
-float FAudioDevice::GetFocusFactor(FAttenuationListenerData& OutListenerData, const USoundBase* Sound, const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const
+float FAudioDevice::GetFocusFactor(const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const
 {
-	check(Sound);
-
 	// 0.0f means we are in focus, 1.0f means we are out of focus
 	float FocusFactor = 0.0f;
 
@@ -5059,7 +5082,7 @@ void FAudioDevice::PlaySoundAtLocation(USoundBase* Sound, UWorld* World, float V
 
 	const FSoundAttenuationSettings* AttenuationSettingsToApply = (AttenuationSettings ? &AttenuationSettings->Attenuation : Sound->GetAttenuationSettingsToApply());
 	float MaxDistance = 0.0f;
-	float FocusFactor = 0.0f;
+	float FocusFactor = 1.0f;
 
 	GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
 
@@ -5085,8 +5108,8 @@ void FAudioDevice::PlaySoundAtLocation(USoundBase* Sound, UWorld* World, float V
 			const FGlobalFocusSettings& FocusSettings = GetGlobalFocusSettings();
 
 			NewActiveSound.AttenuationSettings = *AttenuationSettingsToApply;
-			NewActiveSound.FocusPriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(FocusSettings, FocusFactor);
-			NewActiveSound.FocusDistanceScale = AttenuationSettingsToApply->GetFocusDistanceScale(FocusSettings, FocusFactor);
+			NewActiveSound.FocusData.PriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(FocusSettings, FocusFactor);
+			NewActiveSound.FocusData.DistanceScale = AttenuationSettingsToApply->GetFocusDistanceScale(FocusSettings, FocusFactor);
 		}
 
 		NewActiveSound.MaxDistance = MaxDistance;
@@ -5702,7 +5725,7 @@ float FAudioDevice::GetGameDeltaTime() const
 	return FMath::Min(DeltaTime, 0.5f);
 }
 
-void FAudioDevice::UpdateVirtualLoops()
+void FAudioDevice::UpdateVirtualLoops(bool bForceUpdate)
 {
 	if (FAudioVirtualLoop::IsEnabled())
 	{
@@ -5720,7 +5743,7 @@ void FAudioDevice::UpdateVirtualLoops()
 			}
 
 			// If signaled to fade out and virtualized, add to pending stop list.
-			if (ActiveSound.bFadingOut)
+			if (ActiveSound.FadeOut != FActiveSound::EFadeOut::None)
 			{
 				AddSoundToStop(&ActiveSound);
 				continue;
@@ -5728,20 +5751,16 @@ void FAudioDevice::UpdateVirtualLoops()
 
 			const float DeltaTime = GetDeviceDeltaTime();
 
-			// Keep playback time up-to-date as it may be used to evaluate concurrency
+			// Keep playback time up-to-date as it may be used to evaluate whether or
+			// not virtual sound is eligible for playback when compared against
+			// actively playing sounds in concurrency checks.
 			ActiveSound.PlaybackTime += DeltaTime * ActiveSound.MinCurrentPitch;
 
-			// If the loop is ready to realize, add to array to be re-triggered outside of the loop
-			// to avoid map manipulation while iterating.
-			if (VirtualLoop.CanRealize(DeltaTime))
+			// If the loop is ready to realize, add to array to be re-triggered
+			// outside of the loop to avoid map manipulation while iterating.
+			if (VirtualLoop.CanRealize(DeltaTime, bForceUpdate))
 			{
 				VirtualLoopsToRetrigger.Add(VirtualLoop);
-			}
-
-			// If set to fade out and set to play when silent, add to pending stop list.
-			if (ActiveSound.bFadingOut)
-			{
-				AddSoundToStop(&ActiveSound);
 			}
 		}
 
@@ -5749,8 +5768,6 @@ void FAudioDevice::UpdateVirtualLoops()
 		{
 			RetriggerVirtualLoop(RetriggerLoop);
 		}
-
-		VirtualLoopsToRetrigger.Reset();
 	}
 
 	// if !FAudioVirtualLoop::IsEnabled(), attempt to realize/re-trigger

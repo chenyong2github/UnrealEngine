@@ -44,7 +44,8 @@ FName FGoogleARCoreXRTrackingSystem::GetSystemName() const
 bool FGoogleARCoreXRTrackingSystem::IsHeadTrackingAllowed() const
 {
 #if PLATFORM_ANDROID
-	return true;
+	return FGoogleARCoreDevice::GetInstance()->GetSessionStatus().Status == EARSessionStatus::Running &&
+		FGoogleARCoreDevice::GetInstance()->GetARSystem()->GetSessionConfig().ShouldEnableCameraTracking();
 #else
 	return false;
 #endif
@@ -52,12 +53,7 @@ bool FGoogleARCoreXRTrackingSystem::IsHeadTrackingAllowed() const
 
 bool FGoogleARCoreXRTrackingSystem::GetCurrentPose(int32 DeviceId, FQuat& OutOrientation, FVector& OutPosition)
 {
-	if (OnGetARSessionStatus().Status != EARSessionStatus::Running)
-	{
-		return false;
-	}
-	
-	if (DeviceId == IXRTrackingSystem::HMDDeviceId)
+	if (DeviceId == IXRTrackingSystem::HMDDeviceId && ARCoreDeviceInstance->GetIsARCoreSessionRunning())
 	{
 		OutOrientation = CachedOrientation;
 		OutPosition = CachedPosition;
@@ -94,7 +90,7 @@ bool FGoogleARCoreXRTrackingSystem::OnStartGameFrame(FWorldContext& WorldContext
 	bHasValidPose = false;
 	if (ARCoreDeviceInstance->GetIsARCoreSessionRunning())
 	{
-		if (ARCoreDeviceInstance->GetTrackingState() == EGoogleARCoreTrackingState::Tracking)
+		if (ARCoreDeviceInstance->GetTrackingState() == EGoogleARCoreTrackingState::Tracking || ARCoreDeviceInstance->GetIsFrontCameraSession())
 		{
 			CurrentPose = ARCoreDeviceInstance->GetLatestPose();
 			CurrentPose *= GetARCompositionComponent()->GetAlignmentTransform();
@@ -327,7 +323,7 @@ TArray<FVector> FGoogleARCoreXRTrackingSystem::OnGetPointCloud() const
 {
 	TArray<FVector> PointCloudPoints;
 	UGoogleARCorePointCloud* LatestPointCloud = nullptr;
-	if (!(FGoogleARCoreDevice::GetInstance()->GetLatestPointCloud(LatestPointCloud) == EGoogleARCoreFunctionStatus::Success)) 
+	if (!(FGoogleARCoreDevice::GetInstance()->GetLatestPointCloud(LatestPointCloud) == EGoogleARCoreFunctionStatus::Success))
 	{
 		return PointCloudPoints;
 	}

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2746228
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:Sprite 碰撞
 Crumbs: %ROOT%, Engine, Engine/Paper2D, Engine/Paper2D/Sprites
@@ -12,12 +12,12 @@ Related:Engine/Content/Types/Textures
 [TOC(start:2)]
 
 
-## 总览
 
 和其他类型的几何体（如静态网格物体、骨骼网格物体等）一样，**Sprite** 可定义用于计算与场景中其他几何体碰撞的形态。
 
 ![](collision_shape.png)
 
+(#CollisionDomain)
 ## 碰撞域
 
 **Sprite 碰撞域** 属性用于定义计算碰撞的方法。存在三种 
@@ -29,6 +29,7 @@ Related:Engine/Content/Types/Textures
 | **使用 2D 物理** | 这是一个 *实验性* 选项，用于生成在 Box2D 中使用的碰撞几何体。关于限流，请查阅 [2D 碰撞](#2dcollision) 中的详细信息。|
 | **使用 3D 物理** | 将生成在 PhysX.中使用的碰撞几何体。在 sprite 中定义的 2D 碰撞几何体将被突出，使用垂直轴深处的 **碰撞厚度** 制作 3D 碰撞几何体。|
 
+(#CollisionGeometry)
 ## 碰撞几何体
 
 碰撞几何体上的 **几何体类型** 设置指定了用于生成碰撞几何体 

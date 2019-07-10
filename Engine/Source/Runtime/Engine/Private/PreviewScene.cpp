@@ -99,6 +99,10 @@ FPreviewScene::~FPreviewScene()
 	
 	PreviewWorld->CleanupWorld();
 	GEngine->DestroyWorldContext(GetWorld());
+
+	// Release PhysicsScene for fixing big fbx importing bug
+	PreviewWorld->ReleasePhysicsScene();
+
 }
 
 void FPreviewScene::AddComponent(UActorComponent* Component,const FTransform& LocalToWorld, bool bAttachToRoot /*= false*/)

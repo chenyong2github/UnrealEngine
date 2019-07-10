@@ -1,38 +1,41 @@
-﻿Availability:Public
+﻿INTSourceChangelist:3244370
+Availability:Public
 Title: 蓝图编辑器视口
 Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor, Engine/Blueprints/Editor/UIBreakdowns/LevelBPUI
-Description: 关于类蓝图处于在组件模式时的视口的概述。
+Description:概述蓝图类的组件模式中的视口
+version: 4.9
+tags:Blueprints
 
-[TOC (start:2)]
 
-## 概述
-
-在处于 **组件** 模式的蓝图编辑器 **视口** 中，您可以查看及操作您的蓝图的组件。
+在 **视口（Viewport）** 中，您可在蓝图编辑器中查看和操控您蓝图的组件。 
 
 ![](BP_Viewport.png)
 
 [REGION:note]
-您还可以通过在 **[详细信息](Engine/Blueprints\Editor/UIComponents\Details)** 面板中通过手动地调整选中的组件的值来操作该组件。
+您还可以通过在[详细信息](Engine/Blueprints/Editor/UIComponents/Details)面板中手动调整所选组件的值来操控该组件。
 [/REGION]
 
-在 **[组件](Engine/Blueprints\UserGuide\Components)** 列表中选中一个组件，也会导致在 **视口** 中选中该组件，且 **详细信息** 面板中会显示该组件的属性信息。
+在[组件](Engine/Blueprints/UserGuide/Components)列表中选择一个组件也会在 **视口（Viewport）** 中选择该组件，并使用其属性信息填充 **详细信息（Details）** 面板。 
 
-您可以在 **视口** 中使用变换控件来调整选中组件的位置、旋转度及缩放比例。关于使用平移及旋转控件的更多信息，请参照[交互式变换](Engine/Actors/Transform#交互式变换)。
+您可以使用 **视口（Viewport）** 中的变换控件来调整所选组件的位置、旋转和缩放。有关变换控件的更多信息，请参阅[交互式变换](Engine/Actors/Transform#InteractiveTransformation)。
 
-在蓝图编辑器的 **视口** 中的导航方式同在关卡编辑器的 **视口** 中的导航方式一样。关于更多信息，请参照 [视口操作](Engine/UI/LevelEditor\Viewports\ViewportControls)页面。
+您可以在蓝图编辑器的 **视口（Viewport）** 中导航，方法与在关卡编辑器的 **视口（Viewport）** 中导航相同。有关更多信息，请参阅[视口操作](Engine/UI/LevelEditor/Viewports/ViewportControls)。
+
+(#theviewmenu)
 
 ## 视图菜单
 
-位于 **视口** 的左上角的 **视图** 下拉菜单中有一些和关卡编辑器的 **视口** 菜单不同的选项。
+ **视口（Viewport）** 左上角的 **视图（View）** 下拉菜单中的选项与关卡编辑器的 **视口（Viewport）** 菜单选项存在少许差异。
 
 ![](BP_Viewport_Viewmenu.png)
 
-| 项目| 描述|
+| 项目 | 说明 |
 | ---- | ----------- |
-| **Reset Camera（重置相机）** | 重新让相机聚焦到组件上。|
-| **Realtime(实时渲染)** | 切换视口的实时渲染功能。|
-| **Show Floor（显示地面）** |切换是否显示一个地面，以便辅助放置组件。|
-| **Show Grid（显示网格）** | 切换视口网格。|
+| **重置相机（Reset Camera）** | 将相机重新聚焦于组件。|
+| **实时（Realtime）** | 切换视口的实时渲染。|
+| **显示地面（Show Floor）** | 切换是否显示地面以辅助组件的放置。|
+| **显示网格（Show Grid）** | 切换视口网格。|
 
-关于关卡编辑器 **视图** 的更多信息，请参照 [主要编辑器](Engine/UI/LevelEditor\Viewports) 视口文档。
+有关关卡编辑器 **视口（Viewport）** 的更多信息，请参阅[主编辑器视口](Engine/UI/LevelEditor/Viewports)文档。 
+
 

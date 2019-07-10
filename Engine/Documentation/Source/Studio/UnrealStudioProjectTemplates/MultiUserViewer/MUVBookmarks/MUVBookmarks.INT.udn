@@ -1,0 +1,79 @@
+Availability: Public
+Crumbs: 
+Title: Working with Bookmarks in the Multi-User Viewer Template
+Description: Describes how to place bookmarks in your Level to provide pre-set points of view, and how to assign those bookmarks to hotkeys.
+Type: how-to
+SkillLevel: beginner
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 2
+Tags: how to
+Tags: multi-user viewer
+
+
+The Multi-User Viewer offers a built-in type of Blueprint Asset called a Bookmark, which you can use to set up predetermined locations and camera views in your Level. Desktop users can easily teleport to these predetermined locations at runtime.
+
+This page explains how to place new Bookmarks into your Level, and how to set up hotkeys that teleport the user between different Bookmarks when they press number keys on the keyboard.
+
+## Placing a Bookmark
+
+You can place new Bookmarks anywhere in your Level. However, it's best to make sure that each new Bookmark is:
+
+*   At ground level.
+*   Immediately above a Static Mesh that has a Collision Mesh set up for it, as instructed in [Using Your Own Content with the Multi-User Viewer](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent).
+
+Otherwise, if your character is in the walking navigation mode, it may fall to the ground or through the ground after the teleport.
+
+### Steps
+
+To place a Bookmark:
+
+1.  Each Bookmark is represented in the Level by an instance of the **BP_Bookmark** Blueprint class. You'll find this class in the *MultiUserViewer/Blueprints/Bookmark* folder of the **Content Browser**.  
+    ![BP_Bookmark Asset](multiuserviewer-bookmark-asset.png "BP_Bookmark Asset")
+2.  To set up a new Bookmark, drag the **BP_Bookmark** from the **Content Browser** into your Level.  
+    ![Drag a Bookmark into the Level](multiuserviewer-bookmark-place.png "Drag a Bookmark into the Level")
+3.  Select the Bookmark Actor in the Viewport or the **World Outliner** and move it to the position and rotation that you want it in the Level.
+    [REGION:note]
+    Make sure you're moving the Bookmark Actor, and not just its child Camera Component.
+    [/REGION]
+    [REGION:tip]
+    **Piloting** the Actor is a fast and easy way to set its viewpoint the way you want it. See [Pilot Actors in the Viewport](Engine/UI/LevelEditor/Viewports/ActorLocking).
+    [/REGION]
+
+### End Result
+
+Users who join the session in desktop mode can use their arrow keys to cycle through all the Bookmarks you've added to the Level, teleporting to each in turn.
+
+## Assigning Order and Hotkeys to Bookmarks
+
+By default, when users press the left and right arrow keys to cycle through the Bookmarks in the Level, the sequence doesn't follow a predetermined order. However, you can use a Bookmark Directory to specify the order, and to assign individual Bookmarks to numeric keys on the keyboard.
+
+### Steps
+
+To set up ordering and hotkeys:
+
+1.  If your Level already contains a **BP_BookmarkDirectory** Actor, find it and select it in the Viewport or the **World Outliner**:  
+    ![Bookmark Directory in the World Outliner](multiuserviewer-directory-select.png "Bookmark Directory in the World Outliner")  
+    Otherwise, find the **BP_BlueprintDirectory** in the *MultiUserViewer/Blueprints/Bookmark* folder of the **Content Browser**, and drag it into the Level to create a new instance:  
+    ![Dropping a bookmark directory into the Level](multiuserviewer-directory-place.png "Dropping a bookmark directory into the Level")
+2.  In the **Details** panel, you'll see two lists of Bookmarks, each of which can point to instances of the **BP_Bookmark** in your Level.  
+    ![Bookmark directory details](multiuserviewer-directory-details.png "Bookmark directory details")
+    *   **1 - All Bookmarks (Left Or Right Arrows To Cycle) -** Use this list to define the order in which the arrow keys cycle through the Bookmarks in the Level.  
+        When the user presses the right arrow key for the first time, they move to the Bookmark that is at position `0` in this list. Pressing the right arrow key again moves to the next item in the list. Pressing the left arrow key moves to the previous item in the list. When the sequence reaches the end, it loops back again to the first Bookmark in the list.  
+        [REGION:note]
+        Once you place a **BP_BookmarkDirectory** in your Level, the arrow keys will ignore any Bookmarks that are not found in this list.
+        [/REGION]
+        [REGION:tip]
+        Use the **Refresh All Bookmarks List** button to automatically add all Bookmarks in the current Level to the list, so that you don't have to add items to the array one by one.
+        [/REGION]
+    *   **2 - Hot Key Bookmarks (0-9 Keys) -** Use this list to assign Bookmarks to specific numeric hotkeys.  
+        When the user presses one of the number keys on the keyboard, and that number is mapped in this list to a Bookmark in the Level, the user teleports to that Bookmark.
+        [REGION:tip]
+        If you have a sequence of Bookmarks set up in the **All Bookmarks** list, you can use the **Auto Assign Hot Key Bookmarks** button to automatically add the first ten of those Bookmarks to this list in order.
+        [/REGION]
+
+### End Result
+
+If you added Bookmarks to the **All Bookmarks (Left Or Right Arrows To Cycle)** array, then users who join the session in desktop mode and press the right and left arrow keys should cycle through the Bookmarks that you've added to the array, in the order you've added them.
+
+If you added Bookmarks to the **Hot Key Bookmarks (0-9 Keys)** array, then users who join the session in desktop mode and press one of the numeric hotkeys you've set up in the array should immediately teleport to the Bookmark location you've bound to that number key.

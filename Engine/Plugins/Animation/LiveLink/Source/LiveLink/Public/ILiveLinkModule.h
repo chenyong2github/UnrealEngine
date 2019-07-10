@@ -17,7 +17,6 @@ public:
 	 * Gets a reference to the live link module instance.
 	 *
 	 * @return A reference to the live link module.
-	 * @todo gmp: better implementation using dependency injection.
 	 */
 	static ILiveLinkModule& Get()
 	{

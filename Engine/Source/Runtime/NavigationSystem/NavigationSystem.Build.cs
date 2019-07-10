@@ -25,6 +25,8 @@ namespace UnrealBuildTool.Rules
                     "Core",
                     "CoreUObject",
                     "Engine",
+					"GeometryCollectionCore",
+					"GeometryCollectionEngine",
                 }
                 );
 

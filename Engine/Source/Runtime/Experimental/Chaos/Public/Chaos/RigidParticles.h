@@ -13,6 +13,32 @@
 
 namespace Chaos
 {
+enum class EObjectStateType : int8
+{
+	Uninitialized = 0,
+	Sleeping = 1,
+	Kinematic = 2,
+	Static = 3,
+	Dynamic = 4,
+
+	Count
+};
+
+// Counts the number of bits needed to represent an int with a max
+constexpr int8 NumBitsNeeded(const int8 MaxValue)
+{
+	return MaxValue == 0 ? 0 : 1 + NumBitsNeeded(MaxValue >> 1);
+}
+
+// Make a bitmask which covers the lowest NumBits bits with 1's.
+constexpr int8 LowBitsMask(const int8 NumBits)
+{
+	return NumBits == 0 ? 0 : (1 << (NumBits - 1)) | LowBitsMask(NumBits - 1);
+}
+
+// Count N, the number of bits needed to store an object state
+static constexpr int8 ObjectStateBitCount = NumBitsNeeded((int8)EObjectStateType::Count - 1);
+
 template<class T, int d>
 class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 {
@@ -31,13 +57,15 @@ class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
 		TArrayCollection::AddArray(&MCollisionParticles);
+		TArrayCollection::AddArray(&MCollisionGroup);
 		TArrayCollection::AddArray(&MDisabled);
-		TArrayCollection::AddArray(&MSleeping);
+		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MIsland);
+		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 	}
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
 	TRigidParticles(TRigidParticles<T, d>&& Other)
-	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MDisabled(MoveTemp(Other.MDisabled)), MSleeping(MoveTemp(Other.MSleeping))
+	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other)), MF(MoveTemp(Other.MF)), MT(MoveTemp(Other.MT)), MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI)), MM(MoveTemp(Other.MM)), MInvM(MoveTemp(Other.MInvM)), MCollisionParticles(MoveTemp(Other.MCollisionParticles)), MCollisionGroup(MoveTemp(Other.MCollisionGroup)), MObjectState(MoveTemp(Other.MObjectState))
 	{
 		TArrayCollection::AddArray(&MF);
 		TArrayCollection::AddArray(&MT);
@@ -46,9 +74,11 @@ class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
 		TArrayCollection::AddArray(&MCollisionParticles);
+		TArrayCollection::AddArray(&MCollisionGroup);
 		TArrayCollection::AddArray(&MDisabled);
-		TArrayCollection::AddArray(&MSleeping);
+		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MIsland);
+		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 	}
 	~TRigidParticles()
 	{
@@ -73,15 +103,28 @@ class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 	T& InvM(const int32 Index) { return MInvM[Index]; }
 
 	int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
-	void CollisionParticlesInitIfNeeded(const int32 Index);
+	void CollisionParticlesInitIfNeeded(const int32 Index, TArray<TVector<T, d>>* Points=nullptr);
 	
 	const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) const { return MCollisionParticles[Index]; }
 	TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) { return MCollisionParticles[Index]; }
 
-	const bool Sleeping(const int32 Index) const { return MSleeping[Index]; }
+	const int32 CollisionGroup(const int32 Index) const { return MCollisionGroup[Index]; }
+	int32& CollisionGroup(const int32 Index) { return MCollisionGroup[Index]; }
 
 	const bool Disabled(const int32 Index) const { return MDisabled[Index]; }
 	bool& Disabled(const int32 Index) { return MDisabled[Index]; }
+
+	const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
+	bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }
+
+	const EObjectStateType ObjectState(const int32 Index) const { return MObjectState[Index]; }
+	EObjectStateType& ObjectState(const int32 Index) { return MObjectState[Index]; }
+
+	const bool Dynamic(const int32 Index) const { return ObjectState(Index) == EObjectStateType::Dynamic; }
+
+	const bool Sleeping(const int32 Index) const { return ObjectState(Index) == EObjectStateType::Sleeping; }
+
+	const bool HasInfiniteMass(const int32 Index) const { return MInvM[Index] == (T)0; }
 
 	const int32 Island(const int32 Index) const { return MIsland[Index]; }
 	int32& Island(const int32 Index) { return MIsland[Index]; }
@@ -89,7 +132,14 @@ class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 	FString ToString(int32 index) const
 	{
 		FString BaseString = TKinematicGeometryParticles<T, d>::ToString(index);
-		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), Disabled(index), Sleeping(index), Island(index));
+		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleepring:%d, MIsland:%d"), *BaseString, *F(index).ToString(), *Torque(index).ToString(), *I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), CollisionParticlesSize(index), CollisionGroup(index), Disabled(index), Sleeping(index), Island(index));
+	}
+
+	void Serialize(FChaosArchive& Ar)
+	{
+		TKinematicGeometryParticles<T,d>::Serialize(Ar);
+		Ar << MF << MT << MI << MInvI << MM << MInvM;
+		Ar << MCollisionParticles << MCollisionGroup << MIsland << MDisabled << MObjectState;
 	}
 
   private:
@@ -100,10 +150,19 @@ class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<T> MM;
 	TArrayCollectionArray<T> MInvM;
 	TArrayCollectionArray<TUniquePtr<TBVHParticles<T, d>>> MCollisionParticles;
-	TArrayCollectionArray<bool> MDisabled;
+	TArrayCollectionArray<int32> MCollisionGroup;
 	TArrayCollectionArray<int32> MIsland;
-protected:
-	TArrayCollectionArray<bool> MSleeping;
-
+	TArrayCollectionArray<bool> MDisabled;
+	TArrayCollectionArray<bool> MToBeRemovedOnFracture;
+	TArrayCollectionArray<EObjectStateType> MObjectState;
 };
+
+
+
+template <typename T, int d>
+FChaosArchive& operator<<(FChaosArchive& Ar, TRigidParticles<T, d>& Particles)
+{
+	Particles.Serialize(Ar);
+	return Ar;
+}
 }

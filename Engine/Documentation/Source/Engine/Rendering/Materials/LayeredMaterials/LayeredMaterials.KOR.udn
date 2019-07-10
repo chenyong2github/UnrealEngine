@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3242329
+INTSourceChangelist:3242329
 Availability: Public
 Title:레이어드 머티리얼
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials
@@ -89,7 +89,7 @@ tags:Materials
 |**MatLayerBlend_GlobalNormal** 글로벌 노멀 | 머티리얼 레이어 위에 노멀 텍스처를 블렌딩합니다. |
 |**MatLayerBlend_LightmassReplace** 라이트매스 대체 | 라이트매스의 베이스 컬러를 대체, 간접광 결과에 변화를 줄 수 있습니다. |
 |**MatLayerBlend_ModulateRoughness** 러프니스 변조 | 머티리얼 레이어의 러프니스에 입력받는 텍스처를 곱합니다. "끈적한" 느낌에 좋습니다. |
-|**MatLayerBlend_NormalBlend** 노멀 블렌드 | 표면에 걸쳐 노멀 텍스처를 블렌딩하되 마스크 텍스처를 사용, 노멀이 나타나는 곳을 제어 가능합니다. |
+|**MatLayerBlend_NormalBlend** 노멀 블렌드 | 표면에 걸쳐 노멀 텍스처를 블렌딩하지만 마스크 텍스처를 사용, 노멀이 나타나는 곳을 제어 가능합니다. |
 |**MatLayerBlend_NormalFlatten** 노멀 평탄화 | 노멀 맵 효과를 상쇄시킵니다. |
 |**MatLayerBlend_RoughnessOverride** 러프니스 덮어쓰기 | 머티리얼 레이어의 러프니스 텍스처를 대체합니다. |
 |**MatLayerBlend_Simple** 단순 | 두 머티리얼 레이어에 대해 단순한 선형 보간 (Lerp) 블렌딩을 제공합니다. 노멀은 블렌딩하지 않는 대신, 베이스 머티리얼의 노멀을 유지합니다. |

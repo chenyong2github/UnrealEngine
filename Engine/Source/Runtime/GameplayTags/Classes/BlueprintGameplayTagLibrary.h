@@ -107,6 +107,16 @@ class UBlueprintGameplayTagLibrary : public UBlueprintFunctionLibrary
 	static bool HasAllTags(const FGameplayTagContainer& TagContainer, const FGameplayTagContainer& OtherContainer, bool bExactMatch);
 
 	/**
+	 * Check if the specified tag query is empty
+	 * 
+	 * @param TagQuery				Query to check
+	 * 
+	 * @return True if the query is empty, false otherwise.
+	 */
+	UFUNCTION(BlueprintPure, Category = "GameplayTags", meta = (BlueprintThreadSafe))
+	static bool IsTagQueryEmpty(const FGameplayTagQuery& TagQuery);
+
+	/**
 	 * Check if the specified tag container matches the given Tag Query
 	 * 
 	 * @param TagContainer			Container to check if it matches all of the tags in the other container

@@ -1,42 +1,864 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:맵 작업
-Description:블루프린트에서 Map, 맵 작업 방법을 배워봅니다.
-Crumbs:%ROOT%
-Parent:Engine/Blueprints/Scripting
-Order:3
+﻿INTSourceChangelist:6339871
+Availability: Public
+Title: 맵 작업
+Description: 블루프린트에서 Map, 맵 작업 방법을 배워봅니다.
+Type: how-to
 Version: 4.15
-Tags:Blueprint Map
-Tags:Blueprints
-Type:how-to
-Skilllevel:Advanced
-Checkpoint:HowToWorkWithMaps
-Topic-image:workingWithMaps_topicImage.png
-Related:Programming/UnrealArchitecture/TMap
+Parent: Engine/Blueprints/Scripting
+SkillLevel: Advanced
+Order: 13
+Related: Engine/Blueprints/UserGuide/Maps/MapNodes
+Related: Engine/Blueprints/UserGuide/Maps
+Related: Programming/UnrealArchitecture/TMap
+
+
+[TOC (start:2 end:3)]
 
 [REGION:imagetable]
-![](workingWithMaps_topicBanner.png)  
-_이 튜토리얼을 통해 언리얼 엔진 4 (UE4) 의 Map (맵) 작업 경험을 쌓을 수 있습니다._
+![](workingWithMaps_topicBanner.png)
 [/REGION]
 
-[](Engine/Blueprints/UserGuide/Arrays) 이후 블루프린트 맵이 인기를 끈 데는 다 이유가 있습니다. 할당된 키로 효율적인 값 검색 및 구하기를 지원하기 때문입니다.
+[](Engine/Blueprints/UserGuide/Arrays) 말고 블루프린트 맵이 인기를 끈 데는 다 이유가 있습니다. 할당된 키를 사용하면 값을 효율적으로 조회하고 가져올 수 있기 때문입니다. 이 글을 마칠 즈음이면 언리얼 엔진 4(UE4)의 블루프린트 스크립팅 환경에서 맵 생성 및 편집, 아이템 쿼리 및 표시, 블루프린트 맵에 대한 기본적인 작업 경험이 어느 정도 쌓일 것입니다.
 
-## 목적
+## 1\. 필수 구성
 
-블루프린트 맵 구성 및 작업 방법을 안내해 드립니다.
+블루프린트 Map (맵) 작업을 시작하기에 앞서, 컨테이너의 내용을 표시하도록 프로젝트 구성을 해 줘야 합니다.  
 
-## 목표
+1.  **언리얼 프로젝트 브라우저** 에서 **새 프로젝트** 탭을 선택하고 **일인칭** 블루프린트 프로젝트를 선택한 뒤, 프로젝트 이름을 `ExampleMapProject` 라 합니다.  
 
-이 튜토리얼에서 습득할 수 있는 지식은 다음과 같습니다:
-
-* 블루프린트 스크립트 환경에서 맵 생성 및 편집 방법.
-* 블루프린트 맵에 들어있는 아이템 질의 및 표시 방법.
-* 블루프린트 맵에 대한 기본적인 연산 수행 방법.
-
-## 단계
-
-[DIR(output:"checkpoint" parent:"Engine/Blueprints/BP_HowTo/WorkingWithMaps" org:"hierarchy")]
-
-[REGION:call_to_action]
-	[클릭하면 시작합니다.](Engine/Blueprints/BP_HowTo/WorkingWithMaps/1 "%Engine/Blueprints/BP_HowTo/WorkingWithMaps/1:title%")
+[REGION:lightbox]
+[![](Step1_1.png)(w:900)](Step1_1.png)
 [/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+2.  새 프로젝트를 만들기 전, 프로젝트 세팅이 다음과 같은지 확인해 주세요:  
+[REGION:lightbox]
+[![](Step1_1Note.png)(w:900)](Step1_1Note.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+3.  프로젝트의 **콘텐츠 브라우저** 에서 **Blueprint** 폴더를 더블클릭합니다.
+
+[REGION:lightbox]
+[![](Step1_2.png)(w:900)](Step1_2.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+4.  **콘텐츠 브라우저** 에서 **신규 추가** 버튼을 클릭하고 마우스 커서를 **블루프린트 클래스** 위에 올립니다. **기본 애셋 생성** 팝업 메뉴 아래 있습니다.  
+
+[REGION:lightbox]
+[![](Step1_3.png)(w:900)](Step1_3.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+5.  **부모 클래스 선택** 메뉴가 열리면 **모든 클래스** 화살표를 클릭하고 **TextRender Actor** 블루프린트 클래스를 검색합니다.
+
+![](Step1_4.png "Step1_4.png")
+
+6.  **검색창** 에 `TexRenderActor` 라 입력하고, **TextRenderActor** 블루프린트 클래스를 선택한 뒤 **Select** (선택) 버튼을 클릭합니다.
+
+![](Step1_5.png "Step1_5.png")
+
+7.  이제 프로젝트의 **콘텐츠 브라우저** 에 **TextRender Actor** 가 생겼을 것입니다. 새 액터 이름을 `DisplayMap` 이라 합니다.
+
+[REGION:lightbox]
+[![](Step1_6.png)(w:900)](Step1_6.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+8.  **DisplayMap** TextRender Actor 를 언리얼 에디터의 **원근 (3D) 뷰포트** 에 끌어 놓습니다.
+
+[REGION:lightbox]
+[![](Step1_7.png)(w:900)](Step1_7.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+9.  **DisplayMap** TextRender Actor 를 선택한 채 (**디테일** 패널에 위치한) **+ 컴포넌트 추가** 버튼을 클릭하고, **검색창** 에 `Box Collision` 이라 입력합니다.
+
+[REGION:lightbox]
+[![](Step1_8.png)(w:900)](Step1_8.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+10.  **Box Collision Component** 를 TextRender Actor 에 추가한 후, 새 컴포넌트 이름을 `Trigger Box` 라 합니다.
+
+[REGION:lightbox]
+[![](Step1_9.png)(w:900)](Step1_9.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+11.  이제 TextRender Component 를 선택하고 **디테일** 패널에서 액터의 **트랜스폼** 을 확인합니다.
+
+[REGION:lightbox]
+[![](Step1_10.png)(w:900)](Step1_10.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+12.  **Display Map** 액터의 **트랜스폼** 값을 다음과 같이 업데이트합니다:
+
+![](Step1_11.png "Step1_11.png")
+
+13.  이제 **Display Map** 액터의 **Horizontal Alignment** (가로 정렬)을 (기본값인 **Left** (왼쪽) 정렬에서) **Center** (가운데) 정렬로 변경합니다.
+
+![](Step1_12.png "Step1_12.png")
+
+14.  현재 **Trigger Box** 컴포넌트는 **Hidden in Game** (게임에서 숨겨진) 상태입니다. **디테일** 패널의 **Rendering** 메뉴 아래 있는 **Hidden in Game** 박스 체크를 해제하면 **Box Collision** 컴포넌트를 게임 내에서 볼 수 있습니다.
+
+![](Step1_13.png "Step1_13.png")
+
+[REGION:note]
+게임 내에서 **Box Collision** 컴포넌트를 볼 수 있으면 트리거 이벤트를 구동시키는 내부 로직 관련해서 생길 수 있는 문제 디버깅에 아주 좋습니다.
+[/REGION]
+
+15.  PIE (에디터에서 플레이) 모드에 들어가 보면, 프로젝타일에 **Display Map** 콜리전 박스에 대한 콜리전 반응이 있는 것이 보일 것입니다. 현재는 **Display Map** 콜리전 반응만 맵 컨테이너 내용을 표시해 주는 이벤트를 발동하도록 하고 싶습니다. 그러기 위해서는 **디테일** 패널의 **Collision** 메뉴에서 **콜리전 프리셋** 드롭다운 리스트 박스를 클릭한 뒤 **Custom...** 옵션을 선택합니다.
+
+![](Step1_14.png "Step1_14.png")
+
+16.  마지막으로, **콜리전 프리셋** 값을 다음과 같이 업데이트합니다:
+
+![](Step1_15.png "Step1_15.png")
+
+### 섹션 결과
+
+[REGION:lightbox]
+[![](Step1_EndResult.png)(w:900)](Step1_EndResult.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+이제 새 프로젝트를 생성하고, 새 TextRender Actor 구성을 마쳤습니다. 여기에 블루프린트 맵 컨테이너 내용이 표시될텐데, 다음 단계에서는 이를 생성, 편집, 표시해 보도록 하겠습니다.
+
+## 2\. 블루프린트 맵 생성 및 표시
+
+새로 생성된 프로젝트에서 **TextRender** 액터 구성을 마쳤으니, 블루프린트 맵 컨테이너 생성 준비가 다 되었습니다. 이제 그 내용을 게임 내에서 표시하도록 하겠습니다.
+
+1.  프로젝트의 **콘텐츠 브라우저** 에서 **Display Set** TextRender Actor 를 더블클릭하여 그 블루프린트 **이벤트 그래프** 를 엽니다.    
+    [REGION:lightbox]
+    [![](Step2_1.png)(w:600)](Step2_1.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  다음 화면이 보이면 **Open Full Blueprint Editor** (풀 블루프린트 에디터 열기) 링크를 클릭하여 시작합니다.    
+    [REGION:lightbox]
+    [![](Step2_2.png)(w:600)](Step2_2.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Display Set** TextRender Actor 블루프린트 **이벤트 그래프** 가 보일텐데, 여기서 블루프린트 맵 및 그 표시 로직을 추가할 수 있습니다.    
+    [REGION:lightbox]
+    [![](Step2_3.png)(w:600)](Step2_3.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    앞서 말한 화면이 보이지 않는 경우, **이벤트 그래프** 탭을 클릭하면 액터의 블루프린트 이벤트 그래프 에디터가 열립니다.    
+    [REGION:lightbox]
+    [![](Step2_3Note.png)(w:600)](Step2_3Note.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [/REGION]
+
+1.  이제 블루프린트 맵 컨테이너를 만들 차례입니다. 나중에 표시할 키-값 짝이 바로 이 곳에 저장됩니다. 새 블루프린트 맵을 만들려면, (**내 블루프린트** 패널에 위치한** **+ 신규 추가** 버튼을 클릭하고 드롭다운 목록에서 **Variable** (변수)를 선택합니다.  
+    ![](Step2_4.png)
+
+1.  새 변수 이름은 `Instruction Map` 이라 합니다.  
+    ![](Step2_5.png)
+
+1.  변수의 **핀 유형** 버튼을 클릭합니다. 변수 이름 옆에 있습니다.  
+    ![](Step2_6.png)
+
+1.  드롭다운 목록에서 **Integer** 변수 유형을 선택합니다.  
+    ![](Step2_7.png)
+
+1.  변수의 **컨테이너 유형** 버튼을 클릭합니다. **디테일** 패널의 **Variable Type** (변수 유형) 드롭다운 리스트 옆에 있습니다.  
+    ![](Step2_8.png)
+
+1.  드롭다운 리스트에서 **Map** (맵) 컨테이너 유형을 선택합니다.  
+    ![](Step2_9.png)
+
+1.  맵의 키-값 프로퍼티 유형을 정의할 차례입니다. 현재 키는 **Interger** 로 바람직한 프로퍼티 유형입니다. 하지만 값 유형은 **String** 유형힙니다. 값을 **Integer** 에서 **String** 으로 변경하려면, 값 프로퍼티 유형 드롭다운 리스트에서 선택해 주면 됩니다.  
+    ![](Step2_10.png)
+
+1.  드롭다운 리스트에서 **String** 을 선택합니다.  
+    ![](Step2_11.png)
+
+1.  이제 **Integer** 와 **String** 유형( 각각)의 키-값이 생겼습니다. 또한, 블루프린트 그래프에서는 블루프린트를 컴파일해야 컨테이너 안에 저장하려는 아이템을 정의할 수 있다고 알려줍니다. 계속해서 **컴파일** 버튼을 클릭하여 시작합니다.    
+    [REGION:lightbox]
+    [![](Step2_12.png)(w:600)](Step2_12.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    블루프린트를 컴파일하면 인터페이스가 있는 컨테이너의 **Default Value** 메시지를 대체시켜, 컨테이너를 키-값 짝으로 채울 수 있습니다. 여기서 맵의 키는 Integer, 값은 String 입니다.
+    [/REGION]
+
+1.  아직 저장하지 않았으면 **저장** 버튼을 눌러 지금까지 작업 내용을 저장합니다.    
+    [REGION:lightbox]
+    [![](Step2_13.png)(w:600)](Step2_13.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    일반적으로, 항상 일찍 자주 저장하는 습관을 들이는 것이 좋습니다.
+    [/REGION]
+
+1.  (**디테일** 패널의 **Default Value** 메뉴에 있는) **+** (엘리먼트 추가) 버튼을 클릭하여 새로 정의된 **Instruction Map** 컨테이너에 키-값 짝을 새로 추가합니다.
+       
+    [REGION:lightbox]
+    [![](Step2_14.png)(w:600)](Step2_14.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  컨테이너의 새로운 키-값 짝을 정의합니다. 키는 `1` 로, 값은 `WASD to run` 으로 정의합니다.
+
+    ![](Step2_15.png)
+
+1.  전의 두 단계를 반복하여, **Instruction Map** 컨테이너를 다음 키-값 짝으로 채웁니다:
+
+    ![](Step2_16.png)
+
+## 로직 스크립트 작성
+
+새로 만든 블루프린트 맵 내용을 표시하기에 앞서, 필요한 로직을 작성해 줘야 합니다.
+
+1.  컨테이너 정의를 마쳤으니, **Instruction Map** 변수를 끌어 블루프린트 이벤트 그래프에 놓습니다.
+    
+    [REGION:lightbox]
+    [![](Step2_17.png)(w:600)](Step2_17.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Instruction Map** 드롭다운 리스트에서 **Get** 을 선택합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_18.png)(w:600)](Step2_18.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Instruction Map** 노드를 끌어 놓고 **Map Utilities** 인터페이스에서 **Find** 노드를 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_19.png)(w:600)](Step2_19.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    맵에서 값을 구하는 방법은 여러가지입니다. 이 튜토리얼에서는 정수 키 값을 증가시켜 **Instruction Map** 에 들어있는 할당 값을 표시하도록 하겠습니다.
+    [/REGION]
+
+1.  앞서 말씀드린 내용을 염두에 두고, **+ 신규 추가** 버튼을 클릭, 드롭다운 리스트에서 **Variable** (변수)를 선택합니다.
+    
+    ![](Step2_20.png)
+
+1.  변수 유형은 **Integer** 유형으로 설정하고, 이름은 `Key` 라 합니다.
+    
+    ![](Step2_21.png)
+
+1.  새로운 **Integer** 변수를 선언하고 정의한 이후, **Key** 를 끌어 블루프린트 이벤트 그래프에 놓은 뒤 드롭다운 리스트에서 **Get** 을 선택합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_22.png)(w:600)](Step2_22.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Key** 노드를 끌어 놓고 **IncrementInt** 노드를 검색하여 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_23.png)(w:600)](Step2_23.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  이제 **IncrementInt** 노드를 **Find** 노드에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_24.png)(w:600)](Step2_24.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    이 튜토리얼 목적 상 타임 함수를 사용하여 **Key** 값을 증가시키도록 하겠습니다.
+    [/REGION]
+
+1.  **Event Tick** 노드를 끌어 놓고, **Delay** 노드를 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_25.png)(w:600)](Step2_25.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  딜레이를 **2** 초로 설정한 뒤 **Delay** 노드를 **IncrementInt** 노드에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_26.png)(w:600)](Step2_26.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Event BeginPlay** 노드를 끌어 놓고, **Branch** 노드를 검색 추가하여 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_27.png)(w:600)](Step2_27.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **IncrementInt** 노드를 **Branch** 노드에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_28.png)(w:600)](Step2_28.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Find** 노드에 속하는 **Boolean** 반환 값을 **Branch** 노드의 **Condition** 핀에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_29.png)(w:600)](Step2_29.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    **Find** 노드가 맵의 아이템을 찾는 데 성공하면, 노드는 true 를 반환합니다. 아니라면 **Find** 노드가 false 를 반환하는 경우, 맵에 제공된 키를 사용하는 아이템이 들어있지 않은 것입니다.
+    [/REGION]
+
+1.  **Branch** 노드의 **True** 핀을 끌어놓고, **Set Text(TextRender)** 노드를 검색 추가 후 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_30.png)(w:600)](Step2_30.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    이 로직 브랜치는 컨테이너에 유효한 키-값 짝이 있는 경우 컨테이너에 할당된 값을 표시하도록 하는 것입니다.
+    [/REGION]
+
+1.  게임 내 컨테이너 값을 표시하려면, **Find** 노드의 Return Value 를 **Set Text** 노드의 **Value** 핀에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_31.png)(w:600)](Step2_31.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  이제 **Branch** 노드의 **False** 핀을 끌어 놓고, **Set Text(TextRender)** 노드를 검색 추가 후 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_32.png)(w:600)](Step2_32.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    이 로직 브랜치는 컨테이너에 유효한 키-값 짝이 없으면, 다른 것을 표시하도록 합니다.
+    [/REGION]
+
+1.  **Branch** 노드의 **Value** 핀을 끌어 놓고, **ToText(string)** 노드를 검색 추가 후 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_33.png)(w:600)](Step2_33.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  이제 읽어올 스트링을 정의합니다: `Now, shoot the blocks!`.
+    
+    [REGION:lightbox]
+    [![](Step2_34.png)(w:600)](Step2_34.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  완성된 스크립트를 살펴본 후, **컴파일** 버튼을 누르고서 에디터의 **뷰포트** 인터페이스로 돌아갑니다.
+    
+    [REGION:lightbox]
+    [![](Step2_35.png)(w:600)](Step2_35.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  에디터의 **뷰포트** 인터페이스에서 **플레이** 버튼을 클릭하여 새로 구현한 스크립트 작동을 확인합니다.
+    
+    [REGION:lightbox]
+    [![](Step2_36.png)(w:600)](Step2_36.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    
+
+### 섹션 결과
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:videoid]
+ DcskFd9UhlA
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+[/OBJECT]
+
+이제 새 블루프린트 맵을 정의했고, 컨테이너를 키-값 짝으로 채웠고, **TextRender** Actor 의 블루프린트 이벤트 그래프에 만든 기본적인 로직으로 값을 표시했습니다. 약간 더 고급 작업 방법을 배우려면, 다음 단계에서 맵에 키-값 짝을 추가하는 법, 이어서 맵의 값을 표시하는 법을 살펴봅시다.
+
+## 3\. 맵에 키 및 값 추가
+
+이제 이전 단계에서 정의한 블루프린트 맵에 할당된 값을 표시하는 **TextRender** Actor 가 있을 것입니다. 이번 단계에서는, 맵에 키-값 짝을 **추가** 하는 방법, 이어서 맵의 키와 할당된 값을 표시하는 방법을 살펴보겠습니다.
+
+1.  프로젝트의 **콘텐츠 브라우저** 에서 **Display Map** TextRender Actor 에 더블클릭하여 블루프린트 **이벤트 그래프** 를 엽니다.
+    
+    [REGION:lightbox]
+    [![](Step3_1.png)(w:600)](Step3_1.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Display Map** TextRender Actor 블루프린트 **이벤트 그래프** 가 보일 것입니다. 여기서 새 블루프린트 맵을 추가하고, 새로운 키-값 짝을 **추가** 한 뒤, 최종적으로 맵의 키와 할당된 값을 **뷰포트** 에 표시할 수 있습니다.
+    
+    [REGION:lightbox]
+    [![](Step3_2.png)(w:600)](Step3_2.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  튜토리얼 이 시점에서 곧 하려는 **Add** 연산에 쓸 블루프린트 맵 컨테이너를 새로 만들어줄 것입니다. **Instruction Map** 변수에 우클릭하고 드롭다운 목록에서 **복제** 를 선택하여 새 블루프린트 맵 변수를 생성하고, 이름을 `Weapon Inventory Map` 이라 합니다.
+    
+    ![](Step3_3.png)
+
+1.  새 맵 컨테이너의 프로퍼티가 다음과 같은지 확인합니다. 키는 String, 값은 Integer 입니다:
+    
+    ![](Step3_4.png)
+    
+    [REGION:note]
+    데모 목적 상 무기 인벤토리 블루프린트 맵 컨테이너를 만들고, 여기서 키는 무기 이름이며 값은 그 무기에 쓸 수 있는 탄환 수입니다.
+    [/REGION]
+
+1.  새 블루프린트 맵을 선택하면, **Default Value** 메시지가 보일 것입니다.
+    
+    [REGION:lightbox]
+    [![](Step3_5.png)(w:600)](Step3_5.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  계속해서 **컴파일** 버튼을 클릭합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_6.png)(w:600)](Step3_6.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  블루프린트 컴파일 후 **Default Value** 가 사라져 기본 키-값에 자리를 내어주는 것이 보일 것입니다.
+    
+    [REGION:lightbox]
+    [![](Step3_7.png)(w:600)](Step3_7.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  이제 에디터에 다음과 같은 경고가 날 것입니다:
+    
+    [REGION:lightbox]
+    [![](Step3_8.png)(w:600)](Step3_8.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    UE4 에서 이 경고를 내는 이유는 **Instruction Map** 을 복제했기 때문인데, 이는 Integer-String 키-값 프로퍼티를 갖는 블루프린트 맵으로 String-Integer 키-값 짝을 갖는 **Weapon Inventory Map** 을 만들려 했기 때문입니다. 복제 과정에서 엔진은 **Instruction Map** 에 속하는 키-값 짝을 분석한 뒤 **Weapon Inventory Map** 에 맞는 키-값 짝으로 복사해 넣으려 시도하는데, 바람직하지 않은 작동방식입니다.
+    
+    [REGION:lightbox]
+    [![](Step3_8Note.png)(w:600)](Step3_8Note.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [/REGION]
+
+1.  새로운 **Weapon Inventory Map** 컨테이너를 다음 키-값 짝으로 채웁니다:
+
+    ![](Step3_9.png)
+
+1.  이제 **컴파일** 버튼을 클릭합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_10.png)(w:600)](Step3_10.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Weapon Inventory Map** 컨테이너를 적합한 유형의 키-값 짝으로 채우고, 새로운 블루프린트 맵의 키-값 짝 요건을 만족시킨 후에는 경고가 사라지는 것이 보일 것입니다.
+    
+    [REGION:lightbox]
+    [![](Step3_11.png)(w:600)](Step3_11.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  기존 블루프린트 이벤트 그래프에 새 로직을 추가하기에 앞서, **Weapon Inventory Map** 변수를 블루프린트에 끌어 놓습니다.
+    
+    [REGION:lightbox]
+    [![](Step3_12.png)(w:600)](Step3_12.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    
+
+## 로직 스크립트 작성
+
+1.  새 로직 작성을 시작하려면, **Weapon Inventory Map** 노드를 끌어 놓고 **Map Utilities** 인터페이스에서 **Keys** 노드를 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_13.png)(w:600)](Step3_13.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    **Keys** 노드는 **Weapon Inventory Map** 에 존재하는 모든 키 배열을 출력합니다.
+    [/REGION]
+
+1.  **Keys** 노드에 속하는 **Array** 출력 핀을 끌어 놓고, **ForEachLoop** 노드를 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_14.png)(w:600)](Step3_14.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  이제 **ForEachLoop** 노드에 속하는 **Array Element** 핀을 끌어 놓고 **Print String** 노드를 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_15.png)(w:600)](Step3_15.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  블루프린트 그래프에 우클릭하여 **컨텍스트 메뉴** 를 띄우고 **Event ActorBeginOverlap** 을 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_16.png)(w:600)](Step3_16.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Event ActorBeginOverlap** 노드의 **Other Actor** 핀을 끌어 놓고 **Cast To FirstPersonProjectile** 노드를 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_17.png)(w:600)](Step3_17.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Cast To FirstPersonProjectile** 노드를 **Keys** 노드에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_18.png)(w:600)](Step3_18.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    
+
+### 맵의 키 표시
+
+이제 에디터에서 플레이(PIE) 모드에 들어가면 **Display Map** Text Render Actor 의 콜리전 박스에 프로젝타일을 발사할 수 있을 것입니다. 이 액터에서 **Weapon Inventory Map** 에 들어있는 키 배열을 표시할 수 있습니다.
+
+[REGION:lightbox]
+[![](Step3_DisplayingKeys.png)(w:600)](Step3_DisplayingKeys.png)
+[/REGION]
+[REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+## 스크립트 마무리
+
+1.  컨테이너에 새로운 키-값 짝을 추가할 차례입니다. **Weapon Inventory Map** 변수를 블루프린트에 끌어 놓습니다.
+    
+    [REGION:lightbox]
+    [![](Step3_19.png)(w:600)](Step3_19.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Weapon Inventory Map** 변수를 끌어 놓고 **Map Utilities** 인터페이스의 **Add** 노드를 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_20.png)(w:600)](Step3_20.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  이제 추가하고자 하는 키-값 짝을 정의합니다. 키에는 `Weapon 6`, 값에는 `60` 입니다.
+    
+    [REGION:lightbox]
+    [![](Step3_21.png)(w:600)](Step3_21.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Add** 노드의 **Boolean Return Value** 핀을 끌어 놓고 **Branch** 노드를 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_22.png)(w:600)](Step3_22.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  추가된 키를 표시하는 부가 표시 로직 구성에 앞서, **Weapon Inventory Map** 변수를 블루프린트에 끌어놓아야 합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_23.png)(w:600)](Step3_23.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  이제 **Weapon Inventory Map** 변수를 끌어 놓고 **Map Utilities** 인터페이스에서 **Keys** 노드를 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_24.png)(w:600)](Step3_24.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Keys** 노드에 속하는 **Array** 출력 핀을 끌어놓고, **ForEachLoop** 노드를 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_25.png)(w:600)](Step3_25.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **ForEachLoop** 노드에 속하는 **Array Element** 핀을 끌어 놓고, **Print String** 노드를 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_26.png)(w:600)](Step3_26.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Text Color** 를 클릭하여 **색 선택 툴** 메뉴를 엽니다.
+    
+    [REGION:lightbox]
+    [![](Step3_27.png)(w:600)](Step3_27.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  색을 다음 값으로 설정합니다:
+    
+    ![](Step3_28.png)
+
+1.  여기서도 추가한 값을 표시하는 표시 로직을 구성하기에 앞서, **Weapon Inventory Map** 변수를 블루프린트에 끌어 놓아야 합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_29.png)(w:600)](Step3_29.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  이제 **Weapon Inventory Map** 변수를 끌어 놓고, **Map Utilities** 인터페이스에서 **Values** 노드를 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_30.png)(w:600)](Step3_30.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Values** 노드에 속하는 **Array** 출력을 끌어 놓고, **ForEachLoop** 노드를 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_31.png)(w:600)](Step3_31.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **ForEachLoop** 노드에 속하는 **Execute Output** 핀을 끌어 놓고, **Print String** 노드를 검색 추가합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_32.png)(w:600)](Step3_32.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **ForEachLoop** 노드에 속하는 **Array Element** 핀을 끌어 놓고, **Print String** 노드에 속하는 **In String** 핀에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_33.png)(w:600)](Step3_33.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Text Color** 박스를 클릭하여 **색 선택 툴** 메뉴를 엽니다.
+    
+    [REGION:lightbox]
+    [![](Step3_34.png)(w:600)](Step3_34.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  색을 다음 값으로 설정합니다:
+    
+    ![](Step3_35.png)
+
+1.  **Branch** 노드의 **True** 핀을 **Keys** 노드에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_36.png)(w:600)](Step3_36.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  **Branch** 노드의 **False** 핀을 **Values** 노드에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_37.png)(w:600)](Step3_37.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  스크립트의 로직을 완성을 위해, **Cast To FirstPersonProjectile** 노드의 **Cast Failed** 핀을 **Add** 노드에 연결합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_38.png)(w:600)](Step3_38.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  완성된 스크립트를 살펴본 후, **컴파일** 버튼을 클릭합니다.
+    
+    [REGION:lightbox]
+    [![](Step3_39.png)(w:600)](Step3_39.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  마지막으로 **저장** 버튼을 누른 뒤 에디터의 **뷰포트** 인터페이스로 돌아갑니다.
+    
+    [REGION:lightbox]
+    [![](Step3_40.png)(w:600)](Step3_40.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+1.  에디터의 **뷰포트** 인터페이스에서 **플레이** 버튼을 클릭하여 업데이트된 스크립트가 작동하는 것을 확인해 봅니다.
+    
+    [REGION:lightbox]
+    [![](Step3_41.png)(w:600)](Step3_41.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    
+
+## 최종 결과
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:videoid]
+ SJbsl6g7UME
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+[/OBJECT]
+
+비디오에서 볼 수 있듯이, **Display Map** TextRender Actor 의 콜리전 박스인 **First Person Projectile** 을 처음 발사하면, **뷰포트** 에 처음 다섯 개의 키가 출력되는 것이 보일 것입니다. 그리고 콜리전 박스를 통과해 걸어가면, 새로운 키가 추가되고 곧이어 출력되는 것이 보일 것입니다. 콜리전 박스를 빠져 나온 뒤 다시 **First Person Projectile** 을 발사해 보면 새로 추가된 키를 확인할 수 있습니다. 마지막으로 콜리전 박스를 두 번째 걸어서 통과하면, 모든 값이 출력되는 것을 확인할 수 있습니다.

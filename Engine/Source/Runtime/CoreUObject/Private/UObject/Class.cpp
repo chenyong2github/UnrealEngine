@@ -3927,7 +3927,7 @@ bool UClass::ImplementsInterface( const class UClass* SomeInterface ) const
 			for (TArray<FImplementedInterface>::TConstIterator It(CurrentClass->Interfaces); It; ++It)
 			{
 				const UClass* InterfaceClass = It->Class;
-				if (InterfaceClass->IsChildOf(SomeInterface))
+				if (InterfaceClass && InterfaceClass->IsChildOf(SomeInterface))
 				{
 					return true;
 				}
@@ -4054,9 +4054,9 @@ UClass* UClass::FindCommonBase(const TArray<UClass*>& InClasses)
 	return CommonClass;
 }
 
-bool UClass::IsFunctionImplementedInBlueprint(FName InFunctionName) const
+bool UClass::IsFunctionImplementedInScript(FName InFunctionName) const
 {
-	// Implemented in UBlueprintGeneratedClass
+	// Implemented in classes such as UBlueprintGeneratedClass
 	return false;
 }
 

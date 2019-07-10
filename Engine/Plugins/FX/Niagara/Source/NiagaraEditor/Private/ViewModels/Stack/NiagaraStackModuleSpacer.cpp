@@ -5,6 +5,7 @@
 #include "NiagaraTypes.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "DragAndDrop/AssetDragDropOp.h"
 
 void UNiagaraStackModuleSpacer::Initialize(FRequiredEntryData InRequiredEntryData, ENiagaraScriptUsage InScriptUsage, FName InSpacerKey, float InSpacerScale, EStackRowStyle InRowStyle)
 {
@@ -22,6 +23,15 @@ FReply UNiagaraStackModuleSpacer::OnStackSpacerDrop(TSharedPtr<FDragDropOperatio
 		OnStackSpacerAcceptDrop.ExecuteIfBound(this, Action->GetParameter());
 		return FReply::Handled();
 	}
+	else if (DragDropOperation->IsOfType<FAssetDragDropOp>())
+	{
+		TSharedPtr<FAssetDragDropOp> InputDragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(DragDropOperation);
+		for (const FAssetData& AssetData : InputDragDropOp->GetAssets())
+		{
+			OnStackSpacerAssetDrop.ExecuteIfBound(this, AssetData);
+		}
+		return FReply::Handled();
+	}
 	return FReply::Unhandled();
 }
 
@@ -35,6 +45,18 @@ bool UNiagaraStackModuleSpacer::OnStackSpacerAllowDrop(TSharedPtr<FDragDropOpera
 		{
 			return FNiagaraStackGraphUtilities::ParameterIsCompatibleWithScriptUsage(Action->GetParameter(), ItemGroupScriptUsage);
 		}	
+	}
+	else if (DragDropOperation->IsOfType<FAssetDragDropOp>())
+	{
+		TSharedPtr<FAssetDragDropOp> InputDragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(DragDropOperation);
+		for (const FAssetData& AssetData : InputDragDropOp->GetAssets())
+		{
+			if (OnStackSpacerRequestAssetDrop.IsBound() && OnStackSpacerRequestAssetDrop.Execute(this, AssetData) == false)
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 	return false;
 }

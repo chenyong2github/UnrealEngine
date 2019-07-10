@@ -15,6 +15,10 @@
 #include "Application/ActiveTimerHandle.h"
 #include "Input/HittestGrid.h"
 #include "Debugging/SlateDebugging.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Widgets Created (Per Frame)"), STAT_SlateTotalWidgetsPerFrame, STATGROUP_Slate);
 DECLARE_DWORD_COUNTER_STAT(TEXT("SWidget::Paint (Count)"), STAT_SlateNumPaintedWidgets, STATGROUP_Slate);
@@ -142,6 +146,9 @@ SWidget::~SWidget()
 		{
 			FSlateApplicationBase::Get().UnRegisterActiveTimer(ActiveTimerHandle);
 		}
+#if WITH_ACCESSIBILITY
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetRemoved(this);
+#endif
 	}
 
 	DEC_DWORD_STAT(STAT_SlateTotalWidgets);
@@ -161,6 +168,7 @@ void SWidget::Construct(
 	const bool InForceVolatile,
 	const EWidgetClipping InClipping,
 	const EFlowDirectionPreference InFlowPreference,
+	const TOptional<FAccessibleWidgetData>& InAccessibleData,
 	const TArray<TSharedRef<ISlateMetaData>>& InMetaData
 )
 {
@@ -191,11 +199,32 @@ void SWidget::Construct(
 	Clipping = InClipping;
 	FlowDirectionPreference = InFlowPreference;
 	MetaData = InMetaData;
+
+#if WITH_ACCESSIBILITY
+	if (InAccessibleData.IsSet())
+	{
+		SetCanChildrenBeAccessible(InAccessibleData->bCanChildrenBeAccessible);
+		// If custom text is provided, force behavior to custom. Otherwise, use the passed-in behavior and set their default text.
+		SetAccessibleBehavior(InAccessibleData->AccessibleText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleBehavior, InAccessibleData->AccessibleText, EAccessibleType::Main);
+		SetAccessibleBehavior(InAccessibleData->AccessibleSummaryText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleSummaryBehavior, InAccessibleData->AccessibleSummaryText, EAccessibleType::Summary);
+	}
+	if (AccessibleData.AccessibleBehavior != EAccessibleBehavior::Custom)
+	{
+		SetDefaultAccessibleText(EAccessibleType::Main);
+	}
+	if (AccessibleData.AccessibleSummaryBehavior != EAccessibleBehavior::Custom)
+	{
+		SetDefaultAccessibleText(EAccessibleType::Summary);
+	}
+#endif
 }
 
-void SWidget::SWidgetConstruct(const TAttribute<FText>& InToolTipText, const TSharedPtr<IToolTip>& InToolTip, const TAttribute< TOptional<EMouseCursor::Type> >& InCursor, const TAttribute<bool>& InEnabledState, const TAttribute<EVisibility>& InVisibility, const float InRenderOpacity, const TAttribute<TOptional<FSlateRenderTransform>>& InTransform, const TAttribute<FVector2D>& InTransformPivot, const FName& InTag, const bool InForceVolatile, const EWidgetClipping InClipping, const EFlowDirectionPreference InFlowPreference, const TArray<TSharedRef<ISlateMetaData>>& InMetaData)
+void SWidget::SWidgetConstruct(const TAttribute<FText>& InToolTipText, const TSharedPtr<IToolTip>& InToolTip, const TAttribute< TOptional<EMouseCursor::Type> >& InCursor, const TAttribute<bool>& InEnabledState,
+							   const TAttribute<EVisibility>& InVisibility, const float InRenderOpacity, const TAttribute<TOptional<FSlateRenderTransform>>& InTransform, const TAttribute<FVector2D>& InTransformPivot,
+							   const FName& InTag, const bool InForceVolatile, const EWidgetClipping InClipping, const EFlowDirectionPreference InFlowPreference, const TOptional<FAccessibleWidgetData>& InAccessibleData,
+							   const TArray<TSharedRef<ISlateMetaData>>& InMetaData)
 {
-	Construct(InToolTipText, InToolTip, InCursor, InEnabledState, InVisibility, InRenderOpacity, InTransform, InTransformPivot, InTag, InForceVolatile, InClipping, InFlowPreference, InMetaData);
+	Construct(InToolTipText, InToolTip, InCursor, InEnabledState, InVisibility, InRenderOpacity, InTransform, InTransformPivot, InTag, InForceVolatile, InClipping, InFlowPreference, InAccessibleData, InMetaData);
 }
 
 FReply SWidget::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
@@ -496,7 +525,8 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 
 		// If the scale changed, that can affect the desired size of some elements that take it into
 		// account, such as text, so when the prepass size changes, so must we invalidate desired size.
-		bNeedsDesiredSize = true;
+		//bNeedsDesiredSize = true;
+		// Disabled: This was causing instability in the feedback loop created by the scale box
 	}
 
 	if ( bCanHaveChildren )
@@ -566,6 +596,12 @@ void SWidget::AssignParentWidget(TSharedPtr<SWidget> InParent)
 #endif
 
 	ParentWidgetPtr = InParent;
+#if WITH_ACCESSIBILITY
+	if (FSlateApplicationBase::IsInitialized())
+	{
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+	}
+#endif
 	if (InParent.IsValid())
 	{
 		InParent->Invalidate(EInvalidateWidget::Layout);
@@ -582,6 +618,12 @@ bool SWidget::ConditionallyDetatchParentWidget(SWidget* InExpectedParent)
 	if (Parent.Get() == InExpectedParent)
 	{
 		ParentWidgetPtr.Reset();
+#if WITH_ACCESSIBILITY
+		if (FSlateApplicationBase::IsInitialized())
+		{
+			FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+		}
+#endif
 
 		if (Parent.IsValid())
 		{
@@ -1235,6 +1277,142 @@ void SWidget::SetOnMouseLeave(FSimpleNoReplyPointerEventHandler EventHandler)
 {
 	MouseLeaveHandler = EventHandler;
 }
+
+#if WITH_ACCESSIBILITY
+TSharedRef<FSlateAccessibleWidget> SWidget::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleWidget(AsShared()));
+}
+
+void SWidget::SetAccessibleBehavior(EAccessibleBehavior InBehavior, const TAttribute<FText>& InText, EAccessibleType AccessibleType)
+{
+	EAccessibleBehavior& Behavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
+	if (Behavior != InBehavior)
+	{
+		// If switching off of custom, revert back to default text
+		if (Behavior == EAccessibleBehavior::Custom)
+		{
+			SetDefaultAccessibleText(AccessibleType);
+		}
+		else if (InBehavior == EAccessibleBehavior::Custom)
+		{
+			TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+			Text = InText;
+		}
+		const bool bWasAccessible = Behavior != EAccessibleBehavior::NotAccessible;
+		Behavior = InBehavior;
+		if (AccessibleType == EAccessibleType::Main && bWasAccessible != (Behavior != EAccessibleBehavior::NotAccessible))
+		{
+			FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+		}
+	}
+}
+
+void SWidget::SetCanChildrenBeAccessible(bool InCanChildrenBeAccessible)
+{
+	if (AccessibleData.bCanChildrenBeAccessible != InCanChildrenBeAccessible)
+	{
+		AccessibleData.bCanChildrenBeAccessible = InCanChildrenBeAccessible;
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+	}
+}
+
+void SWidget::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+{
+	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+	Text = TAttribute<FText>();
+}
+
+FText SWidget::GetAccessibleText(EAccessibleType AccessibleType) const
+{
+	const EAccessibleBehavior Behavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
+	const EAccessibleBehavior OtherBehavior = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleSummaryBehavior : AccessibleData.AccessibleBehavior;
+	const TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+	const TAttribute<FText>& OtherText = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleSummaryText : AccessibleData.AccessibleText;
+
+	switch (Behavior)
+	{
+	case EAccessibleBehavior::Custom:
+		return Text.Get(FText::GetEmpty());
+	case EAccessibleBehavior::Summary:
+		return GetAccessibleSummary();
+	case EAccessibleBehavior::ToolTip:
+		if (ToolTip.IsValid() && !ToolTip->IsEmpty())
+		{
+			return ToolTip->GetContentWidget()->GetAccessibleText(EAccessibleType::Main);
+		}
+		break;
+	case EAccessibleBehavior::Auto:
+		// Auto first checks if custom text was set. This should never happen with user-defined values as custom should be
+		// used instead in that case - however, this will be used for widgets with special default text such as TextBlocks.
+		// If no text is found, then it will attempt to use the other variable's text, so that a developer can do things like
+		// leave Summary on Auto, set Main to Custom, and have Summary automatically use Main's value without having to re-type it.
+		if (Text.IsSet())
+		{
+			return Text.Get(FText::GetEmpty());
+		}
+		switch (OtherBehavior)
+		{
+		case EAccessibleBehavior::Custom:
+		case EAccessibleBehavior::ToolTip:
+			return GetAccessibleText(AccessibleType == EAccessibleType::Main ? EAccessibleType::Summary : EAccessibleType::Main);
+		case EAccessibleBehavior::NotAccessible:
+		case EAccessibleBehavior::Summary:
+			return GetAccessibleSummary();
+		}
+		break;
+	}
+	return FText::GetEmpty();
+}
+
+FText SWidget::GetAccessibleSummary() const
+{
+	FTextBuilder Builder;
+	FChildren* Children = const_cast<SWidget*>(this)->GetChildren();
+	if (Children)
+	{
+		for (int32 i = 0; i < Children->Num(); ++i)
+		{
+			FText Text = Children->GetChildAt(i)->GetAccessibleText(EAccessibleType::Summary);
+			if (!Text.IsEmpty())
+			{
+				Builder.AppendLine(Text);
+			}
+		}
+	}
+	return Builder.ToText();
+}
+
+bool SWidget::IsAccessible() const
+{
+	if (AccessibleData.AccessibleBehavior == EAccessibleBehavior::NotAccessible)
+	{
+		return false;
+	}
+
+	TSharedPtr<SWidget> Parent = GetParentWidget();
+	while (Parent.IsValid())
+	{
+		if (!Parent->CanChildrenBeAccessible())
+		{
+			return false;
+		}
+		Parent = Parent->GetParentWidget();
+	}
+	return true;
+}
+
+EAccessibleBehavior SWidget::GetAccessibleBehavior(EAccessibleType AccessibleType) const
+{
+	return AccessibleType == EAccessibleType::Main ? AccessibleData.AccessibleBehavior : AccessibleData.AccessibleSummaryBehavior;
+}
+
+bool SWidget::CanChildrenBeAccessible() const
+{
+	return AccessibleData.bCanChildrenBeAccessible;
+}
+
+#endif
 
 #if SLATE_CULL_WIDGETS
 

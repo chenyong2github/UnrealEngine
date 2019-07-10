@@ -7,14 +7,7 @@
 #include "USDPrimResolver.h"
 
 #include "UnrealUSDWrapper.h"
-
-#include "USDImporter.generated.h"
-
-
-class UUSDPrimResolver;
-class IUsdPrim;
-class IUsdStage;
-struct FUsdGeomData;
+#include "USDMemory.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogUSDImport, Log, All);
 
@@ -26,6 +19,14 @@ namespace USDKindTypes
 	const std::string Group("group");
 	const std::string SubComponent("subcomponent");
 }
+
+#if USE_USD_SDK
+#include "USDIncludesStart.h"
+#include "pxr/pxr.h"
+#include "USDIncludesEnd.h"
+#endif // #if USE_USD_SDK
+
+#include "USDImporter.generated.h"
 
 USTRUCT()
 struct FUsdImportContext
@@ -52,13 +53,12 @@ struct FUsdImportContext
 	UPROPERTY()
 	UUSDPrimResolver* PrimResolver;
 
-	IUsdStage* Stage;
+#if USE_USD_SDK
+	TUsdStore< pxr::UsdStageRefPtr > Stage;
 
 	/** Root Prim of the USD file */
-	IUsdPrim* RootPrim;
-
-	/** Converts from a source coordinate system to Unreal */
-	FTransform ConversionTransform;
+	TUsdStore< pxr::UsdPrim > RootPrim;
+#endif // #if USE_USD_SDK
 
 	/** Object flags to apply to newly imported objects */
 	EObjectFlags ImportObjectFlags;
@@ -71,7 +71,9 @@ struct FUsdImportContext
 
 	virtual ~FUsdImportContext() { }
 
-	virtual void Init(UObject* InParent, const FString& InName, IUsdStage* InStage);
+#if USE_USD_SDK
+	virtual void Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage);
+#endif // #if USE_USD_SDK
 
 	void AddErrorMessage(EMessageSeverity::Type MessageSeverity, FText ErrorMessage);
 	void DisplayErrorMessages(bool bAutomated);
@@ -90,9 +92,11 @@ class UUSDImporter : public UObject
 public:
 	bool ShowImportOptions(UObject& ImportOptions);
 
-	IUsdStage* ReadUSDFile(FUsdImportContext& ImportContext, const FString& Filename);
+#if USE_USD_SDK
+	TUsdStore< pxr::UsdStageRefPtr > ReadUSDFile(FUsdImportContext& ImportContext, const FString& Filename);
 
 	TArray<UObject*> ImportMeshes(FUsdImportContext& ImportContext, const TArray<FUsdAssetPrimToImport>& PrimsToImport);
 
 	UObject* ImportSingleMesh(FUsdImportContext& ImportContext, EUsdMeshImportType ImportType, const FUsdAssetPrimToImport& PrimToImport);
+#endif // #if USE_USD_SDK
 };

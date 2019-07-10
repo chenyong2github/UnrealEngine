@@ -1,0 +1,22 @@
+﻿INTSourceChangelist:6441463
+Availability:Public
+Title:物理资源编辑器操作指南汇总
+Crumbs: %ROOT%, Engine, Engine/Physics, Engine/Physics/PhysicsAssetEditor
+Description:物理资源工具操作指南汇总页面。
+Navigation:topic
+parent:Engine/Physics/PhysicsAssetEditor
+type:landing
+order:1
+Version: 4.13
+tags:Physics 
+tags:how-to
+
+此页面包含了如何在 **物理资源工具** （**PhAT**）中执行常规任务的指南链接。
+
+## 初级
+
+[DIR(output:"fancy" parent:"Engine/Physics/PhysicsAssetEditor/HowTo" org:"hierarchy" skill_level:"Beginner")]
+
+## 中级
+
+[DIR(output:"fancy" parent:"Engine/Physics/PhysicsAssetEditor/HowTo" org:"hierarchy" skill_level:"Intermediate")]

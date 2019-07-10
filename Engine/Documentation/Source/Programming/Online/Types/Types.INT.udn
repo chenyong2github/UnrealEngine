@@ -57,10 +57,6 @@ This document serves to define the different data structures that are used throu
 
 **FUniqueNetId** contains a profile service online ID and can represent anything from an individual player, friend or a session.
 
-[COMMENT:none]
-See: [](Programming/Online/Interfaces/Profile)
-[/COMMENT]
-
 
 ### FSharedContentHandle
 
@@ -68,7 +64,7 @@ See: [](Programming/Online/Interfaces/Profile)
 
 [COMMENT:none]
 See:
- * [](Programming/Online/Interfaces/SharedCloud)
+ * [](Programming/Online/SharedCloudInterface)
 [/COMMENT]
 
 
@@ -77,7 +73,7 @@ See:
 
 **FSessionInfo** contains a session's platform-specific info.  In most cases, this would be information such as a session identifier, host address, or other means of identifying and connecting to a created session.
 
-See: [](Programming/Online/Interfaces/Session)
+See: [](Programming/Online/SessionInterface)
 
 
 ### FEmsFile
@@ -93,8 +89,8 @@ Contains the following elements:
 
 [COMMENT:none]
 See:
- * [](Programming/Online/Interfaces/SharedCloud)
- * [](Programming/Online/Interfaces/UserCloud)
+ * [](Programming/Online/SharedCloudInterface)
+ * [](Programming/Online/UserCloudInterface)
 [/COMMENT]
 
 
@@ -110,8 +106,8 @@ Contains the following elements:
 
 [COMMENT:none]
 See: 
- * [](Programming/Online/Interfaces/SharedCloud)
- * [](Programming/Online/Interfaces/UserCloud)
+ * [](Programming/Online/SharedCloudInterface)
+ * [](Programming/Online/UserCloudInterface)
 [/COMMENT]
 
 

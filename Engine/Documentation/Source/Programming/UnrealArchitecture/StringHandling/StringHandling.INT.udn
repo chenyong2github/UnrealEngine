@@ -1,7 +1,7 @@
 Availability: Public
 Title:String Handling
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference, Programming/UnrealArchitecture/Reference/Properties
-Description: An overview of the string classes available in UE4 and reference guides for FName, FText, and FString
+Description: An overview of the string classes available in UE4 and reference guides for FName, FText, and FString.
 Version: 4.9
 
 

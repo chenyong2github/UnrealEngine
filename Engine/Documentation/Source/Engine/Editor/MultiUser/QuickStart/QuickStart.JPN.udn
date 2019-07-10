@@ -1,0 +1,255 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Getting Started with Multi-User Editing
+Description: Provides step-by-step instructions that will get you up and running using Multi-User Editing for your Project.
+Version: 4.22
+Parent: Engine/Editor/MultiUser
+Tags: Getting Started
+Tags: Early Access
+Tags: Multi-User Editing
+Type: quick start
+Order: 1
+topic-image: multiuserediting-qs-topic.png
+
+[REGION:banner]
+![Getting Started with Multi-User Editing](multiuserediting-qs-banner.png "Getting Started with Multi-User Editing")
+[/REGION]
+
+This Quick Start page will get you up and running with the basics of the Multi-User Editing system. After going through the tutorial, you'll know:
+
+*   How to set up multiple computers so that they're ready to join a session together.
+
+*   How to start a server to manage your sessions.
+
+*   How to start and join sessions, so that you can work together with your teammates.
+
+*   How to persist the changes you make while working in a session back to the Project content on your local computer.
+
+[REGION:note]
+**Prerequisites:** Although you can run this tutorial using multiple instances of the Unreal Editor working on the same host, it's much more effective to connect multiple different computers to the same session. To start with:
+
+*   Install the same version of Unreal Engine on each computer.
+
+*   Make sure that all computers are connected to the same Local Area Network (LAN) or Virtual Private Network (VPN).
+[/REGION]
+
+[REGION:tip]
+The images in this procedure use the [Virtual Camera](Engine/Plugins/VirtualCameraPlugin#virtualcamerasampleproject) sample Project, which you can get from the **Learn** tab of the Epic Games Launcher. However, the same steps should work equally well for any Unreal Engine Project you're working on.
+[/REGION]
+
+## 1 - Set Up the Project
+
+Before you can connect multiple instances of the Unreal Editor together to work in a shared session, you need to enable the **Multi-User Editing** Plugin for your Project.
+
+1.  Open your Project in the Unreal Editor.
+
+1.  From the main menu, select **Edit > Plugins**.
+
+1.  Under the **Developer** category, find the **Multi-User Editing** Plugin and check its **Enabled** box.  
+    ![Enable the Plugin](multiuserediting-gs-1-3-enable.png "Enable the Plugin")
+
+1.  Click **Yes** to confirm.  
+    ![Confirm](multiuserediting-gs-1-4-betaconfirm.png "Confirm")
+
+1.  Click **Restart Now** to restart your Project and apply the change.  
+    ![Restart Now](multiuserediting-gs-1-5-restart.png "Restart Now")
+
+## 2 - Set Up Multiple Computers
+
+Each computer that you want to connect to the same Multi-User Editing session needs to have the same version of Unreal Engine installed.
+
+Each computer also needs to have a copy of the same Unreal Engine Project, each with exactly the same content.
+
+*   The typical way to achieve this is to store your Project in a version control system such as Perforce, Git, or Subversion, and to sync every computer to the same revision or changelist.
+
+    [REGION:tip]
+    If you're using Perforce, you can also consider using UnrealGameSync (UGS) to make this process easier. For details, see [the UGS documentation](Programming/Deployment/UnrealGameSync).
+    [/REGION]
+
+*   The Multi-User Editing system doesn't absolutely require you to use source control. You could simply copy your Project folder from one computer to all the other computers that you want to join the same session. You may find this useful for initial testing of the Multi-User Editing system. However, avoid relying on this approach. Using version control effectively within your team is the safest way to maintain and share your Project content.
+
+Once you have a copy of your Project on each computer, you'll want to customize a few settings in order to make the presence information recorded by your session more useful. On each computer:
+
+1.  Open your Project in the Unreal Editor.
+
+1.  Click the arrow next to the **Go Live** button in the Toolbar, and choose **Multi-User Settings...**.  
+    ![Open the Multi-User Settings](multiuserediting-settings-menu.png "Open the Multi-User Settings")
+
+1.  The **Project Settings** window opens to the **Plugins > Multi-User Editing** section.  
+    ![Multi-User Editing - presence settings](mutiuserediting-settings-presence.png "Multi-User Editing - presence settings") For now, you might want to change the following settings, to customize the presence information that each Unreal Editor instance shows to other instances while connected to a session.
+    
+    | Setting | Description |
+    | --- | --- |
+    | **Display Name** | [INCLUDE:#excerpt_0] |
+    | **Avatar Color** | [INCLUDE:#excerpt_1] |
+    
+    [REGION:note]
+    For details on the settings available in this panel, see also the [Multi-User Editing Reference](Engine/Editor/MultiUser/Reference).
+    [/REGION]
+    
+<!--
+[EXCERPT:excerpt_0]
+Sets the name that the Multi-User Editing system uses when it displays presence information and session history for this computer.  
+By default, the Multi-User Editing system attempts to use the login information for the current user of the host operating system, but you may want to override this value in some cases — for example, if you have the same user account logged in on multiple computers.
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+Sets a color that the Multi-User Editing system associates with this computer when it displays presence information and session history.  
+By default, this color is the same for all users (white), but you can make your session history much easier to understand if you assign a different color to each computer.
+[/EXCERPT:excerpt_1]
+-->
+
+## 3 - Start a Server
+
+Once you have your Project open in the Unreal Editor on each computer that you want to connect together, you'll need to start a server to manage the session shared by those computers. The easiest way to do this is inside any one of those instances of the Unreal Editor.
+
+1.  Click the arrow next to the **Go Live** button in the Toolbar, and choose **Launch Multi-User Server**.  
+    ![Launch Multi-User Server](multiuserediting-launchserver-menu.png "Launch Multi-User Server")
+
+1.  You'll see a new command window open. The server periodically prints status messages to this window as you manage sessions and make changes to your Project content. For example:  
+    ![Multi-User Server console](multiuser-server-console.png "Multi-User Server console")
+
+[REGION:tip]
+You can also start a server from the command line on any computer that has Unreal Engine installed. For details, see the [UnrealMultiUserServer Command-line Parameters](Engine/Editor/MultiUser/Reference#unrealmultiuserservercommand-lineparameters) section of the Multi-User Editing Reference page.
+[/REGION]
+
+## 4 - Start a Session
+
+Now you have a server running on one of your computers, but none of your Unreal Editor instances are connected to that server yet. In order for that to happen, you need to create a new session. The session manages and shares all the modifications that all connected users make to the Assets and Levels in the Project.
+
+To create a new session:
+
+1.  On one of the computers, click the arrow next to the **Go Live** button in the Toolbar and choose **Session Browser...**  
+    ![Session Browser](multiuserediting-sessionbrowser-menu.png "Session Browser")  
+    This opens the **Multi-User Browser** window:  
+    ![Multi-User Browser](multiuserediting-qs-browser.png "Multi-User Browser")
+
+1.  There won't be any sessions or client info listed here yet. However, as long as the computer running your server is visible over the network to the computer running this instance of Unreal Editor, the name of that server's computer should already be listed in the **Available Servers** section. Click its name.  
+    ![Click the server name](multiuserediting-qs-browser-select.png "Click the server name")
+    [REGION:note]
+    If your server is not listed, but it is on the same LAN or VPN as the computer running Unreal Editor, you may need to stop and do some additional network configuration at this point. See the [Advanced Networking](Engine/Editor/MultiUser/Reference#advancednetworking) section of the [Multi-User Editing Reference](Engine/Editor/MultiUser/Reference) page.
+    [/REGION]
+    While you have a server name selected, the **Create Session** button becomes enabled next to the **Available Sessions** category.
+
+1.  Click **Create Session**.  
+    ![Create Session](multiuserediting-qs-browser-createsession.png "Create Session")
+
+1.  In the **Create A Session** dialog, enter a name for your new session in the **Session Name** field.  
+    ![Set the Session Name](multiuserediting-qs-createsessiondialog.png "Set the Session Name")
+
+1.  Click **Create**.  
+    ![Create](multiuserediting-qs-create.png "Create")
+
+1.  You'll see your new session listed in the **Multi-User Browser** window under the **Available Sessions** category, and you'll see your own user ID or computer name listed under **Connected Clients**.  
+    ![Multi-User Browser connected to a new session](multiuserediting-qs-browser-connected.png "Multi-User Browser connected to a new session")
+
+This computer is automatically connected to the session, and the **Go Live** button in the Toolbar turns green to indicate that you're connected.
+
+![Multi-User Editor connected in the Toolbar](multiuserediting-qs-toolbarconnected.png "Multi-User Editor connected in the Toolbar")
+
+## 5 - Join the Session
+
+Now that you have a server running, and you've created a session on that server from the Unreal Editor on one of your computers, you'll be able to connect to that same session from other instances of the Unreal Editor running on other computers.
+
+On each other computer you want to join the session:
+
+1.  Click the arrow next to the **Go Live** button in the Toolbar, and choose **Session Browser...**  
+    ![Session Browser](multiuserediting-sessionbrowser-menu.png "Session Browser")
+
+1.  At the top of the **Multi-User Browser** panel, you should see the name of your server host in the **Available Servers** list. Click the server name.  
+    ![Select the server](multiuserediting-qs-browser-select-1.png "Select the server")
+
+1.  While you have a server selected in the **Available Servers** list, the **Available Sessions** list shows all the sessions being managed by that server. Find the name of the session you want to join, and click the green **Join** icon.  
+    ![Join Session](multiuserediting-qs-joinsession.png "Join Session")
+    [REGION:tip]
+    Mouse over the name of any session to see a summary that contains the session owner, Project name, source control changelist (if any), and more. This information can help you tell which session you need to join.  
+    ![Session tooltip](multiuserediting-qs-sessiontooltip.png "Session tooltip")
+    [/REGION]
+
+1.  As soon as you're connected, the **Connected Clients** list is updated to include your computer along with all the others currently connected to this session.  
+    ![Multiple connected clients](multiuserediting-qs-bothconnected.png "Multiple connected clients")
+
+If any of the other computers already working in this session have already made any changes to the Level or the Assets in the Project before you joined, your instance of Unreal Editor will automatically fetch those transactions from the server and apply the changes in your local view of the shared session workspace. You'll now be locked in to working with the same content as all the other participants, but you'll be free to work with that content any way you need to in the Unreal Editor UI. You can do things like moving your camera viewpoint around in the Level Viewport, browsing to new folders in the Content Browser, switching tools, opening new windows and panels, and so on, without affecting other users.
+
+Now that you have multiple computers connected together in a single session, we can make some changes on one computer and see how those changes are propagated to the other computers in the same session.
+
+## 6 - Work Together
+
+Now that you have multiple users connected in the same live session, you can all build the virtual world together. Work on your Unreal Engine Project as you usually would, but now you'll all see the results of each others' changes as soon as they're applied.
+
+For details on what to expect while you're working live, see the [Multi-User Editing Overview](Engine/Editor/MultiUser/Overview).
+
+[REGION:lightbox]
+[![Working together in the Level Viewport](multiuserediting-qs-worktogether.png "Working together in the Level Viewport")](multiuserediting-qs-worktogether.png)  
+*Click for full image.*
+[/REGION]
+
+## 7 - Persist Session Changes
+
+At this point, you and your teammates have probably made some changes to a Level and to some Assets in the Project. However, these transactions are not yet reflected in the actual files that make up the Project content on your computer. If you want to keep the work that your team has done in the live session, you'll need to *persist* these changes: to apply all the transactions handled by the Multi-User Editing system to your local Project files.
+
+You persist changes using the **Source Control** tools in the Toolbar, regardless of whether you're using a source control provider or not.
+
+1.  Click the arrow next to the **Source Control** button in the Toolbar, and select **Persist Session Changes**.  
+    ![Persist Session Changes](multiuserediting-qs-persistmenu.png "Persist Session Changes")
+
+1.  In the Persist & Submit Files window, you'll see a list of all the files that were modified during the live session. Use the checkboxes to indicate what modified files you want to apply to the Project files on your local computer.  
+    ![Persist & Submit Files](multiuserediting-qs-persist-boxes.png "Persist & Submit Files")
+
+1.  If you had a source control provider set up when you started or joined your session, you have the option to immediately submit the changes that you're persisting back to that provider in a new changelist or revision.  
+    If you want to do this:
+    1.  Check the **Submit to Source Control** option at the bottom of the window.  
+        ![Submit to Source Control](multiuserediting-qs-persist-submitbox.png "Submit to Source Control")
+    
+    1.  Just like in the usual Source Control workflow, you must set a description of the changes that you're submitting. Expand the **Changelist Description** at the top of the window, and type a description in the box.  
+        ![Set a changelist description](multiuserediting-qs-persist-changelist.png "Set a changelist description")
+    
+    1.  If you know that you'll need to make more modifications to the files you're submitting, you can check the **Keep Files Checked Out** option as in the usual Source Control workflow.  
+        ![Keep Files Checked Out](multiuserediting-qs-persist-keep.png "Keep Files Checked Out")If you don't choose to submit immediately, the Multi-User Editing system will check out the modified files automatically from your source control provider in order to apply and save the changes made in the session. You'll be able to make further modifications and submit them later using the standard Source Control workflow, if you choose.
+
+1.  When you're happy with the list of files you want to submit, and you've set the source control options you want, click **Submit**.  
+    ![Submit](multiuserediting-qs-persist-submit.png "Submit")
+
+You'll remain connected to your session, and you can keep working as long as you like.
+
+## 8 - Clean Up
+
+Now that you've applied the changes that you and your teammates made to your Levels and Assets during your live session back to your Project on disk, and optionally committed those changes back to your source control system, you likely won't need your session anymore. Although you could rejoin and pick up the same session where you left off, it's good practice to regularly start new editing sessions from updated changelists, rather than keep working in older sessions for a long period of time.  
+
+When you don't need a session anymore, you can use the **Session Browser** to delete it.
+
+[REGION:note]
+Only the user who initially created the session can delete it. Other users will not see the option in the **Session Browser**, even if they participated in that session.
+[/REGION]
+
+1.  Disconnect from the session, if you haven't already. You can't delete a session while you're connected to it.  
+    The easiest way to disconnect is to simply press the **Go Live** button in the Toolbar:  
+    ![Leave the current session from the Toolbar](multiuserediting-qs-toolbarconnected-1.png "Leave the current session from the Toolbar")  
+    You can also click the **Leave this session** icon in the **Session Browser**.  
+    ![Leave the current session from the Session Browser](multiuserediting-qs-leavesession.png "Leave the current session from the Session Browser")
+
+1.  After you've disconnected, click the **Delete this session** icon in the **Session Browser**.  
+    ![Delete the session](multiuserediting-qs-deletesession.png "Delete the session")
+
+1.  Confirm the deletion.  
+    ![Confirm deletion](multiuserediting-qs-disconnect-confirm.png "Confirm deletion")  
+    If there are any other users connected to the session you've deleted, they will be automatically disconnected.
+
+1.  Finally, if you know that you won't need to reconnect to any shared sessions for a while, you can stop the server by pressing **Ctrl+C** in its console window.
+    [REGION:note]
+    Avoid simply closing the console window. The server considers this an abnormal shutdown. Any sessions that are still active when you close the console window will be automatically restored next time you start the server.
+    [/REGION]
+    
+
+Now you're back to where you started this tutorial. 
+
+## 9 - On Your Own
+
+If you've successfully gone through all the steps above, you've had a first taste of live collaboration workflows in the Unreal Editor. You've learned how to set up your Project on multiple computers, connect those computers together into a shared editing session, and work together with your teammates on building a virtual world. You probably already have ideas for how to put these workflows into practice within your own teams working on your own Projects — now you'll be able to benefit from instant collaboration, zero iteration time, and the creative cooperation made possible by the Multi-User Editing system.
+
+*   If you start using the Multi-User Editing system routinely in your team, you may want to set up a default server name and session name in your **Project Settings**. When this is set up, you can connect to the default session by clicking the **Go Live** button once in the Toolbar instead of using the Session Browser. You can also choose to connect automatically to that default session when you open your Project.
+
+*   If you need multiple users to see the same animations playing back in sync, you can configure the Multi-User Editing system to synchronize operations in the Sequencer UI between different users. Each user needs to opt in to this by setting some console commands.
+
+For details on the settings you'll need to modify, see the [Multi-User Editing Reference](Engine/Editor/MultiUser/Reference).

@@ -5,25 +5,6 @@ using System.IO;
 
 public class DisplayCluster : ModuleRules
 {
-	private string ModulePath
-	{
-		get
-		{
-			//return Path.GetDirectoryName(RulesCompiler.GetModuleFilename(this.GetType().Name));
-			string ModuleFilename = UnrealBuildTool.RulesCompiler.GetFileNameFromType(GetType());
-			string ModuleBaseDirectory = Path.GetDirectoryName(ModuleFilename);
-			return ModuleBaseDirectory;
-		}
-	}
-
-	private string ThirdPartyPath
-	{
-		get
-		{
-			return Path.GetFullPath(Path.Combine(ModulePath, "../../ThirdParty/"));
-		}
-	}
-
 	public DisplayCluster(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
@@ -78,28 +59,29 @@ public class DisplayCluster : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+        AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 
-        // vrpn
-        AddDependencyVrpn(ROTargetRules);
+		// 3rd party dependencies
+		AddThirdPartyDependencies(ROTargetRules);
 	}
 
-	public bool AddDependencyVrpn(ReadOnlyTargetRules ROTargetRules)
+
+	public bool AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
 	{
-		if ((ROTargetRules.Platform == UnrealTargetPlatform.Win64) || (ROTargetRules.Platform == UnrealTargetPlatform.Win32))
-		{
-			string PlatformString = (ROTargetRules.Platform == UnrealTargetPlatform.Win64) ? "x64" : "x86";
-			string LibrariesPath = Path.Combine(ThirdPartyPath, "VRPN", "Lib/" + PlatformString);
+		string ModulePath = Path.GetDirectoryName(UnrealBuildTool.RulesCompiler.GetFileNameFromType(GetType()));
+		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModulePath, "../../ThirdParty/"));
 
-			//@todo: There are also debug versions: vrpnd.lib and quatd.lib
-			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "vrpn.lib"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "quat.lib"));
+		string PathLib = string.Empty;
+		string PathInc = string.Empty;
 
-			PublicIncludePaths.Add(Path.Combine(ThirdPartyPath, "VRPN", "Include"));
+		// VRPN
+		PathLib = Path.Combine(ThirdPartyPath, "VRPN/Lib");
+		PathInc = Path.Combine(ThirdPartyPath, "VRPN/Include");
+		PublicAdditionalLibraries.Add(Path.Combine(PathLib, "vrpn.lib"));
+		PublicAdditionalLibraries.Add(Path.Combine(PathLib, "quat.lib"));
+		PublicIncludePaths.Add(PathInc);
 
-			return true;
-		}
-
-		return false;
+		return true;
 	}
 }

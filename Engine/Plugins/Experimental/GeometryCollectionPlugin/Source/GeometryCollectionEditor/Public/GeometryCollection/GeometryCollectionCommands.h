@@ -45,7 +45,13 @@ public:
 	static void PrintDetailedStatistics(UWorld * World);
 
 	/**
-	*  
+	*  Command invoked from "GeometryCollectionAlgo.PrintDetailedStatisticsSummary", uses the selected GeometryCollectionActor to output detailed statistics
+	*  @param World
+	*/
+	static void PrintDetailedStatisticsSummary(UWorld * World);
+
+	/**
+	*
 	*  @param World
 	*/
 	static void DeleteCoincidentVertices(const TArray<FString>& Args, UWorld * World);
@@ -89,6 +95,11 @@ public:
 	static void SelectNone(const TArray<FString>& Args, UWorld* World);
 
 	/**
+	* Select no geometry in hierarchy
+	*/
+	static void SelectLessThenVolume(const TArray<FString>& Args, UWorld* World);
+
+	/**
 	* Select inverse of currently selected geometry in hierarchy
 	*/
 	static void SelectInverseGeometry(const TArray<FString>& Args, UWorld* World);
@@ -101,7 +112,7 @@ public:
 	/*
 	*  Build Proximity Database
 	*/
-	static void BuildProximityDatabase(const TArray<FString>& Args, UWorld * World); 
+	static void BuildProximityDatabase(const TArray<FString>& Args, UWorld * World);
 
 	/*
 	*  Test Bone Asset
@@ -109,8 +120,13 @@ public:
 	static void SetupNestedBoneAsset(UWorld * World);
 
 	/*
-	*  Setup two clustered cubes 
+	*  Setup two clustered cubes
 	*/
 	static void SetupTwoClusteredCubesAsset(UWorld * World);
+
+	/*
+*  Remove Holes
+*/
+	static void HealGeometry(UWorld * World);
 
 };

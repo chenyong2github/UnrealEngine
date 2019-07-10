@@ -1,0 +1,25 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Native Toolchain
+Description: 
+Type: reference
+Version: 4.22
+Parent: Platforms/Linux
+Order: 6
+Tags: Linux
+topic-image: LinuxDevelopment_topic.png
+
+
+As of Unreal Engine, Version 4.20, our setup shell script (Setup.sh) automatically downloads a native toolchain, which guarantees your compiler and linker to work with our codebase. With the native toolchain, you compile against a fixed sysroot (glibc at the very least), so that, for example, if you compile a game on Ubuntu 18.04, you will be able to start the binary on CentOS 7.
+
+## Getting the Toolchain
+
+Please use the following table to download the appropriate toolchain:
+
+  
+| UE4 Version | Toolchain |
+| --- | --- |
+| 4.22 | **-v13** [clang-7.0.1-based](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v13_clang-7.0.1-centos7.tar.gz) |
+| 4.21 | **-v12** [clang-6.0.1-based](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v12_clang-6.0.1-centos7.tar.gz) |
+| 4.20 | **-v11** [clang-5.0.0-based](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v11_clang-5.0.0-centos7.tar.gz) |

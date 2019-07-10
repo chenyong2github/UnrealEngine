@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title: 스태틱 메시 카테고리
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor, Engine/UI/LevelEditor/Details
@@ -21,7 +21,7 @@ Version: 4.9
 
 | 컨트롤 | 설명 |
 | ------- | ----------- |
-| ![](button_blocking_volume.png) | _스태틱 메시_ 에서 콜리전으로 사용할 _블로킹 볼륨_ 을 생성하되, 다음 메서드 중 하나를 사용합니다: [INCLUDE:#BlockingVolume] |
+| ![](button_blocking_volume.png) | _스태틱 메시_ 에서 콜리전으로 사용할 _블로킹 볼륨_ 을 생성하지만, 다음 메서드 중 하나를 사용합니다: [INCLUDE:#BlockingVolume] |
 
 [COMMENT:none]
 

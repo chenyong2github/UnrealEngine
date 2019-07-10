@@ -1,0 +1,43 @@
+Availability: Public
+Crumbs: 
+Title: iTunes Windows 10 App
+Description: Going over getting IPP to work with the Windows 10 iTunes.
+Type: 
+Version: 4.21
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: mobile
+Tags: iOS
+Tags: iTunes
+
+
+Due to the way Windows 10 handles User Access Control (UAC), you will not be able to use iPhone Packing Tool (IPP) to deploy your iOS project to your iOS device if you downloaded the iTunes App form the Windows 10 store. By default your Windows user account does not have the needed permissions to read and write to the WindowsApps folder. In this how-to, you learn how to set permissions on the WindowsApps folder in order to use the IPP tool.
+
+## Steps
+
+ Below are instructions for changing the permissions on the **WindowsApps** folder so that IPP can access the contents of the directory.
+
+[REGION:note]
+If you have downloaded iTunes from the Apple website you **do not** need to do the following.
+[/REGION]
+
+1.  First, make sure that you have **Show hidden files, folders and drives** enabled in the **Folder Options**.   
+    ![](iTunesWindows10App_FolderOptions.png "iTunesWindows10App_FolderOptions.png")
+2.  Next, go to **C:\\Program Files** and locate the **WindowsApps** folder.  
+    ![](iTunesWindows10App_CDriveWindowsApps.png "iTunesWindows10App_CDriveWindowsApps.png")
+3.  Right-Click on the WindowsApps folder and from the context menu and select **Properties**.  
+    ![](iTunesWindows10App_Properties.png "iTunesWindows10App_Properties.png")
+4.  From the Properties window, click on the **Security** tab and then click on the **Advanced** button.
+    ![](iTunesWindows10App_SecuritySettings.png "iTunesWindows10App_SecuritySettings.png")
+5.  In the **Advanced Security Settings for WindowsApps** dialog, make sure that **TrustedInstaller** is selected and then at the top, next to **Owner**, click on the **Change** option.
+    ![](iTunesWindows10App_ChangeSecuritySettings.png "iTunesWindows10App_ChangeSecuritySettings.png")
+6.  This will open the **Select User or Group** dialog. Here enter your **administrator username** and click on **Check Names** to automatically fill in the object name. When that is completed, click the **OK** button to continue.  
+    ![](iTunesWindows10App_ChangeName.png "iTunesWindows10App_ChangeName.png")
+7.  With the owner of the folder now changed to your specified administrator account, next make sure that the **Replace all child object entries with inheritable permission entries from this object** checkbox is selected and then click the **Apply** button.  
+    ![](iTunesWindows10App_ApplyChanges.png "iTunesWindows10App_ApplyChanges.png")
+
+## End Result
+
+Once you have clicked the **OK** button, you might need to wait a few minutes for the permissions to update. Once the permissions do update, you will now be able to use the IPP tool with the version of iTunes that was downloaded from the Windows 10 store.
+
+[](#)[](#)

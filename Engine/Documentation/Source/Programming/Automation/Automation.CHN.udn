@@ -1,4 +1,4 @@
-INTSourceChangelist:3801260
+﻿INTSourceChangelist:3801260
 Availability: Public
 Crumbs: %ROOT%
 Title:自动化系统概述
@@ -29,7 +29,6 @@ Navigation:topic
 [/REGION]
 
 
-(#automationtestsmovedtoplugins)
 ## 自动化测试已移至插件
 
 长期以来，自动化测试分布于引擎和编辑器的多个位置，意味着您在交付作品时也会包含这些测试。现在，这些测试已经移到自己的插件，
@@ -52,7 +51,6 @@ Navigation:topic
 迁移后会列示在 **测试（Testing）** 部分中。 
 [/REGION]
 
-(#enablingautomationtestplugins)
 ### 启用自动化测试插件
 
 要为不同的可用测试启用插件，转至文件菜单，选择 **窗口（Window）** >**插件（Plugins）** 以打开“插件浏览器”（Plugin Browser）窗口。 
@@ -71,7 +69,6 @@ Navigation:topic
 ![](RestartTheEditor.png)
 
 
-(#testdesignguidelines)
 ## 测试设计准则
 
 在测试游戏或项目时，请参考Epic在自动化测试时遵循的一些通用准则： 
@@ -80,7 +77,6 @@ Navigation:topic
 * 让磁盘上的文件保持原状态，不要改动。如果测试生成了文件，则在测试完成时将它删除。（这一点在未来可能会改变，允许选择自动删除生成的这类文件）。
 * 假设上一次运行测试结束后，测试状态不佳。一种比较好的做法是先生成文件以尝试删除它们，然后再开始测试。
 
-(#runningautomationtests)
 ## 运行自动化测试
 
 1. 打开任意项目。
@@ -123,7 +119,6 @@ Navigation:topic
 	[REGION:caption] 单击查看大图。[/REGION]
 
 
-(#essentials)
 ## 基础	
 
 **自动化系统** 提供了使用 **虚幻消息总线** 的功能执行单元测试、功能测试和内容压力测试的能力，以提高稳定性。

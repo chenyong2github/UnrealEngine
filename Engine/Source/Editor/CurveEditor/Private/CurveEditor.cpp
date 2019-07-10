@@ -39,6 +39,8 @@ FCurveEditor::FCurveEditor()
 	, ActiveCurvesSerialNumber(0)
 {
 	Settings = GetMutableDefault<UCurveEditorSettings>();
+	CommandList = MakeShared<FUICommandList>();
+
 	OutputSnapEnabledAttribute = true;
 	InputSnapEnabledAttribute  = true;
 	OutputSnapIntervalAttribute = 0.1;
@@ -206,39 +208,9 @@ void FCurveEditor::RemoveTreeItem(FCurveEditorTreeItemID ItemID)
 	++ActiveCurvesSerialNumber;
 }
 
-FSimpleMulticastDelegate& FCurveEditor::OnTreeChanged()
-{
-	return Tree.OnChanged();
-}
-
 ECurveEditorTreeSelectionState FCurveEditor::GetTreeSelectionState(FCurveEditorTreeItemID InTreeItemID) const
 {
 	return Tree.GetSelectionState(InTreeItemID);
-}
-
-void FCurveEditor::SetDirectTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems)
-{
-	TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> PreviousSelection = Tree.GetSelection();
-	Tree.SetDirectSelection(MoveTemp(TreeItems));
-
-	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& NewSelection = Tree.GetSelection();
-	for (TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> CachedItem : PreviousSelection)
-	{
-		const ECurveEditorTreeSelectionState* NewState = NewSelection.Find(CachedItem.Key);
-		if (!NewState || *NewState == ECurveEditorTreeSelectionState::None)
-		{
-			GetTreeItem(CachedItem.Key).DestroyUnpinnedCurves(this);
-		}
-	}
-
-	// Ensure the new selection has valid curve models
-	for (TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> CachedItem : Tree.GetSelection())
-	{
-		if (CachedItem.Value != ECurveEditorTreeSelectionState::None)
-		{
-			GetTreeItem(CachedItem.Key).GetOrCreateCurves(this);
-		}
-	}
 }
 
 const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& FCurveEditor::GetTreeSelection() const
@@ -260,8 +232,6 @@ bool FCurveEditor::ShouldAutoFrame() const
 void FCurveEditor::BindCommands()
 {
 	UCurveEditorSettings* CurveSettings = Settings;
-
-	CommandList = MakeShared<FUICommandList>();
 
 	CommandList->MapAction(FGenericCommands::Get().Undo,   FExecuteAction::CreateLambda([]{ GEditor->UndoTransaction(); }));
 	CommandList->MapAction(FGenericCommands::Get().Redo,   FExecuteAction::CreateLambda([]{ GEditor->RedoTransaction(); }));

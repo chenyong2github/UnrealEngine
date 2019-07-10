@@ -1,0 +1,107 @@
+Availability: Public
+Crumbs: 
+Title: Getting Started with the Multi-User Viewer
+Description: A complete, step-by-step guide to getting up and running with the Multi-User Viewer Template.
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 0
+Tags: Getting Started
+Tags: multi-user viewer
+topic-image:Studio/UnrealStudioProjectTemplates/MultiUserViewer/multiuserviewer-getstarted-topic.png
+
+This page contains detailed, step-by-step instructions for getting started with the Multi-User Viewer Template on your local network with its default content:
+
+*   [1 - Packaging and Distributing](#1-packaginganddistributing)
+*   [2 - One Person Starts a Server](#2-onepersonstartsaserver)
+*   [3 - Other People Join](#3-otherpeoplejoin)
+
+## 1 - Packaging and Distributing
+
+Every person who wants to join the same session in the Multi-User Viewer needs to run the application from a packaged *.exe* file. One person on the team needs to package the Project from the Unreal Editor, then distribute the packaged build to everyone else.
+
+1.  Create a new Project from the Multi-User Viewer Template, if you haven't already, and open it in the Unreal Editor.
+2.  From the main menu, choose **File > Package Project > Windows > Windows (64-bit).**
+    [REGION:lightbox]
+    [![Package for Windows 64-bit](multiuserviewer-package-win64.png "Package for Windows 64-bit")](multiuserviewer-package-win64.png)  
+    *Click for full image.*
+    [/REGION]
+3.  Browse to the folder on your computer where you want the Unreal Editor to place the packaged version of your Project, and click **Select Folder**.  
+    ![Select a folder](multiuserviewer-package-select-folder.png "Select a folder")
+
+	The Unreal Editor begins the packaging process.
+
+    ![Packaging progress](multiuserviewer-packagestatus.png "Packaging progress")
+4.  When the packaging process is finished, go to the folder that you selected in step 3 above. You'll find a folder called **WindowsNoEditor** with contents similar to the following:  
+    ![Package contents](multiuserviewer-package-contents.png "Package contents")  
+    Each person who wants to join the same session in the Multi-User Viewer will need to have all of the files in this folder on their local computer. It's up to you how best to achieve this for your organization.  
+    For example, you could zip up the files in this folder and place them in a shared location on your local network, so that each other user can copy them to their computer and extract them.
+
+[REGION:tip]
+For more information about packaging, and how you can configure the process, see also [Packaging Projects](Engine/Basics/Projects/Packaging).
+[/REGION]
+[REGION:note]
+You **must** follow this packaging and distribution process each time you change the content in your Project. The 3D models in your Level are not replicated automatically between networked users; they are compiled into the packaged application. In order for everyone in a session to see the latest content, everyone needs to be using the same version of the packaged application.
+[/REGION]
+
+
+
+## 2 - One Person Starts a Server
+
+In this step, you'll start up a server — a special instance of the Multi-User Viewer application that other people can connect to.
+
+1.  Double-click the *.exe* file for your packaged application.  
+    For example, in this case, the Project is named **MultiUserProject**, so its packaged application is named *MultiUserProject.exe*.  
+    ![Packaged executable](multiuserviewer-exe.png "Packaged executable")
+2.  In the welcome screen, set a display name for yourself. This name appears above the head of your avatar, so that other people in the same session can identify you.   
+    ![Set a display name](multiuserviewer-displayname.png "Set a display name")  
+    Click the arrow to go to the next step.
+3.  If you have a supported VR system set up on your computer, you can choose whether you want to start in Desktop mode or in VR mode. (If you don't have a VR system installed, this control won't appear. Skip to the next step.)  
+    ![Choose desktop or VR mode](multiuserviewer-server-desktopvr.png "Choose desktop or VR mode")  
+    Select an option, then click the arrow to go on to the next step.
+4.  Leave the next setting at its default value of **Host a session**.  
+    ![Host a session](multiuserviewer-server-host.png "Host a session")  
+    Click the arrow to complete the server setup.
+
+You'll start in the main Level, and your computer will become visible as a server to other computers in your network. As each other person joins your session, you'll see their avatar appear. Use the [desktop controls](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#desktopcontrols) or [VR controls](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#vrcontrols) to move around the scene and interact.
+
+![Server session opened](multiuserviewer-server-joined.png "Server session opened")
+
+## 3 - Other People Join
+
+In this step, each other person who wants to join in the same session launches a separate instance of the packaged application on a different computer, and they all connect to the same server.
+
+Each person who wants to join the session should follow these instructions.
+
+1.  Double-click the *.exe* file for your packaged application. For example, in this case, the Project is named **MultiUserProject**, so its packaged application is named *MultiUserProject.exe*.  
+    ![Packaged executable](multiuserviewer-exe.png "Packaged executable")
+2.  In the welcome screen, set a display name for yourself. This name appears above the head of your avatar, so that other people in the same session can identify you.  
+    ![Set a display name](multiuserviewer-displayname.png "Set a display name")  
+    Click the arrow to go to the next step.
+3.  If you have a supported VR system set up on your computer, you can choose whether you want to start in **Desktop** mode or in **VR** mode. (If you don't have a VR system installed, this control won't appear. Skip to the next step.)  
+    ![Choose desktop or VR mode](multiuserviewer-client-desktopvr.png "Choose desktop or VR mode")  
+    Select an option, then click the arrow to go on to the next step.
+4.  Change the next setting to **Join a session**.  
+    ![Choose Join a session](multiuserviewer-client-join.png "Choose Join a session")  
+    Click the arrow to go on to the next step.
+5.  The application scans the network, and lists all available servers.  
+    ![Select a server to join](multiuserviewer-client-serverlist.png "Select a server to join")  
+    *   If you see the server you want in the list, click its name to join the session.   
+        ![Click the server name](multiuserviewer-client-servername-1.png "Click the server name")
+    *   If you don't see the server you want, try the **Refresh** button to re-scan the network for servers.  
+        ![Refresh the list of servers](multiuserviewer-client-refresh.png "Refresh the list of servers")
+    *   If the application can't detect the server, but you know its IP address, activate the **Manually specify an IP Address** switch.  
+        ![Switch to manual IP mode](multiuserviewer-client-manualip.png "Switch to manual IP mode")  
+        Enter the IP address in the field provided, and click **Join**.  
+        ![Enter server IP Address and join](multiuserviewer-client-manualipjoin.png "Enter server IP Address and join")
+
+You'll start in the main Level. You'll be able to see an avatar for the person running the server, and each other person who joins the session.
+
+Use the [desktop controls](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#desktopcontrols) or [VR controls](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#vrcontrols) to move around the scene and interact.
+
+![](multiuserviewer-client-joined.png "multiuserviewer-client-joined.png")
+
+## 4 - On Your Own
+
+Now that you understand how to use the Multi-User Template, you're ready to get started using the same runtime experience to review your own content. Continue on with the instructions in the [Using Your Own Content with the Multi-User Viewer Template](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent) guide.
+

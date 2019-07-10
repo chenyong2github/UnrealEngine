@@ -1,14 +1,13 @@
 Availability:Public
 Title: Class Specifiers
-Crumbs:%ROOT%
 Description: Keywords used when declaring UClasses to specify how the class behaves with various aspects of the Engine and Editor.
 type:reference
 Version: 4.18
 parent:Programming/UnrealArchitecture/Reference/Classes
 order:0
-topic-image:components_topic.png
 tags:UCLASS
 tags:Specifiers
+topic-image:%ROOT%/placeholder_topic.png
 
 
 [EXCERPT:main]

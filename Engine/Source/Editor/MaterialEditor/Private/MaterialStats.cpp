@@ -183,7 +183,7 @@ bool FShaderPlatformSettings::CheckShaders()
 
 				FMaterialShaderMapId ShaderMapId;
 				Data.MaterialResourcesStats->GetShaderMapId(PlatformShaderID, ShaderMapId);
-				Data.MaterialResourcesStats->CacheShaders(ShaderMapId, PlatformShaderID, false);
+				Data.MaterialResourcesStats->CacheShaders(ShaderMapId, PlatformShaderID);
 
 				Data.bCompilingShaders = true;
 				Data.bUpdateShaderCode = true;

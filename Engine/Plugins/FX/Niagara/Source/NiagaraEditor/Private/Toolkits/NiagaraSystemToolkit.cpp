@@ -66,6 +66,7 @@ const FName FNiagaraSystemToolkit::DebugSpreadsheetTabID(TEXT("NiagaraSystemEdit
 const FName FNiagaraSystemToolkit::PreviewSettingsTabId(TEXT("NiagaraSystemEditor_PreviewSettings"));
 const FName FNiagaraSystemToolkit::GeneratedCodeTabID(TEXT("NiagaraSystemEditor_GeneratedCode"));
 const FName FNiagaraSystemToolkit::MessageLogTabID(TEXT("NiagaraSystemEditor_MessageLog"));
+const FName FNiagaraSystemToolkit::SystemOverviewTabID(TEXT("NiagaraSystemEditor_SystemOverview"));
 
 static int32 GbLogNiagaraSystemChanges = 0;
 static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
@@ -140,6 +141,10 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 	InTabManager->RegisterTabSpawner(MessageLogTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_MessageLog))
 		.SetDisplayName(LOCTEXT("NiagaraMessageLog", "Niagara Log"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+
+	InTabManager->RegisterTabSpawner(SystemOverviewTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemOverview))
+		.SetDisplayName(LOCTEXT("SystemOverviewTabName", "System Overview"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
 void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -157,6 +162,7 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(DebugSpreadsheetTabID);
 	InTabManager->UnregisterTabSpawner(PreviewSettingsTabId);
 	InTabManager->UnregisterTabSpawner(GeneratedCodeTabID);
+	InTabManager->UnregisterTabSpawner(SystemOverviewTabID);
 }
 
 
@@ -258,9 +264,6 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
 
-	// Always remove the source information from the emitter handle when editing an emitter asset because inheritance is not valid in this case.
-	System->GetEmitterHandle(0).RemoveSource();
-
 	// Adding the emitter to the system has made a copy of it and we set this to the copy's change id here instead of the original emitter's change 
 	// id because the copy's change id may have been updated from the original as part of post load and we use this id to detect if the editable 
 	// emitter has been changed.
@@ -298,7 +301,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	const float InTime = -0.02f;
 	const float OutTime = 3.2f;
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v18")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v19")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -325,6 +328,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 							FTabManager::NewStack()
 							->SetSizeCoefficient(.80f)
 							->AddTab(ViewportTabID, ETabState::OpenedTab)
+							->AddTab(SystemOverviewTabID, ETabState::ClosedTab)
 						)
 						->Split
 						(
@@ -640,6 +644,18 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_MessageLog(const FSpawnTabA
 			[
 				NiagaraMessageLog.ToSharedRef()
 			]
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemOverview(const FSpawnTabArgs& Args)
+{
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("SystemOverviewTabLabel", "System Overview"))
+		[
+			NiagaraEditorModule.GetWidgetProvider()->CreateSystemOverview(SystemViewModel.ToSharedRef())
 		];
 
 	return SpawnedTab;
@@ -1053,10 +1069,7 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 		LastSyncedEmitterChangeId = EditableEmitter->GetChangeId();
 		bEmitterThumbnailUpdated = false;
 
-		TArray<UNiagaraEmitter*> AffectedEmitters;
-		AffectedEmitters.Add(Emitter);
 		UpdateExistingEmitters();
-
 		GWarn->EndSlowTask();
 	}
 	else if(bEmitterThumbnailUpdated)
@@ -1068,28 +1081,76 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 	}
 }
 
+void MergeEmittersRecursively(UNiagaraEmitter* ChangedEmitter, const TMap<UNiagaraEmitter*, TArray<UNiagaraEmitter*>>& EmitterToReferencingEmittersMap, TSet<UNiagaraEmitter*>& OutMergedEmitters)
+{
+	const TArray<UNiagaraEmitter*>* ReferencingEmitters = EmitterToReferencingEmittersMap.Find(ChangedEmitter);
+	if (ReferencingEmitters != nullptr)
+	{
+		for (UNiagaraEmitter* ReferencingEmitter : (*ReferencingEmitters))
+		{
+			if (ReferencingEmitter->IsSynchronizedWithParent() == false)
+			{
+				ReferencingEmitter->MergeChangesFromParent();
+				OutMergedEmitters.Add(ReferencingEmitter);
+				MergeEmittersRecursively(ReferencingEmitter, EmitterToReferencingEmittersMap, OutMergedEmitters);
+			}
+		}
+	}
+}
+
 void FNiagaraSystemToolkit::UpdateExistingEmitters()
 {
+	// Build a tree of references from the currently loaded emitters so that we can efficiently find all emitters that reference the modified emitter.
+	TMap<UNiagaraEmitter*, TArray<UNiagaraEmitter*>> EmitterToReferencingEmittersMap;
+	UNiagaraEmitter* EditableCopy = System->GetEmitterHandles()[0].GetInstance();
+	for (TObjectIterator<UNiagaraEmitter> EmitterIterator; EmitterIterator; ++EmitterIterator)
+	{
+		UNiagaraEmitter* LoadedEmitter = *EmitterIterator;
+		if (LoadedEmitter != EditableCopy && LoadedEmitter->GetParent() != nullptr)
+		{
+			TArray<UNiagaraEmitter*>& ReferencingEmitters = EmitterToReferencingEmittersMap.FindOrAdd(LoadedEmitter->GetParent());
+			ReferencingEmitters.Add(LoadedEmitter);
+		}
+	}
+
+	// Recursively merge emitters by traversing the reference chains.
+	TSet<UNiagaraEmitter*> MergedEmitters;
+	MergeEmittersRecursively(Emitter, EmitterToReferencingEmittersMap, MergedEmitters);
+
+	// find referencing systems, aside from the system being edited by this toolkit and request that they recompile,
+	// also refresh their view models, and reinitialize their components.
 	for (TObjectIterator<UNiagaraSystem> SystemIterator; SystemIterator; ++SystemIterator)
 	{
 		UNiagaraSystem* LoadedSystem = *SystemIterator;
-
 		if (LoadedSystem != System &&
 			LoadedSystem->IsPendingKill() == false && 
-			LoadedSystem->HasAnyFlags(RF_ClassDefaultObject) == false &&
-			LoadedSystem->ReferencesSourceEmitter(*Emitter))
+			LoadedSystem->HasAnyFlags(RF_ClassDefaultObject) == false)
 		{
-			LoadedSystem->UpdateFromEmitterChanges(*Emitter);
-			TArray<TSharedPtr<FNiagaraSystemViewModel>> ReferencingSystemViewModels;
-			FNiagaraSystemViewModel::GetAllViewModelsForObject(LoadedSystem, ReferencingSystemViewModels);
-
-			for (TSharedPtr<FNiagaraSystemViewModel> ReferencingSystemViewModel : ReferencingSystemViewModels)
+			bool bUsesMergedEmitterDirectly = false;
+			for (const FNiagaraEmitterHandle& EmitterHandle : LoadedSystem->GetEmitterHandles())
 			{
-				ReferencingSystemViewModel->RefreshAll();
+				if (MergedEmitters.Contains(EmitterHandle.GetInstance()))
+				{
+					bUsesMergedEmitterDirectly = true;
+					break;
+				}
 			}
 
-			if (ReferencingSystemViewModels.Num() == 0)
+			if (bUsesMergedEmitterDirectly)
 			{
+				// Request that the system recompile.
+				bool bForce = false;
+				LoadedSystem->RequestCompile(bForce);
+
+				// Invalidate any view models.
+				TArray<TSharedPtr<FNiagaraSystemViewModel>> ReferencingSystemViewModels;
+				FNiagaraSystemViewModel::GetAllViewModelsForObject(LoadedSystem, ReferencingSystemViewModels);
+				for (TSharedPtr<FNiagaraSystemViewModel> ReferencingSystemViewModel : ReferencingSystemViewModels)
+				{
+					ReferencingSystemViewModel->RefreshAll();
+				}
+
+				// Reinit any running components
 				for (TObjectIterator<UNiagaraComponent> ComponentIterator; ComponentIterator; ++ComponentIterator)
 				{
 					UNiagaraComponent* Component = *ComponentIterator;

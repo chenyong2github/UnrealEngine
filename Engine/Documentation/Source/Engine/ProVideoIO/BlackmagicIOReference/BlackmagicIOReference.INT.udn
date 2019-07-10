@@ -2,13 +2,13 @@ Availability: Public
 Crumbs: 
 Title: Blackmagic Media Reference
 Description: Describes the options and settings exposed by the Blackmagic Design Media Framework components.
-Type: 
+Type:reference
 Version: 4.21
 Parent: Engine/ProVideoIO
-Order: 
+Order: 5
 Tags: Reference
-Tags: Early Access
 Tags: professional video
+topic-image: blackmagic_reference_topic.png
 
 
 This page describes the options and settings exposed on Blackmagic Media Framework objects.
@@ -28,32 +28,31 @@ Other devices may or may not work as expected.
 Each Blackmagic Media Source object that you create exposes the following configuration settings.
 
   
-| **Property** | **Description** |
+| Property | Description |
 | --- | --- |
-| **Configuration Options**  | |
-| [INCLUDE:#excerpt_0]| |
+| [REGION:tablesection]Configuration Options[/REGION] ||
+| [INCLUDE:#excerpt_0]||
 | **Device** | Sets the Blackmagic device and SDI connection that this Media Source will use to bring video into the Unreal Engine. If you have multiple cards or devices attached to your computer, you can choose which one to use here. |
 | **Resolution** | Sets the resolution of the incoming video feed. Note that this must match the actual video feed exactly. |
 | **Standard** | Sets whether the incoming video feed is progressive or interlaced. Note that this must match the actual video feed exactly. |
 | **Frame Rate** | Sets the number of video frames per second in the incoming feed. Note that this must match the actual video feed exactly. |
-| **Other Blackmagic Options** | |
+| [REGION:tablesection]Other Blackmagic Options[/REGION] ||
 | **Timecode Format** | Specifies the type of timecode that accompanies the video signal. |
-| **Audio** | |
+| [REGION:tablesection]Audio[/REGION] ||
 | **Capture Audio** | Determines whether the Unreal Engine captures audio from the Media Port. |
 | **Audio Channels** | Specifies the audio channel that contains the signal you want the Unreal Engine to capture. |
 | **Max Num Audio Frame Buffer** | Sets the maximum number of frames of audio data the Unreal Engine will store in memory at any given time. If the input video jumps or hitches, you can try raising this value. |
-| **Video** | |
+| [REGION:tablesection]Video[/REGION] ||
 | **Capture Video** | Determines whether the Unreal Engine captures video from the Media Port. |
 | **Color Format** | Determines the order of the color channels that make up each pixel in the input video, and the number of bits in each channel. |
 | **Max Num Video Frame Buffer** | Sets the maximum number of frames of video data the Unreal Engine will store in memory at any given time. If the input video jumps or hitches, you can try raising this value. |
-| **Debug** | |
+| [REGION:tablesection]Debug[/REGION] ||
 | **Log Drop Frame** | When enabled, the Unreal Engine prints a message to its output log every time it detects a dropped frame in the input feed. |
 | **Encode Timecode in Texel** | When enabled, the engine embeds the timecode of each frame into the captured video. You can use this to check that the timecode for each frame of input matches the values you're expecting. See [Timecode Texel Encoding](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/TimecodeGenlock#timecodetexelencoding). |
-| **Synchronization** | |
+| [REGION:tablesection]Synchronization[/REGION] ||
 | **Synchronize with Engine's Timecode** | By default, the Unreal Engine attempts to play the video frames as they come in. Enable this setting to buffer incoming frames, and try to align them with the Unreal Engine's internal timecode. If the timecode of any buffered frame matches the Unreal Engine's internal timecode for any frame, the video input will be synchronized with from that frame forward. |
-| **Platforms** | |
+| [REGION:tablesection]Platforms[/REGION] ||
 | **Player Overrides** | Leave these options at their default values for Blackmagic Media Sources. |
-
 
 [COMMENT:none]
 -
@@ -72,29 +71,28 @@ Each Blackmagic Media Output object that you create exposes the following conf
   
 | **Property** | **Description** |
 | --- | --- |
-| **Configuration Settings**  | |
-| [INCLUDE:#excerpt_1]| |
-| **Output Type** | [INCLUDE:#excerpt_2] |
+| [REGION:tablesection]Configuration Settings[/REGION] ||
+| [INCLUDE:#excerpt_1]||
+| **Output Type** | [INCLUDE:#excerpt_2]|
 | **Device** | Sets the Blackmagic device and SDI connection that this Media Source will send its video feed to. If you have multiple cards or devices attached to your computer, you can choose which one to use here. |
 | **Resolution** | Sets the resolution of the video feed produced by this Media Output. |
 | **Standard** | Sets whether the output feed produced by this Media Output is progressive or interlaced. |
 | **Frame Rate** | Sets the number of frames per second in the video feed produced by this Media Output. |
 | **Key Source** | Sets the port that will receive the key images from the Unreal Engine, when the **Output Type** is set to **Fill and Key**. |
-| **Output** | |
+| [REGION:tablesection]Output[/REGION] ||
 | **Timecode Format** | Determines whether the Unreal Engine should embed timecode in the output feed, and which timecode format it should use. |
 | **Pixel Format** | [INCLUDE:#excerpt_3] |
 | **Number of Blackmagic Buffers** | [INCLUDE:#excerpt_4] |
 | **Interlaced Fields Timecode Need to Match** | When producing an interlaced video feed, this setting determines whether the timecode values for both fields in a single interlaced frame need to match. |
 | **Number of Texture Buffers** | [INCLUDE:#excerpt_5] |
-| **Synchronization** | |
+| [REGION:tablesection]Synchronization[/REGION] ||
 | **Wait for Sync Event** | [INCLUDE:#excerpt_6] |
-| **Debug** | |
+| [REGION:tablesection]Debug[/REGION] ||
 | **Encode Timecode in Pixel** | When enabled, the engine embeds the timecode of each frame in the output signal. See [Timecode Texel Encoding](Engine/ProVideoIO/TimecodeGenlock#timecodetexelencoding). |
 
 [COMMENT:none]
 -
 [EXCERPT:excerpt_6]
-
 When this option is disabled, and you don't already have the Unreal Engine genlocked to an input signal, the engine runs at the fastest frame rate it can manage and provides all the frames it generates to the Blackmagic card. Each time the card is ready to output a new frame, it selects one of the frames generated by the Engine.
 
 When this option is enabled, the Unreal Engine does not generate any new frames of output until the Blackmagic card is ready to accept the new frame. The effect is similar to genlock, but instead of locking the Unreal Engine's frame rate to an input signal, it locks the Engine's frame rate to the output timing of the Blackmagic card.  
@@ -102,11 +100,9 @@ When this option is enabled, the Unreal Engine does not generate any new frames
 This option is most useful when you don't already have an input signal that you can lock the Unreal Engine's frame rate to, but you want to ensure that the Engine is producing only one output frame for every frame in the output video feed.  
 
 Do not enable this option if you already have the Unreal Engine genlocked to an input feed using a custom time step.
-
 [/EXCERPT:excerpt_6]
 -
 [/COMMENT]
-
 [COMMENT:none]
 -
 [EXCERPT:excerpt_5]
@@ -126,7 +122,6 @@ Lower values are more likely to cause missed frames as it waits for each trans
 [COMMENT:none]
 -
 [EXCERPT:excerpt_3]
-
 Determines the order of the color channels that make up each pixel, and the number of bits in each channel.
 
 [REGION:tip]
@@ -146,7 +141,7 @@ When you set this to **Fill and Key**, the fill image is output to the **Source*
 [/COMMENT]
 [COMMENT:none]
 -
-[EXCERPT:excerpt_1] 
+[EXCERPT:excerpt_1]  
 
 ![Blackmagic Media Output Configuration](bm-output-settings.png "Blackmagic Media Output Configuration")
 

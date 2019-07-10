@@ -1,14 +1,14 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6581694
 Availability: Docs
-Title:레벨 스트리밍 사용 안내서
+Title:Level Streaming User Guide
 Crumbs:
-Description:실시간 비동기 레벨 스트리밍 구성 안내입니다.
+Description:Guide to setting up real-time asynchronous streaming of levels.
 
 
 [COMMENT:none]
 
 [REGION:todo]
-	이 글은 언리얼 엔진 3 문서를 변환한 것으로, 현재 검토중에 있습니다. 정보가 철지난 것일 수 있습니다.
+	This page is converted from Unreal Engine 3 documentation and currently being reviewed. Information may be outdated.
 [/REGION]
 
 [TOC(start:2)]
@@ -128,7 +128,7 @@ functionality was introduced in changelist #203995 and #206418.
 In builds prior to the JAN 2007 QA-Approved build, you may have experiencd _out of memory_ problems when moving a large number of Actors at once; but this was fixed when we improved performance 
 (and memory usage) of editor transaction buffers (changelist #206829).
 
-Also in the JAN 2007 QA-Approved build, you can move Actors into a new level using the _New Level from Selected Actors_ button in the [Level Browser](Editor/Browsers/Levels) (changelist #206324).
+Also in the JAN 2007 QA-Approved build, you can move Actors into a new level using the _New Level from Selected Actors_ button in the Level Browser (changelist #206324).
 
 
 ### Optimization

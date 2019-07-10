@@ -6,7 +6,8 @@
 #include "ConcertMessages.h"
 #include "ConcertMessageData.h"
 
-class IConcertClientSession;
+class FConcertSyncClientLiveSession;
+struct FConcertSyncTransactionActivity;
 
 /**
  * Tracks which client authored which package using the set of transactions that
@@ -56,38 +57,22 @@ public:
 	/** Constructor.
 	 * @param Session This local client session, used to identify this client against other clients connected to the session.
 	 */
-	FConcertClientLiveTransactionAuthors(TSharedRef<IConcertClientSession> Session);
+	FConcertClientLiveTransactionAuthors(TSharedRef<FConcertSyncClientLiveSession> InLiveSession);
 
 	/** Destructor. */
 	~FConcertClientLiveTransactionAuthors();
 
 	/**
-	 * Adds a live transaction on the specified package from the specified client. Invoked when an asset is edited.
-	 * @param PackageName The package affected by the transaction.
-	 * @param TransactionAuthor The author of the transaction.
-	 * @param InTransactionIndex The index of the transaction.
-	 * @see FConcertTransactionLedger::OnAddFinalizedTransaction
-	 * @see FConcertTransactionLedger::GetAllLiveTransactions
+	 * Adds live transaction activity
+	 * @param EndpointId The ID of the endpoint that made the transaction.
+	 * @param ModifiedPackages The packages that were modified by the transaction.
 	 */
-	void AddLiveTransaction(const FName& PackageName, const FConcertClientInfo& TransactionAuthor, uint64 InTransactionIndex);
+	void AddLiveTransactionActivity(const FGuid& EndpointId, TArrayView<const FName> ModifiedPackages);
 
 	/**
-	 * Adds a live transaction on the specified packages from the specified client. Invoked when an asset is edited.
-	 * @param PackageNames The list of packages affected by the transaction.
-	 * @param TransactionAuthor The author of the transaction.
-	 * @param InTransactionIndex The index of the transaction.
-	 * @see FConcertTransactionLedger::OnAddFinalizedTransaction
-	 * @see FConcertTransactionLedger::GetAllLiveTransactions
+	 * Gets all live transactions for the given package and processes the author of each transaction to see if they were made by other clients
 	 */
-	void AddLiveTransaction(const TArray<FName>& PackageNames, const FConcertClientInfo& TransactionAuthor, uint64 InTransactionIndex);
-
-	/**
-	 * Trims transactions on the specified package up to the specified index. Invoked when a package is saved.
-	 * @param PackageName The package for which the transaction were trimmed.
-	 * @param UpToIndex The end index (exclusive) indicating that all previous transactions on the package were trimmed.
-	 * @see FConcertTransactionLedger::OnLiveTransactionsTrimmed
-	 */
-	void TrimLiveTransactions(const FName& PackageName, uint64 UpToIndex);
+	void ResolveLiveTransactionAuthorsForPackage(const FName& PackageName);
 
 	/**
 	 * Returns true if the specified packages has live transaction(s) from any other client(s) than the one corresponding
@@ -97,38 +82,17 @@ public:
 	 * @param[out] OutOtherClientsWithModifInfo If not null, will contain the other client who modified the packages, up to OtherClientsWithModifMaxFetchNum.
 	 * @param[in] OtherClientsWithModifMaxFetchNum The maximum number of client info to store in OutOtherClientsWithModifInfo if the latter is not null.
 	 */
-	bool IsPackageAuthoredByOtherClients(const FName& PackageName, int* OutOtherClientsWithModifNum = nullptr, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo = nullptr, int OtherClientsWithModifMaxFetchNum = 0) const;
+	bool IsPackageAuthoredByOtherClients(const FName& PackageName, int32* OutOtherClientsWithModifNum = nullptr, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo = nullptr, int32 OtherClientsWithModifMaxFetchNum = 0) const;
 
 private:
-	/** Alias for FGuid to make the code more explicit about what the Guid is for. */
-	typedef FGuid FClientInstanceGuid;
-
-	/** Keep the last transaction index made by a client. */
-	struct FTransactionInfo
-	{
-		/** The last live transaction index recorded for the author that hasn't yet been trimmed. */
-		uint64 LastTransactionIndex;
-
-		/** The client who performed the transaction(s). */
-		FConcertClientInfo AuthorInfo;
-	};
-
-	/** Maps package names to the list of clients (other than this client) that have live transactions on a package. */
-	TMap<FName, TMap<FClientInstanceGuid, FTransactionInfo>> OtherClientsLiveTransactionInfo;
+	/**
+	 * Gets all live transactions and processes the author of each transaction to see if they were made by other clients
+	 */
+	void ResolveLiveTransactionAuthors();
 
 	/** The client session. */
-	TSharedRef<IConcertClientSession> Session;
+	TSharedRef<FConcertSyncClientLiveSession> LiveSession;
+
+	/** Maps package names to the list of endpoints (other than this one) that have live transactions on a package. */
+	TMap<FName, TArray<FGuid>> OtherEndpointsWithLiveTransactionsMap;
 };
-
-class FConcertTransactionLedger;
-class FConcertActivityLedger;
-
-/**
- * Gets all live transactions from the transaction ledger and try to find the author of each live transaction by inspecting the
- * activity ledger.
- * @param[in] TransactionLedger The transaction ledger for the session.
- * @param[in] ActivityLedger The activity ledger for the session.
- * @param[out] OutTransactionAuthors The object tracking the transaction authors. The object is expected to be freshly constructed.
- */
-void ResolveLiveTransactionAuthors(const FConcertTransactionLedger& TransactionLedger, const FConcertActivityLedger& ActivityLedger, FConcertClientLiveTransactionAuthors& OutTransactionAuthors);
-

@@ -98,7 +98,7 @@ bool FLandscapeEditorDetailCustomization_TargetLayers::ShouldShowTargetLayers()
 
 		//// Visible if there are possible choices
 		//if (bSupportsWeightmap || bSupportsHeightmap || bSupportsVisibility)
-		if (LandscapeEdMode->CurrentToolMode->SupportedTargetTypes != 0 && CurrentToolName != TEXT("BPCustom"))
+		if (LandscapeEdMode->CurrentToolMode->SupportedTargetTypes != 0 && CurrentToolName != TEXT("BlueprintBrush"))
 		{
 			return true;
 		}
@@ -115,7 +115,7 @@ bool FLandscapeEditorDetailCustomization_TargetLayers::ShouldShowPaintingRestric
 	{
 		const FName CurrentToolName = LandscapeEdMode->CurrentTool->GetToolName();
 
-		if ((LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolName != TEXT("BPCustom"))
+		if ((LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolName != TEXT("BlueprintBrush"))
 			|| LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility)
 		{
 			return true;
@@ -888,13 +888,11 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetSelectionChanged(co
 		if (Target->TargetType == ELandscapeToolTargetType::Heightmap)
 		{
 			checkSlow(Target->LayerInfoObj == NULL);
-			LandscapeEdMode->CurrentToolTarget.LayerInfo = NULL;
-			LandscapeEdMode->CurrentToolTarget.LayerName = NAME_None;
+			LandscapeEdMode->SetCurrentTargetLayer(NAME_None, nullptr);
 		}
 		else
 		{
-			LandscapeEdMode->CurrentToolTarget.LayerInfo = Target->LayerInfoObj;
-			LandscapeEdMode->CurrentToolTarget.LayerName = Target->LayerName;
+			LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, Target->LayerInfoObj);
 		}
 	}
 }
@@ -916,7 +914,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLaye
 			MenuBuilder.AddMenuEntry(LOCTEXT("LayerContextMenu.Import", "Import from file"), FText(), FSlateIcon(), ImportAction);
 
 			// Reimport
-			const FString& ReimportPath = Target->ReimportFilePath();
+			const FString& ReimportPath = Target->GetReimportFilePath();
 
 			if (!ReimportPath.IsEmpty())
 			{
@@ -1014,7 +1012,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnExportLayer(const TShared
 				LandscapeInfo->ExportLayer(LayerInfoObj, SaveFilename);
 			}
 
-			Target->ReimportFilePath() = SaveFilename;
+			Target->SetReimportFilePath(SaveFilename);
 		}
 	}
 }
@@ -1069,7 +1067,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnImportLayer(const TShared
 			// Actually do the Import
 			LandscapeEdMode->ImportData(*Target, OpenFilename);
 
-			Target->ReimportFilePath() = OpenFilename;
+			Target->SetReimportFilePath(OpenFilename);
 		}
 	}
 }
@@ -1134,6 +1132,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnClearLayer(const TSharedR
 			FScopedSetLandscapeEditingLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentLayerGuid(), [&] { LandscapeEdMode->RequestLayersContentUpdateForceAll(); });
 			FLandscapeEditDataInterface LandscapeEdit(Target->LandscapeInfo.Get());
 			LandscapeEdit.DeleteLayer(Target->LayerInfoObj.Get());
+			LandscapeEdMode->RequestUpdateShownLayerList();
 		}
 	}
 }
@@ -1205,9 +1204,8 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerSetObject(cons
 			FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 			if (LandscapeEdMode)
 			{
-				LandscapeEdMode->CurrentToolTarget.LayerName = Target->LayerName;
 				LandscapeEdMode->CurrentToolTarget.TargetType = Target->TargetType;
-				LandscapeEdMode->CurrentToolTarget.LayerInfo = SelectedLayerInfo;
+				LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, SelectedLayerInfo);
 				LandscapeEdMode->UpdateTargetList();
 			}
 
@@ -1324,7 +1322,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerCreateClicked(
 			if (LandscapeEdMode->CurrentToolTarget.LayerName == Target->LayerName
 				&& LandscapeEdMode->CurrentToolTarget.LayerInfo == Target->LayerInfoObj)
 			{
-				LandscapeEdMode->CurrentToolTarget.LayerInfo = LayerInfo;
+				LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, Target->LayerInfoObj);
 			}
 
 			Target->LayerInfoObj = LayerInfo;

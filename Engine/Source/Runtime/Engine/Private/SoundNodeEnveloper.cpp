@@ -68,8 +68,8 @@ void USoundNodeEnveloper::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT N
 	if( *RequiresInitialization )
 	{
 		StartTime = ActiveSound.PlaybackTime - ParseParams.StartTime;
-		UsedVolumeModulation = VolumeMax + ( ( VolumeMin - VolumeMax ) * FMath::SRand() );
-		UsedPitchModulation = PitchMax + ( ( PitchMin - PitchMax ) * FMath::SRand() );
+		UsedVolumeModulation = VolumeMax + ( ( VolumeMin - VolumeMax ) * RandomStream.FRand() );
+		UsedPitchModulation = PitchMax + ( ( PitchMin - PitchMax ) * RandomStream.FRand() );
 		LastLoopCount = -1;
 
 		*RequiresInitialization = false;
@@ -95,8 +95,8 @@ void USoundNodeEnveloper::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT N
 		else if ( CurrentLoopCount != LastLoopCount )
 		{
 			// randomize multipliers for the new repeat
-			UsedVolumeModulation = VolumeMax + ( ( VolumeMin - VolumeMax ) * FMath::SRand() );
-			UsedPitchModulation = PitchMax + ( ( PitchMin - PitchMax ) * FMath::SRand() );
+			UsedVolumeModulation = VolumeMax + ( ( VolumeMin - VolumeMax ) * RandomStream.FRand() );
+			UsedPitchModulation = PitchMax + ( ( PitchMin - PitchMax ) * RandomStream.FRand() );
 			LastLoopCount = CurrentLoopCount;
 		}
 	}

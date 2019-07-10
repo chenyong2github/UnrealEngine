@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4678085
+INTSourceChangelist:6650189
 Availability: Public
 Crumbs: 
 Title: 픽셀 스트리밍 시작하기
@@ -6,15 +6,14 @@ Description: 한 컴퓨터에서 같은 네트워크의 다른 컴퓨터 및 모
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
-Order: 
+Order: 1
 topic-image:cloud-gs-topic.png
 Tags: Getting Started
 Tags: Early Access
 Tags: Pixel Streaming
+hero-image: pixelstreaming-gs-banner.png
 
 언리얼 엔진 프로젝트에서 렌더링 출력한 결과물을 로컬 네트워크의 다른 브라우저와 모바일 디바이스로 스트리밍하는 법을 단계별로 설명합니다.
-
-![픽셀 스트리밍 시작하기](pixelstreaming-gs-banner.png "Getting Started with Pixel Streaming")
 
 [REGION:note]
 이 페이지의 단계별 이미지에서는 **삼인칭 블루프린트** 템플릿으로 만든 프로젝트를 사용합니다. 하지만 어떤 언리얼 엔진 프로젝트에서도 같은 방법이 쓰입니다.
@@ -155,7 +154,7 @@ WebRTC 프록시 서버에 대한 콘솔 창에서 다음과 같은 출력 줄�
     시그널링 웹 서버 폴더 아래 `player.htm` 및 `app.js` 파일 내용을 보면 이 컨트롤이 어떻게 구현되었는지 확인할 수 있습니다.
 [/REGION]
 
-6.  이제 네트워크의 다른 컴퓨터 및/또는 모바일 디바이스를 찾습니다. 같은 단계를 반복하되 브라우저에 `127.0.0.1` 대신 언리얼 엔진 응용 프로그램과 시그널링 서버를 실행중인 컴퓨터의 IP 주소를 입력합니다.  
+6.  이제 네트워크의 다른 컴퓨터 및/또는 모바일 디바이스를 찾습니다. 같은 단계를 반복하지만 브라우저에 `127.0.0.1` 대신 언리얼 엔진 응용 프로그램과 시그널링 서버를 실행중인 컴퓨터의 IP 주소를 입력합니다.  
     ![원격 호스트로 미디어 스트리밍](pixelstreaming-gs-connect-others.png "Media streaming to remote host")
 
 ### 최종 결과
@@ -164,17 +163,12 @@ WebRTC 프록시 서버에 대한 콘솔 창에서 다음과 같은 출력 줄�
 
 기본적으로 연결된 모든 디바이스는 언리얼 엔진 응용 프로그램에 대한 컨트롤을 공유하여, 모든 키보드, 마우스, 터치스크린 입력을 전송합니다.
 
-![](pixelstreaming-endresult-chrome.png)
-
-데스크톱
-
-![](pixelstreaming-endresult-iossafari.png)
-
-iPhone
-
-![](pixelstreaming-endresult-gpixel.png)
-
-Pixel
+[REGION:imagetable]
+||||
+|---|---|---|
+| [REGION:lightbox][![](pixelstreaming-endresult-chrome.png)(h:400)](pixelstreaming-endresult-chrome.png)[/REGION] | [REGION:lightbox][![](pixelstreaming-endresult-iossafari.png)(h:400)](pixelstreaming-endresult-iossafari.png)[/REGION] | [REGION:lightbox][![](pixelstreaming-endresult-gpixel.png)(h:400)](pixelstreaming-endresult-gpixel.png)[/REGION] |
+| 데스크톱 | iPhone | Google Pixel |
+[/REGION]
 
 ## 4 - 직접 해보기
 

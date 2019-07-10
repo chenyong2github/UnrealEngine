@@ -11,7 +11,6 @@ SkillLevel:Intermediate
 
 使用者有时会在游戏时动态地将项目添加到游戏关卡中，即生成Actor。从其他玩家或敌人，到生命值、武器或奖励等拾取物，可生成项目的范围十分广泛。本页将介绍关于利用蓝图生成Actor的信息。
 
-(#implementationguides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/SpawnAndDestroyActors" org:"hierarchy" end:"1")]

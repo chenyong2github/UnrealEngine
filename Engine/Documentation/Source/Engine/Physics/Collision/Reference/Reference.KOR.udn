@@ -1,6 +1,7 @@
-﻿INTSourceChangelist:4649792
+INTSourceChangelist:6441094
 Availability: Public
-Title:콜리전 반응 참고서
+Title:콜리전 반응 레퍼런스
+type:reference
 Crumbs: %ROOT%, Engine, Engine/Physics, Engine/Physics/Collision
 Description:콜리전 프로퍼티 카테고리의 콜리전 프리셋 섹션에 있는 여러가지 프로퍼티에 대한 분석입니다.
 Version: 4.9

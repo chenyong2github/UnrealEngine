@@ -1,0 +1,121 @@
+﻿INTSourceChangelist:5794945
+Availability: Public
+Crumbs: 
+Title: Datasmith支持的软件和文件类型
+Description: 
+Type: reference
+Version: 4.22
+Parent: Studio/Datasmith
+Order: 3
+Tags: Enterprise
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: Manufacturing
+Tags: Reference
+topic-image: Filetypes_topic.jpg
+
+
+本页面介绍Datasmith使用的所有第三方软件应用程序和数据格式。
+
+对于各个项目，**工作流程类型** 表示您打包来自设计应用程序的信息的方式：
+
+*   **直接** 意味着Datasmith直接读取应用程序的文件格式。
+
+*   **导出** 意味着在Datasmith将内容导入到Unreal之前，您需要使用已经内置到应用程序中的导出器将应用程序中的内容导出为特定的文件格式。
+
+*   **导出插件** 意味着您需要在应用程序中安装一个新插件，以便将设计数据导出为Datasmith导入到虚幻引擎中的格式。
+
+[REGION:note]
+所有 **导出插件**，以及虚幻编辑器中的Datasmith导入器，都只适用于Microsoft Windows平台。
+[/REGION]
+
+最后一列 **导入器** 告诉您需要使用哪种类型的导入器来导入内容。
+
+*   对于大多数文件，您将在虚幻编辑器的工具栏中选择Datasmith导入器。有关该过程的详情，请参阅[导入Datasmith内容](Studio/Datasmith/HowTo/ImportingDatasmithContent)。
+
+*   对于 **虚幻编辑器导入（Unreal Editor Import）** 类型，使用内置在 **内容浏览器（Content Browser）** 中的 **导入（Import）** 按钮，或者简单地将要导入的文件拖放到 **内容浏览器（Content Browser）** 中。
+
+| 颜色图例||
+| 颜色 | 含义 |
+| --- | --- |
+| 绿色 | 可供制作。|
+| 橙色 | 早期访问或实验性功能，与客户共享用于测试和反馈。期待改变，我们可以根据自己的判断废弃功能。|
+
+(#currentsoftwareapplicationsupport)
+
+## 当前的软件应用程序支持
+
+Datasmith目前使用以下软件应用程序和文件格式。
+
+  
+| 颜色 | 应用程序或文件格式 | 支持的扩展名 | 版本 | 工作流程类型 | 导入器 |
+| --- | --- | --- | --- | --- | --- |
+| 橙色 | **Alias Wire** | .wire | -- | 直接  | CAD |
+| 绿色 | **3D ACIS** | .sat | 最高R21 | 直接 | CAD |
+| 绿色 | **3DXML** | .3dxml | FS 2.0 | 直接 | CAD |
+| 绿色 | **Autodesk 3ds Max** | .udatasmith | 2016，2017，2018，2019 | 导出插件 | Datasmith |
+| 橙色 | **Autodesk AutoCAD** | .dwg | -- | 直接 | CAD |
+| 绿色 | **Autodesk Inventor** | .iam, .ipt | 最高2018 | 直接 | CAD |
+| 绿色 | **Autodesk Revit** | .udatasmith | 2018.3，2019 | 导出插件 | Datasmith |
+| 绿色 | **Autodesk VRED** | .fbx | VRED Professional 2018和2019 | 导出插件 | VRED |
+| 绿色 | **AxF** | [INCLUDE:#excerpt_1] | -- | 直接 | 虚幻编辑器导入 |
+| 绿色 | **CATIA V5** | .catpart，.catproduct，.cgr | R10 - R24 | 直接 | CAD |
+| 绿色 | **Deltagen** | .fbx（不支持CSB）| 2017，2018 | 导出 | Deltagen |
+| 橙色 | **glTF** | .gltf | 2.0 | 直接 | GLTF |
+| 绿色 | **ESRI CityEngine** | .udatasmith | -- | 导出插件 | Datasmith |
+| 绿色 | **Initial Graphics Exchange Specification (IGES)** | .iges，.igs | 5.2，5.3 | 直接 | CAD |
+| 绿色 | **JT Open** | .jt | 最高10 | 直接 | CAD |
+| 绿色 | **MDL** | .mdl | 2018 | 直接 | 虚幻编辑器导入 |
+| 绿色 | **Parasolid (x_t)** | .x_t | 最高20 | 直接 | CAD |
+| 绿色 | **PTC Creo (Pro/ENGINEER)** | .asm.1，.neu，.prt.1 | V13最高Creo 4 | 直接 | CAD |
+| 绿色 | **Rhinoceros** | .3dm | 最高6 | 直接 | CAD |
+| 绿色 | **Siemens NX** | .prt | V11 - NX9 | 直接 | CAD |
+| 绿色 | **Trimble SketchUp Pro** | .udatasmith | 2017，2018，2019 | 导出插件 | Datasmith |
+| 绿色 | **SolidWorks** | .sldasm，.sldprt | 最高2017 | 直接 | CAD |
+| 绿色 | **STEP** | .step | AP203，AP214，AP242 | 直接 | CAD |
+
+<!--
+[EXCERPT:excerpt_1]
+.axf  
+（仅固定carpaint和SVBRDF模型）
+[/EXCERPT:excerpt_1]
+-->
+
+
+(#plannedsoftwareapplicationsupport)
+
+## 计划的软件应用程序支持
+
+该表列出了我们希望在中短期内Datasmith支持的其他软件应用程序和数据类型。一如既往地，我们的优先级是由社区的反馈和需求来决定，所以[让我们知道](https://forums.unrealengine.com/unreal-engine/unreal-studio)什么应用程序和格式对您和您的组织很重要。
+
+  
+| 文件格式 | 支持的扩展名 | 版本 | 工作流程类型 |
+| --- | --- | --- | --- |
+| **Autodesk Maya** | -- | -- | -- |
+| **Graphisoft ArchiCAD** | .udatasmith | -- | 导出插件 |
+| **Industry Foundation Classes (IFC)** | .ifc | -- | 直接 |
+| **Maxon Cinema 4D** | .c4d | -- | 直接 |
+| **STL** | .stl | -- | 直接 |
+| **VRML** | .vrml | 97，97zip | 直接 |
+
+(#formatssupportedbyunrealenginedirectly)
+
+## 虚幻引擎直接支持的格式
+
+虚幻引擎为导入和导出FBX文件提供内置支持。
+
+这些基于FBX的工作流程经过优化，以支持游戏需求，而游戏需求往往侧重于处理单个对象。相比之下，Datasmith带来了整个场景，可能包含数千个对象，每个对象都有来自广泛来源的材质、枢轴、比例、层级和元数据。但是，如果FBX导入管道适合您的需要，您应该可以随意使用它。例如，您可以使用它来导入额外的场景布置，您将使用这些场景布置来在虚幻关卡中增强Datasmith内容。
+
+有关详情，您可以阅读我们的[FBX内容管道](Engine/Content/FBX)。  
+
+[REGION:note]
+自虚幻引擎4.19起，还实验性地支持使用内置的虚幻编辑器导入器直接将glTF格式导入到 **内容浏览器（Content Browser）** 中。与FBX导入过程一样，它也针对基于对象的工作流程进行了优化，与Datasmith glTF导入器相比，它有不同的限制。不过，您可能会发现它在某些情况下适合您。要试用它，请转到 **编辑（Edit）> 插件（Plugins）> 导入器（Importers）**，启用 **glTF导入器（glTF Importer）** 插件，并重新启动编辑器。
+[/REGION]
+
+(#backwardcompatibility)
+
+## 向后兼容性
+
+当Unreal Studio处于开放测试阶段时，我们可能会不时地需要更改Datasmith文件格式和导入器插件的行为，以添加新的功能。在此期间，我们不保证所有版本的虚幻引擎与所有版本的Datasmith导出插件之间的向后兼容性。虽然它可能可以将一个使用旧版本的导出插件生成的 *.udatasmith* 文件导入到一个新版本的虚幻引擎，但是我们不建议依赖于它。 
+
+始终使用与虚幻引擎版本和导出文件需要使用的Datasmith插件版本相匹配的导出插件版本。为了最大限度地利用Unreal Studio，并确保您从Datasmith的最新补丁和功能中获益，我们建议始终使用最新版本的导出插件和虚幻引擎。

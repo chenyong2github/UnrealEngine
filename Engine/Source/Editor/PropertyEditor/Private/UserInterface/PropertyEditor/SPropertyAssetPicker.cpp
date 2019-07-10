@@ -14,6 +14,7 @@ void SPropertyAssetPicker::Construct( const FArguments& InArgs )
 {
 	OnAssetSelected = InArgs._OnAssetSelected;
 	OnGetAllowedClasses = InArgs._OnGetAllowedClasses;
+	PropertyHandle = InArgs._PropertyHandle;
 
 	ChildSlot
 	[
@@ -77,6 +78,9 @@ TSharedRef<SWidget> SPropertyAssetPicker::OnGenerateAssetPicker()
 	AssetPickerConfig.bAllowDragging = false;
 	// Use the list view by default
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
+	// Populate the referencing assets via property handle
+	AssetPickerConfig.PropertyHandle = PropertyHandle;
+	
 	TSharedRef<SWidget> MenuContent = 
 		SNew(SBox)
 		.HeightOverride(300)

@@ -24,14 +24,14 @@ The decal is rendered by rendering a box around the decal affecting area.
 
 The easiest way to add decals to a scene is to select an appropriate decal material in the **Content Browser**, then **right-click** inside the Viewport and choose **Place Actor** from the context menu. The decal may then be resized and oriented using the transformation tools. 
 
-![Decal_1.png](Decal_1.png)(w:720)
+![](Decal_1.png)(w:720)
 
 
 ## Sizing, tiling and offsetting
 
 Once the decal is created, it can be positioned and oriented using the translation and rotation widgets.
 
-![Decal_2.png](Decal_2.png)(w:720)
+![](Decal_2.png)(w:720)
 
 The non-uniform scaling widget controls the width, height, and far-plane distance of the decal volume.
 

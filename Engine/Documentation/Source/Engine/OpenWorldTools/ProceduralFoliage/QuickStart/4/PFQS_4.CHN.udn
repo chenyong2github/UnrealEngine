@@ -1,11 +1,13 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6078243
+Availability:Docs
 Title:4.使用多种植物类
 Crumbs:
 Description:在这步中我们将对植物生成器进行设置，以便使用多种植物类。
 Navigation:topic
 SkillLevel:Intermediate
 Version:4.8
+
+## 页面已被合并，标记为Docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

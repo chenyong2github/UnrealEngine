@@ -61,7 +61,7 @@ void UAndroidRuntimeSettings::PostReloadConfig(UProperty* PropertyThatWasLoaded)
 
 void UAndroidRuntimeSettings::HandlesRGBHWSupport()
 {
-	const bool SupportssRGB = bBuildForES31 && bPackageForGearVR;
+	const bool SupportssRGB = bBuildForES31 && PackageForOculusMobile.Num() > 0;
 	URendererSettings* const Settings = GetMutableDefault<URendererSettings>();
 	static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseHWsRGBEncoding"));
 
@@ -186,6 +186,17 @@ void UAndroidRuntimeSettings::PostInitProperties()
 		}
 
 		// Save changes to the ini file.
+		UpdateDefaultConfigFile();
+	}
+
+	// Upgrade old Oculus packaging settings as necessary.
+	const TCHAR* AndroidSettings = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
+	bool bPackageForGearVR = false;
+	GConfig->GetBool(AndroidSettings, TEXT("bPackageForGearVR"), bPackageForGearVR, GEngineIni);
+	if (bPackageForGearVR)
+	{
+		// Update default config
+		PackageForOculusMobile.Add(EOculusMobileDevice::GearGo);
 		UpdateDefaultConfigFile();
 	}
 

@@ -1,0 +1,90 @@
+﻿INTSourceChangelist:3769005
+Availability:Public
+Title:3.Gear VR プロジェクトのパッケージング化とデプロイ方法
+Crumbs:%ROOT%, Platforms/VR/GearVR
+Description:UE4 プロジェクトを Samsung Gear VR ヘッドセットに対応するようにデプロイする方法
+Version:4.16
+Skilllevel:Intermediate
+tags:VR
+tags:Gear VR
+type:multi-step
+parent:Platforms/VR/GearVR/QuickStart
+order:3
+Checkpoint:GearVRQS
+prereq:Platforms\VR\GearVR\Prerequisites\
+
+[nav]
+
+このセクションでは、Gear VR HMD で見えるように UE4 のプロジェクトを起動する方法を説明します。
+
+## ステップ
+
+1. まず、Samsung Galaxy スマートフォンが UBS ケーブルで開発 PC に接続されており、**ADB** コマンド **ADB Devices** を使って PC 側でデバイスが表示されることを確認してください。
+
+	[region:note]
+	方法が分からない場合は [アンリアル エンジンのソースコードをダウンロードする](GettingStarted/DownloadingUnrealEngine) を参照の上、今一度ご確認ください。 
+	[/region]
+
+
+1. メイン ツールバーの **[Launch]** アイコンの横の小さな白い三角印をクリックして、**[Options for Launching on a Device]** を開きます。
+
+    [REGION:lightbox]
+    [![](GVR_Deploy_To_Android.png)(w:550)](GVR_Deploy_To_Android.png)
+    [/REGION]
+
+    [REGION:caption]
+    クリックしてフルサイズで表示
+    [/REGION]
+
+1. メイン ツールバーの **[Launch]** アイコンの横の小さな白い三角印をクリックして、**[Options for Launching on a Device]** を開きます。
+
+    [REGION:lightbox]
+    [![](GVR_Deployed_Files.png)(w:550)](GVR_Deployed_Files.png)
+    [/REGION]
+
+    [REGION:caption]
+    クリックしてフルサイズで表示
+    [/REGION]
+
+    [region:note]
+    保存を促されたら、たとえ保存したばかりであっても、デバイス上のコンテンツが最新になっていることを確認してください。
+    [/region]
+
+1. UE4 エディタの下の隅にチェックを入れると、パッケージ処理の状況を表すプログレス ウィンドウが表示されます。プロジェクトのパッケージ処理が初めての場合は、プロジェクト サイズによって数分から数時間かかります。 
+
+    [REGION:lightbox]
+    [![](GVR_Deployment_Window.png)(w:550)](GVR_Deployment_Window.png)
+    [/REGION]
+
+    [REGION:caption]
+    クリックしてフルサイズで表示
+    [/REGION]
+
+    [region:note]
+    パッケージ処理の進捗詳細を知りたい場合は、プログレス ウィンドウの **[Show Output Log (出力ログを表示)]** リンクをクリックします。
+    [/region]
+
+1. パッケージ化およびインストール処理が完了すると、通知が表示されサウンドがプレイされたら Gear VR HMD にデバイスを置きます。以下の動画のように見えるはずです。
+
+    [OBJECT:EmbeddedVideo]
+        [PARAMLITERAL:videoid]
+        Bq3Ov32Bwy8
+        [/PARAMLITERAL]
+        [PARAMLITERAL:width]
+        100
+        [/PARAMLITERAL]
+        [PARAMLITERAL:height]
+        56.25
+        [/PARAMLITERAL]
+        [PARAMLITERAL:units]
+        %
+        [/PARAMLITERAL]
+        [PARAMLITERAL:type]
+        simple
+        [/PARAMLITERAL]
+    [/OBJECT]
+
+## 結果
+完了すると、Samsung Galaxy スマートフォンと Gear VR HMD を使ってプロジェクトの起動と表示が可能になります。
+
+[nav]

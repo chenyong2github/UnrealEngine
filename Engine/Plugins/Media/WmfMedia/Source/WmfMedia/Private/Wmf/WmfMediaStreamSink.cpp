@@ -169,17 +169,20 @@ HRESULT FWmfMediaStreamSink::Start()
 {
 	FScopeLock Lock(&CriticalSection);
 
-	// Set a high the timer resolution (ie, short timer period).
-	timeBeginPeriod(1);
-
-	// create the waitable timer
-	WaitTimer = CreateWaitableTimer(NULL, FALSE, NULL);
-	if (WaitTimer == nullptr)
+	if (ClockRate != 0.0f && WaitTimer == nullptr)
 	{
-		HRESULT Result = HRESULT_FROM_WIN32(GetLastError());
-		if (FAILED(Result))
+		// Set a high the timer resolution (ie, short timer period).
+		timeBeginPeriod(1);
+
+		// create the waitable timer
+		WaitTimer = CreateWaitableTimer(NULL, FALSE, NULL);
+		if (WaitTimer == nullptr)
 		{
-			return Result;
+			HRESULT Result = HRESULT_FROM_WIN32(GetLastError());
+			if (FAILED(Result))
+			{
+				return Result;
+			}
 		}
 	}
 
@@ -630,6 +633,13 @@ STDMETHODIMP FWmfMediaStreamSink::PlaceMarker(MFSTREAMSINK_MARKER_TYPE eMarkerTy
 
 	SampleQueue.Add({ eMarkerType, MarkerContext, nullptr });
 
+	TComPtr<IMFSample> NextSample;
+	if (GetNextSample(NextSample))
+	{
+		// process next samples
+		ScheduleWaitForNextSample(NextSample);
+	}
+
 	return S_OK;
 }
 
@@ -694,6 +704,16 @@ STDMETHODIMP FWmfMediaStreamSink::ProcessSample(__RPC__in_opt IMFSample* pSample
 				return QueueEvent(MEStreamSinkPrerolled, GUID_NULL, S_OK, NULL);
 			}
 		}
+	}
+	else if (ClockRate == 0.0f)
+	{
+		TComPtr<IMFSample> NextSample;
+		if (GetNextSample(NextSample))
+		{
+			ScheduleWaitForNextSample(NextSample);
+		}
+
+		return QueueEvent(MEStreamSinkScrubSampleComplete, GUID_NULL, S_OK, NULL);
 	}
 	else
 	{
@@ -824,46 +844,62 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 	GUID Guid;
 	if (SUCCEEDED(CurrentMediaType->GetGUID(MF_MT_SUBTYPE, &Guid)))
 	{
-		check(Guid == MFVideoFormat_NV12)
+		const TSharedRef<FWmfMediaHardwareVideoDecodingTextureSample, ESPMode::ThreadSafe> TextureSample = VideoSamplePool->AcquireShared();
+
+		check(TextureSample->GetMediaTextureSampleConverter()!=nullptr);
+
+		EPixelFormat PixelFormat = PF_Unknown;
+		EMediaTextureSampleFormat MediaTextureSampleFormat = EMediaTextureSampleFormat::Undefined;
+
+		if (Guid == MFVideoFormat_NV12)
 		{
-			const TSharedRef<FWmfMediaHardwareVideoDecodingTextureSample, ESPMode::ThreadSafe> TextureSample = VideoSamplePool->AcquireShared();
+			PixelFormat = PF_NV12;
+			MediaTextureSampleFormat = EMediaTextureSampleFormat::CharNV12;
+		}
+		else if (Guid == MFVideoFormat_ARGB32)
+		{
+			PixelFormat = PF_B8G8R8A8;
+			MediaTextureSampleFormat = EMediaTextureSampleFormat::CharBGRA;
+		}
+		else // if (Guid == MFVideoFormat_Y416)
+		{
+			PixelFormat = PF_A16B16G16R16;
+			MediaTextureSampleFormat = EMediaTextureSampleFormat::Y416;
+		}
 
-			check(TextureSample->GetMediaTextureSampleConverter()!=nullptr);
-
-			ID3D11Texture2D* SharedTexture = TextureSample->InitializeSourceTexture(
-				Owner->GetDevice(),
-				FTimespan::FromMicroseconds(SampleTime / 10),
-				FTimespan::FromMicroseconds(SampleDuration / 10),
-				FIntPoint(DimX, DimY),
-				PF_NV12,
-				EMediaTextureSampleFormat::CharNV12);
+		ID3D11Texture2D* SharedTexture = TextureSample->InitializeSourceTexture(
+			Owner->GetDevice(),
+			FTimespan::FromMicroseconds(SampleTime / 10),
+			FTimespan::FromMicroseconds(SampleDuration / 10),
+			FIntPoint(DimX, DimY),
+			PixelFormat,
+			MediaTextureSampleFormat);
 
 
-			D3D11_BOX SrcBox;
-			SrcBox.left = 0;
-			SrcBox.top = 0;
-			SrcBox.front = 0;
-			SrcBox.right = DimX;
-			SrcBox.bottom = DimY;
-			SrcBox.back = 1;
+		D3D11_BOX SrcBox;
+		SrcBox.left = 0;
+		SrcBox.top = 0;
+		SrcBox.front = 0;
+		SrcBox.right = DimX;
+		SrcBox.bottom = DimY;
+		SrcBox.back = 1;
 
-			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("CopySubresourceRegion() ViewIndex:%d"), dwViewIndex);
+		UE_LOG(LogWmfMedia, VeryVerbose, TEXT("CopySubresourceRegion() ViewIndex:%d"), dwViewIndex);
 
-			TComPtr<IDXGIKeyedMutex> KeyedMutex;
-			SharedTexture->QueryInterface(_uuidof(IDXGIKeyedMutex), (void**)&KeyedMutex);
+		TComPtr<IDXGIKeyedMutex> KeyedMutex;
+		SharedTexture->QueryInterface(_uuidof(IDXGIKeyedMutex), (void**)&KeyedMutex);
 
-			if (KeyedMutex)
+		if (KeyedMutex)
+		{
+			// No wait on acquire since sample is new and key is 0.
+			if (KeyedMutex->AcquireSync(0, 0) == S_OK)
 			{
-				// No wait on acquire since sample is new and key is 0.
-				if (KeyedMutex->AcquireSync(0, 0) == S_OK)
-				{
-					Owner->GetImmediateContext()->CopySubresourceRegion(SharedTexture, 0, 0, 0, 0, pTexture2D, dwViewIndex, &SrcBox);
+				Owner->GetImmediateContext()->CopySubresourceRegion(SharedTexture, 0, 0, 0, 0, pTexture2D, dwViewIndex, &SrcBox);
 
-					// Mark texture as updated with key of 1
-					// Sample will be read in FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
-					KeyedMutex->ReleaseSync(1);
-					VideoSampleQueue->Enqueue(TextureSample);
-				}
+				// Mark texture as updated with key of 1
+				// Sample will be read in FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
+				KeyedMutex->ReleaseSync(1);
+				VideoSampleQueue->Enqueue(TextureSample);
 			}
 		}
 	}
@@ -944,6 +980,16 @@ void FWmfMediaStreamSink::ScheduleWaitForNextSample(IMFSample* pSample)
 {
 	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("ScheduleWaitForNextSample Start"));
 
+	if (ClockRate == 0.0f)
+	{
+		// Scrubbing, drop all queued samples
+		while (VideoSampleQueue->Num())
+		{
+			TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+			VideoSampleQueue->Dequeue(Sample);
+		}
+	}
+
 	if (IsVideoSampleQueueFull())
 	{
 		// Return sample to internal queue
@@ -954,7 +1000,7 @@ void FWmfMediaStreamSink::ScheduleWaitForNextSample(IMFSample* pSample)
 		CopyTextureAndEnqueueSample(pSample);
 	}
 
-	if (WaitTimer != nullptr)
+	if (WaitTimer != nullptr && ClockRate != 0.0f)
 	{
 		// Re-schedule 
 		const LONGLONG OneMilliSeconds = 10000;

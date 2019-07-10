@@ -1,0 +1,99 @@
+INTSourceChangelist:6426975
+Availability: Public
+Crumbs: 
+Title: Android 에서 출시
+Description: Google Play 스토어에 UE4 로 만든 게임을 올리는 방법입니다.
+Type:how-to
+skilllevel:Advanced
+Version: 4.20
+Parent: Platforms/Mobile/Android
+Order: 
+Tags: mobile
+Tags: Android
+
+
+언리얼 엔진 4 (UE4)로 만든 모바일 프로젝트의 빌드를 마친 후, 다음 단계는 [Google Play](https://developer.android.com/distribute/google-play/) 스토어를 통해 배포하는 것입니다. 여기서는 UE4 프로젝트를 Google Play 스토어에 올릴 때 발생할 수 있는 여러가지 항목을 살펴보겠습니다.
+
+[REGION:note]
+Google Play 스토어는 사전 알림 없이 정기적으로 모양, 레이아웃, 워크플로가 바뀝니다. 그래서 여기 있는 정보 중 일부는 위치가 다르거나, 이름이 다르거나, 완전 제거되었을 수도 있습니다. 정보가 없거나 구버전인 경우 공식 [Google Play Store 도움말 페이지](https://support.google.com/googleplay/android-developer/?hl=en#topic=3450769) 를 참고해 주시기 바랍니다.
+[/REGION]
+
+## Google Play Console
+
+[Google Play Console](https://developer.android.com/distribute/console/) 은 Google Play 스토어에 UE4 프로젝트를 업로드, 관리, 출시하는 데 사용되는 포털입니다. Google Play Console 에서 다양한 작업을 할 수 있으며, 그 범위는 프로젝트의 출시 구성부터 자동화 테스트까지 다양합니다. 새로운 사용자가 어떻게 유입되었는지 UE4 프로젝트가 다양한 Android 호환 하드웨어에서 잘 작동하는지 트래킹할 수 있습니다.
+
+## Google Play 스토어 리스팅
+
+Google Play 스토어에서 프로젝트를 전시하고 다운로드하려면 먼저 Google Play Console 의 **Dashboard** (대시보드) 섹션의 회색 체크 박스가 있는 여러 섹션을 전부 채워야 합니다.
+
+![Shipping With Android_01.png](ShippingWithAndroid_01.png "Shipping With Android_01.png")
+
+[REGION:note]
+각 섹션을 주의 깊게 읽고 필요한 정보와 파일을 제공하세요.
+[/REGION]
+섹션을 성공적으로 완료하면 회색 체크 박스가 다음 이미지처럼 녹색으로 바뀝니다.  
+
+![Shipping With Android_02.png](ShippingWithAndroid_02.png "Shipping With Android_02.png")
+
+대시보드의 각 필수 섹션 옆에 녹색 체크가 표시되면, 앱을 Google Play 스토어에서 출시해도 될지 Google 의 검토 준비가 다 된 것입니다.  
+
+  
+  
+
+## Google Play 스토어 APK 크기
+
+Google Play 스토어에는 **APK** 업로드 크기 제한이 **100 MB** 입니다. 앱이 **100 MB** 제한보다 크면, 나머지 콘텐츠는 **Opaque binary blob**(OBB) 파일에 넣어야 합니다. **OBB** 파일 최대 크기는 **2 GB** 입니다. UE4 APK 파일을 Google Play Console 에 올린 이후, 최소 **45 분 이상** 있어야 APK 를 Alpha, Beta, 또는 Release 로 푸시할 수 있습니다. 그래서 **App Releases** 섹션을 먼저 완료한 뒤 나중에 필요한 정보를 채우는 것이 일반적입니다.
+
+## Google Play Console API 변경사항
+
+Google Play 에서 요구하는 앱의 대상은 최소 Android 8.0 (API 레벨 26) 이며, 새 앱은 2018년 8월 1일부터, 업데이트 앱은 11월 1일부터입니다. UE4.21 버전은 이 사항을 고려하고 있지만, 이전 버전으로 만든 프로젝트는 이 변경사항을 반영하도록 수정해야 합니다.
+
+이 새로운 변화로 UE4 프로젝트는 사용자에게 때가 되면 디스크에 파일 저장같은 OS 특정 기능을 활용할 권한을 요청합니다. 과거에는 사용자가 앱을 처음 실행할 때 필요한 모든 권한을 요청했었습니다.  UE4 의 권한 요청 관리를 돕기 위해, 4.21 (이상) 버전에서는 **Android Runtime Permission** 플러그인을 사용해야 합니다. **플러그인** 메뉴의 **Android** 섹션에서 찾을 수 있습니다.
+
+[REGION:lightbox]
+[![](ShippingWithAndroid_03.png)(w:800px)](ShippingWithAndroid_03.png)
+[/REGION]
+
+클릭하면 원본 이미지를 확인합니다.
+
+## 프로젝트 SDK 오버라이드
+
+**Project SDK Override** (프로젝트 SDK 오버라이드) 옵션은 프로젝트 단위로 컴파일에 어떤 Android SDK 버전을 사용할지 변경할 수 있습니다. 이 옵션은 **프로젝트 세팅** \> **Android** \> **Project SDK Override** 에서 찾을 수 있습니다.
+
+[REGION:lightbox]
+[![](AndroidSDKOverride.png)(w:800px)](AndroidSDKOverride.png) 
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+| **Android 세팅** | **설명** |
+| --- | --- |
+| **SDK API Level** | 엔진 코드의 Java 부분을 컴파일하는 데 사용되는 Java API 를 제어합니다. |
+| **NDK API Level** | C++ 코드가 준수하는 컴파일러 툴체인을 제어합니다. 네이티브 코드가 호환되는 Android 버전이 제한될 수 있습니다. |
+
+[REGION:note]
+이 칸을 비워 두면 전역 Android SDK 프로젝트 세팅이 사용됩니다.
+[/REGION]
+[/REGION]
+
+## Android SDK 버전
+
+Android **Minimum SDK Version** 입력은 앱을 설치할 수 있는 최소 OS 버전을 결정하는 데 도움이 됩니다. **Target SDK Version** 은 Android OS 에 API 의 예상되는 동작을 알려줍니다. 어떤 SDK 버전이 어느 Android OS 와 사용되는지 확실하지 않은 경우, [Codenames, Tags, and Build Numbers](https://source.android.com/setup/start/build-numbers) 페이지에서 자세한 정보를 확인하세요.
+
+[REGION:lightbox]
+[![](AndroidSDKVersion.png)(w:800px)](AndroidSDKVersion.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+  
+
+| **세팅** | **설명** |
+| --- | --- |
+| **Minimum SDK Version** | 최소 SDK 버전 - 앱을 설치할 수 있는 최소 OS 버전을 제어합니다. Google Play 스토어에서도 이 정보를 필터로 사용하여 앱을 어느 디바이스에 표시할지 결정합니다. |
+| **Target SDK Version** | 대상 SDK 버전 - Android OS 에 API 의 예상되는 동작을 알려줍니다.  특정 API 레벨로 설정하면 해당 Android 버전에 도입된 기능과 변경사항에도 잘 작동한다는 약속입니다. |
+
+[REGION:note]
+UE4 구버전으로 만든 프로젝트를 Google Play 스토어에 올리려면, **Target SDK** 를 **26** 으로 설정해야 합니다. 그러면 Minimum SDK Version 만 충족하는 한 Android SDK 26 이 없는 구버전 디바이스에서도 앱이 실행됩니다.
+[/REGION]

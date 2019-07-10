@@ -9,6 +9,7 @@ struct FRawMesh;
 struct FUVMapParameters;
 struct FOverlappingCorners;
 enum class ELightmapUVVersion : int32;
+struct FVertexInstanceID;
 struct FPolygonGroupID;
 struct FVertexID;
 
@@ -110,13 +111,13 @@ public:
 	static bool RemoveUVChannel(FMeshDescription& MeshDescription, int32 UVChannelIndex);
 
 	/** Generate planar UV mapping for the MeshDescription */
-	static void GeneratePlanarUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TArray<FVector2D>& OutTexCoords);
+	static void GeneratePlanarUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords);
 
 	/** Generate cylindrical UV mapping for the MeshDescription */
-	static void GenerateCylindricalUV(FMeshDescription& MeshDescription, const FUVMapParameters& Params, TArray<FVector2D>& OutTexCoords);
+	static void GenerateCylindricalUV(FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords);
 
 	/** Generate box UV mapping for the MeshDescription */
-	static void GenerateBoxUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TArray<FVector2D>& OutTexCoords);
+	static void GenerateBoxUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords);
 
 	static void RemapPolygonGroups(FMeshDescription& MeshDescription, TMap<FPolygonGroupID, FPolygonGroupID>& Remap);
 

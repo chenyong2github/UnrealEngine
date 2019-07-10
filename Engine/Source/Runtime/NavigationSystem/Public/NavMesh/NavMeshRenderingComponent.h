@@ -13,7 +13,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "MeshBatch.h"
 #include "LocalVertexFactory.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "StaticMeshResources.h"
 #include "NavMeshRenderingComponent.generated.h"
 
@@ -131,7 +131,7 @@ private:
 };
 
 #if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-class FNavMeshDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
+class NAVIGATIONSYSTEM_VTABLE FNavMeshDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
 {
 	typedef FDebugDrawDelegateHelper Super;
 

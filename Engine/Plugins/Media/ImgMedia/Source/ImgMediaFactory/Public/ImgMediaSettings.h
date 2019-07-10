@@ -44,6 +44,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Caching, meta=(ClampMin=128), AdvancedDisplay)
 	int32 CacheThreadStackSizeKB;
 
+	/** Maximum size of the global look-ahead cache (in GB; default = 1 GB). */
+	UPROPERTY(config, EditAnywhere, Category = Caching, meta = (ClampMin = 0))
+	float GlobalCacheSizeGB;
+
+	/** Whether to use the global cache or not. */
+	UPROPERTY(config, EditAnywhere, Category = Caching)
+	bool UseGlobalCache;
+
 public:
 
 	/** Number of worker threads to use when decoding EXR images (0 = auto). */

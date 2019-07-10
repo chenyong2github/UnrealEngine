@@ -238,6 +238,9 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent
 	/* this update renderer with new revision number twice so to clear bone velocity for motion blur or temporal AA */
 	void ClearMotionVector();
 	
+	/* Forcibly update the renderer with a new revision number to assign the current bone velocity for motion blur or temporal AA */
+	void ForceMotionVector();
+
 private:
 	/** Temporary array of of component-space bone matrices, update each frame and used for rendering the mesh. */
 	TArray<FTransform> ComponentSpaceTransformsArray[2];

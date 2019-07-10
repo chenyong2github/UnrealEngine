@@ -493,6 +493,31 @@ uint8* FDataTableEditorUtils::AddRow(UDataTable* DataTable, FName RowName)
 	return RowData;
 }
 
+uint8* FDataTableEditorUtils::DuplicateRow(UDataTable* DataTable, FName SourceRowName, FName RowName)
+{
+	if (!DataTable || (SourceRowName == NAME_None) || !DataTable->RowMap.Contains(SourceRowName) || DataTable->RowMap.Contains(RowName) || !DataTable->RowStruct)
+	{
+		return NULL;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("DuplicateDataTableRow", "Duplicate Data Table Row"));
+
+	BroadcastPreChange(DataTable, EDataTableChangeInfo::RowList);
+	DataTable->Modify();
+
+	// Allocate data to store information, using UScriptStruct to know its size
+	uint8* OldRowData = *DataTable->RowMap.Find(SourceRowName);
+	uint8* NewRowData = (uint8*)FMemory::Malloc(DataTable->RowStruct->GetStructureSize());
+
+	DataTable->RowStruct->InitializeStruct(NewRowData);
+	DataTable->RowStruct->CopyScriptStruct(NewRowData, OldRowData);
+
+	// Add to row map
+	DataTable->RowMap.Add(RowName, NewRowData);
+	BroadcastPostChange(DataTable, EDataTableChangeInfo::RowList);
+	return NewRowData;
+}
+
 bool FDataTableEditorUtils::RenameRow(UDataTable* DataTable, FName OldName, FName NewName)
 {
 	bool bResult = false;
@@ -592,7 +617,7 @@ bool FDataTableEditorUtils::MoveRow(UDataTable* DataTable, FName RowName, ERowMo
 	return true;
 }
 
-bool FDataTableEditorUtils::SelectRow(UDataTable* DataTable, FName RowName)
+bool FDataTableEditorUtils::SelectRow(const UDataTable* DataTable, FName RowName)
 {
 	for (auto Listener : FDataTableEditorManager::Get().GetListeners())
 	{
@@ -816,9 +841,9 @@ void FDataTableEditorUtils::GetPossibleStructAssetData(TArray<FAssetData>& Struc
 	StructAssets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
 }
 
-bool FDataTableEditorUtils::IsValidTableStruct(UScriptStruct* Struct)
+bool FDataTableEditorUtils::IsValidTableStruct(const UScriptStruct* Struct)
 {
-	UScriptStruct* TableRowStruct = FindObjectChecked<UScriptStruct>(ANY_PACKAGE, TEXT("TableRowBase"));
+	const UScriptStruct* TableRowStruct = FTableRowBase::StaticStruct();
 
 	// If a child of the table row struct base, but not itself
 	const bool bBasedOnTableRowBase = TableRowStruct && Struct->IsChildOf(TableRowStruct) && (Struct != TableRowStruct);

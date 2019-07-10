@@ -139,5 +139,13 @@ bool UProxyMediaOutput::IsProxyValid() const
 
 void UProxyMediaOutput::SetDynamicMediaOutput(UMediaOutput* InProxy)
 {
-	DynamicProxy = (Proxy == InProxy) ? nullptr : InProxy;
+	DynamicProxy = InProxy;
 }
+
+
+#if WITH_EDITOR
+void UProxyMediaOutput::SetMediaOutput(UMediaOutput* InProxy)
+{
+	Proxy = InProxy;
+}
+#endif

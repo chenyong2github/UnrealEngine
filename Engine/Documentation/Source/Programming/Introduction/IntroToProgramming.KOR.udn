@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4693425
+INTSourceChangelist:6368242
 Title:UE4 C++ 프로그래밍 입문
 Crumbs:
 Description:언리얼 엔진이 처음이신 C++ 프로그래머를 위한 입문 안내서입니다.
@@ -58,7 +58,7 @@ tags:Programming
 		virtual void BeginPlay() override;
 	};
 
-클래스 마법사는 BeginPlay() 와 Tick() 을 오버로딩하는 클래스를 생성합니다. BeginPlay() 는 액터가 플레이 가능한 상태로 게임에 들어왔음을 알려주는 이벤트입니다. 클래스에 대한 게임플레이 로직을 초기화시키기에 좋은 곳입니다. Tick() 는 지난 번 들여온 이후의 경과된 시간만큼 프레임당 한 번씩 호출됩니다. 여기서 어떠한 반복 로직도 가능합니다. 하지만 그러한 함수 기능이 필요치 않은 경우, 제거하는 편이 퍼포먼스가 약간 향상되므로 좋을 것입니다. 제거한 경우, 생성자에서 틱이 일어나야 한다고 나타낸 줄도 제거해 줘야 합니다. 아래 생성자에 문제의 그 줄이 들어있습니다.
+클래스 마법사는 `BeginPlay` 와 `Tick` 을 오버로딩하는 클래스를 생성합니다. `BeginPlay` 는 액터가 플레이 가능한 상태로 게임에 들어왔음을 알려주는 이벤트입니다. 클래스에 대한 게임플레이 로직을 초기화시키기에 좋은 곳입니다. `Tick` 는 지난 번 들여온 이후의 경과된 시간만큼 프레임당 한 번씩 호출됩니다. 여기서 어떠한 반복 로직도 가능합니다. 하지만 그러한 함수 기능이 필요치 않은 경우, 제거하는 편이 퍼포먼스가 약간 향상되므로 좋을 것입니다. 제거한 경우, 생성자에서 틱이 일어나야 한다고 나타낸 줄도 제거해 줘야 합니다. 아래 생성자에 문제의 그 줄이 들어있습니다.
 
 	AMyActor::AMyActor()
 
@@ -72,7 +72,7 @@ tags:Programming
 
 ### 프로퍼티가 에디터에 보이도록 만들기
 
-클래스를 생성했으니, 디자이너가 언리얼 에디터에서 설정할 수 있는 프로퍼티를 만들어 봅시다. 프로퍼티를 에디터에 노출시키는 작업은 전용 매크로 UPROPERTY() 를 사용하면 매우 쉽습니다. 아래 클래스에서 보이는 것처럼, UPROPERTY(EditAnymore) 매크로를 프로퍼티 선언 앞에 두기만 하면 됩니다.
+클래스를 생성했으니, 디자이너가 언리얼 에디터에서 설정할 수 있는 프로퍼티를 만들어 봅시다. 프로퍼티를 에디터에 노출시키는 작업은 `UPROPERTY` Specifier (지정자)를 사용하면 매우 쉽습니다. 프로퍼티 선언 윗줄에 `UPROPERTY(EditAnymore)` 를 두기만 하면 되며, 다음 클래스와 같습니다.
 
 	UCLASS()
 	class AMyActor : public AActor
@@ -86,7 +86,7 @@ tags:Programming
 		...
 	};
 
-에디터에서의 값 편집 허용을 위해 필요한 작업은 이게 전부입니다. 편집 방법이나 위치를 추가로 제어할 수 있는 방법이 몇 가지 더 있습니다. UPROPERTY() 매크로에 추가 정보를 전달하면 되는데요. 예를 들어 TotalDamage 프로퍼티가 다른 유사 프로퍼티와 한 섹션에 나타나도록 하려면, 카테고리 분류 기능을 사용하면 됩니다. 그 프로퍼티 선언 방법은 아래와 같습니다.
+에디터에서의 값 편집 허용을 위해 필요한 작업은 이게 전부입니다. 편집 방법이나 위치를 추가로 제어할 수 있는 방법이 몇 가지 더 있습니다. `UPROPERTY()` 지정자에 추가 정보를 전달하면 되는데요. 예를 들어 TotalDamage 프로퍼티가 다른 유사 프로퍼티와 한 섹션에 나타나도록 하려면, 카테고리 분류 기능을 사용하면 됩니다. 그 프로퍼티 선언 방법은 아래와 같습니다.
 
 	UPROPERTY(EditAnywhere, Category="Damage")
 	int32 TotalDamage;
@@ -98,7 +98,7 @@ tags:Programming
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Damage")
 	int32 TotalDamage;
 
-보시다시피 프로퍼티를 읽고 쓸 수 있도록 만들기 위한 블루프린트 전용 파라미터가 있습니다. 프로퍼티가 블루프린트에서 const (상수) 취급하도록 하고자 하는 경우 사용할 수 있는 옵션도 BlueprintReadOnly 라고 따로 있습니다. 엔진에 프로퍼티를 노출시키는 방법을 제어할 수 있는 옵션은 몇 가지 더 있습니다. 자세한 정보는 [](Programming/UnrealArchitecture/Reference/Properties/Specifiers) 문서를 참고하세요.
+보시다시피 프로퍼티를 읽고 쓸 수 있도록 만들기 위한 지정자가 있습니다. 블루프린트에서 프로퍼티를 `const` 취급하려는 경우 사용할 수 있는 지정자도 `BlueprintReadOnly` 라고 따로 있습니다. 에디터에 프로퍼티를 노출시키는 방법을 제어할 수 있는 옵션은 몇 가지 더 있습니다. 자세한 정보는 [](Programming/UnrealArchitecture/Reference/Properties/Specifiers) 문서를 참고하세요.
 
 다음 섹션으로 넘어가기 전, 이 샘플 클래스에 프로퍼티를 몇 가지 추가해 봅시다. 이 액터가 내는 총 대미지 양 조절을 위한 프로퍼티는 이미 있습니다. 하지만 이를 토대로 시간에 걸쳐 서서히 대미지를 입히도록 만들어 봅시다. 아래 코드는 디자이너 설정가능 프로퍼티를 하나, 디자이너에게 보이긴 하지만 변경은 불가능한 프로퍼티를 하나 추가합니다.
 
@@ -120,7 +120,7 @@ tags:Programming
 		...
 	};
 
-DamageTimeInSeconds 는 디자이너 변경가능 프로퍼티입니다. DamagePerSecond 프로퍼티는 디자이너의 세팅을 사용하여 계산된 값입니다 (다음 섹션 참고). VisibleAnywhere 플래그는 프로퍼티가 보이기는 하되 언리얼 에디터에서 편집은 불가능하도록 마킹합니다. Transient (휘발성) 플래그는 디스크에(서) 저장되거나 로드되지 않고, 지속되지 않는 파생 값이라는 뜻입니다. 아래 그림은 클래스 디폴트 일부인 프로퍼티를 나타냅니다.
+DamageTimeInSeconds 는 디자이너 변경가능 프로퍼티입니다. DamagePerSecond 프로퍼티는 디자이너의 세팅을 사용하여 계산된 값입니다 (다음 섹션 참고). `VisibleAnywhere` 지정자는 프로퍼티가 보이기는 하지만 언리얼 에디터에서 편집은 불가능하도록 마킹합니다. `Transient` (휘발성) 지정자는 디스크에(서) 저장 또는 로드되지 않는다는, 즉 지속되지 않는 파생 값이라 저장할 필요가 없다는 뜻입니다. 아래 그림은 클래스 디폴트 일부인 프로퍼티를 나타냅니다.
 
 ![image alt text](image_3.png)
 
@@ -144,7 +144,7 @@ DamageTimeInSeconds 는 디자이너 변경가능 프로퍼티입니다. DamageP
 
 ![image alt text](image_4.png)
 
-인스턴스별 디자이너 설정 프로퍼티를 지원하기 위해, 주어진 오브젝트에 대한 인스턴스 데이터에서 값을 로드하기도 합니다. 이 데이터는 생성자 이후에 적용됩니다. PostInitProperties() 콜 체인에 걸어주는 것으로 디자이너 설정 값을 기반으로 기본값을 만들 수 있습니다. 다음은 그러한 프로세스에 대한 예제로서, TotalDamage 와 DamageTimeInSeconds 를 디자이너 지정 값으로 한 것입니다. 디자이너가 지정한 것이긴 하지만, 위 예제에서처럼 거기에 대해 적당한 기본값을 지정해 줄 수는 있습니다.
+인스턴스별 디자이너 설정 프로퍼티를 지원하기 위해, 주어진 오브젝트에 대한 인스턴스 데이터에서 값을 로드하기도 합니다. 이 데이터는 생성자 이후에 적용됩니다. `PostInitProperties()` 콜 체인에 걸어주는 것으로 디자이너 설정 값을 기반으로 기본값을 만들 수 있습니다. 다음은 그러한 프로세스에 대한 예제로서, `TotalDamage` 와 `DamageTimeInSeconds` 를 디자이너 지정 값으로 한 것입니다. 디자이너가 지정한 것이긴 하지만, 위 예제에서처럼 거기에 대해 적당한 기본값을 지정해 줄 수는 있습니다.
 [REGION:note]
 프로퍼티에 기본값을 지정해 주지 않으면, 엔진에서 자동으로 0 또는 포인터의 경우 널 포인터로 설정합니다.
 [/REGION]
@@ -154,7 +154,7 @@ DamageTimeInSeconds 는 디자이너 변경가능 프로퍼티입니다. DamageP
 		DamagePerSecond = TotalDamage / DamageTimeInSeconds;
 	}
 
-위의 PostInitProperties() 코드를 추가한 이후 같은 프로퍼티를 다시 확인한 모습입니다.
+위의 `PostInitProperties()` 코드를 추가한 이후 같은 프로퍼티를 다시 확인한 모습입니다.
 
 ![image alt text](image_5.png)
 
@@ -178,15 +178,15 @@ DamageTimeInSeconds 는 디자이너 변경가능 프로퍼티입니다. DamageP
 
 지금까지 C++ 클래스 마법사로 간단한 게임플레이 클래스를 만들고 디자이너가 설정할 수 있는 프로퍼티를 추가해 봤습니다. 이제 어떻게 하면 디자이너가 이렇게 미약한 시작에서 창대한 고유 클래스를 만들 수 있을지 그 방법을 살펴봅시다.
 
-먼저 AMyActor 클래스에서 블루프린트 클래스를 새로 만들어 주겠습니다. 아래 그림에서 보면 선택된 베이스 클래스의 이름이 AMyActor 가 아닌 MyActor 로 나타납니다. 이는 의도된 것으로, 디자이너에게 툴 내부적으로 쓰이는 이름으로 보이지 않도록 하여 보다 친근감을 주기 위한 것입니다.
+먼저 `AMyActor` 클래스에서 블루프린트 클래스를 새로 만들어 주겠습니다. 아래 그림에서 보면 선택된 베이스 클래스의 이름이 **AMyActor** 가 아닌 **MyActor** 로 나타납니다. 이는 의도된 것으로, 디자이너에게 툴 내부적으로 쓰이는 이름으로 보이지 않도록 하여 보다 친근감을 주기 위한 것입니다.
 
 ![image alt text](image_8.png)
 
-선택하고 나면, 기본 이름의 블루프린트 클래스가 새로 생성됩니다. 이 경우 아래 콘텐츠 브라우저 스냅샷에서 보시듯이 CustomActor1 이라고 이름을 설정했습니다.
+선택하고 나면, 기본 이름의 블루프린트 클래스가 새로 생성됩니다. 이 경우 아래 콘텐츠 브라우저 스냅샷에서 보시듯이 **CustomActor1** 이라고 이름을 설정했습니다.
 
 ![image alt text](image_9.png)
 
-디자이너가 걸칠 수 있도록 맞춤 제작한 클래스 1 호입니다. 먼저 바꿔줄 것은, 대미지 프로퍼티의 기본값입니다. 이 경우 디자이너가 TotalDamage 를 300 으로, 그만큼의 대미지를 입히는 데 걸리는 시간을 2 초로 설정했습니다. 그러면 프로퍼티는 이렇게 보입니다.
+디자이너가 걸칠 수 있도록 맞춤 제작한 클래스 1 호입니다. 먼저 바꿔줄 것은, 대미지 프로퍼티의 기본값입니다. 이 경우 디자이너가 `TotalDamage` 를 300 으로, 그만큼의 대미지를 입히는 데 걸리는 시간을 2 초로 설정했습니다. 그러면 프로퍼티는 이렇게 보입니다.
 
 ![image alt text](image_10.png)
 
@@ -213,7 +213,7 @@ DamageTimeInSeconds 는 디자이너 변경가능 프로퍼티입니다. DamageP
 	}
 	#endif
 
-한 가지 참고할 것은 PostEditChangeProperty() 메서드가 에디터 전용 #ifdef 안에 있다는 것입니다. 이는 게임에 필요한 코드로만 게임을 만들 수 있도록 하여, 실행파일 크기를 불필요하게 늘릴 수 있는 여타 코드를 제거하는 것입니다. 그 코드를 컴파일해 넣고 나면, 아래 그림에서 보시듯이 DamagePerSecond 값이 예상대로 나옵니다.
+한 가지 참고할 것은 `PostEditChangeProperty()` 메서드가 에디터 전용 `#ifdef` 안에 있다는 것입니다. 이는 게임에 필요한 코드로만 게임을 만들 수 있도록 하여, 실행파일 크기를 불필요하게 늘릴 수 있는 여타 코드를 제거하는 것입니다. 그 코드를 컴파일해 넣고 나면, 아래 그림에서 보시듯이 `DamagePerSecond` 값이 예상대로 나옵니다.
 
 ![image alt text](image_11.png)
 
@@ -224,7 +224,7 @@ DamageTimeInSeconds 는 디자이너 변경가능 프로퍼티입니다. DamageP
 	UFUNCTION(BlueprintCallable, Category="Damage")
 	void CalculateValues();
 
-UFUNCTION() 매크로가 리플렉션 시스템으로의 C++ 함수 노출을 처리합니다. BlueprintCallable 옵션이 블루프린트에 노출시키면, 사용자는 블루프린트 그래프 안에서 함수를 호출할 수 있습니다. 아래 이미지는 카테고리가 컨텍스트 메뉴에 주는 영향을 보여줍니다.
+`UFUNCTION()` 매크로가 리플렉션 시스템으로의 C++ 함수 노출을 처리합니다. `BlueprintCallable` 옵션이 블루프린트 가상 머신에 노출시킵니다. 모든 블루프린트 노출 함수는 카테고리를 할당해야, 우클릭 컨텍스트 메뉴가 정상 작동합니다. 아래 이미지는 카테고리가 컨텍스트 메뉴에 주는 영향을 보여줍니다.
 
 ![image alt text](image_12.png)
 
@@ -234,7 +234,7 @@ UFUNCTION() 매크로가 리플렉션 시스템으로의 C++ 함수 노출을 �
 
 여기서는 앞서 종속 프로퍼티 계산을 위해 추가했던 바로 그 함수를 사용합니다. 엔진 많은 부분이 UFUNCTION() 매크로를 통해 블루프린트에 노출되어 있어, C++ 코드를 작성하지 않고도 게임을 만들 수 있는 것입니다. 기반이 되는 게임플레이 시스템과 퍼포먼스가 중요한 코드는 C++ 를 사용하고, 그 C++ 기본 구성요소를 토대로 복합적인 작동방식을 만들거나 입맛대로 수정하는 데는 블루프린트를 사용하는 것이 최적의 접근법입니다.
 
-디자이너가 C++ 코드를 호출할 수 있게 되었으니, C++/블루프린트 경계를 넘나드는 비법을 한 가지 더 알아봅시다. 이 접근법은 C++ 코드에서 블루프린트에 정의된 함수를 호출할 수 있도록 해 주는 것입니다. 종종 디자이너가 알맞게 반응할 수 있도록 디자이너에게 이벤트를 알리는 접근법을 사용합니다. 거기에는 액터를 숨기거나 보이게 만드는 등의 시각적인 영향이나 이펙트 스폰 작업이 수반되게 마련인데요. 블루프린트로 구현된 함수를 나타내 주는 코드 스니펫은 아래와 같습니다.
+디자이너가 C++ 코드를 호출할 수 있게 되었으니, C++/블루프린트 경계를 넘나드는 하우투를 한 가지 더 알아봅시다. 이 접근법은 C++ 코드에서 블루프린트에 정의된 함수를 호출할 수 있도록 해 주는 것입니다. 종종 디자이너가 알맞게 반응할 수 있도록 디자이너에게 이벤트를 알리는 접근법을 사용합니다. 거기에는 액터를 숨기거나 보이게 만드는 등의 시각적인 영향이나 이펙트 스폰 작업이 수반되게 마련인데요. 블루프린트로 구현된 함수를 나타내 주는 코드 스니펫은 아래와 같습니다.
 
 	UFUNCTION(BlueprintImplementableEvent, Category="Damage")
 	void CalledFromCpp();
@@ -305,7 +305,7 @@ UActorComponent (액터 컴포넌트)에는 별도의 작동방식이 내장되�
 액터와 컴포넌트를 사용하는 방법은 여러가지 있는 반면, 액터-컴포넌트 관계를 빗대어 생각해 볼 수 있는 한 가지 방법은, 액터는 "이게 뭐지?" 라는 질문에 대한 답이, 컴포넌트는 "이게 뭘로 만들어졌지?" 라는 질문에 대한 답이 될 수 있다는 것입니다.
 
 * RootComponent - AActor 의 컴포넌트 트리 내 최상위 컴포넌트를 담는 AActor 멤버입니다.
-* Ticking - 소유한 AActor 의 Tick() 일부분으로 틱되는 컴포넌트입니다.
+* Ticking - 소유한 AActor 의 `Tick` 일부분으로 틱되는 컴포넌트입니다.
 
 ##### 일인칭 캐릭터 분석
 
@@ -338,7 +338,7 @@ UStruct (구조체)를 사용하기 위해서는, 특정 클래스를 확장할 
 * **UCLASS()** - 언리얼에게 클래스의 리플렉션 데이터를 생성하라 할 때 씁니다. UObject 파생 클래스여야 합니다. 
 * **USTRUCT()** - 언리얼에게 구조체의 리플렉션 데이터를 생성하라 할 때 씁니다.
 * **GENERATED_BODY()** - UE4 에서는 이 부분을 해당 유형에 대해 생성되는 전체 필수 표준(boilerplate) 코드로 대체합니다.
-* **UPROPERTY()** - UCLASS 또는 USTRUCT 의 멤버 변수를 UPROPERTY 로 사용할 수 있도록 해줍니다. UPROPERTY 에는 여러가지 용도가 있습니다. 변수가 리플리케이트, 시리얼라이즈 되도록 하거나, 블루프린트에서의 접근할 수 있도록 할 수도 있습니다. UObject 로의 레퍼런스가 몇 개나 되는지 가비지 컬렉터가 추적하는 데도 사용됩니다.
+* **`UPROPERTY`** - UCLASS 또는 USTRUCT 의 멤버 변수를 UPROPERTY 로 사용할 수 있도록 해줍니다. UPROPERTY 에는 여러가지 용도가 있습니다. 변수가 리플리케이트, 시리얼라이즈 되도록 하거나, 블루프린트에서의 접근할 수 있도록 할 수도 있습니다. UObject 로의 레퍼런스가 몇 개나 되는지 가비지 컬렉터가 추적하는 데도 사용됩니다.
 * **UFUNCTION()** - UCLASS 또는 USTRUCT 의 클래스 메서드를 UFUNCTION 으로 사용할 수 있도록 해줍니다. UFUNCTION 은 블루프린트에서 클래스 메서드를 호출할 수 있도록, 다른 것 보다도 RPC 로 사용할 수 있도록 해줍니다.
 
 UCLASS 선언 예제는 다음과 같습니다:
@@ -353,16 +353,16 @@ UCLASS 선언 예제는 다음과 같습니다:
 	public:
 		MyUObject();
 
-		UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="Example")
+		UPROPERTY(BlueprintReadOnly, EditAnywhere)
 		float ExampleProperty;
 
-		UFUNCTION(BlueprintCallable, Category="Example")
+		UFUNCTION(BlueprintCallable)
 		void ExampleFunction();
 	};
 
 먼저 "MyClass.generated.h" 를 include 한 것이 보일 것입니다. 언리얼에서는 모든 리플렉션 데이터를 생성하여 이 파일 안에 넣습니다. 이 파일 include 는 유형을 선언하는 헤더 파일에서 마지막 include 로 넣어줘야 합니다.
 
-이 예제의 UCLASS, UPROPERTY, UFUNCTION 마크업에는 부가 지정자를 포함합니다. 필수는 아니지만, 데모 목적 상 몇 가지 흔한 지정자를 추가했습니다. 지정자는 특정 작동방식이나 프로퍼티를 활성화 또는 변경할 수 있습니다.
+이 예제의 UCLASS, UPROPERTY, UFUNCTION 마크업에는 부가 지정자를 포함합니다. 필수는 아니지만, 데모 목적 상 몇 가지 흔한 지정자를 추가했습니다. 그러면 특정 동작이나 프로퍼티를 지정할 수 있습니다.
 
 * **Blueprintable** - 이 클래스는 블루프린트로 확장시킬 수 있습니다.
 * **BlueprintReadOnly** - 이 프로퍼티는 블루프린트에서 읽을 수는 있지만, 쓰기는 불가능합니다.
@@ -475,7 +475,7 @@ UObject 프로퍼티를 가진 액터가 있는, 보다 일반적인 경우는 �
 		World->SpawnActor<AMyActor>(Location, Rotation);
 	}
 
-위 함수를 호출하면, 월드에 액터를 스폰합니다. 액터의 생성자는 오브젝트를 둘 생성합니다. 하나는 UPROPERTY 에 할당되고, 다른 하나는 기본(bare) 포인터에 할당됩니다. 액터는 자동으로 루트 세트의 일부가 되므로, SafeObject 는 루트 세트 오브젝트에서 도달 가능하니 가비지 컬렉팅되지 않습니다. 하지만 DoomedObject 는 제대로 살지 못합니다. UPROPERTY 마킹을 하지 않았으니, 컬렉터는 레퍼런싱되었다고 알지 못하므로 결국 소멸될 것입니다.
+위 함수를 호출하면, 월드에 액터를 스폰합니다. 액터의 생성자는 오브젝트를 둘 생성합니다. 하나는 UPROPERTY 에 할당되고, 다른 하나는 기본(bare) 포인터에 할당됩니다. 액터는 자동으로 루트 세트의 일부가 되므로, SafeObject 는 루트 세트 오브젝트에서 도달 가능하니 가비지 컬렉팅되지 않습니다. 하지만 DoomedObject 는 제대로 살지 못합니다. UPROPERTY 마킹을 하지 않았으니, 컬렉터는 참조되었다고 알지 못하므로 결국 소멸될 것입니다.
 
 UObject 가 가비지 컬렉팅될 때, 그에 대한 모든 UPROPERTY 레퍼런스는 널 포인터로 설정해 줍니다. 그래야 오브젝트가 가비지 컬렉팅 되었는지 여부를 안전하게 검사할 수 있게 됩니다.
 
@@ -573,7 +573,7 @@ FString MyStr = TEXT("Hello, Unreal 4!").
 
 #### FName
 
-**FName** 은 자주 반복되는 문자열을 식별자로 저장하여 그에 대한 비교를 할 때 메모리와 CPU 시간을 절약하는 데 쓰입니다. 이를 레퍼런싱하는 모든 오브젝트에 전체 문자열을 매번 반복 저장하기 보다, FName 은 보다 작은 저장 용량을 차지하는 **Index** 를 사용하여 주어진 문자열에 매핑시킵니다. 그러면 문자열 내용을 한 번만 저장하여, 여러 오브젝트에 사용할 때의 메모리를 절약합니다. **NameA.Index** 가 **NameB.Index** 와 같은지 검사해 보면 그 문자열 안의 글자를 하나하나 검사할 필요 없이 두 문자열을 빠르게 비교할 수 있습니다.
+**FName** 은 자주 반복되는 문자열을 식별자로 저장하여 그에 대한 비교를 할 때 메모리와 CPU 시간을 절약하는 데 쓰입니다. 이를 참조하는 모든 오브젝트에 전체 문자열을 매번 반복 저장하기 보다, FName 은 보다 작은 저장 용량을 차지하는 **Index** 를 사용하여 주어진 문자열에 매핑시킵니다. 그러면 문자열 내용을 한 번만 저장하여, 여러 오브젝트에 사용할 때의 메모리를 절약합니다. **NameA.Index** 가 **NameB.Index** 와 같은지 검사해 보면 그 문자열 안의 글자를 하나하나 검사할 필요 없이 두 문자열을 빠르게 비교할 수 있습니다.
 
 [Full Topic: FName API](https://docs.unrealengine.com/latest/INT/API/Runtime/Core/UObject/FName/index.html)
 
@@ -583,7 +583,7 @@ FString MyStr = TEXT("Hello, Unreal 4!").
 
 [](Programming/UnrealArchitecture/StringHandling/CharacterEncoding)
 
-**FString::Printf** 처럼 이것이 꼭 필요한 함수가 있는데, **%s** 스트링 포맷 지정자가 FString 대신 TCHAR 를 기대하는 경우입니다.
+**FString::Printf** 처럼 이것이 꼭 필요한 함수가 있는데, `%s` 스트링 포맷 지정자가 FString 대신 TCHAR 를 기대하는 경우입니다.
 
 	FString Str1 = TEXT("World");
 	int32 Val1 = 123;
@@ -693,7 +693,7 @@ TArray 는 그 요소를 가비지 컬렉션 시킬 때 부가적인 혜택이 �
 	{
 	private:
 
-		// TMap 을 사용하여 각 조각을 위치로 레퍼런싱할 수 있습니다.
+		// TMap 을 사용하여 각 조각을 위치로 참조할 수 있습니다.
 		TMap<FIntPoint, FPiece> Data;
 
 	public:
@@ -858,7 +858,7 @@ TSet 와 TMap 내부적으로는 *hash* (해시 함수)를 사용해야 합니�
 		}
 	};
 
-이제 TSet&lt;FMyClass&gt; 와 TMap&lt;FMyClass, ...&gt; 는 적절한 해시 함수를 사용하여 키를 해싱할 것입니다. 포인터를 키로 사용하는 경우 (예: `TSet<FMyClass*>`) `uint32 GetTypeHash(const FMyClass* MyClass)` 구현도 해줘야 합니다.
+이제 `TSet<FMyClass>` 와 `TMap<FMyClass, ...>` 는 적절한 해시 함수를 사용하여 키를 해싱할 것입니다. 포인터를 키로 사용하는 경우 (예: `TSet<FMyClass*>`) `uint32 GetTypeHash(const FMyClass* MyClass)` 구현도 해줘야 합니다.
 
 [블로그 게시물: 알아두면 좋을 언리얼 엔진 4 라이브러리](https://www.unrealengine.com/blog/ue4-libraries-you-should-know-about)
 

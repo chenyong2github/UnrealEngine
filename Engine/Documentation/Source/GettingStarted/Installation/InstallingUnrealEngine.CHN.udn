@@ -38,8 +38,6 @@ _Epic Games启动程序让我们的订购者们可以方便地下载并安装虚
 
 在具有一个有效的Epic Games账户后，您可以下载我们的安装程序（Epic Games启动程序设置项目）。
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

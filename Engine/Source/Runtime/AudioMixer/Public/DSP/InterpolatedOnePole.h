@@ -63,7 +63,6 @@ namespace Audio
 		TArray<float> Z1; // multi-channel delay terms
 		float* Z1Data{ nullptr };
 		int32 CurrInterpLength{ 0 };
-		int32 CurrInterpCounter{ 0 };
 		int32 NumInterpSteps;
 		float SampleRate{ 0 };
 		int32 NumChannels{ 1 };
@@ -136,7 +135,6 @@ namespace Audio
 		TArray<float> Z1; // multi-channel delay terms
 		float* Z1Data{ nullptr };
 		int32 CurrInterpLength{ 0 };
-		int32 CurrInterpCounter{ 0 };
 		int32 NumInterpSteps;
 		float SampleRate{ 0 };
 		float NyquistLimit{ 0.0f };

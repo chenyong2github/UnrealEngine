@@ -1317,21 +1317,25 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 	USkeleton* MySkeleton = DestSeq->GetSkeleton();
 	check(MySkeleton);
 
-	if (ImportOptions->bDeleteExistingMorphTargetCurves)
+	if (ImportOptions->bDeleteExistingMorphTargetCurves || ImportOptions->bDeleteExistingCustomAttributeCurves)
 	{
 		for (int32 CurveIdx=0; CurveIdx<DestSeq->RawCurveData.FloatCurves.Num(); ++CurveIdx)
 		{
 			auto& Curve = DestSeq->RawCurveData.FloatCurves[CurveIdx];
 			const FCurveMetaData* MetaData = MySkeleton->GetCurveMetaData(Curve.Name);
-			if (MetaData && MetaData->Type.bMorphtarget)
+			if (MetaData)
 			{
-				DestSeq->RawCurveData.FloatCurves.RemoveAt(CurveIdx, 1, false);
-				--CurveIdx;
+				bool bDeleteCurve = MetaData->Type.bMorphtarget ? ImportOptions->bDeleteExistingMorphTargetCurves : ImportOptions->bDeleteExistingCustomAttributeCurves;
+				if (bDeleteCurve)
+				{
+					DestSeq->RawCurveData.FloatCurves.RemoveAt(CurveIdx, 1, false);
+					--CurveIdx;
+				}
 			}
 		}
-
 		DestSeq->RawCurveData.FloatCurves.Shrink();
 	}
+
 
 	// Store float curve tracks which use to exist on the animation
 	TArray<FString> ExistingCurveNames;
@@ -1686,10 +1690,6 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 		DestSeq->MarkRawDataAsModified();
 
 		GWarn->EndSlowTask();
-	}
-	else
-	{
-		DestSeq->RecycleAnimSequence();
 	}
 
 	// compress animation

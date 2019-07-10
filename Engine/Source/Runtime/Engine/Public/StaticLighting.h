@@ -371,7 +371,7 @@ FORCEINLINE bool FStaticLightingMesh::ShouldCastShadow(ULightComponent* Light,co
 }
 
 /** A mapping between world-space surfaces and static lighting cache textures. */
-class FStaticLightingTextureMapping : public FStaticLightingMapping
+class ENGINE_VTABLE FStaticLightingTextureMapping : public FStaticLightingMapping
 {
 public:
 
@@ -431,7 +431,7 @@ public:
  * Represents an object which will use the global volumetric lightmap.
  * Hack: currently represented as a texture mapping for Lightmass GI solver surface caching
  */
-class FStaticLightingGlobalVolumeMapping : public FStaticLightingTextureMapping
+class ENGINE_VTABLE FStaticLightingGlobalVolumeMapping : public FStaticLightingTextureMapping
 {
 public:
 

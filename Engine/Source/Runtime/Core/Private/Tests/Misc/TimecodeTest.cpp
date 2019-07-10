@@ -236,7 +236,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 	TArray<TFuture<bool>> Futures;
 	for (const FFrameRate FrameRate : CommonFrameRates)
 	{
-		Futures.Add(Async<bool>(EAsyncExecution::Thread, [FrameRate, &ConversionWithFrameRateTest](){ return ConversionWithFrameRateTest(FrameRate); }));
+		Futures.Add(Async(EAsyncExecution::Thread, [FrameRate, &ConversionWithFrameRateTest](){ return ConversionWithFrameRateTest(FrameRate); }));
 	}
 
 	bool bSuccessfully = true;

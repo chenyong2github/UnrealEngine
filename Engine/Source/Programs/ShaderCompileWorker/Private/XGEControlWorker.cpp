@@ -101,8 +101,8 @@ bool FXGEControlWorker::Init()
 		return false;
 
 	// Connection successful, start the worker threads
-	InputThreadFuture = Async<void>(EAsyncExecution::Thread, [this]() { InputThreadProc(); });
-	OutputThreadFuture = Async<void>(EAsyncExecution::Thread, [this]() { OutputThreadProc(); });
+	InputThreadFuture = Async(EAsyncExecution::Thread, [this]() { InputThreadProc(); });
+	OutputThreadFuture = Async(EAsyncExecution::Thread, [this]() { OutputThreadProc(); });
 	return true;
 }
 

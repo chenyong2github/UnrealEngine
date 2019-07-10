@@ -1,26 +1,26 @@
-﻿INTSourceChangelist:4662417
-Availability: Docs
+INTSourceChangelist:6507268
+Availability: Public
 Title:시네마틱 무비 렌더링 출력
-Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
 Description:시네마틱 시퀀스를 컴퓨터에 저장되는 무비 파일로 렌더링 출력하는 법을 보여드립니다. 
-Version: 4.18
+Type: how-to
+Version: 4.21
+Parent: Engine/Sequencer/HowTo
+Tags: Sequencer
 SkillLevel: Intermediate
-parent:Engine/Sequencer/HowTo
-order:1
-checkpoint: editorqs
-Related: Engine/Sequencer/Overview
-Related: Engine/Sequencer/Workflow/CustomRenderPass
-Related: Engine/Sequencer/HowTo/ImportExportEDLs
 Related: Engine/Sequencer/HowTo/CustomBurnIns
-tags:Sequencer
-type:how-to
+Related: Engine/Sequencer/HowTo/ImportExportEDLs
+Related: Engine/Sequencer/Workflow/CustomRenderPass
+Related: Engine/Sequencer/Overview
 
-시네마틱 시퀀스를 생성한 이후(, 아니면 제작 프로세스에서 데일리 리뷰의 일부로든) 다른 이와 공유할 수 있는 무비 파일로 렌더링 출력고 싶을 수가 있습니다. 시퀀서의 **Render Movie** (무비 렌더링) 옵션에서 대부분의 미디어 플레이어로 재생되는 .avi 파일을 통해 무비를 다른 사람과 공유할 수 있습니다. 무비 파일로 렌더링하는 것에 더해, 시네마틱을 이미지 시퀀스로 렌더링하거나 [커스텀 렌더 패스(pass)](Engine/Sequencer/Workflow/CustomRenderPass) 로 렌더링 출력하고 외부 프로그램에서 사용하여 씬을 마무리할 수도 있습니다. 
+[TOC (start:2 end:2)]
 
-이 예제에서는, 샘플 시네마틱을 생성하여 무비로 렌더링 출력해 보면서 렌더링 프로세스의 일부로 사용할 수 있는 옵션도 몇 가지 살펴보겠습니다. 
+시네마틱 시퀀스를 생성한 이후(, 아니면 제작 프로세스에서 데일리 리뷰의 일부로든) 다른 이와 공유할 수 있는 무비 파일로 렌더링 출력고 싶을 수가 있습니다. 시퀀서의 **Render Movie** (무비 렌더링) 옵션에서 대부분의 미디어 플레이어로 재생되는 AVI 파일을 통해 무비를 다른 사람과 공유할 수 있습니다. 
+
+무비 파일로 렌더링하는 것에 더해, 시네마틱을 이미지 시퀀스로 렌더링하거나 [커스텀 렌더 패스(pass)](Engine/Sequencer/Workflow/CustomRenderPass) 로 렌더링 출력하고 외부 프로그램에서 사용하여 씬을 마무리할 수도 있습니다. Render Movie 버튼을 선택하면 [렌더 무비 세팅](Engine/Sequencer/Workflow/RenderMovieSettings) 창이 표시되어, 씬 렌더링 방식을 정의할 수 있습니다.
+
+이 예제에서는 샘플 씬을 렌더링 출력하고 렌더링 프로세스의 일부로 사용할 수 있는 몇 가지 옵션을 살펴보겠습니다.
 
 ![](HeroImage.png)
-
 
 ## 단계
 
@@ -28,127 +28,68 @@ type:how-to
 여기서는 **블루프린트 삼인칭 템플릿** 에 **시작용 콘텐츠** 를 포함시켜 사용하고 있습니다. 
 [/REGION]
 
-1. 프로텍트의 **메인 툴바** 에서 **시네마틱** 버튼을 클릭한 뒤 **레벨 시퀀스 추가** 를 선택합니다. 
+1.  프로텍트의 **메인 툴바** 에서 **시네마틱** 버튼을 클릭한 뒤 **레벨 시퀀스 추가** 를 선택합니다.  
+    ![](RenderMovie_01.png)
 
-	![](RenderMovie_01.png)
+1.  **새 이름으로 저장** 창에서 시퀀스에 새 이름을 입력한 뒤 **저장** 을 클릭합니다.  
+    ![](RenderMovie_02.png)
 
-1. **새 이름으로 저장** 창에서 시퀀스에 새 이름을 입력한 뒤 **저장** 을 클릭합니다. 
+1.  **시퀀서 에디터** 안에서 **카메라 추가** 버튼을 클릭합니다.  
+    ![](RenderMovie_03.png)
 
-	![](RenderMovie_02.png)
+1.  뷰포트에서, 레벨 아무데나 캐릭터를 보도록 카메라 위치를 잡은 뒤 **S** 키를 눌러 키프레임을 추가합니다.  
+    ![](RenderMovie_04.png)  
+    레벨의 캐릭터 클로즈업 샷을 수 있도록 카메라를 밀어놓고 샘플 씬을 찍겠습니다.
 
-1. **시퀀서 에디터** 안에서 **카메라 추가** 버튼을 클릭합니다. 
+1.  **시퀀서 에디터** 에서 **150** 프레임으로 이동한 뒤, 레벨의 카메라를 새 위치로 옮기고 **S** 키를 눌러 키프레임을 추가합니다.
+    [REGION:lightbox]
+    [![](RenderMovie_05.png)(w:640)](RenderMovie_05.png)
+    [/REGION]
+    [REGION:caption]
+    이미지를 클릭하면 원본을 확인합니다. 
+    [/REGION]
+    이제 카메라가 첫 번째 키프레임에서 두 번째 키프레임으로 이동하면서, 캐릭터 앞으로 이동합니다.
 
-	![](RenderMovie_03.png)
+1.  **시퀀서 에디터** 에서 **Render Movie** (무비 렌더링) 버튼을 클릭합니다.  
+    ![](RenderMovie_06.png)  
+    **Render Movie Settings** (무비 렌더링 세팅) 창이 열립니다.  
+    ![](RenderMovieSettings.png "RenderMovieSettings.png")  
+    **Capture Settings** (캡처 세팅) 아래 **Output Format** (출력 포맷) 옵션을 클릭하여 나오는 옵션 중에서 **Video Sequence** (비디오 시퀀스)를 선택합니다.  
+    ![](RenderMovieSettings_Options.png "RenderMovieSettings_Options.png")  
+    시퀀스를 무비로 렌더링 출력하는 것에 더해, 이미지 시퀀스로 렌더링하거나 [커스텀 렌더 패스(pass)](Engine/Sequencer/Workflow/CustomRenderPass) 로 렌더링 출력할 수도 있습니다.
 
-1. 뷰포트에서, 레벨 아무데나 캐릭터를 보도록 카메라 위치를 잡은 뒤 **S** 키를 눌러 키프레임을 추가합니다. 
-
-	![](RenderMovie_04.png)
-
-레벨의 캐릭터 클로즈업 샷을 수 있도록 카메라를 밀어놓고 샘플 씬을 찍겠습니다. 
-
-1. **시퀀서 에디터** 에서 **150** 프레임으로 이동한 뒤, 레벨의 카메라를 새 위치로 옮기고 **S** 키를 눌러 키프레임을 추가합니다. 
-
-	[REGION:lightbox]
-	[![](RenderMovie_05.png)(w:640)](RenderMovie_05.png)
-	[/REGION]
-
-	[REGION:caption]
-	이미지를 클릭하면 원본을 확인합니다. 
-	[/REGION]
-
-이제 카메라가 첫 번째 키프레임에서 두 번째 키프레임으로 이동하면서, 캐릭터 앞으로 이동합니다. 
-
-1. **시퀀서 에디터** 에서 **Render Movie** (무비 렌더링) 버튼을 클릭합니다. 
-
-	![](RenderMovie_06.png)
-
-**Render Movie Settings** (무비 렌더링 세팅) 창이 열립니다. 
-
-	![](RenderMovie_07.png)
-
-1. **Capture Settings** (캡처 세팅) 아래 **Output Format** (출력 포맷) 옵션을 클릭하여 나오는 옵션 중에서 **Video Sequence** (비디오 시퀀스)를 선택합니다. 
-
-	![](RenderMovie_08.png)
-
-시퀀스를 무비로 렌더링 출력하는 것에 더해, 이미지 시퀀스로 렌더링하거나 커스텀 렌드 패스(pass)로 렌더링 출력할 수도 있습니다. 
-
-1. **General** (일반) 아래 시네마틱을 저장할 **Output Directory** (출력 디렉터리)를 선택하고, **Capture Movie** (무비 캡처)를 클릭합니다. 
-
-	![](RenderMovie_09.png)
-
-렌더링 프로세스 진행 도중 프리뷰 창이 나타납니다. 
-
-	![](RenderMovie_10.png)
-
-	[REGION:note]
-	**무비 캡처** 선택 이후 콘텐츠 **저장** 확인 창이 뜨면, **저장** 또는 **저장 않음** 을 선택하여 계속합니다. **취소** 를 선택하면 렌더링 프로세스가 중단됩니다. 
-	[/REGION]
-
+1.  **General** (일반) 아래 시네마틱을 저장할 **Output Directory** (출력 디렉터리)를 선택하고, **Capture Movie** (무비 캡처)를 클릭합니다.  
+    ![](RenderMovieSettings_Output-1.png "RenderMovieSettings_Output-1.png")  
+    렌더링 프로세스 진행 도중 프리뷰 창이 나타납니다.  
+	
+	![](RenderMovie_10.png)  
+    [REGION:note]
+    **무비 캡처** 선택 이후 콘텐츠 **저장** 확인 창이 뜨면, **저장** 또는 **저장 않음** 을 선택하여 계속합니다. **취소** 를 선택하면 렌더링 프로세스가 중단됩니다. 
+    [/REGION]
+    
 
 ## 최종 결과
 
 캡처 프로세스가 끝나면 시네마틱 시퀀스의 비디오 파일이 생겨있을 것입니다 (아래는 렌더링 출력한 시네마틱입니다).
 
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:videoid]
-vuEZcdMlIgc
-[/PARAMLITERAL]
-[PARAMLITERAL:width]
-100
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-56.25
-[/PARAMLITERAL]
-[PARAMLITERAL:units]
-%
-[/PARAMLITERAL]
-[PARAMLITERAL:type]
-simple
-[/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    640
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    360
+    [/PARAMLITERAL]
+    [PARAMLITERAL:videoid]
+    vuEZcdMlIgc
+    [/PARAMLITERAL]
 [/OBJECT]
 
-**Burn-ins** (번 인)이란 비디오에 삽입되는 오버레이로, 보통 표시 중인 프레임 관련 내부 정보가 제공됩니다. 비디오에 번 인을 [커스텀 번 인](Engine/Sequencer/HowTo/CustomBurnIns) 포함해서 추가할 수 있는데, **Use Burn In** (번 인 사용) 옵션을 켜면 됩니다. 
+비디오 시퀀스를 렌더링 출력할 때 사용할 수 있는 추가 옵션이 있습니다. 제작 도중 유용할 수도 있는 기능 한 가지는 비디오에 [Burn In](Engine/Sequencer/HowTo/BurnIns) (번 인)을 추가하는 것입니다. 번 인이란 비디오에 삽입되는 오버레이로, 보통 표시 중인 프레임 관련 내부 정보가 제공됩니다.
 
-![](BurnIns.png)
+비디오에 기본 번 인을 추가하거나, 직접 만든 [커스텀 번 인](Engine/Sequencer/HowTo/CustomBurnIns) 을 추가할 수도 있는데, **Use Burn In** (번 인 사용) 옵션을 켜면 됩니다. 
+
+![](RenderMovieSettings_Burnin.png "RenderMovieSettings_Burnin.png")
 
 시네마틱 리뷰를 할 때 특히나 유용하게 쓸 수 있는데, 타임코드 정보는 물론 샷 이름과 다른 커스텀 정보도 제공할 수 있기 때문입니다. 
 
 ![](BurnInsApplied.png)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

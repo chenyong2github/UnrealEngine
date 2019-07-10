@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2744667
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title: 编程基础
 Crumbs: %ROOT%, Programming
@@ -19,7 +19,7 @@ version: 4.9
 [/REGION]
 
 
-[新建一个游戏项目](Engine/Basics/Projects/Browser#bookmarkcreatingnewprojects) 页面已经一步步的解释了如何新建一个游戏项目。项目创建后，就应该对项目的 [](Engine/Basics/DirectoryStructure) 比较熟悉。这个信息会帮助了解目录中的一些文件是什么作用，以及如何为项目添加新文件。还可以通过在启动编辑器的时候传入 [](Programming\Basics\CommandLineArguments) 来达到直接进入游戏预览画面或者直接打开某个指定地图的作用。
+[新建一个游戏项目](Engine/Basics/Projects/Browser#creatingnewprojects) 页面已经一步步的解释了如何新建一个游戏项目。项目创建后，就应该对项目的 [](Engine/Basics/DirectoryStructure) 比较熟悉。这个信息会帮助了解目录中的一些文件是什么作用，以及如何为项目添加新文件。还可以通过在启动编辑器的时候传入 [](Programming\Basics\CommandLineArguments) 来达到直接进入游戏预览画面或者直接打开某个指定地图的作用。
 
 
 ## 模块

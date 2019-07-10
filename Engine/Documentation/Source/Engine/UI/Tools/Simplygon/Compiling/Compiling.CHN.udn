@@ -1,43 +1,59 @@
-﻿Availability: Licensee
-Title:编译Simplygon
-Crumbs:%ROOT%, Engine, Engine/UI/Tools/Simplygon
-Description:在虚幻引擎4中编译和使用Simplygon整合的条款的指南。
-
-[TOC(start:2)]
-
-
-## 概述
-
-尽管随同编辑器发行了Simplygon,但是授权用户必须从Donya Labs ( http://simplygon.com/ ) 获得授权才能使用这个功能。 请与他们联系了解有关获取授权许可和SDK的更多详细信息。
-
-
-
-## 将UE4和Simplygon SDK结合编译
+﻿INTSourceChangelist:5766152
+Availability: Public
+Crumbs: 
+Title: 编译Simplygon
+Description: 虚幻引擎4中的Simplygon集成的编译说明和使用条款。
+Type: 
+Version: 4.9
+Parent: Engine/UI/Tools/Simplygon
+Order: 
+Tags: 
+topic-image: placeholder_topic.png
+topic-icon: %ROOT%/ue4_icon.png
 
 
-1. 安装Simplygon SDK。 默认安装路径是 C:\SimplygonSDKx64\\。
-1. 创建目录UE4\Engine\Source\ThirdParty\NoRedist\Simplygon\Simplygon-X.X.XXXX\Inc\\，其中X.X.XXXX指的是您已经安装的版本。
-1. 将文件SimplygonSDK.h放到这个目录中。 这个头文件位于Simplygon安装目录中。
-1. 编辑Simplygon.Build.cs，修改字符串SimplygonPath以匹配以上路径。
-1. 重新编译编辑器来获得到集成工具的访问权。
+[REGION:warning]
+在4.22版本中，UE4已经停止支持Simplygon。您可以继续从Simplygon获得更新，但必须自行将其整合到引擎中。作为替代方案，我们推出了自己开发的内部解决方案。更多详情，请参阅[骨架网格体简化](Engine/Content/Types/SkeletalMeshes/SkeletalMeshReductionTool) 文档页面。
+[/REGION]
+
+尽管Simplygon随编辑器提供，但是要使用此功能，授权用户必须先从Donya Labs（http://simplygon.com/）获取许可证。请联系他们，了解有关获取许可证和SDK的更多详细信息。
+
+(#compilingue4withthesimplygonsdk)
+## 使用Simplygon SDK编译UE4
+
+
+1. 安装Simplygon SDK。默认安装路径是`C:\\SimplygonSDKx64\\`。
+    
+2. 创建`UE4\\Engine\\Source\\ThirdParty\\NoRedist\\Simplygon\\Simplygon-X.X.XXXX\\Inc\`目录，其中，X.X.XXXX是你安装的版本。
+    
+3. 将`SimplygonSDK.h`文件放置在此目录中。此头文件位于Simplygon安装目录中。
+
+4. 编辑`Simplygon.Build.cs`，修改SimplygonPath字符串，以与上述路径匹配。
+
+5. 重新编译编辑器之后才可使用此集成。
 
 
 
 
-## 发布该集成
+(#distributingtheintegration)
+## 分发该集成
 
-您可以选择将DLL和授权文件迁入到perforce中，以便您不必在每个开发人员的及其上都安装SDK。
+你可以选择将DLL和许可证文件签入到Perforce中，这样就无需在每个开发人员的机器上安装该SDK。
+
+1. 按照上面“使用Simplygon SDK编译UE4”部分中的说明完成相关操作。
+
+2. 创建`UE4\\Engine\\Binaries\\NoRedist\\Simplygon\\`目录。
+
+3. 将`SimplygonSDKRuntimeReleasex64.dll`文件从Simplygon安装目录复制到`UE4\\Engine\\Binaries\\NoRedist\\Simplygon\\`下。
+
+4. 找到Simplygon的License.dat文件。在Windows 7中，该文件默认位于`C:\\ProgramData\\DonyaLabs\\SimplygonSDK\\`下。
+
+5. 将`License.dat`文件复制到`UE4\\Engine\\Binaries\\NoRedist\\Simplygon\\`下。
+
+6. 将DLL和许可证文件签入到源代码管理中。
 
 
-1. 完成上面关于将UE4和Simplygon SDK结合编译的指示操作。
-1. 创建目录UE4\Engine\Binaries\NoRedist\Simplygon\\。
-1. 从Simplygon 安装目录将SimplygonSDKRuntimeReleasex64.dll文件复制到UE4\Engine\Binaries\NoRedist\Simplygon\\目录。
-1. 定位Simplygon的 License.dat文件。 在Windows7操作系统中，该文件默认位于目录C:\ProgramData\DonyaLabs\SimplygonSDK\\。
-1. 复制License.dat文件到目录UE4\Engine\Binaries\NoRedist\Simplygon\\。
-1. 将DLL和授权文件迁入到源码控制工具中。
-
- 
-
+[](#)[](#)
 
 
 

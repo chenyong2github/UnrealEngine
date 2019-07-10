@@ -19,8 +19,8 @@ public:
 public:
 
 	//~ ISequencerTrackEditor interface
-	virtual void ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const FGuid& ObjectBinding, const UClass* ObjectClass) override;
+	virtual void ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 
-	void ConstructObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
-	void CreateTrackForElement(FGuid ObjectBindingID, int32 MaterialIndex);
+	void ConstructObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings);
+	void CreateTrackForElement(TArray<FGuid> ObjectBindingIDs, int32 MaterialIndex);
 };

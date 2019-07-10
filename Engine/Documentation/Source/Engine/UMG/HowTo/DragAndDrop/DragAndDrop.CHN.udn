@@ -1,57 +1,265 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:创建拖放 UI
-Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
-Description:说明如何通过 UMG 创建可拖放的 UI。 
-Version:4.15
-SkillLevel:Intermediate
-parent:Engine/UMG/HowTo
-order:1
-checkpoint: editorqs
-Related:Engine/UMG
-Related:Engine/UMG/UserGuide
-tags:UMG UI Designer
-tags:UI
-type:how-to
+﻿INTSourceChangelist:6593379
+Availability: Public
+Title: 创建拖放UI
+Description: 说明如何使用UMG创建可拖放的UI控件。
+Type: how-to
+Version: 4.15
+Parent: Engine/UMG/HowTo
+Tags: UMG UI Designer
+Tags: UI
+SkillLevel: Intermediate
+Order: 6
+Related: Engine/UMG/UserGuide
+Related: Engine/UMG
 
 
-在项目中，玩家有时需要通过屏幕上的拖放操作与 UI 元素进行交互。这可用于自定义界面布局（放置体力条或单元框架），或与物品栏画面之类的游戏性系统进行交互（添加/移除物品）。结合 UMG 后即可使用 **DragAndDropOperation** 节点创建这些类型的交互，并基于交互方法覆盖部分继承的蓝图函数。 
+[TOC (start:2 end:2)]
 
-在此例中，我们将实现一个玩家能用鼠标左键进行拖动和放置的体力条。
+在您的项目中，有时您可能希望您的玩家能够通过在屏幕上拖放UI元素来与UI元素交互。这可以是自定义界面布局（定位血条或单元框架）或与物品栏屏幕等游戏系统交互（添加/移除项目）。利用UMG，您可以通过 **DragAndDropOperation** 节点创建这些类型的交互，并根据您的交互方法覆盖一些继承的蓝图函数。
+
+本例中，我们将了解玩家如何使用鼠标左键在屏幕上拖动并重新定位血条。
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:videoid]
-	kYkhxuJsVs4
-	[/PARAMLITERAL]
-	[PARAMLITERAL:width]
-	100
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	56.25
-	[/PARAMLITERAL]
-	[PARAMLITERAL:units]
-	%
-	[/PARAMLITERAL]
-	[PARAMLITERAL:type]
-	simple
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ kYkhxuJsVs4
+ [/PARAMLITERAL]
 [/OBJECT]
 
-_在此指南的最后，您将拥有一个可以在视口中进行四处拖动、并放置到新位置的 UI 控件。_
+*在本指南的最后，您将拥有一个UI控件，您可以在视口内拖动该控件，并将其放到新位置上。*
 
-(#Steps)
-## 步骤
+## 1 - 项目设置
 
-[REGION:buttonlist]
-* [](Engine\UMG\HowTo\DragAndDrop\ProjectSetup)
-* [](Engine\UMG\HowTo\DragAndDrop\WidgetSetup)
-* [](Engine\UMG\HowTo\DragAndDrop\OnDragDetected)
-* [](Engine\UMG\HowTo\DragAndDrop\OnDrop)
-* [](Engine\UMG\HowTo\DragAndDrop\FinishingUp)
-[/REGION]
+在开始之前，我们需要创建一些资源作为项目设置的一部分。
 
-[REGION:call_to_action]
-	[点击开始](Engine\UMG\HowTo\DragAndDrop\ProjectSetup "%Engine\UMG\HowTo\DragAndDrop\ProjectSetup:title%")
-[/REGION]
+1.  在 **内容浏览器（Content Browser）** 中，创建三个 **控件蓝图（Widget Blueprints）**，分别是：**DragWidget**、**HealthBar** 和 **HUD**。
 
+	![](DragDrop1.png)
 
+	本例中，我们想要的可拖放的元素是将放置在 **HUD** 中的 **HealthBar** 控件。
+我们将创建并拖动一个名为 **DragWidget**，形状与我们的血条相同的控件，而不是拖动实际的血条。
+
+1.  在 **内容浏览器（Content Browser）** 中右键单击，并创建一个类为 **DragDropOperation** 的新 **蓝图类（Blueprint Class）**，称其为 **WidgetDrag**。
+
+	![](DragDrop2.png)
+
+	这个专门的蓝图类将允许我们传递信息，以此作为拖放操作的一部分。
+
+1.  打开 **WidgetDrag**，然后创建一个名为 **WidgetReference** 的 **用户控件（User Widget）** 变量，并使其 **可编辑（Editable）** 且 **生成时公开（Expose on Spawn）**。
+
+	![](DragDrop3a.png)
+
+	这将用于保存我们想要在屏幕上拖动的UMG控件。
+
+1.  创建另一个名为 **DragOffset**，类型为 **向量2D（Vector 2D）** 的变量，该变量 **可编辑（Editable）** 且 **生成时公开（Expose on Spawn）**。  
+    
+	![](DragDrop3b.png)  
+    
+	这将用于补偿抵消我们开始拖放控件时的位置和拖放控件的时间。
+
+项目设置完成后，接下来我们将开始处理HealthBar控件蓝图，这是我们希望可拖动的UI部分。
+
+## 2 - 控件设置
+
+在该步骤中，我们确定何时按下鼠标左键，并将按下的位置存储在屏幕空间中。我们还使用 **DetectDragIfPressed** 确定玩家是否使用指定键拖动。
+
+1.  打开 **HealthBar** 控件蓝图，并在 **层级（Hierarchy）** 窗口中删除 **画布面板（Canvas Panel）**。
+
+1.  添加一个 **进度条（Progress Bar）**，然后 **右键单击** 它，用盒体 **包裹（Wrap With）** 它，在 **细节（Details）** 面板中将 **盒体大小（Size Box）** 设置为 **500 x 50**。  
+    
+	![](DragDrop4a.png)  
+    
+	您还可以选择调整进度条的风格。下面，我们将调整后的预览设置为 **屏幕上所需（Desired on Screen）**，将 **百分比（Percent）** 设置为 **1.0**，这样进度条就会被填满，并将颜色更改为绿色。 
+	
+	![](DragDrop4b.png)  
+    
+	[REGION:note]
+	在本教程中，我们将不创建功能性血条，这仅用于演示目的。
+	[/REGION]
+
+1.  切换到 **图表（Graph）** 模式，然后在 **我的蓝图（My Blueprint）** 面板中，添加 **OnMouseButtonDown** 和 **OnDragDetected** 覆盖。  
+    
+	![](DragDrop5.png)  
+    
+	您可以覆盖几个函数来调用自己的自定义脚本。这里，我们将检查何时按下鼠标按钮，以及检测到控件拖动时发生了什么情况。
+
+1.  在 **OnMouseButtonDown** 节点中，拖走 **我的几何体（My Geometry）** 引脚，并添加 **Absolute to Local** 节点。
+
+1.  拖走 **鼠标事件（Mouse Event）** 引脚并添加 **Get Screen Space Position** 节点，然后连接如下。  
+    
+	![](DragDrop6.png)  
+    
+	在这里，我们通过获取屏幕空间位置（鼠标按钮在该位置注册了按下按键的动作），将血条控件的绝对坐标转换到本地空间。这将告诉我们播放器实际点击了控件上的什么位置，这样当我们选择把控件放下时，我们就可以用它来决定我们应该把控件放在什么地方，因此我们将它存储为一个变量。
+
+1.  右键单击 **Absolute to Local** 引脚的 **返回值（Return Value）** 并 **提升到变量（Promote to Variable）**，该变量名为 **Drag Offset**。  
+    
+	![](DragDrop7.png)
+    
+	[REGION:note]
+    如果您在On Mouse Button Down节点上看到一个错误，不要担心，一旦我们完成这个函数，它就会消失。
+    [/REGION]
+    
+1.  在图表中右键单击，并添加一个 **Detect Drag if Pressed** 节点。
+
+1.  将 **拖动键（Drag Key）** 设置为 **鼠标左键（Left Mouse Button）** 并连接 **鼠标事件（Mouse Event）** 和剩余引脚，如下所示。 
+
+	![](DragDrop8.png)  
+    
+	这里，我们将确定玩家是否正在拖动鼠标左键，在此之前将启动On Drag Detected脚本。
+
+有了检测玩家是否拖动到位的功能，接下来我们将完成检测到拖动时发生的事情。
+
+## 3 - On Drag Detect
+
+在这一步中，我们确定当玩家实际上在屏幕上拖拽血条时会发生什么。
+
+1.  打开 **OnDragDetected** 函数，右键单击并添加一个 **Create Widget** 节点，将该节点设置为 **Drag Widget**，然后 **浏览（Browse）** 到它。  
+    
+	![](UpdatedDragDrop1.png)  
+    
+	当检测到拖动时，我们将创建我们的DragWidget（它将保存我们的拖动控件）。在继续使用OnDragDetected函数之前，我们需要在创建DragWidget时传递血条控件作为引用。
+
+1.  打开 **DragWidget** 并添加一个名为 **WidgetReference** 的 **User Widget** 变量，将其设置为 **生成时公开（Expose on Spawn）** 和 **可编辑（Editable）**。  
+      
+    ![](UpdatedDragDrop2.png)
+
+1.  **编译（Compile）** 并关闭 **DragWidget**，然后再次打开 **血条（HealthBar）** 控件蓝图和 **OnDragDetected** 函数。
+
+1.  将 **自身（Self）** 分配为 **控件引用（Widget Reference）**，并将 **返回值（Return Value）** **提升（Promote）** 到一个名为 **Dragged Widget** 的变量，并连接如下。  
+    
+	![](UpdatedDragDrop3.png)  
+    
+	现在，当创建拖动控件时，它将具有对现有血条控件的引用。我们还将虚拟拖动控件提升到一个变量，以便稍后访问它，并可在选择放下控件时将其从显示中删除。
+
+1.  右键单击并创建一个 **DragAndDropOperation** 节点，将其设置为 **控件拖动（Widget Drag）**，并将 **枢轴（Pivot）** 设置为 **按下鼠标（Mouse Down）**。  
+    
+	![](UpdatedDragDrop4.png)  
+    
+	枢轴确定当相对于执行拖动操作的指针进行拖动时，拖动控件视觉效果将出现在何处。
+
+1.  在节点上，添加 **自身（Self）** 作为 **控件引用（Widget Reference）**，添加 **DraggedWidget** 作为 **默认拖动视觉效果（Default Drag Visual）**，添加 **Drag Offset** 作为 **拖动偏移（Drag Offset）**。
+    
+	[REGION:lightbox]
+    [![](UpdatedDragDrop5.png)](UpdatedDragDrop5.png)
+    [/REGION]
+    [REGION:caption]
+	单击显示全图。
+	[/REGION]
+	
+	上面我们指出了哪个控件蓝图是我们的引用，拖动的视觉效果应该是什么，并提供了开始拖动的偏移量。默认情况下，节点上有一个偏移引脚，但是，我们在自己的计算中使用自己的偏移引脚来确定在按下Mouse Button Down时开始拖动时的位置。
+
+我们需要做的最后几件事是确定当玩家释放鼠标左键（Left Mouse Button）并执行OnDrop函数时会发生什么。我们还需要将血条控件添加到我们的主HUD控件蓝图中，并告知它在测试完所有内容之前显示。
+
+## 4 - On Drop
+
+这里我们设置主 **HUD** 控件蓝图，并覆盖在执行 **OnDrop** 函数时发生的情况。
+
+1.  打开 **HUD** 控件蓝图，然后在 **画布面板（Canvas Panel）** 的 **细节（Details）** 面板中，将其 **可视性（Visibility）** 设置为 **可见（Visible）**。  
+    
+	![](DragDrop13.png)  
+    
+	我们正在血条控件中进行拖动检测，但是，当我们释放鼠标左键（Left Mouse Button）时，我们想要将其放入HUD控件蓝图中。为了让HUD能够接收到命中检测，我们需要将它的 **可视性（Visibility）** 设置为 **可见（Visible）**。
+
+1.  从 **控制板（Palette）** 窗口中，将 **血条（Health Bar）** 控件添加到图表中的所需位置。
+  
+      
+    ![](DragDrop14.png)
+
+1.  转到 **图表（Graph）** 模式，然后从 **我的蓝图（My Blueprint）** 面板添加一个 **OnDrop** 函数覆盖。  
+      
+    ![](DragDrop15.png)
+
+1.  在 **OnDrop** 中，拖走 **操作（Operation）** 和 **转换为WidgetDrag（Cast to WidgetDrag）**，然后拖走 **获取控件引用（Get Widget Reference）** 和 **获取拖动偏移（Get Drag Offset）**。  
+    
+	![](DragDrop16.png)  
+    
+	我们在这里转换以检查作为 **OnDrop** 函数的一部分正在执行的操作类型，该类型是否是 **控件拖动（Widget Drag）**？如果是，我们将获取 **WidgetReference**（我们在拖动控件时传递了它）以及 **DragOffset**（或开始拖动时的位置）。
+
+1.  离开 **我的几何体（My Geometry）** 和 **指针事件（Pointer Event）**，使用 **Absolute to Local** 和 **GetScreenSpacePosition** 节点，并连接如下。  
+    
+	![](DragDrop17.png)  
+    
+	这将告诉我们在2D空间中释放鼠标左键（Left Mouse Button）以放置控件的位置。我们将用这个位置减去 **DragOffset** 来确定控件被放在何处。
+
+1.  从 **Absolute to Local** 的 **返回值（Return Value）** 减去 **DragOffset**。  
+      
+    ![](UpdateDragDrop1.png)
+
+1.  离开 **控件引用（Widget Reference）**，添加一个 **Remove from Parent** 节点，然后添加 **Add to Viewport** 和 **Set Position in Viewport** 节点。
+
+1.  连接以下所示节点，并取消勾选 **移除DPIScale（Remove DPIScale）**，勾选 **Return节点（Return Node）** 上的 **返回值（Return Value）**。
+    
+	[REGION:lightbox]
+    [![](UpdateDragDrop2.png)](UpdateDragDrop2.png)
+    [/REGION]
+    [REGION:caption]
+	单击显示全图。
+	[/REGION]
+	
+	 取消勾选 **移除DPIScale（Remove DPIScale）** 并勾选 **返回值（Return Value）** 复选框，因为我们不需要移除[DPI缩放](Engine/UMG/UserGuide/DPIScaling)，且我们已经处理了该函数，因此我们返回为true。使用此脚本，我们首先移除现有的血条控件，然后将其重新添加到屏幕上相对于拖动偏移的新位置。
+
+我们的HUD被设置为处理放下拖动控件，并显示血条。在本教程的下一个也是最后一个步骤中，我们将设置拖动控件来模拟血条的形状，并指示角色蓝图将HUD添加到视口。
+
+## 5 - 完成
+
+在最后一步中，我们配置 **DragWidget**（这是我们正在拖动的可视化控件）。然后，我们告知我们的角色蓝图将 **HUD** 控件蓝图添加到视口，并启用鼠标光标，这样我们就可以看到我们正在拖动的位置。
+
+1.  打开 **DragWidget** 控件蓝图，将 **画布面板（Canvas Panel）** 替换为带有子 **边框（Border）** 的 **盒体大小（Size Box）**。
+
+1.  将 **SizeBox** 重命名为 **WidgetSize**，并将 **isVariable** 设置为true，然后勾选 **宽度覆盖（Width Override）** 和 **高度覆盖（Height Override）**。  
+    
+	![](UpdateDragDrop3.png)   
+    
+	我们将设置盒体大小（Size Box）的宽度（Width）和高度（Height），以反映血条控件的大小。
+
+1.  对于 **边框（Border）**，将 **笔刷颜色（Brush Color）** 设置为 **黑色（Black）**，并将 **Alpha** 设为 **0.5**，以提供一些透明度。  
+    
+	![](UpdateDragDrop4.png)  
+    
+	在我们的示例中，我们将以血条的轮廓作为拖动视觉效果，同时将实际的血条保持在相同的位置。
+
+1.  在 **图表（Graph）** 中，拖入 **Widget Reference** 节点，然后拖走 **Event Construct** 节点，转换到 **血条（HealthBar）** 以获取 **所需大小（Desired Size）** 和 **中断向量（Break Vector）**。 
+
+	![](UpdateDragDrop5.png)  
+    
+	这将提供我们血条的大小，然后我们可以将盒体大小（Size Box）设置为该大小。我们可以手动输入覆盖，但是，如果我们更改血条的大小，那么我们也必须在这里更改它。
+
+1.  拖入 **Widget Size**，并拖走 **Set Height Override** 和 **Set Width Override** 节点，然后连接如下。
+    
+	[REGION:lightbox]
+    [![](UpdateDragDrop6.png)](UpdateDragDrop6.png)
+    [/REGION]
+    [REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+1.  在 **内容浏览器（Content Browser）** 中的 **Content/ThirdPersonBP/Blueprints** 下，打开 **第三人称角色（ThirdPersonCharacter）** 蓝图。
+
+1.  离开 **Event Begin Play**、**Create Widget**（设置为 **HUD**），然后 **添加到视口（Add to Viewport）** 并 **获取玩家控制器（Get Player Controller）** 以 **显示鼠标光标（Show Mouse Cursor）**。 
+
+	![](DragDrop19.png)
+
+1.  **编译（Compile）**，**保存（Save）**，然后单击 **运行（Play）** 按钮以在编辑器中运行。
+
+### 最终结果
+
+在编辑器中运行时，可以左键单击并拖动屏幕上的血条，然后将其放到新的位置。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ kYkhxuJsVs4
+ [/PARAMLITERAL]
+[/OBJECT]
+
+这只是启动拖放过程所需元素的一个示例。可能需要进行额外的检查，以确保玩家不会将控件拖出安全区域或潜在地拖放到其他控件之上。

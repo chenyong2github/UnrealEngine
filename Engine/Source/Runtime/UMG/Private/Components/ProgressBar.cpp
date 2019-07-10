@@ -8,13 +8,21 @@
 /////////////////////////////////////////////////////
 // UProgressBar
 
+static FProgressBarStyle* DefaultProgressBarStyle = nullptr;
+
 UProgressBar::UProgressBar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FProgressBarStyle StaticProgressBar = FCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar");
+	if (DefaultProgressBarStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultProgressBarStyle = new FProgressBarStyle(FCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar"));
 
-	WidgetStyle = StaticProgressBar;
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultProgressBarStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultProgressBarStyle;
 	WidgetStyle.FillImage.TintColor = FLinearColor::White;
 
 	BarFillType = EProgressBarFillType::LeftToRight;

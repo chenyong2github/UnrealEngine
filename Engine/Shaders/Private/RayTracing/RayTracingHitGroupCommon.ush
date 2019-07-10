@@ -84,8 +84,7 @@ FTriangleBaseAttributes LoadTriangleBaseAttributes(uint PrimitiveId)
 	// Fetch vertex positions (in local space)
 	const uint VertexStride = HitGroupSystemRootConstants.GetVertexStride();
 
-	// #dxr_todo: handle various vertex formats, for now only supporting float3
-	// #dxr_todo: handle BaseVertexIndex
+	// #dxr_todo: UE-72160 handle various vertex formats, for now only supporting float3
 	Result.LocalPositions[0] = LoadVertexPositionFloat3(HitGroupSystemVertexBuffer, Result.Indices[0], VertexStride);
 	Result.LocalPositions[1] = LoadVertexPositionFloat3(HitGroupSystemVertexBuffer, Result.Indices[1], VertexStride);
 	Result.LocalPositions[2] = LoadVertexPositionFloat3(HitGroupSystemVertexBuffer, Result.Indices[2], VertexStride);

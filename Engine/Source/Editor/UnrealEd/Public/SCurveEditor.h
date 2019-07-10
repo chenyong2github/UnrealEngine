@@ -128,7 +128,7 @@ DECLARE_DELEGATE_TwoParams( FOnSetInputViewRange, float, float )
 DECLARE_DELEGATE_TwoParams( FOnSetOutputViewRange, float, float )
 DECLARE_DELEGATE_OneParam( FOnSetAreCurvesVisible, bool )
 
-class SCurveEditor : 
+class UNREALED_VTABLE SCurveEditor : 
 	public SCompoundWidget,
 	public FGCObject,
 	public FEditorUndoClient

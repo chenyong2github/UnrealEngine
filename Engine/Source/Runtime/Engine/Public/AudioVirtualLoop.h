@@ -17,8 +17,18 @@ private:
 
 	FActiveSound* ActiveSound;
 
+	/**
+	  * Check if provided active sound is in audible range.
+	  */
+	static bool IsInAudibleRange(const FActiveSound& InActiveSound, const FAudioDevice* InAudioDevice = nullptr);
+
 public:
 	FAudioVirtualLoop();
+
+	/**
+	 * Check to see if listener move is far enough such that a check for virtual loop realization is necessary
+	 */
+	static bool ShouldListenerMoveForceUpdate(const FTransform& LastTransform, const FTransform& CurrentTransform);
 
 	/**
 	 * Checks if provided active sound is available to be virtualized.  If so, returns new active sound ready to be
@@ -33,7 +43,7 @@ public:
 	static bool IsEnabled();
 
 	/**
-	 * Returns the internally-managed active sound.
+	 * Returns the internally-managed active sound
 	 */
 	FActiveSound& GetActiveSound();
 
@@ -43,23 +53,23 @@ public:
 	float GetUpdateInterval() const { return UpdateInterval; }
 
 	/**
-	 * Returns the internally-managed active sound.
 	 */
 	const FActiveSound& GetActiveSound() const;
 
 	/**
-	 * Check if provided active sound is in audible range.
+	 * Overrides the update interval to the provided length
 	 */
-	static bool IsInAudibleRange(const FActiveSound& InActiveSound, const FAudioDevice* InAudioDevice = nullptr);
+	void CalculateUpdateInterval();
 
 	/**
-	 * Overrides the update interval to the provided length.
+	 * Takes aggregate update delta and updates focus so that realization
+	 * check can test if ready to play.
 	 */
-	void CalculateUpdateInterval(bool bIsAtMaxConcurrency = false);
+	void UpdateFocusData(float DeltaTime);
 
 	/**
 	  * Updates the loop and checks if ready to play (or 'realize').
 	  * Returns whether or not the sound is ready to be realized.
 	  */
-	bool CanRealize(float DeltaTime);
+	bool CanRealize(float DeltaTime, bool bForceUpdate);
 };

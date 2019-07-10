@@ -5,15 +5,14 @@ Description: Get up and running streaming an Unreal Engine application from one 
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
-Order: 
+Order: 1
 topic-image:cloud-gs-topic.png
 Tags: Getting Started
 Tags: Early Access
 Tags: Pixel Streaming
+hero-image: pixelstreaming-gs-banner.png
 
 Follow the steps below to stream the rendered output from your Unreal Engine Project over your local network to browsers and mobile devices.
-
-![Getting Started with Pixel Streaming](pixelstreaming-gs-banner.png "Getting Started with Pixel Streaming")
 
 [REGION:note]
 The images for the steps on this page illustrate the procedure using a Project built from the **Third-Person Blueprint** template. However, the same steps should work for any Unreal Engine Project.
@@ -86,14 +85,14 @@ In this step, you'll start the web services that will accept client connections 
     ![Signaling and Web Server](pixelstreaming-gs-servers-signalling.png "Signaling and Web Server")
 2.  Start the Signaling Server by running the `run.bat` file. The first time you run the server, it will download all the dependencies it needs. When the server has started and is ready to accept connections, you'll see the following lines in the console window:
 
-    Listening to proxy connections on: 8888
-    Http listening on *: 80
-    
+        Listening to proxy connections on: 8888
+        Http listening on *: 80
+
 3.  In your Unreal Engine installation folder, find the location of the WebRTC Proxy Server binaries under `Engine/Source/Programs/PixelStreaming/WebRTCProxy/bin`.  
     ![WebRTC Proxy Server](pixelstreaming-gs-servers-proxy.png "WebRTC Proxy Server")
 4.  Start the WebRTC Proxy Server by running the `Start_WebRTCProxy.bat` file. When the server has started, you'll see the following line in the console window:
 
-    LOG: LogDefault     : Connecting to UE4 127.0.0.1:8124
+        LOG: LogDefault     : Connecting to UE4 127.0.0.1:8124
 
 5.  Now, start the Unreal Engine application from the shortcut that you created in the previous step.
 
@@ -163,17 +162,12 @@ You now have one instance of the Unreal Engine running on your computer, broadca
 
 By default, all connected devices share control over the Unreal Engine application, forwarding all keyboard, mouse, and touchscreen inputs.
 
-![](pixelstreaming-endresult-chrome.png)
-
-Desktop
-
-![](pixelstreaming-endresult-iossafari.png)
-
-iPhone
-
-![](pixelstreaming-endresult-gpixel.png)
-
-Pixel
+[REGION:imagetable]
+||||
+|---|---|---|
+| [REGION:lightbox][![](pixelstreaming-endresult-chrome.png)(h:400)](pixelstreaming-endresult-chrome.png)[/REGION] | [REGION:lightbox][![](pixelstreaming-endresult-iossafari.png)(h:400)](pixelstreaming-endresult-iossafari.png)[/REGION] | [REGION:lightbox][![](pixelstreaming-endresult-gpixel.png)(h:400)](pixelstreaming-endresult-gpixel.png)[/REGION] |
+| Desktop | iPhone | Google Pixel |
+[/REGION]
 
 ## 4 - On Your Own
 

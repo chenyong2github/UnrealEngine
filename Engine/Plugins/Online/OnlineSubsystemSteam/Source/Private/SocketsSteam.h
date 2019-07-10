@@ -55,7 +55,7 @@ public:
 	 * @param InSocketDescription the debug description of the socket
 	 * @param InSocketProtocol the protocol used to create this socket.
 	 */
-	FSocketSteam(ISteamNetworking* InSteamNetworkingPtr, FUniqueNetIdSteam& InLocalSteamId, const FString& InSocketDescription, ESocketProtocolFamily InSocketProtocol) :
+	FSocketSteam(ISteamNetworking* InSteamNetworkingPtr, FUniqueNetIdSteam& InLocalSteamId, const FString& InSocketDescription, const FName& InSocketProtocol) :
 		FSocket(SOCKTYPE_Datagram, InSocketDescription, InSocketProtocol),
 		LocalSteamId(InLocalSteamId),
 		SteamChannel(0),

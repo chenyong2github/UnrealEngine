@@ -28,11 +28,17 @@ limitations under the License.
 #endif
 
 #define OVRP_MAJOR_VERSION 1
-#define OVRP_MINOR_VERSION 32
+#define OVRP_MINOR_VERSION 37
 #define OVRP_PATCH_VERSION 0
 
 #define OVRP_VERSION OVRP_MAJOR_VERSION, OVRP_MINOR_VERSION, OVRP_PATCH_VERSION
 #define OVRP_VERSION_STR OVRP_STRINGIFY(OVRP_MAJOR_VERSION.OVRP_MINOR_VERSION.OVRP_PATCH_VERSION)
+
+
+
+
+#define OVRP_VERSION_CHANNEL "Release"
+
 
 #define OVRP_CURRENT_FRAMEINDEX -1
 
@@ -117,7 +123,15 @@ typedef enum {
 
   /// Allow to use sRGB frame buffer, we use it as an initialization flag because we need make the window surface
   /// sRGB compilable, this can't be changed after window created.
-  ovrpInitializeFlag_SupportSRGBFrameBuffer = (1 << 4)
+  ovrpInitializeFlag_SupportSRGBFrameBuffer = (1 << 4),
+
+
+
+
+
+
+  ovrpInitializeFlag_EnumSize = 0x7fffffff
+
 } ovrpInitializeFlags;
 
 
@@ -189,6 +203,7 @@ typedef enum {
 typedef enum {
   ovrpTrackingOrigin_EyeLevel = 0,
   ovrpTrackingOrigin_FloorLevel = 1,
+  ovrpTrackingOrigin_Stage = 2,
   ovrpTrackingOrigin_Count,
   ovrpTrackingOrigin_EnumSize = 0x7fffffff
 } ovrpTrackingOrigin;
@@ -242,6 +257,7 @@ typedef enum {
   ovrpSystemHeadset_Rift_DK2,
   ovrpSystemHeadset_Rift_CV1,
   ovrpSystemHeadset_Rift_CB,
+  ovrpSystemHeadset_Rift_S,
   ovrpSystemHeadset_EnumSize = 0x7fffffff
 } ovrpSystemHeadset;
 
@@ -355,11 +371,15 @@ typedef enum {
 } ovrpLogLevel;
 
 /// Foveation levels
+///
+/// Levels should be consecutive integer enums, otherwise change GetTiledMultiResLevel
+/// and SetTiledMultiResLevel to work without that assumption
 typedef enum {
   ovrpTiledMultiResLevel_Off = 0,
   ovrpTiledMultiResLevel_LMSLow = 1,
   ovrpTiledMultiResLevel_LMSMedium = 2,
   ovrpTiledMultiResLevel_LMSHigh = 3,
+  ovrpTiledMultiResLevel_LMSHighTop = 4,
   ovrpTiledMultiResLevel_EnumSize = 0x7fffffff
 } ovrpTiledMultiResLevel;
 
@@ -506,6 +526,13 @@ typedef struct {
   ovrpVector2f Pos;
   ovrpSizef Size;
 } ovrpRectf;
+
+typedef struct {
+  ovrpRectf LeftRect;
+  ovrpRectf RightRect;
+  ovrpVector4f LeftScaleBias;
+  ovrpVector4f RightScaleBias;
+} ovrpTextureRectMatrixf;
 
 typedef struct {
 	float WarpLeft;
@@ -835,19 +862,25 @@ typedef enum {
   ovrpLayerSubmitFlag_CombineLayerSubmits = (1 << 5),
   /// Enable Positional timeWarp on Fov layer
   ovrpLayerSubmitFlag_PositionalTimeWarp = (1 << 6),
+  /// Enable Space warp on Fov layer
+  ovrpLayerSubmitFlag_SpaceWarp = (1 << 7),
 } ovrpLayerSubmitFlags;
 
 /// Layer state to submit to ovrp_EndFrame
-#define OVRP_LAYER_SUBMIT                  \
-  struct {                                 \
-    int LayerId;                           \
-    int TextureStage;                      \
-    ovrpRecti ViewportRect[ovrpEye_Count]; \
-    ovrpPosef Pose;                        \
-    int LayerSubmitFlags;                  \
-    /* Added in 1.31 */                    \
-    ovrpVector4f ColorScale;               \
-    ovrpVector4f ColorOffset;              \
+#define OVRP_LAYER_SUBMIT                         \
+  struct {                                        \
+    int LayerId;                                  \
+    int TextureStage;                             \
+    ovrpRecti ViewportRect[ovrpEye_Count];        \
+    ovrpPosef Pose;                               \
+    int LayerSubmitFlags;                         \
+    /* Added in 1.31 */                           \
+    ovrpVector4f ColorScale;                      \
+    ovrpVector4f ColorOffset;                     \
+    /* Added in 1.34 */                           \
+    ovrpBool OverrideTextureRectMatrix;           \
+    ovrpTextureRectMatrixf TextureRectMatrix;     \
+    ovrpBool OverridePerLayerColorScaleAndOffset; \
   }
 
 typedef OVRP_LAYER_SUBMIT ovrpLayerSubmit;

@@ -1,0 +1,35 @@
+﻿INTSourceChangelist:6650380
+Availability: Public
+Crumbs: 
+Title:  代理几何体工具
+Description: 开发代理几何工具集是为了提高虚幻引擎4(UE4)项目的性能，同时又不影响项目的视觉质量。 
+Type: how-to
+SkillLevel: Intermediate
+Version: 
+Parent: Engine
+Order: 
+Tags: Rendering
+Tags: Optimization
+Tags: ProxyGeometryTool
+hero-image:ProxyLOD_BannerImage.png
+
+
+开发代理几何工具集是为了提高虚幻引擎4(UE4)项目的性能，同时又不影响项目的视觉质量。 
+
+[REGION:note]
+目前，只有使用Microsoft Windows的PC支持代理几何体工具。以后将增加对Mac和Linux的支持。
+[/REGION]
+
+## 开始
+
+[DIR(output:"topic" parent:"Engine/ProxyGeoTool" type:"overview")]
+
+## 指南
+
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Beginner")]
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Intermediate")]
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Advanced")]
+
+## 参考
+
+[DIR(output:"topic" parent:"Engine/ProxyGeoTool" type:"Reference")]

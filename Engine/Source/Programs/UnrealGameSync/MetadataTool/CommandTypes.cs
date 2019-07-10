@@ -24,22 +24,16 @@ namespace MetadataTool
 			Warning = 3,
 		}
 
-		public class AddIssueResponse
-		{
-			public long Id;
-		}
-
 		public class AddIssue
 		{
 			public string Project;
 			public string Summary;
-			public string Details;
 			[Optional] public string Owner;
 		}
 
-		public class UpdateBuild
+		public class AddIssueResponse
 		{
-			[Optional] public int? Outcome;
+			public long Id;
 		}
 
 		public class UpdateIssue
@@ -50,7 +44,6 @@ namespace MetadataTool
 			[Optional] public string NominatedBy;
 			[Optional] public bool? Resolved;
 			[Optional] public string Summary;
-			[Optional] public string Details;
 			[Optional] public string Url;
 		}
 
@@ -64,6 +57,28 @@ namespace MetadataTool
 			public string JobStepUrl;
 			[Optional] public string ErrorUrl;
 			public Outcome Outcome;
+		}
+
+		public class AddBuildResponse
+		{
+			public long Id;
+		}
+
+		public class UpdateBuild
+		{
+			[Optional] public int? Outcome;
+		}
+
+		public class AddDiagnostic
+		{
+			[Optional] public long? BuildId;
+			public string Message;
+			public string Url;
+		}
+
+		public class AddDiagnosticResponse
+		{
+			public long Id;
 		}
 
 		public class Watcher

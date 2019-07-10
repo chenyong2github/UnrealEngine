@@ -1,0 +1,36 @@
+﻿INTSourceChangelist:6109506
+Availability: Docs
+Crumbs: %ROOT%
+Title:2.安装 Oculus Runtime
+Crumbs:%ROOT%, Platforms, Platforms/VR/OculusVR/OculusRift, Platforms/VR/OculusVR/OculusRift/QuickStart
+Description:下载在 Oculus Rift 上运行 UE4 项目的必备软件
+Type: quick start
+SkillLevel: Beginner
+Version: 4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order: 2
+Checkpoint: RIFTQS
+
+
+[NAV]
+
+此章节讲述如何安装 Oculus runtimes，以及如何解决安装过程中可能出现的问题。
+
+[region:note]
+Oculus runtimes 的安装过程须保证 30 到 60 分钟的网络连接。
+[/region]
+
+
+1. 完成 Oculus Rift runtimes 的下载后，双击 **OculusSetup.exe** 开始安装。
+
+	![](RIft_EXE_Download_00.png)
+
+1. 按下 **Let's Go** 按键开始安装并按照提供的指导操作。
+
+	![](Rift_Install_Start_00.png)
+
+1. 在安装过程中，您将被要求从Oculus VR, LLC安装设备软件。显示该提示时，按下 **安装** 按钮继续安装即可。 
+
+    ![](Rift_Device_Software_Install_00.png)
+
+	[NAV]

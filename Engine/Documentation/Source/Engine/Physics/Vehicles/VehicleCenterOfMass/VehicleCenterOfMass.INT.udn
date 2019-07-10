@@ -5,7 +5,7 @@ Availability:public
 Type: Reference
 Version: 4.15
 Parent: Engine/Physics/Vehicles/
-Order: 
+Order: 1
 Tags: Vehicles
 
 
@@ -14,7 +14,7 @@ Tags: Vehicles
 Weight distribution of a vehicle is important to its control, as it affects a variety of its characteristics, like handling, acceleration, and traction. Different vehicle types will require different weight distributions depending on their intended use. For the purposes of game development, these characteristics can also define what style of game you are making, whether that is an arcade-style racer, a simulation, or even a hybrid of the two. Altering **Center of Mass** enables you to change the weight distribution of your vehicle.
 
 In games, the primary use of Center of Mass is for vehicles, but it can also be used for large Physics Bodies encapsulating an irregular shape. In your 
-[Physics Asset](Engine/Physics/PhAT), you will often use one large Physics Body to define the majority of the Mass for the vehicle (or large object). The 
+[Physics Asset](Engine/Physics/PhysicsAssetEditor), you will often use one large Physics Body to define the majority of the Mass for the vehicle (or large object). The 
 Center of Mass will be generated at the center of this Physics Body, which can make the vehicle handle oddly, so you can adjust the Center of Mass to 
 account for where the mass of the vehicle is really located. 
 

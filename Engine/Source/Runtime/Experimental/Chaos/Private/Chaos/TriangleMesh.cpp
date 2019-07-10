@@ -15,10 +15,49 @@
 using namespace Chaos;
 
 template<class T>
+TTriangleMesh<T>::TTriangleMesh()
+    : MStartIdx(0)
+    , MNumIndices(0)
+{}
+
+template<class T>
 TTriangleMesh<T>::TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx, const int32 EndIdx)
-    : MElements(MoveTemp(Elements))
-	, MStartIdx(0)
-	, MNumIndices(0)
+{
+	Init(Elements, StartIdx, EndIdx);
+}
+
+template<class T>
+TTriangleMesh<T>::TTriangleMesh(TTriangleMesh&& Other)
+    : MElements(MoveTemp(Other.MElements))
+    , MPointToTriangleMap(MoveTemp(Other.MPointToTriangleMap))
+    , MStartIdx(Other.MStartIdx)
+    , MNumIndices(Other.MNumIndices)
+{}
+
+template<class T>
+TTriangleMesh<T>::~TTriangleMesh()
+{}
+
+template<class T>
+void TTriangleMesh<T>::Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx, const int32 EndIdx)
+{
+	MElements = MoveTemp(Elements);
+	MStartIdx = 0;
+	MNumIndices = 0;
+	InitHelper(StartIdx, EndIdx);
+}
+
+template<class T>
+void TTriangleMesh<T>::Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx, const int32 EndIdx)
+{
+	MElements = Elements;
+	MStartIdx = 0;
+	MNumIndices = 0;
+	InitHelper(StartIdx, EndIdx);
+}
+
+template<class T>
+void TTriangleMesh<T>::InitHelper(const int32 StartIdx, const int32 EndIdx)
 {
 	if (MElements.Num())
 	{
@@ -28,20 +67,14 @@ TTriangleMesh<T>::TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int3
 		{
 			for (int Axis = 0; Axis < 3; ++Axis)
 			{
-				MPointToTriangleMap.FindOrAdd(MElements[i][Axis]).Add(i);
 				MStartIdx = FMath::Min(MStartIdx, MElements[i][Axis]);
 				MaxIdx = FMath::Max(MaxIdx, MElements[i][Axis]);
 			}
 			check(MElements[i][0] != MElements[i][1]);
 			check(MElements[i][1] != MElements[i][2]);
-			MPointToNeighborsMap.FindOrAdd(MElements[i][0]).Add(MElements[i][1]);
-			MPointToNeighborsMap.FindOrAdd(MElements[i][0]).Add(MElements[i][2]);
-			MPointToNeighborsMap.FindOrAdd(MElements[i][1]).Add(MElements[i][0]);
-			MPointToNeighborsMap.FindOrAdd(MElements[i][1]).Add(MElements[i][2]);
-			MPointToNeighborsMap.FindOrAdd(MElements[i][2]).Add(MElements[i][0]);
-			MPointToNeighborsMap.FindOrAdd(MElements[i][2]).Add(MElements[i][1]);
 		}
-		MNumIndices = MaxIdx - MStartIdx + 1;	//This assumes vertices are contiguous in the vertex buffer. Assumption is held throughout TTriangleMesh
+		// This assumes vertices are contiguous in the vertex buffer. Assumption is held throughout TTriangleMesh
+		MNumIndices = MaxIdx - MStartIdx + 1;
 	}
 	check(MStartIdx >= 0);
 	check(MNumIndices >= 0);
@@ -49,15 +82,77 @@ TTriangleMesh<T>::TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int3
 }
 
 template<class T>
-TTriangleMesh<T>::TTriangleMesh(TTriangleMesh&& Other)
-    : MElements(MoveTemp(Other.MElements))
-	, MPointToTriangleMap(MoveTemp(Other.MPointToTriangleMap))
-	, MStartIdx(Other.MStartIdx)
-	, MNumIndices(Other.MNumIndices)
-{}
+TPair<int32, int32> TTriangleMesh<T>::GetVertexRange() const
+{
+	return TPair<int32, int32>(MStartIdx, MStartIdx + MNumIndices - 1);
+}
 
 template<class T>
-TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints() const
+TSet<int32> TTriangleMesh<T>::GetVertices() const
+{
+	TSet<int32> Vertices;
+	GetVertexSet(Vertices);
+	return Vertices;
+}
+
+template<class T>
+void TTriangleMesh<T>::GetVertexSet(TSet<int32>& VertexSet) const
+{
+	VertexSet.Reserve(MNumIndices);
+	for (const TVector<int32, 3>& Element : MElements)
+	{
+		VertexSet.Append({Element[0], Element[1], Element[2]});
+	}
+}
+
+template<class T>
+const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap()
+{
+	if (MPointToNeighborsMap.Num())
+	{
+		return MPointToNeighborsMap;
+	}
+	MPointToNeighborsMap.Reserve(MNumIndices);
+	for (int i = 0; i < MElements.Num(); ++i)
+	{
+		TSet<uint32>& Elems0 = MPointToNeighborsMap.FindOrAdd(MElements[i][0]);
+		TSet<uint32>& Elems1 = MPointToNeighborsMap.FindOrAdd(MElements[i][1]);
+		TSet<uint32>& Elems2 = MPointToNeighborsMap.FindOrAdd(MElements[i][2]);
+		Elems0.Reserve(Elems0.Num() + 2);
+		Elems1.Reserve(Elems1.Num() + 2);
+		Elems2.Reserve(Elems2.Num() + 2);
+
+		const TVector<int32, 3>& Tri = MElements[i];
+		Elems0.Add(Tri[1]);
+		Elems0.Add(Tri[2]);
+		Elems1.Add(Tri[0]);
+		Elems1.Add(Tri[2]);
+		Elems2.Add(Tri[0]);
+		Elems2.Add(Tri[1]);
+	}
+	return MPointToNeighborsMap;
+}
+
+template<class T>
+const TMap<int32, TArray<int32>>& TTriangleMesh<T>::GetPointToTriangleMap()
+{
+	if (MPointToTriangleMap.Num())
+	{
+		return MPointToTriangleMap;
+	}
+	MPointToTriangleMap.Reserve(MNumIndices);
+	for (int i = 0; i < MElements.Num(); ++i)
+	{
+		for (int Axis = 0; Axis < 3; ++Axis)
+		{
+			MPointToTriangleMap.FindOrAdd(MElements[i][Axis]).Add(i);
+		}
+	}
+	return MPointToTriangleMap;
+}
+
+template<class T>
+TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints()
 {
 	TArray<TVector<int32, 2>> BendingConstraints;
 	auto BendingElements = GetUniqueAdjacentElements();
@@ -69,10 +164,11 @@ TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints() const
 }
 
 template<class T>
-TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements() const
+TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements()
 {
 	TArray<TVector<int32, 4>> BendingConstraints;
 	TSet<TArray<int32>> BendingElements;
+	GetPointToTriangleMap(); // build MPointToTriangleMap
 	for (int32 SurfaceIndex = MStartIdx; SurfaceIndex < MStartIdx + MNumIndices; ++SurfaceIndex)
 	{
 		TMap<int32, TArray<int32>> SubPointToTriangleMap;
@@ -132,26 +228,70 @@ TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements() const
 }
 
 template<class T>
-TArray<TVector<T, 3>> TTriangleMesh<T>::GetFaceNormals(const TArrayView<const TVector<T, 3>>& Points) const
+TArray<TVector<T, 3>> TTriangleMesh<T>::GetFaceNormals(const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError) const
 {
 	TArray<TVector<T, 3>> Normals;
-	Normals.Reserve(MElements.Num());
-	for (const TVector<int32,3>& Tri : MElements)
-	{
-		TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
-		TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
-		TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p10, p20);
-		check(Cross.SizeSquared() > 1e-4); //particles should not be coincident by the time they get here
-		Normals.Add(Cross.GetUnsafeNormal());
-	}
+	GetFaceNormals(Normals, Points, ReturnEmptyOnError);
 	return Normals;
 }
 
 template<class T>
-TArray<TVector<T, 3>> TTriangleMesh<T>::GetPointNormals(const TArrayView<const TVector<T, 3>>& Points) const
+void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError) const
 {
-	TArray<TVector<T, 3>> FaceNormals = GetFaceNormals(Points);
+	Normals.Reserve(MElements.Num());
+	if (ReturnEmptyOnError)
+	{
+		for (const TVector<int32, 3>& Tri : MElements)
+		{
+			TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
+			TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
+			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
+			const T Size2 = Cross.SizeSquared();
+			if (Size2 < SMALL_NUMBER)
+			{
+				//particles should not be coincident by the time they get here. Return empty to signal problem to caller
+				check(false);
+				Normals.Empty();
+			}
+			else
+			{
+				Normals.Add(Cross.GetUnsafeNormal());
+			}
+		}
+	}
+	else
+	{
+		for (const TVector<int32, 3>& Tri : MElements)
+		{
+			TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
+			TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
+			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
+			Normals.Add(Cross.GetSafeNormal());
+		}
+	}
+}
+
+template<class T>
+TArray<TVector<T, 3>> TTriangleMesh<T>::GetPointNormals(const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError)
+{
+	TArray<TVector<T, 3>> FaceNormals = GetFaceNormals(Points, ReturnEmptyOnError);
 	TArray<TVector<T, 3>> PointNormals;
+	GetPointNormals(PointNormals, FaceNormals, ReturnEmptyOnError);
+	return PointNormals;
+}
+
+template<class T>
+void TTriangleMesh<T>::GetPointNormals(TArray<TVector<T, 3>>& PointNormals, const TArray<TVector<T, 3>>& FaceNormals, const bool ReturnEmptyOnError)
+{
+	GetPointToTriangleMap(); // build MPointToTriangleMap
+	const TTriangleMesh<T>* ConstThis = this;
+	ConstThis->GetPointNormals(PointNormals, FaceNormals, ReturnEmptyOnError);
+}
+
+template<class T>
+void TTriangleMesh<T>::GetPointNormals(TArray<TVector<T, 3>>& PointNormals, const TArray<TVector<T, 3>>& FaceNormals, const bool ReturnEmptyOnError) const
+{
+	check(MPointToTriangleMap.Num() != 0);
 	PointNormals.SetNum(MNumIndices);
 	for (auto Element : MPointToTriangleMap)
 	{
@@ -162,11 +302,18 @@ TArray<TVector<T, 3>> TTriangleMesh<T>::GetPointNormals(const TArrayView<const T
 		TVector<T, 3> Normal(0);
 		for (int32 k = 0; k < Element.Value.Num(); ++k)
 		{
-			Normal += FaceNormals[Element.Value[k]];
+			if (FaceNormals.IsValidIndex(Element.Value[k]))
+			{
+				Normal += FaceNormals[Element.Value[k]];
+			}
+			else if (ReturnEmptyOnError)
+			{
+				PointNormals.Reset();
+				return;
+			}
 		}
 		PointNormals[Element.Key] = Normal.GetSafeNormal();
 	}
-	return PointNormals;
 }
 
 template<class T>
@@ -459,35 +606,45 @@ TSegmentMesh<T>& TTriangleMesh<T>::GetSegmentMesh()
 	MEdgeToFaces.Reserve(MElements.Num() * 3); // over estimate
 	MFaceToEdges.Reset();
 	MFaceToEdges.SetNum(MElements.Num());
-	for (int32 i = 0; i < MElements.Num(); i++)
+	for (int32 FaceIdx = 0; FaceIdx < MElements.Num(); FaceIdx++)
 	{
-		const TVector<int32, 3>& Tri = MElements[i];
-		TVector<int32, 3>& EdgeIds = MFaceToEdges[i];
+		const TVector<int32, 3>& Tri = MElements[FaceIdx];
+		TVector<int32, 3>& EdgeIds = MFaceToEdges[FaceIdx];
 		for (int32 j = 0; j < 3; j++)
 		{
-			TVector<int32, 2> edge(Tri[j], Tri[(j + 1) % 3]);
+			TVector<int32, 2> Edge(Tri[j], Tri[(j + 1) % 3]);
 
-			const int32 Idx = UniqueEdges.AddUnique(GetOrdered(edge));
-			EdgeIds[j] = Idx;
+			const int32 EdgeIdx = UniqueEdges.AddUnique(GetOrdered(Edge));
+			EdgeIds[j] = EdgeIdx;
 
 			// Track which faces are shared by edges.
 			const int currNum = MEdgeToFaces.Num();
-			if (currNum <= Idx)
+			if (currNum <= EdgeIdx)
 			{
 				// Add and initialize new entries
-				MEdgeToFaces.SetNum(Idx + 1, false);
-				for (int32 k = currNum; k < Idx; k++)
+				MEdgeToFaces.SetNum(EdgeIdx + 1, false);
+				for (int32 k = currNum; k < EdgeIdx + 1; k++)
 				{
-					MEdgeToFaces[k] = TVector<int32, 2>(-1);
+					MEdgeToFaces[k] = TVector<int32, 2>(-1, -1);
 				}
+			}
 
-				// Set the 0th
-				MEdgeToFaces[Idx] = TVector<int32, 2>(i, -1);
+			TVector<int32, 2>& FacesSharingThisEdge = MEdgeToFaces[EdgeIdx];
+			if (FacesSharingThisEdge[0] < 0)
+			{
+				// 0th initialized, but not set
+				FacesSharingThisEdge[0] = FaceIdx;
+			}
+			else if (FacesSharingThisEdge[1] < 0)
+			{
+				// 0th already set, only 1 is left
+				FacesSharingThisEdge[1] = FaceIdx;
 			}
 			else
 			{
-				// 0th already set, only 1 is left
-				MEdgeToFaces[Idx][1] = i;
+				// This is a non-manifold mesh, where this edge is shared by
+				// more than 2 faces.
+				ensureMsgf(false, TEXT("Skipping non-manifold edge to face mapping."));
 			}
 		}
 	}
@@ -512,13 +669,18 @@ const TArray<TVector<int32, 2>>& TTriangleMesh<T>::GetEdgeToFaces()
 template<class T>
 TArray<T> TTriangleMesh<T>::GetCurvatureOnEdges(const TArray<TVector<T, 3>>& FaceNormals)
 {
-	const TSegmentMesh<T>& SegmentMesh = GetSegmentMesh();
+	const int32 NumNormals = FaceNormals.Num();
+	check(NumNormals == MElements.Num());
+	const TSegmentMesh<T>& SegmentMesh = GetSegmentMesh(); // builds MEdgeToFaces
 	TArray<T> EdgeAngles;
-	EdgeAngles.SetNumZeroed(SegmentMesh.GetNumElements());
+	EdgeAngles.SetNumZeroed(MEdgeToFaces.Num());
 	for (int32 EdgeId = 0; EdgeId < MEdgeToFaces.Num(); EdgeId++)
 	{
 		const TVector<int32, 2>& FaceIds = MEdgeToFaces[EdgeId];
-		if (FaceIds[1] >= 0) // the first entry is always set, -1 is sentinel, which denotes a boundary edge.
+		if (FaceIds[0] >= 0 &&
+		    FaceIds[1] >= 0 && // -1 is sentinel, which denotes a boundary edge.
+		    FaceIds[0] < NumNormals &&
+		    FaceIds[1] < NumNormals) // Stay in bounds
 		{
 			const TVector<T, 3>& Norm1 = FaceNormals[FaceIds[0]];
 			const TVector<T, 3>& Norm2 = FaceNormals[FaceIds[1]];
@@ -531,7 +693,7 @@ TArray<T> TTriangleMesh<T>::GetCurvatureOnEdges(const TArray<TVector<T, 3>>& Fac
 template<class T>
 TArray<T> TTriangleMesh<T>::GetCurvatureOnEdges(const TArrayView<const TVector<T, 3>>& Points)
 {
-	const TArray<TVector<T, 3>> FaceNormals = GetFaceNormals(Points);
+	const TArray<TVector<T, 3>> FaceNormals = GetFaceNormals(Points, false);
 	return GetCurvatureOnEdges(FaceNormals);
 }
 
@@ -577,9 +739,9 @@ template<class T>
 class AscendingPredicate
 {
 public:
-	AscendingPredicate(const TArray<T>& CompValues, const int32 Offset=0)
-	    : CompValues(CompValues)
-		, Offset(Offset)
+	AscendingPredicate(const TArray<T>& InCompValues, const int32 InOffset)
+	    : CompValues(InCompValues)
+	    , Offset(InOffset)
 	{}
 
 	bool
@@ -606,9 +768,9 @@ template<class T>
 class DescendingPredicate
 {
 public:
-	DescendingPredicate(const TArray<T>& CompValues, const int32 Offset=0)
+	DescendingPredicate(const TArray<T>& CompValues, const int32 Offset = 0)
 	    : CompValues(CompValues)
-		, Offset(Offset)
+	    , Offset(Offset)
 	{}
 
 	bool
@@ -629,13 +791,13 @@ private:
 
 template<class T>
 TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
-	const TArrayView<const TVector<T, 3>>& Points, 
-	const TArray<T>& PointCurvatures, 
-	TArray<int32>* CoincidentVertices,
+    const TArrayView<const TVector<T, 3>>& Points,
+    const TArray<T>& PointCurvatures,
+    TArray<int32>* CoincidentVertices,
     const bool RestrictToLocalIndexRange)
 {
 	const int32 NumPoints = RestrictToLocalIndexRange ? MNumIndices : Points.Num();
-    const int32 Offset = RestrictToLocalIndexRange ? MStartIdx : 0;
+	const int32 Offset = RestrictToLocalIndexRange ? MStartIdx : 0;
 
 	TArray<int32> PointOrder;
 	if (!NumPoints)
@@ -647,9 +809,9 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	PointOrder.SetNumUninitialized(NumPoints);
 	for (int32 i = 0; i < NumPoints; i++)
 	{
-		PointOrder[i] = i+Offset;
+		PointOrder[i] = i + Offset;
 	}
-	
+
 	if (NumPoints == 1)
 	{
 		return PointOrder;
@@ -670,14 +832,14 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	// possible they were added for extra resolution.
 	TArray<uint8> Rank;
 	Rank.AddUninitialized(NumPoints);
-	AscendingPredicate<uint8> AscendingRankPred(Rank); // low to high
+	AscendingPredicate<uint8> AscendingRankPred(Rank, Offset); // low to high
 	bool FoundFreeParticle = false;
 	for (int i = 0; i < NumPoints; i++)
 	{
 		const int32 Idx = PointOrder[i];
 		const TSet<uint32>* Neighbors = MPointToNeighborsMap.Find(Idx);
 		const bool IsFree = Neighbors == nullptr || Neighbors->Num() == 0;
-		Rank[Idx-Offset] = IsFree ? 1 : 0;
+		Rank[Idx - Offset] = IsFree ? 1 : 0;
 		FoundFreeParticle |= IsFree;
 	}
 	if (FoundFreeParticle)
@@ -698,7 +860,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 		// not include all free particles.  If the DescendingPredicate gets an
 		// index that is out of bounds of the curvature array, it'll use
 		// -FLT_MAX, which will put free particles at the end.  In order to get
-		// PointCurvatures to line up with PointOrder indices, offset them by 
+		// PointCurvatures to line up with PointOrder indices, offset them by
 		// -MStartIdx when not RestrictToLocalIndexRange.
 
 		// PointCurvatures[0] always corresponds to Points[MStartIdx]
@@ -759,7 +921,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	// the back of the list.  We hash to a grid of fine enough resolution such
 	// that if 2 particles hash to the same cell, then we're going to consider
 	// them coincident.
-	TSet<int32> OccupiedCells;
+	TSet<int64> OccupiedCells;
 	OccupiedCells.Reserve(NumPoints);
 	if (CoincidentVertices)
 	{
@@ -767,7 +929,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	}
 	int32 NumCoincident = 0;
 	{
-		const int32 Resolution = static_cast<int32>(floor(MaxBBoxDim / 0.01));
+		const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / 0.01));
 		const T CellSize = MaxBBoxDim / Resolution;
 		for (int i = 0; i < 2; i++)
 		{
@@ -782,19 +944,19 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 			for (int j = 0; j < NumPoints - NumCoincidentPrev; j++)
 			{
 				const int32 Idx = PointOrder[j];
-				const TVector<T, 3>& Pos = LocalPoints[Idx-Offset];
-				const TVector<int32, 3> Coord(
-				    static_cast<int32>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
-				    static_cast<int32>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
-				    static_cast<int32>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
-				const int32 FlatIdx =
+				const TVector<T, 3>& Pos = LocalPoints[Idx - Offset];
+				const TVector<int64, 3> Coord(
+				    static_cast<int64>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
+				    static_cast<int64>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
+				    static_cast<int64>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
+				const int64 FlatIdx =
 				    ((Coord[0] * Resolution + Coord[1]) * Resolution) + Coord[2];
 
 				bool AlreadyInSet = false;
 				OccupiedCells.Add(FlatIdx, &AlreadyInSet);
 				if (AlreadyInSet)
 				{
-					Rank[Idx-Offset] = 1;
+					Rank[Idx - Offset] = 1;
 					if (CoincidentVertices)
 					{
 						CoincidentVertices->Add(Idx);
@@ -828,18 +990,18 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 		for (int j = 0; j < NumPoints - NumCoincident; j++)
 		{
 			const int32 Idx = PointOrder[j];
-			const TVector<T, 3>& Pos = LocalPoints[Idx-Offset];
+			const TVector<T, 3>& Pos = LocalPoints[Idx - Offset];
 			// grid center co-located at bbox center:
-			const TVector<int32, 3> Coord(
-			    static_cast<int32>(floor((Pos[0] - LocalCenter[0]) / CellSize)) + Resolution / 2,
-			    static_cast<int32>(floor((Pos[1] - LocalCenter[1]) / CellSize)) + Resolution / 2,
-			    static_cast<int32>(floor((Pos[2] - LocalCenter[2]) / CellSize)) + Resolution / 2);
-			const int32 FlatIdx =
+			const TVector<int64, 3> Coord(
+			    static_cast<int64>(floor((Pos[0] - LocalCenter[0]) / CellSize)) + Resolution / 2,
+			    static_cast<int64>(floor((Pos[1] - LocalCenter[1]) / CellSize)) + Resolution / 2,
+			    static_cast<int64>(floor((Pos[2] - LocalCenter[2]) / CellSize)) + Resolution / 2);
+			const int64 FlatIdx =
 			    ((Coord[0] * Resolution + Coord[1]) * Resolution) + Coord[2];
 
 			bool AlreadyInSet = false;
 			OccupiedCells.Add(FlatIdx, &AlreadyInSet);
-			Rank[Idx-Offset] = AlreadyInSet ? 1 : 0;
+			Rank[Idx - Offset] = AlreadyInSet ? 1 : 0;
 		}
 
 		// If every particle mapped to its own cell, we're done.

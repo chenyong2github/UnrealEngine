@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3429264
+﻿INTSourceChangelist:6278513
 Availability:Public
 Title:게임플레이 모듈
 Crumbs:%ROOT%, Programming
@@ -73,7 +73,7 @@ C++ 파일은 모듈 디렉터리의 `Private` 폴더, 즉 `[게임명]\Source\[
 
 게임 DLL 모듈성에 대해서는 철학적 선택이 있습니다. 게임을 다수의 DLL 파일로 나누는 것은 그 이득보다 문제가 많을 수가 있지만, 이것은 각 팀의 요구와 원칙에 따라 결정해야 할 것입니다. 다중 게임플레이 모듈을 사용하면 링크 시간이나 코드 반복처리 시간이 빨라지겠지만, DLL 익스포트 및/또는 인터페이스 클래스를 처리해야 하는 모듈 수가 늘어나게 됩니다. 이러한 상충 관계는 엔진이나 에디터 코드에 대해서는 올바른 것이나, 게임플레이에 대해서는 미심쩍은 것입니다.
 
-primary 게임 모듈을 만든 이후에는 추가적인 게임 전용 모듈을 몇이든 추가할 수 있습니다. 이러한 새 모듈에 대해 `*.Build.cs` 파일을 만들고, 이 모듈에 대한 레퍼런스를 자기 게임의 [`Target.cs` 파일](Programming/UnrealBuildSystem/TargetFiles) (OutExtraModuleNames 배열)에 추가합니다. C++ 코드에서 게임 모듈에 적합한 매크로를 사용했는지 확인하시구요. 최소한 하나의 모듈에서는 `IMPLEMENT_PRIMARY_GAME_MODULE` 매크로를 사용해야 하는 반면, 다른 모든 것들은 `IMPLEMENT_GAME_MODULE` 매크로를 사용해야 합니다. 그러면 UBT (언리얼 빌드 툴)은 자동으로 모듈을 발견하여 부가 게임 DLL 파일을 컴파일합니다.
+primary 게임 모듈을 만든 이후에는 추가적인 게임 전용 모듈을 몇이든 추가할 수 있습니다. 이러한 새 모듈에 대해 `*.Build.cs` 파일을 만들고, 이 모듈에 대한 레퍼런스를 자기 게임의 [`Target.cs` 파일](Programming/BuildTools/UnrealBuildTool/TargetFiles) (OutExtraModuleNames 배열)에 추가합니다. C++ 코드에서 게임 모듈에 적합한 매크로를 사용했는지 확인하시구요. 최소한 하나의 모듈에서는 `IMPLEMENT_PRIMARY_GAME_MODULE` 매크로를 사용해야 하는 반면, 다른 모든 것들은 `IMPLEMENT_GAME_MODULE` 매크로를 사용해야 합니다. 그러면 UBT (언리얼 빌드 툴)은 자동으로 모듈을 발견하여 부가 게임 DLL 파일을 컴파일합니다.
 
 ## 한계
 

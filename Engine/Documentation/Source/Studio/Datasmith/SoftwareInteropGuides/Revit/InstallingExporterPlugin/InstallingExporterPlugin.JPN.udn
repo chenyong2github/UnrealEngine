@@ -1,0 +1,59 @@
+﻿INTSourceChangelist:6572475
+Availability: Public
+Crumbs: 
+Title: Revit 用 Datasmith Exporter プラグインをインストールする
+Description: Revit 用 Datasmith Exporter プラグインのインストール方法について説明します。
+Type: 
+skilllevel:Beginner
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides/Revit
+Order: 0
+Tags: how to
+Tags: Datasmith
+Tags: Early Access
+Tags: Revit
+
+
+Unreal Engine で Revit のコンテンツを使用した作業を開始する前に、Revit 用の Unreal Datasmith Exporter プラグインをインストールする必要があります。
+
+Exporter プラグインが現在サポートしている Revit のバージョンについては、[](Studio/Datasmith/SupportedSoftwareAndFileTypes)を参照してください。
+
+[REGION:tip]
+Datasmith Exporter プラグインのダウンロード リンクは、所属している組織の内外を問わず不特定多数のユーザーと共有できます。 Datasmith Exporter プラグインのダウンロードおよび使用に際して Unreal Studio の利用資格は要求されません。 ただし、Datasmith Exporter プラグイン自体を配布することは許可されていないことに留意してください。
+[/REGION]
+
+## Revit 用 Datasmith Exporter プラグインをインストールする
+
+次の手順に従って、コンピュータにインストールした、サポートされているバージョンの Revit の Datasmith Exporter プラグインをインストールしてください。
+
+1.  お使いのマシンで実行されている Autodesk Revit のインスタンスをすべて閉じます。 まだ実行中のインスタンスがある場合、インストールは失敗します。
+2.  古いバージョンの Datasmith Exporter プラグインが既にインストールされている場合は、あらかじめアンインストールしておくことを推奨します。 詳細については、[「Revit 用 Datasmith Exporter プラグインを削除する」](#Revit用DatasmithExporterプラグインを削除する)を参照してください。
+3.  Exporter プラグインを[「Datasmith Exporter プラグイン ダウンロード」](https://www.unrealengine.com/studio/downloads)ページからダウンロードします。
+4.  ダウンロードが完了したら、インストーラを実行します。  
+    ![Revit 用 Datasmith Exporter プラグインのインストーラ](rvt-installer-start.png "Revit 用 Datasmith Exporter プラグインのインストーラ")
+5.  プロンプトに従って続行し、使用許諾契約に同意します。
+6.  インストーラは、お使いのシステムにインストールされている Autodesk Revit のバージョンを自動検出します。 Datasmith 経由でエクスポートできるようにするバージョンのボックスをオンにして、 **[Install (インストール)]** をクリックします。  
+    ![Revit のバージョンを選択](rvt-installer-versions-1.png "Revit のバージョンを選択")
+7.  上記のステップで選択した Revit のバージョンを起動します。 以下の警告が表示される場合があります。  
+    ![Revit セキュリティ警告](revit-security-warning.png "Revit セキュリティ警告 **Always Load** をクリックして") Revit を起動するたびに Datasmith Exporter プラグインが使用可能か確認するようにします。
+
+### 最終結果
+
+Datasmith Exporter プラグインがインストールされたので、シーンを Revit から*「.udatasmith」* ファイルとしてエクスポートできるようになりました。 [](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit)を参照してください。
+
+## Revit 用 Datasmith Exporter プラグインを削除する
+
+**Revit 用 Unreal Datasmith Exporter** アプリケーションをお使いのシステムで検出して削除するには、Windows の標準のコントロール パネル ユーティリティを使用してください。
+
+例えば、Windows 10 の場合は **[アプリと機能]** コントロール パネルを使用します。 リストにある Datasmith Exporter プラグインのエントリをクリックして、 **[アンインストール]** をクリックします。
+
+[REGION:lightbox]
+[![](uninstall-datasmith-rvt-plugin-appsfeatures.png)](uninstall-datasmith-rvt-plugin-appsfeatures.png)  *クリックしてフルサイズで表示*
+[/REGION]
+
+または、コントロール パネルの **[プログラムのアンインストールまたは変更]** を使用します。 Datasmith Exporter プラグインのエントリを右クリックして、コンテキスト メニューから **[アンインストール]** を選択します。
+
+[REGION:lightbox]
+[![](uninstall-datasmith-rvt-plugin-uninstallchange.png)](uninstall-datasmith-rvt-plugin-uninstallchange.png)
+*クリックしてフルサイズで表示*
+[/REGION]

@@ -210,19 +210,30 @@ TSharedRef<SWidget> SGraphPinObject::GenerateAssetPicker()
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 	AssetPickerConfig.bAllowDragging = false;
 
-	// Check with the node to see if there is any "AllowClasses" metadata for the pin
-	FString ClassFilterString = GraphPinObj->GetOwningNode()->GetPinMetaData(GraphPinObj->PinName, FName(TEXT("AllowedClasses")));
-	if( !ClassFilterString.IsEmpty() )
+	// Check with the node to see if there is any "AllowClasses" or "DisallowedClasses" metadata for the pin
+	FString AllowedClassesFilterString = GraphPinObj->GetOwningNode()->GetPinMetaData(GraphPinObj->PinName, FName(TEXT("AllowedClasses")));
+	if( !AllowedClassesFilterString.IsEmpty() )
 	{
 		// Clear out the allowed class names and have the pin's metadata override.
 		AssetPickerConfig.Filter.ClassNames.Empty();
 
 		// Parse and add the classes from the metadata
-		TArray<FString> CustomClassFilterNames;
-		ClassFilterString.ParseIntoArray(CustomClassFilterNames, TEXT(","), true);
-		for(auto It = CustomClassFilterNames.CreateConstIterator(); It; ++It)
+		TArray<FString> AllowedClassesFilterNames;
+		AllowedClassesFilterString.ParseIntoArray(AllowedClassesFilterNames, TEXT(","), true);
+		for(const FString& AllowedClassesFilterName : AllowedClassesFilterNames)
 		{
-			AssetPickerConfig.Filter.ClassNames.Add(FName(**It));
+			AssetPickerConfig.Filter.ClassNames.Add(FName(*AllowedClassesFilterName));
+		}
+	}
+
+	FString DisallowedClassesFilterString = GraphPinObj->GetOwningNode()->GetPinMetaData(GraphPinObj->PinName, FName(TEXT("DisallowedClasses")));
+	if(!DisallowedClassesFilterString.IsEmpty())
+	{
+		TArray<FString> DisallowedClassesFilterNames;
+		DisallowedClassesFilterString.ParseIntoArray(DisallowedClassesFilterNames, TEXT(","), true);
+		for(const FString& DisallowedClassesFilterName : DisallowedClassesFilterNames)
+		{
+			AssetPickerConfig.Filter.RecursiveClassesExclusionSet.Add(FName(*DisallowedClassesFilterName));
 		}
 	}
 

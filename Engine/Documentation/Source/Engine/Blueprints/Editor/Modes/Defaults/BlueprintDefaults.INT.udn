@@ -1,4 +1,4 @@
-Availability:Public
+Availability:Docs
 Title: Defaults Mode
 Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor
 Description:The Defaults Mode allows you to edit all the default values of the properties inside your Blueprint.

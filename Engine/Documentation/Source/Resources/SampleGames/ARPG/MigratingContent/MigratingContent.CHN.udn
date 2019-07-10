@@ -1,0 +1,38 @@
+﻿INTSourceChangelist:6034051
+Availability: Public
+Title: 迁移内容
+Description: 介绍如何将任何UE4项目中的内容迁移到动作RPG。
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+Order: 5
+
+
+为了帮助节省时间和资源，你在动作RPG（ARPG）中将会找到的许多内容都是从现有项目[迁移](Engine/Content/Browser/UserGuide/Migrate)到ARPG的。在下面的操作指南中，我们将介绍如何从不同的项目将资源迁移到ARPG中。
+
+## 步骤
+
+1.  首先，在 **内容浏览器** 中选择你要迁移的所有资源。  
+    ![](image5.png)
+    
+
+1.  然后在任何选定资源上右键单击，转到 **资源操作（Asset** **Actions）**，再选择 **迁移（Migrate）** 选项。  
+    ![](image6.png)
+    
+
+1.  此时将出现 **资源报告（Asset Report）** 对话框，它显示将要迁移的所有资源及其依赖性。  
+    ![](image1.png)
+    
+
+1.  按 **确定（OK）** 按钮，然后选择你要将这些内容迁移到的UE4项目 **Content** 文件夹，按 **选择文件夹（Select Folder）** 按钮开始迁移过程。  
+    ![](image2.png)
+    
+
+## 最终结果
+
+如果所有内容都正确迁移，在UE4编辑器的右下角将显示下列消息。  
+![](image3.png "image3.png")  
+[REGION:note]
+如果你尝试将任何内容迁移到游戏content文件夹以外的位置，可能会看到下列消息：
+
+![](image4.png "image4.png")
+[/REGION]

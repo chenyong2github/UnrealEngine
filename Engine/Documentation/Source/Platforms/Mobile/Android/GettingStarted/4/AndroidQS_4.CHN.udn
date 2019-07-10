@@ -1,0 +1,111 @@
+﻿INTSourceChangelist:6093455
+Availability:Docs
+Title:4. 部署关卡
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/Android, Platforms/Mobile/Android/GettingStarted
+Description:用单次点击部署来启动关卡。
+Version:4.17
+Skilllevel:Intermediate
+tags:Android
+tags:Mobile
+type:multi-step
+parent:Platforms/Mobile/Android/GettingStarted
+order:4
+Checkpoint:AndroidQS
+
+
+
+以下部分将讲述如何部署正在Android设备上使用的项目中的单个关卡，以便进行快速测试。 
+
+[nav]
+
+[region:note]
+在进行此部分的操作之前，需要将Android设备通过USB接口插入电脑。这是必需操作，继续操作前请务必先执行此步骤。
+[/region]
+
+要将关卡部署到Android设备，需要确定您的Android设备支持哪种纹理格式。
+不同类型的Android设备需要不同类型的纹理格式才能正常工作。 
+下表显示了与Android设备兼容的纹理格式。
+
+[INCLUDE:Platforms/Mobile/Android/Reference#androidformats]
+
+(#steps)
+
+## 步骤
+
+1.    要在Android设备上测试当前关卡，首先需要将要测试的关卡打开。 
+    在此例中，我们使用的是上一步创建的蓝图项目中的 **ThirdPersonExampleMap** 关卡。
+    
+    ![](Correct_Level_Open.png)
+
+    [region:note]
+	在虚幻引擎4.18版本中，Gradle编译系统默认启用。但需要在 **项目设置（Project Settings）** > **Android** 中接受SDK授权协议（如之前已接受协议，则按钮被禁用）。按下按钮、阅读协议，然后选择接受协议。操作完成后按钮将变成灰色。取消勾选 **启用Gradle替代Ant（Enable Gradle instead of Ant）** 后，即可在4.18版本中继续使用Ant编译系统。
+
+    [REGION:lightbox]
+    [![](Gradle_418_Update.png)(w:519)](Gradle_418_Update.png)
+    [/REGION]
+
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
+
+    我们计划移除此选项，从4.19版本开始只使用Gradle。
+
+    [/region]
+
+1.    将 **ThirdPersonExampleMap** 打开后，前往 **主工具栏**，点击 **启动** 图标旁的白色小三角形显示更多选项。
+
+    ![](Level_Deploy_Options.png)
+
+1. 在 **设备** 部分下的 **启动** 菜单中，点击选中列表中的Android设备。
+
+    ![](launch_rightformat.png)
+
+1. 关卡在设备上启动时，进度将显示在屏幕的右下角。 
+ 项目成功部署到设备后，将显示一条成功消息。
+    
+    [OBJECT:EmbeddedVideo]
+        [PARAMLITERAL:videoid]
+        afagQeEvf4Q
+        [/PARAMLITERAL]
+        [PARAMLITERAL:width]
+        640
+        [/PARAMLITERAL]
+        [PARAMLITERAL:height]
+        360
+        [/PARAMLITERAL]
+        [PARAMLITERAL:units]
+        px
+        [/PARAMLITERAL]
+        [PARAMLITERAL:type]
+        simple
+        [/PARAMLITERAL]
+    [/OBJECT]
+
+
+
+[REGION:tip]
+    如果不确定使用的纹理格式或设备所支持的纹理格式，可运行游戏并执行以下操作来确认。
+
+    1. 用4根手指同时点按屏幕，将出现一个对话。
+    1. 此对话通常用于输入控制台命令（如 `stat fps`），但其也会显示您设备所支持的格式。 
+    1. 拥有格式列表后，即可在部署/打包时选择理想的类型。
+
+    ![](Available_Texture_Formats.png)
+[/REGION:tip]
+
+(#endresult)
+
+## 最终结果
+
+烘焙和启动进程完毕后，游戏将自动出现在设备上，也可从应用程序抽屉中进行访问。 
+
+[REGION:lightbox]
+[![](Deployed_Project_Android.png)(w:500)](Deployed_Project_Android.png)
+[/REGION]
+
+[REGION:caption]
+点击查看全图。
+[/REGION]
+
+[nav]
+

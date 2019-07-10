@@ -1,0 +1,217 @@
+﻿INTSourceChangelist:5794490
+Availability: Public
+Crumbs: 
+Title: Datasmith导入选项
+Description: 
+Type: reference
+Version: 4.22
+Parent: Studio/Datasmith
+Order: 4
+Tags: Enterprise
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: Reference
+topic-image: import-options-topic.png
+Related: Studio/Datasmith/SoftwareInteropGuides/3dsMax
+Related: Studio/Datasmith/HowTo/ImportingContent
+Related: Studio/Datasmith/SoftwareInteropGuides/Rhino
+Related: Studio/Datasmith/Overview/ImportProcess
+Related: Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED
+Related: Studio/Datasmith/SoftwareInteropGuides/CAD
+
+
+本页介绍使用Datasmith从受支持的设计应用程序或数据文件格式导入文件，或从原始源重新导入Datasmith场景资源时可以配置的选项。
+
+所有文件格式都提供了第一部分所述的 **常用导入选项（Common Import Options）**。然后，根据要导入的文件类型，您可能有特定于该格式的其他选项。详情请参阅以下各个部分。
+
+(#commondatasmithimportoptions)
+
+## 常用Datasmith导入选项
+
+当使用Datasmith导入任何类型的文件时，可以设置以下选项。
+
+![Common Datasmith import options](import-options-common-422.png "Common Datasmith import options")
+
+| 属性 | 说明 |
+| --- | --- |
+| **几何体（Geometry）** | 指定Datasmith是否应该从源文件导入几何体并将其转换为项目中的静态网格体资源。|
+| **材质和纹理（Materials & Textures）** | 指定Datasmith是否应该从源文件导入材质和纹理，并将它们转换为项目中的材质和纹理资源。|
+| **光源（Lights）** | 指定Datasmith是否应该在由Datasmith场景维护的场景层级中包含来自源文件的光源，并在关卡中创建光源Actor来表示它们。|
+| **摄像机（Cameras）** | 指定Datasmith是否应该在由Datasmith场景维护的场景层级中包含来自源文件的摄像机，并在关卡中创建过场动画摄像机Actor来表示它们。|
+| **动画（Animations）** | 指定Datasmith是否应该将源场景中的对象动画导入到可以用于在虚幻引擎中播放动画的关卡序列中。|
+| **最小光照贴图分辨率（Min Lightmap Resolution）** | 为Datasmith生成的静态网格体资源设置最小光照贴图分辨率。该值用于确定在虚幻引擎4中生成光照贴图UV时打包的UV图表之间的填充量。良好的值通常是最大光照贴图分辨率的一半。|
+| **最大光照贴图分辨率（Max Lightmap Resolution）** | [INCLUDE:#excerpt_1] |
+
+<!--
+[EXCERPT:excerpt_1]
+
+为Datasmith生成的静态网格体资源设置光照贴图分辨率。当您在关卡中使用预计算照明（静态和固定光源）时，这些光照贴图用于存储每个实例的照明信息。
+
+导入时不要把该值设置得太高。为您的项目将其设置到一个良好的基线水平，然后为需要更高分辨率的各个静态网格体资源增大该值，以便在构建光照时实现良好的效果。
+
+[/EXCERPT:excerpt_1]
+-->
+[REGION:note]
+当您重新导入一个Datasmith场景时，**包括（Include）** 部分下的复选框仅指示是否应该使用源文件中新的和修改过的内容更新每种类型的资源或Actor。如果取消选中其中一项，则不会从项目中删除该类型的现有资源或Actor。
+[/REGION]
+
+(#cadimportoptions)
+
+## CAD导入选项
+
+使用Datasmith CAD导入器导入CAD文件时，可以设置以下附加选项。
+
+如果源文件包含由曲线定义的任何曲面，Datasmith将这些曲面细分成三角形网格体。这些参数控制曲面细分流程。它们控制生成的网格体与原始表面的贴合程度，因此也控制网格体的复杂性。对于所有设置，较小的值会增加三角形的数量，而较大的值会减少三角形的数量。
+
+![Geometry and Tessellation Options for CAD](import-options-cad-422.png "Geometry and Tessellation Options for CAD")
+
+  
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection] 几何体和曲面细分选项 [/REGION] ||
+| **弦公差（Chord Tolerance）** | 设置生成三角形中的任意点与原始曲面之间的最大距离。|
+| **最大边长（Max Edge Length）** | 设置生成三角形中任意边的最大长度。|
+| **法线公差（Normal Tolerance）** | 设置从一个表面生成的任何相邻三角形之间的最大角度。|
+| **拼接技术（Stitching Technique）** | 确定导入过程是否应该尝试合并那些看似相连但实际上作为独立对象建模的表面。|
+
+
+[REGION:note]
+有关这些参数以及它们如何影响生成的静态网格体几何体的深入说明，请参阅[使用Datasmith和CAD文件格式](Studio/Unreal-Datasmith/Datasmith-Software-Interop-Guides/Using-Datasmith-with-CAD)。
+[/REGION]
+
+(#gltfimportoptions)
+
+## GLTF导入选项
+
+当您使用Datasmith GLTF导入器导入 *.glTF* 文件（[GL传输格式](https://www.khronos.org/gltf/)）时，您可以设置以下附加选项：
+
+![glTF import options](import-options-gltf-422.png "glTF import options")
+
+  
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]**光照贴图（Lightmaps）**[/REGION]||
+| **生成光照贴图UV（Generate Lightmap UVs）** | [INCLUDE:#excerpt_2] |
+| [REGION:tablesection]**资源导入（Asset Importing）**[/REGION]||
+| **导入均匀缩放（Import Uniform Scale）** | [INCLUDE:#excerpt_3] |
+
+<!--
+[EXCERPT:excerpt_3]
+确定导入器用于转换线性距离的比例因子。  
+默认值100从米（在glTF规范中指定）转换为厘米（在虚幻引擎中使用）。如果源场景使用的测量单位与米不同，请将该值调整为每单位厘米数。
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+为了在虚幻引擎中使用静态或固定照明，您的模型需要有其中没有三角形重叠的光照贴图UV。  
+
+*   启用该选项使Datasmith导入器自动为其创建的静态网格体资源生成这些光照贴图UV。  
+    为了使其生效，您的模型需要至少有一个非空UV集可以着手。如果模型根本没有任何UV集，导入器将为静态网格体资源创建一个空白UV集，但是该空白UV集将不能用于将纹理或光照贴图应用到静态网格体。
+
+*   如果您已经为源应用程序中的对象创建了有效的、非重叠的光照贴图，则可以不选中该选项，让Datasmith导入器跳过创建新的光照贴图UV。在这种情况下，您的静态网格体资源将使用索引最高的UV集作为其光照贴图UV。
+
+有关更多背景信息，请参阅[使用UV通道](Editor/Content/Types/StaticMeshes/HowTo/UVChannels)。
+
+[/EXCERPT:excerpt_2]
+-->
+
+(#vredimportoptions)
+
+## VRED导入选项
+
+当您使用Datasmith VRED Fbx导入器导入从VRED导出的 *.fbx* 文件时，您可以设置以下附加选项：
+
+![VRED import options](datasmith-import-settings-vred.png "VRED import options")
+
+  
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]**处理（Processing）**[/REGION] ||
+| **合并节点（Merge Nodes）** | [INCLUDE:#excerpt_4] |
+| **优化复制的节点（Optimize Duplicated Nodes）** | 通过重用整个相同的子树，减少场景层级中的节点总数。|
+| [REGION:tablesection]**资源导入（Asset Importing）**[/REGION]||
+| **导入FBX动画（Import FBX animations）** | 启用该选项可将VRED场景中的动画导入到虚幻引擎中，并使它们可用于项目中的蓝图脚本。|
+| **导入变体文件（Import variants file）** | 启用该选项可将VRED场景中的变体和变体集导入到虚幻引擎中，并使它们可用于项目中的蓝图脚本。|
+| **变体文件路径（Variants file path）** | 指定 *.var* 文件的路径，该文件包含有关VRED场景中变体的数据。默认情况下，该属性被设置为与您在导入的 *.fbx* 文件匹配的路径和文件名。如果需要从不同位置导入 *.var* 文件，只需要手动设置该路径。|
+| **导入光源文件（Import lights file）** | [INCLUDE:#excerpt_5] |
+| **光源文件路径（Light file path）** | 指定 *.lights* 文件的路径，该文件包含有关VRED场景中变体的数据。默认情况下，该属性被设置为与您正在导入的 *.fbx* 文件相匹配的路径和文件名。如果需要从不同位置导入 *.lights* 文件，只需要手动设置该路径。|
+| **纹理文件夹（Textures folder）** | 指定Datasmith的文件夹路径，以搜索 *.fbx* 中引用的纹理文件。|
+| [REGION:tablesection]**调试（Debug）**[/REGION]||
+| **中间序列化（Intermediate Serialization）** | 启用该选项可将从 *.fbx* 文件中读取的场景数据存储为中间格式。如果您需要频繁导入同一场景，并且FBX导入器是瓶颈，则该设置可能很有用。|
+| **给材质着色（Colorize materials）** | 启用该选项可以使用随机着色的简单材质，而不是导入材质参数，如DiffuseColor或纹理。|
+| [REGION:tablesection]**光照贴图（Lightmaps）**[/REGION] ||
+| **生成光照贴图UV（Generate Lightmap UVs）** | [INCLUDE:#excerpt_6] |
+
+<!--
+[EXCERPT:excerpt_6]
+为了在虚幻引擎中使用静态或固定照明，您的模型需要有其中没有三角形重叠的光照贴图UV。   
+
+*   启用该选项使Datasmith导入器自动为其创建的静态网格体资源生成这些光照贴图UV。  
+    为了使其生效，您的模型需要至少有一个非空UV集可以着手。如果模型根本没有任何UV集，导入器将为静态网格体资源创建一个空白UV集，但是该空白UV集将不能用于将纹理或光照贴图应用到静态网格体。
+
+*   如果您已经为源应用程序中的对象创建了有效的、非重叠的光照贴图，则可以不选中该选项，让Datasmith导入器跳过创建新的光照贴图UV。在这种情况下，您的静态网格体资源将使用索引最高的UV集作为其光照贴图UV。
+
+有关更多背景信息，请参阅[使用UV通道](Editor/Content/Types/StaticMeshes/HowTo/UVChannels)。
+
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+如果禁用该选项，但在通用Datasmith属性中保留启用 **导入（Import）> 光源（Lights）** 设置，Datasmith在虚幻引擎中创建的光源将只包含存储在 *.fbx* 文件中的信息。  
+如果启用该选项，Datasmith将从 *.lights* 文件导入关于VRED场景中光源的额外信息，该文件是在导出场景时创建的。这为您的光源带来了FBX不支持的额外属性，比如IES光源描述文件，通常会带来更好的视觉效果，更接近您在VRED中的照明。  
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+将不用于动画、变体或其他功能的静态网格体节点的子树组合到单个静态网格体节点中。  
+这可以通过减少场景层级的深度和复杂性，使虚幻引擎场景管理变得更容易。但是，如果您需要手动清理导入的静态网格体，或者场景包含许多相同几何体的实例，则不推荐使用该选项。  
+[/EXCERPT:excerpt_4]
+-->
+
+
+(#deltagenimportoptions)
+
+## Deltagen导入选项
+
+当您使用Datasmith Deltagen Fbx导入器导入从Deltagen导出的 *.fbx* 文件时，您可以设置以下附加选项：
+
+![Deltagen import options](datasmith-import-settings-deltagen.png "Deltagen import options")
+
+  
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]**处理（Processing）**[/REGION] ||
+| **合并节点（Merge Nodes）** | [INCLUDE:#excerpt_7] |
+| **优化复制的节点（Optimize Duplicated Nodes）** | 通过重用整个相同的子树，减少场景层级中的节点总数。|
+| **移除不可见节点（Remove Invisble Nodes）** | 启用该设置可避免导入Deltagen场景中隐藏的任何几何体。|
+| **简化节点层级（Simplify Node Hierarchy）** | 启用该设置可使Datasmith场景层级变平。|
+| [REGION:tablesection]**资源导入（Asset Importing）**[/REGION] ||
+| **导入VAR（Import VAR）** | 启用该选项可将Deltagen场景中的变体导入到虚幻引擎中，并使它们可用于项目中的蓝图脚本。|
+| **导入POS（Import POS）** | 启用该选项可将状态数据从Deltagen场景导入到虚幻引擎中。|
+| **导入TML（Import TML）** | 启用该选项可将Deltagen场景中的动画数据导入到虚幻引擎中，并使它们可用于项目中的蓝图脚本。|
+| **纹理目录（Textures Dir）** | 指定Datasmith的文件夹路径，以搜索 *.fbx* 中引用的纹理文件。|
+| [REGION:tablesection]**调试（Debug）**[/REGION] ||
+| **中间序列化（Intermediate Serialization）** | 启用该选项可将从 *.fbx* 文件中读取的场景数据存储为中间格式。如果您需要频繁导入同一场景，并且FBX导入器是瓶颈，则该设置可能很有用。|
+| **给材质着色（Colorize materials）** | 启用该选项可以使用随机着色的简单材质，而不是导入材质参数，如DiffuseColor或纹理。|
+| [REGION:tablesection]**光照贴图（Lightmaps）**[/REGION] ||
+| **生成光照贴图UV（Generate Lightmap UVs）** | [INCLUDE:#excerpt_8] |
+
+<!--
+[EXCERPT:excerpt_8]
+为了在虚幻引擎中使用静态或固定照明，您的模型需要有其中没有三角形重叠的光照贴图UV。   
+
+*   启用该选项使Datasmith导入器自动为其创建的静态网格体资源生成这些光照贴图UV。  
+    为了使其生效，您的模型需要至少有一个非空UV集可以着手。如果模型根本没有任何UV集，导入器将为静态网格体资源创建一个空白UV集，但是该空白UV集将不能用于将纹理或光照贴图应用到静态网格体。
+
+*   如果您已经为源应用程序中的对象创建了有效的、非重叠的光照贴图，则可以不选中该选项，让Datasmith导入器跳过创建新的光照贴图UV。在这种情况下，您的静态网格体资源将使用索引最高的UV集作为其光照贴图UV。
+
+有关更多背景信息，请参阅[使用UV通道](Editor/Content/Types/StaticMeshes/HowTo/UVChannels)。
+
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+将不用于动画、变体或其他功能的静态网格体节点的子树组合到单个静态网格体节点中。  
+这可以通过减少场景层级的深度和复杂性，使虚幻引擎场景管理变得更容易。但是，如果您需要手动清理导入的静态网格体，或者场景包含许多相同几何体的实例，则不推荐使用该选项。  
+[/EXCERPT:excerpt_7]
+-->

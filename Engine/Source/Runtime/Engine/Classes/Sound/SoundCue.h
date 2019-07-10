@@ -244,7 +244,7 @@ private:
 	void AudioQualityChanged();
 	void OnPostEngineInit();
 	void EvaluateNodes(bool bAddToRoot);
-
+	float FindMaxDistanceInternal() const;
 
 	FDelegateHandle OnPostEngineInitHandle;
 	static int32 CachedQualityLevel;
@@ -288,5 +288,5 @@ private:
 
 	/** Ptr to interface to sound cue editor operations. */
 	static ENGINE_API TSharedPtr<ISoundCueAudioEditor> SoundCueAudioEditor;
-#endif
+#endif // WITH_EDITOR
 };

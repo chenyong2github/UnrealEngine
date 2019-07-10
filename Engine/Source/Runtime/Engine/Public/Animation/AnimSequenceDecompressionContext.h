@@ -13,8 +13,6 @@ struct FCompressedSegment;
 class FAnimEncodingDecompressionContext;
 class AnimEncoding;
 
-#define USE_SEGMENTING_CONTEXT 0 // Uses segmenting in anim compression + context in decompression
-
 /**
  * Structure to wrap a trivial key handle. Used by the decompression context and encoders.
  */
@@ -33,17 +31,22 @@ struct FTrivialAnimKeyHandle
 struct ENGINE_API FAnimSequenceDecompressionContext
 {
 public:
-	FAnimSequenceDecompressionContext() : AnimSeq(nullptr), Time(0.f) {}
-	FAnimSequenceDecompressionContext(const UAnimSequence* AnimSeq_) :AnimSeq(AnimSeq_), Time(0.f) {}
-
+#if WITH_EDITOR
+	FAnimSequenceDecompressionContext(const FCompressibleAnimData& CompressibleAnimData_, const FUECompressedAnimData& CompressedAnimData_) : SequenceLength(CompressibleAnimData_.SequenceLength), Interpolation(CompressibleAnimData_.Interpolation), AnimName(CompressibleAnimData_.AnimFName), CompressedAnimData(CompressedAnimData_), Time(0.f) {}
+#endif
+	FAnimSequenceDecompressionContext(float SequenceLength_, EAnimInterpolationType Interpolation_, const FName& AnimName_, const FUECompressedAnimData& CompressedAnimData_) : SequenceLength(SequenceLength_), Interpolation(Interpolation_), AnimName(AnimName_), CompressedAnimData(CompressedAnimData_), Time(0.f) {}
 	/**
 	* We don't disable copying but we also don't retain any state. Copying is required by the UE serialization
 	* but retaining state is not necessary and can cause issues.
 	*/
-	FAnimSequenceDecompressionContext(const FAnimSequenceDecompressionContext& Other) : AnimSeq(Other.AnimSeq), Time(Other.Time) {}
-	FAnimSequenceDecompressionContext& operator=(const FAnimSequenceDecompressionContext& Other) { AnimSeq = Other.AnimSeq; Time = Other.Time; return *this; }
+	FAnimSequenceDecompressionContext(const FAnimSequenceDecompressionContext& Other) : SequenceLength(Other.SequenceLength), Interpolation(Other.Interpolation), AnimName(Other.AnimName), CompressedAnimData(Other.CompressedAnimData), Time(Other.Time) {}
 
-	const UAnimSequence* AnimSeq;
+	// Anim info
+	float SequenceLength;
+	EAnimInterpolationType Interpolation;
+	FName AnimName;
+
+	const FUECompressedAnimData& CompressedAnimData;
 	float Time;
 	float RelativePos;
 	bool bHasScale;
@@ -51,18 +54,26 @@ public:
 	void Seek(float SampleAtTime)
 	{
 		Time = SampleAtTime;
-		RelativePos = SampleAtTime / AnimSeq->SequenceLength;
-		bHasScale = AnimSeq->CompressedScaleOffsets.IsValid();
+		RelativePos = SampleAtTime / SequenceLength;
+		bHasScale = CompressedAnimData.CompressedScaleOffsets.IsValid();
 	}
 
-	// Following just expose the properties of the anim sequence, 
-	AnimEncoding* GetRotationCodec() const { return AnimSeq->RotationCodec; }
-	AnimEncoding* GetTranslationCodec() const { return AnimSeq->TranslationCodec; }
-	AnimEncoding* GetScaleCodec() const { return AnimSeq->ScaleCodec; }
+	float GetSequenceLength() const { return SequenceLength; }
 
-	const int32* GetCompressedTrackOffsets() const { return AnimSeq->CompressedTrackOffsets.GetData(); }
-	const uint8* GetCompressedByteStream() const { return AnimSeq->CompressedByteStream.GetData(); }
-	const FCompressedOffsetData* GetCompressedScaleOffsets() const { return &AnimSeq->CompressedScaleOffsets; }
+	int32 GetCompressedNumberOfFrames() const { return CompressedAnimData.CompressedNumberOfFrames; }
+
+	// Following just expose the properties of the anim sequence, 
+	AnimEncoding* GetRotationCodec() const { return CompressedAnimData.RotationCodec; }
+	AnimEncoding* GetTranslationCodec() const { return CompressedAnimData.TranslationCodec; }
+	AnimEncoding* GetScaleCodec() const { return CompressedAnimData.ScaleCodec; }
+
+	const int32* GetCompressedTrackOffsets() const { return CompressedAnimData.CompressedTrackOffsets.GetData(); }
+	const uint8* GetCompressedByteStream() const { return CompressedAnimData.CompressedByteStream.GetData(); }
+	const FCompressedOffsetDataBase<TArrayView<int32>>* GetCompressedScaleOffsets() const { return &CompressedAnimData.CompressedScaleOffsets; }
+
+	EAnimInterpolationType GetInterpolation() const { return Interpolation; }
+
+	FName GetAnimFName() const { return AnimName; }
 };
 
 #else

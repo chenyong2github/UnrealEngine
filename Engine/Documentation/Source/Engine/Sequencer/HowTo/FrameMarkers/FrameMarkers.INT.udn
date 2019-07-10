@@ -2,7 +2,8 @@ Availability: Public
 Crumbs: 
 Title: Using Frame Markers in Sequencer
 Description: Describes how to use Frame Markers in Sequencer to denote special frames within your cinematic Sequences. 
-Type: 
+Type:how-to
+skilllevel:Beginner
 Version: 4.21
 Parent: Engine/SEquencer/HowTo
 Order: 

@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:3810467
 Availability: Public
 Title: 머티리얼 파라미터 컬렉션
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials
-Description:어느 머티리얼에서도 레퍼런싱 가능한 임의의 스칼라 & 벡터 파라미터 세트를 저장하는 애셋입니다.
+Description:어느 머티리얼에서도 참조 가능한 임의의 스칼라 & 벡터 파라미터 세트를 저장하는 애셋입니다.
 Related: Engine/Rendering/Materials
 Related: Engine/Rendering/Materials/MaterialInstances
 Related: Engine/Rendering/Materials/Editor
@@ -22,7 +22,7 @@ tags:Materials
 [/REGION]
 
 
-**MaterialParameterCollection** (머티리얼 파라미터 컬렉션)은 어느 머티리얼에서도 레퍼런싱 가능한 임의의 
+**MaterialParameterCollection** (머티리얼 파라미터 컬렉션)은 어느 머티리얼에서도 참조 가능한 임의의 
 [스칼라 & 벡터 파라미터](Engine/Rendering/Materials\MaterialInstances#파라미터화된머티리얼만들기) 
 세트를 저장하는 애셋입니다. 이는 글로벌 데이터를 다수의 머티리얼에 한 번에 적용시킬 수 있는 아티스트의 강력한 툴이 됩니다.
 강설량, 파괴량, 습기 등과 같은 레벨별 이펙트를 구동시키는 데 있어서도, 이게 없었다면 레벨마다 각기 다른 머티리얼 인스턴스에 
@@ -218,10 +218,10 @@ _머티리얼 파라미터 컬렉션_ 은 [**콘텐츠 브라우저**](Engine/Co
 가질 수 있습니다.
 [/EXCERPT:MaterialWarning]
 
-컬렉션 안의 파라미터 갯수를 변경하면 해당 컬렉션을 레퍼런싱하는 모든 머티리얼을 리컴파일해야 합니다.
+컬렉션 안의 파라미터 갯수를 변경하면 해당 컬렉션을 참조하는 모든 머티리얼을 리컴파일해야 합니다.
 파라미터를 많이 추가해야 할 필요가 있거든, 빈 맵에서 미리 많이 추가해 두는 것이 빠를 수가 있습니다.
 
-파라미터 이름을 변경하면, 해당 파라미터를 레퍼런싱하는 _머티리얼_ 은 정상 작동하나, 
+파라미터 이름을 변경하면, 해당 파라미터를 참조하는 _머티리얼_ 은 정상 작동하나, 
 _블루프린트_ 는 깨집니다. 이 문제의 해결을 위해서는 컬렉션에서 작동하는 블루프린트 함수의 _파라미터 이름_ 을 
 재지정해 줘야 합니다.
 

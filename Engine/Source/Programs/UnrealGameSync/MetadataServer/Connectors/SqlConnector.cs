@@ -5,12 +5,12 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using MetadataServer.Models;
+using MySql.Data.MySqlClient;
 
 namespace MetadataServer.Connectors
 {
@@ -25,30 +25,32 @@ namespace MetadataServer.Connectors
 			long LastCommentId = 0;
 			long LastBuildId = 0;
 			string ProjectLikeString = "%" + (Project == null ? String.Empty : GetProjectStream(Project)) + "%";
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT UserVotes.Id FROM [UserVotes] " +
-																 "INNER JOIN [Projects] ON Projects.Id = UserVotes.ProjectId " +
-																 "WHERE Projects.Name LIKE @param1 GROUP BY Changelist ORDER BY Changelist DESC LIMIT 1 OFFSET 432", Connection))
+				using (MySqlCommand Command = new MySqlCommand("WITH user_votes AS (SELECT UserVotes.Id, UserVotes.Changelist FROM ugs_db.UserVotes " +
+																 "INNER JOIN ugs_db.Projects ON Projects.Id = UserVotes.ProjectId " +
+																 "WHERE Projects.Name LIKE @param1 GROUP BY Changelist ORDER BY Changelist DESC LIMIT 432) " +
+																 "SELECT * FROM user_votes ORDER BY user_votes.Changelist ASC LIMIT 1", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", ProjectLikeString);
-					using (SQLiteDataReader Reader = Command.ExecuteReader())
+					using (MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while (Reader.Read())
 						{
 							LastEventId = Reader.GetInt64(0);
 							break;
 						}
-					}
+					}	
 				}
 				
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Comments.Id FROM [Comments] " +
-																 "INNER JOIN [Projects] ON Projects.Id = Comments.ProjectId " +
-																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 1 OFFSET 432", Connection))
+				using (MySqlCommand Command = new MySqlCommand("WITH comments AS (SELECT Comments.Id, Comments.ChangeNumber FROM ugs_db.Comments " +
+																 "INNER JOIN ugs_db.Projects ON Projects.Id = Comments.ProjectId " +
+																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 432) " +
+																 "SELECT * FROM comments ORDER BY comments.ChangeNumber ASC LIMIT 1", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", ProjectLikeString);
-					using (SQLiteDataReader Reader = Command.ExecuteReader())
+					using (MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while (Reader.Read())
 						{
@@ -57,13 +59,14 @@ namespace MetadataServer.Connectors
 						}
 					}
 				}
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Badges.Id FROM [Badges] " +
-																 "INNER JOIN [Projects] ON Projects.Id = Badges.ProjectId " +
-																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 1 OFFSET 432", Connection))
+				using (MySqlCommand Command = new MySqlCommand("WITH badges AS (SELECT Badges.Id, Badges.ChangeNumber FROM ugs_db.Badges " +
+																 "INNER JOIN ugs_db.Projects ON Projects.Id = Badges.ProjectId " +
+																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 432) " + 
+																 "SELECT * FROM badges ORDER BY badges.ChangeNumber ASC LIMIT 1", Connection))
 				{
 					//Command.Parameters.AddWithValue("@param1", ProjectId);
 					Command.Parameters.AddWithValue("@param1", ProjectLikeString);
-					using (SQLiteDataReader Reader = Command.ExecuteReader())
+					using (MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while (Reader.Read())
 						{
@@ -79,15 +82,15 @@ namespace MetadataServer.Connectors
 		{
 			List<EventData> ReturnedEvents = new List<EventData>();
 			string ProjectLikeString = "%" + (Project == null ? String.Empty : GetProjectStream(Project)) + "%";
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT UserVotes.Id, UserVotes.Changelist, UserVotes.UserName, UserVotes.Verdict, UserVotes.Project FROM [UserVotes] " +
-																 "INNER JOIN [Projects] ON Projects.Id = UserVotes.ProjectId WHERE UserVotes.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY UserVotes.Id", Connection))
+				using (MySqlCommand Command = new MySqlCommand("SELECT UserVotes.Id, UserVotes.Changelist, UserVotes.UserName, UserVotes.Verdict, UserVotes.Project FROM ugs_db.UserVotes " +
+															   "INNER JOIN ugs_db.Projects ON Projects.Id = UserVotes.ProjectId WHERE UserVotes.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY UserVotes.Id", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", LastEventId);
 					Command.Parameters.AddWithValue("@param2", ProjectLikeString);
-					using (SQLiteDataReader Reader = Command.ExecuteReader())
+					using (MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while (Reader.Read())
 						{
@@ -113,15 +116,15 @@ namespace MetadataServer.Connectors
 		{
 			List<CommentData> ReturnedComments = new List<CommentData>();
 			string ProjectLikeString = "%" + (Project == null ? String.Empty : GetProjectStream(Project)) + "%";
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Comments.Id, Comments.ChangeNumber, Comments.UserName, Comments.Text, Comments.Project FROM [Comments] " +
-															     "INNER JOIN [Projects] ON Projects.Id = Comments.ProjectId WHERE Comments.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Comments.Id", Connection))
+				using (MySqlCommand Command = new MySqlCommand("SELECT Comments.Id, Comments.ChangeNumber, Comments.UserName, Comments.Text, Comments.Project FROM ugs_db.Comments " +
+															     "INNER JOIN ugs_db.Projects ON Projects.Id = Comments.ProjectId WHERE Comments.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Comments.Id", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", LastCommentId);
 					Command.Parameters.AddWithValue("@param2", ProjectLikeString);
-					using (SQLiteDataReader Reader = Command.ExecuteReader())
+					using (MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while (Reader.Read())
 						{
@@ -146,15 +149,15 @@ namespace MetadataServer.Connectors
 		{
 			List<BuildData> ReturnedBuilds = new List<BuildData>();
 			string ProjectLikeString = "%" + (Project == null ? String.Empty : GetProjectStream(Project)) + "%";
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Badges.Id, Badges.ChangeNumber, Badges.BuildType, Badges.Result, Badges.Url, Projects.Name, Badges.ArchivePath FROM [Badges] " +
-																 "INNER JOIN [Projects] ON Projects.Id = Badges.ProjectId WHERE Badges.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Badges.Id", Connection))
+				using (MySqlCommand Command = new MySqlCommand("SELECT Badges.Id, Badges.ChangeNumber, Badges.BuildType, Badges.Result, Badges.Url, Projects.Name, Badges.ArchivePath FROM ugs_db.Badges " +
+																 "INNER JOIN ugs_db.Projects ON Projects.Id = Badges.ProjectId WHERE Badges.Id > @param1 AND Projects.Name LIKE @param2 ORDER BY Badges.Id", Connection))
 				{ 
 					Command.Parameters.AddWithValue("@param1", LastBuildId);
 					Command.Parameters.AddWithValue("@param2", ProjectLikeString);
-					using (SQLiteDataReader Reader = Command.ExecuteReader())
+					using (MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while (Reader.Read())
 						{
@@ -182,13 +185,13 @@ namespace MetadataServer.Connectors
 		public static List<TelemetryErrorData> GetErrorData(int Records)
 		{
 			List<TelemetryErrorData> ReturnedErrors = new List<TelemetryErrorData>();
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
-				using (SQLiteCommand Command = new SQLiteCommand("SELECT Id, Type, Text, UserName, Project, Timestamp, Version, IpAddress FROM [Errors] ORDER BY Id DESC LIMIT @param1", Connection))
+				using (MySqlCommand Command = new MySqlCommand("SELECT Id, Type, Text, UserName, Project, Timestamp, Version, IpAddress FROM ugs_db.Errors ORDER BY Id DESC LIMIT @param1", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", Records);
-					using (SQLiteDataReader Reader = Command.ExecuteReader())
+					using (MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while (Reader.Read())
 						{
@@ -209,22 +212,22 @@ namespace MetadataServer.Connectors
 			return ReturnedErrors;
 		}
 
-		private static long TryInsertAndGetProject(SQLiteConnection Connection, string Project)
+		private static long TryInsertAndGetProject(MySqlConnection Connection, string Project)
 		{
-			using (SQLiteCommand Command = new SQLiteCommand("INSERT OR IGNORE INTO [Projects] (Name) VALUES (@Project); SELECT [Id] FROM [Projects] WHERE Name = @Project", Connection))
+			using (MySqlCommand Command = new MySqlCommand("INSERT IGNORE INTO ugs_db.Projects (Name) VALUES (@Project); SELECT Id FROM ugs_db.Projects WHERE Name = @Project", Connection))
 			{
 				Command.Parameters.AddWithValue("@Project", Project);
 				object ProjectId = Command.ExecuteScalar();
-				return (long)ProjectId;
+				return Convert.ToInt64(ProjectId);
 			}
 		}
 		public static void PostBuild(BuildData Build)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
 				long ProjectId = TryInsertAndGetProject(Connection, Build.Project);
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Badges] (ChangeNumber, BuildType, Result, URL, ArchivePath, ProjectId) VALUES (@ChangeNumber, @BuildType, @Result, @URL, @ArchivePath, @ProjectId)", Connection))
+				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.Badges (ChangeNumber, BuildType, Result, URL, ArchivePath, ProjectId) VALUES (@ChangeNumber, @BuildType, @Result, @URL, @ArchivePath, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@ChangeNumber", Build.ChangeNumber);
 					Command.Parameters.AddWithValue("@BuildType", Build.BuildType);
@@ -239,11 +242,11 @@ namespace MetadataServer.Connectors
 
 		public static void PostEvent(EventData Event)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
 				long ProjectId = TryInsertAndGetProject(Connection, Event.Project);
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [UserVotes] (Changelist, UserName, Verdict, Project, ProjectId) VALUES (@Changelist, @UserName, @Verdict, @Project, @ProjectId)", Connection))
+				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.UserVotes (Changelist, UserName, Verdict, Project, ProjectId) VALUES (@Changelist, @UserName, @Verdict, @Project, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Changelist", Event.Change);
 					Command.Parameters.AddWithValue("@UserName", Event.UserName.ToString());
@@ -257,11 +260,11 @@ namespace MetadataServer.Connectors
 
 		public static void PostComment(CommentData Comment)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
 				long ProjectId = TryInsertAndGetProject(Connection, Comment.Project);
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Comments] (ChangeNumber, UserName, Text, Project, ProjectId) VALUES (@ChangeNumber, @UserName, @Text, @Project, @ProjectId)", Connection))
+				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.Comments (ChangeNumber, UserName, Text, Project, ProjectId) VALUES (@ChangeNumber, @UserName, @Text, @Project, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@ChangeNumber", Comment.ChangeNumber);
 					Command.Parameters.AddWithValue("@UserName", Comment.UserName);
@@ -275,11 +278,11 @@ namespace MetadataServer.Connectors
 
 		public static void PostTelemetryData(TelemetryTimingData Data, string Version, string IpAddress)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
 				long ProjectId = TryInsertAndGetProject(Connection, Data.Project);
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Telemetry.v2] (Action, Result, UserName, Project, Timestamp, Duration, Version, IpAddress, ProjectId) VALUES (@Action, @Result, @UserName, @Project, @Timestamp, @Duration, @Version, @IpAddress, @ProjectId)", Connection))
+				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.Telemetry_v2 (Action, Result, UserName, Project, Timestamp, Duration, Version, IpAddress, ProjectId) VALUES (@Action, @Result, @UserName, @Project, @Timestamp, @Duration, @Version, @IpAddress, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Action", Data.Action);
 					Command.Parameters.AddWithValue("@Result", Data.Result);
@@ -297,7 +300,7 @@ namespace MetadataServer.Connectors
 
 		public static void PostErrorData(TelemetryErrorData Data, string Version, string IpAddress)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(ConnectionString))
 			{
 				Connection.Open();
 				long? ProjectId = null;
@@ -305,7 +308,7 @@ namespace MetadataServer.Connectors
 				{
 					ProjectId = TryInsertAndGetProject(Connection, Data.Project);
 				}
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Errors] (Type, Text, UserName, Project, Timestamp, Version, IpAddress, ProjectId) VALUES (@Type, @Text, @UserName, @Project, @Timestamp, @Version, @IpAddress, @ProjectId)", Connection))
+				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.Errors (Type, Text, UserName, Project, Timestamp, Version, IpAddress, ProjectId) VALUES (@Type, @Text, @UserName, @Project, @Timestamp, @Version, @IpAddress, @ProjectId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Type", Data.Type.ToString());
 					Command.Parameters.AddWithValue("@Text", Data.Text);
@@ -350,14 +353,14 @@ namespace MetadataServer.Connectors
 
 		public static long FindOrAddUserId(string Name)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 				return FindOrAddUserId(Name, Connection);
 			}
 		}
 
-		private static long FindOrAddUserId(string Name, SQLiteConnection Connection)
+		private static long FindOrAddUserId(string Name, MySqlConnection Connection)
 		{
 			if(Name.Length == 0)
 			{
@@ -366,39 +369,37 @@ namespace MetadataServer.Connectors
 
 			string NormalizedName = NormalizeUserName(Name);
 
-			using (SQLiteCommand Command = new SQLiteCommand("SELECT [Id] FROM [Users] WHERE Name = @Name", Connection))
+			using (MySqlCommand Command = new MySqlCommand("SELECT Id FROM ugs_db.Users WHERE Name = @Name", Connection))
 			{
 				Command.Parameters.AddWithValue("@Name", NormalizedName);
 				object UserId = Command.ExecuteScalar();
 				if(UserId != null)
 				{
-					return (long)UserId;
+					return Convert.ToInt64(UserId);
 				}
 			}
 
-			using (SQLiteCommand Command = new SQLiteCommand("INSERT OR IGNORE INTO [Users] (Name) VALUES (@Name); SELECT [Id] FROM [Users] WHERE Name = @Name", Connection))
+			using (MySqlCommand Command = new MySqlCommand("INSERT IGNORE INTO ugs_db.Users (Name) VALUES (@Name); SELECT Id FROM ugs_db.Users WHERE Name = @Name", Connection))
 			{
 				Command.Parameters.AddWithValue("@Name", NormalizedName);
 				object UserId = Command.ExecuteScalar();
-				return (long)UserId;
+				return Convert.ToInt64(UserId);
 			}
 		}
 
 		const int IssueSummaryMaxLength = 200;
-		const int IssueDetailsMaxLength = 8000;
 
 		public static long AddIssue(IssueData Issue)
 		{
 			long IssueId;
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [Issues] (Project, Summary, Details, OwnerId, CreatedAt, FixChange) VALUES (@Project, @Summary, @Details, @OwnerId, DATETIME('now'), 0)", Connection))
+				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.Issues (Project, Summary, OwnerId, CreatedAt, FixChange) VALUES (@Project, @Summary, @OwnerId, UTC_TIMESTAMP(), 0)", Connection))
 				{
 					Command.Parameters.AddWithValue("@Project", Issue.Project);
 					Command.Parameters.AddWithValue("@Summary", SanitizeText(Issue.Summary, IssueSummaryMaxLength));
-					Command.Parameters.AddWithValue("@Details", SanitizeText(Issue.Details, IssueDetailsMaxLength));
 					if (Issue.Owner != null)
 					{
 						Command.Parameters.AddWithValue("OwnerId", FindOrAddUserId(Issue.Owner, Connection));
@@ -409,7 +410,7 @@ namespace MetadataServer.Connectors
 					}
 					Command.ExecuteNonQuery();
 
-					IssueId = Connection.LastInsertRowId;
+					IssueId = Command.LastInsertedId;
 				}
 			}
 			return IssueId;
@@ -441,7 +442,7 @@ namespace MetadataServer.Connectors
 		private static List<IssueData> GetIssuesInternal(long IssueId, string UserName, bool IncludeResolved, int NumResults)
 		{
 			List<IssueData> Issues = new List<IssueData>();
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
@@ -453,17 +454,17 @@ namespace MetadataServer.Connectors
 
 				StringBuilder CommandBuilder = new StringBuilder();
 				CommandBuilder.Append("SELECT");
-				CommandBuilder.Append(" Issues.Id, Issues.CreatedAt, DATETIME('now'), Issues.Project, Issues.Summary, Issues.Details, OwnerUsers.Name, NominatedByUsers.Name, Issues.AcknowledgedAt, Issues.FixChange, Issues.ResolvedAt");
+				CommandBuilder.Append(" Issues.Id, Issues.CreatedAt, UTC_TIMESTAMP(), Issues.Project, Issues.Summary, OwnerUsers.Name, NominatedByUsers.Name, Issues.AcknowledgedAt, Issues.FixChange, Issues.ResolvedAt");
 				if(UserName != null)
 				{
 					CommandBuilder.Append(", IssueWatchers.UserId");
 				}
-				CommandBuilder.Append(" FROM [Issues]");
-				CommandBuilder.Append(" LEFT JOIN [Users] AS [OwnerUsers] ON OwnerUsers.Id = Issues.OwnerId");
-				CommandBuilder.Append(" LEFT JOIN [Users] AS [NominatedByUsers] ON NominatedByUsers.Id = Issues.NominatedById");
+				CommandBuilder.Append(" FROM ugs_db.Issues");
+				CommandBuilder.Append(" LEFT JOIN ugs_db.Users AS OwnerUsers ON OwnerUsers.Id = Issues.OwnerId");
+				CommandBuilder.Append(" LEFT JOIN ugs_db.Users AS NominatedByUsers ON NominatedByUsers.Id = Issues.NominatedById");
 				if(UserName != null)
 				{
-					CommandBuilder.Append(" LEFT JOIN [IssueWatchers] ON IssueWatchers.IssueId = Issues.Id AND IssueWatchers.UserId = @UserId");
+					CommandBuilder.Append(" LEFT JOIN ugs_db.IssueWatchers ON IssueWatchers.IssueId = Issues.Id AND IssueWatchers.UserId = @UserId");
 				}
 				if(IssueId != -1)
 				{
@@ -478,7 +479,7 @@ namespace MetadataServer.Connectors
 					CommandBuilder.AppendFormat(" ORDER BY Issues.Id DESC LIMIT {0}", NumResults);
 				}
 
-				using (SQLiteCommand Command = new SQLiteCommand(CommandBuilder.ToString(), Connection))
+				using (MySqlCommand Command = new MySqlCommand(CommandBuilder.ToString(), Connection))
 				{
 					if(IssueId != -1)
 					{
@@ -489,7 +490,7 @@ namespace MetadataServer.Connectors
 						Command.Parameters.AddWithValue("@UserId", UserId);
 					}
 
-					using(SQLiteDataReader Reader = Command.ExecuteReader())
+					using(MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while(Reader.Read())
 						{
@@ -499,15 +500,14 @@ namespace MetadataServer.Connectors
 							Issue.RetrievedAt = Reader.GetDateTime(2);
 							Issue.Project = Reader.GetString(3);
 							Issue.Summary = Reader.GetString(4);
-							Issue.Details = Reader.GetString(5);
-							Issue.Owner = Reader.IsDBNull(6)? null : Reader.GetString(6);
-							Issue.NominatedBy = Reader.IsDBNull(7)? null : Reader.GetString(7);
-							Issue.AcknowledgedAt = Reader.IsDBNull(8)? (DateTime?)null : Reader.GetDateTime(8);
-							Issue.FixChange = Reader.GetInt32(9);
-							Issue.ResolvedAt = Reader.IsDBNull(10)? (DateTime?)null : Reader.GetDateTime(10);
+							Issue.Owner = Reader.IsDBNull(5)? null : Reader.GetString(5);
+							Issue.NominatedBy = Reader.IsDBNull(6)? null : Reader.GetString(6);
+							Issue.AcknowledgedAt = Reader.IsDBNull(7)? (DateTime?)null : Reader.GetDateTime(7);
+							Issue.FixChange = Reader.GetInt32(8);
+							Issue.ResolvedAt = Reader.IsDBNull(9)? (DateTime?)null : Reader.GetDateTime(9);
 							if(UserName != null)
 							{
-								Issue.bNotify = !Reader.IsDBNull(11);
+								Issue.bNotify = !Reader.IsDBNull(10);
 							}
 							Issues.Add(Issue);
 						}
@@ -519,11 +519,11 @@ namespace MetadataServer.Connectors
 
 		public static void UpdateIssue(long IssueId, IssueUpdateData Issue)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
-				using (SQLiteCommand Command = new SQLiteCommand(Connection))
+				using (MySqlCommand Command = Connection.CreateCommand())
 				{
 					List<string> Columns = new List<string>();
 					List<string> Values = new List<string>();
@@ -532,12 +532,6 @@ namespace MetadataServer.Connectors
 						Columns.Add("Summary");
 						Values.Add("@Summary");
 						Command.Parameters.AddWithValue("@Summary", SanitizeText(Issue.Summary, IssueSummaryMaxLength));
-					}
-					if(Issue.Details != null)
-					{
-						Columns.Add("Details");
-						Values.Add("@Details");
-						Command.Parameters.AddWithValue("@Details", SanitizeText(Issue.Details, IssueDetailsMaxLength));
 					}
 					if (Issue.Owner != null)
 					{
@@ -554,7 +548,7 @@ namespace MetadataServer.Connectors
 					if(Issue.Acknowledged.HasValue)
 					{
 						Columns.Add("AcknowledgedAt");
-						Values.Add(Issue.Acknowledged.Value? "DATETIME('now')" : "NULL");
+						Values.Add(Issue.Acknowledged.Value? "UTC_TIMESTAMP()" : "NULL");
 					}
 					if(Issue.FixChange.HasValue)
 					{
@@ -565,10 +559,20 @@ namespace MetadataServer.Connectors
 					if(Issue.Resolved.HasValue)
 					{
 						Columns.Add("ResolvedAt");
-						Values.Add(Issue.Resolved.Value? "DATETIME('now')" : "NULL");
+						Values.Add(Issue.Resolved.Value? "UTC_TIMESTAMP()" : "NULL");
 					}
 
-					Command.CommandText = String.Format("UPDATE [Issues] SET ({0}) = ({1}) WHERE Id = @IssueId", String.Join(", ", Columns), String.Join(", ", Values));
+					StringBuilder CommandText = new StringBuilder("UPDATE ugs_db.Issues SET ");
+					for(int idx = 0; idx < Columns.Count; idx++)
+					{
+						CommandText.Append(String.Format("{0}={1}", Columns[idx], Values[idx]));
+						if(idx != Columns.Count - 1)
+						{
+							CommandText.Append(",");
+						}
+					}
+					CommandText.Append(" WHERE Id = @IssueId");
+					Command.CommandText = CommandText.ToString();
 					Command.Parameters.AddWithValue("@IssueId", IssueId);
 					Command.ExecuteNonQuery();
 				}
@@ -592,15 +596,92 @@ namespace MetadataServer.Connectors
 			return Text;
 		}
 
+		public static void DeleteIssue(long IssueId)
+		{
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using (MySqlTransaction Transaction = Connection.BeginTransaction())
+				{
+					using (MySqlCommand Command = Connection.CreateCommand())
+					{
+						Command.Transaction = Transaction;
+
+						Command.CommandText = "DELETE FROM ugs_db.IssueWatchers WHERE IssueId = @IssueId";
+						Command.Parameters.AddWithValue("@IssueId", IssueId);
+						Command.ExecuteNonQuery();
+
+						Command.CommandText = "DELETE FROM ugs_db.IssueBuilds WHERE IssueId = @IssueId";
+						Command.Parameters.AddWithValue("@IssueId", IssueId);
+						Command.ExecuteNonQuery();
+
+						Command.CommandText = "DELETE FROM ugs_db.Issues WHERE Id = @IssueId";
+						Command.Parameters.AddWithValue("@IssueId", IssueId);
+						Command.ExecuteNonQuery();
+
+						Transaction.Commit();
+					}
+				}
+			}
+		}
+
+		public static void AddDiagnostic(long IssueId, IssueDiagnosticData Diagnostic)
+		{
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.IssueDiagnostics (IssueId, BuildId, Message, Url) VALUES (@IssueId, @BuildId, @Message, @Url)", Connection))
+				{
+					Command.Parameters.AddWithValue("@IssueId", IssueId);
+					Command.Parameters.AddWithValue("@BuildId", Diagnostic.BuildId);
+					Command.Parameters.AddWithValue("@Message", SanitizeText(Diagnostic.Message, 1000));
+					Command.Parameters.AddWithValue("@Url", Diagnostic.Url);
+					Command.ExecuteNonQuery();
+				}
+			}
+		}
+
+		public static List<IssueDiagnosticData> GetDiagnostics(long IssueId)
+		{
+			List<IssueDiagnosticData> Diagnostics = new List<IssueDiagnosticData>();
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
+			{
+				Connection.Open();
+
+				StringBuilder CommandBuilder = new StringBuilder();
+				CommandBuilder.Append("SELECT BuildId, Message, Url FROM ugs_db.IssueDiagnostics");
+				CommandBuilder.Append(" WHERE IssueDiagnostics.IssueId = @IssueId");
+
+				using (MySqlCommand Command = new MySqlCommand(CommandBuilder.ToString(), Connection))
+				{
+					Command.Parameters.AddWithValue("@IssueId", IssueId);
+					using (MySqlDataReader Reader = Command.ExecuteReader())
+					{
+						while (Reader.Read())
+						{
+							IssueDiagnosticData Diagnostic = new IssueDiagnosticData();
+							Diagnostic.BuildId = Reader.IsDBNull(0)? (long?)null : (long?)Reader.GetInt64(0);
+							Diagnostic.Message = Reader.GetString(1);
+							Diagnostic.Url = Reader.GetString(2);
+							Diagnostics.Add(Diagnostic);
+						}
+					}
+				}
+			}
+			return Diagnostics;
+		}
+
 		public static void AddWatcher(long IssueId, string UserName)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
 				long UserId = FindOrAddUserId(UserName, Connection);
 
-				using(SQLiteCommand Command = new SQLiteCommand("INSERT OR IGNORE INTO [IssueWatchers] (IssueId, UserId) VALUES (@IssueId, @UserId)", Connection))
+				using(MySqlCommand Command = new MySqlCommand("INSERT IGNORE INTO ugs_db.IssueWatchers (IssueId, UserId) VALUES (@IssueId, @UserId)", Connection))
 				{
 					Command.Parameters.AddWithValue("@IssueId", IssueId);
 					Command.Parameters.AddWithValue("@UserId", UserId);
@@ -612,19 +693,19 @@ namespace MetadataServer.Connectors
 		public static List<string> GetWatchers(long IssueId)
 		{
 			List<string> Watchers = new List<string>();
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
 				StringBuilder CommandBuilder = new StringBuilder();
-				CommandBuilder.Append("SELECT Users.Name FROM [IssueWatchers]");
-				CommandBuilder.Append(" LEFT JOIN [Users] ON IssueWatchers.UserId = Users.Id");
+				CommandBuilder.Append("SELECT Users.Name FROM ugs_db.IssueWatchers");
+				CommandBuilder.Append(" LEFT JOIN ugs_db.Users ON IssueWatchers.UserId = Users.Id");
 				CommandBuilder.Append(" WHERE IssueWatchers.IssueId = @IssueId");
 
-				using(SQLiteCommand Command = new SQLiteCommand(CommandBuilder.ToString(), Connection))
+				using(MySqlCommand Command = new MySqlCommand(CommandBuilder.ToString(), Connection))
 				{
 					Command.Parameters.AddWithValue("@IssueId", IssueId);
-					using(SQLiteDataReader Reader = Command.ExecuteReader())
+					using(MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while(Reader.Read())
 						{
@@ -638,13 +719,13 @@ namespace MetadataServer.Connectors
 
 		public static void RemoveWatcher(long IssueId, string UserName)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
 				long UserId = FindOrAddUserId(UserName, Connection);
 
-				using(SQLiteCommand Command = new SQLiteCommand("DELETE FROM [IssueWatchers] WHERE IssueId = @IssueId AND UserId = @UserId", Connection))
+				using(MySqlCommand Command = new MySqlCommand("DELETE FROM ugs_db.IssueWatchers WHERE IssueId = @IssueId AND UserId = @UserId", Connection))
 				{
 					Command.Parameters.AddWithValue("@IssueId", IssueId);
 					Command.Parameters.AddWithValue("@UserId", UserId);
@@ -655,11 +736,11 @@ namespace MetadataServer.Connectors
 
 		public static long AddBuild(long IssueId, IssueBuildData Build)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
-				using (SQLiteCommand Command = new SQLiteCommand("INSERT INTO [IssueBuilds] (IssueId, Stream, Change, JobName, JobUrl, JobStepName, JobStepUrl, ErrorUrl, Outcome) VALUES (@IssueId, @Stream, @Change, @JobName, @JobUrl, @JobStepName, @JobStepUrl, @ErrorUrl, @Outcome)", Connection))
+				using (MySqlCommand Command = new MySqlCommand("INSERT INTO ugs_db.IssueBuilds (IssueId, Stream, `Change`, JobName, JobUrl, JobStepName, JobStepUrl, ErrorUrl, Outcome) VALUES (@IssueId, @Stream, @Change, @JobName, @JobUrl, @JobStepName, @JobStepUrl, @ErrorUrl, @Outcome)", Connection))
 				{
 					Command.Parameters.AddWithValue("@IssueId", IssueId);
 					Command.Parameters.AddWithValue("@Stream", Build.Stream);
@@ -672,7 +753,7 @@ namespace MetadataServer.Connectors
 					Command.Parameters.AddWithValue("@Outcome", Build.Outcome);
 					Command.ExecuteNonQuery();
 
-					return Connection.LastInsertRowId;
+					return Command.LastInsertedId;
 				}
 			}
 		}
@@ -680,14 +761,14 @@ namespace MetadataServer.Connectors
 		public static List<IssueBuildData> GetBuilds(long IssueId)
 		{
 			List<IssueBuildData> Builds = new List<IssueBuildData>();
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
-				using(SQLiteCommand Command = new SQLiteCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.JobName, IssueBuilds.JobUrl, IssueBuilds.JobStepName, IssueBuilds.JobStepUrl, IssueBuilds.ErrorUrl, IssueBuilds.Outcome FROM [IssueBuilds] WHERE IssueBuilds.IssueId = @IssueId", Connection))
+				using(MySqlCommand Command = new MySqlCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.JobName, IssueBuilds.JobUrl, IssueBuilds.JobStepName, IssueBuilds.JobStepUrl, IssueBuilds.ErrorUrl, IssueBuilds.Outcome FROM ugs_db.IssueBuilds WHERE IssueBuilds.IssueId = @IssueId", Connection))
 				{
 					Command.Parameters.AddWithValue("@IssueId", IssueId);
-					using(SQLiteDataReader Reader = Command.ExecuteReader())
+					using(MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while(Reader.Read())
 						{
@@ -711,14 +792,14 @@ namespace MetadataServer.Connectors
 		public static IssueBuildData GetBuild(long BuildId)
 		{
 			IssueBuildData Build = null;
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
-				using(SQLiteCommand Command = new SQLiteCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.JobName, IssueBuilds.JobUrl, IssueBuilds.JobStepName, IssueBuilds.JobStepUrl, IssueBuilds.ErrorUrl, IssueBuilds.Outcome FROM [IssueBuilds] WHERE IssueBuilds.Id = @BuildId", Connection))
+				using(MySqlCommand Command = new MySqlCommand("SELECT IssueBuilds.Id, IssueBuilds.Stream, IssueBuilds.Change, IssueBuilds.JobName, IssueBuilds.JobUrl, IssueBuilds.JobStepName, IssueBuilds.JobStepUrl, IssueBuilds.ErrorUrl, IssueBuilds.Outcome FROM ugs_db.IssueBuilds WHERE IssueBuilds.Id = @BuildId", Connection))
 				{
 					Command.Parameters.AddWithValue("@BuildId", BuildId);
-					using(SQLiteDataReader Reader = Command.ExecuteReader())
+					using(MySqlDataReader Reader = Command.ExecuteReader())
 					{
 						while(Reader.Read())
 						{
@@ -742,11 +823,11 @@ namespace MetadataServer.Connectors
 
 		public static void UpdateBuild(long BuildId, int Outcome)
 		{
-			using (SQLiteConnection Connection = new SQLiteConnection(SqlConnector.ConnectionString))
+			using (MySqlConnection Connection = new MySqlConnection(SqlConnector.ConnectionString))
 			{
 				Connection.Open();
 
-				using (SQLiteCommand Command = new SQLiteCommand("UPDATE [IssueBuilds] SET (Outcome) = (@Outcome) WHERE Id = @BuildId", Connection))
+				using (MySqlCommand Command = new MySqlCommand("UPDATE ugs_db.IssueBuilds SET (Outcome) = (@Outcome) WHERE Id = @BuildId", Connection))
 				{
 					Command.Parameters.AddWithValue("@BuildId", BuildId);
 					Command.Parameters.AddWithValue("@Outcome", Outcome);

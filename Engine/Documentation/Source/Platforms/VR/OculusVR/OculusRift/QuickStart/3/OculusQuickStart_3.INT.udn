@@ -1,0 +1,25 @@
+Availability: Docs
+Crumbs: %ROOT%
+Title: 3. Create and Sign into an Oculus Account
+Description: Install the needed software for running UE4 projects on the Oculus Rift.
+Type: quick start
+SkillLevel: Beginner
+Version: 4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order: 3
+Checkpoint:RIFTQS
+
+[NAV]
+
+In the section, we will go over what to do once the Oculus Rift software has finished installing.
+
+1. Once the Oculus Rift software has finshed installing, press the **Next** button to begin the hardware setup.
+
+    ![](Rift_Finshed_Install_00.png)
+
+1. You will then be prompted to either **Sign in** or **Create Account** an Oculus account before you can continue.
+
+    ![](Rift_Create_Account_LogIn_00.png)
+
+
+[NAV]

@@ -18,7 +18,6 @@ Parent:Programming
 
 除以上的宏外还有一个 UPARAM() 宏，主要用于将 C++ 代码公开到蓝图。在 [](Engine/Blueprints/TechnicalGuide/ExtendingBlueprints) 文档中可查看 UPARAM() 的使用范例。
 
-(#GameplayProgrammingReferenceDirectory)
 ## 游戏性编程参考目录
 
 [REGION:buttonlist]

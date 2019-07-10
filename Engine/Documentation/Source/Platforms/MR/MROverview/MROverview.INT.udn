@@ -1,13 +1,12 @@
-Availability: Public
-Crumbs:
+﻿Availability: Public
 Title: Mixed Reality Capture Overview
-Description: Product documentation including reference and guides for Unreal Engine 4 
+Description: An extensive overview of the Mixed Reality Capture feature.
 Version: 4.20
 Parent: Platforms/MR
 Order:1
+type:overview
 Tags: GettingStarted
 Tags: MR
-Tags: landingpage
 Tags: Early Access
 topic-image:MR_RoboRecall.png
 reference-image:MR_RoboRecall.gif

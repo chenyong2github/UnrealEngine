@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3599948
+INTSourceChangelist:3599948
 Title: TArray: 언리얼 엔진의 배열
 Crumbs:
 Description:
@@ -23,7 +23,7 @@ TArray 는 값 유형으로, int32 나 float 처럼 다른 내장형과 비슷�
 
 	TArray<int32> IntArray;
 
-정수 시퀀스를 저장하도록 디자인된 공백 배열을 만듭니다. 엘리먼트 유형은 int32, FString, TSharedPtr 등과 같이 보통의 C++ 값 규칙에 따라 복사 및 소멸 가능한 값 유형은 어떤 것이든 가능합니다. 할당기가 지정되지 않으면 TArray 는 일반적인 힙 기반 할당이 됩니다. 이 시점에서는 아직 할당된 메모리가 없습니다.
+정수 시퀀스를 저장하도록 디자인된 빈 배열을 만듭니다. 엘리먼트 유형은 int32, FString, TSharedPtr 등과 같이 보통의 C++ 값 규칙에 따라 복사 및 소멸 가능한 값 유형은 어떤 것이든 가능합니다. 할당기가 지정되지 않으면 TArray 는 일반적인 힙 기반 할당이 됩니다. 이 시점에서는 아직 할당된 메모리가 없습니다.
 
 TArray 채우기는 여러가지 방식으로 가능합니다. 그 중 한 가지는 Init 함수로, 배열을 엘리먼트 사본 여러 개로 채우는 것입니다:
 
@@ -258,7 +258,7 @@ IndexOfByPredicate 함수는 지정된 술부에 일치하는 첫 엘리먼트 �
 	// OfPtr  == &StrArr[1]
 	// ThePtr == nullptr
 
-마찬가지로 FindByPredicate 역시 IndexOfByPredicate 처럼 사용하되, 인덱스의 포인터가 반환됩니다:
+마찬가지로 FindByPredicate 역시 IndexOfByPredicate 처럼 사용하지만, 인덱스의 포인터가 반환됩니다:
 
 	auto* Len5Ptr = StrArr.FindByPredicate([](const FString& Str){
 		return Str.Len() == 5;
@@ -537,7 +537,7 @@ TArray 는 궁극적으로 할당된 메모리를 둘러싼 포장 단위일 뿐
 
 하지만 다음의 함수 사용에 실수가 있는 경우 컨테이너의 유효성이 훼손되고 알 수 없는 동작을 일으키는 경우가 생길 수 있다는 점을 양지해야 합니다. 이러한 함수 호출 이후 다른 일반 함수 호출 전 컨테이너 유효성을 회복하는 것은 여러분께 달린 일입니다.
 
-AddUninitialized 와 InsertUninitialized 함수는 배열에 초기화되지 않은 공간에 추가합니다. 각각 Add 와 Insert 처럼 작동은 하되, 해당 엘리먼트 유형의 생성자를 호출하지는 않습니다. 안전성이나 편의성 차원에서 생성자가 있기는 하지만, (Memcpy 호출 등으로) 어떤 식으로든 전체 상태를 덮어쓰면서 생성 비용을 물지 않으려는 경우에 유용할 수 있습니다:
+AddUninitialized 와 InsertUninitialized 함수는 배열에 초기화되지 않은 공간에 추가합니다. 각각 Add 와 Insert 처럼 작동은 하지만, 해당 엘리먼트 유형의 생성자를 호출하지는 않습니다. 안전성이나 편의성 차원에서 생성자가 있기는 하지만, (Memcpy 호출 등으로) 어떤 식으로든 전체 상태를 덮어쓰면서 생성 비용을 물지 않으려는 경우에 유용할 수 있습니다:
 
 	int32 SrcInts[] = { 2, 3, 5, 7 };
 	TArray<int32> UninitInts;

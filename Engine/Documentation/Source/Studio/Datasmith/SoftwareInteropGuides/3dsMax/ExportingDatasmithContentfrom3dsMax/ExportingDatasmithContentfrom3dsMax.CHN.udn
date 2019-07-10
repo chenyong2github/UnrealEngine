@@ -1,0 +1,86 @@
+﻿INTSourceChangelist:5862174
+Availability: Public
+Crumbs: 
+Title: 从3ds Max导出Datasmith内容
+Description: 介绍如何将3ds Max场景导出到可以导入虚幻引擎的Datasmith文件。
+Type: 
+Version: 4.22
+Parent: Studio/Datasmith/SoftwareInteropGuides/3dsMax
+Order: 
+Tags: Enterprise
+Tags: 3DS Max
+Tags: how to
+Tags: Datasmith
+
+
+![](datasmith-setup-export-max-421.png) [](https://www.unrealengine.com/en-US/studio "Sign up for Unreal Studio") 
+<!-- 这些链接是CMS英文版图像贴图的一部分。我认为我们不能在Markdown中创建图像贴图。
+[](Studio/Datasmith/SoftwareInteropGuides/3dsMax/InstallingExporterPlugin) 
+[](Studio/Datasmith/SoftwareInteropGuides/SketchUp/InstallingExporterPlugin) 
+[](Studio/Datasmith/SoftwareInteropGuides/Revit/InstallingExporterPlugin) 
+[](Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED/ExportingDatasmithContentfromVRED) 
+[](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ExportingDatasmithContentfrom3dsMax) 
+[](Studio/Datasmith/SoftwareInteropGuides/SketchUp/ExportingDatasmithContentfromSketchUp) 
+[](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit) 
+[](Studio/Datasmith/SupportedSoftwareAndFileTypes) 
+[](Studio/Datasmith/HowTo/DownloadandInstall) 
+[](Studio/Datasmith/HowTo/SettingUpUnrealProject) 
+[](Studio/Datasmith/HowTo/ImportingContent)
+-->
+一旦您为3ds Max安装了Datasmith导出器插件，当您从3ds Max导出场景时，您将会有一个新的 *.UDATASMITH* 文件类型可用。
+
+按照下面的步骤在3ds Max中使用这一新的文件类型导出场景。
+
+1.  在3ds Max **文件（File）** 菜单或主菜单栏最左侧的 **MAX** 菜单中，选择 **导出（Export）**。  
+    ![Select File to Export](3DS_Export_1.png "Select File to Export")
+2.  设置以下内容：  
+    ![Set folder, type and file name](3DS_Export_2.png "Set folder, type and file name")
+    1.  **保存到（Save in）：**为新的Datasmith文件选择一个位置。
+    2.  **文件名（File Name）：**为文件命名。
+    3.  **保存为类型（Save as type）：**选择 **Unreal Datasmith (*.UDATASMITH)**
+3.  单击 **保存（Save）**。
+4.  在 **Datasmith导出选项（Datasmith Export Options）** 窗口中，您可以过滤想要包括在导出文件中并且被携带到虚幻引擎中的信息。  
+    ![Datasmith export options for 3ds Max](max-datasmith-export-options-422.png "Datasmith export options for 3ds Max")
+    
+    | 设置 | 说明 |
+    | --- | --- |
+    | **包括（Include）** | [INCLUDE:#excerpt_1] |
+    | **动画化变换（Animated Transforms）** | [INCLUDE:#excerpt_2] |
+    
+<!--
+[EXCERPT:excerpt_2]
+确定导出器如何使用动画化3D变换处理对象。
+    
+*   **仅当前帧（Current Frame Only）-** 导出文件将仅包括场景中出现在当前帧中的对象，无任何动画数据。
+*   **活动时间段（Active Time Segment）-** 导出的文件将包括在3ds Max时间轴中当前处于活动状态的时间段内，进行动画化的3D变换的所有对象动画数据。导入器将该动画数据转换为一个关卡序列，您可以使用该序列在虚幻引擎中播放动画。
+    
+[REGION:note]
+无论为该设置选择什么值，Datasmith导出器的导出数据始终基于3ds Max中当前帧的场景对象状态。如果您有动画化的网格体变形或其他子对象动画，导入后在虚幻引擎中看到的资源和Actor将反映这些对象在导出场景时所选择的帧的状态。
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+确定导出文件中包括场景中的哪些对象。
+    
+*   **可见对象（Visible objects）-** 导出文件将包含场景中当前在3ds Max中可见的所有对象。
+*   **选择（Selection）-** 导出文件将仅包含您当前选择的可见对象。
+    
+[/EXCERPT:excerpt_1]
+-->
+    
+5.  单击 **确定（OK）**。
+
+导出完成后，导出器会显示一个它发现的与您的内容有关的所有问题的报告，通常，它们是有关导出器无法完美转换的内容，或者可能不会像在3ds Max中一样显示在虚幻引擎中的内容的通知。
+
+![3ds Max conversion notes and warnings](3DS_Export_4a.png "3ds Max conversion notes and warnings")
+
+(#endresult)
+
+### 最终结果
+
+您现在应该可以尝试将新的 *.udatasmith* 文件导入到虚幻编辑器中。请参阅[将Datasmith内容导入到虚幻引擎4中](Studio/Datasmith/HowTo/ImportingContent)。
+
+[REGION:note]
+除新的 *.udatasmith* 文件以外，您将看到一个具有相同名称但后缀为 *_Assets* 的文件夹。如果您将 *.udatasmith* 文件移到一个新的位置，请确保同样将该文件夹移到同一位置。
+[/REGION]

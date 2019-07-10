@@ -258,6 +258,7 @@ bool FRecorder::StartRecording()
 	// Bind it to the trace-recording port
 	bool bBound = false;
 	TSharedPtr<FInternetAddr> Addr = Sockets.CreateInternetAddr();
+	Addr->SetIp(0);
 	Addr->SetPort(1980);
 	if (Socket->Bind(*Addr))
 	{

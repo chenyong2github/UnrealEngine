@@ -25,6 +25,8 @@ protected:
 
 		/** The list of messages in this log listing */
 		MessageContainer Messages;
+
+		TSet<uint32> MessagesHashes;
 	};
 
 public:
@@ -62,10 +64,10 @@ public:
 	int32 ReplaceMessage( const TSharedRef< FTokenizedMessage >& NewMessage, const uint32 PageIndex, const int32 MessageIndex );
 
 	/** Appends a message */
-	void AddMessage( const TSharedRef< FTokenizedMessage >& NewMessage, bool bMirrorToOutputLog = true );
+	void AddMessage( const TSharedRef< FTokenizedMessage >& NewMessage, bool bMirrorToOutputLog = true, bool bDiscardDuplicates = false );
 
 	/** Appends multiple messages */
-	void AddMessages( const TArray< TSharedRef< FTokenizedMessage > >& NewMessages, bool bMirrorToOutputLog = true );
+	void AddMessages( const TArray< TSharedRef< FTokenizedMessage > >& NewMessages, bool bMirrorToOutputLog = true, bool bDiscardDuplicates = false );
 
 	/** Clears all messages */
 	void ClearMessages();
@@ -130,7 +132,7 @@ private:
 	}
 
 	/** Helper function for AddMessage and AddMessages */
-	void AddMessageInternal( const TSharedRef<FTokenizedMessage>& NewMessage, bool bMirrorToOutputLog );
+	void AddMessageInternal( const TSharedRef<FTokenizedMessage>& NewMessage, bool bMirrorToOutputLog, bool bDiscardDuplicates );
 	
 private:
 	/** The name of a pending page */

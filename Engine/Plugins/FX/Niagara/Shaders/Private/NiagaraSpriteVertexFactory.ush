@@ -60,7 +60,7 @@ FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
 }
 uint GetNumRayTracingDynamicMeshVerticesIndirect()
 {
-	return 6 * NiagaraSpriteVFLooseParameters.IndirectArgsBuffer[1];
+	return 6 * NiagaraSpriteVFLooseParameters.IndirectArgsBuffer[NiagaraSpriteVFLooseParameters.IndirectArgsOffset + 1];
 }
 #endif
 
@@ -892,6 +892,11 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 	return float4(Intermediates.VertexWorldPosition,1);
 }
 
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return CalcTangentBasis(Intermediates)[2].xyz;
+}
+
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 TranslatedWorldPosition)
 {
 #if SPHERICAL_PARTICLE_OPACITY
@@ -1016,6 +1021,15 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryGetInterpolantsVSToDS(FVertexFacto
 	return Interpolants;
 }
 
+float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryInterpolantsVSToDS Interpolants )
+{
+#if NUM_MATERIAL_TEXCOORDS
+	return Interpolants.InterpolantsVSToPS.TexCoords[0].xy;
+#else // #if NUM_MATERIAL_TEXCOORDS
+	return float2(0,0);
+#endif // #if NUM_MATERIAL_TEXCOORDS
+}
+
 FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpolantsVSToDS a, float aInterp, FVertexFactoryInterpolantsVSToDS b, float bInterp)
 {
 	FVertexFactoryInterpolantsVSToDS O;
@@ -1033,7 +1047,7 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpol
 #endif
 
 #if USE_PARTICLE_SUBUVS
-	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.Interpolants.ParticleSubUVs);
+	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleSubUVs);
 #endif
 
 	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld0AndInterp_Sizer);

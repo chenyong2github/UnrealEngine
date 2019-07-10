@@ -576,11 +576,11 @@ bool FWmfMediaSink::CreateDXGIManagerAndDevice()
 		}
 		else
 		{
-			UE_LOG(LogWmfMedia, Log, TEXT("Unable to activate multi-threading on device: %p"), D3D11Device.Get());
+			UE_LOG(LogWmfMedia, Error, TEXT("Unable to activate multi-threading on device: %p"), D3D11Device.Get());
 			return false;
 		}
 
-		UE_LOG(LogWmfMedia, Log, TEXT("D3D11 Device Created: %p"), D3D11Device.Get());
+		UE_LOG(LogWmfMedia, Verbose, TEXT("D3D11 Device Created: %p"), D3D11Device.Get());
 		return true;
 	}
 	else

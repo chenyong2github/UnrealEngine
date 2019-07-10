@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6429227
 Availability: Public
 Crumbs: %ROOT%
 Title:光线追踪距离场柔和阴影
@@ -17,13 +17,8 @@ Tags:Distance Fields
 Tags:Getting Started
 Topic-image:DistanceFieldShadowing_Topic.jpg
 Social-Image:DirectionalLightAreaShadows.jpg
+hero-image: DistanceFieldShadowing_Header.jpg
  
-
-[REGION:fullwidth raw]
-![](DistanceFieldShadowing_Header.jpg)
-[/REGION]
-
-[TOC(start:2 end:2)]
 
 可移动光源产生的阴影是使用每个刚性网格体的对象距离场，计算来自动态光源的有效区域阴影而得出的。在虚幻引擎4（UE4）中，有一个 
 **光线追踪距离场阴影**（RTDF）。为了计算阴影，从要计算阴影的点朝着每个光源，通过有向距离场（SDF）跟踪光线。
@@ -31,7 +26,6 @@ Social-Image:DirectionalLightAreaShadows.jpg
 实现高质量区域阴影。
 
 
-(#scenesetup)
 ## 场景设置
 
 [REGION:note]
@@ -48,7 +42,6 @@ Social-Image:DirectionalLightAreaShadows.jpg
 有关逐步介绍指南，请访问[使用光线追踪距离场阴影](Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo/DFHT_1)操作指南，以了解更多信息。
 [/REGION]
 
-(#areashadowingsettings)
 ### 区域阴影设置
 
 每个光源类型都可以使用距离场阴影来创建柔和区域阴影。这些阴影模拟真实世界的阴影，在接近于基部的地方保留明显的接触阴影，
@@ -67,7 +60,6 @@ Social-Image:DirectionalLightAreaShadows.jpg
 有关光源设置的更多信息以及更多示例，请参阅[网格体距离场参考](Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference#LightComponents)页面。
 [/REGION]
 
-(#pointandspotlightsourceradius)
 ### 点光源和聚光源半径
 
 对于点光源和聚光源，使用 **源半径（Source Radius）** 来确定一个光源上的阴影半影范围。区域阴影使用清晰接触阴影计算，
@@ -121,7 +113,6 @@ Social-Image:DirectionalLightAreaShadows.jpg
 有关点光源和聚光源设置的更多信息，请参阅[网格体距离场参考](Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference)页面。
 [/REGION]
 
-(#directionallightsourceangle)
 ### 定向光源角度
 
 对于定向光源，使用 **光源角度（Light Source Angle）** 来确定一个光源上的阴影半影范围。光线追踪阴影几乎没有
@@ -197,7 +188,6 @@ Social-Image:DirectionalLightAreaShadows.jpg
 [INCLUDE:Engine/Rendering/LightingAndShadows/MeshDistanceFields#scenerepresentation]
 
 
-(#meshdistancefieldquality)
 ### 网格体距离场质量
 
 距离场阴影保真度对阴影准确度有非常大的影响，超过了[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)。 
@@ -244,7 +234,6 @@ Social-Image:DirectionalLightAreaShadows.jpg
 -
 [/COMMENT]
 
-(#performance)
 ## 性能
 
 以下GPU时间是在Radeon 7870、分辨率1920x1080、完整游戏场景中测得的：
@@ -259,7 +248,6 @@ Social-Image:DirectionalLightAreaShadows.jpg
 ||||
 [/REGION]
 
-(#optimizations)
 ### 优化
 
 下面是优化距离场阴影时可以使用或应该考虑的要点：
@@ -281,7 +269,6 @@ Social-Image:DirectionalLightAreaShadows.jpg
 
 
 
-(#limitations)
 ## 局限性
 
 [REGION:note]

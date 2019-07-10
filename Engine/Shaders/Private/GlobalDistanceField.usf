@@ -350,26 +350,30 @@ void CompositeHeightfieldsIntoGlobalDistanceFieldCS(
 
 	if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
 	{
-		float3 WorldHeightfieldNormal;
-		float3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal);
-
 		if (all(DispatchThreadId.xy < UpdateRegionSize.xy))
 		{
-			// Compute distance for all Z values of the update region
-			LOOP
-			for (uint ZIndex = 0; ZIndex < UpdateRegionSize.z; ZIndex++)
+			float3 WorldHeightfieldNormal;
+			float HeightfieldVisibility;
+			float3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
+
+			if (HeightfieldVisibility > 0.5f) // Skip holes in the heightfield
 			{
-				float3 WorldPosition;
-				WorldPosition.xy = LookupWorldPosition.xy;
-				WorldPosition.z = UpdateRegionVolumeMin.z + ZIndex * UpdateRegionVolumeStep;
+				// Compute distance for all Z values of the update region
+				LOOP
+				for (uint ZIndex = 0; ZIndex < UpdateRegionSize.z; ZIndex++)
+				{
+					float3 WorldPosition;
+					WorldPosition.xy = LookupWorldPosition.xy;
+					WorldPosition.z = UpdateRegionVolumeMin.z + ZIndex * UpdateRegionVolumeStep;
 
-				// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
-				float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, WorldPosition - WorldHeightfieldShadingPosition);
-				float MinDistance = clamp(DistanceToHeightfieldPlane, -AOGlobalMaxSphereQueryRadius, AOGlobalMaxSphereQueryRadius);
+					// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
+					float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, WorldPosition - WorldHeightfieldShadingPosition);
+					float MinDistance = clamp(DistanceToHeightfieldPlane, -AOGlobalMaxSphereQueryRadius, AOGlobalMaxSphereQueryRadius);
 
-				float3 GlobalUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
-				uint3 WriteCoordinate = (uint3)(frac(GlobalUV) * GlobalVolumeDimension);
-				RWGlobalDistanceFieldTexture[WriteCoordinate] = min(MinDistance, RWGlobalDistanceFieldTexture[WriteCoordinate]);
+					float3 GlobalUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
+					uint3 WriteCoordinate = (uint3)(frac(GlobalUV) * GlobalVolumeDimension);
+					RWGlobalDistanceFieldTexture[WriteCoordinate] = min(MinDistance, RWGlobalDistanceFieldTexture[WriteCoordinate]);
+				}
 			}
 		}
 	}

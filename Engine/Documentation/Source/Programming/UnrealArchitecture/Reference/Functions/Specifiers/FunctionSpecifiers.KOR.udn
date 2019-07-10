@@ -1,15 +1,14 @@
-﻿INTSourceChangelist:3767127
+﻿INTSourceChangelist:6576485
 Availability:Public
 Title: 함수 지정자
-Crumbs:%ROOT%
 Description: 함수가 엔진과 에디터의 다양한 부분과 작동하는 방식을 지정하기 위해 UFunction 선언시 사용되는 키워드입니다.
 Version: 4.18
 parent:Programming/UnrealArchitecture/Reference/Functions
 order:0
 type:reference
-topic-image:components_topic.png
 tags:UFUNCTION
 tags:Specifiers
+topic-image:%ROOT%/placeholder_topic.png
 
 [EXCERPT:main]
 

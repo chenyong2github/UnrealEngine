@@ -1,0 +1,206 @@
+Availability: Public
+Crumbs: 
+Title: Datasmith Import Options
+Description: Describes all the options you can set when you use Datasmith to import content into Unreal.
+Type: reference
+Version: 4.22
+Parent: Studio/Datasmith
+Order: 4
+Tags: Enterprise
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: Reference
+topic-image: import-options-topic.png
+Related: Studio/Datasmith/SoftwareInteropGuides/3dsMax
+Related: Studio/Datasmith/HowTo/ImportingContent
+Related: Studio/Datasmith/SoftwareInteropGuides/Rhino
+Related: Studio/Datasmith/Overview/ImportProcess
+Related: Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED
+Related: Studio/Datasmith/SoftwareInteropGuides/CAD
+
+
+This page describes the options that you can configure when you use Datasmith to import a file from a supported design application or data file format, or to re-import a Datasmith Scene Asset from its original source.
+
+All file formats offer you the **Common Import Options** described in the first section. Then, depending on the type of file you're importing, you may have additional options specific to that format. See the following sections for details.
+
+## Common Datasmith Import Options
+
+When you use Datasmith to import any kind of file, you can set the following options.
+
+![Common Datasmith import options](import-options-common-422.png "Common Datasmith import options")
+
+| Property | Description |
+| --- | --- |
+| **Geometry** | Specifies whether or not Datasmith should import geometry from your source file and turn it into Static Mesh assets in your Project. |
+| **Materials & Textures** | Specifies whether or not Datasmith should import materials and textures from your source file and turn them into Material and Texture assets in your Project. |
+| **Lights** | Specifies whether or not Datasmith should include lights from your source file in the scene hierarchy maintained by the Datasmith Scene, and create Light Actors in your Level to represent them. |
+| **Cameras** | Specifies whether or not Datasmith should include cameras from your source file in the scene hierarchy maintained by the Datasmith Scene, and create Cine Camera Actors in your Level to represent them. |
+| **Animations** | Specifies whether or not Datasmith should import object animations from your source scene into Level Sequences that you can use to play back the animations inside the Unreal Engine. |
+| **Min Lightmap Resolution** | Sets the minimum lightmap resolution for the Static Mesh Assets that Datasmith generates. This value is used to determine the amount of padding between packed UV charts when generating lightmap UVs in Unreal Engine 4. A good value is typically half of the Max Lightmap Resolution. |
+| **Max Lightmap Resolution** | [INCLUDE:#excerpt_1] |
+
+<!--
+[EXCERPT:excerpt_1]
+
+Sets the lightmap resolution for the Static Mesh Assets that Datasmith generates. These lightmaps are used to store lighting information per instance when you use precomputed lighting (Static and Stationary lights) in your Level.
+
+Don't set this value too high on import. Set it to a good baseline level for your Project, then increase it for individual Static Mesh assets that need higher resolution to achieve good results when you build your lighting.
+
+[/EXCERPT:excerpt_1]
+-->
+[REGION:note]
+When you reimport a Datasmith scene, the checkboxes under the **Include** section indicate only whether each type of Asset or Actor should be updated with new and modified content from your source file. If you uncheck one of these items, existing Assets or Actors of that type are not deleted from your Project.
+[/REGION]
+
+## CAD Import Options
+
+When you use the Datasmith CAD importer to import a CAD file, you can set the following additional options.
+
+If your source file contains any surfaces that are defined by curves, Datasmith tessellates those surfaces into triangular meshes. These parameters control the tessellation process. They control how closely the generated meshes follow the original surfaces, and therefore also the complexity of the meshes. For all settings, smaller values increase the number of triangles, and higher values decrease the number of triangles.
+
+![Geometry and Tessellation Options for CAD](import-options-cad-422.png "Geometry and Tessellation Options for CAD")
+
+  
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection] Geometry & Tessellation Options [/REGION] ||
+| **Chord Tolerance** | Sets the maximum distance between any point in a generated triangle and the original surface. |
+| **Max Edge Length** | Sets the maximum length of any edge in any generated triangle. |
+| **Normal Tolerance** | Sets the maximum angle between any adjacent triangles generated from a surface. |
+| **Stitching Technique** | Determines whether the import process should try to merge together surfaces that appear to be connected, but that are actually modeled as separate objects. |
+
+
+[REGION:note]
+For an in-depth description of these parameters and how they affect the resulting Static Mesh geometry, see [Using Datasmith with CAD File Formats](Studio/Datasmith/SoftwareInteropGuides/CAD).
+[/REGION]
+
+## GLTF Import Options
+
+When you use the Datasmith GLTF importer to import a *.glTF* file ([GL Transmission Format](https://www.khronos.org/gltf/)), you can set the following additional options:
+
+![glTF import options](import-options-gltf-422.png "glTF import options")
+
+  
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]**Lightmaps**[/REGION]||
+| **Generate Lightmap UVs** | [INCLUDE:#excerpt_2] |
+| [REGION:tablesection]**Asset Importing**[/REGION]||
+| **Import Uniform Scale** | [INCLUDE:#excerpt_3] |
+
+<!--
+[EXCERPT:excerpt_3]
+Determines the scaling factor the importer uses to convert linear distances.  
+The default value of 100 converts from meters (as specified in the glTF specification) to centimeters (as used in the Unreal Engine). If your source scene uses a different unit of measurement than meters, adjust this value to the number of centimeters per unit.
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+In order to use Static or Stationary lighting in the Unreal Engine, your models need to have lightmap UVs in which no two triangles overlap.  
+
+*   Enable this option to have the Datasmith importer automatically generate these lightmap UVs for the Static Mesh Assets it creates.  
+    In order for this to work, your models need to have at least one non-empty UV set to start with. If a model does not have any UV sets at all, the importer will create a blank UV set for the Static Mesh Asset, but this blank UV set will not be usable for applying textures or lightmaps to the Static Mesh.
+
+*   If you've already created valid, non-overlapping lightmaps for the objects in your source application, you can leave this option unchecked to have the Datasmith importer skip creating new lightmap UVs. In this case, your Static Mesh Assets will use the UV set with the highest index as its lightmap UVs.
+
+For more background information, see [Working with UV Channels](Engine/Content/Types/StaticMeshes/HowTo/UVChannels).
+
+[/EXCERPT:excerpt_2]
+-->
+
+## VRED Import Options
+
+When you use the Datasmith VRED Fbx importer to import an *.fbx* file that you exported from VRED, you can set the following additional options:
+
+![VRED import options](datasmith-import-settings-vred.png "VRED import options")
+
+  
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]**Processing**[/REGION] ||
+| **Merge Nodes** | [INCLUDE:#excerpt_4] |
+| **Optimize Duplicated Nodes** | Reduces the total count of nodes in the scene hierarchy by reusing entire identical subtrees. |
+| [REGION:tablesection]**Asset Importing**[/REGION]||
+| **Import FBX animations** | Enable this option to import animations from the VRED scene into Unreal, and make them available to Blueprint scripts in your Project. |
+| **Import variants file** | Enable this option to import variants and variant sets from your VRED scene into Unreal, and make them available to Blueprint scripts in your Project. |
+| **Variants file path** | Specifies the path to the *.var* file that contains data about the variants in your VRED scene. By default, this is set to the path and filename that matches the *.fbx* file you are importing. You only need to set this path manually if you need to import a *.var* file from a different location. |
+| **Import lights file** | [INCLUDE:#excerpt_5] |
+| **Light file path** | Specifies the path to the *.lights* file that contains data about the variants in your VRED scene. By default, this is set to the path and filename that matches the *.fbx* file you are importing. You only need to set this path manually if you need to import a *.lights *file from a different location. |
+| **Textures folder** | Specifies a folder path for Datasmith to search for texture files that are referenced in the *.fbx* file. |
+| [REGION:tablesection]**Debug**[/REGION]||
+| **Intermediate Serialization** | Enable this option to store scene data read from the *.fbx* file to an intermediate format. This setting might be useful if you need to import the same scene frequently, and the FBX importer is a bottleneck. |
+| **Colorize materials** | Enable this option to use randomly colored simple materials instead of importing material parameters like DiffuseColor or textures. |
+| [REGION:tablesection]**Lightmaps**[/REGION] ||
+| **Generate Lightmap UVs** | [INCLUDE:#excerpt_6] |
+
+<!--
+[EXCERPT:excerpt_6]
+In order to use Static or Stationary lighting in the Unreal Engine, your models need to have lightmap UVs in which no two triangles overlap.   
+
+*   Enable this option to have the Datasmith importer automatically generate these lightmap UVs for the Static Mesh Assets it creates.  
+    In order for this to work, your models need to have at least one non-empty UV set to start with. If a model does not have any UV sets at all, the importer will create a blank UV set for the Static Mesh Asset, but this blank UV set will not be usable for applying textures or lightmaps to the Static Mesh.
+
+*   If you've already created valid, non-overlapping lightmaps for the objects in your source application, you can leave this option unchecked to have the Datasmith importer skip creating new lightmap UVs. In this case, your Static Mesh Assets will use the UV set with the highest index as its lightmap UVs.
+
+For more background information, see [Working with UV Channels](Engine/Content/Types/StaticMeshes/HowTo/UVChannels).
+
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+If you disable this option, but leave the **Import > Lights** setting enabled in the common Datasmith properties, the lights that Datasmith creates in Unreal will contain only information stored in the *.fbx* file.  
+If you enable this option, Datasmith imports extra information about the lights in your VRED scene from a *.lights* file that was created when you exported your scene. This carries over extra properties about your lights that are not supported by FBX, such as IES light profiles, and typically leads to better visual results that more closely match your lighting in VRED.  
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+Combines subtrees of StaticMesh nodes that are not used for animations, variants or other functionality into single StaticMesh nodes.  
+This can make scene management in Unreal easier by reducing the depth and complexity of the scene hierarchy. However, this option is not recommended if you need to clean up your imported Static Meshes manually, or if your scene contains many instances of the same geometry.  
+[/EXCERPT:excerpt_4]
+-->
+
+
+## Deltagen Import Options
+
+When you use the Datasmith Deltagen Fbx importer to import an *.fbx* file that you exported from Deltagen, you can set the following additional options:
+
+![Deltagen import options](datasmith-import-settings-deltagen.png "Deltagen import options")
+
+  
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]**Processing**[/REGION] ||
+| **Merge Nodes** | [INCLUDE:#excerpt_7] |
+| **Optimize Duplicated Nodes** | Reduces the total count of nodes in the scene hierarchy by reusing entire identical subtrees. |
+| **Remove Invisble Nodes** | Enable this setting to avoid importing any geometry that were hidden in the Deltagen scene. |
+| **Simplify Node Hierarchy** | Enable this setting to flatten the Datasmith Scene hierarchy. |
+| [REGION:tablesection]**Asset Importing**[/REGION] ||
+| **Import VAR** | Enable this option to import variants from your Deltagen scene into Unreal, and make them available to Blueprint scripts in your Project. |
+| **Import POS** | Enable this option to import state data from your Deltagen scene into Unreal. |
+| **Import TML** | Enable this option to import animation data from your Deltagen scene into Unreal, and make them available to Blueprint scripts in your Project. |
+| **Textures Dir** | Specifies a folder path for Datasmith to search for texture files that are referenced in the *.fbx* file. |
+| [REGION:tablesection]**Debug**[/REGION] ||
+| **Intermediate Serialization** | Enable this option to store scene data read from the *.fbx* file to an intermediate format. This setting might be useful if you need to import the same scene frequently, and the FBX importer is a bottleneck. |
+| **Colorize materials** | Enable this option to use randomly colored simple materials instead of importing material parameters like DiffuseColor or textures. |
+| [REGION:tablesection]**Lightmaps**[/REGION] ||
+| **Generate Lightmap UVs** | [INCLUDE:#excerpt_8] |
+
+<!--
+[EXCERPT:excerpt_8]
+In order to use Static or Stationary lighting in the Unreal Engine, your models need to have lightmap UVs in which no two triangles overlap.   
+
+*   Enable this option to have the Datasmith importer automatically generate these lightmap UVs for the Static Mesh Assets it creates.  
+    In order for this to work, your models need to have at least one non-empty UV set to start with. If a model does not have any UV sets at all, the importer will create a blank UV set for the Static Mesh Asset, but this blank UV set will not be usable for applying textures or lightmaps to the Static Mesh.
+
+*   If you've already created valid, non-overlapping lightmaps for the objects in your source application, you can leave this option unchecked to have the Datasmith importer skip creating new lightmap UVs. In this case, your Static Mesh Assets will use the UV set with the highest index as its lightmap UVs.
+
+For more background information, see [Working with UV Channels](Engine/Content/Types/StaticMeshes/HowTo/UVChannels).
+
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+Combines subtrees of StaticMesh nodes that are not used for animations, variants or other functionality into single StaticMesh nodes.  
+This can make scene management in Unreal easier by reducing the depth and complexity of the scene hierarchy. However, this option is not recommended if you need to clean up your imported Static Meshes manually, or if your scene contains many instances of the same geometry.  
+[/EXCERPT:excerpt_7]
+-->

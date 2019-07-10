@@ -1,0 +1,54 @@
+﻿INTSourceChangelist:6551686
+Availability: Public
+Crumbs: 
+Title: 언리얼 스튜디오 멀티 유저 뷰어 템플릿
+Description: Multi-User Viewer Template, 멀티 유저 뷰어 템플릿으로 VR 및 데스크톱 디자인 검토 작업을 협업하는 방법을 설명합니다.
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates
+Order: 1
+Tags: Unreal Studio
+Tags: template
+Tags: Multi-user
+topic-image:multiuserviewer-topic.png
+hero-image:multiuserviewer-banner.png
+
+
+Multi-User Viewer Template (멀티 유저 뷰어 템플릿)은 동일한 3D 콘텐츠를 여러 사람이 똑같이 경험할 수 있도록 이어줍니다. 조직에서 디자인에 대한 검토와 의사소통을 실시간으로 쉽고 빠르게 하여, 콘텐츠에 대한 문제점을 알아내고 반복처리하는 과정의 효율이 높아집니다.
+
+각 참여자는 표준 마우스와 키보드, 또는 VR 헤드셋과 모션 컨트롤러로 구성된 컴퓨터를 사용할 수 있습니다. 모든 참여자는 서로 다른 플레이어의 아바타를 확인하고, 레이저 포인터 툴로 환경의 특징을 다른 모든 플레이어에게 짚어줄 수 있습니다.
+
+[REGION:lightbox]
+[![여러 명의 사용자 동시 검토](multiuserviewer-overview.png "여러 명의 사용자 동시 검토")](multiuserviewer-overview.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+멀티 유저 뷰어 템플릿은 멀티 뷰어 환경에 내재된, 여러 컴퓨터 사이 연결 구성이나 현재상태 리플리케이션과 같은  어려운 문제를 대부분 처리합니다. 디자인 검토 환경의 시작점으로 사용하면, 네트워크 구성에 드는 시간은 줄이고 디자인에 더 많은 시간을 할애할 수 있습니다.
+
+## 워크플로
+
+멀티 유저 뷰어 템플릿의 전형적인 사용 패턴은 다음과 같습니다.  
+
+1.  템플릿에서 새 프로젝트를 생성하거나, 템플릿 콘텐츠를 기존 프로젝트로 가져옵니다.
+2.  다른 사람들과 공유하고 싶은 콘텐츠로 프로젝트를 구성합니다.  
+    보통 다른 언리얼 엔진 프로젝트에서 하던 것과 똑같은 데이터 임포트 및 외형 개발 작업이 수반됩니다. 콘텐츠 구성 시 유념해야 할 구체적인 고려사항, 예를 들면 콜리전이나 내비게이션 메시 부분에 대해서는 [멀티 유저 뷰어 템플릿에 자체 콘텐츠 사용](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent) 문서를 참고하세요.
+3.  언리얼 에디터에 내장된 툴을 사용하여 프로젝트를 실행파일로 패키지합니다.
+4.  그 파일을 협업 검토에 참여할 사람과 공유합니다.
+5.  한 사람이 패키지 언리얼 엔진 애플리케이션을 실행하고 서버 모드로 시작합니다.
+6.  같은 세션의 일부로 참여하려는 사람마다 별도의 컴퓨터에서 애플리케이션 사본을 실행하고, 서버에 참가합니다.
+
+템플릿의 기본 콘텐츠로 위 단계를 진행하는 자세한 안내는 [멀티 유저 뷰어 시작하기](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro) 문서를 참고하세요.
+
+## 시작하기
+
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro:topic%
+
+## 하우투 가이드
+
+[DIR(output:"fancy" parent:"Studio/UnrealStudioProjectTemplates/MultiUserViewer" tags:"how to" end:"1")]
+
+## 레퍼런스
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling:topic%
+
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVNetworking:topic%
+

@@ -16,6 +16,7 @@
 class UBlueprint;
 class UEditorUtilityWidget;
 enum class EAssetEditorCloseReason : uint8;
+enum class EMapChangeType : uint8;
 
 UCLASS()
 class UEditorUtilityWidgetBlueprint : public UWidgetBlueprint
@@ -31,7 +32,7 @@ public:
 	TSharedRef<SWidget> CreateUtilityWidget();
 
 	/** Recreate the tab's content on recompile */
-	void RegenerateCreatedTab(UBlueprint* RecompiledBlueprint);
+	void RegenerateCreatedTab();
 	
 	void UpdateRespawnListIfNeeded(TSharedRef<SDockTab> TabBeingClosed);
 
@@ -55,11 +56,18 @@ public:
 		return RegistrationName;
 	}
 
+#if WITH_EDITORONLY_DATA
+protected:
+	virtual void LoadModulesRequiredForCompilation() override;
+#endif
+	void ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType);
+
 private:
 	FName RegistrationName;
 
 	TWeakPtr<SDockTab> CreatedTab;
 
+	UPROPERTY()
 	UEditorUtilityWidget* CreatedUMGWidget;
 
 };

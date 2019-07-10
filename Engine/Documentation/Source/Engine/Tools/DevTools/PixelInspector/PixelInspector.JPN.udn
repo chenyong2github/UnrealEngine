@@ -1,71 +1,79 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:4652067
 Availability:Public
-Title:Pixel Inspector
-Crumbs: %ROOT%, Engine
-Description:Pixel Inspector は、任意のピクセルの GBuffer の様々な部分を調査し結果を表示します。
-version:4.12
+Title: Pixel Inspector ツール
+Description: Pixel Inspector は、ピクセルの GBuffer の各部位を調査し結果を表示します。
+Type: 
+Version: 4.21
+Parent: Engine/Tools/DevTools
+Order: 
+Tags: 
 
 
-[REGION:raw]
 ![](PixelInspector.png)
-[/REGION]
 
-**Pixel Inspector** ツールは、シーンの色を構成するピクセルを診断できる Developer Tool です。 
-違う色の原因となっているピクセル (あるいはピクセルの色を操作しているマテリアル入力) がどれか知りたい場合、Pixel Inspector の **Inspect Mode** を使って、そのピクセルを表示結果の詳細を出力できます。 
+**Pixel Inspector** ツールは、シーンの色を構成するピクセルを診断できる Developer Tool です。 想定と異なる色の原因となっているピクセル、あるいはピクセルの色を操作しているマテリアル入力がどれか知りたい場合、Pixel Inspector の **Inspect Mode** を使って、そのピクセルを表示結果の詳細を出力できます。
 
-## Pixel Inspector の使用方法
+##  Pixel Inspector の使用方法
 
 Pixel Inspector の使用手順は以下の通りです。
 
-1. メイン エディタ ウィンドウの **[Window]** メニュー オプションの **[Developer Tool]s** で **[Pixel Inspector]** を選択します。  
+1.  メイン エディタ ウィンドウの **[ウィンドウ]** メニュー オプションの **[デベロッパーツール]** で **[Pixel Inspector]** を選択します。
 
-	![](EnablePixelInspector.png)
+    ![](EnablePixelInspector.png)
 
-	[Pixel Inspector] ウィンドウが開きます。 
+    [Pixel Inspector] ウィンドウが開きます。
 
-	![](PixelInspectorWindow.png)
+    ![](PixelInspectorWindow.png)
 
-1. ![](InspectIcon.png) ボタンをクリックするとピクセル調査が始まります。
+2.  **検索** (虫眼鏡) の ボタンをクリックするとピクセル調査が始まります。
+3.  ビューポート (レベル、マテリアル、ブループリントなど) にマウスオーバーすると、[Pixel Inspector] のデータ フィールドがリアルタイムで表示されます。
 
-1. ビューポート (Level, Material, Blueprint など) にマウスオーバーすると、[Pixel Inspector] データ フィールドがリアルタイムで表示されます。 
+    ![](Inspecting.png)
 
-	![](Inspecting.png)
-
-1. **Escape** で調査を停止すると、Pixel Inspector データ フィールドには最後に分析されたピクセルが入力されます。 
-
-
+4.  **Escape** キーを押して調査を停止すると、Pixel Inspector データ フィールドには最後に分析されたピクセルが入力されます。
 
 ## Pixel Inspector Data のリファレンス
 
-調査中に入力されるピクセル データは以下の通りです。 
+調査中に入力されるピクセル データは以下の通りです。
 
 | オプション | 説明 |
 | --- | --- |
-| **Viewport ID** | Pixel Inspector の描画元の ID を表示します。
-| **Coordinate** | 現在の調査の X/Y 座標を表示します (マニュアル設定も可能)。 |
-| [REGION:tablesection]**最終的なカラー**[/REGION] ||
-| **Context Colors** | 現在の調査に関連するコンテキスト カラーを表示します。 |
+| **Viewport ID** |  Pixel Inspector の描画元の ID を表示します。 |
+| **Coordinate** | 現在の調査している X/Y 座標を表示します (マニュアル設定も可能)。 |
+| **Final Color** ||
+| **コンテキストカラー** | 現在の調査に関連するコンテキスト カラーを表示します。 |
 | **Final Color** | トーン マッピング後の最終的な RGBA 8 ビット カラー (デフォルト値は黒) です。 |
-| [REGION:tablesection]**シーン カラー**[/REGION] ||
+| **Scene Color** ||
 | **Scene Color** | 現在の調査によって適用される RGB シーン カラーです。 |
-| [REGION:tablesection]**HDR**[/REGION] ||
+| **Pre-Exposure** |[INCLUDE:#excerpt_0] |
+| **HDR**||
 | **Luminance** | 現在の調査用の HDR Luminance 値です。 |
 | **HDR Color** | 適用中の HDR RGB カラー値です。 |
-| [REGION:tablesection]**GBuffer A**[/REGION] ||
+| **GBuffer A** ||
 | **Normal** | GBufferA チャネルから適用される法線です。 |
 | **Per Object GBuffer Data** | GBufferA チャネルからのオブジェクト データごとの量です。 |
-| [REGION:tablesection]**GBuffer B**[/REGION] ||
+| **GBuffer B** ||
 | **Metallic** | GBufferB R チャネルから適用されるメタリック値です。 |
 | **Specular** | GBufferB G チャネルから適用されるスペキュラ値です。 |
 | **Roughness** | GBufferB B チャネルから適用されるラフネス値です。 |
 | **Material Shading Model** | Selective Output Mask でエンコードされたGBufferB A チャネルから適用されるシェーディング モデルです。 |
-| **Selective Output Mask** | Shading Model でエンコードされた GBufferB A チャネルから適用される Selective Output Mask 用の値です。 |
-| [REGION:tablesection]**GBuffer C**[/REGION] ||
+| **Selective Output Mask** | シェーディング モデルでエンコードされた GBufferB A チャネルから適用される Selective Output Mask 用の値です。 |
+| **GBuffer C** ||
 | **Base Color** | GBufferC RGB チャネルから適用されるベース カラー値です。 |
 | **Indirect Irradiance** | Ambient Occlusion (AO) でエンコードされた GBufferC A Channel から適用される Indirect Irradiance 値です。 |
-| **Ambient Occlusion** | Indirect Irradiance でエンコードした GBufferC A チャネルからてきようされる AO 値です。 |
+| **Ambient Occlusion** | [INCLUDE:#excerpt_1] |
 
+-
+[EXCERPT:excerpt_1]
+Indirect Irradiance でエンコードした GBufferC A チャネルから適用される AO 値です。
 [REGION:note]
-GBuffers の詳細については、[**GBuffer プロパティの使用方法**](Engine/Rendering/PostProcessEffects/PostProcessMaterials) および [**バッファの可視化](Engine/UI/LevelEditor/Viewports/ViewModes) をご覧ください。  
+GBuffers の詳細については、 [「Using GBuffer Properties (GBufferプロパティの使用)」](Engine/Rendering/PostProcessEffects/PostProcessMaterials) と [「Buffer Visualization (Buffer の視覚化)」](Engine/UI/LevelEditor/Viewports/ViewModes) を参照してください。
 [/REGION]
-
+[/EXCERPT:excerpt_1]
+-
+[EXCERPT:excerpt_0]
+生成されたヒストグラムの輝度範囲の上限領域を定義します。 HDR のライティング値のサポートに必要なレンダー ターゲットを制限して、カメラ露出の SceneColor の範囲をリマップします。
+[REGION:note]
+この値を使えるようにするには、プロジェクト設定の、 **[Rendering (レンダリング)]** > **[Apply Pre-Exposure bef re writing to the scene color (シーンカラーに書き込む前に事前露光を適用する)]** を有効にしてください。 
+[/REGION]
+[/EXCERPT:excerpt_0]

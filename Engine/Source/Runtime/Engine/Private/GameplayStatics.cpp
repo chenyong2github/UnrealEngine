@@ -890,17 +890,39 @@ void UGameplayStatics::GetAllActorsWithTag(const UObject* WorldContextObject, FN
 	if (!Tag.IsNone())
 	{
 		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+		{
+			for (FActorIterator It(World); It; ++It)
+			{
+				AActor* Actor = *It;
+				if (Actor->ActorHasTag(Tag))
+				{
+					OutActors.Add(Actor);
+				}
+			}
+		}
+	}
+}
+
+
+void UGameplayStatics::GetAllActorsOfClassWithTag(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, FName Tag, TArray<AActor*>& OutActors)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(UGameplayStatics_GetAllActorsOfClass);
+	OutActors.Reset();
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+
+	// We do nothing if no is class provided, rather than giving ALL actors!
+	if (ActorClass && World)
 	{
-		for (FActorIterator It(World); It; ++It)
+		for (TActorIterator<AActor> It(World, ActorClass); It; ++It)
 		{
 			AActor* Actor = *It;
-				if (Actor->ActorHasTag(Tag))
+			if (Actor && !Actor->IsPendingKill() && Actor->ActorHasTag(Tag))
 			{
 				OutActors.Add(Actor);
 			}
 		}
 	}
-}
 }
 
 void UGameplayStatics::PlayWorldCameraShake(const UObject* WorldContextObject, TSubclassOf<class UCameraShake> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter)
@@ -1219,7 +1241,7 @@ void UGameplayStatics::SetGlobalListenerFocusParameters(const UObject* WorldCont
 	}
 }
 
-void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, class USoundBase* Sound, float VolumeMultiplier, float PitchMultiplier, float StartTime, class USoundConcurrency* ConcurrencySettings, AActor* OwningActor)
+void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier, float PitchMultiplier, float StartTime, USoundConcurrency* ConcurrencySettings, AActor* OwningActor)
 {
 	if (!Sound || !GEngine || !GEngine->UseSound())
 	{

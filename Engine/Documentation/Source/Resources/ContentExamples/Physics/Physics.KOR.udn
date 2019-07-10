@@ -1,10 +1,10 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6341512
 Availability: Public
 Title:피직스 콘텐츠 예제
 Crumbs:%ROOT%, Resources, Resources/ContentExamples
 Description:Physics 콘텐츠 예제 레벨에 제공된 샘플에 대한 개요입니다.
 Related: Engine/Physics/PhysicsBodies
-Related: Engine/Physics/PhAT
+Related: Engine/Physics/PhysicsAssetEditor
 Related: Engine/Physics/Constraints/ConstraintsReference
 Related: Engine/Physics/Constraints/ConstraintsUserGuide
 Related: Engine/Physics/Collision

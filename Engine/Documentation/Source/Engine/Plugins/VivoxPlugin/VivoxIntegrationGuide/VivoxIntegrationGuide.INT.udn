@@ -1,0 +1,229 @@
+Availability: Public
+Crumbs: 
+Title: Vivox Integration Guide
+Description: A basic integration and planning guide showing developers how to plan Vivox-enabled voice and text communication for their games.
+Type: 
+Version: 4.22
+Parent: Engine/Plugins/VivoxPlugin
+Order: 
+Tags: Vivox
+Tags; Getting Started
+topic-image: Vivox_Integration_Topic_01.png
+
+
+![](Vivox_Banner_01.png "Vivox_Banner_01.png")
+
+  
+
+This document provides information about signing up for Vivox’s Developer Portal, integration planning, implementation options, and security details.
+
+[REGION:note]
+**Note:** Before continuing with this overview, and if you haven't already done so, make sure to create a new account at the [Vivox Developer Portal](https://developer.vivox.com/register-ue4).
+[/REGION]
+
+## Licensing Terms and Conditions
+
+If a user is evaluating the Vivox Plugin for Unreal Engine, they must agree with the Vivox Evaluation License Agreement (ELA) for Unreal Engine Users, and if a user ships the Vivox Plugin with their Unreal Engine project(s), they must meet the terms and conditions of the Vivox Master Services Agreement (MSA) for Unreal Engine Users.
+
+[REGION:note]
+**Note:** To access Unreal Engine 4 (UE4), either enter a [custom licensing agreement](https://www.unrealengine.com/en-US/custom-licensing) with Epic Games or agree with the [Unreal Engine End User License Agreement (EULA)](https://www.unrealengine.com/en-US/eula).
+[/REGION]
+
+## Enabling the Plugin
+
+To enable the Vivox Plugin for your project, follow this process:
+
+1.  In the **Settings** drop-down menu of the Level Editor toolbar, select **Plugins** to open the Plugins Browser.  
+    ![](EnableVivox_1.png "EnableVivox_1.png")
+2.  Now, from the **Built-In** side menu, open **Online Platform**, and enable the Vivox Plugin.
+3.  Finally, restart the editor to complete this process.
+
+After restarting Unreal Editor, the built-in Vivox Plugin is enabled for your project so keep reading to learn more about planning for your Vivox integration.
+
+## Basic Integration Guide
+
+The following integration guide is intended to be a basic overview, helping you evaluate the Unreal Vivox Plugin for your own project. After signing up to access the Vivox Developer Portal, adding and enabling the Vivox Plugin, and agreeing to all of the licensing terms and conditions, you’re ready to start working on an integration plan.
+
+  
+
+## Integration Plan
+
+Integrating Vivox into a game typically involves the following phases:
+
+*   Phase 1: Planning and Organization
+*   Phase 2: Basic Implementation
+*   Phase 3: Advanced Implementation (Optional)
+*   Phase 4: Security
+
+After completing the first two phases of the integration plan, your project should be able to login and logout, as well as join and leave a single channel with locally generated Vivox Access Tokens (VATs). The third phase is considered optional because it means that you intend to integrate advanced services, such as 3D positional audio or moderator features, often requiring additional development time and future maintenance cost. The last phase is a reminder to secure your feature-complete implementation.
+
+  
+
+### Phase 1: Planning and Organization
+
+During the planning phase, organizational decisions must be made about:
+
+*   **User and Channel Management**
+    *   Deciding on a naming scheme for user IDs and channels.
+*   **Game Server Interaction**
+    *   Determining how to perform Vivox login and channel management services as part of your game’s back-end.
+*   **Authorization**
+    *   Optionally, determining what users can mute, ban, or kick channel participants.
+
+#### Integration Preparation
+
+This phase has game server and game client tasks. During initial development, game server actions can be performed on the client, but eventually, you should move these tasks to a secure game server before final launch.
+
+[REGION:tip]
+**Tip:** Although we realize that having a game server is optional, it is considered a best practice to have one.
+[/REGION]
+
+The following subsections contain brief overviews of major integration elements.
+
+#### Login Management
+
+The typical approach for logging into the Vivox service is to associate your user's in-game account, character ID, or other unique data to a non-identifying, unique Vivox user ID, which is generated per user.
+
+Since there may be persistent data within the Vivox network associated with your users, the assigned Vivox user ID should be persisted with the game account even if the user's in-game account ID or character ID changes.
+
+Access to Vivox services requires a VAT because these tokens provide the following security measures:
+
+*   They limit a client to a single server operation, such as logging in or joining a voice channel.
+*   They are used one time.
+*   They have a short lifespan (being valid for 90 seconds from generation).
+
+A token is required for logging into the Vivox network and your game server should securely vend this token to your client (for example, with a secure web service).
+
+Details regarding the generation and distribution of tokens can be found in Vivox’s Access Token Developer Guide, which can be found at the end of this guide.
+
+#### Channel
+
+A channel supplies voice chat to two or more participants, and joining a channel (or several channels) is accomplished by properly generating a VAT. Continue reading to learn more about channel properties, types, and names.
+
+##### Properties
+
+Channels have the following properties:
+
+*   They are ephemeral and persist only as long as there is at least one occupant.
+*   They have no persistent state, nor are they managed by any form of access control from within the Vivox network.
+*   Access to the channel (joining) as well as secured third-party actions (for example, kick or moderator mute) must be authorized by the game server with a VAT before a user may perform the action.
+
+##### Types
+
+Refer to the following table when choosing your channel types:
+
+| Channel Type | Description | Typical Use Case |
+| --- | --- | --- |
+| **Non-positional** | All users can hear each other equally regardless of location. Default non-positional channels are suitable for most use cases. | In general, default non-positional channels are suitable for most use cases. |
+| **Positional** | [INCLUDE:#excerpt_1] | If you need 3D effects, such as volume attenuation based on distance, positional channels are great for providing that realistic audio effect in-game. |
+| **Echo** | [INCLUDE:#excerpt_2] | The echo channel is useful for both internal development and testing, and for providing an audio test environment for user devices. |
+
+<!--
+[EXCERPT:excerpt_2]
+
+For testing purposes, this channel enables the transmission and reception of the user’s own voice communication.
+
+[REGION:note]
+**Note:** This channel type does not allow communication between users.
+[/REGION]
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+A particular type of channel that enables a user's transmitted audio to originate from a discrete positional 3D space.
+
+[REGION:note]
+**Note:** This channel type requires additional settings being passed as part of the channel Uniform Resource Identifier (URI).
+[/REGION]
+
+[/EXCERPT:excerpt_1]
+-->
+
+##### Names
+
+You can choose channel names based on your own naming conventions. Oftentimes, channel naming and management associate your in-game social entities, such as guilds or parties, which are then matched with a channel identifier of your choice.
+
+#### Authorization
+
+All secured actions; such as logging in, joining channels, and performing certain moderated actions, require authorization in the form of a VAT. This token can be generated on the client (for prototyping or early-stage development) or on the server (for production or late-stage development). Once generated and vended, a VAT will be used to perform a secured action.
+
+All secured actions require VAT authorization before they may be successfully carried out. Secure actions include:  
+
+*   Logging in
+*   Joining a channel
+*   Kicking a user from a channel
+*   Muting or unmuting one user (or all users) in a channel for all other users in a channel
+
+[REGION:note]
+**Note:** Muting or unmuting one user or all users in a channel (as above) differs from the local action of user A muting user B for user A. The recommended approach for authorization secure actions is to authorize requested actions by only vending a VAT when appropriate.
+[/REGION]
+
+#### Game Server Integration
+
+In production, secured voice actions should be authorized by a separate, trusted party, such as a game server. The game server should create VATs and pass them to the game client in a secure manner, which is then submitted to Vivox’s network.
+
+For details on VAT generation, see the Access Token Developer Guide at the end of this guide.
+
+### Phase 2: Basic Implementation
+
+The following (and suggested) basic implementation phase does not use a game server.
+
+1.  Enable the VivoxVoiceChat Plugin for your game.
+2.  Select a User ID. Login using an appropriately generated VAT, which can be supplied by the VivoxVoiceChat Plugin.  during development.
+    
+	[REGION:note]
+    Access tokens should be generated by a server under your control.
+    [/REGION]
+    
+3.  Select a Channel ID. Join a channel using an appropriately generated VAT, which can be supplied by the VivoxVoiceChat Plugin.
+4.  Optionally, leave the channel.
+5.  Optionally, log out from the Vivox service.  
+    
+	[REGION:note]
+        
+    *   Leaving a channel and logging out does not require a token.
+    *   To learn how to use OpenSSL to generate access tokens, read the available sample code, which is found at: `/Engine/Source/ThirdParty/Vivox/tokengen/tokengen/tokengen.c`
+    *   To learn more about generating access tokens, read the [Access Token Developer Guide](https://dnnrz1gqa.blob.core.windows.net/portals/attachments/Engine/Plugins/Vivox-Plugin/Vivox-Integration-Guide/UE4.21%20Access%20Token%20Dev%20Guide.pdf?sv=2017-04-17&sr=b&si=DNNFileManagerPolicy&sig=L6NWs2yk0oXuu%2BPL1IQ4tQBzrUH%2BLZQAKoCY8mbXDzQ%3D).
+    [/REGION]
+    
+
+At this point, you should have a basic implementation that can join and leave a single channel. It is recommended that a non-positional channel is used before implementing positional channels.  
+
+[REGION:tip]
+It is a good practice to verify that audio is functional without errors before moving onto the next phase.
+[/REGION]
+
+### Phase 3: Advanced Implementation (Optional)
+
+Once your application is able to correctly handle login and logout as well as single channel join and leave with locally generated VATs, you can implement optional features, such as:
+
+*   Joining a 3D positional channel and updating the local user’s 3D position.
+*   Joining more than one channel.
+*   Local and remote muting and unmuting
+*   Handling channel and participant events for rosters and speaking indicators.
+*   Admin/moderator actions, like kick and mute.
+
+[REGION:tip]
+It is a good practice to verify that these additional features are working before moving onto the next phase.
+[/REGION]
+
+### Phase 4: Security
+
+Your implementation at this point should be feature complete.  All that remains is moving the logic that determines the Vivox User ID, Channel IDs, and VATs to a secure server. The server can be the same one used for your game services or it can be a separate service.
+
+At the completion of this phase, the client application should no longer be generating any VATs because client-generated VATs pose a security risk, and they are often a source of bugs due to client clock drift.
+
+## Vivox Developer Portal
+
+Now that you have a basic implementation plan in place, navigate to Vivox’s site to access the [Vivox Developer Portal](https://developer.vivox.com/register-ue4). While you are there, you can read through additional documentation and download the Vivox Unreal Shooter Sample to learn more about leveraging the Vivox Unreal SDK to implement in-game voice and text communication. 
+
+Make sure to read through the following:  
+
+*   [Access Token Developer Guide](https://dnnrz1gqa.blob.core.windows.net/portals/attachments/Engine/Plugins/Vivox-Plugin/Vivox-Integration-Guide/UE4.21%20Access%20Token%20Dev%20Guide.pdf?sv=2017-04-17&sr=b&si=DNNFileManagerPolicy&sig=L6NWs2yk0oXuu%2BPL1IQ4tQBzrUH%2BLZQAKoCY8mbXDzQ%3D)
+    *   This document outlines the steps necessary to secure and authorize communication between the game client and the Vivox network.
+*   [Server to Server Web API Reference](https://dnnrz1gqa.blob.core.windows.net/portals/attachments/Engine/Plugins/Vivox-Plugin/Vivox-Integration-Guide/UE4.21%20Server%20to%20Server%20Web%20API%20Guide%20.pdf?sv=2017-04-17&sr=b&si=DNNFileManagerPolicy&sig=xrFPp5D2Fd3OmoygBUk8c%2FiKX4phf08sbjKuqjGfsSo%3D)
+    *   This document illustrates the capabilities and usage of the Vivox Server to Server Web API with respect to account management, channel management, and securing communication after a login.
+
+[](#)[](#)

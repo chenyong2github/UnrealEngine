@@ -1,0 +1,384 @@
+﻿INTSourceChangelist:6449248
+Availability: Public
+Title: 编译配置
+Description: 配置引擎的编译方式。
+Type: reference
+Version: 4.21
+Parent: Programming/BuildTools/UnrealBuildTool
+topic-image: topic_buildConfigProps.png
+Order: 2
+
+
+[TOC (start:2 end:2)]
+
+除添加到 `Config/UnrealBuildTool` 文件夹中已生成UE4项目的设置外，UnrealBuildTool还将从以下路径中的XML配置文件读取设置：
+
+*   Engine/Saved/UnrealBuildTool/BuildConfiguration.xml
+
+*   **用户文件夹/AppData**/Roaming/Unreal Engine/UnrealBuildTool/BuildConfiguration.xml
+
+*   **My Documents**/Unreal Engine/UnrealBuildTool/BuildConfiguration.xml
+
+阅读了解以下属性的详情，帮助设置和自定义版本配置。
+
+(#xboxoneplatform)
+
+## Xbox One平台
+
+| 属性 | 效果 |
+| --- | --- |
+| Compiler | 在Windows平台上使用的编译器工具链的版本。如设为默认值，UBT启动时则会修改为特定版本。 |
+| bOverrideUseFastPDBLinking | Xbox上快速PDB链接的覆盖——Xbox One上的稳定性似乎略高于PC。所以建议单独对其进行设置。 |
+
+(#buildconfiguration)
+
+## 编译配置
+
+| 属性 | 效果 |
+| --- | --- |
+| bGeneratedSYMFile | 是否生成需要编译的dSYM文件列表架构。 |
+| bEnableAddressSanitizer | 启用地址检测工具（ASan）。 |
+| bEnableThreadSanitizer | 启用线程检测工具（TSan）。 |
+| bEnableUndefinedBehaviorSanitizer | 启用未定义行为检测工具（UBSan）。 |
+| BaseLogFileName | 指定用于日志记录的文件 |
+| bAllowDistccLocalFallback | 启用后，远程编译失败时允许DMUCS/Distcc退却到本地编译。默认为true，因为预处理和编译阶段的划分可能导致非致命错误。 |
+| bVerboseDistccOutput | 为true时，将启用冗长distcc输出来协助调试。 |
+| DistccExecutablesPath | Distcc和DMUCS可执行文件的路径。 |
+| DMUCSCoordinator | DMUCS协调器主机名或IP地址。 |
+| DMUCSDistProp | DMUCS区分请求编译主机的属性值。 |
+| bXGENoWatchdogThread | 是否使用no\_watchdog\_thread选项来防止VS2015工具链出现停滞。 |
+| bShowXGEMonitor | 是否显示XGE编译监控器。 |
+| bStopXGECompilationAfterErrors | 启用后，发生编译错误时XGE将停止编译目标。推荐启用，因为其将保存其他内容的计算资源。 |
+| bWriteSolutionOptionFile | 是否编写sln的一个解决方案选项（suo）文件。 |
+| bAddFastPDBToProjects | 是否默认添加-FastPDB选项来编译命令行。 |
+| bUsePerFileIntellisense | 是否生成每个文件的智能感应数据。 |
+| bEditorDependsOnShaderCompileWorker | 生成编辑器的项目文件时是否包含ShaderCompileWorker上的一个依赖性。 |
+| bDebugBuildsActuallyUseDebugCRT | 启用调试版本的调试C++运行时（CRT）。默认始终使用发布运行时，因为调试虚幻引擎项目时调试版本并不十分实用，且链接到调试CRT库将强制使用调试CRT对第三方库依赖性进行编译（执行速度通常更慢）。如果需要第三方静态库调试版本的单独副本才能调试程序代码，那么将不甚便利。 |
+| bUseInlining | 启用所有模块的内联。 |
+| bUseXGEController | XGE控制器工作器和模块是否应包含在引擎版本中。它们是已发布着色器编译（其使用XGE拦截接口）的必需内容。 |
+| bUseUnityBuild | 是否将C++代码统一到较大的文件中来加快编译速度。 |
+| bForceUnityBuild | 是否强制将C++源文件组合到较大的文件中来加快编译速度。 |
+| bUseAdaptiveUnityBuild | 使用启发法来确定当前正在被迭代的文件，并将其从集合体中排除出来，使增量编译速度加快。当前的实现使用只读标签来区别工作集，假定文件将被源码管理系统设为可写入（如其正在被编辑）。Perforce为true，但Git不为true。 |
+| bAdaptiveUnityDisablesOptimizations | 禁用自适应非统一工作集中文件的优化。 |
+| bAdaptiveUnityDisablesPCH | 禁用自适应非统一工作集中文件的强制包含PCH。 |
+| bAdaptiveUnityCreatesDedicatedPCH | 为工作集中每个源文件创建一个专属PCH，允许在纯cpp修改上进行更快的迭代。 |
+| bAdaptiveUnityEnablesEditAndContinue | 为工作集中每个源文件创建一个专属PCH，允许在纯cpp修改上进行更快的迭代。 |
+| MinGameModuleSourceFilesForUnityBuild | 为游戏模块启用统一编译之前，该游戏模块中源文件的数量。这使得小型游戏模块在单一文件上拥有更快的迭代编译速度，而代价则是完整重编译时间更长。此设置可被模块Build.cs文件中的bFasterWithoutUnity选项所覆盖。 |
+| bShadowVariableErrors | 强制阴影变量警告被视为支持平台上的错误。 |
+| bUndefinedIdentifierErrors | 强制将条件表达式中的未定义辨识符视为错误。 |
+| bUseFastMonoCalls | 全新的单片式显卡驱动拥有可选的“快速调用”来替代诸多D3d函数。 |
+| bUseFastSemanticsRenderContexts | 全新Xbox驱动支持“快速语意”情境类型。对于直接和延迟情境，此属性将启用该功能。如果Xbox RHI中出现渲染问题和/或崩溃，请尝试禁用此项。 |
+| NumIncludedBytesPerUnityCPP | 要包含在单个统一C++文件中的C++代码字节的大致数量。 |
+| bStressTestUnity | 是否将单个统一文件中的所有C++文件包含在一个项目中，以对C++统一版本的稳定性进行压力测试。 |
+| bDisableDebugInfo | 是否全局禁用调试信息生成；参见DebugInfoHeuristics.cs了解每个配置和每个平台的选项。 |
+| bDisableDebugInfoForGeneratedCode | 是否禁用已生成文件的调试信息生成。这将缩短拥有大量已生成胶合代码的模块的链接时间。 |
+| bOmitPCDebugInfoInDevelopment | 是否在PC上的开发版本中禁用调试信息（可提高开发者迭代速度，调试信息禁用后链接速度极快）。 |
+| bUsePDBFiles | PDB文件是否应用于Visual C++版本。 |
+| bUsePCHFiles | 是否应使用PCH文件。 |
+| MinFilesUsingPrecompiledHeader | 在创建和使用前必须使用预编译标头的最小文件数。 |
+| bForcePrecompiledHeaderForGameModules | 启用后，将始终为游戏模块生成预编译标头，即便模块中只有数个源文件也同样如此。这能极大缩短项目中数个文件迭代更改的编译时间，而代价则是小型游戏项目的完整重编译时间变长。在模块的Build.cs文件中设置MinFilesUsingPrecompiledHeaderOverride即可覆盖此项。 |
+| bUseIncrementalLinking | 是否使用增量链接。进行较小的修改时，增量链接可加快迭代速度。当前已默认禁用，因其在部分电脑上会发生一些错误（PDB相关的编译错误）。 |
+| bAllowLTCG | 是否允许使用链接时间代码生成（LTCG）。 |
+| bPGOProfile | 是否在此版本中启用按配置优化（PGO）工具。 |
+| bPGOOptimize | 是否用按配置优化（PGO）优化此版本。 |
+| bAllowASLRInShipping | 是否允许使用地址空间布局随机化（ASLR）（如果支持ASLR）。只应用到发布版本。 |
+| bSupportEditAndContinue | 是否支持编辑和继续。只能在Microsoft编译器上使用。 |
+| bOmitFramePointers | 是否省略帧指针。对于PC上内存分析之类的操作，禁用该属性是有用的。 |
+| bUseMallocProfiler | 如为true，则在版本中启用内存分析（定义USE\_MALLOC\_PROFILER=1并强制bOmitFramePointers=false）。 |
+| bUseSharedPCHs | 启用“共享PCH”，此功能将极大地提高编译速度。其工作原理是尝试在UBT检测到包含PCH头文件的模块之间共享特定的PCH文件。 |
+| bUseShippingPhysXLibraries | 如开发和发布版本应使用PhysX/APEX的发布配置，则为true。 |
+| bUseCheckedPhysXLibraries | 如开发和发布版本应使用PhysX/APEX的勾选配置，则为true。如bUseShippingPhysXLibraries为true，则此项将被忽略。 |
+| bCheckLicenseViolations | 如当前正在编译的模块违反EULA，则告知UBT进行检查。 |
+| bBreakBuildOnLicenseViolation | 如当前正在编译的模块违反EULA，则告知UBT中断编译。 |
+| bUseFastPDBLinking | 使用/DEBUG进行编译以在Windows上创建本地PDB时，是否使用:FASTLINK选项。速度较快，但当前在调试器中寻找符号时似乎存在问题。 |
+| bCreateMapFile | 将地图文件作为版本的一部分进行输出。 |
+| bCheckSystemHeadersForModification | 确定过期操作时是否应检查系统路径中标头的修改。 |
+| bFlushBuildDirOnRemoteMac | 在编译前是否在远程Mac上清理版本目录。 |
+| bPrintToolChainTimingInfo | 是否从编译器和链接器写入详细时间信息。 |
+| CppStandard | 用于编译此目标的C++标准。 |
+| bStripSymbols | 是否剥离iOS符号（由bGeneratedSYMFile暗示）。 |
+| bIgnoreOutdatedImportLibraries | 编译目标时是否忽略过期的导入库文件。将此项设为true可缩短迭代时间。如果只有一个依赖性.lib发生更改，默认将不会重新链接目标，因为导入库在此目标的依赖性头文件发生改变之前不会实际发生变化，在此情况下目标将会被自动重编译。 |
+| bPrintDebugInfo | 调试信息是否应被写入至控制台。 |
+| bLogDetailedActionStats | 是否记录详细操作数据。这将强制进行本地执行。 |
+| bAllowHybridExecutor | 是否将使用混合执行器（远程执行器和本地执行器）。 |
+| bAllowXGE | 是否可以使用XGE。 |
+| bAllowSNDBS | 是否可以使用SN-DBS。 |
+| bUseUBTMakefiles | [INCLUDE:#UBTMakeFilesInformation] |
+| bAllowDistcc | 是否可以使用DMUCS/Distcc。Distcc需要一些设置，因此其默认为禁用，不会中断本地或远程编译。 |
+| bAllowParallelExecutor | 是否允许在Windows上使用平行执行器。 |
+
+<!---
+[EXCERPT:UBTMakeFilesInformation]
+通过缓存目标数据来启用极快迭代编译支持。开启此项后，目标在首次编译时虚幻编译工具将发射目标的 'UBT Makefiles'。之后的编译将加载这些Makefiles并开始过期性检查并极快地编译调用。警告：如项目添加或移除了源文件，UBT将需要收集这些文件的信息，以便编译成功完成。当前版本中，添加/移除源文件后必须运行项目文件生成器，告知UBT来重新采集此信息。
+
+*   添加/移除.cpp文件
+
+*   添加/移除带UObjects的.h文件
+
+*   将一个新UObject类型添加到之前不含此类型的文件中
+
+*   修改全局编译设置（此文件中的多数设置均有资格。）
+
+*   影响虚幻标头工具工作方式的已更改代码
+
+这也将启用快速包含文件依赖项扫描和缓存系统，其使虚幻编译工具能够很快地检测出过期依赖项。启用后，无需生成深度C++包含图表，只需在确认依赖性编译产品过期后才扫描并缓存间接包含项。在下次编译中，我们将加载这些缓存的间接包含项，并检查其中的过期内容。
+[/EXCERPT:UBTMakeFilesInformation]
+--->
+
+(#hybridexecutor)
+
+## 混合执行器
+
+| 属性 | 效果 |
+| --- | --- |
+| MaxLocalActions | 本地执行操作的最大数量 |
+
+(#buildmode)
+## 编译模式
+
+| 属性 | 效果 |
+| --- | --- |
+| bIgnoreJunk | 是否跳过对垃圾清单识别出的文件的检查 |
+
+(#projectfilegenerator)
+
+## 项目文件生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| DisablePlatformProjectGenerators | 禁用本地项目文件生成器所针对的平台。拥有本地项目文件生成器的平台通常需要安装IDE扩展。 |
+| Format | 生成的项目文件格式的默认列表 |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为true |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名） |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称 |
+
+(#localexecutor)
+
+## 本地执行器
+
+| 属性 | 效果 |
+| --- | --- |
+| ProcessorCountMultiplier | 用于本地执行的处理器计数乘数。设为小于1可为其他任务保留CPU。使用本地执行器时（非XGE），在每个CPU核心上运行单一操作。注意：可将此项设为一个较大的值，在多数情况下可稍微加快编译速度，但编译中电脑的响应速度将变得较差。 |
+| MaxProcessorCount | 用于本地执行的最大处理器数量。 |
+
+(#parallelexecutor)
+
+## 平行执行器
+
+| 属性 | 效果 |
+| --- | --- |
+| ProcessorCountMultiplier | 用于本地执行的处理器计数乘数。设为小于1可为其他任务保留CPU。 |
+| MaxProcessorCount | 用于本地执行的最大处理器数量。 |
+| bStopCompilationAfterErrors | 启用后，将在发生编译错误时停止编译目标。 |
+
+(#sndbs)
+
+## SNDBS
+
+| 属性 | 效果 |
+| --- | --- |
+| ProcessorCountMultiplier | 用于本地执行的处理器计数乘数。设为小于1可为其他任务保留CPU。 |
+| MaxProcessorCount | 用于本地执行的最大处理器数量。 |
+
+(#cliongenerator)
+
+## CLion生成器
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_0]
+    [/PARAM]
+[/OBJECT]
+
+<!---
+[EXCERPT:excerpt_0]
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+[/EXCERPT:excerpt_0]
+--->
+
+(#cmakefilegenerator)
+
+## CMakefile生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+
+(#codelitegenerator)
+## CodeLite生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+
+(#eddieprojectfilegenerator)
+
+## Eddie项目文件生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+
+(#kdevelopgenerator)
+
+## KDevelop生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+
+(#makefilegenerator)
+
+## Makefile生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+
+(#qmakefilegenerator)
+
+## QMakefile生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+
+(#vscodeprojectfilegenerator)
+
+## VSCode项目文件生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+
+(#vcprojectfilegenerator)
+## VC项目文件生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+| Version | 用于生成项目文件的Visual Studio版本。 |
+
+(#xcodeprojectfilegenerator)
+
+## Xcode项目文件生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True。 |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称。 |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名）。 |
+
+(#sourcefileworkingset)
+
+## 源文件工作集
+
+| 属性 | 效果 |
+| --- | --- |
+| GitPath | 设置用于Git可执行文件的路径。默认为“git”（假定其位于路径之中）。 |
+| Provider | 设置用于确定工作集的提供程序。 |
+| RepositoryPath | 设置用于元库的路径。如为相对路径，则相对于UE根目录（即引擎文件夹的上一层文件夹）进行解译。 |
+
+(##vcmacprojectfilegenerator)
+
+## VCMac项目文件生成器
+
+| 属性 | 效果 |
+| --- | --- |
+| Version | 用于生成项目文件的Visual Studio版本。 |
+| bIncludeDocumentation | 如果需要包含已生成项目中的文件，则为True |
+| MasterProjectName | 主项目文件的名称（如Visual Studio解决方案文件的基础文件名，或Mac上的Xcode项目文件的基础文件名） |
+| bMasterProjectNameFromFolder | 如为true，则根据主项目所处文件夹的名称来设置主项目的名称 |
+
+(#iostoolchain)
+
+## IOS工具链
+
+| 属性 | 效果 |
+| --- | --- |
+| BuildIOSVersion | 编译时所允许的iOS版本。 |
+| bUseDangerouslyFastMode | 如果设置了此项，除将可执行文件移动到Mac上的正确位置之外，将不会执行任何编译后操作。 |
+| IOSSDKVersion | 编译时作为目标的iOS SDK版本。 |
+
+(#remotemac)
+
+## 远程Mac
+
+| 属性 | 效果 |
+| --- | --- |
+| ServerName | 这两个变量将从XmlConfigLoader.Init()中的XML配置文件进行加载 |
+| UserName | 远程用户名 |
+| SshPrivateKey | 设置后将使用此私钥，而不在常规路径中（Documents/Unreal Engine/UnrealBuildTool/SSHKeys, Engine/Build/SSHKeys）查找RemoteToolChainPrivate.key |
+| RsyncAuthentication | 用于Rsync的验证（用于-e rsync标签） |
+| SshAuthentication | 用于SSH的验证（可能类似于RsyncAuthentication） |
+
+(#html5platform)
+
+## HTML5平台
+
+| 属性 | 效果 |
+| --- | --- |
+| HTML5Architecture | 构建所针对的架构。 |
+
+(#uebuildconfiguration)
+
+## UE编译配置
+
+| 属性 | 效果 |
+| --- | --- |
+| bAllowHotReloadFromIDE | 如允许来自IDE的热加载，则为true。 |
+| bDoNotBuildUHT | 如为true，则不编译UHT，并假定其已编译。 |
+| bFailIfGeneratedCodeChanges | 为true时，如果任意生成的头文件过期，则将失败。 |
+| bForceDebugUnrealHeaderTool | 如为true，将编译和运行UnrealHeaderTool的调试版本，而非开发版本。 |
+| bForceHeaderGeneration | 如为true，则强制重新生成标头。用于编译机。 |
+
+(#windowsplatform)
+
+## Windows平台
+
+| 属性 | 效果 |
+| --- | --- |
+| bStrictConformanceMode | 在VS2017+中启用严格标准一致性模式（/permissive-）。 |
+| Compiler | 在Windows平台上使用的编译器工具链的版本。如设为默认值，UBT启动时则会修改为特定版本。 |
+| CompilerVersion | 要使用的特定工具链版本。这可能是一个特定的版本号（如“14.13.26128”），或通过“Latest”字符串来选择最新的可用版本。如此项可用，将默认使用WindowsPlatform.DefaultToolChainVersion所指出的工具链版本，否则便使用最新版本。 |
+| StaticAnalyzer | 要使用的静态分析器。 |
+| WindowsSdkVersion | 要使用的特定Windows SDK版本。这可能是一个特定的版本号（如“8.1”、“10.0”或“10.0.10150.0”），或通过“Latest”字符串来选择最新的可用版本。如此项可用，将默认使用WindowsPlatform.DefaultWindowsSdkVersion所指出的Windows SDK版本，否则便使用最新版本。 |
+| PCHMemoryAllocationFactor | 确定编译器分配用于构造预编译标头（/Zm）的内存量。 |
+| bClangTimeTrace | （实验性）为Clang的命令行附加-ftime-trace参数，以输出一个包含编译时间轴的JSON文件。参见http://aras-p.info/blog/2019/01/16/time-trace-timeline-flame-chart-profiler-for-Clang了解详情。 |
+
+(#windowstargetrules)
+
+## Windows目标规则
+
+| 属性 | 效果 |
+| --- | --- |
+| ObjSrcMapFile | 是否应导出一个包含.obj->源文件映射的文件。 |

@@ -1,13 +1,11 @@
-﻿INTSourceChangelist:3782314
-Availability: Docs
-Title:볼륨 개요
-Crumbs:%ROOT%, Engine, Engine/Actors, Engine/Actors/Volumes
-Description:Audio Volume 참고서입니다.
+﻿INTSourceChangelist:6535113
+Availability: Public
+Title:오디오 볼륨 레퍼런스
+Parent: Engine/Actors/Volumes
+Description:Audio Volume 디테일 패널 레퍼런스입니다.
 version:4.16
 type:reference
 
-
-### Audio Volume
 
 이 볼륨의 **디테일** 패널에서 여러가지 프로퍼티를 조절하여 아래와 같은 이펙트에 대한 세밀한 제어가 가능합니다.
 
@@ -35,6 +33,4 @@ type:reference
 | **Interior LPF** | 내부 LPF - 밖에 있을 때 내부 사운드에 적용되는 로우패스 필더 배수입니다 (1.0 이면 최대 LPF 를 적용합니다). |
 | **Interior LPFTime** | 내부 LPF 시간 - 새로운 로우패스 필터 레벨로 페이드하는 데 걸리는 초 단위 시간입니다. |
 
-[COMMENT:none]
-For more information on Ambient Zones, please refer to the following documentation: [Ambient Zones Documentation](Engine/Audio/AmbientZones).
-[/COMMENT]
+

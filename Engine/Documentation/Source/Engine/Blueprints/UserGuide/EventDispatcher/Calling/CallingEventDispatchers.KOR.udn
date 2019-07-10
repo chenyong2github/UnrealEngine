@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3244370
+INTSourceChangelist:3244370
 Availability:Public
 Title:이벤트 디스패처 호출하기
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/UserGuide, Engine/Blueprints/UserGuide/EventDispatcher
@@ -42,7 +42,7 @@ _블루프린트 클래스_ 와 _레벨 블루프린트_ 양쪽에서도 이벤�
 
 ## 레벨 블루프린트에서 호출하기
 
-1. 이벤트 디스패처의 호출 대상이 되었으면 하는 레벨 내 액터로의 [레퍼런스를 추가](Engine/Blueprints/UserGuide/Types/LevelBlueprint#액터레퍼런싱) 합니다.
+1. 이벤트 디스패처의 호출 대상이 되었으면 하는 레벨 내 액터로의 [레퍼런스를 추가](Engine/Blueprints/UserGuide/Types/LevelBlueprint#액터참조) 합니다.
 
 	![](target_step1.png)
 

@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3736300
-Availability:Public
+﻿INTSourceChangelist:6093883
+Availability: Docs
 Title:6 - 自由发挥！
 Crumbs:%ROOT%
 Description:自由发挥进行练习。
@@ -24,7 +24,7 @@ Contributor:yaakuro
 (#AndroidDeviceCompatibility)
 ####Android 设备兼容性
 
-* [](Platforms\Android\DeviceCompatibility) 
+* [](Platforms/Mobile/Android\DeviceCompatibility) 
 * [](Platforms\DeviceProfiles)
 
 (#MobilePerformance)
@@ -35,14 +35,14 @@ Contributor:yaakuro
 (#ReducingAPKPackageSizes)
 ####控制 APK 包的容量
 
-有时您需要控制移动游戏的容量，满足目标硬件或软件平台的限制。如果需要缩减移动项目的容量，则需要缩减 **Android 应用程序包**（APK）的容量。这种自定义文件格式是 Android 操作系统用于打包移动应用程序进行发布的格式。查阅 [缩减 APK 包大小参考页面](Platforms/Android/ReducingAPKSize)，学习缩减打包游戏的大小。
+有时您需要控制移动游戏的容量，满足目标硬件或软件平台的限制。如果需要缩减移动项目的容量，则需要缩减 **Android 应用程序包**（APK）的容量。这种自定义文件格式是 Android 操作系统用于打包移动应用程序进行发布的格式。查阅 [缩减 APK 包大小参考页面](Platforms/Mobile/Android/ReducingAPKSize)，学习缩减打包游戏的大小。
 
 (#DesigningMobileContent)
 ##设计移动内容
 
 如果希望利用学习到的内容在 Linux 上用 UE4 进行游戏开发，则需要设计利用设备可用渲染能力的游戏内容。请阅读以下参考信息：
 
-* [](Platforms\Mobile\Content) 
+* [](Platforms\Mobile\Meshes) 
 * [](Platforms\Mobile\Lighting) 
 * [](Platforms\Mobile\Materials) 
 * [](Platforms\Mobile\PostProcessEffects) 
@@ -56,7 +56,7 @@ Contributor:yaakuro
 (#DeployingOveraWirelessNetwork)
 ##通过无线网络进行部署
 
-此时，您已学习到设计移动游戏内容的一些最佳方法、已通过编辑器预览移动游戏，并且做好了通过无线网络将游戏部署到 Android 设备的准备。请阅读 [Gear VR 调试参考页面](Platforms/GearVR/Debugging)，了解通过无线网络将 UE4 项目部署到 Android 设备的更多内容。
+此时，您已学习到设计移动游戏内容的一些最佳方法、已通过编辑器预览移动游戏，并且做好了通过无线网络将游戏部署到 Android 设备的准备。请阅读 [Gear VR 调试参考页面](Platforms/VR/GearVR/Debugging)，了解通过无线网络将 UE4 项目部署到 Android 设备的更多内容。
 
 (#DoingSomeExercisesOnYourOwn)
 ##自由发挥练习

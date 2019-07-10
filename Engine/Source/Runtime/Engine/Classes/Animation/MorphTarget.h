@@ -124,7 +124,7 @@ public:
 public:
 
 	/** Get Morphtarget Delta array for the given input Index */
-	FMorphTargetDelta* GetMorphTargetDelta(int32 LODIndex, int32& OutNumDeltas);
+	ENGINE_API FMorphTargetDelta* GetMorphTargetDelta(int32 LODIndex, int32& OutNumDeltas);
 	ENGINE_API bool HasDataForLOD(int32 LODIndex);
 	/** return true if this morphtarget contains valid vertices */
 	ENGINE_API bool HasValidData() const;

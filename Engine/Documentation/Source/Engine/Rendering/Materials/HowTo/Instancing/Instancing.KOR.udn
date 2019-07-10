@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+INTSourceChangelist:3810467
 Availability: Public
 Title:머티리얼 인스턴스 생성 및 사용법
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/HowTo
@@ -19,7 +19,7 @@ tags:Materials
 
 표준 머티리얼 생성, 셋업, 트윅 작업은 UE4 에서 시간을 매우 많이 잡아먹는 프로세스가 될 수 있습니다.
 이 프로세스 효율을 높이고 속도를 올리기 위해, 언리얼 엔진 4 에는 **머티리얼 인스턴스** 라는 특수 유형 머티리얼이 제공됩니다.
-다음 비법에서는 프로젝트에서 머티리얼 인스턴스를 구성하고 사용하는 방법에 대해 배워보실 수 있습니다.
+다음 하우투에서는 프로젝트에서 머티리얼 인스턴스를 구성하고 사용하는 방법에 대해 배워보실 수 있습니다.
 
 ## 머티리얼 인스턴싱
 
@@ -270,7 +270,7 @@ tags:Materials
 
 ![](Material_Instancing_Change_Parent.png)
 
-머티리얼 인스턴스는 동일하되 이번에는 부모 머티리얼이 변경된 것입니다.
+머티리얼 인스턴스는 동일하지만 이번에는 부모 머티리얼이 변경된 것입니다.
 텍스처 입력 갯수가 적어지고 일부 숫자 입력 값이 추가된 것을 확인할 수 있습니다.
 
 

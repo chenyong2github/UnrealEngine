@@ -6,32 +6,31 @@ Navigation:topic
 parent:Engine
 order:3
 topic-image:animation_topic.png
+hero-image:animation_banner.png
 
-
-[REGION:banner]
-![Animation System](animation_banner.png)(convert:false)
-[/REGION]
 
 [INCLUDE:Engine/Animation/Overview#Intro]
 
 ## Starting Out
 
-[DIR(output:"topic" parent:"Engine/Animation" org:"flat" tags:"Getting Started" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Animation" org:"flat" tags:"Getting Started" type:"!how-to")]
 
 ## Asset Types
 
-[DIR(output:"topic" parent:"Engine/Animation" org:"flat" tags:"Animation Assets" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Animation" org:"flat" tags:"Animation Assets" type:"!how-to" title:"!Animation Montage Overview")]
 
 ## Tools
 
-[DIR(output:"topic" parent:"Engine/Animation" end:"3" org:"hierarchy" tags:"Animation Tools" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Animation" end:"3" org:"hierarchy" tags:"!Assets" tags:"Tools" type:"!how-to")]
 
 ## Features
 
-[DIR(output:"topic" parent:"Engine/Animation" end:"1" org:"hierarchy" tags:"Animation Features" type:"landing,overview,reference,quick start")]
+[DIR(output:"topic" parent:"Engine/Animation" end:"1" org:"hierarchy" tags:"!Assets" tags:"!Getting Started" tags:"!Tools" type:"!how-to")]
 
 ## Guides
 
-[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" type:"how-to" skilllevel:"Beginner")]
-[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" type:"how-to" skilllevel:"Intermediate")]
-[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" type:"how-to" skilllevel:"Advanced")]
+[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" tags:"!Assets" tags:"!Getting Started" type:"how-to" skilllevel:"Beginner")]
+[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" tags:"!Assets" tags:"!Getting Started" type:"how-to" skilllevel:"Intermediate")]
+[DIR(output:"fancy" parent:"Engine/Animation/AnimHowTo" end:"1" org:"hierarchy" tags:"!Assets" tags:"!Getting Started" type:"how-to" skilllevel:"Advanced")]
+
+

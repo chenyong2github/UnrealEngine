@@ -1,0 +1,48 @@
+﻿INTSourceChangelist:4476116
+Availability: Public
+Crumbs: 
+Title: Unreal Datasmith
+Description: Datasmith を使用すると、デザイン データを Unreal で手早く簡単に取り込むことができます。
+Type: 
+Version: 4.19
+Parent: Studio
+Order: 1
+Tags: Enterprise
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: Manufacturing
+Tags: landing
+topic-image:Datasmith_HFB_Topic-1.png
+
+
+**Datasmith for Unreal Engine 4** は、3DS Autodesk、CAD ソフトウェアなどのオフラインのレンダリング アプリケーションで作成されたシーンやアセットをリアルタイム エンジンにインポートするために設計されたツールとプラグインの集合です。 
+
+次のページは、Datasmith と Unreal Engine 4 を併用した作業を開始する上で役立ちます。また、Datasmith を使用したプロジェクトを最大限に活用するための参照マテリアルや機能の概要に関する詳細も説明します。 
+
+## 入門編
+
+![](datasmith-setup.png)
+
+%Studio/Datasmith/Overview:topic%
+%Studio/Datasmith/HowTo/DownloadandInstall:topic%
+%Studio/Datasmith/HowTo/ImportingContent:topic%
+
+## ガイド
+
+%Studio/Datasmith/Overview/ImportProcess:topic%
+%Studio/Datasmith/Overview/ReimportWorkflow:topic%
+%Studio/Datasmith/HowTo:topic%
+%Studio/Datasmith/Overview/CustomizingImportProcess:topic%
+%Studio/Datasmith/Overview/UsingDatasmithMetadata:topic%
+
+## ソフトウェア相互運用ガイド
+
+%Studio/Datasmith/SoftwareInteropGuides/3dsMax:topic%
+%Studio/Datasmith/SoftwareInteropGuides/SketchUp:topic%
+%Studio/Datasmith/SoftwareInteropGuides/CAD:topic%
+%Studio/Datasmith/SoftwareInteropGuides/Rhino:topic%
+
+## 参照
+
+%Studio/Datasmith/SupportedSoftwareAndFileTypes:topic%
+%Studio/Datasmith/ImportOptions:topic%

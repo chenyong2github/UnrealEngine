@@ -1,7 +1,8 @@
-﻿Availability: Public
-Title:风格化渲染实例
+﻿INTSourceChangelist:3782314
+Availability: Public
+Title:风格化渲染
 Crumbs:%ROOT%, Resources
-Description:UE4中包含的风格化渲染实例的概述。
+Description:虚幻引擎4中自带的风格化渲染演示概览。
 Related: Engine/Rendering/PostProcessEffects
 Related: Engine/Rendering/PostProcessEffects/PostProcessMaterials
 Related: Resources/ContentExamples/PostProcessing
@@ -11,59 +12,18 @@ Related: Engine/Rendering/Materials/MaterialInstances
 Related: Engine/Landscape
 Related: Engine/Landscape/Editing/Splines
 Related: Engine/Landscape/Materials
-
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/Showcases/Stylized:title%](Stylized_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/rendering_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/Showcases/Stylized:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/Showcases/Stylized:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources/Showcases/Stylized]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/Showcases/Stylized:title%](Stylized_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/rendering_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/Showcases/Stylized:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/Showcases/Stylized:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources/Showcases/Stylized]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
+Version: 4.9
+topic-image:Stylized_Topic.png
 
 
 [REGION:fullwidth]
 ![](StylizedHeader.png)
 [/REGION]
 
-这个实例展示了为游戏创建风格化或者说是卡通类的环境类型。 关卡采用了广泛的后期处理特效，景观工具以及精心设计的材质以达到手绘的效果。 请注意创建此类环境可以采用许多不同的方式。 此处展示的示例只是可能性之一。
+此演示展现了游戏风格化（或卡通化）场景类型的创建。关卡使用了高开销的后期处理效果、地形工具及精心设计的材质来实现手绘效果。注意：使用者可以利用多种方式来创建这类场景。此处展示的范例只是其中的一种。
 
-使得此环境栩栩如生的不同元素覆盖了各个方面，从对引擎特性的技术性应用到对贴图的美术处理。 从教程的角度出发，本文将着重阐述设置的技术性部分，其中包括了后期处理，景观对象以及一些特殊材质。 然而，我们强烈鼓励您探索每个对象的材质以及贴图设置，因为从美术对这个场景的处理上，我们可以学到很多。
+实现场景效果的元素很多，有引擎功能的技术实现，也有纹理的美术调整。此文档将着重讲述设置的技术部分，包括后期处理、地形对象和一些特殊材质。然而，我们强烈建议使用者探索每个对象的材质和纹理设置，因为通过美术师的手法可以为此场景实现诸多效果。
 
-[REGION:topics third]
 [OBJECT:TopicCompact]
 	[PARAM:image]
 		![%Resources/Showcases/Stylized/PostProcessing:title%](PostProcess.png)
@@ -97,14 +57,13 @@ Related: Engine/Landscape/Materials
 		[RELATIVE:Resources/Showcases/Stylized/Materials]
 	[/PARAM]
 [/OBJECT]
-[/REGION]
 
 
 [COMMENT:none]
 
 [EXCERPT:InstanceNote]
 [REGION:note]
-大多数为此场景创建的材质实际上是通过[材质实例常量](Engine/Rendering/Materials/MaterialInstances)来进行应用的。 这使得我们可以快速调整属性而无需等待材质的重新编译。
+为此场景创建的多数材质实际均通过一个[材质实例常量](Engine/Rendering/Materials/MaterialInstances)应用。使用者能够借此快速进行属性调整和修改，无需等候材质完成重编译。
 [/REGION]
 [/EXCERPT:InstanceNote]
 

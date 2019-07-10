@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3426963
+INTSourceChangelist:6536723
 Availability:Public
 Title:언리얼 엔진 소스 코드 내려받기
 Crumbs: %ROOT%, GettingStarted, GettingStarted/DownloadingUnrealEngine
@@ -6,20 +6,41 @@ Description:소스 코드 저장소에 접속하여 언리얼 엔진 최신 빌�
 Prereq: GettingStarted/RecommendedSpecifications
 Version: 4.16
 Parent:GettingStarted
-Order:
-Type:Landing
+Order: 2
+Type:how-to
 SkillLevel: Advanced
 Related:Programming/Development/BuildingUnrealEngine
 
 [TOC (start:2 end:3)]
 
+언리얼 엔진 회원이 Unreal Engine GitHub 저장소에서 Unreal Engine 4 (UE4) 소스 코드를 다운로드하고, 코드 작업을 시작하는 방법을 자세히 설명합니다.
+
+[https://github.com/EpicGames/UnrealEngine](https://github.com/EpicGames/UnrealEngine) 저장소에 액세스하려면:
+
+*   언리얼 엔진 회원이 되어야 합니다.
+
+*   GitHub 계정이 있어야 합니다.
+
+*   GitHub 계정과 언리얼 엔진 계정을 연결해야 합니다. [GitHub 의 UE4](https://www.unrealengine.com/ue4-on-github) 문서를 참고하세요.
+
+언리얼 엔진 4 작업을 위해 *반드시* 소스 코드를 다운로드할 필요는 없습니다. 단순히 언리얼 엔진 바이너리 버전을 다운로드 및 설치하려면, [언리얼 엔진 설치](GettingStarted/Installation) 문서에서 [언리얼을 시작](https://www.unrealengine.com/) 하는 방법을 참고할 수 있습니다. 그러나 소스 코드를 액세스할 수 있으면 사용자와 프로젝트에 매우 유용할 수 있습니다. 예:
+
+*   에픽 기술자가 매일, 사실상 분 단위로 제공하는 모든 최신 기능과 버그 픽스에 액세스할 수 있습니다.
+
+*   아직 해결되지 않았지만 프로젝트에 치명적인 버그를 발견한 경우, 프로젝트 차단을 해제하고 자신의 소스 코드 버전에서 픽스를 만들어 직접 바이너리를 리빌드할 수 있습니다.
+
+*   픽스와 기능을 에픽에 다시 제출하면 엔진을 개선하고 전체 언리얼 커뮤니티를 도울 수 있습니다.
+
+[REGION:note]
+언리얼 엔진 라이선시의 경우, 공개 GitHub 저장소 대신 Perforce 서버에서 소스 코드에 액세스할 수 있습니다. Perforce 사용법 관련 하위 주제가 보이지 않는 경우, 사이트에 에픽게임즈 계정으로 로그인한 뒤 다시 확인해 주세요.
+[/REGION]
+
 [EXCERPT:Main]
 [PUBLISH:Licensee]
-라이선시께서는 에픽의 퍼포스 (P4V) 프락시 서버에 연결하여 언리얼 엔진 4 를 내려받을 수 있습니다. 퍼포스 서버 로그인 정보는 에픽 게임스가 귀하의 기술팀장께 보내드린 UDN 환영 이메일에 제공되어 있습니다. 각 팀마다 한 세트의 로그인 인증정보만 제공됩니다.
+라이선시께서는 에픽의 퍼포스 (P4V) 프록시 서버에 연결하여 언리얼 엔진 4 를 내려받을 수 있습니다. 퍼포스 서버 로그인 정보는 에픽 게임스가 귀하의 기술팀장께 보내드린 UDN 환영 이메일에 제공되어 있습니다. 각 팀마다 한 세트의 로그인 인증정보만 제공됩니다.
 [/PUBLISH:Licensee]
 [PUBLISH:Rocket]
 
-언리얼 엔진 4 (UE4) 소스 코드는 멤버쉽 회원의 경우 Unreal Engine GitHub repository(저장소)에서 다운로드 가능합니다. [repository](https://github.com/EpicGames/UnrealEngine) (저장소) 접근을 위해서는 GitHub 계정을 가지고 언리얼 엔진 계정에 연동시켜야 합니다. 언리얼 엔진 계정에 GitHub 계정을 연동시키는 법에 대한 안내는, [GitHub 의 언리얼 엔진 4](https://www.unrealengine.com/ue4-on-github) 페이지를 참고하세요.
 
 [INCLUDE:GettingStarted/DownloadingUnrealEngine/SourceBranches]
 
@@ -35,61 +56,59 @@ Related:Programming/Development/BuildingUnrealEngine
 
 다음 안내에 따라 언리얼 엔진 소스 코드를 다운로드해 주세요.
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-	
-	[INCLUDE:GettingStarted/WindowsInstructions]
+[PARAMLITERAL:category]
+OS
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+windows
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+active_button_content
+[/PARAMLITERAL]
+[PARAM:content]
 
-	[/PARAM]
+[INCLUDE:GettingStarted/WindowsInstructions]
+
+[/PARAM]
 [/OBJECT]
 
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
-	
-	[INCLUDE:GettingStarted/MacInstructions]
+[PARAMLITERAL:category]
+OS
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+mac
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+active_button_content
+[/PARAMLITERAL]
+[PARAM:content]
 
-	[/PARAM]
+[INCLUDE:GettingStarted/MacInstructions]
+
+[/PARAM]
 [/OBJECT]
 
 [OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	linux
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	active_button_content
-	[/PARAMLITERAL]
-	[PARAM:content]
+[PARAMLITERAL:category]
+OS
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+linux
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+active_button_content
+[/PARAMLITERAL]
+[PARAM:content]
 
-	[REGION:warning]
-	저희 개발 및 서포트 팀은 현재 Ubuntu 최신 버전을 사용하고 있습니다. 다른 (Ubuntu 버전을 포함해서) Linux 배포 버전은 지원하지 못할 수 있습니다.
-	[/REGION]
+[REGION:warning]
+저희 개발 및 서포트 팀은 현재 Ubuntu 최신 버전을 사용하고 있습니다. 다른 (Ubuntu 버전을 포함해서) Linux 배포 버전은 지원하지 못할 수 있습니다.
+[/REGION]
 
-	[INCLUDE:GettingStarted/LinuxInstructions]
+[INCLUDE:GettingStarted/LinuxInstructions]
 
-	[/PARAM]
+[/PARAM]
 [/OBJECT]
 
 [REGION:note]

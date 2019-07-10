@@ -41,7 +41,7 @@ public:
 	 * @param	InUIAction			UI action to take when this menu item is clicked as well as to determine if the menu entry can be executed or appears "checked"
 	 * @param	InUserInterfaceActionType	Type of interface action
 	 */
-	FToolBarButtonBlock( const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FUIAction& InUIAction, const EUserInterfaceActionType::Type InUserInterfaceActionType );
+	FToolBarButtonBlock( const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FUIAction& InUIAction, const EUserInterfaceActionType InUserInterfaceActionType );
 
 	void SetLabelVisibility( EVisibility InLabelVisibility ) { LabelVisibility = InLabelVisibility ; }
 
@@ -77,7 +77,7 @@ private:
 	
 	/** In the case where a command is not bound, the user interface action type to use.  If a command is bound, we
 		simply use the action type associated with that command. */
-	EUserInterfaceActionType::Type UserInterfaceActionType;
+	EUserInterfaceActionType UserInterfaceActionType;
 
 	/** Whether ToolBar will have Focusable buttons */
 	bool bIsFocusable;

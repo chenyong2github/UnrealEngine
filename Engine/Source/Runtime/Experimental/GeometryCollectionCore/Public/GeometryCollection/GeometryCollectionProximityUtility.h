@@ -16,12 +16,14 @@ public:
 	struct FFaceTransformData {
 		int32 FaceIdx;
 		int32 TransformIndex;
+		FBox Bounds;
 	};
 
 	struct FVertexPair
 	{
 		FVector Vertex1, Vertex2;
 		float Distance() { return (Vertex1 - Vertex2).Size(); }
+		float DistanceSquared() { return (Vertex1 - Vertex2).SizeSquared(); }
 	};
 
 	struct FOverlappingFacePair

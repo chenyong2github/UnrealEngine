@@ -1,4 +1,4 @@
-INTSourceChangelist:4377382
+INTSourceChangelist:6341512
 Availability:Public
 Crumbs: %ROOT%
 Title:Rigid Body
@@ -11,8 +11,8 @@ tags:Animation
 tags:Animation Blueprint
 tags:Skeletal Controls
 topic-image:RigidBodyNode.png
-Related: Engine/Physics/PhAT
-Related: Engine/Physics/PhAT/Reference
+Related: Engine/Physics/PhysicsAssetEditor
+Related: Engine/Physics/PhysicsAssetEditor/Reference
 Related: Engine/Animation/AnimBlueprints/AnimGraph
 Related: Engine/Animation/NodeReference/Blend
 
@@ -48,8 +48,7 @@ Rigid Body 노드는 [](Engine/Animation/AnimBlueprints) 의 **애님 그래프*
 
 ## 입력 및 출력 핀
 
-아래 표는 사용할 수 있는 입력 및 출력 핀과 
-핀 사용법을 정의에 대한 개요입니다.
+아래 표는 사용할 수 있는 입력 및 출력 핀과 핀 사용법 정의에 대한 개요입니다.
 
 ![](RigidBodyPins.png)
 
@@ -61,7 +60,7 @@ Rigid Body 노드는 [](Engine/Animation/AnimBlueprints) 의 **애님 그래프*
 
 ## 예제 RigidBody 노드 구성
 
-이 노드를 사용하기 전, [피직스 애셋](Engine/Physics/PhAT) 안에서 시뮬레이션을 하고자 하는 [](Engine/Physics/PhysicsBodies) 를 선택하고 **Simulated** 로 설정합니다. 
+이 노드를 사용하기 전, [피직스 애셋](Engine/Physics/PhysicsAssetEditor) 안에서 시뮬레이션을 하고자 하는 [](Engine/Physics/PhysicsBodies) 를 선택하고 **Simulated** 로 설정합니다. 
 
 ![](RigidBody_02.png)
 
@@ -83,7 +82,7 @@ Rigid Body 노드는 [](Engine/Animation/AnimBlueprints) 의 **애님 그래프*
 
 | 프로퍼티 | 설명 |
 | -------- | ----------- |
-| **Override Physics Asset** | 피직스 애셋 덮어쓰기 - 사용할 피직스 애셋입니다. 공백이면 스켈레탈 메시의 기본 피직스 애셋이 사용됩니다. |
+| **Override Physics Asset** | 피직스 애셋 덮어쓰기 - 사용할 피직스 애셋입니다. 비워 두면, 스켈레탈 메시의 기본 피직스 애셋이 사용됩니다. |
 | **Override World Gravity** | 월드 중력 덮어쓰기 - 이 바디의 중력을 덮어쓸 벡터 값을 지정할 수 있도록 합니다. |
 | **External Force** | 외부 힘 - 월드 스페이스에서 균일한 외부의 힘을 적용합니다. 예를 들어, 컴포넌트 스페이스에서 시뮬레이션을 하면서 관성 운동을 쉽게 흉내낼 수 있습니다. |
 | **Overlap Channel** | 오버랩 채널 - 충돌 대상 스태틱 지오메트리를 찾는 데 사용할 채널입니다. |

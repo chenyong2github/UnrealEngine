@@ -294,16 +294,19 @@ namespace UnrealBuildTool
 						{
 							foreach (Action CyclicPrerequisiteAction in CyclicActions[Action])
 							{
-								if (CyclicPrerequisiteAction.ProducedItems.Count == 1)
+								if (CyclicActions.ContainsKey(CyclicPrerequisiteAction))
 								{
-									CycleDescription += string.Format("\t\t{0} (produces: {1})\n", ActionToIndex[CyclicPrerequisiteAction], CyclicPrerequisiteAction.ProducedItems[0].AbsolutePath);
-								}
-								else
-								{
-									CycleDescription += string.Format("\t\t{0}\n", ActionToIndex[CyclicPrerequisiteAction]);
-									foreach (FileItem CyclicProducedItem in CyclicPrerequisiteAction.ProducedItems)
+									if (CyclicPrerequisiteAction.ProducedItems.Count == 1)
 									{
-										CycleDescription += string.Format("\t\t\tproduces:   {0}\n", CyclicProducedItem.AbsolutePath);
+										CycleDescription += string.Format("\t\t{0} (produces: {1})\n", ActionToIndex[CyclicPrerequisiteAction], CyclicPrerequisiteAction.ProducedItems[0].AbsolutePath);
+									}
+									else
+									{
+										CycleDescription += string.Format("\t\t{0}\n", ActionToIndex[CyclicPrerequisiteAction]);
+										foreach (FileItem CyclicProducedItem in CyclicPrerequisiteAction.ProducedItems)
+										{
+											CycleDescription += string.Format("\t\t\tproduces:   {0}\n", CyclicProducedItem.AbsolutePath);
+										}
 									}
 								}
 							}
@@ -573,7 +576,6 @@ namespace UnrealBuildTool
 				Parallel.ForEach(Actions, Action => IsActionOutdated(Action, OutdatedActions, ActionHistory, CppDependencies, bIgnoreOutdatedImportLibraries));
 			}
 		}
-
 		/// <summary>
 		/// Deletes all the items produced by actions in the provided outdated action dictionary.
 		/// </summary>

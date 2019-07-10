@@ -10,6 +10,7 @@
 class FPerformanceAnalyticsStats;
 class FTickableEditorObject;
 class FUICommandInfo;
+class FConsoleCommandExecutor;
 
 enum class EMapChangeType : uint8
 {
@@ -344,6 +345,9 @@ private:
 
 	/** Package names and the number of times they have been updated */
 	TMap<FName, uint32> NumUpdatesByAssetName;
+
+	/** Pointer to the classic "Cmd" executor */
+	TUniquePtr<FConsoleCommandExecutor> CmdExec;
 
 	/** Handle to the registered OnUserDefinedChordChanged delegate. */
 	FDelegateHandle OnUserDefinedChordChangedDelegateHandle;

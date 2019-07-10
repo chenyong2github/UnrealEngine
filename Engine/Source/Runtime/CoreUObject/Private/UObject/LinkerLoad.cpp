@@ -5121,6 +5121,20 @@ bool FLinkerLoad::RemoveKnownMissingPackage(FName PackageName)
 	return FCoreRedirects::RemoveKnownMissing(ECoreRedirectFlags::Type_Package, FCoreRedirectObjectName(NAME_None, NAME_None, PackageName));
 }
 
+void FLinkerLoad::OnNewFileAdded(const FString& Filename)
+{
+	FString PackageName;
+	if (FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
+	{
+		FName PackageFName(*PackageName);
+		if (FLinkerLoad::IsKnownMissingPackage(PackageFName))
+		{
+			FLinkerLoad::RemoveKnownMissingPackage(PackageFName);
+		}
+	}
+}
+
+
 void FLinkerLoad::AddGameNameRedirect(const FName OldName, const FName NewName)
 {
 	TArray<FCoreRedirect> NewRedirects;

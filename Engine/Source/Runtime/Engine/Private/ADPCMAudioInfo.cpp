@@ -13,8 +13,6 @@
 
 namespace ADPCM
 {
-	const uint32 MaxChunkSize = 256 * 1024;
-
 	void DecodeBlock(const uint8* EncodedADPCMBlock, int32 BlockSize, int16* DecodedPCMData);
 	void DecodeBlockStereo(const uint8* EncodedADPCMBlockLeft, const uint8* EncodedADPCMBlockRight, int32 BlockSize, int16* DecodedPCMData);
 }
@@ -44,6 +42,7 @@ FADPCMAudioInfo::~FADPCMAudioInfo(void)
 
 void FADPCMAudioInfo::SeekToTime(const float SeekTime)
 {
+	// Reset chunk handle in preperation for a new chunk.
 	CurCompressedChunkData = nullptr;
 
 	if(SeekTime <= 0.0f)
@@ -60,49 +59,77 @@ void FADPCMAudioInfo::SeekToTime(const float SeekTime)
 	// Calculate block index & force SeekTime to be in bounds.
 	check(WaveInfo.pSamplesPerSec != nullptr);
 	const uint32 SamplesPerSec = *WaveInfo.pSamplesPerSec;
-	const uint32 SeekedSamples = static_cast<uint32>(SeekTime * SamplesPerSec);
+	uint32 SeekedSamples = static_cast<uint32>(SeekTime * SamplesPerSec);
 	TotalSamplesStreamed = FMath::Min<uint32>(SeekedSamples, TotalSamplesPerChannel - 1);
 
 	const uint32 HeaderOffset = static_cast<uint32>(WaveInfo.SampleDataStart - SrcBufferData);
-
-	if (Format == WAVE_FORMAT_ADPCM)
+	
+	if (!StreamingSoundWave)
 	{
-		CurrentCompressedBlockIndex = TotalSamplesStreamed / SamplesPerBlock; // Compute the block index that where SeekTime resides.
-		CurrentChunkIndex = 0;
-		CurrentChunkBufferOffset = HeaderOffset;
-
-		const int32 ChannelBlockSize = BlockSize * NumChannels;
-		for (uint32 BlockIndex = 0; BlockIndex < CurrentCompressedBlockIndex; ++BlockIndex)
+		// For the non streaming case:
+		if (Format == WAVE_FORMAT_LPCM)
 		{
-			if (CurrentChunkBufferOffset + ChannelBlockSize >= ADPCM::MaxChunkSize)
-			{
-				++CurrentChunkIndex;
-				CurrentChunkBufferOffset = 0;
-			}
-
-			// Always add chunks in NumChannels pairs
-			CurrentChunkBufferOffset += ChannelBlockSize;
+			// There are no "blocks" on LPCM, so only update the total samples streamed (which is based off sample rate).
+			// Note that TotalSamplesStreamed is per-channel in the ReadCompressedInfo. Channels are taken into account there.
+			TotalSamplesStreamed = FMath::Clamp<uint32>(SeekedSamples, 0, TotalSamplesPerChannel - 1);
 		}
-	}
-	else if (Format == WAVE_FORMAT_LPCM)
-	{
-		const int32 ChannelBlockSize = sizeof(int16) * NumChannels;
+		else
+		{
+			// Clamp to the end of memory in case we have an invalid seek time.
+			SeekedSamples = FMath::Clamp<uint32>(SeekedSamples, 0, TotalSamplesPerChannel - 1);
 
-		// 1. Find total offset
-		CurrentChunkBufferOffset = HeaderOffset + (TotalSamplesStreamed * ChannelBlockSize);
+			// Compute the block index that we're seeked to
+			CurrentCompressedBlockIndex = SeekedSamples / SamplesPerBlock;
 
-		// 2. Calculate index and remove from offset
-		CurrentChunkIndex = CurrentChunkBufferOffset / ADPCM::MaxChunkSize;
-		CurrentChunkBufferOffset %= ADPCM::MaxChunkSize;
-
-		// 3. Trim remainder of block size, effectively aligning the block to a channel pair boundary
-		CurrentChunkBufferOffset -= CurrentChunkBufferOffset % ChannelBlockSize;
+			// Update the samples streamed to the current block index and the samples per block
+			TotalSamplesStreamed = CurrentCompressedBlockIndex * SamplesPerBlock;
+		}
 	}
 	else
 	{
-		return;
-	}
+		if (Format == WAVE_FORMAT_ADPCM)
+		{
+			CurrentCompressedBlockIndex = TotalSamplesStreamed / SamplesPerBlock; // Compute the block index that where SeekTime resides.
+			CurrentChunkIndex = 0;
+			CurrentChunkBufferOffset = HeaderOffset;
 
+			const int32 ChannelBlockSize = BlockSize * NumChannels;
+			for (uint32 BlockIndex = 0; BlockIndex < CurrentCompressedBlockIndex; ++BlockIndex)
+			{
+				if (CurrentChunkBufferOffset + ChannelBlockSize >= StreamingSoundWave->GetSizeOfChunk(CurrentChunkIndex))
+				{
+					++CurrentChunkIndex;
+					CurrentChunkBufferOffset = 0;
+				}
+
+				// Always add chunks in NumChannels pairs
+				CurrentChunkBufferOffset += ChannelBlockSize;
+			}
+		}
+		else if (Format == WAVE_FORMAT_LPCM)
+		{
+			const int32 ChannelBlockSize = sizeof(int16) * NumChannels;
+
+			// 1. Find total offset
+			CurrentChunkBufferOffset = HeaderOffset + (TotalSamplesStreamed * ChannelBlockSize);
+			
+			// 2. Calculate index and remove from offset
+			while (CurrentChunkBufferOffset >= StreamingSoundWave->GetSizeOfChunk(CurrentChunkIndex))
+			{
+				CurrentChunkBufferOffset -= StreamingSoundWave->GetSizeOfChunk(CurrentChunkIndex);
+				CurrentChunkIndex++;
+			}
+
+			// 3. Trim remainder of block size, effectively aligning the block to a channel pair boundary
+			CurrentChunkBufferOffset -= CurrentChunkBufferOffset % ChannelBlockSize;
+		}
+		else
+		{
+			// If we hit this, Format was invalid:
+			checkNoEntry();
+			return;
+		}
+	}
 	bSeekPending = true;
 }
 
@@ -314,7 +341,7 @@ bool FADPCMAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSou
 	check(StreamingSoundWave == Wave);
 
 	// Get the first chunk of audio data (should already be loaded)
-	uint8 const* FirstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(Wave, 0, &CurrentChunkDataSize);
+	uint8 const* FirstChunk = GetLoadedChunk(Wave, 0, CurrentChunkDataSize);
 
 	if (FirstChunk == nullptr)
 	{
@@ -446,7 +473,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 					}
 
 					// Request the next chunk of data from the streaming engine
-					CurCompressedChunkData = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, &CurrentChunkDataSize);
+					CurCompressedChunkData = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, CurrentChunkDataSize);
 
 					if(CurCompressedChunkData == nullptr)
 					{
@@ -547,7 +574,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 				}
 
 				// Request the next chunk of data from the streaming engine
-				CurCompressedChunkData = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, &CurrentChunkDataSize);
+				CurCompressedChunkData = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, CurrentChunkDataSize);
 
 				if(CurCompressedChunkData == nullptr)
 				{
@@ -612,4 +639,26 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 	}
 
 	return ReachedEndOfSamples;
+}
+
+const uint8* FADPCMAudioInfo::GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)
+{
+	if (!InSoundWave || ChunkIndex >= InSoundWave->GetNumChunks())
+	{
+		UE_LOG(LogAudio, Error, TEXT("Error calling GetLoadedChunk for ChunkIndex %d!"), ChunkIndex);
+		OutChunkSize = 0;
+		return nullptr;
+	}
+	else if (ChunkIndex == 0)
+	{
+		TArrayView<const uint8> ZerothChunk = InSoundWave->GetZerothChunk();
+		OutChunkSize = ZerothChunk.Num();
+		return ZerothChunk.GetData();
+	}
+	else
+	{
+		CurCompressedChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(InSoundWave, ChunkIndex);
+		OutChunkSize = CurCompressedChunkHandle.Num();
+		return CurCompressedChunkHandle.GetData();
+	}
 }

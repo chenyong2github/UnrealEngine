@@ -568,6 +568,11 @@ public:
 	bool SetLooping(bool Looping);
 
 	/**
+	 * Changes media ooptions on the player.
+	 */
+	void SetMediaOptions(const IMediaOptions* Options);
+
+	/**
 	 * Changes the media's playback rate.
 	 *
 	 * @param Rate The playback rate to set.

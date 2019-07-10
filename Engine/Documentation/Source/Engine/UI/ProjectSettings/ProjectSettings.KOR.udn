@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6666148
 Availability:Public
 Title:프로젝트 세팅
 Crumbs:%ROOT%, Engine, Engine/UI
@@ -104,7 +104,6 @@ topic-image:projectsettings_topic.png
 | **Cooker** | 쿠커 - 다양한 쿠커 설정 옵션이 들어있습니다. 텍스처 압축 퀄리티같은 것을 처리합니다. |
 | **Crowd Manager** | 크라우드 매니저 - AI 크라우드 환경설정 옵션 세트가 들어있습니다. |
 | [REGION:tablesection]최종 사용자 세팅[/REGION] ||
-| Privacy | 개인정보 취급방침 - [INCLUDE:#privacy] |
 | **Garbage Collection** | 가비지 컬렉션 - 게임에서 가비지 컬렉션 작동 방식에 대한 환경설정이 가능합니다. |
 | **General Settings** | 일반 세팅 - 기본 폰트, 베이스 클래스, 머티리얼, 프레임율 등 엔진과 에디터의 초기화와 셋업에 사용되는 옵션이 들어있습니다. |
 | **Input** | 입력 - 게임의 액션 & 축 바인딩 (키설정 및 기타 입력 매핑) 설정이 가능합니다. [REGION:note]이 부분은 에디터 키설정이 아닌 게임내 키설정입니다.[/REGION] |
@@ -117,15 +116,7 @@ topic-image:projectsettings_topic.png
 | **Tutorials** | 튜토리얼 - 이 프로젝트에서 어떤 튜토리얼을 사용할 수 있도록 할 것인지 설정할 수 있습니다. |
 | **User Interface** | 유저 인터페이스 - 슬레이트와 UMG 관련 DPI 스케일, 커서, 렌더 포커스 룰과 같은 설정이 들어있습니다. |
 
-[COMMENT:none]
 
-[EXCERPT:privacy]
-익명의 사용 데이터를 에픽게임즈에 전송할지 여부를 결정합니다. 사용 데이터 전송을 비활성화시키려면, **End-users don't send** (최종 사용자 전송 않음)을 클릭하세요.
-
-![](privacy_donotsend.png)
-[/EXCERPT:privacy]
-
-[/COMMENT]
 
 ### 에디터 카테고리
 

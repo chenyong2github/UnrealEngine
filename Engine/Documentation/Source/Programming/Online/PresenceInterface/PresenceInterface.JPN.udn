@@ -1,0 +1,68 @@
+﻿INTSourceChangelist:5368333
+Availability: Public
+Crumbs: 
+Title: Presence インターフェース
+Description: Presence インターフェースの概要です。
+Type: 
+Version: 4.21
+Parent: Programming/Online
+Order: 
+Tags: Online Subsystem
+Tags: presence
+
+
+オンライン サービスにログインすると、ユーザーは自分の友達やオンラインで出会った他のユーザーに関する情報 (オンラインであるかどうか、彼らのしていること、ゲームに参加可能かどうかなど) を見ることができます。
+**Presence インターフェース** は、オンライン サブシステムにこれらの機能へのアクセスを提供します。
+
+## プレゼンス ステータス
+
+ほとんどのオンライン サービスは、「オンライン」、「オフライン」、「不在」などのような各ユーザーの基本的なプレゼンス (存在) の状態について認識します。また、「ロビー内」や「(マップ上で) 対戦中」などのようなゲーム固有の状態も認識します。
+ただし、サービス固有のプライバシー ポリシーとアカウント設定により、これらの設定は常には表示されなかったり、一部のユーザーのみに表示されたりして、それ以外のユーザーには表示されない場合もあります。
+オンライン サブシステムはこれらのポリシーや設定とやり取りはしませんが、取得する情報はそれらによって影響を受けます。
+
+### プレゼンスを定義する
+
+[`FOnlineUserPresence`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/Interfaces/FOnlineUserPresence/index.html) クラスには、ユーザーのプレゼンスに関するすべての情報が含まれています。
+ユーザーが現在オンラインであるかどうかや、ユーザーがゲームをプレイしているかどうかなどの基本情報に加えて、ユーザーのプレゼンス ([`FOnlineUserPresenceStatus`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/Interfaces/FOnlineUserPresenceStatus/index.html) クラスの使用) には、より詳細な情報が格納されます。
+これには通常、表示用のローカライズされた文字列、ユーザーの基本状態を説明するための列挙型の値 ([`EOnlinePresenceState`] 型(https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/Interfaces/EOnlinePresenceState__Type/index.html))、および正確なプレゼンス表示メッセージを作成する際に使用可能な、ゲーム固有のカスタム データを保持する一連のキーと値のペアが含まれます。
+
+#### Xbox Live のプレゼンス データ
+
+Microsoft の Xbox Live サービス (Xbox One 用) では、デベロッパーは Xbox Developer Portal サイトの [Rich Presence Strings] セクションで、ローカライズされたステータス文字列を設定し、これらの文字列のキーを取得できます。
+オンラインで他のユーザーに表示される自分のプレゼンス ステータスとして設定した文字列を使用するには、`SetPresence` 関数が受け取る `FOnlineUserPresence` パラメータ内の `StatusStr` 変数にその文字列のキーを入れます。
+これらの文字列には、中括弧 {} を使用して、変数を挿入することもできます。
+例えば、「Playing a match on {current\_map}」という英語の文字列がある場合、「current\_map」の部分が変数で、プレゼンスを設定する際にゲームによってこの変数をアップデートすることができます。
+変数を設定するには、`SetPresence` に渡す `FOnlinePresence` の `Properties` 配列にエレメントを追加します。
+この例では、エレメントには｢Event\_current\_map｣キーと、メッセージで表示される｢Forest Map｣といったようなマップ名を英語で表す値が含まれています。
+
+#### PlayStation Network 上のプレゼンス データ
+
+Sony の PlayStation Network では、ローカライズされていない文字列を `SetPresence` 関数が受け取る `FOnlineUserPresence` パラメータ内の `StatusStr` 変数に入れることができます。
+この変数を空のままにした場合は、代わりに使用するためのキー値｢DefaultPresenceKey｣を持つエントリがあるかどうかについて、`Properties` 変数が確認されます。
+他のユーザーが自分のプレゼンス ステータスの照会に成功すると、この文字列が表示されます。
+同じゲームを実行している他のユーザーが受け取る「CustomData｣キー (または `CustomPresenceDataKey` 定数) を含む `FOnlineUserPresenceStatus` パラメータ内のカスタム プロパティを設定することで利用可能になる隠し文字列もあります。
+この文字列は表示されませんが、どんな目的に対しても使用することができます。
+
+[REGION:note]
+ステータスの文字列が変数を通じて送られるのか、 `Properties` 変数の｢DefaultPresenceKey｣エントリを通じて送られるのかに関わらず、ステータスの文字列は他のユーザーのコンピュータの `Properties` 変数の｢DefaultPresenceKey｣エントリに格納されます。
+[/REGION]
+[REGION:tip]
+ [Friends インターフェース](Programming/Online/FriendsInterface) は、PlayStation Network の Presence インターフェースでは利用できないセッション ID キーなどのプレゼンス情報にアクセス可能です。
+[/REGION]
+
+### 他のユーザーに関する情報を取得する
+
+特定のユーザーに関するプレゼンス情報を収集するための基本的なフローは、まず最初に `QueryPresence` を介してオンラインサービスにリクエストし、そのユーザーを `FUniqueNetId` で指定します。
+その操作が終了すると、提供された `FOnPresenceTaskCompleteDelegate` が呼び出され、ユーザーと、リクエストの成否を示します。
+成功した場合、ローカル プレゼンス情報キャッシュには最新のプレゼンス情報が入ります。この情報は `GetCachedPresence` 関数を通じて利用できます。
+
+[REGION:tip]
+一部のオンライン サービスは、ユーザーのプレゼンスについてオンライン サブシステムに早期に通知します。
+これらのサービスでは、実際には `QueryPresence` を呼び出したり、そのデリゲートを待ったりする必要はありませんが、通常のコードのフローは変更されないので、複数のサービス間で機能します。
+[/REGION]
+
+### ユーザーのプレゼンスを設定する
+
+`SetPresence` 関数では、オンライン サービスを介してローカル ユーザーのプレゼンス状態を設定します。
+オンライン サービスで新しいステータスを確認する必要があるため、これは非同期呼び出しとなります。完了時には `FOnPresenceTaskCompleteDelegate` 型のデリゲートが呼び出されます。
+プレゼンス ステータス自体は、FOnlineUserPresenceStatus クラスによって記述されます。

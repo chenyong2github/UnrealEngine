@@ -202,14 +202,14 @@ public:
 	 *
 	 * @return The maximum value in the point.
 	 */
-	float GetMax() const;
+	int32 GetMax() const;
 
 	/**
 	 * Gets the minimum value in the point.
 	 *
 	 * @return The minimum value in the point.
 	 */
-	float GetMin() const;
+	int32 GetMin() const;
 
 	/**
 	 * Gets the distance of this point from (0,0,0).
@@ -415,13 +415,13 @@ FORCEINLINE FIntVector FIntVector::DivideAndRoundUp( FIntVector lhs, int32 Divis
 }
 
 
-FORCEINLINE float FIntVector::GetMax() const
+FORCEINLINE int32 FIntVector::GetMax() const
 {
 	return FMath::Max(FMath::Max(X, Y), Z);
 }
 
 
-FORCEINLINE float FIntVector::GetMin() const
+FORCEINLINE int32 FIntVector::GetMin() const
 {
 	return FMath::Min(FMath::Min(X, Y), Z);
 }

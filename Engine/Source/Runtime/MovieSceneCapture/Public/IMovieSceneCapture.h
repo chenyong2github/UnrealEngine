@@ -38,4 +38,7 @@ public:
 
 	/** Access specific movie scene capture settings */
 	virtual const FMovieSceneCaptureSettings& GetSettings() const = 0;
+
+	/** Access Frame Number Offset */
+	virtual const int32 GetFrameNumberOffset() const = 0;
 };

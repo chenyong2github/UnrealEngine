@@ -528,12 +528,21 @@ void FParticleEmitterInstance::Init()
     
 	    for (UParticleModule* ParticleModule : SpriteTemplate->ModulesNeedingInstanceData)
 	    {
-		    check(ParticleModule);
-		    uint8* PrepInstData = GetModuleInstanceData(ParticleModule);
-			    check(PrepInstData != nullptr); // Shouldn't be in the list if it doesn't have data
-			    ParticleModule->PrepPerInstanceBlock(this, (void*)PrepInstData);
+			check(ParticleModule);
+			uint8* PrepInstData = GetModuleInstanceData(ParticleModule);
+			check(PrepInstData != nullptr); // Shouldn't be in the list if it doesn't have data
+			ParticleModule->PrepPerInstanceBlock(this, (void*)PrepInstData);
 	    }
-    
+
+		for (UParticleModule* ParticleModule : SpriteTemplate->ModulesNeedingRandomSeedInstanceData)
+		{
+			check(ParticleModule);
+			FParticleRandomSeedInstancePayload* SeedInstancePayload = GetModuleRandomSeedInstanceData(ParticleModule);
+			check(SeedInstancePayload != nullptr); // Shouldn't be in the list if it doesn't have data
+			FParticleRandomSeedInfo* RandomSeedInfo = ParticleModule->GetRandomSeedInfo();
+			ParticleModule->PrepRandomSeedInstancePayload(this, SeedInstancePayload, RandomSeedInfo ? *RandomSeedInfo : FParticleRandomSeedInfo());
+		}
+
 	    // Offset into emitter specific payload (e.g. TrailComponent requires extra bytes).
 	    PayloadOffset = ParticleSize;
 	    
@@ -544,7 +553,7 @@ void FParticleEmitterInstance::Init()
 	    ParticleSize = Align(ParticleSize, 16);
     
 	    // E.g. trail emitters store trailing particles directly after leading one.
-	    ParticleStride			= CalculateParticleStride(ParticleSize);
+	    ParticleStride = CalculateParticleStride(ParticleSize);
 	}
 
 	// Setup the emitter instance material array...
@@ -1555,9 +1564,25 @@ uint8* FParticleEmitterInstance::GetModuleInstanceData(UParticleModule* Module)
 		if (Offset)
 		{
 			check(*Offset < (uint32)InstancePayloadSize);
-				return &(InstanceData[*Offset]);
-			}
+			return &(InstanceData[*Offset]);
 		}
+	}
+	return NULL;
+}
+
+/** Get pointer to emitter instance random seed payload data for a particular module */
+FParticleRandomSeedInstancePayload* FParticleEmitterInstance::GetModuleRandomSeedInstanceData(UParticleModule* Module)
+{
+	// If there is instance data present, look up the modules offset
+	if (InstanceData)
+	{
+		uint32* Offset = SpriteTemplate->ModuleRandomSeedInstanceOffsetMap.Find(Module);
+		if (Offset)
+		{
+			check(*Offset < (uint32)InstancePayloadSize);
+			return (FParticleRandomSeedInstancePayload*)&(InstanceData[*Offset]);
+		}
+	}
 	return NULL;
 }
 
@@ -1620,6 +1645,8 @@ float FParticleEmitterInstance::GetCurrentBurstRateOffset(float& DeltaTime, int3
 	UParticleLODLevel* LODLevel	= GetCurrentLODLevelChecked();
 	if (LODLevel->SpawnModule->BurstList.Num() > 0)
 	{
+		FRandomStream& RandomStream = LODLevel->SpawnModule->GetRandomStream(this);
+
 		// For each burst in the list
 		for (int32 BurstIdx = 0; BurstIdx < LODLevel->SpawnModule->BurstList.Num(); BurstIdx++)
 		{
@@ -1644,7 +1671,7 @@ float FParticleEmitterInstance::GetCurrentBurstRateOffset(float& DeltaTime, int3
 							int32 Count = BurstEntry->Count;
 							if (BurstEntry->CountLow > -1)
 							{
-								Count = BurstEntry->CountLow + FMath::RoundToInt(FMath::SRand() * (float)(BurstEntry->Count - BurstEntry->CountLow));
+								Count = RandomStream.RandRange(BurstEntry->CountLow, BurstEntry->Count);
 							}
 							// Take in to account scale.
 							float Scale = LODLevel->SpawnModule->BurstScale.GetValue(EmitterTime, Component);
@@ -2630,10 +2657,12 @@ void FParticleEmitterInstance::SetupEmitterDuration()
 		UParticleLODLevel* TempLOD = SpriteTemplate->LODLevels[LODIndex];
 		UParticleModuleRequired* RequiredModule = TempLOD->RequiredModule;
 
+		FRandomStream& RandomStream = RequiredModule->GetRandomStream(this);
+
 		CurrentDelay = RequiredModule->EmitterDelay + Component->EmitterDelay;
 		if (RequiredModule->bEmitterDelayUseRange)
 		{
-			const float	Rand	= FMath::FRand();
+			const float	Rand	= RandomStream.FRand();
 			CurrentDelay	    = RequiredModule->EmitterDelayLow + 
 				((RequiredModule->EmitterDelay - RequiredModule->EmitterDelayLow) * Rand) + Component->EmitterDelay;
 		}
@@ -2641,7 +2670,7 @@ void FParticleEmitterInstance::SetupEmitterDuration()
 
 		if (RequiredModule->bEmitterDurationUseRange)
 		{
-			const float	Rand		= FMath::FRand();
+			const float	Rand		= RandomStream.FRand();
 			const float	Duration	= RequiredModule->EmitterDurationLow + 
 				((RequiredModule->EmitterDuration - RequiredModule->EmitterDurationLow) * Rand);
 			EmitterDurations[TempLOD->Level] = Duration + CurrentDelay;

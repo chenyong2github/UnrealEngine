@@ -1,53 +1,48 @@
-﻿INTSourceChangelist:1782020
+﻿INTSourceChangelist:3244370
 Availability:Public
-Title: Palette(面板)
-Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor
-Description:Palette（面板）中以非情境关联的方式列出了蓝图中可用的所有函数和变量。
+Title: 控制板
+Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor, Engine/Blueprints/Editor/UIBreakdowns/LevelBPUI
+Description:蓝图中可以使用的控制板的所有函数和变量的非上下文敏感列表。
+version: 4.9
+tags:Blueprints
 
 
 [TOC (start:2)]
 
 [EXCERPT:Intro]
- **Palette（面板）** 选卡显示了  _蓝图_  中可以使用的所有函数及变量的列表，而不是像 **图表** 选卡那样在关联菜单中显示过滤后的列表。
+ **控制板（Palette）** 面板显示可以在蓝图中使用的所有函数和变量的列表。它允许完全搜索，包含一个 **收藏夹（Favorites）** 面板，您可以使用最常用的节点填充该面板，还可以筛选它来搜索与特定类类型兼容的节点。您只需从列表中拖放节点，便可以将 **控制板（Palette）** 面板中的节点添加到您的网络中。
+
 [/EXCERPT:Intro]
 
 [EXCERPT:Main]
 
-![](palette_top.png)
+(#interface)
 
+## 界面
 
-这种辅助增加了发现可用节点的可能性，因为 **图表** 选卡中用于添加节点的菜单是情境关联的， 
-并不能总是提供所有可用节点的完整视图。通过使用这个所有可用节点的列表，您可以找到 
-您之前没有意识到的函数或变量，从而使您可以在构建您的图表时作出最明智的决定 
-。
-
-![](palette_search.png)
-
-和情境关联的 **图表** 选卡菜单一样，  **Palette（面板）** 选卡底部提供了添加注释、自定义事件或时间轴的选项。
-
-## 提炼面板结果 
-
-通过使用顶部的 **Search（搜索）** 框，可以过滤可用的函数和变量的列表。过滤列表使得 
-可以更轻松地找到和特定主题相关的所有函数或变量。
-
-比如，输入 **_"control"_** 可以找到和控制玩家或其他 _Actors_ 相关的节点：
-
-![](palette_search.png)
-
-通过使用 **Palette（面板）** 选卡顶部的下拉菜单，可以仅显示和特定 _类_ 相关的节点。
-
-![](palette_class_dropdown.png)
-
-## 放置节点
-
-**Palette（面板）** 选卡中的项目可以直接放置到图表中，通过把该项目从 **Palette** 中拖拽并放置到 
-图表中来实现。
-
-
-[REGION:imagetable]
-| ![](component_drag_1_arrow.png) | ![](component_drag_2.png)|
-| ------ | ------ |
-| 拖拽该项到图表中 | 放置该项来创建节点 |
+[REGION:raw]
+![](Palette.png)
 [/REGION]
 
+1. **收藏夹（Favorites）** - 将显示您最喜爱的和经常使用的节点。您可以在 **控制板（Palette）** 面板中右键单击，并选择 **添加到收藏夹（Add to Favorites）** 来向该区域添加节点。
+1. **控制板列表（Palette list）** - 这是所有可用函数的列表，可按类筛选并可搜索。
+1. **收藏夹搜索栏（Favorites search bar）** - 在键入时主动筛选 **收藏夹（Favorites）** 列表。
+1. **类筛选器（Class Filter）** - 它将筛选 **控制板（Palette）** 面板，以仅显示与特定类兼容的节点。更多详情请参阅[类筛选](#ClassFiltering)。
+1. **控制板搜索栏（Palette search bar）** - 键入时主动筛选控制板列表。
+
+
+
 [/EXCERPT:Main]
+
+(#classfiltering)
+
+## 类筛选
+
+有时，筛选 **控制板（Palette）** 以仅显示与给定类类型兼容的节点是大有用处。此操作使用 **类过滤器（Class Filter）** 下拉菜单完成。单击时，它显示项目中所有可用类的列表，类似于[类查看器](Engine/UI/ClassViewer)面板。它还包含一个搜索栏，您可以使用它对列表进行主动筛选。
+
+![](ClassDropdown.png)
+
+
+
+
+

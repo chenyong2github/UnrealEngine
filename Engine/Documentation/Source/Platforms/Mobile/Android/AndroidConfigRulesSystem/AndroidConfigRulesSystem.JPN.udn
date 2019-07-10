@@ -1,0 +1,370 @@
+﻿INTSourceChangelist:6910448
+Availability: Public
+Crumbs: 
+Title: Android コンフィギュレーション ルール システム
+Description: UE4 プロジェクトで Android コンフィギュレーション ルール システム を使用する方法について説明します。
+Type:reference
+Version: 4.21
+Parent: Platforms/Mobile/Android
+Order: 
+Tags: Android
+Tags: Reference
+
+
+Android コンフィギュレーション ルール システム を使用すると、Unreal Engine 4 (UE4) で Android の開発を行う際に特定の Android ベースのデバイスがプロジェクトを実行するために必要なハードウェアとソフトウェアを備えているかどうかを判定できます。 以下の情報と手順に従い、サポートするデバイスやソフトウェアに合った UE4 のプロジェクトの開発を進めることができます。
+
+## Config ルール ファイル
+
+まず始めに、 **「configconfigrules.txt」** という名前の新規テキスト ファイルを作成して、プロジェクトの **「Build/Android」** ディレクトリに配置します。
+
+[REGION:lightbox]
+[![](AndroidConfigRules_File_Location.png)(w:800px)](AndroidConfigRules_File_Location.png)
+[/REGION]
+[REGION:caption]
+クリックしてフルサイズで表示。
+[/REGION]
+
+「configrules.txt」ファイルを作成して、「Build/Android」ディレクトリに配置したら、選択したテキスト エディタで開き、ファイルの最初の項目に次のテキストを追加します。
+    
+    // version:1
+    
+上記のテキストは、パッケージ化中に ConfigRulesTool によって解析されるバージョン コードであり、この形式で記述する必要があります (「//」と 「version：」の間には 1 つのスペース、コロンの後にはスペースなし)。 番号は 1 から始まり、ファイルが更新されるたびに増やします。  UE4 はこの番号を使用して、Android パッケージ (APK) に現在組み込まれているものよりも新しいバージョンを使用する必要があるかどうかを判断します。
+
+[REGION:note]
+**「//」** または **セミコロン「;」** で始まる行はコメントとして扱われ、無視されます。
+[/REGION]
+
+コマンドは、大文字・小文字を区別する変数を操作するために使用されます。これらの変数は、即時にアクションを実行したり、またはエンジンに渡されます。  Config ルールの実行後に定義された変数は、C++ から次の関数でクエリを実行できます。
+
+    FString* FAndroidMisc::GetConfigRulesVariable(const FString& Key);
+
+**例：**
+
+    #if PLATFORM_ANDROID
+    If (FAndroidMisc::GetConfigRulesVariable(TEXT("myflag") == TEXT("true"))
+    {
+        UE_LOG(LogAndroid, Display, TEXT("myflag was set!"));
+    }
+    #endif
+
+
+キー / 値エントリで構成される TMap にアクセスして、繰り返し処理を実行することも可能です。
+
+    TMap<FString, FString> FAndroidMisc::GetConfigRulesTMap();
+
+**例：**
+
+    #if PLATFORM_ANDROID
+    TMap<FString, FString> ConfigRules = FAndroidMisc::GetConfigRulesTMap();
+    for (const TPair<FString, FString>& Pair : ConfigRules)
+    {
+        FString VarKey = Pair.Key;
+        if (VarKey.StartsWith("myvars_"))
+       {
+            FString VarValue = Pair.Value;
+            UE_LOG(LogAndroid, Log, TEXT("Found variable %s = %s"), *VarKey, *VarValue);
+       }
+    }
+    #endif
+
+## Config ルール変数
+
+変数には、次のシンタックスを持つ値を使用します。  
+
+    $(varname)
+
+これは、次のことを意味します。
+
+    "$(SRC_DeviceMake) $(SRC_DeviceModel)"
+
+スペースで区切られた **SRC_DeviceMake** と **SRC_DeviceModel** の値に置き換えられます。
+
+以下の変数は、「configrules.txt」が解析される前に自動的に定義されます。  
+
+  
+| **変数名** | **説明** | **値の例** |
+| --- | --- | --- |
+| memory | 合計メモリ (MB) | 3550 |
+| hardware | チップセットです (「/proc/cpuinfo」 もしくは 「getprop ro.hardware」の「Hardware」 です)。 | Qualcomm Technologies、Inc SDM845 |
+| ro.hardware | 「getprop ro.hardware」の結果です。 | blueline |
+| processor | 「/proc/cpuinfo」のプロセッサ タイプです。 | AArch64 Processor rev 12 (aarch64) |
+| processorCount | 「/proc/cpuinfo」のプロセッサ数です。 | 8 |
+| useAffinity | いくつかのスレッドのリトルコアに、スレッド アフィニティを設定するかどうかを指定します。 | true |
+| hasNEON | プロセッサが NEON 機能 (SIMD) をサポートしているかどうかを示します。 | true |
+| isARM64 | プロセッサが ARM64 ABI をサポートしているかどうかを示します。 | true |
+| littleCoreMask | リトルコアを示すビックマスクです。 | 0x0f |
+| bigCoreMask | ビックコアを示すビックマスクです。 | 0xf0 |
+| SRC_GpuVendor | GLES20.glGetString (GLES20.GL_VENDOR) のベンダです。 | Qualcomm |
+| SRC_GpuFamily | GLES20.glGetString (GLES20.GL_RENDERER) の GPU ファミリです。 | Adreno (TM) 630 |
+| SRC_GlVersion | GLES20.glGetString (GLES20.GL_VERSION) の GL バージョンです。 | OpenGL ES 3.2 V@313.0 (GIT@3f88ca2, I42f6fe38fb) (Date:07/13/18) |
+| SRC_AndroidVersion | android.os.Build.VERSION.RELEASE の Android バージョンです。 | 9 |
+| SRC_DeviceMake | android.os.Build.MANUFACTURER の デバイスメーカーです。 | Google |
+| SRC_DeviceModel | android.os.Build.MODEL の デバイスモデルです。 | Pixel 3 |
+| SRC_DeviceBuildNumber | android.os.Build.DISPLAY の デバイス ビルド番号です。 | PD1A.180720.030 |
+| SRC_VulkanVersion | Vulkan サポートのバージョンです。 | 1.1.0 |
+| SRC_VulkanAvailable | デバイスが Vulkan をサポートしているかどうかを示します。 | true |
+| SRC_UsingHoudini | Houdini が Intel プロセッサで エミュレーションした ARM を示します。 | false |
+| SRC_SDKLevel | android.os.Build.VERSION.SDK_INT の SDK レベルです。 | 28 |
+| supportsFloatingPointRenderTargets | GPU が FP レンダーターゲットをサポートしていることを示します。 | true |
+| TextureFormats | GPU によってサポートされるテクスチャ フォーマットのコンマ区切りリストです | ASTC、ATC、ETC2、ETC1 |
+| navigationBarHeight | Android ナビゲーションバーの高さです (ピクセル単位)。 | 132 |
+| statusBarHeight | Android ステータスバーの高さです (ピクセル単位)。 | 66 |
+| screenWidth | スクリーンの幅 (ピクセル単位)。 | 1080 |
+| screenHeight | スクリーンの高さ (ピクセル単位)。 | 2160 |
+
+
+## Config ルール コマンド
+
+コマンドは、**action：argument** フォーラムの有効な引数と一緒に使用することができます。 以下に、ユースケースの例と一緒にそれらの定義を示します。  
+  
+**Set** を使用すると、1 つ以上の変数と指定された値を割り当てることができます。
+
+    set:(myvar=true)
+
+
+複数の変数を与える場合は、**コンマ**「**,**」を使用してそれらを区切ることができます。
+
+    set:(myvar=false,myvar2="something",myvar3="else")
+
+
+**clear** を使用すると、変数に割り当てられている値を消去できます。
+
+    clear:(myvar)
+
+消去したい値を区切るには、**コンマ**「**,**」を使用して一度に複数の変数を消去できます。
+
+    clear:(myvar,myvar3)
+
+**condition** は条件のリストを評価し、それらが全てが true であれば、オプションの set と clear コマンドを適用します。  
+
+    condition:((comparison)[,(comparison)],[(set)],[(clear)]
+
+比較は、コンマで区切られた括弧内の 3 つのパートで構成されています。3 つのパートは、それぞれ **SourceType**、**CompareType**、および **MatchString** です。
+
+    (SourceType=isARM64,CompareType=CMP_EQUAL,MatchString="true")
+
+**SourceType** には、比較用の最初の引数を指定し、通常は変数名になります。 以下に、使用可能な 3 つの特殊な SourceType 値を示します。
+
+  
+| **コマンド名** | **説明** |
+| --- | --- |
+| SRC_PreviousRegexMatch | 最後の Regex の条件から返されるグループです。 |
+| SRC_CommandLine | APK に埋め込まれているコマンドラインです。 |
+| \[EXIST\] | MatchString と一緒に使用して、変数が存在するかどうかを確認します。 |
+
+
+**MatchString** は、比較に使用する文字列値、または **\[EXIST\]** 用の変数名です。
+
+**CompareType** は、次のいずれかになります。  
+
+  
+| **コマンド名** | **説明** |
+| --- | --- |
+| CMP_Exist | MatchString の変数名が設定されていれば、true になります。 |
+| CMP_NotExist | MatchString の変数名が設定されていなければ、true になります。 |
+| CMP_Equal | MatchString の変数名が設定されていなければ、true になります。 |
+| CMP_NotEqual | SourceType が MatchString と等しくなければ、true になります。 |
+| CMP_EqualIgnore | SourceType が MatchString と等しければ true になりますが、大文字・小文字は区別されません。 |
+| CMP_NotEqualIgnore | SourceType が MatchString と等しくなければ true になりますが、大文字・小文字は区別されません。 |
+| CMP_Less | SourceType の値 &lt; MatchString の値が成り立てば、true になります。 |
+| CMP_LessEqual | SourceTypeの値 &lt;= MatchString の値が成り立てば、true になります。 |
+| CMP_Greater | SourceType の値 > MatchString の値が成り立てば、true になります。 |
+| CMP_GreaterEqual | SourceType の値 >= MatchString の値が成り立てば、true になります。 |
+| CMP_Regex | SourceType で MatchString で指定した Regex が見つかれば、true になります (SRC_PreviousRegexMatch で一致したグループの追加の条件チェックが可能です)。 |
+
+
+以下の例では、UE4 プロジェクトでの Android Config ルール コマンドの設定や使用方法を示しています。
+
+以下のコードでは、**isARM64** が **true** の場合、**myvar** を **arm64** に設定します。  
+
+    condition:((SourceType=isARM64,CompareType=CMP_EQUAL,MatchString="true")),(myvar="arm64")
+
+
+次のコードは、**isARM64** が **true** の場合、**myvar** を **arm64** に設定し、**notsupported** は消去されます。  
+
+    set:(notsupported=true)
+    condition:((SourceType=isARM64,CompareType=CMP_EQUAL,MatchString="true")),(myvar="arm64"),(notsupported)
+
+次のコードは、 **Regex** を使用して **Adreno (TM) 630** 内の数値を抽出し、それを比較して **510** 未満であれば、エラー フラグを設定します。  
+
+    condition:((SourceType=SRC_GpuFamily,CompareType=CMP_Regex,MatchString="(?!Adreno \(TM\))([0-9][0-9]*)"),(SourceType=SRC_PreviousRegexMatch,CompareType=CMP_LessEqual,MatchString="510")), (error="CR_Info_UnsupportedGPU")
+
+**chipset** は、ハードウェア文字列が ro.hardware または hardware のいずれかに等しい場合、変数のグループを設定するためのショートカットです。 useAffinity、chipset、GPU、processorCount、bigCoreMask、littleCoreMask を設定します。 useAffinity は、タスク グループ スレッドが littleCoreMask を使用してリトルコアに制限されるかどうかを制御します。
+
+    chipset: hardware string, useAffinity, part name, GPU name, processor count, big core mask, little core mask
+
+以下はその例です。
+
+~~~
+chipset:"Qualcomm Technologies, Inc MSM8929", true, "Snapdragon 415", "Adreno (TM) 405", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc MSM8937", true, "Snapdragon 435", "Adreno (TM) 505", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc MSM8940", true, "Snapdragon 435", "Adreno (TM) 505", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc MSM8952", true, "Snapdragon 617", "Adreno (TM) 405", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc MSM8953", true, "Snapdragon 625/626", "Adreno (TM) 506", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc MSM8956", true, "Snapdragon 650", "Adreno (TM) 510", 6, 0x03, 0x0f
+chipset:"Qualcomm Technologies, Inc MSM8976", true, "Snapdragon 652/653", "Adreno (TM) 510", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc SDM630", true, "Snapdragon 630", "Adreno (TM) 508", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc SDM636", true, "Snapdragon 636", "Adreno (TM) 509", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc SDM660", true, "Snapdragon 660", "Adreno (TM) 512", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc SDM640", true, "Snapdragon 640", "Adreno (TM) 610", 8, 0xc0, 0x3f
+chipset:"Qualcomm Technologies, Inc SDM670", true, "Snapdragon 670", "Adreno (TM) 620", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc SDM710", true, "Snapdragon 710", "Adreno (TM) 616", 8, 0xc0, 0x3f
+chipset:"Qualcomm Technologies, Inc SDM730", true, "Snapdragon 730", "Adreno (TM) 615", 8, 0xc0, 0x3f
+chipset:"Qualcomm Technologies, Inc MSM8992", true, "Snapdragon 808", "Adreno (TM) 418", 6, 0x30, 0x0f
+chipset:"Qualcomm Technologies, Inc MSM8994", true, "Snapdragon 810", "Adreno (TM) 430", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc MSM8996", true, "Snapdragon 820/821", "Adreno (TM) 530", 4, 0x0c, 0x03
+chipset:"Qualcomm Technologies, Inc MSM8998", true, "Snapdragon 835", "Adreno (TM) 540", 8, 0xf0, 0x0f
+chipset:"Qualcomm Technologies, Inc SDM845", true, "Snapdragon 845", "Adreno (TM) 630", 8, 0xf0, 0x0f
+chipset:"samsungexynos9810", true, "Samsung Exynos 9 Series (9810)", "Mali-G72 MP18", 8, 0xf0, 0x0f
+chipset:"samsungexynos8895", true, "Samsung Exynos 9 Series (8895)", "Mali-G71 MP20", 8, 0xf0, 0x0f
+chipset:"samsungexynos9610", true, "Samsung Exynos 7 Series (9610)", "Mali-G72 MP3", 8, 0xf0, 0x0f
+chipset:"samsungexynos7885", true, "Samsung Exynos 7 Series (7885)", "Mali-G71 MP2", 8, 0xc0, 0x3f
+chipset:"samsungexynos7880", false, "Samsung Exynos 7 Series (7880)", "Mali-T830 MP3", 8, 0xff, 0x00
+chipset:"samsungexynos7882", true, "Samsung Exynos 5 Series (7872)", "Mali-G71 MP1", 6, 0x30, 0x0f
+~~~
+
+## Config ルール特殊変数
+
+set には、アクションを実行する特殊変数が 2 つあります。
+
+    set:(log="message for the logcat")
+
+コマンドが評価された後の log の値は、logcat 出力に書き込まれて消去されます。
+
+    set:(dumpvars=1)
+
+現在設定されているすべての変数とその値を logcat にダンプします。
+
+## Config ルール ファイル
+
+**プロファイル** 変数を設定して、「 **DefaultDeviceProfiles**.ini」の **AndroidDeviceProfileMatchingRules** に設定されたデバイス プロファイルをオーバーライドすることができます。 この値が変更されない場合は、すでに設定されたルールが適用されます。 次の例では、**SM-G965** モデルに **Android\_Galaxy\_S9Plus_Adreno** の設定を強制的に適用します。
+
+    condition:((SourceType=sammodel,CompareType=CMP_Regex,MatchString="SM\-G965")), (Profile="Android_Galaxy_S9Plus_Adreno")
+
+  
+
+## Config ルール ダイアログ
+
+ダイアログに表示されるエラーメッセージと警告メッセージをカスタマイズする変数は、以下の通りです。
+
+*   caption
+*   exitbutton
+*   continuebutton
+*   updatebutton
+*   helpbutton
+
+キャプションやボタンの値を文字列テーブルからルックアップしてダイアログのローカライズされたテキストを取得します。  プロジェクトがサポートするローカライズされた各言語の名前の文字列を一意にして、プロジェクトの **「Build/Android/res/values」** ディレクトリの下の **「ConfigurationStrings.xml」** ファイルに配置します。(例えば、values-fr は、フランス語です)。  
+
+[REGION:note]
+「ConfigurationStrings.xml」ファイルの配置場所の例は、以下の通りです。
+[/REGION]
+
+[REGION:lightbox]
+[![](AndroidConfigRules_File_Location.png)(w:800px)](AndroidConfigRules_File_Location.png)
+[/REGION]
+[REGION:caption]
+クリックしてフルサイズで表示。
+[/REGION]
+
+*   **Error** - **error variable** を設定して、 **error** を知らせることができます。 ダイアログには、割り当てられた値の文字列テーブルのエントリが表示されます。  このオプションが設定されると、「configrules.txt」のすべての処理が中断され、ユーザーは、アプリケーションを続行できなくなります。
+*   **Warning** - **warning variable** を設定すると、**Warning** ダイアログが起動します。  ダイアログに続行オプションが表示され、必要に応じて、その変数が設定されている場合の更新および/またはヘルプ ボタンが表示されます。  ヘルプ ボタンは、外部ブラウザを実行して、link 変数で指定された URL を開きます。 「configrules.txt」の評価は、ダイアログが表示される前に終了またはエラーが設定されるまで継続されるため、必要に応じてさまざまな条件で再度変更するこができます。
+
+次のサンプルコードは、ユーザーが ARM64 非対応の Android デバイスを使用しようとしたときにエラーを表示するように設定したものです。
+
+    set:(caption="CR_Caption_DeviceNotSupported", exitbutton="CR_Button_Quit", continuebutton="CR_Button_Continue", helpbutton="CR_Button_Help")
+    condition:((SourceType=isARM64,CompareType=CMP_EQUAL,MatchString="false")),(error="CR_Info_RequiresARM64")
+
+次の文字列テーブルは、上記の例に遭遇したときに表示されるエラーメッセージです。 
+
+~~~
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<!-- Button text -->
+<string name="CR_Button_Quit">Quit</string>
+<string name="CR_Button_Help">More Info</string>
+<string name="CR_Button_Continue">Continue</string>
+<string name="CR_Button_Update">Check for Update</string>
+<!-- Dialog caption text -->
+<string name="CR_Caption_DeviceNotSupported">Device Not Supported</string>
+<!-- Dialog message text -->
+<string name="CR_Info_RequiresARM64">This game requires an ARM64-v8a processor.</string>
+</resources>
+~~~
+
+## Config ルール ビルド ファイル
+
+「configrules.txt」ファイルを圧縮して、必要に応じて暗号化して APK に含めるには、プロジェクトで次のように追加する必要があります。プロジェクトの**「Build.cs」**ファイルに次の **Unreal Plugin Language** (UPL) コードを登録することから始めます。
+
+~~~
+    if (Target.Platform == UnrealTargetPlatform.Android)
+    {
+    // Add UPL to add configrules.txt to our APK
+    string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+    AdditionalPropertiesForReceipt.Add("AndroidPlugin", System.IO.Path.Combine(PluginPath, "MyGame_UPL.xml"));
+    }
+~~~
+
+次に、 **「MyGame_UPL.xml」** という名前の新規ファイルを作成し、 **「Build.cs」** ファイルと同じディレクトリに配置します。
+
+[REGION:lightbox]
+[![](AndroidConfigRules_MyGame_UPLLocation.png)(w:800px)](AndroidConfigRules_MyGame_UPLLocation.png)
+[/REGION]
+[REGION:caption]
+クリックしてフルサイズで表示。
+[/REGION]
+
+「MyGame_UPL.xml」ファイルを開き、次のコードを追加した後、保存します (ConfigRulesKey が固有の暗号化キーを含むように変更します)。
+
+
+	<?xml version="1.0" encoding="utf-8"?>
+	<root xmlns:android="http://schemas.android.com/apk/res/android">
+		<!-- init section is always evaluated once per architecture -->
+		<init>
+			<!-- this is the key used for configrules encryption -->
+			<setString result="ConfigRulesKey" value="This is my encryption key"/>
+		</init>
+		<!-- Files to copy to gradle directory before Gradle runs -->
+		<gradleCopies>
+			<copyFile src="$S(BuildDir)/configrules.txt"
+						dst="$S(BuildDir)/gradle/app/configrules.txt"/>
+		</gradleCopies>
+		<gradleProperties>
+			<insertValue value="CONFIGRULESTOOL_KEY=$S(ConfigRulesKey)"/>
+			<insertNewline/>
+			<insertValue value="CONFIGRULESTOOL_JAR=$S(AbsEngineDir)/Build/Android/Prebuilt/ConfigRulesTool/bin/ConfigRulesTool.jar"/>
+			<insertNewline/>
+		</gradleProperties>
+		<gameActivityClassAdditions>
+			<insertValue value="public String CONFIGRULES_KEY = "$S(ConfigRulesKey)";"/>
+			<insertNewline/>
+		</gameActivityClassAdditions>
+		<buildGradleAdditions>
+			<insert>
+			<![CDATA[
+	task ProcessConfigRules(type: JavaExec) {
+		description 'Produces compressed and encrypted configules.bin.png in assets'
+		inputs.file file('configrules.txt')
+		outputs.file file('src/main/assets/configrules.bin.png')
+		main = "-jar"
+		args = [
+			"${CONFIGRULESTOOL_JAR}",
+			'c',
+			'configrules.txt',
+			'src/main/assets/configrules.bin.png',
+			"${CONFIGRULESTOOL_KEY}"
+		]
+	}
+	tasks.whenTaskAdded { task ->
+		if (CONFIGRULESTOOL_JAR != null) {
+			if (task.name == 'assembleRelease') {
+				task.dependsOn 'ProcessConfigRules'
+			   }
+			if (task.name == 'assembleDebug') {
+				task.dependsOn 'ProcessConfigRules'
+			}
+		}
+	}
+			]]>
+			</insert>
+		</buildGradleAdditions>
+	</root>

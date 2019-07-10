@@ -1361,7 +1361,7 @@ void FCollisionProfileDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 				.AutoWrapText(true)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.ToolTip(ObjectChannelTooltip)
-				.Text(LOCTEXT("ObjectChannel_Menu_Description", "You can have up to 18 custom channels including object and trace channels. This is list of object type for your project. If you delete the object type that has been used by game, it will go back to WorldStatic."))
+				.Text(LOCTEXT("ObjectChannel_Menu_Description", "You can have up to 18 custom channels including object and trace channels. This is the list of object types for your project. If you delete an object type that is being used by the game, any uses of that type will revert to WorldStatic."))
 			]
 
 			+SHorizontalBox::Slot()
@@ -1459,7 +1459,7 @@ void FCollisionProfileDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.AutoWrapText(true)
 				.ToolTip(TraceChannelTooltip)
-				.Text(LOCTEXT("TraceChannel_Menu_Description", "You can have up to 18 custom channels including object and trace channels. This is list of trace channel for your project. If you delete the trace channel that has been used by game, the behavior of trace is undefined."))
+				.Text(LOCTEXT("TraceChannel_Menu_Description", "You can have up to 18 custom channels including object and trace channels. This is the list of trace channels for your project. If you delete a trace channel that is being used by the game, the behavior of the trace is undefined."))
 			]
 
 			+SHorizontalBox::Slot()

@@ -1,13 +1,20 @@
-﻿Availability:Public
-Title: 触发器Actors
+﻿INTSourceChangelist:3782314
+Availability:Public
+Title: 触发Actor
 Crumbs: %ROOT%, Engine, Engine/Actors
-Description:可以激活且可以在关卡中产生事件的Actor。
-
+Description:可以激活且促使关卡中发生事件的Actor。
+version: 4.9
+Parent:Engine/Actors/Types
+order:7
+type:overview
 
 [TOC(start:2)]
 
 [EXCERPT:Intro]
-**Triggers（触发器）** 是一种Actor，作用是当关卡中的其他对象同其交互时触发事件。 换句话说，它们被用于 _触发_ 事件从而响应关卡中的其它操作。 触发器一般都是相同的，不同之处仅是其影响区域的形状 - 盒体、胶囊体及球体 -	触发器使用这些影响区域来检测另一个对象是否激活了它。 
+ **触发器** 是Actor，当它们与关卡的其他对象交互时，用于促使发生 
+事件。换言之，它们用于触发事件以响应关卡中的其他操作。所有默认 
+触发器通常是相同的，只是在影响区域的形状上有所不同，有盒体、胶囊体和球体，触发器使用该形状 
+来检测是否有其他对象激活了它。 
 [/EXCERPT:Intro]
 
 [REGION:imagetable]
@@ -16,31 +23,39 @@ Description:可以激活且可以在关卡中产生事件的Actor。
 | 盒体触发器 | 胶囊体触发器 | 球体触发器 |
 [/REGION]
 
+(#placingtriggers)
+
 ## 放置触发器
 
-在 **Place（放置）** 模式中，您可以从 **Modes(模式) ** 面板中的 **Basic（基础）** 部分拖拽并放置一种触发器类型，从而在关卡中放置触发器。
+当处于 **放置（Place）** 模式时，可以通过从 **模式（Modes）** 面板的 **基本（Basic）** 部分拖放一种触发器类型来 
+将触发器放置在关卡中。
 
 ![](trigger_place.png)
 
+(#triggeringevents)
+
 ## 触发事件
 
-触发器用于激活[关卡蓝图](Engine/Blueprints/UserGuide/Types/LevelBlueprint)中放置的事件。 一个触发器可以激活多种不同类型的事件。 最主要的事件类型是针对和另一种对象（比如某些碰撞触发器或和触发器重叠的物体，或者对来自玩家输入的响应）发生的某种类型碰撞的响应。
+触发器用于激活放置在[关卡蓝图](Engine/Blueprints/UserGuide/Types/LevelBlueprint)中的事件。 
+触发器可以激活几种不同类型的事件。主要类型的事件用于响应与另一个对象的 
+某种类型的碰撞，例如某物与触发器碰撞或重叠，或响应来自玩家的输入。
 
-在 **视口** 中选中该触发器：
+当在 **视口（Viewport）** 中选择了触发器时：
 
-* **右击** 关卡蓝图事件图表并从 **为[触发器Actor名称]添加事件** 下选择一个事件。
+* 在关卡蓝图事件图表中 **单击右键**，并在 **为[触发Actor名称]添加事件（Add Event for [Trigger Actor Name]）** 下选择一个事件。
 
 	![](trigger_event_context.png)
 
 	
-通过其中任何一种方法选择一个事件，都会导致将一个[事件节点](Engine/Blueprints/UserGuide/Events)添加到当前关卡的关卡蓝图中：
+通过这两种方法中的任何一种选择一个事件，都会将一个[事件节点](Engine/Blueprints/UserGuide/Events) 
+添加到当前关卡的关卡蓝图中：
 
 ![](trigger_event.png)
 
-每次这个特定事件发生时，都将会触发此新事件节点的exec引脚 - 在上面的示例中，每当一个Actor和该触发器重叠（或 Actor穿过触发器所在区域）时都会触发事件节点的exec引脚。
+每当发生该特定事件时，将触发该新事件节点的执行引脚，在上面的示例中为每当一个Actor与触发器 
+重叠（或穿过触发器）时：
 
 [COMMENT:none]
- 添加显示运行及激活引脚过程中的重叠部分的 GIF/滑块
+ 在图表中添加GIF/滑条，显示游戏过程中的重叠和引脚激活。 
 [/COMMENT]
-
 

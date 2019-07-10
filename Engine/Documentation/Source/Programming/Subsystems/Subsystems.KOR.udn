@@ -1,0 +1,135 @@
+INTSourceChangelist:6574301
+Availability: Public
+Title: 프로그래밍 서브시스템
+Description: 언리얼 엔진 4 의 프로그래밍 서브시스템 개요입니다.
+Version: 4.22
+Parent: Programming
+Tags: subsystems
+
+언리얼 엔진 4 (UE4)의 서브시스템은 수명이 관리되는 자동 인스턴싱 클래스입니다. 이 클래스는 사용하기 쉬운 확장점을 제공하여, 프로그래머는 블루프린트 및 Python 을 바로 노출시킴과 동시에 복잡한 엔진 클래스 수정 또는 오버라이드를 피할 수 있습니다.
+
+현재 지원되는 서브시스템 수명은 다음과 같습니다.
+
+[REGION:simpletable]
+| 서브시스템 | 상속 원본 |
+|---|---|
+| **Engine** | `UEngineSubsystem` 클래스 |
+| **Editor** | `UEditorSubsystem` 클래스 |
+| **GameInstance** | `UGameInstanceSubsystem` 클래스 |
+| **LocalPlayer** | `ULocalPlayerSubsystem` 클래스 |
+[/REGION]
+
+예를 들어 이 베이스 클래스에서 파생된 클래스를 생성하면:
+
+    class UMyGamesSubsystem : public UGameInstanceSubsystem
+
+그 결과는 다음과 같습니다.
+
+1.  `UGameInstance` 생성 이후, `UMyGamesSubsystem` 라는 인스턴스 역시 생성됩니다.
+1.  `UGameInstance` 초기화 시, 서브시스템에서 `Initialize()` 가 호출됩니다.
+1.  `UGameInstance` 종료 시, 서브시스템에서 `Deinitialize()` 가 호출됩니다.
+1.  이 시점에서 서브시스템에 대한 참조가 삭제되고 더이상 참조가 없으면 서브시스템은 가비지 컬렉션 됩니다.
+
+## 서브시스템을 사용하는 이유
+
+프로그래밍 서브시스템을 사용하는 데에는 다음과 같은 몇 가지 이유가 있습니다.
+
+*   프로그래밍 시간이 절약됩니다.
+*   엔진 클래스 오버라이드를 피할 수 있습니다.
+*   이미 바쁜 클래스에 API 추가를 피할 수 있습니다.
+*   사용자에게 친숙한 유형의 노드를 통해 블루프린트로 액세스할 수 있습니다.
+*   에디터 스크립팅이나 테스트 코드 작성을 위해 Python 스크립트에 액세스할 수 있습니다.
+*   코드베이스의 모듈성과 일관성을 제공합니다.
+
+서브시스템은 플러그인을 만들 때 특히 유용합니다. 플러그인 작동에 필요한 코드 관련 지침이 없어도 됩니다. 사용자는 플러그인을 게임에 추가하기만 하면, 플러그인이 언제 인스턴싱 및 초기화될 지 정확히 알 수 있습니다. 따라서 UE4 에 제공되는 API 및 기능을 사용하는 데만 중점을 둘 수 있습니다.
+
+## 블루프린트로 서브시스템 액세스
+
+서브시스템은 블루프린트에 자동 노출되며, 컨텍스트를 이해하는 스마트 노드가 추가되므로 형 변환이 필요 없습니다. 표준 `UFUNCTION()` 마크업 및 규칙으로 블루프린트에 사용할 수 있는 API 를 제어할 수 있습니다.
+
+블루프린트 그래프에 우클릭해서 컨텍스트 메뉴를 표시하고 subsystems 를 검색하면 다음 이미지와 같이 표시됩니다. 특정 서브시스템에 대한 주요 유형 및 개별 항목 각각에 대한 카테고리입니다.  
+![](Subsystems_01.png)
+
+위에서 노드를 추가하면, 다음과 같은 결과를 얻습니다.  
+![](Subsystems_02.png)
+
+## Python 으로 서브시스템 액세스
+
+Python 을 사용하는 경우, 아래 예제와 같이 내장된 접근자를 사용해서 서브시스템에 액세스할 수 있습니다.
+
+    my_engine_subsystem = unreal.get_engine_subsystem(unreal.MyEngineSubsystem)
+    my_editor_subsystem = unreal.get_editor_subsystem(unreal.MyEditorSubsystem)
+
+[REGION:note]
+Python 은 현재 실험단계 기능입니다.
+[/REGION]
+
+## 자세한 서브시스템 수명
+
+### Engine Subsystem
+
+    class UMyEngineSubsystem : public UEngineSubsystem { ... };
+
+Engine Subsystem (엔진 서브시스템)의 모듈이 로드되면, 서브시스템은 모듈의 `Startup()` 함수 반환 이후 `Initialize()` 하고, 모듈의 `Shutdown()` 함수 반환 이후 `Deinitialize()` 합니다.
+
+이 서브시스템은 아래와 같이 GEngine 을 통해 액세스합니다.
+
+    UMyEngineSubsystem MySubsystem = GEngine->GetEngineSubsystem<UMyEngineSubsystem>();
+
+### Editor Subsystem
+
+    class UMyEditorSubsystem : public UEditorSubsystem { ... };
+
+Editor Subsystem (에디터 서브시스템)의 모듈이 로드되면, 서브시스템은 모듈의 `Startup()` 함수 반환 이후 `Initialize()` 하고, 모듈의 `Shutdown()` 함수 반환 이후 `Deinitialize()` 합니다.
+
+이 서브시스템은 아래와 같이 GEditor 를 통해 액세스합니다.
+
+    UMyEditorSubsystem MySubsystem = GEditor->GetEditorSubsystem<UMyEditorSubsystem>();
+
+### GameInstance Subsystem
+
+    class UMyGameSubsystem : public UGameInstanceSubsystem { ... };
+
+이 서브시스템은 아래와 같이 UGameInstance 를 통해 액세스할 수 있습니다.
+
+    UGameInstance* GameInstance = ...;
+    UMyGameSubsystem* MySubsystem = GameInstance->GetSubsystem<UMyGameSubsystem>();
+
+### LocalPlayer Subsystem
+
+    class UMyPlayerSubsystem : public ULocalPlayerSubsystem { ... };
+
+이 서브시스템은 아래와 같이 ULocalPlayer 를 통해 액세스할 수 있습니다.
+
+    ULocalPlayer* LocalPlayer = ...;
+    UMyPlayerSubsystem * MySubsystem = LocalPlayer->GetSubsystem<UMyPlayerSubsystem>();
+
+## 서브시스템 예제
+
+다음 예제에서는 수집된 자원의 수를 추적하는 통계 시스템을 게임에 추가하고 싶습니다.
+
+`UGameInstance` 에서 파생하여 `UMyGamesGameInstance` 를 만든 다음 거기에 `IncrementResourceStat()` 함수를 추가합니다. 그러나 결국, 팀이 통계 수집기뿐 아니라 통계 저장/로드 등과 같은 다른 기능도 추가하자고 합니다. 그래서 그 모든 것을 `UMyGamesStatsSubsystem` 같은 하나의 클래스에 넣기로 결정합니다.
+
+다시, `UMyGamesGameInstance` 를 만들고 `UMyGamesStatsSubsystem` 유형 멤버를 추가할 수 있습니다. 그런 다음 그에 대한 접근자를 추가하고, Initialize 및 Deinitialize 함수를 후킹하면 됩니다. 그러나 여기에는 몇 가지 문제점이 있습니다.
+
+*   `UGameInstance` 의 게임 전용 파생형이 없습니다.
+*   `UMyGamesGameInstance` 가 존재하지만, 함수가 이미 많으므로 더 추가하는 것은 이상적이지 않습니다.
+
+충분히 복잡한 게임에서는 `UGameInstance` 를 파생할 충분한 이유가 있습니다. 그러나 서브시스템이 있으면 그럴 필요가 없습니다. 무엇보다도 서브시스템을 사용하면 다른 방법보다 코딩이 덜 필요합니다.
+
+즉 최종적으로 사용된 코드는 아래 예제와 같습니다.
+
+    UCLASS()
+    class UMyGamesStatsSubsystem : public UGameInstanceSubsystem
+    {
+        GENERATED_BODY()
+    public:
+        // USubsystem 시작
+        virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+        virtual void Deinitialize() override;
+        // USubsystem 끝
+    
+        void IncrementResourceStat();
+    private:
+        // 모든 변수
+    };

@@ -1,0 +1,51 @@
+﻿INTSourceChangelist:5368333
+Availability: Public
+Crumbs: 
+Title: Store インターフェース
+Description: ゲーム内購入のオファーを記述およびフィルタリングするためのオンライン サブシステムです。
+Type: 
+Version: 4.21
+Parent: Programming/Online
+Order: 
+Tags: Online Subsystem
+Tags: store interface
+Tags: in-game purchases
+Tags: store
+
+
+ユーザーの購入をサポートするゲームの機能は、次の 2 つのインターフェースによって強化されています。ユーザーにオファーを提供する機能の備わった **Store インターフェース** と、ユーザーがこれらのオファーを受け入れられるようにする **Purchase インターフェース** です。
+Store インターフェースを使用すると、ゲームはオンライン サービスからオファーを取得したり、それらをカテゴリに分類したり、フィルタ処理したり、個別に管理したりできます。
+購入を実行するには、[Purchase インターフェース](Programming/Online/PurchaseInterface) を使用します。
+
+オファー (クラス [`FOnlineStoreOffer`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/Interfaces/FOnlineStoreOffer/index.html)) には、ユーザーがゲームを通じて購入できるものに関するすべての必要なデータが含まれています。
+これには、説明、価格、リリース日、有効期限などの情報があります。
+カテゴリ (クラス [`FOnlineStoreCategory`](https://api.unrealengine.com/INT/API/Plugins/OnlineSubsystem/Interfaces/FOnlineStoreCategory/index.html)) には、非常にシンプルなデータである、名前とサブカテゴリのリストのみが含まれています。
+オンライン サービスがオファーの設定と管理を処理するのに対し、Store インターフェースは検索とフィルタリングを処理します。
+
+## オファーとカテゴリ
+
+Store インターフェースは、オンライン サービスのサーバーからオファーとカテゴリのデータを取得します。
+この操作はリモート マシンへのアクセスを含むため、2 つのフェーズに分けられます。非同期のデータの検索とキャッシュ、そしてローカルにキャッシュされたそのデータへのアクセスです。
+Store インターフェースはリクエストが完了するたびに自動的にキャッシュをアップデートし、最新のクエリの結果のみを保持します。
+
+### オファーとカテゴリを取得する
+
+オファーの情報を取得する最初のステップは、ストアに含まれているカテゴリのリストを抽出することです。
+`QueryCategories` 関数はこれを処理し、終了時に、提供された `FOnQueryOnlineStoreCategoriesComplete` 型のデリゲートを呼び出します。
+成功した場合は、Store インターフェースは利用可能なすべてのカテゴリ ID を含むキャッシュを取得します。
+この時点で、デベロッパーは、特定のカテゴリを含めて、その他のカテゴリを除外する (`FOnlineStoreFilter` 型の) フィルタを作成することによって、オファーのクエリを開始できます。
+フィルタを使用すると、`QueryOffersByFilter` はカテゴリ メンバーシップに基づいてオファー ID を取得できます。
+Store インターフェースがオファー ID を取得してキャッシュしたら、デベロッパーは `QueryOffersById` 関数を使用して特定のオファーに関する情報について照会できます。
+`QueryOffersByFilter` と `QueryOffersById` の両方とも、成否を示す、提供された `FOnQueryOnlineStoreOffersComplete` 型のデリゲートを使用し、Store インターフェースのオファーのキャッシュは、いずれかの操作が正常に完了した後にアップデートされます。
+
+### オファー データを調べる
+
+｢クエリ｣関数はカテゴリとオファーに関するデータを Store インターフェースのキャッシュに取り出します。
+このデータにアクセスするには、カテゴリ キャッシュの場合は `GetCategories` を、オファー キャッシュの場合は `GetOffers` を呼び出します。
+既知のオファー ID がある場合、`GetOffer` 関数は対応する (キャッシュされた) オファーに関する情報を返します。
+
+[REGION:note]
+これらの関数はすべてローカル キャッシュで実行されるため、コールバックはありません。
+ただし、これらはキャッシュにデータが含まれている場合にのみ役立ちます。
+これらの関数はキャッシュをアップデートしないため、オンライン サービスのストアのカテゴリやオファーに対する「ライブ」の変更は反映されません。
+[/REGION]

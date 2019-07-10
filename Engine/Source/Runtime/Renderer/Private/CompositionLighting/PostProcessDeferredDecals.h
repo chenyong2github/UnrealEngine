@@ -60,13 +60,14 @@ struct FDecalRenderTargetManager
 	//
 	bool TargetsToTransitionWritable[ResolveBufferMax];
 	//
-	FTextureRHIParamRef TargetsToResolve[ResolveBufferMax];
+	FRHITexture* TargetsToResolve[ResolveBufferMax];
 	//
 	bool bGufferADirty;
 	bool bGufferBCDirty;
+	ERHIFeatureLevel::Type FeatureLevel;
 
 	// constructor
-	FDecalRenderTargetManager(FRHICommandList& InRHICmdList, EShaderPlatform ShaderPlatform, EDecalRenderStage CurrentStage);
+	FDecalRenderTargetManager(FRHICommandList& InRHICmdList, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EDecalRenderStage CurrentStage);
 
 	// destructor
 	~FDecalRenderTargetManager()
@@ -76,11 +77,11 @@ struct FDecalRenderTargetManager
 
 	void ResolveTargets();
 
-	void FlushMetaData(FTextureRHIParamRef* Textures, uint32 NumTextures);
+	void FlushMetaData(FRHITexture** Textures, uint32 NumTextures);
 
 	void SetRenderTargetMode(FDecalRenderingCommon::ERenderTargetMode CurrentRenderTargetMode, bool bHasNormal, bool bPerPixelDBufferMask);
 };
 
-extern FBlendStateRHIParamRef GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal);
+extern FRHIBlendState* GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal);
 
 extern void RenderMeshDecals(FRenderingCompositePassContext& Context, EDecalRenderStage CurrentDecalStage);

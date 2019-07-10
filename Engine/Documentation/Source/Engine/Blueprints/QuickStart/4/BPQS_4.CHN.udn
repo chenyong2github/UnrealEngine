@@ -1,24 +1,26 @@
-﻿Availability:Public
-Title:4.创建起始点
+﻿INTSourceChangelist: 6111272
+Availability: Docs
+Title:4.创建你的起始点
 Crumbs:%ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/QuickStart
-Description:发生重叠时 launchpad 将把角色发射出去，所以先创建一个 Begin Overlap 节点。
-version:4.9
+Description:你的启动面板将会在你与它重叠时启动角色，所以首先要创建一个“开始重叠（Begin Overlap）”节点。
+version: 4.9
 parent:Engine/Blueprints/QuickStart
 order:4
 type:multi-step
+tags:Blueprints
 
 [VAR:Steps]
 [OBJECT:Navigation]
 	[PARAM:previous]
-		[Previous Step](Engine/Blueprints/QuickStart/3 "%Engine/Blueprints/QuickStart/3:title%")
+		[上一步](Engine/Blueprints/QuickStart/3 "%Engine/Blueprints/QuickStart/3:title%")
 	[/PARAM]
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[Quick Start Home](Engine/Blueprints/QuickStart)
+		[快速入门主页](Engine/Blueprints/QuickStart)
 	[/PARAM]
 	[PARAM:next]
-		[Next Step](Engine/Blueprints/QuickStart/5 "%Engine/Blueprints/QuickStart/5:title%")
+		[下一步](Engine/Blueprints/QuickStart/5 "%Engine/Blueprints/QuickStart/5:title%")
 	[/PARAM]
 [/OBJECT]
 [/VAR]
@@ -27,49 +29,49 @@ type:multi-step
 
 ---
 
-在“蓝图编辑器”中打开蓝图类，然后开始对其添加行为。  
+要开始向蓝图类添加行为，你需要在蓝图编辑器中打开它。  
 
-1. 在 **内容浏览器** 中 **双击** “蓝图类”。
+1. 在 **内容浏览器** 中 **双击** 蓝图类。
 
-1. **蓝图编辑器** 将被打开，可在视口中看到 **立方体** 和 **方块** 组件。 
+1. **蓝图编辑器** 将会打开，你可以在视口中看到 **立方体** 和 **框** 组件。 
 
 	[REGION:note]
-	如在此时调整 **方块** 组件的放置，变更将应用至从该蓝图类创建的所有 launchpad。和在 LaunchPad Actor 上使用组件一样， 
-	可在 **组件** 列表中选择 **方块** 组件并调整位置。尝试（0.0, 0.0, 50.0）的 **位置**。
+	此时如果你调整 **框** 组件的放置，将会应用到你从这个蓝图内创建的所有启动面板。和 
+	在启动面板Actor上使用组件时一样，你可以在 **组件（Components）** 列表中选择 **框（Box）** 组件，然后调整位置。尝试使用（0.0, 0.0, 50.0）的 **位置**。
 
 	![](AdjustedTrigger.png)
 	[/REGION]
 
-1. **构建脚本** 和 **事件图表** 标签停驻在 **视口** 标签旁边。创建游戏性行为之前应先创建 **事件图表**。点击该标签。
+1. 停驻在 **视口（Viewport）** 选项卡旁边的是 **构造脚本（Construction Script）** 选项卡和 **事件图表（Event Graph）** 选项卡。因为你要创建Gameplay行为，所以应该从 **事件图表** 开始。现在单击该选项卡。
 
 	![](EventGraphStart.png)(w:500)
 
-	事件是蓝图图表执行的起始点，可与诸多不同游戏性情况产生联系。 
-	可立即看到一系列最常用的事件，被视为半透明事件节点。其对众多蓝图图表确实十分有用，但在此我们还是选择 
-	单独创建一个。 
+	事件是蓝图图表的执行起始点，可以和多种不同的Gameplay情况关联。 
+	此时你可以看到一部分最常用的事件，它们显示为半透明的事件节点。虽然这些节点肯定能用于你的许多蓝图图表，但我们将要生成 
+	一个自己的节点。 
 
-1. 我们希望拥有一个在资源与 **方块** 组件重叠时执行的事件。首先在 **组件** 标签中选择 **方块** 组件。
+1. 我们希望在有任何东西与我们的 **框** 组件重叠时执行一个事件。首先，在 **组件（Components）** 选项卡中选择 **框（Box）** 组件。
 
-1. 在图表的空白处 **单击右键** 呼出将添加到图表的节点的快捷菜单。
+1. **右键单击** 图表中的空白点，调出你可以添加到图表的节点的情境菜单。
 
 	[REGION:note]
-	**长按右键** 拖动即可在图表中移动。此时可将图表拖至左侧，把占据屏幕左侧位置的事件节点移开， 
-	以腾出空间创建 launchpad 逻辑。
+	要在图表中四处移动，请 **右键单击** 并拖动。此时你可以将图表移动到左侧，将预先放置的事件节点拖到屏幕左边，腾出更多 
+	空白空间用来创建你的启动面板逻辑。
 	[/REGION]
 
 	![](RightClickContext.png)
 
-1. 打开 **为方块添加事件** 下拉菜单，然后选择 **碰撞**，为该组件添加一个事件。也可以利用搜索框，使用 "Component Begin Overlap" 对菜单进行过滤。
+1. 我们要为这个组件添加事件，所以请展开 **为框添加事件（Add Event for Box）** 下拉菜单，然后选择 **碰撞（Collision）**。你也可以使用搜索框，用“Component Begin Overlap”过滤菜单。
 
-1. 选择 **On Component Begin Overlap**。 
+1. 选择 **在组件开始重叠时（On Component Begin Overlap）**。 
 
 	![](AddEvent.png)
 
-图表中即包含一个 **OnComponentBeginOverlap** 节点。资源与 launchpad 的方块组件发生重叠时，与该事件相连的任意节点将执行。
+此时你的图表中会有一个 **OnComponentBeginOverlap** 节点。当有什么东西与启动面板的框组件重叠时，任何连接到此事件的节点都将执行。
 
 ![](EventNode.png)
 
-在“快速入门”的下一步中，将学习到如何把各节点与该节点的输出引脚相连，以及在蓝图中使用节点的更多内容。
+在这个快速启动指南的下一步，你将开始把节点连接到此节点的输出引脚，并学习更多在蓝图中使用节点的知识。
 
 ---
 

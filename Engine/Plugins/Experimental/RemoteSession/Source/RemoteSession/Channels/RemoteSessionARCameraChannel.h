@@ -69,10 +69,8 @@ private:
 		TArray<uint8> ImageData;
 	};
 
-	/** The timestamp of the last queued image to prevent from sending the same image repeatedly */
-	float LastQueuedTimestamp;
-	/** List of async image compression tasks in flight */
-	TArray<TSharedPtr<FCompressionTask, ESPMode::ThreadSafe>> CompressionQueue;
+	/** Only compress one frame at a time to prevent flooding the GPU */
+	TSharedPtr<FCompressionTask, ESPMode::ThreadSafe> CompressionTask;
 
 	/** Images that have been received and are available for rendering */
 	TArray<TSharedPtr<FDecompressedImage, ESPMode::ThreadSafe>> DecompressionQueue;
@@ -85,6 +83,7 @@ private:
 	UMaterialInstanceDynamic* MaterialInstanceDynamic;
 	/** Textures to use when rendering */
 	UTexture2D* RenderingTextures[2];
+	UTexture2D* LastSetTexture;
 	FThreadSafeCounter RenderingTextureIndex;
 	FThreadSafeCounter RenderingTexturesUpdateCount[2];
 

@@ -24,7 +24,6 @@ bool FDisplayClusterConfigParserDebugAuto::ParseFile(const FString& path)
 	ClusterNode.Port_SS    = 41002;
 	ClusterNode.WindowId   = TEXT("window_stub");
 	ClusterNode.SoundEnabled = true;
-	ClusterNode.EyeSwap    = false;
 	AddClusterNode(ClusterNode);
 
 	FDisplayClusterConfigWindow Window;
@@ -35,22 +34,28 @@ bool FDisplayClusterConfigParserDebugAuto::ParseFile(const FString& path)
 	Window.WinY = 0;
 	Window.ResX = 800;
 	Window.ResY = 600;
+	AddWindow(Window);
 
 	FDisplayClusterConfigViewport Viewport;
-	Viewport.Id        = Window.ViewportIds[0];
-	Viewport.ScreenId  = TEXT("screen_stub");
-	Viewport.Loc       = FIntPoint(0, 0);
-	Viewport.Size      = FIntPoint(DisplayClusterConstants::misc::DebugAutoResX, DisplayClusterConstants::misc::DebugAutoResY);
+	Viewport.Id           = Window.ViewportIds[0];
+	Viewport.ProjectionId = TEXT("proj_stub");
+	Viewport.Loc          = FIntPoint(0, 0);
+	Viewport.Size         = FIntPoint(DisplayClusterConstants::misc::DebugAutoResX, DisplayClusterConstants::misc::DebugAutoResY);
 	AddViewport(Viewport);
 
 	const float PixelDensity = 0.6f / 1920.f;
-
 	FDisplayClusterConfigScreen Screen;
-	Screen.Id   = Viewport.ScreenId;
-	Screen.Loc  = FVector(0.7f, 0.f, 0.f);
-	Screen.Rot  = FRotator::ZeroRotator;
+	Screen.Id = TEXT("screen_stub");
+	Screen.Loc = FVector(0.7f, 0.f, 0.f);
+	Screen.Rot = FRotator::ZeroRotator;
 	Screen.Size = FVector2D(PixelDensity * DisplayClusterConstants::misc::DebugAutoResX, PixelDensity * DisplayClusterConstants::misc::DebugAutoResY);
 	AddScreen(Screen);
+
+	FDisplayClusterConfigProjection Projection;
+	Projection.Id     = Viewport.ProjectionId;
+	Projection.Type   = FString(TEXT("simple"));
+	Projection.Params += FString::Printf(TEXT(" %s=%s"), TEXT("screen"), *Screen.Id);
+	AddProjection(Projection);
 
 	FDisplayClusterConfigCamera Camera;
 	Camera.Id  = TEXT("camera_stub");
@@ -63,7 +68,6 @@ bool FDisplayClusterConfigParserDebugAuto::ParseFile(const FString& path)
 	AddGeneral(General);
 
 	FDisplayClusterConfigStereo Stereo;
-	Stereo.EyeDist = 0.064f;
 	AddStereo(Stereo);
 #endif // DISPLAY_CLUSTER_USE_DEBUG_STANDALONE_CONFIG
 		

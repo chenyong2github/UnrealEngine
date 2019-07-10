@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Crumbs: %ROOT%
 Title:2 - 미디어 텍스처 및 머티리얼 구성
 Description:비디오 재생에 사용할 미디어 텍스처와 머티리얼을 구성해 봅니다.
@@ -13,6 +13,8 @@ order:2
 tags:Media Framework
 tags:Materials
  
+ ## Marked as Docs as the page has been combined into one page. 
+
 [NAV]
 
 이전 단계에서 앞으로 사용할 콘텐츠를 임포트하고 몇 가지 애셋을 만들었습니다. 다음에는 비디오 재생에 사용할 머티리얼을 만들겠습니다. 그러기 위해 [머티리얼](Engine/Rendering/Materials) 내 미디어 텍스처 활용은 물론, 콘텐츠가 TV 화면에 잘 맞도록 하기 위한 작업도 약간 같이 해 주겠습니다.

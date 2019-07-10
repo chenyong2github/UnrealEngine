@@ -1,0 +1,66 @@
+﻿INTSourceChangelist:5370932
+Availability: Public
+Crumbs: 
+Title: 安装Revit的Datasmith导出器插件
+Description:描述如何安装Revit的Datasmith导出器插件。
+Type: 
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides/Revit
+Order: 
+Tags: how to
+Tags: Datasmith
+Tags: Early Access
+Tags: Revit
+
+
+![](datasmith-setup-install-rvt-421.png) [](Enterprise "Sign up for Unreal Studio") [](Studio/Datasmith/SoftwareInteropGuides/3dsMax/InstallingExporterPlugin "Install the Datasmith Plugin for 3ds Max") [](Studio/Datasmith/SoftwareInteropGuides/SketchUp/InstallingExporterPlugin "Install the Datasmith Plugin for SketchUp") [](Studio/Datasmith/SoftwareInteropGuides/Revit/InstallingExporterPlugin "Install the Datasmith Plugin for Revit") [](Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED/ExportingDatasmithContentfromVRED "Install the Datasmith Plugin for VRED") [](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ExportingDatasmithContentfrom3dsMax "Export Datasmith content from 3ds Max") [](Studio/Datasmith/SoftwareInteropGuides/SketchUp/ExportingDatasmithContentfromSketchUp "Export Datasmith content from SketchUp") [](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingContentfromRevit "Export Datasmith content from Revit") [](Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED/ExportingDatasmithContentfromVRED "Export Datasmith content from VRED") [](Studio/Datasmith/SupportedSoftwareAndFileTypes "See the supported software and file types") [](Studio/Datasmith/HowTo/DownloadandInstall "Install Unreal Engine and the Datasmith Plugin") [](Studio/Datasmith/HowTo/SettingUpUnrealProject "Create an Unreal Studio Project") [](Studio/Datasmith/HowTo/ImportingContent "Use Datasmith to import your content")
+
+开始在虚幻引擎中处理Revit内容之前，需要安装Revit的虚幻Datasmith Exporter插件。
+
+请参阅[Datasmith支持的软件和文件类型](Studio/Datasmith/SupportedSoftwareAndFileTypes)，了解Revit导出器插件当前支持的版本。
+
+[REGION:tip]
+我们鼓励您在机构内外多多转发Datasmith Exporter插件的下载链接。下载和使用Datasmith Exporter插件无需注册Unreal Studio。但注意：您不能自行转发Datasmith Exporter插件。
+[/REGION]
+
+(#installingthedatasmithexporterforrevit)
+
+## 安装Revit的Datasmith Exporter
+
+参考以下步骤，安装兼容您电脑上所安装Revit版本的Datasmith Exporter插件。
+
+1.  关闭正在电脑上正在运行的所有Autodesk Revit实例。如有实例仍在运行，安装将失败。
+2.  如已安装Datasmith Exporter插件的旧版本，建议您先行卸载。欲知详情，请参见下方的[移除Revit的Datasmith Exporter](#removingthedatasmithexporterforrevit)。
+3.  从[Datasmith Export插件下载](https://www.unrealengine.com/studio/downloads)页面下载导入器插件安装程序。
+4.  下载完成后，运行安装程序。  
+    ![Datasmith Exporter for Revit installer](rvt-installer-start.png "Datasmith Exporter for Revit installer")
+5.  跟随屏幕上的提示继续操作，接受授权协议。
+6.  安装程序将自动检测系统中已安装的Autodesk Revit版本。勾选希望通过Datasmith导出的每个版本的框，然后点击 **安装（Install）**。  
+    ![Choose Revit versions](rvt-installer-versions-1.png "Choose Revit versions")
+7.  启动上方选择的Revit版本。可能会出现以下警告：  
+    ![Revit security warning](revit-security-warning.png "Revit security warning")点击 **固定加载（Always Load）** 确认每次启动Revit时皆希望Datasmith Exporter插件可用。
+
+(#endresult)
+
+### 最终结果
+
+安装Datasmith Exporter插件后，即可继续从Revit将场景导出为一个 *.udatasmith* 文件。请参见[从Revit导出Datasmith内容](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit)。
+
+(#removingthedatasmithexporterforrevit)
+## 移除Revit的Datasmith Exporter
+
+使用标准的Windows控制面板在系统中找到并移除 **Unreal Datasmith Exporter for Revit** 应用程序。
+
+以Windows 10为例，您可以选择控制面板中的 **程序和功能**。点击列表中的Datasmith exporter插件条目，然后点击 **卸载**：
+
+[REGION:lightbox]
+[![](uninstall-datasmith-rvt-plugin-appsfeatures.png)](uninstall-datasmith-max-plugin-appsfeatures.png) *点击查看全图。*
+[/REGION]
+
+或使用控制面板中的 **卸载或修改程序**。在Datasmith exporter插件条目上点击右键，然后从快捷菜单中选择 **卸载**：
+
+[REGION:lightbox]
+[![](uninstall-datasmith-rvt-plugin-uninstallchange.png)](uninstall-datasmith-max-plugin-uninstallchange.png)
+
+*点击查看全图。*
+[/REGION]

@@ -1,34 +1,29 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:0
+Availability: Public
 Title:모바일 플랫폼용 머티리얼
-Crumbs:%ROOT%, Platforms, Platforms/Mobile
 Description:모바일 게임용 머티리얼 셋업하기 입니다.
-Platform:Mobile
-Related: Platforms/Mobile/Previewer/
-Related: Platforms/Mobile/Performance
-Related: Platforms/Mobile/Textures
-Related: Engine/Rendering/Materials/CustomizedUVs
-Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Type: overview
+Version: 4.9
+Parent: Platforms/Mobile
+Tags: mobile
+skilllevel:Beginner
 Related: Engine/Rendering/Materials/ExpressionReference/Utility
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
 Related: Platforms/Mobile/Lighting
-version: 4.9
-parent:Platforms/Mobile
-order:1
-type:overview
-tags:mobile
+Related: Platforms/Mobile/Performance
+Related: Platforms/Mobile/Previewer
+Related: Platforms/Mobile/Textures
 
-[TOC(start:2)]
+모바일 플랫폼(피처 레벨 ES2)에서의 머티리얼은 다른 플랫폼에서와 마찬가지로 동일한 노드 기반 생성 프로세스를 사용합니다. 모바일 머티리얼에는 거의 모든 머티리얼 입력이 사용 가능하며, 머티리얼의 모양이나 동작도 다른 플랫폼과 마찬가지로 모바일 플랫폼에서와 일반적으로 동일합니다. 예를 들어, 다음의 머티리얼 입력은 전부 PC 에서나 모바일 플랫폼에서나 동일하게 작동합니다:
 
-모바일 플랫폼(피처 레벨 ES2)에서의 머티리얼은 다른 플랫폼에서와 마찬가지로 동일한 노드 기반 생성 프로세스를 사용합니다. 모바일 머티리얼에는 거의 모든 머티리얼 입력이 사용 가능하며, 
-머티리얼의 모양이나 동작도 다른 플랫폼과 마찬가지로 모바일 플랫폼에서와 일반적으로 동일합니다. 예를 들어, 다음의 머티리얼 입력은 전부 PC 에서나 모바일 플랫폼에서나 
-동일하게 작동합니다:
-
-* **BaseColor** 베이스 컬러
-* **Roughness** 러프니스
-* **Metallic** 메탈릭
-* **Specular** 스페큘러
-* **Normal** 노멀
-* **Emissive** 이미시브
+* **BaseColor** 베이스 컬러 (바탕색)
+* **Roughness** 러프니스 (거칠기)
+* **Metallic** 메탈릭 (금속성)
+* **Specular** 스페큘러 (광택)
+* **Normal** 노멀 (법선)
+* **Emissive** 이미시브 (발광)
+* **Refraction** 리프랙션 (굴절)
 
 그러나 모바일 플랫폼에서 사용할 머티리얼을 제작할 때는 고려해야 하는 사항이 몇 가지 있습니다:
 
@@ -41,47 +36,35 @@ tags:mobile
 추가적으로, 모바일 플랫폼에서는 아예 사용할 수 없는 기능도 있습니다.
 
 * **Scene Color** (씬 컬러) 표현식
-* **Refraction** (굴절) 입력
 * **Tessellation** (테셀레이션) 입력
 * **Subsurface Scattering** (서브서피스 스캐터링) 셰이딩 모델
 
 
 ## 피처 레벨 ES 3.1
 
-피처 레벨 ES 3.1 은 (Metal 호환 디바이스처럼) 고사양 모바일 디바이스를 위해 존재합니다. 머티리얼에서 최대 16 개 까지의 샘플러를 사용할 수 있습니다.
-구형 디바이스와의 호환성 유지를 위해서는, [Feature Level Switch](Engine/Rendering/Materials/ExpressionReference/Utility#featurelevelswitch) 노드를 사용합니다.
-
+피처 레벨 ES 3.1 은 (Metal 호환 디바이스처럼) 고사양 모바일 디바이스를 위해 존재합니다. 머티리얼에서 최대 16 개 까지의 샘플러를 사용할 수 있습니다. 구형 디바이스와의 호환성 유지를 위해서는, [Feature Level Switch](Engine/Rendering/Materials/ExpressionReference/Utility#featurelevelswitch) 노드를 사용합니다.
 
 ## 모바일 전용 머티리얼 세팅
+
 모바일 디바이스에서의 머티리얼 렌더링 비용을 줄이거나 최적화시키는 데 도움이 되는 머티리얼 프로퍼티는 다음과 같습니다.
 
+[REGION:simpletable]  
 | 프로퍼티 | 설명 |
 | -------- | ---------- |
 | **bFullyRough** | 최대 러프니스 - 켜면, 다수의 셰이더 ALU 인스트럭션과 하나의 샘플러를 절약합니다. 실질적으로 전체적인 반사성 에너지는 유지하면서 스페큘러를 끄는 효과를 냅니다. |
 | **High Quality Reflections** | 하이 퀄리티 리플렉션 - 포워드 렌더러에서 하이 퀄리티 리플렉션을 켭니다. 이 세팅을 켜면 리플렉션 큐브맵에 둘 이상의 샘플러가 쓰이므로 머티리얼에서 사용할 수 있는 샘플러 수가 줄어듭니다. |
 | **bUseLightmapDirectionality** | 라이트맵 방향성 사용 - 끄면, 라이트맵의 라이팅이 밋밋해 지지만 비용이 줄어듭니다. |
-| **Use Full Precision** | [INCLUDE:Platforms\Mobile\Materials\#UFP]|
+| **Use Full Precision** | [INCLUDE:#excerpt_0] |
+[/REGION]
 
-## 모바일용 머티리얼 문제해결
-PC 와 모바일 디바이스 사이의 하드웨어 차이점으로 인해 PC 에서는 되던 것이 모바일 디바이스에서는 되지 않는 문제가 발생할 수 있습니다. 그 중 흔히 발생할 수 있는 문제와 그 해결법은 아래와 같습니다.
-| 문제 | 해법 |
-| ----- | -------- |
-| 모바일 프리뷰어에 디폴트 머티리얼이 표시됩니다. | **Engine\Saved** 안의 [로그 파일](Engine/Basics/DirectoryStructure) 을 열어 오류 메시지를 검색해 보면 머티리얼을 고치는 방법을 알 수 있습니다. |
-| 다른 데는 괜찮은데 Time 표현식이 있는 머티리얼 애니메이션이 뚝뚝 끊어집니다. | Period 가 있는 **Time** 표현식에서 Period 프로퍼티가 활성화되어 있는지 확인하세요. 그러면 계산이 CPU 로 이동되어 절반이 아닌 최대 정밀도로 실행됩니다. |
-| **World Coordinates** (월드 좌표) 연산 또는 매우 작은 값을 사용하는 머티리얼이 제대로 표시되지 않습니다. | 모바일 디바이스에서 제대로 표시되지 않는 머티리얼에서 Use Full Precision (최대 정밀도 사용) 옵션을 켜 보십시오. 모바일 디바이스에서의 머티리얼 정밀도 수준은 보통 퍼포먼스를 위해 소수점 한 두 자리 정도에서 버립니다. **Use Full Precision** 옵션을 사용하면 머티리얼의 정밀도가 머티리얼 에디터에 설정된 값 그대로 유지되도록 만듭니다. |
-| 머티리얼이 에디터에서와는 달리 디바이스에서는 제대로 보이지 않습니다. | 머티리얼을 모바일 디바이스에서 봤을 때의 모습을 더욱 잘 파악하려면, UE4 에디터의 **Preview Rendering Level** (프리뷰 렌더링 레벨)을 사용하여 타깃으로 삼는 디바이스의 렌더링 성능을 시뮬레이션해 볼 수 있습니다. 자세한 방법은 [](Platforms/Mobile/Previewer/) 문서를 참고하세요. |
+<!--
+[EXCERPT:excerpt_0]
 
-
-
-[COMMENT:none]
-
-[EXCERPT:UFP]
-켜면 머티리얼의 셰이더는 모바일 디바이스에서 사용할 수 있는 가장 높은 정밀도의 연산을 사용합니다. 이를 통해 월드 좌표 또는 광택 머티리얼에 조밀한 스페큘러 리플렉션을 사용할 때, 낮은 정밀도로 인해 발생할 수 있는 렌더링 문제를 우회할 수 있습니다.
+최대 정밀도 사용 - 켜면 머티리얼의 셰이더는 모바일 디바이스에서 사용할 수 있는 가장 높은 정밀도의 연산을 사용합니다. 이를 통해 월드 좌표 또는 광택 머티리얼에 조밀한 스페큘러 리플렉션을 사용할 때, 낮은 정밀도로 인해 발생할 수 있는 렌더링 문제를 우회할 수 있습니다.
 
 [REGION:note]
 최대 정밀도 셰이더를 켜면 머티리얼 비용이 비싸집니다.
 [/REGION]
-
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
 	![최대 정밀도 꺼짐](Full_Precision_Off.png)
@@ -90,7 +73,47 @@ PC 와 모바일 디바이스 사이의 하드웨어 차이점으로 인해 PC �
 	![최대 정밀도 켜짐](Full_Precision_On.png)
 	[/PARAM]
 [/OBJECT]
-[/EXCERPT:UFP]
+[/EXCERPT:excerpt_0]
+-->
 
-[/COMMENT]
+## 모바일용 머티리얼 문제해결
 
+PC 와 모바일 디바이스 사이의 하드웨어 차이점으로 인해 PC 에서는 되던 것이 모바일 디바이스에서는 되지 않는 문제가 발생할 수 있습니다. 그 중 흔히 발생할 수 있는 문제와 그 해결법은 아래와 같습니다.
+
+[REGION:simpletable]  
+| 문제 | 해법 |
+| --- | --- |
+| 모바일 프리뷰어에 디폴트 머티리얼이 표시됩니다. | `Engine\Saved` 안의 [로그 파일](Engine/Basics/DirectoryStructure) 을 열어 오류 메시지를 검색해 보면 머티리얼을 고치는 방법을 알 수 있습니다. |
+| 다른 데는 괜찮은데 Time 표현식이 있는 머티리얼 애니메이션이 뚝뚝 끊어집니다. | Period 가 있는 **Time** 표현식에서 Period 프로퍼티가 활성화되어 있는지 확인하세요. 그러면 계산이 CPU 로 이동되어 절반이 아닌 최대 정밀도로 실행됩니다. |
+| **World Coordinates** (월드 좌표) 연산 또는 매우 작은 값을 사용하는 머티리얼이 제대로 표시되지 않습니다. | 모바일 디바이스에서 제대로 표시되지 않는 머티리얼에서 Use Full Precision (최대 정밀도 사용) 옵션을 켜 보십시오. 모바일 디바이스에서의 머티리얼 정밀도 수준은 보통 퍼포먼스를 위해 소수점 한 두 자리 정도에서 버립니다. **Use Full Precision** 옵션을 사용하면 머티리얼의 정밀도가 머티리얼 에디터에 설정된 값 그대로 유지되도록 만듭니다. |
+| 머티리얼이 에디터에서와는 달리 디바이스에서는 제대로 보이지 않습니다. | 머티리얼을 모바일 디바이스에서 봤을 때의 모습을 더욱 잘 파악하려면, UE4 에디터의 **Preview Rendering Level** (프리뷰 렌더링 레벨)을 사용하여 타깃으로 삼는 디바이스의 렌더링 성능을 시뮬레이션해 볼 수 있습니다. 자세한 방법은 [](Platforms/Mobile/Previewer/) 문서를 참고하세요. |
+| Refraction is not working | To get refraction working on mobile devices, you need to make sure that you have Mobile HDR enabled. |
+[/REGION] 
+
+### Platform Stats
+
+You can view the cost of your Material on various platforms by clicking on the Platform Stats icon. 
+
+![](PlatformStats.png "PlatformStats.png")
+
+You can view stats for each rendering API UE4 supports by clicking on the **Settings** option and then selecting the render you want to see stats for. 
+
+![](PlatformStats_More.png "PlatformStats_More.png")
+
+In order to see the stat for **Android** you will need to first install **Mali Offline Compiler** by doing the following:
+
+1.  Download and install the [Mali Offline Compiler](https://developer.arm.com/products/software-development-tools/graphics-development-tools/mali-offline-compiler/downloads)**.**
+
+1.  After the Mali Offline Compiler has been installed, open up UE4 and from the **Main** **Menu** go **Edit** \> **Editor** **Preferences** \> **Content** **Editors** \> **Material** **Editor**.  
+    ![](PlatformStats_CEMaterialEditor.png "PlatformStats_CEMaterialEditor.png")
+
+1.  Click the **three dots** to the right of the **Mali Offline Compiler** option and then locate the `malisc.exe` file that was installed when the Mali Offline Compiler was installed.  
+    ![](PlatformStats_LoadOfflineCompiler.png "PlatformStats_LoadOfflineCompiler.png")
+
+1.  After the previous steps have been completed, you will be able to see stats for the various Android renders that UE4 supports.  
+    ![](PlatformStats_SeeingStatsr.png "PlatformStats_SeeingStatsr.png")  
+      
+
+[REGION:note]
+You will not be able to see the Android Platform stats without the offline compiler.
+[/REGION]

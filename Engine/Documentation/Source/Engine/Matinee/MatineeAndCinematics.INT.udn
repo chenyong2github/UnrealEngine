@@ -1,34 +1,25 @@
 Availability: Public
-Title:Matinee and Cinematics
-Crumbs: %ROOT%, Engine
-Description:Animation tool that provides the ability to animate the properties of Actors over time, either to create dynamic gameplay or cinematic in-game sequences.
+Title: Matinee and Cinematics
+Description: Animation tool enabling you to animate the Actor properties over time, either to create dynamic gameplay or cinematic in-game sequences.
 Version: 4.9
-parent:Engine
+Parent: Engine
+topic-image: matinee_topic.png
 order:15
-topic-image:matinee_topic.png
 
+[REGION:warning]
+Matinee is the legacy cinematic tool for Unreal Engine. If you are using a recent version of Unreal Engine for your project, we strongly recommend using [Sequencer Editor](Engine/Sequencer) for all cinematics and in-world animations.
+[/REGION]
 
-[REGION:banner]
+[REGION:raw]
 ![matinee.jpg](matinee_landing_banner.png)
 [/REGION]
 
-[EXCERPt:Intro]
-[INCLUDE:Shared/Glossary/M/#Glossary_Matinee]
-[/EXCERPT:Intro]
+The **Matinee** animation tool provides the ability to animate the properties of Actors over time, to create either dynamic gameplay or cinematic in-game sequences. The system is based on the use of specialized animation tracks in which you can place keyframes to set the values of certain properties of the Actors in the level. The Matinee Editor is similar to the non-linear editors used for video editing, making it familiar to video professionals.
 
 ## Essentials
 
-[REGION:buttonlist]
-* [Using the Matinee Tool](Engine/Matinee/UserGuide "%Engine/Matinee/UserGuide:description%")
-* [](Engine/Matinee/UserGuide/BlueprintComponents "%Engine/Matinee/UserGuide/BlueprintComponents:description%")
-* [](Engine/Matinee/UI "%Engine/Matinee/UI:description%")
-* [](Engine/Matinee/TrackReference "%Engine/Matinee/TrackReference:description%")
-* [](Engine/Matinee/HowTo/ "%Engine/Matinee/HowTo:description%")
-[/REGION]
-
-## Related Links
-
-[REGION:buttonlist]
-* [](Engine/UI/CurveEditor "%Engine/UI/CurveEditor:description%")	
-[/REGION]
-
+*   [Using the Matinee Tool](Engine/Matinee/UserGuide "Guide to using the Matinee editor to animate properties and Actors in-game.")
+*   [Modifying Blueprint Properties with Matinee](Engine/Matinee/UserGuide/BlueprintComponents "An overview of how Matinee can control Blueprint components.")
+*   [Matinee Editor Reference](Engine/Matinee/UI "Description of the user interface for Matinee.")
+*   [Matinee Track Reference](Engine/Matinee/TrackReference "Reference covering all available track types in the Matinee animation tool.")
+*   [Matinee How-To's](Engine/Matinee/HowTo "A How To Guide for using different aspects of Matinee in Unreal Engine 4.")

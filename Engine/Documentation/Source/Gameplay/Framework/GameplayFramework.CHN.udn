@@ -1,30 +1,26 @@
-﻿INTSourceChangelist:3810557
+﻿INTSourceChangelist:6426935
 Availability:Public
-Title:Gameplay框架
-Crumbs:%ROOT%, Gameplay
-Description:游戏规则、玩家输出与控制、相机和用户界面等核心系统。
+Title: Gameplay框架
+Description: 游戏规则、玩家输出与控制、相机和用户界面等核心系统。
+Type: reference
 Version: 4.9
-type:reference
-parent:Gameplay
-order:1
-tags:Gameplay Framework
+Parent: Gameplay
+Tags: Gameplay Framework
+Order: 11
 
-以下范例展示了游戏框架各部分联锁的方式。以一个简单的游戏情景为例： 
-兔子与蜗牛赛跑。游戏框架的基础是GameMode。**GameMode** 设置的是游戏规则，如首个跨过终点线的玩家即是冠军。其同时可生成玩家。 
+
+以下范例展示了游戏框架各部分联锁的方式。以一个简单的游戏情景为例：兔子与蜗牛赛跑。游戏框架的基础是GameMode。**GameMode** 设置的是游戏规则，如首个跨过终点线的玩家即是冠军。其同时可生成玩家。
  
-在 **PlayerController** 中设置一名玩家，其同时会产生一个Pawn。**Pawn** 是玩家在游戏中的物理代表，控制器则拥有Pawn并设置其行为规则。 
-本范例中共有2个Pawn，一个用于蜗牛而另一个用于兔子。兔子实际为 **角色**，是pawn的一个特殊子类，拥有跑跳等内置移动功能。另一方面，蜗牛拥有不同的移动风格，可从Pawn类处直接延展。
+在 **PlayerController** 中设置一名玩家，其同时会产生一个Pawn。**Pawn** 是玩家在游戏中的物理代表，控制器则拥有Pawn并设置其行为规则。本范例中共有2个Pawn，一个用于蜗牛而另一个用于兔子。兔子实际为 **角色**，是pawn的一个特殊子类，拥有跑跳等内置移动功能。另一方面，蜗牛拥有不同的移动风格，可从Pawn类处直接延展。
 
 Pawn可包含自身的移动规则和其他游戏逻辑，但控制器也可拥有该功能。控制器可以是获取真人玩家输入的PlayerController或是电脑自动控制的AIController。在本范例中，玩家控制的是蜗牛，因此PlayerController拥有的是蜗牛Pawn。而AI则控制兔子，AIController则拥有兔子角色，其中已设有停止、冲刺或打盹等行为。相机提供的视角仅对真人玩家有效，因此PlayerCamera仅会使用蜗牛Pawn的其中一个CameraComponent。
-
+	
 进行游戏时，玩家的输出将使蜗牛在地图中四处移动，同时HUD将覆盖在相机提供的视角上，显示目前游戏中的第一名和已进行的游戏时间。  
 
-查阅[](Gameplay/Framework/QuickReference)，了解基础框架元素简介及其协同工作的方式。还可点击以下链接直接跳转至页面，浏览各个类的总览与在蓝图中设置/使用C++对其进行设置的方法。
+查阅[Gameplay框架快速参考](Gameplay/Framework/QuickReference)，了解基础框架元素简介及其协同工作的方式。还可点击以下链接直接跳转至页面，浏览各个类的总览与在蓝图中设置/使用C++对其进行设置的方法。
 
-(#basicframeworkelements)
 ## 基础框架元素
-
+	
 [EXCERPT:LandingBoxes]
 [DIR(output:"topic" parent:"Gameplay/Framework" org:"hierarchy" end:"1")]
 [/EXCERPT:LandingBoxes]
-

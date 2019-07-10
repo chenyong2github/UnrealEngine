@@ -27,11 +27,6 @@ class UMaterialExpressionTextureObjectParameter : public UMaterialExpressionText
 	virtual const TArray<FExpressionInput*> GetInputs() override;
 #endif
 	//~ End UMaterialExpression Interface
-
-	//~ Begin UMaterialExpressionTextureSampleParameter Interface
-	virtual const TCHAR* GetRequirements() override;
-	//~ End UMaterialExpressionTextureSampleParameter Interface
-
 };
 
 

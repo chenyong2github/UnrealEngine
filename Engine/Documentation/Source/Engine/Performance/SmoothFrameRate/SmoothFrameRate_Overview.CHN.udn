@@ -1,0 +1,56 @@
+﻿INTSourceChangelist:6258572
+Availability: Public
+Title: 平滑帧率
+Description: 概述引擎设置中的平滑帧率（Smooth Frame Rate）选项。
+Type: overview
+Version: 4.20
+Parent: Engine/Performance
+Tags: Performance
+Tags: 平滑帧率
+Tags: Frame Rate
+topic-image: SmoothFrameRate.png
+social-image: SmoothFrameRate.png
+topic-icon: SmoothFrameRate.png
+Order: 15
+
+[TOC (start:2 end:2)]
+
+![](SmoothFrameRateSetting.png "SmoothFrameRateSetting.png")
+
+ **平滑帧率（Smooth Frame Rate）** 选项（可在 **一般设置（General Settings）/帧率（Framerate）** 下的 **项目设置（Project Settings）** 中找到）默认为启用，可用于在每个应用程序的基础上定义最小/最大可接受帧率。为了更好地了解平滑帧率（Smooth Frame Rate）的工作原理，还需要了解垂直同步（即VSync），因为这两者有很多共同点。 
+
+## 垂直同步
+
+VSync本质上是在渲染的应用程序中控制屏幕撕裂（当帧率超过监视器的刷新率）或卡顿（当帧率低于帧率上限，通常为60帧）的一种方法。该功能的作用是根据显卡需求和显示器刷新率设置整体帧率；这将在现代机器上产生一个非常严重的跳跃，有时在30FPS到60FPS之间，从而产生卡顿效应。
+
+对于现代显示器和显卡，VSync通常不是一个关键问题（当然，这取决于系统的需求和期望的结果），因此，大多数情况下，VSync在显卡配置管理器（例如NVIDIA控制面板）中被设置为“针对应用生效”（Application Specific）。这使得每个应用程序都可以决定是否要使用VSync。下图是一个示例，说明了当帧率下降时发生了什么导致VSync卡顿。 
+
+![](AdaptiveVSync.png "AdaptiveVSync.png")
+
+大多数的现代显卡都有自适应Vsync功能，这种功能可以产生更好的结果，同时减少卡顿情况。
+
+![](AdaptiveVSync-2-650.png "AdaptiveVSync-2-650.png")
+
+自适应VSync通过将帧率上限锁定到60FPS来防止屏幕撕裂并减少卡顿，并在60FPS以下关闭VSync。 
+
+  
+
+[REGION:note]
+以上两张图片都在[NVIDIA的自适应VSync](https://www.geforce.com/hardware/technology/adaptive-vsync/technology)文档页面中使用过。
+[/REGION]
+  
+
+## 平滑帧率范围
+
+使用帧率平滑，应用程序将确定帧率波动的可接受范围，这样您就可以将帧率限制在最小和最大允许值之间。因为它是基于应用程序的，所以在它做出更改 **之后**，VSync才会发生更改。   
+  
+
+例如，如果您有一个应用程序在Titan X卡上以75-85FPS的帧率运行得非常好，而大多数用户不会有更高端的机器来实现这一点（或者如果您正在为主机开发，目标通常为60FPS）。您可以将 **平滑帧率（Smooth Frame Rate）** 设置为40-60FPS的范围。 
+
+这样做，就意味着即使您的高端机器可以以更高的帧率运行，但为了让所有用户获得最佳的体验，您可以将帧率限制为60FPS。更进一步说，如果您的用户使用的是一台低端机器，它可以在40FPS的帧率下勉强运行，那么，当平滑帧率（Smooth Frame Rate）降低到40FPS时，VSync硬件的更改可能会将应用程序的FPS限制为30FPS。 
+
+您可以在 **项目设置（Project Settings）** 中 **一般设置（General Settings）/帧率（Framerate）** 下使用 **平滑帧率范围：（Smoothed Frame Rate Range:）** 来定义这一点。
+
+ **![](Range.png)**
+
+您还可以设置最小/最大范围为：**排斥（Exclusive ）**（排斥值） 、**包含（Inclusive）**（包含值）或 **开放（Open）**（值没有上限）

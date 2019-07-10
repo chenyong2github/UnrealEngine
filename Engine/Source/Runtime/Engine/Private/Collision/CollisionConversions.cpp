@@ -9,7 +9,6 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "PhysicsEngine/PxQueryFilterCallback.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 
 #if PHYSICS_INTERFACE_PHYSX
@@ -19,8 +18,10 @@
 #include "Physics/Experimental/LLImmediateInterfaceWrapper.h"
 #include "Collision/Experimental/CollisionConversionsLLImmediate.h"
 #elif WITH_CHAOS
+#include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "Physics/Experimental/PhysInterface_Chaos.h"
 #endif
+#include "PhysicsEngine/CollisionQueryFilterCallback.h"
 
 // Used to place overlaps into a TMap when deduplicating them
 struct FOverlapKey
@@ -207,8 +208,8 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 #endif
 
 	FHitFlags Flags = GetFlags(Hit);
-
 	checkSlow(Flags & EHitFlags::Distance);
+
 	const bool bInitialOverlap = HadInitialOverlap(Hit);
 	if (bInitialOverlap && Geom)
 	{
@@ -216,8 +217,17 @@ EConvertQueryResult ConvertQueryImpactHit(const UWorld* World, const FHitLocatio
 		return EConvertQueryResult::Valid;
 	}
 
-	const FPhysicsShape& HitShape = *GetShape(Hit);
-	const FPhysicsActor& HitActor = *GetActor(Hit);
+	const FPhysicsShape* pHitShape = GetShape(Hit);
+	const FPhysicsActor* pHitActor = GetActor(Hit);
+	if ((pHitShape == nullptr) || (pHitActor == nullptr))
+	{
+		OutResult.Reset();
+		return EConvertQueryResult::Invalid;
+	}
+
+	const FPhysicsShape& HitShape = *pHitShape;
+	const FPhysicsActor& HitActor = *pHitActor;
+
 	const uint32 InternalFaceIndex = GetInternalFaceIndex(Hit);
 
 	// See if this is a 'blocking' hit
@@ -387,8 +397,16 @@ static bool ConvertOverlappedShapeToImpactHit(const UWorld* World, const FHitLoc
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionConvertOverlapToHit);
 
-	const FPhysicsShape& HitShape = *GetShape(Hit);
-	const FPhysicsActor& HitActor = *GetActor(Hit);
+	const FPhysicsShape* pHitShape = GetShape(Hit);
+	const FPhysicsActor* pHitActor = GetActor(Hit);
+	if ((pHitShape == nullptr) || (pHitActor == nullptr))
+	{
+		OutResult.Reset();
+		return false;
+	}
+
+	const FPhysicsShape& HitShape = *pHitShape;
+	const FPhysicsActor& HitActor = *pHitActor;
 
 	// See if this is a 'blocking' hit
 	FCollisionFilterData ShapeFilter = GetQueryFilterData(HitShape);

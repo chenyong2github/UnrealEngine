@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3075226
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:关卡流送指南
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor
@@ -14,6 +14,7 @@ tags:Level Streaming
 这三大指南均可解决以下情况，载入两个关卡的步骤相同。照这些步骤执行，然后选择使用的指南。
 
 [EXCERPT:LevelStreamScenario]
+(#LevelStreamingScenario)
 ## 关卡流送
 从 **Sun Temple** 项目中的主关卡开始。此关卡已被拆分为室内空间和面朝大海、拥有柱子的末端天井。在下方的线框图中，青色线框为固定的室内关卡，黄色线框为将被流入的天井。天空和海洋处于固定关卡中，主庙宇场景中有数个窗口，可看到天空和室外场景。
 
@@ -54,5 +55,6 @@ tags:Level Streaming
 
 ## 指南
 
+(#How-Tos)
 [DIR(output:"listbutton" parent:"Engine/LevelStreaming/HowTo")]
 

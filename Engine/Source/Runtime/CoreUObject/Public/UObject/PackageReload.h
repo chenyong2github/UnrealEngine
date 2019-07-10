@@ -36,6 +36,8 @@ struct FReloadPackageData
 /** Enum describing the phase of the package reload */
 enum class EPackageReloadPhase : uint8
 {
+	/** Called once for each each package in a batch prior to loading its new version. This phase can be used to discard anything that may be required before the new package is loaded (note: the new package isn't guaranteed to load successfully!). */
+	PrePackageLoad,
 	/** Called once for each each package in a batch prior to any object fix-up happening. This phase can be used to make sure that any UI referencing old objects is removed or updated as needed. */
 	PrePackageFixup,
 	/** Called once for each each package in a batch prior to automatic fix-up. This phase can be used to fix-up any references that can't automatically be fixed-up (ie, non-uproperty or ARO references). */

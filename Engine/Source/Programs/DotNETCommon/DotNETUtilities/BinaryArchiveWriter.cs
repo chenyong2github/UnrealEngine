@@ -378,7 +378,7 @@ namespace Tools.DotNETCommon
 		/// <typeparam name="T">Type of the element</typeparam>
 		/// <param name="Items">List of items</param>
 		/// <param name="WriteElement">Writes an individual element to the archive</param>
-		public void WriteList<T>(List<T> Items, Action<T> WriteElement)
+		public void WriteList<T>(IReadOnlyList<T> Items, Action<T> WriteElement)
 		{
 			if(Items == null)
 			{

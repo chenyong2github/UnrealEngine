@@ -8,7 +8,8 @@
 #include "DerivedDataPluginInterface.h"
 #endif
 
-class UAnimSequence;
+#include "Animation/AnimCompressionTypes.h"
+
 struct FAnimCompressContext;
 
 #if WITH_EDITOR
@@ -18,17 +19,20 @@ struct FAnimCompressContext;
 class FDerivedDataAnimationCompression : public FDerivedDataPluginInterface
 {
 private:
-	// Anim sequence we are providing DDC data for
-	UAnimSequence* OriginalAnimSequence;
+	// The anim data to compress
+	TSharedPtr<FCompressibleAnimData> DataToCompressPtr;
 
-	// Possible duplicate animation for doing actual build work on
-	UAnimSequence* DuplicateSequence;
+	// The Type of anim data to compress (makes up part of DDC key)
+	const TCHAR* TypeName;
+
+	// Bulk of asset DDC key
+	const FString AssetDDCKey;
 
 	// FAnimCompressContext to use during compression if we don't pull from the DDC
 	TSharedPtr<FAnimCompressContext> CompressContext;
 
-	// Whether to do compression work on original animation or duplicate it first.
-	bool bDoCompressionInPlace;
+	// Size of the previous compressed data (for stat tracking)
+	int32 PreviousCompressedSize;
 
 	// Whether we should frame strip (remove every other frame from even frames animations)
 	bool bPerformStripping;
@@ -37,23 +41,26 @@ private:
 	bool bIsEvenFramed;
 
 public:
-	FDerivedDataAnimationCompression(UAnimSequence* InAnimSequence, TSharedPtr<FAnimCompressContext> InCompressContext, bool bInDoCompressionInPlace, bool bInTryFrameStripping, bool bTryStrippingOnOddFramedAnims);
+	FDerivedDataAnimationCompression(const TCHAR* InTypeName, const FString& InAssetDDCKey, TSharedPtr<FAnimCompressContext> InCompressContext, int32 InPreviousCompressedSize);
 	virtual ~FDerivedDataAnimationCompression();
+
+	void SetCompressibleData(TSharedRef<FCompressibleAnimData> InCompressibleAnimData)
+	{
+		DataToCompressPtr = InCompressibleAnimData;
+		check(DataToCompressPtr->Skeleton != nullptr);
+	}
 
 	virtual const TCHAR* GetPluginName() const override
 	{
-		return TEXT("AnimSeq");
+		return TypeName;
 	}
 
-	virtual const TCHAR* GetVersionString() const override
+	virtual const TCHAR* GetVersionString() const override;
+
+	virtual FString GetPluginSpecificCacheKeySuffix() const override
 	{
-		// This is a version string that mimics the old versioning scheme. If you
-		// want to bump this version, generate a new guid using VS->Tools->Create GUID and
-		// return it here. Ex.
-		return TEXT("267426BCDCE54E129C9D584B35330967");
+		return AssetDDCKey;
 	}
-
-	virtual FString GetPluginSpecificCacheKeySuffix() const override;
 
 
 	virtual bool IsBuildThreadsafe() const override
@@ -61,12 +68,12 @@ public:
 		return false;
 	}
 
-	virtual bool Build( TArray<uint8>& OutData ) override;
+	virtual bool Build( TArray<uint8>& OutDataArray) override;
 
 	/** Return true if we can build **/
 	bool CanBuild()
 	{
-		return !!OriginalAnimSequence;
+		return DataToCompressPtr.IsValid();
 	}
 };
 
