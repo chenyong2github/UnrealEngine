@@ -908,7 +908,7 @@ void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVis
 	if (bIsVisible)
 	{
 		// verify that we were passed a valid level name
-		FRemapClientLevelPackageNameParams RemapPackageNameParams{ PackageName };
+		FString Filename;
 		UPackage* TempPkg = FindPackage(nullptr, *PackageName.ToString());
 		FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(TempPkg);
 
@@ -922,7 +922,7 @@ void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVis
 			{
 				for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
 				{
-					if (StreamingLevel && (StreamingLevel->GetWorldAssetPackageFName() == InPackageName))
+					if (StreamingLevel && (StreamingLevel->GetWorldAssetPackageFName() == InPackageName ))
 					{
 						return true;
 					}
@@ -931,10 +931,7 @@ void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVis
 			}
 		};
 
-		if (Linker ||
-			FPackageName::DoesPackageExist(PackageName.ToString()) ||
-			Local::IsInLevelList(GetWorld(), PackageName) ||
-			(RemapLevelPackageName.IsBound() && RemapLevelPackageName.Execute(RemapPackageNameParams) && FPackageName::DoesPackageExist(RemapPackageNameParams.OutPackageName)))
+		if ( Linker || FPackageName::DoesPackageExist(PackageName.ToString(), nullptr, &Filename ) || Local::IsInLevelList(GetWorld(), PackageName ) )
 		{
 			ClientVisibleLevelNames.Add(PackageName);
 			UE_LOG( LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Added '%s'"), *PackageName.ToString() );
