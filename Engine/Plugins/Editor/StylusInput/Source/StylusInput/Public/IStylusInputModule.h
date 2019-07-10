@@ -44,6 +44,8 @@ public:
 class IStylusInputInterfaceInternal
 {
 public:
+	virtual void Tick() = 0;
+
 	virtual IStylusInputDevice* GetInputDevice(int32 Index) const = 0;
 	virtual int32 NumInputDevices() const = 0;
 };

@@ -12,6 +12,7 @@ public:
 	FWindowsStylusInputInterface(FWindowsStylusInputInterfaceImpl* InImpl);
 	virtual ~FWindowsStylusInputInterface();
 
+	virtual void Tick() override;
 	virtual int32 NumInputDevices() const override;
 	virtual IStylusInputDevice* GetInputDevice(int32 Index) const override;
 
