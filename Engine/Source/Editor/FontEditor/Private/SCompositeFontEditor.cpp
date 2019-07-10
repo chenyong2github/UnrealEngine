@@ -1761,7 +1761,7 @@ void SFontScalingFactorEditor::Construct(const FArguments& InArgs)
 		.AutoWidth()
 		[
 			SNew(SNumericEntryBox<float>)
-			.ToolTipText(LOCTEXT("ScalingFactorTooltip", "The scaling factor will adjust the size of the rendered glyphs so that you can tweak their size to match that of the default font family"))
+			.ToolTipText(LOCTEXT("ScalingFactorTooltip", "The scaling factor will adjust the size of the rendered glyphs so that you can tweak their size to match that of the default font family\nNote: Only applies to scalable font formats (ie, not to bitmap fonts)"))
 			.Value(this, &SFontScalingFactorEditor::GetScalingFactorAsOptional)
 			.OnValueCommitted(this, &SFontScalingFactorEditor::OnScalingFactorCommittedAsNumeric)
 		]
@@ -1808,6 +1808,7 @@ void SFontOverrideSelector::Construct(const FArguments& InArgs)
 		.OptionsSource(&FontOverrideComboData)
 		.ContentPadding(FMargin(4.0, 2.0))
 		.Visibility(this, &SFontOverrideSelector::GetAddFontOverrideVisibility)
+		.IsEnabled(this, &SFontOverrideSelector::IsFontOverrideComboEnabled)
 		.OnComboBoxOpening(this, &SFontOverrideSelector::OnAddFontOverrideComboOpening)
 		.OnSelectionChanged(this, &SFontOverrideSelector::OnAddFontOverrideSelectionChanged)
 		.OnGenerateWidget(this, &SFontOverrideSelector::MakeAddFontOverrideWidget)
@@ -1822,6 +1823,31 @@ void SFontOverrideSelector::Construct(const FArguments& InArgs)
 EVisibility SFontOverrideSelector::GetAddFontOverrideVisibility() const
 {
 	return (ParentTypeface.Get(nullptr)) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+bool SFontOverrideSelector::IsFontOverrideComboEnabled() const
+{
+	FTypeface* const TypefacePtr = Typeface.Get(nullptr);
+	const FTypeface* const ParentTypefacePtr = ParentTypeface.Get(nullptr);
+
+	if (TypefacePtr && ParentTypefacePtr)
+	{
+		// Check whether our parent font has any entries that haven't already got a local entry
+		for (const FTypefaceEntry& ParentTypefaceEntry : ParentTypefacePtr->Fonts)
+		{
+			const bool bIsOverridden = TypefacePtr->Fonts.ContainsByPredicate([&ParentTypefaceEntry](const FTypefaceEntry& LocalTypefaceEntry)
+			{
+				return LocalTypefaceEntry.Name == ParentTypefaceEntry.Name;
+			});
+
+			if (!bIsOverridden)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void SFontOverrideSelector::OnAddFontOverrideComboOpening()
