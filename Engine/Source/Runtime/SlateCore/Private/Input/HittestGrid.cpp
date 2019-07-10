@@ -475,6 +475,11 @@ TSharedPtr<SWidget> FHittestGrid::FindFocusableWidget(FSlateRect WidgetRect, con
 		{
 			if (NavigationReply.GetBoundaryRule() == EUINavigationRule::Wrap)
 			{
+				if (bWrapped)
+				{
+					// If we've already wrapped, unfortunately it must be that the starting widget wasn't within the boundary
+					break;
+				}
 				CurrentSourceSide = DestSideFunc(SweptRect);
 				FVector2D SampleSpot = WidgetRect.GetCenter();
 				SampleSpot[AxisIndex] = CurrentSourceSide;
