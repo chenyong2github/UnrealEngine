@@ -2272,9 +2272,6 @@ UWorld* UEditorEngine::NewMap()
 		Context.World()->GetDefaultBrush()->SetActorLocation(FVector::ZeroVector, false);
 	}
 
-	// Make the builder brush a small 256x256x256 cube so its visible.
-	InitBuilderBrush( Context.World() );
-
 	// Let navigation system know we're done creating new world
 	FNavigationSystem::AddNavigationSystemToWorld(*Context.World(), FNavigationSystemRunMode::EditorMode);
 
