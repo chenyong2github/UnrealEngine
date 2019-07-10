@@ -459,12 +459,17 @@ void SMultiLineEditableText::GoTo(const FTextLocation& NewLocation)
 	EditableTextLayout->GoTo(NewLocation);
 }
 
-void SMultiLineEditableText::GoTo(ETextLocation GoToLocation)
+void SMultiLineEditableText::GoTo(const ETextLocation NewLocation)
 {
-	EditableTextLayout->GoTo(GoToLocation);
+	EditableTextLayout->GoTo(NewLocation);
 }
 
 void SMultiLineEditableText::ScrollTo(const FTextLocation& NewLocation)
+{
+	EditableTextLayout->ScrollTo(NewLocation);
+}
+
+void SMultiLineEditableText::ScrollTo(const ETextLocation NewLocation)
 {
 	EditableTextLayout->ScrollTo(NewLocation);
 }

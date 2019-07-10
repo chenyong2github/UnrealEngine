@@ -320,13 +320,19 @@ public:
 	void GoTo(const FTextLocation& NewLocation);
 
 	/** Move the cursor to the specified location */
-	void GoTo(ETextLocation NewLocation)
+	void GoTo(const ETextLocation NewLocation)
 	{
 		EditableText->GoTo(NewLocation);
 	}
 
 	/** Scroll to the given location in the document (without moving the cursor) */
 	void ScrollTo(const FTextLocation& NewLocation);
+
+	/** Scroll to the given location in the document (without moving the cursor) */
+	void ScrollTo(const ETextLocation NewLocation)
+	{
+		EditableText->GoTo(NewLocation);
+	}
 
 	/** Begin a new text search (this is called automatically when the bound search text changes) */
 	void BeginSearch(const FText& InSearchText, const ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase, const bool InReverse = false);

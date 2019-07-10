@@ -241,13 +241,16 @@ public:
 	void GoTo(const FTextLocation& NewLocation);
 
 	/** Move the cursor specified location */
-	void GoTo(ETextLocation NewLocation);
+	void GoTo(const ETextLocation NewLocation);
 
 	/** Jump the cursor to the given location in the document */
 	void JumpTo(ETextLocation JumpLocation, ECursorAction Action);
 
 	/** Scroll to the given location in the document (without moving the cursor) */
 	void ScrollTo(const FTextLocation& NewLocation);
+
+	/** Scroll to the given location in the document (without moving the cursor) */
+	void ScrollTo(const ETextLocation NewLocation);
 
 	/** Update the active cursor highlight based on the state of the text layout */
 	void UpdateCursorHighlight();

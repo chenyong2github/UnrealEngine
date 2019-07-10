@@ -20,6 +20,8 @@
 #include "EditorStyleSet.h"
 #include "Classes/EditorStyleSettings.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Images/SImage.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/CoreDelegates.h"
 
@@ -832,7 +834,6 @@ void SOutputLog::Construct( const FArguments& InArgs )
 
 	MessagesTextMarshaller = FOutputLogTextLayoutMarshaller::Create(InArgs._Messages, &Filter);
 
-
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
 		.Style(FEditorStyle::Get(), "Log.TextBox")
 		.TextStyle(FEditorStyle::Get(), "Log.Normal")
@@ -840,6 +841,7 @@ void SOutputLog::Construct( const FArguments& InArgs )
 		.Marshaller(MessagesTextMarshaller)
 		.IsReadOnly(true)
 		.AlwaysShowScrollbars(true)
+		.AutoWrapText(this, &SOutputLog::IsWordWrapEnabled)
 		.OnVScrollBarUserScrolled(this, &SOutputLog::OnUserScrolled)
 		.ContextMenuExtender(this, &SOutputLog::ExtendTextBoxMenu);
 
@@ -914,16 +916,53 @@ void SOutputLog::Construct( const FArguments& InArgs )
 			// The console input box
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
 			[
-				SNew(SBox)
-				.MaxDesiredHeight(180.0f)
-				[
-					SNew(SConsoleInputBox)
-					.OnConsoleCommandExecuted(this, &SOutputLog::OnConsoleCommandExecuted)
+				SNew(SHorizontalBox)
 
-					// Always place suggestions above the input line for the output log widget
-					.SuggestionListPlacement(MenuPlacement_AboveAnchor)
+				+SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(0.0f, 1.0f, 0.0f, 0.0f))
+				[
+					SNew(SBox)
+					.MaxDesiredHeight(180.0f)
+					[
+						SNew(SConsoleInputBox)
+						.OnConsoleCommandExecuted(this, &SOutputLog::OnConsoleCommandExecuted)
+
+						// Always place suggestions above the input line for the output log widget
+						.SuggestionListPlacement(MenuPlacement_AboveAnchor)
+					]
+				]
+
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4, 0, 0, 0)
+				[
+					SAssignNew(ViewOptionsComboButton, SComboButton)
+					.ContentPadding(0)
+					.ForegroundColor( this, &SOutputLog::GetViewButtonForegroundColor )
+					.ButtonStyle( FEditorStyle::Get(), "ToggleButton" ) // Use the tool bar item style for this button
+					.OnGetMenuContent( this, &SOutputLog::GetViewButtonContent )
+					.ButtonContent()
+					[
+						SNew(SHorizontalBox)
+ 
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						[
+							SNew(SImage).Image( FEditorStyle::GetBrush("GenericViewButton") )
+						]
+ 
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(2, 0, 0, 0)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock).Text( LOCTEXT("ViewButton", "View Options") )
+						]
+					]
 				]
 			]
 		]
@@ -1051,6 +1090,14 @@ void SOutputLog::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const 
 	}
 }
 
+FSlateColor SOutputLog::GetViewButtonForegroundColor() const
+{
+	static const FName InvertedForegroundName("InvertedForeground");
+	static const FName DefaultForegroundName("DefaultForeground");
+
+	return ViewOptionsComboButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
+}
+
 void SOutputLog::ExtendTextBoxMenu(FMenuBuilder& Builder)
 {
 	FUIAction ClearOutputLogAction(
@@ -1095,7 +1142,7 @@ void SOutputLog::RequestForceScroll()
 {
 	if (MessagesTextMarshaller->GetNumFilteredMessages() > 0)
 	{
-		MessagesTextBox->ScrollTo(FTextLocation(MessagesTextMarshaller->GetNumFilteredMessages() - 1));
+		MessagesTextBox->ScrollTo(ETextLocation::EndOfDocument);
 		bIsUserScrolled = false;
 	}
 }
@@ -1109,6 +1156,24 @@ void SOutputLog::Refresh()
 	MessagesTextMarshaller->MakeDirty();
 	MessagesTextBox->Refresh();
 	RequestForceScroll();
+}
+
+bool SOutputLog::IsWordWrapEnabled() const
+{
+	bool WordWrapEnabled = false;
+	GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogWordWrap"), WordWrapEnabled, GEditorPerProjectIni);
+	return WordWrapEnabled;
+}
+
+void SOutputLog::SetWordWrapEnabled(ECheckBoxState InValue)
+{
+	const bool WordWrapEnabled = (InValue == ECheckBoxState::Checked);
+	GConfig->SetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogWordWrap"), WordWrapEnabled, GEditorPerProjectIni);
+
+	if (!bIsUserScrolled)
+	{
+		RequestForceScroll();
+	}
 }
 
 void SOutputLog::OnFilterTextChanged(const FText& InFilterText)
@@ -1307,6 +1372,28 @@ void SOutputLog::CategoriesSingle_Execute(FName InName)
 	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
 
 	Refresh();
+}
+
+TSharedRef<SWidget> SOutputLog::GetViewButtonContent()
+{
+	TSharedPtr<FExtender> Extender;
+	FMenuBuilder MenuBuilder(true, nullptr, Extender, true);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("WordWrapEnabledOption", "Enable Word Wrapping"),
+		LOCTEXT("WordWrapEnabledOptionToolTip", "Enable word wrapping in the Output Log."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this] {
+				// This is a toggle, hence that it is inverted
+				SetWordWrapEnabled(IsWordWrapEnabled() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked);
+			}),
+			FCanExecuteAction::CreateLambda([] { return true; }),
+			FIsActionChecked::CreateSP(this, &SOutputLog::IsWordWrapEnabled)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+	return MenuBuilder.MakeWidget();
 }
 
 bool FLogFilter::IsMessageAllowed(const TSharedPtr<FLogMessage>& Message)

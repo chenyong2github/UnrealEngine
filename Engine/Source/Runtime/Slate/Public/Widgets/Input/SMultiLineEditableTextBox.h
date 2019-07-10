@@ -382,13 +382,19 @@ public:
 	void GoTo(const FTextLocation& NewLocation);
 
 	/** Move the cursor to the specified location */
-	void GoTo(ETextLocation NewLocation)
+	void GoTo(const ETextLocation NewLocation)
 	{
 		EditableText->GoTo(NewLocation);
 	}
 
 	/** Scroll to the given location in the document (without moving the cursor) */
 	void ScrollTo(const FTextLocation& NewLocation);
+
+	/** Scroll to the given location in the document (without moving the cursor) */
+	void ScrollTo(const ETextLocation NewLocation)
+	{
+		EditableText->ScrollTo(NewLocation);
+	}
 
 	/** Apply the given style to the currently selected text (or insert a new run at the current cursor position if no text is selected) */
 	void ApplyToSelection(const FRunInfo& InRunInfo, const FTextBlockStyle& InStyle);

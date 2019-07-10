@@ -433,9 +433,19 @@ private:
 	/** Forces re-population of the messages list */
 	void Refresh();
 
+	bool IsWordWrapEnabled() const;
+
+	void SetWordWrapEnabled(ECheckBoxState InValue);
+
+	FSlateColor GetViewButtonForegroundColor() const;
+
+	TSharedRef<SWidget> GetViewButtonContent();
+
 public:
 	/** Visible messages filter */
 	FLogFilter Filter;
+
+	TSharedPtr<class SComboButton> ViewOptionsComboButton;
 };
 
 /** Output log text marshaller to convert an array of FLogMessages into styled lines to be consumed by an FTextLayout */

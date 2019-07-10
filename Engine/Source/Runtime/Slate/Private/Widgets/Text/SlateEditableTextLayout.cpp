@@ -2181,7 +2181,7 @@ void FSlateEditableTextLayout::GoTo(const FTextLocation& NewLocation)
 	}
 }
 
-void FSlateEditableTextLayout::GoTo(ETextLocation NewLocation)
+void FSlateEditableTextLayout::GoTo(const ETextLocation NewLocation)
 {
 	JumpTo(NewLocation, ECursorAction::MoveCursor);
 }
@@ -2464,6 +2464,29 @@ void FSlateEditableTextLayout::ScrollTo(const FTextLocation& NewLocation)
 			OwnerWidget->EnsureActiveTick();
 		}
 	}
+}
+
+void FSlateEditableTextLayout::ScrollTo(const ETextLocation NewLocation)
+{
+	const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
+
+	FTextLocation ResolvedTextLocation;
+	switch (NewLocation)
+	{
+	case ETextLocation::BeginningOfDocument:
+		ResolvedTextLocation = FTextLocation(0);
+		break;
+
+	case ETextLocation::EndOfDocument:
+		ResolvedTextLocation = FTextLocation(FMath::Max(0, Lines.Num() - 1));
+		break;
+
+	default:
+		checkf(false, TEXT("Unsupported ETextLocation mode passed to ScrollTo!"));
+		break;
+	}
+
+	ScrollTo(ResolvedTextLocation);
 }
 
 void FSlateEditableTextLayout::UpdateCursorHighlight()
