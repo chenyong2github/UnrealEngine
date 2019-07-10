@@ -518,6 +518,7 @@ inline uint32 GetTypeHash(const FNavAgentProperties& A)
 	return ((int16(A.AgentRadius) << 16) | int16(A.AgentHeight)) ^ int32(A.AgentStepHeight);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 USTRUCT(BlueprintType)
 struct ENGINE_API FNavDataConfig : public FNavAgentProperties
 {
@@ -565,6 +566,7 @@ public:
 	}
 #endif // WITH_EDITOR
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 struct FNavigationProjectionWork
 {
