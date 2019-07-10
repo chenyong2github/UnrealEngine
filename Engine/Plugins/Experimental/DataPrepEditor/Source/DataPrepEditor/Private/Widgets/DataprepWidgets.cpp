@@ -149,7 +149,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 				.FillWidth(1.0f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Level"))
+					.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Sub-Level"))
 					.Font( IDetailLayoutBuilder::GetDetailFont() )
 				]
 			]
