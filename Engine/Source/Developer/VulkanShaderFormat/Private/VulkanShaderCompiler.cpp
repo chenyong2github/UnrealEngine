@@ -1360,6 +1360,9 @@ static void BuildShaderOutput(
 			EShaderParameterType::Sampler
 		);
 		NEWEntryTypes.Add(Name, FVulkanShaderHeader::Global);
+
+		// Count only samplers states, not textures
+		OLDHeader.SerializedBindings.NumSamplers++;
 	}
 
 	for (auto& Sampler : CCHeader.Samplers)
@@ -1372,13 +1375,8 @@ static void BuildShaderOutput(
 			VulkanBindingIndex,
 			Sampler.Count,
 			EShaderParameterType::SRV
-			);
+		);
 		NEWEntryTypes.Add(Sampler.Name, FVulkanShaderHeader::Global);
-
-		OLDHeader.SerializedBindings.NumSamplers = FMath::Max<uint8>(
-			OLDHeader.SerializedBindings.NumSamplers,
-			Sampler.Offset + Sampler.Count
-			);
 
 		for (auto& SamplerState : Sampler.SamplerStates)
 		{
@@ -1394,6 +1392,9 @@ static void BuildShaderOutput(
 					EShaderParameterType::Sampler
 				);
 				NEWEntryTypes.Add(SamplerState, FVulkanShaderHeader::Global);
+
+				// Count compiled texture-samplers as output samplers
+				OLDHeader.SerializedBindings.NumSamplers += Sampler.Count;
 			}
 		}
 	}
