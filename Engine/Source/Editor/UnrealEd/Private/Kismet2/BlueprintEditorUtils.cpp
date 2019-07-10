@@ -2469,7 +2469,8 @@ UClass* const FBlueprintEditorUtils::GetOverrideFunctionClass(UBlueprint* Bluepr
 	{
 		*OutFunction = OverrideFunc;
 	}
-	return CastChecked<UClass>(OverrideFunc->GetOuter())->GetAuthoritativeClass();
+
+	return (OverrideFunc ? CastChecked<UClass>(OverrideFunc->GetOuter())->GetAuthoritativeClass() : nullptr);
 }
 
 void FBlueprintEditorUtils::AddMacroGraph( UBlueprint* Blueprint, class UEdGraph* Graph, bool bIsUserCreated, UClass* SignatureFromClass )
