@@ -57,11 +57,13 @@ public:
 	/** Callback for when a crumb in the trail has been clicked */
 	DECLARE_DELEGATE_OneParam( FOnCrumbClicked, const ItemType& /*CrumbData*/ );
 
+	/** Callback for checking whether the menu to be displayed when clicking on a crumb's delimiter arrow would have any content */
+	DECLARE_DELEGATE_RetVal_OneParam( bool, FHasCrumbMenuContent, const ItemType& /*CrumbData*/ );
+
 	/** Callback for getting the menu content to be displayed when clicking on a crumb's delimiter arrow */
 	DECLARE_DELEGATE_RetVal_OneParam( TSharedPtr< SWidget >, FGetCrumbMenuContent, const ItemType& /*CrumbData*/ );
 
 	DECLARE_DELEGATE_RetVal_TwoParams( FSlateColor, FOnGetCrumbColor, int32 /*CrumbId*/, bool /*bInvert*/ );
-
 
 	SLATE_BEGIN_ARGS( SBreadcrumbTrail )
 		: _InvertTextColorOnHover(true)
@@ -71,6 +73,7 @@ public:
 		, _DelimiterImage( FCoreStyle::Get().GetBrush("BreadcrumbTrail.Delimiter") )
 		, _ShowLeadingDelimiter(false)
 		, _PersistentBreadcrumbs(false)
+		, _HasCrumbMenuContent()
 		, _GetCrumbMenuContent()
 		, _OnGetCrumbColor()
 	    {}
@@ -105,6 +108,8 @@ public:
 		/** If true, do not remove breadcrumbs when clicking */
 		SLATE_ARGUMENT( bool, PersistentBreadcrumbs )
 
+		SLATE_EVENT( FHasCrumbMenuContent, HasCrumbMenuContent )
+
 		SLATE_EVENT( FGetCrumbMenuContent, GetCrumbMenuContent )
 
 		SLATE_EVENT( FOnGetCrumbColor, OnGetCrumbColor )
@@ -124,9 +129,9 @@ public:
 		OnCrumbPopped = InArgs._OnCrumbPopped;
 		OnCrumbClicked = InArgs._OnCrumbClicked;
 		bHasStaticBreadcrumbs = InArgs._PersistentBreadcrumbs;
+		HasCrumbMenuContentCallback = InArgs._HasCrumbMenuContent;
 		GetCrumbMenuContentCallback = InArgs._GetCrumbMenuContent;
 		OnGetCrumbColor = InArgs._OnGetCrumbColor;
-
 
 		NextValidCrumbID = 0;
 
@@ -176,8 +181,9 @@ public:
 			DelimiterContent = SNew(SButton)
 				.VAlign(EVerticalAlignment::VAlign_Center)
 				.ButtonStyle(ButtonStyle)
-				.OnClicked( this, &SBreadcrumbTrail::OnCrumbDelimiterClicked, NextValidCrumbID )
-				.ContentPadding( FMargin(5, 0) )
+				.Visibility(this, &SBreadcrumbTrail::GetCrumbDelimiterVisibility, NextValidCrumbID)
+				.OnClicked(this, &SBreadcrumbTrail::OnCrumbDelimiterClicked, NextValidCrumbID)
+				.ContentPadding(FMargin(5, 0))
 				[
 					SNew(SImage)
 					.Image(DelimiterImage)
@@ -293,6 +299,15 @@ public:
 
 private:
 
+	EVisibility GetCrumbDelimiterVisibility(int32 CrumbID) const
+	{
+		if (HasCrumbs() && CrumbList.Last().CrumbID == CrumbID && HasCrumbMenuContentCallback.IsBound() && !HasCrumbMenuContentCallback.Execute(CrumbList.Last().CrumbData))
+		{
+			return EVisibility::Collapsed;
+		}
+		return EVisibility::Visible;
+	}
+
 	FReply OnCrumbDelimiterClicked( int32 CrumbID )
 	{
 		FReply Reply = FReply::Unhandled();
@@ -337,13 +352,10 @@ private:
 	/** Handler to determine the visibility of the arrows between crumbs */
 	EVisibility GetDelimiterVisibility(int32 CrumbID) const
 	{
-		if ( HasCrumbs() )
+		if ( HasCrumbs() && CrumbList.Last().CrumbID == CrumbID )
 		{
-			if (CrumbList.Last().CrumbID == CrumbID)
-			{
-				// Collapse the last delimiter
-				return EVisibility::Collapsed;
-			}
+			// Collapse the last delimiter
+			return EVisibility::Collapsed;
 		}
 
 		return EVisibility::Visible;
@@ -486,6 +498,9 @@ private:
 
 	/** Delegate to invoke when selection changes. */
 	FOnCrumbClicked OnCrumbClicked;
+
+	/** Delegate to invoke to check whether the crumb's menu would have any content */
+	FHasCrumbMenuContent HasCrumbMenuContentCallback;
 
 	/** Delegate to invoke to retrieve the content for a crumb's menu */
 	FGetCrumbMenuContent GetCrumbMenuContentCallback;

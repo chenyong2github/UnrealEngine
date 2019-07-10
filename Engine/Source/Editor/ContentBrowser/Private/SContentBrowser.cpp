@@ -391,6 +391,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						.ShowLeadingDelimiter(false)
 						.InvertTextColorOnHover(false)
 						.OnCrumbClicked(this, &SContentBrowser::OnPathClicked)
+						.HasCrumbMenuContent(this, &SContentBrowser::OnHasCrumbDelimiterContent)
 						.GetCrumbMenuContent(this, &SContentBrowser::OnGetCrumbDelimiterContent)
 						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserPath")))
 					]
@@ -1754,6 +1755,61 @@ void SContentBrowser::OnPathClicked( const FString& CrumbData )
 void SContentBrowser::OnPathMenuItemClicked(FString ClickedPath)
 {
 	OnPathClicked( ClickedPath );
+}
+
+bool SContentBrowser::OnHasCrumbDelimiterContent(const FString& CrumbData) const
+{
+	const FSourcesData SourcesData = AssetViewPtr->GetSourcesData();
+	if (SourcesData.HasCollections())
+	{
+		TOptional<FCollectionNameType> CollectionClicked;
+		{
+			FString CollectionName;
+			FString CollectionTypeString;
+			if (CrumbData.Split(TEXT("?"), &CollectionName, &CollectionTypeString))
+			{
+				const int32 CollectionType = FCString::Atoi(*CollectionTypeString);
+				if (CollectionType >= 0 && CollectionType < ECollectionShareType::CST_All)
+				{
+					CollectionClicked = FCollectionNameType(FName(*CollectionName), ECollectionShareType::Type(CollectionType));
+				}
+			}
+		}
+
+		TArray<FCollectionNameType> ChildCollections;
+		if (CollectionClicked.IsSet())
+		{
+			FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
+			CollectionManagerModule.Get().GetChildCollections(CollectionClicked->Name, CollectionClicked->Type, ChildCollections);
+		}
+
+		return (ChildCollections.Num() > 0);
+	}
+	else if (SourcesData.HasPackagePaths())
+	{
+		TArray<FString> SubPaths;
+		const bool bRecurse = false;
+		if (ContentBrowserUtils::IsClassPath(CrumbData))
+		{
+			TSharedRef<FNativeClassHierarchy> NativeClassHierarchy = FContentBrowserSingleton::Get().GetNativeClassHierarchy();
+
+			FNativeClassHierarchyFilter ClassFilter;
+			ClassFilter.ClassPaths.Add(FName(*CrumbData));
+			ClassFilter.bRecursivePaths = bRecurse;
+
+			NativeClassHierarchy->GetMatchingFolders(ClassFilter, SubPaths);
+		}
+		else
+		{
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+			AssetRegistry.GetSubPaths(CrumbData, SubPaths, bRecurse);
+		}
+
+		return (SubPaths.Num() > 0);
+	}
+	return false;
 }
 
 TSharedPtr<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& CrumbData) const

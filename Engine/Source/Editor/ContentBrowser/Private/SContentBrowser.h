@@ -223,6 +223,9 @@ private:
 	/** Called when item in the path delimiter arrow menu is clicked */
 	void OnPathMenuItemClicked(FString ClickedPath);
 
+	/** Called to query whether the crumb menu would contain any content (see also OnGetCrumbDelimiterContent) */
+	bool OnHasCrumbDelimiterContent(const FString& CrumbData) const;
+
 	/** 
 	 * Populates the delimiter arrow with a menu of directories under the current directory that can be navigated to
 	 * 
