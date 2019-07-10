@@ -45,6 +45,7 @@
 #include "MaterialStats.h"
 #include "MaterialEditingLibrary.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "MaterialInstanceEditor"
 
