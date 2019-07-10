@@ -313,6 +313,10 @@ void CompilerGLSL::reset()
 	// Clear temporary usage tracking.
 	expression_usage_counts.clear();
 	forwarded_temporaries.clear();
+	
+	/* UE Change Begin: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
+	flushed_phi_variables.clear();
+	/* UE Change End: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
 
 	reset_name_caches();
 
@@ -7069,11 +7073,12 @@ void CompilerGLSL::flush_variable_declaration(uint32_t id)
 		statement(variable_decl_function_local(*var), ";");
 		var->deferred_declaration = false;
 	}
-	if (var && var->allocate_temporary_copy)
+	if (var && var->allocate_temporary_copy && flushed_phi_variables.find(id) == flushed_phi_variables.end())
 	{
 		auto &type = get<SPIRType>(var->basetype);
 		auto &flags = ir.meta[id].decoration.decoration_flags;
 		statement(flags_to_qualifiers_glsl(type, flags), variable_decl(type, join("_", id, "_copy")), ";");
+		flushed_phi_variables.insert(id);
 	}
 	/* UE Change End: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
 }
@@ -10708,9 +10713,9 @@ void CompilerGLSL::flush_phi(uint32_t from, uint32_t to)
 						var.allocate_temporary_copy = true;
 						force_recompile();
 					}
-					statement("_", phi.function_variable, "_copy", " = ", to_name(phi.function_variable), ";");
-					temporary_phi_variables.insert(phi.function_variable);
-				}
+						statement("_", phi.function_variable, "_copy", " = ", to_name(phi.function_variable), ";");
+						temporary_phi_variables.insert(phi.function_variable);
+					}
 
 				// This might be called in continue block, so make sure we
 				// use this to emit ESSL 1.0 compliant increments/decrements.
