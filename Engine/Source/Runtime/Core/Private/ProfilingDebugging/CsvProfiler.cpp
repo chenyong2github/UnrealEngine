@@ -414,6 +414,7 @@ public:
 					CategoryNames[Index] = CategoryName;
 					CategoryNameToIndex.Add(CategoryName.ToLower(), Index);
 				}
+				TRACE_CSV_PROFILER_REGISTER_CATEGORY(Index, *CategoryName);
 			}
 		}
 		return Index;
@@ -1745,44 +1746,58 @@ public:
 
 	CSV_PROFILER_INLINE void AddTimestampBegin(const char* StatName, int32 CategoryIndex)
 	{
-		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::TimestampBegin, FPlatformTime::Cycles64());
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_BEGIN_STAT(StatName, CategoryIndex, Cycles);
+		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::TimestampBegin, Cycles);
 		TimingMarkers.CommitElement();
 	}
 
 	CSV_PROFILER_INLINE void AddTimestampEnd(const char* StatName, int32 CategoryIndex)
 	{
-		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CategoryIndex, 0, FPlatformTime::Cycles64());
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_END_STAT(StatName, CategoryIndex, Cycles);
+		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CategoryIndex, 0, Cycles);
 		TimingMarkers.CommitElement();
 	}
 
 	CSV_PROFILER_INLINE void AddTimestampExclusiveBegin(const char* StatName)
 	{
-		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CSV_CATEGORY_INDEX(Exclusive), FCsvStatBase::FFlags::TimestampBegin | FCsvStatBase::FFlags::IsExclusiveTimestamp, FPlatformTime::Cycles64());
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_BEGIN_EXCLUSIVE_STAT(StatName, CSV_CATEGORY_INDEX(Exclusive), Cycles);
+		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CSV_CATEGORY_INDEX(Exclusive), FCsvStatBase::FFlags::TimestampBegin | FCsvStatBase::FFlags::IsExclusiveTimestamp, Cycles);
 		TimingMarkers.CommitElement();
 	}
 
 	CSV_PROFILER_INLINE void AddTimestampExclusiveEnd(const char* StatName)
 	{
-		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CSV_CATEGORY_INDEX(Exclusive), FCsvStatBase::FFlags::IsExclusiveTimestamp, FPlatformTime::Cycles64());
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_END_EXCLUSIVE_STAT(StatName, CSV_CATEGORY_INDEX(Exclusive), Cycles);
+		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CSV_CATEGORY_INDEX(Exclusive), FCsvStatBase::FFlags::IsExclusiveTimestamp, Cycles);
 		TimingMarkers.CommitElement();
 	}
 
 	CSV_PROFILER_INLINE void AddTimestampBegin(const FName& StatName, int32 CategoryIndex)
 	{
-		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::StatIDIsFName | FCsvStatBase::FFlags::TimestampBegin, FPlatformTime::Cycles64());
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_BEGIN_STAT(StatName, CategoryIndex, Cycles);
+		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::StatIDIsFName | FCsvStatBase::FFlags::TimestampBegin, Cycles);
 		TimingMarkers.CommitElement();
 	}
 
 	CSV_PROFILER_INLINE void AddTimestampEnd(const FName& StatName, int32 CategoryIndex)
 	{
-		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::StatIDIsFName, FPlatformTime::Cycles64());
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_END_STAT(StatName, CategoryIndex, Cycles);
+		TimingMarkers.ReserveElement()->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::StatIDIsFName, Cycles);
 		TimingMarkers.CommitElement();
 	}
 
 	CSV_PROFILER_INLINE void AddCustomStat(const char* StatName, const int32 CategoryIndex, const float Value, const ECsvCustomStatOp CustomStatOp)
 	{
 		FCsvCustomStat* CustomStat = CustomStats.ReserveElement();
-		CustomStat->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::IsCustomStat, FPlatformTime::Cycles64(), uint8(CustomStatOp));
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, CategoryIndex, Value, uint8(CustomStatOp), Cycles);
+		CustomStat->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::IsCustomStat, Cycles, uint8(CustomStatOp));
 		CustomStat->Value.AsFloat = Value;
 		CustomStats.CommitElement();
 	}
@@ -1790,7 +1805,9 @@ public:
 	CSV_PROFILER_INLINE void AddCustomStat(const FName& StatName, const int32 CategoryIndex, const float Value, const ECsvCustomStatOp CustomStatOp)
 	{
 		FCsvCustomStat* CustomStat = CustomStats.ReserveElement();
-		CustomStat->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::IsCustomStat | FCsvStatBase::FFlags::StatIDIsFName, FPlatformTime::Cycles64(), uint8(CustomStatOp));
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, CategoryIndex, Value, uint8(CustomStatOp), Cycles);
+		CustomStat->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::IsCustomStat | FCsvStatBase::FFlags::StatIDIsFName, Cycles, uint8(CustomStatOp));
 		CustomStat->Value.AsFloat = Value;
 		CustomStats.CommitElement();
 	}
@@ -1798,7 +1815,9 @@ public:
 	CSV_PROFILER_INLINE void AddCustomStat(const char* StatName, const int32 CategoryIndex, const int32 Value, const ECsvCustomStatOp CustomStatOp)
 	{
 		FCsvCustomStat* CustomStat = CustomStats.ReserveElement();
-		CustomStat->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::IsCustomStat | FCsvStatBase::FFlags::IsInteger, FPlatformTime::Cycles64(), uint8(CustomStatOp));
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, CategoryIndex, Value, uint8(CustomStatOp), Cycles);
+		CustomStat->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::IsCustomStat | FCsvStatBase::FFlags::IsInteger, Cycles, uint8(CustomStatOp));
 		CustomStat->Value.AsInt = Value;
 		CustomStats.CommitElement();
 	}
@@ -1806,7 +1825,9 @@ public:
 	CSV_PROFILER_INLINE void AddCustomStat(const FName& StatName, const int32 CategoryIndex, const int32 Value, const ECsvCustomStatOp CustomStatOp)
 	{
 		FCsvCustomStat* CustomStat = CustomStats.ReserveElement();
-		CustomStat->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::IsCustomStat | FCsvStatBase::FFlags::IsInteger | FCsvStatBase::FFlags::StatIDIsFName, FPlatformTime::Cycles64(), uint8(CustomStatOp));
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, CategoryIndex, Value, uint8(CustomStatOp), Cycles);
+		CustomStat->Init(GetStatID(StatName), CategoryIndex, FCsvStatBase::FFlags::IsCustomStat | FCsvStatBase::FFlags::IsInteger | FCsvStatBase::FFlags::StatIDIsFName, Cycles, uint8(CustomStatOp));
 		CustomStat->Value.AsInt = Value;
 		CustomStats.CommitElement();
 	}
@@ -1814,14 +1835,17 @@ public:
 	CSV_PROFILER_INLINE void AddEvent(const FString& EventText, const int32 CategoryIndex)
 	{
 		FCsvEvent* Event = Events.ReserveElement();
+		uint64 Cycles = FPlatformTime::Cycles64();
+		TRACE_CSV_PROFILER_EVENT(*EventText, CategoryIndex, Cycles);
 		Event->EventText = EventText;
-		Event->Timestamp = FPlatformTime::Cycles64();
+		Event->Timestamp = Cycles;
 		Event->CategoryIndex = CategoryIndex;
 		Events.CommitElement();
 	}
 
 	CSV_PROFILER_INLINE void AddEventWithTimestamp(const FString& EventText, const int32 CategoryIndex, const uint64 Timestamp)
 	{
+		TRACE_CSV_PROFILER_EVENT(*EventText, CategoryIndex, Timestamp);
 		FCsvEvent* Event = Events.ReserveElement();
 		Event->EventText = EventText;
 		Event->Timestamp = Timestamp;
@@ -2541,6 +2565,7 @@ void FCsvProfiler::BeginFrame()
 
 					// Initialize tls before setting the capturing flag to true.
 					FCsvProfilerThreadData::InitTls();
+					TRACE_CSV_PROFILER_BEGIN_CAPTURE(*Filename, GRenderThreadId, GRHIThreadId, GDefaultWaitStatName, GCsvStatCounts);
 					GCsvProfilerIsCapturing = true;
 				}
 			}
@@ -2627,6 +2652,8 @@ void FCsvProfiler::EndFrame()
 				// Signal to the processing thread to write the file out (if we have one).
 				GCsvProfilerIsWritingFile = true;
 				GCsvProfilerIsCapturing = false;
+
+				TRACE_CSV_PROFILER_END_CAPTURE();
 
 				if (!ProcessingThread)
 				{
@@ -2952,6 +2979,8 @@ void FCsvProfiler::RecordEvent(int32 CategoryIndex, const FString& EventText)
 
 void FCsvProfiler::SetMetadata(const TCHAR* Key, const TCHAR* Value)
 {
+	TRACE_CSV_PROFILER_METADATA(Key, Value);
+
 	LLM_SCOPE(ELLMTag::CsvProfiler);
 
 	// Always gather CSV metadata, even if we're not currently capturing.
@@ -2983,7 +3012,6 @@ void FCsvProfiler::RecordEventAtTimestamp(int32 CategoryIndex, const FString& Ev
 
 void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex, float Value, const ECsvCustomStatOp CustomStatOp)
 {
-	TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, Value, uint8(CustomStatOp));
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
@@ -2993,7 +3021,6 @@ void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex,
 
 void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex, float Value, const ECsvCustomStatOp CustomStatOp)
 {
-	TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, Value, uint8(CustomStatOp));
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
@@ -3003,7 +3030,6 @@ void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex,
 
 void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex, int32 Value, const ECsvCustomStatOp CustomStatOp)
 {
-	TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, Value, uint8(CustomStatOp));
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
@@ -3013,7 +3039,6 @@ void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex,
 
 void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex, int32 Value, const ECsvCustomStatOp CustomStatOp)
 {
-	TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, Value, uint8(CustomStatOp));
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);

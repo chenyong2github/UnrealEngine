@@ -40,8 +40,13 @@ void FModuleService::GetAvailableModules(TArray<FModuleInfo>& OutModules)
 	for (const auto& KV : ModulesMap)
 	{
 		IModule* Module = KV.Value;
-		FModuleInfo& ModuleInfo = OutModules.AddDefaulted_GetRef();
-		Module->GetModuleInfo(ModuleInfo);
+		TArray<const TCHAR*> ModuleLoggers;
+		Module->GetLoggers(ModuleLoggers);
+		if (ModuleLoggers.Num())
+		{
+			FModuleInfo& ModuleInfo = OutModules.AddDefaulted_GetRef();
+			Module->GetModuleInfo(ModuleInfo);
+		}
 	}
 }
 	
@@ -80,7 +85,7 @@ void FModuleService::OnAnalysisBegin(IAnalysisSession& Session)
 	}
 }
 
-bool FModuleService::GetModuleLoggers(const FName& ModuleName, TArray<const TCHAR *>& OutLoggers)
+bool FModuleService::GetModuleLoggers(const FName& ModuleName, TArray<const TCHAR*>& OutLoggers)
 {
 	FScopeLock Lock(&CriticalSection);
 	Initialize();

@@ -19,14 +19,14 @@ public:
 
 	virtual uint64 GetFrameCount(ETraceFrameType FrameType) const override;
 	virtual void EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const override;
+	virtual const TArray<double>& GetFrameStartTimes(ETraceFrameType FrameType) const override { return FrameStartTimes[FrameType]; }
 	void BeginFrame(ETraceFrameType FrameType, double Time);
 	void EndFrame(ETraceFrameType FrameType, double Time);
-	virtual FOnFrameAdded& OnFrameAdded() override { return OnFrameAddedDelegate; }
 
 private:
 	IAnalysisSession& Session;
 	TArray<TPagedArray<FFrame>> Frames;
-	FOnFrameAdded OnFrameAddedDelegate;
+	TArray<double> FrameStartTimes[TraceFrameType_Count];
 };
 
 }

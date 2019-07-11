@@ -50,6 +50,9 @@ void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 	Frame.EndTime = std::numeric_limits<double>::infinity();
 	Frame.Index = Index;
 	Frame.FrameType = FrameType;
+
+	FrameStartTimes[FrameType].Add(Time);
+
 	Session.UpdateDurationSeconds(Time);
 }
 
@@ -58,7 +61,6 @@ void FFrameProvider::EndFrame(ETraceFrameType FrameType, double Time)
 	Session.WriteAccessCheck();
 	FFrame& Frame = Frames[FrameType][Frames[FrameType].Num() - 1];
 	Frame.EndTime = Time;
-	OnFrameAddedDelegate.Broadcast(Frame);
 	Session.UpdateDurationSeconds(Time);
 }
 

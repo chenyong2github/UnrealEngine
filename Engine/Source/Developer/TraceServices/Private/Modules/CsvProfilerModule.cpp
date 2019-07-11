@@ -9,6 +9,7 @@ namespace Trace
 {
 
 static const FName CsvProfilerModuleName("TraceModule_CsvProfiler");
+static const FName CsvProfilerProviderName("CsvProfilerProvider");
 
 void FCsvProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 {
@@ -19,13 +20,20 @@ void FCsvProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FCsvProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	ICounterProvider& CounterProvider = EditCounterProvider(Session);
-	Session.AddAnalyzer(new FCsvProfilerAnalyzer(Session, CounterProvider));
+	const IFrameProvider& FrameProvider = ReadFrameProvider(Session);
+	const IThreadProvider& ThreadProvider = ReadThreadProvider(Session);
+	FCsvProfilerProvider* CsvProfilerProvider = new FCsvProfilerProvider(Session);
+	Session.AddProvider(CsvProfilerProviderName, CsvProfilerProvider);
+	Session.AddAnalyzer(new FCsvProfilerAnalyzer(Session, *CsvProfilerProvider, FrameProvider, ThreadProvider));
 }
 
 void FCsvProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 {
-	OutLoggers.Add(TEXT("CsvProfiler"));
+}
+
+const ICsvProfilerProvider* ReadCsvProfilerProvider(const IAnalysisSession& Session)
+{
+	return Session.ReadProvider<ICsvProfilerProvider>(CsvProfilerProviderName);
 }
 
 }

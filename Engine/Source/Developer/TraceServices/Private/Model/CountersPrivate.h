@@ -24,19 +24,14 @@ template<typename ValueType>
 class TCounterDataIterator
 {
 public:
-	TCounterDataIterator(const TCounterData<ValueType>& Outer)
-		: TimestampsIterator(Outer.Timestamps.GetIterator())
+	TCounterDataIterator(const TCounterData<ValueType>& Outer, const TArray<double>& FrameStartTimes)
+		: FrameStartTimesIterator(FrameStartTimes.CreateConstIterator())
+		, TimestampsIterator(Outer.Timestamps.GetIterator())
 		, OpTypesIterator(Outer.OpTypes.GetIterator())
 		, OpArgumentsIterator(Outer.OpArguments.GetIterator())
 	{
 		Current = MakeTuple(0.0, ValueType());
 		UpdateValue();
-	}
-
-	TCounterDataIterator(const TCounterData<ValueType>& Outer, const TPagedArray<double>& FrameStartTimes)
-		: TCounterDataIterator(Outer)
-	{
-		FrameStartTimesIterator = FrameStartTimes.GetIterator();
 	}
 
 	const TTuple<double, ValueType>& operator*() const
@@ -97,7 +92,7 @@ private:
 		}
 	}
 
-	TPagedArray<double>::TIterator FrameStartTimesIterator;
+	TArray<double>::TConstIterator FrameStartTimesIterator;
 	TPagedArray<double>::TIterator TimestampsIterator;
 	TPagedArray<ECounterOpType>::TIterator OpTypesIterator;
 	typename TPagedArray<ValueType>::TIterator OpArgumentsIterator;
@@ -145,12 +140,7 @@ public:
 		OpArguments.Insert(InsertionIndex) = OpArgument;
 	}
 
-	TIterator GetIterator() const
-	{
-		return TIterator(*this);
-	}
-
-	TIterator GetIterator(TPagedArray<double> FrameStartTimes) const
+	TIterator GetIterator(TArray<double> FrameStartTimes) const
 	{
 		return TIterator(*this, FrameStartTimes);
 	}
@@ -168,7 +158,7 @@ class FCounter
 	: public ICounter
 {
 public:
-	FCounter(ILinearAllocator& Allocator, const TPagedArray<double>& FrameStartTimes, uint32 Id);
+	FCounter(ILinearAllocator& Allocator, const TArray<double>& FrameStartTimes, uint32 Id);
 	virtual uint32 GetId() const override { return Id; }
 	virtual const TCHAR* GetName() const override { return Name; }
 	virtual void SetName(const TCHAR* InName) override { Name = InName; }
@@ -187,7 +177,7 @@ public:
 	virtual void SetValue(double Time, double Value) override;
 
 private:
-	const TPagedArray<double>& FrameStartTimes;
+	const TArray<double>& FrameStartTimes;
 	TCounterData<int64> IntCounterData;
 	TCounterData<double> DoubleCounterData;
 	const TCHAR* Name = nullptr;
@@ -213,13 +203,9 @@ public:
 	virtual ICounter* CreateCounter() override;
 
 private:
-	void FrameAdded(const FFrame& Frame);
-
 	IAnalysisSession& Session;
 	IFrameProvider& FrameProvider;
 	TArray<FCounter*> Counters;
-	FDelegateHandle FrameAddedDelegateHandle;
-	TPagedArray<double> FrameStartTimes;
 };
 
 }

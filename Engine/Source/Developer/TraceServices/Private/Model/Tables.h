@@ -14,7 +14,7 @@
 	{ \
 	public: \
 		typedef InRowType RowType; \
-		virtual uint8 GetColumnCount() const override { return decltype(LastColumn)::Index; } \
+		virtual uint64 GetColumnCount() const override { return decltype(LastColumn)::Index; } \
 		template<uint8 IndexValue> \
 		constexpr ::Trace::ETableColumnType GetColumnTypeInternal() const { return TableColumnType_Invalid; } \
 		template<uint8 IndexValue> \
@@ -286,7 +286,7 @@ public:
 		return CurrentRow;
 	}
 
-	virtual bool GetValueBool(uint8 ColumnIndex) const override
+	virtual bool GetValueBool(uint64 ColumnIndex) const override
 	{
 		if (!CurrentRow)
 		{
@@ -307,7 +307,7 @@ public:
 		return false;
 	}
 
-	virtual int64 GetValueInt(uint8 ColumnIndex) const override
+	virtual int64 GetValueInt(uint64 ColumnIndex) const override
 	{
 		if (!CurrentRow)
 		{
@@ -328,7 +328,7 @@ public:
 		return 0;
 	}
 
-	virtual float GetValueFloat(uint8 ColumnIndex) const override
+	virtual float GetValueFloat(uint64 ColumnIndex) const override
 	{
 		if (!CurrentRow)
 		{
@@ -349,7 +349,7 @@ public:
 		return 0.0;
 	}
 
-	virtual double GetValueDouble(uint8 ColumnIndex) const override
+	virtual double GetValueDouble(uint64 ColumnIndex) const override
 	{
 		if (!CurrentRow)
 		{
@@ -370,7 +370,7 @@ public:
 		return 0.0;
 	}
 
-	virtual const TCHAR* GetValueCString(uint8 ColumnIndex) const override
+	virtual const TCHAR* GetValueCString(uint64 ColumnIndex) const override
 	{
 		if (!CurrentRow)
 		{
@@ -396,7 +396,7 @@ class TTableLayoutBase
 	: public ITableLayout
 {
 public:
-	constexpr ETableColumnType GetColumnTypeConstExpr(uint8 ColumnIndex) const
+	constexpr ETableColumnType GetColumnTypeConstExpr(uint64 ColumnIndex) const
 	{
 		const LayoutType* This = static_cast<const LayoutType*>(this);
 		switch (ColumnIndex)
@@ -421,12 +421,12 @@ public:
 		return ::Trace::TableColumnType_Invalid;
 	}
 
-	virtual ETableColumnType GetColumnType(uint8 ColumnIndex) const override
+	virtual ETableColumnType GetColumnType(uint64 ColumnIndex) const override
 	{
 		return GetColumnTypeConstExpr(ColumnIndex);
 	}
 
-	constexpr const TCHAR* GetColumnNameConstExpr(uint8 ColumnIndex) const
+	constexpr const TCHAR* GetColumnNameConstExpr(uint64 ColumnIndex) const
 	{
 		const LayoutType* This = static_cast<const LayoutType*>(this);
 		switch (ColumnIndex)
@@ -451,12 +451,12 @@ public:
 		return nullptr;
 	}
 
-	virtual const TCHAR* GetColumnName(uint8 ColumnIndex) const override
+	virtual const TCHAR* GetColumnName(uint64 ColumnIndex) const override
 	{
 		return GetColumnNameConstExpr(ColumnIndex);
 	}
 
-	FColumnValueContainer GetColumnValue(const RowType& Row, uint8 ColumnIndex) const
+	FColumnValueContainer GetColumnValue(const RowType& Row, uint64 ColumnIndex) const
 	{
 		const LayoutType* This = static_cast<const LayoutType*>(this);
 		switch (ColumnIndex)

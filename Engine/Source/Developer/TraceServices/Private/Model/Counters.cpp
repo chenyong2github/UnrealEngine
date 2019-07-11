@@ -9,7 +9,7 @@ namespace Trace
 
 const FName FCounterProvider::ProviderName("CounterProvider");
 
-FCounter::FCounter(ILinearAllocator& Allocator, const TPagedArray<double>& InFrameStartTimes, uint32 InId)
+FCounter::FCounter(ILinearAllocator& Allocator, const TArray<double>& InFrameStartTimes, uint32 InId)
 	: FrameStartTimes(InFrameStartTimes)
 	, IntCounterData(Allocator)
 	, DoubleCounterData(Allocator)
@@ -19,9 +19,10 @@ FCounter::FCounter(ILinearAllocator& Allocator, const TPagedArray<double>& InFra
 }
 
 template<typename CounterType, typename EnumerationType>
-static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& CounterData, const TPagedArray<double>& FrameStartTimes, bool bResetEveryFrame, double IntervalStart, double IntervalEnd, TFunctionRef<void(double, EnumerationType)> Callback)
+static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& CounterData, const TArray<double>& FrameStartTimes, bool bResetEveryFrame, double IntervalStart, double IntervalEnd, TFunctionRef<void(double, EnumerationType)> Callback)
 {
-	auto CounterIterator = bResetEveryFrame ? CounterData.GetIterator(FrameStartTimes) : CounterData.GetIterator();
+	TArray<double> NoFrameStartTimes;
+	auto CounterIterator = bResetEveryFrame ? CounterData.GetIterator(FrameStartTimes) : CounterData.GetIterator(NoFrameStartTimes);
 	while (CounterIterator)
 	{
 		const TTuple<double, CounterType>& Current = *CounterIterator;
@@ -124,14 +125,11 @@ void FCounter::SetValue(double Time, double Value)
 FCounterProvider::FCounterProvider(IAnalysisSession& InSession, IFrameProvider& InFrameProvider)
 	: Session(InSession)
 	, FrameProvider(InFrameProvider)
-	, FrameStartTimes(InSession.GetLinearAllocator(), 1024)
 {
-	FrameAddedDelegateHandle = FrameProvider.OnFrameAdded().AddRaw(this, &FCounterProvider::FrameAdded);
 }
 
 FCounterProvider::~FCounterProvider()
 {
-	FrameProvider.OnFrameAdded().Remove(FrameAddedDelegateHandle);
 	for (FCounter* Counter : Counters)
 	{
 		delete Counter;
@@ -159,17 +157,9 @@ bool FCounterProvider::ReadCounter(uint32 CounterId, TFunctionRef<void(const ICo
 
 ICounter* FCounterProvider::CreateCounter()
 {
-	FCounter* Counter = new FCounter(Session.GetLinearAllocator(), FrameStartTimes, Counters.Num());
+	FCounter* Counter = new FCounter(Session.GetLinearAllocator(), FrameProvider.GetFrameStartTimes(TraceFrameType_Game), Counters.Num());
 	Counters.Add(Counter);
 	return Counter;
-}
-
-void FCounterProvider::FrameAdded(const FFrame& Frame)
-{
-	if (Frame.FrameType == TraceFrameType_Game)
-	{
-		FrameStartTimes.PushBack() = Frame.StartTime;
-	}
 }
 
 const ICounterProvider& ReadCounterProvider(const IAnalysisSession& Session)

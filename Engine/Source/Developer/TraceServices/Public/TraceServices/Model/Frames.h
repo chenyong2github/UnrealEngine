@@ -25,8 +25,7 @@ public:
 	virtual ~IFrameProvider() = default;
 	virtual uint64 GetFrameCount(ETraceFrameType FrameType) const = 0;
 	virtual void EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const = 0;
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFrameAdded, const FFrame&);
-	virtual FOnFrameAdded& OnFrameAdded() = 0;
+	virtual const TArray<double>& GetFrameStartTimes(ETraceFrameType FrameType) const = 0;
 };
 
 TRACESERVICES_API const IFrameProvider& ReadFrameProvider(const IAnalysisSession& Session);
