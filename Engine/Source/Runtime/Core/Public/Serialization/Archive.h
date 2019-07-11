@@ -421,8 +421,8 @@ public:
 	 * @param Value The value to serialize.
 	 */
 #if WITH_EDITOR
-private:
-	void SerializeBool( bool& D );
+protected:
+	virtual void SerializeBool( bool& D );
 public:
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, bool& D)
 	{
