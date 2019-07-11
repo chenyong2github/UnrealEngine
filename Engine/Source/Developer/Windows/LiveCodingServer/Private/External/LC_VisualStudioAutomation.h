@@ -5,6 +5,8 @@
 #include "LC_Types.h"
 #include "LC_VisualStudio.h"
 
+#if LC_WITH_VISUAL_STUDIO_DTE
+
 namespace visualStudio
 {
 	void Startup(void);
@@ -41,3 +43,5 @@ namespace visualStudio
 	// Breaks the process in the debugger
 	bool Break(const EnvDTE::DebuggerPtr& debugger);
 }
+
+#endif

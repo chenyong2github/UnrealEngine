@@ -100,9 +100,13 @@ ServerCommandThread::ServerCommandThread(MainFrame* mainFrame, const wchar_t* co
 	, m_restartCS()
 	, m_restartJob(nullptr)
 	, m_restartedProcessCount(0u)
+#if LC_WITH_VISUAL_STUDIO_DTE
 	, m_restartedProcessIdToDebugger()
+#endif
 {
+#if LC_WITH_VISUAL_STUDIO_DTE
 	visualStudio::Startup();
+#endif
 
 	m_serverThread = thread::Create("Live coding server", 64u * 1024u, &ServerCommandThread::ServerThread, this);
 	m_compileThread = thread::Create("Live coding compilation", 64u * 1024u, &ServerCommandThread::CompileThread, this);
@@ -123,7 +127,9 @@ ServerCommandThread::~ServerCommandThread(void)
 	// some intensive work.
 	delete m_directoryCache;
 
+#if LC_WITH_VISUAL_STUDIO_DTE
 	visualStudio::Shutdown();
+#endif
 }
 
 
@@ -184,6 +190,7 @@ void ServerCommandThread::RestartTargets(void)
 		{
 			++m_restartedProcessCount;
 
+#if LC_WITH_VISUAL_STUDIO_DTE
 			// check if a VS debugger is currently attached to the process about to restart
 			const unsigned int processId = liveProcess->GetProcessId();
 			EnvDTE::DebuggerPtr debugger = visualStudio::FindDebuggerAttachedToProcess(processId);
@@ -191,6 +198,7 @@ void ServerCommandThread::RestartTargets(void)
 			{
 				m_restartedProcessIdToDebugger.emplace(processId, debugger);
 			}
+#endif
 		}
 	}
 
@@ -1548,6 +1556,7 @@ bool ServerCommandThread::actions::RegisterProcess::Execute(const CommandType* c
 				// this process was restarted
 				LC_SUCCESS_USER("Registered restarted process %S (PID: %d, previous PID: %d)", processPath.c_str(), command->processId, command->restartedProcessId);
 
+#if LC_WITH_VISUAL_STUDIO_DTE
 				// reattach the debugger in case the previous process had a debugger attached
 				{
 					auto it = commandThread->m_restartedProcessIdToDebugger.find(command->restartedProcessId);
@@ -1565,6 +1574,7 @@ bool ServerCommandThread::actions::RegisterProcess::Execute(const CommandType* c
 						commandThread->m_restartedProcessIdToDebugger.erase(it);
 					}
 				}
+#endif
 
 				--commandThread->m_restartedProcessCount;
 				if (commandThread->m_restartedProcessCount == 0u)
