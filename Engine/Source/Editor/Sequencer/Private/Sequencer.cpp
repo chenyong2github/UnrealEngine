@@ -2882,6 +2882,7 @@ UMovieSceneFolder* FSequencer::CreateFoldersRecursively(const TArray<FString>& F
 		else
 		{
 			// If we have no parent folder then we must be at the root so we add it to the root of the movie scene
+			OwningMovieScene->Modify();
 			OwningMovieScene->GetRootFolders().Add(FolderToUse);
 		}
 	}
@@ -4527,7 +4528,6 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		if ( NodeToBeDeleted->GetParent().IsValid() )
 		{
 			TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>( NodeToBeDeleted->GetParent() );
-			ParentFolder->GetFolder().Modify();
 			ParentFolder->GetFolder().RemoveChildFolder( &FolderToBeDeleted->GetFolder() );
 		}
 		else
@@ -4556,7 +4556,6 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		if ( NodeToBeDeleted->GetParent().IsValid() && NodeToBeDeleted->GetParent()->GetType() == ESequencerNode::Folder )
 		{
 			TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>( NodeToBeDeleted->GetParent() );
-			ParentFolder->GetFolder().Modify();
 			ParentFolder->GetFolder().RemoveChildObjectBinding( BindingToRemove );
 		}
 		
@@ -4583,7 +4582,6 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		if ( NodeToBeDeleted->GetParent().IsValid() && NodeToBeDeleted->GetParent()->GetType() == ESequencerNode::Folder )
 		{
 			TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>( NodeToBeDeleted->GetParent() );
-			ParentFolder->GetFolder().Modify();
 			ParentFolder->GetFolder().RemoveChildMasterTrack( Track );
 		}
 
@@ -5883,7 +5881,6 @@ FGuid FSequencer::DoAssignActor(AActor*const* InActors, int32 NumActors, FGuid I
 		FoldersToCheck.RemoveAt(0);
 		if ( Folder->GetChildObjectBindings().Contains( InObjectBinding ) )
 		{
-			Folder->Modify();
 			Folder->RemoveChildObjectBinding( InObjectBinding );
 			Folder->AddChildObjectBinding( NewGuid );
 			bFolderFound = true;
@@ -8081,7 +8078,6 @@ void FSequencer::OnAddFolder()
 
 	if ( SelectedParentFolders.Num() == 1 )
 	{
-		SelectedParentFolders[0]->Modify();
 		SelectedParentFolders[0]->AddChildFolder( NewFolder );
 	}
 	else
