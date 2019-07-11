@@ -200,7 +200,7 @@ protected:
 
 	TSharedRef<FExtender> GetLevelViewportContextMenuExtender(const TSharedRef<FUICommandList> CommandList, const TArray<AActor*> InActors);
 
-	void ConvertActorMeshesToStaticMesh(const TArray<AActor*> InActors);
+	void ConvertActorMeshesToStaticMeshUIAction(const TArray<AActor*> InActors);
 
 	FDelegateHandle ModuleLoadedDelegateHandle;
 	FDelegateHandle LevelViewportExtenderHandle;
