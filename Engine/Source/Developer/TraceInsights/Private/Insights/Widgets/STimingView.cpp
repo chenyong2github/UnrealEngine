@@ -37,6 +37,7 @@
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/BaseTimingTrack.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/Widgets/SStatsView.h"
 #include "Insights/Widgets/STimersView.h"
@@ -265,7 +266,6 @@ void STimingView::Reset()
 	PanningMode = EPanningMode::None;
 
 	bIsSelecting = false;
-
 	SelectionStartTime = 0.0;
 	SelectionEndTime = 0.0;
 
@@ -377,12 +377,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			}
 		}
 
-		if (Viewport.ScrollPosY != ScrollPosY)
-		{
-			Viewport.ScrollPosY = ScrollPosY;
-			UpdateVerticalScrollBar();
-			bIsVerticalViewportDirty = true;
-		}
+		ScrollAtPosY(ScrollPosY);
 
 		//////////////////////////////////////////////////
 		// Elastic snap to horizontal time limits.
@@ -833,7 +828,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	//////////////////////////////////////////////////
 
 	// Draw the time range selection.
-	DrawTimeRangeSelection(DrawContext);
+	FDrawHelpers::DrawTimeRangeSelection(DrawContext, Viewport, SelectionStartTime, SelectionEndTime, WhiteBrush, MainFont);
 
 	//////////////////////////////////////////////////
 
@@ -2233,170 +2228,15 @@ void STimingView::DrawIoActivityTrack(FTimingViewDrawHelper& Helper, FTimingEven
 // end of "I/O - File Activity" prototype
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::DrawTimeRangeSelection(FDrawContext& DrawContext) const
-{
-	if (SelectionEndTime > SelectionStartTime)
-	{
-		float SelectionX1 = Viewport.TimeToSlateUnitsRounded(SelectionStartTime);
-		float SelectionX2 = Viewport.TimeToSlateUnitsRounded(SelectionEndTime);
-
-		if (SelectionX1 <= Viewport.Width &&
-			SelectionX2 >= 0)
-		{
-			float ClipLeft = 0.0f;
-			float ClipRight = 0.0f;
-			if (SelectionX1 < 0.0f)
-			{
-				ClipLeft = -SelectionX1;
-				SelectionX1 = 0.0f;
-			}
-			if (SelectionX2 > Viewport.Width)
-			{
-				ClipRight = SelectionX2 - Viewport.Width;
-				SelectionX2 = Viewport.Width;
-			}
-
-			// Draw selection area.
-			DrawContext.DrawBox(SelectionX1, 0.0f, SelectionX2 - SelectionX1, Viewport.Height, WhiteBrush, FLinearColor(0.25f, 0.5f, 1.0f, 0.25f));
-			DrawContext.LayerId++;
-
-			FColor ArrowFillColor(32, 64, 128, 255);
-			FLinearColor ArrowColor(ArrowFillColor);
-
-			if (SelectionX1 > 0.0f)
-			{
-				// Draw left side (vertical line).
-				DrawContext.DrawBox(SelectionX1 - 1.0f, 0.0f, 1.0f, Viewport.Height, WhiteBrush, ArrowColor);
-			}
-
-			if (SelectionX2 < Viewport.Width)
-			{
-				// Draw right side (vertical line).
-				DrawContext.DrawBox(SelectionX2, 0.0f, 1.0f, Viewport.Height, WhiteBrush, ArrowColor);
-			}
-
-			DrawContext.LayerId++;
-
-			const float ArrowSize = 6.0f;
-			const float ArrowY = 6.0f;
-
-			if (SelectionX2 - SelectionX1 > 2 * ArrowSize)
-			{
-				// Draw horizontal line.
-				float HorizLineX1 = SelectionX1;
-				if (ClipLeft == 0.0f)
-				{
-					HorizLineX1 += 1.0f;
-				}
-				float HorizLineX2 = SelectionX2;
-				if (ClipRight == 0.0f)
-				{
-					HorizLineX2 -= 1.0f;
-				}
-				DrawContext.DrawBox(HorizLineX1, ArrowY - 1.0f, HorizLineX2 - HorizLineX1, 3.0f, WhiteBrush, ArrowColor);
-
-				if (ClipLeft < ArrowSize)
-				{
-					// Draw left arrow.
-					for (float AH = 0.0f; AH < ArrowSize; AH += 1.0f)
-					{
-						DrawContext.DrawBox(SelectionX1 - ClipLeft + AH, ArrowY - AH, 1.0f, 2.0f * AH + 1.0f, WhiteBrush, ArrowColor);
-					}
-				}
-
-				if (ClipRight < ArrowSize)
-				{
-					// Draw right arrow.
-					for (float AH = 0.0f; AH < ArrowSize; AH += 1.0f)
-					{
-						DrawContext.DrawBox(SelectionX2 + ClipRight - AH - 1.0f, ArrowY - AH, 1.0f, 2.0f * AH + 1.0f, WhiteBrush, ArrowColor);
-					}
-				}
-
-				DrawContext.LayerId++;
-
-#if 0
-				//im: This should be a more efficeint way top draw the arrows, but it renders them with artifacts (missing vertical lines; shader bug?)!
-
-				const FSlateBrush* MyBrush = WhiteBrush;
-				FSlateShaderResourceProxy* ResourceProxy = FSlateDataPayload::ResourceManager->GetShaderResource(*MyBrush);
-				FSlateResourceHandle ResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*MyBrush);
-
-				FVector2D AtlasOffset = ResourceProxy ? ResourceProxy->StartUV : FVector2D(0.0f, 0.0f);
-				FVector2D AtlasUVSize = ResourceProxy ? ResourceProxy->SizeUV : FVector2D(1.0f, 1.0f);
-
-				const FVector2D Pos = AllottedGeometry.GetAbsolutePosition() + FVector2D(0.0f, 40.0f);
-				const float Scale = AllottedGeometry.Scale;
-
-				FSlateRenderTransform RenderTransform;
-
-				TArray<FSlateVertex> Verts;
-				Verts.Reserve(6);
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX1 + ArrowSize, 0.5f + ArrowY + ArrowSize) * Scale, AtlasOffset + FVector2D(0.0f, 1.0f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX1,             0.5f + ArrowY            ) * Scale, AtlasOffset + FVector2D(1.0f, 0.5f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX1 + ArrowSize, 0.5f + ArrowY - ArrowSize) * Scale, AtlasOffset + FVector2D(0.0f, 0.0f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX2 - ArrowSize, 0.5f + ArrowY - ArrowSize) * Scale, AtlasOffset + FVector2D(0.0f, 0.0f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX2,             0.5f + ArrowY            ) * Scale, AtlasOffset + FVector2D(1.0f, 0.5f) * AtlasUVSize, ArrowFillColor));
-				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + FVector2D(0.5f + SelectionX2 - ArrowSize, 0.5f + ArrowY + ArrowSize) * Scale, AtlasOffset + FVector2D(0.0f, 1.0f) * AtlasUVSize, ArrowFillColor));
-
-				TArray<SlateIndex> Indices;
-				Indices.Reserve(6);
-				if (ClipLeft < ArrowSize)
-				{
-					Indices.Add(0);
-					Indices.Add(1);
-					Indices.Add(2);
-				}
-				if (ClipRight < ArrowSize)
-				{
-					Indices.Add(3);
-					Indices.Add(4);
-					Indices.Add(5);
-				}
-
-				FSlateDrawElement::MakeCustomVerts(
-					OutDrawElements,
-					LayerId,
-					ResourceHandle,
-					Verts,
-					Indices,
-					nullptr,
-					0,
-					0,
-					ESlateDrawEffect::PreMultipliedAlpha);
-
-				DrawContext.LayerId++;
-#endif
-			}
-
-			//////////////////////////////////////////////////
-			// Draw duration for selected time interval.
-
-			double Duration = SelectionEndTime - SelectionStartTime;
-			FString Text = TimeUtils::FormatTimeAuto(Duration);
-
-			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			const float TextWidth = FontMeasureService->Measure(Text, MainFont).X;
-
-			const float CenterX = (SelectionX1 + SelectionX2) / 2.0f;
-
-			DrawContext.DrawBox(CenterX - TextWidth / 2 - 2.0, ArrowY - 6.0f, TextWidth + 4.0f, 13.0f, WhiteBrush, ArrowColor);
-			DrawContext.LayerId++;
-
-			DrawContext.DrawText(CenterX - TextWidth / 2, ArrowY - 6.0f, Text, MainFont, FLinearColor::White);
-			DrawContext.LayerId++;
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
+
 	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	MousePosition = MousePositionOnButtonDown;
 
 	bool bStartPanning = false;
+	bool bStartSelecting = false;
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
@@ -2409,21 +2249,15 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		{
 			bIsLMB_Pressed = true;
 
-			if (bIsSpaceBarKeyPressed || MousePositionOnButtonDown.Y > TimeRulerTrack.GetHeight())
+			if (!bIsSpaceBarKeyPressed &&
+				(MousePositionOnButtonDown.Y < TimeRulerTrack.GetHeight() ||
+				 (MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown())))
 			{
-				bStartPanning = true;
+				bStartSelecting = true;
 			}
 			else
 			{
-				bIsSelecting = true;
-				bIsDragging = false;
-
-				SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
-				SelectionEndTime = SelectionStartTime;
-				LastSelectionType = ESelectionType::None;
-				//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-				EventAggregation.Reset();
-				ObjectTypeAggregation.Reset();
+				bStartPanning = true;
 			}
 
 			// Capture mouse, so we can drag outside this widget.
@@ -2436,7 +2270,16 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		{
 			bIsRMB_Pressed = true;
 
-			bStartPanning = true;
+			if (!bIsSpaceBarKeyPressed &&
+				(MousePositionOnButtonDown.Y < TimeRulerTrack.GetHeight() ||
+				(MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown())))
+			{
+				bStartSelecting = true;
+			}
+			else
+			{
+				bStartPanning = true;
+			}
 
 			// Capture mouse, so we can drag outside this widget.
 			Reply = FReply::Handled().CaptureMouse(SharedThis(this));
@@ -2467,6 +2310,18 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 			PanningMode = EPanningMode::HorizontalAndVertical;
 		}
 	}
+	else if (bStartSelecting)
+	{
+		bIsSelecting = true;
+		bIsDragging = false;
+
+		SelectionStartTime = Viewport.SlateUnitsToTime(MousePositionOnButtonDown.X);
+		SelectionEndTime = SelectionStartTime;
+		LastSelectionType = ESelectionType::None;
+		//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+		EventAggregation.Reset();
+		ObjectTypeAggregation.Reset();
+	}
 
 	return Reply;
 }
@@ -2476,7 +2331,9 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
+
 	MousePositionOnButtonUp = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	MousePosition = MousePositionOnButtonUp;
 
 	const bool bIsValidForMouseClick = MousePositionOnButtonUp.Equals(MousePositionOnButtonDown, 2.0f);
 
@@ -2534,11 +2391,17 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 
 				bIsPanning = false;
 			}
+			else if (bIsSelecting)
+			{
+				//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
+				UpdateAggregatedStats();
 
-			if (!bIsDragging && !bIsSpaceBarKeyPressed && bIsValidForMouseClick)
+				bIsSelecting = false;
+			}
+
+			if (bIsValidForMouseClick)
 			{
 				ShowContextMenu(MouseEvent.GetScreenSpacePosition(), MouseEvent);
-				Reply = FReply::Handled();
 			}
 
 			bIsDragging = false;
@@ -2593,14 +2456,14 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 
 			if ((int32)PanningMode & (int32)EPanningMode::Horizontal)
 			{
-				ScrollAtTime(ViewportStartTimeOnButtonDown + static_cast<double>(MousePositionOnButtonDown.X - MousePosition.X) / Viewport.ScaleX);
+				const double StartTime = ViewportStartTimeOnButtonDown + static_cast<double>(MousePositionOnButtonDown.X - MousePosition.X) / Viewport.ScaleX;
+				ScrollAtTime(StartTime);
 			}
 
 			if ((int32)PanningMode & (int32)EPanningMode::Vertical)
 			{
-				Viewport.ScrollPosY = ViewportScrollPosYOnButtonDown + (MousePositionOnButtonDown.Y - MousePosition.Y);
-				UpdateVerticalScrollBar();
-				bIsVerticalViewportDirty = true;
+				const float ScrollPosY = ViewportScrollPosYOnButtonDown + (MousePositionOnButtonDown.Y - MousePosition.Y);
+				ScrollAtPosY(ScrollPosY);
 			}
 		}
 
@@ -2638,14 +2501,13 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 		UpdateHoveredTimingEvent(MousePosition.X, MousePosition.Y);
 	}
 
-	return Reply; // SAssetViewItem::CreateToolTipWidget
+	return Reply;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2674,9 +2536,8 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 	{
 		// Scroll vertically.
 		constexpr float ScrollSpeedY = 16.0f * 3;
-		Viewport.ScrollPosY -= ScrollSpeedY * MouseEvent.GetWheelDelta();
-		UpdateVerticalScrollBar();
-		bIsVerticalViewportDirty = true;
+		const float ScrollPosY = Viewport.ScrollPosY - ScrollSpeedY * MouseEvent.GetWheelDelta();
+		ScrollAtPosY(ScrollPosY);
 	}
 	else if (MouseEvent.GetModifierKeys().IsControlDown())
 	{
@@ -2921,10 +2782,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Up
-			Viewport.ScrollPosY -= 16.0 * 3;
-			//Viewport.EnforceVerticalScrollLimits(1.0);
-			UpdateVerticalScrollBar();
-			bIsVerticalViewportDirty = true;
+			ScrollAtPosY(Viewport.ScrollPosY - 16.0 * 3);
 		}
 		else
 		{
@@ -2937,10 +2795,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
 			// Scroll Down
-			Viewport.ScrollPosY += 16.0 * 3;
-			//Viewport.EnforceVerticalScrollLimits(1.0);
-			UpdateVerticalScrollBar();
-			bIsVerticalViewportDirty = true;
+			ScrollAtPosY(Viewport.ScrollPosY + 16.0 * 3);
 		}
 		else
 		{
@@ -3155,6 +3010,19 @@ void STimingView::UpdateVerticalScrollBar()
 	float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
 
 	VerticalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ScrollAtPosY(float ScrollPosY)
+{
+	if (Viewport.ScrollPosY != ScrollPosY)
+	{
+		Viewport.ScrollPosY = ScrollPosY;
+
+		UpdateVerticalScrollBar();
+		bIsVerticalViewportDirty = true;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4227,9 +4095,7 @@ void STimingView::ToggleAutoHideEmptyTracks()
 		CachedTimelineKV.Value->SetHeight(0.0f);
 	}
 
-	Viewport.ScrollPosY = 0.0f;
-	UpdateVerticalScrollBar();
-	bIsVerticalViewportDirty = true;
+	ScrollAtPosY(0.0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

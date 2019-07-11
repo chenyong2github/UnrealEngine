@@ -14,6 +14,7 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
@@ -110,56 +111,16 @@ void FGraphTrack::DrawBackground(FDrawContext& DrawContext, const FTimingTrackVi
 {
 	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
 	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor StartEndMarkerColor(0.05f, 0.05f, 0.05f, 1.0f);
+	const FLinearColor EdgeColor(0.05f, 0.05f, 0.05f, 1.0f);
 
-	const float X0 = Viewport.TimeToSlateUnitsRounded(0.0);
-	const float X1 = Viewport.TimeToSlateUnitsRounded(Viewport.MaxValidTime);
+	const float X = 0.0f;
 	const float W = FMath::CeilToFloat(Viewport.Width);
-
 	const float Y = GetPosY();
 	const float H = GetHeight();
 
-	if (X0 >= W || X1 <= 0.0f)
-	{
-		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, Y, W, H, WhiteBrush, InvalidAreaColor);
-	}
-	else // X0 < W && X1 > 0
-	{
-		if (X0 > 0.0f)
-		{
-			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, Y, X0, H, WhiteBrush, InvalidAreaColor);
-		}
+	float ValidAreaX, ValidAreaW;
 
-		if (X1 < W)
-		{
-			// Draw invalid area (right).
-			DrawContext.DrawBox(X1 + 1.0f, Y, W - X1 - 1.0f, H, WhiteBrush, InvalidAreaColor);
-
-			// Draw the end time marker.
-			DrawContext.DrawBox(X1, Y, 1.0f, H, WhiteBrush, StartEndMarkerColor);
-		}
-
-		float ValidX0 = FMath::Max(X0, 0.0f);
-		float ValidX1 = FMath::Min(X1, W);
-
-		if (X0 >= 0.0f)
-		{
-			// Draw the start time marker.
-			DrawContext.DrawBox(X0, Y, 1.0f, H, WhiteBrush, StartEndMarkerColor);
-
-			ValidX0 += 1.0f; // to not overlap the start time marker
-		}
-
-		if (ValidX1 > ValidX0)
-		{
-			// Draw valid area.
-			DrawContext.DrawBox(ValidX0, Y, ValidX1 - ValidX0, H, WhiteBrush, ValidAreaColor);
-		}
-	}
-
-	DrawContext.LayerId++;
+	FDrawHelpers::DrawBackground(DrawContext, Viewport, WhiteBrush, ValidAreaColor, InvalidAreaColor, EdgeColor, X, Y, W, H, ValidAreaX, ValidAreaW);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -174,6 +135,8 @@ void FGraphTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Vi
 	{
 		DrawSeries(Series, DrawContext, Viewport);
 	}
+
+	//DrawContext.DrawBox(0.0f, GetPosY(), Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
 	// Draw baseline (Value == 0).
 	DrawContext.DrawBox(0.0f, GetPosY() + BaselineY - 1.0f, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
@@ -198,7 +161,7 @@ void FGraphTrack::DrawSeries(const FGraphTrackSeries& Series, FDrawContext& Draw
 	if (bDrawLines)
 	{
 		FPaintGeometry Geo = DrawContext.Geometry.ToPaintGeometry();
-		Geo.AppendTransform(FSlateLayoutTransform(FVector2D(0, GetPosY())));
+		Geo.AppendTransform(FSlateLayoutTransform(FVector2D(0.5f, 0.5f + GetPosY())));
 		FSlateDrawElement::MakeLines(DrawContext.ElementList, DrawContext.LayerId, Geo, Series.LinePoints, DrawContext.DrawEffects, Series.Color, false, 1.0f);
 		DrawContext.LayerId++;
 	}
@@ -261,7 +224,7 @@ void FGraphTrack::DrawSeries(const FGraphTrackSeries& Series, FDrawContext& Draw
 			const FVector2D& Pt = Series.Points[Index];
 			const float PtX = Pt.X - PtSize / 2.0f;
 			const float PtY = GetPosY() + Pt.Y - PtSize / 2.0f;
-			DrawContext.DrawBox(PtX, PtY, PtSize, PtSize, PointBrush, Series.Color);
+			DrawContext.DrawBox(PtX, PtY, PtSize, PtSize, WhiteBrush, Series.Color);
 			//DrawContext.DrawRotatedBox(PtX, PtY, PtSize, PtSize, WhiteBrush, Series.Color, Angle, RotationPoint);
 		}
 		DrawContext.LayerId++;

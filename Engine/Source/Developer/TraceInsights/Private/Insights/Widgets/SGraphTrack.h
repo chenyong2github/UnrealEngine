@@ -22,6 +22,9 @@ class FSlateWindowElementList;
 class SGraphTrack : public SCompoundWidget
 {
 public:
+	static constexpr float MOUSE_SNAP_DISTANCE = 2.0f;
+
+public:
 	/** Default constructor. */
 	SGraphTrack();
 
@@ -180,8 +183,89 @@ protected:
 
 	void UpdateGraphTrack();
 
+	void ScrollAtPosY(float ScrollPosY);
+	void ScrollAtTime(double StartTime);
+
+	void ShowContextMenu(const FPointerEvent& MouseEvent);
+
+	void ContextMenu_ShowPoints_Execute();
+	bool ContextMenu_ShowPoints_CanExecute();
+	bool ContextMenu_ShowPoints_IsChecked();
+
+	void ContextMenu_ShowPointsWithBorder_Execute();
+	bool ContextMenu_ShowPointsWithBorder_CanExecute();
+	bool ContextMenu_ShowPointsWithBorder_IsChecked();
+
+	void ContextMenu_ShowLines_Execute();
+	bool ContextMenu_ShowLines_CanExecute();
+	bool ContextMenu_ShowLines_IsChecked();
+
+	void ContextMenu_ShowLinesWithDuration_Execute();
+	bool ContextMenu_ShowLinesWithDuration_CanExecute();
+	bool ContextMenu_ShowLinesWithDuration_IsChecked();
+
+	void ContextMenu_ShowBars_Execute();
+	bool ContextMenu_ShowBars_CanExecute();
+	bool ContextMenu_ShowBars_IsChecked();
+
 protected:
 	FTimeRulerTrack TimeRulerTrack;
 	FRandomGraphTrack GraphTrack;
+	//FFramesGraphTrack GraphTrack;
 	FTimingTrackViewport Viewport;
+
+	bool bIsViewportDirty;
+	bool bIsVerticalViewportDirty;
+
+	////////////////////////////////////////////////////////////
+
+	/** The current mouse position. */
+	FVector2D MousePosition;
+
+	/** Mouse position during the call on mouse button down. */
+	FVector2D MousePositionOnButtonDown;
+	double ViewportStartTimeOnButtonDown;
+	float ViewportScrollPosYOnButtonDown;
+
+	/** Mouse position during the call on mouse button up. */
+	FVector2D MousePositionOnButtonUp;
+
+	bool bIsLMB_Pressed;
+	bool bIsRMB_Pressed;
+
+	bool bIsDragging;
+
+	////////////////////////////////////////////////////////////
+	// Panning
+
+	/**
+	 * True, if the user is currently interactively panning the view (horizontally and/or vertically),
+	 * either by holding the right mouse button and dragging
+	 * or by holding spacebar pressed and dragging with left mouse button.
+	 */
+	bool bIsPanning;
+
+	/** How to pan. */
+	enum class EPanningMode : uint8
+	{
+		None = 0,
+		Horizontal = 0x01,
+		Vertical = 0x02,
+		HorizontalAndVertical = Horizontal | Vertical,
+	};
+	EPanningMode PanningMode;
+
+	////////////////////////////////////////////////////////////
+	// Selection
+
+	/** True, if the user is currently changing the selection (by holding the left mouse button and dragging). */
+	bool bIsSelecting;
+
+	double SelectionStartTime;
+	double SelectionEndTime;
+
+	////////////////////////////////////////////////////////////
+
+	const FSlateBrush* WhiteBrush;
+	const FSlateFontInfo MainFont;
 };

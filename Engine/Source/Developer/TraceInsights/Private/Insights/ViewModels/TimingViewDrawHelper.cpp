@@ -15,6 +15,7 @@
 // Insights
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/MarkersTimingTrack.h"
 #include "Insights/ViewModels/TimingEventsTrack.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
@@ -31,6 +32,7 @@ FTimingViewDrawHelper::FTimingViewDrawHelper(const FDrawContext& InDC, const FTi
 	, BackgroundAreaBrush(WhiteBrush)
 	, ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f)
 	, InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f)
+	, EdgeColor(0.05f, 0.05f, 0.05f, 1.0f)
 	, EventFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 	, Stats()
 {
@@ -47,59 +49,11 @@ FTimingViewDrawHelper::~FTimingViewDrawHelper()
 
 void FTimingViewDrawHelper::DrawBackground() const
 {
-	const FLinearColor StartEndMarkerColor(0.05f, 0.05f, 0.05f, 1.0f);
-
-	const float X0 = Viewport.TimeToSlateUnitsRounded(0.0);
-	const float X1 = Viewport.TimeToSlateUnitsRounded(Viewport.MaxValidTime);
+	const float X = 0.0f;
 	const float W = FMath::CeilToFloat(Viewport.Width);
-
 	const float Y = 0.0f;
 	const float H = FMath::CeilToFloat(Viewport.Height);
-
-	if (X0 >= W || X1 <= 0.0f)
-	{
-		ValidX0 = 0.0f;
-		ValidX1 = W;
-
-		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, Y, W, H, BackgroundAreaBrush, InvalidAreaColor);
-	}
-	else // X0 < W && X1 > 0
-	{
-		if (X0 > 0.0f)
-		{
-			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, Y, X0, H, BackgroundAreaBrush, InvalidAreaColor);
-		}
-
-		if (X1 < W)
-		{
-			// Draw invalid area (right).
-			DrawContext.DrawBox(X1 + 1.0f, Y, W - X1 - 1.0f, H, BackgroundAreaBrush, InvalidAreaColor);
-
-			// Draw the end time marker.
-			DrawContext.DrawBox(X1, Y, 1.0f, H, BackgroundAreaBrush, StartEndMarkerColor);
-		}
-
-		ValidX0 = FMath::Max(X0, 0.0f);
-		ValidX1 = FMath::Min(X1, W);
-
-		if (X0 >= 0.0f)
-		{
-			// Draw the start time marker.
-			DrawContext.DrawBox(X0, Y, 1.0f, H, BackgroundAreaBrush, StartEndMarkerColor);
-
-			ValidX0 += 1.0f; // to not overlap the start time marker
-		}
-
-		if (ValidX1 > ValidX0)
-		{
-			// Draw valid area.
-			DrawContext.DrawBox(ValidX0, Y, ValidX1 - ValidX0, H, BackgroundAreaBrush, ValidAreaColor);
-		}
-	}
-
-	DrawContext.LayerId++;
+	FDrawHelpers::DrawBackground(DrawContext, Viewport, BackgroundAreaBrush, ValidAreaColor, InvalidAreaColor, EdgeColor, X, Y, W, H, ValidAreaX, ValidAreaW);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,12 +65,12 @@ void FTimingViewDrawHelper::BeginTimelines()
 
 	float Y = TimelineTopY + Viewport.TopOffset;
 
-	if (Y > 0.0f && ValidX1 > ValidX0)
+	if (Y > 0.0f && ValidAreaW > 0.0f)
 	{
 		Y = FMath::Min(Y, Viewport.Height);
 
 		// Draw invalid area (top).
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), ValidX0, 0.0f, ValidX1 - ValidX0, Y, BackgroundAreaBrush, InvalidAreaColor);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), ValidAreaX, 0.0f, ValidAreaW, Y, BackgroundAreaBrush, InvalidAreaColor);
 	}
 }
 
@@ -222,7 +176,6 @@ void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track)
 	{
 		const float Y = Viewport.TopOffset + TimelineTopY;
 
-		FLinearColor Color(0.05f, 0.05f, 0.05f, 1.0f);
 		FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 
 		if (Track.IsSelected())
@@ -242,13 +195,13 @@ void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track)
 		}
 
 		// Draw a horizontal line between timelines.
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0, Y, Viewport.Width, 1.0f, WhiteBrush, Color);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0, Y, Viewport.Width, 1.0f, WhiteBrush, EdgeColor);
 
 		// Draw name of timeline.
 		//const FString Name = FString::Printf(TEXT("%d Y: %g, H: %g, VO: %g, VY: %g"), TimelineIndex, Track.Y, Track.H, Viewport.TopOffset, Viewport.ScrollPosY); //debug
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		float NameWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0.0f, Y + 1.0f, NameWidth + 4.0f, 12.0f, WhiteBrush, Color);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0.0f, Y + 1.0f, NameWidth + 4.0f, 12.0f, WhiteBrush, EdgeColor);
 		DrawContext.DrawText(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineText), 2.0f, Y, Track.GetName(), EventFont, TextColor);
 	}
 
@@ -507,15 +460,15 @@ void FTimingViewDrawHelper::EndTimelines()
 	float Y = Viewport.TopOffset + TimelineTopY;
 
 	// Draw a last horizontal line.
-	DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0, Y, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+	DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), 0, Y, Viewport.Width, 1.0f, WhiteBrush, EdgeColor);
 	Y += 1.0f;
 
-	if (Y < Viewport.Height && ValidX1 > ValidX0)
+	if (Y < Viewport.Height && ValidAreaW > 0.0f)
 	{
 		Y = FMath::Max(Y, 0.0f);
 
 		// Draw invalid area (bottom).
-		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), ValidX0, Y, ValidX1 - ValidX0, Viewport.Height - Y, BackgroundAreaBrush, InvalidAreaColor);
+		DrawContext.DrawBox(DrawContext.LayerId + ToInt32(EDrawLayer::TimelineHeader), ValidAreaX, Y, ValidAreaW, Viewport.Height - Y, BackgroundAreaBrush, InvalidAreaColor);
 	}
 
 	DrawContext.LayerId += ToInt32(EDrawLayer::Count);

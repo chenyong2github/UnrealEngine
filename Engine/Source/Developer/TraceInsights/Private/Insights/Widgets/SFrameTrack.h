@@ -39,11 +39,9 @@ struct FSampleRef
  */
 class SFrameTrack : public SCompoundWidget
 {
-	enum
-	{
-		/** Number of pixels. */
-		MOUSE_SNAP_DISTANCE = 4,
-	};
+public:
+	/** Number of pixels. */
+	static constexpr float MOUSE_SNAP_DISTANCE = 2.0f;
 
 	enum class EFrameTrackCursor
 	{
@@ -102,7 +100,7 @@ protected:
 	FSampleRef GetSampleAtMousePosition(float X, float Y);
 	void SelectFrameAtMousePosition(float X, float Y);
 
-	void ShowContextMenu(const FVector2D& ScreenSpacePosition);
+	void ShowContextMenu(const FPointerEvent& MouseEvent);
 
 	void ContextMenu_ShowGameFrames_Execute();
 	bool ContextMenu_ShowGameFrames_CanExecute();
@@ -163,7 +161,7 @@ protected:
 	TSharedPtr<SScrollBar> HorizontalScrollBar;
 
 	//////////////////////////////////////////////////
-	// Panning, Zooming and Selection behaviors
+	// Panning and Zooming behaviors
 
 	/** The current mouse position. */
 	FVector2D MousePosition;
@@ -183,6 +181,7 @@ protected:
 	bool bIsScrolling;
 
 	//////////////////////////////////////////////////
+	// Selection
 
 	int32 SelectionStartFrameIndex;
 	int32 SelectionEndFrameIndex;

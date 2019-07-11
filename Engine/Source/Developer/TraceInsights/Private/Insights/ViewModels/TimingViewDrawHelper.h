@@ -134,13 +134,14 @@ private:
 	const FSlateBrush* BackgroundAreaBrush;
 	const FLinearColor ValidAreaColor;
 	const FLinearColor InvalidAreaColor;
+	const FLinearColor EdgeColor;
 	const FSlateFontInfo EventFont;
 
 	//static const FSlateColorBrush SolidWhiteBrush = FSlateColorBrush(FColorList::White);
 	//static const FSlateBrush BorderBrush = FSlateBorderBrush(NAME_None, FMargin(1.0f));
 
-	mutable float ValidX0;
-	mutable float ValidX1;
+	mutable float ValidAreaX;
+	mutable float ValidAreaW;
 
 	float TimelineTopY;
 	float TimelineY;

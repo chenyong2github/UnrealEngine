@@ -60,7 +60,7 @@ class FGraphTrack : public FBaseTimingTrack
 
 private:
 	// Visual size of points (in pixels).
-	static constexpr float PointVisualSize = 7.0f;
+	static constexpr float PointVisualSize = 5.0f;
 
 	// Size of points (in pixels) used in reduction algorithm.
 	static constexpr double PointSizeX = 3.0f;
@@ -101,12 +101,14 @@ protected:
 	const FSlateBrush* BorderBrush;
 	const FSlateFontInfo Font;
 
+public:
 	bool bDrawPoints;
 	bool bDrawPointsWithBorder;
 	bool bDrawLines;
 	bool bDrawLinesWithDuration;
 	bool bDrawBoxes;
 
+protected:
 	float BaselineY; // Y position (in viewport local space) of the baseline (with Value == 0); in pixels (Slate units)
 	double ScaleY; // scale between Value units and viewport units; in pixels (Slate units) / Value unit
 

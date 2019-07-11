@@ -207,13 +207,14 @@ void FTimeRulerTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport
 		float W = CrtMousePosTextWidth + 4.0f;
 		if (bIsSelecting && SelectionStartTime < SelectionEndTime)
 		{
+			// While selecting, display the current time on either left or right side of the selected time range (i.e. to not overlap the selection arrows).
 			float SelectionX1 = Viewport.TimeToSlateUnitsRounded(SelectionStartTime);
 			float SelectionX2 = Viewport.TimeToSlateUnitsRounded(SelectionEndTime);
-			if (X - SelectionX1 > 1.0f)
+			if (FMath::Abs(X - SelectionX1) > FMath::Abs(SelectionX2 - X))
 			{
 				X = SelectionX2 + W / 2;
 			}
-			if (SelectionX2 - X > 1.0f)
+			else
 			{
 				X = SelectionX1 - W / 2;
 			}

@@ -54,9 +54,9 @@ void SFrameTrack::Reset()
 
 	CachedTimelines.Reset();
 	TimelinesOrder.Reset();
-	TimelinesOrder.Add(0);
-	TimelinesOrder.Add(1);
-	TimelinesOrder.Add(2);
+	TimelinesOrder.Add(TraceFrameType_Game);
+	TimelinesOrder.Add(TraceFrameType_Rendering);
+
 	bIsStateDirty = true;
 
 	bShowGameFrames = true;
@@ -294,7 +294,8 @@ FSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 		{
 			int32 TimelineId = TimelinesOrder[TimelineIndex];
 
-			if ((!bShowRenderingFrames && TimelineId == 1) || (!bShowGameFrames && TimelineId == 0))
+			if ((TimelineId == TraceFrameType_Rendering && !bShowRenderingFrames) ||
+				(TimelineId == TraceFrameType_Game && !bShowGameFrames))
 			{
 				continue;
 			}
@@ -387,7 +388,8 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		{
 			int32 TimelineId = TimelinesOrder[TimelineIndex];
 
-			if ((!bShowRenderingFrames && TimelineId == 1) || (!bShowGameFrames && TimelineId == 0))
+			if ((TimelineId == TraceFrameType_Rendering && !bShowRenderingFrames) ||
+				(TimelineId == TraceFrameType_Game && !bShowGameFrames))
 			{
 				continue;
 			}
@@ -610,9 +612,6 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 	{
 		if (bIsLMB_Pressed)
 		{
-			// Release the mouse.
-			Reply = FReply::Handled().ReleaseMouseCapture();
-
 			if (bIsScrolling)
 			{
 				bIsScrolling = false;
@@ -624,15 +623,15 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 
 			bIsLMB_Pressed = false;
+
+			// Release the mouse.
+			Reply = FReply::Handled().ReleaseMouseCapture();
 		}
 	}
 	else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
 		if (bIsRMB_Pressed)
 		{
-			// Release mouse as we no longer scroll.
-			Reply = FReply::Handled().ReleaseMouseCapture();
-
 			if (bIsScrolling)
 			{
 				bIsScrolling = false;
@@ -640,11 +639,13 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (bIsValidForMouseClick)
 			{
-				ShowContextMenu(MouseEvent.GetScreenSpacePosition());
-				Reply = FReply::Handled();
+				ShowContextMenu(MouseEvent);
 			}
 
 			bIsRMB_Pressed = false;
+
+			// Release mouse as we no longer scroll.
+			Reply = FReply::Handled().ReleaseMouseCapture();
 		}
 	}
 
@@ -852,7 +853,7 @@ FCursorReply SFrameTrack::OnCursorQuery(const FGeometry& MyGeometry, const FPoin
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SFrameTrack::ShowContextMenu(const FVector2D& ScreenSpacePosition)
+void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
@@ -923,7 +924,8 @@ void SFrameTrack::ShowContextMenu(const FVector2D& ScreenSpacePosition)
 
 	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 
-	FWidgetPath EventPath;
+	FWidgetPath EventPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+	const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
 	FSlateApplication::Get().PushMenu(SharedThis(this), EventPath, MenuWidget, ScreenSpacePosition, FPopupTransitionEffect::ContextMenu);
 }
 
