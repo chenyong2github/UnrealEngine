@@ -264,6 +264,14 @@ public:
 	virtual bool SetBroadcast(bool bAllowBroadcast = true) = 0;
 
 	/**
+	 * Sets this socket into TCP_NODELAY mode (TCP only).
+	 *
+	 * @param bIsNoDelay Whether to enable no delay mode.
+	 * @return true if successful, false otherwise.
+	 */
+	virtual bool SetNoDelay(bool bIsNoDelay = true) = 0;
+
+	/**
 	 * Joins this socket to the specified multicast group.
 	 *
 	 * The multicast group address must be in the range 224.0.0.0 to 239.255.255.255.
