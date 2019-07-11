@@ -230,10 +230,6 @@ namespace symbols
 	DiaCompilandDB* GatherDiaCompilands(Provider* provider);
 
 
-	// gathers all modules used by the executable
-	ModuleDB* GatherModules(DiaCompilandDB* diaCompilandDb);
-
-
 	// gathers user-defined types for a given compiland
 	UserDefinedTypesDB* GatherUserDefinedTypes(const DiaCompilandDB* diaCompilandDb, const Compiland* compiland);
 

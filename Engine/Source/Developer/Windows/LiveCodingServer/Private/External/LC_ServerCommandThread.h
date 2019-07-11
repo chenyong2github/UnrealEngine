@@ -14,6 +14,7 @@
 #include "LC_RunMode.h"
 #include "LC_Types.h"
 #include "LC_LiveModule.h"
+#include "LC_VisualStudio.h"
 
 
 class MainFrame;
@@ -26,6 +27,8 @@ class ServerCommandThread
 public:
 	ServerCommandThread(MainFrame* mainFrame, const wchar_t* const processGroupName, RunMode::Enum runMode);
 	~ServerCommandThread(void);
+
+	void RestartTargets(void);
 
 	std::wstring GetProcessImagePath(void) const;
 
@@ -69,6 +72,7 @@ private:
 			}
 
 		DECLARE_ACTION(TriggerRecompile);
+		DECLARE_ACTION(LogMessage);
 		DECLARE_ACTION(BuildPatch);
 		DECLARE_ACTION(HandleException);
 		DECLARE_ACTION(ReadyForCompilation);
@@ -141,4 +145,10 @@ private:
 	// for triggering recompiles using the API
 	bool m_manualRecompileTriggered;
 	types::unordered_map<std::wstring, types::vector<LiveModule::ModifiedObjFile>> m_liveModuleToModifiedOrNewObjFiles;
+
+	// restart mechanism
+	CriticalSection m_restartCS;
+	void* m_restartJob;
+	unsigned int m_restartedProcessCount;
+	types::unordered_map<unsigned int, EnvDTE::DebuggerPtr> m_restartedProcessIdToDebugger;
 };
