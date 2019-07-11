@@ -183,6 +183,14 @@ private:
 	void OnToggleShowReplicatedVariablesOnly();
 	bool IsShowingReplicatedVariablesOnly() const;
 
+	/** Support functions for view options for bAlwaysShowInterfacesInOverrides blueprint editor setting */
+	void OnToggleAlwaysShowInterfacesInOverrides();
+	bool GetAlwaysShowInterfacesInOverrides() const;
+
+	/** Support functions for view options for bShowParentClassInOverrides blueprint editor setting*/
+	void OnToggleShowParentClassInOverrides();
+	bool GetShowParentClassInOverrides() const;
+
 	/** Helper function to open the selected graph */
 	void OpenGraph(FDocumentTracker::EOpenDocumentCause InCause);
 

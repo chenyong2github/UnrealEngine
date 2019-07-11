@@ -23,6 +23,8 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bAutoCastObjectConnections(false)
 	, bShowViewportOnSimulate(false)
 	, bShowInheritedVariables(false)
+	, bAlwaysShowInterfacesInOverrides(true)
+	, bShowParentClassInOverrides(true)
 	, bShowEmptySections(true)
 	, bSpawnDefaultBlueprintNodes(true)
 	, bHideConstructionScriptComponentsInDetailsView(true)
