@@ -22,17 +22,23 @@ UClass* FLevelSequenceActorSpawner::GetSupportedTemplateType() const
 	return AActor::StaticClass();
 }
 
-ULevelStreaming* GetLevelStreaming(FString SafeLevelName, UWorld& World)
+ULevelStreaming* GetLevelStreaming(const FName& DesiredLevelName, const TArray<ULevelStreaming*>& StreamingLevels)
 {
-	if (FPackageName::IsShortPackageName(SafeLevelName))
+	if (DesiredLevelName == NAME_None)
 	{
-		// Make sure MyMap1 and Map1 names do not resolve to a same streaming level
-		SafeLevelName = TEXT("/") + SafeLevelName;
+		return nullptr;
 	}
 
-	for (ULevelStreaming* LevelStreaming : World.GetStreamingLevels())
+	FString SafeLevelNameString = DesiredLevelName.ToString();
+	if (FPackageName::IsShortPackageName(SafeLevelNameString))
 	{
-		if (LevelStreaming && LevelStreaming->GetWorldAssetPackageName().EndsWith(SafeLevelName, ESearchCase::IgnoreCase))
+		// Make sure MyMap1 and Map1 names do not resolve to a same streaming level
+		SafeLevelNameString.InsertAt('/', 0);
+	}
+
+	for (ULevelStreaming* LevelStreaming : StreamingLevels)
+	{
+		if (LevelStreaming && LevelStreaming->GetWorldAssetPackageName().EndsWith(SafeLevelNameString, ESearchCase::IgnoreCase))
 		{
 			return LevelStreaming;
 		}
@@ -61,14 +67,18 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		WorldContext = GWorld;
 	}
 
-	ULevelStreaming* LevelStreaming = GetLevelStreaming(Spawnable.GetLevelName().ToString(), *WorldContext);
-	if (LevelStreaming && LevelStreaming->GetWorldAsset().IsValid())
+	FName DesiredLevelName = Spawnable.GetLevelName();
+	if (DesiredLevelName != NAME_None)
 	{
-		WorldContext = LevelStreaming->GetWorldAsset().Get();
-	}
-	else if (Spawnable.GetLevelName() != NAME_None)
-	{
-		UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into"), *Spawnable.GetLevelName().ToString(), *Spawnable.GetName());
+		ULevelStreaming* LevelStreaming = GetLevelStreaming(DesiredLevelName, WorldContext->GetStreamingLevels());
+		if (LevelStreaming && LevelStreaming->GetWorldAsset().IsValid())
+		{
+			WorldContext = LevelStreaming->GetWorldAsset().Get();
+		}
+		else
+		{
+			UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into"), *DesiredLevelName.ToString(), *Spawnable.GetName());
+		}
 	}
 
 	// Construct the object with the same name that we will set later on the actor to avoid renaming it inside SetActorLabel
