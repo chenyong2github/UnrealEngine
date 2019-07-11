@@ -236,10 +236,10 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 			if (!bUseSkinCache && DeferSkeletalLockAndFillToRHIThread())
 			{
 				FRHIVertexBuffer* VertexBuffer = CurrentBoneBuffer->VertexBufferRHI;
-				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &ReferenceToLocalMatrices, &BoneMap](FRHICommandListImmediate& RHICmdList)
+				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &ReferenceToLocalMatrices, &BoneMap](FRHICommandListImmediate& InRHICmdList)
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
-					FMatrix3x4* ChunkMatrices = (FMatrix3x4*)RHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
+					FMatrix3x4* LambdaChunkMatrices = (FMatrix3x4*)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
 					//FMatrix3x4 is sizeof() == 48
 					// PLATFORM_CACHE_LINE_SIZE (128) / 48 = 2.6
 					//  sizeof(FMatrix) == 64
@@ -254,11 +254,11 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 						FPlatformMisc::Prefetch(ReferenceToLocalMatrices.GetData() + RefToLocalIdx + PreFetchStride);
 						FPlatformMisc::Prefetch(ReferenceToLocalMatrices.GetData() + RefToLocalIdx + PreFetchStride, PLATFORM_CACHE_LINE_SIZE);
 
-						FMatrix3x4& BoneMat = ChunkMatrices[BoneIdx];
+						FMatrix3x4& BoneMat = LambdaChunkMatrices[BoneIdx];
 						const FMatrix& RefToLocal = ReferenceToLocalMatrices[RefToLocalIdx];
 						RefToLocal.To3x4MatrixTranspose((float*)BoneMat.M);
 					}
-					RHICmdList.UnlockVertexBuffer(VertexBuffer);
+					InRHICmdList.UnlockVertexBuffer(VertexBuffer);
 				});
 
 				RHICmdList.RHIThreadFence(true);
@@ -924,11 +924,11 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
 					float* RESTRICT Data = (float* RESTRICT)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
-					uint32 NumSimulVerts = InSimulPositions.Num();
-					check(NumSimulVerts > 0 && NumSimulVerts <= MAX_APEXCLOTH_VERTICES_FOR_VB);
+					uint32 LambdaNumSimulVerts = InSimulPositions.Num();
+					check(LambdaNumSimulVerts > 0 && LambdaNumSimulVerts <= MAX_APEXCLOTH_VERTICES_FOR_VB);
 					float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
 					float* RESTRICT Normal = (float* RESTRICT) &InSimulNormals[0].X;
-					for (uint32 Index = 0; Index < NumSimulVerts; Index++)
+					for (uint32 Index = 0; Index < LambdaNumSimulVerts; Index++)
 					{
 						FPlatformMisc::Prefetch(Pos + PLATFORM_CACHE_LINE_SIZE);
 						FPlatformMisc::Prefetch(Normal + PLATFORM_CACHE_LINE_SIZE);

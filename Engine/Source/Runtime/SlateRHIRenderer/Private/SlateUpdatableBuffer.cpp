@@ -4,6 +4,7 @@
 #include "RenderingThread.h"
 
 DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time"), STAT_SlateUpdateInstanceBuffer, STATGROUP_Slate);
+DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time"), STAT_SlateUpdateInstanceBufferLambda, STATGROUP_Slate);
 
 FSlateUpdatableInstanceBuffer::FSlateUpdatableInstanceBuffer( int32 InitialInstanceCount )
 	: FreeBufferIndex(0)
@@ -80,7 +81,8 @@ void FSlateUpdatableInstanceBuffer::UpdateRenderingData_RenderThread(FRHICommand
 		FRHIVertexBuffer* VertexBufferRHI = InstanceBufferResource.VertexBufferRHI;
 		RHICmdList.EnqueueLambda([VertexBufferRHI, &InstanceData = RenderThreadBufferData](FRHICommandListImmediate& InRHICmdList)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBuffer);
+			// Use different cycle counter to avoid -Wshadow warning on older clang versions for Android
+			SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBufferLambda);
 
 			int32 RequiredVertexBufferSize = InstanceData.Num() * sizeof(FVector4);
 			uint8* InstanceBufferData = (uint8*)InRHICmdList.LockVertexBuffer(VertexBufferRHI, 0, RequiredVertexBufferSize, RLM_WriteOnly);
