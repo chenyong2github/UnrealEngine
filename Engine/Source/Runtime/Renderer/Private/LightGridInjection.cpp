@@ -420,6 +420,7 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 
 						LightData.SpotAnglesAndSourceRadiusPacked = FVector4(-2, 1, 0, *(float*)&PackedWInt);
 						LightData.LightTangentAndSoftSourceRadius = FVector4(1.0f, 0.0f, 0.0f, 0.0f);
+						LightData.RectBarnDoor = FVector4(0, -2, 0, 0);
 
 #if ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 						FVector4 ViewSpacePosAndRadius(View.ViewMatrices.GetViewMatrix().TransformPosition(SimpleLightPerViewData.Position), SimpleLight.Radius);
@@ -500,6 +501,8 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 							LightData.SpotAnglesAndSourceRadiusPacked = FVector4(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, LightParameters.SourceRadius, 0);
 
 							LightData.LightTangentAndSoftSourceRadius = FVector4(LightParameters.Tangent, LightParameters.SoftSourceRadius);
+
+							LightData.RectBarnDoor = FVector4(LightParameters.RectLightBarnCosAngle, LightParameters.RectLightBarnLength, 0, 0);
 
 							float VolumetricScatteringIntensity = LightProxy->GetVolumetricScatteringIntensity();
 

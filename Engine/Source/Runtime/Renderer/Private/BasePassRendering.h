@@ -43,6 +43,7 @@ public:
 	FVector4 LightDirectionAndShadowMapChannelMask;
 	FVector4 SpotAnglesAndSourceRadiusPacked;
 	FVector4 LightTangentAndSoftSourceRadius;
+	FVector4 RectBarnDoor;
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSharedBasePassUniformParameters,)

@@ -44,6 +44,8 @@ void FPointLightSceneProxy::GetLightShaderParameters(FLightShaderParameters& Lig
 	LightParameters.SoftSourceRadius = SoftSourceRadius;
 	LightParameters.SourceLength = SourceLength;
 	LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
+	LightParameters.RectLightBarnCosAngle = 0.0f;
+	LightParameters.RectLightBarnLength = -2.0f;
 }
 
 /**

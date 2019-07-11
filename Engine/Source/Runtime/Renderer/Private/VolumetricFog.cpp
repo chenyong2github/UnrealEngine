@@ -353,7 +353,7 @@ bool LightNeedsSeparateInjectionIntoVolumetricFog(const FLightSceneInfo* LightSc
 	const FLightSceneProxy* LightProxy = LightSceneInfo->Proxy;
 
 	if (GVolumetricFogInjectShadowedLightsSeparately
-		&& (LightProxy->GetLightType() == LightType_Point || LightProxy->GetLightType() == LightType_Spot)
+		&& (LightProxy->GetLightType() == LightType_Point || LightProxy->GetLightType() == LightType_Spot || LightProxy->GetLightType() == LightType_Rect)
 		&& !LightProxy->HasStaticLighting()
 		&& LightProxy->CastsDynamicShadow()
 		&& LightProxy->CastsVolumetricShadow())
