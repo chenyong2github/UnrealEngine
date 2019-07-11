@@ -8,6 +8,7 @@
 
 class USkeletalMesh;
 struct FSkelMeshSection;
+struct FImportedSkinWeightProfileData;
 
 /**
  * Mesh reduction interface.
