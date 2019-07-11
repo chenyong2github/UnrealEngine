@@ -8,6 +8,7 @@
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
 #include "MeshBoundaryLoops.h"
+#include "Curve/GeneralPolygon2.h"
 
 
 class FDynamicMesh3;
@@ -55,7 +56,7 @@ public:
 	bool CutLoopsFailed = false;		// set to true if we could not compute cut loops/spans
 	bool FoundOpenSpans = false;     // set to true if we found open spans in cut
 
-	// Note: In practice this is 1:1 with CutLoops if all the hole fills succeed due to simple hole filling, but this will not be true if/when we add better hole filling methods, or if any of the hole fills fails
+	// Note: In practice this is 1:1 with CutLoops if all the hole fills succeed w/ simple hole filling, but this will not be true for other hole filling methods, or if any of the hole fills fails
 	// please do not write anything relying on a correspondence between the two
 	TArray<TArray<int>> HoleFillTriangles;
 
@@ -82,9 +83,14 @@ public:
 	virtual bool Cut();
 
 	/**
-	 *  Fill all loops with FSimpleHoleFiller. @todo: Add more advanced hole-fill options
+	 *  Fill cut loops with FSimpleHoleFiller
 	 */
-	virtual bool FillHoles(int constantGroupID = -1);
+	virtual bool SimpleHoleFill(int ConstantGroupID = -1);
+
+	/**
+	 *  Fill cut loops with FPlanarHoleFiller, using a caller-provided triangulation function
+	 */
+	virtual bool HoleFill(TFunction<TArray<FIndex3i>(const FGeneralPolygon2d&)> PlanarTriangulationFunc, bool bFillSpans, int ConstantGroupID = -1);
 
 	
 protected:

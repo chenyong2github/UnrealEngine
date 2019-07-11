@@ -6,6 +6,64 @@
 #include "ThirdParty/GTEngine/Mathematics/GteUIntegerFP32.h"
 #include <vector>
 
+//namespace
+//{
+//#define DEBUG_FILE_DUMPING 1
+//#ifndef DEBUG_FILE_DUMPING
+//	void DumpDelaunayInputForDebugAsOBJ(const FConstrainedDelaunay2d& Delaunay, const FString& PathBase)
+//	{
+//	}
+//	void DumpDelaunayTriangulationForDebug(const FConstrainedDelaunay2d& Delaunay, const FString& PathBase)
+//	{
+//	}
+//#else
+//#include <fstream>
+//	static int num = 0;
+//	template <typename RealType>
+//	void DumpDelaunayInputForDebugAsOBJ(const TConstrainedDelaunay2<RealType>& Delaunay, const FString& PathBase)
+//	//void DumpGraphForDebugAsOBJ(const FDynamicGraph2d& Graph, const FString& PathBase)
+//	{
+//		num++;
+//		FString Path = PathBase + FString::FromInt(num) + ".obj";
+//		std::ofstream f(*Path);
+//
+//		for (int32 VertexIdx = 0; VertexIdx < Delaunay.Vertices.Num(); VertexIdx++)
+//		{
+//			const FVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
+//			f << "v " << Vertex.X << " " << Vertex.Y << " 0" << std::endl;
+//		}
+//		for (int32 VertexIdx = 0; VertexIdx < Delaunay.Vertices.Num(); VertexIdx++)
+//		{
+//			const FVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
+//			f << "v " << Vertex.X << " " << Vertex.Y << " .5" << std::endl;
+//		}
+//		for (const FIndex2i& Edge : Delaunay.Edges)
+//		{
+//			f << "f " << Edge.A + 1 << " " << Edge.B + 1 << " " << 1 + Edge.A + Delaunay.Vertices.Num() << std::endl;
+//		}
+//		f.close();
+//	}
+//	//void DumpTriangulationForDebug(const FDynamicGraph2d& Graph, const TArray<FIntVector>& Triangles, const FString& PathBase)
+//	template <typename RealType>
+//	void DumpDelaunayTriangulationForDebug(const TConstrainedDelaunay2<RealType>& Delaunay, const FString& PathBase)
+//	{
+//		num++;
+//		FString Path = PathBase + FString::FromInt(num) + ".obj";
+//		std::ofstream f(*Path);
+//		for (int32 VertexIdx = 0; VertexIdx < Delaunay.Vertices.Num(); VertexIdx++)
+//		{
+//			const FVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
+//			f << "v " << Vertex.X << " " << Vertex.Y << " 0" << std::endl;
+//		}
+//		for (const FIndex3i& Tri : Delaunay.Triangles)
+//		{
+//			f << "f " << 1 + Tri.A << " " << 1 + Tri.B << " " << 1 + Tri.C << std::endl;
+//		}
+//		f.close();
+//	}
+//#endif
+//}
+
 template<class RealType>
 template<class InputRealType>
 void TConstrainedDelaunay2<RealType>::Add(const FDynamicGraph2<InputRealType>& Graph)
@@ -182,9 +240,12 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 		}
 	}
 
+	int SelIdx = 0; // Index of item to Pop next; used to make the traversal less depth-first in shape, so a little more robust to bad data
 	while (ToWalkQ.Num())
 	{
-		TPair<int, int> TriWithWinding = ToWalkQ.Pop();
+		SelIdx = (SelIdx + 1) % ToWalkQ.Num();
+		TPair<int, int> TriWithWinding = ToWalkQ[SelIdx];
+		ToWalkQ.RemoveAtSwap(SelIdx);
 		int BaseIdx = TriWithWinding.Key * 3;
 		int LastWinding = TriWithWinding.Value;
 		for (int SubIdx = 0, NextIdx = 2; SubIdx < 3; NextIdx = SubIdx++)
@@ -209,14 +270,30 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 	{
 		if (Keep[i] > 0)
 		{
-			Triangles.Add(FIntVector(Indices[i * 3], Indices[i * 3 + 1], Indices[i * 3 + 2]));
+			FIndex3i& Tri = Triangles.Emplace_GetRef(Indices[i * 3], Indices[i * 3 + 1], Indices[i * 3 + 2]);
+			if (!bOutputCCW)
+			{
+				Swap(Tri.B, Tri.C);
+			}
 		}
 	}
 	
 	return !bBoundaryTrackingFailure;
 }
+//
+template<typename RealType>
+TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<RealType>& GeneralPolygon)
+{
+	TConstrainedDelaunay2<RealType> Triangulation;
+	Triangulation.FillRule = TConstrainedDelaunay2<RealType>::EFillRule::Positive;
+	Triangulation.Add(GeneralPolygon);
+	Triangulation.Triangulate();
+	return Triangulation.Triangles;
+}
 
 
+template TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<double>& GeneralPolygon);
+template TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<float>& GeneralPolygon);
 
 template void TConstrainedDelaunay2<double>::Add(const FDynamicGraph2<double>& Graph);
 template void TConstrainedDelaunay2<double>::Add(const TGeneralPolygon2<double>& Polygon);

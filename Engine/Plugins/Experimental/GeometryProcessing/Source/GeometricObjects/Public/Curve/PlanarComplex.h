@@ -148,6 +148,15 @@ struct TPlanarComplex
 		}
 	}
 
+	TGeneralPolygon2<RealType> ConvertNestToGeneralPolygon(const FPolygonNesting& Nest) const
+	{
+		TGeneralPolygon2<RealType> GPoly(Polygons[Nest.OuterIndex]);
+		for (int HoleIdx : Nest.HoleIndices)
+		{
+			GPoly.AddHole(Polygons[HoleIdx], false, false);
+		}
+		return GPoly;
+	}
 	TArray<TGeneralPolygon2<RealType>> ConvertOutputToGeneralPolygons() const
 	{
 		TArray<TGeneralPolygon2<RealType>> Output;

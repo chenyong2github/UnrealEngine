@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BoxTypes.h"
+#include "IndexTypes.h"
 #include "Polygon2.h"
 #include "Curve/DynamicGraph2.h"
 #include "Curve/GeneralPolygon2.h"
@@ -23,9 +24,10 @@ struct TConstrainedDelaunay2
 	TArray<FIndex2i> HoleEdges; // Any triangles inside 'hole' edges *must* be cut out
 
 	bool bOrientedEdges = true;
+	bool bOutputCCW = false;
 
 	enum class EFillRule {
-		Odd,
+		Odd = 0,
 		// bOrientedEdges must be true for the below
 		NonZero,
 		Positive,
@@ -61,7 +63,7 @@ struct TConstrainedDelaunay2
 	//
 	// outputs
 	//
-	TArray<FIntVector> Triangles;
+	TArray<FIndex3i> Triangles;
 
 	/**
 	 * Populate Triangles
@@ -71,7 +73,8 @@ struct TConstrainedDelaunay2
 	bool GEOMETRYALGORITHMS_API Triangulate();
 };
 
-
+template<typename RealType>
+TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<RealType>& GeneralPolygon);
 
 typedef TConstrainedDelaunay2<float> FConstrainedDelaunay2f;
 typedef TConstrainedDelaunay2<double> FConstrainedDelaunay2d;
