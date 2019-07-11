@@ -68,6 +68,7 @@ void SCurveEditorTreeTextFilter::OnFilterTextChanged( const FText& FilterText )
 		CurveEditor->GetTree()->Events.OnFiltersChanged.AddSP(this, &SCurveEditorTreeTextFilter::OnTreeFilterListChanged);
 	}
 }
+
 FReply SCurveEditorTreeTextFilter::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) 
 { 
 	if(SearchBox)
