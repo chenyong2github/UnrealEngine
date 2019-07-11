@@ -35,7 +35,7 @@ void FLayers::Initialize()
 	FEditorDelegates::RefreshLayerBrowser.AddRaw(this, &FLayers::OnEditorRefreshLayerBrowser);
 }
 
-void FLayers::OnEditorMapChange(const uint32 MapChangeFlags)
+void FLayers::OnEditorMapChange(uint32 MapChangeFlags)
 {
 	LayersChanged.Broadcast( ELayersAction::Reset, NULL, NAME_None );
 }

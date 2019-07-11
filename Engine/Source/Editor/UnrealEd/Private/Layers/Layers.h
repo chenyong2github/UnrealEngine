@@ -142,7 +142,7 @@ private:
 	/**
 	 * Delegate handlers
 	 **/ 
-	void OnEditorMapChange(const uint32 MapChangeFlags);
+	void OnEditorMapChange(uint32 MapChangeFlags);
 	/**
 	 * Delegate handler for FEditorDelegates::RefreshLayerBrowser. It internally calls UpdateAllActorsVisibility to refresh the actors of each layer.
 	 **/

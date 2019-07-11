@@ -18,10 +18,6 @@ class FMenuBuilder;
 
 namespace WorldHierarchy
 {
-	struct IWorldTreeItem;
-	typedef TSharedPtr<IWorldTreeItem> FWorldTreeItemPtr;
-	typedef TSharedRef<IWorldTreeItem> FWorldTreeItemRef;
-
 	/** Interface for validating drag/drop movement */
 	struct IDropTarget
 	{
