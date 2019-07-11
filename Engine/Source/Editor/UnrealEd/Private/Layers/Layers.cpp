@@ -23,17 +23,29 @@ FLayers::FLayers( const TWeakObjectPtr< UEditorEngine >& InEditor )
 FLayers::~FLayers()
 {
 	FEditorDelegates::MapChange.RemoveAll(this);
+	// Remove all callback functions from FEditorDelegates::RefreshLayerBrowser.Broadcast()
+	FEditorDelegates::RefreshLayerBrowser.RemoveAll(this);
 }
 
 
 void FLayers::Initialize()
 {
 	FEditorDelegates::MapChange.AddRaw(this, &FLayers::OnEditorMapChange);
+	// Add callback function to FEditorDelegates::RefreshLayerBrowser.Broadcast()
+	FEditorDelegates::RefreshLayerBrowser.AddRaw(this, &FLayers::OnEditorRefreshLayerBrowser);
 }
 
-void FLayers::OnEditorMapChange(uint32 MapChangeFlags)
+void FLayers::OnEditorMapChange(const uint32 MapChangeFlags)
 {
 	LayersChanged.Broadcast( ELayersAction::Reset, NULL, NAME_None );
+}
+
+void FLayers::OnEditorRefreshLayerBrowser()
+{
+	// bNotifySelectionChange is false because the functions calling FEditorDelegates::RefreshLayerBrowser.Broadcast usually call GEditor->NoteSelectionChange
+	const bool bNotifySelectionChange = false;
+	const bool bRedrawViewports = false;
+	UpdateAllActorsVisibility(bNotifySelectionChange, bRedrawViewports);
 }
 
 

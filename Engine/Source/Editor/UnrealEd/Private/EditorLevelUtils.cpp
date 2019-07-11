@@ -914,7 +914,7 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 	// Also, intentionally do not force layers visible for the p-level
 	if (Level->IsPersistentLevel())
 	{
-		//create a transaction so we can undo the visibilty toggle
+		// Create a transaction so we can undo the visibility toggle
 		const FScopedTransaction Transaction(LOCTEXT("ToggleLevelVisibility", "Toggle Level Visibility"));
 		if (Level->bIsVisible != bShouldBeVisible && ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
 		{
@@ -1094,6 +1094,8 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 		}
 	}
 
+	Level->bIsVisible = bShouldBeVisible;
+
 	FEditorDelegates::RefreshLayerBrowser.Broadcast();
 
 	// Notify the Scene Outliner, as new Actors may be present in the world.
@@ -1119,8 +1121,6 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 		// Tell the editor selection status was changed.
 		GEditor->NoteSelectionChange();
 	}
-
-	Level->bIsVisible = bShouldBeVisible;
 
 	if (Level->bIsLightingScenario)
 	{
