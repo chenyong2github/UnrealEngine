@@ -2499,11 +2499,19 @@ bool UEditorEngine::WarnAboutHiddenLevels( UWorld* InWorld, bool bIncludePersist
 
 			// follow up using SetLevelVisibility - streaming should now be completed so we can show actors, layers, 
 			// BSPs etc. without too big a performance hit.
+			TArray<ULevel*> LoadedLevels;
+			TArray<bool> bTheyShouldBeVisible;
 			for( int32 HiddenLevelIdx = 0; HiddenLevelIdx < HiddenLevels.Num(); ++HiddenLevelIdx )
 			{
 				check(HiddenLevels[ HiddenLevelIdx ]->GetLoadedLevel());
 				ULevel* LoadedLevel = HiddenLevels[ HiddenLevelIdx ]->GetLoadedLevel();
-				EditorLevelUtils::SetLevelVisibility( LoadedLevel, true, false );
+				LoadedLevels.Add(LoadedLevel);
+				bTheyShouldBeVisible.Add(true);
+			}
+			// For efficiency, set visibility of all levels at once
+			if (LoadedLevels.Num() > 0)
+			{
+				EditorLevelUtils::SetLevelsVisibility(LoadedLevels, bTheyShouldBeVisible, false);
 			}
 
 			FEditorSupportDelegates::RedrawAllViewports.Broadcast();

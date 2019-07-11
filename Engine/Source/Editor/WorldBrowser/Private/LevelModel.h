@@ -135,6 +135,9 @@ public:
 	/** Sets the Level's visibility */
 	virtual void SetVisible(bool bVisible);
 
+	/** Static function analog to the non-static SetVisible but applied to an TArray of FLevelModel elements */
+	static void SetVisible(TArray<FLevelModel*>& LevelModels, const TArray<bool>& bAreVisible);
+
 	/** Sets the Level's locked/unlocked state */
 	void SetLocked(bool bLocked);
 

@@ -232,13 +232,15 @@ static FVector CreateLocationOffset(bool bDuplicate, bool bOffsetLocations)
 bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
 {
 	bool result = false;
+	TArray<ULevel*> Levels;
+	TArray<bool> bTheyShouldBeVisible;
 	//prepare the warning dialog
 	FSuppressableWarningDialog::FSetupInfo Info( LOCTEXT( "Warning_PasteWarningBody","You are trying to paste to a hidden level.\nSuppressing this will default to Do Not Paste" ), LOCTEXT( "Warning_PasteWarningHeader","Pasting To Hidden Level" ), "PasteHiddenWarning" );
 	Info.ConfirmText = LOCTEXT( "Warning_PasteContinue","Unhide Level and paste" );
 	Info.CancelText = LOCTEXT( "Warning_PasteCancel","Do not paste" );
 	FSuppressableWarningDialog PasteHiddenWarning( Info );
 
-	//check streaming levels first	
+	//check streaming levels first
 	for (ULevelStreaming* StreamedLevel : InWorld->GetStreamingLevels())
 	{
 		//this is the active level - check if it is visible
@@ -255,7 +257,8 @@ bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
 				}
 				else
 				{
-					EditorLevelUtils::SetLevelVisibility( Level, true, true );					
+					Levels.Add(Level);
+					bTheyShouldBeVisible.Add(true);
 				}
 			}
 		}
@@ -274,10 +277,16 @@ bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld )
 			}
 			else 
 			{
-				EditorLevelUtils::SetLevelVisibility( InWorld->GetCurrentLevel(), true, true );
+				Levels.Add(InWorld->GetCurrentLevel());
+				bTheyShouldBeVisible.Add(true);
 			}
 
 		}
+	}
+	// For efficiency, set visibility of all levels at once
+	if (Levels.Num() > 0)
+	{
+		EditorLevelUtils::SetLevelsVisibility(Levels, bTheyShouldBeVisible, true);
 	}
 	return result;
 }

@@ -243,26 +243,55 @@ void FLevelModel::LoadLevel()
 
 void FLevelModel::SetVisible(bool bVisible)
 {
-	//don't create unnecessary transactions
-	if (IsVisible() == bVisible)
+	TArray<FLevelModel*> LevelModels({ this });
+	TArray<bool> bAreVisible({ bVisible });
+	FLevelModel::SetVisible(LevelModels, bAreVisible);
+}
+
+void FLevelModel::SetVisible(TArray<FLevelModel*>& LevelModels, const TArray<bool>& bAreVisible)
+{
+	// Don't create unnecessary transactions
+	if (LevelModels.Num() == 0 || LevelModels.Num() != bAreVisible.Num())
 	{
 		return;
 	}
 
-	const bool oldIsDirty = IsDirty();
+	TArray<ULevel*> Levels;
+	TArray<bool> bOldAreDirty;
+	for (int32 LevelModelIdx = 0; LevelModelIdx < LevelModels.Num(); ++LevelModelIdx)
+	{
+		FLevelModel* LevelModel = LevelModels[LevelModelIdx];
+		// If visibility does not change, omit it
+		if (LevelModel->IsVisible() == bAreVisible[LevelModelIdx])
+		{
+			continue;
+		}
+		// Otherwise, add Level and IsDirty into each TArray
+		Levels.Add(LevelModel->GetLevelObject());
+		bOldAreDirty.Add(LevelModel->IsDirty());
+	}
+	// Don't create unnecessary transactions
+	if (Levels.Num() == 0)
+	{
+		return;
+	}
 
 	const FScopedTransaction Transaction(LOCTEXT("ToggleVisibility", "Toggle Level Visibility"));
 
-	//this call hides all owned actors, etc
-	EditorLevelUtils::SetLevelVisibility( GetLevelObject(), bVisible, false );
+	// This call hides all owned actors, etc.
+	EditorLevelUtils::SetLevelsVisibility(Levels, bAreVisible, false);
 
-	if (!oldIsDirty)
+	// Note that Levels.Num() != LevelModels.Num() given the continue in the first for loop
+	for (int32 LevelModelIdx = 0; LevelModelIdx < Levels.Num(); ++LevelModelIdx)
 	{
-		// don't set the dirty flag if we're just changing the visibility of the level within the editor
-		ULevel* Level = GetLevelObject();
-		if (Level)
+		if (!bOldAreDirty[LevelModelIdx])
 		{
-			Level->GetOutermost()->SetDirtyFlag(false);
+			// Don't set the dirty flag if we're just changing the visibility of the level within the editor
+			ULevel* Level = Levels[LevelModelIdx];
+			if (Level)
+			{
+				Level->GetOutermost()->SetDirtyFlag(false);
+			}
 		}
 	}
 }

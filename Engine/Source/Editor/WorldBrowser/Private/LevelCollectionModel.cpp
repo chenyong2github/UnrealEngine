@@ -460,10 +460,15 @@ void FLevelCollectionModel::HideLevels(const FLevelModelList& InLevelList)
 		return;
 	}
 	
+	// For efficiency, set visibility of all levels at once
+	TArray<FLevelModel*> LevelModels;
+	TArray<bool> bVisible;
 	for (auto It = InLevelList.CreateConstIterator(); It; ++It)
 	{
-		(*It)->SetVisible(false);
+		LevelModels.Add(It->Get());
+		bVisible.Add(false);
 	}
+	FLevelModel::SetVisible(LevelModels, bVisible);
 
 	RequestUpdateAllLevels();
 }
@@ -477,10 +482,15 @@ void FLevelCollectionModel::ShowLevels(const FLevelModelList& InLevelList)
 	
 	OnPreShowLevels(InLevelList);
 
+	// For efficiency, set visibility of all levels at once
+	TArray<FLevelModel*> LevelModels;
+	TArray<bool> bVisible;
 	for (auto It = InLevelList.CreateConstIterator(); It; ++It)
 	{
-		(*It)->SetVisible(true);
+		LevelModels.Add(It->Get());
+		bVisible.Add(true);
 	}
+	FLevelModel::SetVisible(LevelModels, bVisible);
 
 	RequestUpdateAllLevels();
 }

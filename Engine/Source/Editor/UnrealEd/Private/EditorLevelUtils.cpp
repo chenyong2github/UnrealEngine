@@ -901,7 +901,7 @@ void UEditorLevelUtils::SetLevelVisibilityTemporarily(ULevel* Level, bool bShoul
 	}
 }
 
-void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible, bool bForceLayersVisible, ELevelVisibilityDirtyMode ModifyMode)
+void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldBeVisible, const bool bForceLayersVisible, const ELevelVisibilityDirtyMode ModifyMode)
 {
 	// Nothing to do
 	if (Level == NULL)
@@ -971,7 +971,6 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 		}
 
 		Level->GetWorld()->OnLevelsChanged().Broadcast();
-		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 	}
 	else
 	{
@@ -1096,17 +1095,12 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 
 	Level->bIsVisible = bShouldBeVisible;
 
-	FEditorDelegates::RefreshLayerBrowser.Broadcast();
-
-	// Notify the Scene Outliner, as new Actors may be present in the world.
-	GEngine->BroadcastLevelActorListChanged();
-
-	// If the level is being hidden, deselect actors and surfaces that belong to this level.
+	// If the level is being hidden, deselect actors and surfaces that belong to this level. (Part 1/2)
 	if (!bShouldBeVisible && ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
 	{
 		USelection* SelectedActors = GEditor->GetSelectedActors();
 		SelectedActors->Modify();
-		TArray<AActor*>& Actors = Level->Actors;
+		const TArray<AActor*>& Actors = Level->Actors;
 		for (int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex)
 		{
 			AActor* Actor = Actors[ActorIndex];
@@ -1116,15 +1110,81 @@ void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, bool bShouldBeVisible,
 			}
 		}
 
-		DeselectAllSurfacesInLevel(Level);
-
-		// Tell the editor selection status was changed.
-		GEditor->NoteSelectionChange();
+		UEditorLevelUtils::DeselectAllSurfacesInLevel(Level);
 	}
 
 	if (Level->bIsLightingScenario)
 	{
 		Level->OwningWorld->PropagateLightingScenarioChange();
+	}
+}
+
+void UEditorLevelUtils::SetLevelVisibility(ULevel* Level, const bool bShouldBeVisible, const bool bForceLayersVisible, const ELevelVisibilityDirtyMode ModifyMode)
+{
+	TArray<ULevel*> Levels({ Level });
+	TArray<bool> bTheyShouldBeVisible({ bShouldBeVisible });
+	SetLevelsVisibility(Levels, bTheyShouldBeVisible, bForceLayersVisible, ModifyMode);
+}
+
+void UEditorLevelUtils::SetLevelsVisibility(const TArray<ULevel*>& Levels, const TArray<bool>& bTheyShouldBeVisible, const bool bForceLayersVisible, const ELevelVisibilityDirtyMode ModifyMode)
+{
+	// Nothing to do
+	if (Levels.Num() == 0 || Levels.Num() != bTheyShouldBeVisible.Num())
+	{
+		return;
+	}
+
+	// Perform SetLevelVisibilityNoGlobalUpdateInternal for each Level
+	for (int32 LevelIndex = 0; LevelIndex < Levels.Num(); ++LevelIndex)
+	{
+		ULevel* Level = Levels[LevelIndex];
+		if (Level)
+		{
+			SetLevelVisibilityNoGlobalUpdateInternal(Level, bTheyShouldBeVisible[LevelIndex], bForceLayersVisible, ModifyMode);
+		}
+	}
+
+	// If at least 1 persistent level, then RedrawAllViewports.Broadcast
+	for (int32 LevelIndex = 0; LevelIndex < Levels.Num(); ++LevelIndex)
+	{
+		ULevel* Level = Levels[LevelIndex];
+		if (Level && Level->IsPersistentLevel())
+		{
+			FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+			break;
+		}
+	}
+
+	// If at least 1 level becomes visible, force layers to update their actor status
+	// Otherwise, changes made on the layers for actors belonging to a non-visible level would not work
+	if (GEditor->Layers.IsValid())
+	{
+		for (int32 LevelIndex = 0; LevelIndex < bTheyShouldBeVisible.Num(); ++LevelIndex)
+		{
+			if (bTheyShouldBeVisible[LevelIndex])
+			{
+				// Equivalent to GEditor->Layers->UpdateAllActorsVisibilityDefault();
+				FEditorDelegates::RefreshLayerBrowser.Broadcast();
+				break;
+			}
+		}
+	}
+
+	// Notify the Scene Outliner, as new Actors may be present in the world.
+	GEngine->BroadcastLevelActorListChanged();
+
+	// If the level is being hidden, deselect actors and surfaces that belong to this level. (Part 2/2)
+	if (ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
+	{
+		for (int32 LevelIndex = 0; LevelIndex < bTheyShouldBeVisible.Num(); ++LevelIndex)
+		{
+			if (!bTheyShouldBeVisible[LevelIndex])
+			{
+				// Tell the editor selection status was changed.
+				GEditor->NoteSelectionChange();
+				break;
+			}
+		}
 	}
 }
 
