@@ -37,6 +37,7 @@ struct FFileActivity
 	double EndTime = 0.0;
 	uint64 Offset = 0;
 	uint64 Size = 0;
+	uint32 ThreadId;
 	EFileActivityType ActivityType = FileActivityType_Invalid;
 	bool Failed = false;
 };

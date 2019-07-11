@@ -41,6 +41,7 @@ private:
 	{
 		uint64 ActivityIndex;
 		uint32 FileIndex;
+		uint32 ThreadId;
 	};
 
 	Trace::IAnalysisSession& Session;

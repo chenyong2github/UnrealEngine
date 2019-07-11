@@ -33,7 +33,7 @@ public:
 	virtual const ITable<FFileActivity>& GetFileActivityTable() const override;
 	uint32 GetFileIndex(const TCHAR* Path);
 	uint32 GetUnknownFileIndex();
-	uint64 BeginActivity(uint32 FileIndex, EFileActivityType Type, uint64 Offset, uint64 Size, double Time);
+	uint64 BeginActivity(uint32 FileIndex, EFileActivityType Type, uint32 ThreadId, uint64 Offset, uint64 Size, double Time);
 	void EndActivity(uint32 FileIndex, uint64 ActivityIndex, uint64 ActualSize, double Time, bool Failed);
 	const TCHAR* GetFilePath(uint32 FileIndex) const;
 
@@ -48,6 +48,7 @@ private:
 		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("File"), [](const FFileActivity& Row) { return Row.File ? Row.File->Path : TEXT("N/A"); })
 		UE_TRACE_TABLE_COLUMN(StartTime, TEXT("StartTime"))
 		UE_TRACE_TABLE_COLUMN(EndTime, TEXT("EndTime"))
+		UE_TRACE_TABLE_COLUMN(ThreadId, TEXT("ThreadId"))
 		UE_TRACE_TABLE_PROJECTED_COLUMN(TableColumnType_CString, TEXT("Type"), [](const FFileActivity& Row) { return GetFileActivityTypeString(Row.ActivityType); })
 		UE_TRACE_TABLE_COLUMN(Offset, TEXT("Offset"))
 		UE_TRACE_TABLE_COLUMN(Size, TEXT("Size"))

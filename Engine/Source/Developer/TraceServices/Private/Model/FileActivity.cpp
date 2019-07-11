@@ -48,7 +48,7 @@ uint32 FFileActivityProvider::GetUnknownFileIndex()
 	return GetFileIndex(TEXT("Unknown"));
 }
 
-uint64 FFileActivityProvider::BeginActivity(uint32 FileIndex, EFileActivityType Type, uint64 Offset, uint64 Size, double Time)
+uint64 FFileActivityProvider::BeginActivity(uint32 FileIndex, EFileActivityType Type, uint32 ThreadId, uint64 Offset, uint64 Size, double Time)
 {
 	FFileInfoInternal& FileInfo = Files[FileIndex];
 	FFileActivity& FileActivity = FileActivities.PushBack();
@@ -57,6 +57,7 @@ uint64 FFileActivityProvider::BeginActivity(uint32 FileIndex, EFileActivityType 
 	FileActivity.Size = Size;
 	FileActivity.StartTime = Time;
 	FileActivity.EndTime = std::numeric_limits<double>::infinity();
+	FileActivity.ThreadId = ThreadId;
 	FileActivity.Failed = false;
 	FileActivity.ActivityType = Type;
 	return FileInfo.ActivityTimeline->AppendBeginEvent(Time, &FileActivity);
