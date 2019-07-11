@@ -4,15 +4,38 @@
 
 #include "CoreMinimal.h"
 #include "Math/UnrealMath.h"
+#include "Misc/Optional.h"
 #include "Templates/Function.h"
 #include "Engine/EngineTypes.h"    // FHitResult
 
 // predeclarations
 class AActor;
-class UActorComponent;
+class UPrimitiveComponent;
 struct FMeshDescription;
 class UMaterialInterface;
 
+template <class MeshT>
+struct TMeshBridge
+{
+	using  FSource    = TFunction< MeshT*() >;
+	using  FCommitter = TFunction< void( MeshT* ) >;
+	using  FSink      = TFunction< void( const FCommitter& ) >;
+	using  FBuilder   = TFunction< TMeshBridge ( UPrimitiveComponent* ) >;
+
+	bool HasSource(){ return !!GetMesh; }
+	bool HasSink(){ return !!CommitMesh; }
+
+	FSource GetMesh{nullptr};
+	FSink   CommitMesh{nullptr};
+};
+using FMeshDescriptionBridge = TMeshBridge<FMeshDescription>;
+
+/**
+ * Add a factory method to make MeshDescriptionSources from UActorComponent*
+ * @param Builder The MeshDescriptionSourceBuilder
+ * @return void
+ */
+INTERACTIVETOOLSFRAMEWORK_API void AddMeshDescriptionBridgeBuilder( FMeshDescriptionBridge::FBuilder Builder );
 
 
 /**
@@ -20,36 +43,30 @@ class UMaterialInterface;
  * (optionally) bake a modified MeshDescription back to this Component.
  * An example of a Source might be a StaticMeshComponent. How a modified
  * MeshDescription is committed back is context-dependent (in Editor vs PIE vs Runtime, etc).
- * 
+ *
  * (Conceivably this doesn't have to be backed by a Component, but most usage will assume there is an Actor)
  */
-class IMeshDescriptionSource
+class INTERACTIVETOOLSFRAMEWORK_API FComponentTarget
 {
 public:
-	virtual ~IMeshDescriptionSource() {}
-
-	
 	/** @return the Actor that owns this Component */
-	virtual AActor* GetOwnerActor() const = 0;
+	AActor* GetOwnerActor() const;
 
 	/** @return the Component this is a Source for */
-	virtual UActorComponent* GetOwnerComponent() const = 0;
-
-	/** @return Pointer to the MeshDescription this Source is providing */
-	virtual FMeshDescription* GetMeshDescription() const = 0;
+	UPrimitiveComponent* GetOwnerComponent() const;
 
 	/**
 	 * Get pointer to a Material provided by this Source
 	 * @param MaterialIndex index of the material
 	 * @return MaterialInterface pointer, or null if MaterialIndex is invalid
 	 */
-	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const = 0;
+	UMaterialInterface* GetMaterial(int32 MaterialIndex) const;
 
-	/** 
+	/**
 	 * @return the transform on this component
 	 * @todo Do we need to return a list of transforms here?
 	 */
-	virtual FTransform GetWorldTransform() const = 0;
+	FTransform GetWorldTransform() const;
 
 	/**
 	 * Compute ray intersection with the MeshDescription this Source is providing
@@ -57,44 +74,23 @@ public:
 	 * @param OutHit hit test data
 	 * @return true if ray intersected Component
 	 */
-	virtual bool HitTest(const FRay& WorldRay, FHitResult& OutHit) const = 0;
+	bool HitTest(const FRay& WorldRay, FHitResult& OutHit) const;
 
 	/**
 	 * Set the visibility of the Component associated with this Source (ie to hide during Tool usage)
 	 * @param bVisible desired visibility
 	 */
-	virtual void SetOwnerVisibility(bool bVisible) const = 0;
+	void SetOwnerVisibility(bool bVisible) const;
 
-
-	/** @return true if this Source is read-only, ie Commit functions cannot be called */
-	virtual bool IsReadOnly() const { return true; }
-
-	/**
-	 * Call this to modify the MeshDescription provided by the Source. You provide a callback
-	 * function that the Source will immediately call with a suitable MeshDescription instance.
-	 * The Source will then update the Component as necessary. The Source is responsible for
-	 * making sure that it is safe to modify this MeshDescription instance.
-	 * @param ModifyFunction callback function that updates/modifies a MeshDescription
-	 */
-	virtual void CommitInPlaceModification(const TFunction<void(FMeshDescription*)>& ModifyFunction) { check(false); }
+	FMeshDescriptionBridge MeshDescriptionBridge{};
+	UPrimitiveComponent* Component{};
 };
 
-
-
-
-
-using MeshDescriptionSourceBuilder = TFunction<TUniquePtr<IMeshDescriptionSource>(UActorComponent*)>;
-
 /**
- * Add a factory method to make MeshDescriptionSources from UActorComponent*
- * @param Builder The MeshDescriptionSourceBuilder
- * @return void
+ * Create a TargetComponent for the given Component
+ * @param Component A UObject that we would like to use as tool target. This must presently descend from
+ * UPrimitiveComponent
+ * @return An FComponentTarget instance. Must not return null, though the MeshSource and MeshSink in it's MeshBridge may
+ * be
  */
-INTERACTIVETOOLSFRAMEWORK_API void AddMeshDescriptionSourceBuilder( MeshDescriptionSourceBuilder Builder );
-
-/**
- * Create a MeshDescription source for the given Component
- * @param Component A UObject that can provide a MeshDescription. Assumption is this is a Component of an Actor.
- * @return A MeshDescriptionSource instance. Must not return null.
- */
-INTERACTIVETOOLSFRAMEWORK_API TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UActorComponent* Component);
+INTERACTIVETOOLSFRAMEWORK_API FComponentTarget MakeComponentTarget(UPrimitiveComponent* Component);

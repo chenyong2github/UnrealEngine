@@ -29,22 +29,16 @@ UMeshSurfacePointTool* UMeshSurfacePointToolBuilder::CreateNewTool(const FToolBu
 
 void UMeshSurfacePointToolBuilder::InitializeNewTool(UMeshSurfacePointTool* NewTool, const FToolBuilderState& SceneState) const
 {
-	UActorComponent* MeshComponent = ToolBuilderUtil::FindFirstComponent(SceneState, ToolBuilderUtil::IsMeshDescriptionSourceComponent);
+	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, ToolBuilderUtil::IsMeshDescriptionSourceComponent);
+	UPrimitiveComponent* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
 	check(MeshComponent != nullptr);
-	NewTool->SetMeshSource( MakeMeshDescriptionSource(MeshComponent) );
+	NewTool->SetSelection( MakeComponentTarget(MeshComponent) );
 }
 
 
 /*
  * Tool
  */
-
-void UMeshSurfacePointTool::SetMeshSource(TUniquePtr<IMeshDescriptionSource> MeshSourceIn)
-{
-	this->MeshSource = TUniquePtr<IMeshDescriptionSource>(MoveTemp(MeshSourceIn));
-}
-
-
 void UMeshSurfacePointTool::Setup()
 {
 	UInteractiveTool::Setup();
@@ -64,7 +58,7 @@ void UMeshSurfacePointTool::Setup()
 
 bool UMeshSurfacePointTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
-	return MeshSource->HitTest(Ray, OutHit);
+	return ComponentTarget.HitTest(Ray, OutHit);
 }
 
 

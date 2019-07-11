@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InteractiveTool.h"
+#include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "InputBehaviorSet.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
@@ -47,7 +47,7 @@ public:
  * to implement custom behavior.
  */
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UMeshSurfacePointTool : public UInteractiveTool, public IHoverBehaviorTarget
+class INTERACTIVETOOLSFRAMEWORK_API UMeshSurfacePointTool : public USingleSelectionTool, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -59,14 +59,6 @@ public:
 
 
 	// UMeshSurfacePointTool API
-
-	/**
-	 * Set the Target MeshDescription-providing Object for this tool
-	 * @param MeshSource object that can provide a MeshDescriptionSource. Note UMeshSurfacePointTool
-	 *        only calls MeshSource->HitTest, so this source technically does not have to actually provide
-	 *        a valid MeshDescription
-	 */
-	virtual void SetMeshSource(TUniquePtr<IMeshDescriptionSource> MeshSource);
 
 	/**
 	 * @return true if the target MeshSource is hit by the Ray
@@ -104,9 +96,6 @@ public:
 
 
 protected:
-	/** Target source object that provides a MeshDescription and various other query API calls */
-	TUniquePtr<IMeshDescriptionSource> MeshSource;
-
 	/** Current state of the shift modifier toggle */
 	bool bShiftToggle;
 };

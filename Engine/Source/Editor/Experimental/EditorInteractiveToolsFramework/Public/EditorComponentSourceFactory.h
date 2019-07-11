@@ -5,38 +5,4 @@
 #include "CoreMinimal.h"
 #include "ComponentSourceInterfaces.h"
 
-
-
-
-class UStaticMeshComponent;
-
-/**
- * This MeshDescriptionSource provides a specific LOD from a StaticMeshComponent
- */
-class EDITORINTERACTIVETOOLSFRAMEWORK_API FStaticMeshComponentMeshDescriptionSource : public IMeshDescriptionSource
-{
-public:
-	UStaticMeshComponent* Component{nullptr};
-	int LODIndex{0};
-
-	FStaticMeshComponentMeshDescriptionSource(
-		UStaticMeshComponent* ComponentIn,
-		int LODIndex = 0);
-	virtual ~FStaticMeshComponentMeshDescriptionSource() {}
-
-	virtual AActor* GetOwnerActor() const override;
-	virtual UActorComponent* GetOwnerComponent() const override;
-	virtual FMeshDescription* GetMeshDescription() const override;
-	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	virtual FTransform GetWorldTransform() const override;
-	virtual bool HitTest(const FRay& WorldRay, FHitResult& OutHit) const override;
-
-	virtual bool IsReadOnly() const override;
-
-	virtual void SetOwnerVisibility(bool bVisible) const override;
-	virtual void CommitInPlaceModification(const TFunction<void(FMeshDescription*)>& ModifyFunction) override;
-};
-
-EDITORINTERACTIVETOOLSFRAMEWORK_API TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSourceForStaticMesh(UActorComponent* Component);
-
-
+EDITORINTERACTIVETOOLSFRAMEWORK_API FMeshDescriptionBridge MakeStaticMeshDescriptionBridge(UPrimitiveComponent* Component);

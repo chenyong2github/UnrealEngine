@@ -3,70 +3,20 @@
 #include "EditorComponentSourceFactory.h"
 
 #include "Engine/StaticMesh.h"
-#include "Components/ActorComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
 
 
-TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSourceForStaticMesh(UActorComponent* Component)
-{
-	UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Component);
-	if (StaticMeshComp != nullptr)
-	{
-		auto NewSource =
-			new FStaticMeshComponentMeshDescriptionSource(StaticMeshComp, 0);
-		return TUniquePtr<IMeshDescriptionSource>(NewSource);
-	}
-	return nullptr;
+namespace {
+FMeshDescription *
+GetMeshDescription(UStaticMeshComponent* Component, int LODIndex) {
+	return Component->GetStaticMesh()->GetMeshDescription(LODIndex);
 }
 
-
-FStaticMeshComponentMeshDescriptionSource::FStaticMeshComponentMeshDescriptionSource(
-	UStaticMeshComponent* ComponentIn, int LODIndex) : Component{ComponentIn}, LODIndex(LODIndex)
-{
-}
-
-AActor* FStaticMeshComponentMeshDescriptionSource::GetOwnerActor() const
-{
-	return Component->GetOwner();
-}
-
-UActorComponent* FStaticMeshComponentMeshDescriptionSource::GetOwnerComponent() const
-{
-	return Component;
-}
-
-
-void FStaticMeshComponentMeshDescriptionSource::SetOwnerVisibility(bool bVisible) const
-{
-	Component->SetVisibility(bVisible);
-}
-
-FMeshDescription* FStaticMeshComponentMeshDescriptionSource::GetMeshDescription() const
-{
-	return Component->GetStaticMesh()->GetMeshDescription(0);
-}
-
-UMaterialInterface* FStaticMeshComponentMeshDescriptionSource::GetMaterial(int32 MaterialIndex) const
-{
-	return Component->GetMaterial(MaterialIndex);
-}
-
-FTransform FStaticMeshComponentMeshDescriptionSource::GetWorldTransform() const
-{
-	//return Component->GetOwner()->GetActorTransform();
-	return Component->GetComponentTransform();
-}
-
-
-
-bool FStaticMeshComponentMeshDescriptionSource::IsReadOnly() const
-{
-	return false;
-}
-
-
-void FStaticMeshComponentMeshDescriptionSource::CommitInPlaceModification(const TFunction<void(FMeshDescription*)>& ModifyFunction) 
+void
+CommitInPlaceModification(UStaticMeshComponent* Component, int LODIndex,
+						  const TFunction<void(FMeshDescription*)>& ModifyFunction)
 {
 	//bool bSaved = Component->Modify();
 	//check(bSaved);
@@ -89,15 +39,25 @@ void FStaticMeshComponentMeshDescriptionSource::CommitInPlaceModification(const 
 
 	//Component->PostEditChange();
 }
+} // namespace
 
-
-bool FStaticMeshComponentMeshDescriptionSource::HitTest(const FRay& WorldRay, FHitResult& OutHit) const
+FMeshDescriptionBridge
+MakeStaticMeshDescriptionBridge(UPrimitiveComponent* Component)
 {
-	FVector End = WorldRay.PointAt(HALF_WORLD_MAX);
-	if (Component->LineTraceComponent(OutHit, WorldRay.Origin, End, FCollisionQueryParams(SCENE_QUERY_STAT(HitTest), true)))
+	const int LODIndex{0};
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+	if (StaticMeshComponent != nullptr)
 	{
-		return true;
+		return {
+			[StaticMeshComponent, LODIndex]()
+			{
+				return GetMeshDescription(StaticMeshComponent, LODIndex);
+			},
+			[StaticMeshComponent, LODIndex](const FMeshDescriptionBridge::FCommitter& Committer)
+			{
+				CommitInPlaceModification(StaticMeshComponent, LODIndex, Committer);
+			}
+		};
 	}
-
-	return false;
+	return FMeshDescriptionBridge{};
 }
