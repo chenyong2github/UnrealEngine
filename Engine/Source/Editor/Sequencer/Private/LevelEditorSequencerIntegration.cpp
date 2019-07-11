@@ -411,10 +411,9 @@ void FLevelEditorSequencerIntegration::OnSequencerEvaluated()
 	}
 
 	// Request a single real-time frame to be rendered to ensure that we tick the world and update the viewport
-	// ToDo: This attempts to redraw all viewports (blueprint windows, cascade particles, etc.) so it's not the most efficient
-	// but we can't just use GetLevelViewportClients() because of Actor Sequences. For now, we've disabled the realtime frames
-	// on the most expensive viewport (cascade).
- 	for (FEditorViewportClient* LevelVC : GEditor->GetAllViewportClients())
+	// We only do this on level viewports instead of GetAllViewportClients to avoid needlessly redrawing Cascade,
+	// Blueprint, and other editors that have a 3d viewport.
+	for (FEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
 		if (LevelVC && !LevelVC->IsRealtime())
 		{
