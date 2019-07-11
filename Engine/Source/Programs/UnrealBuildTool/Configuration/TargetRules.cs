@@ -541,7 +541,12 @@ namespace UnrealBuildTool
 		/// Whether to enable support for live coding
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bWithLiveCoding = false;
+		public bool bWithLiveCoding
+		{
+			get { return bWithLiveCodingPrivate ?? (Platform == UnrealTargetPlatform.Win64 && Configuration != UnrealTargetConfiguration.Shipping && Type != TargetType.Program); }
+			set { bWithLiveCodingPrivate = value; }
+		}
+		bool? bWithLiveCodingPrivate;
 
 		/// <summary>
 		/// Whether to enable support for live coding
@@ -1291,7 +1296,7 @@ namespace UnrealBuildTool
 		/// Windows-specific target settings.
 		/// </summary>
 		[ConfigSubObject]
-		public WindowsTargetRules WindowsPlatform = new WindowsTargetRules();
+		public WindowsTargetRules WindowsPlatform; // Requires 'this' parameter; initialized in constructor
 
 		/// <summary>
 		/// Xbox One-specific target settings.
@@ -1316,6 +1321,7 @@ namespace UnrealBuildTool
 			this.Architecture = Target.Architecture;
 			this.ProjectFile = Target.ProjectFile;
 			this.Version = Target.Version;
+			this.WindowsPlatform = new WindowsTargetRules(this);
 
 			// Read settings from config files
 			foreach(object ConfigurableObject in GetConfigurableObjects())
