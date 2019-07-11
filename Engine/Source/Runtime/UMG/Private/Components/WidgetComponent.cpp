@@ -297,7 +297,7 @@ public:
 	{
 		bWillEverBeLit = false;
 
-		MaterialRelevance = MaterialInstance->GetRelevance(GetScene().GetFeatureLevel());
+		MaterialRelevance = MaterialInstance->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
 	}
 
 	// FPrimitiveSceneProxy interface.
