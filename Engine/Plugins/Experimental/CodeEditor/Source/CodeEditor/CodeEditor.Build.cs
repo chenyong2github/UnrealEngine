@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"DirectoryWatcher",
 					"LevelEditor",
+					"Engine",
 					"EditorMenus",
 				}
 				);
