@@ -338,7 +338,10 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		FDelegateHandle OnBlueprintPreCompileHandle = GEditor->OnBlueprintPreCompile().AddLambda([&](UBlueprint* InBlueprint)
 		{
 			// Restore pre animate state since objects will be reinstanced and current cached state will no longer be valid.
-			RestorePreAnimatedState();
+			if (InBlueprint)
+			{
+				RestorePreAnimatedState(InBlueprint->GeneratedClass.Get());
+			}
 		});
 		AcquiredResources.Add([=] { GEditor->OnBlueprintPreCompile().Remove(OnBlueprintPreCompileHandle); });
 
