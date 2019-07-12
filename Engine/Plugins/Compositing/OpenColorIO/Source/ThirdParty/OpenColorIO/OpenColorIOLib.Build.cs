@@ -34,9 +34,6 @@ public class OpenColorIOLib : ModuleRules
 				PublicDefinitions.Add("OCIO_PLATFORM_PATH=Binaries/ThirdParty/" + PlatformDir);
 				PublicDefinitions.Add("OCIO_DLL_NAME=" + DLLName);
 
-				//The header file OpenColorIOABI.h that is generated depends on this definition.
-				PublicDefinitions.Add("__GNUC__=0");
-
 				bIsPlatformAdded = true;
 			}
 		}
