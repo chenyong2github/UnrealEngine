@@ -7290,7 +7290,7 @@ void FSlateApplication::ProcessApplicationActivationEvent(bool InAppActivated)
 		// If we have a slate-only drag-drop occurring, stop the drag drop.
 		if (IsDragDropping() && !DragDropContent->IsExternalOperation())
 		{
-			ResetDragDropState();
+			CancelDragDrop();
 		}
 
 		// Clear the pressed buttons when we deactivate the application, the button state can no longer be trusted.
