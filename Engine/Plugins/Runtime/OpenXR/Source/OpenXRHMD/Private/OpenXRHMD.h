@@ -96,6 +96,8 @@ protected:
 	/** FXRTrackingSystemBase protected interface */
 	virtual float GetWorldToMetersScale() const override;
 
+	bool AllocateDepthSwapChain(uint32 Index, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples);
+
 public:
 	/** IHeadMountedDisplay interface */
 	virtual bool IsHMDConnected() override { return true; }
@@ -140,6 +142,9 @@ public:
 	/** IStereoRenderTargetManager */
 	virtual bool ShouldUseSeparateRenderTarget() const override { return true; }
 	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
+	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override final { return false; }
+	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override final;
+
 	virtual FXRRenderBridge* GetActiveRenderBridge_GameThread(bool bUseSeparateRenderTarget) override;
 
 	/** IStereoRenderTargetManager */
@@ -161,6 +166,7 @@ public:
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 
 	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
+	FXRSwapChain* GetDepthSwapchain() { return DepthSwapChain.Get(); }
 	XrInstance GetInstance() { return Instance; }
 	XrSystemId GetSystem() { return System; }
 	XrSession GetSession() { return Session; }
@@ -189,6 +195,7 @@ private:
 	TArray<XrViewConfigurationView> Configs;
 	TArray<XrView>			Views;
 	TArray<XrCompositionLayerProjectionView> ViewsRHI;
+	TArray<XrCompositionLayerDepthInfoKHR> DepthLayersRHI;
 #if 0
 	TArray<FHMDViewMesh>	HiddenAreaMeshes;
 #endif
@@ -197,4 +204,5 @@ private:
 	IRendererModule*		RendererModule;
 
 	FXRSwapChainPtr			Swapchain;
+	FXRSwapChainPtr			DepthSwapChain;
 };
