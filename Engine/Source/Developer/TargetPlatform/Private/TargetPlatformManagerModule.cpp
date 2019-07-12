@@ -653,7 +653,7 @@ protected:
 			// only need to instantiate the current platform 
 			if (IsRunningGame())
 			{
-				if (PlatInfo.IniPlatformName == FPlatformProperties::IniPlatformName())
+				if (PlatInfo.IniPlatformName != FPlatformProperties::IniPlatformName())
 				{
 					bLoadTargetPlatform = false;
 				}
