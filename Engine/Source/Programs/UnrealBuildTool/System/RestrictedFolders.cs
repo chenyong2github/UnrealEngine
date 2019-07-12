@@ -171,26 +171,6 @@ namespace UnrealBuildTool
 		/// Epic Employees only
 		/// </summary>
 		public static RestrictedFolder NoRedist = FindOrAddByName("NoRedist");
-
-		/// <summary>
-		/// Playstation 4 source files
-		/// </summary>
-		public static RestrictedFolder PS4 = FindOrAddByName("PS4");
-
-		/// <summary>
-		/// XboxOne source files
-		/// </summary>
-		public static RestrictedFolder XboxOne = FindOrAddByName("XboxOne");
-
-		/// <summary>
-		/// Switch source files
-		/// </summary>
-		public static RestrictedFolder Switch = FindOrAddByName("Switch");
-
-		/// <summary>
-		/// Quail source files
-		/// </summary>
-		public static RestrictedFolder Quail = FindOrAddByName("Quail");
 	}
 
 	/// <summary>
