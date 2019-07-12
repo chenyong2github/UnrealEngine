@@ -1236,7 +1236,7 @@ UEditorMenu* UEditorMenuSubsystem::GenerateMenuAsBuilder(const UEditorMenu* InMe
 	return GenerateMenu(Hierarchy, InMenuContext);
 }
 
-UEditorMenu* UEditorMenuSubsystem::RegisterMenu(const FName InName, const FName InParent, EMultiBoxType InType)
+UEditorMenu* UEditorMenuSubsystem::RegisterMenu(const FName InName, const FName InParent, EMultiBoxType InType, bool bWarnIfAlreadyRegistered)
 {
 	if (UEditorMenu* Found = FindMenu(InName))
 	{
@@ -1247,7 +1247,7 @@ UEditorMenu* UEditorMenuSubsystem::RegisterMenu(const FName InName, const FName 
 			Found->MenuOwner = CurrentOwner();
 			Found->bRegistered = true;
 		}
-		else
+		else if (bWarnIfAlreadyRegistered)
 		{
 			UE_LOG(LogEditorMenus, Warning, TEXT("Menu already registered : %s"), *InName.ToString());
 		}

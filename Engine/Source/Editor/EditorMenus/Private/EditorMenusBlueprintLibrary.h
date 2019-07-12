@@ -7,6 +7,7 @@
 #include "EditorMenuDelegates.h"
 #include "EditorMenuEntry.h"
 #include "EditorMenuSection.h"
+#include "EditorMenuMisc.h"
 #include "Misc/Attribute.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
@@ -31,6 +32,12 @@ class EDITORMENUS_API UEditorMenuEntryExtensions : public UBlueprintFunctionLibr
 public:
 
 	UFUNCTION(BlueprintPure, Category = "Editor UI", meta = (Keywords = "construct build", NativeMakeFunc))
+	static FEditorMenuStringCommand MakeStringCommand(EEditorMenuStringCommandType Type, FName CustomType, const FString& String);
+
+	UFUNCTION(BlueprintPure, Category = "Editor UI", meta = (NativeBreakFunc))
+	static void BreakStringCommand(const FEditorMenuStringCommand& InValue, EEditorMenuStringCommandType& Type, FName& CustomType, FString& String);
+
+	UFUNCTION(BlueprintPure, Category = "Editor UI", meta = (Keywords = "construct build", NativeMakeFunc))
 	static FEditorMenuOwner MakeEditorMenuOwner(FName Name);
 
 	UFUNCTION(BlueprintPure, Category = "Editor UI", meta = (NativeBreakFunc))
@@ -52,10 +59,10 @@ public:
 	static void SetIcon(UPARAM(ref) FEditorMenuEntry& Target, const FName StyleSetName, const FName StyleName = NAME_None, const FName SmallStyleName = NAME_None);
 
 	UFUNCTION(BlueprintCallable, Category = "Editor UI", meta = (ScriptMethod))
-	static void SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const EEditorMenuStringCommandType Type, const FString& String, const FName CustomType = NAME_None);
+	static void SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const EEditorMenuStringCommandType Type, const FName CustomType, const FString& String);
 
 	UFUNCTION(BlueprintCallable, Category = "Editor UI")
-	static FEditorMenuEntry InitMenuEntry(const FName InOwner, const FName InName, const FText& InLabel, const FText& InToolTip, const FEditorMenuStringCommand& StringCommand);
+	static FEditorMenuEntry InitMenuEntry(const FName InOwner, const FName InName, const FText& InLabel, const FText& InToolTip, const EEditorMenuStringCommandType CommandType, const FName CustomCommandType, const FString& CommandString);
 };
 
 UCLASS()

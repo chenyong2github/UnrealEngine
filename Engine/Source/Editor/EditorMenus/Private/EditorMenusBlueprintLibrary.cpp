@@ -3,6 +3,18 @@
 
 #include "EditorMenusBlueprintLibrary.h"
 
+FEditorMenuStringCommand UEditorMenuEntryExtensions::MakeStringCommand(EEditorMenuStringCommandType Type, FName CustomType, const FString& String)
+{
+	return FEditorMenuStringCommand(Type, CustomType, String);
+}
+
+void UEditorMenuEntryExtensions::BreakStringCommand(const FEditorMenuStringCommand& InValue, EEditorMenuStringCommandType& Type, FName& CustomType, FString& String)
+{
+	Type = InValue.Type;
+	CustomType = InValue.CustomType;
+	String = InValue.String;
+}
+
 FEditorMenuOwner UEditorMenuEntryExtensions::MakeEditorMenuOwner(FName Name)
 {
 	return FEditorMenuOwner(Name);
@@ -53,7 +65,7 @@ void UEditorMenuEntryExtensions::SetIcon(UPARAM(ref) FEditorMenuEntry& Target, c
 	Target.Icon = FSlateIcon(StyleSetName, StyleName, SmallStyleName);
 }
 
-void UEditorMenuEntryExtensions::SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const EEditorMenuStringCommandType Type, const FString& String, const FName CustomType)
+void UEditorMenuEntryExtensions::SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const EEditorMenuStringCommandType Type, const FName CustomType, const FString& String)
 {
 	Target.ResetActions();
 	Target.StringExecuteAction.Type = Type;
@@ -61,12 +73,12 @@ void UEditorMenuEntryExtensions::SetStringCommand(UPARAM(ref) FEditorMenuEntry& 
 	Target.StringExecuteAction.String = String;
 }
 
-FEditorMenuEntry UEditorMenuEntryExtensions::InitMenuEntry(const FName InOwner, const FName InName, const FText& InLabel, const FText& InToolTip, const FEditorMenuStringCommand& StringCommand)
+FEditorMenuEntry UEditorMenuEntryExtensions::InitMenuEntry(const FName InOwner, const FName InName, const FText& InLabel, const FText& InToolTip, const EEditorMenuStringCommandType CommandType, const FName CustomCommandType, const FString& CommandString)
 {
 	FEditorMenuEntry Entry(InOwner, InName, EMultiBlockType::MenuEntry);
 	Entry.Label = InLabel;
 	Entry.ToolTip = InToolTip;
-	Entry.StringExecuteAction = StringCommand;
+	Entry.StringExecuteAction = FEditorMenuStringCommand(CommandType, CustomCommandType, CommandString);
 	return Entry;
 }
 

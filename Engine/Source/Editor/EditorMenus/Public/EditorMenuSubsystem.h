@@ -134,10 +134,11 @@ public:
 	 * Registers a menu by name
 	 * @param	Parent	Optional name of a menu to layer on top of.
 	 * @param	Type	Type of menu that will be generated such as: ToolBar, VerticalToolBar, etc..
+	 * @param	bWarnIfAlreadyRegistered	Display warning if already registered
 	 * @return	EditorMenu	Menu object
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor UI")
-	UEditorMenu* RegisterMenu(FName Name, const FName Parent = NAME_None, EMultiBoxType Type = EMultiBoxType::Menu);
+	UEditorMenu* RegisterMenu(FName Name, const FName Parent = NAME_None, EMultiBoxType Type = EMultiBoxType::Menu, bool bWarnIfAlreadyRegistered = true);
 
 	/**
 	 * Extends a menu without registering the menu or claiming ownership of it. Ok to call even if menu does not exist yet.

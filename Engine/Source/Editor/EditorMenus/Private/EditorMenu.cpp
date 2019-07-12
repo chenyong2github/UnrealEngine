@@ -157,6 +157,11 @@ void UEditorMenu::AddMenuEntryObject(UEditorMenuEntryScript* InObject)
 	FindOrAddSection(InObject->Data.Section).AddEntryObject(InObject);
 }
 
+UEditorMenu* UEditorMenu::AddSubMenuScript(const FName InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)
+{
+	return AddSubMenu(InOwner, SectionName, InName, InLabel, InToolTip);
+}
+
 UEditorMenu* UEditorMenu::AddSubMenu(const FEditorMenuOwner InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)
 {
 	FEditorMenuEntry Args = FEditorMenuEntry::InitSubMenu(MenuName, InName, InLabel, InToolTip, FNewEditorMenuChoice());

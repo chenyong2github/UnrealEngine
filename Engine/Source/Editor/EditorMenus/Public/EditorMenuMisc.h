@@ -17,10 +17,19 @@ enum class EEditorMenuStringCommandType : uint8
 	Custom
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta=(HasNativeBreak="EditorMenus.EditorMenuEntryExtensions.BreakStringCommand", HasNativeMake="EditorMenus.EditorMenuEntryExtensions.MakeStringCommand"))
 struct EDITORMENUS_API FEditorMenuStringCommand
 {
 	GENERATED_BODY()
+
+	FEditorMenuStringCommand() : Type(EEditorMenuStringCommandType::Command) {}
+
+	FEditorMenuStringCommand(EEditorMenuStringCommandType InType, FName InCustomType, const FString& InString) :
+		Type(InType),
+		CustomType(InCustomType),
+		String(InString)
+	{
+	}
 
 	// Which command handler to use
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")

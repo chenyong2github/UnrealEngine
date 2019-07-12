@@ -37,7 +37,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor UI")
 	void AddMenuEntryObject(UEditorMenuEntryScript* InObject);
 
-	UFUNCTION(BlueprintCallable, Category = "Editor UI", meta = ( AutoCreateRefTerm = "Label,ToolTip" ))
+	UFUNCTION(BlueprintCallable, Category = "Editor UI", meta = ( ScriptName = "AddSubMenu", AutoCreateRefTerm = "Label,ToolTip" ))
+	UEditorMenu* AddSubMenuScript(const FName Owner, const FName SectionName, const FName Name, const FText& Label, const FText& ToolTip = FText());
+
 	UEditorMenu* AddSubMenu(const FEditorMenuOwner Owner, const FName SectionName, const FName Name, const FText& Label, const FText& ToolTip = FText());
 
 	void RemoveSection(const FName SectionName);
