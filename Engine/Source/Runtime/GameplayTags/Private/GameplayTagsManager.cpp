@@ -118,11 +118,14 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 
 	if (!bIsConstructingGameplayTagTree)
 	{
-		AddTagsFromAdditionalLooseIniFiles(FilesInDirectory);
-
-		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 #if WITH_EDITOR
 		EditorRefreshGameplayTagTree();
+#else
+		AddTagsFromAdditionalLooseIniFiles(FilesInDirectory);
+
+		ConstructNetIndex();
+
+		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 #endif
 	}
 }
