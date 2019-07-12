@@ -90,6 +90,15 @@ static TAutoConsoleVariable<int32> CVarRayTracingReflectionsSortMaterials(
 	TEXT("1: Enabled, using Trace->Sort->Trace\n"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRayTracingReflectionsHybrid(
+	TEXT("r.RayTracing.Reflections.Hybrid"),
+	0,
+	TEXT("Sets whether screen space reflections should be used when possible (experimental).\n")
+	TEXT("Forces material sorting and single ray bounce.\n")
+	TEXT("0: Disabled (Default)\n ")
+	TEXT("1: Enabled\n"),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarRayTracingReflectionsSortTileSize(
 	TEXT("r.RayTracing.Reflections.SortTileSize"),
 	64,
@@ -140,8 +149,9 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 	class FDenoiserOutput : SHADER_PERMUTATION_BOOL("DIM_DENOISER_OUTPUT");
 
 	class FDeferredMaterialMode : SHADER_PERMUTATION_ENUM_CLASS("DIM_DEFERRED_MATERIAL_MODE", EDeferredMaterialMode);
+	class FHybrid : SHADER_PERMUTATION_BOOL("DIM_HYBRID");
 
-	using FPermutationDomain = TShaderPermutationDomain<FDenoiserOutput, FDeferredMaterialMode>;
+	using FPermutationDomain = TShaderPermutationDomain<FDenoiserOutput, FDeferredMaterialMode, FHybrid>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, SamplesPerPixel)
@@ -164,6 +174,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(int32, MaxUnderCoatBounces)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -196,16 +207,34 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
-	const bool bSortMaterials = CVarRayTracingReflectionsSortMaterials.GetValueOnRenderThread() != 0;
+	const bool bHybridReflections = CVarRayTracingReflectionsHybrid.GetValueOnRenderThread() != 0;
+	const bool bSortMaterials = bHybridReflections || CVarRayTracingReflectionsSortMaterials.GetValueOnRenderThread() != 0;
 
-	const EDeferredMaterialMode DeferredMaterialMode = bSortMaterials ? EDeferredMaterialMode::Shade : EDeferredMaterialMode::None;
-
-	FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(DeferredMaterialMode);
-
-	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
-
-	OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+	if (bSortMaterials)
+	{
+		{
+			FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
+			PermutationVector.Set<FRayTracingReflectionsRGS::FHybrid>(bHybridReflections);
+			auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
+			OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+		}
+		
+		{
+			FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Shade);
+			PermutationVector.Set<FRayTracingReflectionsRGS::FHybrid>(bHybridReflections);
+			auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
+			OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+		}
+	}
+	else
+	{
+		FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::None);
+		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
+		OutRayGenShaders.Add(RayGenShader->GetRayTracingShader());
+	}
 }
 
 #endif // RHI_RAYTRACING
@@ -221,7 +250,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 #if RHI_RAYTRACING
 {
 	const uint32 SortTileSize = CVarRayTracingReflectionsSortTileSize.GetValueOnRenderThread();
-	const bool bSortMaterials = CVarRayTracingReflectionsSortMaterials.GetValueOnRenderThread() != 0;
+
+	const bool bHybridReflections = CVarRayTracingReflectionsHybrid.GetValueOnRenderThread() != 0;
+	const bool bSortMaterials = bHybridReflections || CVarRayTracingReflectionsSortMaterials.GetValueOnRenderThread() != 0;
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
@@ -295,6 +326,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.SceneTextures = SceneTextures;
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 
+	// Hybrid reflection path samples lit scene color texture instead of performing a ray trace.
+	CommonParameters.SceneColor = GraphBuilder.RegisterExternalTexture(bHybridReflections ? SceneContext.GetSceneColor() : GSystemTextures.BlackDummy);
+
 	CommonParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.FogUniformParameters = CreateFogUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.ColorOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
@@ -324,6 +358,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 
 		FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(DeferredMaterialMode);
+		PermutationVector.Set<FRayTracingReflectionsRGS::FHybrid>(bHybridReflections);
 
 		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
 		ClearUnusedGraphResources(RayGenShader, PassParameters);

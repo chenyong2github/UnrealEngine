@@ -13,6 +13,13 @@
 	#define DIM_DEFERRED_MATERIAL_MODE DEFERRED_MATERIAL_MODE_NONE
 #endif
 
+#ifndef DIM_HYBRID
+	#define DIM_HYBRID 0
+#endif
+
+// Reserved material sorting key for rays that can fetch screen-space data instead of tracing rays in the shading pass.
+#define RAY_TRACING_DEFERRED_MATERIAL_KEY_SCREEN_SPACE 0x80000000
+
 #include "../Common.ush"
 
 #define SUPPORT_CONTACT_SHADOWS		0
@@ -88,6 +95,9 @@ float ReflectionMaxRoughness;
 float ReflectionMaxNormalBias;
 
 RaytracingAccelerationStructure TLAS;
+
+// Scene color texture is used for hybrid RT/SS reflection path (DIM_HYBRID=1). Set to dummy black texture otherwise.
+Texture2D SceneColor;
 
 RWTexture2D<float4> ColorOutput;
 RWTexture2D<float> RayHitDistanceOutput;
@@ -202,7 +212,9 @@ void RayTracingReflectionsRGS()
 	// * Roughness value
 	// * Hair material is not for RT reflection at the moment. Their indirect contributuion is based on diffuse SH evaluation in ReflectionEnvironemenPixelShader.usf
     const bool bIsValidPixel = (RoughnessFade > 0 || ClearCoatRoughnessFade > 0) && GBufferData.ShadingModelID != SHADINGMODELID_HAIR;
-	   
+
+    const uint LocalMaxBounces = DIM_HYBRID ? 1 : MaxBounces;
+
 	if (bIsValidPixel)
 	{
 		for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
@@ -257,7 +269,7 @@ void RayTracingReflectionsRGS()
 			uint BounceIndex = 0;
 			RayDesc TopLayerRay;
 			bool bSkyWasHit = false;
-			for (; BounceIndex < MaxBounces; ++BounceIndex)
+			for (; BounceIndex < LocalMaxBounces; ++BounceIndex)
 			{
 				// Composite pass applies BRDF, except
 				bool bApplyBRDF = BounceIndex != 0;
@@ -308,6 +320,28 @@ void RayTracingReflectionsRGS()
 							DeferredMaterialPayload
 						);
 
+						if (DIM_HYBRID && DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
+						{
+							float3 RayHitWorldPos = TopLayerRay.Origin + TopLayerRay.Direction * DeferredMaterialPayload.HitT;
+							float4 RayHitClipPos = mul(float4(RayHitWorldPos, 1), View.WorldToClip);
+
+							if (RayHitClipPos.w > 0)
+							{
+								float2 RayHitScreenPos = RayHitClipPos.xy / RayHitClipPos.w;
+								if (all(abs(RayHitScreenPos) < float2(1, 1)))
+								{
+									float2 RayHitUV = RayHitScreenPos * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+									float GBufferHitDepth  = ConvertFromDeviceZ(SceneDepthBuffer.SampleLevel(GlobalPointClampedSampler, RayHitUV, 0).r);
+									float RayHitDepth = RayHitClipPos.w;
+									float ScreenSpaceReflectionDepthDeltaThreshold = 5.0; // Arbitrary threshold
+									if (RayHitDepth - GBufferHitDepth < ScreenSpaceReflectionDepthDeltaThreshold)
+									{
+										DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_SCREEN_SPACE;
+									}
+								}
+							}
+						}
+
 						break; // nothing else to do during gather pass, so exit the loop
 					}
 					else if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE)
@@ -330,9 +364,42 @@ void RayTracingReflectionsRGS()
 
 				// Trace the top layer reflection
 				float3 TopLayerRadiance = float3(0, 0, 0);
-				FMaterialClosestHitPayload Payload;
-				const uint RayFlags = 0;					
-				Payload = TraceRayAndAccumulateResults(TopLayerRay, TLAS, RandSequence, RayFlags, ReflectionMaxNormalBias, RAY_TRACING_MASK_OPAQUE, ReflectedShadowsType, ShouldDoDirectLighting, ShouldDoEmissiveAndIndirectLighting, RayCone, TopLayerRadiance);
+				FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
+				const uint RayFlags = 0;
+
+				if (DIM_HYBRID && DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_SHADE 
+					&& DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_SCREEN_SPACE)
+				{
+					float3 RayHitWorldPos = TopLayerRay.Origin + TopLayerRay.Direction * DeferredMaterialPayload.HitT;
+					float4 RayHitClipPos = mul(float4(RayHitWorldPos, 1), View.WorldToClip);
+					float2 RayHitScreenPos = RayHitClipPos.xy / RayHitClipPos.w;
+					float2 RayHitUV = RayHitScreenPos * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+
+					// Supporting sorted multi-bounce reflections is possible in the future, but requires full GBuffer lookup and decode into Payload format:
+					//   FScreenSpaceData HitScreenSpaceData = GetScreenSpaceData(RayHitUV);
+					//   Payload = MaterialPayloadFromScreenSpaceData(HitScreenSpaceData);
+
+					Payload.WorldPos = RayHitWorldPos;
+					Payload.HitT = DeferredMaterialPayload.HitT;
+
+					TopLayerRadiance += SceneColor.SampleLevel(GlobalPointClampedSampler, RayHitUV, 0) / View.PreExposure;
+				}
+				else
+				{
+					Payload = TraceRayAndAccumulateResults(
+						TopLayerRay,
+						TLAS,
+						RandSequence,
+						RayFlags,
+						ReflectionMaxNormalBias,
+						RAY_TRACING_MASK_OPAQUE,
+						ReflectedShadowsType,
+						ShouldDoDirectLighting,
+						ShouldDoEmissiveAndIndirectLighting,
+						RayCone,
+						TopLayerRadiance);
+				}
+
 				bool isTopLayerRayValid = Payload.IsHit() || (bAllowSkySampling && ReflectionStruct.SkyLightParameters.y > 0);
 
 
@@ -548,7 +615,7 @@ void RayTracingReflectionsRGS()
 			
 			if (bIsValidSample)
 			{
-				bNeedsCapture |= BounceIndex == MaxBounces && !(bSkyWasHit || HitDistance < 0.0f);
+				bNeedsCapture |= BounceIndex == LocalMaxBounces && !(bSkyWasHit || HitDistance < 0.0f);
 				if (UseReflectionCaptures && bNeedsCapture)
 				{
 					// We have reached the end of the bounce count on a surface. 
