@@ -4,3 +4,5 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformInstallBundleManager.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogInstallBundleManager, Log, All);

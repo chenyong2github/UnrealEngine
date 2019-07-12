@@ -2,3 +2,4 @@
 #include "InstallBundleManagerModule.h"
 
 IMPLEMENT_MODULE(FInstallBundleManagerModule, InstallBundleManager);
+DEFINE_LOG_CATEGORY(LogInstallBundleManager);
