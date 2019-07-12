@@ -339,7 +339,7 @@ void SBlueprintMerge::OnStartMerge()
 		{
 			UBlueprint* LocalBlueprint = GetTargetBlueprint();
 			// we use this to suppress blueprint compilation during StaticDuplicateObject()
-			TGuardValue<bool> GuardDuplicatingReadOnly(LocalBlueprint->bDuplicatingReadOnly, true);
+			FGuardValue_Bitfield(LocalBlueprint->bDuplicatingReadOnly, true);
 
 			UPackage* TransientPackage = GetTransientPackage();
 			Data.BlueprintLocal = Cast<const UBlueprint>(StaticDuplicateObject(LocalBlueprint, TransientPackage,

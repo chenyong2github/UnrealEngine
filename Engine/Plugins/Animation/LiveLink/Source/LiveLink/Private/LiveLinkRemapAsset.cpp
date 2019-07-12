@@ -10,15 +10,18 @@
 ULiveLinkRemapAsset::ULiveLinkRemapAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITOR
 	UBlueprint* Blueprint = Cast<UBlueprint>(GetClass()->ClassGeneratedBy);
 	if (Blueprint)
 	{
 		OnBlueprintCompiledDelegate = Blueprint->OnCompiled().AddUObject(this, &ULiveLinkRemapAsset::OnBlueprintClassCompiled);
 	}
+#endif
 }
 
 void ULiveLinkRemapAsset::BeginDestroy()
 {
+#if WITH_EDITOR
 	if (OnBlueprintCompiledDelegate.IsValid())
 	{
 		UBlueprint* Blueprint = Cast<UBlueprint>(GetClass()->ClassGeneratedBy);
@@ -26,6 +29,7 @@ void ULiveLinkRemapAsset::BeginDestroy()
 		Blueprint->OnCompiled().Remove(OnBlueprintCompiledDelegate);
 		OnBlueprintCompiledDelegate.Reset();
 	}
+#endif
 
 	Super::BeginDestroy();
 }
