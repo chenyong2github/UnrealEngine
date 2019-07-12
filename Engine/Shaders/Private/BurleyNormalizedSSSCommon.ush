@@ -1,0 +1,165 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=========================================================================
+	BurleyNormalizedSSSCommon.ush: Burley common functions.
+=========================================================================*/
+#pragma once
+
+#include "SubsurfaceProfileCommon.ush"
+
+#define BURLEY_MM_2_CM		0.1f
+#define BURLEY_CM_2_MM      10.0f
+
+//------------------------------------------------------------------------------------------
+// Consistent in BurleyNormalizedSSSCommon.ush and SubsurfaceProfile.cpp
+
+#define SSS_TYPE_SSSS		1.0f
+#define SSS_TYPE_BURLEY	    0.0f
+
+//make sure UIMax|ClampMax of WorldScale * ENC_WORLDSCALE_TO_UNIT <= 1
+#define ENC_WORLDSCALE_IN_CM_TO_UNIT 0.02f
+#define DEC_UNIT_TO_WORLDSCALE_IN_CM 1/ENC_WORLDSCALE_IN_CM_TO_UNIT
+
+//make sure UIMax|ClampMax of DiffuseMeanFreePath * ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT <= 1
+#define ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT 0.01f
+#define DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM 1/ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT
+//------------------------------------------------------------------------------------------
+
+float DecodeWorldScale(float EncodedWorldScale)
+{
+	return EncodedWorldScale * DEC_UNIT_TO_WORLDSCALE_IN_CM;
+}
+
+float4 DecodeDiffuseMeanFreePath(float4 EncodedDiffuseMeanFreePath)
+{
+	return EncodedDiffuseMeanFreePath * DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM;
+}
+
+bool GetSubsurfaceTransmittanceProfileUseBurley(uint SubsurfaceProfileInt)
+{
+	// 0..255, which SubSurface profile to pick
+	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
+
+	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
+}
+
+bool GetSubsurfaceProfileUseBurley(uint SubsurfaceProfileInt)
+{
+	// 0..255, which SubSurface profile to pick
+	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
+
+	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
+}
+
+inline float3 Burley_Profile(float Radius, float3 Albedo, float3 S3D, float L)
+{   //R(r)r
+	float3 D = 1 / S3D;
+	float R = Radius / L;
+	const float Inv8Pi = 1.0 / (8 * PI);
+	float3 NegRbyD = -R / D;
+	return Albedo * max((exp(NegRbyD) + exp(NegRbyD / 3.0)) / (D*L)*Inv8Pi, 0);
+}
+
+//Diffuse profile basic formula
+//    D : shapes the height and width of the profile curve.
+//	  Radius : the distance between the entering surface point and the exit surface point.
+//Assume: r and d >0
+float GetDiffuseReflectProfile(float D, float Radius)
+{
+	//The diffuse reflectance profile:
+	//R(d,r) = \frac{e^{-r/d}+e^{-r/(3d)}}{8*pi*d*r}
+	const float Inv8Pi = 1.0 / (8 * PI);
+	float NegRbyD = -Radius / D;
+	return (exp(NegRbyD) + exp(NegRbyD / 3.0)) / (D*Radius)*Inv8Pi;
+}
+
+float3 GetDiffuseReflectProfileWithDiffuseMeanFreePath(float3 SurfaceAlbedo, float3 L, float3 S3D, float Radius)
+{
+	//rR(r)
+	float3 D = 1 / S3D;
+	float3 R = Radius / L;
+	const float Inv8Pi = 1.0 / (8 * PI);
+	float3 NegRbyD = -R / D;
+	return SurfaceAlbedo * max((exp(NegRbyD) + exp(NegRbyD / 3.0)) / (D*L)*Inv8Pi, 0);
+}
+
+float GetComponentForScalingFactorEstimation(float4 SurfaceAlbedo)
+{
+	return SurfaceAlbedo.a;
+}
+
+float GetDiffuseMeanFreePathForSampling(float4 DiffuseMeanFreePath)
+{
+	return DiffuseMeanFreePath.a;
+}
+
+//-------------------------------------------------------------------------
+// Three scaling factor function
+// Method 1: The light directly goes into the volume in a direction perpendicular to the surface.
+// Average relative error: 5.5% (reference to MC)
+float GetPerpendicularScalingFactor(float SurfaceAlbedo)
+{
+	return 1.85 - SurfaceAlbedo + 7 * UnClampedPow(SurfaceAlbedo - 0.8, 3);
+}
+
+float3 GetPerpendicularScalingFactor(float3 SurfaceAlbedo)
+{
+	return 1.85 - SurfaceAlbedo + 7 * UnClampedPow(SurfaceAlbedo - 0.8, 3);
+}
+
+// Method 2: Ideal diffuse transmission at the surface. More appropriate for rough surface.
+// Average relative error: 3.9% (reference to MC)
+float GetDiffuseSurfaceScalingFactor(float SurfaceAlbedo)
+{
+	return 1.9 - SurfaceAlbedo + 3.5*(SurfaceAlbedo - 0.8)*(SurfaceAlbedo - 0.8);
+}
+
+float3 GetDiffuseSurfaceScalingFactor(float3 SurfaceAlbedo)
+{
+	return 1.9 - SurfaceAlbedo + 3.5*(SurfaceAlbedo - 0.8)*(SurfaceAlbedo - 0.8);
+}
+
+// Method 3: The spectral of diffuse mean free path on the surface.
+// Avergate relative error: 7.7% (reference to MC)
+float GetSearchLightDiffuseScalingFactor(float SurfaceAlbedo)
+{
+	return 3.5 + 100 * UnClampedPow(SurfaceAlbedo - 0.33, 4);
+}
+
+float3 GetSearchLightDiffuseScalingFactor(float3 SurfaceAlbedo)
+{
+	return 3.5 + 100 * UnClampedPow(SurfaceAlbedo - 0.33, 4);
+}
+
+//@TODO Revisit here after offline comparison.
+//call this function in TransmissionCommon.ush
+float4 GetBurleyTransmissionProfile(FGBufferData GBufferData, float Thickness)
+{
+	// 0..255, which SubSurface profile to pick
+#if 0
+	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
+	float WorldScale = DecodeWorldScale(ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt,0)).a)*10.0f; //in cm. we do not multiply by 100.0f as we did in the subsurface shader.
+	float3 MeanFreePath = DecodeDiffuseMeanFreePath(ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt,0)));
+	float3 SurfaceAlbedo = ActualSSProfilesTexture.Load(int3(SSS__SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0)).rgb;
+	bool  UseBurleyTransmittance = GetSubsurfaceTransmittanceProfileUseBurley(SubsurfaceProfileInt);
+
+	//this is slow.
+	BRANCH
+	if (UseBurleyTransmittance)
+	{
+		//See the burley Normalized SSS paper for the formula between equation 3 and 4. by now we still need to clamp?
+		float3 ScalingFactor = GetSearchLightDiffuseScalingFactor(SurfaceAlbedo);
+		float4 Output=float4(0,0,0,1);
+		Output.xyz=GetDiffuseReflectProfileWithDiffuseMeanFreePath(SurfaceAlbedo, MeanFreePath, ScalingFactor,Thickness*WorldScale);
+		return Output;
+	}
+	else
+	{
+		float3 TextureSize;
+		ActualSSProfilesTexture.GetDimensions(0, TextureSize.x, TextureSize.y, TextureSize.z); // TODO: it's slightly faster to pass texture dimensions through a constant buffer
+		float2 uv = float2((SSSS_TRANSMISSION_PROFILE_OFFSET + Thickness / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE * (SSSS_TRANSMISSION_PROFILE_SIZE - 1) + 0.5f), SubsurfaceProfileInt + 0.5f) / (TextureSize.xy);
+		return Texture2DSampleLevel(ActualSSProfilesTexture, TransmissionProfilesLinearSampler, uv, 0);
+	}
+#endif
+	return 0;
+}

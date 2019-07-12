@@ -13,6 +13,36 @@ struct FSubsurfaceProfileStruct
 {
 	GENERATED_USTRUCT_BODY()
 	
+	/**
+	* It should match The base color of the corresponding material as much as possible.
+	*/
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.01", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel))
+	FLinearColor SurfaceAlbedo;
+
+	/**
+	* Controls how far light goes into the subsurface in the Red, Green and Blue channel. It is scaled by Mean Free path distance.
+	*/
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.001", UIMax = "1.0", ClampMax = "1.0", HideAlphaChannel))
+		FLinearColor MeanFreePathColor; //MeanFreePathLength;
+	
+	/**
+	* Subsurface mean free path distance in world/unreal units (cm)
+	*/
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BluePrintReadOnly, meta = (ClampMin = "0.1", UIMax = "10.0", ClampMax = "10.0"))
+		float MeanFreePathDistance;
+
+	/**
+	* Control the scale of world/unreal units (cm)
+	*/
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "50.0"))
+		float WorldScale;
+
+	/**
+	* Effective only when Burley subsurface scattering is enabled in cmd.
+	*/
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly)
+	bool  bEnableBurley;
+
 	/** in world/unreal units (cm) */
 	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "1000.0"))
 	float ScatterRadius;
@@ -72,6 +102,13 @@ struct FSubsurfaceProfileStruct
 		Roughness0 = 0.75f;
 		Roughness1 = 1.30f;
 		LobeMix = 0.85f;
+		bEnableBurley = false;
+		//match FalloffColor exactly for the default setting
+		SurfaceAlbedo = FLinearColor(0.1447f,0.0535f,0.0432f);
+		MeanFreePathColor = FLinearColor(0.5963f,0.2679f,0.2253f);
+		MeanFreePathDistance = 0.1f;
+		//match ScatterRadius
+		WorldScale = 1.2f;
 	}
 
 	void Invalidate()
@@ -88,6 +125,11 @@ struct FSubsurfaceProfileStruct
 		Roughness0 = 0.75f;
 		Roughness1 = 1.30f;
 		LobeMix = 0.85f;
+		bEnableBurley = false;
+		SurfaceAlbedo = FLinearColor(0, 0, 0);
+		MeanFreePathColor = FLinearColor(0, 0, 0);
+		MeanFreePathDistance = 0.1f;
+		WorldScale = 0.0f;
 	}
 };
 
@@ -106,6 +148,9 @@ class USubsurfaceProfile : public UObject
 	//~ Begin UObject Interface
 	virtual void BeginDestroy();
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+
+	// Upgrade parameters from Separable to Burley.
+	virtual void PostLoad();
 	//~ End UObject Interface
 };
 
