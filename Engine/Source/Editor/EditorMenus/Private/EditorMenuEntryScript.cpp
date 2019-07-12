@@ -69,6 +69,36 @@ TAttribute<FText> UEditorMenuEntryScript::CreateToolTipAttribute(FEditorMenuCont
 	return Data.ToolTip;
 }
 
+TAttribute<FSlateIcon> UEditorMenuEntryScript::CreateIconAttribute(FEditorMenuContext& Context)
+{
+	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, GetIcon);
+	if (GetClass()->IsFunctionImplementedInScript(FunctionName))
+	{
+		TWeakObjectPtr<UEditorMenuEntryScript> WeakThis(this);
+		TAttribute<FSlateIcon>::FGetter Getter;
+		Getter.BindLambda([=]()
+		{
+			if (UEditorMenuEntryScript* Object = WeakThis.Get())
+			{
+				return Object->GetIcon(Context).GetSlateIcon();
+			}
+			else
+			{
+				return FSlateIcon();
+			}
+		});
+
+		return TAttribute<FSlateIcon>::Create(Getter);
+	}
+
+	return Data.Icon.GetSlateIcon();
+}
+
+FSlateIcon UEditorMenuEntryScript::GetSlateIcon(const FEditorMenuContext& Context) const
+{
+	return GetIcon(Context).GetSlateIcon();
+}
+
 void UEditorMenuEntryScript::RegisterMenuEntry()
 {
 	UEditorMenuSubsystem::AddMenuEntryObject(this);
@@ -115,6 +145,8 @@ void UEditorMenuEntryScript::ToMenuEntry(FEditorMenuEntry& Output)
 		else
 		{
 			Output = FEditorMenuEntry::InitMenuEntry(Data.Name, Data.Label, Data.ToolTip, Data.Icon, FUIAction());
+			Output.UserInterfaceActionType = Data.Advanced.UserInterfaceActionType;
+			Output.TutorialHighlightName = Data.Advanced.TutorialHighlight;
 		}
 	}
 
@@ -122,7 +154,7 @@ void UEditorMenuEntryScript::ToMenuEntry(FEditorMenuEntry& Output)
 	{
 		Output.InsertPosition = Data.InsertPosition;
 	}
-	
+
 	Output.ScriptObject = this;
 
 	Output.Owner = Data.OwnerName;

@@ -3,6 +3,25 @@
 
 #include "EditorMenusBlueprintLibrary.h"
 
+FScriptSlateIcon UEditorMenuEntryExtensions::MakeScriptSlateIcon(const FName StyleSetName, const FName StyleName, const FName SmallStyleName)
+{
+	if (SmallStyleName == NAME_None)
+	{
+		return FScriptSlateIcon(StyleSetName, StyleName);
+	}
+	else
+	{
+		return FScriptSlateIcon(StyleSetName, StyleName, SmallStyleName);
+	}
+}
+
+void UEditorMenuEntryExtensions::BreakScriptSlateIcon(const FScriptSlateIcon& InValue, FName& StyleSetName, FName& StyleName, FName& SmallStyleName)
+{
+	StyleSetName = InValue.StyleSetName;
+	StyleName = InValue.StyleName;
+	SmallStyleName = InValue.SmallStyleName;
+}
+
 FEditorMenuStringCommand UEditorMenuEntryExtensions::MakeStringCommand(EEditorMenuStringCommandType Type, FName CustomType, const FString& String)
 {
 	return FEditorMenuStringCommand(Type, CustomType, String);

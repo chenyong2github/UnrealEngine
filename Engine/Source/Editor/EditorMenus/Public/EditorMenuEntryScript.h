@@ -20,7 +20,7 @@
 struct FEditorMenuEntry;
 struct FEditorMenuSection;
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta=(HasNativeBreak="EditorMenus.EditorMenuEntryExtensions.BreakScriptSlateIcon", HasNativeMake="EditorMenus.EditorMenuEntryExtensions.MakeScriptSlateIcon"))
 struct EDITORMENUS_API FScriptSlateIcon
 {
 	GENERATED_BODY()
@@ -146,7 +146,7 @@ public:
 	virtual FScriptSlateIcon GetIcon_Implementation(const FEditorMenuContext& Context) const { return Data.Icon; }
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Advanced")
-	void ConstructMenuEntry(FEditorMenuSection& Section, const FEditorMenuContext& Context);
+	void ConstructMenuEntry(UEditorMenu* Menu, const FName SectionName, const FEditorMenuContext& Context);
 
 	UFUNCTION(BlueprintCallable, Category = "Advanced")
 	void RegisterMenuEntry();
@@ -163,9 +163,13 @@ private:
 
 	TAttribute<FText> CreateToolTipAttribute(FEditorMenuContext& Context);
 
+	TAttribute<FSlateIcon> CreateIconAttribute(FEditorMenuContext& Context);
+
 	void ToMenuEntry(FEditorMenuEntry& Output);
 
 	bool IsDynamicConstruct() const;
+
+	FSlateIcon GetSlateIcon(const FEditorMenuContext& Context) const;
 
 public:
 

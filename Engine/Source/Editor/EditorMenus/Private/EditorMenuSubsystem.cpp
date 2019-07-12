@@ -181,7 +181,7 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 
 			if (Block.IsScriptObjectDynamicConstruct())
 			{
-				Block.ScriptObject->ConstructMenuEntry(*DestSection, DestSection->Context);
+				Block.ScriptObject->ConstructMenuEntry(Constructed, DestSection->Name, DestSection->Context);
 			}
 			else
 			{
@@ -594,7 +594,8 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 					else if (Block.ScriptObject)
 					{
 						UEditorMenuEntryScript* ScriptObject = Block.ScriptObject;
-						MenuBuilder.AddMenuEntry(ScriptObject->CreateLabelAttribute(MenuData->Context), ScriptObject->CreateToolTipAttribute(MenuData->Context), Block.Icon.Get(), UIAction, ScriptObject->Data.Name, Block.UserInterfaceActionType, Block.TutorialHighlightName);
+						const FSlateIcon Icon = ScriptObject->CreateIconAttribute(MenuData->Context).Get();
+						MenuBuilder.AddMenuEntry(ScriptObject->CreateLabelAttribute(MenuData->Context), ScriptObject->CreateToolTipAttribute(MenuData->Context), Icon, UIAction, ScriptObject->Data.Name, Block.UserInterfaceActionType, Block.TutorialHighlightName);
 					}
 					else
 					{
@@ -666,7 +667,8 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 				else if (Block.ScriptObject)
 				{
 					UEditorMenuEntryScript* ScriptObject = Block.ScriptObject;
-					ToolBarBuilder.AddToolBarButton(UIAction, ScriptObject->Data.Name, ScriptObject->CreateLabelAttribute(MenuData->Context), ScriptObject->CreateToolTipAttribute(MenuData->Context), Block.Icon, Block.UserInterfaceActionType, Block.TutorialHighlightName);
+					TAttribute<FSlateIcon> Icon = ScriptObject->CreateIconAttribute(MenuData->Context);
+					ToolBarBuilder.AddToolBarButton(UIAction, ScriptObject->Data.Name, ScriptObject->CreateLabelAttribute(MenuData->Context), ScriptObject->CreateToolTipAttribute(MenuData->Context), Icon, Block.UserInterfaceActionType, Block.TutorialHighlightName);
 				}
 				else
 				{

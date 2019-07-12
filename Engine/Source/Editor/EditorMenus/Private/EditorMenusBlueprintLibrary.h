@@ -8,6 +8,7 @@
 #include "EditorMenuEntry.h"
 #include "EditorMenuSection.h"
 #include "EditorMenuMisc.h"
+#include "EditorMenuEntryScript.h"
 #include "Misc/Attribute.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
@@ -30,6 +31,12 @@ class EDITORMENUS_API UEditorMenuEntryExtensions : public UBlueprintFunctionLibr
 	GENERATED_BODY()
 
 public:
+
+	UFUNCTION(BlueprintPure, Category = "Editor UI", meta = (Keywords = "construct build", NativeMakeFunc))
+	static FScriptSlateIcon MakeScriptSlateIcon(const FName StyleSetName, const FName StyleName, const FName SmallStyleName = NAME_None);
+
+	UFUNCTION(BlueprintPure, Category = "Editor UI", meta = (NativeBreakFunc))
+	static void BreakScriptSlateIcon(const FScriptSlateIcon& InValue, FName& StyleSetName, FName& StyleName, FName& SmallStyleName);
 
 	UFUNCTION(BlueprintPure, Category = "Editor UI", meta = (Keywords = "construct build", NativeMakeFunc))
 	static FEditorMenuStringCommand MakeStringCommand(EEditorMenuStringCommandType Type, FName CustomType, const FString& String);
