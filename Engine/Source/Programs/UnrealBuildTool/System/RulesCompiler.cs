@@ -84,7 +84,7 @@ namespace UnrealBuildTool
 			}
 			if (bIncludePlatformExtensions)
 			{
-				Folders.Add(UnrealBuildTool.PlatformExtensionsDirectory);
+				Folders.Add(UnrealBuildTool.EnginePlatformExtensionsDirectory);
 			}
 
 			// @todo plugin: Disallow modules from including plugin modules as dependency modules? (except when the module is part of that plugin)
@@ -101,7 +101,17 @@ namespace UnrealBuildTool
 			}
 			if (GameFolders != null)
 			{
-				RootFolders.AddRange(GameFolders);
+				if (bIncludePlatformExtensions)
+				{
+					foreach (DirectoryReference GameFolder in GameFolders)
+					{
+						RootFolders.AddRange(UnrealBuildTool.GetAllProjectDirectories(GameFolder));
+					}
+				}
+				else
+				{
+					RootFolders.AddRange(GameFolders);
+				}
 			}
 
 			// Find all the plugin source directories
@@ -128,9 +138,16 @@ namespace UnrealBuildTool
 			{
 				foreach (DirectoryReference GameFolder in GameFolders)
 				{
-					DirectoryReference GameSourceFolder = DirectoryReference.Combine(GameFolder, "Source");
-					Folders.Add(GameSourceFolder);
-					if(bIncludeTempTargets)
+					if (bIncludePlatformExtensions)
+					{
+						Folders.AddRange(UnrealBuildTool.GetAllProjectDirectories(GameFolder, "Source"));
+					}
+					else
+					{
+						Folders.Add(DirectoryReference.Combine(GameFolder, "Source"));
+					}
+
+					if (bIncludeTempTargets)
 					{
 						DirectoryReference GameIntermediateSourceFolder = DirectoryReference.Combine(GameFolder, "Intermediate", "Source");
 						Folders.Add(GameIntermediateSourceFolder);

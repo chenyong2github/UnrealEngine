@@ -17,13 +17,13 @@ echo ^<?xml version="1.0" encoding="utf-8"?^> > %REFERENCE_FILE%
 echo ^<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003"^> >> %REFERENCE_FILE%
 echo ^<ItemGroup^> >> %REFERENCE_FILE%
 
-if exist "..\..\Platforms" (
-	pushd "..\..\Platforms"
+if exist "..\..\Engine\Platforms" (
+	pushd "..\..\Engine\Platforms"
 	for /d %%i in ("*") do (
-		if exist "%%i\Engine\Source\Programs\UnrealBuildTool" (
-			pushd "%%i\Engine\Source\Programs\UnrealBuildTool"
+		if exist "%%i\Source\Programs\UnrealBuildTool" (
+			pushd "%%i\Source\Programs\UnrealBuildTool"
 			for %%j in ("*.cs") do (
-				echo   ^<PlatformExtensionCompile Include="..\..\..\..\Platforms\%%i\Engine\Source\Programs\UnrealBuildTool\%%j"^> >> %REFERENCE_FILE%
+				echo   ^<PlatformExtensionCompile Include="..\..\..\..\Engine\Platforms\%%i\Source\Programs\UnrealBuildTool\%%j"^> >> %REFERENCE_FILE%
 				echo     ^<Link^>Platform\%%i\%%j^</Link^> >> %REFERENCE_FILE%
 				echo   ^</PlatformExtensionCompile^> >> %REFERENCE_FILE%
 			)

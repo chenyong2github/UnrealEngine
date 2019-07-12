@@ -409,7 +409,7 @@ namespace UnrealBuildTool
 		internal DirectoryReference Directory;
 
 		/// <summary>
-		/// Additional directories that contribute to this module (likely in UnrealBuildTool.PlatformExtensionsDirectory). 
+		/// Additional directories that contribute to this module (likely in UnrealBuildTool.EnginePlatformExtensionsDirectory). 
 		/// The dictionary tracks module subclasses 
 		/// </summary>
 		internal Dictionary<Type, DirectoryReference> DirectoriesForModuleSubClasses;
