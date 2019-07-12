@@ -300,6 +300,13 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	DataprepRecipeBPPtr = DataprepAssetPtr->DataprepRecipeBP;
 	check( DataprepRecipeBPPtr.IsValid() );
 
+	// Necessary step to regenerate blueprint generated class
+	// Note that this compilation will always succeed as Dataprep node does not have real body
+	// #ueent_todo: Is there a better solution
+	{
+		FKismetEditorUtilities::CompileBlueprint( DataprepRecipeBPPtr.Get(), EBlueprintCompileOptions::None, nullptr );
+	}
+
 	UEdGraph* PipelineGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBPPtr.Get());
 	check( PipelineGraph );
 
