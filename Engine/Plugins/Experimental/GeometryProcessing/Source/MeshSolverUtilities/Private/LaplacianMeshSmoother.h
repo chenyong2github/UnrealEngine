@@ -41,17 +41,16 @@ public:
 	// Test if for constraint associated with given vertex id. Will return false for any boundary vert.
 	bool IsConstrained(const int32 VtxId) const override;
 
-	
-
 	virtual bool Deform(TArray<FVector3d>& PositionBuffer) override { return false;  }
+
+	// Sync constraints with internal solver.  If in the process any internal matrix factoring is dirty, it will be rebuilt.
+	// Note: this is called from within the Deform() method.   Only call this method if you want to trigger the matrix refactor yourself.
+	void UpdateSolverConstraints();
 
 protected:
 
-	// Sync constraints with internal solver.
-	void UpdateSolverConstraints();
 
-
-	void ExtractVertexPositions(const FDynamicMesh3& DynamicMesh, FSOAPositions& Positions) const ;
+	void ExtractInteriorVertexPositions(const FDynamicMesh3& DynamicMesh, FSOAPositions& Positions) const ;
 
 	//void UpdateMeshWithConstraints();
 	// Respect any bPostFix constraints by moving those vertices to position defined by said constraint.
@@ -83,6 +82,8 @@ protected:
 	// Used to map between VtxId and vertex Index in linear vector..
 	FVertexLinearization  VtxLinearization;
 
+	TArray<FVector3d> BoundaryPositions;
+
 	// Actual solver that manages the various linear algebra bits.
 	TUniquePtr<FConstrainedSolver>         ConstrainedSolver;
 };
@@ -99,7 +100,7 @@ public:
 private:
 
 	FSOAPositions LaplacianVectors;
-	FSOAPositions OriginalVertexPositions;
+	FSOAPositions OriginalInteriorPositions;
 };
 
 
