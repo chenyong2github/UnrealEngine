@@ -16,6 +16,7 @@
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraDataInterfaceSkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -75,6 +76,52 @@ void UNiagaraNodeFunctionCall::PostLoad()
 	if (FunctionDisplayName.IsEmpty())
 	{
 		ComputeNodeName();
+	}
+}
+
+void UNiagaraNodeFunctionCall::UpgradeDIFunctionCalls()
+{
+	UClass* InterfaceClass = nullptr;
+	UNiagaraDataInterface* InterfaceCDO = nullptr;
+	if (Signature.IsValid() && FunctionScript == nullptr)
+	{
+		if (Signature.Inputs.Num() > 0)
+		{
+			if (Signature.Inputs[0].GetType().IsDataInterface())
+			{
+				InterfaceClass = Signature.Inputs[0].GetType().GetClass();
+				InterfaceCDO = Cast<UNiagaraDataInterface>(InterfaceClass->GetDefaultObject());
+			}
+		}
+	}
+
+	FString UpgradeNote;
+
+	//TODO: Move this out into DI specific functions or helper classes?
+	if (InterfaceClass && InterfaceCDO)
+	{		
+		if (InterfaceClass == UNiagaraDataInterfaceSkeletalMesh::StaticClass())
+		{
+			if (Signature.Name == TEXT("RandomTriCoord"))
+			{
+				if (Signature.Inputs.Num() == 1)//If this is before we added the additional seed inputs. TODO: Add a per DI version number to make this simpler and clearer. In this case we can detect old data easy enough but a version number is better.
+				{
+					UpgradeNote = TEXT("Adding RandomInfo parameter to support deterministic random sampling.");
+
+					Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(FNiagaraRandInfo::StaticStruct()), TEXT("RandomInfo")));
+					ReallocatePins();
+				}
+			}
+		}
+	}
+
+	if (!UpgradeNote.IsEmpty())
+	{
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgradeing Niagara Data Interface fuction call node. This may cause unnessessary recompiles. Please resave these assets if this occurs. Or use fx.UpgradeAllNiagaraAssets."));
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Node: %s"), *GetFullName());
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Interface: %s"), *InterfaceCDO->GetFullName());
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Function: %s"), *Signature.GetName());
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgrade Note: %s"),* UpgradeNote);
 	}
 }
 
