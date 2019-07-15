@@ -9,6 +9,9 @@
 #include "UObject/SoftObjectPath.h"
 #include "Engine/BlendableInterface.h"
 #include "Engine/EngineTypes.h"
+
+#include "Curves/RichCurve.h"
+
 #include "PropertyEditorTestObject.generated.h"
 
 class AActor;
@@ -125,7 +128,7 @@ class UPropertyEditorTestObject : public UObject
 {
     GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = BasicProperties)
+/*	UPROPERTY(EditAnywhere, Category = BasicProperties)
 	int8 Int8Property;
 
 	UPROPERTY(EditAnywhere, Category = BasicProperties)
@@ -300,7 +303,10 @@ class UPropertyEditorTestObject : public UObject
 	bool bEditConditionStructWithMultipleInstances2;
 
 	UPROPERTY(EditAnywhere, Category=StructTests, meta=(editcondition = "bEditConditionStructWithMultipleInstances2"))
-	FPropertyEditorTestBasicStruct StructWithMultipleInstances2;
+	FPropertyEditorTestBasicStruct StructWithMultipleInstances2; */
+
+	UPROPERTY(EditAnywhere, Category=StructTests)
+	FRichCurve RichCurve;
 
 	UPROPERTY(EditAnywhere, Category=StructTests)
 	FSoftObjectPath AssetReferenceCustomStruct;
@@ -308,7 +314,25 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=StructTests, meta=(DisplayThumbnail = "true"))
 	FSoftObjectPath AssetReferenceCustomStructWithThumbnail;
 
-	UPROPERTY(EditAnywhere, Category=StructTests, meta=(InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category=StructTests, meta=(AllowedClasses="PointLight", ExactClass))
+	FSoftObjectPath ExactlyPointLightActorReference;
+
+	UPROPERTY(EditAnywhere, Category=StructTests, meta=(AllowedClasses="Light"))
+	FSoftObjectPath LightActorReference;
+
+	UPROPERTY(EditAnywhere, Category=StructTests, meta=(AllowedClasses="PointLight, SpotLight", ExactClass=true))
+	FSoftObjectPath ExactPointOrSpotLightActorReference;
+
+	UPROPERTY(EditAnywhere, Category=StructTests, meta=(AllowedClasses="Light ,StaticMeshActor", DisplayThumbnail))
+	FSoftObjectPath LightOrStaticMeshActorReference;
+
+	UPROPERTY(EditAnywhere, Category=StructTests, meta=(AllowedClasses="Actor", DisallowedClasses="Light"))
+	FSoftObjectPath NotLightActorReference;
+
+	UPROPERTY(EditAnywhere, Category=StructTests, meta=(AllowedClasses="Material,Texture"))
+	FSoftObjectPath MaterialOrTextureAssetReference;
+
+	/*UPROPERTY(EditAnywhere, Category=StructTests, meta=(InlineEditConditionToggle))
 	bool bEditCondition;
 
 	UPROPERTY(EditAnywhere, Category=AdvancedProperties, meta=(editcondition = "bEditCondition"))
@@ -495,5 +519,5 @@ class UPropertyEditorTestObject : public UObject
 	bool bVisibleWhenStatic;
 
 	UPROPERTY(EditAnywhere, Category = EditConditionHides, meta = (EditConditionHides, EditCondition = "PropertyThatHides == EComponentMobility::Stationary"))
-	int32 VisibleWhenStationary;
+	int32 VisibleWhenStationary;*/
 };

@@ -35,191 +35,224 @@
 DECLARE_DELEGATE( FOnCopy );
 DECLARE_DELEGATE( FOnPaste );
 
-bool SPropertyEditorAsset::ShouldDisplayThumbnail( const FArguments& InArgs, const UClass* InObjectClass ) const
+// Helper to retrieve the correct property that has the applicable metadata.
+static const UProperty* GetActualMetadataProperty(const UProperty* Property)
 {
-	bool bDisplayThumbnail = InArgs._DisplayThumbnail && InArgs._ThumbnailPool.IsValid() && (!InObjectClass || !InObjectClass->IsChildOf(AActor::StaticClass()));
-	
-	if (InArgs._ThumbnailPool.IsValid())
+	if (UProperty* OuterProperty = Cast<UProperty>(Property->GetOuter()))
 	{
-		const UProperty* PropertyToCheck = nullptr;
-		if (PropertyEditor.IsValid())
+		if (OuterProperty->IsA<UArrayProperty>()
+			|| OuterProperty->IsA<USetProperty>()
+			|| OuterProperty->IsA<UMapProperty>())
 		{
-			PropertyToCheck = PropertyEditor->GetProperty();
+			return OuterProperty;
 		}
-		else if (PropertyHandle.IsValid())
-		{
-			PropertyToCheck = PropertyHandle->GetProperty();
-		}
+	}
 
-		if (PropertyToCheck != nullptr)
-		{
-			UArrayProperty* ArrayParent = Cast<UArrayProperty>(PropertyToCheck->GetOuter());
-			USetProperty* SetParent = Cast<USetProperty>(PropertyToCheck->GetOuter());
-			UMapProperty* MapParent = Cast<UMapProperty>(PropertyToCheck->GetOuter());
-			if (ArrayParent != nullptr)
-			{
-				PropertyToCheck = ArrayParent;
-			}
-			else if (SetParent != nullptr)
-			{
-				PropertyToCheck = SetParent;
-			}
-			else if (MapParent != nullptr)
-			{
-				PropertyToCheck = MapParent;
-			}
+	return Property;
+}
 
-			if (PropertyToCheck->HasMetaData(TEXT("DisplayThumbnail")))
+// Helper to support both meta=(TagName) and meta=(TagName=true) syntaxes
+static bool GetTagOrBoolMetadata(const UProperty* Property, const TCHAR* TagName, bool bDefault)
+{
+	bool bResult = bDefault;
+
+	if (Property->HasMetaData(TagName))
+	{
+		bResult = true;
+
+		const FString ValueString = Property->GetMetaData(TagName);
+		if (!ValueString.IsEmpty())
+		{
+			if (ValueString == TEXT("true"))
 			{
-				bDisplayThumbnail = PropertyToCheck->GetBoolMetaData(TEXT("DisplayThumbnail"));
+				bResult = true;
+			}
+			else if (ValueString == TEXT("false"))
+			{
+				bResult = false;
 			}
 		}
 	}
 
-	return bDisplayThumbnail;
+	return bResult;
 }
 
-void SPropertyEditorAsset::Construct( const FArguments& InArgs, const TSharedPtr<FPropertyEditor>& InPropertyEditor )
+bool SPropertyEditorAsset::ShouldDisplayThumbnail(const FArguments& InArgs, const UClass* InObjectClass) const
+{
+	if (!InArgs._DisplayThumbnail || !InArgs._ThumbnailPool.IsValid())
+	{
+		return false;
+	}
+
+	bool bShowThumbnail = InObjectClass == nullptr || !InObjectClass->IsChildOf(AActor::StaticClass());
+	
+	// also check metadata for thumbnail & text display
+	const UProperty* PropertyToCheck = nullptr;
+	if (PropertyEditor.IsValid())
+	{
+		PropertyToCheck = PropertyEditor->GetProperty();
+	}
+	else if (PropertyHandle.IsValid())
+	{
+		PropertyToCheck = PropertyHandle->GetProperty();
+	}
+
+	if (PropertyToCheck != nullptr)
+	{
+		PropertyToCheck = GetActualMetadataProperty(PropertyToCheck);
+
+		return GetTagOrBoolMetadata(PropertyToCheck, TEXT("DisplayThumbnail"), bShowThumbnail);
+	}
+
+	return bShowThumbnail;
+}
+
+void SPropertyEditorAsset::InitializeClassFilters(const UProperty* Property)
+{
+	if (Property == nullptr)
+	{
+		AllowedClassFilters.Add(ObjectClass);
+		return;
+	}
+
+	// Account for the allowed classes specified in the property metadata
+	const UProperty* MetadataProperty = GetActualMetadataProperty(Property);
+
+	bExactClass = GetTagOrBoolMetadata(MetadataProperty, TEXT("ExactClass"), false);
+
+	const FString AllowedClassesFilterString = MetadataProperty->GetMetaData(TEXT("AllowedClasses"));
+	if (!AllowedClassesFilterString.IsEmpty())
+	{
+		TArray<FString> AllowedClassFilterNames;
+		AllowedClassesFilterString.ParseIntoArray(AllowedClassFilterNames, TEXT(","), true);
+
+		for (FString& ClassName : AllowedClassFilterNames)
+		{
+			// User can potentially list class names with leading or trailing whitespace
+			ClassName.TrimStartAndEndInline();
+
+			UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+			if (!Class)
+			{
+				Class = LoadObject<UClass>(nullptr, *ClassName);
+			}
+
+			if (Class)
+			{
+				// If the class is an interface, expand it to be all classes in memory that implement the class.
+				if (Class->HasAnyClassFlags(CLASS_Interface))
+				{
+					for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+					{
+						UClass* const ClassWithInterface = (*ClassIt);
+						if (ClassWithInterface->ImplementsInterface(Class))
+						{
+							AllowedClassFilters.Add(ClassWithInterface);
+						}
+					}
+				}
+				else
+				{
+					AllowedClassFilters.Add(Class);
+				}
+			}
+		}
+	}
+	else
+	{
+		// always add the object class to the filters
+		AllowedClassFilters.Add(ObjectClass);
+	}
+
+	const FString DisallowedClassesFilterString = MetadataProperty->GetMetaData(TEXT("DisallowedClasses"));
+	if (!DisallowedClassesFilterString.IsEmpty())
+	{
+		TArray<FString> DisallowedClassFilterNames;
+		DisallowedClassesFilterString.ParseIntoArray(DisallowedClassFilterNames, TEXT(","), true);
+
+		for (FString& ClassName : DisallowedClassFilterNames)
+		{
+			// User can potentially list class names with leading or trailing whitespace
+			ClassName.TrimStartAndEndInline();
+
+			UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+			if (!Class)
+			{
+				Class = LoadObject<UClass>(nullptr, *ClassName);
+			}
+
+			if (Class)
+			{
+				// If the class is an interface, expand it to be all classes in memory that implement the class.
+				if (Class->HasAnyClassFlags(CLASS_Interface))
+				{
+					for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+					{
+						UClass* const ClassWithInterface = (*ClassIt);
+						if (ClassWithInterface->ImplementsInterface(Class))
+						{
+							DisallowedClassFilters.Add(ClassWithInterface);
+						}
+					}
+				}
+				else
+				{
+					DisallowedClassFilters.Add(Class);
+				}
+			}
+		}
+	}
+}
+
+// Awful hack to deal with UClass::FindCommonBase taking an array of non-const classes...
+static TArray<UClass*> ConstCastClassArray(TArray<const UClass*>& Classes)
+{
+	TArray<UClass*> Result;
+	for (const UClass* Class : Classes)
+	{
+		Result.Add(const_cast<UClass*>(Class));
+	}
+
+	return Result;
+}
+
+void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<FPropertyEditor>& InPropertyEditor)
 {
 	PropertyEditor = InPropertyEditor;
 	PropertyHandle = InArgs._PropertyHandle;
 	OnSetObject = InArgs._OnSetObject;
 	OnShouldFilterAsset = InArgs._OnShouldFilterAsset;
-	bool DisplayCompactedSize = InArgs._DisplayCompactSize;
+	ObjectPath = InArgs._ObjectPath;
 
 	UProperty* Property = nullptr;
-	if(PropertyEditor.IsValid())
+	if (PropertyEditor.IsValid())
 	{
 		Property = PropertyEditor->GetPropertyNode()->GetProperty();
-		
-		bAllowClear = !(Property->PropertyFlags & CPF_NoClear);
-		ObjectClass = GetObjectPropertyClass(Property);
-		bIsActor = ObjectClass->IsChildOf( AActor::StaticClass() );
+	}
+	else if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
+	{
+		Property = PropertyHandle->GetProperty();
+	}
+
+	ObjectClass = InArgs._Class != nullptr ? InArgs._Class : GetObjectPropertyClass(Property);
+	bAllowClear = InArgs._AllowClear.IsSet() ? InArgs._AllowClear.GetValue() : !(Property->PropertyFlags & CPF_NoClear);
+
+	InitializeClassFilters(Property);
+
+	ensure(AllowedClassFilters.Num() > 0);
+
+	// Make the ObjectClass more specific if we only have one class filter
+	// eg. if ObjectClass was set to Actor, but AllowedClasses="PointLight", we can limit it to PointLight immediately
+	if (AllowedClassFilters.Num() == 1 && DisallowedClassFilters.Num() == 0)
+	{
+		ObjectClass = const_cast<UClass*>(AllowedClassFilters[0]);
 	}
 	else
 	{
-		bAllowClear = InArgs._AllowClear;
-		ObjectPath = InArgs._ObjectPath;
-		ObjectClass = InArgs._Class;
-		bIsActor = ObjectClass->IsChildOf( AActor::StaticClass() );
-
-		if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
-		{
-			Property = PropertyHandle->GetProperty();
-		}
-		else
-		{
-			AllowedClassFilters.Add(ObjectClass);
-		}
+		ObjectClass = UClass::FindCommonBase(ConstCastClassArray(AllowedClassFilters));
 	}
 
-	// Account for the allowed classes specified in the property metadata
-	if (Property)
-	{
-		const FString* AllowedClassesFilterString;
-		if (UArrayProperty* ArrayParent = Cast<UArrayProperty>(Property->GetOuter()))
-		{
-			AllowedClassesFilterString = &ArrayParent->GetMetaData("AllowedClasses");
-		}
-		else
-		{
-			AllowedClassesFilterString = &Property->GetMetaData("AllowedClasses");
-		}
-
-		if (AllowedClassesFilterString->IsEmpty())
-		{
-			AllowedClassFilters.Add(ObjectClass);
-		}
-		else
-		{
-			TArray<FString> AllowedClassFilterNames;
-			AllowedClassesFilterString->ParseIntoArray(AllowedClassFilterNames, TEXT(","), true);
-
-			for (auto It = AllowedClassFilterNames.CreateIterator(); It; ++It)
-			{
-				FString& ClassName = *It;
-				// User can potentially list class names with leading or trailing whitespace
-				ClassName.TrimStartAndEndInline();
-
-				UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-
-				if (!Class)
-				{
-					Class = LoadObject<UClass>(nullptr, *ClassName);
-				}
-
-				if (Class)
-				{
-					// If the class is an interface, expand it to be all classes in memory that implement the class.
-					if (Class->HasAnyClassFlags(CLASS_Interface))
-					{
-						for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-						{
-							UClass* const ClassWithInterface = (*ClassIt);
-							if (ClassWithInterface->ImplementsInterface(Class))
-							{
-								AllowedClassFilters.Add(ClassWithInterface);
-							}
-						}
-					}
-					else
-					{
-						AllowedClassFilters.Add(Class);
-					}
-				}
-			}
-		}
-
-		const FString* DisallowedClassesFilterString;
-		if (UArrayProperty* ArrayParent = Cast<UArrayProperty>(Property->GetOuter()))
-		{
-			DisallowedClassesFilterString = &ArrayParent->GetMetaData("DisallowedClasses");
-		}
-		else
-		{
-			DisallowedClassesFilterString = &Property->GetMetaData("DisallowedClasses");
-		}
-
-		if (!DisallowedClassesFilterString->IsEmpty())
-		{
-			TArray<FString> DisallowedClassFilterNames;
-			DisallowedClassesFilterString->ParseIntoArray(DisallowedClassFilterNames, TEXT(","), true);
-
-			for (auto It = DisallowedClassFilterNames.CreateIterator(); It; ++It)
-			{
-				FString& ClassName = *It;
-				// User can potentially list class names with leading or trailing whitespace
-				ClassName.TrimStartAndEndInline();
-
-				UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-
-				if (!Class)
-				{
-					Class = LoadObject<UClass>(nullptr, *ClassName);
-				}
-
-				if (Class)
-				{
-					// If the class is an interface, expand it to be all classes in memory that implement the class.
-					if (Class->HasAnyClassFlags(CLASS_Interface))
-					{
-						for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-						{
-							UClass* const ClassWithInterface = (*ClassIt);
-							if (ClassWithInterface->ImplementsInterface(Class))
-							{
-								DisallowedClassFilters.Add(ClassWithInterface);
-							}
-						}
-					}
-					else
-					{
-						DisallowedClassFilters.Add(Class);
-					}
-				}
-			}
-		}
-	}
+	bIsActor = ObjectClass->IsChildOf(AActor::StaticClass());
 
 	if (InArgs._NewAssetFactories.IsSet())
 	{
@@ -247,17 +280,7 @@ void SPropertyEditorAsset::Construct( const FArguments& InArgs, const TSharedPtr
 
 	if (Property)
 	{
-		UProperty* PropToConsider = Property;
-		if (UProperty* OuterProperty = Cast<UProperty>(PropToConsider->GetOuter()))
-		{
-			if (OuterProperty->IsA<UArrayProperty>()
-				|| OuterProperty->IsA<USetProperty>()
-				|| OuterProperty->IsA<UMapProperty>())
-			{
-				PropToConsider = OuterProperty;
-			}
-		}
-
+		const UProperty* PropToConsider = GetActualMetadataProperty(Property);
 		if (PropToConsider->HasAnyPropertyFlags(CPF_EditConst | CPF_DisableEditOnTemplate))
 		{
 			// There are some cases where editing an Actor Property is not allowed, such as when it is contained within a struct or a CDO
@@ -289,6 +312,7 @@ void SPropertyEditorAsset::Construct( const FArguments& InArgs, const TSharedPtr
 			}
 		}
 	}
+
 	bool bOldEnableAttribute = IsEnabledAttribute.Get();
 	if (bOldEnableAttribute && !InArgs._EnableContentPicker)
 	{
@@ -382,7 +406,7 @@ void SPropertyEditorAsset::Construct( const FArguments& InArgs, const TSharedPtr
 			]
 		];
 
-		if(DisplayCompactedSize)
+		if(InArgs._DisplayCompactSize)
 		{
 			ValueContentBox->AddSlot()
 			[
@@ -690,32 +714,7 @@ void SPropertyEditorAsset::OnMenuOpenChanged(bool bOpen)
 
 bool SPropertyEditorAsset::IsFilteredActor( const AActor* const Actor ) const
 {
-	bool IsAllowed = Actor->IsA(ObjectClass) && !Actor->IsChildActor();
-
-	if (IsAllowed)
-	{
-		bool ClassFilterAllowed = false;
-		for (const UClass* Class : AllowedClassFilters)
-		{
-			if (Actor->GetClass()->IsChildOf(Class))
-			{
-				ClassFilterAllowed = true;
-				break;
-			}
-		}
-
-		for (const UClass* Class : DisallowedClassFilters)
-		{
-			if (Actor->GetClass()->IsChildOf(Class))
-			{
-				ClassFilterAllowed = false;
-				break;
-			}
-		}
-
-		IsAllowed = ClassFilterAllowed;
-	}
-
+	bool IsAllowed = Actor->IsA(ObjectClass) && !Actor->IsChildActor() && IsClassAllowed(Actor->GetClass());
 	return IsAllowed;
 }
 
@@ -1260,45 +1259,47 @@ bool SPropertyEditorAsset::CanEdit() const
 
 bool SPropertyEditorAsset::CanSetBasedOnCustomClasses( const FAssetData& InAssetData ) const
 {
-	bool bAllowedToSetBasedOnFilter = true;
-	if( InAssetData.IsValid() && AllowedClassFilters.Num() > 0 )
+	if (InAssetData.IsValid())
 	{
-		const int32 AllowedClassCount = AllowedClassFilters.Num();
-		const int32 DisallowedClassCount = DisallowedClassFilters.Num();
+		return IsClassAllowed(InAssetData.GetClass());
+	}
 
-		if (AllowedClassCount > 0 || DisallowedClassCount > 0)
+	return true;
+}
+
+bool SPropertyEditorAsset::IsClassAllowed(const UClass* InClass) const
+{
+	bool bClassAllowed = true;
+	if (AllowedClassFilters.Num() > 0)
+	{
+		bClassAllowed = false;
+		for (const UClass* AllowedClass : AllowedClassFilters)
 		{
-			UClass* AssetClass = InAssetData.GetClass();
-			if (AllowedClassCount > 0)
-			{
-				bAllowedToSetBasedOnFilter = false; 
-				for (const UClass* AllowedClass : AllowedClassFilters)
-				{
-					const bool bAllowedClassIsInterface = AllowedClass->HasAnyClassFlags(CLASS_Interface);
-					if (AssetClass->IsChildOf(AllowedClass) || (bAllowedClassIsInterface && AssetClass->ImplementsInterface(AllowedClass)))
-					{
-						bAllowedToSetBasedOnFilter = true;
-						break;
-					}
-				}
-			}
+			const bool bAllowedClassIsInterface = AllowedClass->HasAnyClassFlags(CLASS_Interface);
+			bClassAllowed = bExactClass ? InClass == AllowedClass :
+				InClass->IsChildOf(AllowedClass) || (bAllowedClassIsInterface && InClass->ImplementsInterface(AllowedClass));
 
-			if (DisallowedClassCount > 0 && bAllowedToSetBasedOnFilter)
+			if (bClassAllowed)
 			{
-				for (const UClass* DisallowedClass : DisallowedClassFilters)
-				{
-					const bool bDisallowedClassIsInterface = DisallowedClass->HasAnyClassFlags(CLASS_Interface);
-					if (AssetClass->IsChildOf(DisallowedClass) || (bDisallowedClassIsInterface && AssetClass->ImplementsInterface(DisallowedClass)))
-					{
-						bAllowedToSetBasedOnFilter = false;
-						break;
-					}
-				}
+				break;
 			}
 		}
 	}
 
-	return bAllowedToSetBasedOnFilter;
+	if (DisallowedClassFilters.Num() > 0 && bClassAllowed)
+	{
+		for (const UClass* DisallowedClass : DisallowedClassFilters)
+		{
+			const bool bDisallowedClassIsInterface = DisallowedClass->HasAnyClassFlags(CLASS_Interface);
+			if (InClass->IsChildOf(DisallowedClass) || (bDisallowedClassIsInterface && InClass->ImplementsInterface(DisallowedClass)))
+			{
+				bClassAllowed = false;
+				break;
+			}
+		}
+	}
+
+	return bClassAllowed;
 }
 
 bool SPropertyEditorAsset::CanSetBasedOnAssetReferenceFilter( const FAssetData& InAssetData, FText* OutOptionalFailureReason) const
