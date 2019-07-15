@@ -1243,15 +1243,9 @@ void FProjectedShadowInfo::UpdateShaderDepthBias()
 		SlopeScaleDepthBias = CVarCSMShadowSlopeScaleDepthBias.GetValueOnRenderThread();
 		SlopeScaleDepthBias *= LightSceneInfo->Proxy->GetUserShadowSlopeBias();
 	}
-	else if (bPreShadow)
-	{
-		// Preshadows don't need a depth bias since there is no self shadowing
-		DepthBias = 0;
-		SlopeScaleDepthBias = 0;
-	}
 	else
 	{
-		// per object shadows
+		// pre shadow or per object shadows
 		if(bDirectionalLight)
 		{
 			// we use CSMShadowDepthBias cvar but this is per object shadows, maybe we want to use different settings
