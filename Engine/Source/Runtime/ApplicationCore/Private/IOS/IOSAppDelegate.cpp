@@ -501,9 +501,21 @@ static IOSAppDelegate* CachedDelegate = nil;
 		}
 	}];
 
+	self.bAudioSessionInitialized = true;
+
 	self.bUsingBackgroundMusic = [self IsBackgroundAudioPlaying];
 	self.bForceEmitOtherAudioPlaying = true;
+	
+	self.bAllowExternalAudio = false;
+	bool bAllowExternalAudio = false;
+	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAudioAllowExternalAudio"), bAllowExternalAudio, GEngineIni);
+	self.bAllowExternalAudio = bAllowExternalAudio;
 
+	if(bAllowExternalAudio)
+	{
+		[self SetFeature:EAudioFeature::ExternalAudio Active:true];
+	}
+	
 #if USE_MUTE_SWITCH_DETECTION
 	// Initialize the mute switch detector.
 	[SharkfoodMuteSwitchDetector shared];
@@ -526,6 +538,11 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 - (void)ToggleAudioSession:(bool)bActive force:(bool)bForce
 {
+	if(!self.bAudioSessionInitialized)
+	{
+		return;
+	}
+	
 	// @todo kairos: resolve old vs new before we go to main
 	if (false)
 	{
@@ -534,30 +551,20 @@ static IOSAppDelegate* CachedDelegate = nil;
 		bool bIsBackground = GIsSuspended;
 		bActive = !bIsBackground || [self IsFeatureActive:EAudioFeature::BackgroundAudio];
 		
+		NSError* ActiveError = nil;
+
 		// @todo maybe check the active states, not bForce?
 		if (self.bAudioActive != bActive || bForce)
 		{
-			// enable or disable audio
-			NSError* ActiveError = nil;
-			[[AVAudioSession sharedInstance] setActive:bActive error:&ActiveError];
-			if (ActiveError)
-			{
-				UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session to active = %d [Error = %s]"), bActive, *FString([ActiveError description]));
-			}
-			else
-			{
-				self.bAudioActive = bActive;
-			}
-			
-			if (self.bAudioActive)
+			if (bActive || bForce)
 			{
 				// get the category and settings to use
-				/*AVAudioSessionCategory*/NSString* Category = AVAudioSessionCategorySoloAmbient;
+				/*AVAudioSessionCategory*/NSString* Category = self.bAllowExternalAudio ? AVAudioSessionCategoryAmbient : AVAudioSessionCategorySoloAmbient;
 				/*AVAudioSessionMode*/NSString* Mode = AVAudioSessionModeDefault;
 				AVAudioSessionCategoryOptions Options = 0;
 
 				// attempt to mix with other apps if desired
-				if ([self IsFeatureActive:EAudioFeature::BackgroundAudio])
+				if ([self IsFeatureActive:EAudioFeature::BackgroundAudio] || [self IsFeatureActive:EAudioFeature::ExternalAudio])
 				{
 					Options |= AVAudioSessionCategoryOptionMixWithOthers;
 				}
@@ -587,13 +594,24 @@ static IOSAppDelegate* CachedDelegate = nil;
 				{
 					Category = AVAudioSessionCategoryRecord;
 				}
-
+				
 				// set the category (the most important part here)
 				[[AVAudioSession sharedInstance] setCategory:Category mode:Mode options:Options error:&ActiveError];
 				if (ActiveError)
 				{
 					UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session category to %s! [Error = %s]"), *FString(Category), *FString([ActiveError description]));
 				}
+			}
+			
+			// enable or disable audio
+			[[AVAudioSession sharedInstance] setActive:bActive error:&ActiveError];
+			if (ActiveError)
+			{
+				UE_LOG(LogIOSAudioSession, Error, TEXT("Failed to set audio session to active = %d [Error = %s]"), bActive, *FString([ActiveError description]));
+			}
+			else
+			{
+				self.bAudioActive = bActive;
 			}
 		}
 	}
@@ -1287,8 +1305,11 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(batteryStateChanged:) name:UIDeviceBatteryStateDidChangeNotification object:nil];
 	}
 #endif
-    
-	[self InitializeAudioSession];
+	
+	self.bAudioSessionInitialized = false;
+	
+	// InitializeAudioSession is now called from FEngineLoop::AppInit after the config system is initialized
+//	[self InitializeAudioSession];
 
 #if WITH_ACCESSIBILITY
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(OnVoiceOverStatusChanged) name:UIAccessibilityVoiceOverStatusDidChangeNotification object:nil];
