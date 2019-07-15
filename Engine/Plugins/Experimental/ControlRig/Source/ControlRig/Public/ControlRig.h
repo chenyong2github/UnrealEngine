@@ -237,6 +237,10 @@ private:
 	/** The draw interface for the units to use */
 	FControlRigDrawInterface* DrawInterface;
 
+	/** The registry to access data source */
+	UPROPERTY(transient)
+	UAnimationDataSourceRegistry* DataSourceRegistry;
+
 #if DEBUG_CONTROLRIG_PROPERTYCHANGE
 	// This is to debug class size when constructed and destroyed to verify match
 	// if this size changes, that implies more problem, where properties have been changed and layout has been modified

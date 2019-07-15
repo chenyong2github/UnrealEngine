@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Hierarchy.h"
 #include "ControlRigLog.h"
+#include "AnimationDataSource.h"
 #include "Drawing/ControlRigDrawInterface.h"
 
 /** Current state of rig
@@ -24,6 +25,7 @@ struct FRigUnitContext
 	/** default constructor */
 	FRigUnitContext()
 		: DrawInterface(nullptr)
+		, DataSourceRegistry(nullptr)
 #if WITH_EDITOR
 		, Log(nullptr)
 #endif
@@ -33,6 +35,9 @@ struct FRigUnitContext
 
 	/** The draw interface for the units to use */
 	FControlRigDrawInterface* DrawInterface;
+
+	/** The registry to access data source */
+	const UAnimationDataSourceRegistry* DataSourceRegistry;
 
 	/** The current delta time */
 	float DeltaTime;
@@ -47,6 +52,22 @@ struct FRigUnitContext
 	/** A handle to the compiler log */
 	FControlRigLog* Log;
 #endif
+
+	/**
+	 * Returns a given data source and cast it to the expected class.
+	 *
+	 * @param InName The name of the data source to look up.
+	 * @return The requested data source
+	 */
+	template<class T>
+	T* RequestDataSource(const FName& InName) const
+	{
+		if (DataSourceRegistry == nullptr)
+		{
+			return nullptr;
+		}
+		return DataSourceRegistry->RequestSource<T>(InName);
+	}
 };
 
 #if WITH_EDITOR

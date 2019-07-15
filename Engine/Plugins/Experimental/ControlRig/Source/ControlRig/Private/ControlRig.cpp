@@ -53,6 +53,7 @@ UControlRig::UControlRig()
 	, ControlRigLog(nullptr)
 	, bEnableControlRigLogging(true)
 	, DrawInterface(nullptr)
+	, DataSourceRegistry(nullptr)
 #endif
 {
 #if DEBUG_CONTROLRIG_PROPERTYCHANGE
@@ -302,6 +303,12 @@ void UControlRig::Execute(const EControlRigState InState)
 
 	FRigUnitContext Context;
 	Context.DrawInterface = DrawInterface;
+
+	if (InState == EControlRigState::Init)
+	{
+		Context.DataSourceRegistry = DataSourceRegistry;
+	}
+
 	Context.DeltaTime = DeltaTime;
 	Context.State = InState;
 	Context.HierarchyReference.Container = &Hierarchy;
