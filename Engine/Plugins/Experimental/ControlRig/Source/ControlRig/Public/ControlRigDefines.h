@@ -3,7 +3,7 @@
 #pragma once
 
 #include "PropertyPathHelpers.h"
-#include "Hierarchy.h"
+#include "Rigs/Hierarchy.h"
 #include "ControlRigDefines.generated.h"
 
 USTRUCT()

@@ -4,7 +4,7 @@
 
 #include "EdGraph/EdGraph.h"
 #include "Graph/ControlRigGraphNode.h"
-#include "Hierarchy.h"
+#include "Rigs/Hierarchy.h"
 #include "ControlRigModel.h"
 #include "ControlRigGraph.generated.h"
 

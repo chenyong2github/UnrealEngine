@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/RigUnit.h"
-#include "Hierarchy.h"
+#include "Rigs/Hierarchy.h"
 #include "ControlRigDefines.h"
 #include "RigUnit_TwoBoneIKFK.generated.h"
 

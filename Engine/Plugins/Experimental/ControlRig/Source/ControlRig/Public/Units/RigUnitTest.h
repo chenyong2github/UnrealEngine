@@ -5,7 +5,7 @@
 #include "Misc/AutomationTest.h"
 #include "RigUnit.h"
 #include "RigUnitContext.h"
-#include "Hierarchy.h"
+#include "Rigs/Hierarchy.h"
 
 class FControlRigUnitTestBase : public FAutomationTestBase
 {

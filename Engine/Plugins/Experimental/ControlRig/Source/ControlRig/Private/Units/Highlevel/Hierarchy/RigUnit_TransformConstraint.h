@@ -4,7 +4,7 @@
 
 #include "Units/RigUnit.h"
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
-#include "Hierarchy.h"
+#include "Rigs/Hierarchy.h"
 #include "Constraint.h"
 #include "ControlRigDefines.h"
 #include "RigUnit_TransformConstraint.generated.h"
