@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "LC_Commands.h"
+#include "LC_DuplexPipe.h"
 
 
 class DuplexPipe;

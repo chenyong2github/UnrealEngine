@@ -11,6 +11,8 @@
 
 #include "ImportSubsystem.generated.h"
 
+class UFactory;
+
 /**
  * Interface for tasks that need delayed execution
  */

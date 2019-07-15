@@ -5,10 +5,12 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Animation/AnimEnums.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Animation/AnimMetaData.h"
 
 #include "AnimationBlueprintLibrary.generated.h"
 
 struct FRawAnimSequenceTrack;
+class UAnimCompress;
 class USkeleton;
 
 UENUM()

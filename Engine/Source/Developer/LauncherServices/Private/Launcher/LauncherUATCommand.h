@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+
+struct FLauncherTaskChainState;
 
 /**
  * class for setting up UAT command arguments for various launcher commands

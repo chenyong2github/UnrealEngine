@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STreeView.h"
 #include "Framework/Views/TableViewTypeTraits.h"
 #include "CurveEditorTypes.h"
 

@@ -6,6 +6,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "AndroidPermissionFunctionLibrary.generated.h"
 
+class UAndroidPermissionCallbackProxy;
+
 UCLASS()
 class ANDROIDPERMISSION_API UAndroidPermissionFunctionLibrary : public UBlueprintFunctionLibrary
 {

@@ -7,6 +7,7 @@
 #include "IUserListEntry.generated.h"
 
 class UUserWidget;
+class UListViewBase;
 class IObjectTableRow;
 
 /**

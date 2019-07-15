@@ -21,12 +21,9 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Misc/IFilter.h"
 #include "Misc/TextFilter.h"
 #include "Misc/FilterCollection.h"
-#include "ScreenShotFilterCollection.h"
 
 /* Interfaces
  *****************************************************************************/
 #include "ImageComparer.h"
-#include "ScreenShotDataItem.h"
-#include "Interfaces/IScreenShotData.h"
 #include "Interfaces/IScreenShotManager.h"
 #include "Interfaces/IScreenShotToolsModule.h"
