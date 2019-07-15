@@ -272,20 +272,13 @@ private:
 #endif // HACK_HEADER_GENERATOR
 };
 
-namespace Internal
-{
-	/** Internal state indicating whether uobject system is initialized. Do not use that directly. Use
-		UObjectInitialized() instead. */
-	COREUOBJECT_API extern bool GObjInitialized;
-}
-
 /**
  * Checks to see if the UObject subsystem is fully bootstrapped and ready to go.
  * If true, then all objects are registered and auto registration of natives is over, forever.
  *
  * @return true if the UObject subsystem is initialized.
  */
-FORCEINLINE bool UObjectInitialized() { return Internal::GObjInitialized; }
+COREUOBJECT_API bool UObjectInitialized();
 
 /**
  * Force a pending registrant to register now instead of in the natural order
