@@ -228,24 +228,6 @@ bool FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter
 	for (FCurveEditorTreeItemID ItemID : ItemsToFilter)
 	{
 		// If it failed a previous pass, don't consider it for this pass
-		if (FilterStates.Get(ItemID) != ECurveEditorTreeFilterState::NoMatch)
-		{
-			TSharedPtr<ICurveEditorTreeItem> TreeItemImpl = GetItem(ItemID).GetItem();
-			if (TreeItemImpl)
-			{
-				const bool bMatchesFilter = Algo::AnyOf(FilterPtrs, [TreeItemImpl](const FCurveEditorTreeFilter* Filter){ return TreeItemImpl->PassesFilter(Filter); });
-				if (bMatchesFilter)
-				{
-					InheritedState = ECurveEditorTreeFilterState::NoMatch;
-					break;
-				}
-			}
-		}
-	}
-
-	for (FCurveEditorTreeItemID ItemID : ItemsToFilter)
-	{
-		// If it failed a previous pass, don't consider it for this pass
 		if (FilterStates.Get(ItemID) == ECurveEditorTreeFilterState::NoMatch)
 		{
 			continue;

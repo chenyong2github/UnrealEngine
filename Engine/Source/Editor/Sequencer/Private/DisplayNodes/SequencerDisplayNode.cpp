@@ -31,6 +31,7 @@
 #include "ScopedTransaction.h"
 #include "SequencerKeyTimeCache.h"
 #include "SequencerNodeSortingMethods.h"
+#include "SequencerSelectionCurveFilter.h"
 #include "SequencerKeyCollection.h"
 
 #define LOCTEXT_NAMESPACE "SequencerDisplayNode"
@@ -1192,7 +1193,8 @@ bool FSequencerDisplayNode::PassesFilter(const FCurveEditorTreeFilter* InFilter)
 	}
 	else if (InFilter->GetType() == ISequencerModule::GetSequencerSelectionFilterType())
 	{
-		return GetSequencer().GetSelection().GetSelectedOutlinerNodes().Contains(ConstCastSharedRef<FSequencerDisplayNode>(AsShared()));
+		const FSequencerSelectionCurveFilter* Filter = static_cast<const FSequencerSelectionCurveFilter*>(InFilter);
+		return Filter->Match(AsShared());
 	}
 	return false;
 }
