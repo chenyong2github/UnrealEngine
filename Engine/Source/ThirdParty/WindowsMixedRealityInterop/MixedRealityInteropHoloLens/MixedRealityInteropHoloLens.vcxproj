@@ -123,7 +123,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions);WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
     </ClCompile>
