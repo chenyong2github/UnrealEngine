@@ -60,7 +60,7 @@ struct PLANARCUT_API FPlanarCells
 	 * Debugging function to check that the plane boundary vertices are wound to match the orientation of the plane normal vectors
 	 * @return	false if any plane boundary vertices are found in the 'wrong' orientation relative to the plane normal
 	 */
-	bool HasValidPlaneBoundaryOrientations()
+	bool HasValidPlaneBoundaryOrientations() const
 	{
 		for (int32 PlaneIdx = 0; PlaneIdx < PlaneBoundaries.Num(); PlaneIdx++)
 		{
