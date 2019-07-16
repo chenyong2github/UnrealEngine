@@ -31,6 +31,7 @@
 #include "Trace/Trace.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -1161,6 +1162,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
 	TRACE_CPUPROFILER_INIT(CmdLine);
 	TRACE_PLATFORMFILE_INIT(CmdLine);
+	TRACE_COUNTERS_INIT(CmdLine);
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
