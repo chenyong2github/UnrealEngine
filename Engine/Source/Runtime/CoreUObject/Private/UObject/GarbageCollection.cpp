@@ -151,7 +151,7 @@ static FAutoConsoleVariableRef CIncrementalBeginDestroyEnabled(
 	ECVF_Default
 );
 
-static int32 GMultithreadedDestructionEnabled = 1;
+int32 GMultithreadedDestructionEnabled = 1;
 static FAutoConsoleVariableRef CMultithreadedDestructionEnabled(
 	TEXT("gc.MultithreadedDestructionEnabled"),
 	GMultithreadedDestructionEnabled,
@@ -1238,7 +1238,7 @@ static bool ShouldForceSingleThreadedGC()
 	return bForceSingleThreadedGC;
 }
 
-static void AcquireGCLock()
+void AcquireGCLock()
 {
 	const double StartTime = FPlatformTime::Seconds();
 	FGCCSyncObject::Get().GCLock();
@@ -1249,7 +1249,7 @@ static void AcquireGCLock()
 	}
 }
 
-static void ReleaseGCLock()
+void ReleaseGCLock()
 {
 	FGCCSyncObject::Get().GCUnlock();
 }
