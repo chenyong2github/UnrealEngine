@@ -78,6 +78,18 @@
 Texture2D HZBTexture;
 Texture2D ColorTexture;
 
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+
+#define HZBTextureSampler GlobalPointClampedSampler
+#define ColorTextureSampler GlobalBilinearClampedSampler
+
+#else
+
+SamplerState HZBTextureSampler;
+SamplerState ColorTextureSampler;
+
+#endif
+
 float4 HZBUvFactorAndInvFactor;
 
 float4 PrevScreenPositionScaleBias;
@@ -380,7 +392,7 @@ void MainCS(
 			float Level;
 			float3 HitUVz;
 			bool bHit = RayCast(
-				HZBTexture, GlobalPointClampedSampler,
+				HZBTexture, HZBTextureSampler,
 				TranslatedWorldPosition, L, 1, SceneDepth, 
 				CONFIG_RAY_STEPS, StepOffset,
 				HZBUvFactorAndInvFactor,
@@ -400,7 +412,7 @@ void MainCS(
 			//BRANCH // TODO
 			if (bHit)
 			{
-				float4 SampleColor = ColorTexture.SampleLevel(GlobalBilinearClampedSampler, HitUVz, Level);
+				float4 SampleColor = ColorTexture.SampleLevel(ColorTextureSampler, HitUVz, Level);
 				
 				float SampleColorWeight = 1.0;
 

@@ -181,8 +181,10 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, bIsTemporalAAHistory)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevTemporalAAHistory)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PrevTemporalAAHistorySampler)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture<float4>, ReducedSceneColorOutput, [4])
@@ -259,9 +261,13 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 		SHADER_PARAMETER( float,		PrevSceneColorPreExposureCorrection )
 		
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HZBTextureSampler)
+
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ColorTextureSampler)
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float4>, IndirectDiffuseOutput)
@@ -647,8 +653,10 @@ void RenderScreenSpaceDiffuseIndirect(
 
 		PassParameters->bIsTemporalAAHistory = true;
 		PassParameters->PrevTemporalAAHistory = ColorTexture;
+		PassParameters->PrevTemporalAAHistorySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
 		PassParameters->SceneTextures = SceneTextures;
+		SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 		PassParameters->View = View.ViewUniformBuffer;
 
 		for (int32 MipLevel = 0; MipLevel < ReducedSceneColor->Desc.NumMips; MipLevel++)
@@ -686,7 +694,9 @@ void RenderScreenSpaceDiffuseIndirect(
 		FScreenSpaceDiffuseIndirectCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceDiffuseIndirectCS::FParameters>();
 
 		PassParameters->HZBTexture = HZBTexture;
+		PassParameters->HZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->ColorTexture = ReducedSceneColor;
+		PassParameters->ColorTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
 		const FVector2D HZBUvFactor(
 			float( View.ViewRect.Width() )  / float( 2 * View.HZBMipmap0Size.X ),
@@ -712,6 +722,7 @@ void RenderScreenSpaceDiffuseIndirect(
 		PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 
 		PassParameters->SceneTextures = SceneTextures;
+		SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 		PassParameters->View = View.ViewUniformBuffer;
 	
 		PassParameters->IndirectDiffuseOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);

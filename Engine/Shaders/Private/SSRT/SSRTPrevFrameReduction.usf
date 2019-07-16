@@ -11,6 +11,16 @@
 uint bIsTemporalAAHistory;
 Texture2D PrevTemporalAAHistory;
 
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+
+#define PrevTemporalAAHistorySampler GlobalBilinearClampedSampler
+
+#else
+
+SamplerState PrevTemporalAAHistorySampler;
+
+#endif
+
 float4 PrevScreenPositionScaleBias;
 float  PrevSceneColorPreExposureCorrection;
 
@@ -61,7 +71,7 @@ void MainCS(
 
 	// Fetch color.
 	float4 PrevSceneColor = float4(
-		PrevTemporalAAHistory.SampleLevel(GlobalBilinearClampedSampler, PrevFrameUV, 0).rgb * PrevSceneColorPreExposureCorrection, 1.0);
+		PrevTemporalAAHistory.SampleLevel(PrevTemporalAAHistorySampler, PrevFrameUV, 0).rgb * PrevSceneColorPreExposureCorrection, 1.0);
 
 	// Apply vignette to the color.
 	{
