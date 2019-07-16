@@ -105,6 +105,11 @@ namespace UnrealBuildTool
 	public class WindowsTargetRules
 	{
 		/// <summary>
+		/// The target rules which owns this object. Used to resolve some properties.
+		/// </summary>
+		TargetRules Target;
+
+		/// <summary>
 		/// Version of the compiler toolchain to use on Windows platform. A value of "default" will be changed to a specific version at UBT startup.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "CompilerVersion")]
@@ -230,17 +235,32 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Create an image that can be hot patched (/FUNCTIONPADMIN)
 		/// </summary>
-		public bool bCreateHotPatchableImage = false;
+		public bool bCreateHotPatchableImage
+		{
+			get { return bCreateHotPatchableImagePrivate ?? !Target.bWithLiveCoding; }
+			set { bCreateHotPatchableImagePrivate = true; }
+		}
+		private bool? bCreateHotPatchableImagePrivate;
 
 		/// <summary>
 		/// Strip unreferenced symbols (/OPT:REF)
 		/// </summary>
-		public bool bStripUnreferencedSymbols = false;
-
+		public bool bStripUnreferencedSymbols
+		{
+			get { return bStripUnreferencedSymbolsPrivate ?? ((Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping) && !Target.bWithLiveCoding); }
+			set { bStripUnreferencedSymbolsPrivate = value; }
+		}
+		private bool? bStripUnreferencedSymbolsPrivate;
+			
 		/// <summary>
 		/// Merge identical COMDAT sections together (/OPT:ICF)
 		/// </summary>
-		public bool bMergeIdenticalCOMDATs = false;
+		public bool bMergeIdenticalCOMDATs
+		{
+			get { return bMergeIdenticalCOMDATsPrivate ?? ((Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping) && !Target.bWithLiveCoding); }
+			set { bMergeIdenticalCOMDATsPrivate = value; }
+		}
+		private bool? bMergeIdenticalCOMDATsPrivate;
 
 		/// <summary>
 		/// Whether to put global symbols in their own sections (/Gw), allowing the linker to discard any that are unused.
@@ -321,6 +341,15 @@ namespace UnrealBuildTool
 				default:
 					throw new BuildException("Unexpected WindowsCompiler version for GetVisualStudioCompilerVersionName().  Either not using a Visual Studio compiler or switch block needs to be updated");
 			}
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Target">The target rules which owns this object</param>
+		internal WindowsTargetRules(TargetRules Target)
+		{
+			this.Target = Target;
 		}
 	}
 
@@ -606,17 +635,6 @@ namespace UnrealBuildTool
 		public override void ResetTarget(TargetRules Target)
 		{
 			base.ResetTarget(Target);
-
-			if(Target.Platform == UnrealTargetPlatform.Win64 && Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Type != TargetType.Program)
-			{
-				Target.bWithLiveCoding = true;
-				Target.WindowsPlatform.bCreateHotPatchableImage = true;
-			}
-			else if (Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping)
-			{
-				Target.WindowsPlatform.bStripUnreferencedSymbols = true;
-				Target.WindowsPlatform.bMergeIdenticalCOMDATs = true;
-			}
 		}
 
 		/// <summary>
