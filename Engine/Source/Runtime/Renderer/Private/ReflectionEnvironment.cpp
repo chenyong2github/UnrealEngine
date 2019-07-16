@@ -853,7 +853,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ReflectionEnvironmentAndSky %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
 				PassParameters,
-				ERDGPassFlags::None,
+				ERDGPassFlags::Raster,
 				[PassParameters, &View, PixelShader](FRHICommandList& InRHICmdList)
 			{
 				InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);

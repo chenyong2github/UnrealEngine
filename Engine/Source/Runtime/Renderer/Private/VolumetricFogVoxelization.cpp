@@ -596,7 +596,7 @@ void FDeferredShadingSceneRenderer::VoxelizeFogVolumePrimitives(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("VoxelizeVolumePrimitives"),
 			PassParameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[PassParameters, Scene = Scene, &View, VolumetricFogGridSize, IntegrationData, VolumetricFogDistance, GridZParams](FRHICommandListImmediate& RHICmdList)
 		{
 			FViewUniformShaderParameters ViewVoxelizeParameters = *View.CachedViewUniformShaderParameters;

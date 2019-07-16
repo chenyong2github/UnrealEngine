@@ -174,7 +174,7 @@ FRDGTextureRef ComputeSubsurface(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SubsurfaceViewportCopy"),
 			PassParameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[&Views, ViewMask, ViewCount, PixelShader, InputTextureSize, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
 			for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
@@ -248,7 +248,7 @@ void VisualizeSubsurface(
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("SubsurfaceVisualize"),
 		PassParameters,
-		ERenderGraphPassFlags::None,
+		ERDGPassFlags::Raster,
 		[ScreenPassView, SceneViewport, SceneTextureOutput, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
 	{
 		DrawScreenPass(RHICmdList, ScreenPassView, SceneViewport, SceneViewport, *PixelShader, *PassParameters);

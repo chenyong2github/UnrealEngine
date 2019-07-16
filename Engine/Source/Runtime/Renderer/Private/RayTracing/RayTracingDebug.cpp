@@ -122,7 +122,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRHICommandListImmedia
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("RayTracingDebug"),
 		RayGenParameters,
-		ERenderGraphPassFlags::Compute,
+		ERDGPassFlags::Compute,
 		[this, RayGenParameters, RayGenShader, &SceneContext, RayTracingSceneRHI, Pipeline, ViewRect](FRHICommandList& RHICmdList)
 	{
 		SCOPED_GPU_STAT(RHICmdList, RayTracingDebug);

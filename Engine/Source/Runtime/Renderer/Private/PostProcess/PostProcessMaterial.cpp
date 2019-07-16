@@ -517,7 +517,7 @@ FRDGTextureRef ComputePostProcessMaterial(
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("PostProcessMaterial"),
 		PostProcessMaterialParameters,
-		ERenderGraphPassFlags::None,
+		ERDGPassFlags::Raster,
 		[ScreenPassView, SceneColorViewport, ScreenPassDraw, PostProcessMaterialParameters, DepthStencilTexture, DepthStencilTextureForSRV, SetupFunction, bFlipYAxis]
 		(FRHICommandListImmediate& RHICmdList)
 	{

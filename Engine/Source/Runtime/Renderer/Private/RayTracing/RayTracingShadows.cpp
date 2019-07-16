@@ -205,7 +205,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("RayTracedShadow (spp=%d) %dx%d", RayTracingConfig.RayCountPerPixel, View.ViewRect.Width(), View.ViewRect.Height()),
 			PassParameters,
-			ERenderGraphPassFlags::Compute,
+			ERDGPassFlags::Compute,
 			[this, &View, RayGenerationShader, PassParameters, Resolution](FRHICommandList& RHICmdList)
 		{
 			FRayTracingShaderBindingsWriter GlobalResources;

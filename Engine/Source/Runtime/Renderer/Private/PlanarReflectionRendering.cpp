@@ -734,7 +734,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("CompositePlanarReflections"),
 		PassParameters,
-		ERDGPassFlags::None,
+		ERDGPassFlags::Raster,
 		[PassParameters, &View, this](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);

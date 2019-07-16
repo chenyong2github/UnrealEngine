@@ -164,11 +164,8 @@ private:
 /** Flags to annotate passes. */
 enum class ERDGPassFlags : uint8
 {
-	/** Equivalent to 'Raster'. */
-	None = 0x1,
-
 	/** Pass uses raster pipeline. */
-	Raster = None,
+	Raster = 0x1,
 
 	/** Pass uses compute only */
 	Compute = 0x2,
@@ -181,9 +178,6 @@ enum class ERDGPassFlags : uint8
 	GenerateMips = 0x8
 };
 ENUM_CLASS_FLAGS(ERDGPassFlags);
-
-// TODO(RDG): Bulk rename across codebase.
-using ERenderGraphPassFlags = ERDGPassFlags;
 
 /** Base class of a render graph pass. */
 class RENDERCORE_API FRDGPass
