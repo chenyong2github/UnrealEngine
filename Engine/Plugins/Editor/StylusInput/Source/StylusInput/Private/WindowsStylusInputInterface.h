@@ -9,7 +9,7 @@ class FWindowsStylusInputInterfaceImpl;
 class FWindowsStylusInputInterface : public IStylusInputInterfaceInternal
 {
 public:
-	FWindowsStylusInputInterface(FWindowsStylusInputInterfaceImpl* InImpl);
+	FWindowsStylusInputInterface(TUniquePtr<FWindowsStylusInputInterfaceImpl> InImpl);
 	virtual ~FWindowsStylusInputInterface();
 
 	virtual void Tick() override;
@@ -18,6 +18,6 @@ public:
 
 private:
 	// pImpl to avoid including Windows headers.
-	FWindowsStylusInputInterfaceImpl* Impl;
+	TUniquePtr<FWindowsStylusInputInterfaceImpl> Impl;
 	TArray<IStylusMessageHandler*> MessageHandlers;
 };
