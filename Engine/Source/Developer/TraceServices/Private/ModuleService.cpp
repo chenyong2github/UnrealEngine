@@ -98,4 +98,15 @@ bool FModuleService::GetModuleLoggers(const FName& ModuleName, TArray<const TCHA
 	return true;
 }
 
+void FModuleService::GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)
+{
+	FScopeLock Lock(&CriticalSection);
+	Initialize();
+	for (const auto& KV : ModulesMap)
+	{
+		IModule* Module = KV.Value;
+		Module->GenerateReports(Session, CmdLine, OutputDirectory);
+	}
+}
+
 }

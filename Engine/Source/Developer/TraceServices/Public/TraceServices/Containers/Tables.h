@@ -64,4 +64,6 @@ public:
 	virtual ITableReader<RowType>* CreateReader() const = 0;
 };
 
+void Table2Csv(const IUntypedTable& Table, const TCHAR* Filename);
+
 }
