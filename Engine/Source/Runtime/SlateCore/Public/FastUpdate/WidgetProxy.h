@@ -204,7 +204,7 @@ public:
 	FWidgetProxy& GetProxy();
 	const FWidgetProxy& GetProxy() const;
 
-	int32 GetIndex() const { return IsValid() ? MyIndex : INDEX_NONE; }
+	int32 GetIndex(bool bEvenIfInvalid = false) const { return bEvenIfInvalid || IsValid() ? MyIndex : INDEX_NONE; }
 
 	/**
 	 * Marks the widget as updated this frame
