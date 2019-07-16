@@ -229,9 +229,12 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		FExecuteAction::CreateSP( this, &FAssetEditorToolkit::FindInContentBrowser_Execute ),
 		FCanExecuteAction::CreateSP( this, &FAssetEditorToolkit::CanFindInContentBrowser ));
 		
-	ToolkitCommands->MapAction(
-		FGlobalEditorCommonCommands::Get().OpenDocumentation,
-		FExecuteAction::CreateSP( this, &FAssetEditorToolkit::BrowseDocumentation_Execute ) );
+	if (AppIdentifier != FName(TEXT("DataTableEditorApp")))
+	{
+		ToolkitCommands->MapAction(
+			FGlobalEditorCommonCommands::Get().OpenDocumentation,
+			FExecuteAction::CreateSP(this, &FAssetEditorToolkit::BrowseDocumentation_Execute));
+	}
 
 	ToolkitCommands->MapAction(
 		FAssetEditorCommonCommands::Get().ReimportAsset,

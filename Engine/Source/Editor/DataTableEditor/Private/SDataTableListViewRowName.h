@@ -31,9 +31,24 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView);
 
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	void OnRowRenamed(const FText& Text, ETextCommit::Type CommitType);
+
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	FText GetCurrentNameAsText() const;
+	FName GetCurrentName() const;
+
 private:
 
 	void OnSearchForReferences();
+
+	TSharedPtr<SEditableText> EditableText;
+	
+	TSharedPtr<FName> CurrentName;
+
 	FDataTableEditorRowListViewDataPtr RowDataPtr;
 	TWeakPtr<FDataTableEditor> DataTableEditor;
 };

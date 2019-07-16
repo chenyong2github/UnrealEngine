@@ -35,7 +35,8 @@
 #include "SourceCodeNavigation.h"
 #include "PropertyEditorModule.h"
 #include "UObject/StructOnScope.h"
-
+#include "Toolkits/GlobalEditorCommonCommands.h"
+#include "DataTableRowUtlis.h"
 
 
 
@@ -68,6 +69,26 @@ public:
 			);
 	}
 
+
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && Item.IsValid() && FEditorDelegates::OnOpenReferenceViewer.IsBound() && DataTableEditor.IsValid())
+		{
+			FDataTableEditorUtils::SelectRow(DataTableEditor.Pin()->GetDataTable(), Item->RowId);
+	
+			TSharedRef<SWidget> MenuWidget = FDataTableRowUtils::MakeRowActionsMenu(DataTableEditor.Pin(), FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnSearchForReferences));
+	
+			FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+	
+			FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuWidget, MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect::ContextMenu);
+	
+			return FReply::Handled();
+		}
+	
+		return STableRow::OnMouseButtonUp(MyGeometry, MouseEvent);
+	}
+
+
 	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the list view. */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
 	{
@@ -78,6 +99,22 @@ public:
 	}
 
 private:
+	void OnSearchForReferences()
+	{
+		if (DataTableEditor.IsValid() && Item.IsValid())
+		{
+			if (FDataTableEditor* DataTableEditorPtr = DataTableEditor.Pin().Get())
+			{
+				UDataTable* SourceDataTable = const_cast<UDataTable*>(DataTableEditorPtr->GetDataTable());
+
+				TArray<FAssetIdentifier> AssetIdentifiers;
+				AssetIdentifiers.Add(FAssetIdentifier(SourceDataTable, Item->RowId));
+
+				FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers);
+			}
+		}
+	}
+
 	/** Weak reference to the data table editor that owns our list */
 	TWeakPtr<FDataTableEditor> DataTableEditor;
 	/** The item associated with this row of data */
@@ -273,6 +310,8 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 		SpawnToolkitTab( DataTableTabId, TabInitializationPayload, EToolkitTabSpot::Details );
 	}*/
 
+	ToolkitCommands->MapAction(FGlobalEditorCommonCommands::Get().OpenDocumentation, FExecuteAction::CreateSP(this, &FDataTableEditor::BrowseDocumentation_Execute));
+
 	// asset editor commands here
 	ToolkitCommands->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FDataTableEditor::CopySelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FDataTableEditor::PasteOnSelectedRow));
@@ -282,6 +321,16 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 FName FDataTableEditor::GetToolkitFName() const
 {
 	return FName("DataTableEditor");
+}
+
+void FDataTableEditor::BrowseDocumentation_Execute() const
+{
+	IDocumentation::Get()->Open(GetDocumentationLink(), FDocumentationSourceInfo(TEXT("help_menu_asset")));
+}
+
+FString FDataTableEditor::GetDocumentationLink() const
+{
+	return FString(TEXT("Gameplay/DataDriven"));
 }
 
 FText FDataTableEditor::GetBaseToolkitName() const

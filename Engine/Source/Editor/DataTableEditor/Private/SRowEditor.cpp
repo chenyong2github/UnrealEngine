@@ -508,35 +508,6 @@ void SRowEditor::ConstructInternal(UDataTable* Changed)
 			]
 
 			+ SHorizontalBox::Slot()
-			[
-				SNew(SSpacer)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			.VAlign(EVerticalAlignment::VAlign_Center)
-			[
-				SNew(SBox)
-				.HAlign(HAlign_Right)
-				.Visibility(this, &SRowEditor::GetRenameVisibility)
-				[
-					SNew(STextBlock).Text(LOCTEXT("RowNameLabel", "Row Name:"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2)
-			[
-				SNew(SBox)
-				.WidthOverride(2 * ButtonWidth)
-				.Visibility(this, &SRowEditor::GetRenameVisibility)
-				[
-					SAssignNew(RenameTextBox, SEditableTextBox)
-					.Text(this, &SRowEditor::GetCurrentNameAsText)
-					.OnTextCommitted(this, &SRowEditor::OnRowRenamed)
-				]
-			]
-			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(2)
 			[
