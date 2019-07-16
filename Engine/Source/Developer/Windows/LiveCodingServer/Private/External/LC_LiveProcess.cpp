@@ -22,7 +22,7 @@ LiveProcess::LiveProcess(process::Handle processHandle, unsigned int processId, 
 	, m_environment(environment, environmentSize)
 	, m_imagesTriedToLoad()
 	, m_heartBeatDelta(0ull)
-#if LC_WITH_VISUAL_STUDIO_DTE
+#if WITH_VISUALSTUDIO_DTE
 	, m_vsDebugger(nullptr)
 	, m_vsDebuggerThreads()
 #endif
@@ -56,7 +56,7 @@ bool LiveProcess::MadeProgress(void) const
 
 void LiveProcess::HandleDebuggingPreCompile(void)
 {
-#if LC_WITH_VISUAL_STUDIO_DTE
+#if WITH_VISUALSTUDIO_DTE
 	if (!MadeProgress())
 	{
 		// this process did not make progress.
@@ -100,7 +100,7 @@ void LiveProcess::HandleDebuggingPostCompile(void)
 		// we installed a code cave previously, remove it
 		UninstallCodeCave();
 	}
-#if LC_WITH_VISUAL_STUDIO_DTE
+#if WITH_VISUALSTUDIO_DTE
 	else if (m_vsDebugger)
 	{
 		// we automated the debugger previously. break into the debugger again and resume all threads.

@@ -6,7 +6,7 @@
 #include "LC_Logging.h"
 #include "Windows/COMPointer.h"
 
-#if LC_WITH_VISUAL_STUDIO_DTE
+#if WITH_VISUALSTUDIO_DTE
 
 namespace
 {
