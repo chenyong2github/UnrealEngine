@@ -22,7 +22,7 @@ FNavigationDataHandler::FNavigationDataHandler(FNavigationOctreeController& InOc
 
 void FNavigationDataHandler::RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags)
 {
-	if (OctreeController.NavOctree->IsValidElementId(ElementId))
+	if (ensure(OctreeController.IsValidElement(ElementId)))
 	{
 		const FNavigationOctreeElement& ElementData = OctreeController.NavOctree->GetElementById(ElementId);
 		const int32 DirtyFlag = GetDirtyFlagHelper(UpdateFlags, ElementData.Data->GetDirtyFlag());
@@ -126,11 +126,11 @@ void FNavigationDataHandler::AddElementToNavOctree(const FNavigationDirtyElement
 			ParentNode.bInvalidRequest = true;
 		}
 
-		const FOctreeElementId* UseParentId = ParentId ? ParentId : OctreeController.GetObjectsNavOctreeId(*NavigationParent);
-		if (UseParentId && OctreeController.NavOctree->IsValidElementId(*UseParentId))
+		const FOctreeElementId* ElementId = ParentId ? ParentId : OctreeController.GetObjectsNavOctreeId(*NavigationParent);
+		if (ElementId && ensure(OctreeController.IsValidElement(*ElementId)))
 		{
 			UE_LOG(LogNavOctree, Log, TEXT("ADD %s to %s"), *GetNameSafe(ElementOwner), *GetNameSafe(NavigationParent));
-			OctreeController.NavOctree->AppendToNode(*UseParentId, DirtyElement.NavInterface, ElementBounds, GeneratedData);
+			OctreeController.NavOctree->AppendToNode(*ElementId, DirtyElement.NavInterface, ElementBounds, GeneratedData);
 		}
 		else
 		{
@@ -307,15 +307,16 @@ void FNavigationDataHandler::UpdateNavOctreeParentChain(UObject& ElementOwner, b
 bool FNavigationDataHandler::UpdateNavOctreeElementBounds(UActorComponent& Comp, const FBox& NewBounds, const FBox& DirtyArea)
 {
 	const FOctreeElementId* ElementId = OctreeController.GetObjectsNavOctreeId(Comp);
-	if (ElementId && ElementId->IsValidId())
+	if (ElementId != nullptr && ensure(OctreeController.IsValidElement(*ElementId)))
 	{
 		OctreeController.NavOctree->UpdateNode(*ElementId, NewBounds);
 
 		// Add dirty area
 		if (DirtyArea.IsValid)
 		{
+			// Refresh ElementId since components may be stored in a different node after updating bounds
 			ElementId = OctreeController.GetObjectsNavOctreeId(Comp);
-			if (ElementId && ElementId->IsValidId())
+			if (ElementId != nullptr && ensure(OctreeController.IsValidElement(*ElementId)))
 			{
 				FNavigationOctreeElement& ElementData = OctreeController.NavOctree->GetElementById(*ElementId);
 				DirtyAreasController.AddArea(DirtyArea, ElementData.Data->GetDirtyFlag());
@@ -426,7 +427,7 @@ void FNavigationDataHandler::RemoveLevelCollisionFromOctree(ULevel& Level)
 
 		if (ElementId != nullptr)
 		{
-			if (OctreeController.NavOctree->IsValidElementId(*ElementId))
+			if (ensure(OctreeController.IsValidElement(*ElementId)))
 			{
 				// mark area occupied by given actor as dirty
 				FNavigationOctreeElement& ElementData = OctreeController.NavOctree->GetElementById(*ElementId);

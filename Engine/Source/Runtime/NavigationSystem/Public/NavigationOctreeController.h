@@ -39,6 +39,7 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeController
 	bool IsNavigationOctreeLocked() const;
 	/** basically says if navoctree has been created already */
 	bool IsValid() const { return NavOctree.IsValid(); }
+	bool IsValidElement(const FOctreeElementId& ElementId) const;
 
 private:
 	static uint32 HashObject(const UObject& Object);
@@ -95,4 +96,9 @@ FORCEINLINE bool FNavigationOctreeController::IsNavigationOctreeLocked() const
 FORCEINLINE void FNavigationOctreeController::SetNavigationOctreeLock(bool bLock) 
 { 
 	bNavOctreeLock = bLock; 
+}
+
+FORCEINLINE bool FNavigationOctreeController::IsValidElement(const FOctreeElementId& ElementId) const
+{
+	return IsValid() && NavOctree->IsValidElementId(ElementId);
 }
