@@ -71,12 +71,11 @@ if [ "$UATCompileArg" = "-compile" ]; then
 		echo No project to compile, attempting to use precompiled AutomationTool
 		UATCompileArg=
 	else
-		echo Compiling AutomationTool with xbuild
 
 		# make sure the UBT project has references to auto-discovered platform extension source files
 		"${SCRIPT_DIR}/FindPlatformExtensionSources.sh"
 
-		ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo /p:NoWarn=1591"
+		ARGS="/p:Configuration=Development /p:Platform=AnyCPU /verbosity:quiet /nologo /p:NoWarn=1591 /property:AutomationToolProjectOnly=true"
 		ARGS="${ARGS} /p:TargetFrameworkProfile="
 
 		echo "xbuild Source/Programs/AutomationTool/AutomationTool.csproj $ARGS"
@@ -85,8 +84,6 @@ if [ "$UATCompileArg" = "-compile" ]; then
 		if [ $? -ne 0 ]; then
 			echo RunUAT ERROR: AutomationTool failed to compile.
 			exit 1
-		else
-			echo Compilation Succeeded
 		fi
 	fi
 fi
