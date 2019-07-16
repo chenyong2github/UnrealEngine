@@ -321,6 +321,7 @@ else:
                         pprint(vars(e)) # TEMP CIS BUGHUNT
                         print('NICKNICK: forking.py END OF CIS BUGHUNT DUMP')
                         if e.winerror != 5:
+                            print('NICKNICK: forking.py e.winerror:', e.winerror)
                             raise
 # EPIC EDIT end -- nick.shin 2019-06-13 -- UE-76260
 
