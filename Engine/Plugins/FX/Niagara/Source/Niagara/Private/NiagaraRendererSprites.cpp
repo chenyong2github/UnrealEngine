@@ -138,6 +138,15 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	MaterialParamValidMask |= MaterialParamOffset3 != -1 ? 8 : 0;
 }
 
+FNiagaraRendererSprites::~FNiagaraRendererSprites()
+{
+	if ( VertexFactory != nullptr )
+	{
+		delete VertexFactory;
+		VertexFactory = nullptr;
+	}
+}
+
 void FNiagaraRendererSprites::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
