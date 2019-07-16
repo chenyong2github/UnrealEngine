@@ -3387,7 +3387,7 @@ void FLevelEditorViewportClient::MoveLockedActorToCamera()
 				ActiveActorLock->SetActorRotation(GCurrentLevelEditingViewportClient->GetViewRotation());
 			}
 
-			if (PreviousRotator.IsSet())
+			if (ActiveActorLockComponent)
 			{
 				const FRotator Rot = PreviousRotator.GetValue();
 				FRotator ActorRotWind, ActorRotRem;
