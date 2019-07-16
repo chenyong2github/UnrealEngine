@@ -162,20 +162,25 @@ private:
 };
 
 /** Flags to annotate passes. */
-enum class ERDGPassFlags
+enum class ERDGPassFlags : uint8
 {
-	None = 0,
+	/** Equivalent to 'Raster'. */
+	None = 0x1,
+
+	/** Pass uses raster pipeline. */
+	Raster = None,
 
 	/** Pass uses compute only */
-	Compute,
+	Compute = 0x2,
 
 	/** Pass uses RHI copy commands only. */
-	Copy,
+	Copy = 0x4,
 
 	//#todo-rco: Remove this when we can do split/per mip layout transitions.
 	/** Hint to some RHIs this pass will be generating mips to optimize transitions. */
-	GenerateMips
+	GenerateMips = 0x8
 };
+ENUM_CLASS_FLAGS(ERDGPassFlags);
 
 // TODO(RDG): Bulk rename across codebase.
 using ERenderGraphPassFlags = ERDGPassFlags;
@@ -203,24 +208,24 @@ public:
 		return PassFlags;
 	}
 
-	bool IsGenerateMips() const
+	bool IsRaster() const
 	{
-		return (PassFlags == ERDGPassFlags::GenerateMips);
+		return (PassFlags & ERDGPassFlags::Raster) == ERDGPassFlags::Raster;
 	}
 
 	bool IsCompute() const
 	{
-		return (PassFlags == ERDGPassFlags::Compute);
+		return (PassFlags & ERDGPassFlags::Compute) == ERDGPassFlags::Compute;
 	}
 
 	bool IsCopy() const
 	{
-		return (PassFlags == ERDGPassFlags::Copy);
+		return (PassFlags & ERDGPassFlags::Copy) == ERDGPassFlags::Copy;
 	}
 
-	bool IsGraphics() const
+	bool IsGenerateMips() const
 	{
-		return (PassFlags == ERDGPassFlags::None) || (PassFlags == ERDGPassFlags::GenerateMips);
+		return (PassFlags & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
 	}
 
 	FRDGPassParameterStruct GetParameters() const

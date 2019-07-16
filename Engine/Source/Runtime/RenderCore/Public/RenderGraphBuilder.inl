@@ -8,6 +8,7 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 	{
 		checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture: %s"), Name);
 		checkf(Name, TEXT("Externally allocated texture requires a debug name when registering them to render graph."));
+		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 	}
 #endif
 
@@ -21,12 +22,7 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 	OutTexture->ResourceRHI = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
 	AllocatedTextures.Add(OutTexture, ExternalPooledTexture);
 
-#if RDG_ENABLE_DEBUG
-	{
-		OutTexture->MarkAsExternal();
-		TrackedResources.Add(OutTexture);
-	}
-#endif
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalResource(OutTexture));
 
 	ExternalTextures.Add(ExternalPooledTexture.GetReference(), OutTexture);
 
@@ -38,6 +34,7 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 #if RDG_ENABLE_DEBUG
 	{
 		checkf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer: %s"), Name);
+		Validation.ExecuteGuard(TEXT("RegisterExternalBuffer"), Name);
 	}
 #endif
 
@@ -50,12 +47,7 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 	OutBuffer->PooledBuffer = ExternalPooledBuffer;
 	AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
 
-#if RDG_ENABLE_DEBUG
-	{
-		OutBuffer->MarkAsExternal();
-		TrackedResources.Add(OutBuffer);
-	}
-#endif
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalResource(OutBuffer));
 
 	ExternalBuffers.Add(ExternalPooledBuffer.GetReference(), OutBuffer);
 
@@ -64,36 +56,32 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 
 inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	const FPooledRenderTargetDesc& Desc,
-	const TCHAR* DebugName,
+	const TCHAR* Name,
 	ERDGResourceFlags Flags)
 {
 #if RDG_ENABLE_DEBUG
 	{
-		checkf(DebugName, TEXT("Creating a render graph texture requires a valid debug name."));
-		checkf(!bHasExecuted, TEXT("Render graph texture %s needs to be created before the builder execution."), DebugName);
+		checkf(Name, TEXT("Creating a render graph texture requires a valid debug name."));
+		Validation.ExecuteGuard(TEXT("CreateTexture"), Name);
 
 		// Validate the pixel format.
-		checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), DebugName);
-		checkf(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with invalid FPooledRenderTargetDesc::Format."), DebugName);
+		checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
+		checkf(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with invalid FPooledRenderTargetDesc::Format."), Name);
 		checkf(GPixelFormats[Desc.Format].Supported, TEXT("Failed to create texture %s with pixel format %s because it is not supported."),
-			DebugName, GPixelFormats[Desc.Format].Name);
+			Name, GPixelFormats[Desc.Format].Name);
 
 		const bool bCanHaveUAV = Desc.TargetableFlags & TexCreate_UAV;
 		const bool bIsMSAA = Desc.NumSamples > 1;
 
 		// D3D11 doesn't allow creating a UAV on MSAA texture.
 		const bool bIsUAVForMSAATexture = bIsMSAA && bCanHaveUAV;
-		checkf(!bIsUAVForMSAATexture, TEXT("TexCreate_UAV is not allowed on MSAA texture %s."), DebugName);
+		checkf(!bIsUAVForMSAATexture, TEXT("TexCreate_UAV is not allowed on MSAA texture %s."), Name);
 	}
 #endif
 
-	FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(DebugName, Desc, Flags);
+	FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(Name, Desc, Flags);
 
-#if RDG_ENABLE_DEBUG
-	{
-		TrackedResources.Add(Texture);
-	}
-#endif
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateResource(Texture));
 
 	return Texture;
 }
@@ -106,17 +94,13 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 #if RDG_ENABLE_DEBUG
 	{
 		checkf(Name, TEXT("Creating a render graph buffer requires a valid debug name."));
-		checkf(!bHasExecuted, TEXT("Render graph buffer %s needs to be created before the builder execution."), Name);
+		Validation.ExecuteGuard(TEXT("CreateBuffer"), Name);
 	}
 #endif
 
 	FRDGBufferRef Buffer = AllocateForRHILifeTime<FRDGBuffer>(Name, Desc, Flags);
 
-#if RDG_ENABLE_DEBUG
-	{
-		TrackedResources.Add(Buffer);
-	}
-#endif
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateResource(Buffer));
 
 	return Buffer;
 }
@@ -128,13 +112,13 @@ inline FRDGTextureSRVRef FRDGBuilder::CreateSRV(const FRDGTextureSRVDesc& Desc)
 #if RDG_ENABLE_DEBUG
 	{
 		checkf(Texture, TEXT("RenderGraph texture SRV created with a null texture."));
-		checkf(!bHasExecuted, TEXT("Render graph SRV %s needs to be created before the builder execution."), Desc.Texture->Name);
-		checkf(Desc.Texture->Desc.TargetableFlags & TexCreate_ShaderResource, TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"), Desc.Texture->Name);
+		Validation.ExecuteGuard(TEXT("CreateSRV"), Texture->Name);
+		checkf(Texture->Desc.TargetableFlags & TexCreate_ShaderResource, TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"), Desc.Texture->Name);
 		checkf(Desc.MipLevel < Texture->Desc.NumMips, TEXT("Failed to create SRV at mip %d: the texture %s has only %d mip levels."), Desc.MipLevel, Texture->Name, Texture->Desc.NumMips);
 	}
 #endif
 
-	return AllocateForRHILifeTime<FRDGTextureSRV>(Desc.Texture->Name, Desc);
+	return AllocateForRHILifeTime<FRDGTextureSRV>(Texture->Name, Desc);
 }
 
 inline FRDGBufferSRVRef FRDGBuilder::CreateSRV(const FRDGBufferSRVDesc& Desc)
@@ -144,7 +128,7 @@ inline FRDGBufferSRVRef FRDGBuilder::CreateSRV(const FRDGBufferSRVDesc& Desc)
 #if RDG_ENABLE_DEBUG
 	{
 		checkf(Buffer, TEXT("RenderGraph buffer SRV created with a null buffer."));
-		checkf(!bHasExecuted, TEXT("Render graph SRV %s needs to be created before the builder execution."), Desc.Buffer->Name);
+		Validation.ExecuteGuard(TEXT("CreateSRV"), Buffer->Name);
 	}
 #endif
 
@@ -158,7 +142,7 @@ inline FRDGTextureUAVRef FRDGBuilder::CreateUAV(const FRDGTextureUAVDesc& Desc)
 #if RDG_ENABLE_DEBUG
 	{
 		checkf(Texture, TEXT("RenderGraph texture UAV created with a null texture."));
-		checkf(!bHasExecuted, TEXT("Render graph UAV %s needs to be created before the builder execution."), Texture->Name);
+		Validation.ExecuteGuard(TEXT("CreateUAV"), Texture->Name);
 		checkf(Texture->Desc.TargetableFlags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Texture->Name);
 		checkf(Desc.MipLevel < Texture->Desc.NumMips, TEXT("Failed to create UAV at mip %d: the texture %s has only %d mip levels."), Desc.MipLevel, Texture->Name, Texture->Desc.NumMips);
 	}
@@ -174,7 +158,7 @@ inline FRDGBufferUAVRef FRDGBuilder::CreateUAV(const FRDGBufferUAVDesc& Desc)
 #if RDG_ENABLE_DEBUG
 	{
 		checkf(Buffer, TEXT("RenderGraph buffer UAV created with a null buffer."));
-		checkf(!bHasExecuted, TEXT("Render graph UAV %s needs to be created before the builder execution."), Buffer->Name);
+		Validation.ExecuteGuard(TEXT("CreateUAV"), Buffer->Name);
 	}
 #endif
 
@@ -187,11 +171,7 @@ ParameterStructType* FRDGBuilder::AllocParameters()
 	// TODO(RDG): could allocate using AllocateForRHILifeTime() to avoid the copy done when using FRHICommandList::BuildLocalUniformBuffer()
 	ParameterStructType* OutParameterPtr = new(MemStack) ParameterStructType;
 	FMemory::Memzero(OutParameterPtr, sizeof(ParameterStructType));
-#if RDG_ENABLE_DEBUG
-	{
-		AllocatedUnusedPassParameters.Add(static_cast<void *>(OutParameterPtr));
-	}
-#endif
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateAllocPassParameters(OutParameterPtr));
 	return OutParameterPtr;
 }
 
@@ -221,19 +201,10 @@ inline void FRDGBuilder::QueueTextureExtraction(
 	TRefCountPtr<IPooledRenderTarget>* OutTexturePtr,
 	bool bTransitionToRead)
 {
-	check(Texture);
-	check(OutTexturePtr);
-#if RDG_ENABLE_DEBUG
-	{
-		checkf(!bHasExecuted,
-			TEXT("Accessing render graph internal texture %s with QueueTextureExtraction() needs to happen before the builder's execution."),
-			Texture->Name);
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateExtractResource(Texture));
 
-		checkf(Texture->HasBeenProduced(),
-			TEXT("Unable to queue the extraction of the texture %s because it has not been produced by any pass."),
-			Texture->Name);
-	}
-#endif
+	check(OutTexturePtr);
+
 	FDeferredInternalTextureQuery Query;
 	Query.Texture = Texture;
 	Query.OutTexturePtr = OutTexturePtr;
@@ -243,19 +214,10 @@ inline void FRDGBuilder::QueueTextureExtraction(
 
 inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr)
 {
-	check(Buffer);
-	check(OutBufferPtr);
-#if RDG_ENABLE_DEBUG
-	{
-		checkf(!bHasExecuted,
-			TEXT("Accessing render graph internal buffer %s with QueueBufferExtraction() needs to happen before the builder's execution."),
-			Buffer->Name);
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateExtractResource(Buffer));
 
-		checkf(Buffer->HasBeenProduced(),
-			TEXT("Unable to queue the extraction of the buffer %s because it has not been produced by any pass."),
-			Buffer->Name);
-	}
-#endif
+	check(OutBufferPtr);
+
 	FDeferredInternalBufferQuery Query;
 	Query.Buffer = Buffer;
 	Query.OutBufferPtr = OutBufferPtr;
@@ -264,17 +226,19 @@ inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPt
 
 inline void FRDGBuilder::RemoveUnusedTextureWarning(FRDGTextureRef Texture)
 {
-	check(Texture);
 #if RDG_ENABLE_DEBUG
-	{
-		checkf(!bHasExecuted,
-			TEXT("Flaging texture %s with FlagUnusedTexture() needs to happen before the builder's execution."),
-			Texture->Name);
+	check(Texture);
+	Validation.ExecuteGuard(TEXT("RemoveUnusedTextureWarning"), Texture->Name);
+	Validation.RemoveUnusedWarning(Texture);
+#endif
+}
 
-		// Increment the number of time the texture has been accessed to avoid warning on produced but never used resources that were produced
-		// only to be extracted for the graph.
-		Texture->PassAccessCount += 1;
-	}
+inline void FRDGBuilder::RemoveUnusedBufferWarning(FRDGBufferRef Buffer)
+{
+#if RDG_ENABLE_DEBUG
+	check(Buffer);
+	Validation.ExecuteGuard(TEXT("RemoveUnusedBufferWarning"), Buffer->Name);
+	Validation.RemoveUnusedWarning(Buffer);
 #endif
 }
 
