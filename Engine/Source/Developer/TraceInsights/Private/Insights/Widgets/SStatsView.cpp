@@ -18,10 +18,13 @@
 // Insights
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/GraphTrack.h"
 #include "Insights/ViewModels/StatsNodeHelper.h"
 #include "Insights/ViewModels/StatsViewColumnFactory.h"
 #include "Insights/Widgets/SStatsViewTooltip.h"
 #include "Insights/Widgets/SStatsTableRow.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
+#include "Insights/Widgets/STimingView.h"
 
 #define LOCTEXT_NAMESPACE "SStatsView"
 
@@ -816,20 +819,69 @@ void SStatsView::TreeView_OnGetChildren(FStatsNodePtr InParent, TArray<FStatsNod
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SStatsView::UpdateStatsNode(FStatsNodePtr StatsNode)
+{
+	bool bAddedToGraphFlag = false;
+
+	if (!StatsNode->IsGroup())
+	{
+		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->TimingView : nullptr;
+		if (TimingView.IsValid())
+		{
+			TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
+			if (GraphTrack.IsValid())
+			{
+				uint32 StatsCounterId = static_cast<uint32>(StatsNode->GetId());
+				TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
+				bAddedToGraphFlag = Series.IsValid();
+			}
+		}
+	}
+
+	StatsNode->SetAddedToGraphFlag(bAddedToGraphFlag);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SStatsView::TreeView_OnMouseButtonDoubleClick(FStatsNodePtr StatsNode)
 {
 	if (!StatsNode->IsGroup())
 	{
-		//im:TODO: const bool bIsStatTracked = FTimingProfilerManager::Get()->IsStatTracked(StatsNode->GetId());
-	//	if (!bIsStatTracked)
+		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->TimingView : nullptr;
+		if (TimingView.IsValid())
+		{
+			TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
+			if (GraphTrack.IsValid())
+			{
+				uint32 StatsCounterId = static_cast<uint32>(StatsNode->GetId());
+				TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
+				if (Series.IsValid())
+				{
+					GraphTrack->RemoveStatsCounterSeries(StatsCounterId);
+					GraphTrack->SetDirtyFlag();
+					StatsNode->SetAddedToGraphFlag(false);
+				}
+				else
+				{
+					GraphTrack->AddStatsCounterSeries(StatsCounterId, StatsNode->GetColor(), 0.0, 1.0);
+					GraphTrack->SetDirtyFlag();
+					StatsNode->SetAddedToGraphFlag(true);
+				}
+			}
+		}
+
+		//im:TODO: const bool bIsStatsCounterTracked = FTimingProfilerManager::Get()->IsStatsCounterTracked(StatsNode->GetId());
+	//	if (!bIsStatsCounterTracked)
 	//	{
-	//		// Add a new graph.
-	//		FTimingProfilerManager::Get()->TrackStat(StatsNode->GetId());
+	//		// Add a new graph series.
+	//		FTimingProfilerManager::Get()->TrackStatsCounter(StatsNode->GetId());
 	//	}
 	//	else
 	//	{
-	//		// Remove a graph
-	//		FTimingProfilerManager::Get()->UntrackStat(StatsNode->GetId());
+	//		// Remove the corresponding graph series.
+	//		FTimingProfilerManager::Get()->UntrackStatsCounter(StatsNode->GetId());
 	//	}
 	}
 	else
@@ -1433,6 +1485,7 @@ void SStatsView::RebuildTree(bool bResync)
 							Counter.IsFloatingPoint() ? TEXT("float") : TEXT("int64"));
 				EStatsNodeType Type = Counter.IsFloatingPoint() ? EStatsNodeType::Float : EStatsNodeType::Int64;
 				FStatsNodePtr StatsNodePtr = MakeShareable(new FStatsNode(Counter.GetId(), Name, Group, Type));
+				UpdateStatsNode(StatsNodePtr);
 				StatsNodes.Add(StatsNodePtr);
 				//StatsNodesMap.Add(Name, StatsNodePtr);
 				StatsNodesIdMap.Add(Counter.GetId(), StatsNodePtr);

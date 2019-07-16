@@ -89,8 +89,15 @@ public:
 		, Name(InName)
 		, MetaGroupName(InMetaGroupName)
 		, Type(InType)
+		, bIsAddedToGraph(false)
 		, bForceExpandGroupNode(false)
 	{
+		const uint32 HashColor = Id * 0x2c2c57ed;
+		Color.R = ((HashColor >> 16) & 0xFF) / 255.0f;
+		Color.G = ((HashColor >> 8) & 0xFF) / 255.0f;
+		Color.B = ((HashColor) & 0xFF) / 255.0f;
+		Color.A = 1.0;
+
 		ResetAggregatedStats();
 	}
 
@@ -99,6 +106,8 @@ public:
 		: Id(0)
 		, Name(InGroupName)
 		, Type(EStatsNodeType::Group)
+		, Color(0.0, 0.0, 0.0, 1.0)
+		, bIsAddedToGraph(false)
 		, bForceExpandGroupNode(false)
 	{
 		ResetAggregatedStats();
@@ -147,6 +156,14 @@ public:
 	bool IsGroup() const
 	{
 		return Type == EStatsNodeType::Group;
+	}
+
+	/**
+	 * @return color of the node. Used when showing a graph series for a stats counter.
+	 */
+	FLinearColor GetColor() const
+	{
+		return Color;
 	}
 
 	/**
@@ -231,6 +248,16 @@ public:
 		return false; // TODO
 	}
 
+	bool IsAddedToGraph() const
+	{
+		return bIsAddedToGraph;
+	}
+
+	void SetAddedToGraphFlag(bool bOnOff)
+	{
+		bIsAddedToGraph = bOnOff;
+	}
+
 public:
 	/** Sorts children using the specified class instance. */
 	template<typename TSortingClass>
@@ -268,8 +295,13 @@ protected:
 	/** The name of the group that this timer belongs to, based on the timer's metadata; only valid for timer nodes. */
 	const FName MetaGroupName;
 
-	/** Holds the type of this timer; for the group, this is Group. */
+	/** Holds the type of this node; for the group, this is Group. */
 	const EStatsNodeType Type;
+
+	/** Color of the node. */
+	FLinearColor Color;
+
+	bool bIsAddedToGraph;
 
 	/** Aggregated stats (double). */
 	FAggregatedStats AggregatedStats;

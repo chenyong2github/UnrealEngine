@@ -146,7 +146,7 @@ protected:
 
 	/** Cached info for timelines. */
 	TMap<uint64, FFrameTrackTimeline> CachedTimelines;
-	TArray<int32> TimelinesOrder;
+	TArray<uint64> TimelinesOrder;
 
 	bool bIsStateDirty;
 

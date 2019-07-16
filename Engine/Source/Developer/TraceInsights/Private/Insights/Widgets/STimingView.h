@@ -88,6 +88,9 @@ public:
 	void CreateThreadGroupsMenu(FMenuBuilder& MenuBuilder);
 	void CreateTracksMenu(FMenuBuilder& MenuBuilder);
 
+	bool ShowHideGraphTrack_IsChecked() const;
+	void ShowHideGraphTrack_Execute();
+
 	bool ShowHideAllCpuTracks_IsChecked() const;
 	void ShowHideAllCpuTracks_Execute();
 
@@ -269,6 +272,8 @@ public:
 	bool IsGpuTrackVisible() const;
 	bool IsCpuTrackVisible(uint32 ThreadId) const;
 
+	TSharedPtr<FTimingGraphTrack> GetMainTimingGraphTrack() { return StaticCastSharedPtr<FTimingGraphTrack>(GraphTrack); }
+
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override
 	{
@@ -292,7 +297,7 @@ protected:
 
 	void DrawTimeRangeSelection(FDrawContext& DrawContext) const;
 
-	void ShowContextMenu(const FVector2D& ScreenSpacePosition, const FPointerEvent& MouseEvent);
+	void ShowContextMenu(const FPointerEvent& MouseEvent);
 
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
@@ -482,7 +487,7 @@ protected:
 	FMarkersTimingTrack MarkersTrack;
 
 	/** A graph track for frame times. */
-	FFramesGraphTrack GraphTrack;
+	TSharedPtr<FGraphTrack> GraphTrack;
 
 	////////////////////////////////////////////////////////////
 

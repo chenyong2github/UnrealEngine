@@ -188,30 +188,9 @@ protected:
 
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
 
-	void ContextMenu_ShowPoints_Execute();
-	bool ContextMenu_ShowPoints_CanExecute();
-	bool ContextMenu_ShowPoints_IsChecked();
-
-	void ContextMenu_ShowPointsWithBorder_Execute();
-	bool ContextMenu_ShowPointsWithBorder_CanExecute();
-	bool ContextMenu_ShowPointsWithBorder_IsChecked();
-
-	void ContextMenu_ShowLines_Execute();
-	bool ContextMenu_ShowLines_CanExecute();
-	bool ContextMenu_ShowLines_IsChecked();
-
-	void ContextMenu_ShowLinesWithDuration_Execute();
-	bool ContextMenu_ShowLinesWithDuration_CanExecute();
-	bool ContextMenu_ShowLinesWithDuration_IsChecked();
-
-	void ContextMenu_ShowBars_Execute();
-	bool ContextMenu_ShowBars_CanExecute();
-	bool ContextMenu_ShowBars_IsChecked();
-
 protected:
-	FTimeRulerTrack TimeRulerTrack;
-	FRandomGraphTrack GraphTrack;
-	//FFramesGraphTrack GraphTrack;
+	TSharedPtr<FTimeRulerTrack> TimeRulerTrack;
+	TSharedPtr<FGraphTrack> GraphTrack;
 	FTimingTrackViewport Viewport;
 
 	bool bIsViewportDirty;

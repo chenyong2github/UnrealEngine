@@ -147,7 +147,7 @@ void FCounterProvider::EnumerateCounters(TFunctionRef<void(const ICounter &)> Ca
 
 bool FCounterProvider::ReadCounter(uint32 CounterId, TFunctionRef<void(const ICounter &)> Callback) const
 {
-	if (CounterId < uint32(Counters.Num()))
+	if (CounterId >= uint32(Counters.Num()))
 	{
 		return false;
 	}

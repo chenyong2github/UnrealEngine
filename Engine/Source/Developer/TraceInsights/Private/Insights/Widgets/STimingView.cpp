@@ -65,7 +65,7 @@ STimingView::STimingView()
 	: bAssetLoadingMode(false)
 	, TimeRulerTrack(FBaseTimingTrack::GenerateId())
 	, MarkersTrack(FBaseTimingTrack::GenerateId())
-	, GraphTrack(FBaseTimingTrack::GenerateId())
+	, GraphTrack(MakeShareable(new FTimingGraphTrack(FBaseTimingTrack::GenerateId())))
 	, TooltipWidth(MinTooltipWidth)
 	, TooltipAlpha(0.0f)
 	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
@@ -243,8 +243,8 @@ void STimingView::Reset()
 	TimeRulerTrack.Reset();
 	MarkersTrack.Reset();
 
-	GraphTrack.Reset();
-	GraphTrack.SetVisibilityFlag(false);
+	GraphTrack->Reset();
+	GraphTrack->SetVisibilityFlag(false);
 
 	//////////////////////////////////////////////////
 
@@ -336,11 +336,11 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		MarkersTrack.SetPosY(TopOffset);
 		TopOffset += MarkersTrack.GetHeight();
 	}
-	if (GraphTrack.IsVisible())
+	if (GraphTrack->IsVisible())
 	{
-		GraphTrack.SetPosY(TopOffset);
-		GraphTrack.SetHeight(200.0f);
-		TopOffset += GraphTrack.GetHeight();
+		GraphTrack->SetPosY(TopOffset);
+		GraphTrack->SetHeight(200.0f);
+		TopOffset += GraphTrack->GetHeight();
 	}
 	Viewport.TopOffset = TopOffset;
 
@@ -671,13 +671,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	{
 		bAreTimingEventsTracksDirty = false;
 
+		GraphTrack->SetDirtyFlag();
+
 		FStopwatch Stopwatch;
 		Stopwatch.Start();
-
-		if (GraphTrack.IsVisible())
-		{
-			GraphTrack.Update(Viewport);
-		}
 
 		for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 		{
@@ -686,6 +683,12 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 		Stopwatch.Stop();
 		TimelineCacheUpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
+	}
+
+	if (GraphTrack->IsVisible() && GraphTrack->IsDirty())
+	{
+		GraphTrack->ClearDirtyFlag();
+		GraphTrack->Update(Viewport);
 	}
 }
 
@@ -777,9 +780,9 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		Helper.EndTimelines();
 	}
 
-	if (GraphTrack.IsVisible())
+	if (GraphTrack->IsVisible())
 	{
-		GraphTrack.Draw(DrawContext, Viewport);
+		GraphTrack->Draw(DrawContext, Viewport);
 	}
 
 	if (!FTimingEvent::AreEquals(SelectedTimingEvent, HoveredTimingEvent))
@@ -970,10 +973,10 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			DbgX, DbgY,
 			FString::Format(TEXT("{0} events : {1} points, {2} lines, {3} boxes"),
 				{
-					FText::AsNumber(GraphTrack.GetNumAddedEvents()).ToString(),
-					FText::AsNumber(GraphTrack.GetNumDrawPoints()).ToString(),
-					FText::AsNumber(GraphTrack.GetNumDrawLines()).ToString(),
-					FText::AsNumber(GraphTrack.GetNumDrawBoxes()).ToString(),
+					FText::AsNumber(GraphTrack->GetNumAddedEvents()).ToString(),
+					FText::AsNumber(GraphTrack->GetNumDrawPoints()).ToString(),
+					FText::AsNumber(GraphTrack->GetNumDrawLines()).ToString(),
+					FText::AsNumber(GraphTrack->GetNumDrawBoxes()).ToString(),
 				}),
 				SummaryFont, DbgTextColor
 				);
@@ -1873,6 +1876,11 @@ void STimingView::UpdateIo()
 				{
 					TSharedPtr<FIoFileActivity> Activity;
 
+					//if (EventEndTime == std::numeric_limits<double>::infinity())
+					//{
+					//	EventEndTime = EventStartTime;
+					//}
+
 					if (!FileActivityMap.Contains(FileInfo.Id))
 					{
 						Activity = MakeShareable(new FIoFileActivity());
@@ -2401,7 +2409,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 
 			if (bIsValidForMouseClick)
 			{
-				ShowContextMenu(MouseEvent.GetScreenSpacePosition(), MouseEvent);
+				ShowContextMenu(MouseEvent);
 			}
 
 			bIsDragging = false;
@@ -2826,8 +2834,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::G) // debug: toggles Graph track on/off
 	{
-		GraphTrack.ToggleVisibility();
-		bAreTimingEventsTracksDirty = true;
+		ShowHideGraphTrack_Execute();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Y) // debug: toggles GPU track on/off
@@ -2902,30 +2909,89 @@ FReply STimingView::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyE
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::ShowContextMenu(const FVector2D& ScreenSpacePosition, const FPointerEvent& MouseEvent)
+void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 {
-	/* TODO
-	TSharedPtr<FUICommandList> ProfilerCommandList = FTimingProfilerManager::Get()->GetCommandList();
-	const FTimingProfilerCommands& ProfilerCommands = FTimingProfilerManager::GetCommands();
-	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+	//TSharedPtr<FUICommandList> ProfilerCommandList = FTimingProfilerManager::Get()->GetCommandList();
+	//const FTimingProfilerCommands& ProfilerCommands = FTimingProfilerManager::GetCommands();
+	//const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ProfilerCommandList);
+	//FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ProfilerCommandList);
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 
-	MenuBuilder.BeginSection(TEXT("Misc"), LOCTEXT("Miscellaneous", "Miscellaneous"));
+	if (GraphTrack->IsVisible() &&
+		MousePosition.Y >= GraphTrack->GetPosY() &&
+		MousePosition.Y < GraphTrack->GetPosY() + GraphTrack->GetHeight())
 	{
-		MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
-		MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
-		MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleTimersViewVisibility);
-		MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleStatsCountersViewVisibility);
+		//GraphTrack->BuildContextMenu(MenuBuilder);
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("ContextMenu_Header_GraphTrack", "Graph Track"),
+			TAttribute<FText>(), // no tooltip
+			FNewMenuDelegate::CreateSP(GraphTrack.Get(), &FBaseTimingTrack::BuildContextMenu),
+			false,
+			FSlateIcon()
+		);
 	}
-	MenuBuilder.EndSection();
+	else
+	{
+		MenuBuilder.BeginSection(TEXT("Empty"));
+		{
+			struct FLocal
+			{
+				static bool ReturnFalse()
+				{
+					return false;
+				}
+			};
+
+			FUIAction DummyUIAction;
+			DummyUIAction.CanExecuteAction = FCanExecuteAction::CreateStatic(&FLocal::ReturnFalse);
+
+			FText Title;
+			if (HoveredTimingEvent.Track != nullptr)
+			{
+				if (HoveredTimingEvent.Track->GetGroupName() != nullptr)
+				{
+					Title = FText::Format(LOCTEXT("TrackTitleGroupFmt", "{0} (Group: {1})"), FText::FromString(HoveredTimingEvent.Track->GetName()), FText::FromString(HoveredTimingEvent.Track->GetGroupName()));
+				}
+				else
+				{
+					Title = FText::FromString(HoveredTimingEvent.Track->GetName());
+				}
+			}
+			else
+			{
+				Title = LOCTEXT("ContextMenu_NA", "N/A");
+			}
+
+			MenuBuilder.AddMenuEntry
+			(
+				Title,
+				LOCTEXT("ContextMenu_NA_Desc", "No actions available."),
+				FSlateIcon(),
+				DummyUIAction,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		MenuBuilder.EndSection();
+	}
+
+	//MenuBuilder.BeginSection(TEXT("Misc"), LOCTEXT("Miscellaneous", "Miscellaneous"));
+	//{
+	//	MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
+	//	MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
+	//	MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleTimersViewVisibility);
+	//	MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleStatsCountersViewVisibility);
+	//}
+	//MenuBuilder.EndSection();
 
 	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 
 	FWidgetPath EventPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+	const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
 	FSlateApplication::Get().PushMenu(SharedThis(this), EventPath, MenuWidget, ScreenSpacePosition, FPopupTransitionEffect::ContextMenu);
-	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3823,6 +3889,17 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 	{
 		const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowGraphTrack", "Graph Track - G"),
+			LOCTEXT("ShowGraphTrack_Tooltip", "Show/hide the Graph track"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideGraphTrack_Execute),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::ShowHideGraphTrack_IsChecked)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowAllGpuTracks", "GPU Track - Y"),
@@ -3950,6 +4027,21 @@ void STimingView::CreateTracksMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::ShowHideGraphTrack_IsChecked() const
+{
+	return GraphTrack->IsVisible();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ShowHideGraphTrack_Execute()
+{
+	GraphTrack->ToggleVisibility();
+	bAreTimingEventsTracksDirty = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

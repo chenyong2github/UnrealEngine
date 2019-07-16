@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/SharedPointer.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FTimingTrackViewport;
+class FMenuBuilder;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -15,15 +17,16 @@ enum class ETimingTrackFlags : uint32
 {
 	None = 0,
 	IsVisible = (1 << 0),
-	IsSelected = (1 << 1),
-	IsHovered = (1 << 2),
-	IsHeaderHovered = (1 << 3),
+	IsDirty = (1 << 1),
+	IsSelected = (1 << 2),
+	IsHovered = (1 << 3),
+	IsHeaderHovered = (1 << 4),
 };
 ENUM_CLASS_FLAGS(ETimingTrackFlags);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FBaseTimingTrack
+class FBaseTimingTrack : public TSharedFromThis<FBaseTimingTrack>
 {
 	friend class FTimingViewDrawHelper;
 
@@ -32,7 +35,7 @@ protected:
 		: Id(InId)
 		, PosY(0.0f)
 		, Height(0.0f)
-		, Flags(ETimingTrackFlags::IsVisible)
+		, Flags(ETimingTrackFlags::IsVisible | ETimingTrackFlags::IsDirty)
 	{}
 
 	virtual ~FBaseTimingTrack()
@@ -44,7 +47,7 @@ public:
 		Id = 0;
 		PosY = 0.0f;
 		Height = 0.0f;
-		Flags = ETimingTrackFlags::IsVisible;
+		Flags = ETimingTrackFlags::IsVisible | ETimingTrackFlags::IsDirty;
 	}
 
 	uint64 GetId() const { return Id; }
@@ -61,6 +64,11 @@ public:
 	void ToggleVisibility() { Flags ^= ETimingTrackFlags::IsVisible; OnVisibilityChanged(); }
 	void SetVisibilityFlag(bool bIsVisible) { bIsVisible ? Show() : Hide(); }
 	virtual void OnVisibilityChanged() {}
+
+	bool IsDirty() const { return EnumHasAnyFlags(Flags, ETimingTrackFlags::IsDirty); }
+	void SetDirtyFlag() { Flags |= ETimingTrackFlags::IsDirty; OnDirtyFlagChanged(); }
+	void ClearDirtyFlag() { Flags &= ~ETimingTrackFlags::IsDirty; OnDirtyFlagChanged(); }
+	virtual void OnDirtyFlagChanged() {}
 
 	bool IsSelected() const { return EnumHasAnyFlags(Flags, ETimingTrackFlags::IsSelected); }
 	void Select() { Flags |= ETimingTrackFlags::IsSelected; OnSelectedFlagChanged(); }
@@ -79,6 +87,8 @@ public:
 	virtual void Update(const FTimingTrackViewport& Viewport) {}
 
 	static uint64 GenerateId() { return IdGenerator++; }
+
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) {}
 
 private:
 	uint64 Id;

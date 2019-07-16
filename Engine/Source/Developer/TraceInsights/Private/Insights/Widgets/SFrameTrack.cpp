@@ -195,7 +195,7 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 			{
 				FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
-				CachedTimeline.Id = FrameType;
+				CachedTimeline.Id = static_cast<uint64>(FrameType);
 
 				int32 NumFrames = FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType));
 				if (NumFrames > Viewport.MaxIndex)
@@ -258,7 +258,7 @@ void SFrameTrack::UpdateState()
 		for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 		{
 			FFrameTrackTimeline& Timeline = CachedTimelines.FindOrAdd(FrameType);
-			Timeline.Id = FrameType;
+			Timeline.Id = static_cast<uint64>(FrameType);
 
 			FFrameTrackTimelineBuilder Builder(Timeline, Viewport);
 
@@ -292,7 +292,7 @@ FSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 		// Search in reverse paint order.
 		for (int32 TimelineIndex = TimelinesOrder.Num() - 1; TimelineIndex >= 0; --TimelineIndex)
 		{
-			int32 TimelineId = TimelinesOrder[TimelineIndex];
+			uint64 TimelineId = TimelinesOrder[TimelineIndex];
 
 			if ((TimelineId == TraceFrameType_Rendering && !bShowRenderingFrames) ||
 				(TimelineId == TraceFrameType_Game && !bShowGameFrames))
@@ -302,11 +302,13 @@ FSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 
 			if (CachedTimelines.Contains(TimelineId))
 			{
-				const FFrameTrackTimeline& CachedTimeline = CachedTimelines[TimelineId];
-				if (CachedTimeline.NumAggregatedFrames > 0 &&
-					SampleIndex < CachedTimeline.Samples.Num())
+				const FFrameTrackTimeline& Timeline = CachedTimelines[TimelineId];
+				ensure(Timeline.Id == TimelineId);
+
+				if (Timeline.NumAggregatedFrames > 0 &&
+					SampleIndex < Timeline.Samples.Num())
 				{
-					const FFrameTrackSample& Sample = CachedTimeline.Samples[SampleIndex];
+					const FFrameTrackSample& Sample = Timeline.Samples[SampleIndex];
 					if (Sample.NumFrames > 0)
 					{
 						float SampleY1;
@@ -320,7 +322,7 @@ FSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 						}
 						if (Y >= SampleY1 && Y <= SampleY2)
 						{
-							return FSampleRef(&CachedTimeline, &Sample);
+							return FSampleRef(&Timeline, &Sample);
 						}
 					}
 				}
@@ -386,7 +388,7 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		// Draw frames, for each visible timeline.
 		for (int32 TimelineIndex = 0; TimelineIndex < TimelinesOrder.Num(); ++TimelineIndex)
 		{
-			int32 TimelineId = TimelinesOrder[TimelineIndex];
+			uint64 TimelineId = TimelinesOrder[TimelineIndex];
 
 			if ((TimelineId == TraceFrameType_Rendering && !bShowRenderingFrames) ||
 				(TimelineId == TraceFrameType_Game && !bShowGameFrames))
@@ -397,6 +399,8 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			if (CachedTimelines.Contains(TimelineId))
 			{
 				const FFrameTrackTimeline& Timeline = CachedTimelines[TimelineId];
+				ensure(Timeline.Id == TimelineId);
+
 				Helper.DrawCached(Timeline);
 			}
 		}
@@ -410,8 +414,8 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 			FString Text = FString::Format(TEXT("{0} frame {1} ({2})"),
 				{
-					(HoveredSample.Timeline->Id == 0) ? TEXT("Game") :
-					(HoveredSample.Timeline->Id == 1) ? TEXT("Rendering") : TEXT("Misc"),
+					(HoveredSample.Timeline->Id == TraceFrameType_Game) ? TEXT("Game") :
+					(HoveredSample.Timeline->Id == TraceFrameType_Rendering) ? TEXT("Rendering") : TEXT("Misc"),
 					FText::AsNumber(HoveredSample.Sample->LargestFrameIndex).ToString(),
 					TimeUtils::FormatTimeAuto(HoveredSample.Sample->LargestFrameDuration)
 				});
@@ -440,12 +444,21 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		}
 
 		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Window && Window->TimingView && CachedTimelines.Num() > 0)
+		if (Window && Window->TimingView)
 		{
-			// Highlight the area corresponding to viewport of Timing View.
-			const double StartTime = Window->TimingView->GetViewport().StartTime;
-			const double EndTime = Window->TimingView->GetViewport().EndTime;
-			Helper.DrawHighlightedInterval(CachedTimelines[0], StartTime, EndTime);
+			const FFrameTrackTimeline* TimelinePtr = nullptr;
+			for (const TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
+			{
+				TimelinePtr = &KeyValuePair.Value;
+				break; // stop at first enumerated timeline
+			}
+			if (TimelinePtr)
+			{
+				// Highlight the area corresponding to viewport of Timing View.
+				const double StartTime = Window->TimingView->GetViewport().StartTime;
+				const double EndTime = Window->TimingView->GetViewport().EndTime;
+				Helper.DrawHighlightedInterval(*TimelinePtr, StartTime, EndTime);
+			}
 		}
 
 		Stopwatch.Stop();

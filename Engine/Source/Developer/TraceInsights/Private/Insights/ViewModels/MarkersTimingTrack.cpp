@@ -28,7 +28,6 @@ FMarkersTimingTrack::FMarkersTimingTrack(uint64 InTrackId)
 	//, TimeMarkerTexts()
 	, bIsCollapsed(false)
 	, bUseOnlyBookmarks(true)
-	, bIsDirty(true)
 	, TargetHoveredAnimPercent(0.0f)
 	, CurrentHoveredAnimPercent(0.0f)
 	, NumLogMessages(0)
@@ -56,7 +55,6 @@ void FMarkersTimingTrack::Reset()
 
 	bIsCollapsed = false;
 	bUseOnlyBookmarks = true;
-	bIsDirty = true;
 
 	TargetHoveredAnimPercent = 0.0f;
 	CurrentHoveredAnimPercent = 0.0f;

@@ -10,6 +10,7 @@
 
 struct FDrawContext;
 struct FSlateBrush;
+class FMenuBuilder;
 class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,24 +33,61 @@ public:
 	FGraphTrackSeries();
 	~FGraphTrackSeries();
 
+	const FText& GetName() const { return Name; }
+	void SetName(const TCHAR* InName) { Name = FText::FromString(InName); }
+	void SetName(const FString& InName) { Name = FText::FromString(InName); }
+	void SetName(const FText& InName) { Name = InName; }
+
+	const FText& GetDescription() const { return Description; }
+	void SetDescription(const TCHAR* InDescription) { Description = FText::FromString(InDescription); }
+	void SetDescription(const FString& InDescription) { Description = FText::FromString(InDescription); }
+	void SetDescription(const FText& InDescription) { Description = InDescription; }
+
+	bool IsVisible() const { return bIsVisible; }
+	void SetVisibility(bool bOnOff) { bIsVisible = bOnOff; }
+
+	const FLinearColor& GetColor() const { return Color; }
+	const FLinearColor& GetBorderColor() const { return BorderColor; }
+
 	void SetColor(FLinearColor InColor, FLinearColor InBorderColor)
 	{
 		Color = InColor;
 		BorderColor = InBorderColor;
 	}
 
-protected:
-	//FText Name;
-	//FText Description;
+private:
+	FText Name;
+	FText Description;
+
+	bool bIsVisible;
 
 	FLinearColor Color;
 	FLinearColor BorderColor;
 
+protected:
 	TArray<FVector2D> Points;
 	TArray<FVector2D> LinePoints;
 	TArray<FGraphBox> Boxes;
+};
 
-	//bool bIsVisible;
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimingGraphSeries : public FGraphTrackSeries
+{
+public:
+	enum class ESeriesType
+	{
+		Frame,
+		Timer,
+		StatsCounter
+	};
+
+public:
+	ESeriesType Type;
+	uint32 Id; // frame type, timer id or stats counter id
+	bool bIsFloatingPoint; // for stats counters
+	double ValueOffset; // offset added to Y values (used to pan graph vertically)
+	double ValueScale; // scale of Y values (used to scale graph vertically)
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,11 +108,16 @@ public:
 	FGraphTrack(uint64 InTrackId);
 	virtual ~FGraphTrack();
 
-	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport);
+	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport) override;
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override = 0;
 
 	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
+
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+
+	//virtual int GetDebugLineCount() override;
+	//virtual void BuildDebugLines(FString& OutStr) override;
 
 	int32 GetNumAddedEvents() const { return NumAddedEvents; }
 	int32 GetNumDrawPoints() const { return NumDrawPoints; }
@@ -92,8 +135,37 @@ protected:
 		return BaselineY - static_cast<float>(Value * ScaleY); // TODO: vertical zooming and panning
 	}
 
+private:
+	void ContextMenu_ShowPoints_Execute();
+	bool ContextMenu_ShowPoints_CanExecute();
+	bool ContextMenu_ShowPoints_IsChecked();
+
+	void ContextMenu_ShowPointsWithBorder_Execute();
+	bool ContextMenu_ShowPointsWithBorder_CanExecute();
+	bool ContextMenu_ShowPointsWithBorder_IsChecked();
+
+	void ContextMenu_ShowLines_Execute();
+	bool ContextMenu_ShowLines_CanExecute();
+	bool ContextMenu_ShowLines_IsChecked();
+
+	void ContextMenu_ShowPolygon_Execute();
+	bool ContextMenu_ShowPolygon_CanExecute();
+	bool ContextMenu_ShowPolygon_IsChecked();
+
+	void ContextMenu_UseEventDuration_Execute();
+	bool ContextMenu_UseEventDuration_CanExecute();
+	bool ContextMenu_UseEventDuration_IsChecked();
+
+	void ContextMenu_ShowBars_Execute();
+	bool ContextMenu_ShowBars_CanExecute();
+	bool ContextMenu_ShowBars_IsChecked();
+
+	void ContextMenu_ShowSeries_Execute(FGraphTrackSeries* Series);
+	bool ContextMenu_ShowSeries_CanExecute(FGraphTrackSeries* Series);
+	bool ContextMenu_ShowSeries_IsChecked(FGraphTrackSeries* Series);
+
 protected:
-	TArray<FGraphTrackSeries> AllSeries;
+	TArray<TSharedPtr<FGraphTrackSeries>> AllSeries;
 
 	// Slate resources
 	const FSlateBrush* WhiteBrush;
@@ -101,14 +173,13 @@ protected:
 	const FSlateBrush* BorderBrush;
 	const FSlateFontInfo Font;
 
-public:
 	bool bDrawPoints;
 	bool bDrawPointsWithBorder;
 	bool bDrawLines;
-	bool bDrawLinesWithDuration;
+	bool bDrawPolygon;
+	bool bUseEventDuration;
 	bool bDrawBoxes;
 
-protected:
 	float BaselineY; // Y position (in viewport local space) of the baseline (with Value == 0); in pixels (Slate units)
 	double ScaleY; // scale between Value units and viewport units; in pixels (Slate units) / Value unit
 
@@ -130,21 +201,27 @@ public:
 	virtual void Update(const FTimingTrackViewport& Viewport) override;
 
 protected:
-	void GenerateSeries(FGraphTrackSeries& Series, const FTimingTrackViewport& Viewport, const int32 EventCount);
+	void GenerateSeries(FGraphTrackSeries& Series, const FTimingTrackViewport& Viewport, const int32 EventCount, int32 Seed);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FFramesGraphTrack : public FGraphTrack
+class FTimingGraphTrack : public FGraphTrack
 {
 public:
-	FFramesGraphTrack(uint64 InTrackId);
-	virtual ~FFramesGraphTrack();
+	FTimingGraphTrack(uint64 InTrackId);
+	virtual ~FTimingGraphTrack();
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override;
 
+	TSharedPtr<FTimingGraphSeries> GetStatsCounterSeries(uint32 CounterId);
+	void AddStatsCounterSeries(uint32 CounterId, FLinearColor Color, double ValueOffset = 0.0, double ValueScale = 1.0);
+	void RemoveStatsCounterSeries(uint32 CounterId);
+
 protected:
-	void UpdateSeries(FGraphTrackSeries& Series, const FTimingTrackViewport& Viewport, ETraceFrameType FrameType);
+	void UpdateFrameSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
+	void UpdateTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
+	void UpdateStatsCounterSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

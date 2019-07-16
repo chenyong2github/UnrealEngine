@@ -39,8 +39,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SGraphTrack::SGraphTrack()
-	: TimeRulerTrack(0)
-	, GraphTrack(1)
+	: TimeRulerTrack(MakeShareable(new FTimeRulerTrack(0)))
+	, GraphTrack(MakeShareable(new FRandomGraphTrack(1)))
 	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
@@ -57,8 +57,8 @@ SGraphTrack::~SGraphTrack()
 
 void SGraphTrack::Reset()
 {
-	TimeRulerTrack.Reset();
-	GraphTrack.Reset();
+	TimeRulerTrack->Reset();
+	GraphTrack->Reset();
 
 	Viewport.Reset();
 	Viewport.MaxValidTime = 84.0 * 60.0;
@@ -110,7 +110,7 @@ void SGraphTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	if (Viewport.UpdateSize(TrackWidth, TrackHeight) ||
 		bIsViewportDirty ||
 		bIsVerticalViewportDirty ||
-		GraphTrack.GetHeight() != TrackHeight)
+		GraphTrack->GetHeight() != TrackHeight)
 	{
 		bIsGraphDirty = true;
 	}
@@ -119,9 +119,9 @@ void SGraphTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	{
 		bIsGraphDirty = false;
 
-		GraphTrack.SetPosY(TimeRulerTrack.GetHeight());
-		GraphTrack.SetHeight(Viewport.Height - TimeRulerTrack.GetHeight());
-		GraphTrack.Update(Viewport);
+		GraphTrack->SetPosY(TimeRulerTrack->GetHeight());
+		GraphTrack->SetHeight(Viewport.Height - TimeRulerTrack->GetHeight());
+		GraphTrack->Update(Viewport);
 	}
 }
 
@@ -133,10 +133,10 @@ int32 SGraphTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 	FDrawContext DrawContext(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
 
-	GraphTrack.Draw(DrawContext, Viewport);
+	GraphTrack->Draw(DrawContext, Viewport);
 
-	TimeRulerTrack.Draw(DrawContext, Viewport, MousePosition, bIsSelecting, SelectionStartTime, SelectionEndTime);
-	DrawContext.DrawBox(0.0f, TimeRulerTrack.GetHeight(), Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+	TimeRulerTrack->Draw(DrawContext, Viewport, MousePosition, bIsSelecting, SelectionStartTime, SelectionEndTime);
+	DrawContext.DrawBox(0.0f, TimeRulerTrack->GetHeight(), Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
 	FDrawHelpers::DrawTimeRangeSelection(DrawContext, Viewport, SelectionStartTime, SelectionEndTime, WhiteBrush, MainFont);
 
@@ -205,7 +205,7 @@ FReply SGraphTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		{
 			bIsLMB_Pressed = true;
 
-			if ((MousePositionOnButtonDown.Y < TimeRulerTrack.GetHeight() ||
+			if ((MousePositionOnButtonDown.Y < TimeRulerTrack->GetHeight() ||
 				(MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown())))
 			{
 				bStartSelecting = true;
@@ -225,7 +225,7 @@ FReply SGraphTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		{
 			bIsRMB_Pressed = true;
 
-			if ((MousePositionOnButtonDown.Y < TimeRulerTrack.GetHeight() ||
+			if ((MousePositionOnButtonDown.Y < TimeRulerTrack->GetHeight() ||
 				(MouseEvent.GetModifierKeys().IsControlDown() && MouseEvent.GetModifierKeys().IsShiftDown())))
 			{
 				bStartSelecting = true;
@@ -581,200 +581,13 @@ void SGraphTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 
-	MenuBuilder.BeginSection("Misc");
-	{
-		FUIAction Action_ShowPoints
-		(
-			FExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowPoints_Execute),
-			FCanExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowPoints_CanExecute),
-			FIsActionChecked::CreateSP(this, &SGraphTrack::ContextMenu_ShowPoints_IsChecked)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_ShowPoints", "Points"),
-			LOCTEXT("ContextMenu_ShowPoints_Desc", "Show points."),
-			FSlateIcon(),
-			Action_ShowPoints,
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		FUIAction Action_ShowPointsWithBorder
-		(
-			FExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowPointsWithBorder_Execute),
-			FCanExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowPointsWithBorder_CanExecute),
-			FIsActionChecked::CreateSP(this, &SGraphTrack::ContextMenu_ShowPointsWithBorder_IsChecked)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_ShowPointsWithBorder", "Points have Border"),
-			LOCTEXT("ContextMenu_ShowPointsWithBorder_Desc", "Show border around points."),
-			FSlateIcon(),
-			Action_ShowPointsWithBorder,
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		FUIAction Action_ShowLines
-		(
-			FExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowLines_Execute),
-			FCanExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowLines_CanExecute),
-			FIsActionChecked::CreateSP(this, &SGraphTrack::ContextMenu_ShowLines_IsChecked)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_ShowLines", "Lines"),
-			LOCTEXT("ContextMenu_ShowLines_Desc", "Show connected lines. Each event is a single point in time."),
-			FSlateIcon(),
-			Action_ShowLines,
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		FUIAction Action_ShowLinesWithDuration
-		(
-			FExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowLinesWithDuration_Execute),
-			FCanExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowLinesWithDuration_CanExecute),
-			FIsActionChecked::CreateSP(this, &SGraphTrack::ContextMenu_ShowLinesWithDuration_IsChecked)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_ShowLinesWithDuration", "Lines have Duration"),
-			LOCTEXT("ContextMenu_ShowLinesWithDuration_Desc", "Show connected lines. Each event is a horizontal line (duration of the timing event)."),
-			FSlateIcon(),
-			Action_ShowLinesWithDuration,
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		FUIAction Action_ShowBars
-		(
-			FExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowBars_Execute),
-			FCanExecuteAction::CreateSP(this, &SGraphTrack::ContextMenu_ShowBars_CanExecute),
-			FIsActionChecked::CreateSP(this, &SGraphTrack::ContextMenu_ShowBars_IsChecked)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_ShowBars", "Bars"),
-			LOCTEXT("ContextMenu_ShowBars_Desc", "Show bars."),
-			FSlateIcon(),
-			Action_ShowBars,
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-	}
-	MenuBuilder.EndSection();
+	GraphTrack->BuildContextMenu(MenuBuilder);
 
 	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 
 	FWidgetPath EventPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 	const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
 	FSlateApplication::Get().PushMenu(SharedThis(this), EventPath, MenuWidget, ScreenSpacePosition, FPopupTransitionEffect::ContextMenu);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SGraphTrack::ContextMenu_ShowPoints_Execute()
-{
-	GraphTrack.bDrawPoints = !GraphTrack.bDrawPoints;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowPoints_CanExecute()
-{
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowPoints_IsChecked()
-{
-	return GraphTrack.bDrawPoints;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SGraphTrack::ContextMenu_ShowPointsWithBorder_Execute()
-{
-	GraphTrack.bDrawPointsWithBorder = !GraphTrack.bDrawPointsWithBorder;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowPointsWithBorder_CanExecute()
-{
-	return GraphTrack.bDrawPoints;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowPointsWithBorder_IsChecked()
-{
-	return GraphTrack.bDrawPointsWithBorder;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SGraphTrack::ContextMenu_ShowLines_Execute()
-{
-	GraphTrack.bDrawLines = !GraphTrack.bDrawLines;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowLines_CanExecute()
-{
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowLines_IsChecked()
-{
-	return GraphTrack.bDrawLines;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SGraphTrack::ContextMenu_ShowLinesWithDuration_Execute()
-{
-	GraphTrack.bDrawLinesWithDuration = !GraphTrack.bDrawLinesWithDuration;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowLinesWithDuration_CanExecute()
-{
-	return GraphTrack.bDrawLines;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowLinesWithDuration_IsChecked()
-{
-	return GraphTrack.bDrawLinesWithDuration;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SGraphTrack::ContextMenu_ShowBars_Execute()
-{
-	GraphTrack.bDrawBoxes = !GraphTrack.bDrawBoxes;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowBars_CanExecute()
-{
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SGraphTrack::ContextMenu_ShowBars_IsChecked()
-{
-	return GraphTrack.bDrawBoxes;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

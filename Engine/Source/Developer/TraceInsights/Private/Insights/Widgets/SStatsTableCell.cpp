@@ -6,6 +6,7 @@
 #include "SlateOptMacros.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SExpanderArrow.h"
@@ -65,7 +66,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 			SNew(SExpanderArrow, TableRow)
 		]
 
-		// Event info icon + tooltip.
+		// Info icon + tooltip.
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.HAlign(HAlign_Center)
@@ -75,6 +76,25 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 			.Visibility(this, &SStatsTableCell::GetHintIconVisibility)
 			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
 			.ToolTip(SStatsViewTooltip::GetTableCellTooltip(StatsNodePtr))
+		]
+
+		// Color box.
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.Visibility(this, &SStatsTableCell::GetColorBoxVisibility)
+			.WidthOverride(14.0f)
+			.HeightOverride(14.0f)
+			[
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(this, &SStatsTableCell::GetStatsBoxColorAndOpacity)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+			]
 		]
 
 		// Name

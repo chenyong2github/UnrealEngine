@@ -88,6 +88,11 @@ protected:
 		SetHoveredTableCellDelegate.ExecuteIfBound(NAME_None, nullptr);
 	}
 
+	EVisibility GetColorBoxVisibility() const
+	{
+		return StatsNodePtr->IsAddedToGraph() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
 	EVisibility GetHintIconVisibility() const
 	{
 		return IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
@@ -119,6 +124,11 @@ protected:
 			StatsNodePtr->GetAggregatedStats().Count == 0 ? FLinearColor(1.0f, 1.0f, 1.0f, 0.6f) :
 			FLinearColor::White;
 		return TextColor;
+	}
+
+	FSlateColor GetStatsBoxColorAndOpacity() const
+	{
+		return StatsNodePtr->GetColor();
 	}
 
 	FLinearColor GetShadowColorAndOpacity() const
