@@ -62,7 +62,27 @@ public:
 			.ActivationPolicy(EWindowActivationPolicy::Never)
 			.IsInitiallyMaximized(false)
 			[
-				LogWidget.ToSharedRef()
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+				[
+					SNew(SVerticalBox)
+
+					+ SVerticalBox::Slot()
+					.FillHeight(1.0f)
+					[
+						LogWidget.ToSharedRef()
+					]
+					
+					+ SVerticalBox::Slot()
+					.HAlign(HAlign_Center)
+					.AutoHeight()
+					.Padding(0.0f, 6.0f, 0.0f, 4.0f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("QuickRestart", "Quick Restart"))
+						.OnClicked(FOnClicked::CreateRaw(this, &FLiveCodingConsoleApp::RestartTargets))
+					]
+				]
 			];
 
 		// Add the window without showing it
@@ -280,6 +300,12 @@ private:
 	{
 		FScopeLock Lock(&CriticalSection);
 		return bRequestCancel;
+	}
+
+	FReply RestartTargets()
+	{
+		Server.RestartTargets();
+		return FReply::Handled();
 	}
 
 	void SetVisibleAsync(bool bVisible)
