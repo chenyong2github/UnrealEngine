@@ -7,6 +7,8 @@
 #include "DataTableRowUtlis.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "SDataTableListViewRowName"
 
