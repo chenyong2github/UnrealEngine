@@ -150,5 +150,7 @@ private:
 	CriticalSection m_restartCS;
 	void* m_restartJob;
 	unsigned int m_restartedProcessCount;
+#if LC_WITH_VISUAL_STUDIO_DTE
 	types::unordered_map<unsigned int, EnvDTE::DebuggerPtr> m_restartedProcessIdToDebugger;
+#endif
 };
