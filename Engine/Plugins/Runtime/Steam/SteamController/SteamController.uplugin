@@ -1,12 +1,12 @@
 {
 	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
+	"Version" : 1.1,
+	"VersionName" : "1.1",
 	"FriendlyName" : "Steam Controller Plugin",
 	"Description" : "InputDevice plugin for Steam controller",
 	"Category" : "Input Devices",
 	"CreatedBy" : "Epic Games, Inc.",
-	"CreatedByURL" : "http://epicgames.com",
+	"CreatedByURL" : "https://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
 	"SupportURL" : "",
@@ -25,6 +25,12 @@
 				"Win64",
 				"Linux"
 			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "SteamShared",
+			"Enabled": true
 		}
 	]
 }

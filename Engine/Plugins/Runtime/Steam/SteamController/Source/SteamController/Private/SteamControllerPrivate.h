@@ -14,13 +14,6 @@
 #pragma warning(disable:4996)
 #endif
 
-#pragma push_macro("ARRAY_COUNT")
-#undef ARRAY_COUNT
-
-#if STEAMSDK_FOUND == 0
-#error Steam SDK not located.  Expected to be found in Engine/Source/ThirdParty/Steamworks/{SteamVersion}
-#endif
-
 #if USING_CODE_ANALYSIS
  	MSVC_PRAGMA( warning( push ) )
  	MSVC_PRAGMA( warning( disable : ALL_CODE_ANALYSIS_WARNINGS ) )
@@ -31,8 +24,6 @@
 #if USING_CODE_ANALYSIS
  	MSVC_PRAGMA( warning( pop ) )
 #endif	// USING_CODE_ANALYSIS
-
-#pragma pop_macro("ARRAY_COUNT")
 
 #ifdef _MSC_VER
 #pragma warning(pop)

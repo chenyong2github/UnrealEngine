@@ -10,8 +10,6 @@
 #include "Serialization/BufferArchive.h"
 #include "SocketSubsystem.h"
 
-
-
 #include "IPAddress.h"
 #include "OnlineSubsystemSteamPrivate.h"
 #include "OnlineSubsystemSteamTypes.h"
@@ -30,6 +28,8 @@
 #include "OnlineAchievementsInterfaceSteam.h"
 #include "OnlineAuthInterfaceSteam.h"
 #include "VoiceInterfaceSteam.h"
+
+#include "SteamSharedModule.h"
 
 /* Specify this define in your Target.cs for your project
  *
@@ -584,8 +584,9 @@ bool FOnlineSubsystemSteam::InitSteamworksClient(bool bRelaunchInSteam, int32 St
 	// Otherwise initialize as normal
 	else
 	{
+		SteamAPIClientHandle = FSteamSharedModule::Get().ObtainSteamInstanceHandle();
 		// Steamworks needs to initialize as close to start as possible, so it can hook its overlay into Direct3D, etc.
-		bSteamworksClientInitialized = (SteamAPI_Init() ? true : false);
+		bSteamworksClientInitialized = (SteamAPIClientHandle.IsValid() ? true : false);
 
 		// Test all the Steam interfaces
 #define GET_STEAMWORKS_INTERFACE(Interface) \
@@ -658,11 +659,8 @@ bool FOnlineSubsystemSteam::InitSteamworksServer()
 	FString MultiHome;
 	if (FParse::Value(FCommandLine::Get(), TEXT("MULTIHOME="), MultiHome) && !MultiHome.IsEmpty())
 	{
-		TSharedRef<FInternetAddr> MultiHomeIP = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-		bool bIsValidIP = false;
-
-		MultiHomeIP->SetIp(*MultiHome, bIsValidIP);
-		if (bIsValidIP)
+		TSharedPtr<FInternetAddr> MultiHomeIP = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetAddressFromString(MultiHome);
+		if (MultiHomeIP.IsValid())
 		{
 			MultiHomeIP->GetIp(LocalServerIP);
 		}
@@ -752,7 +750,7 @@ void FOnlineSubsystemSteam::ShutdownSteamworks()
 
 	if (bSteamworksClientInitialized)
 	{
-		SteamAPI_Shutdown();
+		SteamAPIClientHandle.Reset();
 		bSteamworksClientInitialized = false;
 	}
 }

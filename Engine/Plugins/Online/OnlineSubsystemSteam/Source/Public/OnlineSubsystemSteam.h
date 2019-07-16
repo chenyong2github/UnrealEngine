@@ -102,6 +102,9 @@ protected:
 	/** Online async task thread */
 	class FRunnableThread* OnlineAsyncTaskThread;
 
+	/** Steam Client API Handle */
+	TSharedPtr<class FSteamInstanceHandler> SteamAPIClientHandle;
+
 PACKAGE_SCOPE:
 
 	/** Only the factory makes instances */
@@ -126,7 +129,8 @@ PACKAGE_SCOPE:
 		PresenceInterface(nullptr),
 		AuthInterface(nullptr),
 		OnlineAsyncTaskThreadRunnable(nullptr),
-		OnlineAsyncTaskThread(nullptr)
+		OnlineAsyncTaskThread(nullptr),
+		SteamAPIClientHandle(nullptr)
 	{}
 
 	/** Critical sections for thread safe operation of the cloud files */

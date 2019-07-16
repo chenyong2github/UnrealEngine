@@ -9,13 +9,13 @@ public class Steamworks : ModuleRules
 	public Steamworks(ReadOnlyTargetRules Target) : base(Target)
 	{
 		/** Mark the current version of the Steam SDK */
-		string SteamVersion = "v142";
+		string SteamVersion = "v144";
 		Type = ModuleType.External;
 
-		PublicDefinitions.Add("STEAM_SDK_VER=TEXT(\"1.42\")");
+		PublicDefinitions.Add("STEAM_SDK_VER=TEXT(\"1.44\")");
 		PublicDefinitions.Add("STEAM_SDK_VER_PATH=TEXT(\"Steam" + SteamVersion + "\")");
 
-		string SdkBase = Target.UEThirdPartySourceDirectory + "Steamworks/Steam" + SteamVersion + "/sdk";
+        string SdkBase = Target.UEThirdPartySourceDirectory + "Steamworks/Steam" + SteamVersion + "/sdk";
 		if (!Directory.Exists(SdkBase))
 		{
 			string Err = string.Format("steamworks SDK not found in {0}", SdkBase);
@@ -23,9 +23,10 @@ public class Steamworks : ModuleRules
 			throw new BuildException(Err);
 		}
 		
-		string SteamBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/Steamworks/Steam{0}/", SteamVersion);
+		string SteamBinariesDir = String.Format(Target.UEThirdPartyBinariesDirectory + "Steamworks/Steam{0}/", SteamVersion);
         string ArchPlatformPrefix = "";
-        if (Target.Platform == UnrealTargetPlatform.Win64)
+		
+		if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             ArchPlatformPrefix = "64";
             SteamBinariesDir += "Win64/";
@@ -50,12 +51,15 @@ public class Steamworks : ModuleRules
 				RuntimeDependencies.Add(SteamVstDll);
 			}
 		}
-
+		
+		// Add the SDK headers
 		PublicIncludePaths.Add(SdkBase + "/public");
-
+		
+		// Path for static linking (for Windows & Linux)
 		string LibraryPath = SdkBase + "/redistributable_bin/";
 		if(Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
+			// Add the lib paths
 			if(Target.Platform == UnrealTargetPlatform.Win64)
             {
                 PublicLibraryPaths.Add(LibraryPath + "win64");
@@ -64,16 +68,14 @@ public class Steamworks : ModuleRules
             {
                 PublicLibraryPaths.Add(LibraryPath);
             }
-			
             PublicAdditionalLibraries.Add(String.Format("steam_api{0}.lib", ArchPlatformPrefix));
+			
 			PublicDelayLoadDLLs.Add(String.Format("steam_api{0}.dll", ArchPlatformPrefix));
-
 			RuntimeDependencies.Add(SteamBinariesDir + String.Format("steam_api{0}.dll", ArchPlatformPrefix));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			string SteamBinariesPath = String.Format(Target.UEThirdPartyBinariesDirectory + "Steamworks/Steam{0}/Mac/", SteamVersion);
-			LibraryPath = SteamBinariesPath + "libsteam_api.dylib";
+			LibraryPath = SteamBinariesDir + "Mac/libsteam_api.dylib";
 			PublicDelayLoadDLLs.Add(LibraryPath);
 			RuntimeDependencies.Add(LibraryPath);
 		}
@@ -90,10 +92,12 @@ public class Steamworks : ModuleRules
 				LibraryPath += "linux64/libsteam_api.so";
 				PublicDelayLoadDLLs.Add(LibraryPath);
 			}
-			string SteamBinariesPath = String.Format(Target.UEThirdPartyBinariesDirectory + "Steamworks/Steam{0}/{1}", SteamVersion, Target.Architecture);
-			PrivateRuntimeLibraryPaths.Add(SteamBinariesPath);
-			PublicAdditionalLibraries.Add(SteamBinariesPath + "/libsteam_api.so");
-			RuntimeDependencies.Add(SteamBinariesPath + "/libsteam_api.so");
+			
+			SteamBinariesDir += String.Format("{0}", Target.Architecture);
+
+			PrivateRuntimeLibraryPaths.Add(SteamBinariesDir);
+			PublicAdditionalLibraries.Add(SteamBinariesDir + "/libsteam_api.so");
+			RuntimeDependencies.Add(SteamBinariesDir + "/libsteam_api.so");
 		}
 	}
 }
