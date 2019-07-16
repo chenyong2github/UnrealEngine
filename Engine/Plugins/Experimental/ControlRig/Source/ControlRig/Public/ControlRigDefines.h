@@ -4,7 +4,12 @@
 
 #include "PropertyPathHelpers.h"
 #include "Hierarchy.h"
+#include "CurveContainer.h"
+#include "Stats/StatsHierarchical.h"
 #include "ControlRigDefines.generated.h"
+
+#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT() \
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 USTRUCT()
 struct FControlRigExecuteContext
@@ -12,6 +17,7 @@ struct FControlRigExecuteContext
 	GENERATED_BODY()
 		
 	FRigHierarchyRef HierarchyReference;
+	FRigCurveContainerRef CurveReference;
 };
 
 UENUM()

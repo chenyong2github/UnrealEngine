@@ -10,6 +10,7 @@
 #include "Templates/SubclassOf.h"
 #include "ControlRigDefines.h"
 #include "Hierarchy.h"
+#include "CurveContainer.h"
 #include "Units/RigUnitContext.h"
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Units/RigUnit.h"
@@ -46,6 +47,7 @@ public:
 	static const FName MenuDescSuffixMetaName;
 	static const FName ShowVariableNameInTitleMetaName;
 	static const FName BoneNameMetaName;
+	static const FName CurveNameMetaName;
 	static const FName ConstantMetaName;
 	static const FName TitleColorMetaName;
 	static const FName NodeColorMetaName;
@@ -104,17 +106,39 @@ public:
 	}
 
 	/** Evaluate another animation ControlRig */
-	UFUNCTION(BlueprintPure, Category = "Hierarchy")
-	FTransform GetGlobalTransform(const FName BoneName) const;
+	FTransform GetGlobalTransform(const FName& BoneName) const;
 
 	/** Evaluate another animation ControlRig */
-	UFUNCTION(BlueprintPure, Category = "Hierarchy")
-	void SetGlobalTransform(const FName BoneName, const FTransform& InTransform) ;
+	void SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform = true) ;
+
+	/** Evaluate another animation ControlRig */
+	FTransform GetGlobalTransform(const int32 BoneIndex) const;
+
+	/** Evaluate another animation ControlRig */
+	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true) ;
 
 	/** Returns base hierarchy */
 	const FRigHierarchy& GetBaseHierarchy() const
 	{
 		return Hierarchy.BaseHierarchy;
+	}
+
+	/** Evaluate another animation ControlRig */
+	float GetCurveValue(const FName& CurveName) const;
+
+	/** Evaluate another animation ControlRig */
+	void SetCurveValue(const FName& CurveName, const float CurveValue);
+
+	/** Evaluate another animation ControlRig */
+	float GetCurveValue(const int32 CurveIndex) const;
+
+	/** Evaluate another animation ControlRig */
+	void SetCurveValue(const int32 CurveIndex, const float CurveValue);
+
+	/** Returns base hierarchy */
+	const FRigCurveContainer& GetCurveContainer() const
+	{
+		return CurveContainer;
 	}
 
 	void SetPreEvaluateGatherInputDelegate(const FPreEvaluateGatherInput& Delegate)
@@ -197,6 +221,9 @@ private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Hierarchy")
 	FRigHierarchyContainer Hierarchy;
 
+	UPROPERTY(VisibleDefaultsOnly, Category = "Curve")
+	FRigCurveContainer CurveContainer;
+
 #if WITH_EDITORONLY_DATA
 	/** The properties of source accessible <target, source local path> when source -> target
 	 * For example, if you have property RigUnitA.B->RigUnitB.C, this will save as <RigUnitB.C, RigUnitA.B> */
@@ -269,12 +296,15 @@ private:
 
 	void ResolveInputOutputProperties();
 
+	void InitializeFromCDO();
+
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;
 	friend class UControlRigEditorLibrary;
 	friend class URigUnitEditor_Base;
 	friend class FControlRigEditor;
 	friend class SRigHierarchy;
+	friend class SRigCurveContainer;
 	friend class UEngineTestControlRig;
  	friend class FControlRigEditMode;
 	friend class FControlRigIOHelper;

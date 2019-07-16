@@ -464,7 +464,7 @@ bool UEdGraphSchema::CreateAutomaticConversionNodeAndConnections(UEdGraphPin* Pi
 	return false;
 }
 
-void UEdGraphSchema::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue) const
+void UEdGraphSchema::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified) const
 {
 	Pin.DefaultValue = NewDefaultValue;
 
@@ -475,7 +475,7 @@ void UEdGraphSchema::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefa
 #endif	//#if WITH_EDITOR
 }
 
-void UEdGraphSchema::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject) const
+void UEdGraphSchema::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject, bool bMarkAsModified) const
 {
 	Pin.DefaultObject = NewDefaultObject;
 
@@ -486,7 +486,7 @@ void UEdGraphSchema::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultOb
 #endif	//#if WITH_EDITOR
 }
 
-void UEdGraphSchema::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText) const
+void UEdGraphSchema::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText, bool bMarkAsModified) const
 {
 	InPin.DefaultTextValue = InNewDefaultText;
 

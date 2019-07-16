@@ -9,6 +9,7 @@
 
 void FAnimNode_ApplyAdditive::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	Base.Initialize(Context);
@@ -18,14 +19,16 @@ void FAnimNode_ApplyAdditive::Initialize_AnyThread(const FAnimationInitializeCon
 	AlphaScaleBiasClamp.Reinitialize();
 }
 
-void FAnimNode_ApplyAdditive::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) 
+void FAnimNode_ApplyAdditive::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	Base.CacheBones(Context);
 	Additive.CacheBones(Context);
 }
 
 void FAnimNode_ApplyAdditive::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	Base.Update(Context);
 
 	ActualAlpha = 0.f;
@@ -60,6 +63,7 @@ void FAnimNode_ApplyAdditive::Update_AnyThread(const FAnimationUpdateContext& Co
 
 void FAnimNode_ApplyAdditive::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	//@TODO: Could evaluate Base into Output and save a copy
 	if (FAnimWeight::IsRelevant(ActualAlpha))
 	{
@@ -90,6 +94,7 @@ FAnimNode_ApplyAdditive::FAnimNode_ApplyAdditive()
 
 void FAnimNode_ApplyAdditive::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugLine += FString::Printf(TEXT("(Alpha: %.1f%%)"), ActualAlpha*100.f);
 
