@@ -3858,6 +3858,14 @@ void UStaticMesh::ClearMeshDescription(int32 LodIndex)
 	}
 }
 
+void UStaticMesh::ClearMeshDescriptions()
+{
+	for (int LODIndex = 0; LODIndex < SourceModels.Num(); LODIndex++)
+	{
+		ClearMeshDescription(LODIndex);
+	}
+}
+
 void UStaticMesh::FixupMaterialSlotName()
 {
 	TArray<FName> UniqueMaterialSlotName;
@@ -4834,10 +4842,7 @@ void UStaticMesh::PostLoad()
 
 #if WITH_EDITOR
 	// Release cached mesh descriptions until they are loaded on demand
-	for (int LODIndex = 0; LODIndex < SourceModels.Num(); LODIndex++)
-	{
-		ClearMeshDescription(LODIndex);
-	}
+	ClearMeshDescriptions();
 #endif
 
 	CreateNavCollision();

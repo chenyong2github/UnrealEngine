@@ -1970,6 +1970,9 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 		const bool bIsPersistent = true;
 		FBulkDataWriter Ar( BulkData, bIsPersistent );
 		Ar << MeshDescription;
+
+		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
+		CustomVersions = Ar.GetCustomVersions();
 	}
 
 	FPlatformMisc::CreateGuid( Guid );
