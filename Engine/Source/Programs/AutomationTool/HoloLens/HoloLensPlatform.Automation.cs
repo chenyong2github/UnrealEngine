@@ -732,26 +732,7 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 			{
 				if (!IsBuildMachine && !Params.Unattended)
 				{
-					string Name;
-					string Publisher;
-					if (!ConfigFile.GetString("/Script/EngineSettings.GeneralProjectSettings", "ProjectName", out Name))
-					{
-						Name = "DefaultUE4Project";
-					}
-					if (!ConfigFile.GetString("/Script/EngineSettings.GeneralProjectSettings", "CompanyDistinguishedName", out Publisher))
-					{
-						Publisher = "CN=NoPublisher";
-					}
-
-					if (!string.IsNullOrEmpty(Publisher))
-					{
-						LogWarning("No certificate found at {0}.  Generating temporary self-signed certificate for {1}.", SigningCertificatePath, Publisher);
-						GenerateSigningCertificate(SigningCertificatePath, Publisher);
-					}
-					else
-					{
-						LogWarning("No certificate found at {0} and temporary certificate cannot be generated (missing publisher name).  Check your Company Distinguished Name setting.  Signing will probably fail.", SigningCertificatePath);
-					}
+					LogError("Certificate is required.  Please go to Project Settings > HoloLens > Create Signing Certificate");
 				}
 				else
 				{
