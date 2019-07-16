@@ -153,6 +153,20 @@ void FNiagaraEmitterInstance::Dump()const
 	ParticleDataSet->Dump(0, INDEX_NONE, TEXT("Particle Data"));
 }
 
+bool FNiagaraEmitterInstance::IsAllowedToExecute() const
+{
+	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
+	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
+	if (!EmitterHandle.GetIsEnabled()
+		|| !CachedEmitter->IsAllowedByDetailLevel(DetailLevel)
+		|| (!FNiagaraUtilities::SupportsGPUParticles(GMaxRHIFeatureLevel) && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
+		)
+	{
+		return false;
+	}
+	return true;
+}
+
 void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceName)
 {
 	check(ParticleDataSet);
@@ -164,11 +178,8 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	checkSlow(CachedEmitter);
 	CachedIDName = EmitterHandle.GetIdName();
 
-	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
-	if (!EmitterHandle.GetIsEnabled()
-		|| !CachedEmitter->IsAllowedByDetailLevel(DetailLevel)
-		|| (!FNiagaraUtilities::SupportsGPUParticles(GMaxRHIFeatureLevel) && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
-		)
+	if (!IsAllowedToExecute())
+
 	{
 		ExecutionState = ENiagaraExecutionState::Disabled;
 		return;
