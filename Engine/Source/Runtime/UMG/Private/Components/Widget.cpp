@@ -154,7 +154,7 @@ UWidget::UWidget(const FObjectInitializer& ObjectInitializer)
 	bIsEnabled = true;
 	bIsVariable = true;
 #if WITH_EDITOR
-	DesignerFlags = EWidgetDesignFlags::None;
+	DesignerFlags = static_cast<uint8>(EWidgetDesignFlags::None);
 #endif
 	Visibility = ESlateVisibility::Visible;
 	RenderOpacity = 1.0f;
@@ -936,9 +936,9 @@ ULocalPlayer* UWidget::GetOwningLocalPlayer() const
 #undef LOCTEXT_NAMESPACE
 #define LOCTEXT_NAMESPACE "UMGEditor"
 
-void UWidget::SetDesignerFlags(EWidgetDesignFlags::Type NewFlags)
+void UWidget::SetDesignerFlags(EWidgetDesignFlags NewFlags)
 {
-	DesignerFlags = ( EWidgetDesignFlags::Type )( DesignerFlags | NewFlags );
+	DesignerFlags = static_cast<uint8>(GetDesignerFlags() | NewFlags);
 
 	INamedSlotInterface* NamedSlotWidget = Cast<INamedSlotInterface>(this);
 	if (NamedSlotWidget)

@@ -165,7 +165,7 @@ public:
 	TArray< TFunction<void()> >& GetQueuedDesignerActions();
 
 	/** Get the current designer flags that are in effect for the current user widget we're editing. */
-	EWidgetDesignFlags::Type GetCurrentDesignerFlags() const;
+	EWidgetDesignFlags GetCurrentDesignerFlags() const;
 
 	bool GetShowDashedOutlines() const;
 	void SetShowDashedOutlines(bool Value);
