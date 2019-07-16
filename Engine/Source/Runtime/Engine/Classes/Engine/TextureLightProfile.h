@@ -12,6 +12,10 @@ class UTextureLightProfile : public UTexture2D
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 	/** Light brightness in Candelas, imported from IES profile, <= 0 if the profile is used for masking only. Use with InverseSquareFalloff. */
 	UPROPERTY(EditAnywhere, Category=TextureLightProfile, AssetRegistrySearchable)
 	float Brightness;
