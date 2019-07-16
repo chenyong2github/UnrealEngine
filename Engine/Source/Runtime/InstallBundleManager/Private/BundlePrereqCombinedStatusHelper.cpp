@@ -105,10 +105,12 @@ void FBundlePrereqCombinedStatusHelper::SetBundlesToTrackFromContentState(FInsta
 	BundleStatusCache.Empty();
 	
 	//Track if we need any kind of bundle updates
+	bBundleNeedsUpdate = false;
 	if (BundleContentState.State == EInstallBundleContentState::NotInstalled || BundleContentState.State == EInstallBundleContentState::NeedsUpdate)
 	{
 		bBundleNeedsUpdate = true;
 	}
+	CurrentCombinedStatus.bBundleRequiresUpdate = bBundleNeedsUpdate;
 	
 	//Save required bundles and their weights
 	for (TPair<FName, float>& BundleStatePair : BundleContentState.IndividualBundleWeights)
@@ -152,6 +154,16 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	EInstallBundleStatus EarliestBundleState = EInstallBundleStatus::Count;
 	bool bIsAnythingPaused = false;
 	
+	//if we don't yet have a bundle status cache entry for a particular requirement
+	//then we can't yet tell what work is required on that bundle yet. We need to go ahead and make sure we don't
+	//show a status like "Installed" before we know what state that bundle is in. Make sure we show at LEAST
+	//updating in that case, so start with Downloading since that is the first Updating case
+	if ((BundleStatusCache.Num() < RequiredBundleNames.Num())
+		&& (BundleStatusCache.Num() > 0))
+	{
+		EarliestBundleState = EInstallBundleStatus::Downloading;
+	}
+	
 	for (const TPair<FName,FInstallBundleStatus>& BundlePair : BundleStatusCache)
 	{
 		if (BundlePair.Value.Status < EarliestBundleState)
@@ -166,17 +178,13 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	//if everything is installed ignore the pause flags as we completed after pausing the bundles
 	CurrentCombinedStatus.bIsPaused = (bIsAnythingPaused && (EarliestBundleState < EInstallBundleStatus::Installed));
 	
-	//Set to true by default, some cases below will turn this off as we don't support pausing during Mounting or Compiling Shaders
-	CurrentCombinedStatus.bDoesCurrentStateSupportPausing = true;
+	//if the bundle does not need an update, all the phases we go through don't support pausing (Mounting ,Compiling Shaders, etc)
+	//Otherwise start with True and override those specific cases bellow
+	CurrentCombinedStatus.bDoesCurrentStateSupportPausing = bBundleNeedsUpdate;
 	
 	if (CurrentCombinedStatus.ProgressPercent == 0.f)
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Initializing;
-	}
-	else if (!bBundleNeedsUpdate)
-	{
-		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::NoUpdateRequired;
-		CurrentCombinedStatus.bDoesCurrentStateSupportPausing = false;
 	}
 	else if (EarliestBundleState < EInstallBundleStatus::Finishing)
 	{
@@ -184,7 +192,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	}
 	else if (EarliestBundleState < EInstallBundleStatus::Installed)
 	{
-		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::CompilingShaders;
+		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Finishing;
 		CurrentCombinedStatus.bDoesCurrentStateSupportPausing = false;
 	}
 	else if (EarliestBundleState == EInstallBundleStatus::Installed)
