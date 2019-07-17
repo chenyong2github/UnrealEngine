@@ -42,6 +42,10 @@ FSlateInvalidationRoot::~FSlateInvalidationRoot()
 {
 	ClearAllFastPathData(true);
 
+#if WITH_SLATE_DEBUGGING
+	FSlateDebugging::ClearInvalidatedWidgets(*this);
+#endif
+
 	if (FSlateApplicationBase::IsInitialized())
 	{
 		FSlateApplicationBase::Get().OnInvalidateAllWidgets().RemoveAll(this);
