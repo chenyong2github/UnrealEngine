@@ -6,6 +6,8 @@
 #include "LC_Logging.h"
 #include "Windows/COMPointer.h"
 
+#if LC_WITH_VISUAL_STUDIO_DTE
+
 namespace
 {
 	static COMThread* g_comThread = nullptr;
@@ -556,3 +558,5 @@ bool visualStudio::Break(const EnvDTE::DebuggerPtr& debugger)
 {
 	return g_comThread->CallInThread(&::Break, debugger);
 }
+
+#endif

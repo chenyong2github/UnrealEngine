@@ -6,6 +6,7 @@
 #include "LC_Event.h"
 #include "LC_PrimitiveNames.h"
 #include "LC_VisualStudioAutomation.h"
+#include "LC_Logging.h"
 
 
 LiveProcess::LiveProcess(process::Handle processHandle, unsigned int processId, unsigned int commandThreadId, const void* jumpToSelf, const DuplexPipe* pipe,
@@ -21,8 +22,10 @@ LiveProcess::LiveProcess(process::Handle processHandle, unsigned int processId, 
 	, m_environment(environment, environmentSize)
 	, m_imagesTriedToLoad()
 	, m_heartBeatDelta(0ull)
+#if LC_WITH_VISUAL_STUDIO_DTE
 	, m_vsDebugger(nullptr)
 	, m_vsDebuggerThreads()
+#endif
 	, m_codeCave(nullptr)
 	, m_restartState(RestartState::DEFAULT)
 {
@@ -53,6 +56,7 @@ bool LiveProcess::MadeProgress(void) const
 
 void LiveProcess::HandleDebuggingPreCompile(void)
 {
+#if LC_WITH_VISUAL_STUDIO_DTE
 	if (!MadeProgress())
 	{
 		// this process did not make progress.
@@ -81,6 +85,7 @@ void LiveProcess::HandleDebuggingPreCompile(void)
 		LC_LOG_USER("Failed to automate debugger attached to process (PID: %d), using fallback mechanism", m_processId);
 		LC_SUCCESS_USER("Waiting for client process (PID: %d), hit 'Continue' (F5 in Visual Studio) if being held in the debugger", m_processId);
 	}
+#endif
 
 	// this process either made progress and is not held in the debugger, or we failed automating the debugger.
 	// "halt" this process by installing a code cave.
@@ -95,6 +100,7 @@ void LiveProcess::HandleDebuggingPostCompile(void)
 		// we installed a code cave previously, remove it
 		UninstallCodeCave();
 	}
+#if LC_WITH_VISUAL_STUDIO_DTE
 	else if (m_vsDebugger)
 	{
 		// we automated the debugger previously. break into the debugger again and resume all threads.
@@ -108,6 +114,7 @@ void LiveProcess::HandleDebuggingPostCompile(void)
 	}
 
 	m_vsDebugger = nullptr;
+#endif
 }
 
 
