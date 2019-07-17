@@ -80,7 +80,7 @@ struct FLevelSequencePlayerSnapshot
 	FString SourceTimecode;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="General")
-	UCameraComponent* CameraComponent;
+	TSoftObjectPtr<UCameraComponent> CameraComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "General")
 	FLevelSequenceSnapshotSettings Settings;
