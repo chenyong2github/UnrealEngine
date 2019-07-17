@@ -118,13 +118,16 @@ void SWidgetSwitcher::SetActiveWidgetIndex( int32 Index )
 {
 	if (WidgetIndex.Get() != Index)
 	{
-		const FSlot* ActiveSlot = GetActiveSlot();
-
-		SWidget& OldActiveWidget = ActiveSlot->GetWidget().Get();
-
 		Invalidate(EInvalidateWidget::ChildOrder);
 
-		InvalidateChildRemovedFromTree(OldActiveWidget);
+		const FSlot* ActiveSlot = GetActiveSlot();
+
+		// Active slot can be null if the widget switcher was initialized to an invalid index.
+		if (ActiveSlot)
+		{
+			SWidget& OldActiveWidget = ActiveSlot->GetWidget().Get();
+			InvalidateChildRemovedFromTree(OldActiveWidget);
+		}
 
 		WidgetIndex = Index;
 
