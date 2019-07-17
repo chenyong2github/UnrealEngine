@@ -345,8 +345,8 @@ public:
 
 	void EndUsingState()
 	{
-		FPlatformAtomics::InterlockedDecrement(&UsageCount);
-		check(UsageCount >= 0);
+		int32 NewCount = FPlatformAtomics::InterlockedDecrement(&UsageCount);
+		check(NewCount >= 0);
 	}
 private:
 	int32 UsageCount;

@@ -27,7 +27,8 @@ static FAutoConsoleCommand HandleDumpUpdateListCommand(
 
 
 FSlateInvalidationRoot::FSlateInvalidationRoot()
-	: InvalidationRootWidget(nullptr)
+	: CachedElementData(new FSlateCachedElementData)
+	, InvalidationRootWidget(nullptr)
 	, RootHittestGrid(nullptr)
 	, FastPathGenerationNumber(INDEX_NONE)
 	, bChildOrderInvalidated(false)
@@ -44,12 +45,18 @@ FSlateInvalidationRoot::~FSlateInvalidationRoot()
 	if (FSlateApplicationBase::IsInitialized())
 	{
 		FSlateApplicationBase::Get().OnInvalidateAllWidgets().RemoveAll(this);
+
+		FSlateApplicationBase::Get().GetRenderer()->DestroyCachedFastPathElementData(CachedElementData);
+	}
+	else
+	{
+		delete CachedElementData;
 	}
 }
 
 void FSlateInvalidationRoot::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	CachedElementData.AddReferencedObjects(Collector);
+	CachedElementData->AddReferencedObjects(Collector);
 }
 
 FString FSlateInvalidationRoot::GetReferencerName() const
@@ -108,7 +115,7 @@ void FSlateInvalidationRoot::RemoveWidgetFromFastPath(FWidgetProxy& Proxy)
 {
 	if (Proxy.Widget->PersistentState.CachedElementListNode)
 	{
-		CachedElementData.RemoveCache(Proxy.Widget->PersistentState.CachedElementListNode);
+		CachedElementData->RemoveCache(Proxy.Widget->PersistentState.CachedElementListNode);
 	}
 
 	if (Proxy.Index == 0)
@@ -145,7 +152,7 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 
 	if (Context.bAllowFastPathUpdate)
 	{
-		Context.WindowElementList->PushCachedElementData(CachedElementData);
+		Context.WindowElementList->PushCachedElementData(*CachedElementData);
 	}
 
 	SWidget* RootWidget = InvalidationRootWidget->Advanced_IsWindow() ? InvalidationRootWidget : &(*InvalidationRootWidget->GetAllChildren()->GetChildAt(0));
@@ -535,7 +542,7 @@ void FSlateInvalidationRoot::ClearAllFastPathData()
 
 	FastWidgetPathList.Empty();
 	WidgetsNeedingUpdate.Empty();
-	CachedElementData.Empty();
+	CachedElementData->Empty();
 	FinalUpdateList.Empty();
 }
 
