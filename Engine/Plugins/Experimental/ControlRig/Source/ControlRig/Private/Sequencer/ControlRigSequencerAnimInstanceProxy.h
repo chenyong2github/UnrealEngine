@@ -5,6 +5,8 @@
 #include "AnimSequencerInstanceProxy.h"
 #include "AnimNode_ControlRig_ExternalSource.h"
 #include "AnimNodes/AnimNode_LayeredBoneBlend.h"
+#include "AnimNodes/AnimNode_BlendListByBool.h"
+#include "Animation/AnimNode_SequencePlayer.h"
 #include "ControlRigSequencerAnimInstanceProxy.generated.h"
 
 struct FInputBlendPose;
@@ -47,6 +49,7 @@ public:
 	virtual void ResetNodes() override;
 
 	bool UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, bool bExternalSource);
+	bool SetAnimationAsset(class UAnimationAsset* NewAsset);
 
 private:
 	void InitControlRigTrack(UControlRig* InControlRig, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, uint32 SequenceId);
@@ -55,6 +58,8 @@ private:
 
 	FAnimNode_LayeredBoneBlend LayeredBoneBlendNode;
 	FAnimNode_LayeredBoneBlend AdditiveLayeredBoneBlendNode;
+	FAnimNode_BlendListByBool BoolBlendNode;
+	FAnimNode_SequencePlayer PreviewPlayerNode;
 
 	bool bLayeredBlendChanged;
 	bool bAdditiveLayeredBlendChanged;

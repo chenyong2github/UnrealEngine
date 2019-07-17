@@ -11,6 +11,7 @@
 #include "ControlRigBlueprintUtils.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
+#include "Graph/ControlRigGraph.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -25,7 +26,7 @@ UControlRigCommentNodeSpawner* UControlRigCommentNodeSpawner::Create()
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 	
-	MenuSignature.MenuName = LOCTEXT("Comment", "Comment");
+	MenuSignature.MenuName = LOCTEXT("Add Comment", "Add Comment for Selection...");
 	MenuSignature.Tooltip  = LOCTEXT("CommentTooltip", "Adds a comment box to the graph");
 	MenuSignature.Category = FText();
 
@@ -40,7 +41,7 @@ UControlRigCommentNodeSpawner* UControlRigCommentNodeSpawner::Create()
 	}
 
 	// @TODO: should use details customization-like extensibility system to provide editor only data like this
-	MenuSignature.Icon = FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.RigUnit"));
+	MenuSignature.Icon = FSlateIcon("EditorStyle", "GraphEditor.Comment_16x");
 
 	return NodeSpawner;
 }
@@ -84,7 +85,33 @@ UEdGraphNode* UControlRigCommentNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 
 		if (!bIsTemplateNode)
 		{
-			if (RigBlueprint->ModelController->AddComment(TEXT("Comment"), TEXT("Comment"), Location, FVector2D(100.f, 100.f), FLinearColor::White, true))
+			FVector2D AverageLocation = Location;
+			FVector2D Size(400.f, 250.f);
+
+			TArray<FControlRigModelNode> SelectedNodes = RigBlueprint->Model->SelectedNodes();
+			if (SelectedNodes.Num() > 0)
+			{
+				FVector2D TopLeft(1000000.f, 1000000.f);
+				FVector2D BottomRight(-1000000.f, -1000000.f);
+				const float Margin = 20;
+
+				UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+				for (const FControlRigModelNode& SelectedNode : SelectedNodes)
+				{
+					UEdGraphNode* EdNode = RigGraph->FindNodeFromPropertyName(SelectedNode.Name);
+					if (EdNode)
+					{
+						TopLeft.X = FMath::Min<float>(TopLeft.X, float(EdNode->NodePosX) - Margin);
+						TopLeft.Y = FMath::Min<float>(TopLeft.Y, float(EdNode->NodePosY) - Margin - 35.f);
+						BottomRight.X = FMath::Max<float>(BottomRight.X, float(EdNode->NodePosX) + float(EdNode->NodeWidth) + Margin);
+						BottomRight.Y = FMath::Max<float>(BottomRight.Y, float(EdNode->NodePosY) + float(EdNode->NodeHeight) + Margin);
+					}
+				}
+				AverageLocation = TopLeft;
+				Size = BottomRight - TopLeft;
+			}
+
+			if (RigBlueprint->ModelController->AddComment(TEXT("Comment"), TEXT("Comment"), AverageLocation, Size, FLinearColor::White, true))
 			{
 				MemberName = RigBlueprint->LastNameFromNotification;
 				for (UEdGraphNode* Node : ParentGraph->Nodes)

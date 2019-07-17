@@ -5,6 +5,7 @@
 
 void FRigUnit_FABRIK::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
 	if (Hierarchy == nullptr)
 	{

@@ -38,6 +38,7 @@ FAnimNode_TwoBoneIK::FAnimNode_TwoBoneIK()
 
 void FAnimNode_TwoBoneIK::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	DebugLine += "(";
@@ -68,6 +69,7 @@ FTransform FAnimNode_TwoBoneIK::GetTargetTransform(const FTransform& InComponent
 
 void FAnimNode_TwoBoneIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	SCOPE_CYCLE_COUNTER(STAT_TwoBoneIK_Eval);
 
 	check(OutBoneTransforms.Num() == 0);
@@ -221,6 +223,7 @@ bool FAnimNode_TwoBoneIK::IsValidToEvaluate(const USkeleton* Skeleton, const FBo
 
 void FAnimNode_TwoBoneIK::InitializeBoneReferences(const FBoneContainer& RequiredBones) 
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	IKBone.Initialize(RequiredBones);
 
 	EffectorTarget.InitializeBoneReferences(RequiredBones);
@@ -242,6 +245,7 @@ void FAnimNode_TwoBoneIK::InitializeBoneReferences(const FBoneContainer& Require
 
 void FAnimNode_TwoBoneIK::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	Super::Initialize_AnyThread(Context);
 	EffectorTarget.Initialize(Context.AnimInstanceProxy);
 	JointTarget.Initialize(Context.AnimInstanceProxy);

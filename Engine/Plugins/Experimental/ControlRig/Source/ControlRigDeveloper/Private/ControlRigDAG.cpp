@@ -10,9 +10,9 @@ FControlRigDAG::FControlRigDAG()
 {
 }
 
-void FControlRigDAG::AddNode(bool InIsMutable, const FName& InName)
+void FControlRigDAG::AddNode(bool InIsMutable, bool InIsOutputParameter, const FName& InName)
 {
-	Nodes.Add(FNode(InName, Nodes.Num(), InIsMutable));
+	Nodes.Add(FNode(InName, Nodes.Num(), InIsMutable, InIsOutputParameter));
 }
 
 void FControlRigDAG::AddLink(const int32 FromNode, const int32 ToNode, const int32 FromOrder, const int32 ToOrder)
@@ -38,22 +38,6 @@ bool FControlRigDAG::TopologicalSort(TArray<FNode>& OutOrder, TArray<FNode>& Out
 	{
 		return false;
 	}
-
-	// find all of the left mutable nodes on the left
-	TArray<FNode> MutableLeafNodes;
-	for (const FNode& Node : Nodes)
-	{
-		if (!Node.IsMutable)
-		{
-			continue;
-		}
-		if (Node.Inputs.Num() > 0)
-		{
-			continue;
-		}
-		MutableLeafNodes.Add(Node);
-	}
-	check(MutableLeafNodes.Num() > 0);
 
 	struct Local
 	{
@@ -83,10 +67,32 @@ bool FControlRigDAG::TopologicalSort(TArray<FNode>& OutOrder, TArray<FNode>& Out
 		}
 	};
 
+	// find all of the left mutable nodes on the left
+	TArray<FNode> LeafNodes;
+	TArray<FNode> OutputParameterNodes;
+	for (const FNode& Node : Nodes)
+	{
+		if (Node.IsOutputParameter)
+		{
+			OutputParameterNodes.Add(Node);
+		}
+		else if (Node.IsMutable)
+		{
+			if (Node.Inputs.Num() == 0)
+			{
+				LeafNodes.Add(Node);
+			}
+		}
+	}
+
+	LeafNodes.Append(OutputParameterNodes);
+
+	check(LeafNodes.Num() > 0);
+
 	TArray<bool> NodeVisited;
 	NodeVisited.SetNumZeroed(Nodes.Num());
 	OutOrder.Reset();
-	for (const FNode& LeafNode : MutableLeafNodes)
+	for (const FNode& LeafNode : LeafNodes)
 	{
 		Local::VisitNode(LeafNode, NodeVisited, OutOrder, Nodes);
 	}

@@ -5,6 +5,7 @@
 
 void FRigUnit_VerletIntegrateVector::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Point.Mass = 1.f;
