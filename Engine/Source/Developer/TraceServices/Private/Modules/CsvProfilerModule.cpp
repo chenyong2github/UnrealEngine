@@ -22,9 +22,10 @@ void FCsvProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
 	const IFrameProvider& FrameProvider = ReadFrameProvider(Session);
 	const IThreadProvider& ThreadProvider = ReadThreadProvider(Session);
+	ICounterProvider& CounterProvider = EditCounterProvider(Session);
 	FCsvProfilerProvider* CsvProfilerProvider = new FCsvProfilerProvider(Session);
 	Session.AddProvider(CsvProfilerProviderName, CsvProfilerProvider);
-	Session.AddAnalyzer(new FCsvProfilerAnalyzer(Session, *CsvProfilerProvider, FrameProvider, ThreadProvider));
+	Session.AddAnalyzer(new FCsvProfilerAnalyzer(Session, *CsvProfilerProvider, CounterProvider, FrameProvider, ThreadProvider));
 }
 
 void FCsvProfilerModule::GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory)

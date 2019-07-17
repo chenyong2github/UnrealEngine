@@ -13,13 +13,15 @@ namespace Trace
 	class IAnalysisSession;
 	class IFrameProvider;
 	class IThreadProvider;
+	class ICounterProvider;
+	class ICounter;
 }
 
 class FCsvProfilerAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FCsvProfilerAnalyzer(Trace::IAnalysisSession& Session, Trace::FCsvProfilerProvider& CsvProfilerProvider, const Trace::IFrameProvider& FrameProvider, const Trace::IThreadProvider& ThreadProvider);
+	FCsvProfilerAnalyzer(Trace::IAnalysisSession& Session, Trace::FCsvProfilerProvider& CsvProfilerProvider, Trace::ICounterProvider& CounterProvider, const Trace::IFrameProvider& FrameProvider, const Trace::IThreadProvider& ThreadProvider);
 	~FCsvProfilerAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
@@ -43,6 +45,14 @@ private:
 		RouteId_EndCapture,
 	};
 
+	enum ECsvOpType
+	{
+		CsvOpType_Set,
+		CsvOpType_Min,
+		CsvOpType_Max,
+		CsvOpType_Accumulate,
+	};
+
 	union FStatSeriesID
 	{
 		struct
@@ -53,6 +63,17 @@ private:
 			uint64 FNameOrIndex : 51;
 		} Fields;
 		uint64 Hash;
+	};
+
+	struct FStatSeriesValue
+	{
+		FStatSeriesValue() { Value.AsInt = 0; }
+		union
+		{
+			int64 AsInt;
+			double AsDouble;
+		} Value;
+		bool bIsValid = false;
 	};
 
 	struct FStatSeriesDefinition
@@ -66,11 +87,17 @@ private:
 	{
 		uint64 ProviderHandle = uint64(-1);
 		uint64 ProviderCountHandle = uint64(-1);
+		Trace::ICounter* Counter = nullptr;
+		int64 CurrentFrame = -1;
+		FStatSeriesValue CurrentValue;
+		int64 CurrentCount = 0;
+		Trace::ECsvStatSeriesType Type = Trace::CsvStatSeriesType_CustomStatInt;
+		ETraceFrameType FrameType = TraceFrameType_Game;
 	};
 
 	struct FTimingMarker
 	{
-		const FStatSeriesInstance* StatSeries = nullptr;
+		uint64 StatId = 0;
 		uint64 Cycle = 0;
 		bool bIsBegin = false;
 		bool bIsExclusive = false;
@@ -90,15 +117,22 @@ private:
 	FStatSeriesDefinition* CreateStatSeries(const TCHAR* Name, int32 CategoryIndex);
 	void DefineStatSeries(uint64 StatId, const TCHAR* Name, int32 CategoryIndex, bool bIsInline);
 	const TCHAR* GetStatSeriesName(const FStatSeriesDefinition* Definition, Trace::ECsvStatSeriesType Type, FThreadState& ThreadState, bool bIsCount);
-	FStatSeriesInstance* GetStatSeries(uint64 StatId, Trace::ECsvStatSeriesType Type, FThreadState& ThreadState);
+	FStatSeriesInstance& GetStatSeries(uint64 StatId, Trace::ECsvStatSeriesType Type, FThreadState& ThreadState);
 	void HandleMarkerEvent(const FOnEventContext& Context, bool bIsExclusive, bool bIsBegin);
 	void HandleMarker(const FOnEventContext& Context, FThreadState& ThreadState, const FTimingMarker& Marker);
 	void HandleCustomStatEvent(const FOnEventContext& Context, bool bIsFloat);
 	void HandleEventEvent(const FOnEventContext& Context);
-	int32 GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const;
+	uint32 GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const;
+	void Flush(FStatSeriesInstance& StatSeries);
+	void FlushIfNewFrame(FStatSeriesInstance& StatSeries, uint32 FrameNumber);
+	void FlushAtEndOfCapture(FStatSeriesInstance& StatSeries, uint32 CaptureEndFrame);
+	void SetTimerValue(FStatSeriesInstance& StatSeries, uint32 FrameNumber, double ElapsedTime, bool bCount);
+	void SetCustomStatValue(FStatSeriesInstance& StatSeries, uint32 FrameNumber, ECsvOpType OpType, int32 Value);
+	void SetCustomStatValue(FStatSeriesInstance& StatSeries, uint32 FrameNumber, ECsvOpType OpType, float Value);
 	
 	Trace::IAnalysisSession& Session;
 	Trace::FCsvProfilerProvider& CsvProfilerProvider;
+	Trace::ICounterProvider& CounterProvider;
 	const Trace::IFrameProvider& FrameProvider;
 	const Trace::IThreadProvider& ThreadProvider;
 

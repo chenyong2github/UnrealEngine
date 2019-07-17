@@ -12,17 +12,8 @@ namespace Trace
 enum ECsvStatSeriesType
 {
 	CsvStatSeriesType_Timer,
-	CsvStatSeriesType_ExclusiveTimer,
 	CsvStatSeriesType_CustomStatInt,
 	CsvStatSeriesType_CustomStatFloat
-};
-
-enum ECsvOpType
-{
-	CsvOpType_Set,
-	CsvOpType_Min,
-	CsvOpType_Max,
-	CsvOpType_Accumulate,
 };
 
 class FCsvProfilerProvider
@@ -36,10 +27,9 @@ public:
 	void StartCapture(const TCHAR* Filename, int32 FrameNumber);
 	void EndCapture(int32 FrameNumber);
 	uint64 AddSeries(const TCHAR* Name, ECsvStatSeriesType Type);
-	void SetTimerValue(uint64 SeriesHandle, int32 FrameNumber, double ElapsedTime);
-	void SetCustomStatValue(uint64 SeriesHandle, int32 FrameNumber, ECsvOpType OpType, int32 Value);
-	void SetCustomStatValue(uint64 SeriesHandle, int32 FrameNumber, ECsvOpType OpType, float Value);
-	void AddEvent(int32 FrameNumber, const TCHAR* Text);
+	void SetValue(uint64 SeriesHandle, uint32 FrameNumber, double Value);
+	void SetValue(uint64 SeriesHandle, uint32 FrameNumber, int64 Value);
+	void AddEvent(uint32 FrameNumber, const TCHAR* Text);
 	void SetMetadata(const TCHAR* Key, const TCHAR* Value);
 
 private:
@@ -51,7 +41,6 @@ private:
 			int64 AsInt;
 			double AsDouble;
 		} Value;
-		bool bIsValid = false;
 	};
 
 	struct FStatSeries
@@ -92,7 +81,7 @@ private:
 		: public IUntypedTableReader
 	{
 	public:
-		FTableReader(const FCapture& InCapture, const TMap<int32, FEvents*>& InEvents)
+		FTableReader(const FCapture& InCapture, const TMap<uint32, FEvents*>& InEvents)
 			: Capture(InCapture)
 			, Events(InEvents)
 			, CurrentRowIndex(0)
@@ -112,7 +101,7 @@ private:
 		const FStatSeriesValue* GetValue(uint64 ColumnIndex) const;
 
 		const FCapture& Capture;
-		const TMap<int32, FEvents*>& Events;
+		const TMap<uint32, FEvents*>& Events;
 		uint64 CurrentRowIndex;
 	};
 
@@ -120,7 +109,7 @@ private:
 		: public IUntypedTable
 	{
 	public:
-		FTable(const FCapture& InCapture, const TMap<int32, FEvents*>& InEvents)
+		FTable(const FCapture& InCapture, const TMap<uint32, FEvents*>& InEvents)
 			: Layout(InCapture.StatSeries)
 			, Capture(InCapture)
 			, Events(InEvents)
@@ -135,12 +124,12 @@ private:
 	private:
 		FTableLayout Layout;
 		const FCapture& Capture;
-		const TMap<int32, FEvents*>& Events;
+		const TMap<uint32, FEvents*>& Events;
 	};
 
 	struct FCapture
 	{
-		FCapture(const TMap<int32, FEvents*>& Events)
+		FCapture(const TMap<uint32, FEvents*>& Events)
 			: Table(*this, Events)
 		{
 			
@@ -148,17 +137,17 @@ private:
 
 		FTable Table;
 		const TCHAR* Filename;
-		int32 StartFrame = -1;
-		int32 EndFrame = -1;
+		uint32 StartFrame = 0;
+		uint32 EndFrame = 0;
 		TArray<FStatSeries*> StatSeries;
 		TMap<const TCHAR*, const TCHAR*> Metadata;
 	};
 
-	FStatSeriesValue& GetValueRef(uint64 SeriesHandle, int32 FrameNumber);
+	FStatSeriesValue& GetValueRef(uint64 SeriesHandle, uint32 FrameNumber);
 
 	IAnalysisSession& Session;
 	TArray<FStatSeries*> StatSeries;
-	TMap<int32, FEvents*> Events;
+	TMap<uint32, FEvents*> Events;
 	TMap<const TCHAR*, const TCHAR*> Metadata;
 	TArray<FCapture*> Captures;
 	FCapture* CurrentCapture = nullptr;

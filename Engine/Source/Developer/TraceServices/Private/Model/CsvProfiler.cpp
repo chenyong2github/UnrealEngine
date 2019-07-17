@@ -190,7 +190,7 @@ uint64 FCsvProfilerProvider::AddSeries(const TCHAR* Name, ECsvStatSeriesType Typ
 	return ColumnIndex;
 }
 
-FCsvProfilerProvider::FStatSeriesValue& FCsvProfilerProvider::GetValueRef(uint64 SeriesHandle, int32 FrameNumber)
+FCsvProfilerProvider::FStatSeriesValue& FCsvProfilerProvider::GetValueRef(uint64 SeriesHandle, uint32 FrameNumber)
 {
 	FStatSeries* Series = StatSeries[SeriesHandle];
 	if (CurrentCapture && !Series->Captures.Contains(Captures.Num()))
@@ -201,77 +201,26 @@ FCsvProfilerProvider::FStatSeriesValue& FCsvProfilerProvider::GetValueRef(uint64
 	return Series->Values.FindOrAdd(FrameNumber);
 }
 
-void FCsvProfilerProvider::SetTimerValue(uint64 SeriesHandle, int32 FrameNumber, double ElapsedTime)
+void FCsvProfilerProvider::SetValue(uint64 SeriesHandle, uint32 FrameNumber, int64 Value)
 {
 	Session.WriteAccessCheck();
 
 	FStatSeriesValue& RowValue = GetValueRef(SeriesHandle, FrameNumber);
-	RowValue.Value.AsDouble += ElapsedTime;
-	RowValue.bIsValid = true;
+	RowValue.Value.AsInt = Value;
 }
 
-void FCsvProfilerProvider::SetCustomStatValue(uint64 SeriesHandle, int32 FrameNumber, ECsvOpType OpType, int32 Value)
+void FCsvProfilerProvider::SetValue(uint64 SeriesHandle, uint32 FrameNumber, double Value)
 {
 	Session.WriteAccessCheck();
 
 	FStatSeriesValue& RowValue = GetValueRef(SeriesHandle, FrameNumber);
-
-	if (!RowValue.bIsValid)
-	{
-		// The first op in a frame is always a set. Otherwise min/max don't work
-		OpType = CsvOpType_Set;
-	}
-
-	switch (OpType)
-	{
-	case CsvOpType_Set:
-		RowValue.Value.AsInt = Value;
-		break;
-	case CsvOpType_Min:
-		RowValue.Value.AsInt = FMath::Min(int64(Value), RowValue.Value.AsInt);
-		break;
-	case CsvOpType_Max:
-		RowValue.Value.AsInt = FMath::Max(int64(Value), RowValue.Value.AsInt);
-		break;
-	case CsvOpType_Accumulate:
-		RowValue.Value.AsInt += Value;
-		break;
-	}
-	RowValue.bIsValid = true;
+	RowValue.Value.AsDouble = Value;
 }
 
-void FCsvProfilerProvider::SetCustomStatValue(uint64 SeriesHandle, int32 FrameNumber, ECsvOpType OpType, float Value)
+void FCsvProfilerProvider::AddEvent(uint32 FrameNumber, const TCHAR* Text)
 {
 	Session.WriteAccessCheck();
 
-	FStatSeriesValue& RowValue = GetValueRef(SeriesHandle, FrameNumber);
-
-	if (!RowValue.bIsValid)
-	{
-		// The first op in a frame is always a set. Otherwise min/max don't work
-		OpType = CsvOpType_Set;
-	}
-
-	switch (OpType)
-	{
-	case CsvOpType_Set:
-		RowValue.Value.AsDouble = Value;
-		break;
-	case CsvOpType_Min:
-		RowValue.Value.AsDouble = FMath::Min(double(Value), RowValue.Value.AsDouble);
-		break;
-	case CsvOpType_Max:
-		RowValue.Value.AsDouble = FMath::Max(double(Value), RowValue.Value.AsDouble);
-		break;
-	case CsvOpType_Accumulate:
-		RowValue.Value.AsDouble += Value;
-		break;
-	}
-	RowValue.bIsValid = true;
-}
-
-void FCsvProfilerProvider::AddEvent(int32 FrameNumber, const TCHAR* Text)
-{
 	FEvents* FrameEvents;
 	FEvents** FindIt = Events.Find(FrameNumber);
 	if (!FindIt)
@@ -296,6 +245,8 @@ void FCsvProfilerProvider::AddEvent(int32 FrameNumber, const TCHAR* Text)
 
 void FCsvProfilerProvider::SetMetadata(const TCHAR* Key, const TCHAR* Value)
 {
+	Session.WriteAccessCheck();
+
 	Metadata.Add(Key, Value);
 }
 

@@ -40,6 +40,21 @@ void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 Start, ui
 	}
 }
 
+const FFrame* FFrameProvider::GetFrame(ETraceFrameType FrameType, uint64 Index) const
+{
+	Session.ReadAccessCheck();
+
+	TPagedArray<FFrame> FramesOfType = Frames[FrameType];
+	if (Index < FramesOfType.Num())
+	{
+		return &FramesOfType[Index];
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 {
 	Session.WriteAccessCheck();

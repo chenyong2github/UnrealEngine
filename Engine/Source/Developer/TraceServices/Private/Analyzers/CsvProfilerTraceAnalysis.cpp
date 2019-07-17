@@ -4,9 +4,10 @@
 #include "TraceServices/Model/Counters.h"
 #include "TraceServices/Model/Frames.h"
 
-FCsvProfilerAnalyzer::FCsvProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FCsvProfilerProvider& InCsvProfilerProvider, const Trace::IFrameProvider& InFrameProvider, const Trace::IThreadProvider& InThreadProvider)
+FCsvProfilerAnalyzer::FCsvProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FCsvProfilerProvider& InCsvProfilerProvider, Trace::ICounterProvider& InCounterProvider, const Trace::IFrameProvider& InFrameProvider, const Trace::IThreadProvider& InThreadProvider)
 	: Session(InSession)
 	, CsvProfilerProvider(InCsvProfilerProvider)
+	, CounterProvider(InCounterProvider)
 	, FrameProvider(InFrameProvider)
 	, ThreadProvider(InThreadProvider)
 {
@@ -132,7 +133,7 @@ void FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 		RenderThreadId = EventData.GetValue<uint32>("RenderThreadId");
 		RHIThreadId = EventData.GetValue<uint32>("RHIThreadId");
-		int32 CaptureStartFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+		uint32 CaptureStartFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
 		bEnableCounts = EventData.GetValue<bool>("EnableCounts");
 		const TCHAR* Filename = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
 		CsvProfilerProvider.StartCapture(Filename, CaptureStartFrame);
@@ -140,7 +141,12 @@ void FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	}
 	case RouteId_EndCapture:
 	{
-		int32 CaptureEndFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+		uint32 CaptureEndFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+		for (FStatSeriesInstance* StatSeries : StatSeriesInstanceArray)
+		{
+			FlushAtEndOfCapture(*StatSeries, CaptureEndFrame);
+		}
+		
 		CsvProfilerProvider.EndCapture(CaptureEndFrame);
 	}
 	}
@@ -200,7 +206,7 @@ void FCsvProfilerAnalyzer::DefineStatSeries(uint64 StatId, const TCHAR* Name, in
 const TCHAR* FCsvProfilerAnalyzer::GetStatSeriesName(const FStatSeriesDefinition* Definition, Trace::ECsvStatSeriesType Type, FThreadState& ThreadState, bool bIsCount)
 {
 	FString Name = Definition->Name;
-	if (Type == Trace::CsvStatSeriesType_Timer || Type == Trace::CsvStatSeriesType_ExclusiveTimer || bIsCount)
+	if (Type == Trace::CsvStatSeriesType_Timer || bIsCount)
 	{
 		// Add a /<Threadname> prefix
 		Name = ThreadState.ThreadName + TEXT("/") + Name;
@@ -210,10 +216,6 @@ const TCHAR* FCsvProfilerAnalyzer::GetStatSeriesName(const FStatSeriesDefinition
 	{
 		// Categorized stats are prefixed with <CATEGORY>/
 		Name = FString(CategoryMap[Definition->CategoryIndex]) + TEXT("/") + Name;
-	}
-	else if (Type == Trace::CsvStatSeriesType_ExclusiveTimer)
-	{
-		Name = FString(TEXT("Exclusive/")) + Name;
 	}
 
 	if (bIsCount)
@@ -225,13 +227,13 @@ const TCHAR* FCsvProfilerAnalyzer::GetStatSeriesName(const FStatSeriesDefinition
 	return Session.StoreString(*Name);
 }
 
-FCsvProfilerAnalyzer::FStatSeriesInstance* FCsvProfilerAnalyzer::GetStatSeries(uint64 StatId, Trace::ECsvStatSeriesType Type, FThreadState& ThreadState)
+FCsvProfilerAnalyzer::FStatSeriesInstance& FCsvProfilerAnalyzer::GetStatSeries(uint64 StatId, Trace::ECsvStatSeriesType Type, FThreadState& ThreadState)
 {
 	FStatSeriesDefinition* Definition;
 	FStatSeriesDefinition** FindIt = StatSeriesMap.Find(StatId);
 	if (!FindIt)
 	{
-		Definition = CreateStatSeries(*FString::Printf(TEXT("[undefined%d]"), UndefinedStatSeriesCount++), 0);
+		Definition = CreateStatSeries(*FString::Printf(TEXT("[unknown%d]"), UndefinedStatSeriesCount++), 0);
 		StatSeriesMap.Add(StatId, Definition);
 	}
 	else
@@ -246,16 +248,22 @@ FCsvProfilerAnalyzer::FStatSeriesInstance* FCsvProfilerAnalyzer::GetStatSeries(u
 	FStatSeriesInstance* Instance = ThreadState.StatSeries[Definition->ColumnIndex];
 	if (Instance)
 	{
-		return Instance;
+		return *Instance;
 	}
 
 	Instance = new FStatSeriesInstance();
 	StatSeriesInstanceArray.Add(Instance);
 	ThreadState.StatSeries[Definition->ColumnIndex] = Instance;
-	Instance->ProviderHandle = CsvProfilerProvider.AddSeries(GetStatSeriesName(Definition, Type, ThreadState, false), Type);
+	const TCHAR* StatSeriesName = GetStatSeriesName(Definition, Type, ThreadState, false);
+	Instance->ProviderHandle = CsvProfilerProvider.AddSeries(StatSeriesName, Type);
 	Instance->ProviderCountHandle = CsvProfilerProvider.AddSeries(GetStatSeriesName(Definition, Type, ThreadState, true), Trace::CsvStatSeriesType_CustomStatInt);
+	Instance->Counter = CounterProvider.CreateCounter();
+	Instance->Counter->SetName(StatSeriesName);
+	Instance->Counter->SetIsFloatingPoint(Type != Trace::CsvStatSeriesType_CustomStatInt);
+	Instance->Type = Type;
+	Instance->FrameType = ThreadState.FrameType;
 
-	return Instance;
+	return *Instance;
 }
 
 void FCsvProfilerAnalyzer::HandleMarkerEvent(const FOnEventContext& Context, bool bIsExclusive, bool bIsBegin)
@@ -263,7 +271,7 @@ void FCsvProfilerAnalyzer::HandleMarkerEvent(const FOnEventContext& Context, boo
 	FThreadState& ThreadState = GetThreadState(Context.EventData.GetValue<uint32>("ThreadId"));
 	uint64 StatId = Context.EventData.GetValue<uint64>("StatId");
 	FTimingMarker Marker;
-	Marker.StatSeries = GetStatSeries(StatId, Trace::CsvStatSeriesType_Timer, ThreadState);
+	Marker.StatId = StatId;
 	Marker.bIsBegin = bIsBegin;
 	Marker.bIsExclusive = bIsExclusive;
 	Marker.Cycle = Context.EventData.GetValue<uint64>("Cycle");
@@ -314,7 +322,8 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 		HandleMarker(Context, ThreadState, InsertedMarker);
 	}
 	
-	int32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.SessionContext.TimestampFromCycle(Marker.Cycle));
+	double Timestamp = Context.SessionContext.TimestampFromCycle(Marker.Cycle);
+	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Timestamp);
 	if (Marker.bIsBegin)
 	{
 		ThreadState.MarkerStack.Push(Marker);
@@ -330,7 +339,7 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 
 			for (int j = ThreadState.MarkerStack.Num() - 1; j >= 0; j--)
 			{
-				if (ThreadState.MarkerStack[j].StatSeries == Marker.StatSeries) // Note: only works with scopes!
+				if (ThreadState.MarkerStack[j].StatId == Marker.StatId) // Note: only works with scopes!
 				{
 					StartMarker = ThreadState.MarkerStack[j];
 					ThreadState.MarkerStack.RemoveAt(j, 1, false);
@@ -342,20 +351,15 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 			// TODO: if bFoundStart is false, this stat _never_ gets processed. Could we add it to a persistent list so it's considered next time?
 			// Example where this could go wrong: staggered/overlapping exclusive stats ( e.g Abegin, Bbegin, AEnd, BEnd ), where processing ends after AEnd
 			// AEnd would be missing 
-			if (FrameNumber >= 0 && bFoundStart)
+			if (bFoundStart)
 			{
-				check(Marker.StatSeries == StartMarker.StatSeries);
+				check(Marker.StatId == StartMarker.StatId);
 				check(Marker.Cycle >= StartMarker.Cycle);
 				if (Marker.Cycle > StartMarker.Cycle)
 				{
 					uint64 ElapsedCycles = Marker.Cycle - StartMarker.Cycle;
-					CsvProfilerProvider.SetTimerValue(Marker.StatSeries->ProviderHandle, FrameNumber, Context.SessionContext.DurationFromCycleCount(ElapsedCycles) * 1000.0);
-
-					// Add the COUNT/ series if enabled. Ignore artificial markers (inserted above)
-					if (bEnableCounts && !Marker.bIsExclusiveInsertedMarker)
-					{
-						CsvProfilerProvider.SetCustomStatValue(Marker.StatSeries->ProviderCountHandle, FrameNumber, Trace::CsvOpType_Accumulate, 1);
-					}
+					FStatSeriesInstance& StatSeries = GetStatSeries(Marker.StatId, Trace::CsvStatSeriesType_Timer, ThreadState);
+					SetTimerValue(StatSeries, FrameNumber, Context.SessionContext.DurationFromCycleCount(ElapsedCycles) * 1000.0, !Marker.bIsExclusiveInsertedMarker);
 				}
 			}
 		}
@@ -365,26 +369,18 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 void FCsvProfilerAnalyzer::HandleCustomStatEvent(const FOnEventContext& Context, bool bIsFloat)
 {
 	FThreadState& ThreadState = GetThreadState(Context.EventData.GetValue<uint32>("ThreadId"));
-	FStatSeriesInstance* StatSeries = GetStatSeries(Context.EventData.GetValue<uint64>("StatId"), Trace::CsvStatSeriesType_CustomStatFloat, ThreadState);
-	Trace::ECsvOpType OpType = static_cast<Trace::ECsvOpType>(Context.EventData.GetValue<uint8>("OpType"));
-	uint64 Cycle = Context.EventData.GetValue<uint64>("Cycle");
-	int32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.SessionContext.TimestampFromCycle(Cycle));
-	if (FrameNumber >= 0)
+	FStatSeriesInstance& StatSeries = GetStatSeries(Context.EventData.GetValue<uint64>("StatId"), bIsFloat ? Trace::CsvStatSeriesType_CustomStatFloat : Trace::CsvStatSeriesType_CustomStatInt, ThreadState);
+	ECsvOpType OpType = static_cast<ECsvOpType>(Context.EventData.GetValue<uint8>("OpType"));
+	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.SessionContext.TimestampFromCycle(Context.EventData.GetValue<uint64>("Cycle")));
+	if (bIsFloat)
 	{
-		if (bIsFloat)
-		{
-			CsvProfilerProvider.SetCustomStatValue(StatSeries->ProviderHandle, FrameNumber, OpType, Context.EventData.GetValue<float>("Value"));
-		}
-		else
-		{
-			CsvProfilerProvider.SetCustomStatValue(StatSeries->ProviderHandle, FrameNumber, OpType, Context.EventData.GetValue<int32>("Value"));
-		}
-
-		// Add the COUNT/ series if enabled
-		if (bEnableCounts)
-		{
-			CsvProfilerProvider.SetCustomStatValue(StatSeries->ProviderCountHandle, FrameNumber, Trace::CsvOpType_Accumulate, 1);
-		}
+		float Value = Context.EventData.GetValue<float>("Value");
+		SetCustomStatValue(StatSeries, FrameNumber, OpType, Value);
+	}
+	else
+	{
+		int32 Value = Context.EventData.GetValue<int32>("Value");
+		SetCustomStatValue(StatSeries, FrameNumber, OpType, Value);
 	}
 }
 
@@ -392,28 +388,154 @@ void FCsvProfilerAnalyzer::HandleEventEvent(const FOnEventContext& Context)
 {
 	FThreadState& ThreadState = GetThreadState(Context.EventData.GetValue<uint32>("ThreadId"));
 	uint64 Cycle = Context.EventData.GetValue<uint64>("Cycle");
-	int32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.SessionContext.TimestampFromCycle(Cycle));
-	if (FrameNumber >= 0)
+	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.SessionContext.TimestampFromCycle(Cycle));
+	FString EventText = reinterpret_cast<const TCHAR*>(Context.EventData.GetAttachment());
+	int32 CategoryIndex = Context.EventData.GetValue<int32>("CategoryIndex");
+	if (CategoryIndex > 0)
 	{
-		FString EventText = reinterpret_cast<const TCHAR*>(Context.EventData.GetAttachment());
-		int32 CategoryIndex = Context.EventData.GetValue<int32>("CategoryIndex");
-		if (CategoryIndex > 0)
-		{
-			EventText = FString(CategoryMap[CategoryIndex]) + TEXT("/") + EventText;
-		}
-		CsvProfilerProvider.AddEvent(FrameNumber, Session.StoreString(*EventText));
+		EventText = FString(CategoryMap[CategoryIndex]) + TEXT("/") + EventText;
 	}
+	CsvProfilerProvider.AddEvent(FrameNumber, Session.StoreString(*EventText));
 }
 
-int32 FCsvProfilerAnalyzer::GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const
+uint32 FCsvProfilerAnalyzer::GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const
 {
 	const TArray<double>& FrameStartTimes = FrameProvider.GetFrameStartTimes(FrameType);
 
 	if (FrameStartTimes.Num() == 0 || Timestamp < FrameStartTimes[0])
 	{
 		return 0;
+	} 
+	else if (Timestamp >= FrameStartTimes.Last())
+	{
+		return FrameStartTimes.Num();
+	}
+	else
+	{
+		uint32 Index = static_cast<uint32>(Algo::LowerBound(FrameStartTimes, Timestamp));
+		return Index + 1;
+	}
+}
+
+void FCsvProfilerAnalyzer::Flush(FStatSeriesInstance& StatSeries)
+{
+	double CounterTimestamp;
+	if (StatSeries.CurrentFrame == 0)
+	{
+		const Trace::FFrame* Frame = FrameProvider.GetFrame(StatSeries.FrameType, 0);
+		check(Frame);
+		CounterTimestamp = Frame->StartTime;
+	}
+	else
+	{
+		const Trace::FFrame* Frame = FrameProvider.GetFrame(StatSeries.FrameType, StatSeries.CurrentFrame - 1);
+		const Trace::FFrame* NextFrame = FrameProvider.GetFrame(StatSeries.FrameType, StatSeries.CurrentFrame);
+		check(NextFrame);
+		CounterTimestamp = Frame->EndTime;
+	}
+	if (StatSeries.Type == Trace::CsvStatSeriesType_CustomStatInt)
+	{
+		CsvProfilerProvider.SetValue(StatSeries.ProviderHandle, StatSeries.CurrentFrame, StatSeries.CurrentValue.Value.AsInt);
+		StatSeries.Counter->SetValue(CounterTimestamp, StatSeries.CurrentValue.Value.AsInt);
+	}
+	else
+	{
+		CsvProfilerProvider.SetValue(StatSeries.ProviderHandle, StatSeries.CurrentFrame, StatSeries.CurrentValue.Value.AsDouble);
+		StatSeries.Counter->SetValue(CounterTimestamp, StatSeries.CurrentValue.Value.AsDouble);
+	}
+	if (bEnableCounts)
+	{
+		CsvProfilerProvider.SetValue(StatSeries.ProviderCountHandle, StatSeries.CurrentFrame, StatSeries.CurrentCount);
+	}
+	StatSeries.CurrentValue = FStatSeriesValue();
+	StatSeries.CurrentCount = 0;
+}
+
+void FCsvProfilerAnalyzer::FlushIfNewFrame(FStatSeriesInstance& StatSeries, uint32 FrameNumber)
+{
+	if (FrameNumber != StatSeries.CurrentFrame && StatSeries.CurrentValue.bIsValid)
+	{
+		check(FrameNumber > StatSeries.CurrentFrame);
+		Flush(StatSeries);
+	}
+	StatSeries.CurrentFrame = FrameNumber;
+}
+
+void FCsvProfilerAnalyzer::FlushAtEndOfCapture(FStatSeriesInstance& StatSeries, uint32 CaptureEndFrame)
+{
+	if (StatSeries.CurrentValue.bIsValid && StatSeries.CurrentFrame < CaptureEndFrame)
+	{
+		Flush(StatSeries);
+	}
+}
+
+void FCsvProfilerAnalyzer::SetTimerValue(FStatSeriesInstance& StatSeries, uint32 FrameNumber, double ElapsedTime, bool bCount)
+{
+	FlushIfNewFrame(StatSeries, FrameNumber);
+
+	StatSeries.CurrentValue.Value.AsDouble += ElapsedTime;
+	StatSeries.CurrentValue.bIsValid = true;
+	if (bCount)
+	{
+		++StatSeries.CurrentCount;
 	}
 
-	uint32 Index = static_cast<uint32>(Algo::LowerBound(FrameStartTimes, Timestamp));
-	return Index + 1;
+}
+
+void FCsvProfilerAnalyzer::SetCustomStatValue(FStatSeriesInstance& StatSeries, uint32 FrameNumber, ECsvOpType OpType, int32 Value)
+{
+	FlushIfNewFrame(StatSeries, FrameNumber);
+
+	if (!StatSeries.CurrentValue.bIsValid)
+	{
+		// The first op in a frame is always a set. Otherwise min/max don't work
+		OpType = CsvOpType_Set;
+	}
+
+	switch (OpType)
+	{
+	case CsvOpType_Set:
+		StatSeries.CurrentValue.Value.AsInt = Value;
+		break;
+	case CsvOpType_Min:
+		StatSeries.CurrentValue.Value.AsInt = FMath::Min(int64(Value), StatSeries.CurrentValue.Value.AsInt);
+		break;
+	case CsvOpType_Max:
+		StatSeries.CurrentValue.Value.AsInt = FMath::Max(int64(Value), StatSeries.CurrentValue.Value.AsInt);
+		break;
+	case CsvOpType_Accumulate:
+		StatSeries.CurrentValue.Value.AsInt += Value;
+		break;
+	}
+	StatSeries.CurrentValue.bIsValid = true;
+	++StatSeries.CurrentCount;
+}
+
+void FCsvProfilerAnalyzer::SetCustomStatValue(FStatSeriesInstance& StatSeries, uint32 FrameNumber, ECsvOpType OpType, float Value)
+{
+	FlushIfNewFrame(StatSeries, FrameNumber);
+
+	if (!StatSeries.CurrentValue.bIsValid)
+	{
+		// The first op in a frame is always a set. Otherwise min/max don't work
+		OpType = CsvOpType_Set;
+	}
+
+	switch (OpType)
+	{
+	case CsvOpType_Set:
+		StatSeries.CurrentValue.Value.AsDouble = Value;
+		break;
+	case CsvOpType_Min:
+		StatSeries.CurrentValue.Value.AsDouble = FMath::Min(double(Value), StatSeries.CurrentValue.Value.AsDouble);
+		break;
+	case CsvOpType_Max:
+		StatSeries.CurrentValue.Value.AsDouble = FMath::Max(double(Value), StatSeries.CurrentValue.Value.AsDouble);
+		break;
+	case CsvOpType_Accumulate:
+		StatSeries.CurrentValue.Value.AsDouble += Value;
+		break;
+	}
+	StatSeries.CurrentValue.bIsValid = true;
+	++StatSeries.CurrentCount;
 }

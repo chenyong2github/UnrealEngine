@@ -140,6 +140,11 @@ public:
 		OpArguments.Insert(InsertionIndex) = OpArgument;
 	}
 
+	uint64 Num() const
+	{
+		return Timestamps.Num();
+	}
+
 	TIterator GetIterator(TArray<double> FrameStartTimes) const
 	{
 		return TIterator(*this, FrameStartTimes);

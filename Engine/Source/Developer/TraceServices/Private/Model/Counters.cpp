@@ -21,21 +21,41 @@ FCounter::FCounter(ILinearAllocator& Allocator, const TArray<double>& InFrameSta
 template<typename CounterType, typename EnumerationType>
 static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& CounterData, const TArray<double>& FrameStartTimes, bool bResetEveryFrame, double IntervalStart, double IntervalEnd, TFunctionRef<void(double, EnumerationType)> Callback)
 {
+	if (!CounterData.Num())
+	{
+		return;
+	}
 	TArray<double> NoFrameStartTimes;
 	auto CounterIterator = bResetEveryFrame ? CounterData.GetIterator(FrameStartTimes) : CounterData.GetIterator(NoFrameStartTimes);
+	bool bFirstValue = true;
+	bool bFirstEnumeratedValue = true;
+	CounterType LastValue = CounterType();
+	double LastTime = 0.0;
 	while (CounterIterator)
 	{
 		const TTuple<double, CounterType>& Current = *CounterIterator;
 		double Time = Current.template Get<0>();
-		CounterType CounterValue = Current.template Get<1>();
-		if (Time > IntervalEnd)
-		{
-			break;
-		}
+		CounterType CurrentValue = Current.template Get<1>();
 		if (Time >= IntervalStart)
 		{
-			Callback(Time, CounterValue);
+			if (bFirstEnumeratedValue)
+			{
+				if (!bFirstValue)
+				{
+					Callback(LastTime, LastValue);
+				}
+				bFirstEnumeratedValue = false;
+			}
+			Callback(Time, CurrentValue);
+			bFirstEnumeratedValue = false;
+			if (Time > IntervalEnd)
+			{
+				break;
+			}
 		}
+		LastTime = Time;
+		LastValue = CurrentValue;
+		bFirstValue = false;
 		++CounterIterator;
 	}
 }
