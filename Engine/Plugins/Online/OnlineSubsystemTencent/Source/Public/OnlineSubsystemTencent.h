@@ -172,8 +172,10 @@ private:
 	FOnlineIdentityTencentPtr TencentIdentity;
 	/** Interface to the session services (needed for TSS anticheat handling) */
 	FOnlineSessionTencentPtr TencentSession;
+#if WITH_TENCENTSDK
 	/** Interface to the directory service (TCLS proxy TDIR info) */
 	FOnlineDirectoryTencentPtr TencentDirectory;
+#endif // WITH_TENCENTSDK
 #if WITH_TENCENT_RAIL_SDK
 	/** Interface to the friends services */
 	FOnlineFriendsTencentPtr TencentFriends;
