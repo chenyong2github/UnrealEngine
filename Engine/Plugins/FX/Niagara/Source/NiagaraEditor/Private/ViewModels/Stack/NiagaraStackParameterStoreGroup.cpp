@@ -72,7 +72,7 @@ public:
 	virtual void GenerateAddActions(TArray<TSharedRef<INiagaraStackItemGroupAddAction>>& OutAddActions, const FNiagaraStackItemGroupAddOptions& AddProperties) const override
 	{
 		TArray<FNiagaraTypeDefinition> AvailableTypes;
-		FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes);
+		FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes, FNiagaraParameterHandle::UserNamespace);
 		for (const FNiagaraTypeDefinition& AvailableType : AvailableTypes)
 		{
 			FNiagaraParameterHandle NewParameterHandle(FNiagaraParameterHandle::UserNamespace, *(TEXT("New") + AvailableType.GetName()));
