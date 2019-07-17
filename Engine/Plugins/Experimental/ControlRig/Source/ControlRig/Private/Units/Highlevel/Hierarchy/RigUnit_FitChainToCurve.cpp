@@ -6,7 +6,7 @@
 void FRigUnit_FitChainToCurve::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = (FRigBoneHierarchy*)(Context.HierarchyReference.GetBones());
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -42,7 +42,7 @@ void FRigUnit_FitChainToCurve::Execute(const FRigUnitContext& Context)
 				{
 					break;
 				}
-				EndBoneIndex = Hierarchy->GetParentIndex(EndBoneIndex);
+				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
 			}
 		}
 
@@ -324,7 +324,7 @@ void FRigUnit_FitChainToCurve::Execute(const FRigUnitContext& Context)
 	if (Rotations.Num() > 0)
 	{
 		FTransform BaseTransform = FTransform::Identity;
-		int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[0]);
+		int32 ParentIndex = (*Hierarchy)[BoneIndices[0]].ParentIndex;
 		if (ParentIndex != INDEX_NONE)
 		{
 			BaseTransform = Hierarchy->GetGlobalTransform(ParentIndex);

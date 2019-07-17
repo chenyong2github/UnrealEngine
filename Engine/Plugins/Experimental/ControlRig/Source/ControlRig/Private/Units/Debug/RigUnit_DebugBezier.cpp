@@ -17,9 +17,9 @@ void FRigUnit_DebugBezier::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform Transform = WorldOffset;
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.HierarchyReference.GetBones() != nullptr)
 	{
-		Transform = Transform * Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		Transform = Transform * Context.HierarchyReference.GetBones()->GetGlobalTransform(Space);
 	}
 
 

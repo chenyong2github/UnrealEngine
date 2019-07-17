@@ -15,7 +15,7 @@ FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>
 {
 	ControlRigBlueprintPtr = CastChecked<UControlRigBlueprint>(InControlRigEditor->GetBlueprintObj());
 
-	TabFactories.RegisterFactory(MakeShared<FRigHierarchyTabSummoner>(InControlRigEditor));
+	TabFactories.RegisterFactory(MakeShared<FRigBoneHierarchyTabSummoner>(InControlRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FRigStackTabSummoner>(InControlRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FRigCurveContainerTabSummoner>(InControlRigEditor));
 
@@ -70,7 +70,7 @@ FControlRigEditorMode::FControlRigEditorMode(const TSharedRef<FControlRigEditor>
 						//	Left bottom - rig/hierarchy
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.5f)
-						->AddTab(FRigHierarchyTabSummoner::TabID, ETabState::OpenedTab)
+						->AddTab(FRigBoneHierarchyTabSummoner::TabID, ETabState::OpenedTab)
 						->AddTab(FRigStackTabSummoner::TabID, ETabState::OpenedTab)
 					)
 				)

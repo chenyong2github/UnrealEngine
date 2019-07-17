@@ -380,11 +380,10 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				}
 
 				// each base hierarchy Bone
-				const FRigHierarchy& BaseHierarchy = ControlRig->GetBaseHierarchy();
-				const TArray<FRigBone>& Bones = BaseHierarchy.GetBones();
-				for (int32 BoneIndex = 0; BoneIndex < Bones.Num(); ++BoneIndex)
+				const FRigBoneHierarchy& BaseHierarchy = ControlRig->GetBoneHierarchy();
+				for (int32 BoneIndex = 0; BoneIndex < BaseHierarchy.Num(); ++BoneIndex)
 				{
-					const FRigBone& CurrentBone = Bones[BoneIndex];
+					const FRigBone& CurrentBone = BaseHierarchy[BoneIndex];
 					const FTransform Transform = BaseHierarchy.GetGlobalTransform(BoneIndex);
 
 					if (CurrentBone.ParentIndex != INDEX_NONE)

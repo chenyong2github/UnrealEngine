@@ -5,22 +5,21 @@
 #include "Misc/AutomationTest.h"
 #include "RigUnit.h"
 #include "RigUnitContext.h"
-#include "Rigs/Hierarchy.h"
-#include "CurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigCurveContainer.h"
 
 class FControlRigUnitTestBase : public FAutomationTestBase
 {
 public:
 	FControlRigUnitTestBase(const FString& InName, bool bIsComplex)
 		: FAutomationTestBase(InName, bIsComplex)
-		, HierarchyContainer(FRigHierarchyContainer())
+		, HierarchyContainer()
 		, HierarchyRef(FRigHierarchyRef())
-		, Hierarchy(HierarchyContainer.BaseHierarchy)
+		, Hierarchy(HierarchyContainer.BoneHierarchy)
 		, CurveContainer(FRigCurveContainer())
 		, CurveContainerRef(&CurveContainer)
 	{
 		HierarchyRef.Container = &HierarchyContainer;
-		HierarchyRef.bUseBaseHierarchy = true;
 		Context.HierarchyReference = HierarchyRef;
 		ExecuteContext.HierarchyReference = HierarchyRef;
 		ExecuteContext.CurveReference = CurveContainerRef;
@@ -28,7 +27,7 @@ public:
 
 	FRigHierarchyContainer HierarchyContainer;
 	FRigHierarchyRef HierarchyRef;
-	FRigHierarchy& Hierarchy;
+	FRigBoneHierarchy& Hierarchy;
 	FRigCurveContainer CurveContainer;
 	FRigCurveContainerRef CurveContainerRef;
 	FControlRigExecuteContext ExecuteContext;

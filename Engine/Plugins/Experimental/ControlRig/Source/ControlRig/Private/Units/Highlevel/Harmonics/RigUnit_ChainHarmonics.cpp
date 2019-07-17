@@ -6,7 +6,7 @@
 void FRigUnit_ChainHarmonics::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = (FRigBoneHierarchy*)(Context.HierarchyReference.GetBones());
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -74,7 +74,7 @@ void FRigUnit_ChainHarmonics::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform ParentTransform = FTransform::Identity;
-	int32 ParentIndex = Hierarchy->GetParentIndex(Bones[0]);
+	int32 ParentIndex = (*Hierarchy)[Bones[0]].ParentIndex;
 	if (ParentIndex != INDEX_NONE)
 	{
 		ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);

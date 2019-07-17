@@ -6,7 +6,7 @@
 void FRigUnit_DistributeRotation::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = (FRigBoneHierarchy*)(Context.HierarchyReference.GetBones());
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -36,7 +36,7 @@ void FRigUnit_DistributeRotation::Execute(const FRigUnitContext& Context)
 				{
 					break;
 				}
-				EndBoneIndex = Hierarchy->GetParentIndex(EndBoneIndex);
+				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
 			}
 		}
 
@@ -140,7 +140,7 @@ void FRigUnit_DistributeRotation::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform BaseTransform = FTransform::Identity;
-	int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[0]);
+	int32 ParentIndex = (*Hierarchy)[BoneIndices[0]].ParentIndex;
 	if (ParentIndex != INDEX_NONE)
 	{
 		BaseTransform = Hierarchy->GetGlobalTransform(ParentIndex);
@@ -184,11 +184,11 @@ void FRigUnit_DistributeRotation::Execute(const FRigUnitContext& Context)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 {
-	Hierarchy.AddBone(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(2.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneB"), TEXT("BoneA"), FTransform(FVector(2.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneC"), TEXT("BoneB"), FTransform(FVector(2.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneD"), TEXT("BoneC"), FTransform(FVector(2.f, 0.f, 0.f)));
+	Hierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
+	Hierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(2.f, 0.f, 0.f)));
+	Hierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), FTransform(FVector(2.f, 0.f, 0.f)));
+	Hierarchy.Add(TEXT("BoneC"), TEXT("BoneB"), FTransform(FVector(2.f, 0.f, 0.f)));
+	Hierarchy.Add(TEXT("BoneD"), TEXT("BoneC"), FTransform(FVector(2.f, 0.f, 0.f)));
 	Hierarchy.Initialize();
 
 	Unit.StartBone = TEXT("Root");

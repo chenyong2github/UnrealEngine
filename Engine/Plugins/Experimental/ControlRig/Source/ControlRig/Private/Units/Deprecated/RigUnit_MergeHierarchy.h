@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/RigUnit.h"
-#include "Rigs/Hierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "RigUnit_MergeHierarchy.generated.h"
 
 USTRUCT(meta=(DisplayName="Merge Hierarchy", Category="Hierarchy", Deprecated = "4.23.0"))

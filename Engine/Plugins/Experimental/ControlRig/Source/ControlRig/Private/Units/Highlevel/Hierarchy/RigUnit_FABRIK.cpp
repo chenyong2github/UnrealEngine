@@ -6,7 +6,7 @@
 void FRigUnit_FABRIK::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = (FRigBoneHierarchy*)(Context.HierarchyReference.GetBones());
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -24,7 +24,7 @@ void FRigUnit_FABRIK::Execute(const FRigUnitContext& Context)
 			while (CurrentIndex != INDEX_NONE)
 			{
 				// ensure the chain
-				int32 ParentIndex = Hierarchy->GetParentIndex(CurrentIndex);
+				int32 ParentIndex = (*Hierarchy)[CurrentIndex].ParentIndex;
 				if (ParentIndex != INDEX_NONE)
 				{
 					BoneIndices.Add(CurrentIndex);

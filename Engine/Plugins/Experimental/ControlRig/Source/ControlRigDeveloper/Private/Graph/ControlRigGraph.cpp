@@ -272,13 +272,12 @@ void UControlRigGraph::OnBlueprintCompiledPostLoad(UBlueprint* InCompiledBluepri
 	}
 }
 
-void UControlRigGraph::CacheBoneNameList(const FRigHierarchy& Hierarchy)
+void UControlRigGraph::CacheBoneNameList(const FRigBoneHierarchy& Hierarchy)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	TArray<FString> Names;
-	const TArray<FRigBone>& Bones = Hierarchy.GetBones();
-	for (const FRigBone& Bone : Bones )
+	for (const FRigBone& Bone : Hierarchy)
 	{
 		Names.Add(Bone.Name.ToString());
 	}

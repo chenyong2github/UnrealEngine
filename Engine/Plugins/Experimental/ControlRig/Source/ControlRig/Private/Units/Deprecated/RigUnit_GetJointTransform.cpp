@@ -9,7 +9,7 @@ void FRigUnit_GetJointTransform::Execute(const FRigUnitContext& Context)
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 
-	FRigHierarchy* Hierarchy = HierarchyRef.Get();
+	FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
 	if (Hierarchy)
 	{
 		int32 Index = Hierarchy->GetIndex(Joint);
@@ -41,17 +41,17 @@ void FRigUnit_GetJointTransform::Execute(const FRigUnitContext& Context)
 	}
 }
 
-FTransform FRigUnit_GetJointTransform::GetBaseTransform(int32 JointIndex, const FRigHierarchy* CurrentHierarchy, bool bUseInitial) const
+FTransform FRigUnit_GetJointTransform::GetBaseTransform(int32 JointIndex, const FRigBoneHierarchy* CurrentHierarchy, bool bUseInitial) const
 {
 	if (bUseInitial)
 	{
 		return UtilityHelpers::GetBaseTransformByMode(TransformSpace, [CurrentHierarchy](const FName& JointName) { return CurrentHierarchy->GetInitialTransform(JointName); },
-			CurrentHierarchy->GetBones()[JointIndex].ParentName, BaseJoint, BaseTransform);
+			(*CurrentHierarchy)[JointIndex].ParentName, BaseJoint, BaseTransform);
 	}
 	else
 	{
 		return UtilityHelpers::GetBaseTransformByMode(TransformSpace, [CurrentHierarchy](const FName& JointName) { return CurrentHierarchy->GetGlobalTransform(JointName); },
-			CurrentHierarchy->GetBones()[JointIndex].ParentName, BaseJoint, BaseTransform);
+			(*CurrentHierarchy)[JointIndex].ParentName, BaseJoint, BaseTransform);
 	}
 
 }

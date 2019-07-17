@@ -18,9 +18,9 @@ void FRigUnit_DebugPoint::Execute(const FRigUnitContext& Context)
 
 	FVector Center = FVector::ZeroVector;
 	FVector DrawVector = Vector;
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.HierarchyReference.GetBones() != nullptr)
 	{
-		FTransform Transform = Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		FTransform Transform = Context.HierarchyReference.GetBones()->GetGlobalTransform(Space);
 		Center = Transform.GetLocation();
 		DrawVector = Transform.TransformPosition(DrawVector);
 	}
@@ -55,9 +55,9 @@ void FRigUnit_DebugPointMutable::Execute(const FRigUnitContext& Context)
 
 	FVector Center = FVector::ZeroVector;
 	FVector DrawVector = Vector;
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.HierarchyReference.GetBones() != nullptr)
 	{
-		FTransform Transform = Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		FTransform Transform = Context.HierarchyReference.GetBones()->GetGlobalTransform(Space);
 		Center = Transform.GetLocation();
 		DrawVector = Transform.TransformPosition(DrawVector);
 	}

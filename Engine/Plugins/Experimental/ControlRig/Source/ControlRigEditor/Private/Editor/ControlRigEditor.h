@@ -107,15 +107,21 @@ public:
 	void SelectBone(const FName& InBone);
 	// this changes everytime you compile, so don't cache it expecting it will last. 
 	UControlRig* GetInstanceRig() const { return ControlRig;  }
-	// restart animation 
-	void OnHierarchyChanged();
-	void OnBoneRenamed(const FName& OldName, const FName& NewName);
+
 	void OnCurveContainerChanged();
 	void OnCurveRenamed(const FName& OldName, const FName& NewName);
+
+	void OnHierarchyElementAdded(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName);
+	void OnHierarchyElementRemoved(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName);
+	void OnHierarchyElementRenamed(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InOldName, const FName& InNewName);
+	void OnHierarchyElementReparented(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName);
 
 	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition);
 
 protected:
+
+	void OnBoneHierarchyChanged();
+
 	// FBlueprintEditor Interface
 	virtual void CreateDefaultCommands() override;
 	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList);
@@ -261,5 +267,5 @@ protected:
 
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;
-	friend class SRigHierarchy;
+	friend class SRigBoneHierarchy;
 };

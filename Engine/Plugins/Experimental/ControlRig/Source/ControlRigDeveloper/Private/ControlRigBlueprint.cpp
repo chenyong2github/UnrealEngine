@@ -598,5 +598,16 @@ bool UControlRigBlueprint::PerformArrayOperation(const FString& InPropertyPath, 
 	return false;
 }
 
+void UControlRigBlueprint::CleanupBoneHierarchyDeprecated()
+{
+	if (Hierarchy_DEPRECATED.Num() == 0)
+	{
+		return;
+	}
+
+	HierarchyContainer.BoneHierarchy = Hierarchy_DEPRECATED;
+	Hierarchy_DEPRECATED.Reset();
+}
+
 #undef LOCTEXT_NAMESPACE
 

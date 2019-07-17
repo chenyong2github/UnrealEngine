@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/RigUnit.h"
-#include "Rigs/Hierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "Constraint.h"
 #include "ControlRigDefines.h"
 #include "RigUnit_ApplyFK.generated.h"
@@ -57,5 +57,5 @@ struct FRigUnit_ApplyFK : public FRigUnitMutable
 	FName BaseJoint;
 
 private:
-	FTransform GetBaseTransform(int32 JointIndex, const FRigHierarchy* CurrentHierarchy) const;
+	FTransform GetBaseTransform(int32 JointIndex, const FRigBoneHierarchy* CurrentHierarchy) const;
 };

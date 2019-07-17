@@ -3,8 +3,8 @@
 #pragma once
 
 #include "PropertyPathHelpers.h"
-#include "Rigs/Hierarchy.h"
-#include "CurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigCurveContainer.h"
 #include "Stats/StatsHierarchical.h"
 #include "ControlRigDefines.generated.h"
 

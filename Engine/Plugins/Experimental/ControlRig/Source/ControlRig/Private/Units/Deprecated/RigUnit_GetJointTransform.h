@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/RigUnit.h"
-#include "Rigs/Hierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "Constraint.h"
 #include "ControlRigDefines.h"
 #include "RigUnit_GetJointTransform.generated.h"
@@ -42,5 +42,5 @@ struct FRigUnit_GetJointTransform : public FRigUnitMutable
 	FTransform Output;
 
 private:
-	FTransform GetBaseTransform(int32 JointIndex, const FRigHierarchy* CurrentHierarchy, bool bUseInitial) const;
+	FTransform GetBaseTransform(int32 JointIndex, const FRigBoneHierarchy* CurrentHierarchy, bool bUseInitial) const;
 };

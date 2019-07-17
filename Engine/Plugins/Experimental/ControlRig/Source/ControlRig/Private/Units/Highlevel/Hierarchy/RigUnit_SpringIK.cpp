@@ -6,7 +6,7 @@
 void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchy* Hierarchy = (FRigHierarchy*)(Context.HierarchyReference.Get());
+	FRigBoneHierarchy* Hierarchy = (FRigBoneHierarchy*)(Context.HierarchyReference.GetBones());
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -34,7 +34,7 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 				{
 					break;
 				}
-				EndBoneIndex = Hierarchy->GetParentIndex(EndBoneIndex);
+				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
 			}
 		}
 
@@ -252,7 +252,7 @@ void FRigUnit_SpringIK::Execute(const FRigUnitContext& Context)
 
 		if(bLimitLocalPosition)
 		{
-			int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[PointIndex]);
+			int32 ParentIndex = (*Hierarchy)[BoneIndices[PointIndex]].ParentIndex;
 			if (ParentIndex != INDEX_NONE)
 			{
 				FTransform InitialTransform = Hierarchy->GetInitialTransform(BoneIndices[PointIndex]);

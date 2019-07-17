@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Rigs/Hierarchy.h"
-#include "CurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigCurveContainer.h"
 #include "ControlRigLog.h"
 #include "AnimationDataSource.h"
 #include "Drawing/ControlRigDrawInterface.h"

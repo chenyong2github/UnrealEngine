@@ -7,13 +7,13 @@
 
 class FControlRigEditor;
 
-struct FRigHierarchyTabSummoner : public FWorkflowTabFactory
+struct FRigBoneHierarchyTabSummoner : public FWorkflowTabFactory
 {
 public:
 	static const FName TabID;
 	
 public:
-	FRigHierarchyTabSummoner(const TSharedRef<FControlRigEditor>& InControlRigEditor);
+	FRigBoneHierarchyTabSummoner(const TSharedRef<FControlRigEditor>& InControlRigEditor);
 	
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 	

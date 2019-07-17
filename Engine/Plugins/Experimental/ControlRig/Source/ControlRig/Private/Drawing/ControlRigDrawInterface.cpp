@@ -161,10 +161,8 @@ void FControlRigDrawInterface::DrawBezier(const FTransform& WorldOffset, const F
 	DrawInstructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, const FRigHierarchy& Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, const FRigBoneHierarchy& Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness)
 {
-	const TArray<FRigBone>& Bones = Hierarchy.GetBones();
-
 	switch (Mode)
 	{
 		case EControlRigDrawHierarchyMode::Axes:
@@ -173,12 +171,12 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, cons
 			FDrawIntruction InstructionY(EDrawType_Lines, FLinearColor::Green, Thickness);
 			FDrawIntruction InstructionZ(EDrawType_Lines, FLinearColor::Blue, Thickness);
 			FDrawIntruction InstructionParent(EDrawType_Lines, Color, Thickness);
-			InstructionX.Positions.Reserve(Bones.Num() * 2);
-			InstructionY.Positions.Reserve(Bones.Num() * 2);
-			InstructionZ.Positions.Reserve(Bones.Num() * 2);
-			InstructionParent.Positions.Reserve(Bones.Num() * 6);
+			InstructionX.Positions.Reserve(Hierarchy.Num() * 2);
+			InstructionY.Positions.Reserve(Hierarchy.Num() * 2);
+			InstructionZ.Positions.Reserve(Hierarchy.Num() * 2);
+			InstructionParent.Positions.Reserve(Hierarchy.Num() * 6);
 
-			for (const FRigBone& Bone : Bones)
+			for (const FRigBone& Bone : Hierarchy)
 			{
 				FTransform Transform = Bone.GlobalTransform * WorldOffset;
 				FVector P0 = Transform.GetLocation();
@@ -194,7 +192,7 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, cons
 
 				if (Bone.ParentIndex != INDEX_NONE)
 				{
-					FTransform ParentTransform = Bones[Bone.ParentIndex].GlobalTransform * WorldOffset;
+					FTransform ParentTransform = Hierarchy[Bone.ParentIndex].GlobalTransform * WorldOffset;
 					FVector P1 = ParentTransform.GetLocation();
 					InstructionParent.Positions.Add(P0);
 					InstructionParent.Positions.Add(P1);

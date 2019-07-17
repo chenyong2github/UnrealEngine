@@ -7,7 +7,7 @@ void FRigUnit_PointSimulation::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
-	FRigHierarchy* Hierarchy = HierarchyRef.Get();
+	FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
 
 	float DeltaTime = Context.DeltaTime;
 
@@ -163,7 +163,7 @@ void FRigUnit_PointSimulation::Execute(const FRigUnitContext& Context)
 
 				if (bLimitLocalPosition)
 				{
-					int32 ParentIndex = Hierarchy->GetParentIndex(BoneIndices[TargetIndex]);
+					int32 ParentIndex = (*Hierarchy)[BoneIndices[TargetIndex]].ParentIndex;
 					if (ParentIndex != INDEX_NONE)
 					{
 						FTransform InitialTransform = Hierarchy->GetInitialTransform(BoneIndices[TargetIndex]);

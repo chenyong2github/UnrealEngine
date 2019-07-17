@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Views/STreeView.h"
-#include "Rigs/Hierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "EditorUndoClient.h"
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 
-class SRigHierarchy;
+class SRigBoneHierarchy;
 class FControlRigEditor;
 class SSearchBox;
 class FUICommandList;
 class UControlRigBlueprint;
 struct FAssetData;
 class FMenuBuilder;
-class SRigHierarchyItem;
+class SRigBoneHierarchyItem;
 
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnRenameBone, const FName& /*OldName*/, const FName& /*NewName*/);
 DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnVerifyBoneNameChanged, const FName& /*OldName*/, const FName& /*NewName*/, FText& /*OutErrorMessage*/);
@@ -24,13 +24,13 @@ DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnVerifyBoneNameChanged, const FName&
 class FRigTreeBone : public TSharedFromThis<FRigTreeBone>
 {
 public:
-	FRigTreeBone(const FName& InBone, TWeakPtr<SRigHierarchy> InHierarchyHandler);
+	FRigTreeBone(const FName& InBone, TWeakPtr<SRigBoneHierarchy> InHierarchyHandler);
 public:
 	/** Bone Data to display */
 	FName CachedBone;
 	TArray<TSharedPtr<FRigTreeBone>> Children;
 
-	TSharedRef<ITableRow> MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeBone> InRigTreeBone, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
+	TSharedRef<ITableRow> MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeBone> InRigTreeBone, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigBoneHierarchy> InHierarchy);
 
 	void RequestRename();
 
@@ -39,12 +39,12 @@ public:
 	FOnRenameRequested OnRenameRequested;
 };
 
-class FRigHierarchyDragDropOp : public FGraphNodeDragDropOp
+class FRigBoneHierarchyDragDropOp : public FGraphNodeDragDropOp
 {
 public:
-	DRAG_DROP_OPERATOR_TYPE(FRigHierarchyDragDropOp, FGraphNodeDragDropOp)
+	DRAG_DROP_OPERATOR_TYPE(FRigBoneHierarchyDragDropOp, FGraphNodeDragDropOp)
 
-	static TSharedRef<FRigHierarchyDragDropOp> New(TArray<FName> InBoneNames);
+	static TSharedRef<FRigBoneHierarchyDragDropOp> New(TArray<FName> InBoneNames);
 
 	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
 
@@ -68,16 +68,16 @@ private:
 	TArray<FName> BoneNames;
 };
 
- class SRigHierarchyItem : public STableRow<TSharedPtr<FRigTreeBone>>
+ class SRigBoneHierarchyItem : public STableRow<TSharedPtr<FRigTreeBone>>
 {
-	SLATE_BEGIN_ARGS(SRigHierarchyItem) {}
+	SLATE_BEGIN_ARGS(SRigBoneHierarchyItem) {}
 		/** Callback when the text is committed. */
 		SLATE_EVENT(FOnRenameBone, OnRenameBone)
 		/** Called whenever the text is changed interactively by the user */
 		SLATE_EVENT(FOnVerifyBoneNameChanged, OnVerifyBoneNameChanged)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeBone> InControlRigTreeBone, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
+	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeBone> InControlRigTreeBone, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigBoneHierarchy> InHierarchy);
 	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
 
@@ -93,13 +93,13 @@ private:
 };
 
 /** Widget allowing editing of a control rig's structure */
-class SRigHierarchy : public SCompoundWidget, public FEditorUndoClient
+class SRigBoneHierarchy : public SCompoundWidget, public FEditorUndoClient
 {
 public:
-	SLATE_BEGIN_ARGS(SRigHierarchy) {}
+	SLATE_BEGIN_ARGS(SRigBoneHierarchy) {}
 	SLATE_END_ARGS()
 
-	~SRigHierarchy();
+	~SRigBoneHierarchy();
 
 	void Construct(const FArguments& InArgs, TSharedRef<FControlRigEditor> InControlRigEditor);
 
@@ -176,12 +176,14 @@ private:
 	bool IsMultiSelected() const;
 	bool IsSingleSelected() const;
 
-	FRigHierarchy* GetHierarchy() const;
-	FRigHierarchy* GetInstanceHierarchy() const;
+	FRigBoneHierarchy* GetHierarchy() const;
+	FRigBoneHierarchy* GetInstanceHierarchy() const;
 
 	void ImportHierarchy(const FAssetData& InAssetData);
 	void CreateImportMenu(FMenuBuilder& MenuBuilder);
+	void CreateRefreshMenu(FMenuBuilder& MenuBuilder);
 	bool ShouldFilterOnImport(const FAssetData& AssetData) const;
+	void RefreshHierarchy(const FAssetData& InAssetData);
 
 	FName CreateUniqueName(const FName& InBaseName) const;
 
@@ -189,9 +191,11 @@ private:
 
 	void ClearDetailPanel() const;
 	void SelectBone(const FName& BoneName) const;
+	void OnBoneHierarchyChanged(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName);
+
 public:
 	bool RenameBone(const FName& OldName, const FName& NewName);
 	bool OnVerifyNameChanged(const FName& OldName, const FName& NewName, FText& OutErrorMessage);
 
-	friend class SRigHierarchyItem;
+	friend class SRigBoneHierarchyItem;
 };

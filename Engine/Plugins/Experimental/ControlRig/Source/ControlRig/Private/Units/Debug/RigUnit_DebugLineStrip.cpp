@@ -16,9 +16,9 @@ void FRigUnit_DebugLineStrip::Execute(const FRigUnitContext& Context)
 		return;
 	}
 
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.HierarchyReference.GetBones() != nullptr)
 	{
-		FTransform Transform = Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		FTransform Transform = Context.HierarchyReference.GetBones()->GetGlobalTransform(Space);
 		TArray<FVector> PointsTransformed;
 		PointsTransformed.Reserve(Points.Num());
 		for(const FVector& Point : Points)

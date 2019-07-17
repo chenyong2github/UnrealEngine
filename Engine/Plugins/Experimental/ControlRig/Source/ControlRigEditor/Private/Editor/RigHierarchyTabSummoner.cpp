@@ -1,30 +1,30 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "RigHierarchyTabSummoner.h"
-#include "SRigHierarchy.h"
+#include "SRigBoneHierarchy.h"
 #include "ControlRigEditorStyle.h"
 #include "ControlRigEditor.h"
 
-#define LOCTEXT_NAMESPACE "RigHierarchyTabSummoner"
+#define LOCTEXT_NAMESPACE "RigBoneHierarchyTabSummoner"
 
-const FName FRigHierarchyTabSummoner::TabID(TEXT("RigHierarchy"));
+const FName FRigBoneHierarchyTabSummoner::TabID(TEXT("RigHierarchy"));
 
-FRigHierarchyTabSummoner::FRigHierarchyTabSummoner(const TSharedRef<FControlRigEditor>& InControlRigEditor)
+FRigBoneHierarchyTabSummoner::FRigBoneHierarchyTabSummoner(const TSharedRef<FControlRigEditor>& InControlRigEditor)
 	: FWorkflowTabFactory(TabID, InControlRigEditor)
 	, ControlRigEditor(InControlRigEditor)
 {
-	TabLabel = LOCTEXT("RigHierarchyTabLabel", "Hierarchy");
+	TabLabel = LOCTEXT("RigBoneHierarchyTabLabel", "Bone Hierarchy");
 	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.TabIcon");
 
 	bIsSingleton = true;
 
-	ViewMenuDescription = LOCTEXT("RigHierarchy_ViewMenu_Desc", "Hierarchy");
-	ViewMenuTooltip = LOCTEXT("RigHierarchy_ViewMenu_ToolTip", "Show the Rig Hierarchy tab");
+	ViewMenuDescription = LOCTEXT("RigBoneHierarchy_ViewMenu_Desc", "Bone Hierarchy");
+	ViewMenuTooltip = LOCTEXT("RigBoneHierarchy_ViewMenu_ToolTip", "Show the Rig Bone Hierarchy tab");
 }
 
-TSharedRef<SWidget> FRigHierarchyTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
+TSharedRef<SWidget> FRigBoneHierarchyTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	return SNew(SRigHierarchy, ControlRigEditor.Pin().ToSharedRef());
+	return SNew(SRigBoneHierarchy, ControlRigEditor.Pin().ToSharedRef());
 }
 
 #undef LOCTEXT_NAMESPACE 

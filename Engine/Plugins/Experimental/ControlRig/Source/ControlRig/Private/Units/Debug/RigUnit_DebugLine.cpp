@@ -17,9 +17,9 @@ void FRigUnit_DebugLine::Execute(const FRigUnitContext& Context)
 	}
 
 	FVector DrawA = A, DrawB = B;
-	if (Space != NAME_None && Context.HierarchyReference.Get() != nullptr)
+	if (Space != NAME_None && Context.HierarchyReference.GetBones() != nullptr)
 	{
-		FTransform Transform = Context.HierarchyReference.Get()->GetGlobalTransform(Space);
+		FTransform Transform = Context.HierarchyReference.GetBones()->GetGlobalTransform(Space);
 		DrawA = Transform.TransformPosition(DrawA);
 		DrawB = Transform.TransformPosition(DrawB);
 	}

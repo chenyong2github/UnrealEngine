@@ -11,7 +11,7 @@ void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 	
 	if (Context.State == EControlRigState::Init)
 	{
-		FRigHierarchy* Hierarchy = HierarchyRef.Get();
+		FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
 		if (!Hierarchy)
 		{
 			UnitLogHelpers::PrintMissingHierarchy(RigUnitName);
@@ -19,7 +19,7 @@ void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 	}
 	else if (Context.State == EControlRigState::Update)
 	{
-		FRigHierarchy* Hierarchy = HierarchyRef.Get();
+		FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
 		if (Hierarchy)
 		{
 			int32 Index = Hierarchy->GetIndex(Joint);
@@ -52,10 +52,10 @@ void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 	}
 }
 
-FTransform FRigUnit_ApplyFK::GetBaseTransform(int32 BoneIndex, const FRigHierarchy* CurrentHierarchy) const
+FTransform FRigUnit_ApplyFK::GetBaseTransform(int32 BoneIndex, const FRigBoneHierarchy* CurrentHierarchy) const
 {
 	return UtilityHelpers::GetBaseTransformByMode(ApplyTransformSpace, [CurrentHierarchy](const FName& BoneName) { return CurrentHierarchy->GetGlobalTransform(BoneName); },
-		CurrentHierarchy->GetBones()[BoneIndex].ParentName, BaseJoint, BaseTransform);
+		(*CurrentHierarchy)[BoneIndex].ParentName, BaseJoint, BaseTransform);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -63,8 +63,8 @@ FTransform FRigUnit_ApplyFK::GetBaseTransform(int32 BoneIndex, const FRigHierarc
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ApplyFK)
 {
-	Hierarchy.AddBone(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	Hierarchy.AddBone(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
+	Hierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
+	Hierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
 
 	Unit.ExecuteContext = ExecuteContext;
 	Unit.Joint = TEXT("BoneA");

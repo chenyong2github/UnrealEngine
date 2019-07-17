@@ -8,8 +8,8 @@
 #include "Engine/Blueprint.h"
 #include "Misc/Crc.h"
 #include "ControlRigDefines.h"
-#include "Rigs/Hierarchy.h"
-#include "CurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigCurveContainer.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "ControlRigController.h"
 #include "ControlRigBlueprint.generated.h"
@@ -163,7 +163,10 @@ private:
 	TMap<FName, FString> AllowSourceAccessProperties;
 
 	UPROPERTY()
-	FRigHierarchy Hierarchy;
+	FRigHierarchyContainer HierarchyContainer;
+
+	UPROPERTY()
+	FRigBoneHierarchy Hierarchy_DEPRECATED;
 
 	UPROPERTY()
 	FRigCurveContainer CurveContainer;
@@ -183,9 +186,10 @@ private:
 	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
 	bool UpdateParametersOnControlRig(UControlRig* InRig = nullptr);
 	bool PerformArrayOperation(const FString& InPropertyPath, TFunctionRef<bool(FScriptArrayHelper&, int32)> InOperation, bool bCallModify, bool bPropagateToInstances);
+	void CleanupBoneHierarchyDeprecated();
 
 	friend class FControlRigBlueprintCompilerContext;
-	friend class SRigHierarchy;
+	friend class SRigBoneHierarchy;
 	friend class SRigCurveContainer;
 	friend class FControlRigEditor;
 	friend class UEngineTestControlRig;

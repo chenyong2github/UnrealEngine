@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "CurveContainer.h"
+#include "Rigs/RigCurveContainer.h"
 #include "ControlRig.h"
 #include "HelperUtil.h"
 

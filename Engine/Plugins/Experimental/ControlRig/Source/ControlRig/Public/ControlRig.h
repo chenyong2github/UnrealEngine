@@ -9,8 +9,8 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Templates/SubclassOf.h"
 #include "ControlRigDefines.h"
-#include "CurveContainer.h"
-#include "Rigs/Hierarchy.h"
+#include "Rigs/RigCurveContainer.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "Units/RigUnitContext.h"
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Units/RigUnit.h"
@@ -118,9 +118,9 @@ public:
 	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true) ;
 
 	/** Returns base hierarchy */
-	const FRigHierarchy& GetBaseHierarchy() const
+	const FRigBoneHierarchy& GetBoneHierarchy() const
 	{
-		return Hierarchy.BaseHierarchy;
+		return Hierarchy.BoneHierarchy;
 	}
 
 	/** Evaluate another animation ControlRig */
@@ -307,8 +307,8 @@ private:
 	friend class UControlRigEditorLibrary;
 	friend class URigUnitEditor_Base;
 	friend class FControlRigEditor;
-	friend class SRigHierarchy;
 	friend class SRigCurveContainer;
+	friend class SRigBoneHierarchy;
 	friend class UEngineTestControlRig;
  	friend class FControlRigEditMode;
 	friend class FControlRigIOHelper;

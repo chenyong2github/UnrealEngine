@@ -199,8 +199,9 @@ void UControlRig::Initialize(bool bInitRigUnits)
 #endif // WITH_EDITORONLY_DATA
 
 	// should refresh mapping 
-	Hierarchy.BaseHierarchy.Initialize();
+	Hierarchy.Initialize();
 	CurveContainer.Initialize();
+
 	// resolve IO properties
 	ResolveInputOutputProperties();
 
@@ -317,7 +318,6 @@ void UControlRig::Execute(const EControlRigState InState)
 	Context.DeltaTime = DeltaTime;
 	Context.State = InState;
 	Context.HierarchyReference.Container = &Hierarchy;
-	Context.HierarchyReference.bUseBaseHierarchy = true;
 	Context.CurveReference = FRigCurveContainerRef(&CurveContainer);
 
 #if WITH_EDITOR
@@ -395,37 +395,37 @@ FTransform UControlRig::GetGlobalTransform(const FName& BoneName) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	int32 Index = Hierarchy.BaseHierarchy.GetIndex(BoneName);
+	int32 Index = Hierarchy.BoneHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
-		return Hierarchy.BaseHierarchy.GetGlobalTransform(Index);
+		return Hierarchy.BoneHierarchy.GetGlobalTransform(Index);
 	}
 
 	return FTransform::Identity;
 
 }
 
-void UControlRig::SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform) 
+void UControlRig::SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	int32 Index = Hierarchy.BaseHierarchy.GetIndex(BoneName);
+	int32 Index = Hierarchy.BoneHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
-		Hierarchy.BaseHierarchy.SetGlobalTransform(Index, InTransform, bPropagateTransform);
+		return Hierarchy.BoneHierarchy.SetGlobalTransform(Index, InTransform, bPropagateTransform);
 	}
 }
 
 FTransform UControlRig::GetGlobalTransform(const int32 BoneIndex) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	return Hierarchy.BaseHierarchy.GetGlobalTransform(BoneIndex);
+	return Hierarchy.BoneHierarchy.GetGlobalTransform(BoneIndex);
 }
 
 void UControlRig::SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	Hierarchy.BaseHierarchy.SetGlobalTransform(BoneIndex, InTransform, bPropagateTransform);
+	Hierarchy.BoneHierarchy.SetGlobalTransform(BoneIndex, InTransform, bPropagateTransform);
 }
 
 float UControlRig::GetCurveValue(const FName& CurveName) const
@@ -461,13 +461,12 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 	OutNodeItems.Reset();
 
 	// now add all nodes
-	const FRigHierarchy& BaseHierarchy = Hierarchy.BaseHierarchy;
+	const FRigBoneHierarchy& BoneHierarchy = Hierarchy.BoneHierarchy;
 
-	const TArray<FRigBone>& Bones = BaseHierarchy.GetBones();
-	for (int32 Index = 0; Index < Bones.Num(); ++Index)
+	for (const FRigBone& Bone : BoneHierarchy)
 	{
-		OutNames.Add(Bones[Index].Name);
-		OutNodeItems.Add(FNodeItem(Bones[Index].ParentName, Bones[Index].InitialTransform));
+		OutNames.Add(Bone.Name);
+		OutNodeItems.Add(FNodeItem(Bone.ParentName, Bone.InitialTransform));
 	}
 
 	// have to handle curve separate because otherwise it will confuse with hierarchy

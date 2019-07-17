@@ -4,7 +4,7 @@
 
 #include "EdGraph/EdGraph.h"
 #include "Graph/ControlRigGraphNode.h"
-#include "Rigs/Hierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "ControlRigModel.h"
 #include "ControlRigGraph.generated.h"
 
@@ -36,7 +36,7 @@ public:
 	virtual void PostLoad() override;
 	void OnBlueprintCompiledPostLoad(UBlueprint*);
 	FDelegateHandle BlueprintOnCompiledHandle;
-	void CacheBoneNameList(const FRigHierarchy& Hierarchy);
+	void CacheBoneNameList(const FRigBoneHierarchy& Hierarchy);
 	const TArray<TSharedPtr<FString>>& GetBoneNameList() const;
 	void CacheCurveNameList(const FRigCurveContainer& Container);
 	const TArray<TSharedPtr<FString>>& GetCurveNameList() const;

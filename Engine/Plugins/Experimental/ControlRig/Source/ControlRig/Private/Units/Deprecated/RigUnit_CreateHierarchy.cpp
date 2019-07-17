@@ -9,7 +9,7 @@ void FRigUnit_CreateHierarchy::Execute(const FRigUnitContext& Context)
 	if (Context.State == EControlRigState::Init)
 	{
 		// create hierarchy
-		if (!NewHierarchy.CreateHierarchy(Root, SourceHierarchy))
+		//if (!NewHierarchy.CreateHierarchy(Root, SourceHierarchy))
 		{
 			// if failed, print
 		}

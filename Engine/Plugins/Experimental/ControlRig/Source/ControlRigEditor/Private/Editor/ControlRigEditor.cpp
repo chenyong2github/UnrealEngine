@@ -38,7 +38,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "SRigHierarchy.h"
+#include "SRigBoneHierarchy.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ControlRig/Private/Units/Hierarchy/RigUnit_BoneName.h"
@@ -86,6 +86,15 @@ FControlRigEditor::FControlRigEditor()
 
 FControlRigEditor::~FControlRigEditor()
 {
+	UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
+	if (RigBlueprint)
+	{
+		RigBlueprint->HierarchyContainer.OnElementChanged.RemoveAll(this);
+		RigBlueprint->HierarchyContainer.OnElementAdded.RemoveAll(this);
+		RigBlueprint->HierarchyContainer.OnElementRemoved.RemoveAll(this);
+		RigBlueprint->HierarchyContainer.OnElementRenamed.RemoveAll(this);
+		RigBlueprint->HierarchyContainer.OnElementReparented.RemoveAll(this);
+	}
 }
 
 UControlRigBlueprint* FControlRigEditor::GetControlRigBlueprint() const
@@ -176,6 +185,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	}
 
 	InControlRigBlueprint->OnModified().AddSP(this, &FControlRigEditor::HandleModelModified);
+	InControlRigBlueprint->HierarchyContainer.OnElementAdded.AddSP(this, &FControlRigEditor::OnHierarchyElementAdded);
+	InControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddSP(this, &FControlRigEditor::OnHierarchyElementRemoved);
+	InControlRigBlueprint->HierarchyContainer.OnElementRenamed.AddSP(this, &FControlRigEditor::OnHierarchyElementRenamed);
+	InControlRigBlueprint->HierarchyContainer.OnElementReparented.AddSP(this, &FControlRigEditor::OnHierarchyElementReparented);
 
 	BindCommands();
 
@@ -229,7 +242,20 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			}
 			else
 			{
+				bool bWasDirty = false;
+				UPackage* Package = InControlRigBlueprint->GetOutermost();
+				if (Package)
+				{
+					bWasDirty = Package->IsDirty();
+				}
 				InControlRigBlueprint->RebuildGraphFromModel();
+				if (Package)
+				{
+					if (Package->IsDirty() != bWasDirty)
+					{
+						Package->SetDirtyFlag(bWasDirty);
+					}
+				}
 			}
 		}
 	}
@@ -1344,7 +1370,7 @@ void FControlRigEditor::CacheBoneNameList()
 				continue;
 			}
 
-			RigGraph->CacheBoneNameList(ControlRig->GetBaseHierarchy());
+			RigGraph->CacheBoneNameList(ControlRig->GetBoneHierarchy());
 		}
 	}
 }
@@ -1439,7 +1465,7 @@ void FControlRigEditor::SelectBone(const FName& InBone)
 	{
 		EditorSkelComp->BonesOfInterest.Reset();
 
-		int32 Index = ControlRig->Hierarchy.BaseHierarchy.GetIndex(InBone);
+		int32 Index = ControlRig->Hierarchy.BoneHierarchy.GetIndex(InBone);
 		if (Index != INDEX_NONE)
 		{
 			EditorSkelComp->BonesOfInterest.Add(Index);
@@ -1454,10 +1480,10 @@ FTransform FControlRigEditor::GetBoneTransform(const FName& InBone, bool bLocal)
 	// @todo: think about transform mode
 	if (bLocal)
 	{
-		return ControlRig->Hierarchy.BaseHierarchy.GetLocalTransform(InBone);
+		return ControlRig->Hierarchy.BoneHierarchy.GetLocalTransform(InBone);
 	}
 
-	return ControlRig->Hierarchy.BaseHierarchy.GetGlobalTransform(InBone);
+	return ControlRig->Hierarchy.BoneHierarchy.GetGlobalTransform(InBone);
 }
 
 void FControlRigEditor::SetBoneTransform(const FName& InBone, const FTransform& InTransform)
@@ -1478,10 +1504,10 @@ void FControlRigEditor::SetBoneTransform(const FName& InBone, const FTransform& 
 	// get local transform of current
 	// apply init based on parent init * current local 
 
-	ControlRig->Hierarchy.BaseHierarchy.SetInitialTransform(InBone, InTransform);
-	ControlRig->Hierarchy.BaseHierarchy.SetGlobalTransform(InBone, InTransform);
+	ControlRig->Hierarchy.BoneHierarchy.SetInitialTransform(InBone, InTransform);
+	ControlRig->Hierarchy.BoneHierarchy.SetGlobalTransform(InBone, InTransform);
 
-	ControlRigBP->Hierarchy.SetInitialTransform(InBone, InTransform);
+	ControlRigBP->HierarchyContainer.BoneHierarchy.SetInitialTransform(InBone, InTransform);
 	
 	UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
 	if (EditorSkelComp)
@@ -1516,20 +1542,20 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 		{
 			if (SelectedBone != NAME_None)
 			{
-				const int32 BoneIndex = ControlRig->Hierarchy.BaseHierarchy.GetIndex(SelectedBone);
+				const int32 BoneIndex = ControlRig->Hierarchy.BoneHierarchy.GetIndex(SelectedBone);
 				if (BoneIndex != INDEX_NONE)
 				{
-					FTransform InitialTransform = ControlRig->Hierarchy.BaseHierarchy.GetInitialTransform(BoneIndex);
+					FTransform InitialTransform = ControlRig->Hierarchy.BoneHierarchy.GetInitialTransform(BoneIndex);
 					// update CDO  @todo - re-think about how we wrap around this nicer
 					// copy currently selected Bone to base hierarchy			
-					ControlRigBP->Hierarchy.SetInitialTransform(BoneIndex, InitialTransform);
+					ControlRigBP->HierarchyContainer.BoneHierarchy.SetInitialTransform(BoneIndex, InitialTransform);
 				}
 			}
 		}
 	}
 }
 
-void FControlRigEditor::OnHierarchyChanged()
+void FControlRigEditor::OnBoneHierarchyChanged()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -1545,64 +1571,82 @@ void FControlRigEditor::OnHierarchyChanged()
 		UpdateControlRig();
 	}
 	CacheBoneNameList();
-
-	// notification
-	FNotificationInfo Info(LOCTEXT("HierarchyChangeHelpMessage", "Hierarchy has been successfully modified. If you want to move the Bone, compile and turn off execution mode."));
-	Info.bFireAndForget = true;
-	Info.FadeOutDuration = 10.0f;
-	Info.ExpireDuration = 0.0f;
-
-	TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 }
 
-void FControlRigEditor::OnBoneRenamed(const FName& OldName, const FName& NewName)
+void FControlRigEditor::OnHierarchyElementAdded(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName)
+{
+	if (ElementType == ERigHierarchyElementType::Bone)
+	{
+		OnBoneHierarchyChanged();
+	}
+}
+
+void FControlRigEditor::OnHierarchyElementRemoved(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName)
+{
+	if (ElementType == ERigHierarchyElementType::Bone)
+	{
+		OnBoneHierarchyChanged();
+	}
+}
+
+void FControlRigEditor::OnHierarchyElementRenamed(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InOldName, const FName& InNewName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
-	for (UEdGraph* Graph : Blueprint->UbergraphPages)
+	if (ElementType == ERigHierarchyElementType::Bone)
 	{
-		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
-		if (RigGraph == nullptr)
+		UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
+		for (UEdGraph* Graph : Blueprint->UbergraphPages)
 		{
-			continue;
-		}
-
-		for (UEdGraphNode* Node : RigGraph->Nodes)
-		{
-			UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
-			if (RigNode == nullptr)
+			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			if (RigGraph == nullptr)
 			{
 				continue;
 			}
 
-			UStructProperty* UnitProperty = RigNode->GetUnitProperty();
-			UStruct* UnitStruct = RigNode->GetUnitScriptStruct();
-			if (UnitProperty && UnitStruct)
+			for (UEdGraphNode* Node : RigGraph->Nodes)
 			{
-				for (TFieldIterator<UNameProperty> It(UnitStruct); It; ++It)
+				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
+				if (RigNode == nullptr)
 				{
-					if (It->HasMetaData(UControlRig::BoneNameMetaName))
+					continue;
+				}
+
+				UStructProperty* UnitProperty = RigNode->GetUnitProperty();
+				UStruct* UnitStruct = RigNode->GetUnitScriptStruct();
+				if (UnitProperty && UnitStruct)
+				{
+					for (TFieldIterator<UNameProperty> It(UnitStruct); It; ++It)
 					{
-						FString PinName = FString::Printf(TEXT("%s.%s"), *UnitProperty->GetName(), *It->GetName());
-						UEdGraphPin* Pin = Node->FindPin(PinName, EEdGraphPinDirection::EGPD_Input);
-						if (Pin)
+						if (It->HasMetaData(UControlRig::BoneNameMetaName))
 						{
-							FName CurrentBone = FName(*Pin->GetDefaultAsString());
-							if (CurrentBone == OldName)
+							FString PinName = FString::Printf(TEXT("%s.%s"), *UnitProperty->GetName(), *It->GetName());
+							UEdGraphPin* Pin = Node->FindPin(PinName, EEdGraphPinDirection::EGPD_Input);
+							if (Pin)
 							{
-								const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeBoneNamePinValue", "Change Bone Name Pin Value"));
-								Pin->Modify();
-								Pin->GetSchema()->TrySetDefaultValue(*Pin, NewName.ToString());
+								FName CurrentBone = FName(*Pin->GetDefaultAsString());
+								if (CurrentBone == InOldName)
+								{
+									const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeBoneNamePinValue", "Change Bone Name Pin Value"));
+									Pin->Modify();
+									Pin->GetSchema()->TrySetDefaultValue(*Pin, InNewName.ToString());
+								}
 							}
 						}
 					}
 				}
 			}
-		}
 
-		CacheBoneNameList();
+			CacheBoneNameList();
+		}
+	}
+}
+
+void FControlRigEditor::OnHierarchyElementReparented(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName)
+{
+	if (ElementType == ERigHierarchyElementType::Bone)
+	{
+		OnBoneHierarchyChanged();
 	}
 }
 
@@ -1687,9 +1731,9 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if (DragDropOp->IsOfType<FRigHierarchyDragDropOp>())
+	if (DragDropOp->IsOfType<FRigBoneHierarchyDragDropOp>())
 	{
-		TSharedPtr<FRigHierarchyDragDropOp> RigHierarchyOp = StaticCastSharedPtr<FRigHierarchyDragDropOp>(DragDropOp);
+		TSharedPtr<FRigBoneHierarchyDragDropOp> RigHierarchyOp = StaticCastSharedPtr<FRigBoneHierarchyDragDropOp>(DragDropOp);
 		TArray<FName> BoneNames = RigHierarchyOp->GetBoneNames();
 		if (BoneNames.Num() > 0 && FocusedGraphEdPtr.IsValid())
 		{
@@ -2060,10 +2104,10 @@ void FControlRigEditor::DumpUnitTestCode()
 		// dump the hierarchy
 		if (ControlRig)
 		{
-			const FRigHierarchy& Hierarchy = ControlRig->GetBaseHierarchy();
+			const FRigBoneHierarchy& Hierarchy = ControlRig->GetBoneHierarchy();
 			if (Hierarchy.Bones.Num() > 0)
 			{
-				Code.Add(TEXT("FRigHierarchy& Hierarchy = Rig->GetBaseHierarchy();"));
+				Code.Add(TEXT("FRigBoneHierarchy& Hierarchy = Rig->GetBoneHierarchy();"));
 			}
 			for (const FRigBone& Bone : Hierarchy.Bones)
 			{

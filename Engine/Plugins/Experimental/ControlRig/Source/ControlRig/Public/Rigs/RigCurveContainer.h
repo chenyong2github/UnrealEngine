@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Stats/StatsHierarchical.h"
-#include "CurveContainer.generated.h"
+#include "RigCurveContainer.generated.h"
 
 class UControlRig;
 

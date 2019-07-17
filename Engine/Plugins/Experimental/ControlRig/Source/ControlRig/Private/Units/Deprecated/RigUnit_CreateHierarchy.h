@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/RigUnit.h"
-#include "Rigs/Hierarchy.h"
+#include "Rigs/RigBoneHierarchy.h"
 #include "RigUnit_CreateHierarchy.generated.h"
 
 USTRUCT(meta=(DisplayName="Create Hierarchy", Category="Hierarchy", Deprecated = "4.23.0"))

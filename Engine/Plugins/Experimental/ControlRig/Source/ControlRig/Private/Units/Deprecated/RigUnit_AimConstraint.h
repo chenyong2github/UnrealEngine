@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Units/RigUnit.h"
-#include "Rigs/Hierarchy.h"
+#include "Rigs/RigHierarchyContainer.h"
 #include "Constraint.h"
 #include "ControlRigDefines.h"
 #include "RigUnit_AimConstraint.generated.h"
