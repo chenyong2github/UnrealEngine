@@ -167,6 +167,9 @@ private:
 	/** Mapping of objects to their existing transform data (for comparing against new transform data) */
 	TMap< TWeakObjectPtr<UObject>, FTransformData > ObjectToExistingTransform;
 
+	/** Command Bindings added by the Transform Track Editor to Sequencer and curve editor. */
+	TSharedPtr<FUICommandList> CommandBindings;
+
 private:
 	/** 
 	 * Modify the passed in Generated Keys by the current tracks values and weight at the passed in time.
