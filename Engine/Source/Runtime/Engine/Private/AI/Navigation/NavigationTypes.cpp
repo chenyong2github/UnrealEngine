@@ -40,8 +40,7 @@ FNavDataConfig::FNavDataConfig(float Radius, float Height)
 	, Name(TEXT("Default"))
 	, Color(140, 255, 0, 164)
 	, DefaultQueryExtent(DEFAULT_NAV_QUERY_EXTENT_HORIZONTAL, DEFAULT_NAV_QUERY_EXTENT_HORIZONTAL, DEFAULT_NAV_QUERY_EXTENT_VERTICAL)
-	, NavigationDataClass(FNavigationSystem::GetDefaultNavDataClass())
-	, NavigationDataClassName(NavigationDataClass)
+	, NavDataClass(FNavigationSystem::GetDefaultNavDataClass())
 {
 }
 
@@ -50,12 +49,19 @@ FNavDataConfig::FNavDataConfig(const FNavDataConfig& Other)
 	, Name(Other.Name)
 	, Color(Other.Color)
 	, DefaultQueryExtent(Other.DefaultQueryExtent)
-	, NavigationDataClass(Other.NavigationDataClass)
-	, NavigationDataClassName(NavigationDataClass)
+	, NavDataClass(Other.NavDataClass)
 {
-
 }
 
+void FNavDataConfig::SetNavDataClass(UClass* InNavDataClass)
+{
+	NavDataClass = InNavDataClass;
+}
+
+void FNavDataConfig::SetNavDataClass(TSoftClassPtr<AActor> InNavDataClass)
+{
+	NavDataClass = InNavDataClass;
+}
 //----------------------------------------------------------------------//
 // FNavigationRelevantData
 //----------------------------------------------------------------------//
@@ -246,6 +252,11 @@ void FNavAgentProperties::UpdateWithCollisionComponent(UShapeComponent* Collisio
 bool FNavAgentProperties::IsNavDataMatching(const FNavAgentProperties& Other) const
 {
 	return (PreferredNavData == Other.PreferredNavData || PreferredNavData == nullptr || Other.PreferredNavData == nullptr);
+}
+
+void FNavAgentProperties::SetPreferredNavData(TSubclassOf<AActor> NavDataClass)
+{
+	PreferredNavData = FSoftClassPath(NavDataClass.Get());
 }
 
 //----------------------------------------------------------------------//
