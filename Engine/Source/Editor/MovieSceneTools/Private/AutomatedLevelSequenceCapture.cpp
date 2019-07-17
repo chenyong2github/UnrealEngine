@@ -137,9 +137,13 @@ void UAutomatedLevelSequenceCapture::AddFormatMappings(TMap<FString, FStringForm
 	OutFormatMappings.Add(TEXT("shot"), CachedState.CurrentShotName);
 	OutFormatMappings.Add(TEXT("shot_frame"), FString::Printf(TEXT("%0*d"), Settings.ZeroPadFrameNumbers, CachedState.CurrentShotLocalTime.Time.FrameNumber.Value));
 
-	if (CachedState.CameraComponent && CachedState.CameraComponent->GetOwner())
+	if (CachedState.CameraComponent.IsValid())
 	{
-		OutFormatMappings.Add(TEXT("camera"), CachedState.CameraComponent->GetOwner()->GetName());
+		AActor* OuterActor = Cast<AActor>(CachedState.CameraComponent.Get()->GetOuter());
+		if (OuterActor)
+		{
+			OutFormatMappings.Add(TEXT("camera"), OuterActor->GetActorLabel());
+		}
 	}
 }
 
