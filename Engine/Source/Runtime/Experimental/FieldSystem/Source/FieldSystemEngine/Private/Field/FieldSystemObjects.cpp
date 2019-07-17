@@ -124,7 +124,7 @@ UPlaneFalloff::NewEvaluationGraph(TArray<const UFieldNodeBase*>& Nodes) const
 	if (ensureMsgf(!Nodes.Contains(this), TEXT("Cycle Dependency Error : Graph nodes may not be resued in a single chain.")))
 	{
 		Nodes.Add(this);
-		return new FPlaneFalloff(Magnitude, MinRange, MaxRange, Default, Position, Normal, Falloff);
+		return new FPlaneFalloff(Magnitude, MinRange, MaxRange, Default, Distance, Position, Normal, Falloff);
 	}
 	return nullptr;
 }
