@@ -574,3 +574,34 @@ namespace FNiagaraUtilities
 	void NIAGARA_API PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, FString>& ScriptToEmitterNameMap);
 #endif
 };
+
+USTRUCT()
+struct FNiagaraUserParameterBinding
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNiagaraUserParameterBinding();
+
+	UPROPERTY(EditAnywhere, Category = "User Parameter")
+	FNiagaraVariable Parameter;
+
+	FORCEINLINE bool operator==(const FNiagaraUserParameterBinding& Other)const
+	{
+		return Other.Parameter == Parameter;
+	}
+};
+
+USTRUCT()
+struct FNiagaraRandInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed1;
+	
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed2;
+
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed3;
+};

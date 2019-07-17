@@ -241,7 +241,10 @@ public:
 	void SetNiagaraVariableBool(const FString& InVariableName, bool InValue);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Actor)"))
-	void SetNiagaraVariableActor(const FString& InVariableName, AActor* Actor) {} // TODO sckime ?????? fix this!!!!
+	void SetNiagaraVariableActor(const FString& InVariableName, AActor* Actor);
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Object)"))
+	void SetNiagaraVariableObject(const FString& InVariableName, UObject* Object);
 
 	/** Debug accessors for getting positions in blueprints. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara Emitter Positions"))

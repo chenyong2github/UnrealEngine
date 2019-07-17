@@ -246,7 +246,7 @@ void UNiagaraNodeAssignment::BuildCreateParameterMenu(FMenuBuilder& MenuBuilder,
 		}
 
 		TArray<FNiagaraTypeDefinition> AvailableTypes;
-		FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes);
+		FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes, NewParameterNamespace.GetValue());
 		for (const FNiagaraTypeDefinition& AvailableType : AvailableTypes)
 		{
 			// Make generic new parameter name
