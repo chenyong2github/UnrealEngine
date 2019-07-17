@@ -824,6 +824,7 @@ public:
 	ENGINE_API FMeshDescription* CreateMeshDescription(int32 LodIndex, FMeshDescription MeshDescription);
 	ENGINE_API void CommitMeshDescription(int32 LodIndex);
 	ENGINE_API void ClearMeshDescription(int32 LodIndex);
+	ENGINE_API void ClearMeshDescriptions();
 
 	UE_DEPRECATED(4.22, "Please use GetMeshDescription().")
 	FMeshDescription* GetOriginalMeshDescription(int32 LodIndex) const { return GetMeshDescription(LodIndex); }
