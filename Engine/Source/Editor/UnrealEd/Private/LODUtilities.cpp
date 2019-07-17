@@ -1802,7 +1802,7 @@ bool FLODUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, FStri
 	check(SkeletalMesh->GetLODInfo(TargetLODIndex));
 	FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(TargetLODIndex);
 	
-	if (LODInfo && LODInfo->bHasBeenSimplified)
+	if (LODInfo && LODInfo->bHasBeenSimplified && LODInfo->ReductionSettings.BaseLOD != TargetLODIndex)
 	{
 		//We cannot remove alternate skin weights profile for a generated LOD
 		UE_LOG(LogLODUtilities, Error, TEXT("Cannot import Skin Weight Profile for a generated LOD."));
