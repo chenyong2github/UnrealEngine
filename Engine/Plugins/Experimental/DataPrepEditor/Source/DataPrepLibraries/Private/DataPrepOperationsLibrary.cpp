@@ -2,6 +2,8 @@
 
 #include "DataPrepOperationsLibrary.h"
 
+#include "DataprepCoreUtils.h"
+
 #include "ActorEditorUtils.h"
 #include "AssetDeleteModel.h"
 #include "AssetRegistryModule.h"
@@ -21,7 +23,6 @@
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
 #include "UObject/SoftObjectPath.h"
-#include "AssetDeleteModel.h"
 
 DEFINE_LOG_CATEGORY(LogDataprep);
 
@@ -477,17 +478,8 @@ void UDataprepOperationsLibrary::RemoveObjects(const TArray< UObject* >& Objects
 		GEditor->NoteSelectionChange();
 	}
 
-	// Delete assets
-	{
-		const int32 AssetsToDeleteCount = AssetsToDelete.Num();
-		const int32 NonDeletedAssetsCount = ObjectTools::DeleteObjects(AssetsToDelete, false) - AssetsToDeleteCount;
+	FDataprepCoreUtils::PurgeObjects( MoveTemp( AssetsToDelete ) );
 
-		// Warn user that not all objects have been deleted
-		if(NonDeletedAssetsCount > 0)
-		{
-			UE_LOG(LogDataprep, Warning, TEXT("RemoveObjects: %d objects out of %d were not deleted"), NonDeletedAssetsCount, AssetsToDeleteCount);
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE
