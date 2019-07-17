@@ -130,15 +130,15 @@ public:
 
 	bool IsReadyToRun() const;
 
-	/** Are there any pending compile requests?*/
-	bool HasOutstandingCompilationRequests() const;
-
 	FORCEINLINE bool NeedsWarmup()const { return WarmupTickCount > 0 && WarmupTickDelta > SMALL_NUMBER; }
 	FORCEINLINE float GetWarmupTime()const { return WarmupTime; }
 	FORCEINLINE int32 GetWarmupTickCount()const { return WarmupTickCount; }
 	FORCEINLINE float GetWarmupTickDelta()const { return WarmupTickDelta; }
 
 #if WITH_EDITORONLY_DATA
+	/** Are there any pending compile requests?*/
+	bool HasOutstandingCompilationRequests() const;
+
 	/** Determines if this system has the supplied emitter as an editable and simulating emitter instance. */
 	bool ReferencesInstanceEmitter(UNiagaraEmitter& Emitter);
 
@@ -245,8 +245,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category="System")
 	TArray<UNiagaraParameterCollectionInstance*> ParameterCollectionOverrides;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
 	TArray<FNiagaraSystemCompileRequest> ActiveCompilations;
+#endif
 
 // 	/** Category of this system. */
 // 	UPROPERTY(EditAnywhere, Category = System)
@@ -270,8 +272,7 @@ protected:
 	UPROPERTY()
 	FNiagaraUserRedirectionParameterStore ExposedParameters;
 
-#if WITH_EDITORONLY_DATA	
-
+#if WITH_EDITORONLY_DATA
 	/** Data used by the editor to maintain UI state etc.. */
 	UPROPERTY()
 	UNiagaraEditorDataBase* EditorData;
