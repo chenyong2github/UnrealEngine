@@ -316,7 +316,7 @@ static void CopyParticleData(Chaos::TPBDRigidParticles<float, 3>& ToParticles, c
 	ToParticles.InvI(ToIndex) = FromParticles.InvI(FromIndex);
 	ToParticles.SetGeometry(ToIndex, FromParticles.Geometry(FromIndex));	//question: do we need to deal with dynamic geometry?
 	ToParticles.CollisionParticles(ToIndex) = MoveTemp(FromParticles.CollisionParticles(FromIndex));
-	ToParticles.Disabled(ToIndex) = FromParticles.Disabled(FromIndex);
+	ToParticles.SetDisabledLowLevel(ToIndex, FromParticles.Disabled(FromIndex));
 	ToParticles.SetSleeping(ToIndex, FromParticles.Sleeping(FromIndex));
 }
 
