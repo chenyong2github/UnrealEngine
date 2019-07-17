@@ -164,5 +164,5 @@ namespace Scalability
 #if WITH_EDITOR
 	/** Set an Editor preview scalability platform */
 	void ENGINE_API ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName);
-#endif;
+#endif
 }
