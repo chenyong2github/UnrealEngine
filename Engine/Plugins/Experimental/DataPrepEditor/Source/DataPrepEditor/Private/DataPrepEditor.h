@@ -146,12 +146,15 @@ private:
 	void RestoreFromSnapshot();
 
 	/** Handles changes in the Dataprep asset */
-	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index );
+	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index);
+
+	/** Handles change to the dataprep pipeline */
+	void OnDataprepPipelineChange(UObject* ChangedObject);
 
 private:
 	bool bWorldBuilt;
 	bool bIsFirstRun;
-	bool bPipelineExecuted;
+	bool bPipelineChanged;
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
 	FOnDataprepAssetProducerChanged DataprepAssetProducerChangedDelegate;

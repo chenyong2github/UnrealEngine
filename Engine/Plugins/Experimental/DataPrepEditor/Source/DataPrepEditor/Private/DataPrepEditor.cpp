@@ -24,6 +24,7 @@
 #include "BlueprintNodeSpawner.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
+#include "Dialogs/Dialogs.h"
 #include "Editor.h"
 #include "EditorDirectories.h"
 #include "EditorStyleSet.h"
@@ -46,6 +47,7 @@
 #include "ScopedTransaction.h"
 #include "Templates/UnrealTemplate.h"
 #include "Toolkits/IToolkit.h"
+#include "UObject/Object.h"
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -155,7 +157,7 @@ private:
 FDataprepEditor::FDataprepEditor()
 	: bWorldBuilt(false)
 	, bIsFirstRun(false)
-	, bPipelineExecuted(false)
+	, bPipelineChanged(false)
 	, bIsActionMenuContextSensitive(true)
 	, bSaveIntermediateBuildProducts(false)
 	, PreviewWorld(nullptr)
@@ -192,6 +194,7 @@ FDataprepEditor::~FDataprepEditor()
 	if( DataprepAssetPtr.IsValid() )
 	{
 		DataprepAssetPtr->GetOnChanged().RemoveAll( this );
+		DataprepAssetPtr->GetOnPipelineChange().RemoveAll( this );
 	}
 
 	if ( PreviewWorld )
@@ -288,6 +291,8 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	check( DataprepAssetPtr.IsValid() );
 
 	DataprepAssetPtr->GetOnChanged().AddRaw( this, &FDataprepEditor::OnDataprepAssetChanged );
+	DataprepAssetPtr->GetOnPipelineChange().AddRaw( this, &FDataprepEditor::OnDataprepPipelineChange );
+
 
 	// Assign unique session identifier
 	SessionID = FGuid::NewGuid().ToString();
@@ -522,7 +527,6 @@ void FDataprepEditor::OnBuildWorld()
 	UpdatePreviewPanels();
 	bWorldBuilt = true;
 	bIsFirstRun = true;
-	bPipelineExecuted = false;
 
 	// Log time spent to import incoming file in minutes and seconds
 	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
@@ -546,7 +550,7 @@ void FDataprepEditor::OnDataprepAssetChanged( FDataprepAssetChangeType ChangeTyp
 
 		case FDataprepAssetChangeType::BlueprintModified:
 			{
-				// #ueent_todo: Anything to do there ?
+				OnDataprepPipelineChange( nullptr );
 			}
 			break;
 
@@ -563,6 +567,11 @@ void FDataprepEditor::OnDataprepAssetChanged( FDataprepAssetChangeType ChangeTyp
 			break;
 
 	}
+}
+
+void FDataprepEditor::OnDataprepPipelineChange(UObject* ChangedObject)
+{
+	bPipelineChanged = true;
 }
 
 void FDataprepEditor::ResetBuildWorld()
@@ -722,16 +731,39 @@ void FDataprepEditor::OnExecutePipeline()
 		}
 	}
 
-	// Indicate pipeline has been executed
+	// Indicate pipeline has been executed at least once
 	bIsFirstRun = false;
-	bPipelineExecuted = true;
+	// Reset tracking of pipeline changes between execution
+	bPipelineChanged = false;
 }
 
 void FDataprepEditor::OnCommitWorld()
 {
-	if(!bPipelineExecuted)
+	// Pipeline has not been executed, validate with user this is intentional
+	if( bIsFirstRun )
 	{
-		// #ueent_todo Prompt user if pipeline has not been run on imported assets
+		UEdGraphPin* StartNodePin = StartNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+		if(StartNodePin && StartNodePin->LinkedTo.Num() > 0)
+		{
+			const FText Title( LOCTEXT( "DataprepEditor_ProceedWithCommit", "Proceed with commit" ) );
+			const FText Message( LOCTEXT( "DataprepEditor_ConfirmCommitPipelineNotExecuted", "The action pipeline has not been executed.\nDo you want to proceeed with the commit anyway?" ) );
+
+			if( OpenMsgDlgInt( EAppMsgType::YesNo, Message, Title ) == EAppReturnType::No )
+			{
+				return;
+			}
+		}
+	}
+	// Pipeline has changed without being executed, validate with user this is intentional
+	else if( !bIsFirstRun && bPipelineChanged )
+	{
+		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithCommit", "Proceed with commit" ) );
+		const FText Message( LOCTEXT( "DataprepEditor_ConfirmCommitPipelineChanged", "The action pipeline has changed since last execution.\nDo you want to proceeed with the commit anyway?" ) );
+
+		if( OpenMsgDlgInt( EAppMsgType::YesNo, Message, Title ) == EAppReturnType::No )
+		{
+			return;
+		}
 	}
 
 	// Finalize assets
