@@ -209,7 +209,7 @@ public:
 
 
 	/**
-	 * @return edge of the poyline starting at vertex SegmentIndex
+	 * @return edge of the polyline starting at vertex SegmentIndex
 	 */
 	TSegment3<T> GetSegment(int SegmentIndex) const
 	{
