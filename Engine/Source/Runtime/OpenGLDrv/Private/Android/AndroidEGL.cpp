@@ -14,6 +14,7 @@
 #endif
 #include "OpenGLDrvPrivate.h"
 #include "Misc/ScopeLock.h"
+#include "UObject/GarbageCollection.h"
 
 
 AndroidEGL* AndroidEGL::Singleton = NULL;
