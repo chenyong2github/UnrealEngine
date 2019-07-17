@@ -17,7 +17,7 @@
 
 	// import EnvDTE
 	#if WITH_VISUALSTUDIO_DTE_OLB
-		// Including pregenerated .tlh file to avoid race conditions generating from olb by multiple compiler processes
+		// Including pregenerated .tlh file to avoid race conditions generating from olb by multiple compilers running in parallel (typically in non-unity builds).
 		#include "NotForLicensees/dte80a.tlh" 
 		// #import "NotForLicensees/dte80a.olb" version("8.0") lcid("0") raw_interfaces_only named_guids
 	#else
