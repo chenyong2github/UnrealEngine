@@ -3311,7 +3311,6 @@ void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutCo
 	const float CellSize = DestNavMesh->CellSize;
 	const float CellHeight = DestNavMesh->CellHeight;
 	const float AgentHeight = DestNavMesh->AgentHeight;
-	const float MaxAgentHeight = DestNavMesh->AgentMaxHeight;
 	const float AgentMaxSlope = DestNavMesh->AgentMaxSlope;
 	const float AgentMaxClimb = DestNavMesh->AgentMaxStepHeight;
 	const float AgentRadius = DestNavMesh->AgentRadius;
@@ -3341,7 +3340,6 @@ void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutCo
 	OutConfig.maxVertsPerPoly = (int32)MAX_VERTS_PER_POLY;
 	OutConfig.detailSampleDist = 600.0f;
 	OutConfig.detailSampleMaxError = 1.0f;
-	OutConfig.PolyMaxHeight = (int32)ceilf(MaxAgentHeight / CellHeight);
 
 	OutConfig.minRegionArea = (int32)rcSqr(DestNavMesh->MinRegionArea / CellSize);
 	OutConfig.mergeRegionArea = (int32)rcSqr(DestNavMesh->MergeRegionSize / CellSize);
