@@ -5,6 +5,7 @@
 #include "Misc/ScopeLock.h"
 #include "SocketSubsystemModule.h"
 #include "Modules/ModuleManager.h"
+#include "Async/AsyncWork.h"
 #include "SocketTypes.h"
 #include "IPAddress.h"
 #include "Sockets.h"
@@ -14,15 +15,16 @@ DEFINE_LOG_CATEGORY(LogSockets);
 
 IMPLEMENT_MODULE( FSocketSubsystemModule, Sockets );
 
-/** Each platform will implement these functions to construct/destroy socket implementations */
-extern FName CreateSocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule );
-extern void DestroySocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule );
-
+/** Values for the Protocol Typenames */
 namespace FNetworkProtocolTypes
 {
 	const FName IPv4(TEXT("IPv4"));
 	const FName IPv6(TEXT("IPv6"));
 }
+
+/** Each platform will implement these functions to construct/destroy socket implementations */
+extern FName CreateSocketSubsystem(FSocketSubsystemModule& SocketSubsystemModule);
+extern void DestroySocketSubsystem(FSocketSubsystemModule& SocketSubsystemModule);
 
 /** Helper function to turn the friendly subsystem name into the module name */
 static inline FName GetSocketModuleName(const FString& SubsystemName)
@@ -258,6 +260,53 @@ int32 ISocketSubsystem::BindNextPort(FSocket* Socket, FInternetAddr& Addr, int32
 	return 0;
 }
 
+/** Async task support for GetAddressInfo */
+class FGetAddressInfoTask : public FNonAbandonableTask
+{
+public:
+	friend class FAutoDeleteAsyncTask<FGetAddressInfoTask>;
+
+	FGetAddressInfoTask(class ISocketSubsystem* InSocketSubsystem, const FString& InQueryHost,
+		const FString& InQueryService, EAddressInfoFlags InQueryFlags, const FName& InQueryProtocol,
+		ESocketType InQuerySocketType, FAsyncGetAddressInfoCallback InCallbackFunction) :
+
+		SocketSubsystem(InSocketSubsystem),
+		QueryHost(InQueryHost),
+		QueryService(InQueryService),
+		QueryFlags(InQueryFlags),
+		QueryProtocol(InQueryProtocol),
+		QuerySocketType(InQuerySocketType),
+		CallbackFunction(InCallbackFunction)
+	{
+
+	}
+
+	void DoWork()
+	{
+		CallbackFunction(SocketSubsystem->GetAddressInfo(*QueryHost, *QueryService, QueryFlags, QueryProtocol, QuerySocketType));
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FGetAddressInfoTask, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+private:
+	ISocketSubsystem* SocketSubsystem;
+	const FString QueryHost;
+	const FString QueryService;
+	EAddressInfoFlags QueryFlags;
+	const FName QueryProtocol;
+	ESocketType QuerySocketType;
+	FAsyncGetAddressInfoCallback CallbackFunction;
+};
+
+void ISocketSubsystem::GetAddressInfoAsync(FAsyncGetAddressInfoCallback Callback, const TCHAR* HostName, const TCHAR* ServiceName,
+	EAddressInfoFlags QueryFlags, const FName ProtocolTypeName, ESocketType SocketType)
+{
+	(new FAutoDeleteAsyncTask<FGetAddressInfoTask>(this, HostName, ServiceName, QueryFlags, ProtocolTypeName, SocketType, Callback))->StartBackgroundTask();
+}
+
 TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalBindAddr(FOutputDevice& Out)
 {
 	bool bCanBindAll;
@@ -490,26 +539,3 @@ const TCHAR* ISocketSubsystem::GetSocketError(ESocketErrors Code)
 		default: return TEXT("Unknown Error");
 	};
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

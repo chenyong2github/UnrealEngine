@@ -181,10 +181,38 @@ public:
 		ESocketType SocketType = ESocketType::SOCKTYPE_Unknown) = 0;
 
 	/**
+	 * Async variant of GetAddressInfo that fetches the data from the above function in an 
+	 * asynchronous task executed on an available background thread.
+	 * 
+	 * On Completion, this fires a callback function that will be executed on the same thread as
+	 * the task's execution. The caller is responsible for either dispatching the result to the thread of their choosing
+	 * or to allow the result callback execute on the task's thread.
+	 *
+	 * This function allows for specifying FNames for the protocol type, allowing for support of other
+	 * platform protocols
+	 *
+	 * @param Callback the callback function to fire when this query completes. Contains the FAddressInfoResult structure.
+	 * @param HostName string version of the queryable hostname or ip address
+	 * @param ServiceName string version of a service name ("http") or a port number ("80")
+	 * @param QueryFlags What flags are used in making the getaddrinfo call. Several flags can be used at once by
+	 *                   bitwise OR-ing the flags together.
+	 *                   Platforms are required to translate this value into a the correct flag representation.
+	 * @param ProtocolTypeName Used to limit results from the call. Specifying None will search all valid protocols.
+	 *					   Callers will find they rarely have to specify this flag.
+	 * @param SocketType What socket type should the results be formatted for. This typically does not change any
+	 *                   formatting results and can be safely left to the default value.
+	 *
+	 */
+	virtual void GetAddressInfoAsync(FAsyncGetAddressInfoCallback Callback, const TCHAR* HostName,
+		const TCHAR* ServiceName = nullptr, EAddressInfoFlags QueryFlags = EAddressInfoFlags::Default,
+		const FName ProtocolTypeName = NAME_None,
+		ESocketType SocketType = ESocketType::SOCKTYPE_Unknown);
+
+	/**
 	 * Serializes a string that only contains an address.
 	 * 
 	 * This is a what you see is what you get, there is no DNS resolution of the input string,
-	 * so only use this if you know you already have a valid address.
+	 * so only use this if you know you already have a valid address and will not need to convert.
 	 * Otherwise, feed the address to GetAddressInfo for guaranteed results.
 	 *
 	 * @param InAddress the address to serialize
