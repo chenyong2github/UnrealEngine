@@ -40,7 +40,7 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 
 FSlateInvalidationRoot::~FSlateInvalidationRoot()
 {
-	ClearAllFastPathData();
+	ClearAllFastPathData(true);
 
 	if (FSlateApplicationBase::IsInitialized())
 	{
@@ -174,7 +174,7 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 #if WITH_SLATE_DEBUGGING
 		FSlateDebugging::ClearInvalidatedWidgets(*this);
 #endif
-		ClearAllFastPathData();
+		ClearAllFastPathData(false);
 
 		GSlateIsOnFastUpdatePath = false;
 		bNeedsSlowPath = false;
@@ -530,13 +530,17 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	return bWidgetsNeedRepaint;
 }
 
-void FSlateInvalidationRoot::ClearAllFastPathData()
+void FSlateInvalidationRoot::ClearAllFastPathData(bool bInvalidationRootBeingDestroyed)
 {
 	for (const FWidgetProxy& Proxy : FastWidgetPathList)
 	{
 		if (Proxy.Widget)
 		{
 			Proxy.Widget->PersistentState.CachedElementListNode = nullptr;
+			if (bInvalidationRootBeingDestroyed)
+			{
+				Proxy.Widget->FastPathProxyHandle = FWidgetProxyHandle();
+			}
 		}
 	}
 
