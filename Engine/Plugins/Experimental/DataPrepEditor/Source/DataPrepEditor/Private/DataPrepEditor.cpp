@@ -373,12 +373,14 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.5f)
 							->AddTab(ScenePreviewTabId, ETabState::OpenedTab)
+							->SetHideTabWell( true )
 						)
 						->Split
 						(
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.5f)
 							->AddTab(AssetPreviewTabId, ETabState::OpenedTab)
+							->SetHideTabWell( true )
 						)
 					)
 					->Split
@@ -389,6 +391,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.15f)
 							->AddTab(PaletteTabId, ETabState::OpenedTab)
+							->SetHideTabWell( true )
 						)
 						// Temp code for the nodes development
 						->Split
@@ -396,6 +399,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.85f)
 							->AddTab(PipelineGraphTabId, ETabState::OpenedTab)
+							->SetHideTabWell( true )
 						)
 						// end of temp code for nodes development
 					)
@@ -409,6 +413,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.25f)
 						->AddTab(DataprepAssetTabId, ETabState::OpenedTab)
+						->SetHideTabWell(true)
 					)
 					->Split
 					(
