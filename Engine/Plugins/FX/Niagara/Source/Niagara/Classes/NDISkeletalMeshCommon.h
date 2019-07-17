@@ -6,6 +6,19 @@
 
 struct FSkeletalMeshAccessorHelper
 {
+	FSkeletalMeshAccessorHelper()
+		: Comp(nullptr)
+		, Mesh(nullptr)
+		, LODData(nullptr)
+		, SkinWeightBuffer(nullptr)
+		, IndexBuffer(nullptr)
+		, SamplingRegion(nullptr)
+		, SamplingRegionBuiltData(nullptr)
+		, SkinningData(nullptr)
+	{
+
+	}
+
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE void Init(FNDISkeletalMesh_InstanceData* InstData)
 	{
@@ -24,18 +37,18 @@ struct FSkeletalMeshAccessorHelper
 		}
 	}
 
-	USkeletalMeshComponent* Comp = nullptr;
-	USkeletalMesh* Mesh = nullptr;
+	USkeletalMeshComponent* Comp;
+	USkeletalMesh* Mesh;
 	TWeakObjectPtr<USkeletalMesh> MeshSafe;
-	FSkeletalMeshLODRenderData* LODData = nullptr;
-	FSkinWeightVertexBuffer* SkinWeightBuffer = nullptr;
-	FRawStaticIndexBuffer16or32Interface* IndexBuffer = nullptr;
-	const FSkeletalMeshSamplingRegion* SamplingRegion = nullptr;
-	const FSkeletalMeshSamplingRegionBuiltData* SamplingRegionBuiltData = nullptr;
-	FSkeletalMeshSkinningData* SkinningData = nullptr;
+	FSkeletalMeshLODRenderData* LODData;
+	FSkinWeightVertexBuffer* SkinWeightBuffer;
+	FRawStaticIndexBuffer16or32Interface* IndexBuffer;
+	const FSkeletalMeshSamplingRegion* SamplingRegion;
+	const FSkeletalMeshSamplingRegionBuiltData* SamplingRegionBuiltData;
+	FSkeletalMeshSkinningData* SkinningData;
 	FSkeletalMeshSkinningDataUsage Usage;
-	const TArray<FTransform>* BoneComponentSpaceTransforms = nullptr;
-	const TArray<FTransform>* PrevBoneComponentSpaceTransforms = nullptr;
+	const TArray<FTransform>* BoneComponentSpaceTransforms;
+	const TArray<FTransform>* PrevBoneComponentSpaceTransforms;
 };
 
 template<>
