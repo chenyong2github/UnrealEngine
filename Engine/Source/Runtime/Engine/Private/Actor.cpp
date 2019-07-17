@@ -4555,7 +4555,7 @@ void AActor::InvalidateLightingCacheDetailed(bool bTranslationOnly)
 
  // COLLISION
 
-bool AActor::ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params)
+bool AActor::ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params) const
 {
 	OutHit = FHitResult(1.f);
 	OutHit.TraceStart = Start;
