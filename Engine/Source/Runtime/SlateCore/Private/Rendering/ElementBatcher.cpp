@@ -310,6 +310,13 @@ void FSlateBatchData::MergeRenderBatches()
 
 			FSlateRenderBatch& CurBatch = RenderBatches[BatchIndexPair.Key];
 
+
+			if (CurBatch.bIsMerged || CurBatch.GetNumIndices() == 0 || CurBatch.GetNumVertices() == 0)
+			{
+				// skip already merged batches or batches with invalid data (e.g text with pure whitespace)
+				continue;
+			}
+
 #if STATS
 			CurLayerId = CurBatch.GetLayer();
 			if (PrevLayerId != CurLayerId)
@@ -318,12 +325,6 @@ void FSlateBatchData::MergeRenderBatches()
 			}
 			CurLayerId = PrevLayerId;
 #endif
-
-			if (CurBatch.bIsMerged)
-			{
-				// skip already merged batches
-				continue;
-			}
 
 			if (PrevBatch != nullptr)
 			{
