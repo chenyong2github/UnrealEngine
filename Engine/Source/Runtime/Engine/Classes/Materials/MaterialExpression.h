@@ -418,6 +418,8 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual FName GetParameterName() const { return NAME_None; }
 	virtual void SetParameterName(const FName& Name) {}
 
+	virtual bool HasConnectedOutputs() const;
+
 #endif // WITH_EDITOR
 
 	/** Checks whether any inputs to this expression create a loop */
@@ -433,6 +435,5 @@ protected:
 	 */
 	bool ContainsInputLoopInternal(TArray<class FMaterialExpressionKey>& ExpressionStack, TSet<class FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall);
 };
-
 
 
