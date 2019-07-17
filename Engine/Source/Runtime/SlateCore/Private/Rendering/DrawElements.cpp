@@ -803,18 +803,10 @@ FSlateDrawElement& FSlateWindowElementList::AddCachedElement()
 
 	if (CurrentWidgetState.CacheNode == nullptr)
 	{
-#if WITH_SLATE_DEBUGGING
 		CurrentWidgetState.CacheNode = CurrentCachedElementData->AddCache(CurrentWidgetState.Widget);
-#else
-		CurrentWidgetState.CacheNode = CurrentCachedElementData->AddCache(nullptr);
-#endif
 	}
 
-#if WITH_SLATE_DEBUGGING
 	return CurrentCachedElementData->AddCachedElement(CurrentWidgetState.CacheNode, GetClippingManager(), CurrentWidgetState.Widget);
-#else
-	return CurrentCachedElementData->AddCachedElement(CurrentWidgetState.CacheNode, GetClippingManager(), nullptr);
-#endif
 }
 
 void FSlateWindowElementList::PushCachedElementData(FSlateCachedElementData& CachedElementData)
@@ -981,6 +973,12 @@ void FSlateCachedElementData::CleanupUnusedClipStates()
 			++CachedStateIdx;
 		}
 	}
+}
+
+FSlateCachedElementList::~FSlateCachedElementList()
+{
+	DestroyCachedVertexData();
+	Widget->PersistentState.CachedElementListNode = nullptr;
 }
 
 void FSlateCachedElementList::Reset()
