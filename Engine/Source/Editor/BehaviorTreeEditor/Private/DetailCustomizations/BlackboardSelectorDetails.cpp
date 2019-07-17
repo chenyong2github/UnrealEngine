@@ -152,7 +152,7 @@ void FBlackboardSelectorDetails::CacheBlackboardData()
 
 	if (GetDefault<UEditorPerProjectUserSettings>()->bDisplayBlackboardKeysInAlphabeticalOrder)
 	{
-		KeyValues.Sort([](const FName& a, const FName& b) { return a < b; });
+		KeyValues.Sort([](const FName& a, const FName& b) { return a.LexicalLess(b); });
 	}	
 }
 
