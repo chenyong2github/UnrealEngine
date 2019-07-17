@@ -166,4 +166,13 @@ private:
 	uint32			CurrentCompressedBlockIndex;		// For non disk streaming - the current compressed block in the compressed source data
 	uint32			TotalCompressedBlocksPerChannel;	// For non disk streaming - the total number of compressed blocks per channel
 	uint8			bSeekPending : 1;					// Whether or not seek has been requested and pending a read
+
+private:
+	void ProcessSeekRequest();
+	void SeekToTimeInternal(const float InSeekTime);
+
+	float TargetSeekTime;
+	float LastSeekTime;
+
+	FCriticalSection StreamSeekCriticalSection;
 };
