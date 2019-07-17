@@ -2159,6 +2159,12 @@ void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Tran
 		{
 			UPackage* RedirectorPackage = RedirIt->GetOutermost();
 
+			if (PackagesToUnload.Find(RedirectorPackage))
+			{
+				// Package was already marked to unload
+				continue;
+			}
+
 			if (RedirectorPackage == GetTransientPackage())
 			{
 				RedirIt->ClearFlags(FlagsToClear);
