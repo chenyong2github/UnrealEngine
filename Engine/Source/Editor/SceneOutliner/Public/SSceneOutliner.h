@@ -208,6 +208,16 @@ namespace SceneOutliner
 			}
 		}
 
+		/** Visitor that is used to validate if the item should added to the tree */
+		struct FValidateItemBeforeAddingToTree : TTreeItemGetter<bool>
+		{
+			/** Override to extract the data from specific tree item types */
+			virtual bool Get(const FActorTreeItem& ActorItem) const { return ActorItem.Actor.IsValid(); }
+			virtual bool Get(const FWorldTreeItem& WorldItem) const { return true; }
+			virtual bool Get(const FFolderTreeItem& FolderItem) const { return true; }
+			virtual bool Get(const FComponentTreeItem& ComponentFunction) const { return true; }
+			virtual bool Get(const FSubComponentTreeItem& CustomFunction) const { return true; }
+		};
 
 		/** Visitor that is used to set up type-specific data after tree items are added to the tree */
 		struct FOnItemAddedToTree : IMutableTreeItemVisitor
