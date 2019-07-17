@@ -1322,7 +1322,7 @@ const FText UUserWidget::GetPaletteCategory()
 	return PaletteCategory;
 }
 
-void UUserWidget::SetDesignerFlags(EWidgetDesignFlags::Type NewFlags)
+void UUserWidget::SetDesignerFlags(EWidgetDesignFlags NewFlags)
 {
 	UWidget::SetDesignerFlags(NewFlags);
 
