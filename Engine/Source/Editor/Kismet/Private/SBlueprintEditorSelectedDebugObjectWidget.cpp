@@ -364,122 +364,124 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectNames(bool bR
 
 	UWorld* PreviewWorld = BlueprintEditor.Pin()->GetPreviewScene()->GetWorld();
 
-	const bool bModifiedIterator = CVarUseFastDebugObjectDiscovery.GetValueOnGameThread() == 1;
-	UClass* BlueprintClass = GetBlueprintObj()->GeneratedClass;
-
-	if (bModifiedIterator && BlueprintClass)
+	if (!BlueprintEditor.Pin()->OnlyShowCustomDebugObjects())
 	{
-		// Experimental new path for debug object discovery
-		TArray<UObject*> BlueprintInstances;
-		GetObjectsOfClass(BlueprintClass, BlueprintInstances, true);
+		const bool bModifiedIterator = CVarUseFastDebugObjectDiscovery.GetValueOnGameThread() == 1;
+		UClass* BlueprintClass = GetBlueprintObj()->GeneratedClass;
 
-		for (auto It = BlueprintInstances.CreateIterator(); It; ++It)
+		if (bModifiedIterator && BlueprintClass)
 		{
-			UObject* TestObject = *It;
-			// Skip Blueprint preview objects (don't allow them to be selected for debugging)
-			if (PreviewWorld != nullptr && TestObject->IsIn(PreviewWorld))
-			{
-				continue;
-			}
+			// Experimental new path for debug object discovery
+			TArray<UObject*> BlueprintInstances;
+			GetObjectsOfClass(BlueprintClass, BlueprintInstances, true);
 
-			// check outer chain for pending kill objects
-			bool bPendingKill = false;
-			UObject* ObjOuter = TestObject;
-			do
+			for (auto It = BlueprintInstances.CreateIterator(); It; ++It)
 			{
-				bPendingKill = ObjOuter->IsPendingKill();
-				ObjOuter = ObjOuter->GetOuter();
-			} 
-			while (!bPendingKill && ObjOuter != nullptr);
-
-			if (!TestObject->HasAnyFlags(RF_ClassDefaultObject) && !bPendingKill)
-			{
-				ObjOuter = TestObject;
-				UWorld *ObjWorld = nullptr;
-				static bool bUseNewWorldCode = false;
-				do		// Run through at least once in case the TestObject is a UGameInstance
+				UObject* TestObject = *It;
+				// Skip Blueprint preview objects (don't allow them to be selected for debugging)
+				if (PreviewWorld != nullptr && TestObject->IsIn(PreviewWorld))
 				{
-					UGameInstance *ObjGameInstance = Cast<UGameInstance>(ObjOuter);
+					continue;
+				}
 
+				// check outer chain for pending kill objects
+				bool bPendingKill = false;
+				UObject* ObjOuter = TestObject;
+				do
+				{
+					bPendingKill = ObjOuter->IsPendingKill();
 					ObjOuter = ObjOuter->GetOuter();
-					ObjWorld = ObjGameInstance ? ObjGameInstance->GetWorld() : Cast<UWorld>(ObjOuter);
-				} while (ObjWorld == nullptr && ObjOuter != nullptr);
+				} while (!bPendingKill && ObjOuter != nullptr);
 
-				if (ObjWorld)
+				if (!TestObject->HasAnyFlags(RF_ClassDefaultObject) && !bPendingKill)
 				{
-					// Make check on owning level (not streaming level)
-					if (ObjWorld->PersistentLevel && ObjWorld->PersistentLevel->OwningWorld)
+					ObjOuter = TestObject;
+					UWorld *ObjWorld = nullptr;
+					static bool bUseNewWorldCode = false;
+					do		// Run through at least once in case the TestObject is a UGameInstance
 					{
-						ObjWorld = ObjWorld->PersistentLevel->OwningWorld;
-					}
+						UGameInstance *ObjGameInstance = Cast<UGameInstance>(ObjOuter);
 
-					// We have a specific debug world and the object isn't in it
-					if (DebugWorld && ObjWorld != DebugWorld)
-					{
-						continue;
-					}
+						ObjOuter = ObjOuter->GetOuter();
+						ObjWorld = ObjGameInstance ? ObjGameInstance->GetWorld() : Cast<UWorld>(ObjOuter);
+					} while (ObjWorld == nullptr && ObjOuter != nullptr);
 
-					if ((ObjWorld->WorldType == EWorldType::Editor) && (GUnrealEd->GetPIEViewport() == nullptr))
+					if (ObjWorld)
 					{
-						AddDebugObject(TestObject);
-					}
-					else if (ObjWorld->WorldType == EWorldType::PIE)
-					{
-						AddDebugObject(TestObject);
+						// Make check on owning level (not streaming level)
+						if (ObjWorld->PersistentLevel && ObjWorld->PersistentLevel->OwningWorld)
+						{
+							ObjWorld = ObjWorld->PersistentLevel->OwningWorld;
+						}
+
+						// We have a specific debug world and the object isn't in it
+						if (DebugWorld && ObjWorld != DebugWorld)
+						{
+							continue;
+						}
+
+						if ((ObjWorld->WorldType == EWorldType::Editor) && (GUnrealEd->GetPIEViewport() == nullptr))
+						{
+							AddDebugObject(TestObject);
+						}
+						else if (ObjWorld->WorldType == EWorldType::PIE)
+						{
+							AddDebugObject(TestObject);
+						}
 					}
 				}
 			}
 		}
-	}
-	else
-	{
-		for (TObjectIterator<UObject> It; It; ++It)
+		else
 		{
-			UObject* TestObject = *It;
-
-			// Skip Blueprint preview objects (don't allow them to be selected for debugging)
-			if (PreviewWorld != nullptr && TestObject->IsIn(PreviewWorld))
+			for (TObjectIterator<UObject> It; It; ++It)
 			{
-				continue;
-			}
+				UObject* TestObject = *It;
 
-			const bool bPassesFlags = !TestObject->HasAnyFlags(RF_ClassDefaultObject) && !TestObject->IsPendingKill();
-			const bool bGeneratedByAnyBlueprint = TestObject->GetClass()->ClassGeneratedBy != nullptr;
-			const bool bGeneratedByThisBlueprint = bGeneratedByAnyBlueprint && GetBlueprintObj()->GeneratedClass && TestObject->IsA(GetBlueprintObj()->GeneratedClass);
-
-			if (bPassesFlags && bGeneratedByThisBlueprint)
-			{
-				UObject *ObjOuter = TestObject;
-				UWorld *ObjWorld = nullptr;
-				do		// Run through at least once in case the TestObject is a UGameInstance
+				// Skip Blueprint preview objects (don't allow them to be selected for debugging)
+				if (PreviewWorld != nullptr && TestObject->IsIn(PreviewWorld))
 				{
-					UGameInstance *ObjGameInstance = Cast<UGameInstance>(ObjOuter);
+					continue;
+				}
 
-					ObjOuter = ObjOuter->GetOuter();
-					ObjWorld = ObjGameInstance ? ObjGameInstance->GetWorld() : Cast<UWorld>(ObjOuter);
-				} while (ObjWorld == nullptr && ObjOuter != nullptr);
+				const bool bPassesFlags = !TestObject->HasAnyFlags(RF_ClassDefaultObject) && !TestObject->IsPendingKill();
+				const bool bGeneratedByAnyBlueprint = TestObject->GetClass()->ClassGeneratedBy != nullptr;
+				const bool bGeneratedByThisBlueprint = bGeneratedByAnyBlueprint && GetBlueprintObj()->GeneratedClass && TestObject->IsA(GetBlueprintObj()->GeneratedClass);
 
-				if (ObjWorld)
+				if (bPassesFlags && bGeneratedByThisBlueprint)
 				{
-					// Make check on owning level (not streaming level)
-					if (ObjWorld->PersistentLevel && ObjWorld->PersistentLevel->OwningWorld)
+					UObject *ObjOuter = TestObject;
+					UWorld *ObjWorld = nullptr;
+					do		// Run through at least once in case the TestObject is a UGameInstance
 					{
-						ObjWorld = ObjWorld->PersistentLevel->OwningWorld;
-					}
+						UGameInstance *ObjGameInstance = Cast<UGameInstance>(ObjOuter);
 
-					// We have a specific debug world and the object isn't in it
-					if (DebugWorld && ObjWorld != DebugWorld)
-					{
-						continue;
-					}
+						ObjOuter = ObjOuter->GetOuter();
+						ObjWorld = ObjGameInstance ? ObjGameInstance->GetWorld() : Cast<UWorld>(ObjOuter);
+					} while (ObjWorld == nullptr && ObjOuter != nullptr);
 
-					if ((ObjWorld->WorldType == EWorldType::Editor) && (GUnrealEd->GetPIEViewport() == nullptr))
+					if (ObjWorld)
 					{
-						AddDebugObject(TestObject);
-					}
-					else if (ObjWorld->WorldType == EWorldType::PIE)
-					{
-						AddDebugObject(TestObject);
+						// Make check on owning level (not streaming level)
+						if (ObjWorld->PersistentLevel && ObjWorld->PersistentLevel->OwningWorld)
+						{
+							ObjWorld = ObjWorld->PersistentLevel->OwningWorld;
+						}
+
+						// We have a specific debug world and the object isn't in it
+						if (DebugWorld && ObjWorld != DebugWorld)
+						{
+							continue;
+						}
+
+						if ((ObjWorld->WorldType == EWorldType::Editor) && (GUnrealEd->GetPIEViewport() == nullptr))
+						{
+							AddDebugObject(TestObject);
+						}
+						else if (ObjWorld->WorldType == EWorldType::PIE)
+						{
+							AddDebugObject(TestObject);
+						}
 					}
 				}
 			}
@@ -645,6 +647,12 @@ EVisibility SBlueprintEditorSelectedDebugObjectWidget::IsDebugWorldComboVisible(
 
 FString SBlueprintEditorSelectedDebugObjectWidget::MakeDebugObjectLabel(UObject* TestObject, bool bAddContextIfSelectedInEditor) const
 {
+	FString CustomLabelFromEditor = BlueprintEditor.Pin()->GetCustomDebugObjectLabel(TestObject);
+	if (!CustomLabelFromEditor.IsEmpty())
+	{
+		return CustomLabelFromEditor;
+	}
+
 	auto GetActorLabelStringLambda = [](AActor* InActor, bool bIncludeNetModeSuffix, bool bIncludeSelectedSuffix)
 	{
 		FString Label = InActor->GetActorLabel();
