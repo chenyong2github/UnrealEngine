@@ -17,6 +17,7 @@ FAnimNode_TwistCorrectiveNode::FAnimNode_TwistCorrectiveNode()
 
 void FAnimNode_TwistCorrectiveNode::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	ComponentPose.GatherDebugData(DebugData);
 }
 
@@ -30,6 +31,7 @@ FVector FAnimNode_TwistCorrectiveNode::GetReferenceAxis(FCSPose<FCompactPose>& M
 
 void FAnimNode_TwistCorrectiveNode::EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentSpaceInternal)
 	// Get the Local space transform and the ref pose transform to see how the transform for the source bone has changed
 	const FBoneContainer& BoneContainer = Context.Pose.GetPose().GetBoneContainer();
 
@@ -57,6 +59,7 @@ bool FAnimNode_TwistCorrectiveNode::IsValidToEvaluate(const USkeleton* Skeleton,
 
 void FAnimNode_TwistCorrectiveNode::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	BaseFrame.Bone.Initialize(RequiredBones);
 	TwistFrame.Bone.Initialize(RequiredBones);
 
@@ -68,12 +71,14 @@ void FAnimNode_TwistCorrectiveNode::InitializeBoneReferences(const FBoneContaine
 
 void FAnimNode_TwistCorrectiveNode::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_SkeletalControlBase::Initialize_AnyThread(Context);
 	Curve.Initialize(Context.AnimInstanceProxy->GetSkeleton());
 }
 
 void FAnimNode_TwistCorrectiveNode::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	FAnimNode_SkeletalControlBase::CacheBones_AnyThread(Context);
 	TArray<FTransform> SpaceBases;
 

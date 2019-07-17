@@ -17,9 +17,21 @@ void FControlRigSequencerAnimInstanceProxy::Initialize(UAnimInstance* InAnimInst
 	LayeredBoneBlendNode.BasePose.SetLinkNode(OldBaseLinkedNode);
 	AdditiveLayeredBoneBlendNode.BasePose.SetLinkNode(OldAdditiveLinkedNode);
 
+	BoolBlendNode.BlendTime.Reset();
+	BoolBlendNode.BlendPose.Reset();
+	BoolBlendNode.BlendTime.Add(0.1f);
+	BoolBlendNode.BlendTime.Add(0.1f);
+	new (BoolBlendNode.BlendPose) FPoseLink();
+	new (BoolBlendNode.BlendPose) FPoseLink();
+
+	BoolBlendNode.bActiveValue = true; // active disables preview
+	BoolBlendNode.BlendPose[1].SetLinkNode(&PreviewPlayerNode);
+
 	FAnimationInitializeContext Context(this);
 	LayeredBoneBlendNode.Initialize_AnyThread(Context);
 	AdditiveLayeredBoneBlendNode.Initialize_AnyThread(Context);
+	BoolBlendNode.Initialize_AnyThread(Context);
+	PreviewPlayerNode.Initialize_AnyThread(Context);
 }
 
 void FControlRigSequencerAnimInstanceProxy::Update(float DeltaSeconds)
@@ -69,8 +81,10 @@ void FControlRigSequencerAnimInstanceProxy::InitControlRigTrack(UControlRig* InC
 				// add the new entry to map
 				FSequencerPlayerControlRig* NewPlayerState = new FSequencerPlayerControlRig();
 				NewPlayerState->PoseIndex = PoseIndex;
+				NewPlayerState->ControlRigNode.Source.SetLinkNode(&BoolBlendNode);
 
 				SequencerToPlayerMap.Add(SequenceId, NewPlayerState);
+
 
 				// link ControlRig node
 				LayeredBlendNode.BlendPoses[PoseIndex].SetLinkNode(&NewPlayerState->ControlRigNode);
@@ -100,6 +114,7 @@ void FControlRigSequencerAnimInstanceProxy::InitControlRigTrack(UControlRig* InC
 				// add the new entry to map
 				FSequencerPlayerControlRig* NewPlayerState = new FSequencerPlayerControlRig();
 				NewPlayerState->PoseIndex = PoseIndex;
+				NewPlayerState->ControlRigNode.Source.SetLinkNode(&BoolBlendNode);
 
 				SequencerToPlayerMap.Add(SequenceId, NewPlayerState);
 
@@ -179,4 +194,13 @@ FSequencerPlayerControlRig* FControlRigSequencerAnimInstanceProxy::FindValidPlay
 		return nullptr;
 	}
 	return PlayerState;
+}
+
+bool FControlRigSequencerAnimInstanceProxy::SetAnimationAsset(class UAnimationAsset* NewAsset)
+{
+	UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(NewAsset);
+	BoolBlendNode.bActiveValue = Sequence == nullptr;
+	PreviewPlayerNode.Sequence = Sequence;
+	PreviewPlayerNode.PlayRate = 1.0f;
+	return true;
 }
