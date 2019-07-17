@@ -177,16 +177,16 @@ bool APartyBeaconClient::RequestReservation(const FOnlineSessionSearchResult& De
 	return bSuccess;
 }
 
-bool APartyBeaconClient::RequestReservationUpdate(const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd)
+bool APartyBeaconClient::RequestReservationUpdate(const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToModify, bool bRemovePlayers)
 {
 	bool bWasStarted = false;
 
 	EBeaconConnectionState MyConnectionState = GetConnectionState();
 	if (ensure(MyConnectionState == EBeaconConnectionState::Open))
 	{
-		RequestType = EClientRequestType::ReservationUpdate;
+		RequestType = bRemovePlayers ? EClientRequestType::ReservationRemoveMembers : EClientRequestType::ReservationUpdate;
 		PendingReservation.PartyLeader = RequestingPartyLeader;
-		PendingReservation.PartyMembers = PlayersToAdd;
+		PendingReservation.PartyMembers = PlayersToModify;
 		ServerUpdateReservationRequest(DestSessionId, PendingReservation);
 		bPendingReservationSent = true;
 		bWasStarted = true;
@@ -195,7 +195,7 @@ bool APartyBeaconClient::RequestReservationUpdate(const FUniqueNetIdRepl& Reques
 	return bWasStarted;
 }
 
-bool APartyBeaconClient::RequestReservationUpdate(const FString& ConnectInfoStr, const FString& InSessionId, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd)
+bool APartyBeaconClient::RequestReservationUpdate(const FString& ConnectInfoStr, const FString& InSessionId, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToModify, bool bRemovePlayers)
 {
 	bool bWasStarted = false;
 
@@ -205,16 +205,16 @@ bool APartyBeaconClient::RequestReservationUpdate(const FString& ConnectInfoStr,
 		if (MyConnectionState != EBeaconConnectionState::Open)
 		{
 			// create a new pending reservation for these players in the same way as a new reservation request
-			bWasStarted = RequestReservation(ConnectInfoStr, InSessionId, RequestingPartyLeader, PlayersToAdd);
+			bWasStarted = RequestReservation(ConnectInfoStr, InSessionId, RequestingPartyLeader, PlayersToModify);
 			if (bWasStarted)
 			{
 				// Treat this reservation as an update to an existing reservation on the host
-				RequestType = EClientRequestType::ReservationUpdate;
+				RequestType = bRemovePlayers ? EClientRequestType::ReservationRemoveMembers : EClientRequestType::ReservationUpdate;
 			}
 		}
 		else
 		{
-			bWasStarted = RequestReservationUpdate(RequestingPartyLeader, PlayersToAdd);
+			bWasStarted = RequestReservationUpdate(RequestingPartyLeader, PlayersToModify, bRemovePlayers);
 		}
 	}
 	else
@@ -225,7 +225,7 @@ bool APartyBeaconClient::RequestReservationUpdate(const FString& ConnectInfoStr,
 	return bWasStarted;
 }
 
-bool APartyBeaconClient::RequestReservationUpdate(const FOnlineSessionSearchResult& DesiredHost, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToAdd)
+bool APartyBeaconClient::RequestReservationUpdate(const FOnlineSessionSearchResult& DesiredHost, const FUniqueNetIdRepl& RequestingPartyLeader, const TArray<FPlayerReservation>& PlayersToModify, bool bRemovePlayers)
 {
 	bool bWasStarted = false;
 
@@ -233,16 +233,16 @@ bool APartyBeaconClient::RequestReservationUpdate(const FOnlineSessionSearchResu
 	if (MyConnectionState != EBeaconConnectionState::Open)
 	{
 		// create a new pending reservation for these players in the same way as a new reservation request
-		bWasStarted = RequestReservation(DesiredHost, RequestingPartyLeader, PlayersToAdd);
+		bWasStarted = RequestReservation(DesiredHost, RequestingPartyLeader, PlayersToModify);
 		if (bWasStarted)
 		{
 			// Treat this reservation as an update to an existing reservation on the host
-			RequestType = EClientRequestType::ReservationUpdate;
+			RequestType = bRemovePlayers ? EClientRequestType::ReservationRemoveMembers : EClientRequestType::ReservationUpdate;
 		}
 	}
 	else
 	{
-		RequestReservationUpdate(RequestingPartyLeader, PlayersToAdd);
+		RequestReservationUpdate(RequestingPartyLeader, PlayersToModify, bRemovePlayers);
 	}
 
 	return bWasStarted;
@@ -297,6 +297,12 @@ void APartyBeaconClient::OnConnected()
 		{
 			UE_LOG(LogPartyBeacon, Verbose, TEXT("Party beacon connection established, sending reservation update request."));
 			ServerUpdateReservationRequest(DestSessionId, PendingReservation);
+			bPendingReservationSent = true;
+		}
+		else if (RequestType == EClientRequestType::ReservationRemoveMembers)
+		{
+			UE_LOG(LogPartyBeacon, Verbose, TEXT("Party beacon connection established, sending reservation update request to remove player."));
+			ServerRemoveMemberFromReservationRequest(DestSessionId, PendingReservation);
 			bPendingReservationSent = true;
 		}
 		else
@@ -361,7 +367,23 @@ void APartyBeaconClient::ServerUpdateReservationRequest_Implementation(const FSt
 	{
 		PendingReservation = ReservationUpdate;
 		RequestType = EClientRequestType::ReservationUpdate;
-		BeaconHost->ProcessReservationUpdateRequest(this, SessionId, ReservationUpdate);
+		BeaconHost->ProcessReservationUpdateRequest(this, SessionId, ReservationUpdate, false);
+	}
+}
+
+bool APartyBeaconClient::ServerRemoveMemberFromReservationRequest_Validate(const FString& SessionId, const FPartyReservation& ReservationUpdate)
+{
+	return !SessionId.IsEmpty() && ReservationUpdate.PartyLeader.IsValid() && ReservationUpdate.PartyMembers.Num() > 0;
+}
+
+void APartyBeaconClient::ServerRemoveMemberFromReservationRequest_Implementation(const FString& SessionId, const FPartyReservation& ReservationUpdate)
+{
+	APartyBeaconHost* BeaconHost = Cast<APartyBeaconHost>(GetBeaconOwner());
+	if (BeaconHost)
+	{
+		PendingReservation = ReservationUpdate;
+		RequestType = EClientRequestType::ReservationRemoveMembers;
+		BeaconHost->ProcessReservationUpdateRequest(this, SessionId, ReservationUpdate, true);
 	}
 }
 
