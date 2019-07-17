@@ -1097,7 +1097,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	if (World->FXSystem)
 	{
-		World->FXSystem->Destroy();
+		FFXSystemInterface::Destroy(World->FXSystem);
 	}
 
 	if (bCreateFXSystem)

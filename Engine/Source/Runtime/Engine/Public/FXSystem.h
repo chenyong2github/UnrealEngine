@@ -130,6 +130,11 @@ public:
 	ENGINE_API static FFXSystemInterface* Create(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform);
 
 	/**
+	 * Destroy an effects system instance.
+	 */
+	ENGINE_API static void Destroy(FFXSystemInterface* FXSystem);
+
+	/**
 	 * Register a custom FX system implementation.
 	 */
 	ENGINE_API static void RegisterCustomFXSystem(const FName& InterfaceName, const FCreateCustomFXSystemDelegate& InCreateDelegate);
@@ -145,9 +150,9 @@ public:
 	virtual FFXSystemInterface* GetInterface(const FName& InName) { return nullptr; };
 
 	/**
-	 * Destroy an effects system instance.
+	 * Gamethread callback when destroy gets called, allows to clean up references.
 	 */
-	ENGINE_API virtual void Destroy();
+	ENGINE_API virtual void OnDestroy() { bIsPendingKill = true; }
 
 
 	/**
@@ -225,6 +230,8 @@ public:
 	bool IsPendingKill() const { return bIsPendingKill; }
 
 protected:
+	
+	friend class FFXSystemSet;
 
 	/** By making the destructor protected, an instance must be destroyed via FFXSystemInterface::Destroy. */
 	ENGINE_API virtual ~FFXSystemInterface() {}
