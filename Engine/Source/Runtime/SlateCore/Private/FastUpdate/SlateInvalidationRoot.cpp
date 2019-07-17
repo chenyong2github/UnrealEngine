@@ -56,6 +56,8 @@ FSlateInvalidationRoot::~FSlateInvalidationRoot()
 	{
 		delete CachedElementData;
 	}
+
+	CachedElementData = nullptr;
 }
 
 void FSlateInvalidationRoot::AddReferencedObjects(FReferenceCollector& Collector)
@@ -236,6 +238,27 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 
 	Result.MaxLayerIdPainted = CachedMaxLayerId;
 	return Result;
+}
+
+void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
+{
+	InvalidateChildOrder();
+
+	// We need the index even if we've invalidated this root.  We need to clear out its proxy regardless
+	const bool bEvenIfInvalid = true;
+	const int32 ProxyIndex = Widget->FastPathProxyHandle.GetIndex(bEvenIfInvalid);
+	if (FastWidgetPathList.IsValidIndex(ProxyIndex) && FastWidgetPathList[ProxyIndex].Widget == Widget)
+	{
+		FastWidgetPathList[ProxyIndex].Widget = nullptr;
+	
+	}
+
+	if (Widget->PersistentState.CachedElementListNode)
+	{
+		CachedElementData->RemoveCache(Widget->PersistentState.CachedElementListNode);
+	}
+
+	Widget->PersistentState.CachedElementListNode = nullptr;
 }
 
 bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Context)
