@@ -5,6 +5,9 @@
 #include "Modules/ModuleInterface.h"
 #include "Containers/Array.h"
 #include "Modules/ModuleManager.h"
+
+class FLiveLinkHeartbeatEmitter;
+
 /**
  * Interface for messaging modules.
  */
@@ -27,6 +30,8 @@ public:
         return FModuleManager::LoadModuleChecked<ILiveLinkModule>("LiveLink");
 #endif
 	}
+
+	virtual FLiveLinkHeartbeatEmitter& GetHeartbeatEmitter() = 0;
 
 public:
 
