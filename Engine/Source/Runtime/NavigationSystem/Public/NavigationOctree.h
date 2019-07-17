@@ -13,18 +13,35 @@
 #include "Math/GenericOctree.h"
 
 class INavRelevantInterface;
-
+class FNavigationOctree;
 typedef FNavigationRelevantDataFilter FNavigationOctreeFilter;
 
 struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
 {
 	FBoxSphereBounds Bounds;
 	TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> Data;
+private:
+	FNavigationOctree& OwnerOctree;
 
-	FNavigationOctreeElement(UObject& SourceObject)
+public:
+	UE_DEPRECATED(4.24, "Single-paramater FNavigationOctreeElement ctor is deprecated. Use the one explicitly passing the FNavigationOctree reference in")
+	explicit FNavigationOctreeElement(UObject& SourceObject);
+
+	FNavigationOctreeElement(FNavigationOctree& InOwnerOctree, UObject& SourceObject)
 		: Data(new FNavigationRelevantData(SourceObject))
-	{
+		, OwnerOctree(InOwnerOctree)
+	{}
 
+	FNavigationOctreeElement(const FNavigationOctreeElement& Other)
+		: Bounds(Other.Bounds)
+		, Data(Other.Data)
+		, OwnerOctree(Other.OwnerOctree)
+	{}
+
+	FNavigationOctreeElement& operator=(const FNavigationOctreeElement& Other)
+	{
+		new(this) FNavigationOctreeElement(Other);
+		return *this;
 	}
 
 	FORCEINLINE bool IsEmpty() const
@@ -69,6 +86,8 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
 	}
 
 	FORCEINLINE UObject* GetOwner(bool bEvenIfPendingKill = false) const { return Data->SourceObject.Get(bEvenIfPendingKill); }
+
+	FORCEINLINE FNavigationOctree& GetOwnerOctree() const { return OwnerOctree; }
 };
 
 struct FNavigationOctreeSemantics
@@ -90,13 +109,18 @@ struct FNavigationOctreeSemantics
 		return A.Data->SourceObject == B.Data->SourceObject;
 	}
 
+	FORCEINLINE static void ApplyOffset(FNavigationOctreeElement& Element, const FVector& InOffset)
+	{
+		ensureMsgf(false, TEXT("Not implemented yet"));
+	}
+
 #if NAVSYS_DEBUG
 	FORCENOINLINE 
 #endif // NAVSYS_DEBUG
 	static void SetElementId(const FNavigationOctreeElement& Element, FOctreeElementId Id);
 };
 
-class FNavigationOctree : public TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
+class NAVIGATIONSYSTEM_API FNavigationOctree : public TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
 {
 public:
 	DECLARE_DELEGATE_TwoParams(FNavigableGeometryComponentExportDelegate, UActorComponent*, FNavigationRelevantData&);
@@ -137,7 +161,17 @@ public:
 	void DemandLazyDataGathering(const FNavigationOctreeElement& Element);
 	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
 
+	void SetElementId(const UObject& Object, FOctreeElementId Id);
+
+	FORCEINLINE static uint32 HashObject(const UObject& Object)
+	{
+		return Object.GetUniqueID();
+	}
+
 protected:
+	friend struct FNavigationOctreeController;
+
+	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
 	ENavDataGatheringMode DefaultGeometryGatheringMode;
 	uint32 bGatherGeometry : 1;
 	uint32 NodesMemory;
