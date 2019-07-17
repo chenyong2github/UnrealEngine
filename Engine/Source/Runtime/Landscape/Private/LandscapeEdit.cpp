@@ -2867,7 +2867,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 			{
 				for (const FLandscapeImportLayerInfo& MaterialLayerInfo : *ImportWeightData)
 				{
-					if (MaterialLayerInfo.LayerInfo != nullptr)
+					if (MaterialLayerInfo.LayerInfo != nullptr && MaterialLayerInfo.LayerData.Num() > 0)
 					{
 						LandscapeEdit.SetAlphaData(MaterialLayerInfo.LayerInfo, InMinX, InMinY, InMaxX, InMaxY, MaterialLayerInfo.LayerData.GetData(), 0, ELandscapeLayerPaintingRestriction::None, true, false);
 					}
