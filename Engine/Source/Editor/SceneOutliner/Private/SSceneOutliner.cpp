@@ -258,8 +258,6 @@ namespace SceneOutliner
 		bFullRefresh = true;
 		bNeedsRefresh = true;
 		bIsReentrant = false;
-		bActorComponentsEnabled = true;// || InInitOptions.Mode = ESceneOutlinerMode::ComponentPicker;
-
 		bSortDirty = true;
 		bActorSelectionDirty = SharedData->Mode == ESceneOutlinerMode::ActorBrowsing;
 		FilteredActorCount = 0;
@@ -764,21 +762,18 @@ namespace SceneOutliner
 					EUserInterfaceActionType::ToggleButton
 				);
 
-				if (bActorComponentsEnabled)
-				{
-					MenuBuilder.AddMenuEntry(
-						LOCTEXT("ToggleShowActorComponents", "Show Actor Components"),
-						LOCTEXT("ToggleShowActorComponentsToolTip", "When enabled, shows components beloging to actors."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &SSceneOutliner::ToggleShowActorComponents),
-							FCanExecuteAction(),
-							FIsActionChecked::CreateSP(this, &SSceneOutliner::IsShowingActorComponents)
-						),
-						NAME_None,
-						EUserInterfaceActionType::ToggleButton
-					);
-				}
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ToggleShowActorComponents", "Show Actor Components"),
+					LOCTEXT("ToggleShowActorComponentsToolTip", "When enabled, shows components beloging to actors."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SSceneOutliner::ToggleShowActorComponents),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &SSceneOutliner::IsShowingActorComponents)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
 
 				// Add additional filters
 				FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked< FSceneOutlinerModule >("SceneOutliner");
@@ -944,7 +939,7 @@ namespace SceneOutliner
 
 	bool SSceneOutliner::IsShowingActorComponents()
 	{
-		return SharedData->Mode == ESceneOutlinerMode::ComponentPicker || (bActorComponentsEnabled && GetDefault<USceneOutlinerSettings>()->bShowActorComponents);
+		return SharedData->Mode == ESceneOutlinerMode::ComponentPicker || (GetDefault<USceneOutlinerSettings>()->bShowActorComponents);
 	}
 
 	void SSceneOutliner::ToggleShowActorComponents()
