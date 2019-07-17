@@ -11,6 +11,7 @@
 #include "EditorStaticMeshLibrary.h"
 #include "Engine/EngineTypes.h"
 #include "IDetailCustomization.h"
+#include "PropertyHandle.h"
 
 class SWidget;
 class UMaterialInterface;
@@ -346,4 +347,6 @@ private:
 	/** LOD group options. */
 	TArray< TSharedPtr< FString > > LODGroupOptions;
 	TArray<FName>					LODGroupNames;
+
+	TSharedPtr<IPropertyHandle> LodGroupPropertyHandle;
 };
