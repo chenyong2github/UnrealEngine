@@ -568,6 +568,8 @@ public:
 
 	virtual void GetDistanceFieldInstanceInfo(int32& NumInstances, float& BoundsSurfaceArea) const override;
 
+	virtual int32 CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
+
 	/**
 	 * Creates the hit proxies are used when DrawDynamicElements is called.
 	 * Called in the game thread.
