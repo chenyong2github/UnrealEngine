@@ -374,9 +374,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 
 		TArray<UEdGraphPin*> CallerInputPins;
 		GetInputPins(CallerInputPins);
-		FCompileConstantResolver ConstantResolver(Translator);
-		FNiagaraEditorUtilities::SetStaticSwitchConstants(GetCalledGraph(), CallerInputPins, ConstantResolver);
-
+		
 		UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionScript->GetSource());
 		UNiagaraGraph* FunctionGraph = Source->NodeGraph;
 
@@ -465,6 +463,9 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 				}
 			}
 		}
+
+		FCompileConstantResolver ConstantResolver(Translator);
+		FNiagaraEditorUtilities::SetStaticSwitchConstants(GetCalledGraph(), CallerInputPins, ConstantResolver);
 	}
 	else if (Signature.IsValid())
 	{
