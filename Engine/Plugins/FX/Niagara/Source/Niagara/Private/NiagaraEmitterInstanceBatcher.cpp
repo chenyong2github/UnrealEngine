@@ -588,10 +588,10 @@ void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdLi
 
 }
 
-void NiagaraEmitterInstanceBatcher::Destroy()
+void NiagaraEmitterInstanceBatcher::OnDestroy()
 {
 	INiagaraModule::OnBatcherDestroyed(this);
-	FFXSystemInterface::Destroy();
+	FFXSystemInterface::OnDestroy();
 }
 
 int32 NiagaraEmitterInstanceBatcher::AddSortedGPUSimulation(const FNiagaraGPUSortInfo& SortInfo)
