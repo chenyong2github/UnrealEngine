@@ -9,6 +9,8 @@
 #include "DetailWidgetRow.h"
 #include "ControlRigVariables.h"
 #include "SVariableMappingWidget.h"
+#include "ScopedTransaction.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_ControlRig"
 
@@ -73,6 +75,26 @@ void UAnimGraphNode_ControlRig::RebuildExposedProperties()
 	// we still update OUtputvariables
 	// we don't want output to be exposed
 	GetIOProperties(false, OutputVariables);
+
+	// clear IO variables that don't exist anymore
+	auto ClearInvalidMapping = [](const TMap<FName, FControlRigIOVariable>& InVariables, TMap<FName, FName>& InOutMapping)
+	{
+		TArray<FName> KeyArray;
+		InOutMapping.GenerateKeyArray(KeyArray);
+
+		for (int32 Index=0; Index<KeyArray.Num(); ++Index)
+		{
+			// if this input doesn't exist anymore
+			if (!InVariables.Contains(KeyArray[Index]))
+			{
+				InOutMapping.Remove(KeyArray[Index]);
+			}
+		}
+	};
+
+	ClearInvalidMapping(InputVariables, Node.InputMapping);
+	ClearInvalidMapping(OutputVariables, Node.OutputMapping);
+
 	for (auto Iter = InputVariables.CreateConstIterator(); Iter; ++Iter)
 	{
 		KnownExposableProperties.Add(Iter.Key());
@@ -130,6 +152,11 @@ void UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged(ECheckBoxState N
 	// see if any of my child has the mapping, and clear them
 	if (NewState == ECheckBoxState::Checked)
 	{
+		FScopedTransaction Transaction(LOCTEXT("PropertyExposedChanged", "Expose Property to Pin"));
+		Modify();
+
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
+
 		bool bInput = IsInputProperty(PropertyName);
 		// if checked, we clear mapping
 		// and unclear all children
@@ -217,6 +244,11 @@ void UAnimGraphNode_ControlRig::GetIOProperties(bool bInput, TMap<FName, FContro
 
 void UAnimGraphNode_ControlRig::OnVariableMappingChanged(const FName& PathName, const FName& Curve, bool bInput)
 {
+	FScopedTransaction Transaction(LOCTEXT("VariableMappingChanged", "Change Variable Mapping"));
+	Modify();
+
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
+
 	// @todo: this is not enough when we start breaking down struct
 	Node.SetIOMapping(bInput, PathName, Curve);
 }

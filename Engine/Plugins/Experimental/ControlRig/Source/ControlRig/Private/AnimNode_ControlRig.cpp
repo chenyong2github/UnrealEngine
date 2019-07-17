@@ -138,7 +138,7 @@ void FAnimNode_ControlRig::UpdateInput(UControlRig* InControlRig, const FPoseCon
 {
 	FAnimNode_ControlRigBase::UpdateInput(InControlRig, InOutput);
 	// now go through variable mapping table and see if anything is mapping through input
-	if (InputMapping.Num() > 0)
+	if (InputMapping.Num() > 0 && InControlRig)
 	{
 		for (auto Iter = InputMapping.CreateConstIterator(); Iter; ++Iter)
 		{
@@ -155,7 +155,10 @@ void FAnimNode_ControlRig::UpdateInput(UControlRig* InControlRig, const FPoseCon
 	
 					// helper function to set input value for ControlRig
 					// This converts to the proper destination type, and sets the float type Value
-					ensure(FControlRigIOHelper::SetInputValue(ControlRig, SourcePath, FControlRigIOTypes::GetTypeString<float>(), Value));
+					if (!FControlRigIOHelper::SetInputValue(InControlRig, SourcePath, FControlRigIOTypes::GetTypeString<float>(), Value))
+					{
+						UE_LOG(LogAnimation, Warning, TEXT("[%s] Missing Input Property [%s]"), *GetNameSafe(InControlRig->GetClass()), *SourcePath.ToString());
+					}
 				}
 			}
 		} 
@@ -167,7 +170,7 @@ void FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext&
 	FAnimNode_ControlRigBase::UpdateOutput(InControlRig, InOutput);
 
 	// update output curves
-	if (OutputMapping.Num() > 0)
+	if (OutputMapping.Num() > 0 && InControlRig)
 	{
 		for (auto Iter = OutputMapping.CreateConstIterator(); Iter; ++Iter)
 		{
@@ -180,13 +183,17 @@ void FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext&
 				// find Segment is right value
 				float Value;
 				// helper function to get output value and convert to float 
-				if (ensure(FControlRigIOHelper::GetOutputValue(ControlRig, SourcePath, FControlRigIOTypes::GetTypeString<float>(), Value)))
+				if (FControlRigIOHelper::GetOutputValue(InControlRig, SourcePath, FControlRigIOTypes::GetTypeString<float>(), Value))
 				{
 					SmartName::UID_Type* UID = CurveMappingUIDs.Find(Iter.Value());
 					if (UID)
 					{
 						InOutput.Curve.Set(*UID, Value);
 					}
+				}
+				else
+				{
+					UE_LOG(LogAnimation, Warning, TEXT("[%s] Missing Output Property [%s]"), *GetNameSafe(ControlRig->GetClass()), *SourcePath.ToString());
 				}
 			}
 		}
