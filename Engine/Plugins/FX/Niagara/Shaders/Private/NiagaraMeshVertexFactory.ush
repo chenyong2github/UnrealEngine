@@ -822,11 +822,6 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 	return CalcPrevWorldPosition(Input, Intermediates);
 }
 
-uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
-{
-    return 0;
-}
-
 #if USING_TESSELLATION
 	struct FVertexFactoryInterpolantsVSToDS
 	{
