@@ -370,7 +370,10 @@ namespace AutomationTool
 					Version.BranchName = Branch;
 					Version.BuildVersionString = Build;
 
-					VersionFileUpdater.MakeFileWriteable(BuildVersionFile.FullName);
+					if (File.Exists(BuildVersionFile.FullName))
+					{
+						VersionFileUpdater.MakeFileWriteable(BuildVersionFile.FullName);
+					}
 
 					Version.Write(BuildVersionFile);
 				}
