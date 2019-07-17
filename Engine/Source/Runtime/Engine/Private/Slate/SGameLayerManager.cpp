@@ -256,7 +256,7 @@ void SGameLayerManager::ClearWidgets()
 
 void SGameLayerManager::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	if (AllottedGeometry != CachedGeometry)
+	//if (AllottedGeometry != CachedGeometry)
 	{
 		CachedGeometry = AllottedGeometry;
 		UpdateLayout();
