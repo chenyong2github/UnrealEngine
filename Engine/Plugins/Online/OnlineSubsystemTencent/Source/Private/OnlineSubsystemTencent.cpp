@@ -26,6 +26,11 @@
 #include "OnlineAsyncTasksTencent.h"
 #include "PlayTimeLimitImpl.h"
 #include "OnlinePlayTimeLimitTencent.h"
+#include "NotForLicensees/OnlineSessionTencentTCLS.h"
+#include "OnlineIdentityTencent.h"
+#include "OnlineSubsystemTencent.h"
+#include "NotForLicensees/OnlineDirectoryTencent.h"
+
 
 #if WITH_TENCENTSDK
 
@@ -291,10 +296,12 @@ bool FOnlineSubsystemTencent::Init()
 	TencentStore = MakeShared<FOnlineStoreTencent, ESPMode::ThreadSafe>(this);
 #endif
 
+#if WITH_TENCENTSDK
 	// Get the server info from TDIR at startup
 	ExecuteNextTick([this]() {
 		TencentDirectory->QueryServerInfo();
 	});
+#endif // WITH_TENCENTSDK
 
 	// update services based on user login/logout events
 	OnLoginChangedHandle = TencentIdentity->AddOnLoginChangedDelegate_Handle(FOnLoginChangedDelegate::CreateThreadSafeSP(this, &FOnlineSubsystemTencent::OnLoginChanged));
