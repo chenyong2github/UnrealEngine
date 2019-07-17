@@ -8,6 +8,8 @@
 #include "LC_WindowsInternalFunctions.h"
 #include "LC_Logging.h"
 #include <Psapi.h>
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 
 // BEGIN EPIC MODS
 #pragma warning(push)
