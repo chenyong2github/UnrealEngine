@@ -69,6 +69,53 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	}
 }
 
+
+void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
+{
+	UNiagaraSystem* System = GetSystem();
+	if (System != nullptr)
+	{
+		const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
+		int32 FoundIdx = INDEX_NONE;
+		for (int32 EmitterIdx = 0; EmitterIdx < GetSystem()->GetEmitterHandles().Num(); ++EmitterIdx)
+		{
+			const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
+			if (EmitterName == EmitterHandle.GetName())
+			{
+				FoundIdx = EmitterIdx;
+				break;
+			}
+		}
+
+		if (FoundIdx != INDEX_NONE && Emitters.IsValidIndex(FoundIdx))
+		{
+			if (Emitters[FoundIdx]->IsAllowedToExecute())
+			{
+				
+				{
+					if (bNewEnableState)
+					{
+						Emitters[FoundIdx]->SetExecutionState(ENiagaraExecutionState::Active);
+					}
+					else
+					{
+						Emitters[FoundIdx]->SetExecutionState(ENiagaraExecutionState::Inactive);
+					}
+				}
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Log, TEXT("SetEmitterEnable: Emitter \"%s\" was found in the system's list of emitters, but it does not pass FNiagaraEmitterInstance::IsAllowedToExecute() and therefore cannot be manually enabled!"), *EmitterName.ToString());
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Log, TEXT("SetEmitterEnable: Emitter \"%s\" was not found in the system's list of emitters!"), *EmitterName.ToString());
+		}
+	}
+}
+
+
 void FNiagaraSystemInstance::Init(bool bInForceSolo)
 {
 	bForceSolo = bInForceSolo;
