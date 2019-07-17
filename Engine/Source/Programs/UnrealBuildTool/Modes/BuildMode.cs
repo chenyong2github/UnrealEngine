@@ -345,13 +345,6 @@ namespace UnrealBuildTool
 						{
 							TargetReceipt Receipt = TargetReceipt.Read(Makefile.ReceiptFile);
 							Log.TraceInformation("Deploying {0} {1} {2}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
-							
-							//@MIXEDREALITY_CHANGE : Begin project dir was missing.
-							if (Receipt.ProjectDir == null)
-							{
-								Receipt.ProjectDir = UnrealBuildTool.EngineDirectory;
-							}
-							//@MIXEDREALITY_CHANGE : End
 
 							UEBuildPlatform.GetBuildPlatform(Receipt.Platform).Deploy(Receipt);
 						}
