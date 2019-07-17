@@ -75,7 +75,7 @@ public:
 	/** @return the cached draw elements for this window and its widget hierarchy*/
 	FSlateCachedElementData& GetCachedElements()
 	{
-		return CachedElementData;
+		return *CachedElementData;
 	}
 
 	int32 GetFastPathGenerationNumber() const { return FastPathGenerationNumber; }
@@ -107,7 +107,7 @@ private:
 
 	TArray<int32, TInlineAllocator<100>> FinalUpdateList;
 
-	FSlateCachedElementData CachedElementData;
+	FSlateCachedElementData* CachedElementData;
 
 	SWidget* InvalidationRootWidget;
 
