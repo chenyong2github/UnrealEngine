@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-namespace DataprepCoreUtils
+namespace DataprepCorePrivateUtils
 {
 	/**
 	 * Move an array element to another spot

@@ -5,7 +5,7 @@
 // Dataprep include
 #include "DataPrepOperation.h"
 #include "DataprepCoreLogCategory.h"
-#include "DataprepCoreUtils.h"
+#include "DataprepCorePrivateUtils.h"
 #include "SelectionSystem/DataprepFilter.h"
 
 // Engine include
@@ -182,7 +182,7 @@ bool UDataprepActionAsset::MoveStep(int32 StepIndex, int32 DestinationIndex)
 		Modify();
 	}
 
-	if ( DataprepCoreUtils::MoveArrayElement( Steps, StepIndex, DestinationIndex ) )
+	if ( DataprepCorePrivateUtils::MoveArrayElement( Steps, StepIndex, DestinationIndex ) )
 	{
 		OnStepsChanged.Broadcast();
 		return true;
