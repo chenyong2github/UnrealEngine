@@ -225,6 +225,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 				.OnGetChildren(this, &SRigHierarchy::HandleGetChildrenForTree)
 				.OnSelectionChanged(this, &SRigHierarchy::OnSelectionChanged)
 				.OnContextMenuOpening(this, &SRigHierarchy::CreateContextMenu)
+				.HighlightParentNodesForSelection(true)
 				.ItemHeight(24)
 			]
 		]
@@ -273,14 +274,15 @@ void SRigHierarchy::RefreshTreeView()
 
 		FString FilteredString = FilterText.ToString();
 		const bool bSearchOff = FilteredString.IsEmpty();
-		for (int32 BoneIndex = 0; BoneIndex < Hierarchy.Bones.Num(); ++BoneIndex)
+		const TArray<FRigBone>& Bones = Hierarchy.GetBones();
+		for (int32 BoneIndex = 0; BoneIndex < Bones.Num(); ++BoneIndex)
 		{
-			FRigBone& Bone = Hierarchy.Bones[BoneIndex];
+			const FRigBone& Bone = Bones[BoneIndex];
 
 			// create new item
 			if (bSearchOff)
 			{
-				TSharedPtr<FRigTreeBone> NewItem = MakeShared<FRigTreeBone>(Hierarchy.Bones[BoneIndex].Name, SharedThis(this));
+				TSharedPtr<FRigTreeBone> NewItem = MakeShared<FRigTreeBone>(Bones[BoneIndex].Name, SharedThis(this));
 				SearchTable.Add(Bone.Name, NewItem);
 
 				if (Bone.ParentName == NAME_None)
@@ -299,7 +301,7 @@ void SRigHierarchy::RefreshTreeView()
 			else if (Bone.Name.ToString().Contains(FilteredString))
 			{
 				// if contains, just list out everything to root
-				TSharedPtr<FRigTreeBone> NewItem = MakeShared<FRigTreeBone>(Hierarchy.Bones[BoneIndex].Name, SharedThis(this));
+				TSharedPtr<FRigTreeBone> NewItem = MakeShared<FRigTreeBone>(Bones[BoneIndex].Name, SharedThis(this));
 				// during search, everything is on root
 				RootBones.Add(NewItem);
 			}
@@ -348,7 +350,7 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeBone> Selection, ESele
 			const int32 BoneIndex = RigHierarchy->GetIndex(Selection->CachedBone);
 			if (BoneIndex != INDEX_NONE)
 			{
-				ControlRigEditor.Pin()->SetDetailStruct(MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&RigHierarchy->Bones[BoneIndex])));
+				ControlRigEditor.Pin()->SetDetailStruct(MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&RigHierarchy->GetBones()[BoneIndex])));
 				ControlRigEditor.Pin()->SelectBone(Selection->CachedBone);
 				return;
 			}
@@ -416,81 +418,16 @@ TSharedPtr< SWidget > SRigHierarchy::CreateContextMenu()
 		MenuBuilder.AddMenuSeparator();
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("ImportSubMenu", "Import"),
-			LOCTEXT("ImportSubMenu_ToolTip", "Import hierarchy to the current rig. This only imports non-existing node. For example, if there is hand_r, it won't import hand_r. \
-				If you want to reimport whole new hiearchy, delete all nodes, and use import hierarchy."),
+			LOCTEXT("ImportSubMenu_ToolTip", "Import hierarchy to the current rig. This overrides the data if it contains the existing node."),
 			FNewMenuDelegate::CreateSP(this, &SRigHierarchy::CreateImportMenu)
 		);
 
-		MenuBuilder.AddMenuSeparator();
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("RefreshSubMenu", "Refresh"),
-			LOCTEXT("RefreshSubMenu_ToolTip", "Refresh the existing initial transform from the selected mesh. This only updates if the node is found."),
-			FNewMenuDelegate::CreateSP(this, &SRigHierarchy::CreateRefreshMenu)
-		);
-	
 		MenuBuilder.EndSection();
 	}
 
 	return MenuBuilder.MakeWidget();
 }
 
-void SRigHierarchy::CreateRefreshMenu(FMenuBuilder& MenuBuilder)
-{
-	MenuBuilder.AddWidget(
-		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(3)
-		[
-			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ControlRig.Hierarchy.Menu"))
-			.Text(LOCTEXT("RefreshMesh_Title", "Select Mesh"))
-			.ToolTipText(LOCTEXT("RefreshMesh_Tooltip", "Select Mesh to refresh transform from... It will refresh init transform from selected mesh. This doesn't change hierarchy. \
-				If you want to reimport hierarchy, please delete all nodes, and use import hierarchy."))
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(3)
-		[
-			SNew(SObjectPropertyEntryBox)
-			.AllowedClass(USkeletalMesh::StaticClass())
-			.OnObjectChanged(this, &SRigHierarchy::RefreshHierarchy)
-		]
-		,
-		FText()
-	);
-}
-
-void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
-{
-	FRigHierarchy* Hier = GetHierarchy();
-	USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset());
-	if (Mesh && Hier)
-	{
-		FScopedTransaction Transaction(LOCTEXT("HierarchyRefresh", "Refresh Transform"));
-		ControlRigBlueprint->Modify();
-
-		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
-		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
-
-		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
-		{
-			// only add if you don't have it. This may change in the future
-			int32 RigIndex = Hier->GetIndex(BoneInfos[BoneIndex].Name);
-			if (RigIndex != INDEX_NONE)
-			{
-				// @todo: add optimized version without sorting, but if no sort, we should make sure not to use find index function
-				Hier->SetInitialTransform(RigIndex, FAnimationRuntime::GetComponentSpaceTransform(RefSkeleton, BonePoses, BoneIndex));
-			}
-		}
-
-		ControlRigEditor.Pin()->OnHierarchyChanged();
-		RefreshTreeView();
-		FSlateApplication::Get().DismissAllMenus();
-	}
-}
 void SRigHierarchy::CreateImportMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.AddWidget(
@@ -510,7 +447,7 @@ void SRigHierarchy::CreateImportMenu(FMenuBuilder& MenuBuilder)
 		.Padding(3)
 		[
 			SNew(SObjectPropertyEntryBox)
-			.AllowedClass(USkeletalMesh::StaticClass())
+			.OnShouldFilterAsset(this, &SRigHierarchy::ShouldFilterOnImport)
 			.OnObjectChanged(this, &SRigHierarchy::ImportHierarchy)
 		]
 		,
@@ -518,33 +455,65 @@ void SRigHierarchy::CreateImportMenu(FMenuBuilder& MenuBuilder)
 	);
 }
 
+bool SRigHierarchy::ShouldFilterOnImport(const FAssetData& AssetData) const
+{
+	return (AssetData.AssetClass != USkeletalMesh::StaticClass()->GetFName() &&
+		AssetData.AssetClass != USkeleton::StaticClass()->GetFName());
+}
+
 void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 {
 	FRigHierarchy* Hier = GetHierarchy();
-	USkeletalMesh* Mesh = Cast<USkeletalMesh> (InAssetData.GetAsset());
-	if (Mesh && Hier)
+	if (Hier)
 	{
-		FScopedTransaction Transaction(LOCTEXT("HierarchyImport", "Import Hierarchy"));
-		ControlRigBlueprint->Modify();
-
-		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
-		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
-		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
-
-		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
+		const FReferenceSkeleton* RefSkeleton = nullptr;
+		if (USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset()))
 		{
-			// only add if you don't have it. This may change in the future
-			if (Hier->GetIndex(BoneInfos[BoneIndex].Name) == INDEX_NONE)
-			{
-				// @todo: add optimized version without sorting, but if no sort, we should make sure not to use find index function
-				FName ParentName = (BoneInfos[BoneIndex].ParentIndex != INDEX_NONE) ? BoneInfos[BoneInfos[BoneIndex].ParentIndex].Name : NAME_None;
-				Hier->AddBone(BoneInfos[BoneIndex].Name, ParentName, FAnimationRuntime::GetComponentSpaceTransform(RefSkeleton, BonePoses, BoneIndex));
-			}
+			RefSkeleton = &Mesh->RefSkeleton;
+			ControlRigBlueprint->SourceHierarchyImport = Mesh;
+		}
+		else if (USkeleton* Skeleton = Cast<USkeleton>(InAssetData.GetAsset()))
+		{
+			RefSkeleton = &Skeleton->GetReferenceSkeleton();
+			ControlRigBlueprint->SourceHierarchyImport = Skeleton;
 		}
 
-		ControlRigEditor.Pin()->OnHierarchyChanged();
-		RefreshTreeView();
-		FSlateApplication::Get().DismissAllMenus();
+		if (RefSkeleton)
+		{
+			FScopedTransaction Transaction(LOCTEXT("HierarchyImport", "Import Hierarchy"));
+			ControlRigBlueprint->Modify();
+
+			const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton->GetRefBoneInfo();
+			const TArray<FTransform>& BonePoses = RefSkeleton->GetRefBonePose();
+
+			for (int32 BoneIndex = 0; BoneIndex < RefSkeleton->GetNum(); ++BoneIndex)
+			{
+				// only add if you don't have it. This may change in the future
+				int32 HierIndex = Hier->GetIndex(BoneInfos[BoneIndex].Name);
+				FTransform InitialTransform = FAnimationRuntime::GetComponentSpaceTransform(*RefSkeleton, BonePoses, BoneIndex);
+				// @todo: add optimized version without sorting, but if no sort, we should make sure not to use find index function
+				FName ParentName = (BoneInfos[BoneIndex].ParentIndex != INDEX_NONE) ? BoneInfos[BoneInfos[BoneIndex].ParentIndex].Name : NAME_None;
+				// if exists, see if we should change parents
+				if (HierIndex != INDEX_NONE)
+				{
+					if (ParentName != Hier->GetParentName(BoneInfos[BoneIndex].Name))
+					{
+						// reparent
+						Hier->Reparent(BoneInfos[BoneIndex].Name, ParentName);
+					}
+
+					Hier->SetInitialTransform(BoneInfos[BoneIndex].Name, InitialTransform);
+				}
+				else
+				{
+					Hier->AddBone(BoneInfos[BoneIndex].Name, ParentName, InitialTransform);
+				}
+			}
+
+			ControlRigEditor.Pin()->OnHierarchyChanged();
+			RefreshTreeView();
+			FSlateApplication::Get().DismissAllMenus();
+		}
 	}
 }
 

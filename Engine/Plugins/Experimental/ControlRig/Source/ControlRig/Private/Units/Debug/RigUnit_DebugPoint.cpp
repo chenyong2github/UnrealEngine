@@ -5,6 +5,7 @@
 
 void FRigUnit_DebugPoint::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		return;
@@ -41,6 +42,7 @@ void FRigUnit_DebugPoint::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_DebugPointMutable::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		return;

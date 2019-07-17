@@ -15,6 +15,7 @@ FAnimNode_ApplyLimits::FAnimNode_ApplyLimits()
 
 void FAnimNode_ApplyLimits::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	DebugLine += "(";
@@ -28,6 +29,7 @@ void FAnimNode_ApplyLimits::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_ApplyLimits::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	checkSlow(OutBoneTransforms.Num() == 0);
 
 	FPoseContext LocalPose0(Output.AnimInstanceProxy);
@@ -96,6 +98,7 @@ void FAnimNode_ApplyLimits::OnInitializeAnimInstance(const FAnimInstanceProxy* I
 
 void FAnimNode_ApplyLimits::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	for (FAngularRangeLimit& AngularLimit : AngularRangeLimits)
 	{
 		AngularLimit.Bone.Initialize(RequiredBones);

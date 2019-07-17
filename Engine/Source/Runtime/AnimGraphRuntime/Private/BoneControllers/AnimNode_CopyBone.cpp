@@ -17,6 +17,7 @@ FAnimNode_CopyBone::FAnimNode_CopyBone()
 
 void FAnimNode_CopyBone::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	
 	DebugLine += "(";
@@ -29,6 +30,7 @@ void FAnimNode_CopyBone::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_CopyBone::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	check(OutBoneTransforms.Num() == 0);
 
 	// Pass through if we're not doing anything.
@@ -86,6 +88,7 @@ bool FAnimNode_CopyBone::IsValidToEvaluate(const USkeleton* Skeleton, const FBon
 
 void FAnimNode_CopyBone::InitializeBoneReferences(const FBoneContainer& RequiredBones) 
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	SourceBone.Initialize(RequiredBones);
 	TargetBone.Initialize(RequiredBones);
 }

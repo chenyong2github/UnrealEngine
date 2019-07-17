@@ -11,6 +11,7 @@
 class UControlRigBlueprint;
 class UControlRigGraphSchema;
 class UControlRig;
+struct FRigCurveContainer;
 
 UCLASS()
 class CONTROLRIGDEVELOPER_API UControlRigGraph : public UEdGraph
@@ -37,6 +38,8 @@ public:
 	FDelegateHandle BlueprintOnCompiledHandle;
 	void CacheBoneNameList(const FRigHierarchy& Hierarchy);
 	const TArray<TSharedPtr<FString>>& GetBoneNameList() const;
+	void CacheCurveNameList(const FRigCurveContainer& Container);
+	const TArray<TSharedPtr<FString>>& GetCurveNameList() const;
 
 	bool bSuspendModelNotifications;
 	bool bIsTemporaryGraphForCopyPaste;
@@ -51,6 +54,7 @@ private:
 	TArray<UControlRigGraphNode*> FoundHierarchyRefMutableNodes;
 	TMap<UControlRigGraphNode*, TArray<UControlRigGraphNode*>> FoundHierarchyRefConnections;
 	TArray<TSharedPtr<FString>> BoneNameList;
+	TArray<TSharedPtr<FString>> CurveNameList;
 #endif
 };
 
