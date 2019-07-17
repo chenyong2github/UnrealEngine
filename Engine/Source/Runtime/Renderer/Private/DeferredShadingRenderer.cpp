@@ -2007,6 +2007,20 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Invalidate the lighting channels
 	SceneContext.LightingChannels.SafeRelease();
 
+
+#if RHI_RAYTRACING
+	// Release resources that were bound to the ray tracing scene to allow them to be immediately recycled.
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		if (View.RayTracingScene.RayTracingSceneRHI)
+		{
+			RHICmdList.ClearRayTracingBindings(View.RayTracingScene.RayTracingSceneRHI);
+			View.RayTracingScene.RayTracingSceneRHI.SafeRelease();
+		}
+	}
+#endif //  RHI_RAYTRACING
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFinish);
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_RenderFinish));
