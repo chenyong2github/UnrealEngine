@@ -14,7 +14,7 @@
 #include "LC_RunMode.h"
 #include "LC_Types.h"
 #include "LC_LiveModule.h"
-#include "LC_VisualStudio.h"
+#include "VisualStudioDTE.h"
 
 
 class MainFrame;
@@ -150,7 +150,7 @@ private:
 	CriticalSection m_restartCS;
 	void* m_restartJob;
 	unsigned int m_restartedProcessCount;
-#if LC_WITH_VISUAL_STUDIO_DTE
+#if WITH_VISUALSTUDIO_DTE
 	types::unordered_map<unsigned int, EnvDTE::DebuggerPtr> m_restartedProcessIdToDebugger;
 #endif
 };

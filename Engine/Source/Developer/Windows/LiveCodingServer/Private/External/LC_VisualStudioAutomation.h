@@ -3,9 +3,9 @@
 #pragma once
 
 #include "LC_Types.h"
-#include "LC_VisualStudio.h"
+#include "VisualStudioDTE.h"
 
-#if LC_WITH_VISUAL_STUDIO_DTE
+#if WITH_VISUALSTUDIO_DTE
 
 namespace visualStudio
 {
