@@ -384,7 +384,8 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			{
 				const float MinTesselation = [&]
 				{
-					if (TessellationMinAngle == 0.f || bUseConstantFactor) {
+					if (TessellationMinAngle == 0.f || bUseConstantFactor)
+					{
 						return static_cast<float>(TessellationFactor);
 					}
 					else
