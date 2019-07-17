@@ -7,7 +7,7 @@
 /**
  * Currently empty implementation for InstallBundleModule until things are moved in here.
  */
-class FInstallBundleModule : public IModuleInterface
+class FInstallBundleManagerModule : public IModuleInterface
 {
 public:
 	// IModuleInterface interface
