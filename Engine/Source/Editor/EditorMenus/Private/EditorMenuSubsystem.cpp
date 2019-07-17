@@ -186,6 +186,7 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 			else
 			{
 				FEditorMenuSection& ConstructedSection = Constructed->AddSection(DestSection->Name);
+				ConstructedSection.Context = Constructed->Context;
 				Block.Construct.Execute(ConstructedSection);
 			}
 
