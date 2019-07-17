@@ -152,7 +152,7 @@ class FSlateBatchData
 {
 public:
 	FSlateBatchData()
-		: FirstRenderBatchIndex(0)
+		: FirstRenderBatchIndex(INDEX_NONE)
 		, NumLayers(0)
 		, NumBatches(0)
 		, bIsStencilBufferRequired(false)
