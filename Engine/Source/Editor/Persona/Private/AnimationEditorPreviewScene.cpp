@@ -352,7 +352,8 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 						}
 						else
 						{
-							UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimPreviewAttacheInstance>(NewComp);
+							bool bWasCreated = false;
+							UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimPreviewAttacheInstance>(NewComp,bWasCreated);
 						}
 
 						AdditionalMeshes.Add(NewComp);

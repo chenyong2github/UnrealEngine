@@ -236,8 +236,12 @@ namespace MovieScene
 			OriginalStack.SavePreAnimatedState(Player, *SkeletalMeshComponent, GetAnimControlTypeID(), FPreAnimatedAnimationTokenProducer());
 
 			UAnimInstance* ExistingAnimInstance = SkeletalMeshComponent->GetAnimInstance();
-
-			UAnimSequencerInstance* SequencerInstance = UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimSequencerInstance>(SkeletalMeshComponent);
+			bool bWasCreated = false;
+			UAnimSequencerInstance* SequencerInstance = UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimSequencerInstance>(SkeletalMeshComponent,bWasCreated);
+			if (bWasCreated)
+			{
+				SequencerInstance->SavePose();
+			}
 
 			const bool bPreviewPlayback = ShouldUsePreviewPlayback(Player, *SkeletalMeshComponent);
 
