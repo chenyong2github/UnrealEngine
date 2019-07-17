@@ -230,14 +230,6 @@ namespace UnrealBuildTool
 				Arguments.Add("/MD");
 			}
 
-			// Enable Windows Runtime extensions.  Do this even for libs (plugins) so that these too can consume WinRT APIs
-			Arguments.Add("/ZW");
-
-			// Don't automatically add metadata references.  We'll do that ourselves to avoid referencing windows.winmd directly:
-			// we've hit problems where types are somehow in windows.winmd on some installations but not others, leading to either
-			// missing or duplicated type references.
-			Arguments.Add("/ZW:nostdlib");
-
 			DirectoryReference PlatformWinMDLocation = HoloLens.GetCppCXMetadataLocation(EnvVars.Compiler, EnvVars.ToolChainDir);
 			if (PlatformWinMDLocation != null)
 			{
@@ -248,6 +240,14 @@ namespace UnrealBuildTool
 
 		static void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
+			// Enable Windows Runtime extensions.  Do this even for libs (plugins) so that these too can consume WinRT APIs
+			Arguments.Add("/ZW");
+
+			// Don't automatically add metadata references.  We'll do that ourselves to avoid referencing windows.winmd directly:
+			// we've hit problems where types are somehow in windows.winmd on some installations but not others, leading to either
+			// missing or duplicated type references.
+			Arguments.Add("/ZW:nostdlib");
+
 			// Explicitly compile the file as C++.
 			Arguments.Add("/TP");
 
