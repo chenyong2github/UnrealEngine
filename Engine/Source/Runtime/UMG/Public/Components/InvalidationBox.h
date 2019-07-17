@@ -25,7 +25,7 @@ public:
 	/**
 	 * 
 	 */
-	UFUNCTION(BlueprintCallable, Category="Invalidation Box", meta=(DeprecatedFunction))
+	UFUNCTION(BlueprintCallable, Category="Invalidation Box")
 	void InvalidateCache();
 
 	/**
