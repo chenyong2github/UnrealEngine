@@ -462,6 +462,13 @@ FAutoConsoleVariableRef CVarAllowCursorQueries(
 	TEXT("")
 );
 
+int32 bRequireFocusForGamepadInput = 0;
+FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
+	TEXT("Slate.RequireFocusForGamepadInput"),
+	bRequireFocusForGamepadInput,
+	TEXT("")
+);
+
 #if !UE_BUILD_SHIPPING
 
 static void HandleGlobalInvalidate(const TArray<FString>& Args)
@@ -474,15 +481,10 @@ static FAutoConsoleCommand GlobalInvalidateCommand(
 	TEXT("Triggers a global invalidate of all widgets"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(&HandleGlobalInvalidate)
 );
-
-int32 bRequireFocusForGamepadInput = 0;
-FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
-	TEXT("Slate.RequireFocusForGamepadInput"),
-	bRequireFocusForGamepadInput,
-	TEXT("")
-);
-
 #endif
+
+
+
 
 //////////////////////////////////////////////////////////////////////////
 bool FSlateApplication::MouseCaptorHelper::HasCapture() const
