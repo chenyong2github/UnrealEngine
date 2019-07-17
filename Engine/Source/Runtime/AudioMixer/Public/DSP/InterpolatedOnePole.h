@@ -66,6 +66,7 @@ namespace Audio
 		int32 NumInterpSteps;
 		float SampleRate{ 0 };
 		int32 NumChannels{ 1 };
+		int32 isFirstFrequencyChange : 1;
 
 	}; // class Interpolated Low pass filter
 
@@ -139,5 +140,7 @@ namespace Audio
 		float SampleRate{ 0 };
 		float NyquistLimit{ 0.0f };
 		int32 NumChannels{ 1 };
+		int32 isFirstFrequencyChange : 1;
+	
 	}; // class Interpolated High pass filter
 } // namespace Audio
