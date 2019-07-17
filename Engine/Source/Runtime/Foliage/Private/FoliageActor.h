@@ -17,6 +17,7 @@ struct FFoliageActor : public FFoliageImpl
 	{
 	}
 
+	virtual void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector) override;
 	virtual void Serialize(FArchive& Ar) override;
 	void DestroyActors(bool bOnLoad);
 

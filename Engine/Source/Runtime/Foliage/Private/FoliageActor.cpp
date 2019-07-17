@@ -9,6 +9,16 @@ FName FoliageActorTag(TEXT("FoliageActorInstance"));
 //
 //
 // FFoliageActor
+void FFoliageActor::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	for (AActor* Actor : ActorInstances)
+	{
+		if (Actor != nullptr)
+		{
+			Collector.AddReferencedObject(Actor, InThis);
+		}
+	}
+}
 
 void FFoliageActor::Serialize(FArchive& Ar)
 {
