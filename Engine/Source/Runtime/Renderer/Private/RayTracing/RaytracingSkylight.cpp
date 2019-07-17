@@ -78,6 +78,13 @@ static TAutoConsoleVariable<int32> CVarRayTracingSkyLightEnableMaterials(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarRayTracingSkyLightDecoupleSampleGeneration(
+	TEXT("r.RayTracing.SkyLight.DecoupleSampleGeneration"),
+	1,
+	TEXT("Decouples sample generation from ray traversal (default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
 bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy)
 {
 	if (SkyLightSceneProxy != nullptr)
@@ -173,8 +180,9 @@ class FRayTracingSkyLightRGS : public FGlobalShader
 
 	class FEnableTwoSidedGeometryDim : SHADER_PERMUTATION_BOOL("ENABLE_TWO_SIDED_GEOMETRY");
 	class FEnableMaterialsDim : SHADER_PERMUTATION_BOOL("ENABLE_MATERIALS");
+	class FDecoupleSampleGeneration : SHADER_PERMUTATION_BOOL("DECOUPLE_SAMPLE_GENERATION");
 
-	using FPermutationDomain = TShaderPermutationDomain<FEnableTwoSidedGeometryDim, FEnableMaterialsDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FEnableTwoSidedGeometryDim, FEnableMaterialsDim, FDecoupleSampleGeneration>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -191,6 +199,8 @@ class FRayTracingSkyLightRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
 		SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
 		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<SkyLightVisibilityRays>, SkyLightVisibilityRays)
+		SHADER_PARAMETER(FIntVector, SkyLightVisibilityRaysDimensions)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSProfilesTexture)
@@ -781,12 +791,115 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingSkyLight(const FViewInfo& V
 	{
 		for (uint32 EnableMaterialsIndex = 0; EnableMaterialsIndex < 2; ++EnableMaterialsIndex)
 		{
-			PermutationVector.Set<FRayTracingSkyLightRGS::FEnableTwoSidedGeometryDim>(TwoSidedGeometryIndex != 0);
-			PermutationVector.Set<FRayTracingSkyLightRGS::FEnableMaterialsDim>(EnableMaterialsIndex != 0);
-			TShaderMapRef<FRayTracingSkyLightRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
-			OutRayGenShaders.Add(RayGenerationShader->GetRayTracingShader());
+			for (uint32 DecoupleSampleGeneration = 0; DecoupleSampleGeneration < 2; ++DecoupleSampleGeneration)
+			{
+				PermutationVector.Set<FRayTracingSkyLightRGS::FEnableTwoSidedGeometryDim>(TwoSidedGeometryIndex != 0);
+				PermutationVector.Set<FRayTracingSkyLightRGS::FEnableMaterialsDim>(EnableMaterialsIndex != 0);
+				PermutationVector.Set<FRayTracingSkyLightRGS::FDecoupleSampleGeneration>(DecoupleSampleGeneration != 0);
+				TShaderMapRef<FRayTracingSkyLightRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
+				OutRayGenShaders.Add(RayGenerationShader->GetRayTracingShader());
+			}
 		}
 	}
+}
+
+struct FSkyLightVisibilityRays
+{
+	FVector4 DirectionAndPdf;
+};
+
+class FGenerateSkyLightVisibilityRaysCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGenerateSkyLightVisibilityRaysCS);
+	SHADER_USE_PARAMETER_STRUCT(FGenerateSkyLightVisibilityRaysCS, FGlobalShader);
+
+	static const uint32 kGroupSize = 16;
+	using FPermutationDomain = FShaderPermutationNone;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("TILE_SIZE"), kGroupSize);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		// Input
+		SHADER_PARAMETER(FIntVector, Dimensions)
+		SHADER_PARAMETER(int32, SamplesPerPixel)
+		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
+
+		SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
+		SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
+		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
+
+		// Output
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FSkyLightVisibilityRays>, OutSkyLightVisibilityRays)
+		END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FGenerateSkyLightVisibilityRaysCS, "/Engine/Private/RayTracing/GenerateSkyLightVisibilityRaysCS.usf", "MainCS", SF_Compute);
+
+void FDeferredShadingSceneRenderer::GenerateSkyLightVisibilityRays(
+	FRDGBuilder& GraphBuilder,
+	FRDGBufferRef& SkyLightVisibilityRaysBuffer,
+	FIntVector& Dimensions
+)
+{
+	FRHIResourceCreateInfo CreateInfo;
+	CreateInfo.DebugName = TEXT("SkyLightVisibilityRays");
+
+	// SkyLight data setup
+	FSkyLightData SkyLightData;
+	SetupSkyLightParameters(*Scene, &SkyLightData);
+	uint32 SamplesPerPixel = GRayTracingSkyLightSamplesPerPixel >= 0 ? GRayTracingSkyLightSamplesPerPixel : Scene->SkyLight->SamplesPerPixel;
+	SkyLightData.SamplesPerPixel = SamplesPerPixel;
+	SkyLightData.MaxRayDistance = GRayTracingSkyLightMaxRayDistance;
+	SkyLightData.SamplingStopLevel = GRayTracingSkyLightSamplingStopLevel;
+
+	// Sampling state
+	FHaltonPrimes HaltonPrimes;
+	InitializeHaltonPrimes(Scene->HaltonPrimesResource, HaltonPrimes);
+
+	FBlueNoise BlueNoise;
+	InitializeBlueNoise(BlueNoise);
+	Dimensions = FIntVector(BlueNoise.Dimensions.X, BlueNoise.Dimensions.Y, 0);
+
+	// Halton iteration
+	uint32 IterationCount = FMath::Max(SamplesPerPixel, 1u);
+	uint32 SequenceCount = 1;
+	uint32 DimensionCount = 3;
+	FHaltonSequenceIteration HaltonSequenceIteration(Scene->HaltonSequence, IterationCount, SequenceCount, DimensionCount, Views[0].ViewState ? (Views[0].ViewState->FrameIndex % 1024) : 0);
+
+	FHaltonIteration HaltonIteration;
+	InitializeHaltonSequenceIteration(HaltonSequenceIteration, HaltonIteration);
+
+	// Output structured buffer creation
+	FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FSkyLightVisibilityRays), Dimensions.X * Dimensions.Y * SkyLightData.SamplesPerPixel);
+	SkyLightVisibilityRaysBuffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("SkyLightVisibilityRays"));
+
+	// Compute Pass parameter definition
+	FGenerateSkyLightVisibilityRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGenerateSkyLightVisibilityRaysCS::FParameters>();
+	PassParameters->Dimensions = FIntVector(Dimensions.X, Dimensions.Y, 0);
+	PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
+	PassParameters->HaltonPrimes = CreateUniformBufferImmediate(HaltonPrimes, EUniformBufferUsage::UniformBuffer_SingleDraw);
+	PassParameters->BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
+	PassParameters->HaltonIteration = CreateUniformBufferImmediate(HaltonIteration, EUniformBufferUsage::UniformBuffer_SingleDraw);
+	PassParameters->OutSkyLightVisibilityRays = GraphBuilder.CreateUAV(SkyLightVisibilityRaysBuffer, EPixelFormat::PF_R32_UINT);
+
+	TShaderMapRef<FGenerateSkyLightVisibilityRaysCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("GenerateSkyLightVisibilityRays"),
+		*ComputeShader,
+		PassParameters,
+		FComputeShaderUtils::GetGroupCount(FIntPoint(Dimensions.X, Dimensions.Y), FGenerateSkyLightVisibilityRaysCS::kGroupSize)
+	);
 }
 
 void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
@@ -823,6 +936,18 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	}
 
 	FRDGBuilder GraphBuilder(RHICmdList);
+	FRDGBufferRef SkyLightVisibilityRaysBuffer;
+	FIntVector SkyLightVisibilityRaysDimensions;
+	if (CVarRayTracingSkyLightDecoupleSampleGeneration.GetValueOnRenderThread() == 1)
+	{
+		GenerateSkyLightVisibilityRays(GraphBuilder, SkyLightVisibilityRaysBuffer, SkyLightVisibilityRaysDimensions);
+	}
+	else
+	{
+		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FSkyLightVisibilityRays), 1);
+		SkyLightVisibilityRaysBuffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("SkyLightVisibilityRays"));
+		SkyLightVisibilityRaysDimensions = FIntVector(1);
+	}
 
 	// Define RDG targets
 	FRDGTextureRef SkyLightTexture;
@@ -872,6 +997,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
 	PassParameters->HaltonPrimes = CreateUniformBufferImmediate(HaltonPrimes, EUniformBufferUsage::UniformBuffer_SingleDraw);
 	PassParameters->BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
+	PassParameters->SkyLightVisibilityRaysDimensions = SkyLightVisibilityRaysDimensions;
+	if (CVarRayTracingSkyLightDecoupleSampleGeneration.GetValueOnRenderThread() == 1)
+	{
+		PassParameters->SkyLightVisibilityRays = GraphBuilder.CreateSRV(SkyLightVisibilityRaysBuffer, EPixelFormat::PF_R32_UINT);
+	}
 	PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(SubsurfaceProfileRT);
 	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->SceneTextures = SceneTextures;
@@ -879,7 +1009,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
-
 
 		// Halton iteration
 		uint32 IterationCount = FMath::Max(SamplesPerPixel, 1u);
@@ -898,6 +1027,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		FRayTracingSkyLightRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRayTracingSkyLightRGS::FEnableTwoSidedGeometryDim>(CVarRayTracingSkyLightEnableTwoSidedGeometry.GetValueOnRenderThread() != 0);
 		PermutationVector.Set<FRayTracingSkyLightRGS::FEnableMaterialsDim>(CVarRayTracingSkyLightEnableMaterials.GetValueOnRenderThread() != 0);
+		PermutationVector.Set<FRayTracingSkyLightRGS::FDecoupleSampleGeneration>(CVarRayTracingSkyLightDecoupleSampleGeneration.GetValueOnRenderThread() != 0);
 		TShaderMapRef<FRayTracingSkyLightRGS> RayGenerationShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 		ClearUnusedGraphResources(*RayGenerationShader, PassParameters);
 
