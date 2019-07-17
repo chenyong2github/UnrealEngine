@@ -652,9 +652,8 @@ void UWidgetComponent::Serialize(FArchive& Ar)
 
 void UWidgetComponent::BeginPlay()
 {
-	Super::BeginPlay();
-
 	InitWidget();
+	Super::BeginPlay();
 }
 
 void UWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
