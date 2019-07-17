@@ -712,7 +712,7 @@ void FFractureEditorModeToolkit::OnSetShowBoneColors()
 
 void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)
 {
-	if (!FMath::IsNearlyEqual(ExplodeAmount,NewValue, .01f))
+	if ( FMath::Abs<float>( ExplodeAmount - NewValue ) >= .01f)
 	{
 		ExplodeAmount = NewValue;
 
@@ -741,6 +741,8 @@ void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)
 				}
 			}
 		}
+		
+		GCurrentLevelEditingViewportClient->Invalidate();
 	}
 }
 
@@ -808,6 +810,8 @@ void FFractureEditorModeToolkit::OnSetLevelViewValue(int32 NewValue)
 		}
 	}
 	SetOutlinerComponents(GeomCompSelection.Array());
+
+	GCurrentLevelEditingViewportClient->Invalidate();
 }
 
 void FFractureEditorModeToolkit::ViewUpOneLevel()
