@@ -6,8 +6,8 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 {
 #if RDG_ENABLE_DEBUG
 	{
-		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 		checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture: %s"), Name);
+		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 		checkf(Name, TEXT("Externally allocated texture requires a debug name when registering them to render graph."));
 	}
 #endif
@@ -33,8 +33,8 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 {
 #if RDG_ENABLE_DEBUG
 	{
-		Validation.ExecuteGuard(TEXT("RegisterExternalBuffer"), Name);
 		checkf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer: %s"), Name);
+		Validation.ExecuteGuard(TEXT("RegisterExternalBuffer"), Name);
 	}
 #endif
 
@@ -61,9 +61,8 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 {
 #if RDG_ENABLE_DEBUG
 	{
-		Validation.ExecuteGuard(TEXT("CreateTexture"), Name);
-
 		checkf(Name, TEXT("Creating a render graph texture requires a valid debug name."));
+		Validation.ExecuteGuard(TEXT("CreateTexture"), Name);
 		checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
 
 		const bool bCanHaveUAV = Desc.TargetableFlags & TexCreate_UAV;
@@ -89,8 +88,8 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 {
 #if RDG_ENABLE_DEBUG
 	{
-		Validation.ExecuteGuard(TEXT("CreateBuffer"), Name);
 		checkf(Name, TEXT("Creating a render graph buffer requires a valid debug name."));
+		Validation.ExecuteGuard(TEXT("CreateBuffer"), Name);
 	}
 #endif
 
@@ -107,8 +106,8 @@ inline FRDGTextureSRVRef FRDGBuilder::CreateSRV(const FRDGTextureSRVDesc& Desc)
 
 #if RDG_ENABLE_DEBUG
 	{
-		Validation.ExecuteGuard(TEXT("CreateSRV"), Texture->Name);
 		checkf(Texture, TEXT("RenderGraph texture SRV created with a null texture."));
+		Validation.ExecuteGuard(TEXT("CreateSRV"), Texture->Name);
 		checkf(Desc.Texture->Desc.TargetableFlags & TexCreate_ShaderResource, TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"), Desc.Texture->Name);
 	}
 #endif
@@ -122,8 +121,8 @@ inline FRDGBufferSRVRef FRDGBuilder::CreateSRV(const FRDGBufferSRVDesc& Desc)
 
 #if RDG_ENABLE_DEBUG
 	{
-		Validation.ExecuteGuard(TEXT("CreateSRV"), Buffer->Name);
 		checkf(Buffer, TEXT("RenderGraph buffer SRV created with a null buffer."));
+		Validation.ExecuteGuard(TEXT("CreateSRV"), Buffer->Name);
 	}
 #endif
 
@@ -136,8 +135,8 @@ inline FRDGTextureUAVRef FRDGBuilder::CreateUAV(const FRDGTextureUAVDesc& Desc)
 
 #if RDG_ENABLE_DEBUG
 	{
-		Validation.ExecuteGuard(TEXT("CreateUAV"), Texture->Name);
 		checkf(Texture, TEXT("RenderGraph texture UAV created with a null texture."));
+		Validation.ExecuteGuard(TEXT("CreateUAV"), Texture->Name);
 		checkf(Texture->Desc.TargetableFlags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Texture->Name);
 	}
 #endif
@@ -151,8 +150,8 @@ inline FRDGBufferUAVRef FRDGBuilder::CreateUAV(const FRDGBufferUAVDesc& Desc)
 
 #if RDG_ENABLE_DEBUG
 	{
-		Validation.ExecuteGuard(TEXT("CreateUAV"), Buffer->Name);
 		checkf(Buffer, TEXT("RenderGraph buffer UAV created with a null buffer."));
+		Validation.ExecuteGuard(TEXT("CreateUAV"), Buffer->Name);
 	}
 #endif
 
