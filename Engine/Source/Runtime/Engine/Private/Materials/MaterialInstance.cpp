@@ -3073,11 +3073,13 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		else
 		{
+			const bool bLoadedByCookedMaterial = FPlatformProperties::RequiresCookedData() || GetOutermost()->bIsCookedForEditor;
+
 			FMaterialResource LegacyResource;
 			LegacyResource.LegacySerialize(Ar);
 
 			FMaterialShaderMapId LegacyId;
-			LegacyId.Serialize(Ar);
+			LegacyId.Serialize(Ar, bLoadedByCookedMaterial);
 
 			const FStaticParameterSet& IdParameterSet = LegacyId.GetParameterSet();
 			StaticParameters.StaticSwitchParameters = IdParameterSet.StaticSwitchParameters;
