@@ -897,7 +897,10 @@ FCurveEditorTreeItemID FSequencerNodeTree::AddToCurveEditor(TSharedRef<FSequence
 {
 	if (FCurveEditorTreeItemID* Existing = CurveEditorTreeItemIDs.Find(DisplayNode))
 	{
-		return *Existing;
+		if (CurveEditor->GetTree()->FindItem(*Existing) != nullptr)
+		{
+			return *Existing;
+		}
 	}
 
 	TSharedPtr<FSequencerDisplayNode> Parent = DisplayNode->GetParent();
@@ -914,5 +917,9 @@ FCurveEditorTreeItemID FSequencerNodeTree::AddToCurveEditor(TSharedRef<FSequence
 FCurveEditorTreeItemID FSequencerNodeTree::FindCurveEditorTreeItem(TSharedRef<FSequencerDisplayNode> DisplayNode) const
 {
 	const FCurveEditorTreeItemID* FoundID = CurveEditorTreeItemIDs.Find(DisplayNode);
-	return FoundID ? *FoundID : FCurveEditorTreeItemID::Invalid();
+	if (FoundID && Sequencer.GetCurveEditor()->GetTree()->FindItem(*FoundID) != nullptr)
+	{
+		return *FoundID;
+	}
+	return FCurveEditorTreeItemID::Invalid();
 }
