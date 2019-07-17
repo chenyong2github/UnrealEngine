@@ -706,7 +706,7 @@ void FFractureEditorModeToolkit::OnSetShowBoneColors()
 		Comp->MarkRenderStateDirty();
 		Comp->MarkRenderDynamicDataDirty();
 	}
-
+	GCurrentLevelEditingViewportClient->Invalidate();
 }
 
 
