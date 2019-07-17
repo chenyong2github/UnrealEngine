@@ -88,7 +88,7 @@ struct FInvalidatedWidgetDrawer
 
 			FSlateDrawElement::MakeBox(
 				ElementList,
-				MyState.OutgoingLayerId+1,
+				MyState.OutgoingLayerId + 1,
 				MyState.AllottedGeometry.ToPaintGeometry(),
 				WhiteBrush,
 				ESlateDrawEffect::None,
@@ -268,7 +268,10 @@ void FSlateDebugging::WidgetInvalidated(FSlateInvalidationRoot& InvalidationRoot
 	{
 		int32 Index = WidgetProxy.Index;
 	
-		FInvalidatedWidgetDrawer* Drawer = InvalidatedWidgetDrawers.FindByPredicate([Index](FInvalidatedWidgetDrawer& InDrawer) { return InDrawer.ProxyHandle.GetIndex() == Index; });
+		FInvalidatedWidgetDrawer* Drawer = InvalidatedWidgetDrawers.FindByPredicate([&InvalidationRoot, Index](FInvalidatedWidgetDrawer& InDrawer) { 
+			return InDrawer.ProxyHandle.GetInvalidationRoot() == &InvalidationRoot && InDrawer.ProxyHandle.GetIndex() == Index;
+		});
+
 		if (!Drawer) 
 		{
 			Drawer = &InvalidatedWidgetDrawers.Emplace_GetRef(FWidgetProxyHandle(InvalidationRoot, WidgetProxy.Index));
