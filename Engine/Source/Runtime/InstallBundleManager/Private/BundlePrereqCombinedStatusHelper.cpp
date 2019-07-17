@@ -5,12 +5,12 @@
 #include "InstallBundleManagerPrivatePCH.h"
 
 FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper()
-: RequiredBundleNames()
+: DownloadWeight(1.f)
+, InstallWeight(1.f)
+, RequiredBundleNames()
 , BundleStatusCache()
 , CachedBundleWeights()
 , CurrentCombinedStatus()
-, DownloadWeight(1.f)
-, InstallWeight(1.f)
 , bBundleNeedsUpdate(false)
 , InstallBundleManager(nullptr)
 , TickHandle()
@@ -23,13 +23,69 @@ FBundlePrereqCombinedStatusHelper::~FBundlePrereqCombinedStatusHelper()
 	CleanUpDelegates();
 }
 
+FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper(const FBundlePrereqCombinedStatusHelper& Other)
+{
+	*this = Other;
+}
+
+FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper(FBundlePrereqCombinedStatusHelper&& Other)
+{
+	*this = MoveTemp(Other);
+}
+
+FBundlePrereqCombinedStatusHelper& FBundlePrereqCombinedStatusHelper::operator=(const FBundlePrereqCombinedStatusHelper& Other)
+{
+	if (this != &Other)
+	{
+		//Just copy all this data
+		DownloadWeight = Other.DownloadWeight;
+		InstallWeight = Other.InstallWeight;
+		RequiredBundleNames = Other.RequiredBundleNames;
+		BundleStatusCache = Other.BundleStatusCache;
+		CachedBundleWeights = Other.CachedBundleWeights;
+		CurrentCombinedStatus = Other.CurrentCombinedStatus;
+		bBundleNeedsUpdate = Other.bBundleNeedsUpdate;
+		InstallBundleManager = Other.InstallBundleManager;
+		
+		//Don't copy TickHandle as we want to setup our own here
+		SetupDelegates();
+	}
+	
+	return *this;
+}
+
+FBundlePrereqCombinedStatusHelper& FBundlePrereqCombinedStatusHelper::operator=(FBundlePrereqCombinedStatusHelper&& Other)
+{
+	if (this != &Other)
+	{
+		//Just copy small data
+		DownloadWeight = Other.DownloadWeight;
+		InstallWeight = Other.InstallWeight;
+		CurrentCombinedStatus = Other.CurrentCombinedStatus;
+		bBundleNeedsUpdate = Other.bBundleNeedsUpdate;
+		InstallBundleManager = Other.InstallBundleManager;
+
+		//Move bigger data
+		RequiredBundleNames = MoveTemp(Other.RequiredBundleNames);
+		BundleStatusCache = MoveTemp(Other.BundleStatusCache);
+		CachedBundleWeights = MoveTemp(Other.CachedBundleWeights);
+
+		//Prevent other from having callbacks now that its information is gone
+		Other.CleanUpDelegates();
+	
+		//Don't copy TickHandle as we want to setup our own here
+		SetupDelegates();
+	}
+	
+	return *this;
+}
+
 void FBundlePrereqCombinedStatusHelper::SetupDelegates()
 {
+	CleanUpDelegates();
+	
 	IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete);
-	if (!TickHandle.IsValid())
-	{
-		TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FBundlePrereqCombinedStatusHelper::Tick));
-	}
+	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FBundlePrereqCombinedStatusHelper::Tick));
 }
 
 void FBundlePrereqCombinedStatusHelper::CleanUpDelegates()
