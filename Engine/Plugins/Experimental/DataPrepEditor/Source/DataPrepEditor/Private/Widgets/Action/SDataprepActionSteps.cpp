@@ -5,8 +5,9 @@
 #include "DataPrepOperation.h"
 #include "DataprepActionAsset.h"
 #include "DataprepEditorStyle.h"
-#include "SchemaActions/DataprepDragDropOp.h"
+#include "DataprepEditorUtils.h"
 #include "SchemaActions/DataprepAllMenuActionCollector.h"
+#include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepFilter.h"
 #include "Widgets/Action/SDataprepFilter.h"
@@ -196,8 +197,14 @@ void SDataprepActionSteps::Construct(const FArguments& InArgs, UDataprepActionAs
 
 	if ( InDataprepAction )
 	{
-		InDataprepAction->GetOnStepsOrderChanged().AddSP( this, &SDataprepActionSteps::Refresh );
+		InDataprepAction->GetOnStepsOrderChanged().AddSP( this, &SDataprepActionSteps::OnStepsOrderChanged );
 	}
+}
+
+void SDataprepActionSteps::OnStepsOrderChanged()
+{
+	Refresh();
+	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( DataprepActionPtr.Get() );
 }
 
 void SDataprepActionSteps::Refresh()
