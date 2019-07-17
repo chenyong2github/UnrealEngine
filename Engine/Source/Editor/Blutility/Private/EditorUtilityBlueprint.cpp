@@ -10,13 +10,3 @@ UEditorUtilityBlueprint::UEditorUtilityBlueprint(const FObjectInitializer& Objec
 	: Super(ObjectInitializer)
 {
 }
-
-#if WITH_EDITORONLY_DATA
-void UEditorUtilityBlueprint::LoadModulesRequiredForCompilation()
-{
-	Super::LoadModulesRequiredForCompilation();
-
-	static const FName ModuleName(TEXT("Blutility"));
-	FModuleManager::Get().LoadModule(ModuleName);
-}
-#endif //WITH_EDITORONLY_DATA
