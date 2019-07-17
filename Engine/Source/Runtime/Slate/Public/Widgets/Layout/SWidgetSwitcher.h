@@ -153,7 +153,7 @@ protected:
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 	virtual FVector2D ComputeDesiredSize( float ) const override;
 	virtual FChildren* GetChildren( ) override;
-
+	virtual bool ComputeVolatility() const override { return WidgetIndex.IsBound(); }
 	const FSlot* GetActiveSlot() const;
 
 private:

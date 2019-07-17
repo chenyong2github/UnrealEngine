@@ -172,7 +172,7 @@ private:
 	void OnPreviewNeedsRecreation();
 
 	void PopulateWidgetGeometryCache(FArrangedWidget& Root);
-	void PopulateWidgetGeometryCache_Loop(FArrangedWidget& Parent, int32 ParentHitTestIndex);
+	void PopulateWidgetGeometryCache_Loop(FArrangedWidget& Parent);
 
 	/** @return Formatted text for the given resolution params */
 	FText GetResolutionText(int32 Width, int32 Height, const FString& AspectRatio) const;

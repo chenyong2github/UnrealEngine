@@ -130,17 +130,17 @@ void SGameLayerManager::SetSceneViewport(FSceneViewport* InSceneViewport)
 	DebugCanvas->SetSceneViewport(InSceneViewport);
 }
 
-const FGeometry& SGameLayerManager::GetViewportWidgetHostGeometry() const
+FGeometry SGameLayerManager::GetViewportWidgetHostGeometry() const
 {
-	return WidgetHost->GetCachedGeometry();
+	return WidgetHost->GetTickSpaceGeometry();
 }
 
-const FGeometry& SGameLayerManager::GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const
+FGeometry SGameLayerManager::GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const
 {
 	TSharedPtr<FPlayerLayer> PlayerLayer = PlayerLayers.FindRef(Player);
 	if ( PlayerLayer.IsValid() )
 	{
-		return PlayerLayer->Widget->GetCachedGeometry();
+		return PlayerLayer->Widget->GetTickSpaceGeometry();
 	}
 
 	static FGeometry Identity;
@@ -256,9 +256,11 @@ void SGameLayerManager::ClearWidgets()
 
 void SGameLayerManager::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	CachedGeometry = AllottedGeometry;
-
-	UpdateLayout();
+	if (AllottedGeometry != CachedGeometry)
+	{
+		CachedGeometry = AllottedGeometry;
+		UpdateLayout();
+	}
 }
 
 int32 SGameLayerManager::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const

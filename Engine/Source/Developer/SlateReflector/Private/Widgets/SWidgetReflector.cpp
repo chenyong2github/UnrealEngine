@@ -285,7 +285,9 @@ private:
 		if (PickingMode != InMode)
 		{
 			// Disable visual picking, and renable widget caching.
-			SInvalidationPanel::SetEnableWidgetCaching(true);
+#if WITH_SLATE_DEBUGGING
+			SInvalidationPanel::EnableInvalidationPanels(true);
+#endif
 			VisualCapture.Disable();
 
 			// Enable the picking mode.
@@ -295,14 +297,18 @@ private:
 			if (PickingMode == EWidgetPickingMode::HitTesting)
 			{
 				VisualCapture.Reset();
-				SInvalidationPanel::SetEnableWidgetCaching(false);
+#if WITH_SLATE_DEBUGGING
+				SInvalidationPanel::EnableInvalidationPanels(false);
+#endif
 				VisualCapture.Reset();
 			}
 			// If we're using the drawing picking mode enable it!
 			else if (PickingMode == EWidgetPickingMode::Drawable)
 			{
 				VisualCapture.Enable();
-				SInvalidationPanel::SetEnableWidgetCaching(false);
+#if WITH_SLATE_DEBUGGING
+				SInvalidationPanel::EnableInvalidationPanels(false);
+#endif
 			}
 		}
 	}
@@ -582,11 +588,17 @@ void SWidgetReflector::Construct( const FArguments& InArgs )
 					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 					.IsChecked_Lambda([&]()
 					{
-						return SInvalidationPanel::GetEnableWidgetCaching() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+#if WITH_SLATE_DEBUGGING
+						return SInvalidationPanel::AreInvalidationPanelsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+#else
+						return ECheckBoxState::Unchecked;
+#endif
 					})
 					.OnCheckStateChanged_Lambda([&](const ECheckBoxState NewState)
 					{
-						SInvalidationPanel::SetEnableWidgetCaching(( NewState == ECheckBoxState::Checked ) ? true : false);
+#if WITH_SLATE_DEBUGGING
+						SInvalidationPanel::EnableInvalidationPanels(( NewState == ECheckBoxState::Checked ) ? true : false);
+#endif
 					})
 					[
 						SNew(SBox)
@@ -609,11 +621,11 @@ void SWidgetReflector::Construct( const FArguments& InArgs )
 					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 					.IsChecked_Lambda([&]()
 					{
-						return SInvalidationPanel::IsInvalidationDebuggingEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						return GSlateInvalidationDebugging ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 					})
 					.OnCheckStateChanged_Lambda([&](const ECheckBoxState NewState)
 					{
-						SInvalidationPanel::EnableInvalidationDebugging(( NewState == ECheckBoxState::Checked ) ? true : false);
+						GSlateInvalidationDebugging = ( NewState == ECheckBoxState::Checked ) ? true : false;
 					})
 					[
 						SNew(SBox)

@@ -55,13 +55,17 @@ void SViewport::Construct( const FArguments& InArgs )
 
 void SViewport::SetActive(bool bActive)
 {
-	if (bActive && !ActiveTimerHandle.IsValid())
+	// In game enviroments the viewport is always active
+	if(GIsEditor || IS_PROGRAM)
 	{
-		ActiveTimerHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SViewport::EnsureTick));
-	}
-	else if (!bActive && ActiveTimerHandle.IsValid())
-	{
-		UnRegisterActiveTimer(ActiveTimerHandle.Pin().ToSharedRef());
+		if (bActive && !ActiveTimerHandle.IsValid())
+		{
+			ActiveTimerHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SViewport::EnsureTick));
+		}
+		else if (!bActive && ActiveTimerHandle.IsValid())
+		{
+			UnRegisterActiveTimer(ActiveTimerHandle.Pin().ToSharedRef());
+		}
 	}
 }
 
@@ -78,9 +82,6 @@ int32 SViewport::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	bool bEnabled = ShouldBeEnabled( bParentEnabled );
 	bool bShowDisabledEffect = ShowDisabledEffect.Get();
 	ESlateDrawEffect DrawEffects = bShowDisabledEffect && !bEnabled ? ESlateDrawEffect::DisabledEffect : ESlateDrawEffect::None;
-
-	int32 LastHitTestIndex = Args.GetLastHitTestIndex();
-
 
 	// Viewport texture alpha channels are often in an indeterminate state, even after the resolve,
 	// so we'll tell the shader to not use the alpha channel when blending
@@ -172,7 +173,7 @@ int32 SViewport::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	// If there are any custom hit testable widgets in the 3D world we need to register their custom hit test path here.
 	if ( CustomHitTestPath.IsValid() )
 	{
-		Args.InsertCustomHitTestPath(CustomHitTestPath.ToSharedRef(), LastHitTestIndex);
+		Args.InsertCustomHitTestPath(this, CustomHitTestPath.ToSharedRef());
 	}
 
 	return Layer;

@@ -53,7 +53,9 @@ public:
 		, _FillImage(nullptr)
 		, _MarqueeImage(nullptr)
 		, _RefreshRate(2.0f)
-		{}
+		{
+			_Visibility = EVisibility::SelfHitTestInvisible;
+		}
 
 		/** Style used for the progress bar */
 		SLATE_STYLE_ARGUMENT( FProgressBarStyle, Style )
