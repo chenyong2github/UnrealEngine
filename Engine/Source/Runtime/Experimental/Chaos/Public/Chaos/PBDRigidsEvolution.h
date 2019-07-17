@@ -114,7 +114,7 @@ class TPBDRigidsEvolutionBase
 	 */
 	CHAOS_API void EnableParticle(const int32 ParticleIndex, const int32 ParentParticleIndex)
 	{
-		Particles.Disabled(ParticleIndex) = false;
+		Particles.SetDisabledLowLevel(ParticleIndex, false);
 		NonDisabledIndices.Add(ParticleIndex);
 		ActiveIndices.Add(ParticleIndex);
 
@@ -123,7 +123,7 @@ class TPBDRigidsEvolutionBase
 
 	CHAOS_API void DisableParticle(const int32 ParticleIndex)
 	{
-		Particles.Disabled(ParticleIndex) = true;
+		Particles.SetDisabledLowLevel(ParticleIndex, true);
 		NonDisabledIndices.Remove(ParticleIndex);
 		ActiveIndices.Remove(ParticleIndex);
 
@@ -141,7 +141,7 @@ class TPBDRigidsEvolutionBase
 	{
 		for (int32 ParticleIndex : InParticleIndices)
 		{
-			Particles.Disabled(ParticleIndex) = true;
+			Particles.SetDisabledLowLevel(ParticleIndex, true);
 			NonDisabledIndices.Remove(ParticleIndex);
 			ActiveIndices.Remove(ParticleIndex);
 		}
