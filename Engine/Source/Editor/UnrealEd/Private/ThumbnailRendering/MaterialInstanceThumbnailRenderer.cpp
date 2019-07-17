@@ -65,11 +65,11 @@ void UMaterialInstanceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y,
 			FSceneViewFamilyContext ViewFamily( FSceneViewFamily::ConstructionValues( RenderTarget, ThumbnailScene->GetScene(), FEngineShowFlags(ESFIM_Game) )
 				.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime));
 
+
 			ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
-			ViewFamily.EngineShowFlags.SetSeparateTranslucency(true);
+			ViewFamily.EngineShowFlags.SetSeparateTranslucency(ThumbnailScene->ShouldSetSeparateTranslucency(MatInst));
 			ViewFamily.EngineShowFlags.MotionBlur = 0;
 			ViewFamily.EngineShowFlags.AntiAliasing = 0;
-
 			ThumbnailScene->GetView(&ViewFamily, X, Y, Width, Height);
 
 			if (ViewFamily.Views.Num() > 0)
