@@ -6,6 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Toolkits/BaseToolkit.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "AutoClusterFracture.h"
 
@@ -102,6 +103,15 @@ public:
 	void SetAutoClusterSiteCount(uint32 InSiteCount);
 	uint32 GetAutoClusterSiteCount() const;
 
+	/** Fracture Group Layout Management */
+	SSplitter::ESizeRule GetFractureGroupSizeRule() const { return bFractureGroupExpanded ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; }
+	void OnFractureGroupExpansionChanged(bool bExpanded) { bFractureGroupExpanded = bExpanded; }
+
+	/** Outliner Group Layout Management */
+	SSplitter::ESizeRule GetOutlinerGroupSizeRule() const { return bOutlinerGroupExpanded ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; }
+	void OnOutlinerGroupExpansionChanged(bool bExpanded) { bOutlinerGroupExpanded = bExpanded; }
+
+
 protected:
 	static bool IsGeometryCollectionSelected();
 	static bool IsStaticMeshSelected();
@@ -118,9 +128,8 @@ private:
 
 	UFractureTool* ActiveTool;
 
-	// TSharedPtr<SVerticalBox::Slot> FractureAreaSlot;
-	SVerticalBox::FSlot* InnerFractureSlot = nullptr;
-	SVerticalBox::FSlot* InnerOutlinerSlot = nullptr;
+	bool bFractureGroupExpanded = true;
+	bool bOutlinerGroupExpanded = true;
 	
 	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<SWidget> ToolkitWidget;
