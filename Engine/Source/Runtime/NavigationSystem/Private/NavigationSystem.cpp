@@ -2330,6 +2330,11 @@ void UNavigationSystemV1::AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flag
 	}
 }
 
+int32 UNavigationSystemV1::GetNumDirtyAreas() const
+{
+	return DefaultDirtyAreasController.GetNumDirtyAreas();
+}
+
 bool UNavigationSystemV1::HasDirtyAreasQueued() const
 {
 	return DefaultDirtyAreasController.IsDirty();
@@ -2524,7 +2529,7 @@ void UNavigationSystemV1::UpdateAttachedActorsInNavOctree(AActor& RootActor)
 	if (GetAllAttachedActors(RootActor, UniqueAttachedActors) > 0)
 	{
 		for (AActor* AttachedActor : UniqueAttachedActors)
-	{
+		{
 			UpdateActorAndComponentsInNavOctree(*AttachedActor, /*bUpdateAttachedActors=*/false);
 		}
 	}
@@ -2569,7 +2574,7 @@ void UNavigationSystemV1::UpdateNavOctreeElement(UObject* ElementOwner, INavRele
 void UNavigationSystemV1::UpdateNavOctreeParentChain(UObject* ElementOwner, bool bSkipElementOwnerUpdate)
 {
 	if (ElementOwner)
-		{
+	{
 		FNavigationDataHandler(DefaultOctreeController, DefaultDirtyAreasController).UpdateNavOctreeParentChain(*ElementOwner, bSkipElementOwnerUpdate);
 	}
 }

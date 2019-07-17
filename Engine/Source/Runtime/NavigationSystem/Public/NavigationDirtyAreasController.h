@@ -30,7 +30,8 @@ struct NAVIGATIONSYSTEM_API FNavigationDirtyAreasController
 	void Tick(float DeltaSeconds, const TArray<ANavigationData*>& NavDataSet, bool bForceRebuilding = false);
 	void AddArea(const FBox& NewArea, int32 Flags);
 	
-	bool IsDirty() const { return DirtyAreas.Num() > 0; }
+	bool IsDirty() const { return GetNumDirtyAreas() > 0; }
+	int32 GetNumDirtyAreas() const { return DirtyAreas.Num(); }
 
 #if !UE_BUILD_SHIPPING
 	bool HadDirtyAreasReportedWhileAccumulationLocked() const { return bCanAccumulateDirtyAreas == false && bDirtyAreasReportedWhileAccumulationLocked; }
