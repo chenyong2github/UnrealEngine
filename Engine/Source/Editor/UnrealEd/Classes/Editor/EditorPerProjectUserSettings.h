@@ -32,6 +32,10 @@ class UEditorPerProjectUserSettings : public UObject
 	UPROPERTY(EditAnywhere, config, Category = AI)
 	uint32 bAlwaysGatherBehaviorTreeDebuggerData : 1;
 
+	/** If enabled, blackboard keys displayed in blackboard editor and key selector will be sorted in alphabetical order . */
+	UPROPERTY(EditAnywhere, config, Category = AI)
+	uint32 bDisplayBlackboardKeysInAlphabeticalOrder : 1;
+
 	/** When enabled, Engine Version Number is displayed in the ProjectBadge */
 	UPROPERTY(EditAnywhere, config, Category = DeveloperTools, meta = (DisplayName = "Display Engine Version Number in Project Badge", ConfigRestartRequired = true))
 	bool bDisplayEngineVersionInBadge;
