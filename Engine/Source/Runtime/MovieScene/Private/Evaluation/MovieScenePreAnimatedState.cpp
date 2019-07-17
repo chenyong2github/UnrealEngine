@@ -304,6 +304,27 @@ void FMovieScenePreAnimatedState::RestorePreAnimatedState(IMovieScenePlayer& Pla
 	}
 }
 
+void FMovieScenePreAnimatedState::RestorePreAnimatedState(IMovieScenePlayer& Player, UClass* GeneratedClass)
+{
+	for (auto& ObjectTokenPair : ObjectTokens)
+	{
+		UObject* Object = ObjectTokenPair.Key.ResolveObjectPtr();
+		if (Object)
+		{
+			if (Object->IsA(GeneratedClass) || Object->GetOuter()->IsA(GeneratedClass))
+			{
+				ObjectTokenPair.Value.Restore(Player);
+
+				for (auto& Pair : EntityToAnimatedObjects)
+				{
+					Pair.Value.Remove(ObjectTokenPair.Key);
+				}
+			}
+		}
+	}
+}
+
+
 void FMovieScenePreAnimatedState::RestorePreAnimatedState(IMovieScenePlayer& Player, UObject& Object, TFunctionRef<bool(FMovieSceneAnimTypeID)> InFilter)
 {
 	auto* FoundObjectTokens = ObjectTokens.Find(&Object);
