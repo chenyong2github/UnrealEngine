@@ -1944,6 +1944,9 @@ namespace ObjectTools
 				}
 			}
 		}
+
+		// Let the level browser that we deleted a level (must happen after physically deleting the package file as it will rescan the folders)
+		FEditorDelegates::RefreshLevelBrowser.Broadcast();
 	}
 
 	int32 DeleteAssets( const TArray<FAssetData>& AssetsToDelete, bool bShowConfirmation )

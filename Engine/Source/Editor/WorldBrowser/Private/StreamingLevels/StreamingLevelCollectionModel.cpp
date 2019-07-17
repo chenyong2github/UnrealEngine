@@ -37,14 +37,11 @@ FStreamingLevelCollectionModel::FStreamingLevelCollectionModel()
 	{
 		AddedLevelStreamingClass = DefaultLevelStreamingClass;
 	}
-
-	FEditorDelegates::RefreshLevelBrowser.AddRaw(this, &FStreamingLevelCollectionModel::PopulateLevelsList);
 }
 
 FStreamingLevelCollectionModel::~FStreamingLevelCollectionModel()
 {
 	GEditor->UnregisterForUndo( this );
-	FEditorDelegates::RefreshLevelBrowser.RemoveAll(this);
 }
 
 void FStreamingLevelCollectionModel::Initialize(UWorld* InWorld)
