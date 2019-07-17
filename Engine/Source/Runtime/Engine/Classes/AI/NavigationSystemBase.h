@@ -156,7 +156,6 @@ namespace FNavigationSystem
 
 	ENGINE_API bool WantsComponentChangeNotifies();
 
-	//ENGINE_API INavigationDataInterface* GetNavDataForProps(const FNavAgentProperties& AgentProperties);
 	ENGINE_API INavigationDataInterface* GetNavDataForActor(const AActor& Actor);
 	ENGINE_API TSubclassOf<AActor> GetDefaultNavDataClass();
 
@@ -249,6 +248,7 @@ protected:
 	static void SetDefaultWalkableArea(TSubclassOf<UNavAreaBase> InAreaClass);
 	static void SetDefaultObstacleArea(TSubclassOf<UNavAreaBase> InAreaClass);
 
+	static void ResetEventDelegates();
 	static FNavigationSystem::FActorBasedSignature& UpdateActorDataDelegate();
 	static FNavigationSystem::FActorComponentBasedSignature& UpdateComponentDataDelegate();
 	static FNavigationSystem::FSceneComponentBasedSignature& UpdateComponentDataAfterMoveDelegate();
