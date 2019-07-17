@@ -256,22 +256,130 @@ static void InferCurrentQualityLevel(const FString& InGroupName, int32& OutQuali
 	}
 }
 
-static void SetGroupQualityLevel(const TCHAR* InGroupName, int32 InQualityLevel, int32 InNumLevels)
+
+FString GetScalabilitySectionString(const TCHAR* InGroupName, int32 InQualityLevel, int32 InNumLevels)
 {
 	check(InNumLevels > 0);
 	const int32 MaxLevel = InNumLevels - 1;
 	InQualityLevel = FMath::Clamp(InQualityLevel, 0, MaxLevel);
-
-//	UE_LOG(LogConsoleResponse, Display, TEXT("  %s %d"), InGroupName, InQualityLevel);
+	FString Result;
 
 	if (InQualityLevel == MaxLevel)
 	{
-		ApplyCVarSettingsGroupFromIni(InGroupName, TEXT("Cine"), *GScalabilityIni, ECVF_SetByScalability);
+		Result = FString::Printf(TEXT("%s@Cine"), InGroupName);
 	}
 	else
 	{
-		ApplyCVarSettingsGroupFromIni(InGroupName, InQualityLevel, *GScalabilityIni, ECVF_SetByScalability);
-	}	
+		Result = FString::Printf(TEXT("%s@%d"), InGroupName, InQualityLevel);
+	}
+
+	return Result;
+}
+
+#if WITH_EDITOR
+FName PlatformScalabilityName; // The name of the current platform scalability, or NAME_None if none is active
+FString PlatformScalabilityIniFilename;
+TMap<IConsoleVariable*, FString> PlatformScalabilityCVarBackup;
+TSet<const IConsoleVariable*> PlatformScalabilityCVarWhitelist;
+TSet<const IConsoleVariable*> PlatformScalabilityCVarBlacklist;
+
+void UndoPlatformScalability()
+{
+	// Reapply all CVars to the previous values  
+	for (auto It = PlatformScalabilityCVarBackup.CreateIterator(); It; ++It)
+	{
+		It.Key()->Set(*It.Value(), ECVF_SetByScalability);
+	}
+	PlatformScalabilityCVarBackup.Empty();
+}
+
+void ApplyScalabilityGroupFromPlatformIni(const TCHAR* InSectionName, const TCHAR* InIniFilename)
+{
+	UE_LOG(LogConfig, Log, TEXT("Applying CVar settings from Section [%s] File [%s]"), InSectionName, InIniFilename);
+
+	TFunction<void(IConsoleVariable*, const FString&, const FString&)> Func = [&](IConsoleVariable* CVar, const FString& KeyString, const FString& ValueString)
+	{
+		// Check the blacklist and whitelist
+		if (!PlatformScalabilityCVarBlacklist.Contains(CVar) && (PlatformScalabilityCVarWhitelist.Num() == 0 || PlatformScalabilityCVarWhitelist.Contains(CVar)))
+		{
+			// Backup cvar we're going to overwrite with the platform specific
+			if (!PlatformScalabilityCVarBackup.Contains(CVar))
+			{
+				PlatformScalabilityCVarBackup.Add(CVar, CVar->GetString());
+			}
+
+			// Apply the platform override
+			UE_LOG(LogConfig, Log, TEXT("Setting CVar [[%s:%s]]"), *KeyString, *ValueString);
+			CVar->Set(*ValueString, ECVF_SetByScalability);
+		}			   
+	};
+			
+	ForEachCVarInSectionFromIni(InSectionName, InIniFilename, Func);
+}
+
+void ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName)
+{
+	if (PlatformScalabilityName != NAME_None)
+	{
+		// restore any modified CVar values and reapply the scalability settings for the default Editor platform
+		UndoPlatformScalability();
+		PlatformScalabilityName = NAME_None;
+		FQualityLevels State = Scalability::GetQualityLevels();
+		Scalability::SetQualityLevels(State);
+	}
+
+	if (NewPlatformScalabilityName != NAME_None)
+	{
+		PlatformScalabilityName = NewPlatformScalabilityName;
+		FString PlatformString = NewPlatformScalabilityName.ToString();
+		FConfigCacheIni::LoadGlobalIniFile(PlatformScalabilityIniFilename, TEXT("Scalability"), *PlatformString, true);
+
+		// load blacklist and whitelist of cvars we can set when previewing this platform
+		PlatformScalabilityCVarWhitelist.Empty();
+		TArray<FString> WhitelistCVarNames;
+		GConfig->GetArray(TEXT("ScalabilityPreview"), TEXT("WhitelistCVars"), WhitelistCVarNames, *PlatformScalabilityIniFilename);
+		for (const FString& CVarName : WhitelistCVarNames)
+		{
+			const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarName);
+			if (CVar)
+			{
+				PlatformScalabilityCVarWhitelist.Add(CVar);
+			}
+		}
+		PlatformScalabilityCVarBlacklist.Empty();
+		TArray<FString> BlacklistCVarNames;
+		GConfig->GetArray(TEXT("ScalabilityPreview"), TEXT("BlacklistCVars"), BlacklistCVarNames, *PlatformScalabilityIniFilename);
+		for (const FString& CVarName : BlacklistCVarNames)
+		{
+			const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarName);
+			if (CVar)
+			{
+				PlatformScalabilityCVarBlacklist.Add(CVar);
+			}
+		}
+		
+		// apply scalability
+		FQualityLevels State = Scalability::GetQualityLevels();
+		Scalability::SetQualityLevels(State);
+	}
+}
+#endif
+
+static void SetGroupQualityLevel(const TCHAR* InGroupName, int32 InQualityLevel, int32 InNumLevels)
+{
+//	UE_LOG(LogConsoleResponse, Display, TEXT("  %s %d"), InGroupName, InQualityLevel);
+	FString Section = GetScalabilitySectionString(InGroupName, InQualityLevel, InNumLevels);
+
+#if WITH_EDITOR
+	if (PlatformScalabilityName != NAME_None)
+	{
+		ApplyScalabilityGroupFromPlatformIni(*Section, *PlatformScalabilityIniFilename);
+	}
+	else
+#endif
+	{
+		ApplyCVarSettingsFromIni(*Section, *GScalabilityIni, ECVF_SetByScalability);
+	}
 }
 
 float GetResolutionScreenPercentage()
@@ -812,6 +920,13 @@ FQualityLevels GetQualityLevelCounts()
 	Result.FoliageQuality = CVarFoliageQuality_NumLevels->GetInt();
 	return Result;
 }
+
+void LoadPlatformScalability(FString PlatformName)
+{
+	
+
+}
+
 
 }
 
