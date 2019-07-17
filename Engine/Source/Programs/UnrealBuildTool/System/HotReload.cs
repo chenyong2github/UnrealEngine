@@ -129,14 +129,14 @@ namespace UnrealBuildTool
 		public static bool IsLiveCodingSessionActive(TargetMakefile Makefile)
 		{
 			// Find the first output executable
-			FileItem Executable = Makefile.OutputItems.FirstOrDefault(x => x.HasExtension(".exe"));
+			FileReference Executable = Makefile.ExecutableFile;
 			if(Executable != null)
 			{
 				// Build the mutex name. This should match the name generated in LiveCodingModule.cpp.
 				StringBuilder MutexName = new StringBuilder("Global\\LiveCoding_");
-				for(int Idx = 0; Idx < Executable.AbsolutePath.Length; Idx++)
+				for(int Idx = 0; Idx < Executable.FullName.Length; Idx++)
 				{
-					char Character = Executable.AbsolutePath[Idx];
+					char Character = Executable.FullName[Idx];
 					if(Character == '/' || Character == '\\' || Character == ':')
 					{
 						MutexName.Append('+');
