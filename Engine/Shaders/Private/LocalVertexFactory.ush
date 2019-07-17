@@ -87,9 +87,13 @@ float3 SplineMeshY;
 #define MANUAL_VERTEX_FETCH 0
 #endif
 
-
-
 #if MANUAL_VERTEX_FETCH
+	#define VF_ColorIndexMask_Index 0
+	#define VF_NumTexcoords_Index 1
+	#define FV_LightMapIndex_Index 2
+	#define VF_VertexOffset 3
+
+#if !USE_INSTANCING_EMULATED
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
 	Buffer<float4> VertexFetch_InstanceTransformBuffer;
 	Buffer<float4> VertexFetch_InstanceLightmapBuffer;
@@ -99,13 +103,9 @@ float3 SplineMeshY;
 		Buffer<uint> VertexFetch_InstanceBoneMapBuffer;
 	#endif
 
-	uint InstanceOffset; 
-
-	#define VF_ColorIndexMask_Index 0
-	#define VF_NumTexcoords_Index 1
-	#define FV_LightMapIndex_Index 2
-	#define VF_VertexOffset 3
-#endif
+	uint InstanceOffset;
+#endif //! !USE_INSTANCING_EMULATED
+#endif //! MANUAL_VERTEX_FETCH
 
 /**
  * Per-vertex inputs from bound vertex buffers
