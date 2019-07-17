@@ -6697,8 +6697,17 @@ protected:
 
 	virtual int32 VirtualTextureOutput() override
 	{
-		MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput = true;
-		
+		if (Material->GetMaterialDomain() == MD_RuntimeVirtualTexture)
+		{
+			// RuntimeVirtualTextureOutput would priority over the output material attributes here
+			// But that could be considered confusing for the user so we error instead
+			Errorf(TEXT("RuntimeVirtualTextureOutput nodes are not used when the Material Domain is set to 'Virtual Texture'"));
+		}
+		else
+		{
+			MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput = true;
+		}
+
 		// return value is not used
 		return INDEX_NONE;
 	}
