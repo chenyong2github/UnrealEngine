@@ -178,7 +178,7 @@ public:
 	/** Which attribute should we use for ribbon facing when generating ribbons?*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RibbonFacingBinding;
-
+	
 	/** Which attribute should we use for ribbon id when generating ribbons?*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RibbonIdBinding;
