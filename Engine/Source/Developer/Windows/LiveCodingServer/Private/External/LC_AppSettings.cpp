@@ -443,7 +443,9 @@ void appSettings::Startup(const wchar_t* group)
 		L"install_compiled_patches_multi_process",
 		L"Install compiled patches",
 		L"Specifies whether compiled patches are installed into launched processes belonging to an existing process group",
-		false
+		// BEGIN EPIC MOD - changing default for restart functionality
+		true
+		// END EPIC MOD
 	);
 
 	g_amalgamationSplitIntoSingleParts = new SettingBool
