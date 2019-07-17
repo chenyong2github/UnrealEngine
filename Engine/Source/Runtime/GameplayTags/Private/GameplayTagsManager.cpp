@@ -1287,6 +1287,11 @@ FString UGameplayTagsManager::GetCategoriesMetaFromPropertyHandle(TSharedPtr<IPr
 		return DelegateOverrideString;
 	}
 
+	return StaticGetCategoriesMetaFromPropertyHandle(PropertyHandle);
+}
+
+FString UGameplayTagsManager::StaticGetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle)
+{
 	FString Categories;
 
 	auto GetMetaData = ([&](UField* Field)
