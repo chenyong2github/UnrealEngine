@@ -2659,6 +2659,14 @@ void UAbilitySystemComponent::CurrentMontageStop(float OverrideBlendOutTime)
 	}
 }
 
+void UAbilitySystemComponent::StopMontageIfCurrent(const UAnimMontage& Montage, float OverrideBlendOutTime)
+{
+	if (&Montage == LocalAnimMontageInfo.AnimMontage)
+	{
+		CurrentMontageStop(OverrideBlendOutTime);
+	}
+}
+
 void UAbilitySystemComponent::ClearAnimatingAbility(UGameplayAbility* Ability)
 {
 	if (LocalAnimMontageInfo.AnimatingAbility == Ability)
