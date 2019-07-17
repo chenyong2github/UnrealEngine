@@ -11,7 +11,7 @@
 FTileLODEntryDetails::FTileLODEntryDetails()
 	// Initialize properties with default values from FWorldTileLODInfo
 	: LODIndex(0)
-	, Distance(FWorldTileLODInfo().RelativeStreamingDistance)
+	, RelativeDistance(FWorldTileLODInfo().RelativeStreamingDistance)
 {
 }
 
@@ -44,12 +44,12 @@ void UWorldTileDetails::SetInfo(const FWorldTileInfo& Info, ULevel* Level)
 	{
 		if (Info.LODList.IsValidIndex(i))
 		{
-			LODEntries[i]->Distance = Info.LODList[i].RelativeStreamingDistance;
+			LODEntries[i]->RelativeDistance = Info.LODList[i].RelativeStreamingDistance;
 			LODEntries[i]->SimplificationDetails = Level ? Level->LevelSimplification[i] : FLevelSimplificationDetails();
 		}
 		else
 		{
-			LODEntries[i]->Distance = FWorldTileLODInfo().RelativeStreamingDistance;
+			LODEntries[i]->RelativeDistance = FWorldTileLODInfo().RelativeStreamingDistance;
 			LODEntries[i]->SimplificationDetails = FLevelSimplificationDetails();
 		}
 	}
@@ -72,7 +72,7 @@ FWorldTileInfo UWorldTileDetails::GetInfo() const
 	const FTileLODEntryDetails* LODEntries[WORLDTILE_LOD_MAX_INDEX] = {&LOD1, &LOD2, &LOD3, &LOD4};
 	for (int32 i = 0; i < Info.LODList.Num(); ++i)
 	{
-		Info.LODList[i].RelativeStreamingDistance = LODEntries[i]->Distance;
+		Info.LODList[i].RelativeStreamingDistance = LODEntries[i]->RelativeDistance;
 	}
 	
 	return Info;
