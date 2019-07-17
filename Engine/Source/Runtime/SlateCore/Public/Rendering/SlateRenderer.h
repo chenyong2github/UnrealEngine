@@ -467,6 +467,7 @@ public:
 	virtual void ClearScenes() = 0;
 
 	virtual void DestroyCachedFastPathRenderingData(struct FSlateCachedFastPathRenderingData* VertexData);
+	virtual void DestroyCachedFastPathElementData(struct FSlateCachedElementData* ElementData);
 
 	virtual bool HasLostDevice() const { return false; }
 
