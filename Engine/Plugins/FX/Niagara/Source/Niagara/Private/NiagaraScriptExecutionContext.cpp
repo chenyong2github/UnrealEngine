@@ -156,6 +156,7 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 {
 	if (NumInstances == 0)
 	{
+		DataSetInfo.Reset();
 		return true;
 	}
 
