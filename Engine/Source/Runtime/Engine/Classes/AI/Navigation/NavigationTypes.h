@@ -24,7 +24,6 @@
 #define DEFAULT_NAV_QUERY_EXTENT_VERTICAL 250.f
 
 class AActor;
-class ANavigationData;
 class INavAgentInterface;
 class INavRelevantInterface;
 class ULevel;
@@ -48,6 +47,11 @@ namespace FNavigationSystem
 	FORCEINLINE bool IsValidLocation(const FVector& TestLocation)
 	{
 		return TestLocation != InvalidLocation;
+	}
+
+	FORCEINLINE bool BoxesAreSame(const FBox& A, const FBox& B)
+	{
+		return FVector::PointsAreSame(A.Min, B.Min) && FVector::PointsAreSame(A.Max, B.Max);
 	}
 }
 
@@ -467,8 +471,6 @@ struct ENGINE_API FNavAgentProperties : public FMovementProperties
 	float NavWalkingSearchHeightScale;
 
 	/** Type of navigation data used by agent, null means "any" */
-	/*UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MovementProperties)
-	TSubclassOf<ANavigationData> PreferredNavData;*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MovementProperties, meta=(MetaClass = "NavigationData"))
 	FSoftClassPath PreferredNavData;
 	
@@ -506,10 +508,7 @@ struct ENGINE_API FNavAgentProperties : public FMovementProperties
 			: INVALID_NAVEXTENT;
 	}
 
-	void SetPreferredNavData(TSubclassOf<AActor> NavDataClass)
-	{
-		PreferredNavData = FSoftClassPath(NavDataClass.Get());
-	}
+	void SetPreferredNavData(TSubclassOf<AActor> NavDataClass);
 
 	static const FNavAgentProperties DefaultProperties;
 };
@@ -533,15 +532,38 @@ struct ENGINE_API FNavDataConfig : public FNavAgentProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Querying)
 	FVector DefaultQueryExtent;
 
-	// mz@todo make sure we handle NavigationDataClass and NavigationDataClassName in PostEditChange
+	UE_DEPRECATED(4.24, "FNavDataConfig.NavigationDataClass is deprecated and setting it directly has no effect. Please use setter and getter functions instead.")
 	UPROPERTY(Transient)
-	TSubclassOf<AActor> NavigationDataClass;
+	mutable TSubclassOf<AActor> NavigationDataClass;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Navigation, meta=(MetaClass = "NavigationData"))
+#if WITH_EDITOR
+	// used to be a UPROPERTY, but had to remove it so that it doesn't interfere
+	// with property redirects
+	UE_DEPRECATED(4.24, "FNavDataConfig.NavigationDataClassName is deprecated. Please use setter and getter functions instead.")
 	FSoftClassPath NavigationDataClassName;
+#endif // WITH_EDITOR
 
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (MetaClass = "NavigationData"))
+	TSoftClassPtr<AActor> NavDataClass;
+
+public:	
 	FNavDataConfig(float Radius = FNavigationSystem::FallbackAgentRadius, float Height = FNavigationSystem::FallbackAgentHeight);
 	FNavDataConfig(const FNavDataConfig& Other);
+
+	void SetNavDataClass(UClass* InNavDataClass);
+	void SetNavDataClass(TSoftClassPtr<AActor> InNavDataClass);
+	
+	template<typename T>
+	TSubclassOf<T> GetNavDataClass() const { return TSubclassOf<T>(NavDataClass.Get()); }
+
+#if WITH_EDITOR
+	static FName GetNavigationDataClassPropertyName()
+	{
+		static const FName NAME_NavigationDataClass = GET_MEMBER_NAME_CHECKED(FNavDataConfig, NavDataClass);
+		return NAME_NavigationDataClass;
+	}
+#endif // WITH_EDITOR
 };
 
 struct FNavigationProjectionWork
@@ -707,4 +729,3 @@ struct ENGINE_API FNavHeightfieldSamples
 
 	FORCEINLINE bool IsEmpty() const { return Heights.Num() == 0; }
 };
-
