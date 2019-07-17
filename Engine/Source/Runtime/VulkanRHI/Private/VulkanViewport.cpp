@@ -361,8 +361,8 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		if (InRTInfo.bHasResolveAttachments)
 		{
 			FRHITexture* ResolveRHITexture = InRTInfo.ColorResolveRenderTarget[Index].Texture;
-			ColorResolveTargetImages[Index] = Texture->Surface.Image;
 			FVulkanTextureBase* ResolveTexture = FVulkanTextureBase::Cast(ResolveRHITexture);
+			ColorResolveTargetImages[Index] = ResolveTexture->Surface.Image;
 
 			//resolve attachments only supported for 2d/2d array textures
 			FVulkanTextureView ResolveRTView;
