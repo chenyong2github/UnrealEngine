@@ -28,6 +28,7 @@ void FRichCurveEditorModel::Modify()
 {
 	if (UObject* Owner = WeakOwner.Get())
 	{
+		Owner->SetFlags(RF_Transactional);
 		Owner->Modify();
 	}
 }
