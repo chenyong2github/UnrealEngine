@@ -6,6 +6,7 @@
 #include "RenderGraphEvent.h"
 #include "RenderGraphResources.h"
 #include "RenderGraphPass.h"
+#include "RenderGraphValidation.h"
 #include "ShaderParameterMacros.h"
 
 /** Builds the per-frame render graph.
@@ -17,7 +18,7 @@ class RENDERCORE_API FRDGBuilder
 public:
 	/** A RHI cmd list is required, if using the immediate mode. */
 	FRDGBuilder(FRHICommandListImmediate& InRHICmdList);
-	~FRDGBuilder();
+	FRDGBuilder(const FRDGBuilder&) = delete;
 
 	/** Register a external texture to be tracked by the render graph. */
 	FRDGTextureRef RegisterExternalTexture(
@@ -117,8 +118,11 @@ public:
 	 */
 	void QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr);
 
-	/** Flag a texture that is only produced by only 1 pass, but never used or extracted, to avoid generating a warning at runtime. */
+	/** Flag a texture that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
 	void RemoveUnusedTextureWarning(FRDGTextureRef Texture);
+
+	/** Flag a buffer that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
+	void RemoveUnusedBufferWarning(FRDGBufferRef Buffer);
 
 	/** Begins / ends a named event scope. These scopes are visible in most external GPU profilers.
 	 *  Prefer to use RDG_EVENT_SCOPE instead of calling this manually.
@@ -179,17 +183,9 @@ private:
 	FRDGStatScopeStack StatScopeStack;
 
 #if RDG_ENABLE_DEBUG
-	/** All recently allocated pass parameter structure, but not used by a AddPass() yet. */
-	TSet<const void*> AllocatedUnusedPassParameters;
-
-	/** List of tracked resources for validation prior to shutdown. */
-	TArray<FRDGTrackedResourceRef, SceneRenderingAllocator> TrackedResources;
-
-	/** Whether the Execute() has already been called. */
-	bool bHasExecuted = false;
+	FRDGUserValidation Validation;
 #endif
 
-	void ValidatePass(const FRDGPass* Pass) const;
 	void VisualizePassOutputs(const FRDGPass* Pass);
 
 	void WalkGraphDependencies();
@@ -207,9 +203,6 @@ private:
 
 	void ExecutePass(const FRDGPass* Pass);
 	void PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets);
-
-	void UpdateAccessGuardForPassResources(const FRDGPass* Pass, bool bAllowAccess);
-	void UnmarkUsedResources(const FRDGPass* Pass);
 
 	void ReleaseRHITextureIfUnreferenced(FRDGTexture* Texture);
 	void ReleaseRHIBufferIfUnreferenced(FRDGBuffer* Buffer);
