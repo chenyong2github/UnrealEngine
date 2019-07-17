@@ -836,13 +836,15 @@ static void BlueprintActionDatabaseImpl::GetNodeSpecificActions(TSubclassOf<UEdG
 		check(NodeCDO != nullptr);
 		NodeCDO->GetMenuActions(Registrar);
 	}
+
+
 	// unfortunately, UEdGraphNode_Comment is not a UK2Node and therefore cannot
 	// leverage UK2Node's GetMenuActions() function, so here we HACK it in
 	//
 	// @TODO: DO NOT follow this example! Do as I say, not as I do! If we need
 	//        to support other nodes in a similar way, then we should come up
 	//        with a better (more generalized) solution.
-	else if (NodeClass == UEdGraphNode_Comment::StaticClass())
+	if (NodeClass == UEdGraphNode_Comment::StaticClass())
 	{
 		Registrar.AddBlueprintAction(MakeCommentNodeSpawner());
 	}
@@ -1033,7 +1035,6 @@ static bool BlueprintActionDatabaseImpl::IsObjectValidForDatabase(UObject const*
  ******************************************************************************/
 
 static FBlueprintActionDatabase* DatabaseInst = nullptr;
-
 //------------------------------------------------------------------------------
 FBlueprintActionDatabase& FBlueprintActionDatabase::Get()
 {

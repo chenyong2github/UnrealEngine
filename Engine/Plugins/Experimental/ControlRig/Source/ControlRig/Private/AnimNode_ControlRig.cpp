@@ -21,6 +21,8 @@ FAnimNode_ControlRig::FAnimNode_ControlRig()
 
 void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (ControlRigClass)
 	{
 		ControlRig = NewObject<UControlRig>(InAnimInstance->GetOwningComponent(), ControlRigClass);
@@ -49,6 +51,8 @@ FAnimNode_ControlRig::~FAnimNode_ControlRig()
 }
 void FAnimNode_ControlRig::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugLine += FString::Printf(TEXT("(%s)"), *GetNameSafe(ControlRigClass.Get()));
 	DebugData.AddDebugItem(DebugLine);
@@ -57,6 +61,8 @@ void FAnimNode_ControlRig::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_ControlRig::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FAnimNode_ControlRigBase::Update_AnyThread(Context);
 	GetEvaluateGraphExposedInputs().Execute(Context);
 	PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
@@ -65,6 +71,8 @@ void FAnimNode_ControlRig::Update_AnyThread(const FAnimationUpdateContext& Conte
 
 void FAnimNode_ControlRig::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FAnimNode_ControlRigBase::Initialize_AnyThread(Context);
 
 	Source.Initialize(Context);
@@ -72,11 +80,13 @@ void FAnimNode_ControlRig::Initialize_AnyThread(const FAnimationInitializeContex
 
 void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FAnimNode_ControlRigBase::CacheBones_AnyThread(Context);
 	Source.CacheBones(Context);
 
 	FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
-	CurveMappingUIDs.Reset();
+	InputToCurveMappingUIDs.Reset();
 	TArray<FName> const& UIDToNameLookUpTable = RequiredBones.GetUIDToNameLookupTable();
 
 	auto CacheCurveMappingUIDs = [&](const TMap<FName, FName>& Mapping, TArray<FName> const& InUIDToNameLookUpTable, 
@@ -94,7 +104,7 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 				if (Found != INDEX_NONE)
 				{
 					// set value - sound should be UID
-					CurveMappingUIDs.Add(Iter.Value()) = Found;
+					InputToCurveMappingUIDs.Add(Iter.Value()) = Found;
 				}
 				else
 				{
@@ -113,6 +123,8 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 
 void FAnimNode_ControlRig::Evaluate_AnyThread(FPoseContext & Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// If not playing a montage, just pass through
 	Source.Evaluate(Output);
 
@@ -122,6 +134,8 @@ void FAnimNode_ControlRig::Evaluate_AnyThread(FPoseContext & Output)
 
 void FAnimNode_ControlRig::PostSerialize(const FArchive& Ar)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// after compile, we have to reinitialize
 	// because it needs new execution code
 	// since memory has changed
@@ -136,6 +150,8 @@ void FAnimNode_ControlRig::PostSerialize(const FArchive& Ar)
 
 void FAnimNode_ControlRig::UpdateInput(UControlRig* InControlRig, const FPoseContext& InOutput)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FAnimNode_ControlRigBase::UpdateInput(InControlRig, InOutput);
 	// now go through variable mapping table and see if anything is mapping through input
 	if (InputMapping.Num() > 0 && InControlRig)
@@ -148,7 +164,7 @@ void FAnimNode_ControlRig::UpdateInput(UControlRig* InControlRig, const FPoseCon
 			{
 				const FName CurveName = Iter.Value();
 
-				SmartName::UID_Type UID = *CurveMappingUIDs.Find(CurveName);
+				SmartName::UID_Type UID = *InputToCurveMappingUIDs.Find(CurveName);
 				if (UID != SmartName::MaxUID)
 				{
 					const float Value = InOutput.Curve.Get(UID);
@@ -167,6 +183,8 @@ void FAnimNode_ControlRig::UpdateInput(UControlRig* InControlRig, const FPoseCon
 
 void FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext& InOutput)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FAnimNode_ControlRigBase::UpdateOutput(InControlRig, InOutput);
 
 	// update output curves
@@ -185,7 +203,7 @@ void FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext&
 				// helper function to get output value and convert to float 
 				if (FControlRigIOHelper::GetOutputValue(InControlRig, SourcePath, FControlRigIOTypes::GetTypeString<float>(), Value))
 				{
-					SmartName::UID_Type* UID = CurveMappingUIDs.Find(Iter.Value());
+					SmartName::UID_Type* UID = InputToCurveMappingUIDs.Find(Iter.Value());
 					if (UID)
 					{
 						InOutput.Curve.Set(*UID, Value);
@@ -202,6 +220,8 @@ void FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext&
 
 void FAnimNode_ControlRig::SetIOMapping(bool bInput, const FName& SourceProperty, const FName& TargetCurve)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UClass* TargetClass = GetTargetClass();
 	if (TargetClass)
 	{
@@ -228,6 +248,8 @@ void FAnimNode_ControlRig::SetIOMapping(bool bInput, const FName& SourceProperty
 
 FName FAnimNode_ControlRig::GetIOMapping(bool bInput, const FName& SourceProperty) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const TMap<FName, FName>& MappingData = (bInput) ? InputMapping : OutputMapping;
 	if (const FName* NameFound = MappingData.Find(SourceProperty))
 	{

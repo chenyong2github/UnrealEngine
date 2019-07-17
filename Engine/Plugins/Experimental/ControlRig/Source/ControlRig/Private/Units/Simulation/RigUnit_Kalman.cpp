@@ -5,6 +5,7 @@
 
 void FRigUnit_KalmanFloat::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
 	{
 		if (Context.State == EControlRigState::Init)
@@ -50,6 +51,7 @@ void FRigUnit_KalmanFloat::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_KalmanVector::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
 	{
 		if (Context.State == EControlRigState::Init)
@@ -95,6 +97,7 @@ void FRigUnit_KalmanVector::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_KalmanTransform::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
 	{
 		if (Context.State == EControlRigState::Init)

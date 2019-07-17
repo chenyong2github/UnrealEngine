@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Hierarchy.h"
+#include "CurveContainer.h"
 #include "ControlRigLog.h"
 #include "Drawing/ControlRigDrawInterface.h"
 
@@ -42,6 +43,9 @@ struct FRigUnitContext
 
 	/** The current hierarchy being executed */
 	FRigHierarchyRef HierarchyReference;
+
+	/** The current curve being executed */
+	FRigCurveContainerRef CurveReference;
 
 #if WITH_EDITOR
 	/** A handle to the compiler log */

@@ -110,6 +110,8 @@ public:
 	// restart animation 
 	void OnHierarchyChanged();
 	void OnBoneRenamed(const FName& OldName, const FName& NewName);
+	void OnCurveContainerChanged();
+	void OnCurveRenamed(const FName& OldName, const FName& NewName);
 
 	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition);
 
@@ -182,6 +184,9 @@ private:
 
 	/** Update the bone name list for use in bone name combo boxes */
 	void CacheBoneNameList();
+
+	/** Update the curve name list for use in curve name combo boxes */
+	void CacheCurveNameList();
 
 	/** Rebind our anim instance to the preview's skeletal mesh component */
 	void RebindToSkeletalMeshComponent();

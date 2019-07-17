@@ -20,3 +20,8 @@ bool UControlRigSequencerAnimInstance::UpdateControlRig(UControlRig* InControlRi
 	CachedControlRig = InControlRig;
 	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().UpdateControlRig(InControlRig, SequenceId, bAdditive, bApplyBoneFilter, BoneFilter, Weight, bExternalSource);
 }
+
+bool UControlRigSequencerAnimInstance::SetAnimationAsset(class UAnimationAsset* NewAsset)
+{
+	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().SetAnimationAsset(NewAsset);
+}

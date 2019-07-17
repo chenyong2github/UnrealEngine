@@ -33,6 +33,8 @@ FText UAnimGraphNode_ControlRig::GetTooltipText() const
 
 void UAnimGraphNode_ControlRig::GetExposableProperties(TArray<UProperty*>& OutExposableProperties) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// we only need inputs
 	TMap<FName, FControlRigIOVariable> LocalInputVariables;
 	GetIOProperties(true, LocalInputVariables);
@@ -60,6 +62,8 @@ void UAnimGraphNode_ControlRig::GetExposableProperties(TArray<UProperty*>& OutEx
 
 void UAnimGraphNode_ControlRig::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// we do this to refresh input variables
 	RebuildExposedProperties();
 	// we avoid CustomProperty, it only allows "the direct child"
@@ -68,6 +72,8 @@ void UAnimGraphNode_ControlRig::ReallocatePinsDuringReconstruction(TArray<UEdGra
 
 void UAnimGraphNode_ControlRig::RebuildExposedProperties()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	KnownExposableProperties.Empty();
 
 	// go through exposed properties, and clean up
@@ -113,11 +119,15 @@ void UAnimGraphNode_ControlRig::RebuildExposedProperties()
 
 bool UAnimGraphNode_ControlRig::IsInputProperty(const FName& PropertyName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return InputVariables.Contains(PropertyName);
 }
 
 bool UAnimGraphNode_ControlRig::IsAvailableToMapToCurve(const FName& PropertyName, bool bInput) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// find if input or output
 	// ensure it could convert to float
 	const FControlRigIOVariable* Variable = (bInput) ? InputVariables.Find(PropertyName) : OutputVariables.Find(PropertyName);
@@ -131,6 +141,8 @@ bool UAnimGraphNode_ControlRig::IsAvailableToMapToCurve(const FName& PropertyNam
 
 bool UAnimGraphNode_ControlRig::IsPropertyExposeEnabled(FName PropertyName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// if known exposable, and and if it hasn't been exposed yet
 	if (KnownExposableProperties.Contains(PropertyName))
 	{
@@ -147,6 +159,8 @@ ECheckBoxState UAnimGraphNode_ControlRig::IsPropertyExposed(FName PropertyName) 
 
 void UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged(ECheckBoxState NewState, FName PropertyName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Super::OnPropertyExposeCheckboxChanged(NewState, PropertyName);
 
 	// see if any of my child has the mapping, and clear them
@@ -166,6 +180,8 @@ void UAnimGraphNode_ControlRig::OnPropertyExposeCheckboxChanged(ECheckBoxState N
 
 void UAnimGraphNode_ControlRig::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Super::CustomizeDetails(DetailBuilder);
 
 	// We dont allow multi-select here
@@ -217,6 +233,8 @@ void UAnimGraphNode_ControlRig::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 
 void UAnimGraphNode_ControlRig::GetIOProperties(bool bInput, TMap<FName, FControlRigIOVariable>& OutVars) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	OutVars.Reset();
 
 	UClass* TargetClass = GetTargetClass();
@@ -244,6 +262,8 @@ void UAnimGraphNode_ControlRig::GetIOProperties(bool bInput, TMap<FName, FContro
 
 void UAnimGraphNode_ControlRig::OnVariableMappingChanged(const FName& PathName, const FName& Curve, bool bInput)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FScopedTransaction Transaction(LOCTEXT("VariableMappingChanged", "Change Variable Mapping"));
 	Modify();
 
@@ -255,12 +275,16 @@ void UAnimGraphNode_ControlRig::OnVariableMappingChanged(const FName& PathName, 
 
 FName UAnimGraphNode_ControlRig::GetVariableMapping(const FName& PathName, bool bInput)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// @todo: this is not enough when we start breaking down struct
 	return Node.GetIOMapping(bInput, PathName);
 }
 
 void UAnimGraphNode_ControlRig::GetAvailableMapping(const FName& PathName, TArray<FName>& OutArray, bool bInput)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UAnimBlueprint* AnimBP = CastChecked<UAnimBlueprint>(GetBlueprint());
 	USkeleton* TargetSkeleton = AnimBP->TargetSkeleton;
 	OutArray.Reset();
@@ -295,6 +319,8 @@ void UAnimGraphNode_ControlRig::GetAvailableMapping(const FName& PathName, TArra
 
 void UAnimGraphNode_ControlRig::CreateVariableMapping(const FString& FilteredText, TArray< TSharedPtr<FVariableMappingInfo> >& OutArray, bool bInput)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// should have latest
 	OutArray.Reset();
 
@@ -323,6 +349,8 @@ void UAnimGraphNode_ControlRig::CreateVariableMapping(const FString& FilteredTex
 
 void UAnimGraphNode_ControlRig::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	bool bRequiresNodeReconstruct = false;

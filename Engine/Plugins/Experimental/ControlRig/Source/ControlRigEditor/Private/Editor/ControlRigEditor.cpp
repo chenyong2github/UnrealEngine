@@ -112,6 +112,8 @@ void FControlRigEditor::ExtendMenu()
 
 void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UControlRigBlueprint* InControlRigBlueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
 
 	FPersonaToolkitArgs PersonaToolkitArgs;
@@ -121,6 +123,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	// set delegate prior to setting mesh
 	// otherwise, you don't get delegate
 	PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FControlRigEditor::HandlePreviewMeshChanged));
+
 	// Set a default preview mesh, if any
 	PersonaToolkit->SetPreviewMesh(InControlRigBlueprint->GetPreviewMesh(), false);
 
@@ -206,7 +209,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		{
 			if (Graph->GetFName().IsEqual(UControlRigGraphSchema::GraphName_ControlRig))
 			{
-				OpenGraphAndBringToFront(Graph);
+				OpenGraphAndBringToFront(Graph, false);
 				break;
 			}
 		}
@@ -236,6 +239,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 void FControlRigEditor::BindCommands()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().ExecuteGraph,
 		FExecuteAction::CreateSP(this, &FControlRigEditor::ToggleExecuteGraph), 
@@ -258,6 +263,8 @@ bool FControlRigEditor::IsExecuteGraphOn() const
 
 void FControlRigEditor::ExtendToolbar()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// If the ToolbarExtender is valid, remove it before rebuilding it
 	if(ToolbarExtender.IsValid())
 	{
@@ -539,52 +546,61 @@ void FControlRigEditor::OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> G
 
 void FControlRigEditor::Compile()
 {
-	FString LastDebuggedObjectName = GetCustomDebugObjectLabel(GetBlueprintObj()->GetObjectBeingDebugged());
-
-	GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
-	ClearDetailObject();
-
-	if (ControlRig)
 	{
-		ControlRig->OnInitialized().Clear();
-		ControlRig->OnExecuted().Clear();
-	}
+		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	FBlueprintEditor::Compile();
+		FString LastDebuggedObjectName = GetCustomDebugObjectLabel(GetBlueprintObj()->GetObjectBeingDebugged());
+		GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
+		ClearDetailObject();
 
-	if (ControlRig)
-	{
-		ControlRig->ControlRigLog = &ControlRigLog;
-		ControlRig->DrawInterface = &DrawInterface;
-
-		UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
-		if (GeneratedClass)
+		if (ControlRig)
 		{
-			if (GeneratedClass->Operators.Num() == 1) // just the "done" operator
+			ControlRig->OnInitialized().Clear();
+			ControlRig->OnExecuted().Clear();
+		}
+
+		{
+			FBlueprintEditor::Compile();
+		}
+
+		if (ControlRig)
+		{
+			ControlRig->ControlRigLog = &ControlRigLog;
+			ControlRig->DrawInterface = &DrawInterface;
+
+			UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
+			if (GeneratedClass)
 			{
-				FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerEmptyRigMessage", "The Control Rig you compiled doesn't do anything. Did you forget to add a Begin_Execution node?"));
-				Info.bFireAndForget = true;
-				Info.FadeOutDuration = 10.0f;
-				Info.ExpireDuration = 0.0f;
-				TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
-				NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+				if (GeneratedClass->Operators.Num() == 1) // just the "done" operator
+				{
+					FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerEmptyRigMessage", "The Control Rig you compiled doesn't do anything. Did you forget to add a Begin_Execution node?"));
+					Info.bFireAndForget = true;
+					Info.FadeOutDuration = 10.0f;
+					Info.ExpireDuration = 0.0f;
+					TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+					NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+				}
 			}
 		}
-	}
 
-	TArray<FCustomDebugObject> DebugList;
-	GetCustomDebugObjects(DebugList);
+		TArray<FCustomDebugObject> DebugList;
+		GetCustomDebugObjects(DebugList);
 
-	for (const FCustomDebugObject& DebugObject : DebugList)
-	{
-		if (DebugObject.NameOverride == LastDebuggedObjectName)
+		for (const FCustomDebugObject& DebugObject : DebugList)
 		{
-			GetBlueprintObj()->SetObjectBeingDebugged(DebugObject.Object);
+			if (DebugObject.NameOverride == LastDebuggedObjectName)
+			{
+				GetBlueprintObj()->SetObjectBeingDebugged(DebugObject.Object);
+			}
 		}
 	}
 
 	// enable this for creating a new unit test
 	// DumpUnitTestCode();
+
+	// FStatsHierarchical::EndMeasurements();
+	// FMessageLog LogForMeasurements("ControlRigLog");
+	// FStatsHierarchical::DumpMeasurements(LogForMeasurements);
 }
 
 FName FControlRigEditor::GetToolkitFName() const
@@ -614,6 +630,8 @@ FLinearColor FControlRigEditor::GetWorldCentricTabColorScale() const
 
 void FControlRigEditor::DeleteSelectedNodes()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	if (RigBlueprint == nullptr)
 	{
@@ -649,6 +667,8 @@ void FControlRigEditor::DeleteSelectedNodes()
 
 void FControlRigEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	if (RigBlueprint == nullptr)
 	{
@@ -897,6 +917,8 @@ void FControlRigEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyCh
 
 void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	switch (InType)
 	{
 		case EControlRigModelNotifType::NodeSelected:
@@ -985,6 +1007,8 @@ TStatId FControlRigEditor::GetStatId() const
 
 void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& NewSelection)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (bIsSelecting)
 	{
 		return;
@@ -1016,6 +1040,8 @@ void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& N
 
 void FControlRigEditor::HandleHideItem()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj());
 
 	TSet<UObject*> SelectedNodes = GetSelectedNodes();
@@ -1042,6 +1068,8 @@ bool FControlRigEditor::CanHideItem() const
 
 void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!bControlRigEditorInitialized)
 	{
 		return;
@@ -1088,6 +1116,8 @@ void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIs
 
 void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// TODO: this is duplicated code from FAnimBlueprintEditor, would be nice to consolidate. 
 	auto GetCompilationStateText = [this]()
 	{
@@ -1231,6 +1261,8 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 
 void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
 	InPersonaPreviewScene->SetActor(Actor);
 
@@ -1251,6 +1283,8 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 
 void FControlRigEditor::UpdateControlRig()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if(UClass* Class = GetBlueprintObj()->GeneratedClass)
 	{
 		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
@@ -1269,6 +1303,7 @@ void FControlRigEditor::UpdateControlRig()
  			}
 
 			CacheBoneNameList();
+			CacheCurveNameList();
 
 			// When the control rig is re-instanced on compile, it loses its binding, so we refresh it here if needed
 			if (!ControlRig->GetObjectBinding().IsValid())
@@ -1296,6 +1331,8 @@ void FControlRigEditor::UpdateControlRig()
 
 void FControlRigEditor::CacheBoneNameList()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (ControlRig)
 	{
 		// make sure the bone name list is up 2 date for the editor graph
@@ -1308,6 +1345,26 @@ void FControlRigEditor::CacheBoneNameList()
 			}
 
 			RigGraph->CacheBoneNameList(ControlRig->GetBaseHierarchy());
+		}
+	}
+}
+
+void FControlRigEditor::CacheCurveNameList()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	if (ControlRig)
+	{
+		// make sure the Curve name list is up 2 date for the editor graph
+		for (UEdGraph* Graph : GetBlueprintObj()->UbergraphPages)
+		{
+			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			if (RigGraph == nullptr)
+			{
+				continue;
+			}
+
+			RigGraph->CacheCurveNameList(ControlRig->GetCurveContainer());
 		}
 	}
 }
@@ -1326,6 +1383,8 @@ void FControlRigEditor::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMes
 
 void FControlRigEditor::RebindToSkeletalMeshComponent()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UDebugSkelMeshComponent* MeshComponent = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent();
 	if (MeshComponent)
 	{
@@ -1336,6 +1395,8 @@ void FControlRigEditor::RebindToSkeletalMeshComponent()
 
 void FControlRigEditor::SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::FGraphEditorEvents& InEvents)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FBlueprintEditor::SetupGraphEditorEvents(InGraph, InEvents);
 
 	InEvents.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &FControlRigEditor::HandleCreateGraphActionMenu);
@@ -1349,6 +1410,8 @@ FActionMenuContent FControlRigEditor::HandleCreateGraphActionMenu(UEdGraph* InGr
 
 void FControlRigEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (UEdGraphNode_Comment* CommentBeingChanged = Cast<UEdGraphNode_Comment>(NodeBeingChanged))
 	{
 		if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
@@ -1364,6 +1427,8 @@ void FControlRigEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::
 
 void FControlRigEditor::SelectBone(const FName& InBone)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// edit mode has to know
 	GetEditMode().SelectBone(InBone);
 	// copy locally, we use this for copying back to template when modified
@@ -1384,6 +1449,8 @@ void FControlRigEditor::SelectBone(const FName& InBone)
 
 FTransform FControlRigEditor::GetBoneTransform(const FName& InBone, bool bLocal) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// @todo: think about transform mode
 	if (bLocal)
 	{
@@ -1395,6 +1462,8 @@ FTransform FControlRigEditor::GetBoneTransform(const FName& InBone, bool bLocal)
 
 void FControlRigEditor::SetBoneTransform(const FName& InBone, const FTransform& InTransform)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// execution should be off
 	ensure(!ControlRig->bExecutionOn);
 
@@ -1435,7 +1504,8 @@ void FControlRigEditor::SetBoneTransform(const FName& InBone, const FTransform& 
 
 void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-//	UE_LOG(LogControlRigEditor, Warning, TEXT("Current Property being modified : %s"), *GetNameSafe(PropertyChangedEvent.Property));
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	//	UE_LOG(LogControlRigEditor, Warning, TEXT("Current Property being modified : %s"), *GetNameSafe(PropertyChangedEvent.Property));
 
 	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FRigBone, InitialTransform))
@@ -1461,6 +1531,8 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 
 void FControlRigEditor::OnHierarchyChanged()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ClearDetailObject();
 
 	FBlueprintEditorUtils::MarkBlueprintAsModified(GetControlRigBlueprint());
@@ -1486,6 +1558,8 @@ void FControlRigEditor::OnHierarchyChanged()
 
 void FControlRigEditor::OnBoneRenamed(const FName& OldName, const FName& NewName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
 	for (UEdGraph* Graph : Blueprint->UbergraphPages)
 	{
@@ -1532,8 +1606,87 @@ void FControlRigEditor::OnBoneRenamed(const FName& OldName, const FName& NewName
 	}
 }
 
+void FControlRigEditor::OnCurveContainerChanged()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	ClearDetailObject();
+
+	FBlueprintEditorUtils::MarkBlueprintAsModified(GetControlRigBlueprint());
+
+	UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+	if (EditorSkelComp)
+	{
+		// restart animation 
+		EditorSkelComp->InitAnim(true);
+		UpdateControlRig();
+	}
+	CacheCurveNameList();
+
+	// notification
+	FNotificationInfo Info(LOCTEXT("CurveContainerChangeHelpMessage", "CurveContainer has been successfully modified."));
+	Info.bFireAndForget = true;
+	Info.FadeOutDuration = 10.0f;
+	Info.ExpireDuration = 0.0f;
+
+	TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
+}
+
+void FControlRigEditor::OnCurveRenamed(const FName& OldName, const FName& NewName)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
+	for (UEdGraph* Graph : Blueprint->UbergraphPages)
+	{
+		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+		if (RigGraph == nullptr)
+		{
+			continue;
+		}
+
+		for (UEdGraphNode* Node : RigGraph->Nodes)
+		{
+			UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
+			if (RigNode == nullptr)
+			{
+				continue;
+			}
+
+			UStructProperty* UnitProperty = RigNode->GetUnitProperty();
+			UStruct* UnitStruct = RigNode->GetUnitScriptStruct();
+			if (UnitProperty && UnitStruct)
+			{
+				for (TFieldIterator<UNameProperty> It(UnitStruct); It; ++It)
+				{
+					if (It->HasMetaData(UControlRig::CurveNameMetaName))
+					{
+						FString PinName = FString::Printf(TEXT("%s.%s"), *UnitProperty->GetName(), *It->GetName());
+						UEdGraphPin* Pin = Node->FindPin(PinName, EEdGraphPinDirection::EGPD_Input);
+						if (Pin)
+						{
+							FName CurrentCurve = FName(*Pin->GetDefaultAsString());
+							if (CurrentCurve == OldName)
+							{
+								const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeCurveNamePinValue", "Change Curve Name Pin Value"));
+								Pin->Modify();
+								Pin->GetSchema()->TrySetDefaultValue(*Pin, NewName.ToString());
+							}
+						}
+					}
+				}
+			}
+		}
+
+		CacheCurveNameList();
+	}
+}
+
 void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (DragDropOp->IsOfType<FRigHierarchyDragDropOp>())
 	{
 		TSharedPtr<FRigHierarchyDragDropOp> RigHierarchyOp = StaticCastSharedPtr<FRigHierarchyDragDropOp>(DragDropOp);
@@ -1658,6 +1811,8 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 
 void FControlRigEditor::HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, bool bIsGetter, TArray<FName> BoneNames, UEdGraph* Graph, FVector2D NodePosition)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UStruct* StructTemplate = nullptr;
 
 	if (bIsGetter)
@@ -1776,6 +1931,8 @@ void FControlRigEditor::HandleMakeBoneGetterSetter(EBoneGetterSetterType Type, b
 
 void FControlRigEditor::UpdateGraphCompilerErrors()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	if (Blueprint)
 	{
