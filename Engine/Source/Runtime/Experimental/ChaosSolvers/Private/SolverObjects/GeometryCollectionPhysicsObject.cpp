@@ -1049,7 +1049,7 @@ void FGeometryCollectionPhysicsObject::CreateRigidBodyCallback(FParticlesType& P
 					TArray<uint32> RigidChildren, CollectionChildren;
 					for (const int32 ChildIndex : Children[TransformGroupIndex])
 					{
-						if(RigidBodyID[ChildIndex] != INDEX_NONE || Children[ChildIndex].Num())
+						if(RigidBodyID[ChildIndex] != INDEX_NONE || Children[TransformGroupIndex].Num())
 						{
 							NumClusters++;
 							break;
