@@ -34,7 +34,7 @@ class UWindowsMixedRealityHandTrackingLiveLinkRemapAsset :
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void BuildPoseForSubject(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose, FBlendedCurve& OutCurve) override;
+	virtual void BuildPoseFromAnimationData(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose) override;
 
 	/** If true, remap the full human hand skeleton including metacarpals */
 	UPROPERTY(EditAnywhere, Category = "LiveLink")
