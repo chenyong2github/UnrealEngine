@@ -360,6 +360,15 @@ public:
 	 * Get the referenced FXSystem asset.
 	*/
 	virtual UFXSystemAsset* GetFXSystemAsset() const { return nullptr; };
+
+	/**
+	 *	Enables/Disables a sub-emitter
+	 *
+	 *	@param	EmitterName			The name of the sub-emitter to set it on
+	 *	@param	bNewEnableState		The value to set it to
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void SetEmitterEnable(FName EmitterName, bool bNewEnableState) {};
 };
 
 
@@ -1002,8 +1011,7 @@ public:
 	 *	@param	EmitterName			The name of the sub-emitter to set it on
 	 *	@param	bNewEnableState		The value to set it to
 	 */
-	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetEmitterEnable(FName EmitterName, bool bNewEnableState);
+	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
 
 	/** Change a named float parameter */
 	void SetFloatParameter(FName ParameterName, float Param) override;

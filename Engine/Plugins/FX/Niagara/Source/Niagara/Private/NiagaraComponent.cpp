@@ -384,22 +384,35 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 /********* UFXSystemComponent *********/
 void UNiagaraComponent::SetFloatParameter(FName ParameterName, float Param)
 {
-	SetNiagaraVariableFloat(ParameterName.ToString(), Param);
+	SetVariableFloat(ParameterName, Param);
 }
 
 void UNiagaraComponent::SetVectorParameter(FName ParameterName, FVector Param)
 {
-	SetNiagaraVariableVec3(ParameterName.ToString(), Param);
+	SetVariableVec3(ParameterName, Param);
 }
 
 void UNiagaraComponent::SetColorParameter(FName ParameterName, FLinearColor Param)
 {
-	SetNiagaraVariableLinearColor(ParameterName.ToString(), Param);
+	SetVariableLinearColor(ParameterName, Param);
 }
 
 void UNiagaraComponent::SetActorParameter(FName ParameterName, class AActor* Param)
 {
-	SetNiagaraVariableActor(ParameterName.ToString(), Param);
+	SetVariableActor(ParameterName, Param);
+}
+
+
+void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
+{
+	if (!SystemInstance)
+	{
+		return;
+	}
+	if (SystemInstance.Get() && !SystemInstance->IsComplete())
+	{
+		SystemInstance->SetEmitterEnable(EmitterName, bNewEnableState);
+	}
 }
 /********* UFXSystemComponent *********/
 
@@ -1075,11 +1088,22 @@ FNiagaraSystemInstance* UNiagaraComponent::GetSystemInstance() const
 	return SystemInstance.Get();
 }
 
+void UNiagaraComponent::SetVariableLinearColor(FName InVariableName, const FLinearColor& InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableLinearColor(const FString& InVariableName, const FLinearColor& InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), VarName), true);
+}
+
+
+void UNiagaraComponent::SetVariableQuat(FName InVariableName, const FQuat& InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), InVariableName), true);
 }
 
 void UNiagaraComponent::SetNiagaraVariableQuat(const FString& InVariableName, const FQuat& InValue)
@@ -1089,11 +1113,21 @@ void UNiagaraComponent::SetNiagaraVariableQuat(const FString& InVariableName, co
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), VarName), true);
 }
 
+void UNiagaraComponent::SetVariableVec4(FName InVariableName, const FVector4& InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableVec4(const FString& InVariableName, const FVector4& InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), VarName), true);
+}
+
+void UNiagaraComponent::SetVariableVec3(FName InVariableName, FVector InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), InVariableName), true);
 }
 
 void UNiagaraComponent::SetNiagaraVariableVec3(const FString& InVariableName, FVector InValue)
@@ -1103,11 +1137,21 @@ void UNiagaraComponent::SetNiagaraVariableVec3(const FString& InVariableName, FV
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), VarName), true);
 }
 
+void UNiagaraComponent::SetVariableVec2(FName InVariableName, FVector2D InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(),InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableVec2(const FString& InVariableName, FVector2D InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(),VarName), true);
+}
+
+void UNiagaraComponent::SetVariableFloat(FName InVariableName, float InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), InVariableName), true);
 }
 
 void UNiagaraComponent::SetNiagaraVariableFloat(const FString& InVariableName, float InValue)
@@ -1117,11 +1161,21 @@ void UNiagaraComponent::SetNiagaraVariableFloat(const FString& InVariableName, f
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), VarName), true);
 }
 
+void UNiagaraComponent::SetVariableInt(FName InVariableName, int32 InValue)
+{
+	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), InVariableName), true);
+}
+
 void UNiagaraComponent::SetNiagaraVariableInt(const FString& InVariableName, int32 InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), VarName), true);
+}
+
+void UNiagaraComponent::SetVariableBool(FName InVariableName, bool InValue)
+{
+	OverrideParameters.SetParameterValue(InValue ? FNiagaraBool::True : FNiagaraBool::False, FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), InVariableName), true);
 }
 
 void UNiagaraComponent::SetNiagaraVariableBool(const FString& InVariableName, bool InValue)
@@ -1136,11 +1190,21 @@ void UNiagaraComponent::SetNiagaraVariableActor(const FString& InVariableName, A
 	SetNiagaraVariableObject(InVariableName, InValue);
 }
 
+void UNiagaraComponent::SetVariableActor(FName InVariableName, AActor* InValue)
+{
+	SetVariableObject(InVariableName, InValue);
+}
+
 void UNiagaraComponent::SetNiagaraVariableObject(const FString& InVariableName, UObject* InValue)
 {
 	FName VarName = FName(*InVariableName);
 
 	OverrideParameters.SetUObject(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetUObjectDef(), VarName));
+}
+
+void UNiagaraComponent::SetVariableObject(FName InVariableName, UObject* InValue)
+{
+	OverrideParameters.SetUObject(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetUObjectDef(), InVariableName));
 }
 
 TArray<FVector> UNiagaraComponent::GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName)
