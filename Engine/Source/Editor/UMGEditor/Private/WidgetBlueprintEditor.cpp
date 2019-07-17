@@ -1065,20 +1065,20 @@ TArray< TFunction<void()> >& FWidgetBlueprintEditor::GetQueuedDesignerActions()
 	return QueuedDesignerActions;
 }
 
-EWidgetDesignFlags::Type FWidgetBlueprintEditor::GetCurrentDesignerFlags() const
+EWidgetDesignFlags FWidgetBlueprintEditor::GetCurrentDesignerFlags() const
 {
-	EWidgetDesignFlags::Type Flags = EWidgetDesignFlags::Designing;
+	EWidgetDesignFlags Flags = EWidgetDesignFlags::Designing;
 	
 	if ( bShowDashedOutlines )
 	{
-		Flags = ( EWidgetDesignFlags::Type )( Flags | EWidgetDesignFlags::ShowOutline );
+		Flags |= EWidgetDesignFlags::ShowOutline;
 	}
 
 	if ( const UWidgetDesignerSettings* Designer = GetDefault<UWidgetDesignerSettings>() )
 	{
 		if ( Designer->bExecutePreConstructEvent )
 		{
-			Flags = ( EWidgetDesignFlags::Type )( Flags | EWidgetDesignFlags::ExecutePreConstruct );
+			Flags |= EWidgetDesignFlags::ExecutePreConstruct;
 		}
 	}
 
