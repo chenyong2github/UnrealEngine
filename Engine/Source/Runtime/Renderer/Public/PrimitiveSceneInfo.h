@@ -18,6 +18,7 @@
 class FPrimitiveSceneInfo;
 class FPrimitiveSceneProxy;
 class FReflectionCaptureProxy;
+class FPlanarReflectionSceneProxy;
 class FScene;
 class FViewInfo;
 class UPrimitiveComponent;
@@ -267,7 +268,7 @@ public:
 	/** 
 	 * Planar reflection that was closest to this primitive, used for forward reflections.
 	 */
-	const class FPlanarReflectionSceneProxy* CachedPlanarReflectionProxy;
+	const FPlanarReflectionSceneProxy* CachedPlanarReflectionProxy;
 
 	/** 
 	 * Reflection capture proxy that was closest to this primitive, used for the forward shading rendering path. 
@@ -462,9 +463,14 @@ public:
 	int32 GetLightmapDataOffset() const { return LightmapDataOffset; }
 	int32 GetNumLightmapDataEntries() const { return NumLightmapDataEntries; }
 
+	/** Returns whether the primitive needs to call CacheReflectionCaptures. */
 	bool NeedsReflectionCaptureUpdate() const;
-	/** Cache per-primitive reflection captures used for mobile/forward rendering */
+
+	/** Cache per-primitive reflection captures used for mobile/forward rendering. */
 	void CacheReflectionCaptures();
+
+	/** Nulls out the cached per-primitive reflection captures. */
+	void RemoveCachedReflectionCaptures();
 
 	/** Helper function for writing out to the last render times to the game thread */
 	void UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const;
