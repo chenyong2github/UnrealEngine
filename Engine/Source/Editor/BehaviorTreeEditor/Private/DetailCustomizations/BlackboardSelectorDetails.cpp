@@ -15,6 +15,7 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "IPropertyUtilities.h"
+#include "Editor/EditorPerProjectUserSettings.h"
 
 #define LOCTEXT_NAMESPACE "BlackboardSelectorDetails"
 
@@ -148,6 +149,11 @@ void FBlackboardSelectorDetails::CacheBlackboardData()
 			break;
 		}
 	}
+
+	if (GetDefault<UEditorPerProjectUserSettings>()->bDisplayBlackboardKeysInAlphabeticalOrder)
+	{
+		KeyValues.Sort([](const FName& a, const FName& b) { return a < b; });
+	}	
 }
 
 void FBlackboardSelectorDetails::InitKeyFromProperty()

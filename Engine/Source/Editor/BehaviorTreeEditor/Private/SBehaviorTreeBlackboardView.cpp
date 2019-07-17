@@ -18,6 +18,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Editor/EditorPerProjectUserSettings.h"
 #include "EditorStyleSet.h"
 #include "SGraphActionMenu.h"
 #include "SGraphPalette.h"
@@ -472,7 +473,8 @@ void SBehaviorTreeBlackboardView::Construct(const FArguments& InArgs, TSharedRef
 				.OnActionSelected(this, &SBehaviorTreeBlackboardView::HandleActionSelected)
 				.OnContextMenuOpening(this, &SBehaviorTreeBlackboardView::HandleContextMenuOpening, InCommandList)
 				.OnActionMatchesName(this, &SBehaviorTreeBlackboardView::HandleActionMatchesName)
-				.AlphaSortItems(false)
+				.AlphaSortItems(GetDefault<UEditorPerProjectUserSettings>()->bDisplayBlackboardKeysInAlphabeticalOrder)
+				.AutoExpandActionMenu(true)
 			]
 		]
 	];
