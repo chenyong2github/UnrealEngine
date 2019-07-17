@@ -580,10 +580,10 @@ void FMallocBinnedGPU::InitMallocBinned()
 	}
 	for (uint32 Size : ArenaParams.AdditionalBlockSizes)
 	{
-		if (Size >= ArenaParams.BasePageSize)
+		if (Size > ArenaParams.BasePageSize)
 		{
-			check(Size % ArenaParams.BasePageSize == 0); // we can actually use blocks that are not divisible by the base page size, but we need a bit more work
-			SizeTable.Emplace(Size, ArenaParams.AllocationGranularity, Size / ArenaParams.BasePageSize, ArenaParams.BasePageSize, ArenaParams.MinimumAlignment);
+			check(Size % 4096 == 0); // calculations are done assume 4k is the smallest page size we will ever see
+			SizeTable.Emplace(Size, ArenaParams.AllocationGranularity, Size / 4096, ArenaParams.BasePageSize, ArenaParams.MinimumAlignment);
 		}
 		else
 		{
