@@ -50,30 +50,30 @@ void FRigUnit_AddBoneTransform::Execute(const FRigUnitContext& Context)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AddBoneTransform)
 {
-	Hierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	Hierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 0.f)));
-	Hierarchy.Initialize();
+	BoneHierarchy.Add(TEXT("Root"), NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 0.f)));
+	BoneHierarchy.Initialize();
 	Unit.ExecuteContext.HierarchyReference = HierarchyRef;
 
-	Hierarchy.ResetTransforms();
+	BoneHierarchy.ResetTransforms();
 	Unit.Bone = TEXT("BoneA");
 	Unit.Transform = FTransform(FVector(0.f, 0.f, 7.f));
 	Unit.bPropagateToChildren = false;
 	InitAndExecute();
-	AddErrorIfFalse(Hierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected transform"));
-	AddErrorIfFalse(Hierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 7.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 7.f)), TEXT("unexpected transform"));
 
 	Unit.Bone = TEXT("Root");
-	Hierarchy.ResetTransforms();
+	BoneHierarchy.ResetTransforms();
 	InitAndExecute();
-	AddErrorIfFalse(Hierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 7.f)), TEXT("unexpected transform"));
-	AddErrorIfFalse(Hierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 0.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 7.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 0.f)), TEXT("unexpected transform"));
 
 	Unit.bPropagateToChildren = true;
-	Hierarchy.ResetTransforms();
+	BoneHierarchy.ResetTransforms();
 	InitAndExecute();
-	AddErrorIfFalse(Hierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 7.f)), TEXT("unexpected transform"));
-	AddErrorIfFalse(Hierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 7.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 7.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 7.f)), TEXT("unexpected transform"));
 
 	return true;
 }

@@ -337,7 +337,7 @@ void SRigCurveContainer::CreateNewNameEntry(const FText& CommittedText, ETextCom
 		FRigCurveContainer* Container = GetCurveContainer();
 		if (Container)
 		{
-			Container->AddCurve(FName(*CommittedText.ToString()));
+			Container->Add(FName(*CommittedText.ToString()));
 			RefreshCurveList();
 		}
 	}
@@ -351,8 +351,7 @@ void SRigCurveContainer::CreateRigCurveList( const FString& SearchText )
 		RigCurveList.Reset();
 
 		// Iterate through all curves..
-		const TArray<FRigCurve>& Curves = Container->GetCurves();
-		for (const FRigCurve& Curve : Curves)
+		for (const FRigCurve& Curve : (*Container))
 		{
 			FString CurveString = Curve.Name.ToString();
 
@@ -408,7 +407,7 @@ void SRigCurveContainer::OnDeleteNameClicked()
 		TArray< TSharedPtr<FDisplayedRigCurveInfo> > SelectedItems = RigCurveListView->GetSelectedItems();
 		for (auto Item : SelectedItems)
 		{
-			Container->DeleteCurve(Item->CurveName);
+			Container->Remove(Item->CurveName);
 		}
 
 		RefreshCurveList();
@@ -510,7 +509,7 @@ void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)
 			SmartNameMapping->FillNameArray(NameArray);
 			for (int32 Index = 0; Index < NameArray.Num() ; ++Index)
 			{
-				Container->AddCurve(NameArray[Index]);
+				Container->Add(NameArray[Index]);
 			}
 
 			ControlRigEditor.Pin()->OnCurveContainerChanged();

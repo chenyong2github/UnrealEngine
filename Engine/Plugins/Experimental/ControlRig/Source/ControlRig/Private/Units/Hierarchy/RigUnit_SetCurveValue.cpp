@@ -41,8 +41,8 @@ void FRigUnit_SetCurveValue::Execute(const FRigUnitContext& Context)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetCurveValue)
 {
-	CurveContainer.AddCurve(TEXT("CurveA"));
-	CurveContainer.AddCurve(TEXT("CurveB"));
+	CurveContainer.Add(TEXT("CurveA"));
+	CurveContainer.Add(TEXT("CurveB"));
 	CurveContainer.Initialize();
 	Unit.ExecuteContext.CurveReference = CurveContainerRef;
 	

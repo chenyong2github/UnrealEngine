@@ -15,8 +15,8 @@ public:
 		: FAutomationTestBase(InName, bIsComplex)
 		, HierarchyContainer()
 		, HierarchyRef(FRigHierarchyRef())
-		, Hierarchy(HierarchyContainer.BoneHierarchy)
-		, CurveContainer(FRigCurveContainer())
+		, BoneHierarchy(HierarchyContainer.BoneHierarchy)
+		, CurveContainer()
 		, CurveContainerRef(&CurveContainer)
 	{
 		HierarchyRef.Container = &HierarchyContainer;
@@ -27,7 +27,7 @@ public:
 
 	FRigHierarchyContainer HierarchyContainer;
 	FRigHierarchyRef HierarchyRef;
-	FRigBoneHierarchy& Hierarchy;
+	FRigBoneHierarchy& BoneHierarchy;
 	FRigCurveContainer CurveContainer;
 	FRigCurveContainerRef CurveContainerRef;
 	FControlRigExecuteContext ExecuteContext;
@@ -56,7 +56,7 @@ public:
 		TUnitStruct Unit; \
 		virtual bool RunTest(const FString& Parameters) override \
 		{ \
-			Hierarchy.Reset(); \
+			HierarchyContainer.Reset(); \
 			CurveContainer.Reset(); \
 			Unit = TUnitStruct(); \
 			return RunControlRigUnitTest(Parameters); \

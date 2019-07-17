@@ -578,8 +578,7 @@ void UControlRigGraph::CacheCurveNameList(const FRigCurveContainer& Container)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	TArray<FString> Names;
-	const TArray<FRigCurve>& Curves = Container.GetCurves();
-	for (const FRigCurve& Curve : Curves)
+	for (const FRigCurve& Curve : Container)
 	{
 		Names.Add(Curve.Name.ToString());
 	}

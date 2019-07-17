@@ -25,65 +25,36 @@ struct CONTROLRIG_API FRigCurveContainer
 {
 	GENERATED_BODY()
 
-private:
-	UPROPERTY(EditAnywhere, Category = FRigCurveContainer)
-	TArray<FRigCurve> Curves;
-
-	// can serialize fine? 
-	UPROPERTY()
-	TMap<FName, int32> NameToIndexMapping;
-
 public:
 
-	const TArray<FRigCurve>& GetCurves() const
-	{
-		return Curves;
-	}
+	FRigCurveContainer();
+	FRigCurveContainer& operator= (const FRigCurveContainer &InOther);
 
-	void AddCurve(const FName& NewCurveName)
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	FORCEINLINE int32 Num() const { return Curves.Num(); }
+	FORCEINLINE const FRigCurve& operator[](int32 InIndex) const { return Curves[InIndex]; }
+	FORCEINLINE FRigCurve& operator[](int32 InIndex) { return Curves[InIndex]; }
+	FORCEINLINE const FRigCurve& operator[](const FName& InName) const { return Curves[GetIndex(InName)]; }
+	FORCEINLINE FRigCurve& operator[](const FName& InName) { return Curves[GetIndex(InName)]; }
 
-		int32 Found = GetIndex(NewCurveName);
-		if (Found == INDEX_NONE)
+	FORCEINLINE TArray<FRigCurve>::RangedForIteratorType      begin()       { return Curves.begin(); }
+	FORCEINLINE TArray<FRigCurve>::RangedForConstIteratorType begin() const { return Curves.begin(); }
+	FORCEINLINE TArray<FRigCurve>::RangedForIteratorType      end()         { return Curves.end();   }
+	FORCEINLINE TArray<FRigCurve>::RangedForConstIteratorType end() const   { return Curves.end();   }
+
+	void Add(const FName& InNewName);
+
+	void Remove(const FName& InName);
+
+	FName GetName(int32 InIndex) const;
+
+	FORCEINLINE int32 GetIndex(const FName& InName) const
+	{
+		if(NameToIndexMapping.Num() != Curves.Num())
 		{
-			FRigCurve NewCurve;
-			NewCurve.Name = NewCurveName;
-			NewCurve.Value = 0.f;
-			Curves.Add(NewCurve);
-			RefreshMapping();
-		}
-	}
-
-	void DeleteCurve(const FName& CurveToDelete)
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-		int32 IndexToDelete = GetIndex(CurveToDelete);
-		if (IndexToDelete != INDEX_NONE)
-		{
-			Curves.RemoveAt(IndexToDelete);
-			RefreshMapping();
-		}
-	}
-
-	FName GetName(int32 Index) const
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-		if (Curves.IsValidIndex(Index))
-		{
-			return Curves[Index].Name;
+			return GetIndexSlow(InName);
 		}
 
-		return NAME_None;
-	}
-
-	int32 GetIndex(const FName& Curve) const
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-		const int32* Index = NameToIndexMapping.Find(Curve);
+		const int32* Index = NameToIndexMapping.Find(InName);
 		if (Index)
 		{
 			return *Index;
@@ -92,79 +63,15 @@ public:
 		return INDEX_NONE;
 	}
 
-//#if WITH_EDITOR
-	// @FIXMELINA: figure out how to remove this outside of editor
-	// ignore mapping, run slow search
-	// this is useful in editor while editing
-	// we don't want to build mapping data every time
-	int32 GetIndexSlow(const FName& Curve) const
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	void SetValue(const FName& InName, const float InValue);
 
-		for (int32 CurveId = 0; CurveId < Curves.Num(); ++CurveId)
-		{
-			if (Curves[CurveId].Name == Curve)
-			{
-				return CurveId;
-			}
-		}
+	void SetValue(int32 InIndex, const float InValue);
 
-		return INDEX_NONE;
-	}
-//#endif // WITH_EDITOR
-	void SetValue(const FName& Curve, const float Value)
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	float GetValue(const FName& InName) const;
 
-		SetValue(GetIndex(Curve), Value);
-	}
+	float GetValue(int32 InIndex) const;
 
-	void SetValue(int32 Index, const float Value)
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-		if (Curves.IsValidIndex(Index))
-		{
-			FRigCurve& Curve = Curves[Index];
-			Curve.Value = Value;
-		}
-	}
-
-	float GetValue(const FName& Curve) const
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-		return GetValue(GetIndex(Curve));
-	}
-
-	float GetValue(int32 Index) const
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-		if (Curves.IsValidIndex(Index))
-		{
-			return Curves[Index].Value;
-		}
-
-		return 0.f;
-	}
-
-	void Rename(const FName& OldName, const FName& NewName)
-	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-		if (OldName != NewName)
-		{
-			const int32 Found = GetIndex(OldName);
-			const int32 NewNameFound = GetIndex(NewName);
-			// if I have new name, and didn't find new name
-			if (Found != INDEX_NONE && NewNameFound == INDEX_NONE)
-			{
-				Curves[Found].Name = NewName;
-				RefreshMapping();
-			}
-		}
-	}
+	void Rename(const FName& InOldName, const FName& InNewName);
 
 	// updates all of the internal caches
 	void Initialize();
@@ -175,12 +82,19 @@ public:
 	// resets all of the transforms back to the initial transform
 	void ResetValues();
 
-	int32 GetNum() const
-	{
-		return Curves.Num();
-	}
-
 private:
+
+	// disable copy constructor
+	FRigCurveContainer(const FRigCurveContainer& InOther) {}
+
+	UPROPERTY(EditAnywhere, Category = FRigCurveContainer)
+	TArray<FRigCurve> Curves;
+
+	UPROPERTY()
+	TMap<FName, int32> NameToIndexMapping;
+
+	int32 GetIndexSlow(const FName& InName) const;
+
 	void RefreshMapping();
 };
 
