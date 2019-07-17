@@ -11,11 +11,12 @@
 #include "DataPrepEditorStyle.h"
 #include "DataPrepRecipe.h"
 #include "DataprepActionAsset.h"
+#include "DataprepCoreUtils.h"
 #include "DataprepEditorLogCategory.h"
 #include "SchemaActions/DataprepOperationMenuActionCollector.h"
 #include "Widgets/DataprepAssetView.h"
-#include "Widgets/SDataprepPalette.h"
 #include "Widgets/SAssetsPreviewWidget.h"
+#include "Widgets/SDataprepPalette.h"
 
 #include "ActorEditorUtils.h"
 #include "AssetDeleteModel.h"
@@ -596,15 +597,11 @@ void FDataprepEditor::CleanPreviewWorld()
 		}
 	}
 
-	// Prevent display of progress dialog from ObjectTools::DeleteObjectsUnchecked
-	TGuardValue<bool>( GIsSilent, true );
-
-	ensure( ObjectTools::DeleteObjectsUnchecked( ObjectsToDelete ) == ObjectsToDelete.Num() );
+	FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
 
 	CachedAssets.Reset();
 	Assets.Reset();
 
-	CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 	PreviewWorld->CleanupActors();
 }
 
@@ -683,7 +680,7 @@ void FDataprepEditor::OnExecutePipeline()
 					while ( Index < Assets.Num() )
 					{
 						UObject* Object = Assets[Index].Get();
-						if ( Object && Object->IsValidLowLevelFast() )
+						if ( Object && Object->IsValidLowLevel() )
 						{
 							Index++;
 						}
