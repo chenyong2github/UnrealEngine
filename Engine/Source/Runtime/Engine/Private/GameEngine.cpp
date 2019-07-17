@@ -59,6 +59,7 @@
 #include "DynamicResolutionState.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "RenderTargetPool.h"
+#include "RenderGraphBuilder.h"
 
 #if WITH_EDITOR
 #include "PIEPreviewDeviceProfileSelectorModule.h"
@@ -1804,6 +1805,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			}
 			
 			GRenderTargetPool.TickPoolElements();
+			FRDGBuilder::TickPoolElements();
 		});
 	}
 
