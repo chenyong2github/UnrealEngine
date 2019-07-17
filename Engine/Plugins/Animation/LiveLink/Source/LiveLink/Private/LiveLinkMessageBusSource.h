@@ -24,7 +24,6 @@ public:
 		: ConnectionAddress(InConnectionAddress)
 		, SourceType(InSourceType)
 		, SourceMachineName(InSourceMachineName)
-		, HeartbeatLastSent(0.0)
 		, ConnectionLastActive(0.0)
 		, bIsValid(false)
 		, bInvalidSubjectNameErrorReported(false)
@@ -73,9 +72,6 @@ private:
 
 	FText SourceType;
 	FText SourceMachineName;
-
-	// Time we last sent connection heartbeat
-	double HeartbeatLastSent;
 
 	// Time we last received anything 
 	double ConnectionLastActive;
