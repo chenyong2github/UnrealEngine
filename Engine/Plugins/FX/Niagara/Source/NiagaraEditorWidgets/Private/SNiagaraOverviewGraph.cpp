@@ -17,6 +17,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Templates/SharedPointer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraph"
 
