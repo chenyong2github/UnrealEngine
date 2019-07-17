@@ -29,11 +29,6 @@ public:
 	virtual void Draw(FViewport* Viewport, FCanvas* Canvas) override;
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.0f, bool bGamepad = false) override;
 	virtual void CapturedMouseMove(FViewport* Viewport, int32 X, int32 Y) override;
-	virtual void RequestRealTimeFrames(uint64 NumRealTimeFrames = 1) override
-	{
-		// Intentionally do nothing. We don't want to render this viewport except under our own very
-		// specific rules (this isn't a real editor viewport and doesn't call the super on draw anyways)
-	}
 
 	/** Returns the ratio of the size of the particle emitters to the size of the viewport */
 	float GetViewportVerticalScrollBarRatio() const;
