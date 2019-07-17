@@ -411,7 +411,10 @@ void FLevelEditorSequencerIntegration::OnSequencerEvaluated()
 	}
 
 	// Request a single real-time frame to be rendered to ensure that we tick the world and update the viewport
-	for (FEditorViewportClient* LevelVC : GEditor->GetAllViewportClients())
+	// ToDo: This attempts to redraw all viewports (blueprint windows, cascade particles, etc.) so it's not the most efficient
+	// but we can't just use GetLevelViewportClients() because of Actor Sequences. For now, we've disabled the realtime frames
+	// on the most expensive viewport (cascade).
+ 	for (FEditorViewportClient* LevelVC : GEditor->GetAllViewportClients())
 	{
 		if (LevelVC && !LevelVC->IsRealtime())
 		{
@@ -426,9 +429,6 @@ void FLevelEditorSequencerIntegration::OnSequencerEvaluated()
 
 	// If realtime is off, this needs to be called to update the pivot location when scrubbing.
 	GUnrealEd->UpdatePivotLocationForSelection();
-
-	// Redraw
-	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 }
 
 void FLevelEditorSequencerIntegration::OnBeginDeferUpdates()
