@@ -20,6 +20,8 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 	AssetViewerProfileIndex = 0;
 	bAnimationReimportWarnings = false;
 
+	bDisplayBlackboardKeysInAlphabeticalOrder = false;
+
 	SimplygonServerIP = "127.0.0.1";
 	SimplygonSwarmDelay = 5000;
 	bEnableSwarmDebugging = false;
