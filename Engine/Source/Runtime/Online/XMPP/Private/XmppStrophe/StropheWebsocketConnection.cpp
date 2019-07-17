@@ -146,7 +146,10 @@ bool FStropheWebsocketConnection::SendStanza(FStropheStanza&& Stanza)
 void FStropheWebsocketConnection::Tick()
 {
 	// Handles timeouts, processes timers
-	xmpp_run_once(Context.GetContextPtr(), 0);
+	if (ensureMsgf(Context.GetContextPtr() != nullptr, TEXT("xmpp_ctx_t is null")))
+	{
+		xmpp_run_once(Context.GetContextPtr(), 0);
+	}
 }
 
 void FStropheWebsocketConnection::Disconnect()
