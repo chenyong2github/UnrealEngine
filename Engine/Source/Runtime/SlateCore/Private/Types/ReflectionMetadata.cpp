@@ -1,6 +1,42 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Types/ReflectionMetadata.h"
+#include "Widgets/SWidget.h"
+
+FString FReflectionMetaData::GetWidgetPath(const SWidget* InWidget)
+{
+	if (!InWidget)
+	{
+		return TEXT("None");
+	}
+
+	return GetWidgetPath(*InWidget);
+}
+
+FString FReflectionMetaData::GetWidgetPath(const SWidget& InWidget)
+{
+	FString WidgetPath;
+
+	const SWidget* CurrentWidget = &InWidget;
+	while (CurrentWidget)
+	{
+		WidgetPath.InsertAt(0, TEXT("/"));
+
+		TSharedPtr<FReflectionMetaData> MetaData = CurrentWidget->GetMetaData<FReflectionMetaData>();
+		if (MetaData.IsValid())
+		{
+			WidgetPath.InsertAt(0, MetaData->Name.ToString());
+		}
+		else
+		{
+			WidgetPath.InsertAt(0, CurrentWidget->GetReadableLocation());
+		}
+
+		CurrentWidget = CurrentWidget->GetParentWidget().Get();
+	}
+
+	return WidgetPath;
+}
 
 FString FReflectionMetaData::GetWidgetDebugInfo(const SWidget* InWidget)
 {
