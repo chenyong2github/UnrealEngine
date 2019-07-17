@@ -108,8 +108,6 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Register for notification of volume changes
 	AVolume::GetOnVolumeShapeChangedDelegate().AddStatic(&FBSPOps::HandleVolumeShapeChanged);
-	//
-	InitBuilderBrush( GWorld );
 
 	// Iterate over all always fully loaded packages and load them.
 	if (!IsRunningCommandlet())
