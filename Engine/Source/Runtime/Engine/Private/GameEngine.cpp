@@ -31,6 +31,7 @@
 #include "GeneralProjectSettings.h"
 #include "Misc/PackageName.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ShaderPipelineCache.h"
 
 #include "Misc/ConfigCacheIni.h"
 
@@ -781,6 +782,16 @@ public:
 			{
 				bool bEnabled = Message.Parameters.FindRef(TEXT("enabled")).ToBool();
 				FPlatformApplicationMisc::ControlScreensaver(bEnabled ? FGenericPlatformApplicationMisc::Enable : FGenericPlatformApplicationMisc::Disable);
+				Message.OnCompleteDelegate({}, TEXT(""));
+			}
+			else if (Message.Command == TEXT("shaderresumebatching"))
+			{
+				FShaderPipelineCache::ResumeBatching();
+				Message.OnCompleteDelegate({}, TEXT(""));
+			}
+			else if (Message.Command == TEXT("shaderpausebatching"))
+			{
+				FShaderPipelineCache::PauseBatching();
 				Message.OnCompleteDelegate({}, TEXT(""));
 			}
 			else if (Message.Command == TEXT("getmemorybucket"))
