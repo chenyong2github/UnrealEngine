@@ -89,6 +89,11 @@ void EmitRDGWarning(const FString& WarningMessage)
 #define EmitRDGWarningf(WarningMessageFormat, ...) \
 	EmitRDGWarning(FString::Printf(WarningMessageFormat, ##__VA_ARGS__));
 
+void FRDGBuilder::TickPoolElements()
+{
+	GRenderGraphResourcePool.TickPoolElements();
+}
+
 FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList)
 	: RHICmdList(InRHICmdList)
 	, MemStack(FMemStack::Get())
