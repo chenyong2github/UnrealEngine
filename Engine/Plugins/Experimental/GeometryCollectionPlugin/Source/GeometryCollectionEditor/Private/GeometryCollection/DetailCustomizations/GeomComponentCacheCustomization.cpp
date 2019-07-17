@@ -13,6 +13,8 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionEditorPlugin.h"
 #include "EditorFontGlyphs.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "GeomCollectionCacheParamsCustomization"
 

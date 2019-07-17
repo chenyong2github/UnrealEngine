@@ -169,7 +169,6 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 
 	// Bind our scene outliner provider to the editor
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
-	ModularFeatures.RegisterModularFeature(TEXT("SceneOutlinerTraversal"), &OutlinerTraversalAccessor);
 	ModularFeatures.RegisterModularFeature(ITargetCacheProvider::GetFeatureName(), &TargetCacheProvider);
 
 	// Register type customizations
@@ -224,7 +223,6 @@ void IGeometryCollectionEditorPlugin::ShutdownModule()
 
 		// Unbind provider from editor
 		IModularFeatures& ModularFeatures = IModularFeatures::Get();
-		ModularFeatures.UnregisterModularFeature(TEXT("SceneOutlinerTraversal"), &OutlinerTraversalAccessor);
 		ModularFeatures.UnregisterModularFeature(ITargetCacheProvider::GetFeatureName(), &TargetCacheProvider);
 
 		// Unregister type customizations
