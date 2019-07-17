@@ -24,7 +24,7 @@ public:
 	 *
 	 * @return	true if success 
 	 */
-	virtual void FixUpSectionBoneMaps( FSkelMeshSection & Section, const TMap<FBoneIndexType, FBoneIndexType> &BonesToRepair ) = 0;
+	virtual void FixUpSectionBoneMaps( FSkelMeshSection & Section, const TMap<FBoneIndexType, FBoneIndexType> &BonesToRepair, TMap<FName, FImportedSkinWeightProfileData>& SkinWeightProfiles) = 0;
 	/**
 	 * Get Bones To Remove from the Desired LOD
 	 * List of bones to remove should contains <bone index to remove, bone index to replace to >
