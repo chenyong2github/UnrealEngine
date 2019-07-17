@@ -285,6 +285,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 		return *SingletonManager;
 	}
 
+	/** Returns possibly nullptr to the manager. Needed for some shutdown cases to avoid reallocating. */
+	FORCEINLINE static UGameplayTagsManager* GetIfAllocated() { return SingletonManager; }
+
 	/**
 	* Adds the gameplay tags corresponding to the strings in the array TagStrings to OutTagsContainer
 	*
@@ -533,6 +536,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 
 	/** Returns "Categories" meta property from given handle, used for filtering by tag widget */
 	FString GetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle) const;
+
+	/** Helper function, made to be called by custom OnGetCategoriesMetaFromPropertyHandle handlers  */
+	static FString StaticGetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle);
 
 	/** Returns "Categories" meta property from given field, used for filtering by tag widget */
 	FString GetCategoriesMetaFromField(UField* Field) const;
