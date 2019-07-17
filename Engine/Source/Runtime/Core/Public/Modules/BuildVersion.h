@@ -59,6 +59,11 @@ public:
 	FString BuildId;
 
 	/**
+	 * The build version string.
+	 */
+	FString BuildVersion;
+
+	/**
 	 * Default constructor. Initializes the structure to empty.
 	 */
 	FBuildVersion();
