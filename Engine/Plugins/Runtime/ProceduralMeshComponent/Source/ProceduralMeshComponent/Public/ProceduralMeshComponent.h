@@ -18,7 +18,8 @@ class FPrimitiveSceneProxy;
 USTRUCT(BlueprintType)
 struct FProcMeshTangent
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
+public:
 
 	/** Direction of X tangent for this vertex */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Tangent)
@@ -48,7 +49,8 @@ struct FProcMeshTangent
 USTRUCT(BlueprintType)
 struct FProcMeshVertex
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
+public:
 
 	/** Vertex position */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Vertex)
@@ -99,7 +101,8 @@ struct FProcMeshVertex
 USTRUCT()
 struct FProcMeshSection
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
+public:
 
 	/** Vertex buffer for this section */
 	UPROPERTY()
@@ -144,7 +147,10 @@ struct FProcMeshSection
 UCLASS(hidecategories = (Object, LOD), meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
 class PROCEDURALMESHCOMPONENT_API UProceduralMeshComponent : public UMeshComponent, public IInterface_CollisionDataProvider
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+public:
+
+	UProceduralMeshComponent(const FObjectInitializer& ObjectInitializer);
 
 	/**
 	 *	Create/replace a section for this procedural mesh component.

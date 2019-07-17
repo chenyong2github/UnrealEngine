@@ -26,7 +26,8 @@ enum class EProcMeshSliceCapOption : uint8
 UCLASS(meta=(ScriptName="ProceduralMeshLibrary"))
 class PROCEDURALMESHCOMPONENT_API UKismetProceduralMeshLibrary : public UBlueprintFunctionLibrary
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+public:
 
 	/** Generate vertex and index buffer for a simple box, given the supplied dimensions. Normals, UVs and tangents are also generated for each vertex. */
 	UFUNCTION(BlueprintCallable, Category = "Components|ProceduralMesh")
