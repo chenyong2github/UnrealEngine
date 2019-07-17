@@ -1589,6 +1589,7 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignDynamicInputTransaction", "Reassign dynamic input script"));
 		InputValues.DynamicNode->Modify();
 		InputValues.DynamicNode->FunctionScript = DynamicInputScript;
+		InputValues.DynamicNode->RefreshFromExternalChanges();
 		InputValues.DynamicNode->MarkNodeRequiresSynchronization(TEXT("Dynamic input script reassigned."), true);
 		RefreshChildren();
 	}

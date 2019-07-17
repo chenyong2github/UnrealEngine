@@ -176,7 +176,7 @@ bool FNiagaraStackFunctionInputBinder::IsValid() const
 		{
 			RefreshGraphPins();
 		}
-		return OverridePin == nullptr || OverridePin->LinkedTo.Num() == 0;
+		return (OverridePin == nullptr || OverridePin->LinkedTo.Num() == 0) && DefaultPin != nullptr;
 	}
 	return false;
 }
