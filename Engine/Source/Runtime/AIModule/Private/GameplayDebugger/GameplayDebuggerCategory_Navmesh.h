@@ -16,13 +16,22 @@ public:
 	FGameplayDebuggerCategory_Navmesh();
 
 	virtual void CollectData(APlayerController* OwnerPC, AActor* DebugActor) override;
+	virtual void DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) override;
 	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy(const UPrimitiveComponent* InComponent, FDebugDrawDelegateHelper*& OutDelegateHelper) override;
 	virtual void OnDataPackReplicated(int32 DataPackId) override;
 
 	static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
 
 protected:
+
+	struct FRepData
+	{
+		int32 NumDirtyAreas = 0;
+		void Serialize(FArchive& Ar);
+	};
+
 	FNavMeshSceneProxyData NavmeshRenderData;
+	FRepData DataPack;
 };
 
 #endif // WITH_GAMEPLAY_DEBUGGER
