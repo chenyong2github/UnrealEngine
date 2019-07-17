@@ -52,7 +52,7 @@ void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const TPBDRigidPartic
 {
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 	Concrete.CollisionGroup() = 0;
-	Concrete.Disabled() = Params.bDisabled;
+	Concrete.SetDisabledLowLevel(Params.bDisabled);
 	Concrete.PreV() = Concrete.V();
 	Concrete.PreW() = Concrete.W();
 	Concrete.P() = Concrete.X();
@@ -63,7 +63,7 @@ void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const TPBDRigidPartic
 	Concrete.InvM() = 1;
 	Concrete.I() = PMatrix<T, d, d>(1, 1, 1);
 	Concrete.InvI() = PMatrix<T, d, d>(1, 1, 1);
-	Concrete.Island() = 0;
+	Concrete.Island() = INDEX_NONE;
 	Concrete.ToBeRemovedOnFracture() = false;
 	Concrete.SetObjectState(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 }
@@ -194,7 +194,9 @@ public:
 	int32& CollisionGroup() { return PBDRigidParticles->CollisionGroup(ParticleIdx); }
 
 	bool Disabled() const { return PBDRigidParticles->Disabled(ParticleIdx); }
-	bool& Disabled() { return PBDRigidParticles->Disabled(ParticleIdx); }
+
+	// See Comment on TRigidParticle::SetDisabledLowLevel. State changes in Evolution should accompany this call.
+	void SetDisabledLowLevel(bool disabled) { PBDRigidParticles->SetDisabledLowLevel(ParticleIdx, disabled); }
 
 	const TVector<T, d>& PreV() const { return PBDRigidParticles->PreV(ParticleIdx); }
 	TVector<T, d>& PreV() { return PBDRigidParticles->PreV(ParticleIdx); }
@@ -371,7 +373,10 @@ public:
 	int32& CollisionGroup() { return MCollisionGroup; }
 
 	bool Disabled() const { return MDisabled; }
-	bool& Disabled() { return MDisabled; }
+
+	// Named to match signature of TPBDRigidParticleHandle, as both are used in templated functions.
+	// See its comment for details.
+	bool& SetDisabledLowLevel() { return MDisabled; }
 
 	const TVector<T, d>& PreV() const { return MPreV; }
 	TVector<T, d>& PreV() { return MPreV; }
@@ -553,7 +558,10 @@ public:
 	TVector<T, d>& W() { return NonConstCurSOA->W(ParticleIdx); }
 
 	int32& CollisionGroup() { return NonConstCurSOA->CollisionGroup(ParticleIdx); }
-	bool& Disabled() { return NonConstCurSOA->Disabled(ParticleIdx); }
+
+	// See Comment on TRigidParticle::SetDisabledLowLevel. State changes in Evolution should accompany this call.
+	bool& SetDisabledLowLevel() { return NonConstCurSOA->Disabled(ParticleIdx); }
+
 	TVector<T, d>& PreV() { return NonConstCurSOA->PreV(ParticleIdx); }
 	TVector<T, d>& PreW() { return NonConstCurSOA->PreW(ParticleIdx); }
 	TVector<T, d>& P() { return NonConstCurSOA->P(ParticleIdx); }
