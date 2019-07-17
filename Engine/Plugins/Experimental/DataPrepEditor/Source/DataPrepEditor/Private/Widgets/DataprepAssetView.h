@@ -161,7 +161,7 @@ private:
 	TArray< TSharedPtr< FString > > ConsumerDescriptionList;
 	TMap< TSharedPtr< FString >, UClass* > ConsumerDescriptionMap;
 	TSharedPtr< FString > SelectedConsumerDescription;
-	TSharedPtr< STextComboBox > ProducerSelector;
+	TSharedPtr< SWidget > ProducerSelector;
 	bool bIsChecked;
 	TSharedPtr< FProducerStackEntry > SelectedEntry;
 	TSharedPtr< SDataprepConsumerWidget > ConsumerWidget;
