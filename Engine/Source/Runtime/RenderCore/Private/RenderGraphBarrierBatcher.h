@@ -8,24 +8,25 @@
 class RENDERCORE_API FRDGBarrierBatcher final
 {
 public:
-	FRDGBarrierBatcher() = default;
+	/** RAII initialization of batcher. Batcher will flush all queued transitions in the destructor.
+	 *  @param Pass The current pass if performing inter-pass barriers. This can be null (e.g. for post-execution barriers).
+	 */
+	FRDGBarrierBatcher(FRHICommandList& RHICmdList, const FRDGPass* Pass);
 	~FRDGBarrierBatcher();
 
-	void Begin();
+	/** Queues a transition of the texture to the requested access state. */
+	void QueueTransitionTexture(FRDGTexture* Texture, FRDGResourceState::EAccess AccessAfter);
 
-	void QueueTransitionTexture(FRDGTexture* Texture, FRDGResourceState StateAfter);
-
+	/** Queues a transition of the UAV to the requested access state. The current state of the resource is checked and the transition
+	 *  is only performed if a change occurs. It is valid to queue the same state multiple times. However, it is invalid to queue a
+	 *  resource into multiple states at the same time. The underlying resource is the texture / buffer instance referenced by the view.
+	 */
 	void QueueTransitionUAV(
 		FRHIUnorderedAccessView* UAV,
 		FRDGTrackedResource* UnderlyingResource,
-		FRDGResourceState StateAfter);
-
-	/** Submits and clears all queued transitions to the provided RHI command list. */
-	void End(FRHICommandList& RHICmdList);
+		FRDGResourceState::EAccess AccessAfter);
 
 private:
-	static void ValidateTransition(FRDGResourceState StateBefore, FRDGResourceState StateAfter, const FRDGTrackedResource* Resource);
-
 	struct FTransitionParameters
 	{
 		FTransitionParameters() = default;
@@ -59,6 +60,8 @@ private:
 	using FTextureBatch = TArray<FRHITexture*, SceneRenderingAllocator>;
 	using FTextureBatchMap = TMap<FTransitionParameters, FTextureBatch, SceneRenderingSetAllocator, TBatchMapKeyFuncs<FTextureBatch>>;
 
+	FRHICommandList& RHICmdList;
+
 	FTextureBatch TextureUpdateMultiFrameBegins;
 	FTextureBatch TextureUpdateMultiFrameEnds;
 	FTextureBatchMap TextureBatchMap;
@@ -67,5 +70,12 @@ private:
 	FUAVBatch UAVUpdateMultiFrameEnds;
 	FUAVBatchMap UAVBatchMap;
 
-	bool bAllowQueueing = false;
+	void ValidateTransition(const FRDGTrackedResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter);
+
+	EResourceTransitionAccess GetResourceTransitionAccess(FRDGResourceState::EAccess AccessAfter) const;
+	EResourceTransitionAccess GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter) const;
+
+	const FRDGPass* Pass = nullptr;
+	FRDGResourceState::EPipeline Pipeline = FRDGResourceState::EPipeline::Graphics;
+	bool bIsGeneratingMips = false;
 };
