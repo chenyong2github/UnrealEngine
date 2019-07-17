@@ -134,9 +134,13 @@ void FSkinWeightProfileHelpers::ReimportSkinWeightProfileLOD(USkeletalMesh* InSk
 			}
 			else
 			{
-				// Otherwise let the user pick a new path
-				const FString PickedFileName = FLODUtilities::PickSkinWeightFBXPath(LODIndex);
-				bResult = FLODUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, InProfileName, true);
+				FText WarningMessage = FText::Format(LOCTEXT("Warning_SkinWeightsFileMissing", "Previous file {0} containing Skin Weight data for LOD {1} could not be found, do you want to specify a new path?"), FText::FromString(PathName), LODIndex);				
+				if (EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
+				{
+					// Otherwise let the user pick a new path
+					const FString PickedFileName = FLODUtilities::PickSkinWeightFBXPath(LODIndex);
+					bResult = FLODUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, InProfileName, true);
+				}
 			}
 
 			if (bResult)
