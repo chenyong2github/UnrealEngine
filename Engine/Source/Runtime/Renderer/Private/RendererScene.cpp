@@ -3804,7 +3804,10 @@ void UpdateStaticMeshesForMaterials(const TArray<const FMaterial*>& MaterialReso
 					ENQUEUE_RENDER_COMMAND(FUpdateStaticMeshesForMaterials)(
 						[SceneProxy](FRHICommandListImmediate& RHICmdList)
 						{
-							SceneProxy->GetPrimitiveSceneInfo()->UpdateStaticMeshes(RHICmdList);
+							// Defer the caching until the next render tick, to make sure that all render components queued
+							// for re-creation are processed. Otherwise, we may end up caching mesh commands from stale data.
+							bool bReAddToDrawLists = false;
+							SceneProxy->GetPrimitiveSceneInfo()->UpdateStaticMeshes(RHICmdList, bReAddToDrawLists);
 						});
 				}
 			}
