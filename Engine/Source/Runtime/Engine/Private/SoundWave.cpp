@@ -176,12 +176,13 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	RawPCMDataSize = 0;
 	SetPrecacheState(ESoundWavePrecacheState::NotStarted);
 
-#if WITH_EDITORONLY_DATA
-	FFTSize = ESoundWaveFFTSize::Medium_512;
 	FrequenciesToAnalyze.Add(100.0f);
 	FrequenciesToAnalyze.Add(500.0f);
 	FrequenciesToAnalyze.Add(1000.0f);
 	FrequenciesToAnalyze.Add(5000.0f);
+
+#if WITH_EDITORONLY_DATA
+	FFTSize = ESoundWaveFFTSize::Medium_512;
 	FFTAnalysisFrameSize = 1024;
 	FFTAnalysisAttackTime = 10;
 	FFTAnalysisReleaseTime = 3000;
