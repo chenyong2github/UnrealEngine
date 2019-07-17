@@ -1471,7 +1471,7 @@ static bool DoAnyWindowDescendantsNeedPrepass(TSharedRef<SWindow> WindowToPrepas
 
 static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 {
-	if (UNLIKELY(!FApp::CanEverRender()))
+	if (IsRunningDedicatedServer())
 	{
 		return;
 	}
