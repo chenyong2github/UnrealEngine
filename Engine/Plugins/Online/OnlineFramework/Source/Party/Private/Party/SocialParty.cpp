@@ -626,6 +626,39 @@ void USocialParty::HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserI
 	}
 }
 
+void USocialParty::RemovePlayerFromReservationBeacon(const FUniqueNetId& LocalUserId, const FUniqueNetId& PlayerToRemove)
+{
+	if (!IsLocalPlayerPartyLeader())
+	{
+		return;
+	}
+
+	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+
+	FPartyJoinApproval JoinApproval;
+	JoinApproval.SetApprovalAction(EApprovalAction::EnqueueAndStartBeacon);
+	JoinApproval.SetDenialReason(EPartyJoinDenialReason::NoReason);
+
+	FUserPlatform MemberPlatform = FUserPlatform();
+
+	// Enqueue for a more opportune time
+	UE_LOG(LogParty, Verbose, TEXT("[%s] Enqueuing ReservationBeacon update to remove player %s"), *GetPartyId().ToString(), *PlayerToRemove.ToDebugString());
+
+	FPendingMemberApproval PendingApproval;
+	PendingApproval.RecipientId.SetUniqueNetId(LocalUserId.AsShared());
+	PendingApproval.SenderId.SetUniqueNetId(PlayerToRemove.AsShared());
+	PendingApproval.Platform = MemberPlatform;
+	PendingApproval.bIsJIPApproval = true;
+	PendingApproval.bIsPlayerRemoval = true;
+	PendingApprovals.Enqueue(PendingApproval);
+
+
+	if (!ReservationBeaconClient)
+	{
+		ConnectToReservationBeacon();
+	}
+}
+
 void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId)
 {
 	if (!IsLocalPlayerPartyLeader() || PartyId != GetPartyId())
@@ -937,6 +970,8 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 				UpdatePlatformSessionLeader(LeftMember.GetPlatformOssName());
 				LeftMember.NotifyRemovedFromParty(ExitReason);
 				LeftMember.MarkPendingKill();
+
+				RemovePlayerFromReservationBeacon(LocalUserId, MemberId);
 
 				// Update party join state, will cause a failure on leader promotion currently
 				// because we can't tell the difference between "expected leader" and "actually the new leader"
@@ -1257,12 +1292,12 @@ void USocialParty::ConnectToReservationBeacon()
 							}
 							else
 							{
-								Reservation.bAllowCrossplay = true; // THis will not matter since we are JIP, and the session already has crossplay set.
+								Reservation.bAllowCrossplay = true; // This will not matter since we are JIP, and the session already has crossplay set.
 							}
 
 							TArray<FPlayerReservation> ReservationAsArray;
 							ReservationAsArray.Add(Reservation);
-							bStartedConnection = ReservationBeaconClient->RequestReservationUpdate(URL, Session->GetSessionIdStr(), GetPartyLeader()->GetPrimaryNetId(), ReservationAsArray);
+							bStartedConnection = ReservationBeaconClient->RequestReservationUpdate(URL, Session->GetSessionIdStr(), GetPartyLeader()->GetPrimaryNetId(), ReservationAsArray, NextApproval.bIsPlayerRemoval);
 						}
 					}
 				}
