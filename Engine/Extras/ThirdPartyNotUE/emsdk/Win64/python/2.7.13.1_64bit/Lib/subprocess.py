@@ -656,6 +656,7 @@ class Popen(object):
                 pprint(vars(e)) # TEMP CIS BUGHUNT
                 print('NICKNICK: subprocess.py END OF CIS BUGHUNT DUMP')
                 if e.winerror != 5:
+                    print('e.winerror:', e.winerror)
                     raise WindowsError(*e.args)
 # EPIC EDIT end -- nick.shin 2019-06-13 -- UE-76599
             finally:
