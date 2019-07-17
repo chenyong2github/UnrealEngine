@@ -52,6 +52,7 @@ FLevelCollectionModel::FLevelCollectionModel()
 	, bSelectionHasChanged(true)
 	, bUpdatingLevelsSelection(false)
 {
+	FEditorDelegates::RefreshLevelBrowser.AddRaw(this, &FLevelCollectionModel::PopulateLevelsList);
 }
 
 FLevelCollectionModel::~FLevelCollectionModel()
@@ -68,6 +69,8 @@ FLevelCollectionModel::~FLevelCollectionModel()
 	{
 		CurrentWorld->OnSelectedLevelsChanged().RemoveAll(this);
 	}
+
+	FEditorDelegates::RefreshLevelBrowser.RemoveAll(this);
 }
 
 void FLevelCollectionModel::Initialize(UWorld* InWorld)
