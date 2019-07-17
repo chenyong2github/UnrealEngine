@@ -165,6 +165,26 @@ DECLARE_DELEGATE_ThreeParams(FOnReceivedRawPacket, void* /*Data*/, int32 /*Count
 DECLARE_DELEGATE_ThreeParams(FOnLowLevelSend, void* /*Data*/, int32 /*Count*/, bool& /*bBlockSend*/);
 #endif
 
+struct FRemapClientLevelPackageNameParams
+{
+	/** Package name that was received. */
+	const FName InPackageName;
+
+	/** [Out] Package name that was remapped.*/
+	FString OutPackageName;
+};
+
+/**
+ * This delegate will be called if a client sends the server a Level Visibility for a package that the
+ * server fails to resolve. This mainly occurs when using Dynamic Level Instances that the server
+ * hasn't loaded / created yet.
+ *
+ * Clients can use this delegate to try and remap the instanced package name back to its base package.
+ * E.G. /Game/Maps/MyMap_Instance1 -> /Games/MyMap.
+ *
+ * @return True if the name was remapped, false otherwise.
+ */
+DECLARE_DELEGATE_RetVal_OneParam(bool, FRemapClientLevelPackageName, FRemapClientLevelPackageNameParams&);
 
 #if DO_ENABLE_NET_TEST
 /**
@@ -1163,6 +1183,18 @@ public:
 	 */
 	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
 	
+	/** Clears our RemapLevelPackageName delegate. @see FRemapClientLevelPackageName. */
+	ENGINE_API void ClearRemapLevelPackageName()
+	{
+		RemapLevelPackageName.Unbind();
+	}
+
+	/** Sets (or resets) our RemapLevelPackageName delegate. @see FRemapClientLevelPackageName. */
+	ENGINE_API void SetRemapLevelPackageName(FRemapClientLevelPackageName&& NewDelegate)
+	{
+		RemapLevelPackageName = MoveTemp(NewDelegate);
+	}
+	
 protected:
 
 	ENGINE_API void SetPendingCloseDueToSocketSendFailure();
@@ -1278,6 +1310,9 @@ private:
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;
+	
+	/** @see FRemapClientLevelPackagename. */
+	FRemapClientLevelPackageName RemapLevelPackageName;
 };
 
 /** Help structs for temporarily setting network settings */
