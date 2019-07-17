@@ -162,6 +162,25 @@ void FNiagaraSchemaAction_NewNode::AddReferencedObjects( FReferenceCollector& Co
 	Collector.AddReferencedObject( NodeTemplate );
 }
 
+UEdGraphNode* FNiagaraSchemaAction_NewComment::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /*= true*/)
+{
+	// Add menu item for creating comment boxes
+	UEdGraphNode_Comment* CommentTemplate = NewObject<UEdGraphNode_Comment>();
+
+	FVector2D SpawnLocation = Location;
+	FSlateRect Bounds;
+	
+	if (GraphEditor->GetBoundsForSelectedNodes(Bounds, 50.0f))
+	{
+		CommentTemplate->SetBounds(Bounds);
+		SpawnLocation.X = CommentTemplate->NodePosX;
+		SpawnLocation.Y = CommentTemplate->NodePosY;
+	}
+
+	UEdGraphNode* NewNode = FNiagaraSchemaAction_NewNode::SpawnNodeFromTemplate<UEdGraphNode_Comment>(ParentGraph, CommentTemplate, SpawnLocation, bSelectNewNode);
+	return NewNode;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 static int32 GbAllowAllNiagaraNodesInEmitterGraphs = 1;
@@ -1668,7 +1687,18 @@ void UEdGraphSchema_Niagara::GetContextMenuActions(const UEdGraph* CurrentGraph,
 	}
 	else if (InGraphNode)
 	{
+		if (InGraphNode->IsA<UEdGraphNode_Comment>())
+		{
+			//Comment boxes do not support enable/disable or pin handling, so exit out now
+			return;
+		}
+
 		const UNiagaraNode* Node = Cast<UNiagaraNode>(InGraphNode);
+		if (Node == nullptr)
+		{
+			ensureMsgf(false, TEXT("Encountered unexpected node type when creating context menu actions for Niagara Script Graph!"));
+			return;
+		}
 
 		bool bHasNumerics = false;
 		for (auto Pin : Node->Pins)
