@@ -142,6 +142,8 @@ void FNiagaraSceneProxy::ReleaseRenderers()
 
 void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
+
 	check(Component);
 	check(Component->GetSystemInstance());
 
@@ -219,6 +221,7 @@ void FNiagaraSceneProxy::ReleaseRenderThreadResources()
 // FPrimitiveSceneProxy interface.
 void FNiagaraSceneProxy::CreateRenderThreadResources()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	for (FNiagaraRenderer* Renderer : EmitterRenderers)
 	{
 		if (Renderer)
@@ -419,6 +422,7 @@ void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState
 
 void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentTick);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Particles);
 
@@ -594,6 +598,7 @@ bool UNiagaraComponent::IsWorldReadyToRun() const
 
 bool UNiagaraComponent::InitializeSystem()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	if (SystemInstance.IsValid() == false)
 	{
 		FNiagaraSystemInstance::AllocateSystemInstance(this, SystemInstance);
@@ -931,6 +936,7 @@ void UNiagaraComponent::CreateRenderState_Concurrent()
 
 void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
 	if (SystemInstance.IsValid() && SceneProxy)
 	{
@@ -1050,6 +1056,7 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 
 FPrimitiveSceneProxy* UNiagaraComponent::CreateSceneProxy()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraCreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	
