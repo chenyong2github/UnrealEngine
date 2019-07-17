@@ -21,8 +21,5 @@ class BLUTILITY_API UEditorUtilityBlueprint : public UBlueprint
 	{
 		return false;
 	}
-
-protected:
-	virtual void LoadModulesRequiredForCompilation() override;
 // End of UBlueprint interface
 };
