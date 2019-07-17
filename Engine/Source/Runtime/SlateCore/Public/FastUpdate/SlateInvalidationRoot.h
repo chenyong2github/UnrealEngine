@@ -82,6 +82,7 @@ public:
 
 	SLATECORE_API FSlateInvalidationResult PaintInvalidationRoot(const FSlateInvalidationContext& Context);
 
+	void OnWidgetDestroyed(const SWidget* Widget);
 protected:
 	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) = 0;
 

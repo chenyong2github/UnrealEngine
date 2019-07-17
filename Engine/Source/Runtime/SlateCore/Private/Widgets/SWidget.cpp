@@ -181,25 +181,9 @@ SWidget::~SWidget()
 			FSlateApplicationBase::Get().UnRegisterActiveTimer(ActiveTimerHandle);
 		}
 
-		if (FastPathProxyHandle.IsValid())
-		{
-			FWidgetProxy& Proxy = FastPathProxyHandle.GetProxy();
-			Proxy.Widget = nullptr;
-		}
-		else
-		{
-			ensure(FastPathProxyHandle.GetIndex() == INDEX_NONE);
-		}
-
 		if (FSlateInvalidationRoot* Root = FastPathProxyHandle.GetInvalidationRoot())
 		{
-			Root->InvalidateChildOrder();
-
-			if (PersistentState.CachedElementListNode)
-			{
-				Root->GetCachedElements().RemoveCache(PersistentState.CachedElementListNode);
-			}
-		
+			Root->OnWidgetDestroyed(this);
 		}
 
 		// Reset handle
