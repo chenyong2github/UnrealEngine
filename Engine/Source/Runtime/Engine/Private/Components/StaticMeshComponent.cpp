@@ -499,7 +499,7 @@ void UStaticMeshComponent::PropagateLightingScenarioChange()
 	FComponentRecreateRenderStateContext Context(this);
 }
 
-const FMeshMapBuildData* UStaticMeshComponent::GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo) const
+const FMeshMapBuildData* UStaticMeshComponent::GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo, bool bCheckForResourceCluster) const
 {
 	if (!GetStaticMesh() || !GetStaticMesh()->RenderData)
 	{
@@ -544,7 +544,7 @@ const FMeshMapBuildData* UStaticMeshComponent::GetMeshMapBuildData(const FStatic
 
 			if (MapBuildData)
 			{
-				return MapBuildData->GetMeshBuildData(LODInfo.MapBuildDataId);
+				return bCheckForResourceCluster ? MapBuildData->GetMeshBuildData(LODInfo.MapBuildDataId) : MapBuildData->GetMeshBuildDataDuringBuild(LODInfo.MapBuildDataId);
 			}
 		}
 	}
