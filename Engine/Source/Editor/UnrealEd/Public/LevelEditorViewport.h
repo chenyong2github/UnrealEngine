@@ -9,6 +9,7 @@
 #include "Camera/CameraComponent.h"
 #include "UnrealWidget.h"
 #include "EditorViewportClient.h"
+#include "UObject/ObjectKey.h"
 
 struct FAssetData;
 class FCanvas;
@@ -777,6 +778,9 @@ private:
 	 */
 	TWeakObjectPtr<AActor>	ActorLockedByMatinee;
 	TWeakObjectPtr<AActor>	ActorLockedToCamera;
+
+	/** Caching for expensive FindViewComponentForActor. Invalidated once per Tick. */
+	static TMap<TObjectKey<AActor>, TWeakObjectPtr<UActorComponent>> ViewComponentForActorCache;
 
 	/** If true, we switched between two different cameras. Set by matinee, used by the motion blur to invalidate this frames motion vectors */
 	bool					bEditorCameraCut;
