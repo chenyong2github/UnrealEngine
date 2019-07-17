@@ -191,6 +191,7 @@ public:
 	virtual int32 GetCurrentSceneIndex() const override;
 	virtual void ClearScenes() override;
 	virtual void DestroyCachedFastPathRenderingData(struct FSlateCachedFastPathRenderingData* InRenderingData) override;
+	virtual void DestroyCachedFastPathElementData(FSlateCachedElementData* InCachedElementData) override;
 	virtual void BeginFrame() const override;
 	virtual void EndFrame() const override;
 	virtual void AddWidgetRendererUpdate(const struct FRenderThreadUpdateContext& Context, bool bDeferredRenderTargetUpdate) override;
