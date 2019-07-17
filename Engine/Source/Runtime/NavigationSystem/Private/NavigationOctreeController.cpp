@@ -27,16 +27,13 @@ void FNavigationOctreeController::SetNavigableGeometryStoringMode(FNavigationOct
 bool FNavigationOctreeController::GetNavOctreeElementData(const UObject& NodeOwner, int32& DirtyFlags, FBox& DirtyBounds)
 {
 	const FOctreeElementId* ElementId = GetObjectsNavOctreeId(NodeOwner);
-	if (ElementId != NULL)
+	if (ElementId != nullptr && ensure(IsValidElement(*ElementId)))
 	{
-		if (NavOctree->IsValidElementId(*ElementId))
-		{
-			// mark area occupied by given actor as dirty
-			FNavigationOctreeElement& ElementData = NavOctree->GetElementById(*ElementId);
-			DirtyFlags = ElementData.Data->GetDirtyFlag();
-			DirtyBounds = ElementData.Bounds.GetBox();
-			return true;
-		}
+		// mark area occupied by given actor as dirty
+		FNavigationOctreeElement& ElementData = NavOctree->GetElementById(*ElementId);
+		DirtyFlags = ElementData.Data->GetDirtyFlag();
+		DirtyBounds = ElementData.Bounds.GetBox();
+		return true;
 	}
 
 	return false;
@@ -44,11 +41,11 @@ bool FNavigationOctreeController::GetNavOctreeElementData(const UObject& NodeOwn
 
 const FNavigationRelevantData* FNavigationOctreeController::GetDataForObject(const UObject& Object) const
 {
-	const FOctreeElementId* OctreeID = GetObjectsNavOctreeId(Object);
+	const FOctreeElementId* ElementId = GetObjectsNavOctreeId(Object);
 
-	if (OctreeID != nullptr && ensure(NavOctree.IsValid()) && NavOctree->IsValidElementId(*OctreeID))
+	if (ElementId != nullptr && ensure(IsValidElement(*ElementId)))
 	{
-		return NavOctree->GetDataForID(*OctreeID);
+		return NavOctree->GetDataForID(*ElementId);
 	}
 
 	return nullptr;

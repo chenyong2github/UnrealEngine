@@ -136,6 +136,14 @@ void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavEl
 	NodesMemory += ElementMemory;
 	INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemory);
 
+	if (ElementOb != nullptr)
+	{
+		ensure(ObjectToOctreeId.Find(HashObject(*ElementOb)) == nullptr);
+
+		// Reserve entry in our map before octree calls us back with the assigned Id. This is required since we ensure that all set id already exists
+		ObjectToOctreeId.Add(HashObject(*ElementOb), FOctreeElementId());
+	}	
+
 	AddElement(Element);
 }
 
@@ -200,7 +208,15 @@ const FNavigationRelevantData* FNavigationOctree::GetDataForID(const FOctreeElem
 
 void FNavigationOctree::SetElementIdImpl(const UObject& Object, FOctreeElementId Id)
 {
-	ObjectToOctreeId.Add(HashObject(Object), Id);
+	ensure(IsValidElementId(Id));
+
+	FOctreeElementId* ExistingElementId = ObjectToOctreeId.Find(HashObject(Object));
+	// We expect ObjectToOctreeId to already contain an entry for Object since it should have already 
+	// been added in FNavigationOctree::AddNode
+	if (ensure(ExistingElementId))
+	{
+		*ExistingElementId = Id;
+	}
 }
 
 //----------------------------------------------------------------------//
@@ -211,10 +227,9 @@ FORCENOINLINE
 #endif // NAVSYS_DEBUG
 void FNavigationOctreeSemantics::SetElementId(FNavigationOctreeSemantics::FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId Id)
 {
-
 	const bool bEvenIfPendingKill = true;
 	UObject* ElementOwner = Element.GetOwner(bEvenIfPendingKill);
-	if (ElementOwner)
+	if (ensure(ElementOwner != nullptr))
 	{
 		((FNavigationOctree&)OctreeOwner).SetElementIdImpl(*ElementOwner, Id);
 	}
