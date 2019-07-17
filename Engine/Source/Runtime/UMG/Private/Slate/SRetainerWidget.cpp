@@ -543,15 +543,8 @@ void SRetainerWidget::OnGlobalInvalidationToggled(bool bGlobalInvalidationEnable
 {
 	InvalidateRoot();
 
-	ClearAllFastPathData();
+	ClearAllFastPathData(false);
 }
-
-/*
-void SRetainerWidget::Advanced_InvalidateRoot()
-{
-	InvalidateRoot();
-}
-*/
 
 bool SRetainerWidget::CustomPrepass(float LayoutScaleMultiplier)
 {
