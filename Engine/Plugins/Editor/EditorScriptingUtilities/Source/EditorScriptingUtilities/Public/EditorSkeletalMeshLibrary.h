@@ -40,5 +40,15 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Editor Scripting | SkeletalMesh")
 	static int32 GetNumVerts(USkeletalMesh* SkeletalMesh, int32 LODIndex);
+
+	/** Rename a socket within a skeleton
+	 * @param SkeletalMesh	The mesh inside which we are renaming a socket
+	 * @param OldName       The old name of the socket
+	 * @param NewName		The new name of the socket
+	 * @return true if the renaming succeeded.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod))
+	static bool RenameSocket(USkeletalMesh* SkeletalMesh, FName OldName, FName NewName);
+
 };
 
