@@ -26,6 +26,9 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 	SwarmNumOfConcurrentJobs = 16;
 	SwarmMaxUploadChunkSizeInMB = 100;
 	SwarmIntermediateFolder = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("Simplygon/"));
+	PreviewFeatureLevel = (int32)ERHIFeatureLevel::SM5;
+	PreviewShaderFormatName = NAME_None;
+	bPreviewFeatureLevelActive = false;
 }
 
 void UEditorPerProjectUserSettings::PostInitProperties()

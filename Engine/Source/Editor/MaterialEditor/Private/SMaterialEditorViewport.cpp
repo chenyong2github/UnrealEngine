@@ -394,7 +394,7 @@ bool SMaterialEditor3DPreviewViewport::SetPreviewAsset(UObject* InAsset)
 	// Add the new component to the scene
 	if (PreviewMeshComponent != nullptr)
 	{
-		if (GEditor->PreviewFeatureLevel <= ERHIFeatureLevel::ES3_1)
+		if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 		{
 			PreviewMeshComponent->SetMobility(EComponentMobility::Static);
 		}
