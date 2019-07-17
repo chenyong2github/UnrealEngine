@@ -550,7 +550,7 @@ float FMovieSceneSkeletalAnimationSectionTemplateParameters::MapTimeToAnimation(
 	AnimPosition += InFrameRate.AsSeconds(StartFrameOffset);
 	if (bReverse)
 	{
-		AnimPosition = (SeqLength - (AnimPosition - InFrameRate.AsSeconds(StartFrameOffset))) + InFrameRate.AsSeconds(StartFrameOffset);
+		AnimPosition = GetSequenceLength() - AnimPosition;
 	}
 
 	return AnimPosition;
