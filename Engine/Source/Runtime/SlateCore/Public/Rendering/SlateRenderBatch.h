@@ -125,6 +125,10 @@ public:
 
 	const FShaderParams& GetShaderParams() const { return ShaderParams; }
 
+	bool IsValidForRendering() const
+	{
+		return (NumVertices > 0 && NumIndices > 0) || CustomDrawer != nullptr || ShaderType == ESlateShader::PostProcess;
+	}
 public:
 	FShaderParams ShaderParams;
 
