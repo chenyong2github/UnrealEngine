@@ -48,6 +48,10 @@ namespace UnrealBuildTool
 				{
 				}
 			}
+
+			// by default tools chains don't parse arguments, but we want to be able to check the -architectures flag defined above. This is
+			// only necessary when AndroidToolChain is used during UAT
+			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), this);
 		}
 
 		void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, VCEnvironment EnvVars, List<string> Arguments)
