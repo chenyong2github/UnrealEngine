@@ -665,7 +665,7 @@ public:
 
 	virtual void PropagateLightingScenarioChange() override;
 
-	const FMeshMapBuildData* GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo) const;
+	const FMeshMapBuildData* GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo, bool bCheckForResourceCluster = true) const;
 
 
 #if WITH_EDITOR

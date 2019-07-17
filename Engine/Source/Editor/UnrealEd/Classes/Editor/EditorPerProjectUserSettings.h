@@ -32,6 +32,10 @@ class UEditorPerProjectUserSettings : public UObject
 	UPROPERTY(EditAnywhere, config, Category = AI)
 	uint32 bAlwaysGatherBehaviorTreeDebuggerData : 1;
 
+	/** If enabled, blackboard keys displayed in blackboard editor and key selector will be sorted in alphabetical order . */
+	UPROPERTY(EditAnywhere, config, Category = AI)
+	uint32 bDisplayBlackboardKeysInAlphabeticalOrder : 1;
+
 	/** When enabled, Engine Version Number is displayed in the ProjectBadge */
 	UPROPERTY(EditAnywhere, config, Category = DeveloperTools, meta = (DisplayName = "Display Engine Version Number in Project Badge", ConfigRestartRequired = true))
 	bool bDisplayEngineVersionInBadge;
@@ -149,17 +153,17 @@ public:
 	UPROPERTY(config)
 	int32 MaterialQualityLevel;
 
-	/** The name of the shader platform that will be used in the editor */
+	/** The feature level we should use when loading or creating a new world */
 	UPROPERTY(config)
-	FName PreviewShaderPlatformName;
+	int32 PreviewFeatureLevel;
 
-	/** whether or not the above PreviewShaderPlatformName is a platform that needs to override the material settings in UMaterialShaderQualitySettings */
+	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
 	UPROPERTY(config)
-	bool bIsMaterialQualityOverridePlatform;
+	FName PreviewShaderFormatName;
 
-	/** whether or not the Feature Level Preview is active or whether it is GMaxRHIFeatureLevel is being shown instead */
+	/** Is feature level preview currently active */
 	UPROPERTY(config)
-	bool bIsFeatureLevelPreviewActive;
+	bool bPreviewFeatureLevelActive;
 
 public:
 

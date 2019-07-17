@@ -854,7 +854,7 @@ void UWorld::FinishDestroy()
 
 		if (FXSystem)
 		{
-			FXSystem->Destroy();
+			FFXSystemInterface::Destroy( FXSystem );
 			FXSystem = NULL;
 		}
 
@@ -4418,6 +4418,14 @@ void UWorld::AddNetworkActor( AActor* Actor )
 	if ( !ContainsLevel(Actor->GetLevel()) )
 	{
 		return;
+	}
+
+    // Remove DORM_Initial from dynamic actors
+	if (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor() == false)
+	{
+		UE_LOG(LogNet, VeryVerbose, TEXT("Dynamic actor %s dormancy was changed from DORM_Initial to DORM_DormantAll"), *Actor->GetFullName());
+        // Changing dormancy directly here since the actor was not yet registered to the network drivers
+		Actor->NetDormancy = DORM_DormantAll;
 	}
 
 	ForEachNetDriver(GEngine, this, [Actor](UNetDriver* const Driver)

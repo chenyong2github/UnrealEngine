@@ -174,16 +174,15 @@ namespace UMWidget
  * Flags used by the widget designer.
  */
 UENUM()
-namespace EWidgetDesignFlags
+enum class EWidgetDesignFlags : uint8
 {
-	enum Type
-	{
-		None				= 0,
-		Designing			= 1,
-		ShowOutline			= 2,
-		ExecutePreConstruct	= 4
-	};
-}
+	None				= 0,
+	Designing			= 1 << 0,
+	ShowOutline			= 1 << 1,
+	ExecutePreConstruct	= 1 << 2
+};
+
+ENUM_CLASS_FLAGS(EWidgetDesignFlags);
 
 
 #if WITH_EDITOR
@@ -673,6 +672,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	const FGeometry& GetCachedGeometry() const;
 
+	UFUNCTION(BlueprintCallable, Category="Widget")
+	const FGeometry& GetTickSpaceGeometry() const;
+
+	UFUNCTION(BlueprintCallable, Category="Widget")
+	const FGeometry& GetPaintSpaceGeometry() const;
 	/**
 	 * Gets the underlying slate widget or constructs it if it doesn't exist.  If you're looking to replace
 	 * what slate widget gets constructed look for RebuildWidget.  For extremely special cases where you actually
@@ -792,18 +796,18 @@ public:
 	}
 
 	/** Sets the designer flags on the widget. */
-	virtual void SetDesignerFlags(EWidgetDesignFlags::Type NewFlags);
+	virtual void SetDesignerFlags(EWidgetDesignFlags NewFlags);
 
 	/** Gets the designer flags currently set on the widget. */
-	FORCEINLINE EWidgetDesignFlags::Type GetDesignerFlags() const
+	FORCEINLINE EWidgetDesignFlags GetDesignerFlags() const
 	{
-		return DesignerFlags;
+		return static_cast<EWidgetDesignFlags>(DesignerFlags);
 	}
 
 	/** Tests if any of the flags exist on this widget. */
-	FORCEINLINE bool HasAnyDesignerFlags(EWidgetDesignFlags::Type FlagToCheck) const
+	FORCEINLINE bool HasAnyDesignerFlags(EWidgetDesignFlags FlagsToCheck) const
 	{
-		return ( DesignerFlags&FlagToCheck ) != 0;
+		return EnumHasAnyFlags(GetDesignerFlags(), FlagsToCheck);
 	}
 
 	/** Returns the friendly name of the widget to display in the editor */
@@ -1013,7 +1017,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Any flags used by the designer at edit time. */
 	UPROPERTY(Transient)
-	TEnumAsByte<EWidgetDesignFlags::Type> DesignerFlags;
+	uint8 DesignerFlags;
 
 	/** The friendly name for this widget displayed in the designer and BP graph. */
 	UPROPERTY()

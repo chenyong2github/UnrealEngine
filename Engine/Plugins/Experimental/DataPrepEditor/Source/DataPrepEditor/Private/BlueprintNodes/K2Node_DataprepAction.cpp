@@ -5,6 +5,7 @@
 // Dataprep includes
 #include "DataPrepAsset.h"
 #include "DataprepActionAsset.h"
+#include "DataprepEditorUtils.h"
 #include "Widgets/Action/SGraphNodeK2DataprepAction.h"
 
 // Engine includes
@@ -100,6 +101,11 @@ void UK2Node_DataprepAction::DestroyNode()
 	}
  
 	Super::DestroyNode();
+}
+
+void UK2Node_DataprepAction::NodeConnectionListChanged()
+{
+	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( this );
 }
 
 TSharedPtr<SGraphNode> UK2Node_DataprepAction::CreateVisualWidget()

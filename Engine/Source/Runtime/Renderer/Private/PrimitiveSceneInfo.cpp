@@ -1089,6 +1089,14 @@ void FPrimitiveSceneInfo::CacheReflectionCaptures()
 	bNeedsCachedReflectionCaptureUpdate = false;
 }
 
+void FPrimitiveSceneInfo::RemoveCachedReflectionCaptures()
+{
+	CachedReflectionCaptureProxy = nullptr;
+	CachedPlanarReflectionProxy = nullptr;
+	FMemory::Memzero(CachedReflectionCaptureProxies);
+	bNeedsCachedReflectionCaptureUpdate = true;
+}
+
 void FPrimitiveSceneInfo::UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const
 {
 	ComponentForDebuggingOnly->LastRenderTime = CurrentWorldTime;

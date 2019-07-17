@@ -38,6 +38,7 @@ FNiagaraParameterStore::FNiagaraParameterStore(UObject* InOwner)
 	: Owner(InOwner)
 	, bParametersDirty(true)
 	, bInterfacesDirty(true)
+	, bUObjectsDirty(true)
 	, LayoutVersion(0)
 {
 #if WITH_EDITORONLY_DATA
@@ -50,17 +51,20 @@ FNiagaraParameterStore::FNiagaraParameterStore(UObject* InOwner)
 
 FNiagaraParameterStore::FNiagaraParameterStore(const FNiagaraParameterStore& Other)
 {
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	*this = Other;
+	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 }
 
 FNiagaraParameterStore& FNiagaraParameterStore::operator=(const FNiagaraParameterStore& Other)
 {
 	Owner = Other.Owner;
 	ParameterOffsets = Other.ParameterOffsets;
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData = Other.ParameterData;
-	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	DataInterfaces = Other.DataInterfaces;
+	UObjects = Other.UObjects;
 	++LayoutVersion;
 #if WITH_EDITOR
 	OnChangedDelegate.Broadcast();
@@ -73,7 +77,7 @@ FNiagaraParameterStore::~FNiagaraParameterStore()
 {
 	//Ensure that any stores bound to drive this one are unbound.
 	UnbindFromSourceStores();
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 	//Also unbind from any stores we're feeding.
 	for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
@@ -187,7 +191,7 @@ void FNiagaraParameterStore::Tick()
 #if NIAGARA_NAN_CHECKING
 	CheckForNaNs();
 #endif
-	if (bParametersDirty || bInterfacesDirty)
+	if (bParametersDirty || bInterfacesDirty || bUObjectsDirty)
 	{
 		for (TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding>& Binding : Bindings)
 		{
@@ -199,6 +203,7 @@ void FNiagaraParameterStore::Tick()
 		//We have to have ticked all our source stores before now.
 		bParametersDirty = false;
 		bInterfacesDirty = false;
+		bUObjectsDirty = false;
 	}
 }
 
@@ -276,8 +281,16 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 		ParameterOffsets.Add(Param) = Offset;
 		DataInterfaces[Offset] = bInitInterfaces ? NewObject<UNiagaraDataInterface>(Owner, const_cast<UClass*>(Param.GetType().GetClass()), NAME_None, RF_Transactional | RF_Public) : nullptr;
 	}
+	else if (Param.GetType().IsUObject())
+	{
+		int32 Offset = UObjects.AddDefaulted();
+		ParameterOffsets.Add(Param) = Offset;
+		//UObjects[Offset] = nullptr;
+	}
 	else
 	{
+		DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
+
 		int32 ParamSize = Param.GetSizeInBytes();
 		int32 ParamAlignment = Param.GetAlignment();
 		//int32 Offset = AlignArbitrary(ParameterData.Num(), ParamAlignment);//TODO: We need to handle alignment better here. Need to both satisfy CPU and GPU alignment concerns. VM doesn't care but the VM complier needs to be aware. Probably best to have everything adhere to GPU alignment rules.
@@ -286,7 +299,7 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 		ParameterOffsets.Add(ParamWithNoAllocatedData) = Offset; // We don't need the default value saved in here.
 		ParameterData.AddUninitialized(ParamSize);
 				
-		INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParamSize);
+		INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 		//Temporary to init param data from FNiagaraVariable storage. This will be removed when we change the UNiagaraScript to use a parameter store too.
 		if (Param.IsDataAllocated())
@@ -321,6 +334,7 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariable& ToRemove)
 		TMap<FNiagaraVariable, int32> NewOffsets;
 		TArray<uint8> NewData;
 		TArray<UNiagaraDataInterface*> NewInterfaces;
+		TArray<UObject*> NewUObjects;
 		for (TPair<FNiagaraVariable, int32>& Existing : ParameterOffsets)
 		{
 			FNiagaraVariable& ExistingVar = Existing.Key;
@@ -335,6 +349,12 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariable& ToRemove)
 					NewOffsets.Add(ExistingVar) = Offset;
 					NewInterfaces[Offset] = DataInterfaces[ExistingOffset];
 				}
+				else if (ExistingVar.IsUObject())
+				{
+					int32 Offset = NewUObjects.AddDefaulted();
+					NewOffsets.Add(ExistingVar) = Offset;
+					NewUObjects[Offset] = UObjects[ExistingOffset];
+				}
 				else
 				{
 					int32 Offset = NewData.Num();
@@ -344,15 +364,16 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariable& ToRemove)
 					FMemory::Memcpy(NewData.GetData() + Offset, ParameterData.GetData() + ExistingOffset, ParamSize);
 				}
 			}
-			else
-			{
-				DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ExistingVar.GetSizeInBytes());
-			}
 		}
+
+		DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 		ParameterOffsets = NewOffsets;
 		ParameterData = NewData;
 		DataInterfaces = NewInterfaces;
+		UObjects = NewUObjects;
+
+		INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 		OnLayoutChange();
 		return true;
@@ -384,6 +405,10 @@ void FNiagaraParameterStore::RenameParameter(const FNiagaraVariable& Param, FNam
 		if (Param.IsDataInterface())
 		{
 			SetDataInterface(GetDataInterface(Idx), NewIdx);
+		}
+		else if (Param.IsUObject())
+		{
+			SetUObject(GetUObject(Idx), NewIdx);
 		}
 		else
 		{
@@ -460,6 +485,10 @@ void FNiagaraParameterStore::CopyParametersTo(FNiagaraParameterStore& DestStore,
 					checkf(false, TEXT("A data interface copy method must be specified if the parameter store has data interfaces."));
 				}
 			}
+			else if (Parameter.IsUObject())
+			{
+				DestStore.SetUObject(GetUObject(SrcIndex), DestIndex);//UObjects are just refs to external objects. They never need to be deep copied.
+			}
 			else
 			{
 				if (ParameterData.Num() != 0)
@@ -475,9 +504,9 @@ void FNiagaraParameterStore::CopyParametersTo(FNiagaraParameterStore& DestStore,
 
 FORCEINLINE void FNiagaraParameterStore::SetParameterDataArray(const TArray<uint8>& InParameterDataArray)
 {
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData = InParameterDataArray;
-	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 	OnParameterChange();
 }
@@ -492,16 +521,19 @@ void FNiagaraParameterStore::InitFromSource(const FNiagaraParameterStore* SrcSto
 
 	ParameterOffsets = SrcStore->ParameterOffsets;
 
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData = SrcStore->ParameterData;
-	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	INC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 	DataInterfaces = SrcStore->DataInterfaces;
+
+	UObjects = SrcStore->UObjects;
 
 	if (bNotifyAsDirty)
 	{
 		MarkParametersDirty();
 		MarkInterfacesDirty();
+		MarkUObjectsDirty();
 		OnLayoutChange();
 	}
 }
@@ -513,7 +545,6 @@ void FNiagaraParameterStore::RemoveParameters(FNiagaraParameterStore& DestStore)
 	{
 		FNiagaraVariable Parameter = It->Key;
 		DestStore.RemoveParameter(Parameter);
-		DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, Parameter.GetSizeInBytes());
 		++It;
 	}
 }
@@ -521,11 +552,14 @@ void FNiagaraParameterStore::RemoveParameters(FNiagaraParameterStore& DestStore)
 void FNiagaraParameterStore::Empty(bool bClearBindings)
 {
 	ParameterOffsets.Empty();
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData.Empty();
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 	DataInterfaces.Empty();
+
+	UObjects.Empty();
+
 	if (bClearBindings)
 	{
 		UnbindFromSourceStores();
@@ -536,11 +570,14 @@ void FNiagaraParameterStore::Empty(bool bClearBindings)
 void FNiagaraParameterStore::Reset(bool bClearBindings)
 {
 	ParameterOffsets.Reset();
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 	ParameterData.Reset();
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.Num());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParamStoreMemory, ParameterData.GetAllocatedSize());
 
 	DataInterfaces.Reset();
+
+	UObjects.Reset();
+
 	if (bClearBindings)
 	{
 		UnbindFromSourceStores();

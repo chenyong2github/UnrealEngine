@@ -96,7 +96,6 @@ void FSequencerFolderNode::SetDisplayName( const FText& NewDisplayName )
 		FName UniqueName = FSequencerUtilities::GetUniqueName( FName( *NewDisplayName.ToString() ), SiblingNames );
 
 		const FScopedTransaction Transaction( NSLOCTEXT( "SequencerFolderNode", "RenameFolder", "Rename folder." ) );
-		MovieSceneFolder.Modify();
 		MovieSceneFolder.SetFolderName( UniqueName );
 	}
 }
@@ -242,7 +241,6 @@ void FSequencerFolderNode::MoveDisplayNodeToFolder(TSharedRef<FSequencerDisplayN
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildFolder(&DraggedFolderNode->GetFolder());
 			}
 			else
@@ -263,7 +261,6 @@ void FSequencerFolderNode::MoveDisplayNodeToFolder(TSharedRef<FSequencerDisplayN
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildMasterTrack(DraggedTrackNode->GetTrack());
 			}
 			
@@ -278,7 +275,6 @@ void FSequencerFolderNode::MoveDisplayNodeToFolder(TSharedRef<FSequencerDisplayN
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildObjectBinding(DraggedObjectBindingNode->GetObjectBinding());
 			}
 

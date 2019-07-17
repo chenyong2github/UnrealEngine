@@ -128,7 +128,7 @@ public:
 	FLandscapeComponentSceneProxyMobile(ULandscapeComponent* InComponent);
 
 	virtual void CreateRenderThreadResources() override;
-	virtual bool CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
+	virtual int32 CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
 
 	uint8 BlendableLayerMask;
 

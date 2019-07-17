@@ -138,6 +138,15 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	MaterialParamValidMask |= MaterialParamOffset3 != -1 ? 8 : 0;
 }
 
+FNiagaraRendererSprites::~FNiagaraRendererSprites()
+{
+	if ( VertexFactory != nullptr )
+	{
+		delete VertexFactory;
+		VertexFactory = nullptr;
+	}
+}
+
 void FNiagaraRendererSprites::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
@@ -415,7 +424,14 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 				}
 			}
 
-			OutVertexFactory.SetParticleData(SourceParticleData->GetGPUBufferFloat().SRV, 0, SourceParticleData->GetFloatStride() / sizeof(float));
+			if ( SourceParticleData->GetGPUBufferFloat().SRV.IsValid() )
+			{
+				OutVertexFactory.SetParticleData(SourceParticleData->GetGPUBufferFloat().SRV, 0, SourceParticleData->GetFloatStride() / sizeof(float));
+			}
+			else
+			{
+				OutVertexFactory.SetParticleData(FNiagaraRenderer::GetDummyFloatBuffer().SRV, 0, 0);
+			}
 		}
 	}
 }

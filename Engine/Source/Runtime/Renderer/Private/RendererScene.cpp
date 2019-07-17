@@ -1097,7 +1097,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	if (World->FXSystem)
 	{
-		World->FXSystem->Destroy();
+		FFXSystemInterface::Destroy(World->FXSystem);
 	}
 
 	if (bCreateFXSystem)
@@ -2124,6 +2124,12 @@ void FScene::RemoveReflectionCapture(UReflectionCaptureComponent* Component)
 
 			Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
 
+			// Need to clear out all reflection captures on removal to avoid dangling pointers.
+			for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); ++PrimitiveIndex)
+			{
+				Scene->Primitives[PrimitiveIndex]->RemoveCachedReflectionCaptures();
+			}
+
 			int32 CaptureIndex = Proxy->PackedIndex;
 			Scene->ReflectionSceneData.RegisteredReflectionCaptures.RemoveAtSwap(CaptureIndex);
 			Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.RemoveAtSwap(CaptureIndex);
@@ -2613,7 +2619,8 @@ void FScene::GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSc
 		PreviousLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 	}
 
-	SingleCaptureIndex = PrimitiveSceneInfo->CachedReflectionCaptureProxy ? PrimitiveSceneInfo->CachedReflectionCaptureProxy->SortedCaptureIndex : -1;
+	// Get index if proxy exists, otherwise fall back to index 0 which will contain the default black cubemap
+	SingleCaptureIndex = PrimitiveSceneInfo->CachedReflectionCaptureProxy ? PrimitiveSceneInfo->CachedReflectionCaptureProxy->SortedCaptureIndex : 0;
 }
 
 struct FUpdateLightTransformParameters
@@ -3804,7 +3811,10 @@ void UpdateStaticMeshesForMaterials(const TArray<const FMaterial*>& MaterialReso
 					ENQUEUE_RENDER_COMMAND(FUpdateStaticMeshesForMaterials)(
 						[SceneProxy](FRHICommandListImmediate& RHICmdList)
 						{
-							SceneProxy->GetPrimitiveSceneInfo()->UpdateStaticMeshes(RHICmdList);
+							// Defer the caching until the next render tick, to make sure that all render components queued
+							// for re-creation are processed. Otherwise, we may end up caching mesh commands from stale data.
+							bool bReAddToDrawLists = false;
+							SceneProxy->GetPrimitiveSceneInfo()->UpdateStaticMeshes(RHICmdList, bReAddToDrawLists);
 						});
 				}
 			}

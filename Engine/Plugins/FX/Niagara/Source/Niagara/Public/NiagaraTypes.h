@@ -477,6 +477,11 @@ public:
 
 	bool IsDataInterface()const;
 
+	FORCEINLINE bool IsUObject()const
+	{
+		return Struct->IsChildOf<UObject>();
+	}
+
 	bool IsEnum() const { return Enum != nullptr; }
 	
 	int32 GetSize()const
@@ -555,6 +560,7 @@ public:
 	static const FNiagaraTypeDefinition& GetGenericNumericDef() { return NumericDef; }
 	static const FNiagaraTypeDefinition& GetParameterMapDef() { return ParameterMapDef; }
 	static const FNiagaraTypeDefinition& GetIDDef() { return IDDef; }
+	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
 
 	static UScriptStruct* GetFloatStruct() { return FloatStruct; }
 	static UScriptStruct* GetBoolStruct() { return BoolStruct; }
@@ -607,6 +613,7 @@ private:
 	static FNiagaraTypeDefinition NumericDef;
 	static FNiagaraTypeDefinition ParameterMapDef;
 	static FNiagaraTypeDefinition IDDef;
+	static FNiagaraTypeDefinition UObjectDef;
 
 	static UScriptStruct* FloatStruct;
 	static UScriptStruct* BoolStruct;
@@ -618,6 +625,8 @@ private:
 	static UScriptStruct* ColorStruct;
 	static UScriptStruct* Matrix4Struct;
 	static UScriptStruct* NumericStruct;
+
+	static UClass* UObjectClass;
 
 	static UEnum* SimulationTargetEnum;
 	static UEnum* ScriptUsageEnum;
@@ -793,6 +802,7 @@ struct FNiagaraVariable
 	const FNiagaraTypeDefinition& GetType()const { return TypeDef; }
 
 	FORCEINLINE bool IsDataInterface()const { return GetType().IsDataInterface(); }
+	FORCEINLINE bool IsUObject()const { return GetType().IsUObject(); }
 
 	void AllocateData()
 	{

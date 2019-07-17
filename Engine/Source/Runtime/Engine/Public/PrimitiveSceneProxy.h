@@ -215,7 +215,7 @@ public:
 #endif // RHI_RAYTRACING
 
 	/** Collects occluder geometry for software occlusion culling */
-	virtual bool CollectOccluderElements(class FOccluderElementsCollector& Collector) const { return false; }
+	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const { return 0; }
 
 	/** 
 	 * Gathers the primitive's dynamic mesh elements.  This will only be called if GetViewRelevance declares dynamic relevance.

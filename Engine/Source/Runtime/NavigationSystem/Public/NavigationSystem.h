@@ -16,6 +16,11 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "NavigationOctree.h"
 #include "AI/NavigationSystemConfig.h"
+#include "NavigationOctreeController.h"
+#include "NavigationDirtyAreasController.h"
+#if WITH_EDITOR
+#include "UnrealEdMisc.h"
+#endif // WITH_EDITOR
 #include "NavigationSystem.generated.h"
 
 
@@ -24,7 +29,6 @@ class ANavMeshBoundsVolume;
 class AWorldSettings;
 class FEdMode;
 class FNavDataGenerator;
-class FNavigationOctree;
 class INavLinkCustomInterface;
 class INavRelevantInterface;
 class UCrowdManagerBase;
@@ -182,17 +186,12 @@ protected:
 	TArray<FNavDataConfig> SupportedAgents;
 
 public:
-	/** update frequency for dirty areas on navmesh */
-	UPROPERTY(config, EditAnywhere, Category=NavigationSystem)
-	float DirtyAreasUpdateFreq;
 
 	UPROPERTY()
 	TArray<ANavigationData*> NavDataSet;
 
 	UPROPERTY(transient)
 	TArray<ANavigationData*> NavDataRegistrationQueue;
-
-	TSet<FNavigationDirtyElement> PendingOctreeUpdates;
 
 	// List of pending navigation bounds update requests (add, remove, update size)
 	TArray<FNavigationBoundsUpdateRequest> PendingNavBoundsUpdates;
@@ -322,6 +321,7 @@ public:
 		RegistrationSuccessful,
 	};
 
+	// EOctreeUpdateMode is deprecated. Use FNavigationOctreeController::EOctreeUpdateMode instead
 	enum EOctreeUpdateMode
 	{
 		OctreeUpdate_Default = 0,						// regular update, mark dirty areas depending on exported content
@@ -432,7 +432,7 @@ public:
 	// @todo document
 	bool ProjectPointToNavigation(const FVector& Point, FNavLocation& OutLocation, const FVector& Extent = INVALID_NAVEXTENT, const FNavAgentProperties* AgentProperties = NULL, FSharedConstNavQueryFilter QueryFilter = NULL)
 	{
-		return ProjectPointToNavigation(Point, OutLocation, Extent, AgentProperties != NULL ? GetNavDataForProps(*AgentProperties) : GetDefaultNavDataInstance(FNavigationSystem::DontCreate), QueryFilter);
+		return ProjectPointToNavigation(Point, OutLocation, Extent, AgentProperties != NULL ? GetNavDataForProps(*AgentProperties, Point) : GetDefaultNavDataInstance(FNavigationSystem::DontCreate), QueryFilter);
 	}
 
 	// @todo document
@@ -441,12 +441,20 @@ public:
 	/** 
 	 * Looks for NavData generated for specified movement properties and returns it. NULL if not found;
 	 */
-	ANavigationData* GetNavDataForProps(const FNavAgentProperties& AgentProperties);
+	virtual ANavigationData* GetNavDataForProps(const FNavAgentProperties& AgentProperties);
 
 	/** 
 	 * Looks for NavData generated for specified movement properties and returns it. NULL if not found; Const version.
 	 */
-	const ANavigationData* GetNavDataForProps(const FNavAgentProperties& AgentProperties) const;
+	virtual const ANavigationData* GetNavDataForProps(const FNavAgentProperties& AgentProperties) const;
+
+	/**
+	 * Looks up NavData appropriate for specified movement properties and returns it. NULL if not found;
+	 * This is the encouraged way of querying for the appropriate NavData. It makes no difference for NavigationSystemV1
+	 *	(AgentLocation and Extent parameters not being used) but NaV2 will take advantage of it and all engine-level
+	 * AI navigation code is going to use call this flavor.
+	 */
+	virtual ANavigationData* GetNavDataForProps(const FNavAgentProperties& AgentProperties, const FVector& AgentLocation, const FVector& Extent = INVALID_NAVEXTENT) const;
 
 	/** Returns the world default navigation data instance. Creates one if it doesn't exist. */
 	ANavigationData* GetDefaultNavDataInstance(FNavigationSystem::ECreateIfMissing CreateNewIfNoneFound);
@@ -458,9 +466,11 @@ public:
 
 	ANavigationData* GetAbstractNavData() const { return AbstractNavData; }
 
-	/** constructs a navigation data instance of specified NavDataClass, in passed World
-	*	for supplied NavConfig */
-	virtual ANavigationData* CreateNavigationDataInstance(const FNavDataConfig& NavConfig);
+	/** constructs a navigation data instance of specified NavDataClass, in passed Level
+	 *	for supplied NavConfig. If Level == null and bSpawnNavDataInNavBoundsLevel == true
+	 *	then the first volume actor in RegisteredNavBounds will be used to source the level. 
+	 *	Otherwise the navdata instance will be spawned in NavigationSystem's world */
+	virtual ANavigationData* CreateNavigationDataInstanceInLevel(const FNavDataConfig& NavConfig, ULevel* SpawnLevel);
 
 	FSharedNavQueryFilter CreateDefaultQueryFilterCopy() const;
 
@@ -536,7 +546,10 @@ protected:
 	/** called in places where we need to spawn the NavOctree, but is checking additional conditions if we really want to do that
 	 *	depending on navigation data setup among others 
 	 *	@return true if NavOctree instance has been created, or if one is already present */
-	bool ConditionalPopulateNavOctree();
+	virtual bool ConditionalPopulateNavOctree();
+
+	/** called to instantiate NavigationSystem's NavOctree instance */
+	virtual void ConstructNavOctree();
 
 	/** Processes registration of candidates queues via RequestRegistration and stored in NavDataRegistrationQueue */
 	virtual void ProcessRegistrationCandidates();
@@ -576,6 +589,14 @@ public:
 	static void UpdateNavOctreeAfterMove(USceneComponent* Comp);
 
 protected:
+	/** A helper function that gathers all actors attached to RootActor and fetches 
+	 *	them back. The function does consider multi-level attachments. 
+	 *	@param AttachedActors is getting reset at the beginning of the function. 
+	 *		When done it is guaranteed to contain unique, non-null ptrs. It 
+	 *		will not include RootActor.
+	 *	@return the number of unique attached actors */
+	static int32 GetAllAttachedActors(const AActor& RootActor, TArray<AActor*>& OutAttachedActors);
+
 	/** updates navoctree information on actors attached to RootActor */
 	static void UpdateAttachedActorsInNavOctree(AActor& RootActor);
 
@@ -588,18 +609,18 @@ public:
 	void AddDirtyArea(const FBox& NewArea, int32 Flags);
 	void AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags);
 	bool HasDirtyAreasQueued() const;
+	int32 GetNumDirtyAreas() const;
 
-	const FNavigationOctree* GetNavOctree() const { return NavOctree.Get(); }
-	FNavigationOctree* GetMutableNavOctree() { return NavOctree.Get(); }
+	const FNavigationOctree* GetNavOctree() const { return DefaultOctreeController.GetOctree(); }
+	FNavigationOctree* GetMutableNavOctree() { return DefaultOctreeController.GetMutableOctree(); }
 
 	FORCEINLINE static uint32 HashObject(const UObject& Object)
 	{
-		return Object.GetUniqueID();
+		return FNavigationOctree::HashObject(Object);
 	}
-	FORCEINLINE void SetObjectsNavOctreeId(const UObject& Object, FOctreeElementId Id) { ObjectToOctreeId.Add(HashObject(Object), Id); }
-	FORCEINLINE const FOctreeElementId* GetObjectsNavOctreeId(const UObject& Object) const { return ObjectToOctreeId.Find(HashObject(Object)); }
-	FORCEINLINE bool HasPendingObjectNavOctreeId(UObject* Object) const { return PendingOctreeUpdates.Contains(FNavigationDirtyElement(Object)); }
-	FORCEINLINE void RemoveObjectsNavOctreeId(const UObject& Object) { ObjectToOctreeId.Remove(HashObject(Object)); }
+	FORCEINLINE const FOctreeElementId* GetObjectsNavOctreeId(const UObject& Object) const { return DefaultOctreeController.GetObjectsNavOctreeId(Object); }
+	FORCEINLINE bool HasPendingObjectNavOctreeId(UObject* Object) const { return Object && DefaultOctreeController.HasPendingObjectNavOctreeId(*Object); }
+	FORCEINLINE void RemoveObjectsNavOctreeId(const UObject& Object) { DefaultOctreeController.RemoveObjectsNavOctreeId(Object); }
 
 	void RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags);
 
@@ -686,13 +707,13 @@ public:
 	}
 
 	/** check if navigation octree updates are currently ignored */
-	FORCEINLINE bool IsNavigationOctreeLocked() const { return bNavOctreeLock; }
+	FORCEINLINE bool IsNavigationOctreeLocked() const { return DefaultOctreeController.IsNavigationOctreeLocked(); }
 
 	// @todo document
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
 	void OnNavigationBoundsUpdated(ANavMeshBoundsVolume* NavVolume);
 	virtual void OnNavigationBoundsAdded(ANavMeshBoundsVolume* NavVolume);
-	void OnNavigationBoundsRemoved(ANavMeshBoundsVolume* NavVolume);
+	virtual void OnNavigationBoundsRemoved(ANavMeshBoundsVolume* NavVolume);
 
 	/** Used to display "navigation building in progress" notify */
 	bool IsNavigationBuildInProgress(bool bCheckDirtyToo = true);
@@ -711,10 +732,13 @@ protected:
 
 	/** spawn new crowd manager */
 	virtual void UpdateAbstractNavData();
-
-	/** Called during ConditionalPopulateNavOctree and gives subclassess a chance 
+	
+	/** Called during ConditionalPopulateNavOctree and gives subclassess a chance
 	 *	to influence what gets added */
 	virtual void AddLevelToOctree(ULevel& Level);
+
+	/** Called as part of UWorld::BeginTearingDown */
+	virtual void OnBeginTearingDown();
 	
 public:
 	/** Called upon UWorld destruction to release what needs to be released */
@@ -729,6 +753,7 @@ public:
 	virtual void OnWorldInitDone(FNavigationSystemRunMode Mode);
 
 	FORCEINLINE bool IsInitialized() const { return bWorldInitDone; }
+	FORCEINLINE FNavigationSystemRunMode GetRunMode() const { return OperationMode; }
 
 	/** adds BSP collisions of currently streamed in levels to octree */
 	void InitializeLevelCollisions();
@@ -736,7 +761,7 @@ public:
 	FORCEINLINE void AddNavigationBuildLock(uint8 Flags) { NavBuildingLockFlags |= Flags; }
 	void RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor = false);
 
-	void SetNavigationOctreeLock(bool bLock) { bNavOctreeLock = bLock; }
+	void SetNavigationOctreeLock(bool bLock) { DefaultOctreeController.SetNavigationOctreeLock(bLock); }
 
 	/** checks if auto-rebuilding navigation data is enabled. Defaults to bNavigationAutoUpdateEnabled
 	*	value, but can be overridden per nav sys instance */
@@ -812,26 +837,19 @@ protected:
 
 	UPROPERTY()
 	FNavigationSystemRunMode OperationMode;
-
-	TSharedPtr<FNavigationOctree, ESPMode::ThreadSafe> NavOctree;
-
+	
 	TArray<FAsyncPathFindingQuery> AsyncPathFindingQueries;
 
 	FCriticalSection NavDataRegistration;
 
 	TMap<FNavAgentProperties, TWeakObjectPtr<ANavigationData> > AgentToNavDataMap;
 	
-	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
-
-	/** Map of all objects that are tied to indexed navigation parent */
-	TMultiMap<UObject*, FWeakObjectPtr> OctreeChildNodesMap;
+	FNavigationOctreeController DefaultOctreeController;
 
 	/** Map of all custom navigation links, that are relevant for path following */
 	TMap<uint32, FNavigationSystem::FCustomLinkOwnerInfo> CustomLinksMap;
 
-	/** stores areas marked as dirty throughout the frame, processes them 
-	 *	once a frame in Tick function */
-	TArray<FNavigationDirtyArea> DirtyAreas;
+	FNavigationDirtyAreasController DefaultDirtyAreasController;
 
 	// async queries
 	FCriticalSection NavDataRegistrationSection;
@@ -844,27 +862,20 @@ protected:
 
 	/** set of locking flags applied on startup of navigation system */
 	uint8 InitialNavBuildingLockFlags;
-
-	/** if set, navoctree updates are ignored, use with caution! */
-	uint8 bNavOctreeLock : 1;
-
+	
 	uint8 bInitialSetupHasBeenPerformed : 1;
 	uint8 bInitialLevelsAdded : 1;
 	uint8 bWorldInitDone : 1;
+	/** set when the NavSys instance has been cleaned up. This is an irreversible state */
+	uint8 bCleanUpDone : 1;
 	uint8 bAsyncBuildPaused : 1; // mz@todo remove, replaced by bIsPIEActive and IsGameWorld
-	uint8 bCanAccumulateDirtyAreas : 1;
-#if !UE_BUILD_SHIPPING
-	uint8 bDirtyAreasReportedWhileAccumulationLocked : 1;
-#endif // !UE_BUILD_SHIPPING
+protected:
 
 	/** cached navigable world bounding box*/
 	mutable FBox NavigableWorldBounds;
 
 	/** indicates which of multiple navigation data instances to draw*/
 	int32 CurrentlyDrawnNavDataIndex;
-
-	/** temporary cumulative time to calculate when we need to update dirty areas */
-	float DirtyAreasUpdateTime;
 	
 #if !UE_BUILD_SHIPPING
 	/** self-registering exec command to handle nav sys console commands */
@@ -933,14 +944,13 @@ protected:
 	virtual void SpawnMissingNavigationData();
 
 protected:
-	virtual void RebuildDirtyAreas();
+	virtual void RebuildDirtyAreas(float DeltaSeconds);
 
-private:
 	// adds navigation bounds update request to a pending list
 	void AddNavigationBoundsUpdateRequest(const FNavigationBoundsUpdateRequest& UpdateRequest);
 
 	/** Triggers navigation building on all eligible navigation data. */
-	void RebuildAll(bool bIsLoadTime = false);
+	virtual void RebuildAll(bool bIsLoadTime = false);
 		 
 	/** Handler for FWorldDelegates::LevelAddedToWorld event */
 	 void OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld);
@@ -959,7 +969,7 @@ private:
 	void PerformAsyncQueries(TArray<FAsyncPathFindingQuery> PathFindingQueries);
 
 	/** */
-	void DestroyNavOctree();
+	virtual void DestroyNavOctree();
 
 	/** Whether Navigation system needs to populate nav octree. 
 	 *  Depends on runtime generation settings of each navigation data, always true in the editor
@@ -976,7 +986,8 @@ private:
 	//----------------------------------------------------------------------//
 public:
 	void VerifyNavigationRenderingComponents(const bool bShow);
-	virtual int GetNavigationBoundsForNavData(const ANavigationData& NavData, TArray<FBox>& OutBounds) const;
+	/** @param if InLevel is given then only navigation bounds from that level will be considered*/
+	virtual int GetNavigationBoundsForNavData(const ANavigationData& NavData, TArray<FBox>& OutBounds, ULevel* InLevel = nullptr) const;
 	static INavigationDataInterface* GetNavDataForActor(const AActor& Actor);
 	virtual void Configure(const UNavigationSystemConfig& Config);
 	
@@ -1010,6 +1021,36 @@ public:
 	UE_DEPRECATED(4.22, "This version is deprecated.  Please use GetRandomLocationInNavigableRadius instead")
 	UFUNCTION(BlueprintPure, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "GetRandomPointInNavigableRadius", ScriptName = "GetRandomPointInNavigableRadius"))
 	static bool K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL);
+	UE_DEPRECATED(4.23, "This function is deprecated.  Please use CreateNavigationDataInstanceInLevel instead")
+	virtual ANavigationData* CreateNavigationDataInstance(const FNavDataConfig& NavConfig);
+	
+	UE_DEPRECATED(4.24, "This function is deprecated and no longer used. NavigationSystem is no longer involved in storing navoctree element IDs. See FNavigationOctree for more details.")
+	void SetObjectsNavOctreeId(const UObject& Object, FOctreeElementId Id) {}
+
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
+	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
+	TSet<FNavigationDirtyElement> PendingOctreeUpdates;
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
+	TSharedPtr<FNavigationOctree, ESPMode::ThreadSafe> NavOctree;
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
+	TMultiMap<UObject*, FWeakObjectPtr> OctreeChildNodesMap;
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
+	uint8 bNavOctreeLock : 1;
+
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
+	UPROPERTY(config, EditAnywhere, Category = NavigationSystem)
+	float DirtyAreasUpdateFreq = 60;
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
+	float DirtyAreasUpdateTime = 0;
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
+	TArray<FNavigationDirtyArea> DirtyAreas;
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
+	uint8 bCanAccumulateDirtyAreas : 1;
+#if !UE_BUILD_SHIPPING
+	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
+	uint8 bDirtyAreasReportedWhileAccumulationLocked : 1;
+#endif // !UE_BUILD_SHIPPING
 };
 
 //----------------------------------------------------------------------//

@@ -694,7 +694,7 @@ public:
 	uint8 bIsEditorPreviewActor:1;
 
 	/** Whether this actor is hidden by the layer browser. */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	uint8 bHiddenEdLayer:1;
 
 	/** Whether this actor is hidden by the level browser. */
@@ -2390,7 +2390,7 @@ public:
 	 * @param  Params          Additional parameters used for the trace
 	 * @return TRUE if a blocking hit is found
 	 */
-	bool ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params);
+	bool ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params) const;
 
 	/** 
 	 * returns Distance to closest Body Instance surface. 
@@ -2518,6 +2518,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	FName GetAttachParentSocketName() const;
 
+	/** Call a functor for Actors which are attached directly to a component in this actor. Functor should return true to carry on, false to abort. */
+	void ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) const;
+	
 	/** Find all Actors which are attached directly to a component in this actor */
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	void GetAttachedActors(TArray<AActor*>& OutActors) const;

@@ -2,7 +2,10 @@
 
 #include "DataPrepOperationsLibrary.h"
 
+#include "DataprepCoreUtils.h"
+
 #include "ActorEditorUtils.h"
+#include "AssetDeleteModel.h"
 #include "AssetDeleteModel.h"
 #include "AssetRegistryModule.h"
 #include "Camera/CameraActor.h"
@@ -17,11 +20,14 @@
 #include "Layers/ILayers.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
+#include "Math/Vector2D.h"
+#include "MeshAttributeArray.h"
+#include "MeshDescription.h"
 #include "MeshTypes.h"
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
+#include "TessellationRendering.h"
 #include "UObject/SoftObjectPath.h"
-#include "AssetDeleteModel.h"
 
 DEFINE_LOG_CATEGORY(LogDataprep);
 
@@ -183,6 +189,32 @@ namespace DataprepOperationsLibraryUtil
 	{
 		return Actor ? 1 + GetActorDepth(Actor->GetAttachParentActor()) : 0;
 	}
+
+	/** Customized version of UStaticMesh::SetMaterial avoiding the triggering of UStaticMesh::Build and its side-effects */
+	void SetMaterial( UStaticMesh* StaticMesh, int32 MaterialIndex, UMaterialInterface* NewMaterial )
+	{
+		if( StaticMesh->StaticMaterials.IsValidIndex( MaterialIndex ) )
+		{
+			FStaticMaterial& StaticMaterial = StaticMesh->StaticMaterials[ MaterialIndex ];
+			StaticMaterial.MaterialInterface = NewMaterial;
+			if( NewMaterial != nullptr )
+			{
+				if ( StaticMaterial.MaterialSlotName == NAME_None )
+				{
+					StaticMaterial.MaterialSlotName = NewMaterial->GetFName();
+				}
+
+				// Make sure adjacency information fit new material change
+				if( RequiresAdjacencyInformation( NewMaterial, nullptr, GWorld->FeatureLevel ) )
+				{
+					for( FStaticMeshSourceModel& SourceModel : StaticMesh->SourceModels )
+					{
+						SourceModel.BuildSettings.bBuildAdjacencyBuffer = true;
+					}
+				}
+			}
+		}
+	}
 } // ns DataprepOperationsLibraryUtil
 
 void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects, const FEditorScriptingMeshReductionOptions& ReductionOptions)
@@ -244,9 +276,25 @@ void UDataprepOperationsLibrary::SetGenerateLightmapUVs( const TArray< UObject* 
 	{
 		if (StaticMesh)
 		{
+			bool bDidChangeSettings = false;
+
+			// 3 is the maximum that lightmass accept
+			int32 MinBiggestUVChannel = 3;
 			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->SourceModels )
 			{
+				bDidChangeSettings |= SourceModel.BuildSettings.bGenerateLightmapUVs != bGenerateLightmapUVs;
 				SourceModel.BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;
+				if( FMeshDescription* MeshDescription = SourceModel.MeshDescription.Get() )
+				{
+					int32 UVChannelCount = MeshDescription->VertexInstanceAttributes().GetAttributesRef< FVector2D >( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumIndices();
+					MinBiggestUVChannel = FMath::Min( MinBiggestUVChannel, UVChannelCount - 1 );
+				}
+			}
+
+			if ( StaticMesh->LightMapCoordinateIndex > MinBiggestUVChannel && bDidChangeSettings )
+			{
+				// Correct the coordinate index if it was invalid
+				StaticMesh->LightMapCoordinateIndex = MinBiggestUVChannel;
 			}
 		}
 	}
@@ -322,7 +370,7 @@ void UDataprepOperationsLibrary::SubstituteMaterial(const TArray<UObject*>& Sele
 				{
 					if (StaticMesh->GetMaterial(Index) == MaterialToReplace)
 					{
-						StaticMesh->SetMaterial(Index, MaterialSubstitute);
+						DataprepOperationsLibraryUtil::SetMaterial( StaticMesh, Index, MaterialSubstitute );
 					}
 				}
 			}
@@ -368,10 +416,9 @@ void UDataprepOperationsLibrary::SetMaterial( const TArray< UObject* >& Selected
 		{
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
-			TArray<FStaticMaterial>& StaticMaterials = StaticMesh->StaticMaterials;
 			for (int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
 			{
-				StaticMesh->SetMaterial(Index, MaterialSubstitute);
+				DataprepOperationsLibraryUtil::SetMaterial( StaticMesh, Index, MaterialSubstitute );
 			}
 		}
 	}
@@ -477,17 +524,8 @@ void UDataprepOperationsLibrary::RemoveObjects(const TArray< UObject* >& Objects
 		GEditor->NoteSelectionChange();
 	}
 
-	// Delete assets
-	{
-		const int32 AssetsToDeleteCount = AssetsToDelete.Num();
-		const int32 NonDeletedAssetsCount = ObjectTools::DeleteObjects(AssetsToDelete, false) - AssetsToDeleteCount;
+	FDataprepCoreUtils::PurgeObjects( MoveTemp( AssetsToDelete ) );
 
-		// Warn user that not all objects have been deleted
-		if(NonDeletedAssetsCount > 0)
-		{
-			UE_LOG(LogDataprep, Warning, TEXT("RemoveObjects: %d objects out of %d were not deleted"), NonDeletedAssetsCount, AssetsToDeleteCount);
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

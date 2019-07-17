@@ -74,6 +74,12 @@ struct CORE_API FReleaseObjectVersion
 		// Change trail anim node variable deprecation
 		TrailNodeBlendVariableNameChange,
 
+		// Make sure the Blueprint Replicated Property Conditions are actually serialized properly.
+		PropertiesSerializeRepCondition,
+
+		// DepthOfFieldFocalDistance at 0 now disables DOF instead of DepthOfFieldFstop at 0.
+		FocalDistanceDisablesDOF,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

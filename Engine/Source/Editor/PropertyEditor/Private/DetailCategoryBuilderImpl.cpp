@@ -68,6 +68,14 @@ bool FDetailLayoutCustomization::HasExternalPropertyRow() const
 	return HasPropertyNode() && PropertyRow->HasExternalProperty();
 }
 
+bool FDetailLayoutCustomization::IsHidden() const
+{
+	return !IsValidCustomization()
+		|| (HasCustomWidget() && WidgetDecl->VisibilityAttr.Get() != EVisibility::Visible)
+		|| (HasPropertyNode() && PropertyRow->GetPropertyVisibility() != EVisibility::Visible)
+		|| (HasCustomBuilder() && CustomBuilderRow->AreChildCustomizationsHidden());
+}
+
 TSharedPtr<FPropertyNode> FDetailLayoutCustomization::GetPropertyNode() const
 {
 	return PropertyRow.IsValid() ? PropertyRow->GetPropertyNode() : nullptr;

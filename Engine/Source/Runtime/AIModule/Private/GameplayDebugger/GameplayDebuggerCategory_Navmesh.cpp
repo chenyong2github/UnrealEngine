@@ -18,15 +18,20 @@ namespace
 FGameplayDebuggerCategory_Navmesh::FGameplayDebuggerCategory_Navmesh()
 {
 	bShowOnlyWithDebugActor = false;
-	bShowCategoryName = false;
 	bShowDataPackReplication = true;
 	CollectDataInterval = 5.0f;
 	SetDataPackReplication<FNavMeshSceneProxyData>(&NavmeshRenderData);
+	SetDataPackReplication<FRepData>(&DataPack);
 }
 
 TSharedRef<FGameplayDebuggerCategory> FGameplayDebuggerCategory_Navmesh::MakeInstance()
 {
 	return MakeShareable(new FGameplayDebuggerCategory_Navmesh());
+}
+
+void FGameplayDebuggerCategory_Navmesh::FRepData::Serialize(FArchive& Ar)
+{
+	Ar << NumDirtyAreas;
 }
 
 void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, AActor* DebugActor)
@@ -37,13 +42,18 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 	APawn* PlayerPawn = OwnerPC ? OwnerPC->GetPawnOrSpectator() : nullptr;
 	APawn* DebugActorAsPawn = Cast<APawn>(DebugActor);
 	APawn* DestPawn = DebugActorAsPawn ? DebugActorAsPawn : PlayerPawn;
-	if (OwnerPC && DestPawn)
+	if (OwnerPC != nullptr)
 	{
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(OwnerPC->GetWorld());
 		if (NavSys) 
 		{
-			const FNavAgentProperties& NavAgentProperties = DestPawn->GetNavAgentPropertiesRef();
-			NavData = Cast<const ARecastNavMesh>(NavSys->GetNavDataForProps(NavAgentProperties));
+			DataPack.NumDirtyAreas = NavSys->GetNumDirtyAreas();
+
+			if (DestPawn != nullptr)
+			{
+				const FNavAgentProperties& NavAgentProperties = DestPawn->GetNavAgentPropertiesRef();
+				NavData = Cast<const ARecastNavMesh>(NavSys->GetNavDataForProps(NavAgentProperties, DestPawn->GetNavAgentLocation()));
+			}
 		}
 	}
 
@@ -77,6 +87,11 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 		NavmeshRenderData.GatherData(NavData, DetailFlags, TileSet);
 	}
 #endif // WITH_RECAST
+}
+
+void FGameplayDebuggerCategory_Navmesh::DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext)
+{
+	CanvasContext.Printf(TEXT("Num dirty areas: {%s}%d"), DataPack.NumDirtyAreas > 0 ? TEXT("red") : TEXT("green"), DataPack.NumDirtyAreas);
 }
 
 void FGameplayDebuggerCategory_Navmesh::OnDataPackReplicated(int32 DataPackId)

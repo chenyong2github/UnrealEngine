@@ -47,6 +47,8 @@ public:
 	void BindParameters();
 	void UnbindParameters();
 
+	bool IsAllowedToExecute() const;
+
 	void PreTick();
 	void Tick(float DeltaSeconds);
 	void PostTick();
@@ -154,10 +156,6 @@ private:
 	FNiagaraParameterDirectBinding<float> SpawnIntervalBinding;
 	FNiagaraParameterDirectBinding<float> InterpSpawnStartBinding;
 	FNiagaraParameterDirectBinding<int32> SpawnGroupBinding;
-
-	FNiagaraParameterDirectBinding<float> SpawnIntervalBindingGPU;
-	FNiagaraParameterDirectBinding<float> InterpSpawnStartBindingGPU;
-	FNiagaraParameterDirectBinding<int32> SpawnGroupBindingGPU;
 
 	FNiagaraParameterDirectBinding<float> EmitterAgeBindingGPU;
 

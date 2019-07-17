@@ -590,14 +590,12 @@ public:
 	TSharedPtr< FUICommandInfo > MaterialQualityLevel_Medium;
 	TSharedPtr< FUICommandInfo > MaterialQualityLevel_High;
 
-	TSharedPtr< FUICommandInfo > FeatureLevelPreview[ERHIFeatureLevel::Num];
-	
 	TSharedPtr< FUICommandInfo > ToggleFeatureLevelPreview;
 
-	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_DefaultES2;
+	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM5;
+	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM4;
+	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_HTML5;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES2;
-
-	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_DefaultES31;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidGLES31;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_AndroidVulkanES31;
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_IOSMetalES31;
@@ -816,11 +814,8 @@ public:
 	static bool IsFeatureLevelPreviewEnabled();
 	static bool IsFeatureLevelPreviewActive();
 	static bool IsPreviewModeButtonVisible();
-	static void SetPreviewPlatform(FName MaterialQualityPlatform,ERHIFeatureLevel::Type PreviewFeatureLevel);
-	static bool IsPreviewPlatformChecked(FName MaterialQualityPlatform, ERHIFeatureLevel::Type PreviewFeatureLevel);
-	static void SetFeatureLevelPreview(ERHIFeatureLevel::Type InFeatureLevel);
-	static bool IsFeatureLevelPreviewChecked(ERHIFeatureLevel::Type InFeatureLevel);
-	static bool IsFeatureLevelPreviewAvailable(ERHIFeatureLevel::Type InFeatureLevel);
+	static void SetPreviewPlatform(FPreviewPlatformInfo NewPreviewPlatform);
+	static bool IsPreviewPlatformChecked(FPreviewPlatformInfo NewPreviewPlatform);
 	static void GeometryCollection_SelectAllGeometry();
 	static void GeometryCollection_SelectNone();
 	static void GeometryCollection_SelectInverseGeometry();

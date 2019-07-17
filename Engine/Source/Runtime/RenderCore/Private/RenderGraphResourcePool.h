@@ -31,12 +31,14 @@ public:
 	/** Free renderer resources */
 	virtual void ReleaseDynamicRHI() override;
 
-	/** Good to call between levels or before memory intense operations. */
-	void FreeUnusedResources();
+	/** Call once per frame to trim elements from the pool. */
+	void TickPoolElements();
 
 private:
 	/** Elements can be 0, we compact the buffer later. */
-	TArray< TRefCountPtr<FPooledRDGBuffer> > AllocatedBuffers;
+	TArray<TRefCountPtr<FPooledRDGBuffer>> AllocatedBuffers;
+
+	uint32 FrameCounter = 0;
 };
 
 /** The global render targets for easy shading. */

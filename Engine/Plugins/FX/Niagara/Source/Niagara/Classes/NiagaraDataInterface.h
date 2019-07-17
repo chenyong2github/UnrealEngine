@@ -432,3 +432,183 @@ struct TCurveUseLUTBinder
 		}
 	}
 };
+
+
+/** Helper class for decoding NDI parameters into a usable struct type. */
+template<typename T>
+struct FNDIParameter
+{
+	FNDIParameter(FVectorVMContext& Context) = delete;
+	FORCEINLINE void GetAndAdvance(T& OutValue) = delete;
+	FORCEINLINE bool IsConstant() const = delete;
+};
+
+template<>
+struct FNDIParameter<FNiagaraRandInfo>
+{
+	VectorVM::FExternalFuncInputHandler<int32> Seed1Param;
+	VectorVM::FExternalFuncInputHandler<int32> Seed2Param;
+	VectorVM::FExternalFuncInputHandler<int32> Seed3Param;
+	
+	FVectorVMContext& Context;
+
+	FNDIParameter(FVectorVMContext& InContext)
+		: Context(InContext)
+	{
+		Seed1Param.Init(Context);
+		Seed2Param.Init(Context);
+		Seed3Param.Init(Context);
+	}
+
+	FORCEINLINE void GetAndAdvance(FNiagaraRandInfo& OutValue)
+	{
+		OutValue.Seed1 = Seed1Param.GetAndAdvance();
+		OutValue.Seed2 = Seed2Param.GetAndAdvance();
+		OutValue.Seed3 = Seed3Param.GetAndAdvance();
+	}
+
+
+	FORCEINLINE bool IsConstant()const
+	{
+		return Seed1Param.IsConstant() && Seed2Param.IsConstant() && Seed3Param.IsConstant();
+	}
+};
+
+struct FNDIRandomHelper
+{
+	FNDIRandomHelper(FVectorVMContext& InContext)
+		: Context(InContext)
+		, RandParam(Context)
+	{
+
+	}
+
+	FORCEINLINE void GetAndAdvance()
+	{
+		RandParam.GetAndAdvance(RandInfo);
+	}
+
+	FORCEINLINE bool IsDeterministic()
+	{
+		return RandInfo.Seed3 != INDEX_NONE;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	
+	FORCEINLINE_DEBUGGABLE FVector4 Rand4(int32 InstanceIndex)
+	{
+		if (IsDeterministic())
+		{
+			int32 RandomCounter = Context.RandCounters[InstanceIndex]++;
+
+			FIntVector4 v = FIntVector4(RandomCounter, RandInfo.Seed1, RandInfo.Seed2, RandInfo.Seed3) * 1664525 + FIntVector4(1013904223);
+
+			v.X += v.Y*v.W;
+			v.Y += v.Z*v.X;
+			v.Z += v.X*v.Y;
+			v.W += v.Y*v.Z;
+			v.X += v.Y*v.W;
+			v.Y += v.Z*v.X;
+			v.Z += v.X*v.Y;
+			v.W += v.Y*v.Z;
+
+			// NOTE(mv): We can use 24 bits of randomness, as all integers in [0, 2^24] 
+			//           are exactly representable in single precision floats.
+			//           We use the upper 24 bits as they tend to be higher quality.
+
+			// NOTE(mv): The divide can often be folded with the range scale in the rand functions
+			return FVector4((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
+			// return float4((v >> 8) & 0x00ffffff) * (1.0/16777216.0); // bugged, see UE-67738
+		}
+		else
+		{
+			return FVector4(Context.RandStream.GetFraction(), Context.RandStream.GetFraction(), Context.RandStream.GetFraction(), Context.RandStream.GetFraction());
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE FVector Rand3(int32 InstanceIndex)
+	{
+		if (IsDeterministic())
+		{
+			int32 RandomCounter = Context.RandCounters[InstanceIndex]++;
+
+			FIntVector v = FIntVector(RandInfo.Seed1, RandInfo.Seed2, RandomCounter | (RandInfo.Seed3 << 16)) * 1664525 + FIntVector(1013904223);
+
+			v.X += v.Y*v.Z;
+			v.Y += v.Z*v.X;
+			v.Z += v.X*v.Y;
+			v.X += v.Y*v.Z;
+			v.Y += v.Z*v.X;
+			v.Z += v.X*v.Y;
+
+			return FVector((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
+		}
+		else
+		{
+			return FVector(Context.RandStream.GetFraction(), Context.RandStream.GetFraction(), Context.RandStream.GetFraction());
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE FVector2D Rand2(int32 InstanceIndex)
+	{
+		if (IsDeterministic())
+		{
+			FVector Rand3D = Rand3(InstanceIndex);
+			return FVector2D(Rand3D.X, Rand3D.Y);
+		}
+		else
+		{
+			return FVector2D(Context.RandStream.GetFraction(), Context.RandStream.GetFraction());
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE float Rand(int32 InstanceIndex)
+	{
+		if (IsDeterministic())
+		{
+			return Rand3(InstanceIndex).X;
+		}
+		else
+		{
+			return Context.RandStream.GetFraction();
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE FVector4 RandRange(int32 InstanceIndex, FVector4 Min, FVector4 Max)
+	{
+		FVector4 Range = Max - Min;
+		return Min + (Rand(InstanceIndex) * Range);
+	}
+
+	FORCEINLINE_DEBUGGABLE FVector RandRange(int32 InstanceIndex, FVector Min, FVector Max)
+	{
+		FVector Range = Max - Min;
+		return Min + (Rand(InstanceIndex) * Range);
+	}
+
+	FORCEINLINE_DEBUGGABLE FVector2D RandRange(int32 InstanceIndex, FVector2D Min, FVector2D Max)
+	{
+		FVector2D Range = Max - Min;
+		return Min + (Rand(InstanceIndex) * Range);
+	}
+
+	FORCEINLINE_DEBUGGABLE float RandRange(int32 InstanceIndex, float Min, float Max)
+	{
+		float Range = Max - Min;
+		return Min + (Rand(InstanceIndex) * Range);
+	}
+
+	FORCEINLINE_DEBUGGABLE int32 RandRange(int32 InstanceIndex, int32 Min, int32 Max)
+	{
+		// NOTE: Scaling a uniform float range provides better distribution of 
+		//       numbers than using %.
+		// NOTE: Inclusive! So [0, x] instead of [0, x)
+		int32 Range = Max - Min;
+		return Min + (int(Rand(InstanceIndex) * (Range + 1)));
+	}
+
+	FVectorVMContext& Context;
+	FNDIParameter<FNiagaraRandInfo> RandParam;
+
+	FNiagaraRandInfo RandInfo;
+};

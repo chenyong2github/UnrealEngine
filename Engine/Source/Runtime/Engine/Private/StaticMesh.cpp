@@ -3858,6 +3858,14 @@ void UStaticMesh::ClearMeshDescription(int32 LodIndex)
 	}
 }
 
+void UStaticMesh::ClearMeshDescriptions()
+{
+	for (int LODIndex = 0; LODIndex < SourceModels.Num(); LODIndex++)
+	{
+		ClearMeshDescription(LODIndex);
+	}
+}
+
 void UStaticMesh::FixupMaterialSlotName()
 {
 	TArray<FName> UniqueMaterialSlotName;
@@ -3984,7 +3992,8 @@ void UStaticMesh::CacheMeshData()
 						FillMaterialName(StaticMaterials, MaterialMap);
 						FMeshDescriptionOperations::ConvertFromRawMesh(TempRawMesh, *SourceModel.MeshDescription, MaterialMap);
 
-						// Pack MeshDescription into temporary bulk data
+						// Pack MeshDescription into temporary bulk data, ready to write out to DDC.
+						// This will be reloaded from the DDC when needed if a MeshDescription is requested from the static mesh.
 						FMeshDescriptionBulkData MeshDescriptionBulkData;
 						MeshDescriptionBulkData.SaveMeshDescription(*SourceModel.MeshDescription);
 
@@ -3994,13 +4003,6 @@ void UStaticMesh::CacheMeshData()
 						FMemoryWriter Ar(DerivedData, bIsPersistent);
 						MeshDescriptionBulkData.Serialize(Ar, this);
 						GetDerivedDataCacheRef().Put(*MeshDataKey, DerivedData);
-
-						// Pack MeshDescription into the bulk data
-						if (!SourceModel.MeshDescriptionBulkData.IsValid())
-						{
-							SourceModel.MeshDescriptionBulkData = MakeUnique<FMeshDescriptionBulkData>();
-						}
-						SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
 					}
 				}
 			}
@@ -4834,10 +4836,7 @@ void UStaticMesh::PostLoad()
 
 #if WITH_EDITOR
 	// Release cached mesh descriptions until they are loaded on demand
-	for (int LODIndex = 0; LODIndex < SourceModels.Num(); LODIndex++)
-	{
-		ClearMeshDescription(LODIndex);
-	}
+	ClearMeshDescriptions();
 #endif
 
 	CreateNavCollision();

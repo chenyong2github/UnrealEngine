@@ -15,14 +15,13 @@ FAnimInstanceProxy* UControlRigSequencerAnimInstance::CreateAnimInstanceProxy()
 	return new FControlRigSequencerAnimInstanceProxy(this);
 }
 
-bool UControlRigSequencerAnimInstance::UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight)
+bool UControlRigSequencerAnimInstance::UpdateControlRig(UControlRig* InControlRig, uint32 SequenceId, bool bAdditive, bool bApplyBoneFilter, const FInputBlendPose& BoneFilter, float Weight, bool bExternalSource)
 {
 	CachedControlRig = InControlRig;
-	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().UpdateControlRig(InControlRig, SequenceId, bAdditive, bApplyBoneFilter, BoneFilter, Weight);
+	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().UpdateControlRig(InControlRig, SequenceId, bAdditive, bApplyBoneFilter, BoneFilter, Weight, bExternalSource);
 }
 
-void UControlRigSequencerAnimInstance::NativeInitializeAnimation()
+bool UControlRigSequencerAnimInstance::SetAnimationAsset(class UAnimationAsset* NewAsset)
 {
-	//Do nothing since UAnimSequencerInstance save's a pose snapshot which can cause ensure and crash issues 
-	//since it may not have a skeletal mesh or component transform set up yet.
+	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().SetAnimationAsset(NewAsset);
 }

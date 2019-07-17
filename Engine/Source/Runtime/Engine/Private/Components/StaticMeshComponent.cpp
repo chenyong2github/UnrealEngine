@@ -499,7 +499,7 @@ void UStaticMeshComponent::PropagateLightingScenarioChange()
 	FComponentRecreateRenderStateContext Context(this);
 }
 
-const FMeshMapBuildData* UStaticMeshComponent::GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo) const
+const FMeshMapBuildData* UStaticMeshComponent::GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo, bool bCheckForResourceCluster) const
 {
 	if (!GetStaticMesh() || !GetStaticMesh()->RenderData)
 	{
@@ -544,7 +544,7 @@ const FMeshMapBuildData* UStaticMeshComponent::GetMeshMapBuildData(const FStatic
 
 			if (MapBuildData)
 			{
-				return MapBuildData->GetMeshBuildData(LODInfo.MapBuildDataId);
+				return bCheckForResourceCluster ? MapBuildData->GetMeshBuildData(LODInfo.MapBuildDataId) : MapBuildData->GetMeshBuildDataDuringBuild(LODInfo.MapBuildDataId);
 			}
 		}
 	}
@@ -2043,10 +2043,12 @@ bool UStaticMeshComponent::HasLightmapTextureCoordinates() const
 		(GetStaticMesh()->LightMapCoordinateIndex >= 0) &&
 		(GetStaticMesh()->RenderData != NULL) &&
 		(GetStaticMesh()->RenderData->LODResources.Num() > 0) &&
-		(GetStaticMesh()->LightMapCoordinateIndex >= 0) &&	
-		((uint32)GetStaticMesh()->LightMapCoordinateIndex < GetStaticMesh()->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords()))
+		(GetStaticMesh()->LightMapCoordinateIndex >= 0))
 	{
-		return true;
+		const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : GMaxRHIFeatureLevel;
+		int32 MeshMinLOD = GetStaticMesh()->MinLOD.GetValueForFeatureLevel(FeatureLevel);
+		
+		return ((uint32)GetStaticMesh()->LightMapCoordinateIndex < GetStaticMesh()->RenderData->LODResources[MeshMinLOD].VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords());
 	}
 	return false;
 }

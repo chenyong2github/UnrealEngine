@@ -46,10 +46,6 @@ struct FRDGResourceState
 		MAX = Unknown
 	};
 
-	/** Constructs a read / write state suitable for the provided pass. */
-	static FRDGResourceState CreateRead(const FRDGPass* Pass);
-	static FRDGResourceState CreateWrite(const FRDGPass* Pass);
-
 	FRDGResourceState() = default;
 
 	FRDGResourceState(const FRDGPass* InPass, EPipeline InPipeline, EAccess InAccess)
@@ -156,6 +152,7 @@ private:
 #endif
 
 	friend class FRDGBuilder;
+	friend class FRDGUserValidation;
 };
 
 /** A render graph resource with an allocation lifetime tracked by the graph. */
@@ -219,6 +216,7 @@ private:
 	FRDGResourceState State;
 
 	friend class FRDGBuilder;
+	friend class FRDGUserValidation;
 	friend class FRDGBarrierBatcher;
 };
 
@@ -612,7 +610,11 @@ struct FPooledRDGBuffer
 	}
 
 private:
+	const TCHAR* Name = nullptr;
 	uint32 RefCount = 0;
+	uint32 LastUsedFrame = 0;
+
+	friend class FRenderGraphResourcePool;
 };
 
 /** Render graph tracked buffers. */

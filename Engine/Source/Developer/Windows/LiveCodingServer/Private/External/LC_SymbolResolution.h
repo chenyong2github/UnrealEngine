@@ -7,9 +7,6 @@
 
 namespace symbolResolution
 {
-	void Startup(void);
-	void Shutdown(void);
-
 	// Resolves the symbol information for a given address
 	SymbolInfo ResolveSymbolsForAddress(const void* const address);
 }

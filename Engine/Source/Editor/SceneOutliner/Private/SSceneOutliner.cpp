@@ -258,8 +258,6 @@ namespace SceneOutliner
 		bFullRefresh = true;
 		bNeedsRefresh = true;
 		bIsReentrant = false;
-		bActorComponentsEnabled = true;// || InInitOptions.Mode = ESceneOutlinerMode::ComponentPicker;
-
 		bSortDirty = true;
 		bActorSelectionDirty = SharedData->Mode == ESceneOutlinerMode::ActorBrowsing;
 		FilteredActorCount = 0;
@@ -764,21 +762,18 @@ namespace SceneOutliner
 					EUserInterfaceActionType::ToggleButton
 				);
 
-				if (bActorComponentsEnabled)
-				{
-					MenuBuilder.AddMenuEntry(
-						LOCTEXT("ToggleShowActorComponents", "Show Actor Components"),
-						LOCTEXT("ToggleShowActorComponentsToolTip", "When enabled, shows components beloging to actors."),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &SSceneOutliner::ToggleShowActorComponents),
-							FCanExecuteAction(),
-							FIsActionChecked::CreateSP(this, &SSceneOutliner::IsShowingActorComponents)
-						),
-						NAME_None,
-						EUserInterfaceActionType::ToggleButton
-					);
-				}
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ToggleShowActorComponents", "Show Actor Components"),
+					LOCTEXT("ToggleShowActorComponentsToolTip", "When enabled, shows components beloging to actors."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SSceneOutliner::ToggleShowActorComponents),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &SSceneOutliner::IsShowingActorComponents)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
 
 				// Add additional filters
 				FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked< FSceneOutlinerModule >("SceneOutliner");
@@ -944,7 +939,7 @@ namespace SceneOutliner
 
 	bool SSceneOutliner::IsShowingActorComponents()
 	{
-		return SharedData->Mode == ESceneOutlinerMode::ComponentPicker || (bActorComponentsEnabled && GetDefault<USceneOutlinerSettings>()->bShowActorComponents);
+		return SharedData->Mode == ESceneOutlinerMode::ComponentPicker || (GetDefault<USceneOutlinerSettings>()->bShowActorComponents);
 	}
 
 	void SSceneOutliner::ToggleShowActorComponents()
@@ -1360,8 +1355,11 @@ namespace SceneOutliner
 
 		PendingTreeItemMap.Remove(ItemID);
 
-		// If a tree item already exists that represents the same data, bail
-		if (TreeItemMap.Find(ItemID))
+		FValidateItemBeforeAddingToTree ValidateItemVisitor;
+		Item->Visit(ValidateItemVisitor);
+
+		// If a tree item already exists that represents the same data or if the actor is invalid, bail
+		if (TreeItemMap.Find(ItemID)  || !ValidateItemVisitor.Result())
 		{
 			return false;
 		}
@@ -3299,46 +3297,44 @@ namespace SceneOutliner
 
 		// Deselect actors in the tree that are no longer selected in the world
 		FItemSelection Selection(*OutlinerTreeView);
-		for (FActorTreeItem* ActorItem : Selection.Actors)
+		if (Selection.Actors.Num())
 		{
-			if(!ActorItem->Actor.IsValid() || !ActorItem->Actor.Get()->IsSelected())
+			TArray<FTreeItemPtr> ActorItems;
+			for (FActorTreeItem* ActorItem : Selection.Actors)
 			{
-				OutlinerTreeView->SetItemSelection(ActorItem->AsShared(), false);
-			}
-		}
-
-
-		// See if the tree view selector is pointing at a selected item
-		bool bSelectorInSelectionSet = false;
-		for (FSelectionIterator SelectionIt(*SelectedActors); SelectionIt; ++SelectionIt)
-		{
-			AActor* Actor = CastChecked< AActor >(*SelectionIt);
-			if (FTreeItemPtr* ActorItem = TreeItemMap.Find(Actor))
-			{
-				if (OutlinerTreeView->Private_HasSelectorFocus(*ActorItem))
+				if(!ActorItem->Actor.IsValid() || !ActorItem->Actor.Get()->IsSelected())
 				{
-					bSelectorInSelectionSet = true;
-					break;
+					ActorItems.Add(ActorItem->AsShared());
 				}
 			}
-		}
 
-		// If NOT bSelectorInSelectionSet then we want to just move the selector to the first selected item.
-		ESelectInfo::Type SelectInfo = bSelectorInSelectionSet ? ESelectInfo::Direct : ESelectInfo::OnMouseClick;
+			OutlinerTreeView->SetItemSelection(ActorItems, false);
+		}
+		
 		// Show actor selection but only if sub objects are not selected
 		if (Selection.Components.Num() == 0 && Selection.SubComponents.Num() == 0)
 		{
-			// Ensure that all selected actors in the world are selected in the tree
+			// See if the tree view selector is pointing at a selected item
+			bool bSelectorInSelectionSet = false;
+
+			TArray<FTreeItemPtr> ActorItems;
 			for (FSelectionIterator SelectionIt(*SelectedActors); SelectionIt; ++SelectionIt)
 			{
 				AActor* Actor = CastChecked< AActor >(*SelectionIt);
 				if (FTreeItemPtr* ActorItem = TreeItemMap.Find(Actor))
 				{
-					OutlinerTreeView->SetItemSelection(*ActorItem, true, SelectInfo);				
-					SelectInfo = ESelectInfo::Direct;
-				}
+					if (!bSelectorInSelectionSet && OutlinerTreeView->Private_HasSelectorFocus(*ActorItem))
+					{
+						bSelectorInSelectionSet = true;
+					}
 
+					ActorItems.Add(*ActorItem);
+				}
 			}
+
+			// If NOT bSelectorInSelectionSet then we want to just move the selector to the first selected item.
+			ESelectInfo::Type SelectInfo = bSelectorInSelectionSet ? ESelectInfo::Direct : ESelectInfo::OnMouseClick;
+			OutlinerTreeView->SetItemSelection(ActorItems, true, SelectInfo);
 		}
 
 		// Broadcast selection changed delegate

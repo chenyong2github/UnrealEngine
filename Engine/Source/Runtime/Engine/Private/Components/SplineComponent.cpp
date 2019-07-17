@@ -61,12 +61,11 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, 
 	SplineCurves.Position.Points.Emplace(1.0f, FVector(100, 0, 0), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
 	SplineCurves.Rotation.Points.Emplace(1.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
 	SplineCurves.Scale.Points.Emplace(1.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
-
+		
 	if (SplineCurves.Metadata)
 	{
-		SplineCurves.Metadata->Reset(10);
-		SplineCurves.Metadata->AddPoint(0.0f);
-		SplineCurves.Metadata->AddPoint(1.0f);
+		const int32 NumPoints = GetNumberOfSplinePoints();
+		SplineCurves.Metadata->Fixup(NumPoints);
 	}
 
 	UpdateSpline();
@@ -152,6 +151,16 @@ void USplineComponent::Serialize(FArchive& Ar)
 	}
 }
 
+void USplineComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (USplineMetadata* MetaData = GetSplinePointsMetadata())
+	{
+		const int32 NumPoints = GetNumberOfSplinePoints();
+		MetaData->Fixup(NumPoints);
+	}
+}
 
 void FSplineCurves::UpdateSpline(bool bClosedLoop, bool bStationaryEndpoints, int32 ReparamStepsPerSegment, bool bLoopPositionOverride, float LoopPosition, const FVector& Scale3D)
 {
@@ -373,7 +382,8 @@ FVector USplineComponent::GetDirectionAtSplineInputKey(float InKey, ESplineCoord
 
 	if (CoordinateSpace == ESplineCoordinateSpace::World)
 	{
-		Direction = GetComponentTransform().TransformVectorNoScale(Direction);
+		Direction = GetComponentTransform().TransformVector(Direction);
+		Direction.Normalize();
 	}
 
 	return Direction;

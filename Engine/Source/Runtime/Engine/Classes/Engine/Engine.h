@@ -16,7 +16,7 @@
 #include "Misc/FrameRate.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "Subsystems/EngineSubsystem.h"
-
+#include "RHI.h"
 #include "Engine.generated.h"
 
 #define WITH_DYNAMIC_RESOLUTION (!UE_SERVER)
@@ -1810,6 +1810,9 @@ public:
 	virtual void			WorldDestroyed( UWorld* InWorld );
 
 	virtual bool IsInitialized() const { return bIsInitialized; }
+
+	/** The feature used to create new worlds, by default. Overridden for feature level preview in the editor */
+	virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const { return GMaxRHIFeatureLevel;  }
 
 #if WITH_EDITOR
 

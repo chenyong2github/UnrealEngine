@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ILiveLinkModule.h"
 
@@ -8,6 +8,8 @@
 #include "LiveLinkMessageBusDiscoveryManager.h"
 
 #include "LiveLinkClient.h"
+
+#include "LiveLinkHeartbeatEmitter.h"
 
 /**
  * Implements the Messaging module.
@@ -26,7 +28,9 @@ public:
 	FLiveLinkModule()
 		: LiveLinkClient()
 		, LiveLinkMotionController(LiveLinkClient)
+		, HeartbeatEmitter(MakeUnique<FLiveLinkHeartbeatEmitter>())
 	{}
+
 	// IModuleInterface interface
 
 	virtual void StartupModule() override
@@ -39,6 +43,7 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+		HeartbeatEmitter->Exit();
 		LiveLinkMotionController.UnregisterController();
 		IModularFeatures::Get().UnregisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);
 		delete FLiveLinkMessageBusDiscoveryManager::Get();
@@ -48,6 +53,14 @@ public:
 	{
 		return false;
 	}
+
+	virtual FLiveLinkHeartbeatEmitter& GetHeartbeatEmitter() override
+	{
+		return *HeartbeatEmitter;
+	}
+
+private:
+	TUniquePtr<FLiveLinkHeartbeatEmitter> HeartbeatEmitter;
 };
 
 IMPLEMENT_MODULE(FLiveLinkModule, LiveLink);

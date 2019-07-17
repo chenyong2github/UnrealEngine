@@ -53,6 +53,11 @@ FTextureResource* UTextureRenderTarget2D::CreateResource()
 	if (bAutoGenerateMips)
 	{
 		NumMips = FGenericPlatformMath::CeilToInt(FGenericPlatformMath::Log2(FGenericPlatformMath::Max(SizeX, SizeY)));
+
+		if (RHIRequiresComputeGenerateMips())
+		{
+			bCanCreateUAV = 1;
+		}
 	}
 	else
 	{

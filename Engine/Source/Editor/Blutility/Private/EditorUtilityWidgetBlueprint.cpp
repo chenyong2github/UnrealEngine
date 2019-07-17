@@ -131,13 +131,4 @@ void UEditorUtilityWidgetBlueprint::GetReparentingRules(TSet< const UClass* >& A
 	AllowedChildrenOfClasses.Add(UEditorUtilityWidget::StaticClass());
 }
 
-#if WITH_EDITORONLY_DATA
-void UEditorUtilityWidgetBlueprint::LoadModulesRequiredForCompilation()
-{
-	Super::LoadModulesRequiredForCompilation();
-
-	static const FName ModuleName(TEXT("Blutility"));
-	FModuleManager::Get().LoadModule(ModuleName);
-}
-#endif //WITH_EDITORONLY_DATA
 

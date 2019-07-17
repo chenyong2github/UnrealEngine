@@ -56,10 +56,6 @@ public:
 		return RegistrationName;
 	}
 
-#if WITH_EDITORONLY_DATA
-protected:
-	virtual void LoadModulesRequiredForCompilation() override;
-#endif
 	void ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType);
 
 private:
@@ -67,7 +63,7 @@ private:
 
 	TWeakPtr<SDockTab> CreatedTab;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UEditorUtilityWidget* CreatedUMGWidget;
 
 };

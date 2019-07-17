@@ -703,6 +703,9 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 
 	const double StartSeconds = FPlatformTime::Seconds();
 
+	// Aggregate the time we waited on user input to remove it from the total time
+	double DialogWaitingSeconds = 0;
+
 	FSlateApplication::Get().CancelDragDrop();
 
 	if (GetSelectedComponentCount() > 0)
@@ -949,7 +952,12 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 						FText::FromString(Actor->GetActorLabel()), FText::FromString(ActorReferenceString));
 				}
 
+				const double DialogStartSeconds = FPlatformTime::Seconds();
+
 				int32 Result = FMessageDialog::Open(MessageType, ConfirmDelete);
+
+				DialogWaitingSeconds += FPlatformTime::Seconds() - DialogStartSeconds;
+
 				if (Result == EAppReturnType::YesAll)
 				{
 					bRequestedDeleteAllByLevel |= bReferencedByLevelScript;
@@ -1075,7 +1083,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 		ULevel::LevelDirtiedEvent.Broadcast();
 	}
 
-	UE_LOG(LogEditorActor, Log,  TEXT("Deleted %d Actors (%3.3f secs)"), DeleteCount, FPlatformTime::Seconds() - StartSeconds );
+	UE_LOG(LogEditorActor, Log,  TEXT("Deleted %d Actors (%3.3f secs)"), DeleteCount, (FPlatformTime::Seconds() - StartSeconds) - DialogWaitingSeconds);
 
 	return true;
 }
@@ -2604,4 +2612,3 @@ void UUnrealEdEngine::edactAlignVertices()
 PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
-

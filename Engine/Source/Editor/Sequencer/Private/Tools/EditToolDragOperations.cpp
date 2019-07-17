@@ -1218,6 +1218,9 @@ void FMoveKeysAndSections::HandleKeyMovement(TOptional<FFrameNumber> MaxDeltaX, 
 
 	for (UMovieSceneSection* Section : ModifiedNonSelectedSections)
 	{
-		Section->MarkAsChanged();
+		if (Section)
+		{
+			Section->MarkAsChanged();
+		}
 	}
 }

@@ -4330,6 +4330,9 @@ void StaticUObjectInit()
 void ShutdownGarbageCollection();
 void CleanupLinkerAnnotations();
 void CleanupCachedArchetypes();
+void AcquireGCLock();
+void ReleaseGCLock();
+extern int32 GMultithreadedDestructionEnabled;
 
 //
 // Shut down the object manager.
@@ -4344,12 +4347,26 @@ void StaticExit()
 	// Delete all linkers are pending destroy
 	DeleteLoaders();
 
+	// We'll be destroying objects without time limit during exit purge
+	// so doing it on a separate thread doesn't make anything faster,
+	// also the exit purge is not a standard GC pass so no need to overcompilcate things
+	GMultithreadedDestructionEnabled = false;
+
 	// Cleanup root.
 	if (GObjTransientPkg != NULL)
 	{
 		GObjTransientPkg->RemoveFromRoot();
 		GObjTransientPkg = NULL;
 	}
+	
+	// This can happen when we run into an error early in the init process
+	if (GUObjectArray.IsOpenForDisregardForGC())
+	{
+		GUObjectArray.CloseDisregardForGC();
+	}
+
+	// Make sure no other threads manipulate UObjects
+	AcquireGCLock();
 
 	GatherUnreachableObjects(false);
 	IncrementalPurgeGarbage(false);
@@ -4402,6 +4419,8 @@ void StaticExit()
 		GatherUnreachableObjects(false);
 		IncrementalPurgeGarbage(false);
 	}
+
+	ReleaseGCLock();
 
 	ShutdownGarbageCollection();
 	UObjectBaseShutdown();

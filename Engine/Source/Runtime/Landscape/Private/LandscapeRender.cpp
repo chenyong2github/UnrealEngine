@@ -889,7 +889,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		FWeightmapLayerAllocationInfo& Allocation = InComponent->WeightmapLayerAllocations[Idx];
 		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer)
 		{
-			VisibilityWeightmapTexture = WeightmapTextures[Idx];
+			VisibilityWeightmapTexture = WeightmapTextures[Allocation.WeightmapTextureIndex];
 			VisibilityWeightmapChannel = Allocation.WeightmapTextureChannel;
 			break;
 		}
@@ -3256,10 +3256,10 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 }
 #endif
 
-bool FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+int32 FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	// TODO: implement
-	return false;
+	return 0;
 }
 
 //

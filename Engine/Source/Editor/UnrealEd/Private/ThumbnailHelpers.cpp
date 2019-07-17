@@ -172,11 +172,7 @@ FParticleSystemThumbnailScene::FParticleSystemThumbnailScene()
 
 FParticleSystemThumbnailScene::~FParticleSystemThumbnailScene()
 {
-	if (ThumbnailFXSystem)
-	{
-		ThumbnailFXSystem->Destroy();
-		ThumbnailFXSystem = nullptr;
-	}
+	FFXSystemInterface::Destroy( ThumbnailFXSystem );
 }
 
 void FParticleSystemThumbnailScene::SetParticleSystem(UParticleSystem* ParticleSystem)
@@ -361,6 +357,11 @@ void FMaterialThumbnailScene::SetMaterialInterface(UMaterialInterface* InMateria
 
 	PreviewActor->GetStaticMeshComponent()->SetMaterial(0, InMaterial);
 	PreviewActor->GetStaticMeshComponent()->RecreateRenderState_Concurrent();
+}
+
+bool FMaterialThumbnailScene::ShouldSetSeparateTranslucency(class UMaterialInterface* InMaterial) const
+{
+	return InMaterial->GetMaterialResource(GMaxRHIFeatureLevel)->IsTranslucencyAfterDOFEnabled();
 }
 
 void FMaterialThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const

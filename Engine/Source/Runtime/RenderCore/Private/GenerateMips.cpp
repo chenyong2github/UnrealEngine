@@ -126,12 +126,16 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 			FMath::Max(DestTextureSizeY / MIPSSHADER_NUMTHREADS, 1),
 			1);
 		//Pass added per mip level to be written.
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
+		ClearUnusedGraphResources(*ComputeShader, PassParameters);
+
+		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Generate2DTextureMips DestMipLevel=%d", MipLevel),
-			*ComputeShader,
 			PassParameters,
-			GenMipsGroupCount);
+			ERenderGraphPassFlags::Compute | ERDGPassFlags::GenerateMips,
+			[PassParameters, ComputeShader, GenMipsGroupCount](FRHICommandList& RHICmdList)
+		{
+			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, GenMipsGroupCount);
+		});
 	}
 	GraphBuilder.QueueTextureExtraction(GraphTexture, &GenMipsStruct->RenderTarget);
 	GraphBuilder.Execute();	

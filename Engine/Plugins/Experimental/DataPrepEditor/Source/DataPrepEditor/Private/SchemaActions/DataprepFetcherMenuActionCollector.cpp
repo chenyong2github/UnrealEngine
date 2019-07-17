@@ -2,6 +2,7 @@
 
 #include "SchemaActions/DataprepFetcherMenuActionCollector.h"
 
+#include "DataprepEditorUtils.h"
 #include "DataprepMenuActionCollectorUtils.h"
 #include "SelectionSystem/DataprepFetcher.h"
 
@@ -47,6 +48,7 @@ TSharedPtr<FDataprepSchemaAction> FDataprepFetcherMenuActionCollector::CreateMen
 		if ( Filter && ( !Filter->GetFetcher() || Filter->GetFetcher()->GetClass() != Class ) )
 		{
 			Filter->SetFetcher( TSubclassOf< UDataprepFetcher >( Class ) );
+			FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 		}
 	});
 

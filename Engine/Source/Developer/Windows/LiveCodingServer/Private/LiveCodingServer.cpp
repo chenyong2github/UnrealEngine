@@ -49,6 +49,14 @@ void FLiveCodingServer::Stop()
 	ProcessGroupName.clear();
 }
 
+void FLiveCodingServer::RestartTargets()
+{
+	if (CommandThread != nullptr)
+	{
+		CommandThread->RestartTargets();
+	}
+}
+
 void FLiveCodingServer::SetLinkerPath(const wchar_t* LinkerPath, const TMap<FString, FString>& LinkerEnvironment)
 {
 	appSettings::g_linkerPath->SetValueWithoutSaving(LinkerPath);
@@ -56,8 +64,8 @@ void FLiveCodingServer::SetLinkerPath(const wchar_t* LinkerPath, const TMap<FStr
 
 	if (LinkerEnvironment.Num() > 0)
 	{
-		environment::Block* block = environment::CreateBlockFromMap(LinkerEnvironment);
-		compiler::AddEnvironmentToCache(LinkerPath, block);
+		process::Environment* environment = process::CreateEnvironmentFromMap(LinkerEnvironment);
+		compiler::AddEnvironmentToCache(LinkerPath, environment);
 	}
 }
 

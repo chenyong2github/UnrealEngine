@@ -211,7 +211,7 @@ public:
 public:
 
 	/** Post process settings to use for this camera. Don't forget to check the properties you want to override */
-	UPROPERTY(Interp, BlueprintReadWrite, Category = PostProcess)
+	UPROPERTY(Interp, BlueprintReadWrite, Category = PostProcess, meta=(ShowOnlyInnerProperties))
 	struct FPostProcessSettings PostProcessSettings;
 
 #if WITH_EDITORONLY_DATA

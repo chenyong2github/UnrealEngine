@@ -26,6 +26,7 @@
 
 #include "EditorSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
+#include "RHI.h"
 
 #include "EditorEngine.generated.h"
 
@@ -352,6 +353,50 @@ struct FPlayInEditorOverrides
 	TOptional<int32> NumberOfClients;
 };
 
+struct FPreviewPlatformInfo
+{
+	FPreviewPlatformInfo()
+	:	PreviewFeatureLevel(ERHIFeatureLevel::SM5)
+	,	bPreviewFeatureLevelActive(false)
+	{}
+
+	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewShaderPlatformName = NAME_None, bool InbPreviewFeatureLevelActive = false)
+	:	PreviewFeatureLevel(InFeatureLevel)
+	,	PreviewShaderPlatformName(InPreviewShaderPlatformName)
+	,	bPreviewFeatureLevelActive(InbPreviewFeatureLevelActive)
+	{}
+
+	/** The feature level we should use when loading or creating a new world */
+	ERHIFeatureLevel::Type PreviewFeatureLevel;
+	
+	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
+	FName PreviewShaderPlatformName;
+
+	/** Is feature level preview currently active */
+	bool bPreviewFeatureLevelActive;
+
+	/** Checks if two FPreviewPlatformInfos are for the same preview platform. Note, this does NOT compare the bPreviewFeatureLevelActive flag */
+	bool Matches(const FPreviewPlatformInfo& Other) const
+	{
+		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewShaderPlatformName == Other.PreviewShaderPlatformName;
+	}
+
+	/** Convert platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
+	FName GetEffectivePreviewPlatformName() const
+	{
+		return (PreviewShaderPlatformName != NAME_None && bPreviewFeatureLevelActive) ?
+			ShaderPlatformToPlatformName(ShaderFormatToLegacyShaderPlatform(PreviewShaderPlatformName)) :
+			NAME_None;
+	}
+
+	/** returns the preview feature level if active, or GMaxRHIFeatureLevel otherwise */
+	ERHIFeatureLevel::Type GetEffectivePreviewFeatureLevel() const
+	{
+		return bPreviewFeatureLevelActive ? PreviewFeatureLevel : GMaxRHIFeatureLevel;
+	}
+
+};
+
 /**
  * Engine that drives the Editor.
  * Separate from UGameEngine because it may have much different functionality than desired for an instance of a game itself.
@@ -638,9 +683,9 @@ public:
 	/** The feature level we should use when loading or creating a new world */
 	ERHIFeatureLevel::Type DefaultWorldFeatureLevel;
 
-	/** The feature level we should use when loading or creating a new world */
-	ERHIFeatureLevel::Type PreviewFeatureLevel;
-
+	/** The feature level and platform we should use when loading or creating a new world */
+	FPreviewPlatformInfo PreviewPlatform;
+	
 	/** A delegate that is called when the preview feature level changes. Primarily used to switch a viewport's feature level. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPreviewFeatureLevelChanged, ERHIFeatureLevel::Type);
 	FPreviewFeatureLevelChanged PreviewFeatureLevelChanged;
@@ -873,6 +918,7 @@ public:
 	virtual bool GetMapBuildCancelled() const override { return false; }
 	virtual void SetMapBuildCancelled(bool InCancelled) override { /* Intentionally empty. */ }
 	virtual void HandleNetworkFailure(UWorld *World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString) override;
+	virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const override { return DefaultWorldFeatureLevel; }
 
 	FString GetPlayOnTargetPlatformName() const;
 protected:
@@ -3052,7 +3098,7 @@ public:
 	void OnSceneMaterialsModified();
 
 	/** Call this function to change the feature level and to override the material quality platform of the editor and PIE worlds */
-	void SetPreviewPlatform(const FName MaterialQualityPlatform, ERHIFeatureLevel::Type InPreviewFeatureLevel, const bool bSaveSettings = true);
+	void SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPlatform, bool bSaveSettings);
 
 	/** Toggle the feature level preview */
 	void ToggleFeatureLevelPreview();
@@ -3073,14 +3119,6 @@ public:
 	FPreviewFeatureLevelChanged& OnPreviewFeatureLevelChanged() { return PreviewFeatureLevelChanged; }
 
 protected:
-	/** Call this function to change the feature level of the editor and PIE worlds */
-	void SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPreviewFeatureLevel);
-
-	/** call this function to change the feature level for all materials */
-	void SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InPreviewFeatureLevel);
-
-	/** call this to recompile the materials */
-	void AllMaterialsCacheResourceShadersForRendering(ERHIFeatureLevel::Type InPreviewFeatureLevel);
 
 	/** Function pair used to save and restore the global feature level */
 	void LoadEditorFeatureLevel();

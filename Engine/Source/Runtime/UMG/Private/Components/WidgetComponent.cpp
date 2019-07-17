@@ -652,9 +652,8 @@ void UWidgetComponent::Serialize(FArchive& Ar)
 
 void UWidgetComponent::BeginPlay()
 {
-	Super::BeginPlay();
-
 	InitWidget();
+	Super::BeginPlay();
 }
 
 void UWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -1845,7 +1844,7 @@ TArray<FWidgetAndPointer> UWidgetComponent::GetHitWidgetPath(FVector2D WidgetSpa
 	TArray<FWidgetAndPointer> ArrangedWidgets;
 	if ( SlateWindow.IsValid() )
 	{
-		ArrangedWidgets = SlateWindow->GetHittestGrid()->GetBubblePath( LocalHitLocation, CursorRadius, bIgnoreEnabledStatus );
+		ArrangedWidgets = SlateWindow->GetHittestGrid().GetBubblePath( LocalHitLocation, CursorRadius, bIgnoreEnabledStatus );
 
 		for( FWidgetAndPointer& ArrangedWidget : ArrangedWidgets )
 		{

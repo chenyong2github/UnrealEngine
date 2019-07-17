@@ -31,6 +31,7 @@ const FName UControlRig::DisplayNameMetaName("DisplayName");
 const FName UControlRig::MenuDescSuffixMetaName("MenuDescSuffix");
 const FName UControlRig::ShowVariableNameInTitleMetaName("ShowVariableNameInTitle");
 const FName UControlRig::BoneNameMetaName("BoneName");
+const FName UControlRig::CurveNameMetaName("CurveName");
 const FName UControlRig::ConstantMetaName("Constant");
 const FName UControlRig::TitleColorMetaName("TitleColor");
 const FName UControlRig::NodeColorMetaName("NodeColor");
@@ -63,6 +64,8 @@ UControlRig::UControlRig()
 #if DEBUG_CONTROLRIG_PROPERTYCHANGE
 void UControlRig::CacheDebugClassData()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// this can be debug only
 	UControlRigBlueprintGeneratedClass* CurrentClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
 	if (CurrentClass)
@@ -96,7 +99,8 @@ void UControlRig::CacheDebugClassData()
 
 void UControlRig::ValidateDebugClassData()
 {
-	
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprintGeneratedClass* CurrentClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
 	if (CurrentClass)
 	{
@@ -161,6 +165,7 @@ UWorld* UControlRig::GetWorld() const
 
 void UControlRig::Initialize(bool bInitRigUnits)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Initialize);
 
 	if (IsTemplate())
@@ -169,29 +174,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 		return;
 	}
 
-	// initialize hierarchy refs
-	// @todo re-think
-	{
-		static FName HierarchyRefType(TEXT("RigHierarchyRef"));
-		UClass* MyClass = GetClass();
-		UControlRig* CDO = MyClass->GetDefaultObject<UControlRig>();
-		//@hack :  hack to fix hierarchy issue
-		// it may need manual propagation like ComponentTransformDetails.cpp
-		Hierarchy = CDO->Hierarchy;
-
-		for (TFieldIterator<UProperty> It(MyClass); It; ++It)
-		{
-			if (UStructProperty* StructProperty = Cast<UStructProperty>(*It))
-			{
-				if (StructProperty->Struct->GetFName() == HierarchyRefType)
-				{
-					FRigHierarchyRef* HierarchyRef= StructProperty->ContainerPtrToValuePtr<FRigHierarchyRef>(this);
-					check(HierarchyRef);
-					HierarchyRef->Container = &Hierarchy;
-				}
-			}
-		}
-	}
+	InitializeFromCDO();
 
 	InstantiateOperatorsFromGeneratedClass();
 	ResolvePropertyPaths();
@@ -216,6 +199,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 
 	// should refresh mapping 
 	Hierarchy.BaseHierarchy.Initialize();
+	CurveContainer.Initialize();
 	// resolve IO properties
 	ResolveInputOutputProperties();
 
@@ -229,19 +213,36 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	// go through find requested inputs
 }
 
+void UControlRig::InitializeFromCDO()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	// copy CDO property you need to here
+	UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
+	// copy operation
+	Hierarchy = CDO->Hierarchy;
+	CurveContainer = CDO->CurveContainer;
+}
+
 void UControlRig::PreEvaluate_GameThread()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// input delegates
 	OnPreEvaluateGatherInput.ExecuteIfBound(this);
 }
 
 void UControlRig::Evaluate_AnyThread()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Execute(EControlRigState::Update);
 }
 
 void UControlRig::PostEvaluate_GameThread()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// output delgates
 	OnPostEvaluateQueryOutput.ExecuteIfBound(this);
 }
@@ -270,6 +271,8 @@ float UControlRig::GetDeltaTime() const
 
 void UControlRig::InstantiateOperatorsFromGeneratedClass()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
 	if (GeneratedClass)
 	{
@@ -287,6 +290,8 @@ void UControlRig::InstantiateOperatorsFromGeneratedClass()
 
 void UControlRig::ResolvePropertyPaths()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (int32 Index = 0; Index < Operators.Num(); ++Index)
 	{
 		if (!Operators[Index].Resolve(this))
@@ -298,7 +303,7 @@ void UControlRig::ResolvePropertyPaths()
 
 void UControlRig::Execute(const EControlRigState InState)
 {
-	SCOPE_CYCLE_COUNTER(STAT_RigExecution);
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	FRigUnitContext Context;
 	Context.DrawInterface = DrawInterface;
@@ -306,6 +311,7 @@ void UControlRig::Execute(const EControlRigState InState)
 	Context.State = InState;
 	Context.HierarchyReference.Container = &Hierarchy;
 	Context.HierarchyReference.bUseBaseHierarchy = true;
+	Context.CurveReference = FRigCurveContainerRef(&CurveContainer);
 
 #if WITH_EDITOR
 	Context.Log = ControlRigLog;
@@ -378,8 +384,10 @@ void UControlRig::Execute(const EControlRigState InState)
 	}
 }
 
-FTransform UControlRig::GetGlobalTransform(FName BoneName) const
+FTransform UControlRig::GetGlobalTransform(const FName& BoneName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	int32 Index = Hierarchy.BaseHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
@@ -390,34 +398,86 @@ FTransform UControlRig::GetGlobalTransform(FName BoneName) const
 
 }
 
-void UControlRig::SetGlobalTransform(const FName BoneName, const FTransform& InTransform) 
+void UControlRig::SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform) 
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	int32 Index = Hierarchy.BaseHierarchy.GetIndex(BoneName);
 	if (Index != INDEX_NONE)
 	{
-		return Hierarchy.BaseHierarchy.SetGlobalTransform(Index, InTransform);
+		Hierarchy.BaseHierarchy.SetGlobalTransform(Index, InTransform, bPropagateTransform);
 	}
+}
+
+FTransform UControlRig::GetGlobalTransform(const int32 BoneIndex) const
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	return Hierarchy.BaseHierarchy.GetGlobalTransform(BoneIndex);
+}
+
+void UControlRig::SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	Hierarchy.BaseHierarchy.SetGlobalTransform(BoneIndex, InTransform, bPropagateTransform);
+}
+
+float UControlRig::GetCurveValue(const FName& CurveName) const
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	return CurveContainer.GetValue(CurveName);
+}
+
+void UControlRig::SetCurveValue(const FName& CurveName, const float CurveValue)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	CurveContainer.SetValue(CurveName, CurveValue);
+}
+
+float UControlRig::GetCurveValue(const int32 CurveIndex) const
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	return CurveContainer.GetValue(CurveIndex);
+}
+
+void UControlRig::SetCurveValue(const int32 CurveIndex, const float CurveValue)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	CurveContainer.SetValue(CurveIndex, CurveValue);
 }
 
 void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	OutNames.Reset();
 	OutNodeItems.Reset();
 
 	// now add all nodes
 	const FRigHierarchy& BaseHierarchy = Hierarchy.BaseHierarchy;
 
-	for (int32 Index = 0; Index < BaseHierarchy.Bones.Num(); ++Index)
+	const TArray<FRigBone>& Bones = BaseHierarchy.GetBones();
+	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
-		OutNames.Add(BaseHierarchy.Bones[Index].Name);
-		OutNodeItems.Add(FNodeItem(BaseHierarchy.Bones[Index].ParentName, BaseHierarchy.Bones[Index].InitialTransform));
+		OutNames.Add(Bones[Index].Name);
+		OutNodeItems.Add(FNodeItem(Bones[Index].ParentName, Bones[Index].InitialTransform));
 	}
 
-	// we also supply input/output properties
+	// have to handle curve separate because otherwise it will confuse with hierarchy
+	// we also supply curves 
+// 	const FRigCurveContainer& RigCurveContainer = CurveContainer;
+// 
+// 	for (int32 Index = 0; Index < RigCurveContainer.Curves.Num(); ++Index)
+// 	{
+// 		OutNames.Add(RigCurveContainer.Curves[Index].Name);
+// 		OutNodeItems.Add(FNodeItem(NAME_None, FTransform::Identity));
+// 	}
 }
 
 void UControlRig::ResolveInputOutputProperties()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (auto Iter = InputProperties.CreateIterator(); Iter; ++Iter)
 	{
 		FCachedPropertyPath& PropPath = Iter.Value();
@@ -433,6 +493,8 @@ void UControlRig::ResolveInputOutputProperties()
 
 bool UControlRig::GetInOutPropertyPath(bool bInput, const FName& InPropertyPath, FCachedPropertyPath& OutCachedPath)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// if root properties, use this
 	TMap<FName, FCachedPropertyPath>& Properties = (bInput) ? InputProperties: OutputProperties;
 
@@ -456,6 +518,8 @@ bool UControlRig::GetInOutPropertyPath(bool bInput, const FName& InPropertyPath,
 #if WITH_EDITORONLY_DATA
 FName UControlRig::GetRigClassNameFromRigUnit(const FRigUnit* InRigUnit) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (InRigUnit)
 	{
 		UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
@@ -473,6 +537,8 @@ FName UControlRig::GetRigClassNameFromRigUnit(const FRigUnit* InRigUnit) const
 
 FRigUnit_Control* UControlRig::GetControlRigUnitFromName(const FName& PropertyName) 
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
 	for (UStructProperty* ControlProperty : GeneratedClass->ControlUnitProperties)
 	{
@@ -487,6 +553,8 @@ FRigUnit_Control* UControlRig::GetControlRigUnitFromName(const FName& PropertyNa
 
 FRigUnit* UControlRig::GetRigUnitFromName(const FName& PropertyName) 
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(GetClass());
 	for (UStructProperty* UnitProperty : GeneratedClass->RigUnitProperties)
 	{
@@ -501,6 +569,8 @@ FRigUnit* UControlRig::GetRigUnitFromName(const FName& PropertyName)
 
 void UControlRig::PostReinstanceCallback(const UControlRig* Old)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ObjectBinding = Old->ObjectBinding;
 	Initialize();
 
@@ -517,6 +587,8 @@ void UControlRig::PostReinstanceCallback(const UControlRig* Old)
 
 void UControlRig::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Super::AddReferencedObjects(InThis, Collector);
 #if WITH_EDITOR
 	UControlRig* This = CastChecked<UControlRig>(InThis);
@@ -529,6 +601,8 @@ void UControlRig::AddReferencedObjects(UObject* InThis, FReferenceCollector& Col
 
 void UControlRig::Serialize(FArchive& Ar)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
@@ -555,12 +629,16 @@ void UControlRig::Serialize(FArchive& Ar)
 
 bool UControlRig::IsValidIOVariables(bool bInput, const FName& PropertyName) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const TMap<FName, FCachedPropertyPath>& Properties = (bInput) ? InputProperties : OutputProperties;
 	return Properties.Contains(PropertyName);
 }
 
 void UControlRig::QueryIOVariables(bool bInput, TArray<FControlRigIOVariable>& OutVars) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const TMap<FName, FCachedPropertyPath>& Properties = (bInput) ? InputProperties : OutputProperties;
 	OutVars.Reset(Properties.Num());
 

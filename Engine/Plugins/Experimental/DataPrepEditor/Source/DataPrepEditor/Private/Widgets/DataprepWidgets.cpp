@@ -3,6 +3,7 @@
 #include "DataprepWidgets.h"
 
 #include "DataPrepContentConsumer.h"
+#include "DataprepEditorUtils.h"
 
 #include "ContentBrowserModule.h"
 #include "DetailLayoutBuilder.h"
@@ -149,7 +150,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 				.FillWidth(1.0f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Level"))
+					.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Sub-Level"))
 					.Font( IDetailLayoutBuilder::GetDetailFont() )
 				]
 			]
@@ -298,6 +299,8 @@ TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWi
 
 void SDataprepDetailsView::OnPropertyChanged(const FPropertyChangedEvent& InEvent)
 {
+	FDataprepEditorUtils::NotifySystemOfChangeInPipeline( DetailedObject );
+
 	if( TrackedProperties.Contains( InEvent.Property ) )
 	{
 		TArray< UObject* > Objects;
@@ -466,8 +469,6 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 	FPropertyRowGeneratorArgs Args;
 	Generator = PropertyEditorModule.CreatePropertyRowGenerator(Args);
 
-	OnPropertyChangedHandle = Generator->OnFinishedChangingProperties().AddSP( this, &SDataprepDetailsView::OnPropertyChanged );
-
 	if( DetailedObject != nullptr )
 	{
 		TArray< UObject* > Objects;
@@ -479,6 +480,7 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 	ColumnSizeData.LeftColumnWidth = TAttribute<float>( this, &SDataprepDetailsView::OnGetLeftColumnWidth );
 	ColumnSizeData.RightColumnWidth = TAttribute<float>( this, &SDataprepDetailsView::OnGetRightColumnWidth );
 	ColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP( this, &SDataprepDetailsView::OnSetColumnWidth );
+	OnPropertyChangedHandle = Generator->OnFinishedChangingProperties().AddSP( this, &SDataprepDetailsView::OnPropertyChanged );
 
 	Construct();
 }
