@@ -331,7 +331,7 @@ namespace Audio
 			// does not signify any issue with the asset itself, so don't mark it as invalid.
 			if (InWave && !InWave->IsSeekableStreaming())
 			{
-				UE_LOG(LogAudioMixer, Warning ,
+				UE_LOG(LogAudioMixer, Warning,
 					TEXT("FMixerBuffer::CreateStreamingBuffer failed to StreamCompressedInfo on SoundWave '%s'.  Invalidating wave resource data (asset now requires re-cook)."),
 					*InWave->GetName());
 
