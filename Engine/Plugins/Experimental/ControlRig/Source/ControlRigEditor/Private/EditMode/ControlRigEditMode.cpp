@@ -381,9 +381,10 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 
 				// each base hierarchy Bone
 				const FRigHierarchy& BaseHierarchy = ControlRig->GetBaseHierarchy();
-				for (int32 BoneIndex = 0; BoneIndex < BaseHierarchy.Bones.Num(); ++BoneIndex)
+				const TArray<FRigBone>& Bones = BaseHierarchy.GetBones();
+				for (int32 BoneIndex = 0; BoneIndex < Bones.Num(); ++BoneIndex)
 				{
-					const FRigBone& CurrentBone = BaseHierarchy.Bones[BoneIndex];
+					const FRigBone& CurrentBone = Bones[BoneIndex];
 					const FTransform Transform = BaseHierarchy.GetGlobalTransform(BoneIndex);
 
 					if (CurrentBone.ParentIndex != INDEX_NONE)
@@ -844,7 +845,8 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 										UBlueprint* Blueprint = Cast<UBlueprint>(Class->ClassGeneratedBy);
 										if (Blueprint)
 										{
-											FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+											Blueprint->MarkPackageDirty();
+											//FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 										}
 									}
 								}

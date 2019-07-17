@@ -9,6 +9,7 @@
 
 void FAnimNode_TwoWayBlend::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	A.Initialize(Context);
@@ -21,14 +22,16 @@ void FAnimNode_TwoWayBlend::Initialize_AnyThread(const FAnimationInitializeConte
 	AlphaScaleBiasClamp.Reinitialize();
 }
 
-void FAnimNode_TwoWayBlend::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) 
+void FAnimNode_TwoWayBlend::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	A.CacheBones(Context);
 	B.CacheBones(Context);
 }
 
 void FAnimNode_TwoWayBlend::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FAnimationNode_TwoWayBlend_Update);
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
@@ -101,6 +104,7 @@ void FAnimNode_TwoWayBlend::Update_AnyThread(const FAnimationUpdateContext& Cont
 
 void FAnimNode_TwoWayBlend::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	if (bBIsRelevant)
 	{
 		if (bAIsRelevant)
@@ -127,6 +131,7 @@ void FAnimNode_TwoWayBlend::Evaluate_AnyThread(FPoseContext& Output)
 
 void FAnimNode_TwoWayBlend::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugLine += FString::Printf(TEXT("(Alpha: %.1f%%)"), InternalBlendAlpha *100);
 	DebugData.AddDebugItem(DebugLine);

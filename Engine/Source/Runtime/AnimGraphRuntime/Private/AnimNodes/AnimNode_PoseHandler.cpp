@@ -8,13 +8,15 @@
 
 void FAnimNode_PoseHandler::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_AssetPlayerBase::Initialize_AnyThread(Context);
 
 	UpdatePoseAssetProperty(Context.AnimInstanceProxy);
 }
 
-void FAnimNode_PoseHandler::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) 
+void FAnimNode_PoseHandler::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	FAnimNode_AssetPlayerBase::CacheBones_AnyThread(Context);
 
 	BoneBlendWeights.Reset();
@@ -87,6 +89,7 @@ void FAnimNode_PoseHandler::OverrideAsset(UAnimationAsset* NewAsset)
 
 void FAnimNode_PoseHandler::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	
 	DebugLine += FString::Printf(TEXT("('%s')"), *GetNameSafe(PoseAsset));

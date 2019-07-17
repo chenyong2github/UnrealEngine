@@ -6,6 +6,7 @@
 
 void FRigUnit_StartProfilingTimer::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Update)
 	{
 		UKismetAnimationLibrary::K2_StartProfilingTimer();
@@ -14,6 +15,7 @@ void FRigUnit_StartProfilingTimer::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_EndProfilingTimer::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		AccumulatedTime = 0.f;

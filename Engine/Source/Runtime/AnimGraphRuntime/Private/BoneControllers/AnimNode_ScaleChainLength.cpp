@@ -20,12 +20,14 @@ FAnimNode_ScaleChainLength::FAnimNode_ScaleChainLength()
 
 void FAnimNode_ScaleChainLength::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 	InputPose.Initialize(Context);
 }
 
 void FAnimNode_ScaleChainLength::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	GetEvaluateGraphExposedInputs().Execute(Context);
 	InputPose.Update(Context);
 
@@ -34,6 +36,7 @@ void FAnimNode_ScaleChainLength::Update_AnyThread(const FAnimationUpdateContext&
 
 void FAnimNode_ScaleChainLength::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	InputPose.CacheBones(Context);
 
 	// LOD change, recache bone indices.
@@ -42,6 +45,7 @@ void FAnimNode_ScaleChainLength::CacheBones_AnyThread(const FAnimationCacheBones
 
 void FAnimNode_ScaleChainLength::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	// Evaluate incoming pose into our output buffer.
 	InputPose.Evaluate(Output);
 
@@ -146,6 +150,7 @@ float FAnimNode_ScaleChainLength::GetInitialChainLength(FCompactPose& InLSPose, 
 
 void FAnimNode_ScaleChainLength::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugLine += FString::Printf(TEXT("Alpha (%.1f%%)"), ActualAlpha * 100.f);
 	DebugData.AddDebugItem(DebugLine);

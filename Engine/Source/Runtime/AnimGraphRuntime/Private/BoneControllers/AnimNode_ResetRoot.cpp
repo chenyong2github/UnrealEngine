@@ -13,6 +13,7 @@ FAnimNode_ResetRoot::FAnimNode_ResetRoot()
 
 void FAnimNode_ResetRoot::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	DebugLine += "(";
@@ -25,6 +26,7 @@ void FAnimNode_ResetRoot::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_ResetRoot::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 	FCSPose<FCompactPose>& CSPose = Output.Pose;
 
@@ -60,6 +62,7 @@ void FAnimNode_ResetRoot::OnInitializeAnimInstance(const FAnimInstanceProxy* InP
 
 void FAnimNode_ResetRoot::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	// Gather all direct Children of the Root.
 	RootChildren.Reset();
 
