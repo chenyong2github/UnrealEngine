@@ -559,35 +559,6 @@ namespace symbols
 	}
 
 
-	ModuleDB* GatherModules(DiaCompilandDB* diaCompilandDb)
-	{
-		telemetry::Scope telemetryScope("Gathering modules");
-
-		const size_t count = diaCompilandDb->symbols.size();
-
-		ModuleDB* database = new ModuleDB;
-		database->modules.reserve(count);
-
-		for (size_t i = 0u; i < count; ++i)
-		{
-			IDiaSymbol* diaSymbol = diaCompilandDb->symbols[i];
-
-			const dia::SymbolName& compilandPath = dia::GetSymbolName(diaSymbol);
-			const std::wstring& uppercaseCompilandPath = string::ToUpper(compilandPath.GetString());
-
-			const bool isDllPath = string::Contains(uppercaseCompilandPath.c_str(), L".DLL");
-			const bool isImport = string::Contains(uppercaseCompilandPath.c_str(), L"IMPORT:");
-			if (isDllPath && !isImport)
-			{
-				// store the module for now
-				database->modules.emplace_back(compilandPath.GetString());
-			}
-		}
-
-		return database;
-	}
-
-
 	UserDefinedTypesDB* GatherUserDefinedTypes(const DiaCompilandDB* diaCompilandDb, const Compiland* compiland)
 	{
 		telemetry::Scope telemetryScope("Gathering user-defined types");

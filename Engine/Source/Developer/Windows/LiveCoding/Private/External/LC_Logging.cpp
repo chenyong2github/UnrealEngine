@@ -5,6 +5,7 @@
 #include "LiveCodingLog.h"
 #include <atomic>
 
+
 namespace
 {
 	// we want to be able to dump large things, including environment variable blocks, but 32k on the stack is too much
