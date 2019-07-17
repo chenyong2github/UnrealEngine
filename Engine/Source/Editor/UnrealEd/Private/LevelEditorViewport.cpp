@@ -85,6 +85,8 @@ DEFINE_LOG_CATEGORY(LogEditorViewport);
 static const float MIN_ACTOR_BOUNDS_EXTENT	= 1.0f;
 
 TArray< TWeakObjectPtr< AActor > > FLevelEditorViewportClient::DropPreviewActors;
+TMap< TObjectKey< AActor >, TWeakObjectPtr< UActorComponent > > FLevelEditorViewportClient::ViewComponentForActorCache;
+
 bool FLevelEditorViewportClient::bIsDroppingPreviewActor;
 
 /** Static: List of objects we're hovering over */
@@ -2182,6 +2184,9 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 	}
 	bWasEditorCameraCut = bEditorCameraCut;
 
+	// Gives FindViewComponentForActor a chance to refresh once every Tick.
+	ViewComponentForActorCache.Reset();
+
 	FEditorViewportClient::Tick(DeltaTime);
 
 	// Update the preview mesh for the preview mesh mode. 
@@ -3412,8 +3417,23 @@ void FLevelEditorViewportClient::MoveCameraToLockedActor()
 
 UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor const* Actor)
 {
-	TSet<AActor const*> CheckedActors;
-	return FindViewComponentForActor(Actor, CheckedActors);
+	UActorComponent* PreviewComponent = nullptr;
+	if (Actor)
+	{
+		const TWeakObjectPtr<UActorComponent> * CachedComponent = ViewComponentForActorCache.Find(Actor);
+		if (CachedComponent != nullptr)
+		{
+			PreviewComponent = CachedComponent->Get();
+		}
+		else
+		{
+			TSet<AActor const*> CheckedActors;
+			PreviewComponent = FindViewComponentForActor(Actor, CheckedActors);
+			ViewComponentForActorCache.Add(Actor, PreviewComponent);
+		}
+	}
+
+	return PreviewComponent;
 }
 
 UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor const* Actor, TSet<AActor const*>& CheckedActors)
@@ -3425,7 +3445,6 @@ UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor co
 		// see if actor has a component with preview capabilities (prioritize camera components)
 		const TSet<UActorComponent*>& Comps = Actor->GetComponents();
 
-		bool bChoseCamComponent = false;
 		for (UActorComponent* Comp : Comps)
 		{
 			FMinimalViewInfo DummyViewInfo;
@@ -3438,11 +3457,6 @@ UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor co
 				}
 				else if (PreviewComponent)
 				{
-					if (bChoseCamComponent)
-					{
-						continue;
-					}
-
 					UCameraComponent* AsCamComp = Cast<UCameraComponent>(Comp);
 					if (AsCamComp != nullptr)
 					{
@@ -3458,17 +3472,19 @@ UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor co
 		// we will just return the first one.
 		if (PreviewComponent == nullptr)
 		{
-			TArray<AActor*> AttachedActors;
-			Actor->GetAttachedActors(AttachedActors);
-			for (AActor* AttachedActor : AttachedActors)
-			{
-				UActorComponent* const Comp = FindViewComponentForActor(AttachedActor, CheckedActors);
-				if (Comp)
+			Actor->ForEachAttachedActors(
+				[&](AActor * AttachedActor) -> bool
 				{
-					PreviewComponent = Comp;
-					break;
+					UActorComponent* const Comp = FindViewComponentForActor(AttachedActor, CheckedActors);
+					if (Comp)
+					{
+						PreviewComponent = Comp;
+						return false; /* stops iteration */
+					}
+
+					return true; /* continue iteration */
 				}
-			}
+			);
 		}
 	}
 
