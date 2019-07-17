@@ -654,7 +654,6 @@ FSlateDrawElement& FSlateWindowElementList::AddUninitialized()
 #endif
 
 		FSlateDrawElement& NewElement = Elements[InsertIdx];
-		//NewElement.SetBatchPriorityGroup(GetCurrentBatchPriorityGroup());
 		return Elements[InsertIdx];
 	}
 }
@@ -996,8 +995,8 @@ void FSlateCachedElementList::Reset()
 
 	CachedRenderingData = new FSlateCachedFastPathRenderingData;
 
-#if WITH_SLATE_DEBUGGING
-	if (!ensure(!bNewData))
+#if 0 // enable this if you want to know why a widget is invalidated after it has been drawn but before it has been batched (probably a child or parent invalidating a relation)
+	if (ensure(!bNewData))
 	{
 		UE_LOG(LogSlate, Log, TEXT("Cleared out data in cached ElementList for Widget: %s before it was batched"), *Widget->GetTag().ToString());
 	}

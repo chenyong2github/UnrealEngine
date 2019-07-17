@@ -140,6 +140,12 @@ void FSlateRenderer::DestroyCachedFastPathRenderingData(struct FSlateCachedFastP
 	delete FastPathRenderingData;
 }
 
+void FSlateRenderer::DestroyCachedFastPathElementData(struct FSlateCachedElementData* ElementData)
+{
+	check(ElementData);
+	delete ElementData;
+}
+
 /* Global functions
  *****************************************************************************/
 
