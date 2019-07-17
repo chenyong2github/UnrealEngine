@@ -1355,8 +1355,11 @@ namespace SceneOutliner
 
 		PendingTreeItemMap.Remove(ItemID);
 
-		// If a tree item already exists that represents the same data, bail
-		if (TreeItemMap.Find(ItemID))
+		FValidateItemBeforeAddingToTree ValidateItemVisitor;
+		Item->Visit(ValidateItemVisitor);
+
+		// If a tree item already exists that represents the same data or if the actor is invalid, bail
+		if (TreeItemMap.Find(ItemID)  || !ValidateItemVisitor.Result())
 		{
 			return false;
 		}
