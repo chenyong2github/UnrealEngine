@@ -243,6 +243,7 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 		check( RenderBatch.GetNumIndices() > 0 );
 
 		const uint32 IndexCount = RenderBatch.GetNumIndices();
+		check(IndexCount > 0);
 
 		uint32 Offset = 0;
 		// The offset into the vertex buffer where this batches vertices are located
