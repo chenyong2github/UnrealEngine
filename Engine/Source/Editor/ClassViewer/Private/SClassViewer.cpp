@@ -305,20 +305,24 @@ namespace ClassViewer
 		 *	@param InInitOptions						The class viewer's options, holds the AllowedClasses and DisallowedClasses.
 		 *
 		 *	@return Returns true if the child passed the filter.
-		 */		
+		 */
 		static bool AddChildren_Tree(TSharedPtr< FClassViewerNode >& InOutRootNode, const TSharedPtr< FClassViewerNode >& InOriginalRootNode, 
 			const TSharedPtr<FClassViewerFilter>& InClassFilter, const FClassViewerInitializationOptions& InInitOptions)
 		{
-			InOutRootNode->bPassesFilter = InClassFilter->IsNodeAllowed(InInitOptions, InOutRootNode.ToSharedRef());
+			bool bCheckTextFilter = true;
+			InOutRootNode->bPassesFilter = InClassFilter->IsNodeAllowed(InInitOptions, InOutRootNode.ToSharedRef(), bCheckTextFilter);
 
 			bool bReturnPassesFilter = InOutRootNode->bPassesFilter;
+
+			bCheckTextFilter = false;
+			InOutRootNode->bPassesFilterRegardlessTextFilter = bReturnPassesFilter || InClassFilter->IsNodeAllowed(InInitOptions, InOutRootNode.ToSharedRef(), bCheckTextFilter);
 
 			TArray< TSharedPtr< FClassViewerNode > >& ChildList = InOriginalRootNode->GetChildrenList();
 			for(int32 ChildIdx = 0; ChildIdx < ChildList.Num(); ChildIdx++)
 			{
 				TSharedPtr< FClassViewerNode > NewNode = MakeShareable( new FClassViewerNode( *ChildList[ChildIdx].Get() ) );
 
-				bool bChildrenPassesFilter = AddChildren_Tree(NewNode, ChildList[ChildIdx], InClassFilter, InInitOptions);
+				const bool bChildrenPassesFilter = AddChildren_Tree(NewNode, ChildList[ChildIdx], InClassFilter, InInitOptions);
 				bReturnPassesFilter |= bChildrenPassesFilter;
 
 				if (bChildrenPassesFilter)
@@ -373,7 +377,8 @@ namespace ClassViewer
 		static void AddChildren_List(TArray< TSharedPtr< FClassViewerNode > >& InOutNodeList, const TSharedPtr< FClassViewerNode >& InOriginalRootNode, 
 			const TSharedPtr< FClassViewerFilter >& InClassFilter, const FClassViewerInitializationOptions& InInitOptions)
 		{
-			if (InClassFilter->IsNodeAllowed(InInitOptions, InOriginalRootNode.ToSharedRef()))
+			const bool bCheckTextFilter = true;
+			if (InClassFilter->IsNodeAllowed(InInitOptions, InOriginalRootNode.ToSharedRef(), bCheckTextFilter))
 			{
 				TSharedPtr< FClassViewerNode > NewNode = MakeShareable(new FClassViewerNode(*InOriginalRootNode.Get()));
 				NewNode->bPassesFilter = true;
@@ -407,7 +412,8 @@ namespace ClassViewer
 			// If the option to see the object root class is set, add it to the list, proceed normally from there so the actor's only filter continues to work.
 			if (InInitOptions.bShowObjectRootClass)
 			{
-				if (InClassFilter->IsNodeAllowed(InInitOptions, ObjectClassRoot.ToSharedRef()))
+				const bool bCheckTextFilter = true;
+				if (InClassFilter->IsNodeAllowed(InInitOptions, ObjectClassRoot.ToSharedRef(), bCheckTextFilter))
 				{
 					TSharedPtr< FClassViewerNode > NewNode = MakeShareable(new FClassViewerNode(*ObjectClassRoot.Get()));
 					NewNode->bPassesFilter = true;
@@ -1541,7 +1547,7 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 			.DefaultLabel(NSLOCTEXT("ClassViewer", "Class", "Class"))
 		);
 
-		SAssignNew(ClassTree, STreeView<TSharedPtr< FClassViewerNode > >)
+	SAssignNew(ClassTree, STreeView<TSharedPtr< FClassViewerNode > >)
 		.SelectionMode(ESelectionMode::Single)
 		.TreeItemsSource(&RootTreeItems)
 		// Called to child items for any given parent item
@@ -1809,7 +1815,7 @@ void SClassViewer::OnClassViewerSelectionChanged( TSharedPtr<FClassViewerNode> I
 		// Check if the item passes the filter, parent items might be displayed but filtered out and thus not desired to be selected.
 		if ( ( Item->Class.IsValid() || !Class ))
 		{
-			if( Item->bPassesFilter )
+			if (Item->bPassesFilterRegardlessTextFilter)
 			{
 				OnClassPicked.ExecuteIfBound( Item->Class.Get() );
 			}
@@ -2531,6 +2537,7 @@ TSharedPtr<FClassViewerNode> SClassViewer::CreateNoneOption()
 
 	// The item "passes" the filter so it does not appear grayed out.
 	NoneItem->bPassesFilter = true;
+	NoneItem->bPassesFilterRegardlessTextFilter = true;
 
 	return NoneItem;
 }
