@@ -2517,6 +2517,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	FName GetAttachParentSocketName() const;
 
+	/** Call a functor for Actors which are attached directly to a component in this actor. Functor should return true to carry on, false to abort. */
+	void ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) const;
+	
 	/** Find all Actors which are attached directly to a component in this actor */
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	void GetAttachedActors(TArray<AActor*>& OutActors) const;
