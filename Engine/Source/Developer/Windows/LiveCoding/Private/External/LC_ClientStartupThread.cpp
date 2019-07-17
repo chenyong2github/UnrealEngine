@@ -12,6 +12,8 @@
 #include "LC_Event.h"
 #include "LC_CriticalSection.h"
 #include "LC_PrimitiveNames.h"
+#include "LC_Environment.h"
+#include "LC_MemoryStream.h"
 #include "LC_Logging.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
@@ -233,6 +235,18 @@ void ClientStartupThread::TriggerRecompile(void)
 	if (m_userCommandThread)
 	{
 		m_userCommandThread->TriggerRecompile();
+	}
+}
+
+
+void ClientStartupThread::LogMessage(const wchar_t* message)
+{
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		m_userCommandThread->LogMessage(message);
 	}
 }
 
@@ -488,7 +502,48 @@ unsigned int ClientStartupThread::ThreadFunction(const std::wstring& processGrou
 	m_userCommandThread->Start(processGroupName, m_startEvent, m_pipeClientCS);
 
 	// register this process with Live++
-	m_pipeClient->SendCommandAndWaitForAck(commands::RegisterProcess { process::GetBase(), process::GetId(), commandThreadId, &JumpToSelf }, nullptr, 0u);
+	{
+		// try getting the previous process ID from the environment in case the process was restarted
+		unsigned int restartedProcessId = 0u;
+		const std::wstring& processIdStr = environment::GetVariable(L"LPP_PROCESS_RESTART_ID", nullptr);
+		if (processIdStr.length() != 0u)
+		{
+			restartedProcessId = static_cast<unsigned int>(std::stoi(processIdStr));
+			environment::RemoveVariable(L"LPP_PROCESS_RESTART_ID");
+		}
+
+		// store the current process ID in an environment variable.
+		// upon restart, the environment block is inherited by the new process and can be used to map the process IDs of
+		// restarted processes to their previous IDs.
+		{
+			const unsigned int processID = process::GetId();
+			environment::SetVariable(L"LPP_PROCESS_RESTART_ID", std::to_wstring(processID).c_str());
+		}
+
+		const std::wstring& imagePath = process::GetImagePath();
+		const std::wstring& commandLine = process::GetCommandLine();
+		const std::wstring& workingDirectory = process::GetWorkingDirectory();
+		process::Environment* environment = process::CreateEnvironment(::GetCurrentProcess());
+
+		const commands::RegisterProcess command =
+		{
+			process::GetBase(), process::GetId(), restartedProcessId, commandThreadId, &JumpToSelf,
+			(imagePath.size() + 1u) * sizeof(wchar_t), 
+			(commandLine.size() + 1u) * sizeof(wchar_t),
+			(workingDirectory.size() + 1u) * sizeof(wchar_t),
+			environment->size
+		};
+
+		memoryStream::Writer payload(command.imagePathSize + command.commandLineSize + command.workingDirectorySize + command.environmentSize);
+		payload.Write(imagePath.data(), command.imagePathSize);
+		payload.Write(commandLine.data(), command.commandLineSize);
+		payload.Write(workingDirectory.data(), command.workingDirectorySize);
+		payload.Write(environment->data, environment->size);
+
+		m_pipeClient->SendCommandAndWaitForAck(command, payload.GetData(), payload.GetSize());
+
+		process::DestroyEnvironment(environment);
+	}
 
 	// handle commands until registration is finished
 	{

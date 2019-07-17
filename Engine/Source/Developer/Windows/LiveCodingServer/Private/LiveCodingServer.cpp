@@ -56,8 +56,8 @@ void FLiveCodingServer::SetLinkerPath(const wchar_t* LinkerPath, const TMap<FStr
 
 	if (LinkerEnvironment.Num() > 0)
 	{
-		environment::Block* block = environment::CreateBlockFromMap(LinkerEnvironment);
-		compiler::AddEnvironmentToCache(LinkerPath, block);
+		process::Environment* environment = process::CreateEnvironmentFromMap(LinkerEnvironment);
+		compiler::AddEnvironmentToCache(LinkerPath, environment);
 	}
 }
 

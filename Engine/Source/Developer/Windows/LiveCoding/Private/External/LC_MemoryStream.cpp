@@ -21,6 +21,12 @@ void memoryStream::Reader::Read(void* data, size_t size)
 }
 
 
+void memoryStream::Reader::Seek(size_t offset)
+{
+	m_offset = offset;
+}
+
+
 memoryStream::Writer::Writer(size_t capacity)
 	: m_data(new char[capacity])
 	, m_capacity(capacity)
