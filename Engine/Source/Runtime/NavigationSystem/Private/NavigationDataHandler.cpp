@@ -108,7 +108,7 @@ void FNavigationDataHandler::AddElementToNavOctree(const FNavigationDirtyElement
 		return;
 	}
 
-	FNavigationOctreeElement GeneratedData(*OctreeController.NavOctree.Get(), *ElementOwner);
+	FNavigationOctreeElement GeneratedData(*ElementOwner);
 	const FBox ElementBounds = DirtyElement.NavInterface->GetNavigationBounds();
 
 	UObject* NavigationParent = DirtyElement.NavInterface->GetNavigationParent();
@@ -401,7 +401,7 @@ void FNavigationDataHandler::AddLevelCollisionToOctree(ULevel& Level)
 
 		if (!ElementId && LevelGeom && LevelGeom->Num() > 0)
 		{
-			FNavigationOctreeElement BSPElem(*OctreeController.NavOctree.Get(), Level);
+			FNavigationOctreeElement BSPElem(Level);
 			FRecastNavMeshGenerator::ExportVertexSoupGeometry(*LevelGeom, *BSPElem.Data);
 
 			const FBox& Bounds = BSPElem.Data->Bounds;
