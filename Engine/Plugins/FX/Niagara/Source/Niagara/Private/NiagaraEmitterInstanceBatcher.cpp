@@ -103,11 +103,13 @@ void NiagaraEmitterInstanceBatcher::GiveSystemTick_RenderThread(FNiagaraGPUSyste
 
 void NiagaraEmitterInstanceBatcher::GiveEmitterContextToDestroy_RenderThread(FNiagaraComputeExecutionContext* Context)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	ContextsToDestroy_RT.Add(Context);
 }
 
 void NiagaraEmitterInstanceBatcher::GiveDataSetToDestroy_RenderThread(FNiagaraDataSet* DataSet)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	DataSetsToDestroy_RT.Add(DataSet);
 }
 
@@ -330,6 +332,8 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& Ove
 
 void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
+
 	// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
 	ExecuteAll(RHICmdList, ViewUniformBuffer, !GPUInstanceCounterManager.HasPendingGPUReadback());
 
@@ -493,6 +497,8 @@ void NiagaraEmitterInstanceBatcher::TickSingle(const FNiagaraGPUSystemTick& Tick
 
 void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICmdList)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
+
 	SortedParticleCount = 0;
 	SimulationsToSort.Reset();
 
@@ -578,6 +584,8 @@ bool NiagaraEmitterInstanceBatcher::UsesGlobalDistanceField() const
 
 void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
+
 	GlobalDistanceFieldParams = GlobalDistanceFieldParameterData ? *GlobalDistanceFieldParameterData : FGlobalDistanceFieldParameterData();
 
 	// Sort buffer after mesh batches are issued, before tick (which will change the GPU instance count).

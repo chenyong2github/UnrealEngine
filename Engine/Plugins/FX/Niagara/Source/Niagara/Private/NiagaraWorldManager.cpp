@@ -153,6 +153,7 @@ void FNiagaraWorldManager::CleanupParameterCollections()
 
 TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> FNiagaraWorldManager::GetSystemSimulation(UNiagaraSystem* System)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>* SimPtr = SystemSimulations.Find(System);
 	if (SimPtr != nullptr)
 	{
@@ -208,13 +209,14 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 
 	for ( int32 i=0; i < NumDeferredQueues; ++i)
 	{
-		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		DeferredDeletionQueue[i].Fence.Wait();
 		DeferredDeletionQueue[i].Queue.Empty();
 	}
 }
 
 void FNiagaraWorldManager::Tick(float DeltaSeconds)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 
