@@ -833,6 +833,28 @@ int32 FInstancedStaticMeshSceneProxy::GetNumMeshBatches() const
 	}
 }
 
+int32 FInstancedStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+{
+	if (OccluderData)
+	{	
+		FStaticMeshInstanceBuffer& InstanceBuffer = InstancedRenderData.PerInstanceRenderData->InstanceBuffer;
+		const int32 NumInstances = InstanceBuffer.GetNumInstances();
+		
+		for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
+		{
+			FMatrix InstanceToLocal;
+			InstanceBuffer.GetInstanceTransform(InstanceIndex, InstanceToLocal);	
+			InstanceToLocal.M[3][3] = 1.0f;
+						
+			Collector.AddElements(OccluderData->VerticesSP, OccluderData->IndicesSP, InstanceToLocal * GetLocalToWorld());
+		}
+		
+		return NumInstances;
+	}
+	
+	return 0;
+}
+
 void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* InComponent)
 {
 #if WITH_EDITOR

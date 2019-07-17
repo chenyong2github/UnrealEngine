@@ -3256,10 +3256,10 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 }
 #endif
 
-bool FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+int32 FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	// TODO: implement
-	return false;
+	return 0;
 }
 
 //
