@@ -352,17 +352,10 @@ struct FSlateCachedFastPathRenderingData
 
 struct FSlateCachedElementList
 {
-#if WITH_SLATE_DEBUGGING
 	FSlateCachedElementList(const SWidget* InWidget)
 		: Widget(InWidget)
 		, CachedRenderingData(nullptr)
 		, bNewData(false)
-#else
-	FSlateCachedElementList()
-		: CachedRenderingData(nullptr)
-		, bNewData(false)
-
-#endif
 	{}
 
 	void Initialize()
@@ -370,10 +363,7 @@ struct FSlateCachedElementList
 		CachedRenderingData = new FSlateCachedFastPathRenderingData;
 	}
 
-	~FSlateCachedElementList()
-	{
-		DestroyCachedVertexData();
-	}
+	SLATECORE_API ~FSlateCachedElementList();
 
 	void Reset();
 
@@ -386,9 +376,7 @@ struct FSlateCachedElementList
 private:
 	SLATECORE_API void DestroyCachedVertexData();
 public:
-#if WITH_SLATE_DEBUGGING
 	const SWidget* Widget;
-#endif
 	/** List of source draw elements to create batches from */
 	FSlateDrawElementArray DrawElements;
 	/** List of cached batches to submit for drawing */
@@ -431,11 +419,9 @@ struct FSlateCachedElementData
 		{
 			ensure(CachedElementList.Widget != Widget);
 		}
+#endif
 
 		FSlateCachedElementListNode* NewNode = new FSlateCachedElementListNode(Widget);
-#else
-		FSlateCachedElementListNode* NewNode = new FSlateCachedElementListNode(FSlateCachedElementList());
-#endif
 
 
 		CachedElementLists.AddTail(NewNode);
@@ -684,18 +670,15 @@ private:
 	{
 		FWidgetDrawElementState(FSlateCachedElementListNode* InCurrentCacheNode,  bool bInIsVolatile, const SWidget* InWidget)
 			: CacheNode(InCurrentCacheNode)
-			, bIsVolatile(bInIsVolatile)
-#if WITH_SLATE_DEBUGGING
 			, Widget(InWidget)
-#endif
+			, bIsVolatile(bInIsVolatile)
 		{
 		}
 
 		FSlateCachedElementListNode* CacheNode;
-		bool bIsVolatile;
-#if WITH_SLATE_DEBUGGING
 		const SWidget* Widget;
-#endif
+		bool bIsVolatile;
+	
 	};
 
 

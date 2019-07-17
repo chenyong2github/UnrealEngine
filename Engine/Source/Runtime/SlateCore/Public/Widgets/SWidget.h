@@ -270,6 +270,7 @@ class SLATECORE_API SWidget
 	friend class FSlateInvalidationRoot;
 	friend class FSlateWindowElementList;
 	friend class SWindow;
+	friend struct FSlateCachedElementList;
 #if WITH_SLATE_DEBUGGING
 	friend struct FInvalidatedWidgetDrawer;
 #endif
