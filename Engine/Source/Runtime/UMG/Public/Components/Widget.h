@@ -670,9 +670,14 @@ public:
 	 * or what are referred to as hysteresis problems, both caused by depending on geometry from the previous frame
 	 * being used to advise how to layout a dependent object the current frame.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Widget")
+	UFUNCTION(BlueprintCallable, Category="Widget",  meta=(DeprecatedFunction, DeprecationMessage = "Use GetTickSpaceGeometry instead"))
 	const FGeometry& GetCachedGeometry() const;
 
+	UFUNCTION(BlueprintCallable, Category="Widget")
+	const FGeometry& GetTickSpaceGeometry() const;
+
+	UFUNCTION(BlueprintCallable, Category="Widget")
+	const FGeometry& GetPaintSpaceGeometry() const;
 	/**
 	 * Gets the underlying slate widget or constructs it if it doesn't exist.  If you're looking to replace
 	 * what slate widget gets constructed look for RebuildWidget.  For extremely special cases where you actually

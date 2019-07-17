@@ -3293,6 +3293,8 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 						.UseOSWindowBorder(bUseOSWndBorder)
 						.SaneWindowPlacement(!CenterNewWindow)
 						.SizingRule(ESizingRule::UserSized);
+
+					PieWindow->SetAllowFastUpdate(true);
 				}
 
 

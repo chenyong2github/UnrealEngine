@@ -6,6 +6,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Widgets/SWindow.h"
 
+DEFINE_STAT(STAT_SlatePreFullBufferRTTime);
 
 /* FSlateFontCacheProvider interface
  *****************************************************************************/
@@ -133,14 +134,10 @@ ISlateAtlasProvider* FSlateRenderer::GetFontAtlasProvider()
 	return &SlateFontServices->GetGameThreadFontCache().Get();
 }
 
-TSharedRef<FSlateRenderDataHandle, ESPMode::ThreadSafe> FSlateRenderer::CacheElementRenderData(const ILayoutCache* Cacher, FSlateWindowElementList& ElementList)
+void FSlateRenderer::DestroyCachedFastPathRenderingData(struct FSlateCachedFastPathRenderingData* FastPathRenderingData)
 {
-	return MakeShareable(new FSlateRenderDataHandle(Cacher, nullptr));
-}
-
-void FSlateRenderer::ReleaseCachingResourcesFor(const ILayoutCache* Cacher)
-{
-
+	check(FastPathRenderingData);
+	delete FastPathRenderingData;
 }
 
 /* Global functions

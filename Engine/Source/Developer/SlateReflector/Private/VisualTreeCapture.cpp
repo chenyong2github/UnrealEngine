@@ -33,7 +33,7 @@ FVisualEntry::FVisualEntry(int32 InElementIndex)
 
 void FVisualEntry::Resolve(const FSlateWindowElementList& ElementList)
 {
-	const FSlateDrawElement& Element = ElementList.GetDrawElements()[ElementIndex];
+	const FSlateDrawElement& Element = ElementList.GetUncachedDrawElements()[ElementIndex];
 	const FSlateRenderTransform& Transform = Element.GetRenderTransform();
 	const FVector2D& LocalSize = Element.GetLocalSize();
 
@@ -43,7 +43,7 @@ void FVisualEntry::Resolve(const FSlateWindowElementList& ElementList)
 	BottomRight = Transform.TransformPoint(LocalSize);
 
 	LayerId = Element.GetLayer();
-	ClippingIndex = Element.GetClippingIndex();
+	ClippingIndex = Element.GetPrecachedClippingIndex();
 }
 
 bool FVisualEntry::IsPointInside(const FVector2D& Point) const
