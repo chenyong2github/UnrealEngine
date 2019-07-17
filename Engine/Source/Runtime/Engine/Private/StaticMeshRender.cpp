@@ -510,15 +510,15 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	}
 }
 
-bool FStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+int32 FStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	if (OccluderData)
 	{	
 		Collector.AddElements(OccluderData->VerticesSP, OccluderData->IndicesSP, GetLocalToWorld());
-		return true;
+		return 1;
 	}
 	
-	return false;
+	return 0;
 }
 
 /** Sets up a wireframe FMeshBatch for a specific LOD. */
