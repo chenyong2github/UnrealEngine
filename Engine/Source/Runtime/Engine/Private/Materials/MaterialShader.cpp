@@ -503,7 +503,7 @@ bool FStaticParameterSet::Equivalent(const FStaticParameterSet& ReferenceSet) co
 	return false;
 }
 
-void FMaterialShaderMapId::Serialize(FArchive& Ar)
+void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 {
 	// Note: FMaterialShaderMapId is saved both in packages (legacy UMaterialInstance) and the DDC (FMaterialShaderMap)
 	// Backwards compatibility only works with FMaterialShaderMapId's stored in packages.  
@@ -513,8 +513,9 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 	const bool bIsSavingCooked = Ar.IsSaving() && Ar.IsCooking();
+	bIsCookedId = bLoadedByCookedMaterial;
 
-	if (!bIsSavingCooked)
+	if (!bIsSavingCooked && !bLoadedByCookedMaterial)
 	{
 		uint32 UsageInt = Usage;
 		Ar << UsageInt;
@@ -536,7 +537,7 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITOR
-	if (!bIsSavingCooked)
+	if (!bIsSavingCooked && !bLoadedByCookedMaterial)
 	{
 		ParameterSet.Serialize(Ar);
 
@@ -578,11 +579,13 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar)
 	}
 	else
 	{
-		// Saving cooked data, this should be valid
-		FSHAHash CookedShaderMapIdHash;
-		GetMaterialHash(CookedShaderMapIdHash);
-
-		checkf(CookedShaderMapIdHash != FSHAHash(), TEXT("Tried to save an invalid shadermap id hash during cook"));
+		if (bIsSavingCooked)
+		{
+			// Saving cooked data, this should be valid
+			GetMaterialHash(CookedShaderMapIdHash);
+			checkf(CookedShaderMapIdHash != FSHAHash(), TEXT("Tried to save an invalid shadermap id hash during cook"));
+		}
+		
 		Ar << CookedShaderMapIdHash;
 	}
 #else
@@ -639,17 +642,25 @@ void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash) const
 bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) const
 {
 #if WITH_EDITOR
-	if (Usage != ReferenceSet.Usage
-		|| BaseMaterialId != ReferenceSet.BaseMaterialId)
+	if (IsCookedId() != ReferenceSet.IsCookedId())
 	{
 		return false;
 	}
-#else
+
+	if (!IsCookedId())
+	{
+		if (Usage != ReferenceSet.Usage
+			|| BaseMaterialId != ReferenceSet.BaseMaterialId)
+		{
+			return false;
+		}
+	}
+	else
+#endif
 	if (CookedShaderMapIdHash != ReferenceSet.CookedShaderMapIdHash)
 	{
 		return false;
 	}
-#endif
 
 	if (QualityLevel != ReferenceSet.QualityLevel
 		|| FeatureLevel != ReferenceSet.FeatureLevel)
@@ -658,74 +669,77 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 	}
 
 #if WITH_EDITOR
-	if (ParameterSet != ReferenceSet.ParameterSet
-		|| ReferencedFunctions.Num() != ReferenceSet.ReferencedFunctions.Num()
-		|| ReferencedParameterCollections.Num() != ReferenceSet.ReferencedParameterCollections.Num()
-		|| ShaderTypeDependencies.Num() != ReferenceSet.ShaderTypeDependencies.Num()
-		|| ShaderPipelineTypeDependencies.Num() != ReferenceSet.ShaderPipelineTypeDependencies.Num()
-		|| VertexFactoryTypeDependencies.Num() != ReferenceSet.VertexFactoryTypeDependencies.Num())
+	if (!IsCookedId())
 	{
-		return false;
-	}
-
-	for (int32 RefFunctionIndex = 0; RefFunctionIndex < ReferenceSet.ReferencedFunctions.Num(); RefFunctionIndex++)
-	{
-		const FGuid& ReferenceGuid = ReferenceSet.ReferencedFunctions[RefFunctionIndex];
-
-		if (ReferencedFunctions[RefFunctionIndex] != ReferenceGuid)
+		if (ParameterSet != ReferenceSet.ParameterSet
+			|| ReferencedFunctions.Num() != ReferenceSet.ReferencedFunctions.Num()
+			|| ReferencedParameterCollections.Num() != ReferenceSet.ReferencedParameterCollections.Num()
+			|| ShaderTypeDependencies.Num() != ReferenceSet.ShaderTypeDependencies.Num()
+			|| ShaderPipelineTypeDependencies.Num() != ReferenceSet.ShaderPipelineTypeDependencies.Num()
+			|| VertexFactoryTypeDependencies.Num() != ReferenceSet.VertexFactoryTypeDependencies.Num())
 		{
 			return false;
 		}
-	}
 
-	for (int32 RefCollectionIndex = 0; RefCollectionIndex < ReferenceSet.ReferencedParameterCollections.Num(); RefCollectionIndex++)
-	{
-		const FGuid& ReferenceGuid = ReferenceSet.ReferencedParameterCollections[RefCollectionIndex];
+		for (int32 RefFunctionIndex = 0; RefFunctionIndex < ReferenceSet.ReferencedFunctions.Num(); RefFunctionIndex++)
+		{
+			const FGuid& ReferenceGuid = ReferenceSet.ReferencedFunctions[RefFunctionIndex];
 
-		if (ReferencedParameterCollections[RefCollectionIndex] != ReferenceGuid)
+			if (ReferencedFunctions[RefFunctionIndex] != ReferenceGuid)
+			{
+				return false;
+			}
+		}
+
+		for (int32 RefCollectionIndex = 0; RefCollectionIndex < ReferenceSet.ReferencedParameterCollections.Num(); RefCollectionIndex++)
+		{
+			const FGuid& ReferenceGuid = ReferenceSet.ReferencedParameterCollections[RefCollectionIndex];
+
+			if (ReferencedParameterCollections[RefCollectionIndex] != ReferenceGuid)
+			{
+				return false;
+			}
+		}
+
+		for (int32 ShaderIndex = 0; ShaderIndex < ShaderTypeDependencies.Num(); ShaderIndex++)
+		{
+			const FShaderTypeDependency& ShaderTypeDependency = ShaderTypeDependencies[ShaderIndex];
+
+			if (ShaderTypeDependency != ReferenceSet.ShaderTypeDependencies[ShaderIndex])
+			{
+				return false;
+			}
+		}
+
+		for (int32 ShaderPipelineIndex = 0; ShaderPipelineIndex < ShaderPipelineTypeDependencies.Num(); ShaderPipelineIndex++)
+		{
+			const FShaderPipelineTypeDependency& ShaderPipelineTypeDependency = ShaderPipelineTypeDependencies[ShaderPipelineIndex];
+
+			if (ShaderPipelineTypeDependency != ReferenceSet.ShaderPipelineTypeDependencies[ShaderPipelineIndex])
+			{
+				return false;
+			}
+		}
+
+		for (int32 VFIndex = 0; VFIndex < VertexFactoryTypeDependencies.Num(); VFIndex++)
+		{
+			const FVertexFactoryTypeDependency& VFDependency = VertexFactoryTypeDependencies[VFIndex];
+
+			if (VFDependency != ReferenceSet.VertexFactoryTypeDependencies[VFIndex])
+			{
+				return false;
+			}
+		}
+
+		if (TextureReferencesHash != ReferenceSet.TextureReferencesHash)
 		{
 			return false;
 		}
-	}
 
-	for (int32 ShaderIndex = 0; ShaderIndex < ShaderTypeDependencies.Num(); ShaderIndex++)
-	{
-		const FShaderTypeDependency& ShaderTypeDependency = ShaderTypeDependencies[ShaderIndex];
-
-		if (ShaderTypeDependency != ReferenceSet.ShaderTypeDependencies[ShaderIndex])
+		if( BasePropertyOverridesHash != ReferenceSet.BasePropertyOverridesHash )
 		{
 			return false;
 		}
-	}
-
-	for (int32 ShaderPipelineIndex = 0; ShaderPipelineIndex < ShaderPipelineTypeDependencies.Num(); ShaderPipelineIndex++)
-	{
-		const FShaderPipelineTypeDependency& ShaderPipelineTypeDependency = ShaderPipelineTypeDependencies[ShaderPipelineIndex];
-
-		if (ShaderPipelineTypeDependency != ReferenceSet.ShaderPipelineTypeDependencies[ShaderPipelineIndex])
-		{
-			return false;
-		}
-	}
-
-	for (int32 VFIndex = 0; VFIndex < VertexFactoryTypeDependencies.Num(); VFIndex++)
-	{
-		const FVertexFactoryTypeDependency& VFDependency = VertexFactoryTypeDependencies[VFIndex];
-
-		if (VFDependency != ReferenceSet.VertexFactoryTypeDependencies[VFIndex])
-		{
-			return false;
-		}
-	}
-
-	if (TextureReferencesHash != ReferenceSet.TextureReferencesHash)
-	{
-		return false;
-	}
-
-	if( BasePropertyOverridesHash != ReferenceSet.BasePropertyOverridesHash )
-	{
-		return false;
 	}
 #endif // WITH_EDITOR
 
@@ -2398,7 +2412,7 @@ void FMaterialShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bo
 	// Backwards compatibility therefore will not work based on the version of Ar
 	// Instead, just bump MATERIALSHADERMAP_DERIVEDDATA_VER
 
-	ShaderMapId.Serialize(Ar);
+	ShaderMapId.Serialize(Ar, bLoadedByCookedMaterial);
 
 	// serialize the platform enum as a uint8
 	int32 TempPlatform = (int32)GetShaderPlatform();
