@@ -286,7 +286,7 @@ void ANavigationTestingActor::UpdateNavData()
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 		if (NavSys)
 		{
-			MyNavData = NavSys->GetNavDataForProps(NavAgentProps);
+			MyNavData = NavSys->GetNavDataForProps(NavAgentProps, GetActorLocation());
 		}
 	}
 }
