@@ -19,8 +19,7 @@ public:
 			Unknown
 			,Initializing
 			,Updating
-			,CompilingShaders
-			,NoUpdateRequired
+			,Finishing
 			,Finished
 		};
 		
@@ -28,12 +27,14 @@ public:
 		ECombinedBundleStateEnum CombinedState;
 		bool bIsPaused;
 		bool bDoesCurrentStateSupportPausing;
+		bool bBundleRequiresUpdate;
 		
 		FCombinedBundleStatus()
 		: ProgressPercent(0.f)
 		, CombinedState(ECombinedBundleStateEnum::Unknown)
 		, bIsPaused(false)
 		, bDoesCurrentStateSupportPausing(false)
+		, bBundleRequiresUpdate(false)
 		{
 		}
 	};
