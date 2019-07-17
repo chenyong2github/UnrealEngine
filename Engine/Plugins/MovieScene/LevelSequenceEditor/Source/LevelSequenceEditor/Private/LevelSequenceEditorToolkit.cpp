@@ -48,6 +48,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "SequencerSettings.h"
 #include "LevelEditorSequencerIntegration.h"
+#include "LevelSequenceEditorBlueprintLibrary.h"
 #include "MovieSceneCaptureDialogModule.h"
 #include "MovieScene.h"
 #include "UnrealEdMisc.h"
@@ -198,6 +199,7 @@ void FLevelSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, cons
 	Options.bCanRecord = true;
 
 	FLevelEditorSequencerIntegration::Get().AddSequencer(Sequencer.ToSharedRef(), Options);
+	ULevelSequenceEditorBlueprintLibrary::SetSequencer(Sequencer.ToSharedRef());
 
 	// @todo remove when world-centric mode is added
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
