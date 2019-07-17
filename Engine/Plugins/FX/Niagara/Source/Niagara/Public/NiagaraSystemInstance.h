@@ -87,6 +87,8 @@ public:
 	/** Handles completion of the system and returns true if the system is complete. */
 	bool HandleCompletion();
 
+	void SetEmitterEnable(FName EmitterName, bool bNewEnableState);
+
 	/** Perform per-tick updates on data interfaces that need it. This can cause systems to complete so cannot be parallelized. */
 	void TickDataInterfaces(float DeltaSeconds, bool bPostSimulate);
 

@@ -47,6 +47,8 @@ public:
 	void BindParameters();
 	void UnbindParameters();
 
+	bool IsAllowedToExecute() const;
+
 	void PreTick();
 	void Tick(float DeltaSeconds);
 	void PostTick();
