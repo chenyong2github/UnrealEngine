@@ -294,6 +294,7 @@ private:
 	int32 SelectedRigidBodyId;
 	int32 SelectedTransformIndex;
 	int32 HiddenTransformIndex;
+	bool bWasVisible;
 	bool bHasIncompleteRigidBodyIdSync;
 	AChaosSolverActor* SelectedChaosSolver;
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
