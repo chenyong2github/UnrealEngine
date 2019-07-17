@@ -20,9 +20,3 @@ bool UControlRigSequencerAnimInstance::UpdateControlRig(UControlRig* InControlRi
 	CachedControlRig = InControlRig;
 	return GetProxyOnGameThread<FControlRigSequencerAnimInstanceProxy>().UpdateControlRig(InControlRig, SequenceId, bAdditive, bApplyBoneFilter, BoneFilter, Weight, bExternalSource);
 }
-
-void UControlRigSequencerAnimInstance::NativeInitializeAnimation()
-{
-	//Do nothing since UAnimSequencerInstance save's a pose snapshot which can cause ensure and crash issues 
-	//since it may not have a skeletal mesh or component transform set up yet.
-}

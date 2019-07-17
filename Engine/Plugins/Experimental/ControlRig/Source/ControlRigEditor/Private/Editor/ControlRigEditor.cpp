@@ -1238,7 +1238,8 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	UControlRigSkeletalMeshComponent* EditorSkelComp = NewObject<UControlRigSkeletalMeshComponent>(Actor);
 	EditorSkelComp->SetSkeletalMesh(InPersonaPreviewScene->GetPersonaToolkit()->GetPreviewMesh());
 	InPersonaPreviewScene->SetPreviewMeshComponent(EditorSkelComp);
-	UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(EditorSkelComp);
+	bool bWasCreated = false;
+	UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(EditorSkelComp, bWasCreated);
 	InPersonaPreviewScene->AddComponent(EditorSkelComp, FTransform::Identity);
 
 	// set root component, so we can attach to it. 
@@ -1328,7 +1329,8 @@ void FControlRigEditor::RebindToSkeletalMeshComponent()
 	UDebugSkelMeshComponent* MeshComponent = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent();
 	if (MeshComponent)
 	{
-		UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(MeshComponent);
+		bool bWasCreated = false;
+		UAnimCustomInstance::BindToSkeletalMeshComponent<UControlRigSequencerAnimInstance>(MeshComponent , bWasCreated);
 	}
 }
 
