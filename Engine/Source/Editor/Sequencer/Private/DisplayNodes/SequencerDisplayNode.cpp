@@ -721,6 +721,16 @@ FText FSequencerDisplayNode::GetDisplayNameToolTipText() const
 	return FText();
 }
 
+bool FSequencerDisplayNode::ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const
+{
+	if (NewDisplayName.IsEmpty())
+	{
+		OutErrorMessage = NSLOCTEXT("Sequencer", "RenameFailed_LeftBlank", "Labels cannot be left blank");
+		return false;
+	}
+	return true;
+}
+
 TSharedRef<SWidget> FSequencerDisplayNode::GenerateContainerWidgetForOutliner(const TSharedRef<SSequencerTreeViewRow>& InRow)
 {
 	auto NewWidget = SNew(SAnimationOutlinerTreeNode, SharedThis(this), InRow)

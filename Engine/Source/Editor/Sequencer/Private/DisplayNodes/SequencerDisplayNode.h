@@ -176,6 +176,11 @@ public:
 	virtual FText GetDisplayNameToolTipText() const;
 
 	/**
+	 * Return whether the new display name is valid for this node.
+	 */
+	virtual bool ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const;
+
+	/**
 	 * Set the node's display name.
 	 *
 	 * @param NewDisplayName the display name to set.
