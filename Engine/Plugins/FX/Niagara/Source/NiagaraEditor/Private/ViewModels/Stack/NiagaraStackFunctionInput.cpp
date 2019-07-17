@@ -1743,7 +1743,7 @@ UEdGraphPin& UNiagaraStackFunctionInput::GetOrCreateOverridePin()
 
 bool UNiagaraStackFunctionInput::TryGetCurrentLocalValue(TSharedPtr<FStructOnScope>& LocalValue, UEdGraphPin& DefaultPin, UEdGraphPin& ValuePin, TSharedPtr<FStructOnScope> OldValueToReuse)
 {
-	if (InputType.IsDataInterface() == false && ValuePin.LinkedTo.Num() == 0)
+	if (InputType.IsUObject() == false && ValuePin.LinkedTo.Num() == 0)
 	{
 		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 		FNiagaraVariable ValueVariable = NiagaraSchema->PinToNiagaraVariable(&ValuePin, true);
@@ -1781,7 +1781,7 @@ bool UNiagaraStackFunctionInput::TryGetCurrentLocalValue(TSharedPtr<FStructOnSco
 
 bool UNiagaraStackFunctionInput::TryGetCurrentDataValue(FDataValues& DataValues, UEdGraphPin* OverrideValuePin, UEdGraphPin& DefaultValuePin, UNiagaraDataInterface* LocallyOwnedDefaultDataValueObjectToReuse)
 {
-	if (InputType.GetClass() != nullptr)
+	if (InputType.IsDataInterface())
 	{
 		UNiagaraDataInterface* DataValueObject = nullptr;
 		if (OverrideValuePin != nullptr)

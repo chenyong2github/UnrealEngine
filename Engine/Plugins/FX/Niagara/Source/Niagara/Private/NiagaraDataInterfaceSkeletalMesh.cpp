@@ -876,17 +876,65 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 	Data->MeshSkinWeightBufferSrv = SourceData->MeshSkinWeightBufferSrv;
 }
 
-USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(UNiagaraDataInterfaceSkeletalMesh* Interface, UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp)
+USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
 {
 	USkeletalMesh* Mesh = nullptr;
-	if (Interface->SourceComponent)
+	if (MeshUserParameter.Parameter.IsValid() && InstData)
 	{
-		Mesh = Interface->SourceComponent->SkeletalMesh;
-		FoundSkelComp = Interface->SourceComponent;
+		FNiagaraSystemInstance* SystemInstance = OwningComponent->GetSystemInstance();
+		if (UObject* UserParamObject = InstData->UserParamBinding.Init(SystemInstance->GetInstanceParameters(), MeshUserParameter.Parameter))
+		{
+			InstData->CachedUserParam = UserParamObject;
+			if (USkeletalMeshComponent* UserSkelMeshComp = Cast<USkeletalMeshComponent>(UserParamObject))
+			{
+				FoundSkelComp = UserSkelMeshComp;
+				Mesh = FoundSkelComp->SkeletalMesh;
+			}
+			else if (ASkeletalMeshActor* UserSkelMeshActor = Cast<ASkeletalMeshActor>(UserParamObject))
+			{
+				FoundSkelComp = UserSkelMeshActor->GetSkeletalMeshComponent();
+				Mesh = FoundSkelComp->SkeletalMesh;
+			}
+			else if (AActor* Actor = Cast<AActor>(UserParamObject))
+			{
+				TArray<UActorComponent*> SourceComps = Actor->GetComponentsByClass(USkeletalMeshComponent::StaticClass());
+				for (UActorComponent* ActorComp : SourceComps)
+				{
+					USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
+					if (SourceComp)
+					{
+						USkeletalMesh* PossibleMesh = SourceComp->SkeletalMesh;
+						if (PossibleMesh != nullptr/* && PossibleMesh->bAllowCPUAccess*/)
+						{
+							Mesh = PossibleMesh;
+							FoundSkelComp = SourceComp;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				//We have a valid, non-null UObject parameter type but it is not a type we can use to get a skeletal mesh from. 
+				UE_LOG(LogNiagara, Warning, TEXT("SkeletalMesh data interface using object parameter with invalid type. Skeletal Mesh Data Interfaces can only get a valid mesh from SkeletalMeshComponents, SkeletalMeshActors or Actors."));
+				UE_LOG(LogNiagara, Warning, TEXT("Invalid Parameter : %s"), *UserParamObject->GetFullName());
+				UE_LOG(LogNiagara, Warning, TEXT("Niagara Component : %s"), *OwningComponent->GetFullName());
+				UE_LOG(LogNiagara, Warning, TEXT("System : %s"), *OwningComponent->GetAsset()->GetFullName());
+			}
+		}
+		else
+		{
+			//WARNING - We have a valid user param but the object set is null.
+		}
 	}
-	else if (Interface->Source)
+	else if (SourceComponent)
 	{
-		ASkeletalMeshActor* MeshActor = Cast<ASkeletalMeshActor>(Interface->Source);
+		Mesh = SourceComponent->SkeletalMesh;
+		FoundSkelComp = SourceComponent;
+	}
+	else if (Source)
+	{
+		ASkeletalMeshActor* MeshActor = Cast<ASkeletalMeshActor>(Source);
 		USkeletalMeshComponent* SourceComp = nullptr;
 		if (MeshActor != nullptr)
 		{
@@ -894,7 +942,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(UNiagara
 		}
 		else
 		{
-			SourceComp = Interface->Source->FindComponentByClass<USkeletalMeshComponent>();
+			SourceComp = Source->FindComponentByClass<USkeletalMeshComponent>();
 		}
 
 		if (SourceComp)
@@ -904,7 +952,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(UNiagara
 		}
 		else
 		{
-			SceneComponent = Interface->Source->GetRootComponent();
+			SceneComponent = Source->GetRootComponent();
 		}
 	}
 	else
@@ -952,9 +1000,9 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(UNiagara
 		SceneComponent = FoundSkelComp;
 	}
 	
-	if (!Mesh && Interface->DefaultMesh)
+	if (!Mesh && DefaultMesh)
 	{
-		Mesh = Interface->DefaultMesh;
+		Mesh = DefaultMesh;
 	}
 
 	return Mesh;
@@ -973,7 +1021,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	TransformInverseTransposed = FMatrix::Identity;
 	PrevTransform = FMatrix::Identity;
 	PrevTransformInverseTransposed = FMatrix::Identity;
-	DeltaSeconds = 0.0f;
+	DeltaSeconds = SystemInstance->GetComponent()->GetWorld()->GetDeltaSeconds();
 	ChangeId = Interface->ChangeId;
 	bIsGpuUniformlyDistributedSampling = false;
 	MeshWeightStrideByte = 0;
@@ -982,7 +1030,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	// Get skel mesh and confirm have valid data
 	USkeletalMeshComponent* NewSkelComp = nullptr;
-	Mesh = UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(Interface, SystemInstance->GetComponent(), Component, NewSkelComp);
+	Mesh = Interface->GetSkeletalMesh(SystemInstance->GetComponent(), Component, NewSkelComp, this);
 	MeshSafe = Mesh;
 
 	if (!Mesh)
@@ -1285,12 +1333,22 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 		//The component we were bound to is no longer valid so we have to trigger a reset.
 		return true;
 	}
-		
+	
 	if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Comp))
 	{
-		if (!SkelComp->SkeletalMesh)
+		if (!SkelComp->SkeletalMesh)//TODO: Handle clearing the mesh gracefully.
 		{
 			return true;
+		}
+
+		//If the user ptr has been changed to look at a new mesh component. TODO: Handle more gracefully.
+		if (Interface->MeshUserParameter.Parameter.IsValid())
+		{
+			UObject* NewUserParam = UserParamBinding.GetValue();
+			if (CachedUserParam != NewUserParam)
+			{
+				return true;
+			}
 		}
 		
 		// Handle the case where they've procedurally swapped out the skeletal mesh from
@@ -1553,6 +1611,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 
 	UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceSkeletalMesh>(Destination);
 	OtherTyped->Source = Source;
+	OtherTyped->MeshUserParameter = MeshUserParameter;
 	OtherTyped->DefaultMesh = DefaultMesh;
 	OtherTyped->SkinningMode = SkinningMode;
 	OtherTyped->SamplingRegions = SamplingRegions;
@@ -1574,6 +1633,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 	const UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<const UNiagaraDataInterfaceSkeletalMesh>(Other);
 	return OtherTyped->Source == Source &&
 		OtherTyped->DefaultMesh == DefaultMesh &&
+		OtherTyped->MeshUserParameter == MeshUserParameter &&
 		OtherTyped->SkinningMode == SkinningMode &&
 		OtherTyped->SamplingRegions == SamplingRegions &&
 		OtherTyped->WholeMeshLOD == WholeMeshLOD &&

@@ -95,7 +95,11 @@
 #include "Customizations/NiagaraStaticSwitchNodeDetails.h"
 #include "Customizations/NiagaraFunctionCallNodeDetails.h"
 
+#include "NiagaraNodeFunctionCall.h"
+
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
+
+PRAGMA_DISABLE_OPTIMIZATION
 
 #define LOCTEXT_NAMESPACE "NiagaraEditorModule"
 
@@ -314,7 +318,7 @@ void PreventSystemRecompile(FAssetData SystemAsset, TSet<UNiagaraEmitter*>& InOu
 		{
 			CompileEmitterStandAlone(EmitterHandle.GetInstance(), InOutCompiledEmitters);
 		}
-
+		
 		System->MarkPackageDirty();
 		System->RequestCompile(false);
 		System->WaitForCompilationComplete();
@@ -362,6 +366,66 @@ void PreventAllSystemRecompiles()
 		GWarn->UpdateProgress(ItemIndex++, SystemAssets.Num());
 
 		PreventSystemRecompile(SystemAsset, CompiledEmitters);
+	}
+
+	GWarn->EndSlowTask();
+}
+
+void UpgradeAllNiagaraAssets()
+{
+	//First Load All Niagara Assets.
+	const FText SlowTaskText_Load = NSLOCTEXT("NiagaraEditor", "UpgradeAllNiagaraAssets_Load", "Loading all Niagara Assets ready to upgrade.");
+	GWarn->BeginSlowTask(SlowTaskText_Load, true, true);
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+	TArray<FAssetData> SystemAssets;
+	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraSystem::StaticClass()->GetFName(), SystemAssets);
+
+	TArray<UNiagaraSystem*> Systems;
+	Systems.Reserve(SystemAssets.Num());
+	TSet<UNiagaraEmitter*> CompiledEmitters;
+	int32 ItemIndex = 0;
+	for (FAssetData& SystemAsset : SystemAssets)
+	{
+		if (GWarn->ReceivedUserCancel())
+		{
+			return;
+		}
+		GWarn->UpdateProgress(ItemIndex++, SystemAssets.Num());
+
+		UNiagaraSystem* System = Cast<UNiagaraSystem>(SystemAsset.GetAsset());
+		if (System != nullptr)
+		{
+			Systems.Add(System);
+		}
+	}
+
+	GWarn->EndSlowTask();
+
+	//////////////////////////////////////////////////////////////////////////
+
+	//Now process any data that needs to be updated.
+	const FText SlowTaskText_Upgrade = NSLOCTEXT("NiagaraEditor", "UpgradeAllNiagaraAssets_Upgrade", "Upgrading All Niagara Assets.");
+	GWarn->BeginSlowTask(SlowTaskText_Upgrade, true, true);
+
+	//Upgrade any data interface function call nodes.
+	TArray<UObject*> FunctionCallNodes;
+	GetObjectsOfClass(UNiagaraNodeFunctionCall::StaticClass(), FunctionCallNodes);
+	ItemIndex = 0;
+	for (UObject* Object : FunctionCallNodes)
+	{
+		if (GWarn->ReceivedUserCancel())
+		{
+			return;
+		}
+
+		if (UNiagaraNodeFunctionCall* FuncCallNode = Cast<UNiagaraNodeFunctionCall>(Object))
+		{
+			FuncCallNode->UpgradeDIFunctionCalls();
+		}
+
+		GWarn->UpdateProgress(ItemIndex++, FunctionCallNodes.Num());
 	}
 
 	GWarn->EndSlowTask();
@@ -439,6 +503,10 @@ void FNiagaraEditorModule::StartupModule()
 
 	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraVariableAttributeBinding",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraVariableAttributeBindingCustomization::MakeInstance)
+	);
+
+	PropertyModule.RegisterCustomPropertyTypeLayout("NiagaraUserParameterBinding",
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance)
 	);
 
 	FNiagaraEditorStyle::Initialize();
@@ -594,6 +662,11 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("fx.PreventAllSystemRecompiles"),
 		TEXT("Loads all of the systems in the project and forces each system to refresh all it's dependencies so it won't recompile on load.  This may mark multiple assets dirty for re-saving."),
 		FConsoleCommandDelegate::CreateStatic(&PreventAllSystemRecompiles));
+
+	UpgradeAllNiagaraAssetsCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.UpgradeAllNiagaraAssets"),
+		TEXT("Loads all Niagara assets and preforms any data upgrade processes required. This may mark multiple assets dirty for re-saving."),
+		FConsoleCommandDelegate::CreateStatic(&UpgradeAllNiagaraAssets));
 
 	if (GIsEditor)
 	{
@@ -835,5 +908,7 @@ void FNiagaraEditorModule::OnPreGarbageCollection()
 		}
 	}
 }
+
+PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
