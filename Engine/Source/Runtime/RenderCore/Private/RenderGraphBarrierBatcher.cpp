@@ -48,63 +48,71 @@ namespace
 		return EResourceTransitionPipeline::EGfxToGfx;
 	}
 
-	inline EResourceTransitionAccess GetResourceTransitionAccess(FRDGResourceState::EAccess AccessAfter)
-	{
-		return AccessAfter == FRDGResourceState::EAccess::Write ? EResourceTransitionAccess::EWritable : EResourceTransitionAccess::EReadable;
-	}
-
-	inline EResourceTransitionAccess GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter)
-	{
-		switch (AccessAfter)
-		{
-		case FRDGResourceState::EAccess::Read:
-			return EResourceTransitionAccess::EReadable;
-		case FRDGResourceState::EAccess::Write:
-			// If doing a Write -> Write transition, we use a UAV barrier.
-			if (AccessBefore == FRDGResourceState::EAccess::Write)
-			{
-				return EResourceTransitionAccess::ERWBarrier;
-			}
-			else
-			{
-				return EResourceTransitionAccess::EWritable;
-			}
-		}
-		check(false);
-		return EResourceTransitionAccess::EMaxAccess;
-	}
-
 } //! namespace
+
+FRDGBarrierBatcher::FRDGBarrierBatcher(FRHICommandList& InRHICmdList, const FRDGPass* InPass)
+	: RHICmdList(InRHICmdList)
+	, Pass(InPass)
+{
+	if (Pass)
+	{
+		bIsGeneratingMips = Pass->IsGenerateMips();
+		Pipeline = Pass->IsCompute() ? FRDGResourceState::EPipeline::Compute : FRDGResourceState::EPipeline::Graphics;
+	}
+}
 
 FRDGBarrierBatcher::~FRDGBarrierBatcher()
 {
-	check(!bAllowQueueing);
+	for (FRHITexture* RHITexture : TextureUpdateMultiFrameBegins)
+	{
+		RHICmdList.BeginUpdateMultiFrameResource(RHITexture);
+	}
+
+	for (FRHIUnorderedAccessView* RHIUAV : UAVUpdateMultiFrameBegins)
+	{
+		RHICmdList.BeginUpdateMultiFrameResource(RHIUAV);
+	}
+
+	for (auto& Element : TextureBatchMap)
+	{
+		FTransitionParameters TransitionParameters = Element.Key;
+		FTextureBatch& Batch = Element.Value;
+		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, Batch.GetData(), Batch.Num());
+	}
+
+	for (auto& Element : UAVBatchMap)
+	{
+		FTransitionParameters TransitionParameters = Element.Key;
+		FUAVBatch& Batch = Element.Value;
+		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
+	}
+
+	for (FRHITexture* RHITexture : TextureUpdateMultiFrameEnds)
+	{
+		RHICmdList.EndUpdateMultiFrameResource(RHITexture);
+	}
+
+	for (FRHIUnorderedAccessView* RHIUAV : UAVUpdateMultiFrameEnds)
+	{
+		RHICmdList.EndUpdateMultiFrameResource(RHIUAV);
+	}
 }
 
-void FRDGBarrierBatcher::Begin()
-{
-#if RDG_ENABLE_DEBUG
-	check(!bAllowQueueing);
-
-	check(!TextureUpdateMultiFrameBegins.Num());
-	check(!TextureUpdateMultiFrameEnds.Num());
-	check(!TextureBatchMap.Num());
-
-	check(!UAVUpdateMultiFrameBegins.Num());
-	check(!UAVUpdateMultiFrameEnds.Num());
-	check(!UAVBatchMap.Num());
-#endif
-
-	bAllowQueueing = true;
-}
-
-void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResourceState StateAfter)
+void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResourceState::EAccess AccessAfter)
 {
 	check(Texture);
 
-	const FRDGResourceState StateBefore = Texture->State;
+	// Texture transitions are ignored when generating mips, since the render target binding call or UAV will
+	// perform the subresource transition.
+	if (bIsGeneratingMips)
+	{
+		return;
+	}
 
-	ValidateTransition(StateBefore, StateAfter, Texture);
+	const FRDGResourceState StateBefore = Texture->State;
+	const FRDGResourceState StateAfter(Pass, Pipeline, AccessAfter);
+
+	ValidateTransition(Texture, StateBefore, StateAfter);
 
 	if (StateBefore != StateAfter)
 	{
@@ -126,12 +134,12 @@ void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResour
 			FTextureBatch& TextureBatch = TextureBatchMap.FindOrAdd(TransitionParameters);
 			TextureBatch.Reserve(kBatchReservationSize);
 
-#if RDG_ENABLE_DEBUG
+			#if RDG_ENABLE_DEBUG
 			{
 				// We should have filtered out duplicates in the first branch of this function.
-				check(TextureBatch.Find(RHITexture) == INDEX_NONE);
+				ensure(TextureBatch.Find(RHITexture) == INDEX_NONE);
 			}
-#endif
+			#endif
 
 			TextureBatch.Add(RHITexture);
 		}
@@ -148,14 +156,15 @@ void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResour
 void FRDGBarrierBatcher::QueueTransitionUAV(
 	FRHIUnorderedAccessView* UAV,
 	FRDGTrackedResource* UnderlyingResource,
-	FRDGResourceState StateAfter)
+	FRDGResourceState::EAccess AccessAfter)
 {
 	check(UAV);
 	check(UnderlyingResource);
 
 	const FRDGResourceState StateBefore = UnderlyingResource->State;
+	const FRDGResourceState StateAfter(Pass, Pipeline, AccessAfter);
 
-	ValidateTransition(StateBefore, StateAfter, UnderlyingResource);
+	ValidateTransition(UnderlyingResource, StateBefore, StateAfter);
 
 	if (StateBefore != StateAfter)
 	{
@@ -175,12 +184,12 @@ void FRDGBarrierBatcher::QueueTransitionUAV(
 			FUAVBatch& UAVBatch = UAVBatchMap.FindOrAdd(TransitionParameters);
 			UAVBatch.Reserve(kBatchReservationSize);
 
-#if RDG_ENABLE_DEBUG
+			#if RDG_ENABLE_DEBUG
 			{
 				// We should have filtered out duplicates in the first branch of this function.
-				check(UAVBatch.Find(UAV) == INDEX_NONE);
+				ensure(UAVBatch.Find(UAV) == INDEX_NONE);
 			}
-#endif
+			#endif
 
 			UAVBatch.Add(UAV);
 		}
@@ -194,53 +203,7 @@ void FRDGBarrierBatcher::QueueTransitionUAV(
 	}
 }
 
-void FRDGBarrierBatcher::End(FRHICommandList& RHICmdList)
-{
-	check(bAllowQueueing);
-	bAllowQueueing = false;
-
-	for (FRHITexture* RHITexture : TextureUpdateMultiFrameBegins)
-	{
-		RHICmdList.BeginUpdateMultiFrameResource(RHITexture);
-	}
-	TextureUpdateMultiFrameBegins.Empty();
-
-	for (FRHIUnorderedAccessView* RHIUAV : UAVUpdateMultiFrameBegins)
-	{
-		RHICmdList.BeginUpdateMultiFrameResource(RHIUAV);
-	}
-	UAVUpdateMultiFrameBegins.Empty();
-
-	for (auto& Element : TextureBatchMap)
-	{
-		FTransitionParameters TransitionParameters = Element.Key;
-		FTextureBatch& Batch = Element.Value;
-		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, Batch.GetData(), Batch.Num());
-	}
-	TextureBatchMap.Empty();
-
-	for (auto& Element : UAVBatchMap)
-	{
-		FTransitionParameters TransitionParameters = Element.Key;
-		FUAVBatch& Batch = Element.Value;
-		RHICmdList.TransitionResources(TransitionParameters.TransitionAccess, TransitionParameters.TransitionPipeline, Batch.GetData(), Batch.Num());
-	}
-	UAVBatchMap.Empty();
-
-	for (FRHITexture* RHITexture : TextureUpdateMultiFrameEnds)
-	{
-		RHICmdList.EndUpdateMultiFrameResource(RHITexture);
-	}
-	TextureUpdateMultiFrameEnds.Empty();
-
-	for (FRHIUnorderedAccessView* RHIUAV : UAVUpdateMultiFrameEnds)
-	{
-		RHICmdList.EndUpdateMultiFrameResource(RHIUAV);
-	}
-	UAVUpdateMultiFrameEnds.Empty();
-}
-
-void FRDGBarrierBatcher::ValidateTransition(FRDGResourceState StateBefore, FRDGResourceState StateAfter, const FRDGTrackedResource* Resource)
+void FRDGBarrierBatcher::ValidateTransition(const FRDGTrackedResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter)
 {
 #if RDG_ENABLE_DEBUG
 	check(StateAfter.Pipeline != FRDGResourceState::EPipeline::MAX);
@@ -249,11 +212,44 @@ void FRDGBarrierBatcher::ValidateTransition(FRDGResourceState StateBefore, FRDGR
 	if (StateBefore != StateAfter && StateAfter.Pass)
 	{
 		// We allow duplicate transitions of the same resource within the same pass, but not conflicting ones.
-		checkf(
+		ensureMsgf(
 			StateBefore.Pass != StateAfter.Pass,
 			TEXT("Pass %s attempted to transition resource %s to different states. Make sure the resource isn't being used\n")
 			TEXT("for both read and write at the same time. This can occur if the resource is used as both an SRV and UAV, or\n")
-			TEXT("SRV and Render Target, for example.\n"), StateAfter.Pass->GetName(), Resource->Name);
+			TEXT("SRV and Render Target, for example. If this pass is meant to generate mip maps, make sure the GenerateMips flag\n")
+			TEXT("is set.\n"), StateAfter.Pass->GetName(), Resource->Name);
 	}
 #endif
+}
+
+EResourceTransitionAccess FRDGBarrierBatcher::GetResourceTransitionAccess(FRDGResourceState::EAccess AccessAfter) const
+{
+	return AccessAfter == FRDGResourceState::EAccess::Write ? EResourceTransitionAccess::EWritable : EResourceTransitionAccess::EReadable;
+}
+
+EResourceTransitionAccess FRDGBarrierBatcher::GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter) const
+{
+	switch (AccessAfter)
+	{
+	case FRDGResourceState::EAccess::Read:
+		return EResourceTransitionAccess::EReadable;
+
+	case FRDGResourceState::EAccess::Write:
+		// Mip-map generation uses its own barrier.
+		if (bIsGeneratingMips)
+		{
+			return EResourceTransitionAccess::ERWSubResBarrier;
+		}
+		// If doing a Write -> Write transition, we use a UAV barrier.
+		else if (AccessBefore == FRDGResourceState::EAccess::Write)
+		{
+			return EResourceTransitionAccess::ERWBarrier;
+		}
+		else
+		{
+			return EResourceTransitionAccess::EWritable;
+		}
+	}
+	check(false);
+	return EResourceTransitionAccess::EMaxAccess;
 }
