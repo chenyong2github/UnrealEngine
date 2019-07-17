@@ -98,7 +98,7 @@ struct FPreviewSceneProfile
 	bool bPostProcessingEnabled;
 
 	/** Manual set post processing settings */
-	UPROPERTY(EditAnywhere, config, Category = PostProcessing, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, config, Category = PostProcessing, AdvancedDisplay, meta=(ShowOnlyInnerProperties))
 	FPostProcessSettings PostProcessingSettings;
 
 	/** Current rotation value of the sky in degrees (0 - 360) */
