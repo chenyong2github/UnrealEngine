@@ -50,6 +50,7 @@ struct FRecastBuildConfig : public rcConfig
 	/** chunk size for ChunkyMonotone partitioning */
 	int32 TileCacheChunkSize;
 
+	UE_DEPRECATED(4.24, "FRecastBuildConfig.PolyMaxHeight has been deprecated as it has no use")
 	int32 PolyMaxHeight;
 	/** indicates what's the limit of navmesh polygons per tile. This value is calculated from other
 	 *	factors - DO NOT SET IT TO ARBITRARY VALUE */
@@ -78,7 +79,10 @@ struct FRecastBuildConfig : public rcConfig
 		bMarkLowHeightAreas = false;
 		bFilterLowSpanSequences = false;
 		bFilterLowSpanFromTileCache = false;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// Still initializing, even though the property is deprecated, to avoid static analysis warnings
 		PolyMaxHeight = 10;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		MaxPolysPerTile = -1;
 		AgentIndex = 0;
 	}
