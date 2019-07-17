@@ -5717,6 +5717,113 @@ void UDemoNetDriver::SetSpectatorController(APlayerController* PC)
 	}
 }
 
+/*------------------------------------------------------------------------------------------
+	FInternetAddrDemo - dummy internet addr that can be used for anything that requests it.
+--------------------------------------------------------------------------------------------*/
+class FInternetAddrDemo : public FInternetAddr
+{
+public:
+
+	FInternetAddrDemo()
+	{
+	}
+
+	virtual TArray<uint8> GetRawIp() const override
+	{
+		return TArray<uint8>();
+	}
+
+	virtual void SetRawIp(const TArray<uint8>& RawAddr) override
+	{
+	}
+
+	void SetIp(uint32 InAddr) override
+	{
+	}
+
+
+	void SetIp(const TCHAR* InAddr, bool& bIsValid) override
+	{
+	}
+
+	void GetIp(uint32& OutAddr) const override
+	{
+		OutAddr = 0;
+	}
+
+	void SetPort(int32 InPort) override
+	{
+	}
+
+
+	void GetPort(int32& OutPort) const override
+	{
+		OutPort = 0;
+	}
+
+
+	int32 GetPort() const override
+	{
+		return 0;
+	}
+
+	void SetAnyAddress() override
+	{
+	}
+
+	void SetBroadcastAddress() override
+	{
+	}
+
+	void SetLoopbackAddress() override
+	{
+	}
+
+	FString ToString(bool bAppendPort) const override
+	{
+		return FString(TEXT("Demo Internet Address"));
+	}
+
+	virtual bool operator==(const FInternetAddr& Other) const override
+	{
+		return Other.ToString(true) == ToString(true);
+	}
+
+	bool operator!=(const FInternetAddrDemo& Other) const
+	{
+		return !(FInternetAddrDemo::operator==(Other));
+	}
+
+	virtual uint32 GetTypeHash() const override
+	{
+		return GetConstTypeHash();
+	}
+
+	uint32 GetConstTypeHash() const
+	{
+		return ::GetTypeHash(ToString(true));
+	}
+
+	friend uint32 GetTypeHash(const FInternetAddrDemo& A)
+	{
+		return A.GetConstTypeHash();
+	}
+
+	virtual bool IsValid() const override
+	{
+		return true;
+	}
+
+	virtual TSharedRef<FInternetAddr> Clone() const override
+	{
+		return DemoInternetAddr.ToSharedRef();
+	}
+
+	static TSharedPtr<FInternetAddr> DemoInternetAddr;
+};
+
+TSharedPtr<FInternetAddr> FInternetAddrDemo::DemoInternetAddr = MakeShareable(new FInternetAddrDemo);
+
 /*-----------------------------------------------------------------------------
 	UDemoNetConnection.
 -----------------------------------------------------------------------------*/
@@ -5857,6 +5964,11 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 			break;
 		}
 	}
+}
+
+TSharedPtr<const FInternetAddr> UDemoNetConnection::GetRemoteAddr()
+{
+	return FInternetAddrDemo::DemoInternetAddr;
 }
 
 bool UDemoNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const
