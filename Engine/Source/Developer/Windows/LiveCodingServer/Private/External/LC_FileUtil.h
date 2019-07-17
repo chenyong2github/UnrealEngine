@@ -46,7 +46,7 @@ namespace file
 	bool IsRelativePath(const wchar_t* path);
 
 	// creates a unique, temporary absolute filename, e.g. C:\Users\JohnDoe\AppData\Local\Temp\ABCD.tmp
-	std::wstring CreateTempFile(void);
+	std::wstring GenerateTempFilename(void);
 
 	// creates a file, storing the given data
 	bool CreateFileWithData(const wchar_t* path, const void* data, size_t size);

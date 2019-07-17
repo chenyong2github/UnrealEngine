@@ -22,6 +22,8 @@ namespace memoryStream
 			return data;
 		}
 
+		void Seek(size_t offset);
+
 	private:
 		const void* m_data;
 		size_t m_capacity;
