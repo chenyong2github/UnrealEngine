@@ -2888,7 +2888,7 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 			const FMeshMapBuildData* MeshMapBuildData = nullptr;
 			if (LODData.Num() > 0)
 			{
-				MeshMapBuildData = GetMeshMapBuildData(LODData[0]);
+				MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 			}
 
 			if (MeshMapBuildData != nullptr)
@@ -2918,7 +2918,7 @@ void UHierarchicalInstancedStaticMeshComponent::SetPerInstanceLightMapAndEditorD
 	const FMeshMapBuildData* MeshMapBuildData = nullptr;
 	if (LODData.Num() > 0)
 	{
-		MeshMapBuildData = GetMeshMapBuildData(LODData[0]);
+		MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 	}
 
 	if (MeshMapBuildData != nullptr || GIsEditor)
