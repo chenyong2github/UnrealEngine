@@ -240,14 +240,6 @@ int32 STextBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	{
 		const FVector2D LastDesiredSize = TextLayoutCache->GetDesiredSize();
 
-		// If we're performing layout caching, it's possible nobody ever called GetDesiredSize(),
-		// which for textblocks is required to be called, since CDS is where it actually generates
-		// a lot for the text layout.
-		if (GSlateLayoutCaching)
-		{
-			GetDesiredSize();
-		}
-
 		// OnPaint will also update the text layout cache if required
 		LayerId = TextLayoutCache->OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, ShouldBeEnabled(bParentEnabled));
 
