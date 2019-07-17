@@ -364,7 +364,7 @@ void FNVAnselCameraPhotographyPrivate::DoCustomUIControls(FPostProcessSettings& 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (bEffectUIAllowed[DepthOfField])
 		{
-			bool bAnyDofVisible = InOutPPSettings.DepthOfFieldFstop >= 0;
+			const bool bAnyDofVisible = InOutPPSettings.DepthOfFieldFstop > 0 && InOutPPSettings.DepthOfFieldFocalDistance > 0;
 
 			if (bAnyDofVisible)
 			{

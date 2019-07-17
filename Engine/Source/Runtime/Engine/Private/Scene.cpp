@@ -3,6 +3,7 @@
 #include "Engine/Scene.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/ReleaseObjectVersion.h"
 
 void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const
 {
@@ -515,8 +516,8 @@ FPostProcessSettings::FPostProcessSettings()
 	RayTracingGIMaxBounces = 1;
 	RayTracingGISamplesPerPixel = 1;
 
-	DepthOfFieldFocalDistance = 1000.0f;
-	DepthOfFieldFstop = 0.0f; // Intentionally invalid to disable DOF by default.
+	DepthOfFieldFocalDistance = 0; // Intentionally invalid to disable DOF by default.
+	DepthOfFieldFstop = 4.0f; 
 	DepthOfFieldMinFstop = 1.2f;
 	DepthOfFieldBladeCount = FPostProcessSettings::kDefaultDepthOfFieldBladeCount;
 	DepthOfFieldSensorWidth = 24.576f;			// APS-C
@@ -942,6 +943,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 bool FPostProcessSettings::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	// Don't actually serialize, just write the custom version for PostSerialize
 	return false;
@@ -949,18 +951,32 @@ bool FPostProcessSettings::Serialize(FArchive& Ar)
 
 void FPostProcessSettings::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.IsLoading() && Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::DiaphragmDOFOnlyForDeferredShadingRenderer)
+	if (Ar.IsLoading())
 	{
-		// Make sure the DOF of the deferred shading renderer is enabled if the circle DOF method was used before with previous default setting for DepthOfFieldFstop.
-		if (DepthOfFieldFstop == 0.0f && DepthOfFieldMethod_DEPRECATED == DOFM_CircleDOF)
-		{
-			DepthOfFieldFstop = 4.0f;
-		}
+		const int32 RenderingObjectVersion = Ar.CustomVer(FRenderingObjectVersion::GUID);
+		const int32 ReleaseObjectVersion = Ar.CustomVer(FReleaseObjectVersion::GUID);
 
-		// Make sure gaussian DOF is disabled on mobile if the DOF method was set to something else.
-		if (DepthOfFieldMethod_DEPRECATED != DOFM_Gaussian)
+		if (RenderingObjectVersion < FRenderingObjectVersion::DiaphragmDOFOnlyForDeferredShadingRenderer)
 		{
-			DepthOfFieldScale = 0.0f;
+			// This is impossible because FocalDistanceDisablesDOF was in Release 4.23 branch where DiaphragmDOFOnlyForDeferredShadingRenderer was already existing.
+			check(ReleaseObjectVersion < FReleaseObjectVersion::FocalDistanceDisablesDOF);
+
+			// Make sure the DOF of the deferred shading renderer is enabled if the circle DOF method was used before with previous default setting for DepthOfFieldFstop.
+			if (DepthOfFieldFocalDistance == 0.0f && DepthOfFieldMethod_DEPRECATED == DOFM_CircleDOF)
+			{
+				DepthOfFieldFocalDistance = 1000.0f;
+			}
+
+			// Make sure gaussian DOF is disabled on mobile if the DOF method was set to something else.
+			if (DepthOfFieldMethod_DEPRECATED != DOFM_Gaussian)
+			{
+				DepthOfFieldScale = 0.0f;
+			}
+		}
+		else if (ReleaseObjectVersion < FReleaseObjectVersion::FocalDistanceDisablesDOF)
+		{
+			// This is only for assets saved in the the window DiaphragmDOFOnlyForDeferredShadingRenderer -> FocalDistanceDisablesDOF
+			DepthOfFieldFocalDistance = 0.0f;
 		}
 	}
 }
