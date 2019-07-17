@@ -136,6 +136,26 @@ public:
 		return Producers.IsValidIndex(Index) ? Producers[Index].SupersededBy != INDEX_NONE && Producers.IsValidIndex(Producers[Index].SupersededBy) && Producers[Producers[Index].SupersededBy].bIsEnabled : false;
 	}
 
+
+	/**
+	 * Allow an observer to be notified of an change in the pipeline
+	 * return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
+	 */
+	DECLARE_EVENT_OneParam(UDataprepAsset, FOnDataprepPipelineChange, UObject* /*The object that was modified*/)
+	FOnDataprepPipelineChange& GetOnPipelineChange() { return OnPipelineChange; }
+
+	// struct to restrict the access scope
+	struct FDataprepPipelineChangeNotifier
+	{
+	private:
+		friend class FDataprepEditorUtils;
+
+		static void NotifyDataprepOfPipelineChange(UDataprepAsset& DataprepAsset, UObject* ModifiedObject)
+		{
+			DataprepAsset.OnPipelineChange.Broadcast( ModifiedObject );
+		}
+	};
+
 	/**
 	 * Allow an observer to be notified when when the consumer or one of the producer has changed
 	 * @return The delegate that will be broadcasted when when the consumer or one of the producer has changed
@@ -188,6 +208,10 @@ private:
 	  */
 	void ValidateProducerChanges( int32 Index, bool &bChangeAll );
 
+
 	/** Delegate broadcasted when the consumer or one of the producers has changed */
 	FOnDataprepAssetChanged OnChanged;
+
+	/** Event broadcasted when object in the pipeline was modified (Only broadcasted on changes that can affect the result of execution) */
+	FOnDataprepPipelineChange OnPipelineChange;
 };
