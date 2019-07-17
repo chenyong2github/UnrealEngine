@@ -612,7 +612,11 @@ struct FPooledRDGBuffer
 	}
 
 private:
+	const TCHAR* Name = nullptr;
 	uint32 RefCount = 0;
+	uint32 LastUsedFrame = 0;
+
+	friend class FRenderGraphResourcePool;
 };
 
 /** Render graph tracked buffers. */

@@ -135,6 +135,9 @@ public:
 	/** Executes the queued passes, managing setting of render targets (RHI RenderPasses), resource transitions and queued texture extraction. */
 	void Execute();
 
+	/** Per-frame update of the render graph resource pool. */
+	static void TickPoolElements();
+
 	/** The RHI command list used for the render graph. */
 	FRHICommandListImmediate& RHICmdList;
 
