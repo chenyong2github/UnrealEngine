@@ -433,7 +433,7 @@ static TUniquePtr<FOutputDeviceTestExit> GScopedTestExit;
 static void RHIExitAndStopRHIThread()
 {
 #if HAS_GPU_STATS
-	FRealtimeGPUProfiler::Get()->Release();
+	FRealtimeGPUProfiler::SafeRelease();
 #endif
 
 	// Stop the RHI Thread (using GRHIThread_InternalUseOnly is unreliable since RT may be stopped)
