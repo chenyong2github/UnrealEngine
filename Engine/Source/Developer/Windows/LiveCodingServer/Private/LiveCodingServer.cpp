@@ -49,6 +49,14 @@ void FLiveCodingServer::Stop()
 	ProcessGroupName.clear();
 }
 
+void FLiveCodingServer::RestartTargets()
+{
+	if (CommandThread != nullptr)
+	{
+		CommandThread->RestartTargets();
+	}
+}
+
 void FLiveCodingServer::SetLinkerPath(const wchar_t* LinkerPath, const TMap<FString, FString>& LinkerEnvironment)
 {
 	appSettings::g_linkerPath->SetValueWithoutSaving(LinkerPath);

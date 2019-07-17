@@ -14,6 +14,10 @@ namespace
 
 	static UINT LoadSetting(const wchar_t* group, const wchar_t* name, int initialValue)
 	{
+		// BEGIN EPIC MOD - Just use default Epic settings
+#if 1
+		return initialValue;
+#else
 		// first try loading the setting from the project settings file
 		const std::wstring& projectSettingsPath = appSettings::GetProjectSettingsPath();
 		const file::Attributes& attributes = file::GetAttributes(projectSettingsPath.c_str());
@@ -39,11 +43,17 @@ namespace
 		const UINT value = ::GetPrivateProfileIntW(group, name, initialValue, userSettingsPath.c_str());
 
 		return value;
+#endif
+		// END EPIC MOD
 	}
 
 
 	static std::wstring LoadSetting(const wchar_t* group, const wchar_t* name, const wchar_t* initialValue)
 	{
+		// BEGIN EPIC MOD - Just use default Epic settings
+#if 1
+		return initialValue;
+#else
 		// first try loading the setting from the project settings file
 		const std::wstring& projectSettingsPath = appSettings::GetProjectSettingsPath();
 		const file::Attributes& attributes = file::GetAttributes(projectSettingsPath.c_str());
@@ -72,6 +82,8 @@ namespace
 		::GetPrivateProfileStringW(group, name, initialValue, value, MAX_PATH, userSettingsPath.c_str());
 
 		return std::wstring(value);
+#endif
+		// END EPIC MOD
 	}
 }
 
