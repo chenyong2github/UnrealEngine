@@ -233,11 +233,15 @@ public:
 	// Singleton interface
 	static RENDERCORE_API FRealtimeGPUProfiler* Get();
 
+	/** *Safe release of the singleton */
+	static RENDERCORE_API void SafeRelease();
+
 	/** Per-frame update */
 	RENDERCORE_API void BeginFrame(FRHICommandListImmediate& RHICmdList);
 	RENDERCORE_API void EndFrame(FRHICommandListImmediate& RHICmdList);
 
 	/** Final cleanup */
+	UE_DEPRECATED(4.23, "Use FRealtimeGPUProfiler::SafeRelease() instead.")
 	RENDERCORE_API void Release();
 
 	/** Push/pop events */
@@ -246,6 +250,10 @@ public:
 
 private:
 	FRealtimeGPUProfiler();
+
+	/** Deinitialize of the object*/
+	void Cleanup();
+
 
 	/** Ringbuffer of profiler frames */
 	TArray<FRealtimeGPUProfilerFrame*> Frames;
