@@ -6,6 +6,7 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/Skeleton.h"
 #include "BonePose.h"
+#include "GenericPlatform/GenericPlatformMath.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 
 ULiveLinkRetargetAsset::ULiveLinkRetargetAsset(const FObjectInitializer& ObjectInitializer)
@@ -30,8 +31,11 @@ void ULiveLinkRetargetAsset::BuildCurveData(const FLiveLinkSkeletonStaticData* I
 	{
 		for (int32 CurveIdx = 0; CurveIdx < InSkeletonData->PropertyNames.Num(); ++CurveIdx)
 		{
-			float Curve = InFrameData->PropertyValues[CurveIdx];
-			ApplyCurveValue(Skeleton, InSkeletonData->PropertyNames[CurveIdx], Curve, OutCurve);
+			const float Curve = InFrameData->PropertyValues[CurveIdx];
+			if (FMath::IsFinite(Curve))
+			{
+				ApplyCurveValue(Skeleton, InSkeletonData->PropertyNames[CurveIdx], Curve, OutCurve);
+			}
 		}
 	}
 }
