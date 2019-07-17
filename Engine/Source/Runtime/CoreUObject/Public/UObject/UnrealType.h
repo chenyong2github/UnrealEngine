@@ -3265,6 +3265,30 @@ public:
 	 */
 	COREUOBJECT_API void Rehash();
 
+	/** 
+	 * Maps have gaps in their indices, so this function translates a logical index (ie. Nth element) 
+	 * to an internal index that can be used for the other functions in this class.
+	 * NOTE: This is slow, do not use this for iteration!
+	 */
+	int32 FindInternalIndex(int32 LogicalIdx) const
+	{
+		check(LogicalIdx >= 0 && LogicalIdx < Num());
+
+		int32 MaxIndex = GetMaxIndex();
+		for (int32 Actual = 0; Actual < MaxIndex; ++Actual)
+		{
+			if (IsValidIndex(Actual))
+			{
+				if (LogicalIdx == 0)
+				{
+					return Actual;
+				}
+				--LogicalIdx;
+			}
+		}
+		return INDEX_NONE;
+	}
+
 	/**
 	 * Finds the index of an element in a map which matches the key in another pair.
 	 *
@@ -3860,6 +3884,30 @@ public:
 	*/
 	COREUOBJECT_API void Rehash();
 
+	/**
+	 * Maps have gaps in their indices, so this function translates a logical index (ie. Nth element)
+	 * to an internal index that can be used for the other functions in this class.
+	 * NOTE: This is slow, do not use this for iteration!
+	 */
+	int32 FindInternalIndex(int32 LogicalIdx) const
+	{
+		check(LogicalIdx >= 0 && LogicalIdx < Num());
+
+		int32 MaxIndex = GetMaxIndex();
+		for (int32 Actual = 0; Actual < MaxIndex; ++Actual)
+		{
+			if (IsValidIndex(Actual))
+			{
+				if (LogicalIdx == 0)
+				{
+					return Actual;
+				}
+				--LogicalIdx;
+			}
+		}
+		return INDEX_NONE;
+	}
+	
 	/**
 	* Finds the index of an element in a set
 	*
