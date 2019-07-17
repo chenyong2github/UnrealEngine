@@ -331,9 +331,9 @@ TSharedRef<SWidget> FNiagaraUserParameterBindingCustomization::OnGetMenuContent(
 			SNew(SBox)
 			[
 				SNew(SGraphActionMenu)
-				.OnActionSelected(this, &FNiagaraUserParameterBindingCustomization::OnActionSelected)
-		.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(this, &FNiagaraUserParameterBindingCustomization::OnCreateWidgetForAction))
-		.OnCollectAllActions(this, &FNiagaraUserParameterBindingCustomization::CollectAllActions)
+				.OnActionSelected(const_cast<FNiagaraUserParameterBindingCustomization*>(this), &FNiagaraUserParameterBindingCustomization::OnActionSelected)
+		.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraUserParameterBindingCustomization*>(this), &FNiagaraUserParameterBindingCustomization::OnCreateWidgetForAction))
+		.OnCollectAllActions(const_cast<FNiagaraUserParameterBindingCustomization*>(this), &FNiagaraUserParameterBindingCustomization::CollectAllActions)
 		.AutoExpandActionMenu(false)
 		.ShowFilterTextBox(true)
 			]
