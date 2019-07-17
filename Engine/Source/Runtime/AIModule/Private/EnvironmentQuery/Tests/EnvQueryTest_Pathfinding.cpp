@@ -225,7 +225,7 @@ ANavigationData* UEnvQueryTest_Pathfinding::FindNavigationData(UNavigationSystem
 	INavAgentInterface* NavAgent = Cast<INavAgentInterface>(Owner);
 	if (NavAgent)
 	{
-		return NavSys.GetNavDataForProps(NavAgent->GetNavAgentPropertiesRef());
+		return NavSys.GetNavDataForProps(NavAgent->GetNavAgentPropertiesRef(), NavAgent->GetNavAgentLocation());
 	}
 
 	return NavSys.GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
