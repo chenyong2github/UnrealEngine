@@ -84,8 +84,7 @@ namespace SceneOutliner
 		void Construct( const FArguments& InArgs, const FInitializationOptions& InitOptions );
 
 		/** Default constructor - initializes data that is shared between all tree items */
-			SSceneOutliner() : SharedData(MakeShareable(new FSharedOutlinerData)),
-				ActorComponentsEnable(TEXT("ActorComponents.Enable"), TEXT("Toggles actor components visible in Scene outliner"), FConsoleCommandDelegate::CreateRaw(this, &SSceneOutliner::ActorComponentsModeToggle)) {}
+			SSceneOutliner() : SharedData(MakeShareable(new FSharedOutlinerData)) {}
 
 		/** SSceneOutliner destructor */
 		~SSceneOutliner();
@@ -630,12 +629,6 @@ namespace SceneOutliner
 		/** Reentrancy guard */
 		bool bIsReentrant;
 
-		/** Whether Actor Components are enabled in the scene outliner */
-		bool bActorComponentsEnabled;
-
-		/** Console commands for enabling/disabling actor components in the scene outliner while it is still in development */
-		FAutoConsoleCommand ActorComponentsEnable;
-
 		/* Widget containing the filtering text box */
 		TSharedPtr< SSearchBox > FilterTextBoxWidget;
 
@@ -652,8 +645,6 @@ namespace SceneOutliner
 		TWeakPtr<ITreeItem> PendingRenameItem;
 
 		TMap<FName, const FSlateBrush*> CachedIcons;
-
-		void ActorComponentsModeToggle() { bActorComponentsEnabled = !bActorComponentsEnabled; FullRefresh(); }
 
 	private:
 		/** Functions relating to sorting */
