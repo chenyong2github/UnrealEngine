@@ -107,6 +107,15 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	MeshMinimumLOD = Properties->ParticleMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
 }
 
+FNiagaraRendererMeshes::~FNiagaraRendererMeshes()
+{
+	if (VertexFactory != nullptr)
+	{
+		delete VertexFactory;
+		VertexFactory = nullptr;
+	}
+}
+
 void FNiagaraRendererMeshes::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
