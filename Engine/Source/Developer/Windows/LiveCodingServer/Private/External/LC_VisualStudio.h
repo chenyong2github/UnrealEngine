@@ -5,7 +5,7 @@
 #include "LC_Types.h"
 #include "Windows/WindowsHWrapper.h"
 
-#define LC_WITH_VISUAL_STUDIO_DTE 1
+#define LC_WITH_VISUAL_STUDIO_DTE 0
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
