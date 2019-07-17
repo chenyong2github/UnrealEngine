@@ -4,10 +4,6 @@
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "NavigationSystem.h"
 
-namespace
-{
-	FNavigationOctree DummyNavOctree(FVector(0), 0);
-}
 
 //----------------------------------------------------------------------//
 // FNavigationOctree
@@ -202,7 +198,7 @@ const FNavigationRelevantData* FNavigationOctree::GetDataForID(const FOctreeElem
 	return &*OctreeElement.Data;
 }
 
-void FNavigationOctree::SetElementId(const UObject& Object, FOctreeElementId Id)
+void FNavigationOctree::SetElementIdImpl(const UObject& Object, FOctreeElementId Id)
 {
 	ObjectToOctreeId.Add(HashObject(Object), Id);
 }
@@ -213,23 +209,13 @@ void FNavigationOctree::SetElementId(const UObject& Object, FOctreeElementId Id)
 #if NAVSYS_DEBUG
 FORCENOINLINE
 #endif // NAVSYS_DEBUG
-void FNavigationOctreeSemantics::SetElementId(const FNavigationOctreeElement& Element, FOctreeElementId Id)
+void FNavigationOctreeSemantics::SetElementId(FNavigationOctreeSemantics::FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId Id)
 {
 
 	const bool bEvenIfPendingKill = true;
 	UObject* ElementOwner = Element.GetOwner(bEvenIfPendingKill);
 	if (ElementOwner)
 	{
-		Element.GetOwnerOctree().SetElementId(*ElementOwner, Id);
+		((FNavigationOctree&)OctreeOwner).SetElementIdImpl(*ElementOwner, Id);
 	}
-}
-
-//----------------------------------------------------------------------//
-//  FNavigationOctreeElement
-//----------------------------------------------------------------------//
-FNavigationOctreeElement::FNavigationOctreeElement(UObject& SourceObject)
-	: Data(new FNavigationRelevantData(SourceObject))
-	, OwnerOctree(DummyNavOctree)
-{
-
 }

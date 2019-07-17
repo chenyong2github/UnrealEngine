@@ -20,22 +20,15 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
 {
 	FBoxSphereBounds Bounds;
 	TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> Data;
-private:
-	FNavigationOctree& OwnerOctree;
 
 public:
-	UE_DEPRECATED(4.24, "Single-paramater FNavigationOctreeElement ctor is deprecated. Use the one explicitly passing the FNavigationOctree reference in")
-	explicit FNavigationOctreeElement(UObject& SourceObject);
-
-	FNavigationOctreeElement(FNavigationOctree& InOwnerOctree, UObject& SourceObject)
+	explicit FNavigationOctreeElement(UObject& SourceObject)
 		: Data(new FNavigationRelevantData(SourceObject))
-		, OwnerOctree(InOwnerOctree)
 	{}
 
 	FNavigationOctreeElement(const FNavigationOctreeElement& Other)
 		: Bounds(Other.Bounds)
 		, Data(Other.Data)
-		, OwnerOctree(Other.OwnerOctree)
 	{}
 
 	FNavigationOctreeElement& operator=(const FNavigationOctreeElement& Other)
@@ -86,12 +79,11 @@ public:
 	}
 
 	FORCEINLINE UObject* GetOwner(bool bEvenIfPendingKill = false) const { return Data->SourceObject.Get(bEvenIfPendingKill); }
-
-	FORCEINLINE FNavigationOctree& GetOwnerOctree() const { return OwnerOctree; }
 };
 
 struct FNavigationOctreeSemantics
 {
+	typedef TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics> FOctree;
 	enum { MaxElementsPerLeaf = 16 };
 	enum { MinInclusiveElementsPerNode = 7 };
 	enum { MaxNodeDepth = 12 };
@@ -117,7 +109,7 @@ struct FNavigationOctreeSemantics
 #if NAVSYS_DEBUG
 	FORCENOINLINE 
 #endif // NAVSYS_DEBUG
-	static void SetElementId(const FNavigationOctreeElement& Element, FOctreeElementId Id);
+	static void SetElementId(FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId Id);
 };
 
 class NAVIGATIONSYSTEM_API FNavigationOctree : public TOctree<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
@@ -161,7 +153,6 @@ public:
 	void DemandLazyDataGathering(const FNavigationOctreeElement& Element);
 	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
 
-	void SetElementId(const UObject& Object, FOctreeElementId Id);
 
 	FORCEINLINE static uint32 HashObject(const UObject& Object)
 	{
@@ -170,6 +161,9 @@ public:
 
 protected:
 	friend struct FNavigationOctreeController;
+	friend struct FNavigationOctreeSemantics;
+
+	void SetElementIdImpl(const UObject& Object, FOctreeElementId Id);
 
 	TMap<uint32, FOctreeElementId> ObjectToOctreeId;
 	ENavDataGatheringMode DefaultGeometryGatheringMode;
