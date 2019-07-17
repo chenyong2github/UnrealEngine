@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "GeometryCollection/OutlinerTraversalAccessor.h"
 #include "GeometryCollection/GeometryCollectionProviderEditor.h"
 
+
+class ISlateStyle;
 class FSlateStyleSet;
 class FAssetTypeActions_GeometryCollection;
 class FAssetTypeActions_GeometryCollectionCache;
@@ -44,7 +45,6 @@ public:
 		return FModuleManager::Get().IsModuleLoaded( "GeometryCollectionEditorPlugin" );
 	}
 
-	FOutlinerTraversalAccessor& GetAccessor() { return OutlinerTraversalAccessor; }
 	TSharedPtr<FSlateStyleSet> GetStyleSet() { return StyleSet; }
 
 	static FName GetEditorStyleName();
@@ -59,7 +59,6 @@ private:
 	FGeometryCollectionAssetBroker* AssetBroker;
 
 	// Modular features
-	FOutlinerTraversalAccessor OutlinerTraversalAccessor;
 	// Provider for new caches requested from other modules
 	FTargetCacheProviderEditor TargetCacheProvider;
 	//////////////////////////////////////////////////////////////////////////
