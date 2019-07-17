@@ -209,6 +209,14 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	MaterialParamValidMask |= MaterialParamOffset3 != -1 ? 8 : 0;
 }
 
+FNiagaraRendererRibbons::~FNiagaraRendererRibbons()
+{
+	if (VertexFactory != nullptr)
+	{
+		delete VertexFactory;
+		VertexFactory = nullptr;
+	}
+}
 
 void FNiagaraRendererRibbons::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
