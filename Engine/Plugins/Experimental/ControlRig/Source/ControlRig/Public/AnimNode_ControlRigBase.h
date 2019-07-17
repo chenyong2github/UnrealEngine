@@ -40,9 +40,17 @@ protected:
 	UPROPERTY(transient)
 	TWeakObjectPtr<UNodeMappingContainer> NodeMappingContainer;
 
+	UPROPERTY(transient)
+	bool bUpdateInput;
+
+	UPROPERTY(transient)
+	bool bExecute;
+
 	// update input/output to control rig
 	virtual void UpdateInput(UControlRig* ControlRig, const FPoseContext& InOutput);
 	virtual void UpdateOutput(UControlRig* ControlRig, FPoseContext& InOutput);
 	virtual UClass* GetTargetClass() const override;
+
+	friend struct FControlRigSequencerAnimInstanceProxy;
 };
 
