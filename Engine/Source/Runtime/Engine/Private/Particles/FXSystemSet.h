@@ -39,10 +39,10 @@ public:
 		const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
 		FRHIUniformBuffer* SceneTexturesUniformBuffer) override;
 
-	virtual void Destroy() override;
+	virtual void OnDestroy() override;
 
 protected:
 
 	/** By making the destructor protected, an instance must be destroyed via FFXSystemInterface::Destroy. */
-	virtual ~FFXSystemSet(){}
+	virtual ~FFXSystemSet();
 };

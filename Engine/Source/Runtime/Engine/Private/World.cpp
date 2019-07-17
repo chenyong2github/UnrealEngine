@@ -854,7 +854,7 @@ void UWorld::FinishDestroy()
 
 		if (FXSystem)
 		{
-			FXSystem->Destroy();
+			FFXSystemInterface::Destroy( FXSystem );
 			FXSystem = NULL;
 		}
 

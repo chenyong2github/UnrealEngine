@@ -46,13 +46,11 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 	}
 }
 
-void FFXSystemInterface::Destroy()
+void FFXSystemInterface::Destroy( FFXSystemInterface* FXSystem )
 {
-	check(!bIsPendingKill);
+	check(FXSystem);
+	FXSystem->OnDestroy();
 
-	bIsPendingKill = true;
-
-	FFXSystemInterface* FXSystem = this;
 	ENQUEUE_RENDER_COMMAND(FDestroyFXSystemCommand)(
 		[FXSystem](FRHICommandList& RHICmdList)
 		{
