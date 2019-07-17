@@ -724,15 +724,27 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 void UNiagaraComponent::Deactivate()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
-	Super::Deactivate();
 
 	//UE_LOG(LogNiagara, Log, TEXT("Deactivate: %u - %s"), this, *Asset->GetName());
 
-	bIsActive = false;
-
 	if (SystemInstance)
 	{
+		// Don't deactivate in solo mode as we are not ticked by the world but rather the component
+		// Deactivating will cause the system to never Complete
+		if (SystemInstance->IsSolo() == false)
+		{
+			Super::Deactivate();
+		}
+
 		SystemInstance->Deactivate();
+
+		// We are considered active until we are complete
+		bIsActive = !SystemInstance->IsComplete();
+	}
+	else
+	{
+		Super::Deactivate();
+		bIsActive = false;
 	}
 }
 
