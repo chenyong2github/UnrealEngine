@@ -535,7 +535,7 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 			];
 		}
 
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
+		Invalidate(EInvalidateWidget::ChildOrder|EInvalidateWidget::Volatility);
 	}
 }
 

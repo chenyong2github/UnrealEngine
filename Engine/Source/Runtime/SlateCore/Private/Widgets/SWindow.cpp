@@ -6,6 +6,12 @@
 #include "Layout/WidgetPath.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Widgets/Images/SImage.h"
+
+#if WITH_SLATE_DEBUGGING
+#include "ProfilingDebugging/CsvProfiler.h"
+#endif
+
 #if WITH_ACCESSIBILITY
 #include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
 #endif
@@ -390,11 +396,11 @@ void SWindow::Construct(const FArguments& InArgs)
 	this->InitialDesiredScreenPosition = WindowPosition;
 	this->InitialDesiredSize = WindowSize;
 
+	FSlateApplicationBase::Get().OnGlobalInvalidationToggled().AddSP(this, &SWindow::OnGlobalInvalidationToggled);
+
+
 	// Resize adds extra borders / title bar if necessary, but this is already taken into account in WindowSize, so subtract them again first
 	Resize(WindowSize - DeltaSize);
-
-	// Window visibility is currently driven by whether the window is interactive.
-	this->Visibility = TAttribute<EVisibility>::Create( TAttribute<EVisibility>::FGetter::CreateRaw(this, &SWindow::GetWindowVisibility) );
 
 	this->ConstructWindowInternals();
 	this->SetContent( InArgs._Content.Widget );
@@ -496,8 +502,6 @@ EHorizontalAlignment SWindow::GetTitleAlignment()
 	return TitleContentAlignment;
 }
 
-
-
 void SWindow::ConstructWindowInternals()
 {
 	ForegroundColor = FCoreStyle::Get().GetSlateColor("DefaultForeground");
@@ -507,6 +511,8 @@ void SWindow::ConstructWindowInternals()
 		SNew( SVerticalBox )
 		.Visibility( EVisibility::SelfHitTestInvisible );
 
+	TSharedRef<SWidget> TitleBarWidget = FSlateApplicationBase::Get().MakeWindowTitleBar(SharedThis(this), nullptr, GetTitleAlignment(), TitleBar);
+
 	if (bCreateTitleBar)
 	{
 		// @todo mainframe: Should be measured from actual title bar content widgets.  Don't use a hard-coded size!
@@ -515,13 +521,15 @@ void SWindow::ConstructWindowInternals()
 		MainWindowArea->AddSlot()
 		.AutoHeight()
 		[
-			MakeWindowTitleBar(SharedThis(this), nullptr, GetTitleAlignment())
+			TitleBarWidget
 		];
 	}
 	else
 	{
 		TitleBarSize = 0;
 	}
+
+	UpdateWindowContentVisibility();
 
 	// create window content slot
 	MainWindowArea->AddSlot()
@@ -534,51 +542,52 @@ void SWindow::ConstructWindowInternals()
 	// create window
 	if (Type != EWindowType::ToolTip && Type != EWindowType::CursorDecorator && !bIsPopupWindow && !bHasOSWindowBorder)
 	{
-		TAttribute<EVisibility> WindowContentVisibility(this, &SWindow::GetWindowContentVisibility);
-		TAttribute<const FSlateBrush*> WindowBackgroundAttr(this, &SWindow::GetWindowBackground);
-		TAttribute<FSlateColor> WindowBackgroundColorAttr(this, &SWindow::GetWindowBackgroundColor);
-		TAttribute<const FSlateBrush*> WindowOutlineAttr(this, &SWindow::GetWindowOutline);
-		TAttribute<FSlateColor> WindowOutlineColorAttr(this, &SWindow::GetWindowOutlineColor);
+		WindowBackgroundImage =
+			FSlateApplicationBase::Get().MakeImage(
+				WindowBackground,
+				Style->BackgroundColor,
+				WindowContentVisibility
+			);
+
+		WindowBorder =
+			FSlateApplicationBase::Get().MakeImage(
+				&Style->BorderBrush,
+				FLinearColor::White,
+				WindowContentVisibility
+			);
+
+		WindowOutline = FSlateApplicationBase::Get().MakeImage(
+				&Style->OutlineBrush,
+				Style->OutlineColor,
+				WindowContentVisibility
+			);
 
 		this->ChildSlot
 		[
 			SAssignNew(WindowOverlay, SOverlay)
 			.Visibility(EVisibility::SelfHitTestInvisible)
-
 			// window background
 			+ SOverlay::Slot()
 			[
-				FSlateApplicationBase::Get().MakeImage(
-					WindowBackgroundAttr,
-					WindowBackgroundColorAttr,
-					WindowContentVisibility
-				)
+				WindowBackgroundImage.ToSharedRef()
 			]
 
 			// window border
 			+ SOverlay::Slot()
 			[
-				FSlateApplicationBase::Get().MakeImage(
-					&Style->BorderBrush,
-					FLinearColor::White,
-					WindowContentVisibility
-				)
+				WindowBorder.ToSharedRef()
 			]
 
 			// window outline
 			+ SOverlay::Slot()
 			[
-				FSlateApplicationBase::Get().MakeImage(
-					WindowOutlineAttr,
-					WindowOutlineColorAttr,
-					WindowContentVisibility
-				)
+				WindowOutline.ToSharedRef()
 			]
 
 			// main area
 			+ SOverlay::Slot()
 			[
-				SNew(SVerticalBox)
+				SAssignNew(ContentAreaVBox, SVerticalBox)
 				.Visibility(WindowContentVisibility)
 
 				+ SVerticalBox::Slot()
@@ -648,15 +657,26 @@ bool SWindow::HasActiveParent() const
 	return false;
 }
 
-TSharedRef<FHittestGrid> SWindow::GetHittestGrid()
+FHittestGrid& SWindow::GetHittestGrid()
 {
-	return HittestGrid;
+	return *HittestGrid;
 }
 
 FWindowSizeLimits SWindow::GetSizeLimits() const
 {
 	return SizeLimits;
 }
+
+void SWindow::SetAllowFastUpdate(bool bInAllowFastUpdate)
+{
+	bAllowFastUpdate = bInAllowFastUpdate;
+
+	if (bAllowFastUpdate)
+	{
+		InvalidateChildOrder();
+	}
+}
+
 
 void SWindow::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
@@ -972,7 +992,12 @@ void SWindow::SetCachedSize( FVector2D NewSize )
 	{
 		NativeWindow->AdjustCachedSize( NewSize );
 	}
-	Size = NewSize;
+
+	if(Size != NewSize)
+	{
+		Size = NewSize;
+		InvalidateRoot();
+	}
 }
 
 bool SWindow::IsMorphing() const
@@ -1018,16 +1043,35 @@ void SWindow::StartMorph()
 	}
 }
 
-const FSlateBrush* SWindow::GetWindowBackground() const
+
+bool SWindow::CustomPrepass(float LayoutScaleMultiplier)
 {
-	return WindowBackground;
+	if (bAllowFastUpdate && GSlateEnableGlobalInvalidation)
+	{
+		ProcessInvalidation();
+		return NeedsPrepass();
+	}
+	else
+	{
+		return true;
+	}
 }
 
+/*
+void SWindow::Advanced_InvalidateRoot()
+{
+	InvalidateRoot();
+}
+*/
+
+/*
 FSlateColor SWindow::GetWindowBackgroundColor() const
 {
 	return Style->BackgroundColor;
 }
+*/
 
+/*
 const FSlateBrush* SWindow::GetWindowOutline() const
 {
 	return &Style->OutlineBrush;
@@ -1037,6 +1081,7 @@ FSlateColor SWindow::GetWindowOutlineColor() const
 {
 	return Style->OutlineColor;
 }
+*/
 
 EVisibility SWindow::GetWindowVisibility() const
 {
@@ -1173,7 +1218,7 @@ void SWindow::SetContent( TSharedRef<SWidget> InContent )
 	{
 		this->ContentSlot->operator[]( InContent );
 	}
-	Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	Invalidate(EInvalidateWidget::ChildOrder);
 }
 
 TSharedRef<const SWidget> SWindow::GetContent() const
@@ -1645,6 +1690,9 @@ bool SWindow::SupportsKeyboardFocus() const
 	return Type != EWindowType::ToolTip && Type != EWindowType::CursorDecorator;
 }
 
+
+
+
 FReply SWindow::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
 {
 	return FReply::Handled();
@@ -1695,6 +1743,18 @@ FVector2D SWindow::ComputeDesiredSize(float LayoutScaleMultiplier) const
 	return SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier) * LayoutScaleMultiplier;
 }
 
+bool SWindow::ComputeVolatility() const
+{
+	// If the entire window is volatile in fast path that defeats the whole purpose.
+	return bAllowFastUpdate ? false : SWidget::ComputeVolatility();
+}
+
+void SWindow::OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled)
+{
+	InvalidateRoot();
+	UE_LOG(LogSlate, Log, TEXT("Toggling fast path.  New State: %d"), bGlobalInvalidationEnabled);
+}
+
 const TArray< TSharedRef<SWindow> >& SWindow::GetChildWindows() const
 {
 	return ChildWindows;
@@ -1716,7 +1776,7 @@ void SWindow::AddChildWindow( const TSharedRef<SWindow>& ChildWindow )
 	}
 
 	ChildWindow->ParentWindowPtr = SharedThis(this);
-	ChildWindow->WindowBackground = &Style->ChildBackgroundBrush;
+	ChildWindow->SetWindowBackground(&Style->ChildBackgroundBrush);
 
 	FSlateApplicationBase::Get().ArrangeWindowToFrontVirtual( ChildWindows, ChildWindow );
 }
@@ -1748,7 +1808,7 @@ bool SWindow::RemoveDescendantWindow( const TSharedRef<SWindow>& DescendantToRem
 		if ( ChildWindow->RemoveDescendantWindow( DescendantToRemove ))
 		{
 			// Reset to the non-child background style
-			ChildWindow->WindowBackground = &Style->BackgroundBrush;
+			ChildWindow->SetWindowBackground(&Style->BackgroundBrush);
 			return true;
 		}
 	}
@@ -1901,6 +1961,7 @@ SWindow::SWindow()
 	, bIsMirrorWindow( false )
 	, bShouldPreserveAspectRatio( false )
 	, bManualManageDPI( false )
+	, bAllowFastUpdate( false )
 	, WindowActivationPolicy( EWindowActivationPolicy::Always )
 	, InitialDesiredScreenPosition( FVector2D::ZeroVector )
 	, InitialDesiredSize( FVector2D::ZeroVector )
@@ -1912,41 +1973,104 @@ SWindow::SWindow()
 	, ContentSlot(nullptr)
 	, Style( &FCoreStyle::Get().GetWidgetStyle<FWindowStyle>("Window") )
 	, WindowBackground( &Style->BackgroundBrush )
-	, HittestGrid( MakeShareable(new FHittestGrid()) )
+	, HittestGrid(MakeUnique<FHittestGrid>())
 	, bShouldShowWindowContentDuringOverlay( false )
 	, ExpectedMaxWidth( INDEX_NONE )
 	, ExpectedMaxHeight( INDEX_NONE )
 	, TitleBar()
 	, bIsDrawingEnabled( true )
+	
 {
+	bHasCustomPrepass = true;
+	SetInvalidationRootWidget(*this);
+	SetInvalidationRootHittestGrid(*HittestGrid);
+
 #if WITH_ACCESSIBILITY
 	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto);
 #endif
 }
 
-
-int32 SWindow::PaintWindow( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
+SWindow::~SWindow()
 {
-	// Create initial culture specific layout direction
-	EFlowDirection NewFlowDirection = GSlateFlowDirection;
-	if (GetFlowDirectionPreference() == EFlowDirectionPreference::Inherit)
+	check(IsInGameThread());
+}
+
+
+int32 SWindow::PaintSlowPath(const FSlateInvalidationContext& Context)
+{
+	HittestGrid->Clear();
+
+	const FSlateRect WindowCullingBounds = GetClippingRectangleInWindow();
+	const int32 LayerId = 0;
+	const FGeometry WindowGeometry = GetWindowGeometryInWindow();
+
+	int32 MaxLayerId = 0;
+
+	//OutDrawElements.PushBatchPriortyGroup(*this);
 	{
-		NewFlowDirection = GSlateFlowDirectionShouldFollowCultureByDefault ? FLayoutLocalization::GetLocalizedLayoutDirection() : EFlowDirection::LeftToRight;
+		
+		MaxLayerId = Paint(*Context.PaintArgs, WindowGeometry, WindowCullingBounds, *Context.WindowElementList, LayerId, Context.WidgetStyle, Context.bParentEnabled);
 	}
 
-	TGuardValue<EFlowDirection> FlowGuard(GSlateFlowDirection, NewFlowDirection);
+	//OutDrawElements.PopBatchPriortyGroup();
 
-	LayerId = Paint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 
-	return LayerId;
+
+	return MaxLayerId;
+}
+
+int32 SWindow::PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowElementList& OutDrawElements, const FWidgetStyle& InWidgetStyle, bool bParentEnabled )
+{
+	OutDrawElements.BeginDeferredGroup();
+
+	const bool HittestCleared = HittestGrid->SetHittestArea(GetPositionInScreen(), GetViewportSize());
+
+
+	FPaintArgs PaintArgs(nullptr, GetHittestGrid(), GetPositionInScreen(), CurrentTime, DeltaTime);
+
+	FSlateInvalidationContext Context(OutDrawElements, InWidgetStyle);
+	Context.bParentEnabled = bParentEnabled;
+	// Fast path at the window level should only be enabled if global invalidation is allowed
+	Context.bAllowFastPathUpdate = bAllowFastUpdate && GSlateEnableGlobalInvalidation;
+	Context.LayoutScaleMultiplier = FSlateApplicationBase::Get().GetApplicationScale() * GetNativeWindow()->GetDPIScaleFactor();
+	Context.PaintArgs = &PaintArgs;
+	Context.IncomingLayerId = 0;
+	Context.CullingRect = GetClippingRectangleInWindow();
+
+	// Always set the window geometry and visibility
+	PersistentState.AllottedGeometry = GetWindowGeometryInWindow();
+	PersistentState.CullingBounds = GetClippingRectangleInWindow();
+	if (!Visibility.IsBound())
+	{
+		SetVisibility(GetWindowVisibility());
+	}
+
+
+	FSlateInvalidationResult Result = PaintInvalidationRoot(Context);
+
+#if WITH_SLATE_DEBUGGING
+	if (GSlateHitTestGridDebugging)
+	{
+		const FGeometry& WindowGeometry = GetWindowGeometryInWindow();
+		HittestGrid->DisplayGrid(INT_MAX, WindowGeometry, OutDrawElements);
+		//HittestGrid->LogGrid
+	}
+#endif
+
+	OutDrawElements.EndDeferredGroup();
+
+	if (OutDrawElements.ShouldResolveDeferred())
+	{
+		Result.MaxLayerIdPainted = OutDrawElements.PaintDeferred(Result.MaxLayerIdPainted, Context.CullingRect);
+	}
+
+	return Result.MaxLayerIdPainted;
+
 }
 
 int32 SWindow::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-	OutDrawElements.BeginDeferredGroup();
 	int32 MaxLayer = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
-	OutDrawElements.EndDeferredGroup();
-
 	return MaxLayer;
 }
 
@@ -1983,6 +2107,8 @@ void SWindow::SetFullWindowOverlayContent(TSharedPtr<SWidget> InContent)
 			InContent.ToSharedRef()
 		];
 	}
+
+	UpdateWindowContentVisibility();
 }
 
 /** Toggle window between fullscreen and normal mode */
@@ -2034,11 +2160,13 @@ bool SWindow::HasFullWindowOverlayContent() const
 void SWindow::BeginFullWindowOverlayTransition()
 {
 	bShouldShowWindowContentDuringOverlay = true;
+	UpdateWindowContentVisibility();
 }
 
 void SWindow::EndFullWindowOverlayTransition()
 {
 	bShouldShowWindowContentDuringOverlay = false;
+	UpdateWindowContentVisibility();
 }
 
 void SWindow::SetNativeWindowButtonsVisibility(bool bVisible)
@@ -2049,17 +2177,46 @@ void SWindow::SetNativeWindowButtonsVisibility(bool bVisible)
 	}
 }
 
-EVisibility SWindow::GetWindowContentVisibility() const
-{
-	// The content of the window should be visible unless we have a full window overlay content
-	// in which case the full window overlay content is visible but nothing under it
-	return (bShouldShowWindowContentDuringOverlay == true || !FullWindowOverlayWidget.IsValid()) ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden;
-};
-
 EActiveTimerReturnType SWindow::TriggerPlayMorphSequence( double InCurrentTime, float InDeltaTime )
 {
 	Morpher.Sequence.Play( this->AsShared() );
 	return EActiveTimerReturnType::Stop;
+}
+
+void SWindow::SetWindowBackground(const FSlateBrush* InWindowBackground)
+{
+	WindowBackground = InWindowBackground;
+	if (WindowBackgroundImage)
+	{
+		WindowBackgroundImage->SetImage(WindowBackground);
+	}
+}
+
+void SWindow::UpdateWindowContentVisibility()
+{
+	// The content of the window should be visible unless we have a full window overlay content
+	// in which case the full window overlay content is visible but nothing under it
+	WindowContentVisibility = (bShouldShowWindowContentDuringOverlay == true || !FullWindowOverlayWidget.IsValid()) ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden;
+
+	if (WindowBackgroundImage.IsValid())
+	{
+		WindowBackgroundImage->SetVisibility(WindowContentVisibility);
+	}
+
+	if (WindowBorder.IsValid())
+	{
+		WindowBorder->SetVisibility(WindowContentVisibility);
+	}
+
+	if (WindowOutline.IsValid())
+	{
+		WindowOutline->SetVisibility(WindowContentVisibility);
+	}
+
+	if (ContentAreaVBox.IsValid())
+	{
+		ContentAreaVBox->SetVisibility(WindowContentVisibility);
+	}
 }
 
 #if WITH_EDITOR
