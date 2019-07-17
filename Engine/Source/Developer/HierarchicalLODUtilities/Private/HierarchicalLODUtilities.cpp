@@ -931,7 +931,6 @@ void FHierarchicalLODUtilities::DestroyLODActor(ALODActor* InActor)
 	ALODActor* ParentActor = GetParentLODActor(InActor);
 
 	DestroyCluster(InActor);
-	World->DestroyActor(InActor);
 
 	if (ParentActor && !ParentActor->HasAnySubActors())
 	{
@@ -968,7 +967,6 @@ void FHierarchicalLODUtilities::DeleteLODActorsInHLODLevel(UWorld* InWorld, cons
 		if (LodActor && LodActor->LODLevel == (HLODLevelIndex + 1))
 		{
 			DestroyCluster(LodActor);
-			InWorld->DestroyActor(LodActor);
 		}
 	}
 }
