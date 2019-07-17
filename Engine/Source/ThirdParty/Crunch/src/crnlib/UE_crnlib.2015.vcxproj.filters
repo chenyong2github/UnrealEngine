@@ -88,12 +88,6 @@
     <ClCompile Include="crn_image_utils.cpp">
       <Filter>Source Files\image</Filter>
     </ClCompile>
-    <ClCompile Include="crn_jpgd.cpp">
-      <Filter>Source Files\image</Filter>
-    </ClCompile>
-    <ClCompile Include="crn_jpge.cpp">
-      <Filter>Source Files\image</Filter>
-    </ClCompile>
     <ClCompile Include="crn_pixel_format.cpp">
       <Filter>Source Files\image</Filter>
     </ClCompile>
@@ -352,12 +346,6 @@
       <Filter>Source Files\image</Filter>
     </ClInclude>
     <ClInclude Include="crn_image_utils.h">
-      <Filter>Source Files\image</Filter>
-    </ClInclude>
-    <ClInclude Include="crn_jpgd.h">
-      <Filter>Source Files\image</Filter>
-    </ClInclude>
-    <ClInclude Include="crn_jpge.h">
       <Filter>Source Files\image</Filter>
     </ClInclude>
     <ClInclude Include="crn_pixel_format.h">
