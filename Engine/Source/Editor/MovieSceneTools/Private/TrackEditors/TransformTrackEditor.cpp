@@ -428,23 +428,30 @@ void F3DTransformTrackEditor::BindCommands(TSharedRef<FUICommandList> SequencerC
 {
 	const F3DTransformTrackCommands& Commands = F3DTransformTrackCommands::Get();
 
-	SequencerCommandBindings->MapAction(
+	CommandBindings = MakeShared<FUICommandList>();
+	CommandBindings->MapAction(
 		Commands.AddTransformKey,
 		FExecuteAction::CreateSP( this, &F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::All ) );
 
-	SequencerCommandBindings->MapAction(
+	CommandBindings->MapAction(
 		Commands.AddTranslationKey,
 		FExecuteAction::CreateSP( this, &F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Translation ) );
 
-	SequencerCommandBindings->MapAction(
+	CommandBindings->MapAction(
 		Commands.AddRotationKey,
 		FExecuteAction::CreateSP( this, &F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Rotation ) );
 
-	SequencerCommandBindings->MapAction(
+	CommandBindings->MapAction(
 		Commands.AddScaleKey,
 		FExecuteAction::CreateSP( this, &F3DTransformTrackEditor::OnAddTransformKeysForSelectedObjects, EMovieSceneTransformChannel::Scale ) );
 
 	Commands.BindingCount++;
+
+	// Add these bindings to Sequencer
+	SequencerCommandBindings->Append(CommandBindings.ToSharedRef());
+	
+	// Also add them to the Curve Editor 
+	GetSequencer()->GetCommandBindings(ESequencerCommandBindings::CurveEditor)->Append(CommandBindings.ToSharedRef());
 }
 
 
