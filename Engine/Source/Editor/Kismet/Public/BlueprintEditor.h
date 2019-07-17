@@ -348,7 +348,7 @@ public:
 	bool InEditingMode() const;
 
 	/** Returns true if able to compile */
-	bool IsCompilingEnabled() const;
+	virtual bool IsCompilingEnabled() const;
 
 	/** Returns true if the parent class is also a Blueprint */
 	bool IsParentClassOfObjectABlueprint(const UBlueprint* Blueprint) const;
@@ -581,6 +581,12 @@ public:
 
 	/** Adds to a list of custom objects for debugging beyond what will automatically be found/used */
 	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const { }
+
+	/** If returns true only the custom debug list will be used */
+	virtual bool OnlyShowCustomDebugObjects() const { return false; }
+
+	/** Can be overloaded to customize the labels in the debug filter */
+	virtual FString GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const { return FString(); }
 
 	/** Called when a node's title is committed for a rename */
 	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);

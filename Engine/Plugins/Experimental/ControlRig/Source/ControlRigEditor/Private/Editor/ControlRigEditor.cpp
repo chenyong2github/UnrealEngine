@@ -61,6 +61,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "SNodePanel.h"
 #include "Kismet/Private/SMyBlueprint.h"
+#include "Kismet/Private/SBlueprintEditorSelectedDebugObjectWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -79,6 +80,7 @@ FControlRigEditor::FControlRigEditor()
 	: ControlRig(nullptr)
 	, bControlRigEditorInitialized(false)
 	, bIsSelecting(false)
+	, bIsSettingObjectBeingDebugged(false)
 {
 }
 
@@ -280,25 +282,199 @@ void FControlRigEditor::ExtendToolbar()
 		}
 	}
 
-	struct Local
-	{
-		static void FillToolbar(FToolBarBuilder& ToolbarBuilder)
-		{
-			ToolbarBuilder.BeginSection("Toolbar");
-			{
-				ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ExecuteGraph, 
-					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ExecuteGraph"));
-			}
-			ToolbarBuilder.EndSection();
-		}
-	};
-
 	ToolbarExtender->AddToolBarExtension(
 		"Asset",
 		EExtensionHook::After,
 		GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateStatic(&Local::FillToolbar)
+		FToolBarExtensionDelegate::CreateSP(this, &FControlRigEditor::FillToolbar)
 	);
+}
+
+void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
+{
+	ToolbarBuilder.BeginSection("Toolbar");
+	{
+		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ExecuteGraph,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ExecuteGraph"));
+
+		ToolbarBuilder.AddWidget(SNew(SBlueprintEditorSelectedDebugObjectWidget, SharedThis(this)));
+	}
+	ToolbarBuilder.EndSection();
+}
+
+void FControlRigEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const
+{
+	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
+	if (RigBlueprint == nullptr)
+	{
+		return;
+	}
+
+	if (ControlRig)
+	{
+		FCustomDebugObject DebugObject;
+		DebugObject.Object = ControlRig;
+		DebugObject.NameOverride = GetCustomDebugObjectLabel(ControlRig);
+		DebugList.Add(DebugObject);
+	}
+
+	UControlRigBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
+	if (GeneratedClass)
+	{
+		struct Local
+		{
+			static bool IsPendingKillOrUnreachableRecursive(UObject* InObject)
+			{
+				if (InObject != nullptr)
+				{
+					if (InObject->IsPendingKillOrUnreachable())
+					{
+						return true;
+					}
+					return IsPendingKillOrUnreachableRecursive(InObject->GetOuter());
+				}
+				return false;
+			}
+
+			static bool OuterNameContainsRecursive(UObject* InObject, const FString& InStringToSearch)
+			{
+				if (InObject == nullptr)
+				{
+					return false;
+				}
+
+				UObject* InObjectOuter = InObject->GetOuter();
+				if (InObjectOuter == nullptr)
+				{
+					return false;
+				}
+
+				if (InObjectOuter->GetName().Contains(InStringToSearch))
+				{
+					return true;
+				}
+
+				return OuterNameContainsRecursive(InObjectOuter, InStringToSearch);
+			}
+		};
+
+		if (UObject* DefaultObject = GeneratedClass->GetDefaultObject(false))
+		{
+			TArray<UObject*> ArchetypeInstances;
+			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
+
+			for (UObject* Instance : ArchetypeInstances)
+			{
+				UControlRig* InstanceControlRig = Cast<UControlRig>(Instance);
+				if (InstanceControlRig && InstanceControlRig != ControlRig)
+				{
+					if (InstanceControlRig->GetOuter() == nullptr)
+					{
+						continue;
+					}
+
+					UWorld* World = InstanceControlRig->GetWorld();
+					if (World == nullptr)
+					{
+						continue;
+					}
+
+					if (!World->IsGameWorld() && !World->IsPreviewWorld())
+					{
+						continue;
+					}
+
+					// ensure to only allow preview actors in preview worlds
+					if (World->IsPreviewWorld())
+					{
+						if (!Local::OuterNameContainsRecursive(InstanceControlRig, TEXT("Preview")))
+						{
+							continue;
+						}
+					}
+
+					if (Local::IsPendingKillOrUnreachableRecursive(InstanceControlRig))
+					{
+						continue;
+					}
+
+					FCustomDebugObject DebugObject;
+					DebugObject.Object = InstanceControlRig;
+					DebugObject.NameOverride = GetCustomDebugObjectLabel(InstanceControlRig);
+					DebugList.Add(DebugObject);
+				}
+			}
+		}
+	}
+}
+
+void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
+{
+	UControlRig* DebuggedControlRig = Cast<UControlRig>(InObject);
+
+	if (DebuggedControlRig == nullptr)
+	{
+		// fall back to our default control rig (which still can be nullptr)
+		if (ControlRig != nullptr && GetBlueprintObj() && !bIsSettingObjectBeingDebugged)
+		{
+			TGuardValue<bool> GuardSettingObjectBeingDebugged(bIsSettingObjectBeingDebugged, true);
+			GetBlueprintObj()->SetObjectBeingDebugged(ControlRig);
+			return;
+		}
+	}
+
+	if (GetBlueprintObj())
+	{
+		FBlueprintEditorUtils::UpdateStalePinWatches(GetBlueprintObj());
+	}
+
+	if (DebuggedControlRig)
+	{
+		bool bIsExternalControlRig = DebuggedControlRig != ControlRig;
+		DebuggedControlRig->DrawInterface = &DrawInterface;
+		DebuggedControlRig->ControlRigLog = &ControlRigLog;
+
+		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+		if (EditorSkelComp)
+		{
+			UControlRigSequencerAnimInstance* AnimInstance = Cast<UControlRigSequencerAnimInstance>(EditorSkelComp->GetAnimInstance());
+			if (AnimInstance)
+			{
+				// we might want to move this into another method
+				FInputBlendPose Filter;
+				AnimInstance->UpdateControlRig(DebuggedControlRig, 0, false, false, Filter, 1.0f, bIsExternalControlRig);
+				AnimInstance->RecalcRequiredBones();
+
+				// since rig has changed, rebuild draw skeleton
+				EditorSkelComp->RebuildDebugDrawSkeleton();
+				GetEditMode().SetObjects(DebuggedControlRig, FGuid());
+			}
+		}
+	}
+	else
+	{
+		GetEditMode().SetObjects(nullptr, FGuid());
+	}
+}
+
+FString FControlRigEditor::GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const
+{
+	if (ObjectBeingDebugged == nullptr)
+	{
+		return FString();
+	}
+
+	if (ObjectBeingDebugged == ControlRig)
+	{
+		return TEXT("Control Rig Editor Preview");
+	}
+
+	if (AActor* ParentActor = ObjectBeingDebugged->GetTypedOuter<AActor>())
+	{
+		return FString::Printf(TEXT("%s in %s"), *GetBlueprintObj()->GetName(), *ParentActor->GetName());
+	}
+
+	return GetBlueprintObj()->GetName();
 }
 
 UBlueprint* FControlRigEditor::GetBlueprintObj() const
@@ -363,6 +539,8 @@ void FControlRigEditor::OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> G
 
 void FControlRigEditor::Compile()
 {
+	FString LastDebuggedObjectName = GetCustomDebugObjectLabel(GetBlueprintObj()->GetObjectBeingDebugged());
+
 	GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
 	ClearDetailObject();
 
@@ -391,6 +569,17 @@ void FControlRigEditor::Compile()
 				TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 				NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 			}
+		}
+	}
+
+	TArray<FCustomDebugObject> DebugList;
+	GetCustomDebugObjects(DebugList);
+
+	for (const FCustomDebugObject& DebugObject : DebugList)
+	{
+		if (DebugObject.NameOverride == LastDebuggedObjectName)
+		{
+			GetBlueprintObj()->SetObjectBeingDebugged(DebugObject.Object);
 		}
 	}
 
@@ -776,9 +965,12 @@ void FControlRigEditor::Tick(float DeltaTime)
 
 bool FControlRigEditor::IsEditable(UEdGraph* InGraph) const
 {
-	bool bEditable = FBlueprintEditor::IsEditable(InGraph);
-	bEditable &= IsGraphInCurrentBlueprint(InGraph);
-	return bEditable;
+	return IsGraphInCurrentBlueprint(InGraph);
+}
+
+bool FControlRigEditor::IsCompilingEnabled() const
+{
+	return true;
 }
 
 FText FControlRigEditor::GetGraphDecorationString(UEdGraph* InGraph) const
@@ -1090,7 +1282,7 @@ void FControlRigEditor::UpdateControlRig()
 			FInputBlendPose Filter;
 			AnimInstance->UpdateControlRig(ControlRig, 0, false, false, Filter, 1.0f);
 			AnimInstance->RecalcRequiredBones();
-			
+
 			// since rig has changed, rebuild draw skeleton
 			EditorSkelComp->RebuildDebugDrawSkeleton();
 			GetEditMode().SetObjects(ControlRig, FGuid());
