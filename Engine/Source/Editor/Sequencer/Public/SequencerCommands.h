@@ -228,6 +228,9 @@ public:
 
 	/** Toggle the visibility of the stretch box. */
 	TSharedPtr< FUICommandInfo > ToggleShowStretchBox;
+	
+	/** Sets the tree search widget as the focused widget in Slate for easy typing. */
+	TSharedPtr< FUICommandInfo > QuickTreeSearch;
 
 	/** Bake transform. */
 	TSharedPtr< FUICommandInfo > BakeTransform;
