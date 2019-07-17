@@ -9,6 +9,8 @@
 
 FAnimNode_ControlRigBase::FAnimNode_ControlRigBase()
 {
+	bUpdateInput = true;
+	bExecute = true;
 }
 
 void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
@@ -50,13 +52,16 @@ void FAnimNode_ControlRigBase::Update_AnyThread(const FAnimationUpdateContext& C
 {
 	FAnimNode_Base::Update_AnyThread(Context);
 
-	if (UControlRig* ControlRig = GetControlRig())
+	if (bExecute)
 	{
-		// @TODO: fix this to be thread-safe
-		// Pre-update doesn't work for custom anim instances
-		// FAnimNode_ControlRigExternalSource needs this to be called to reset to ref pose
-		ControlRig->SetDeltaTime(Context.GetDeltaTime());
-		ControlRig->PreEvaluate_GameThread();
+		if (UControlRig* ControlRig = GetControlRig())
+		{
+			// @TODO: fix this to be thread-safe
+			// Pre-update doesn't work for custom anim instances
+			// FAnimNode_ControlRigExternalSource needs this to be called to reset to ref pose
+			ControlRig->SetDeltaTime(Context.GetDeltaTime());
+			ControlRig->PreEvaluate_GameThread();
+		}
 	}
 }
 
@@ -120,10 +125,18 @@ void FAnimNode_ControlRigBase::Evaluate_AnyThread(FPoseContext& Output)
 {
 	if (UControlRig* ControlRig = GetControlRig())
 	{
-		// first update input to the system
-		UpdateInput(ControlRig, Output);
-		// first evaluate control rig
-		ControlRig->Evaluate_AnyThread();
+		if (bUpdateInput)
+		{
+			// first update input to the system
+			UpdateInput(ControlRig, Output);
+		}
+
+		if (bExecute)
+		{
+			// first evaluate control rig
+			ControlRig->Evaluate_AnyThread();
+		}
+
 		// now update output
 		UpdateOutput(ControlRig, Output);
 	}

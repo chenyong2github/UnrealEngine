@@ -101,6 +101,18 @@ void UControlRigBlueprint::GetInstanceActions(FBlueprintActionDatabaseRegistrar&
 	IControlRigEditorModule::Get().GetInstanceActions(this, ActionRegistrar);
 }
 
+void UControlRigBlueprint::SetObjectBeingDebugged(UObject* NewObject)
+{
+	UControlRig* PreviousRigBeingDebugged = Cast<UControlRig>(GetObjectBeingDebugged());
+	if (PreviousRigBeingDebugged && PreviousRigBeingDebugged != NewObject)
+	{
+		PreviousRigBeingDebugged->DrawInterface = nullptr;
+		PreviousRigBeingDebugged->ControlRigLog = nullptr;
+	}
+
+	Super::SetObjectBeingDebugged(NewObject);
+}
+
 UControlRigModel::FModifiedEvent& UControlRigBlueprint::OnModified()
 {
 	return _ModifiedEvent;
