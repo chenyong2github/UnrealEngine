@@ -271,6 +271,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Use display cutout region?"))
 	bool bUseDisplayCutout;
 
+	// Should we restore scheduled local notifications on reboot? This will add a receiver for boot complete and a permission to the manifest.
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Restore scheduled notifications on reboot"))
+	bool bRestoreNotificationsOnReboot;
+
 	// Level of verbosity to use during packaging with Ant
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging")
 	TEnumAsByte<EAndroidAntVerbosity::Type> AntVerbosity;
