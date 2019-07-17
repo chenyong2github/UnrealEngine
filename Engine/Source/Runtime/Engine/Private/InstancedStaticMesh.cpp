@@ -1434,7 +1434,7 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 	const FMeshMapBuildData* MeshMapBuildData = nullptr;
 	if (LODData.Num() > 0)
 	{
-		MeshMapBuildData = GetMeshMapBuildData(LODData[0]);
+		MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 	}
 	
 	check(InstancingRandomSeed != 0);
