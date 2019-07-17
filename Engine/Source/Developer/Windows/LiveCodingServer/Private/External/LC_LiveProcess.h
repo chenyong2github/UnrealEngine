@@ -7,7 +7,7 @@
 #include "LC_Executable.h"
 #include "LC_MemoryBlock.h"
 #include "LC_Types.h"
-#include "LC_VisualStudio.h"
+#include "VisualStudioDTE.h"
 
 
 class DuplexPipe;
@@ -120,7 +120,7 @@ private:
 
 	uint64_t m_heartBeatDelta;
 
-#if LC_WITH_VISUAL_STUDIO_DTE
+#if WITH_VISUALSTUDIO_DTE
 	// for handling communication with the VS debugger
 	EnvDTE::DebuggerPtr m_vsDebugger;
 	types::vector<EnvDTE::ThreadPtr> m_vsDebuggerThreads;
