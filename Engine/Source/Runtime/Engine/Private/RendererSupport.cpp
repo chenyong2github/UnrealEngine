@@ -60,7 +60,7 @@ static void ClearReferencesToRendererModuleClasses(
 
 			if (World->FXSystem)
 			{
-				World->FXSystem->Destroy();
+				FFXSystemInterface::Destroy(World->FXSystem);
 				World->FXSystem = NULL;
 			}
 
