@@ -397,6 +397,16 @@ namespace
 	}
 
 	// BEGIN EPIC MOD - Allow mapping from object files to their unity object file
+	static void AddCompilandId(types::StringMap<uint32_t>& objFileToCompilandId, const std::wstring& objFile, uint32_t compilandId)
+	{
+		std::wstring WideObjectFile = file::NormalizePath(objFile.c_str());
+		ImmutableString ObjectFile = string::ToUtf8String(WideObjectFile);
+		if (objFileToCompilandId.find(ObjectFile) == objFileToCompilandId.end())
+		{
+			objFileToCompilandId.insert(std::make_pair(ObjectFile, compilandId));
+		}
+	}
+
 	static bool ReadLiveCodingInfo(const wchar_t* manifestFile, types::StringMap<uint32_t>& objFileToCompilandId)
 	{
 		// Read the file to a string
@@ -441,12 +451,11 @@ namespace
 					return false;
 				}
 
-				std::wstring WideObjectFile = file::NormalizePath((BaseDir + L"\\" + *SourceFileValue->AsString()).c_str());
-				ImmutableString ObjectFile = string::ToUtf8String(WideObjectFile);
-				if (objFileToCompilandId.find(ObjectFile) == objFileToCompilandId.end())
-				{
-					objFileToCompilandId.insert(std::make_pair(ObjectFile, UnityCompilandId));
-				}
+				std::wstring objFile = BaseDir + L"\\" + *SourceFileValue->AsString();
+				AddCompilandId(objFileToCompilandId, objFile, UnityCompilandId);
+
+				std::wstring patchedObjFile = file::RemoveExtension(objFile) + L".lc.obj";
+				AddCompilandId(objFileToCompilandId, patchedObjFile, UnityCompilandId);
 			}
 		}
 
