@@ -124,6 +124,7 @@ public:
 				FNiagaraShader* Shader,
 				FRHICommandList &RHICmdList, 
 				FRHIUniformBuffer* ViewUniformBuffer, 
+				const FNiagaraGpuSpawnInfo& SpawnInfo,
 				bool bCopyBeforeStart = false
 			) const;
 

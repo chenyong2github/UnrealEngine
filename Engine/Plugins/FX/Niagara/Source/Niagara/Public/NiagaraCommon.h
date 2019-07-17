@@ -25,6 +25,10 @@ const uint32 NIAGARA_MAX_COMPUTE_THREADGROUPS = 65535;
 
 const FString INTERPOLATED_PARAMETER_PREFIX = TEXT("PREV_");
 
+/** The maximum number of spawn infos we can run on the GPU, modifying this will require a version update as it is used in the shader compiler  */
+constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
+constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS_V4 = (NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4;
+
 enum ENiagaraBaseTypes
 {
 	NBT_Float,
