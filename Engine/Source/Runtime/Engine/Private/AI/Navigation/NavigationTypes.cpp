@@ -35,6 +35,7 @@ uint32 FNavPathType::NextUniqueId = 0;
 //----------------------------------------------------------------------//
 // FNavDataConfig
 //----------------------------------------------------------------------//
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FNavDataConfig::FNavDataConfig(float Radius, float Height)
 	: FNavAgentProperties(Radius, Height)
 	, Name(TEXT("Default"))
@@ -52,6 +53,7 @@ FNavDataConfig::FNavDataConfig(const FNavDataConfig& Other)
 	, NavDataClass(Other.NavDataClass)
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FNavDataConfig::SetNavDataClass(UClass* InNavDataClass)
 {

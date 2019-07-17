@@ -34,5 +34,5 @@ struct NAVIGATIONSYSTEM_API FNavigationDirtyAreasController
 
 #if !UE_BUILD_SHIPPING
 	bool HadDirtyAreasReportedWhileAccumulationLocked() const { return bCanAccumulateDirtyAreas == false && bDirtyAreasReportedWhileAccumulationLocked; }
-#endif UE_BUILD_SHIPPING
+#endif // UE_BUILD_SHIPPING
 };
