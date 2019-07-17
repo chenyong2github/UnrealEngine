@@ -494,9 +494,23 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 		}
 	}
 
-	if ( !SelectedConsumerDescription.IsValid() && ConsumerDescriptionList.Num() > 0)
+	// Display a combo-box if there are more than one type of consumers
+	if( ConsumerDescriptionMap.Num() > 1 )
 	{
-		SelectedConsumerDescription = MakeShared<FString>( FString() );
+		if ( !SelectedConsumerDescription.IsValid() )
+		{
+			SelectedConsumerDescription = MakeShared<FString>( FString() );
+		}
+
+
+		ProducerSelector = SNew( STextComboBox )
+		.OptionsSource( &ConsumerDescriptionList )
+		.OnSelectionChanged( this, &SDataprepAssetView::OnNewConsumerSelected )
+		.InitiallySelectedItem( SelectedConsumerDescription );
+	}
+	else
+	{
+		ProducerSelector = SNullWidget::NullWidget;
 	}
 
 	TSharedPtr<SWidget> AddNewMenu = SNew(SComboButton)
@@ -617,10 +631,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 						.HAlign(EHorizontalAlignment::HAlign_Right)
 						.Padding(0, 0, 2, 0)
 						[
-							SAssignNew( ProducerSelector, STextComboBox )
-							.OptionsSource( &ConsumerDescriptionList )
-							.OnSelectionChanged( this, &SDataprepAssetView::OnNewConsumerSelected )
-							.InitiallySelectedItem( SelectedConsumerDescription )
+							ProducerSelector.ToSharedRef()
 						]
 					]
 					+ SVerticalBox::Slot()
@@ -677,7 +688,7 @@ void SDataprepAssetView::OnNewConsumerSelected( TSharedPtr<FString> NewConsumerD
 
 		if( !DataprepAsset->ReplaceConsumer( *NewConsumerClassPtr ) )
 		{
-			ProducerSelector->SetSelectedItem(SelectedConsumerDescription);
+			((STextComboBox*)ProducerSelector.Get())->SetSelectedItem(SelectedConsumerDescription);
 		}
 		// Update SelectedConsumerDescription only, the widget displaying the consumer is updated thru notifications 
 		else
