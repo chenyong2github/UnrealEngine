@@ -29,8 +29,10 @@ FSlateIcon UFractureToolBitmap::GetToolIcon() const
 
 void UFractureToolBitmap::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
+	/*
 	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Texture", "Texture", "Texture Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Texture = UICommandInfo;
+	*/
 }
 
 TArray<UObject*> UFractureToolBitmap::GetSettingsObjects() const 
