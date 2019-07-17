@@ -1131,6 +1131,18 @@ void UNiagaraComponent::SetNiagaraVariableBool(const FString& InVariableName, bo
 	OverrideParameters.SetParameterValue(InValue ? FNiagaraBool::True : FNiagaraBool::False, FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), VarName), true);
 }
 
+void UNiagaraComponent::SetNiagaraVariableActor(const FString& InVariableName, AActor* InValue)
+{
+	SetNiagaraVariableObject(InVariableName, InValue);
+}
+
+void UNiagaraComponent::SetNiagaraVariableObject(const FString& InVariableName, UObject* InValue)
+{
+	FName VarName = FName(*InVariableName);
+
+	OverrideParameters.SetUObject(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetUObjectDef(), VarName));
+}
+
 TArray<FVector> UNiagaraComponent::GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName)
 {
 	return GetNiagaraParticleValueVec3_DebugOnly(InEmitterName, TEXT("Position"));
