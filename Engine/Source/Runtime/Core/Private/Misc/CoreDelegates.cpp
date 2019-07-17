@@ -42,6 +42,8 @@ FCoreDelegates::FOnUserControllerPairingChange FCoreDelegates::OnControllerPairi
 FCoreDelegates::FOnSafeFrameChangedEvent FCoreDelegates::OnSafeFrameChangedEvent;
 FCoreDelegates::FOnHandleSystemEnsure FCoreDelegates::OnHandleSystemEnsure;
 FCoreDelegates::FOnHandleSystemError FCoreDelegates::OnHandleSystemError;
+FCoreDelegates::FOnHandleSystemError FCoreDelegates::OnBeforeHandleSystemError;
+
 FCoreDelegates::FOnActorLabelChanged FCoreDelegates::OnActorLabelChanged;
 
 FCoreDelegates::FRegisterMovieStreamerDelegate FCoreDelegates::RegisterMovieStreamerDelegate;
