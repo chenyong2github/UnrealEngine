@@ -2041,6 +2041,25 @@ void SAssetView::RefreshSourceItems()
 	}
 }
 
+bool SAssetView::IsFilteringRecursively() const
+{
+	// In some cases we want to not filter recursively even if we have a backend filter (e.g. the open level window)
+	// Most of the time, bFilterRecursivelyWithBackendFilter is true
+	return bFilterRecursivelyWithBackendFilter && GetDefault<UContentBrowserSettings>()->FilterRecursively;
+}
+
+bool SAssetView::IsToggleFilteringRecursivelyAllowed() const
+{
+	return bFilterRecursivelyWithBackendFilter;
+}
+
+void SAssetView::ToggleFilteringRecursively()
+{
+	check(IsToggleFilteringRecursivelyAllowed());
+	GetMutableDefault<UContentBrowserSettings>()->FilterRecursively = !GetDefault<UContentBrowserSettings>()->FilterRecursively;
+	GetMutableDefault<UContentBrowserSettings>()->PostEditChange();
+}
+
 bool SAssetView::ShouldFilterRecursively() const
 {
 	// Quick check for conditions which force recursive filtering
@@ -2049,9 +2068,7 @@ bool SAssetView::ShouldFilterRecursively() const
 		return true;
 	}
 
-	// In some cases we want to not filter recursively even if we have a backend filter (e.g. the open level window)
-	// Most of the time, bFilterRecursivelyWithBackendFilter is true
-	if ( bFilterRecursivelyWithBackendFilter && !BackendFilter.IsEmpty() )
+	if (IsFilteringRecursively() && !BackendFilter.IsEmpty() )
 	{
 		return true;
 	}
@@ -3127,6 +3144,19 @@ TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 				FExecuteAction::CreateSP(this, &SAssetView::ToggleShowFavorites),
 				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleShowFavoritesAllowed),
 				FIsActionChecked::CreateSP(this, &SAssetView::IsShowingFavorites)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("FilterRecursivelyOption", "Filter Recursively"),
+			LOCTEXT("FilterRecursivelyOptionToolTip", "Should filters apply recursively in the view?"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetView::ToggleFilteringRecursively),
+				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleFilteringRecursivelyAllowed),
+				FIsActionChecked::CreateSP(this, &SAssetView::IsFilteringRecursively)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
