@@ -8,7 +8,9 @@
 //----------------------------------------------------------------------//
 FNavigationDirtyAreasController::FNavigationDirtyAreasController()
 	: bCanAccumulateDirtyAreas(true)
+#if !UE_BUILD_SHIPPING
 	, bDirtyAreasReportedWhileAccumulationLocked(false)
+#endif // !UE_BUILD_SHIPPING
 {
 
 }
