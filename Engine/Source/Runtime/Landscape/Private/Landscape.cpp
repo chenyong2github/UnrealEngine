@@ -1375,7 +1375,13 @@ FPrimitiveSceneProxy* ULandscapeComponent::CreateSceneProxy()
 	}
 	else // i.e. (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{
-		if (PlatformData.HasValidRuntimeData())
+		if (!PlatformData.HasValidRuntimeData())
+		{
+#if WITH_EDITOR
+			CheckGenerateLandscapePlatformData(false, nullptr);
+#endif
+		}
+		else
 		{
 			Proxy = new FLandscapeComponentSceneProxyMobile(this);
 		}
