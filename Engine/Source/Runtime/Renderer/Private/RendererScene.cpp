@@ -2124,6 +2124,12 @@ void FScene::RemoveReflectionCapture(UReflectionCaptureComponent* Component)
 
 			Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
 
+			// Need to clear out all reflection captures on removal to avoid dangling pointers.
+			for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); ++PrimitiveIndex)
+			{
+				Scene->Primitives[PrimitiveIndex]->RemoveCachedReflectionCaptures();
+			}
+
 			int32 CaptureIndex = Proxy->PackedIndex;
 			Scene->ReflectionSceneData.RegisteredReflectionCaptures.RemoveAtSwap(CaptureIndex);
 			Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.RemoveAtSwap(CaptureIndex);

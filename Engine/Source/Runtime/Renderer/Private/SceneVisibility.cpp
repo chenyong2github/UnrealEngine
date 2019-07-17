@@ -3504,11 +3504,8 @@ void UpdateReflectionSceneData(FScene* Scene)
 			for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); PrimitiveIndex++)
 			{
 				FPrimitiveSceneInfo* Primitive = Scene->Primitives[PrimitiveIndex];
-				Primitive->CachedReflectionCaptureProxy = nullptr;
-				Primitive->CachedPlanarReflectionProxy = nullptr;
-				FMemory::Memzero(Primitive->CachedReflectionCaptureProxies);
-				Primitive->bNeedsCachedReflectionCaptureUpdate = true;
-				
+				Primitive->RemoveCachedReflectionCaptures();
+
 				if (bNeedsStaticMeshUpdate)
 				{
 					Primitive->CacheReflectionCaptures();
