@@ -123,6 +123,7 @@ protected:
 	virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const override;
 	virtual FGraphAppearanceInfo GetGraphAppearance(class UEdGraph* InGraph) const override;
 	virtual bool IsEditable(UEdGraph* InGraph) const override;
+	virtual bool IsCompilingEnabled() const override;
 	virtual FText GetGraphDecorationString(UEdGraph* InGraph) const override;
 	virtual void OnActiveTabChanged( TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated ) override;
 	virtual void OnSelectedNodesChangedImpl(const TSet<class UObject*>& NewSelection) override;
@@ -156,6 +157,14 @@ private:
 
 	/** Extend toolbar */
 	void ExtendToolbar();
+
+	/** Fill the toolbar with content */
+	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+
+	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const override;
+	virtual bool OnlyShowCustomDebugObjects() const override { return true; }
+	virtual void HandleSetObjectBeingDebugged(UObject* InObject) override;
+	virtual FString GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const override;
 
 	/** Handle hiding items in the graph */
 	void HandleHideItem();
@@ -232,6 +241,7 @@ protected:
 
 	bool bControlRigEditorInitialized;
 	bool bIsSelecting;
+	bool bIsSettingObjectBeingDebugged;
 
 	/** The log to use for errors resulting from the init phase of the units */
 	FControlRigLog ControlRigLog;
