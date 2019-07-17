@@ -832,6 +832,7 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		FScopedTransaction ScopedTransaction(LOCTEXT("ReassignModuleTransaction", "Reassign module script"));
 		FunctionCallNode->Modify();
 		FunctionCallNode->FunctionScript = ModuleScript;
+		FunctionCallNode->RefreshFromExternalChanges();
 		FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 		RefreshChildren();
 	}
