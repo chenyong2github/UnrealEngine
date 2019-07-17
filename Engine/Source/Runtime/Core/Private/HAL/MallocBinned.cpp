@@ -453,7 +453,7 @@ struct FMallocBinned::Private
 		UPTRINT BasePtr;
 		FPoolInfo* Pool = FindPoolInfo(Allocator, (UPTRINT)Ptr, BasePtr);
 #if PLATFORM_IOS || PLATFORM_MAC
-        if (Pool == NULL)
+        if (Pool == nullptr)
         {
 #if USE_OS_SMALL_BLOCK_ALLOC
 			// check the small block allocation range
@@ -1010,7 +1010,7 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 			Private::TrackStats(Table, Size);
 
 			FPoolInfo* Pool = Table->FirstPool;
-		if( !Pool )
+			if( !Pool )
 			{
 				Pool = Private::AllocatePoolMemory(*this, Table, PageCount*PageSize, BinnedSizeLimit+BinType);
 			}
@@ -1182,7 +1182,7 @@ bool FMallocBinned::GetAllocationSize(void *Original, SIZE_T &SizeOut)
 	FPoolInfo* Pool = Private::FindPoolInfo(*this, (UPTRINT)Original, BasePtr);
 
 #if PLATFORM_IOS || PLATFORM_MAC
-	if (Pool == NULL)
+	if (Pool == nullptr)
 	{
 #if USE_OS_SMALL_BLOCK_ALLOC
 		if ((uint64)Original >= Private::SmallBlockStartPtr && (uint64)Original <= Private::SmallBlockEndPtr)
