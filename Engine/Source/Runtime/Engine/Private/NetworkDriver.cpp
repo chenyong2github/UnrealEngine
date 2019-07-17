@@ -3248,10 +3248,7 @@ public:
  */
 void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 {
-	if (ConfigHelperInt(TEXT("PktLoss"), PktLoss, OptionalQualifier))
-	{
-		PktLoss = FMath::Clamp<int32>(PktLoss, 0, 100);
-	}
+	ConfigHelperInt(TEXT("PktLoss"), PktLoss, OptionalQualifier);
 	
 	ConfigHelperInt(TEXT("PktLossMinSize"), PktLossMinSize, OptionalQualifier);
 	ConfigHelperInt(TEXT("PktLossMaxSize"), PktLossMaxSize, OptionalQualifier);
@@ -3261,16 +3258,72 @@ void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 	PktOrder = int32(InPktOrder);
 	
 	ConfigHelperInt(TEXT("PktLag"), PktLag, OptionalQualifier);
+	ConfigHelperInt(TEXT("PktLagVariance"), PktLagVariance, OptionalQualifier);
+
+	ConfigHelperInt(TEXT("PktLagMin"), PktLagMin, OptionalQualifier);
+	ConfigHelperInt(TEXT("PktLagMax"), PktLagMax, OptionalQualifier);
 	
-	if (ConfigHelperInt(TEXT("PktDup"), PktDup, OptionalQualifier))
+	ConfigHelperInt(TEXT("PktDup"), PktDup, OptionalQualifier);
+
+	ValidateSettings();
+}
+
+void FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
+{
+	const FString SectionName = FString::Printf(TEXT("%s.%s"), TEXT("PacketSimulationProfile"), ProfileName);
+
+	TArray<FString> SectionConfigs;
+	bool bSectionExists = GConfig->GetSection(*SectionName, SectionConfigs, GEngineIni);
+	if (!bSectionExists)
 	{
-		PktDup = FMath::Clamp<int32>(PktDup, 0, 100);
+		UE_LOG(LogNet, Warning, TEXT("EmulationProfile [%s] was not found in %s. Packet settings were not changed"), *SectionName, *GEngineIni);
+		return;
+	}
+
+	ResetSettings();
+
+	UScriptStruct* ThisStruct = FPacketSimulationSettings::StaticStruct();
+
+	for (const FString& ConfigVar : SectionConfigs)
+	{
+		FString VarName;
+		FString VarValue;
+		if (ConfigVar.Split(TEXT("="), &VarName, &VarValue))
+		{
+			// If using the one line struct definition
+			if (VarName.Equals(TEXT("PacketSimulationSettings"), ESearchCase::IgnoreCase))
+			{
+				ThisStruct->ImportText(*VarValue, this, nullptr, 0, (FOutputDevice*)GWarn, TEXT("FPacketSimulationSettings"));
+			}
+			else if (UProperty* StructProperty = ThisStruct->FindPropertyByName(FName(*VarName, FNAME_Find)))
+			{
+				StructProperty->ImportText(*VarValue, StructProperty->ContainerPtrToValuePtr<void>(this), 0, nullptr);
+			}
+			else
+			{
+				UE_LOG(LogNet, Warning, TEXT("FPacketSimulationSettings::LoadEmulationProfile could not find property named %s"), *VarName);
+			}
+		}
 	}
 	
-	if (ConfigHelperInt(TEXT("PktLagVariance"), PktLagVariance, OptionalQualifier))
-	{
-		PktLagVariance = FMath::Clamp<int32>(PktLagVariance, 0, 100);
-	}
+	ValidateSettings();
+}
+
+void FPacketSimulationSettings::ResetSettings()
+{
+	*this = FPacketSimulationSettings();
+}
+
+void FPacketSimulationSettings::ValidateSettings()
+{
+	PktLoss = FMath::Clamp<int32>(PktLoss, 0, 100);
+
+	PktOrder = FMath::Clamp<int32>(PktOrder, 0, 1);
+
+	PktLagMin = FMath::Max(PktLagMin, 0);
+	PktLagMax = FMath::Max(PktLagMin, PktLagMax);
+
+	PktDup = FMath::Clamp<int32>(PktDup, 0, 100);
 }
 
 bool FPacketSimulationSettings::ConfigHelperInt(const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier)
@@ -3321,6 +3374,9 @@ void FPacketSimulationSettings::RegisterCommands()
 		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktDup="), TEXT("PktDup=<n> (simulates sending/receiving duplicate network packets)"));
 		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLag="), TEXT("PktLag=<n> (simulates network packet lag)"));
 		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLagVariance="), TEXT("PktLagVariance=<n> (simulates variable network packet lag)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLagMin="), TEXT("PktLagMin=<n> (minimum packet latency)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLagMax="), TEXT("PktLagMax=<n> (maximum packet latency)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("Net EmulationProfile="), TEXT("EmulationProfile=<NAME> (apply an emulation profile)"));
 	}
 }
 
@@ -3359,10 +3415,16 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	// this is because the same function will be used to parse the command line as well
 	bool bParsed = false;
 
+	FString EmulationProfileName;
+	if (FParse::Value(Cmd, TEXT("EmulationProfile="), EmulationProfileName))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("Applying EmulationProfile %s"), *EmulationProfileName);
+		LoadEmulationProfile(*EmulationProfileName);
+	}
 	if( ParseHelper(Cmd, TEXT("PktLoss="), PktLoss, OptionalQualifier) )
 	{
 		bParsed = true;
-		PktLoss = FMath::Clamp<int32>( PktLoss, 0, 100 );
 		UE_LOG(LogNet, Log, TEXT("PktLoss set to %d"), PktLoss);
 	}
 	if (ParseHelper(Cmd, TEXT("PktLossMinSize="), PktLossMinSize, OptionalQualifier))
@@ -3378,7 +3440,6 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	if( ParseHelper(Cmd, TEXT("PktOrder="), PktOrder, OptionalQualifier) )
 	{
 		bParsed = true;
-		PktOrder = FMath::Clamp<int32>( PktOrder, 0, 1 );
 		UE_LOG(LogNet, Log, TEXT("PktOrder set to %d"), PktOrder);
 	}
 	if( ParseHelper(Cmd, TEXT("PktLag="), PktLag, OptionalQualifier) )
@@ -3389,15 +3450,25 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	if( ParseHelper(Cmd, TEXT("PktDup="), PktDup, OptionalQualifier) )
 	{
 		bParsed = true;
-		PktDup = FMath::Clamp<int32>( PktDup, 0, 100 );
 		UE_LOG(LogNet, Log, TEXT("PktDup set to %d"), PktDup);
 	}	
 	if (ParseHelper(Cmd, TEXT("PktLagVariance="), PktLagVariance, OptionalQualifier))
 	{
 		bParsed = true;
-		PktLagVariance = FMath::Clamp<int32>( PktLagVariance, 0, 100 );
 		UE_LOG(LogNet, Log, TEXT("PktLagVariance set to %d"), PktLagVariance);
 	}
+	if (ParseHelper(Cmd, TEXT("PktLagMin="), PktLagMin, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktLagMin set to %d"), PktLagMin);
+	}
+	if (ParseHelper(Cmd, TEXT("PktLagMax="), PktLagMax, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktLagMax set to %d"), PktLagMax);
+	}
+
+	ValidateSettings();
 	return bParsed;
 }
 
