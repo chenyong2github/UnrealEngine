@@ -171,6 +171,7 @@ public:
 		float MinRangeIn = 0.f,
 		float MaxRangeIn = 1.f,
 		float DefaultIn = 0.f,
+		float DistanceIn = 0.f,
 		FVector PositionIn = FVector(0, 0, 0),
 		FVector NormalIn = FVector(0, 0, 1),
 		EFieldFalloffType FalloffIn = EFieldFalloffType::Field_Falloff_Linear)
@@ -180,11 +181,12 @@ public:
 		, MinRange(MinRangeIn)
 		, MaxRange(MaxRangeIn)
 		, Default(DefaultIn)
+		, Distance(DistanceIn)
 		, Position(PositionIn)
 		, Normal(NormalIn)
 		, Falloff(FalloffIn)
 	{}
-	virtual FFieldNodeBase * NewCopy() const override { return new FPlaneFalloff(Magnitude, MinRange, MaxRange, Default, Position, Normal, Falloff); }
+	virtual FFieldNodeBase * NewCopy() const override { return new FPlaneFalloff(Magnitude, MinRange, MaxRange, Default, Distance, Position, Normal, Falloff); }
 	virtual ~FPlaneFalloff() {}
 
 	void Evaluate(const FFieldContext &, TArrayView<float> & Results) const override;
@@ -198,6 +200,7 @@ public:
 	float MinRange;
 	float MaxRange;
 	float Default;
+	float Distance;
 	FVector Position;
 	FVector Normal;
 	EFieldFalloffType Falloff;
