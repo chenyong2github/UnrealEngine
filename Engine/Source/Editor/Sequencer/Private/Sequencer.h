@@ -384,6 +384,10 @@ public:
 		{
 			return SequencerCommandBindings;
 		}
+		else if (Type == ESequencerCommandBindings::CurveEditor)
+		{
+			return CurveEditorSharedBindings;
+		}
 
 		return SequencerSharedBindings;
 	}
