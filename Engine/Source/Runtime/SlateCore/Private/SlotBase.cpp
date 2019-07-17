@@ -47,11 +47,6 @@ void FSlotBase::DetatchParentFromContent()
 
 void FSlotBase::AfterContentOrOwnerAssigned()
 {
-	if (GSlateLayoutCaching && RawParentPtr)
-	{
-		RawParentPtr->InvalidatePrepass();
-	}
-
 	if (RawParentPtr)
 	{
 		if (Widget != SNullWidget::NullWidget)

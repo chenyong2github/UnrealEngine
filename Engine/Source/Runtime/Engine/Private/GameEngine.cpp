@@ -557,6 +557,7 @@ TSharedRef<SWindow> UGameEngine::CreateGameWindow()
 		Window = PIEPreviewDeviceModule->CreatePIEPreviewDeviceWindow(FVector2D(ResX, ResY), WindowTitle, AutoCenterType, FVector2D(WinX, WinY), MaxWindowWidth, MaxWindowHeight);
 	}
 #endif
+	Window->SetAllowFastUpdate(true);
 
 	const bool bShowImmediately = false;
 

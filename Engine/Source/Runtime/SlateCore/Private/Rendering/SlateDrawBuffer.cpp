@@ -3,6 +3,8 @@
 #include "Rendering/SlateDrawBuffer.h"
 #include "Rendering/DrawElements.h"
 #include "Application/SlateApplicationBase.h"
+#include "Widgets/SWindow.h"
+#include "Input/HittestGrid.h"
 
 
 /* FSlateDrawBuffer interface
@@ -23,13 +25,14 @@ FSlateWindowElementList& FSlateDrawBuffer::AddWindowElementList(TSharedRef<SWind
 			WindowElementLists.Add(ExistingElementList);
 			WindowElementListsPool.RemoveAtSwap(WindowIndex);
 
-			ExistingElementList->ResetElementBuffers();
+			ExistingElementList->ResetElementList();
 
 			return *ExistingElementList;
 		}
 	}
 
 	TSharedRef<FSlateWindowElementList> WindowElements = MakeShared<FSlateWindowElementList>(ForWindow);
+	WindowElements->ResetElementList();
 	WindowElementLists.Add(WindowElements);
 
 	return *WindowElements;
