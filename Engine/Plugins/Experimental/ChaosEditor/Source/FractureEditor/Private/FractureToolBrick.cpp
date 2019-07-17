@@ -242,7 +242,7 @@ void UFractureToolBrick::PostEditChangeChainProperty(struct FPropertyChangedChai
 
 	SelectionSet->GetSelectedObjects(SelectedActors);
 	BrickTransforms.Empty();
-	Edges.Empty();;
+	Edges.Empty();
 
 	for (AActor* Actor : SelectedActors)
 	{
@@ -329,6 +329,7 @@ void UFractureToolBrick::ExecuteFracture(const FFractureContext& FractureContext
  		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FractureContext.FracturedGeometryCollection->GetGeometryCollection();
  		if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
  		{
+			BrickTransforms.Empty();
 			GenerateBrickTransforms(FractureContext.Bounds);
 
 			const UFractureCommonSettings* LocalCommonSettings = GetDefault<UFractureCommonSettings>();
