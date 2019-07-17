@@ -291,6 +291,7 @@ public:
 		, MinRange(0.f)
 		, MaxRange(1.f)
 		, Default(0.f)
+		, Distance(0.f)
 		, Position(FVector(0, 0, 0))
 		, Normal(FVector(0, 0, 1))
 		, Falloff(EFieldFalloffType::Field_Falloff_Linear)
@@ -314,6 +315,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
 	float Default;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
+	float Distance;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
 	FVector Position;
