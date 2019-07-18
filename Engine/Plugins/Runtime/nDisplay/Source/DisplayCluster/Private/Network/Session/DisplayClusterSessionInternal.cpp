@@ -44,7 +44,7 @@ uint32 FDisplayClusterSessionInternal::Run()
 		}
 	}
 
-	Stop();
+	GetListener()->NotifySessionClose(this);
 
 	UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session thread %s finished"), *GetName());
 	return 0;

@@ -17,6 +17,15 @@
 #include "MPCDIRegion.h"
 
 
+enum class EMPCDIShader : uint8
+{
+	Passthrough,
+	ShowWarpTexture,
+	WarpAndBlend,
+	Warp,
+	Invalid,
+};
+
 class FMPCDIData;
 
 
@@ -34,13 +43,38 @@ struct FMpcdiWarpDrawRectangleParameters
 	FVector4 DrawRectangleUVScaleBias;
 };
 
+class FMPCDIDirectProjectionVS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FMPCDIDirectProjectionVS, Global);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+
+	/** Default constructor. */
+	FMPCDIDirectProjectionVS() 
+	{
+	}
+
+
+public:
+	/** Initialization constructor. */
+	FMPCDIDirectProjectionVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+	}
+};
+
+
 class FMpcdiWarpVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FMpcdiWarpVS, Global);
 
 public:
 	FMpcdiWarpVS()
-	{ }
+	{ 
+	}
 
 	FMpcdiWarpVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -86,38 +120,24 @@ private:
 	FShaderParameter DrawRectangleInvTargetSizeAndTextureSizeParameter;
 };
 
-enum class EMPCDIShader : uint8
-{
-	PassThrought,
-	ShowWarpTexture,
-	WarpAndBlend,
-#if 0
-	// Cubemap warpblend support
-	WarpAndBlendCubeMap,
-#endif
-#if 0
-	// GPU perfect frustum
-	BuildProjectedAABB,
-#endif
-	Invalid,
-};
 
 
-template<uint32 ShaderType>
+template<EMPCDIShader ShaderType>
 class TMpcdiWarpBasePS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(TMpcdiWarpBasePS, Global);
 
 public:
 	TMpcdiWarpBasePS()
-	{ }
+	{ 
+	}
 
 	TMpcdiWarpBasePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 #if 0
 		//Cubemap supoport
-		if (ShaderType != (int)EMPCDIShader::WarpAndBlendCubeMap)
+		if (ShaderType != EMPCDIShader::WarpAndBlendCubeMap)
 #endif
 		{
 			PostprocessInputParameter0.Bind(Initializer.ParameterMap, TEXT("PostprocessInput0"));
@@ -126,7 +146,7 @@ public:
 
 		TextureProjectionMatrixParameter.Bind(Initializer.ParameterMap, TEXT("TextureProjectionMatrix"));
 
-		if (ShaderType != (int)EMPCDIShader::PassThrought)
+		if (ShaderType != EMPCDIShader::Passthrough)
 		{
 			AlphaEmbeddedGammaParameter.Bind(Initializer.ParameterMap, TEXT("AlphaEmbeddedGamma"));
 
@@ -140,7 +160,7 @@ public:
 
 
 #if 0
-			if (ShaderType == (int)EMPCDIShader::WarpAndBlendCubeMap)
+			if (ShaderType == EMPCDIShader::WarpAndBlendCubeMap)
 			{
 				SceneCubeMapParameter.Bind(Initializer.ParameterMap, TEXT("SceneCubemap"));
 				SceneCubeMapParameterSampler.Bind(Initializer.ParameterMap, TEXT("SceneCubemapSampler"));
@@ -162,6 +182,15 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		switch (ShaderType)
+		{
+		case EMPCDIShader::WarpAndBlend:
+			OutEnvironment.SetDefine(TEXT("RENDER_CASE_APPLYBLENDING"), 1);
+			break;
+		default:
+			break;
+		}
 	}
 
 public:
@@ -177,7 +206,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, TextureProjectionMatrixParameter, ShaderInputData.UVMatrix);
 
 #if 0
-		if (ShaderType == (int)EMPCDIShader::WarpAndBlendCubeMap)
+		if (ShaderType == EMPCDIShader::WarpAndBlendCubeMap)
 		{
 			RHICmdList.SetShaderSampler(ShaderRHI, SceneCubeMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_Bilinear>::GetRHI());
 			SetTextureParameter(RHICmdList, ShaderRHI, SceneCubeMapParameter, ShaderInputData.SceneCubeMap);
@@ -194,19 +223,18 @@ public:
 	{
 #if 0
 		//Cubemap support
-		if (ShaderType != (int)EMPCDIShader::WarpAndBlendCubeMap)
+		if (ShaderType != EMPCDIShader::WarpAndBlendCubeMap)
 #endif
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter0, SourceTexture);
-			RHICmdList.SetShaderSampler(ShaderRHI, PostprocessInputParameterSampler0.GetBaseIndex(), TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-			//SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter0, PostprocessInputParameterSampler0, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), SourceTexture);
+			RHICmdList.SetShaderSampler(ShaderRHI, PostprocessInputParameterSampler0.GetBaseIndex(), TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 		}
 	}
 
 	template<typename TShaderRHIParamRef>
 	void SetParameters(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, MPCDI::FMPCDIRegion& MPCDIRegionData)
 	{
-		if (ShaderType != (int)EMPCDIShader::PassThrought)
+		if (ShaderType != EMPCDIShader::Passthrough)
 		{
 			SetShaderValue(RHICmdList, ShaderRHI, AlphaEmbeddedGammaParameter, MPCDIRegionData.AlphaMap.GetEmbeddedGamma());
 
@@ -277,8 +305,7 @@ private:
 	FShaderParameter         TextureProjectionMatrixParameter;
 	FShaderParameter         AlphaEmbeddedGammaParameter;
 #if 0
-	// Cubemap support
-
+	//@todo  Cubemap support not implemented
 	FShaderResourceParameter SceneCubeMapParameter;
 	FShaderResourceParameter SceneCubeMapParameterSampler;
 #endif
@@ -288,15 +315,16 @@ private:
 	FShaderParameter         VignetteEVParameter;
 };
 
-typedef TMpcdiWarpBasePS<(int)EMPCDIShader::PassThrought>         FMPCDIPassThroughtPS;
-typedef TMpcdiWarpBasePS<(int)EMPCDIShader::ShowWarpTexture>      FMPCDIShowWarpTexture;
-typedef TMpcdiWarpBasePS<(int)EMPCDIShader::WarpAndBlend>         FMPCDIWarpAndBlendPS;
+typedef TMpcdiWarpBasePS<EMPCDIShader::Passthrough>          FMPCDIPassthroughPS;
+typedef TMpcdiWarpBasePS<EMPCDIShader::ShowWarpTexture>      FMPCDIShowWarpTexture;
+typedef TMpcdiWarpBasePS<EMPCDIShader::WarpAndBlend>         FMPCDIWarpAndBlendPS;
+typedef TMpcdiWarpBasePS<EMPCDIShader::Warp>                 FMPCDIWarpPS;
 
 #if 0
 // Cubemap support
-typedef TMpcdiWarpBasePS<(int)EMPCDIShader::WarpAndBlendCubeMap>  FMPCDIWarpAndBlendCubemapPS;
+typedef TMpcdiWarpBasePS<EMPCDIShader::WarpAndBlendCubeMap>  FMPCDIWarpAndBlendCubemapPS;
 #endif
 #if 0
 // Gpu perfect frustum
-typedef TMpcdiWarpBasePS<(int)EMPCDIShader::BuildProjectedAABB>   FMPCDICalcBoundBoxPS;
+typedef TMpcdiWarpBasePS<EMPCDIShader::BuildProjectedAABB>   FMPCDICalcBoundBoxPS;
 #endif

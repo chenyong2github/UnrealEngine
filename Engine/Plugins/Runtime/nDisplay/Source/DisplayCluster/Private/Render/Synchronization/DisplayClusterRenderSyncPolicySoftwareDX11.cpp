@@ -4,27 +4,19 @@
 
 #include "DisplayClusterLog.h"
 
+#include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
-#include "Engine/GameEngine.h"
 
-#include "Stats/Stats2.h"
-
-#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
-
-#include "Render/Device/IDisplayClusterRenderDevice.h"
-#include "Render/Device/DisplayClusterDeviceInternals.h"
-
-#include "d3d11.h"
-#include "dxgi1_2.h"
-#include "D3D11Viewport.h"
-
-#include "RenderResource.h"
-#include "RenderUtils.h"
-
-#include "UObject/Stack.h"
-
-#include <exception>
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "DirectX/Include/DXGI.h"
 #include "dwmapi.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+
+#include "D3D11RHI/Private/Windows/D3D11RHIBasePrivate.h"
+
+#include "D3D11State.h"
+#include "D3D11Resources.h"
+#include "D3D11Viewport.h"
 
 #include "NVIDIA/nvapi/nvapi.h"
 
@@ -143,6 +135,23 @@ FDisplayClusterRenderSyncPolicySoftwareDX11::~FDisplayClusterRenderSyncPolicySof
 
 bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(int32& InOutSyncInterval)
 {
+	check(IsInRenderingThread());
+
+	if(!(GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport))
+	{
+		return false;
+	}
+
+	FD3D11Viewport* const Viewport = static_cast<FD3D11Viewport*>(GEngine->GameViewport->Viewport->GetViewportRHI().GetReference());
+	check(Viewport);
+
+#if !WITH_EDITOR
+	// Issue frame event
+	Viewport->IssueFrameEvent();
+	// Wait until GPU finish last frame commands
+	Viewport->WaitForFrameEventCompletion();
+#endif
+
 	if (!bUseAdvancedSynchronization)
 	{
 		// Sync by barrier only
@@ -173,15 +182,7 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 
 	++FrameCounter;
 
-	FD3D11Viewport* const Viewport = static_cast<FD3D11Viewport*>(GEngine->GameViewport->Viewport->GetViewportRHI().GetReference());
-	check(Viewport);
-	if (!Viewport)
-	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't get a viewport. Native present will be performed."));
-		return true;
-	}
-
-	IDXGISwapChain* const SwapChain = (IDXGISwapChain*)Viewport->GetSwapChain();
+	IDXGISwapChain* const SwapChain = (IDXGISwapChain*)GEngine->GameViewport->Viewport->GetViewportRHI()->GetNativeSwapChain();
 	check(SwapChain);
 	if (!SwapChain)
 	{
@@ -199,9 +200,8 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 	}
 
 	// Get dynamic values from console variables
-	const float VBlankThreshold = CVarVBlankThreshold.GetValueOnGameThread();
-	const float VBlankThresholdSleepMultiplier = CVarVBlankThresholdSleepMultiplier.GetValueOnGameThread();
-
+	const float VBlankThreshold = CVarVBlankThreshold.GetValueOnRenderThread();
+	const float VBlankThresholdSleepMultiplier = CVarVBlankThresholdSleepMultiplier.GetValueOnRenderThread();
 
 	if (!bTimersInitialized)
 	{
@@ -271,12 +271,12 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_nDisplayPresent_SoftSync_SwapChainPresent);
 
 		// Get dynamic values from console variables
-		const int32 VBlankBasisUpdate = CVarVBlankBasisUpdate.GetValueOnGameThread();
-		const float VBlankBasisUpdatePeriod = CVarVBlankBasisUpdatePeriod.GetValueOnGameThread();
+		const int32 VBlankBasisUpdate = CVarVBlankBasisUpdate.GetValueOnRenderThread();
+		const float VBlankBasisUpdatePeriod = CVarVBlankBasisUpdatePeriod.GetValueOnRenderThread();
 
 		// Regardless of where we are, it's safe to present a frame now. If we need to update the VBlank basis,
 		// we have to wait for a VBlank and store the time. We don't want to miss a frame presentation so we
-		// present it with swap interval 0 right after VBlank sygnal.
+		// present it with swap interval 0 right after VBlank signal.
 		int SyncIntervalToUse = 1;
 		if ((VBlankBasisUpdate > 0) && (B2A - VBlankBasis) > VBlankBasisUpdatePeriod)
 		{
@@ -291,7 +291,7 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("##SYNC_LOG - %d:%lf:%lf:%lf:%lf:%lf:%lf:%lf:%lf:%lf"), FrameCounter, B1B, B1A, TToB, SB, SA, B2B, B2A, PB, PA);
 
-	const bool LogDwmStats = (CVarLogDwmStats.GetValueOnGameThread() != 0);
+	const bool LogDwmStats = (CVarLogDwmStats.GetValueOnRenderThread() != 0);
 	if (LogDwmStats)
 	{
 		PrintDwmStats(FrameCounter);

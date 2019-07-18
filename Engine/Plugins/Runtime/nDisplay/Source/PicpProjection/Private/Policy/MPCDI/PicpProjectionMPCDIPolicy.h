@@ -30,8 +30,8 @@ public:
 	virtual ~FPicpProjectionMPCDIPolicy();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
-		// IDisplayClusterProjectionPolicy
-		//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterProjectionPolicy
+	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void StartScene(UWorld* World) override;
 	virtual void EndScene() override;
 	virtual bool HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount) override;
@@ -49,9 +49,8 @@ public:
 	void SetWarpTextureCapture(const uint32 ViewIdx, FRHITexture2D* target);
 	IMPCDI::FFrustum GetWarpFrustum(const uint32 ViewIdx, bool bIsCaptureWarpTextureFrustum);
 
-protected:
-	bool ReadConfigData(const FString& ViewportId, FString& OutFile, FString& OutBuffer, FString& OutRegion, FString& OutOrigin);
-	bool InitializeResources_RenderThread();
+protected:	
+	bool InitializeResources_RenderThread();	
 
 private:
 	FString OriginCompId;
@@ -77,6 +76,6 @@ private:
 
 	TArray<FViewData> Views;
 
-	bool bIsRenderResourcesInitialized = false;
-	FCriticalSection RenderingResourcesInitializationCS;
+	mutable bool bIsRenderResourcesInitialized = false;
+	mutable FCriticalSection RenderingResourcesInitializationCS;
 };

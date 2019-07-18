@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "PicpProjectionOverlayBase.h"
 #include "CoreMinimal.h"
 #include "RHI.h"
 
@@ -10,13 +9,13 @@ class FMPCDIData;
 
 
 class FPicpProjectionOverlayCamera
-	: public FPicpProjectionOverlayBase
 {
 public:
 	FVector  SoftEdge;    // Basic soft edges values
 	//@ Add more render options here
 	
 	//Camera setup
+	FString RTTViewportId;
 	FRHITexture* CameraTexture; // Texture to render
 	FMatrix Prj; // Projection matrix
 
@@ -24,22 +23,21 @@ public:
 	FVector  ViewLoc;
 
 public:
-	FPicpProjectionOverlayCamera(const FRotator& CameraRotation, const FVector& CameraLocation, const FMatrix& CameraPrj, FRHITexture* CameraTextureRef)
-		: FPicpProjectionOverlayBase()
-		, SoftEdge(0.1f, 0.1f, 0.1f)
+	FPicpProjectionOverlayCamera(const FRotator& CameraRotation, const FVector& CameraLocation, const FMatrix& CameraPrj, FRHITexture* CameraTextureRef, const FString& ViewportId)
+		: SoftEdge(0.1f, 0.1f, 0.1f)
+		, RTTViewportId(ViewportId)
 		, CameraTexture(CameraTextureRef)
 		, Prj(CameraPrj)
 		, ViewRot(CameraRotation)
 		, ViewLoc(CameraLocation)
-	{ 
-		SetEnable(true);
+	{
 	}
-
-	virtual ~FPicpProjectionOverlayCamera()
-	{ }
 
 	const FMatrix GetRuntimeCameraProjection() const
 	{ return RuntimeCameraProjection; }
+
+	void Empty()
+	{}
 
 public:
 	FMatrix RuntimeCameraProjection;
