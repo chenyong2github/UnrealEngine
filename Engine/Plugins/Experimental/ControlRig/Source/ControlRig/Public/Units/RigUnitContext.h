@@ -27,6 +27,9 @@ struct FRigUnitContext
 	FRigUnitContext()
 		: DrawInterface(nullptr)
 		, DataSourceRegistry(nullptr)
+		, DeltaTime(0.f)
+		, State(EControlRigState::Invalid)
+		, Hierarchy(nullptr)
 #if WITH_EDITOR
 		, Log(nullptr)
 #endif
@@ -47,15 +50,48 @@ struct FRigUnitContext
 	EControlRigState State;
 
 	/** The current hierarchy being executed */
-	FRigHierarchyRef HierarchyReference;
-
-	/** The current curve being executed */
-	FRigCurveContainerRef CurveReference;
+	const FRigHierarchyContainer* Hierarchy;
 
 #if WITH_EDITOR
 	/** A handle to the compiler log */
 	FControlRigLog* Log;
 #endif
+
+	const FRigBoneHierarchy* GetBones() const
+	{
+		if (Hierarchy != nullptr)
+		{
+			return &Hierarchy->BoneHierarchy;
+		}
+		return nullptr;
+	}
+
+	const FRigSpaceHierarchy* GetSpaces() const
+	{
+		if (Hierarchy != nullptr)
+		{
+			return &Hierarchy->SpaceHierarchy;
+		}
+		return nullptr;
+	}
+
+	const FRigControlHierarchy* GetControls() const
+	{
+		if (Hierarchy != nullptr)
+		{
+			return &Hierarchy->ControlHierarchy;
+		}
+		return nullptr;
+	}
+
+	const FRigCurveContainer* GetCurves() const
+	{
+		if (Hierarchy != nullptr)
+		{
+			return &Hierarchy->CurveContainer;
+		}
+		return nullptr;
+	}
 
 	/**
 	 * Returns a given data source and cast it to the expected class.

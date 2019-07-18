@@ -17,11 +17,10 @@ void FRigUnit_DebugBezier::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform Transform = WorldOffset;
-	if (Space != NAME_None && Context.HierarchyReference.GetBones() != nullptr)
+	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
-		Transform = Transform * Context.HierarchyReference.GetBones()->GetGlobalTransform(Space);
+		Transform = Transform * Context.GetBones()->GetGlobalTransform(Space);
 	}
-
 
 	Context.DrawInterface->DrawBezier(Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
 }

@@ -4,47 +4,50 @@
 
 #include "CoreMinimal.h"
 #include "RigHierarchyDefines.h"
-#include "RigBoneHierarchy.generated.h"
+#include "RigControlHierarchy.generated.h"
 
 class UControlRig;
 
 USTRUCT(BlueprintType)
-struct CONTROLRIG_API FRigBone
+struct CONTROLRIG_API FRigControl
 {
 	GENERATED_BODY()
 
-	FRigBone()
+	FRigControl()
 		: Name(NAME_None)
 		, Index(INDEX_NONE)
 		, ParentName(NAME_None)
 		, ParentIndex(INDEX_NONE)
+		, SpaceName(NAME_None)
+		, SpaceIndex(INDEX_NONE)
 		, InitialTransform(FTransform::Identity)
-		, GlobalTransform(FTransform::Identity)
 		, LocalTransform(FTransform::Identity)
 		, Dependents()
 	{
 	}
 
-	UPROPERTY(VisibleAnywhere, Category = FRigBoneHierarchy)
+	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
 	FName Name;
 
 	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
 	int32 Index;
 
-	UPROPERTY(VisibleAnywhere, Category = FRigBoneHierarchy)
+	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
 	FName ParentName;
 
 	UPROPERTY(transient)
 	int32 ParentIndex;
 
-	/* Initial global transform that is saved in this rig */
-	UPROPERTY(EditAnywhere, Category = FRigBoneHierarchy)
+	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
+	FName SpaceName;
+
+	UPROPERTY(transient)
+	int32 SpaceIndex;
+
+	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
 	FTransform InitialTransform;
 
-	UPROPERTY(transient, VisibleAnywhere, Category = FRigBoneHierarchy)
-	FTransform GlobalTransform;
-
-	UPROPERTY(transient, VisibleAnywhere, Category = FRigBoneHierarchy)
+	UPROPERTY(transient, VisibleAnywhere, Category = FRigControlHierarchy)
 	FTransform LocalTransform;
 
 	/** dependent list - direct dependent for child or anything that needs to update due to this */
@@ -53,45 +56,45 @@ struct CONTROLRIG_API FRigBone
 };
 
 USTRUCT()
-struct CONTROLRIG_API FRigBoneHierarchy
+struct CONTROLRIG_API FRigControlHierarchy
 {
 	GENERATED_BODY()
 
-	FRigBoneHierarchy();
-	FRigBoneHierarchy& operator= (const FRigBoneHierarchy &InOther);
+	FRigControlHierarchy();
+	FRigControlHierarchy& operator= (const FRigControlHierarchy &InOther);
 
-	FORCEINLINE ERigElementType RigElementType() const { return ERigElementType::Bone; }
+	FORCEINLINE ERigElementType RigElementType() const { return ERigElementType::Control; }
 
-	FORCEINLINE int32 Num() const { return Bones.Num(); }
-	FORCEINLINE const FRigBone& operator[](int32 InIndex) const { return Bones[InIndex]; }
-	FORCEINLINE FRigBone& operator[](int32 InIndex) { return Bones[InIndex]; }
-	FORCEINLINE const FRigBone& operator[](const FName& InName) const { return Bones[GetIndex(InName)]; }
-	FORCEINLINE FRigBone& operator[](const FName& InName) { return Bones[GetIndex(InName)]; }
+	FORCEINLINE int32 Num() const { return Controls.Num(); }
+	FORCEINLINE const FRigControl& operator[](int32 InIndex) const { return Controls[InIndex]; }
+	FORCEINLINE FRigControl& operator[](int32 InIndex) { return Controls[InIndex]; }
+	FORCEINLINE const FRigControl& operator[](const FName& InName) const { return Controls[GetIndex(InName)]; }
+	FORCEINLINE FRigControl& operator[](const FName& InName) { return Controls[GetIndex(InName)]; }
 
-	FORCEINLINE TArray<FRigBone>::RangedForIteratorType      begin()       { return Bones.begin(); }
-	FORCEINLINE TArray<FRigBone>::RangedForConstIteratorType begin() const { return Bones.begin(); }
-	FORCEINLINE TArray<FRigBone>::RangedForIteratorType      end()         { return Bones.end();   }
-	FORCEINLINE TArray<FRigBone>::RangedForConstIteratorType end() const   { return Bones.end();   }
+	FORCEINLINE TArray<FRigControl>::RangedForIteratorType      begin()       { return Controls.begin(); }
+	FORCEINLINE TArray<FRigControl>::RangedForConstIteratorType begin() const { return Controls.begin(); }
+	FORCEINLINE TArray<FRigControl>::RangedForIteratorType      end()         { return Controls.end();   }
+	FORCEINLINE TArray<FRigControl>::RangedForConstIteratorType end() const   { return Controls.end();   }
 
 	FORCEINLINE bool IsNameAvailable(const FName& InPotentialNewName) const { return GetIndex(InPotentialNewName) == INDEX_NONE; }
 
 	FName GetSafeNewName(const FName& InPotentialNewName) const;
 
-	FRigBone& Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform);
+	FRigControl& Add(const FName& InNewName, const FName& InParentName, const FName& InSpaceName, const FTransform& InTransform);
 
-	FRigBone& Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform);
-
-	FRigBone Remove(const FName& InNameToRemove);
+	FRigControl Remove(const FName& InNameToRemove);
 
 	FName Rename(const FName& InOldName, const FName& InNewName);
 
 	void Reparent(const FName& InName, const FName& InNewParentName);
 
+	void SetSpace(const FName& InName, const FName& InNewSpaceName);
+
 	FName GetName(int32 InIndex) const;
 
 	FORCEINLINE int32 GetIndex(const FName& InName) const
 	{
-		if(NameToIndexMapping.Num() != Bones.Num())
+		if(NameToIndexMapping.Num() != Controls.Num())
 		{
 			return GetIndexSlow(InName);
 		}
@@ -110,17 +113,17 @@ struct CONTROLRIG_API FRigBoneHierarchy
 
 	int32 GetChildren(const int32 InIndex, TArray<int32>& OutChildren, bool bRecursively) const;
 
-	void SetGlobalTransform(const FName& InName, const FTransform& InTransform, bool bPropagateTransform = true);
+	void SetGlobalTransform(const FName& InName, const FTransform& InTransform);
 
-	void SetGlobalTransform(int32 InIndex, const FTransform& InTransform, bool bPropagateTransform = true);
+	void SetGlobalTransform(int32 InIndex, const FTransform& InTransform);
 
 	FTransform GetGlobalTransform(const FName& InName) const;
 
 	FTransform GetGlobalTransform(int32 InIndex) const;
 
-	void SetLocalTransform(const FName& InName, const FTransform& InTransform, bool bPropagateTransform = true);
+	void SetLocalTransform(const FName& InName, const FTransform& InTransform);
 
-	void SetLocalTransform(int32 InIndex, const FTransform& InTransform, bool bPropagateTransform = true);
+	void SetLocalTransform(int32 InIndex, const FTransform& InTransform);
 
 	FTransform GetLocalTransform(const FName& InName) const;
 
@@ -146,18 +149,18 @@ struct CONTROLRIG_API FRigBoneHierarchy
 private:
 
 	// disable copy constructor
-	FRigBoneHierarchy(const FRigBoneHierarchy& InOther) {}
+	FRigControlHierarchy(const FRigControlHierarchy& InOther) {}
 
 #if WITH_EDITOR
 	FRigHierarchyContainer* Container;
-	FRigElementAdded OnBoneAdded;
-	FRigElementRemoved OnBoneRemoved;
-	FRigElementRenamed OnBoneRenamed;
-	FRigElementReparented OnBoneReparented;
+	FRigElementAdded OnControlAdded;
+	FRigElementRemoved OnControlRemoved;
+	FRigElementRenamed OnControlRenamed;
+	FRigElementReparented OnControlReparented;
 #endif
 
-	UPROPERTY(EditAnywhere, Category = FRigBoneHierarchy)
-	TArray<FRigBone> Bones;
+	UPROPERTY(EditAnywhere, Category = FRigControlHierarchy)
+	TArray<FRigControl> Controls;
 
 	// can serialize fine? 
 	UPROPERTY()
@@ -165,16 +168,11 @@ private:
 
 	int32 GetIndexSlow(const FName& InName) const;
 
-	void RecalculateLocalTransform(FRigBone& InOutBone);
-	void RecalculateGlobalTransform(FRigBone& InOutBone);
-
 	void RefreshMapping();
 	void Sort();
 
 	// list of names of children - this is not cheap, and is supposed to be used only for one time set up
 	int32 GetChildrenRecursive(const int32 InIndex, TArray<int32>& OutChildren, bool bRecursively) const;
 
-	void PropagateTransform(int32 InIndex);
-	
 	friend struct FRigHierarchyContainer;
 };

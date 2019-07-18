@@ -16,7 +16,7 @@ void FRigUnit_DebugHierarchy::Execute(const FRigUnitContext& Context)
 		return;
 	}
 
-	const FRigBoneHierarchy* Hierarchy = Context.HierarchyReference.GetBones();
+	const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 	if (Hierarchy)
 	{
 		Context.DrawInterface->DrawHierarchy(WorldOffset, *Hierarchy, Mode, Scale, Color, Thickness);

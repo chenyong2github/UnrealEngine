@@ -180,7 +180,7 @@ void SRigBoneHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlR
 	// @todo: find a better place to do it
 	ControlRigBlueprint->HierarchyContainer.BoneHierarchy.Initialize();
 
-	ControlRigBlueprint->HierarchyContainer.OnElementChanged.AddRaw(this, &SRigBoneHierarchy::OnBoneHierarchyChanged);
+	ControlRigBlueprint->HierarchyContainer.OnElementChanged.AddRaw(this, &SRigBoneHierarchy::OnRigElementChanged);
 
 	// for deleting, renaming, dragging
 	CommandList = MakeShared<FUICommandList>();
@@ -406,9 +406,9 @@ void SRigBoneHierarchy::SelectBone(const FName& BoneName) const
 	}
 }
 
-void SRigBoneHierarchy::OnBoneHierarchyChanged(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName)
+void SRigBoneHierarchy::OnRigElementChanged(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
 {
-	if (ElementType != ERigHierarchyElementType::Bone)
+	if (ElementType != ERigElementType::Bone)
 	{
 		return;
 	}
@@ -558,6 +558,8 @@ void SRigBoneHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 				Hier->Add(BoneInfos[BoneIndex].Name, ParentName, FAnimationRuntime::GetComponentSpaceTransform(RefSkeleton, BonePoses, BoneIndex));
 			}
 		}
+
+		FSlateApplication::Get().DismissAllMenus();
 	}
 }
 
@@ -794,16 +796,10 @@ bool SRigBoneHierarchy::OnVerifyNameChanged(const FName& OldName, const FName& N
 	FRigBoneHierarchy* Hierarchy = GetHierarchy();
 	if (Hierarchy)
 	{
-		const int32 Found = Hierarchy->GetIndex(OldName);
-		if (Found != INDEX_NONE)
+		if (!Hierarchy->IsNameAvailable(NewName))
 		{
-			const int32 Duplicate = Hierarchy->GetIndex(NewName);
-			if (Duplicate != INDEX_NONE)
-			{
-				OutErrorMessage = FText::FromString(TEXT("Duplicate name exists"));
-
-				return false;
-			}
+			OutErrorMessage = FText::FromString(TEXT("Duplicate name exists"));
+			return false;
 		}
 	}
 

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Stats/StatsHierarchical.h"
+#include "RigHierarchyDefines.h"
 #include "RigCurveContainer.generated.h"
 
 class UControlRig;
@@ -13,8 +14,18 @@ struct FRigCurve
 {
 	GENERATED_BODY()
 
+	FRigCurve()
+		: Name(NAME_None)
+		, Index(INDEX_NONE)
+		, Value(0.f)
+	{
+	}
+
 	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
 	FName Name;
+
+	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
+	int32 Index;
 
 	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
 	float Value;
@@ -30,6 +41,8 @@ public:
 	FRigCurveContainer();
 	FRigCurveContainer& operator= (const FRigCurveContainer &InOther);
 
+	FORCEINLINE ERigElementType RigElementType() const { return ERigElementType::Curve; }
+
 	FORCEINLINE int32 Num() const { return Curves.Num(); }
 	FORCEINLINE const FRigCurve& operator[](int32 InIndex) const { return Curves[InIndex]; }
 	FORCEINLINE FRigCurve& operator[](int32 InIndex) { return Curves[InIndex]; }
@@ -41,9 +54,13 @@ public:
 	FORCEINLINE TArray<FRigCurve>::RangedForIteratorType      end()         { return Curves.end();   }
 	FORCEINLINE TArray<FRigCurve>::RangedForConstIteratorType end() const   { return Curves.end();   }
 
-	void Add(const FName& InNewName);
+	FORCEINLINE bool IsNameAvailable(const FName& InPotentialNewName) const { return GetIndex(InPotentialNewName) == INDEX_NONE; }
 
-	void Remove(const FName& InName);
+	FName GetSafeNewName(const FName& InPotentialNewName) const;
+
+	FRigCurve& Add(const FName& InNewName);
+
+	FRigCurve Remove(const FName& InName);
 
 	FName GetName(int32 InIndex) const;
 
@@ -71,7 +88,7 @@ public:
 
 	float GetValue(int32 InIndex) const;
 
-	void Rename(const FName& InOldName, const FName& InNewName);
+	FName Rename(const FName& InOldName, const FName& InNewName);
 
 	// updates all of the internal caches
 	void Initialize();
@@ -81,6 +98,13 @@ public:
 
 	// resets all of the transforms back to the initial transform
 	void ResetValues();
+
+#if WITH_EDITOR
+	FRigHierarchyContainer* Container;
+	FRigElementAdded OnCurveAdded;
+	FRigElementRemoved OnCurveRemoved;
+	FRigElementRenamed OnCurveRenamed;
+#endif
 
 private:
 
@@ -98,37 +122,9 @@ private:
 	void RefreshMapping();
 };
 
-
-// @todo: do we need this container now?
-USTRUCT()
-struct FRigCurveContainerRef
-{
-	GENERATED_BODY()
-
-	FRigCurveContainerRef(FRigCurveContainer* InContainer = nullptr)
-		: Container(InContainer)
-	{
-
-	}
-
-	FRigCurveContainer* Get() 
-	{
-		return GetInternal();
-	}
-
-	const FRigCurveContainer* Get() const
-	{
-		return (const FRigCurveContainer*)GetInternal();
-	}
-
-private:
-	struct FRigCurveContainer* Container;
-
-	FRigCurveContainer* GetInternal() const
-	{
-		return Container;
-	}
-
-	friend class UControlRig;
-	friend class FControlRigUnitTestBase;
-};
+// todo
+//USTRUCT()
+//struct CONTROLRIG_API FRigHierarchyRef
+//{
+//	GENERATED_BODY()
+//};

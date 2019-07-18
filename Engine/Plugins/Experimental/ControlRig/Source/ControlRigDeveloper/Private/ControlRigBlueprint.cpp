@@ -600,13 +600,18 @@ bool UControlRigBlueprint::PerformArrayOperation(const FString& InPropertyPath, 
 
 void UControlRigBlueprint::CleanupBoneHierarchyDeprecated()
 {
-	if (Hierarchy_DEPRECATED.Num() == 0)
+	if (Hierarchy_DEPRECATED.Num() > 0)
 	{
-		return;
+		HierarchyContainer.BoneHierarchy = Hierarchy_DEPRECATED;
+		Hierarchy_DEPRECATED.Reset();
 	}
 
-	HierarchyContainer.BoneHierarchy = Hierarchy_DEPRECATED;
-	Hierarchy_DEPRECATED.Reset();
+	if (CurveContainer_DEPRECATED.Num() > 0)
+	{
+		HierarchyContainer.CurveContainer = CurveContainer_DEPRECATED;
+		CurveContainer_DEPRECATED.Reset();
+	}
+
 }
 
 #undef LOCTEXT_NAMESPACE

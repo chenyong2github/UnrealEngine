@@ -17,9 +17,9 @@ void FRigUnit_DebugRectangle::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.HierarchyReference.GetBones() != nullptr)
+	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
-		DrawTransform = DrawTransform * Context.HierarchyReference.GetBones()->GetGlobalTransform(Space);
+		DrawTransform = DrawTransform * Context.GetBones()->GetGlobalTransform(Space);
 	}
 
 	Context.DrawInterface->DrawRectangle(WorldOffset, DrawTransform, Scale, Color, Thickness);
@@ -39,9 +39,9 @@ void FRigUnit_DebugArc::Execute(const FRigUnitContext& Context)
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.HierarchyReference.GetBones() != nullptr)
+	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
-		DrawTransform = DrawTransform * Context.HierarchyReference.GetBones()->GetGlobalTransform(Space);
+		DrawTransform = DrawTransform * Context.GetBones()->GetGlobalTransform(Space);
 	}
 
 	Context.DrawInterface->DrawArc(WorldOffset, DrawTransform, Radius, FMath::DegreesToRadians(MinimumDegrees), FMath::DegreesToRadians(MaximumDegrees), Color, Thickness, Detail);

@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "RigHierarchyDefines.h"
 #include "RigBoneHierarchy.h"
+#include "RigSpaceHierarchy.h"
+#include "RigControlHierarchy.h"
+#include "RigCurveContainer.h"
 #include "RigHierarchyContainer.generated.h"
 
 class UControlRig;
@@ -22,16 +25,25 @@ public:
 	UPROPERTY()
 	FRigBoneHierarchy BoneHierarchy;
 
+	UPROPERTY()
+	FRigSpaceHierarchy SpaceHierarchy;
+
+	UPROPERTY()
+	FRigControlHierarchy ControlHierarchy;
+
+	UPROPERTY()
+	FRigCurveContainer CurveContainer;
+
 	void Initialize();
 	void Reset();
 	void ResetTransforms();
 
 #if WITH_EDITOR
-	FRigHierarchyElementChanged OnElementChanged;
-	FRigHierarchyElementAdded OnElementAdded;
-	FRigHierarchyElementRemoved OnElementRemoved;
-	FRigHierarchyElementRenamed OnElementRenamed;
-	FRigHierarchyElementReparented OnElementReparented;
+	FRigElementChanged OnElementChanged;
+	FRigElementAdded OnElementAdded;
+	FRigElementRemoved OnElementRemoved;
+	FRigElementRenamed OnElementRenamed;
+	FRigElementReparented OnElementReparented;
 #endif
 
 protected:
@@ -40,29 +52,16 @@ protected:
 	FRigHierarchyContainer(const FRigHierarchyContainer& InContainer) {}
 
 #if WITH_EDITOR
-	void HandleOnElementAdded(FRigHierarchyContainer* InContainer, ERigHierarchyElementType InElementType, const FName& InName);
-	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, ERigHierarchyElementType InElementType, const FName& InName);
-	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigHierarchyElementType InElementType, const FName& InOldName, const FName& InNewName);
-	void HandleOnElementReparented(FRigHierarchyContainer* InContainer, ERigHierarchyElementType InElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName);
+	void HandleOnElementAdded(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName);
+	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName);
+	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName);
+	void HandleOnElementReparented(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName);
 #endif
 };
 
+// this struct is still here for backwards compatibility - but not used anywhere
 USTRUCT()
 struct CONTROLRIG_API FRigHierarchyRef
 {
 	GENERATED_BODY()
-
-	FRigHierarchyRef();
-
-	FRigBoneHierarchy* GetBones();
-	const FRigBoneHierarchy* GetBones() const;
-
-private:
-
-	struct FRigHierarchyContainer* Container;
-
-	FRigBoneHierarchy* GetBonesInternal() const;
-
-	friend class UControlRig;
-	friend class FControlRigUnitTestBase;
 };

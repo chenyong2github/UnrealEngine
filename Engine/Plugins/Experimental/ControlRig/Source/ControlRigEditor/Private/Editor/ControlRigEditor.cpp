@@ -185,10 +185,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	}
 
 	InControlRigBlueprint->OnModified().AddSP(this, &FControlRigEditor::HandleModelModified);
-	InControlRigBlueprint->HierarchyContainer.OnElementAdded.AddSP(this, &FControlRigEditor::OnHierarchyElementAdded);
-	InControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddSP(this, &FControlRigEditor::OnHierarchyElementRemoved);
-	InControlRigBlueprint->HierarchyContainer.OnElementRenamed.AddSP(this, &FControlRigEditor::OnHierarchyElementRenamed);
-	InControlRigBlueprint->HierarchyContainer.OnElementReparented.AddSP(this, &FControlRigEditor::OnHierarchyElementReparented);
+	InControlRigBlueprint->HierarchyContainer.OnElementAdded.AddSP(this, &FControlRigEditor::OnRigElementAdded);
+	InControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddSP(this, &FControlRigEditor::OnRigElementRemoved);
+	InControlRigBlueprint->HierarchyContainer.OnElementRenamed.AddSP(this, &FControlRigEditor::OnRigElementRenamed);
+	InControlRigBlueprint->HierarchyContainer.OnElementReparented.AddSP(this, &FControlRigEditor::OnRigElementReparented);
 
 	BindCommands();
 
@@ -1573,27 +1573,27 @@ void FControlRigEditor::OnBoneHierarchyChanged()
 	CacheBoneNameList();
 }
 
-void FControlRigEditor::OnHierarchyElementAdded(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName)
+void FControlRigEditor::OnRigElementAdded(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
 {
-	if (ElementType == ERigHierarchyElementType::Bone)
+	if (ElementType == ERigElementType::Bone)
 	{
 		OnBoneHierarchyChanged();
 	}
 }
 
-void FControlRigEditor::OnHierarchyElementRemoved(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName)
+void FControlRigEditor::OnRigElementRemoved(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
 {
-	if (ElementType == ERigHierarchyElementType::Bone)
+	if (ElementType == ERigElementType::Bone)
 	{
 		OnBoneHierarchyChanged();
 	}
 }
 
-void FControlRigEditor::OnHierarchyElementRenamed(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InOldName, const FName& InNewName)
+void FControlRigEditor::OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if (ElementType == ERigHierarchyElementType::Bone)
+	if (ElementType == ERigElementType::Bone)
 	{
 		UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
 		for (UEdGraph* Graph : Blueprint->UbergraphPages)
@@ -1640,11 +1640,58 @@ void FControlRigEditor::OnHierarchyElementRenamed(FRigHierarchyContainer* Contai
 			CacheBoneNameList();
 		}
 	}
+	else if(ElementType == ERigElementType::Curve)
+	{
+		UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
+		for (UEdGraph* Graph : Blueprint->UbergraphPages)
+		{
+			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			if (RigGraph == nullptr)
+			{
+				continue;
+			}
+
+			for (UEdGraphNode* Node : RigGraph->Nodes)
+			{
+				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
+				if (RigNode == nullptr)
+				{
+					continue;
+				}
+
+				UStructProperty* UnitProperty = RigNode->GetUnitProperty();
+				UStruct* UnitStruct = RigNode->GetUnitScriptStruct();
+				if (UnitProperty && UnitStruct)
+				{
+					for (TFieldIterator<UNameProperty> It(UnitStruct); It; ++It)
+					{
+						if (It->HasMetaData(UControlRig::CurveNameMetaName))
+						{
+							FString PinName = FString::Printf(TEXT("%s.%s"), *UnitProperty->GetName(), *It->GetName());
+							UEdGraphPin* Pin = Node->FindPin(PinName, EEdGraphPinDirection::EGPD_Input);
+							if (Pin)
+							{
+								FName CurrentCurve = FName(*Pin->GetDefaultAsString());
+								if (CurrentCurve == InOldName)
+								{
+									const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeCurveNamePinValue", "Change Curve Name Pin Value"));
+									Pin->Modify();
+									Pin->GetSchema()->TrySetDefaultValue(*Pin, InNewName.ToString());
+								}
+							}
+						}
+					}
+				}
+			}
+
+			CacheCurveNameList();
+		}
+	}
 }
 
-void FControlRigEditor::OnHierarchyElementReparented(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName)
+void FControlRigEditor::OnRigElementReparented(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName)
 {
-	if (ElementType == ERigHierarchyElementType::Bone)
+	if (ElementType == ERigElementType::Bone)
 	{
 		OnBoneHierarchyChanged();
 	}
@@ -1675,56 +1722,6 @@ void FControlRigEditor::OnCurveContainerChanged()
 
 	TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
-}
-
-void FControlRigEditor::OnCurveRenamed(const FName& OldName, const FName& NewName)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	UControlRigBlueprint* Blueprint = GetControlRigBlueprint();
-	for (UEdGraph* Graph : Blueprint->UbergraphPages)
-	{
-		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
-		if (RigGraph == nullptr)
-		{
-			continue;
-		}
-
-		for (UEdGraphNode* Node : RigGraph->Nodes)
-		{
-			UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
-			if (RigNode == nullptr)
-			{
-				continue;
-			}
-
-			UStructProperty* UnitProperty = RigNode->GetUnitProperty();
-			UStruct* UnitStruct = RigNode->GetUnitScriptStruct();
-			if (UnitProperty && UnitStruct)
-			{
-				for (TFieldIterator<UNameProperty> It(UnitStruct); It; ++It)
-				{
-					if (It->HasMetaData(UControlRig::CurveNameMetaName))
-					{
-						FString PinName = FString::Printf(TEXT("%s.%s"), *UnitProperty->GetName(), *It->GetName());
-						UEdGraphPin* Pin = Node->FindPin(PinName, EEdGraphPinDirection::EGPD_Input);
-						if (Pin)
-						{
-							FName CurrentCurve = FName(*Pin->GetDefaultAsString());
-							if (CurrentCurve == OldName)
-							{
-								const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeCurveNamePinValue", "Change Curve Name Pin Value"));
-								Pin->Modify();
-								Pin->GetSchema()->TrySetDefaultValue(*Pin, NewName.ToString());
-							}
-						}
-					}
-				}
-			}
-		}
-
-		CacheCurveNameList();
-	}
 }
 
 void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition)

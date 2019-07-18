@@ -7,6 +7,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
+#include "Rigs/RigHierarchyContainer.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDisplayedRigCurveInfo
@@ -158,9 +159,6 @@ public:
 	*/
 	void OnPreviewAssetChanged(class UAnimationAsset* NewPreviewAsset);
 
-	/** Is registered with ControlRig Editor to handle when curves change. */
-	void OnCurvesChanged();
-
 	/**
 	* Filters the SListView when the user changes the search text box (NameFilterBox)
 	*
@@ -231,6 +229,7 @@ private:
 	void SetCurveValue(const FName& CurveName, float CurveValue);
 	float GetCurveValue(const FName& CurveName);
 	void ChangeCurveName(const FName& OldName, const FName& NewName);
+	void OnRigElementChanged(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
 
 	// import curve part
 	void ImportCurve(const FAssetData& InAssetData);

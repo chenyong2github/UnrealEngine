@@ -6,8 +6,7 @@
 void FRigUnit_PointSimulation::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
-	FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 
 	float DeltaTime = Context.DeltaTime;
 

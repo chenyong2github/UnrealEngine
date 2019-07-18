@@ -9,63 +9,83 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 FRigCurveContainer::FRigCurveContainer()
+#if WITH_EDITOR
+	:Container(nullptr)
+#endif
 {
 }
 
 FRigCurveContainer& FRigCurveContainer::operator= (const FRigCurveContainer &InOther)
 {
-	/*
 #if WITH_EDITOR
 	for (int32 Index = Num() - 1; Index >= 0; Index--)
 	{
-		FRigSpace SpaceToRemove = Spaces[Index];
-		OnSpaceRemoved.Broadcast(Container, ERigHierarchyElementType::Space, SpaceToRemove.Name);
+		FRigCurve CurveToRemove = Curves[Index];
+		OnCurveRemoved.Broadcast(Container, RigElementType(), CurveToRemove.Name);
 	}
 #endif
-	*/
 
 	Curves.Reset();
 	Curves.Append(InOther.Curves);
 	NameToIndexMapping.Reset();
 	RefreshMapping();
 
-	/*
 #if WITH_EDITOR
-	for (const FRigSpace& SpaceAdded : Spaces)
+	for (const FRigCurve& CurveAdded : Curves)
 	{
-		OnSpaceAdded.Broadcast(Container, ERigHierarchyElementType::Space, SpaceAdded.Name);
+		OnCurveAdded.Broadcast(Container, RigElementType(), CurveAdded.Name);
 	}
 #endif
-	*/
 
 	return *this;
 }
 
-void FRigCurveContainer::Add(const FName& InNewName)
+FName FRigCurveContainer::GetSafeNewName(const FName& InPotentialNewName) const
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	int32 Found = GetIndex(InNewName);
-	if (Found == INDEX_NONE)
+	FName Name = InPotentialNewName;
+	int32 Suffix = 1;
+	while(!IsNameAvailable(Name))
 	{
-		FRigCurve NewCurve;
-		NewCurve.Name = InNewName;
-		NewCurve.Value = 0.f;
-		Curves.Add(NewCurve);
-		RefreshMapping();
+		Name = *FString::Printf(TEXT("%s_%d"), *InPotentialNewName.ToString(), ++Suffix);
 	}
+	return Name;
 }
 
-void FRigCurveContainer::Remove(const FName& InName)
+FRigCurve& FRigCurveContainer::Add(const FName& InNewName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	FRigCurve NewCurve;
+	NewCurve.Name = GetSafeNewName(InNewName);
+	NewCurve.Value = 0.f;
+	Curves.Add(NewCurve);
+	RefreshMapping();
+
+#if WITH_EDITOR
+	OnCurveAdded.Broadcast(Container, RigElementType(), NewCurve.Name);
+#endif
+
+	int32 Index = GetIndex(NewCurve.Name);
+	return Curves[Index];
+}
+
+FRigCurve FRigCurveContainer::Remove(const FName& InName)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	FRigCurve RemovedCurve;
+
 	int32 IndexToDelete = GetIndex(InName);
-	if (IndexToDelete != INDEX_NONE)
-	{
-		Curves.RemoveAt(IndexToDelete);
-		RefreshMapping();
-	}
+	ensure(IndexToDelete != INDEX_NONE);
+	RemovedCurve = Curves[IndexToDelete];
+	Curves.RemoveAt(IndexToDelete);
+	RefreshMapping();
+
+#if WITH_EDITOR
+	OnCurveRemoved.Broadcast(Container, RigElementType(), RemovedCurve.Name);
+#endif
+
+	return RemovedCurve;
 }
 
 FName FRigCurveContainer::GetName(int32 InIndex) const
@@ -120,21 +140,27 @@ float FRigCurveContainer::GetValue(int32 InIndex) const
 	return 0.f;
 }
 
-void FRigCurveContainer::Rename(const FName& InOldName, const FName& InNewName)
+FName FRigCurveContainer::Rename(const FName& InOldName, const FName& InNewName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	if (InOldName != InNewName)
 	{
 		const int32 Found = GetIndex(InOldName);
-		const int32 NewNameFound = GetIndex(InNewName);
-		// if I have new name, and didn't find new name
-		if (Found != INDEX_NONE && NewNameFound == INDEX_NONE)
+		if (Found != INDEX_NONE)
 		{
-			Curves[Found].Name = InNewName;
+			FName NewName = GetSafeNewName(InNewName);
+			Curves[Found].Name = NewName;
 			RefreshMapping();
+
+#if WITH_EDITOR
+			OnCurveRenamed.Broadcast(Container, RigElementType(), InOldName, NewName);
+#endif
+			return NewName;
 		}
 	}
+	
+	return NAME_None;
 }
 
 void FRigCurveContainer::RefreshMapping()
@@ -144,6 +170,7 @@ void FRigCurveContainer::RefreshMapping()
 	NameToIndexMapping.Empty();
 	for (int32 Index = 0; Index < Curves.Num(); ++Index)
 	{
+		Curves[Index].Index = Index;
 		NameToIndexMapping.Add(Curves[Index].Name, Index);
 	}
 }

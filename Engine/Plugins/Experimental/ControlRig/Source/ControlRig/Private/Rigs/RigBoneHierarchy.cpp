@@ -21,7 +21,7 @@ FRigBoneHierarchy& FRigBoneHierarchy::operator= (const FRigBoneHierarchy &InOthe
 	for (int32 Index = Num() - 1; Index >= 0; Index--)
 	{
 		FRigBone BoneToRemove = Bones[Index];
-		OnBoneRemoved.Broadcast(Container, ERigHierarchyElementType::Bone, BoneToRemove.Name);
+		OnBoneRemoved.Broadcast(Container, RigElementType(), BoneToRemove.Name);
 	}
 #endif
 
@@ -33,11 +33,22 @@ FRigBoneHierarchy& FRigBoneHierarchy::operator= (const FRigBoneHierarchy &InOthe
 #if WITH_EDITOR
 	for (const FRigBone& BoneAdded : Bones)
 	{
-		OnBoneAdded.Broadcast(Container, ERigHierarchyElementType::Bone, BoneAdded.Name);
+		OnBoneAdded.Broadcast(Container, RigElementType(), BoneAdded.Name);
 	}
 #endif
 
 	return *this;
+}
+
+FName FRigBoneHierarchy::GetSafeNewName(const FName& InPotentialNewName) const
+{
+	FName Name = InPotentialNewName;
+	int32 Suffix = 1;
+	while(!IsNameAvailable(Name))
+	{
+		Name = *FString::Printf(TEXT("%s_%d"), *InPotentialNewName.ToString(), ++Suffix);
+	}
+	return Name;
 }
 
 FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform)
@@ -46,7 +57,7 @@ FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentNa
 	bool bHasParent = (ParentIndex != INDEX_NONE);
 
 	FRigBone NewBone;
-	NewBone.Name = InNewName;
+	NewBone.Name = GetSafeNewName(InNewName);
 	NewBone.ParentIndex = ParentIndex;
 	NewBone.ParentName = bHasParent? InParentName : NAME_None;
 	NewBone.InitialTransform = InInitTransform;
@@ -57,10 +68,10 @@ FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentNa
 	RefreshMapping();
 
 #if WITH_EDITOR
-	OnBoneAdded.Broadcast(Container, ERigHierarchyElementType::Bone, InNewName);
+	OnBoneAdded.Broadcast(Container, RigElementType(), NewBone.Name);
 #endif
 
-	int32 Index = GetIndex(InNewName);
+	int32 Index = GetIndex(NewBone.Name);
 	return Bones[Index];
 }
 
@@ -94,7 +105,7 @@ void FRigBoneHierarchy::Reparent(const FName& InName, const FName& InNewParentNa
 #if WITH_EDITOR
 		if (OldParentName != InNewParentName)
 		{
-			OnBoneReparented.Broadcast(Container, ERigHierarchyElementType::Bone, InName, OldParentName, InNewParentName);
+			OnBoneReparented.Broadcast(Container, RigElementType(), InName, OldParentName, InNewParentName);
 		}
 #endif
 	}
@@ -130,9 +141,9 @@ FRigBone FRigBoneHierarchy::Remove(const FName& InNameToRemove)
 #if WITH_EDITOR
 	for (const FName& RemovedChildBone : RemovedChildBones)
 	{
-		OnBoneRemoved.Broadcast(Container, ERigHierarchyElementType::Bone, RemovedChildBone);
+		OnBoneRemoved.Broadcast(Container, RigElementType(), RemovedChildBone);
 	}
-	OnBoneRemoved.Broadcast(Container, ERigHierarchyElementType::Bone, RemovedBone.Name);
+	OnBoneRemoved.Broadcast(Container, RigElementType(), RemovedBone.Name);
 #endif
 
 	return RemovedBone;
@@ -292,14 +303,15 @@ void FRigBoneHierarchy::RecalculateGlobalTransform(FRigBone& InOutBone)
 	InOutBone.GlobalTransform = (bHasParent) ? InOutBone.LocalTransform * Bones[InOutBone.ParentIndex].GlobalTransform : InOutBone.LocalTransform;
 }
 
-void FRigBoneHierarchy::Rename(const FName& InOldName, const FName& InNewName)
+FName FRigBoneHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 {
 	if (InOldName != InNewName)
 	{
 		const int32 Found = GetIndex(InOldName);
 		if (Found != INDEX_NONE)
 		{
-			Bones[Found].Name = InNewName;
+			FName NewName = GetSafeNewName(InNewName);
+			Bones[Found].Name = NewName;
 
 			// go through find all children and rename them
 #if WITH_EDITOR
@@ -309,7 +321,7 @@ void FRigBoneHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 			{
 				if (Bones[Index].ParentName == InOldName)
 				{
-					Bones[Index].ParentName = InNewName;
+					Bones[Index].ParentName = NewName;
 					RecalculateLocalTransform(Bones[Index]);
 #if WITH_EDITOR
 					ReparentedBones.Add(Bones[Index].Name);
@@ -320,14 +332,17 @@ void FRigBoneHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 			RefreshMapping();
 
 #if WITH_EDITOR
-			OnBoneRenamed.Broadcast(Container, ERigHierarchyElementType::Bone, InOldName, InNewName);
+			OnBoneRenamed.Broadcast(Container, RigElementType(), InOldName, NewName);
 			for (const FName& ReparentedBone : ReparentedBones)
 			{
-				OnBoneReparented.Broadcast(Container, ERigHierarchyElementType::Bone, ReparentedBone, InOldName, InNewName);
+				OnBoneReparented.Broadcast(Container, RigElementType(), ReparentedBone, InOldName, NewName);
 			}
 #endif
+			return NewName;
 		}
 	}
+
+	return NAME_None;
 }
 
 void FRigBoneHierarchy::Sort()
@@ -396,6 +411,7 @@ void FRigBoneHierarchy::RefreshMapping()
 	NameToIndexMapping.Empty();
 	for (int32 Index = 0; Index < Bones.Num(); ++Index)
 	{
+		Bones[Index].Index = Index;
 		NameToIndexMapping.Add(Bones[Index].Name, Index);
 	}
 }

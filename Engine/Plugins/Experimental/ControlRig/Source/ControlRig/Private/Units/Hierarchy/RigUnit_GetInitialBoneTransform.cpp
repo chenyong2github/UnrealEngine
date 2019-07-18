@@ -11,8 +11,7 @@ FString FRigUnit_GetInitialBoneTransform::GetUnitLabel() const
 void FRigUnit_GetInitialBoneTransform::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigHierarchyRef& HierarchyRef = Context.HierarchyReference;
-	const FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+	const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 	if (Hierarchy)
 	{
 		switch (Context.State)

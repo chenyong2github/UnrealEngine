@@ -169,7 +169,7 @@ private:
 	FRigBoneHierarchy Hierarchy_DEPRECATED;
 
 	UPROPERTY()
-	FRigCurveContainer CurveContainer;
+	FRigCurveContainer CurveContainer_DEPRECATED;
 
 	/** The default skeletal mesh to use when previewing this asset */
 	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)

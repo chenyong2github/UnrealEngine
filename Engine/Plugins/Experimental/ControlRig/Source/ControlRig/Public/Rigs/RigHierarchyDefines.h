@@ -8,18 +8,19 @@
 struct FRigHierarchyContainer;
 
 UENUM()
-enum class ERigHierarchyElementType : uint8
+enum class ERigElementType : uint8
 {
 	Bone,
 	Space,
 	Control,
+	Curve,
 
 	/** MAX - invalid */
 	Max UMETA(Hidden),
 };
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyElementChanged, FRigHierarchyContainer*, ERigHierarchyElementType, const FName&);
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyElementAdded, FRigHierarchyContainer*, ERigHierarchyElementType, const FName&);
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyElementRemoved, FRigHierarchyContainer*, ERigHierarchyElementType, const FName&);
-DECLARE_MULTICAST_DELEGATE_FourParams(FRigHierarchyElementRenamed, FRigHierarchyContainer*, ERigHierarchyElementType, const FName&, const FName&);
-DECLARE_MULTICAST_DELEGATE_FiveParams(FRigHierarchyElementReparented, FRigHierarchyContainer*, ERigHierarchyElementType, const FName&, const FName&, const FName&);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigElementChanged, FRigHierarchyContainer*, ERigElementType, const FName&);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigElementAdded, FRigHierarchyContainer*, ERigElementType, const FName&);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigElementRemoved, FRigHierarchyContainer*, ERigElementType, const FName&);
+DECLARE_MULTICAST_DELEGATE_FourParams(FRigElementRenamed, FRigHierarchyContainer*, ERigElementType, const FName&, const FName&);
+DECLARE_MULTICAST_DELEGATE_FiveParams(FRigElementReparented, FRigHierarchyContainer*, ERigElementType, const FName&, const FName&, const FName&);

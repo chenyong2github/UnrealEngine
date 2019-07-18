@@ -7,9 +7,8 @@
 void FRigUnit_GetJointTransform::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 
-	FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy)
 	{
 		int32 Index = Hierarchy->GetIndex(Joint);

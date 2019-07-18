@@ -143,6 +143,7 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 {
 	ControlRigEditor = InControlRigEditor;
 	ControlRigBlueprint = InControlRigEditor.Get().GetControlRigBlueprint();
+	ControlRigBlueprint->HierarchyContainer.OnElementChanged.AddRaw(this, &SRigCurveContainer::OnRigElementChanged);
 
 	// Register and bind all our menu commands
 	FCurveContainerCommands::Register();
@@ -197,6 +198,14 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 
 SRigCurveContainer::~SRigCurveContainer()
 {
+	if (ControlRigEditor.IsValid())
+	{
+		ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
+		if (ControlRigBlueprint.IsValid())
+		{
+			ControlRigBlueprint->HierarchyContainer.OnElementChanged.RemoveAll(this);
+		}
+	}
 }
 
 FReply SRigCurveContainer::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -247,11 +256,6 @@ void SRigCurveContainer::OnFilterTextChanged( const FText& SearchText )
 {
 	FilterText = SearchText;
 
-	RefreshCurveList();
-}
-
-void SRigCurveContainer::OnCurvesChanged()
-{
 	RefreshCurveList();
 }
 
@@ -338,7 +342,6 @@ void SRigCurveContainer::CreateNewNameEntry(const FText& CommittedText, ETextCom
 		if (Container)
 		{
 			Container->Add(FName(*CommittedText.ToString()));
-			RefreshCurveList();
 		}
 	}
 }
@@ -394,7 +397,6 @@ void SRigCurveContainer::OnNameCommitted(const FText& InNewName, ETextCommit::Ty
 			FName NewName = FName(*InNewName.ToString());
 			FName OldName = Item->CurveName;
 			Container->Rename(OldName, NewName);
-			RefreshCurveList();
 		}
 	}
 }
@@ -409,8 +411,6 @@ void SRigCurveContainer::OnDeleteNameClicked()
 		{
 			Container->Remove(Item->CurveName);
 		}
-
-		RefreshCurveList();
 	}
 }
 
@@ -446,6 +446,16 @@ void SRigCurveContainer::ChangeCurveName(const FName& OldName, const FName& NewN
 	{
 		Container->Rename(OldName, NewName);
 	}
+}
+
+void SRigCurveContainer::OnRigElementChanged(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
+{
+	if (ElementType != ERigElementType::Curve)
+	{
+		return;
+	}
+
+	RefreshCurveList();
 }
 
 void SRigCurveContainer::CreateImportMenu(FMenuBuilder& MenuBuilder)
@@ -512,8 +522,6 @@ void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)
 				Container->Add(NameArray[Index]);
 			}
 
-			ControlRigEditor.Pin()->OnCurveContainerChanged();
-			RefreshCurveList();
 			FSlateApplication::Get().DismissAllMenus();
 		}
 	}
@@ -526,7 +534,7 @@ FRigCurveContainer* SRigCurveContainer::GetInstanceCurveContainer() const
 		UControlRig* ControlRig = ControlRigEditor.Pin()->GetInstanceRig();
 		if (ControlRig)
 		{
-			return &ControlRig->CurveContainer;
+			return &ControlRig->Hierarchy.CurveContainer;
 		}
 	}
 
@@ -537,7 +545,7 @@ FRigCurveContainer* SRigCurveContainer::GetCurveContainer() const
 {
 	if (ControlRigBlueprint.IsValid())
 	{
-		return &ControlRigBlueprint->CurveContainer;
+		return &ControlRigBlueprint->HierarchyContainer.CurveContainer;
 	}
 
 	return nullptr;

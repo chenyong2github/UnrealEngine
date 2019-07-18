@@ -7,11 +7,10 @@
 void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 	
 	if (Context.State == EControlRigState::Init)
 	{
-		FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 		if (!Hierarchy)
 		{
 			UnitLogHelpers::PrintMissingHierarchy(RigUnitName);
@@ -19,7 +18,7 @@ void FRigUnit_ApplyFK::Execute(const FRigUnitContext& Context)
 	}
 	else if (Context.State == EControlRigState::Update)
 	{
-		FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 		if (Hierarchy)
 		{
 			int32 Index = Hierarchy->GetIndex(Joint);

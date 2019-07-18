@@ -191,7 +191,7 @@ private:
 
 	void ClearDetailPanel() const;
 	void SelectBone(const FName& BoneName) const;
-	void OnBoneHierarchyChanged(FRigHierarchyContainer* Container, ERigHierarchyElementType ElementType, const FName& InName);
+	void OnRigElementChanged(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
 
 public:
 	bool RenameBone(const FName& OldName, const FName& NewName);

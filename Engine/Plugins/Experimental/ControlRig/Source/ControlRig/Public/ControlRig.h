@@ -9,7 +9,6 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Templates/SubclassOf.h"
 #include "ControlRigDefines.h"
-#include "Rigs/RigCurveContainer.h"
 #include "Rigs/RigHierarchyContainer.h"
 #include "Units/RigUnitContext.h"
 #include "Animation/NodeMappingProviderInterface.h"
@@ -105,6 +104,26 @@ public:
 		return ObjectBinding;
 	}
 
+	const FRigBoneHierarchy& GetBoneHierarchy() const
+	{
+		return Hierarchy.BoneHierarchy;
+	}
+
+	const FRigSpaceHierarchy& GetSpaceHierarchy() const
+	{
+		return Hierarchy.SpaceHierarchy;
+	}
+
+	const FRigControlHierarchy& GetControlHierarchy() const
+	{
+		return Hierarchy.ControlHierarchy;
+	}
+
+	const FRigCurveContainer& GetCurveContainer() const
+	{
+		return Hierarchy.CurveContainer;
+	}
+
 	/** Evaluate another animation ControlRig */
 	FTransform GetGlobalTransform(const FName& BoneName) const;
 
@@ -117,12 +136,6 @@ public:
 	/** Evaluate another animation ControlRig */
 	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true) ;
 
-	/** Returns base hierarchy */
-	const FRigBoneHierarchy& GetBoneHierarchy() const
-	{
-		return Hierarchy.BoneHierarchy;
-	}
-
 	/** Evaluate another animation ControlRig */
 	float GetCurveValue(const FName& CurveName) const;
 
@@ -134,12 +147,6 @@ public:
 
 	/** Evaluate another animation ControlRig */
 	void SetCurveValue(const int32 CurveIndex, const float CurveValue);
-
-	/** Returns base hierarchy */
-	const FRigCurveContainer& GetCurveContainer() const
-	{
-		return CurveContainer;
-	}
 
 	void SetPreEvaluateGatherInputDelegate(const FPreEvaluateGatherInput& Delegate)
 	{
@@ -220,9 +227,6 @@ public:
 private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Hierarchy")
 	FRigHierarchyContainer Hierarchy;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Curve")
-	FRigCurveContainer CurveContainer;
 
 #if WITH_EDITORONLY_DATA
 	/** The properties of source accessible <target, source local path> when source -> target

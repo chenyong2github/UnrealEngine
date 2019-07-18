@@ -11,8 +11,7 @@ FString FRigUnit_SetBoneTransform::GetUnitLabel() const
 void FRigUnit_SetBoneTransform::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
-	FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -62,7 +61,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneTransform)
 	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), FTransform(FVector(1.f, 2.f, 3.f)));
 	BoneHierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), FTransform(FVector(1.f, 5.f, 3.f)));
 	BoneHierarchy.Initialize();
-	Unit.ExecuteContext.HierarchyReference = HierarchyRef;
+	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
 
 	BoneHierarchy.ResetTransforms();
 	Unit.Bone = TEXT("Root");

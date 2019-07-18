@@ -8,11 +8,10 @@
 void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 
 	if (Context.State == EControlRigState::Init)
 	{
-		const FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+		const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 		if (Hierarchy)
 		{
 			// reset
@@ -76,7 +75,7 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 			else if (FMath::IsNearlyEqual(IKBlend, 1.f))
 			{
 				// update transform before going through IK
-				const FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+				const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 				check(Hierarchy);
 
 				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
@@ -92,7 +91,7 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 			else
 			{
 				// update transform before going through IK
-				const FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+				const FRigBoneHierarchy* Hierarchy = Context.GetBones();
 				check(Hierarchy);
 
 				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
@@ -106,7 +105,7 @@ void FRigUnit_TwoBoneIKFK::Execute(const FRigUnitContext& Context)
 				EndJointTransform.Blend(MidJointFKTransform, EndJointIKTransform, IKBlend);
 			}
 
-			FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+			FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 			check(Hierarchy);
 			Hierarchy->SetGlobalTransform(StartJointIndex, StartJointTransform);
 			Hierarchy->SetGlobalTransform(MidJointIndex, MidJointTransform);

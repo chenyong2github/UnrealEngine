@@ -200,7 +200,6 @@ void UControlRig::Initialize(bool bInitRigUnits)
 
 	// should refresh mapping 
 	Hierarchy.Initialize();
-	CurveContainer.Initialize();
 
 	// resolve IO properties
 	ResolveInputOutputProperties();
@@ -223,7 +222,6 @@ void UControlRig::InitializeFromCDO()
 	UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 	// copy operation
 	Hierarchy = CDO->Hierarchy;
-	CurveContainer = CDO->CurveContainer;
 }
 
 void UControlRig::PreEvaluate_GameThread()
@@ -317,8 +315,7 @@ void UControlRig::Execute(const EControlRigState InState)
 
 	Context.DeltaTime = DeltaTime;
 	Context.State = InState;
-	Context.HierarchyReference.Container = &Hierarchy;
-	Context.CurveReference = FRigCurveContainerRef(&CurveContainer);
+	Context.Hierarchy = &Hierarchy;
 
 #if WITH_EDITOR
 	Context.Log = ControlRigLog;
@@ -431,26 +428,26 @@ void UControlRig::SetGlobalTransform(const int32 BoneIndex, const FTransform& In
 float UControlRig::GetCurveValue(const FName& CurveName) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	return CurveContainer.GetValue(CurveName);
+	return Hierarchy.CurveContainer.GetValue(CurveName);
 }
 
 void UControlRig::SetCurveValue(const FName& CurveName, const float CurveValue)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	CurveContainer.SetValue(CurveName, CurveValue);
+	Hierarchy.CurveContainer.SetValue(CurveName, CurveValue);
 }
 
 float UControlRig::GetCurveValue(const int32 CurveIndex) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	return CurveContainer.GetValue(CurveIndex);
+	return Hierarchy.CurveContainer.GetValue(CurveIndex);
 }
 
 void UControlRig::SetCurveValue(const int32 CurveIndex, const float CurveValue)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	CurveContainer.SetValue(CurveIndex, CurveValue);
+	Hierarchy.CurveContainer.SetValue(CurveIndex, CurveValue);
 }
 
 void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const

@@ -11,8 +11,7 @@ FString FRigUnit_SetBoneRotation::GetUnitLabel() const
 void FRigUnit_SetBoneRotation::Execute(const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
-	FRigBoneHierarchy* Hierarchy = HierarchyRef.GetBones();
+	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -67,7 +66,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneRotation)
 	BoneHierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), FTransform(FQuat(FVector(-1.f, 0.f, 0.f), 0.7f)));
 	BoneHierarchy.Initialize();
 
-	Unit.ExecuteContext.HierarchyReference = HierarchyRef;
+	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
 
 	BoneHierarchy.ResetTransforms();
 	Unit.Bone = TEXT("Root");

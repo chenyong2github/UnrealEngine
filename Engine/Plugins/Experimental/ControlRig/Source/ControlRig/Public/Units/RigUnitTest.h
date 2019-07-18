@@ -14,22 +14,20 @@ public:
 	FControlRigUnitTestBase(const FString& InName, bool bIsComplex)
 		: FAutomationTestBase(InName, bIsComplex)
 		, HierarchyContainer()
-		, HierarchyRef(FRigHierarchyRef())
 		, BoneHierarchy(HierarchyContainer.BoneHierarchy)
-		, CurveContainer()
-		, CurveContainerRef(&CurveContainer)
+		, SpaceHierarchy(HierarchyContainer.SpaceHierarchy)
+		, ControlHierarchy(HierarchyContainer.ControlHierarchy)
+		, CurveContainer(HierarchyContainer.CurveContainer)
 	{
-		HierarchyRef.Container = &HierarchyContainer;
-		Context.HierarchyReference = HierarchyRef;
-		ExecuteContext.HierarchyReference = HierarchyRef;
-		ExecuteContext.CurveReference = CurveContainerRef;
+		Context.Hierarchy = &HierarchyContainer;
+		ExecuteContext.Hierarchy= &HierarchyContainer;
 	}
 
 	FRigHierarchyContainer HierarchyContainer;
-	FRigHierarchyRef HierarchyRef;
 	FRigBoneHierarchy& BoneHierarchy;
-	FRigCurveContainer CurveContainer;
-	FRigCurveContainerRef CurveContainerRef;
+	FRigSpaceHierarchy& SpaceHierarchy;
+	FRigControlHierarchy& ControlHierarchy;
+	FRigCurveContainer& CurveContainer;
 	FControlRigExecuteContext ExecuteContext;
 	FRigUnitContext Context;
 };
