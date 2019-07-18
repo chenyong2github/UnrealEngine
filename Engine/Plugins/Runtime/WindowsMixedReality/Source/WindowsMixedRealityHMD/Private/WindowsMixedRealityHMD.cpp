@@ -328,8 +328,6 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::OnBeginPlay(FWorldContext & InWorldContext)
 	{
-		EnableStereo(true);
-
 		//start speech recognition if there are any commands we care to listen for
 		StartSpeechRecognition();
 
@@ -338,8 +336,6 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::OnEndPlay(FWorldContext & InWorldContext)
 	{
-		EnableStereo(false);
-
 		StopSpeechRecognition();
 
 		IWindowsMixedRealityHandTrackingModule::Get().RemoveLiveLinkSource();
@@ -509,7 +505,7 @@ namespace WindowsMixedReality
 		}
 
 		// Restore windows focus to game window to preserve keyboard/mouse input.
-		if ((currentWornState == EHMDWornState::Type::Worn) && GEngine)
+		if ((currentWornState == EHMDWornState::Type::Worn) && GEngine && GEngine->GameViewport)
 		{
 			HWND gameHWND = (HWND)GEngine->GameViewport->GetWindow()->GetNativeWindow()->GetOSWindowHandle();
 
@@ -1090,7 +1086,9 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealityHMD::HasVisibleAreaMesh() const
 	{
-		return VisibleAreaMesh[0].IsValid() && VisibleAreaMesh[1].IsValid();
+		//re-enable this when we're not running on the simulator once we can query for platform type
+		return false;
+		//return VisibleAreaMesh[0].IsValid() && VisibleAreaMesh[1].IsValid();
 	}
 
 	void FWindowsMixedRealityHMD::DrawVisibleAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
