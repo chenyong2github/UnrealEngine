@@ -24,14 +24,14 @@ struct FGraphBox
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FGraphTrackSeries
+class FGraphSeries
 {
 	friend class FGraphTrack;
 	friend class FGraphTrackBuilder;
 
 public:
-	FGraphTrackSeries();
-	~FGraphTrackSeries();
+	FGraphSeries();
+	~FGraphSeries();
 
 	const FText& GetName() const { return Name; }
 	void SetName(const TCHAR* InName) { Name = FText::FromString(InName); }
@@ -72,26 +72,6 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FTimingGraphSeries : public FGraphTrackSeries
-{
-public:
-	enum class ESeriesType
-	{
-		Frame,
-		Timer,
-		StatsCounter
-	};
-
-public:
-	ESeriesType Type;
-	uint32 Id; // frame type, timer id or stats counter id
-	bool bIsFloatingPoint; // for stats counters
-	double ValueOffset; // offset added to Y values (used to pan graph vertically)
-	double ValueScale; // scale of Y values (used to scale graph vertically)
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class FGraphTrack : public FBaseTimingTrack
 {
 	friend class FGraphTrackBuilder;
@@ -128,7 +108,7 @@ protected:
 	void UpdateStats();
 
 	void DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
-	void DrawSeries(const FGraphTrackSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
+	void DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
 	float GetYForValue(double Value) const
 	{
@@ -160,12 +140,12 @@ private:
 	bool ContextMenu_ShowBars_CanExecute();
 	bool ContextMenu_ShowBars_IsChecked();
 
-	void ContextMenu_ShowSeries_Execute(FGraphTrackSeries* Series);
-	bool ContextMenu_ShowSeries_CanExecute(FGraphTrackSeries* Series);
-	bool ContextMenu_ShowSeries_IsChecked(FGraphTrackSeries* Series);
+	void ContextMenu_ShowSeries_Execute(FGraphSeries* Series);
+	bool ContextMenu_ShowSeries_CanExecute(FGraphSeries* Series);
+	bool ContextMenu_ShowSeries_IsChecked(FGraphSeries* Series);
 
 protected:
-	TArray<TSharedPtr<FGraphTrackSeries>> AllSeries;
+	TArray<TSharedPtr<FGraphSeries>> AllSeries;
 
 	// Slate resources
 	const FSlateBrush* WhiteBrush;
@@ -201,27 +181,7 @@ public:
 	virtual void Update(const FTimingTrackViewport& Viewport) override;
 
 protected:
-	void GenerateSeries(FGraphTrackSeries& Series, const FTimingTrackViewport& Viewport, const int32 EventCount, int32 Seed);
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FTimingGraphTrack : public FGraphTrack
-{
-public:
-	FTimingGraphTrack(uint64 InTrackId);
-	virtual ~FTimingGraphTrack();
-
-	virtual void Update(const FTimingTrackViewport& Viewport) override;
-
-	TSharedPtr<FTimingGraphSeries> GetStatsCounterSeries(uint32 CounterId);
-	void AddStatsCounterSeries(uint32 CounterId, FLinearColor Color, double ValueOffset = 0.0, double ValueScale = 1.0);
-	void RemoveStatsCounterSeries(uint32 CounterId);
-
-protected:
-	void UpdateFrameSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
-	void UpdateTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
-	void UpdateStatsCounterSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
+	void GenerateSeries(FGraphSeries& Series, const FTimingTrackViewport& Viewport, const int32 EventCount, int32 Seed);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -239,7 +199,7 @@ private:
 	};
 
 public:
-	FGraphTrackBuilder(FGraphTrack& InTrack, FGraphTrackSeries& InSeries, const FTimingTrackViewport& InViewport);
+	FGraphTrackBuilder(FGraphTrack& InTrack, FGraphSeries& InSeries, const FTimingTrackViewport& InViewport);
 	~FGraphTrackBuilder();
 
 	/**
@@ -249,7 +209,7 @@ public:
 	FGraphTrackBuilder& operator=(const FGraphTrackBuilder&) = delete;
 
 	FGraphTrack& GetTrack() const { return Track; }
-	FGraphTrackSeries& GetSeries() const { return Series; }
+	FGraphSeries& GetSeries() const { return Series; }
 	const FTimingTrackViewport& GetViewport() const { return Viewport; }
 
 	void AddEvent(double Time, double Duration, double Value);
@@ -272,7 +232,7 @@ private:
 
 private:
 	FGraphTrack& Track;
-	FGraphTrackSeries& Series;
+	FGraphSeries& Series;
 	const FTimingTrackViewport& Viewport;
 
 	// Used by the point reduction algorithm.

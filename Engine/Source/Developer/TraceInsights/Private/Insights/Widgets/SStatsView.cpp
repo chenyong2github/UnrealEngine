@@ -18,7 +18,7 @@
 // Insights
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
-#include "Insights/ViewModels/GraphTrack.h"
+#include "Insights/ViewModels/TimingGraphTrack.h"
 #include "Insights/ViewModels/StatsNodeHelper.h"
 #include "Insights/ViewModels/StatsViewColumnFactory.h"
 #include "Insights/Widgets/SStatsViewTooltip.h"

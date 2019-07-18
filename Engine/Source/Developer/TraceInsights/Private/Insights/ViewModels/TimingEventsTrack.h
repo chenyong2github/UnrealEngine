@@ -7,6 +7,14 @@
 // Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
 
+struct FDrawContext;
+struct FSlateBrush;
+struct FSlateFontInfo;
+struct FTimingEvent;
+class FTimingTrackViewport;
+struct FTimingViewTooltip;
+class FTimingViewDrawHelper;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FTimingEventsTrackLayout
@@ -44,46 +52,39 @@ struct FTimingEventsTrackLayout
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum class ETimingEventsTrackType
-{
-	Cpu,
-	Gpu,
-	Loading,
-	Io,
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class FTimingEventsTrack : public FBaseTimingTrack
 {
 public:
-	FTimingEventsTrack(uint64 InTrackId, ETimingEventsTrackType InType, const FString& InName, const TCHAR* InGroupName);
+	FTimingEventsTrack(uint64 InTrackId, const FName& InType, const FName& InSubType, const FString& InName);
 	virtual ~FTimingEventsTrack();
 
-	ETimingEventsTrackType GetType() const { return Type; }
+	const FName& GetType() const { return Type; }
+	const FName& GetSubType() const { return SubType; }
+
 	const FString& GetName() const { return Name; }
-
-	const TCHAR* GetGroupName() const { return GroupName; };
-
-	void SetThreadId(uint32 InThreadId) { ThreadId = InThreadId; }
-	uint32 GetThreadId() const { return ThreadId; }
 
 	void SetOrder(int32 InOrder) { Order = InOrder; }
 	int32 GetOrder() const { return Order; }
 
-	int32 GetDepth() const { return Depth; }
-	int32 GetNumLanes() const { return Depth + 1; }
+	int32 GetDepth() const { return NumLanes - 1; }
+	int32 GetNumLanes() const { return NumLanes; }
+	void SetDepth(int32 InDepth) { NumLanes = InDepth + 1; }
 
 	virtual void Reset() override;
 	virtual void UpdateHoveredState(float MX, float MY, const FTimingTrackViewport& Viewport);
 
-public:
-	ETimingEventsTrackType Type;
+	virtual void Draw(FTimingViewDrawHelper& Helper) const = 0;
+	virtual void DrawSelectedEventInfo(const FTimingEvent& SelectedTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const {}
+	virtual void DrawTooltip(FTimingViewTooltip& Tooltip, const FVector2D& MousePosition, const FTimingEvent& HoveredTimingEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const {}
+
+	virtual bool SearchTimingEvent(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent) const { return false; }
+
+private:
+	FName Type; // Thread, Loading, FileActivity
+	FName SubType; // Cpu, Gpu, MainThread, AsyncThread, Overview, Detailed
 	FString Name;
-	const TCHAR* GroupName;
-	uint32 ThreadId;
 	int32 Order;
-	int32 Depth; // number of lanes == Depth + 1
+	int32 NumLanes; // number of lanes (sub-tracks)
 	bool bIsCollapsed;
 
 	// TODO: Cached OnPaint state.
@@ -91,6 +92,9 @@ public:
 	//TArray<FEventBoxInfo> MergedBorderBoxes;
 	//TArray<FEventBoxInfo> Borders;
 	//TArray<FTextInfo> Texts;
+
+public:
+	static bool bUseDownSampling;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

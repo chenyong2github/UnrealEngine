@@ -9,6 +9,7 @@
 // Insights
 #include "Insights/InsightsManager.h"
 #include "Insights/TimingProfilerCommands.h"
+#include "Insights/ViewModels/TimerNode.h"
 
 class STimingProfilerWindow;
 
@@ -130,6 +131,8 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void OnSessionChanged();
+
+	const FTimerNodePtr GetTimerNode(uint64 TypeId) const;
 
 protected:
 	/** Updates this manager, done through FCoreTicker. */

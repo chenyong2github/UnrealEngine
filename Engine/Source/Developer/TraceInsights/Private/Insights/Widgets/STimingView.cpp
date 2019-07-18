@@ -19,6 +19,7 @@
 #include "Rendering/DrawElements.h"
 #include "SlateOptMacros.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/SessionService.h"
 #include "Widgets/Input/SButton.h"
@@ -37,6 +38,10 @@
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/BaseTimingTrack.h"
+#include "Insights/ViewModels/FileActivityTimingTrack.h"
+#include "Insights/ViewModels/LoadingTimingTrack.h"
+#include "Insights/ViewModels/ThreadTimingTrack.h"
+#include "Insights/ViewModels/TimingGraphTrack.h"
 #include "Insights/ViewModels/DrawHelpers.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/Widgets/SStatsView.h"
@@ -62,12 +67,13 @@ uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type);
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimingView::STimingView()
-	: bAssetLoadingMode(false)
+	: LoadingSharedState(MakeShareable(new FLoadingSharedState()))
+	, bAssetLoadingMode(false)
+	, FileActivitySharedState(MakeShareable(new FFileActivitySharedState()))
 	, TimeRulerTrack(FBaseTimingTrack::GenerateId())
 	, MarkersTrack(FBaseTimingTrack::GenerateId())
 	, GraphTrack(MakeShareable(new FTimingGraphTrack(FBaseTimingTrack::GenerateId())))
-	, TooltipWidth(MinTooltipWidth)
-	, TooltipAlpha(0.0f)
+	, Tooltip()
 	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 {
@@ -204,7 +210,7 @@ void STimingView::Reset()
 
 	bAreTimingEventsTracksDirty = true;
 
-	bUseDownSampling = true;
+	FTimingEventsTrack::bUseDownSampling = true;
 
 	//////////////////////////////////////////////////
 
@@ -215,28 +221,24 @@ void STimingView::Reset()
 
 	//////////////////////////////////////////////////
 
+	LoadingSharedState->Reset();
+
 	LoadingMainThreadTrack = nullptr;
 	LoadingAsyncThreadTrack = nullptr;
 
 	LoadingMainThreadId = 0;
 	LoadingAsyncThreadId = 0;
 
-	LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventName);
-
 	EventAggregationTotalCount = 0;
 	EventAggregation.Reset();
 	ObjectTypeAggregationTotalCount = 0;
 	ObjectTypeAggregation.Reset();
 
+	//////////////////////////////////////////////////
+
+	FileActivitySharedState->Reset();
 	IoOverviewTrack = nullptr;
 	IoActivityTrack = nullptr;
-
-	bForceIoEventsUpdate = false;
-	bMergeIoLanes = true;
-	bShowFileActivityBackgroundEvents = false;
-	FileActivities.Reset();
-	FileActivityMap.Reset();
-	AllIoEvents.Reset();
 
 	//////////////////////////////////////////////////
 
@@ -412,7 +414,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		}
 	}
 
-	UpdateIo();
+	FileActivitySharedState->Update();
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session)
@@ -449,16 +451,20 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			if (LoadingMainThreadTrack == nullptr)
 			{
 				uint64 TrackId = FBaseTimingTrack::GenerateId();
-				LoadingMainThreadTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Loading, TEXT("Loading - Main Thread"), nullptr, -3);
+				LoadingMainThreadTrack = new FLoadingMainThreadTimingTrack(TrackId, LoadingSharedState);
+				LoadingMainThreadTrack->SetOrder(-3);
 				LoadingMainThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
+				AddTimingEventsTrack(LoadingMainThreadTrack);
 				bIsTimingEventsTrackDirty = true;
 			}
 
 			if (LoadingAsyncThreadTrack == nullptr)
 			{
 				uint64 TrackId = FBaseTimingTrack::GenerateId();
-				LoadingAsyncThreadTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Loading, TEXT("Loading - Async Thread"), nullptr, -2);
+				LoadingAsyncThreadTrack = new FLoadingAsyncThreadTimingTrack(TrackId, LoadingSharedState);
+				LoadingMainThreadTrack->SetOrder(-2);
 				LoadingAsyncThreadTrack->SetVisibilityFlag(bShowHideAllLoadingTracks);
+				AddTimingEventsTrack(LoadingAsyncThreadTrack);
 				bIsTimingEventsTrackDirty = true;
 			}
 		}
@@ -469,8 +475,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			{
 				// Note: The I/O timelines are just prototypes for now (will be removed once the functionality is moved in analyzer).
 				const uint64 TrackId = FBaseTimingTrack::GenerateId();
-				IoOverviewTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Io, TEXT("I/O Overview"), nullptr, -1);
+				IoOverviewTrack = new FOverviewFileActivityTimingTrack(TrackId, FileActivitySharedState);
+				IoOverviewTrack->SetOrder(-1);
 				IoOverviewTrack->SetVisibilityFlag(bShowHideAllIoTracks);
+				AddTimingEventsTrack(IoOverviewTrack);
 				bIsTimingEventsTrackDirty = true;
 			}
 		}
@@ -486,8 +494,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				const uint64 TrackId = static_cast<uint64>(GpuTimelineIndex);
 				if (!CachedTimelines.Contains(TrackId))
 				{
-					GpuTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Gpu, TEXT("GPU"), nullptr, 0);
+					GpuTrack = new FGpuTimingTrack(TrackId, TEXT("GPU"), nullptr);
+					GpuTrack->SetOrder(0);
 					GpuTrack->SetVisibilityFlag(bShowHideAllGpuTracks);
+					AddTimingEventsTrack(GpuTrack);
 					bIsTimingEventsTrackDirty = true;
 				}
 			}
@@ -530,9 +540,9 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 						FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : FString::Printf(TEXT("Thread %u"), ThreadInfo.Id));
 
 						// Create new Timing Events track for the CPU thread.
-						Track = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Cpu, TrackName, GroupName, Order);
-
-						Track->SetThreadId(ThreadInfo.Id);
+						Track = new FCpuTimingTrack(TrackId, TrackName, GroupName);
+						Track->SetOrder(Order);
+						((FCpuTimingTrack*)Track)->SetThreadId(ThreadInfo.Id);
 						CpuTracks.Add(ThreadInfo.Id, Track);
 
 						FThreadGroup& ThreadGroup = ThreadGroups[GroupName];
@@ -548,6 +558,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 							Track->SetVisibilityFlag(bIsGroupVisible);
 						}
 
+						AddTimingEventsTrack(Track);
 						bIsTimingEventsTrackDirty = true;
 					}
 					else
@@ -572,8 +583,10 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			{
 				// Note: The I/O timelines are just prototypes for now (will be removed once the functionality is moved in analyzer).
 				uint64 TrackId = FBaseTimingTrack::GenerateId();
-				IoActivityTrack = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Io, TEXT("I/O Activity"), nullptr, 999999);
+				IoActivityTrack = new FDetailedFileActivityTimingTrack(TrackId, FileActivitySharedState);
+				IoActivityTrack->SetOrder(999999);
 				IoActivityTrack->SetVisibilityFlag(bShowHideAllIoTracks);
+				AddTimingEventsTrack(IoActivityTrack);
 				bIsTimingEventsTrackDirty = true;
 			}
 		}
@@ -750,39 +763,11 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
 			if (Track.IsVisible())
 			{
-				//TODO: Track.Draw(Helper);
-				if (Track.GetType() == ETimingEventsTrackType::Cpu)
-				{
-					DrawTimingProfilerTrack(Helper, Track);
-				}
-				else if (Track.GetType() == ETimingEventsTrackType::Gpu)
-				{
-					DrawTimingProfilerTrack(Helper, Track);
-				}
-				else if (Track.GetType() == ETimingEventsTrackType::Loading)
-				{
-					DrawLoadTimeProfilerTrack(Helper, Track);
-				}
-				else if (Track.GetType() == ETimingEventsTrackType::Io)
-				{
-					if (&Track == IoOverviewTrack)
-					{
-						DrawIoOverviewTrack(Helper, Track);
-					}
-					else if (&Track == IoActivityTrack)
-					{
-						DrawIoActivityTrack(Helper, Track);
-					}
-				}
+				Track.Draw(Helper);
 			}
 		}
 
 		Helper.EndTimelines();
-	}
-
-	if (GraphTrack->IsVisible())
-	{
-		GraphTrack->Draw(DrawContext, Viewport);
 	}
 
 	if (!FTimingEvent::AreEquals(SelectedTimingEvent, HoveredTimingEvent))
@@ -809,6 +794,12 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			const float Y = Viewport.GetViewportY(SelectedTimingEvent.Track->GetPosY()) + Layout.GetLaneY(SelectedTimingEvent.Depth);
 			Helper.DrawTimingEventHighlight(SelectedTimingEvent.StartTime, SelectedTimingEvent.EndTime, Y, FTimingViewDrawHelper::EHighlightMode::SelectedAndHovered);
 		}
+	}
+
+	if (GraphTrack->IsVisible())
+	{
+		GraphTrack->Draw(DrawContext, Viewport);
+		//GraphTrack->Draw(DrawContext, Viewport, MousePosition);
 	}
 
 	if (MarkersTrack.IsVisible())
@@ -1024,341 +1015,17 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		// Draw info about selected event (bottom-right corner).
 		if (SelectedTimingEvent.IsValid())
 		{
-			if (SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Cpu ||
-				SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Gpu)
-			{
-				const FTimerNodePtr TimerNodePtr = GetTimerNode(SelectedTimingEvent.TypeId);
-
-				FString Str = FString::Printf(TEXT("%s (Incl.: %s, Excl.: %s)"),
-					TimerNodePtr ? *(TimerNodePtr->GetName().ToString()) : TEXT("N/A"),
-					*TimeUtils::FormatTimeAuto(SelectedTimingEvent.Duration()),
-					*TimeUtils::FormatTimeAuto(SelectedTimingEvent.ExclusiveTime));
-
-				const FVector2D Size = FontMeasureService->Measure(Str, MainFont);
-				const float X = Viewport.Width - Size.X - 23.0f;
-				const float Y = Viewport.Height - Size.Y - 18.0f;
-
-				const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
-				const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);
-
-				DrawContext.DrawBox(X - 8.0f, Y - 2.0f, Size.X + 16.0f, Size.Y + 4.0f, WhiteBrush, BackgroundColor);
-				DrawContext.LayerId++;
-
-				DrawContext.DrawText(X, Y, Str, MainFont, TextColor);
-				DrawContext.LayerId++;
-			}
-			else if (SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Loading)
-			{
-				//TODO: ...
-			}
-			else if (SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Io)
-			{
-				//TODO: ...
-			}
+			SelectedTimingEvent.Track->DrawSelectedEventInfo(SelectedTimingEvent, Viewport, DrawContext, WhiteBrush, MainFont);
 		}
 
 		// Draw info about hovered event (like a tooltip at mouse position).
 		if (HoveredTimingEvent.IsValid() && !MousePosition.IsZero())
 		{
-			if (HoveredTimingEvent.Track->GetType() == ETimingEventsTrackType::Cpu ||
-				HoveredTimingEvent.Track->GetType() == ETimingEventsTrackType::Gpu)
-			{
-				const FTimerNodePtr TimerNodePtr = GetTimerNode(HoveredTimingEvent.TypeId);
-				FString Name = TimerNodePtr ? TimerNodePtr->GetName().ToString() : TEXT("N/A");
-
-				float W = FontMeasureService->Measure(Name, MainFont).X;
-
-				if (W < MinTooltipWidth)
-				{
-					W = MinTooltipWidth;
-				}
-				if (TooltipWidth != W)
-				{
-					TooltipWidth = TooltipWidth * 0.75f + W * 0.25f;
-				}
-
-				const float MaxX = FMath::Max(0.0f, Viewport.Width - TooltipWidth - 21.0f);
-				const float X = FMath::Clamp<float>(MousePosition.X + 18.0f, 0.0f, MaxX);
-
-				constexpr float LineH = 14.0f;
-				constexpr float H = 4 * LineH;
-				const float MaxY = FMath::Max(0.0f, Viewport.Height - H - 18.0f);
-				float Y = FMath::Clamp<float>(MousePosition.Y + 18.0f, 0.0f, MaxY);
-
-				const float Alpha = 1.0f - FMath::Abs(TooltipWidth - W) / W;
-				if (TooltipAlpha < Alpha)
-				{
-					TooltipAlpha = TooltipAlpha * 0.9f + Alpha * 0.1f;
-				}
-				else
-				{
-					TooltipAlpha = Alpha;
-				}
-
-				const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, TooltipAlpha);
-				const FLinearColor NameColor(0.9f, 0.9f, 0.5f, TooltipAlpha);
-				const FLinearColor TextColor(0.6f, 0.6f, 0.6f, TooltipAlpha);
-				const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, TooltipAlpha);
-
-				DrawContext.DrawBox(X - 6.0f, Y - 3.0f, TooltipWidth + 12.0f, H + 6.0f, WhiteBrush, BackgroundColor);
-				DrawContext.LayerId++;
-
-				DrawContext.DrawText(X, Y, Name, MainFont, NameColor);
-				Y += LineH;
-
-				const float ValueX = X + 58.0f;
-
-				DrawContext.DrawText(X + 3.0f, Y, TEXT("Incl. Time:"), MainFont, TextColor);
-				FString InclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration());
-				DrawContext.DrawText(ValueX, Y, InclStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Excl. Time:"), MainFont, TextColor);
-				FString ExclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.ExclusiveTime);
-				DrawContext.DrawText(ValueX, Y, ExclStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X + 24.0f, Y, TEXT("Depth:"), MainFont, TextColor);
-				FString DepthStr = FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth);
-				DrawContext.DrawText(ValueX, Y, DepthStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.LayerId++;
-			}
-			else if (HoveredTimingEvent.Track->GetType() == ETimingEventsTrackType::Loading)
-			{
-				FString Name(LoadingGetEventNameFn.Execute(HoveredTimingEvent.Depth, HoveredTimingEvent.LoadingInfo));
-
-				const Trace::FPackageInfo* Package = HoveredTimingEvent.LoadingInfo.Package;
-				const Trace::FPackageExportInfo* Export = HoveredTimingEvent.LoadingInfo.Export;
-
-				FString PackageName = Package ? Package->Name : TEXT("N/A");
-
-				constexpr float ValueOffsetX = 100.0f;
-				constexpr float MinValueTextWidth = 220.0f;
-
-				float W = FontMeasureService->Measure(Name, MainFont).X;
-
-				float PackageNameW = ValueOffsetX + FontMeasureService->Measure(PackageName, MainFont).X;
-				if (W < PackageNameW)
-				{
-					W = PackageNameW;
-				}
-				if (W < ValueOffsetX + MinValueTextWidth)
-				{
-					W = ValueOffsetX + MinValueTextWidth;
-				}
-				if (W < MinTooltipWidth)
-				{
-					W = MinTooltipWidth;
-				}
-				if (TooltipWidth != W)
-				{
-					TooltipWidth = TooltipWidth * 0.75f + W * 0.25f;
-				}
-
-				const float MaxX = FMath::Max(0.0f, Viewport.Width - TooltipWidth - 21.0f);
-				const float X = FMath::Clamp<float>(MousePosition.X + 18.0f, 0.0f, MaxX);
-				const float ValueX = X + ValueOffsetX;
-
-				constexpr float LineH = 14.0f;
-				float H = 5 * LineH;
-				if (Package)
-				{
-					H += 3 * LineH;
-				}
-				if (Export)
-				{
-					H += 2 * LineH;
-				}
-				const float MaxY = FMath::Max(0.0f, Viewport.Height - H - 18.0f);
-				float Y = FMath::Clamp<float>(MousePosition.Y + 18.0f, 0.0f, MaxY);
-
-				const float Alpha = 1.0f - FMath::Abs(TooltipWidth - W) / W;
-				if (TooltipAlpha < Alpha)
-				{
-					TooltipAlpha = TooltipAlpha * 0.9f + Alpha * 0.1f;
-				}
-				else
-				{
-					TooltipAlpha = Alpha;
-				}
-
-				const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, TooltipAlpha);
-				const FLinearColor NameColor(0.9f, 0.9f, 0.5f, TooltipAlpha);
-				const FLinearColor TextColor(0.6f, 0.6f, 0.6f, TooltipAlpha);
-				const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, TooltipAlpha);
-
-				DrawContext.DrawBox(X - 6.0f, Y - 3.0f, TooltipWidth + 12.0f, H + 6.0f, WhiteBrush, BackgroundColor);
-				DrawContext.LayerId++;
-
-				DrawContext.DrawText(X, Y, Name, MainFont, NameColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Duration:"), MainFont, TextColor);
-				FString InclStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration());
-				DrawContext.DrawText(ValueX, Y, InclStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Depth:"), MainFont, TextColor);
-				FString DepthStr = FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth);
-				DrawContext.DrawText(ValueX, Y, DepthStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Package Event:"), MainFont, TextColor);
-				DrawContext.DrawText(ValueX, Y, GetName(HoveredTimingEvent.LoadingInfo.PackageEventType), MainFont, ValueColor);
-				Y += LineH;
-
-				if (Package)
-				{
-					DrawContext.DrawText(X, Y, TEXT("Package Name:"), MainFont, TextColor);
-					DrawContext.DrawText(ValueX, Y, PackageName, MainFont, ValueColor);
-					Y += LineH;
-
-					DrawContext.DrawText(X, Y, TEXT("Header Size:"), MainFont, TextColor);
-					FString HeaderSizeStr = FString::Printf(TEXT("%d bytes"), Package->Summary.TotalHeaderSize);
-					DrawContext.DrawText(ValueX, Y, HeaderSizeStr, MainFont, ValueColor);
-					Y += LineH;
-
-					DrawContext.DrawText(X, Y, TEXT("Package Summary:"), MainFont, TextColor);
-					FString SummaryStr = FString::Printf(TEXT("%d names, %d imports, %d exports"), Package->Summary.NameCount, Package->Summary.ImportCount, Package->Summary.ExportCount);
-					DrawContext.DrawText(ValueX, Y, SummaryStr, MainFont, ValueColor);
-					Y += LineH;
-				}
-
-				{
-					DrawContext.DrawText(X, Y, TEXT("Export Event:"), MainFont, TextColor);
-					FString ExportTypeStr = FString::Printf(TEXT("%s%s"), GetName(HoveredTimingEvent.LoadingInfo.ExportEventType), Export && Export->IsAsset ? TEXT(" [asset]") : TEXT(""));
-					DrawContext.DrawText(ValueX, Y, ExportTypeStr, MainFont, ValueColor);
-					Y += LineH;
-				}
-
-				if (Export)
-				{
-					DrawContext.DrawText(X, Y, TEXT("Export Class:"), MainFont, TextColor);
-					FString ClassStr = FString::Printf(TEXT("%s"), Export->Class ? Export->Class->Name : TEXT("N/A"));
-					DrawContext.DrawText(ValueX, Y, ClassStr, MainFont, ValueColor);
-					Y += LineH;
-
-					DrawContext.DrawText(X, Y, TEXT("Serial:"), MainFont, TextColor);
-					FString SerialStr = FString::Printf(TEXT("Offset: %llu, Size: %llu%s"), Export->SerialOffset, Export->SerialSize);
-					DrawContext.DrawText(ValueX, Y, SerialStr, MainFont, ValueColor);
-					Y += LineH;
-				}
-
-				DrawContext.LayerId++;
-			}
-			else if (HoveredTimingEvent.Track->GetType() == ETimingEventsTrackType::Io)
-			{
-				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(HoveredTimingEvent.TypeId & 0x0F);
-				const bool bHasFailed = ((HoveredTimingEvent.TypeId & 0xF0) != 0);
-
-				FString Name(HoveredTimingEvent.Path);
-
-				constexpr float ValueOffsetX = 50.0f;
-				constexpr float MinValueTextWidth = 220.0f;
-
-				float W = FontMeasureService->Measure(Name, MainFont).X;
-
-				if (W < ValueOffsetX + MinValueTextWidth)
-				{
-					W = ValueOffsetX + MinValueTextWidth;
-				}
-				if (W < MinTooltipWidth)
-				{
-					W = MinTooltipWidth;
-				}
-				if (TooltipWidth != W)
-				{
-					TooltipWidth = TooltipWidth * 0.75f + W * 0.25f;
-				}
-
-				const float MaxX = FMath::Max(0.0f, Viewport.Width - TooltipWidth - 21.0f);
-				const float X = FMath::Clamp<float>(MousePosition.X + 18.0f, 0.0f, MaxX);
-				const float ValueX = X + ValueOffsetX;
-
-				constexpr float LineH = 14.0f;
-				float H = 4 * LineH;
-				if (ActivityType == Trace::FileActivityType_Read || ActivityType == Trace::FileActivityType_Write)
-				{
-					H += 2 * LineH;
-				}
-
-				const float MaxY = FMath::Max(0.0f, Viewport.Height - H - 18.0f);
-				float Y = FMath::Clamp<float>(MousePosition.Y + 18.0f, 0.0f, MaxY);
-
-				const float Alpha = 1.0f - FMath::Abs(TooltipWidth - W) / W;
-				if (TooltipAlpha < Alpha)
-				{
-					TooltipAlpha = TooltipAlpha * 0.9f + Alpha * 0.1f;
-				}
-				else
-				{
-					TooltipAlpha = Alpha;
-				}
-
-				const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, TooltipAlpha);
-				const FLinearColor NameColor(0.9f, 0.9f, 0.5f, TooltipAlpha);
-				const FLinearColor TextColor(0.6f, 0.6f, 0.6f, TooltipAlpha);
-				const FLinearColor ValueColor(1.0f, 1.0f, 1.0f, TooltipAlpha);
-
-				DrawContext.DrawBox(X - 6.0f, Y - 3.0f, TooltipWidth + 12.0f, H + 6.0f, WhiteBrush, BackgroundColor);
-				DrawContext.LayerId++;
-
-				FString TypeStr;
-				uint32 TypeColor;
-				if (bHasFailed)
-				{
-					TypeStr = TEXT("Failed ");
-					TypeStr += GetFileActivityTypeName(ActivityType);
-					TypeColor = 0xFFFF3333;
-				}
-				else
-				{
-					TypeStr = GetFileActivityTypeName(ActivityType);
-					TypeColor = GetFileActivityTypeColor(ActivityType);
-				}
-				FLinearColor TypeLinearColor = FLinearColor(FColor(TypeColor));
-				TypeLinearColor.R *= 2.0f;
-				TypeLinearColor.G *= 2.0f;
-				TypeLinearColor.B *= 2.0f;
-				DrawContext.DrawText(X, Y, TypeStr, MainFont, TypeLinearColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, Name, MainFont, NameColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Duration:"), MainFont, TextColor);
-				FString DurationStr = TimeUtils::FormatTimeAuto(HoveredTimingEvent.Duration());
-				DrawContext.DrawText(ValueX, Y, DurationStr, MainFont, ValueColor);
-				Y += LineH;
-
-				DrawContext.DrawText(X, Y, TEXT("Depth:"), MainFont, TextColor);
-				FString DepthStr = FString::Printf(TEXT("%d"), HoveredTimingEvent.Depth);
-				DrawContext.DrawText(ValueX, Y, DepthStr, MainFont, ValueColor);
-				Y += LineH;
-
-				if (ActivityType == Trace::FileActivityType_Read || ActivityType == Trace::FileActivityType_Write)
-				{
-					DrawContext.DrawText(X, Y, TEXT("Offset:"), MainFont, TextColor);
-					FString OffsetStr = FText::AsNumber(HoveredTimingEvent.Offset).ToString();
-					DrawContext.DrawText(ValueX, Y, OffsetStr, MainFont, ValueColor);
-					Y += LineH;
-
-					DrawContext.DrawText(X, Y, TEXT("Size:"), MainFont, TextColor);
-					FString SizeStr = FText::AsNumber(HoveredTimingEvent.Size).ToString();
-					SizeStr += TEXT(" bytes");
-					DrawContext.DrawText(ValueX, Y, SizeStr, MainFont, ValueColor);
-					Y += LineH;
-				}
-
-				DrawContext.LayerId++;
-			}
+			HoveredTimingEvent.Track->DrawTooltip(Tooltip, MousePosition, HoveredTimingEvent, Viewport, DrawContext, WhiteBrush, MainFont);
 		}
 		else
 		{
-			TooltipWidth = MinTooltipWidth;
-			TooltipAlpha = 0.0f;
+			Tooltip.Reset();
 		}
 	}
 
@@ -1532,32 +1199,16 @@ float STimingView::DrawAssetLoadingAggregationTable(FDrawContext& DrawContext, f
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TCHAR* GetName(ETimingEventsTrackType Type)
+void STimingView::AddTimingEventsTrack(FTimingEventsTrack* Track)
 {
-	switch (Type)
-	{
-		case ETimingEventsTrackType::Gpu:		return TEXT("GPU");
-		case ETimingEventsTrackType::Cpu:		return TEXT("CPU");
-		case ETimingEventsTrackType::Loading:	return TEXT("Loading");
-		case ETimingEventsTrackType::Io:		return TEXT("I/O");
-		default:								return TEXT("unknown");
-	}
-}
+	UE_LOG(TimingProfiler, Log, TEXT("New Timing Events Track (%d) : %s - %s (\"%s\")"),
+		TimingEventsTracks.Num() + 1,
+		*Track->GetType().ToString(),
+		*Track->GetSubType().ToString(),
+		*Track->GetName());
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FTimingEventsTrack* STimingView::AddTimingEventsTrack(uint64 TrackId, ETimingEventsTrackType TrackType, const FString& TrackName, const TCHAR* GroupName, int32 Order)
-{
-	FTimingEventsTrack* Track = new FTimingEventsTrack(TrackId, TrackType, TrackName, GroupName);
-
-	Track->SetOrder(Order);
-
-	UE_LOG(TimingProfiler, Log, TEXT("New Timing Events Track (%d) : %s (\"%s\")"), TimingEventsTracks.Num() + 1, GetName(TrackType), *TrackName);
-
-	CachedTimelines.Add(TrackId, Track);
+	CachedTimelines.Add(Track->GetId(), Track);
 	TimingEventsTracks.Add(Track);
-
-	return Track;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1574,666 +1225,6 @@ bool STimingView::IsCpuTrackVisible(uint32 ThreadId) const
 	return CpuTracks.Contains(ThreadId) && CpuTracks[ThreadId]->IsVisible();
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::DrawTimingProfilerTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
-{
-	if (Helper.BeginTimeline(Track))
-	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-
-			TimingProfilerProvider.ReadTimers([this, &Helper, &Track, &TimingProfilerProvider](const Trace::FTimingProfilerTimer* Timers, uint64 TimersCount)
-			{
-				TimingProfilerProvider.ReadTimeline(Track.GetId(), [this, &Helper, &Track, Timers](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-				{
-					if (bUseDownSampling)
-					{
-						const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
-						{
-							Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
-						});
-					}
-					else
-					{
-						Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper, Timers](double StartTime, double EndTime, uint32 Depth, const Trace::FTimingProfilerEvent& Event)
-						{
-							Helper.AddEvent(StartTime, EndTime, Depth, Timers[Event.TimerIndex].Name);
-						});
-					}
-				});
-			});
-
-			Helper.EndTimeline(Track);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const TCHAR* GetName(ELoadTimeProfilerPackageEventType Type)
-{
-	switch (Type)
-	{
-		case LoadTimeProfilerPackageEventType_CreateLinker:				return TEXT("CreateLinker");
-		case LoadTimeProfilerPackageEventType_FinishLinker:				return TEXT("FinishLinker");
-		case LoadTimeProfilerPackageEventType_StartImportPackages:		return TEXT("StartImportPackages");
-		case LoadTimeProfilerPackageEventType_SetupImports:				return TEXT("SetupImports");
-		case LoadTimeProfilerPackageEventType_SetupExports:				return TEXT("SetupExports");
-		case LoadTimeProfilerPackageEventType_ProcessImportsAndExports:	return TEXT("ProcessImportsAndExports");
-		case LoadTimeProfilerPackageEventType_ExportsDone:				return TEXT("ExportsDone");
-		case LoadTimeProfilerPackageEventType_PostLoadWait:				return TEXT("PostLoadWait");
-		case LoadTimeProfilerPackageEventType_StartPostLoad:			return TEXT("StartPostLoad");
-		case LoadTimeProfilerPackageEventType_Tick:						return TEXT("Tick");
-		case LoadTimeProfilerPackageEventType_Finish:					return TEXT("Finish");
-		case LoadTimeProfilerPackageEventType_DeferredPostLoad:			return TEXT("DeferredPostLoad");
-		case LoadTimeProfilerPackageEventType_None:						return TEXT("None");
-		default:														return TEXT("");
-	}
-}
-
-const TCHAR* GetName(ELoadTimeProfilerObjectEventType Type)
-{
-	switch (Type)
-	{
-		case LoadTimeProfilerObjectEventType_Create:	return TEXT("Create");
-		case LoadTimeProfilerObjectEventType_Serialize:	return TEXT("Serialize");
-		case LoadTimeProfilerObjectEventType_PostLoad:	return TEXT("PostLoad");
-		case LoadTimeProfilerObjectEventType_None:		return TEXT("None");
-		default:										return TEXT("");
-	};
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventNameByPackageEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	return GetName(Event.PackageEventType);
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventNameByExportEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	return GetName(Event.ExportEventType);
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	return Event.Package ?  Event.Package->Name : TEXT("");
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	return Event.Export && Event.Export->Class ? Event.Export->Class->Name : TEXT("");
-}
-
-const TCHAR* STimingView::GetLoadTimeProfilerEventName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const
-{
-	if (Depth == 0)
-	{
-		if (Event.Package)
-		{
-			return Event.Package->Name;
-		}
-	}
-
-	if (Event.Export && Event.Export->Class)
-	{
-		return Event.Export->Class->Name;
-	}
-
-	return TEXT("");
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::DrawLoadTimeProfilerTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
-{
-	if (Helper.BeginTimeline(Track))
-	{
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			if (&Track == LoadingMainThreadTrack)
-			{
-				LoadTimeProfilerProvider.ReadMainThreadCpuTimeline([this, &Helper, &Track](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-				{
-					if (bUseDownSampling)
-					{
-						const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							const TCHAR* Name = LoadingGetEventNameFn.Execute(Depth, Event);
-							Helper.AddEvent(StartTime, EndTime, Depth, Name);
-						});
-					}
-					else
-					{
-						Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							const TCHAR* Name = LoadingGetEventNameFn.Execute(Depth, Event);
-							Helper.AddEvent(StartTime, EndTime, Depth, Name);
-						});
-					}
-				});
-			}
-			else if (&Track == LoadingAsyncThreadTrack)
-			{
-				LoadTimeProfilerProvider.ReadAsyncLoadingThreadCpuTimeline([this, &Helper, &Track](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-				{
-					if (bUseDownSampling)
-					{
-						const double SecondsPerPixel = 1.0 / Helper.GetViewport().ScaleX;
-						Timeline.EnumerateEventsDownSampled(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, SecondsPerPixel, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							const TCHAR* Name = LoadingGetEventNameFn.Execute(Depth, Event);
-							Helper.AddEvent(StartTime, EndTime, Depth, Name);
-						});
-					}
-					else
-					{
-						Timeline.EnumerateEvents(Helper.GetViewport().StartTime, Helper.GetViewport().EndTime, [this, &Helper](double StartTime, double EndTime, uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							const TCHAR* Name = LoadingGetEventNameFn.Execute(Depth, Event);
-							Helper.AddEvent(StartTime, EndTime, Depth, Name);
-						});
-					}
-				});
-			}
-		}
-
-		Helper.EndTimeline(Track);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// "I/O - File Activity" prototype
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// The I/O timelines are just prototypes for now.
-// Below code will be removed once the functionality is moved in analyzer.
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const TCHAR* GetFileActivityTypeName(Trace::EFileActivityType Type)
-{
-	static_assert(Trace::FileActivityType_Open == 0, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Close == 1, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Read == 2, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Write == 3, "Trace::EFileActivityType enum has changed!?");
-	static_assert(Trace::FileActivityType_Count == 4, "Trace::EFileActivityType enum has changed!?");
-	static const TCHAR* GFileActivityTypeNames[] =
-	{
-		TEXT("Open"),
-		TEXT("Close"),
-		TEXT("Read"),
-		TEXT("Write"),
-		TEXT("Idle"), // virtual events added for cases where Close event is more than 1s away from last Open/Read/Write event.
-		TEXT("NotClosed") // virtual events added when an Open activity never closes
-	};
-	return GFileActivityTypeNames[Type];
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-uint32 GetFileActivityTypeColor(Trace::EFileActivityType Type)
-{
-	static const uint32 GFileActivityTypeColors[] =
-	{
-		0xFFCCAA33, // open
-		0xFF33AACC, // close
-		0xFF33AA33, // read
-		0xFFDD33CC, // write
-		0x55333333, // idle
-		0x55553333, // close
-	};
-	return GFileActivityTypeColors[Type];
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::DrawIoOverviewTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
-{
-	if (Helper.BeginTimeline(Track))
-	{
-		// Draw the IO Overiew track using cached events (as those are sorted by Start Time).
-		for (const FIoTimingEvent& Event : AllIoEvents)
-		{
-			const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
-
-			if (ActivityType >= Trace::FileActivityType_Count)
-			{
-				// Ignore "Idle" and "NotClosed" events.
-				continue;
-			}
-
-			//const double EventEndTime = Event.EndTime; // keep duration of events
-			const double EventEndTime = Event.StartTime; // make all 0 duration events
-
-			if (EventEndTime <= Helper.GetViewport().StartTime)
-			{
-				continue;
-			}
-			if (Event.StartTime >= Helper.GetViewport().EndTime)
-			{
-				break;
-			}
-
-			uint32 Color = GetFileActivityTypeColor(ActivityType);
-
-			const bool bHasFailed = ((Event.Type & 0xF0) != 0);
-
-			if (bHasFailed)
-			{
-				FString Name = TEXT("Failed ");
-				Name += GetFileActivityTypeName(ActivityType);
-				Color = 0xFFAA0000;
-				Helper.AddEvent(Event.StartTime, EventEndTime, 0, *Name, Color);
-			}
-			else
-			{
-				Helper.AddEvent(Event.StartTime, EventEndTime, 0, GetFileActivityTypeName(ActivityType), Color);
-			}
-		}
-
-		Helper.EndTimeline(Track);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::UpdateIo()
-{
-	if (bForceIoEventsUpdate)
-	{
-		bForceIoEventsUpdate = false;
-
-		FileActivities.Reset();
-		FileActivityMap.Reset();
-		AllIoEvents.Reset();
-
-		FStopwatch Stopwatch;
-		Stopwatch.Start();
-
-		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid() && Trace::ReadFileActivityProvider(*Session.Get()))
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::IFileActivityProvider& FileActivityProvider = *Trace::ReadFileActivityProvider(*Session.Get());
-
-			// Enumerate all IO events and cache them.
-			FileActivityProvider.EnumerateFileActivity([this](const Trace::FFileInfo& FileInfo, const Trace::IFileActivityProvider::Timeline& Timeline)
-			{
-				Timeline.EnumerateEvents(-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity(),
-					[this, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FFileActivity* FileActivity)
-				{
-					TSharedPtr<FIoFileActivity> Activity;
-
-					//if (EventEndTime == std::numeric_limits<double>::infinity())
-					//{
-					//	EventEndTime = EventStartTime;
-					//}
-
-					if (!FileActivityMap.Contains(FileInfo.Id))
-					{
-						Activity = MakeShareable(new FIoFileActivity());
-
-						Activity->Id = FileInfo.Id;
-						Activity->Path = FileInfo.Path;
-						Activity->StartTime = EventStartTime;
-						Activity->EndTime = EventEndTime;
-						Activity->EventCount = 1;
-						Activity->Depth = -1;
-
-						FileActivities.Add(Activity);
-						FileActivityMap.Add(FileInfo.Id, Activity);
-					}
-					else
-					{
-						Activity = FileActivityMap[FileInfo.Id];
-
-						if (FileActivity->ActivityType != Trace::FileActivityType_Close)
-						{
-							ensure(EventStartTime >= Activity->StartTime);
-							if (EventStartTime < Activity->StartTime)
-							{
-								Activity->StartTime = EventStartTime;
-							}
-
-							if (EventEndTime > Activity->EndTime)
-							{
-								Activity->EndTime = EventEndTime;
-							}
-						}
-
-						Activity->EventCount++;
-					}
-
-					if (bMergeIoLanes)
-					{
-						EventDepth = 0;
-					}
-					else
-					{
-						EventDepth = FileInfo.Id % 32; // simple layout
-					}
-
-					uint32 Type = ((uint32)FileActivity->ActivityType & 0x0F) | (FileActivity->Failed ? 0x80 : 0);
-
-					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileActivity->Offset, FileActivity->Size, Activity });
-				});
-
-				return true;
-			});
-		}
-
-		Stopwatch.Stop();
-		UE_LOG(TimingProfiler, Log, TEXT("[IO] Enumerated %s events (%s file activities) in %s."),
-			*FText::AsNumber(AllIoEvents.Num()).ToString(),
-			*FText::AsNumber(FileActivities.Num()).ToString(),
-			*TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-		Stopwatch.Restart();
-
-		// Sort cached IO file activities by Start Time.
-		FileActivities.Sort([](const TSharedPtr<FIoFileActivity>& A, const TSharedPtr<FIoFileActivity>& B) { return A->StartTime < B->StartTime; });
-
-		// Sort cached IO events by Start Time.
-		AllIoEvents.Sort([](const FIoTimingEvent& A, const FIoTimingEvent& B) { return A.StartTime < B.StartTime; });
-
-		Stopwatch.Stop();
-		UE_LOG(TimingProfiler, Log, TEXT("[IO] Sorted file activities and events in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-
-		if (bMergeIoLanes)
-		{
-			//////////////////////////////////////////////////
-			// Compute depth for file activities (avoids overlaps).
-
-			Stopwatch.Restart();
-
-			TArray<TSharedPtr<FIoFileActivity>> ActivityLanes;
-
-			for (TSharedPtr<FIoFileActivity> FileActivity : FileActivities)
-			{
-				// Find lane (avoiding overlaps with other file activities).
-				for (int32 LaneIndex = 0; LaneIndex < ActivityLanes.Num(); ++LaneIndex)
-				{
-					TSharedPtr<FIoFileActivity> Lane = ActivityLanes[LaneIndex];
-
-					if (FileActivity->StartTime >= Lane->EndTime)
-					{
-						FileActivity->Depth = LaneIndex;
-						ActivityLanes[LaneIndex] = FileActivity;
-						break;
-					}
-				}
-
-				if (FileActivity->Depth < 0)
-				{
-					const int32 MaxLanes = 10000;
-					if (ActivityLanes.Num() < MaxLanes)
-					{
-						// Add new lane.
-						FileActivity->Depth = ActivityLanes.Num();
-						ActivityLanes.Add(FileActivity);
-					}
-					else
-					{
-						int32 LaneIndex = ActivityLanes.Num() - 1;
-						FileActivity->Depth = LaneIndex;
-						TSharedPtr<FIoFileActivity> Lane = ActivityLanes[LaneIndex];
-						if (FileActivity->EndTime > Lane->EndTime)
-						{
-							ActivityLanes[LaneIndex] = FileActivity;
-						}
-					}
-				}
-			}
-
-			Stopwatch.Stop();
-			UE_LOG(TimingProfiler, Log, TEXT("[IO] Computed layout for file activities in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-
-			//////////////////////////////////////////////////
-
-			Stopwatch.Restart();
-
-			for (FIoTimingEvent& Event : AllIoEvents)
-			{
-				Event.Depth = static_cast<uint32>(Event.FileActivity->Depth);
-			}
-
-			Stopwatch.Stop();
-			UE_LOG(TimingProfiler, Log, TEXT("[IO] Updated depth for events in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-
-			//////////////////////////////////////////////////
-			/*
-
-			Stopwatch.Restart();
-
-			struct FIoLane
-			{
-				uint32 FileId;
-				const TCHAR* Path;
-				double LastEndTime;
-				double EndTime;
-			};
-
-			TArray<FIoLane> Lanes;
-
-			TArray<FIoTimingEvent> IoEventsToAdd;
-
-			for (FIoTimingEvent& Event : AllIoEvents)
-			{
-				uint64 TimelineId = Event.Depth;
-
-				int32 Depth = -1;
-
-				bool bIsCloseEvent = false;
-
-				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
-
-				if (ActivityType == Trace::FileActivityType_Open)
-				{
-					// Find lane (avoiding overlaps with other opened files).
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Event.StartTime >= Lane.EndTime)
-						{
-							Depth = LaneIndex;
-							break;
-						}
-					}
-
-					if (Depth < 0)
-					{
-						// Add new lane.
-						Depth = Lanes.AddDefaulted();
-					}
-
-					const bool bHasFailed = ((Event.Type & 0xF0) != 0);
-
-					FIoLane& Lane = Lanes[Depth];
-					Lane.FileId = TimelineId;
-					Lane.Path = Event.Path;
-					Lane.LastEndTime = Event.EndTime;
-					Lane.EndTime = bHasFailed ? Event.EndTime : std::numeric_limits<double>::infinity();
-				}
-				else if (ActivityType == Trace::FileActivityType_Close)
-				{
-					bIsCloseEvent = true;
-
-					// Find lane with same id.
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Lane.FileId == TimelineId)
-						{
-							// Adds an Idle event, but only if has passed at least 1s since last open/read/write activity.
-							if (Event.StartTime - Lane.LastEndTime > 1.0)
-							{
-								IoEventsToAdd.Add(FIoTimingEvent{ Lane.LastEndTime, Event.StartTime, static_cast<uint32>(LaneIndex), Trace::FileActivityType_Count, Event.Path });
-							}
-							Lane.LastEndTime = Event.EndTime;
-							Lane.EndTime = Event.EndTime;
-							Depth = LaneIndex;
-							break;
-						}
-					}
-					ensure(Depth >= 0);
-				}
-				else
-				{
-					// All other events should be inside the virtual Open-Close event.
-					// Find lane with same id.
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Lane.FileId == TimelineId)
-						{
-							Lane.LastEndTime = Event.EndTime;
-							Depth = LaneIndex;
-							break;
-						}
-					}
-					ensure(Depth >= 0);
-				}
-
-				if (Depth < 0) // just in case
-				{
-					// Add new lane.
-					Depth = Lanes.AddDefaulted();
-					FIoLane& Lane = Lanes[Depth];
-					Lane.FileId = TimelineId;
-					Lane.Path = Event.Path;
-					Lane.LastEndTime = Event.EndTime;
-					Lane.EndTime = bIsCloseEvent ? Event.EndTime : std::numeric_limits<double>::infinity();
-				}
-
-				Event.Depth = Depth;
-			}
-
-			Stopwatch.Stop();
-			UE_LOG(TimingProfiler, Log, TEXT("[IO] Merge 1/3 in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-			Stopwatch.Restart();
-
-			for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-			{
-				FIoLane& Lane = Lanes[LaneIndex];
-				if (Lane.EndTime == std::numeric_limits<double>::infinity())
-				{
-					IoEventsToAdd.Add(FIoTimingEvent{ Lane.LastEndTime, Lane.EndTime, static_cast<uint32>(LaneIndex), Trace::FileActivityType_Count + 1, Lane.Path });
-				}
-			}
-
-			for (const FIoTimingEvent& Event : IoEventsToAdd)
-			{
-				AllIoEvents.Add(Event);
-			}
-
-			Stopwatch.Stop();
-			UE_LOG(TimingProfiler, Log, TEXT("[IO] Merge 2/3 in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-			Stopwatch.Restart();
-
-			// Sort cached IO events one more time, also by Start Time.
-			AllIoEvents.Sort([](const FIoTimingEvent& A, const FIoTimingEvent& B) { return A.StartTime < B.StartTime; });
-
-			//// Sort cached IO events again, by Depth and then by Start Time.
-			//AllIoEvents.Sort([](const FIoTimingEvent& A, const FIoTimingEvent& B)
-			//{
-			//	return A.Depth == B.Depth ? A.StartTime < B.StartTime : A.Depth < B.Depth;
-			//});
-
-			Stopwatch.Stop();
-			UE_LOG(TimingProfiler, Log, TEXT("[IO] Merge 3/3 (sort) in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-			*/
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::DrawIoActivityTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const
-{
-	// Draw IO track using cached events.
-	if (Helper.BeginTimeline(Track))
-	{
-		// Draw IO file activity background events.
-		if (bShowFileActivityBackgroundEvents)
-		{
-			for (const TSharedPtr<FIoFileActivity> Activity : FileActivities)
-			{
-				if (Activity->EndTime <= Helper.GetViewport().StartTime)
-				{
-					continue;
-				}
-				if (Activity->StartTime >= Helper.GetViewport().EndTime)
-				{
-					break;
-				}
-
-				ensure(Activity->Depth <= 10000);
-
-				Helper.AddEvent(Activity->StartTime, Activity->EndTime, Activity->Depth, Activity->Path, 0x55333333);
-			}
-		}
-
-		// Draw IO file activity foreground events.
-		for (const FIoTimingEvent& Event : AllIoEvents)
-		{
-			if (Event.EndTime <= Helper.GetViewport().StartTime)
-			{
-				continue;
-			}
-			if (Event.StartTime >= Helper.GetViewport().EndTime)
-			{
-				break;
-			}
-
-			ensure(Event.Depth <= 10000);
-
-			const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
-
-			uint32 Color = GetFileActivityTypeColor(ActivityType);
-
-			if (ActivityType < Trace::FileActivityType_Count)
-			{
-				const bool bHasFailed = ((Event.Type & 0xF0) != 0);
-
-				if (bHasFailed)
-				{
-					FString Name = TEXT("Failed ");
-					Name += GetFileActivityTypeName(ActivityType);
-					Color = 0xFFAA0000;
-					Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
-				}
-				else
-				{
-					Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, GetFileActivityTypeName(ActivityType), Color);
-				}
-			}
-			else
-			{
-				FString Name = GetFileActivityTypeName(ActivityType);
-				Name += " [";
-				Name += Event.FileActivity->Path;
-				Name += "]";
-				Helper.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *Name, Color);
-			}
-		}
-
-		Helper.EndTimeline(Track);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// end of "I/O - File Activity" prototype
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -2828,7 +1819,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::D) // debug: toggles down-sampling on/off
 	{
-		bUseDownSampling = !bUseDownSampling;
+		FTimingEventsTrack::bUseDownSampling = !FTimingEventsTrack::bUseDownSampling;
 		bAreTimingEventsTracksDirty = true;
 		return FReply::Handled();
 	}
@@ -2859,34 +1850,34 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::O)  // debug: toggles IO merge lanes algorithm
 	{
-		//bMergeIoLanes = !bMergeIoLanes;
-		//bForceIoEventsUpdate = true;
-		bShowFileActivityBackgroundEvents = !bShowFileActivityBackgroundEvents;
+		//FileActivitySharedState->ToggleMergeLanes();
+		//FileActivitySharedState->RequestUpdate();
+		FileActivitySharedState->ToggleBackgroundEvents();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::One)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventNameByPackageEventType);
+		LoadingSharedState->SetColorSchema(0);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Two)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventNameByExportEventType);
+		LoadingSharedState->SetColorSchema(1);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Three)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventNameByPackageName);
+		LoadingSharedState->SetColorSchema(2);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Four)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventNameByExportClassName);
+		LoadingSharedState->SetColorSchema(3);
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Five)
 	{
-		LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventName);
+		LoadingSharedState->SetColorSchema(4);
 		return FReply::Handled();
 	}
 
@@ -2951,9 +1942,10 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 			FText Title;
 			if (HoveredTimingEvent.Track != nullptr)
 			{
-				if (HoveredTimingEvent.Track->GetGroupName() != nullptr)
+				if (HoveredTimingEvent.Track->GetType() == FName(TEXT("Thread")) &&
+					((FThreadTimingTrack*)HoveredTimingEvent.Track)->GetGroupName() != nullptr)
 				{
-					Title = FText::Format(LOCTEXT("TrackTitleGroupFmt", "{0} (Group: {1})"), FText::FromString(HoveredTimingEvent.Track->GetName()), FText::FromString(HoveredTimingEvent.Track->GetGroupName()));
+					Title = FText::Format(LOCTEXT("TrackTitleGroupFmt", "{0} (Group: {1})"), FText::FromString(HoveredTimingEvent.Track->GetName()), FText::FromString(((FThreadTimingTrack*)HoveredTimingEvent.Track)->GetGroupName()));
 				}
 				else
 				{
@@ -3385,7 +2377,7 @@ void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 				const double EndTime = StartTime + 2.0 / Viewport.ScaleX; // +2px
 				constexpr bool bStopAtFirstMatch = true; // get first one matching
 				constexpr bool bSearchForLargestEvent = false;
-				SearchTimingEvent(StartTime, EndTime,
+				HoveredTimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
 					[Depth](double, double, uint32 EventDepth)
 					{
 						return EventDepth == Depth;
@@ -3400,265 +2392,14 @@ void STimingView::UpdateHoveredTimingEvent(float MX, float MY)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool STimingView::SearchTimingEvent(const double InStartTime,
-									const double InEndTime,
-									TFunctionRef<bool(double, double, uint32)> InPredicate,
-									FTimingEvent& InOutTimingEvent,
-									bool bInStopAtFirstMatch,
-									bool bInSearchForLargestEvent) const
-{
-	struct FSearchTimingEventContext
-	{
-		const double StartTime;
-		const double EndTime;
-		TFunctionRef<bool(double, double, uint32)> Predicate;
-		FTimingEvent& TimingEvent;
-		const bool bStopAtFirstMatch;
-		const bool bSearchForLargestEvent;
-		mutable bool bFound;
-		mutable bool bContinueSearching;
-		mutable double LargestDuration;
-
-		FSearchTimingEventContext(const double InStartTime, const double InEndTime, TFunctionRef<bool(double, double, uint32)> InPredicate, FTimingEvent& InOutTimingEvent, bool bInStopAtFirstMatch, bool bInSearchForLargestEvent)
-			: StartTime(InStartTime)
-			, EndTime(InEndTime)
-			, Predicate(InPredicate)
-			, TimingEvent(InOutTimingEvent)
-			, bStopAtFirstMatch(bInStopAtFirstMatch)
-			, bSearchForLargestEvent(bInSearchForLargestEvent)
-			, bFound(false)
-			, bContinueSearching(true)
-			, LargestDuration(-1.0)
-		{
-		}
-
-		void CheckEvent(double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
-		{
-			if (bContinueSearching && Predicate(EventStartTime, EventEndTime, EventDepth))
-			{
-				if (!bSearchForLargestEvent || EventEndTime - EventStartTime > LargestDuration)
-				{
-					LargestDuration = EventEndTime - EventStartTime;
-
-					TimingEvent.TypeId = Event.TimerIndex;
-					TimingEvent.Depth = EventDepth;
-					TimingEvent.StartTime = EventStartTime;
-					TimingEvent.EndTime = EventEndTime;
-
-					bFound = true;
-					bContinueSearching = !bStopAtFirstMatch || bSearchForLargestEvent;
-				}
-			}
-		}
-
-		void CheckEvent(double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-		{
-			if (bContinueSearching && Predicate(EventStartTime, EventEndTime, EventDepth))
-			{
-				if (!bSearchForLargestEvent || EventEndTime - EventStartTime > LargestDuration)
-				{
-					LargestDuration = EventEndTime - EventStartTime;
-
-					TimingEvent.TypeId = 0;
-					TimingEvent.Depth = EventDepth;
-					TimingEvent.StartTime = EventStartTime;
-					TimingEvent.EndTime = EventEndTime;
-
-					TimingEvent.LoadingInfo = Event;
-
-					bFound = true;
-					bContinueSearching = !bStopAtFirstMatch || bSearchForLargestEvent;
-				}
-			}
-		}
-
-		void CheckEvent(const FIoTimingEvent& Event, uint32 EventDepth)
-		{
-			if (bContinueSearching && Predicate(Event.StartTime, Event.EndTime, EventDepth))
-			{
-				if (!bSearchForLargestEvent || Event.EndTime - Event.StartTime > LargestDuration)
-				{
-					LargestDuration = Event.EndTime - Event.StartTime;
-
-					TimingEvent.TypeId = Event.Type;
-					TimingEvent.Depth = EventDepth;
-					TimingEvent.StartTime = Event.StartTime;
-					TimingEvent.EndTime = Event.EndTime;
-
-					TimingEvent.Offset = Event.Offset;
-					TimingEvent.Size = Event.Size;
-					TimingEvent.Path = Event.FileActivity->Path;
-
-					bFound = true;
-					bContinueSearching = !bStopAtFirstMatch || bSearchForLargestEvent;
-				}
-			}
-		}
-	};
-
-	FSearchTimingEventContext Ctx(InStartTime, InEndTime, InPredicate, InOutTimingEvent, bInStopAtFirstMatch, bInSearchForLargestEvent);
-
-	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	if (Session.IsValid())
-	{
-		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-		const FTimingEventsTrack* Track = Ctx.TimingEvent.Track;
-
-		if (Track->GetType() == ETimingEventsTrackType::Cpu ||
-			Track->GetType() == ETimingEventsTrackType::Gpu)
-		{
-			if (Trace::ReadTimingProfilerProvider(*Session.Get()))
-			{
-				const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-
-				TimingProfilerProvider.ReadTimeline(Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-				{
-					Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FTimingProfilerEvent& Event)
-					{
-						Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
-					});
-				});
-
-				if (Ctx.bFound)
-				{
-					// Compute Exclusive Time.
-					TimingProfilerProvider.ReadTimeline(Track->GetId(), [&Ctx](const Trace::ITimingProfilerProvider::Timeline& Timeline)
-					{
-						struct FEnumerationState
-						{
-							double EventStartTime;
-							double EventEndTime;
-							uint64 EventDepth;
-
-							uint64 CurrentDepth;
-							double LastTime;
-							double ExclusiveTime;
-							bool IsInEventScope;
-						};
-						FEnumerationState State;
-
-						State.EventStartTime = Ctx.TimingEvent.StartTime;
-						State.EventEndTime = Ctx.TimingEvent.EndTime;
-						State.EventDepth = Ctx.TimingEvent.Depth;
-
-						State.CurrentDepth = 0;
-						State.LastTime = 0.0;
-						State.ExclusiveTime = 0.0;
-						State.IsInEventScope = false;
-
-						Timeline.EnumerateEvents(Ctx.TimingEvent.StartTime, Ctx.TimingEvent.EndTime, [&State](bool IsEnter, double Time, const Trace::FTimingProfilerEvent& Event)
-						{
-							if (IsEnter)
-							{
-								if (State.IsInEventScope && State.CurrentDepth == State.EventDepth + 1)
-								{
-									State.ExclusiveTime += Time - State.LastTime;
-								}
-								if (State.CurrentDepth == State.EventDepth && Time == State.EventStartTime)
-								{
-									State.IsInEventScope = true;
-								}
-								++State.CurrentDepth;
-							}
-							else
-							{
-								--State.CurrentDepth;
-								if (State.CurrentDepth == State.EventDepth && Time == State.EventEndTime)
-								{
-									State.IsInEventScope = false;
-									State.ExclusiveTime += Time - State.LastTime;
-								}
-							}
-							State.LastTime = Time;
-						});
-
-						Ctx.TimingEvent.ExclusiveTime = State.ExclusiveTime;
-					});
-				}
-			}
-		}
-		else if (Track->GetType() == ETimingEventsTrackType::Loading)
-		{
-			if (Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
-			{
-				const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-				if (Track == LoadingMainThreadTrack)
-				{
-					LoadTimeProfilerProvider.ReadMainThreadCpuTimeline([&Ctx](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-					{
-						Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
-						});
-					});
-				}
-				else if (Track == LoadingAsyncThreadTrack)
-				{
-					LoadTimeProfilerProvider.ReadAsyncLoadingThreadCpuTimeline([&Ctx](const Trace::ILoadTimeProfilerProvider::CpuTimeline& Timeline)
-					{
-						Timeline.EnumerateEvents(Ctx.StartTime, Ctx.EndTime, [&Ctx](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FLoadTimeProfilerCpuEvent& Event)
-						{
-							Ctx.CheckEvent(EventStartTime, EventEndTime, EventDepth, Event);
-						});
-					});
-				}
-			}
-		}
-		else if (Track->GetType() == ETimingEventsTrackType::Io)
-		{
-			if (Track == IoOverviewTrack)
-			{
-				for (const FIoTimingEvent& Event : AllIoEvents)
-				{
-					if (Event.EndTime <= Ctx.StartTime)
-					{
-						continue;
-					}
-
-					if (!Ctx.bContinueSearching || Event.StartTime >= Ctx.EndTime)
-					{
-						break;
-					}
-
-					Ctx.CheckEvent(Event, 0);
-				}
-			}
-			else if (Track == IoActivityTrack)
-			{
-				for (const FIoTimingEvent& Event : AllIoEvents)
-				{
-					if (Event.EndTime <= Ctx.StartTime)
-					{
-						continue;
-					}
-
-					if (!Ctx.bContinueSearching || Event.StartTime >= Ctx.EndTime)
-					{
-						break;
-					}
-
-					Ctx.CheckEvent(Event, Event.Depth);
-				}
-			}
-		}
-	}
-
-	return Ctx.bFound;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void STimingView::OnSelectedTimingEventChanged()
 {
 	// Select the timer node coresponding to timing event type of selected timing event.
 	if (!bAssetLoadingMode &&
 		SelectedTimingEvent.IsValid() &&
-		(SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Cpu ||
-		 SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Gpu))
+		(SelectedTimingEvent.Track->GetType() == FName(TEXT("Thread"))))
 	{
-		//TODO: make this a more generic (i.e. no hardocdings on TimingProfilerManager)
+		//TODO: make this more generic
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd)
 		{
@@ -3694,7 +2435,7 @@ void STimingView::SelectLeftTimingEvent()
 		const double EndTime = SelectedTimingEvent.EndTime;
 		const bool bStopAtFirstMatch = false; // get last one matching
 		const bool bSearchForLargestEvent = false;
-		if (SearchTimingEvent(0.0, StartTime,
+		if (SelectedTimingEvent.Track->SearchTimingEvent(0.0, StartTime,
 			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth &&
@@ -3719,7 +2460,7 @@ void STimingView::SelectRightTimingEvent()
 		const double EndTime = SelectedTimingEvent.EndTime;
 		const bool bStopAtFirstMatch = true; // get first one matching
 		const bool bSearchForLargestEvent = false;
-		if (SearchTimingEvent(EndTime, Viewport.MaxValidTime,
+		if (SelectedTimingEvent.Track->SearchTimingEvent(EndTime, Viewport.MaxValidTime,
 			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth &&
@@ -3745,7 +2486,7 @@ void STimingView::SelectUpTimingEvent()
 		double EndTime = SelectedTimingEvent.EndTime;
 		const bool bStopAtFirstMatch = true; // get first one matching
 		const bool bSearchForLargestEvent = false;
-		if (SearchTimingEvent(StartTime, EndTime,
+		if (SelectedTimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
 			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth
@@ -3771,7 +2512,7 @@ void STimingView::SelectDownTimingEvent()
 		double EndTime = SelectedTimingEvent.EndTime;
 		const bool bStopAtFirstMatch = false; // check all timing events
 		const bool bSearchForLargestEvent = true; // get largest timing event
-		if (SearchTimingEvent(StartTime, EndTime,
+		if (SelectedTimingEvent.Track->SearchTimingEvent(StartTime, EndTime,
 			[Depth, StartTime, EndTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
 			{
 				return EventDepth == Depth
@@ -3857,26 +2598,6 @@ void STimingView::FrameSelection()
 			bIsViewportDirty = true;
 		}
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const FTimerNodePtr STimingView::GetTimerNode(uint64 TypeId) const
-{
-	const FTimerNodePtr* TimerNodePtrPtr = nullptr;
-	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-	if (Wnd && Wnd->TimersView)
-	{
-		TimerNodePtrPtr = Wnd->TimersView->GetTimerNode(TypeId);
-		if (TimerNodePtrPtr == nullptr)
-		{
-			// List of timers in TimersView not up to date?
-			// Refresh and try again.
-			Wnd->TimersView->RebuildTree(false);
-			TimerNodePtrPtr = Wnd->TimersView->GetTimerNode(TypeId);
-		}
-	}
-	return TimerNodePtrPtr ? *TimerNodePtrPtr : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4060,7 +2781,7 @@ void STimingView::ShowHideAllCpuTracks_Execute()
 	for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
 		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
-		if (Track.GetType() == ETimingEventsTrackType::Cpu)
+		if (Track.GetType() == FName(TEXT("Thread")) && Track.GetSubType() == FName(TEXT("CPU")))
 		{
 			Track.SetVisibilityFlag(bShowHideAllCpuTracks);
 		}
@@ -4093,7 +2814,7 @@ void STimingView::ShowHideAllGpuTracks_Execute()
 	for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
 		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
-		if (Track.GetType() == ETimingEventsTrackType::Gpu)
+		if (Track.GetType() == FName(TEXT("Thread")) && Track.GetSubType() == FName(TEXT("GPU")))
 		{
 			Track.SetVisibilityFlag(bShowHideAllGpuTracks);
 		}
@@ -4121,7 +2842,7 @@ void STimingView::ShowHideAllLoadingTracks_Execute()
 	for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
 		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
-		if (Track.GetType() == ETimingEventsTrackType::Loading)
+		if (Track.GetType() == FName(TEXT("Loading")))
 		{
 			Track.SetVisibilityFlag(bShowHideAllLoadingTracks);
 		}
@@ -4146,7 +2867,7 @@ void STimingView::ShowHideAllIoTracks_Execute()
 	for (int32 TrackIndex = 0; TrackIndex < TimingEventsTracks.Num(); ++TrackIndex)
 	{
 		FTimingEventsTrack& Track = *TimingEventsTracks[TrackIndex];
-		if (Track.GetType() == ETimingEventsTrackType::Io)
+		if (Track.GetType() == FName(TEXT("FileActivity")))
 		{
 			Track.SetVisibilityFlag(bShowHideAllIoTracks);
 		}
@@ -4156,7 +2877,7 @@ void STimingView::ShowHideAllIoTracks_Execute()
 
 	if (bShowHideAllIoTracks)
 	{
-		bForceIoEventsUpdate = true;
+		FileActivitySharedState->RequestUpdate();
 	}
 }
 
@@ -4240,8 +2961,8 @@ void STimingView::ToggleTrackVisibilityByGroup_Execute(const TCHAR* InGroupName)
 		for (auto& KV : CachedTimelines)
 		{
 			FTimingEventsTrack& Track = *KV.Value;
-			if (Track.GetType() == ETimingEventsTrackType::Cpu &&
-				Track.GetGroupName() == InGroupName)
+			if (Track.GetType() == FName(TEXT("Thread")) && Track.GetSubType() == FName(TEXT("CPU")) &&
+				((FCpuTimingTrack*)&Track)->GetGroupName() == InGroupName)
 			{
 				Track.SetVisibilityFlag(ThreadGroup.bIsVisible);
 			}

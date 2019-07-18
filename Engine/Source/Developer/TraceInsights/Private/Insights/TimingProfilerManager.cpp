@@ -244,4 +244,24 @@ void FTimingProfilerManager::ShowHideLogView(const bool bLogViewVisibleState)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const FTimerNodePtr FTimingProfilerManager::GetTimerNode(uint64 TypeId) const
+{
+	const FTimerNodePtr* TimerNodePtrPtr = nullptr;
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid() && Wnd->TimersView)
+	{
+		TimerNodePtrPtr = Wnd->TimersView->GetTimerNode(TypeId);
+		if (TimerNodePtrPtr == nullptr)
+		{
+			// List of timers in TimersView not up to date?
+			// Refresh and try again.
+			Wnd->TimersView->RebuildTree(false);
+			TimerNodePtrPtr = Wnd->TimersView->GetTimerNode(TypeId);
+		}
+	}
+	return TimerNodePtrPtr ? *TimerNodePtrPtr : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #undef LOCTEXT_NAMESPACE

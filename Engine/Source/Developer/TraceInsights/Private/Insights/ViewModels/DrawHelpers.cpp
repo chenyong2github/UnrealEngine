@@ -183,8 +183,8 @@ void FDrawHelpers::DrawTimeRangeSelection(
 				//im: This should be a more efficeint way top draw the arrows, but it renders them with artifacts (missing vertical lines; shader bug?)!
 
 				const FSlateBrush* MyBrush = WhiteBrush;
-				FSlateShaderResourceProxy* ResourceProxy = FSlateDataPayload::ResourceManager->GetShaderResource(*MyBrush);
 				FSlateResourceHandle ResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*MyBrush);
+				const FSlateShaderResourceProxy* ResourceProxy = ResourceHandle.GetResourceProxy();
 
 				FVector2D AtlasOffset = ResourceProxy ? ResourceProxy->StartUV : FVector2D(0.0f, 0.0f);
 				FVector2D AtlasUVSize = ResourceProxy ? ResourceProxy->SizeUV : FVector2D(1.0f, 1.0f);

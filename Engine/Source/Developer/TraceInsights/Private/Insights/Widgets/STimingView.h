@@ -15,7 +15,6 @@
 
 // Insights
 #include "Insights/Common/FixedCircularBuffer.h"
-#include "Insights/ViewModels/GraphTrack.h"
 #include "Insights/ViewModels/MarkersTimingTrack.h"
 #include "Insights/ViewModels/TimerNode.h"
 #include "Insights/ViewModels/TimeRulerTrack.h"
@@ -24,6 +23,9 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 
+class FFileActivitySharedState;
+class FLoadingSharedState;
+class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class SScrollBar;
 
@@ -36,15 +38,9 @@ DECLARE_DELEGATE_RetVal(int32, FHoveredEventChangedDelegate);
 /** The delegate to be invoked when the selected timing event has changed. Returns id of timing event or -1 (if no event is hovered). */
 DECLARE_DELEGATE_RetVal(int32, FSelectedEventChangedDelegate);
 
-/** Defines FLoadingTrackGetEventNameDelegate delegate interface. Returns the name for a timing event in a Loading track. */
-DECLARE_DELEGATE_RetVal_TwoParams(const TCHAR*, FLoadingTrackGetEventNameDelegate, uint32 /*Depth*/, const Trace::FLoadTimeProfilerCpuEvent& /*Event*/);
-
 /** A custom widget used to display timing events. */
 class STimingView : public SCompoundWidget
 {
-private:
-	static constexpr float MinTooltipWidth = 110.0f;
-
 protected:
 	struct FAssetLoadingEventAggregationRow
 	{
@@ -272,7 +268,7 @@ public:
 	bool IsGpuTrackVisible() const;
 	bool IsCpuTrackVisible(uint32 ThreadId) const;
 
-	TSharedPtr<FTimingGraphTrack> GetMainTimingGraphTrack() { return StaticCastSharedPtr<FTimingGraphTrack>(GraphTrack); }
+	TSharedPtr<FTimingGraphTrack> GetMainTimingGraphTrack() { return GraphTrack; }
 
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override
@@ -280,20 +276,7 @@ protected:
 		return FVector2D(16.0f, 16.0f);
 	}
 
-	FTimingEventsTrack* AddTimingEventsTrack(uint64 TrackId, ETimingEventsTrackType TrackType, const FString& TrackName, const TCHAR* GroupName, int32 Order);
-
-	void DrawTimingProfilerTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
-
-	const TCHAR* GetLoadTimeProfilerEventNameByPackageEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-	const TCHAR* GetLoadTimeProfilerEventNameByExportEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-	const TCHAR* GetLoadTimeProfilerEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-	const TCHAR* GetLoadTimeProfilerEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-	const TCHAR* GetLoadTimeProfilerEventName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-	void DrawLoadTimeProfilerTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
-
-	void UpdateIo();
-	void DrawIoOverviewTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
-	void DrawIoActivityTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
+	void AddTimingEventsTrack(FTimingEventsTrack* Track);
 
 	void DrawTimeRangeSelection(FDrawContext& DrawContext) const;
 
@@ -328,13 +311,6 @@ protected:
 
 	void UpdateHoveredTimingEvent(float MX, float MY);
 
-	bool SearchTimingEvent(const double InStartTime,
-						   const double InEndTime,
-						   TFunctionRef<bool(double, double, uint32)> InPredicate,
-						   FTimingEvent& InOutTimingEvent,
-						   bool bInStopAtFirstMatch,
-						   bool bInSearchForLargestEvent) const;
-
 	void OnSelectedTimingEventChanged();
 	void SelectHoveredTimingEvent();
 	void SelectLeftTimingEvent();
@@ -343,8 +319,6 @@ protected:
 	void SelectDownTimingEvent();
 
 	void FrameSelection();
-
-	const FTimerNodePtr GetTimerNode(uint64 TypeId) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FrameSelectionChanged Event
@@ -401,8 +375,6 @@ protected:
 
 	bool bAreTimingEventsTracksDirty;
 
-	bool bUseDownSampling;
-
 	////////////////////////////////////////////////////////////
 	// Cpu/Gpu
 
@@ -424,13 +396,12 @@ protected:
 	////////////////////////////////////////////////////////////
 	// Asset Loading
 
+	TSharedPtr<FLoadingSharedState> LoadingSharedState;
 	FTimingEventsTrack* LoadingMainThreadTrack;
 	FTimingEventsTrack* LoadingAsyncThreadTrack;
 
 	uint32 LoadingMainThreadId;
 	uint32 LoadingAsyncThreadId;
-
-	FLoadingTrackGetEventNameDelegate LoadingGetEventNameFn;
 
 	bool bAssetLoadingMode;
 
@@ -443,40 +414,9 @@ protected:
 	////////////////////////////////////////////////////////////
 	// File activity (I/O)
 
+	TSharedPtr<FFileActivitySharedState> FileActivitySharedState;
 	FTimingEventsTrack* IoOverviewTrack;
 	FTimingEventsTrack* IoActivityTrack;
-
-	bool bForceIoEventsUpdate;
-
-	bool bMergeIoLanes;
-	bool bShowFileActivityBackgroundEvents;
-
-	struct FIoFileActivity
-	{
-		uint64 Id;
-		const TCHAR* Path;
-		double StartTime;
-		double EndTime;
-		int32 EventCount;
-		int32 Depth;
-	};
-
-	TArray<TSharedPtr<FIoFileActivity>> FileActivities;
-	TMap<uint64, TSharedPtr<FIoFileActivity>> FileActivityMap;
-
-	struct FIoTimingEvent
-	{
-		double StartTime;
-		double EndTime;
-		uint32 Depth;
-		uint32 Type; // Trace::EFileActivityType + "Failed" flag
-		uint64 Offset;
-		uint64 Size;
-		TSharedPtr<FIoFileActivity> FileActivity;
-	};
-
-	/** All IO events, cached. */
-	TArray<FIoTimingEvent> AllIoEvents;
 
 	////////////////////////////////////////////////////////////
 
@@ -487,7 +427,7 @@ protected:
 	FMarkersTimingTrack MarkersTrack;
 
 	/** A graph track for frame times. */
-	TSharedPtr<FGraphTrack> GraphTrack;
+	TSharedPtr<FTimingGraphTrack> GraphTrack;
 
 	////////////////////////////////////////////////////////////
 
@@ -545,8 +485,7 @@ protected:
 	double SelectionStartTime;
 	double SelectionEndTime;
 
-	mutable float TooltipWidth;
-	mutable float TooltipAlpha;
+	mutable FTimingViewTooltip Tooltip;
 
 	FTimingEvent HoveredTimingEvent;
 	FTimingEvent SelectedTimingEvent;

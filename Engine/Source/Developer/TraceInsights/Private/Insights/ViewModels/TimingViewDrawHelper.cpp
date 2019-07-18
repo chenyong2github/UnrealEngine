@@ -127,7 +127,7 @@ void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track)
 		}
 	}
 
-	Track.Depth = MaxDepth;
+	Track.SetDepth(MaxDepth);
 
 	float NewH;
 	if (MaxDepth < 0)
