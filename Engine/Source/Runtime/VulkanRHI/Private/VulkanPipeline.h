@@ -627,8 +627,6 @@ private:
 		bool Load(FArchive& Ar);
 	};
 #endif
-
-	static bool BinaryCacheMatches(FVulkanDevice* InDevice, const TArray<uint8>& DeviceCache);
 };
 
 // Common pipeline class
