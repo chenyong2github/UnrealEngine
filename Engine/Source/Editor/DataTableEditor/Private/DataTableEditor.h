@@ -27,7 +27,6 @@ class FDataTableEditor : public IDataTableEditor
 	, public FDataTableEditorUtils::INotifyOnDataTableChanged
 {
 	friend class SDataTableListViewRow;
-	friend class SDataTableListViewRowName;
 
 public:
 
@@ -113,18 +112,18 @@ protected:
 	/**	Spawns the tab with the Row Editor inside */
 	TSharedRef<SDockTab> SpawnTab_RowEditor(const FSpawnTabArgs& Args);
 
-	FOptionalSize GetRowNameColumnWidth() const;
+	float GetRowNameColumnWidth() const;
+	void RefreshRowNameColumnWidth();
 
 	float GetColumnWidth(const int32 ColumnIndex) const;
 
 	void OnColumnResized(const float NewWidth, const int32 ColumnIndex);
 
+	void OnRowNameColumnResized(const float NewWidth);
+
 	void LoadLayoutData();
 
 	void SaveLayoutData();
-
-	/** Make the widget for a row name entry in the data table row list view */
-	TSharedRef<ITableRow> MakeRowNameWidget(FDataTableEditorRowListViewDataPtr InRowDataPtr, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Make the widget for a row entry in the data table row list view */
 	TSharedRef<ITableRow> MakeRowWidget(FDataTableEditorRowListViewDataPtr InRowDataPtr, const TSharedRef<STableViewBase>& OwnerTable);

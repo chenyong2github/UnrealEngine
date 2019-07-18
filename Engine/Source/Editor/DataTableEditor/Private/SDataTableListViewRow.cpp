@@ -1,51 +1,37 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "SDataTableListViewRowName.h"
+#include "SDataTableListViewRow.h"
 
 #include "AssetData.h"
 #include "DataTableEditor.h"
 #include "DataTableRowUtlis.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SEditableText.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "SDataTableListViewRowName"
 
-void SDataTableListViewRowName::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
+void SDataTableListViewRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	RowDataPtr = InArgs._RowDataPtr;
 	CurrentName = MakeShareable(new FName(RowDataPtr->RowId));
 	DataTableEditor = InArgs._DataTableEditor;
-	STableRow<FDataTableEditorRowListViewDataPtr>::Construct(
-		typename STableRow<FDataTableEditorRowListViewDataPtr>::FArguments()
-		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow")
-		.Content()
-		[
-			SNew(SBox)
-			.Padding(FMargin(4, 2, 4, 2))
-			[
-				SNew(SBox)
-				.HeightOverride(RowDataPtr->DesiredRowHeight)
-				[
-					SAssignNew(EditableText, SEditableText)
-					.Text(RowDataPtr->DisplayName)
-					.OnTextCommitted(this, &SDataTableListViewRowName::OnRowRenamed)
-					.ColorAndOpacity(DataTableEditor.Pin().Get(), &FDataTableEditor::GetRowTextColor, RowDataPtr->RowId)					
-				]
-			]
-		],
+	SMultiColumnTableRow<FDataTableEditorRowListViewDataPtr>::Construct(
+		FSuperRowType::FArguments()
+		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
 		InOwnerTableView
 	);
+
 }
 
-FReply SDataTableListViewRowName::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SDataTableListViewRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && RowDataPtr.IsValid() && FEditorDelegates::OnOpenReferenceViewer.IsBound() && DataTableEditor.IsValid())
 	{
 		FDataTableEditorUtils::SelectRow(DataTableEditor.Pin()->GetDataTable(), RowDataPtr->RowId);
-		TSharedRef<SWidget> MenuWidget = FDataTableRowUtils::MakeRowActionsMenu(DataTableEditor.Pin(), FExecuteAction::CreateSP(this, &SDataTableListViewRowName::OnSearchForReferences));
-		
+		TSharedRef<SWidget> MenuWidget = FDataTableRowUtils::MakeRowActionsMenu(DataTableEditor.Pin(), FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnSearchForReferences));
+
 		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuWidget, MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect::ContextMenu);
 		return FReply::Handled();
@@ -54,7 +40,7 @@ FReply SDataTableListViewRowName::OnMouseButtonUp(const FGeometry& MyGeometry, c
 	return STableRow::OnMouseButtonUp(MyGeometry, MouseEvent);
 }
 
-void SDataTableListViewRowName::OnSearchForReferences()
+void SDataTableListViewRow::OnSearchForReferences()
 {
 	if (DataTableEditor.IsValid() && RowDataPtr.IsValid())
 	{
@@ -70,26 +56,11 @@ void SDataTableListViewRowName::OnSearchForReferences()
 	}
 }
 
-void SDataTableListViewRowName::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	SWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-	
-	if (EditableText->HasAnyUserFocus())
-	{
-		UDataTable* DataTable = Cast<UDataTable>(DataTableEditor.Pin()->GetEditingObject());
-		if (RowDataPtr.IsValid() && DataTable)
-		{
-	
-			DataTableEditor.Pin()->SelectionChange(DataTable, RowDataPtr->RowId);
-		}
-	}
-}
-
-FReply SDataTableListViewRowName::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+FReply SDataTableListViewRow::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FKey Key = InKeyEvent.GetKey();
 
-	if (Key == EKeys::Escape && EditableText->HasKeyboardFocus())
+	if (Key == EKeys::Escape && InlineEditableText->HasKeyboardFocus())
 	{
 		// Clear focus
 		return FReply::Handled().SetUserFocus(SharedThis(this), EFocusCause::Cleared);
@@ -98,7 +69,7 @@ FReply SDataTableListViewRowName::OnKeyDown(const FGeometry& MyGeometry, const F
 	return FReply::Unhandled();
 }
 
-void SDataTableListViewRowName::OnRowRenamed(const FText& Text, ETextCommit::Type CommitType)
+void SDataTableListViewRow::OnRowRenamed(const FText& Text, ETextCommit::Type CommitType)
 {
 	UDataTable* DataTable = Cast<UDataTable>(DataTableEditor.Pin()->GetEditingObject());
 
@@ -141,18 +112,83 @@ void SDataTableListViewRowName::OnRowRenamed(const FText& Text, ETextCommit::Typ
 
 		const FName OldName = GetCurrentName();
 		FDataTableEditorUtils::RenameRow(DataTable, OldName, NewName);
-		DataTableEditor.Pin()->SelectionChange(DataTable, NewName);
+		FDataTableEditorUtils::SelectRow(DataTable, NewName);
+
 		*CurrentName = NewName;
 	}
 }
 
-FName SDataTableListViewRowName::GetCurrentName() const
+TSharedRef<SWidget> SDataTableListViewRow::GenerateWidgetForColumn(const FName& ColumnName)
+{
+	TSharedPtr<FDataTableEditor> DataTableEditorPtr = DataTableEditor.Pin();
+	return (DataTableEditorPtr.IsValid())
+		? MakeCellWidget(IndexInList, ColumnName)
+		: SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> SDataTableListViewRow::MakeCellWidget(const int32 InRowIndex, const FName& InColumnId)
+{
+	int32 ColumnIndex = 0;
+
+	FDataTableEditor* DataTableEdit = DataTableEditor.Pin().Get();
+	TArray<FDataTableEditorColumnHeaderDataPtr>& AvailableColumns = DataTableEdit->AvailableColumns;
+
+	if (InColumnId.IsEqual(FName(TEXT("RowName"))))
+	{
+		return SNew(SBox)
+			.Padding(FMargin(4, 2, 4, 2))
+			[
+				SAssignNew(InlineEditableText, SInlineEditableTextBlock)
+				.Text(RowDataPtr->DisplayName)
+				.OnTextCommitted(this, &SDataTableListViewRow::OnRowRenamed)
+				.ColorAndOpacity(DataTableEdit, &FDataTableEditor::GetRowTextColor, RowDataPtr->RowId)
+			];
+	}
+
+	for (; ColumnIndex < AvailableColumns.Num(); ++ColumnIndex)
+	{
+		const FDataTableEditorColumnHeaderDataPtr& ColumnData = AvailableColumns[ColumnIndex];
+		if (ColumnData->ColumnId == InColumnId)
+		{
+			break;
+		}
+	}
+	 
+	// Valid column ID?
+	if (AvailableColumns.IsValidIndex(ColumnIndex) && RowDataPtr->CellData.IsValidIndex(ColumnIndex))
+	{
+		return SNew(SBox)
+			.Padding(FMargin(4, 2, 4, 2))
+			[
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), "DataTableEditor.CellText")
+				.ColorAndOpacity(DataTableEdit, &FDataTableEditor::GetRowTextColor, RowDataPtr->RowId)
+				.Text(DataTableEdit, &FDataTableEditor::GetCellText, RowDataPtr, ColumnIndex)
+				.HighlightText(DataTableEdit, &FDataTableEditor::GetFilterText)
+				.ToolTipText(DataTableEdit, &FDataTableEditor::GetCellToolTipText, RowDataPtr, ColumnIndex)
+			];
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+FName SDataTableListViewRow::GetCurrentName() const
 {
 	return CurrentName.IsValid() ? *CurrentName : NAME_None;
 
 }
 
-FText SDataTableListViewRowName::GetCurrentNameAsText() const
+FReply SDataTableListViewRow::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InlineEditableText->IsHovered())
+	{
+		InlineEditableText->EnterEditingMode();
+	}
+
+	return FReply::Handled();
+}
+
+FText SDataTableListViewRow::GetCurrentNameAsText() const
 {
 	return FText::FromName(GetCurrentName());
 }

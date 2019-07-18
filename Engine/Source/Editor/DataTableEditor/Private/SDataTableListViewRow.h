@@ -17,16 +17,16 @@ class SEditableText;
  * A widget to represent a row in a Data Table Editor widget. This widget allows us to do things like right-click
  * and take actions on a particular row of a Data Table.
  */
-class SDataTableListViewRowName : public STableRow<FDataTableEditorRowListViewDataPtr>
+class SDataTableListViewRow : public SMultiColumnTableRow<FDataTableEditorRowListViewDataPtr>
 {
 public:
 
-	SLATE_BEGIN_ARGS(SDataTableListViewRowName){}
-		/** The owning object. This allows us access to the actual data table being edited as well as some other API functions. */
-		SLATE_ARGUMENT(TSharedPtr<FDataTableEditor>, DataTableEditor)
+	SLATE_BEGIN_ARGS(SDataTableListViewRow) {}
+	/** The owning object. This allows us access to the actual data table being edited as well as some other API functions. */
+	SLATE_ARGUMENT(TSharedPtr<FDataTableEditor>, DataTableEditor)
 		/** The row we're working with to allow us to get naming information. */
 		SLATE_ARGUMENT(FDataTableEditorRowListViewDataPtr, RowDataPtr)
-	SLATE_END_ARGS()
+		SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView);
 
@@ -36,17 +36,20 @@ public:
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 
 	FText GetCurrentNameAsText() const;
 	FName GetCurrentName() const;
 
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+
 private:
 
 	void OnSearchForReferences();
+	TSharedRef<SWidget> MakeCellWidget(const int32 InRowIndex, const FName& InColumnId);
 
-	TSharedPtr<SEditableText> EditableText;
-	
+	TSharedPtr<SInlineEditableTextBlock> InlineEditableText;
+
 	TSharedPtr<FName> CurrentName;
 
 	FDataTableEditorRowListViewDataPtr RowDataPtr;
