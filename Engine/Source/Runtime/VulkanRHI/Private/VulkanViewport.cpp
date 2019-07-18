@@ -78,6 +78,12 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 		check(Viewport->AcquiredImageIndex == -1);
 		
 		Viewport->AcquireImageIndex();
+		// If swapchain got invalidated (OUT_OF_DATE etc) in the above call, we may end up not having a valid viewport pointer at this point. Abort the whole thing.
+		if (Viewport == nullptr)
+		{
+			return;
+		}
+
 		int32 AcquiredImageIndex = Viewport->AcquiredImageIndex;
 		check(AcquiredImageIndex >= 0 && AcquiredImageIndex < Viewport->TextureViews.Num());
 
