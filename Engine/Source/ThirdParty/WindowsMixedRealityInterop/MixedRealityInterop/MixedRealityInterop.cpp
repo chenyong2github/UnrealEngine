@@ -46,6 +46,8 @@
 // Remoting
 #include <HolographicAppRemoting/Streamer.h>
 #define HOLO_STREAMING_RENDERING 1
+#include <winrt/Windows.Data.Xml.Dom.h>
+#include <winrt/Windows.Storage.h>
 #else
 #define HOLO_STREAMING_RENDERING 0
 #endif
@@ -252,6 +254,7 @@ namespace WindowsMixedReality
 #if HOLO_STREAMING_RENDERING
 	// Remoting
     winrt::Microsoft::Holographic::AppRemoting::RemoteContext m_remoteContext = nullptr;
+	winrt::Microsoft::Holographic::AppRemoting::IRemoteSpeech remoteSpeech = nullptr;
     winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnConnected_revoker m_onConnectedEventRevoker;
     winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnDisconnected_revoker m_onDisconnectedEventRevoker;
     winrt::Microsoft::Holographic::AppRemoting::IRemoteSpeech::OnRecognizedSpeech_revoker m_onRecognizedSpeechRevoker;
@@ -297,6 +300,63 @@ namespace WindowsMixedReality
 
 	std::mutex quadLayerLock;
 	std::vector<QuadLayer> quadLayers;
+
+	// Remote Speech
+#if HOLO_STREAMING_RENDERING
+	concurrency::task<winrt::Windows::Storage::IStorageFolder> GetTempFolderAsync()
+	{
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+		wchar_t tempFolderPath[MAX_PATH];
+
+		if (ExpandEnvironmentStringsW(L"%TEMP%", tempFolderPath, _countof(tempFolderPath)) == 0)
+		{
+			winrt::throw_last_error();
+		}
+
+		return concurrency::create_task([tempFolderPath]() {
+			auto folder = winrt::Windows::Storage::StorageFolder::GetFolderFromPathAsync(tempFolderPath).get();
+			return folder.as<winrt::Windows::Storage::IStorageFolder>();
+		});
+#endif
+
+		return concurrency::create_task([]() {
+			auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalCacheFolder();
+			return folder.as<winrt::Windows::Storage::IStorageFolder>();
+		});
+	}
+
+	concurrency::task<winrt::Windows::Storage::IStorageFile> CreateGrammarFileAsync()
+	{
+		const winrt::hstring ns = L"http://www.w3.org/2001/06/grammar";
+		const winrt::Windows::Foundation::IReference<winrt::hstring> nsRef(ns);
+
+		winrt::Windows::Data::Xml::Dom::XmlDocument doc;
+
+		auto grammar = doc.CreateElementNS(nsRef, L"grammar");
+		grammar.SetAttribute(L"version", L"1.0");
+		grammar.SetAttribute(L"xml:lang", L"en-US");
+		grammar.SetAttribute(L"root", L"remoting");
+		doc.AppendChild(grammar);
+
+		auto rule = doc.CreateElementNS(nsRef, L"rule");
+		rule.SetAttribute(L"id", L"remoting");
+		grammar.AppendChild(rule);
+
+		auto item = doc.CreateElementNS(nsRef, L"item");
+		item.InnerText(L"Hello world");
+
+		rule.AppendChild(item);
+
+		return GetTempFolderAsync().then(
+			[doc](winrt::Windows::Storage::IStorageFolder tempFolder) -> winrt::Windows::Storage::IStorageFile {
+			auto file =
+				tempFolder.CreateFileAsync(L"grammar.xml", winrt::Windows::Storage::CreationCollisionOption::ReplaceExisting).get();
+			doc.SaveToFileAsync(file).get();
+
+			return file;
+		});
+	}
+#endif
 
 #pragma region Camera Resources
 	class HolographicCameraResources
@@ -2643,6 +2703,15 @@ namespace WindowsMixedReality
 
 	void SpeechRecognizerInterop::AddKeyword(const wchar_t* keyword, std::function<void()> callback)
 	{
+#if HOLO_STREAMING_RENDERING
+		// Remoting supports a single remoteSpeech object.  
+		// Keywords are aggregated in OnBeginPlay and a single speech recognizer is created, so this will work for all keywords.
+		if (id > 0)
+		{
+			return;
+		}
+#endif
+
 		if (speechRecognizerMap[id] == nullptr)
 		{
 			return;
@@ -2653,12 +2722,59 @@ namespace WindowsMixedReality
 
 	void SpeechRecognizerInterop::StartSpeechRecognition()
 	{
+#if HOLO_STREAMING_RENDERING
+		// Remoting supports a single remoteSpeech object.  
+		// Keywords are aggregated in OnBeginPlay and a single speech recognizer is created, so this will work for all keywords.
+		if (id > 0)
+		{
+			return;
+		}
+#endif
+
 		if (speechRecognizerMap[id] == nullptr)
 		{
 			return;
 		}
 
 		speechRecognizerMap[id]->StartSpeechRecognizer();
+
+#if HOLO_STREAMING_RENDERING
+		if (m_remoteContext == nullptr 
+			|| remoteSpeech == nullptr)
+		{
+			return;
+		}
+
+		CreateGrammarFileAsync().then([this](winrt::Windows::Storage::IStorageFile grammarFile)
+		{
+			std::vector<winrt::hstring> dictionary;
+			for (auto keywordPair : speechRecognizerMap[id]->KeywordMap())
+			{
+				{ std::wstringstream string; string << L"Adding Keyword " << keywordPair.first.c_str(); Log(string); }
+
+				dictionary.push_back(keywordPair.first);
+			}
+			
+			remoteSpeech.ApplyParameters(L"en-US", grammarFile, dictionary);
+
+			m_onRecognizedSpeechRevoker = remoteSpeech.OnRecognizedSpeech(
+				winrt::auto_revoke, [this](const winrt::Microsoft::Holographic::AppRemoting::RecognizedSpeech& recognizedSpeech)
+			{
+				{ std::wstringstream string; string << L"Evaluating Keyword " << recognizedSpeech.RecognizedText.c_str(); Log(string); }
+
+				for (auto keywordPair : speechRecognizerMap[id]->KeywordMap())
+				{
+					if (recognizedSpeech.RecognizedText == keywordPair.first)
+					{
+						{ std::wstringstream string; string << L"Recognized Keyword " << recognizedSpeech.RecognizedText.c_str(); Log(string); }
+
+						keywordPair.second();
+						break;
+					}
+				}
+			});
+		});
+#endif
 	}
 
 	void SpeechRecognizerInterop::StopSpeechRecognition()
@@ -2985,6 +3101,8 @@ namespace WindowsMixedReality
 				DisconnectFromDevice();
 			});
 
+			remoteSpeech = m_remoteContext.GetRemoteSpeech();
+
 			try
 			{
 				m_remoteContext.Connect(m_ip, 8265);
@@ -3076,6 +3194,7 @@ namespace WindowsMixedReality
 
 			m_onConnectedEventRevoker.revoke();
 			m_onDisconnectedEventRevoker.revoke();
+			m_onRecognizedSpeechRevoker.revoke();
 
 			m_remoteContext.Close();
 			m_remoteContext = nullptr;
