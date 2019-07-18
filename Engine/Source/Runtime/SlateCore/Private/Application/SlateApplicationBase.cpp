@@ -157,7 +157,7 @@ void FSlateApplicationBase::ToggleGlobalInvalidation(bool bIsGlobalInvalidationE
 	if ((!!GSlateEnableGlobalInvalidation) != bIsGlobalInvalidationEnabled)
 	{
 		GSlateEnableGlobalInvalidation = bIsGlobalInvalidationEnabled ? 1 : 0;
-		OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation);
+		OnGlobalInvalidationToggledEvent.Broadcast(bIsGlobalInvalidationEnabled);
 	}
 }
 
