@@ -579,6 +579,12 @@ public:
 		checkNoEntry();
 	}
 #endif
+
+	virtual void RHIClearRayTracingBindings(FRHIRayTracingScene* Scene)
+	{
+		checkNoEntry();
+	}
+
 	virtual void RHIBuildAccelerationStructure(FRHIRayTracingGeometry* Geometry)
 	{
 		checkNoEntry();
