@@ -492,6 +492,7 @@ public:
 	inline bool IsVisibleInReflectionCaptures() const { return bVisibleInReflectionCaptures; }
 	inline bool IsVisibleInRayTracing() const { return bVisibleInRayTracing; }
 	inline bool ShouldRenderInMainPass() const { return bRenderInMainPass; }
+	inline bool ShouldRenderInDepthPass() const { return bRenderInMainPass || bRenderInDepthPass; }
 	inline bool IsCollisionEnabled() const { return bCollisionEnabled; }
 	inline bool IsHovered() const { return bHovered; }
 	inline bool IsOwnedBy(const AActor* Actor) const { return Owners.Find(Actor) != INDEX_NONE; }
@@ -819,6 +820,9 @@ private:
 
 	/** If true, this component will be visible in ray tracing effects. Turning this off will remove it from ray traced reflections, shadows, etc. */
 	uint8 bVisibleInRayTracing : 1;
+
+	/** If true this primitive Renders in the depthPass */
+	uint8 bRenderInDepthPass : 1;
 
 	/** If true this primitive Renders in the mainPass */
 	uint8 bRenderInMainPass : 1;

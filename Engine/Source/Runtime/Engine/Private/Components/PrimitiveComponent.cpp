@@ -329,6 +329,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bVisibleInReflectionCaptures = true;
 	bVisibleInRayTracing = true;
 	bRenderInMainPass = true;
+	bRenderInDepthPass = true;
 	VisibilityId = INDEX_NONE;
 #if WITH_EDITORONLY_DATA
 	CanBeCharacterBase_DEPRECATED = ECB_Yes;

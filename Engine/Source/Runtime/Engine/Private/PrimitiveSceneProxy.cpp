@@ -100,6 +100,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bStaticLighting(InComponent->HasStaticLighting())
 ,	bVisibleInReflectionCaptures(InComponent->bVisibleInReflectionCaptures)
 ,	bVisibleInRayTracing(InComponent->bVisibleInRayTracing)
+,	bRenderInDepthPass(InComponent->bRenderInDepthPass)
 ,	bRenderInMainPass(InComponent->bRenderInMainPass)
 ,	bRequiresVisibleLevelToRender(false)
 ,	bIsComponentLevelVisible(false)
