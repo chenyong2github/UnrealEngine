@@ -62,11 +62,14 @@ FGenerateMipsStruct* FGenerateMips::SetupTexture(FRHITexture* InTexture,
 		RenderTexture.TargetableTexture = InTexture;
 		RenderTexture.ShaderResourceTexture = InTexture;
 
-		RenderTexture.MipSRVs.SetNum(Desc.NumMips);
+		RenderTexture.SRVs.Reserve(Desc.NumMips);
 		RenderTexture.MipUAVs.Reserve(Desc.NumMips);
 		for (uint8 MipLevel = 0; MipLevel < Desc.NumMips; MipLevel++)
 		{
-			RenderTexture.MipSRVs[MipLevel] = RHICreateShaderResourceView((FTexture2DRHIRef&)InTexture, MipLevel);
+			FRHITextureSRVCreateInfo SRVDesc;
+			SRVDesc.MipLevel = MipLevel;
+			RenderTexture.SRVs.Add(SRVDesc, RHICreateShaderResourceView((FTexture2DRHIRef&)InTexture, SRVDesc));
+
 			RenderTexture.MipUAVs.Add(RHICreateUnorderedAccessView(InTexture, MipLevel));
 		}
 		RHIBindDebugLabelName(RenderTexture.TargetableTexture, Desc.DebugName);
@@ -109,7 +112,7 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 		int DestTextureSizeY = InTexture->GetSizeXYZ().Y >> MipLevel;
 
 		//Create the RDG viewable SRV, of a complete Mip, to read from
-		FRDGTextureSRVDesc SRVDesc(GraphTexture, MipLevel - 1);
+		FRDGTextureSRVDesc SRVDesc = FRDGTextureSRVDesc::CreateForMipLevel(GraphTexture, MipLevel - 1);
 		//Create the RDG writeable UAV for the next mip level to be written to.
 		FRDGTextureUAVDesc UAVDesc(GraphTexture, MipLevel);
 

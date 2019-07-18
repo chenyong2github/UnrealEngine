@@ -322,18 +322,47 @@ protected:
 };
 
 /** Descriptor for render graph tracked SRV. */
-class RENDERCORE_API FRDGTextureSRVDesc final
+class RENDERCORE_API FRDGTextureSRVDesc final : public FRHITextureSRVCreateInfo
 {
 public:
 	FRDGTextureSRVDesc() = default;
-
-	FRDGTextureSRVDesc(FRDGTextureRef InTexture, uint8 InMipLevel)
-		: Texture(InTexture)
-		, MipLevel(InMipLevel)
-	{}
-
+	
 	FRDGTextureRef Texture = nullptr;
-	uint8 MipLevel = 0;
+
+	/** Create SRV that access all sub resources of texture. */
+	static FRDGTextureSRVDesc Create(FRDGTextureRef Texture)
+	{
+		FRDGTextureSRVDesc Desc;
+		Desc.Texture = Texture;
+		Desc.NumMipLevels = Texture->Desc.NumMips;
+		if (Texture->Desc.bIsArray)
+		{
+			Desc.NumArraySlices = Texture->Desc.Depth;
+		}
+		return Desc;
+	}
+
+	/** Create SRV that access one specific mip level. */
+	static FRDGTextureSRVDesc CreateForMipLevel(FRDGTextureRef Texture, int32 MipLevel)
+	{
+		FRDGTextureSRVDesc Desc;
+		Desc.Texture = Texture;
+		Desc.MipLevel = MipLevel;
+		Desc.NumMipLevels = 1;
+		if (Texture->Desc.bIsArray)
+		{
+			Desc.NumArraySlices = Texture->Desc.Depth;
+		}
+		return Desc;
+	}
+
+	/** Create SRV that access one specific mip level. */
+	static FRDGTextureSRVDesc CreateWithPixelFormat(FRDGTextureRef Texture, EPixelFormat PixelFormat)
+	{
+		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
+		Desc.Format = PixelFormat;
+		return Desc;
+	}
 };
 
 /** Render graph tracked SRV. */

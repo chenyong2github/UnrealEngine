@@ -387,20 +387,13 @@ struct FSceneRenderTargetItem
 		,	UAV(InUAV)
 	{}
 
-	/** */
 	void SafeRelease()
 	{
 		TargetableTexture.SafeRelease();
 		ShaderResourceTexture.SafeRelease();
 		UAV.SafeRelease();
-		for (int32 i = 0; i < MipUAVs.Num(); i++)
-		{
-			MipUAVs[i].SafeRelease();
-		}
-		for( int32 i = 0; i < MipSRVs.Num(); i++ )
-		{
-			MipSRVs[i].SafeRelease();
-		}
+		MipUAVs.Empty();
+		SRVs.Empty();
 	}
 
 	bool IsValid() const
@@ -419,8 +412,8 @@ struct FSceneRenderTargetItem
 	FUnorderedAccessViewRHIRef UAV;
 	/** only created if requested through the flag  */
 	TArray< FUnorderedAccessViewRHIRef, TInlineAllocator<1> > MipUAVs;
-	/** only created if requested through the flag  */
-	TArray< FShaderResourceViewRHIRef > MipSRVs;
+	/** All SRVs that has been created on for that ShaderResourceTexture.  */
+	TMap<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef> SRVs;
 
 	FShaderResourceViewRHIRef RTWriteMaskBufferRHI_SRV;
 	FStructuredBufferRHIRef RTWriteMaskDataBufferRHI;

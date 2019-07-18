@@ -470,15 +470,6 @@ Done:
 					Found->RenderTargetItem.RTWriteMaskDataBufferRHI = RHICreateRTWriteMaskBuffer((FTexture2DRHIRef&)Found->RenderTargetItem.TargetableTexture);
 					Found->RenderTargetItem.RTWriteMaskBufferRHI_SRV = RHICreateShaderResourceView(Found->RenderTargetItem.RTWriteMaskDataBufferRHI);
 				}
-
-				if( Desc.NumMips > 1 )
-				{
-					Found->RenderTargetItem.MipSRVs.SetNum( Desc.NumMips );
-					for( uint16 i = 0; i < Desc.NumMips; i++ )
-					{
-						Found->RenderTargetItem.MipSRVs[i] = RHICreateShaderResourceView( (FTexture2DRHIRef&)Found->RenderTargetItem.ShaderResourceTexture, i );
-					}
-				}
 			}
 			else if(Desc.Is3DTexture())
 			{
@@ -525,15 +516,6 @@ Done:
 						(FTextureCubeRHIRef&)Found->RenderTargetItem.TargetableTexture,
 						(FTextureCubeRHIRef&)Found->RenderTargetItem.ShaderResourceTexture
 						);
-
-					if( Desc.NumMips > 1 )
-					{
-						Found->RenderTargetItem.MipSRVs.SetNum( Desc.NumMips );
-						for( uint16 i = 0; i < Desc.NumMips; i++ )
-						{
-							Found->RenderTargetItem.MipSRVs[i] = RHICreateShaderResourceView( (FTextureCubeRHIRef&)Found->RenderTargetItem.ShaderResourceTexture, i );
-						}
-					}
 				}
 
 			}

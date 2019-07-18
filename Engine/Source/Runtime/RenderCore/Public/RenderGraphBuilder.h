@@ -196,6 +196,7 @@ private:
 	void AddPassInternal(FRDGPass* Pass);
 
 	void AllocateRHITextureIfNeeded(FRDGTexture* Texture);
+	void AllocateRHITextureSRVIfNeeded(FRDGTextureSRV* SRV);
 	void AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV);
 	void AllocateRHIBufferIfNeeded(FRDGBuffer* Buffer);
 	void AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV);

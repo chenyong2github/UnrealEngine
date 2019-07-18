@@ -151,7 +151,7 @@ void BuildHZB(FRDGBuilder& GraphBuilder, FViewInfo& View)
 		DstSize.Y = FMath::Max(DstSize.Y, 1);
 
 		//@DW: Explicit creation of SRV, full configuration of SRV supported
-		FRDGTextureSRVDesc Desc(HZBTexture, MipIndex - 1);
+		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::CreateForMipLevel(HZBTexture, MipIndex - 1);
 		FRDGTextureSRVRef ParentMipSRV = GraphBuilder.CreateSRV(Desc);
 
 		FHZBBuildPassParameters* PassParameters = GraphBuilder.AllocParameters<FHZBBuildPassParameters>();

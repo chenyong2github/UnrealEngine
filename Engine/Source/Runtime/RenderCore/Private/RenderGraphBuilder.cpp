@@ -410,6 +410,32 @@ void FRDGBuilder::AllocateRHITextureIfNeeded(FRDGTexture* Texture)
 	check(Texture->ResourceRHI);
 }
 
+void FRDGBuilder::AllocateRHITextureSRVIfNeeded(FRDGTextureSRV* SRV)
+{
+	check(SRV);
+
+	if (SRV->ResourceRHI)
+	{
+		return;
+	}
+
+	FRDGTextureRef Texture = SRV->Desc.Texture;
+	check(Texture->PooledRenderTarget);
+
+	FSceneRenderTargetItem& RenderTarget = Texture->PooledRenderTarget->GetRenderTargetItem();
+
+	if (RenderTarget.SRVs.Contains(SRV->Desc))
+	{
+		SRV->ResourceRHI = RenderTarget.SRVs[SRV->Desc];
+		return;
+	}
+
+	FShaderResourceViewRHIRef RHIShaderResourceView = RHICreateShaderResourceView(RenderTarget.ShaderResourceTexture, SRV->Desc);
+
+	SRV->ResourceRHI = RHIShaderResourceView;
+	RenderTarget.SRVs.Add(SRV->Desc, RHIShaderResourceView);
+}
+
 void FRDGBuilder::AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV)
 {
 	check(UAV);
@@ -602,11 +628,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			{
 				FRDGTextureRef Texture = SRV->Desc.Texture;
 
-				// Might be the first time using this render graph SRV, so need to setup the cached rhi resource.
-				if (!SRV->ResourceRHI)
-				{
-					SRV->ResourceRHI = Texture->PooledRenderTarget->GetRenderTargetItem().MipSRVs[SRV->Desc.MipLevel];
-				}
+				AllocateRHITextureSRVIfNeeded(SRV);
 
 				BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::EAccess::Read);
 			}

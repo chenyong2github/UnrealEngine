@@ -185,6 +185,17 @@ void CreateCubeMips( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Typ
 
 	auto* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
+	for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+	{
+		FRHITextureSRVCreateInfo SRVDesc;
+		SRVDesc.MipLevel = MipIndex;
+
+		if (!Cubemap.SRVs.Contains(SRVDesc))
+		{
+			Cubemap.SRVs.Add(SRVDesc, RHICreateShaderResourceView(Cubemap.ShaderResourceTexture, SRVDesc));
+		}
+	}
+
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
@@ -224,7 +235,10 @@ void CreateCubeMips( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Typ
 
 				SetShaderValue(RHICmdList, ShaderRHI, PixelShader->NumMips, NumMips);
 
-				SetSRVParameter(RHICmdList, ShaderRHI, PixelShader->SourceTexture, Cubemap.MipSRVs[MipIndex - 1]);
+				FRHITextureSRVCreateInfo SrcSRVDesc;
+				SrcSRVDesc.MipLevel = MipIndex - 1;
+
+				SetSRVParameter(RHICmdList, ShaderRHI, PixelShader->SourceTexture, Cubemap.SRVs[SrcSRVDesc]);
 				SetSamplerParameter(RHICmdList, ShaderRHI, PixelShader->SourceTextureSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 			}
 

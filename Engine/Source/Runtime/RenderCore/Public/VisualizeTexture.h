@@ -94,9 +94,6 @@ private:
 	/** Descriptor of the texture being visualized. */
 	FPooledRenderTargetDesc VisualizeTextureDesc;
 
-	TRefCountPtr<FRHIShaderResourceView> StencilSRV;
-	FTextureRHIRef StencilSRVSrc;
-
 	// Flag to determine whether texture visualization is enabled, currently based on the feature level we are rendering with
 	bool bEnabled;
 

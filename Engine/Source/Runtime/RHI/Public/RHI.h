@@ -1267,7 +1267,31 @@ struct FRHITextureSRVCreateInfo
 
 	/** Specify number of array slices. If FirstArraySlice and NumArraySlices are both zero, the SRV is created for all array slices. By default 0. */
 	uint32 NumArraySlices;
+
+
+	FORCEINLINE bool operator==(const FRHITextureSRVCreateInfo& Other)const
+	{
+		return (
+			Format == Other.Format &&
+			SRGBOverride == Other.SRGBOverride &&
+			MipLevel == Other.MipLevel &&
+			NumMipLevels == Other.NumMipLevels &&
+			FirstArraySlice == Other.FirstArraySlice &&
+			NumArraySlices == Other.NumArraySlices);
+	}
+
+	FORCEINLINE bool operator!=(const FRHITextureSRVCreateInfo& Other)const
+	{
+		return !(*this == Other);
+	}
 };
+
+FORCEINLINE uint32 GetTypeHash(const FRHITextureSRVCreateInfo& Var)
+{
+	uint32 Hash0 = uint32(Var.Format) | uint32(Var.MipLevel) << 8 | uint32(Var.NumMipLevels) << 16 | uint32(Var.SRGBOverride) << 24;
+	return HashCombine(HashCombine(GetTypeHash(Hash0), GetTypeHash(Var.FirstArraySlice)), GetTypeHash(Var.NumArraySlices));
+}
+
 
 // Forward-declaration.
 struct FResolveParams;
