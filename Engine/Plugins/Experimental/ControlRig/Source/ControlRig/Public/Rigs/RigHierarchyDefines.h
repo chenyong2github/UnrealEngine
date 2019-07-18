@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigHierarchyDefines.generated.h"
 
 struct FRigHierarchyContainer;
 
