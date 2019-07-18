@@ -1,6 +1,7 @@
 // Copyright 2011-2019 Molecular Matters GmbH, all rights reserved.
 
 #include "LC_Telemetry.h"
+#include "LC_TimeStamp.h"
 #include "LC_Logging.h"
 #include <ratio>
 #include <inttypes.h>
@@ -10,27 +11,18 @@
 
 namespace
 {
-	template <typename T>
-	static double ReadChrono(std::chrono::high_resolution_clock::time_point start)
+	static void Print(const char* name, uint64_t start)
 	{
-		const std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-		const std::chrono::duration<double, T> timeSpan = now - start;
-
-		return timeSpan.count();
-	}
-
-
-	static void Print(const char* name, std::chrono::high_resolution_clock::time_point start)
-	{
-		const double seconds = ReadChrono<std::ratio<1, 1>>(start);
-		LC_LOG_TELEMETRY("Scope \"%s\" took %.3fs (%.3fms)", name, seconds, seconds*1000.0);
+		const uint64_t now = timeStamp::Get();
+		const uint64_t delta = now - start;
+		LC_LOG_TELEMETRY("Scope \"%s\" took %.3fs (%.3fms)", name, timeStamp::ToSeconds(delta), timeStamp::ToMilliSeconds(delta));
 	}
 }
 
 
 telemetry::Scope::Scope(const char* name)
 	: m_name(name)
-	, m_start(std::chrono::high_resolution_clock::now())
+	, m_start(timeStamp::Get())
 	, m_cs()
 {
 }
@@ -49,25 +41,28 @@ telemetry::Scope::~Scope(void)
 
 double telemetry::Scope::ReadSeconds(void) const
 {
-	return ::ReadChrono<std::ratio<1, 1>>(m_start);
+	const uint64_t now = timeStamp::Get();
+	return timeStamp::ToSeconds(now - m_start);
 }
 
 
 double telemetry::Scope::ReadMilliSeconds(void) const
 {
-	return ::ReadChrono<std::milli>(m_start);
+	const uint64_t now = timeStamp::Get();
+	return timeStamp::ToMilliSeconds(now - m_start);
 }
 
 
 double telemetry::Scope::ReadMicroSeconds(void) const
 {
-	return ::ReadChrono<std::micro>(m_start);
+	const uint64_t now = timeStamp::Get();
+	return timeStamp::ToMicroSeconds(now - m_start);
 }
 
 
 void telemetry::Scope::Restart(void)
 {
-	m_start = std::chrono::high_resolution_clock::now();
+	m_start = timeStamp::Get();
 }
 
 

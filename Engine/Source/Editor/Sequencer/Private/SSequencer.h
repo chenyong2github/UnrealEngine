@@ -36,6 +36,7 @@ class SDockTab;
 class USequencerSettings;
 class FSequencerTrackFilter;
 struct FPaintPlaybackRangeArgs;
+struct FSequencerSelectionCurveFilter;
 
 namespace SequencerLayoutConstants
 {
@@ -389,6 +390,7 @@ private:
 	void OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter);
 	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
 
+	void OnEnableAllLevelFilters(bool bEnableAll);
 	void OnTrackLevelFilterClicked(const FString LevelName);
 	bool IsTrackLevelFilterActive(const FString LevelName) const;
 
@@ -532,7 +534,7 @@ private:
 	TSharedPtr<SCurveEditorTree> CurveEditorTree;
 
 	/** Curve editor filter that shows only the selected nodes */
-	TSharedPtr<FCurveEditorTreeFilter> SequencerSelectionCurveEditorFilter;
+	TSharedPtr<FSequencerSelectionCurveFilter> SequencerSelectionCurveEditorFilter;
 
 	/** The breadcrumb trail widget for this sequencer */
 	TSharedPtr<SBreadcrumbTrail<FSequencerBreadcrumb>> BreadcrumbTrail;
@@ -542,6 +544,9 @@ private:
 
 	/** The search box for filtering tracks. */
 	TSharedPtr<SSearchBox> SearchBox;
+
+	/** The search widget for filtering curves in the Curve Editor tree. */
+	TSharedPtr<SWidget> CurveEditorSearchBox;
 
 	/** The current playback time display.*/
 	TSharedPtr<STemporarilyFocusedSpinBox<double>> PlayTimeDisplay;

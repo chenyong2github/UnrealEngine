@@ -485,7 +485,6 @@ void USkyLightComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 		// Simply rounds the cube map size to nearest power of two. Occasionally checks for out of video mem.
 		SanitizeCubemapSize();
 	}
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	SetCaptureIsDirty();
 }

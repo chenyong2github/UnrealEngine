@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericOctreePublic.h"
+#include "Templates/Models.h"
 
 /** A concise iteration over the children of an octree node. */
 #define FOREACH_OCTREE_CHILD_NODE(ChildRef) \
@@ -767,6 +768,33 @@ private:
 		const FNode& InNode,
 		const FOctreeNodeContext& InContext
 		);
+
+	// Concept definition for the new octree semantics, which adds a new TOctree parameter
+	struct COctreeSemanticsV2
+	{
+		template<typename Semantics>
+		auto Requires(typename Semantics::FOctree& OctreeInstance, const ElementType& Element, FOctreeElementId Id)
+			-> decltype(Semantics::SetElementId(OctreeInstance, Element, Id));
+	};
+
+	// Function overload set which calls the V2 version if it's supported or the old version if it's not
+	template <typename Semantics>
+	typename TEnableIf<!TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId Id)
+	{
+		Semantics::SetElementId(Element, Id);
+	}
+	template <typename Semantics>
+	typename TEnableIf<TModels<COctreeSemanticsV2, Semantics>::Value>::Type SetOctreeSemanticsElementId(const ElementType& Element, FOctreeElementId Id)
+	{
+		Semantics::SetElementId(*this, Element, Id);
+	}
+
+protected:
+	// redirects SetElementId call to the proper implementation
+	void SetElementId(const ElementType& Element, FOctreeElementId Id)
+	{
+		SetOctreeSemanticsElementId<OctreeSemantics>(Element, Id);
+	}
 };
 
 #include "GenericOctree.inl"

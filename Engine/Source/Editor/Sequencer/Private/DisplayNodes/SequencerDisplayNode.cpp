@@ -31,6 +31,7 @@
 #include "ScopedTransaction.h"
 #include "SequencerKeyTimeCache.h"
 #include "SequencerNodeSortingMethods.h"
+#include "SequencerSelectionCurveFilter.h"
 #include "SequencerKeyCollection.h"
 
 #define LOCTEXT_NAMESPACE "SequencerDisplayNode"
@@ -238,14 +239,6 @@ void SSequencerCombinedKeysTrack::Tick( const FGeometry& AllottedGeometry, const
 
 int32 SSequencerCombinedKeysTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-	if (RootNode->GetType() == ESequencerNode::Track)
-	{
-		if (static_cast<FSequencerTrackNode&>(*RootNode).GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::ParentTrack && RootNode->IsExpanded())
-		{
-			return LayerId;
-		}
-	}
-
 	if (RootNode->GetSequencer().GetSequencerSettings()->GetShowCombinedKeyframes())
 	{
 		for (float KeyPosition : KeyDrawPositions)
@@ -771,6 +764,17 @@ TSharedRef<SWidget> FSequencerDisplayNode::GenerateWidgetForSectionArea(const TA
 	return SNew(SSequencerCombinedKeysTrack, SharedThis(this))
 		.ViewRange(ViewRange)
 		.IsEnabled(!GetSequencer().IsReadOnly())
+		.Visibility_Lambda([this]()
+		{
+			if (GetType() == ESequencerNode::Track)
+			{
+				if (static_cast<FSequencerTrackNode&>(*this).GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::ParentTrack && IsExpanded())
+				{
+					return EVisibility::Hidden;
+				}
+			}
+			return EVisibility::Visible;
+		})
 		.TickResolution(this, &FSequencerDisplayNode::GetTickResolution);
 }
 
@@ -1192,7 +1196,8 @@ bool FSequencerDisplayNode::PassesFilter(const FCurveEditorTreeFilter* InFilter)
 	}
 	else if (InFilter->GetType() == ISequencerModule::GetSequencerSelectionFilterType())
 	{
-		return GetSequencer().GetSelection().GetSelectedOutlinerNodes().Contains(ConstCastSharedRef<FSequencerDisplayNode>(AsShared()));
+		const FSequencerSelectionCurveFilter* Filter = static_cast<const FSequencerSelectionCurveFilter*>(InFilter);
+		return Filter->Match(AsShared());
 	}
 	return false;
 }

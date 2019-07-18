@@ -39,7 +39,7 @@ static FWidgetStyle NullStyle;
 
 FSlateWindowElementList& GetNullElementList()
 {
-	static FSlateWindowElementList NullElementList;
+	static FSlateWindowElementList NullElementList(nullptr);
 	return NullElementList;
 }
 
@@ -618,6 +618,7 @@ void UUserWidget::Invalidate(EInvalidateWidget InvalidateReason)
 	TSharedPtr<SWidget> CachedWidget = GetCachedWidget();
 	if (CachedWidget.IsValid())
 	{
+		UpdateCanTick();
 		CachedWidget->Invalidate(InvalidateReason);
 	}
 }
@@ -1321,7 +1322,7 @@ const FText UUserWidget::GetPaletteCategory()
 	return PaletteCategory;
 }
 
-void UUserWidget::SetDesignerFlags(EWidgetDesignFlags::Type NewFlags)
+void UUserWidget::SetDesignerFlags(EWidgetDesignFlags NewFlags)
 {
 	UWidget::SetDesignerFlags(NewFlags);
 
@@ -1533,6 +1534,7 @@ void UUserWidget::CancelLatentActions()
 	{
 		World->GetLatentActionManager().RemoveActionsForObject(this);
 		World->GetTimerManager().ClearAllTimersForObject(this);
+		UpdateCanTick();
 	}
 }
 

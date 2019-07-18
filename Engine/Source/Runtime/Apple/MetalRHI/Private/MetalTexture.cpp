@@ -1147,10 +1147,10 @@ FMetalSurface::~FMetalSurface()
 	}
 }
 
-FMetalBuffer FMetalSurface::AllocSurface(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride)
+FMetalBuffer FMetalSurface::AllocSurface(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer /*= false*/)
 {
 	// get size and stride
-	uint32 MipBytes = GetMipSize(MipIndex, &DestStride, false);
+	uint32 MipBytes = GetMipSize(MipIndex, &DestStride, SingleLayer);
 	
 	// allocate some temporary memory
 	mtlpp::ResourceOptions ResMode = FMetalCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::StorageModeShared | (!(PLATFORM_MAC && PixelFormat == PF_G8 && (Flags & TexCreate_SRGB)) ? mtlpp::ResourceOptions::CpuCacheModeWriteCombined : 0)));
@@ -1294,7 +1294,7 @@ void FMetalSurface::UpdateSurface(FMetalBuffer& Buffer, uint32 MipIndex, uint32 
 #endif
 }
 
-void* FMetalSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride)
+void* FMetalSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer /*= false*/)
 {
 	// get size and stride
 	uint32 MipBytes = GetMipSize(MipIndex, &DestStride, false);
@@ -1302,7 +1302,7 @@ void* FMetalSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode 
 	// allocate some temporary memory
 	if(!LockedMemory[MipIndex])
 	{
-		LockedMemory[MipIndex] = AllocSurface(MipIndex, ArrayIndex, LockMode, DestStride);
+		LockedMemory[MipIndex] = AllocSurface(MipIndex, ArrayIndex, LockMode, DestStride, SingleLayer);
 	}
 	
 	switch(LockMode)
@@ -2244,7 +2244,7 @@ void* FMetalDynamicRHI::RHILockTextureCubeFace(FRHITextureCube* TextureCubeRHI,u
 	@autoreleasepool {
 		FMetalTextureCube* TextureCube = ResourceCast(TextureCubeRHI);
 		uint32 MetalFace = GetMetalCubeFace((ECubeFace)FaceIndex);
-		return TextureCube->Surface.Lock(MipIndex, MetalFace + (6 * ArrayIndex), LockMode, DestStride);
+		return TextureCube->Surface.Lock(MipIndex, MetalFace + (6 * ArrayIndex), LockMode, DestStride, true);
 	}
 }
 

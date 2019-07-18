@@ -907,6 +907,12 @@ public:
 	bool ComponentOverlapMulti(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FQuat& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params = FComponentQueryParams::DefaultComponentQueryParams, const struct FCollisionObjectQueryParams& ObjectQueryParams = FCollisionObjectQueryParams::DefaultObjectQueryParam) const;
 	bool ComponentOverlapMulti(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FRotator& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params = FComponentQueryParams::DefaultComponentQueryParams, const struct FCollisionObjectQueryParams& ObjectQueryParams = FCollisionObjectQueryParams::DefaultObjectQueryParam) const;
 
+	/**
+	 *	Walks up the attachment tree until a primitive component with LightAttachmentsAsGroup enabled is found. This component will effectively act as the root of the attachment group.
+	 *	Return nullptr if none is found. 
+	 */
+	const UPrimitiveComponent* GetLightingAttachmentRoot() const;
+
 protected:
 	/** Override this method for custom behavior for ComponentOverlapMulti() */
 	virtual bool ComponentOverlapMultiImpl(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FQuat& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params, const struct FCollisionObjectQueryParams& ObjectQueryParams = FCollisionObjectQueryParams::DefaultObjectQueryParam) const;
@@ -1418,6 +1424,14 @@ public:
 	/** Changes the value of CastShadow. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastShadow(bool NewCastShadow);
+
+	/** Changes the value of CastInsetShadow. */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	void SetCastInsetShadow(UPARAM(DisplayName="CastInsetShadow") bool bInCastInsetShadow);
+
+	/** Changes the value of LightAttachmentsAsGroup. */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	void SetLightAttachmentsAsGroup(UPARAM(DisplayName="LightAttachmentsAsGroup") bool bInLightAttachmentsAsGroup);
 
 	/** Changes the value of bSingleSampleShadowFromStationaryLights. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")

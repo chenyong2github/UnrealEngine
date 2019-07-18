@@ -60,7 +60,7 @@ struct PLANARCUT_API FPlanarCells
 	 * Debugging function to check that the plane boundary vertices are wound to match the orientation of the plane normal vectors
 	 * @return	false if any plane boundary vertices are found in the 'wrong' orientation relative to the plane normal
 	 */
-	bool HasValidPlaneBoundaryOrientations()
+	bool HasValidPlaneBoundaryOrientations() const
 	{
 		for (int32 PlaneIdx = 0; PlaneIdx < PlaneBoundaries.Num(); PlaneIdx++)
 		{
@@ -147,7 +147,7 @@ void PLANARCUT_API ComputeTriangleNormals(const TArrayView<const FVector> Vertic
  * 
  * @param Cells				Defines the cutting planes and division of space
  * @param Collection		The collection to be cut
- * @param GeometryIdx		Which geometry group inside the collection to cut
+ * @param TransformIdx		Which transform inside the collection to cut
  * @param TransformCells	Optional transform of the planar cut; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param CheckDistanceAcrossOutsideCellForProximity	If > 0, when a plane is neighboring the "outside" cell, instead of setting proximity to the outside cell, the algo will sample a point this far outside the cell in the normal direction of the plane to see if there is actually a non-outside cell there.  (Useful for bricks w/out mortar)
@@ -157,7 +157,7 @@ void PLANARCUT_API ComputeTriangleNormals(const TArrayView<const FVector> Vertic
 int32 PLANARCUT_API CutWithPlanarCells(
 	FPlanarCells &Cells,
 	FGeometryCollection& Collection,
-	int32 GeometryIdx,
+	int32 TransformIdx,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,
@@ -169,8 +169,8 @@ int32 PLANARCUT_API CutWithPlanarCells(
  * Cut multiple Geometry groups inside a GeometryCollection with PlanarCells, and add each cut cell back to the GeometryCollection as a new child of their source Geometry.  For geometries that would not be cut, nothing is added.
  *
  * @param Cells				Defines the cutting planes and division of space
- * @param Collection			The collection to be cut
- * @param GeometryIndices	Which geometry groups inside the collection to cut
+ * @param Collection		The collection to be cut
+ * @param TransformIndices	Which transform groups inside the collection to cut
  * @param TransformCells	Optional transform of the planar cut; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param CheckDistanceAcrossOutsideCellForProximity	If > 0, when a plane is neighboring the "outside" cell, instead of setting proximity to the outside cell, the algo will sample a point this far outside the cell in the normal direction of the plane to see if there is actually a non-outside cell there.  (Useful for bricks w/out mortar)
@@ -180,7 +180,7 @@ int32 PLANARCUT_API CutWithPlanarCells(
 int32 PLANARCUT_API CutMultipleWithPlanarCells(
 	FPlanarCells &Cells,
 	FGeometryCollection& Collection,
-	const TArrayView<const int32>& GeometryIndices,
+	const TArrayView<const int32>& TransformIndices,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,
@@ -194,7 +194,7 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
  * @param Planes				Defines the cutting planes and division of space
  * @param InternalSurfaceMaterials	Defines material properties for any added internal surfaces
  * @param Collection			The collection to be cut
- * @param GeometryIndices	Which geometry groups inside the collection to cut
+ * @param TransformIndices	Which transform groups inside the collection to cut
  * @param TransformCells	Optional transform of the planar cut; if unset, defaults to Identity
  * @param bFlattenToSingleLayer If true, only add one layer overall to the hierarchy even if some geometry is cut multiple times.
  * @param VertexInterpolate	Function that interpolates vertex properties (UVs, normals, etc); a default that handles all the normal vertex properties is provided, should only need to replace this if you have custom attributes
@@ -204,7 +204,7 @@ int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
 	const TArrayView<const FPlane>& Planes,
 	FInternalSurfaceMaterials& InternalSurfaceMaterials,
 	FGeometryCollection& Collection,
-	const TArrayView<const int32>& GeometryIndices,
+	const TArrayView<const int32>& TransformIndices,
 	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
 	bool bFlattenToSingleLayer = true,
 	bool bSetDefaultInternalMaterialsFromCollection = true,

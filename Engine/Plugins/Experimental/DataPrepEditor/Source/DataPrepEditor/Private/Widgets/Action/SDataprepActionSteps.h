@@ -51,6 +51,8 @@ public:
 
 private:
 
+	void OnStepsOrderChanged();
+
 	// Update the display of the steps
 	void Refresh();
 

@@ -39,7 +39,7 @@ namespace physx
 namespace Bp
 {
 
-#define MBP_USE_WORDS
+//#define MBP_USE_WORDS			// Does not support cases where there are more than 65k objects in a single region
 #define MBP_USE_SENTINELS		// Probably doesn't work with 16bits boxes
 #define MBP_USE_NO_CMP_OVERLAP
 //#define MBP_USE_NO_CMP_OVERLAP_3D	// Seems slower

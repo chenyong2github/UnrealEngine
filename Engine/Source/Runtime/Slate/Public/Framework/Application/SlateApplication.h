@@ -729,7 +729,7 @@ public:
 	 * @param InWidget		The widget to find the window for
 	 * @return The window where the widget resides, or null if the widget wasn't found.  Remember, a widget might not be found simply because its parent decided not to report the widget in ArrangeChildren.
 	 */
-	TSharedPtr<SWindow> FindWidgetWindow( TSharedRef<const SWidget> InWidget ) const;
+	virtual TSharedPtr<SWindow> FindWidgetWindow( TSharedRef<const SWidget> InWidget ) const override;
 
 	/**
 	 * Finds the window that the provided widget resides in
@@ -947,18 +947,6 @@ public:
 	 * @return true if taking the screenshot was successful.
 	 */
 	bool TakeScreenshot(const TSharedRef<SWidget>& Widget, const FIntRect& InnerWidgetArea, TArray<FColor>& OutColorData, FIntVector& OutSize);
-
-	/**
-	 * 
-	 */
-	TSharedPtr< FSlateWindowElementList > GetCachableElementList(const TSharedPtr<SWindow>& CurrentWindow, const ILayoutCache* LayoutCache);
-
-	/**
-	 * Once a layout cache is destroyed it needs to free any resources it was using in a safe way to prevent
-	 * any in-flight rendering from being interrupted by referencing resources that go away.  So when a layout
-	 * cache is destroyed it should call this function so any associated resources can be collected when it's safe.
-	 */
-	void ReleaseResourcesForLayoutCache(const ILayoutCache* LayoutCache);
 
 	/**
 	 * @return a handle for the existing or newly created virtual slate user.  This is handy when you need to create
@@ -1409,7 +1397,7 @@ public:
 	virtual bool IsExternalUIOpened() override;
 	virtual FWidgetPath LocateWindowUnderMouse( FVector2D ScreenspaceMouseCoordinate, const TArray<TSharedRef<SWindow>>& Windows, bool bIgnoreEnabledStatus = false ) override;
 	virtual bool IsWindowHousingInteractiveTooltip(const TSharedRef<const SWindow>& WindowToTest) const override;
-	virtual TSharedRef<SWidget> MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const override;
+	virtual TSharedRef<SImage> MakeImage( const TAttribute<const FSlateBrush*>& Image, const TAttribute<FSlateColor>& Color, const TAttribute<EVisibility>& Visibility ) const override;
 	virtual TSharedRef<SWidget> MakeWindowTitleBar( const TSharedRef<SWindow>& Window, const TSharedPtr<SWidget>& CenterContent, EHorizontalAlignment CenterContentAlignment, TSharedPtr<IWindowTitleBar>& OutTitleBar ) const override;
 	virtual TSharedRef<IToolTip> MakeToolTip( const TAttribute<FText>& ToolTipText ) override;
 	virtual TSharedRef<IToolTip> MakeToolTip( const FText& ToolTipText ) override;
@@ -2129,24 +2117,6 @@ private:
 	// but there could be another monitor on any of the sides.
 	FSlateRect VirtualDesktopRect;
 
-	//
-	// Invalidation Support
-	//
-
-	class FCacheElementPools
-	{
-	public:
-		TSharedPtr< FSlateWindowElementList > GetNextCachableElementList(const TSharedPtr<SWindow>& CurrentWindow );
-		bool IsInUse() const;
-
-	private:
-		TArray< TSharedPtr< FSlateWindowElementList > > ActiveCachedElementListPool;
-		TArray< TSharedPtr< FSlateWindowElementList > > InactiveCachedElementListPool;
-	};
-
-	TMap< const ILayoutCache*, TSharedPtr<FCacheElementPools> > CachedElementLists;
-	TArray< TSharedPtr<FCacheElementPools> > ReleasedCachedElementLists;
-
 	/** This factory function creates a navigation config for each slate user. */
 	TSharedRef<FNavigationConfig> NavigationConfig;
 
@@ -2187,7 +2157,6 @@ private:
 	class InputPreProcessorsHelper
 	{
 	public:
-
 		// Wrapper functions that call the corresponding function of IInputProcessor for each InputProcessor in the list.
 		void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor);
 		bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent);
@@ -2220,8 +2189,16 @@ private:
 
 	private:
 
+		bool PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun);
+
 		/** The list of input pre-processors. */
 		TArray<TSharedPtr<IInputProcessor>> InputPreProcessorList;
+
+		/** Guard value for if we are currently iterating our preprocessors. */
+		bool bIsIteratingPreProcessors = false;
+
+		/** A list of pre-processors to remove if we are iterating them while removal is requested. */
+		TArray<TSharedPtr<IInputProcessor>> ProcessorsPendingRemoval;
 	};
 
 	/** A list of input pre-processors, gets an opportunity to parse input before anything else. */

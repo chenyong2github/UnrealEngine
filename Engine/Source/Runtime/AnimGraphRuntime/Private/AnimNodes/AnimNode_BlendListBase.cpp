@@ -9,6 +9,7 @@
 
 void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	const int NumPoses = BlendPose.Num();
@@ -63,8 +64,9 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 	}
 }
 
-void FAnimNode_BlendListBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) 
+void FAnimNode_BlendListBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	for(int32 ChildIndex=0; ChildIndex<BlendPose.Num(); ChildIndex++)
 	{
 		BlendPose[ChildIndex].CacheBones(Context);
@@ -73,6 +75,7 @@ void FAnimNode_BlendListBase::CacheBones_AnyThread(const FAnimationCacheBonesCon
 
 void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	const int NumPoses = BlendPose.Num();
@@ -203,6 +206,7 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 
 void FAnimNode_BlendListBase::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	ANIM_MT_SCOPE_CYCLE_COUNTER(BlendPosesInGraph, !IsInGameThread());
 
 	const int32 NumPoses = PosesToEvaluate.Num();
@@ -247,6 +251,7 @@ void FAnimNode_BlendListBase::Evaluate_AnyThread(FPoseContext& Output)
 
 void FAnimNode_BlendListBase::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	const int NumPoses = BlendPose.Num();
 	const int32 ChildIndex = GetActiveChildIndex();
 

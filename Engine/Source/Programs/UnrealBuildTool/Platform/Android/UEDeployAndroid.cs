@@ -869,8 +869,11 @@ namespace UnrealBuildTool
 		}
 
 		private int CachedStoreVersion = -1;
+		private int CachedStoreVersionOffsetArmV7 = 0;
+		private int CachedStoreVersionOffsetArm64 = 0;
+		private int CachedStoreVersionOffsetX8664= 0;
 
-		public int GetStoreVersion()
+		public int GetStoreVersion(string UE4Arch)
 		{
 			if (CachedStoreVersion < 1)
 			{
@@ -901,6 +904,17 @@ namespace UnrealBuildTool
 				Log.TraceInformation("GotStoreVersion found v{0}. (bUseChangeListAsStoreVersion={1} IsBuildMachine={2} EngineChangeList={3})", StoreVersion, bUseChangeListAsStoreVersion, IsBuildMachine, EngineChangelist);
 
 				CachedStoreVersion = StoreVersion;
+
+				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArmV7", out CachedStoreVersionOffsetArmV7);
+				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArm64", out CachedStoreVersionOffsetArm64);
+				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetX8664", out CachedStoreVersionOffsetX8664);
+			}
+
+			switch (UE4Arch)
+			{
+				case "-armv7": return CachedStoreVersion + CachedStoreVersionOffsetArmV7;
+				case "-arm64": return CachedStoreVersion + CachedStoreVersionOffsetArm64;
+				case "-x64": return CachedStoreVersion + CachedStoreVersionOffsetX8664;
 			}
 
 			return CachedStoreVersion;
@@ -949,7 +963,7 @@ namespace UnrealBuildTool
 			return CachedVersionDisplayName;
 		}
 
-		public void WriteJavaOBBDataFile(string FileName, string PackageName, List<string> ObbSources, string CookFlavor, bool bPackageDataInsideApk)
+		public void WriteJavaOBBDataFile(string FileName, string PackageName, List<string> ObbSources, string CookFlavor, bool bPackageDataInsideApk, string UE4Arch)
 		{
 			Log.TraceInformation("\n==== Writing to OBB data file {0} ====", FileName);
 
@@ -963,7 +977,7 @@ namespace UnrealBuildTool
 //				AppType = ".Client";		// should always be empty now; fix up the name in batch file instead
 			}
 
-			int StoreVersion = GetStoreVersion();
+			int StoreVersion = GetStoreVersion(UE4Arch);
 
 			StringBuilder obbData = new StringBuilder("package " + PackageName + ";\n\n");
 			obbData.Append("public class OBBData\n{\n");
@@ -1141,7 +1155,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public void WriteCrashlyticsResources(string UEBuildPath, string PackageName, string ApplicationDisplayName, bool bIsEmbedded)
+		public void WriteCrashlyticsResources(string UEBuildPath, string PackageName, string ApplicationDisplayName, bool bIsEmbedded, string UE4Arch)
 		{
 			System.DateTime CurrentDateTime = System.DateTime.Now;
 			string BuildID = Guid.NewGuid().ToString();
@@ -1158,7 +1172,7 @@ namespace UnrealBuildTool
 			CrashPropertiesContent.Append("version_name=" + VersionDisplayName + "\n");
 			CrashPropertiesContent.Append("package_name=" + PackageName + "\n");
 			CrashPropertiesContent.Append("build_id=" + BuildID + "\n");
-			CrashPropertiesContent.Append("version_code=" + GetStoreVersion().ToString() + "\n");
+			CrashPropertiesContent.Append("version_code=" + GetStoreVersion(UE4Arch).ToString() + "\n");
 
 			string CrashPropertiesFileName = Path.Combine(UEBuildPath, "assets", "crashlytics-build.properties");
 			MakeDirectoryIfRequired(CrashPropertiesFileName);
@@ -2177,7 +2191,7 @@ namespace UnrealBuildTool
 			// Read the engine version
 			string EngineVersion = ReadEngineVersion();
 
-			int StoreVersion = GetStoreVersion();
+			int StoreVersion = GetStoreVersion(UE4Arch);
 
 			string Arch = GetNDKArch(UE4Arch);
 			int NDKLevelInt = 0;
@@ -2210,6 +2224,8 @@ namespace UnrealBuildTool
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bFullScreen", out EnableFullScreen);
 			bool bUseDisplayCutout;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bUseDisplayCutout", out bUseDisplayCutout);
+			bool bRestoreNotificationsOnReboot = false;
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bRestoreNotificationsOnReboot", out bRestoreNotificationsOnReboot);
 			List<string> ExtraManifestNodeTags;
 			Ini.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ExtraManifestNodeTags", out ExtraManifestNodeTags);
 			List<string> ExtraApplicationNodeTags;
@@ -2247,6 +2263,13 @@ namespace UnrealBuildTool
 			if (IsPackagingForDaydream(Ini) && bAllowIMU)
 			{
 				Log.TraceInformation("Daydream and IMU both enabled, recommend disabling IMU if not needed.");
+			}
+
+			bool bPublicLogFiles = true;
+			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bPublicLogFiles", out bPublicLogFiles);
+			if (!bUseExternalFilesDir)
+			{
+				bPublicLogFiles = false;
 			}
 
 			string InstallLocation;
@@ -2515,6 +2538,7 @@ namespace UnrealBuildTool
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.CookedFlavors\" android:value=\"{0}\"/>", CookedFlavors));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bValidateTextureFormats\" android:value=\"{0}\"/>", bValidateTextureFormats ? "true" : "false"));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bUseExternalFilesDir\" android:value=\"{0}\"/>", bUseExternalFilesDir ? "true" : "false"));
+			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bPublicLogFiles\" android:value=\"{0}\"/>", bPublicLogFiles ? "true" : "false"));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bUseDisplayCutout\" android:value=\"{0}\"/>", bUseDisplayCutout ? "true" : "false"));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bAllowIMU\" android:value=\"{0}\"/>", bAllowIMU ? "true" : "false"));
 			Text.AppendLine(string.Format("\t\t<meta-data android:name=\"com.epicgames.ue4.GameActivity.bSupportsVulkan\" android:value=\"{0}\"/>", bSupportsVulkan ? "true" : "false"));
@@ -2559,6 +2583,17 @@ namespace UnrealBuildTool
 
 			Text.AppendLine("\t\t<receiver android:name=\"com.epicgames.ue4.LocalNotificationReceiver\" />");
 
+			if (bRestoreNotificationsOnReboot)
+			{
+				Text.AppendLine("\t\t<receiver android:name=\"com.epicgames.ue4.BootCompleteReceiver\" android:exported=\"true\">");
+				Text.AppendLine("\t\t\t<intent-filter>");
+				Text.AppendLine("\t\t\t\t<action android:name=\"android.intent.action.BOOT_COMPLETED\" />");
+				Text.AppendLine("\t\t\t\t<action android:name=\"android.intent.action.QUICKBOOT_POWERON\" />");
+				Text.AppendLine("\t\t\t\t<action android:name=\"com.htc.intent.action.QUICKBOOT_POWERON\" />");
+				Text.AppendLine("\t\t\t</intent-filter>");
+				Text.AppendLine("\t\t</receiver>");
+			}
+
 			Text.AppendLine("\t\t<receiver android:name=\"com.epicgames.ue4.MulticastBroadcastReceiver\" android:exported=\"true\">");
 			Text.AppendLine("\t\t\t<intent-filter>");
 			Text.AppendLine("\t\t\t\t<action android:name=\"com.android.vending.INSTALL_REFERRER\" />");
@@ -2598,6 +2633,11 @@ namespace UnrealBuildTool
 			//	Text.AppendLine("\t<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>");
 				Text.AppendLine("\t<uses-permission android:name=\"com.android.vending.CHECK_LICENSE\"/>");
 				Text.AppendLine("\t<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>");
+
+				if (bRestoreNotificationsOnReboot)
+				{
+					Text.AppendLine("\t<uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\"/>");
+				}
 
 				if (bEnableGooglePlaySupport && bUseGetAccounts)
 				{
@@ -3111,7 +3151,7 @@ namespace UnrealBuildTool
 			// Create gradle.properties
 			StringBuilder GradleProperties = new StringBuilder();
 
-			int StoreVersion = GetStoreVersion();
+			int StoreVersion = GetStoreVersion(GetUE4Arch(NDKArch));
 			string VersionDisplayName = GetVersionDisplayName(bIsEmbedded);
 
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
@@ -3373,6 +3413,10 @@ namespace UnrealBuildTool
 			string UE4OBBDataFileName = GetUE4JavaOBBDataFileName(TemplateDestinationBase);
 			string UE4DownloadShimFileName = GetUE4JavaDownloadShimFileName(UE4JavaFilePath);
 
+			// Get list of all architecture and GPU targets for build
+			List<string> Arches = ToolChain.GetAllArchitectures();
+			List<string> GPUArchitectures = ToolChain.GetAllGPUArchitectures();
+
 			// Template generated files
 			string JavaTemplateSourceDir = GetUE4TemplateJavaSourceDir(EngineDirectory);
 			IEnumerable<TemplateFile> templates = from template in Directory.EnumerateFiles(JavaTemplateSourceDir, "*.template")
@@ -3389,7 +3433,7 @@ namespace UnrealBuildTool
 			}
 
 			// Generate the OBBData.java file if out of date (can skip rewriting it if packaging inside Apk in some cases)
-			WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, RequiredOBBFiles, CookFlavor, bPackageDataInsideApk);
+			WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, RequiredOBBFiles, CookFlavor, bPackageDataInsideApk, Arches[0]);
 
 			// Make sure any existing proguard file in project is NOT used (back it up)
 			string ProjectBuildProguardFile = Path.Combine(GameBuildFilesPath, "proguard-project.txt");
@@ -3500,13 +3544,6 @@ namespace UnrealBuildTool
 				Log.TraceInformation("Application display name is different than last build, forcing repackage.");
 			}
 
-			// Write Crashlytics data if enabled (not needed for Gradle)
-			if (CrashlyticsPluginEnabled && !bGradleEnabled)
-			{
-				Trace.TraceInformation("Writing Crashlytics resources");
-				WriteCrashlyticsResources(Path.Combine(ProjectDirectory, "Build", "Android"), PackageName, ApplicationDisplayName, bSkipGradleBuild);
-			}
-
 			// if the manifest matches, look at other settings stored in a file
 			if (bBuildSettingsMatch)
 			{
@@ -3537,9 +3574,6 @@ namespace UnrealBuildTool
 					EngineDirectory, JavaFiles, CookFlavor, OutputPath, UE4BuildPath, bMakeSeparateApks, bPackageDataInsideApk);
 
 			}
-
-			List<string> Arches = ToolChain.GetAllArchitectures();
-			List<string> GPUArchitectures = ToolChain.GetAllGPUArchitectures();
 
 			// Initialize UPL contexts for each architecture enabled
 			List<string> NDKArches = new List<string>();
@@ -3755,7 +3789,17 @@ namespace UnrealBuildTool
 
 					// modify the generated build.xml before the final include
 					UpdateBuildXML(Arch, NDKArch, EngineDirectory, UE4BuildPath);
+
+					// Write Crashlytics data if enabled (not needed for Gradle)
+					if (CrashlyticsPluginEnabled)
+					{
+						Trace.TraceInformation("Writing Crashlytics resources");
+						WriteCrashlyticsResources(Path.Combine(ProjectDirectory, "Build", "Android"), PackageName, ApplicationDisplayName, bSkipGradleBuild, Arch);
+					}
 				}
+
+				// Generate the OBBData.java file again in case architecture has different store version
+				WriteJavaOBBDataFile(UE4OBBDataFileName, PackageName, RequiredOBBFiles, CookFlavor, bPackageDataInsideApk, Arch);
 
 				// update GameActivity.java and GameApplication.java if out of date
 				UpdateGameActivity(Arch, NDKArch, EngineDirectory, UE4BuildPath);
@@ -4081,7 +4125,7 @@ namespace UnrealBuildTool
 					if (bSaveSymbols || (Configuration == UnrealTargetConfiguration.Shipping && bBuildWithHiddenSymbolVisibility))
 					{
 						// Copy .so with symbols to 
-						int StoreVersion = GetStoreVersion();
+						int StoreVersion = GetStoreVersion(Arch);
 						string SymbolSODirectory = Path.Combine(DestApkDirectory, ProjectName + "_Symbols_v" + StoreVersion + "/" + ProjectName + Arch + GPUArchitecture);
 						string SymbolifiedSOPath = Path.Combine(SymbolSODirectory, Path.GetFileName(FinalSOName));
 						MakeDirectoryIfRequired(SymbolifiedSOPath);
@@ -4191,7 +4235,7 @@ namespace UnrealBuildTool
 
 			string[] PackageInfoSource = new string[4];
 			PackageInfoSource[0] = PackageName;
-			PackageInfoSource[1] = GetStoreVersion().ToString();
+			PackageInfoSource[1] = GetStoreVersion("").ToString();
 			PackageInfoSource[2] = GetVersionDisplayName(bIsEmbedded);
 			PackageInfoSource[3] = string.Format("name='com.epicgames.ue4.GameActivity.AppType' value='{0}'", InTargetType == TargetType.Game ? "" : InTargetType.ToString());
 

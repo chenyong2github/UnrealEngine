@@ -15,7 +15,7 @@ class SLATECORE_API FSlateDrawBuffer
 public:
 
 	/** Default constructor. */
-	explicit FSlateDrawBuffer( )
+	explicit FSlateDrawBuffer()
 		: Locked(0)
 		, ResourceVersion(0)
 	{ }
@@ -53,17 +53,16 @@ public:
 	 * @return true if the viewport could be locked.  False otherwise.
 	 * @see Unlock
 	 */
-	bool Lock( );
+	bool Lock();
 
 	/**
 	 * Unlocks the buffer.  Indicates that the buffer is free.
 	 *
 	 * @see Lock
 	 */
-	void Unlock( );
+	void Unlock();
 
 protected:
-
 	// List of window element lists.
 	TArray< TSharedRef<FSlateWindowElementList> > WindowElementLists;
 

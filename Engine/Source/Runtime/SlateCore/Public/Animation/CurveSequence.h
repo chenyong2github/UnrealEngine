@@ -96,8 +96,9 @@ public:
 	 * @param InOwnerWidget The widget that is being animated by this sequence.
 	 * @param bPlayLooped True if the curve sequence should play continually on a loop. Note that the active timer will persist until this sequence is paused or jumped to the start/end.
 	 * @param StartAtTime The relative time within the animation at which to begin playing (i.e. 0.0f is the beginning).
+	 * @param bRequiresActiveTimer	Whether or not we need to register an active timer on the widget to keep slate ticking while the animation is playing.  If that is not necessary in your use case, you can set it to false for a small performance boost
 	 */
-	void Play( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f );
+	void Play( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f, bool bRequiresActiveTimer = true);
 
 	/**
 	 * Start playing this curve sequence in reverse. Registers an active timer for the widget using the sequence.
@@ -105,8 +106,9 @@ public:
 	 * @param InOwnerWidget The widget that is being animated by this sequence.
 	 * @param bPlayLooped True if the curve sequence should play continually on a loop. Note that the active timer will persist until this sequence is paused or jumped to the start/end.
 	 * @param StartAtTime The relative time within the animation at which to begin playing (i.e. 0.0f is the beginning).
+	 * @param bRequiresActiveTimer	Whether or not we need to register an active timer on the widget to keep slate ticking while the animation is playing.  If that is not necessary in your use case, you can set it to false for a small performance boost
 	 */
-	void PlayReverse( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f );
+	void PlayReverse( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f, bool bRequiresActiveTimer = true);
 
 	/** Reverse the direction of an in-progress animation */
 	void Reverse( );

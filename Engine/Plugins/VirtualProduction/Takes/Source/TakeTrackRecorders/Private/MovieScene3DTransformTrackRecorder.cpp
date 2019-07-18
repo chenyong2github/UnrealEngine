@@ -112,45 +112,6 @@ void UMovieScene3DTransformTrackRecorder::FinalizeTrackImpl()
  	check (	BufferedTransforms.Times.Num() == BufferedTransforms.ScaleZ.Num());
  
  	SlowTask.EnterProgressFrame();
- 
-	FTransform InvParentAnimationRootTransform = FTransform::Identity;
-	FName SocketName;
-	FName ComponentName;
-	AActor* ActorToRecord = Cast<AActor>(ObjectToRecord.Get());
-	if (ActorToRecord)
-	{
-		AActor* AttachedToActor = SequenceRecorderUtils::GetAttachment(ActorToRecord, SocketName, ComponentName);
-		if (AttachedToActor)
-		{
-			InvParentAnimationRootTransform = OwningTakeRecorderSource->GetRecordedActorAnimationInitialRootTransform(AttachedToActor).Inverse();
-			if (!InvParentAnimationRootTransform.Equals(FTransform::Identity))
-			{
-				if (DefaultTransform.IsSet())
-				{
-					FTransform DT = DefaultTransform.GetValue();
-					DT = DT * InvParentAnimationRootTransform;
-					DefaultTransform = DT;
-					FVector Translation = DT.GetTranslation();
-					FVector EulerRotation = DT.GetRotation().Rotator().Euler();
-					FVector Scale = DT.GetScale3D();
-					TArrayView<FMovieSceneFloatChannel*> FloatChannels = MovieSceneSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-					FloatChannels[0]->SetDefault(Translation.X);
-					FloatChannels[1]->SetDefault(Translation.Y);
-					FloatChannels[2]->SetDefault(Translation.Z);
-					FloatChannels[3]->SetDefault(EulerRotation.X);
-					FloatChannels[4]->SetDefault(EulerRotation.Y);
-					FloatChannels[5]->SetDefault(EulerRotation.Z);
-					FloatChannels[6]->SetDefault(Scale.X);
-					FloatChannels[7]->SetDefault(Scale.Y);
-					FloatChannels[8]->SetDefault(Scale.Z);
-				}
-				if (BufferedTransforms.Times.Num() > 0)
-				{
-					BufferedTransforms.PostMultTransform(InvParentAnimationRootTransform);
-				}
-			}
-		}
-	}
 
  	// Try to 're-wind' rotations that look like axis flips
  	// We need to do this as a post-process because the recorder cant reliably access 'wound' rotations:
@@ -510,14 +471,8 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 				const FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 				const FFrameNumber StartTime = MovieSceneSection->GetInclusiveStartFrame();
 
-				// we may need to offset the transform here if the animation was not recorded on the root component
 				FTransform InvComponentTransform = AnimTrackRecorder->GetComponentTransform().Inverse();
-				FTransform InitialRootTransform = AnimTrackRecorder->GetInitialRootTransform();
-				if (DefaultTransform.IsSet())
-				{
-					DefaultTransform = InitialRootTransform * DefaultTransform.GetValue();
 
-				}
 				const FRawAnimSequenceTrack& RawTrack = AnimSequence->GetRawAnimationData()[RootIndex];
 				const int32 KeyCount = FMath::Max(FMath::Max(RawTrack.PosKeys.Num(), RawTrack.RotKeys.Num()), RawTrack.ScaleKeys.Num());
 				for (int32 KeyIndex = 0; KeyIndex < KeyCount; KeyIndex++)
@@ -551,12 +506,12 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 					}
 
 					FFrameNumber AnimationFrame = (AnimSequence->GetTimeAtFrame(KeyIndex) * TickResolution).FloorToFrame();
-					//TODO Fix this.
-					//this works for tests but not props
-					AnimationKeys.Add(InvComponentTransform * InitialRootTransform * Transform * Relative, StartTime + AnimationFrame);
-
-					//this works for props but not tests
-					//AnimationKeys.Add(InvComponentTransform * Transform * InitialRootTransform * Relative, StartTime + AnimationFrame);
+					FTransform Total = InvComponentTransform * Transform * Relative;
+					AnimationKeys.Add(Total, StartTime + AnimationFrame);
+					if (KeyIndex == 0)
+					{
+						DefaultTransform = Total;
+					}
 				}
 			}
 		}

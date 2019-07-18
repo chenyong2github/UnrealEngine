@@ -518,9 +518,19 @@ void* TlsGet(uint32_t index)
 	return ::TlsGetValue(index);
 }
 
+size_t TlsGetValue(uint32_t index)
+{
+	return reinterpret_cast<size_t>(::TlsGetValue(index));
+}
+
 uint32_t TlsSet(uint32_t index, void* value)
 {
 	return (uint32_t)::TlsSetValue(index, value);
+}
+
+uint32_t TlsSetValue(uint32_t index, size_t value)
+{
+	return (uint32_t)::TlsSetValue(index, reinterpret_cast<void*>(value));
 }
 
 uint32_t ThreadImpl::getDefaultStackSize()

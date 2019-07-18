@@ -201,6 +201,18 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Store Version (1-2147483647)", ClampMin="1", ClampMax="2147483647"))
 	int32 StoreVersion;
 
+	// Offset to add to store version for APKs generated for armv7
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", meta = (DisplayName = "Store Version offset (armv7)"))
+	int32 StoreVersionOffsetArmV7;
+
+	// Offset to add to store version for APKs generated for arm64
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", meta = (DisplayName = "Store Version offset (arm64)"))
+	int32 StoreVersionOffsetArm64;
+
+	// Offset to add to store version for APKs generated for x86_64
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", meta = (DisplayName = "Store Version offset (x86_64)"))
+	int32 StoreVersionOffsetX8664;
+
 	// The visual application name displayed for end users
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Application Display Name (app_name), project name if blank"))
 	FString ApplicationDisplayName;
@@ -254,6 +266,11 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Use ExternalFilesDir for UE4Game files?"))
 	bool bUseExternalFilesDir;
 
+	// If checked, log files will always be placed in a publicly available directory (either /sdcard/Android or /sdcard/UE4Game).
+	// You may require WRITE_EXTERNAL_STORAGE permission if you do not use ExternalFilesDir checkbox in android api 23+
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Make log files always publicly accessible?"))
+	bool bPublicLogFiles;
+
 	// The permitted orientation of the application on the device
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging")
 	TEnumAsByte<EAndroidScreenOrientation::Type> Orientation;
@@ -265,6 +282,10 @@ public:
 	// Enables use of the display cutout area on Android 9+
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Use display cutout region?"))
 	bool bUseDisplayCutout;
+
+	// Should we restore scheduled local notifications on reboot? This will add a receiver for boot complete and a permission to the manifest.
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Restore scheduled notifications on reboot"))
+	bool bRestoreNotificationsOnReboot;
 
 	// Level of verbosity to use during packaging with Ant
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging")
@@ -488,6 +509,14 @@ public:
 	/** Various overrides for how this platform should handle compression and decompression */
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FPlatformRuntimeAudioCompressionOverrides CompressionOverrides;
+
+	/** When this is enabled, Actual compressed data will be separated from the USoundWave, and loaded into a cache. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Use Stream Caching (Experimental)"))
+	bool bUseAudioStreamCaching;
+
+	/** This determines the max amount of memory that should be used for the cache at any given time. If set low (<= 8 MB), it lowers the size of individual chunks of audio during cook. */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides|Stream Caching", meta = (DisplayName = "Max Cache Size (KB)"))
+	int32 CacheSizeKB;
 
 	UPROPERTY(config, EditAnywhere, Category = "Audio|CookOverrides")
 	bool bResampleForDevice;

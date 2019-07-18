@@ -7,6 +7,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Containers/Array.h"
+#include "NiagaraParameterStore.h"
 #include "NiagaraDataInterfaceSkeletalMesh.generated.h"
 
 class UNiagaraDataInterfaceSkeletalMesh;
@@ -353,6 +354,11 @@ struct FNDISkeletalMesh_InstanceData
 	//Cached ptr to component we sample from. 
 	TWeakObjectPtr<USceneComponent> Component;
 
+	/** A binding to the user ptr we're reading the mesh from (if we are). */
+	FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
+
+	UObject* CachedUserParam;
+
 	USkeletalMesh* Mesh;
 
 	TWeakObjectPtr<USkeletalMesh> MeshSafe;
@@ -449,6 +455,10 @@ public:
 	/** The source actor from which to sample. Takes precedence over the direct mesh. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	AActor* Source;
+
+	/** Reference to a user parameter if we're reading one. */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	FNiagaraUserParameterBinding MeshUserParameter;
 	
 	/** The source component from which to sample. Takes precedence over the direct mesh. Not exposed to the user, only indirectly accessible from blueprints. */
 	UPROPERTY(Transient)
@@ -512,7 +522,7 @@ public:
 #endif
 	//~ UNiagaraDataInterface interface END
 
-	static USkeletalMesh* GetSkeletalMeshHelper(UNiagaraDataInterfaceSkeletalMesh* Interface, class UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp);
+	USkeletalMesh* GetSkeletalMesh(class UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData = nullptr);
 
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FName&  DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
@@ -586,7 +596,7 @@ public:
 
 private:
 	template<typename FilterMode, typename AreaWeightingMode>
-	FORCEINLINE int32 RandomTriIndex(FRandomStream& RandStream, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
+	FORCEINLINE int32 RandomTriIndex(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex);
 
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE int32 GetSpecificTriangleCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);

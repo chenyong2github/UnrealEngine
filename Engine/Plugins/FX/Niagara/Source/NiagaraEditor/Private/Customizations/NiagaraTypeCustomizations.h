@@ -127,3 +127,32 @@ private:
 	struct FNiagaraVariableAttributeBinding* TargetVariableBinding;
 
 };
+
+class FNiagaraUserParameterBindingCustomization : public IPropertyTypeCustomization
+{
+public:
+	/** @return A new instance of this class */
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FNiagaraUserParameterBindingCustomization>();
+	}
+
+	/** IPropertyTypeCustomization interface begin */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override {};
+	/** IPropertyTypeCustomization interface end */
+private:
+	FText GetCurrentText() const;
+	FText GetTooltipText() const;
+	TSharedRef<SWidget> OnGetMenuContent() const;
+	TArray<FName> GetNames() const;
+	void ChangeSource(FName InVarName);
+	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
+	TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData);
+	void OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType);
+
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+	class UNiagaraSystem* BaseSystem;
+	struct FNiagaraUserParameterBinding* TargetUserParameterBinding;
+
+};

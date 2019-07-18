@@ -680,6 +680,13 @@ bool UModelComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* Collis
 			continue;
 		}
 
+		if (IndexBufferSize < (int32)(Element.FirstIndex + Element.NumTriangles * 3 - 1))
+		{
+			UE_LOG(LogPhysics, Warning, TEXT("Found bad index buffer when cooking UModelComponent physics data! Not enough indices in buffer for Element triangles. Component: %s, Element: %d, Index Start: %d, Tri Count: %d, Index Buffer Size: %d"),
+				*GetPathName(), ElementIndex, Element.FirstIndex, Element.NumTriangles, IndexBufferSize);
+			continue;
+		}
+
 		for (uint32 TriIdx = 0; TriIdx < Element.NumTriangles; TriIdx++)
 		{
 			FTriIndices Triangle;

@@ -1122,18 +1122,6 @@ struct FRHICommandEndComputePass final : public FRHICommand<FRHICommandEndComput
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetRenderTargetsAndClear final : public FRHICommand<FRHICommandSetRenderTargetsAndClear>
-{
-	FRHISetRenderTargetsInfo RenderTargetsInfo;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandSetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& InRenderTargetsInfo) :
-		RenderTargetsInfo(InRenderTargetsInfo)
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 struct FRHICommandBindClearMRTValues final : public FRHICommand<FRHICommandBindClearMRTValues>
 {
 	bool bClearColor;
@@ -3753,13 +3741,13 @@ public:
 	FORCEINLINE void* LockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		return GDynamicRHI->RHILockStructuredBuffer(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->LockStructuredBuffer_RenderThread(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
 	}
 	
 	FORCEINLINE void UnlockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		GDynamicRHI->RHIUnlockStructuredBuffer(*this, StructuredBuffer);
+		GDynamicRHI->UnlockStructuredBuffer_RenderThread(*this, StructuredBuffer);
 	}
 	
 	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer)

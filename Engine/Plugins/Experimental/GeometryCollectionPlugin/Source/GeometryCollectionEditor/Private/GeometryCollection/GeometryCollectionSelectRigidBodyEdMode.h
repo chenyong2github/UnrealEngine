@@ -13,13 +13,16 @@ class FGeometryCollectionSelectRigidBodyEdMode : public FEdMode
 public:
 	static const FEditorModeID EditorModeID;
 
-	/* Activate this editor mode */
-	static void ActivateMode(TSharedRef<IPropertyHandle> PropertyHandleId);
+	/** Check whether this mode can be activated (needs to run in SIE/PIE). */
+	static bool CanActivateMode();
 
-	/* Activate this editor mode */
+	/** Activate this editor mode. */
+	static void ActivateMode(TSharedRef<IPropertyHandle> PropertyHandleId, TSharedRef<IPropertyHandle> PropertyHandleSolver, TFunction<void()> OnEnterMode, TFunction<void()> OnExitMode);
+
+	/** Deactivate this editor mode. */
 	static void DeactivateMode();
 
-	/* Return whether Activate this editor mode */
+	/** Return whether this editor mode is active. */
 	static bool IsModeActive();
 
 	FGeometryCollectionSelectRigidBodyEdMode() : bIsHoveringGeometryCollection(false) {}
@@ -27,7 +30,7 @@ public:
 
 	/* FEdMode interface */
 	virtual void Enter() override { EnableTransformSelectionMode(true); }
-	virtual void Exit() override { EnableTransformSelectionMode(false); PropertyHandleId.Reset(); }
+	virtual void Exit() override { EnableTransformSelectionMode(false); PropertyHandleId.Reset(); if (OnExitMode) { OnExitMode(); } }
 	virtual bool IsCompatibleWith(FEditorModeID /*OtherModeID*/) const override { return false; }
 
 	virtual bool GetCursor(EMouseCursor::Type& OutCursor) const { OutCursor = bIsHoveringGeometryCollection ? EMouseCursor::EyeDropper: EMouseCursor::SlashedCircle; return true; }
@@ -48,6 +51,8 @@ private:
 private:
 	static const int32 MessageKey;
 	TWeakPtr<IPropertyHandle> PropertyHandleId;  // Handle of the property that will get updated with the selected rigid body id
+	TWeakPtr<IPropertyHandle> PropertyHandleSolver;  // Handle of the property that will get updated with the selected solver actor
+	TFunction<void()> OnExitMode;  // Callback function called when the edit mode is deactivated
 	bool bIsHoveringGeometryCollection;
 };
 

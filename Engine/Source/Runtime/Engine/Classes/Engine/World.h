@@ -49,7 +49,7 @@ class ULocalPlayer;
 class UMaterialParameterCollection;
 class UMaterialParameterCollectionInstance;
 class UModel;
-class UNavigationSystem;
+class UNavigationSystemBase;
 class UNetConnection;
 class UNetDriver;
 class UPrimitiveComponent;
@@ -1390,6 +1390,11 @@ private:
 	
 	/** Broadcasts whenever the number of levels changes */
 	FOnLevelsChangedEvent LevelsChangedEvent;
+
+	DECLARE_EVENT(UWorld, FOnBeginTearingDownEvent);
+
+	/** Broadcasted on UWorld::BeginTearingDown */
+	FOnBeginTearingDownEvent BeginTearingDownEvent;
 
 #if WITH_EDITOR
 
@@ -3243,6 +3248,9 @@ public:
 
 	/** Returns the LevelsChangedEvent member. */
 	FOnLevelsChangedEvent& OnLevelsChanged() { return LevelsChangedEvent; }
+
+	/** Returns the BeginTearingDownEvent member. */
+	FOnBeginTearingDownEvent& OnBeginTearingDown() { return BeginTearingDownEvent; }
 
 	/** Returns the actor count. */
 	int32 GetProgressDenominator();

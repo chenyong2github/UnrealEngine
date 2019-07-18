@@ -7,6 +7,7 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
+#include "GeometryCollection/GeometryCollection.h"
 #if INCLUDE_CHAOS
 #include "SolverObjects/GeometryCollectionPhysicsObject.h"
 #endif  // #if INCLUDE_CHAOS
@@ -109,6 +110,9 @@ UGeometryCollectionDebugDrawComponent::UGeometryCollectionDebugDrawComponent(con
 	, SelectedRigidBodyId(INDEX_NONE)
 	, SelectedTransformIndex(INDEX_NONE)
 	, HiddenTransformIndex(INDEX_NONE)
+	, bWasVisible(true)
+	, bHasIncompleteRigidBodyIdSync(false)
+	, SelectedChaosSolver(nullptr)
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 {
 	bNavigationRelevant = false;
@@ -136,6 +140,7 @@ void UGeometryCollectionDebugDrawComponent::BeginPlay()
 		SelectedRigidBodyId = INDEX_NONE;
 		SelectedTransformIndex = INDEX_NONE;
 		HiddenTransformIndex = INDEX_NONE;
+		bWasVisible = true;
 
 		// Find or create global debug draw actor
 		GeometryCollectionDebugDrawActor = AGeometryCollectionDebugDrawActor::FindOrCreate(GetWorld());
@@ -147,7 +152,7 @@ void UGeometryCollectionDebugDrawComponent::BeginPlay()
 		}
 
 		// Update the visibility and tick status depending on the debug draw properties currently selected
-		OnDebugDrawPropertiesChanged(true);
+		OnDebugDrawPropertiesChanged(false);
 
 #if INCLUDE_CHAOS
 		// Find or create level set renderer
@@ -212,7 +217,7 @@ void UGeometryCollectionDebugDrawComponent::TickComponent(float DeltaTime, enum 
 			}
 			if (ParentCheckSum != PrevParentCheckSum)
 			{
-				UE_CLOG(GetOwner(), LogGeometryCollectionDebugDraw, Verbose, TEXT("Geometry Collection has broken up."), *GetOwner()->GetName());
+				UE_CLOG(GetOwner(), LogGeometryCollectionDebugDraw, Verbose, TEXT("Geometry Collection has broken up for actor %s."), *GetOwner()->GetName());
 				UpdateGeometryVisibility(true);
 			}
 		}
@@ -404,7 +409,8 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawTick()
 	const bool bIsSelected = (SelectedTransformIndex != INDEX_NONE);
 	const bool bIsOneSelected = bIsSelected && !GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection;
 	const bool bAreAllSelected = (bIsSelected && GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection) ||
-		(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE);
+		(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE && 
+		 GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver == GeometryCollectionComponent->ChaosSolverActor);
 
 	// Clustering
 	if (!bShowTransformIndices && GeometryCollectionDebugDrawActor->bShowTransformIndex && bIsOneSelected)
@@ -538,6 +544,7 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawTick()
 void UGeometryCollectionDebugDrawComponent::UpdateSelectedTransformIndex()
 {
 	check(GeometryCollectionComponent);
+
 	// No actor, no selection
 	if (!GeometryCollectionDebugDrawActor)
 	{
@@ -545,45 +552,82 @@ void UGeometryCollectionDebugDrawComponent::UpdateSelectedTransformIndex()
 		return;
 	}
 
-	// Check whether the selected rigid body id has changed
-	if (SelectedRigidBodyId == GeometryCollectionDebugDrawActor->SelectedRigidBody.Id) { return; }
+	// Check whether the selected rigid body id, or solver has changed
+	if (!bHasIncompleteRigidBodyIdSync &&
+		SelectedRigidBodyId == GeometryCollectionDebugDrawActor->SelectedRigidBody.Id &&
+		SelectedChaosSolver == GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver)
+	{
+		return;
+	}
 
 	// Default init selected transform index, in case of premature exit
 	SelectedTransformIndex = INDEX_NONE;
 
 	// Simple test to allow for an early exit when nothing has been selected
-	if (GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE)
+	if (GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE ||
+		GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver != GeometryCollectionComponent->ChaosSolverActor)
 	{
-		SelectedRigidBodyId = INDEX_NONE;
+		SelectedRigidBodyId = GeometryCollectionDebugDrawActor->SelectedRigidBody.Id;
+		SelectedChaosSolver = GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver;
 		return;
 	}
 
 	// Check rigid body id sync
 	// Note that this test alone isn't enough to ensure that the rigid body ids are valid.
 	const TManagedArray<int32>& RigidBodyIds = GeometryCollectionComponent->RigidBodyIds;
-	if (RigidBodyIds.Num() == 0) { return; }
-
-	// Find the matching transform if any
-	bool bInvalidRigidBodyIdsFound = false;
-	for (int32 i = 0; i < RigidBodyIds.Num(); ++i)
+	if (RigidBodyIds.Num() == 0)
 	{
-		if (RigidBodyIds[i] == INDEX_NONE)
+		bHasIncompleteRigidBodyIdSync = !!GeometryCollectionComponent->GetTransformArray().Num();
+		UE_CLOG(bHasIncompleteRigidBodyIdSync && GetOwner(), LogGeometryCollectionDebugDraw, Verbose, TEXT("UpdateSelectedTransformIndex(): Empty RigidBodyIds array for actor %s."), *GetOwner()->GetName());
+		return;
+	}
+
+	// Find the matching transform if any (and also check the sync completion status)
+	bHasIncompleteRigidBodyIdSync = false;
+
+	const TManagedArray<TSet<int32>>& ChildrenRest = GeometryCollectionComponent->GetChildrenArrayRest();
+	const TManagedArray<TSet<int32>>& Children = GeometryCollectionComponent->GetChildrenArray();
+
+	for (int32 TransformIndex = 0; TransformIndex < RigidBodyIds.Num(); ++TransformIndex)
+	{
+		// Is this the selected id?
+		if (RigidBodyIds[TransformIndex] == GeometryCollectionDebugDrawActor->SelectedRigidBody.Id)
 		{
-			bInvalidRigidBodyIdsFound = true;
-		}
-		else if (RigidBodyIds[i] == GeometryCollectionDebugDrawActor->SelectedRigidBody.Id)
-		{
-			SelectedTransformIndex = i;
+			SelectedTransformIndex = TransformIndex;
+			bHasIncompleteRigidBodyIdSync = false;  // Found it, the wait for a sync can be canceled
 			break;
 		}
-	}
+		// Check the reason behind any invalid index
+		if (RigidBodyIds[TransformIndex] == INDEX_NONE)
+		{
+			// Look for detached clusters in order to differentiate un-synced vs empty cluster rigid body ids.
+			int32 ChildTransformIndex = TransformIndex;
+			while (const TSet<int32>::TConstIterator ChildTransformIterator = Children[ChildTransformIndex].CreateConstIterator())
+			{
+				// Go down to the cluster's leaf level through the first child
+				ChildTransformIndex = *ChildTransformIterator;
+			}
 
-	// Update selected rigid body index, only if a selected transform or no bad ids have been found.
-	// As otherwise this would prevent finding the selected transform once the ids hare fully synced.
-	if (SelectedTransformIndex != INDEX_NONE || !bInvalidRigidBodyIdsFound)
-	{
-		SelectedRigidBodyId = GeometryCollectionDebugDrawActor->SelectedRigidBody.Id;
+			// If this is a leaf bone, it can not be a detached cluster so it should have a valid rigid body
+			// In which case the sync has yet to happen and it might be worth trying this again later
+			if (!ChildrenRest[ChildTransformIndex].Num())
+			{
+				bHasIncompleteRigidBodyIdSync = true;
+				UE_CLOG(GetOwner(), LogGeometryCollectionDebugDraw, VeryVerbose, TEXT("UpdateSelectedTransformIndex(): Invalid rigid body id for actor %s, TransformIndex %d."), *GetOwner()->GetName(), TransformIndex);
+			}
+			else
+			{
+				// This should match the SimulationType == FST_CLUSTERED or IsClustered(int32 Element)
+				ensure(GeometryCollectionComponent->GetSimulationTypeArrayRest()[ChildTransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered);
+				UE_CLOG(GetOwner(), LogGeometryCollectionDebugDraw, VeryVerbose, TEXT("UpdateSelectedTransformIndex(): Found empty cluster for actor %s, TransformIndex %d."), *GetOwner()->GetName(), TransformIndex);
+			}
+		}
 	}
+	UE_CLOG(bHasIncompleteRigidBodyIdSync && GetOwner(), LogGeometryCollectionDebugDraw, Verbose, TEXT("UpdateSelectedTransformIndex(): Invalid RigidBodyIds array elements for actor %s."), *GetOwner()->GetName());
+
+	// Update selected rigid body index and solver
+	SelectedRigidBodyId = GeometryCollectionDebugDrawActor->SelectedRigidBody.Id;
+	SelectedChaosSolver = GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver;
 }
 
 int32 UGeometryCollectionDebugDrawComponent::CountFaces(int32 TransformIndex, bool bDebugDrawClustering) const
@@ -642,9 +686,6 @@ void UGeometryCollectionDebugDrawComponent::UpdateGeometryVisibility(bool bForce
 		return;
 	}
 
-	// Save current component visibility state
-	const bool bWasVisible = GeometryCollectionComponent->IsVisible();
-
 	// Keep old hidden index
 	const int32 PrevHiddenIndex = HiddenTransformIndex;
 
@@ -658,9 +699,11 @@ void UGeometryCollectionDebugDrawComponent::UpdateGeometryVisibility(bool bForce
 	else
 	{
 		// Work out partial changes in visiblity
-		const bool bSelected = (SelectedTransformIndex != INDEX_NONE);
-		const bool bAllSelected = (GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE);
-		const bool bAnySelected = bSelected || bAllSelected;
+		const bool bIsSelected = (SelectedTransformIndex != INDEX_NONE);
+		const bool bAreAllSelected = (bIsSelected && GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection) ||
+			(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE && 
+			 GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver == GeometryCollectionComponent->ChaosSolverActor);
+		const bool bAreAnySelected = bIsSelected || bAreAllSelected;
 
 		switch (GeometryCollectionDebugDrawActor->HideGeometry)
 		{
@@ -670,9 +713,9 @@ void UGeometryCollectionDebugDrawComponent::UpdateGeometryVisibility(bool bForce
 			HiddenTransformIndex = INDEX_NONE;
 			break;
 		case EGeometryCollectionDebugDrawActorHideGeometry::HideWithCollision:
-			if (bShowRigidBodyCollisions || (bAnySelected && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision))
+			if (bShowRigidBodyCollisions || (bAreAnySelected && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision))
 			{
-				bIsVisible = !(GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection || bAllSelected);
+				bIsVisible = !bAreAllSelected;
 				HiddenTransformIndex = bIsVisible ? SelectedTransformIndex: INDEX_NONE;
 			}
 			else
@@ -682,11 +725,11 @@ void UGeometryCollectionDebugDrawComponent::UpdateGeometryVisibility(bool bForce
 			}
 			break;
 		case EGeometryCollectionDebugDrawActorHideGeometry::HideSelected:
-			bIsVisible = !bAllSelected;
+			bIsVisible = !bAreAllSelected;
 			HiddenTransformIndex = bIsVisible ? SelectedTransformIndex: INDEX_NONE;
 			break;
 		case EGeometryCollectionDebugDrawActorHideGeometry::HideWholeCollection:
-			bIsVisible = !bAnySelected;
+			bIsVisible = !bAreAnySelected;
 			HiddenTransformIndex = INDEX_NONE;
 			break;
 		case EGeometryCollectionDebugDrawActorHideGeometry::HideAll:
@@ -740,13 +783,18 @@ void UGeometryCollectionDebugDrawComponent::UpdateGeometryVisibility(bool bForce
 		GeometryCollectionComponent->ForceRenderUpdateConstantData();
 	}
 
-	// Update component visibility
-	const bool bVisibilityHasChanged = (bIsVisible != bWasVisible);
-	UE_CLOG(bVisibilityHasChanged, LogGeometryCollectionDebugDraw, Verbose, TEXT("UpdateGeometryVisibility(): Visibility has changed. Old visibility = %d, new visibility = %d."), bWasVisible, bIsVisible);
-	if (bVisibilityHasChanged)
+	// Update component visibility, only if the component visibility hasn't changed in between the last call (or unless the change is in sync with the component visibility)
+	const bool bIsComponentVisible = GeometryCollectionComponent->IsVisible();
+	const bool bAllowVisibilityChange = (bIsComponentVisible || !bWasVisible);
+	if (bAllowVisibilityChange)
 	{
-		UE_LOG(LogGeometryCollectionDebugDraw, Verbose, TEXT("UpdateGeometryVisibility(): Setting visibility."));
-		GeometryCollectionComponent->SetVisibility(bIsVisible);
+		const bool bVisibilityHasChanged = (bIsVisible != bIsComponentVisible);
+		if (bVisibilityHasChanged)
+		{
+			UE_LOG(LogGeometryCollectionDebugDraw, Verbose, TEXT("UpdateGeometryVisibility(): Visibility has changed. Old visibility = %d, new visibility = %d."), bWasVisible, bIsVisible);
+			GeometryCollectionComponent->SetVisibility(bIsVisible);
+		}
+		bWasVisible = bIsVisible;  // Only update when changes are allowed so that the component can stay hidden when visibility is out of sync.
 	}
 }
 
@@ -760,9 +808,9 @@ void UGeometryCollectionDebugDrawComponent::UpdateTickStatus()
 	else
 	{
 		// Check whether anything from this component is selected for debug drawing
-		const bool bIsOneSelected = (SelectedTransformIndex != INDEX_NONE);
-		const bool bAreAllSelected = (GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE);
-		const bool bAreAnySelected = bIsOneSelected || bAreAllSelected;
+		const bool bAreAnySelected = (SelectedTransformIndex != INDEX_NONE ||
+			(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE &&
+			 GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver == GeometryCollectionComponent->ChaosSolverActor));
 
 		bIsEnabled =
 			(bAreAnySelected && (
@@ -897,7 +945,8 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawChaosTick()
 	// Visualize other rigid body debug draw informations
 	const bool bIsOneSelected = bIsSelected && !GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection;
 	const bool bAreAllSelected = (bIsSelected && GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection) ||
-		(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE);
+		(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE && 
+		 GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver == GeometryCollectionComponent->ChaosSolverActor);
 
 	if (!bShowRigidBodyIds && GeometryCollectionDebugDrawActor->bShowRigidBodyId && bIsOneSelected)
 	{
@@ -975,9 +1024,9 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawChaosTick()
 
 void UGeometryCollectionDebugDrawComponent::UpdateLevelSetVisibility()
 {
-	const bool bSelected = (SelectedTransformIndex != INDEX_NONE);
+	const bool bIsSelected = (SelectedTransformIndex != INDEX_NONE);
 	const bool bShowCollision = bShowRigidBodyCollisions || 
-		(bSelected && GeometryCollectionDebugDrawActor && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision);
+		(bIsSelected && GeometryCollectionDebugDrawActor && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision);
 	
 	if (RenderLevelSetOwner == this && (LastRenderedId == INDEX_NONE || !bShowCollision))
 	{

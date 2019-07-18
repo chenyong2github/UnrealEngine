@@ -209,6 +209,14 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	MaterialParamValidMask |= MaterialParamOffset3 != -1 ? 8 : 0;
 }
 
+FNiagaraRendererRibbons::~FNiagaraRendererRibbons()
+{
+	if (VertexFactory != nullptr)
+	{
+		delete VertexFactory;
+		VertexFactory = nullptr;
+	}
+}
 
 void FNiagaraRendererRibbons::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
@@ -384,7 +392,8 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			{
 				const float MinTesselation = [&]
 				{
-					if (TessellationMinAngle == 0.f || bUseConstantFactor) {
+					if (TessellationMinAngle == 0.f || bUseConstantFactor)
+					{
 						return static_cast<float>(TessellationFactor);
 					}
 					else

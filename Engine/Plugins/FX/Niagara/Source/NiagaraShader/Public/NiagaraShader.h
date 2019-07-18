@@ -109,6 +109,8 @@ public:
 	FShaderUniformBufferParameter DataInterfaceUniformBufferParam;
 	FShaderUniformBufferParameter ViewUniformBufferParam;
 	FShaderParameter EmitterTickCounterParam;
+	FShaderParameter EmitterSpawnInfoOffsetsParam;
+	FShaderParameter EmitterSpawnInfoParamsParam;
 	FShaderParameter NumEventsPerParticleParam;
 	FShaderParameter NumParticlesPerEventParam;
 	FShaderParameter CopyInstancesBeforeStartParam;

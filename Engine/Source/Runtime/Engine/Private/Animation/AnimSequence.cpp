@@ -200,7 +200,7 @@ void OnCVarsChanged()
 
 FAutoConsoleVariableSink AnimationCVarSink(FConsoleCommandDelegate::CreateStatic(&OnCVarsChanged));
 
-FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, const bool bPerformStripping)
+FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, bool bPerformStripping, float AltErrorThreshold)
 {
 	//Make up our content key consisting of:
 	//	* Global animation compression version
@@ -216,11 +216,15 @@ FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, const bo
 	char AdditiveType = bIsValidAdditive ? NibbleToTChar(Seq.AdditiveAnimType) : '0';
 	char RefType = bIsValidAdditive ? NibbleToTChar(Seq.RefPoseType) : '0';
 
-	const int32 StripFrame = bPerformStripping ? 1 : 0;
+	FArcToHexString ArcToHexString;
 
-	FString Ret = FString::Printf(TEXT("%i_%i_%s%s%s_%c%c%i_%s_%s_%s"),
+	ArcToHexString.Ar << AltErrorThreshold;
+	ArcToHexString.Ar << bPerformStripping;
+	Seq.CompressionScheme->PopulateDDCKeyArchive(ArcToHexString.Ar);
+	Seq.CurveCompressionSettings->PopulateDDCKey(ArcToHexString.Ar);
+
+	FString Ret = FString::Printf(TEXT("%i_%s%s%s_%c%c%i_%s_%s"),
 		Seq.CompressCommandletVersion,
-		StripFrame,
 		*Seq.GetRawDataGuid().ToString(),
 		*Seq.GetSkeleton()->GetGuid().ToString(),
 		*Seq.GetSkeleton()->GetVirtualBoneGuid().ToString(),
@@ -228,8 +232,7 @@ FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, const bo
 		RefType,
 		Seq.RefFrameIndex,
 		(bIsValidAdditive && Seq.RefPoseSeq) ? *Seq.RefPoseSeq->GetRawDataGuid().ToString() : TEXT("NoAdditiveGuid"),
-		*Seq.CompressionScheme->MakeDDCKey(),
-		*Seq.CurveCompressionSettings->MakeDDCKey()
+		*ArcToHexString.MakeString()
 	);
 
 	return Ret;
@@ -547,7 +550,7 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	ImportFileFramerate = 0.0f;
 	ImportResampleFramerate = 0;
 	bAllowFrameStripping = true;
-
+	CompressionErrorThresholdScale = 1.f;
 #endif
 
 	InitCurveCompressionScheme();
@@ -1163,6 +1166,8 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	}
 
 	bool bAdditiveSettingsChanged = false;
+	bool bCompressionAffectingSettingsChanged = false;
+
 	if(PropertyChangedEvent.Property)
 	{
 		const bool bChangedRefFrameIndex = PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, RefFrameIndex);
@@ -1180,10 +1185,14 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			bAdditiveSettingsChanged = true;
 		}
 		
+		bCompressionAffectingSettingsChanged =   PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, bAllowFrameStripping)
+											  || PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, CompressionErrorThresholdScale);
 	}
 
+	const bool bNeedPostProcess = !IsCompressedDataValid() || bAdditiveSettingsChanged || bCompressionAffectingSettingsChanged;
+
 	// @Todo fix me: This is temporary fix to make sure they always have compressed data
-	if (RawAnimationData.Num() > 0 && (!IsCompressedDataValid() || bAdditiveSettingsChanged))
+	if (RawAnimationData.Num() > 0 && bNeedPostProcess)
 	{
 		PostProcessSequence();
 	}
@@ -1783,6 +1792,12 @@ void UAnimSequence::RetargetBoneTransform(FTransform& BoneTransform, const int32
 }
 
 #if WITH_EDITOR
+float UAnimSequence::GetAltCompressionErrorThreshold() const
+{
+	// CompressionErrorThresholdScale represents a world scale we will play back the animation at
+	return FAnimationUtils::GetAlternativeCompressionThreshold() / CompressionErrorThresholdScale;
+}
+
 /** Utility function to crop data from a RawAnimSequenceTrack */
 static int32 CropRawTrack(FRawAnimSequenceTrack& RawTrack, int32 StartKey, int32 NumKeys, int32 TotalNumOfFrames)
 {
@@ -2194,7 +2209,9 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 
 		const int32 PreviousCompressionSize = GetApproxCompressedSize();
 
-		FString AssetDDCKey = GetAnimSequenceSpecificCacheKeySuffix(*this, bPerformStripping);
+		const float AltCompressionErrorThreshold = GetAltCompressionErrorThreshold();
+
+		FString AssetDDCKey = GetAnimSequenceSpecificCacheKeySuffix(*this, bPerformStripping, AltCompressionErrorThreshold);
 
 		TArray<uint8> OutData;
 		{
@@ -2213,7 +2230,7 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 				// No trivial key removal is done at this point (impossible error metrics of -1), since all of the techniques will perform it themselves
 				CompressRawAnimData(-1.0f, -1.0f);
 
-				TSharedRef<FCompressibleAnimData> CompressibleData = MakeShared<FCompressibleAnimData>(this, bPerformStripping);
+				TSharedRef<FCompressibleAnimData> CompressibleData = MakeShared<FCompressibleAnimData>(this, bPerformStripping, AltCompressionErrorThreshold);
 				AnimCompressor->SetCompressibleData(CompressibleData);
 
 				if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))

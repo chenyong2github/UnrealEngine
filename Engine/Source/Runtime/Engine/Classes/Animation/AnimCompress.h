@@ -633,7 +633,7 @@ public:
 #endif
 
 #if WITH_EDITOR
-	FString MakeDDCKey();
+	void PopulateDDCKeyArchive(FArchive& Ar) { PopulateDDCKey(Ar); }
 
 protected:
 	virtual void PopulateDDCKey(FArchive& Ar);

@@ -96,8 +96,11 @@ public:
 	}
 
 private:
+	FSlateColor GetStatusColorAndOpacity() const;
+	FText GetStatusTooltipText() const;
+
+private:
 	mutable TWeakPtr<FProducerStackEntry> Node;
-	TSharedPtr< STextBlock > CheckBox;
 };
 
 class SProducerStackEntryTreeView : public STreeView<FProducerStackEntryRef>
@@ -158,7 +161,7 @@ private:
 	TArray< TSharedPtr< FString > > ConsumerDescriptionList;
 	TMap< TSharedPtr< FString >, UClass* > ConsumerDescriptionMap;
 	TSharedPtr< FString > SelectedConsumerDescription;
-	TSharedPtr< STextComboBox > ProducerSelector;
+	TSharedPtr< SWidget > ProducerSelector;
 	bool bIsChecked;
 	TSharedPtr< FProducerStackEntry > SelectedEntry;
 	TSharedPtr< SDataprepConsumerWidget > ConsumerWidget;

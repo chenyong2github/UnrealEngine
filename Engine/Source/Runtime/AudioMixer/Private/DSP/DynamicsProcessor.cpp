@@ -174,7 +174,7 @@ namespace Audio
 			float LookaheadOutput = LookaheadDelay[Channel].ProcessAudioSample(InFrame[Channel]);
 
 			// Write into the output with the computed gain value
-			OutFrame[Channel] = Gain[Channel] * LookaheadOutput * OutputGain;
+			OutFrame[Channel] = Gain[Channel] * LookaheadOutput * OutputGain * InputGain;
 		}
 	}
 

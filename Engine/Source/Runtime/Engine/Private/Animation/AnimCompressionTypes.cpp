@@ -123,7 +123,7 @@ void StripFramesOdd(TArray<ArrayValue>& Keys, const int32 NumFrames)
 	}
 }
 
-FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping) :
+FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping, const float InAltCompressionErrorThreshold) :
 #if WITH_EDITOR
 	RequestedCompressionScheme(InSeq->CompressionScheme) ,
 #endif
@@ -134,6 +134,7 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	, SequenceLength(InSeq->SequenceLength)
 	, NumFrames(InSeq->GetRawNumberOfFrames())
 	, bIsValidAdditive(InSeq->IsValidAdditive())
+	, AltCompressionErrorThreshold(InAltCompressionErrorThreshold)
 	, Name(InSeq->GetName())
 	, FullName(InSeq->GetFullName())
 	, AnimFName(InSeq->GetFName())
@@ -197,7 +198,7 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 #endif
 }
 
-FCompressibleAnimData::FCompressibleAnimData(UAnimCompress* InRequestedCompressionScheme, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames) :
+FCompressibleAnimData::FCompressibleAnimData(UAnimCompress* InRequestedCompressionScheme, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames, const float InAltCompressionErrorThreshold) :
 #if WITH_EDITOR
 	RequestedCompressionScheme(InRequestedCompressionScheme) ,
 #endif
@@ -207,10 +208,23 @@ FCompressibleAnimData::FCompressibleAnimData(UAnimCompress* InRequestedCompressi
 	, SequenceLength(InSequenceLength)
 	, NumFrames(InNumFrames)
 	, bIsValidAdditive(false)
+	, AltCompressionErrorThreshold(InAltCompressionErrorThreshold)
 {
 #if WITH_EDITOR
 	FAnimationUtils::BuildSkeletonMetaData(Skeleton, BoneData);
 #endif
+}
+
+FCompressibleAnimData::FCompressibleAnimData() : RequestedCompressionScheme(nullptr)
+, CurveCompressionSettings(nullptr)
+, Skeleton(nullptr)
+, Interpolation((EAnimInterpolationType)0)
+, SequenceLength(0.f)
+, NumFrames(0)
+, bIsValidAdditive(false)
+, AltCompressionErrorThreshold(FAnimationUtils::GetAlternativeCompressionThreshold())
+{
+
 }
 
 void FCompressibleAnimData::Update(FCompressedAnimSequence& InOutCompressedData) const
@@ -603,6 +617,15 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 		}
 	}
 #endif
+}
+
+SIZE_T FCompressedAnimSequence::GetMemorySize() const
+{
+	return	  CompressedTrackToSkeletonMapTable.GetAllocatedSize()
+			+ CompressedCurveNames.GetAllocatedSize()
+			+ CompressedCurveByteStream.GetAllocatedSize()
+			+ CompressedDataStructure.GetApproxBoneCompressedSize()
+			+ sizeof(FCompressedAnimSequence);
 }
 
 struct FGetBonePoseScratchArea : public TThreadSingleton<FGetBonePoseScratchArea>

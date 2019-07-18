@@ -40,9 +40,9 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInteractiveToolAction
 	/** Internal name for this Action */
 	FString ActionName;
 	/** Short name for this Action */
-	FString ShortName;
+	FText ShortName;
 	/** Descriptive name for this Action */
-	FString Description;
+	FText Description;
 
 	/** Suggested modifier keys for this Action */
 	EModifierKey::Type DefaultModifiers;
@@ -60,7 +60,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInteractiveToolAction
 	}
 
 	FInteractiveToolAction(const UClass* ClassTypeIn, int32 ActionIDIn,
-		const FString& ActionNameIn, const FString& ShortNameIn, const FString& DescriptionIn,
+		const FString& ActionNameIn, const FText& ShortNameIn, const FText& DescriptionIn,
 		EModifierKey::Type DefaultModifiersIn, const FKey& DefaultKeyIn )
 	{
 		ClassType = ClassTypeIn;
@@ -89,7 +89,7 @@ public:
 	 * UInteractiveTool::RegisterActions() implementations
 	 */
 	void RegisterAction(UInteractiveTool* Tool, int32 ActionID,
-		const FString& ActionName, const FString& ShortUIName, const FString& DescriptionText,
+		const FString& ActionName, const FText& ShortUIName, const FText& DescriptionText,
 		EModifierKey::Type Modifiers, const FKey& ShortcutKey,
 		TFunction<void()> ActionFunction );
 

@@ -45,7 +45,7 @@
 #include "EngineModule.h"
 #include "GPUScene.h"
 #include "MaterialSceneTextureId.h"
-
+#include "DebugViewModeRendering.h"
 #include "VisualizeTexture.h"
 
 uint32 GetShadowQuality();
@@ -354,9 +354,9 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
 	// Notify the FX system that the scene is about to be rendered.
-	if (Scene->FXSystem && !Views[0].bIsPlanarReflection && ViewFamily.EngineShowFlags.Particles)
+	if (Scene->FXSystem && ViewFamily.EngineShowFlags.Particles)
 	{
-		Scene->FXSystem->PreRender(RHICmdList, NULL);
+		Scene->FXSystem->PreRender(RHICmdList, NULL, !Views[0].bIsPlanarReflection);
 	}
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
@@ -486,6 +486,17 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Opaque));
 	RenderMobileBasePass(RHICmdList, ViewList);
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (ViewFamily.UseDebugViewPS())
+	{
+		// Here we use the base pass depth result to get z culling for opaque and masque.
+		// The color needs to be cleared at this point since shader complexity renders in additive.
+		DrawClearQuad(RHICmdList, FLinearColor::Black);
+		RenderMobileDebugView(RHICmdList, ViewList);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	const bool bAdrenoOcclusionMode = CVarMobileAdrenoOcclusionMode.GetValueOnRenderThread() != 0;
 	if (!bAdrenoOcclusionMode)
@@ -707,6 +718,33 @@ void FMobileSceneRenderer::BasicPostProcess(FRHICommandListImmediate& RHICmdList
 	Context.FinalOutput.GetOutput()->RenderTargetDesc = Desc;
 
 	CompositeContext.Process(Context.FinalOutput.GetPass(), TEXT("ES2BasicPostProcess"));
+}
+
+void FMobileSceneRenderer::RenderMobileDebugView(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews)
+{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDebugView);
+	SCOPED_DRAW_EVENT(RHICmdList, MobileDebugView);
+	SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
+
+	for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
+	{
+		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+		const FViewInfo& View = *PassViews[ViewIndex];
+		if (!View.ShouldRenderView())
+		{
+			continue;
+		}
+
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FDebugViewModePassPassUniformParameters PassParameters;
+		SetupDebugViewModePassUniformBuffer(SceneContext, View.GetFeatureLevel(), PassParameters);
+		Scene->UniformBuffers.DebugViewModePassUniformBuffer.UpdateUniformBufferImmediate(PassParameters);
+		
+		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
+		View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].DispatchDraw(nullptr, RHICmdList);
+	}
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 }
 
 void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList)

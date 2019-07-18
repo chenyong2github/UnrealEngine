@@ -540,7 +540,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 								TexelToVertex.bIntersectingSurface = true;
 							}
 
-							if (bHitBackfaces[CornerIndex] && DistanceSquared < ClosestBackfacingIntersectionDistanceSq)
+							if (bHitBackfaces[CornerIndex] && (DistanceSquared < ClosestBackfacingIntersectionDistanceSq && !FMath::IsNearlyEqual(DistanceSquared, ClosestBackfacingIntersectionDistanceSq, SceneConstants.SmallestTexelRadius)))
 							{
 								ClosestBackfacingIntersectionDistanceSq = DistanceSquared;
 								ClosestBackfacingIntersectionIndex = CornerIndex;

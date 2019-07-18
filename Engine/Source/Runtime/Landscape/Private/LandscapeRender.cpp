@@ -635,6 +635,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, FLandscapeNeighborInfo(InComponent->GetWorld(), InComponent->GetLandscapeProxy()->GetLandscapeGuid(), InComponent->GetSectionBase() / InComponent->ComponentSizeQuads, InComponent->GetHeightmap(), InComponent->ForcedLOD, InComponent->LODBias)
 	, MaxLOD(FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1) - 1)
 	, UseTessellationComponentScreenSizeFalloff(InComponent->GetLandscapeProxy()->UseTessellationComponentScreenSizeFalloff)
+	, bRequiresAdjacencyInformation(false)
 	, NumWeightmapLayerAllocations(InComponent->GetWeightmapLayerAllocations().Num())
 	, StaticLightingLOD(InComponent->GetLandscapeProxy()->StaticLightingLOD)
 	, WeightmapSubsectionOffset(InComponent->WeightmapSubsectionOffset)
@@ -889,7 +890,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		FWeightmapLayerAllocationInfo& Allocation = InComponent->WeightmapLayerAllocations[Idx];
 		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer)
 		{
-			VisibilityWeightmapTexture = WeightmapTextures[Idx];
+			VisibilityWeightmapTexture = WeightmapTextures[Allocation.WeightmapTextureIndex];
 			VisibilityWeightmapChannel = Allocation.WeightmapTextureChannel;
 			break;
 		}
@@ -3256,10 +3257,10 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 }
 #endif
 
-bool FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+int32 FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	// TODO: implement
-	return false;
+	return 0;
 }
 
 //

@@ -437,12 +437,21 @@ struct ENGINE_API FPacketSimulationSettings
 	/**
 	 * When set, will cause PktLag to use variable lag instead of constant.
 	 * Value is treated as millisecond lag range (e.g. -GivenVariance <= 0 <= GivenVariance).
-	 * Clamped between 0 and 100.
 	 *
 	 * Can only be used when PktLag is enabled.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
 	int32	PktLagVariance;
+
+	/**
+	 * If set lag values will randomly fluctuate between Min and Max.
+	 * Ignored if PktLag value is set
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktLagMin = 0;
+	
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktLagMax = 0;
 
 	/** Ctor. Zeroes the settings */
 	FPacketSimulationSettings() : 
@@ -460,6 +469,11 @@ struct ENGINE_API FPacketSimulationSettings
 	 * @note: overwrites all previous settings
 	 */
 	void LoadConfig(const TCHAR* OptionalQualifier = nullptr);
+	
+	/** 
+	 * Load a preconfigured emulation profile from the .ini
+	 */
+	void LoadEmulationProfile(const TCHAR* ProfileName);
 
 	/**
 	 * Registers commands for auto-completion, etc.
@@ -470,6 +484,12 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Unregisters commands for auto-completion, etc.
 	 */
 	void UnregisterCommands();
+
+	/**
+	 * Ensure that settings have proper values
+	 */
+	void ValidateSettings();
+	void ResetSettings();
 
 	/**
 	 * Reads the settings from a string: command line or an exec

@@ -725,7 +725,7 @@ public:
 	 *	Returns the list of all morph targets of this skeletal mesh
 	 *  @return	The list of morph targets
 	 */
-	UFUNCTION(BlueprintPure, Category = Mesh, meta = (DisplayName = "GetAllMorphTargetNames", ScriptName = "GetAllMorphTargetNames", Keywords = "morph shape"))
+	UFUNCTION(BlueprintPure, Category = Mesh, meta = (DisplayName = "Get All Morph Target Names", ScriptName = "GetAllMorphTargetNames", Keywords = "morph shape"))
 	TArray<FString> K2_GetAllMorphTargetNames() const;
 
 	/** A fence which is used to keep track of the rendering thread releasing the static mesh resources. */
@@ -920,6 +920,7 @@ public:
 	virtual FString GetDetailedInfoInternal() const override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	//~ End UObject Interface.
 
 	/** Setup-only routines - not concerned with the instance. */

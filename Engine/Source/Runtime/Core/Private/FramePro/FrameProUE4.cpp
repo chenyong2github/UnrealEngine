@@ -80,6 +80,7 @@
 		#include <pthread.h>
 		#include "HAL/PThreadEvent.h"
 	#endif
+	//@EPIC END
 
 	//------------------------------------------------------------------------
 	namespace FramePro
@@ -634,6 +635,12 @@
 			FRAMEPRO_ASSERT(os_thread_mem_size >= sizeof(UE4Thread*));
 
 			GetOSThread(p_os_thread_mem) = new UE4Thread(p_thread_main, p_context);
+		}
+
+		//------------------------------------------------------------------------
+		void Platform::DestroyThread(void* p_os_thread_mem)
+		{
+			delete GetOSThread(p_os_thread_mem);
 		}
 
 		//------------------------------------------------------------------------

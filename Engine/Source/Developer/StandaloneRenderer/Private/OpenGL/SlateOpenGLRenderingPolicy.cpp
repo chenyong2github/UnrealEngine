@@ -19,7 +19,7 @@ const float PixelCenterOffsetOpenGL = 0.0f;
 /**
  * Returns the OpenGL primitive type to use when making draw calls                   
  */
-static GLenum GetOpenGLPrimitiveType( ESlateDrawPrimitive::Type SlateType )
+static GLenum GetOpenGLPrimitiveType( ESlateDrawPrimitive SlateType )
 {
 	switch( SlateType )
 	{
@@ -84,13 +84,18 @@ void FSlateOpenGLRenderingPolicy::ReleaseResources()
  * @param InVertices	The vertices to copy to the vertex buffer
  * @param InIndices		The indices to copy to the index buffer
  */
-void FSlateOpenGLRenderingPolicy::UpdateVertexAndIndexBuffers(FSlateBatchData& InBatchData)
+void FSlateOpenGLRenderingPolicy::BuildRenderingBuffers(FSlateBatchData& InBatchData)
 {
+	InBatchData.MergeRenderBatches();
+
 	if( InBatchData.GetRenderBatches().Num() > 0 )
 	{
-		if( InBatchData.GetNumBatchedVertices() > 0 )
+		const FSlateVertexArray& FinalVertexData = InBatchData.GetFinalVertexData();
+		const FSlateIndexArray& FinalIndexData = InBatchData.GetFinalIndexData();
+
+		if( FinalVertexData.Num() > 0 )
 		{
-			uint32 NumVertices = InBatchData.GetNumBatchedVertices();
+			const uint32 NumVertices = FinalVertexData.Num();
 	
 			// resize if needed
 			if( NumVertices*sizeof(FSlateVertex) > VertexBuffer.GetBufferSize() )
@@ -102,9 +107,9 @@ void FSlateOpenGLRenderingPolicy::UpdateVertexAndIndexBuffers(FSlateBatchData& I
 			}
 		}
 
-		if( InBatchData.GetNumBatchedIndices() > 0 )
+		if( FinalIndexData.Num() > 0 )
 		{
-			uint32 NumIndices = InBatchData.GetNumBatchedIndices();
+			const uint32 NumIndices = FinalIndexData.Num();
 
 			// resize if needed
 			if( NumIndices > IndexBuffer.GetMaxNumIndices() )
@@ -121,7 +126,9 @@ void FSlateOpenGLRenderingPolicy::UpdateVertexAndIndexBuffers(FSlateBatchData& I
 		//Early out if we have an invalid buffer (might have lost context and now have invalid buffers)
 		if ((nullptr != VerticesPtr) && (nullptr != IndicesPtr))
 		{
-			InBatchData.FillVertexAndIndexBuffer(VerticesPtr, IndicesPtr, /*bAbsoluteIndices*/ false);
+			FMemory::Memcpy(VerticesPtr, FinalVertexData.GetData(), FinalVertexData.Num() * sizeof(FSlateVertex));
+			FMemory::Memcpy(IndicesPtr, FinalIndexData.GetData(), FinalIndexData.Num() * sizeof(SlateIndex));
+
 		}
 
 		if (nullptr != VerticesPtr)
@@ -136,7 +143,7 @@ void FSlateOpenGLRenderingPolicy::UpdateVertexAndIndexBuffers(FSlateBatchData& I
 	}
 }
 
-void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatrix, FVector2D ViewportSize, const TArray<FSlateRenderBatch>& RenderBatches)
+void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatrix, FVector2D ViewportSize, TArrayView<const FSlateRenderBatch> RenderBatches)
 {
 	// Bind the vertex buffer.  Each element uses the same buffer
 	VertexBuffer.Bind();
@@ -169,15 +176,16 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 	glStencilFunc(GL_GREATER, 0, 0xFF);
 	glStencilOp(GL_KEEP, GL_INCR, GL_INCR);
 
-	TOptional<FSlateClippingState> LastClippingState;
+	const FSlateClippingState* LastClippingState = nullptr;
 
-	for( int32 BatchIndex = 0; BatchIndex < RenderBatches.Num(); ++BatchIndex )
+	int32 NextRenderBatchIndex = 0;
+	while (NextRenderBatchIndex != INDEX_NONE)
 	{
-		const FSlateRenderBatch& RenderBatch = RenderBatches[BatchIndex];
+		const FSlateRenderBatch& RenderBatch = RenderBatches[NextRenderBatchIndex];
 
-		const FSlateShaderResource* Texture = RenderBatch.Texture;
+		const FSlateShaderResource* ShaderResource = RenderBatch.GetShaderResource();
 
-		const ESlateBatchDrawFlag DrawFlags = RenderBatch.DrawFlags;
+		const ESlateBatchDrawFlag DrawFlags = RenderBatch.GetDrawFlags();
 
 		if( EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::NoBlending) )
 		{
@@ -200,19 +208,19 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 		}
 #endif
 
-		ElementProgram.SetShaderType( RenderBatch.ShaderType );
-		ElementProgram.SetMarginUVs( RenderBatch.ShaderParams.PixelParams );
-		ElementProgram.SetDrawEffects( RenderBatch.DrawEffects );
+		ElementProgram.SetShaderType( static_cast<uint8>(RenderBatch.GetShaderType()) );
+		ElementProgram.SetMarginUVs( RenderBatch.GetShaderParams().PixelParams );
+		ElementProgram.SetDrawEffects( RenderBatch.GetDrawEffects() );
 
 		// Disable stenciling and depth testing by default
 		glDisable(GL_STENCIL_TEST);
 		
-		if( RenderBatch.ShaderType == ESlateShader::LineSegment )
+		if( RenderBatch.GetShaderType() == ESlateShader::LineSegment )
 		{
 			// Test that the pixels in the line segment have only been drawn once
 			glEnable(GL_STENCIL_TEST);
 		}
-		else if( Texture )
+		else if(ShaderResource)
 		{
 			uint32 RepeatU = EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileU) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 			uint32 RepeatV = EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileV) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
@@ -225,22 +233,23 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 			}
 #endif
 
-			ElementProgram.SetTexture( ((FSlateOpenGLTexture*)Texture)->GetTypedResource(), RepeatU, RepeatV );
+			ElementProgram.SetTexture( ((FSlateOpenGLTexture*)ShaderResource)->GetTypedResource(), RepeatU, RepeatV );
 		}
 		else
 		{
 			ElementProgram.SetTexture( WhiteTexture->GetTypedResource(), GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE );
 		}
 
-		check( RenderBatch.NumIndices > 0 );
+		check( RenderBatch.GetNumIndices() > 0 );
 
-		const uint32 IndexCount = RenderBatch.NumIndices;
+		const uint32 IndexCount = RenderBatch.GetNumIndices();
+		check(IndexCount > 0);
 
 		uint32 Offset = 0;
 		// The offset into the vertex buffer where this batches vertices are located
-		uint32 BaseVertexIndex = RenderBatch.VertexOffset;
+		uint32 BaseVertexIndex = RenderBatch.GetVertexOffset();
 		// The starting index in the index buffer for this element batch
-		uint32 StartIndex = RenderBatch.IndexOffset * sizeof(SlateIndex);
+		uint32 StartIndex = RenderBatch.GetIndexOffset() * sizeof(SlateIndex);
 
 
 		// Size of each vertex
@@ -265,13 +274,13 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 		IndexBuffer.Bind();
 
 
-		if (RenderBatch.ClippingState != LastClippingState)
+		if (RenderBatch.GetClippingState() != LastClippingState)
 		{
-			LastClippingState = RenderBatch.ClippingState;
+			LastClippingState = RenderBatch.GetClippingState();
 
-			if (RenderBatch.ClippingState.IsSet())
+			if (LastClippingState)
 			{
-				const FSlateClippingState& ClipState = RenderBatch.ClippingState.GetValue();
+				const FSlateClippingState& ClipState = *LastClippingState;
 				if (ClipState.ScissorRect.IsSet())
 				{
 					const FSlateClippingZone& ScissorRect = ClipState.ScissorRect.GetValue();
@@ -301,10 +310,10 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 #endif
 
 #if PLATFORM_USES_ES2
-		glDrawElements(GetOpenGLPrimitiveType(RenderBatch.DrawPrimitiveType), RenderBatch.NumIndices, GL_INDEX_FORMAT, (void*)StartIndex);
+		glDrawElements(GetOpenGLPrimitiveType(RenderBatch.GetDrawPrimitiveType()), RenderBatch.GetNumIndices(), GL_INDEX_FORMAT, (void*)StartIndex);
 #else
 		// Draw all elements in batch
-		glDrawRangeElements( GetOpenGLPrimitiveType(RenderBatch.DrawPrimitiveType), 0, RenderBatch.NumVertices, RenderBatch.NumIndices, GL_INDEX_FORMAT, (void*)(PTRINT)StartIndex );
+		glDrawRangeElements( GetOpenGLPrimitiveType(RenderBatch.GetDrawPrimitiveType()), 0, RenderBatch.GetNumVertices(), RenderBatch.GetNumIndices(), GL_INDEX_FORMAT, (void*)(PTRINT)StartIndex );
 #endif
 		CHECK_GL_ERRORS;
 		

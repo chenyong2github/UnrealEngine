@@ -293,12 +293,6 @@ void FRHICommandSetRenderTargets::Execute(FRHICommandListBase& CmdList)
 		UAVs);
 }
 
-void FRHICommandSetRenderTargetsAndClear::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetRenderTargetsAndClear);
-	INTERNAL_DECORATOR(RHISetRenderTargetsAndClear)(RenderTargetsInfo);
-}
-
 void FRHICommandBindClearMRTValues::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BindClearMRTValues);

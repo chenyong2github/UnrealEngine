@@ -137,6 +137,11 @@ FCurveEditorTreeItem* FCurveEditorTree::FindItem(FCurveEditorTreeItemID ItemID)
 	return Items.Find(ItemID);
 }
 
+const FCurveEditorTreeItem* FCurveEditorTree::FindItem(FCurveEditorTreeItemID ItemID) const
+{
+	return Items.Find(ItemID);
+}
+
 const TArray<FCurveEditorTreeItemID>& FCurveEditorTree::GetRootItems() const
 {
 	return RootItems.ChildIDs;
@@ -224,24 +229,6 @@ void FCurveEditorTree::RemoveChildrenRecursive(TArray<FCurveEditorTreeItemID>&& 
 bool FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState)
 {
 	bool bAnyMatched = false;
-
-	for (FCurveEditorTreeItemID ItemID : ItemsToFilter)
-	{
-		// If it failed a previous pass, don't consider it for this pass
-		if (FilterStates.Get(ItemID) != ECurveEditorTreeFilterState::NoMatch)
-		{
-			TSharedPtr<ICurveEditorTreeItem> TreeItemImpl = GetItem(ItemID).GetItem();
-			if (TreeItemImpl)
-			{
-				const bool bMatchesFilter = Algo::AnyOf(FilterPtrs, [TreeItemImpl](const FCurveEditorTreeFilter* Filter){ return TreeItemImpl->PassesFilter(Filter); });
-				if (bMatchesFilter)
-				{
-					InheritedState = ECurveEditorTreeFilterState::NoMatch;
-					break;
-				}
-			}
-		}
-	}
 
 	for (FCurveEditorTreeItemID ItemID : ItemsToFilter)
 	{
@@ -400,6 +387,12 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 	{
 		FCurveEditorTreeItemID ItemID = TreeItems[Index];
 
+		const FCurveEditorTreeItem* TreeItem = Items.Find(ItemID);
+		if (!ensureAlwaysMsgf(TreeItem, TEXT("Selected tree item does not exist. This must have bee applied externally.")))
+		{
+			continue;
+		}
+
 		if (Index < LastDirectlySelected)
 		{
 			Selection.Add(ItemID, ECurveEditorTreeSelectionState::Explicit);
@@ -409,7 +402,7 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 			Selection.Add(ItemID, ECurveEditorTreeSelectionState::ImplicitChild);
 		}
 
-		for (FCurveEditorTreeItemID ChildID : Items.FindChecked(ItemID).GetChildren())
+		for (FCurveEditorTreeItemID ChildID : TreeItem->GetChildren())
 		{
 			if (FilterStates.Get(ChildID) != ECurveEditorTreeFilterState::NoMatch)
 			{

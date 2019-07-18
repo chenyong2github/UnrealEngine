@@ -1010,7 +1010,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-
 		// Halton iteration
 		uint32 IterationCount = FMath::Max(SamplesPerPixel, 1u);
 		uint32 SequenceCount = 1;

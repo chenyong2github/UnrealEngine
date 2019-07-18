@@ -183,6 +183,11 @@ FVector2D SListPanel::ComputeDesiredSize( float ) const
 	}
 }
 
+FChildren* SListPanel::GetAllChildren()
+{
+	return &Children;
+}
+
 /**
  * @return A slot-agnostic representation of this panel's children
  */

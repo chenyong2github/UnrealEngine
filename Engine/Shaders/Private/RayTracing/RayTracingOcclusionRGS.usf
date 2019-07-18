@@ -28,6 +28,7 @@ uint LightingChannelMask;
 uint SamplesPerPixel;
 float NormalBias;
 int4 LightScissor;
+int2 PixelOffset;
 
 bool GenerateOcclusionRay(
 	FLightShaderParameters LightParameters,
@@ -113,8 +114,8 @@ bool GenerateOcclusionRay(
 [shader("raygeneration")]
 void OcclusionRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
-	
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin + PixelOffset;
+
 	float Visibility = 0.0;
 	float SumRayDistance = 0.0;
 	float ClosestRayDistance = DENOISER_INVALID_HIT_DISTANCE;
@@ -245,6 +246,12 @@ void OcclusionRGS()
 	#if !ENABLE_TWO_SIDED_GEOMETRY
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 	#endif
+			
+			if (DIM_DENOISER_OUTPUT == 0)
+			{
+				// Denoiser mode 0 doesn't use depth, so take first hit
+				RayFlags |= RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+			}
 
 			FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
 			Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.

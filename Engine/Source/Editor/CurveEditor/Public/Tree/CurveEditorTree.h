@@ -353,6 +353,11 @@ public:
 	 */
 	FCurveEditorTreeItem* FindItem(FCurveEditorTreeItemID ItemID);
 
+	/**
+	 * Retrieve an item from its ID or nullptr if the ID is not valid
+	 */
+	const FCurveEditorTreeItem* FindItem(FCurveEditorTreeItemID ItemID) const;
+
 	/** 
 	 * Retrieve this curve editor's root items irrespective of filter state
 	 */

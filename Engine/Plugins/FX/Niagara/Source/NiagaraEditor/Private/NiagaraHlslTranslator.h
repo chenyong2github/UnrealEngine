@@ -499,6 +499,9 @@ private:
 
 	void HandleNamespacedExternalVariablesToDataSetRead(TArray<FNiagaraVariable>& InDataSetVars, FString InNamespaceStr);
 
+	// For GPU simulations we have to special case some variables and pass them view shader parameters rather than the uniform buffer as they vary from CPU simulations
+	bool IsVariableInUniformBuffer(const FNiagaraVariable& Variable) const;
+
 	FString ComputeMatrixColumnAccess(const FString& Name);
 	FString ComputeMatrixRowAccess(const FString& Name);
 

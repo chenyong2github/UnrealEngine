@@ -183,20 +183,11 @@ struct ENGINE_API FCompressedSegment
 struct ENGINE_API FCompressibleAnimData
 {
 public:
-	FCompressibleAnimData()
-		: RequestedCompressionScheme(nullptr)
-		, CurveCompressionSettings(nullptr)
-		, Skeleton(nullptr)
-		, Interpolation((EAnimInterpolationType)0)
-		, SequenceLength(0.f)
-		, NumFrames(0)
-		, bIsValidAdditive(false)
-	{
-	}
+	FCompressibleAnimData();
 
-	FCompressibleAnimData(UAnimCompress* InRequestedCompressionScheme, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames);
+	FCompressibleAnimData(UAnimCompress* InRequestedCompressionScheme, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames, const float InAltCompressionErrorThreshold);
 
-	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping);
+	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping, const float InAltCompressionErrorThreshold);
 
 	UAnimCompress* RequestedCompressionScheme;
 
@@ -221,6 +212,8 @@ public:
 	int32 NumFrames;
 
 	bool bIsValidAdditive;
+
+	float AltCompressionErrorThreshold;
 
 	//For Logging
 	FString Name;
@@ -706,6 +699,9 @@ public:
 	{
 		return CompressedTrackToSkeletonMapTable[TrackIndex].BoneTreeIndex;
 	}
+
+	// Return the number of bytes used
+	SIZE_T GetMemorySize() const;
 };
 
 struct FRootMotionReset

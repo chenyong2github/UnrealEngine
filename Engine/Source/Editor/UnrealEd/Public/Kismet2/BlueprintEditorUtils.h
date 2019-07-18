@@ -1627,6 +1627,13 @@ public:
 	static FString GetClassNameWithoutSuffix(const UClass* Class);
 
 	/**
+	 * Returns a formatted menu item label for a deprecated variable or function member with the given name.
+	 *
+	 * @param MemberName		(Required) User-facing name of the deprecated variable or function.
+	 */
+	static FText GetDeprecatedMemberMenuItemName(const FText& MemberName);
+
+	/**
 	 * Returns a formatted warning message regarding usage of a deprecated variable or function member with the given name.
 	 *
 	 * @param MemberName		(Required) User-facing name of the deprecated variable or function.

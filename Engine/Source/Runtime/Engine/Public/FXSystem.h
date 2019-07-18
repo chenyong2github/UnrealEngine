@@ -150,6 +150,12 @@ public:
 	virtual FFXSystemInterface* GetInterface(const FName& InName) { return nullptr; };
 
 	/**
+	 * Gamethread callback when destroy gets called, allows to clean up references.
+	 */
+	ENGINE_API virtual void OnDestroy() { bIsPendingKill = true; }
+
+
+	/**
 	 * Tick the effects system.
 	 * @param DeltaSeconds The number of seconds by which to step simulations forward.
 	 */
@@ -205,7 +211,7 @@ public:
 	 * Notification from the renderer that it is about to draw FX belonging to
 	 * this system.
 	 */
-	virtual void PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData) = 0;
+	virtual void PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate) = 0;
 
 	/**
 	 * Notification from the renderer that opaque primitives have rendered.
@@ -224,9 +230,11 @@ public:
 	bool IsPendingKill() const { return bIsPendingKill; }
 
 protected:
+	
+	friend class FFXSystemSet;
 
 	/** By making the destructor protected, an instance must be destroyed via FFXSystemInterface::Destroy. */
-	ENGINE_API virtual ~FFXSystemInterface();
+	ENGINE_API virtual ~FFXSystemInterface() {}
 
 private:
 

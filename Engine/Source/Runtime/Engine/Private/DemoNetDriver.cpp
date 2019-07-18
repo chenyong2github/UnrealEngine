@@ -1224,7 +1224,7 @@ void UDemoNetDriver::ResetLevelStatuses()
 	check(World);
 
 	// ResetLevelStatuses should only ever be called before receiving *any* data from the Replay stream,
-	// immediately before processing checkpoint data, or after a level transistion (in which case no data
+	// immediately before processing checkpoint data, or after a level transition (in which case no data
 	// will be relevant to the new sublevels).
 	// In any case, we can just flag these sublevels as ready immediately.
 	FindOrAddLevelStatus(*(World->PersistentLevel)).bIsReady = true;
@@ -5353,6 +5353,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 			if (GotoCheckpointArchive->IsError())
 			{
+				UE_LOG(LogDemo, Error, TEXT("Guid cache serialization error while loading checkpoint."));
 				break;
 			}
 		}
@@ -5369,6 +5370,12 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		else
 		{
 			CastChecked<UPackageMapClient>(ServerConnection->PackageMap)->SerializeNetFieldExportGroupMap(*GotoCheckpointArchive);
+		}
+
+		if (bDeltaCheckpoint)
+		{
+			// each set of checkpoint packets we read will have a full name table, so only keep the last version
+			SeenLevelStatuses.Reset();
 		}
 
 		ReadDemoFrameIntoPlaybackPackets(*GotoCheckpointArchive);
@@ -5710,6 +5717,113 @@ void UDemoNetDriver::SetSpectatorController(APlayerController* PC)
 	}
 }
 
+/*------------------------------------------------------------------------------------------
+	FInternetAddrDemo - dummy internet addr that can be used for anything that requests it.
+--------------------------------------------------------------------------------------------*/
+class FInternetAddrDemo : public FInternetAddr
+{
+public:
+
+	FInternetAddrDemo()
+	{
+	}
+
+	virtual TArray<uint8> GetRawIp() const override
+	{
+		return TArray<uint8>();
+	}
+
+	virtual void SetRawIp(const TArray<uint8>& RawAddr) override
+	{
+	}
+
+	void SetIp(uint32 InAddr) override
+	{
+	}
+
+
+	void SetIp(const TCHAR* InAddr, bool& bIsValid) override
+	{
+	}
+
+	void GetIp(uint32& OutAddr) const override
+	{
+		OutAddr = 0;
+	}
+
+	void SetPort(int32 InPort) override
+	{
+	}
+
+
+	void GetPort(int32& OutPort) const override
+	{
+		OutPort = 0;
+	}
+
+
+	int32 GetPort() const override
+	{
+		return 0;
+	}
+
+	void SetAnyAddress() override
+	{
+	}
+
+	void SetBroadcastAddress() override
+	{
+	}
+
+	void SetLoopbackAddress() override
+	{
+	}
+
+	FString ToString(bool bAppendPort) const override
+	{
+		return FString(TEXT("Demo Internet Address"));
+	}
+
+	virtual bool operator==(const FInternetAddr& Other) const override
+	{
+		return Other.ToString(true) == ToString(true);
+	}
+
+	bool operator!=(const FInternetAddrDemo& Other) const
+	{
+		return !(FInternetAddrDemo::operator==(Other));
+	}
+
+	virtual uint32 GetTypeHash() const override
+	{
+		return GetConstTypeHash();
+	}
+
+	uint32 GetConstTypeHash() const
+	{
+		return ::GetTypeHash(ToString(true));
+	}
+
+	friend uint32 GetTypeHash(const FInternetAddrDemo& A)
+	{
+		return A.GetConstTypeHash();
+	}
+
+	virtual bool IsValid() const override
+	{
+		return true;
+	}
+
+	virtual TSharedRef<FInternetAddr> Clone() const override
+	{
+		return DemoInternetAddr.ToSharedRef();
+	}
+
+	static TSharedPtr<FInternetAddr> DemoInternetAddr;
+};
+
+TSharedPtr<FInternetAddr> FInternetAddrDemo::DemoInternetAddr = MakeShareable(new FInternetAddrDemo);
+
 /*-----------------------------------------------------------------------------
 	UDemoNetConnection.
 -----------------------------------------------------------------------------*/
@@ -5850,6 +5964,11 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 			break;
 		}
 	}
+}
+
+TSharedPtr<const FInternetAddr> UDemoNetConnection::GetRemoteAddr()
+{
+	return FInternetAddrDemo::DemoInternetAddr;
 }
 
 bool UDemoNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const

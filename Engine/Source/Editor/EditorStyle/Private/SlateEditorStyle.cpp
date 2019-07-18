@@ -6414,7 +6414,7 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("UserDefinedCaptureProtocol"),
 			TEXT("UserDefinedEnum"),
 			TEXT("UserDefinedStruct"),
-			TEXT("WidgetBlueprint"),
+			TEXT("UserWidget"),
 			TEXT("WindDirectionalSource"),
 			TEXT("World"),
 			TEXT("Cube"),
@@ -6931,6 +6931,20 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 
 		Set("MaterialEditor.AddSubstanceSpecialToolBar", new IMAGE_BRUSH("Icons/icon_SubstanceFactory_White_40x", Icon40x40));
 		Set("MaterialEditor.AddSubstanceSpecialMenu", new IMAGE_BRUSH("Icons/icon_SubstanceFactory_White_40x", Icon32x32));
+
+
+		Set("MaterialEditor.CellListViewRow", FTableRowStyle(NormalTableRowStyle)
+			.SetEvenRowBackgroundBrush(IMAGE_BRUSH("PropertyView/DetailCategoryMiddle", FVector2D(16, 16), FLinearColor(0.5f, 0.5f, 0.5f)))
+			.SetEvenRowBackgroundHoveredBrush(IMAGE_BRUSH("PropertyView/DetailCategoryMiddle_Hovered", FVector2D(16, 16), FLinearColor(0.5f, 0.5f, 0.5f)))
+			.SetOddRowBackgroundBrush(IMAGE_BRUSH("PropertyView/DetailCategoryMiddle", FVector2D(16, 16), FLinearColor(0.35f, 0.35f, 0.35f)))
+			.SetOddRowBackgroundHoveredBrush(IMAGE_BRUSH("PropertyView/DetailCategoryMiddle_Hovered", FVector2D(16, 16), FLinearColor(0.35f, 0.35f, 0.35f)))
+			.SetActiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.075f, 0.075f, 0.075f)))
+			.SetActiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.075f, 0.075f, 0.075f)))
+			.SetInactiveBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.075f, 0.075f, 0.075f)))
+			.SetInactiveHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.075f, 0.075f, 0.075f)))
+			.SetTextColor(DefaultForeground)
+			.SetSelectedTextColor(DefaultForeground)
+		);
 	}
 
 	// Material Instance Editor
@@ -6943,7 +6957,9 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 		Set("MaterialInstanceEditor.StackBodyBlend", new FSlateColorBrush(FLinearColor(0.06f, 0.06f, 0.06f, 1.0f)));
 		Set("MaterialInstanceEditor.StackBodyDragged", new FSlateColorBrush(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));
 		Set("MaterialInstanceEditor.StackBody_Highlighted", new BOX_BRUSH("Common/TextBox_Special_Active", FMargin(8.0f / 32.0f)));
+
 	}
+
 
 	// Sound Class Editor
 	{

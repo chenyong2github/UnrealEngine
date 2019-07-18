@@ -130,7 +130,12 @@ void AActor::InitializeDefaults()
 	bAllowReceiveTickEventOnDedicatedServer = true;
 	bRelevantForNetworkReplays = true;
 	bRelevantForLevelBounds = true;
+	
+	// Overlap collision settings
 	bGenerateOverlapEventsDuringLevelStreaming = false;
+	UpdateOverlapsMethodDuringLevelStreaming = EActorUpdateOverlapsMethod::UseConfigDefault;
+	DefaultUpdateOverlapsMethodDuringLevelStreaming = EActorUpdateOverlapsMethod::OnlyUpdateMovable;
+	
 	bHasDeferredComponentRegistration = false;
 #if WITH_EDITORONLY_DATA
 	PivotOffset = FVector::ZeroVector;
@@ -1793,9 +1798,8 @@ FName AActor::GetAttachParentSocketName() const
 	return NAME_None;
 }
 
-void AActor::GetAttachedActors(TArray<class AActor*>& OutActors) const
+void AActor::ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) const
 {
-	OutActors.Reset();
 	if (RootComponent != nullptr)
 	{
 		// Current set of components to check
@@ -1807,41 +1811,48 @@ void AActor::GetAttachedActors(TArray<class AActor*>& OutActors) const
 		CompsToCheck.Push(RootComponent);
 
 		// While still work left to do
-		while(CompsToCheck.Num() > 0)
+		while (CompsToCheck.Num() > 0)
 		{
 			// Get the next off the queue
 			const bool bAllowShrinking = false;
 			USceneComponent* SceneComp = CompsToCheck.Pop(bAllowShrinking);
 
 			// Add it to the 'checked' set, should not already be there!
-			if (!CheckedComps.Contains(SceneComp))
-			{
-				CheckedComps.Add(SceneComp);
+			CheckedComps.Add(SceneComp);
 
-				AActor* CompOwner = SceneComp->GetOwner();
-				if (CompOwner != nullptr)
+			AActor* CompOwner = SceneComp->GetOwner();
+			if (CompOwner != nullptr)
+			{
+				if (CompOwner != this)
 				{
-					if (CompOwner != this)
+					// If this component has a different owner, call the callback and stop if told.
+					if (!Functor(CompOwner))
 					{
-						// If this component has a different owner, add that owner to our output set and do nothing more
-						OutActors.AddUnique(CompOwner);
+						// The functor wants us to abort
+						return;
 					}
-					else
+				}
+				else
+				{
+					// This component is owned by us, we need to add its children
+					for (USceneComponent* ChildComp : SceneComp->GetAttachChildren())
 					{
-						// This component is owned by us, we need to add its children
-						for (USceneComponent* ChildComp : SceneComp->GetAttachChildren())
+						// Add any we have not explored yet to the set to check
+						if (ChildComp != nullptr && !CheckedComps.Contains(ChildComp))
 						{
-							// Add any we have not explored yet to the set to check
-							if ((ChildComp != nullptr) && !CheckedComps.Contains(ChildComp))
-							{
-								CompsToCheck.Push(ChildComp);
-							}
+							CompsToCheck.Push(ChildComp);
 						}
 					}
 				}
 			}
 		}
 	}
+}
+
+void AActor::GetAttachedActors(TArray<class AActor*>& OutActors) const
+{
+	OutActors.Reset();
+	ForEachAttachedActors([&OutActors](AActor * Actor) { OutActors.AddUnique(Actor); return true; });
 }
 
 bool AActor::ActorHasTag(FName Tag) const
@@ -3197,15 +3208,6 @@ void AActor::PostActorConstruction()
 		Modify(false);
 		ClearPendingKill();
 	}
-
-	if (!IsPendingKill())
-	{
-		// Components are all there and we've begun play, init overlapping state
-		if (!bDeferBeginPlayAndUpdateOverlaps)
-		{
-			UpdateOverlaps();
-		}
-	}
 }
 
 void AActor::SetReplicates(bool bInReplicates)
@@ -3292,8 +3294,6 @@ void AActor::PostNetInit()
 			DispatchBeginPlay();
 		}
 	}
-
-	UpdateOverlaps();
 }
 
 void AActor::ExchangeNetRoles(bool bRemoteOwned)
@@ -3317,14 +3317,27 @@ void AActor::SwapRoles()
 	ForcePropertyCompare();
 }
 
-void AActor::DispatchBeginPlay()
+EActorUpdateOverlapsMethod AActor::GetUpdateOverlapsMethodDuringLevelStreaming() const
+{
+	if (UpdateOverlapsMethodDuringLevelStreaming == EActorUpdateOverlapsMethod::UseConfigDefault)
+	{
+		// In the case of a default value saying "use defaults", pick something else.
+		return (DefaultUpdateOverlapsMethodDuringLevelStreaming != EActorUpdateOverlapsMethod::UseConfigDefault) ? DefaultUpdateOverlapsMethodDuringLevelStreaming : EActorUpdateOverlapsMethod::AlwaysUpdate;
+	}
+	return UpdateOverlapsMethodDuringLevelStreaming;
+}
+
+void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 {
 	UWorld* World = (!HasActorBegunPlay() && !IsPendingKill() ? GetWorld() : nullptr);
 
 	if (World)
 	{
+		ensureMsgf(ActorHasBegunPlay == EActorBeginPlayState::HasNotBegunPlay, TEXT("BeginPlay was called on actor %s which was in state %d"), *GetPathName(), (int32)ActorHasBegunPlay);
 		const uint32 CurrentCallDepth = BeginPlayCallDepth++;
 
+		bActorBeginningPlayFromLevelStreaming = bFromLevelStreaming;
+		ActorHasBegunPlay = EActorBeginPlayState::BeginningPlay;
 		BeginPlay();
 
 		ensure(BeginPlayCallDepth - 1 == CurrentCallDepth);
@@ -3336,19 +3349,63 @@ void AActor::DispatchBeginPlay()
 			// get to the point we set bActorWantsDestroyDuringBeginPlay to true
 			World->DestroyActor(this, true); 
 		}
+		
+		if (!IsPendingKill())
+		{
+			// Initialize overlap state
+			if (!bFromLevelStreaming)
+			{
+				UpdateOverlaps();
+			}
+			else
+			{
+				// Note: Conditionally doing notifies here since loading or streaming in isn't actually conceptually beginning a touch.
+				//	     Rather, it was always touching and the mechanics of loading is just an implementation detail.
+				if (bGenerateOverlapEventsDuringLevelStreaming)
+				{
+					UpdateOverlaps(bGenerateOverlapEventsDuringLevelStreaming);
+				}
+				else
+				{
+					bool bUpdateOverlaps = true;
+					const EActorUpdateOverlapsMethod UpdateMethod = GetUpdateOverlapsMethodDuringLevelStreaming();
+					switch (UpdateMethod)
+					{
+					case EActorUpdateOverlapsMethod::OnlyUpdateMovable:
+						bUpdateOverlaps = IsRootComponentMovable();
+						break;
+
+					case EActorUpdateOverlapsMethod::NeverUpdate:
+						bUpdateOverlaps = false;
+						break;
+
+					case EActorUpdateOverlapsMethod::AlwaysUpdate:
+					default:
+						bUpdateOverlaps = true;
+						break;
+					}
+
+					if (bUpdateOverlaps)
+					{
+						UpdateOverlaps(bGenerateOverlapEventsDuringLevelStreaming);
+					}
+				}
+			}
+		}
+
+		bActorBeginningPlayFromLevelStreaming = false;
 	}
 }
 
 void AActor::BeginPlay()
 {
-	ensureMsgf(ActorHasBegunPlay == EActorBeginPlayState::HasNotBegunPlay, TEXT("BeginPlay was called on actor %s which was in state %d"), *GetPathName(), (int32)ActorHasBegunPlay);
+	ensureMsgf(ActorHasBegunPlay == EActorBeginPlayState::BeginningPlay, TEXT("BeginPlay was called on actor %s which was in state %d"), *GetPathName(), (int32)ActorHasBegunPlay);
 	SetLifeSpan( InitialLifeSpan );
 	RegisterAllActorTickFunctions(true, false); // Components are done below.
 
 	TInlineComponentArray<UActorComponent*> Components;
 	GetComponents(Components);
 
-	ActorHasBegunPlay = EActorBeginPlayState::BeginningPlay;
 	for (UActorComponent* Component : Components)
 	{
 		// bHasBegunPlay will be true for the component if the component was renamed and moved to a new outer during initialization
@@ -4498,7 +4555,7 @@ void AActor::InvalidateLightingCacheDetailed(bool bTranslationOnly)
 
  // COLLISION
 
-bool AActor::ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params)
+bool AActor::ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params) const
 {
 	OutHit = FHitResult(1.f);
 	OutHit.TraceStart = Start;

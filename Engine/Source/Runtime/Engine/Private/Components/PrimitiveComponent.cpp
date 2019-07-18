@@ -1392,6 +1392,24 @@ void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
 	}
 }
 
+void UPrimitiveComponent::SetCastInsetShadow(bool bInCastInsetShadow)
+{
+	if(bInCastInsetShadow != bCastInsetShadow)
+	{
+		bCastInsetShadow = bInCastInsetShadow;
+		MarkRenderStateDirty();
+	}
+}
+
+void UPrimitiveComponent::SetLightAttachmentsAsGroup(bool bInLightAttachmentsAsGroup)
+{
+	if(bInLightAttachmentsAsGroup != bLightAttachmentsAsGroup)
+	{
+		bLightAttachmentsAsGroup = bInLightAttachmentsAsGroup;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetSingleSampleShadowFromStationaryLights(bool bNewSingleSampleShadowFromStationaryLights)
 {
 	if (bNewSingleSampleShadowFromStationaryLights != bSingleSampleShadowFromStationaryLights)
@@ -1834,10 +1852,10 @@ static bool ShouldIgnoreHitResult(const UWorld* InWorld, FHitResult const& TestH
 				if (CVarShowInitialOverlaps != 0)
 				{
 					UE_LOG(LogTemp, Log, TEXT("Overlapping %s Dir %s Dot %f Normal %s Depth %f"), *GetNameSafe(TestHit.Component.Get()), *MovementDir.ToString(), MoveDot, *TestHit.ImpactNormal.ToString(), TestHit.PenetrationDepth);
-					DrawDebugDirectionalArrow(InWorld, TestHit.TraceStart, TestHit.TraceStart + 30.f * TestHit.ImpactNormal, 5.f, bMovingOut ? FColor(64,128,255) : FColor(255,64,64), true, 4.f);
+					DrawDebugDirectionalArrow(InWorld, TestHit.TraceStart, TestHit.TraceStart + 30.f * TestHit.ImpactNormal, 5.f, bMovingOut ? FColor(64,128,255) : FColor(255,64,64), false, 4.f);
 					if (TestHit.PenetrationDepth > KINDA_SMALL_NUMBER)
 					{
-						DrawDebugDirectionalArrow(InWorld, TestHit.TraceStart, TestHit.TraceStart + TestHit.PenetrationDepth * TestHit.Normal, 5.f, FColor(64,255,64), true, 4.f);
+						DrawDebugDirectionalArrow(InWorld, TestHit.TraceStart, TestHit.TraceStart + TestHit.PenetrationDepth * TestHit.Normal, 5.f, FColor(64,255,64), false, 4.f);
 					}
 				}
 			}
@@ -2983,16 +3001,21 @@ bool UPrimitiveComponent::UpdateOverlapsImpl(const TOverlapArrayView* NewPending
 	SCOPE_CYCLE_COUNTER(STAT_UpdateOverlaps); 
 	SCOPE_CYCLE_UOBJECT(ComponentScope, this);
 
+	// if we haven't begun play, we're still setting things up (e.g. we might be inside one of the construction scripts)
+	// so we don't want to generate overlaps yet. There is no need to update children yet either, they will update once we are allowed to as well.
+	const AActor* const MyActor = GetOwner();
+	if (MyActor && !MyActor->HasActorBegunPlay() && !MyActor->IsActorBeginningPlay())
+	{
+		return false;
+	}
+
 	bool bCanSkipUpdateOverlaps = true;
 
 	// first, dispatch any pending overlaps
 	if (GetGenerateOverlapEvents() && IsQueryCollisionEnabled())	//TODO: should modifying query collision remove from mayoverlapevents?
 	{
 		bCanSkipUpdateOverlaps = false;
-		// if we haven't begun play, we're still setting things up (e.g. we might be inside one of the construction scripts)
-		// so we don't want to generate overlaps yet.
-		AActor* const MyActor = GetOwner();
-		if ( MyActor && MyActor->IsActorInitialized() )
+		if (MyActor)
 		{
 			const FTransform PrevTransform = GetComponentTransform();
 			// If we are the root component we ignore child components. Those children will update their overlaps when we descend into the child tree.
@@ -3208,6 +3231,27 @@ bool UPrimitiveComponent::ComponentOverlapMultiImpl(TArray<struct FOverlapResult
 	ParamsWithSelf.AddIgnoredComponent_LikelyDuplicatedRoot(this);
 	OutOverlaps.Reset();
 	return BodyInstance.OverlapMulti(OutOverlaps, World, /*pWorldToComponent=*/ nullptr, Pos, Quat, TestChannel, ParamsWithSelf, FCollisionResponseParams(GetCollisionResponseToChannels()), ObjectQueryParams);
+}
+
+const UPrimitiveComponent* UPrimitiveComponent::GetLightingAttachmentRoot() const
+{
+	const USceneComponent* CurrentHead = this;
+
+	while (CurrentHead)
+	{
+		// If the component has been marked to light itself and child attachments as a group, return it as root
+		if (const UPrimitiveComponent* CurrentHeadPrim = Cast<UPrimitiveComponent>(CurrentHead))
+		{
+			if (CurrentHeadPrim->bLightAttachmentsAsGroup)
+			{
+				return CurrentHeadPrim;
+			}
+		}
+
+		CurrentHead = CurrentHead->GetAttachParent();
+	}
+
+	return nullptr;
 }
 
 #if WITH_EDITOR

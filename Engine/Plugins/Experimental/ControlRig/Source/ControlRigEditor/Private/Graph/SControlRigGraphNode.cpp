@@ -774,4 +774,15 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 	}
 }
 
+void SControlRigGraphNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SGraphNode::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (GraphNode)
+	{
+		GraphNode->NodeWidth = (int32)AllottedGeometry.Size.X;
+		GraphNode->NodeHeight = (int32)AllottedGeometry.Size.Y;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

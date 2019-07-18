@@ -1451,6 +1451,11 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 
 
 		FAppEventManager::GetInstance()->EnqueueAppEvent(APP_EVENT_STATE_ON_DESTROY);
+
+		// Exit here, avoids having to unlock the window and letting the RHI's deal with invalid window.
+		extern void AndroidThunkCpp_ForceQuit();
+		AndroidThunkCpp_ForceQuit();
+
 		break;
 	}
 

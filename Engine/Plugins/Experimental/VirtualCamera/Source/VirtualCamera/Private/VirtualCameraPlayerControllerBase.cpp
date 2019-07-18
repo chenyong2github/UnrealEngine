@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Features/IModularFeatures.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IXRTrackingSystem.h"
 #include "RemoteSession/RemoteSession.h"
 #include "RemoteSession/Channels/RemoteSessionInputChannel.h"
@@ -1389,4 +1390,9 @@ bool AVirtualCameraPlayerControllerBase::ToggleAxisLock(const EVirtualCameraAxis
 	}
 
 	return false;
+}
+
+void AVirtualCameraPlayerControllerBase::ActivateGameViewport()
+{
+	FSlateApplication::Get().ActivateGameViewport();
 }

@@ -50,6 +50,7 @@ void FSocketReference::InitialzeCompactBoneIndex(const FBoneContainer& RequiredB
 
 void FAnimNode_SkeletalControlBase::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	ComponentPose.Initialize(Context);
@@ -58,8 +59,9 @@ void FAnimNode_SkeletalControlBase::Initialize_AnyThread(const FAnimationInitial
 	AlphaScaleBiasClamp.Reinitialize();
 }
 
-void FAnimNode_SkeletalControlBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) 
+void FAnimNode_SkeletalControlBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	FAnimNode_Base::CacheBones_AnyThread(Context);
 	InitializeBoneReferences(Context.AnimInstanceProxy->GetRequiredBones());
 	ComponentPose.CacheBones(Context);
@@ -67,15 +69,18 @@ void FAnimNode_SkeletalControlBase::CacheBones_AnyThread(const FAnimationCacheBo
 
 void FAnimNode_SkeletalControlBase::UpdateInternal(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateInternal)
 }
 
 void FAnimNode_SkeletalControlBase::UpdateComponentPose_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateComponentPose_AnyThread)
 	ComponentPose.Update(Context);
 }
 
 void FAnimNode_SkeletalControlBase::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	UpdateComponentPose_AnyThread(Context);
 
 	ActualAlpha = 0.f;
@@ -125,6 +130,7 @@ bool ContainsNaN(const TArray<FBoneTransform> & BoneTransforms)
 
 void FAnimNode_SkeletalControlBase::EvaluateComponentPose_AnyThread(FComponentSpacePoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentPose_AnyThread)
 	// Evaluate the input
 	ComponentPose.EvaluateComponentSpace(Output);
 }
@@ -135,6 +141,7 @@ void FAnimNode_SkeletalControlBase::EvaluateComponentSpaceInternal(FComponentSpa
 
 void FAnimNode_SkeletalControlBase::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentSpace_AnyThread)
 	EvaluateComponentPose_AnyThread(Output);
 
 #if WITH_EDITORONLY_DATA
@@ -172,6 +179,7 @@ void FAnimNode_SkeletalControlBase::AddDebugNodeData(FString& OutDebugData)
 
 void FAnimNode_SkeletalControlBase::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Call legacy implementation for backwards compatibility
 	EvaluateBoneTransforms(Output.AnimInstanceProxy->GetSkelMeshComponent(), Output.Pose, OutBoneTransforms);

@@ -37,6 +37,7 @@ public:
 
 	void WaitForToken(void* token);
 	void TriggerRecompile(void);
+	void LogMessage(const wchar_t* message);
 	void BuildPatch(const wchar_t* moduleNames[], const wchar_t* objPaths[], const wchar_t* amalgamatedObjPaths[], unsigned int count);
 
 	void InstallExceptionHandler(void);

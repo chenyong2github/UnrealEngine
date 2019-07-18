@@ -90,8 +90,8 @@ public:
 	 */
 	FString GetReportDirectoryLeafName() const
 	{
-		// Using GetCleanFilename to actually get directory name
-		return FPaths::GetCleanFilename(ReportDirectory);
+		// Using GetPathLeaf to actually get directory name
+		return FPaths::GetPathLeaf(ReportDirectory);
 	}
 
 	/**

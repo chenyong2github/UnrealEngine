@@ -79,7 +79,6 @@ class UMaterialInterface;
 class UMeshComponent;
 class UModel;
 class UMorphTarget;
-class UNavigationSystem;
 class UNetConnection;
 class UNetDriver;
 class UParticleEmitter;

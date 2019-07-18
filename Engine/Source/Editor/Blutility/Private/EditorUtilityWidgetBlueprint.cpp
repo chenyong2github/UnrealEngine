@@ -22,8 +22,8 @@ UEditorUtilityWidgetBlueprint::UEditorUtilityWidgetBlueprint(const FObjectInitia
 
 void UEditorUtilityWidgetBlueprint::BeginDestroy()
 {
-	// prevent the cleanup script from running on editor shutdown
-	if (!GIsRequestingExit)
+	// Only cleanup script if it has been registered and we're not shutdowning editor
+	if (!GIsRequestingExit && RegistrationName != NAME_None)
 	{
 		IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
 		if (BlutilityModule)
@@ -57,6 +57,9 @@ TSharedRef<SDockTab> UEditorUtilityWidgetBlueprint::SpawnEditorUITab(const FSpaw
 	CreatedTab = SpawnedTab;
 	
 	GEditor->OnBlueprintReinstanced().AddUObject(this, &UEditorUtilityWidgetBlueprint::RegenerateCreatedTab);
+	
+	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditor.OnMapChanged().AddUObject(this, &UEditorUtilityWidgetBlueprint::ChangeTabWorld);
 
 	return SpawnedTab;
 }
@@ -94,6 +97,23 @@ void UEditorUtilityWidgetBlueprint::RegenerateCreatedTab()
 	}
 }
 
+void UEditorUtilityWidgetBlueprint::ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType)
+{
+	if (MapChangeType == EMapChangeType::TearDownWorld)
+	{
+		CreatedUMGWidget = nullptr;
+		if (CreatedTab.IsValid())
+		{
+			CreatedTab.Pin()->SetContent(SNullWidget::NullWidget);
+		}
+	}
+	else if (MapChangeType != EMapChangeType::SaveMap)
+	{
+		// Recreate the widget if we are loading a map or opening a new map
+		RegenerateCreatedTab();
+	}
+}
+
 void UEditorUtilityWidgetBlueprint::UpdateRespawnListIfNeeded(TSharedRef<SDockTab> TabBeingClosed)
 {
 	const UEditorUtilityWidget* EditorUtilityWidget = GeneratedClass->GetDefaultObject<UEditorUtilityWidget>();
@@ -111,13 +131,4 @@ void UEditorUtilityWidgetBlueprint::GetReparentingRules(TSet< const UClass* >& A
 	AllowedChildrenOfClasses.Add(UEditorUtilityWidget::StaticClass());
 }
 
-#if WITH_EDITORONLY_DATA
-void UEditorUtilityWidgetBlueprint::LoadModulesRequiredForCompilation()
-{
-	Super::LoadModulesRequiredForCompilation();
-
-	static const FName ModuleName(TEXT("Blutility"));
-	FModuleManager::Get().LoadModule(ModuleName);
-}
-#endif //WITH_EDITORONLY_DATA
 

@@ -15,6 +15,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
@@ -82,8 +83,8 @@ FFractureEditorModeToolkit::FFractureEditorModeToolkit()
 	, AutoClusterMode(EFractureAutoClusterMode::BoundingBox)
 	, AutoClusterSiteCount(10)
 	, ActiveTool(nullptr)
-	, InnerFractureSlot(nullptr)
-	, InnerOutlinerSlot(nullptr)
+	, bFractureGroupExpanded(true)
+	, bOutlinerGroupExpanded(true)
 {
 }
 
@@ -393,74 +394,79 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 		]
 
 		+SVerticalBox::Slot()
-		.Expose(InnerFractureSlot)
 		[
-			SNew(SExpandableArea)
-			.AreaTitle(FText(LOCTEXT("Fracture", "Fracture")))
-			.HeaderPadding(FMargin(2.0, 2.0))
-			.Padding(FMargin(MorePadding))
-			.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
-			.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
-			.BodyBorderBackgroundColor (FLinearColor( 1.0, 0.0, 0.0))
-			.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
-			.OnAreaExpansionChanged( FOnBooleanValueChanged::CreateLambda( [=](bool NewIsExpanded) { NewIsExpanded ? InnerFractureSlot->FillHeight(1.0f) : InnerFractureSlot->AutoHeight(); }) )
-			.BodyContent()
+			SNew(SSplitter)
+			.Orientation( Orient_Vertical )
+
+			+SSplitter::Slot()
+			.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &FFractureEditorModeToolkit::GetFractureGroupSizeRule ))
 			[
-				SNew(SScrollBox)
-
-				+SScrollBox::Slot()
-				.HAlign(HAlign_Center)
+				SNew(SExpandableArea)
+				.AreaTitle(FText(LOCTEXT("Fracture", "Fracture")))
+				.HeaderPadding(FMargin(2.0, 2.0))
+				.Padding(FMargin(MorePadding))
+				.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
+				.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
+				.BodyBorderBackgroundColor (FLinearColor( 1.0, 0.0, 0.0))
+				.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
+				.OnAreaExpansionChanged(this, &FFractureEditorModeToolkit::OnFractureGroupExpansionChanged)
+				.BodyContent()
 				[
-					FractureToolBuilder.MakeWidget()
-				]
+					SNew(SScrollBox)
 
-				+SScrollBox::Slot()
-				.Padding(0.0f, MorePadding)
-				[
-					DetailsView.ToSharedRef()
-				]
-	
-				+SScrollBox::Slot()
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(1)
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
+					+SScrollBox::Slot()
+					.HAlign(HAlign_Center)
 					[
-						SNew( SButton )
-						.HAlign(HAlign_Center)
-						.ContentPadding(FMargin(MorePadding, Padding))
-						.OnClicked(this, &FFractureEditorModeToolkit::OnFractureClicked)
-						.IsEnabled( this, &FFractureEditorModeToolkit::CanExecuteFracture)
-						.Text(FText(LOCTEXT("FractureFractureButton", "Fracture")))
+						FractureToolBuilder.MakeWidget()
 					]
 
-					+SHorizontalBox::Slot()
-					.FillWidth(1)
-				]	
+					+SScrollBox::Slot()
+					.Padding(0.0f, MorePadding)
+					[
+						DetailsView.ToSharedRef()
+					]
+		
+					+SScrollBox::Slot()
+					[
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.FillWidth(1)
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew( SButton )
+							.HAlign(HAlign_Center)
+							.ContentPadding(FMargin(MorePadding, Padding))
+							.OnClicked(this, &FFractureEditorModeToolkit::OnFractureClicked)
+							.IsEnabled( this, &FFractureEditorModeToolkit::CanExecuteFracture)
+							.Text(FText(LOCTEXT("FractureFractureButton", "Fracture")))
+						]
+
+						+SHorizontalBox::Slot()
+						.FillWidth(1)
+					]	
+				]
 			]
-		]
 
 
-		+SVerticalBox::Slot()
-		.Expose(InnerOutlinerSlot)
-		.FillHeight(.5f)
-		[
-			SNew(SExpandableArea)
-			.AreaTitle(FText(LOCTEXT("Outliner", "Outliner")))
-			.HeaderPadding(FMargin(2.0, 2.0))
-			.Padding(FMargin(MorePadding))
-			.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
-			.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
-			.BodyBorderBackgroundColor (FLinearColor( 1.0, 0.0, 0.0))
-			.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
-			.OnAreaExpansionChanged( FOnBooleanValueChanged::CreateLambda( [=](bool NewIsExpanded) { NewIsExpanded ? InnerOutlinerSlot->FillHeight(0.5f) : InnerOutlinerSlot->AutoHeight(); }) )
-			.BodyContent()
+			+SSplitter::Slot()
+			.SizeRule(TAttribute<SSplitter::ESizeRule>(this, &FFractureEditorModeToolkit::GetOutlinerGroupSizeRule ))
 			[
-				SAssignNew(OutlinerView, SGeometryCollectionOutliner )
-				.OnBoneSelectionChanged(this, &FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged)
+				SNew(SExpandableArea)
+				.AreaTitle(FText(LOCTEXT("Outliner", "Outliner")))
+				.HeaderPadding(FMargin(2.0, 2.0))
+				.Padding(FMargin(MorePadding))
+				.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
+				.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
+				.BodyBorderBackgroundColor (FLinearColor( 1.0, 0.0, 0.0))
+				.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
+				.OnAreaExpansionChanged(this, &FFractureEditorModeToolkit::OnOutlinerGroupExpansionChanged)
+				.BodyContent()
+				[
+					SAssignNew(OutlinerView, SGeometryCollectionOutliner )
+					.OnBoneSelectionChanged(this, &FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged)
+				]
 			]
 		]
 	];
@@ -700,13 +706,13 @@ void FFractureEditorModeToolkit::OnSetShowBoneColors()
 		Comp->MarkRenderStateDirty();
 		Comp->MarkRenderDynamicDataDirty();
 	}
-
+	GCurrentLevelEditingViewportClient->Invalidate();
 }
 
 
 void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)
 {
-	if (!FMath::IsNearlyEqual(ExplodeAmount,NewValue, .01f))
+	if ( FMath::Abs<float>( ExplodeAmount - NewValue ) >= .01f)
 	{
 		ExplodeAmount = NewValue;
 
@@ -735,6 +741,8 @@ void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)
 				}
 			}
 		}
+		
+		GCurrentLevelEditingViewportClient->Invalidate();
 	}
 }
 
@@ -747,7 +755,7 @@ int32 FFractureEditorModeToolkit::GetLevelCount()
 	int32 ReturnLevel = -1;
 	for (UGeometryCollectionComponent* Comp : GeomCompSelection)
 	{
-		FGeometryCollectionEdit GCEdit = Comp->EditRestCollection();
+		FGeometryCollectionEdit GCEdit = Comp->EditRestCollection(GeometryCollection::EEditUpdate::None);
 		if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
 		{
 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
@@ -802,6 +810,8 @@ void FFractureEditorModeToolkit::OnSetLevelViewValue(int32 NewValue)
 		}
 	}
 	SetOutlinerComponents(GeomCompSelection.Array());
+
+	GCurrentLevelEditingViewportClient->Invalidate();
 }
 
 void FFractureEditorModeToolkit::ViewUpOneLevel()
@@ -1365,13 +1375,30 @@ void FFractureEditorModeToolkit::OnCluster()
 				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
 				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 				{
+					const TManagedArray<TSet<int32>>& Children = GeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+
+					// sort the selection list so ClusterBonesUnderNewNode() happens in the correct order for leaf nodes
+					TArray<int32> SortedSelectedBones;
+					SortedSelectedBones.Reserve(SelectedBones.Num());
+					for (int32 SelectedBone : SelectedBones)
+					{
+						if(Children[SelectedBone].Num() > 0)
+						{
+							SortedSelectedBones.Insert(SelectedBone, 0);
+						}
+						else
+						{
+							SortedSelectedBones.Add(SelectedBone);
+						}
+					}
 					// cluster Selected Bones under the first selected bone
-					int32 InsertAtIndex = SelectedBones[0];
-					FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(GeometryCollection, InsertAtIndex, SelectedBones, false);
+					int32 InsertAtIndex = SortedSelectedBones[0];
+
+					FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(GeometryCollection, InsertAtIndex, SortedSelectedBones, false);
 					FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
 
 					FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
- 					EditBoneColor.ResetBoneSelection();
+					EditBoneColor.ResetBoneSelection();
 					EditBoneColor.ResetHighlightedBones();
 					GeometryCollectionComponent->MarkRenderDynamicDataDirty();
 					GeometryCollectionComponent->MarkRenderStateDirty();
@@ -1399,8 +1426,8 @@ void FFractureEditorModeToolkit::OnUncluster()
 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 			{
-				FGeometryCollectionClusteringUtility::CollapseSelectedHierarchy(FractureLevel, GeometryCollectionComponent->GetSelectedBones(), GeometryCollection);
 				FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
+				FGeometryCollectionClusteringUtility::CollapseSelectedHierarchy(FractureLevel, GeometryCollectionComponent->GetSelectedBones(), GeometryCollection);
 
 				FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
 				EditBoneColor.ResetBoneSelection();
@@ -1711,14 +1738,15 @@ bool FFractureEditorModeToolkit::IsGeometryCollectionSelected()
 bool FFractureEditorModeToolkit::IsStaticMeshSelected()
 {
 	USelection* SelectedActors = GEditor->GetSelectedActors();
-	TArray<ULevel*> UniqueLevels;
 	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
 	{
 		AActor* Actor = Cast<AActor>(*Iter);
 		if (Actor)
 		{
-			TArray<UActorComponent*> Components = Actor->GetComponentsByClass(UStaticMeshComponent::StaticClass());
-			if (Components.Num() > 0)
+			TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents;
+			Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents, true);
+
+			if (StaticMeshComponents.Num() > 0)
 			{
 				return true;
 			}
@@ -1768,10 +1796,9 @@ bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, con
 	return false;
 }
 
-
 void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const
 {
-	FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection();
+	FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 	UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
@@ -1861,40 +1888,40 @@ AGeometryCollectionActor*  FFractureEditorModeToolkit::ConvertStaticMeshToGeomet
 {
 	ensure(Actors.Num() > 0);
 	AActor* FirstActor = Actors[0];
- 	const FString& Name = FirstActor->GetActorLabel();
+	const FString& Name = FirstActor->GetActorLabel();
 	const FVector FirstActorLocation(FirstActor->GetActorLocation());
 
 
 	AGeometryCollectionActor* NewActor = CreateNewGeometryActor(InAssetPath, FTransform(), true);
 
-	FGeometryCollectionEdit GeometryCollectionEdit = NewActor->GetGeometryCollectionComponent()->EditRestCollection();
+	FGeometryCollectionEdit GeometryCollectionEdit = NewActor->GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 	UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
 
- 	for (AActor* Actor : Actors)
- 	{
- 		const FTransform ActorTransform(Actor->GetTransform());
+	for (AActor* Actor : Actors)
+	{
+		const FTransform ActorTransform(Actor->GetTransform());
 		const FVector ActorOffset(Actor->GetActorLocation() - FirstActor->GetActorLocation());
 
- 		check(FracturedGeometryCollection);
+		check(FracturedGeometryCollection);
  
- 		TArray<UStaticMeshComponent*> StaticMeshComponents;
- 		Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
- 		for (int32 ii = 0, ni = StaticMeshComponents.Num(); ii < ni; ++ii)
- 		{
- 			// We're partial to static mesh components, here
- 			UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[ii];
- 			if (StaticMeshComponent != nullptr)
- 			{
- 				UStaticMesh* ComponentStaticMesh = StaticMeshComponent->GetStaticMesh();
- 				FTransform ComponentTranform(StaticMeshComponent->GetComponentTransform());
- 				ComponentTranform.SetTranslation((ComponentTranform.GetTranslation() - ActorTransform.GetTranslation()) + ActorOffset);
- 				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, StaticMeshComponent, ComponentTranform, FracturedGeometryCollection, true);
- 			}
- 		}
+		TArray<UStaticMeshComponent*> StaticMeshComponents;
+		Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents, true);
+		for (int32 ii = 0, ni = StaticMeshComponents.Num(); ii < ni; ++ii)
+		{
+			// We're partial to static mesh components, here
+			UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[ii];
+			if (StaticMeshComponent != nullptr)
+			{
+				UStaticMesh* ComponentStaticMesh = StaticMeshComponent->GetStaticMesh();
+				FTransform ComponentTranform(StaticMeshComponent->GetComponentTransform());
+				ComponentTranform.SetTranslation((ComponentTranform.GetTranslation() - ActorTransform.GetTranslation()) + ActorOffset);
+				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, StaticMeshComponent, ComponentTranform, FracturedGeometryCollection, true);
+			}
+		}
  
- 		FracturedGeometryCollection->InitializeMaterials();
- 	}
- 	AddSingleRootNodeIfRequired(FracturedGeometryCollection);
+		FracturedGeometryCollection->InitializeMaterials();
+	}
+	AddSingleRootNodeIfRequired(FracturedGeometryCollection);
 
 	return NewActor;
 }

@@ -360,6 +360,28 @@ public:
 	 * Get the referenced FXSystem asset.
 	*/
 	virtual UFXSystemAsset* GetFXSystemAsset() const { return nullptr; };
+
+	/**
+	 *	Enables/Disables a sub-emitter
+	 *
+	 *	@param	EmitterName			The name of the sub-emitter to set it on
+	 *	@param	bNewEnableState		The value to set it to
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void SetEmitterEnable(FName EmitterName, bool bNewEnableState) {};
+
+
+	/**
+	 * Set AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule to the specified parameters. Does not change bAutoManageAttachment; that must be set separately.
+	 * @param  Parent			Component to attach to.
+	 * @param  SocketName		Socket on Parent to attach to.
+	 * @param  LocationRule		Option for how we handle our location when we attach to Parent.
+	 * @param  RotationRule		Option for how we handle our rotation when we attach to Parent.
+	 * @param  ScaleRule		Option for how we handle our scale when we attach to Parent.
+	 * @see bAutoManageAttachment, AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) {}
 };
 
 
@@ -726,8 +748,7 @@ public:
 	 * @param  ScaleRule		Option for how we handle our scale when we attach to Parent.
 	 * @see bAutoManageAttachment, AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule);
+	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) override;
 
 private:
 
@@ -1002,8 +1023,7 @@ public:
 	 *	@param	EmitterName			The name of the sub-emitter to set it on
 	 *	@param	bNewEnableState		The value to set it to
 	 */
-	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetEmitterEnable(FName EmitterName, bool bNewEnableState);
+	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
 
 	/** Change a named float parameter */
 	void SetFloatParameter(FName ParameterName, float Param) override;
@@ -1216,6 +1236,7 @@ public:
 	virtual void OnChildAttached(USceneComponent* ChildComponent)override;
 	virtual void OnChildDetached(USceneComponent* ChildComponent)override;
 
+	virtual void OnEndOfFrameUpdateDuringTick() override;
 protected:
 	virtual void CreateRenderState_Concurrent() override;
 	virtual void SendRenderTransform_Concurrent() override;
@@ -1566,11 +1587,4 @@ FORCEINLINE_DEBUGGABLE void UParticleSystemComponent::SetAutoAttachParams(UScene
 	USceneComponent::ConvertAttachLocation(LocationType, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule);
 }
 
-FORCEINLINE_DEBUGGABLE void UParticleSystemComponent::SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule)
-{
-	AutoAttachParent = Parent;
-	AutoAttachSocketName = SocketName;
-	AutoAttachLocationRule = LocationRule;
-	AutoAttachRotationRule = RotationRule;
-	AutoAttachScaleRule = ScaleRule;
-}
+

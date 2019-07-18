@@ -112,7 +112,12 @@ class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 	int32& CollisionGroup(const int32 Index) { return MCollisionGroup[Index]; }
 
 	const bool Disabled(const int32 Index) const { return MDisabled[Index]; }
-	bool& Disabled(const int32 Index) { return MDisabled[Index]; }
+
+	bool& DisabledRef(const int32 Index) { return MDisabled[Index]; }
+
+	// DisableParticle/EnableParticle on Evolution should be used. Don't disable particles with this.
+    // Using this will break stuff. This is for solver's use only, and possibly some particle construction/copy code.
+	void SetDisabledLowLevel(const int32 Index, bool disabled) { MDisabled[Index] = disabled; }
 
 	const bool ToBeRemovedOnFracture(const int32 Index) const { return MToBeRemovedOnFracture[Index]; }
 	bool& ToBeRemovedOnFracture(const int32 Index) { return MToBeRemovedOnFracture[Index]; }

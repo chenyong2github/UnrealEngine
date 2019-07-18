@@ -2,21 +2,43 @@
 
 #include "WmfMediaSettings.h"
 
+UWmfMediaSettings::UWmfMediaSettings()
+	: AllowNonStandardCodecs(false)
+	, LowLatency(false)
+	, NativeAudioOut(false)
+	, HardwareAcceleratedVideoDecoding(false)
+	, bAreHardwareAcceleratedCodecRegistered(false)
+{ }
+
+void UWmfMediaSettings::EnableHardwareAcceleratedCodecRegistered()
+{
+	if (bAreHardwareAcceleratedCodecRegistered == false)
+	{
+		bAreHardwareAcceleratedCodecRegistered = true;
+		AllowNonStandardCodecs = true;
+		HardwareAcceleratedVideoDecoding = true;
+#if WITH_EDITOR
+		SaveConfig(CPF_Config, *GetDefaultConfigFilename());
+#endif
+	}
+}
+
 #if WITH_EDITOR
 
-void UWmfMediaSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& InPropertyChangedEvent)
+bool UWmfMediaSettings::CanEditChange(const UProperty* InProperty) const
 {
-	if (InPropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UWmfMediaSettings, EnableHAPCodec))
+	if (!Super::CanEditChange(InProperty))
 	{
-		if (EnableHAPCodec)
-		{
-			AllowNonStandardCodecs = true;
-			HardwareAcceleratedVideoDecoding = true;
-			SaveConfig(CPF_Config, *GetDefaultConfigFilename());
-		}
+		return false;
 	}
 
-	Super::PostEditChangeChainProperty(InPropertyChangedEvent);
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UWmfMediaSettings, AllowNonStandardCodecs) || 
+		InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UWmfMediaSettings, HardwareAcceleratedVideoDecoding))
+	{
+		return !(bAreHardwareAcceleratedCodecRegistered);
+	}
+
+	return true;
 }
 
 #endif //WITH_EDITOR

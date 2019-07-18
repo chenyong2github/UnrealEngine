@@ -36,20 +36,26 @@ bool CacheShadowDepthsFromPrimitivesUsingWPO()
 	return CVarCacheWPOPrimitives.GetValueOnAnyThread(true) != 0;
 }
 
-bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy)
+bool SupportsCachingMeshDrawCommands(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& MeshBatch)
 {
-	// Volumetric self shadow mesh commands need to be generated every frame, as they depend on single frame uniform buffers with self shadow data.
-	return VertexFactory->GetType()->SupportsCachingMeshDrawCommands() 
-		&& !PrimitiveSceneProxy->CastsVolumetricTranslucentShadow();
+	return
+		// Cached mesh commands only allow for a single mesh element per batch.
+		(MeshBatch.Elements.Num() == 1) &&
+
+		// Vertex factory needs to support caching.
+		MeshBatch.VertexFactory->GetType()->SupportsCachingMeshDrawCommands() &&
+
+		// Volumetric self shadow mesh commands need to be generated every frame, as they depend on single frame uniform buffers with self shadow data.
+		!PrimitiveSceneProxy->CastsVolumetricTranslucentShadow();
 }
 
-bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterialRenderProxy* MaterialRenderProxy, ERHIFeatureLevel::Type FeatureLevel)
+bool SupportsCachingMeshDrawCommands(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& MeshBatch, ERHIFeatureLevel::Type FeatureLevel)
 {
-	if (SupportsCachingMeshDrawCommands(VertexFactory, PrimitiveSceneProxy))
+	if (SupportsCachingMeshDrawCommands(PrimitiveSceneProxy, MeshBatch))
 	{
 		// External textures get mapped to immutable samplers (which are part of the PSO); the mesh must go through the dynamic path, as the media player might not have
 		// valid textures/samplers the first few calls; once they're available the PSO needs to get invalidated and recreated with the immutable samplers.
-		const FMaterial* Material = MaterialRenderProxy->GetMaterial(FeatureLevel);
+		const FMaterial* Material = MeshBatch.MaterialRenderProxy->GetMaterial(FeatureLevel);
 		const FMaterialShaderMap* ShaderMap = Material->GetRenderingThreadShaderMap();
 		if (ShaderMap)
 		{

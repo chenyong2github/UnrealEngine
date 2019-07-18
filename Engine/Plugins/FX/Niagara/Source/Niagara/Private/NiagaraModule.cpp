@@ -316,6 +316,14 @@ FNiagaraWorldManager* INiagaraModule::GetWorldManager(UWorld* World)
 	return *OutWorld;
 }
 
+void INiagaraModule::OnBatcherDestroyed(NiagaraEmitterInstanceBatcher* InBatcher)
+{
+	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
+	{
+		Pair.Value->OnBatcherDestroyed(InBatcher);
+	}
+}
+
 void INiagaraModule::DestroyAllSystemSimulations(class UNiagaraSystem* System)
 {
 	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
@@ -468,6 +476,8 @@ UScriptStruct* FNiagaraTypeDefinition::Vec2Struct;
 UScriptStruct* FNiagaraTypeDefinition::ColorStruct;
 UScriptStruct* FNiagaraTypeDefinition::QuatStruct;
 
+UClass* FNiagaraTypeDefinition::UObjectClass;
+
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
 UEnum* FNiagaraTypeDefinition::ExecutionStateSourceEnum;
@@ -485,6 +495,8 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::Vec3Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::Vec2Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ColorDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::QuatDef;
+
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -527,6 +539,8 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::Vec4Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector4"));
 	FNiagaraTypeDefinition::ColorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("LinearColor"));
 	FNiagaraTypeDefinition::QuatStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Quat"));
+
+	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -540,6 +554,8 @@ void FNiagaraTypeDefinition::Init()
 	ColorDef = FNiagaraTypeDefinition(ColorStruct);
 	QuatDef = FNiagaraTypeDefinition(QuatStruct);
 	Matrix4Def = FNiagaraTypeDefinition(Matrix4Struct);
+
+	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -625,6 +641,8 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	UScriptStruct* SpawnInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraSpawnInfo"));
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), true, false, false);
 
+	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
+
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	check(Settings);
 	TArray<FSoftObjectPath> TotalStructAssets;
@@ -700,6 +718,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		}
 	}
 
+	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, true);
 }
 
 bool FNiagaraTypeDefinition::IsScalarDefinition(const FNiagaraTypeDefinition& Type)

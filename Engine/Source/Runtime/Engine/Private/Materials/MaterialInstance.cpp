@@ -3149,11 +3149,13 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 		else
 		{
+			const bool bLoadedByCookedMaterial = FPlatformProperties::RequiresCookedData() || GetOutermost()->bIsCookedForEditor;
+
 			FMaterialResource LegacyResource;
 			LegacyResource.LegacySerialize(Ar);
 
 			FMaterialShaderMapId LegacyId;
-			LegacyId.Serialize(Ar);
+			LegacyId.Serialize(Ar, bLoadedByCookedMaterial);
 
 			const FStaticParameterSet& IdParameterSet = LegacyId.GetParameterSet();
 			StaticParameters.StaticSwitchParameters = IdParameterSet.StaticSwitchParameters;
@@ -3577,7 +3579,7 @@ void UMaterialInstance::SetScalarParameterAtlasInternal(const FMaterialParameter
 			return;
 		}
 
-		float NewValue = ((float)Index * Atlas->GradientPixelSize) / Atlas->TextureSize + (0.5f * Atlas->GradientPixelSize) / Atlas->TextureSize;
+		float NewValue = (float)Index;
 		
 		// Don't enqueue an update if it isn't needed
 		if (ParameterValue->ParameterValue != NewValue)

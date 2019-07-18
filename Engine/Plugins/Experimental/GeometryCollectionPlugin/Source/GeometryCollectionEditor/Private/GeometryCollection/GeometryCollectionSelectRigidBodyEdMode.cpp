@@ -18,7 +18,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionSelectRigidBodyEdMode, Log, All)
 const FEditorModeID FGeometryCollectionSelectRigidBodyEdMode::EditorModeID(TEXT("Chaos.Select"));
 const int32 FGeometryCollectionSelectRigidBodyEdMode::MessageKey = GetTypeHash(EditorModeID);
 
-void FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(TSharedRef<IPropertyHandle> PropertyHandleId)
+bool FGeometryCollectionSelectRigidBodyEdMode::CanActivateMode()
 {
 	auto HasValidEditorLevelViewport = [](const TIndirectArray<FWorldContext>& WorldContexts, TMap<FName, FSlatePlayInEditorInfo>& SlatePlayInEditorMap)
 	{
@@ -34,27 +34,47 @@ void FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(TSharedRef<IProperty
 		return false;
 	};
 
+	return GEditor && GEditor->PlayWorld                                                             // Playing in editor
+		&& !IsRunningGame()                                                                          // Not running in -game mode
+		&& HasValidEditorLevelViewport(GEditor->GetWorldContexts(), GEditor->SlatePlayInEditorMap);  // Not running in new PIE window
+}
+
+void FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(TSharedRef<IPropertyHandle> PropertyHandleId, TSharedRef<IPropertyHandle> PropertyHandleSolver, TFunction<void()> OnEnterMode, TFunction<void()> OnExitMode)
+{
 	// Make sure we are playing in an editor window
-	if (GEditor && GEditor->PlayWorld &&  // Playing in editor
-		!IsRunningGame() &&               // Not running in -game mode
-		HasValidEditorLevelViewport(GEditor->GetWorldContexts(), GEditor->SlatePlayInEditorMap))  // Not running in new PIE window
+	if (CanActivateMode())
 	{
-		// Eject PIE
-		if (!GEditor->bIsSimulatingInEditor)  // Running in PIE
+		// Running in PIE?
+		if (!GEditor->bIsSimulatingInEditor)
 		{
+			// Eject PIE
 			GEditor->RequestToggleBetweenPIEandSIE();
+
+			// Log/display message
 			UE_LOG(LogGeometryCollectionSelectRigidBodyEdMode, Warning, TEXT("Player possession ejected by rigid body picker."));
 			if (GEngine)
 			{
 				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, TEXT("Player possession ejected by rigid body picker."));
 			}
 		}
+
 		// Activate editor mode
 		GLevelEditorModeTools().ActivateMode(EditorModeID);
-		FEdMode* const EdMode = GLevelEditorModeTools().FindMode(EditorModeID);
-		if (EdMode)
+		if (FEdMode* const EdMode = GLevelEditorModeTools().FindMode(EditorModeID))
 		{
-			static_cast<FGeometryCollectionSelectRigidBodyEdMode*>(EdMode)->PropertyHandleId = PropertyHandleId;
+			// Set pointers
+			FGeometryCollectionSelectRigidBodyEdMode* const GeometryCollectionSelectRigidBodyEdMode = static_cast<FGeometryCollectionSelectRigidBodyEdMode*>(EdMode);
+			GeometryCollectionSelectRigidBodyEdMode->PropertyHandleId = PropertyHandleId;
+			GeometryCollectionSelectRigidBodyEdMode->PropertyHandleSolver = PropertyHandleSolver;
+			GeometryCollectionSelectRigidBodyEdMode->OnExitMode = OnExitMode;
+
+			// Execute enter mode callback
+			if (OnEnterMode)
+			{
+				OnEnterMode();
+			}
+
+			// Log/display message
 			UE_LOG(LogGeometryCollectionSelectRigidBodyEdMode, Log, TEXT("Click on the rigid body to select..."));
 			if (GEngine)
 			{
@@ -64,6 +84,7 @@ void FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(TSharedRef<IProperty
 	}
 	else
 	{
+		// Can't pick in non playing editor
 		UE_LOG(LogGeometryCollectionSelectRigidBodyEdMode, Error, TEXT("The rigid body picker is only available in play in editor."));
 		if (GEngine)
 		{
@@ -136,7 +157,7 @@ bool FGeometryCollectionSelectRigidBodyEdMode::HandleClick(FEditorViewportClient
 
 				// Retrieve the rigid body id
 				const TManagedArray<int32>& RigidBodyIdArray = GeometryCollectionComponent->GetRigidBodyIdArray();
-				const int32 RigidBodyId = (TransformIndex != INDEX_NONE) ? RigidBodyIdArray[TransformIndex]: INDEX_NONE;
+				const int32 RigidBodyId = (TransformIndex != INDEX_NONE && ensure(TransformIndex < RigidBodyIdArray.Num())) ? RigidBodyIdArray[TransformIndex]: INDEX_NONE;
 
 				// Update the rigid body id property
 				if (RigidBodyId != INDEX_NONE)
@@ -146,6 +167,10 @@ bool FGeometryCollectionSelectRigidBodyEdMode::HandleClick(FEditorViewportClient
 					if (const TSharedPtr<IPropertyHandle> PropertyHandleIdPin = PropertyHandleId.Pin())
 					{
 						PropertyHandleIdPin->SetValue(RigidBodyId);
+					}
+					if (const TSharedPtr<IPropertyHandle> PropertyHandleSolverPin = PropertyHandleSolver.Pin())
+					{
+						PropertyHandleSolverPin->SetValue(GeometryCollectionComponent->ChaosSolverActor);
 					}
 				}
 			}

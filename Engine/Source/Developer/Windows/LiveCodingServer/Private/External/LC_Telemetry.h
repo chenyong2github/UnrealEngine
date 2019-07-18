@@ -23,7 +23,7 @@ namespace telemetry
 
 	private:
 		const char* m_name;
-		std::chrono::high_resolution_clock::time_point m_start;
+		uint64_t m_start;
 		CriticalSection m_cs;
 	};
 

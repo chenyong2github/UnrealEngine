@@ -19,10 +19,7 @@
 		{
 			"Name": "SQLiteCore",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault",
-			"BlacklistPlatforms": [
-				"HoloLens"
-			]
-		},
+			"LoadingPhase": "PreDefault"
+		}
 	]
 }

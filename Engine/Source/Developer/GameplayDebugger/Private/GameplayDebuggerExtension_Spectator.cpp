@@ -80,7 +80,10 @@ void FGameplayDebuggerExtension_Spectator::ToggleSpectatorMode()
 	else
 	{
 		SpectatorControllerOb->PopInputComponent(DebuggerInput);
-		SpectatorControllerOb->OriginalPlayer->SwitchController(OwnerPC);
+		if (SpectatorControllerOb->OriginalPlayer)
+		{
+			SpectatorControllerOb->OriginalPlayer->SwitchController(OwnerPC);
+		}
 		SpectatorControllerOb->OnDeactivate(OwnerPC);
 		OwnerPC->PushInputComponent(DebuggerInput);
 

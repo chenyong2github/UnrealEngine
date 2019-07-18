@@ -11,10 +11,10 @@ FFXSystemInterface* FFXSystemSet::GetInterface(const FName& InName)
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FFXSystemInterface* Res = FXSystem->GetInterface(InName);
-		if (Res)
+		FXSystem = FXSystem->GetInterface(InName);
+		if (FXSystem)
 		{
-			return Res;
+			return FXSystem;
 		}
 	}
 	return nullptr;
@@ -109,12 +109,12 @@ bool FFXSystemSet::UsesGlobalDistanceField() const
 	return false;
 }
 
-void FFXSystemSet::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData)
+void FFXSystemSet::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PreRender(RHICmdList, GlobalDistanceFieldParameterData);
+		FXSystem->PreRender(RHICmdList, GlobalDistanceFieldParameterData, bAllowGPUParticleSceneUpdate);
 	}
 }
 
@@ -136,12 +136,22 @@ void FFXSystemSet::PostRenderOpaque(
 	}
 }
 
+void FFXSystemSet::OnDestroy()
+{
+	for (FFXSystemInterface*& FXSystem : FXSystems)
+	{
+		check(FXSystem);
+		FXSystem->OnDestroy();
+	}
+
+	FFXSystemInterface::OnDestroy();
+}
+
 FFXSystemSet::~FFXSystemSet()
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FFXSystemInterface::Destroy(FXSystem);
+		delete FXSystem;
 	}
-	FXSystems.Empty();
 }

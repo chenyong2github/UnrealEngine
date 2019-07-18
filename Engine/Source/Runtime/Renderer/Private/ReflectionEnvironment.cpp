@@ -267,7 +267,8 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 	if (View.Family->EngineShowFlags.ReflectionEnvironment 
 		&& View.FeatureLevel >= ERHIFeatureLevel::SM5
 		&& Scene
-		&& Scene->ReflectionSceneData.CubemapArray.IsValid())
+		&& Scene->ReflectionSceneData.CubemapArray.IsValid()
+		&& Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num())
 	{
 		CubeArrayTexture = Scene->ReflectionSceneData.CubemapArray.GetRenderTarget().ShaderResourceTexture;
 	}

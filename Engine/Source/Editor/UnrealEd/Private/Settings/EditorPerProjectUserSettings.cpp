@@ -20,12 +20,17 @@ UEditorPerProjectUserSettings::UEditorPerProjectUserSettings(const FObjectInitia
 	AssetViewerProfileIndex = 0;
 	bAnimationReimportWarnings = false;
 
+	bDisplayBlackboardKeysInAlphabeticalOrder = false;
+
 	SimplygonServerIP = "127.0.0.1";
 	SimplygonSwarmDelay = 5000;
 	bEnableSwarmDebugging = false;
 	SwarmNumOfConcurrentJobs = 16;
 	SwarmMaxUploadChunkSizeInMB = 100;
 	SwarmIntermediateFolder = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() + TEXT("Simplygon/"));
+	PreviewFeatureLevel = (int32)ERHIFeatureLevel::SM5;
+	PreviewShaderFormatName = NAME_None;
+	bPreviewFeatureLevelActive = false;
 }
 
 void UEditorPerProjectUserSettings::PostInitProperties()

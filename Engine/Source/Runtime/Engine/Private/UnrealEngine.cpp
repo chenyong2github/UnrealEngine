@@ -689,7 +689,7 @@ void SystemResolutionSinkCallback()
 
 			if (GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame)
 			{
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Resizing viewport due to setres change, %d x %d"), ResX, ResY);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Resizing viewport due to setres change, %d x %d\n"), ResX, ResY);
 				GEngine->GameViewport->ViewportFrame->ResizeFrame(ResX, ResY, WindowMode);
 			}
 		}
@@ -1153,6 +1153,15 @@ static FAutoConsoleVariableRef CVarLowMemoryTimeBetweenPurgingPendingKillObjects
 	ECVF_Default
 );
 
+// see also: s.ForceGCAfterLevelStreamedOut, s.ContinuouslyIncrementalGCWhileLevelsPendingPurge
+static float GLowMemoryTimeBetweenPurgingPendingLevels = 15.0f;
+static FAutoConsoleVariableRef CVarLowMemoryTimeBetweenPurgingPendingLevels(
+	TEXT("gc.LowMemory.TimeBetweenPurgingPendingLevels"),
+	GLowMemoryTimeBetweenPurgingPendingLevels,
+	TEXT("Time in seconds (game time) we should wait between GC when we're low on memory and there are levels pending unload"),
+	ECVF_Default
+);
+
 static float GLowMemoryMemoryThresholdMB = 0.0f;
 static FAutoConsoleVariableRef CVarLowMemoryThresholdMB(
 	TEXT("gc.LowMemory.MemoryThresholdMB"),
@@ -1198,12 +1207,21 @@ float UEngine::GetTimeBetweenGarbageCollectionPasses() const
 	}
 
 	// Do more frequent GCs if we're under the low memory threshold (if enabled)
-	if ( GLowMemoryMemoryThresholdMB > 0.0 && GLowMemoryTimeBetweenPurgingPendingKillObjects < TimeBetweenGC )
+	if ( GLowMemoryMemoryThresholdMB > 0.0 )
 	{
 		float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
 		if ( MBFree <= GLowMemoryMemoryThresholdMB)
 		{
-			TimeBetweenGC = GLowMemoryTimeBetweenPurgingPendingKillObjects;
+			if (GLowMemoryTimeBetweenPurgingPendingKillObjects < TimeBetweenGC)
+			{
+				TimeBetweenGC = GLowMemoryTimeBetweenPurgingPendingKillObjects;
+			}
+
+			// Go even faster if there are levels that need to be unloaded
+			if (GLowMemoryTimeBetweenPurgingPendingLevels < TimeBetweenGC && FLevelStreamingGCHelper::GetNumLevelsPendingPurge() > 0)
+			{
+				TimeBetweenGC = GLowMemoryTimeBetweenPurgingPendingLevels;
+			}
 		}
 	}
 
@@ -1603,6 +1621,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Sounds"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSounds, &UEngine::ToggleStatSounds));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundCues"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundCues, &UEngine::ToggleStatSoundCues));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundMixes"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundMixes, &UEngine::ToggleStatSoundMixes));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AudioStreaming"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatAudioStreaming, &UEngine::ToggleStatAudioStreaming));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulators"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundModulators, &UEngine::ToggleStatSoundModulators));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulatorsHelp"), TEXT("STATCAT_Engine"), FText::GetEmpty(), nullptr, &UEngine::PostStatSoundModulatorHelp));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundReverb"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundReverb, nullptr));
@@ -15514,6 +15533,12 @@ bool UEngine::ToggleStatSoundCues(UWorld* World, FCommonViewportClient* Viewport
 #endif // !ENABLE_AUDIO_DEBUG
 }
 
+bool UEngine::ToggleStatAudioStreaming(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream /*= nullptr*/)
+{
+	// Noop for now:
+	return true;
+}
+
 // SOUNDMIXES
 bool UEngine::ToggleStatSoundMixes(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 {
@@ -15552,6 +15577,12 @@ int32 UEngine::RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas*
 #else // !ENABLE_AUDIO_DEBUG
 	return Y;
 #endif // !ENABLE_AUDIO_DEBUG
+}
+
+// AUDIOSTREAMING
+int32 UEngine::RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation /*= nullptr*/, const FRotator* ViewRotation /*= nullptr*/)
+{
+	return IStreamingManager::Get().GetAudioStreamingManager().RenderStatAudioStreaming(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
 }
 
 // SOUNDCUES

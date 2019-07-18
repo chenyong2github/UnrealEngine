@@ -4,7 +4,30 @@
 #include "RenderingThread.h"
 
 DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time"), STAT_SlateUpdateInstanceBuffer, STATGROUP_Slate);
-DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time"), STAT_SlateUpdateInstanceBufferLambda, STATGROUP_Slate);
+
+struct FSlateUpdateInstanceBufferCommand final : public FRHICommand<FSlateUpdateInstanceBufferCommand>
+{
+	TSlateElementVertexBuffer<FVector4>& InstanceBuffer;
+	const TArray<FVector4>& InstanceData;
+
+	FSlateUpdateInstanceBufferCommand(TSlateElementVertexBuffer<FVector4>& InInstanceBuffer, const TArray<FVector4>& InInstanceData )
+		: InstanceBuffer(InInstanceBuffer)
+		, InstanceData(InInstanceData)
+	{}
+
+	void Execute(FRHICommandListBase& CmdList)
+	{
+		SCOPE_CYCLE_COUNTER( STAT_SlateUpdateInstanceBuffer );
+		const bool bIsInRenderingThread = !IsRunningRHIInSeparateThread() || CmdList.Bypass();
+
+		int32 RequiredVertexBufferSize = InstanceData.Num()*sizeof(FVector4);
+		uint8* InstanceBufferData = (uint8*)InstanceBuffer.LockBuffer(RequiredVertexBufferSize, bIsInRenderingThread);
+
+		FMemory::Memcpy( InstanceBufferData, InstanceData.GetData(), InstanceData.Num()*sizeof(FVector4) );
+	
+		InstanceBuffer.UnlockBuffer(bIsInRenderingThread);
+	}
+};
 
 FSlateUpdatableInstanceBuffer::FSlateUpdatableInstanceBuffer( int32 InitialInstanceCount )
 	: FreeBufferIndex(0)
@@ -70,11 +93,8 @@ void FSlateUpdatableInstanceBuffer::UpdateRenderingData_RenderThread(FRHICommand
 
 	if(!IsRunningRHIInSeparateThread() || RHICmdList.Bypass())
 	{
-		uint8* InstanceBufferData = (uint8*)InstanceBufferResource.LockBuffer_RenderThread(RenderThreadBufferData.Num());
-
-		FMemory::Memcpy(InstanceBufferData, RenderThreadBufferData.GetData(), RenderThreadBufferData.Num()*sizeof(FVector4) );
-	
-		InstanceBufferResource.UnlockBuffer_RenderThread();
+		FSlateUpdateInstanceBufferCommand Command(InstanceBufferResource, RenderThreadBufferData);
+		Command.Execute(RHICmdList);
 	}
 	else
 	{

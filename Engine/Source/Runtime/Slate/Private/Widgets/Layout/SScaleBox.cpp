@@ -48,15 +48,16 @@ SScaleBox::~SScaleBox()
 
 /* SWidget overrides
  *****************************************************************************/
-
 void SScaleBox::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
 {
 	const EVisibility ChildVisibility = ChildSlot.GetWidget()->GetVisibility();
 	if ( ArrangedChildren.Accepts(ChildVisibility) )
 	{
 		const FVector2D AreaSize = AllottedGeometry.GetLocalSize();
-		FVector2D SlotWidgetDesiredSize = ChildSlot.GetWidget()->GetDesiredSize();
 
+		const FVector2D CurrentWidgetDesiredSize = ChildSlot.GetWidget()->GetDesiredSize();
+		FVector2D SlotWidgetDesiredSize = CurrentWidgetDesiredSize;
+	
 		float FinalScale = 1;
 
 		bool bAllowFullLayout = true;
@@ -168,31 +169,40 @@ void SScaleBox::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedC
 				}
 			}
 
-			if (GSlateLayoutCaching && LastAreaSize != AreaSize)
-			{
-				const_cast<SScaleBox*>(this)->InvalidatePrepass();
-				bRequiresAnotherPrepass = true;
-			}
-
 			LastAreaSize = AreaSize;
 			LastIncomingScale = AllottedGeometry.Scale;
-			LastSlotWidgetDesiredSize = SlotWidgetDesiredSize;
+		
 
-			if ( bRequiresAnotherPrepass )
+			if ( bRequiresAnotherPrepass)
 			{
+				SWidget* ChildSlotWidget = &ChildSlot.GetWidget().Get();
 				// We need to run another pre-pass now that we know the final scale.
 				// This will allow things that don't scale linearly (such as text) to update their size and layout correctly.
 				//
 				// NOTE: This step is pretty expensive especially if you're nesting scale boxes.
-				ChildSlot.GetWidget()->SlatePrepass(AllottedGeometry.GetAccumulatedLayoutTransform().GetScale() * FinalScale);
 
-				LastContentDesiredSize = ChildSlot.GetWidget()->GetDesiredSize();
+				const float NewPrepassScaleMultiplier = AllottedGeometry.GetAccumulatedLayoutTransform().GetScale() * FinalScale;
+
+				//if(ChildSlotWidget->GetPrepassLayoutScaleMultiplier() != NewPrepassScaleMultiplier)
+				{
+					ChildSlotWidget->InvalidatePrepass();
+					ChildSlotWidget->SlatePrepass(NewPrepassScaleMultiplier);
+
+					LastContentDesiredSize = ChildSlotWidget->GetDesiredSize();
+
+					if (SlotWidgetDesiredSize != LastSlotWidgetDesiredSize)
+					{
+						const_cast<SScaleBox*>(this)->Invalidate(EInvalidateWidget::Layout);
+					}
+				}
 			}
 			else
 			{
 				LastContentDesiredSize.Reset();
 				LastFinalScale.Reset();
 			}
+
+			LastSlotWidgetDesiredSize = SlotWidgetDesiredSize;
 		}
 
 		ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
@@ -228,7 +238,6 @@ int32 SScaleBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 		OutDrawElements.PushClip(FSlateClippingZone(AllottedGeometry));
 		FGeometry HitTestGeometry = AllottedGeometry;
 		HitTestGeometry.AppendTransform(FSlateLayoutTransform(Args.GetWindowToDesktopTransform()));
-		Args.GetGrid().PushClip(FSlateClippingZone(HitTestGeometry));
 	}
 
 	int32 MaxLayerId = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
@@ -236,7 +245,6 @@ int32 SScaleBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	if (bClippingNeeded)
 	{
 		OutDrawElements.PopClip();
-		Args.GetGrid().PopClip();
 	}
 
 	return MaxLayerId;
@@ -320,10 +328,10 @@ FVector2D SScaleBox::ComputeDesiredSize(float InScale) const
 	switch (CurrentStretch)
 	{
 	case EStretch::ScaleToFitX:
-		ExpectedLayoutScale = ComputedDesiredSize.X == 0.0f ? 1.0f : FMath::Max(1.0f, GetCachedGeometry().GetLocalSize().X / ComputedDesiredSize.X);
+		ExpectedLayoutScale = ComputedDesiredSize.X == 0.0f ? 1.0f : FMath::Max(1.0f, GetTickSpaceGeometry().GetLocalSize().X / ComputedDesiredSize.X);
 		break;
 	case EStretch::ScaleToFitY:
-		ExpectedLayoutScale = ComputedDesiredSize.Y == 0.0f ? 1.0f : FMath::Max(1.0f, GetCachedGeometry().GetLocalSize().Y / ComputedDesiredSize.Y);
+		ExpectedLayoutScale = ComputedDesiredSize.Y == 0.0f ? 1.0f : FMath::Max(1.0f, GetTickSpaceGeometry().GetLocalSize().Y / ComputedDesiredSize.Y);
 		break;
 	}
 

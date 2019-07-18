@@ -11,8 +11,10 @@
 #include "DataPrepEditorStyle.h"
 #include "DataPrepRecipe.h"
 #include "DataprepActionAsset.h"
+#include "DataprepCoreUtils.h"
 #include "DataprepEditorLogCategory.h"
 #include "SchemaActions/DataprepOperationMenuActionCollector.h"
+#include "Widgets/DataprepAssetView.h"
 #include "Widgets/SAssetsPreviewWidget.h"
 #include "Widgets/SDataprepPalette.h"
 
@@ -22,6 +24,7 @@
 #include "BlueprintNodeSpawner.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
+#include "Dialogs/Dialogs.h"
 #include "Editor.h"
 #include "EditorDirectories.h"
 #include "EditorStyleSet.h"
@@ -44,6 +47,7 @@
 #include "ScopedTransaction.h"
 #include "Templates/UnrealTemplate.h"
 #include "Toolkits/IToolkit.h"
+#include "UObject/Object.h"
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -68,6 +72,8 @@ const FName FDataprepEditor::ScenePreviewTabId(TEXT("DataprepEditor_ScenePreview
 const FName FDataprepEditor::AssetPreviewTabId(TEXT("DataprepEditor_AssetPreview"));
 const FName FDataprepEditor::PaletteTabId(TEXT("DataprepEditor_Palette"));
 const FName FDataprepEditor::DetailsTabId(TEXT("DataprepEditor_Details"));
+const FName FDataprepEditor::DataprepAssetTabId(TEXT("DataprepEditor_Dataprep"));
+
 
 namespace DataprepEditorUtil
 {
@@ -151,7 +157,7 @@ private:
 FDataprepEditor::FDataprepEditor()
 	: bWorldBuilt(false)
 	, bIsFirstRun(false)
-	, bPipelineExecuted(false)
+	, bPipelineChanged(false)
 	, bIsActionMenuContextSensitive(true)
 	, bSaveIntermediateBuildProducts(false)
 	, PreviewWorld(nullptr)
@@ -188,6 +194,7 @@ FDataprepEditor::~FDataprepEditor()
 	if( DataprepAssetPtr.IsValid() )
 	{
 		DataprepAssetPtr->GetOnChanged().RemoveAll( this );
+		DataprepAssetPtr->GetOnPipelineChange().RemoveAll( this );
 	}
 
 	if ( PreviewWorld )
@@ -253,6 +260,11 @@ void FDataprepEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& I
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
+	InTabManager->RegisterTabSpawner(DataprepAssetTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabDataprep))
+		.SetDisplayName(LOCTEXT("DataprepAssetTab", "Dataprep"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
 	// Temp code for the nodes development
 	InTabManager->RegisterTabSpawner(PipelineGraphTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabPipelineGraph))
 		.SetDisplayName(LOCTEXT("PipelineGraphTab", "Pipeline Graph"))
@@ -279,6 +291,8 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	check( DataprepAssetPtr.IsValid() );
 
 	DataprepAssetPtr->GetOnChanged().AddRaw( this, &FDataprepEditor::OnDataprepAssetChanged );
+	DataprepAssetPtr->GetOnPipelineChange().AddRaw( this, &FDataprepEditor::OnDataprepPipelineChange );
+
 
 	// Assign unique session identifier
 	SessionID = FGuid::NewGuid().ToString();
@@ -290,6 +304,13 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	// Temp code for the nodes development
 	DataprepRecipeBPPtr = DataprepAssetPtr->DataprepRecipeBP;
 	check( DataprepRecipeBPPtr.IsValid() );
+
+	// Necessary step to regenerate blueprint generated class
+	// Note that this compilation will always succeed as Dataprep node does not have real body
+	// #ueent_todo: Is there a better solution
+	{
+		FKismetEditorUtilities::CompileBlueprint( DataprepRecipeBPPtr.Get(), EBlueprintCompileOptions::None, nullptr );
+	}
 
 	UEdGraph* PipelineGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBPPtr.Get());
 	check( PipelineGraph );
@@ -328,7 +349,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	CreateTabs();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.2")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.3")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -357,12 +378,14 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.5f)
 							->AddTab(ScenePreviewTabId, ETabState::OpenedTab)
+							->SetHideTabWell( true )
 						)
 						->Split
 						(
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.5f)
 							->AddTab(AssetPreviewTabId, ETabState::OpenedTab)
+							->SetHideTabWell( true )
 						)
 					)
 					->Split
@@ -373,6 +396,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.15f)
 							->AddTab(PaletteTabId, ETabState::OpenedTab)
+							->SetHideTabWell( true )
 						)
 						// Temp code for the nodes development
 						->Split
@@ -380,15 +404,28 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.85f)
 							->AddTab(PipelineGraphTabId, ETabState::OpenedTab)
+							->SetHideTabWell( true )
 						)
 						// end of temp code for nodes development
 					)
 				)
 				->Split
 				(
-					FTabManager::NewStack()
+					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
 					->SetSizeCoefficient(0.25f)
-					->AddTab(DetailsTabId, ETabState::OpenedTab)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.25f)
+						->AddTab(DataprepAssetTabId, ETabState::OpenedTab)
+						->SetHideTabWell(true)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.75f)
+						->AddTab(DetailsTabId, ETabState::OpenedTab)
+					)
 				)
 			)
 		);
@@ -400,9 +437,6 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	ExtendMenu();
 	ExtendToolBar();
 	RegenerateMenusAndToolbars();
-
-	// Set the details panel to inspect consumer and producers
-	OnShowSettings();
 }
 
 void FDataprepEditor::BindCommands()
@@ -430,12 +464,6 @@ void FDataprepEditor::BindCommands()
 	UICommandList->MapAction(
 		Commands.SaveScene,
 		FExecuteAction::CreateSP(this, &FDataprepEditor::OnSaveScene));
-
-	UICommandList->MapAction(
-		Commands.ShowDataprepSettings,
-		FExecuteAction::CreateSP(this, &FDataprepEditor::OnShowSettings),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FDataprepEditor::IsShowingSettings));
 
 	UICommandList->MapAction(
 		Commands.BuildWorld,
@@ -481,14 +509,6 @@ void FDataprepEditor::OnBuildWorld()
 
 	CleanPreviewWorld();
 
-	if(UEdGraph* PipelineGraph = GetPipelineGraph())
-	{
-		PipelineView->ClearSelectionSet();
-		PipelineView->SetNodeSelection( StartNode, true );
-		FSlateApplication::Get().PumpMessages();
-		FSlateApplication::Get().Tick();
-	}
-
 	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *GetTransientContentFolder(), RF_Transient );
 	TransientPackage->FullyLoad();
 
@@ -507,7 +527,6 @@ void FDataprepEditor::OnBuildWorld()
 	UpdatePreviewPanels();
 	bWorldBuilt = true;
 	bIsFirstRun = true;
-	bPipelineExecuted = false;
 
 	// Log time spent to import incoming file in minutes and seconds
 	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
@@ -531,7 +550,7 @@ void FDataprepEditor::OnDataprepAssetChanged( FDataprepAssetChangeType ChangeTyp
 
 		case FDataprepAssetChangeType::BlueprintModified:
 			{
-				// #ueent_todo: Anything to do there ?
+				OnDataprepPipelineChange( nullptr );
 			}
 			break;
 
@@ -548,6 +567,11 @@ void FDataprepEditor::OnDataprepAssetChanged( FDataprepAssetChangeType ChangeTyp
 			break;
 
 	}
+}
+
+void FDataprepEditor::OnDataprepPipelineChange(UObject* ChangedObject)
+{
+	bPipelineChanged = true;
 }
 
 void FDataprepEditor::ResetBuildWorld()
@@ -594,15 +618,11 @@ void FDataprepEditor::CleanPreviewWorld()
 		}
 	}
 
-	// Prevent display of progress dialog from ObjectTools::DeleteObjectsUnchecked
-	TGuardValue<bool>( GIsSilent, true );
-
-	ensure( ObjectTools::DeleteObjectsUnchecked( ObjectsToDelete ) == ObjectsToDelete.Num() );
+	FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
 
 	CachedAssets.Reset();
 	Assets.Reset();
 
-	CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
 	PreviewWorld->CleanupActors();
 }
 
@@ -672,12 +692,6 @@ void FDataprepEditor::OnExecutePipeline()
 						}
 					}
 
-					// Highlight action being executed
-					PipelineView->ClearSelectionSet();
-					PipelineView->SetNodeSelection( ActionNode, true );
-					FSlateApplication::Get().PumpMessages();
-					FSlateApplication::Get().Tick();
-
 					// Execute action
 					ActionNode->GetDataprepAction()->Execute( Objects );
 					ActionNodesExecuted.Add( ActionNode );
@@ -687,7 +701,7 @@ void FDataprepEditor::OnExecutePipeline()
 					while ( Index < Assets.Num() )
 					{
 						UObject* Object = Assets[Index].Get();
-						if ( Object && Object->IsValidLowLevelFast() )
+						if ( Object && Object->IsValidLowLevel() )
 						{
 							Index++;
 						}
@@ -699,8 +713,6 @@ void FDataprepEditor::OnExecutePipeline()
 
 					// World may have changed, update asset preview and scene outliner
 					UpdatePreviewPanels();
-					FSlateApplication::Get().PumpMessages();
-					FSlateApplication::Get().Tick();
 				}
 
 				UEdGraphPin* NextNodeOutPin = NextNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
@@ -719,16 +731,39 @@ void FDataprepEditor::OnExecutePipeline()
 		}
 	}
 
-	// Indicate pipeline has been executed
+	// Indicate pipeline has been executed at least once
 	bIsFirstRun = false;
-	bPipelineExecuted = true;
+	// Reset tracking of pipeline changes between execution
+	bPipelineChanged = false;
 }
 
 void FDataprepEditor::OnCommitWorld()
 {
-	if(!bPipelineExecuted)
+	// Pipeline has not been executed, validate with user this is intentional
+	if( bIsFirstRun )
 	{
-		// #ueent_todo Prompt user if pipeline has not been run on imported assets
+		UEdGraphPin* StartNodePin = StartNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+		if(StartNodePin && StartNodePin->LinkedTo.Num() > 0)
+		{
+			const FText Title( LOCTEXT( "DataprepEditor_ProceedWithCommit", "Proceed with commit" ) );
+			const FText Message( LOCTEXT( "DataprepEditor_ConfirmCommitPipelineNotExecuted", "The action pipeline has not been executed.\nDo you want to proceeed with the commit anyway?" ) );
+
+			if( OpenMsgDlgInt( EAppMsgType::YesNo, Message, Title ) == EAppReturnType::No )
+			{
+				return;
+			}
+		}
+	}
+	// Pipeline has changed without being executed, validate with user this is intentional
+	else if( !bIsFirstRun && bPipelineChanged )
+	{
+		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithCommit", "Proceed with commit" ) );
+		const FText Message( LOCTEXT( "DataprepEditor_ConfirmCommitPipelineChanged", "The action pipeline has changed since last execution.\nDo you want to proceeed with the commit anyway?" ) );
+
+		if( OpenMsgDlgInt( EAppMsgType::YesNo, Message, Title ) == EAppReturnType::No )
+		{
+			return;
+		}
 	}
 
 	// Finalize assets
@@ -747,10 +782,6 @@ void FDataprepEditor::OnCommitWorld()
 		// #ueent_todo: Inform consumer failed
 	}
 
-	PipelineView->ClearSelectionSet();
-	FSlateApplication::Get().PumpMessages();
-	FSlateApplication::Get().Tick();
-
 	ResetBuildWorld();
 }
 
@@ -766,12 +797,6 @@ void FDataprepEditor::ExtendToolBar()
 	{
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FDataprepEditor* ThisEditor)
 		{
-			ToolbarBuilder.BeginSection("Settings");
-			{
-				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().ShowDataprepSettings);
-			}
-			ToolbarBuilder.EndSection();
-
 			ToolbarBuilder.BeginSection("Run");
 			{
 				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().BuildWorld);
@@ -808,6 +833,8 @@ void FDataprepEditor::CreateTabs()
 			SetDetailsObjects(MoveTemp(Selection), false);
 		}
 	);
+
+	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetPtr.Get(), PipelineEditorCommands );
 
 	CreateScenePreviewTab();
 
@@ -905,6 +932,22 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabPalette(const FSpawnTabArgs & Args
 		[
 			SNew(SDataprepPalette)
 		];
+}
+
+TSharedRef<SDockTab> FDataprepEditor::SpawnTabDataprep(const FSpawnTabArgs & Args)
+{
+	check(Args.GetTabId() == DataprepAssetTabId);
+
+	return SNew(SDockTab)
+	.Label(LOCTEXT("DataprepEditor_DataprepTab_Title", "Dataprep"))
+	[
+		SNew(SBorder)
+		.Padding(2.f)
+		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		[
+			DataprepAssetView.ToSharedRef()
+		]
+	];
 }
 
 void FDataprepEditor::UpdatePreviewPanels()

@@ -2534,6 +2534,7 @@ void UWorld::BeginTearingDown()
 {
 	bIsTearingDown = true;
 	UE_LOG(LogWorld, Log, TEXT("BeginTearingDown for %s"), *GetOutermost()->GetName());
+	BeginTearingDownEvent.Broadcast();
 }
 
 void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
@@ -3808,7 +3809,7 @@ bool UWorld::HandleDemoPlayCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 		{
 			if (Context.World()->DemoNetDriver != nullptr && Context.World()->DemoNetDriver->IsPlaying())
 			{
-				ErrorString = TEXT("A demo is already in progress, cannot play more than one demo at a time");
+				ErrorString = TEXT("A demo is already in progress, cannot play more than one demo at a time in PIE.");
 				break;
 			}
 		}
@@ -3825,18 +3826,27 @@ bool UWorld::HandleDemoPlayCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 	}
 	else
 	{
-		// Allow additional url arguments after the demo name
-		TArray<FString> Options;
-		if (Temp.ParseIntoArray(Options, TEXT("?")) > 1)
+		// defer playback to the next frame
+		GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(InWorld, [InWorld, Temp]()
 		{
-			Temp = Options[0];
-			Options.RemoveAtSwap(0);
-			InWorld->GetGameInstance()->PlayReplay(Temp, nullptr, Options);
-		}
-		else
-		{
-			InWorld->GetGameInstance()->PlayReplay(Temp);
-		}
+			if (InWorld->GetGameInstance())
+			{
+				FString ReplayName = Temp;
+				// Allow additional url arguments after the demo name
+				TArray<FString> Options;
+				if (Temp.ParseIntoArray(Options, TEXT("?")) > 1)
+				{
+					ReplayName = Options[0];
+					Options.RemoveAtSwap(0);
+
+					InWorld->GetGameInstance()->PlayReplay(ReplayName, nullptr, Options);
+				}
+				else
+				{
+					InWorld->GetGameInstance()->PlayReplay(ReplayName);
+				}
+			}
+		}));
 	}
 
 	return true;
@@ -4439,6 +4449,14 @@ void UWorld::AddNetworkActor( AActor* Actor )
 	if ( !ContainsLevel(Actor->GetLevel()) )
 	{
 		return;
+	}
+
+    // Remove DORM_Initial from dynamic actors
+	if (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor() == false)
+	{
+		UE_LOG(LogNet, VeryVerbose, TEXT("Dynamic actor %s dormancy was changed from DORM_Initial to DORM_DormantAll"), *Actor->GetFullName());
+        // Changing dormancy directly here since the actor was not yet registered to the network drivers
+		Actor->NetDormancy = DORM_DormantAll;
 	}
 
 	ForEachNetDriver(GEngine, this, [Actor](UNetDriver* const Driver)

@@ -225,6 +225,10 @@ class FFeedbackContext;
 #define WITH_CONFIG_PATCHING 0
 #endif
 
+#if PLATFORM_IOS || PLATFORM_TVOS
+#include "IOS/IOSAppDelegate.h"
+#endif
+
 
 int32 GUseDisregardForGCOnDedicatedServers = 1;
 static FAutoConsoleVariableRef CVarUseDisregardForGCOnDedicatedServers(
@@ -431,7 +435,7 @@ static TUniquePtr<FOutputDeviceTestExit> GScopedTestExit;
 static void RHIExitAndStopRHIThread()
 {
 #if HAS_GPU_STATS
-	FRealtimeGPUProfiler::Get()->Release();
+	FRealtimeGPUProfiler::SafeRelease();
 #endif
 
 	// Stop the RHI Thread (using GRHIThread_InternalUseOnly is unreliable since RT may be stopped)
@@ -1695,7 +1699,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	// Some programs might not use the taskgraph or thread pool
 	bool bCreateTaskGraphAndThreadPools = true;
-#if IS_PROGRAM
+	// If STATS is defined (via FORCE_USE_STATS or other), we have to call FTaskGraphInterface::Startup()
+#if IS_PROGRAM && !STATS
 	bCreateTaskGraphAndThreadPools = !FParse::Param(FCommandLine::Get(), TEXT("ReduceThreadUsage"));
 #endif
 	if (bCreateTaskGraphAndThreadPools)
@@ -4881,6 +4886,12 @@ bool FEngineLoop::AppInit( )
 	// Put the command line and config info into the suppression system (before plugins start loading)
 	FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
 
+#if PLATFORM_IOS || PLATFORM_TVOS
+	// Now that the config system is ready, init the audio system.
+	[[IOSAppDelegate GetDelegate] InitializeAudioSession];
+#endif
+
+	
 	// NOTE: This is the earliest place to init the online subsystems (via plugins)
 	// Code needs GConfigFile to be valid
 	// Must be after FThreadStats::StartThread();

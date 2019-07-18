@@ -90,7 +90,7 @@ private:
 	FMatrix ViewMatrix;
 	TMap<const SWindow*, FSlateD3DViewport> WindowToViewportMap;
 	FSlateDrawBuffer DrawBuffer;
-	TSharedPtr<FSlateElementBatcher> ElementBatcher;
+	TUniquePtr<FSlateElementBatcher> ElementBatcher;
 	TSharedPtr<FSlateD3DTextureManager> TextureManager;
 	TSharedPtr<FSlateD3D11RenderingPolicy> RenderingPolicy;
 	TArray<TSharedPtr<FSlateDynamicImageBrush>> DynamicBrushesToRemove;

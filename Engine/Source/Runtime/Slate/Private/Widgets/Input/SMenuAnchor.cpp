@@ -180,7 +180,7 @@ void SMenuAnchor::Tick( const FGeometry& AllottedGeometry, const double InCurren
 
 bool SMenuAnchor::ComputeVolatility() const
 {
-	return IsOpen();
+	return SPanel::ComputeVolatility() || IsOpen();
 }
 
 void SMenuAnchor::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
@@ -512,6 +512,8 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 					}
 				}
 			}
+
+			Invalidate(EInvalidateWidget::ChildOrder | EInvalidateWidget::Volatility);
 		}
 		else
 		{
@@ -520,37 +522,39 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 			{
 				PopupMenuPtr.Pin()->Dismiss();
 			}
-			else
-			{
-				PopupWindowPtr.Reset();
-				OwnedMenuPtr.Reset();
-				MethodInUse = FPopupMethodReply::Unhandled();
-			}
 
-			// Always clear out the menu content children slot to prevent prepass and other hierarchy queries from considering the
-			// hidden menu content as content they should be concerned with.
-			Children[1]
-			[
-				SNullWidget::NullWidget
-			];
+			ResetPopupMenuContent();
 		}
-
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
 	}
 }
 
 void SMenuAnchor::OnMenuClosed(TSharedRef<IMenu> InMenu)
 {
 	bDismissedThisTick = true;
-	MethodInUse = FPopupMethodReply::Unhandled();
-	PopupMenuPtr.Reset();
-	OwnedMenuPtr.Reset();
-	PopupWindowPtr.Reset();
+
+	ResetPopupMenuContent();
 
 	if (OnMenuOpenChanged.IsBound())
 	{
 		OnMenuOpenChanged.Execute(false);
 	}
+}
+
+void SMenuAnchor::ResetPopupMenuContent()
+{
+	MethodInUse = FPopupMethodReply::Unhandled();
+	PopupMenuPtr.Reset();
+	OwnedMenuPtr.Reset();
+	PopupWindowPtr.Reset();
+
+	// Always clear out the menu content children slot to prevent prepass and other hierarchy queries from considering the
+	// hidden menu content as content they should be concerned with.
+	Children[1]
+	[
+		SNullWidget::NullWidget
+	];
+
+	Invalidate(EInvalidateWidget::ChildOrder | EInvalidateWidget::Volatility);
 }
 
 bool SMenuAnchor::IsOpen() const

@@ -176,12 +176,12 @@ FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifier
 	{
 		SetUE4Ver(InVersionInfo->FileVersion.FileVersionUE4);
 		SetLicenseeUE4Ver(InVersionInfo->FileVersion.FileVersionLicenseeUE4);
-		SetEngineVer(FEngineVersionBase(InVersionInfo->CompatibleEngineVersion.Major, InVersionInfo->CompatibleEngineVersion.Minor, InVersionInfo->CompatibleEngineVersion.Patch, InVersionInfo->CompatibleEngineVersion.Changelist));
+		SetEngineVer(FEngineVersionBase(InVersionInfo->EngineVersion.Major, InVersionInfo->EngineVersion.Minor, InVersionInfo->EngineVersion.Patch, InVersionInfo->EngineVersion.Changelist));
 
 		FCustomVersionContainer EngineCustomVersions;
 		for (const FConcertCustomVersionInfo& CustomVersion : InVersionInfo->CustomVersions)
 		{
-			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, NAME_None);
+			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
 		}
 		SetCustomVersions(EngineCustomVersions);
 	}

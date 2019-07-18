@@ -2279,12 +2279,19 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 {
 	struct Local
 	{
-		static void OnHyperlinkClicked( TWeakObjectPtr<UBlueprint> InBlueprint )
+		static void OnHyperlinkClicked( TWeakObjectPtr<UBlueprint> InBlueprint, TSharedPtr<SCustomDialog> InDialog )
 		{
 			if (UBlueprint* BlueprintToEdit = InBlueprint.Get())
 			{
 				// Open the blueprint
 				GEditor->EditObject( BlueprintToEdit );
+			}
+
+			if (InDialog.IsValid())
+			{
+				// Opening the blueprint editor above may end up creating an invisible new window on top of the dialog, 
+				// thus making it not interactable, so we have to force the dialog back to the front
+				InDialog->BringToFront(true);
 			}
 		}
 	};
@@ -2297,6 +2304,8 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 			.Text(NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrors", "One or more blueprints has an unresolved compiler error, are you sure you want to Play in Editor?"))
 		];
 
+	TSharedPtr<SCustomDialog> CustomDialog;
+
 	for (UBlueprint* Blueprint : ErroredBlueprints)
 	{
 		TWeakObjectPtr<UBlueprint> BlueprintPtr = Blueprint;
@@ -2307,7 +2316,7 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 			[
 				SNew(SHyperlink)
 				.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
-				.OnNavigate_Static(&Local::OnHyperlinkClicked, BlueprintPtr)
+				.OnNavigate(FSimpleDelegate::CreateLambda([BlueprintPtr, &CustomDialog]() { Local::OnHyperlinkClicked(BlueprintPtr, CustomDialog); }))
 				.Text(FText::FromString(Blueprint->GetName()))
 				.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"))
 			];
@@ -2325,7 +2334,7 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 	FText OKText = NSLOCTEXT("PlayInEditor", "PrePIE_OkText", "Play in Editor");
 	FText CancelText = NSLOCTEXT("Dialogs", "EAppReturnTypeCancel", "Cancel");
 
-	TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
+	CustomDialog = SNew(SCustomDialog)
 		.Title(DialogTitle)
 		.IconBrush("NotificationList.DefaultMessage")
 		.DialogContent(DialogContents)
@@ -3055,6 +3064,61 @@ void UEditorEngine::RequestLateJoin()
 	GetMultipleInstancePositions(0, NextX, NextY);
 }
 
+class SPIEViewport : public SViewport
+{
+	SLATE_BEGIN_ARGS(SPIEViewport)
+		: _Content()
+		, _RenderDirectlyToWindow(false)
+		, _EnableStereoRendering(false)
+		, _IgnoreTextureAlpha(true)
+	{
+		_Clipping = EWidgetClipping::ClipToBoundsAlways;
+	}
+
+		SLATE_DEFAULT_SLOT(FArguments, Content)
+
+		/**
+		 * Whether or not to render directly to the window's backbuffer or an offscreen render target that is applied to the window later
+		 * Rendering to an offscreen target is the most common option in the editor where there may be many frames which this viewport's interface may wish to not re-render but use a cached buffer instead
+		 * Rendering directly to the backbuffer is the most common option in the game where you want to update each frame without the cost of writing to an intermediate target first.
+		 */
+		SLATE_ARGUMENT(bool, RenderDirectlyToWindow)
+
+		/** Whether or not to enable stereo rendering. */
+		SLATE_ARGUMENT(bool, EnableStereoRendering )
+
+		/**
+		 * If true, the viewport's texture alpha is ignored when performing blending.  In this case only the viewport tint opacity is used
+		 * If false, the texture alpha is used during blending
+		 */
+		SLATE_ARGUMENT( bool, IgnoreTextureAlpha )
+
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		SViewport::Construct(
+			SViewport::FArguments()
+			.EnableGammaCorrection(false) // Gamma correction in the game is handled in post processing in the scene renderer
+			.RenderDirectlyToWindow(InArgs._RenderDirectlyToWindow)
+			.EnableStereoRendering(InArgs._EnableStereoRendering)
+			.IgnoreTextureAlpha(InArgs._IgnoreTextureAlpha)
+			[
+				InArgs._Content.Widget
+			]
+		);
+	}
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override
+	{
+		SViewport::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+		// Rather than binding the attribute we're going to poll it in tick, otherwise we will make this widget volatile, and it therefore
+		// wont be possible to cache it or its children in GSlateEnableGlobalInvalidation mode.
+		SetEnabled(FSlateApplication::Get().GetNormalExecutionAttribute().Get());
+	}
+};
+
 UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bInSimulateInEditor, bool bAnyBlueprintErrors, bool bStartInSpectatorMode, bool bRunAsDedicated, bool bPlayStereoscopic, float PIEStartTime)
 {
 	// create a new GameInstance
@@ -3076,7 +3140,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 	GameInstanceParams.bSimulateInEditor = bInSimulateInEditor;
 	GameInstanceParams.bStartInSpectatorMode = bStartInSpectatorMode;
 	GameInstanceParams.bRunAsDedicated = bRunAsDedicated;
-	GameInstanceParams.WorldFeatureLevel = PreviewFeatureLevel;
+	GameInstanceParams.WorldFeatureLevel = PreviewPlatform.GetEffectivePreviewFeatureLevel();
 
 	const FGameInstancePIEResult InitializeResult = GameInstance->InitializeForPlayInEditor(InPIEInstance, GameInstanceParams);
 	if (!InitializeResult.IsSuccess())
@@ -3108,7 +3172,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 	FFormatNamedArguments Args;
 	Args.Add( TEXT("GameName"), FText::FromString( FString( WindowTitleOverride.IsEmpty() ? FApp::GetProjectName() : WindowTitleOverride.ToString() ) ) );
 	Args.Add( TEXT("PlatformBits"), FText::FromString( PlatformBitsString ) );
-	Args.Add( TEXT("RHIName"), FText::FromName( LegacyShaderPlatformToShaderFormat( GShaderPlatformForFeatureLevel[PreviewFeatureLevel] ) ) );
+	Args.Add( TEXT("RHIName"), FText::FromName( LegacyShaderPlatformToShaderFormat( GShaderPlatformForFeatureLevel[PreviewPlatform.PreviewFeatureLevel] ) ) );
 
 	const ULevelEditorPlaySettings* PlayInSettings = GetDefault<ULevelEditorPlaySettings>();
 	const EPlayNetMode PlayNetMode = [&PlayInSettings]{ EPlayNetMode NetMode(PIE_Standalone); return (PlayInSettings->GetPlayNetMode(NetMode) ? NetMode : PIE_Standalone); }();
@@ -3165,7 +3229,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 	}
 
 	// For play in editor, this is the viewport widget where the game is being displayed
-	TSharedPtr<SViewport> PieViewportWidget;
+	TSharedPtr<SPIEViewport> PieViewportWidget;
 
 	// Initialize the viewport client.
 	UGameViewportClient* ViewportClient = NULL;
@@ -3293,6 +3357,8 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 						.UseOSWindowBorder(bUseOSWndBorder)
 						.SaneWindowPlacement(!CenterNewWindow)
 						.SizingRule(ESizingRule::UserSized);
+
+					PieWindow->SetAllowFastUpdate(true);
 				}
 
 
@@ -3331,9 +3397,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 				const bool bIgnoreTextureAlpha = (PropagateAlpha != EAlphaChannelMode::AllowThroughTonemapper);
 
 				PieViewportWidget = 
-					SNew( SViewport )
-						.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-						.EnableGammaCorrection( false )// Gamma correction in the game is handled in post processing in the scene renderer
+					SNew( SPIEViewport )
 						.RenderDirectlyToWindow( bRenderDirectlyToWindow )
 						.EnableStereoRendering( bEnableStereoRendering )
 						.IgnoreTextureAlpha(bIgnoreTextureAlpha)
@@ -3357,6 +3421,7 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 
 				ViewportClient->SetViewportOverlayWidget( PieWindow, ViewportOverlayWidgetRef );
 				ViewportClient->SetGameLayerManager(GameLayerManagerRef);
+
 				bool bShouldMinimizeRootWindow = bPlayStereoscopic && GEngine->XRSystem.IsValid() && GetDefault<ULevelEditorPlaySettings>()->ShouldMinimizeEditorOnVRPIE;
 				// Set up a notification when the window is closed so we can clean up PIE
 				{
@@ -3416,10 +3481,12 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 				// Create a new viewport that the viewport widget will use to render the game
 				SlatePlayInEditorSession.SlatePlayInEditorWindowViewport = MakeShareable( new FSceneViewport( ViewportClient, PieViewportWidget ) );
 
+				GameLayerManagerRef->SetSceneViewport(SlatePlayInEditorSession.SlatePlayInEditorWindowViewport.Get());
+
 				const bool bShouldGameGetMouseControl = GetDefault<ULevelEditorPlaySettings>()->GameGetsMouseControl || (bPlayStereoscopic && GEngine->XRSystem.IsValid());
 				SlatePlayInEditorSession.SlatePlayInEditorWindowViewport->SetPlayInEditorGetsMouseControl(bShouldGameGetMouseControl);
 				PieViewportWidget->SetViewportInterface( SlatePlayInEditorSession.SlatePlayInEditorWindowViewport.ToSharedRef() );
-				
+
 				FSlateApplication::Get().RegisterViewport(PieViewportWidget.ToSharedRef());
 				
 				SlatePlayInEditorSession.SlatePlayInEditorWindow = PieWindow;

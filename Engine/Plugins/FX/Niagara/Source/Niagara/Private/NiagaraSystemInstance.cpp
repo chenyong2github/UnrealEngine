@@ -69,6 +69,53 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	}
 }
 
+
+void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
+{
+	UNiagaraSystem* System = GetSystem();
+	if (System != nullptr)
+	{
+		const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetSystem()->GetEmitterHandles();
+		int32 FoundIdx = INDEX_NONE;
+		for (int32 EmitterIdx = 0; EmitterIdx < GetSystem()->GetEmitterHandles().Num(); ++EmitterIdx)
+		{
+			const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
+			if (EmitterName == EmitterHandle.GetName())
+			{
+				FoundIdx = EmitterIdx;
+				break;
+			}
+		}
+
+		if (FoundIdx != INDEX_NONE && Emitters.IsValidIndex(FoundIdx))
+		{
+			if (Emitters[FoundIdx]->IsAllowedToExecute())
+			{
+				
+				{
+					if (bNewEnableState)
+					{
+						Emitters[FoundIdx]->SetExecutionState(ENiagaraExecutionState::Active);
+					}
+					else
+					{
+						Emitters[FoundIdx]->SetExecutionState(ENiagaraExecutionState::Inactive);
+					}
+				}
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Log, TEXT("SetEmitterEnable: Emitter \"%s\" was found in the system's list of emitters, but it does not pass FNiagaraEmitterInstance::IsAllowedToExecute() and therefore cannot be manually enabled!"), *EmitterName.ToString());
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Log, TEXT("SetEmitterEnable: Emitter \"%s\" was not found in the system's list of emitters!"), *EmitterName.ToString());
+		}
+	}
+}
+
+
 void FNiagaraSystemInstance::Init(bool bInForceSolo)
 {
 	bForceSolo = bInForceSolo;
@@ -79,7 +126,7 @@ void FNiagaraSystemInstance::Init(bool bInForceSolo)
 	// In order to get user data interface parameters in the component to work properly,
 	// we need to bind here, otherwise the instances when we init data interfaces during reset will potentially
 	// be the defaults (i.e. null) for things like static mesh data interfaces.
-	Reset(EResetMode::ReInit, true);
+	Reset(EResetMode::ReInit);
 
 #if WITH_EDITORONLY_DATA
 	InstanceParameters.DebugName = *FString::Printf(TEXT("SystemInstance %p"), this);
@@ -308,7 +355,7 @@ void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
 	UNiagaraSystem* System = GetSystem();
 	if (System && System->IsValid() && IsReadyToRun())
 	{
-		Reset(InResetMode, true);
+		Reset(InResetMode);
 	}
 	else
 	{
@@ -445,7 +492,7 @@ void FNiagaraSystemInstance::SetPaused(bool bInPaused)
 	bPaused = bInPaused;
 }
 
-void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode, bool bBindParams)
+void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemReset);
 
@@ -481,6 +528,9 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode, bool
 		Mode = EResetMode::ReInit;
 	}
 		
+	// Depending on the rest mode we may need to bind or can possibly skip it
+	// We must bind if we were previously complete as unbind will have been called, we can not get here if the system was disabled
+	bool bBindParams = IsComplete();
 	if (Mode == EResetMode::ResetSystem)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::Reset false"));
@@ -490,13 +540,13 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode, bool
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::Reset true"));
 		ResetInternal(true);
+		bBindParams = !IsDisabled();
 	}
 	else if (Mode == EResetMode::ReInit)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("FNiagaraSystemInstance::ReInit"));
 		ReInitInternal();
-		// If the system was reinitialized successfully than we need to force a rebind of the parameters.
-		bBindParams = IsComplete() == false;
+		bBindParams = !IsDisabled();
 	}
 	
 	if (bBindParams)
@@ -507,8 +557,7 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode, bool
 	SetRequestedExecutionState(ENiagaraExecutionState::Active);
 	SetActualExecutionState(ENiagaraExecutionState::Active);
 
-	// We avoid calling InitDataInterfaces in the ResetSystem path so as to not clear out the System's DI on this frame.
-	if (Mode == EResetMode::ResetAll || Mode == EResetMode::ReInit)
+	if (bBindParams)
 	{
 		InitDataInterfaces();
 	}

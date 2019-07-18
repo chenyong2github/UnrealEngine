@@ -7,6 +7,7 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 #if RDG_ENABLE_DEBUG
 	{
 		checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture: %s"), Name);
+		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 		checkf(Name, TEXT("Externally allocated texture requires a debug name when registering them to render graph."));
 		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 	}

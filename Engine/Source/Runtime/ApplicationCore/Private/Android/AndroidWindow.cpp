@@ -168,6 +168,7 @@ void FAndroidWindow::ReleaseWindowRef(ANativeWindow* InWindow)
 	check(IsInAndroidEventThread());
 #endif
 	NativeWindow = InWindow; //using raw native window handle for now. Could be changed to use AndroidWindow later if needed
+#endif
 }
 
 void* FAndroidWindow::GetHardwareWindow_EventThread()

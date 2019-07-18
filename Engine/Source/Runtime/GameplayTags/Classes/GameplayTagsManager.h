@@ -285,6 +285,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 		return *SingletonManager;
 	}
 
+	/** Returns possibly nullptr to the manager. Needed for some shutdown cases to avoid reallocating. */
+	FORCEINLINE static UGameplayTagsManager* GetIfAllocated() { return SingletonManager; }
+
 	/**
 	* Adds the gameplay tags corresponding to the strings in the array TagStrings to OutTagsContainer
 	*
@@ -425,6 +428,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	/** Loads the tag tables referenced in the GameplayTagSettings object */
 	void LoadGameplayTagTables(bool bAllowAsyncLoad = false);
 
+	/** Loads tag inis contained in the specified path */
+	void AddTagIniSearchPath(const FString& RootDir);
+
 	/** Helper function to construct the gameplay tag tree */
 	void ConstructGameplayTagTree();
 
@@ -530,6 +536,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 
 	/** Returns "Categories" meta property from given handle, used for filtering by tag widget */
 	FString GetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle) const;
+
+	/** Helper function, made to be called by custom OnGetCategoriesMetaFromPropertyHandle handlers  */
+	static FString StaticGetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle);
 
 	/** Returns "Categories" meta property from given field, used for filtering by tag widget */
 	FString GetCategoriesMetaFromField(UField* Field) const;
@@ -658,6 +667,8 @@ private:
 
 	void AddChildrenTags(FGameplayTagContainer& TagContainer, TSharedPtr<FGameplayTagNode> GameplayTagNode, bool RecurseAll=true, bool OnlyIncludeDictionaryTags=false) const;
 
+	void AddTagsFromAdditionalLooseIniFiles(const TArray<FString>& IniFileList);
+
 	/**
 	 * Helper function for GameplayTagsMatch to get all parents when doing a parent match,
 	 * NOTE: Must never be made public as it uses the FNames which should never be exposed
@@ -691,6 +702,12 @@ private:
 
 	/** List of native tags to add when reconstructing tree */
 	TSet<FName> NativeTagsToAdd;
+
+	TSet<FName> RestrictedGameplayTagSourceNames;
+
+	TArray<FString> ExtraTagIniList;
+
+	bool bIsConstructingGameplayTagTree = false;
 
 	/** Cached runtime value for whether we are using fast replication or not. Initialized from config setting. */
 	bool bUseFastReplication;

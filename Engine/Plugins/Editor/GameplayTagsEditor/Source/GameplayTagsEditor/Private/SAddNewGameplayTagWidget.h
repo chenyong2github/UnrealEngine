@@ -12,24 +12,27 @@
 #include "Widgets/Input/SComboBox.h"
 
 /** Widget allowing the user to create new gameplay tags */
-class SAddNewGameplayTagWidget : public SCompoundWidget
+class GAMEPLAYTAGSEDITOR_VTABLE SAddNewGameplayTagWidget : public SCompoundWidget
 {
 public:
 
-	DECLARE_DELEGATE_ThreeParams( FOnGameplayTagAdded, const FString& /*TagName*/, const FString& /*TagComment*/, const FName& /*TagSource*/);
+	DECLARE_DELEGATE_ThreeParams(FOnGameplayTagAdded, const FString& /*TagName*/, const FString& /*TagComment*/, const FName& /*TagSource*/);
+
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FIsValidTag, const FString& /*TagName*/, FText* /*OutError*/)
 
 	SLATE_BEGIN_ARGS(SAddNewGameplayTagWidget)
 		: _NewTagName(TEXT(""))
-		{}
-		SLATE_EVENT( FOnGameplayTagAdded, OnGameplayTagAdded )	// Callback for when a new tag is added	
-		SLATE_ARGUMENT( FString, NewTagName ) // String that will initially populate the New Tag Name field
+	{}
+		SLATE_EVENT(FOnGameplayTagAdded, OnGameplayTagAdded)	// Callback for when a new tag is added	
+		SLATE_EVENT(FIsValidTag, IsValidTag)
+		SLATE_ARGUMENT(FString, NewTagName) // String that will initially populate the New Tag Name field
 	SLATE_END_ARGS();
 
-	virtual ~SAddNewGameplayTagWidget();
+	GAMEPLAYTAGSEDITOR_API virtual ~SAddNewGameplayTagWidget();
 
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	GAMEPLAYTAGSEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	void Construct( const FArguments& InArgs);
+	GAMEPLAYTAGSEDITOR_API void Construct(const FArguments& InArgs);
 
 	/** Returns true if we're currently attempting to add a new gameplay tag to an INI file */
 	bool IsAddingNewTag() const
@@ -85,6 +88,9 @@ private:
 
 	/** Callback for when a new gameplay tag has been added to the INI files */
 	FOnGameplayTagAdded OnGameplayTagAdded;
+
+	/** Callback to see if the gameplay tag is valid. This should be used for any specialized rules that are not covered by IsValidGameplayTagString */
+	FIsValidTag IsValidTag;
 
 	bool bAddingNewTag;
 

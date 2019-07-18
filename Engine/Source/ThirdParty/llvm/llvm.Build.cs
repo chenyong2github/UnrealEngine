@@ -9,21 +9,16 @@ public class llvm : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform != UnrealTargetPlatform.Win32)
+		if (Target.Platform != UnrealTargetPlatform.Win64)
 		{
-			// Currently we support only Win32 llvm builds.
+			// Currently we support only Win64 llvm builds.
 			return;
 		}
 
-		var LLVMVersion = @"3.5.0";
-		// VS2015 uses a newer version of the libs
-		if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
-		{
-			LLVMVersion = @"3.6.2";
-		}
-		var VSVersion = @"vs" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-		var TargetArch = @"x86";
-		var RootDirectory = Path.Combine(Target.UEThirdPartySourceDirectory, @"llvm", LLVMVersion);
+		var LLVMVersion = "8";
+		var TargetArch = "Win64";
+		var VSVersion = "VS2017";
+		var RootDirectory = Path.Combine(ModuleDirectory, LLVMVersion);
 		PublicIncludePaths.AddRange(
 			new string[] {
 				Path.Combine(RootDirectory, "include"),
@@ -31,48 +26,43 @@ public class llvm : ModuleRules
 
 		PublicLibraryPaths.AddRange(
 			new string[] {
-				Path.Combine(RootDirectory, @"lib", VSVersion, TargetArch, @"release"),
+				Path.Combine(RootDirectory, "lib", TargetArch, VSVersion, "Release"),
 			});
 
 		PublicAdditionalLibraries.AddRange(
 			new string[] {
-				"clangAnalysis.lib",
-				"clangAST.lib",
-				"clangBasic.lib",
-				"clangDriver.lib",
-				"clangEdit.lib",
-				"clangFrontend.lib",
-				"clangLex.lib",
-				"clangParse.lib",
-				"clangSema.lib",
-				"clangSerialization.lib",
-				"clangTooling.lib",
+				"LLVMAggressiveInstCombine.lib",
 				"LLVMAnalysis.lib",
+				"LLVMAsmPrinter.lib",
+				"LLVMBinaryFormat.lib",
 				"LLVMBitReader.lib",
-				"LLVMCodegen.lib",
+				"LLVMBitWriter.lib",
+				"LLVMCodeGen.lib",
 				"LLVMCore.lib",
+				"LLVMDebugInfoCodeView.lib",
+				"LLVMDebugInfoMSF.lib",
+				"LLVMDemangle.lib",
+				"LLVMExecutionEngine.lib",
+				"LLVMGlobalISel.lib",
+				"LLVMInstCombine.lib",
+				"LLVMInterpreter.lib",
 				"LLVMMC.lib",
 				"LLVMMCDisassembler.lib",
+				"LLVMMCJIT.lib",
 				"LLVMMCParser.lib",
 				"LLVMObject.lib",
-				"LLVMOption.lib",
+				"LLVMProfileData.lib",
+				"LLVMRuntimeDyld.lib",
+				"LLVMScalarOpts.lib",
+				"LLVMSelectionDAG.lib",
 				"LLVMSupport.lib",
 				"LLVMTarget.lib",
-				"LLVMX86AsmParser.lib",
+				"LLVMTransformUtils.lib",
 				"LLVMX86AsmPrinter.lib",
 				"LLVMX86CodeGen.lib",
 				"LLVMX86Desc.lib",
 				"LLVMX86Info.lib",
 				"LLVMX86Utils.lib",
 			});
-
-		// The 3.6.2 version we use for VS2015 has moved some functionality around.
-		if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
-		{
-			PublicAdditionalLibraries.AddRange(
-				new string[] {
-					"LLVMTransformUtils.lib",
-				});
-		}
 	}
 }

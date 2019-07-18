@@ -389,7 +389,7 @@ void UUnrealEdEngine::NoteSelectionChange(bool bNotify)
 	UpdatePivotLocationForSelection( true );
 
 	// Clear active editing visualizer on selection change
-	GUnrealEd->ComponentVisManager.ClearActiveComponentVis();
+	ComponentVisManager.ClearActiveComponentVis();
 
 	TArray<FEdMode*> ActiveModes;
 	GLevelEditorModeTools().GetActiveModes( ActiveModes );
@@ -592,7 +592,7 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 
 		// Don't do any work if the actor's selection state is already the selected state.
 		const bool bActorSelected = Actor->IsSelected();
-		if ( (bActorSelected && !bInSelected) || (!bActorSelected && bInSelected) )
+		if ( bActorSelected != bInSelected )
 		{
 			if(bInSelected)
 			{

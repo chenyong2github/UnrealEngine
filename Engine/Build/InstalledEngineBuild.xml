@@ -21,7 +21,7 @@
 	<Property Name="DefaultWithLinux" Value="false" If="$(HostPlatformEditorOnly) Or ($(HostPlatformOnly) And '$(HostPlatform)' != 'Linux')"/>
 
 	<Property Name="DefaultWithPlatform" Value="true"/>
-	<Property Name="DefaultWithPlatform" Value="false" If="$(HostPlatformEditorOnly)"/>
+	<Property Name="DefaultWithPlatform" Value="false" If="$(HostPlatformEditorOnly) Or $(HostPlatformOnly)"/>
 
 	<Property Name="DefaultWithIOS" Value="$(DefaultWithPlatform)"/>
 	<Property Name="DefaultWithIOS" Value="false" If="'$(HostPlatform)' != 'Mac' And !$(AllPlatforms)"/>
@@ -32,9 +32,9 @@
 	<Option Name="WithMac" Restrict="true|false" DefaultValue="$(DefaultWithMac)" Description="Include the Mac target platform"/>
 	<Option Name="WithAndroid" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the Android target platform"/>
 	<Option Name="WithIOS" Restrict="true|false" DefaultValue="$(DefaultWithIOS)" Description="Include the iOS target platform"/>
-	<Option Name="WithTVOS" Restrict="true|false" DefaultValue="false" Description="Include the tvOS target platform"/>
+	<Option Name="WithTVOS" Restrict="true|false" DefaultValue="$(DefaultWithIOS)" Description="Include the tvOS target platform"/>
 	<Option Name="WithLinux" Restrict="true|false" DefaultValue="$(DefaultWithLinux)" Description="Include the Linux target platform"/>
-	<Option Name="WithHTML5" Restrict="true|false" DefaultValue="$(DefaultWithPlatform)" Description="Include the HTML5 target platform"/>
+	<Option Name="WithHTML5" Restrict="true|false" DefaultValue="false" Description="Include the HTML5 target platform"/>
 	<Option Name="WithPS4" Restrict="true|false" DefaultValue="false" Description="Include the PS4 target platform"/>
 	<Option Name="WithXboxOne" Restrict="true|false" DefaultValue="false" Description="Include the XboxOne target platform"/>
 	<Option Name="WithSwitch" Restrict="true|false" DefaultValue="false" Description="Include the Switch target platform"/>
@@ -356,8 +356,10 @@
 		<Node Name="Compile UE4Game HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game HoloLens">
 
 			<ForEach Name="Configuration" Values="$(GameConfigurations)">
-				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -allmodules -nolink $(TargetDebugInfoArg)"/>
-				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile $(TargetDebugInfoArg)" Clean="false"/>
+				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -allmodules -nolink -architecture=arm64 $(TargetDebugInfoArg)"/>
+				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -architecture=arm64 $(TargetDebugInfoArg)" Clean="false"/>
+				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -allmodules -nolink -architecture=x64 $(TargetDebugInfoArg)"/>
+				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -architecture=x64 $(TargetDebugInfoArg)" Clean="false"/>
 			</ForEach>
 
 		</Node>
@@ -754,7 +756,7 @@
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyWin64Exceptions)"/>
 			</Do>
 			<Do If="'$(WithWin32)' == true">
-				<Tag Files="#UE4Game Win32" Except="#UE4Game Win32 Unstripped;#UE4Game Win32 Unsigned" With="#Installed Win64"/>
+				<Tag Files="#UE4Game Win32" Except="#UE4Game Win32 Unstripped;#UE4Game Win32 Unsigned;#Build Tools Win32" With="#Installed Win64"/>
 				<Tag Files="#UE4Game Win32 Stripped;#UE4Game Win32 Signed" With="#Saved Output"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyWin32Filter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyWin32Exceptions)"/>
@@ -829,10 +831,12 @@
 
 			<!-- Tag Win64 files that need to be stripped -->
 			<Tag Files="#Compile UnrealHeaderTool Win64;#Build Tools Win64" Filter="$(Win64StripFilter)" Except="$(Win64StripExceptions);$(CopyInstalledExceptions)" With="#Strip Tools for Installed Win64"/>
+			<Tag Files="#Build Tools Win32" Filter="$(Win32StripFilter)" Except="$(CopyInstalledExceptions)" With="#Strip Tools for Installed Win64" If="$(WithWin32)"/>
 
 			<Do If="'$(SignExecutables)' == true">
 				<!-- Tag files that need to be signed -->
 				<Tag Files="#Compile UnrealHeaderTool Win64;#Build Tools Win64" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64"/>
+				<Tag Files="#Build Tools Win32" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64" If="$(WithWin32)"/>
 			</Do>
 
 			<!-- Tag files that need to be copied directly -->

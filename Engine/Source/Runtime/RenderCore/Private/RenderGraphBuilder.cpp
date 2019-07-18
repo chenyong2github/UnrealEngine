@@ -934,8 +934,6 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 		}
 
 		*Query.OutTexturePtr = AllocatedTextures.FindChecked(Query.Texture);
-		
-		// No need to manually release in immediate mode, since it is done directly when emptying AllocatedTextures in DestructPasses().
 		if (!GRDGImmediateMode)
 		{
 			ReleaseRHITextureIfUnreferenced(Query.Texture);

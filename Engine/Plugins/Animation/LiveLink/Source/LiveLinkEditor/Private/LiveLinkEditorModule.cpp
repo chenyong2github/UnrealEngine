@@ -45,13 +45,18 @@ DEFINE_LOG_CATEGORY(LogLiveLinkEditor);
 static const FName LiveLinkClientTabName(TEXT("LiveLink"));
 static const FName LevelEditorModuleName(TEXT("LevelEditor"));
 
-#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( InPluginContent( RelativePath, ".png" ), __VA_ARGS__ )
 
-FString InPluginContent(const FString& RelativePath, const ANSICHAR* Extension)
+namespace LiveLinkEditorModuleUtils
 {
-	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
-	return (ContentDir / RelativePath) + Extension;
+	FString InPluginContent(const FString& RelativePath, const ANSICHAR* Extension)
+	{
+		static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
+		return (ContentDir / RelativePath) + Extension;
+	}
 }
+
+#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( LiveLinkEditorModuleUtils::InPluginContent( RelativePath, ".png" ), __VA_ARGS__ )
+
 
 class FLiveLinkEditorModule : public IModuleInterface
 {

@@ -14,14 +14,14 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 #include "ContentStreaming.h"
 #include "Async/AsyncWork.h"
 #include "Async/AsyncFileHandle.h"
-
+#include "Templates/Atomic.h"
 class UAnimStreamable;
 struct FAnimationStreamingManager;
 
 // 
 struct FLoadedAnimationChunk
 {
-	FCompressedAnimSequence* CompressedAnimData;
+	TAtomic<FCompressedAnimSequence*> CompressedAnimData;
 
 	class IAsyncReadRequest* IORequest;
 	double RequestStart;
@@ -32,6 +32,7 @@ struct FLoadedAnimationChunk
 	FLoadedAnimationChunk()
 		: CompressedAnimData(nullptr)
 		, IORequest(nullptr)
+		, RequestStart(-1.0)
 		, Index(0)
 		, bOwnsCompressedData(false)
 	{
@@ -39,7 +40,7 @@ struct FLoadedAnimationChunk
 
 	~FLoadedAnimationChunk()
 	{
-		checkf(CompressedAnimData == nullptr, TEXT("Animation chunk compressed data ptr not null (%p), DataSize: %d"));
+		checkf(CompressedAnimData == nullptr, TEXT("Animation chunk compressed data ptr not null (%p), Index: %u"), CompressedAnimData.Load(), Index);
 	}
 
 	void CleanUpIORequest();
@@ -72,14 +73,6 @@ struct FStreamingAnimationData final
 	bool UpdateStreamingStatus();
 
 	/**
-	 * Tells the SoundWave which chunks are currently required so that it can start loading any needed
-	 *
-	 * @param InChunkIndices The Chunk Indices that are currently needed by all sources using this sound
-	 * @param bShouldPrioritizeAsyncIORequest Whether request should have higher priority than usual
-	 */
-	//void UpdateChunkRequests(FWaveRequest& InWaveRequest);
-
-		/**
 	 * Checks whether the requested chunk indices differ from those loaded
 	 *
 	 * @param IndicesToLoad		List of chunk indices that should be loaded
@@ -101,14 +94,8 @@ struct FStreamingAnimationData final
 	*/
 	bool BlockTillAllRequestsFinished(float TimeLimit = 0.0f);
 
-#if WITH_EDITORONLY_DATA
-	/**
-	 * Finishes any Derived Data Cache requests that may be in progress
-	 *
-	 * @return Whether any of the requests failed.
-	 */
-	bool FinishDDCRequests();
-#endif //WITH_EDITORONLY_DATA
+	// Return the number of bytes used
+	SIZE_T GetMemorySize() const;
 
 private:
 	// Don't allow copy construction as it could free shared memory
@@ -127,6 +114,8 @@ public:
 	/* Contains pointers to Chunks of audio data that have been streamed in */
 	TArray<FLoadedAnimationChunk> LoadedChunks;
 
+	mutable FCriticalSection LoadedChunksCritcalSection;
+
 	class IAsyncReadFileHandle* IORequestHandle;
 
 	/** Indices of chunks that are currently loaded */
@@ -134,36 +123,11 @@ public:
 
 	TArray<uint32> RequestedChunks;
 
-	/** Indices of chunks we want to have loaded */
-	//FWaveRequest	CurrentRequest;
-
-#if WITH_EDITORONLY_DATA
-	/** Pending async derived data streaming tasks */
-	//TIndirectArray<FAsyncStreamDerivedChunkTask> PendingAsyncStreamDerivedChunkTasks;
-#endif // #if WITH_EDITORONLY_DATA
+	TArray<uint32> LoadFailedChunks;
 
 	/** Ptr to owning audio streaming manager. */
 	FAnimationStreamingManager* AnimationStreamingManager;
 };
-
-/** Struct used to store results of an async file load. */
-/*struct FASyncAnimationChunkLoadResult
-{
-	// Place to safely copy the ptr of a loaded audio chunk when load result is finished
-	uint8* DataResults;
-
-	// Actual storage of the loaded audio chunk, will be filled on audio thread.
-	FStreamingAnimationData* StreamingAnimData;
-
-	// Loaded audio chunk index
-	int32 LoadedChunkIndex;
-
-	FASyncAnimationChunkLoadResult()
-		: DataResults(nullptr)
-		, StreamingAnimData(nullptr)
-		, LoadedChunkIndex(INDEX_NONE)
-	{}
-};*/
 
 
 /**
@@ -190,19 +154,12 @@ struct FAnimationStreamingManager : public IAnimationStreamingManager
 	// IAudioStreamingManager interface
 	virtual void AddStreamingAnim(UAnimStreamable* Anim) override;
 	virtual bool RemoveStreamingAnim(UAnimStreamable* Anim) override;
-	/*void AddDecoder(ICompressedAudioInfo* CompressedAudioInfo);
-	void RemoveDecoder(ICompressedAudioInfo* CompressedAudioInfo);
-	bool IsManagedStreamingSoundWave(const USoundWave* SoundWave) const;
-	bool IsStreamingInProgress(const USoundWave* SoundWave);
-	bool CanCreateSoundSource(const FWaveInstance* WaveInstance) const;
-	void AddStreamingSoundSource(FSoundSource* SoundSource);
-	void RemoveStreamingSoundSource(FSoundSource* SoundSource);
-	bool IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const;*/
-	virtual const FCompressedAnimSequence* GetLoadedChunk(const UAnimStreamable* Anim, uint32 ChunkIndex) const override;
+	virtual SIZE_T GetMemorySizeForAnim(const UAnimStreamable* Anim) override;
+	virtual const FCompressedAnimSequence* GetLoadedChunk(const UAnimStreamable* Anim, uint32 ChunkIndex, bool bTrackAsRequested) const override;
 	// End IAudioStreamingManager interface
 
 	/** Called when an async callback is made on an async loading audio chunk request. */
-	void OnAsyncFileCallback(FStreamingAnimationData* StreamingAnimData, int32 ChunkIndex, int64 ReadSize, IAsyncReadRequest* ReadRequest);
+	void OnAsyncFileCallback(FStreamingAnimationData* StreamingAnimData, int32 ChunkIndex, int64 ReadSize, IAsyncReadRequest* ReadRequest, bool bWasCancelled);
 
 protected:
 

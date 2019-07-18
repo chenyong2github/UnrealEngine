@@ -168,7 +168,7 @@ void FEditorModeTools::UpdateModeWidgetLocation()
 	USelection* SelectedActors = GetSelectedActors();
 	if (SelectedActors)
 	{
-		AActor* Actor = Cast<AActor>(SelectedActors->GetBottom(AActor::StaticClass()));
+		AActor* Actor = CastChecked<AActor>(SelectedActors->GetBottom(AActor::StaticClass()));
 		if (Actor)
 		{
 			FVector CurrentActorLocation = Actor->GetActorLocation();

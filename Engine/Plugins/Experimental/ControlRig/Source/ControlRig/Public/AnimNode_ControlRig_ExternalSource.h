@@ -18,7 +18,14 @@ struct CONTROLRIG_API FAnimNode_ControlRig_ExternalSource : public FAnimNode_Con
 	void SetControlRig(UControlRig* InControlRig);
 	virtual UControlRig* GetControlRig() const;
 
+	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+
+	UPROPERTY(EditAnywhere, Category = Links)
+	FPoseLink Source;
 
 private:
 	UPROPERTY(transient)

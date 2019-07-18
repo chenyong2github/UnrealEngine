@@ -29,27 +29,27 @@
 
 
 // Custom VSync interval control
-static int CVarVSyncInterval_Value = 1;
-static FAutoConsoleVariableRef  CVarVSyncInterval(
+static TAutoConsoleVariable<int32>  CVarVSyncInterval(
 	TEXT("nDisplay.render.VSyncInterval"),
-	CVarVSyncInterval_Value,
-	TEXT("VSync interval")
+	1,
+	TEXT("VSync interval"),
+	ECVF_RenderThreadSafe
 );
 
 // Enable/disable warp&blend
-static int CVarWarpBlendEnabled_Value = 1;
-static FAutoConsoleVariableRef CVarWarpBlendEnabled(
+static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
 	TEXT("nDisplay.render.WarpBlendEnabled"),
-	CVarWarpBlendEnabled_Value,
-	TEXT("Warp & Blend (0 = disabled)\n")
+	1,
+	TEXT("Warp & Blend status (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
 );
 
 // Enable/disable nDisplay post-process
-static int CVarCustomPPEnabled_Value = 1;
-static FAutoConsoleVariableRef CVarPPEnabled(
+static TAutoConsoleVariable<int32> CVarCustomPPEnabled(
 	TEXT("nDisplay.render.postprocess"),
-	CVarCustomPPEnabled_Value,
-	TEXT("Custom post-process (0 = disabled)\n")
+	1,
+	TEXT("Custom post-process (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
 );
 
 
@@ -351,8 +351,12 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 	// This one is to match interface function signatures only. The functions will provide the handlers with a proper data.
 	const FIntRect StubRect(0, 0, 0, 0);
 
+	// Get custom PP and warp&blend flags status
+	const bool bCustomPPEnabled = (CVarCustomPPEnabled.GetValueOnRenderThread() != 0);
+	const bool bWarpBlendEnabled = (CVarWarpBlendEnabled.GetValueOnRenderThread() != 0);
+
 	// Post-process before warp&blend
-	if (CVarCustomPPEnabled_Value != 0)
+	if (bCustomPPEnabled)
 	{
 		// PP round 1: post-process for each view region before warp&blend
 		PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture, StubRect);
@@ -363,7 +367,7 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 	}
 
 	// Perform warp&blend
-	if (CVarWarpBlendEnabled_Value != 0)
+	if (bWarpBlendEnabled)
 	{
 		// Iterate over viewports
 		for (int i = 0; i < RenderViewports.Num(); ++i)
@@ -373,14 +377,14 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 			{
 				for (uint32 j = 0; j < ViewsAmountPerViewport; ++j)
 				{
-					RenderViewports[i].GetProjectionPolicy()->ApplyWarpBlend_RenderThread(j, RHICmdList, SrcTexture, RenderViewports[i].GetArea());
+					RenderViewports[i].GetProjectionPolicy()->ApplyWarpBlend_RenderThread(j, RHICmdList, SrcTexture, RenderViewports[i].GetContext(j).RenderTargetRect);
 				}
 			}
 		}
 	}
 
 	// Post-process after warp&blend
-	if (CVarCustomPPEnabled_Value != 0)
+	if (bCustomPPEnabled)
 	{
 		// PP round 4: post-process for each view region after warp&blend
 		PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, SrcTexture, StubRect);
@@ -621,7 +625,8 @@ uint32 FDisplayClusterDeviceBase::DecodeViewIndex(const enum EStereoscopicPass S
 
 uint32 FDisplayClusterDeviceBase::GetSwapInt() const
 {
-	return (CVarVSyncInterval_Value < 0 ? 1 : (uint32)CVarVSyncInterval_Value);
+	const uint32 SyncInterval = static_cast<uint32>(CVarVSyncInterval.GetValueOnAnyThread());
+	return (SyncInterval);
 }
 
 void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId)
@@ -665,7 +670,7 @@ void FDisplayClusterDeviceBase::CopyTextureToBackBuffer_RenderThread(FRHICommand
 
 	const FIntPoint BBSize = BackBuffer->GetSizeXY();
 
-	// Copy final texture to the back buffer
+	// Copy final texture to the back buffer. This implementation is for simple cases. More complex devices override this method and provide custom copying.
 	FResolveParams copyParams;
 	copyParams.DestArrayIndex = 0;
 	copyParams.SourceArrayIndex = 0;

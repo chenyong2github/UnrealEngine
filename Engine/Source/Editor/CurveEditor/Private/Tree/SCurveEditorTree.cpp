@@ -124,13 +124,19 @@ void SCurveEditorTree::RefreshTree()
 	{
 		// Add any currently selected items' parents to the expanded items array.
 		// This ensures that items that were selected during a filter operation remain expanded and selected when finished
-		for (FCurveEditorTreeItemID SelectedItem : GetSelectedItems())
+		for (FCurveEditorTreeItemID SelectedItemID : GetSelectedItems())
 		{
-			FCurveEditorTreeItemID ItemToExpand = CurveEditorTree->GetItem(SelectedItem).GetParentID();
-			while (ItemToExpand != FCurveEditorTreeItemID::Invalid())
+			// Add the selected item's parent and any grandparents to the list
+			const FCurveEditorTreeItem* ParentItem = CurveEditorTree->FindItem(SelectedItemID);
+			if (ParentItem)
 			{
-				PreFilterExpandedItems.Add(ItemToExpand);
-				ItemToExpand = CurveEditorTree->GetItem(ItemToExpand).GetParentID();
+				ParentItem = CurveEditorTree->FindItem(ParentItem->GetParentID());
+			}
+
+			while (ParentItem)
+			{
+				PreFilterExpandedItems.Add(ParentItem->GetID());
+				ParentItem = CurveEditorTree->FindItem(ParentItem->GetParentID());
 			}
 		}
 

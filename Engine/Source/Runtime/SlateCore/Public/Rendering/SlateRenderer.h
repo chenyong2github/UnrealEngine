@@ -11,7 +11,6 @@
 class FRHITexture2D;
 class FSlateDrawBuffer;
 class FSlateUpdatableTexture;
-class ILayoutCache;
 class ISlateAtlasProvider;
 class ISlateStyle;
 class SWindow;
@@ -443,19 +442,6 @@ public:
 	virtual ISlateAtlasProvider* GetFontAtlasProvider();
 
 	/**
-	 * Converts and caches the elements list data as the final rendered vertex and index buffer data,
-	 * returning a handle to it to allow issuing future draw commands using it.
-	 */
-	virtual TSharedRef<FSlateRenderDataHandle, ESPMode::ThreadSafe> CacheElementRenderData(const ILayoutCache* Cacher, FSlateWindowElementList& ElementList);
-
-	/**
-	 * Releases the caching resources used on the render thread for the provided ILayoutCache.  This is
-	 * should be the kind of operation you perform when the ILayoutCache is being destroyed and will no longer
-	 * be needing to draw anything again.
-	 */
-	virtual void ReleaseCachingResourcesFor(const ILayoutCache* Cacher);
-
-	/**
 	 * Copies all slate windows out to a buffer at half resolution with debug information
 	 * like the mouse cursor and any keypresses.
 	 */
@@ -479,6 +465,9 @@ public:
 
 	/** Reset the internal Scene tracking.*/
 	virtual void ClearScenes() = 0;
+
+	virtual void DestroyCachedFastPathRenderingData(struct FSlateCachedFastPathRenderingData* VertexData);
+	virtual void DestroyCachedFastPathElementData(struct FSlateCachedElementData* ElementData);
 
 	virtual bool HasLostDevice() const { return false; }
 

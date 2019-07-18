@@ -231,7 +231,7 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 
 					TArray< pxr::UsdPrim > ParentPrims;
 
-					while ( ParentPrim != SpawnData.ActorPrim.Get() )
+					while ( ParentPrim && ParentPrim != SpawnData.ActorPrim.Get() )
 					{
 						ParentPrims.Add( ParentPrim );
 						ParentPrim = ParentPrim.GetParent();
@@ -251,7 +251,11 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 					UStaticMeshComponent* StaticMeshComponent = NewObject< UStaticMeshComponent >( SpawnedActor, ComponentName );
 					StaticMeshComponent->SetStaticMesh( ImportedStaticMesh );
 
-					LocalTransform = USDToUnreal::ConvertMatrix( *ImportContext.Stage, IUsdPrim::GetLocalTransform( UsdAssetPrimToImport.Prim.Get() ) ) * LocalTransform;
+					// Don't add the prim transform if its the same prim used for the actor as it's already accounted for in the ActorTransform
+					if ( UsdAssetPrimToImport.Prim.Get() != SpawnData.ActorPrim.Get() )
+					{
+						LocalTransform = USDToUnreal::ConvertMatrix( *ImportContext.Stage, IUsdPrim::GetLocalTransform( UsdAssetPrimToImport.Prim.Get() ) ) * LocalTransform;
+					}
 
 					StaticMeshComponent->SetRelativeTransform( LocalTransform );
 

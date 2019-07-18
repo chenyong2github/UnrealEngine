@@ -851,16 +851,20 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 		EPixelFormat PixelFormat = PF_Unknown;
 		EMediaTextureSampleFormat MediaTextureSampleFormat = EMediaTextureSampleFormat::Undefined;
 
-
 		if (Guid == MFVideoFormat_NV12)
 		{
 			PixelFormat = PF_NV12;
 			MediaTextureSampleFormat = EMediaTextureSampleFormat::CharNV12;
 		}
-		else // if (Guid == MFVideoFormat_ARGB32)
+		else if (Guid == MFVideoFormat_ARGB32)
 		{
 			PixelFormat = PF_B8G8R8A8;
 			MediaTextureSampleFormat = EMediaTextureSampleFormat::CharBGRA;
+		}
+		else // if (Guid == MFVideoFormat_Y416)
+		{
+			PixelFormat = PF_A16B16G16R16;
+			MediaTextureSampleFormat = EMediaTextureSampleFormat::Y416;
 		}
 
 		ID3D11Texture2D* SharedTexture = TextureSample->InitializeSourceTexture(

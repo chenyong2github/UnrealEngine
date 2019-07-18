@@ -1073,6 +1073,7 @@ public:
 
 	FORCEINLINE FUObjectCluster& operator[](int32 Index)
 	{
+		checkf(Index >= 0 && Index < Clusters.Num(), TEXT("Cluster index %d out of range [0, %d]"), Index, Clusters.Num());
 		return Clusters[Index];
 	}
 

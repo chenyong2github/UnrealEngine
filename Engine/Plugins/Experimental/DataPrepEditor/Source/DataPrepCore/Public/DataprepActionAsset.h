@@ -84,27 +84,27 @@ public:
 	 * @param Index the index of the desired step
 	 * @return A pointer to the step if it exist, otherwise nullptr
 	 */
-	inline TWeakObjectPtr<UDataprepActionStep> GetStep(int32 Index);
+	TWeakObjectPtr<UDataprepActionStep> GetStep(int32 Index);
 
 	/**
 	 * Access to a step of the action
 	 * @param Index the index of the desired step
 	 * @return A const pointer to the operation if it exist, otherwise nullptr
 	 */
-	inline const TWeakObjectPtr<UDataprepActionStep> GetStep(int32 Index) const;
+	const TWeakObjectPtr<UDataprepActionStep> GetStep(int32 Index) const;
 
 	/**
 	 * Get the number of steps of this action 
 	 * @return The number of steps
 	 */
-	inline int32 GetStepsCount() const;
+	int32 GetStepsCount() const;
 
 	/**
 	 * Get enabled status of an operation
 	 * @param Index The index of the operation
 	 * @return True if the operation is enabled. Always return false if the operation index is invalid
 	 */
-	inline bool IsStepEnabled(int32 Index) const;
+	bool IsStepEnabled(int32 Index) const;
 
 	/**
 	 * Allow to set the enabled state of a step

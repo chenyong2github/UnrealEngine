@@ -1581,18 +1581,6 @@ void UAnimCompress::CoalesceCompressedSegments(UAnimSequence& AnimSeq, const TAr
 
 #if WITH_EDITOR
 
-FString UAnimCompress::MakeDDCKey()
-{
-	FArcToHexString ArcToHexString;
-
-	// Serialize the compression settings into a temporary array. The archive
-	// is flagged as persistent so that machines of different endianness produce
-	// identical binary results.
-	PopulateDDCKey(ArcToHexString.Ar);
-
-	return ArcToHexString.MakeString();
-}
-
 void UAnimCompress::PopulateDDCKey(FArchive& Ar)
 {
 	uint8 TCF, RCF, SCF;

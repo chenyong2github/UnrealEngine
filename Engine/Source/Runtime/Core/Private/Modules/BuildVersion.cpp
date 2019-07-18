@@ -151,6 +151,13 @@ bool FBuildVersion::TryRead(const FString& FileName, FBuildVersion& OutVersion)
 				return false;
 			}
 		}
+		else if (Field == TEXT("BuildVersion"))
+		{
+			if (!FSimpleParse::ParseString(Ptr, OutVersion.BuildVersion))
+			{
+				return false;
+			}
+		}
 		else
 		{
 			return false;

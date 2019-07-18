@@ -59,13 +59,16 @@ UNiagaraScriptSourceBase::UNiagaraScriptSourceBase(const FObjectInitializer& Obj
 
 FNiagaraVMExecutableData::FNiagaraVMExecutableData() 
 	: NumUserPtrs(0)
+#if WITH_EDITORONLY_DATA
 	, LastOpCount(0)
+#endif
 	, LastCompileStatus(ENiagaraScriptCompileStatus::NCS_Unknown)
+#if WITH_EDITORONLY_DATA
 	, bReadsAttributeData(false)
 	, CompileTime(0.0f)
+#endif
 {
 }
-
 
 bool FNiagaraVMExecutableData::IsValid() const
 {
@@ -103,6 +106,7 @@ bool FNiagaraVMExecutableDataId::RequiresPersistentIDs() const
 	return AdditionalDefines.Contains("RequiresPersistentIDs");
 }
 
+#if WITH_EDITORONLY_DATA
 /**
 * Tests this set against another for equality, disregarding override settings.
 *
@@ -211,15 +215,16 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString) const
 		}
 	}	
 }
+#endif
 
 UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Usage(ENiagaraScriptUsage::Function)
 #if WITH_EDITORONLY_DATA
 	, UsageIndex_DEPRECATED(0)
-#endif
 	, ModuleUsageBitmask( (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScriptInterpolated) | (1 << (int32)ENiagaraScriptUsage::ParticleUpdateScript) | (1 << (int32)ENiagaraScriptUsage::ParticleEventScript) )
 	, NumericOutputTypeSelectionMode(ENiagaraNumericOutputTypeSelectionMode::Largest)
+#endif
 {
 #if WITH_EDITORONLY_DATA
 	ScriptResource.OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::OnCompilationComplete);
@@ -1452,6 +1457,7 @@ FNiagaraShaderScript* UNiagaraScript::AllocateResource()
 	return new FNiagaraShaderScript();
 }
 
+#if WITH_EDITORONLY_DATA
 TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContexts() const
 {
 	return GetSupportedUsageContextsForBitmask(ModuleUsageBitmask);
@@ -1470,6 +1476,7 @@ TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContextsForBitmask(
 	}
 	return Supported;
 }
+#endif
 
 bool UNiagaraScript::CanBeRunOnGpu()const
 {

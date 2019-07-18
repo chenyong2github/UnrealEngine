@@ -37,13 +37,6 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 	AllCategory = LOCTEXT("All Category", "All");
 	SelectorsCategory = FDataprepFilterMenuActionCollector::FilterCategory;
 	OperationsCategory = FDataprepOperationMenuActionCollector::OperationCategory;
-	AllCategoryPtr = MakeShared< FString >( AllCategory.ToString() );
-	SelectorsCategoryPtr = MakeShared< FString >( SelectorsCategory.ToString() );
-	OperationsCategoryPtr = MakeShared< FString >( OperationsCategory.ToString() );
-	SelectedCategoryPtr = AllCategoryPtr;
-	CategoryNames.Add( AllCategoryPtr );
-	CategoryNames.Add( SelectorsCategoryPtr );
-	CategoryNames.Add( OperationsCategoryPtr );
 
 	this->ChildSlot
 		[
@@ -52,30 +45,6 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 			.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
 			[
 				SNew(SVerticalBox)
-				
-				// UI for filtering by selector , operation or all
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text( LOCTEXT("Category", "Category: ") )
-					]
-					// Combo button to select a class
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					[
-							SNew(STextComboBox)
-							.OptionsSource( &CategoryNames )
-							.OnSelectionChanged( this, &SDataprepPalette::CategorySelectionChanged )
-							.InitiallySelectedItem( CategoryNames[0] )
-					]
-				]
-
 				// Content list
 				+ SVerticalBox::Slot()
 				[
@@ -115,29 +84,10 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 
 void SDataprepPalette::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
-	TUniquePtr<IDataprepMenuActionCollector> ActionCollector;
-
-	if ( SelectedCategoryPtr == AllCategoryPtr )
+	FDataprepAllMenuActionCollector ActionCollector;
+	for ( TSharedPtr< FDataprepSchemaAction > Action : ActionCollector.CollectActions() )
 	{
-		ActionCollector = MakeUnique< FDataprepAllMenuActionCollector >();
-		
-	}
-	else if ( SelectedCategoryPtr == SelectorsCategoryPtr )
-	{
-		ActionCollector = MakeUnique< FDataprepFilterMenuActionCollector >();
-		
-	}
-	else if	( SelectedCategoryPtr == OperationsCategoryPtr )
-	{
-		ActionCollector = MakeUnique< FDataprepOperationMenuActionCollector >();
-	}
-
-	if ( ActionCollector )
-	{
-		for ( TSharedPtr< FDataprepSchemaAction > Action : ActionCollector->CollectActions() )
-		{
-			OutAllActions.AddAction(StaticCastSharedPtr< FEdGraphSchemaAction >(Action));
-		}
+		OutAllActions.AddAction(StaticCastSharedPtr< FEdGraphSchemaAction >(Action));
 	}
 }
 
@@ -158,15 +108,6 @@ FReply SDataprepPalette::OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaA
 TSharedRef<SExpanderArrow> SDataprepPalette::OnCreateCustomRowExpander(const FCustomExpanderData& InCustomExpanderData) const
 {
 	return SNew(SExpanderArrow, InCustomExpanderData.TableRow);
-}
-
-void SDataprepPalette::CategorySelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo)
-{
-	if ( NewSelection )
-	{
-		SelectedCategoryPtr = NewSelection;
-		RefreshActionsList( true );
-	}
 }
 
 void SDataprepPalette::AddAssetFromAssetRegistry(const FAssetData& InAddedAssetData)

@@ -191,7 +191,7 @@ private:
 template< typename T >
 TUsdStore< T > MakeUsdStore( T&& UsdObject ) { return TUsdStore< T >( MoveTemp( UsdObject ) ); }
 
-#if !FORCE_ANSI_ALLOCATOR
+#if !FORCE_ANSI_ALLOCATOR && !IS_MONOLITHIC
 	#define REPLACEMENT_OPERATOR_NEW_AND_DELETE_USD \
 		OPERATOR_NEW_MSVC_PRAGMA void* operator new  ( size_t Size                        ) OPERATOR_NEW_THROW_SPEC      { return FUsdMemoryManager::Malloc( Size ); } \
 		OPERATOR_NEW_MSVC_PRAGMA void* operator new[]( size_t Size                        ) OPERATOR_NEW_THROW_SPEC      { return FUsdMemoryManager::Malloc( Size ); } \
@@ -209,7 +209,7 @@ TUsdStore< T > MakeUsdStore( T&& UsdObject ) { return TUsdStore< T >( MoveTemp( 
 	#define REPLACEMENT_OPERATOR_NEW_AND_DELETE_USD
 #endif
 
-#if !FORCE_ANSI_ALLOCATOR
+#if !FORCE_ANSI_ALLOCATOR && !IS_MONOLITHIC
 	#define IMPLEMENT_MODULE_USD( ModuleImplClass, ModuleName ) \
 		\
 		/**/ \

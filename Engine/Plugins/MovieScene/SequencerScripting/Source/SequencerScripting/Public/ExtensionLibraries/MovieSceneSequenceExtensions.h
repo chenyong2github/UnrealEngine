@@ -367,7 +367,7 @@ public:
 	 * @param Sequence	The sequence to retrieve folders from
 	 * @return The folders contained within the given sequence
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static TArray<UMovieSceneFolder*> GetRootFoldersInSequence(UMovieSceneSequence* Sequence);
 
 	/**
@@ -377,7 +377,7 @@ public:
 	 * @param NewFolderName		The name to give the added folder
 	 * @return The newly created folder
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static UMovieSceneFolder* AddRootFolderToSequence(UMovieSceneSequence* Sequence, FString NewFolderName);
 
 public:

@@ -406,7 +406,6 @@ void FSequencerNodeTree::MoveDisplayNodeToRoot(TSharedRef<FSequencerDisplayNode>
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildFolder(&FolderNode->GetFolder());
 			}
 			else
@@ -426,7 +425,6 @@ void FSequencerNodeTree::MoveDisplayNodeToRoot(TSharedRef<FSequencerDisplayNode>
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildMasterTrack(DraggedTrackNode->GetTrack());
 			}
 			break;
@@ -440,7 +438,6 @@ void FSequencerNodeTree::MoveDisplayNodeToRoot(TSharedRef<FSequencerDisplayNode>
 			{
 				checkf(ParentSeqNode->GetType() == ESequencerNode::Folder, TEXT("Can not remove from unsupported parent node."));
 				TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>(ParentSeqNode);
-				ParentFolder->GetFolder().Modify();
 				ParentFolder->GetFolder().RemoveChildObjectBinding(DraggedObjectBindingNode->GetObjectBinding());
 			}
 			break;
@@ -897,7 +894,10 @@ FCurveEditorTreeItemID FSequencerNodeTree::AddToCurveEditor(TSharedRef<FSequence
 {
 	if (FCurveEditorTreeItemID* Existing = CurveEditorTreeItemIDs.Find(DisplayNode))
 	{
-		return *Existing;
+		if (CurveEditor->GetTree()->FindItem(*Existing) != nullptr)
+		{
+			return *Existing;
+		}
 	}
 
 	TSharedPtr<FSequencerDisplayNode> Parent = DisplayNode->GetParent();
@@ -914,5 +914,9 @@ FCurveEditorTreeItemID FSequencerNodeTree::AddToCurveEditor(TSharedRef<FSequence
 FCurveEditorTreeItemID FSequencerNodeTree::FindCurveEditorTreeItem(TSharedRef<FSequencerDisplayNode> DisplayNode) const
 {
 	const FCurveEditorTreeItemID* FoundID = CurveEditorTreeItemIDs.Find(DisplayNode);
-	return FoundID ? *FoundID : FCurveEditorTreeItemID::Invalid();
+	if (FoundID && Sequencer.GetCurveEditor()->GetTree()->FindItem(*FoundID) != nullptr)
+	{
+		return *FoundID;
+	}
+	return FCurveEditorTreeItemID::Invalid();
 }

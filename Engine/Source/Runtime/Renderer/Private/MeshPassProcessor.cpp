@@ -482,35 +482,7 @@ public:
 
 FMeshDrawShaderBindings::~FMeshDrawShaderBindings()
 {
-#if VALIDATE_UNIFORM_BUFFER_LIFETIME
-	uint8* ShaderBindingDataPtr = GetData();
-
-	for (int32 ShaderBindingsIndex = 0; ShaderBindingsIndex < ShaderLayouts.Num(); ShaderBindingsIndex++)
-	{
-		FMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[ShaderBindingsIndex], ShaderBindingDataPtr);
-
-		FRHIUniformBuffer** RESTRICT UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
-		const int32 NumUniformBuffers = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
-
-		for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
-		{
-			FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
-
-			if (UniformBuffer)
-			{
-				UniformBuffer->NumMeshCommandReferencesForDebugging--;
-				check(UniformBuffer->NumMeshCommandReferencesForDebugging >= 0);
-			}
-		}
-
-		ShaderBindingDataPtr += ShaderLayouts[ShaderBindingsIndex].GetDataSizeBytes();
-	}
-#endif
-
-	if (Size > ARRAY_COUNT(InlineStorage))
-	{
-		delete[] HeapData;
-	}
+	Release();
 }
 
 void FMeshDrawShaderBindings::Initialize(FMeshProcessorShaders Shaders)
@@ -677,6 +649,8 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 
 void FMeshDrawShaderBindings::CopyFrom(const FMeshDrawShaderBindings& Other)
 {
+	Release();
+
 	ShaderLayouts = Other.ShaderLayouts;
 
 	Allocate(Other.Size);
@@ -704,6 +678,40 @@ void FMeshDrawShaderBindings::CopyFrom(const FMeshDrawShaderBindings& Other)
 		ShaderBindingDataPtr += ShaderLayouts[ShaderBindingsIndex].GetDataSizeBytes();
 	}
 #endif
+}
+
+void FMeshDrawShaderBindings::Release()
+{
+#if VALIDATE_UNIFORM_BUFFER_LIFETIME
+	uint8* ShaderBindingDataPtr = GetData();
+
+	for (int32 ShaderBindingsIndex = 0; ShaderBindingsIndex < ShaderLayouts.Num(); ShaderBindingsIndex++)
+	{
+		FMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[ShaderBindingsIndex], ShaderBindingDataPtr);
+		FRHIUniformBuffer** RESTRICT UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
+		const int32 NumUniformBuffers = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
+
+		for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
+		{
+			FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
+
+			if (UniformBuffer)
+			{
+				UniformBuffer->NumMeshCommandReferencesForDebugging--;
+				check(UniformBuffer->NumMeshCommandReferencesForDebugging >= 0);
+			}
+		}
+
+		ShaderBindingDataPtr += ShaderLayouts[ShaderBindingsIndex].GetDataSizeBytes();
+	}
+#endif
+
+	if (Size > ARRAY_COUNT(InlineStorage))
+	{
+		delete[] HeapData;
+	}
+	Size = 0;
+	HeapData = nullptr;
 }
 
 void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, const FMeshProcessorShaders& Shaders, FGraphicsMinimalPipelineStateInitializer& PipelineState)
@@ -1129,10 +1137,14 @@ ERasterizerCullMode FMeshPassProcessor::ComputeMeshCullMode(const FMeshBatch& Me
 	const FMeshDrawingPolicyOverrideSettings InOverrideSettings = ComputeMeshOverrideSettings(Mesh);
 	const bool bMaterialResourceIsTwoSided = InMaterialResource.IsTwoSided();
 	const bool bInTwoSidedOverride = !!(InOverrideSettings.MeshOverrideFlags & EDrawingPolicyOverrideFlags::TwoSided);
+	const bool bViewTwoSidedOverride = ViewIfDynamicMeshCommand ? ViewIfDynamicMeshCommand->bRenderSceneTwoSided : false;
+	const bool bViewReverseCullingOverride = ViewIfDynamicMeshCommand ? ViewIfDynamicMeshCommand->bReverseCulling : false;
 	const bool bInReverseCullModeOverride = !!(InOverrideSettings.MeshOverrideFlags & EDrawingPolicyOverrideFlags::ReverseCullMode);
+	const bool bReverseCullMode = bViewReverseCullingOverride ? !bInReverseCullModeOverride : bInReverseCullModeOverride;
 	const bool bIsTwoSided = (bMaterialResourceIsTwoSided || bInTwoSidedOverride);
-	const bool bMeshRenderTwoSided = bIsTwoSided || bInTwoSidedOverride;
-	return bMeshRenderTwoSided ? CM_None : (bInReverseCullModeOverride ? CM_CCW : CM_CW);
+	const bool bMeshRenderTwoSided = bIsTwoSided || bInTwoSidedOverride || bViewTwoSidedOverride;
+
+	return bMeshRenderTwoSided ? CM_None : (bReverseCullMode ? CM_CCW : CM_CW);
 }
 
 void FMeshPassProcessor::GetDrawCommandPrimitiveId(

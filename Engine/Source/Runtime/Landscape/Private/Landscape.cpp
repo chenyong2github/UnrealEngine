@@ -978,8 +978,8 @@ void ULandscapeComponent::PostLoad()
 	{
 		UWorld* World = GetWorld();
 
-		// If we're loading on a platform that doesn't require cooked data, but *only* supports OpenGL ES, generate or preload data from the DDC
-		if (!FPlatformProperties::RequiresCookedData() && ((GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1))))
+		// If we're loading on a platform that doesn't require cooked data, but defaults to a mobile feature level, generate or preload data from the DDC
+		if (!FPlatformProperties::RequiresCookedData() && ((GEngine->GetDefaultWorldFeatureLevel() <= ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1))))
 		{
 			CheckGenerateLandscapePlatformData(false, nullptr);
 		}

@@ -14,7 +14,7 @@ import java.util.Set;
 
 public final class NetworkChangedManager {
 
-	private static final Logger Log = new Logger("UE4-NetworkChangedManager");
+	private static final Logger Log = new Logger("UE4", "NetworkChangedManager");
 	private static final String SYSTEM = "NetworkManager";
 	private static final String COMPONENT = "ConnectivityManager";
 	private static final String ACTION_ERROR = "InstanceNotAvailable";
