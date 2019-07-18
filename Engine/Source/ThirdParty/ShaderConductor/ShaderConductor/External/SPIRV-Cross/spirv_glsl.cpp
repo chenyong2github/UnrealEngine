@@ -313,11 +313,11 @@ void CompilerGLSL::reset()
 	// Clear temporary usage tracking.
 	expression_usage_counts.clear();
 	forwarded_temporaries.clear();
-	
+
 	/* UE Change Begin: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
 	flushed_phi_variables.clear();
 	/* UE Change End: Ensure that we declare phi-variable copies even if the original declaration isn't deferred */
-
+	
 	reset_name_caches();
 
 	ir.for_each_typed_id<SPIRFunction>([&](uint32_t, SPIRFunction &func) {
@@ -3224,10 +3224,18 @@ string CompilerGLSL::constant_expression(const SPIRConstant &c)
 	{
 		// Handles Arrays and structures.
 		string res;
+		/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
+		bool bTrailingBracket = false;
 		if (backend.use_initializer_list && backend.use_typed_initializer_list && type.basetype == SPIRType::Struct &&
 		    type.array.empty())
 		{
 			res = type_to_glsl_constructor(type) + "{ ";
+		}
+		else if (backend.use_initializer_list && backend.use_typed_initializer_list &&
+				 !type.array.empty())
+		{
+			res = type_to_glsl(type) + "({ ";
+			bTrailingBracket = true;
 		}
 		else if (backend.use_initializer_list)
 		{
@@ -3251,6 +3259,10 @@ string CompilerGLSL::constant_expression(const SPIRConstant &c)
 		}
 
 		res += backend.use_initializer_list ? " }" : ")";
+		if (bTrailingBracket)
+			res += ")";
+		/* UE Change End: Allow Metal to use the array<T> template to make arrays a value type */
+		
 		return res;
 	}
 	else if (c.columns() == 1)
@@ -10713,9 +10725,9 @@ void CompilerGLSL::flush_phi(uint32_t from, uint32_t to)
 						var.allocate_temporary_copy = true;
 						force_recompile();
 					}
-						statement("_", phi.function_variable, "_copy", " = ", to_name(phi.function_variable), ";");
-						temporary_phi_variables.insert(phi.function_variable);
-					}
+					statement("_", phi.function_variable, "_copy", " = ", to_name(phi.function_variable), ";");
+					temporary_phi_variables.insert(phi.function_variable);
+				}
 
 				// This might be called in continue block, so make sure we
 				// use this to emit ESSL 1.0 compliant increments/decrements.

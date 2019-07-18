@@ -209,7 +209,7 @@ public:
 		bool ios_support_base_vertex_instance = false;
 		/* UE Change End: Provide the Metal bindings as part of the options structure as that is more convenient. */
 		/* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
-		bool ios_use_framebuffer_fetch_subpasses = false;
+		bool ios_use_framebuffer_fetch_subpasses = true;
 		/* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
 
 		/* UE Change Begin: Storage buffer robustness - clamps access to SSBOs to the size of the buffer */
