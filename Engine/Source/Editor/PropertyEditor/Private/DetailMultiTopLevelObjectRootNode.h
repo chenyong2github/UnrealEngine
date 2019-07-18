@@ -26,7 +26,17 @@ public:
 		SLATE_ARGUMENT( bool, ShowExpansionArrow )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<SWidget>& InCustomizedWidgetContents, const TSharedRef<STableViewBase>& InOwnerTableView );
+	/**
+	* Use this construct when the toggle functionality (with the SExpanderArrow) is not desired.
+	* GenerateStandaloneWidget(Row) must be called before this function.
+	*/
+	void Construct( const FArguments& InArgs, const TSharedRef<FDetailTreeNode>& InOwnerTreeNode, const TSharedRef<SWidget>& InCustomizedWidgetContents, const TSharedRef<STableViewBase>& InOwnerTableView );
+	/**
+	* Use this construct together with ChildSlotConstruct when the toggle functionality (with the SExpanderArrow) is desired.
+	* GenerateStandaloneWidget(Row, DetailMultiTopLevelObjectTableRow) and ChildSlotConstruct(Row.NameWidget.Widget, OwnerTable) must be called after this function.
+	*/
+	void Construct( const FArguments& InArgs, const TSharedRef<FDetailTreeNode>& InOwnerTreeNode );
+	void ChildSlotConstruct(const TSharedRef<SWidget>& InCustomizedWidgetContents, const TSharedRef<STableViewBase>& InOwnerTableView);
 private:
 	const FSlateBrush* GetBackgroundImage() const;
 private:
@@ -48,7 +58,14 @@ private:
 	virtual bool ShouldBeExpanded() const override { return true; }
 	virtual ENodeVisibility GetVisibility() const override;
 	virtual TSharedRef< ITableRow > GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem) override;
+	/**
+	* Use this version of GenerateStandaloneWidget when the toggle functionality (with the SExpanderArrow) is not used.
+	*/
 	virtual bool GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const override;
+	/**
+	* Use this version of GenerateStandaloneWidget when the toggle functionality (with the SExpanderArrow) is being used.
+	*/
+	virtual bool GenerateStandaloneWidget(FDetailWidgetRow& OutRow, const TSharedRef<ITableRow>& InTableRow) const;
 	virtual void GetChildren(FDetailNodeList& OutChildren )  override;
 	virtual void FilterNode( const FDetailFilter& InFilter ) override;
 	virtual void Tick( float DeltaTime ) override {}

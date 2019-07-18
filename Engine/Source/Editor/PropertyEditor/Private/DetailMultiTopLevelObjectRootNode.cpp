@@ -4,29 +4,28 @@
 #include "IDetailRootObjectCustomization.h"
 #include "DetailWidgetRow.h"
 
-void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<SWidget>& InCustomizedWidgetContents, const TSharedRef<STableViewBase>& InOwnerTableView )
+void SDetailMultiTopLevelObjectTableRow::Construct(const FArguments& InArgs, const TSharedRef<FDetailTreeNode>& InOwnerTreeNode, const TSharedRef<SWidget>& InCustomizedWidgetContents, const TSharedRef<STableViewBase>& InOwnerTableView)
+{
+	Construct(InArgs, InOwnerTreeNode);
+	ChildSlotConstruct(InCustomizedWidgetContents, InOwnerTableView);
+	// Disable toggle functionality
+	bShowExpansionArrow = false;
+}
+
+void SDetailMultiTopLevelObjectTableRow::Construct(const FArguments& InArgs, const TSharedRef<FDetailTreeNode>& InOwnerTreeNode)
 {
 	OwnerTreeNode = InOwnerTreeNode;
 	bShowExpansionArrow = InArgs._ShowExpansionArrow;
+}
 
+void SDetailMultiTopLevelObjectTableRow::ChildSlotConstruct(const TSharedRef<SWidget>& InCustomizedWidgetContents, const TSharedRef<STableViewBase>& InOwnerTableView)
+{
 	ChildSlot
-	[	
+	[
 		SNew( SBox )
 		.Padding( FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ) )
 		[
-			SNew( SHorizontalBox )
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 2.0f, 2.0f, 2.0f)
-			.AutoWidth()
-			[
-				SNew( SExpanderArrow, SharedThis(this) )
-				.Visibility(bShowExpansionArrow ? EVisibility::Visible : EVisibility::Collapsed)
-			]
-			+SHorizontalBox::Slot()
-			[
-				InCustomizedWidgetContents
-			]
+			InCustomizedWidgetContents
 		]
 	];
 
@@ -36,6 +35,8 @@ void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TS
 			.ShowSelection(false),
 		InOwnerTableView
 	);
+	// Enable toggle functionality
+	bShowExpansionArrow = true;
 }
 
 
@@ -98,20 +99,15 @@ ENodeVisibility FDetailMultiTopLevelObjectRootNode::GetVisibility() const
 TSharedRef< ITableRow > FDetailMultiTopLevelObjectRootNode::GenerateWidgetForTableView(const TSharedRef<STableViewBase>& OwnerTable, const FDetailColumnSizeData& ColumnSizeData, bool bAllowFavoriteSystem)
 {
 	FDetailWidgetRow Row;
-	GenerateStandaloneWidget(Row);
-
-	return SNew(SDetailMultiTopLevelObjectTableRow, AsShared(), Row.NameWidget.Widget, OwnerTable);
+	TSharedRef<SDetailMultiTopLevelObjectTableRow> DetailMultiTopLevelObjectTableRow = SNew(SDetailMultiTopLevelObjectTableRow, AsShared());
+	GenerateStandaloneWidget(Row, DetailMultiTopLevelObjectTableRow);
+	DetailMultiTopLevelObjectTableRow->ChildSlotConstruct(Row.NameWidget.Widget, OwnerTable);
+	return DetailMultiTopLevelObjectTableRow;
 }
 
 
-bool FDetailMultiTopLevelObjectRootNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
+bool GenerateStandaloneWidgetInternal(FDetailWidgetRow& OutRow, TSharedPtr<SWidget>& HeaderWidget, const FName& NodeName)
 {
-	TSharedPtr<SWidget> HeaderWidget;
-	if (RootObjectCustomization.IsValid() && RootObject.IsValid())
-	{
-		HeaderWidget = RootObjectCustomization.Pin()->CustomizeObjectHeader(RootObject.Get());
-	}
-
 	if (!HeaderWidget.IsValid())
 	{
 		// no customization was supplied or was passed back from the interface as invalid
@@ -128,6 +124,29 @@ bool FDetailMultiTopLevelObjectRootNode::GenerateStandaloneWidget(FDetailWidgetR
 	];
 
 	return true;
+}
+
+bool FDetailMultiTopLevelObjectRootNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
+{
+	TSharedPtr<SWidget> HeaderWidget;
+	if (RootObjectCustomization.IsValid() && RootObject.IsValid())
+	{
+		HeaderWidget = RootObjectCustomization.Pin()->CustomizeObjectHeader(RootObject.Get());
+	}
+
+	return GenerateStandaloneWidgetInternal(OutRow, HeaderWidget, NodeName);
+}
+
+
+bool FDetailMultiTopLevelObjectRootNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow, const TSharedRef<ITableRow>& InTableRow) const
+{
+	TSharedPtr<SWidget> HeaderWidget;
+	if (RootObjectCustomization.IsValid() && RootObject.IsValid())
+	{
+		HeaderWidget = RootObjectCustomization.Pin()->CustomizeObjectHeader(RootObject.Get(), InTableRow);
+	}
+
+	return GenerateStandaloneWidgetInternal(OutRow, HeaderWidget, NodeName);
 }
 
 
