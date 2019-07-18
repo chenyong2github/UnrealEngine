@@ -285,7 +285,7 @@ void UNiagaraStackParameterStoreEntry::Delete()
 	//remove from store
 	Owner->Modify();
 	ParameterStore->RemoveParameter(FNiagaraVariable(InputType, ParameterName));
-	if (InputType.GetClass() != nullptr)
+	if (InputType.IsDataInterface())
 	{
 		UNiagaraDataInterface* DataInterface = NewObject<UNiagaraDataInterface>(this, const_cast<UClass*>(InputType.GetClass()));
 		if (DataInterface != nullptr)
