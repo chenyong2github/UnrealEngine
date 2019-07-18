@@ -317,9 +317,6 @@ else:
                     if self.wait(timeout=0.1) is None:
                         # ERROR_ACCESS_DENIED (winerror 5) is received when the
                         # process already died.
-                        print('NICKNICK: forking.py START OF CIS BUGHUNT DUMP')
-                        pprint(vars(e)) # TEMP CIS BUGHUNT
-                        print('NICKNICK: forking.py END OF CIS BUGHUNT DUMP')
                         if e.winerror != 5:
                             print('NICKNICK: forking.py e.winerror:', e.winerror)
                             raise
