@@ -129,7 +129,9 @@ public:
 		else
 		{
 			// RHI thread
-			return GDynamicRHI->RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly);
+			check(0); // TODO
+			return nullptr;
+			//return GDynamicRHI->RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly);
 		}
 	
 	}
@@ -142,7 +144,8 @@ public:
 		}
 		else
 		{
-			return GDynamicRHI->RHIUnlockVertexBuffer(VertexBufferRHI);
+			check(0); // TODO
+			//return GDynamicRHI->RHIUnlockVertexBuffer(VertexBufferRHI);
 		}
 	}
 

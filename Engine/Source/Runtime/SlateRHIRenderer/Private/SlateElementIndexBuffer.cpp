@@ -105,7 +105,9 @@ void* FSlateElementIndexBuffer::LockBuffer(int32 NumIndices, bool bInRenderThrea
 	}
 	else
 	{
-		return GDynamicRHI->RHILockIndexBuffer(IndexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly);
+		check(0); // TODO
+		return nullptr;
+		//return GDynamicRHI->RHILockIndexBuffer(IndexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly);
 	}
 }
 
@@ -117,7 +119,8 @@ void FSlateElementIndexBuffer::UnlockBuffer(bool bInRenderThread)
 	}
 	else
 	{
-		GDynamicRHI->RHIUnlockIndexBuffer(IndexBufferRHI);
+		check(0); // TODO
+		//GDynamicRHI->RHIUnlockIndexBuffer(IndexBufferRHI);
 	}
 }
 
