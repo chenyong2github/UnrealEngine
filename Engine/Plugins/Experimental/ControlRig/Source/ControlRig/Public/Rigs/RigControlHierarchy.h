@@ -8,6 +8,18 @@
 
 class UControlRig;
 
+UENUM(BlueprintType)
+enum class ERigControlType : uint8
+{
+	Bool,
+	Float,
+	Vector2D,
+	Vector,
+	Quat,
+	Rotator,
+	Transform
+};
+
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigControl
 {
@@ -16,12 +28,14 @@ struct CONTROLRIG_API FRigControl
 	FRigControl()
 		: Name(NAME_None)
 		, Index(INDEX_NONE)
+		, ControlType(ERigControlType::Transform)
 		, ParentName(NAME_None)
 		, ParentIndex(INDEX_NONE)
 		, SpaceName(NAME_None)
 		, SpaceIndex(INDEX_NONE)
 		, InitialTransform(FTransform::Identity)
 		, LocalTransform(FTransform::Identity)
+		, Color(FLinearColor::Black)
 		, Dependents()
 	{
 	}
@@ -31,6 +45,9 @@ struct CONTROLRIG_API FRigControl
 
 	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
 	int32 Index;
+
+	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
+	ERigControlType ControlType;
 
 	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
 	FName ParentName;
@@ -49,6 +66,9 @@ struct CONTROLRIG_API FRigControl
 
 	UPROPERTY(transient, VisibleAnywhere, Category = FRigControlHierarchy)
 	FTransform LocalTransform;
+
+	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
+	FLinearColor Color;
 
 	/** dependent list - direct dependent for child or anything that needs to update due to this */
 	UPROPERTY(transient)
@@ -80,13 +100,13 @@ struct CONTROLRIG_API FRigControlHierarchy
 
 	FName GetSafeNewName(const FName& InPotentialNewName) const;
 
-	FRigControl& Add(const FName& InNewName, const FName& InParentName, const FName& InSpaceName, const FTransform& InTransform);
+	FRigControl& Add(const FName& InNewName, ERigControlType InControlType = ERigControlType::Transform, const FName& InParentName = NAME_None, const FName& InSpaceName = NAME_None, const FTransform& InTransform = FTransform::Identity);
 
 	FRigControl Remove(const FName& InNameToRemove);
 
 	FName Rename(const FName& InOldName, const FName& InNewName);
 
-	void Reparent(const FName& InName, const FName& InNewParentName);
+	bool Reparent(const FName& InName, const FName& InNewParentName);
 
 	void SetSpace(const FName& InName, const FName& InNewSpaceName);
 
@@ -151,8 +171,8 @@ private:
 	// disable copy constructor
 	FRigControlHierarchy(const FRigControlHierarchy& InOther) {}
 
-#if WITH_EDITOR
 	FRigHierarchyContainer* Container;
+#if WITH_EDITOR
 	FRigElementAdded OnControlAdded;
 	FRigElementRemoved OnControlRemoved;
 	FRigElementRenamed OnControlRenamed;
@@ -165,6 +185,8 @@ private:
 	// can serialize fine? 
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
+
+	int32 GetSpaceIndex(const FName& InName) const;
 
 	int32 GetIndexSlow(const FName& InName) const;
 

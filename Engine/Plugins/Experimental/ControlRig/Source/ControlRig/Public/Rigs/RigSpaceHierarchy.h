@@ -17,8 +17,11 @@ enum class ERigSpaceType : uint8
 	/** Attached to a bone */
 	Bone,
 
-	/** MAX - invalid */
-	Max UMETA(Hidden),
+	/** Attached to a control */
+	Control,
+
+	/** Attached to a space*/
+	Space
 };
 
 USTRUCT(BlueprintType)
@@ -34,6 +37,7 @@ struct CONTROLRIG_API FRigSpace
 		, ParentIndex(INDEX_NONE)
 		, InitialTransform(FTransform::Identity)
 		, LocalTransform(FTransform::Identity)
+		, Color(FLinearColor::Black)
 	{
 	}
 
@@ -57,6 +61,9 @@ struct CONTROLRIG_API FRigSpace
 
 	UPROPERTY(transient, VisibleAnywhere, Category = FRigSpaceHierarchy)
 	FTransform LocalTransform;
+
+	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
+	FLinearColor Color;
 };
 
 USTRUCT()
@@ -84,13 +91,13 @@ struct CONTROLRIG_API FRigSpaceHierarchy
 
 	FName GetSafeNewName(const FName& InPotentialNewName) const;
 
-	FRigSpace& Add(const FName& InNewName, ERigSpaceType InSpaceType, const FName& InParentName, const FTransform& InTransform);
+	FRigSpace& Add(const FName& InNewName, ERigSpaceType InSpaceType = ERigSpaceType::Global, const FName& InParentName = NAME_None, const FTransform& InTransform = FTransform::Identity);
 
 	FRigSpace Remove(const FName& InNameToRemove);
 
 	FName Rename(const FName& InOldName, const FName& InNewName);
 
-	void Reparent(const FName& InName, const FName& InNewParentName);
+	bool Reparent(const FName& InName, ERigSpaceType InSpaceType, const FName& InNewParentName);
 
 	FName GetName(int32 InIndex) const;
 
@@ -148,12 +155,15 @@ private:
 	// disable copy constructor
 	FRigSpaceHierarchy(const FRigSpaceHierarchy& InOther) {}
 
-#if WITH_EDITOR
 	FRigHierarchyContainer* Container;
+#if WITH_EDITOR
 	FRigElementAdded OnSpaceAdded;
 	FRigElementRemoved OnSpaceRemoved;
 	FRigElementRenamed OnSpaceRenamed;
+	FRigElementReparented OnSpaceReparented;
 #endif
+
+	int32 GetParentIndex(ERigSpaceType InSpaceType, const FName& InName) const;
 
 	UPROPERTY(EditAnywhere, Category = FRigSpaceHierarchy)
 	TArray<FRigSpace> Spaces;

@@ -9,9 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 FRigControlHierarchy::FRigControlHierarchy()
-#if WITH_EDITOR
 	:Container(nullptr)
-#endif
 {
 }
 
@@ -51,67 +49,118 @@ FName FRigControlHierarchy::GetSafeNewName(const FName& InPotentialNewName) cons
 	return Name;
 }
 
-FRigControl& FRigControlHierarchy::Add(const FName& InNewName, const FName& InParentName, const FName& InSpaceName, const FTransform& InTransform)
+FRigControl& FRigControlHierarchy::Add(const FName& InNewName, ERigControlType InControlType, const FName& InParentName, const FName& InSpaceName, const FTransform& InTransform)
 {
-	int32 ParentIndex = GetIndex(InParentName);
-	bool bHasParent = (ParentIndex != INDEX_NONE);
-
 	FRigControl NewControl;
 	NewControl.Name = GetSafeNewName(InNewName);
-	NewControl.ParentIndex = ParentIndex;
-	NewControl.ParentName = bHasParent ? InParentName : NAME_None;;
+	NewControl.ControlType = InControlType;
+	NewControl.ParentIndex = GetIndex(InParentName);
+	NewControl.ParentName = NewControl.ParentIndex == INDEX_NONE ? NAME_None : InParentName;
 	NewControl.SpaceIndex = INDEX_NONE;
 	NewControl.SpaceName = NAME_None;
 	NewControl.InitialTransform = InTransform;
 	NewControl.LocalTransform = InTransform;
 
-	// todo: set control type, etc
-
+	FName NewControlName = NewControl.Name;
 	Controls.Add(NewControl);
 	RefreshMapping();
 
 #if WITH_EDITOR
-	OnControlAdded.Broadcast(Container, RigElementType(), NewControl.Name);
+	OnControlAdded.Broadcast(Container, RigElementType(), NewControlName);
 #endif
 
-	SetSpace(NewControl.Name, InSpaceName);
+	SetSpace(NewControlName, InSpaceName);
 
-	int32 Index = GetIndex(NewControl.Name);
+	int32 Index = GetIndex(NewControlName);
 	return Controls[Index];
 }
 
-void FRigControlHierarchy::Reparent(const FName& InName, const FName& InNewParentName)
+bool FRigControlHierarchy::Reparent(const FName& InName, const FName& InNewParentName)
 {
 	int32 Index = GetIndex(InName);
 	// can't parent to itself
 	if (Index != INDEX_NONE && InName != InNewParentName)
 	{
-		// should allow reparent to none (no parent)
-		// if invalid, we consider to be none
+		FRigControl& Control = Controls[Index];
+
+#if WITH_EDITOR
+		FName OldParentName = Control.ParentName;
+#endif
+
+		struct Local
+		{
+			static bool IsParentedTo(int32 Child, int32 Parent, const TArray<FRigControl>& Controls)
+			{
+				if (Parent == INDEX_NONE || Child == INDEX_NONE)
+				{
+					return false;
+				}
+
+				if (Child == Parent)
+				{
+					return true;
+				}
+
+				if (Controls[Child].ParentIndex == Parent)
+				{
+					return true;
+				}
+
+				return IsParentedTo(Controls[Child].ParentIndex, Parent, Controls);
+			}
+		};
+
 		int32 ParentIndex = GetIndex(InNewParentName);
-		bool bHasParent = (ParentIndex != INDEX_NONE);
-		FRigControl& CurControl = Controls[Index];
-		FName OldParentName = CurControl.ParentName;
-		CurControl.ParentName = (bHasParent)? InNewParentName : NAME_None;
-		CurControl.ParentIndex = ParentIndex;
+		if (Local::IsParentedTo(ParentIndex, Index, Controls))
+		{
+			ParentIndex = INDEX_NONE;
+		}
 
-		// todo: we need to update the space if this had been parented by space as well before
+		Control.ParentIndex = ParentIndex;
+		Control.ParentName = Control.ParentIndex == INDEX_NONE ? NAME_None : InNewParentName;
 
-		// we want to make sure parent is before the child
+#if WITH_EDITOR
+		FName NewParentName = Control.ParentName;
+#endif
+
 		RefreshMapping();
 
 #if WITH_EDITOR
-		if (OldParentName != InNewParentName)
+		if (OldParentName != NewParentName)
 		{
-			OnControlReparented.Broadcast(Container, RigElementType(), InName, OldParentName, InNewParentName);
+			OnControlReparented.Broadcast(Container, RigElementType(), InName, OldParentName, NewParentName);
 		}
 #endif
+		return Controls[GetIndex(InName)].ParentName == InNewParentName;
 	}
+	return false;
 }
 
 void FRigControlHierarchy::SetSpace(const FName& InName, const FName& InNewSpaceName)
 {
-	// todo find the space, set the space index...
+	int32 Index = GetIndex(InName);
+	if (Index != INDEX_NONE)
+	{
+		int32 SpaceIndex = GetSpaceIndex(InNewSpaceName);
+
+		if (SpaceIndex != INDEX_NONE)
+		{
+			if (Container != nullptr)
+			{
+				if (Container->IsParentedTo(ERigElementType::Space, SpaceIndex, ERigElementType::Control, Index))
+				{
+					SpaceIndex = INDEX_NONE;
+				}
+			}
+		}
+
+		Controls[Index].SpaceIndex = SpaceIndex;
+		Controls[Index].SpaceName = Controls[Index].SpaceIndex == INDEX_NONE ? NAME_None : InNewSpaceName;
+
+#if WITH_EDITOR
+		OnControlReparented.Broadcast(Container, RigElementType(), InName, Controls[Index].ParentName, Controls[Index].ParentName);
+#endif
+	}
 }
 
 FRigControl FRigControlHierarchy::Remove(const FName& InNameToRemove)
@@ -200,12 +249,25 @@ void FRigControlHierarchy::SetGlobalTransform(const FName& InName, const FTransf
 
 void FRigControlHierarchy::SetGlobalTransform(int32 InIndex, const FTransform& InTransform)
 {
+	if (Container == nullptr)
+	{
+		SetLocalTransform(InIndex, InTransform);
+		return;
+	}
+
 	if (Controls.IsValidIndex(InIndex))
 	{
-		FRigControl& Control = Controls[InIndex];
-		// todo: get the space's transform + inverse
-		//Control.GlobalTransform = InTransform;
-		//Control.GlobalTransform.NormalizeRotation();
+		const FRigControl& Control = Controls[InIndex];
+		if (Control.SpaceIndex == INDEX_NONE)
+		{
+			SetLocalTransform(InIndex, InTransform);
+			return;
+		}
+		else
+		{
+			FTransform ParentTransform = Container->GetGlobalTransform(ERigElementType::Space, Control.SpaceIndex);
+			SetLocalTransform(InIndex, InTransform.GetRelativeTransform(ParentTransform));
+		}
 	}
 }
 
@@ -216,11 +278,23 @@ FTransform FRigControlHierarchy::GetGlobalTransform(const FName& InName) const
 
 FTransform FRigControlHierarchy::GetGlobalTransform(int32 InIndex) const
 {
+	if (Container == nullptr)
+	{
+		return GetLocalTransform(InIndex);
+	}
+
 	if (Controls.IsValidIndex(InIndex))
 	{
-		// todo: get the space's transform and compute
-		//return Controls[InIndex].GlobalTransform;
-		return FTransform::Identity;
+		const FRigControl& Control = Controls[InIndex];
+		if (Control.SpaceIndex == INDEX_NONE)
+		{
+			return Control.LocalTransform;
+		}
+		else
+		{
+			FTransform ParentTransform = Container->GetGlobalTransform(ERigElementType::Space, Control.SpaceIndex);
+			return Control.LocalTransform * ParentTransform;
+		}
 	}
 
 	return FTransform::Identity;
@@ -458,4 +532,13 @@ int32 FRigControlHierarchy::GetChildrenRecursive(const int32 InIndex, TArray<int
 	}
 
 	return OutChildren.Num();
+}
+
+int32 FRigControlHierarchy::GetSpaceIndex(const FName& InName) const
+{
+	if (Container == nullptr || InName == NAME_None)
+	{
+		return INDEX_NONE;
+	}
+	return Container->GetIndex(ERigElementType::Space, InName);
 }

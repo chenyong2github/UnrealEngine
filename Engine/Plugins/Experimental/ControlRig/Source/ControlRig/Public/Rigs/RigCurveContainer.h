@@ -99,8 +99,8 @@ public:
 	// resets all of the transforms back to the initial transform
 	void ResetValues();
 
-#if WITH_EDITOR
 	FRigHierarchyContainer* Container;
+#if WITH_EDITOR
 	FRigElementAdded OnCurveAdded;
 	FRigElementRemoved OnCurveRemoved;
 	FRigElementRenamed OnCurveRenamed;

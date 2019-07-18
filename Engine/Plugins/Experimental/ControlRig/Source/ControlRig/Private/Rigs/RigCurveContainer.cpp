@@ -9,9 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 FRigCurveContainer::FRigCurveContainer()
-#if WITH_EDITOR
 	:Container(nullptr)
-#endif
 {
 }
 
@@ -58,14 +56,15 @@ FRigCurve& FRigCurveContainer::Add(const FName& InNewName)
 	FRigCurve NewCurve;
 	NewCurve.Name = GetSafeNewName(InNewName);
 	NewCurve.Value = 0.f;
+	FName NewCurveName = NewCurve.Name;
 	Curves.Add(NewCurve);
 	RefreshMapping();
 
 #if WITH_EDITOR
-	OnCurveAdded.Broadcast(Container, RigElementType(), NewCurve.Name);
+	OnCurveAdded.Broadcast(Container, RigElementType(), NewCurveName);
 #endif
 
-	int32 Index = GetIndex(NewCurve.Name);
+	int32 Index = GetIndex(NewCurveName);
 	return Curves[Index];
 }
 

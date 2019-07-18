@@ -9,9 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 FRigBoneHierarchy::FRigBoneHierarchy()
-#if WITH_EDITOR
 	:Container(nullptr)
-#endif
 {
 }
 
@@ -53,25 +51,23 @@ FName FRigBoneHierarchy::GetSafeNewName(const FName& InPotentialNewName) const
 
 FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform)
 {
-	int32 ParentIndex = GetIndex(InParentName);
-	bool bHasParent = (ParentIndex != INDEX_NONE);
-
 	FRigBone NewBone;
 	NewBone.Name = GetSafeNewName(InNewName);
-	NewBone.ParentIndex = ParentIndex;
-	NewBone.ParentName = bHasParent? InParentName : NAME_None;
+	NewBone.ParentIndex = GetIndex(InParentName);
+	NewBone.ParentName = NewBone.ParentIndex == INDEX_NONE ? NAME_None : InParentName;
 	NewBone.InitialTransform = InInitTransform;
 	NewBone.GlobalTransform = InInitTransform;
 	RecalculateLocalTransform(NewBone);
 
+	FName NewBoneName = NewBone.Name;
 	Bones.Add(NewBone);
 	RefreshMapping();
 
 #if WITH_EDITOR
-	OnBoneAdded.Broadcast(Container, RigElementType(), NewBone.Name);
+	OnBoneAdded.Broadcast(Container, RigElementType(), NewBoneName);
 #endif
 
-	int32 Index = GetIndex(NewBone.Name);
+	int32 Index = GetIndex(NewBoneName);
 	return Bones[Index];
 }
 
@@ -83,32 +79,48 @@ FRigBone& FRigBoneHierarchy::Add(const FName& InNewName, const FName& InParentNa
 	return Bone;
 }
 
-void FRigBoneHierarchy::Reparent(const FName& InName, const FName& InNewParentName)
+bool FRigBoneHierarchy::Reparent(const FName& InName, const FName& InNewParentName)
 {
 	int32 Index = GetIndex(InName);
-	// can't parent to itself
+
 	if (Index != INDEX_NONE && InName != InNewParentName)
 	{
-		// should allow reparent to none (no parent)
-		// if invalid, we consider to be none
+		FRigBone& Bone= Bones[Index];
+
+#if WITH_EDITOR
+		FName OldParentName = Bone.ParentName;
+#endif
+
 		int32 ParentIndex = GetIndex(InNewParentName);
-		bool bHasParent = (ParentIndex != INDEX_NONE);
-		FRigBone& CurBone = Bones[Index];
-		CurBone.ParentIndex = ParentIndex;
-		FName OldParentName = CurBone.ParentName;
-		CurBone.ParentName = (bHasParent)? InNewParentName : NAME_None;
-		RecalculateLocalTransform(CurBone);
+		if (Container != nullptr)
+		{
+			if (Container->IsParentedTo(ERigElementType::Bone, ParentIndex, ERigElementType::Bone, Index))
+			{
+				ParentIndex = INDEX_NONE;
+			}
+		}
+
+		Bone.ParentIndex = ParentIndex;
+		Bone.ParentName = Bone.ParentIndex == INDEX_NONE ? NAME_None : InNewParentName;
+		RecalculateLocalTransform(Bone);
+
+#if WITH_EDITOR
+		FName NewParentName = Bone.ParentName;
+#endif
 
 		// we want to make sure parent is before the child
 		RefreshMapping();
 
 #if WITH_EDITOR
-		if (OldParentName != InNewParentName)
+		if (OldParentName != NewParentName)
 		{
-			OnBoneReparented.Broadcast(Container, RigElementType(), InName, OldParentName, InNewParentName);
+			OnBoneReparented.Broadcast(Container, RigElementType(), InName, OldParentName, NewParentName);
 		}
 #endif
+		return Bones[GetIndex(InName)].ParentName == InNewParentName;
 	}
+
+	return false;
 }
 
 FRigBone FRigBoneHierarchy::Remove(const FName& InNameToRemove)
@@ -488,3 +500,4 @@ void FRigBoneHierarchy::PropagateTransform(int32 InIndex)
 		PropagateTransform(Index);
 	}
 }
+

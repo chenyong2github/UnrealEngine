@@ -24,12 +24,12 @@ FRigHierarchyContainer& FRigHierarchyContainer::operator= (const FRigHierarchyCo
 
 void FRigHierarchyContainer::Initialize()
 {
-#if WITH_EDITOR
 	BoneHierarchy.Container = this;
 	SpaceHierarchy.Container = this;
 	ControlHierarchy.Container = this;
 	CurveContainer.Container = this;
 
+#if WITH_EDITOR
 	BoneHierarchy.OnBoneAdded.RemoveAll(this);
 	BoneHierarchy.OnBoneRemoved.RemoveAll(this);
 	BoneHierarchy.OnBoneRenamed.RemoveAll(this);
@@ -93,6 +93,193 @@ void FRigHierarchyContainer::ResetTransforms()
 	CurveContainer.ResetValues();
 }
 
+FTransform FRigHierarchyContainer::GetInitialTransform(ERigElementType InElementType, int32 InIndex) const
+{
+	if(InIndex == INDEX_NONE)
+	{
+		return FTransform::Identity;
+	}
+
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			return BoneHierarchy.GetInitialTransform(InIndex);
+		}
+		case ERigElementType::Space:
+		{
+			return SpaceHierarchy.GetInitialTransform(InIndex);
+		}
+		case ERigElementType::Control:
+		{
+			return ControlHierarchy.GetInitialTransform(InIndex);
+		}
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+
+	return FTransform::Identity;
+}
+
+#if WITH_EDITOR
+
+void FRigHierarchyContainer::SetInitialTransform(ERigElementType InElementType, int32 InIndex, const FTransform& InTransform)
+{
+	if (InIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			BoneHierarchy.SetInitialTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Space:
+		{
+			SpaceHierarchy.SetInitialTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			ControlHierarchy.SetInitialTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+}
+
+#endif
+
+FTransform FRigHierarchyContainer::GetLocalTransform(ERigElementType InElementType, int32 InIndex) const
+{
+	if(InIndex == INDEX_NONE)
+	{
+		return FTransform::Identity;
+	}
+
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			return BoneHierarchy.GetLocalTransform(InIndex);
+		}
+		case ERigElementType::Space:
+		{
+			return SpaceHierarchy.GetLocalTransform(InIndex);
+		}
+		case ERigElementType::Control:
+		{
+			return ControlHierarchy.GetLocalTransform(InIndex);
+		}
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+
+	return FTransform::Identity;
+}
+
+void FRigHierarchyContainer::SetLocalTransform(ERigElementType InElementType, int32 InIndex, const FTransform& InTransform)
+{
+	if (InIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			BoneHierarchy.SetLocalTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Space:
+		{
+			SpaceHierarchy.SetLocalTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			ControlHierarchy.SetLocalTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+}
+
+FTransform FRigHierarchyContainer::GetGlobalTransform(ERigElementType InElementType, int32 InIndex) const
+{
+	if(InIndex == INDEX_NONE)
+	{
+		return FTransform::Identity;
+	}
+
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			return BoneHierarchy.GetGlobalTransform(InIndex);
+		}
+		case ERigElementType::Space:
+		{
+			return SpaceHierarchy.GetGlobalTransform(InIndex);
+		}
+		case ERigElementType::Control:
+		{
+			return ControlHierarchy.GetGlobalTransform(InIndex);
+		}
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+
+	return FTransform::Identity;
+}
+
+void FRigHierarchyContainer::SetGlobalTransform(ERigElementType InElementType, int32 InIndex, const FTransform& InTransform)
+{
+	if (InIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			BoneHierarchy.SetGlobalTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Space:
+		{
+			SpaceHierarchy.SetGlobalTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			ControlHierarchy.SetGlobalTransform(InIndex, InTransform);
+			break;
+		}
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+}
+
 #if WITH_EDITOR
 
 void FRigHierarchyContainer::HandleOnElementAdded(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName)
@@ -124,3 +311,106 @@ void FRigHierarchyContainer::HandleOnElementReparented(FRigHierarchyContainer* I
 }
 
 #endif
+
+bool FRigHierarchyContainer::IsParentedTo(ERigElementType InChildType, int32 InChildIndex, ERigElementType InParentType, int32 InParentIndex) const
+{
+	ensure(InChildIndex != INDEX_NONE);
+
+	if (InParentIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	switch (InChildType)
+	{
+		case ERigElementType::Curve:
+		{
+			return false;
+		}
+		case ERigElementType::Bone:
+		{
+			switch (InParentType)
+			{
+				case ERigElementType::Bone:
+				{
+					if (BoneHierarchy[InChildIndex].ParentIndex != INDEX_NONE)
+					{
+						if (BoneHierarchy[InChildIndex].ParentIndex == InParentIndex)
+						{
+							return true;
+						}
+						return IsParentedTo(ERigElementType::Bone, BoneHierarchy[InChildIndex].ParentIndex, InParentType, InParentIndex);
+					}
+					// no break - fall through to next case
+				}
+				case ERigElementType::Space:
+				case ERigElementType::Control:
+				case ERigElementType::Curve:
+				{
+					return false;
+				}
+			}
+		}
+		case ERigElementType::Space:
+		{
+			const FRigSpace& ChildSpace = SpaceHierarchy[InChildIndex];
+			switch (ChildSpace.SpaceType)
+			{
+				case ERigSpaceType::Global:
+				{
+					return false;
+				}
+				case ERigSpaceType::Bone:
+				{
+					if (ChildSpace.ParentIndex == InParentIndex && InParentType == ERigElementType::Bone)
+					{
+						return true;
+					}
+					return IsParentedTo(ERigElementType::Bone, ChildSpace.ParentIndex, InParentType, InParentIndex);
+				}
+				case ERigSpaceType::Space:
+				{
+					if (ChildSpace.ParentIndex == InParentIndex && InParentType == ERigElementType::Space)
+					{
+						return true;
+					}
+					return IsParentedTo(ERigElementType::Space, ChildSpace.ParentIndex, InParentType, InParentIndex);
+				}
+				case ERigSpaceType::Control:
+				{
+					if (ChildSpace.ParentIndex == InParentIndex && InParentType == ERigElementType::Control)
+					{
+						return true;
+					}
+					return IsParentedTo(ERigElementType::Control, ChildSpace.ParentIndex, InParentType, InParentIndex);
+				}
+			}
+		}
+		case ERigElementType::Control:
+		{
+			const FRigControl& ChildControl = ControlHierarchy[InChildIndex];
+			switch (InParentType)
+			{
+				case ERigElementType::Space:
+				{
+					if (ChildControl.SpaceIndex == InParentIndex)
+					{
+						return true;
+					}
+					// no break - fall through to next cases
+				}
+				case ERigElementType::Control:
+				case ERigElementType::Bone:
+				{
+					return IsParentedTo(ERigElementType::Space, ChildControl.SpaceIndex, InParentType, InParentIndex);
+				}
+				case ERigElementType::Curve:
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return false;
+}

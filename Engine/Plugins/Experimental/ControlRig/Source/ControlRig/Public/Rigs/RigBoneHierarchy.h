@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigBoneHierarchy
 
 	FName GetSafeNewName(const FName& InPotentialNewName) const;
 
-	FRigBone& Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform);
+	FRigBone& Add(const FName& InNewName, const FName& InParentName = NAME_None, const FTransform& InInitTransform = FTransform::Identity);
 
 	FRigBone& Add(const FName& InNewName, const FName& InParentName, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform);
 
@@ -85,7 +85,7 @@ struct CONTROLRIG_API FRigBoneHierarchy
 
 	FName Rename(const FName& InOldName, const FName& InNewName);
 
-	void Reparent(const FName& InName, const FName& InNewParentName);
+	bool Reparent(const FName& InName, const FName& InNewParentName);
 
 	FName GetName(int32 InIndex) const;
 
@@ -148,8 +148,8 @@ private:
 	// disable copy constructor
 	FRigBoneHierarchy(const FRigBoneHierarchy& InOther) {}
 
-#if WITH_EDITOR
 	FRigHierarchyContainer* Container;
+#if WITH_EDITOR
 	FRigElementAdded OnBoneAdded;
 	FRigElementRemoved OnBoneRemoved;
 	FRigElementRenamed OnBoneRenamed;

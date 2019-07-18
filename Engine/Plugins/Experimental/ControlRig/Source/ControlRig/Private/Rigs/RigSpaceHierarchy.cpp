@@ -9,9 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 FRigSpaceHierarchy::FRigSpaceHierarchy()
-#if WITH_EDITOR
 	:Container(nullptr)
-#endif
 {
 }
 
@@ -55,30 +53,89 @@ FRigSpace& FRigSpaceHierarchy::Add(const FName& InNewName, ERigSpaceType InSpace
 {
 	FRigSpace NewSpace;
 	NewSpace.Name = GetSafeNewName(InNewName);
-	NewSpace.SpaceType = InSpaceType;
-	NewSpace.ParentName = InParentName;
-	NewSpace.ParentIndex = INDEX_NONE;
+	NewSpace.ParentIndex = GetParentIndex(InSpaceType, InParentName);
+	NewSpace.SpaceType = NewSpace.ParentIndex == INDEX_NONE ? ERigSpaceType::Global : InSpaceType;
+	NewSpace.ParentName = NewSpace.ParentIndex == INDEX_NONE ? NAME_None : InParentName;
 	NewSpace.InitialTransform = InTransform;
 	NewSpace.LocalTransform = InTransform;
+	FName NewSpaceName = NewSpace.Name;
 	Spaces.Add(NewSpace);
 	RefreshMapping();
 
 #if WITH_EDITOR
-	OnSpaceAdded.Broadcast(Container, RigElementType(), NewSpace.Name);
+	OnSpaceAdded.Broadcast(Container, RigElementType(), NewSpaceName);
 #endif
 
-	int32 Index = GetIndex(NewSpace.Name);
+	int32 Index = GetIndex(NewSpaceName);
 	return Spaces[Index];
 }
 
-void FRigSpaceHierarchy::Reparent(const FName& InName, const FName& InNewParentName)
+bool FRigSpaceHierarchy::Reparent(const FName& InName, ERigSpaceType InSpaceType, const FName& InNewParentName)
 {
 	int32 Index = GetIndex(InName);
 	if (Index != INDEX_NONE)
 	{
-		Spaces[Index].ParentName = InNewParentName;
-		Spaces[Index].ParentIndex = INDEX_NONE;
+		FRigSpace& Space = Spaces[Index];
+
+#if WITH_EDITOR
+		FName OldParentName = Space.ParentName;
+#endif
+
+		int32 ParentIndex = GetParentIndex(InSpaceType, InNewParentName);
+		if (ParentIndex != INDEX_NONE)
+		{
+			if (Container != nullptr)
+			{
+				switch (InSpaceType)
+				{
+					case ERigSpaceType::Global:
+					{
+						ParentIndex = INDEX_NONE;
+						break;
+					}
+					case ERigSpaceType::Bone:
+					{
+						break;
+					}
+					case ERigSpaceType::Space:
+					{
+						if (Container->IsParentedTo(ERigElementType::Space, ParentIndex, ERigElementType::Space, Index))
+						{
+							ParentIndex = INDEX_NONE;
+						}
+						break;
+					}
+					case ERigSpaceType::Control:
+					{
+						if (Container->IsParentedTo(ERigElementType::Control, ParentIndex, ERigElementType::Space, Index))
+						{
+							ParentIndex = INDEX_NONE;
+						}
+						break;
+					}
+				}
+			}
+		}
+
+		Space.ParentIndex = ParentIndex;
+		Space.SpaceType = Space.ParentIndex == INDEX_NONE ? ERigSpaceType::Global : InSpaceType;
+		Space.ParentName = Space.ParentIndex == INDEX_NONE ? NAME_None : InNewParentName;
+
+#if WITH_EDITOR
+		FName NewParentName = Space.ParentName;
+#endif
+
+		RefreshMapping();
+
+#if WITH_EDITOR
+		if (OldParentName != NewParentName)
+		{
+			OnSpaceReparented.Broadcast(Container, RigElementType(), InName, OldParentName, NewParentName);
+		}
+#endif		
+		return Spaces[GetIndex(InName)].ParentName == InNewParentName;
 	}
+	return false;
 }
 
 FRigSpace FRigSpaceHierarchy::Remove(const FName& InNameToRemove)
@@ -126,12 +183,42 @@ void FRigSpaceHierarchy::SetGlobalTransform(const FName& InName, const FTransfor
 
 void FRigSpaceHierarchy::SetGlobalTransform(int32 InIndex, const FTransform& InTransform)
 {
+	if (Container == nullptr)
+	{
+		SetLocalTransform(InIndex, InTransform);
+		return;
+	}
+
 	if (Spaces.IsValidIndex(InIndex))
 	{
 		FRigSpace& Space = Spaces[InIndex];
-		// todo: get the space's transform + inverse
-		//Space.GlobalTransform = InTransform;
-		//Space.GlobalTransform.NormalizeRotation();
+		FTransform ParentTransform = FTransform::Identity;
+
+		switch (Space.SpaceType)
+		{
+			case ERigSpaceType::Global:
+			{
+				SetLocalTransform(InIndex, InTransform);
+				return;
+			}
+			case ERigSpaceType::Bone:
+			{
+				ParentTransform = Container->GetGlobalTransform(ERigElementType::Bone, Space.ParentIndex);
+				break;
+			}
+			case ERigSpaceType::Space:
+			{
+				ParentTransform = Container->GetGlobalTransform(ERigElementType::Space, Space.ParentIndex);
+				break;
+			}
+			case ERigSpaceType::Control:
+			{
+				ParentTransform = Container->GetGlobalTransform(ERigElementType::Control, Space.ParentIndex);
+				break;
+			}
+		}
+
+		SetLocalTransform(InIndex, InTransform.GetRelativeTransform(ParentTransform));
 	}
 }
 
@@ -142,11 +229,33 @@ FTransform FRigSpaceHierarchy::GetGlobalTransform(const FName& InName) const
 
 FTransform FRigSpaceHierarchy::GetGlobalTransform(int32 InIndex) const
 {
+	if(Container == nullptr)
+	{
+		return GetLocalTransform(InIndex);
+	}
+
 	if (Spaces.IsValidIndex(InIndex))
 	{
-		// todo: get the space's transform and compute
-		//return Spaces[InIndex].GlobalTransform;
-		return FTransform::Identity;
+		const FRigSpace& Space = Spaces[InIndex];
+		switch (Space.SpaceType)
+		{
+			case ERigSpaceType::Global:
+			{
+				return Space.LocalTransform;
+			}
+			case ERigSpaceType::Bone:
+			{
+				return Space.LocalTransform * Container->GetGlobalTransform(ERigElementType::Bone, Space.ParentIndex);
+			}
+			case ERigSpaceType::Space:
+			{
+				return Space.LocalTransform * Container->GetGlobalTransform(ERigElementType::Space, Space.ParentIndex);
+			}
+			case ERigSpaceType::Control:
+			{
+				return Space.LocalTransform * Container->GetGlobalTransform(ERigElementType::Control, Space.ParentIndex);
+			}
+		}
 	}
 
 	return FTransform::Identity;
@@ -257,13 +366,6 @@ void FRigSpaceHierarchy::Initialize()
 {
 	RefreshMapping();
 
-	// update parent index
-	for (int32 Index = 0; Index < Spaces.Num(); ++Index)
-	{
-		// todo
-		//Spaces[Index].ParentIndex = GetIndex(Spaces[Index].ParentName);
-	}
-
 	// initialize transform
 	for (int32 Index = 0; Index < Spaces.Num(); ++Index)
 	{
@@ -283,4 +385,32 @@ void FRigSpaceHierarchy::ResetTransforms()
 	{
 		Spaces[Index].LocalTransform = Spaces[Index].InitialTransform;
 	}
+}
+
+int32 FRigSpaceHierarchy::GetParentIndex(ERigSpaceType InSpaceType, const FName& InName) const
+{
+	if (Container != nullptr)
+	{
+		switch (InSpaceType)
+		{
+			case ERigSpaceType::Global:
+			{
+				return INDEX_NONE;
+			}
+			case ERigSpaceType::Bone:
+			{
+				return Container->GetIndex(ERigElementType::Bone, InName);
+			}
+			case ERigSpaceType::Space:
+			{
+				return Container->GetIndex(ERigElementType::Space, InName);
+			}
+			case ERigSpaceType::Control:
+			{
+				return Container->GetIndex(ERigElementType::Control, InName);
+			}
+		}
+	}
+
+	return INDEX_NONE;
 }

@@ -13,10 +13,7 @@ enum class ERigElementType : uint8
 	Bone,
 	Space,
 	Control,
-	Curve,
-
-	/** MAX - invalid */
-	Max UMETA(Hidden),
+	Curve
 };
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigElementChanged, FRigHierarchyContainer*, ERigElementType, const FName&);
