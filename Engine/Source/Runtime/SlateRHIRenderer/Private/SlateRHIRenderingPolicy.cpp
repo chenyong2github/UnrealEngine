@@ -131,6 +131,8 @@ void FSlateRHIRenderingPolicy::EndDrawingWindows()
 	check( IsInParallelRenderingThread() );
 }
 
+struct FSlateUpdateVertexAndIndexBuffers final : public FRHICommand<FSlateUpdateVertexAndIndexBuffers>
+{
 	TSlateElementVertexBuffer<FSlateVertex>& VertexBuffer;
 	FSlateElementIndexBuffer& IndexBuffer;
 	FSlateBatchData& BatchData;
