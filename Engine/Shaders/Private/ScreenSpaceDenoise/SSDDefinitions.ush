@@ -59,12 +59,6 @@
 #define MIP_LEVEL_INVALID -1
 #define MIP_LEVEL_MISS 1024
 
-// Maximum number of signal that can be denoised at same time.
-#define MAX_SIGNAL_BATCH_SIZE 4
-
-// Maximum number of signal that can be multiplexed into single output.
-#define MAX_SIGNAL_MULTIPLEXING 8
-
 // Maximum number of buffer multiple signals can be encode to/decoded from.
 #define MAX_MULTIPLEXED_TEXTURES 4
 

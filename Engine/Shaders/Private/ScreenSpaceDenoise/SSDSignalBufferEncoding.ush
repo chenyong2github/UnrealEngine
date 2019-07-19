@@ -202,11 +202,13 @@ void DecodeMultiplexedSignals(
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[0].a);
 		OutSamples.Array[0].SceneColor = OutSamples.Array[0].SampleCount * RawSample[0];
 
-		OutSamples.Array[1].SampleCount = OutSamples.Array[0].SampleCount;
-		OutSamples.Array[1].SceneColor.x = OutSamples.Array[1].SampleCount * RawSample[1].g;
-		
-		OutSamples.Array[2].SampleCount = OutSamples.Array[0].SampleCount;
-		OutSamples.Array[2].SceneColor.x = OutSamples.Array[2].SampleCount * RawSample[1].b;
+		// Temporal analysis of the history.
+		#if MAX_SIGNAL_MULTIPLEXING >= 3
+			OutSamples.Array[1].SampleCount = OutSamples.Array[0].SampleCount;
+			OutSamples.Array[1].SceneColor.x = OutSamples.Array[1].SampleCount * RawSample[1].g;
+			OutSamples.Array[2].SampleCount = OutSamples.Array[0].SampleCount;
+			OutSamples.Array[2].SceneColor.x = OutSamples.Array[2].SampleCount * RawSample[1].b;
+		#endif
 	}
 	#endif
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_INPUT)
@@ -286,11 +288,13 @@ void DecodeMultiplexedSignals(
 		OutSamples.Array[0].MissCount = OutSamples.Array[0].SampleCount * (1 - RawSample[0].a);
 		OutSamples.Array[0].SceneColor = OutSamples.Array[0].SampleCount * RawSample[0];
 		
-		OutSamples.Array[1].SampleCount = OutSamples.Array[0].SampleCount;
-		OutSamples.Array[1].SceneColor.x = OutSamples.Array[1].SampleCount * RawSample[1].g;
-		
-		OutSamples.Array[2].SampleCount = OutSamples.Array[0].SampleCount;
-		OutSamples.Array[2].SceneColor.x = OutSamples.Array[2].SampleCount * RawSample[1].b;
+		// Temporal analysis.
+		#if MAX_SIGNAL_MULTIPLEXING >= 3
+			OutSamples.Array[1].SampleCount = OutSamples.Array[0].SampleCount;
+			OutSamples.Array[1].SceneColor.x = OutSamples.Array[1].SampleCount * RawSample[1].g;
+			OutSamples.Array[2].SampleCount = OutSamples.Array[0].SampleCount;
+			OutSamples.Array[2].SceneColor.x = OutSamples.Array[2].SampleCount * RawSample[1].b;
+		#endif
 	}
 	#endif
 } // DecodeMultiplexedSignals()
@@ -456,12 +460,15 @@ void EncodeMultiplexedSignals(
 		OutRawSample[1].r = Sample[0].SampleCount;
 		OutBufferCount = 2;
 
+		// Temporal analysis.
+		#if MAX_SIGNAL_MULTIPLEXING >= 3
 		if (MultiplexCount == 3)
 		{
 			OutRawSample[1].g = Sample[1].SceneColor.x * NormalizationFactor;
 			OutRawSample[1].b = Sample[2].SceneColor.x * NormalizationFactor;
 			OutBufferCount = 3;
 		}
+		#endif
 	}
 	#endif
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_REJECTION)
@@ -499,11 +506,14 @@ void EncodeMultiplexedSignals(
 		OutRawSample[1].r = Sample[0].SampleCount;
 		OutBufferCount = 2;
 
+		// Temporal analysis.
+		#if MAX_SIGNAL_MULTIPLEXING >= 3
 		if (MultiplexCount == 3)
 		{
 			OutRawSample[1].g = Sample[1].SceneColor.x * NormalizationFactor;
 			OutRawSample[1].b = Sample[2].SceneColor.x * NormalizationFactor;
 		}
+		#endif
 	}
 	#endif
 } // EncodeMultiplexedSignals()
