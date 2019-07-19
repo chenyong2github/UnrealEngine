@@ -448,13 +448,16 @@ protected:
 	template <typename Type>
 	void GetCrashProperty( Type& out_ReadValue, const FString& MainCategory, const FString& SecondCategory ) const
 	{
-		const FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( MainCategory );
-		if (MainNode)
+		if (XmlFile->IsValid())
 		{
-			const FXmlNode* CategoryNode = MainNode->FindChildNode( SecondCategory );
-			if (CategoryNode)
+			const FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( MainCategory );
+			if (MainNode)
 			{
-				LexFromString( out_ReadValue, *FGenericCrashContext::UnescapeXMLString( CategoryNode->GetContent() ) );
+				const FXmlNode* CategoryNode = MainNode->FindChildNode( SecondCategory );
+				if (CategoryNode)
+				{
+					LexFromString( out_ReadValue, *FGenericCrashContext::UnescapeXMLString( CategoryNode->GetContent() ) );
+				}
 			}
 		}
 	}
@@ -469,19 +472,22 @@ protected:
 	/** Sets a crash property to a new value. */
 	void SetCrashProperty( const FString& MainCategory, const FString& SecondCategory, const FString& NewValue )
 	{
-		FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( MainCategory );
-		if (MainNode)
+		if (XmlFile->IsValid())
 		{
-			FXmlNode* CategoryNode = MainNode->FindChildNode( SecondCategory );
-			FString EscapedValue;
-			FGenericCrashContext::AppendEscapedXMLString(EscapedValue, *NewValue);
-			if (CategoryNode)
+			FXmlNode* MainNode = XmlFile->GetRootNode()->FindChildNode( MainCategory );
+			if (MainNode)
 			{
-				CategoryNode->SetContent( EscapedValue );
-			}
-			else
-			{
-				MainNode->AppendChildNode( SecondCategory, EscapedValue );
+				FXmlNode* CategoryNode = MainNode->FindChildNode( SecondCategory );
+				FString EscapedValue;
+				FGenericCrashContext::AppendEscapedXMLString(EscapedValue, *NewValue);
+				if (CategoryNode)
+				{
+					CategoryNode->SetContent( EscapedValue );
+				}
+				else
+				{
+					MainNode->AppendChildNode( SecondCategory, EscapedValue );
+				}
 			}
 		}
 	}
