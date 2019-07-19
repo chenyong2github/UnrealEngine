@@ -23,8 +23,6 @@ public:
 	ESeriesType Type;
 	uint32 Id; // frame type, timer id or stats counter id
 	bool bIsFloatingPoint; // for stats counters
-	double ValueOffset; // offset added to Y values (used to pan graph vertically)
-	double ValueScale; // scale of Y values (used to scale graph vertically)
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,8 +35,10 @@ public:
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override;
 
+	void AddDefaultFrameSeries();
+
 	TSharedPtr<FTimingGraphSeries> GetStatsCounterSeries(uint32 CounterId);
-	void AddStatsCounterSeries(uint32 CounterId, FLinearColor Color, double ValueOffset = 0.0, double ValueScale = 1.0);
+	TSharedPtr<FTimingGraphSeries> AddStatsCounterSeries(uint32 CounterId, FLinearColor Color);
 	void RemoveStatsCounterSeries(uint32 CounterId);
 
 protected:

@@ -46,6 +46,10 @@ public:
 	bool IsVisible() const { return bIsVisible; }
 	void SetVisibility(bool bOnOff) { bIsVisible = bOnOff; }
 
+	bool IsDirty() const { return bIsDirty; }
+	void SetDirtyFlag() { bIsDirty = true; }
+	void ClearDirtyFlag() { bIsDirty = false; }
+
 	const FLinearColor& GetColor() const { return Color; }
 	const FLinearColor& GetBorderColor() const { return BorderColor; }
 
@@ -55,11 +59,83 @@ public:
 		BorderColor = InBorderColor;
 	}
 
+	/**
+	 * @return Y position (in viewport local space) of the baseline (with Value == 0); in pixels (Slate units).
+	 * Y == 0 at the top of the graph track, positive values are downward.
+	 */
+	double GetBaselineY() const { return BaselineY; }
+	void SetBaselineY(const double InBaselineY) { BaselineY = InBaselineY; }
+
+	/**
+	 * @return The scale between Value units and viewport units; in pixels (Slate units) / Value unit.
+	 */
+	double GetScaleY() const { return ScaleY; }
+	void SetScaleY(const double InScaleY) { ScaleY = InScaleY; }
+
+	/**
+	 * @param Value a value; in Value units
+	 * @return Y position (in viewport local space) for a Value; in pixels (Slate units).
+	 * Y == 0 at the top of the graph track, positive values are downward.
+	 */
+	float GetYForValue(double Value) const
+	{
+		return static_cast<float>(BaselineY - Value * ScaleY);
+	}
+
+	/**
+	 * @param Y a Y position (in viewport local space); in pixels (Slate units).
+	 * @return Value for specified Y position.
+	 */
+	double GetValueForY(float Y) const
+	{
+		return (BaselineY - static_cast<double>(Y)) / ScaleY;
+	}
+
+	bool IsAutoZoomEnabled() const { return bAutoZoom; }
+	void EnableAutoZoom() { bAutoZoom = true; }
+
+	/** target low value of auto zoom interval (corresponding to bottom of the track) */
+	double GetTargetAutoZoomLowValue() const { return TargetAutoZoomLowValue; }
+	/** target high value of auto zoom interval (corresponding to top of the track) */
+	double GetTargetAutoZoomHighValue() const { return TargetAutoZoomHighValue; }
+	void SetTargetAutoZoomRange(double LowValue, double HighValue) { TargetAutoZoomLowValue = LowValue; TargetAutoZoomHighValue = HighValue; }
+
+	/** current auto zoom low value */
+	double GetAutoZoomLowValue() const { return AutoZoomLowValue; }
+	/** current auto zoom high value */
+	double GetAutoZoomHighValue() const { return AutoZoomHighValue; }
+	void SetAutoZoomRange(double LowValue, double HighValue) { AutoZoomLowValue = LowValue; AutoZoomHighValue = HighValue; }
+	
+	/**
+	 * Compute BaselineY and ScaleY so the [Low, High] Value range will correspond to [Top, Bottom] Y position range.
+	 * GetYForValue(InHighValue) == InTopY
+	 * GetYForValue(InLowValue) == InBottomY
+	 */
+	void ComputeBaselineAndScale(const double InLowValue, const double InHighValue, const float InTopY, const float InBottomY, double& OutBaselineY, double& OutScaleY) const
+	{
+		ensure(InLowValue < InHighValue);
+		ensure(InTopY < InBottomY);
+		const double InvRange = 1.0 / (InHighValue - InLowValue);
+		OutScaleY = static_cast<double>(InBottomY - InTopY) * InvRange;
+		//OutBaselineY = (InHighValue * static_cast<double>(InBottomY) - InLowValue * static_cast<double>(InTopY)) * InvRange;
+		OutBaselineY = static_cast<double>(InTopY) + InHighValue * OutScaleY;
+	}
+
 private:
 	FText Name;
 	FText Description;
 
 	bool bIsVisible;
+	bool bIsDirty;
+
+	bool bAutoZoom;
+	double TargetAutoZoomLowValue; // target low value of auto zoom interval (corresponding to bottom of the track)
+	double TargetAutoZoomHighValue; // target high value of auto zoom interval (corresponding to top of the track)
+	double AutoZoomLowValue; // current auto zoom low value
+	double AutoZoomHighValue; // current auto zoom high value
+
+	double BaselineY; // Y position (in viewport local space) of the baseline (with Value == 0); in pixels (Slate units)
+	double ScaleY; // scale between Value units and viewport units; in pixels (Slate units) / Value unit
 
 	FLinearColor Color;
 	FLinearColor BorderColor;
@@ -88,6 +164,8 @@ public:
 	FGraphTrack(uint64 InTrackId);
 	virtual ~FGraphTrack();
 
+	virtual void Reset() override;
+
 	virtual void UpdateHoveredState(float MouseX, float MouseY, const FTimingTrackViewport& Viewport) override;
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override = 0;
@@ -109,11 +187,6 @@ protected:
 
 	void DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 	void DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
-
-	float GetYForValue(double Value) const
-	{
-		return BaselineY - static_cast<float>(Value * ScaleY); // TODO: vertical zooming and panning
-	}
 
 private:
 	void ContextMenu_ShowPoints_Execute();
@@ -160,9 +233,6 @@ protected:
 	bool bUseEventDuration;
 	bool bDrawBoxes;
 
-	float BaselineY; // Y position (in viewport local space) of the baseline (with Value == 0); in pixels (Slate units)
-	double ScaleY; // scale between Value units and viewport units; in pixels (Slate units) / Value unit
-
 	// Stats
 	int32 NumAddedEvents;
 	int32 NumDrawPoints;
@@ -179,6 +249,8 @@ public:
 	virtual ~FRandomGraphTrack();
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override;
+
+	void AddDefaultSeries();
 
 protected:
 	void GenerateSeries(FGraphSeries& Series, const FTimingTrackViewport& Viewport, const int32 EventCount, int32 Seed);

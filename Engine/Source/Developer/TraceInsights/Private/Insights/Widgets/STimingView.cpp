@@ -246,6 +246,8 @@ void STimingView::Reset()
 	MarkersTrack.Reset();
 
 	GraphTrack->Reset();
+	GraphTrack->SetHeight(200.0f);
+	GraphTrack->AddDefaultFrameSeries();
 	GraphTrack->SetVisibilityFlag(false);
 
 	//////////////////////////////////////////////////
@@ -341,7 +343,6 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	if (GraphTrack->IsVisible())
 	{
 		GraphTrack->SetPosY(TopOffset);
-		GraphTrack->SetHeight(200.0f);
 		TopOffset += GraphTrack->GetHeight();
 	}
 	Viewport.TopOffset = TopOffset;
@@ -698,9 +699,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		TimelineCacheUpdateDurationHistory.AddValue(Stopwatch.AccumulatedTime);
 	}
 
-	if (GraphTrack->IsVisible() && GraphTrack->IsDirty())
+	if (GraphTrack->IsVisible())
 	{
-		GraphTrack->ClearDirtyFlag();
 		GraphTrack->Update(Viewport);
 	}
 }

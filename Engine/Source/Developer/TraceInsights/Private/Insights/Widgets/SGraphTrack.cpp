@@ -59,6 +59,7 @@ void SGraphTrack::Reset()
 {
 	TimeRulerTrack->Reset();
 	GraphTrack->Reset();
+	StaticCastSharedPtr<FRandomGraphTrack>(GraphTrack)->AddDefaultSeries();
 
 	Viewport.Reset();
 	Viewport.MaxValidTime = 84.0 * 60.0;
@@ -105,24 +106,17 @@ void SGraphTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	float TrackWidth = AllottedGeometry.GetAbsoluteSize().X;
 	float TrackHeight = AllottedGeometry.GetAbsoluteSize().Y;
 
-	bool bIsGraphDirty = false;
-
 	if (Viewport.UpdateSize(TrackWidth, TrackHeight) ||
 		bIsViewportDirty ||
 		bIsVerticalViewportDirty ||
 		GraphTrack->GetHeight() != TrackHeight)
 	{
-		bIsGraphDirty = true;
-	}
-
-	if (bIsGraphDirty)
-	{
-		bIsGraphDirty = false;
-
 		GraphTrack->SetPosY(TimeRulerTrack->GetHeight());
 		GraphTrack->SetHeight(Viewport.Height - TimeRulerTrack->GetHeight());
-		GraphTrack->Update(Viewport);
+		GraphTrack->SetDirtyFlag();
 	}
+
+	GraphTrack->Update(Viewport);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

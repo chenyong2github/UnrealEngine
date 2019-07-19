@@ -865,7 +865,7 @@ void SStatsView::TreeView_OnMouseButtonDoubleClick(FStatsNodePtr StatsNode)
 				}
 				else
 				{
-					GraphTrack->AddStatsCounterSeries(StatsCounterId, StatsNode->GetColor(), 0.0, 1.0);
+					GraphTrack->AddStatsCounterSeries(StatsCounterId, StatsNode->GetColor());
 					GraphTrack->SetDirtyFlag();
 					StatsNode->SetAddedToGraphFlag(true);
 				}

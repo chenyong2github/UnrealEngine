@@ -27,6 +27,14 @@ FTimingGraphTrack::FTimingGraphTrack(uint64 InTrackId)
 	bDrawPolygon = true;
 	bUseEventDuration = true;
 	bDrawBoxes = false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::AddDefaultFrameSeries()
+{
+	const float BaselineY = GetHeight() - 1.0f;
+	const double ScaleY = GetHeight() / 0.1; // 100ms
 
 	TSharedPtr<FTimingGraphSeries> GameFramesSeries = MakeShareable(new FTimingGraphSeries());
 	GameFramesSeries->SetName(TEXT("Game Frames"));
@@ -34,6 +42,8 @@ FTimingGraphTrack::FTimingGraphTrack(uint64 InTrackId)
 	GameFramesSeries->SetColor(FLinearColor(0.3f, 0.3f, 1.0f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 	GameFramesSeries->Type = FTimingGraphSeries::ESeriesType::Frame;
 	GameFramesSeries->Id = static_cast<uint32>(TraceFrameType_Game);
+	GameFramesSeries->SetBaselineY(BaselineY);
+	GameFramesSeries->SetScaleY(ScaleY);
 	AllSeries.Add(GameFramesSeries);
 
 	TSharedPtr<FTimingGraphSeries> RenderingFramesSeries = MakeShareable(new FTimingGraphSeries());
@@ -42,6 +52,8 @@ FTimingGraphTrack::FTimingGraphTrack(uint64 InTrackId)
 	RenderingFramesSeries->SetColor(FLinearColor(1.0f, 0.3f, 0.3f, 1.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 	RenderingFramesSeries->Type = FTimingGraphSeries::ESeriesType::Frame;
 	RenderingFramesSeries->Id = static_cast<uint32>(TraceFrameType_Rendering);
+	RenderingFramesSeries->SetBaselineY(BaselineY);
+	RenderingFramesSeries->SetScaleY(ScaleY);
 	AllSeries.Add(RenderingFramesSeries);
 }
 
@@ -59,7 +71,7 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::GetStatsCounterSeries(uint32 C
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingGraphTrack::AddStatsCounterSeries(uint32 CounterId, FLinearColor Color, double ValueOffset, double ValueScale)
+TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 CounterId, FLinearColor Color)
 {
 	TSharedPtr<FTimingGraphSeries> Series = MakeShareable(new FTimingGraphSeries());
 
@@ -90,10 +102,16 @@ void FTimingGraphTrack::AddStatsCounterSeries(uint32 CounterId, FLinearColor Col
 	Series->Type = FTimingGraphSeries::ESeriesType::StatsCounter;
 	Series->Id = CounterId;
 	Series->bIsFloatingPoint = bIsFloatingPoint;
-	Series->ValueOffset = ValueOffset;
-	Series->ValueScale = ValueScale;
+
+	Series->SetBaselineY(GetHeight() - 1.0f);
+	Series->SetScaleY(1.0);
+
+	Series->EnableAutoZoom();
+	Series->SetTargetAutoZoomRange(0.0, 1.0);
+	Series->SetAutoZoomRange(0.0, 1.0);
 
 	AllSeries.Add(Series);
+	return Series;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,19 +135,38 @@ FTimingGraphTrack::~FTimingGraphTrack()
 
 void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
 {
-	NumAddedEvents = 0;
+	const bool bIsEntireGraphTrackDirty = IsDirty();
+	bool bNeedsUpdate = bIsEntireGraphTrackDirty;
 
-	// TODO: Vertical panning and zooming needs to be moved out in a Viewport like controller.
-	BaselineY = GetHeight();
-	ScaleY = 200.0 / 0.1; // 200px = 100ms
-
-	for (TSharedPtr<FGraphSeries>& Series : AllSeries)
+	if (!bNeedsUpdate)
 	{
-		if (Series->IsVisible())
+		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
 		{
-			TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
-			switch (TimingSeries->Type)
+			if (Series->IsVisible() && Series->IsDirty())
 			{
+				// At least one series is dirty.
+				bNeedsUpdate = true;
+				break;
+			}
+		}
+	}
+
+	if (bNeedsUpdate)
+	{
+		ClearDirtyFlag();
+
+		NumAddedEvents = 0;
+
+		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
+		{
+			if (Series->IsVisible() && (bIsEntireGraphTrackDirty || Series->IsDirty()))
+			{
+				// Clear the flag before updating, becasue the update itself may furter need to set the series as dirty.
+				Series->ClearDirtyFlag();
+
+				TSharedPtr<FTimingGraphSeries> TimingSeries = StaticCastSharedPtr<FTimingGraphSeries>(Series);
+				switch (TimingSeries->Type)
+				{
 				case FTimingGraphSeries::ESeriesType::Frame:
 					UpdateFrameSeries(*TimingSeries, Viewport);
 					break;
@@ -141,11 +178,12 @@ void FTimingGraphTrack::Update(const FTimingTrackViewport& Viewport)
 				case FTimingGraphSeries::ESeriesType::StatsCounter:
 					UpdateStatsCounterSeries(*TimingSeries, Viewport);
 					break;
+				}
 			}
 		}
-	}
 
-	UpdateStats();
+		UpdateStats();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -188,60 +226,93 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
 		CountersProvider.ReadCounter(Series.Id, [this, &Viewport, &Builder, &Series](const Trace::ICounter& Counter)
 		{
-			//const double ValueOffset = Series.ValueOffset;
-			//const double ValueScale = Series.ValueScale;
-			double MinValue = std::numeric_limits<double>::infinity();
-			double MaxValue = -std::numeric_limits<double>::infinity();
+			if (Series.IsAutoZoomEnabled())
+			{
+				double MinValue =  std::numeric_limits<double>::infinity();
+				double MaxValue = -std::numeric_limits<double>::infinity();
+
+				if (Counter.IsFloatingPoint())
+				{
+					Counter.EnumerateFloatValues(Viewport.StartTime, Viewport.EndTime, [&Builder, &MinValue, &MaxValue](double Time, double Value)
+					{
+						if (Value < MinValue)
+						{
+							MinValue = Value;
+						}
+						if (Value > MaxValue)
+						{
+							MaxValue = Value;
+						}
+					});
+				}
+				else
+				{
+					Counter.EnumerateValues(Viewport.StartTime, Viewport.EndTime, [&Builder, &MinValue, &MaxValue](double Time, int64 IntValue)
+					{
+						const double Value = static_cast<double>(IntValue);
+						if (Value < MinValue)
+						{
+							MinValue = Value;
+						}
+						if (Value > MaxValue)
+						{
+							MaxValue = Value;
+						}
+					});
+				}
+
+				const float TopY = 4.0f;
+				const float BottomY = GetHeight();
+
+				double HighValue = Series.GetValueForY(TopY);
+				double LowValue = Series.GetValueForY(BottomY);
+
+				if (MinValue < MaxValue)
+				{
+					constexpr bool bIsAutoZoomAnimated = true;
+					if (bIsAutoZoomAnimated)
+					{
+						// Interpolate interval (animating the vertical position and scale of the graph series).
+						constexpr double InterpolationSpeed = 0.5;
+						MaxValue = InterpolationSpeed * MaxValue + (1.0 - InterpolationSpeed) * HighValue;
+						MinValue = InterpolationSpeed * MinValue + (1.0 - InterpolationSpeed) * LowValue;
+					}
+
+					double BaselineY;
+					double ScaleY;
+					Series.ComputeBaselineAndScale(MinValue, MaxValue, TopY, BottomY, BaselineY, ScaleY);
+
+					constexpr double ErrorTolerance = 1e-15;
+					if (!FMath::IsNearlyEqual(BaselineY, Series.GetBaselineY(), ErrorTolerance) ||
+						!FMath::IsNearlyEqual(ScaleY, Series.GetScaleY(), ErrorTolerance))
+					{
+						// Request a new update so we can further interpolate the coefficients (until reaching targeted ones).
+						Series.SetDirtyFlag();
+					}
+
+					Series.SetBaselineY(BaselineY);
+					Series.SetScaleY(ScaleY);
+				}
+				else
+				{
+					// If MinValue == MaxValue, we keep the previous baseline and scale.
+				}
+			}
 
 			if (Counter.IsFloatingPoint())
 			{
-				Counter.EnumerateFloatValues(Viewport.StartTime, Viewport.EndTime, [&Builder, &MinValue, &MaxValue](double Time, double Value)
+				Counter.EnumerateFloatValues(Viewport.StartTime, Viewport.EndTime, [&Builder](double Time, double Value)
 				{
-					if (Value < MinValue)
-					{
-						MinValue = Value;
-					}
-					if (Value > MaxValue)
-					{
-						MaxValue = Value;
-					}
+					//TODO: add a "value unit converter"
+					Builder.AddEvent(Time, 0.0, Value);
 				});
 			}
 			else
 			{
-				Counter.EnumerateValues(Viewport.StartTime, Viewport.EndTime, [&Builder, &MinValue, &MaxValue](double Time, int64 IntValue)
+				Counter.EnumerateValues(Viewport.StartTime, Viewport.EndTime, [&Builder](double Time, int64 IntValue)
 				{
-					const double Value = static_cast<double>(IntValue);
-					if (Value < MinValue)
-					{
-						MinValue = Value;
-					}
-					if (Value > MaxValue)
-					{
-						MaxValue = Value;
-					}
-				});
-			}
-
-			const double ValueOffset = (MinValue != std::numeric_limits<double>::infinity()) ? -MinValue : 0.0;
-
-			const double AdjustedHeight = GetHeight() - 3.0f;
-			const double ValueScale = (MinValue < MaxValue) ? AdjustedHeight / ScaleY / (MaxValue - MinValue) : 1.0;
-
-			if (Counter.IsFloatingPoint())
-			{
-				Counter.EnumerateFloatValues(Viewport.StartTime, Viewport.EndTime, [&Builder, ValueOffset, ValueScale](double Time, double Value)
-				{
-					//TODO: add a "value converter"
-					Builder.AddEvent(Time, 0.0, (Value + ValueOffset) * ValueScale);
-				});
-			}
-			else
-			{
-				Counter.EnumerateValues(Viewport.StartTime, Viewport.EndTime, [&Builder, ValueOffset, ValueScale](double Time, int64 IntValue)
-				{
-					//TODO: add a "value converter"
-					Builder.AddEvent(Time, 0.0, (static_cast<double>(IntValue) + ValueOffset) * ValueScale);
+					//TODO: add a "value unit converter"
+					Builder.AddEvent(Time, 0.0, static_cast<double>(IntValue));
 				});
 			}
 		});

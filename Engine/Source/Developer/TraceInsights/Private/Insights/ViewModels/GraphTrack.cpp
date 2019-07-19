@@ -24,6 +24,14 @@ FGraphSeries::FGraphSeries()
 	: Name()
 	, Description()
 	, bIsVisible(true)
+	, bIsDirty(false)
+	, bAutoZoom(false)
+	, TargetAutoZoomLowValue(0.0)
+	, TargetAutoZoomHighValue(1.0)
+	, AutoZoomLowValue(0.0)
+	, AutoZoomHighValue(1.0)
+	, BaselineY(0.0)
+	, ScaleY(1.0)
 	, Color(0.0f, 0.5f, 1.0f, 1.0f)
 	, BorderColor(0.3f, 0.8f, 1.0f, 1.0f)
 	//, Points()
@@ -56,8 +64,6 @@ FGraphTrack::FGraphTrack(uint64 InTrackId)
 	, bDrawPolygon(true)
 	, bUseEventDuration(true)
 	, bDrawBoxes(true)
-	, BaselineY(0.0f)
-	, ScaleY(1.0)
 	, NumAddedEvents(0)
 	, NumDrawPoints(0)
 	, NumDrawLines(0)
@@ -70,6 +76,13 @@ FGraphTrack::FGraphTrack(uint64 InTrackId)
 FGraphTrack::~FGraphTrack()
 {
 	delete BorderBrush;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrack::Reset()
+{
+	AllSeries.Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,9 +148,17 @@ void FGraphTrack::Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Vi
 	// Draw top line.
 	//DrawContext.DrawBox(0.0f, GetPosY(), Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
-	// Draw baseline (Value == 0).
-	DrawContext.DrawBox(0.0f, GetPosY() + BaselineY - 1.0f, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
-	DrawContext.LayerId++;
+	// Draw baseline (Value == 0), for the first series only.
+	if (AllSeries.Num() > 0)
+	{
+		const TSharedPtr<FGraphSeries>& Series = AllSeries[0];
+		const float BaselineY = FMath::RoundToFloat(static_cast<float>(Series->GetBaselineY()));
+		if (BaselineY > 0.0f && BaselineY <= GetHeight())
+		{
+			DrawContext.DrawBox(0.0f, GetPosY() + BaselineY - 1.0f, Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+			DrawContext.LayerId++;
+		}
+	}
 
 	for (const TSharedPtr<FGraphSeries>& Series : AllSeries)
 	{
@@ -155,10 +176,19 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 	if (bDrawBoxes)
 	{
 		int32 NumBoxes = Series.Boxes.Num();
+		const float TrackPosY = GetPosY();
+		const float BaselineY = static_cast<float>(Series.GetBaselineY());
 		for (int32 Index = 0; Index < NumBoxes; ++Index)
 		{
 			const FGraphBox& Box = Series.Boxes[Index];
-			DrawContext.DrawBox(Box.X, GetPosY() + Box.Y, Box.W, BaselineY - Box.Y, WhiteBrush, Series.Color);
+			if (BaselineY >= Box.Y)
+			{
+				DrawContext.DrawBox(Box.X, TrackPosY + Box.Y, Box.W, BaselineY - Box.Y + 1.0f, WhiteBrush, Series.Color);
+			}
+			else
+			{
+				DrawContext.DrawBox(Box.X, TrackPosY + BaselineY, Box.W, Box.Y - BaselineY, WhiteBrush, Series.Color);
+			}
 		}
 		DrawContext.LayerId++;
 	}
@@ -184,46 +214,50 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		Indices.Reserve(Series.LinePoints.Num() * 6);
 		Verts.Reserve(Series.LinePoints.Num() * 2);
 
-		const float TopY = GetPosY();
-		const float BottomY = (TopY + GetHeight()) / Size.Y;
+		const float TopV = GetPosY() / Size.Y;
+		const float BaselineY = static_cast<float>(Series.GetBaselineY());
+		const float BottomV = FMath::Min(GetPosY() + BaselineY, GetPosY() + GetHeight()) / Size.Y;
 
-		for (const FVector2D& LinePoint : Series.LinePoints)
+		if (TopV < BottomV)
 		{
-			// Add verts top->bottom
-			FVector2D UV(LinePoint.X / Size.X, (TopY + LinePoint.Y) / Size.Y);
-			Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, (Pos + UV * Size * Scale), AtlasOffset + UV * AtlasUVSize, FillColor));
-			UV.Y = BottomY;
-			Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, (Pos + UV * Size * Scale), AtlasOffset + FVector2D(UV.X, 0.5f) * AtlasUVSize, FillColor));
-
-			if (Verts.Num() >= 4)
+			for (const FVector2D& LinePoint : Series.LinePoints)
 			{
-				int32 Index0 = Verts.Num() - 4;
-				int32 Index1 = Verts.Num() - 3;
-				int32 Index2 = Verts.Num() - 2;
-				int32 Index3 = Verts.Num() - 1;
+				// Add verts top->bottom
+				FVector2D UV(LinePoint.X / Size.X, TopV + LinePoint.Y / Size.Y);
+				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + UV * Size * Scale, AtlasOffset + UV * AtlasUVSize, FillColor));
+				UV.Y = BottomV;
+				Verts.Add(FSlateVertex::Make<ESlateVertexRounding::Disabled>(RenderTransform, Pos + UV * Size * Scale, AtlasOffset + FVector2D(UV.X, 0.5f) * AtlasUVSize, FillColor));
 
-				Indices.Add(Index0);
-				Indices.Add(Index1);
-				Indices.Add(Index2);
+				if (Verts.Num() >= 4)
+				{
+					int32 Index0 = Verts.Num() - 4;
+					int32 Index1 = Verts.Num() - 3;
+					int32 Index2 = Verts.Num() - 2;
+					int32 Index3 = Verts.Num() - 1;
 
-				Indices.Add(Index1);
-				Indices.Add(Index2);
-				Indices.Add(Index3);
+					Indices.Add(Index0);
+					Indices.Add(Index1);
+					Indices.Add(Index2);
+
+					Indices.Add(Index1);
+					Indices.Add(Index2);
+					Indices.Add(Index3);
+				}
 			}
-		}
 
-		if (Indices.Num())
-		{
-			FSlateDrawElement::MakeCustomVerts(
-				DrawContext.ElementList,
-				DrawContext.LayerId,
-				ResourceHandle,
-				Verts,
-				Indices,
-				nullptr,
-				0,
-				0, ESlateDrawEffect::PreMultipliedAlpha);
-			DrawContext.LayerId++;
+			if (Indices.Num() > 0)
+			{
+				FSlateDrawElement::MakeCustomVerts(
+					DrawContext.ElementList,
+					DrawContext.LayerId,
+					ResourceHandle,
+					Verts,
+					Indices,
+					nullptr,
+					0,
+					0, ESlateDrawEffect::PreMultipliedAlpha);
+				DrawContext.LayerId++;
+			}
 		}
 	}
 
@@ -597,7 +631,12 @@ FRandomGraphTrack::FRandomGraphTrack(uint64 InTrackId)
 	bDrawPolygon = false;
 	bUseEventDuration = false;
 	bDrawBoxes = false;
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FRandomGraphTrack::AddDefaultSeries()
+{
 	TSharedPtr<FGraphSeries> Series0 = MakeShareable(new FGraphSeries());
 	Series0->SetName(TEXT("Random Blue"));
 	Series0->SetDescription(TEXT("Random series; for debuging purposes"));
@@ -616,7 +655,7 @@ FRandomGraphTrack::FRandomGraphTrack(uint64 InTrackId)
 	Series2->SetName(TEXT("Random Red"));
 	Series2->SetDescription(TEXT("Random series; for debuging purposes"));
 	Series2->SetColor(FLinearColor(1.0f, 0.1f, 0.2f, 1.0f), FLinearColor(1.0f, 0.4f, 0.5f, 1.0f));
-	Series2->SetVisibility(false);
+	Series2->SetVisibility(true);
 	AllSeries.Add(Series2);
 }
 
@@ -630,18 +669,22 @@ FRandomGraphTrack::~FRandomGraphTrack()
 
 void FRandomGraphTrack::Update(const FTimingTrackViewport& Viewport)
 {
-	NumAddedEvents = 0;
+	if (IsDirty())
+	{
+		ClearDirtyFlag();
 
-	// TODO: vertical panning and zooming
-	BaselineY = GetHeight();
-	ScaleY = 1.0;
+		NumAddedEvents = 0;
 
-	ensure(AllSeries.Num() == 3);
-	GenerateSeries(*AllSeries[0], Viewport, 1000000, 0);
-	GenerateSeries(*AllSeries[1], Viewport, 1000000, 1);
-	GenerateSeries(*AllSeries[2], Viewport, 1000000, 2);
+		int32 Seed = 0;
+		for (TSharedPtr<FGraphSeries>& Series : AllSeries)
+		{
+			Series->SetBaselineY(GetHeight() / 2.0);
+			Series->SetScaleY(GetHeight());
+			GenerateSeries(*Series, Viewport, 1000000, Seed++);
+		}
 
-	UpdateStats();
+		UpdateStats();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -653,8 +696,9 @@ void FRandomGraphTrack::GenerateSeries(FGraphSeries& Series, const FTimingTrackV
 
 	constexpr double MinDeltaTime = 0.0000001; // 100ns
 	constexpr double MaxDeltaTime = 0.01; // 100ms
-	const float MinValue = 0;
-	const float MaxValue = GetHeight();
+
+	float MinValue = (Seed == 0) ? 0.0f : (Seed == 1) ? -0.25f : -0.5f;
+	float MaxValue = (Seed == 0) ? 0.5f : (Seed == 1) ? +0.25f :  0.0f;
 
 	struct FGraphEvent
 	{
@@ -796,7 +840,7 @@ void FGraphTrackBuilder::AddPoint(double Time, double Value)
 		PointsCurrentX = AlignedX;
 	}
 
-	const float Y = Track.GetYForValue(Value);
+	const float Y = Series.GetYForValue(Value);
 
 	int32 Index = FMath::RoundToInt(Y / FGraphTrack::PointSizeY);
 	if (Index >= 0 && Index < PointsAtCurrentX.Num())
@@ -856,7 +900,7 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value)
 	}
 
 	// Transform Value to Y coordinate (local track space) and ensure Y is not infinite.
-	const float Y = FMath::Clamp<float>(Track.GetYForValue(Value), -FLT_MAX, FLT_MAX);
+	const float Y = FMath::Clamp<float>(Series.GetYForValue(Value), -FLT_MAX, FLT_MAX);
 
 	const float X = Viewport.TimeToSlateUnitsRounded(Viewport.RestrictEndTime(Time));
 
@@ -979,7 +1023,7 @@ void FGraphTrackBuilder::AddBox(double Time, double Duration, double Value)
 	FGraphBox Box;
 	Box.X = X1;
 	Box.W = W;
-	Box.Y = Track.GetYForValue(Value);
+	Box.Y = Series.GetYForValue(Value);
 	Series.Boxes.Add(Box);
 }
 
