@@ -5,11 +5,6 @@
 
 class FNullInstallBundleManager : public IPlatformInstallBundleManager
 {
-	virtual bool HasBuildMetaData() const override
-	{
-		return false;
-	}
-
 	virtual void PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) override
 	{
 	}
