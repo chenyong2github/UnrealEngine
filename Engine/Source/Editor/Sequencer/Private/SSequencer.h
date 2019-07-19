@@ -77,13 +77,18 @@ struct FSequencerBreadcrumb
 	/** The movie scene this may point to */
 	FMovieSceneSequenceID SequenceID;
 
-	FSequencerBreadcrumb(FMovieSceneSequenceIDRef InSequenceID)
+	/** The display name of this breadcrumb */
+	FText BreadcrumbName;
+
+	FSequencerBreadcrumb(FMovieSceneSequenceIDRef InSequenceID, FText CrumbName)
 		: BreadcrumbType(FSequencerBreadcrumb::MovieSceneType)
 		, SequenceID(InSequenceID)
+		, BreadcrumbName(CrumbName)
 	{ }
 
-	FSequencerBreadcrumb()
+	FSequencerBreadcrumb(FText CrumbName)
 		: BreadcrumbType(FSequencerBreadcrumb::ShotType)
+		, BreadcrumbName(CrumbName)
 	{ }
 };
 
@@ -451,6 +456,11 @@ private:
 	/** Called when a breadcrumb is clicked on in the sequencer */
 	void OnCrumbClicked(const FSequencerBreadcrumb& Item);
 
+	void OnBreadcrumbPickerContentClicked(const FSequencerBreadcrumb& Breadcrumb);
+
+	/** Called when the user opens the breadcrumb dropdown */
+	TSharedRef<SWidget> GetBreadcrumbPickerContent();
+
 	/** Gets the root movie scene name */
 	FText GetRootAnimationName() const;
 
@@ -549,6 +559,9 @@ private:
 
 	/** The sequencer tree view responsible for the outliner and track areas */
 	TSharedPtr<SSequencerTreeView> TreeView;
+
+	/** Dropdown for selecting breadcrumbs */
+	TSharedPtr<class SComboButton> BreadcrumbPickerButton;
 
 	/** The main sequencer interface */
 	TWeakPtr<FSequencer> SequencerPtr;
