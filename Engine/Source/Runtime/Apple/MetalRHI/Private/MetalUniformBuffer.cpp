@@ -211,7 +211,28 @@ FMetalUniformBuffer::FMetalUniformBuffer(const void* Contents, const FRHIUniform
 		}
 	}
 
-    Update(Contents, ResourceTable, Validation);
+	if (ConstantSize > 0)
+	{
+		UE_CLOG(ConstantSize > 65536, LogMetal, Fatal, TEXT("Trying to allocated a uniform layout of size %d that is greater than the maximum permitted 64k."), ConstantSize);
+		
+		if (Buffer)
+		{
+			FMemory::Memcpy(Buffer.GetContents(), Contents, ConstantSize);
+#if PLATFORM_MAC
+			if(Mode == mtlpp::StorageMode::Managed)
+			{
+				MTLPP_VALIDATE(mtlpp::Buffer, Buffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, ConstantSize)));
+			}
+#endif
+		}
+		else
+		{
+			check(Data && Data->Data);
+			FMemory::Memcpy(Data->Data, Contents, ConstantSize);
+		}
+	}
+	
+    UpdateResourceTable(ResourceTable, Validation);
 	
     if (NumResources && FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs))
     {
@@ -397,7 +418,7 @@ void FMetalUniformBuffer::InitIAB()
 							BufferDesc.SetDataType(mtlpp::DataType::Pointer);
 							NewIAB->IndirectArgumentResources.Add(Argument(VB->Buffer, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Write)));
 							
-							check(VB->Buffer.GetStorageMode() == mtlpp::StorageMode::Private);
+							check(VB->Mode == mtlpp::StorageMode::Private);
 							BufferSizes.Add(VB->GetSize());
 							BufferSizes.Add(GMetalBufferFormats[SRV->Format].DataFormat);
 						}
@@ -406,7 +427,7 @@ void FMetalUniformBuffer::InitIAB()
 							BufferDesc.SetDataType(mtlpp::DataType::Pointer);
 							NewIAB->IndirectArgumentResources.Add(Argument(IB->Buffer, (mtlpp::ResourceUsage)(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Write)));
 							
-							check(IB->Buffer.GetStorageMode() == mtlpp::StorageMode::Private);
+							check(IB->Mode == mtlpp::StorageMode::Private);
 							BufferSizes.Add(IB->GetSize());
 							BufferSizes.Add(GMetalBufferFormats[SRV->Format].DataFormat);
 						}
@@ -556,17 +577,8 @@ void const* FMetalUniformBuffer::GetData()
 	}
 }
 
-void FMetalUniformBuffer::Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation)
+void FMetalUniformBuffer::UpdateResourceTable(TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation)
 {
-    if (ConstantSize > 0)
-    {
-        UE_CLOG(ConstantSize > 65536, LogMetal, Fatal, TEXT("Trying to allocated a uniform layout of size %d that is greater than the maximum permitted 64k."), ConstantSize);
-        
-        void* Data = Lock(RLM_WriteOnly, 0);
-        FMemory::Memcpy(Data, Contents, ConstantSize);
-        Unlock();
-    }
-	
 	ResourceTable = Resources;
 	
 	if (NumResources && FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs))
@@ -627,6 +639,20 @@ void FMetalUniformBuffer::Update(const void* Contents, TArray<TRefCountPtr<FRHIR
 			new (RHICmdList.AllocCommand<FMetalRHICommandInitialiseUniformBufferIAB>()) FMetalRHICommandInitialiseUniformBufferIAB(this);
 		}
 	}
+}
+
+void FMetalUniformBuffer::Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation)
+{
+    if (ConstantSize > 0)
+    {
+        UE_CLOG(ConstantSize > 65536, LogMetal, Fatal, TEXT("Trying to allocated a uniform layout of size %d that is greater than the maximum permitted 64k."), ConstantSize);
+        
+        void* Data = Lock(true, RLM_WriteOnly, 0);
+        FMemory::Memcpy(Data, Contents, ConstantSize);
+        Unlock();
+    }
+	
+	UpdateResourceTable(Resources, Validation);
 }
 
 FUniformBufferRHIRef FMetalDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)

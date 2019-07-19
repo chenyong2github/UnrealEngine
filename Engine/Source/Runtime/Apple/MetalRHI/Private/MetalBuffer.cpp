@@ -675,7 +675,7 @@ FMetalSubBufferMagazine::FMetalSubBufferMagazine(NSUInteger Size, NSUInteger Chu
 	Options = (mtlpp::ResourceOptions)FMetalCommandQueue::GetCompatibleResourceOptions(Options);
     static bool bSupportsHeaps = GetMetalDeviceContext().SupportsFeature(EMetalFeaturesHeaps);
     mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
-    if (bSupportsHeaps && Storage == mtlpp::StorageMode::Private)
+    if (PLATFORM_IOS && bSupportsHeaps && Storage == mtlpp::StorageMode::Private)
     {
         MinAlign = GetMetalDeviceContext().GetDevice().HeapBufferSizeAndAlign(BlockSize, Options).Align;
     }
@@ -941,6 +941,7 @@ FMetalSubBufferRing::FMetalSubBufferRing(NSUInteger Size, NSUInteger Alignment, 
 , CommitHead(0)
 , SubmitHead(0)
 , WriteHead(0)
+, BufferSize(0)
 , Options(InOptions)
 , Storage((mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift))
 {
@@ -987,6 +988,7 @@ FMetalBuffer FMetalSubBufferRing::NewBuffer(NSUInteger Size, uint32 Alignment)
 	if(!Buffer.IsValid())
 	{
 		Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(InitialSize, MinAlign, BUF_Dynamic, Options, true));
+		BufferSize = InitialSize;
 	}
 	
 	if(Buffer->LastRead <= WriteHead)
@@ -1005,7 +1007,7 @@ FMetalBuffer FMetalSubBufferRing::NewBuffer(NSUInteger Size, uint32 Alignment)
 		else if (Storage == mtlpp::StorageMode::Managed)
 		{
 			Submit();
-			Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Buffer->Buffer.GetLength(), MinAlign, BUF_Dynamic, Options, true));
+			Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(BufferSize, MinAlign, BUF_Dynamic, Options, true));
 			WriteHead = 0;
 			CommitHead = 0;
 			SubmitHead = 0;
@@ -1017,16 +1019,16 @@ FMetalBuffer FMetalSubBufferRing::NewBuffer(NSUInteger Size, uint32 Alignment)
 		}
 	}
 	
-	const NSUInteger BufferSize = Buffer->Buffer.GetLength();
 	if(WriteHead + FullSize >= Buffer->LastRead || WriteHead + FullSize > BufferSize)
 	{
-		NSUInteger NewBufferSize = AlignArbitrary(BufferSize + Size, Align(Buffer->Buffer.GetLength() / 4, MinAlign));
+		NSUInteger NewBufferSize = AlignArbitrary(BufferSize + Size, Align(BufferSize / 4, MinAlign));
 		
 		UE_LOG(LogMetal, Verbose, TEXT("Reallocating ring-buffer from %d to %d to avoid wrapping write at offset %d into outstanding buffer region %d at frame %lld]"), (uint32)BufferSize, (uint32)NewBufferSize, (uint32)WriteHead, (uint32)Buffer->LastRead, (uint64)GFrameCounter);
 		
 		Submit();
 		
 		Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(NewBufferSize, MinAlign, BUF_Dynamic, Options, true));
+		BufferSize = NewBufferSize;
 		WriteHead = 0;
 		CommitHead = 0;
 		SubmitHead = 0;
@@ -1055,16 +1057,16 @@ void FMetalSubBufferRing::Shrink()
 		}
 		
 		NSUInteger NecessarySize = FMath::Max(FrameMax, InitialSize);
-		NSUInteger ThreeQuarterSize = Align((Buffer->Buffer.GetLength() / 4) * 3, MinAlign);
+		NSUInteger ThreeQuarterSize = Align((BufferSize / 4) * 3, MinAlign);
 		
-		if ((GFrameNumberRenderThread - LastFrameChange) >= 120 && NecessarySize < ThreeQuarterSize && NecessarySize < Buffer->Buffer.GetLength())
+		if ((GFrameNumberRenderThread - LastFrameChange) >= 120 && NecessarySize < ThreeQuarterSize && NecessarySize < BufferSize)
 		{
 			Submit();
 			
 			UE_LOG(LogMetal, Verbose, TEXT("Shrinking RingBuffer from %u to %u as max. usage is %u at frame %lld]"), (uint32)Buffer->Buffer.GetLength(), (uint32)ThreeQuarterSize, (uint32)FrameMax, GFrameNumberRenderThread);
 			
 			Buffer = MakeShared<FMetalRingBufferRef, ESPMode::ThreadSafe>(GetMetalDeviceContext().GetResourceHeap().CreateBuffer(ThreeQuarterSize, MinAlign, BUF_Dynamic, Options, true));
-			
+			BufferSize = ThreeQuarterSize;
 			WriteHead = 0;
 			CommitHead = 0;
 			SubmitHead = 0;

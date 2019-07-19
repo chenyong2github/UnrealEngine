@@ -1550,6 +1550,21 @@ void FMetalRenderPass::AsyncCopyFromBufferToBuffer(FMetalBuffer const& SourceBuf
 	METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, Debugging.Copy(SourceBuffer, SourceOffset, DestinationBuffer, DestinationOffset, Size));
 }
 
+FMetalBuffer FMetalRenderPass::AllocateTemporyBufferForCopy(FMetalBuffer const& DestinationBuffer, NSUInteger Size, NSUInteger Align)
+{
+	FMetalBuffer Buffer;
+	bool bAsync = !CurrentEncoder.HasBufferBindingHistory(DestinationBuffer);
+	if(bAsync)
+	{
+		Buffer = PrologueEncoder.GetRingBuffer().NewBuffer(Size, Align);
+	}
+	else
+	{
+		Buffer = CurrentEncoder.GetRingBuffer().NewBuffer(Size, Align);
+	}
+	return Buffer;
+}
+
 void FMetalRenderPass::AsyncGenerateMipmapsForTexture(FMetalTexture const& Texture)
 {
 	// This must be a plain old error
@@ -1695,6 +1710,12 @@ mtlpp::CommandBuffer& FMetalRenderPass::GetCurrentCommandBuffer(void)
 FMetalSubBufferRing& FMetalRenderPass::GetRingBuffer(void)
 {
 	return CurrentEncoder.GetRingBuffer();
+}
+
+void FMetalRenderPass::ShrinkRingBuffers(void)
+{
+	PrologueEncoder.GetRingBuffer().Shrink();
+	CurrentEncoder.GetRingBuffer().Shrink();
 }
 
 bool FMetalRenderPass::IsWithinParallelPass(void)

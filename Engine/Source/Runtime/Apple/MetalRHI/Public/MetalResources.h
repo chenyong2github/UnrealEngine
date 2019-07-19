@@ -759,6 +759,11 @@ public:
 	virtual ~FMetalRHIBuffer();
 	
 	/**
+	 * Initialize the buffer contents from the render-thread.
+	 */
+	void Init_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
+	
+	/**
 	 * Alias the buffer backing store allowing the memory to be reused by another resource.
 	 */
 	void Alias();
@@ -769,9 +774,14 @@ public:
 	void Unalias();
 	
 	/**
-	 * Allocate the index buffer backing store.
+	 * Allocate the buffer backing store.
 	 */
 	void Alloc(uint32 InSize, EResourceLockMode LockMode);
+	
+	/**
+	 * Allocate the CPU accessible buffer for data transfer.
+	 */
+	void AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, EResourceLockMode LockMode);
 	
 	/**
 	 * Allocate a linear texture for given format.
@@ -791,7 +801,7 @@ public:
 	/**
 	 * Prepare a CPU accessible buffer for uploading to GPU memory
 	 */
-	void* Lock(EResourceLockMode LockMode, uint32 Offset, uint32 Size=0);
+	void* Lock(bool bIsOnRHIThread, EResourceLockMode LockMode, uint32 Offset, uint32 Size=0);
 	
 	/**
 	 * Prepare a CPU accessible buffer for uploading to GPU memory
@@ -831,6 +841,9 @@ public:
 	
 	// Buffer usage.
 	uint32 Usage;
+	
+	// Storage mode
+	mtlpp::StorageMode Mode;
 	
 	// Resource type
 	ERHIResourceType Type;
@@ -877,6 +890,7 @@ public:
 
 	void InitIAB();
 
+	void UpdateResourceTable(TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
 	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
 	
 	/** Resource table containing RHI references. */

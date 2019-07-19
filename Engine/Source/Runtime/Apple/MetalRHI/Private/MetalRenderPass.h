@@ -80,6 +80,8 @@ public:
 	
 	void AsyncCopyFromBufferToBuffer(FMetalBuffer const& SourceBuffer, NSUInteger SourceOffset, FMetalBuffer const& DestinationBuffer, NSUInteger DestinationOffset, NSUInteger Size);
 	
+	FMetalBuffer AllocateTemporyBufferForCopy(FMetalBuffer const& DestinationBuffer, NSUInteger Size, NSUInteger Align);
+	
 	void AsyncGenerateMipmapsForTexture(FMetalTexture const& Texture);
 	
     TRefCountPtr<FMetalFence> const& Submit(EMetalSubmitFlags SubmissionFlags);
@@ -136,6 +138,11 @@ public:
 	 * @returns The temporary allocation buffer for the command-pass.
 	 */
 	FMetalSubBufferRing& GetRingBuffer(void);
+	
+	/*
+	 * Attempts to shrink the ring-buffers so we don't keep very large allocations when we don't need them.
+	 */
+	void ShrinkRingBuffers(void);
 	
 	/*
 	 * Whether the render-pass is within a parallel rendering pass.

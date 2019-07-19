@@ -1074,7 +1074,7 @@ void FMetalContext::InitFrame(bool const bImmediateContext, uint32 Index, uint32
 	}
 	
 	// Reallocate if necessary to ensure >= 80% usage, otherwise we're just too wasteful
-	// RenderPass.GetRingBuffer().Shrink();
+	RenderPass.ShrinkRingBuffers();
 	
 	// Begin the render pass frame.
 	RenderPass.Begin(StartFence);
