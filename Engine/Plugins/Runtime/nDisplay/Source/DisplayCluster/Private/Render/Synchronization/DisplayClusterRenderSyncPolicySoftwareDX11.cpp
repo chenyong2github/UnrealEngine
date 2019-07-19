@@ -11,6 +11,7 @@
 #include "DirectX/Include/DXGI.h"
 #include "dwmapi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
+#include "RenderCore/Public/ShaderCore.h"
 
 #include "D3D11RHI/Private/Windows/D3D11RHIBasePrivate.h"
 
@@ -19,7 +20,6 @@
 #include "D3D11Viewport.h"
 
 #include "NVIDIA/nvapi/nvapi.h"
-
 
 static TAutoConsoleVariable<int32> CVarAdvancedSyncEnabled(
 	TEXT("nDisplay.render.softsync.AdvancedSyncEnabled"),
