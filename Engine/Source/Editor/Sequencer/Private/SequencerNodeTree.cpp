@@ -631,39 +631,14 @@ static void AddChildNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TS
  */
 static void AddFilteredNode(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
 {
-	if (!StartNode->IsExpanded())
-	{
-		StartNode->SetExpansionState(true);
-	}
-
 	AddChildNodes(StartNode, OutFilteredNodes);
 
 	// Gather parent folders up the chain
 	TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 	while (ParentNode.IsValid())
 	{
-		if (!ParentNode.Get()->IsExpanded())
-		{
-			ParentNode.Get()->SetExpansionState(true);
-		}
-
 		OutFilteredNodes.Add(ParentNode.ToSharedRef());
 		ParentNode = ParentNode->GetParent();
-	}
-}
-
-static void AddParentNodes(const TSharedRef<FSequencerDisplayNode>& StartNode, TSet<TSharedRef<FSequencerDisplayNode>>& OutFilteredNodes)
-{
-	TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
-	if (ParentNode.IsValid())
-	{
-		if (!ParentNode.Get()->IsExpanded())
-		{
-			ParentNode.Get()->SetExpansionState(true);
-		}
-
-		OutFilteredNodes.Add(ParentNode.ToSharedRef());
-		AddParentNodes(ParentNode.ToSharedRef(), OutFilteredNodes);
 	}
 }
 
@@ -807,6 +782,17 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 				{
 					return;
 				}
+			}
+
+			TSharedPtr<FSequencerDisplayNode> ParentNode = StartNode->GetParent();
+			while(ParentNode.IsValid())
+			{
+				if (!ParentNode.Get()->IsExpanded())
+				{
+					ParentNode.Get()->SetExpansionState(true);
+				}
+
+				ParentNode = ParentNode->GetParent();
 			}
 		}
 		AddFilteredNode(StartNode, OutFilteredNodes);
