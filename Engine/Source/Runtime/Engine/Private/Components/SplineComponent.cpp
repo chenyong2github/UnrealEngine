@@ -42,7 +42,7 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, 
 	, DefaultUpVector(FVector::UpVector)
 #if WITH_EDITORONLY_DATA
 	, EditorUnselectedSplineSegmentColor(FLinearColor(1.0f, 1.0f, 1.0f))
-	, EditorSelectedSplineSegmentColor(FLinearColor(1.0f, 0.0f, 0.0f))
+	, EditorSelectedSplineSegmentColor(FLinearColor(0.828f, 0.364f, 0.003f))
 	, bAllowDiscontinuousSpline(false)
 	, bShouldVisualizeScale(false)
 	, ScaleVisualizationWidth(30.0f)
@@ -61,7 +61,14 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, 
 	SplineCurves.Position.Points.Emplace(1.0f, FVector(100, 0, 0), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
 	SplineCurves.Rotation.Points.Emplace(1.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
 	SplineCurves.Scale.Points.Emplace(1.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
-		
+
+#if WITH_EDITORONLY_DATA
+	if (GEngine)
+	{
+		EditorSelectedSplineSegmentColor = GEngine->GetSelectionOutlineColor();
+	}
+#endif
+
 	if (SplineCurves.Metadata)
 	{
 		const int32 NumPoints = GetNumberOfSplinePoints();

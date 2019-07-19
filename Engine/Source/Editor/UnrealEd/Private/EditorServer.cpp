@@ -5037,33 +5037,43 @@ bool UEditorEngine::Exec_Camera( const TCHAR* Str, FOutputDevice& Ar )
 		}
 		else 
 		{
-			TArray<AActor*> Actors;
-			for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
-			{
-				AActor* Actor = static_cast<AActor*>( *It );
-				checkSlow( Actor->IsA(AActor::StaticClass()) );
-				Actors.Add( Actor );
-			}
+			FBox ComponentVisBoundingBox;
+			bool bComponentVisHasFocusOnSelectionBoundingBox = GUnrealEd && GUnrealEd->ComponentVisManager.HasFocusOnSelectionBoundingBox(ComponentVisBoundingBox);
 
-			TArray<UPrimitiveComponent*> SelectedComponents;
-			for( FSelectionIterator It( GetSelectedComponentIterator() ); It; ++It )
+			if (bComponentVisHasFocusOnSelectionBoundingBox)
 			{
-				UPrimitiveComponent* PrimitiveComp = Cast<UPrimitiveComponent>( *It );
-				if( PrimitiveComp )
-				{
-					SelectedComponents.Add( PrimitiveComp );
-				}
-			}
-
-			if( Actors.Num() || SelectedComponents.Num() )
-			{
-				MoveViewportCamerasToActor( Actors, SelectedComponents, bActiveViewportOnly );
-				return true;
+				MoveViewportCamerasToBox(ComponentVisBoundingBox, bActiveViewportOnly);
 			}
 			else
 			{
-				Ar.Log( TEXT("Can't find target actor or component.") );
-				return false;
+				TArray<AActor*> Actors;
+				for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+				{
+					AActor* Actor = static_cast<AActor*>(*It);
+					checkSlow(Actor->IsA(AActor::StaticClass()));
+					Actors.Add(Actor);
+				}
+
+				TArray<UPrimitiveComponent*> SelectedComponents;
+				for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
+				{
+					UPrimitiveComponent* PrimitiveComp = Cast<UPrimitiveComponent>(*It);
+					if (PrimitiveComp)
+					{
+						SelectedComponents.Add(PrimitiveComp);
+					}
+				}
+
+				if (Actors.Num() || SelectedComponents.Num())
+				{
+					MoveViewportCamerasToActor(Actors, SelectedComponents, bActiveViewportOnly);
+					return true;
+				}
+				else
+				{
+					Ar.Log(TEXT("Can't find target actor or component."));
+					return false;
+				}
 			}
 		}
 	}
