@@ -216,6 +216,24 @@
 #endif
 
 
+//------------------------------------------------------- COMPILATION WHITE LISTING
+
+#define COMPILE_BOX_KERNEL 1
+
+// Moment 1 needed for previous frame sampling.
+#define COMPILE_MOMENT1_ACCUMULATOR 1
+
+#if CONFIG_HISTORY_REJECTION != HISTORY_REJECTION_DISABLED
+	#define COMPILE_MININVFREQ_ACCUMULATOR 1
+#endif
+
+#if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_MINMAX_BOUNDARIES
+	#define COMPILE_MINMAX_ACCUMULATOR 1
+#elif CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_VAR_BOUNDARIES && CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_1UNNORMALIZED
+	#define COMPILE_MOMENT2_ACCUMULATOR 1
+#endif
+
+
 //------------------------------------------------------- INCLUDES
 
 #include "SSDSignalFramework.ush"
@@ -651,16 +669,16 @@ void TemporallyAccumulate(
 		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 		{
-			FSSDSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;
-			FSSDSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
-		
 			FSSDSignalSample NeighborMoment1 = CreateSignalSampleFromScalarValue(0.0);
 			FSSDSignalSample NeighborMoment2 = CreateSignalSampleFromScalarValue(0.0);
 			#if CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_1UNNORMALIZED
 			{
 				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId].Moment1.SampleCount);
 				NeighborMoment1 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment1, NormalizeFactor);
-				NeighborMoment2 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment2, NormalizeFactor);
+				
+				#if COMPILE_MOMENT2_ACCUMULATOR
+					NeighborMoment2 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment2, NormalizeFactor);
+				#endif
 			}
 			#elif CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 			{
@@ -689,8 +707,8 @@ void TemporallyAccumulate(
 
 				// StdDev = sqrt(abs(NeighborSquareAvg - NeighborAvg * NeighborAvg));
 				FSSDSignalSample StdDev = Sqrt(Abs(Subtract(NeighborMoment2, Power(NeighborMoment1, 2))));
-				NeighborMin = Add(NeighborMoment1, Mul(StdDev, -StdDevMultiplier));
-				NeighborMax = Add(NeighborMoment1, Mul(StdDev,  StdDevMultiplier));
+				FSSDSignalSample NeighborMin = Add(NeighborMoment1, Mul(StdDev, -StdDevMultiplier));
+				FSSDSignalSample NeighborMax = Add(NeighborMoment1, Mul(StdDev,  StdDevMultiplier));
 
 				if (0)
 				{
@@ -756,6 +774,9 @@ void TemporallyAccumulate(
 			}
 			#elif CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_MINMAX_BOUNDARIES
 			{
+				FSSDSignalSample NeighborMin = SignalAccumulators.Array[BatchedSignalId].Min;
+				FSSDSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
+		
 				float RejectedSampleCount = 0;
 				HistorySample = Mul(TransformSignalForPostRejection(Clamp(TransformInputBufferForPreRejection(NormalizeToOneSample(HistorySample)), NeighborMin, NeighborMax)), HistorySample.SampleCount - RejectedSampleCount);
 			}

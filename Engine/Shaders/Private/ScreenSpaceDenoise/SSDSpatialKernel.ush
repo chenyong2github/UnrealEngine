@@ -41,6 +41,22 @@
 #endif
 
 
+#ifndef COMPILE_BOX_KERNEL
+	#define COMPILE_BOX_KERNEL 0
+#endif
+
+#ifndef COMPILE_STACKOWIAK_KERNEL
+	#define COMPILE_STACKOWIAK_KERNEL 0
+#endif
+
+#ifndef COMPILE_DISK_KERNEL
+	#define COMPILE_DISK_KERNEL 0
+#endif
+
+#ifndef COMPILE_HEIRARCHY_KERNEL
+	#define COMPILE_HEIRARCHY_KERNEL 0
+#endif
+
 
 //------------------------------------------------------- STRUCTURES
 
@@ -712,6 +728,8 @@ void SampleAndAccumulateCenterSampleAsItsOwnCluster(
 
 //------------------------------------------------------- EASY CONVOLUTIONS
 
+#if COMPILE_BOX_KERNEL
+
 void AccumulateBilinear(
 	FSSDKernelConfig KernelConfig,
 	FSSDTexture2D SignalBuffer0,
@@ -862,9 +880,13 @@ void AccumulateSquareKernel(
 		}
 	}
 } // AccumulateSquareKernel()
+	
+#endif // COMPILE_BOX_KERNEL
 
 
 //------------------------------------------------------- STACKOWIAK 2018
+
+#if COMPILE_STACKOWIAK_KERNEL
 
 static const float2 kStackowiakSampleSet0[56 * 4] =
 {
@@ -1159,8 +1181,12 @@ void ConvolveStackowiakKernel(
 	} // if (!KernelConfig.bDescOrder)
 } // ConvolveStackowiakKernel()
 
+#endif // COMPILE_STACKOWIAK_KERNEL
+
 
 //------------------------------------------------------- DISK
+
+#if COMPILE_DISK_KERNEL
 
 // Returns the position of the sample on the unit circle (radius = 1) for a given ring.
 float2 GetDiskSampleOnUnitCirle(uint RingId, uint RingSampleIteration, uint RingSampleId)
@@ -1399,8 +1425,12 @@ void ConvolveDiskKernel(
 	}
 }
 
+#endif // COMPILE_DISK_KERNEL
+
 
 //------------------------------------------------------- STOCASTIC HIERARCHY
+
+#if COMPILE_HEIRARCHY_KERNEL
 
 void ConvolveStocasticHierarchy(
 	FSSDKernelConfig KernelConfig,
@@ -1481,6 +1511,8 @@ void ConvolveStocasticHierarchy(
 	}
 }
 
+#endif // COMPILE_HEIRARCHY_KERNEL
+
 //------------------------------------------------------- MAIN ENTRY POINTS
 
 void AccumulateKernel(
@@ -1492,7 +1524,11 @@ void AccumulateKernel(
 	inout FSSDSignalAccumulatorArray UncompressedAccumulators,
 	inout FSSDCompressedSignalAccumulatorArray CompressedAccumulators)
 {
-	if (KernelConfig.SampleSet == SAMPLE_SET_1X1)
+	if (KernelConfig.SampleSet == 0xDEADDEAD)
+	{
+	}
+#if COMPILE_BOX_KERNEL
+	else if (KernelConfig.SampleSet == SAMPLE_SET_1X1)
 	{
 		if (KernelConfig.bSampleKernelCenter)
 		{
@@ -1534,6 +1570,8 @@ void AccumulateKernel(
 			/* inout */ UncompressedAccumulators,
 			/* inout */ CompressedAccumulators);
 	}
+#endif//  COMPILE_BOX_KERNEL
+#if COMPILE_STACKOWIAK_KERNEL
 	else if (KernelConfig.SampleSet == SAMPLE_SET_STACKOWIAK_4_SETS)
 	{
 		ConvolveStackowiakKernel(
@@ -1545,6 +1583,8 @@ void AccumulateKernel(
 			/* inout */ UncompressedAccumulators,
 			/* inout */ CompressedAccumulators);
 	}
+#endif // COMPILE_STACKOWIAK_KERNEL
+#if COMPILE_DISK_KERNEL
 	else if (KernelConfig.SampleSet == SAMPLE_SET_HEXAWEB)
 	{
 		ConvolveDiskKernel(
@@ -1556,6 +1596,8 @@ void AccumulateKernel(
 			/* inout */ UncompressedAccumulators,
 			/* inout */ CompressedAccumulators);
 	}
+#endif // COMPILE_DISK_KERNEL
+#if COMPILE_HEIRARCHY_KERNEL
 	else if (KernelConfig.SampleSet == SAMPLE_SET_STOCASTIC_HIERARCHY)
 	{
 		ConvolveStocasticHierarchy(
@@ -1567,4 +1609,5 @@ void AccumulateKernel(
 			/* inout */ UncompressedAccumulators,
 			/* inout */ CompressedAccumulators);
 	}
+#endif // COMPILE_HEIRARCHY_KERNEL
 } // AccumulateKernel()

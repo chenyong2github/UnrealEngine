@@ -62,6 +62,7 @@ FSSDCompressedSignalAccumulatorArray CompressAccumulatorArray(in FSSDSignalAccum
 	{
 		// NOP
 	}
+	#if COMPILE_DRB_ACCUMULATOR && COMPILE_MININVFREQ_ACCUMULATOR
 	else if (CompressionLayout == ACCUMULATOR_COMPRESSION_PENUMBRA_DRB)
 	{
 		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
@@ -83,6 +84,7 @@ FSSDCompressedSignalAccumulatorArray CompressAccumulatorArray(in FSSDSignalAccum
 			RawArray[SignalBatchId * 6 + 5].y = Accum.BorderingRadius;
 		} // for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_BATCH_SIZE; SignalMultiplexId++)
 	}
+	#endif // COMPILE_DRB_ACCUMULATOR && COMPILE_MININVFREQ_ACCUMULATOR
 
 	// Compress.
 	FSSDCompressedSignalAccumulatorArray CompressedAccumulators;
@@ -114,6 +116,7 @@ FSSDSignalAccumulatorArray UncompressAccumulatorArray(in FSSDCompressedSignalAcc
 	{
 		// NOP to not clobber information in OutSample that remained uncompressed.
 	}
+	#if COMPILE_DRB_ACCUMULATOR && COMPILE_MININVFREQ_ACCUMULATOR
 	else if (CompressionLayout == ACCUMULATOR_COMPRESSION_PENUMBRA_DRB)
 	{
 		// TODO: CONFIG_SIGNAL_BATCH_SIZE?
@@ -138,6 +141,7 @@ FSSDSignalAccumulatorArray UncompressAccumulatorArray(in FSSDCompressedSignalAcc
 			Accumulators.Array[SignalBatchId] = Accum;
 		} // for (uint SignalBatchId = 0; SignalBatchId < MAX_SIGNAL_BATCH_SIZE; SignalBatchId++)
 	}
+	#endif // COMPILE_DRB_ACCUMULATOR && COMPILE_MININVFREQ_ACCUMULATOR
 
 	return Accumulators;
 } // UncompressAccumulatorArray()

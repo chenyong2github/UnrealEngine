@@ -390,6 +390,35 @@
 #endif
 
 
+//------------------------------------------------------- COMPILATION WHITE LISTING
+
+// Whitelist kernel to compile.
+#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS
+	#define COMPILE_STACKOWIAK_KERNEL 1
+#elif CONFIG_SAMPLE_SET == SAMPLE_SET_HEXAWEB
+	#define COMPILE_DISK_KERNEL 1
+#else
+	#define COMPILE_BOX_KERNEL 1
+#endif
+
+// White list accumulators to compile.
+#if CONFIG_OUTPUT_MODE == OUTPUT_MODE_DRB
+	#define COMPILE_DRB_ACCUMULATOR 1
+	#define COMPILE_MININVFREQ_ACCUMULATOR 1
+
+#elif CONFIG_OUTPUT_MODE == OUTPUT_MODE_2MOMMENT_SUM
+	#define COMPILE_MOMENT1_ACCUMULATOR 1
+	#define COMPILE_MOMENT2_ACCUMULATOR 1
+
+#elif CONFIG_OUTPUT_MODE == OUTPUT_MODE_SUM
+	#define COMPILE_MOMENT1_ACCUMULATOR 1
+	#define COMPILE_MININVFREQ_ACCUMULATOR 1
+
+#else
+	#error Unknown output mode.
+#endif
+
+
 //------------------------------------------------------- LATE SETUP
 
 #if COMPILER_SUPPORTS_WAVE_ONCE
@@ -847,15 +876,21 @@ void MainCS(
 			#endif // CONFIG_REJECT_HIGHEST_COLOR
 
 			#if CONFIG_ACCUMULATION_COLOR_SPACE != CONFIG_OUTPUT_COLOR_SPACE
+			{
+				#if COMPILE_MOMENT1_ACCUMULATOR
 				SignalAccumulators.Array[MultiplexId].Moment1 = TransformSignal(
 					SignalAccumulators.Array[MultiplexId].Moment1, 
 					/* SrcBasis  = */ CONFIG_ACCUMULATION_COLOR_SPACE, 
 					/* DestBasis = */ CONFIG_OUTPUT_COLOR_SPACE);
-
+				#endif
+				
+				#if COMPILE_MOMENT2_ACCUMULATOR
 				SignalAccumulators.Array[MultiplexId].Moment2 = TransformSignal(
 					SignalAccumulators.Array[MultiplexId].Moment2, 
 					/* SrcBasis  = */ CONFIG_ACCUMULATION_COLOR_SPACE, 
 					/* DestBasis = */ CONFIG_OUTPUT_COLOR_SPACE);
+				#endif
+			}
 			#endif // CONFIG_ACCUMULATION_COLOR_SPACE != CONFIG_OUTPUT_COLOR_SPACE
 
 			// TODO: it might be better to just uncompress before this for loop and remain uncompressed,
