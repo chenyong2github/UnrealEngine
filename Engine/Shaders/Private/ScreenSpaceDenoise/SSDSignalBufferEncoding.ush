@@ -159,7 +159,7 @@ void DecodeMultiplexedSignals(
 			OutSamples.Array[MultiplexId + 1].MissCount = Channels.g * SampleCount;
 		}
 	}
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT)
 	{
 		OutSamples.Array[0].SampleCount = RawSample[1].r == DENOISER_INVALID_HIT_DISTANCE ? 0 : 1;
@@ -249,7 +249,7 @@ void DecodeMultiplexedSignals(
 			OutSamples.Array[0].MissCount = RawSample[0].g * RawSample[0].r;
 		}
 	}
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_INPUT_NSPP)
 	{
 		OutSamples.Array[0].SampleCount = RawSample[1].g;
@@ -302,7 +302,7 @@ void DecodeMultiplexedSignals(
 {
 	OutSamples = CreateSignalArrayFromScalarValue(0.0);
 
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH
 	if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
 	{
 		const uint DecodeOptions = bNormalizeSample ? SSD_DECODE_NORMALIZE : 0x0;
@@ -436,7 +436,7 @@ void EncodeMultiplexedSignals(
 				NormalizedWorldBluringRadius == WORLD_RADIUS_MISS ? -1 : NormalizedWorldBluringRadius);
 		}
 	}
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION)
 	{
 		// Outputs scene color to be compatible with a SSR output.
@@ -489,7 +489,7 @@ void EncodeMultiplexedSignals(
 		OutRawSample[0].r = Sample[0].SampleCount > 0 ? Sample[0].MissCount / Sample[0].SampleCount : 1.0;
 		OutRawSample[0].g = Sample[0].SampleCount;
 	}
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_RECONSTRUCTION)
 	{
 		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
@@ -527,7 +527,7 @@ void EncodeMultiplexedSignals(
 	// Number of buffer the signal get encoded onto <= MAX_MULTIPLEXED_TEXTURES.
 	OutBufferCount = 1;
 
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH
 	if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
 	{
 		const uint EncodeOptions = (CONFIG_ENCODING_CLAMP_COLOR ? SSD_ENCODE_CLAMP_COLOR : 0) | SSD_ENCODE_NORMALIZE;

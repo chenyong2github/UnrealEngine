@@ -5,18 +5,13 @@
 #include "SSDCommon.ush"
 
 
-// Work arround FXC shader compiler that confuses FSSDSignalSample with a FSphericalGaussian when
-// CONFIG_SIGNAL_COLOR == 0 on the overloaded functions
-#undef CONFIG_SIGNAL_COLOR
-#define CONFIG_SIGNAL_COLOR 1
-
-
-#if !defined(CONFIG_SIGNAL_COLOR)
-	#error CONFIG_SIGNAL_COLOR has not been configured.
+#ifndef COMPILE_SIGNAL_COLOR
+	#define COMPILE_SIGNAL_COLOR 0
 #endif
 
-#ifndef CONFIG_SIGNAL_COLOR_SH
-	#define CONFIG_SIGNAL_COLOR_SH 0
+
+#ifndef COMPILE_SIGNAL_COLOR_SH
+	#define COMPILE_SIGNAL_COLOR_SH 0
 #endif
 
 
@@ -29,12 +24,12 @@ struct FSSDSignalSample
 	float SampleCount;
 	
 	// Scene color and alpha.
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		float4 SceneColor;
 	#endif
 
 	// Spherical harmonic of the color.
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH
 		FSSDSphericalHarmonicRGB ColorSH;
 	#endif
 
@@ -61,14 +56,14 @@ struct FSSDSignalArray
 FSSDSignalSample CreateSignalSampleFromScalarValue(float Scalar)
 {
 	FSSDSignalSample OutSample;
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		OutSample.SceneColor = Scalar;
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
 		OutSample.ColorSH.R.V = Scalar;
 		OutSample.ColorSH.G.V = Scalar;
 		OutSample.ColorSH.B.V = Scalar;
-	#elif CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
 		OutSample.ColorSH.R.V0 = Scalar;
 		OutSample.ColorSH.R.V1 = Scalar;
 		OutSample.ColorSH.R.V2 = Scalar;
@@ -106,13 +101,13 @@ FSSDSignalArray CreateSignalArrayFromScalarValue(float Scalar)
 
 //------------------------------------------------------- SIGNAL OPERATORS
 
-FSSDSignalSample Mul(FSSDSignalSample Sample, float Scalar)
+FSSDSignalSample MulSignal(FSSDSignalSample Sample, float Scalar)
 {
 	FSSDSignalSample OutSample;
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		OutSample.SceneColor         = Sample.SceneColor * Scalar;
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH
 		OutSample.ColorSH            = MulSH(Sample.ColorSH, Scalar);
 	#endif
 	OutSample.SampleCount            = Sample.SampleCount * Scalar;
@@ -123,12 +118,12 @@ FSSDSignalSample Mul(FSSDSignalSample Sample, float Scalar)
 	return OutSample;
 }
 
-FSSDSignalSample Add(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
+FSSDSignalSample AddSignal(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 {
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		SampleA.SceneColor         += SampleB.SceneColor;
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH
 		SampleA.ColorSH            = AddSH(SampleA.ColorSH, SampleB.ColorSH);
 	#endif
 	SampleA.SampleCount            += SampleB.SampleCount;
@@ -139,12 +134,12 @@ FSSDSignalSample Add(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 	return SampleA;
 }
 
-FSSDSignalSample Minus(FSSDSignalSample Sample)
+FSSDSignalSample MinusSignal(FSSDSignalSample Sample)
 {
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		Sample.SceneColor         = -Sample.SceneColor;
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH
 		Sample.ColorSH         = MulSH(Sample.ColorSH, -1.0);
 	#endif
 	Sample.SampleCount            = -Sample.SampleCount;
@@ -155,21 +150,21 @@ FSSDSignalSample Minus(FSSDSignalSample Sample)
 	return Sample;
 }
 
-FSSDSignalSample Subtract(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
+FSSDSignalSample SubtractSignal(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 {
-	return Add(SampleA, Minus(SampleB));
+	return AddSignal(SampleA, MinusSignal(SampleB));
 }
 
-FSSDSignalSample Abs(FSSDSignalSample Sample)
+FSSDSignalSample AbsSignal(FSSDSignalSample Sample)
 {
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		Sample.SceneColor         = abs(Sample.SceneColor);
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
 		Sample.ColorSH.R.V = abs(Sample.ColorSH.R.V);
 		Sample.ColorSH.G.V = abs(Sample.ColorSH.G.V);
 		Sample.ColorSH.B.V = abs(Sample.ColorSH.B.V);
-	#elif CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
 		Sample.ColorSH.R.V0 = abs(Sample.ColorSH.R.V0);
 		Sample.ColorSH.R.V1 = abs(Sample.ColorSH.R.V1);
 		Sample.ColorSH.R.V2 = abs(Sample.ColorSH.R.V2);
@@ -188,16 +183,16 @@ FSSDSignalSample Abs(FSSDSignalSample Sample)
 	return Sample;
 }
 
-FSSDSignalSample Sqrt(FSSDSignalSample Sample)
+FSSDSignalSample SqrtSignal(FSSDSignalSample Sample)
 {
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		Sample.SceneColor         = sqrt(Sample.SceneColor);
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
 		Sample.ColorSH.R.V = sqrt(Sample.ColorSH.R.V);
 		Sample.ColorSH.G.V = sqrt(Sample.ColorSH.G.V);
 		Sample.ColorSH.B.V = sqrt(Sample.ColorSH.B.V);
-	#elif CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
 		Sample.ColorSH.R.V0 = sqrt(Sample.ColorSH.R.V0);
 		Sample.ColorSH.R.V1 = sqrt(Sample.ColorSH.R.V1);
 		Sample.ColorSH.R.V2 = sqrt(Sample.ColorSH.R.V2);
@@ -216,19 +211,19 @@ FSSDSignalSample Sqrt(FSSDSignalSample Sample)
 	return Sample;
 }
 
-FSSDSignalSample Power(FSSDSignalSample Sample, float Exponent)
+FSSDSignalSample PowerSignal(FSSDSignalSample Sample, float Exponent)
 {
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		Sample.SceneColor.r       = pow(Sample.SceneColor.r, Exponent);
 		Sample.SceneColor.g       = pow(Sample.SceneColor.g, Exponent);
 		Sample.SceneColor.b       = pow(Sample.SceneColor.b, Exponent);
 		Sample.SceneColor.a       = pow(Sample.SceneColor.a, Exponent);
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
 		Sample.ColorSH.R.V = pow(Sample.ColorSH.R.V, Exponent);
 		Sample.ColorSH.G.V = pow(Sample.ColorSH.G.V, Exponent);
 		Sample.ColorSH.B.V = pow(Sample.ColorSH.B.V, Exponent);
-	#elif CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
 		Sample.ColorSH.R.V0 = pow(Sample.ColorSH.R.V0, Exponent);
 		Sample.ColorSH.R.V1 = pow(Sample.ColorSH.R.V1, Exponent);
 		Sample.ColorSH.R.V2 = pow(Sample.ColorSH.R.V2, Exponent);
@@ -247,17 +242,17 @@ FSSDSignalSample Power(FSSDSignalSample Sample, float Exponent)
 	return Sample;
 }
 
-FSSDSignalSample Min(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
+FSSDSignalSample MinSignal(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 {
 	FSSDSignalSample OutSample;
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		OutSample.SceneColor = min(SampleA.SceneColor, SampleB.SceneColor);
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
 		OutSample.ColorSH.R.V = min(SampleA.ColorSH.R.V, SampleB.ColorSH.R.V);
 		OutSample.ColorSH.G.V = min(SampleA.ColorSH.G.V, SampleB.ColorSH.G.V);
 		OutSample.ColorSH.B.V = min(SampleA.ColorSH.B.V, SampleB.ColorSH.B.V);
-	#elif CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
 		OutSample.ColorSH.R.V0 = min(SampleA.ColorSH.R.V0, SampleB.ColorSH.R.V0);
 		OutSample.ColorSH.R.V1 = min(SampleA.ColorSH.R.V1, SampleB.ColorSH.R.V1);
 		OutSample.ColorSH.R.V2 = min(SampleA.ColorSH.R.V2, SampleB.ColorSH.R.V2);
@@ -276,17 +271,17 @@ FSSDSignalSample Min(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 	return OutSample;
 }
 
-FSSDSignalSample Max(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
+FSSDSignalSample MaxSignal(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 {
 	FSSDSignalSample OutSample;
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		OutSample.SceneColor = max(SampleA.SceneColor, SampleB.SceneColor);
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
 		OutSample.ColorSH.R.V = max(SampleA.ColorSH.R.V, SampleB.ColorSH.R.V);
 		OutSample.ColorSH.G.V = max(SampleA.ColorSH.G.V, SampleB.ColorSH.G.V);
 		OutSample.ColorSH.B.V = max(SampleA.ColorSH.B.V, SampleB.ColorSH.B.V);
-	#elif CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
 		OutSample.ColorSH.R.V0 = max(SampleA.ColorSH.R.V0, SampleB.ColorSH.R.V0);
 		OutSample.ColorSH.R.V1 = max(SampleA.ColorSH.R.V1, SampleB.ColorSH.R.V1);
 		OutSample.ColorSH.R.V2 = max(SampleA.ColorSH.R.V2, SampleB.ColorSH.R.V2);
@@ -305,17 +300,17 @@ FSSDSignalSample Max(FSSDSignalSample SampleA, FSSDSignalSample SampleB)
 	return OutSample;
 }
 
-FSSDSignalSample Clamp(FSSDSignalSample Sample, FSSDSignalSample SampleMin, FSSDSignalSample SampleMax)
+FSSDSignalSample ClampSignal(FSSDSignalSample Sample, FSSDSignalSample SampleMin, FSSDSignalSample SampleMax)
 {
 	FSSDSignalSample OutSample;
-	#if CONFIG_SIGNAL_COLOR
+	#if COMPILE_SIGNAL_COLOR
 		OutSample.SceneColor = clamp(Sample.SceneColor, SampleMin.SceneColor, SampleMax.SceneColor);
 	#endif
-	#if CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
+	#if COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 2
 		OutSample.ColorSH.R.V = clamp(Sample.ColorSH.R.V, SampleMin.ColorSH.R.V, SampleMax.ColorSH.R.V);
 		OutSample.ColorSH.G.V = clamp(Sample.ColorSH.G.V, SampleMin.ColorSH.G.V, SampleMax.ColorSH.G.V);
 		OutSample.ColorSH.B.V = clamp(Sample.ColorSH.B.V, SampleMin.ColorSH.B.V, SampleMax.ColorSH.B.V);
-	#elif CONFIG_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
+	#elif COMPILE_SIGNAL_COLOR_SH && SPHERICAL_HARMONIC_ORDER == 3
 		OutSample.ColorSH.R.V0 = clamp(Sample.ColorSH.R.V0, SampleMin.ColorSH.R.V0, SampleMax.ColorSH.R.V0);
 		OutSample.ColorSH.R.V1 = clamp(Sample.ColorSH.R.V1, SampleMin.ColorSH.R.V1, SampleMax.ColorSH.R.V1);
 		OutSample.ColorSH.R.V2 = clamp(Sample.ColorSH.R.V2, SampleMin.ColorSH.R.V2, SampleMax.ColorSH.R.V2);
@@ -334,15 +329,15 @@ FSSDSignalSample Clamp(FSSDSignalSample Sample, FSSDSignalSample SampleMin, FSSD
 	return OutSample;
 }
 
-FSSDSignalSample Lerp(FSSDSignalSample Sample0, FSSDSignalSample Sample1, float Interp)
+FSSDSignalSample LerpSignal(FSSDSignalSample Sample0, FSSDSignalSample Sample1, float Interp)
 {
-	return Add(Sample0, Mul(Subtract(Sample1, Sample0), Interp));
+	return AddSignal(Sample0, MulSignal(SubtractSignal(Sample1, Sample0), Interp));
 }
 
 /** Normalize the signal sample to one. */
 FSSDSignalSample NormalizeToOneSample(FSSDSignalSample Sample)
 {
-	FSSDSignalSample OutSample = Mul(Sample, Sample.SampleCount > 0 ? rcp(Sample.SampleCount) : 0);
+	FSSDSignalSample OutSample = MulSignal(Sample, Sample.SampleCount > 0 ? rcp(Sample.SampleCount) : 0);
 	OutSample.SampleCount = Sample.SampleCount > 0 ? 1 : 0;
 	return OutSample;
 }

@@ -314,7 +314,7 @@ FSSDSignalSample TransformSignalSampleForAccumulation(
 		/* DestBasis = */ KernelConfig.AccumulatorColorSpace[MultiplexId]);
 	
 	// Compute the spherical harmonic of the sample.
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH && COMPILE_SIGNAL_COLOR
 	if (KernelConfig.bComputeSampleColorSH)
 	{
 		Sample.ColorSH = ComputeSampleColorSH(SampleSceneMetadata, Sample, SamplePixelCoord);

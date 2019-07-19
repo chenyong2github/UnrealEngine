@@ -33,8 +33,6 @@
 
 
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
-	#define CONFIG_SIGNAL_COLOR 0
-
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
 
@@ -65,7 +63,7 @@
 	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
-	#define CONFIG_SIGNAL_COLOR 1
+	#define COMPILE_SIGNAL_COLOR 1
 
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_REFLECTIONS_HISTORY
@@ -96,8 +94,6 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
-	#define CONFIG_SIGNAL_COLOR 0
-
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_AO_HISTORY
 	#define CONFIG_SIGNAL_HISTORY_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
@@ -121,7 +117,7 @@
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
-	#define CONFIG_SIGNAL_COLOR 1
+	#define COMPILE_SIGNAL_COLOR 1
 
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_RECONSTRUCTION
@@ -138,8 +134,7 @@
 	#define CONFIG_NORMAL_BASED_BILATERAL 1
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
-	// #define CONFIG_SIGNAL_COLOR 0 // TODO
-	#define CONFIG_SIGNAL_COLOR_SH 1
+	#define COMPILE_SIGNAL_COLOR_SH 1
 
 	// Input and output layout.
 	#define CONFIG_SIGNAL_INPUT_LAYOUT   SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
@@ -508,7 +503,7 @@ void TemporallyAccumulate(
 					SafeRcp(CurrentFrameSample.SampleCount));
 
 				// Applies correction when pre exposure change happen.
-				#if CONFIG_SIGNAL_COLOR
+				#if COMPILE_SIGNAL_COLOR
 					HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
 				#endif
 			} // for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
@@ -676,17 +671,17 @@ void TemporallyAccumulate(
 			#if CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_1UNNORMALIZED
 			{
 				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId].Moment1.SampleCount);
-				NeighborMoment1 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment1, NormalizeFactor);
+				NeighborMoment1 = MulSignal(SignalAccumulators.Array[BatchedSignalId].Moment1, NormalizeFactor);
 				
 				#if COMPILE_MOMENT2_ACCUMULATOR
-					NeighborMoment2 = Mul(SignalAccumulators.Array[BatchedSignalId].Moment2, NormalizeFactor);
+					NeighborMoment2 = MulSignal(SignalAccumulators.Array[BatchedSignalId].Moment2, NormalizeFactor);
 				#endif
 			}
 			#elif CONFIG_REJECTION_INPUT_MODE == REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 			{
 				float NormalizeFactor = SafeRcp(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1.SampleCount);
-				NeighborMoment1 = Mul(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1, NormalizeFactor);
-				NeighborMoment2 = Mul(SignalAccumulators.Array[BatchedSignalId * 2 + 1].Moment1, NormalizeFactor);
+				NeighborMoment1 = MulSignal(SignalAccumulators.Array[BatchedSignalId * 2 + 0].Moment1, NormalizeFactor);
+				NeighborMoment2 = MulSignal(SignalAccumulators.Array[BatchedSignalId * 2 + 1].Moment1, NormalizeFactor);
 			}
 			#else
 				#error NOrmalized samples. 
@@ -708,17 +703,17 @@ void TemporallyAccumulate(
 				const float StdDevMultiplier = 1.25;
 
 				// StdDev = sqrt(abs(NeighborSquareAvg - NeighborAvg * NeighborAvg));
-				FSSDSignalSample StdDev = Sqrt(Abs(Subtract(NeighborMoment2, Power(NeighborMoment1, 2))));
-				FSSDSignalSample NeighborMin = Add(NeighborMoment1, Mul(StdDev, -StdDevMultiplier));
-				FSSDSignalSample NeighborMax = Add(NeighborMoment1, Mul(StdDev,  StdDevMultiplier));
+				FSSDSignalSample StdDev = SqrtSignal(AbsSignal(SubtractSignal(NeighborMoment2, PowerSignal(NeighborMoment1, 2))));
+				FSSDSignalSample NeighborMin = AddSignal(NeighborMoment1, MulSignal(StdDev, -StdDevMultiplier));
+				FSSDSignalSample NeighborMax = AddSignal(NeighborMoment1, MulSignal(StdDev,  StdDevMultiplier));
 
 				if (0)
 				{
-					FSSDSignalSample QuantizationErrorMin = Mul(NeighborMoment1, 1 - SafeRcp(HistorySample.SampleCount));
-					FSSDSignalSample QuantizationErrorMax = Mul(NeighborMoment1, 1 + SafeRcp(HistorySample.SampleCount));
+					FSSDSignalSample QuantizationErrorMin = MulSignal(NeighborMoment1, 1 - SafeRcp(HistorySample.SampleCount));
+					FSSDSignalSample QuantizationErrorMax = MulSignal(NeighborMoment1, 1 + SafeRcp(HistorySample.SampleCount));
 
-					NeighborMin = Min(NeighborMin, QuantizationErrorMin);
-					NeighborMax = Max(NeighborMax, QuantizationErrorMax);
+					NeighborMin = MinSignal(NeighborMin, QuantizationErrorMin);
+					NeighborMax = MaxSignal(NeighborMax, QuantizationErrorMax);
 				}
 
 				// Transform the history so that it in correct component spaces, and normalized as the clamping box.
@@ -726,20 +721,20 @@ void TemporallyAccumulate(
 				FSSDSignalSample TransformedHistorySample = TransformInputBufferForPreRejection(NormalizedHistorySample);
 
 				// Clamp the history.
-				FSSDSignalSample ClampedTransformedHistorySample = Clamp(TransformedHistorySample, NeighborMin, NeighborMax);
+				FSSDSignalSample ClampedTransformedHistorySample = ClampSignal(TransformedHistorySample, NeighborMin, NeighborMax);
 
 				// Transform the history back to linear component spaces.
 				FSSDSignalSample ClampedHistorySample = TransformSignalForPostRejection(ClampedTransformedHistorySample);
 
 				// Reweight the anti ghosted history.
 				{
-					FSSDSignalSample RejectedDiff = Abs(Subtract(ClampedTransformedHistorySample, TransformedHistorySample));
+					FSSDSignalSample RejectedDiff = AbsSignal(SubtractSignal(ClampedTransformedHistorySample, TransformedHistorySample));
 
 					// Compute how much this history get changed.
 					float RejectionFactor = 0.0;
 					#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS && (CONFIG_HISTORY_REJECTION_COLOR_SPACE & COLOR_SPACE_LCOCG)
 					{
-						#if !CONFIG_SIGNAL_COLOR
+						#if !COMPILE_SIGNAL_COLOR
 							#error Need to compile signal color.
 						#endif
 						RejectionFactor = abs(
@@ -770,7 +765,7 @@ void TemporallyAccumulate(
 					FinalHistoryWeight = max(FinalHistoryWeight, NeighborMoment1.SampleCount * 0.1);
 			
 					// Apply the history weight.
-					HistorySample = Mul(ClampedHistorySample, FinalHistoryWeight);
+					HistorySample = MulSignal(ClampedHistorySample, FinalHistoryWeight);
 					HistorySample.SampleCount = FinalHistoryWeight;
 				}
 			}
@@ -780,7 +775,7 @@ void TemporallyAccumulate(
 				FSSDSignalSample NeighborMax = SignalAccumulators.Array[BatchedSignalId].Max;
 		
 				float RejectedSampleCount = 0;
-				HistorySample = Mul(TransformSignalForPostRejection(Clamp(TransformInputBufferForPreRejection(NormalizeToOneSample(HistorySample)), NeighborMin, NeighborMax)), HistorySample.SampleCount - RejectedSampleCount);
+				HistorySample = MulSignal(TransformSignalForPostRejection(ClampSignal(TransformInputBufferForPreRejection(NormalizeToOneSample(HistorySample)), NeighborMin, NeighborMax)), HistorySample.SampleCount - RejectedSampleCount);
 			}
 			#endif
 
@@ -812,7 +807,7 @@ void TemporallyAccumulate(
 			#error Unsupported.
 		#endif
 	
-		#if !CONFIG_SIGNAL_COLOR
+		#if !COMPILE_SIGNAL_COLOR
 			#error Need to compile signal color.
 		#endif
 
@@ -867,7 +862,7 @@ void TemporallyAccumulate(
 			float PreviousFrameWeight = min(HistorySample.SampleCount, CurrentFrameSample.SampleCount * rcp(MainHisteresiss) - CurrentFrameSample.SampleCount);
 			float PreviousFrameMultiplier = HistorySample.SampleCount > 0 ? PreviousFrameWeight / HistorySample.SampleCount : 0;
 			
-			HistorySample = Add(Mul(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
+			HistorySample = AddSignal(MulSignal(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
 		}
 		
 		HistorySamples.Array[BatchedSignalId] = HistorySample;
@@ -902,7 +897,7 @@ void TemporallyAccumulate(
 				/* DestBasis = */ CONFIG_HISTORY_BLENDING_COLOR_SPACE);
 
 			// Blending.
-			HistorySample = Add(Mul(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
+			HistorySample = AddSignal(MulSignal(HistorySample, PreviousFrameMultiplier), CurrentFrameSample);
 		
 			// Post transformation of the signal.
 			HistorySample = TransformSignal(

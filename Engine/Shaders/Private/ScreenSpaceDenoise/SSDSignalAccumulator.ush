@@ -176,11 +176,11 @@ void AccumulateSampleInOneBin(inout FSSDSignalAccumulator Accumulator, FSSDSampl
 	float SampleWeight = SampleInfos.FinalWeight;
 	
 	#if COMPILE_MOMENT1_ACCUMULATOR
-		Accumulator.Moment1 = Add(Accumulator.Moment1, Mul(SampleInfos.Sample, SampleWeight));
+		Accumulator.Moment1 = AddSignal(Accumulator.Moment1, MulSignal(SampleInfos.Sample, SampleWeight));
 	#endif
 	
 	#if COMPILE_MOMENT2_ACCUMULATOR
-		Accumulator.Moment2 = Add(Accumulator.Moment2, Mul(Power(SampleInfos.Sample, 2), SampleWeight));
+		Accumulator.Moment2 = AddSignal(Accumulator.Moment2, MulSignal(PowerSignal(SampleInfos.Sample, 2), SampleWeight));
 	#endif
 }
 
@@ -195,8 +195,8 @@ void AccumulateSampleInDomainBoundaries(inout FSSDSignalAccumulator Accumulator,
 	{
 		#if COMPILE_MINMAX_ACCUMULATOR
 		{
-			Accumulator.Min = Min(Accumulator.Min, SampleInfos.Sample);
-			Accumulator.Max = Max(Accumulator.Max, SampleInfos.Sample);
+			Accumulator.Min = MinSignal(Accumulator.Min, SampleInfos.Sample);
+			Accumulator.Max = MaxSignal(Accumulator.Max, SampleInfos.Sample);
 		}
 		#endif
 		
@@ -256,7 +256,7 @@ void AccumulateSampleInDRB(inout FSSDSignalAccumulator Accumulator, FSSDSampleAc
 	// Accumulate current bucket.
 	{
 		float CurrentWeight = A.FinalWeight * bBelongsToCurrent;
-		Accumulator.Current = Add(Accumulator.Current, Mul(A.Sample, CurrentWeight));
+		Accumulator.Current = AddSignal(Accumulator.Current, MulSignal(A.Sample, CurrentWeight));
 		Accumulator.CurrentInvFrequency += A.Sample.SampleCount * ClampedInvFrequency * CurrentWeight;
 	}
 
@@ -277,7 +277,7 @@ void AccumulateSampleInDRB(inout FSSDSignalAccumulator Accumulator, FSSDSampleAc
 	// Accumulate previous bucket.
 	{
 		float PreviousWeight = A.FinalWeight * bBelongsToPrevious;
-		Accumulator.Previous = Add(Accumulator.Previous, Mul(A.Sample, PreviousWeight));
+		Accumulator.Previous = AddSignal(Accumulator.Previous, MulSignal(A.Sample, PreviousWeight));
 		Accumulator.PreviousInvFrequency += A.Sample.SampleCount * ClampedInvFrequency * PreviousWeight;
 	}
 }
@@ -312,7 +312,7 @@ void DijestSampleClusterInDRB(
 	//if (PreviousBucketFactor < 1)
 	//	PreviousBucketFactor *= Accumulator.Current.SampleCount * SafeRcp(Accumulator.Previous.SampleCount);
 
-	Accumulator.Previous = Add(Mul(Accumulator.Previous, PreviousBucketFactor), Accumulator.Current);
+	Accumulator.Previous = AddSignal(MulSignal(Accumulator.Previous, PreviousBucketFactor), Accumulator.Current);
 	Accumulator.PreviousInvFrequency = Accumulator.PreviousInvFrequency * PreviousBucketFactor + Accumulator.CurrentInvFrequency;
 }
 

@@ -8,7 +8,7 @@
 
 //------------------------------------------------------- STRUCTURE
 
-#if CONFIG_SIGNAL_COLOR_SH
+#if COMPILE_SIGNAL_COLOR_SH
 	#define MAX_SIGNAL_COMPRESSED_VGPRS 7
 #else
 	#define MAX_SIGNAL_COMPRESSED_VGPRS 1
@@ -35,7 +35,7 @@ void CompressSignalSample(in FSSDSignalSample Sample, uint CompressionLayout, ou
 	{
 		// NOP
 	}
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH
 	else if (CompressionLayout == SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC)
 	{
 		OutCompressedSample.VGPR[0] = Compress2Floats(float2(Sample.SampleCount, Sample.MissCount));
@@ -60,7 +60,7 @@ void UncompressSignalSample(in FSSDCompressedSignalSample CompressedSample, uint
 	{
 		// NOP to not clobber information in OutSample that remained uncompressed.
 	}
-	#if CONFIG_SIGNAL_COLOR_SH
+	#if COMPILE_SIGNAL_COLOR_SH
 	else if (CompressionLayout == SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC)
 	{
 		OutSample.SampleCount    = Uncompress2Floats(CompressedSample.VGPR[0]).x;

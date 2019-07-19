@@ -15,8 +15,7 @@
 
 // Configures all the pass for each individual signals.
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
-	// #define CONFIG_SIGNAL_COLOR 0 // TODO
-	#define CONFIG_SIGNAL_COLOR_SH 1
+	#define COMPILE_SIGNAL_COLOR_SH 1
 
 	// Given it's a spherical harmonic that store directionality, only need position based rejection.
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
