@@ -6,6 +6,8 @@
 
 #include "SSCSEditorMenuContext.generated.h"
 
+class SSCSEditor;
+
 UCLASS()
 class USSCSEditorMenuContext : public UObject
 {
