@@ -75,9 +75,9 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 	check(Viewport);
 	if (Surface.Image == VK_NULL_HANDLE)
 	{
-		check(Viewport->AcquiredImageIndex == -1);
+		check(Viewport->AcquiredImageIndex == -1); //-V595
 		
-		Viewport->AcquireImageIndex();
+		Viewport->AcquireImageIndex(); //-V595
 		// If swapchain got invalidated (OUT_OF_DATE etc) in the above call, we may end up not having a valid viewport pointer at this point. Abort the whole thing.
 		if (Viewport == nullptr)
 		{
