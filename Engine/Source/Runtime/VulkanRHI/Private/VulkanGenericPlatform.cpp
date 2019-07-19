@@ -74,3 +74,8 @@ TArray<FString> FVulkanGenericPlatform::GetPSOCacheFilenames()
 
 	return CacheFilenames;
 }
+
+VkResult FVulkanGenericPlatform::Present(VkQueue Queue, VkPresentInfoKHR& PresentInfo)
+{
+	return VulkanRHI::vkQueuePresentKHR(Queue, &PresentInfo);
+}
