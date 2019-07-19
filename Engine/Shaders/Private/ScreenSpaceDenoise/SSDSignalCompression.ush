@@ -25,6 +25,7 @@ struct FSSDCompressedSignalSample
 /** Compress part of signal into smaller VGPR foorprint. */
 void CompressSignalSample(in FSSDSignalSample Sample, uint CompressionLayout, out FSSDCompressedSignalSample OutCompressedSample)
 {
+	UNROLL_N(MAX_SIGNAL_COMPRESSED_VGPRS)
 	for (uint i = 0; i < MAX_SIGNAL_COMPRESSED_VGPRS; i++)
 	{
 		OutCompressedSample.VGPR[i] = 0;

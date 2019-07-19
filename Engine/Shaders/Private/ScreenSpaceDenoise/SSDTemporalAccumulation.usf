@@ -452,13 +452,16 @@ void TemporallyAccumulate(
 			KernelConfig.RefSceneMetadata = RefSceneMetadata;
 			
 			FSSDSignalAccumulatorArray SignalAccumulators = CreateSignalAccumulatorArray();
+			FSSDCompressedSignalAccumulatorArray UnusedCompressedAccumulators = CreateUninitialisedCompressedAccumulatorArray();
+
 			AccumulateKernel(
 				KernelConfig,
 				PrevHistory_Textures_0,
 				PrevHistory_Textures_1,
 				PrevHistory_Textures_2,
 				PrevHistory_Textures_3,
-				/* inout */ SignalAccumulators);
+				/* inout */ SignalAccumulators,
+				/* inout */ UnusedCompressedAccumulators);
 		
 			// Exports the history sample from accumulator.
 			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
@@ -620,23 +623,29 @@ void TemporallyAccumulate(
 			}
 		}
 
-		#if CONFIG_USE_REJECTION_BUFFER
-			AccumulateKernel(
-				KernelConfig,
-				HistoryRejectionSignal_Textures_0,
-				HistoryRejectionSignal_Textures_1,
-				HistoryRejectionSignal_Textures_2,
-				HistoryRejectionSignal_Textures_3,
-				/* inout */ SignalAccumulators);
-		#else
-			AccumulateKernel(
-				KernelConfig,
-				SignalInput_Textures_0,
-				SignalInput_Textures_1,
-				SignalInput_Textures_2,
-				SignalInput_Textures_3,
-				/* inout */ SignalAccumulators);
-		#endif
+		{
+			FSSDCompressedSignalAccumulatorArray UnusedCompressedAccumulators = CreateUninitialisedCompressedAccumulatorArray();
+
+			#if CONFIG_USE_REJECTION_BUFFER
+				AccumulateKernel(
+					KernelConfig,
+					HistoryRejectionSignal_Textures_0,
+					HistoryRejectionSignal_Textures_1,
+					HistoryRejectionSignal_Textures_2,
+					HistoryRejectionSignal_Textures_3,
+					/* inout */ SignalAccumulators,
+					/* inout */ UnusedCompressedAccumulators);
+			#else
+				AccumulateKernel(
+					KernelConfig,
+					SignalInput_Textures_0,
+					SignalInput_Textures_1,
+					SignalInput_Textures_2,
+					SignalInput_Textures_3,
+					/* inout */ SignalAccumulators,
+					/* inout */ UnusedCompressedAccumulators);
+			#endif
+		}
 
 		// Clamp history
 		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)

@@ -113,6 +113,12 @@
 		#error Unexpected stage.
 	#endif
 
+	// Compress the DRB accumulator to have lower VGPR footprint.
+	#if defined(CONFIG_OUTPUT_MODE) && CONFIG_OUTPUT_MODE == OUTPUT_MODE_DRB
+		// Looks like shader compilers completly give up.
+		// #define CONFIG_ACCUMULATOR_VGPR_COMPRESSION ACCUMULATOR_COMPRESSION_PENUMBRA_DRB
+	#endif
+
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 	#define CONFIG_SIGNAL_COLOR 1
 
@@ -576,7 +582,7 @@ void MainCS(
 	#endif
 
 	// Accumulate spatially the input.
-	FSSDSignalAccumulatorArray SignalAccumulators = CreateSignalAccumulatorArray();
+	FSSDSignalAccumulatorArray SignalAccumulators;
 	{
 		FSSDKernelConfig KernelConfig = CreateKernelConfig();
 
@@ -660,6 +666,8 @@ void MainCS(
 		}
 		#endif
 
+		FSSDSignalAccumulatorArray UncompressedAccumulators = CreateSignalAccumulatorArray();
+
 		// When not upscaling, manually force accumulate the sample of the kernel.
 		if (!KernelConfig.bSampleKernelCenter && !KernelConfig.bDescOrder)
 		{
@@ -688,7 +696,7 @@ void MainCS(
 				}
 
 				AccumulateSample(
-					/* inout */ SignalAccumulators.Array[SignalMultiplexId],
+					/* inout */ UncompressedAccumulators.Array[SignalMultiplexId],
 					SampleInfos);
 			}
 		}
@@ -755,6 +763,8 @@ void MainCS(
 			#endif
 		}
 		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY
+		
+		FSSDCompressedSignalAccumulatorArray CompressedAccumulators = CompressAccumulatorArray(UncompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
 
 		AccumulateKernel(
 			KernelConfig,
@@ -762,7 +772,8 @@ void MainCS(
 			SignalInput_Textures_1,
 			SignalInput_Textures_2,
 			SignalInput_Textures_3,
-			/* inout */ SignalAccumulators);
+			/* inout */ UncompressedAccumulators,
+			/* inout */ CompressedAccumulators);
 
 		// When doing history rejection pre convolution, could still have no information found with the 3x3 + kernel,
 		// therefore dynamically complete to form an entire 3x3 convolution.
@@ -781,7 +792,8 @@ void MainCS(
 					SignalInput_Textures_1,
 					SignalInput_Textures_2,
 					SignalInput_Textures_3,
-					/* inout */ SignalAccumulators);
+					/* inout */ UncompressedAccumulators,
+					/* inout */ CompressedAccumulators);
 			}
 		}
 		#endif // DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
@@ -799,8 +811,15 @@ void MainCS(
 				SignalInput_Textures_1,
 				SignalInput_Textures_2,
 				SignalInput_Textures_3,
-				/* inout */ SignalAccumulators);
+				/* inout */ UncompressedAccumulators,
+				/* inout */ CompressedAccumulators);
 		}
+		
+		#if CONFIG_ACCUMULATOR_VGPR_COMPRESSION == ACCUMULATOR_COMPRESSION_DISABLED
+			SignalAccumulators = UncompressedAccumulators;
+		#else
+			SignalAccumulators = UncompressAccumulatorArray(CompressedAccumulators, CONFIG_ACCUMULATOR_VGPR_COMPRESSION);
+		#endif
 	}
 
 	// Color processing of the signal to reduce highlight flickering.
