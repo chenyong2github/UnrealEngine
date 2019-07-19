@@ -88,7 +88,7 @@ static const int32 MaxMetalSamplers = 16;
 // Generates Metal compliant code from IR tokens
 struct FMetalCodeBackend : public FCodeBackend
 {
-	FMetalCodeBackend(FMetalTessellationOutputs& Attribs, unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, uint8 Version, EMetalGPUSemantics bInDesktop, EMetalTypeBufferMode InTypedMode, uint32 MaxUnrollLoops, bool bInZeroInitialise, bool bInBoundsChecks, bool bInAllFastIntriniscs, bool bForceInvariance, bool bSwizzleSample);
+	FMetalCodeBackend(FMetalTessellationOutputs& Attribs, unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, uint8 Version, EMetalGPUSemantics bInDesktop, EMetalTypeBufferMode InTypedMode, uint32 MaxUnrollLoops, bool bInZeroInitialise, bool bInBoundsChecks, bool bInAllFastIntriniscs, bool bInForceInvariance, bool bInSwizzleSample, bool bInEnableUE4SafeArray);
 
 	virtual char* GenerateCode(struct exec_list* ir, struct _mesa_glsl_parse_state* ParseState, EHlslShaderFrequency Frequency) override;
 
@@ -133,6 +133,7 @@ struct FMetalCodeBackend : public FCodeBackend
 	bool bExplicitDepthWrites;
 	bool bForceInvariance;
 	bool bSwizzleSample;
+	bool bEnableUE4SafeArray; // enables ue4::safe_array (enabled for iOS, disabled for macOS due to AMD driver bug)
 
 	bool bIsTessellationVSHS = false;
 	unsigned int inputcontrolpoints = 0;

@@ -1259,7 +1259,7 @@ protected:
 						ralloc_asprintf_append(buffer, "/*ir_var_out, is_patch_constant*/");
 					}
 				}
-				else if ((var->mode == ir_var_auto || var->mode == ir_var_temporary) && var->type->is_array())
+				else if ((var->mode == ir_var_auto || var->mode == ir_var_temporary) && var->type->is_array() && Backend.bEnableUE4SafeArray)
 				{
 					ralloc_asprintf_append(buffer, "ue4::safe_array<");
 					print_type_pre(var->type->element_type());
@@ -6323,7 +6323,7 @@ void FMetalCodeBackend::CallPatchConstantFunction(_mesa_glsl_parse_state* ParseS
 	pv_if->then_instructions.push_tail(thread_if);
 }
 
-FMetalCodeBackend::FMetalCodeBackend(FMetalTessellationOutputs& TessOutputAttribs, unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, uint8 InVersion, EMetalGPUSemantics bInDesktop, EMetalTypeBufferMode InTypedMode, uint32 InMaxUnrollLoops, bool bInZeroInitialise, bool bInBoundsChecks, bool bInAllFastIntriniscs, bool bInForceInvariance, bool bInSwizzleSample) :
+FMetalCodeBackend::FMetalCodeBackend(FMetalTessellationOutputs& TessOutputAttribs, unsigned int InHlslCompileFlags, EHlslCompileTarget InTarget, uint8 InVersion, EMetalGPUSemantics bInDesktop, EMetalTypeBufferMode InTypedMode, uint32 InMaxUnrollLoops, bool bInZeroInitialise, bool bInBoundsChecks, bool bInAllFastIntriniscs, bool bInForceInvariance, bool bInSwizzleSample, bool bInEnableUE4SafeArray) :
 	FCodeBackend(InHlslCompileFlags, HCT_FeatureLevelES3_1),
 	TessAttribs(TessOutputAttribs),
 	InvariantBuffers(0),
@@ -6339,6 +6339,7 @@ FMetalCodeBackend::FMetalCodeBackend(FMetalTessellationOutputs& TessOutputAttrib
 	bZeroInitialise = bInZeroInitialise;
 	bBoundsChecks = bInBoundsChecks;
 	bSwizzleSample = bInSwizzleSample;
+	bEnableUE4SafeArray = bInEnableUE4SafeArray;
 	bAllowFastIntriniscs = bInAllFastIntriniscs;
 	bForceInvariance = bInForceInvariance;
 	

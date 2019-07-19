@@ -420,6 +420,9 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		bForceInvariance = true;
 	}
 	
+	// Only enable ue4::safe_array for iOS, due to AMD driver bugs on macOS
+	const bool bEnableUE4SafeArray = (Semantics == EMetalGPUSemanticsMobile);
+	
 	FMetalShaderOutputMetaData OutputData;
 	FMetalTessellationOutputs Attribs;
 	
@@ -440,7 +443,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 #endif
 #endif
 	{
-		FMetalCodeBackend MetalBackEnd(Attribs, CCFlags, MetalCompilerTarget, VersionEnum, Semantics, TypeMode, MaxUnrollLoops, bZeroInitialise, bBoundsChecks, bAllowFastIntriniscs, bForceInvariance, bSwizzleSample);
+		FMetalCodeBackend MetalBackEnd(Attribs, CCFlags, MetalCompilerTarget, VersionEnum, Semantics, TypeMode, MaxUnrollLoops, bZeroInitialise, bBoundsChecks, bAllowFastIntriniscs, bForceInvariance, bSwizzleSample, bEnableUE4SafeArray);
 		FMetalLanguageSpec MetalLanguageSpec(VersionEnum);
 
 		FHlslCrossCompilerContext CrossCompilerContext(CCFlags, Frequency, HlslCompilerTarget);
