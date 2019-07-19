@@ -108,14 +108,9 @@ void SGeometryCollectionOutliner::SetComponents(const TArray<UGeometryCollection
 	for (UGeometryCollectionComponent* Component : InNewComponents)
 	{
 		RootNodes.Add(MakeShared<FGeometryCollectionTreeItemComponent>(Component));
-
 		TArray<int32> SelectedBones = Component->GetSelectedBones();
-		if (SelectedBones.Num())
-		{
-			SetBoneSelection(Component, SelectedBones, false);
-		}
+		SetBoneSelection(Component, SelectedBones, !SelectedBones.Num());
 	}
-
 
 	TreeView->RequestTreeRefresh();
 	ExpandAll();
