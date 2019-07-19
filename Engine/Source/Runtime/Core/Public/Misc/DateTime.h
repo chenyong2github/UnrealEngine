@@ -125,6 +125,19 @@ public:
 	}
 
 	/**
+	 * Adds the time from the given date to this date.
+	 *
+	 * @return This date.
+	 * @see FDateTime
+	 */
+	FDateTime& operator+(const FDateTime& Other)
+	{
+		Ticks += Other.Ticks;
+
+		return *this;
+	}
+
+	/**
 	 * Returns time span between this date and the given date.
 	 *
 	 * @return A time span whose value is the difference of this date and the given date.

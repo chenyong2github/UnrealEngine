@@ -2083,6 +2083,12 @@ FTimespan UKismetMathLibrary::Subtract_DateTimeDateTime(FDateTime A, FDateTime B
 }
 
 KISMET_MATH_FORCEINLINE
+FDateTime UKismetMathLibrary::Add_DateTimeDateTime(FDateTime A, FDateTime B)
+{
+	return A + B;
+}
+
+KISMET_MATH_FORCEINLINE
 bool UKismetMathLibrary::EqualEqual_DateTimeDateTime(FDateTime A, FDateTime B)
 {
 	return A == B;
