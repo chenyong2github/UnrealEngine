@@ -2,6 +2,7 @@
 
 #include "SLevelEditor.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "EditorMenuSubsystem.h"
 #include "Framework/Docking/LayoutService.h"
 #include "EditorModeRegistry.h"
 #include "EdMode.h"
@@ -693,15 +694,34 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		InitOptions.bShowTransient = true;
 		InitOptions.Mode = ESceneOutlinerMode::ActorBrowsing;
 		{
+			UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+			static const FName MenuName = "LevelEditor.LevelEditorSceneOutliner.ContextMenu";
+			if (!EditorMenus->IsMenuRegistered(MenuName))
+			{
+				UEditorMenu* Menu = EditorMenus->RegisterMenu(MenuName, "SceneOutliner.DefaultContextMenuBase");
+				FEditorMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+				{
+					FName LevelContextMenuName = FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext::SceneOutliner);
+					if (LevelContextMenuName != NAME_None)
+					{
+						// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
+						UEditorMenu* OtherMenu = UEditorMenuSubsystem::Get()->GenerateMenu(LevelContextMenuName, InMenu->Context);
+						InMenu->Sections.Append(OtherMenu->Sections);
+					}
+				}));
+				Section.InsertPosition = FEditorMenuInsert("MainSection", EEditorMenuInsertType::Before);
+			}
+
 			TWeakPtr<SLevelEditor> WeakLevelEditor = SharedThis(this);
-			InitOptions.DefaultMenuExtender = MakeShareable(new FExtender);
-			InitOptions.DefaultMenuExtender->AddMenuExtension(
-				"MainSection", EExtensionHook::Before, GetLevelEditorActions(),
-				FMenuExtensionDelegate::CreateStatic([](FMenuBuilder& MenuBuilder, TWeakPtr<SLevelEditor> InWeakLevelEditor){
-					// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
-					FLevelEditorContextMenu::FillMenu(MenuBuilder, InWeakLevelEditor, LevelEditorMenuContext::SceneOutliner, TSharedPtr<FExtender>());
-				}, WeakLevelEditor)
-			);
+			InitOptions.ModifyContextMenu.BindLambda([=](FName& OutMenuName, FEditorMenuContext& MenuContext)
+			{
+				OutMenuName = MenuName;
+
+				if (WeakLevelEditor.IsValid())
+				{
+					FLevelEditorContextMenu::InitMenuContext(MenuContext, WeakLevelEditor, ELevelEditorMenuContext::SceneOutliner);
+				}
+			});
 		}
 
 
@@ -1492,7 +1512,7 @@ void SLevelEditor::OnLayoutHasChanged()
 
 void SLevelEditor::SummonLevelViewportContextMenu()
 {
-	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), LevelEditorMenuContext::Viewport );
+	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), ELevelEditorMenuContext::Viewport );
 }
 
 void SLevelEditor::SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption)

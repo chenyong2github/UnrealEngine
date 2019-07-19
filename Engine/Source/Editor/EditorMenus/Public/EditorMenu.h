@@ -116,10 +116,10 @@ public:
 	UPROPERTY()
 	FEditorMenuContext Context;
 
-private:
-
 	UPROPERTY()
 	TArray<FEditorMenuSection> Sections;
+
+private:
 
 	bool bRegistered;
 

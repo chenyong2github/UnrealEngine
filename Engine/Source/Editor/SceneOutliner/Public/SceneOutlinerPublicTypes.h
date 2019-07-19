@@ -10,6 +10,7 @@
 #include "SceneOutlinerFilters.h"
 
 class FExtender;
+struct FEditorMenuContext;
 
 enum class ESceneOutlinerMode : uint8
 {
@@ -22,6 +23,8 @@ enum class ESceneOutlinerMode : uint8
 	/** Sets the outliner to operate as a component 'picker'. */
 	ComponentPicker,
 };
+
+DECLARE_DELEGATE_TwoParams(FSceneOutlinerModifyContextMenu, FName& /* MenuName */, FEditorMenuContext& /* MenuContext */);
 
 namespace SceneOutliner
 {
@@ -103,8 +106,8 @@ namespace SceneOutliner
 		/** Override default context menu handling */
 		FOnContextMenuOpening ContextMenuOverride;
 
-		/** Extend default context menu handling */
-		TSharedPtr<FExtender> DefaultMenuExtender;
+		/** Modify context menu before display */
+		FSceneOutlinerModifyContextMenu ModifyContextMenu;
 
 		/** Map of column types available to the scene outliner, along with default ordering */
 		TMap<FName, FColumnInfo> ColumnMap;

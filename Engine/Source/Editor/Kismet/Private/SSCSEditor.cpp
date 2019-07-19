@@ -71,6 +71,10 @@
 #include "Algo/Find.h"
 #include "ActorEditorUtils.h"
 
+#include "EditorMenuSubsystem.h"
+#include "SSCSEditorMenuContext.h"
+#include "Kismet2/ComponentEditorContextMenuContex.h"
+
 #define LOCTEXT_NAMESPACE "SSCSEditor"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSCSEditor, Log, All);
@@ -3917,15 +3921,12 @@ void SSCSEditor::GetSelectedItemsForContextMenu(TArray<FComponentEventConstructi
 	}
 }
 
-TSharedPtr< SWidget > SSCSEditor::CreateContextMenu()
+void SSCSEditor::PopulateContextMenu(UEditorMenu* Menu)
 {
 	TArray<FSCSEditorTreeNodePtrType> SelectedItems = SCSTreeWidget->GetSelectedItems();
 
 	if (SelectedItems.Num() > 0 || CanPasteNodes())
 	{
-		const bool CloseAfterSelection = true;
-		FMenuBuilder MenuBuilder( CloseAfterSelection, CommandList );
-
 		bool bOnlyShowPasteOption = false;
 
 		if (SelectedItems.Num() > 0)
@@ -3964,9 +3965,10 @@ TSharedPtr< SWidget > SSCSEditor::CreateContextMenu()
 
 					if (EditorMode == EComponentEditorMode::BlueprintSCS)
 					{
+						FEditorMenuSection& BlueprintSCSSection = Menu->AddSection("BlueprintSCS");
 						if (SelectedItems.Num() == 1)
 						{
-							MenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
+							BlueprintSCSSection.AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
 						}
 
 						// Collect the classes of all selected objects
@@ -3987,16 +3989,19 @@ TSharedPtr< SWidget > SSCSEditor::CreateContextMenu()
 							// Build an event submenu if we can generate events
 							if( FBlueprintEditorUtils::CanClassGenerateEvents( SelectedClass ))
 							{
-								MenuBuilder.AddSubMenu(	LOCTEXT("AddEventSubMenu", "Add Event"), 
+								BlueprintSCSSection.AddEntry(FEditorMenuEntry::InitSubMenu(
+									Menu->GetMenuName(),
+									"AddEventSubMenu",
+									LOCTEXT("AddEventSubMenu", "Add Event"), 
 									LOCTEXT("ActtionsSubMenu_ToolTip", "Add Event"), 
 									FNewMenuDelegate::CreateStatic( &SSCSEditor::BuildMenuEventsSection,
 									GetBlueprint(), SelectedClass, FCanExecuteAction::CreateSP(this, &SSCSEditor::IsEditingAllowed),
-									FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu)));
+									FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu))));
 							}
 						}
 					}					
 
-					FComponentEditorUtils::FillComponentContextMenuOptions(MenuBuilder, SelectedComponents);
+					FComponentEditorUtils::FillComponentContextMenuOptions(Menu, SelectedComponents);
 				}
 			}
 		}
@@ -4007,14 +4012,42 @@ TSharedPtr< SWidget > SSCSEditor::CreateContextMenu()
 
 		if (bOnlyShowPasteOption)
 		{
-			MenuBuilder.BeginSection("PasteComponent", LOCTEXT("EditComponentHeading", "Edit") );
+			FEditorMenuSection& Section = Menu->AddSection("PasteComponent", LOCTEXT("EditComponentHeading", "Edit") );
 			{
-				MenuBuilder.AddMenuEntry( FGenericCommands::Get().Paste );
+				Section.AddMenuEntry( FGenericCommands::Get().Paste );
 			}
-			MenuBuilder.EndSection();
 		}
+	}
+}
 
-		return MenuBuilder.MakeWidget();
+void SSCSEditor::RegisterContextMenu()
+{
+	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+	if (!EditorMenus->IsMenuRegistered("Kismet.SCSEditorContextMenu"))
+	{
+		UEditorMenu* Menu = EditorMenus->RegisterMenu("Kismet.SCSEditorContextMenu");
+		Menu->AddDynamicSection("SCSEditorDynamic", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+		{
+			USSCSEditorMenuContext* ContextObject = InMenu->FindContext<USSCSEditorMenuContext>();
+			if (ContextObject && ContextObject->SCSEditor.IsValid())
+			{
+				ContextObject->SCSEditor.Pin()->PopulateContextMenu(InMenu);
+			}
+		}));
+	}
+}
+
+TSharedPtr< SWidget > SSCSEditor::CreateContextMenu()
+{
+	TArray<FSCSEditorTreeNodePtrType> SelectedItems = SCSTreeWidget->GetSelectedItems();
+
+	if (SelectedItems.Num() > 0 || CanPasteNodes())
+	{
+		RegisterContextMenu();
+		USSCSEditorMenuContext* ContextObject = NewObject<USSCSEditorMenuContext>();
+		ContextObject->SCSEditor = SharedThis(this);
+		FEditorMenuContext EditorMenuContext(CommandList, TSharedPtr<FExtender>(), ContextObject);
+		return UEditorMenuSubsystem::Get()->GenerateWidget("Kismet.SCSEditorContextMenu", EditorMenuContext);
 	}
 	return TSharedPtr<SWidget>();
 }

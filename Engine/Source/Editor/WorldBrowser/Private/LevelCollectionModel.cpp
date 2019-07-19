@@ -1432,7 +1432,7 @@ FBox FLevelCollectionModel::GetVisibleLevelsBoundingBox(const FLevelModelList& I
 	return TotalBounds;
 }
 
-const TSharedRef<const FUICommandList> FLevelCollectionModel::GetCommandList() const
+const TSharedRef<FUICommandList> FLevelCollectionModel::GetCommandList() const
 {
 	return CommandList;
 }

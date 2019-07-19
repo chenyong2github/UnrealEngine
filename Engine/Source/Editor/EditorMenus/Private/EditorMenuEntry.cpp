@@ -81,6 +81,18 @@ FEditorMenuEntry FEditorMenuEntry::InitSubMenu(const FName InParentMenu, const F
 	return Entry;
 }
 
+FEditorMenuEntry FEditorMenuEntry::InitSubMenu(const FName InParentMenu, const FName InName, const FEditorUIActionChoice& InAction, const TSharedRef<SWidget>& InWidget, const FNewEditorMenuChoice& InMakeMenu, bool bInShouldCloseWindowAfterMenuSelection)
+{
+	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
+	Entry.Action = InAction;
+	Entry.MakeWidget.BindLambda([=](const FEditorMenuContext&) { return InWidget; });
+	Entry.bShouldCloseWindowAfterMenuSelection = bInShouldCloseWindowAfterMenuSelection;
+	Entry.SubMenuData.bIsSubMenu = true;
+	Entry.SubMenuData.ConstructMenu = InMakeMenu;
+	Entry.SubMenuData.bOpenSubMenuOnClick = false;
+	return Entry;
+}
+
 FEditorMenuEntry FEditorMenuEntry::InitToolBarButton(const FName InName, const FEditorUIActionChoice& InAction, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const EUserInterfaceActionType InUserInterfaceActionType, FName InTutorialHighlightName)
 {
 	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::ToolBarButton);
@@ -124,11 +136,11 @@ FEditorMenuEntry FEditorMenuEntry::InitToolBarSeparator(const FName InName)
 	return FEditorMenuEntry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::ToolBarSeparator);
 }
 
-FEditorMenuEntry FEditorMenuEntry::InitWidget(const FName InName, const TSharedRef<SWidget>& Widget, const FText& Label, bool bNoIndent, bool bSearchable)
+FEditorMenuEntry FEditorMenuEntry::InitWidget(const FName InName, const TSharedRef<SWidget>& InWidget, const FText& Label, bool bNoIndent, bool bSearchable)
 {
 	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::Widget);
 	Entry.Label = Label;
-	Entry.MakeWidget.BindLambda([Widget](const FEditorMenuContext&) { return Widget; });
+	Entry.MakeWidget.BindLambda([=](const FEditorMenuContext&) { return InWidget; });
 	Entry.WidgetData.bNoIndent = bNoIndent;
 	Entry.WidgetData.bSearchable = bSearchable;
 	return Entry;
@@ -142,6 +154,11 @@ void FEditorMenuEntry::ResetActions()
 	StringExecuteAction = FEditorMenuStringCommand();
 	// Note: Cannot reset ScriptObject as it would also remove label and other data
 	//ScriptObject = nullptr;
+}
+
+bool FEditorMenuEntry::IsNonLegacyDynamicConstruct() const
+{
+	return Construct.IsBound() || IsScriptObjectDynamicConstruct();
 }
 
 bool FEditorMenuEntry::IsScriptObjectDynamicConstruct() const

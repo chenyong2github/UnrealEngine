@@ -52,6 +52,7 @@ public class WorldBrowser : ModuleRules
                 "MaterialUtilities",
                 "RHI",
                 "Json",
+				"EditorMenus",
             }
 		);
 

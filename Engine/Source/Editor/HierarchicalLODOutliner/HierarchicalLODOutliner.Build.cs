@@ -45,6 +45,7 @@ public class HierarchicalLODOutliner : ModuleRules
                     "UnrealEd",
     				"SlateCore",
     				"Slate",
+					"EditorMenus",
                 }
             );
 

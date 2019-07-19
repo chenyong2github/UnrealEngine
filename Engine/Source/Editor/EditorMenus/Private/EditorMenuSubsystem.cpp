@@ -172,42 +172,78 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 {
 	// Build list of blocks in expected order including blocks created by construct delegates
 	TArray<FEditorMenuEntry> RemainingBlocks;
+
+	UEditorMenu* ConstructedEntries = nullptr;
 	for (const FEditorMenuEntry& Block : OtherSection.Blocks)
 	{
-		if (Block.IsScriptObjectDynamicConstruct() || Block.Construct.IsBound())
+		if (!Block.IsNonLegacyDynamicConstruct())
 		{
-			UEditorMenu* Constructed = NewObject<UEditorMenu>(this);
-			Constructed->Context = DestSection->Context;
+			RemainingBlocks.Add(Block);
+			continue;
+		}
 
-			if (Block.IsScriptObjectDynamicConstruct())
+		if (ConstructedEntries == nullptr)
+		{
+			ConstructedEntries = NewObject<UEditorMenu>(this);
+			ConstructedEntries->Context = DestSection->Context;
+		}
+
+		TArray<FEditorMenuEntry> GeneratedEntries;
+		GeneratedEntries.Add(Block);
+
+		int32 NumIterations = 0;
+		while (GeneratedEntries.Num() > 0)
+		{
+			FEditorMenuEntry& GeneratedEntry = GeneratedEntries[0];
+			if (GeneratedEntry.IsNonLegacyDynamicConstruct())
 			{
-				Block.ScriptObject->ConstructMenuEntry(Constructed, DestSection->Name, DestSection->Context);
+				if (NumIterations++ > 5000)
+				{
+					UE_LOG(LogEditorMenus, Warning, TEXT("Possible infinite loop for menu: %s, section: %s, block: %s"), *Other->MenuName.ToString(), *OtherSection.Name.ToString(), *Block.Name.ToString());
+					break;
+				}
+				
+				ConstructedEntries->Sections.Reset();
+				if (GeneratedEntry.IsScriptObjectDynamicConstruct())
+				{
+					GeneratedEntry.ScriptObject->ConstructMenuEntry(ConstructedEntries, DestSection->Name, DestSection->Context);
+				}
+				else
+				{
+					FEditorMenuSection& ConstructedSection = ConstructedEntries->AddSection(DestSection->Name);
+					ConstructedSection.Context = ConstructedEntries->Context;
+					GeneratedEntry.Construct.Execute(ConstructedSection);
+				}
+				GeneratedEntries.RemoveAt(0, 1, false);
+
+				// Combine all user's choice of selections here into the current section target
+				// If the user wants to add items to different sections they will need to create dynamic section instead (for now)
+				int32 NumBlocksInserted = 0;
+				for (FEditorMenuSection& ConstructedSection : ConstructedEntries->Sections)
+				{
+					for (FEditorMenuEntry& ConstructedBlock : ConstructedSection.Blocks)
+					{
+						if (ConstructedBlock.InsertPosition.IsDefault())
+						{
+							ConstructedBlock.InsertPosition = Block.InsertPosition;
+						}
+					}
+					GeneratedEntries.Insert(ConstructedSection.Blocks, NumBlocksInserted);
+					NumBlocksInserted += ConstructedSection.Blocks.Num();
+				}
 			}
 			else
 			{
-				FEditorMenuSection& ConstructedSection = Constructed->AddSection(DestSection->Name);
-				ConstructedSection.Context = Constructed->Context;
-				Block.Construct.Execute(ConstructedSection);
+				RemainingBlocks.Add(GeneratedEntry);
+				GeneratedEntries.RemoveAt(0, 1, false);
 			}
+		}
+	}
 
-			// Combine all user's choice of selections here into the current section target
-			// If the user wants to add items to different sections they will need to create dynamic section instead (for now)
-			for (FEditorMenuSection& ConstructedSection : Constructed->Sections)
-			{
-				for (FEditorMenuEntry& ConstructedBlock : ConstructedSection.Blocks)
-				{
-					if (ConstructedBlock.InsertPosition.IsDefault())
-					{
-						ConstructedBlock.InsertPosition = Block.InsertPosition;
-					}
-					RemainingBlocks.Add(ConstructedBlock);
-				}
-			}
-		}
-		else
-		{
-			RemainingBlocks.Add(Block);
-		}
+	if (ConstructedEntries)
+	{
+		ConstructedEntries->Sections.Empty();
+		ConstructedEntries = nullptr;
 	}
 
 	// Repeatedly loop because insert location may not exist until later in list
@@ -242,35 +278,70 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 void UEditorMenuSubsystem::AssembleMenu(UEditorMenu* GeneratedMenu, const UEditorMenu* Other)
 {
 	TArray<FEditorMenuSection> RemainingSections;
+
+	UEditorMenu* ConstructedSections = nullptr;
 	for (const FEditorMenuSection& OtherSection : Other->Sections)
 	{
-		if (OtherSection.EditorMenuSectionDynamic || OtherSection.Construct.NewEditorMenuDelegate.IsBound())
-		{
-			UEditorMenu* ConstructedSections = NewObject<UEditorMenu>(this);
-			ConstructedSections->Context = GeneratedMenu->Context;
-
-			if (OtherSection.EditorMenuSectionDynamic)
-			{
-				OtherSection.EditorMenuSectionDynamic->ConstructSections(ConstructedSections, GeneratedMenu->Context);
-			}
-			else if (OtherSection.Construct.NewEditorMenuDelegate.IsBound())
-			{
-				OtherSection.Construct.NewEditorMenuDelegate.Execute(ConstructedSections);
-			}
-
-			for (FEditorMenuSection& ConstructedSection : ConstructedSections->Sections)
-			{
-				if (ConstructedSection.InsertPosition.IsDefault())
-				{
-					ConstructedSection.InsertPosition = OtherSection.InsertPosition;
-				}
-				RemainingSections.Add(ConstructedSection);
-			}
-		}
-		else
+		if (!OtherSection.IsNonLegacyDynamic())
 		{
 			RemainingSections.Add(OtherSection);
+			continue;
 		}
+		
+		if (ConstructedSections == nullptr)
+		{
+			ConstructedSections = NewObject<UEditorMenu>(this);
+			ConstructedSections->Context = GeneratedMenu->Context;
+		}
+
+		TArray<FEditorMenuSection> GeneratedSections;
+		GeneratedSections.Add(OtherSection);
+
+		int32 NumIterations = 0;
+		while (GeneratedSections.Num() > 0)
+		{
+			if (GeneratedSections[0].IsNonLegacyDynamic())
+			{
+				if (NumIterations++ > 5000)
+				{
+					UE_LOG(LogEditorMenus, Warning, TEXT("Possible infinite loop for menu: %s, section: %s"), *Other->MenuName.ToString(), *OtherSection.Name.ToString());
+					break;
+				}
+
+				ConstructedSections->Sections.Reset();
+				
+				if (GeneratedSections[0].EditorMenuSectionDynamic)
+				{
+					GeneratedSections[0].EditorMenuSectionDynamic->ConstructSections(ConstructedSections, GeneratedMenu->Context);
+				}
+				else if (GeneratedSections[0].Construct.NewEditorMenuDelegate.IsBound())
+				{
+					GeneratedSections[0].Construct.NewEditorMenuDelegate.Execute(ConstructedSections);
+				}
+
+				for (FEditorMenuSection& ConstructedSection : ConstructedSections->Sections)
+				{
+					if (ConstructedSection.InsertPosition.IsDefault())
+					{
+						ConstructedSection.InsertPosition = GeneratedSections[0].InsertPosition;
+					}
+				}
+				
+				GeneratedSections.RemoveAt(0, 1, false);				
+				GeneratedSections.Insert(ConstructedSections->Sections, 0);
+			}
+			else
+			{
+				RemainingSections.Add(GeneratedSections[0]);
+				GeneratedSections.RemoveAt(0, 1, false);
+			}
+		}
+	}
+
+	if (ConstructedSections)
+	{
+		ConstructedSections->Sections.Empty();
+		ConstructedSections = nullptr;
 	}
 
 	while (RemainingSections.Num() > 0)

@@ -6,7 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "SceneOutlinerVisitorTypes.h"
 
-class FMenuBuilder;
+class UEditorMenu;
 
 namespace SceneOutliner
 {
@@ -156,7 +156,7 @@ namespace SceneOutliner
 		virtual void OnExpansionChanged() {};
 
 		/** Generate a context menu for this item. Only called if *only* this item is selected. */
-		virtual void GenerateContextMenu(FMenuBuilder& MenuBuilder, SSceneOutliner& Outliner) {}
+		virtual void GenerateContextMenu(UEditorMenu* Menu, SSceneOutliner& Outliner) {}
 
 		/** Populate the specified drag/drop payload with any relevant information for this type */
 		virtual void PopulateDragDropPayload(FDragDropPayload& Payload) const = 0;

@@ -7,7 +7,7 @@
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
 #include "Engine/Selection.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "HLODOutliner.h"
 #include "Editor.h"
 
@@ -25,7 +25,7 @@ bool HLODOutliner::FLODLevelItem::CanInteract() const
 	return true;
 }
 
-void HLODOutliner::FLODLevelItem::GenerateContextMenu(FMenuBuilder& MenuBuilder, SHLODOutliner& Outliner)
+void HLODOutliner::FLODLevelItem::GenerateContextMenu(UEditorMenu* Menu, SHLODOutliner& Outliner)
 {
 	// Collect actors / components available for creating a new HLOD cluster 
 	USelection* CurrentSelection = GEditor->GetSelectedActors();	
@@ -45,7 +45,8 @@ void HLODOutliner::FLODLevelItem::GenerateContextMenu(FMenuBuilder& MenuBuilder,
 		}
 
 		// Generate context menu with option to create a new cluster from the current viewport selection
-		MenuBuilder.AddMenuEntry(LOCTEXT("CreateClusterFromViewportSelection", "Create Cluster from World Selection"), FText(), FSlateIcon(), 
+		FEditorMenuSection& Section = Menu->AddSection("Section");
+		Section.AddMenuEntry("CreateClusterFromViewportSelection", LOCTEXT("CreateClusterFromViewportSelection", "Create Cluster from World Selection"), FText(), FSlateIcon(), 
 			FUIAction(FExecuteAction::CreateLambda([&Outliner, ValidActorsToCluster, this]()
 			{
 				Outliner.CreateClusterFromActors(ValidActorsToCluster, LODLevelIndex);

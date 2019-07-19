@@ -87,7 +87,7 @@ namespace WorldHierarchy
 		virtual const FSlateBrush* GetHierarchyItemBrush() const override;
 
 		virtual bool CanChangeParents() const override;
-		virtual void GenerateContextMenu(FMenuBuilder& MenuBuilder, const SWorldHierarchyImpl& Hierarchy) override;
+		virtual void GenerateContextMenu(UEditorMenu* Menu, const SWorldHierarchyImpl& Hierarchy) override;
 
 	public:
 		virtual FLevelModelTreeItem* GetAsLevelModelTreeItem() const override { return const_cast<FLevelModelTreeItem*>(this); }
@@ -165,7 +165,7 @@ namespace WorldHierarchy
 		virtual float GetHierarchyItemBrushWidth() const { return 16.0f; }
 
 		virtual bool CanChangeParents() const { return true; }
-		virtual void GenerateContextMenu(FMenuBuilder& MenuBuilder, const SWorldHierarchyImpl& Hierarchy) override;
+		virtual void GenerateContextMenu(UEditorMenu* Menu, const SWorldHierarchyImpl& Hierarchy) override;
 
 		/** Sets the new path of the folder. This includes the leaf name. This will not rename any children in this folder */
 		void SetNewPath(FName NewPath);

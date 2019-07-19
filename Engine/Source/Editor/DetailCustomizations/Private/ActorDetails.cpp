@@ -18,7 +18,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "EditorStyleSet.h"
@@ -399,11 +399,18 @@ bool FActorDetails::AreAnySelectedActorsInLevelScript() const
 /** Util to create a menu for events we can add for the selected actor */
 TSharedRef<SWidget> FActorDetails::MakeEventOptionsWidgetFromSelection()
 {
-	FMenuBuilder EventMenuBuilder( true, NULL );
+	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+	static const FName MenuName("DetailCustomizations.EventOptions");
+	if (!EditorMenus->IsMenuRegistered(MenuName))
+	{
+		EditorMenus->RegisterMenu(MenuName);
+	}
 
+	FEditorMenuContext Context;
+	UEditorMenu* Menu = EditorMenus->GenerateMenu(MenuName, Context);
 	AActor* Actor = SelectedActors[0].Get();
-	FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(EventMenuBuilder, SelectedActors[0], true, true, false);
-	return EventMenuBuilder.MakeWidget();
+	FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(Menu, SelectedActors[0], true, true, false);
+	return EditorMenus->GenerateWidget(Menu);
 }
 
 

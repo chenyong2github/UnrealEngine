@@ -6,7 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "ITreeItem.h"
 
-class FMenuBuilder;
+class UEditorMenu;
 
 namespace SceneOutliner
 {
@@ -68,7 +68,7 @@ namespace SceneOutliner
 		virtual bool CanInteract() const override;
 		
 		/** Generate a context menu for this item. Only called if *only* this item is selected. */
-		virtual void GenerateContextMenu(FMenuBuilder& MenuBuilder, SSceneOutliner& Outliner) override;
+		virtual void GenerateContextMenu(UEditorMenu* Menu, SSceneOutliner& Outliner) override;
 
 		/** Populate the specified drag/drop payload with any relevant information for this type */
 		virtual void PopulateDragDropPayload(FDragDropPayload& Payload) const override;

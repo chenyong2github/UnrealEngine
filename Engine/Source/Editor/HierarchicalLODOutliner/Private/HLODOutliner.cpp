@@ -12,6 +12,7 @@
 #include "SlateOptMacros.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
@@ -1468,12 +1469,6 @@ namespace HLODOutliner
 			return nullptr;
 		}
 
-		// Build up the menu for a selection
-		const bool bCloseAfterSelection = true;
-		TSharedPtr<FExtender> Extender = MakeShareable(new FExtender);
-
-		FMenuBuilder MenuBuilder(bCloseAfterSelection, TSharedPtr<FUICommandList>(), Extender);
-
 		// Multi-selection support, check if all selected items are of the same type, if so return the appropriate context menu
 		auto SelectedItems = TreeView->GetSelectedItems();
 		ITreeItem::TreeItemType Type = ITreeItem::Invalid;
@@ -1497,8 +1492,18 @@ namespace HLODOutliner
 
 		if (SelectedItems.Num() && bSameType)
 		{
-			TreeView->GetSelectedItems()[0]->GenerateContextMenu(MenuBuilder, *this);
-			return MenuBuilder.MakeWidget();
+			UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+			static const FName MenuName = "HierarchicalLODOutliner.HLODOutlinerContextMenu";
+			if (!EditorMenus->IsMenuRegistered(MenuName))
+			{
+				EditorMenus->RegisterMenu(MenuName);
+			}
+
+			// Build up the menu for a selection
+			FEditorMenuContext Context;
+			UEditorMenu* Menu = EditorMenus->GenerateMenu(MenuName, Context);
+			TreeView->GetSelectedItems()[0]->GenerateContextMenu(Menu, *this);
+			return EditorMenus->GenerateWidget(Menu);
 		}
 
 		return TSharedPtr<SWidget>();

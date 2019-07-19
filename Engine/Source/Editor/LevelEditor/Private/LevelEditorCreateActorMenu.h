@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-class FMenuBuilder;
+class UEditorMenu;
 
 /**
  * The mode to use when creating an actor
@@ -30,11 +30,11 @@ namespace LevelEditorCreateActorMenu
 	 * Fill the context menu section(s) for adding or replacing an actor in the viewport
 	 * @param	MenuBuilder		The menu builder used to generate the context menu
 	 */
-	void FillAddReplaceViewportContextMenuSections( FMenuBuilder& MenuBuilder );
+	void FillAddReplaceViewportContextMenuSections(UEditorMenu* Menu);
 
 	/**
 	 * Fill the context menu for adding or replacing an actor. Used for in-viewport and level editor toolbar menus.
 	 * @param	MenuBuilder		The menu builder used to generate the context menu
 	 */
-	void FillAddReplaceActorMenu( FMenuBuilder& MenuBuilder, EActorCreateMode::Type CreateMode );
+	void FillAddReplaceActorMenu(UEditorMenu* Menu, EActorCreateMode::Type CreateMode);
 };

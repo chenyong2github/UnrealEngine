@@ -10,6 +10,7 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
@@ -458,22 +459,33 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 
 	if (!WorldModel->IsReadOnly())
 	{
-		FMenuBuilder MenuBuilder(true, WorldModel->GetCommandList());
+		UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+		static const FName MenuName = "WorldBrowser.WorldHierarchy.LevelContextMenu";
+		if (!EditorMenus->IsMenuRegistered(MenuName))
+		{
+			EditorMenus->RegisterMenu(MenuName);
+		}
+
+		FEditorMenuContext Context(WorldModel->GetCommandList(), TSharedPtr<FExtender>());
+		UEditorMenu* Menu = EditorMenus->GenerateMenu(MenuName, Context);
 
 		TArray<WorldHierarchy::FWorldTreeItemPtr> SelectedItems = GetSelectedTreeItems();
 
 		if (SelectedItems.Num() == 1)
 		{
 			// If exactly one item is selected, allow it to generate its own context menu
-			SelectedItems[0]->GenerateContextMenu(MenuBuilder, *this);
+			SelectedItems[0]->GenerateContextMenu(Menu, *this);
 		}
 		else if (SelectedItems.Num() == 0)
 		{
 			// If no items are selected, allow the first root level item to create a context menu
-			RootTreeItems[0]->GenerateContextMenu(MenuBuilder, *this);
+			RootTreeItems[0]->GenerateContextMenu(Menu, *this);
 		}
 
-		WorldModel->BuildHierarchyMenu(MenuBuilder);
+		Menu->AddDynamicSection("HierarchyDynamicSection", FNewEditorMenuDelegateLegacy::CreateLambda([=](FMenuBuilder& MenuBuilder, UEditorMenu* Menu)
+		{
+			WorldModel->BuildHierarchyMenu(MenuBuilder);
+		}));
 
 		// Generate the "Move To" and "Select" submenus based on the current selection
 		if (WorldModel->HasFolderSupport())
@@ -495,24 +507,30 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 
 			if (bAllSelectedItemsCanMove && FLevelFolders::IsAvailable())
 			{
-				MenuBuilder.AddSubMenu(
+				FEditorMenuSection& Section = Menu->AddSection("Section");
+				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+					Menu->MenuName,
+					"MoveSelectionTo",
 					LOCTEXT("MoveSelectionTo", "Move To"),
 					LOCTEXT("MoveSelectionTo_Tooltip", "Move selection to another folder"),
 					FNewMenuDelegate::CreateSP(const_cast<SWorldHierarchyImpl*>(this), &SWorldHierarchyImpl::FillFoldersSubmenu)
-				);
+				));
 			}
 
 			if (bOnlyFoldersSelected)
 			{
-				MenuBuilder.AddSubMenu(
+				FEditorMenuSection& Section = Menu->AddSection("Section");
+				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+					Menu->MenuName,
+					"SelectSubmenu",
 					LOCTEXT("SelectSubmenu", "Select"),
 					LOCTEXT("SelectSubmenu_Tooltip", "Select child items of the current selection"),
 					FNewMenuDelegate::CreateSP(const_cast<SWorldHierarchyImpl*>(this), &SWorldHierarchyImpl::FillSelectionSubmenu)
-				);
+				));
 			}
 		}
 
-		MenuWidget = MenuBuilder.MakeWidget();
+		MenuWidget = EditorMenus->GenerateWidget(Menu);
 	}
 
 	return MenuWidget;

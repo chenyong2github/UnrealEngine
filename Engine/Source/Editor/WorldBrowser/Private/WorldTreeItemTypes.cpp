@@ -7,7 +7,7 @@
 #include "Misc/PackageName.h"
 #include "Engine/Engine.h"
 #include "SWorldHierarchyImpl.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "AssetSelection.h"
 #include "SWorldHierarchyImpl.h"
@@ -476,7 +476,7 @@ namespace WorldHierarchy
 		return Parent.IsValid();
 	}
 
-	void FLevelModelTreeItem::GenerateContextMenu(FMenuBuilder& MenuBuilder, const SWorldHierarchyImpl& Hierarchy)
+	void FLevelModelTreeItem::GenerateContextMenu(UEditorMenu* Menu, const SWorldHierarchyImpl& Hierarchy)
 	{
 		if (!Parent.IsValid() && WorldModel.Pin()->HasFolderSupport())
 		{
@@ -486,7 +486,8 @@ namespace WorldHierarchy
 			FName RootPath = LevelModel.Pin()->GetFolderPath();
 			auto NewFolderAction = FExecuteAction::CreateSP(const_cast<SWorldHierarchyImpl*>(&Hierarchy), &SWorldHierarchyImpl::CreateFolder, LevelModel.Pin(), RootPath);
 
-			MenuBuilder.AddMenuEntry(LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(NewFolderAction));
+			FEditorMenuSection& Section = Menu->AddSection("Section");
+			Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(NewFolderAction));
 		}
 	}
 
@@ -903,7 +904,7 @@ namespace WorldHierarchy
 		return FEditorStyle::Get().GetBrush("WorldBrowser.FolderClosed");
 	}
 
-	void FFolderTreeItem::GenerateContextMenu(FMenuBuilder& MenuBuilder, const SWorldHierarchyImpl& Hierarchy)
+	void FFolderTreeItem::GenerateContextMenu(UEditorMenu* Menu, const SWorldHierarchyImpl& Hierarchy)
 	{
 		// Folder items should be able to create subfolders, rename themselves, or delete themselves from the tree
 		const FSlateIcon NewFolderIcon(FEditorStyle::GetStyleSetName(), "WorldBrowser.NewFolderIcon");
@@ -916,9 +917,10 @@ namespace WorldHierarchy
 		auto RenameFolderAction = FExecuteAction::CreateSP(const_cast<SWorldHierarchyImpl*>(&Hierarchy), &SWorldHierarchyImpl::InitiateRename, AsShared());
 		auto DeleteFolderAction = FExecuteAction::CreateSP(const_cast<SWorldHierarchyImpl*>(&Hierarchy), &SWorldHierarchyImpl::DeleteFolders, Folders, /*bTransactional*/ true);
 
-		MenuBuilder.AddMenuEntry(LOCTEXT("CreateSubFolder", "Create Subfolder"), FText(), NewFolderIcon, FUIAction(NewFolderAction));
-		MenuBuilder.AddMenuEntry(LOCTEXT("RenameFolder", "Rename"), FText(), FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Rename"), FUIAction(RenameFolderAction));
-		MenuBuilder.AddMenuEntry(LOCTEXT("DeleteFolder", "Delete"), FText(), FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete"), FUIAction(DeleteFolderAction));
+		FEditorMenuSection& Section = Menu->AddSection("Section");
+		Section.AddMenuEntry("CreateSubFolder", LOCTEXT("CreateSubFolder", "Create Subfolder"), FText(), NewFolderIcon, FUIAction(NewFolderAction));
+		Section.AddMenuEntry("RenameFolder", LOCTEXT("RenameFolder", "Rename"), FText(), FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Rename"), FUIAction(RenameFolderAction));
+		Section.AddMenuEntry("DeleteFolder", LOCTEXT("DeleteFolder", "Delete"), FText(), FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Delete"), FUIAction(DeleteFolderAction));
 	}
 
 	FValidationInfo FFolderTreeItem::ValidateDrop(const FDragDropEvent& DragEvent) const

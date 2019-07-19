@@ -81,6 +81,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/InheritableComponentHandler.h"
 #include "Classes/EditorStyleSettings.h"
+#include "EditorMenuSubsystem.h"
 
 DECLARE_CYCLE_STAT(TEXT("Compile Blueprint"), EKismetCompilerStats_CompileBlueprint, STATGROUP_KismetCompiler);
 DECLARE_CYCLE_STAT(TEXT("Broadcast Precompile"), EKismetCompilerStats_BroadcastPrecompile, STATGROUP_KismetCompiler);
@@ -2448,7 +2449,7 @@ bool FKismetEditorUtilities::AnyBoundLevelScriptEventForActor(AActor* Actor, boo
 	return false;
 }
 
-void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(class FMenuBuilder& MenuBuilder, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName)
+void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(UEditorMenu* Menu, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName)
 {
 	struct FCreateEventForActorHelper
 	{
@@ -2518,7 +2519,7 @@ void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(class FMenuBuild
 		// Now build the menu
 		for(FEventCategory& Category : CategorizedEvents)
 		{
-			MenuBuilder.BeginSection(NAME_None, FText::FromString(Category.CategoryName));
+			FEditorMenuSection& Section = Menu->AddSection(NAME_None, FText::FromString(Category.CategoryName));
 
 			for(UProperty* Property : Category.EventProperties)
 			{
@@ -2551,15 +2552,14 @@ void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(class FMenuBuild
 				}
 
 				// create menu entry
-				MenuBuilder.AddMenuEntry(
+				Section.AddMenuEntry(
+					NAME_None,
 					EntryText,
 					Property->GetToolTipText(),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateStatic(&FCreateEventForActorHelper::CreateEventForActor, ActorPtr, EventName))
+					FExecuteAction::CreateStatic(&FCreateEventForActorHelper::CreateEventForActor, ActorPtr, EventName)
 					);
 			}
-
-			MenuBuilder.EndSection();
 		}
 	}
 }

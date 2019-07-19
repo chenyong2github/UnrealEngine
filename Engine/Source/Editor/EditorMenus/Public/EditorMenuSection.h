@@ -59,6 +59,8 @@ private:
 
 	void AssembleBlock(const FEditorMenuEntry& InBlock);
 
+	bool IsNonLegacyDynamic() const;
+
 	friend class UEditorMenuSectionExtensions;
 	friend class UEditorMenuSubsystem;
 	friend class UEditorMenu;

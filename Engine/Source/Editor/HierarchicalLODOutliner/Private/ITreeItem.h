@@ -6,7 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "Editor/HierarchicalLODOutliner/Private/HLODOutlinerDragDrop.h"
 
-class FMenuBuilder;
+class UEditorMenu;
 
 namespace HLODOutliner
 {
@@ -100,7 +100,7 @@ namespace HLODOutliner
 		virtual void OnExpansionChanged() {};
 
 		/** Generate a context menu for this item. Only called if *only* this item is selected. */
-		virtual void GenerateContextMenu(FMenuBuilder& MenuBuilder, SHLODOutliner& Outliner) {};
+		virtual void GenerateContextMenu(UEditorMenu* Menu, SHLODOutliner& Outliner) {};
 
 		/** Populate the specified drag/drop payload with any relevant information for this type */
 		virtual void PopulateDragDropPayload(FDragDropPayload& Payload) const = 0;

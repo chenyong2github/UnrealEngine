@@ -25,6 +25,7 @@
 #include "ScopedTransaction.h"
 
 class FMenuBuilder;
+class UEditorMenu;
 class FSCSEditorTreeNode;
 class SSCSEditor;
 class UPrimitiveComponent;
@@ -37,7 +38,7 @@ using FSCSEditorActorNodePtrType = TSharedPtr<class FSCSEditorTreeNodeRootActor>
 /**
  * FSCSEditorTreeNode
  *
- * Wrapper class for component template nodes displayed in the SCS editor tree widget.
+ * Wrapper class for component template nodes displayed in the SCS (Simple Construction Script) editor tree widget.
  */
 class KISMET_API FSCSEditorTreeNode : public TSharedFromThis<FSCSEditorTreeNode>
 {
@@ -1016,6 +1017,12 @@ protected:
 
 	/** Called to display context menu when right clicking on the widget */
 	TSharedPtr< SWidget > CreateContextMenu();
+
+	/** Registers context menu by name for later access */
+	void RegisterContextMenu();
+
+	/** Populate context menu on the fly */
+	void PopulateContextMenu(UEditorMenu* InMenu);
 
 	/** Called when the level editor requests a component to be renamed. */
 	void OnLevelComponentRequestRename(const UActorComponent* InComponent);

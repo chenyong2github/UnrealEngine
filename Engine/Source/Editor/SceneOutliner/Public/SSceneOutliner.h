@@ -20,6 +20,7 @@
 #include "Framework/Commands/UICommandList.h"
 
 class FMenuBuilder;
+class UEditorMenu;
 class ISceneOutlinerColumn;
 class SComboButton;
 
@@ -209,6 +210,7 @@ namespace SceneOutliner
 			}
 		}
 
+		void RegisterDefaultContextMenu();
 
 		/** Visitor that is used to set up type-specific data after tree items are added to the tree */
 		struct FOnItemAddedToTree : IMutableTreeItemVisitor
@@ -495,9 +497,9 @@ namespace SceneOutliner
 
 		/** Build a context menu for right-clicking an item in the tree */
 		TSharedPtr<SWidget> BuildDefaultContextMenu();
-		void FillFoldersSubMenu(FMenuBuilder& MenuBuilder) const;
-		void AddMoveToFolderOutliner(FMenuBuilder& MenuBuilder) const;
-		void FillSelectionSubMenu(FMenuBuilder& MenuBuilder) const;
+		void FillFoldersSubMenu(UEditorMenu* Menu) const;
+		void AddMoveToFolderOutliner(UEditorMenu* Menu) const;
+		void FillSelectionSubMenu(UEditorMenu* Menun) const;
 		TSharedRef<TSet<FName>> GatherInvalidMoveToDestinations() const;
 
 	private:

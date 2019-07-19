@@ -22,6 +22,7 @@ public class SceneOutliner : ModuleRules
 				"SlateCore",
 				"EditorStyle",
 				"UnrealEd",
+				"EditorMenus",
             }
 		);
 	}

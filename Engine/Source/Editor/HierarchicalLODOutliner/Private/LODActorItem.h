@@ -9,7 +9,7 @@
 #include "Engine/LODActor.h"
 #include "Editor/HierarchicalLODOutliner/Private/ITreeItem.h"
 
-class FMenuBuilder;
+class UEditorMenu;
 
 namespace HLODOutliner
 {
@@ -39,7 +39,7 @@ namespace HLODOutliner
 
 		//~ Begin ITreeItem Interface.
 		virtual bool CanInteract() const override;
-		virtual void GenerateContextMenu(FMenuBuilder& MenuBuilder, SHLODOutliner& Outliner) override;
+		virtual void GenerateContextMenu(UEditorMenu* Menu, SHLODOutliner& Outliner) override;
 		virtual FString GetDisplayString() const override;
 		virtual FSlateColor GetTint() const override;
 		virtual FTreeItemID GetID() override;

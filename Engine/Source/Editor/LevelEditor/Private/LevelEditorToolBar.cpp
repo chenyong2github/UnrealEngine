@@ -1506,7 +1506,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	FEditorMenuContext MenuContext(InCommandList, LevelEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders());
 	ULevelEditorMenuContext* LevelEditorMenuContext = NewObject<ULevelEditorMenuContext>();
-	LevelEditorMenuContext->SlateLevelEditor = InLevelEditor;
+	LevelEditorMenuContext->LevelEditor = InLevelEditor;
 	MenuContext.AddObject(LevelEditorMenuContext);
 
 	// Create the tool bar!
@@ -2282,7 +2282,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateCinematicsMenuContent( TShare
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	FEditorMenuContext Context(InCommandList, FExtender::Combine(LevelEditorModule.GetAllLevelEditorToolbarCinematicsMenuExtenders()));
 	ULevelEditorMenuContext* LevelEditorMenuContext = NewObject<ULevelEditorMenuContext>();
-	LevelEditorMenuContext->SlateLevelEditor = LevelEditorWeakPtr;
+	LevelEditorMenuContext->LevelEditor = LevelEditorWeakPtr;
 	Context.AddObject(LevelEditorMenuContext);
 	return UEditorMenuSubsystem::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.Cinematics", Context);
 }
@@ -2309,7 +2309,7 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			return;
 		}
 
-		UWorld* World = FoundContext->SlateLevelEditor.IsValid() ? FoundContext->SlateLevelEditor.Pin()->GetWorld() : nullptr;
+		UWorld* World = FoundContext->LevelEditor.IsValid() ? FoundContext->LevelEditor.Pin()->GetWorld() : nullptr;
 		const bool bHasAnyCinematicsActors = !!TActorIterator<AMatineeActor>(World) || !!TActorIterator<ALevelSequenceActor>(World);
 		if (!bHasAnyCinematicsActors)
 		{

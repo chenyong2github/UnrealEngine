@@ -113,6 +113,11 @@ int32 FEditorMenuSection::IndexOfBlock(const FName InName) const
 	return INDEX_NONE;
 }
 
+bool FEditorMenuSection::IsNonLegacyDynamic() const
+{
+	return EditorMenuSectionDynamic || Construct.NewEditorMenuDelegate.IsBound();
+}
+
 void FEditorMenuSection::AssembleBlock(const FEditorMenuEntry& Block)
 {
 	const EEditorMenuInsertType Position = Block.InsertPosition.Position;
@@ -145,7 +150,6 @@ void FEditorMenuSection::AssembleBlock(const FEditorMenuEntry& Block)
 	}
 }
 
-
 int32 FEditorMenuSection::RemoveEntry(const FName InName)
 {
 	return Blocks.RemoveAll([InName](const FEditorMenuEntry& Block) { return Block.Name == InName; });
@@ -160,6 +164,7 @@ int32 FEditorMenuSection::RemoveEntriesByOwner(const FEditorMenuOwner InOwner)
 
 	return 0;
 }
+
 int32 FEditorMenuSection::FindBlockInsertIndex(const FEditorMenuEntry& InBlock) const
 {
 	const FEditorMenuInsert InPosition = InBlock.InsertPosition;
