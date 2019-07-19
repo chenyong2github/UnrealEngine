@@ -6,6 +6,7 @@
 #include "InputCoreTypes.h"
 #include "Components/ActorComponent.h"
 #include "HitProxies.h"
+#include "ConvexVolume.h"
 
 class AActor;
 class FCanvas;
