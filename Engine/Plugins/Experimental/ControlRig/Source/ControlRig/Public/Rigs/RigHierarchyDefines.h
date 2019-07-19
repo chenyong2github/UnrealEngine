@@ -21,3 +21,4 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigElementAdded, FRigHierarchyContainer*
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigElementRemoved, FRigHierarchyContainer*, ERigElementType, const FName&);
 DECLARE_MULTICAST_DELEGATE_FourParams(FRigElementRenamed, FRigHierarchyContainer*, ERigElementType, const FName&, const FName&);
 DECLARE_MULTICAST_DELEGATE_FiveParams(FRigElementReparented, FRigHierarchyContainer*, ERigElementType, const FName&, const FName&, const FName&);
+DECLARE_MULTICAST_DELEGATE_FourParams(FRigElementSelected, FRigHierarchyContainer*, ERigElementType, const FName&, bool);

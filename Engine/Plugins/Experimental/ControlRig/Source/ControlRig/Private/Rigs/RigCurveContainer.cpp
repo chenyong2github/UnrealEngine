@@ -76,6 +76,9 @@ FRigCurve FRigCurveContainer::Remove(const FName& InName)
 
 	int32 IndexToDelete = GetIndex(InName);
 	ensure(IndexToDelete != INDEX_NONE);
+#if WITH_EDITOR
+	Select(InName, false);
+#endif
 	RemovedCurve = Curves[IndexToDelete];
 	Curves.RemoveAt(IndexToDelete);
 	RefreshMapping();
@@ -149,11 +152,24 @@ FName FRigCurveContainer::Rename(const FName& InOldName, const FName& InNewName)
 		if (Found != INDEX_NONE)
 		{
 			FName NewName = GetSafeNewName(InNewName);
+
+#if WITH_EDITOR
+			bool bWasSelected = IsSelected(InOldName);
+			if(bWasSelected)
+			{
+				Select(InOldName, false);
+			}
+#endif
+
 			Curves[Found].Name = NewName;
 			RefreshMapping();
 
 #if WITH_EDITOR
 			OnCurveRenamed.Broadcast(Container, RigElementType(), InOldName, NewName);
+			if(bWasSelected)
+			{
+				Select(NewName, true);
+			}
 #endif
 			return NewName;
 		}
@@ -200,3 +216,62 @@ void FRigCurveContainer::ResetValues()
 	}
 }
 
+#if WITH_EDITOR
+
+bool FRigCurveContainer::Select(const FName& InName, bool bSelect)
+{
+	if(GetIndex(InName) == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if(bSelect == IsSelected(InName))
+	{
+		return false;
+	}
+
+	if(bSelect)
+	{
+		if (Container)
+		{
+			Container->BoneHierarchy.ClearSelection();
+			Container->SpaceHierarchy.ClearSelection();
+			Container->ControlHierarchy.ClearSelection();
+		}
+
+		Selection.Add(InName);
+	}
+	else
+	{
+		Selection.Remove(InName);
+	}
+
+	OnCurveSelected.Broadcast(Container, RigElementType(), InName, bSelect);
+
+	return true;
+}
+
+bool FRigCurveContainer::ClearSelection()
+{
+	TArray<FName> TempSelection;
+	TempSelection.Append(Selection);
+	for(const FName& SelectedName : TempSelection)
+	{
+		Select(SelectedName, false);
+	}
+	return TempSelection.Num() > 0;
+}
+
+TArray<FName> FRigCurveContainer::CurrentSelection() const
+{
+	TArray<FName> TempSelection;
+	TempSelection.Append(Selection);
+	return TempSelection;
+}
+
+bool FRigCurveContainer::IsSelected(const FName& InName) const
+{
+	return Selection.Contains(InName);
+}
+
+#endif

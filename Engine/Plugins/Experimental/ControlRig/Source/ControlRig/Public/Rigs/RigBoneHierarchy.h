@@ -28,7 +28,7 @@ struct CONTROLRIG_API FRigBone
 	UPROPERTY(VisibleAnywhere, Category = FRigBoneHierarchy)
 	FName Name;
 
-	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
+	UPROPERTY(VisibleAnywhere, Category = FRigBoneHierarchy)
 	int32 Index;
 
 	UPROPERTY(VisibleAnywhere, Category = FRigBoneHierarchy)
@@ -143,18 +143,27 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	// resets all of the transforms back to the initial transform
 	void ResetTransforms();
 
+#if WITH_EDITOR
+
+	bool Select(const FName& InName, bool bSelect = true);
+	bool ClearSelection();
+	TArray<FName> CurrentSelection() const;
+	bool IsSelected(const FName& InName) const;
+
+	FRigElementAdded OnBoneAdded;
+	FRigElementRemoved OnBoneRemoved;
+	FRigElementRenamed OnBoneRenamed;
+	FRigElementReparented OnBoneReparented;
+	FRigElementSelected OnBoneSelected;
+
+#endif
+
 private:
 
 	// disable copy constructor
 	FRigBoneHierarchy(const FRigBoneHierarchy& InOther) {}
 
 	FRigHierarchyContainer* Container;
-#if WITH_EDITOR
-	FRigElementAdded OnBoneAdded;
-	FRigElementRemoved OnBoneRemoved;
-	FRigElementRenamed OnBoneRenamed;
-	FRigElementReparented OnBoneReparented;
-#endif
 
 	UPROPERTY(EditAnywhere, Category = FRigBoneHierarchy)
 	TArray<FRigBone> Bones;
@@ -162,6 +171,11 @@ private:
 	// can serialize fine? 
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
+
+#if WITH_EDITOR
+	UPROPERTY(transient)
+	TArray<FName> Selection;
+#endif
 
 	int32 GetIndexSlow(const FName& InName) const;
 

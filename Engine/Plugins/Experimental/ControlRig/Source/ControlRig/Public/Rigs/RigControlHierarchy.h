@@ -43,10 +43,10 @@ struct CONTROLRIG_API FRigControl
 	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
 	FName Name;
 
-	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
+	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
 	int32 Index;
 
-	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
+	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
 	ERigControlType ControlType;
 
 	UPROPERTY(VisibleAnywhere, Category = FRigControlHierarchy)
@@ -166,18 +166,30 @@ struct CONTROLRIG_API FRigControlHierarchy
 	// resets all of the transforms back to the initial transform
 	void ResetTransforms();
 
+#if WITH_EDITOR
+
+	bool Select(const FName& InName, bool bSelect = true);
+	bool ClearSelection();
+	TArray<FName> CurrentSelection() const;
+	bool IsSelected(const FName& InName) const;
+
+	FRigElementAdded OnControlAdded;
+	FRigElementRemoved OnControlRemoved;
+	FRigElementRenamed OnControlRenamed;
+	FRigElementReparented OnControlReparented;
+	FRigElementSelected OnControlSelected;
+
+	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName);
+	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName);
+
+#endif
+
 private:
 
 	// disable copy constructor
 	FRigControlHierarchy(const FRigControlHierarchy& InOther) {}
 
 	FRigHierarchyContainer* Container;
-#if WITH_EDITOR
-	FRigElementAdded OnControlAdded;
-	FRigElementRemoved OnControlRemoved;
-	FRigElementRenamed OnControlRenamed;
-	FRigElementReparented OnControlReparented;
-#endif
 
 	UPROPERTY(EditAnywhere, Category = FRigControlHierarchy)
 	TArray<FRigControl> Controls;
@@ -185,6 +197,11 @@ private:
 	// can serialize fine? 
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
+
+#if WITH_EDITOR
+	UPROPERTY(transient)
+	TArray<FName> Selection;
+#endif
 
 	int32 GetSpaceIndex(const FName& InName) const;
 

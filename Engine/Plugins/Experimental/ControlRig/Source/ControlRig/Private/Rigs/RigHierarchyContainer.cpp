@@ -34,37 +34,56 @@ void FRigHierarchyContainer::Initialize()
 	BoneHierarchy.OnBoneRemoved.RemoveAll(this);
 	BoneHierarchy.OnBoneRenamed.RemoveAll(this);
 	BoneHierarchy.OnBoneReparented.RemoveAll(this);
+	BoneHierarchy.OnBoneSelected.RemoveAll(this);
 
 	BoneHierarchy.OnBoneAdded.AddRaw(this, &FRigHierarchyContainer::HandleOnElementAdded);
 	BoneHierarchy.OnBoneRemoved.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRemoved);
 	BoneHierarchy.OnBoneRenamed.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRenamed);
 	BoneHierarchy.OnBoneReparented.AddRaw(this, &FRigHierarchyContainer::HandleOnElementReparented);
+	BoneHierarchy.OnBoneSelected.AddRaw(this, &FRigHierarchyContainer::HandleOnElementSelected);
 
 	SpaceHierarchy.OnSpaceAdded.RemoveAll(this);
 	SpaceHierarchy.OnSpaceRemoved.RemoveAll(this);
 	SpaceHierarchy.OnSpaceRenamed.RemoveAll(this);
+	SpaceHierarchy.OnSpaceReparented.RemoveAll(this);
+	SpaceHierarchy.OnSpaceSelected.RemoveAll(this);
 
 	SpaceHierarchy.OnSpaceAdded.AddRaw(this, &FRigHierarchyContainer::HandleOnElementAdded);
 	SpaceHierarchy.OnSpaceRemoved.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRemoved);
 	SpaceHierarchy.OnSpaceRenamed.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRenamed);
+	SpaceHierarchy.OnSpaceReparented.AddRaw(this, &FRigHierarchyContainer::HandleOnElementReparented);
+	SpaceHierarchy.OnSpaceSelected.AddRaw(this, &FRigHierarchyContainer::HandleOnElementSelected);
 
 	ControlHierarchy.OnControlAdded.RemoveAll(this);
 	ControlHierarchy.OnControlRemoved.RemoveAll(this);
 	ControlHierarchy.OnControlRenamed.RemoveAll(this);
 	ControlHierarchy.OnControlReparented.RemoveAll(this);
+	ControlHierarchy.OnControlSelected.RemoveAll(this);
 
 	ControlHierarchy.OnControlAdded.AddRaw(this, &FRigHierarchyContainer::HandleOnElementAdded);
 	ControlHierarchy.OnControlRemoved.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRemoved);
 	ControlHierarchy.OnControlRenamed.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRenamed);
 	ControlHierarchy.OnControlReparented.AddRaw(this, &FRigHierarchyContainer::HandleOnElementReparented);
+	ControlHierarchy.OnControlSelected.AddRaw(this, &FRigHierarchyContainer::HandleOnElementSelected);
 
 	CurveContainer.OnCurveAdded.RemoveAll(this);
 	CurveContainer.OnCurveRemoved.RemoveAll(this);
 	CurveContainer.OnCurveRenamed.RemoveAll(this);
+	CurveContainer.OnCurveSelected.RemoveAll(this);
 
 	CurveContainer.OnCurveAdded.AddRaw(this, &FRigHierarchyContainer::HandleOnElementAdded);
 	CurveContainer.OnCurveRemoved.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRemoved);
 	CurveContainer.OnCurveRenamed.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRenamed);
+	CurveContainer.OnCurveSelected.AddRaw(this, &FRigHierarchyContainer::HandleOnElementSelected);
+
+	// wire them between each other
+	BoneHierarchy.OnBoneRenamed.RemoveAll(&SpaceHierarchy);
+	SpaceHierarchy.OnSpaceRenamed.RemoveAll(&ControlHierarchy);
+	ControlHierarchy.OnControlRenamed.RemoveAll(&SpaceHierarchy);
+	BoneHierarchy.OnBoneRenamed.AddRaw(&SpaceHierarchy, &FRigSpaceHierarchy::HandleOnElementRenamed);
+	SpaceHierarchy.OnSpaceRenamed.AddRaw(&ControlHierarchy, &FRigControlHierarchy::HandleOnElementRenamed);
+	ControlHierarchy.OnControlRenamed.AddRaw(&SpaceHierarchy, &FRigSpaceHierarchy::HandleOnElementRenamed);
+
 #endif
 
 	BoneHierarchy.Initialize();
@@ -310,6 +329,12 @@ void FRigHierarchyContainer::HandleOnElementReparented(FRigHierarchyContainer* I
 	OnElementChanged.Broadcast(InContainer, InElementType, InName);
 }
 
+void FRigHierarchyContainer::HandleOnElementSelected(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName, bool bSelected)
+{
+	OnElementSelected.Broadcast(InContainer, InElementType, InName, bSelected);
+	OnElementChanged.Broadcast(InContainer, InElementType, InName);
+}
+
 #endif
 
 bool FRigHierarchyContainer::IsParentedTo(ERigElementType InChildType, int32 InChildIndex, ERigElementType InParentType, int32 InParentIndex) const
@@ -414,3 +439,79 @@ bool FRigHierarchyContainer::IsParentedTo(ERigElementType InChildType, int32 InC
 
 	return false;
 }
+
+#if WITH_EDITOR
+
+bool FRigHierarchyContainer::Select(const FName& InName, ERigElementType InElementType, bool bSelect)
+{
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			return BoneHierarchy.Select(InName, bSelect);
+		}
+		case ERigElementType::Space:
+		{
+			return SpaceHierarchy.Select(InName, bSelect);
+		}
+		case ERigElementType::Control:
+		{
+			return ControlHierarchy.Select(InName, bSelect);
+		}
+		case ERigElementType::Curve:
+		{
+			return CurveContainer.Select(InName, bSelect);
+		}
+	}
+	return false;
+}
+
+bool FRigHierarchyContainer::ClearSelection(ERigElementType InElementType)
+{
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			return BoneHierarchy.ClearSelection();
+		}
+		case ERigElementType::Space:
+		{
+			return SpaceHierarchy.ClearSelection();
+		}
+		case ERigElementType::Control:
+		{
+			return ControlHierarchy.ClearSelection();
+		}
+		case ERigElementType::Curve:
+		{
+			return CurveContainer.ClearSelection();
+		}
+	}
+	return false;
+}
+
+bool FRigHierarchyContainer::IsSelected(const FName& InName, ERigElementType InElementType) const
+{
+	switch(InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			return BoneHierarchy.IsSelected(InName);
+		}
+		case ERigElementType::Space:
+		{
+			return SpaceHierarchy.IsSelected(InName);
+		}
+		case ERigElementType::Control:
+		{
+			return ControlHierarchy.IsSelected(InName);
+		}
+		case ERigElementType::Curve:
+		{
+			return CurveContainer.IsSelected(InName);
+		}
+	}
+	return false;
+}
+
+#endif

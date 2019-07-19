@@ -8,6 +8,7 @@
 #include "ControlRigTrajectoryCache.h"
 #include "ControlUnitProxy.h"
 #include "ControlRigModel.h"
+#include "Rigs/RigHierarchyContainer.h"
 
 class FEditorViewportClient;
 class FViewport;
@@ -137,12 +138,14 @@ public:
 	static FRigUnit_Control* GetRigUnit(const FControlUnitProxy& InProxy, UControlRig* InControlRig, UScriptStruct** OutControlStructPtr = nullptr);
 
 	/** Select Bone */
-	void SelectBone(const FName& InBone);
+	void SelectBone(const FName& InBone, bool bSelect = true);
 	FOnGetBoneTransform& OnGetBoneTransform() { return OnGetBoneTransformDelegate; }
 	FOnSetBoneTransform& OnSetBoneTransform() { return OnSetBoneTransformDelegate; }
 
 	UControlRigModel::FModifiedEvent& OnModified();
 	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
+
+	void OnRigElementSelected(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, bool bSelected);
 
 protected:
 	/** Helper function: set ControlRigs array to the details panel */

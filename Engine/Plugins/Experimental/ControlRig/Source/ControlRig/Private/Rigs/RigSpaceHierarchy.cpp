@@ -141,12 +141,35 @@ bool FRigSpaceHierarchy::Reparent(const FName& InName, ERigSpaceType InSpaceType
 FRigSpace FRigSpaceHierarchy::Remove(const FName& InNameToRemove)
 {
 	int32 IndexToDelete = GetIndex(InNameToRemove);
+#if WITH_EDITOR
+	Select(InNameToRemove, false);
+#endif
 	FRigSpace RemovedSpace = Spaces[IndexToDelete];
 	Spaces.RemoveAt(IndexToDelete);
+
+#if WITH_EDITOR
+	TArray<FName> SpacesReparented;
+#endif
+	for (FRigSpace& ChildSpace : Spaces)
+	{
+		if (ChildSpace.SpaceType == ERigSpaceType::Space && ChildSpace.ParentName == InNameToRemove)
+		{
+			ChildSpace.SpaceType = ERigSpaceType::Global;
+			ChildSpace.ParentIndex = INDEX_NONE;
+			ChildSpace.ParentName = NAME_None;
+#if WITH_EDITOR
+			SpacesReparented.Add(ChildSpace.Name);
+#endif
+		}
+	}
 
 	RefreshMapping();
 
 #if WITH_EDITOR
+	for (const FName& ReparentedSpace : SpacesReparented)
+	{
+		OnSpaceReparented.Broadcast(Container, RigElementType(), ReparentedSpace, InNameToRemove, NAME_None);
+	}
 	OnSpaceRemoved.Broadcast(Container, RigElementType(), RemovedSpace.Name);
 #endif
 
@@ -329,12 +352,21 @@ FName FRigSpaceHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 		if (Found != INDEX_NONE)
 		{
 			FName NewName = GetSafeNewName(InNewName);
+
+#if WITH_EDITOR
+			bool bWasSelected = IsSelected(InOldName);
+			if(bWasSelected)
+			{
+				Select(InOldName, false);
+			}
+#endif
+
 			Spaces[Found].Name = NewName;
 
 			// go through find all children and rename them
 			for (int32 Index = 0; Index < Spaces.Num(); ++Index)
 			{
-				if (Spaces[Index].ParentName == InOldName)
+				if (Spaces[Index].SpaceType == ERigSpaceType::Space && Spaces[Index].ParentName == InOldName)
 				{
 					Spaces[Index].ParentName = NewName;
 				}
@@ -344,6 +376,10 @@ FName FRigSpaceHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 
 #if WITH_EDITOR
 			OnSpaceRenamed.Broadcast(Container, RigElementType(), InOldName, NewName);
+			if(bWasSelected)
+			{
+				Select(NewName, true);
+			}
 #endif
 			return NewName;
 		}
@@ -414,3 +450,161 @@ int32 FRigSpaceHierarchy::GetParentIndex(ERigSpaceType InSpaceType, const FName&
 
 	return INDEX_NONE;
 }
+
+#if WITH_EDITOR
+
+bool FRigSpaceHierarchy::Select(const FName& InName, bool bSelect)
+{
+	if(GetIndex(InName) == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if(bSelect == IsSelected(InName))
+	{
+		return false;
+	}
+
+	if(bSelect)
+	{
+		if (Container)
+		{
+			Container->BoneHierarchy.ClearSelection();
+			Container->ControlHierarchy.ClearSelection();
+			Container->CurveContainer.ClearSelection();
+		}
+
+		Selection.Add(InName);
+	}
+	else
+	{
+		Selection.Remove(InName);
+	}
+
+	OnSpaceSelected.Broadcast(Container, RigElementType(), InName, bSelect);
+
+	return true;
+}
+
+bool FRigSpaceHierarchy::ClearSelection()
+{
+	TArray<FName> TempSelection;
+	TempSelection.Append(Selection);
+	for(const FName& SelectedName : TempSelection)
+	{
+		Select(SelectedName, false);
+	}
+	return TempSelection.Num() > 0;
+}
+
+TArray<FName> FRigSpaceHierarchy::CurrentSelection() const
+{
+	TArray<FName> TempSelection;
+	TempSelection.Append(Selection);
+	return TempSelection;
+}
+
+bool FRigSpaceHierarchy::IsSelected(const FName& InName) const
+{
+	return Selection.Contains(InName);
+}
+
+void FRigSpaceHierarchy::HandleOnElementRemoved(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName)
+{
+	if (Container == nullptr)
+	{
+		return;
+	}
+
+	switch (InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			for (FRigSpace& Space : Spaces)
+			{
+				if (Space.SpaceType == ERigSpaceType::Bone && Space.ParentName == InName)
+				{
+					Space.ParentIndex = Container->BoneHierarchy.GetIndex(InName);
+					Space.ParentName = Space.ParentIndex == INDEX_NONE ? NAME_None : InName;
+					Space.SpaceType = Space.ParentIndex == INDEX_NONE ? ERigSpaceType::Global : Space.SpaceType;
+#if WITH_EDITOR
+					OnSpaceReparented.Broadcast(Container, RigElementType(), Space.Name, InName, Space.ParentName);
+#endif
+				}
+			}
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			for (FRigSpace& Space : Spaces)
+			{
+				if (Space.SpaceType == ERigSpaceType::Control && Space.ParentName == InName)
+				{
+					Space.ParentIndex = Container->ControlHierarchy.GetIndex(InName);
+					Space.ParentName = Space.ParentIndex == INDEX_NONE ? NAME_None : InName;
+					Space.SpaceType = Space.ParentIndex == INDEX_NONE ? ERigSpaceType::Global : Space.SpaceType;
+#if WITH_EDITOR
+					OnSpaceReparented.Broadcast(Container, RigElementType(), Space.Name, InName, Space.ParentName);
+#endif
+				}
+			}
+			break;
+		}
+		case ERigElementType::Space:
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+}
+
+void FRigSpaceHierarchy::HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName)
+{
+	if (Container == nullptr)
+	{
+		return;
+	}
+
+	switch (InElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			for (FRigSpace& Space : Spaces)
+			{
+				if (Space.SpaceType == ERigSpaceType::Bone && Space.ParentName == InOldName)
+				{
+					Space.ParentIndex = Container->BoneHierarchy.GetIndex(InNewName);
+					Space.ParentName = Space.ParentIndex == INDEX_NONE ? NAME_None : InNewName;
+					Space.SpaceType = Space.ParentIndex == INDEX_NONE ? ERigSpaceType::Global : Space.SpaceType;
+#if WITH_EDITOR
+					OnSpaceReparented.Broadcast(Container, RigElementType(), Space.Name, InOldName, Space.ParentName);
+#endif
+				}
+			}
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			for (FRigSpace& Space : Spaces)
+			{
+				if (Space.SpaceType == ERigSpaceType::Control && Space.ParentName == InOldName)
+				{
+					Space.ParentIndex = Container->ControlHierarchy.GetIndex(InNewName);
+					Space.ParentName = Space.ParentIndex == INDEX_NONE ? NAME_None : InNewName;
+					Space.SpaceType = Space.ParentIndex == INDEX_NONE ? ERigSpaceType::Global : Space.SpaceType;
+#if WITH_EDITOR
+					OnSpaceReparented.Broadcast(Container, RigElementType(), Space.Name, InOldName, Space.ParentName);
+#endif
+				}
+			}
+			break;
+		}
+		case ERigElementType::Space:
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+}
+
+#endif

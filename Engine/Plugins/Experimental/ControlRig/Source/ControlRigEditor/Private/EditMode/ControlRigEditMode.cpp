@@ -1523,14 +1523,20 @@ bool FControlRigEditMode::AreBoneSelected() const
 	return (SelectedBones.Num() > 0);
 }
 
-void FControlRigEditMode::SelectBone(const FName& InBone)
+void FControlRigEditMode::SelectBone(const FName& InBone, bool bSelect)
 {
 	ClearControlSelection();
 
-	SelectedBones.Reset();
 	if (InBone != NAME_None)
 	{
-		SelectedBones.Add(InBone);
+		if (bSelect)
+		{
+			SelectedBones.Add(InBone);
+		}
+		else
+		{
+			SelectedBones.Remove(InBone);
+		}
 	}
 }
 
@@ -1563,6 +1569,34 @@ void FControlRigEditMode::HandleModelModified(const UControlRigModel* InModel, E
 	}
 
 	_ModifiedEvent.Broadcast(InModel, InType, InPayload);
+}
+
+void FControlRigEditMode::OnRigElementSelected(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, bool bSelected)
+{
+	if (UControlRig* ControlRig = WeakControlRig.Get())
+	{
+		if (UControlRigBlueprintGeneratedClass* Class = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass()))
+		{
+			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Class->ClassGeneratedBy))
+			{
+				switch (ElementType)
+				{
+					case ERigElementType::Bone:
+					{
+						//SelectBone(InName, bSelected);
+						break;
+					}
+					case ERigElementType::Space:
+					case ERigElementType::Control:
+					case ERigElementType::Curve:
+					{
+						// todo
+						break;
+					}
+				}
+			}
+		}
+	}
 }
 
 UControlRigModel::FModifiedEvent& FControlRigEditMode::OnModified()

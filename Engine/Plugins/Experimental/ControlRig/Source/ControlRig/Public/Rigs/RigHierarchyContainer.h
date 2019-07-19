@@ -103,11 +103,18 @@ public:
 	bool IsParentedTo(ERigElementType InChildType, int32 InChildIndex, ERigElementType InParentType, int32 InParentIndex) const;
 
 #if WITH_EDITOR
+
+	bool Select(const FName& InName, ERigElementType InElementType, bool bSelect = true);
+	bool ClearSelection(ERigElementType InElementType);
+	bool IsSelected(const FName& InName, ERigElementType InElementType) const;
+
 	FRigElementChanged OnElementChanged;
 	FRigElementAdded OnElementAdded;
 	FRigElementRemoved OnElementRemoved;
 	FRigElementRenamed OnElementRenamed;
 	FRigElementReparented OnElementReparented;
+	FRigElementSelected OnElementSelected;
+
 #endif
 
 protected:
@@ -120,6 +127,7 @@ protected:
 	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName);
 	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName);
 	void HandleOnElementReparented(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName);
+	void HandleOnElementSelected(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName, bool bSelected);
 #endif
 };
 

@@ -185,6 +185,9 @@ FRigControl FRigControlHierarchy::Remove(const FName& InNameToRemove)
 	}
 
 	int32 IndexToDelete = GetIndex(InNameToRemove);
+#if WITH_EDITOR
+	Select(InNameToRemove, false);
+#endif
 	FRigControl RemovedControl = Controls[IndexToDelete];
 	Controls.RemoveAt(IndexToDelete);
 
@@ -368,6 +371,15 @@ FName FRigControlHierarchy::Rename(const FName& InOldName, const FName& InNewNam
 		if (Found != INDEX_NONE)
 		{
 			FName NewName = GetSafeNewName(InNewName);
+
+#if WITH_EDITOR
+			bool bWasSelected = IsSelected(InOldName);
+			if(bWasSelected)
+			{
+				Select(InOldName, false);
+			}
+#endif
+
 			Controls[Found].Name = NewName;
 
 			// go through find all children and rename them
@@ -392,6 +404,10 @@ FName FRigControlHierarchy::Rename(const FName& InOldName, const FName& InNewNam
 			for (const FName& ReparentedControl : ReparentedControls)
 			{
 				OnControlReparented.Broadcast(Container, RigElementType(), ReparentedControl, InOldName, NewName);
+			}
+			if(bWasSelected)
+			{
+				Select(NewName, true);
 			}
 #endif
 			return NewName;
@@ -542,3 +558,128 @@ int32 FRigControlHierarchy::GetSpaceIndex(const FName& InName) const
 	}
 	return Container->GetIndex(ERigElementType::Space, InName);
 }
+
+#if WITH_EDITOR
+
+bool FRigControlHierarchy::Select(const FName& InName, bool bSelect)
+{
+	if(GetIndex(InName) == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if(bSelect == IsSelected(InName))
+	{
+		return false;
+	}
+
+	if(bSelect)
+	{
+		if (Container)
+		{
+			Container->BoneHierarchy.ClearSelection();
+			Container->SpaceHierarchy.ClearSelection();
+			Container->CurveContainer.ClearSelection();
+		}
+
+		Selection.Add(InName);
+	}
+	else
+	{
+		Selection.Remove(InName);
+	}
+
+	OnControlSelected.Broadcast(Container, RigElementType(), InName, bSelect);
+
+	return true;
+}
+
+bool FRigControlHierarchy::ClearSelection()
+{
+	TArray<FName> TempSelection;
+	TempSelection.Append(Selection);
+	for(const FName& SelectedName : TempSelection)
+	{
+		Select(SelectedName, false);
+	}
+	return TempSelection.Num() > 0;
+}
+
+TArray<FName> FRigControlHierarchy::CurrentSelection() const
+{
+	TArray<FName> TempSelection;
+	TempSelection.Append(Selection);
+	return TempSelection;
+}
+
+bool FRigControlHierarchy::IsSelected(const FName& InName) const
+{
+	return Selection.Contains(InName);
+}
+
+void FRigControlHierarchy::HandleOnElementRemoved(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName)
+{
+	if (Container == nullptr)
+	{
+		return;
+	}
+
+	switch (InElementType)
+	{
+	case ERigElementType::Space:
+	{
+		for (FRigControl& Control : Controls)
+		{
+			if (Control.SpaceName == InName)
+			{
+				Control.SpaceIndex = INDEX_NONE;
+				Control.SpaceName = NAME_None;
+#if WITH_EDITOR
+				OnControlReparented.Broadcast(Container, RigElementType(), Control.Name, Control.ParentName, Control.ParentName);
+#endif
+			}
+		}
+		break;
+	}
+	case ERigElementType::Bone:
+	case ERigElementType::Control:
+	case ERigElementType::Curve:
+	{
+		break;
+	}
+	}
+}
+
+void FRigControlHierarchy::HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName)
+{
+	if (Container == nullptr)
+	{
+		return;
+	}
+
+	switch (InElementType)
+	{
+		case ERigElementType::Space:
+		{
+			for (FRigControl& Control : Controls)
+			{
+				if (Control.SpaceName == InOldName)
+				{
+					Control.SpaceIndex = Container->SpaceHierarchy.GetIndex(InNewName);
+					Control.SpaceName = Control.SpaceIndex == INDEX_NONE ? NAME_None : InNewName;
+#if WITH_EDITOR
+					OnControlReparented.Broadcast(Container, RigElementType(), Control.Name, Control.ParentName, Control.ParentName);
+#endif
+				}
+			}
+			break;
+		}
+		case ERigElementType::Bone:
+		case ERigElementType::Control:
+		case ERigElementType::Curve:
+		{
+			break;
+		}
+	}
+}
+#endif

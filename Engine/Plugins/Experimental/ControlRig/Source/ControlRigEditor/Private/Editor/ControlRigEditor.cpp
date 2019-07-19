@@ -94,6 +94,8 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->HierarchyContainer.OnElementRemoved.RemoveAll(this);
 		RigBlueprint->HierarchyContainer.OnElementRenamed.RemoveAll(this);
 		RigBlueprint->HierarchyContainer.OnElementReparented.RemoveAll(this);
+		RigBlueprint->HierarchyContainer.OnElementSelected.RemoveAll(this);
+		RigBlueprint->HierarchyContainer.OnElementSelected.RemoveAll(&GetEditMode());
 	}
 }
 
@@ -185,11 +187,6 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	}
 
 	InControlRigBlueprint->OnModified().AddSP(this, &FControlRigEditor::HandleModelModified);
-	InControlRigBlueprint->HierarchyContainer.OnElementAdded.AddSP(this, &FControlRigEditor::OnRigElementAdded);
-	InControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddSP(this, &FControlRigEditor::OnRigElementRemoved);
-	InControlRigBlueprint->HierarchyContainer.OnElementRenamed.AddSP(this, &FControlRigEditor::OnRigElementRenamed);
-	InControlRigBlueprint->HierarchyContainer.OnElementReparented.AddSP(this, &FControlRigEditor::OnRigElementReparented);
-
 	BindCommands();
 
 	AddApplicationMode(
@@ -209,6 +206,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	GetAssetEditorModeManager()->ActivateMode(FControlRigEditorEditMode::ModeName);
 	GetEditMode().OnGetBoneTransform() = FOnGetBoneTransform::CreateSP(this, &FControlRigEditor::GetBoneTransform);
 	GetEditMode().OnSetBoneTransform() = FOnSetBoneTransform::CreateSP(this, &FControlRigEditor::SetBoneTransform);
+
 	InControlRigBlueprint->OnModified().AddSP(&GetEditMode(), &FControlRigEditMode::HandleModelModified);
 
 	UpdateControlRig();
@@ -258,6 +256,13 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 				}
 			}
 		}
+
+		InControlRigBlueprint->HierarchyContainer.OnElementAdded.AddSP(this, &FControlRigEditor::OnRigElementAdded);
+		InControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddSP(this, &FControlRigEditor::OnRigElementRemoved);
+		InControlRigBlueprint->HierarchyContainer.OnElementRenamed.AddSP(this, &FControlRigEditor::OnRigElementRenamed);
+		InControlRigBlueprint->HierarchyContainer.OnElementReparented.AddSP(this, &FControlRigEditor::OnRigElementReparented);
+		InControlRigBlueprint->HierarchyContainer.OnElementSelected.AddSP(this, &FControlRigEditor::OnRigElementSelected);
+		InControlRigBlueprint->HierarchyContainer.OnElementSelected.AddSP(&GetEditMode(), &FControlRigEditMode::OnRigElementSelected);
 	}
 
 	bControlRigEditorInitialized = true;
@@ -525,11 +530,13 @@ UBlueprint* FControlRigEditor::GetBlueprintObj() const
 
 void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 {
+	RigElementNameInDetailPanel = NAME_None;
 	Inspector->ShowDetailsForObjects(InObjects);
 }
 
 void FControlRigEditor::SetDetailObject(UObject* Obj)
 {
+	RigElementNameInDetailPanel = NAME_None;
 	TArray<UObject*> Objects;
 	if (Obj)
 	{
@@ -538,13 +545,15 @@ void FControlRigEditor::SetDetailObject(UObject* Obj)
 	SetDetailObjects(Objects);
 }
 
-void FControlRigEditor::SetDetailStruct(TSharedPtr<FStructOnScope> StructToDisplay)
+void FControlRigEditor::SetDetailStruct(const FName& InName, TSharedPtr<FStructOnScope> StructToDisplay)
 {
+	RigElementNameInDetailPanel = InName;
 	Inspector->ShowSingleStruct(StructToDisplay);
 }
 
 void FControlRigEditor::ClearDetailObject()
 {
+	RigElementNameInDetailPanel = NAME_None;
 	Inspector->ShowDetailsForObjects(TArray<UObject*>());
 	Inspector->ShowSingleStruct(TSharedPtr<FStructOnScope>());
 }
@@ -1450,29 +1459,6 @@ void FControlRigEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::
 	}
 }
 
-
-void FControlRigEditor::SelectBone(const FName& InBone)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	// edit mode has to know
-	GetEditMode().SelectBone(InBone);
-	// copy locally, we use this for copying back to template when modified
-
-	SelectedBone = InBone;
-	UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
-	if (EditorSkelComp)
-	{
-		EditorSkelComp->BonesOfInterest.Reset();
-
-		int32 Index = ControlRig->Hierarchy.BoneHierarchy.GetIndex(InBone);
-		if (Index != INDEX_NONE)
-		{
-			EditorSkelComp->BonesOfInterest.Add(Index);
-		}
-	}
-}
-
 FTransform FControlRigEditor::GetBoneTransform(const FName& InBone, bool bLocal) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -1531,24 +1517,44 @@ void FControlRigEditor::SetBoneTransform(const FName& InBone, const FTransform& 
 void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	//	UE_LOG(LogControlRigEditor, Warning, TEXT("Current Property being modified : %s"), *GetNameSafe(PropertyChangedEvent.Property));
 
-	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(FRigBone, InitialTransform))
+	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
+	if (ControlRig && ControlRigBP && RigElementNameInDetailPanel != NAME_None)
 	{
-		// if init transform changes, it updates to the base
-		UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
-		if (ControlRig && ControlRigBP)
+		UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged());
+		UScriptStruct* ScriptStruct = Cast< UScriptStruct>(PropertyChangedEvent.Property->GetOuter());
+		if (ScriptStruct)
 		{
-			if (SelectedBone != NAME_None)
+			if (ScriptStruct == FRigBone::StaticStruct())
 			{
-				const int32 BoneIndex = ControlRig->Hierarchy.BoneHierarchy.GetIndex(SelectedBone);
-				if (BoneIndex != INDEX_NONE)
+				ControlRig->Hierarchy.BoneHierarchy[RigElementNameInDetailPanel] = ControlRigBP->HierarchyContainer.BoneHierarchy[RigElementNameInDetailPanel];
+				if (DebuggedControlRig && DebuggedControlRig != ControlRig)
 				{
-					FTransform InitialTransform = ControlRig->Hierarchy.BoneHierarchy.GetInitialTransform(BoneIndex);
-					// update CDO  @todo - re-think about how we wrap around this nicer
-					// copy currently selected Bone to base hierarchy			
-					ControlRigBP->HierarchyContainer.BoneHierarchy.SetInitialTransform(BoneIndex, InitialTransform);
+					DebuggedControlRig->Hierarchy.BoneHierarchy[RigElementNameInDetailPanel] = ControlRigBP->HierarchyContainer.BoneHierarchy[RigElementNameInDetailPanel];
+				}
+			}
+			else if (ScriptStruct == FRigSpace::StaticStruct())
+			{
+				ControlRig->Hierarchy.SpaceHierarchy[RigElementNameInDetailPanel] = ControlRigBP->HierarchyContainer.SpaceHierarchy[RigElementNameInDetailPanel];
+				if (DebuggedControlRig && DebuggedControlRig != ControlRig)
+				{
+					DebuggedControlRig->Hierarchy.SpaceHierarchy[RigElementNameInDetailPanel] = ControlRigBP->HierarchyContainer.SpaceHierarchy[RigElementNameInDetailPanel];
+				}
+			}
+			else if (ScriptStruct == FRigControl::StaticStruct())
+			{
+				ControlRig->Hierarchy.ControlHierarchy[RigElementNameInDetailPanel] = ControlRigBP->HierarchyContainer.ControlHierarchy[RigElementNameInDetailPanel];
+				if (DebuggedControlRig && DebuggedControlRig != ControlRig)
+				{
+					DebuggedControlRig->Hierarchy.ControlHierarchy[RigElementNameInDetailPanel] = ControlRigBP->HierarchyContainer.ControlHierarchy[RigElementNameInDetailPanel];
+				}
+			}
+			else if (ScriptStruct == FRigCurve::StaticStruct())
+			{
+				ControlRig->Hierarchy.CurveContainer[RigElementNameInDetailPanel] = ControlRigBP->HierarchyContainer.CurveContainer[RigElementNameInDetailPanel];
+				if (DebuggedControlRig && DebuggedControlRig != ControlRig)
+				{
+					DebuggedControlRig->Hierarchy.CurveContainer[RigElementNameInDetailPanel] = ControlRigBP->HierarchyContainer.CurveContainer[RigElementNameInDetailPanel];
 				}
 			}
 		}
@@ -1694,6 +1700,89 @@ void FControlRigEditor::OnRigElementReparented(FRigHierarchyContainer* Container
 	if (ElementType == ERigElementType::Bone)
 	{
 		OnBoneHierarchyChanged();
+	}
+}
+
+void FControlRigEditor::OnRigElementSelected(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, bool bSelected)
+{
+	UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
+	if (RigBlueprint == nullptr)
+	{
+		return;
+	}
+
+	switch (ElementType)
+	{
+		case ERigElementType::Bone:
+		{
+			FRigBoneHierarchy& BoneHierarchy = RigBlueprint->HierarchyContainer.BoneHierarchy;
+			if (bSelected)
+			{
+				SetDetailStruct(InName, MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&(BoneHierarchy[InName]))));
+			}
+			else
+			{
+				ClearDetailObject();
+			}
+
+			UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
+			if (EditorSkelComp)
+			{
+				int32 Index = ControlRig->Hierarchy.BoneHierarchy.GetIndex(InName);
+				if (Index != INDEX_NONE)
+				{
+					if (bSelected)
+					{
+						EditorSkelComp->BonesOfInterest.Add(Index);
+					}
+					else
+					{
+						EditorSkelComp->BonesOfInterest.Remove(Index);
+					}
+				}
+			}
+
+			break;
+		}
+		case ERigElementType::Space:
+		{
+			if (bSelected)
+			{
+				FRigSpaceHierarchy& SpaceHierarchy = RigBlueprint->HierarchyContainer.SpaceHierarchy;
+				SetDetailStruct(InName, MakeShareable(new FStructOnScope(FRigSpace::StaticStruct(), (uint8*)&(SpaceHierarchy[InName]))));
+			}
+			else
+			{
+				ClearDetailObject();
+			}
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			if (bSelected)
+			{
+				FRigControlHierarchy& ControlHierarchy = RigBlueprint->HierarchyContainer.ControlHierarchy;
+				SetDetailStruct(InName, MakeShareable(new FStructOnScope(FRigControl::StaticStruct(), (uint8*)&(ControlHierarchy[InName]))));
+			}
+			else
+			{
+				ClearDetailObject();
+			}
+			break;
+		}
+		case ERigElementType::Curve:
+		{
+			if (bSelected)
+			{
+				FRigCurveContainer& CurveContainer = RigBlueprint->HierarchyContainer.CurveContainer;
+				SetDetailStruct(InName, MakeShareable(new FStructOnScope(FRigCurve::StaticStruct(), (uint8*)&(CurveContainer[InName]))));
+			}
+			else
+			{
+				ClearDetailObject();
+			}
+			break;
+		}
 	}
 }
 

@@ -145,6 +145,9 @@ FRigBone FRigBoneHierarchy::Remove(const FName& InNameToRemove)
 	}
 
 	int32 IndexToDelete = GetIndex(InNameToRemove);
+#if WITH_EDITOR
+	Select(InNameToRemove, false);
+#endif
 	FRigBone RemovedBone = Bones[IndexToDelete];
 	Bones.RemoveAt(IndexToDelete);
 
@@ -323,6 +326,15 @@ FName FRigBoneHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 		if (Found != INDEX_NONE)
 		{
 			FName NewName = GetSafeNewName(InNewName);
+
+#if WITH_EDITOR
+			bool bWasSelected = IsSelected(InOldName);
+			if(bWasSelected)
+			{
+				Select(InOldName, false);
+			}
+#endif
+
 			Bones[Found].Name = NewName;
 
 			// go through find all children and rename them
@@ -348,6 +360,10 @@ FName FRigBoneHierarchy::Rename(const FName& InOldName, const FName& InNewName)
 			for (const FName& ReparentedBone : ReparentedBones)
 			{
 				OnBoneReparented.Broadcast(Container, RigElementType(), ReparentedBone, InOldName, NewName);
+			}
+			if (bWasSelected)
+			{
+				Select(NewName, true);
 			}
 #endif
 			return NewName;
@@ -501,3 +517,62 @@ void FRigBoneHierarchy::PropagateTransform(int32 InIndex)
 	}
 }
 
+#if WITH_EDITOR
+
+bool FRigBoneHierarchy::Select(const FName& InName, bool bSelect)
+{
+	if(GetIndex(InName) == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if(bSelect == IsSelected(InName))
+	{
+		return false;
+	}
+
+	if(bSelect)
+	{
+		if (Container)
+		{
+			Container->SpaceHierarchy.ClearSelection();
+			Container->ControlHierarchy.ClearSelection();
+			Container->CurveContainer.ClearSelection();
+		}
+
+		Selection.Add(InName);
+	}
+	else
+	{
+		Selection.Remove(InName);
+	}
+
+	OnBoneSelected.Broadcast(Container, RigElementType(), InName, bSelect);
+
+	return true;
+}
+
+bool FRigBoneHierarchy::ClearSelection()
+{
+	TArray<FName> TempSelection;
+	TempSelection.Append(Selection);
+	for(const FName& SelectedName : TempSelection)
+	{
+		Select(SelectedName, false);
+	}
+	return TempSelection.Num() > 0;
+}
+
+TArray<FName> FRigBoneHierarchy::CurrentSelection() const
+{
+	TArray<FName> TempSelection;
+	TempSelection.Append(Selection);
+	return TempSelection;
+}
+
+bool FRigBoneHierarchy::IsSelected(const FName& InName) const
+{
+	return Selection.Contains(InName);
+}
+
+#endif

@@ -100,10 +100,19 @@ public:
 	void ResetValues();
 
 	FRigHierarchyContainer* Container;
+
 #if WITH_EDITOR
+
+	bool Select(const FName& InName, bool bSelect = true);
+	bool ClearSelection();
+	TArray<FName> CurrentSelection() const;
+	bool IsSelected(const FName& InName) const;
+
 	FRigElementAdded OnCurveAdded;
 	FRigElementRemoved OnCurveRemoved;
 	FRigElementRenamed OnCurveRenamed;
+	FRigElementSelected OnCurveSelected;
+
 #endif
 
 private:
@@ -117,14 +126,15 @@ private:
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
 
+#if WITH_EDITOR
+	UPROPERTY(transient)
+	TArray<FName> Selection;
+#endif
+
 	int32 GetIndexSlow(const FName& InName) const;
 
 	void RefreshMapping();
+
+	friend struct FRigHierarchyContainer;
 };
 
-// todo
-//USTRUCT()
-//struct CONTROLRIG_API FRigHierarchyRef
-//{
-//	GENERATED_BODY()
-//};

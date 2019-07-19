@@ -41,7 +41,8 @@ protected:
 	{}
 };
 
-typedef SListView< TSharedPtr<FDisplayedRigCurveInfo> > SRigCurveListType;
+typedef TSharedPtr< FDisplayedRigCurveInfo > FDisplayedRigCurveInfoPtr;
+typedef SListView< FDisplayedRigCurveInfoPtr > SRigCurveListType;
 
 //////////////////////////////////////////////////////////////////////////
 // SRigCurveListRow
@@ -50,14 +51,14 @@ DECLARE_DELEGATE_TwoParams(FSetRigCurveValue, const FName&, float);
 DECLARE_DELEGATE_RetVal_OneParam(float, FGetRigCurveValue, const FName&);
 DECLARE_DELEGATE_RetVal(FText&, FGetFilterText);
 
-class SRigCurveListRow : public SMultiColumnTableRow< TSharedPtr<FDisplayedRigCurveInfo> >
+class SRigCurveListRow : public SMultiColumnTableRow< FDisplayedRigCurveInfoPtr >
 {
 public:
 
 	SLATE_BEGIN_ARGS(SRigCurveListRow) {}
 
 		/** The item for this row **/
-		SLATE_ARGUMENT(TSharedPtr<FDisplayedRigCurveInfo>, Item)
+		SLATE_ARGUMENT(FDisplayedRigCurveInfoPtr, Item)
 
 		/** Callback when the text is committed. */
 		SLATE_EVENT(FOnTextCommitted, OnTextCommitted)
@@ -108,7 +109,7 @@ private:
 	FSlateColor GetItemTextColor() const;
 
 	/** The name and Value of the morph target */
-	TSharedPtr<FDisplayedRigCurveInfo>	Item;
+	FDisplayedRigCurveInfoPtr	Item;
 
 	FOnTextCommitted OnTextCommitted;
 	FSetRigCurveValue OnSetRigCurveValue;
@@ -186,7 +187,7 @@ public:
 	*
 	* @return A new Slate widget, containing the UI for this row
 	*/
-	TSharedRef<ITableRow> GenerateRigCurveRow(TSharedPtr<FDisplayedRigCurveInfo> InInfo, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> GenerateRigCurveRow(FDisplayedRigCurveInfoPtr InInfo, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/**
 	* Accessor so our rows can grab the filtertext for highlighting
@@ -197,7 +198,7 @@ public:
 	void RefreshCurveList();
 
 	// When a name is committed after being edited in the list
-	virtual void OnNameCommitted(const FText& NewName, ETextCommit::Type CommitType, TSharedPtr<FDisplayedRigCurveInfo> Item);
+	virtual void OnNameCommitted(const FText& NewName, ETextCommit::Type CommitType, FDisplayedRigCurveInfoPtr Item);
 
 private:
 
@@ -229,7 +230,14 @@ private:
 	void SetCurveValue(const FName& CurveName, float CurveValue);
 	float GetCurveValue(const FName& CurveName);
 	void ChangeCurveName(const FName& OldName, const FName& NewName);
-	void OnRigElementChanged(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
+
+	void OnSelectionChanged(FDisplayedRigCurveInfoPtr Selection, ESelectInfo::Type SelectInfo);
+
+	bool bIsChangingRigHierarchy;
+	void OnRigElementAdded(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
+	void OnRigElementRemoved(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
+	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
+	void OnRigElementSelected(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, bool bSelected);
 
 	// import curve part
 	void ImportCurve(const FAssetData& InAssetData);
@@ -240,7 +248,7 @@ private:
 	TSharedPtr<SSearchBox>	NameFilterBox;
 
 	/** A list of animation curve. Used by the RigCurveListView. */
-	TArray< TSharedPtr<FDisplayedRigCurveInfo> > RigCurveList;
+	TArray< FDisplayedRigCurveInfoPtr > RigCurveList;
 
 	/** Widget used to display the list of animation curve */
 	TSharedPtr<SRigCurveListType> RigCurveListView;

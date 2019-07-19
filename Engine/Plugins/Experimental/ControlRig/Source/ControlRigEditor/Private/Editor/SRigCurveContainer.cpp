@@ -26,8 +26,6 @@ static const FName ColumnID_RigCurveValueLabel( "Value" );
 //////////////////////////////////////////////////////////////////////////
 // SRigCurveListRow
 
-typedef TSharedPtr< FDisplayedRigCurveInfo > FDisplayedRigCurveInfoPtr;
-
 void SRigCurveListRow::Construct( const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	Item = InArgs._Item;
@@ -38,7 +36,7 @@ void SRigCurveListRow::Construct( const FArguments& InArgs, const TSharedRef<STa
 
 	check( Item.IsValid() );
 
-	SMultiColumnTableRow< TSharedPtr<FDisplayedRigCurveInfo> >::Construct( FSuperRowType::FArguments(), InOwnerTableView );
+	SMultiColumnTableRow< FDisplayedRigCurveInfoPtr >::Construct( FSuperRowType::FArguments(), InOwnerTableView );
 }
 
 TSharedRef< SWidget > SRigCurveListRow::GenerateWidgetForColumn( const FName& ColumnName )
@@ -98,6 +96,7 @@ void SRigCurveListRow::OnRigCurveValueValueCommitted( float NewValue, ETextCommi
 	}
 }
 
+
 FText SRigCurveListRow::GetItemName() const
 {
 	return FText::FromName(Item->CurveName);
@@ -143,7 +142,11 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 {
 	ControlRigEditor = InControlRigEditor;
 	ControlRigBlueprint = InControlRigEditor.Get().GetControlRigBlueprint();
-	ControlRigBlueprint->HierarchyContainer.OnElementChanged.AddRaw(this, &SRigCurveContainer::OnRigElementChanged);
+	bIsChangingRigHierarchy = false;
+	ControlRigBlueprint->HierarchyContainer.OnElementAdded.AddRaw(this, &SRigCurveContainer::OnRigElementAdded);
+	ControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddRaw(this, &SRigCurveContainer::OnRigElementRemoved);
+	ControlRigBlueprint->HierarchyContainer.OnElementRenamed.AddRaw(this, &SRigCurveContainer::OnRigElementRenamed);
+	ControlRigBlueprint->HierarchyContainer.OnElementSelected.AddRaw(this, &SRigCurveContainer::OnRigElementSelected);
 
 	// Register and bind all our menu commands
 	FCurveContainerCommands::Register();
@@ -178,7 +181,7 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 			.OnContextMenuOpening( this, &SRigCurveContainer::OnGetContextMenuContent )
 			.ItemHeight( 22.0f )
 			.SelectionMode(ESelectionMode::Multi)
-//			.OnSelectionChanged( this, &SRigCurveContainer::OnSelectionChanged )
+			.OnSelectionChanged( this, &SRigCurveContainer::OnSelectionChanged )
 			.HeaderRow
 			(
 				SNew( SHeaderRow )
@@ -203,7 +206,10 @@ SRigCurveContainer::~SRigCurveContainer()
 		ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
 		if (ControlRigBlueprint.IsValid())
 		{
-			ControlRigBlueprint->HierarchyContainer.OnElementChanged.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementAdded.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementRemoved.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementRenamed.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementSelected.RemoveAll(this);
 		}
 	}
 }
@@ -265,7 +271,7 @@ void SRigCurveContainer::OnFilterTextCommitted( const FText& SearchText, ETextCo
 	OnFilterTextChanged( SearchText );
 }
 
-TSharedRef<ITableRow> SRigCurveContainer::GenerateRigCurveRow(TSharedPtr<FDisplayedRigCurveInfo> InInfo, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SRigCurveContainer::GenerateRigCurveRow(FDisplayedRigCurveInfoPtr InInfo, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	check( InInfo.IsValid() );
 
@@ -305,7 +311,7 @@ TSharedPtr<SWidget> SRigCurveContainer::OnGetContextMenuContent() const
 
 void SRigCurveContainer::OnRenameClicked()
 {
-	TArray< TSharedPtr<FDisplayedRigCurveInfo> > SelectedItems = RigCurveListView->GetSelectedItems();
+	TArray< FDisplayedRigCurveInfoPtr > SelectedItems = RigCurveListView->GetSelectedItems();
 
 	SelectedItems[0]->EditableText->EnterEditingMode();
 }
@@ -341,8 +347,16 @@ void SRigCurveContainer::CreateNewNameEntry(const FText& CommittedText, ETextCom
 		FRigCurveContainer* Container = GetCurveContainer();
 		if (Container)
 		{
-			Container->Add(FName(*CommittedText.ToString()));
+			TGuardValue<bool> GuardReentry(bIsChangingRigHierarchy, true);
+
+			FName NewName = FName(*CommittedText.ToString());
+			Container->Add(NewName);
+			Container->ClearSelection();
+			Container->Select(NewName);
 		}
+
+		FSlateApplication::Get().DismissAllMenus();
+		RefreshCurveList();
 	}
 }
 
@@ -371,7 +385,7 @@ void SRigCurveContainer::CreateRigCurveList( const FString& SearchText )
 		// Sort final list
 		struct FSortNamesAlphabetically
 		{
-			bool operator()(const TSharedPtr<FDisplayedRigCurveInfo>& A, const TSharedPtr<FDisplayedRigCurveInfo>& B) const
+			bool operator()(const FDisplayedRigCurveInfoPtr& A, const FDisplayedRigCurveInfoPtr& B) const
 			{
 				return (A.Get()->CurveName.Compare(B.Get()->CurveName) < 0);
 			}
@@ -380,6 +394,15 @@ void SRigCurveContainer::CreateRigCurveList( const FString& SearchText )
 		RigCurveList.Sort(FSortNamesAlphabetically());
 	}
 	RigCurveListView->RequestListRefresh();
+
+	if (Container)
+	{
+		for (const FName& SelectedCurve : Container->CurrentSelection())
+		{
+			OnRigElementSelected(&ControlRigBlueprint->HierarchyContainer, ERigElementType::Curve, SelectedCurve, true);
+		}
+	}
+
 }
 
 void SRigCurveContainer::RefreshCurveList()
@@ -387,7 +410,7 @@ void SRigCurveContainer::RefreshCurveList()
 	CreateRigCurveList(FilterText.ToString());
 }
 
-void SRigCurveContainer::OnNameCommitted(const FText& InNewName, ETextCommit::Type CommitType, TSharedPtr<FDisplayedRigCurveInfo> Item)
+void SRigCurveContainer::OnNameCommitted(const FText& InNewName, ETextCommit::Type CommitType, FDisplayedRigCurveInfoPtr Item)
 {
 	FRigCurveContainer* Container = GetCurveContainer();
 	if (Container)
@@ -406,7 +429,7 @@ void SRigCurveContainer::OnDeleteNameClicked()
 	FRigCurveContainer* Container = GetCurveContainer();
 	if (Container)
 	{
-		TArray< TSharedPtr<FDisplayedRigCurveInfo> > SelectedItems = RigCurveListView->GetSelectedItems();
+		TArray< FDisplayedRigCurveInfoPtr > SelectedItems = RigCurveListView->GetSelectedItems();
 		for (auto Item : SelectedItems)
 		{
 			Container->Remove(Item->CurveName);
@@ -441,6 +464,8 @@ float SRigCurveContainer::GetCurveValue(const FName& CurveName)
 
 void SRigCurveContainer::ChangeCurveName(const FName& OldName, const FName& NewName)
 {
+	TGuardValue<bool> GuardReentry(bIsChangingRigHierarchy, true);
+
 	FRigCurveContainer* Container = GetCurveContainer();
 	if (Container)
 	{
@@ -448,14 +473,86 @@ void SRigCurveContainer::ChangeCurveName(const FName& OldName, const FName& NewN
 	}
 }
 
-void SRigCurveContainer::OnRigElementChanged(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
+void SRigCurveContainer::OnSelectionChanged(FDisplayedRigCurveInfoPtr Selection, ESelectInfo::Type SelectInfo)
 {
-	if (ElementType != ERigElementType::Curve)
+	if (bIsChangingRigHierarchy)
 	{
 		return;
 	}
 
+	FRigCurveContainer* Container = GetCurveContainer();
+
+	if (Container)
+	{
+		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+
+		TArray<FName> OldSelection = Container->CurrentSelection();
+		TArray<FName> NewSelection;
+
+		TArray<FDisplayedRigCurveInfoPtr> SelectedItems = RigCurveListView->GetSelectedItems();
+		for (const FDisplayedRigCurveInfoPtr& SelectedItem : SelectedItems)
+		{
+			NewSelection.Add(SelectedItem->CurveName);
+		}
+
+		for (const FName& PreviouslySelected : OldSelection)
+		{
+			if (NewSelection.Contains(PreviouslySelected))
+			{
+				continue;
+			}
+			Container->Select(PreviouslySelected, false);
+		}
+
+		for (const FName& NewlySelected : NewSelection)
+		{
+			Container->Select(NewlySelected, true);
+		}
+	}
+}
+
+void SRigCurveContainer::OnRigElementAdded(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
+{
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Curve)
+	{
+		return;
+	}
 	RefreshCurveList();
+}
+
+void SRigCurveContainer::OnRigElementRemoved(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
+{
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Curve)
+	{
+		return;
+	}
+	RefreshCurveList();
+}
+
+void SRigCurveContainer::OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName)
+{
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Curve)
+	{
+		return;
+	}
+	RefreshCurveList();
+}
+
+void SRigCurveContainer::OnRigElementSelected(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, bool bSelected)
+{
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Curve)
+	{
+		return;
+	}
+
+	for(const FDisplayedRigCurveInfoPtr& Item : RigCurveList)
+	{
+		if (Item->CurveName == InName)
+		{
+			RigCurveListView->SetItemSelection(Item, bSelected);
+			break;
+		}
+	}
 }
 
 void SRigCurveContainer::CreateImportMenu(FMenuBuilder& MenuBuilder)
@@ -515,14 +612,23 @@ void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)
 				
 			const FSmartNameMapping* SmartNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 
+			Container->ClearSelection();
+
 			TArray<FName> NameArray;
 			SmartNameMapping->FillNameArray(NameArray);
 			for (int32 Index = 0; Index < NameArray.Num() ; ++Index)
 			{
+				TGuardValue<bool> GuardReentry(bIsChangingRigHierarchy, true);
 				Container->Add(NameArray[Index]);
 			}
 
+			for (int32 Index = 0; Index < NameArray.Num(); ++Index)
+			{
+				Container->Select(NameArray[Index]);
+			}
+
 			FSlateApplication::Get().DismissAllMenus();
+			RefreshCurveList();
 		}
 	}
 }

@@ -167,7 +167,11 @@ SRigBoneHierarchy::~SRigBoneHierarchy()
 		ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
 		if (ControlRigBlueprint.IsValid())
 		{
-			ControlRigBlueprint->HierarchyContainer.OnElementChanged.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementAdded.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementRemoved.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementRenamed.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementReparented.RemoveAll(this);
+			ControlRigBlueprint->HierarchyContainer.OnElementSelected.RemoveAll(this);
 		}
 	}
 }
@@ -180,7 +184,11 @@ void SRigBoneHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlR
 	// @todo: find a better place to do it
 	ControlRigBlueprint->HierarchyContainer.BoneHierarchy.Initialize();
 
-	ControlRigBlueprint->HierarchyContainer.OnElementChanged.AddRaw(this, &SRigBoneHierarchy::OnRigElementChanged);
+	ControlRigBlueprint->HierarchyContainer.OnElementAdded.AddRaw(this, &SRigBoneHierarchy::OnRigElementAdded);
+	ControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddRaw(this, &SRigBoneHierarchy::OnRigElementRemoved);
+	ControlRigBlueprint->HierarchyContainer.OnElementRenamed.AddRaw(this, &SRigBoneHierarchy::OnRigElementRenamed);
+	ControlRigBlueprint->HierarchyContainer.OnElementReparented.AddRaw(this, &SRigBoneHierarchy::OnRigElementReparented);
+	ControlRigBlueprint->HierarchyContainer.OnElementSelected.AddRaw(this, &SRigBoneHierarchy::OnRigElementSelected);
 
 	// for deleting, renaming, dragging
 	CommandList = MakeShared<FUICommandList>();
@@ -236,11 +244,13 @@ void SRigBoneHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlR
 				.OnGetChildren(this, &SRigBoneHierarchy::HandleGetChildrenForTree)
 				.OnSelectionChanged(this, &SRigBoneHierarchy::OnSelectionChanged)
 				.OnContextMenuOpening(this, &SRigBoneHierarchy::CreateContextMenu)
+				.HighlightParentNodesForSelection(true)
 				.ItemHeight(24)
 			]
 		]
 	];
 
+	bIsChangingRigHierarchy = false;
 	RefreshTreeView();
 }
 
@@ -326,6 +336,15 @@ void SRigBoneHierarchy::RefreshTreeView()
 	}
 
 	TreeView->RequestTreeRefresh();
+
+	if (ControlRigBlueprint.IsValid())
+	{
+		FRigBoneHierarchy& Hierarchy = ControlRigBlueprint->HierarchyContainer.BoneHierarchy;
+		for (const FName& SelectedBone : Hierarchy.CurrentSelection())
+		{
+			OnRigElementSelected(&ControlRigBlueprint->HierarchyContainer, ERigElementType::Bone, SelectedBone, true);
+		}
+	}
 }
 
 void SRigBoneHierarchy::SetExpansionRecursive(TSharedPtr<FRigTreeBone> InBone)
@@ -349,29 +368,39 @@ void SRigBoneHierarchy::HandleGetChildrenForTree(TSharedPtr<FRigTreeBone> InItem
 
 void SRigBoneHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeBone> Selection, ESelectInfo::Type SelectInfo)
 {
-	// need dummy object
-	if (Selection.IsValid())
+	if (bIsChangingRigHierarchy)
 	{
-		FRigBoneHierarchy* RigHierarchy = GetInstanceHierarchy();
+		return;
+	}
 
-		if (RigHierarchy)
+	FRigBoneHierarchy* RigHierarchy = GetHierarchy();
+
+	if (RigHierarchy)
+	{
+		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+
+		TArray<FName> OldSelection = RigHierarchy->CurrentSelection();
+		TArray<FName> NewSelection;
+
+		TArray<TSharedPtr<FRigTreeBone>> SelectedItems = TreeView->GetSelectedItems();
+		for (const TSharedPtr<FRigTreeBone>& SelectedItem : SelectedItems)
 		{
-			const int32 BoneIndex = RigHierarchy->GetIndex(Selection->CachedBone);
-			if (BoneIndex != INDEX_NONE)
-			{
-				ControlRigEditor.Pin()->SetDetailStruct(MakeShareable(new FStructOnScope(FRigBone::StaticStruct(), (uint8*)&(*RigHierarchy)[BoneIndex])));
-				ControlRigEditor.Pin()->SelectBone(Selection->CachedBone);
-				return;
-			}
-			else
-			{
-				// clear the current selection
-				ControlRigEditor.Pin()->ClearDetailObject();
-				ControlRigEditor.Pin()->SelectBone(NAME_None);
-			}
+			NewSelection.Add(SelectedItem->CachedBone);
 		}
 
-		// if failed, try BP hierarhcy? Todo:
+		for (const FName& PreviouslySelected : OldSelection)
+		{
+			if (NewSelection.Contains(PreviouslySelected))
+			{
+				continue;
+			}
+			RigHierarchy->Select(PreviouslySelected, false);
+		}
+
+		for (const FName& NewlySelected : NewSelection)
+		{
+			RigHierarchy->Select(NewlySelected, true);
+		}
 	}
 }
 
@@ -394,26 +423,57 @@ TSharedPtr<FRigTreeBone> FindBone(const FName& InBoneName, TSharedPtr<FRigTreeBo
 	return TSharedPtr<FRigTreeBone>();
 }
 
-void SRigBoneHierarchy::SelectBone(const FName& BoneName) const
+void SRigBoneHierarchy::OnRigElementAdded(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
 {
-	for (int32 RootIndex = 0; RootIndex < RootBones.Num(); ++RootIndex)
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Bone)
 	{
-		TSharedPtr<FRigTreeBone> Found = FindBone(BoneName, RootBones[RootIndex]);
-		if (Found.IsValid())
-		{
-			TreeView->SetSelection(Found);
-		}
+		return;
 	}
+	RefreshTreeView();
 }
 
-void SRigBoneHierarchy::OnRigElementChanged(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
+void SRigBoneHierarchy::OnRigElementRemoved(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName)
 {
-	if (ElementType != ERigElementType::Bone)
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Bone)
+	{
+		return;
+	}
+	RefreshTreeView();
+}
+
+void SRigBoneHierarchy::OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName)
+{
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Bone)
+	{
+		return;
+	}
+	RefreshTreeView();
+}
+
+void SRigBoneHierarchy::OnRigElementReparented(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName)
+{
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Bone)
+	{
+		return;
+	}
+	RefreshTreeView();
+}
+
+void SRigBoneHierarchy::OnRigElementSelected(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, bool bSelected)
+{
+	if (bIsChangingRigHierarchy || ElementType != ERigElementType::Bone)
 	{
 		return;
 	}
 
-	RefreshTreeView();
+	for (int32 RootIndex = 0; RootIndex < RootBones.Num(); ++RootIndex)
+	{
+		TSharedPtr<FRigTreeBone> Found = FindBone(InName, RootBones[RootIndex]);
+		if (Found.IsValid())
+		{
+			TreeView->SetItemSelection(Found, bSelected);
+		}
+	}
 }
 
 void SRigBoneHierarchy::ClearDetailPanel() const
@@ -548,6 +608,9 @@ void SRigBoneHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
 		const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
 
+		Hier->ClearSelection();
+
+		TArray<FName> AddedBones;
 		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 		{
 			// only add if you don't have it. This may change in the future
@@ -556,10 +619,17 @@ void SRigBoneHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 				// @todo: add optimized version without sorting, but if no sort, we should make sure not to use find index function
 				FName ParentName = (BoneInfos[BoneIndex].ParentIndex != INDEX_NONE) ? BoneInfos[BoneInfos[BoneIndex].ParentIndex].Name : NAME_None;
 				Hier->Add(BoneInfos[BoneIndex].Name, ParentName, FAnimationRuntime::GetComponentSpaceTransform(RefSkeleton, BonePoses, BoneIndex));
+				AddedBones.Add(BoneInfos[BoneIndex].Name);
 			}
 		}
 
+		for (const FName& AddedBone : AddedBones)
+		{
+			Hier->Select(AddedBone);
+		}
+
 		FSlateApplication::Get().DismissAllMenus();
+		RefreshTreeView();
 	}
 }
 
@@ -589,12 +659,17 @@ void SRigBoneHierarchy::HandleDeleteItem()
 
 		for (int32 ItemIndex = 0; ItemIndex < SelectedItems.Num(); ++ItemIndex)
 		{
+			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+
 			// when you select whole Bones, you might not have them anymore
 			if (Hierarchy->GetIndex(SelectedItems[ItemIndex]->CachedBone) != INDEX_NONE)
 			{
 				Hierarchy->Remove(SelectedItems[ItemIndex]->CachedBone);
 			}
 		}
+
+		RefreshTreeView();
+		FSlateApplication::Get().DismissAllMenus();
  	}
 }
 
@@ -626,10 +701,15 @@ void SRigBoneHierarchy::HandleNewItem()
 		}
 
 		const FName NewBoneName = CreateUniqueName(TEXT("NewBone"));
-		Hierarchy->Add(NewBoneName, ParentName, ParentTransform);
+		{
+			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+			Hierarchy->Add(NewBoneName, ParentName, ParentTransform);
+		}
+		Hierarchy->ClearSelection();
+		Hierarchy->Select(NewBoneName);
 
-		// reselect current selected item
-		SelectBone(NewBoneName);
+		FSlateApplication::Get().DismissAllMenus();
+		RefreshTreeView();
 	}
 }
 
@@ -654,6 +734,8 @@ void SRigBoneHierarchy::HandleDuplicateItem()
 		TArray<FName> NewNames;
 		for (int32 Index = 0; Index < SelectedItems.Num(); ++Index)
 		{
+			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+
 			FName Name = SelectedItems[Index]->CachedBone;
 			FTransform Transform = Hierarchy->GetGlobalTransform(Name);
 
@@ -664,10 +746,14 @@ void SRigBoneHierarchy::HandleDuplicateItem()
 			NewNames.Add(NewName);
 		}
 
+		Hierarchy->ClearSelection();
 		for (int32 Index = 0; Index < NewNames.Num(); ++Index)
 		{
-			SelectBone(NewNames[Index]);
+			Hierarchy->Select(NewNames[Index]);
 		}
+
+		FSlateApplication::Get().DismissAllMenus();
+		RefreshTreeView();
 	}
 }
 
@@ -743,7 +829,7 @@ void SRigBoneHierarchy::PostUndo(bool bSuccess)
 FReply SRigBoneHierarchy::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	TArray<FName> DraggedBoneNames;
-	TArray<TSharedPtr<FRigTreeBone>> SelectedItems =TreeView->GetSelectedItems();
+	TArray<TSharedPtr<FRigTreeBone>> SelectedItems = TreeView->GetSelectedItems();
 	for (const TSharedPtr<FRigTreeBone>& SelectedItem : SelectedItems)
 	{
 		DraggedBoneNames.Add(SelectedItem->CachedBone);
@@ -777,8 +863,8 @@ bool SRigBoneHierarchy::RenameBone(const FName& OldName, const FName& NewName)
 	if (Hierarchy)
 	{
 		Hierarchy->Rename(OldName, NewName);
-		SelectBone(NewName);
-
+		Hierarchy->ClearSelection();
+		Hierarchy->Select(NewName);
 		return true;
 	}
 

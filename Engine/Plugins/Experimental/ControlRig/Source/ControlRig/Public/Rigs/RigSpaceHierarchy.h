@@ -44,7 +44,7 @@ struct CONTROLRIG_API FRigSpace
 	UPROPERTY(VisibleAnywhere, Category = FRigSpaceHierarchy)
 	FName Name;
 
-	UPROPERTY(VisibleAnywhere, Category = FRigCurveContainer)
+	UPROPERTY(VisibleAnywhere, Category = FRigSpaceHierarchy)
 	int32 Index;
 
 	UPROPERTY(VisibleAnywhere, Category = FRigSpaceHierarchy)
@@ -150,18 +150,30 @@ struct CONTROLRIG_API FRigSpaceHierarchy
 	// resets all of the transforms back to the initial transform
 	void ResetTransforms();
 
+#if WITH_EDITOR
+
+	bool Select(const FName& InName, bool bSelect = true);
+	bool ClearSelection();
+	TArray<FName> CurrentSelection() const;
+	bool IsSelected(const FName& InName) const;
+
+	FRigElementAdded OnSpaceAdded;
+	FRigElementRemoved OnSpaceRemoved;
+	FRigElementRenamed OnSpaceRenamed;
+	FRigElementReparented OnSpaceReparented;
+	FRigElementSelected OnSpaceSelected;
+
+	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InName);
+	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName);
+
+#endif
+
 private:
 
 	// disable copy constructor
 	FRigSpaceHierarchy(const FRigSpaceHierarchy& InOther) {}
 
 	FRigHierarchyContainer* Container;
-#if WITH_EDITOR
-	FRigElementAdded OnSpaceAdded;
-	FRigElementRemoved OnSpaceRemoved;
-	FRigElementRenamed OnSpaceRenamed;
-	FRigElementReparented OnSpaceReparented;
-#endif
 
 	int32 GetParentIndex(ERigSpaceType InSpaceType, const FName& InName) const;
 
@@ -171,6 +183,11 @@ private:
 	// can serialize fine? 
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
+
+#if WITH_EDITOR
+	UPROPERTY(transient)
+	TArray<FName> Selection;
+#endif
 
 	int32 GetIndexSlow(const FName& InName) const;
 

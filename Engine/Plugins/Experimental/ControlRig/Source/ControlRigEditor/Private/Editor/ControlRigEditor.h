@@ -91,7 +91,7 @@ public:
 
 	void SetDetailObject(UObject* Obj);
 
-	void SetDetailStruct(TSharedPtr<FStructOnScope> StructToDisplay);
+	void SetDetailStruct(const FName& InName, TSharedPtr<FStructOnScope> StructToDisplay);
 
 	void ClearDetailObject();
 
@@ -104,7 +104,6 @@ public:
 	/** Get the edit mode */
 	FControlRigEditorEditMode& GetEditMode() { return *static_cast<FControlRigEditorEditMode*>(GetAssetEditorModeManager()->GetActiveMode(FControlRigEditorEditMode::ModeName)); }
 
-	void SelectBone(const FName& InBone);
 	// this changes everytime you compile, so don't cache it expecting it will last. 
 	UControlRig* GetInstanceRig() const { return ControlRig;  }
 
@@ -114,6 +113,7 @@ public:
 	void OnRigElementRemoved(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
 	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
 	void OnRigElementReparented(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName);
+	void OnRigElementSelected(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, bool bSelected);
 
 	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition);
 
@@ -246,12 +246,10 @@ protected:
 	/** delegate for changing property */
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
-	/** Selected Bone from hierarchy tree */
-	FName SelectedBone;
-
 	bool bControlRigEditorInitialized;
 	bool bIsSelecting;
 	bool bIsSettingObjectBeingDebugged;
+	FName RigElementNameInDetailPanel;
 
 	/** The log to use for errors resulting from the init phase of the units */
 	FControlRigLog ControlRigLog;

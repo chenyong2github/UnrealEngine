@@ -190,8 +190,13 @@ private:
 	void SetExpansionRecursive(TSharedPtr<FRigTreeBone> InBones);
 
 	void ClearDetailPanel() const;
-	void SelectBone(const FName& BoneName) const;
-	void OnRigElementChanged(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
+
+	bool bIsChangingRigHierarchy;
+	void OnRigElementAdded(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
+	void OnRigElementRemoved(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName);
+	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
+	void OnRigElementReparented(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, const FName& InOldParentName, const FName& InNewParentName);
+	void OnRigElementSelected(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InName, bool bSelected);
 
 public:
 	bool RenameBone(const FName& OldName, const FName& NewName);
