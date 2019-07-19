@@ -250,7 +250,7 @@ inline void AddDrawScreenPass(
 	GraphBuilder.AddPass(
 		Forward<FRDGEventName>(PassName),
 		PixelShaderParameters,
-		ERenderGraphPassFlags::None,
+		ERDGPassFlags::Raster,
 		[ScreenPassView, OutputViewportRect, InputViewportRect, InputExtent, PixelShader, PixelShaderParameters]
 		(FRHICommandListImmediate& RHICmdList)
 	{

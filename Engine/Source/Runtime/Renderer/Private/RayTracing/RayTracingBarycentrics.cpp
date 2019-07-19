@@ -87,7 +87,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingBarycentrics(FRHICommandList
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("Barycentrics"),
 		RayGenParameters,
-		ERenderGraphPassFlags::Compute,
+		ERDGPassFlags::Compute,
 		[this, RayGenParameters, RayGenShader, &SceneContext, RayTracingSceneRHI, Pipeline, ViewRect](FRHICommandList& RHICmdList)
 	{
 		FRayTracingShaderBindingsWriter GlobalResources;

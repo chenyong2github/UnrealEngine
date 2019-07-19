@@ -260,7 +260,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("VisualizeTextureCapture(%s)", SrcTexture->Name),
 		PassParameters,
-		ERenderGraphPassFlags::None,
+		ERDGPassFlags::Raster,
 		[this, PassParameters, ShaderMap, PixelShader, RTExtent](FRHICommandList& RHICmdList)
 	{
 		FVisualizeTexturePS::FParameters ShaderParameter = *PassParameters;

@@ -139,7 +139,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(FRHICommandL
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ClusteredDeferredShading, #Lights: %d", NumLightsToRender),
 				PassParameters,
-				ERenderGraphPassFlags::None,
+				ERDGPassFlags::Raster,
 				[PassParameters, &View, &SceneContext](FRHICommandListImmediate& InRHICmdList)
 			{
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);

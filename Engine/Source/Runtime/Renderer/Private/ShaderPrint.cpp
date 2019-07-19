@@ -424,7 +424,7 @@ namespace ShaderPrint
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("DrawSymbols"),
 				PassParameters,
-				ERenderGraphPassFlags::None,
+				ERDGPassFlags::Raster,
 				[VertexShader, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdListImmediate)
 			{
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;

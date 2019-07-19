@@ -406,7 +406,7 @@ void RenderScreenSpaceReflections(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR StencilSetup %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
 			PassParameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[PassParameters, &View, PixelShader](FRHICommandList& RHICmdList)
 		{
 			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
@@ -488,7 +488,7 @@ void RenderScreenSpaceReflections(
 				SSRQuality, RayTracingConfigs.RayCountPerPixel, bDenoiser ? TEXT(" DenoiserOutput") : TEXT(""),
 				View.ViewRect.Width(), View.ViewRect.Height()),
 			PassParameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[PassParameters, &View, PixelShader, SSRStencilPrePass](FRHICommandList& RHICmdList)
 		{
 			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);

@@ -92,7 +92,7 @@ void AddPass_ClearUAV(
 	GraphBuilder.AddPass(
 		Forward<FRDGEventName>(PassName),
 		Parameters,
-		ERenderGraphPassFlags::Compute,
+		ERDGPassFlags::Compute,
 		[&Parameters, BufferUAV, Value](FRHICommandList& RHICmdList)
 		{
 			BufferUAV->MarkResourceAsUsed();

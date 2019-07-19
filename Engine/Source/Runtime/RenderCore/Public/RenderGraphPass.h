@@ -118,11 +118,6 @@ public:
 		: FRDGPassParameterStruct(Parameters, &FParameterStruct::FTypeInfo::GetStructMetadata()->GetLayout())
 	{}
 
-	bool IsCompute() const
-	{
-		return Layout->NumRenderTargets() == 0;
-	}
-
 	uint32 GetParameterCount() const
 	{
 		return Layout->Resources.Num();
@@ -160,20 +155,17 @@ private:
 /** Flags to annotate passes. */
 enum class ERDGPassFlags
 {
-	None = 0,
+	/** Pass uses raster pipeline. */
+	Raster = 0x1,
 
 	/** Pass uses compute only */
-	Compute = 1 << 0,
+	Compute = 0x2,
 
 	//#todo-rco: Remove this when we can do split/per mip layout transitions.
 	/** Hint to some RHIs this pass will be generating mips to optimize transitions. */
-	GenerateMips = 1 << 1,
+	GenerateMips = 0x8,
 };
-
 ENUM_CLASS_FLAGS(ERDGPassFlags)
-
-// TODO(RDG): Bulk rename across codebase.
-using ERenderGraphPassFlags = ERDGPassFlags;
 
 /** Base class of a render graph pass. */
 class RENDERCORE_API FRDGPass
@@ -198,14 +190,19 @@ public:
 		return PassFlags;
 	}
 
-	bool IsGenerateMips() const
+	bool IsRaster() const
 	{
-		return (PassFlags & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
+		return (PassFlags & ERDGPassFlags::Raster) == ERDGPassFlags::Raster;
 	}
 
 	bool IsCompute() const
 	{
 		return (PassFlags & ERDGPassFlags::Compute) == ERDGPassFlags::Compute;
+	}
+
+	bool IsGenerateMips() const
+	{
+		return (PassFlags & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
 	}
 
 	FRDGPassParameterStruct GetParameters() const

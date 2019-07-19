@@ -207,7 +207,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("LightFunction"),
 				PassParameters,
-				ERenderGraphPassFlags::None,
+				ERDGPassFlags::Raster,
 				[PassParameters, &View, MaterialProxy, LightFunctionResolution, DirectionalLightSceneInfo, WorldToShadowValue, this](FRHICommandListImmediate& RHICmdList)
 			{
 				const FMaterial* Material = MaterialProxy->GetMaterial(Scene->GetFeatureLevel());

@@ -67,7 +67,7 @@ struct RENDERCORE_API FPixelShaderUtils
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[Parameters, GlobalShaderMap, PixelShader, Viewport](FRHICommandList& RHICmdList)
 		{
 			FPixelShaderUtils::DrawFullscreenPixelShader(RHICmdList, GlobalShaderMap, PixelShader, *Parameters, Viewport);

@@ -147,7 +147,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERenderGraphPassFlags::Compute,
+			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader, GroupCount](FRHICommandList& RHICmdList)
 		{
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, GroupCount);
@@ -171,7 +171,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERenderGraphPassFlags::Compute,
+			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader, IndirectArgsBuffer, IndirectArgOffset](FRHICommandList& RHICmdList)
 		{			
 			// Marks the indirect draw parameter as used by the pass manually, given it can't be bound directly by any of the shader,

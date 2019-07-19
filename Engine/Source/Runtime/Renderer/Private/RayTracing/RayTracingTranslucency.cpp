@@ -409,7 +409,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucencyView(
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("TranslucencyRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 		PassParameters,
-		ERenderGraphPassFlags::Compute,
+		ERDGPassFlags::Compute,
 		[PassParameters, this, &View, RayGenShader, RayTracingResolution](FRHICommandList& RHICmdList)
 	{
 		FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
