@@ -175,7 +175,7 @@ FText FFrameRate::ToPrettyText() const
 	}
 }
 
-bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInterval, int32& OutMinorDivisions, float MinTickPx, float DesiredMajorTickPx)
+bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInterval, int32& OutMinorDivisions, float MinTickPx, float DesiredMajorTickPx) const
 {
 	if (PixelsPerSecond <= 0.f)
 	{

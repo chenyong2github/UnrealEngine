@@ -10,6 +10,8 @@ public:
 
 	void Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor);
 
+	virtual void GetGridLinesY(TSharedRef<const FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const override;
+
 private:
 
 	//~ SWidget Interface
@@ -17,7 +19,6 @@ private:
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 
 	//~ SInteractiveCurveEditorView interface
-	virtual void GetGridLinesY(TSharedRef<FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const override;
 	virtual void PaintView(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 	void DrawLabels(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const;

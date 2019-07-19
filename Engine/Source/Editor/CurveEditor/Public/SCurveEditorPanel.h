@@ -127,7 +127,8 @@ private:
 
 	TSharedRef<SWidget> MakeTimeSnapMenu();
 	FText GetTimeSnapMenuTooltip() const;
-	TSharedRef<SWidget> MakeValueSnapMenu();
+
+	TSharedRef<SWidget> MakeGridSpacingMenu();
 	TSharedRef<SWidget> MakeAxisSnapMenu();
 	TSharedRef<SWidget> MakeViewModeMenu();
 

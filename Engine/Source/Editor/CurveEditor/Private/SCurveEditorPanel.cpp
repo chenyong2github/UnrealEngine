@@ -32,12 +32,13 @@
 #include "Filters/CurveEditorFilterBase.h"
 #include "Filters/CurveEditorBakeFilter.h"
 #include "Filters/CurveEditorReduceFilter.h"
-#include "SCurveValueSnapList.h"
+#include "SGridLineSpacingList.h"
 #include "Widgets/SFrameRatePicker.h"
 #include "CommonFrameRates.h"
 #include "CurveEditorViewRegistry.h"
 #include "SCurveEditorViewContainer.h"
 #include "Fonts/FontMeasure.h"
+#include "CurveEditorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SCurveEditorPanel"
 
@@ -1069,7 +1070,7 @@ TSharedPtr<FExtender> SCurveEditorPanel::GetToolbarExtender()
 				// Dropdown Menu to choose the snapping scale.
 				ToolBarBuilder.AddComboButton(
 					FUIAction(),
-					FOnGetContent::CreateSP(InEditorPanel, &SCurveEditorPanel::MakeValueSnapMenu),
+					FOnGetContent::CreateSP(InEditorPanel, &SCurveEditorPanel::MakeGridSpacingMenu),
 					LOCTEXT("ValueSnappingOptions", "Value Snapping"),
 					LOCTEXT("ValueSnappingOptionsToolTip", "Choose what precision the Value axis is snapped to while moving keys."),
 					TAttribute<FSlateIcon>(),
@@ -1186,27 +1187,28 @@ FText SCurveEditorPanel::GetTimeSnapMenuTooltip() const
 	return LOCTEXT("TimeSnappingOptionsToolTip", "Choose what precision the Time axis is snapped to while moving keys.");
 }
 
-TSharedRef<SWidget> SCurveEditorPanel::MakeValueSnapMenu()
+TSharedRef<SWidget> SCurveEditorPanel::MakeGridSpacingMenu()
 {
-	TArray<SCurveValueSnapList<float>::FNamedValue> ValueSnapAmounts;
+	TArray<SGridLineSpacingList::FNamedValue> SpacingAmounts;
 	// SnapValues.Add( SNumericDropDown<float>::FNamedValue( 0.001f, LOCTEXT( "Snap_OneThousandth", "0.001" ), LOCTEXT( "SnapDescription_OneThousandth", "Set snap to 1/1000th" ) ) );
 	//SnapValues.Add( SNumericDropDown<float>::FNamedValue( 0.01f, LOCTEXT( "Snap_OneHundredth", "0.01" ), LOCTEXT( "SnapDescription_OneHundredth", "Set snap to 1/100th" ) ) );
-	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(0.1f, LOCTEXT("Snap_OneTenth", "0.1"), LOCTEXT("SnapDescription_OneTenth", "Set snap to 1/10th")));
-	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(0.5f, LOCTEXT("Snap_OneHalf", "0.5"), LOCTEXT("SnapDescription_OneHalf", "Set snap to 1/2")));
-	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(1.0f, LOCTEXT("Snap_One", "1"), LOCTEXT("SnapDescription_One", "Set snap to 1")));
-	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(2.0f, LOCTEXT("Snap_Two", "2"), LOCTEXT("SnapDescription_Two", "Set snap to 2")));
-	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(5.0f, LOCTEXT("Snap_Five", "5"), LOCTEXT("SnapDescription_Five", "Set snap to 5")));
-	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(10.0f, LOCTEXT("Snap_Ten", "10"), LOCTEXT("SnapDescription_Ten", "Set snap to 10")));
-	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(50.0f, LOCTEXT("Snap_Fifty", "50"), LOCTEXT("SnapDescription_50", "Set snap to 50")));
-	ValueSnapAmounts.Add(SCurveValueSnapList<float>::FNamedValue(100.0f, LOCTEXT("Snap_OneHundred", "100"), LOCTEXT("SnapDescription_OneHundred", "Set snap to 100")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(0.1f, LOCTEXT("OneTenth", "0.1"), LOCTEXT("Description_OneTenth", "Set grid spacing to 1/10th")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(0.5f, LOCTEXT("OneHalf", "0.5"), LOCTEXT("Description_OneHalf", "Set grid spacing to 1/2")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(1.0f, LOCTEXT("One", "1"), LOCTEXT("Description_One", "Set grid spacing to 1")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(2.0f, LOCTEXT("Two", "2"), LOCTEXT("Description_Two", "Set grid spacing to 2")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(5.0f, LOCTEXT("Five", "5"), LOCTEXT("Description_Five", "Set grid spacing to 5")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(10.0f, LOCTEXT("Ten", "10"), LOCTEXT("Description_Ten", "Set grid spacing to 10")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(50.0f, LOCTEXT("Fifty", "50"), LOCTEXT("Description_50", "Set grid spacing to 50")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(100.0f, LOCTEXT("OneHundred", "100"), LOCTEXT("Description_OneHundred", "Set grid spacing to 100")));
+	SpacingAmounts.Add(SGridLineSpacingList::FNamedValue(TOptional<float>(), LOCTEXT("Automatic", "Automatic"), LOCTEXT("Description_Automatic", "Set grid spacing to automatic")));
 
 	TSharedRef<SWidget> OutputSnapWidget =
-		SNew(SCurveValueSnapList<float>)
-		.DropDownValues(ValueSnapAmounts)
+		SNew(SGridLineSpacingList)
+		.DropDownValues(SpacingAmounts)
 		.MinDesiredValueWidth(60)
-		.Value_Lambda([this]() -> float { return this->CurveEditor->OutputSnapIntervalAttribute.Get(); })
-		.OnValueChanged_Lambda([this](float InNewOutputSnap) { this->CurveEditor->OutputSnapIntervalAttribute.Set(InNewOutputSnap); })
-		.HeaderText(LOCTEXT("CurveEditorMenuValueSnapHeader", "Value Snap"));
+		.Value_Lambda([this]() -> TOptional<float> { return this->CurveEditor->FixedGridSpacingAttribute.Get(); })
+		.OnValueChanged_Lambda([this](TOptional<float> InNewOutputSnap) { this->CurveEditor->FixedGridSpacingAttribute = InNewOutputSnap; })
+		.HeaderText(LOCTEXT("CurveEditorMenuGridSpacingHeader", "Grid Spacing"));
 
 	return OutputSnapWidget;
 }

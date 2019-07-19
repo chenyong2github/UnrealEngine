@@ -188,6 +188,11 @@ public:
 	/** Sets the snapping interval for curve values. */
 	void SetCurveValueSnapInterval(float InCurveValueSnapInterval);
 
+	/** Gets the state for spacing between grid lines */
+	TOptional<float> GetGridSpacing() const;
+	/** Sets the grid line spacing state */
+	void SetGridSpacing(TOptional<float> InGridSpacing);
+
 	/** Gets whether or not to snap curve values to the interval. */
 	bool GetSnapCurveValueToInterval() const;
 	/** Sets whether or not to snap curve values to the interval. */
@@ -403,6 +408,9 @@ protected:
 
 	/** The curve value interval to snap to. */
 	float CurveValueSnapInterval;
+
+	/** grid line spacing state */
+	TOptional<float> GridSpacing;
 
 	/** Enable or disable snapping the curve value to the curve value interval. */
 	UPROPERTY( config, EditAnywhere, Category=Snapping )

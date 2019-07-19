@@ -20,14 +20,13 @@
 #include "Widgets/Input/SComboButton.h"
 
 /** A widget which creates a list of pre-determined numbers and a spot to enter a custom number. Similar to SNumericList but without the dropdown menu. */
-template<typename NumericType>
-class SCurveValueSnapList : public SCompoundWidget
+class SGridLineSpacingList : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam( FOnValueChanged, NumericType );
+	DECLARE_DELEGATE_OneParam( FOnValueChanged, TOptional<float> );
 
 public:
-	/** Represents a named numeric value for display in the drop down menu. */
+	/** Represents a named numeric value for display in the drop down menu. */ 
 	class FNamedValue
 	{
 	public:
@@ -35,14 +34,14 @@ public:
 		  * @InValue The numeric value to be assigned
 		  * @InName The display text for the value in the UI 
 		  * @InDescription The description of the value used in tooltips or wherever a longer description is needed. */
-		FNamedValue( NumericType InValue, FText InName, FText InDescription )
+		FNamedValue( TOptional<float> InValue, FText InName, FText InDescription )
 		{
 			Value = InValue;
 			Name = InName;
 			Description = InDescription;
 		}
 
-		NumericType GetValue() const
+		TOptional<float> GetValue() const
 		{
 			return Value;
 		}
@@ -58,15 +57,15 @@ public:
 		}
 
 	private:
-		NumericType Value;
+		TOptional<float> Value;
 		FText Name;
 		FText Description;
 	};
 
 public:
-	SLATE_BEGIN_ARGS( SCurveValueSnapList<NumericType> )
+	SLATE_BEGIN_ARGS( SGridLineSpacingList )
 		: _DropDownValues()
-		, _MinDesiredValueWidth( 40 )
+		, _MinDesiredValueWidth( 40)
 		, _bShowNamedValue(true)
 		{}
 
@@ -75,7 +74,7 @@ public:
 		/** Controls the minimum width for the text box portion of the control. */
 		SLATE_ATTRIBUTE( float, MinDesiredValueWidth )
 		/** The value displayed by the control. */
-		SLATE_ATTRIBUTE( NumericType, Value )
+		SLATE_ATTRIBUTE( TOptional<float>, Value )
 		/** If enabled, attempt to show the original name specified in the Drop Down values for a given entry instead of just a straight FText::AsNumber(NumericType). */
 		SLATE_ATTRIBUTE(bool, bShowNamedValue)
 		/** An optional header to prepend to the generated list. */
@@ -113,8 +112,8 @@ public:
 				SNew(SEditableTextBox)
 				.RevertTextOnEscape(true)
 				.SelectAllTextWhenFocused(true)
-				.Text(this, &SCurveValueSnapList<NumericType>::GetValueText)
-				.OnTextCommitted(this, &SCurveValueSnapList<NumericType>::ValueTextCommitted)
+				.Text(this, &SGridLineSpacingList::GetValueText)
+				.OnTextCommitted(this, &SGridLineSpacingList::ValueTextCommitted)
 				.MinDesiredWidth(InArgs._MinDesiredValueWidth)
 			],
 			NSLOCTEXT("SNumericList", "CustomNumberDisplayLabel", "Custom")
@@ -134,16 +133,16 @@ private:
 			Info.GetDescription(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SCurveValueSnapList<NumericType>::SetValue, Info.GetValue()),
+				FExecuteAction::CreateSP(this, &SGridLineSpacingList::SetValue, Info.GetValue()),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &SCurveValueSnapList<NumericType>::IsSameValue, Info.GetValue())
+				FIsActionChecked::CreateSP(this, &SGridLineSpacingList::IsSameValue, Info.GetValue())
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
 	}
 
-	bool IsSameValue(NumericType InValue) const
+	bool IsSameValue(TOptional<float> InValue) const
 	{
 		return Value.Get() == InValue;
 	}
@@ -155,27 +154,27 @@ private:
 		{
 			for ( FNamedValue DropDownValue : DropDownValues )
 			{
-				if (FMath::IsNearlyEqual(DropDownValue.GetValue(), Value.Get()))
+				if (Value.Get() == DropDownValue.GetValue())
 				{
 					return DropDownValue.GetName();
 				}
 			}
 		}
 
-		return FText::FromString(LexToSanitizedString(Value.Get()));
+		return FText::FromString(LexToSanitizedString(Value.Get() ? Value.Get().GetValue() : 0.0f));
 	}
 
 	void ValueTextCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
 	{
 		if (InNewText.IsNumeric())
 		{
-			NumericType NewValue;
-			TTypeFromString<NumericType>::FromString(NewValue, *InNewText.ToString());
+			TOptional<float> NewValue = 0.0f;
+			TTypeFromString<float>::FromString(NewValue.GetValue(), *InNewText.ToString());
 			OnValueChanged.ExecuteIfBound(NewValue);
 		}
 	}
 
-	void SetValue( NumericType InValue )
+	void SetValue( TOptional<float> InValue )
 	{
 		FSlateApplication::Get().ClearKeyboardFocus( EFocusCause::Cleared );
 		OnValueChanged.ExecuteIfBound(InValue);
@@ -184,6 +183,6 @@ private:
 private:
 	TArray<FNamedValue> DropDownValues;
 	TAttribute<bool> bShowNamedValue;
-	TAttribute<NumericType> Value;
+	TAttribute<TOptional<float>> Value;
 	FOnValueChanged OnValueChanged;
 };

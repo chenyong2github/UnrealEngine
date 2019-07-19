@@ -64,7 +64,7 @@ void UCurveEditorReduceFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurve
 	TArray<FKeyPosition> SelectedKeyPositions;
 	TArray<FKeyAttributes> SelectedKeyAttributes;
 
-	FFrameRate BakeRate = InCurveEditor->GetSnapMetrics().InputSnapRate;
+	FFrameRate BakeRate;
 
 	// Since we only remove keys we'll just copy the whole set and then remove the handles as well.
 	OutKeysToSelect = InKeysToOperateOn;
@@ -76,6 +76,8 @@ void UCurveEditorReduceFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurve
 		{
 			continue;
 		}
+
+		BakeRate = InCurveEditor->GetCurveSnapMetrics(Pair.Key).InputSnapRate;
 
 		KeyHandles.Reset(Pair.Value.Num());
 		KeyHandles.Append(Pair.Value.AsArray().GetData(), Pair.Value.Num());

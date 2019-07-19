@@ -26,6 +26,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bSnapPlayTimeToPressedKey = true;
 	bSnapPlayTimeToDraggedKey = true;
 	CurveValueSnapInterval = 10.0f;
+	GridSpacing = TOptional<float>();
 	bSnapCurveValueToInterval = true;
 	bLabelBrowserVisible = false;
 	bShowSelectedNodesOnly = false;
@@ -308,6 +309,20 @@ void USequencerSettings::SetCurveValueSnapInterval( float InCurveValueSnapInterv
 	if ( CurveValueSnapInterval != InCurveValueSnapInterval )
 	{
 		CurveValueSnapInterval = InCurveValueSnapInterval;
+		SaveConfig();
+	}
+}
+
+TOptional<float> USequencerSettings::GetGridSpacing() const
+{
+	return GridSpacing;
+}
+
+void USequencerSettings::SetGridSpacing(TOptional<float> InGridSpacing)
+{
+	if (InGridSpacing != GridSpacing)
+	{
+		GridSpacing = InGridSpacing;
 		SaveConfig();
 	}
 }

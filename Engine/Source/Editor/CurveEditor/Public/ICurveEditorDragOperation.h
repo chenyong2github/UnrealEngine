@@ -78,9 +78,6 @@ class ICurveEditorKeyDragOperation : public ICurveEditorDragOperation
 {
 public:
 
-	/** Cached (and potentially manipulated) snap metrics to be used for this drag */
-	FCurveEditorSnapMetrics SnapMetrics;
-
 	/**
 	 * Initialize this drag operation using the specified curve editor pointer and an optional cardinal point
 

@@ -6,7 +6,7 @@
 #include "SCurveEditorPanel.h"
 
 #include "Widgets/Text/STextBlock.h"
-
+#include "Algo/Copy.h"
 #include "EditorStyleSet.h"
 
 constexpr float StackedHeight = 150.f;
@@ -26,26 +26,50 @@ FVector2D SCurveEditorViewStacked::ComputeDesiredSize(float LayoutScaleMultiplie
 	return FVector2D(100.f, StackedHeight*CurveInfoByID.Num() + StackedPadding*(CurveInfoByID.Num()+1));
 }
 
-void SCurveEditorViewStacked::GetGridLinesY(TSharedRef<FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
+void SCurveEditorViewStacked::GetGridLinesY(TSharedRef<const FCurveEditor> CurveEditor, TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
 {
+	FCurveEditorScreenSpace ViewSpace = GetViewSpace();
+
 	const double ValuePerPixel = 1.0 / StackedHeight;
 	const double ValueSpacePadding = StackedPadding * ValuePerPixel;
 
-	FCurveEditorScreenSpace ViewSpace = GetViewSpace();
-	for (int32 Index = 0; Index < CurveInfoByID.Num(); ++Index)
+	const TOptional<float> GridLineSpacing = CurveEditor->GetGridSpacing();
+	// draw standard lines if fixed spacing is not set
+	if (!GridLineSpacing)
 	{
-		double Padding = (Index + 1)*ValueSpacePadding;
-		double LowerValue = Index + Padding;
+		for (int32 Index = 0; Index < CurveInfoByID.Num(); ++Index)
+		{
+			double Padding = (Index + 1)*ValueSpacePadding;
+			double LowerValue = Index + Padding;
 
-		// Lower Grid line
-		MajorGridLines.Add(ViewSpace.ValueToScreen(LowerValue));
-		// Center Grid line
-		MajorGridLines.Add(ViewSpace.ValueToScreen(LowerValue + 0.5));
-		// Upper Grid line
-		MajorGridLines.Add(ViewSpace.ValueToScreen(LowerValue + 1.0));
+			// Lower Grid line
+			MajorGridLines.Add(ViewSpace.ValueToScreen(LowerValue));
+			// Center Grid line
+			MajorGridLines.Add(ViewSpace.ValueToScreen(LowerValue + 0.5));
+			// Upper Grid line
+			MajorGridLines.Add(ViewSpace.ValueToScreen(LowerValue + 1.0));
 
-		MinorGridLines.Add(ViewSpace.ValueToScreen(LowerValue + 0.25));
-		MinorGridLines.Add(ViewSpace.ValueToScreen(LowerValue + 0.75));
+			MinorGridLines.Add(ViewSpace.ValueToScreen(LowerValue + 0.25));
+			MinorGridLines.Add(ViewSpace.ValueToScreen(LowerValue + 0.75));
+		}
+	}
+	else
+	{
+		TArray<FCurveModelID> CurveIDs;
+		CurveInfoByID.GetKeys(CurveIDs);
+		for (int32 Index = 0; Index < CurveInfoByID.Num(); ++Index)
+		{
+			double Padding = (Index + 1)*ValueSpacePadding;
+			double LowerValue = Index + Padding;
+
+			double ViewSpaceMax = GetViewSpace().ValueToScreen(LowerValue);
+			double ViewSpaceMin = GetViewSpace().ValueToScreen(LowerValue + 1.0);
+
+			FCurveEditorScreenSpace CurveSpace = GetCurveSpace(CurveIDs[CurveInfoByID.Num() - Index - 1]);
+			TArray<float> TempMajorGridLines, TempMinorGridLines;
+			CurveEditor::ConstructFixedYGridLines(CurveSpace, 4, GridLineSpacing.GetValue(), MajorGridLines, MinorGridLines, CurveEditor->GetGridLineLabelFormatYAttribute().Get(), 
+				MajorGridLabels, CurveSpace.ScreenToValue(ViewSpaceMax), CurveSpace.ScreenToValue(ViewSpaceMin));
+		}
 	}
 }
 
@@ -84,7 +108,7 @@ void SCurveEditorViewStacked::DrawViewGrids(const FGeometry& AllottedGeometry, c
 	TArray<float> MajorGridLines, MinorGridLines;
 	TArray<FText> MajorGridLabels;
 
-	GetGridLinesX(CurveEditor.ToSharedRef(), MajorGridLines, MinorGridLines, MajorGridLabels);
+	GetGridLinesX(CurveEditor.ToSharedRef(), MajorGridLines, MinorGridLines, &MajorGridLabels);
 
 	// Pre-allocate an array of line points to draw our vertical lines. Each major grid line
 	// will overwrite the X value of both points but leave the Y value untouched so they draw from the bottom to the top.
@@ -129,27 +153,25 @@ void SCurveEditorViewStacked::DrawViewGrids(const FGeometry& AllottedGeometry, c
 
 		// Horizontal grid lines
 		{
+			TArray<float> MajorGridLinesH, MinorGridLinesH;
+			GetGridLinesY(CurveEditor.ToSharedRef(), MajorGridLinesH, MinorGridLinesH);
+
 			LinePoints[0].X = 0.0;
 			LinePoints[1].X = Width;
 
-			// Top grid line
-			LinePoints[0].Y = LinePoints[1].Y = PixelTop;
-			FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, PaintGeometry, LinePoints, DrawEffects, MajorGridColor, false);
+			// draw major lines
+			for (float GridLineVal : MajorGridLinesH)
+			{
+				LinePoints[0].Y = LinePoints[1].Y = GridLineVal;
+				FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, PaintGeometry, LinePoints, DrawEffects, MajorGridColor, false);
+			}
 
-			// Center line
-			LinePoints[0].Y = LinePoints[1].Y = ViewSpace.ValueToScreen(LowerValue + 0.5);
-			FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, PaintGeometry, LinePoints, DrawEffects, MajorGridColor, false);
-
-			// Bottom line
-			LinePoints[0].Y = LinePoints[1].Y = PixelBottom;
-			FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, PaintGeometry, LinePoints, DrawEffects, MajorGridColor, false);
-
-			// Minor intermediate lines
-			LinePoints[0].Y = LinePoints[1].Y = ViewSpace.ValueToScreen(LowerValue + 0.25);
-			FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, PaintGeometry, LinePoints, DrawEffects, MinorGridColor, false);
-
-			LinePoints[0].Y = LinePoints[1].Y = ViewSpace.ValueToScreen(LowerValue + 0.75);
-			FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, PaintGeometry, LinePoints, DrawEffects, MinorGridColor, false);
+			// draw minor lines
+			for (float GridLineVal : MinorGridLinesH)
+			{
+				LinePoints[0].Y = LinePoints[1].Y = GridLineVal;
+				FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, PaintGeometry, LinePoints, DrawEffects, MinorGridColor, false);
+			}
 		}
 
 		// Vertical grid lines

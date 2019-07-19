@@ -22,6 +22,7 @@
 #include "EditorUndoClient.h"
 #include "CurveEditorScreenSpace.h"
 #include "ITimeSlider.h"
+#include "CurveEditorHelpers.h"
 
 class UCurveEditorSettings;
 class FUICommandList;
@@ -66,8 +67,8 @@ public:
 	/** Attribute used to retrieve the current input snap rate (also used for display) */
 	TAttribute<FFrameRate> InputSnapRateAttribute;
 
-	/** Attribute used to retrieve the current output snap interval */
-	TAttribute<double> OutputSnapIntervalAttribute;
+	/** Attribute used to retrieve the current value-axis grid line state */
+	TAttribute<TOptional<float>> FixedGridSpacingAttribute;
 
 	/** Attribute used to determine if we should snap input values */
 	TAttribute<bool> InputSnapEnabledAttribute;
@@ -228,7 +229,13 @@ public:
 	/**
 	 * Generate a utility struct for snapping values
 	 */
-	FCurveEditorSnapMetrics GetSnapMetrics() const;
+	FCurveSnapMetrics GetCurveSnapMetrics(FCurveModelID CurveModel) const;
+
+	/**
+	 * Returns the value grid line spacing state
+	 */
+	TOptional<float> GetGridSpacing() const { return FixedGridSpacingAttribute.Get(); }
+
 	/**
 	 * Returned the cached struct for snapping editing movement to a specific axis based on user preferences.
 	 */
@@ -383,7 +390,7 @@ public:
 	 * function for the Y grid lines is not provided due to the Curve Editor's ability to have multiple
 	 * views with repeated gridlines and values.
 	 */
-	virtual void GetGridLinesX(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
+	virtual void GetGridLinesX(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
 	{
 		ConstructXGridLines(MajorGridLines, MinorGridLines, MajorGridLabels);
 	}
@@ -398,7 +405,7 @@ protected:
 	/**
 	 * Construct grid lines along the current display frame rate or time-base
 	 */
-	void ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const;
+	void ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const;
 
 	/**
 	 * Internal zoom to fit implementation

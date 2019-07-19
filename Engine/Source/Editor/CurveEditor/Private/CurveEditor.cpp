@@ -21,6 +21,7 @@
 #include "ITimeSlider.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Runtime/Core/Public/Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "CurveEditor"
 
@@ -43,7 +44,6 @@ FCurveEditor::FCurveEditor()
 
 	OutputSnapEnabledAttribute = true;
 	InputSnapEnabledAttribute  = true;
-	OutputSnapIntervalAttribute = 0.1;
 	InputSnapRateAttribute = FFrameRate(10, 1);
 
 	GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}s");
@@ -306,16 +306,33 @@ void FCurveEditor::BindCommands()
 	}
 }
 
-FCurveEditorSnapMetrics FCurveEditor::GetSnapMetrics() const
+FCurveSnapMetrics FCurveEditor::GetCurveSnapMetrics(FCurveModelID CurveModel) const
 {
-	FCurveEditorSnapMetrics Metrics;
+	FCurveSnapMetrics CurveMetrics;
 
-	Metrics.bSnapOutputValues  = OutputSnapEnabledAttribute.Get();
-	Metrics.OutputSnapInterval = OutputSnapIntervalAttribute.Get();
-	Metrics.bSnapInputValues   = InputSnapEnabledAttribute.Get();
-	Metrics.InputSnapRate      = InputSnapRateAttribute.Get();
+	const SCurveEditorView* View = FindFirstInteractiveView(CurveModel);
+	if (!View)
+	{
+		return CurveMetrics;
+	}
 
-	return Metrics;
+	// get the grid lines in view space
+	TArray<float> ViewSpaceGridLines;
+	View->GetGridLinesY(SharedThis(this), ViewSpaceGridLines, ViewSpaceGridLines);
+
+	// convert the grid lines from view space
+	TArray<double> CurveSpaceGridLines;
+	ViewSpaceGridLines.Reserve(ViewSpaceGridLines.Num());
+	FCurveEditorScreenSpace CurveSpace = View->GetCurveSpace(CurveModel);
+	Algo::Transform(ViewSpaceGridLines, CurveSpaceGridLines, [&CurveSpace](float VSVal) { return CurveSpace.ScreenToValue(VSVal); });
+	
+	// create metrics struct;
+	CurveMetrics.bSnapOutputValues = OutputSnapEnabledAttribute.Get();
+	CurveMetrics.bSnapInputValues = InputSnapEnabledAttribute.Get();
+	CurveMetrics.AllGridLines = CurveSpaceGridLines;
+	CurveMetrics.InputSnapRate = InputSnapRateAttribute.Get();
+
+	return CurveMetrics;
 }
 
 void FCurveEditor::ZoomToFit(EAxisList::Type Axes)
@@ -422,8 +439,6 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 		}
 	}
 
-	FCurveEditorSnapMetrics SnapMetrics = GetSnapMetrics();
-
 	if (Axes & EAxisList::X && InputMin != TNumericLimits<double>::Max() && InputMax != TNumericLimits<double>::Lowest())
 	{
 		// If zooming to the same (or invalid) min/max, keep the same zoom scale and center within the timeline
@@ -438,7 +453,7 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 		}
 		else
 		{
-			const double MinInputZoom = SnapMetrics.bSnapInputValues ? SnapMetrics.InputSnapRate.AsInterval() : 0.00001;
+			const double MinInputZoom = InputSnapEnabledAttribute.Get() ? InputSnapRateAttribute.Get().AsInterval() : 0.00001;
 			const double InputPadding = FMath::Max((InputMax - InputMin) * 0.1, MinInputZoom);
 			InputMax = FMath::Max(InputMin + MinInputZoom, InputMax);
 
@@ -465,7 +480,7 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 		}
 		else
 		{
-			const double MinOutputZoom = SnapMetrics.bSnapOutputValues ? SnapMetrics.OutputSnapInterval : 0.00001;
+			constexpr double MinOutputZoom = 0.00001;
 			const double OutputPadding = FMath::Max((OutputMax - OutputMin) * 0.05, MinOutputZoom);
 
 			
@@ -664,13 +679,13 @@ FCurveEditorScreenSpaceH FCurveEditor::GetPanelInputSpace() const
 	return FCurveEditorScreenSpaceH(PanelWidth, InputMin, InputMax);
 }
 
-void FCurveEditor::ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>& MajorGridLabels) const
+void FCurveEditor::ConstructXGridLines(TArray<float>& MajorGridLines, TArray<float>& MinorGridLines, TArray<FText>* MajorGridLabels) const
 {
 	FCurveEditorScreenSpaceH InputSpace = GetPanelInputSpace();
 
 	double MajorGridStep  = 0.0;
 	int32  MinorDivisions = 0;
-	if (GetSnapMetrics().InputSnapRate.ComputeGridSpacing(InputSpace.PixelsPerInput(), MajorGridStep, MinorDivisions))
+	if (InputSnapRateAttribute.Get().ComputeGridSpacing(InputSpace.PixelsPerInput(), MajorGridStep, MinorDivisions))
 	{
 		FText GridLineLabelFormatX = GridLineLabelFormatXAttribute.Get();
 		const double FirstMajorLine = FMath::FloorToDouble(InputSpace.GetInputMin() / MajorGridStep) * MajorGridStep;
@@ -679,7 +694,10 @@ void FCurveEditor::ConstructXGridLines(TArray<float>& MajorGridLines, TArray<flo
 		for (double CurrentMajorLine = FirstMajorLine; CurrentMajorLine < LastMajorLine; CurrentMajorLine += MajorGridStep)
 		{
 			MajorGridLines.Add( (CurrentMajorLine - InputSpace.GetInputMin()) * InputSpace.PixelsPerInput() );
-			MajorGridLabels.Add( FText::Format(GridLineLabelFormatX, FText::AsNumber(CurrentMajorLine)) );
+			if (MajorGridLabels)
+			{
+				MajorGridLabels->Add(FText::Format(GridLineLabelFormatX, FText::AsNumber(CurrentMajorLine)));
+			}
 
 			for (int32 Step = 1; Step < MinorDivisions; ++Step)
 			{

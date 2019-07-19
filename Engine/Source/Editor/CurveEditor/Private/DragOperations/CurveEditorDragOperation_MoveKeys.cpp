@@ -67,6 +67,8 @@ void FCurveEditorDragOperation_MoveKeys::OnDrag(FVector2D InitialPosition, FVect
 		NewKeyPositionScratch.Reset();
 		NewKeyPositionScratch.Reserve(KeyData.StartKeyPositions.Num());
 
+		FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(KeyData.CurveID);
+
 		for (FKeyPosition StartPosition : KeyData.StartKeyPositions)
 		{
 			StartPosition.InputValue  += DeltaInput;
