@@ -45,9 +45,7 @@ FGauntletModule* UGauntletTestController::GetGauntlet()
 
 UWorld* UGauntletTestController::GetWorld() const
 {
-	UGameInstance* GameInstance = GEngine->GameViewport->GetGameInstance();
-
-	return GameInstance ? GameInstance->GetWorld() : nullptr;
+	return GWorld;
 }
 
 APlayerController* UGauntletTestController::GetFirstPlayerController() const
