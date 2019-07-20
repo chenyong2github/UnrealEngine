@@ -732,5 +732,4 @@ bool ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask()
 	return !!CVarShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask.GetValueOnAnyThread();
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
 // end
