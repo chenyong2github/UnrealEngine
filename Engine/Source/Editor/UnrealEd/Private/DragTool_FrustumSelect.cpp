@@ -6,6 +6,7 @@
 #include "CanvasItem.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "GameFramework/Volume.h"
+#include "Editor/UnrealEdEngine.h"
 #include "UnrealEdGlobals.h"
 #include "EngineUtils.h"
 #include "Engine/Selection.h"
