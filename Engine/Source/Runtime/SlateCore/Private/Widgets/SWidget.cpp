@@ -106,6 +106,12 @@ void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* C
 	check(!CacheNode || CacheNode->GetValue().Widget == this);
 #endif
 
+	if (PersistentState.CachedElementListNode != nullptr && PersistentState.CachedElementListNode != CacheNode)
+	{
+	//	ensure(false);
+		PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
+	}
+
 	PersistentState.CachedElementListNode = CacheNode;
 
 	if (FastPathProxyHandle.IsValid())
@@ -116,7 +122,6 @@ void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* C
 
 		PersistentState.OutgoingLayerId = NewLayerId;
 
-		Advanced_InvalidateVolatility();
 		if ((IsVolatile() && !IsVolatileIndirectly()) || (Advanced_IsInvalidationRoot() && !Advanced_IsWindow()))
 		{
 			AddUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint);
@@ -1059,7 +1064,7 @@ void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
 
 			UpdateFastPathVolatility(ParentWidget.IsValid() ? ParentWidget->IsVolatile() || ParentWidget->IsVolatileIndirectly() : false);
 
-			ensure(!IsVolatile() || EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint));
+			ensure(!IsVolatile() || IsVolatileIndirectly() || EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint));
 		}
 
 		FastPathProxyHandle.MarkWidgetDirty(InvalidateReason);

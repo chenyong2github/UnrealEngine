@@ -169,12 +169,14 @@ public:
 	{
 		if (WidgetPtr.IsValid())
 		{
-			WidgetPtr.Reset();
+			TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
 
-			if (Owner)
+			if (Widget != SNullWidget::NullWidget)
 			{
-				Owner->Invalidate(EInvalidateWidget::ChildOrder);
+				Widget->ConditionallyDetatchParentWidget(Owner);
 			}
+
+			WidgetPtr.Reset();
 		}
 	}
 

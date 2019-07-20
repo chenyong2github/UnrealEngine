@@ -130,6 +130,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 	NavigationScrollPadding = InArgs._NavigationScrollPadding;
 	NavigationDestination = InArgs._NavigationDestination;
 	bTouchPanningCapture = false;
+	bVolatilityAlwaysInvalidatesPrepass = true;
 
 	if (InArgs._ExternalScrollbar.IsValid())
 	{
@@ -548,6 +549,7 @@ EActiveTimerReturnType SScrollBox::UpdateInertialScroll(double InCurrentTime, fl
 	{
 		bIsScrolling = false;
 		bIsScrollingActiveTimerRegistered = false;
+		Invalidate(EInvalidateWidget::LayoutAndVolatility);
 		UpdateInertialScrollHandle.Reset();
 	}
 
@@ -1104,7 +1106,7 @@ void SScrollBox::EndInertialScrolling()
 {
 	bIsScrolling = false;
 	bIsScrollingActiveTimerRegistered = false;
-
+	Invalidate(EInvalidateWidget::LayoutAndVolatility);
 	if ( UpdateInertialScrollHandle.IsValid() )
 	{
 		UnRegisterActiveTimer(UpdateInertialScrollHandle.ToSharedRef());
