@@ -91,7 +91,7 @@ protected:
 
 	SLATECORE_API bool ProcessInvalidation();
 
-	SLATECORE_API void ClearAllFastPathData(bool bInvalidationRootBeingDestroyed);
+	SLATECORE_API void ClearAllFastPathData(bool bClearResourcesImmediately);
 
 private:
 
