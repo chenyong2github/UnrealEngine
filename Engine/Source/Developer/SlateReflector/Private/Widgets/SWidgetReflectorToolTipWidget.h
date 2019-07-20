@@ -73,33 +73,93 @@ public:
 
 			// Size Info
 			+ SGridPanel::Slot(0, 2)
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("SizeInfo", "Size Info"))
-				]
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SizeInfo", "Size Info"))
+			]
 
 			// Size Info Value
 			+ SGridPanel::Slot(1, 2)
-				.Padding(5.0f, 0.0f, 0.0f, 0.0f)
-				[
-					SNew(STextBlock)
-						.Text(this, &SReflectorToolTipWidget::GetSizeInfo)
-				]
+			.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &SReflectorToolTipWidget::GetSizeInfo)
+			]
 
 			// Enabled
 			+ SGridPanel::Slot(0, 3)
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("Enabled", "Enabled"))
-				]
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("Enabled", "Enabled"))
+			]
 
 			// Enabled Value
 			+ SGridPanel::Slot(1, 3)
-				.Padding(5.0f, 0.0f, 0.0f, 0.0f)
-				[
-					SNew(STextBlock)
-						.Text(this, &SReflectorToolTipWidget::GetEnabled)
-				]
+			.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &SReflectorToolTipWidget::GetEnabled)
+			]
+
+			// NeedsTick
+			+ SGridPanel::Slot(0, 4)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("NeedsTick", "Needs Tick"))
+			]
+
+			// NeedsTick Value
+			+ SGridPanel::Slot(1, 4)
+			.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &SReflectorToolTipWidget::GetNeedsTick)
+			]
+
+			// IsVolatile
+			+ SGridPanel::Slot(0, 5)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("IsVolatile", "Is Volatile"))
+			]
+
+			// IsVolatile Value
+			+ SGridPanel::Slot(1, 5)
+			.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &SReflectorToolTipWidget::GetIsVolatile)
+			]
+
+			// IsVolatileIndirectly
+			+ SGridPanel::Slot(0, 6)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("IsVolatileIndirectly", "Is Volatile Indirectly"))
+			]
+
+			// IsVolatileIndirectly Value
+			+ SGridPanel::Slot(1, 6)
+			.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &SReflectorToolTipWidget::GetIsVolatileIndirectly)
+			]
+
+			// HasActiveTimers
+			+ SGridPanel::Slot(0, 7)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("HasActiveTimers", "Has Active Timers"))
+			]
+
+			// HasActiveTimers Value
+			+ SGridPanel::Slot(1, 7)
+			.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &SReflectorToolTipWidget::GetHasActiveTimers)
+			]
 		];
 	}
 
@@ -125,6 +185,34 @@ private:
 		static const FText TrueText = LOCTEXT("True", "True");
 		static const FText FalseText = LOCTEXT("False", "False");
 		return (WidgetInfo->GetWidgetEnabled()) ? TrueText : FalseText;
+	}
+
+	FText GetNeedsTick() const
+	{
+		static const FText TrueText = LOCTEXT("True", "True");
+		static const FText FalseText = LOCTEXT("False", "False");
+		return (WidgetInfo->GetWidgetNeedsTick()) ? TrueText : FalseText;
+	}
+
+	FText GetIsVolatile() const
+	{
+		static const FText TrueText = LOCTEXT("True", "True");
+		static const FText FalseText = LOCTEXT("False", "False");
+		return (WidgetInfo->GetWidgetIsVolatile()) ? TrueText : FalseText;
+	}
+
+	FText GetIsVolatileIndirectly() const
+	{
+		static const FText TrueText = LOCTEXT("True", "True");
+		static const FText FalseText = LOCTEXT("False", "False");
+		return (WidgetInfo->GetWidgetIsVolatileIndirectly()) ? TrueText : FalseText;
+	}
+
+	FText GetHasActiveTimers() const
+	{
+		static const FText TrueText = LOCTEXT("True", "True");
+		static const FText FalseText = LOCTEXT("False", "False");
+		return (WidgetInfo->GetWidgetHasActiveTimers()) ? TrueText : FalseText;
 	}
 
 private:

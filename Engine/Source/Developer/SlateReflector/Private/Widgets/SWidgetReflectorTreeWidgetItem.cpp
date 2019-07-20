@@ -34,6 +34,10 @@ void SReflectorTreeWidgetItem::Construct(const FArguments& InArgs, const TShared
 	CachedWidgetClipping = WidgetInfo->GetWidgetClippingText();
 	bCachedWidgetFocusable = WidgetInfo->GetWidgetFocusable();
 	bCachedWidgetVisible = WidgetInfo->GetWidgetVisible();
+	bCachedWidgetNeedsTick = WidgetInfo->GetWidgetNeedsTick();
+	bCachedWidgetIsVolatile = WidgetInfo->GetWidgetIsVolatile();
+	bCachedWidgetIsVolatileIndirectly = WidgetInfo->GetWidgetIsVolatileIndirectly();
+	bCachedWidgetHasActiveTimers = WidgetInfo->GetWidgetHasActiveTimers();
 	CachedReadableLocation = WidgetInfo->GetWidgetReadableLocation();
 	CachedWidgetFile = WidgetInfo->GetWidgetFile();
 	CachedWidgetLineNumber = WidgetInfo->GetWidgetLineNumber();

@@ -924,11 +924,7 @@ public:
 	 */
 	void SetEnabled(const TAttribute<bool>& InEnabledState)
 	{
-		if (!EnabledState.IdenticalTo(InEnabledState))
-		{
-			EnabledState = InEnabledState;
-			Invalidate(EInvalidateWidget::PaintAndVolatility);
-		}
+		SetAttribute(EnabledState, InEnabledState, EInvalidateWidgetReason::Paint);
 	}
 
 	/** @return Whether or not this widget is enabled */
@@ -1162,11 +1158,7 @@ public:
 	/** @param InTransform the render transform to set for the widget (transforms from widget's local space). TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
 	FORCEINLINE void SetRenderTransform(TAttribute<TOptional<FSlateRenderTransform>> InTransform)
 	{
-		if(!RenderTransform.IdenticalTo(InTransform))
-		{
-			RenderTransform = InTransform;
-			Invalidate(EInvalidateWidget::LayoutAndVolatility|EInvalidateWidget::RenderTransform);
-		}
+		SetAttribute(RenderTransform, InTransform, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
 	}
 
 	/** @return the pivot point of the render transform. */
@@ -1178,11 +1170,7 @@ public:
 	/** @param InTransformPivot Sets the pivot point of the widget's render transform (in normalized local space). */
 	FORCEINLINE void SetRenderTransformPivot(TAttribute<FVector2D> InTransformPivot)
 	{
-		if (!RenderTransformPivot.IdenticalTo(InTransformPivot))
-		{
-			RenderTransformPivot = InTransformPivot;
-			Invalidate(EInvalidateWidget::LayoutAndVolatility | EInvalidateWidget::RenderTransform);
-		}
+		SetAttribute(RenderTransformPivot, InTransformPivot, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
 	}
 
 	/**
@@ -1529,6 +1517,9 @@ public:
 	 * Unregisters an active timer handle. This is optional, as the delegate can UnRegister itself by returning EActiveTimerReturnType::Stop.
 	 */
 	void UnRegisterActiveTimer( const TSharedRef<FActiveTimerHandle>& ActiveTimerHandle );
+	
+	/** Does this widget have any active timers? */
+	bool HasActiveTimers() const { return ActiveTimers.Num() > 0; }
 
 private:
 
@@ -1537,6 +1528,34 @@ private:
 
 	const FPointerEventHandler* GetPointerEvent(const FName EventName) const;
 	void SetPointerEvent(const FName EventName, FPointerEventHandler& InEvent);
+
+protected:
+	/**
+	 * Performs the attribute assignment and invalidates the widget minimally based on what actually changed.  So if the boundness of the attribute didn't change
+	 * volatility won't need to be recalculated.  Returns true if the value changed.
+	 */
+	template<typename TargetValueType, typename SourceValueType>
+	bool SetAttribute(TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
+	{
+		if (!TargetValue.IdenticalTo(SourceValue))
+		{
+			const bool bWasBound = TargetValue.IsBound();
+			const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
+			TargetValue = SourceValue;
+
+			EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
+			if (bBoundnessChanged)
+			{
+				InvalidateReason |= EInvalidateWidgetReason::Volatility;
+			}
+
+			Invalidate(InvalidateReason);
+			return true;
+		}
+
+		return false;
+	}
+
 protected:
 	/** Dtor ensures that active timer handles are UnRegistered with the SlateApplication. */
 	virtual ~SWidget();

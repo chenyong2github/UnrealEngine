@@ -1023,12 +1023,7 @@ bool SWidget::IsDirectlyHovered() const
 
 void SWidget::SetVisibility(TAttribute<EVisibility> InVisibility)
 {
-	if (!Visibility.IdenticalTo(InVisibility))
-	{
-		Visibility = InVisibility;
-
-		Invalidate(EInvalidateWidget::Visibility);
-	}
+	SetAttribute(Visibility, InVisibility, EInvalidateWidgetReason::Visibility);
 }
 
 void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
