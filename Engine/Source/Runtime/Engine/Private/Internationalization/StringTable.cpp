@@ -370,7 +370,7 @@ void UStringTable::PostLoad()
 	if (FSlateApplicationBase::IsInitialized())
 	{
 		// Ensure all invalidation panels are updated now that the string data is loaded
-		FSlateApplicationBase::Get().InvalidateAllWidgets();
+		FSlateApplicationBase::Get().InvalidateAllWidgets(false);
 	}
 }
 

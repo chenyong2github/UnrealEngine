@@ -161,9 +161,9 @@ void FSlateApplicationBase::ToggleGlobalInvalidation(bool bIsGlobalInvalidationE
 	}
 }
 
-void FSlateApplicationBase::InvalidateAllWidgets() const
+void FSlateApplicationBase::InvalidateAllWidgets(bool bClearResourcesImmediately) const
 {
 	SCOPED_NAMED_EVENT(Slate_GlobalInvalidate, FColor::Red);
-	UE_LOG(LogSlate, Log, TEXT("All widgets were invalidated"));
-	OnInvalidateAllWidgetsEvent.Broadcast();
+	UE_LOG(LogSlate, Log, TEXT("InvalidateAllWidgets triggered.  All widgets were invalidated"));
+	OnInvalidateAllWidgetsEvent.Broadcast(bClearResourcesImmediately);
 }

@@ -95,7 +95,7 @@ protected:
 
 private:
 
-	void OnInvalidateAllWidgets();
+	void OnInvalidateAllWidgets(bool bClearResourcesImmediately);
 
 	bool PaintFastPath(const FSlateInvalidationContext& Context);
 

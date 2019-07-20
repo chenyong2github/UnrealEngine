@@ -471,15 +471,15 @@ FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
 
 #if !UE_BUILD_SHIPPING
 
-static void HandleGlobalInvalidate(const TArray<FString>& Args)
+static void HandleGlobalInvalidateCVarTriggered(const TArray<FString>& Args)
 {
-	FSlateApplication::Get().InvalidateAllWidgets();
+	FSlateApplication::Get().InvalidateAllWidgets(false);
 }
 
 static FAutoConsoleCommand GlobalInvalidateCommand(
 	TEXT("Slate.TriggerInvalidate"),
 	TEXT("Triggers a global invalidate of all widgets"),
-	FConsoleCommandWithArgsDelegate::CreateStatic(&HandleGlobalInvalidate)
+	FConsoleCommandWithArgsDelegate::CreateStatic(&HandleGlobalInvalidateCVarTriggered)
 );
 #endif
 
@@ -2614,6 +2614,8 @@ void FSlateApplication::UnregisterVirtualWindow(TSharedRef<SWindow> InWindow)
 
 void FSlateApplication::FlushRenderState()
 {
+	InvalidateAllWidgets(true);
+
 	if ( Renderer.IsValid() )
 	{
 		// Release any temporary material or texture resources we may have cached and are reporting to prevent

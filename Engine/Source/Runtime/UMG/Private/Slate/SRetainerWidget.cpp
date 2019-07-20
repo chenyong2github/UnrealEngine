@@ -230,8 +230,13 @@ void SRetainerWidget::OnRetainerModeChanged()
 	Invalidate(EInvalidateWidget::ChildOrder);
 }
 
-void SRetainerWidget::OnGlobalInvalidate()
+void SRetainerWidget::OnGlobalInvalidate(bool bClearResourcesImmediately)
 {
+	if (bClearResourcesImmediately)
+	{
+		ClearAllFastPathData(false);
+	}
+
 	RequestRender();
 }
 

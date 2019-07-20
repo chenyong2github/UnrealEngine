@@ -428,7 +428,7 @@ public:
 	/**
 	 * Gets a delegate that is invoked when a global invalidate of all widgets should occur
 	 */
-	DECLARE_EVENT(FSlateApplicationBase, FOnInvalidateAllWidgets);
+	DECLARE_EVENT_OneParam(FSlateApplicationBase, FOnInvalidateAllWidgets, bool);
 	FOnInvalidateAllWidgets& OnInvalidateAllWidgets() { return OnInvalidateAllWidgetsEvent; }
 
 	DECLARE_EVENT_OneParam(FSlateApplicationBase, FOnGlobalInvalidationToggled, bool);
@@ -440,7 +440,7 @@ public:
 	 * Notifies all invalidation panels that they should invalidate their contents
 	 * Note: this is a very expensive call and should only be done in non-performance critical situations
 	 */
-	void InvalidateAllWidgets() const;
+	void InvalidateAllWidgets(bool bClearResourcesImmediately) const;
 private:
 	/**
 	 * Implementation for active timer registration. See SWidget::RegisterActiveTimer.

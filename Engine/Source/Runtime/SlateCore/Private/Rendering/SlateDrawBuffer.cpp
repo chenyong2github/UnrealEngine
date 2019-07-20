@@ -62,6 +62,18 @@ void FSlateDrawBuffer::Unlock()
 	FPlatformAtomics::InterlockedExchange(&Locked, 0);
 }
 
+void FSlateDrawBuffer::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	// Locked buffers are the only ones that are currently referencing objects.  If unlocked, the element list is not in-use and contains to-be-cleared data
+	if(Locked != 0)
+	{
+		for (TSharedRef<FSlateWindowElementList>& ElementList : WindowElementLists)
+		{
+			ElementList->AddReferencedObjects(Collector);
+		}
+	}
+}
+
 void FSlateDrawBuffer::ClearBuffer()
 {
 	// Remove any window elements that are no longer valid.
