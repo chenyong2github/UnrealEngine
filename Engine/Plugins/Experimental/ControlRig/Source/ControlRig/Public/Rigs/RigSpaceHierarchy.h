@@ -184,7 +184,7 @@ private:
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	TArray<FName> Selection;
 #endif
