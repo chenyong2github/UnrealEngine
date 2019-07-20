@@ -640,6 +640,7 @@ UDemoNetDriver::UDemoNetDriver(const FObjectInitializer& ObjectInitializer)
 	bIsWaitingForHeaderDownload = false;
 	bIsWaitingForStream = false;
 	MaxArchiveReadPos = 0;
+	bNeverApplyNetworkEmulationSettings = true;
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
