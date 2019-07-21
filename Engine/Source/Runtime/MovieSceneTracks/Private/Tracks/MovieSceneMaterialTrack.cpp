@@ -72,7 +72,11 @@ void UMovieSceneMaterialTrack::AddScalarParameterKey(FName ParameterName, FFrame
 	if (NearestSection == nullptr)
 	{
 		NearestSection = Cast<UMovieSceneParameterSection>(CreateNewSection());
-		NearestSection->SetRange(TRange<FFrameNumber>::Inclusive(Time, Time));
+
+		UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+		check(MovieScene);
+
+		NearestSection->SetRange(MovieScene->GetPlaybackRange());
 		Sections.Add(NearestSection);
 	}
 	if (NearestSection->TryModify())
@@ -88,7 +92,12 @@ void UMovieSceneMaterialTrack::AddColorParameterKey(FName ParameterName, FFrameN
 	if (NearestSection == nullptr)
 	{
 		NearestSection = Cast<UMovieSceneParameterSection>(CreateNewSection());
-		NearestSection->SetRange(TRange<FFrameNumber>::Inclusive(Time, Time));
+
+		UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+		check(MovieScene);
+
+		NearestSection->SetRange(MovieScene->GetPlaybackRange());
+
 		Sections.Add(NearestSection);
 	}
 	if (NearestSection->TryModify())
