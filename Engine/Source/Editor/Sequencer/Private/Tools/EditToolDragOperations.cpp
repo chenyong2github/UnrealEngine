@@ -714,7 +714,7 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 		}
 	}
 
-	if (Settings->ShouldKeepCursorInPlayRangeWhileScrubbing() && !Settings->ShouldKeepPlayRangeInSectionBounds())
+	if (Settings->GetIsSnapEnabled() && Settings->GetSnapKeysAndSectionsToPlayRange() && !Settings->ShouldKeepPlayRangeInSectionBounds())
 	{
 		MouseTime = MovieScene::ClampToDiscreteRange(MouseTime, Sequencer.GetPlaybackRange());
 	}
@@ -883,7 +883,7 @@ TOptional<FFrameNumber> FMoveKeysAndSections::GetMovementDeltaX(FFrameTime Mouse
 			RightMovementMaximum = MovieScene::DiscreteExclusiveUpper(SectionBoundaries);
 		}
 		
-		if (Settings->ShouldKeepCursorInPlayRangeWhileScrubbing() && !Settings->ShouldKeepPlayRangeInSectionBounds())
+		if (Settings->GetIsSnapEnabled() && Settings->GetSnapKeysAndSectionsToPlayRange() && !Settings->ShouldKeepPlayRangeInSectionBounds())
 		{
 			if (!LeftMovementMaximum.IsSet() || LeftMovementMaximum.GetValue() < Sequencer.GetPlaybackRange().GetLowerBoundValue())
 			{
@@ -929,7 +929,7 @@ TOptional<FFrameNumber> FMoveKeysAndSections::GetMovementDeltaX(FFrameTime Mouse
 		}
 	}
 
-	if (Settings->ShouldKeepCursorInPlayRangeWhileScrubbing() && !Settings->ShouldKeepPlayRangeInSectionBounds())
+	if (Settings->GetIsSnapEnabled() && Settings->GetSnapKeysAndSectionsToPlayRange() && !Settings->ShouldKeepPlayRangeInSectionBounds())
 	{
 		TArray<FFrameNumber> CurrentKeyTimes;
 		CurrentKeyTimes.SetNum(KeysAsArray.Num());

@@ -77,7 +77,7 @@ FReply FSequencerEditTool_Movement::OnMouseMove(SWidget& OwnerWidget, const FGeo
 			{
 				DragPosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-				if (Sequencer.GetSequencerSettings()->ShouldKeepCursorInPlayRangeWhileScrubbing() && !Sequencer.GetSequencerSettings()->ShouldKeepPlayRangeInSectionBounds())
+				if (Sequencer.GetSequencerSettings()->GetIsSnapEnabled() && Sequencer.GetSequencerSettings()->GetSnapKeysAndSectionsToPlayRange() && !Sequencer.GetSequencerSettings()->ShouldKeepPlayRangeInSectionBounds())
 				{
 					DragPosition.X = FMath::Max(DragPosition.X, 0.f);
 					FFrameTime CurrentTime = VirtualTrackArea.PixelToFrame(DragPosition.X);
