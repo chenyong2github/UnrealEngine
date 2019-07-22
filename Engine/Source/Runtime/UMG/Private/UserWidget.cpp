@@ -632,8 +632,6 @@ UUMGSequencePlayer* UUserWidget::PlayAnimation(UWidgetAnimation* InAnimation, fl
 	{
 		Player->Play(StartAtTime, NumberOfLoops, PlayMode, PlaybackSpeed);
 
-		Invalidate(EInvalidateWidget::Volatility);
-
 		OnAnimationStartedPlaying(*Player);
 
 		UpdateCanTick();
@@ -650,8 +648,6 @@ UUMGSequencePlayer* UUserWidget::PlayAnimationTimeRange(UWidgetAnimation* InAnim
 	if (Player)
 	{
 		Player->PlayTo(StartAtTime, EndAtTime, NumberOfLoops, PlayMode, PlaybackSpeed);
-
-		Invalidate(EInvalidateWidget::Volatility);
 
 		OnAnimationStartedPlaying(*Player);
 
@@ -1512,12 +1508,6 @@ void UUserWidget::TickActionsAndAnimation(const FGeometry& MyGeometry, float InD
 	}
 
 	StoppedSequencePlayers.Empty();
-
-	// If we're no longer playing animations invalidate layout so that we recache the volatility of the widget.
-	if ( bWasPlayingAnimation && IsPlayingAnimation() == false )
-	{
-		Invalidate(EInvalidateWidget::Volatility);
-	}
 
 	UWorld* World = GetWorld();
 	if (World)
