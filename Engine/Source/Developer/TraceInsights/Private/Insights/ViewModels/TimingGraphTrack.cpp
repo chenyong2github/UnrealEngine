@@ -264,8 +264,15 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 				const float TopY = 4.0f;
 				const float BottomY = GetHeight();
 
-				double HighValue = Series.GetValueForY(TopY);
-				double LowValue = Series.GetValueForY(BottomY);
+				const double HighValue = Series.GetValueForY(TopY);
+				const double LowValue = Series.GetValueForY(BottomY);
+
+				// If MinValue == MaxValue, we keep the previous baseline and scale, but only if the min/max value is already visible.
+				if (MinValue == MaxValue && (MinValue < LowValue || MaxValue > HighValue))
+				{
+					MinValue = FMath::Min(MinValue, LowValue);
+					MaxValue = FMath::Max(MaxValue, HighValue);
+				}
 
 				if (MinValue < MaxValue)
 				{

@@ -1533,10 +1533,40 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 {
 	if (MouseEvent.GetModifierKeys().IsShiftDown())
 	{
-		// Scroll vertically.
-		constexpr float ScrollSpeedY = 16.0f * 3;
-		const float ScrollPosY = Viewport.ScrollPosY - ScrollSpeedY * MouseEvent.GetWheelDelta();
-		ScrollAtPosY(ScrollPosY);
+		if (GraphTrack->IsVisible() &&
+			MousePosition.Y >= GraphTrack->GetPosY() &&
+			MousePosition.Y < GraphTrack->GetPosY() + GraphTrack->GetHeight())
+		{
+			for (const TSharedPtr<FGraphSeries>& Series : GraphTrack->GetSeries())
+			{
+				if (Series->IsVisible() && !Series->IsAutoZoomEnabled())
+				{
+					// Zoom in/out vertically.
+					const double Delta = MouseEvent.GetWheelDelta();
+					constexpr double ZoomStep = 0.25; // as percent
+					double ScaleY;
+
+					if (Delta > 0)
+					{
+						ScaleY = Series->GetScaleY() * FMath::Pow(1.0 + ZoomStep, Delta);
+					}
+					else
+					{
+						ScaleY = Series->GetScaleY() * FMath::Pow(1.0 / (1.0 + ZoomStep), -Delta);
+					}
+
+					Series->SetScaleY(ScaleY);
+					Series->SetDirtyFlag();
+				}
+			}
+		}
+		else
+		{
+			// Scroll vertically.
+			constexpr float ScrollSpeedY = 16.0f * 3;
+			const float ScrollPosY = Viewport.ScrollPosY - ScrollSpeedY * MouseEvent.GetWheelDelta();
+			ScrollAtPosY(ScrollPosY);
+		}
 	}
 	else if (MouseEvent.GetModifierKeys().IsControlDown())
 	{

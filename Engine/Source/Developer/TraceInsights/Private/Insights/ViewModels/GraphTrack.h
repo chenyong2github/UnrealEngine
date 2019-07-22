@@ -174,6 +174,8 @@ public:
 
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
+	TArray<TSharedPtr<FGraphSeries>>& GetSeries() { return AllSeries; }
+
 	//virtual int GetDebugLineCount() override;
 	//virtual void BuildDebugLines(FString& OutStr) override;
 
