@@ -1396,7 +1396,7 @@ void UEditorEngine::PostUndo(bool)
 	}
 
 	// Re-instance any actors that need it
-	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(OldToNewClassMapToReinstance, false);
+	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(OldToNewClassMapToReinstance);
 
 	RedrawLevelEditingViewports();
 }
