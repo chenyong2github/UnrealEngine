@@ -61,10 +61,15 @@ protected:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR	
 	//~ End UObject Interface.
+	
+	void SetStaticMeshComponent(class UStaticMeshComponent* InStaticMeshComponent);
 
 public:
 	/** Returns StaticMeshComponent subobject **/
 	class UStaticMeshComponent* GetStaticMeshComponent() const { return StaticMeshComponent; }
+
+	/** Name of the StaticMeshComponent. Use this name if you want to prevent creation of the component (with ObjectInitializer.DoNotCreateDefaultSubobject). */
+	static FName StaticMeshComponentName;
 };
 
 
