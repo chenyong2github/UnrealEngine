@@ -728,8 +728,8 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		return;
 	}
 
-	const int32 HalfX = Viewport->GetSizeXY().X/2;
-	const int32 HalfY = Viewport->GetSizeXY().Y/2;
+	const int32 HalfX = Viewport->GetSizeXY().X/2 / GetDPIScale();
+	const int32 HalfY = Viewport->GetSizeXY().Y/2 / GetDPIScale();
 
 	// Draw socket names if desired.
 	if( bShowSockets )

@@ -332,6 +332,14 @@ void FSkeletonSelectionEditMode::Render(const FSceneView* View, FViewport* Viewp
 	}
 }
 
+FIntPoint FSkeletonSelectionEditMode::GetDPIUnscaledSize(FViewport* Viewport, FViewportClient* Client)
+{
+	const FIntPoint Size = Viewport->GetSizeXY();
+	const float DPIScale = Client->GetDPIScale();
+	// (FIntPoint / float) implicitly casts the float to an int if you try to divide it directly
+	return FIntPoint(Size.X / DPIScale, Size.Y / DPIScale);
+}
+
 void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
@@ -339,7 +347,7 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 	// Draw name of selected bone
 	if (IsSelectedBoneRequired())
 	{
-		const FIntPoint ViewPortSize = Viewport->GetSizeXY();
+		const FIntPoint ViewPortSize = GetDPIUnscaledSize(Viewport, ViewportClient);
 		const int32 HalfX = ViewPortSize.X / 2;
 		const int32 HalfY = ViewPortSize.Y / 2;
 
@@ -372,7 +380,7 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 		const FPlane Proj = View->Project(SocketPos);
 		if (Proj.W > 0.f)
 		{
-			const FIntPoint ViewPortSize = Viewport->GetSizeXY();
+			const FIntPoint ViewPortSize = GetDPIUnscaledSize(Viewport, ViewportClient);
 			const int32 HalfX = ViewPortSize.X / 2;
 			const int32 HalfY = ViewPortSize.Y / 2;
 
