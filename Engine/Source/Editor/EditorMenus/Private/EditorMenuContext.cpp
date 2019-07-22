@@ -54,16 +54,32 @@ UObject* FEditorMenuContext::FindByClass(UClass* InClass) const
 	return nullptr;
 }
 
-void FEditorMenuContext::AppendCommandList(TSharedPtr<FUICommandList> InCommandList)
+void FEditorMenuContext::AppendCommandList(const TSharedRef<FUICommandList>& InCommandList)
+{
+	const TSharedPtr<FUICommandList> List = InCommandList;
+	AppendCommandList(List);
+}
+
+void FEditorMenuContext::AppendCommandList(const TSharedPtr<FUICommandList>& InCommandList)
 {
 	if (InCommandList.IsValid())
 	{
-		if (!CommandList.IsValid())
+		CommandLists.Add(InCommandList);
+
+		if (CommandLists.Num() == 1)
+		{
+			CommandList = InCommandList;
+		}
+		else if (CommandLists.Num() == 2)
 		{
 			CommandList = MakeShared<FUICommandList>();
+			CommandList->Append(CommandLists[0].ToSharedRef());
+			CommandList->Append(InCommandList.ToSharedRef());
 		}
-
-		CommandList->Append(InCommandList.ToSharedRef());
+		else
+		{
+			CommandList->Append(InCommandList.ToSharedRef());
+		}
 	}
 }
 

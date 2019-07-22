@@ -52,7 +52,8 @@ public:
 	
 	UObject* FindByClass(UClass* InClass) const;
 
-	void AppendCommandList(TSharedPtr<FUICommandList> InCommandList);
+	void AppendCommandList(const TSharedRef<FUICommandList>& InCommandList);
+	void AppendCommandList(const TSharedPtr<FUICommandList>& InCommandList);
 	void AddExtender(const TSharedPtr<FExtender>& InExtender);
 	TSharedPtr<FExtender> GetAllExtenders();
 	void ReplaceExtenders(const TSharedPtr<FExtender>& InExtender);
@@ -69,10 +70,10 @@ private:
 	UPROPERTY()
 	TArray<UObject*> ContextObjects;
 
+	TArray<TSharedPtr<FUICommandList>> CommandLists;
+
 	TSharedPtr<FUICommandList> CommandList;
 
-	// Prevent CommandLists from being deleted
-	TArray<TSharedPtr<const FUICommandList>> ReferencedCommandLists;
 	TSharedPtr<FExtensibilityManager> ExtensibilityManager;
 };
 

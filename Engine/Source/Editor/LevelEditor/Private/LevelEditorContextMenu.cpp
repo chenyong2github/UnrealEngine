@@ -493,7 +493,8 @@ FName FLevelEditorContextMenu::InitMenuContext(FEditorMenuContext& Context, TWea
 	RegisterActorContextMenu();
 	RegisterSceneOutlinerContextMenu();
 
-	Context.AppendCommandList(LevelEditor.Pin()->GetLevelEditorActions());
+	TSharedPtr<FUICommandList> LevelEditorActionsList = LevelEditor.Pin()->GetLevelEditorActions();
+	Context.AppendCommandList(LevelEditorActionsList);
 
 	ULevelEditorContextMenuContext* ContextObject = NewObject<ULevelEditorContextMenuContext>();
 	ContextObject->LevelEditor = LevelEditor;
@@ -512,7 +513,6 @@ FName FLevelEditorContextMenu::InitMenuContext(FEditorMenuContext& Context, TWea
 		// Get all menu extenders for this context menu from the level editor module
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TArray<FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors> MenuExtenderDelegates = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
-		TSharedPtr<FUICommandList> LevelEditorActionsList = LevelEditor.Pin()->GetLevelEditorActions();
 		TArray<TSharedPtr<FExtender>> Extenders;
 		for (int32 i = 0; i < MenuExtenderDelegates.Num(); ++i)
 		{
