@@ -1075,12 +1075,13 @@ void SFindInBlueprints::MakeSearchQuery(FString InSearchString, bool bInIsFindWi
 				Interfaces.Add(InterfaceDesc.Interface->GetPathName());
 			}
 
-			const FString UnparsedStringData = FFindInBlueprintSearchManager::Get().QuerySingleBlueprint(Blueprint);
-			const bool bIsBlueprintIndexed = !UnparsedStringData.IsEmpty();
+			const bool bRebuildSearchData = true;
+			const FSearchData* SearchData = FFindInBlueprintSearchManager::Get().QuerySingleBlueprint(Blueprint, bRebuildSearchData);
+			const bool bIsBlueprintIndexed = SearchData && !SearchData->Value.IsEmpty();
 
 			if (bIsBlueprintIndexed)
 			{
-				FImaginaryFiBDataSharedPtr ImaginaryBlueprint(new FImaginaryBlueprint(Blueprint->GetName(), Blueprint->GetPathName(), ParentClass, Interfaces, UnparsedStringData));
+				FImaginaryFiBDataSharedPtr ImaginaryBlueprint(new FImaginaryBlueprint(Blueprint->GetName(), Blueprint->GetPathName(), ParentClass, Interfaces, SearchData->Value, SearchData->VersionInfo));
 				TSharedPtr< FFiBSearchInstance > SearchInstance(new FFiBSearchInstance);
 				FSearchResult SearchResult = RootSearchResult = SearchInstance->StartSearchQuery(SearchValue, ImaginaryBlueprint);
 
