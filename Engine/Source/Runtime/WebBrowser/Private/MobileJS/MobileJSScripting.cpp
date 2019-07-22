@@ -521,7 +521,7 @@ bool FMobileJSScripting::HandleExecuteUObjectMethodMessage(const TArray<FString>
 		}
 
 		// UFunction is a subclass of UStruct, so we can treat the arguments as a struct for deserialization
-		Params.AddUninitialized(ParamsSize);
+		Params.AddUninitialized(Function->GetStructureSize());
 		Function->InitializeStruct(Params.GetData());
 
 		FMobileJSStructDeserializerBackend Backend = FMobileJSStructDeserializerBackend(SharedThis(this), MessageArgs[3]);
