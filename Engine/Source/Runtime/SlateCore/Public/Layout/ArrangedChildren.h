@@ -165,6 +165,12 @@ public:
 		return Array.IndexOfByPredicate( Pred );
 	}
 
+	template<typename PredicateType>
+	FORCEINLINE int32 FindLastByPredicate(const PredicateType& Pred) const
+	{
+		return Array.FindLastByPredicate(Pred);
+	}
+
 	FORCEINLINE void Remove(int32 Index, int32 Count=1)
 	{
 		Array.RemoveAt(Index, Count);

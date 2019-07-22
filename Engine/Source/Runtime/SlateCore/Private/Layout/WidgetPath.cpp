@@ -104,16 +104,6 @@ TOptional<FWidgetAndPointer> FWidgetPath::FindArrangedWidgetAndCursor( TSharedRe
 		: FWidgetAndPointer();
 }
 
-	
-TSharedRef<SWindow> FWidgetPath::GetWindow()
-{
-	check(IsValid());
-
-	TSharedRef<SWindow> FirstWidgetWindow = StaticCastSharedRef<SWindow>(Widgets[0].Widget);
-	return FirstWidgetWindow;
-}
-
-
 TSharedRef<SWindow> FWidgetPath::GetWindow() const
 {
 	check(IsValid());
@@ -122,6 +112,17 @@ TSharedRef<SWindow> FWidgetPath::GetWindow() const
 	return FirstWidgetWindow;
 }
 
+TSharedRef<SWindow> FWidgetPath::GetDeepestWindow() const
+{
+	check(IsValid());
+	const int32 WindowIndex = Widgets.FindLastByPredicate([](const FArrangedWidget& SomeWidget)
+	{
+		return SomeWidget.Widget->Advanced_IsWindow();
+	});
+	check(WindowIndex != INDEX_NONE);
+	TSharedRef<SWindow> FirstWidgetWindow = StaticCastSharedRef<SWindow>(Widgets[WindowIndex].Widget);
+	return FirstWidgetWindow;
+}
 
 bool FWidgetPath::IsValid() const
 {
