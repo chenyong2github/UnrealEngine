@@ -20,6 +20,7 @@
 #include "Features/IModularFeatures.h"
 #include "GeometryCollection/DetailCustomizations/GeomComponentCacheCustomization.h"
 #include "GeometryCollection/DetailCustomizations/SelectedRigidBodyCustomization.h"
+#include "GeometryCollection/DetailCustomizations/WarningMessageCustomization.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/CoreStyle.h"
@@ -177,6 +178,7 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 	{
 		PropertyModule->RegisterCustomPropertyTypeLayout("GeomComponentCacheParameters", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGeomComponentCacheParametersCustomization::MakeInstance));
 		PropertyModule->RegisterCustomPropertyTypeLayout("GeometryCollectionDebugDrawActorSelectedRigidBody", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSelectedRigidBodyCustomization::MakeInstance));
+		PropertyModule->RegisterCustomPropertyTypeLayout("GeometryCollectionDebugDrawWarningMessage", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FWarningMessageCustomization::MakeInstance));
 	}
 
 	// Register rigid body selection editor mode
@@ -231,6 +233,7 @@ void IGeometryCollectionEditorPlugin::ShutdownModule()
 		{
 			PropertyModule->UnregisterCustomPropertyTypeLayout("GeomCollectionCacheParameters");
 			PropertyModule->UnregisterCustomPropertyTypeLayout("GeometryCollectionDebugDrawActorSelectedRigidBody");
+			PropertyModule->UnregisterCustomPropertyTypeLayout("GeometryCollectionDebugDrawWarningMessage");
 		}
 
 		// Unregister rigid body selection editor mode

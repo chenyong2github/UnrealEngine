@@ -5,7 +5,6 @@
 #include "GeometryCollection/GeometryCollectionParticlesData.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
-#include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 
 #include "DrawDebugHelpers.h"
 #include "Debug/DebugDrawService.h"
