@@ -1849,9 +1849,12 @@ void AActor::ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) co
 	}
 }
 
-void AActor::GetAttachedActors(TArray<class AActor*>& OutActors) const
+void AActor::GetAttachedActors(TArray<class AActor*>& OutActors, bool bResetArray) const
 {
-	OutActors.Reset();
+	if (bResetArray)
+	{
+		OutActors.Reset();
+	}
 	ForEachAttachedActors([&OutActors](AActor * Actor) { OutActors.AddUnique(Actor); return true; });
 }
 
