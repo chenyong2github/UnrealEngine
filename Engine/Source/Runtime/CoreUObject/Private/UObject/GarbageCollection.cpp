@@ -151,7 +151,7 @@ static FAutoConsoleVariableRef CIncrementalBeginDestroyEnabled(
 	ECVF_Default
 );
 
-int32 GMultithreadedDestructionEnabled = 1;
+int32 GMultithreadedDestructionEnabled = 0;
 static FAutoConsoleVariableRef CMultithreadedDestructionEnabled(
 	TEXT("gc.MultithreadedDestructionEnabled"),
 	GMultithreadedDestructionEnabled,
@@ -2001,6 +2001,11 @@ void UObject::AddReferencedObjects(UObject* This, FReferenceCollector& Collector
 		Collector.AddReferencedObject( Class, This );
 	}
 #endif
+}
+
+bool UObject::IsDestructionThreadSafe() const
+{
+	return true;
 }
 
 /*-----------------------------------------------------------------------------

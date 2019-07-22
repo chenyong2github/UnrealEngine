@@ -451,10 +451,7 @@ public:
 	*
 	* @return	true if this object's destructor is thread safe
 	*/
-	virtual bool IsDestructionThreadSafe() const
-	{
-		return true;
-	}
+	virtual bool IsDestructionThreadSafe() const;
 
 	/**
 	* Called during cooking. Must return all objects that will be Preload()ed when this is serialized at load time. Only used by the EDL.
