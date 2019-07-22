@@ -2149,6 +2149,7 @@ void FGlobalTabmanager::OnTabRelocated( const TSharedRef<SDockTab>& RelocatedTab
 					.SupportsMinimize(false)
 					.SupportsMaximize(false)
 					.CreateTitleBar(false)
+					.AdjustInitialSizeAndPositionForDPIScale(false)
 					[
 						ChildDockArea
 					];
