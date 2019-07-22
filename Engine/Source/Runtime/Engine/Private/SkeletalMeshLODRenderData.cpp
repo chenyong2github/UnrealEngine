@@ -71,7 +71,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 	
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
 	uint8 ClassDataStripFlags = 0;
-	ClassDataStripFlags |= (Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering)) ? DuplicatedVertices : 0;
+	ClassDataStripFlags |= (Ar.IsCooking() && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering)) ? DuplicatedVertices : 0;
 
 	// When data is cooked for server platform some of the
 	// variables are not serialized so that they're always
