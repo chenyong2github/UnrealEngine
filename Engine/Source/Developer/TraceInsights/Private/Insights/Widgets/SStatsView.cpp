@@ -485,7 +485,6 @@ void SStatsView::TreeViewHeaderRow_CreateColumnArgs(const int32 ColumnIndex)
 	ColumnArgs
 		.ColumnId(Column.Id)
 		.DefaultLabel(Column.ShortName)
-		.SortMode(EColumnSortMode::None)
 		.HAlignHeader(HAlign_Fill)
 		.VAlignHeader(VAlign_Fill)
 		.HeaderContentPadding(TOptional<FMargin>(2.0f))
@@ -1450,6 +1449,7 @@ void SStatsView::ContextMenu_ResetColumns_Execute()
 
 void SStatsView::RebuildTree(bool bResync)
 {
+	TArray<FStatsNodePtr> SelectedItems;
 	bool bListHasChanged = false;
 
 	if (bResync)
@@ -1473,6 +1473,9 @@ void SStatsView::RebuildTree(bool bResync)
 
 		if (bResync)
 		{
+			// Save selection.
+			TreeView->GetSelectedItems(SelectedItems);
+
 			StatsNodes.Empty(StatsNodes.Num());
 			//StatsNodesMap.Empty(StatsNodesMap.Num());
 			StatsNodesIdMap.Empty(StatsNodesIdMap.Num());
@@ -1497,6 +1500,26 @@ void SStatsView::RebuildTree(bool bResync)
 	{
 		UpdateTree();
 		UpdateStats(StatsStartTime, StatsEndTime);
+
+		// Restore selection.
+		if (SelectedItems.Num() > 0)
+		{
+			TreeView->ClearSelection();
+			TArray<FStatsNodePtr> NewSelectedItems;
+			for (const FStatsNodePtr& StatsNode : SelectedItems)
+			{
+				FStatsNodePtr* StatsNodePtrPtr = StatsNodesIdMap.Find(StatsNode->GetId());
+				if (StatsNodePtrPtr != nullptr)
+				{
+					NewSelectedItems.Add(*StatsNodePtrPtr);
+				}
+			}
+			if (NewSelectedItems.Num() > 0)
+			{
+				TreeView->SetItemSelection(NewSelectedItems, true);
+				TreeView->RequestScrollIntoView(NewSelectedItems[0]);
+			}
+		}
 	}
 }
 
@@ -1832,7 +1855,19 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		StatsEndTime = EndTime;
 
 		UpdateTree();
+
+		// Save selection.
+		TArray<FStatsNodePtr> SelectedItems = TreeView->GetSelectedItems();
+
 		TreeView->RebuildList();
+
+		// Restore selection.
+		if (SelectedItems.Num() > 0)
+		{
+			TreeView->ClearSelection();
+			TreeView->SetItemSelection(SelectedItems, true);
+			TreeView->RequestScrollIntoView(SelectedItems[0]);
+		}
 	}
 }
 
