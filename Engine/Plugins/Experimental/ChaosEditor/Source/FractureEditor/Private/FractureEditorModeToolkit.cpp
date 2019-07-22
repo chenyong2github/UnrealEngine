@@ -987,7 +987,7 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 {
 	for (UGeometryCollectionComponent* Component : InNewComponents)
 	{
-		FGeometryCollectionEdit RestCollection = Component->EditRestCollection();
+		FGeometryCollectionEdit RestCollection = Component->EditRestCollection(GeometryCollection::EEditUpdate::None);
 		UGeometryCollection* FracturedGeometryCollection = RestCollection.GetRestCollection();
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
 
@@ -1080,11 +1080,10 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 				UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
 				if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
 				{
-					FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection();
+					FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
 					UGeometryCollection* FracturedGeometryCollection = RestCollection.GetRestCollection();
 
-					FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-					const TArray<int32>& SelectedBonesOriginal = EditBoneColor.GetSelectedBones();
+					const TArray<int32>& SelectedBonesOriginal = GeometryCollectionComponent->GetSelectedBones();
 
 					TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
 					FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
@@ -1266,11 +1265,10 @@ bool FFractureEditorModeToolkit::IsLeafBoneSelected() const
 
 		if (SelectedBones.Num() > 0)
 		{
-			FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection();
-			if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
+			if (const UGeometryCollection* GCObject = GeometryCollectionComponent->GetRestCollection())
 			{
 				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
-				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
+				if (const FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 				{
 					const TManagedArray<TSet<int32>>& Children = GeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
 
@@ -1798,18 +1796,24 @@ bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, con
 
 void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const
 {
-	FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
-	UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
-
-	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
-	FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection();
+	const FGeometryCollection* OutGeometryCollectionConst = GeometryCollectionPtr.Get();
 
 	if (FMath::IsNearlyEqual(ExplodeAmount, 0.0f))
 	{
-		OutGeometryCollection->RemoveAttribute("ExplodedVector", FGeometryCollection::TransformGroup);
+		if (OutGeometryCollectionConst->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
+		{
+			FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+			FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
+			OutGeometryCollection->RemoveAttribute("ExplodedVector", FGeometryCollection::TransformGroup);
+		}
 	}
 	else
 	{
+		FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+		UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
+		FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
+
 		if (!OutGeometryCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
 		{
 			OutGeometryCollection->AddAttribute<FVector>("ExplodedVector", FGeometryCollection::TransformGroup, FManagedArrayCollection::FConstructionParameters(FName(), false));
