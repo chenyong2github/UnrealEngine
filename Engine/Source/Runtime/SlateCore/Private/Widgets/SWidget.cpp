@@ -1038,6 +1038,12 @@ void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
 	SCOPED_NAMED_EVENT_TEXT("SWidget::Invalidate", FColor::Orange);
 	const bool bWasVolatile = IsVolatileIndirectly() || IsVolatile();
 
+	// Backwards compatibility fix:  Its no longer valid to just invalidate volatility since we need to repaint to cache elements if a widget becoems non-volatile. So after volatility changes force repaint
+	if (InvalidateReason == EInvalidateWidget::Volatility)
+	{
+		InvalidateReason = EInvalidateWidget::PaintAndVolatility;
+	}
+
 	const bool bVolatilityChanged = EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::Volatility) ? Advanced_InvalidateVolatility() : false;
 
 	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::ChildOrder) || !PrepassLayoutScaleMultiplier.IsSet())
