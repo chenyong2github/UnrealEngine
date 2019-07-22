@@ -572,8 +572,10 @@ std::string IUsdPrim::GetUnrealPropertyPath(const pxr::UsdPrim& Prim)
 	return {};
 }
 
-std::vector<UsdAttribute> PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
+TUsdStore< std::vector<UsdAttribute> > PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
 {
+	FScopedUsdAllocs UsdAllocs;
+
 	std::vector<UsdAttribute> Attributes = Prim.GetAttributes();
 
 	std::vector<UsdAttribute> OutAttributes;
@@ -590,7 +592,7 @@ std::vector<UsdAttribute> PrivateGetAttributes(const pxr::UsdPrim& Prim, const T
 	return OutAttributes;
 }
 
-std::vector<UsdAttribute> IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
+TUsdStore< std::vector<UsdAttribute> > IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
 {
 	return PrivateGetAttributes(Prim, UnrealIdentifiers::PropertyPath);
 }
