@@ -29,6 +29,7 @@ FAnimationRecorder::FAnimationRecorder()
 	, bRecordLocalToWorld(false)
 	, bAutoSaveAsset(false)
 	, bRemoveRootTransform(true)
+	, bCheckDeltaTimeAtBeginning(true)
 	, InterpMode(ERichCurveInterpMode::RCIM_Linear)
 	, TangentMode(ERichCurveTangentMode::RCTM_Auto)
 	, AnimationSerializer(nullptr)
@@ -456,10 +457,14 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 		return;
 	}
 
-	// in-editor we can get a long frame update because of the modal dialog used to pick paths
-	if(DeltaTime > IntervalTime && (LastFrame == 0 || LastFrame == 1))
+	// Take Recorder will turn this off, not sure if it's needed for persona animation recording or not.
+	if (bCheckDeltaTimeAtBeginning)
 	{
-		DeltaTime = IntervalTime;
+		// in-editor we can get a long frame update because of the modal dialog used to pick paths
+		if (DeltaTime > IntervalTime && (LastFrame == 0 || LastFrame == 1))
+		{
+			DeltaTime = IntervalTime;
+		}
 	}
 
 	float const PreviousTimePassed = TimePassed;
@@ -812,6 +817,7 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 	Recorder->SetAnimCompressionScheme(UAnimCompress_BitwiseCompressOnly::StaticClass());
 	Recorder->bAutoSaveAsset = Settings.bAutoSaveAsset;
 	Recorder->bRemoveRootTransform = Settings.bRemoveRootAnimation;
+	Recorder->bCheckDeltaTimeAtBeginning = Settings.bCheckDeltaTimeAtBeginning;
 	Recorder->AnimationSerializer = InAnimationSerializer;
 
 	if (InComponent)
