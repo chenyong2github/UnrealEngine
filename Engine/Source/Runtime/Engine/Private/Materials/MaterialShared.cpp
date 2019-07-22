@@ -2419,6 +2419,8 @@ void FMaterialRenderProxy::CacheUniformExpressions_GameThread(bool bRecreateUnif
 {
 	if (FApp::CanEverRender())
 	{
+		UE_LOG(LogMaterial, Verbose, TEXT("Caching uniform expressions for material: %s"), *GetFriendlyName());
+
 		FMaterialRenderProxy* RenderProxy = this;
 		ENQUEUE_RENDER_COMMAND(FCacheUniformExpressionsCommand)(
 			[RenderProxy, bRecreateUniformBuffer](FRHICommandListImmediate& RHICmdList)

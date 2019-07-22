@@ -59,7 +59,7 @@ void CacheMaterialInstanceUniformExpressions(const UMaterialInstance* MaterialIn
  * WARNING: This function is a noop outside of the Editor!
  * @param ParentMaterial - The parent material to look for.
  */
-void RecacheMaterialInstanceUniformExpressions(const UMaterialInterface* ParentMaterial)
+void RecacheMaterialInstanceUniformExpressions(const UMaterialInterface* ParentMaterial, bool bRecreateUniformBuffer)
 {
 	if (GIsEditor)
 	{
@@ -73,7 +73,7 @@ void RecacheMaterialInstanceUniformExpressions(const UMaterialInterface* ParentM
 				if (MaterialInstance->Parent == ParentMaterial)
 				{
 					UE_LOG(LogMaterial,Verbose,TEXT("--> %s"), *MaterialInstance->GetFullName());
-					CacheMaterialInstanceUniformExpressions(*It);
+					CacheMaterialInstanceUniformExpressions(*It, bRecreateUniformBuffer);
 					break;
 				}
 				new (ReentranceGuards) FMICReentranceGuard(MaterialInstance);
@@ -1259,7 +1259,6 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1294,7 +1293,6 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FMaterialParameterI
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1329,7 +1327,6 @@ void UMaterialInstance::OverrideScalarParameterDefault(const FMaterialParameterI
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -3685,7 +3682,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove || PropertyChangedEvent.ChangeType == EPropertyChangeType::Unspecified || PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
 	{
-		RecacheMaterialInstanceUniformExpressions(this);
+		RecacheMaterialInstanceUniformExpressions(this, false);
 	}
 }
 
