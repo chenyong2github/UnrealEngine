@@ -104,15 +104,15 @@ struct FConcertSessionVersionInfo
 	/** Validate this version info against another */
 	CONCERT_API bool Validate(const FConcertSessionVersionInfo& InOther, const EConcertVersionValidationMode InValidationMode, FText* OutFailureReason = nullptr) const;
 
-	/* File version info */
+	/** File version info */
 	UPROPERTY()
 	FConcertFileVersionInfo FileVersion;
 
-	/* Compatible engine version info */
+	/** Engine version info */
 	UPROPERTY()
-	FConcertEngineVersionInfo CompatibleEngineVersion;
+	FConcertEngineVersionInfo EngineVersion;
 
-	/* Custom version info */
+	/** Custom version info */
 	UPROPERTY()
 	TArray<FConcertCustomVersionInfo> CustomVersions;
 };
