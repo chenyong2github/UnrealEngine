@@ -7,6 +7,7 @@
 #include "RHI.h"	// for GShaderPlatformForFeatureLevel and its friends
 
 struct FOptionalVulkanDeviceExtensions;
+class FVulkanDevice;
 
 // the platform interface, and empty implementations for platforms that don't need em
 class FVulkanGenericPlatform 
@@ -104,4 +105,13 @@ public:
 
 	// Does the platform require resolve attachments in its MSAA renderpasses
 	static bool RequiresRenderPassResolveAttachments() { return false; }
+
+	// Checks if the PSO cache matches the expected vulkan device properties
+	static bool PSOBinaryCacheMatches(FVulkanDevice* Device, const TArray<uint8>& DeviceCache);
+
+	// Will create the correct format from a generic pso filename
+	static FString CreatePSOBinaryCacheFilename(FVulkanDevice* Device, FString CacheFilename);
+
+	// Gathers a list of pso cache filenames to attempt to load
+	static TArray<FString> GetPSOCacheFilenames();
 };

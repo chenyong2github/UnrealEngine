@@ -285,18 +285,13 @@ bool FVulkanPipelineStateCacheManager::Load(const TArray<FString>& CacheFilename
 	// Try to load device cache first
 	for (const FString& CacheFilename : CacheFilenames)
 	{
-		const VkPhysicalDeviceProperties& DeviceProperties = Device->GetDeviceProperties();
 		double BeginTime = FPlatformTime::Seconds();
-		FString BinaryCacheAppendage = FString::Printf(TEXT(".%x.%x"), DeviceProperties.vendorID, DeviceProperties.deviceID);
-		FString BinaryCacheFilename = CacheFilename;
-		if (!CacheFilename.EndsWith(BinaryCacheAppendage))
-		{
-			BinaryCacheFilename += BinaryCacheAppendage;
-		}
+		FString BinaryCacheFilename = FVulkanPlatform::CreatePSOBinaryCacheFilename(Device, CacheFilename);
+
 		TArray<uint8> DeviceCache;
 		if (FFileHelper::LoadFileToArray(DeviceCache, *BinaryCacheFilename, FILEREAD_Silent))
 		{
-			if (BinaryCacheMatches(Device, DeviceCache))
+			if (FVulkanPlatform::PSOBinaryCacheMatches(Device, DeviceCache))
 			{
 				VkPipelineCacheCreateInfo PipelineCacheInfo;
 				ZeroVulkanStruct(PipelineCacheInfo, VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
@@ -337,14 +332,8 @@ bool FVulkanPipelineStateCacheManager::Load(const TArray<FString>& CacheFilename
 	{
 		for (const FString& CacheFilename : CacheFilenames)
 		{
-			const VkPhysicalDeviceProperties& DeviceProperties = Device->GetDeviceProperties();
 			double BeginTime = FPlatformTime::Seconds();
-			FString BinaryCacheAppendage = FString::Printf(TEXT(".%x.%x"), DeviceProperties.vendorID, DeviceProperties.deviceID);
-			FString LruCacheFilename = CacheFilename;
-			if (!CacheFilename.EndsWith(BinaryCacheAppendage))
-			{
-				LruCacheFilename += BinaryCacheAppendage;
-			}
+			FString LruCacheFilename = FVulkanPlatform::CreatePSOBinaryCacheFilename(Device, CacheFilename);
 			LruCacheFilename += TEXT(".lru");
 			LruCacheFilename.ReplaceInline(TEXT("TempScanVulkanPSO_"), TEXT("VulkanPSO_"));  //lru files do not use the rename trick...but are still protected against corruption indirectly
 
@@ -533,13 +522,7 @@ void FVulkanPipelineStateCacheManager::Save(const FString& CacheFilename, bool b
 		VkResult Result = VulkanRHI::vkGetPipelineCacheData(Device->GetInstanceHandle(), PipelineCache, &Size, DeviceCache.GetData());
 		if (Result == VK_SUCCESS)
 		{
-			const VkPhysicalDeviceProperties& DeviceProperties = Device->GetDeviceProperties();
-			FString BinaryCacheAppendage = FString::Printf(TEXT(".%x.%x"), DeviceProperties.vendorID, DeviceProperties.deviceID);
-			FString BinaryCacheFilename = CacheFilename;
-			if (!BinaryCacheFilename.EndsWith(BinaryCacheAppendage))
-			{
-				BinaryCacheFilename += BinaryCacheAppendage;
-			}
+			FString BinaryCacheFilename = FVulkanPlatform::CreatePSOBinaryCacheFilename(Device, CacheFilename);
 
 			if (FFileHelper::SaveArrayToFile(DeviceCache, *BinaryCacheFilename))
 			{
@@ -577,13 +560,7 @@ void FVulkanPipelineStateCacheManager::Save(const FString& CacheFilename, bool b
 		PipelineSizeList.GenerateValueArray(File.PipelineSizes);
 		File.Save(Ar);
 
-		const VkPhysicalDeviceProperties& DeviceProperties = Device->GetDeviceProperties();
-		FString BinaryCacheAppendage = FString::Printf(TEXT(".%x.%x"), DeviceProperties.vendorID, DeviceProperties.deviceID);
-		FString LruCacheFilename = CacheFilename;
-		if (!CacheFilename.EndsWith(BinaryCacheAppendage))
-		{
-			LruCacheFilename += BinaryCacheAppendage;
-		}
+		FString LruCacheFilename = FVulkanPlatform::CreatePSOBinaryCacheFilename(Device, CacheFilename);
 		LruCacheFilename += TEXT(".lru");
 
 		if (FFileHelper::SaveArrayToFile(MemFile, *LruCacheFilename))
@@ -1869,40 +1846,6 @@ inline void SerializeArray(FArchive& Ar, TArray<T*>& Array)
 			Ar << *(Array[Index]);
 		}
 	}
-}
-
-bool FVulkanPipelineStateCacheManager::BinaryCacheMatches(FVulkanDevice* InDevice, const TArray<uint8>& DeviceCache)
-{
-	if (DeviceCache.Num() > 4)
-	{
-		uint32* Data = (uint32*)DeviceCache.GetData();
-		uint32 HeaderSize = *Data++;
-		// 16 is HeaderSize + HeaderVersion
-		if (HeaderSize == 16 + VK_UUID_SIZE)
-		{
-			uint32 HeaderVersion = *Data++;
-			if (HeaderVersion == VK_PIPELINE_CACHE_HEADER_VERSION_ONE)
-			{
-				uint32 VendorID = *Data++;
-				const VkPhysicalDeviceProperties& DeviceProperties = InDevice->GetDeviceProperties();
-				if (VendorID == DeviceProperties.vendorID)
-				{
-					uint32 DeviceID = *Data++;
-					if (DeviceID == DeviceProperties.deviceID)
-					{
-						uint8* Uuid = (uint8*)Data;
-						if (FMemory::Memcmp(DeviceProperties.pipelineCacheUUID, Uuid, VK_UUID_SIZE) == 0)
-						{
-							// This particular binary cache matches this device
-							return true;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return false;
 }
 
 #if VULKAN_ENABLE_LRU_CACHE
