@@ -115,12 +115,8 @@ public:
 	virtual void SetBrushFromSoftTexture(TSoftObjectPtr<UTexture2D> SoftTexture, bool bMatchSize = false);
 
 	/**  */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	UFUNCTION(BlueprintCallable, Category="Appearance")
 	virtual void SetBrushFromSoftMaterial(TSoftObjectPtr<UMaterialInterface> SoftMaterial);
-
-	/** */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	virtual void SetMaterialParamFromSoftTexture(UTexture2D* LoadingTexture, TSoftObjectPtr<UTexture2D> SoftTexture, FName TextureParamName, FName LoadingParamName);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
