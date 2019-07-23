@@ -50,6 +50,15 @@ FWindowsStylusInputInterface::~FWindowsStylusInputInterface() = default;
 
 void FWindowsStylusInputInterface::Tick()
 {
+	for (const FTabletContextInfo& Context : Impl->StylusPlugin->TabletContexts)
+	{
+		// don't change focus if the stylus is down
+		if (Context.GetCurrentState().IsStylusDown())
+		{
+			return;
+		}
+	}
+
 	HANDLE_PTR HCurrentWnd;
 	Impl->RealTimeStylus->get_HWND(&HCurrentWnd);
 
