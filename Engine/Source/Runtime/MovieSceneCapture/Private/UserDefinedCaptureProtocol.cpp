@@ -7,6 +7,7 @@
 #include "Async/Async.h"
 #include "Engine/Texture.h"
 #include "UnrealClient.h"
+#include "MovieSceneCaptureModule.h"
 #include "MovieSceneCaptureSettings.h"
 #include "Slate/SceneViewport.h"
 #include "ImagePixelData.h"
@@ -325,7 +326,7 @@ void UUserDefinedImageCaptureProtocol::OnLoadConfigImpl(FMovieSceneCaptureSettin
 		OutputFormat.Append(TEXT(".{frame}"));
 
 		InSettings.OutputFormat = OutputFormat;
-		UE_LOG(LogTemp, Warning, TEXT("Automatically appended .{frame} to the format string as specified format string did not provide a way to differentiate between frames via {frame} or {shot_frame}!"));
+		UE_LOG(LogMovieSceneCapture, Display, TEXT("Automatically appended .{frame} to the format string as specified format string did not provide a way to differentiate between frames via {frame} or {shot_frame}!"));
 	}
 }
 
