@@ -84,6 +84,8 @@ public:
 	uint8 bAutoSaveAsset : 1;
 	/** If true, the root bone transform will be removed from all bone transforms */
 	uint8 bRemoveRootTransform : 1;
+	/** If true we check delta time at beginning of recording */
+	uint8 bCheckDeltaTimeAtBeginning : 1;
 	/** The interpolation mode for the recorded keys */
 	ERichCurveInterpMode InterpMode;
 	/** The tangent mode for the recorded keys*/
