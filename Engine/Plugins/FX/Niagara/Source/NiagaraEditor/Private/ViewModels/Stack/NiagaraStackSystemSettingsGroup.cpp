@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "ViewModels/Stack/NiagaraStackParameterStoreGroup.h"
+#include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
@@ -15,6 +15,7 @@
 #include "NiagaraStackEditorData.h"
 #include "ScopedTransaction.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/Stack/NiagaraStackSystemPropertiesItem.h"
 
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreGroup"
@@ -103,52 +104,74 @@ private:
 	UNiagaraStackEditorData& StackEditorData;
 };
 
-void UNiagaraStackParameterStoreGroup::Initialize(
+void UNiagaraStackSystemSettingsGroup::Initialize(
 	FRequiredEntryData InRequiredEntryData,
 	UObject* InOwner,
 	FNiagaraParameterStore* InParameterStore)
 {
-	AddUtilities = MakeShared<FParameterStoreGroupAddUtiliites>(*InOwner, *InParameterStore, *InRequiredEntryData.StackEditorData, 
-		FParameterStoreGroupAddUtiliites::FOnItemAdded::CreateUObject(this, &UNiagaraStackParameterStoreGroup::ParameterAdded));
-	FText DisplayName = LOCTEXT("SystemExposedVariablesGroup", "System Exposed Parameters");
-	FText ToolTip = LOCTEXT("SystemExposedVariablesGroupToolTip", "Displays the variables created in the User namespace. These variables are exposed to owning UComponents, blueprints, etc.");
-	Super::Initialize(InRequiredEntryData, DisplayName, ToolTip, AddUtilities.Get());
-	
+	AddUtilities = MakeShared<FParameterStoreGroupAddUtiliites>(*InOwner, *InParameterStore, *InRequiredEntryData.StackEditorData,
+		FParameterStoreGroupAddUtiliites::FOnItemAdded::CreateUObject(this, &UNiagaraStackSystemSettingsGroup::ParameterAdded));
+	FText DisplayName = LOCTEXT("SystemSettingsGroupName", "System Settings");
+	FText Tooltip = LOCTEXT("SystemSettingsTooltip", "Settings of the System.");
+	Super::Initialize(InRequiredEntryData, DisplayName, Tooltip, AddUtilities.Get());
+
 	Owner = InOwner;
-	ParameterStore = InParameterStore;
+	UserParameterStore = InParameterStore;
 }
 
-void UNiagaraStackParameterStoreGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+void UNiagaraStackSystemSettingsGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-	if (ParameterStore != nullptr)
+	if (UserParameterStore != nullptr)
 	{
-		FName ParameterStoreItemSpacerKey = "ParameterStoreSpacer";
-		UNiagaraStackSpacer* ParameterStoreItemSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
-			[=](UNiagaraStackSpacer* CurrentParameterStoreItemSpacer) { return CurrentParameterStoreItemSpacer->GetSpacerKey() == ParameterStoreItemSpacerKey; });
+		FName UserParameterStoreItemSpacerKey = "UserParameterStoreSpacer";
+		UNiagaraStackSpacer* UserParameterStoreItemSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
+			[=](UNiagaraStackSpacer* CurrentParameterStoreItemSpacer) { return CurrentParameterStoreItemSpacer->GetSpacerKey() == UserParameterStoreItemSpacerKey; });
 
-		if (ParameterStoreItemSpacer == nullptr)
+		if (UserParameterStoreItemSpacer == nullptr)
 		{
-			ParameterStoreItemSpacer = NewObject<UNiagaraStackSpacer>(this);
-			ParameterStoreItemSpacer->Initialize(CreateDefaultChildRequiredData(), ParameterStoreItemSpacerKey, 1.4f);
+			UserParameterStoreItemSpacer = NewObject<UNiagaraStackSpacer>(this);
+			UserParameterStoreItemSpacer->Initialize(CreateDefaultChildRequiredData(), UserParameterStoreItemSpacerKey, 1.4f);
 		}
 
-		NewChildren.Add(ParameterStoreItemSpacer);
+		NewChildren.Add(UserParameterStoreItemSpacer);
 
-		UNiagaraStackParameterStoreItem* ParameterStoreItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackParameterStoreItem>(CurrentChildren,
+		UNiagaraStackParameterStoreItem* UserParameterStoreItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackParameterStoreItem>(CurrentChildren,
 			[=](UNiagaraStackParameterStoreItem* CurrentItem) { return true; });
 
-		if (ParameterStoreItem == nullptr)
+		if (UserParameterStoreItem == nullptr)
 		{
-			ParameterStoreItem = NewObject<UNiagaraStackParameterStoreItem>(this);
-			ParameterStoreItem->Initialize(CreateDefaultChildRequiredData(), Owner.Get(), ParameterStore);
+			UserParameterStoreItem = NewObject<UNiagaraStackParameterStoreItem>(this);
+			UserParameterStoreItem->Initialize(CreateDefaultChildRequiredData(), Owner.Get(), UserParameterStore);
 		}
 
-		NewChildren.Add(ParameterStoreItem);
+		NewChildren.Add(UserParameterStoreItem);
 	}
+
+	FName SystemPropertiesItemSpacerKey = "SystemPropertiesSpacer";
+	UNiagaraStackSpacer* SystemPropertiesItemSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
+		[=](UNiagaraStackSpacer* CurrentSystemPropertiesItemSpacer) { return CurrentSystemPropertiesItemSpacer->GetSpacerKey() == SystemPropertiesItemSpacerKey; });
+
+	if (SystemPropertiesItemSpacer == nullptr)
+	{
+		SystemPropertiesItemSpacer = NewObject<UNiagaraStackSpacer>(this);
+		SystemPropertiesItemSpacer->Initialize(CreateDefaultChildRequiredData(), SystemPropertiesItemSpacerKey, 1.4f);
+	}
+	NewChildren.Add(SystemPropertiesItemSpacer);
+
+	UNiagaraStackSystemPropertiesItem* SystemPropertiesItem = FindCurrentChildOfTypeByPredicate<UNiagaraStackSystemPropertiesItem>(CurrentChildren,
+		[=](UNiagaraStackSystemPropertiesItem* CurrentItem) { return true; });
+
+	if (SystemPropertiesItem == nullptr)
+	{
+		SystemPropertiesItem = NewObject<UNiagaraStackSystemPropertiesItem>(this);
+		SystemPropertiesItem->Initialize(CreateDefaultChildRequiredData());
+	}
+	NewChildren.Add(SystemPropertiesItem);
+
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
-void UNiagaraStackParameterStoreGroup::ParameterAdded(FNiagaraVariable AddedParameter)
+void UNiagaraStackSystemSettingsGroup::ParameterAdded(FNiagaraVariable AddedParameter)
 {
 	RefreshChildren();
 }
@@ -166,7 +189,12 @@ void UNiagaraStackParameterStoreItem::Initialize(
 
 FText UNiagaraStackParameterStoreItem::GetDisplayName() const
 {
-	return LOCTEXT("ParameterItemDisplayName", "Parameters");
+	return LOCTEXT("ParameterItemDisplayName", "User Parameters");
+}
+
+FText UNiagaraStackParameterStoreItem::GetTooltipText() const
+{
+	return LOCTEXT("ParameterItemTooltip", "Displays the variables created in the User namespace. These variables are exposed to owning UComponents, blueprints, etc.");
 }
 
 void UNiagaraStackParameterStoreItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
