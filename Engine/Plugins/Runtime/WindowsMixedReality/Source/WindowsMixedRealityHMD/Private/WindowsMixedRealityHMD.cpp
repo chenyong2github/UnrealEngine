@@ -479,16 +479,20 @@ namespace WindowsMixedReality
 
 		if (!HMD->IsRemoting() && HMD->HasUserPresenceChanged())
 		{
-			currentWornState = GetHMDWornState();
+			auto newWornState = GetHMDWornState();
 
-			// Broadcast HMD worn/ not worn delegates.
-			if (currentWornState == EHMDWornState::Worn)
+			if (newWornState != currentWornState)
 			{
-				FCoreDelegates::VRHeadsetPutOnHead.Broadcast();
-			}
-			else if (currentWornState == EHMDWornState::NotWorn)
-			{
-				FCoreDelegates::VRHeadsetRemovedFromHead.Broadcast();
+				currentWornState = newWornState;
+				// Broadcast HMD worn/ not worn delegates.
+				if (currentWornState == EHMDWornState::Worn)
+				{
+					FCoreDelegates::VRHeadsetPutOnHead.Broadcast();
+				}
+				else if (currentWornState == EHMDWornState::NotWorn)
+				{
+					FCoreDelegates::VRHeadsetRemovedFromHead.Broadcast();
+				}
 			}
 		}
 
