@@ -56,6 +56,7 @@ struct FFlattenMaterial
 		, bDitheredLODTransition(false)
 		, BlendMode(BLEND_Opaque)
 		, EmissiveScale(1.0f)
+		, UVChannel(0)
 	{
 		for (FIntPoint& Size : PropertySizes)
 		{
@@ -108,8 +109,10 @@ struct FFlattenMaterial
 	EBlendMode		BlendMode;
 	/** Scale (maximum baked down value) for the emissive property */
 	float			EmissiveScale;
-private:
+	/** UV channel to use */
+	int32			UVChannel;
 
+private:
 	/** Texture sizes for each individual property*/
 	FIntPoint PropertySizes[(uint32)EFlattenMaterialProperties::NumFlattenMaterialProperties];
 	/** Baked down texture samples for each individual property*/
