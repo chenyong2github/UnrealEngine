@@ -44,7 +44,7 @@ public:
 	void RequestLandscapeUpdate();
 
 #if WITH_EDITOR
-	void SetOwningLandscape(class ALandscape* InOwningLandscape);
+	virtual void SetOwningLandscape(class ALandscape* InOwningLandscape);
 	class ALandscape* GetOwningLandscape() const;
 
 	bool IsAffectingHeightmap() const { return AffectHeightmap; }
