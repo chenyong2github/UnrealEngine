@@ -827,7 +827,7 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 	FilteredRootAction->GetAllNodes(AllNodes);
 
 	// Print out the info about which action we picked and why
-	if (ContextMenuConsoleVariables::bPrintDebugContextSelection)
+	if (ContextMenuConsoleVariables::bPrintDebugContextSelection && FilterTerms.Num() > 0)
 	{
 		BestMatchDebugInfo.Print();
 	}
