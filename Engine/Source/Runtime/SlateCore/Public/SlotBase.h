@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Attribute.h"
 #include "Widgets/InvalidateWidgetReason.h"
 
 class SWidget;
