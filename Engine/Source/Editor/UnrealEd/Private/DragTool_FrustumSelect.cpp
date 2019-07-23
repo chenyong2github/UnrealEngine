@@ -77,7 +77,10 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 	// Let the editor mode try to handle the selection.
 	const bool bEditorModeHandledSelection = ModeTools->FrustumSelect(Frustum, LevelViewportClient, bLeftMouseButtonDown);
 
-	if( !bEditorModeHandledSelection )
+	// Let the component visualizers try to handle the selection.
+	const bool bComponentVisHandledSelection = !bEditorModeHandledSelection && GUnrealEd->ComponentVisManager.HandleFrustumSelect(Frustum, LevelViewportClient, LevelViewportClient->Viewport);
+
+	if( !bEditorModeHandledSelection && !bComponentVisHandledSelection)
 	{
 		if( !bShiftDown )
 		{
