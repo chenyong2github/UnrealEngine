@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.82";
+        private static string VersionString = "3.83";
 
         public static string Get() { return VersionString; }
     };
@@ -817,6 +817,8 @@ namespace PerfReportTool
             CsvStats csvStats = CsvStats.ReadCSVFromLines(csvFile.lines, null);
 			reportXML.ApplyDerivedMetadata(csvStats.metaData);
 
+			csvStats.metaData.Values.Add("csvfilename", csvFile.filename);
+
 			// Crop the stats to the range
 			csvStats.CropStats(minX, maxX);
 
@@ -878,10 +880,33 @@ namespace PerfReportTool
 				}
 
 				htmlFile.WriteLine("  <h2>Summary</h2>");
-                htmlFile.WriteLine("<p>Frame count : " + csvStats.SampleCount + " (" + numFramesStripped + " excluded)</p>");
-            }
 
-            if (summaryMetadata != null)
+				htmlFile.WriteLine("<table border='0'  bgcolor='#000000' style='width:800'>");
+
+				if ( reportTypeInfo.metadataToShowList != null )
+				{
+				    Dictionary<string, string> displayNameMapping = reportXML.GetDisplayNameMapping();
+    
+				    foreach (string metadataStr in reportTypeInfo.metadataToShowList)
+				    {
+					    string value = csvStats.metaData.GetValue(metadataStr, null);
+					    if (value != null)
+					    {
+						    string friendlyName = metadataStr;
+						    if (displayNameMapping.ContainsKey(metadataStr.ToLower()))
+						    {
+							    friendlyName = displayNameMapping[metadataStr];
+						    }
+						    htmlFile.WriteLine("<tr bgcolor='#ffffff'><td bgcolor='#F0F0F0'>" + friendlyName + "</td><td><b>" + value + "</b></td></tr>");
+					    }
+				    }
+				}
+				htmlFile.WriteLine("<tr bgcolor='#ffffff'><td bgcolor='#F0F0F0'>Frame count</td><td>" + csvStats.SampleCount + " (" + numFramesStripped + " excluded)</td></tr>");
+				htmlFile.WriteLine("</table>");
+
+			}
+
+			if (summaryMetadata != null)
             {
                 summaryMetadata.Add("framecount", csvStats.SampleCount.ToString());
                 if (numFramesStripped > 0)
@@ -1247,35 +1272,39 @@ namespace PerfReportTool
             title = element.Attribute("title").Value;
             foreach (XElement child in element.Elements())
             {
-                if (child.Name == "graph")
-                {
-                    ReportGraph graph = new ReportGraph(child);
-                    graphs.Add(graph);
-                }
-                else if (child.Name == "summary")
-                {
-                    string summaryType = child.Attribute("type").Value;
-                    if (summaryType == "histogram")
-                    {
-                        summaries.Add(new HistogramSummary(child));
-                    }
-                    else if (summaryType == "peak")
-                    {
-                        summaries.Add(new PeakSummary(child));
-                    }
-                    else if (summaryType == "fpschart")
-                    {
-                        summaries.Add(new FPSChartSummary(child));
-                    }
-                    else if (summaryType == "hitches")
-                    {
-                        summaries.Add(new HitchSummary(child));
-                    }
-                    else if (summaryType == "event")
-                    {
-                        summaries.Add(new EventSummary(child));
-                    }
-                }
+				if (child.Name == "graph")
+				{
+					ReportGraph graph = new ReportGraph(child);
+					graphs.Add(graph);
+				}
+				else if (child.Name == "summary")
+				{
+					string summaryType = child.Attribute("type").Value;
+					if (summaryType == "histogram")
+					{
+						summaries.Add(new HistogramSummary(child));
+					}
+					else if (summaryType == "peak")
+					{
+						summaries.Add(new PeakSummary(child));
+					}
+					else if (summaryType == "fpschart")
+					{
+						summaries.Add(new FPSChartSummary(child));
+					}
+					else if (summaryType == "hitches")
+					{
+						summaries.Add(new HitchSummary(child));
+					}
+					else if (summaryType == "event")
+					{
+						summaries.Add(new EventSummary(child));
+					}
+				}
+				else if (child.Name == "metadataToShow")
+				{
+					metadataToShowList = child.Value.Split(',');
+				}
 
             }
         }
@@ -1283,6 +1312,7 @@ namespace PerfReportTool
 		public List<ReportGraph> graphs;
         public List<Summary> summaries;
         public string title;
+		public string [] metadataToShowList;
 	};
 
 
