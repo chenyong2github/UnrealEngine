@@ -113,6 +113,8 @@ FOpusAudioInfo::~FOpusAudioInfo()
 
 bool FOpusAudioInfo::ParseHeader(const uint8* InSrcBufferData, uint32 InSrcBufferDataSize, struct FSoundQualityInfo* QualityInfo)
 {
+	SrcBufferData = InSrcBufferData;
+	SrcBufferDataSize = InSrcBufferDataSize;
 	SrcBufferOffset = 0;
 	CurrentSampleCount = 0;
 
