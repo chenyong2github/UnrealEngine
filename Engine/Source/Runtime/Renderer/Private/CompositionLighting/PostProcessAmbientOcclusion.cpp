@@ -175,21 +175,25 @@ uint32 FSSAOHelper::ComputeAmbientOcclusionPassCount(const FViewInfo& View)
 
 	if (bEnabled)
 	{
+		int32 CVarLevel = GetNumAmbientOcclusionLevels();
+
 		if (IsAmbientOcclusionCompute(View) || IsForwardShadingEnabled(View.GetShaderPlatform()))
 		{	
+			if (CVarLevel<0)
+			{
+				CVarLevel = 1;
+			}
 			// Compute and forward only support one pass currently.
-			return FMath::Min<int32>(GetNumAmbientOcclusionLevels(), 1);
+			return FMath::Min<int32>(CVarLevel, 1);
 		}
 
-		// usually in the range 0..100
+		// usually in the range 0..100 
 		float QualityPercent = GetAmbientOcclusionQualityRT(View);
 
 		// don't expose 0 as the lowest quality should still render
 		Ret = 1 +
 			(QualityPercent > 70.0f) +
 			(QualityPercent > 35.0f);
-
-		int32 CVarLevel = GetNumAmbientOcclusionLevels();
 
 		if (CVarLevel >= 0)
 		{
