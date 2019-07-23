@@ -6,6 +6,7 @@
 
 #include "RHI.h"
 #include "RHIResources.h"
+#include "Engine/Scene.h"
 #include "StereoRenderTargetManager.h"
 
 #include "Render/Device/DisplayClusterDeviceBase_PostProcess.h"
