@@ -20,7 +20,8 @@ UEditableStaticMeshAdapter::UEditableStaticMeshAdapter()
 	  StaticMeshLODIndex( 0 ),
 	  RecreateRenderStateContext(),
 	  CachedBoundingBoxAndSphere( FVector::ZeroVector, FVector::ZeroVector, 0.0f ),
-	  bUpdateCollisionNeeded( false )
+	  bUpdateCollisionNeeded( false ),
+	  bRecreateSimplifiedCollision( true )
 {
 }
 
@@ -1041,7 +1042,10 @@ void UEditableStaticMeshAdapter::UpdateCollision()
 	// @todo mesheditor collision: We're wiping the existing simplified collision and generating a simple bounding
 	// box collision, since that's the best we can do without impacting performance.  We always using visibility (complex)
 	// collision for traces while mesh editing (for hover/selection), so simplified collision isn't really important.
-	const bool bRecreateSimplifiedCollision = true;
+	if ( !bRecreateSimplifiedCollision )
+	{
+		return;
+	}
 
 	if( StaticMesh->BodySetup == nullptr )
 	{
@@ -1059,27 +1063,21 @@ void UEditableStaticMeshAdapter::UpdateCollision()
 	// NOTE: We don't bother calling Modify() on the BodySetup as EndModification() will rebuild this guy after every undo
 	// BodySetup->Modify();
 
-	if( bRecreateSimplifiedCollision )
+	if( BodySetup->AggGeom.GetElementCount() > 0 )
 	{
-		if( BodySetup->AggGeom.GetElementCount() > 0 )
-		{
-			BodySetup->RemoveSimpleCollision();
-		}
+		BodySetup->RemoveSimpleCollision();
 	}
 
 	BodySetup->InvalidatePhysicsData();
 
-	if( bRecreateSimplifiedCollision )
-	{
-		const FBoxSphereBounds Bounds = StaticMesh->GetBounds();
+	const FBoxSphereBounds Bounds = StaticMesh->GetBounds();
 
-		FKBoxElem BoxElem;
-		BoxElem.Center = Bounds.Origin;
-		BoxElem.X = Bounds.BoxExtent.X * 2.0f;
-		BoxElem.Y = Bounds.BoxExtent.Y * 2.0f;
-		BoxElem.Z = Bounds.BoxExtent.Z * 2.0f;
-		BodySetup->AggGeom.BoxElems.Add( BoxElem );
-	}
+	FKBoxElem BoxElem;
+	BoxElem.Center = Bounds.Origin;
+	BoxElem.X = Bounds.BoxExtent.X * 2.0f;
+	BoxElem.Y = Bounds.BoxExtent.Y * 2.0f;
+	BoxElem.Z = Bounds.BoxExtent.Z * 2.0f;
+	BodySetup->AggGeom.BoxElems.Add( BoxElem );
 
 	// Update all static mesh components that are using this mesh
 	// @todo mesheditor perf: This is a pretty heavy operation, and overlaps with what we're already doing in RecreateRenderStateContext
