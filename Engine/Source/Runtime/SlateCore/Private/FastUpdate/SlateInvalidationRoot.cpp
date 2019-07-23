@@ -581,5 +581,7 @@ void FSlateInvalidationRoot::OnInvalidateAllWidgets()
 {
 	InvalidateChildOrder();
 
+	InvalidationRootWidget->InvalidatePrepass();
+
 	bNeedsSlowPath = true;
 }
