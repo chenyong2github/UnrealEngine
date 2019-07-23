@@ -169,12 +169,7 @@ class RHI_API FDefaultRHIRenderQueryPool final : public FRHIRenderQueryPool
 {
 public:
 	FDefaultRHIRenderQueryPool(ERenderQueryType InQueryType, FDynamicRHI* InDynamicRHI, uint32 InNumQueries);
-
-	~FDefaultRHIRenderQueryPool() override 
-	{
-		check(IsInRenderingThread());
-		checkf(AllocatedQueries == Queries.Num(), TEXT("Querypool deleted before all Queries have been released"));
-	}
+	~FDefaultRHIRenderQueryPool() override;
 
 private:
 	virtual FRHIPooledRenderQuery AllocateQuery() override;

@@ -366,9 +366,16 @@ FDefaultRHIRenderQueryPool::FDefaultRHIRenderQueryPool(ERenderQueryType InQueryT
 		for (uint32 i = 0; i < NumQueries; i++)
 		{
 			Queries.Push(DynamicRHI->RHICreateRenderQuery(QueryType));
+			check(Queries.Last().IsValid());
 			++AllocatedQueries;
 		}
 	}
+}
+
+FDefaultRHIRenderQueryPool::~FDefaultRHIRenderQueryPool()
+{
+	check(IsInRenderingThread());
+	checkf(AllocatedQueries == Queries.Num(), TEXT("Querypool deleted before all Queries have been released"));
 }
 
 FRHIPooledRenderQuery FDefaultRHIRenderQueryPool::AllocateQuery()
@@ -380,8 +387,13 @@ FRHIPooledRenderQuery FDefaultRHIRenderQueryPool::AllocateQuery()
 	}
 	else
 	{
-		ensure(++AllocatedQueries <= NumQueries);
-		return FRHIPooledRenderQuery(this, DynamicRHI->RHICreateRenderQuery(QueryType));
+		FRHIPooledRenderQuery Query = FRHIPooledRenderQuery(this, DynamicRHI->RHICreateRenderQuery(QueryType));
+		if (Query.IsValid())
+		{
+			++AllocatedQueries;
+		}
+		ensure(AllocatedQueries <= NumQueries);
+		return Query;
 	}
 }
 
@@ -395,6 +407,10 @@ void FDefaultRHIRenderQueryPool::ReleaseQuery(TRefCountPtr<FRHIRenderQuery>&& Qu
 	check(IsInRenderingThread());
 	//Hard to validate because of Resource resurrection, better to remove GetQueryRef entirely
 	//checkf(Query.IsValid() && Query.GetRefCount() <= 2, TEXT("Query has been released but reference still held: use FRHIPooledRenderQuery::GetQueryRef() with extreme caution"));
+	
+	checkf(Query.IsValid(), TEXT("Only release valid queries"));
+	checkf((uint32)Queries.Num() < NumQueries, TEXT("Pool contains more queries than it started with, double release somewhere?"));
+
 	Queries.Push(MoveTemp(Query));
 	check(!Query.IsValid());
 }
