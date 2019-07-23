@@ -3,6 +3,6 @@
 // in Platform.ush (which should be included in any shader) it allows to invalidate the shader DDC.
 // 
 // If you are merging streams and there is a conflict with this GUID you should make a new GUID rather than taking one or the other.
-// GUID = 69f74d6AA9DA4A1DA3BFFA82DBA76DBA
+// GUID = 5F4B9C07A98C448285D3008A25E3A32A
 
 

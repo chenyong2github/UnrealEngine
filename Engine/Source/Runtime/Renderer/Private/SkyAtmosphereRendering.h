@@ -18,6 +18,7 @@ class USkyAtmosphereComponent;
 
 
 // Use as a global shader parameter struct and also the CPU structure representing the atmosphere it self.
+// This is static for a version of a component. When a component is changed/tweaked, it is recreated.
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAtmosphereUniformShaderParameters, )
 	SHADER_PARAMETER(float, MultiScatteringFactor)
 	SHADER_PARAMETER(float, BottomRadius)
@@ -38,17 +39,16 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAtmosphereUniformShaderParameters, )
 	SHADER_PARAMETER(FLinearColor, GroundAlbedo)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-// Extra data shared by the Sky/Atmosphere system with Base passes.
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereBasePassSharedUniformShaderParameters,)
-	SHADER_PARAMETER_TEXTURE(Texture3D, CameraAerialPerspectiveVolume)
-	SHADER_PARAMETER_SAMPLER(SamplerState, CameraAerialPerspectiveVolumeSampler)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeStartDepth)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthResolution)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthResolutionInv)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthSliceLength)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthSliceLengthInv)
-	SHADER_PARAMETER(float, ApplyCameraAerialPerspectiveVolume)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
+// These parameters are shared on the view global uniform buffer and are dynamically changed with cvars.
+struct FSkyAtmosphereViewSharedUniformShaderParameters
+{
+	float CameraAerialPerspectiveVolumeStartDepth;
+	float CameraAerialPerspectiveVolumeDepthResolution;
+	float CameraAerialPerspectiveVolumeDepthResolutionInv;
+	float CameraAerialPerspectiveVolumeDepthSliceLength;
+	float CameraAerialPerspectiveVolumeDepthSliceLengthInv;
+	float ApplyCameraAerialPerspectiveVolume;
+};
 
 
 
@@ -95,6 +95,6 @@ private:
 
 bool ShouldRenderSkyAtmosphere(const FSkyAtmosphereRenderSceneInfo* SkyAtmosphere, EShaderPlatform ShaderPlatform);
 
-extern void SetupSkyAtmosphereBasePassSharedUniformShaderParameters(const class FViewInfo& View, FSkyAtmosphereBasePassSharedUniformShaderParameters& OutParameters);
+extern void SetupSkyAtmosphereViewSharedUniformShaderParameters(const class FViewInfo& View, FSkyAtmosphereViewSharedUniformShaderParameters& OutParameters);
 
 

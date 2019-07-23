@@ -157,8 +157,6 @@ void SetupMobileBasePassUniformParameters(
 {
 	SetupFogUniformParameters(View, BasePassParameters.Fog);
 
-	SetupSkyAtmosphereBasePassSharedUniformShaderParameters(View, BasePassParameters.SkyAtmosphere);
-
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, BasePassParameters.PlanarReflection);

@@ -1227,8 +1227,8 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyAtmosphereBottomRadius = AtmosphereSetup.BottomRadius;
 		ViewUniformShaderParameters.SkyAtmosphereTopRadius = AtmosphereSetup.TopRadius;
 
-		FSkyAtmosphereBasePassSharedUniformShaderParameters OutParameters;
-		SetupSkyAtmosphereBasePassSharedUniformShaderParameters(*this, OutParameters);
+		FSkyAtmosphereViewSharedUniformShaderParameters OutParameters;
+		SetupSkyAtmosphereViewSharedUniformShaderParameters(*this, OutParameters);
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeStartDepth = OutParameters.CameraAerialPerspectiveVolumeStartDepth;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution = OutParameters.CameraAerialPerspectiveVolumeDepthResolution;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv = OutParameters.CameraAerialPerspectiveVolumeDepthResolutionInv;

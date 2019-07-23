@@ -218,7 +218,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters, )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAtmosphereUniformShaderParameters, "Atmosphere");
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereBasePassSharedUniformShaderParameters, "SkyAtmosphere");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters, "SkyAtmosphere");
 
 
@@ -255,7 +254,7 @@ bool ShouldRenderSkyAtmosphere(const FSkyAtmosphereRenderSceneInfo* SkyAtmospher
 	// TODO: Add new or reuse EngineShowFlags.AtmosphericFog? ALso take into account EngineShowFlags.Fog as previously?
 }
 
-void SetupSkyAtmosphereBasePassSharedUniformShaderParameters(const class FViewInfo& View, FSkyAtmosphereBasePassSharedUniformShaderParameters& OutParameters)
+void SetupSkyAtmosphereViewSharedUniformShaderParameters(const class FViewInfo& View, FSkyAtmosphereViewSharedUniformShaderParameters& OutParameters)
 {
 	GET_VALID_DATA_FROM_CVAR;
 
@@ -264,7 +263,6 @@ void SetupSkyAtmosphereBasePassSharedUniformShaderParameters(const class FViewIn
 	{
 		SkyAtmosphereCameraAerialPerspectiveVolume = View.SkyAtmosphereCameraAerialPerspectiveVolume->GetRenderTargetItem().ShaderResourceTexture;
 	}
-	SetBlackAlpha13DIfNull(SkyAtmosphereCameraAerialPerspectiveVolume);
 
 	OutParameters.ApplyCameraAerialPerspectiveVolume = View.SkyAtmosphereCameraAerialPerspectiveVolume == nullptr ? 0.0f : 1.0f;
 	OutParameters.CameraAerialPerspectiveVolumeStartDepth = CameraAerialPerspectiveVolumeStartDepth;
@@ -272,8 +270,8 @@ void SetupSkyAtmosphereBasePassSharedUniformShaderParameters(const class FViewIn
 	OutParameters.CameraAerialPerspectiveVolumeDepthResolutionInv = 1.0f / OutParameters.CameraAerialPerspectiveVolumeDepthResolution;
 	OutParameters.CameraAerialPerspectiveVolumeDepthSliceLength = CameraAerialPerspectiveVolumeDepthSliceLength;
 	OutParameters.CameraAerialPerspectiveVolumeDepthSliceLengthInv = 1.0f / OutParameters.CameraAerialPerspectiveVolumeDepthSliceLength;
-	OutParameters.CameraAerialPerspectiveVolume = SkyAtmosphereCameraAerialPerspectiveVolume;
-	OutParameters.CameraAerialPerspectiveVolumeSampler = TStaticSamplerState<SF_Trilinear>::GetRHI();
+
+	SetBlackAlpha13DIfNull(SkyAtmosphereCameraAerialPerspectiveVolume); // Needs to be after we set ApplyCameraAerialPerspectiveVolume
 }
 
 static void CopyAtmosphereSetupToUniformShaderParameters(FAtmosphereUniformShaderParameters& out, const FAtmosphereSetup& Atmosphere)

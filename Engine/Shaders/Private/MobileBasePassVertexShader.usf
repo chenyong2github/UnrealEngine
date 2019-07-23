@@ -89,18 +89,18 @@ void Main(
 #if USE_VERTEX_FOG
 	float4 VertexFog = CalculateHeightFog(WorldPosition.xyz - ResolvedView.TranslatedWorldCameraOrigin);
 
-	if (ApplyCameraAerialPerspectiveVolume > 0.0f)
+	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
 		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
 		// Sample the aerial perspective (AP). It is also blended under the VertexFog parameter.
 		float4 AP = GetAerialPerspectiveLuminanceTransmittance(
 			Output.Position, WorldPosition.xyz*CM_TO_SKY_UNIT, ResolvedView.TranslatedWorldCameraOrigin*CM_TO_SKY_UNIT,
-			CameraAerialPerspectiveVolume, CameraAerialPerspectiveVolumeSampler,
-			CameraAerialPerspectiveVolumeDepthResolutionInv,
-			CameraAerialPerspectiveVolumeDepthResolution,
-			CameraAerialPerspectiveVolumeStartDepth,
-			CameraAerialPerspectiveVolumeDepthSliceLength,
-			CameraAerialPerspectiveVolumeDepthSliceLengthInv,
+			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeStartDepth,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
+			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
 			OneOverPreExposure, VertexFog);
 	}
 #if PACK_INTERPOLANTS
