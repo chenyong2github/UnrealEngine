@@ -3,11 +3,13 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
+#include "GraphEditor.h"
 
 class FNiagaraSystemViewModel;
-class SGraphEditor;
 struct FActionMenuContent;
 class FMenuBuilder;
+class UEdGraph;
+class UEdGraphNode;
 
 class SNiagaraOverviewGraph : public SCompoundWidget
 {
