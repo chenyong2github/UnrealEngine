@@ -15,21 +15,21 @@ class FPreLoadMoviePlayerScreenBase : public FPreLoadScreenBase, public TSharedF
 public:
 
     virtual void OnPlay(TWeakPtr<SWindow> TargetWindow) override;
-    virtual void OnStop();
-    virtual void Tick(float DeltaTime);
-    virtual void RenderTick(float DeltaTime);
+    virtual void OnStop() override;
+    virtual void Tick(float DeltaTime) override;
+    virtual void RenderTick(float DeltaTime) override;
 
-    virtual void Init();
+    virtual bool Init() override;
 
     virtual TSharedPtr<SWidget> GetWidget() override { return MoviePlayerContents; }
     virtual const TSharedPtr<const SWidget> GetWidget() const override { return MoviePlayerContents; }
 
-    virtual void CleanUp();
+    virtual void CleanUp() override;
 
     virtual void SetMovieAttributes(const FPreLoadMovieAttributes& MovieAttributesIn) { MovieAttributes = MovieAttributesIn; }
 
     //Default behavior is just to see if we have an active widget. Should really overload with our own behavior to see if we are done displaying
-    virtual bool IsDone() const { return IsMovieStreamingFinished(); }
+    virtual bool IsDone() const override { return IsMovieStreamingFinished(); }
 
     virtual bool MovieStreamingIsPrepared() const;
     virtual FReply OnLoadingScreenMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& PointerEvent);
@@ -45,7 +45,7 @@ public:
     virtual bool IsMovieStreamingFinished() const;
 
     FPreLoadMoviePlayerScreenBase() {};
-    virtual ~FPreLoadMoviePlayerScreenBase() {};
+    virtual ~FPreLoadMoviePlayerScreenBase() override {};
     
     virtual void InitSettingsFromConfig(const FString& ConfigFileName) override;
 
