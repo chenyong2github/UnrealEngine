@@ -1096,7 +1096,7 @@ FSlateApplication::FSlateApplication()
 	{
 		CVarGlobalInvalidation->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([this](IConsoleVariable* Variable)
 		{
-			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation);
+			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation != 0 ? true : false);
 		}));
 	}
 }
