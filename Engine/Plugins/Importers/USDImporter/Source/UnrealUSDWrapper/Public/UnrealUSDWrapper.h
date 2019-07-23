@@ -206,7 +206,7 @@ public:
 	static UNREALUSDWRAPPER_API bool HasTransform(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API std::string GetUnrealPropertyPath(const pxr::UsdPrim& Prim);
 
-	static UNREALUSDWRAPPER_API std::vector<pxr::UsdAttribute> GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim);
+	static UNREALUSDWRAPPER_API TUsdStore< std::vector<pxr::UsdAttribute> > GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim);
 
 	static UNREALUSDWRAPPER_API std::string GetUnrealAssetPath(const pxr::UsdPrim& Prim);
 	static UNREALUSDWRAPPER_API std::string GetUnrealActorClass(const pxr::UsdPrim& Prim);
