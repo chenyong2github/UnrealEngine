@@ -1413,9 +1413,10 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 bool UNetConnection::ShouldDropOutgoingPacketForLossSimulation(int64 NumBits) const
 {
 #if DO_ENABLE_NET_TEST
-	return Driver->IsSimulatingPacketLossBurst() ||
-		(NumBits > PacketSimulationSettings.PktLossMinSize * 8 && NumBits < PacketSimulationSettings.PktLossMaxSize * 8
-		&& PacketSimulationSettings.PktLoss > 0 && FMath::FRand() * 100.f < PacketSimulationSettings.PktLoss);
+	return Driver->IsSimulatingPacketLossBurst() || 
+		(PacketSimulationSettings.PktLoss > 0 && 
+         PacketSimulationSettings.ShouldDropPacketOfSize(NumBits) && 
+         FMath::FRand() * 100.f < PacketSimulationSettings.PktLoss);
 #else
 	return false;
 #endif
