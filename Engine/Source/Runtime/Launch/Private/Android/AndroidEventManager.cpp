@@ -324,6 +324,10 @@ void FAppEventManager::PauseAudio()
 	{
 		if (AudioDevice->IsAudioMixerEnabled())
 		{
+			FAudioCommandFence Fence;
+			Fence.BeginFence();
+			Fence.Wait();
+
 			AudioDevice->SuspendContext();
 		}
 		else
