@@ -996,7 +996,8 @@ static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint
 
 		for (uint32 Y = 0; Y < Height; Y++)
 		{
-			float* SrcPtr = (float*)In;
+			float* SrcPtr = (float*)(In + Y * SrcPitch);
+
 			FColor* DestPtr = Out + Y * Width;
 
 			for (uint32 X = 0; X < Width; X++)
