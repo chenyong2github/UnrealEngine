@@ -1358,10 +1358,9 @@ public:
 	};
 	TMap<FShaderRecordCacheKey, uint32> ShaderRecordCache;
 
-#if ENABLE_RESIDENCY_MANAGEMENT
 	// A set of all resources referenced by this shader table for the purpose of updating residency before ray tracing work dispatch.
 	// #dxr_todo UE-72159: remove resources from this set when SBT slot entries are replaced
-	TSet<FD3D12Resource*> ReferencedD3D12Resources;
+	TSet<TRefCountPtr<FD3D12Resource>> ReferencedD3D12Resources;
 	TArray<TRefCountPtr<FRHIResource>> ReferencedResources;
 	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* Resource)
 	{
@@ -1380,10 +1379,6 @@ public:
 		}
 		Buffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 	}
-#else // ENABLE_RESIDENCY_MANAGEMENT
-	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* Resource) {}
-	FORCEINLINE void UpdateResidency(FD3D12CommandContext&) {}
-#endif // ENABLE_RESIDENCY_MANAGEMENT
 };
 
 
@@ -2609,6 +2604,17 @@ void FD3D12CommandContext::RHIBuildAccelerationStructure(FRHIRayTracingScene* In
 	Scene->BuildAccelerationStructure(*this, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 }
 
+void FD3D12CommandContext::RHIClearRayTracingBindings(FRHIRayTracingScene* InScene)
+{
+	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
+
+	auto& Table = Scene->ShaderTables[GetGPUIndex()];
+	for (auto Item : Table)
+	{
+		delete Item.Value;
+	}
+	Table.Reset();
+}
 
 struct FD3D12RayTracingGlobalResourceBinder
 {
