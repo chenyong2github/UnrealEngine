@@ -1135,20 +1135,6 @@ FString FAndroidMisc::LoadTextFileFromPlatformPackage(const FString& RelativePat
 	return FString();
 }
 
-bool FAndroidMisc::FileExitsInPlatformPackage(const FString& RelativePath)
-{
-#if USE_ANDROID_JNI
-	AAssetManager* AssetMgr = AndroidThunkCpp_GetAssetManager();
-	AAsset* asset = AAssetManager_open(AssetMgr, TCHAR_TO_UTF8(*RelativePath), AASSET_MODE_UNKNOWN);
-	if (asset)
-	{
-		AAsset_close(asset);
-		return true;
-	}
-#endif
-	return false;
-}
-
 void FAndroidMisc::SetVersionInfo( FString InAndroidVersion, FString InDeviceMake, FString InDeviceModel, FString InDeviceBuildNumber, FString InOSLanguage )
 {
 	AndroidVersion = InAndroidVersion;

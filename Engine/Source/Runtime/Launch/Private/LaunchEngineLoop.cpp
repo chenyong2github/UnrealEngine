@@ -2476,12 +2476,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen))
 					{
 						// disable the splash before playing the early startup screen
-						FPreLoadScreenManager::IsResponsibleForRenderingDelegate.AddLambda(
-							[](bool bIsPreloadScreenManResponsibleForRendering) 
-							{
-								FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
-							}
-						);
+						FPlatformMisc::PlatformHandleSplashScreen(false);
 	                    FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
 	                }
 					else
