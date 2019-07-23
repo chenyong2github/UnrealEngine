@@ -142,6 +142,9 @@ protected:
 	/** Handler/callback called by menus created by this anchor, when they are dismissed */
 	void OnMenuClosed(TSharedRef<IMenu> InMenu);
 
+	/** Reset the popup state to prepopup. */
+	void ResetPopupMenuContent();
+
 	/** Computes the placement geometry for menus displayed in a separately created window */
 	FGeometry ComputeNewWindowMenuPlacement(const FGeometry& AllottedGeometry, const FVector2D& PopupDesiredSize, EMenuPlacement PlacementMode) const;
 
