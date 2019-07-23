@@ -237,6 +237,12 @@ struct FCachedActorLabels
 		ActorLabels.Add(InLabel);
 	}
 
+	/** Remove a label from this set */
+	FORCEINLINE void Remove(const FString& InLabel)
+	{
+		ActorLabels.Remove(InLabel);
+	}
+
 	/** Check if the specified label exists */
 	FORCEINLINE bool Contains(const FString& InLabel) const
 	{
