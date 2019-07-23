@@ -4,7 +4,6 @@
 
 #include "IMPCDI.h"
 
-#include "MPCDITypes.h"
 #include "MPCDIRegion.h"
 
 #include "RendererInterface.h"
@@ -12,22 +11,8 @@
 #include "RenderResource.h"
 #include "SceneTypes.h"
 
-
-// Engine-side interface to FMPCDIData. We can only call into interfaces from the Engine module since Renderer is intentionally not a dependency of it.
-class IMPCDIData
-{
-public:
-	virtual ~IMPCDIData() = 0
-	{ }
-
-public:
-	virtual bool IsCubeMapEnabled() const = 0;
-};
-
-
 class FMPCDIData
 	: public FGCObject
-	, public IMPCDIData
 {
 public:
 	FMPCDIData();
@@ -41,16 +26,17 @@ public:
 			Regions.Empty();
 		}
 
-		FString ID;
-
-		TArray<MPCDI::FMPCDIRegion*> Regions;
-
-		FBox AABBox;
+		FString                      ID;       // Unique buffer name
+		TArray<MPCDI::FMPCDIRegion*> Regions;  // Asset of warp regions
+		FBox                         AABBox;
 
 		// Shader Lamp view and projection matrices
 		FVector Origin;
 		FMatrix ProjectionMatrix;
 		FMatrix Camera2World;
+
+		bool Initialize(const FString& BufferName);
+		void AddRegion(MPCDI::FMPCDIRegion* MPCDIRegionPtr);
 
 		bool FindRegion(const FString& RegionName, IMPCDI::FRegionLocator& OutRegionLocator) const
 		{
@@ -67,11 +53,16 @@ public:
 	};
 
 public:
-	virtual bool IsCubeMapEnabled() const override;
+	bool Initialize(const FString& MPCIDIFile, IMPCDI::EMPCDIProfileType MPCDIProfileType);
+	bool LoadFromFile(const FString& MPCIDIFile);
 
-public:
-	bool Load(const FString& MPCIDIFile, bool useCubeMap = false, int cubeMapResolution = 2048, bool mpcdiColorAdjustment = false);
 	void CleanupMPCDIData();
+
+
+	void ReloadAll();
+	void ReloadChangedExternalFiles_RenderThread();
+
+	bool AddRegion(const FString& BufferName, const FString& RegionName, IMPCDI::FRegionLocator& OutRegionLocator);
 
 	MPCDI::FMPCDIRegion* GetRegion(const IMPCDI::FRegionLocator& RegionLocator) const
 	{
@@ -102,33 +93,45 @@ public:
 	}
 
 	inline const FMatrix &GetTextureMatrix() const
-	{ return TextureMatrix; }
+	{ 
+		return TextureMatrix; 
+	}
 
 	inline bool IsValid() const
-	{ return Profile != EMPCDIProfileType::Invalid; }
+	{ 
+		return Profile != IMPCDI::EMPCDIProfileType::Invalid; 
+	}
 
-	inline EMPCDIProfileType GetProfileType() const
-	{ return Profile; }
-	
-	bool ColorAdjustmentsEnabled() const
-	{ return IsValid() && UseColorAdjustment; }
+	inline IMPCDI::EMPCDIProfileType GetProfileType() const
+	{ 
+		return Profile; 
+	}
 
-	inline const FString& GetFilePath() const
-	{ return FilePath; }
+	inline const FString& GetLocalMPCIDIFile() const
+	{ 
+		return LocalMPCIDIFile;
+	}
 
 	bool ComputeFrustum(const IMPCDI::FRegionLocator& RegionLocator, IMPCDI::FFrustum &Frustum, float worldScale, float ZNear, float ZFar) const;
 
 private:
-	bool Load();
+#if 0
+	//@todo Unsupported now
+	bool ComputeFrustum_SL(const IMPCDI::FRegionLocator& RegionLocator, IMPCDI::FFrustum &OutFrustum, float WorldScale, float ZNear, float ZFar) const;
+#endif
+
+	bool Load(const FString& MPCDIFile);
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 private:
 	TArray<FMPCDIBuffer*> Buffers;
-	EMPCDIProfileType     Profile;
+	IMPCDI::EMPCDIProfileType     Profile;
 	FString Version;
 
 	FMatrix TextureMatrix;
 
-	FString FilePath;
-	bool    UseColorAdjustment;
+	FString    LocalMPCIDIFile;
+
+	mutable bool       bForceExtFilesReload;
+	FCriticalSection   ExtFilesReloadCS;
 };

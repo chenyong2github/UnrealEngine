@@ -17,7 +17,9 @@
 static TAutoConsoleVariable<int32> CVarPicpPostProcess(
 	TEXT("nDisplay.render.picp.EnablePostProcess"),
 	1,
-	TEXT("Enable postprocess shaders for picp (0 = disabled)"),
+	TEXT("Enable postprocess shaders for picp\n")
+	TEXT(" 0: disabled\n")
+	TEXT(" 1: enabled\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -30,6 +32,11 @@ IMPLEMENT_SHADER_TYPE(template<>, FPicpBlurPostProcessDefaultPS, PostProcessShad
 IMPLEMENT_SHADER_TYPE(template<>, FPicpBlurPostProcessDilatePS,  PostProcessShaderFileName, TEXT("BlurPostProcessPS"), SF_Pixel);
 
 IMPLEMENT_SHADER_TYPE(, FDirectComposePS, PostProcessShaderFileName, TEXT("DirectComposePS"), SF_Pixel);
+
+
+FTextureResource* FPicpBlurPostProcess::SrcTexture = nullptr;
+FTextureRenderTargetResource* FPicpBlurPostProcess::DstTexture = nullptr;
+FTextureRenderTargetResource* FPicpBlurPostProcess::ResultTexture = nullptr;
 
 void FPicpBlurPostProcess::ApplyCompose_RenderThread(
 	FRHICommandListImmediate& RHICmdList, 
@@ -179,24 +186,33 @@ void FPicpBlurPostProcess::ApplyCompose(UTexture* InputTexture, UTextureRenderTa
 		return;
 	}
 
-	FTextureResource* OverlayTextureResource = InputTexture ? InputTexture->Resource : nullptr;
-	FTextureRenderTargetResource* TextureRenderTarget = OutputRenderTarget->GameThread_GetRenderTargetResource();
-	FTextureRenderTargetResource* TextureRenderResult = Result->GameThread_GetRenderTargetResource();
+	SrcTexture = InputTexture ? InputTexture->Resource : nullptr;
+	DstTexture = OutputRenderTarget ? OutputRenderTarget->GameThread_GetRenderTargetResource() : nullptr;
+	ResultTexture = Result ? Result->GameThread_GetRenderTargetResource() : nullptr;
+}
 
-	ENQUEUE_RENDER_COMMAND(CaptureCommand)([OverlayTextureResource, TextureRenderTarget, TextureRenderResult](FRHICommandListImmediate& RHICmdList)
+
+void FPicpBlurPostProcess::ExecuteCompose()
+{
+	if (FPicpBlurPostProcess::DstTexture == nullptr || FPicpBlurPostProcess::ResultTexture == nullptr || FPicpBlurPostProcess::SrcTexture == nullptr)
 	{
-		FRHITexture2D* RTTexture = TextureRenderTarget ? TextureRenderTarget->GetRenderTargetTexture()->GetTexture2D(): nullptr;
-		FRHITexture2D* ResultTexture = TextureRenderResult ? TextureRenderResult->GetRenderTargetTexture()->GetTexture2D() : nullptr;
-		FRHITexture*   OverlayTexture = OverlayTextureResource ? OverlayTextureResource->TextureRHI : nullptr;;
-		
-		if (nullptr == RTTexture)
+		return;
+	}
+
+	FRHITexture*   Src = FPicpBlurPostProcess::SrcTexture ? FPicpBlurPostProcess::SrcTexture->TextureRHI : nullptr;
+	FRHITexture2D* Dst = FPicpBlurPostProcess::DstTexture ? FPicpBlurPostProcess::DstTexture->GetRenderTargetTexture()->GetTexture2D() : nullptr;
+	FRHITexture2D* Res = FPicpBlurPostProcess::ResultTexture ? FPicpBlurPostProcess::ResultTexture->GetRenderTargetTexture()->GetTexture2D() : nullptr;
+	
+
+	ENQUEUE_RENDER_COMMAND(CaptureCommand)([Src, Dst, Res](FRHICommandListImmediate& RHICmdList)
+	{		
+		if (nullptr == Dst)
 		{
 			//@todo handle error
 			return;
 		}
 
-		ApplyCompose_RenderThread(RHICmdList, OverlayTexture, RTTexture, ResultTexture);
+		ApplyCompose_RenderThread(RHICmdList, Src, Dst, Res);
 	});
 }
-
 

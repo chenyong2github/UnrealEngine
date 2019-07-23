@@ -38,6 +38,8 @@ public:
 	virtual bool Initialize() override;
 	virtual void InitializeWorldContent(UWorld* InWorld) override;
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
+	virtual void SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings) override;
+	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,9 +122,11 @@ protected:
 	uint32 GetSwapInt() const;
 
 	// Adds a new viewport with specified parameters and projection policy object
-	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId);
+	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, bool IsRTT = false);
 	// Performs copying of render target data to the back buffer
 	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const;
+	// Checks if custom post processing settings is assigned for specific viewport and assign them to be used
+	virtual void UpdatePostProcessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
 
 protected:
 	// Viewports
@@ -131,7 +135,12 @@ protected:
 	uint32 ViewsAmountPerViewport = 0;
 	// UE4 main viewport
 	FViewport* MainViewport = nullptr;
+	// custom post processing settings
+	TMap<int, FPostProcessSettings> ViewportFinalPostProcessingSettingsOverride;	 
 
 	// Data access synchronization
 	mutable FCriticalSection InternalsSyncScope;
+
+	// Temporary: don't allow to add more than 1 RTT viewport
+	bool bViewportRttAdded = false;
 };

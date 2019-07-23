@@ -2,12 +2,8 @@
 
 #pragma once
 
-#include "PicpProjectionOverlayBase.h"
-
-
 // Root data container. Render all over basic
 class FPicpProjectionOverlayLUT
-	: public FPicpProjectionOverlayBase
 {
 public:
 	FRHITexture2D* LUTTexture;           // if texture defined, applyed brightness correction from view angle
@@ -20,16 +16,30 @@ public:
 		: LUTTexture(nullptr)
 		, ViewCorrectionCoeff(0,0,0) 
 		, EyeOrigin(0,0,0)
-	{ }
+		, bIsEnabled(false)
+	{ 
+	}
 
 	void Initialize(FRHITexture2D*& TextureRef, const FVector& ViewCorrection, const FVector& EyeLocation)
 	{
 		LUTTexture = TextureRef;
 		ViewCorrectionCoeff = ViewCorrection;
 		EyeOrigin = EyeLocation;
-		SetEnable(true);
+		bIsEnabled = true;
+	}
+
+	bool IsEnabled() const 
+	{ 
+		return bIsEnabled; 
+	}
+
+	void Empty()
+	{
+		LUTTexture = nullptr;
+		bIsEnabled = false;
 	}
 
 private:
+	bool    bIsEnabled;
 	FVector EyeOriginLocal; // eye in local mpcdi space
 };
