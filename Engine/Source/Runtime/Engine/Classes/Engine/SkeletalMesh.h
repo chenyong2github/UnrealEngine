@@ -919,6 +919,7 @@ public:
 	virtual FString GetDesc() override;
 	virtual FString GetDetailedInfoInternal() const override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	//~ End UObject Interface.
 
 	/** Setup-only routines - not concerned with the instance. */

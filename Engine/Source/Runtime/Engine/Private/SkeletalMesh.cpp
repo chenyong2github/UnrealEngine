@@ -1211,6 +1211,12 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	}
 }
 
+void USkeletalMesh::GetPreloadDependencies(TArray<UObject*>& OutDeps)
+{
+	Super::GetPreloadDependencies(OutDeps);
+	OutDeps.Add(Skeleton);
+}
+
 void USkeletalMesh::FlushRenderState()
 {
 	//TComponentReregisterContext<USkeletalMeshComponent> ReregisterContext;
