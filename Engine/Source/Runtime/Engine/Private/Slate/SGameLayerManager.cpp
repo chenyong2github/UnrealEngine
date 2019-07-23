@@ -25,6 +25,7 @@ SGameLayerManager::SGameLayerManager()
 :	DefaultWindowTitleBarHeight(64.0f)
 ,	bIsGameUsingBorderlessWindow(false)
 ,	bUseScaledDPI(false)
+,	CachedInverseDPIScale(0.0f)
 {
 }
 
@@ -435,7 +436,14 @@ void SGameLayerManager::AddOrUpdatePlayerLayers(const FGeometry& AllottedGeometr
 	ESplitScreenType::Type SplitType = ViewportClient->GetCurrentSplitscreenConfiguration();
 	TArray<struct FSplitscreenData>& SplitInfo = ViewportClient->SplitscreenInfo;
 
-	float InverseDPIScale = ViewportClient->Viewport ? 1.0f / GetGameViewportDPIScale() : 1.0f;
+	const float InverseDPIScale = ViewportClient->Viewport ? 1.0f / GetGameViewportDPIScale() : 1.0f;
+
+	if (CachedInverseDPIScale != InverseDPIScale)
+	{
+		InvalidatePrepass();
+		Invalidate(EInvalidateWidget::Layout);
+		CachedInverseDPIScale = InverseDPIScale;
+	}
 
 	// Add and Update Player Layers
 	for ( int32 PlayerIndex = 0; PlayerIndex < GamePlayers.Num(); PlayerIndex++ )
