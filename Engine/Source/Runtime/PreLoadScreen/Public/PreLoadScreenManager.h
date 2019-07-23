@@ -15,14 +15,10 @@
 
 #include "PreLoadSlateThreading.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FIsPreloadScreenResponsibleForRenderingMultiDelegate, bool);
-
 // Class that handles storing all registered PreLoadScreens and Playing/Stopping them
 class PRELOADSCREEN_API FPreLoadScreenManager
 {
 public:
-	static FIsPreloadScreenResponsibleForRenderingMultiDelegate IsResponsibleForRenderingDelegate;
-
     //Gets the single instance of this settings object. Also creates it if needed
     static FPreLoadScreenManager* Get()
     {
@@ -145,8 +141,6 @@ protected:
 
     static FCriticalSection RenderingEnabledCriticalSection;
     static bool bRenderingEnabled;
-
-	bool bIsResponsibleForRendering = false;
 
     double LastRenderTickTime;
 
