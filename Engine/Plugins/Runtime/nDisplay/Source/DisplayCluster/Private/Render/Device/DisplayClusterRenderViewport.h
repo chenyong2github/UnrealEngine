@@ -14,10 +14,16 @@ class FDisplayClusterRenderViewport
 {
 public:
 	FDisplayClusterRenderViewport(const FString& ViewportId, const FIntRect& ViewportArea, TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy, uint8 ContextsAmount, const FString& InCameraId)
+		: FDisplayClusterRenderViewport(ViewportId, ViewportArea, ProjectionPolicy, ContextsAmount, InCameraId, false)
+	{
+	}
+
+	FDisplayClusterRenderViewport(const FString& ViewportId, const FIntRect& ViewportArea, TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy, uint8 ContextsAmount, const FString& InCameraId, bool IsRTT)
 		: Id(ViewportId)
 		, CameraId(InCameraId)
 		, Area(ViewportArea)
 		, Policy(ProjectionPolicy)
+		, bRTT(IsRTT)
 	{
 		check(ProjectionPolicy.IsValid());
 		Contexts.AddDefaulted(ContextsAmount);
@@ -48,6 +54,9 @@ public:
 	const FIntRect& GetArea() const
 	{ return Area; }
 
+	bool IsRTT() const
+	{ return bRTT; }
+
 	FDisplayClusterRenderViewContext& GetContext(uint8 ContextNum)
 	{
 		check(ContextNum < Contexts.Num());
@@ -71,4 +80,6 @@ private:
 	TSharedPtr<IDisplayClusterProjectionPolicy> Policy;
 	// Viewport contexts (left/center/right eyes)
 	TArray<FDisplayClusterRenderViewContext> Contexts;
+	// Is RTT viewport
+	bool bRTT;
 };

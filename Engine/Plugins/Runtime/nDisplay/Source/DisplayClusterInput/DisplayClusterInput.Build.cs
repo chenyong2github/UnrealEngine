@@ -10,9 +10,9 @@ public class DisplayClusterInput : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[]
 			{
-				"InputDevice",          // For IInputDevice.h
-				"HeadMountedDisplay",   // For IMotionController.h
-				"DisplayCluster"        // For IDisplayCluster
+				"InputDevice",
+				"HeadMountedDisplay",
+				"DisplayCluster"
 			}
 		);
 
@@ -21,7 +21,6 @@ public class DisplayClusterInput : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"DisplayCluster",
 				"Engine",
 				"InputCore",
 				"InputDevice"
@@ -43,12 +42,8 @@ public class DisplayClusterInput : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				// Relative to Engine\Plugins\Runtime\nDisplay\Source\
+				"DisplayClusterInput/Private",
 				"DisplayCluster/Private",
-				"DisplayClusterInput/Private/Controller",
-				"DisplayClusterInput/Private/State",
-				"../../../../Source/Runtime/Renderer/Private",
-				"../../../../Source/Runtime/Engine/Classes/Components",
 			}
 		);
 	}

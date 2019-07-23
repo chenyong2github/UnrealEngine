@@ -35,7 +35,7 @@ public:
 	 */
 	static inline IPicpMPCDI& Get()
 	{
-		return FModuleManager::LoadModuleChecked<IPicpMPCDI>(IPicpMPCDI::ModuleName);
+		return FModuleManager::GetModuleChecked<IPicpMPCDI>(IPicpMPCDI::ModuleName);
 	}
 
 	/**
@@ -53,4 +53,5 @@ public:
 
 	virtual void ApplyBlur(UTextureRenderTarget2D* InOutRenderTarget, UTextureRenderTarget2D* TemporaryRenderTarget, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType) = 0;
 	virtual void ApplyCompose(UTexture* InputTexture, UTextureRenderTarget2D* OutputRenderTarget, UTextureRenderTarget2D* Result) = 0;
+	virtual void ExecuteCompose() = 0;
 };

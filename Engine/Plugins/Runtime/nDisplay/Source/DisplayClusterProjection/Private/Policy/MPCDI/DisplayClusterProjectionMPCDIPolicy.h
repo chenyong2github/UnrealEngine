@@ -39,8 +39,7 @@ public:
 	virtual bool IsWarpBlendSupported() override;
 	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) override;
 
-protected:
-	bool ReadConfigData(const FString& ViewportId, FString& OutFile, FString& OutBuffer, FString& OutRegion, FString& OutOrigin);
+protected:	
 	bool InitializeResources_RenderThread();
 
 private:
@@ -58,6 +57,6 @@ private:
 
 	TArray<FViewData> Views;
 
-	bool bIsRenderResourcesInitialized = false;
+	mutable bool bIsRenderResourcesInitialized;
 	FCriticalSection RenderingResourcesInitializationCS;
 };

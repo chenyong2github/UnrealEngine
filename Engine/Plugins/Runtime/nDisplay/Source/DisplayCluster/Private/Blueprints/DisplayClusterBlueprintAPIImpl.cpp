@@ -12,6 +12,8 @@
 #include "Input/IDisplayClusterInputManager.h"
 #include "Render/IDisplayClusterRenderManager.h"
 
+#include "Config/DisplayClusterConfigTypes.h"
+#include "Misc/DisplayClusterHelpers.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,7 +138,27 @@ void UDisplayClusterBlueprintAPIImpl::EmitClusterEvent(const FDisplayClusterClus
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Config API
 //////////////////////////////////////////////////////////////////////////////////////////////
+void UDisplayClusterBlueprintAPIImpl::GetViewports(bool IsRTT, TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
+	TArray<FDisplayClusterConfigViewport> SelectedViewports = DisplayClusterHelpers::config::GetLocalViewports().FilterByPredicate([IsRTT](const FDisplayClusterConfigViewport& Item)
+	{
+		return Item.IsRTT == IsRTT;
+	});
+
+	for (const FDisplayClusterConfigViewport& Item : SelectedViewports)
+	{
+		FDisplayClusterConfigProjection CfgProjection;
+		if (IDisplayCluster::Get().GetConfigMgr()->GetProjection(Item.ProjectionId, CfgProjection))
+		{
+			ViewportIDs.Add(Item.Id);
+			ViewportTypes.Add(CfgProjection.Type);
+			ViewportLocations.Add(Item.Loc);
+			ViewportSizes.Add(Item.Size);
+		}
+	}	
+}
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -556,11 +578,42 @@ void UDisplayClusterBlueprintAPIImpl::SetViewportCamera(const FString& InCameraI
 	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 	if (Manager)
 	{
-		return Manager->SetViewportCamera(InCameraId, InViewportId);
+		Manager->SetViewportCamera(InCameraId, InViewportId);
 	}
 
 	return;
 }
+
+void UDisplayClusterBlueprintAPIImpl::SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->SetCustomPostProcessing(ViewportID, PostProcessingSettings);
+	}
+}
+
+bool UDisplayClusterBlueprintAPIImpl::GetViewportRect(const FString& ViewportID, FIntPoint& ViewportLoc, FIntPoint& ViewportSize)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		FIntRect ViewportRect;
+		if (Manager->GetViewportRect(ViewportID, ViewportRect))
+		{
+			ViewportLoc  = ViewportRect.Min;
+			ViewportSize = ViewportRect.Size();
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 float UDisplayClusterBlueprintAPIImpl::GetInterpupillaryDistance(const FString& CameraId)
 {

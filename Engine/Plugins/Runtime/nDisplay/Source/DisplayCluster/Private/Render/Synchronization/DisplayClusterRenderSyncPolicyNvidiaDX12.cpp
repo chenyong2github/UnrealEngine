@@ -14,6 +14,8 @@ FDisplayClusterRenderSyncPolicyNvidiaDX12::~FDisplayClusterRenderSyncPolicyNvidi
 
 bool FDisplayClusterRenderSyncPolicyNvidiaDX12::SynchronizeClusterRendering(int32& InOutSyncInterval)
 {
+	check(IsInRenderingThread());
+
 	// Unfortunately NVIDIA doesn't export required functions in the public SDK. This make impossible
 	// to implement the hardware base synchronization approach. As a fallback we use our own soft sync.
 	// As soon as the required functions become available, the proper synchonization approach will be implemented.

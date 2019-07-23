@@ -10,17 +10,9 @@ public class DisplayClusterEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange( new string[] {
 			"Core",
 			"CoreUObject",
+			"DisplayCluster",
 			"Engine",
 			"UnrealEd"
-		});
-
-		PrivateDependencyModuleNames.AddRange( new string[] {
-			"DisplayCluster"
-		});
-
-        PrivateIncludePathModuleNames.AddRange( new string[] {
-			"Settings",
-			"DisplayCluster"
 		});
 	}
 }
