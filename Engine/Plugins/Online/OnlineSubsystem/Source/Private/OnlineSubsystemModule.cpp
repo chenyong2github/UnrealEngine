@@ -145,7 +145,7 @@ bool FOnlineSubsystemModule::TryLoadSubsystemAndSetDefault(FName ModuleName)
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("TryLoadSubsystemAndSetDefault: GetOnlineSubsystem([%s]) failed"), *ModuleNameString);
+				//UE_LOG_ONLINE(Warning, TEXT("TryLoadSubsystemAndSetDefault: GetOnlineSubsystem([%s]) failed"), *ModuleNameString);
 			}
 		}
 		else
@@ -175,7 +175,7 @@ void FOnlineSubsystemModule::LoadDefaultSubsystem()
 	// if default fails, attempt to load Null
 	if (!bHasLoadedModule)
 	{
-		UE_LOG_ONLINE(Warning, TEXT("LoadDefaultSubsystem: Failed to load Subsystem=[%s], falling back to NULL_SUBSYSTEM"), *InterfaceString);
+		//UE_LOG_ONLINE(Warning, TEXT("LoadDefaultSubsystem: Failed to load Subsystem=[%s], falling back to NULL_SUBSYSTEM"), *InterfaceString);
 		bHasLoadedModule = TryLoadSubsystemAndSetDefault(NULL_SUBSYSTEM);
 	}
 
