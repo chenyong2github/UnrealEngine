@@ -75,6 +75,7 @@
 #include "Tree/CurveEditorTreeFilter.h"
 #include "Tree/SCurveEditorTreeTextFilter.h"
 #include "Tree/SCurveEditorTreeFilterStatusBar.h"
+#include "SequencerSelectionCurveFilter.h"
 #include "SCurveKeyDetailPanel.h"
 #include "MovieSceneTimeHelpers.h"
 #include "FrameNumberNumericInterface.h"
@@ -1022,9 +1023,11 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 		{
 			if (!SequencerSelectionCurveEditorFilter)
 			{
-				static const int32 FilterPass = -1000;
-				SequencerSelectionCurveEditorFilter = MakeShared<FCurveEditorTreeFilter>(ISequencerModule::GetSequencerSelectionFilterType(), FilterPass);
+				SequencerSelectionCurveEditorFilter = MakeShared<FSequencerSelectionCurveFilter>();
 			}
+
+			SequencerSelectionCurveEditorFilter->Update(Sequencer->GetSelection().GetSelectedOutlinerNodes());
+
 			CurveEditor->GetTree()->AddFilter(SequencerSelectionCurveEditorFilter);
 		}
 		// If we're not isolating to the selection (or there is no selection) remove the filter
