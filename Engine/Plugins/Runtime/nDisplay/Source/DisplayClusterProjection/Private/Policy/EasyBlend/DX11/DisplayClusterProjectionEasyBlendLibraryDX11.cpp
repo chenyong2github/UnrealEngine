@@ -7,6 +7,7 @@
 
 #include "HAL/PlatformProcess.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
 #include "EasyBlendSDKDXApi.h"
