@@ -1179,15 +1179,6 @@ void ACharacter::OnRep_RootMotion()
 			FSimulatedRootMotionReplicatedMove& NewMove = RootMotionRepMoves.Last();
 			NewMove.RootMotion = RepRootMotion;
 			NewMove.Time = GetWorld()->GetTimeSeconds();
-
-			// Convert RootMotionSource Server IDs -> Local IDs in AuthoritativeRootMotion and cull invalid
-			// so that when we use this root motion it has the correct IDs
-			if (CharacterMovement)
-			{
-				CharacterMovement->ConvertRootMotionServerIDsToLocalIDs(CharacterMovement->CurrentRootMotion, NewMove.RootMotion.AuthoritativeRootMotion, NewMove.Time);
-			}
-			
-			NewMove.RootMotion.AuthoritativeRootMotion.CullInvalidSources();
 		}
 		else
 		{
