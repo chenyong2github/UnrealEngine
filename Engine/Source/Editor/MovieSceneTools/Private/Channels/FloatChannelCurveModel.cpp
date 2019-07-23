@@ -185,6 +185,7 @@ void FFloatChannelCurveModel::GetKeyDrawInfo(ECurvePointType PointType, const FK
 		OutDrawInfo.ScreenSize = FVector2D(11, 11);
 
 		ERichCurveInterpMode KeyType = RCIM_None;
+		ERichCurveTangentWeightMode KeyTWType = RCTWM_WeightedNone;
 
 		// Get the key type from the supplied key handle if it's valid
 		FMovieSceneFloatChannel* Channel = ChannelHandle.Get();
@@ -195,6 +196,7 @@ void FFloatChannelCurveModel::GetKeyDrawInfo(ECurvePointType PointType, const FK
 			if (KeyIndex != INDEX_NONE)
 			{
 				KeyType = ChannelData.GetValues()[KeyIndex].InterpMode;
+				KeyTWType = ChannelData.GetValues()[KeyIndex].Tangent.TangentWeightMode;
 			}
 		}
 
@@ -209,7 +211,15 @@ void FFloatChannelCurveModel::GetKeyDrawInfo(ECurvePointType PointType, const FK
 			OutDrawInfo.Tint = FLinearColor(0, 0.62f, 0.46f);
 			break;
 		case ERichCurveInterpMode::RCIM_Cubic:
-			OutDrawInfo.Brush = FEditorStyle::GetBrush("GenericCurveEditor.CubicKey");
+			if (KeyTWType == ERichCurveTangentWeightMode::RCTWM_WeightedBoth)
+			{
+				OutDrawInfo.Brush = FEditorStyle::GetBrush("GenericCurveEditor.WeightedTangentCubicKey");
+			}
+			else
+			{
+				OutDrawInfo.Brush = FEditorStyle::GetBrush("GenericCurveEditor.CubicKey");
+			}
+
 			OutDrawInfo.Tint = FLinearColor::White;
 			break;
 		default:
