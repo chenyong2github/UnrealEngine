@@ -170,8 +170,11 @@ void FPrimaryCrashProperties::ReadXML( const FString& CrashContextFilepath  )
 {
 	XmlFilepath = CrashContextFilepath;
 	XmlFile = new FXmlFile( XmlFilepath );
-	TimeOfCrash = FDateTime::UtcNow().GetTicks();
-	UpdateIDs();
+	if (XmlFile->IsValid())
+	{
+		TimeOfCrash = FDateTime::UtcNow().GetTicks();
+		UpdateIDs();
+	}
 }
 
 void FPrimaryCrashProperties::SetCrashGUID( const FString& Filepath )
@@ -395,31 +398,42 @@ void FPrimaryCrashProperties::MakeCrashEventAttributes(TArray<FAnalyticsEventAtt
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("PCallStackHash"), PCallStackHash));
 
 	// Add arbitrary engine data
-	const FXmlNode* EngineNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::EngineDataTag );
-	if (EngineNode)
+	if (XmlFile->IsValid())
 	{
-		for (const FXmlNode* ChildNode : EngineNode->GetChildrenNodes())
+		const FXmlNode* EngineNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::EngineDataTag );
+		if (EngineNode)
 		{
-			FString KeyName = FString(TEXT("EngineData.")) + ChildNode->GetTag();
-			OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+			for (const FXmlNode* ChildNode : EngineNode->GetChildrenNodes())
+			{
+				FString KeyName = FString(TEXT("EngineData.")) + ChildNode->GetTag();
+				OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+			}
+		}
+
+		// Add arbitrary game data
+		const FXmlNode* GameNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::GameDataTag );
+		if (GameNode)
+		{
+			for (const FXmlNode* ChildNode : GameNode->GetChildrenNodes())
+			{
+				FString KeyName = FString(TEXT("GameData.")) + ChildNode->GetTag();
+				OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
+			}
 		}
 	}
-
-	// Add arbitrary game data
-	const FXmlNode* GameNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::GameDataTag );
-	if (GameNode)
+	else
 	{
-		for (const FXmlNode* ChildNode : GameNode->GetChildrenNodes())
-		{
-			FString KeyName = FString(TEXT("GameData.")) + ChildNode->GetTag();
-			OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, ChildNode->GetContent()));
-		}
+		FString KeyName = FString(TEXT("EngineData.InvalidXML"));
+		OutCrashAttributes.Add(FAnalyticsEventAttribute(*KeyName, true));
 	}
 }
 
 void FPrimaryCrashProperties::Save()
 {
-	XmlFile->Save( XmlFilepath );
+	if (XmlFile->IsValid())
+	{
+		XmlFile->Save( XmlFilepath );
+	}
 }
 
 /*-----------------------------------------------------------------------------
