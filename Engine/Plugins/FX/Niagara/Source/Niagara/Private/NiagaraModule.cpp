@@ -719,6 +719,8 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	}
 
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, true);
+
+	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 }
 
 bool FNiagaraTypeDefinition::IsScalarDefinition(const FNiagaraTypeDefinition& Type)
