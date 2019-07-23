@@ -1838,6 +1838,28 @@ void FRootMotionSourceGroup::UpdateStateFrom(const FRootMotionSourceGroup& Group
 	bIsAdditiveVelocityApplied = GroupToTakeStateFrom.bIsAdditiveVelocityApplied;
 	LastPreAdditiveVelocity = GroupToTakeStateFrom.LastPreAdditiveVelocity;
 
+	// If we have a PendingAdd root motion source that is already active in GroupToTakeStateFrom, make it active
+	PendingAddRootMotionSources.RemoveAll([this, &GroupToTakeStateFrom](const TSharedPtr<FRootMotionSource>& RootSource) 
+		{ 
+			if (RootSource.IsValid())
+			{
+				if (RootSource->LocalID != (uint16)ERootMotionSourceID::Invalid)
+				{
+					for (const TSharedPtr<FRootMotionSource>& TakeFromRootMotionSource : GroupToTakeStateFrom.RootMotionSources)
+					{
+						if (TakeFromRootMotionSource.IsValid() && (RootSource->LocalID == TakeFromRootMotionSource->LocalID))
+						{
+							// Matches, move to active and remove from pending
+							UE_LOG(LogRootMotion, VeryVerbose, TEXT("UpdateStateFream moving PendingAdd RMS to active: %s"), *RootSource->ToSimpleString());
+							RootMotionSources.Add(RootSource);
+							return true;
+						}
+					}
+				}
+			}
+			return false;
+		});
+
 	// For each matching Source in GroupToTakeStateFrom, move state over to this group's Sources
 	// Can do all matching with LocalID only, since anything passed into this function should have
 	// already been "matched" to LocalIDs
