@@ -217,4 +217,5 @@ private:
 	bool bIsGameUsingBorderlessWindow;
 	FIntPoint ScaledDPIViewportReference;
 	bool bUseScaledDPI;
+	float CachedInverseDPIScale;
 };

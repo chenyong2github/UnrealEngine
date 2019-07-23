@@ -1498,7 +1498,7 @@ private:
 
 protected:
 
-	float GetPrepassLayoutScaleMultiplier() const { return PrepassLayoutScaleMultiplier; }
+	float GetPrepassLayoutScaleMultiplier() const { return PrepassLayoutScaleMultiplier.Get(1.0f); }
 public:
 	/**
 	 * Registers an "active timer" delegate that will execute at some regular interval. TickFunction will not be called until the specified interval has elapsed once.
@@ -1642,7 +1642,7 @@ private:
 
 protected:
 
-	float PrepassLayoutScaleMultiplier;
+	TOptional<float> PrepassLayoutScaleMultiplier;
 	/**
 	* Can be used to enlarge the culling bounds of this widget (pre-intersection), this can be useful if you've got
 	* children that you know are using rendering transforms to render outside their standard bounds, if that happens

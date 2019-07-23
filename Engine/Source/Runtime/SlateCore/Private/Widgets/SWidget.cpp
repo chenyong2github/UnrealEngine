@@ -154,7 +154,6 @@ SWidget::SWidget()
 	// Note we are defaulting to tick for backwards compatibility
 	, UpdateFlags(EWidgetUpdateFlags::NeedsTick)
 	, DesiredSize()
-	, PrepassLayoutScaleMultiplier(1.0f)
 	, CullingBoundsExtension()
 	, EnabledState(true)
 	, Visibility(EVisibility::Visible)
@@ -1041,7 +1040,7 @@ void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
 
 	const bool bVolatilityChanged = EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::Volatility) ? Advanced_InvalidateVolatility() : false;
 
-	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::ChildOrder))
+	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::ChildOrder) || !PrepassLayoutScaleMultiplier.IsSet())
 	{
 		InvalidatePrepass();
 	}
@@ -1381,7 +1380,7 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 
 	{
 		// Cache this widget's desired size.
-		CacheDesiredSize(PrepassLayoutScaleMultiplier);
+		CacheDesiredSize(PrepassLayoutScaleMultiplier.Get(1.0f));
 		bNeedsPrepass = false;
 	}
 }
