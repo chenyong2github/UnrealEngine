@@ -256,7 +256,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 		PassParameters->VisualizeTexture2DMS = SrcTexture;
 		PassParameters->VisualizeUINT8Texture2D = SrcTexture;
 
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(CopyTexture, ERenderTargetLoadAction::EClear, ERenderTargetStoreAction::EStore);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(CopyTexture, ERenderTargetLoadAction::EClear);
 	}
 
 	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);

@@ -529,11 +529,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					}
 
 					/** Mark the pass as a producer for render targets with a store action. */
-					{
-						const bool bIsStoreAction = RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction;
-						check(bIsStoreAction); // already been validated in FRenderTargetBinding::Validate()
-						Texture->MarkAsProducedBy(Pass);
-					}
+					Texture->MarkAsProducedBy(Pass);
 
 					Texture->PassAccessCount++;
 				}

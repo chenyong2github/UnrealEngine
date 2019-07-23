@@ -2287,7 +2287,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->IndirectDrawParameter = DrawIndirectParametersBuffer;
 			PassParameters->ScatterDrawList = GraphBuilder.CreateSRV(ScatterDrawList);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(
-				ConvolutionTextures->SceneColor, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
+				ConvolutionTextures->SceneColor, ERenderTargetLoadAction::ELoad);
 
 			ValidateShaderParameters(*VertexShader, *PassParameters);
 			ValidateShaderParameters(*PixelShader, *PassParameters);

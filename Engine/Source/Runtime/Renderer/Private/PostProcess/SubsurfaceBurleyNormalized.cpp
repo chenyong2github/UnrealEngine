@@ -331,7 +331,7 @@ void ComputeBurleySubsurfaceForView(
 		//single pass
 		FSubsurfaceBurleySinglePassPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceBurleySinglePassPS::FParameters>();
 		PassParameters->Subsurface = SubsurfaceCommonParameters;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextureOutput, SceneTextureLoadAction, ERenderTargetStoreAction::EStore);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextureOutput, SceneTextureLoadAction);
 		PassParameters->SubsurfaceInput0 = GetSubsurfaceBurleyInput(SceneTexture, SceneViewportParameters);
 		PassParameters->SubsurfaceSampler0 = SubsurfaceSamplerState;
 
@@ -360,7 +360,7 @@ void ComputeBurleySubsurfaceForView(
 		{
 			FSubsurfaceBurleySetupPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceBurleySetupPS::FParameters>();
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SetupTexture, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(SetupTexture, ERenderTargetLoadAction::ENoAction);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceBurleyInput(SceneTexture, SceneViewportParameters);
 			PassParameters->SubsurfaceSampler0 = PointClampSampler;
 
@@ -417,7 +417,7 @@ void ComputeBurleySubsurfaceForView(
 
 			FSubsurfaceBurleyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceBurleyPS::FParameters>();
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(TextureOutput, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(TextureOutput, ERenderTargetLoadAction::ENoAction);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceBurleyInput(TextureInput, SubsurfaceViewportParameters);
 			PassParameters->SubsurfaceSampler0 = SubsurfaceSamplerState;
 
@@ -434,7 +434,7 @@ void ComputeBurleySubsurfaceForView(
 	{
 		FSubsurfaceBurleyRecombinePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceBurleyRecombinePS::FParameters>();
 		PassParameters->Subsurface = SubsurfaceCommonParameters;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextureOutput, SceneTextureLoadAction, ERenderTargetStoreAction::EStore);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextureOutput, SceneTextureLoadAction);
 		PassParameters->SubsurfaceInput0 = GetSubsurfaceBurleyInput(SceneTexture, SceneViewportParameters);
 		PassParameters->SubsurfaceSampler0 = BilinearBorderSampler;
 

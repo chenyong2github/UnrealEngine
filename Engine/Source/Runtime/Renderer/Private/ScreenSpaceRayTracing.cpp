@@ -463,11 +463,11 @@ void RenderScreenSpaceReflections(
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	
 	FRenderTargetBindingSlots RenderTargets;
-	RenderTargets[0] = FRenderTargetBinding(DenoiserInputs->Color, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+	RenderTargets[0] = FRenderTargetBinding(DenoiserInputs->Color, ERenderTargetLoadAction::ENoAction);
 
 	if (bDenoiser)
 	{
-		RenderTargets[1] = FRenderTargetBinding(DenoiserInputs->RayHitDistance, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+		RenderTargets[1] = FRenderTargetBinding(DenoiserInputs->RayHitDistance, ERenderTargetLoadAction::ENoAction);
 	}
 
 	// Do a pre pass that output 0, or set a stencil mask to run the more expensive pixel shader.
@@ -476,8 +476,8 @@ void RenderScreenSpaceReflections(
 		// Also bind the depth buffer
 		RenderTargets.DepthStencil = FDepthStencilBinding(
 			SceneTextures.SceneDepthBuffer,
-			ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction,
-			ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore,
+			ERenderTargetLoadAction::ENoAction,
+			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthRead_StencilWrite);
 
 		FScreenSpaceReflectionsStencilPS::FPermutationDomain PermutationVector;

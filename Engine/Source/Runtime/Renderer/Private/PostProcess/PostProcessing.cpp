@@ -1017,7 +1017,7 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 	PassParameters->SeparateTranslucency = SeparateTranslucency;
 	PassParameters->SeparateTranslucencySampler = TStaticSamplerState<SF_Point>::GetRHI();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(NewSceneColor, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(NewSceneColor, ERenderTargetLoadAction::ENoAction);
 			
 	TShaderMapRef<FComposeSeparateTranslucencyPS> PixelShader(View.ShaderMap);
 	FPixelShaderUtils::AddFullscreenPass(

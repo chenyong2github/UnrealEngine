@@ -343,16 +343,10 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 
 bool FRenderTargetBinding::Validate() const
 {
-	if (Texture)
+	if (!Texture)
 	{
-		checkf(StoreAction != ERenderTargetStoreAction::ENoAction,
-			TEXT("You must specify a store action for non-null render target %s."),
-			Texture->Name);
-	}
-	else
-	{
-		checkf(LoadAction == ERenderTargetLoadAction::ENoAction && StoreAction == ERenderTargetStoreAction::ENoAction,
-			TEXT("Can't have a load or store action when no texture is bound."));
+		checkf(LoadAction == ERenderTargetLoadAction::ENoAction,
+			TEXT("Can't have a load action when no texture is bound."));
 	}
 	
 	return true;
@@ -377,7 +371,7 @@ bool FDepthStencilBinding::Validate() const
 		bool bHasStencil = PixelFormat == PF_DepthStencil;
 		if (!bHasStencil)
 		{
-			checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction && StencilStoreAction == ERenderTargetStoreAction::ENoAction,
+			checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction,
 				TEXT("Unable to load stencil of texture %s that have a pixel format %s that does not support stencil."),
 				Texture->Name, FormatString);
 		
@@ -388,10 +382,10 @@ bool FDepthStencilBinding::Validate() const
 	}
 	else
 	{
-		checkf(DepthLoadAction == ERenderTargetLoadAction::ENoAction && DepthStoreAction == ERenderTargetStoreAction::ENoAction,
-			TEXT("Can't have a depth load or store action when no texture are bound."));
-		checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction && StencilStoreAction == ERenderTargetStoreAction::ENoAction,
-			TEXT("Can't have a stencil load or store action when no texture are bound."));
+		checkf(DepthLoadAction == ERenderTargetLoadAction::ENoAction,
+			TEXT("Can't have a depth load action when no texture are bound."));
+		checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction,
+			TEXT("Can't have a stencil load action when no texture are bound."));
 		checkf(DepthStencilAccess == FExclusiveDepthStencil::DepthNop_StencilNop,
 			TEXT("Can't have a depth stencil access when no texture are bound."));
 	}

@@ -217,7 +217,7 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 
 			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 			{
-				const bool bHasStoreAction = DepthStencil.GetDepthStoreAction() != ERenderTargetStoreAction::ENoAction || DepthStencil.GetStencilStoreAction() != ERenderTargetStoreAction::ENoAction;
+				const bool bHasStoreAction = DepthStencil.GetDepthStencilAccess().IsAnyWrite();
 
 				if (bHasStoreAction)
 				{
@@ -240,16 +240,11 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 
 				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
 				{
-					const bool bHasStoreAction = RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction;
-
-					if (bHasStoreAction)
-					{
-						int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
+					int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
 						
-						if (CaptureId != FVisualizeTexture::kInvalidCaptureId && RenderTarget.GetMipIndex() == GVisualizeTexture.CustomMip)
-						{
-							GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
-						}
+					if (CaptureId != FVisualizeTexture::kInvalidCaptureId && RenderTarget.GetMipIndex() == GVisualizeTexture.CustomMip)
+					{
+						GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
 					}
 				}
 				else
@@ -750,13 +745,9 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 					FRHITexture* TargetableTexture = Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
 					FRHITexture* ShaderResourceTexture = Texture->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
 
-					// TODO(RDG): Looks like the store action on FRenderTargetBinding is not necessary, because: if want to bind a RT,
-					// that is most certainly to modify it as oposed to depth-stencil that might be for read only purposes. And if modify
-					// this resource, that certainly for being used by another pass. Otherwise this pass should be culled.
-					//
 					// TODO(RDG): The load store action could actually be optimised by render graph for tile hardware when there is multiple
 					// consecutive rasterizer passes that have RDG resource as render target, a bit like resource transitions.
-					ERenderTargetStoreAction StoreAction = RenderTarget.GetStoreAction();
+					ERenderTargetStoreAction StoreAction = ERenderTargetStoreAction::EStore;
 
 					// Automatically switch the store action to MSAA resolve when there is MSAA texture.
 					if (TargetableTexture != ShaderResourceTexture && Texture->Desc.NumSamples > 1 && StoreAction == ERenderTargetStoreAction::EStore)
@@ -790,17 +781,22 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 				auto& OutDepthStencil = OutRPInfo->DepthStencilRenderTarget;
 
+				FExclusiveDepthStencil ExclusiveDepthStencil = DepthStencil.GetDepthStencilAccess();
+
+				ERenderTargetStoreAction DepthStoreAction = ExclusiveDepthStencil.IsDepthWrite() ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
+				ERenderTargetStoreAction StencilStoreAction = ExclusiveDepthStencil.IsStencilWrite() ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
+
 				// TODO(RDG): Addresses the TODO of the color scene render target.
 				ensureMsgf(Texture->Desc.NumSamples == 1, TEXT("MSAA dept-stencil render target not yet supported."));
 				OutDepthStencil.DepthStencilTarget = Texture->PooledRenderTarget->GetRenderTargetItem().TargetableTexture;
 				OutDepthStencil.ResolveTarget = nullptr;
 				OutDepthStencil.Action = MakeDepthStencilTargetActions(
-					MakeRenderTargetActions(DepthStencil.GetDepthLoadAction(), DepthStencil.GetDepthStoreAction()),
-					MakeRenderTargetActions(DepthStencil.GetStencilLoadAction(), DepthStencil.GetStencilStoreAction()));
-				OutDepthStencil.ExclusiveDepthStencil = DepthStencil.GetDepthStencilAccess();
+					MakeRenderTargetActions(DepthStencil.GetDepthLoadAction(), DepthStoreAction),
+					MakeRenderTargetActions(DepthStencil.GetStencilLoadAction(), StencilStoreAction));
+				OutDepthStencil.ExclusiveDepthStencil = ExclusiveDepthStencil;
 
 				BarrierBatcher.QueueTransitionTexture(Texture,
-					DepthStencil.GetDepthStencilAccess().IsAnyWrite() ?
+					ExclusiveDepthStencil.IsAnyWrite() ?
 					FRDGResourceState::EAccess::Write :
 					FRDGResourceState::EAccess::Read);
 

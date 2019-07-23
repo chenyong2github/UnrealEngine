@@ -73,7 +73,7 @@ void BuildHZB(FRDGBuilder& GraphBuilder, FViewInfo& View)
 
 	{
 		FHZBBuildPassParameters* PassParameters = GraphBuilder.AllocParameters<FHZBBuildPassParameters>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding( HZBTexture, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding( HZBTexture, ERenderTargetLoadAction::ENoAction);
 
 		//@DW - this pass only reads external textures, we don't have any graph inputs
 		GraphBuilder.AddPass(
@@ -155,7 +155,7 @@ void BuildHZB(FRDGBuilder& GraphBuilder, FViewInfo& View)
 		FRDGTextureSRVRef ParentMipSRV = GraphBuilder.CreateSRV(Desc);
 
 		FHZBBuildPassParameters* PassParameters = GraphBuilder.AllocParameters<FHZBBuildPassParameters>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding( HZBTexture, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::EStore, MipIndex );
+		PassParameters->RenderTargets[0] = FRenderTargetBinding( HZBTexture, ERenderTargetLoadAction::ENoAction, MipIndex );
 		PassParameters->Texture = ParentMipSRV;
 		PassParameters->TextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 

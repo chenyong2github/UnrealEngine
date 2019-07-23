@@ -1146,7 +1146,7 @@ void FDeferredShadingSceneRenderer::CompositeRayTracingSkyLight(
 		PassParameters->SkyLightTexture = GraphBuilder.RegisterExternalTexture(SkyLightRT);
 		PassParameters->SkyLightTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->ViewUniformBuffer = Views[ViewIndex].ViewUniformBuffer;
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor()), ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor()), ERenderTargetLoadAction::ELoad);
 		PassParameters->SceneTextures = SceneTextures;
 
 		// dxr_todo: Unify with RTGI compositing workflow

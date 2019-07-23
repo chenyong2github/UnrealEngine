@@ -192,7 +192,7 @@ void AddDrawTexturePass(
 	FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
 	Parameters->InputTexture = InputTexture;
 	Parameters->InputSampler = TStaticSamplerState<>::GetRHI();
-	Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, LoadAction, ERenderTargetStoreAction::EStore);
+	Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, LoadAction);
 
 	AddDrawScreenPass(
 		GraphBuilder,

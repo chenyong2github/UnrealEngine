@@ -229,7 +229,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(
-				SceneColor, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
+				SceneColor, ERenderTargetLoadAction::ELoad);
 		
 			FDiffuseIndirectCompositePS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(PassParameters->DiffuseIndirectTexture != nullptr);
@@ -290,7 +290,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(
-				SceneColor, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
+				SceneColor, ERenderTargetLoadAction::ELoad);
 		
 			TShaderMapRef<FAmbientCubemapCompositePS> PixelShader(View.ShaderMap);
 			GraphBuilder.AddPass(
