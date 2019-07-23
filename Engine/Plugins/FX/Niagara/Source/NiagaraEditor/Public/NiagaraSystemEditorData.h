@@ -44,12 +44,16 @@ private:
 
 /** Editor only UI data for systems. */
 UCLASS()
-class UNiagaraSystemEditorData : public UNiagaraEditorDataBase
+class NIAGARAEDITOR_API UNiagaraSystemEditorData : public UNiagaraEditorDataBase
 {
 	GENERATED_BODY()
 
 public:
 	UNiagaraSystemEditorData(const FObjectInitializer& ObjectInitializer);
+
+	//~ Begin UObject Interface
+	void PostInitProperties();
+	//~ End UObject Interface
 
 	virtual void PostLoadFromOwner(UObject* InOwner) override;
 
@@ -63,7 +67,7 @@ public:
 		return OwnerTransform;
 	}
 
-	void SetOwnerTransform(const FTransform& InTransform)  {
+	void SetOwnerTransform(const FTransform& InTransform) {
 		OwnerTransform = InTransform;
 	}
 
@@ -71,8 +75,22 @@ public:
 
 	void SetPlaybackRange(TRange<float> InPlaybackRange);
 
+	UEdGraph* GetSystemOverviewGraph() const;
+
+	void SystemOverviewHandleAdded(const FGuid AddedHandleGuid) const;
+
+	void SystemOverviewHandlesRemoved() const;
+
+	void Initialize(UNiagaraSystem* OwnerSystem, bool bEditingSystem);
+
 private:
 	void UpdatePlaybackRangeFromEmitters(UNiagaraSystem* OwnerSystem);
+
+	bool GetSystemOverviewGraphIsValid() const;
+
+	void InitSystemOverviewGraph();
+
+	const FVector2D GetGoodPlaceForNewOverviewNode() const;
 
 private:
 	UPROPERTY(Instanced)
@@ -89,4 +107,11 @@ private:
 
 	UPROPERTY()
 	float PlaybackRangeMax;
+
+	/** Graph presenting overview of the current system and its emitters. */
+	UPROPERTY()
+	UEdGraph* SystemOverviewGraph;
+
+	UPROPERTY()
+	UNiagaraSystem* OwningSystem;
 };
