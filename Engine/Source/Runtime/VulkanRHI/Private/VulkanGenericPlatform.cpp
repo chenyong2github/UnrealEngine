@@ -2,6 +2,7 @@
 
 #include "VulkanRHIPrivate.h"
 #include "VulkanGenericPlatform.h"
+#include "HAL/FileManager.h"
 
 void FVulkanGenericPlatform::SetupFeatureLevels()
 {
