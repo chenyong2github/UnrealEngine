@@ -10,6 +10,7 @@ class FUICommandList;
 class FTabManager;
 class FExtender;
 class FExtensibilityManager;
+struct FUIAction;
 
 UCLASS(BlueprintType, Abstract)
 class EDITORMENUS_API UEditorMenuContextBase : public UObject
