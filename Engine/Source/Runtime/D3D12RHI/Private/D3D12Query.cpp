@@ -452,7 +452,8 @@ void FD3D12QueryHeap::DestroyQueryHeap(bool bDeferDelete)
 	{
 		if (bDeferDelete)
 		{
-			GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(QueryHeap);
+			FD3D12Fence& Fence = GetParentDevice()->GetCommandListManager().GetFence();
+			GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(QueryHeap, &Fence);
 		}
 		else
 		{
