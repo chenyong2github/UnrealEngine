@@ -494,7 +494,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 
 					const bool bIsLoadAction = RenderTarget.GetLoadAction() == ERenderTargetLoadAction::ELoad;
 
-					checkf(
+					ensureMsgf(
 						Texture->Desc.TargetableFlags & TexCreate_RenderTargetable,
 						TEXT("Pass '%s' attempted to bind texture '%s' as a render target, but the texture has not been created with TexCreate_RenderTargetable."),
 						PassName, Texture->Name);
