@@ -303,7 +303,7 @@ namespace UnrealBuildTool
 		/// Whether to enable the mesh editor.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bEnableMeshEditor = true;
+		public bool bEnableMeshEditor = false;
 
 		/// <summary>
 		/// Whether to compile the Chaos physics plugin.
