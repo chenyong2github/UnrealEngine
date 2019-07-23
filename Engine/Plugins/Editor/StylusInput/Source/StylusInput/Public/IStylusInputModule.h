@@ -83,4 +83,7 @@ private:
 	TArray<IStylusMessageHandler*> MessageHandlers;
 
 	TSharedRef<SDockTab> OnSpawnPluginTab(const FSpawnTabArgs& Args);
+
+	/** FTickableEditorObject must be destroyed on the main thread. */
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 };
