@@ -1051,8 +1051,6 @@ bool FOodleDictionaryGenerator::GenerateAndWriteDictionary()
 			uint8* CurPacket = CompressionTestPackets[CurPacketIdx];
 			int32 CurPacketSize = CompressionTestPacketSizes[CurPacketIdx];
 
-			check(OodleLZ_GetCompressedBufferSizeNeeded(CurPacketSize) <= MAX_OODLE_BUFFER);
-
 			SINTa CompressedLengthSINT = 0;
 			
 			CompressedLengthSINT = OodleNetwork1UDP_Encode(CompressorState, SharedDictionary, CurPacket, CurPacketSize,
@@ -1209,7 +1207,7 @@ void FOodleDictionaryGenerator::Cleanup()
 		MergeMap.Empty();
 	}
 }
-#endif // HAS_OODLE_SDK
+#endif
 
 #endif // !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 
