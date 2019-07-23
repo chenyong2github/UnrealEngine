@@ -10,10 +10,10 @@
 #include "Cluster/IDisplayClusterClusterEventListener.h"
 
 #include "Config/DisplayClusterConfigTypes.h"
+#include "Engine/Scene.h"
 
 #include "IDisplayClusterBlueprintAPI.generated.h"
 
-struct FPostProcessSettings;
 
 
 
