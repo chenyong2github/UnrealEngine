@@ -60,7 +60,9 @@ protected:
 	// converts the positionalvector to a TArray<FVector3d> where the offset in the array is implicitly the
 	// VtxId in the mesh, and not ness the matrix row id
 	// NB: the resulting array is treated as sparse and may have un-initialized elements.
-	bool Linearize(const FSOAPositions& PositionalVector, TArray<FVector3d>& LinearArray) const;
+	bool CopyInternalPositions(const FSOAPositions& PositionalVector, TArray<FVector3d>& LinearArray) const;
+
+	bool CopyBoundaryPositions(TArray<FVector3d>& LinearArray) const;
 
 
 protected:
@@ -82,10 +84,15 @@ protected:
 	// Used to map between VtxId and vertex Index in linear vector..
 	FVertexLinearization  VtxLinearization;
 
-	TArray<FVector3d> BoundaryPositions;
+	// Boundary points, split into 3 arrays (x,y,z).
+	FSOAPositions         BoundaryPositions;
+
 
 	// Actual solver that manages the various linear algebra bits.
 	TUniquePtr<FConstrainedSolver>         ConstrainedSolver;
+
+    // Sparse Matrix that holds L^T * B where B has the boundary terms.
+	FSparseMatrixD                         BoundaryOperator;
 };
 
 
@@ -180,29 +187,43 @@ public:
 
 protected:
 
+
 	// The derived class has to implement this.
-	virtual TUniquePtr<FSparseMatrixD> ConstructDiffusionOperator(const ELaplacianWeightScheme Scheme, 
-		                                                          const FDynamicMesh3& Mesh,
-		                                                          bool& bIsOperatorSymmetric,
-		                                                          FVertexLinearization& Linearization,
-		                                                          TArray<int32>* EdgeVtx) = 0 ;
+	// responsible for constructing the Diffusion Operator, the Boundary Operator etc
+	virtual void ConstructOperators(const ELaplacianWeightScheme Scheme,
+		                            const FDynamicMesh3& Mesh,
+	 	                            bool& bIsOperatorSymmetric,
+		                            FVertexLinearization& Linearization,
+									FSparseMatrixD& DiffusionOp,
+									FSparseMatrixD& BoundaryOp ) = 0;
 
 	void Initialize(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme Scheme);
 
 protected:
-	bool Linearize(const FSOAPositions& PositionalVector, TArray<FVector3d>& LinearArray) const;
+
+	// Copy the 
+	bool CopyInternalPositions(const FSOAPositions& PositionalVector, TArray<FVector3d>& LinearArray) const;
+
+	bool CopyBoundaryPositions(TArray<FVector3d>& LinearArray) const;
 
 	// Cache the vertex count.
-	int32 VertexCount;
+	int32                 VertexCount;
 
-	// Used to map vertex ID to entry in linear vector..
+	// Cache the number of internal vertices
+	int32                 InternalVertexCount;
+
+	// Used to map between VtxId and vertex Index in linear vector..
 	FVertexLinearization  VtxLinearization;
+
 
 	// I don't know if we want to keep this after the constructor
 	bool                                   bIsSymmetric;
-	TUniquePtr<FSparseMatrixD>             DiffusionOperator;
+	FSparseMatrixD                         DiffusionOperator;
+	FSparseMatrixD			               BoundaryOperator;
 	TArray<int32>                          EdgeVerts;
 	FSparseMatrixD::Scalar                 MinDiagonalValue;
+	
+	FSOAPositions                       BoundaryPositions;
 
 	FSOAPositions                       Tmp[2];
 	int32                               Id; // double buffer id
@@ -220,13 +241,13 @@ public:
 	}
 	
 protected:
-	TUniquePtr<FSparseMatrixD> ConstructDiffusionOperator( const ELaplacianWeightScheme Scheme,
-														   const FDynamicMesh3& Mesh,
-		                                                   bool& bIsOperatorSymmetric,
-		                                                   FVertexLinearization& Linearization,
-		                                                   TArray<int32>* EdgeVtx) override ;
 	
-
+	void ConstructOperators(const ELaplacianWeightScheme Scheme,
+		                    const FDynamicMesh3& Mesh,
+		                    bool& bIsOperatorSymmetric,
+		                    FVertexLinearization& Linearization,
+		                    FSparseMatrixD& DiffusionOp,
+		                    FSparseMatrixD& BoundaryOp) override;
 };
 
 class  FBiHarmonicDiffusionMeshSmoother : public FDiffusionIntegrator
@@ -240,10 +261,12 @@ public:
 	}
 
 protected:
-	TUniquePtr<FSparseMatrixD> ConstructDiffusionOperator( const ELaplacianWeightScheme Scheme,
-														   const FDynamicMesh3& Mesh,
-														   bool& bIsOperatorSymmetric,
-														   FVertexLinearization& Linearization,
-														   TArray<int32>* EdgeVtx) override;
+
+	void ConstructOperators( const ELaplacianWeightScheme Scheme,
+		                     const FDynamicMesh3& Mesh,
+		                     bool& bIsOperatorSymmetric,
+		                     FVertexLinearization& Linearization,
+		                     FSparseMatrixD& DiffusionOp,
+		                     FSparseMatrixD& BoundaryOp) override;
 };
 
