@@ -1288,6 +1288,8 @@ public:
 	*/
 	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
 
+	static bool FileExitsInPlatformPackage(const FString& RelativePath);
+
 	static void ParseChunkIdPakchunkIndexMapping(TArray<FString> ChunkIndexRedirects, TMap<int32, int32>& OutMapping);
 
 	static void PumpMessagesOutsideMainLoop()

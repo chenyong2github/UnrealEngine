@@ -1090,6 +1090,13 @@ FString FIOSPlatformMisc::LoadTextFileFromPlatformPackage(const FString& Relativ
 	return FString(UTF8_TO_TCHAR(FileContents.GetData()));
 }
 
+bool FIOSPlatformMisc::FileExitsInPlatformPackage(const FString& RelativePath)
+{
+	FString FilePath = FString([[NSBundle mainBundle] bundlePath]) / RelativePath;
+
+	return 0 == access(TCHAR_TO_UTF8(*FilePath), F_OK);
+}
+
 void FIOSPlatformMisc::EnableVoiceChat(bool bEnable)
 {
 	return [[IOSAppDelegate GetDelegate] EnableVoiceChat:bEnable];
