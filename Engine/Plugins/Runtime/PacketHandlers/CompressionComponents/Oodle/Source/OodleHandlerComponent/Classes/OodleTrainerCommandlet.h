@@ -10,7 +10,7 @@
 #include "OodleTrainerCommandlet.generated.h"
 
 // don't compile this in for non-editor
-#define USE_OODLE_TRAINER_COMMANDLET (HAS_OODLE_SDK && WITH_EDITOR)
+#define USE_OODLE_TRAINER_COMMANDLET (HAS_OODLE_NET_SDK && WITH_EDITOR)
 
 /**
  * Commandlet for processing UE4 packet captures, through Oodle's training API, for generating compressed state dictionaries.
@@ -156,7 +156,7 @@ private:
 	 */
 	bool GenerateDictionary(bool bIsInput, int32 ChangelistNumber);
 
-#endif // HAS_OODLE_SDK
+#endif // HAS_OODLE_NET_SDK
 #endif // !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 };
 
