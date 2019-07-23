@@ -122,11 +122,6 @@ public:
 		: FRDGPassParameterStruct(Parameters, &FParameterStruct::FTypeInfo::GetStructMetadata()->GetLayout())
 	{}
 
-	bool IsCompute() const
-	{
-		return Layout->NumRenderTargets() == 0;
-	}
-
 	uint32 GetParameterCount() const
 	{
 		return Layout->Resources.Num();

@@ -398,7 +398,9 @@ FRDGTextureRef ComputePostProcessMaterial(
 	FRDGTextureRef OutputTexture = Inputs.OverrideOutputTexture;
 
 	// We can re-use the scene color texture as the render target if we're not simultaneously reading from it.
-	if (!OutputTexture && !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0))
+	// This is only necessary to do if we're going to be priming content from the render target since it avoids
+	// the copy. Otherwise, we just allocate a new render target.
+	if (!OutputTexture && !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0) && bPrimeOutputColor)
 	{
 		OutputTexture = SceneColorTexture;
 	}
@@ -439,6 +441,12 @@ FRDGTextureRef ComputePostProcessMaterial(
 	else if (ScreenPassView.bHasHMDMask)
 	{
 		OutputLoadAction = ERenderTargetLoadAction::EClear;
+	}
+
+	if (OutputTexture == SceneColorTexture)
+	{
+		ensureMsgf(OutputLoadAction == ERenderTargetLoadAction::ELoad,
+			TEXT("We only want to re-use the input texture if we're going to load its contents. Otherwise RDG will emit a warning."));
 	}
 
 	FPostProcessMaterialParameters* PostProcessMaterialParameters = GraphBuilder.AllocParameters<FPostProcessMaterialParameters>();

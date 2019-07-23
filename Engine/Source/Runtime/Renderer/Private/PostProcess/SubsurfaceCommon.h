@@ -39,7 +39,7 @@ ESubsurfaceMode GetSubsurfaceModeForView(const FViewInfo& View);
 
 // Set of common shader parameters shared by all subsurface shaders.
 BEGIN_SHADER_PARAMETER_STRUCT(FSubsurfaceParameters, )
-SHADER_PARAMETER(FVector4, SubsurfaceParams)
+	SHADER_PARAMETER(FVector4, SubsurfaceParams)
 	SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneUniformBuffer)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BilinearTextureSampler)
@@ -72,8 +72,8 @@ public:
 
 // A shader parameter struct for a single subsurface input texture.
 BEGIN_SHADER_PARAMETER_STRUCT(FSubsurfaceInput, )
-SHADER_PARAMETER_STRUCT_INCLUDE(FScreenPassTextureViewportParameters, Viewport)
-SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Texture)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FScreenPassTextureViewportParameters, Viewport)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Texture)
 END_SHADER_PARAMETER_STRUCT()
 
 FSubsurfaceInput GetSubsurfaceInput(FRDGTextureRef Texture, const FScreenPassTextureViewportParameters& ViewportParameters);
