@@ -18,6 +18,15 @@ bool ULevelSequenceEditorBlueprintLibrary::OpenLevelSequence(ULevelSequence* Lev
 	return FAssetEditorManager::Get().OpenEditorForAsset(LevelSequence);
 }
 
+ULevelSequence* ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		return Cast<ULevelSequence>(CurrentSequencer.Pin()->GetRootMovieSceneSequence());
+	}
+	return nullptr;
+}
+
 void ULevelSequenceEditorBlueprintLibrary::CloseLevelSequence()
 {
 	if (CurrentSequencer.IsValid())
