@@ -506,7 +506,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("ShadowedLights"),
 			PassParameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[PassParameters, &View, this, LightsToInject, VolumetricFogGridSize, GridZParams, bUseTemporalReprojection, IntegrationData, FogInfo](FRHICommandListImmediate& RHICmdList)
 		{
 			for (int32 LightIndex = 0; LightIndex < LightsToInject.Num(); LightIndex++)
@@ -1062,7 +1062,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRHICommandListImmediat
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("InitializeVolumeAttributes"),
 					PassParameters,
-					ERenderGraphPassFlags::Compute,
+					ERDGPassFlags::Compute,
 					[PassParameters, &View, VolumetricFogGridSize, IntegrationData, ComputeShader](FRHICommandListImmediate& RHICmdList)
 				{
 					const FIntVector NumGroups = FIntVector::DivideAndRoundUp(VolumetricFogGridSize, VolumetricFogGridInjectionGroupSize);
@@ -1128,7 +1128,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRHICommandListImmediat
 						bUseDistanceFieldSkyOcclusion ? TEXT("DFAO") : TEXT(""),
 						PassParameters->LightFunctionTexture ? TEXT("LF") : TEXT("")),
 					PassParameters,
-					ERenderGraphPassFlags::Compute,
+					ERDGPassFlags::Compute,
 					[PassParameters, ComputeShader, &View, this, FogInfo, bUseTemporalReprojection, VolumetricFogGridSize, IntegrationData, bUseDirectionalLightShadowing, bUseDistanceFieldSkyOcclusion, LightFunctionWorldToShadow](FRHICommandListImmediate& RHICmdList)
 				{
 					UnbindRenderTargets(RHICmdList);
@@ -1159,7 +1159,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRHICommandListImmediat
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("FinalIntegration"),
 					PassParameters,
-					ERenderGraphPassFlags::Compute,
+					ERDGPassFlags::Compute,
 					[PassParameters, &View, VolumetricFogGridSize, IntegrationData, this](FRHICommandListImmediate& RHICmdList)
 				{
 					const FIntVector NumGroups = FIntVector::DivideAndRoundUp(VolumetricFogGridSize, VolumetricFogIntegrationGroupSize);

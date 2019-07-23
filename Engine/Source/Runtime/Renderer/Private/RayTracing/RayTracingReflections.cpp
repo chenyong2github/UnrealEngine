@@ -333,7 +333,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ReflectionRayTracingGatherMaterials %dx%d", TileAlignedResolution.X, TileAlignedResolution.Y),
 				PassParameters,
-				ERenderGraphPassFlags::Compute,
+				ERDGPassFlags::Compute,
 				[PassParameters, this, &View, RayGenShader, TileAlignedResolution](FRHICommandList& RHICmdList)
 			{
 				FRayTracingPipelineState* Pipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, View, RayGenShader->GetRayTracingShader());
@@ -357,7 +357,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ReflectionRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 				PassParameters,
-				ERenderGraphPassFlags::Compute,
+				ERDGPassFlags::Compute,
 				[PassParameters, this, &View, RayGenShader, RayTracingResolution, DeferredMaterialBufferNumElements, DeferredMaterialMode](FRHICommandList& RHICmdList)
 			{
 				FRayTracingShaderBindingsWriter GlobalResources;
