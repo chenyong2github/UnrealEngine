@@ -36,7 +36,7 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Framework/Commands/UICommandList.h"
 #include "NiagaraMessageManager.h"
-#include "Viewmodels/NiagaraOverviewGraphViewModel.h"
+#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
 

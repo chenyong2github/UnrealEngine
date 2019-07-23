@@ -49,7 +49,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
 #include "NiagaraMessageLogViewModel.h"
-#include "Viewmodels/NiagaraOverviewGraphViewModel.h"
+#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
