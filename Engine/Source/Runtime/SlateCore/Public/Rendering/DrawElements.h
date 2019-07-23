@@ -438,7 +438,7 @@ private:
 /**
  * Represents a top level window and its draw elements.
  */
-class FSlateWindowElementList : public FGCObject, public FNoncopyable
+class FSlateWindowElementList : public FNoncopyable
 {
 	friend class FSlateElementBatcher;
 public:
@@ -614,7 +614,7 @@ public:
 
 	SLATECORE_API void SetRenderTargetWindow(SWindow* InRenderTargetWindow);
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	void AddReferencedObjects(FReferenceCollector& Collector);
 
 private:
 	FSlateDrawElement& AddCachedElement();
