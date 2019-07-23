@@ -1868,6 +1868,18 @@ struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHIComm
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+struct FRHICommandClearRayTracingBindings final : public FRHICommand<FRHICommandClearRayTracingBindings>
+{
+	FRHIRayTracingScene* Scene;
+
+	explicit FRHICommandClearRayTracingBindings(FRHIRayTracingScene* InScene)
+		: Scene(InScene)
+	{}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+
 struct FRHICommandUpdateAccelerationStructures final : public FRHICommand<FRHICommandUpdateAccelerationStructures>
 {
 	const TArrayView<const FAccelerationStructureUpdateParams> UpdateParams;
@@ -3010,6 +3022,18 @@ public:
 		else
 		{
 			ALLOC_COMMAND(FRHICommandBuildAccelerationStructure)(Scene);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void ClearRayTracingBindings(FRHIRayTracingScene* Scene)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIClearRayTracingBindings(Scene);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandClearRayTracingBindings)(Scene);
 		}
 	}
 
