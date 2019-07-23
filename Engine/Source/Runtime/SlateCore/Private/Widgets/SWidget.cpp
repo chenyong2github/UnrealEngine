@@ -174,9 +174,9 @@ SWidget::SWidget()
 SWidget::~SWidget()
 {
 	// Unregister all ActiveTimers so they aren't left stranded in the Application's list.
-	if ( FSlateApplicationBase::IsInitialized() )
+	if (FSlateApplicationBase::IsInitialized())
 	{
-		for ( const auto& ActiveTimerHandle : ActiveTimers )
+		for (const auto& ActiveTimerHandle : ActiveTimers)
 		{
 			FSlateApplicationBase::Get().UnRegisterActiveTimer(ActiveTimerHandle);
 		}
@@ -189,7 +189,12 @@ SWidget::~SWidget()
 		// Reset handle
 		FastPathProxyHandle = FWidgetProxyHandle();
 
-		check(!PersistentState.CachedElementListNode);
+		// Note: this would still be valid if a widget was painted and then destroyed in the same frame.  
+		// In that case invalidation hasn't taken place for added widgets so the invalidation panel doesn't know about their cached element data to clean it up
+		if (PersistentState.CachedElementListNode)
+		{
+			PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
+		}
 
 #if WITH_ACCESSIBILITY
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetRemoved(this);

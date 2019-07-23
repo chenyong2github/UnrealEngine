@@ -350,10 +350,13 @@ struct FSlateCachedFastPathRenderingData
 	FSlateIndexArray Indices;
 };
 
+struct FSlateCachedElementData;
+
 struct FSlateCachedElementList
 {
-	FSlateCachedElementList(const SWidget* InWidget)
-		: Widget(InWidget)
+	FSlateCachedElementList(FSlateCachedElementData* InOwningData, const SWidget* InWidget)
+		: OwningData(InOwningData)
+		, Widget(InWidget)
 		, CachedRenderingData(nullptr)
 		, bNewData(false)
 	{}
@@ -367,6 +370,8 @@ struct FSlateCachedElementList
 
 	void Reset();
 
+	FSlateCachedElementData* GetOwningData() { return OwningData; }
+
 	FSlateRenderBatch& AddRenderBatch(int32 InLayer, const FShaderParams& InShaderParams, const FSlateShaderResource* InResource, ESlateDrawPrimitive InPrimitiveType, ESlateShader InShaderType, ESlateDrawEffect InDrawEffects, ESlateBatchDrawFlag InDrawFlags, int8 SceneIndex);
 
 	void AddCachedClipState(FSlateCachedClipState& ClipStateToCache);
@@ -376,7 +381,9 @@ struct FSlateCachedElementList
 private:
 	SLATECORE_API void DestroyCachedVertexData();
 public:
+	FSlateCachedElementData* OwningData;
 	const SWidget* Widget;
+
 	/** List of source draw elements to create batches from */
 	FSlateDrawElementArray DrawElements;
 	/** List of cached batches to submit for drawing */
@@ -412,23 +419,7 @@ struct FSlateCachedElementData
 		ElementListNode = nullptr;
 	}
 
-	FSlateCachedElementListNode* AddCache(const SWidget* Widget)
-	{
-#if WITH_SLATE_DEBUGGING
-		for (FSlateCachedElementList& CachedElementList : CachedElementLists)
-		{
-			ensure(CachedElementList.Widget != Widget);
-		}
-#endif
-
-		FSlateCachedElementListNode* NewNode = new FSlateCachedElementListNode(Widget);
-
-
-		CachedElementLists.AddTail(NewNode);
-		NewNode->GetValue().Initialize();
-
-		return NewNode;
-	}
+	FSlateCachedElementListNode* AddCache(const SWidget* Widget);
 
 	FSlateDrawElement& AddCachedElement(FSlateCachedElementListNode* CacheNode, const FSlateClippingManager& ParentClipManager, const SWidget* Widget);
 
