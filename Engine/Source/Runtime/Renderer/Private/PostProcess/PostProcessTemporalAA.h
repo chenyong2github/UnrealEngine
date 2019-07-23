@@ -81,6 +81,9 @@ struct FTAAPassParameters
 	// Whether to use the faster shader permutation.
 	bool bUseFast = false;
 
+	// Whether output texture should be render targetable.
+	bool bOutputRenderTargetable = false;
+
 	// Whether downsampled (box filtered, half resolution) frame should be written out.
 	bool bDownsample = false;
 	EPixelFormat DownsampleOverrideFormat = PF_Unknown;

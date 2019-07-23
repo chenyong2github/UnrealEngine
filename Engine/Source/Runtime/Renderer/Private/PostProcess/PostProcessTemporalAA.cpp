@@ -411,6 +411,11 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
 			/* bInForceSeparateTargetAndShaderResource = */ false);
 
+		if (bOutputRenderTargetable)
+		{
+			SceneColorDesc.TargetableFlags |= TexCreate_RenderTargetable;
+		}
+
 		Outputs.SceneColor = GraphBuilder.CreateTexture(
 			SceneColorDesc,
 			kTAAOutputNames[static_cast<int32>(Pass)],

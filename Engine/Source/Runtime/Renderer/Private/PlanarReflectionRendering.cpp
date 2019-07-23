@@ -664,8 +664,13 @@ class FPlanarReflectionPS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FPlanarReflectionPS, "/Engine/Private/PlanarReflectionShaders.usf", "PlanarReflectionPS", SF_Pixel);
 
-void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, const FViewInfo& View, FRDGTextureRef& ReflectionsOutputTexture)
+bool FDeferredShadingSceneRenderer::HasDeferredPlanarReflections(const FViewInfo& View) const
 {
+	if (View.bIsPlanarReflection || View.bIsReflectionCapture)
+	{
+		return false;
+	}
+
 	// Prevent rendering unsupported views when ViewIndex >= GMaxPlanarReflectionViews
 	// Planar reflections in those views will fallback to other reflection methods
 	{
@@ -675,7 +680,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 
 		if (ViewIndex >= GMaxPlanarReflectionViews)
 		{
-			return;
+			return false;
 		}
 	}
 
@@ -688,18 +693,18 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 		if (View.ViewFrustum.IntersectBox(ReflectionSceneProxy->WorldBounds.GetCenter(), ReflectionSceneProxy->WorldBounds.GetExtent()))
 		{
 			bAnyVisiblePlanarReflections = true;
+			break;
 		}
 	}
 
-	bool bViewIsReflectionCapture = View.bIsPlanarReflection || View.bIsReflectionCapture;
+	bool bComposePlanarReflections = Scene->PlanarReflections.Num() > 0 && bAnyVisiblePlanarReflections;
 
-	bool bComposePlanarReflections = Scene->PlanarReflections.Num() > 0 && !bViewIsReflectionCapture && bAnyVisiblePlanarReflections;
+	return bComposePlanarReflections;
+}
 
-	// Prevent reflection recursion, or view-dependent planar reflections being seen in reflection captures
-	if (!bComposePlanarReflections)
-	{
-		return;
-	}
+void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, const FViewInfo& View, FRDGTextureRef& ReflectionsOutputTexture)
+{
+	check(HasDeferredPlanarReflections(View));
 
 	// Allocate planar reflection texture
 	bool bClearReflectionsOutputTexture = false;
@@ -708,7 +713,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 		FRDGTextureDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			SceneTextures.SceneDepthBuffer->Desc.Extent,
 			PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
-			TexCreate_None, TexCreate_RenderTargetable,
+			TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable,
 			false);
 
 		Desc.AutoWritable = false;

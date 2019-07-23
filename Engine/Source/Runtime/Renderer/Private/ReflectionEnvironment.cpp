@@ -655,6 +655,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 		const bool bScreenSpaceReflections = !bRayTracedReflections && ShouldRenderScreenSpaceReflections(View);
 
+		const bool bComposePlanarReflections = !bRayTracedReflections && HasDeferredPlanarReflections(View);
+
 		FRDGTextureRef ReflectionsColor = nullptr;
 		if (bRayTracedReflections || bScreenSpaceReflections)
 		{
@@ -735,6 +737,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				FTAAPassParameters TAASettings(View);
 				TAASettings.Pass = ETAAPassConfig::ScreenSpaceReflections;
 				TAASettings.SceneColorInput = DenoiserInputs.Color;
+				TAASettings.bOutputRenderTargetable = bComposePlanarReflections;
 				
 				FTAAOutputs TAAOutputs = TAASettings.AddTemporalAAPass(
 					GraphBuilder,
@@ -759,8 +762,9 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 			}
 		} // if (bRayTracedReflections || bScreenSpaceReflections)
 
-		if (!bRayTracedReflections)
+		if (bComposePlanarReflections)
 		{
+			check(!bRayTracedReflections);
 			RenderDeferredPlanarReflections(GraphBuilder, SceneTextures, View, /* inout */ ReflectionsColor);
 		}
 
