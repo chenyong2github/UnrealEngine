@@ -617,8 +617,6 @@ void UMediaCapture::OnEndFrame_GameThread()
 	{
 		FScopeLock Lock(&AccessingCapturingSource);
 
-		++WaitingForResolveCommandExecutionCounter;
-
 		TSharedPtr<FSceneViewport> CapturingSceneViewportPin = CapturingSceneViewport.Pin();
 		FSceneViewport* InCapturingSceneViewport = CapturingSceneViewportPin.Get();
 		FTextureRenderTargetResource* InTextureRenderTargetResource = CapturingRenderTarget ? CapturingRenderTarget->GameThread_GetRenderTargetResource() : nullptr;
@@ -628,6 +626,8 @@ void UMediaCapture::OnEndFrame_GameThread()
 
 		if (InCapturingSceneViewport != nullptr || InTextureRenderTargetResource != nullptr)
 		{
+			++WaitingForResolveCommandExecutionCounter;
+
 			// RenderCommand to be executed on the RenderThread
 			ENQUEUE_RENDER_COMMAND(FMediaOutputCaptureFrameCreateTexture)(
 				[InMediaCapture, CapturingFrame, ReadyFrame, InCapturingSceneViewport, InTextureRenderTargetResource, InDesiredSize, InOnStateChanged](FRHICommandListImmediate& RHICmdList)
