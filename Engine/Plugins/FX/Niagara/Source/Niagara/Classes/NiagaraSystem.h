@@ -239,7 +239,7 @@ private:
 protected:
 
 	/** Handles to the emitter this System will simulate. */
-	UPROPERTY(VisibleAnywhere, Category = "Emitters")
+	UPROPERTY()
 	TArray<FNiagaraEmitterHandle> EmitterHandles;
 
 	UPROPERTY(EditAnywhere, Category="System")
