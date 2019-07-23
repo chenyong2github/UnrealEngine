@@ -289,8 +289,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 void UNetDriver::InitPacketSimulationSettings()
 {
 #if DO_ENABLE_NET_TEST
+	if (bNeverApplyNetworkEmulationSettings)
+	{
+		return;
+	}
+
+	PacketSimulationSettings.ResetSettings();
+
 	// read the settings from .ini and command line, with the command line taking precedence	
-	PacketSimulationSettings = FPacketSimulationSettings();
 	PacketSimulationSettings.LoadConfig(*NetDriverName.ToString());
 	PacketSimulationSettings.RegisterCommands();
 	PacketSimulationSettings.ParseSettings(FCommandLine::Get(), *NetDriverName.ToString());
@@ -1564,10 +1570,6 @@ void UNetDriver::Shutdown()
 
 	ConnectionlessHandler.Reset(nullptr);
 
-#if DO_ENABLE_NET_TEST
-	PacketSimulationSettings.UnregisterCommands();
-#endif
-
 	SetReplicationDriver(nullptr);
 
 	if (AnalyticsAggregator.IsValid())
@@ -2752,7 +2754,8 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	}
 #if DO_ENABLE_NET_TEST
 	// This will allow changing the Pkt* options at runtime
-	else if (PacketSimulationSettings.ParseSettings(Cmd, *NetDriverName.ToString()))
+	else if (bNeverApplyNetworkEmulationSettings == false && 
+			 PacketSimulationSettings.ParseSettings(Cmd, *NetDriverName.ToString()))
 	{
 		if (ServerConnection)
 		{
@@ -3218,9 +3221,19 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 
 #if DO_ENABLE_NET_TEST
 
-void UNetDriver::SetPacketSimulationSettings(FPacketSimulationSettings NewSettings)
+void UNetDriver::SetPacketSimulationSettings(const FPacketSimulationSettings& NewSettings)
 {
+	if (bNeverApplyNetworkEmulationSettings)
+	{
+		return;
+	}
+
 	PacketSimulationSettings = NewSettings;
+	OnPacketSimulationSettingsChanged();
+}
+
+void UNetDriver::OnPacketSimulationSettingsChanged()
+{
 	if (ServerConnection)
 	{
 		ServerConnection->UpdatePacketSimulationSettings();
@@ -3268,7 +3281,7 @@ void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 	ValidateSettings();
 }
 
-void FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
+bool FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
 {
 	const FString SectionName = FString::Printf(TEXT("%s.%s"), TEXT("PacketSimulationProfile"), ProfileName);
 
@@ -3277,7 +3290,7 @@ void FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
 	if (!bSectionExists)
 	{
 		UE_LOG(LogNet, Warning, TEXT("EmulationProfile [%s] was not found in %s. Packet settings were not changed"), *SectionName, *GEngineIni);
-		return;
+		return false;
 	}
 
 	ResetSettings();
@@ -3307,6 +3320,8 @@ void FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
 	}
 	
 	ValidateSettings();
+
+	return true;
 }
 
 void FPacketSimulationSettings::ResetSettings()
@@ -3378,29 +3393,9 @@ void FPacketSimulationSettings::RegisterCommands()
 		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLagMax="), TEXT("PktLagMax=<n> (maximum packet latency)"));
 		ConsoleManager.RegisterConsoleCommand(TEXT("Net EmulationProfile="), TEXT("EmulationProfile=<NAME> (apply an emulation profile)"));
 	}
-}
 
-
-void FPacketSimulationSettings::UnregisterCommands()
-{
-	// Never unregister the console commands. Since net drivers come and go, and we can sometimes have more than 1, etc. 
+	// Note we never unregister the console commands since net drivers come and go, and we can sometimes have more than 1, etc. 
 	// We could do better bookkeeping for this, but its not worth it right now. Just ensure the commands are always there for tab completion.
-#if 0
-	IConsoleManager& ConsoleManager = IConsoleManager::Get();
-
-	// Gather up all relevant console commands
-	TArray<IConsoleObject*> PacketSimulationConsoleCommands;
-	ConsoleManager.ForEachConsoleObjectThatStartsWith(
-		FConsoleObjectVisitor::CreateStatic< TArray<IConsoleObject*>& >(
-		&FPacketSimulationConsoleCommandVisitor::OnPacketSimulationConsoleCommand,
-		PacketSimulationConsoleCommands ), TEXT("Net Pkt"));
-
-	// Unregister them from the console manager
-	for(int32 i = 0; i < PacketSimulationConsoleCommands.Num(); ++i)
-	{
-		ConsoleManager.UnregisterConsoleObject(PacketSimulationConsoleCommands[i]);
-	}
-#endif
 }
 
 /**
