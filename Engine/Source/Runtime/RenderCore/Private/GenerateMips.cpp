@@ -131,7 +131,7 @@ void FGenerateMips::Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Generate2DTextureMips DestMipLevel=%d", MipLevel),
 			PassParameters,
-			ERenderGraphPassFlags::Compute | ERDGPassFlags::GenerateMips,
+			ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
 			[PassParameters, ComputeShader, GenMipsGroupCount](FRHICommandList& RHICmdList)
 		{
 			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, GenMipsGroupCount);
