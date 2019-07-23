@@ -5656,8 +5656,6 @@ ALandscapeBlueprintBrushBase* FLandscapeLayerBrush::GetBrush() const
 #endif
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 void FLandscapeLayerBrush::SetOwner(ALandscape* InOwner)
 {
 #if WITH_EDITORONLY_DATA
@@ -5671,8 +5669,6 @@ void FLandscapeLayerBrush::SetOwner(ALandscape* InOwner)
 	}
 #endif
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 bool FLandscapeLayerBrush::IsAffectingHeightmap() const
 {
@@ -5739,7 +5735,5 @@ bool FLandscapeLayerBrush::Initialize(const FIntRect& InLandscapeExtent, UTextur
 }
 
 #endif // WITH_EDITOR
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
