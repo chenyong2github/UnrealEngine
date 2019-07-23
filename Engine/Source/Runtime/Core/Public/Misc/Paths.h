@@ -404,6 +404,12 @@ public:
 	// Returns the path in front of the filename
 	static FString GetPath(FString&& InPath);
 
+	// Returns the leaf in the path
+	static FString GetPathLeaf(const FString& InPath);
+
+	// Returns the leaf in the path
+	static FString GetPathLeaf(FString&& InPath);
+
 	/** Changes the extension of the given filename (does nothing if the file has no extension) */
 	static FString ChangeExtension(const FString& InPath, const FString& InNewExtension);
 
