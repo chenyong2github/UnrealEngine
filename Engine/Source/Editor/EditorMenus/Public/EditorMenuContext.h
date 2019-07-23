@@ -54,6 +54,8 @@ public:
 
 	void AppendCommandList(const TSharedRef<FUICommandList>& InCommandList);
 	void AppendCommandList(const TSharedPtr<FUICommandList>& InCommandList);
+	const FUIAction* GetActionForCommand(TSharedPtr<const FUICommandInfo> Command, TSharedPtr<const FUICommandList>& OutCommandList) const;
+
 	void AddExtender(const TSharedPtr<FExtender>& InExtender);
 	TSharedPtr<FExtender> GetAllExtenders();
 	void ReplaceExtenders(const TSharedPtr<FExtender>& InExtender);
@@ -63,7 +65,7 @@ public:
 	void AddObject(UObject* InObject);
 
 	friend class UEditorMenuSubsystem;
-	
+	friend struct FEditorMenuEntry;
 
 private:
 	

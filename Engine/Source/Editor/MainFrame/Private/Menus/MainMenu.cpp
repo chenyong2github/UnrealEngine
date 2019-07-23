@@ -534,16 +534,7 @@ void FMainMenu::RegisterRecentFileAndExitMenuItems()
 
 TSharedRef< SWidget > FMainMenu::MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext )
 {
-	if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus)
-	{
-		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>("MainFrame");
-		EditorMenuContext.AppendCommandList(MainFrameModule.GetMainFrameCommandBindings());
-	}
-
-
-	TSharedRef< SWidget > MenuBarWidget = FMainMenu::MakeMainMenu( TabManager, MenuName, EditorMenuContext );
-
-	return MenuBarWidget;
+	return FMainMenu::MakeMainMenu( TabManager, MenuName, EditorMenuContext );
 }
 
 

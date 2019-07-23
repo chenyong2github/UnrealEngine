@@ -630,6 +630,7 @@ public:
 	TSharedPtr< FUICommandInfo > SelectActorsInLayers;
 
 	TSharedPtr< FUICommandInfo > FocusAllViewportsToSelection;
+	TSharedPtr< FUICommandInfo > FocusViewportToSelection;
 
         // Open merge actor command
 	TSharedPtr< FUICommandInfo > OpenMergeActor;

@@ -313,7 +313,7 @@ private:
 
 	static void ExecuteStringCommand(const FEditorMenuStringCommand StringCommand, const FEditorMenuContext Context);
 
-	void FillMenuDynamic(FMenuBuilder& Builder, FNewEditorMenuDelegate InConstructMenu);
+	void FillMenuDynamic(FMenuBuilder& Builder, FNewEditorMenuDelegate InConstructMenu, const FEditorMenuContext Context);
 
 	void ListAllParents(const FName Name, TArray<FName>& AllParents);
 

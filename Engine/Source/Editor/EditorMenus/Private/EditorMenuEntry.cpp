@@ -31,7 +31,34 @@ FEditorMenuEntry::FEditorMenuEntry(const FEditorMenuOwner InOwner, const FName I
 {
 }
 
-void FEditorMenuEntry::SetCommand(const TSharedPtr< const FUICommandInfo >& InCommand, FName InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon)
+const FUIAction* FEditorMenuEntry::GetActionForCommand(const FEditorMenuContext& InContext, TSharedPtr<const FUICommandList>& OutCommandList) const
+{
+	if (Command.IsValid())
+	{
+		if (CommandList.IsValid())
+		{
+			const FUIAction* Result = CommandList->GetActionForCommand(Command);
+			if (Result)
+			{
+				OutCommandList = CommandList;
+				return Result;
+			}
+		}
+		else
+		{
+			return InContext.GetActionForCommand(Command, OutCommandList);
+		}
+	}
+
+	return nullptr;
+}
+
+void FEditorMenuEntry::SetCommandList(const TSharedPtr<const FUICommandList>& InCommandList)
+{
+	CommandList = InCommandList;
+}
+
+void FEditorMenuEntry::SetCommand(const TSharedPtr<const FUICommandInfo>& InCommand, FName InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon)
 {
 	Command = InCommand;
 	Name = InName != NAME_None ? InName : InCommand->GetCommandName();
@@ -57,6 +84,16 @@ FEditorMenuEntry FEditorMenuEntry::InitMenuEntry(const TSharedPtr< const FUIComm
 	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
 	Entry.TutorialHighlightName = InTutorialHighlightName;
 	Entry.SetCommand(InCommand, InName, InLabel, InToolTip, InIcon);
+	Entry.CommandList.Reset();
+	return Entry;
+}
+
+FEditorMenuEntry FEditorMenuEntry::InitMenuEntryWithCommandList(const TSharedPtr< const FUICommandInfo >& InCommand, const TSharedPtr< const FUICommandList >& InCommandList, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FName InTutorialHighlightName, const FName InName)
+{
+	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
+	Entry.TutorialHighlightName = InTutorialHighlightName;
+	Entry.SetCommand(InCommand, InName, InLabel, InToolTip, InIcon);
+	Entry.CommandList = InCommandList;
 	return Entry;
 }
 

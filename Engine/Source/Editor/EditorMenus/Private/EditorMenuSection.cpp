@@ -81,6 +81,11 @@ FEditorMenuEntry& FEditorMenuSection::AddMenuEntry(const TSharedPtr< const FUICo
 	return AddEntry(FEditorMenuEntry::InitMenuEntry(InCommand, InLabelOverride, InToolTipOverride, InIconOverride, InTutorialHighlightName, InNameOverride));
 }
 
+FEditorMenuEntry& FEditorMenuSection::AddMenuEntryWithCommandList(const TSharedPtr< const FUICommandInfo >& InCommand, const TSharedPtr< const FUICommandList >& InCommandList, const TAttribute<FText>& InLabelOverride, const TAttribute<FText>& InToolTipOverride, const TAttribute<FSlateIcon>& InIconOverride, const FName InTutorialHighlightName, const FName InNameOverride)
+{
+	return AddEntry(FEditorMenuEntry::InitMenuEntryWithCommandList(InCommand, InCommandList, InLabelOverride, InToolTipOverride, InIconOverride, InTutorialHighlightName, InNameOverride));
+}
+
 FEditorMenuEntry& FEditorMenuSection::AddDynamicEntry(const FName InName, const FNewEditorMenuSectionDelegate& InConstruct)
 {
 	FEditorMenuEntry& Entry = AddEntry(FEditorMenuEntry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry));

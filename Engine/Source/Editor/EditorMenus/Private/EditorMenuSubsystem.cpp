@@ -512,12 +512,13 @@ void UEditorMenuSubsystem::AssembleMenuHierarchy(UEditorMenu* GeneratedMenu, con
 	ApplyCustomization(GeneratedMenu);
 }
 
-void UEditorMenuSubsystem::FillMenuDynamic(FMenuBuilder& MenuBuilder, FNewEditorMenuDelegate InConstructMenu)
+void UEditorMenuSubsystem::FillMenuDynamic(FMenuBuilder& MenuBuilder, FNewEditorMenuDelegate InConstructMenu, const FEditorMenuContext Context)
 {
 	if (InConstructMenu.IsBound())
 	{
 		// Create final menu
 		UEditorMenu* MenuData = NewObject<UEditorMenu>();
+		MenuData->Context = Context;
 		InConstructMenu.Execute(MenuData);
 
 		// Populate menu builder with final menu
@@ -618,7 +619,7 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 						MenuBuilder.AddSubMenu(
 							Block.Label,
 							Block.ToolTip,
-							FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenuDynamic, Block.SubMenuData.ConstructMenu.NewEditorMenuDelegate),
+							FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenuDynamic, Block.SubMenuData.ConstructMenu.NewEditorMenuDelegate, MenuData->Context),
 							Block.SubMenuData.bOpenSubMenuOnClick,
 							Block.Icon.Get(),
 							Block.bShouldCloseWindowAfterMenuSelection,
@@ -661,7 +662,24 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 				{
 					if (Block.Command.IsValid())
 					{
+						bool bPopCommandList = false;
+						TSharedPtr<const FUICommandList> CommandListForAction;
+						if (Block.GetActionForCommand(MenuData->Context, CommandListForAction) != nullptr && CommandListForAction.IsValid())
+						{
+							MenuBuilder.PushCommandList(CommandListForAction.ToSharedRef());
+							bPopCommandList = true;
+						}
+						else
+						{
+							UE_LOG(LogEditorMenus, Error, TEXT("UI command not found for menu entry: %s, menu: %s"), *Block.Name.ToString(), *MenuData->MenuName.ToString());
+						}
+
 						MenuBuilder.AddMenuEntry(Block.Command, Block.Name, Block.Label, Block.ToolTip, Block.Icon.Get());
+
+						if (bPopCommandList)
+						{
+							MenuBuilder.PopCommandList();
+						}
 					}
 					else if (Block.ScriptObject)
 					{
@@ -734,7 +752,24 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 			{
 				if (Block.Command.IsValid())
 				{
+					bool bPopCommandList = false;
+					TSharedPtr<const FUICommandList> CommandListForAction;
+					if (Block.GetActionForCommand(MenuData->Context, CommandListForAction) != nullptr && CommandListForAction.IsValid())
+					{
+						ToolBarBuilder.PushCommandList(CommandListForAction.ToSharedRef());
+						bPopCommandList = true;
+					}
+					else
+					{
+						UE_LOG(LogEditorMenus, Error, TEXT("UI command not found for toolbar entry: %s, toolbar: %s"), *Block.Name.ToString(), *MenuData->MenuName.ToString());
+					}
+
 					ToolBarBuilder.AddToolBarButton(Block.Command, Block.Name, Block.Label, Block.ToolTip, Block.Icon, Block.TutorialHighlightName);
+
+					if (bPopCommandList)
+					{
+						ToolBarBuilder.PopCommandList();
+					}
 				}
 				else if (Block.ScriptObject)
 				{

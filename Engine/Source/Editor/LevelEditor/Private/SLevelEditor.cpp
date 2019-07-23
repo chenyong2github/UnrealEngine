@@ -49,7 +49,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "HierarchicalLODOutlinerModule.h"
-
+#include "EditorViewportCommands.h"
 
 static const FName LevelEditorBuildAndSubmitTab("LevelEditorBuildAndSubmit");
 static const FName LevelEditorStatsViewerTab("LevelEditorStatsViewer");
@@ -140,6 +140,11 @@ void SLevelEditor::BindCommands()
 	LevelEditorCommands->MapAction( 
 		Actions.FocusAllViewportsToSelection, 
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("CAMERA ALIGN") ) )
+		);
+
+	LevelEditorCommands->MapAction( 
+		FEditorViewportCommands::Get().FocusViewportToSelection, 
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("CAMERA ALIGN ACTIVEVIEWPORTONLY") ) )
 		);
 }
 

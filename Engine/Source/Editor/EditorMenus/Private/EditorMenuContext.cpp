@@ -83,6 +83,23 @@ void FEditorMenuContext::AppendCommandList(const TSharedPtr<FUICommandList>& InC
 	}
 }
 
+const FUIAction* FEditorMenuContext::GetActionForCommand(TSharedPtr<const FUICommandInfo> Command, TSharedPtr<const FUICommandList>& OutCommandList) const
+{
+	for (const TSharedPtr<FUICommandList>& CommandListIter : CommandLists)
+	{
+		if (CommandListIter.IsValid())
+		{
+			if (const FUIAction* Result = CommandListIter->GetActionForCommand(Command))
+			{
+				OutCommandList = CommandListIter;
+				return Result;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void FEditorMenuContext::AddExtender(const TSharedPtr<FExtender>& InExtender)
 {
 	if (!ExtensibilityManager.IsValid())
