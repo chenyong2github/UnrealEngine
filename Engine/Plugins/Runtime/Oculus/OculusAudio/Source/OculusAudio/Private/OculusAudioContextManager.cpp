@@ -75,7 +75,25 @@ void FOculusAudioContextManager::OnListenerInitialize(FAudioDevice* AudioDevice,
 
 void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
 {
-	
+	FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");
+	check(Plugin != nullptr);
+
+	FString OculusSpatializerPluginName = Plugin->GetSpatializationPluginFactory()->GetDisplayName();
+	FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION, AudioPluginUtilities::CurrentPlatform);
+	if (CurrentSpatializerPluginName.Equals(OculusSpatializerPluginName))
+	{
+		OculusAudioSpatializationAudioMixer* Spatializer =
+			static_cast<OculusAudioSpatializationAudioMixer*>(AudioDevice->SpatializationPluginInterface.Get());
+		Spatializer->SetContext(nullptr);
+	}
+
+	FString OculusReverbPluginName = Plugin->GetReverbPluginFactory()->GetDisplayName();
+	FString CurrentReverbPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB, AudioPluginUtilities::CurrentPlatform);
+	if (CurrentReverbPluginName.Equals(OculusReverbPluginName))
+	{
+		OculusAudioReverb* Reverb = static_cast<OculusAudioReverb*>(AudioDevice->ReverbPluginInterface.Get());
+		Reverb->SetContext(nullptr);
+	}
 }
 
 ovrAudioContext FOculusAudioContextManager::GetOrCreateSerializationContext(UActorComponent* Parent)

@@ -2886,6 +2886,8 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 		Listener.WorldID = WorldID;
 		Listener.Transform = ListenerTransformCopy;
 
+		OnListenerUpdated(AudioThreadListeners);
+
 	}, GET_STATID(STAT_AudioSetListener));
 }
 

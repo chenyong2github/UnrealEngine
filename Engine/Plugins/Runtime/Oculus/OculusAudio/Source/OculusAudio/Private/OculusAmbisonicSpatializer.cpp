@@ -12,7 +12,6 @@ FOculusAmbisonicsMixer::FOculusAmbisonicsMixer()
 
 void FOculusAmbisonicsMixer::Shutdown()
 {
-	OVRA_CALL(ovrAudio_DestroyContext)(Context);
 }
 
 int32 FOculusAmbisonicsMixer::GetNumChannelsForAmbisonicsFormat(UAmbisonicsSubmixSettingsBase* InSettings)

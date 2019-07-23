@@ -70,6 +70,18 @@ namespace Audio
 #endif
 	}
 
+	void FMixerDevice::OnListenerUpdated(const TArray<FListener>& InListeners)
+	{
+		ListenerTransforms.Reset(InListeners.Num());
+
+		for (const FListener& Listener : InListeners)
+		{
+			ListenerTransforms.Add(Listener.Transform);
+		}
+
+		SourceManager.SetListenerTransforms(ListenerTransforms);
+	}
+
 	void FMixerDevice::ResetAudioRenderingThreadId()
 	{
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
