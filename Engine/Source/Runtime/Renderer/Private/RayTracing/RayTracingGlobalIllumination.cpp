@@ -497,7 +497,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("GlobalIlluminationRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 			PassParameters,
-			ERenderGraphPassFlags::Compute,
+			ERDGPassFlags::Compute,
 			[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
 		{
 			FRayTracingShaderBindingsWriter GlobalResources;
@@ -556,7 +556,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("GlobalIlluminationComposite"),
 			PassParameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[this, &SceneContext, &View, &SceneTextures, PassParameters](FRHICommandListImmediate& RHICmdList)
 			{
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
@@ -616,7 +616,7 @@ void FDeferredShadingSceneRenderer::CompositeGlobalIllumination(
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("GlobalIlluminationComposite"),
 		PassParameters,
-		ERenderGraphPassFlags::None,
+		ERDGPassFlags::Raster,
 		[this, &SceneContext, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
 			TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
