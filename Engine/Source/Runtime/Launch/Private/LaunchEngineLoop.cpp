@@ -1699,7 +1699,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	// Some programs might not use the taskgraph or thread pool
 	bool bCreateTaskGraphAndThreadPools = true;
-#if IS_PROGRAM
+	// If STATS is defined (via FORCE_USE_STATS or other), we have to call FTaskGraphInterface::Startup()
+#if IS_PROGRAM && !STATS
 	bCreateTaskGraphAndThreadPools = !FParse::Param(FCommandLine::Get(), TEXT("ReduceThreadUsage"));
 #endif
 	if (bCreateTaskGraphAndThreadPools)
