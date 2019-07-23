@@ -470,6 +470,10 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialSettings)
 	uint8 bMergeMaterials:1;
 
+	/** Create a flat material from all source materials, along with a new set of UVs. This material won't be applied to any section by default. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialSettings)
+	uint8 bCreateMergedMaterial : 1;
+
 	/** Whether or not vertex data such as vertex colours should be baked into the resulting mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings)
 	uint8 bBakeVertexDataToMesh:1;
@@ -540,6 +544,7 @@ struct FMeshMergingSettings
 		, bPivotPointAtZero(false)
 		, bMergePhysicsData(false)
 		, bMergeMaterials(false)
+		, bCreateMergedMaterial(false)
 		, bBakeVertexDataToMesh(false)
 		, bUseVertexDataForBakingMaterial(true)
 		, bUseTextureBinning(false)
