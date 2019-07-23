@@ -35,6 +35,7 @@
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterMapHistory.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 

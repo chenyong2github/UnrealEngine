@@ -13,6 +13,10 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraOverviewNodeStackItem.h"
 #include "GraphEditorActions.h"
+#include "GraphEditor.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ScopedTransaction.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraph"
 
