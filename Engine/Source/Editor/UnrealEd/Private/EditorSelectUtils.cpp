@@ -389,7 +389,7 @@ void UUnrealEdEngine::NoteSelectionChange(bool bNotify)
 	UpdatePivotLocationForSelection( true );
 
 	// Clear active editing visualizer on selection change
-	GUnrealEd->ComponentVisManager.ClearActiveComponentVis();
+	ComponentVisManager.ClearActiveComponentVis();
 
 	TArray<FEdMode*> ActiveModes;
 	GLevelEditorModeTools().GetActiveModes( ActiveModes );
