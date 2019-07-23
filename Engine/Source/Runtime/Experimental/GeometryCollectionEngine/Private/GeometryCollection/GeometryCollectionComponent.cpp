@@ -1596,21 +1596,18 @@ bool FScopedColorEdit::IsBoneSelected(int BoneIndex) const
 
 void FScopedColorEdit::SetSelectedBones(const TArray<int32>& SelectedBonesIn)
 {
-	Component->Modify();
 	bUpdated = true;
 	Component->SelectedBones = SelectedBonesIn;
 }
 
 void FScopedColorEdit::AppendSelectedBones(const TArray<int32>& SelectedBonesIn)
 {
-	Component->Modify();
 	bUpdated = true;
 	Component->SelectedBones.Append(SelectedBonesIn);
 }
 
 void FScopedColorEdit::ToggleSelectedBones(const TArray<int32>& SelectedBonesIn)
 {
-	Component->Modify();
 	bUpdated = true;
 	for (int32 BoneIndex : SelectedBonesIn)
 	{
@@ -1629,7 +1626,6 @@ void FScopedColorEdit::AddSelectedBone(int32 BoneIndex)
 {
 	if (!Component->SelectedBones.Contains(BoneIndex))
 	{
-		Component->Modify();
 		bUpdated = true;
 		Component->SelectedBones.Push(BoneIndex);
 	}
@@ -1639,7 +1635,6 @@ void FScopedColorEdit::ClearSelectedBone(int32 BoneIndex)
 {
 	if (Component->SelectedBones.Contains(BoneIndex))
 	{
-		Component->Modify();
 		bUpdated = true;
 		Component->SelectedBones.Remove(BoneIndex);
 	}
@@ -1654,7 +1649,6 @@ void FScopedColorEdit::ResetBoneSelection()
 {
 	if (Component->SelectedBones.Num() > 0)
 	{
-		Component->Modify();
 		bUpdated = true;
 	}
 
@@ -1665,7 +1659,6 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 {
 	check(Component);
 
-	Component->Modify();
 	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
 	if (GeometryCollection)
 	{
@@ -1857,7 +1850,7 @@ void FScopedColorEdit::UpdateBoneColors()
 {
 	// @todo FractureTools - For large fractures updating colors this way is extremely slow because the render state (and thus all buffers) must be recreated.
 	// It would be better to push the update to the proxy via a render command and update the existing buffer directly
-	FGeometryCollectionEdit GeometryCollectionEdit = Component->EditRestCollection();
+	FGeometryCollectionEdit GeometryCollectionEdit = Component->EditRestCollection(GeometryCollection::EEditUpdate::None);
 	UGeometryCollection* GeometryCollection = GeometryCollectionEdit.GetRestCollection();
 	if(GeometryCollection)
 	{
