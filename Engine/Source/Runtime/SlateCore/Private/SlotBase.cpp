@@ -37,6 +37,11 @@ const TSharedPtr<SWidget> FSlotBase::DetachWidget()
 	}
 }
 
+void FSlotBase::Invalidate(EInvalidateWidgetReason InvalidateReason)
+{
+	Widget->Invalidate(InvalidateReason);
+}
+
 void FSlotBase::DetatchParentFromContent()
 {
 	if (Widget != SNullWidget::NullWidget)
