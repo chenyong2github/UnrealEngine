@@ -26,14 +26,10 @@ struct FConcertSessionSettings
 {
 	GENERATED_BODY()
 
-	FConcertSessionSettings()
-		: BaseRevision(0)
-	{}
-
 	void Initialize()
 	{
 		ProjectName = FApp::GetProjectName();
-		BaseRevision = FEngineVersion::Current().GetChangelist(); // TODO: This isn't good enough for people using binary builds
+		// TODO: BaseRevision should have a robust way to know which content version a project is on, as we currently check this using the current build version (see EngineVersion in FConcertSessionVersionInfo), which works for UGS but isn't reliable for public binary builds
 	}
 
 	bool ValidateRequirements(const FConcertSessionSettings& Other, FText* OutFailureReason = nullptr) const
@@ -71,7 +67,7 @@ struct FConcertSessionSettings
 	 * Can be specified on the server cmd with `-CONCERTREVISION=`
 	 */
 	UPROPERTY(config, VisibleAnywhere, Category="Session Settings")
-	uint32 BaseRevision;
+	uint32 BaseRevision = 0;
 
 	/**
 	 * Override the default name chosen when archiving this session.
@@ -88,18 +84,13 @@ struct FConcertServerSettings
 {
 	GENERATED_BODY()
 
-	FConcertServerSettings()
-		: bIgnoreSessionSettingsRestriction(false)
-		, SessionTickFrequencySeconds(1)
-	{}
-
 	/** The server will allow client to join potentially incompatible sessions */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category="Server Settings")
-	bool bIgnoreSessionSettingsRestriction;
+	bool bIgnoreSessionSettingsRestriction = false;
 
 	/** The timespan at which session updates are processed. */
 	UPROPERTY(config, EditAnywhere, DisplayName="Session Tick Frequency", AdvancedDisplay, Category="Server Settings", meta=(ForceUnits=s))
-	int32 SessionTickFrequencySeconds;
+	int32 SessionTickFrequencySeconds = 1;
 };
 
 UCLASS(config=Engine)
