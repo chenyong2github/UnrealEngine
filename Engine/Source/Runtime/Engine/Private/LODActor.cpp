@@ -1034,7 +1034,7 @@ bool IsImposter(const UStaticMeshComponent* InComponent)
 {
 	check(InComponent);
 
-	if (!InComponent->bUseMaxLODAsImposter)
+	if (!InComponent->bUseMaxLODAsImposter || !InComponent->bBatchImpostersAsInstances)
 	{
 		return false;
 	}
@@ -1058,14 +1058,7 @@ bool IsImposter(const UStaticMeshComponent* InComponent)
 		return false;
 	}
 
-	// Currently, the bUseMaxLODAsImposter flag serves multiple purposes. Until this is sorted out,
-	// only take into accounts quads & octagons meshes.
-	const int32 NumWedges = StaticMeshLOD.IndexBuffer.GetNumIndices();
-	const int32 NumVertexPositions = StaticMeshLOD.VertexBuffers.PositionVertexBuffer.GetNumVertices();
-	const int32 NumFaces = NumWedges / 3;
-
-	return (NumFaces == 2 && NumVertexPositions == 4) ||
-		   (NumFaces == 8 && NumVertexPositions == 9);
+	return true;
 }
 
 UMaterialInterface* ALODActor::GetImposterMaterial(const UStaticMeshComponent* InComponent) const
