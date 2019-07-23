@@ -20,9 +20,14 @@ void FSlateNullRenderer::Destroy()
 
 FSlateDrawBuffer& FSlateNullRenderer::GetDrawBuffer()
 {
-	static FSlateDrawBuffer StaticDrawBuffer;
-	StaticDrawBuffer.ClearBuffer();
-	return StaticDrawBuffer;
+	static TUniquePtr<FSlateDrawBuffer> StaticDrawBuffer;
+	if (!StaticDrawBuffer.IsValid())
+	{
+		StaticDrawBuffer = MakeUnique<FSlateDrawBuffer>();
+	}
+
+	StaticDrawBuffer->ClearBuffer();
+	return *StaticDrawBuffer;
 }
 
 void FSlateNullRenderer::CreateViewport( const TSharedRef<SWindow> Window )
