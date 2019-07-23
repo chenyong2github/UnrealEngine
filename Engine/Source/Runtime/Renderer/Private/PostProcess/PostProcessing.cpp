@@ -1262,20 +1262,14 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					FIntPoint QuantizedOutputSize;
 					QuantizeSceneBufferSize(SecondaryViewRectSize, QuantizedOutputSize);
 
-					FRCPassMitchellNetravaliDownsample::FParameters Parameters;
-					Parameters.InputViewRect = TAAParameters.OutputViewRect;
-					Parameters.OutputViewRect.Min.X = 0;
-					Parameters.OutputViewRect.Min.Y = 0;
-					Parameters.OutputViewRect.Max = SecondaryViewRectSize;
+					const FIntRect InputViewport = TAAParameters.OutputViewRect;
 
-					Parameters.OutputExtent.X = FMath::Max(SceneContext.GetBufferSizeXY().X, QuantizedOutputSize.X);
-					Parameters.OutputExtent.Y = FMath::Max(SceneContext.GetBufferSizeXY().Y, QuantizedOutputSize.Y);
+					FScreenPassTextureViewport OutputViewport;
+					OutputViewport.Rect.Max = SecondaryViewRectSize;
+					OutputViewport.Extent.X = FMath::Max(SceneContext.GetBufferSizeXY().X, QuantizedOutputSize.X);
+					OutputViewport.Extent.Y = FMath::Max(SceneContext.GetBufferSizeXY().Y, QuantizedOutputSize.Y);
 
-					FRenderingCompositePass* TemporalAADownsample = Context.Graph.RegisterPass(
-						new(FMemStack::Get()) FRCPassMitchellNetravaliDownsample(Parameters));
-					TemporalAADownsample->SetInput(ePId_Input0, Context.FinalOutput);
-
-					Context.FinalOutput = FRenderingCompositeOutputRef(TemporalAADownsample);
+					Context.FinalOutput = ComputeMitchellNetravaliDownsample(Context.Graph, Context.FinalOutput, InputViewport, OutputViewport);
 				}
 
 				SSRInputChain = AddPostProcessMaterialChain(Context, BL_SSRInput);
