@@ -478,7 +478,7 @@ void RenderScreenSpaceReflections(
 			SceneTextures.SceneDepthBuffer,
 			ERenderTargetLoadAction::ENoAction,
 			ERenderTargetLoadAction::ELoad,
-			FExclusiveDepthStencil::DepthRead_StencilWrite);
+			FExclusiveDepthStencil::DepthNop_StencilWrite);
 
 		FScreenSpaceReflectionsStencilPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSSROutputForDenoiser>(bDenoiser);
