@@ -428,6 +428,7 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 
 	//ensure(SwapChainInfo.imageExtent.width >= SurfProperties.minImageExtent.width && SwapChainInfo.imageExtent.width <= SurfProperties.maxImageExtent.width);
 	//ensure(SwapChainInfo.imageExtent.height >= SurfProperties.minImageExtent.height && SwapChainInfo.imageExtent.height <= SurfProperties.maxImageExtent.height);
+	UE_LOG(LogVulkanRHI, Verbose, TEXT("Creating new VK swapchain with format %d, color space %d"), static_cast<uint32>(SwapChainInfo.imageFormat), static_cast<uint32>(SwapChainInfo.imageColorSpace));
 
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateSwapchainKHR(Device.GetInstanceHandle(), &SwapChainInfo, VULKAN_CPU_ALLOCATOR, &SwapChain));
 
@@ -817,7 +818,6 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 
 	const int32 SyncInterval = LockToVsync ? RHIGetSyncInterval() : 0;
 	ensureMsgf(SyncInterval <= 3 && SyncInterval >= 0, TEXT("Unsupported sync interval: %i"), SyncInterval);
-	FVulkanPlatform::EnablePresentInfoExtensions(Info);
 
 #if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
 	if (GVulkanExtensionFramePacer && Device.GetOptionalExtensions().HasGoogleDisplayTiming)
@@ -871,7 +871,7 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 	{
 		SCOPE_CYCLE_COUNTER(STAT_VulkanQueuePresent);
 		uint32 IdleStart = FPlatformTime::Cycles();
-		VkResult PresentResult = VulkanRHI::vkQueuePresentKHR(PresentQueue->GetHandle(), &Info);
+		VkResult PresentResult = FVulkanPlatform::Present(PresentQueue->GetHandle(), Info);
 		uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
 		if (IsInRHIThread())
 		{
