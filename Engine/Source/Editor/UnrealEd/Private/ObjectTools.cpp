@@ -2662,6 +2662,7 @@ namespace ObjectTools
 								}
 							}
 
+							BlueprintObject->RemoveChildRedirectors();
 							BlueprintObject->RemoveGeneratedClasses();
 						}
 					}
