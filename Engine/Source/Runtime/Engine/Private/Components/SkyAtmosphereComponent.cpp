@@ -12,6 +12,7 @@
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/ConstructorHelpers.h"
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"

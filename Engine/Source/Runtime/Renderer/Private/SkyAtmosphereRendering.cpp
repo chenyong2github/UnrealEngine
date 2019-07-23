@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "SkyAtmosphereRendering.h"
+#include "CanvasTypes.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "DeferredShadingRenderer.h"
 #include "Engine/MapBuildDataRegistry.h"
