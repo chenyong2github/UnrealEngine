@@ -199,7 +199,6 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 		float4 WorldPosition = WorldPositionExcludingWPO + float4(GetMaterialWorldPositionOffset(VertexParameters), 0.0f);
 		
 		PerVertexInterpolants[i] = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-
 		TexCoords[i] = VertexFactoryGetTextureCoordinateDS(PerVertexInterpolants[i]);
 
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
