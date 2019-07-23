@@ -729,9 +729,18 @@ private:
 		IConcertClientRef ConcertClient = MultiUserClient->GetConcertClient();
 		if (ConcertClient->GetSessionConnectionStatus() == EConcertConnectionStatus::Connected)
 		{
-			return FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Online", "Concert.Online.Small");
+			return FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Leave", "Concert.Leave.Small");
 		}
-		return FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Offline", "Concert.Offline.Small");
+		else if (ConcertClient->IsAutoConnecting())
+		{
+			return FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Cancel", "Concert.Cancel.Small");
+		}
+		else if (ConcertClient->CanAutoConnect())
+		{
+			return FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Join", "Concert.Join.Small");
+		}
+		
+		return FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Browse", "Concert.Browse.Small");
 	}
 
 	/** Return the toolbar icon tooltip. */
