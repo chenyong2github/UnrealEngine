@@ -286,6 +286,8 @@ public:
 
 	virtual ~IPlatformInstallBundleManager() {}
 
+	virtual bool HasBuildMetaData() const = 0;
+
 	virtual void PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) = 0;
 	virtual void PopInitErrorCallback() = 0;
 
