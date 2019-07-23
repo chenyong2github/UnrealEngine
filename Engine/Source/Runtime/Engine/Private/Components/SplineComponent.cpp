@@ -9,6 +9,7 @@
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
+#include "UnrealEngine.h"
 
 #define SPLINE_FAST_BOUNDS_CALCULATION 0
 
