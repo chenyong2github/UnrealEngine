@@ -121,6 +121,10 @@ private:
 	FText CachedWidgetClipping;
 	bool bCachedWidgetFocusable;
 	bool bCachedWidgetVisible;
+	bool bCachedWidgetNeedsTick;
+	bool bCachedWidgetIsVolatile;
+	bool bCachedWidgetIsVolatileIndirectly;
+	bool bCachedWidgetHasActiveTimers;
 	FText CachedReadableLocation;
 	FString CachedWidgetFile;
 	int32 CachedWidgetLineNumber;

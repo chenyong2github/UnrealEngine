@@ -82,6 +82,11 @@ public:
 	/** Is the widget visible? */
 	virtual bool GetWidgetVisible() const = 0;
 
+	virtual bool GetWidgetNeedsTick() const = 0;
+	virtual bool GetWidgetIsVolatile() const = 0;
+	virtual bool GetWidgetIsVolatileIndirectly() const = 0;
+	virtual bool GetWidgetHasActiveTimers() const = 0;
+
 	/**
 	 * The human readable location for widgets that are defined in C++ is the file and line number
 	 * The human readable location for widgets that are defined in UMG is the asset name
@@ -224,6 +229,10 @@ public:
 	virtual bool GetWidgetVisible() const override;
 	virtual FText GetWidgetClippingText() const override;
 	virtual bool GetWidgetFocusable() const override;
+	virtual bool GetWidgetNeedsTick() const override;
+	virtual bool GetWidgetIsVolatile() const override;
+	virtual bool GetWidgetIsVolatileIndirectly() const override;
+	virtual bool GetWidgetHasActiveTimers() const override;
 	virtual FText GetWidgetReadableLocation() const override;
 	virtual FString GetWidgetFile() const override;
 	virtual int32 GetWidgetLineNumber() const override;
@@ -275,6 +284,10 @@ public:
 	virtual FText GetWidgetClippingText() const override;
 	virtual bool GetWidgetVisible() const override;
 	virtual bool GetWidgetFocusable() const override;
+	virtual bool GetWidgetNeedsTick() const override;
+	virtual bool GetWidgetIsVolatile() const override;
+	virtual bool GetWidgetIsVolatileIndirectly() const override;
+	virtual bool GetWidgetHasActiveTimers() const override;
 	virtual FText GetWidgetReadableLocation() const override;
 	virtual FString GetWidgetFile() const override;
 	virtual int32 GetWidgetLineNumber() const override;
@@ -317,8 +330,13 @@ private:
 
 	/** The focusability of the widget at the point it was passed to Initialize */
 	bool bCachedWidgetFocusable;
+
+	bool CachedWidgetNeedsTick;
+	bool CachedWidgetIsVolatile;
+	bool CachedWidgetIsVolatileIndirectly;
+	bool CachedWidgetHasActiveTimers;
 	
-		/** The clipping string of the widget at the point it was passed to Initialize */
+	/** The clipping string of the widget at the point it was passed to Initialize */
 	FText CachedWidgetClippingText;
 
 	/** The human readable location (source file for C++ widgets, asset name for UMG widgets) of the widget at the point it was passed to Initialize */
@@ -443,6 +461,10 @@ public:
 	*/
 	static bool GetWidgetFocusable(const TSharedPtr<SWidget>& InWidget);
 
+	static bool GetWidgetNeedsTick(const TSharedPtr<SWidget>& InWidget);
+	static bool GetWidgetIsVolatile(const TSharedPtr<SWidget>& InWidget);
+	static bool GetWidgetIsVolatileIndirectly(const TSharedPtr<SWidget>& InWidget);
+	static bool GetWidgetHasActiveTimers(const TSharedPtr<SWidget>& InWidget);
 	
 	/**
 	 * The human readable location for widgets that are defined in C++ is the file and line number
