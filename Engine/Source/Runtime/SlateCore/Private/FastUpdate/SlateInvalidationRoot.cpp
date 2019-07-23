@@ -553,14 +553,14 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	return bWidgetsNeedRepaint;
 }
 
-void FSlateInvalidationRoot::ClearAllFastPathData(bool bInvalidationRootBeingDestroyed)
+void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediately)
 {
 	for (const FWidgetProxy& Proxy : FastWidgetPathList)
 	{
 		if (Proxy.Widget)
 		{
 			Proxy.Widget->PersistentState.CachedElementListNode = nullptr;
-			if (bInvalidationRootBeingDestroyed)
+			if (bClearResourcesImmediately)
 			{
 				Proxy.Widget->FastPathProxyHandle = FWidgetProxyHandle();
 			}
@@ -581,7 +581,7 @@ void FSlateInvalidationRoot::OnInvalidateAllWidgets(bool bClearResourcesImmediat
 
 	if (bClearResourcesImmediately)
 	{
-		ClearAllFastPathData(false);
+		ClearAllFastPathData(true);
 	}
 	bNeedsSlowPath = true;
 }
