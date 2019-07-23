@@ -262,7 +262,7 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 				}
 
 				const float TopY = 4.0f;
-				const float BottomY = GetHeight();
+				const float BottomY = GetHeight() - 4.0f;
 
 				const double HighValue = Series.GetValueForY(TopY);
 				const double LowValue = Series.GetValueForY(BottomY);

@@ -798,8 +798,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	if (GraphTrack->IsVisible())
 	{
-		GraphTrack->Draw(DrawContext, Viewport);
-		//GraphTrack->Draw(DrawContext, Viewport, MousePosition);
+		GraphTrack->Draw(DrawContext, Viewport, MousePosition);
 	}
 
 	if (MarkersTrack.IsVisible())

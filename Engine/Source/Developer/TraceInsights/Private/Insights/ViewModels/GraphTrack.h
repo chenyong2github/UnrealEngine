@@ -15,19 +15,25 @@ class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FGraphBox
-{
-	float X;
-	float W;
-	float Y;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class FGraphSeries
 {
 	friend class FGraphTrack;
 	friend class FGraphTrackBuilder;
+
+public:
+	struct FEvent
+	{
+		double Time;
+		double Duration;
+		double Value;
+	};
+
+	struct FBox
+	{
+		float X;
+		float W;
+		float Y;
+	};
 
 public:
 	FGraphSeries();
@@ -82,6 +88,11 @@ public:
 		return static_cast<float>(BaselineY - Value * ScaleY);
 	}
 
+	float GetRoundedYForValue(double Value) const
+	{
+		return FMath::RoundToFloat(FMath::Clamp<float>(GetYForValue(Value), -FLT_MAX, FLT_MAX));
+	}
+
 	/**
 	 * @param Y a Y position (in viewport local space); in pixels (Slate units).
 	 * @return Value for specified Y position.
@@ -94,18 +105,18 @@ public:
 	bool IsAutoZoomEnabled() const { return bAutoZoom; }
 	void EnableAutoZoom() { bAutoZoom = true; }
 
-	/** target low value of auto zoom interval (corresponding to bottom of the track) */
+	/** Target low value of auto zoom interval (corresponding to bottom of the track) */
 	double GetTargetAutoZoomLowValue() const { return TargetAutoZoomLowValue; }
-	/** target high value of auto zoom interval (corresponding to top of the track) */
+	/** Target high value of auto zoom interval (corresponding to top of the track) */
 	double GetTargetAutoZoomHighValue() const { return TargetAutoZoomHighValue; }
 	void SetTargetAutoZoomRange(double LowValue, double HighValue) { TargetAutoZoomLowValue = LowValue; TargetAutoZoomHighValue = HighValue; }
 
-	/** current auto zoom low value */
+	/** Current auto zoom low value */
 	double GetAutoZoomLowValue() const { return AutoZoomLowValue; }
-	/** current auto zoom high value */
+	/** Current auto zoom high value */
 	double GetAutoZoomHighValue() const { return AutoZoomHighValue; }
 	void SetAutoZoomRange(double LowValue, double HighValue) { AutoZoomLowValue = LowValue; AutoZoomHighValue = HighValue; }
-	
+
 	/**
 	 * Compute BaselineY and ScaleY so the [Low, High] Value range will correspond to [Top, Bottom] Y position range.
 	 * GetYForValue(InHighValue) == InTopY
@@ -120,6 +131,16 @@ public:
 		//OutBaselineY = (InHighValue * static_cast<double>(InBottomY) - InLowValue * static_cast<double>(InTopY)) * InvRange;
 		OutBaselineY = static_cast<double>(InTopY) + InHighValue * OutScaleY;
 	}
+
+	/**
+	 * @param X The horizontal coordinate of the point tested; in Slate pixels (local graph coordinates)
+	 * @param Y The vertical coordinate of the point tested; in Slate pixels (local graph coordinates)
+	 * @param Viewport The timing viewport used to transform time in local graph coordinates
+	 * @param bCheckLine If needs to check the bounding box of the horizontal line (determined by duration of event and value) or only the bounding box of the visual point
+	 * @param bCheckBox If needs to check the bounding box of the entire visual box (determined by duration of event, value and baseline)
+	 * @return A pointer to an Event located at (X, Y) coordinates, if any; nullptr if no event is located at respective coordinates
+	 */
+	const FGraphSeries::FEvent* GetEvent(const float PosX, const float PosY, const FTimingTrackViewport& Viewport, bool bCheckLine, bool bCheckBox) const;
 
 private:
 	FText Name;
@@ -141,9 +162,10 @@ private:
 	FLinearColor BorderColor;
 
 protected:
-	TArray<FVector2D> Points;
-	TArray<FVector2D> LinePoints;
-	TArray<FGraphBox> Boxes;
+	TArray<FEvent> Events; // reduced list of events; used to identify an event at a certain screen position (ex.: the event hovered by mouse)
+	TArray<FVector2D> Points; // reduced list of points; for drawing points
+	TArray<FVector2D> LinePoints; // reduced list of points; for drawing the connected line and filled polygon
+	TArray<FBox> Boxes; // reduced list of boxes; for drawing boxes
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -151,6 +173,15 @@ protected:
 class FGraphTrack : public FBaseTimingTrack
 {
 	friend class FGraphTrackBuilder;
+
+public:
+	struct FEvent
+	{
+		TSharedPtr<FGraphSeries> Series;
+		FGraphSeries::FEvent SeriesEvent;
+
+		bool IsValid() const { return Series.IsValid(); }
+	};
 
 private:
 	// Visual size of points (in pixels).
@@ -170,7 +201,18 @@ public:
 
 	virtual void Update(const FTimingTrackViewport& Viewport) override = 0;
 
-	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
+	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition) const;
+
+	/**
+	 * @param X The horizontal coordinate of the point tested; in Slate pixels (local graph coordinates)
+	 * @param Y The vertical coordinate of the point tested; in Slate pixels (local graph coordinates)
+	 * @param Viewport The timing viewport used to transform time in local graph coordinates
+	 * @param OutEvent The returned event located at (PosX, PosY) coordinates, if any.
+	 * @return True if an event is found at (PosX, PosY) coordinates.
+	 */
+	const bool GetEvent(const float MouseX, const float MouseY, const FTimingTrackViewport& Viewport, FGraphTrack::FEvent& OutEvent) const;
+
+	void DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FGraphTrack::FEvent& GraphEvent) const;
 
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
@@ -236,7 +278,7 @@ protected:
 	bool bDrawBoxes;
 
 	// Stats
-	int32 NumAddedEvents;
+	int32 NumAddedEvents; // total event count
 	int32 NumDrawPoints;
 	int32 NumDrawLines;
 	int32 NumDrawBoxes;
@@ -290,7 +332,7 @@ public:
 
 private:
 	void BeginPoints();
-	void AddPoint(double Time, double Value);
+	bool AddPoint(double Time, double Value);
 	void FlushPoints();
 	void EndPoints();
 
