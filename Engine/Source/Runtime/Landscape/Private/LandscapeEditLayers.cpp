@@ -5496,6 +5496,12 @@ bool ALandscape::ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLay
 
 FName ALandscape::GenerateUniqueLayerName(FName InName) const
 {
+	// If we are receiving a unique name, use it.
+	if (InName != NAME_None && !LandscapeLayers.ContainsByPredicate([InName](const FLandscapeLayer& Layer) { return Layer.Name == InName; }))
+	{
+		return InName;
+	}
+
 	FString BaseName = InName == NAME_None ? "Layer" : InName.ToString();
 	FName NewName;
 	int32 LayerIndex = 0;
