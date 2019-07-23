@@ -452,7 +452,6 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	{
 		if (bChildOrderInvalidated)
 		{
-			CSV_EVENT_GLOBAL(TEXT("Slate Sort Children"));
 			SCOPED_NAMED_EVENT(Slate_InvalidationProcessing_SortChildren, FColor::Orange);
 
 			struct FWidgetNeedingUpdate
