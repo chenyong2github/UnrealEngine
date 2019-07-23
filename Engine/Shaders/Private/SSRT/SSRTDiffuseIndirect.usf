@@ -139,12 +139,12 @@ void MainCS(
 
 			// Backface modulation of hit surface
 			float3 SampleNormal = GetGBufferDataFromSceneTextures(HitUVz.xy).WorldNormal;
-			SampleColor.rgb *= saturate( 1 - dot( SampleNormal, L ) );
+			SampleColor.rgba *= saturate( 1 - dot( SampleNormal, L ) );
 
 			SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
 
 			DiffuseColor += SampleColor.rgb;
-			AmbientOcclusion = SampleColor.a;
+			AmbientOcclusion += SampleColor.a;
 		}
 	}
 
