@@ -211,9 +211,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 		// We should not have been supplied a different root than the one we generated a path to
 		check(RootWidget == FastWidgetPathList[0].Widget);
 
-		// hack, layout caching must be disabled
-		//TGuardValue<int32> LayoutCachingGuard(GSlateLayoutCaching, 0);
-
 		Result.bRepaintedWidgets = PaintFastPath(Context);
 	}
 
@@ -576,11 +573,15 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bInvalidationRootBeingDes
 	FinalUpdateList.Empty();
 }
 
-void FSlateInvalidationRoot::OnInvalidateAllWidgets()
+void FSlateInvalidationRoot::OnInvalidateAllWidgets(bool bClearResourcesImmediately)
 {
 	InvalidateChildOrder();
 
 	InvalidationRootWidget->InvalidatePrepass();
 
+	if (bClearResourcesImmediately)
+	{
+		ClearAllFastPathData(false);
+	}
 	bNeedsSlowPath = true;
 }
