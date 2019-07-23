@@ -90,6 +90,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Support Virtual Bone in Retarget Manager
 		SupportVirtualBoneInRetargeting,
 
+		// Fixup bad defaults in water metadata
+		FixUpWaterMetadata,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
