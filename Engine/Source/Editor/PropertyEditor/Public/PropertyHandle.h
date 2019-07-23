@@ -95,7 +95,7 @@ public:
 	 * @param Key The key to lookup in the metadata
 	 * @return the int value stored in the metadata.
 	 */
-	virtual int32 GetINTMetaData(const FName& Key) const = 0;
+	virtual int32 GetIntMetaData(const FName& Key) const = 0;
 
 	/**
 	 * Find the metadata value associated with the key and return float
@@ -103,7 +103,7 @@ public:
 	 * @param Key The key to lookup in the metadata
 	 * @return the float value stored in the metadata.
 	 */
-	virtual float GetFLOATMetaData(const FName& Key) const = 0;
+	virtual float GetFloatMetaData(const FName& Key) const = 0;
 
 	/**
 	 * Find the metadata value associated with the key and return UClass*

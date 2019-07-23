@@ -520,4 +520,7 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category = EditConditionHides, meta = (EditConditionHides, EditCondition = "PropertyThatHides == EComponentMobility::Stationary"))
 	int32 VisibleWhenStationary;
+
+	UPROPERTY(EditAnywhere, Category = DateTime)
+	FDateTime DateTime;
 };

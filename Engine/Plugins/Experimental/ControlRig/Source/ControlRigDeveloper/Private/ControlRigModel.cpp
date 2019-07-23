@@ -584,7 +584,7 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 				FString PinPath = AddedNode.GetPinPath(Pin.Index, false);
 				if (UArrayProperty* Property = Cast<UArrayProperty>(Struct->FindPropertyByName(*PinPath)))
 				{
-					int32 DefaultArraySize = Property->GetINTMetaData(UControlRig::DefaultArraySizeMetaName);
+					int32 DefaultArraySize = Property->GetIntMetaData(UControlRig::DefaultArraySizeMetaName);
 					if (DefaultArraySize > 0)
 					{
 						FPinArrayInfo Info;

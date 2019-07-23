@@ -2581,16 +2581,16 @@ bool FPropertyHandleBase::GetBoolMetaData(const FName& Key) const
 	return (MetaDataProperty) ? MetaDataProperty->GetBoolMetaData(Key) : false;
 }
 
-int32 FPropertyHandleBase::GetINTMetaData(const FName& Key) const
+int32 FPropertyHandleBase::GetIntMetaData(const FName& Key) const
 {
 	UProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetINTMetaData(Key) : 0;
+	return (MetaDataProperty) ? MetaDataProperty->GetIntMetaData(Key) : 0;
 }
 
-float FPropertyHandleBase::GetFLOATMetaData(const FName& Key) const
+float FPropertyHandleBase::GetFloatMetaData(const FName& Key) const
 {
 	UProperty* const MetaDataProperty = GetMetaDataProperty();
-	return (MetaDataProperty) ? MetaDataProperty->GetFLOATMetaData(Key) : 0.0f;
+	return (MetaDataProperty) ? MetaDataProperty->GetFloatMetaData(Key) : 0.0f;
 }
 
 UClass* FPropertyHandleBase::GetClassMetaData(const FName& Key) const

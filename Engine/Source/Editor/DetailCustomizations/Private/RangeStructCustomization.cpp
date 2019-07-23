@@ -32,7 +32,7 @@ namespace
 	{
 		static float GetMetaData(const UProperty* Property, const TCHAR* Key)
 		{
-			return Property->GetFLOATMetaData(Key);
+			return Property->GetFloatMetaData(Key);
 		}
 	};
 
@@ -41,7 +41,7 @@ namespace
 	{
 		static int32 GetMetaData(const UProperty* Property, const TCHAR* Key)
 		{
-			return Property->GetINTMetaData(Key);
+			return Property->GetIntMetaData(Key);
 		}
 	};
 }

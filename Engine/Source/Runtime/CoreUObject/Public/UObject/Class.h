@@ -169,18 +169,18 @@ class COREUOBJECT_API UField : public UObject
 	 * Find the metadata value associated with the key
 	 * and return int32 
 	 * @param Key The key to lookup in the metadata
-	 * @return the int value stored in the metadata.
+	 * @return the int value stored in the metadata. 0 if not a valid integer.
 	 */
-	int32 GetINTMetaData(const TCHAR* Key) const
+	int32 GetIntMetaData(const TCHAR* Key) const
 	{
-		const FString& INTString = GetMetaData(Key);
-		int32 Value = FCString::Atoi(*INTString);
+		const FString& IntString = GetMetaData(Key);
+		int32 Value = FCString::Atoi(*IntString);
 		return Value;
 	}
-	int32 GetINTMetaData(const FName& Key) const
+	int32 GetIntMetaData(const FName& Key) const
 	{
-		const FString& INTString = GetMetaData(Key);
-		int32 Value = FCString::Atoi(*INTString);
+		const FString& IntString = GetMetaData(Key);
+		int32 Value = FCString::Atoi(*IntString);
 		return Value;
 	}
 
@@ -188,20 +188,18 @@ class COREUOBJECT_API UField : public UObject
 	 * Find the metadata value associated with the key
 	 * and return float
 	 * @param Key The key to lookup in the metadata
-	 * @return the float value stored in the metadata.
+	 * @return the float value stored in the metadata. 0 if not a valid float.
 	 */
-	float GetFLOATMetaData(const TCHAR* Key) const
+	float GetFloatMetaData(const TCHAR* Key) const
 	{
-		const FString& FLOATString = GetMetaData(Key);
-		// FString == operator does case insensitive comparison
-		float Value = FCString::Atof(*FLOATString);
+		const FString& FloatString = GetMetaData(Key);
+		float Value = FCString::Atof(*FloatString);
 		return Value;
 	}
-	float GetFLOATMetaData(const FName& Key) const
+	float GetFloatMetaData(const FName& Key) const
 	{
-		const FString& FLOATString = GetMetaData(Key);
-		// FString == operator does case insensitive comparison
-		float Value = FCString::Atof(*FLOATString);
+		const FString& FloatString = GetMetaData(Key);
+		float Value = FCString::Atof(*FloatString);
 		return Value;
 	}
 	

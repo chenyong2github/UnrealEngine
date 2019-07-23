@@ -177,7 +177,7 @@ void FPropertyNode::InitNode( const FPropertyNodeInitParams& InitParams )
 		static const FName Name_MaxPropertyDepth("MaxPropertyDepth");
 		if (Property->HasMetaData(Name_MaxPropertyDepth))
 		{
-			int32 NewMaxChildDepthAllowed = Property->GetINTMetaData(Name_MaxPropertyDepth);
+			int32 NewMaxChildDepthAllowed = Property->GetIntMetaData(Name_MaxPropertyDepth);
 			//Ensure new depth is valid.  Otherwise just let the parent specified value stand
 			if (NewMaxChildDepthAllowed > 0)
 			{
