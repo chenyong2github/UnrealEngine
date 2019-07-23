@@ -61,75 +61,91 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWidgetProxy>& FastWidgetPathList, FSlateInvalidationRoot& Root)
 {
 	bool bWidgetNeedsRepaint = false;
-	if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::RenderTransform))
+	if (!bInvisibleDueToParentOrSelfVisibility && ParentIndex != INDEX_NONE && !Widget->PrepassLayoutScaleMultiplier.IsSet())
 	{
-		UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
-
+		// If this widget has never been prepassed make sure the parent prepasses it to set the correct multiplier
 		FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
-		ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
-		UpdateList.Push(ParentProxy);
-
+		if (ParentProxy.Widget)
+		{
+			ParentProxy.Widget->InvalidatePrepass();
+			ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
+			//UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
+			UpdateList.Push(ParentProxy);
+		}
 		bWidgetNeedsRepaint = true;
 	}
-	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Layout|EInvalidateWidget::Visibility|EInvalidateWidget::ChildOrder))
+	else
 	{
-		// When layout changes compute a new desired size for this widget
-		FVector2D CurrentDesiredSize = Widget->GetDesiredSize();
-		FVector2D NewDesiredSize = FVector2D::ZeroVector;
-		if (Visibility != EVisibility::Collapsed)
-		{
-			if (Widget->NeedsPrepass())
-			{
-				Widget->SlatePrepass(Widget->PrepassLayoutScaleMultiplier);
-			}
-			else
-			{
-				Widget->CacheDesiredSize(Widget->PrepassLayoutScaleMultiplier);
-			}
-
-			NewDesiredSize = Widget->GetDesiredSize();
-		}
-
-		// Note even if volatile we need to recompute desired size. We do not need to invalidate parents though if they are volatile since they will naturally redraw this widget
-		if (!Widget->IsVolatileIndirectly() && Visibility.IsVisible())
+		if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::RenderTransform))
 		{
 			UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
-		}
 
-		// If the desired size changed, invalidate the parent if it is visible
-		if (NewDesiredSize != CurrentDesiredSize || EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Visibility))
+			FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
+			ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
+			UpdateList.Push(ParentProxy);
+
+			bWidgetNeedsRepaint = true;
+		}
+		else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Layout | EInvalidateWidget::Visibility | EInvalidateWidget::ChildOrder))
 		{
-			if(ParentIndex != INDEX_NONE)
+			// When layout changes compute a new desired size for this widget
+			FVector2D CurrentDesiredSize = Widget->GetDesiredSize();
+			FVector2D NewDesiredSize = FVector2D::ZeroVector;
+			if (Visibility != EVisibility::Collapsed)
 			{
-				FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
-				if (ParentIndex == 0)
+				if (Widget->NeedsPrepass())
 				{
-					// root of the invalidation panel just invalidate the whole thing
-					Root.InvalidateRoot();
+					Widget->SlatePrepass(Widget->PrepassLayoutScaleMultiplier.Get(1.0f));
 				}
-				else if (ParentProxy.Visibility.IsVisible())
+				else
 				{
-					ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
-					UpdateList.Push(ParentProxy);
+					Widget->CacheDesiredSize(Widget->PrepassLayoutScaleMultiplier.Get(1.0f));
 				}
-			}
-			else if(!GSlateEnableGlobalInvalidation && Widget->IsParentValid())
-			{
-				TSharedPtr<SWidget> ParentWidget = Widget->GetParentWidget();
-				if (ParentWidget->Advanced_IsInvalidationRoot())
-				{
-					Root.InvalidateRoot();
-				}
-			}
-		}
-		
-		bWidgetNeedsRepaint = true;
-	}
-	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Paint) && !Widget->IsVolatileIndirectly())
-	{
-		UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
 
-		bWidgetNeedsRepaint = true;
+				NewDesiredSize = Widget->GetDesiredSize();
+			}
+
+			// Note even if volatile we need to recompute desired size. We do not need to invalidate parents though if they are volatile since they will naturally redraw this widget
+			if (!Widget->IsVolatileIndirectly() && Visibility.IsVisible())
+			{
+				UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
+			}
+
+			// If the desired size changed, invalidate the parent if it is visible
+			if (NewDesiredSize != CurrentDesiredSize || EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Visibility))
+			{
+				if (ParentIndex != INDEX_NONE)
+				{
+					FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
+					if (ParentIndex == 0)
+					{
+						// root of the invalidation panel just invalidate the whole thing
+						Root.InvalidateRoot();
+					}
+					else if (ParentProxy.Visibility.IsVisible())
+					{
+						ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
+						UpdateList.Push(ParentProxy);
+					}
+				}
+				else if (!GSlateEnableGlobalInvalidation && Widget->IsParentValid())
+				{
+					TSharedPtr<SWidget> ParentWidget = Widget->GetParentWidget();
+					if (ParentWidget->Advanced_IsInvalidationRoot())
+					{
+						Root.InvalidateRoot();
+					}
+				}
+			}
+
+			bWidgetNeedsRepaint = true;
+		}
+		else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Paint) && !Widget->IsVolatileIndirectly())
+		{
+			UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
+
+			bWidgetNeedsRepaint = true;
+		}
 	}
 
 
