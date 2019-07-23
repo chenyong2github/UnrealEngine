@@ -22,7 +22,7 @@
 namespace Windows
 {
 #if WITH_ENGINE
-	void CachePlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides)
+	FORCEINLINE void CachePlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides)
 	{
 		const TCHAR* CategoryName = TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings");
 
