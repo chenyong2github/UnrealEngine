@@ -529,6 +529,13 @@ void UEditorEngine::EndPlayMap()
 		GEngine->PendingDroppedNotes.Empty();
 	}
 
+	//ensure stereo rendering is disabled in case we need to re-enable next PIE run.
+	if (GEngine && GEngine->StereoRenderingDevice)
+	{
+		GEngine->StereoRenderingDevice->EnableStereo(false);
+	}
+
+
 	// Restores realtime viewports that have been disabled for PIE.
 	RestoreRealtimeViewports();
 
