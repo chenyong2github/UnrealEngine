@@ -21,6 +21,7 @@
 #include "Raster.h"
 #include "Landscape.h"
 #include "Misc/MessageDialog.h"
+#include "LandscapeEdModeTools.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -535,6 +536,10 @@ public:
 		}
 
 		FLandscapeEditDataInterface LandscapeEdit(EdMode->CurrentToolTarget.LandscapeInfo.Get());
+		FLandscapeHeightCache HeightCache(EdMode->CurrentToolTarget);
+		FLandscapeLayerDataCache<FHeightmapToolTarget> LayerHeightDataCache(EdMode->CurrentToolTarget, HeightCache);
+		const bool bCombinedLayerOperation = EdMode->UISettings->bCombinedLayersOperation && Landscape && Landscape->HasLayersContent();
+		LayerHeightDataCache.Initialize(EdMode->CurrentToolTarget.LandscapeInfo.Get(), bCombinedLayerOperation);
 
 		// Heights raster
 		bool bRaiseTerrain = true; //EdMode->UISettings->Ramp_bRaiseTerrain;
@@ -548,7 +553,7 @@ public:
 			int32 ValidMinY = MinY;
 			int32 ValidMaxX = MaxX;
 			int32 ValidMaxY = MaxY;
-			LandscapeEdit.GetHeightData(ValidMinX, ValidMinY, ValidMaxX, ValidMaxY, Data.GetData(), 0);
+			LayerHeightDataCache.Read(ValidMinX, ValidMinY, ValidMaxX, ValidMaxY, Data);
 
 			if (ValidMinX > ValidMaxX || ValidMinY > ValidMaxY)
 			{
@@ -578,8 +583,7 @@ public:
 			Rasterizer.DrawTriangle(FVector2D(1, Heights[0]), FVector2D(0, Heights[0]), FVector2D(1, Heights[1]), InnerVerts[0][1], OuterVerts[0][1], InnerVerts[1][1], false);
 			Rasterizer.DrawTriangle(FVector2D(0, Heights[0]), FVector2D(1, Heights[1]), FVector2D(0, Heights[1]), OuterVerts[0][1], InnerVerts[1][1], OuterVerts[1][1], false);
 
-			LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, Data.GetData(), 0, true);
-			LandscapeEdit.Flush();
+			LayerHeightDataCache.Write(MinX, MinY, MaxX, MaxY, Data);
 
 			if (!EdMode->HasLandscapeLayersContent())
 			{
