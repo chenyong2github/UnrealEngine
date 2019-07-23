@@ -852,6 +852,7 @@ public:
 	// Begin UObject
 	virtual UWorld* GetWorld() const override;
 	virtual void FinishDestroy() override;
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 	// End UObject
 
 	FORCEINLINE bool CanSafelyRouteEvent()
