@@ -163,6 +163,11 @@ public:
 	/** sets whether or not to snap sections to other sections. */
 	void SetSnapSectionTimesToSections( bool InbSnapSectionTimesToSections );
 
+	/** @return true if keys and sections should be kept within the playback range when moving them */
+	bool GetSnapKeysAndSectionsToPlayRange() const;
+	/** Set whether or not keys and sections should be kept within the playback range when moving them */
+	void SetSnapKeysAndSectionsToPlayRange(bool bInSnapKeysAndSectionsToPlayRange);
+
 	/** Gets whether or not to snap the play time to keys while scrubbing. */
 	bool GetSnapPlayTimeToKeys() const;
 	/** Sets whether or not to snap the play time to keys while scrubbing. */
@@ -385,6 +390,10 @@ protected:
 	UPROPERTY( config, EditAnywhere, Category=Snapping )
 	bool bSnapSectionTimesToSections;
 
+	/** Enable or disable keeping keys and sections in the playback range. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	bool bSnapKeysAndSectionsToPlayRange;
+
 	/** Enable or disable snapping the current time to keys of the selected track while scrubbing. */
 	UPROPERTY( config, EditAnywhere, Category=Snapping )
 	bool bSnapPlayTimeToKeys;
@@ -445,7 +454,7 @@ protected:
 	TEnumAsByte<ESequencerLoopMode> LoopMode;
 
 	/** Enable or disable keeping the cursor in the current playback range while scrubbing. */
-	UPROPERTY( config, EditAnywhere, Category=Timeline )
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bKeepCursorInPlayRangeWhileScrubbing;
 
 	/** Enable or disable keeping the cursor in the current playback range during playback. */
