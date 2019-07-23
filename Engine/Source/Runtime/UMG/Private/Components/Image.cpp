@@ -354,6 +354,30 @@ void UImage::SetBrushFromSoftMaterial(TSoftObjectPtr<UMaterialInterface> SoftMat
 	);
 }
 
+void UImage::SetMaterialParamFromSoftTexture(UTexture2D* LoadingTexture, TSoftObjectPtr<UTexture2D> SoftTexture, FName TextureParamName, FName LoadingParamName)
+{
+	if (UMaterialInstanceDynamic* BrushMid = GetDynamicMaterial())
+	{
+		BrushMid->SetTextureParameterValue(TextureParamName, LoadingTexture);
+		BrushMid->SetScalarParameterValue(LoadingParamName, 1.0f);
+
+		TWeakObjectPtr<UImage> WeakThis(this); // using weak ptr in case 'this' has gone out of scope by the time this lambda is called
+
+		RequestAsyncLoad(SoftTexture,
+			[WeakThis, SoftTexture, TextureParamName, LoadingParamName]() {
+			if (UImage* StrongThis = WeakThis.Get())
+			{
+				ensureMsgf(SoftTexture.Get(), TEXT("Failed to load %s"), *SoftTexture.ToSoftObjectPath().ToString());
+				if (UMaterialInstanceDynamic* ImageMID = StrongThis->GetDynamicMaterial())
+				{
+					ImageMID->SetTextureParameterValue(TextureParamName, SoftTexture.Get());
+					ImageMID->SetScalarParameterValue(LoadingParamName, 0.0f);
+				}
+			}
+		});
+	}
+}
+
 UMaterialInstanceDynamic* UImage::GetDynamicMaterial()
 {
 	UMaterialInterface* Material = NULL;
