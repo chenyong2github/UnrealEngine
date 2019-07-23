@@ -341,6 +341,8 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 
 	LDMaxDrawDistance = 0.f;
 	CachedMaxDrawDistance = 0.f;
+	bUseMaxLODAsImposter = false;
+	bBatchImpostersAsInstances = false;
 	bNeverDistanceCull = false;
 
 	bUseEditorCompositing = false;
@@ -366,7 +368,6 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bReceiveMobileCSMShadows = true;
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = true;
-	bUseMaxLODAsImposter = false;
 #endif // WITH_EDITORONLY_DATA
 }
 

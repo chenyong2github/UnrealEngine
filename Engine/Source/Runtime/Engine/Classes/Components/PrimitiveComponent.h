@@ -230,6 +230,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = HLOD)
 	uint8 bUseMaxLODAsImposter : 1;
 
+	/** If true, the proxy generation process will use instancing to render this imposter */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = HLOD, meta = (EditCondition = "bUseMaxLODAsImposter"))
+	uint8 bBatchImpostersAsInstances : 1;
+
 	/**
 	 * When enabled this object will not be culled by distance. This is ignored if a child of a HLOD.
 	 */
