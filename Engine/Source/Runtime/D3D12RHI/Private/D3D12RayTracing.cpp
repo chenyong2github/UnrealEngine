@@ -755,8 +755,8 @@ public:
 
 		Entry Result = {};
 
-		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-		const uint64 CompletedFenceValue = Adapter->GetFrameFence().GetLastCompletedFenceFast();
+		const FD3D12Fence& Fence = GetParentDevice()->GetCommandListManager().GetFence();
+		const uint64 CompletedFenceValue = Fence.GetLastCompletedFenceFast();
 
 		for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); ++EntryIndex)
 		{
@@ -840,12 +840,13 @@ public:
 	void Flush()
 	{
 		FD3D12Device* Device = GetParentDevice();
+		FD3D12Fence& Fence = Device->GetCommandListManager().GetFence();
 
 		FScopeLock Lock(&CriticalSection);
 
 		for (const Entry& It : Entries)
 		{
-			Device->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(It.Heap);
+			Device->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(It.Heap, &Fence);
 		}
 		Entries.Empty();
 	}
@@ -920,9 +921,8 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 
 	void UpdateSyncPoint()
 	{
-		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-		const uint64 FrameFenceValue = Adapter->GetFrameFence().GetCurrentFence();
-		HeapCacheEntry.FenceValue = FMath::Max(HeapCacheEntry.FenceValue, FrameFenceValue);
+		const FD3D12Fence& Fence = GetParentDevice()->GetCommandListManager().GetFence();
+		HeapCacheEntry.FenceValue = FMath::Max(HeapCacheEntry.FenceValue, Fence.GetCurrentFence());
 	}
 
 	ID3D12DescriptorHeap* D3D12Heap = nullptr;
