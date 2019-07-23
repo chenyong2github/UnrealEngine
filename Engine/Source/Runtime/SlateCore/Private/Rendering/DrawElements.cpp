@@ -912,6 +912,23 @@ static const FSlateClippingState* GetClipStateFromParent(const FSlateClippingMan
 	}
 }
 
+FSlateCachedElementListNode* FSlateCachedElementData::AddCache(const SWidget* Widget)
+{
+#if WITH_SLATE_DEBUGGING
+	for (FSlateCachedElementList& CachedElementList : CachedElementLists)
+	{
+		ensure(CachedElementList.Widget != Widget);
+	}
+#endif
+
+	FSlateCachedElementListNode* NewNode = new FSlateCachedElementListNode(FSlateCachedElementList(this, Widget));
+
+	CachedElementLists.AddTail(NewNode);
+	NewNode->GetValue().Initialize();
+
+	return NewNode;
+}
+
 FSlateDrawElement& FSlateCachedElementData::AddCachedElement(FSlateCachedElementListNode* CacheNode, const FSlateClippingManager& ParentClipManager, const SWidget* CurrentWidget)
 {
 #if WITH_SLATE_DEBUGGING
