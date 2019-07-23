@@ -1005,7 +1005,11 @@ IMPLEMENT_GLOBAL_SHADER(FComposeSeparateTranslucencyPS, "/Engine/Private/Compose
 
 FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColor, FRDGTextureRef SeparateTranslucency)
 {
-	FRDGTextureRef NewSceneColor = GraphBuilder.CreateTexture(SceneColor->Desc, TEXT("SceneColor"));
+	FRDGTextureDesc SceneColorDesc = SceneColor->Desc;
+	SceneColorDesc.TargetableFlags &= ~TexCreate_UAV;
+	SceneColorDesc.TargetableFlags |= TexCreate_RenderTargetable;
+
+	FRDGTextureRef NewSceneColor = GraphBuilder.CreateTexture(SceneColorDesc, TEXT("SceneColor"));
 
 	FComposeSeparateTranslucencyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeSeparateTranslucencyPS::FParameters>();
 	PassParameters->SceneColor = SceneColor;

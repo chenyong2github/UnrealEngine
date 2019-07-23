@@ -502,7 +502,7 @@ void ComputeMotionBlurVelocity(
 				PF_FloatRGBA,
 				FClearValueBinding::None,
 				GFastVRamConfig.MotionBlur,
-				TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable,
+				TexCreate_ShaderResource | TexCreate_UAV,
 				false),
 			TEXT("DilatedVelocityTile"));
 

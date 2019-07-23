@@ -150,7 +150,10 @@ FRDGTextureRef ComputeSubsurface(
 		return SceneTexture;
 	}
 
-	FRDGTextureRef SceneTextureOutput = GraphBuilder.CreateTexture(SceneTexture->Desc, TEXT("SceneColorSubsurface"));
+	FRDGTextureDesc SceneColorDesc = SceneTexture->Desc;
+	SceneColorDesc.TargetableFlags &= ~TexCreate_UAV;
+	SceneColorDesc.TargetableFlags |= TexCreate_RenderTargetable;
+	FRDGTextureRef SceneTextureOutput = GraphBuilder.CreateTexture(SceneColorDesc, TEXT("SceneColorSubsurface"));
 
 	ERenderTargetLoadAction SceneTextureLoadAction = ERenderTargetLoadAction::ENoAction;
 

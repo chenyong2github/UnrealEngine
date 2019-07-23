@@ -438,7 +438,7 @@ void RenderScreenSpaceReflections(
 		FRDGTextureDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
 			FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(),
 			PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
-			TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV,
+			TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource,
 			false);
 
 		Desc.AutoWritable = false;
@@ -630,7 +630,7 @@ void RenderScreenSpaceDiffuseIndirect(
 				PF_FloatRGBA, // TODO: might be worth using FloatRGB + R8
 				FClearValueBinding::None,
 				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
 				/* bInForceSeparateTargetAndShaderResource = */ false);
 			Desc.NumMips = 3;
 
@@ -682,7 +682,7 @@ void RenderScreenSpaceDiffuseIndirect(
 				PF_FloatRGBA,
 				FClearValueBinding::Transparent,
 				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
+				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
 				/* bInForceSeparateTargetAndShaderResource = */ false);
 
 			OutDenoiserInputs->Color = GraphBuilder.CreateTexture(Desc, TEXT("SSRTDiffuseIndirect"));
