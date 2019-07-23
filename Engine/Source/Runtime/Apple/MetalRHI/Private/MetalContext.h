@@ -121,7 +121,7 @@ public:
 	TRefCountPtr<FMetalFence> const& GetParallelPassEndFence(void) const;
 	
 	void InitFrame(bool const bImmediateContext, uint32 Index, uint32 Num);
-	void FinishFrame();
+	void FinishFrame(bool const bImmediateContext);
 
 	// Track Write->Read transitions for TBDR Fragment->Verex fencing
 	void TransitionResources(FRHIUnorderedAccessView** InUAVs, int32 NumUAVs);
