@@ -1057,11 +1057,11 @@ namespace WindowsMixedReality
 
 		if (!isRemoteHolographicSpace && isUserPresenceSupported)
 		{
-			/*UserPresenceChangedToken = holographicSpace.UserPresenceChanged(
+			UserPresenceChangedToken = holographicSpace.UserPresenceChanged(
 				[=](const HolographicSpace & sender, const winrt::Windows::Foundation::IInspectable & args)
 			{
 				OnUserPresenceChanged(sender, args);
-			});*/
+			});
 		}
 
 		bInitialized = true;
