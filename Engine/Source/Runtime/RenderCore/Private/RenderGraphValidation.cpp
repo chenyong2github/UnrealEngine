@@ -184,16 +184,34 @@ void FRDGUserValidation::ExecuteGuard(const TCHAR* Operation, const TCHAR* Resou
 	checkf(!bHasExecuted, TEXT("Render graph operation '%s' with resource '%s' must be performed prior to graph execution."), Operation, ResourceName);
 }
 
-void FRDGUserValidation::ValidateCreateResource(FRDGTrackedResourceRef Resource)
+void FRDGUserValidation::ValidateCreateTexture(FRDGTextureRef Texture)
 {
-	check(Resource);
-	TrackedResources.Add(Resource);
+	check(Texture);
+	if (IsRDGDebugEnabled())
+	{
+		TrackedTextures.Add(Texture);
+	}
 }
 
-void FRDGUserValidation::ValidateCreateExternalResource(FRDGTrackedResourceRef Resource)
+void FRDGUserValidation::ValidateCreateBuffer(FRDGBufferRef Buffer)
 {
-	ValidateCreateResource(Resource);
-	Resource->MarkAsExternal();
+	check(Buffer);
+	if (IsRDGDebugEnabled())
+	{
+		TrackedBuffers.Add(Buffer);
+	}
+}
+
+void FRDGUserValidation::ValidateCreateExternalTexture(FRDGTextureRef Texture)
+{
+	ValidateCreateTexture(Texture);
+	Texture->MarkAsExternal();
+}
+
+void FRDGUserValidation::ValidateCreateExternalBuffer(FRDGBufferRef Buffer)
+{
+	ValidateCreateBuffer(Buffer);
+	Buffer->MarkAsExternal();
 }
 
 void FRDGUserValidation::ValidateExtractResource(FRDGTrackedResourceRef Resource)
@@ -556,30 +574,105 @@ void FRDGUserValidation::ValidateExecuteEnd()
 {
 	bHasExecuted = true;
 
-	const bool bEmitWarnings = IsRDGDebugEnabled();
-
-	for (const FRDGTrackedResourceRef Resource : TrackedResources)
+	if (IsRDGDebugEnabled())
 	{
-		check(Resource->ReferenceCount == 0);
-
-		const bool bProducedButNeverUsed = Resource->PassAccessCount == 1 && Resource->FirstProducer;
-
-		if (bEmitWarnings && bProducedButNeverUsed)
+		auto ValidateResourceAtExecuteEnd = [](const FRDGTrackedResourceRef Resource)
 		{
-			check(Resource->HasBeenProduced());
+			check(Resource->ReferenceCount == 0);
 
-			EmitRDGWarningf(
-				TEXT("Resources %s has been produced by the pass %s, but never used by another pass."),
-				Resource->Name, Resource->FirstProducer->GetName());
+			const bool bProducedButNeverUsed = Resource->PassAccessCount == 1 && Resource->FirstProducer;
+
+			if (bProducedButNeverUsed)
+			{
+				check(Resource->HasBeenProduced());
+
+				EmitRDGWarningf(
+					TEXT("Resource %s has been produced by the pass %s, but never used by another pass."),
+					Resource->Name, Resource->FirstProducer->GetName());
+			}
+		};
+
+		for (const FRDGTextureRef Texture : TrackedTextures)
+		{
+			ValidateResourceAtExecuteEnd(Texture);
+
+			bool bHasBeenProducedByGraph = !Texture->IsExternal() && Texture->PassAccessCount > 0;
+
+			if (bHasBeenProducedByGraph && !Texture->bHasNeededUAV && (Texture->Desc.TargetableFlags & TexCreate_UAV))
+			{
+				EmitRDGWarningf(
+					TEXT("Resource %s first produced by the pass %s had the TexCreate_UAV flag, but no UAV has been used."),
+					Texture->Name, Texture->FirstProducer->GetName());
+			}
+
+			if (bHasBeenProducedByGraph && !Texture->bHasBeenBoundAsRenderTarget && (Texture->Desc.TargetableFlags & TexCreate_RenderTargetable))
+			{
+				EmitRDGWarningf(
+					TEXT("Resource %s first produced by the pass %s had the TexCreate_RenderTargetable flag, but has never been bound as a render target of a pass."),
+					Texture->Name, Texture->FirstProducer->GetName());
+			}
 		}
-	}
 
-	TrackedResources.Empty();
+		for (const FRDGBufferRef Buffer : TrackedBuffers)
+		{
+			ValidateResourceAtExecuteEnd(Buffer);
+		}
+	} // if (IsRDGDebugEnabled())
+
+	TrackedTextures.Empty();
+	TrackedBuffers.Empty();
 }
 
 void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 {
 	SetAllowRHIAccess(Pass, true);
+
+	if (IsRDGDebugEnabled())
+	{
+		FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+
+		const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+		for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+		{
+			FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+
+			if (Parameter.GetType() == UBMT_RDG_TEXTURE_UAV)
+			{
+				if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
+				{
+					FRDGTextureRef Texture = UAV->Desc.Texture;
+					Texture->bHasNeededUAV = true;
+				}
+			}
+			else if (Parameter.GetType() == UBMT_RENDER_TARGET_BINDING_SLOTS)
+			{
+				const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+				const auto& RenderTargets = RenderTargetBindingSlots.Output;
+				const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+				const uint32 RenderTargetCount = RenderTargets.Num();
+
+				for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+				{
+					const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+					if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+					{
+						Texture->bHasBeenBoundAsRenderTarget = true;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+				{
+					Texture->bHasBeenBoundAsRenderTarget = true;
+				}
+			}
+		} // for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	} // if (IsRDGDebugEnabled())
 }
 
 void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)

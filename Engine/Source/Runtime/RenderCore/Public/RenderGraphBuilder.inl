@@ -23,7 +23,7 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 	OutTexture->ResourceRHI = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
 	AllocatedTextures.Add(OutTexture, ExternalPooledTexture);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalResource(OutTexture));
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalTexture(OutTexture));
 
 	ExternalTextures.Add(ExternalPooledTexture.GetReference(), OutTexture);
 
@@ -48,7 +48,7 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 	OutBuffer->PooledBuffer = ExternalPooledBuffer;
 	AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalResource(OutBuffer));
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalBuffer(OutBuffer));
 
 	ExternalBuffers.Add(ExternalPooledBuffer.GetReference(), OutBuffer);
 
@@ -82,7 +82,7 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 
 	FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(Name, Desc, Flags);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateResource(Texture));
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateTexture(Texture));
 
 	return Texture;
 }
@@ -101,7 +101,7 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 
 	FRDGBufferRef Buffer = AllocateForRHILifeTime<FRDGBuffer>(Name, Desc, Flags);
 
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateResource(Buffer));
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateBuffer(Buffer));
 
 	return Buffer;
 }

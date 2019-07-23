@@ -270,6 +270,14 @@ private:
 	 */
 	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
+#if RDG_ENABLE_DEBUG
+	/** Tracks whether a UAV has ever been allocated to catch when TexCreate_UAV was unneeded. */
+	bool bHasNeededUAV = false;
+
+	/** Tracks whether has ever been bound as a render target to catch when TexCreate_RenderTargetable was unneeded. */
+	bool bHasBeenBoundAsRenderTarget = false;
+#endif 
+
 	friend class FRDGBuilder;
 	friend class FRDGUserValidation;
 	friend class FRDGBarrierBatcher;

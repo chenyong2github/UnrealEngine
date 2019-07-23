@@ -43,10 +43,12 @@ public:
 	void ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName);
 
 	/** Tracks and validates the creation of a new resource in the graph. */
-	void ValidateCreateResource(FRDGTrackedResourceRef Resource);
+	void ValidateCreateTexture(FRDGTextureRef Texture);
+	void ValidateCreateBuffer(FRDGBufferRef Buffer);
 
 	/** Tracks and validates the creation of a new externally registered resource. */
-	void ValidateCreateExternalResource(FRDGTrackedResourceRef Resource);
+	void ValidateCreateExternalTexture(FRDGTextureRef Texture);
+	void ValidateCreateExternalBuffer(FRDGBufferRef Buffer);
 
 	/** Tracks and validates usage of a pass parameters allocation. */
 	void ValidateAllocPassParameters(const void* Parameters);
@@ -76,7 +78,8 @@ private:
 	TSet<const void*, DefaultKeyFuncs<const void*>, SceneRenderingSetAllocator> AllocatedUnusedPassParameters;
 
 	/** List of tracked resources for validation prior to shutdown. */
-	TArray<FRDGTrackedResourceRef, SceneRenderingAllocator> TrackedResources;
+	TArray<FRDGTextureRef, SceneRenderingAllocator> TrackedTextures;
+	TArray<FRDGBufferRef, SceneRenderingAllocator> TrackedBuffers;
 
 	/** Whether the Execute() has already been called. */
 	bool bHasExecuted = false;
