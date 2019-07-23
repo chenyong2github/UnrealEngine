@@ -38,11 +38,7 @@ public:
 	 */
 	void SetContentScale( const TAttribute< FVector2D >& InContentScale )
 	{
-		if (!ContentScale.IdenticalTo(InContentScale))
-		{
-			ContentScale = InContentScale;
-			Invalidate(EInvalidateWidget::LayoutAndVolatility);
-		}
+		SetAttribute(ContentScale, InContentScale, EInvalidateWidgetReason::Layout);
 	}
 
 	/**
@@ -60,11 +56,7 @@ public:
 	 */
 	void SetColorAndOpacity( const TAttribute<FLinearColor>& InColorAndOpacity )
 	{
-		if (!ColorAndOpacity.IdenticalTo(InColorAndOpacity))
-		{
-			ColorAndOpacity = InColorAndOpacity;
-			Invalidate(EInvalidateWidget::PaintAndVolatility);
-		}
+		SetAttribute(ColorAndOpacity, InColorAndOpacity, EInvalidateWidgetReason::Paint);
 	}
 
 	/**
@@ -74,11 +66,7 @@ public:
 	 */
 	void SetForegroundColor( const TAttribute<FSlateColor>& InForegroundColor )
 	{
-		if (!ForegroundColor.IdenticalTo(InForegroundColor))
-		{
-			ForegroundColor = InForegroundColor;
-			Invalidate(EInvalidateWidget::PaintAndVolatility);
-		}
+		SetAttribute(ForegroundColor, InForegroundColor, EInvalidateWidgetReason::Paint);
 	}
 
 public:

@@ -645,29 +645,6 @@ bool SWidget::ConditionallyDetatchParentWidget(SWidget* InExpectedParent)
 	return false;
 }
 
-
-void SWidget::LayoutChanged(EInvalidateWidget InvalidateReason)
-{
-	if(EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::Layout))
-	{
-		bNeedsDesiredSize = true;
-
-		TSharedPtr<SWidget> ParentWidget = ParentWidgetPtr.Pin();
-		if (ParentWidget.IsValid())
-		{
-			ParentWidget->ChildLayoutChanged(InvalidateReason);
-		}
-	}
-}
-
-void SWidget::ChildLayoutChanged(EInvalidateWidget InvalidateReason)
-{
-	if (!bNeedsDesiredSize || InvalidateReason == EInvalidateWidget::Visibility )
-	{
-		LayoutChanged(InvalidateReason);
-	}
-}
-
 void SWidget::AssignIndicesToChildren(FSlateInvalidationRoot& Root, int32 ParentIndex, TArray<FWidgetProxy, TMemStackAllocator<>>& FastPathList, bool bParentVisible, bool bParentVolatile)
 {
 	FWidgetProxy MyProxy(this);
