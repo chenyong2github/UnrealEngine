@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	PlayerInput.cpp: Unreal input system.
+	AudioSettings.cpp: Unreal audio settings
 =============================================================================*/
 
 #include "Sound/AudioSettings.h"
@@ -135,6 +135,8 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 				It->ReconcileNode(true);
 			}
 		}
+
+		AudioSettingsChanged.Broadcast();
 	}
 }
 #endif
@@ -158,6 +160,12 @@ const FAudioQualitySettings& UAudioSettings::GetQualityLevelSettings(int32 Quali
 	check(QualityLevels.Num() > 0);
 	return QualityLevels[FMath::Clamp(QualityLevel, 0, QualityLevels.Num() - 1)];
 }
+
+int32 UAudioSettings::GetQualityLevelSettingsNum() const
+{
+	return QualityLevels.Num();
+}
+
 
 void UAudioSettings::SetAudioMixerEnabled(const bool bInAudioMixerEnabled)
 {
