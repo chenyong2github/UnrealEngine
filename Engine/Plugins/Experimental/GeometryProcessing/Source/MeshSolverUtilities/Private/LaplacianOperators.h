@@ -120,6 +120,9 @@ void ConstructValenceWeightedLaplacian(const FDynamicMesh3& DynamicMesh,
 * Construct a sparse matrix representation using a cotangent-weighted  Laplacian.
 * NB: there is no reason to expect this to be a symmetric matrix.
 *
+*
+* This computes the cotanget laplacian :  ie.  L =   1/(2A_i) ( Cot alpha_ij + Cot beta_ij ) 
+*
 * The mesh itself is assumed to have N interior vertices, and M boundary vertices.
 *
 * @param DynamicMesh        The triangle mesh
@@ -137,8 +140,29 @@ void  ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh,
 	                              FSparseMatrixD& LaplacianInterior, 
 	                              FSparseMatrixD& LaplacianBoundary, 
 	                              const bool bClampWeights = false);
-
-
+/**
+* Construct a sparse matrix representation using a pre-multiplied cotangent-weighted Laplacian.
+* NB: there is no reason to expect this to be a symmetric matrix.
+*
+* This computes the laplacian scaled by the average area A_ave:  ie.  LScaled =   A_ave/(2A_i) ( Cot alpha_ij + Cot beta_ij ) 
+*
+* The mesh itself is assumed to have N interior vertices, and M boundary vertices.
+*
+* @param DynamicMesh        The triangle mesh
+* @param VertexMap          Additional arrays used to map between vertexID and offset in a linear array (i.e. the row).
+*                           The vertices are ordered so that last M ( = VertexMap.NumBoundaryVerts() )  correspond to those on the boundary.
+* @param LaplacianInterior  On return, scaled laplacian operator that acts on the interior vertices: sparse  N x N matrix
+* @param LaplacianBoundary  On return, scaled portion of the operator that acts on the boundary vertices: sparse  N x M matrix
+* @param bClampAreas        Indicates if (A_ave / A_i) should be clamped to (0.5, 5) range. 
+*                           in practice this is desirable when creating the biharmonic operator, but not the mean curvature flow operator
+*
+*   LaplacianInterior * Vector_InteriorVerts + LaplacianBoundary * Vector_BoundaryVerts = Full Laplacian applied to interior vertices.
+*/
+double ConstructScaledCotangentLaplacian(const FDynamicMesh3& DynamicMesh, 
+	                                     FVertexLinearization& VertexMap, 
+	                                     FSparseMatrixD& LaplacianInterior, 
+	                                     FSparseMatrixD& LaplacianBoundary, 
+	                                     const bool bClampAreas = false);
 /**
 * Construct a sparse matrix representation using a cotangent-weighted  Laplacian.
 * but returns the result in two symmetric parts.
