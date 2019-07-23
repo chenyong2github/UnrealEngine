@@ -11,6 +11,7 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "NiagaraSystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraphViewModel"
 

@@ -7,6 +7,7 @@
 
 class UNiagaraStackEditorData;
 class UNiagaraSystem;
+class UEdGraph;
 
 /** Editor only folder data for emitters in a system. */
 UCLASS()

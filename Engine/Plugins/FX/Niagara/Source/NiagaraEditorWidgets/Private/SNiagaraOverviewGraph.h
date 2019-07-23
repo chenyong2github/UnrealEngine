@@ -2,7 +2,12 @@
 
 #pragma once
 
+#include "Widgets/SCompoundWidget.h"
+
 class FNiagaraSystemViewModel;
+class SGraphEditor;
+struct FActionMenuContent;
+class FMenuBuilder;
 
 class SNiagaraOverviewGraph : public SCompoundWidget
 {
