@@ -614,11 +614,29 @@ void FDataprepEditor::CleanPreviewWorld()
 			{
 				ObjectToDelete->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
 				ObjectsToDelete.Add( ObjectToDelete );
+
+				// Remove geometry from static meshes to be deleted to avoid unwanted rebuild done when calling FDataprepCoreUtils::PurgeObjects
+				// #ueent_todo: This is a temporary solution. Need to find a better way to do that
+				if( UStaticMesh* StaticMesh = Cast<UStaticMesh>( ObjectToDelete ) )
+				{
+					StaticMesh->ReleaseResources();
+					StaticMesh->ClearMeshDescriptions();
+					StaticMesh->SourceModels.Empty();
+					StaticMesh->StaticMaterials.Empty();
+				}
 			}
 		}
 	}
 
+	// #ueent_todo: Should we find a better way to silently delete assets?
+	// Disable warnings from LogStaticMesh because FDataprepCoreUtils::PurgeObjects is pretty verbose on harmless warnings
+	ELogVerbosity::Type PrevLogStaticMeshVerbosity = LogStaticMesh.GetVerbosity();
+	LogStaticMesh.SetVerbosity( ELogVerbosity::Error );
+
 	FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
+
+	// Restore LogStaticMesh verbosity
+	LogStaticMesh.SetVerbosity( PrevLogStaticMeshVerbosity );
 
 	CachedAssets.Reset();
 	Assets.Reset();

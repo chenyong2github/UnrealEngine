@@ -71,19 +71,22 @@ namespace DataprepSnapshotUtil
 		// Helper struct to identify dependency of a UObject on other UObject(s) except given one (its outer)
 		struct FObjectDependencyAnalyzer : public FArchiveUObject
 		{
-			FObjectDependencyAnalyzer(const TSet<UObject*>& InValidObjects)
-				: ValidObjects( DependentObjects )
+			FObjectDependencyAnalyzer(UObject* InSourceObject, const TSet<UObject*>& InValidObjects)
+				: SourceObject( InSourceObject )
+				, ValidObjects( InValidObjects )
 			{ }
 
 			virtual FArchive& operator<<(UObject*& Obj) override
 			{
 				if(Obj != nullptr)
 				{
-					if( Obj->IsA<UPackage>() || (Obj->HasAnyFlags(RF_Public) && Obj->GetOuter()->IsA<UPackage>()))
+					// Limit serialization to sub-object of source object
+					if( Obj == SourceObject->GetOuter() || Obj->IsA<UPackage>() || (Obj->HasAnyFlags(RF_Public) && Obj->GetOuter()->IsA<UPackage>()))
 					{
 						return FArchiveUObject::operator<<(Obj);
 					}
-					else if( ValidObjects.Contains( Obj ) )
+					// Stop serialization when a dependency is found or has been found
+					else if( Obj != SourceObject && !DependentObjects.Contains( Obj ) && ValidObjects.Contains( Obj ) )
 					{
 						DependentObjects.Add( Obj );
 					}
@@ -92,8 +95,9 @@ namespace DataprepSnapshotUtil
 				return *this;
 			}
 
-			TSet<UObject*> DependentObjects;
+			UObject* SourceObject;
 			const TSet<UObject*>& ValidObjects;
+			TSet<UObject*> DependentObjects;
 		};
 
 		TArray<uint8> MemoryBuffer;
@@ -120,7 +124,7 @@ namespace DataprepSnapshotUtil
 			TSet<UObject*> SubObjectsSet(SubObjectsArray);
 			for(UObject* SubObject : SubObjectsArray)
 			{
-				FObjectDependencyAnalyzer Analyzer( SubObjectsSet );
+				FObjectDependencyAnalyzer Analyzer( SubObject, SubObjectsSet );
 				SubObject->Serialize( Analyzer );
 
 				SubObjectDependencyGraph[SubObject].Append(Analyzer.DependentObjects);
