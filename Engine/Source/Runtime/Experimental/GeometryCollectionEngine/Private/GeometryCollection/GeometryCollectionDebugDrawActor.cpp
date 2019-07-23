@@ -2028,7 +2028,7 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyIdNoChecks(const UGeometryC
 	// Retrieve disabled state
 	const bool bIsDisabled = ParticlesData.IsDisabled(TransformIndex);
 	const TManagedArray<int32>& ParentArray = GeometryCollectionComponent->GetParentArray();
-	const FColor& DisabledColor = bIsDisabled ? FColor::Black: Color;
+	const FColor& DisabledColor = bIsDisabled ? FColor::Silver: Color;
 
 	// Draw rigid body id
 	const FString Text = FString::Printf(TEXT("%d"), RigidBodyId);
