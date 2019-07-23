@@ -12,6 +12,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "PicpPostProcessing.h"
+#include "TextureResource.h"
 
 class UTexture;
 class UTextureRenderTarget2D;

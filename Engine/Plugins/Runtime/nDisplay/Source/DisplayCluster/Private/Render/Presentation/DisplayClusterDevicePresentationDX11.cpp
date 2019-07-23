@@ -4,6 +4,7 @@
 
 #include "DisplayClusterLog.h"
 
+#include "RHI.h"
 #include "RHIResources.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
