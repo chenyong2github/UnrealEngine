@@ -81,6 +81,9 @@ protected:
 
 	/** The slate brush to draw for the image, or a bound delegate to a brush. */
 	TAttribute< const FSlateBrush* > Image;
+	
+	/** The copy of the image data, some users reuse the same FSlateBrush pointer, so we need to check it against the last true data to see what changed. */
+	FSlateBrush ImageCache;
 
 	/** Color and opacity scale for this image */
 	TAttribute<FSlateColor> ColorAndOpacity;
