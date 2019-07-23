@@ -653,7 +653,6 @@ class Popen(object):
                 print('NICKNICK: subprocess.py START OF CIS BUGHUNT DUMP')
                 print(executable)
                 print(args)
-                pprint(vars(e)) # TEMP CIS BUGHUNT
                 print('NICKNICK: subprocess.py END OF CIS BUGHUNT DUMP')
                 if e.winerror != 5:
                     print('NICKNICK: subprocess.py e.winerror:', e.winerror)
@@ -676,11 +675,13 @@ class Popen(object):
 
             # Retain the process handle, but close the thread handle
 # EPIC EDIT start -- nick.shin 2019-07-16 -- UE-76599
+            self._handle = hp
             if hp is not None:
                 self._child_created = True
-                self._handle = hp
                 self.pid = pid
                 ht.Close()
+            else:
+                self.returncode = 0
 # EPIC EDIT end -- nick.shin 2019-07-16 -- UE-76599
 
         def _internal_poll(self, _deadstate=None,
