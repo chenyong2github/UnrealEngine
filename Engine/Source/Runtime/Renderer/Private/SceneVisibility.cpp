@@ -4142,6 +4142,12 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 	CreateIndirectCapsuleShadows();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
+	// Initialise Sky/View resources before the view global uniform buffer is built.
+	if (Scene && ShouldRenderSkyAtmosphere(Scene->GetSkyAtmosphereSceneInfo(), Scene->GetShaderPlatform()))
+	{
+		InitSkyAtmosphereForViews(RHICmdList);
+	}
+
 	PostVisibilityFrameSetup(ILCTaskData);
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 

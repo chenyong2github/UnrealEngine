@@ -11,6 +11,7 @@
 #include "MeshPassProcessor.inl"
 #include "EditorPrimitivesRendering.h"
 #include "TranslucentRendering.h"
+#include "Rendering/SkyAtmosphereCommonData.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarSelectiveBasePassOutputs(
@@ -505,6 +506,7 @@ void SetupSharedBasePassParameters(
 	SetupReflectionUniformParameters(View, SharedParameters.Reflection);
 	SetupFogUniformParameters(View, SharedParameters.Fog);
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, SharedParameters.PlanarReflection);
+	SetupSkyAtmosphereBasePassSharedUniformShaderParameters(View, SharedParameters.SkyAtmosphere);
 
 	const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT(RHICmdList);
 

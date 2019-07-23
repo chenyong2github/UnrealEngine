@@ -17,6 +17,9 @@
 // Whether lightmass generates FSHVector2 or FSHVector3. Linked with VER_UE4_INDIRECT_LIGHTING_SH3
 #define NUM_INDIRECT_LIGHTING_SH_COEFFICIENTS 9
 
+// The number of lights to consider for sky/atmospheric light scattering
+#define NUM_ATMOSPHERE_LIGHTS 2
+
 /*-----------------------------------------------------------------------------
 	Size of the world.
 -----------------------------------------------------------------------------*/

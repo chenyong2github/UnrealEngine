@@ -6,10 +6,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Materials/MaterialExpression.h"
-#include "MaterialExpressionAtmosphericLightColor.generated.h"
+#include "MaterialExpressionSkyAtmosphereViewLuminance.generated.h"
 
 UCLASS()
-class UMaterialExpressionAtmosphericLightColor : public UMaterialExpression
+class UMaterialExpressionSkyAtmosphereViewLuminance : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 

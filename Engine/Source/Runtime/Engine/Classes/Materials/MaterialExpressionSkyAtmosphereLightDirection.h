@@ -6,12 +6,16 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Materials/MaterialExpression.h"
-#include "MaterialExpressionAtmosphericLightColor.generated.h"
+#include "MaterialExpressionSkyAtmosphereLightDirection.generated.h"
 
 UCLASS()
-class UMaterialExpressionAtmosphericLightColor : public UMaterialExpression
+class UMaterialExpressionSkyAtmosphereLightDirection : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
+
+	/** Index of the atmosphere light to sample. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionTextureCoordinate, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	int32 LightIndex;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

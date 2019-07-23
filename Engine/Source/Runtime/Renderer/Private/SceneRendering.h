@@ -27,6 +27,7 @@
 #include "DistortionRendering.h"
 #include "HeightfieldLighting.h"
 #include "GlobalDistanceFieldParameters.h"
+#include "SkyAtmosphereRendering.h"
 #include "Templates/UniquePtr.h"
 #include "RenderGraph.h"
 #include "MeshDrawCommands.h"
@@ -1045,6 +1046,11 @@ public:
 	float FurthestReflectionCaptureDistance;
 	TUniformBufferRef<FReflectionCaptureShaderData> ReflectionCaptureUniformBuffer;
 
+	// Sky / Atmosphere textures (transient owned by this view info) and pointer to constants owned by SkyAtmosphere proxy.
+	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereCameraAerialPerspectiveVolume;
+	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereViewLutTexture;
+	const FAtmosphereUniformShaderParameters* SkyAtmosphereUniformShaderParameters;
+
 	/** Used when there is no view state, buffers reallocate every frame. */
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResourcesStorage;
 
@@ -1669,6 +1675,13 @@ protected:
 
 	void RenderPlanarReflection(class FPlanarReflectionSceneProxy* ReflectionSceneProxy);
 
+	/** Initialise sky atmosphere resources.*/
+	void InitSkyAtmosphereForViews(FRHICommandListImmediate& RHICmdList);
+	/** Render the sky atmosphere look up table needed for this frame.*/
+	void RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& RHICmdList);
+	/** Render the sky atmosphere over the scene.*/
+	void RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList);
+
 	void ResolveSceneColor(FRHICommandList& RHICmdList);
 
 private:
@@ -1765,6 +1778,13 @@ private:
 // The noise textures need to be set in Slate too.
 RENDERER_API void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShaderParameters);
 
+inline FRHITexture* OrWhite2DIfNull(FRHITexture* Tex)
+{
+	FRHITexture* Result = Tex ? Tex : GWhiteTexture->TextureRHI.GetReference();
+	check(Result);
+	return Result;
+}
+
 inline FRHITexture* OrBlack2DIfNull(FRHITexture* Tex)
 {
 	FRHITexture* Result = Tex ? Tex : GBlackTexture->TextureRHI.GetReference();
@@ -1776,6 +1796,12 @@ inline FRHITexture* OrBlack3DIfNull(FRHITexture* Tex)
 {
 	// we fall back to 2D which are unbound es2 parameters
 	return OrBlack2DIfNull(Tex ? Tex : GBlackVolumeTexture->TextureRHI.GetReference());
+}
+
+inline FRHITexture* OrBlack3DAlpha1IfNull(FRHITexture* Tex)
+{
+	// we fall back to 2D which are unbound es2 parameters
+	return OrBlack2DIfNull(Tex ? Tex : GBlackAlpha1VolumeTexture->TextureRHI.GetReference());
 }
 
 inline FRHITexture* OrBlack3DUintIfNull(FRHITexture* Tex)
@@ -1800,6 +1826,16 @@ inline void SetBlack3DIfNull(FRHITexture*& Tex)
 		Tex = GBlackVolumeTexture->TextureRHI.GetReference();
 		// we fall back to 2D which are unbound es2 parameters
 		SetBlack2DIfNull(Tex);
+	}
+}
+
+inline void SetBlackAlpha13DIfNull(FRHITexture*& Tex)
+{
+	if (!Tex)
+	{
+		Tex = GBlackAlpha1VolumeTexture->TextureRHI.GetReference();
+		// we fall back to 2D which are unbound es2 parameters
+		SetBlack2DIfNull(Tex); // This is actually a rgb=0, a=1 texture
 	}
 }
 

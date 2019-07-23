@@ -157,6 +157,8 @@ void SetupMobileBasePassUniformParameters(
 {
 	SetupFogUniformParameters(View, BasePassParameters.Fog);
 
+	SetupSkyAtmosphereBasePassSharedUniformShaderParameters(View, BasePassParameters.SkyAtmosphere);
+
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, BasePassParameters.PlanarReflection);
@@ -189,6 +191,10 @@ void SetupMobileDirectionalLightUniformParameters(
 	if (Light)
 	{
 		Params.DirectionalLightColor = Light->Proxy->GetColor() / PI;
+		if (Light->Proxy->IsUsedAsAtmosphereSunLight())
+		{
+			Params.DirectionalLightColor *= Light->Proxy->GetTransmittanceFactor();
+		}
 		Params.DirectionalLightDirectionAndShadowTransition = FVector4(-Light->Proxy->GetDirection(), 0.f);
 
 		const FVector2D FadeParams = Light->Proxy->GetDirectionalLightDistanceFadeParameters(FeatureLevel, Light->IsPrecomputedLightingValid(), SceneView.MaxShadowCascades);

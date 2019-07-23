@@ -192,6 +192,9 @@ private:
 	/** Renders the scene's atmosphere. */
 	void RenderAtmosphere(FRHICommandListImmediate& RHICmdList, const FLightShaftsOutput& LightShaftsOutput);
 
+	/** Render debug visualizations about the sky atmosphere into the scene render target.*/
+	void RenderDebugSkyAtmosphere(FRHICommandListImmediate& RHICmdList);
+
 	void RenderDiffuseIndirectAndAmbientOcclusion(FRHICommandListImmediate& RHICmdList);
 
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */

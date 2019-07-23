@@ -387,6 +387,11 @@ public:
 		return SunDiscOuterSpaceLuminance;
 	}
 
+	virtual FLinearColor GetTransmittanceFactor() const override
+	{
+		return AtmosphereTransmittanceFactor;
+	}
+
 	virtual float GetSunLightHalfApexAngleRadian() const override
 	{
 		return 0.5f * LightSourceAngle * PI / 180.0f; // LightSourceAngle is apex angle (angular diameter) in degree

@@ -735,6 +735,18 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	PreIntegratedBRDF = GWhiteTexture->TextureRHI;
 	PreIntegratedBRDFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+	TransmittanceLutTexture = GWhiteTexture->TextureRHI;
+	TransmittanceLutTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	SkyViewLutTexture = GBlackTexture->TextureRHI;
+	SkyViewLutTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	DistantSkyLightLutTexture = GBlackTexture->TextureRHI;
+	DistantSkyLightLutTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	CameraAerialPerspectiveVolume = GBlackAlpha1VolumeTexture->TextureRHI;
+	CameraAerialPerspectiveVolumeSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 }
