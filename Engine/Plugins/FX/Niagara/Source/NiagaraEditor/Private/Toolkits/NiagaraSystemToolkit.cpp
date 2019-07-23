@@ -109,10 +109,6 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetAutoGenerateMenuEntry(GbShowNiagaraDeveloperWindows != 0);
 
-	InTabManager->RegisterTabSpawner(SystemDetailsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemDetails))
-		.SetDisplayName(LOCTEXT("SystemDetails", "System Details"))
-		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
-
 	InTabManager->RegisterTabSpawner(SystemParametersTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameters))
 		.SetDisplayName(LOCTEXT("SystemParameters", "Parameters"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
@@ -479,23 +475,6 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemScript(const FSpawnTa
 		SNew(SDockTab)
 		[
 			SNew(SNiagaraSystemScript, SystemViewModel.ToSharedRef())
-		];
-
-	return SpawnedTab;
-}
-
-
-TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemDetails(const FSpawnTabArgs& Args)
-{
-	check(Args.GetTabId().TabType == SystemDetailsTabID);
-
-	TSharedRef<FNiagaraObjectSelection> SystemSelection = MakeShareable(new FNiagaraObjectSelection());
-	SystemSelection->SetSelectedObject(System);
-
-	TSharedRef<SDockTab> SpawnedTab =
-		SNew(SDockTab)
-		[
-			SNew(SNiagaraSelectedObjectsDetails, SystemSelection)
 		];
 
 	return SpawnedTab;

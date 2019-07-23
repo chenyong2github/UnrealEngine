@@ -55,7 +55,7 @@ public:
 
 	struct NIAGARAEDITOR_API FExecutionSubcategoryNames
 	{
-		static const FName Parameters;
+		static const FName Settings;
 		static const FName Spawn;
 		static const FName Update;
 		static const FName Event;

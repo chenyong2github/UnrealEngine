@@ -31,7 +31,7 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 {
 	if (bIsHighlighted)
 	{
-		if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Parameters)
+		if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Settings)
 		{
 			return "NiagaraEditor.Stack.ParametersIconHighlighted";
 		}
@@ -50,7 +50,7 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 	}
 	else
 	{
-		if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Parameters)
+		if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Settings)
 		{
 			return "NiagaraEditor.Stack.ParametersIcon";
 		}

@@ -4,7 +4,7 @@
 
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
-#include "NiagaraStackEmitterSpawnScriptItemGroup.generated.h"
+#include "NiagaraStackEmitterSettingsGroup.generated.h"
 
 class FNiagaraEmitterViewModel;
 class FNiagaraScriptViewModel;
@@ -21,9 +21,13 @@ public:
 
 	virtual FText GetDisplayName() const override;
 
+	virtual FText GetTooltipText() const override;
+
 	bool CanResetToBase() const;
 
 	void ResetToBase();
+
+	virtual bool IsExpandedByDefault() const override;
 
 protected:
 	virtual void FinalizeInternal() override;
@@ -43,12 +47,12 @@ private:
 };
 
 UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackEmitterSpawnScriptItemGroup : public UNiagaraStackScriptItemGroup
+class NIAGARAEDITOR_API UNiagaraStackEmitterSettingsGroup : public UNiagaraStackItemGroup
 {
 	GENERATED_BODY()
 
 public:
-	UNiagaraStackEmitterSpawnScriptItemGroup();
+	UNiagaraStackEmitterSettingsGroup();
 
 protected:
 	void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
