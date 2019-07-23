@@ -2286,12 +2286,19 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 {
 	struct Local
 	{
-		static void OnHyperlinkClicked( TWeakObjectPtr<UBlueprint> InBlueprint )
+		static void OnHyperlinkClicked( TWeakObjectPtr<UBlueprint> InBlueprint, TSharedPtr<SCustomDialog> InDialog )
 		{
 			if (UBlueprint* BlueprintToEdit = InBlueprint.Get())
 			{
 				// Open the blueprint
 				GEditor->EditObject( BlueprintToEdit );
+			}
+
+			if (InDialog.IsValid())
+			{
+				// Opening the blueprint editor above may end up creating an invisible new window on top of the dialog, 
+				// thus making it not interactable, so we have to force the dialog back to the front
+				InDialog->BringToFront(true);
 			}
 		}
 	};
@@ -2304,6 +2311,8 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 			.Text(NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrors", "One or more blueprints has an unresolved compiler error, are you sure you want to Play in Editor?"))
 		];
 
+	TSharedPtr<SCustomDialog> CustomDialog;
+
 	for (UBlueprint* Blueprint : ErroredBlueprints)
 	{
 		TWeakObjectPtr<UBlueprint> BlueprintPtr = Blueprint;
@@ -2314,7 +2323,7 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 			[
 				SNew(SHyperlink)
 				.Style(FEditorStyle::Get(), "Common.GotoBlueprintHyperlink")
-				.OnNavigate_Static(&Local::OnHyperlinkClicked, BlueprintPtr)
+				.OnNavigate(FSimpleDelegate::CreateLambda([BlueprintPtr, &CustomDialog]() { Local::OnHyperlinkClicked(BlueprintPtr, CustomDialog); }))
 				.Text(FText::FromString(Blueprint->GetName()))
 				.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"))
 			];
@@ -2332,7 +2341,7 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 	FText OKText = NSLOCTEXT("PlayInEditor", "PrePIE_OkText", "Play in Editor");
 	FText CancelText = NSLOCTEXT("Dialogs", "EAppReturnTypeCancel", "Cancel");
 
-	TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
+	CustomDialog = SNew(SCustomDialog)
 		.Title(DialogTitle)
 		.IconBrush("NotificationList.DefaultMessage")
 		.DialogContent(DialogContents)
