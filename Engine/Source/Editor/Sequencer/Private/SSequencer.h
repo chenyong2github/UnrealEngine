@@ -36,6 +36,7 @@ class SDockTab;
 class USequencerSettings;
 class FSequencerTrackFilter;
 struct FPaintPlaybackRangeArgs;
+struct FSequencerSelectionCurveFilter;
 
 namespace SequencerLayoutConstants
 {
@@ -533,7 +534,7 @@ private:
 	TSharedPtr<SCurveEditorTree> CurveEditorTree;
 
 	/** Curve editor filter that shows only the selected nodes */
-	TSharedPtr<FCurveEditorTreeFilter> SequencerSelectionCurveEditorFilter;
+	TSharedPtr<FSequencerSelectionCurveFilter> SequencerSelectionCurveEditorFilter;
 
 	/** The breadcrumb trail widget for this sequencer */
 	TSharedPtr<SBreadcrumbTrail<FSequencerBreadcrumb>> BreadcrumbTrail;
