@@ -17,6 +17,17 @@ FComponentVisualizerManager::FComponentVisualizerManager()
 /** Handle a click on the specified editor viewport client */
 bool FComponentVisualizerManager::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
+	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
+
+	// Give current visualizer a chance to handle click if it has a modifier.
+	if (EditedVisualizer.IsValid() && (Click.IsControlDown() || Click.IsAltDown() || Click.IsShiftDown()))
+	{
+		if (EditedVisualizer->HandleModifiedClick(InViewportClient, HitProxy, Click))
+		{ 
+			return true;
+		}
+	}
+		
 	bool bHandled = HandleProxyForComponentVis(InViewportClient, HitProxy, Click);
 	if (bHandled && Click.GetKey() == EKeys::RightMouseButton)
 	{
@@ -120,6 +131,65 @@ bool FComponentVisualizerManager::HandleInputDelta(FEditorViewportClient* InView
 	return false;
 }
 
+bool FComponentVisualizerManager::HandleFrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, FViewport* InViewport) const
+{
+	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
+
+	if (EditedVisualizer.IsValid() && EditedVisualizerViewportClient == InViewportClient)
+	{
+		if (EditedVisualizer->HandleFrustumSelect(InFrustum, InViewportClient, InViewport))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FComponentVisualizerManager::HandleBoxSelect(const FBox& InBox, FEditorViewportClient* InViewportClient, FViewport* InViewport) const
+{
+	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
+
+	if (EditedVisualizer.IsValid() && EditedVisualizerViewportClient == InViewportClient)
+	{
+		if (EditedVisualizer->HandleBoxSelect(InBox, InViewportClient, InViewport))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FComponentVisualizerManager::HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) const
+{
+	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
+
+	if (EditedVisualizer.IsValid())
+	{
+		if (EditedVisualizer->HasFocusOnSelectionBoundingBox(OutBoundingBox))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FComponentVisualizerManager::HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination)
+{
+	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
+
+	if (EditedVisualizer.IsValid())
+	{
+		if (EditedVisualizer->HandleSnapTo(bInAlign, bInUseLineTrace, bInUseBounds, bInUsePivot, InDestination))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 bool FComponentVisualizerManager::GetWidgetLocation(const FEditorViewportClient* ViewportClient, FVector& OutLocation) const
 {
