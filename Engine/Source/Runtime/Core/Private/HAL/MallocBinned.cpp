@@ -136,7 +136,7 @@ struct FMallocBinned::PoolHashBucket
 	}
 };
 
-#define USE_OS_SMALL_BLOCK_ALLOC PLATFORM_IOS
+#define USE_OS_SMALL_BLOCK_ALLOC 0
 
 #if PLATFORM_IOS
 #define PLAT_PAGE_SIZE_LIMIT 16384
