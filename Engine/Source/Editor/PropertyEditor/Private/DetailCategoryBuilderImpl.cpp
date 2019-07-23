@@ -72,9 +72,8 @@ bool FDetailLayoutCustomization::IsHidden() const
 {
 	return !IsValidCustomization()
 		|| (HasCustomWidget() && WidgetDecl->VisibilityAttr.Get() != EVisibility::Visible)
-		|| (HasPropertyNode() && PropertyRow->GetPropertyVisibility() != EVisibility::Visible);
-		/** Partial revert of CL 7273612 (fix for UE-76064) that caused a bunch of regressions in the details panel (UE-77377,UE-77376,UE-77451). */
-		//|| (HasCustomBuilder() && CustomBuilderRow->AreChildCustomizationsHidden());
+		|| (HasPropertyNode() && PropertyRow->GetPropertyVisibility() != EVisibility::Visible)
+		|| (HasCustomBuilder() && CustomBuilderRow->AreChildCustomizationsHidden());
 }
 
 TSharedPtr<FPropertyNode> FDetailLayoutCustomization::GetPropertyNode() const
