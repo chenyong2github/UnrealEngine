@@ -261,7 +261,7 @@ public:
 
 
 	/**
-	 * Retrieve the unique identifer for the sequencer selection curve editor filter
+	 * Retrieve the unique identifer for the sequencer selection curve editor filter (of type FSequencerSelectionCurveFilter)
 	 */
 	static ECurveEditorTreeFilterType GetSequencerSelectionFilterType();
 
