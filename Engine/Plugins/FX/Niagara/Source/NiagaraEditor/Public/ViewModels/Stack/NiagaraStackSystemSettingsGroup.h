@@ -6,12 +6,12 @@
 #include "NiagaraCommon.h"
 #include "NiagaraParameterStore.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
-#include "NiagaraStackParameterStoreGroup.generated.h"
+#include "NiagaraStackSystemSettingsGroup.generated.h"
 
 class FNiagaraScriptViewModel;
 
 UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackParameterStoreGroup : public UNiagaraStackItemGroup
+class NIAGARAEDITOR_API UNiagaraStackSystemSettingsGroup : public UNiagaraStackItemGroup
 {
 	GENERATED_BODY()
 		
@@ -26,7 +26,7 @@ private:
 
 private:
 	TWeakObjectPtr<UObject> Owner;
-	FNiagaraParameterStore* ParameterStore;
+	FNiagaraParameterStore* UserParameterStore;
 	FDelegateHandle ParameterStoreChangedHandle;
 	TSharedPtr<INiagaraStackItemGroupAddUtilities> AddUtilities;
 };
@@ -40,6 +40,8 @@ public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InOwner, FNiagaraParameterStore* InParameterStore);
 
 	virtual FText GetDisplayName() const override;
+
+	virtual FText GetTooltipText() const override;
 
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;

@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "ViewModels/Stack/NiagaraStackEmitterSpawnScriptItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackEmitterSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "ViewModels/Stack/NiagaraStackSpacer.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -11,7 +11,7 @@
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraEmitterDetailsCustomization.h"
 
-#define LOCTEXT_NAMESPACE "UNiagaraStackScriptItemGroup"
+#define LOCTEXT_NAMESPACE "UNiagaraStackEmitterItemGroup"
 
 void UNiagaraStackEmitterPropertiesItem::Initialize(FRequiredEntryData InRequiredEntryData)
 {
@@ -31,7 +31,12 @@ void UNiagaraStackEmitterPropertiesItem::FinalizeInternal()
 
 FText UNiagaraStackEmitterPropertiesItem::GetDisplayName() const
 {
-	return LOCTEXT("EmitterPropertiesDisplayName", "Emitter Properties");
+	return LOCTEXT("EmitterPropertiesName", "Emitter Properties");
+}
+
+FText UNiagaraStackEmitterPropertiesItem::GetTooltipText() const
+{
+	return LOCTEXT("EmitterPropertiesTooltip", "Properties that are handled per Emitter. These cannot change at runtime.");
 }
 
 bool UNiagaraStackEmitterPropertiesItem::CanResetToBase() const
@@ -62,6 +67,11 @@ void UNiagaraStackEmitterPropertiesItem::ResetToBase()
 	}
 }
 
+bool UNiagaraStackEmitterPropertiesItem::IsExpandedByDefault() const
+{
+	return false;
+}
+
 void UNiagaraStackEmitterPropertiesItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	if (EmitterObject == nullptr)
@@ -82,12 +92,12 @@ void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 	bCanResetToBaseCache.Reset();
 }
 
-UNiagaraStackEmitterSpawnScriptItemGroup::UNiagaraStackEmitterSpawnScriptItemGroup()
+UNiagaraStackEmitterSettingsGroup::UNiagaraStackEmitterSettingsGroup()
 	: PropertiesItem(nullptr)
 {
 }
 
-void UNiagaraStackEmitterSpawnScriptItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
+void UNiagaraStackEmitterSettingsGroup::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	FName PropertiesSpacerKey = "PropertiesSpacer";
 	UNiagaraStackSpacer* PropertiesSpacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
