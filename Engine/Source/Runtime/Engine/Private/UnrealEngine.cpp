@@ -1154,7 +1154,7 @@ static FAutoConsoleVariableRef CVarLowMemoryTimeBetweenPurgingPendingKillObjects
 );
 
 // see also: s.ForceGCAfterLevelStreamedOut, s.ContinuouslyIncrementalGCWhileLevelsPendingPurge
-static float GLowMemoryTimeBetweenPurgingPendingLevels = 10.0f;
+static float GLowMemoryTimeBetweenPurgingPendingLevels = 15.0f;
 static FAutoConsoleVariableRef CVarLowMemoryTimeBetweenPurgingPendingLevels(
 	TEXT("gc.LowMemory.TimeBetweenPurgingPendingLevels"),
 	GLowMemoryTimeBetweenPurgingPendingLevels,
