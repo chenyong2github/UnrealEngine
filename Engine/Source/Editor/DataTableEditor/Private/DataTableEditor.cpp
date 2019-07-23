@@ -37,6 +37,7 @@
 #include "UObject/StructOnScope.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "DataTableRowUtlis.h"
+#include "Engine/DataTable.h"
 
 
 
@@ -107,10 +108,12 @@ FDataTableEditor::~FDataTableEditor()
 {
 	GEditor->UnregisterForUndo(this);
 
-	const UDataTable* Table = GetDataTable();
+	UDataTable* Table = GetEditableDataTable();
 	if (Table)
 	{
 		SaveLayoutData();
+
+		Table->OnDataTableImported().RemoveAll(this);
 	}
 }
 
@@ -242,6 +245,10 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 	ToolkitCommands->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FDataTableEditor::CopySelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FDataTableEditor::PasteOnSelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Duplicate, FExecuteAction::CreateSP(this, &FDataTableEditor::DuplicateSelectedRow));
+	ToolkitCommands->MapAction(FGenericCommands::Get().Rename, FExecuteAction::CreateSP(this, &FDataTableEditor::RenameSelectedRowCommand));
+
+	Table->OnDataTableImported().AddSP(this, &FDataTableEditor::ImportDataTableUpdate);
+
 }
 
 FName FDataTableEditor::GetToolkitFName() const
@@ -257,6 +264,81 @@ void FDataTableEditor::BrowseDocumentation_Execute() const
 FString FDataTableEditor::GetDocumentationLink() const
 {
 	return FString(TEXT("Gameplay/DataDriven"));
+}
+
+FReply FDataTableEditor::OnAddClicked()
+{
+	UDataTable* Table = GetEditableDataTable();
+
+	if (Table)
+	{
+		//const_cast<UDataTable*>(Table)
+		
+		FName NewName = DataTableUtils::MakeValidName(TEXT("NewRow"));
+		const TArray<FName> ExisitngNames = Table->GetRowNames();
+		while (ExisitngNames.Contains(NewName))
+		{
+			NewName.SetNumber(NewName.GetNumber() + 1);
+		}
+
+		FDataTableEditorUtils::AddRow(Table, NewName);
+		FDataTableEditorUtils::SelectRow(Table, NewName);
+	}
+	return FReply::Handled();
+}
+
+FReply FDataTableEditor::OnRemoveClicked()
+{
+	UDataTable* Table = GetEditableDataTable();
+
+	if (Table)
+	{
+
+		const int32 RowToRemoveIndex = VisibleRows.IndexOfByPredicate([&](const FDataTableEditorRowListViewDataPtr& InRowName) -> bool
+		{
+			return InRowName->RowId == HighlightedRowName;
+		});
+
+		if (FDataTableEditorUtils::RemoveRow(Table, HighlightedRowName))
+		{
+			// Try and keep the same row index selected
+			const int32 RowIndexToSelect = FMath::Clamp(RowToRemoveIndex, 0, VisibleRows.Num() - 1);
+			if (VisibleRows.IsValidIndex(RowIndexToSelect))
+			{
+				FDataTableEditorUtils::SelectRow(Table, VisibleRows[RowIndexToSelect]->RowId);
+			}
+		}
+
+	}
+	return FReply::Handled();
+}
+
+FReply FDataTableEditor::OnMoveRowClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection)
+{
+	UDataTable* Table = GetEditableDataTable();
+
+	if (Table)
+	{
+		FDataTableEditorUtils::MoveRow(Table, HighlightedRowName, MoveDirection);
+	}
+	return FReply::Handled();
+}
+
+FReply FDataTableEditor::OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection)
+{
+	UDataTable* Table = GetEditableDataTable();
+
+	if (Table)
+	{
+		// We move by the row map size, as FDataTableEditorUtils::MoveRow will automatically clamp this as appropriate
+		FDataTableEditorUtils::MoveRow(Table, HighlightedRowName, MoveDirection, Table->GetRowMap().Num());
+	}
+	return FReply::Handled();
+}
+
+UDataTable* FDataTableEditor::GetEditableDataTable() const
+{
+	return Cast<UDataTable>(GetEditingObject());
 }
 
 FText FDataTableEditor::GetBaseToolkitName() const
@@ -453,18 +535,6 @@ TSharedRef<SWidget> FDataTableEditor::MakeCellWidget(FDataTableEditorRowListView
 	return SNullWidget::NullWidget;
 }
 
-void FDataTableEditor::OnRowNamesListViewScrolled(double InScrollOffset)
-{
-	// Synchronize the list views
-	CellsListView->SetScrollOffset(InScrollOffset);
-}
-
-void FDataTableEditor::OnCellsListViewScrolled(double InScrollOffset)
-{
-	// Synchronize the list views
-	RowNamesListView->SetScrollOffset(InScrollOffset);
-}
-
 void FDataTableEditor::OnRowSelectionChanged(FDataTableEditorRowListViewDataPtr InNewSelection, ESelectInfo::Type InSelectInfo)
 {
 	const bool bSelectionChanged = !InNewSelection.IsValid() || InNewSelection->RowId != HighlightedRowName;
@@ -535,6 +605,26 @@ void FDataTableEditor::DuplicateSelectedRow()
 
 	FDataTableEditorUtils::DuplicateRow(TablePtr, HighlightedRowName, NewName);
 	FDataTableEditorUtils::SelectRow(TablePtr, NewName);
+}
+
+void FDataTableEditor::RenameSelectedRowCommand()
+{
+	UDataTable* TablePtr = Cast<UDataTable>(GetEditingObject());
+	FName NewName = HighlightedRowName; 
+
+	if (NewName == NAME_None || TablePtr == nullptr)
+		return;
+
+	for (const FDataTableEditorRowListViewDataPtr& RowData : VisibleRows)
+	{
+		if (RowData->RowId == NewName)
+		{
+			TSharedPtr< SDataTableListViewRow > RowWidget = StaticCastSharedPtr< SDataTableListViewRow >(CellsListView->WidgetFromItem(RowData));
+			RowWidget->SetRowForRename();
+		}
+	}
+
+
 }
 
 FText FDataTableEditor::GetFilterText() const
@@ -715,6 +805,16 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 	}
 }
 
+void FDataTableEditor::ImportDataTableUpdate()
+{
+	UDataTable* Table = GetEditableDataTable();
+
+	if (Table)
+	{
+		FDataTableEditorUtils::FDataTableEditorManager::Get().PostChange(Table, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
+	}
+}
+
 void FDataTableEditor::UpdateVisibleRows(const FName InCachedSelection, const bool bUpdateEvenIfValid)
 {
 	if (ActiveFilterText.IsEmptyOrWhitespace())
@@ -801,7 +901,6 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 		.ListItemsSource(&VisibleRows)
 		.HeaderRow(ColumnNamesHeaderRow)
 		.OnGenerateRow(this, &FDataTableEditor::MakeRowWidget)
-		.OnListViewScrolled(this, &FDataTableEditor::OnCellsListViewScrolled)
 		.OnSelectionChanged(this, &FDataTableEditor::OnRowSelectionChanged)
 		.ExternalScrollbar(VerticalScrollBar)
 		.ConsumeMouseWheel(EConsumeMouseWheel::Always)
@@ -811,6 +910,111 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 	RefreshCachedDataTable();
 
 	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnAddClicked)
+				.ToolTipText(LOCTEXT("AddRowTooltip", "Add a new row to the data table"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("Plus"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnRemoveClicked)
+				.ToolTipText(LOCTEXT("RemoveRowTooltip", "Remove the currently selected row from the data table"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("Cross"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnMoveRowClicked, FDataTableEditorUtils::ERowMoveDirection::Up)
+				.ToolTipText(LOCTEXT("MoveUpTooltip", "Move the currently selected row up by one in the data table"))
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FText::FromString(FString(TEXT("\xf106"))) /*fa-angle-up*/)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnMoveRowClicked, FDataTableEditorUtils::ERowMoveDirection::Down)
+				.ToolTipText(LOCTEXT("MoveDownTooltip", "Move the currently selected row down by one in the data table"))
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FText::FromString(FString(TEXT("\xf107"))) /*fa-angle-down*/)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Up)
+				.ToolTipText(LOCTEXT("MoveToTopTooltip", "Move the currently selected row to the top of the data table"))
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FText::FromString(FString(TEXT("\xf102"))) /*fa-angle-double-up*/)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Down)
+				.ToolTipText(LOCTEXT("MoveToBottomTooltip", "Move the currently selected row to the bottom of the data table"))
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FText::FromString(FString(TEXT("\xf103"))) /*fa-angle-double-down*/)
+				]
+			]
+		]
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[

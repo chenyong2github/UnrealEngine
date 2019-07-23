@@ -83,6 +83,8 @@ protected:
 
 	void RefreshCachedDataTable(const FName InCachedSelection = NAME_None, const bool bUpdateEvenIfValid = false);
 
+	void ImportDataTableUpdate();
+
 	void UpdateVisibleRows(const FName InCachedSelection = NAME_None, const bool bUpdateEvenIfValid = false);
 
 	void RestoreCachedSelection(const FName InCachedSelection, const bool bUpdateEvenIfValid = false);
@@ -131,15 +133,12 @@ protected:
 	/** Make the widget for a cell entry in the data table row list view */
 	TSharedRef<SWidget> MakeCellWidget(FDataTableEditorRowListViewDataPtr InRowDataPtr, const int32 InRowIndex, const FName& InColumnId);
 
-	void OnRowNamesListViewScrolled(double InScrollOffset);
-
-	void OnCellsListViewScrolled(double InScrollOffset);
-
 	void OnRowSelectionChanged(FDataTableEditorRowListViewDataPtr InNewSelection, ESelectInfo::Type InSelectInfo);
 
 	void CopySelectedRow();
 	void PasteOnSelectedRow();
 	void DuplicateSelectedRow();
+	void RenameSelectedRowCommand();
 
 	/** Helper function for creating and registering the tab containing the data table data */
 	virtual void CreateAndRegisterDataTableTab(const TSharedRef<class FTabManager>& InTabManager);
@@ -153,6 +152,15 @@ protected:
 	void BrowseDocumentation_Execute() const;
 
 	virtual FString GetDocumentationLink() const override;
+	
+	FReply OnAddClicked();
+	FReply OnRemoveClicked();
+	FReply OnMoveRowClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
+	FReply OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
+
+
+private:
+	UDataTable* GetEditableDataTable() const;
 
 protected:
 
@@ -191,9 +199,6 @@ protected:
 
 	/** Header row containing entries for each column in AvailableColumns */
 	TSharedPtr<SHeaderRow> ColumnNamesHeaderRow;
-
-	/** List view responsible for showing the row names column */
-	TSharedPtr<SListView<FDataTableEditorRowListViewDataPtr>> RowNamesListView;
 
 	/** List view responsible for showing the rows in VisibleRows for each entry in AvailableColumns */
 	TSharedPtr<SListView<FDataTableEditorRowListViewDataPtr>> CellsListView;
