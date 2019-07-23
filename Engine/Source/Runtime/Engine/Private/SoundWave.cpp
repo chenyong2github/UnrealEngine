@@ -798,7 +798,7 @@ void USoundWave::PostLoad()
 void USoundWave::EnsureZerothChunkIsLoaded()
 {
 	// If the zeroth chunk is already loaded, early exit.
-	if (ZerothChunkData.Num() > 0)
+	if (ZerothChunkData.Num() > 0 || !ShouldUseStreamCaching())
 	{
 		return;
 	}
