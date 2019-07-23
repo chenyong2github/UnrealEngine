@@ -193,7 +193,7 @@ void FInstanceUpdateCmdBuffer::SetShadowMapData(int32 RenderIndex, const FVector
 
 void FInstanceUpdateCmdBuffer::ResetInlineCommands()
 {
-	Cmds.Reset();
+	Cmds.Empty();
 	NumAdds = 0;
 }
 
@@ -204,7 +204,7 @@ void FInstanceUpdateCmdBuffer::Edit()
 
 void FInstanceUpdateCmdBuffer::Reset()
 {
-	Cmds.Reset();
+	Cmds.Empty();
 	NumAdds = 0;
 	NumEdits = 0;
 }
