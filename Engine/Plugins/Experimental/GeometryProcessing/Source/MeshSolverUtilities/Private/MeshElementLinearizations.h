@@ -99,7 +99,17 @@ private:
 		for (int32 i = 0, I = ToIdMap.Num(); i < I; ++i)
 		{
 			int32 VtxId = ToIdMap[i];
-			if (DynamicMesh.IsBoundaryVertex(VtxId))
+			// Test if the vertex has a one ring
+			
+			bool bEmptyOneRing = true;
+			for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VtxId))
+			{
+				bEmptyOneRing = false;
+				break;
+			};
+				
+
+			if (bEmptyOneRing || DynamicMesh.IsBoundaryVertex(VtxId))
 			{
 				BoundaryVertIds.Add(VtxId);
 			}
