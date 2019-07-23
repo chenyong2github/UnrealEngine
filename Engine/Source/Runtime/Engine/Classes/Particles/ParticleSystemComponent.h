@@ -359,6 +359,7 @@ public:
 	/** 
 	 * Get the referenced FXSystem asset.
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
 	virtual UFXSystemAsset* GetFXSystemAsset() const { return nullptr; };
 
 	/**

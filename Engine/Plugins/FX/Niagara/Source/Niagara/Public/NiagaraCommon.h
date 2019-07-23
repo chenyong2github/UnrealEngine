@@ -605,3 +605,20 @@ struct FNiagaraRandInfo
 	UPROPERTY(EditAnywhere, Category = "Random")
 	int32 Seed3;
 };
+
+
+//////////////////////////////////////////////////////////////////////////
+// Legacy Anim Trail Support
+
+
+/** 
+Controls the way that the width scale property affects animation trails. 
+Only used for Legacy Anim Trail support when converting from Cascade to Niagara.
+*/
+UENUM()
+enum class ENiagaraLegacyTrailWidthMode : uint32
+{
+	FromCentre,
+	FromFirst,
+	FromSecond,
+};
