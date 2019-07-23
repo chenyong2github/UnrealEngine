@@ -731,7 +731,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 				PassName, bUseFast ? TEXT(" Fast") : TEXT(""),
 				PracticableDestRect.Width(), PracticableDestRect.Height()),
 			PassParameters,
-			ERenderGraphPassFlags::None,
+			ERDGPassFlags::Raster,
 			[PassParameters, &View, PracticableDestRect, bCameraCut, BasePermutationVector, bUseResponsiveStencilTest](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(PracticableDestRect.Min.X, PracticableDestRect.Min.Y, 0.0f, PracticableDestRect.Max.X, PracticableDestRect.Max.Y, 1.0f);
