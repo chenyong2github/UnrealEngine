@@ -63,7 +63,7 @@ void TileMain(
 	}
 	else
 	{
-		Sample = Texture3DSample(InTexture, InTextureSampler, TexCoord3D);
+		Sample = Texture3DSampleGrad(InTexture, InTextureSampler, TexCoord3D, ddx(float3(TextureCoordinate, 0)), ddy(float3(TextureCoordinate, 0)));
 	}
 
 
