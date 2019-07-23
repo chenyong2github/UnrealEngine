@@ -1,4 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#include "/Engine/Public/Platform.ush"
+#include "MPCDIUtils.ush"
 
 //Draw rectangle support
 float4 DrawRectanglePosScaleBias;
@@ -46,36 +48,6 @@ struct OutputPS
 	float4 Color : SV_Target0;
 };
 
-float sRGBToLinear(float srgb)
-{
-	if (srgb <= 0.04045)
-		return srgb / 12.92;
-	else
-		return pow((srgb + 0.055) / 1.055, 2.4);
-}
-
-float LinarTosRGB(float lin)
-{
-	if (lin <= 0.0031308)
-		return lin * 12.92;
-	else
-		return 1.055 * pow(lin, 1.0 / 2.4) - 0.055;
-}
-
-float3 sRGBToLinear(float3 srgb)
-{
-	return float3(sRGBToLinear(srgb.r), 
-				  sRGBToLinear(srgb.g),
-				  sRGBToLinear(srgb.b));
-}
-
-float3 LinearTosRGB(float3 lin)
-{
-	return float3(LinarTosRGB(lin.r), 
-				  LinarTosRGB(lin.g),
-				  LinarTosRGB(lin.b));
-}
-
 /** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
 void DrawRectangle(in float4 InPosition, in float2 InTexCoord, out float4 OutPosition, out float2 OutTexCoord)
 {
@@ -87,7 +59,7 @@ void DrawRectangle(in float4 InPosition, in float2 InTexCoord, out float4 OutPos
 
 float4 ApplyBlending(float3 color, OutputVS IN)
 {
-	color = sRGBToLinear(color);
+	color = MPCDI_sRGBToLinear(color);
 
 	// Load alpha
 	float alpha = pow(AlphaMap.Sample(AlphaMapSampler, IN.UV.xy).r, AlphaEmbeddedGamma);
@@ -97,7 +69,7 @@ float4 ApplyBlending(float3 color, OutputVS IN)
 
 	color = (color*alpha*(1 - beta)) + beta;
 
-	return float4(LinearTosRGB(color), 1.f);
+	return float4(MPCDI_LinearTosRGB(color), 1.f);
 }
 
 OutputVS MainVS( InputVS IN)
@@ -109,7 +81,7 @@ OutputVS MainVS( InputVS IN)
 	return OUT;
 }
 
-OutputPS PassThrought_PS( OutputVS IN )
+OutputPS Passthrough_PS( OutputVS IN )
 {
 	OutputPS OUT;
 	float4 UV = mul(IN.UV,TextureProjectionMatrix);
@@ -129,6 +101,7 @@ OutputPS ShowWarpTexture_PS(OutputVS IN)
 	OUT.Color = float4(UV, 0, 0.5f);
 	return OUT;
 }
+
 OutputPS WarpAndBlend_PS( OutputVS IN )
 {
 	OutputPS OUT;
@@ -142,8 +115,14 @@ OutputPS WarpAndBlend_PS( OutputVS IN )
 	// Load from color map
 	float3 Color = PostprocessInput0.Sample(PostprocessInput0Sampler, UV.xy/UV.w).rgb;
 
+#if RENDER_CASE_APPLYBLENDING
 	// Apply blending
 	OUT.Color = ApplyBlending(Color, IN);
+#else
+	// No blending
+	OUT.Color = float4(Color,1.f);
+#endif
+
 	return OUT;
 }
 
@@ -155,7 +134,7 @@ OutputPS WarpAndBlendCube_PS(OutputVS IN)
 	float4 WarpedPos = WarpMap.Sample(WarpMapSampler, IN.UV.xy);
 
 	// Construct world space Vector from mesh position to eye position
-	float3 ViewVector = normalize((WarpedPos - EyePosition).xyz);
+	float3 ViewVector = normalize(WarpedPos.xyz - EyePosition);
 
 	// Load from color map
 	float3 Color = SceneCubemap.Sample(SceneCubemapSampler, ViewVector).rgb;
@@ -186,4 +165,18 @@ OutputPS BuildProjectedAABB_PS(OutputVS IN)
 	// return <0,0,0> if warp point not defined (W=-1)
 	OUT.Color = float4(UV.xyz, 1.f);		
 	return OUT;
+}
+
+
+OutputVS DirectProjectionVS(InputVS IN)
+{
+	float2 Pos = IN.Position.xy;
+
+	Pos.xy = Pos.xy * 2 - 1.0f;
+	Pos.xy *= float2(1, -1);
+
+	OutputVS Out;
+	Out.Position = float4(Pos, 0, 1);
+	Out.UV = float4(IN.UV, 0.f, 1.f);
+	return Out;
 }

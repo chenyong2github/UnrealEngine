@@ -12,10 +12,6 @@ public class PicpProjection : ModuleRules
 			{
 				"PicpProjection/Private",
 				"DisplayClusterProjection/Private",
-				"../../../../Source/Runtime/Renderer/Private",
-				"../../../../Source/Runtime/Engine/Classes/Components",
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private",
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
 			}
 		);
 
@@ -24,34 +20,26 @@ public class PicpProjection : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"D3D11RHI",
-				"DisplayCluster",
-				"PicpMPCDI",
 				"Engine",
-				"HeadMountedDisplay",
-				"MPCDI",
-				"RenderCore",
-				"RHI",
-				"Composure"
-			});
+            });
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"ApplicationCore",
-				"Core",
-				"CoreUObject",
-				"Engine"
-			}
-		);
+                "Composure",
+				"CinematicCamera",
+                "DisplayCluster",
+                "MPCDI",
+                "PicpMPCDI",
+                "RenderCore",
+				"RHI",				
+            }
+        );
 
 		if (Target.bBuildEditor == true)
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
-
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 	}
 }

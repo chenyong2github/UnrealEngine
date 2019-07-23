@@ -43,17 +43,14 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpOverl
 	FPicpProjectionOverlayFrameData overlayFrameData;
 
 	for (auto& capture : captures)
-	{
-		FRotator CameraRotation = capture.CameraOverlayFrameCapture->K2_GetComponentRotation();
-		FVector  CameraLocation = capture.CameraOverlayFrameCapture->K2_GetComponentLocation();
+	{		
+		FRotator CameraRotation = capture.CineCamera->K2_GetComponentRotation();
+		FVector  CameraLocation = capture.CineCamera->K2_GetComponentLocation();
 
-		float fov = capture.CameraOverlayFrameCapture->FOVAngle;
+		float fov = capture.CineCamera->FieldOfView;
 
 		FComposurePostMoveSettings settings;
-		float width = capture.CameraOverlayFrameCapture->TextureTarget->GetSurfaceWidth();
-		float height = capture.CameraOverlayFrameCapture->TextureTarget->GetSurfaceHeight();
-
-		float aspectRatio = width / height;
+		float aspectRatio = capture.CineCamera->AspectRatio;
 
 		FMatrix Prj = settings.GetProjectionMatrix(fov, aspectRatio);
 
@@ -61,11 +58,12 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpOverl
 		FTextureRenderTarget2DResource* overlayRTTRes2D = (FTextureRenderTarget2DResource*)overlayRTTRes;
 
 		FRHITexture2D* CameraTextureRef = overlayRTTRes2D->GetTextureRHI();
-		FPicpProjectionOverlayCamera* overlayCamera = new FPicpProjectionOverlayCamera(CameraRotation, CameraLocation, Prj, CameraTextureRef);
 
 		// add inner camera
-		overlayFrameData.Cameras.Add(overlayCamera);
-		overlayCamera->SoftEdge = capture.SoftEdge;
+		FPicpProjectionOverlayCamera NewCamera(CameraRotation, CameraLocation, Prj, CameraTextureRef, capture.RTTViewportId);
+		NewCamera.SoftEdge = capture.SoftEdge;
+		overlayFrameData.Cameras.Add(NewCamera);
+		
 
 		// add blending layers (lights?)
 		for (auto& layer : capture.OverlayBlendFrames)
@@ -74,15 +72,14 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpOverl
 
 			FTextureRenderTarget2DResource* rtt2d = (FTextureRenderTarget2DResource*)res;
 			FRHITexture2D* paramRef = rtt2d->GetTextureRHI();
-			FPicpProjectionOverlayViewport* overlayViewport = new FPicpProjectionOverlayViewport(paramRef);
 
 			if (layer.OverlayBlendMode == ECameraOverlayRenderMode::Over)
 			{
-				overlayFrameData.ViewportsOver.Add(layer.Id, overlayViewport);
+				overlayFrameData.ViewportsOver.Add(layer.Id, FPicpProjectionOverlayViewport(paramRef));
 			}
 			else if (layer.OverlayBlendMode == ECameraOverlayRenderMode::Under)
 			{
-				overlayFrameData.ViewportsUnder.Add(layer.Id, overlayViewport);
+				overlayFrameData.ViewportsUnder.Add(layer.Id, FPicpProjectionOverlayViewport(paramRef));
 			}
 		}
 	}
@@ -95,4 +92,10 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpOverl
 void UPicpProjectionAPIImpl::SetWarpTextureCaptureState(UTextureRenderTarget2D* dstTexture, const FString& ViewportId, const int ViewIdx, bool bCaptureNow)
 {
 	IPicpProjection::Get().CaptureWarpTexture(dstTexture, ViewportId, ViewIdx, bCaptureNow);
+}
+void UPicpProjectionAPIImpl::EnableTextureRenderTargetMips(UTextureRenderTarget2D* Texture)
+{
+	Texture->bAutoGenerateMips = true;
+	Texture->UpdateResource();
+	Texture->UpdateResourceImmediate(true);
 }

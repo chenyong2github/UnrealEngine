@@ -14,6 +14,8 @@ FDisplayClusterRenderSyncPolicySoftwareGeneric::~FDisplayClusterRenderSyncPolicy
 
 bool FDisplayClusterRenderSyncPolicySoftwareGeneric::SynchronizeClusterRendering(int32& InOutSyncInterval)
 {
+	check(IsInRenderingThread());
+
 	// Synchronize by a barrier only
 	SyncBarrierRenderThread();
 	// Tell a caller that he is still need to present a frame

@@ -1900,11 +1900,9 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 #endif
 
 	{
-		const bool bStereoEnabled = StereoPass != eSSP_FULL;
-		const bool bScaledToRenderTarget = GEngine->XRSystem.IsValid() && bStereoEnabled && GEngine->XRSystem->GetHMDDevice();
-		if (bScaledToRenderTarget)
+		if (GEngine->StereoRenderingDevice.IsValid())
 		{
-			GEngine->XRSystem->GetHMDDevice()->UpdatePostProcessSettings(&FinalPostProcessSettings);
+			GEngine->StereoRenderingDevice->UpdatePostProcessSettings(&FinalPostProcessSettings, StereoPass);
 		}
 	}
 

@@ -1,13 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Render/Device/TopBottom/DisplayClusterDeviceTopBottomOpenGL.h"
-#include "Render/Device/DisplayClusterDeviceInternals.h"
 
-#include "Render/IDisplayClusterRenderManager.h"
-#include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
-
-#include "DisplayClusterGlobals.h"
 #include "DisplayClusterLog.h"
+#include "Render/Device/DisplayClusterOpenGL.h"
 
 
 FDisplayClusterDeviceTopBottomOpenGL::FDisplayClusterDeviceTopBottomOpenGL()
@@ -61,17 +57,10 @@ bool FDisplayClusterDeviceTopBottomOpenGL::Present(int32& InOutSyncInterval)
 	pOglViewport->WaitForFrameEventCompletion();
 #endif
 
-	// Update sync value with nDisplay value
-	InOutSyncInterval = GetSwapInt();
-
-	TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy = GDisplayCluster->GetRenderMgr()->GetCurrentSynchronizationPolicy();
-	if (SyncPolicy.IsValid())
+	// Perform abstract synchronization on a higher level
+	if (!FDisplayClusterDeviceBase::Present(InOutSyncInterval))
 	{
-		// False results means we don't need to present current frame, the sync object already presented it
-		if (!SyncPolicy->SynchronizeClusterRendering(InOutSyncInterval))
-		{
-			return false;
-		}
+		return false;
 	}
 
 	::SwapBuffers(pOglViewport->GetGLContext()->DeviceContext);
