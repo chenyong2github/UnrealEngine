@@ -9,6 +9,7 @@
 #include "NiagaraEmitterEditorData.h"
 #include "NiagaraOverviewNodeStackItem.h"
 #include "EdGraphSchema_NiagaraSystemOverview.h"
+#include "EdGraph/EdGraph.h"
 
 static const float SystemOverviewNodePadding = 300.0f;
 
