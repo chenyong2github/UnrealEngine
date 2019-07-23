@@ -7,10 +7,6 @@
 
 #include "Misc/ConfigCacheIni.h"
 
-void FPreLoadScreenBase::Init()
-{
-}
-
 void FPreLoadScreenBase::InitSettingsFromConfig(const FString& ConfigFileName)
 {	
 	SCOPED_BOOT_TIMING("FPreLoadScreenBase::InitSettingsFromConfig");
