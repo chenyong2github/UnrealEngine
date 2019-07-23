@@ -1334,7 +1334,7 @@ void SSlateFileOpenDlg::OnFilterChanged(TSharedPtr<FString> NewValue, ESelectInf
 {
 	for (int32 i = 0; i < FilterNameArray.Num(); i++)
 	{
-		if (FilterNameArray[i].Get()->Compare(*NewValue.Get(), ESearchCase::CaseSensitive) == 0)
+		if (NewValue.IsValid() && FilterNameArray[i].Get()->Compare(*NewValue.Get(), ESearchCase::CaseSensitive) == 0)
 		{
 			FilterIndex = i;
 			break;
