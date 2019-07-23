@@ -18,17 +18,23 @@ namespace
 		TextureData(const void* InData, uint32_t InDataSize)
 			: Data(InData)
 			, DataSize(InDataSize)
-		{ }
+		{ 
+		}
 
 	public:
 		virtual const void* GetResourceBulkData() const
-		{ return Data; }
+		{ 
+			return Data; 
+		}
 
 		virtual uint32 GetResourceBulkDataSize() const
-		{ return DataSize; }
+		{ 
+			return DataSize; 
+		}
 
 		virtual void Discard()
-		{ }
+		{ 
+		}
 
 	private:
 		const void* Data;
@@ -47,14 +53,22 @@ namespace
 //---------------------------------------------
 // FMPCDITexture
 //---------------------------------------------
+void MPCDI::FMPCDITexture::ReleaseTextureData()
+{
+	if (Data != nullptr)
+	{
+		FMemory::Free(Data);
+		Data = nullptr;
+	}
+}
+
 void MPCDI::FMPCDITexture::InitRHI()
 {
 	FTexture2DRHIRef Texture2D = CreateTexture2D(Data, Width, Height, PixelFormat);
 	TextureRHI = Texture2D;
-
+	
 	if (bReleaseData && Data)
 	{
-		FMemory::Free(Data);
-		Data = nullptr;
+		ReleaseTextureData();
 	}
 }

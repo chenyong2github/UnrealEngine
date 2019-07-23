@@ -20,14 +20,17 @@ namespace MPCDI
 		FMPCDIBlendTexture()
 			: FMPCDITexture()
 			, EmbeddedGamma(1.0)
-		{ }
+		{ 
+		}
 
 	public:
 		void LoadBlendMap(mpcdi::DataMap* SourceDataMap, float InEmbeddedGamma);
 		void CreateDummyAlphaMap();
 
 		inline float GetEmbeddedGamma() const
-		{ return EmbeddedGamma; };
+		{ 
+			return EmbeddedGamma; 
+		};
 
 	private:
 		void LoadCustomMap(EPixelFormat PixelFormat, int Width, int Height, int BufferSize, void *TextureData);

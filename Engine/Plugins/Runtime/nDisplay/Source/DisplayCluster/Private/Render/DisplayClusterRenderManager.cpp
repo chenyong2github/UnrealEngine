@@ -456,6 +456,26 @@ void FDisplayClusterRenderManager::SetViewportCamera(const FString& InCameraId /
 	}
 }
 
+bool FDisplayClusterRenderManager::GetViewportRect(const FString& InViewportID, FIntRect& Rect)
+{
+	if (!RenderDevice.IsValid())
+	{
+		return false;
+	}
+
+	return RenderDevice->GetViewportRect(InViewportID, Rect);
+}
+
+void FDisplayClusterRenderManager::SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings)
+{
+	if (!RenderDevice.IsValid())
+	{
+		return;
+	}
+
+	RenderDevice->SetCustomPostProcessing(ViewportID, PostProcessingSettings);
+}
+
 void FDisplayClusterRenderManager::SetInterpupillaryDistance(const FString& CameraId, float EyeDistance)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);

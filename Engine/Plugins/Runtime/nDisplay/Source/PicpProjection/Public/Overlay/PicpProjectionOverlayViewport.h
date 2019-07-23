@@ -2,26 +2,34 @@
 
 #pragma once
 
-#include "PicpProjectionOverlayBase.h"
 #include "CoreMinimal.h"
 #include "RHI.h"
 
 
 class FPicpProjectionOverlayViewport
-	: public FPicpProjectionOverlayBase
 {
 public:
 	FRHITexture2D* ViewportTexture; // Texture to render
 	//@ Add more render options here
 
 public:
-	FPicpProjectionOverlayViewport(FRHITexture2D* TextureRef)
-		: FPicpProjectionOverlayBase()
-		, ViewportTexture(TextureRef)
+	FPicpProjectionOverlayViewport()
+		: ViewportTexture(nullptr)
 	{ 
-		SetEnable(TextureRef->IsValid());
 	}
 
-	virtual ~FPicpProjectionOverlayViewport()
-	{ }
+	FPicpProjectionOverlayViewport(FRHITexture2D* TextureRef)
+		: ViewportTexture(TextureRef)
+	{ 
+	}
+	
+	bool IsEnabled() const
+	{ 
+		return ViewportTexture!=nullptr && ViewportTexture->IsValid(); 
+	}
+
+	void Empty()
+	{ 
+		ViewportTexture = nullptr;  
+	}
 };

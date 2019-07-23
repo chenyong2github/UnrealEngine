@@ -21,6 +21,7 @@
 #include "Render/PostProcess/IDisplayClusterPostProcess.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
+#include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
 #include "DisplayClusterGlobals.h"
 #include "DisplayClusterLog.h"
@@ -40,7 +41,10 @@ static TAutoConsoleVariable<int32>  CVarVSyncInterval(
 static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
 	TEXT("nDisplay.render.WarpBlendEnabled"),
 	1,
-	TEXT("Warp & Blend status (0 = disabled)\n"),
+	TEXT("Warp & Blend status\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
 	ECVF_RenderThreadSafe
 );
 
@@ -139,6 +143,19 @@ bool FDisplayClusterDeviceBase::Initialize()
 		return false;
 	}
 
+	// Forward cfg line to postprocess:
+	// Get list of local postprocess (assigned to this cluster node)
+	TArray<FDisplayClusterConfigPostprocess> LocalPostprocess = DisplayClusterHelpers::config::GetLocalPostprocess();
+	TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> Postprocess = RenderMgr->GetRegisteredPostprocessOperations();
+	// Initialize all local Postprocess
+	for (const FDisplayClusterConfigPostprocess& CfgPostprocess : LocalPostprocess)
+	{
+		if (Postprocess.Contains(CfgPostprocess.PostprocessId))
+		{
+			Postprocess[CfgPostprocess.PostprocessId].Operation->InitializePostProcess(CfgPostprocess.ConfigLine);
+		}
+	}
+
 	return true;
 }
 
@@ -184,6 +201,44 @@ void FDisplayClusterDeviceBase::SetViewportCamera(const FString& InCameraId /* =
 	}
 
 	UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't assign '%s' camera. Viewport '%s' not found"), *InCameraId, *InViewportId);
+}
+
+void FDisplayClusterDeviceBase::SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings)
+{	
+	// find viewport index 
+	int ViewportIdx = -1;
+	for(int i = 0; i < RenderViewports.Num(); i++)
+	{
+		if (RenderViewports[i].GetId() == ViewportID)
+		{
+			ViewportIdx = i;
+			break;
+		}
+	}
+
+	// check if post processing settings assigned then override or add
+	if (ViewportIdx != -1)
+	{
+		ViewportFinalPostProcessingSettingsOverride.Remove(ViewportIdx);
+		ViewportFinalPostProcessingSettingsOverride.Emplace(ViewportIdx, PostProcessingSettings);
+	}
+}
+
+bool FDisplayClusterDeviceBase::GetViewportRect(const FString& InViewportID, FIntRect& Rect)
+{
+	FDisplayClusterRenderViewport* DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
+	{
+		return InViewportID.Equals(ItemViewport.GetId(), ESearchCase::IgnoreCase);
+	});
+
+	if (!DesiredViewport)
+	{
+		return false;
+	}
+
+	Rect = DesiredViewport->GetArea();
+
+	return true;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -461,6 +516,12 @@ void FDisplayClusterDeviceBase::CalculateRenderTargetSize(const class FViewport&
 	InOutSizeX = Viewport.GetSizeXY().X;
 	InOutSizeY = Viewport.GetSizeXY().Y;
 
+	for (const FDisplayClusterRenderViewport& Item : RenderViewports)
+	{
+		InOutSizeX = FMath::Max(InOutSizeX, (uint32)Item.GetArea().Max.X);
+		InOutSizeY = FMath::Max(InOutSizeY, (uint32)Item.GetArea().Max.Y);
+	}
+
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Render target size: [%d x %d]"), InOutSizeX, InOutSizeY);
 
 	check(InOutSizeX > 0 && InOutSizeY > 0);
@@ -478,7 +539,7 @@ bool FDisplayClusterDeviceBase::NeedReAllocateViewportRenderTarget(const class F
 	// Get desired RT size
 	uint32 newSizeX = 0;
 	uint32 newSizeY = 0;
-	CalculateRenderTargetSize(Viewport, newSizeX, newSizeY);
+	CalculateRenderTargetSize(Viewport, newSizeX, newSizeY);	
 
 	// Here we conclude if need to re-allocate
 	const bool Result = (newSizeX != rtSize.X || newSizeY != rtSize.Y);
@@ -512,12 +573,22 @@ void FDisplayClusterDeviceBase::OnBackBufferResize()
 bool FDisplayClusterDeviceBase::Present(int32& InOutSyncInterval)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-	UE_LOG(LogDisplayClusterRender, Warning, TEXT("Present - default handler implementation. Check stereo device instantiation."));
 
-	// Default behavior
-	// Return false to force clean screen. This will indicate that something is going wrong
-	// or particular stereo device hasn't been implemented appropriately yet.
-	return false;
+	// Update sync value with nDisplay value
+	InOutSyncInterval = GetSwapInt();
+
+	// Get sync policy instance
+	TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy = GDisplayCluster->GetRenderMgr()->GetCurrentSynchronizationPolicy();
+	if (SyncPolicy.IsValid())
+	{
+		// False results means we don't need to present current frame, the sync object already presented it
+		if (!SyncPolicy->SynchronizeClusterRendering(InOutSyncInterval))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 
@@ -629,7 +700,7 @@ uint32 FDisplayClusterDeviceBase::GetSwapInt() const
 	return (SyncInterval);
 }
 
-void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId)
+void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, bool IsRTT /*= false*/)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
@@ -652,13 +723,21 @@ void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const F
 		return;
 	}
 
-	if (InProjPolicy->HandleAddViewport(InViewportSize, ViewsAmountPerViewport))
+	if (!(IsRTT && bViewportRttAdded))
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("A corresponded projection policy object has initialized the viewport '%s'"), *InViewportId);
-		FIntRect ViewportArea = FIntRect(InViewportLocation, InViewportLocation + InViewportSize);
-		FDisplayClusterRenderViewport NewViewport(InViewportId, ViewportArea, InProjPolicy, EDisplayClusterEyeType::COUNT, InCameraId);
-		RenderViewports.Add(NewViewport);
-		return;
+		if (InProjPolicy->HandleAddViewport(InViewportSize, ViewsAmountPerViewport))
+		{
+			UE_LOG(LogDisplayClusterRender, Log, TEXT("A corresponded projection policy object has initialized the viewport '%s'"), *InViewportId);
+
+			FIntRect ViewportArea = FIntRect(InViewportLocation, InViewportLocation + InViewportSize);
+			FDisplayClusterRenderViewport NewViewport(InViewportId, ViewportArea, InProjPolicy, EDisplayClusterEyeType::COUNT, InCameraId, IsRTT);
+			RenderViewports.Add(NewViewport);
+
+			if (IsRTT)
+			{
+				bViewportRttAdded = true;
+			}
+		}
 	}
 }
 
@@ -688,4 +767,15 @@ void FDisplayClusterDeviceBase::CopyTextureToBackBuffer_RenderThread(FRHICommand
 		copyParams.DestRect.X1, copyParams.DestRect.Y1, copyParams.DestRect.X2, copyParams.DestRect.Y2);
 
 	RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, copyParams);
+}
+
+void FDisplayClusterDeviceBase::UpdatePostProcessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType)
+{
+	int ViewportNumber = DecodeViewportIndex(StereoPassType);
+	auto CustomPostProcessAvailable = ViewportFinalPostProcessingSettingsOverride.Find(ViewportNumber);
+	if (CustomPostProcessAvailable)
+	{
+		*FinalPostProcessingSettings = ViewportFinalPostProcessingSettingsOverride[ViewportNumber];
+		//ViewportFinalPostProcessingSettingsOverride.Remove(ViewportNumber);
+	}		
 }

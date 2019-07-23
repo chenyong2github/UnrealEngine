@@ -31,6 +31,10 @@ void FDisplayClusterConfigChecker::AddViewport(const FDisplayClusterConfigViewpo
 {
 }
 
+void FDisplayClusterConfigChecker::AddPostprocess(const FDisplayClusterConfigPostprocess& InCfgPostprocess)
+{
+}
+
 void FDisplayClusterConfigChecker::AddCamera(const FDisplayClusterConfigCamera& InCfgCamera)
 {
 }

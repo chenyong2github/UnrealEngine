@@ -3,7 +3,8 @@
 #pragma once
 
 #include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoBase.h"
-#include "Render/Device/DisplayClusterDeviceInternals.h"
+
+class FOpenGLViewport;
 
 
 /**

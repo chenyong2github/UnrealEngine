@@ -12,10 +12,8 @@ class FPicpProjectionOverlayViewportData
 {
 public:
 	FPicpProjectionOverlayViewportData()
-		: LUTCorrection(nullptr)
-		, ViewportOver(nullptr)
-		, ViewportUnder(nullptr)
-	{ }
+	{ 
+	}
 
 	~FPicpProjectionOverlayViewportData()
 	{
@@ -26,30 +24,42 @@ public:
 	void Empty();
 
 	bool isAnyViewportUsed() const 
-	{ return iViewportUnderUsed() || iViewportOverUsed(); }
+	{ 
+		return iViewportUnderUsed() || iViewportOverUsed(); 
+	}
 
 	bool iViewportOverUsed() const
-	{ return ViewportOver!=nullptr && ViewportOver->IsEnabled(); }
+	{ 
+		return ViewportOver.IsEnabled(); 
+	}
 
 	bool iViewportUnderUsed() const
-	{ return ViewportUnder!=nullptr && ViewportUnder->IsEnabled(); }
+	{ 
+		return ViewportUnder.IsEnabled(); 
+	}
 
 	bool isAnyCameraUsed() const
-	{ return (Cameras.Num() > 0); }
+	{ 
+		return (Cameras.Num() > 0); 
+	}
 
 	bool isLUTused() const
-	{ return LUTCorrection!=nullptr && LUTCorrection->IsEnabled(); }
+	{ 
+		return LUTCorrection.IsEnabled(); 
+	}
 
 	bool isValid()
-	{ return isAnyViewportUsed() || isAnyCameraUsed(); }
+	{ 
+		return isAnyViewportUsed() || isAnyCameraUsed(); 
+	}
 
 	void Initialize(const FPicpProjectionOverlayViewportData& Source);
 
 public:
-	FPicpProjectionOverlayLUT*               LUTCorrection;
-	FPicpProjectionOverlayViewport*          ViewportOver; // viewport overlay texture
-	FPicpProjectionOverlayViewport*          ViewportUnder; // viewport overlay texture
-	TArray<FPicpProjectionOverlayCamera*>    Cameras; // Multi cams, in render order
+	FPicpProjectionOverlayLUT                LUTCorrection;
+	FPicpProjectionOverlayViewport           ViewportOver; // viewport overlay texture
+	FPicpProjectionOverlayViewport           ViewportUnder; // viewport overlay texture
+	TArray<FPicpProjectionOverlayCamera>     Cameras; // Multi cams, in render order
 };
 
 
@@ -61,8 +71,8 @@ class FPicpProjectionOverlayFrameData
 {
 public:
 	FPicpProjectionOverlayFrameData()
-		: LUTCorrection(nullptr)
-	{ }
+	{ 
+	}
 
 	~FPicpProjectionOverlayFrameData()
 	{
@@ -75,8 +85,8 @@ public:
 	void Empty();
 
 public:
-	FPicpProjectionOverlayLUT*                      LUTCorrection;  // Global LUT correction
-	TMap<FString, FPicpProjectionOverlayViewport*>  ViewportsOver;  // Overlay under inner frame for all viewports by name
-	TMap<FString, FPicpProjectionOverlayViewport*>  ViewportsUnder; // Overlay on top of inner frame for all viewports by name
-	TArray<FPicpProjectionOverlayCamera*>           Cameras;        // Camera's overlay, in render order
+	FPicpProjectionOverlayLUT                      LUTCorrection;  // Global LUT correction
+	TMap<FString, FPicpProjectionOverlayViewport>  ViewportsOver;  // Overlay under inner frame for all viewports by name
+	TMap<FString, FPicpProjectionOverlayViewport>  ViewportsUnder; // Overlay on top of inner frame for all viewports by name
+	TArray<FPicpProjectionOverlayCamera>           Cameras;        // Camera's overlay, in render order
 };
