@@ -169,9 +169,25 @@ void ALandscapeBlueprintBrushBase::Destroyed()
 void ALandscapeBlueprintBrushBase::SetOwningLandscape(ALandscape* InOwningLandscape)
 {
 #if WITH_EDITORONLY_DATA
+	if (OwningLandscape == InOwningLandscape)
+	{
+		return;
+	}
+
 	const bool bAlwaysMarkDirty = false;
 	Modify(bAlwaysMarkDirty);
+
+	if (OwningLandscape)
+	{
+		OwningLandscape->OnBlueprintBrushChanged();
+	}
+
 	OwningLandscape = InOwningLandscape;
+
+	if (OwningLandscape)
+	{
+		OwningLandscape->OnBlueprintBrushChanged();
+	}
 #endif
 }
 
