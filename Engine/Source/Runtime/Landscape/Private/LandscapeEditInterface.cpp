@@ -2733,7 +2733,8 @@ const ULandscapeLayerInfoObject* FLandscapeEditDataInterface::ChooseReplacementL
 
 void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const LayerInfo, const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, const uint8* Data, int32 Stride, ELandscapeLayerPaintingRestriction PaintingRestriction /*= None*/, bool bWeightAdjust /*= true*/, bool bTotalWeightAdjust /*= false*/)
 {
-	check(LayerInfo != NULL);
+	check(LayerInfo != nullptr);
+	check(Data != nullptr);
 	if (LayerInfo->bNoWeightBlend)
 	{
 		bWeightAdjust = false;
