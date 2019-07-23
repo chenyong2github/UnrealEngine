@@ -94,8 +94,8 @@ public:
 
 	static bool RequiresSwapchainGeneralInitialLayout() { return false; }
 	
-	// Allow platforms to add extension features to the PresentInfo pNext chain
-	static void EnablePresentInfoExtensions(VkPresentInfoKHR& PresentInfo) {}
+	// Allow platforms to do extra work on present
+	static VkResult Present(VkQueue Queue, VkPresentInfoKHR& PresentInfo);
 
 	// Ensure the last frame completed on the GPU
 	static bool RequiresWaitingForFrameCompletionEvent() { return true; }
