@@ -4,14 +4,12 @@
 #include "Misc/Compression.h"
 #include "Misc/ICompressionFormat.h"
 #include "Misc/CommandLine.h"
-#if HAS_OODLE_SDK
+
+#if HAS_OODLE_DATA_SDK
+
 #include "oodle2.h"
-#endif
 
-#if HAS_OODLE_SDK
 DEFINE_LOG_CATEGORY_STATIC(OodleCompression, Log, All);
-
-
 
 struct FOodleCustomCompressor : ICompressionFormat
 {
@@ -84,7 +82,7 @@ struct FOodleCustomCompressor : ICompressionFormat
 	{
 		ConditionalInitialize();
 
-		int32 Needed = (int32)OodleLZ_GetCompressedBufferSizeNeeded(UncompressedSize);
+		int32 Needed = (int32)OodleLZ_GetCompressedBufferSizeNeeded(Compressor, UncompressedSize);
 		return Needed;
 	}
 };
@@ -97,7 +95,8 @@ class FOodleCompressionFormatModuleInterface : public IModuleInterface
 {
 	virtual void StartupModule() override
 	{
-#if HAS_OODLE_SDK
+#if HAS_OODLE_DATA_SDK
+
 		FString Method = TEXT("Mermaid");
 		FString Level = TEXT("Normal");
 		int32 SpaceSpeedTradeoff = 256;
@@ -112,13 +111,12 @@ class FOodleCompressionFormatModuleInterface : public IModuleInterface
 			{ TEXT("Mermaid"), OodleLZ_Compressor_Mermaid },
 			{ TEXT("Kraken"), OodleLZ_Compressor_Kraken },
 			{ TEXT("Selkie"), OodleLZ_Compressor_Selkie },
-			{ TEXT("LZNA"), OodleLZ_Compressor_LZNA },
-			{ TEXT("BitKnit"), OodleLZ_Compressor_BitKnit },
-			{ TEXT("LZB16"), OodleLZ_Compressor_LZB16 },
+#if UE4_OODLE_VER >= 270
+			{ TEXT("Leviathan"), OodleLZ_Compressor_Leviathan },
+#endif
 		};
 		TMap<FString, OodleLZ_CompressionLevel> LevelMap = { 
 			{ TEXT("None"), OodleLZ_CompressionLevel_None },
-			{ TEXT("RLE"), OodleLZ_CompressionLevel_RLE },
 			{ TEXT("VeryFast"), OodleLZ_CompressionLevel_VeryFast },
 			{ TEXT("Fast"), OodleLZ_CompressionLevel_Fast },
 			{ TEXT("Normal"), OodleLZ_CompressionLevel_Normal },
@@ -135,12 +133,15 @@ class FOodleCompressionFormatModuleInterface : public IModuleInterface
 		CompressionFormat = new FOodleCustomCompressor(MethodMap.FindRef(Method), LevelMap.FindRef(Level), SpaceSpeedTradeoff);
 
 		IModularFeatures::Get().RegisterModularFeature(COMPRESSION_FORMAT_FEATURE_NAME, CompressionFormat);
+
+		OodleCore_Plugins_SetPrintf(OodleCore_Plugin_Printf_Verbose);
+
 #endif
 	}
 
 	virtual void ShutdownModule() override
 	{
-#if HAS_OODLE_SDK
+#if HAS_OODLE_DATA_SDK
 		IModularFeatures::Get().UnregisterModularFeature(COMPRESSION_FORMAT_FEATURE_NAME, CompressionFormat);
 		delete CompressionFormat;
 #endif
