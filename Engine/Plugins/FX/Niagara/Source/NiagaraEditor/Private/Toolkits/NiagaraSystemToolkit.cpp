@@ -49,6 +49,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
 #include "NiagaraMessageLogViewModel.h"
+#include "Viewmodels/NiagaraOverviewGraphViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -286,6 +287,8 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
 {
+	SystemViewModel->SetOverviewGraphViewModel(MakeShareable(new FNiagaraOverviewGraphViewModel(SystemViewModel->AsShared()))); //@TODO System Overview: move constructing system overview viewmodel to SystemViewModel Init
+
 	if (SystemViewModel->GetEmitterHandleViewModels().Num() > 0)
 	{
 		SystemViewModel->SetSelectedEmitterHandleById(SystemViewModel->GetEmitterHandleViewModels()[0]->GetId());

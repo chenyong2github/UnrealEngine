@@ -59,9 +59,12 @@ public:
 	TSharedRef<FNiagaraStackCurveEditorOptions> GetOrCreateStackCurveEditorOptionsForObject(UObject* Object, bool bDefaultAreCurvesVisible, float DefaultHeight);
 
 private:
+	void ReinitializeStyle();
 
 private:
 	TMap<FObjectKey, TSharedRef<FNiagaraStackCurveEditorOptions>> ObjectToStackCurveEditorOptionsMap;
 
 	TSharedPtr<FNiagaraEditorWidgetProvider> WidgetProvider;
+
+	IConsoleCommand* ReinitializeStyleCommand;
 };
