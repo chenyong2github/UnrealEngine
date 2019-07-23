@@ -2,7 +2,7 @@
 
 #include "ViewModels/Stack/NiagaraStackRoot.h"
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
-#include "ViewModels/Stack/NiagaraStackEmitterSpawnScriptItemGroup.h"
+#include "Viewmodels/Stack/NiagaraStackEmitterSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackRenderItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventHandlerGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
@@ -13,13 +13,14 @@
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraEmitterEditorData.h"
-#include "ViewModels/Stack/NiagaraStackParameterStoreGroup.h"
+#include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackSpacer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
 UNiagaraStackRoot::UNiagaraStackRoot()
-	: SystemExposedVariablesGroup(nullptr)
+	: SystemSettingsGroup(nullptr)
+	, EmitterSettingsGroup(nullptr)
 	, EmitterSpawnGroup(nullptr)
 	, EmitterUpdateGroup(nullptr)
 	, ParticleSpawnGroup(nullptr)
@@ -32,13 +33,14 @@ UNiagaraStackRoot::UNiagaraStackRoot()
 void UNiagaraStackRoot::Initialize(FRequiredEntryData InRequiredEntryData)
 {
 	Super::Initialize(InRequiredEntryData, FString());
+	EmitterSettingsGroup = nullptr;
 	EmitterSpawnGroup = nullptr;
 	EmitterUpdateGroup = nullptr;
 	ParticleSpawnGroup = nullptr;
 	ParticleUpdateGroup = nullptr;
 	AddEventHandlerGroup = nullptr;
 	RenderGroup = nullptr;
-	SystemExposedVariablesGroup = nullptr;
+	SystemSettingsGroup = nullptr;
 }
 
 bool UNiagaraStackRoot::GetCanExpand() const
@@ -57,13 +59,13 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 	bool bShowSystemGroups = GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 
 	// Create static entries as needed.
-	if (bShowSystemGroups && SystemExposedVariablesGroup == nullptr)
+	if (bShowSystemGroups && SystemSettingsGroup == nullptr)
 	{
-		SystemExposedVariablesGroup = NewObject<UNiagaraStackParameterStoreGroup>(this);
+		SystemSettingsGroup = NewObject<UNiagaraStackSystemSettingsGroup>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
-			FExecutionCategoryNames::System, FExecutionSubcategoryNames::Parameters,
+			FExecutionCategoryNames::System, FExecutionSubcategoryNames::Settings,
 			GetSystemViewModel()->GetOrCreateEditorData().GetStackEditorData());
-		SystemExposedVariablesGroup->Initialize(RequiredEntryData, &GetSystemViewModel()->GetSystem(), &GetSystemViewModel()->GetSystem().GetExposedParameters());
+		SystemSettingsGroup->Initialize(RequiredEntryData, &GetSystemViewModel()->GetSystem(), &GetSystemViewModel()->GetSystem().GetExposedParameters());
 	}
 
 	if (bShowSystemGroups && SystemSpawnGroup == nullptr)
@@ -88,9 +90,20 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 		SystemUpdateGroup->Initialize(RequiredEntryData, DisplayName, ToolTip, GetSystemViewModel()->GetSystemScriptViewModel().ToSharedRef(), ENiagaraScriptUsage::SystemUpdateScript);
 	}
 
+	if (EmitterSettingsGroup == nullptr)
+	{
+		EmitterSettingsGroup = NewObject<UNiagaraStackEmitterSettingsGroup>(this);
+		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
+			FExecutionCategoryNames::Emitter, FExecutionSubcategoryNames::Settings,
+			GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData());
+		FText DisplayName = LOCTEXT("EmitterSettingsGroupName", "Emitter Settings");
+		FText Tooltip = LOCTEXT("EmitterSettingsTooltip", "Settings that are handled per Emitter.");
+		EmitterSettingsGroup->Initialize(RequiredEntryData, DisplayName, Tooltip, nullptr);
+	}
+
 	if (EmitterSpawnGroup == nullptr)
 	{
-		EmitterSpawnGroup = NewObject<UNiagaraStackEmitterSpawnScriptItemGroup>(this);
+		EmitterSpawnGroup = NewObject<UNiagaraStackScriptItemGroup>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
 			FExecutionCategoryNames::Emitter, FExecutionSubcategoryNames::Spawn,
 			GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData());
@@ -171,13 +184,14 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 	// Populate new children
 	if (bShowSystemGroups)
 	{
-		NewChildren.Add(SystemExposedVariablesGroup);
+		NewChildren.Add(SystemSettingsGroup);
 		NewChildren.Add(SystemSpawnGroup);
 		NewChildren.Add(SystemUpdateGroup);
 		NewChildren.Add(GetOrCreateSpacer(FExecutionCategoryNames::System, "SystemFooter"));
 		NewChildren.Add(GetOrCreateSpacer(NAME_None, "SystemSpacer"));
 	}
 
+	NewChildren.Add(EmitterSettingsGroup);
 	NewChildren.Add(EmitterSpawnGroup);
 	NewChildren.Add(EmitterUpdateGroup);
 	NewChildren.Add(GetOrCreateSpacer(FExecutionCategoryNames::Emitter, "EmitterFooter"));
