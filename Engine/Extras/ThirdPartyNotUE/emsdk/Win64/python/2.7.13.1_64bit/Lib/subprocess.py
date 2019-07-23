@@ -658,6 +658,7 @@ class Popen(object):
                 if e.winerror != 5:
                     print('NICKNICK: subprocess.py e.winerror:', e.winerror)
                     raise WindowsError(*e.args)
+                hp = None
 # EPIC EDIT end -- nick.shin 2019-06-13 -- UE-76599
             finally:
                 # Child is launched. Close the parent's copy of those pipe
@@ -674,10 +675,13 @@ class Popen(object):
                     _close_in_parent(errwrite)
 
             # Retain the process handle, but close the thread handle
-            self._child_created = True
-            self._handle = hp
-            self.pid = pid
-            ht.Close()
+# EPIC EDIT start -- nick.shin 2019-07-16 -- UE-76599
+            if hp is not None:
+                self._child_created = True
+                self._handle = hp
+                self.pid = pid
+                ht.Close()
+# EPIC EDIT end -- nick.shin 2019-07-16 -- UE-76599
 
         def _internal_poll(self, _deadstate=None,
                 _WaitForSingleObject=_subprocess.WaitForSingleObject,
