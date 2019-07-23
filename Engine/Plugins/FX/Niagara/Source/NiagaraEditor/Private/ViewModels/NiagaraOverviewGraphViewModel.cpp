@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "ViewModels\NiagaraOverviewGraphViewModel.h"
+#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "ScopedTransaction.h"
 #include "EdGraphUtilities.h"
