@@ -194,13 +194,14 @@ FReply SCurveEditorViewContainer::OnMouseButtonDoubleClick(const FGeometry& InMy
 FReply SCurveEditorViewContainer::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FVector2D MousePixel = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	FReply ToolReply = FReply::Unhandled();
 
 	if (CurveEditor->GetCurrentTool())
 	{
-		return CurveEditor->GetCurrentTool()->OnMouseMove(AsShared(), MyGeometry, MouseEvent);
+		ToolReply = CurveEditor->GetCurrentTool()->OnMouseMove(AsShared(), MyGeometry, MouseEvent);
 	}
 
-	if (DragOperation.IsSet())
+	if (!ToolReply.IsEventHandled() && DragOperation.IsSet())
 	{
 		FVector2D InitialPosition = DragOperation->GetInitialPosition();
 
@@ -216,7 +217,7 @@ FReply SCurveEditorViewContainer::OnMouseMove(const FGeometry& MyGeometry, const
 		}
 	}
 
-	return FReply::Unhandled();
+	return ToolReply;
 }
 
 FReply SCurveEditorViewContainer::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
