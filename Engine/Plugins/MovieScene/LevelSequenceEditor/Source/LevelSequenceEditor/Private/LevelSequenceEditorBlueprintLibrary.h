@@ -23,6 +23,12 @@ public:
 	static bool OpenLevelSequence(ULevelSequence* LevelSequence);
 
 	/*
+	 * Get the currently opened level sequence asset
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static ULevelSequence* GetCurrentLevelSequence();
+
+	/*
 	 * Close
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
