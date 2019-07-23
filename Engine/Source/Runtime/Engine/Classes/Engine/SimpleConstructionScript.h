@@ -61,6 +61,9 @@ class USimpleConstructionScript : public UObject
 	/** Return the Blueprint associated with this SCS instance */
 	ENGINE_API class UClass* GetOwnerClass() const;
 
+	/** Return the parent class of the SCS owner class */
+	ENGINE_API class UClass* GetParentClass() const;
+
 #if WITH_EDITOR
 	/** Return all nodes in tree as a flat list */
 	ENGINE_API const TArray<USCS_Node*>& GetAllNodes() const;
