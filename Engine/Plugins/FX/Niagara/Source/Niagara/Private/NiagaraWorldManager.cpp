@@ -266,14 +266,21 @@ void FNiagaraWorldManager::Tick(float DeltaSeconds)
 		SystemSimulations.Remove(DeadSystem);
 	}
 
-	// Enqueue fence for deferred deletion
-	DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.BeginFence();
-
-	// Remove instances from previous frame
-	DeferredDeletionQueueIndex = (DeferredDeletionQueueIndex + 1) % NumDeferredQueues;
+	// Enqueue fence for deferred deletion if we need to wait on anything
+	if ( DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Num() > 0 )
 	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitOnRender);
-		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.BeginFence();
 	}
-	DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
+
+	// Remove instances from oldest frame making sure they aren't in use on the RT
+	DeferredDeletionQueueIndex = (DeferredDeletionQueueIndex + 1) % NumDeferredQueues;
+	if ( DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Num() > 0 )
+	{
+		if ( !DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.IsFenceComplete() )
+		{
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitOnRender);
+			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		}
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
+	}
 }
