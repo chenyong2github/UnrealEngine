@@ -822,6 +822,9 @@ public:
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
+	/** Removes any child redirectors from the root set and marks them as transient */
+	void RemoveChildRedirectors();
+
 	/** Consigns the GeneratedClass and the SkeletonGeneratedClass to oblivion, and nulls their references */
 	void RemoveGeneratedClasses();
 
