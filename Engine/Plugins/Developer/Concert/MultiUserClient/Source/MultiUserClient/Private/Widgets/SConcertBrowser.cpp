@@ -3146,7 +3146,19 @@ void SConcertSessionBrowser::PopulateSessionInfoGrid(SGridPanel& Grid, const FCo
 	AddDetailRow(Grid, Row++, LOCTEXT("SessionName", "Session Name:"), FText::FromString(SessionInfo.SessionName));
 	AddDetailRow(Grid, Row++, LOCTEXT("Owner", "Owner:"), FText::FromString(SessionInfo.OwnerUserName));
 	AddDetailRow(Grid, Row++, LOCTEXT("Project", "Project:"), FText::FromString(SessionInfo.Settings.ProjectName));
-	AddDetailRow(Grid, Row++, LOCTEXT("BaseVersion", "Base Version:"), FText::AsNumber(SessionInfo.Settings.BaseRevision, &FNumberFormattingOptions::DefaultNoGrouping()));
+	//AddDetailRow(Grid, Row++, LOCTEXT("BaseVersion", "Base Version:"), FText::AsNumber(SessionInfo.Settings.BaseRevision, &FNumberFormattingOptions::DefaultNoGrouping()));
+	if (SessionInfo.VersionInfos.Num() > 0)
+	{
+		const FConcertSessionVersionInfo& VersionInfo = SessionInfo.VersionInfos.Last();
+		AddDetailRow(Grid, Row++, LOCTEXT("EngineVersion", "Engine Version:"),
+			FText::Format(
+				LOCTEXT("EngineVersionFmt", "{0}.{1}.{2}-{3}"),
+				FText::AsNumber(VersionInfo.EngineVersion.Major, &FNumberFormattingOptions::DefaultNoGrouping()),
+				FText::AsNumber(VersionInfo.EngineVersion.Minor, &FNumberFormattingOptions::DefaultNoGrouping()),
+				FText::AsNumber(VersionInfo.EngineVersion.Patch, &FNumberFormattingOptions::DefaultNoGrouping()),
+				FText::AsNumber(VersionInfo.EngineVersion.Changelist, &FNumberFormattingOptions::DefaultNoGrouping())
+			));
+	}
 	AddDetailRow(Grid, Row++, LOCTEXT("ServerEndPointId", "Server Endpoint ID:"), FText::FromString(SessionInfo.ServerEndpointId.ToString()));
 }
 
