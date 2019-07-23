@@ -389,6 +389,7 @@ private:
 	void OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter);
 	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
 
+	void OnEnableAllLevelFilters(bool bEnableAll);
 	void OnTrackLevelFilterClicked(const FString LevelName);
 	bool IsTrackLevelFilterActive(const FString LevelName) const;
 
