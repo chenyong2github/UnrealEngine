@@ -1528,7 +1528,7 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 		if( CharacterOwner->RootMotionRepMoves.Num() > 0 )
 		{
 			// Move Actor back to position of that buffered move. (server replicated position).
-			const FSimulatedRootMotionReplicatedMove& RootMotionRepMove = CharacterOwner->RootMotionRepMoves.Last();
+			FSimulatedRootMotionReplicatedMove& RootMotionRepMove = CharacterOwner->RootMotionRepMoves.Last();
 			if( CharacterOwner->RestoreReplicatedMove(RootMotionRepMove) )
 			{
 				bCorrectedToServer = true;
@@ -1537,6 +1537,11 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 
 			CharacterOwner->PostNetReceiveVelocity(RootMotionRepMove.RootMotion.LinearVelocity);
 			LastUpdateVelocity = RootMotionRepMove.RootMotion.LinearVelocity;
+
+			// Convert RootMotionSource Server IDs -> Local IDs in AuthoritativeRootMotion and cull invalid
+			// so that when we use this root motion it has the correct IDs
+			ConvertRootMotionServerIDsToLocalIDs(CurrentRootMotion, RootMotionRepMove.RootMotion.AuthoritativeRootMotion, RootMotionRepMove.Time);
+			RootMotionRepMove.RootMotion.AuthoritativeRootMotion.CullInvalidSources();
 
 			// Set root motion states to that of repped in state
 			CurrentRootMotion.UpdateStateFrom(RootMotionRepMove.RootMotion.AuthoritativeRootMotion, true);
@@ -3154,8 +3159,8 @@ bool UCharacterMovementComponent::IsCrouching() const
 
 void UCharacterMovementComponent::CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration)
 {
-	// Do not update velocity when using root motion or when SimulatedProxy - SimulatedProxy are repped their Velocity
-	if (!HasValidData() || HasAnimRootMotion() || DeltaTime < MIN_TICK_TIME || (CharacterOwner && CharacterOwner->Role == ROLE_SimulatedProxy))
+	// Do not update velocity when using root motion or when SimulatedProxy and not simulating root motion - SimulatedProxy are repped their Velocity
+	if (!HasValidData() || HasAnimRootMotion() || DeltaTime < MIN_TICK_TIME || (CharacterOwner && CharacterOwner->Role == ROLE_SimulatedProxy && !bWasSimulatingRootMotion))
 	{
 		return;
 	}
@@ -10044,7 +10049,11 @@ void UCharacterMovementComponent::ConvertRootMotionServerIDsToLocalIDs(const FRo
 
 			// If no mapping found, find match out of Local RootMotionSources that are not already mapped
 			bool bMatchFound = false;
-			for (const TSharedPtr<FRootMotionSource>& LocalRootMotionSource : LocalRootMotionToMatchWith.RootMotionSources)
+			TArray<TSharedPtr<FRootMotionSource>> LocalRootMotionSources;
+			LocalRootMotionSources.Reserve(LocalRootMotionToMatchWith.RootMotionSources.Num() + LocalRootMotionToMatchWith.PendingAddRootMotionSources.Num());
+			LocalRootMotionSources.Append(LocalRootMotionToMatchWith.RootMotionSources);
+			LocalRootMotionSources.Append(LocalRootMotionToMatchWith.PendingAddRootMotionSources);
+			for (const TSharedPtr<FRootMotionSource>& LocalRootMotionSource : LocalRootMotionSources)
 			{
 				if (LocalRootMotionSource.IsValid())
 				{
