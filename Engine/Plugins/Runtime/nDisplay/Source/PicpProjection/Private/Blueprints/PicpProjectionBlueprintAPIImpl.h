@@ -42,4 +42,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Capture Final Warped Frame"), Category = "PICP")
 	virtual void SetWarpTextureCaptureState(UTextureRenderTarget2D* dstTexture, const FString& ViewportId, const int ViewIdx, bool bCaptureNow) override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Enable mips for Texture Render Target"), Category = "PICP")
+	virtual void EnableTextureRenderTargetMips(UTextureRenderTarget2D* Texture) override;
 };

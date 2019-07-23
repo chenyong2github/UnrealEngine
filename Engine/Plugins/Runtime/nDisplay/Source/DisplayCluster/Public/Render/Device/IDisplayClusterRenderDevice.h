@@ -43,4 +43,8 @@ public:
 	* @param InViewportId - ID of a viewport to assign the camera (all viewports if empty)
 	*/
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) = 0;
+
+	virtual void SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings) = 0;
+
+	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) = 0;
 };

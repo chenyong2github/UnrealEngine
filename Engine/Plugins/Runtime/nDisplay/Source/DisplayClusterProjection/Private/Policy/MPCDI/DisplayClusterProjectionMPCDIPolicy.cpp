@@ -9,8 +9,6 @@
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "XRThreadUtils.h"
-
 #include "Engine/RendererSettings.h"
 #include "Misc/Paths.h"
 
@@ -18,6 +16,7 @@
 FDisplayClusterProjectionMPCDIPolicy::FDisplayClusterProjectionMPCDIPolicy(const FString& ViewportId)
 	: FDisplayClusterProjectionPolicyBase(ViewportId)
 	, MPCDIAPI(IMPCDI::Get())
+	, bIsRenderResourcesInitialized(false)
 {
 }
 
@@ -52,39 +51,30 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& In
 	check(IsInGameThread());
 	check(InViewsAmount > 0);
 
-	FString File;
-	FString Buffer;
-	FString Region;
+	IMPCDI::ConfigParser CfgData;
+	{//Load config:
+		FDisplayClusterConfigProjection CfgProjection;
+		if (!DisplayClusterHelpers::config::GetViewportProjection(GetViewportId(), CfgProjection))
+		{
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Couldn't obtain projection info for '%s' viewport"), *GetViewportId());
+			return false;
+		}
 
-	// Read MPCDI config data from nDisplay config file
-	if (!ReadConfigData(GetViewportId(), File, Buffer, Region, OriginCompId))
+		if (!MPCDIAPI.LoadConfig(CfgProjection.Params, CfgData))
+		{
+			UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Couldn't read MPCDI configuration from the config file"));
+			return false;
+		}
+	}
+
+	// Load MPCDI config
+	if (!MPCDIAPI.Load(CfgData, WarpRef))
 	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Couldn't read MPCDI configuration from the config file"));
+		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI config: %s"), *CfgData.ConfigLineStr);
 		return false;
 	}
 
-	// Check if MPCDI file exists
-	if (!FPaths::FileExists(File))
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("File not found: %s"), *File);
-		return false;
-	}
-
-	// Load MPCDI file
-	if (!MPCDIAPI.Load(File))
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI file: %s"), *File);
-		return false;
-	}
-
-	// Store MPCDI region locator for this viewport
-	if (!MPCDIAPI.GetRegionLocator(File, Buffer, Region, WarpRef))
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't get region locator for <buf %s, reg %s> in file: %s # %s "), *Buffer, *Region, *File);
-		return false;
-	}
-
-	UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("MPCDI policy has been initialized [%s:%s in %s]"), *Buffer, *Region, *File);
+	UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("MPCDI policy has been initialized [%s:%s in %s]"), *CfgData.BufferId, *CfgData.RegionId, *CfgData.MPCDIFileName);
 
 	// Finally, initialize internal views data container
 	Views.AddDefaulted(InViewsAmount);
@@ -208,49 +198,6 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uin
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionMPCDIPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionMPCDIPolicy::ReadConfigData(const FString& InViewportId, FString& OutFile, FString& OutBuffer, FString& OutRegion, FString& OutOrigin)
-{
-	// Get projection settings of the specified viewport
-	FDisplayClusterConfigProjection CfgProjection;
-	if (!DisplayClusterHelpers::config::GetViewportProjection(InViewportId, CfgProjection))
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Couldn't obtain projection info for '%s' viewport"), *InViewportId);
-		return false;
-	}
-
-	// MPCDI file
-	if (!DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, DisplayClusterStrings::cfg::data::projection::mpcdi::File, OutFile))
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterStrings::cfg::data::projection::mpcdi::File);
-		return false;
-	}
-
-	// Buffer
-	if (!DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, DisplayClusterStrings::cfg::data::projection::mpcdi::Buffer, OutBuffer))
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterStrings::cfg::data::projection::mpcdi::Buffer);
-		return false;
-	}
-
-	// Region
-	if (!DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, DisplayClusterStrings::cfg::data::projection::mpcdi::Region, OutRegion))
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterStrings::cfg::data::projection::mpcdi::Region);
-		return false;
-	}
-
-	// Origin node (optional)
-	if (DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, DisplayClusterStrings::cfg::data::projection::mpcdi::Origin, OutOrigin))
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("Found origin node for %s:%s - %s"), *OutBuffer, *OutRegion, *OutOrigin);
-	}
-	else
-	{
-		UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("No origin node found for %s:%s. VR root will be used as default."), *OutBuffer, *OutRegion);
-	}
-
-	return true;
-}
 
 bool FDisplayClusterProjectionMPCDIPolicy::InitializeResources_RenderThread()
 {
@@ -271,8 +218,10 @@ bool FDisplayClusterProjectionMPCDIPolicy::InitializeResources_RenderThread()
 				FTexture2DRHIRef DummyTexRef;
 				RHICreateTargetableShaderResource2D(ViewportSize.X, ViewportSize.Y, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, It.RTTexture, DummyTexRef);
 			}
+
+			bIsRenderResourcesInitialized = true;
 		}
 	}
 
-	return true;
+	return bIsRenderResourcesInitialized;
 }

@@ -43,9 +43,9 @@ void FDisplayClusterClusterEventsService::Shutdown()
 	return FDisplayClusterServer::Shutdown();
 }
 
-FDisplayClusterSessionBase* FDisplayClusterClusterEventsService::CreateSession(FSocket* InSocket, const FIPv4Endpoint& InEP)
+TSharedPtr<FDisplayClusterSessionBase> FDisplayClusterClusterEventsService::CreateSession(FSocket* InSocket, const FIPv4Endpoint& InEP)
 {
-	return new FDisplayClusterSessionExternal(InSocket, this, GetName() + FString("_session_external") + InEP.ToString());
+	return TSharedPtr<FDisplayClusterSessionBase>(new FDisplayClusterSessionExternal(InSocket, this, GetName() + FString("_session_external") + InEP.ToString()));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

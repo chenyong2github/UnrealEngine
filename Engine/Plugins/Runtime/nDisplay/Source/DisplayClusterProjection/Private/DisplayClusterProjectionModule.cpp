@@ -4,6 +4,7 @@
 
 #include "DisplayClusterProjectionLog.h"
 
+#include "Policy/Camera/DisplayClusterProjectionCameraPolicyFactory.h"
 #include "Policy/EasyBlend/DisplayClusterProjectionEasyBlendPolicyFactory.h"
 #include "Policy/Simple/DisplayClusterProjectionSimplePolicyFactory.h"
 #include "Policy/MPCDI/DisplayClusterProjectionMPCDIPolicyFactory.h"
@@ -15,6 +16,10 @@
 FDisplayClusterProjectionModule::FDisplayClusterProjectionModule()
 {
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory;
+
+	// Camera projection
+	Factory = MakeShareable(new FDisplayClusterProjectionCameraPolicyFactory);
+	ProjectionPolicyFactories.Emplace(DisplayClusterStrings::projection::Camera, Factory);
 
 	// Simple projection
 	Factory = MakeShareable(new FDisplayClusterProjectionSimplePolicyFactory);

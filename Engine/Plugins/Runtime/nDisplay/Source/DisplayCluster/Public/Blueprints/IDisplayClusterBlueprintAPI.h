@@ -9,7 +9,12 @@
 #include "Cluster/DisplayClusterClusterEvent.h"
 #include "Cluster/IDisplayClusterClusterEventListener.h"
 
+#include "Config/DisplayClusterConfigTypes.h"
+
 #include "IDisplayClusterBlueprintAPI.generated.h"
+
+struct FPostProcessSettings;
+
 
 
 UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
@@ -82,6 +87,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Config API
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewports"), Category = "DisplayCluster|Config")
+	virtual void GetViewports(bool IsRTT, TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) = 0;
 
 
 public:
@@ -235,6 +242,12 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera"), Category = "DisplayCluster|Render")
 	virtual void SetViewportCamera(const FString& InCameraId, const FString& InViewportId) = 0;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set custom post processing settings for viewport"), Category = "DisplayCluster|Render")
+	virtual void SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings) = 0;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport rectangle"), Category = "DisplayCluster|Render")
+	virtual bool GetViewportRect(const FString& ViewportID, FIntPoint& ViewportLoc, FIntPoint& ViewportSize) = 0;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

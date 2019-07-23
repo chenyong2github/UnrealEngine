@@ -17,6 +17,41 @@
 #include "Overlay/PicpProjectionOverlayRender.h"
 
 
+enum class EPicpShaderType : uint8
+{
+	Passthrough, // viewport frustum (no warpblend, only frustum math)
+	WarpAndBlend, // Pure mpcdi warpblend for viewport
+	Warp, //No Blend
+
+	//One-pass solution: (+overlay_over+camera+overlay_over +lut)
+	WarpAndBlendOneCameraFront,
+	WarpAndBlendOneCameraFull,
+	WarpAndBlendOneCameraNone,
+	WarpAndBlendOneCameraBack,
+	//No Blend case
+	WarpOneCameraBack,
+	WarpOneCameraFront,
+	WarpOneCameraFull,
+	WarpOneCameraNone,
+
+	// Multi-pass render:
+	WarpAndBlendBg,                 // bg +lut
+	WarpAndBlendBgOverlay,          // bg+overlay_under +lut
+	WarpAndBlendAddCamera,          // +camera +lut   (Additive blend colorop)
+	WarpAndBlendAddCameraOverlay,   // +camera+overlay_over +lut (Additive blend colorop)
+	WarpAndBlendAddOverlay,         // +overlay_over +lut (Additive blend colorop)
+	//No Blend case:
+	WarpBg,                 // bg +lut
+	WarpBgOverlay,          // bg+overlay_under +lut
+	WarpAddCamera,          // +camera +lut   (Additive blend colorop)
+	WarpAddCameraOverlay,   // +camera+overlay_over +lut (Additive blend colorop)
+	WarpAddOverlay,         // +overlay_over +lut (Additive blend colorop)
+
+	Invalid,
+};
+
+
+
 class FPicpMPCDIShader
 {
 public:
@@ -38,7 +73,8 @@ class FPicpWarpVS : public FGlobalShader
 
 public:
 	FPicpWarpVS()
-	{ }
+	{ 
+	}
 
 	FPicpWarpVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -85,29 +121,6 @@ private:
 };
 
 
-enum class EPicpShaderType : uint8
-{
-	PassThrought, // viewport frustum (no warpblend, only frustum math)
-	WarpAndBlend, // Pure mpcdi warpblend for viewport
-
-	//One-pass solution: (+overlay_over+camera+overlay_over +lut)
-	WarpAndBlendOneCameraBack,
-	WarpAndBlendOneCameraFront,
-	WarpAndBlendOneCameraFull,
-	WarpAndBlendOneCameraNone,
-
-		// Multi-pass render:
-	WarpAndBlendBg,                 // bg +lut
-	WarpAndBlendBgOverlay,          // bg+overlay_under +lut
-	WarpAndBlendAddCamera,          // +camera +lut   (Additive blend colorop)
-	WarpAndBlendAddCameraOverlay,   // +camera+overlay_over +lut (Additive blend colorop)
-	WarpAndBlendAddOverlay,         // +overlay_over +lut (Additive blend colorop)
-	
-	Invalid,
-};
-
-
-
 template<EPicpShaderType ShaderType>
 class TPicpWarpBasePS : public FGlobalShader
 {
@@ -115,7 +128,8 @@ class TPicpWarpBasePS : public FGlobalShader
 
 public:
 	TPicpWarpBasePS()
-	{ }
+	{ 
+	}
 
 	TPicpWarpBasePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -128,7 +142,7 @@ public:
 		TextureProjectionMatrixParameter.Bind(Initializer.ParameterMap, TEXT("TextureProjectionMatrix"));
 		MultiViewportMatrixParameter.Bind(Initializer.ParameterMap, TEXT("MultiViewportMatrix"));
 
-		if (ShaderType != EPicpShaderType::PassThrought)
+		if (ShaderType != EPicpShaderType::Passthrough)
 		{
 			AlphaEmbeddedGammaParameter.Bind(Initializer.ParameterMap, TEXT("AlphaEmbeddedGamma"));
 
@@ -166,46 +180,74 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
+		//Enable blend:
 		switch (ShaderType)
 		{
-		case EPicpShaderType::WarpAndBlendOneCameraNone:
-			break;
+		case EPicpShaderType::WarpAndBlend:
 
+		case EPicpShaderType::WarpAndBlendOneCameraFront:
+		case EPicpShaderType::WarpAndBlendOneCameraFull:
+		case EPicpShaderType::WarpAndBlendOneCameraNone:
 		case EPicpShaderType::WarpAndBlendOneCameraBack:
+
+		case EPicpShaderType::WarpAndBlendBg:
+		case EPicpShaderType::WarpAndBlendBgOverlay:
+		case EPicpShaderType::WarpAndBlendAddCamera:
+		case EPicpShaderType::WarpAndBlendAddCameraOverlay:
+		case EPicpShaderType::WarpAndBlendAddOverlay:
+
+			OutEnvironment.SetDefine(TEXT("RENDER_CASE_APPLYBLENDING"), 1);
+			break;
+		default:
+			// Do nothing
+			break;
+		}
+
+		switch (ShaderType)
+		{
+		case EPicpShaderType::WarpAndBlendOneCameraBack:
+		case EPicpShaderType::WarpOneCameraBack:
 			OutEnvironment.SetDefine(TEXT("USE_OVERLAY_BACK"), 1);
 			break;
 
 		case EPicpShaderType::WarpAndBlendOneCameraFront:
+		case EPicpShaderType::WarpOneCameraFront:			
 			OutEnvironment.SetDefine(TEXT("USE_OVERLAY_FRONT"), 1);
 			break;
 
 		case EPicpShaderType::WarpAndBlendOneCameraFull:
+		case EPicpShaderType::WarpOneCameraFull:			
 			OutEnvironment.SetDefine(TEXT("USE_OVERLAY_BACK"), 1);
 			OutEnvironment.SetDefine(TEXT("USE_OVERLAY_FRONT"), 1);
 			break;
 
 		case EPicpShaderType::WarpAndBlendAddCamera:
+		case EPicpShaderType::WarpAddCamera:			
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_CAMERA"), 1);
 			break;
 
 		case EPicpShaderType::WarpAndBlendAddCameraOverlay:
+		case EPicpShaderType::WarpAddCameraOverlay:			
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_CAMERA"), 1);
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT"), 1);
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT_OVERLAY"), 1);
 			break;
 
 		case EPicpShaderType::WarpAndBlendAddOverlay:
+		case EPicpShaderType::WarpAddOverlay:			
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT"), 1);
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT_OVERLAY"), 1);
 			break;
 
 		case EPicpShaderType::WarpAndBlendBgOverlay:
+		case EPicpShaderType::WarpBgOverlay:			
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT"), 1);
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT_OVERLAY"), 1);
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT_BASE"), 1);
 			break;
 
 		case EPicpShaderType::WarpAndBlendBg:
+		case EPicpShaderType::WarpBg:			
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT"), 1);
 			OutEnvironment.SetDefine(TEXT("RENDER_CASE_VIEWPORT_BASE"), 1);
 			break;
@@ -229,7 +271,7 @@ public:
 	{
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter0, SourceTexture);
-			RHICmdList.SetShaderSampler(ShaderRHI, PostprocessInputParameterSampler0.GetBaseIndex(), TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+			RHICmdList.SetShaderSampler(ShaderRHI, PostprocessInputParameterSampler0.GetBaseIndex(), TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 			//SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter0, PostprocessInputParameterSampler0, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), SourceTexture);
 		}
 	}
@@ -237,12 +279,12 @@ public:
 	template<typename TShaderRHIParamRef>
 	void SetParameters(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, MPCDI::FMPCDIRegion& MPCDIRegionData)
 	{
-		if (ShaderType != EPicpShaderType::PassThrought)
+		if (ShaderType != EPicpShaderType::Passthrough)
 		{
 			SetShaderValue(RHICmdList, ShaderRHI, AlphaEmbeddedGammaParameter, MPCDIRegionData.AlphaMap.GetEmbeddedGamma());
 
 			SetTextureParameter(RHICmdList, ShaderRHI, WarpMapParameter, MPCDIRegionData.WarpMap.TextureRHI);
-			RHICmdList.SetShaderSampler(ShaderRHI, WarpMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+			RHICmdList.SetShaderSampler(ShaderRHI, WarpMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
 			SetTextureParameter(RHICmdList, ShaderRHI, AlphaMapParameter, MPCDIRegionData.AlphaMap.TextureRHI);
 			RHICmdList.SetShaderSampler(ShaderRHI, AlphaMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
@@ -261,7 +303,7 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, CameraSoftEdgeParameter, OverlayCamera->SoftEdge);
 
 			SetTextureParameter(RHICmdList, ShaderRHI, CameraMapParameter, OverlayCamera->CameraTexture);
-			RHICmdList.SetShaderSampler(ShaderRHI, CameraMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+			RHICmdList.SetShaderSampler(ShaderRHI, CameraMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 		}
 	}
 
@@ -271,13 +313,13 @@ public:
 		if (OverlayOverViewport && ShaderType > EPicpShaderType::WarpAndBlend) // Only Picp techniques
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, ViewportOverlayMapParameter, OverlayOverViewport->ViewportTexture);
-			RHICmdList.SetShaderSampler(ShaderRHI, ViewportOverlayMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+			RHICmdList.SetShaderSampler(ShaderRHI, ViewportOverlayMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 		}
 
 		if (OverlayBackViewport && ShaderType > EPicpShaderType::WarpAndBlend) // Only Picp techniques
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, ViewportOverlayBackMapParameter, OverlayBackViewport->ViewportTexture);
-			RHICmdList.SetShaderSampler(ShaderRHI, ViewportOverlayBackMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+			RHICmdList.SetShaderSampler(ShaderRHI, ViewportOverlayBackMapParameterSampler.GetBaseIndex(), TStaticSamplerState<SF_AnisotropicLinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 		}
 	}
 
@@ -359,7 +401,7 @@ private:
 	FShaderParameter         VignetteEVParameter;
 };
 
-typedef TPicpWarpBasePS<EPicpShaderType::PassThrought>         FPicpMPCDIPassThroughtPS;
+typedef TPicpWarpBasePS<EPicpShaderType::Passthrough>          FPicpMPCDIPassthroughPS;
 typedef TPicpWarpBasePS<EPicpShaderType::WarpAndBlend>         FPicpMPCDIWarpAndBlendPS;
 
 typedef TPicpWarpBasePS<EPicpShaderType::WarpAndBlendBg>                 FPicpMPCDIWarpAndBlendBgPS;
@@ -374,3 +416,17 @@ typedef TPicpWarpBasePS<EPicpShaderType::WarpAndBlendOneCameraBack>      FPicpWa
 typedef TPicpWarpBasePS<EPicpShaderType::WarpAndBlendOneCameraFront>     FPicpWarpAndBlendOneCameraFrontPS;
 typedef TPicpWarpBasePS<EPicpShaderType::WarpAndBlendOneCameraNone>      FPicpWarpAndBlendOneCameraNonePS;
 
+// No Blend case
+typedef TPicpWarpBasePS<EPicpShaderType::Warp>                 FPicpMPCDIWarpPS;
+
+typedef TPicpWarpBasePS<EPicpShaderType::WarpBg>                 FPicpMPCDIWarpBgPS;
+typedef TPicpWarpBasePS<EPicpShaderType::WarpBgOverlay>          FPicpMPCDIWarpBgOverlayPS;
+
+typedef TPicpWarpBasePS<EPicpShaderType::WarpAddCamera>          FPicpMPCDIWarpCameraPS;
+typedef TPicpWarpBasePS<EPicpShaderType::WarpAddCameraOverlay>   FPicpMPCDIWarpCameraOverlayPS;
+typedef TPicpWarpBasePS<EPicpShaderType::WarpAddOverlay>         FPicpMPCDIWarpOverlayPS;
+
+typedef TPicpWarpBasePS<EPicpShaderType::WarpOneCameraFull>      FPicpWarpOneCameraFullPS;
+typedef TPicpWarpBasePS<EPicpShaderType::WarpOneCameraBack>      FPicpWarpOneCameraBackPS;
+typedef TPicpWarpBasePS<EPicpShaderType::WarpOneCameraFront>     FPicpWarpOneCameraFrontPS;
+typedef TPicpWarpBasePS<EPicpShaderType::WarpOneCameraNone>      FPicpWarpOneCameraNonePS;

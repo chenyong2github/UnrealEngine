@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Render/Device/QuadBufferStereo/DisplayClusterDeviceQuadBufferStereoBase.h"
-#include "Render/Device/DisplayClusterDeviceInternals.h"
 
 #include "DisplayClusterLog.h"
 

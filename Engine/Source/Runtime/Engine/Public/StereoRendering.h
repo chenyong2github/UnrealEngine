@@ -161,4 +161,9 @@ public:
 	 */
 	virtual IStereoLayers* GetStereoLayers () { return nullptr; }
 
+	/**
+	 * Allows to override the PostProcessSettings in the last moment e.g. allows up sampled 3D rendering
+	 */
+	virtual void UpdatePostProcessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) {}
+
 };
