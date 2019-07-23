@@ -410,6 +410,9 @@ struct FNDISkeletalMesh_InstanceData
 	FSkeletalMeshGpuSpawnStaticBuffers* MeshGpuSpawnStaticBuffers;
 	FSkeletalMeshGpuDynamicBufferProxy* MeshGpuSpawnDynamicBuffers;
 
+	/** Temporary flag to deny binding VM functions that rely on mesh data being accessible on the CPU */
+	bool bAllowCPUMeshDataAccess;
+
 	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceSkeletalMesh* Interface)const;
 
 	bool Init(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance);
@@ -483,17 +486,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Skeleton")
 	TArray<FName> SpecificSockets;
 
-	/** Whether any triangle sampling function is bound. Only used in game. */
-	UPROPERTY()
-	bool bUseTriangleSampling;
-
-	/** Whether any vertex sampling function is bound. Only used in game. */
-	UPROPERTY()
-	bool bUseVertexSampling;
-
-	/** Whether any skeleton sampling function is bound. Only used in game. */
-	UPROPERTY()
-	bool bUseSkeletonSampling;
+#if WITH_EDITORONLY_DATA
+	/** Do we require CPU access to the data, this is set during GetVMExternalFunction. */
+	UPROPERTY(transient)
+	bool bRequiresCPUAccess;
+#endif
 
 	/** Cached change id off of the data interface.*/
 	uint32 ChangeId;
