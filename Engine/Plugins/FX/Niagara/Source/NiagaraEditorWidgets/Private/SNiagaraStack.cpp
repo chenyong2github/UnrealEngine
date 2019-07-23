@@ -1079,7 +1079,8 @@ FText SNiagaraStack::GetEmitterNameToolTip() const
 
 void SNiagaraStack::OnStackViewNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo) const
 {
-	StackViewModel->GetEmitterHandleViewModel()->OnNameTextComitted(InText, CommitInfo);
+	const FGuid EditedEmitterGuid = StackViewModel->GetEmitterHandleViewModel()->GetEmitterHandle()->GetId();
+	StackViewModel->GetSystemViewModel()->EmitterNameChanged(InText, EditedEmitterGuid);
 }
 
 EVisibility SNiagaraStack::GetSourceEmitterNameVisibility() const
