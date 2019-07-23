@@ -822,6 +822,8 @@ private:
 
 		GLog->PanicFlushThreadedLogs();
 
+		FCoreDelegates::OnBeforeHandleSystemError.Broadcast();
+
 		// Get the default settings for the crash context
 		ECrashContextType Type = ECrashContextType::Crash;
 		const TCHAR* ErrorMessage = TEXT("Unhandled exception");
