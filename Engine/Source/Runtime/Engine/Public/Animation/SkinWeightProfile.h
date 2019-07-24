@@ -182,7 +182,7 @@ struct ENGINE_API FSkinWeightProfilesData
 		for (int32 Idx = 0; Idx < IntermediateBuffers.Num(); ++Idx)
 		{
 			const FName& ProfileName = IntermediateBuffers[Idx].Key;
-			FVertexBufferRHIParamRef IntermediateBuffer = IntermediateBuffers[Idx].Value;
+			FRHIVertexBuffer* IntermediateBuffer = IntermediateBuffers[Idx].Value;
 			ProfileNameToBuffer.FindChecked(ProfileName)->InitRHIForStreaming(IntermediateBuffer, Batcher);
 		}
 	}
