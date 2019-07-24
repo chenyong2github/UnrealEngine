@@ -166,6 +166,11 @@ void FActiveSound::AddReferencedObjects( FReferenceCollector& Collector)
 	Collector.AddReferencedObject(SourceEffectChain);
 	Collector.AddReferencedObject(SoundClassOverride);
 
+	for (FSourceEffectChainEntry& SourceEffect : SourceEffectChain->Chain)
+	{
+		Collector.AddReferencedObject(SourceEffect.Preset);
+	}
+
 	for (USoundConcurrency* Concurrency : ConcurrencySet)
 	{
 		if (Concurrency)
