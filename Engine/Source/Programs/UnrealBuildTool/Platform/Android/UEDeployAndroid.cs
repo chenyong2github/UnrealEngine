@@ -3586,7 +3586,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			UPL.Init(NDKArches, bForDistribution, EngineDirectory, UE4BuildPath, ProjectDirectory, Configuration.ToString());
+			UPL.Init(NDKArches, bForDistribution, EngineDirectory, UE4BuildPath, ProjectDirectory, Configuration.ToString(), bSkipGradleBuild);
 
 			IEnumerable<Tuple<string, string, string>> BuildList = null;
 
