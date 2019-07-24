@@ -663,6 +663,17 @@ FVector2D FSlateEditableTextLayout::GetScrollOffset() const
 	return ScrollOffset;
 }
 
+
+float FSlateEditableTextLayout::GetComputedWrappingWidth() const
+{
+	return TextLayout->GetWrappingWidth();
+}
+
+bool FSlateEditableTextLayout::GetAutoWrapText() const
+{
+	return AutoWrapText.Get();
+}
+
 bool FSlateEditableTextLayout::HandleFocusReceived(const FFocusEvent& InFocusEvent)
 {
 	if (ActiveContextMenu.IsValid())
