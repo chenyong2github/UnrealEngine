@@ -58,7 +58,9 @@ void UDataprepAsset::PostInitProperties()
 			{
 				if( CurrentClass->IsChildOf( UDataprepContentConsumer::StaticClass() ) )
 				{
-					Consumer = NewObject< UDataprepContentConsumer >( this, CurrentClass, NAME_None, RF_Transactional );
+					FString BaseName = GetName() + TEXT("_Consumer");
+					FName ConsumerName = MakeUniqueObjectName( this, CurrentClass, *BaseName );
+					Consumer = NewObject< UDataprepContentConsumer >( this, CurrentClass, ConsumerName, RF_Transactional );
 					check( Consumer );
 
 					FAssetRegistryModule::AssetCreated( Consumer );
@@ -114,21 +116,32 @@ void UDataprepAsset::Serialize( FArchive& Ar )
 
 void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContext& InContext, TArray< TWeakObjectPtr< UObject > >& OutAssets)
 {
+	if( Producers.Num() == 0 )
+	{
+		return;
+	}
+
 	OutAssets.Empty();
+
+	FDataprepProgressTask Task( *InContext.ProgressReporterPtr, NSLOCTEXT( "DataprepAsset", "RunProducers", "Importing ..." ), (float)Producers.Num(), 1.0f );
 
 	for ( FDataprepAssetProducer& AssetProducer : Producers )
 	{
-		const bool bIsOkToRun = AssetProducer.Producer && AssetProducer.bIsEnabled &&
+		UDataprepContentProducer* Producer = AssetProducer.Producer;
+
+		const bool bIsOkToRun = Producer && AssetProducer.bIsEnabled &&
 			( AssetProducer.SupersededBy == INDEX_NONE || !Producers[AssetProducer.SupersededBy].bIsEnabled );
+
+		Task.ReportNextStep( FText::Format( NSLOCTEXT( "DataprepAsset", "ProducerReport", "Importing {0} ..."), FText::FromString( Producer->GetName() ) ) );
 
 		if ( bIsOkToRun )
 		{
 			FString OutReason;
-			if (AssetProducer.Producer->Initialize( InContext, OutReason ))
+			if (Producer->Initialize( InContext, OutReason ))
 			{
-				if ( AssetProducer.Producer->Produce() )
+				if ( Producer->Produce() )
 				{
-					const TArray< TWeakObjectPtr< UObject > >& ProducerAssets = AssetProducer.Producer->GetAssets();
+					const TArray< TWeakObjectPtr< UObject > >& ProducerAssets = Producer->GetAssets();
 					if (ProducerAssets.Num() > 0)
 					{
 						OutAssets.Append( ProducerAssets );
@@ -136,11 +149,11 @@ void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContex
 				}
 				else
 				{
-					OutReason = FText::Format(NSLOCTEXT("DataprepAsset", "ProducerRunFailed", "{0} failed to run."), FText::FromString( AssetProducer.Producer->GetName() ) ).ToString();
+					OutReason = FText::Format(NSLOCTEXT("DataprepAsset", "ProducerRunFailed", "{0} failed to run."), FText::FromString( Producer->GetName() ) ).ToString();
 				}
 			}
 
-			AssetProducer.Producer->Reset();
+			Producer->Reset();
 
 			if( !OutReason.IsEmpty() )
 			{
@@ -312,7 +325,9 @@ bool UDataprepAsset::ReplaceConsumer(UClass* NewConsumerClass)
 			DataprepAssetUtil::DeleteRegisteredAsset( Consumer );
 		}
 
-		Consumer = NewObject< UDataprepContentConsumer >( this, NewConsumerClass, NAME_None, RF_Transactional );
+		FString BaseName = GetName() + TEXT("_Consumer");
+		FName ConsumerName = MakeUniqueObjectName( this, NewConsumerClass, *BaseName );
+		Consumer = NewObject< UDataprepContentConsumer >( this, NewConsumerClass, ConsumerName, RF_Transactional );
 		check( Consumer );
 
 		FAssetRegistryModule::AssetCreated( Consumer );
