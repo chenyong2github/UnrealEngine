@@ -190,7 +190,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	//Otherwise start with True and override those specific cases bellow
 	CurrentCombinedStatus.bDoesCurrentStateSupportPausing = bBundleNeedsUpdate;
 	
-	if (CurrentCombinedStatus.ProgressPercent == 0.f)
+	if ((EarliestBundleState == EInstallBundleStatus::Requested) || (EarliestBundleState == EInstallBundleStatus::Count))
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Initializing;
 	}
