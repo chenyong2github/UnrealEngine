@@ -353,7 +353,7 @@ void FDeferredShadingSceneRenderer::RenderFinish(FRHICommandListImmediate& RHICm
 	FSceneRenderTargets::Get(RHICmdList).SetLightAttenuation(0);
 }
 
-void BuildHZB( FRDGBuilder& GraphBuilder, FViewInfo& View );
+void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, FViewInfo& View);
 
 /** 
 * Renders the view family. 
@@ -418,9 +418,13 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 		if (bSSAO || bHZBOcclusion || bSSR || bSSGI)
 		{
 			FRDGBuilder GraphBuilder(RHICmdList);
+
+			FSceneTextureParameters SceneTextures;
+			SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);
-				BuildHZB(GraphBuilder, Views[ViewIndex]);
+				BuildHZB(GraphBuilder, SceneTextures, Views[ViewIndex]);
 			}
 			GraphBuilder.Execute();
 		}

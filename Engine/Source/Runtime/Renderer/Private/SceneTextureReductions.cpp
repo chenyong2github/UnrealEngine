@@ -11,33 +11,38 @@
 #include "PostProcess/PostProcessing.h" // for FPostProcessVS
 
 
-BEGIN_SHADER_PARAMETER_STRUCT(FHZBBuildPassParameters, )
-	RENDER_TARGET_BINDING_SLOTS()
-	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, Texture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
+static TAutoConsoleVariable<int32> CVarHZBBuildUseCompute(
+	TEXT("r.HZB.BuildUseCompute"), 1,
+	TEXT("Selects whether HZB should be built with compute."),
+	ECVF_RenderThreadSafe);
+
+
+
+BEGIN_SHADER_PARAMETER_STRUCT(FSharedHZBParameters, )
+	SHADER_PARAMETER(FVector4, DispatchThreadIdToBufferUV)
+	SHADER_PARAMETER(FVector2D, InputViewportMaxBound)
+	SHADER_PARAMETER(FVector2D, InvSize)
+
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentTextureMip)
+	SHADER_PARAMETER_SAMPLER(SamplerState, ParentTextureMipSampler)
+
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 END_SHADER_PARAMETER_STRUCT()
+
 
 class FHZBBuildPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHZBBuildPS);
 	SHADER_USE_PARAMETER_STRUCT(FHZBBuildPS, FGlobalShader)
 
-	class FStageDim : SHADER_PERMUTATION_BOOL("STAGE");
-	using FPermutationDomain = TShaderPermutationDomain<FStageDim>;
-	
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER( FVector2D,	InvSize )
-		SHADER_PARAMETER( FVector4,		InputUvFactorAndOffset )
-		SHADER_PARAMETER( FVector2D,	InputViewportMaxBound )
-
-		SHADER_PARAMETER_STRUCT_INCLUDE(FHZBBuildPassParameters, Pass)
-		SHADER_PARAMETER_STRUCT_REF(	FViewUniformShaderParameters,	View )
-		SHADER_PARAMETER_STRUCT_REF(	FSceneTexturesUniformParameters,SceneTextures )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSharedHZBParameters, Shared)
+		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -46,169 +51,226 @@ class FHZBBuildPS : public FGlobalShader
 	}
 };
 
+class FHZBBuildCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHZBBuildCS);
+	SHADER_USE_PARAMETER_STRUCT(FHZBBuildCS, FGlobalShader)
+
+	static constexpr int32 kMaxMipBatchSize = 4;
+
+	class FDimFurthest : SHADER_PERMUTATION_BOOL("DIM_FURTHEST");
+	class FDimClosest : SHADER_PERMUTATION_BOOL("DIM_CLOSEST");
+	class FDimMipLevelCount : SHADER_PERMUTATION_RANGE_INT("DIM_MIP_LEVEL_COUNT", 1, kMaxMipBatchSize);
+	using FPermutationDomain = TShaderPermutationDomain<FDimFurthest, FDimClosest, FDimMipLevelCount>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSharedHZBParameters, Shared)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D<float>, FurthestHZBOutput, [kMaxMipBatchSize])
+		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D<float>, ClosestHZBOutput, [kMaxMipBatchSize])
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		// Necessarily reduce at least closest of furthest.
+		if (!PermutationVector.Get<FDimFurthest>() && !PermutationVector.Get<FDimClosest>())
+		{
+			return false;
+		}
+
+
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
 IMPLEMENT_GLOBAL_SHADER(FHZBBuildPS, "/Engine/Private/HZB.usf", "HZBBuildPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FHZBBuildCS, "/Engine/Private/HZB.usf", "HZBBuildCS", SF_Compute);
 
 
-void BuildHZB(FRDGBuilder& GraphBuilder, FViewInfo& View)
+bool ShouldRenderScreenSpaceDiffuseIndirect(const FViewInfo& View);
+
+static bool RequireClosestDepthHZB(const FViewInfo& View)
+{
+	return ShouldRenderScreenSpaceDiffuseIndirect(View);
+}
+
+
+void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, FViewInfo& View)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BuildHZB);
-	
-	// View.ViewRect.{Width,Height}() are most likely to be < 2^24, so the float
-	// conversion won't loss any precision (assuming float have 23bits for mantissa)
-	const int32 NumMipsX = FMath::Max(FPlatformMath::CeilToInt(FMath::Log2(float(View.ViewRect.Width()))) - 1, 1);
-	const int32 NumMipsY = FMath::Max(FPlatformMath::CeilToInt(FMath::Log2(float(View.ViewRect.Height()))) - 1, 1);
-	const uint32 NumMips = FMath::Max(NumMipsX, NumMipsY);
 
-	// Must be power of 2
-	const FIntPoint HZBSize( 1 << NumMipsX, 1 << NumMipsY );
-	View.HZBMipmap0Size = HZBSize;
+	FIntPoint HZBSize;
+	int32 NumMips;
+	{
+		const int32 NumMipsX = FMath::Max(FPlatformMath::CeilToInt(FMath::Log2(float(View.ViewRect.Width()))) - 1, 1);
+		const int32 NumMipsY = FMath::Max(FPlatformMath::CeilToInt(FMath::Log2(float(View.ViewRect.Height()))) - 1, 1);
 
-	//@DW: Configure texture creation
-	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2DDesc(HZBSize, PF_R16F, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_NoFastClear, false, NumMips);
+		NumMips = FMath::Max(NumMipsX, NumMipsY);
+
+		// Must be power of 2
+		HZBSize = FIntPoint(1 << NumMipsX, 1 << NumMipsY);
+	}
+
+	bool bReduceClosestDepth = RequireClosestDepthHZB(View);
+	bool bUseCompute = bReduceClosestDepth || CVarHZBBuildUseCompute.GetValueOnRenderThread();
+
+	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2DDesc(
+		HZBSize, PF_R16F,
+		FClearValueBinding::None,
+		TexCreate_None,
+		TexCreate_ShaderResource | (bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable),
+		/* bInForceSeparateTargetAndShaderResource = */ false,
+		NumMips);
 	HZBDesc.Flags |= GFastVRamConfig.HZB;
 
-	//@DW: Explicit creation of graph resource handles - full support for everything the RHI supports
-	//@DW: Now that we've created a resource handle, it will have to be passed around to other passes for manual wiring or put into a Blackboard structure for automatic wiring
-	FRDGTextureRef HZBTexture = GraphBuilder.CreateTexture(HZBDesc, TEXT("HZB"));
+	/** Closest and furthest HZB are intentionally in separate render target, because majority of the case you only one or the other.
+	 * Keeping them separate avoid doubling the size in cache for this cases, to avoid performance regression.
+	 */
+	FRDGTextureRef FurthestHZBTexture = GraphBuilder.CreateTexture(HZBDesc, TEXT("HZBFurthest"));
 
+	FRDGTextureRef ClosestHZBTexture = nullptr;
+	if (bReduceClosestDepth)
 	{
-		FHZBBuildPassParameters* PassParameters = GraphBuilder.AllocParameters<FHZBBuildPassParameters>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding( HZBTexture, ERenderTargetLoadAction::ENoAction);
+		ClosestHZBTexture = GraphBuilder.CreateTexture(HZBDesc, TEXT("HZBClosest"));
+	}
 
-		//@DW - this pass only reads external textures, we don't have any graph inputs
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HZB(mip=0) %dx%d", HZBSize.X, HZBSize.Y),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[PassParameters, &View, HZBSize](FRHICommandListImmediate& RHICmdList)
+	int32 MaxMipBatchSize = bUseCompute ? FHZBBuildCS::kMaxMipBatchSize : 1;
+
+	auto ReduceMips = [&](
+		FRDGTextureSRVRef ParentTextureMip, int32 StartDestMip, FVector4 DispatchThreadIdToBufferUV, FVector2D InputViewportMaxBound,
+		bool bOutputClosest, bool bOutputFurthest)
+	{
+		FIntPoint SrcSize = FIntPoint::DivideAndRoundUp(ParentTextureMip->Desc.Texture->Desc.Extent, 1 << int32(ParentTextureMip->Desc.MipLevel));
+
+		FSharedHZBParameters ShaderParameters;
+		ShaderParameters.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
+		ShaderParameters.InputViewportMaxBound = InputViewportMaxBound;
+		ShaderParameters.DispatchThreadIdToBufferUV = DispatchThreadIdToBufferUV;
+		ShaderParameters.ParentTextureMip = ParentTextureMip;
+		ShaderParameters.ParentTextureMipSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		ShaderParameters.View = View.ViewUniformBuffer;
+
+		FIntPoint DstSize = FIntPoint::DivideAndRoundUp(HZBSize, 1 << StartDestMip);
+
+		if (bUseCompute)
+		{
+			int32 EndDestMip = FMath::Min(StartDestMip + FHZBBuildCS::kMaxMipBatchSize, NumMips);
+
+			FHZBBuildCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHZBBuildCS::FParameters>();
+			PassParameters->Shared = ShaderParameters;
+
+			for (int32 DestMip = StartDestMip; DestMip < EndDestMip; DestMip++)
 			{
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				if (bOutputFurthest)
+					PassParameters->FurthestHZBOutput[DestMip - StartDestMip] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(FurthestHZBTexture, DestMip));
+				if (bOutputClosest)
+					PassParameters->ClosestHZBOutput[DestMip - StartDestMip] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ClosestHZBTexture, DestMip));
+			}
 
-				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			FHZBBuildCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FHZBBuildCS::FDimMipLevelCount>(EndDestMip - StartDestMip);
+			PermutationVector.Set<FHZBBuildCS::FDimFurthest>(bOutputFurthest);
+			PermutationVector.Set<FHZBBuildCS::FDimClosest>(bOutputClosest);
 
-				FHZBBuildPS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FHZBBuildPS::FStageDim>(false);
+			TShaderMapRef<FHZBBuildCS> ComputeShader(View.ShaderMap, PermutationVector);
 
-				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-				TShaderMapRef<FHZBBuildPS> PixelShader(View.ShaderMap, PermutationVector);
+			// TODO(RDG): remove ERDGPassFlags::GenerateMips to use FComputeShaderUtils::AddPass().
+			ClearUnusedGraphResources(*ComputeShader, PassParameters);
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("ReduceHZB(mips=[%d;%d]%s%s) %dx%d",
+					StartDestMip, EndDestMip - 1,
+					bOutputClosest ? TEXT(" Closest") : TEXT(""),
+					bOutputFurthest ? TEXT(" Furthest") : TEXT(""),
+					DstSize.X, DstSize.Y),
+				PassParameters,
+				StartDestMip ? (ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips) : ERDGPassFlags::Compute,
+				[PassParameters, ComputeShader, DstSize](FRHICommandList& RHICmdList)
+			{
+				FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(DstSize, 8));
+			});
+		}
+		else
+		{
+			check(bOutputFurthest);
+			check(!bOutputClosest);
 
-				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			FHZBBuildPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHZBBuildPS::FParameters>();
+			PassParameters->Shared = ShaderParameters;
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(FurthestHZBTexture, ERenderTargetLoadAction::ENoAction, StartDestMip);
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			TShaderMapRef<FHZBBuildPS> PixelShader(View.ShaderMap);
 
-				// Imperfect sampling, doesn't matter too much
-				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-				FIntPoint Size = SceneContext.GetBufferSizeXY();
+			// TODO(RDG): remove ERDGPassFlags::GenerateMips to use FPixelShaderUtils::AddFullscreenPass().
+			ClearUnusedGraphResources(*PixelShader, PassParameters);
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("DownsampleHZB(mip=%d) %dx%d", StartDestMip, DstSize.X, DstSize.Y),
+				PassParameters,
+				StartDestMip ? (ERDGPassFlags::Raster | ERDGPassFlags::GenerateMips) : ERDGPassFlags::Raster,
+				[PassParameters, &View, PixelShader, DstSize](FRHICommandList& RHICmdList)
+			{
+				FPixelShaderUtils::DrawFullscreenPixelShader(RHICmdList, View.ShaderMap, *PixelShader, *PassParameters, FIntRect(0, 0, DstSize.X, DstSize.Y));
+			});
+		}
+	};
 
-				FHZBBuildPS::FParameters Parameters;
-				Parameters.InvSize = FVector2D(1.0f / Size.X, 1.0f / Size.Y);
-				Parameters.InputUvFactorAndOffset = FVector4(
-					float(2 * HZBSize.X) / float(Size.X),
-					float(2 * HZBSize.Y) / float(Size.Y),
-					float(View.ViewRect.Min.X) / float(Size.X),
-					float(View.ViewRect.Min.Y) / float(Size.Y));
-				Parameters.InputViewportMaxBound = FVector2D(
-					float(View.ViewRect.Max.X) / float(Size.X) - 0.5f * Parameters.InvSize.X,
-					float(View.ViewRect.Max.Y) / float(Size.Y) - 0.5f * Parameters.InvSize.Y);
+	// Reduce first mips Closesy and furtherest are done at same time.
+	{
+		FIntPoint SrcSize = SceneTextures.SceneDepthBuffer->Desc.Extent;
+
+		FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneTextures.SceneDepthBuffer));
+
+		FVector4 DispatchThreadIdToBufferUV;
+		DispatchThreadIdToBufferUV.X = 2.0f / float(SrcSize.X);
+		DispatchThreadIdToBufferUV.Y = 2.0f / float(SrcSize.Y);
+		DispatchThreadIdToBufferUV.Z = View.ViewRect.Min.X / float(SrcSize.X);
+		DispatchThreadIdToBufferUV.W = View.ViewRect.Min.Y / float(SrcSize.Y);
+
+		FVector2D InputViewportMaxBound = FVector2D(
+			float(View.ViewRect.Max.X - 0.5f) / float(SrcSize.X),
+			float(View.ViewRect.Max.Y - 0.5f) / float(SrcSize.Y));
+
+		ReduceMips(
+			ParentTextureMip,
+			/* StartDestMip = */ 0, DispatchThreadIdToBufferUV, InputViewportMaxBound,
+			/* bOutputClosest = */ bReduceClosestDepth, /* bOutputFurthest = */ true);
+	}
+
+	// Reduce the next mips
+	for (int32 StartDestMip = MaxMipBatchSize; StartDestMip < NumMips; StartDestMip += MaxMipBatchSize)
+	{
+		FIntPoint SrcSize = FIntPoint::DivideAndRoundUp(HZBSize, 1 << int32(StartDestMip - 1));
+
+		FVector4 DispatchThreadIdToBufferUV;
+		DispatchThreadIdToBufferUV.X = 2.0f / float(SrcSize.X);
+		DispatchThreadIdToBufferUV.Y = 2.0f / float(SrcSize.Y);
+		DispatchThreadIdToBufferUV.Z = 0.0f;
+		DispatchThreadIdToBufferUV.W = 0.0f;
+
+		FVector2D InputViewportMaxBound(1.0f, 1.0f);
 		
-				Parameters.Pass = *PassParameters;
-				Parameters.View = View.ViewUniformBuffer;
-				Parameters.SceneTextures = CreateSceneTextureUniformBufferSingleDraw(RHICmdList, ESceneTextureSetupMode::SceneDepth, View.FeatureLevel);
+		{
+			FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(FurthestHZBTexture, StartDestMip - 1));
+			ReduceMips(ParentTextureMip,
+				StartDestMip, DispatchThreadIdToBufferUV, InputViewportMaxBound,
+				/* bOutputClosest = */ false, /* bOutputFurthest = */ true);
+		}
 
-				SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), Parameters);
-
-				RHICmdList.SetViewport(0, 0, 0.0f, HZBSize.X, HZBSize.Y, 1.0f);
-
-				DrawRectangle(
-					RHICmdList,
-					0, 0,
-					HZBSize.X, HZBSize.Y,
-					View.ViewRect.Min.X, View.ViewRect.Min.Y,
-					View.ViewRect.Width(), View.ViewRect.Height(),
-					HZBSize,
-					FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
-					*VertexShader,
-					EDRF_UseTriangleOptimization);
-			});
+		if (bReduceClosestDepth)
+		{
+			FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(ClosestHZBTexture, StartDestMip - 1));
+			ReduceMips(ParentTextureMip,
+				StartDestMip, DispatchThreadIdToBufferUV, InputViewportMaxBound,
+				/* bOutputClosest = */ true, /* bOutputFurthest = */ false);
+		}
 	}
 
-	FIntPoint SrcSize = HZBSize;
-	FIntPoint DstSize = SrcSize / 2;
+	// Update the view.
+	View.HZBMipmap0Size = HZBSize;
 
-	// Downsampling...
-	for (uint8 MipIndex = 1; MipIndex < NumMips; MipIndex++)
-	{
-		SrcSize.X = FMath::Max(SrcSize.X, 1);
-		SrcSize.Y = FMath::Max(SrcSize.Y, 1);
-		DstSize.X = FMath::Max(DstSize.X, 1);
-		DstSize.Y = FMath::Max(DstSize.Y, 1);
+	GraphBuilder.QueueTextureExtraction(FurthestHZBTexture, &View.HZB);
 
-		//@DW: Explicit creation of SRV, full configuration of SRV supported
-		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::CreateForMipLevel(HZBTexture, MipIndex - 1);
-		FRDGTextureSRVRef ParentMipSRV = GraphBuilder.CreateSRV(Desc);
-
-		FHZBBuildPassParameters* PassParameters = GraphBuilder.AllocParameters<FHZBBuildPassParameters>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding( HZBTexture, ERenderTargetLoadAction::ENoAction, MipIndex );
-		PassParameters->Texture = ParentMipSRV;
-		PassParameters->TextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HZB(mip=%d) %dx%d", MipIndex, DstSize.X, DstSize.Y),
-			PassParameters,
-			ERDGPassFlags::Raster | ERDGPassFlags::GenerateMips,
-			[PassParameters, SrcSize, DstSize, &View](FRHICommandListImmediate& RHICmdList)
-			{
-				FHZBBuildPS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FHZBBuildPS::FStageDim>(true);
-
-				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-				TShaderMapRef<FHZBBuildPS> PixelShader(View.ShaderMap, PermutationVector);
-
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-				FHZBBuildPS::FParameters Parameters;
-				Parameters.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
-				Parameters.Pass = *PassParameters;
-				Parameters.View = View.ViewUniformBuffer;
-
-				SetShaderParameters(RHICmdList, *PixelShader, PixelShader->GetPixelShader(), Parameters);
-
-				RHICmdList.SetViewport(0, 0, 0.0f, DstSize.X, DstSize.Y, 1.0f);
-
-				DrawRectangle(
-					RHICmdList,
-					0, 0,
-					DstSize.X, DstSize.Y,
-					0, 0,
-					SrcSize.X, SrcSize.Y,
-					DstSize,
-					SrcSize,
-					*VertexShader,
-					EDRF_UseTriangleOptimization);
-			});
-
-		SrcSize /= 2;
-		DstSize /= 2;
-	}
-
-	GraphBuilder.QueueTextureExtraction(HZBTexture, &View.HZB);
-}
+	if (ClosestHZBTexture)
+		GraphBuilder.QueueTextureExtraction(ClosestHZBTexture, &View.ClosestHZB);
+} // BuildHZB()

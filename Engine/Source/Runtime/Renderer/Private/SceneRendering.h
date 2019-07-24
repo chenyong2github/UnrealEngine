@@ -1038,8 +1038,9 @@ public:
 	FOcclusionQueryBatcher IndividualOcclusionQueries;
 	FOcclusionQueryBatcher GroupedOcclusionQueries;
 
-	// Hierarchical Z Buffer
+	// Furthest and closest Hierarchical Z Buffer
 	TRefCountPtr<IPooledRenderTarget> HZB;
+	TRefCountPtr<IPooledRenderTarget> ClosestHZB;
 
 	int32 NumBoxReflectionCaptures;
 	int32 NumSphereReflectionCaptures;
