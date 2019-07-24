@@ -87,21 +87,6 @@ protected:
 	UFUNCTION(BlueprintCallable,  Category = "Log", meta = (HideSelfPin = "true"))
 	void LogError(const FText& InLogError);
 
-	/**
-	 * Report the progress of the operation to the execution context.
-	 * @param Progress The progress of the made since the last call. (1.0 = 100% and 0.0 = 0%)
-	 */
-	UFUNCTION(BlueprintCallable,  Category = "Progress", meta = (HideSelfPin = "true"))
-	void ReportProgress(float Progress);
-
-	/**
-	 * Report the progress of the operation to the execution context
-	 * @param Progress The progress of the made since the last call. (1.0 = 100% and 0.0 = 0%)
-	 * @param Message This allow the user to change an displayed message.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Progress", meta = (HideSelfPin = "true"))
-	void ReportProgressWithMessage(float Progress, const FText& InMessage);
-
 	// User friendly interface end here ========================================================================
 
 public:
@@ -144,4 +129,18 @@ public:
 	// Everything below is only for the Dataprep systems internal use =========================================
 private:
 	TSharedPtr<const FDataprepOperationContext> OperationContext;
+};
+
+
+// Todo add class wide comment
+UCLASS(Experimental, Abstract, Blueprintable)
+class DATAPREPCORE_API UDataprepAdditiveOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+public:
+	const TArray< UObject* > GetCreatedAssets() { return CreatedAssets; }
+
+protected:
+	TArray< UObject* > CreatedAssets;
 };
