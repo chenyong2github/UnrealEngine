@@ -143,19 +143,6 @@ void SBox::SetMaxAspectRatio(TAttribute<FOptionalSize> InMaxAspectRatio)
 	}
 }
 
-void SBox::ChildLayoutChanged(EInvalidateWidget InvalidateReason)
-{
-	if (WidthOverride.IsSet() && HeightOverride.IsSet() && InvalidateReason != EInvalidateWidget::Visibility)
-	{
-		// Done.  We don't need to notify anyone else that our desired size has changed.
-	}
-	else
-	{
-		SPanel::ChildLayoutChanged(InvalidateReason);
-	}
-}
-
-
 FVector2D SBox::ComputeDesiredSize( float ) const
 {
 	EVisibility ChildVisibility = ChildSlot.GetWidget()->GetVisibility();
