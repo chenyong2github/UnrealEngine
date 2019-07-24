@@ -276,8 +276,10 @@ namespace UnrealBuildTool
 
 			SetLuminPluginData(MLSDKArches, CollectPluginDataPaths(Receipt));
 
+			bool bIsEmbedded = Receipt.HasValueForAdditionalProperty("CompileAsDll", "true");
+
 			//gather all of the xml
-			UPL.Init(MLSDKArches, true, RelativeEnginePath, UE4BuildPath, RelativeProjectPath, ConfigurationString);
+			UPL.Init(MLSDKArches, true, RelativeEnginePath, UE4BuildPath, RelativeProjectPath, ConfigurationString, bIsEmbedded);
 		}
 
 		public string StageFiles()
