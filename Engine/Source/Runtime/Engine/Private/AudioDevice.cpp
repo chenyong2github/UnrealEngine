@@ -4132,32 +4132,6 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
 
-	if (NewActiveSound.Sound == nullptr)
-	{
-		return;
-	}
-
-	// Don't allow buses to try to play if we're not using the audio mixer.
-	if (!IsAudioMixerEnabled())
-	{
-		USoundSourceBus* Bus = Cast<USoundSourceBus>(NewActiveSound.Sound);
-		if (Bus)
-		{
-			return;
-		}
-	}
-
-	if (NewActiveSound.Sound->GetDuration() <= FMath::Max(0.0f, SoundDistanceOptimizationLengthCVar))
-	{
-		// TODO: Determine if this check has already been completed at AudioComponent level and skip if so. Also,
-		// unify code paths determining if sound is audible.
-		if (!SoundIsAudible(NewActiveSound))
-		{
-			UE_LOG(LogAudio, Log, TEXT("New ActiveSound not created for out of range Sound %s"), *NewActiveSound.Sound->GetName());
-			return;
-		}
-	}
-
 	if (!IsInAudioThread())
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AddNewActiveSound"), STAT_AudioAddNewActiveSound, STATGROUP_AudioThreadCommands);
@@ -4169,6 +4143,37 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		}, GET_STATID(STAT_AudioAddNewActiveSound));
 
 		return;
+	}
+
+
+	if (NewActiveSound.Sound == nullptr)
+	{
+		UAudioComponent::PlaybackCompleted(NewActiveSound.AudioComponentID, true);
+		return;
+	}
+
+	// Don't allow buses to try to play if we're not using the audio mixer.
+	if (!IsAudioMixerEnabled())
+	{
+		USoundSourceBus* Bus = Cast<USoundSourceBus>(NewActiveSound.Sound);
+		if (Bus)
+		{
+			UAudioComponent::PlaybackCompleted(NewActiveSound.AudioComponentID, true);
+			return;
+		}
+	}
+
+	if (NewActiveSound.Sound->GetDuration() <= FMath::Max(0.0f, SoundDistanceOptimizationLengthCVar))
+	{
+		// TODO: Determine if this check has already been completed at AudioComponent level and skip if so. Also,
+		// unify code paths determining if sound is audible.
+		if (!SoundIsAudible(NewActiveSound))
+		{
+			UE_LOG(LogAudio, Log, TEXT("New ActiveSound not created for out of range Sound %s"), *NewActiveSound.Sound->GetName());
+
+			UAudioComponent::PlaybackCompleted(NewActiveSound.AudioComponentID, true);
+			return;
+		}
 	}
 
 	// Cull one-shot active sounds if we've reached our max limit of one shot active sounds before we attempt to evaluate concurrency
@@ -4183,6 +4188,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		NewActiveSound.Sound->GetName(SoundName);
 		if (!SoundName.Contains(DebugSound))
 		{
+			UAudioComponent::PlaybackCompleted(NewActiveSound.AudioComponentID, true);
 			return;
 		}
 	}
@@ -4196,7 +4202,10 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	{
 		FString SoundWaveName;
 		SoundWave->GetName(SoundWaveName);
-		UE_LOG(LogAudio, Warning, TEXT("Replaying a procedural sound '%s' without stopping the previous instance. Only one sound instance per procedural sound wave is supported."), *SoundWaveName)
+
+		UE_LOG(LogAudio, Warning, TEXT("Replaying a procedural sound '%s' without stopping the previous instance. Only one sound instance per procedural sound wave is supported."), *SoundWaveName);
+
+		UAudioComponent::PlaybackCompleted(NewActiveSound.AudioComponentID, true);
 		return;
 	}
 
@@ -4234,8 +4243,11 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 			{
 				UE_LOG(LogAudio, Verbose, TEXT("New ActiveSound %s Virtualizing: Failed to pass concurrency"), *Sound->GetName());
 				AddVirtualLoop(VirtualLoop);
+				return;
 			}
 		}
+
+		UAudioComponent::PlaybackCompleted(NewActiveSound.AudioComponentID, true);
 		return;
 	}
 
@@ -4343,10 +4355,7 @@ bool FAudioDevice::RemoveVirtualLoop(FActiveSound& InActiveSound)
 		check(InActiveSound.bIsStopping);
 
 		const uint64 ComponentID = InActiveSound.GetAudioComponentID();
-		if (ComponentID > 0)
-		{
-			UAudioComponent::PlaybackCompleted(ComponentID, false);
-		}
+		UAudioComponent::PlaybackCompleted(ComponentID, false);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (InActiveSound.Sound)
@@ -4553,10 +4562,7 @@ void FAudioDevice::RemoveActiveSound(FActiveSound* ActiveSound)
 
 	// Perform the notification if not sound not set to re-trigger
 	const uint64 ComponentID = ActiveSound->GetAudioComponentID();
-	if (ComponentID > 0)
-	{
-		UAudioComponent::PlaybackCompleted(ComponentID, false);
-	}
+	UAudioComponent::PlaybackCompleted(ComponentID, false);
 
 	const int32 NumRemoved = ActiveSounds.RemoveSwap(ActiveSound);
 	if (!ensureMsgf(NumRemoved > 0, TEXT("Attempting to remove an already removed ActiveSound '%s'"), ActiveSound->Sound ? *ActiveSound->Sound->GetName() : TEXT("N/A")))
