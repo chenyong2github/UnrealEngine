@@ -47,6 +47,13 @@ namespace FHttpRetrySystem
 		TAtomic<int32> ActiveIndex;
 	};
 	typedef TSharedPtr<FRetryDomains, ESPMode::ThreadSafe> FRetryDomainsPtr;
+
+	/**
+	 * Read the number of seconds a HTTP request is throttled for from the response
+	 * @param Response the HTTP response to read the value from
+	 * @return If found, the number of seconds the request is rate limited for.  If not found, an unset TOptional
+	 */
+	TOptional<double> HTTP_API ReadThrottledTimeFromResponseInSeconds(FHttpResponsePtr Response);
 };
 
 /**
