@@ -466,22 +466,30 @@ void UMaterialInstance::InitResources()
 		Resource->GameThread_SetParent(SafeParent);
 	}
 
+#if WITH_EDITOR
+	//recalculate any scalar params based on a curve position in an atlas in case the atlas changed
+	for (FScalarParameterValue& ScalarParam : ScalarParameterValues)
+	{
+		if (ScalarParam.AtlasData.bIsUsedAsAtlasPosition)
+		{
+			UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(ScalarParam.AtlasData.Atlas.Get());
+			UCurveLinearColor* Curve = Cast<UCurveLinearColor>(ScalarParam.AtlasData.Curve.Get());
+			if (Curve && Atlas)
+			{
+				int32 Index = Atlas->GradientCurves.Find(Curve);
+				if (Index != INDEX_NONE)
+				{
+					ScalarParam.ParameterValue = (float)Index;
+				}
+			}
+		}
+	}
+#endif
+
 	GameThread_InitMIParameters(this, ScalarParameterValues);
 	GameThread_InitMIParameters(this, VectorParameterValues);
 	GameThread_InitMIParameters(this, TextureParameterValues);
 	GameThread_InitMIParameters(this, FontParameterValues);
-
-#if WITH_EDITOR
-	//recalculate any scalar params based on a curve position in an atlas in case the atlas changed
-	for (FScalarParameterValue ScalarParam : ScalarParameterValues)
-	{
-		IsScalarParameterUsedAsAtlasPosition(ScalarParam.ParameterInfo, ScalarParam.AtlasData.bIsUsedAsAtlasPosition, ScalarParam.AtlasData.Curve, ScalarParam.AtlasData.Atlas);
-		if (ScalarParam.AtlasData.bIsUsedAsAtlasPosition)
-		{
-			SetScalarParameterAtlasInternal(ScalarParam.ParameterInfo, ScalarParam.AtlasData);
-		}
-	}
-#endif
 
 	PropagateDataToMaterialProxy();
 
