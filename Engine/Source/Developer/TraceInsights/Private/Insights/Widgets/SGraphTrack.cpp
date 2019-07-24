@@ -134,6 +134,8 @@ int32 SGraphTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	FDrawHelpers::DrawTimeRangeSelection(DrawContext, Viewport, SelectionStartTime, SelectionEndTime, WhiteBrush, MainFont);
 
+	GraphTrack->PostDraw(DrawContext, Viewport, MousePosition);
+
 	const bool bShouldDisplayDebugInfo = FInsightsManager::Get()->IsDebugInfoEnabled();
 	if (bShouldDisplayDebugInfo)
 	{
@@ -401,6 +403,10 @@ FReply SGraphTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 		}
 
 		Reply = FReply::Handled();
+	}
+	else
+	{
+		GraphTrack->UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
 	}
 
 	return Reply;

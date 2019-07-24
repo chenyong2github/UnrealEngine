@@ -1026,6 +1026,11 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		{
 			Tooltip.Reset();
 		}
+
+		if (GraphTrack->IsVisible())
+		{
+			GraphTrack->PostDraw(DrawContext, Viewport, MousePosition);
+		}
 	}
 
 	if (bAssetLoadingMode)
@@ -1494,6 +1499,11 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 		if (MarkersTrack.IsVisible())
 		{
 			MarkersTrack.UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
+		}
+
+		if (GraphTrack->IsVisible())
+		{
+			GraphTrack->UpdateHoveredState(MousePosition.X, MousePosition.Y, Viewport);
 		}
 
 		UpdateHoveredTimingEvent(MousePosition.X, MousePosition.Y);

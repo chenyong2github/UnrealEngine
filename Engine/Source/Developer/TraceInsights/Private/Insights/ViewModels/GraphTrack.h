@@ -7,6 +7,7 @@
 
 // Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
+#include "Insights/ViewModels/TimingViewDrawHelper.h"
 
 struct FDrawContext;
 struct FSlateBrush;
@@ -202,6 +203,7 @@ public:
 	virtual void Update(const FTimingTrackViewport& Viewport) override = 0;
 
 	void Draw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition) const;
+	void PostDraw(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition) const;
 
 	/**
 	 * @param X The horizontal coordinate of the point tested; in Slate pixels (local graph coordinates)
@@ -211,8 +213,6 @@ public:
 	 * @return True if an event is found at (PosX, PosY) coordinates.
 	 */
 	const bool GetEvent(const float MouseX, const float MouseY, const FTimingTrackViewport& Viewport, FGraphTrack::FEvent& OutEvent) const;
-
-	void DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FGraphTrack::FEvent& GraphEvent) const;
 
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
@@ -231,6 +231,8 @@ protected:
 
 	void DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 	void DrawSeries(const FGraphSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
+	void DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FGraphTrack::FEvent& GraphEvent) const;
+	void DrawTooltip(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition, const FGraphTrack::FEvent& GraphEvent) const;
 
 private:
 	void ContextMenu_ShowPoints_Execute();
@@ -276,6 +278,9 @@ protected:
 	bool bDrawPolygon;
 	bool bUseEventDuration;
 	bool bDrawBoxes;
+
+	mutable FGraphTrack::FEvent HoveredGraphEvent;
+	mutable FTimingViewTooltip Tooltip;
 
 	// Stats
 	int32 NumAddedEvents; // total event count
