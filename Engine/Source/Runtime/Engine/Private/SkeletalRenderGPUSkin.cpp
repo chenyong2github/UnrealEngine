@@ -485,6 +485,9 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshObjectGPUSkin_ProcessUpdatedDynamicData_UpdateMorphBuffer);
 			if (UseGPUMorphTargets(GMaxRHIShaderPlatform))
 			{
+				// sometimes this goes out of bound, we'll ensure here
+				ensureAlways(DynamicData->MorphTargetWeights.Num() == LODData.MorphTargetVertexInfoBuffers.GetNumMorphs());
+
 				// update the morph data for the lod (before SkinCache)
 				TArray<float> MorphTargetWeights;
 				MorphTargetWeights.Reserve(LODData.MorphTargetVertexInfoBuffers.GetNumMorphs());
@@ -495,7 +498,6 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 						MorphTargetWeights.Add(DynamicData->MorphTargetWeights[i]);
 					}
 				}
-				ensureAlways(MorphTargetWeights.Num() == LODData.MorphTargetVertexInfoBuffers.GetNumMorphs());
 				LOD.UpdateMorphVertexBufferGPU(RHICmdList, MorphTargetWeights, LODData.MorphTargetVertexInfoBuffers, DynamicData->SectionIdsUseByActiveMorphTargets);
 			}
 			else

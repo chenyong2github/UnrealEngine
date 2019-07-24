@@ -586,9 +586,9 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent()
 				const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
 
 				// Are morph targets disabled for this LOD?
-				if (!bDisableMorphTarget && bMorphTargetsAllowed)
+				if (bDisableMorphTarget || !bMorphTargetsAllowed)
 				{
-					RefreshMorphTargets();
+					ActiveMorphTargets.Empty();
 				}
 
 				MeshObject->Update(PredictedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious);  // send to rendering thread
@@ -603,10 +603,6 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent()
 void USkinnedMeshComponent::DestroyRenderState_Concurrent()
 {
 	Super::DestroyRenderState_Concurrent();
-
-	// clear morphtarget array info while rendering state is destroyed
-	ActiveMorphTargets.Empty();
-	MorphTargetWeights.Empty();
 
 	if(MeshObject)
 	{

@@ -282,7 +282,7 @@ class ENGINE_API USkeletalMeshComponent : public USkinnedMeshComponent, public I
 
 	friend class FSkinnedMeshComponentRecreateRenderStateContext;
 	friend class FParallelAnimationCompletionTask;
-	
+	friend class USkeletalMesh; 
 	/**
 	 * Animation 
 	 */
@@ -2068,6 +2068,7 @@ private:
 	 * Update MorphTargetCurves from mesh - these are not animation curves, but SetMorphTarget and similar functions that can set to this mesh component
 	 */
 	void UpdateMorphTargetOverrideCurves();
+
 	/*
 	 * Reset MorphTarget Curves - Reset all morphtarget curves
 	 */
