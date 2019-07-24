@@ -34,7 +34,7 @@ TSharedRef<SWidget> UScaleBox::RebuildWidget()
 #if WITH_EDITOR
 		.OverrideScreenSize(DesignerSize)
 #endif
-	.SingleLayoutPass(bSingleLayoutPass);
+	;
 
 	if ( GetChildrenCount() > 0 )
 	{
