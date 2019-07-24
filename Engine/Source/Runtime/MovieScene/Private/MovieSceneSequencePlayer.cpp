@@ -214,7 +214,7 @@ void UMovieSceneSequencePlayer::Pause()
 	{
 		if (bIsEvaluating)
 		{
-			LatentActions.Emplace(FLatentAction::Pause);
+			LatentActions.Emplace(FLatentAction::EType::Pause);
 			return;
 		}
 
@@ -283,7 +283,7 @@ void UMovieSceneSequencePlayer::StopInternal(FFrameTime TimeToResetTo)
 	{
 		if (bIsEvaluating)
 		{
-			LatentActions.Emplace(FLatentAction::Stop, TimeToResetTo);
+			LatentActions.Emplace(FLatentAction::EType::Stop, TimeToResetTo);
 			return;
 		}
 
@@ -891,11 +891,11 @@ void UMovieSceneSequencePlayer::ApplyLatentActions()
 	{
 		switch (LatentAction.Type)
 		{
-		case FLatentAction::Stop:          StopInternal(LatentAction.Position); continue;
-		case FLatentAction::Pause:         Pause();                             continue;
+		case FLatentAction::EType::Stop:   StopInternal(LatentAction.Position); continue;
+		case FLatentAction::EType::Pause:  Pause();                             continue;
 		}
 
-		check(LatentAction.Type == FLatentAction::Update);
+		check(LatentAction.Type == FLatentAction::EType::Update);
 		switch (LatentAction.UpdateMethod)
 		{
 		case EUpdatePositionMethod::Play:  PlayToFrame( LatentAction.Position); continue;
