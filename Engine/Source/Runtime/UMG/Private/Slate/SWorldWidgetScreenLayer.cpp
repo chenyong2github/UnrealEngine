@@ -177,3 +177,8 @@ void SWorldWidgetScreenLayer::RemoveEntryFromCanvas(SWorldWidgetScreenLayer::FCo
 		Canvas->RemoveSlot(ContainerWidget.ToSharedRef());
 	}
 }
+
+FVector2D SWorldWidgetScreenLayer::ComputeDesiredSize(float) const
+{
+	return FVector2D(0, 0);
+}
