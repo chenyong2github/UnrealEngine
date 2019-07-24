@@ -48,10 +48,9 @@ FFXSystemInterface* FFXSystemInterface::Create(ERHIFeatureLevel::Type InFeatureL
 
 void FFXSystemInterface::Destroy( FFXSystemInterface* FXSystem )
 {
-	check(FXSystem && !FXSystem->bIsPendingKill);
+	check(FXSystem);
+	FXSystem->OnDestroy();
 
-	// Notify that the delete command is on its way. Preventing any future render commands from accessing the FFXSystemInterface.
-	FXSystem->bIsPendingKill = true;
 	ENQUEUE_RENDER_COMMAND(FDestroyFXSystemCommand)(
 		[FXSystem](FRHICommandList& RHICmdList)
 		{
@@ -67,10 +66,6 @@ void FFXSystemInterface::RegisterCustomFXSystem(const FName& InterfaceName, cons
 void FFXSystemInterface::UnregisterCustomFXSystem(const FName& InterfaceName)
 {
 	CreateCustomFXDelegates.Remove(InterfaceName);
-}
-
-FFXSystemInterface::~FFXSystemInterface()
-{
 }
 
 /*------------------------------------------------------------------------------
@@ -387,9 +382,9 @@ DECLARE_CYCLE_STAT(TEXT("FXPreRender_SimulateCDF"), STAT_CLM_FXPreRender_Simulat
 DECLARE_CYCLE_STAT(TEXT("FXPreRender_FinalizeCDF"), STAT_CLM_FXPreRender_FinalizeCDF, STATGROUP_CommandListMarkers);
 
 
-void FFXSystem::PreRender(FRHICommandListImmediate& RHICmdList, const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData)
+void FFXSystem::PreRender(FRHICommandListImmediate& RHICmdList, const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate)
 {
-	if (RHISupportsGPUParticles())
+	if (RHISupportsGPUParticles() && bAllowGPUParticleSceneUpdate)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, GPUParticles_PreRender);
 		UpdateMultiGPUResources(RHICmdList);

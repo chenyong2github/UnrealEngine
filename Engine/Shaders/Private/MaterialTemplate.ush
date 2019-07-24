@@ -23,6 +23,9 @@
 #define NUM_CUSTOM_VERTEX_INTERPOLATORS %s
 #define NUM_TEX_COORD_INTERPOLATORS %s
 
+// Vertex interpolators offsets definition
+%s
+
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
 	#include "/Engine/Private/VirtualTextureCommon.ush"
 #endif

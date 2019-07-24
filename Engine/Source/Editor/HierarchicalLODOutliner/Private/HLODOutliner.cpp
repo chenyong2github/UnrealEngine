@@ -1665,15 +1665,14 @@ namespace HLODOutliner
 				for (TWeakObjectPtr<ALODActor> Actor : ActorArray)
 				{
 					// Check if actor is not null due to Destroy Actor
-					if (Actor.IsValid())
+					if (Actor.IsValid() && Actor != InActor)
 					{
 						Actor->CleanSubActorArray();
-						const bool bRemovedSubActor = Actor->RemoveSubActor(InActor);
+						Actor->RemoveSubActor(InActor);
 
-						if (bRemovedSubActor && Actor->SubActors.Num() == 0)
+						if (Actor->SubActors.Num() == 0)
 						{
 							HierarchicalLODUtilities->DestroyCluster(Actor.Get());
-							Actor->GetWorld()->DestroyActor(Actor.Get());
 						}
 					}
 				}

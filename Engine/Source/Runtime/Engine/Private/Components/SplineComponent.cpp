@@ -9,6 +9,7 @@
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
+#include "UnrealEngine.h"
 
 #define SPLINE_FAST_BOUNDS_CALCULATION 0
 
@@ -42,7 +43,7 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, 
 	, DefaultUpVector(FVector::UpVector)
 #if WITH_EDITORONLY_DATA
 	, EditorUnselectedSplineSegmentColor(FLinearColor(1.0f, 1.0f, 1.0f))
-	, EditorSelectedSplineSegmentColor(FLinearColor(1.0f, 0.0f, 0.0f))
+	, EditorSelectedSplineSegmentColor(FLinearColor(0.828f, 0.364f, 0.003f))
 	, bAllowDiscontinuousSpline(false)
 	, bShouldVisualizeScale(false)
 	, ScaleVisualizationWidth(30.0f)
@@ -62,11 +63,17 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, 
 	SplineCurves.Rotation.Points.Emplace(1.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
 	SplineCurves.Scale.Points.Emplace(1.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
 
+#if WITH_EDITORONLY_DATA
+	if (GEngine)
+	{
+		EditorSelectedSplineSegmentColor = GEngine->GetSelectionOutlineColor();
+	}
+#endif
+
 	if (SplineCurves.Metadata)
 	{
-		SplineCurves.Metadata->Reset(10);
-		SplineCurves.Metadata->AddPoint(0.0f);
-		SplineCurves.Metadata->AddPoint(1.0f);
+		const int32 NumPoints = GetNumberOfSplinePoints();
+		SplineCurves.Metadata->Fixup(NumPoints);
 	}
 
 	UpdateSpline();
@@ -152,6 +159,16 @@ void USplineComponent::Serialize(FArchive& Ar)
 	}
 }
 
+void USplineComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (USplineMetadata* MetaData = GetSplinePointsMetadata())
+	{
+		const int32 NumPoints = GetNumberOfSplinePoints();
+		MetaData->Fixup(NumPoints);
+	}
+}
 
 void FSplineCurves::UpdateSpline(bool bClosedLoop, bool bStationaryEndpoints, int32 ReparamStepsPerSegment, bool bLoopPositionOverride, float LoopPosition, const FVector& Scale3D)
 {
@@ -373,7 +390,8 @@ FVector USplineComponent::GetDirectionAtSplineInputKey(float InKey, ESplineCoord
 
 	if (CoordinateSpace == ESplineCoordinateSpace::World)
 	{
-		Direction = GetComponentTransform().TransformVectorNoScale(Direction);
+		Direction = GetComponentTransform().TransformVector(Direction);
+		Direction.Normalize();
 	}
 
 	return Direction;

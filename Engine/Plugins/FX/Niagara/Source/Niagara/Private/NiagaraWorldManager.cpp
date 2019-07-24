@@ -14,6 +14,7 @@
 #include "GameFramework/PlayerController.h"
 #include "EngineModule.h"
 #include "NiagaraStats.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorldManWaitOnRender, STATGROUP_Niagara);
@@ -152,6 +153,7 @@ void FNiagaraWorldManager::CleanupParameterCollections()
 
 TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> FNiagaraWorldManager::GetSystemSimulation(UNiagaraSystem* System)
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>* SimPtr = SystemSimulations.Find(System);
 	if (SimPtr != nullptr)
 	{
@@ -181,6 +183,21 @@ void FNiagaraWorldManager::DestroySystemInstance(TUniquePtr<FNiagaraSystemInstan
 	DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Emplace(MoveTemp(InPtr));
 }
 
+void FNiagaraWorldManager::OnBatcherDestroyed(NiagaraEmitterInstanceBatcher* InBatcher)
+{
+	// Process the deferred deletion queue before deleting the batcher of this world.
+	// This is required because the batcher is accessed in FNiagaraEmitterInstance::~FNiagaraEmitterInstance
+	if (World && World->FXSystem && World->FXSystem->GetInterface(NiagaraEmitterInstanceBatcher::Name) == InBatcher)
+	{
+		for ( int32 i=0; i < NumDeferredQueues; ++i)
+		{
+			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+			DeferredDeletionQueue[i].Queue.Empty();
+		}
+	}
+}
+
+
 void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResources)
 {
 	for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations)
@@ -192,13 +209,15 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 
 	for ( int32 i=0; i < NumDeferredQueues; ++i)
 	{
-		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		DeferredDeletionQueue[i].Fence.Wait();
 		DeferredDeletionQueue[i].Queue.Empty();
 	}
 }
 
 void FNiagaraWorldManager::Tick(float DeltaSeconds)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 
@@ -248,14 +267,21 @@ void FNiagaraWorldManager::Tick(float DeltaSeconds)
 		SystemSimulations.Remove(DeadSystem);
 	}
 
-	// Enqueue fence for deferred deletion
-	DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.BeginFence();
-
-	// Remove instances from previous frame
-	DeferredDeletionQueueIndex = (DeferredDeletionQueueIndex + 1) % NumDeferredQueues;
+	// Enqueue fence for deferred deletion if we need to wait on anything
+	if ( DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Num() > 0 )
 	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitOnRender);
-		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.BeginFence();
 	}
-	DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
+
+	// Remove instances from oldest frame making sure they aren't in use on the RT
+	DeferredDeletionQueueIndex = (DeferredDeletionQueueIndex + 1) % NumDeferredQueues;
+	if ( DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Num() > 0 )
+	{
+		if ( !DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.IsFenceComplete() )
+		{
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitOnRender);
+			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		}
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
+	}
 }

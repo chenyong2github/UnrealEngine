@@ -58,9 +58,13 @@ FCurveHandle FCurveSequence::AddCurveRelative( const float InOffset, const float
 	return AddCurve(CurveStartTime, InDurationSecond, InEaseFunction);
 }
 
-void FCurveSequence::Play( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped, const float StartAtTime )
+void FCurveSequence::Play(const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped, const float StartAtTime, bool bRequiresActiveTimer)
 {
-	RegisterActiveTimerIfNeeded(InOwnerWidget);
+	if (bRequiresActiveTimer)
+	{
+		RegisterActiveTimerIfNeeded(InOwnerWidget);
+	}
+
 	bIsLooping = bPlayLooped;
 	bIsPaused = false;
 	
@@ -89,9 +93,12 @@ void FCurveSequence::Reverse( )
 	SetStartTime(NewStartTime);
 }
 
-void FCurveSequence::PlayReverse( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped, const float StartAtTime )
+void FCurveSequence::PlayReverse(const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped, const float StartAtTime, bool bRequiresActiveTimer)
 {
-	RegisterActiveTimerIfNeeded(InOwnerWidget);
+	if (bRequiresActiveTimer)
+	{
+		RegisterActiveTimerIfNeeded(InOwnerWidget);
+	}
 	bIsLooping = bPlayLooped;
 	bIsPaused = false;
 

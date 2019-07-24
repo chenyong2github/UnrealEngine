@@ -395,6 +395,7 @@ private:
 	void OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter);
 	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
 
+	void OnEnableAllLevelFilters(bool bEnableAll);
 	void OnTrackLevelFilterClicked(const FString LevelName);
 	bool IsTrackLevelFilterActive(const FString LevelName) const;
 
@@ -553,6 +554,9 @@ private:
 
 	/** The search box for filtering tracks. */
 	TSharedPtr<SSearchBox> SearchBox;
+
+	/** The search widget for filtering curves in the Curve Editor tree. */
+	TSharedPtr<SWidget> CurveEditorSearchBox;
 
 	/** The current playback time display.*/
 	TSharedPtr<STemporarilyFocusedSpinBox<double>> PlayTimeDisplay;

@@ -178,7 +178,7 @@ void TOctree<ElementType,OctreeSemantics>::AddElementToNode(
 			SetOctreeMemoryUsage(this, TotalSizeBytes + sizeof(ElementType));
 			
 			// Set the element's ID.
-			OctreeSemantics::SetElementId(Element,FOctreeElementId(&Node,Node.Elements.Num() - 1));
+			SetElementId(Element,FOctreeElementId(&Node,Node.Elements.Num() - 1));
 			return;
 		}
 	}
@@ -209,7 +209,7 @@ void TOctree<ElementType,OctreeSemantics>::RemoveElement(FOctreeElementId Elemen
 	if(ElementId.ElementIndex < ElementIdNode->Elements.Num())
 	{
 		// Update the external element id for the element that was swapped into the vacated element index.
-		OctreeSemantics::SetElementId(ElementIdNode->Elements[ElementId.ElementIndex],ElementId);
+		SetElementId(ElementIdNode->Elements[ElementId.ElementIndex],ElementId);
 	}
 
 	// Update the inclusive element counts for the nodes between the element and the root node,
@@ -244,7 +244,7 @@ void TOctree<ElementType,OctreeSemantics>::RemoveElement(FOctreeElementId Elemen
 						const int32 NewElementIndex = CollapseNode->Elements.Add(MoveTemp(Element));
 
 						// Update the external element id for the element that's being collapsed.
-						OctreeSemantics::SetElementId(CollapseNode->Elements[NewElementIndex], FOctreeElementId(CollapseNode, NewElementIndex));
+						SetElementId(CollapseNode->Elements[NewElementIndex], FOctreeElementId(CollapseNode, NewElementIndex));
 					}
 				}
 

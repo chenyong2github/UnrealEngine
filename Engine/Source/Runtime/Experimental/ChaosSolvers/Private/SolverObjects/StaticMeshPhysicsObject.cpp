@@ -331,9 +331,7 @@ void FStaticMeshPhysicsObject::OnRemoveFromScene()
 			return;
 		}
 
-		CurrSolver->GetRigidParticles().Disabled(RigidBodyId) = true;
-		CurrSolver->ActiveIndices().Remove(RigidBodyId);
-		CurrSolver->NonDisabledIndices().Remove(RigidBodyId);
+		CurrSolver->GetEvolution()->DisableParticle(RigidBodyId);
 		CurrSolver->GetRigidClustering().GetTopLevelClusterParents().Remove(RigidBodyId);
 	}
 }

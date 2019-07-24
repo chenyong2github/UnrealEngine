@@ -89,6 +89,7 @@ enum class ECrashContextType
 	Ensure,
 	GPUCrash,
 	Hang,
+	OutOfMemory,
 
 	Max
 };

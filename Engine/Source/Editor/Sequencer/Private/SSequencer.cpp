@@ -432,7 +432,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 				+ SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(SCurveEditorTreeTextFilter, InSequencer->GetCurveEditor())
+					SAssignNew(CurveEditorSearchBox, SCurveEditorTreeTextFilter, InSequencer->GetCurveEditor())
 				]
 
 				+ SVerticalBox::Slot()
@@ -912,6 +912,18 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 		FExecuteAction::CreateLambda([this] { TransformBox->ToggleVisibility(); })
 	);
 
+	// Allow jumping to the Sequencer tree search if you have Sequencer focused
+	SequencerCommandBindings->MapAction(
+		FSequencerCommands::Get().QuickTreeSearch,
+		FExecuteAction::CreateLambda([this] { FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::SetDirectly); })
+	);
+
+	// And jump to the Curve Editor tree search if you have the Curve Editor focused
+	SequencerPtr.Pin()->GetCurveEditor()->GetCommands()->MapAction(
+		FSequencerCommands::Get().QuickTreeSearch,
+		FExecuteAction::CreateLambda([this] { FSlateApplication::Get().SetKeyboardFocus(CurveEditorSearchBox, EFocusCause::SetDirectly); })
+	);
+	
 	SequencerCommandBindings->MapAction(
 		FSequencerCommands::Get().ToggleShowStretchBox,
 		FExecuteAction::CreateLambda([this] { StretchBox->ToggleVisibility(); })
@@ -1433,7 +1445,7 @@ TSharedRef<SWidget> SSequencer::MakeAddMenu()
 
 TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 {
-	FMenuBuilder MenuBuilder(true, nullptr, AddMenuExtender);
+	FMenuBuilder MenuBuilder(false, nullptr, AddMenuExtender);
 
 	// let track editors & object bindings populate the menu
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
@@ -1455,7 +1467,7 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 	if (World && World->GetLevels().Num() > 1)
 	{
 		MenuBuilder.BeginSection("TrackLevelFilters");
-		MenuBuilder.AddSubMenu(LOCTEXT("LevelFilters", "Level Filters"), LOCTEXT("LevelFiltersToolTip", "Filter object tracks by level"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillLevelFilterMenu));
+		MenuBuilder.AddSubMenu(LOCTEXT("LevelFilters", "Level Filters"), LOCTEXT("LevelFiltersToolTip", "Filter object tracks by level"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillLevelFilterMenu), false);
 		MenuBuilder.EndSection();
 	}
 
@@ -1493,6 +1505,28 @@ void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
 	if (World)
 	{
 		const TArray<ULevel*> Levels = World->GetLevels();
+
+		if (Levels.Num() > 0)
+		{
+			InMenuBarBuilder.BeginSection("SequencerTracksResetLevelFilters");
+
+			InMenuBarBuilder.AddMenuEntry(
+				LOCTEXT("EnableAllLevelFilters", "Enable All"),
+				LOCTEXT("EnableAllLevelFiltersToolTip", "Enables all level filters"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllLevelFilters, true)));
+
+			InMenuBarBuilder.AddMenuEntry(
+				LOCTEXT("DisableAllLevelFilters", "Disable All"),
+				LOCTEXT("DisableAllLevelFiltersToolTip", "Disable all level filters"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllLevelFilters, false)));
+
+			InMenuBarBuilder.EndSection();
+
+			InMenuBarBuilder.AddMenuSeparator();
+		}
+
 		for (ULevel* Level : Levels)
 		{
 			FString LevelName = FPackageName::GetShortName(Level->GetOutermost()->GetName());
@@ -1534,6 +1568,32 @@ bool SSequencer::IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilt
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	return Sequencer->GetNodeTree()->IsTrackFilterActive(TrackFilter);
+}
+
+void SSequencer::OnEnableAllLevelFilters(bool bEnableAll)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	UObject* PlaybackContext = Sequencer->GetPlaybackContext();
+	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+
+	if (World)
+	{
+		const TArray<ULevel*> Levels = World->GetLevels();
+
+		for (ULevel* Level : Levels)
+		{
+			FString LevelName = FPackageName::GetShortName(Level->GetOutermost()->GetName());
+
+			if (bEnableAll)
+			{
+				Sequencer->GetNodeTree()->AddLevelFilter(LevelName);
+			}
+			else
+			{
+				Sequencer->GetNodeTree()->RemoveLevelFilter(LevelName);
+			}
+		}
+	}
 }
 
 void SSequencer::OnTrackLevelFilterClicked(const FString LevelName)
@@ -1901,10 +1961,16 @@ TSharedRef<SWidget> SSequencer::MakeSnapMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection( "SectionSnapping", LOCTEXT( "SnappingMenuSectionHeader", "Section Snapping" ) );
+	MenuBuilder.BeginSection("SectionSnapping", LOCTEXT("SnappingMenuSectionHeader", "Section Snapping"));
 	{
-		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleSnapSectionTimesToInterval );
-		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleSnapSectionTimesToSections );
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleSnapSectionTimesToInterval);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleSnapSectionTimesToSections);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("KeyAndSectionSnapping", LOCTEXT("SnappingMenuKeysAndSectionHeader", "Keys and Sections Snapping"));
+	{
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleSnapKeysAndSectionsToPlayRange);
 	}
 	MenuBuilder.EndSection();
 

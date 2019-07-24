@@ -5,6 +5,7 @@
 
 void FRigUnit_DebugLineStrip::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		return;

@@ -749,12 +749,14 @@ void FConcertClientPresenceManager::GetPresenceClientActions(const FConcertSessi
 	JumpToPresenceDef.Text = FEditorFontGlyphs::Map_Marker;
 	JumpToPresenceDef.ToolTipText = LOCTEXT("JumpToPresenceToolTip", "Jump to the presence location of this client");
 	JumpToPresenceDef.OnExecute.BindSP(this, &FConcertClientPresenceManager::OnJumpToPresence, InClientInfo.ClientEndpointId, FTransform::Identity);
+	JumpToPresenceDef.IconStyle = TEXT("Concert.JumpToLocation");
 
 	FConcertActionDefinition& ShowHidePresenceDef = OutActionDefs.AddDefaulted_GetRef();
 	ShowHidePresenceDef.IsEnabled = MakeAttributeSP(this, &FConcertClientPresenceManager::IsShowHidePresenceEnabled, InClientInfo.ClientEndpointId);
 	ShowHidePresenceDef.Text = MakeAttributeSP(this, &FConcertClientPresenceManager::GetShowHidePresenceText, InClientInfo.ClientEndpointId);
 	ShowHidePresenceDef.ToolTipText = MakeAttributeSP(this, &FConcertClientPresenceManager::GetShowHidePresenceToolTip, InClientInfo.ClientEndpointId);
 	ShowHidePresenceDef.OnExecute.BindSP(this, &FConcertClientPresenceManager::OnShowHidePresence, InClientInfo.ClientEndpointId);
+	ShowHidePresenceDef.IconStyle = MakeAttributeSP(this, &FConcertClientPresenceManager::GetShowHidePresenceIconStyle, InClientInfo.ClientEndpointId);
 }
 
 bool FConcertClientPresenceManager::IsJumpToPresenceEnabled(FGuid InEndpointId) const
@@ -851,6 +853,13 @@ FText FConcertClientPresenceManager::GetShowHidePresenceText(FGuid InEndpointId)
 	return IsPresenceVisible(InEndpointId)
 		? FEditorFontGlyphs::Eye
 		: FEditorFontGlyphs::Eye_Slash;
+}
+
+FName FConcertClientPresenceManager::GetShowHidePresenceIconStyle(FGuid InEndpointId) const
+{
+	return IsPresenceVisible(InEndpointId)
+		? TEXT("Concert.ShowPresence")  // Eye open icon.
+		: TEXT("Concert.HidePresence"); // Eye closed icon.
 }
 
 FText FConcertClientPresenceManager::GetShowHidePresenceToolTip(FGuid InEndpointId) const

@@ -351,15 +351,15 @@ FLandscapeComponentSceneProxyMobile::FLandscapeComponentSceneProxyMobile(ULandsc
 #endif
 }
 
-bool FLandscapeComponentSceneProxyMobile::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+int32 FLandscapeComponentSceneProxyMobile::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	if (MobileRenderData->OccluderVerticesSP.IsValid() && SharedBuffers->OccluderIndicesSP.IsValid())
 	{
 		Collector.AddElements(MobileRenderData->OccluderVerticesSP, SharedBuffers->OccluderIndicesSP, GetLocalToWorld());
-		return true;
+		return 1;
 	}
 
-	return false;
+	return 0;
 }
 
 FLandscapeComponentSceneProxyMobile::~FLandscapeComponentSceneProxyMobile()

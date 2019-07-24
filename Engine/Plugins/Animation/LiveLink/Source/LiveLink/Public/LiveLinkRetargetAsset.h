@@ -11,6 +11,8 @@
 
 class USkeleton;
 struct FLiveLinkAnimationFrameData;
+struct FLiveLinkBaseFrameData;
+struct FLiveLinkBaseStaticData;
 struct FLiveLinkSkeletonStaticData;
 struct FCompactPose;
 struct FBlendedCurve;
@@ -34,5 +36,12 @@ class LIVELINK_API ULiveLinkRetargetAsset : public UObject
 	virtual void Initialize() {}
 
 	// Build OutPose and OutCurve from the supplied InFrame.
+	UE_DEPRECATED(4.23, "ULiveLinkRetargetAsset::BuildPoseForSubject is deprecated. Please use ULiveLinkRetargetAsset::BuildPoseFromAnimationData and ULiveLinkRetargetAsset::BuildPoseAndCurveFromBaseData instead.")
 	virtual void BuildPoseForSubject(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose, FBlendedCurve& OutCurve) PURE_VIRTUAL(ULiveLinkRetargetAsset::BuildPoseForSubject, );
+	
+	// Build OutPose from AnimationData if subject was from this type
+	virtual void BuildPoseFromAnimationData(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose) {}
+
+	// Build OutPose and OutCurve from the basic data. Called for every type of subjects
+	virtual void BuildPoseAndCurveFromBaseData(float DeltaTime, const FLiveLinkBaseStaticData* InBaseStaticData, const FLiveLinkBaseFrameData* InBaseFrameData, FCompactPose& OutPose, FBlendedCurve& OutCurve) {}
 };

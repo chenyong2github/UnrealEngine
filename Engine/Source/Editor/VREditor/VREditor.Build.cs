@@ -26,8 +26,7 @@ namespace UnrealBuildTool.Rules
 					"Analytics",
                     "LevelSequence",
                     "Sequencer",
-                    "Projects",
-					"Blutility"
+                    "Projects"
 				}
 			);
 

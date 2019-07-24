@@ -17,7 +17,11 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> CurveEditor);
-
+	
+	// SWidget Interface
+	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override;
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	// ~SWidget Interface
 private:
 
 	void CreateSearchBox();

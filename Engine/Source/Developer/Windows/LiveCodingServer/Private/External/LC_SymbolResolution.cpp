@@ -14,31 +14,38 @@
 
 namespace symbolResolution
 {
-	void Startup(void)
+	// loads symbol information for this process in the constructor,
+	// and unloads it in the destructor.
+	// makes it easier to only load information when it is needed.
+	struct SymbolHelper
 	{
-		::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_INCLUDE_32BIT_MODULES);
-		const BOOL success = ::SymInitialize(::GetCurrentProcess(), "", true);
-		if (success == Windows::FALSE)
+		SymbolHelper(void)
 		{
-			const DWORD error = ::GetLastError();
-			LC_ERROR_DEV("SymInitialize failed with error 0x%X", error);
+			::SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_INCLUDE_32BIT_MODULES);
+			const BOOL success = ::SymInitialize(::GetCurrentProcess(), "", true);
+			if (success == Windows::FALSE)
+			{
+				const DWORD error = ::GetLastError();
+				LC_ERROR_DEV("SymInitialize failed with error 0x%X", error);
+			}
 		}
-	}
 
-
-	void Shutdown(void)
-	{
-		const BOOL success = ::SymCleanup(::GetCurrentProcess());
-		if (success == Windows::FALSE)
+		~SymbolHelper(void)
 		{
-			const DWORD error = ::GetLastError();
-			LC_ERROR_DEV("SymCleanup failed with error 0x%X", error);
+			const BOOL success = ::SymCleanup(::GetCurrentProcess());
+			if (success == Windows::FALSE)
+			{
+				const DWORD error = ::GetLastError();
+				LC_ERROR_DEV("SymCleanup failed with error 0x%X", error);
+			}
 		}
-	}
-
+	};
 
 	SymbolInfo ResolveSymbolsForAddress(const void* const address)
 	{
+		// prepare symbol information
+		static SymbolHelper s_symbolHelper;
+
 		// retrieve function
 		DWORD64 displacement64 = 0;
 		ULONG64 buffer[(sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR) + sizeof(ULONG64) - 1) / sizeof(ULONG64)] = {};

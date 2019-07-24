@@ -11,19 +11,29 @@
 
 #include "ShaderParameterUtils.h"
 
+#include "HAL/IConsoleManager.h"
+
+
 // Select mpcdi stereo mode
- enum class EVarMPCDIShaderType : uint8
+enum class EVarMPCDIShaderType : uint8
 {
 	Default,
-	Passthrought,
+	DisableBlend,
+	Passthrough,
 	ShowWarpTexture,
 	Disable,
 };
-static int CVarMPCDIShaderType_Value = (int)EVarMPCDIShaderType::Default;
-static FAutoConsoleVariableRef CVarMPCDIShaderType(
+
+static TAutoConsoleVariable<int32> CVarMPCDIShaderType(
 	TEXT("nDisplay.render.mpcdi.shader"),
-	CVarMPCDIShaderType_Value,
-	TEXT("Select shader for mpcdi:\n (0 = default warp shader)\n(1 = PassThrought shader)\n(2 = ShowWarpTexture shader)\n(3 = disable warp shader)\n")
+	(int)EVarMPCDIShaderType::Default,
+	TEXT("Select shader for mpcdi:\n")
+	TEXT("0 : default warp shader\n")
+	TEXT("1 : Default, disabled blend\n")
+	TEXT("2 : Passthrough shader\n")
+	TEXT("3 : ShowWarpTexture shader\n")
+	TEXT("4 : disable warp shader"),
+	ECVF_RenderThreadSafe
 );
 
 
@@ -32,10 +42,13 @@ static FAutoConsoleVariableRef CVarMPCDIShaderType(
 
 // Implement shaders inside UE4
 IMPLEMENT_SHADER_TYPE(, FMpcdiWarpVS, MPCDIShaderFileName, TEXT("MainVS"), SF_Vertex);
+IMPLEMENT_SHADER_TYPE(, FMPCDIDirectProjectionVS, MPCDIShaderFileName, TEXT("DirectProjectionVS"), SF_Vertex);
 
-IMPLEMENT_SHADER_TYPE(template<>, FMPCDIPassThroughtPS, MPCDIShaderFileName, TEXT("PassThrought_PS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FMPCDIPassthroughPS,   MPCDIShaderFileName, TEXT("Passthrough_PS"), SF_Pixel);
 IMPLEMENT_SHADER_TYPE(template<>, FMPCDIShowWarpTexture, MPCDIShaderFileName, TEXT("ShowWarpTexture_PS"), SF_Pixel);
+
 IMPLEMENT_SHADER_TYPE(template<>, FMPCDIWarpAndBlendPS, MPCDIShaderFileName, TEXT("WarpAndBlend_PS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FMPCDIWarpPS,         MPCDIShaderFileName, TEXT("WarpAndBlend_PS"), SF_Pixel);
 
 #if 0
 //Cubemap support
@@ -96,25 +109,29 @@ static EMPCDIShader GetPixelShaderType(FMPCDIData *MPCDIData)
 	{
 		switch (MPCDIData->GetProfileType())
 		{
-		case EMPCDIProfileType::mpcdi_A3D:
-		case EMPCDIProfileType::mpcdi_SL:
+		case IMPCDI::EMPCDIProfileType::mpcdi_SL:
+			return EMPCDIShader::Invalid;
+
+		case IMPCDI::EMPCDIProfileType::mpcdi_A3D:
+#if 0
+			//@todo Unsupported now
 			if (MPCDIData->IsCubeMapEnabled())
 			{
-#if 0
 				// Cubemap support
 				return EMPCDIShader::WarpAndBlendCubeMap;
+		}
 #endif
-				return EMPCDIShader::Invalid;
-			}
 
-		case EMPCDIProfileType::mpcdi_2D:
-		case EMPCDIProfileType::mpcdi_3D:
+		case IMPCDI::EMPCDIProfileType::mpcdi_2D:
+		case IMPCDI::EMPCDIProfileType::mpcdi_3D:
 			return EMPCDIShader::WarpAndBlend;
 
-		case EMPCDIProfileType::Invalid:
-			return EMPCDIShader::PassThrought;
-		};
-	}
+		case IMPCDI::EMPCDIProfileType::Invalid:
+			return EMPCDIShader::Passthrough;
+
+		default: EMPCDIShader::Invalid;
+	};
+}
 
 	return EMPCDIShader::Invalid;
 }
@@ -128,7 +145,7 @@ enum class EColorOPMode :uint8
 	AddInvAlpha,
 };
 
-template<uint32 PixelShaderType>
+template<EMPCDIShader PixelShaderType>
 static bool CompleteWarpTempl(FRHICommandListImmediate& RHICmdList, IMPCDI::FTextureWarpData& TextureWarpData, const IMPCDI::FShaderInputData &ShaderInputData, MPCDI::FMPCDIRegion& MPCDIRegion, EColorOPMode ColorOp)
 {
 	FMpcdiWarpDrawRectangleParameters VSData;
@@ -174,10 +191,7 @@ static bool CompleteWarpTempl(FRHICommandListImmediate& RHICmdList, IMPCDI::FTex
 	VertexShader->SetParameters(RHICmdList, VertexShader->GetVertexShader(), VSData);
 	PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), TextureWarpData.SrcTexture, ShaderInputData, MPCDIRegion);
 
-	{
-		// Render quad
-		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
-	}
+	FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1); // Render quad
 
 	return true;
 }
@@ -185,6 +199,18 @@ static bool CompleteWarpTempl(FRHICommandListImmediate& RHICmdList, IMPCDI::FTex
 bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::FTextureWarpData& TextureWarpData, IMPCDI::FShaderInputData& ShaderInputData, FMPCDIData* MPCDIData)
 {
 	check(IsInRenderingThread());
+
+	MPCDI::FMPCDIRegion* MPCDIRegion = nullptr;
+	if (MPCDIData && MPCDIData->IsValid())
+	{
+		MPCDIRegion = MPCDIData->GetRegion(ShaderInputData.RegionLocator);
+	}
+	if (MPCDIRegion == nullptr)
+	{
+		//Handle error
+		return false;
+	}
+
 
 	// Map ProfileType to shader type to use
 	EMPCDIShader PixelShaderType = GetPixelShaderType(MPCDIData);
@@ -194,30 +220,30 @@ bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::
 		return false;
 	}
 
+	bool bIsBlendDisabled = !MPCDIRegion->AlphaMap.IsInitialized();
+
 	FMatrix StereoMatrix;
 	GetStereoMatrix(TextureWarpData, StereoMatrix);
 
-	MPCDI::FMPCDIRegion* MPCDIRegion = nullptr;
-	if (MPCDIData && MPCDIData->IsValid())
-	{
-		MPCDIRegion = MPCDIData->GetRegion(ShaderInputData.RegionLocator);
-	}
 
-	if (MPCDIRegion == nullptr)
+
+	const EVarMPCDIShaderType ShaderType = (EVarMPCDIShaderType)CVarMPCDIShaderType.GetValueOnAnyThread();
+	switch (ShaderType)
 	{
-		//Handle error
-		return false;
-	}
-		
-	switch (CVarMPCDIShaderType_Value) {
-	case (int)EVarMPCDIShaderType::Passthrought:
-		PixelShaderType = EMPCDIShader::PassThrought;
+	case EVarMPCDIShaderType::DisableBlend:
+		bIsBlendDisabled = true; // Disable blend color ops
 		break;
-	case (int)EVarMPCDIShaderType::ShowWarpTexture:
+	case EVarMPCDIShaderType::Passthrough:
+		PixelShaderType = EMPCDIShader::Passthrough;
+		break;
+
+	case EVarMPCDIShaderType::ShowWarpTexture:
 		PixelShaderType = EMPCDIShader::ShowWarpTexture;
 		break;
-	case (int)EVarMPCDIShaderType::Disable:
+
+	case EVarMPCDIShaderType::Disable:
 		return false;
+	default:
 		break;
 	};
 	
@@ -229,21 +255,38 @@ bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::
 		{
 			switch (PixelShaderType)
 			{
-			case EMPCDIShader::PassThrought:
+			case EMPCDIShader::Passthrough:
 				ShaderInputData.UVMatrix = StereoMatrix;
-				bIsRenderSuccess = CompleteWarpTempl<(int)EMPCDIShader::PassThrought>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
+				bIsRenderSuccess = CompleteWarpTempl<EMPCDIShader::Passthrough>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
 				break;
 			case EMPCDIShader::ShowWarpTexture:
 				ShaderInputData.UVMatrix = ShaderInputData.Frustum.UVMatrix*MPCDIData->GetTextureMatrix()*MPCDIRegion->GetRegionMatrix()*StereoMatrix;
-				bIsRenderSuccess = CompleteWarpTempl<(int)EMPCDIShader::WarpAndBlend>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
-				bIsRenderSuccess = CompleteWarpTempl<(int)EMPCDIShader::ShowWarpTexture>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::AddAlpha);
+				{// WarpAndBlend
+					if (bIsBlendDisabled)
+					{
+						bIsRenderSuccess = CompleteWarpTempl<EMPCDIShader::Warp>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
+					}
+					else
+					{
+						bIsRenderSuccess = CompleteWarpTempl<EMPCDIShader::WarpAndBlend>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
+					}
+				}
+				// Overlay
+				bIsRenderSuccess &= CompleteWarpTempl<EMPCDIShader::ShowWarpTexture>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::AddAlpha);
 				break;
 
 			case EMPCDIShader::WarpAndBlend:
 				ShaderInputData.UVMatrix = ShaderInputData.Frustum.UVMatrix*MPCDIData->GetTextureMatrix()*MPCDIRegion->GetRegionMatrix()*StereoMatrix;
-				bIsRenderSuccess = CompleteWarpTempl<(int)EMPCDIShader::WarpAndBlend>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
+				if (bIsBlendDisabled)
+				{
+					bIsRenderSuccess = CompleteWarpTempl<EMPCDIShader::Warp>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
+				}
+				else
+				{
+					bIsRenderSuccess = CompleteWarpTempl<EMPCDIShader::WarpAndBlend>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, EColorOPMode::Default);
+				}
+				
 				break;
-
 #if 0
 				//Cubemap support
 			case EMPCDIShader::WarpAndBlendCubeMap:

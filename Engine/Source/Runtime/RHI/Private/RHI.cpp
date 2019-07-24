@@ -684,34 +684,61 @@ static FName NAME_PLATFORM_IOS(TEXT("IOS"));
 static FName NAME_PLATFORM_MAC(TEXT("Mac"));
 static FName NAME_PLATFORM_SWITCH(TEXT("Switch"));
 static FName NAME_PLATFORM_TVOS(TEXT("TVOS"));
+static FName NAME_PLATFORM_HTML5(TEXT("HTML5"));
+static FName NAME_PLATFORM_LUMIN(TEXT("Lumin"));
+
 
 // @todo platplug: This is still here, only being used now by UMaterialShaderQualitySettings::GetOrCreatePlatformSettings
 // since I have moved the other uses to FindTargetPlatformWithSupport
 // But I'd like to delete it anyway!
 FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 {
-	switch(Platform)
+	switch (Platform)
 	{
+	case SP_PCD3D_SM5:
+	case SP_OPENGL_SM4:
+	case SP_OPENGL_PCES2:
 	case SP_PCD3D_SM4:
-	case SP_PCD3D_SM5: return NAME_PLATFORM_WINDOWS;
-	case SP_PS4: return NAME_PLATFORM_PS4;
-	case SP_XBOXONE_D3D12: return NAME_PLATFORM_XBOXONE;
+	case SP_OPENGL_SM5:
+	case SP_PCD3D_ES2:
+	case SP_PCD3D_ES3_1:
+	case SP_OPENGL_PCES3_1:
+	case SP_VULKAN_PCES3_1:
+	case SP_VULKAN_SM4:
+	case SP_VULKAN_SM5:
+		return NAME_PLATFORM_WINDOWS;
+	case SP_PS4:
+		return NAME_PLATFORM_PS4;
+	case SP_XBOXONE_D3D12:
+		return NAME_PLATFORM_XBOXONE;
+	case SP_OPENGL_ES2_ANDROID:
+	case SP_OPENGL_ES31_EXT:
+	case SP_VULKAN_ES3_1_ANDROID:
 	case SP_OPENGL_ES3_1_ANDROID:
-	case SP_VULKAN_ES3_1_ANDROID: return NAME_PLATFORM_ANDROID;
+		return NAME_PLATFORM_ANDROID;
+	case SP_OPENGL_ES2_WEBGL:
+		return NAME_PLATFORM_HTML5;
+	case SP_OPENGL_ES2_IOS:
 	case SP_METAL:
 	case SP_METAL_MRT:
-        return NAME_PLATFORM_IOS;
-	case SP_METAL_TVOS:
-	case SP_METAL_MRT_TVOS: return NAME_PLATFORM_TVOS;
+		return NAME_PLATFORM_IOS;
 	case SP_METAL_SM5:
 	case SP_METAL_SM5_NOTESS:
 	case SP_METAL_MACES3_1:
 	case SP_METAL_MACES2:
-	case SP_METAL_MRT_MAC: return NAME_PLATFORM_MAC;
+	case SP_METAL_MRT_MAC:
+		return NAME_PLATFORM_MAC;
 	case SP_SWITCH:
-	case SP_SWITCH_FORWARD: return NAME_PLATFORM_SWITCH;
-
-	default: return FName();
+	case SP_SWITCH_FORWARD:
+		return NAME_PLATFORM_SWITCH;
+	case SP_VULKAN_SM5_LUMIN:
+	case SP_VULKAN_ES3_1_LUMIN:
+		return NAME_PLATFORM_LUMIN;
+	case SP_METAL_TVOS:
+	case SP_METAL_MRT_TVOS:
+		return NAME_PLATFORM_TVOS;
+	default:
+		return NAME_None;
 	}
 }
 

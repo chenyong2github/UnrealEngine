@@ -129,6 +129,14 @@ bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
 
 void FDisplayClusterRenderManager::EndScene()
 {
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		// Since we can run multiple PIE sessions we have to clean device before the next one.
+		GEngine->StereoRenderingDevice.Reset();
+		RenderDevice.Reset();
+	}
+#endif
 }
 
 void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
@@ -446,6 +454,26 @@ void FDisplayClusterRenderManager::SetViewportCamera(const FString& InCameraId /
 			RenderDevice->SetViewportCamera(InCameraId, InViewportId);
 		}
 	}
+}
+
+bool FDisplayClusterRenderManager::GetViewportRect(const FString& InViewportID, FIntRect& Rect)
+{
+	if (!RenderDevice.IsValid())
+	{
+		return false;
+	}
+
+	return RenderDevice->GetViewportRect(InViewportID, Rect);
+}
+
+void FDisplayClusterRenderManager::SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings)
+{
+	if (!RenderDevice.IsValid())
+	{
+		return;
+	}
+
+	RenderDevice->SetCustomPostProcessing(ViewportID, PostProcessingSettings);
 }
 
 void FDisplayClusterRenderManager::SetInterpupillaryDistance(const FString& CameraId, float EyeDistance)

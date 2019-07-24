@@ -190,10 +190,15 @@ APPLICATIONCORE_API
 -(float)GetBackgroundingMainThreadBlockTime;
 -(void)OverrideBackgroundingMainThreadBlockTime:(float)BlockTime;
 
+@property (assign) bool bAudioSessionInitialized;
+
 /** TRUE if the device is playing background music and we want to allow that */
 @property (assign) bool bUsingBackgroundMusic;
 @property (assign) bool bLastOtherAudioPlaying;
 @property (assign) bool bForceEmitOtherAudioPlaying;
+
+/** TRUE if audio from other apps will be allowed to play while this app is active */
+@property (assign) bool bAllowExternalAudio;
 
 #if USE_MUTE_SWITCH_DETECTION
 @property (assign) bool bLastMutedState;

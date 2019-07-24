@@ -4078,6 +4078,25 @@ void ApplyCVarSettingsFromIni(const TCHAR* InSectionName, const TCHAR* InIniFile
 	}
 }
 
+void ForEachCVarInSectionFromIni(const TCHAR* InSectionName, const TCHAR* InIniFilename, TFunction<void(IConsoleVariable* CVar, const FString& KeyString, const FString& ValueString)> InEvaluationFunction)
+{
+	if (FConfigSection* Section = GConfig->GetSectionPrivate(InSectionName, false, true, InIniFilename))
+	{
+		for (FConfigSectionMap::TConstIterator It(*Section); It; ++It)
+		{
+			const FString& KeyString = It.Key().GetPlainNameString();
+			const FString& ValueString = ConvertValueFromHumanFriendlyValue(*It.Value().GetValue());
+
+			IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*KeyString);
+			if (CVar)
+			{
+				InEvaluationFunction(CVar, KeyString, ValueString);
+			}
+		}
+	}
+}
+
+
 void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, int32 InGroupNumber, const TCHAR* InIniFilename, uint32 SetBy)
 {
 	// Lookup the config section for this section and group number

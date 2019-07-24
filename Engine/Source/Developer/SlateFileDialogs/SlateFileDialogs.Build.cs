@@ -9,6 +9,7 @@ public class SlateFileDialogs : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
+                "CoreUObject",
                 "InputCore",
                 "Slate",
                 "SlateCore",

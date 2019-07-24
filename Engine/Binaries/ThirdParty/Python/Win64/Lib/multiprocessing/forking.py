@@ -39,6 +39,8 @@ import errno
 
 from multiprocessing import util, process
 
+from pprint import pprint # TEMP: CIS BUGHUNT
+
 __all__ = ['Popen', 'assert_spawning', 'exit', 'duplicate', 'close', 'ForkingPickler']
 
 #
@@ -316,6 +318,7 @@ else:
                         # ERROR_ACCESS_DENIED (winerror 5) is received when the
                         # process already died.
                         if e.winerror != 5:
+                            print('NICKNICK: forking.py e.winerror:', e.winerror)
                             raise
 # EPIC EDIT end -- nick.shin 2019-06-13 -- UE-76260
 

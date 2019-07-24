@@ -28,6 +28,8 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Architecture of Target.
 		/// </summary>
+		[CommandLine("x64", Value = "x64")]
+		[CommandLine("arm64", Value = "ARM64")]
 		public WindowsArchitecture Architecture = WindowsArchitecture.x64;
 
 		/// <summary>

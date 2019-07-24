@@ -9,6 +9,7 @@
 #include "Misc/Crc.h"
 #include "ControlRigDefines.h"
 #include "Hierarchy.h"
+#include "CurveContainer.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "ControlRigController.h"
 #include "ControlRigBlueprint.generated.h"
@@ -122,6 +123,7 @@ public:
 	virtual void LoadModulesRequiredForCompilation() override;
 	virtual void GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
 	virtual void GetInstanceActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;	
+	virtual void SetObjectBeingDebugged(UObject* NewObject) override;
 #endif	// #if WITH_EDITOR
 
 	/** Make a property link between the specified properties - used by the compiler */
@@ -163,9 +165,19 @@ private:
 	UPROPERTY()
 	FRigHierarchy Hierarchy;
 
+	UPROPERTY()
+	FRigCurveContainer CurveContainer;
+
 	/** The default skeletal mesh to use when previewing this asset */
 	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)
 	TSoftObjectPtr<USkeletalMesh> PreviewSkeletalMesh;
+
+	/** The default skeletal mesh to use when previewing this asset */
+	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)
+	TSoftObjectPtr<UObject> SourceHierarchyImport;
+
+	UPROPERTY(DuplicateTransient, AssetRegistrySearchable)
+	TSoftObjectPtr<UObject> SourceCurveImport;
 
 	UControlRigModel::FModifiedEvent _ModifiedEvent;
 	void HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload);
@@ -174,6 +186,7 @@ private:
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;
+	friend class SRigCurveContainer;
 	friend class FControlRigEditor;
 	friend class UEngineTestControlRig;
 };

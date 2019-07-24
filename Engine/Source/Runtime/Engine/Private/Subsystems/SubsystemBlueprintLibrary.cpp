@@ -16,7 +16,7 @@
 {
 	if (const UWorld* World = ThisClass::GetWorldFrom(ContextObject))
 	{
-		if (const UGameInstance* GameInstance = GameInstance = World->GetGameInstance())
+		if (const UGameInstance* GameInstance = World->GetGameInstance())
 		{
 			return GameInstance->GetSubsystemBase(Class);
 		}

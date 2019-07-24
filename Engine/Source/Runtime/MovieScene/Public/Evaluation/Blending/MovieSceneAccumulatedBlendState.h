@@ -15,6 +15,25 @@
  */
 typedef TInlineValue<IBlendableTokenStack, 32> FActuatorTokenStackPtr;
 
+struct FMovieSceneBlendingKey
+{
+	/** The object that the animation applies to */
+	UObject* ObjectPtr;
+
+	/** The type of the animation being applied to the object above */
+	FMovieSceneBlendingActuatorID ActuatorType;
+
+	friend uint32 GetTypeHash(const FMovieSceneBlendingKey& InKey)
+	{
+		return GetTypeHash(InKey.ObjectPtr) ^ GetTypeHash(InKey.ActuatorType);
+	}
+
+	friend bool operator==(const FMovieSceneBlendingKey& A, const FMovieSceneBlendingKey& B)
+	{
+		return A.ObjectPtr == B.ObjectPtr && A.ActuatorType == B.ActuatorType;
+	}
+};
+
 /**
  * Blendable token state that's accumulated per-operand
  */
@@ -49,14 +68,14 @@ public:
 	 * @param InOperand			The operand that is being animated
 	 * @param Player			The movie scene player that is currently being animated
 	 */
-	MOVIESCENE_API void Consolidate(TMap<UObject*, TMap<FMovieSceneBlendingActuatorID, FActuatorTokenStackPtr>>& InOutBlendState, FMovieSceneEvaluationOperand InOperand, IMovieScenePlayer& Player);
+	MOVIESCENE_API void Consolidate(TMap<FMovieSceneBlendingKey, FActuatorTokenStackPtr>& InOutBlendState, FMovieSceneEvaluationOperand InOperand, IMovieScenePlayer& Player);
 
 	/**
 	 * Consolidate all tokens currently accumulated into the specified container. Used for offline interrogation.
 	 * 
 	 * @param InOutBlendState 	Map of token stacks to populate. One FActuatorTokenStackPtr per actuator type ID.
 	 */
-	MOVIESCENE_API void Consolidate(TMap<FMovieSceneBlendingActuatorID, FActuatorTokenStackPtr>& InOutBlendState);
+	MOVIESCENE_API void Consolidate(TMap<FMovieSceneBlendingKey, FActuatorTokenStackPtr>& InOutBlendState);
 
 	/**
 	 * Reset this container
@@ -77,7 +96,12 @@ private:
 		 * Consolidate this token into the specified array of stacks, one per actuator type
 		 * @param Stacks 		Array of token stacks to populate, one per actuator type
 		 */
-		virtual void Consolidate(TMap<FMovieSceneBlendingActuatorID, FActuatorTokenStackPtr>& Stacks) = 0;
+		virtual void Consolidate(FActuatorTokenStackPtr& OutStack) = 0;
+
+		FMovieSceneBlendingActuatorID GetActuatorID() const
+		{
+			return ActuatorTypeID;
+		}
 
 		/**
 		 * Access the result of GetBlendingDataType<DataType>() for the data that this token contains
@@ -115,15 +139,12 @@ private:
 		 * Consolidate this token into the specified array of stacks, one per actuator type
 		 * @param Stacks 		Array of token stacks to populate, one per actuator type
 		 */
-		virtual void Consolidate(TMap<FMovieSceneBlendingActuatorID, FActuatorTokenStackPtr>& Stacks) override final
+		virtual void Consolidate(FActuatorTokenStackPtr& OutStack) override final
 		{
 			// Attempt to find an existing stack for this actuator
-			FActuatorTokenStackPtr* ExistingStack = Stacks.Find(ActuatorTypeID);
-			if (!ExistingStack)
+			if (!OutStack.IsValid())
 			{
-				// Add a new one if there is not one already
-				Stacks.Add(ActuatorTypeID, TBlendableTokenStack<DataType>());
-				ExistingStack = &Stacks.FindChecked(ActuatorTypeID);
+				OutStack = TBlendableTokenStack<DataType>();
 			}
 
 			// Ensure that the stack is operating on the same data type.
@@ -141,10 +162,10 @@ private:
 			//		// Assert - data type mismatch - cannot associate a TBlendableToken<int32> with an actuator ID that operates on a float
 			//		ExecutionTokens.BlendToken(FMyActuator::GetActuatorTypeID(), TBlendableToken<int32>(1.f, ...));
 
-			if (ensureMsgf((*ExistingStack)->DataTypeID == DataTypeID, TEXT("Data type mismatch between actuators of the same ID")))
+			if (ensureMsgf(OutStack->DataTypeID == DataTypeID, TEXT("Data type mismatch between actuators of the same ID")))
 			{
 				// static_cast should be safe now that we've verified the data type matches
-				TBlendableTokenStack<DataType>& TypedStack = static_cast<TBlendableTokenStack<DataType>&>(**ExistingStack);
+				TBlendableTokenStack<DataType>& TypedStack = static_cast<TBlendableTokenStack<DataType>&>(OutStack.GetValue());
 
 				// Add a pointer to this token to the stack to blend
 				TypedStack.AddToken(&Token);

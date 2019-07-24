@@ -41,6 +41,7 @@ extern FString GInternalFilePath;
 extern FString GExternalFilePath;
 extern FString GFontPathBase;
 extern bool GOBBinAPK;
+extern bool GOverrideAndroidLogDir;
 extern FString GOBBFilePathBase;
 extern FString GAPKFilename;
 
@@ -1575,7 +1576,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* InJavaVM, void* InReserved)
 //Native-defined functions
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeSetGlobalActivity();"
-JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetGlobalActivity(JNIEnv* jenv, jobject thiz, jboolean bUseExternalFilesDir, jstring internalFilePath, jstring externalFilePath, jboolean bOBBinAPK, jstring APKFilename /*, jobject googleServices*/)
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetGlobalActivity(JNIEnv* jenv, jobject thiz, jboolean bUseExternalFilesDir, jboolean bPublicLogFiles, jstring internalFilePath, jstring externalFilePath, jboolean bOBBinAPK, jstring APKFilename /*, jobject googleServices*/)
 {
 	if (!FJavaWrapper::GameActivityThis)
 	{
@@ -1601,11 +1602,12 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeSetGlobalActivity(JNIE
 		GAPKFilename = FJavaHelper::FStringFromParam(jenv, APKFilename);
 		GInternalFilePath = FJavaHelper::FStringFromParam(jenv, internalFilePath);
 		GExternalFilePath = FJavaHelper::FStringFromParam(jenv, externalFilePath);
-		
+
 		if (bUseExternalFilesDir)
 		{
 #if UE_BUILD_SHIPPING
 			GFilePathBase = GInternalFilePath;
+			GOverrideAndroidLogDir = bPublicLogFiles;
 #else
 			GFilePathBase = GExternalFilePath;
 #endif

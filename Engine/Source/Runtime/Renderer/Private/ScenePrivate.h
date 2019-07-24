@@ -2445,6 +2445,8 @@ public:
 	TArray<FPrimitiveComponentId> PrimitiveComponentIds;
 	/** Packed array of runtime virtual texture flags. */
 	TArray<FPrimitiveVirtualTextureFlags> PrimitiveVirtualTextureFlags;
+	/** Packed array of runtime virtual texture lod info. */
+	TArray<FPrimitiveVirtualTextureLodInfo> PrimitiveVirtualTextureLod;
 
 	TBitArray<> PrimitivesNeedingStaticMeshUpdate;
 	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;

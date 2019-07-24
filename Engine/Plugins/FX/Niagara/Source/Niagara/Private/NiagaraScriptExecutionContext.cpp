@@ -156,6 +156,7 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 {
 	if (NumInstances == 0)
 	{
+		DataSetInfo.Reset();
 		return true;
 	}
 
@@ -344,8 +345,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 			InstanceData->Context = Emitter->GetGPUContext();
 			check(InstanceData->Context->MainDataSet);
-			InstanceData->SpawnRateInstances = Emitter->GetGPUContext()->SpawnRateInstances_GT;
-			InstanceData->EventSpawnTotal = Emitter->GetGPUContext()->EventSpawnTotal_GT;
+
+			InstanceData->SpawnInfo = Emitter->GetGPUContext()->GpuSpawnInfo_GT;
 
 			int32 ParmSize = Emitter->GetGPUContext()->CombinedParamStore.GetPaddedParameterSizeInBytes();
 

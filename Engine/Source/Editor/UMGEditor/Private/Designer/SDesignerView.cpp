@@ -1141,8 +1141,8 @@ void SDesignerView::SetPreviewAreaSize(int32 Width, int32 Height)
 
 FVector2D SDesignerView::GetAreaResizeHandlePosition() const
 {
-	FGeometry PreviewAreaGeometry = PreviewAreaConstraint->GetCachedGeometry();
-	FGeometry DesignerOverlayGeometry = DesignerWidgetCanvas->GetCachedGeometry();
+	FGeometry PreviewAreaGeometry = PreviewAreaConstraint->GetTickSpaceGeometry();
+	FGeometry DesignerOverlayGeometry = DesignerWidgetCanvas->GetTickSpaceGeometry();
 
 	FVector2D AbsoluteResizeHandlePosition = PreviewAreaGeometry.LocalToAbsolute(PreviewAreaGeometry.GetLocalSize() + FVector2D(2, 2));
 
@@ -1359,7 +1359,7 @@ void SDesignerView::OnHoveredWidgetCleared()
 
 FGeometry SDesignerView::GetDesignerGeometry() const
 {
-	return PreviewHitTestRoot->GetCachedGeometry();
+	return PreviewHitTestRoot->GetTickSpaceGeometry();
 }
 
 FVector2D SDesignerView::GetWidgetOriginAbsolute() const
@@ -1926,7 +1926,7 @@ FReply SDesignerView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& In
 	{
 		if (SelectedWidget->IsA(UPanelWidget::StaticClass()))
 		{
-			BlueprintEditor.Pin()->PasteDropLocation = SelectedWidget->GetCachedGeometry().AbsoluteToLocal(CachedMousePosition);
+			BlueprintEditor.Pin()->PasteDropLocation = SelectedWidget->GetTickSpaceGeometry().AbsoluteToLocal(CachedMousePosition);
 		}
 		else
 		{
@@ -2030,12 +2030,15 @@ void SDesignerView::ShowContextMenu(const FGeometry& MyGeometry, const FPointerE
 
 void SDesignerView::PopulateWidgetGeometryCache(FArrangedWidget& Root)
 {
-	DesignerHittestGrid->ClearGridForNewFrame(GetDesignerGeometry().GetLayoutBoundingRect());
+	const FSlateRect Rect = PreviewHitTestRoot->GetTickSpaceGeometry().GetLayoutBoundingRect();
+	const FSlateRect PaintRect = PreviewHitTestRoot->GetPaintSpaceGeometry().GetLayoutBoundingRect();
+	DesignerHittestGrid->SetHittestArea(Rect.GetTopLeft(), Rect.GetSize(),  PaintRect.GetTopLeft());
+	DesignerHittestGrid->Clear();
 
-	PopulateWidgetGeometryCache_Loop(Root, INDEX_NONE);
+	PopulateWidgetGeometryCache_Loop(Root);
 }
 
-void SDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWidget& CurrentWidget, int32 ParentHitTestIndex)
+void SDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWidget& CurrentWidget)
 {
 	// If this widget clips to its bounds, then generate a new clipping rect representing the intersection of the bounding
 	// rectangle of the widget's geometry, and the current clipping rectangle.
@@ -2051,7 +2054,6 @@ void SDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWidget& CurrentWid
 		FSlateClippingZone DesktopClippingZone(CurrentWidget.Geometry);
 		DesktopClippingZone.SetShouldIntersectParent(bIntersectClipBounds);
 		DesktopClippingZone.SetAlwaysClip(bAlwaysClip);
-		DesignerHittestGrid->PushClip(DesktopClippingZone);
 	}
 
 	bool bIncludeInHitTestGrid = false;
@@ -2076,11 +2078,9 @@ void SDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWidget& CurrentWid
 		}
 	}
 
-	int32 NewParentHitTestIndex = ParentHitTestIndex;
-
 	if (bIncludeInHitTestGrid)
 	{
-		NewParentHitTestIndex = DesignerHittestGrid->InsertWidget(ParentHitTestIndex, EVisibility::Visible, CurrentWidget, FVector2D(0, 0), 0);
+		DesignerHittestGrid->AddWidget(CurrentWidget.Widget, 0, 0, 0);
 	}
 
 	FArrangedChildren ArrangedChildren(EVisibility::All);
@@ -2091,12 +2091,7 @@ void SDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWidget& CurrentWid
 	for (int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num(); ++ChildIndex)
 	{
 		FArrangedWidget& SomeChild = ArrangedChildren[ChildIndex];
-		PopulateWidgetGeometryCache_Loop(SomeChild, NewParentHitTestIndex);
-	}
-
-	if (bClipToBounds)
-	{
-		DesignerHittestGrid->PopClip();
+		PopulateWidgetGeometryCache_Loop(SomeChild);
 	}
 }
 
@@ -2217,7 +2212,7 @@ void SDesignerView::DrawSafeZone(const FOnPaintHandlerParams& PaintArgs)
 		const FLinearColor UnsafeZoneColor(1.0f, 0.5f, 0.5f, UnsafeZoneAlpha);
 		const FSlateBrush* WhiteBrush = FEditorStyle::GetBrush("WhiteBrush");
 			
-		FGeometry PreviewGeometry = PreviewAreaConstraint->GetCachedGeometry();
+		FGeometry PreviewGeometry = PreviewAreaConstraint->GetTickSpaceGeometry();
 		PreviewGeometry.AppendTransform(FSlateLayoutTransform(Inverse(PaintArgs.Args.GetWindowToDesktopTransform())));
 		
 		const float Width = PreviewWidth;

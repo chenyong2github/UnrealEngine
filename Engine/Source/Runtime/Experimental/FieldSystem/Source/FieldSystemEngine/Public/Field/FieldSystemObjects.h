@@ -291,6 +291,7 @@ public:
 		, MinRange(0.f)
 		, MaxRange(1.f)
 		, Default(0.f)
+		, Distance(0.f)
 		, Position(FVector(0, 0, 0))
 		, Normal(FVector(0, 0, 1))
 		, Falloff(EFieldFalloffType::Field_Falloff_Linear)
@@ -301,7 +302,7 @@ public:
 	virtual FFieldNodeBase* NewEvaluationGraph(TArray<const UFieldNodeBase*>& Nodes) const override;
 
 	UFUNCTION(BlueprintPure, Category = "Field", meta = (Magnitude = "1.0", MinRange = "0.0", MaxRange = "1.0"))
-	UPlaneFalloff* SetPlaneFalloff(float Magnitude, float MinRange, float MaxRange, float Default, FVector Position, FVector Normal, EFieldFalloffType Falloff);
+	UPlaneFalloff* SetPlaneFalloff(float Magnitude, float MinRange, float MaxRange, float Default, float Distance, FVector Position, FVector Normal, EFieldFalloffType Falloff);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
 	float Magnitude;
@@ -314,6 +315,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
 	float Default;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
+	float Distance;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field")
 	FVector Position;

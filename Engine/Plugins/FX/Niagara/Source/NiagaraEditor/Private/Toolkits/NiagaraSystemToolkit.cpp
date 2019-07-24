@@ -49,6 +49,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
 #include "NiagaraMessageLogViewModel.h"
+#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -107,10 +108,6 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("SystemScript", "System Script"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetAutoGenerateMenuEntry(GbShowNiagaraDeveloperWindows != 0);
-
-	InTabManager->RegisterTabSpawner(SystemDetailsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemDetails))
-		.SetDisplayName(LOCTEXT("SystemDetails", "System Details"))
-		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 
 	InTabManager->RegisterTabSpawner(SystemParametersTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameters))
 		.SetDisplayName(LOCTEXT("SystemParameters", "Parameters"))
@@ -286,6 +283,8 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
 {
+	SystemViewModel->SetOverviewGraphViewModel(MakeShareable(new FNiagaraOverviewGraphViewModel(SystemViewModel->AsShared()))); //@TODO System Overview: move constructing system overview viewmodel to SystemViewModel Init
+
 	if (SystemViewModel->GetEmitterHandleViewModels().Num() > 0)
 	{
 		SystemViewModel->SetSelectedEmitterHandleById(SystemViewModel->GetEmitterHandleViewModels()[0]->GetId());
@@ -476,23 +475,6 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemScript(const FSpawnTa
 		SNew(SDockTab)
 		[
 			SNew(SNiagaraSystemScript, SystemViewModel.ToSharedRef())
-		];
-
-	return SpawnedTab;
-}
-
-
-TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemDetails(const FSpawnTabArgs& Args)
-{
-	check(Args.GetTabId().TabType == SystemDetailsTabID);
-
-	TSharedRef<FNiagaraObjectSelection> SystemSelection = MakeShareable(new FNiagaraObjectSelection());
-	SystemSelection->SetSelectedObject(System);
-
-	TSharedRef<SDockTab> SpawnedTab =
-		SNew(SDockTab)
-		[
-			SNew(SNiagaraSelectedObjectsDetails, SystemSelection)
 		];
 
 	return SpawnedTab;

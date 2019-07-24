@@ -2,6 +2,7 @@
 
 #include "Widgets/Action/SDataprepStringFilter.h"
 
+#include "DataprepEditorUtils.h"
 #include "SchemaActions/DataprepFetcherMenuActionCollector.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepStringFilter.h"
@@ -116,6 +117,7 @@ void SDataprepStringFilter::OnSelectedCriteriaChanged(TSharedPtr<FListEntry> Lis
 	{	
 		FScopedTransaction Transaction( LOCTEXT("SelectionCriteriaChangedTransaction","Changed the String Selection Criteria") );
 		Filter->SetStringMatchingCriteria( StringMatchType );
+		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 	}
 }
 
@@ -140,6 +142,7 @@ void SDataprepStringFilter::OnUserStringComitted(const FText& NewText, ETextComm
 		Filter->SetUserString( OldUserString );
 		FScopedTransaction Transaction( LOCTEXT("SelectionStringChangedTransaction","Changed the Selection String") );
 		Filter->SetUserString( NewUserString );
+		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 		OldUserString = NewUserString;
 	}
 }

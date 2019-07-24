@@ -581,6 +581,8 @@ protected:
 	TArray<float>				LODScreenRatioSquared;		// Table of valid screen size -> LOD index
 	int32						FirstLOD;	// First LOD we have batch elements for
 	int32						LastLOD;	// Last LOD we have batch elements for
+	int32						FirstVirtualTextureLOD;
+	int32						LastVirtualTextureLOD;
 	float						ComponentMaxExtend; 		// The max extend value in any axis
 	float						ComponentSquaredScreenSizeToUseSubSections; // Size at which we start to draw in sub lod if LOD are different per sub section
 	float						MinValidLOD;							// Min LOD Taking into account LODBias
@@ -728,7 +730,7 @@ public:
 	virtual void ApplyWorldOffset(FVector InOffset) override;
 	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-	virtual bool CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
+	virtual int32 CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
 	virtual uint32 GetMemoryFootprint() const override { return(sizeof(*this) + GetAllocatedSize()); }
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 	virtual bool CanBeOccluded() const override;

@@ -7,6 +7,7 @@
 #include "Misc/CoreDelegates.h"
 #include "LiveCodingLog.h"
 #include "External/LC_EntryPoint.h"
+#include "External/LC_API.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
@@ -100,7 +101,6 @@ void FLiveCodingModule::StartupModule()
 		);
 	}
 
-	extern void Startup(Windows::HINSTANCE hInstance);
 	Startup(hInstance);
 
 	if (Settings->bEnabled && !FApp::IsUnattended())
@@ -127,7 +127,6 @@ void FLiveCodingModule::StartupModule()
 
 void FLiveCodingModule::ShutdownModule()
 {
-	extern void Shutdown();
 	Shutdown();
 
 	FCoreDelegates::OnEndFrame.Remove(EndFrameDelegateHandle);
@@ -231,6 +230,11 @@ bool FLiveCodingModule::IsCompiling() const
 
 void FLiveCodingModule::Tick()
 {
+	if (LppWantsRestart())
+	{
+		LppRestart(lpp::LPP_RESTART_BEHAVIOUR_INSTANT_TERMINATION, 0);
+	}
+
 	if (Settings->bEnabled != bEnabledLastTick && Settings->Startup != ELiveCodingStartupMode::Manual)
 	{
 		EnableForSession(Settings->bEnabled);

@@ -33,6 +33,9 @@ class UControlRigSkeletalMeshComponent : public UDebugSkelMeshComponent
 	{
 		return DebugDrawBones.Num();
 	}
+
+	virtual void EnablePreview(bool bEnable, class UAnimationAsset * PreviewAsset) override;
+
 	// END UDebugSkeletalMeshComponent interface
 
 public:

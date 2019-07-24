@@ -14,6 +14,7 @@ UMovieSceneSequence::UMovieSceneSequence(const FObjectInitializer& Init)
 	: Super(Init)
 {
 	bParentContextsAreSignificant = false;
+	bPlayableDirectly = true;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -48,6 +49,12 @@ void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)
 		{
 			FMovieSceneSequencePrecompiledTemplateStore Store;
 			FMovieSceneCompiler::Compile(*this, Store);
+
+			if (!bPlayableDirectly)
+			{
+				PrecompiledEvaluationTemplate.EvaluationField = FMovieSceneEvaluationField();
+				PrecompiledEvaluationTemplate.ResetFieldData();
+			}
 		}
 		else
 		{

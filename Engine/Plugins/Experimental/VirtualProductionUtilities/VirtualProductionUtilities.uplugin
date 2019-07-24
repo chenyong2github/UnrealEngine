@@ -22,7 +22,7 @@
 		{
 			"Name": "VPUtilitiesEditor",
 			"Type": "Editor",
-			"LoadingPhase": "PostDefault"
+			"LoadingPhase": "PostEngineInit"
 		},
 		{
 			"Name": "VPBookmark",

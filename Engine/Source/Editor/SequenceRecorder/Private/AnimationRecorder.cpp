@@ -581,7 +581,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 						}
 						else
 						{
-							InvInitialRootTransform = FTransform::Identity;
+							InitialRootTransform = InvInitialRootTransform = FTransform::Identity;
 						}
 						SkeletonRootIndex = BoneIndex;
 						break;
@@ -608,9 +608,6 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 				// if record local to world, we'd like to consider component to world to be in root
 				else
 				{
-					// Remove initial root transform
-					LocalTransform *= InvInitialRootTransform;
-
 					if (bRecordLocalToWorld)
 					{
 						LocalTransform *= ComponentToWorld;

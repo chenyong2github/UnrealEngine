@@ -28,6 +28,7 @@ void FRichCurveEditorModel::Modify()
 {
 	if (UObject* Owner = WeakOwner.Get())
 	{
+		Owner->SetFlags(RF_Transactional);
 		Owner->Modify();
 	}
 }
@@ -41,6 +42,9 @@ void FRichCurveEditorModel::AddKeys(TArrayView<const FKeyPosition> InKeyPosition
 	{
 		Owner->Modify();
 
+		TArray<FKeyHandle> NewKeyHandles;
+		NewKeyHandles.SetNumUninitialized(InKeyPositions.Num());
+
 		for (int32 Index = 0; Index < InKeyPositions.Num(); ++Index)
 		{
 			FKeyPosition   Position   = InKeyPositions[Index];
@@ -49,20 +53,16 @@ void FRichCurveEditorModel::AddKeys(TArrayView<const FKeyPosition> InKeyPosition
 			FKeyHandle     NewHandle = RichCurve->AddKey(Position.InputValue, Position.OutputValue);
 			FRichCurveKey* NewKey    = &RichCurve->GetKey(NewHandle);
 
-			if (Attributes.HasInterpMode())          { NewKey->InterpMode          = Attributes.GetInterpMode();    }
-			if (Attributes.HasTangentMode())         { NewKey->TangentMode         = Attributes.GetTangentMode();   }
-			if (Attributes.HasArriveTangent())       { NewKey->ArriveTangent       = Attributes.GetArriveTangent(); }
-			if (Attributes.HasLeaveTangent())        { NewKey->LeaveTangent        = Attributes.GetLeaveTangent();  }
-			if (Attributes.HasArriveTangentWeight()) { NewKey->ArriveTangentWeight = Attributes.GetArriveTangent(); }
-			if (Attributes.HasLeaveTangentWeight())  { NewKey->LeaveTangentWeight  = Attributes.GetLeaveTangent();  }
-
+			NewKeyHandles[Index] = NewHandle;
 			if (OutKeyHandles)
 			{
 				(*OutKeyHandles)[Index] = NewHandle;
 			}
 		}
 
-		RichCurve->AutoSetTangents();
+		// We reuse SetKeyAttributes here as there is complex logic determining which parts of the attributes are valid to pass on.
+		// For now we need to duplicate the new key handle array due to API mismatch. This will auto-calculate tangents if required.
+		SetKeyAttributes(NewKeyHandles, InKeyAttributes);
 	}
 }
 

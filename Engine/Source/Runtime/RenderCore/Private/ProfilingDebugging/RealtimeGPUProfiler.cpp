@@ -538,6 +538,15 @@ FRealtimeGPUProfiler* FRealtimeGPUProfiler::Get()
 	return Instance;
 }
 
+
+void FRealtimeGPUProfiler::SafeRelease()
+{
+	if (Instance)
+		Instance->Cleanup();
+	Instance = nullptr;
+}
+
+
 FRealtimeGPUProfiler::FRealtimeGPUProfiler()
 	: WriteBufferIndex(0)
 	, ReadBufferIndex(1) 
@@ -554,6 +563,11 @@ FRealtimeGPUProfiler::FRealtimeGPUProfiler()
 }
 
 void FRealtimeGPUProfiler::Release()
+{
+	Cleanup();
+}
+
+void FRealtimeGPUProfiler::Cleanup()
 {
 	for (int Index = 0; Index < Frames.Num(); Index++)
 	{

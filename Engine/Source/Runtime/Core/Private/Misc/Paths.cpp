@@ -377,6 +377,12 @@ FString FPaths::ProjectLogDir()
 	{
 		return FPlatformProcess::UserLogsDir();
 	}
+#elif PLATFORM_ANDROID && USE_ANDROID_FILE
+	const FString* OverrideDir = IAndroidPlatformFile::GetOverrideLogDirectory();
+	if (OverrideDir != nullptr)
+	{
+		return *OverrideDir;
+	}
 #endif
 
 	return FPaths::ProjectSavedDir() + TEXT("Logs/");
@@ -751,6 +757,30 @@ FString FPaths::GetPath(FString&& InPath)
 	}
 
 	return Result;
+}
+
+FString FPaths::GetPathLeaf(const FString& InPath)
+{
+	static_assert(INDEX_NONE == -1, "INDEX_NONE assumed to be -1");
+
+	int32 EndPos   = InPath.FindLastCharByPredicate(UE4Paths_Private::IsNotSlashOrBackslash) + 1;
+	int32 StartPos = InPath.FindLastCharByPredicate(UE4Paths_Private::IsSlashOrBackslash, EndPos) + 1;
+
+	FString Result = InPath.Mid(StartPos, EndPos - StartPos);
+	return Result;
+}
+
+FString FPaths::GetPathLeaf(FString&& InPath)
+{
+	static_assert(INDEX_NONE == -1, "INDEX_NONE assumed to be -1");
+
+	int32 EndPos   = InPath.FindLastCharByPredicate(UE4Paths_Private::IsNotSlashOrBackslash) + 1;
+	int32 StartPos = InPath.FindLastCharByPredicate(UE4Paths_Private::IsSlashOrBackslash, EndPos) + 1;
+
+	InPath.RemoveAt(EndPos, InPath.Len() - EndPos, false);
+	InPath.RemoveAt(0, StartPos, false);
+
+	return MoveTemp(InPath);
 }
 
 FString FPaths::ChangeExtension(const FString& InPath, const FString& InNewExtension)

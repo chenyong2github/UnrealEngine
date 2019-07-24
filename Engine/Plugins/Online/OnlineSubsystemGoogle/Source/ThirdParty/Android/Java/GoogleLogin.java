@@ -39,7 +39,7 @@ public class GoogleLogin
 	public static final int GOOGLE_RESPONSE_DEVELOPER_ERROR = 3;
 
 	/** Debug output tag */
-	private static final String TAG = "UE4-GOOGLE";
+	private static final String TAG = "GOOGLE";
 
 	// Output device for log messages.
 	private Logger GoogleLog;
@@ -72,7 +72,7 @@ public class GoogleLogin
 	{
 		this.activity = activity;
 
-		GoogleLog = new Logger(TAG);
+		GoogleLog = new Logger("UE4", TAG);
 		ActivityLog = InLog;
 
 		packageName = inPackageName;

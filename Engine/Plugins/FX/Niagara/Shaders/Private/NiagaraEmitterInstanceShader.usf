@@ -68,6 +68,33 @@ float Reciprocal(float x){ return 1.0f/x; }
 		RandomSeedOffset += Seed;
 		return float(Rand3DPCG32(int3(u,v,Seed)).x) / 4294967296.0f;
 	}
+
+	// NIAGARA_MAX_GPU_SPAWN_INFOS is set from the shader compiler
+	#define NIAGARA_MAX_GPU_SPAWN_INFOS_V4	((NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4)
+
+	float4	EmitterSpawnInfoOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
+	float4	EmitterSpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];			// Packed data where x = IntervalDt, y = InterpStartDt, z = Group, w = Start Particle Index
+
+	static int GInterpSpawnIndex;
+	static float Emitter_SpawnInterval;
+	static float Emitter_InterpSpawnStartDt;
+	static int Emitter_SpawnGroup;
+
+	void GetEmitterSpawnInfoForParticle(int ParticleIndex)
+	{
+		int SpawnInfoIndex = 0;
+		UNROLL
+		for ( int i=0; i < NIAGARA_MAX_GPU_SPAWN_INFOS_V4; ++i )
+		{
+			SpawnInfoIndex += (int)dot(1.0f, ParticleIndex >= EmitterSpawnInfoOffsets[i]);
+		}
+
+		Emitter_SpawnInterval		= EmitterSpawnInfoParams[SpawnInfoIndex].x;
+		Emitter_InterpSpawnStartDt	= EmitterSpawnInfoParams[SpawnInfoIndex].y;
+		Emitter_SpawnGroup			= asint(EmitterSpawnInfoParams[SpawnInfoIndex].z);
+
+		GInterpSpawnIndex		= ParticleIndex - asint(EmitterSpawnInfoParams[SpawnInfoIndex].w);
+	}
 #endif
 
 /* ----------------------------------------------------------------------------

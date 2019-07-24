@@ -338,7 +338,10 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		FDelegateHandle OnBlueprintPreCompileHandle = GEditor->OnBlueprintPreCompile().AddLambda([&](UBlueprint* InBlueprint)
 		{
 			// Restore pre animate state since objects will be reinstanced and current cached state will no longer be valid.
-			RestorePreAnimatedState();
+			if (InBlueprint && InBlueprint->GeneratedClass.Get())
+			{
+				RestorePreAnimatedState(InBlueprint->GeneratedClass.Get());
+			}
 		});
 		AcquiredResources.Add([=] { GEditor->OnBlueprintPreCompile().Remove(OnBlueprintPreCompileHandle); });
 
@@ -2886,6 +2889,7 @@ UMovieSceneFolder* FSequencer::CreateFoldersRecursively(const TArray<FString>& F
 		else
 		{
 			// If we have no parent folder then we must be at the root so we add it to the root of the movie scene
+			OwningMovieScene->Modify();
 			OwningMovieScene->GetRootFolders().Add(FolderToUse);
 		}
 	}
@@ -4541,7 +4545,6 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		if ( NodeToBeDeleted->GetParent().IsValid() )
 		{
 			TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>( NodeToBeDeleted->GetParent() );
-			ParentFolder->GetFolder().Modify();
 			ParentFolder->GetFolder().RemoveChildFolder( &FolderToBeDeleted->GetFolder() );
 		}
 		else
@@ -4570,7 +4573,6 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		if ( NodeToBeDeleted->GetParent().IsValid() && NodeToBeDeleted->GetParent()->GetType() == ESequencerNode::Folder )
 		{
 			TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>( NodeToBeDeleted->GetParent() );
-			ParentFolder->GetFolder().Modify();
 			ParentFolder->GetFolder().RemoveChildObjectBinding( BindingToRemove );
 		}
 		
@@ -4597,7 +4599,6 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> N
 		if ( NodeToBeDeleted->GetParent().IsValid() && NodeToBeDeleted->GetParent()->GetType() == ESequencerNode::Folder )
 		{
 			TSharedPtr<FSequencerFolderNode> ParentFolder = StaticCastSharedPtr<FSequencerFolderNode>( NodeToBeDeleted->GetParent() );
-			ParentFolder->GetFolder().Modify();
 			ParentFolder->GetFolder().RemoveChildMasterTrack( Track );
 		}
 
@@ -5970,7 +5971,6 @@ FGuid FSequencer::DoAssignActor(AActor*const* InActors, int32 NumActors, FGuid I
 		FoldersToCheck.RemoveAt(0);
 		if ( Folder->GetChildObjectBindings().Contains( InObjectBinding ) )
 		{
-			Folder->Modify();
 			Folder->RemoveChildObjectBinding( InObjectBinding );
 			Folder->AddChildObjectBinding( NewGuid );
 			bFolderFound = true;
@@ -8221,7 +8221,6 @@ void FSequencer::OnAddFolder()
 
 	if ( SelectedParentFolders.Num() == 1 )
 	{
-		SelectedParentFolders[0]->Modify();
 		SelectedParentFolders[0]->AddChildFolder( NewFolder );
 	}
 	else
@@ -10044,6 +10043,12 @@ void FSequencer::BindCommands()
 		FIsActionChecked::CreateLambda( [this]{ return Settings->GetSnapSectionTimesToSections(); } ) );
 
 	SequencerCommandBindings->MapAction(
+		Commands.ToggleSnapKeysAndSectionsToPlayRange,
+		FExecuteAction::CreateLambda([this] { Settings->SetSnapKeysAndSectionsToPlayRange(!Settings->GetSnapKeysAndSectionsToPlayRange()); }),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->GetSnapKeysAndSectionsToPlayRange(); }));
+
+	SequencerCommandBindings->MapAction(
 		Commands.ToggleSnapPlayTimeToKeys,
 		FExecuteAction::CreateLambda( [this]{ Settings->SetSnapPlayTimeToKeys( !Settings->GetSnapPlayTimeToKeys() ); } ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ),
@@ -10217,9 +10222,9 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleKeepCursorInPlaybackRangeWhileScrubbing,
-		FExecuteAction::CreateLambda( [this]{ Settings->SetKeepCursorInPlayRangeWhileScrubbing( !Settings->ShouldKeepCursorInPlayRangeWhileScrubbing() ); } ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->ShouldKeepCursorInPlayRangeWhileScrubbing(); } ) );
+		FExecuteAction::CreateLambda([this] { Settings->SetKeepCursorInPlayRangeWhileScrubbing(!Settings->ShouldKeepCursorInPlayRangeWhileScrubbing()); }),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->ShouldKeepCursorInPlayRangeWhileScrubbing(); }));
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleKeepCursorInPlaybackRange,

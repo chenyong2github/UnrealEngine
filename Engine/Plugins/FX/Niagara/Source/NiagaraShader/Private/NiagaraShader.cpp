@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarCreateNiagaraShadersOnLoad(
 	TEXT("Whether to create Niagara's simulation shaders on load, which can reduce hitching, but use more memory.  Otherwise they will be created as needed.")
 );
 
-int32 GNiagaraSkipVectorVMBackendOptimizations = 0;
+int32 GNiagaraSkipVectorVMBackendOptimizations = 1;
 static FAutoConsoleVariableRef CVarNiagaraSkipVectorVMBackendOptimizations(
 	TEXT("fx.SkipVectorVMBackendOptimizations"),
 	GNiagaraSkipVectorVMBackendOptimizations,
@@ -297,6 +297,7 @@ FShaderCompileJob* FNiagaraShaderType::BeginCompileShader(
 	NewJob->Input.VirtualSourceFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf");
 	NewJob->Input.EntryPointName = TEXT("SimulateMainComputeCS");
 	NewJob->Input.Environment.SetDefine(TEXT("GPU_SIMULATION"), 1);
+	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_MAX_GPU_SPAWN_INFOS"), NIAGARA_MAX_GPU_SPAWN_INFOS);
 	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), Script->HlslOutput);
 	
 	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
@@ -1280,6 +1281,9 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	WriteInstanceCountOffsetParam.Bind(ParameterMap, TEXT("WriteInstanceCountOffset"));
 
 	EmitterTickCounterParam.Bind(ParameterMap, TEXT("EmitterTickCounter"));
+	EmitterSpawnInfoOffsetsParam.Bind(ParameterMap, TEXT("EmitterSpawnInfoOffsets"));
+	EmitterSpawnInfoParamsParam.Bind(ParameterMap, TEXT("EmitterSpawnInfoParams"));
+
 	NumEventsPerParticleParam.Bind(ParameterMap, TEXT("NumEventsPerParticle"));
 	NumParticlesPerEventParam.Bind(ParameterMap, TEXT("NumParticlesPerEvent"));
 	CopyInstancesBeforeStartParam.Bind(ParameterMap, TEXT("CopyInstancesBeforeStart"));
@@ -1323,7 +1327,6 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	}
 
 	ensure(FloatOutputBufferParam.IsBound() || IntOutputBufferParam.IsBound());	// we should have at least one output buffer we're writing to
-	ensure(ComponentBufferSizeWriteParam.IsBound());
 	ensure(InstanceCountsParam.IsBound());
 	ensure(UpdateStartInstanceParam.IsBound());
 	ensure(NumSpawnedInstancesParam.IsBound());
@@ -1346,6 +1349,8 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << WriteInstanceCountOffsetParam;
 
 	Ar << EmitterTickCounterParam;
+	Ar << EmitterSpawnInfoOffsetsParam;
+	Ar << EmitterSpawnInfoParamsParam;
 
 	Ar << NumSpawnedInstancesParam;
 	Ar << UpdateStartInstanceParam;

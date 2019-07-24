@@ -347,7 +347,7 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			else
 			{
 				Platforms += TEXT("+");
-				Platforms += PlatformInfo->TargetPlatformName.ToString();
+				Platforms += PlatformInfo->VanillaPlatformName.ToString();
 			}
 
 			// Append any extra UAT flags specified for this platform flavor

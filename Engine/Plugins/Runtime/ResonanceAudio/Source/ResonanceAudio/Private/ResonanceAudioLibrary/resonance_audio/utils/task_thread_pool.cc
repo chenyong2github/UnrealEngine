@@ -58,7 +58,7 @@ class TaskThreadPool::WorkerThread {
   // std::vector<WorkerThread> container class.
   //
   // @param other |WorkerThread| instance this instance will be copied from.
-  WorkerThread(const TaskThreadPool::WorkerThread& other)
+  WorkerThread(const TaskThreadPool::WorkerThread& /*other*/)
       : parent_pool_(), task_closure_(), task_loop_triggered_(false) {}
 
   // Destructor.

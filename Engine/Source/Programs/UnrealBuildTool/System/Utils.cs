@@ -1158,5 +1158,86 @@ namespace UnrealBuildTool
 				}
 			}
 		}
+
+		/// <summary>
+		/// Parses a command line into a list of arguments
+		/// </summary>
+		/// <param name="CommandLine">The command line to parse</param>
+		/// <returns>List of output arguments</returns>
+		public static List<string> ParseArgumentList(string CommandLine)
+		{
+			List<string> Arguments = new List<string>();
+
+			StringBuilder CurrentArgument = new StringBuilder();
+			for (int Idx = 0; Idx < CommandLine.Length; Idx++)
+			{
+				if (!Char.IsWhiteSpace(CommandLine[Idx]))
+				{
+					CurrentArgument.Clear();
+
+					bool bInQuotes = false;
+					for (; Idx < CommandLine.Length; Idx++)
+					{
+						if (CommandLine[Idx] == '\"')
+						{
+							bInQuotes ^= true;
+						}
+						else if (CommandLine[Idx] == ' ' && !bInQuotes)
+						{
+							break;
+						}
+						else
+						{
+							CurrentArgument.Append(CommandLine[Idx]);
+						}
+					}
+
+					Arguments.Add(CurrentArgument.ToString());
+				}
+			}
+
+			return Arguments;
+		}
+
+		/// <summary>
+		/// Formats a list of arguments as a command line, inserting quotes as necessary
+		/// </summary>
+		/// <param name="Arguments">List of arguments to format</param>
+		/// <returns>Command line string</returns>
+		public static string FormatCommandLine(List<string> Arguments)
+		{
+			StringBuilder CommandLine = new StringBuilder();
+			foreach (string Argument in Arguments)
+			{
+				if (CommandLine.Length > 0)
+				{
+					CommandLine.Append(' ');
+				}
+
+				int SpaceIdx = Argument.IndexOf(' ');
+				if (SpaceIdx == -1)
+				{
+					CommandLine.Append(Argument);
+				}
+				else
+				{
+					int EqualsIdx = Argument.IndexOf('=');
+					if (EqualsIdx != -1 && Argument[0] == '-')
+					{
+						CommandLine.Append(Argument, 0, EqualsIdx + 1);
+						CommandLine.Append('\"');
+						CommandLine.Append(Argument, EqualsIdx + 1, Argument.Length - (EqualsIdx + 1));
+						CommandLine.Append('\"');
+					}
+					else
+					{
+						CommandLine.Append('\"');
+						CommandLine.Append(Argument);
+						CommandLine.Append('\"');
+					}
+				}
+			}
+			return CommandLine.ToString();
+		}
 	}
 }

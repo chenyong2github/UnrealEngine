@@ -549,6 +549,10 @@ class PAKFILE_API FPakFile : FNoncopyable
 	bool bFilenamesRemoved;
 	/** ID for the chunk this pakfile is part of. INDEX_NONE if this isn't a pak chunk (derived from filename) */
 	int32 ChunkID;
+	/** Flag to say we tried shrinking pak entries already */
+	bool bAttemptedPakEntryShrink;
+	/** Flag to say we tried unloading pak index filenames already */
+	bool bAttemptedPakFilenameUnload;
 
 	class IMappedFileHandle* MappedFileHandle;
 	FCriticalSection MappedFileHandleCriticalSection;
@@ -656,7 +660,7 @@ public:
 	 */
 	int32 GetNumFiles() const
 	{
-		return Files.Num();
+		return NumEntries;
 	}
 
 	void GetFilenames(TArray<FString>& OutFileList) const;
@@ -949,17 +953,26 @@ public:
 	/**
 	 * Saves memory by hashing the filenames, if possible. After this process,
 	 * wildcard scanning of pak entries can no longer be performed. Returns TRUE
-	 * if there were any collisions within this pak or with any of the previous pak results supplied in CrossPakCollisionChecker
+	 * if the process successfully unloaded filenames from this pak
 	 *
 	 * @param CrossPakCollisionChecker A map of hash->fileentry records encountered during filename unloading on other pak files. Used to detect collisions with entries in other pak files.
 	 * @param DirectoryRootsToKeep An array of strings in wildcard format that specify whole directory structures of filenames to keep in memory for directory iteration to work.
+	 * @param bAllowRetries If a collision is encountered, change the intial seed and try again a fixed number of times before failing
 	 */
-	bool UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr);
+	bool UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr, bool bAllowRetries = true);
 
 	/**
 	 * Lower memory usage by bit-encoding the pak file entry information.
 	 */
-	void ShrinkPakEntriesMemoryUsage();
+	bool ShrinkPakEntriesMemoryUsage();
+
+	/**
+	 * Returns whether the pak files list has been shrunk or not
+	 */
+	bool HasShrunkPakEntries() const
+	{
+		return bAttemptedPakEntryShrink;
+	}
 
 private:
 
@@ -1052,14 +1065,18 @@ private:
 		// Filter the encrypted flag.
 		OutEntry->SetEncrypted((Value & (1 << 22)) != 0);
 
-		// Filter the compression block size or use the UncompressedSize if less that 64k.
-		OutEntry->CompressionBlockSize = OutEntry->UncompressedSize < 65536 ? (uint32)OutEntry->UncompressedSize : ((Value & 0x3f) << 11);
-
 		// This should clear out any excess CompressionBlocks that may be valid in the user's
 		// passed in entry.
 		uint32 CompressionBlocksCount = (Value >> 6) & 0xffff;
 		OutEntry->CompressionBlocks.Empty(CompressionBlocksCount);
 		OutEntry->CompressionBlocks.SetNum(CompressionBlocksCount);
+
+		// Filter the compression block size or use the UncompressedSize if less that 64k.
+		OutEntry->CompressionBlockSize = 0;
+		if (CompressionBlocksCount > 0)
+		{
+			OutEntry->CompressionBlockSize = OutEntry->UncompressedSize < 65536 ? (uint32)OutEntry->UncompressedSize : ((Value & 0x3f) << 11);
+		}
 
 		// Set Verified to true to avoid have a synchronous open fail comparing FPakEntry structures.
 		OutEntry->Verified = true;
@@ -1071,7 +1088,7 @@ private:
 		int64 BaseOffset = Info.HasRelativeCompressedChunkOffsets() ? 0 : OutEntry->Offset;
 
 		// Handle building of the CompressionBlocks array.
-		if (OutEntry->CompressionBlocks.Num() == 1)
+		if (OutEntry->CompressionBlocks.Num() == 1 && !OutEntry->IsEncrypted())
 		{
 			// If the number of CompressionBlocks is 1, we didn't store any extra information.
 			// Derive what we can from the entry's file offset and size.
@@ -1084,6 +1101,9 @@ private:
 			// Get the right pointer to start copying the CompressionBlocks information from.
 			uint32* CompressionBlockSizePtr = (uint32*)SourcePtr;
 
+			// Alignment of the compressed blocks
+			uint64 CompressedBlockAlignment = OutEntry->IsEncrypted() ? FAES::AESBlockSize : 1;
+
 			// CompressedBlockOffset is the starting offset. Everything else can be derived from there.
 			int64 CompressedBlockOffset = BaseOffset + OutEntry->GetSerializedSize(Info.Version);
 			for (int CompressionBlockIndex = 0; CompressionBlockIndex < OutEntry->CompressionBlocks.Num(); ++CompressionBlockIndex)
@@ -1091,7 +1111,7 @@ private:
 				FPakCompressedBlock& CompressedBlock = OutEntry->CompressionBlocks[CompressionBlockIndex];
 				CompressedBlock.CompressedStart = CompressedBlockOffset;
 				CompressedBlock.CompressedEnd = CompressedBlockOffset + *CompressionBlockSizePtr++;
-				CompressedBlockOffset = CompressedBlock.CompressedEnd;
+				CompressedBlockOffset += Align(CompressedBlock.CompressedEnd - CompressedBlock.CompressedStart, CompressedBlockAlignment);
 			}
 		}
 

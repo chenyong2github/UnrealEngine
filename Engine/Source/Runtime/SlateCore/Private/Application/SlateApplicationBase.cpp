@@ -152,7 +152,18 @@ bool FSlateApplicationBase::IsSlateAsleep()
 	return bIsSlateAsleep;
 }
 
-void FSlateApplicationBase::InvalidateAllWidgets() const
+void FSlateApplicationBase::ToggleGlobalInvalidation(bool bIsGlobalInvalidationEnabled)
 {
-	OnGlobalInvalidateEvent.Broadcast();
+	if ((!!GSlateEnableGlobalInvalidation) != bIsGlobalInvalidationEnabled)
+	{
+		GSlateEnableGlobalInvalidation = bIsGlobalInvalidationEnabled ? 1 : 0;
+		OnGlobalInvalidationToggledEvent.Broadcast(bIsGlobalInvalidationEnabled);
+	}
+}
+
+void FSlateApplicationBase::InvalidateAllWidgets(bool bClearResourcesImmediately) const
+{
+	SCOPED_NAMED_EVENT(Slate_GlobalInvalidate, FColor::Red);
+	UE_LOG(LogSlate, Log, TEXT("InvalidateAllWidgets triggered.  All widgets were invalidated"));
+	OnInvalidateAllWidgetsEvent.Broadcast(bClearResourcesImmediately);
 }

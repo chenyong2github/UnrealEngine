@@ -101,18 +101,18 @@ void FPicpProjectionModule::SetOverlayFrameData(const FString& PolicyType, FPicp
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = GetProjectionFactory(PolicyType);
 	if (Factory.IsValid())
 	{
-		FPicpProjectionMPCDIPolicyFactory* MPCDIFactory = static_cast<FPicpProjectionMPCDIPolicyFactory*>(Factory.Get());
-		if (MPCDIFactory)
+		FPicpProjectionMPCDIPolicyFactory* PicpMPCDIFactory = static_cast<FPicpProjectionMPCDIPolicyFactory*>(Factory.Get());
+		if (PicpMPCDIFactory)
 		{
-			TArray<TSharedPtr<IDisplayClusterProjectionPolicy>> UsedPolicy = MPCDIFactory->GetMPCDIPolicy();
+			TArray<TSharedPtr<IDisplayClusterProjectionPolicy>> UsedPolicy = PicpMPCDIFactory->GetMPCDIPolicy();
 			for (auto It : UsedPolicy)
 			{
 				if (It.IsValid())
 				{
-					FPicpProjectionMPCDIPolicy* MPCDIPolicy = static_cast<FPicpProjectionMPCDIPolicy*>(It.Get());
-					if (MPCDIPolicy != nullptr)
+					FPicpProjectionMPCDIPolicy* PicpMPCDIPolicy = static_cast<FPicpProjectionMPCDIPolicy*>(It.Get());
+					if (PicpMPCDIPolicy != nullptr)
 					{
-						MPCDIPolicy->UpdateOverlayViewportData(OverlayFrameData);
+						PicpMPCDIPolicy->UpdateOverlayViewportData(OverlayFrameData);
 					}
 				}
 			}

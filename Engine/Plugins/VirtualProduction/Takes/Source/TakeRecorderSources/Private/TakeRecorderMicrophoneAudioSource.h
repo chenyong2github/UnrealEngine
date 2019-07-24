@@ -71,4 +71,8 @@ private:
 	TWeakObjectPtr<class UMovieSceneAudioTrack> CachedAudioTrack;
 
 	TUniquePtr<ISequenceAudioRecorder> AudioRecorder;
+	
+	//Created in PreRecord but used in StartRecording.
+	FDirectoryPath AudioDirectory;
+	FString AssetName;
 };

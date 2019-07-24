@@ -114,12 +114,16 @@ public:
 	/* Contains pointers to Chunks of audio data that have been streamed in */
 	TArray<FLoadedAnimationChunk> LoadedChunks;
 
+	mutable FCriticalSection LoadedChunksCritcalSection;
+
 	class IAsyncReadFileHandle* IORequestHandle;
 
 	/** Indices of chunks that are currently loaded */
 	TArray<uint32>	LoadedChunkIndices;
 
 	TArray<uint32> RequestedChunks;
+
+	TArray<uint32> LoadFailedChunks;
 
 	/** Ptr to owning audio streaming manager. */
 	FAnimationStreamingManager* AnimationStreamingManager;
@@ -151,11 +155,11 @@ struct FAnimationStreamingManager : public IAnimationStreamingManager
 	virtual void AddStreamingAnim(UAnimStreamable* Anim) override;
 	virtual bool RemoveStreamingAnim(UAnimStreamable* Anim) override;
 	virtual SIZE_T GetMemorySizeForAnim(const UAnimStreamable* Anim) override;
-	virtual const FCompressedAnimSequence* GetLoadedChunk(const UAnimStreamable* Anim, uint32 ChunkIndex, bool bRequestNextChunk) const override;
+	virtual const FCompressedAnimSequence* GetLoadedChunk(const UAnimStreamable* Anim, uint32 ChunkIndex, bool bTrackAsRequested) const override;
 	// End IAudioStreamingManager interface
 
 	/** Called when an async callback is made on an async loading audio chunk request. */
-	void OnAsyncFileCallback(FStreamingAnimationData* StreamingAnimData, int32 ChunkIndex, int64 ReadSize, IAsyncReadRequest* ReadRequest);
+	void OnAsyncFileCallback(FStreamingAnimationData* StreamingAnimData, int32 ChunkIndex, int64 ReadSize, IAsyncReadRequest* ReadRequest, bool bWasCancelled);
 
 protected:
 

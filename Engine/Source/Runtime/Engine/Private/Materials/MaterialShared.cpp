@@ -3264,7 +3264,7 @@ void UMaterialInterface::AnalyzeMaterialProperty(EMaterialProperty InProperty, i
 		{}
 		int32 GetTextureCoordsCount() const
 		{
-			return NumUserTexCoords;
+			return GetNumUserTexCoords();
 		}
 		bool UsesVertexColor() const
 		{

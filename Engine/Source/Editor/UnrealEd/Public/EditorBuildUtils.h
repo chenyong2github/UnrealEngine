@@ -125,6 +125,13 @@ public:
 	static UNREALED_API bool EditorBuild( UWorld* InWorld, FName Id, const bool bAllowLightingDialog = true );
 
 	/**
+	 * Update every used material texture binding (see FMaterialTextureInfo::TextureIndex)
+	 *
+	 * @param	InWorld				WorldContext
+	 */
+	static UNREALED_API void UpdateTextureStreamingMaterialBindings( UWorld* InWorld );
+
+	/**
 	 * Perform an editor build for texture streaming
 	 *
 	 * @param	InWorld				WorldContext
@@ -143,16 +150,6 @@ public:
 	* @return	true if any packages were dirtied in the process.
 	*/
 	static UNREALED_API bool EditorBuildMaterialTextureStreamingData(UPackage* Package);
-
-	/**
-	 * Compiled required shader for the given viewmode
-	 *
-	 * @param	InWorld				WorldContext to find out which shader to build.
-	 * @param	InViewMode			Viewmode to build the data for.
-	 *
-	 * @return	true if the build completed successfully; false if it did not (or was manually canceled)
-	 */
-	static UNREALED_API bool CompileViewModeShaders(UWorld* InWorld, EViewModeIndex InViewMode);
 
 	/** 
 	* check if navigation build was was triggered from editor as user request

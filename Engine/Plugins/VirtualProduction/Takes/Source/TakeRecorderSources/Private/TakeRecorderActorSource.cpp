@@ -1469,30 +1469,6 @@ FGuid UTakeRecorderActorSource::GetRecordedActorGuid(class AActor* OtherActor) c
 	return FGuid();
 }
 
-FTransform UTakeRecorderActorSource::GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const
-{
-	UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(GetOuter());
-	for (UTakeRecorderSource* Source : OwningSources->GetSources())
-	{
-		if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
-		{
-			AActor* OtherTarget = ActorSource->Target.Get();
-			if (OtherTarget && OtherActor && (OtherTarget == OtherActor || OtherTarget->GetName() == OtherActor->GetName()))
-			{
-				for (UMovieSceneTrackRecorder* TrackRecorder : ActorSource->TrackRecorders)
-				{
-					if (TrackRecorder->IsA<UMovieSceneAnimationTrackRecorder>())
-					{
-						return Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder)->GetInitialRootTransform();
-					}
-				}
-
-			}
-		}
-	}
-	return FTransform::Identity;
-}
-
 FMovieSceneSequenceID UTakeRecorderActorSource::GetLevelSequenceID(class AActor* OtherActor)
 {
 	FMovieSceneSequenceID OutSequenceID = MovieSceneSequenceID::Root;

@@ -207,7 +207,7 @@ void FSkeletalMeshPhysicsObject::CreateRigidBodyCallback(FParticlesType& Particl
 #endif
 			GetSolver()->SetPhysicsMaterial(RigidBodyId, Parameters.PhysicalMaterial);
 
-			Particles.Disabled(RigidBodyId) = false;
+			GetSolver()->GetEvolution()->DisableParticle(RigidBodyId);
 
 			//Particles.X(RigidBodyId) = WorldTransform->TransformPosition(CenterOfMass);
 			Particles.X(RigidBodyId) = WorldTransform->GetTranslation();
@@ -383,9 +383,7 @@ void FSkeletalMeshPhysicsObject::OnRemoveFromScene()
 		{
 			if(static_cast<uint32>(Id) < Particles.Size())
 			{
-				Particles.Disabled(Id) = true;
-				CurrSolver->ActiveIndices().Remove(Id);
-				CurrSolver->NonDisabledIndices().Remove(Id);
+				CurrSolver->GetEvolution()->DisableParticle(Id);
 				CurrSolver->GetRigidClustering().GetTopLevelClusterParents().Remove(Id);
 			}
 		}

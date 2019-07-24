@@ -68,7 +68,7 @@ class UNiagaraPreviewAxis_InterpParamBase : public UNiagaraPreviewAxis
 
 protected:
 	UPROPERTY(EditAnywhere, Category = Axis)
-	FString Param;
+	FName Param;
 	UPROPERTY(EditAnywhere, Category = Axis)
 	int32 Count;
 

@@ -244,10 +244,8 @@ void FFieldSystemPhysicsObject::FieldParameterUpdateCallback(Chaos::FPBDRigidsSo
 							if (DynamicStateView[RigidBodyIndex] == 0 && Particles.Disabled(RigidBodyIndex))
 							{
 								ensure(CurrentSolver->GetRigidClustering().GetClusterIdsArray()[RigidBodyIndex].Id == INDEX_NONE);
+								CurrentSolver->GetEvolution()->EnableParticle(RigidBodyIndex, INDEX_NONE);
 								Particles.SetObjectState(RigidBodyIndex, Chaos::EObjectStateType::Dynamic);
-								Particles.Disabled(RigidBodyIndex) = false;
-								CurrentSolver->ActiveIndices().Add(RigidBodyIndex);
-								CurrentSolver->NonDisabledIndices().Add(RigidBodyIndex);
 							}
 						}
 					}
@@ -343,23 +341,14 @@ void FFieldSystemPhysicsObject::FieldParameterUpdateCallback(Chaos::FPBDRigidsSo
 							if (!Particles.Disabled(i) && Results[i] > 0.0)
 							{
 								RemovedParticles.Add((uint32)i);
-								Particles.Disabled(i) = true;
+								CurrentSolver->GetEvolution()->DisableParticle(i);
 							}
 						}
 
-						if (RemovedParticles.Num())
+						if (RemovedParticles.Num() && bHasFloor)
 						{
-							if (bHasFloor)
-							{
-								Particles.Disabled(FloorIndex) = false;
-								Particles.SetObjectState(FloorIndex, Chaos::EObjectStateType::Static);
-							}
-							for (int32 ParticleIndex : RemovedParticles)
-							{
-								CurrentSolver->ActiveIndices().Remove(ParticleIndex);
-								CurrentSolver->NonDisabledIndices().Remove(ParticleIndex);
-							}
-							CurrentSolver->RemoveConstraints(RemovedParticles);
+							CurrentSolver->GetEvolution()->DisableParticle(FloorIndex);
+							Particles.SetObjectState(FloorIndex, Chaos::EObjectStateType::Static);
 						}
 					}
 				}

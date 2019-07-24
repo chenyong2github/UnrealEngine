@@ -29,7 +29,14 @@ UObject* UDatasmithSceneComponentTemplate::UpdateObject( UObject* Destination, b
 
 	if ( !PreviousTemplate || PreviousTemplate->Mobility == SceneComponent->Mobility )
 	{
-		SceneComponent->SetMobility( Mobility );
+		// We can't attach a static component to a dynamic parent
+		EComponentMobility::Type TargetMobility = Mobility;
+		if (AttachParent)
+		{
+			TargetMobility = (EComponentMobility::Type) FMath::Max((uint8)Mobility, (uint8)AttachParent->Mobility);
+		}
+
+		SceneComponent->SetMobility( TargetMobility );
 	}
 
 	const ULevel* SceneComponentLevel = SceneComponent->GetComponentLevel();

@@ -109,13 +109,7 @@ public:
 
 			TSharedPtr<SWidget> CustomValueWidget;
 
-			if (!Parameter.IsDataInterface())
-			{
-				TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Parameter.GetType().GetStruct(), (uint8*)ParamStore.GetParameterData(Parameter)));
-				Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, Parameter.GetName());
-
-			}
-			else 
+			if (Parameter.IsDataInterface())
 			{
 				int32 DataInterfaceOffset = ParamStore.IndexOf(Parameter);
 				UObject* DefaultValueObject = ParamStore.GetDataInterfaces()[DataInterfaceOffset];
@@ -131,6 +125,45 @@ public:
 					SNew(STextBlock)
 					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 					.Text(FText::FromString(FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false)));
+			}
+			else if (Parameter.IsUObject())
+			{
+				int32 ObjectOffst = ParamStore.IndexOf(Parameter);
+				UObject* DefaultValueObject = ParamStore.GetUObjects()[ObjectOffst];
+
+				TArray<UObject*> Objects;
+				Objects.Add(DefaultValueObject);
+
+				//How do I set this up so I can have this pick actors from the level?
+
+				TOptional<bool> bAllowChildrenOverride(true);
+				TOptional<bool> bCreateCategoryNodesOverride(false);
+				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Parameter.GetName(), bAllowChildrenOverride, bCreateCategoryNodesOverride);
+
+				//How do I make this an object picker from the level editor?
+				//Neither of these seem to work well.
+// 				CustomValueWidget = PropertyCustomizationHelpers::MakeActorPickerWithMenu(nullptr,
+// 					true,
+// 					FOnShouldFilterActor::CreateRaw(this, &FNiagaraComponentNodeBuilder::IsFilteredActor),
+// 					FOnActorSelected::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnActorSelected),
+// 					FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::CloseComboButton),
+// 					FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUse));
+				
+// 				CustomValueWidget = PropertyCustomizationHelpers::MakeActorPickerAnchorButton(
+// 					FOnGetActorFilters::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnGetActorFiltersForSceneOutliner),
+// 					FOnActorSelected::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnActorSelected));
+
+				FString ValueName = DefaultValueObject ? FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false) : TEXT("null");
+				CustomValueWidget =
+					SNew(STextBlock)
+					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+					.Text(FText::FromString(ValueName));
+			}
+			else
+			{
+				TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Parameter.GetType().GetStruct(), (uint8*)ParamStore.GetParameterData(Parameter)));
+				Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, Parameter.GetName());
+
 			}
 
 			if (Row)
@@ -157,6 +190,17 @@ public:
 						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnDataInterfaceChanged, Parameter));
 					PropertyHandle->SetOnChildPropertyValueChanged(
 						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnDataInterfaceChanged, Parameter));
+				}
+				else if (Parameter.IsUObject())
+				{
+					PropertyHandle->SetOnPropertyValuePreChange(
+						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUObjectPreChange, Parameter));
+					PropertyHandle->SetOnChildPropertyValuePreChange(
+						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUObjectPreChange, Parameter));
+					PropertyHandle->SetOnPropertyValueChanged(
+						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUObjectChanged, Parameter));
+					PropertyHandle->SetOnChildPropertyValueChanged(
+						FSimpleDelegate::CreateRaw(this, &FNiagaraComponentNodeBuilder::OnUObjectChanged, Parameter));
 				}
 				else
 				{
@@ -231,6 +275,12 @@ private:
 		check(Component.IsValid());
 		Component->Modify();
 	}
+	
+	void OnUObjectPreChange(FNiagaraVariable Var)
+	{
+		check(Component.IsValid());
+		Component->Modify();
+	}
 
 	void OnParameterChanged(FNiagaraVariable Var)
 	{
@@ -242,6 +292,13 @@ private:
 	void OnDataInterfaceChanged(FNiagaraVariable Var)
 	{
 		Component->GetOverrideParameters().OnInterfaceChange();
+		check(Component.IsValid());
+		Component->SetParameterValueOverriddenLocally(Var, true, true);
+	}
+
+	void OnUObjectChanged(FNiagaraVariable Var)
+	{
+		Component->GetOverrideParameters().OnUObjectChange();
 		check(Component.IsValid());
 		Component->SetParameterValueOverriddenLocally(Var, true, true);
 	}

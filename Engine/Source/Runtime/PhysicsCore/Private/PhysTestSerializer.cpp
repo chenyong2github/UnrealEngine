@@ -220,7 +220,7 @@ void FPhysTestSerializer::CreateChaosData()
 		Particles.W(Idx) + TVector<float, 3>(0);
 		Particles.P(Idx) = Particles.X(Idx);
 		Particles.Q(Idx) = Particles.R(Idx);
-		Particles.Disabled(Idx) = false;
+		Particles.SetDisabledLowLevel(Idx, false);
 
 		PxActorToChaosIdx.Add(Act, Idx);
 

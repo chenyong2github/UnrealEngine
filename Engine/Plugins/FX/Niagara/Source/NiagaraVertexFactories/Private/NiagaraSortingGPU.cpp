@@ -71,8 +71,6 @@ public:
 		Buffer.Release();
 	}
 }; 
-static TGlobalResource<FNiagaraSortingDummyUAV> NiagaraSortingDummyUAV[NIAGARA_COPY_BUFFER_BUFFER_COUNT];
-
 
 IMPLEMENT_GLOBAL_SHADER(FNiagaraSortKeyGenCS, "/Plugin/FX/Niagara/Private/NiagaraSortKeyGen.usf", "GenerateParticleSortKeys", SF_Compute);
 
@@ -212,6 +210,8 @@ void FNiagaraCopyIntBufferRegionCS::SetParameters(
 	int32 StartingIndex,
 	int32 DestCount)
 {
+	static TGlobalResource<FNiagaraSortingDummyUAV> NiagaraSortingDummyUAV[NIAGARA_COPY_BUFFER_BUFFER_COUNT];
+		
 	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
 	check(DestCount > 0 && DestCount <= NIAGARA_COPY_BUFFER_BUFFER_COUNT);
 

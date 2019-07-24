@@ -48,14 +48,20 @@ public:
 		FName Name;
 		int32 Index;
 		bool IsMutable;
+		bool IsOutputParameter;
 		FPinArray Inputs;
 		FPinArray Outputs;
 
-		FNode(const FName& InName, const int32 InIndex, const bool InIsMutable)
+		FNode(const FName& InName, const int32 InIndex, const bool InIsMutable, const bool InIsOutputParameter)
 			: Name(InName)
 			, Index(InIndex)
 			, IsMutable(InIsMutable)
+			, IsOutputParameter(InIsOutputParameter)
 		{
+		}
+
+		bool operator ==(const FNode& Other) const {
+			return Name == Other.Name;
 		}
 	};
 
@@ -65,7 +71,7 @@ public:
 	FControlRigDAG();
 
 	// add a node to this traverser
-	void AddNode(bool InIsMutable = false, const FName& InName = NAME_None);
+	void AddNode(bool InIsMutable = false, bool InIsOutputParameter = false, const FName& InName = NAME_None);
 
 	// add a link between two nodes given the node indices and the pin orders
 	void AddLink(const int32 FromNode, const int32 ToNode, const int32 FromOrder, const int32 ToOrder);

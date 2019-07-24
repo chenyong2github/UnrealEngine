@@ -99,6 +99,23 @@ struct FMeshBatchElement
 	FRHIVertexBuffer* IndirectArgsBuffer;
 	uint32 IndirectArgsOffset;
 
+	FORCEINLINE int32 GetNumPrimitives() const
+	{
+		if (bIsInstanceRuns && InstanceRuns)
+		{
+			int32 Count = 0;
+			for (uint32 Run = 0; Run < NumInstances; Run++)
+			{
+				Count += NumPrimitives * (InstanceRuns[Run * 2 + 1] - InstanceRuns[Run * 2] + 1);
+			}
+			return Count;
+		}
+		else
+		{
+			return NumPrimitives * NumInstances;
+		}
+	}
+
 	FMeshBatchElement()
 	:	PrimitiveUniformBuffer(nullptr)
 	,	PrimitiveUniformBufferResource(nullptr)
@@ -251,22 +268,24 @@ struct FMeshBatch
 
 	FORCEINLINE int32 GetNumPrimitives() const
 	{
-		int32 Count=0;
-		for( int32 ElementIdx=0;ElementIdx<Elements.Num();ElementIdx++ )
+		int32 Count = 0;
+		for (int32 ElementIdx = 0; ElementIdx < Elements.Num(); ++ElementIdx)
 		{
-			if (Elements[ElementIdx].bIsInstanceRuns && Elements[ElementIdx].InstanceRuns)
-			{
-				for (uint32 Run = 0; Run < Elements[ElementIdx].NumInstances; Run++)
-				{
-					Count += Elements[ElementIdx].NumPrimitives * (Elements[ElementIdx].InstanceRuns[Run * 2 + 1] - Elements[ElementIdx].InstanceRuns[Run * 2] + 1);
-				}
-			}
-			else
-			{
-				Count += Elements[ElementIdx].NumPrimitives * Elements[ElementIdx].NumInstances;
-			}
+			Count += Elements[ElementIdx].GetNumPrimitives();
 		}
 		return Count;
+	}
+
+	FORCEINLINE bool HasAnyDrawCalls() const
+	{
+		for (int32 ElementIdx = 0; ElementIdx < Elements.Num(); ++ElementIdx)
+		{
+			if (Elements[ElementIdx].GetNumPrimitives() > 0 || Elements[ElementIdx].IndirectArgsBuffer)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	ENGINE_API void PreparePrimitiveUniformBuffer(const FPrimitiveSceneProxy* PrimitiveSceneProxy, ERHIFeatureLevel::Type FeatureLevel);

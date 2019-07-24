@@ -450,7 +450,7 @@ public:
 	void PrepareTextureView();
 	
 	/** @returns A newly allocated buffer object large enough for the surface within the texture specified. */
-	FMetalBuffer AllocSurface(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride);
+	FMetalBuffer AllocSurface(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer = false);
 
 	/** Apply the data in Buffer to the surface specified. */
 	void UpdateSurface(FMetalBuffer& Buffer, uint32 MipIndex, uint32 ArrayIndex);
@@ -460,7 +460,7 @@ public:
 	 * @param ArrayIndex Index of the texture array/face in the form Index*6+Face
 	 * @return A pointer to the specified texture data.
 	 */
-	void* Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride);
+	void* Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer = false);
 
 	/** Unlocks a previously locked mip-map.
 	 * @param ArrayIndex Index of the texture array/face in the form Index*6+Face

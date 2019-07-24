@@ -236,8 +236,12 @@ namespace MovieScene
 			OriginalStack.SavePreAnimatedState(Player, *SkeletalMeshComponent, GetAnimControlTypeID(), FPreAnimatedAnimationTokenProducer());
 
 			UAnimInstance* ExistingAnimInstance = SkeletalMeshComponent->GetAnimInstance();
-
-			UAnimSequencerInstance* SequencerInstance = UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimSequencerInstance>(SkeletalMeshComponent);
+			bool bWasCreated = false;
+			UAnimSequencerInstance* SequencerInstance = UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimSequencerInstance>(SkeletalMeshComponent,bWasCreated);
+			if (SequencerInstance && bWasCreated)
+			{
+				SequencerInstance->SavePose();
+			}
 
 			const bool bPreviewPlayback = ShouldUsePreviewPlayback(Player, *SkeletalMeshComponent);
 
@@ -546,7 +550,7 @@ float FMovieSceneSkeletalAnimationSectionTemplateParameters::MapTimeToAnimation(
 	AnimPosition += InFrameRate.AsSeconds(StartFrameOffset);
 	if (bReverse)
 	{
-		AnimPosition = (SeqLength - (AnimPosition - InFrameRate.AsSeconds(StartFrameOffset))) + InFrameRate.AsSeconds(StartFrameOffset);
+		AnimPosition = GetSequenceLength() - AnimPosition;
 	}
 
 	return AnimPosition;

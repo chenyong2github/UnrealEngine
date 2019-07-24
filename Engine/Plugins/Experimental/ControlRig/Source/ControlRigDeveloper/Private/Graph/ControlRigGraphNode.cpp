@@ -74,6 +74,8 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 
 void UControlRigGraphNode::ReconstructNode()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetGraph());
 	if (RigGraph)
 	{
@@ -110,6 +112,8 @@ void UControlRigGraphNode::ReconstructNode()
 
 void UControlRigGraphNode::CacheHierarchyRefConnectionsOnPostLoad()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (HierarchyRefOutputConnections.Num() > 0)
 	{
 		return;
@@ -147,6 +151,8 @@ void UControlRigGraphNode::CacheHierarchyRefConnectionsOnPostLoad()
 
 void UControlRigGraphNode::PrepareForCopying()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	// cache the data we need for paste to work
 	// we fill up struct for rig unit
 	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
@@ -207,6 +213,7 @@ void UControlRigGraphNode::ReallocatePinsDuringReconstruction(const TArray<UEdGr
 
 void UControlRigGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPins, TArray<UEdGraphPin*>& InNewPins)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	// @TODO: we should account for redirectors, orphaning etc. here too!
 
 	for(UEdGraphPin* OldPin : InOldPins)
@@ -226,6 +233,8 @@ void UControlRigGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPin
 
 void UControlRigGraphNode::DestroyPinList(TArray<UEdGraphPin*>& InPins)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UBlueprint* Blueprint = GetBlueprint();
 	bool bNotify = false;
 	if (Blueprint != nullptr)
@@ -244,6 +253,8 @@ void UControlRigGraphNode::DestroyPinList(TArray<UEdGraphPin*>& InPins)
 
 void UControlRigGraphNode::PostReconstructNode()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (UEdGraphPin* Pin : Pins)
 	{
 		SetupPinDefaultsFromCDO(Pin);
@@ -281,6 +292,8 @@ void UControlRigGraphNode::PostLoad()
 
 void UControlRigGraphNode::CreateVariablePins(bool bAlwaysCreatePins)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	CacheVariableInfo();
 	CreateExecutionPins(bAlwaysCreatePins);
 	CreateInputPins(bAlwaysCreatePins);
@@ -290,6 +303,8 @@ void UControlRigGraphNode::CreateVariablePins(bool bAlwaysCreatePins)
 
 void UControlRigGraphNode::HandleClearArray(FString InPropertyPath)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
 	if (Blueprint)
 	{
@@ -304,6 +319,8 @@ void UControlRigGraphNode::HandleClearArray(FString InPropertyPath)
 
 void UControlRigGraphNode::HandleAddArrayElement(FString InPropertyPath)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
 	if (Blueprint)
 	{
@@ -318,6 +335,8 @@ void UControlRigGraphNode::HandleAddArrayElement(FString InPropertyPath)
 
 void UControlRigGraphNode::HandleRemoveArrayElement(FString InPropertyPath)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
 	if (Blueprint)
 	{
@@ -364,6 +383,8 @@ static bool IsStructReference(const TSharedPtr<FControlRigField>& InputInfo)
 
 void UControlRigGraphNode::CreateExecutionPins(bool bAlwaysCreatePins)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const TArray<TSharedRef<FControlRigField>>& LocalExecutionInfos = GetExecutionVariableInfo();
 
 	for (const TSharedRef<FControlRigField>& ExecutionInfo : LocalExecutionInfos)
@@ -396,6 +417,7 @@ void UControlRigGraphNode::CreateInputPins_Recursive(const TSharedPtr<FControlRi
 			ChildInfo->InputPin->PinType.bIsReference = IsStructReference(ChildInfo);
 			ChildInfo->InputPin->ParentPin = InputInfo->InputPin;
 			ChildInfo->InputPin->DefaultValue = ChildInfo->GetPin()->DefaultValue;
+			ChildInfo->OutputPin = nullptr;
 			InputInfo->InputPin->SubPins.Add(ChildInfo->InputPin);
 		}
 	}
@@ -408,6 +430,8 @@ void UControlRigGraphNode::CreateInputPins_Recursive(const TSharedPtr<FControlRi
 
 void UControlRigGraphNode::CreateInputPins(bool bAlwaysCreatePins)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const TArray<TSharedRef<FControlRigField>>& LocalInputInfos = GetInputVariableInfo();
 
 	for (const TSharedRef<FControlRigField>& InputInfo : LocalInputInfos)
@@ -417,6 +441,11 @@ void UControlRigGraphNode::CreateInputPins(bool bAlwaysCreatePins)
 			InputInfo->InputPin = CreatePin(EGPD_Input, InputInfo->GetPinType(), FName(*InputInfo->GetPinPath()));
 			InputInfo->InputPin->PinFriendlyName = InputInfo->GetDisplayNameText();
 			InputInfo->InputPin->PinType.bIsReference = IsStructReference(InputInfo);
+			InputInfo->InputPin->DefaultValue = InputInfo->GetPin()->DefaultValue;
+			InputInfo->OutputPin = nullptr;
+		}
+		else
+		{
 			InputInfo->InputPin->DefaultValue = InputInfo->GetPin()->DefaultValue;
 		}
 
@@ -437,6 +466,10 @@ void UControlRigGraphNode::CreateInputOutputPins_Recursive(const TSharedPtr<FCon
 			ChildInfo->InputPin->ParentPin = InputOutputInfo->InputPin;
 			InputOutputInfo->InputPin->SubPins.Add(ChildInfo->InputPin);
 		}
+		else
+		{
+			ChildInfo->InputPin->DefaultValue = ChildInfo->GetPin()->DefaultValue;
+		}
 
 		if (bAlwaysCreatePins || ChildInfo->OutputPin == nullptr)
 		{
@@ -456,6 +489,8 @@ void UControlRigGraphNode::CreateInputOutputPins_Recursive(const TSharedPtr<FCon
 
 void UControlRigGraphNode::CreateInputOutputPins(bool bAlwaysCreatePins)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const TArray<TSharedRef<FControlRigField>>& LocalInputOutputInfos = GetInputOutputVariableInfo();
 
 	for (const TSharedRef<FControlRigField>& InputOutputInfo : LocalInputOutputInfos)
@@ -487,6 +522,7 @@ void UControlRigGraphNode::CreateOutputPins_Recursive(const TSharedPtr<FControlR
 			ChildInfo->OutputPin->PinFriendlyName = ChildInfo->GetDisplayNameText();
 			ChildInfo->OutputPin->PinType.bIsReference = IsStructReference(ChildInfo);
 			ChildInfo->OutputPin->ParentPin = OutputInfo->OutputPin;
+			ChildInfo->InputPin = nullptr;
 			OutputInfo->OutputPin->SubPins.Add(ChildInfo->OutputPin);
 		}
 	}
@@ -499,6 +535,8 @@ void UControlRigGraphNode::CreateOutputPins_Recursive(const TSharedPtr<FControlR
 
 void UControlRigGraphNode::CreateOutputPins(bool bAlwaysCreatePins)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const TArray<TSharedRef<FControlRigField>>& LocalOutputInfos = GetOutputVariableInfo();
 
 	for (const TSharedRef<FControlRigField>& OutputInfo : LocalOutputInfos)
@@ -508,6 +546,7 @@ void UControlRigGraphNode::CreateOutputPins(bool bAlwaysCreatePins)
 			OutputInfo->OutputPin = CreatePin(EGPD_Output, OutputInfo->GetPinType(), FName(*OutputInfo->GetPinPath()));
 			OutputInfo->OutputPin->PinFriendlyName = OutputInfo->GetDisplayNameText();
 			OutputInfo->OutputPin->PinType.bIsReference = IsStructReference(OutputInfo);
+			OutputInfo->InputPin = nullptr;
 		}
 
 		CreateOutputPins_Recursive(OutputInfo, bAlwaysCreatePins);
@@ -516,6 +555,8 @@ void UControlRigGraphNode::CreateOutputPins(bool bAlwaysCreatePins)
 
 void UControlRigGraphNode::CacheVariableInfo()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ExecutionInfos.Reset();
 	GetExecutionFields(ExecutionInfos);
 
@@ -593,6 +634,8 @@ TSharedPtr<FControlRigField> UControlRigGraphNode::CreateControlRigField(const F
 
 void UControlRigGraphNode::GetExecutionFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	GetFields([](const FControlRigModelPin* InPin, const FControlRigModelNode* InNode)
 	{
 		FString PinPath = InNode->GetPinPath(InPin->Index, false);
@@ -604,26 +647,56 @@ void UControlRigGraphNode::GetExecutionFields(TArray<TSharedRef<FControlRigField
 
 void UControlRigGraphNode::GetInputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	GetFields([](const FControlRigModelPin* InPin, const FControlRigModelNode* InNode)
 	{
 		FString PinPath = InNode->GetPinPath(InPin->Index, false);
-		return InPin->Direction == EGPD_Input && InNode->FindPin(*PinPath, false) == nullptr;
+		if (InPin->Direction != EGPD_Input)
+		{
+			return false;
+		}
+
+		if (InNode->IsParameter() && InNode->ParameterType == EControlRigModelParameterType::Output)
+		{
+			return true;
+		}
+
+		return InNode->FindPin(*PinPath, false) == nullptr;
 	}, OutFields);
 }
 
 void UControlRigGraphNode::GetOutputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	GetFields([](const FControlRigModelPin* InPin, const FControlRigModelNode* InNode)
 	{
 		FString PinPath = InNode->GetPinPath(InPin->Index, false);
-		return InPin->Direction == EGPD_Output && InNode->FindPin(*PinPath, true) == nullptr;
+		if (InPin->Direction != EGPD_Output)
+		{
+			return false;
+		}
+		
+		if (InNode->IsParameter() && InNode->ParameterType == EControlRigModelParameterType::Input)
+		{
+			return true;
+		}
+		
+		return InNode->FindPin(*PinPath, true) == nullptr;
 	}, OutFields);
 }
 
 void UControlRigGraphNode::GetInputOutputFields(TArray<TSharedRef<FControlRigField>>& OutFields) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	GetFields([](const FControlRigModelPin* InPin, const FControlRigModelNode* InNode)
 	{
+		if (InNode->IsParameter())
+		{
+			return false;
+		}
 		FString PinPath = InNode->GetPinPath(InPin->Index, false);
 		return InPin->Direction == EGPD_Input && 
 			InNode->FindPin(*PinPath, false) != nullptr &&
@@ -794,6 +867,8 @@ bool UControlRigGraphNode::IsPinExpanded(const FString& InPinPropertyPath) const
 
 void UControlRigGraphNode::DestroyNode()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
 	{
 		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Graph->GetOuter());
@@ -819,6 +894,8 @@ TSharedPtr<INameValidatorInterface> UControlRigGraphNode::MakeNameValidator() co
 
 void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
 	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
@@ -855,6 +932,8 @@ UControlRigBlueprint* UControlRigGraphNode::GetBlueprint() const
 
 void UControlRigGraphNode::SetupPinDefaultsFromCDO(UEdGraphPin* Pin)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
 	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
@@ -906,6 +985,8 @@ bool UControlRigGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* I
 
 void UControlRigGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	Super::AutowireNewNode(FromPin);
 
 	const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
@@ -949,6 +1030,8 @@ void ReplacePropertyName(TArray<TSharedRef<FControlRigField>>& InArray, const FS
 
 void UControlRigGraphNode::SetPropertyName(const FName& InPropertyName, bool bReplaceInnerProperties/*=false*/)
 { 
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	const FString OldPropertyName = PropertyName.ToString();
 	const FString NewPropertyName = InPropertyName.ToString();
 	PropertyName = InPropertyName;

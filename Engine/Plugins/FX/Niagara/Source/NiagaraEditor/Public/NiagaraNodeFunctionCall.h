@@ -126,7 +126,10 @@ public:
 	void RemovePropagatedVariable(const FNiagaraVariable& Variable);
 	void CleanupPropagatedSwitchValues();
 
+	/** Does any automated data manipulated required to update DI function call nodes to the current version. */
+	void UpgradeDIFunctionCalls();
 protected:
+
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const;
 
 	virtual bool AllowDynamicPins() const override { return false; }

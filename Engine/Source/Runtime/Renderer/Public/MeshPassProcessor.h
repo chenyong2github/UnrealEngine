@@ -414,6 +414,8 @@ private:
 
 	RENDERER_API void CopyFrom(const FMeshDrawShaderBindings& Other);
 
+	RENDERER_API void Release();
+
 	template<class RHIShaderType>
 	static void SetShaderBindings(
 		FRHICommandList& RHICmdList,

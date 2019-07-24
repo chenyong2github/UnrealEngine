@@ -149,6 +149,8 @@ namespace FNavigationSystem
 
 	FDelegates Delegates;
 
+	void ResetDelegates() { new(&Delegates)FDelegates(); }
+
 	void UpdateActorData(AActor& Actor) { Delegates.UpdateActorData.Execute(Actor); }
 	void UpdateComponentData(UActorComponent& Comp) { Delegates.UpdateComponentData.Execute(Comp); }
 	void UpdateActorAndComponentData(AActor& Actor, bool bUpdateAttachedActors) { Delegates.UpdateActorAndComponentData.Execute(Actor, bUpdateAttachedActors); }
@@ -343,6 +345,7 @@ void UNavigationSystemBase::SetDefaultObstacleArea(TSubclassOf<UNavAreaBase> InA
 }
 
 
+void UNavigationSystemBase::ResetEventDelegates() { FNavigationSystem::ResetDelegates(); }
 FNavigationSystem::FActorBasedSignature& UNavigationSystemBase::UpdateActorDataDelegate() { return FNavigationSystem::Delegates.UpdateActorData; }
 FNavigationSystem::FActorComponentBasedSignature& UNavigationSystemBase::UpdateComponentDataDelegate() { return FNavigationSystem::Delegates.UpdateComponentData; }
 FNavigationSystem::FSceneComponentBasedSignature& UNavigationSystemBase::UpdateComponentDataAfterMoveDelegate() { return FNavigationSystem::Delegates.UpdateComponentDataAfterMove; }

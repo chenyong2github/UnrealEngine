@@ -63,6 +63,7 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigWindow : public FDisplayClusterCo
 {
 	FString Id;
 	TArray<FString> ViewportIds;
+	TArray<FString> PostprocessIds;
 	bool IsFullscreen = false;
 	int32 WinX = 0;
 	int32 WinY = 0;
@@ -83,6 +84,20 @@ struct DISPLAYCLUSTER_API FDisplayClusterConfigViewport : public FDisplayCluster
 	FString CameraId;
 	FIntPoint Loc  = FIntPoint::ZeroValue;
 	FIntPoint Size = FIntPoint::ZeroValue;
+	bool IsRTT = false;
+
+	virtual FString ToString() const override;
+	virtual bool    DeserializeFromString(const FString& line) override;
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Postprocess configuration
+//////////////////////////////////////////////////////////////////////////////////////////////
+struct DISPLAYCLUSTER_API FDisplayClusterConfigPostprocess : public FDisplayClusterConfigBase
+{
+	FString Id;
+	FString PostprocessId;
+	FString ConfigLine;
 
 	virtual FString ToString() const override;
 	virtual bool    DeserializeFromString(const FString& line) override;

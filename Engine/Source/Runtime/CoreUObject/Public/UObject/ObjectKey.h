@@ -17,7 +17,7 @@ public:
 	}
 
 	/** Construct from an object pointer */
-	FORCEINLINE FObjectKey(const UObject *Object)
+	FORCEINLINE FObjectKey(const UObject* Object)
 		: ObjectIndex(INDEX_NONE)
 		, ObjectSerialNumber(0)
 	{
@@ -30,13 +30,13 @@ public:
 	}
 
 	/** Compare this key with another */
-	FORCEINLINE bool operator==(const FObjectKey &Other) const
+	FORCEINLINE bool operator==(const FObjectKey& Other) const
 	{
 		return ObjectIndex == Other.ObjectIndex && ObjectSerialNumber == Other.ObjectSerialNumber;
 	}
 
 	/** Compare this key with another */
-	FORCEINLINE bool operator!=(const FObjectKey &Other) const
+	FORCEINLINE bool operator!=(const FObjectKey& Other) const
 	{
 		return ObjectIndex != Other.ObjectIndex || ObjectSerialNumber != Other.ObjectSerialNumber;
 	}
@@ -64,4 +64,51 @@ private:
 
 	int32		ObjectIndex;
 	int32		ObjectSerialNumber;
+};
+
+/** TObjectKey is a strongly typed, immutable, copyable key which can be used to uniquely identify an object for the lifetime of the application */
+template<typename InElementType>
+class TObjectKey
+{
+public:
+	typedef InElementType ElementType;
+
+	/** Default constructor */
+	FORCEINLINE TObjectKey() = default;
+
+	/** Construct from an object pointer */
+	FORCEINLINE TObjectKey(const ElementType* Object)
+		: ObjectKey(Object)
+	{
+	}
+
+	/** Compare this key with another */
+	FORCEINLINE bool operator==(const TObjectKey& Other) const
+	{
+		return ObjectKey == Other.ObjectKey;
+	}
+
+	/** Compare this key with another */
+	FORCEINLINE bool operator!=(const TObjectKey& Other) const
+	{
+		return ObjectKey != Other.ObjectKey;
+	}
+
+	//** Hash function */
+	friend uint32 GetTypeHash(const TObjectKey& Key)
+	{
+		return GetTypeHash(Key.ObjectKey);
+	}
+
+	/**
+	 * Attempt to access the object from which this key was constructed.
+	 * @return The object used to construct this key, or nullptr if it is no longer valid
+	 */
+	InElementType* ResolveObjectPtr() const
+	{
+		return (InElementType*)ObjectKey.ResolveObjectPtr();
+	}
+
+private:
+	FObjectKey ObjectKey;
 };

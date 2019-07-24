@@ -1238,7 +1238,7 @@ bool FNiagaraStackGraphUtilities::IsRapidIterationType(const FNiagaraTypeDefinit
 {
 	checkf(InputType.IsValid(), TEXT("Type is invalid."));
 	return InputType != FNiagaraTypeDefinition::GetBoolDef() && !InputType.IsEnum() &&
-		InputType != FNiagaraTypeDefinition::GetParameterMapDef() && !InputType.IsDataInterface();
+		InputType != FNiagaraTypeDefinition::GetParameterMapDef() && !InputType.IsUObject();
 }
 
 FNiagaraVariable FNiagaraStackGraphUtilities::CreateRapidIterationParameter(const FString& UniqueEmitterName, ENiagaraScriptUsage ScriptUsage, const FName& AliasedInputName, const FNiagaraTypeDefinition& InputType)
@@ -1293,10 +1293,16 @@ void FNiagaraStackGraphUtilities::CleanUpStaleRapidIterationParameters(UNiagaraE
 	}
 }
 
-void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraTypeDefinition>& OutAvailableTypes)
+void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraTypeDefinition>& OutAvailableTypes, FName Namespace)
 {
 	for (const FNiagaraTypeDefinition& RegisteredParameterType : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
 	{
+		//Object types only allowed in user namespace at the moment.
+		if (RegisteredParameterType == FNiagaraTypeDefinition::GetUObjectDef() && Namespace != FNiagaraParameterHandle::UserNamespace)
+		{
+			continue;
+		}
+
 		if (RegisteredParameterType != FNiagaraTypeDefinition::GetGenericNumericDef() && RegisteredParameterType != FNiagaraTypeDefinition::GetParameterMapDef())
 		{
 			OutAvailableTypes.Add(RegisteredParameterType);

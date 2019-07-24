@@ -7,6 +7,7 @@
 
 void FRigUnit_TransformConstraint::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigHierarchyRef& HierarchyRef = ExecuteContext.HierarchyReference;
 
 	if (Context.State == EControlRigState::Init)
@@ -25,7 +26,7 @@ void FRigUnit_TransformConstraint::Execute(const FRigUnitContext& Context)
 				{
 					const FTransform SourceTransform = Hierarchy->GetGlobalTransform(BoneIndex);
 					FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
-						Hierarchy->Bones[BoneIndex].ParentName, BaseBone, BaseTransform);
+						Hierarchy->GetBones()[BoneIndex].ParentName, BaseBone, BaseTransform);
 					for (int32 TargetIndex = 0; TargetIndex < TargetNum; ++TargetIndex)
 					{
 						// talk to Rob about the implication of support both of this
@@ -79,7 +80,7 @@ void FRigUnit_TransformConstraint::Execute(const FRigUnitContext& Context)
 					}
 
 					FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
-							Hierarchy->Bones[BoneIndex].ParentName, BaseBone, BaseTransform);
+							Hierarchy->GetBones()[BoneIndex].ParentName, BaseBone, BaseTransform);
 
 					FTransform SourceTransform = Hierarchy->GetGlobalTransform(BoneIndex);
 

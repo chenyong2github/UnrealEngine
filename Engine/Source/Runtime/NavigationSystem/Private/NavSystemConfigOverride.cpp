@@ -75,7 +75,7 @@ void ANavSystemConfigOverride::PostLoad()
 		if (World->bIsWorldInitialized
 			&& NavigationSystemConfig
 #if WITH_EDITOR
-			&& (GIsEditorLoadingPackage == false)
+			&& (GIsEditorLoadingPackage == false || World->IsGameWorld())
 #endif // WITH_EDITOR
 			)
 		{

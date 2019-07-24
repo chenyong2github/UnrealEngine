@@ -4,14 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
+#include "Layout/Geometry.h"
+#include "SlateGlobals.h"
 
-class FCachedWidgetNode;
 class FHittestGrid;
 class FSlateRect;
 class ICustomHitTestPath;
-class ILayoutCache;
 class SWidget;
-struct FGeometry;
+class SWindow;
+
 
 /**
  * SWidget::OnPaint and SWidget::Paint use FPaintArgs as their
@@ -20,54 +21,54 @@ struct FGeometry;
  */
 class SLATECORE_API FPaintArgs
 {
+	friend class SInvalidationPanel;
+	friend class SRetainerWidget;
 public:
-	FPaintArgs( const SWidget& Parent, FHittestGrid& InHittestGrid, FVector2D InWindowOffset, double InCurrentTime, float InDeltaTime );
-	
-	FORCEINLINE FPaintArgs WithNewParent(const SWidget* Parent) const
-	{
-		checkSlow(Parent);
-		return WithNewParent(*Parent);
-	}
+	FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGrid, FHittestGrid& InCurrentHitTestGrid, FVector2D InWindowOffset, double InCurrentTime, float InDeltaTime);
+	FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGrid, FVector2D InWindowOffset, double InCurrentTime, float InDeltaTime);
 
-	FORCEINLINE_DEBUGGABLE FPaintArgs WithNewParent(const SWidget& Parent) const
+	FORCEINLINE_DEBUGGABLE FPaintArgs WithNewParent(const SWidget* PaintParent) const
 	{
-		FPaintArgs Args = FPaintArgs(Parent, this->Grid, this->WindowOffset, this->CurrentTime, this->DeltaTime);
-		Args.LastHittestIndex = this->LastHittestIndex;
-		Args.LastRecordedVisibility = this->LastRecordedVisibility;
-		Args.LayoutCache = this->LayoutCache;
-		Args.ParentCacheNode = this->ParentCacheNode;
-		Args.bIsCaching = this->bIsCaching;
-		Args.bIsVolatilityPass = this->bIsVolatilityPass;
+		FPaintArgs Args(*this);
+		Args.PaintParentPtr = PaintParent;
 
 		return Args;
 	}
 
-	FPaintArgs EnableCaching(const TWeakPtr<ILayoutCache>& InLayoutCache, FCachedWidgetNode* InParentCacheNode, bool bEnableCaching, bool bEnableVolatility) const;
-	FPaintArgs WithNewTime(double InCurrentTime, float InDeltaTime) const;
-	FPaintArgs RecordHittestGeometry(const SWidget* Widget, const FGeometry& WidgetGeometry, int32 LayerId) const;
-	FPaintArgs InsertCustomHitTestPath( TSharedRef<ICustomHitTestPath> CustomHitTestPath, int32 HitTestIndex ) const;
+	FORCEINLINE_DEBUGGABLE FPaintArgs WithNewHitTestGrid(FHittestGrid& NewHitTestGrid) const
+	{
+		FPaintArgs NewArgs(PaintParentPtr, RootGrid, NewHitTestGrid, WindowOffset, CurrentTime, DeltaTime);
+		return NewArgs;
+	}
 
-	FHittestGrid& GetGrid() const { return Grid; }
-	int32 GetLastHitTestIndex() const { return LastHittestIndex; }
-	EVisibility GetLastRecordedVisibility() const { return LastRecordedVisibility; }
+	FPaintArgs InsertCustomHitTestPath(const SWidget* Widget, TSharedRef<ICustomHitTestPath> CustomHitTestPath) const;
+	void SetInheritedHittestability(bool InInheritedHittestability) { bInheritedHittestability = InInheritedHittestability; }
+
+	UE_DEPRECATED(4.23, "FHittestGrid::GetGrid is deprecated.  Use GetHittestGrid instead")
+	FHittestGrid& GetGrid() const { return GetHittestGrid(); }
+
+	FHittestGrid& GetHittestGrid() const { return CurrentGrid; }
+
+	const SWidget* GetPaintParent() const { return PaintParentPtr;  }
 	FVector2D GetWindowToDesktopTransform() const { return WindowOffset; }
 	double GetCurrentTime() const { return CurrentTime; }
 	float GetDeltaTime() const { return DeltaTime; }
-	bool IsCaching() const { return bIsCaching; }
-	bool IsVolatilityPass() const { return bIsVolatilityPass; }
-	const TWeakPtr<ILayoutCache>& GetLayoutCache() const { return LayoutCache; }
-	FCachedWidgetNode* GetParentCacheNode() const { return ParentCacheNode; }
 
+	bool GetInheritedHittestability() const { return bInheritedHittestability; }
+	
 private:
-	const SWidget& ParentPtr;
-	FHittestGrid& Grid;
-	int32 LastHittestIndex;
-	EVisibility LastRecordedVisibility;
+
+	/** The root most grid.  Only the window should set this and only invalidation panels should modify it */
+	FHittestGrid& RootGrid;
+
+	/** The current hit test grid.  Its possible that there is more than one grid when there is nested invalidation panels.  This is what widgets should add to always */
+	FHittestGrid& CurrentGrid;
+
 	FVector2D WindowOffset;
+	const SWidget* PaintParentPtr;
+
 	double CurrentTime;
 	float DeltaTime;
-	bool bIsCaching;
-	bool bIsVolatilityPass;
-	TWeakPtr<ILayoutCache> LayoutCache;
-	FCachedWidgetNode* ParentCacheNode;
+	uint8 bInheritedHittestability : 1;
+
 };

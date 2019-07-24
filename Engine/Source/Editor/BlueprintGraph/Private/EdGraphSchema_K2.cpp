@@ -907,13 +907,13 @@ UFunction* UEdGraphSchema_K2::GetCallableParentFunction(UFunction* Function)
 bool UEdGraphSchema_K2::CanUserKismetCallFunction(const UFunction* Function)
 {
 	return Function && 
-		(Function->HasAllFunctionFlags(FUNC_BlueprintCallable) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && !Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction));
+		(Function->HasAllFunctionFlags(FUNC_BlueprintCallable) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && (!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions));
 }
 
 bool UEdGraphSchema_K2::CanKismetOverrideFunction(const UFunction* Function)
 {
 	return  Function && 
-		(Function->HasAllFunctionFlags(FUNC_BlueprintEvent) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && !Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction));
+		(Function->HasAllFunctionFlags(FUNC_BlueprintEvent) && !Function->HasAllFunctionFlags(FUNC_Delegate) && !Function->GetBoolMetaData(FBlueprintMetadata::MD_BlueprintInternalUseOnly) && (!Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction) || GetDefault<UBlueprintEditorSettings>()->bExposeDeprecatedFunctions));
 }
 
 bool UEdGraphSchema_K2::HasFunctionAnyOutputParameter(const UFunction* InFunction)
@@ -4703,7 +4703,7 @@ void UEdGraphSchema_K2::GetPinDefaultValuesFromString(const FEdGraphPinType& Pin
 	}
 }
 
-void UEdGraphSchema_K2::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue) const
+void UEdGraphSchema_K2::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified) const
 {
 	FString UseDefaultValue;
 	UObject* UseDefaultObject = nullptr;
@@ -4727,12 +4727,15 @@ void UEdGraphSchema_K2::TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewD
 			Node->PinConnectionListChanged(&Pin);
 		}
 
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
-		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		if (bMarkAsModified)
+		{
+			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		}
 	}
 }
 
-void UEdGraphSchema_K2::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject) const
+void UEdGraphSchema_K2::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject, bool bMarkAsModified) const
 {
 	FText UseDefaultText;
 
@@ -4759,11 +4762,14 @@ void UEdGraphSchema_K2::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaul
 		Node->PinConnectionListChanged(&Pin);
 	}
 
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
-	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	if (bMarkAsModified)
+	{
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
+		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	}
 }
 
-void UEdGraphSchema_K2::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText) const
+void UEdGraphSchema_K2::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText, bool bMarkAsModified) const
 {
 	// No reason to set the FText if it is not a PC_Text.
 	if(InPin.PinType.PinCategory == PC_Text)
@@ -4785,8 +4791,11 @@ void UEdGraphSchema_K2::TrySetDefaultText(UEdGraphPin& InPin, const FText& InNew
 			Node->PinConnectionListChanged(&InPin);
 		}
 
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
-		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		if (bMarkAsModified)
+		{
+			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(Node);
+			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+		}
 	}
 }
 

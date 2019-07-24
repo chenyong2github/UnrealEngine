@@ -119,7 +119,7 @@ void FPersonaToolkit::CreatePreviewScene(const FPersonaToolkitArgs& PersonaToolk
 
 			// Create the preview component
 			UDebugSkelMeshComponent* SkeletalMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
-			if (GEditor->PreviewFeatureLevel <= ERHIFeatureLevel::ES3_1)
+			if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 			{
 				SkeletalMeshComponent->SetMobility(EComponentMobility::Static);
 			}

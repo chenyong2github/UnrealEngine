@@ -28,6 +28,7 @@ uint LightingChannelMask;
 uint SamplesPerPixel;
 float NormalBias;
 int4 LightScissor;
+int2 PixelOffset;
 
 bool GenerateOcclusionRay(
 	FLightShaderParameters LightParameters,
@@ -113,8 +114,8 @@ bool GenerateOcclusionRay(
 [shader("raygeneration")]
 void OcclusionRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
-	
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin + PixelOffset;
+
 	float Visibility = 0.0;
 	float SumRayDistance = 0.0;
 	float ClosestRayDistance = DENOISER_INVALID_HIT_DISTANCE;
@@ -164,6 +165,32 @@ void OcclusionRGS()
 				WorldNormal = -WorldNormal;
 		}
 
+		// For hair shading model, WorldNormal is actually the shading tangent.
+		// To generate proper bias, we compute a normal oriented toward the light.
+		// Normal clipping is removed from hair since the BSDF is spherical, rather 
+		// than hemispherical
+		//
+		// Note: 
+		// Since we don't have a notion of backfacing here, there is no correct way 
+		// to avoid self-intersection with hair. Either we push towards the light, 
+		// (this creates some issue in triangle facing back the light), or we push 
+		// toward the view point (this create issue for transmitted light)
+		// It seems having proper transmission is more important, thus the light 
+		// version is enabled by default
+		bool bApplyNormalCulling = true;
+		if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
+		{
+#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
+			const float3 LightDirection = LightParameters.Direction;
+#else
+			const float3 LightDirection = normalize(LightParameters.Position - WorldPosition);
+#endif
+
+			const float3 TangentDirection = normalize(WorldNormal);
+			WorldNormal = normalize(LightDirection - TangentDirection * dot(LightDirection, TangentDirection));
+			bApplyNormalCulling = false;
+		}
+
 		LOOP
 		for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
 		{
@@ -198,7 +225,7 @@ void OcclusionRGS()
 			{
 				continue;
 			}
-			else if (dot(WorldNormal, Ray.Direction) <= 0.0)
+			else if (bApplyNormalCulling && dot(WorldNormal, Ray.Direction) <= 0.0)
 			{
 				ClosestRayDistance = 0.001;
 				continue;
@@ -219,6 +246,12 @@ void OcclusionRGS()
 	#if !ENABLE_TWO_SIDED_GEOMETRY
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 	#endif
+			
+			if (DIM_DENOISER_OUTPUT == 0)
+			{
+				// Denoiser mode 0 doesn't use depth, so take first hit
+				RayFlags |= RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
+			}
 
 			FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
 			Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.

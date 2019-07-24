@@ -51,7 +51,7 @@ struct FSpawnObjectToken : IMovieSceneExecutionToken
 		
 		// Check binding overrides to see if this spawnable has been overridden, and whether it allows the default spawnable to exist
 		const IMovieScenePlaybackClient* PlaybackClient = Player.GetPlaybackClient();
-		if (PlaybackClient)
+		if (!bHasSpawnedObject && PlaybackClient)
 		{
 			TArray<UObject*, TInlineAllocator<1>> FoundObjects;
 			bool bUseDefaultBinding = PlaybackClient->RetrieveBindingOverrides(Operand.ObjectBindingID, Operand.SequenceID, FoundObjects);

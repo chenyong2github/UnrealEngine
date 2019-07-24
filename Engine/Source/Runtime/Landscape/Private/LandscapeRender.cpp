@@ -635,7 +635,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, FLandscapeNeighborInfo(InComponent->GetWorld(), InComponent->GetLandscapeProxy()->GetLandscapeGuid(), InComponent->GetSectionBase() / InComponent->ComponentSizeQuads, InComponent->GetHeightmap(), InComponent->ForcedLOD, InComponent->LODBias)
 	, MaxLOD(FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1) - 1)
 	, UseTessellationComponentScreenSizeFalloff(InComponent->GetLandscapeProxy()->UseTessellationComponentScreenSizeFalloff)
-	, bRequiresAdjacencyInformation(0)
+	, bRequiresAdjacencyInformation(false)
 	, NumWeightmapLayerAllocations(InComponent->GetWeightmapLayerAllocations().Num())
 	, StaticLightingLOD(InComponent->GetLandscapeProxy()->StaticLightingLOD)
 	, WeightmapSubsectionOffset(InComponent->WeightmapSubsectionOffset)
@@ -765,6 +765,10 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	int8 LocalLODBias = LODBias + (int8)GLandscapeMeshLODBias;
 	MinValidLOD = FMath::Clamp<int8>(LocalLODBias, -MaxLOD, MaxLOD);
 	MaxValidLOD = FMath::Min<int32>(MaxLOD, MaxLOD + LocalLODBias);
+
+	LastVirtualTextureLOD = MaxLOD;
+	FirstVirtualTextureLOD = FMath::Max(MaxLOD - InComponent->GetLandscapeProxy()->VirtualTextureNumLods, 0);
+	VirtualTextureLodBias = InComponent->GetLandscapeProxy()->VirtualTextureLodBias;
 
 	ComponentMaxExtend = SubsectionSizeQuads * FMath::Max(InComponent->GetComponentTransform().GetScale3D().X, InComponent->GetComponentTransform().GetScale3D().Y);
 
@@ -1396,18 +1400,29 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 
 float FLandscapeComponentSceneProxy::GetComponentScreenSize(const FSceneView* View, const FVector& Origin, float MaxExtend, float ElementRadius) const
 {
-	FVector CameraOrigin = View->ViewMatrices.GetViewOrigin();
-	FMatrix ProjMatrix = View->ViewMatrices.GetProjectionMatrix();
+	float SquaredScreenRadius = 0.f;
 
-	const FVector OriginToCamera = (CameraOrigin - Origin).GetAbs();
-	const FVector ClosestPoint = OriginToCamera.ComponentMin(FVector(MaxExtend));
-	const float DistSquared = (OriginToCamera - ClosestPoint).SizeSquared();
+	if (!View->ViewMatrices.IsPerspectiveProjection())
+	{
+		FMatrix ProjMatrix = View->ViewMatrices.GetProjectionMatrix();
+		const float ScreenMultiple = FMath::Max(0.5f * ProjMatrix.M[0][0], 0.5f * ProjMatrix.M[1][1]);
+		SquaredScreenRadius = FMath::Square(ScreenMultiple * ElementRadius);
+	}
+	else
+	{
+		FVector CameraOrigin = View->ViewMatrices.GetViewOrigin();
+		FMatrix ProjMatrix = View->ViewMatrices.GetProjectionMatrix();
 
-	// Get projection multiple accounting for view scaling.
-	const float ScreenMultiple = FMath::Max(0.5f * ProjMatrix.M[0][0], 0.5f * ProjMatrix.M[1][1]);
+		const FVector OriginToCamera = (CameraOrigin - Origin).GetAbs();
+		const FVector ClosestPoint = OriginToCamera.ComponentMin(FVector(MaxExtend));
+		const float DistSquared = (OriginToCamera - ClosestPoint).SizeSquared();
 
-	// Calculate screen-space projected radius
-	float SquaredScreenRadius = FMath::Square(ScreenMultiple * ElementRadius) / FMath::Max(1.0f, DistSquared);
+		// Get projection multiple accounting for view scaling.
+		const float ScreenMultiple = FMath::Max(0.5f * ProjMatrix.M[0][0], 0.5f * ProjMatrix.M[1][1]);
+
+		// Calculate screen-space projected radius
+		SquaredScreenRadius = FMath::Square(ScreenMultiple * ElementRadius) / FMath::Max(1.0f, DistSquared);
+	}
 
 	return SquaredScreenRadius * 2.0f;
 }
@@ -1765,7 +1780,7 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 	}		
 
 	int32 TotalBatchCount = (1 + LastLOD - FirstLOD) * NumBatchesPerLOD * BatchCount;
-	TotalBatchCount += RuntimeVirtualTextureMaterialTypes.Num();
+	TotalBatchCount += (1 + LastVirtualTextureLOD - FirstVirtualTextureLOD) * RuntimeVirtualTextureMaterialTypes.Num();
 
 	StaticBatchParamArray.Empty(TotalBatchCount);
 	PDI->ReserveMemoryForMeshes(TotalBatchCount);
@@ -1839,20 +1854,16 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 	// Add fixed grid mesh batches for runtime virtual texture usage
  	for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
  	{
- 		// Use lowest detail geometry Lod and highest detail material Lod
- 		//todo[vt]:
-		// Add user control for to allow use of different Lods.
-		// Specifically we would want to use a higher geometry Lod in the case where the landscape interpolator outputs need to be at a high resolution for correct virtual texture rendering.
-		// This happens if we read world height in the landscape shading (although we could read height directly from the height texture instead of taking it from the vertex interpolator).
-		// Also it would happen if we are relying on modified vertex positions (either from position offsets in material, or from using the XYOffsetmapTexture).
- 		const int32 LODIndex = LastLOD;
- 		const int32 MaterialIndex = LODIndexToMaterialIndex[FirstLOD];
- 
- 		FMeshBatch RuntimeVirtualTextureMeshBatch;
- 		if (GetMeshElementForVirtualTexture(LODIndex, MaterialType, AvailableMaterials[MaterialIndex], RuntimeVirtualTextureMeshBatch, StaticBatchParamArray))
- 		{
- 			PDI->DrawMesh(RuntimeVirtualTextureMeshBatch, FLT_MAX);
- 		}
+		const int32 MaterialIndex = LODIndexToMaterialIndex[FirstLOD];
+
+		for (int32 LODIndex = FirstVirtualTextureLOD; LODIndex <= LastVirtualTextureLOD; ++LODIndex)
+		{
+			FMeshBatch RuntimeVirtualTextureMeshBatch;
+			if (GetMeshElementForVirtualTexture(LODIndex, MaterialType, AvailableMaterials[MaterialIndex], RuntimeVirtualTextureMeshBatch, StaticBatchParamArray))
+			{
+				PDI->DrawMesh(RuntimeVirtualTextureMeshBatch, FLT_MAX);
+			}
+		}
  	}
 
 	check(StaticBatchParamArray.Num() <= TotalBatchCount);
@@ -3246,10 +3257,10 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 }
 #endif
 
-bool FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
+int32 FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
 {
 	// TODO: implement
-	return false;
+	return 0;
 }
 
 //

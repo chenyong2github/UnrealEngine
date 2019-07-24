@@ -29,6 +29,8 @@ UControlRigGraph::UControlRigGraph()
 
 void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	InBlueprint->OnModified().RemoveAll(this);
 	InBlueprint->OnModified().AddUObject(this, &UControlRigGraph::HandleModelModified);
 }
@@ -50,6 +52,8 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 void UControlRigGraph::PostLoad()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FoundHierarchyRefVariableNodes.Reset();
 	FoundHierarchyRefMutableNodes.Reset();
 	FoundHierarchyRefConnections.Reset();
@@ -133,6 +137,8 @@ void UControlRigGraph::PostLoad()
 
 void UControlRigGraph::OnBlueprintCompiledPostLoad(UBlueprint* InCompiledBlueprint)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemovalOfHierarchyRefPins)
 	{
 		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetOuter());
@@ -268,8 +274,11 @@ void UControlRigGraph::OnBlueprintCompiledPostLoad(UBlueprint* InCompiledBluepri
 
 void UControlRigGraph::CacheBoneNameList(const FRigHierarchy& Hierarchy)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TArray<FString> Names;
-	for (const FRigBone& Bone : Hierarchy.Bones)
+	const TArray<FRigBone>& Bones = Hierarchy.GetBones();
+	for (const FRigBone& Bone : Bones )
 	{
 		Names.Add(Bone.Name.ToString());
 	}
@@ -291,6 +300,8 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList() const
 
 void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (bSuspendModelNotifications)
 	{
 		return;
@@ -390,8 +401,14 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 
 					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
 					{
+						int32 PreviousParameterType = RigNode->ParameterType;
 						RigNode->ParameterType = (int32)Node->ParameterType;
 						RigNode->SetColorFromModel(Node->Color);
+
+						if (Node->IsParameter() && PreviousParameterType != RigNode->ParameterType)
+						{
+							RigNode->ReconstructNode();
+						}
 					}
 
 					if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(EdNode))
@@ -535,6 +552,8 @@ void UControlRigGraph::HandleModelModified(const UControlRigModel* InModel, ECon
 
 UEdGraphNode* UControlRigGraph::FindNodeFromPropertyName(const FName& InPropertyName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	for (UEdGraphNode* EdNode : Nodes)
 	{
 		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
@@ -555,6 +574,30 @@ UEdGraphNode* UControlRigGraph::FindNodeFromPropertyName(const FName& InProperty
 	return nullptr;
 }
 
+void UControlRigGraph::CacheCurveNameList(const FRigCurveContainer& Container)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	TArray<FString> Names;
+	const TArray<FRigCurve>& Curves = Container.GetCurves();
+	for (const FRigCurve& Curve : Curves)
+	{
+		Names.Add(Curve.Name.ToString());
+	}
+	Names.Sort();
+
+	CurveNameList.Reset();
+	CurveNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
+	for (const FString& Name : Names)
+	{
+		CurveNameList.Add(MakeShared<FString>(Name));
+	}
+}
+
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetCurveNameList() const
+{
+	return CurveNameList;
+}
 #endif
 
 #undef LOCTEXT_NAMESPACE

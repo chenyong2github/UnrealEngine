@@ -17,6 +17,7 @@
 #include "UObject/CoreRedirects.h"
 #include "UObject/SoftObjectPath.h"
 #include "Math/Box2D.h"
+#include "UObject/ReleaseObjectVersion.h"
 
 DEFINE_LOG_CATEGORY(LogProperty);
 
@@ -477,6 +478,12 @@ void UProperty::Serialize( FArchive& Ar )
 	{
 		Offset_Internal = 0;
 		DestructorLinkNext = NULL;
+	}
+
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	if (Ar.IsSaving() || Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::PropertiesSerializeRepCondition)
+	{
+		Ar << BlueprintReplicationCondition;
 	}
 }
 

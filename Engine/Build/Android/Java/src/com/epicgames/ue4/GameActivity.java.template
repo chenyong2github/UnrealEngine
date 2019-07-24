@@ -3,6 +3,7 @@
 
 package com.epicgames.ue4;
 
+import android.app.NotificationManager;
 import android.opengl.EGL14;
 import android.opengl.EGLConfig;
 import android.opengl.EGLContext;
@@ -253,7 +254,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	static float[] current_gravity = new float[]{0, 0, 0};
 	static float[] current_acceleration = new float[]{0, 0, 0};
 
-	public static Logger Log = new Logger("UE4");
+	public static Logger Log = new Logger("UE4", "GameActivity");
 
 	// From cpufeatures.h AndroidCpuFamily enum
 	private static final int ANDROID_CPU_FAMILY_UNKNOWN = 0;
@@ -403,6 +404,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	/** Use ExternalFilesDir for UE4Game files */
     private boolean UseExternalFilesDir = false;
+
+	/** Make log files public */
+    private boolean PublicLogFiles = false;
 
 	/** Flag to ensure we have finished startup before allowing nativeOnActivityResult to get called */
 	private boolean InitCompletedOK = false;
@@ -2543,6 +2547,16 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
                 Log.debug( "bUseExternalFilesDir not found. Leaving as " + UseExternalFilesDir);
             }
 
+			if (bundle.containsKey("com.epicgames.ue4.GameActivity.bPublicLogFiles"))
+            {
+                PublicLogFiles = bundle.getBoolean("com.epicgames.ue4.GameActivity.bPublicLogFiles");
+                Log.debug( "PublicLogFiles set to " + PublicLogFiles);
+            }
+            else
+            {
+                Log.debug( "PublicLogFiles not found. Leaving as " + PublicLogFiles);
+            }
+
 			if(bundle.containsKey("com.epicgames.ue4.GameActivity.bAllowIMU"))
 			{
 				bAllowIMU = bundle.getBoolean("com.epicgames.ue4.GameActivity.bAllowIMU");
@@ -2590,7 +2604,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		Log.debug("APK path: " + getPackageResourcePath());
 		Log.debug("OBB in APK: " + (PackageDataInsideApkValue==1));
-		nativeSetGlobalActivity(UseExternalFilesDir, getFilesDir().getPath(), getExternalFilesDir(null).getPath(), PackageDataInsideApkValue==1, getPackageResourcePath());
+		nativeSetGlobalActivity(UseExternalFilesDir, PublicLogFiles, getFilesDir().getPath(), getExternalFilesDir(null).getPath(), PackageDataInsideApkValue==1, getPackageResourcePath());
 
 		// tell the engine if this is a portrait app
 		nativeSetWindowInfo(getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT, DepthBufferPreference);
@@ -4576,7 +4590,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				localNotificationLaunchActivationEvent = extrasBundle.get("localNotificationLaunchActivationEvent").toString();
 				int notificationID = extrasBundle.getInt("localNotificationID");
 
-				LocalNotificationRemoveID(notificationID);
+				LocalNotificationRemoveID(this, notificationID);
 
 				// TODO
 				localNotificationLaunchFireDate = 0; 
@@ -4665,9 +4679,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return false;
 	}
 
-	private void LocalNotificationRemoveID(int notificationID)
+	public static void LocalNotificationRemoveID(Context context, int notificationID)
 	{
-		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
 		SharedPreferences.Editor editor = preferences.edit();
 		String notificationIDs = preferences.getString("notificationIDs", "");
 
@@ -4706,13 +4720,72 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		editor.putString("notificationIDs", newNotificationIDs);
 		editor.commit();
 	}
+	
+	public static void LocalNotificationRemoveDetails(Context context, int notificationID)
+	{
+		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+
+		try
+		{
+			JSONObject notificationDetails = new JSONObject(preferences.getString("notificationDetails", "{}"));
+			notificationDetails.remove(String.valueOf(notificationID));
+			editor.putString("notificationDetails", notificationDetails.toString());
+			editor.commit();
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace();
+		}
+	}
 
 	public int AndroidThunkJava_LocalNotificationScheduleAtTime(String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent) 
 	{
 		int notificationID = LocalNotificationGetID(this);
 
+		if (!LocalNotificationScheduleAtTime(this, notificationID, targetDateTime, localTime, title, body, action, activationEvent))
+		{
+			return -1;
+		}
+
+		// Store notification details
+		SharedPreferences preferences = getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		JSONObject notificationDetails;
+		try
+		{
+			notificationDetails = new JSONObject(preferences.getString("notificationDetails", "{}"));
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace(); 
+			notificationDetails = new JSONObject();
+		}
+		JSONObject details = new JSONObject();
+		try
+		{
+			details.put("local-notification-targetDateTime", targetDateTime);
+			details.put("local-notification-localTime", localTime);
+			details.put("local-notification-title", title);
+			details.put("local-notification-body", body);
+			details.put("local-notification-action", action);
+			details.put("local-notification-activationEvent", activationEvent);
+			notificationDetails.put(String.valueOf(notificationID), details);
+			editor.putString("notificationDetails", notificationDetails.toString());
+			editor.commit();
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace();
+		}
+
+		return notificationID;
+	}
+
+	public static boolean LocalNotificationScheduleAtTime(Context context, int notificationID, String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent)
+	{
 		// Create callback for PendingIntent
-		Intent notificationIntent = new Intent(this, LocalNotificationReceiver.class); 
+		Intent notificationIntent = new Intent(context, LocalNotificationReceiver.class);
 
 		// Add user-provided data
 		notificationIntent.putExtra("local-notification-ID", notificationID);
@@ -4720,9 +4793,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		notificationIntent.putExtra("local-notification-body", body);
 		notificationIntent.putExtra("local-notification-action", action);
 		notificationIntent.putExtra("local-notification-activationEvent", activationEvent);
-		
+
 		// Designate the callback as a PendingIntent
-		PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+		PendingIntent pendingIntent = PendingIntent.getBroadcast(context, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 		TimeZone targetTimeZone = TimeZone.getTimeZone("UTC");
 
@@ -4744,8 +4817,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		catch (ParseException e) 
 		{
 			e.printStackTrace();
-			LocalNotificationRemoveID(notificationID);
-			return -1;
+			LocalNotificationRemoveID(context, notificationID);
+			return false;
 		}
 
 		Date currentDate = new Date();
@@ -4754,17 +4827,17 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		if(msDiff < 0)
 		{
-			LocalNotificationRemoveID(notificationID);
-			return -1;
+			LocalNotificationRemoveID(context, notificationID);
+			return false;
 		}
 
 		long futureTimeInMillis = SystemClock.elapsedRealtime() + msDiff;//Calculate the time to run the callback
-		AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+		AlarmManager alarmManager = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
 
 		//Schedule the operation by using AlarmService
 		alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, futureTimeInMillis, pendingIntent);
 
-		return notificationID;
+		return true;
 	}
 
 	public class LaunchNotification {
@@ -4801,6 +4874,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
 		SharedPreferences.Editor editor = preferences.edit();
 		editor.putString("notificationIDs", "");
+		editor.putString("notificationDetails", "{}");
 		editor.commit();
 	}
 
@@ -4814,13 +4888,18 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	{
 		if (AndroidThunkJava_LocalNotificationExists(notificationId))
 		{
-			LocalNotificationRemoveID(notificationId);
+			LocalNotificationRemoveID(this, notificationId);
+			LocalNotificationRemoveDetails(this, notificationId);
 
 			//Cancel the intent itself as well as from the alarm manager
 			AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
 			PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationId, new Intent(this, LocalNotificationReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
 			pendingIntent.cancel();
 			alarmManager.cancel(pendingIntent);
+			
+			//Also clear the notification if currently displayed
+			NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+			notificationManager.cancel(notificationId);
 			return true;
 		}
 		return false;
@@ -5889,7 +5968,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 	public native boolean nativeIsShippingBuild();
 	public native void nativeSetAndroidStartupState(boolean bDebuggerAttached);
-	public native void nativeSetGlobalActivity(boolean bUseExternalFilesDir, String internalFilePath, String externalFilePath, boolean bOBBInAPK, String APKPath);
+	public native void nativeSetGlobalActivity(boolean bUseExternalFilesDir, boolean bPublicLogFiles, String internalFilePath, String externalFilePath, boolean bOBBInAPK, String APKPath);
 	public native void nativeSetWindowInfo(boolean bIsPortrait, int DepthBufferPreference);
 	public native void nativeSetObbInfo(String ProjectName, String PackageName, int Version, int PatchVersion, String AppType);
 	public native void nativeSetAndroidVersionInformation( String AndroidVersion, String PhoneMake, String PhoneModel, String PhoneBuildNumber, String OSLanguage );

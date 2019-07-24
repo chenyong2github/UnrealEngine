@@ -361,6 +361,11 @@ protected:
 					ObjectMap.Add(SerializedObject.ReferencedObjects[ObjIndex].Get(), ObjIndex);
 				}
 
+				for(int32 NameIndex = 0; NameIndex < SerializedObject.ReferencedNames.Num(); ++NameIndex)
+				{
+					NameMap.Add(SerializedObject.ReferencedNames[NameIndex], NameIndex);
+				}
+
 				this->SetWantBinaryPropertySerialization(bWantBinarySerialization);
 				this->SetIsSaving(true);
 				this->SetIsTransacting(true);
@@ -430,7 +435,17 @@ protected:
 			}
 			FArchive& operator<<( class FName& N ) override
 			{
-				int32 NameIndex = SerializedObject.ReferencedNames.AddUnique(N);
+				int32 NameIndex = INDEX_NONE;
+				const int32 * NameIndexPtr = NameMap.Find(N);
+				if (NameIndexPtr)
+				{
+					NameIndex = *NameIndexPtr;
+				}
+				else
+				{
+					NameIndex = SerializedObject.ReferencedNames.Add(N);
+					NameMap.Add(N, NameIndex);
+				}
 
 				// Track this name index in the serialized data
 				{
@@ -444,7 +459,7 @@ protected:
 			FArchive& operator<<( class UObject*& Res ) override
 			{
 				int32 ObjectIndex = INDEX_NONE;
-				int32* ObjIndexPtr = ObjectMap.Find(Res);
+				const int32* ObjIndexPtr = ObjectMap.Find(Res);
 				if(ObjIndexPtr)
 				{
 					ObjectIndex = *ObjIndexPtr;
@@ -466,6 +481,7 @@ protected:
 			}
 			FSerializedObject& SerializedObject;
 			TMap<UObject*, int32> ObjectMap;
+			TMap<FName, int32> NameMap;
 			FCachedPropertyKey CachedSerializedTaggedPropertyKey;
 			int64 Offset;
 		};

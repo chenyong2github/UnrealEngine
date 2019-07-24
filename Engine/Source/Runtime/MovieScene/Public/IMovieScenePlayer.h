@@ -297,6 +297,16 @@ public:
 	}
 
 	/**
+	 * Restore any pre-animated state that has been cached for the specified class
+	 *
+	 * @param GeneratedClass			The class of the object to restore
+	 */
+	void RestorePreAnimatedState(UClass* GeneratedClass)
+	{
+		PreAnimatedState.RestorePreAnimatedState(*this, GeneratedClass);
+	}
+
+	/**
 	 * Restore any pre-animated state that has been cached for the specified object
 	 *
 	 * @param Object			The object to restore

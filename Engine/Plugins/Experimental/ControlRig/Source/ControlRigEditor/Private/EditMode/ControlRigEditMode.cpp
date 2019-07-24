@@ -317,8 +317,12 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 			RefreshObjects();
 		}
 
-		USceneComponent* Component = Cast<USceneComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
-		FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+		FTransform ComponentTransform = FTransform::Identity;
+		if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+		{
+			USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
+			ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+		}
 
 		// Update controls from rig
 		for(const FControlUnitProxy& UnitProxy : ControlUnits)
@@ -368,14 +372,19 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 		{
 			if (Settings->bDisplayHierarchy)
 			{
-				USceneComponent* Component = Cast<USceneComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
-				FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+				FTransform ComponentTransform = FTransform::Identity;
+				if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+				{
+					USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
+					ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+				}
 
 				// each base hierarchy Bone
 				const FRigHierarchy& BaseHierarchy = ControlRig->GetBaseHierarchy();
-				for (int32 BoneIndex = 0; BoneIndex < BaseHierarchy.Bones.Num(); ++BoneIndex)
+				const TArray<FRigBone>& Bones = BaseHierarchy.GetBones();
+				for (int32 BoneIndex = 0; BoneIndex < Bones.Num(); ++BoneIndex)
 				{
-					const FRigBone& CurrentBone = BaseHierarchy.Bones[BoneIndex];
+					const FRigBone& CurrentBone = Bones[BoneIndex];
 					const FTransform Transform = BaseHierarchy.GetGlobalTransform(BoneIndex);
 
 					if (CurrentBone.ParentIndex != INDEX_NONE)
@@ -567,8 +576,12 @@ FVector FControlRigEditMode::GetWidgetLocation() const
 {
 	if(UControlRig* ControlRig = WeakControlRig.Get())
 	{
-		USceneComponent* Component = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
-		FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+		FTransform ComponentTransform = FTransform::Identity;
+		if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+		{
+			USceneComponent* Component = Cast<USkeletalMeshComponent>(ObjectBinding->GetBoundObject());
+			ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+		}
 
 		for (const FControlUnitProxy& UnitProxy : ControlUnits)
 		{
@@ -604,8 +617,12 @@ bool FControlRigEditMode::GetCustomDrawingCoordinateSystem(FMatrix& OutMatrix, v
 
 		if (AreBoneSelectedAndMovable())
 		{
-			USceneComponent* Component = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
-			FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+			FTransform ComponentTransform = FTransform::Identity;
+			if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+			{
+				USceneComponent* Component = Cast<USkeletalMeshComponent>(ObjectBinding->GetBoundObject());
+				ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+			}
 			FTransform BoneTransform = OnGetBoneTransformDelegate.Execute(SelectedBones[0], false)*ComponentTransform;
 			OutMatrix = BoneTransform.ToMatrixWithScale().RemoveTranslation();
 			return true;
@@ -657,8 +674,12 @@ bool FControlRigEditMode::IntersectSelect(bool InSelect, const TFunctionRef<bool
 {
 	if(UControlRig* ControlRig = WeakControlRig.Get())
 	{
-		USceneComponent* Component = Cast<USceneComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
-		FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+		FTransform ComponentTransform = FTransform::Identity;
+		if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+		{
+			USceneComponent* Component = Cast<USkeletalMeshComponent>(ObjectBinding->GetBoundObject());
+			ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+		}
 
 		bool bSelected = false;
 		for (const FControlUnitProxy& UnitProxy : ControlUnits)
@@ -753,8 +774,12 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 			const bool bDoTranslation = !Drag.IsZero() && (WidgetMode == FWidget::WM_Translate || WidgetMode == FWidget::WM_TranslateRotateZ);
 			const bool bDoScale = !Scale.IsZero() && WidgetMode == FWidget::WM_Scale;
 
-			USceneComponent* Component = Cast<USceneComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
-			FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+			FTransform ComponentTransform = FTransform::Identity;
+			if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+			{
+				USceneComponent* Component = Cast<USkeletalMeshComponent>(ObjectBinding->GetBoundObject());
+				ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+			}
 
 			if (AreControlsSelected())
 			{
@@ -820,7 +845,8 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 										UBlueprint* Blueprint = Cast<UBlueprint>(Class->ClassGeneratedBy);
 										if (Blueprint)
 										{
-											FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+											Blueprint->MarkPackageDirty();
+											//FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 										}
 									}
 								}
@@ -1156,9 +1182,12 @@ void FControlRigEditMode::HandleObjectSpawned(FGuid InObjectBinding, UObject* Sp
 				SetObjects(SpawnedObject, InObjectBinding);
 				if (UControlRig* ControlRig = Cast<UControlRig>(SpawnedObject))
 				{
-					if (Settings->Actor.IsValid() && ControlRig->GetObjectBinding()->GetBoundObject() == nullptr)
+					if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
 					{
-						ControlRig->GetObjectBinding()->BindToObject(Settings->Actor.Get());
+						if (Settings->Actor.IsValid() && ObjectBinding->GetBoundObject() == nullptr)
+						{
+							ObjectBinding->BindToObject(Settings->Actor.Get());
+						}
 					}
 				}
 				ReBindToActor();
@@ -1226,8 +1255,12 @@ void FControlRigEditMode::RecalcPivotTransform()
 			PivotTransform.SetLocation(PivotLocation);
 
 			// recalc coord system too
-			USceneComponent* Component = Cast<USceneComponent>(ControlRig->GetObjectBinding()->GetBoundObject());
-			FTransform ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+			FTransform ComponentTransform = FTransform::Identity;
+			if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+			{
+				USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
+				ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+			}
 
 			if (NumSelectedControls == 1)
 			{

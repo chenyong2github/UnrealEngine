@@ -10,7 +10,7 @@ import com.epicgames.ue4.network.NetworkChangedManager;
 //$${gameApplicationImportAdditions}$$
 
 public class GameApplication extends Application implements LifecycleObserver {
-	private static final Logger Log = new Logger("UE4-" + GameApplication.class.getSimpleName());
+	private static final Logger Log = new Logger("UE4", "GameApp");
 
 	private static boolean isForeground = false;
 

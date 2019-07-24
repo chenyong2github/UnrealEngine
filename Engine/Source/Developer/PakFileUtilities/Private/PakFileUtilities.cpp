@@ -4026,6 +4026,54 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 		return TestPakFile(*PakFilename);
 	}
 
+	if (FParse::Param(CmdLine, TEXT("TestMemoryOptimization")))
+	{
+		TArray<FPakInputPair> Entries;
+		FPakCommandLineParameters CmdLineParameters;
+		ProcessCommandLine(CmdLine, NonOptionArguments, Entries, CmdLineParameters);
+
+		if (NonOptionArguments.Num() != 1)
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Incorrect arguments. Expected: -TestMemoryOptimization <SourceFolder>"));
+			return false;
+		}
+
+		FString SourceDir = NonOptionArguments[0];
+		TArray<FString> PakFilenames;
+		IFileManager::Get().FindFiles(PakFilenames, *SourceDir, TEXT("*.pak"));
+		TArray<FPakFile*> PakFiles;
+		PakFiles.Empty(PakFilenames.Num());
+
+		for (const FString& PakFilename : PakFilenames)
+		{
+			PakFiles.Add(new FPakFile(&FPlatformFileManager::Get().GetPlatformFile(), *(FPaths::Combine(SourceDir, PakFilename)), false));
+		}
+
+		TMap<uint64, FPakEntry> CollisionChecker;
+		
+		for (FPakFile* PakFile : PakFiles)
+		{
+			if (!PakFile->UnloadPakEntryFilenames(CollisionChecker, nullptr, false))
+			{
+				UE_LOG(LogPakFile, Error, TEXT("Pak '%s' failed to unload filenames"), *PakFile->GetFilename());
+			}
+
+			if (!PakFile->ShrinkPakEntriesMemoryUsage())
+			{
+				UE_LOG(LogPakFile, Error, TEXT("Pak '%s' failed to shrink entries"), *PakFile->GetFilename());
+			}
+		}
+
+		for (FPakFile* PakFile : PakFiles)
+		{
+			delete PakFile;
+		}
+
+		PakFiles.Empty();
+
+		return true;
+	}
+
 	if (FParse::Param(CmdLine, TEXT("List")))
 	{
 		TArray<FPakInputPair> Entries;

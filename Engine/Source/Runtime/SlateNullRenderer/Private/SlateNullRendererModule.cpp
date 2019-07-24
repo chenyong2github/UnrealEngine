@@ -148,7 +148,6 @@ private:
 		if (!ResourceManager.IsValid())
 		{
 			ResourceManager = MakeShareable(new FSlateNullShaderResourceManager);
-			FSlateDataPayload::ResourceManager = ResourceManager.Get();
 		}
 	}
 

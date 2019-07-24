@@ -78,6 +78,9 @@ public:
 	void DestroySystemSimulation(UNiagaraSystem* System);
 	void DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr);
 
+	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
+	void OnBatcherDestroyed(NiagaraEmitterInstanceBatcher* InBatcher);
+
 	void Tick(float DeltaSeconds);
 
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
@@ -108,7 +111,7 @@ private:
 		TArray<TUniquePtr<FNiagaraSystemInstance>>	Queue;
 	};
 
-	static constexpr int NumDeferredQueues = 2;
+	static constexpr int NumDeferredQueues = 3;
 	int DeferredDeletionQueueIndex = 0;
 	FDeferredDeletionQueue DeferredDeletionQueue[NumDeferredQueues];
 };

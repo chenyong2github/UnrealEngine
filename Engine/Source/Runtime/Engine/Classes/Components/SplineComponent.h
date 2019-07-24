@@ -47,7 +47,9 @@ public:
 	virtual void AddPoint(float InputKey) PURE_VIRTUAL(USplineMetadata::AddPoint, );
 	virtual void RemovePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::RemovePoint, );
 	virtual void DuplicatePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::DuplicatePoint, );
+	virtual void CopyPoint(const USplineComponent* InFromSplineComp, int32 InFromIndex, int32 InToIndex) PURE_VIRTUAL(USplineMetadata::CopyPoint, );
 	virtual void Reset(int32 NumPoints) PURE_VIRTUAL(USplineMetadata::Reset, );
+	virtual void Fixup(int32 NumPoints) PURE_VIRTUAL(USplineMetadata::Fixup, );
 };
 
 USTRUCT()
@@ -71,8 +73,8 @@ struct ENGINE_API FSplineCurves
 	UPROPERTY()
 	FInterpCurveFloat ReparamTable;
 
-	UPROPERTY()
-	USplineMetadata* Metadata = nullptr;
+	UPROPERTY(Instanced)
+	USplineMetadata* Metadata;
 
 	bool operator==(const FSplineCurves& Other) const
 	{
@@ -285,6 +287,7 @@ public:
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif

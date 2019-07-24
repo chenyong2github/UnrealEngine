@@ -14,7 +14,7 @@ namespace AutomationTool
 	{
 		public override string GetMsBuildExe()
 		{
-			return "xbuild";
+			return "msbuild";
 		}
 
 		public override string RelativeBinariesFolder

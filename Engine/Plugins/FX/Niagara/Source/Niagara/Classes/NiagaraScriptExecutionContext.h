@@ -147,6 +147,14 @@ struct FNiagaraScriptExecutionContext
 	bool CanExecute()const;
 };
 
+struct FNiagaraGpuSpawnInfo
+{
+	uint32		EventSpawnTotal = 0;
+	uint32		SpawnRateInstances = 0;
+	FVector4	SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS_V4];
+	FVector4	SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
+};
+
 struct FNiagaraComputeExecutionContext
 {
 	FNiagaraComputeExecutionContext();
@@ -196,8 +204,8 @@ public:
 	//Most current buffer that can be used for rendering.
 	FNiagaraDataBuffer* DataToRender;
 
-	uint32 EventSpawnTotal_GT;
-	uint32 SpawnRateInstances_GT;
+	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
+	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;
 
 #if WITH_EDITORONLY_DATA
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackFloat;
@@ -228,8 +236,7 @@ struct FNiagaraDataInterfaceInstanceData
 
 struct FNiagaraComputeInstanceData
 {
-	uint32 EventSpawnTotal;
-	uint32 SpawnRateInstances;
+	FNiagaraGpuSpawnInfo SpawnInfo;
 	uint8* ParamData;
 	FNiagaraComputeExecutionContext* Context;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
@@ -240,9 +247,7 @@ struct FNiagaraComputeInstanceData
 	FNiagaraDataBuffer* DestinationData;
 
 	FNiagaraComputeInstanceData()
-		: EventSpawnTotal(0)
-		, SpawnRateInstances(0)
-		, ParamData(nullptr)
+		: ParamData(nullptr)
 		, Context(nullptr)
 		, CurrentData(nullptr)
 		, DestinationData(nullptr)

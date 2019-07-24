@@ -59,13 +59,16 @@ UNiagaraScriptSourceBase::UNiagaraScriptSourceBase(const FObjectInitializer& Obj
 
 FNiagaraVMExecutableData::FNiagaraVMExecutableData() 
 	: NumUserPtrs(0)
+#if WITH_EDITORONLY_DATA
 	, LastOpCount(0)
+#endif
 	, LastCompileStatus(ENiagaraScriptCompileStatus::NCS_Unknown)
+#if WITH_EDITORONLY_DATA
 	, bReadsAttributeData(false)
 	, CompileTime(0.0f)
+#endif
 {
 }
-
 
 bool FNiagaraVMExecutableData::IsValid() const
 {
@@ -103,6 +106,7 @@ bool FNiagaraVMExecutableDataId::RequiresPersistentIDs() const
 	return AdditionalDefines.Contains("RequiresPersistentIDs");
 }
 
+#if WITH_EDITORONLY_DATA
 /**
 * Tests this set against another for equality, disregarding override settings.
 *
@@ -211,15 +215,16 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString) const
 		}
 	}	
 }
+#endif
 
 UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Usage(ENiagaraScriptUsage::Function)
 #if WITH_EDITORONLY_DATA
 	, UsageIndex_DEPRECATED(0)
-#endif
 	, ModuleUsageBitmask( (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScriptInterpolated) | (1 << (int32)ENiagaraScriptUsage::ParticleUpdateScript) | (1 << (int32)ENiagaraScriptUsage::ParticleEventScript) )
 	, NumericOutputTypeSelectionMode(ENiagaraNumericOutputTypeSelectionMode::Largest)
+#endif
 {
 #if WITH_EDITORONLY_DATA
 	ScriptResource.OnCompilationComplete().AddUniqueDynamic(this, &UNiagaraScript::OnCompilationComplete);
@@ -857,11 +862,17 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	
 	if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Error)
 	{
-		UE_LOG(LogNiagara, Error, TEXT("%s"), *CachedScriptVM.ErrorMsg);
+		// Compiler errors for Niagara will have a strong UI impact but the game should still function properly, there 
+		// will just be oddities in the visuals. It should be acted upon, but in no way should the game be blocked from
+		// a successful cook because of it. Therefore, we do a warning.
+		UE_LOG(LogNiagara, Warning, TEXT("%s System Asset: %s"), *CachedScriptVM.ErrorMsg, *GetPathName());
 	}
 	else if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("%s"), *CachedScriptVM.ErrorMsg);
+		// Compiler warnings for Niagara are meant for notification and should have a UI representation, but 
+		// should be expected to still function properly and can be acted upon at the user's leisure. This makes
+		// them best logged as Display messages, as Log will not be shown in the cook.
+		UE_LOG(LogNiagara, Display, TEXT("%s System Asset: %s"), *CachedScriptVM.ErrorMsg, *GetPathName());
 	}
 
 	// The compilation process only references via soft references any parameter collections. This resolves those 
@@ -1452,6 +1463,7 @@ FNiagaraShaderScript* UNiagaraScript::AllocateResource()
 	return new FNiagaraShaderScript();
 }
 
+#if WITH_EDITORONLY_DATA
 TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContexts() const
 {
 	return GetSupportedUsageContextsForBitmask(ModuleUsageBitmask);
@@ -1470,6 +1482,7 @@ TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContextsForBitmask(
 	}
 	return Supported;
 }
+#endif
 
 bool UNiagaraScript::CanBeRunOnGpu()const
 {

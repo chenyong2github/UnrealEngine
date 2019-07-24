@@ -27,7 +27,7 @@ public:
 	 *
 	 * @param BatchData	The batch data that contains rendering data we need to upload to the buffers
 	 */
-	void UpdateVertexAndIndexBuffers(FSlateBatchData& BatchData);
+	void BuildRenderingBuffers(FSlateBatchData& BatchData);
 
 	/**
 	 * Draws Slate elements
@@ -35,7 +35,7 @@ public:
 	 * @param ViewProjectionMatrix	The view projection matrix to pass to the vertex shader
 	 * @param RenderBatches			A list of batches that should be rendered.
 	 */
-	void DrawElements( const FMatrix& ViewProjectionMatrix, FVector2D ViewportSize, const TArray<FSlateRenderBatch>& RenderBatches);
+	void DrawElements( const FMatrix& ViewProjectionMatrix, FVector2D ViewportSize, TArrayView<const FSlateRenderBatch> RenderBatches);
 
 	virtual TSharedRef<FSlateShaderResourceManager> GetResourceManager() const override;
 

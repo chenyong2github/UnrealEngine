@@ -89,8 +89,6 @@ public:
 private:
 	void BindCommands();
 	void OnSaveScene();
-	void OnShowSettings();
-	bool IsShowingSettings() const;
 	void OnBuildWorld();
 	void ResetBuildWorld();
 	void CleanPreviewWorld();
@@ -108,6 +106,7 @@ private:
 	TSharedRef<SDockTab> SpawnTabScenePreview(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabPalette(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTabDataprep(const FSpawnTabArgs& Args);
 
 	void TryInvokingDetailsTab(bool bFlash);
 
@@ -147,12 +146,15 @@ private:
 	void RestoreFromSnapshot();
 
 	/** Handles changes in the Dataprep asset */
-	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index );
+	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index);
+
+	/** Handles change to the dataprep pipeline */
+	void OnDataprepPipelineChange(UObject* ChangedObject);
 
 private:
 	bool bWorldBuilt;
 	bool bIsFirstRun;
-	bool bPipelineExecuted;
+	bool bPipelineChanged;
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
 	FOnDataprepAssetProducerChanged DataprepAssetProducerChangedDelegate;
@@ -209,6 +211,7 @@ private:
 	static const FName AssetPreviewTabId;
 	static const FName PaletteTabId;
 	static const FName DetailsTabId;
+	static const FName DataprepAssetTabId;
 
 //Temp Code to allow us to work on the nodes while we don't have our own graph.
 public:

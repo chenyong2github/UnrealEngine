@@ -252,7 +252,7 @@ bool file::IsRelativePath(const wchar_t* path)
 }
 
 
-std::wstring file::CreateTempFile(void)
+std::wstring file::GenerateTempFilename(void)
 {
 	wchar_t path[MAX_PATH] = {};
 	const DWORD pathLength = ::GetTempPathW(MAX_PATH, path);

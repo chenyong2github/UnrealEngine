@@ -46,6 +46,7 @@ FTransform FAnimNode_CCDIK::GetTargetTransform(const FTransform& InComponentTran
 
 void FAnimNode_CCDIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 
 	// Update EffectorLocation if it is based off a bone position
@@ -185,6 +186,7 @@ void FAnimNode_CCDIK::ResizeRotationLimitPerJoints(int32 NewSize)
 
 void FAnimNode_CCDIK::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	TipBone.Initialize(RequiredBones);
 	RootBone.Initialize(RequiredBones);
 	EffectorTarget.InitializeBoneReferences(RequiredBones);
@@ -192,6 +194,7 @@ void FAnimNode_CCDIK::InitializeBoneReferences(const FBoneContainer& RequiredBon
 
 void FAnimNode_CCDIK::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	DebugData.AddDebugItem(DebugLine);

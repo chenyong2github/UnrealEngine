@@ -92,7 +92,10 @@ enum class ESequencerCommandBindings
 	Sequencer,
 
 	/** Bindings that are shared between Sequencer and non-Sequencer widgets (subset of Sequencer commands). */
-	Shared
+	Shared,
+
+	/** Bindings that are available in the Curve Editor. */
+	CurveEditor
 };
 
 

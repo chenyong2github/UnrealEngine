@@ -18,7 +18,7 @@ class DATAPREPCORE_API UDataprepBoolFilter : public UDataprepFilter
 	GENERATED_BODY()
 
 public:
-	inline bool Filter(const bool bResult) const;
+	bool Filter(const bool bResult) const;
 
 	//~ Begin UDataprepFilter Interface
 	virtual TArray<UObject*> FilterObjects(const TArray<UObject*>& Objects) const override;

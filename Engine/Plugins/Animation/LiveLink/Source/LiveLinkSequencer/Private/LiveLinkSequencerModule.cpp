@@ -37,13 +37,19 @@ static const FName TakeRecorderModuleName(TEXT("TakeRecorder"));
 static const FName MovieSceneSectionRecorderFactoryName(TEXT("MovieSceneSectionRecorderFactory"));
 static TArray<TSubclassOf<ULiveLinkRole>> SupportedRecordingRoles;
 
-#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( InPluginContent( RelativePath, ".png" ), __VA_ARGS__ )
 
-FString InPluginContent(const FString& RelativePath, const ANSICHAR* Extension)
+namespace LiveLinkSequencerModuleUtils
 {
-	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
-	return (ContentDir / RelativePath) + Extension;
+	FString InPluginContent(const FString& RelativePath, const ANSICHAR* Extension)
+	{
+		static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("LiveLink"))->GetContentDir();
+		return (ContentDir / RelativePath) + Extension;
+	}
 }
+
+#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( LiveLinkSequencerModuleUtils::InPluginContent( RelativePath, ".png" ), __VA_ARGS__ )
+
+
 class FLiveLinkSequencerModule : public IModuleInterface
 {
 public:

@@ -15,7 +15,7 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "GeometryCollection/GeometryCollectionFactory.h"
+// #include "GeometryCollection/GeometryCollectionFactory.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
@@ -425,16 +425,4 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 		}
 	}
 }
-
-void FGeometryCollectionConversion::CreateGeometryCollectionCommand(UWorld * World)
-{
-	UPackage* Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
-	auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
-	UGeometryCollection* GeometryCollection = static_cast<UGeometryCollection*>(
-		GeometryCollectionFactory->FactoryCreateNew(UGeometryCollection::StaticClass(), Package,
-			FName("GeometryCollectionAsset"), RF_Standalone | RF_Public, NULL, GWarn));
-	FAssetRegistryModule::AssetCreated(GeometryCollection);
-	Package->SetDirtyFlag(true);
-}
-
 

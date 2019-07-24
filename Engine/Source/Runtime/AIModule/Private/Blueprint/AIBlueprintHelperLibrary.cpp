@@ -415,10 +415,11 @@ void UAIBlueprintHelperLibrary::SimpleMoveToActor(AController* Controller, const
 	}
 	else
 	{
-		const ANavigationData* NavData = NavSys->GetNavDataForProps(Controller->GetNavAgentPropertiesRef());
+		const FVector AgentNavLocation = Controller->GetNavAgentLocation();
+		const ANavigationData* NavData = NavSys->GetNavDataForProps(Controller->GetNavAgentPropertiesRef(), AgentNavLocation);
 		if (NavData)
 		{
-			FPathFindingQuery Query(Controller, *NavData, Controller->GetNavAgentLocation(), Goal->GetActorLocation());
+			FPathFindingQuery Query(Controller, *NavData, AgentNavLocation, Goal->GetActorLocation());
 			FPathFindingResult Result = NavSys->FindPathSync(Query);
 			if (Result.IsSuccessful())
 			{
@@ -484,10 +485,11 @@ void UAIBlueprintHelperLibrary::SimpleMoveToLocation(AController* Controller, co
 	}
 	else
 	{
-		const ANavigationData* NavData = NavSys->GetNavDataForProps(Controller->GetNavAgentPropertiesRef());
+		const FVector AgentNavLocation = Controller->GetNavAgentLocation();
+		const ANavigationData* NavData = NavSys->GetNavDataForProps(Controller->GetNavAgentPropertiesRef(), AgentNavLocation);
 		if (NavData)
 		{
-			FPathFindingQuery Query(Controller, *NavData, Controller->GetNavAgentLocation(), GoalLocation);
+			FPathFindingQuery Query(Controller, *NavData, AgentNavLocation, GoalLocation);
 			FPathFindingResult Result = NavSys->FindPathSync(Query);
 			if (Result.IsSuccessful())
 			{

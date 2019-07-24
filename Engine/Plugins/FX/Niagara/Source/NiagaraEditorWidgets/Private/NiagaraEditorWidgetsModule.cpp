@@ -10,6 +10,8 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
+#include "SNiagaraOverviewGraph.h"
+
 IMPLEMENT_MODULE(FNiagaraEditorWidgetsModule, NiagaraEditorWidgets);
 
 FNiagaraStackCurveEditorOptions::FNiagaraStackCurveEditorOptions()
@@ -95,6 +97,11 @@ void FNiagaraEditorWidgetsModule::StartupModule()
 	PropertyModule.RegisterCustomClassLayout("NiagaraDataInterfaceVector4Curve", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceVector4CurveDetails::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout("NiagaraDataInterfaceColorCurve", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceColorCurveDetails::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout("NiagaraDataInterfaceSkeletalMesh", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraDataInterfaceSkeletalMeshDetails::MakeInstance));
+
+	ReinitializeStyleCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.NiagaraEditorWidgets.ReinitializeStyle"),
+		TEXT("Reinitializes the style for the niagara editor widgets module.  Used in conjuction with live coding for UI tweaks.  May crash the editor if style objects are in use."),
+		FConsoleCommandDelegate::CreateRaw(this, &FNiagaraEditorWidgetsModule::ReinitializeStyle));
 }
 
 void FNiagaraEditorWidgetsModule::ShutdownModule()
@@ -117,7 +124,18 @@ void FNiagaraEditorWidgetsModule::ShutdownModule()
 		PropertyModule->UnregisterCustomClassLayout("NiagaraDataInterfaceSkeletalMesh");
 	}
 
+	if (ReinitializeStyleCommand != nullptr)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(ReinitializeStyleCommand);
+	}
+
 	FNiagaraEditorWidgetsStyle::Shutdown();
+}
+
+void FNiagaraEditorWidgetsModule::ReinitializeStyle()
+{
+	FNiagaraEditorWidgetsStyle::Shutdown();
+	FNiagaraEditorWidgetsStyle::Initialize();
 }
 
 TSharedRef<FNiagaraStackCurveEditorOptions> FNiagaraEditorWidgetsModule::GetOrCreateStackCurveEditorOptionsForObject(UObject* Object, bool bDefaultAreCurvesVisible, float DefaultHeight)
@@ -139,5 +157,5 @@ TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::C
 
 TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
 {
-	return SNullWidget::NullWidget;
+	return SNew(SNiagaraOverviewGraph, SystemViewModel);
 }

@@ -20,9 +20,14 @@ void FSlateNullRenderer::Destroy()
 
 FSlateDrawBuffer& FSlateNullRenderer::GetDrawBuffer()
 {
-	static FSlateDrawBuffer StaticDrawBuffer;
-	StaticDrawBuffer.ClearBuffer();
-	return StaticDrawBuffer;
+	static TUniquePtr<FSlateDrawBuffer> StaticDrawBuffer;
+	if (!StaticDrawBuffer.IsValid())
+	{
+		StaticDrawBuffer = MakeUnique<FSlateDrawBuffer>();
+	}
+
+	StaticDrawBuffer->ClearBuffer();
+	return *StaticDrawBuffer;
 }
 
 void FSlateNullRenderer::CreateViewport( const TSharedRef<SWindow> Window )
@@ -43,11 +48,6 @@ void FSlateNullRenderer::OnWindowDestroyed( const TSharedRef<SWindow>& InWindow 
 
 void FSlateNullRenderer::DrawWindows( FSlateDrawBuffer& WindowDrawBuffer )
 {
-	// Must call PostDraw to clean up resources built in FSlateWindowElementList.
-	for (const TSharedRef<FSlateWindowElementList>& ElementList : WindowDrawBuffer.GetWindowElementLists())
-	{
-		ElementList->PostDraw_NonParallelRenderer();
-	}
 }
 
 FIntPoint FSlateNullRenderer::GenerateDynamicImageResource(const FName InTextureName)

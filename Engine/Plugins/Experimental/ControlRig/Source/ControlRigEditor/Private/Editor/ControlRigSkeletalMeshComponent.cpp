@@ -28,6 +28,7 @@ void UControlRigSkeletalMeshComponent::ShowReferencePose(bool bRefPose)
 	{
 		UControlRig* ControlRig = ControlRigInstance->CachedControlRig.Get();
 		ControlRig->bExecutionOn = !bRefPose;
+		ControlRigInstance->SetAnimationAsset(nullptr);
 	}
 }
 
@@ -91,4 +92,14 @@ FTransform UControlRigSkeletalMeshComponent::GetDrawTransform(int32 BoneIndex) c
 	}
 
 	return FTransform::Identity;
+}
+
+void UControlRigSkeletalMeshComponent::EnablePreview(bool bEnable, UAnimationAsset* PreviewAsset)
+{
+	UControlRigSequencerAnimInstance* ControlRigInstance = Cast<UControlRigSequencerAnimInstance>(GetAnimInstance());
+
+	if (ControlRigInstance && ControlRigInstance->CachedControlRig.IsValid())
+	{
+		ControlRigInstance->SetAnimationAsset(PreviewAsset);
+	}
 }

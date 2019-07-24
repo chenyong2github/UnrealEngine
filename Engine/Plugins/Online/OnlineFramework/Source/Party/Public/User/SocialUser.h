@@ -148,6 +148,8 @@ private:
 	
 	void SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<FOnlineUser>& UserInfo);
 	void HandleQueryUserInfoComplete(ESocialSubsystem SubsystemType, bool bWasSuccessful, const TSharedPtr<FOnlineUser>& UserInfo);
+
+	virtual FString SanitizePresenceString(FString InString) const;
 	
 private:
 

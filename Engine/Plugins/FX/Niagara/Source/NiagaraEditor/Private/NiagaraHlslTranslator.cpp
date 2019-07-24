@@ -712,6 +712,31 @@ void FHlslNiagaraTranslator::HandleNamespacedExternalVariablesToDataSetRead(TArr
 	}
 }
 
+bool FHlslNiagaraTranslator::IsVariableInUniformBuffer(const FNiagaraVariable& Variable) const
+{
+	static FNiagaraVariable ExcludeVariables[] =
+	{
+		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter_SpawnInterval")),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter_InterpSpawnStartDt")),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter.SpawnInterval")),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Emitter.InterpSpawnStartDt")),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(),   TEXT("Emitter_SpawnGroup")),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(),   TEXT("Emitter.SpawnGroup")),
+	};
+
+	if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		for ( const FNiagaraVariable& ExcludeVar : ExcludeVariables )
+		{
+			if ( Variable == ExcludeVar )
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagaraCompileRequestData* InCompileData, const FNiagaraCompileOptions& InCompileOptions, FHlslNiagaraTranslatorOptions InTranslateOptions)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_Translate);
@@ -1025,9 +1050,12 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_INV_DELTA_TIME, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_EXEC_COUNT, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_EMITTER_SPAWNRATE, nullptr, 0, OutputIdx, nullptr);
-				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_EMITTER_SPAWN_INTERVAL, nullptr, 0, OutputIdx, nullptr);
-				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_EMITTER_INTERP_SPAWN_START_DT, nullptr, 0, OutputIdx, nullptr);
-				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_EMITTER_SPAWN_GROUP, nullptr, 0, OutputIdx, nullptr);
+				if (CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
+				{
+					ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_EMITTER_SPAWN_INTERVAL, nullptr, 0, OutputIdx, nullptr);
+					ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_EMITTER_INTERP_SPAWN_START_DT, nullptr, 0, OutputIdx, nullptr);
+					ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_EMITTER_SPAWN_GROUP, nullptr, 0, OutputIdx, nullptr);
+				}
 			}
 
 			if (TranslationStages.Num() > 0)
@@ -1062,8 +1090,12 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 			for (int32 i = 0; i < ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform].Num(); ++i)
 			{
-				FNiagaraCodeChunk& Chunk = CodeChunks[ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]];
-				HlslOutput += TEXT("\t") + GetCode(ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]);
+				FNiagaraVariable BufferVariable(CodeChunks[ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]].Type, FName(*CodeChunks[ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]].SymbolName));
+				if ( IsVariableInUniformBuffer(BufferVariable) )
+				{
+					FString Chunk = GetCode(ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform][i]);
+					HlslOutput += TEXT("\t") + Chunk;
+				}
 			}
 
 			if (bInterpolateParams)
@@ -1457,7 +1489,16 @@ void FHlslNiagaraTranslator::DefineInterpolatedParametersFunction(FString &HlslO
 		FString PrevMap = TranslationStages[i - 1].PassNamespace;
 		FString CurMap = TranslationStages[i].PassNamespace;
 		{
-			HlslOutputString += TEXT("\tint InterpSpawn_Index = ExecIndex();\n");
+			// GPU simulation is slightly different as we run all spawns at once rather than separate invocations so we can not ExecIndex() as it has to be biased into the correct spawn group's index
+			if ( CompilationTarget == ENiagaraSimTarget::GPUComputeSim )
+			{
+				HlslOutputString += TEXT("\tint InterpSpawn_Index = GInterpSpawnIndex;\n");
+			}
+			else
+			{
+				HlslOutputString += TEXT("\tint InterpSpawn_Index = ExecIndex();\n");
+			}
+
 			HlslOutputString += TEXT("\tfloat InterpSpawn_SpawnTime = ") + Emitter_InterpSpawnStartDt + TEXT(" + (") + Emitter_SpawnInterval + TEXT(" * InterpSpawn_Index);\n");
 			HlslOutputString += TEXT("\tfloat InterpSpawn_UpdateTime = Engine_DeltaTime - InterpSpawn_SpawnTime;\n");
 			HlslOutputString += TEXT("\tfloat InterpSpawn_InvSpawnTime = 1.0 / InterpSpawn_SpawnTime;\n");
@@ -1745,6 +1786,15 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 
 	//TODO: Grab indices for reading data sets and do the read.
 	//read input.
+
+	// If we are GPU we need to set the spawn info global variables
+	if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		OutHlslOutput += TEXT("\tif (Phase == 0)\n");
+		OutHlslOutput += TEXT("\t{\n");
+		OutHlslOutput += TEXT("\t\tGetEmitterSpawnInfoForParticle(ExecIndex());\n");
+		OutHlslOutput += TEXT("\t}\n");
+	}
 
 	//The VM register binding assumes the same inputs as outputs which is obviously not always the case.
 	for (int32 VarArrayIdx = 0; VarArrayIdx < InstanceReadVars.Num(); VarArrayIdx++)
@@ -3500,7 +3550,11 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 					Error(FText::Format(LOCTEXT("GetParameterUnsetParam", "Variable {0} hasn't had its default value set. Required Bytes: {1} vs Allocated Bytes: {2}"), FText::FromName(InVariable.GetName()), FText::AsNumber(InVariable.GetType().GetSize()), FText::AsNumber(InVariable.GetSizeInBytes())), nullptr, nullptr);
 				}
 
-				CompilationOutput.ScriptData.Parameters.SetOrAdd(InVariable);
+				if ( IsVariableInUniformBuffer(InVariable) )
+				{
+					CompilationOutput.ScriptData.Parameters.SetOrAdd(InVariable);
+				}
+
 				UniformIdx = ChunksByMode[(int32)ENiagaraCodeChunkMode::Uniform].Num();
 
 				UniformChunk = AddUniformChunk(SymbolNameDefined, InVariable.GetType());

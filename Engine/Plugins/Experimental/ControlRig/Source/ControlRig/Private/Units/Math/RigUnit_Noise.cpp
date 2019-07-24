@@ -5,6 +5,7 @@
 
 void FRigUnit_NoiseFloat::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Time = 0.f;
@@ -18,6 +19,7 @@ void FRigUnit_NoiseFloat::Execute(const FRigUnitContext& Context)
 
 void FRigUnit_NoiseVector::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		Time = FVector::ZeroVector;

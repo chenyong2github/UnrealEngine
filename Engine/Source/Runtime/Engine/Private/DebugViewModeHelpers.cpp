@@ -44,7 +44,7 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 	case DVSM_None:
 		return false;
 	case DVSM_ShaderComplexity:
-		return FeatureLevel != ERHIFeatureLevel::SM4; // SM4 doesn't apply post-processes correctly in the deferred path.
+		return true;
 	case DVSM_ShaderComplexityContainedQuadOverhead:
 	case DVSM_ShaderComplexityBleedingQuadOverhead:
 	case DVSM_QuadComplexity:

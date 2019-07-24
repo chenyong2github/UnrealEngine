@@ -5,6 +5,7 @@
 
 void FRigUnit_GetWorldTime::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FDateTime Now = FDateTime::Now();
 	Year = (float)Now.GetYear();
 	Month = (float)Now.GetMonth();

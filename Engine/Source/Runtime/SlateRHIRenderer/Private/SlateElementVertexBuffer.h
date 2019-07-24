@@ -92,6 +92,8 @@ public:
 	/** Resizes buffer, accumulates states safely on render thread */
 	void PreFillBuffer(int32 RequiredVertexCount, bool bShrinkToMinSize)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_SlatePreFullBufferRTTime);
+
 		checkSlow(IsInRenderingThread());
 
 		if (RequiredVertexCount > 0 )
@@ -115,16 +117,33 @@ public:
 
 	int32 GetMinBufferSize() const { return MinBufferSize; }
 
-	void* LockBuffer_RenderThread(int32 NumVertices)
+	void* LockBuffer(int32 NumVertices, bool bInRenderThread)
 	{
 		uint32 RequiredBufferSize = NumVertices*sizeof(VertexType);	
 
-		return RHILockVertexBuffer( VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly );
+		if (bInRenderThread)
+		{
+			// Render thread
+			return RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly);
+		}
+		else
+		{
+			// RHI thread
+			return GDynamicRHI->RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly);
+		}
+	
 	}
 
-	void UnlockBuffer_RenderThread()
+	void UnlockBuffer(bool bInRenderThread)
 	{
-		RHIUnlockVertexBuffer( VertexBufferRHI );
+		if (bInRenderThread)
+		{
+			RHIUnlockVertexBuffer(VertexBufferRHI);
+		}
+		else
+		{
+			return GDynamicRHI->RHIUnlockVertexBuffer(VertexBufferRHI);
+		}
 	}
 
 private:

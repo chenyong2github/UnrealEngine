@@ -27,13 +27,14 @@ public:
 	/** Reset the pose for this instance*/
 	void ResetPose();
 
+	/** Saved the named pose to restore after */
+	void SavePose();
+
 protected:
 	// UAnimInstance interface
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
-	virtual void NativeInitializeAnimation() override;
 
-	/** Saved the named pose to restore after */
-	void SavePose();
+
 
 public:
 	static const FName SequencerPoseName;

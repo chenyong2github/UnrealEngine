@@ -472,7 +472,7 @@ FNiagaraDataBuffer::~FNiagaraDataBuffer()
 	// The only exception is if the batcher was pending kill and we couldn't enqueue a rendering command, 
 	// in which case this would have been released on the game thread and not from the batcher DataSetsToDestroy_RT.
 	check(!IsInRenderingThread() || GPUInstanceCountBufferOffset == INDEX_NONE);
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.Max() + Int32Data.Max());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize());
 }
 
 void FNiagaraDataBuffer::CheckUsage(bool bReadOnly)const
@@ -550,7 +550,7 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 	NumInstancesAllocated = InNumInstances;
 	NumInstances = 0;
 
-	DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.Max() + Int32Data.Max());
+	DEC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize());
 
 	const uint32 OldFloatStride = FloatStride;
 	TArray<uint8> OldFloatData;
@@ -570,7 +570,7 @@ void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 	Int32Stride = GetSafeComponentBufferSize(NumInstancesAllocated * sizeof(int32));
 	Int32Data.SetNum(Int32Stride * Owner->GetNumInt32Components(), false);
 
-	INC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.Max() + Int32Data.Max());
+	INC_MEMORY_STAT_BY(STAT_NiagaraParticleMemory, FloatData.GetAllocatedSize() + Int32Data.GetAllocatedSize());
 
 	//In some cases we want the existing data in the buffer to be maintained which due to the data layout requires some fix up.
 	if (bMaintainExisting)

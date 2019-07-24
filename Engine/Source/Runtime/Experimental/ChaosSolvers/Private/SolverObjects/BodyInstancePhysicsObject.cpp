@@ -54,9 +54,7 @@ void FBodyInstancePhysicsObject::OnRemoveFromScene()
 
 		for(const int32 Index : InitializedIndices)
 		{
-			CurrSolver->GetRigidParticles().Disabled(Index) = true;
-			CurrSolver->ActiveIndices().Remove(Index);
-			CurrSolver->NonDisabledIndices().Remove(Index);
+			CurrSolver->GetEvolution()->DisableParticle(Index);
 		}
 	}
 

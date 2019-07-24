@@ -423,9 +423,10 @@ class CORE_API FMallocBinnedArena final : public FMalloc
 		{
 			return true;
 		}
-		if (ArenaParams.bAttemptToAlignSmallBocks & (InOutSize <= ArenaParams.MaxPoolSize) & (Alignment <= ArenaParams.MaximumAlignmentForSmallBlock)) // one branch, not three
+		SIZE_T AlignedSize = Align(InOutSize, Alignment);
+		if (ArenaParams.bAttemptToAlignSmallBocks & (AlignedSize <= ArenaParams.MaxPoolSize) & (Alignment <= ArenaParams.MaximumAlignmentForSmallBlock)) // one branch, not three
 		{
-			uint32 PoolIndex = BoundSizeToPoolIndex(Align(InOutSize, Alignment));
+			uint32 PoolIndex = BoundSizeToPoolIndex(AlignedSize);
 			while (true)
 			{
 				uint32 BlockSize = PoolIndexToBlockSize(PoolIndex);

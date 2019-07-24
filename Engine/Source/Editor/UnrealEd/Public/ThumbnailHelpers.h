@@ -76,6 +76,8 @@ public:
 	/** Sets the material to use in the next GetView() */
 	void SetMaterialInterface(class UMaterialInterface* InMaterial);
 
+	bool ShouldSetSeparateTranslucency(class UMaterialInterface* InMaterial) const;
+
 protected:
 	// FThumbnailPreviewScene implementation
 	virtual void GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const override;

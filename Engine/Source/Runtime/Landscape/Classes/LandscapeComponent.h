@@ -308,17 +308,22 @@ enum ELandscapeComponentUpdateFlag : uint32
 	// Will update Component clients: Navigation data, Foliage, Grass, etc.
 	Component_Update_Client = 1 << 3,
 	// Will update Component clients while editing
-	Component_Update_Client_Editing = 1 << 4
+	Component_Update_Client_Editing = 1 << 4,
+	// Will compute component approximated bounds
+	Component_Update_Approximated_Bounds = 1 << 5
 };
 
 enum ELandscapeLayerUpdateMode : uint32
 { 
 	Update_Heightmap_All = 1 << 0,
 	Update_Heightmap_Editing = 1 << 1,
-	Update_Weightmap_All = 1 << 2,
-	Update_Weightmap_Editing = 1 << 3,
+	Update_Heightmap_Editing_NoCollision = 1 << 2,
+	Update_Weightmap_All = 1 << 3,
+	Update_Weightmap_Editing = 1 << 4,
+	Update_Weightmap_Editing_NoCollision = 1 << 5,
 	Update_All = Update_Weightmap_All | Update_Heightmap_All,
 	Update_All_Editing = Update_Weightmap_Editing | Update_Heightmap_Editing,
+	Update_All_Editing_NoCollision = Update_Weightmap_Editing_NoCollision | Update_Heightmap_Editing_NoCollision,
 	// In cases where we couldn't update the clients right away this flag will be set in RegenerateLayersContent
 	Update_Client_Deferred = 1 << 4,
 	// Update landscape component clients while editing
@@ -761,7 +766,7 @@ public:
 	/**
 	 * Recalculate cached bounds using height values.
 	 */
-	LANDSCAPE_API void UpdateCachedBounds();
+	LANDSCAPE_API void UpdateCachedBounds(bool bInApproximateBounds = false);
 
 	/**
 	 * Update the MaterialInstance parameters to match the layer and weightmaps for this component
@@ -903,8 +908,8 @@ public:
 
 	LANDSCAPE_API bool IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag InFlag, uint32 InModeMask) const;
 	LANDSCAPE_API void ClearUpdateFlagsForModes(uint32 InModeMask);
-	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false);
-	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false);
+	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
+	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
 	LANDSCAPE_API void RequestEditingClientUpdate();
 	LANDSCAPE_API void RequestDeferredClientUpdate();
 	LANDSCAPE_API uint32 ComputeWeightmapsHash();

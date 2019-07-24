@@ -78,11 +78,13 @@ class FVirtualAllocator
 		Block.FreeBlocksSize += AlignedSize;
 	}
 protected:
+	size_t SpaceConsumed;
 	virtual uint8* AllocNewVM(size_t AlignedSize)
 	{
 		uint8* Result = NextAlloc;
 		check(IsAligned(Result, MaximumAlignment) && IsAligned(AlignedSize, MaximumAlignment));
 		NextAlloc = Result + AlignedSize;
+		SpaceConsumed = NextAlloc - LowAddress;
 		return Result;
 	}
 
@@ -97,6 +99,7 @@ public:
 		, RecycledLinks(nullptr)
 		, LinkSize(0)
 		, bBacksMalloc(bInBacksMalloc)
+		, SpaceConsumed(0)
 	{
 		TotalSize = HighAddress - LowAddress;
 		check(LowAddress && HighAddress && LowAddress < HighAddress && IsAligned(LowAddress, MaximumAlignment));
@@ -224,7 +227,7 @@ public:
 		OutStats.PageSize = PageSize;
 		OutStats.MaximumAlignment = MaximumAlignment;
 		OutStats.VMSpaceTotal = HighAddress - LowAddress;
-		OutStats.VMSpaceConsumed = NextAlloc - LowAddress;
+		OutStats.VMSpaceConsumed = SpaceConsumed;
 		OutStats.FreeListLinks = LinkSize;
 
 		for (int32 Index = 0; Index < 64; Index++)

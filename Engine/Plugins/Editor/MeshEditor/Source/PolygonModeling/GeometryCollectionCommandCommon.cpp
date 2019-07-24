@@ -13,11 +13,11 @@
 #include "SceneOutlinerDelegates.h"
 #include "MeshFractureSettings.h"
 #include "AssetRegistryModule.h"
-#include "GeometryCollection/GeometryCollectionFactory.h"
+// #include "GeometryCollection/GeometryCollectionFactory.h"
 #include "GeometryCollection/GeometryCollectionConversion.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "GeometryCollection/GeometryCollectionFactory.h"
+// #include "GeometryCollection/GeometryCollectionFactory.h"
 #include "AssetToolsModule.h"
 #include "FractureToolDelegates.h"
 
@@ -98,6 +98,7 @@ namespace CommandCommon
 // Note that this isn't really creating an actor representing the source mesh, but is only copying over the materials and transform.  This
 // is used in conjunction with other methods for filling the resulting Actor's GeometryCollection (ie: Clustering operations, fracturing, etc)
 // #todo(dmp): at some point we should consider refactoring or renaming this.
+/*
 AGeometryCollectionActor* FGeometryCollectionCommandCommon::CreateNewGeometryActor(const FString& Name, const FTransform& Transform, UEditableMesh* SourceMesh, bool AddMaterials)
 {
 	// create an asset package first
@@ -155,7 +156,7 @@ AGeometryCollectionActor* FGeometryCollectionCommandCommon::CreateNewGeometryAct
 	Package->SetDirtyFlag(true);
 
 	return NewActor;
-}
+}*/
 
 void FGeometryCollectionCommandCommon::RemoveActor(AActor* Actor)
 {
@@ -301,6 +302,7 @@ UEditableMesh* FGeometryCollectionCommandCommon::GetEditableMeshForComponent(UAc
 	return nullptr;
 }
 
+/*
 UPackage* FGeometryCollectionCommandCommon::CreateGeometryCollectionPackage(UGeometryCollection*& GeometryCollection)
 {
 	UPackage* Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
@@ -309,6 +311,7 @@ UPackage* FGeometryCollectionCommandCommon::CreateGeometryCollectionPackage(UGeo
 			FName("GeometryCollectionAsset"), RF_Standalone | RF_Public, NULL, GWarn));		
 	return Package;
 }
+*/
 
 void FGeometryCollectionCommandCommon::AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollectionObject)
 {

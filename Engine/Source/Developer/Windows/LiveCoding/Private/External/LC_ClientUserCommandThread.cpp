@@ -361,6 +361,18 @@ void ClientUserCommandThread::TriggerRecompile(void)
 }
 
 
+void ClientUserCommandThread::LogMessage(const wchar_t* message)
+{
+	const size_t lengthWithoutNull = wcslen(message);
+	const size_t payloadSize = sizeof(wchar_t) * (lengthWithoutNull + 1u);
+
+	ProxyCommand<commands::LogMessage>* proxy = new ProxyCommand<commands::LogMessage>(false, payloadSize);
+	proxy->m_payload.Write(message, payloadSize);
+
+	PushUserCommand(proxy);
+}
+
+
 void ClientUserCommandThread::BuildPatch(const wchar_t* moduleNames[], const wchar_t* objPaths[], const wchar_t* amalgamatedObjPaths[], unsigned int count)
 {
 	const size_t perFileSize = sizeof(wchar_t) * MAX_PATH * 3u;

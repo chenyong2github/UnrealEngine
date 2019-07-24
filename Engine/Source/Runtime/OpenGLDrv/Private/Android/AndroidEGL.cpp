@@ -14,6 +14,7 @@
 #endif
 #include "OpenGLDrvPrivate.h"
 #include "Misc/ScopeLock.h"
+#include "UObject/GarbageCollection.h"
 
 
 AndroidEGL* AndroidEGL::Singleton = NULL;
@@ -1716,6 +1717,9 @@ void BlockOnLostWindowRenderCommand(TSharedPtr<FEvent, ESPMode::ThreadSafe> RTBl
 {
 	check(IsInRenderingThread());
 
+	// Hold GC scope guard, as GC will timeout if anything waits for RT fences.
+	FGCScopeGuard GCGuard;
+	
 	UE_LOG(LogAndroid, Log, TEXT("Blocking renderer"));
 	if (FAndroidMisc::ShouldUseVulkan())
 	{
@@ -1767,7 +1771,9 @@ void BlockRendering()
 	check(GIsRHIInitialized);
 
 	UE_LOG(LogAndroid, Log, TEXT("Blocking renderer on invalid window."));
-
+	
+	// Wait for GC to complete and prevent further GCs
+	FGCScopeGuard GCGuard;
 	TSharedPtr<FEvent, ESPMode::ThreadSafe> RTBlockedTrigger = MakeShareable(FPlatformProcess::GetSynchEventFromPool(), [](FEvent* EventToDelete)
 	{
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);

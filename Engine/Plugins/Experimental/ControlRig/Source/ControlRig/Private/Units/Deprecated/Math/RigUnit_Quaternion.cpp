@@ -4,6 +4,7 @@
 
 void FRigUnit_QuaternionToAngle::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FQuat Swing, Twist;
 	FVector SafeAxis = Axis.GetSafeNormal();
 

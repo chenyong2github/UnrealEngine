@@ -126,12 +126,12 @@ void TPBDRigidsEvolutionPGS<T, d>::AdvanceOneTimeStep(const T Dt)
 		{
 			if (Particles.ObjectState(Index) != EObjectStateType::Kinematic && Particles.V(Index).SizeSquared() < PhysicsMaterials[Index]->DisabledLinearThreshold && Particles.W(Index).SizeSquared() < PhysicsMaterials[Index]->DisabledAngularThreshold)
 			{
-				Particles.Disabled(Index) = true;
+				Particles.SetDisabledLowLevel(Index, true);
 				DisabledParticles[Island].Add(Index);
 			}
 			if (!(ensure(!FMath::IsNaN(Particles.P(Index)[0])) && ensure(!FMath::IsNaN(Particles.P(Index)[1])) && ensure(!FMath::IsNaN(Particles.P(Index)[2]))))
 			{
-				Particles.Disabled(Index) = true;
+				Particles.SetDisabledLowLevel(Index, true);
 				DisabledParticles[Island].Add(Index);
 			}
 		}
@@ -144,11 +144,13 @@ void TPBDRigidsEvolutionPGS<T, d>::AdvanceOneTimeStep(const T Dt)
 			for (const int32 Index : ConstraintGraph.GetIslandParticles(i))
 			{
 				ActiveIndices.Remove(Index);
+				NonDisabledIndices.Add(Index);
 			}
 		}
 		for (const int32 Index : DisabledParticles[i])
 		{
 			ActiveIndices.Remove(Index);
+			NonDisabledIndices.Add(Index);
 		}
 	}
 

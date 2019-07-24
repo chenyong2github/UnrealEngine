@@ -64,16 +64,37 @@ void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)
 		return;
 	}
 
-	FLiveLinkSubjectFrameData AnimationFrame;
-	if(LiveLinkClient->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkAnimationRole::StaticClass(), AnimationFrame))
-	{
-		FLiveLinkSkeletonStaticData* SkeletonData = AnimationFrame.StaticData.Cast<FLiveLinkSkeletonStaticData>();
-		FLiveLinkAnimationFrameData* FrameData = AnimationFrame.FrameData.Cast<FLiveLinkAnimationFrameData>();
-		check(SkeletonData);
-		check(FrameData);
+	FLiveLinkSubjectFrameData SubjectFrameData;
 
-		CurrentRetargetAsset->BuildPoseForSubject(CachedDeltaTime, SkeletonData, FrameData, Output.Pose, Output.Curve);
-		CachedDeltaTime = 0.f; // Reset so that if we evaluate again we don't "create" time inside of the retargeter
+	TSubclassOf<ULiveLinkRole> SubjectRole = LiveLinkClient->GetSubjectRole(LiveLinkSubjectName);
+	if (SubjectRole->IsChildOf(ULiveLinkAnimationRole::StaticClass()))
+	{
+		//Process animation data if the subject is from that type
+		if (LiveLinkClient->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkAnimationRole::StaticClass(), SubjectFrameData))
+		{
+			FLiveLinkSkeletonStaticData* SkeletonData = SubjectFrameData.StaticData.Cast<FLiveLinkSkeletonStaticData>();
+			FLiveLinkAnimationFrameData* FrameData = SubjectFrameData.FrameData.Cast<FLiveLinkAnimationFrameData>();
+			check(SkeletonData);
+			check(FrameData);
+
+			CurrentRetargetAsset->BuildPoseFromAnimationData(CachedDeltaTime, SkeletonData, FrameData, Output.Pose);
+			CurrentRetargetAsset->BuildPoseAndCurveFromBaseData(CachedDeltaTime, SkeletonData, FrameData, Output.Pose, Output.Curve);
+			CachedDeltaTime = 0.f; // Reset so that if we evaluate again we don't "create" time inside of the retargeter
+		}
+	}
+	else
+	{
+		//Otherwise, fetch basic data that contains property / curve data
+		if (LiveLinkClient->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkBasicRole::StaticClass(), SubjectFrameData))
+		{
+			FLiveLinkBaseStaticData* BaseStaticData = SubjectFrameData.StaticData.Cast<FLiveLinkBaseStaticData>();
+			FLiveLinkBaseFrameData* BaseFrameData = SubjectFrameData.FrameData.Cast<FLiveLinkBaseFrameData>();
+			check(BaseStaticData);
+			check(BaseFrameData);
+
+			CurrentRetargetAsset->BuildPoseAndCurveFromBaseData(CachedDeltaTime, BaseStaticData, BaseFrameData, Output.Pose, Output.Curve);
+			CachedDeltaTime = 0.f; // Reset so that if we evaluate again we don't "create" time inside of the retargeter
+		}
 	}
 }
 

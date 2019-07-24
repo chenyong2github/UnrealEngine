@@ -6,6 +6,7 @@
 #include "CurveEditor.h"
 
 #include "Widgets/Input/SSearchBox.h"
+#include "Framework/Application/SlateApplication.h"
 
 
 void SCurveEditorTreeTextFilter::Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> CurveEditor)
@@ -68,3 +69,12 @@ void SCurveEditorTreeTextFilter::OnFilterTextChanged( const FText& FilterText )
 	}
 }
 
+FReply SCurveEditorTreeTextFilter::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) 
+{ 
+	if(SearchBox)
+	{
+		FSlateApplication::Get().SetKeyboardFocus(SearchBox, InFocusEvent.GetCause());
+	}
+	
+	return FReply::Handled();
+}

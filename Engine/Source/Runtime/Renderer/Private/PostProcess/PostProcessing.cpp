@@ -1401,7 +1401,8 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			bool bDepthOfField = 
 				View.Family->EngineShowFlags.DepthOfField &&
 				CVar->GetValueOnRenderThread() > 0 &&
-				View.FinalPostProcessSettings.DepthOfFieldFstop > 0;
+				View.FinalPostProcessSettings.DepthOfFieldFstop > 0 &&
+				View.FinalPostProcessSettings.DepthOfFieldFocalDistance > 0;
 
 			// Applies DOF and separate translucency,
 			{

@@ -29,6 +29,8 @@ UControlRigBlueprint::UControlRigBlueprint()
 
 void UControlRigBlueprint::InitializeModel()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (Model == nullptr || ModelController == nullptr)
 	{
 		Model = NewObject<UControlRigModel>(this);
@@ -68,11 +70,15 @@ void UControlRigBlueprint::LoadModulesRequiredForCompilation()
 
 void UControlRigBlueprint::MakePropertyLink(const FString& InSourcePropertyPath, const FString& InDestPropertyPath, int32 InSourceLinkIndex, int32 InDestLinkIndex)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	PropertyLinks.AddUnique(FControlRigBlueprintPropertyLink(InSourcePropertyPath, InDestPropertyPath, InSourceLinkIndex, InDestLinkIndex));
 }
 
 USkeletalMesh* UControlRigBlueprint::GetPreviewMesh() const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!PreviewSkeletalMesh.IsValid())
 	{
 		PreviewSkeletalMesh.LoadSynchronous();
@@ -93,12 +99,28 @@ void UControlRigBlueprint::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMark
 
 void UControlRigBlueprint::GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	IControlRigEditorModule::Get().GetTypeActions(this, ActionRegistrar);
 }
 
 void UControlRigBlueprint::GetInstanceActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	IControlRigEditorModule::Get().GetInstanceActions(this, ActionRegistrar);
+}
+
+void UControlRigBlueprint::SetObjectBeingDebugged(UObject* NewObject)
+{
+	UControlRig* PreviousRigBeingDebugged = Cast<UControlRig>(GetObjectBeingDebugged());
+	if (PreviousRigBeingDebugged && PreviousRigBeingDebugged != NewObject)
+	{
+		PreviousRigBeingDebugged->DrawInterface = nullptr;
+		PreviousRigBeingDebugged->ControlRigLog = nullptr;
+	}
+
+	Super::SetObjectBeingDebugged(NewObject);
 }
 
 UControlRigModel::FModifiedEvent& UControlRigBlueprint::OnModified()
@@ -108,6 +130,8 @@ UControlRigModel::FModifiedEvent& UControlRigBlueprint::OnModified()
 
 void UControlRigBlueprint::PopulateModelFromGraph(const UControlRigGraph* InGraph)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (Model != nullptr)
 	{
 		return;
@@ -221,6 +245,8 @@ void UControlRigBlueprint::PopulateModelFromGraph(const UControlRigGraph* InGrap
 
 void UControlRigBlueprint::RebuildGraphFromModel()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TGuardValue<bool> SelfGuard(bSuspendModelNotificationsForSelf, true);
 	check(ModelController);
 	ModelController->ResendAllNotifications();
@@ -229,6 +255,8 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 
 void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!bSuspendModelNotificationsForSelf)
 	{
 
@@ -406,7 +434,6 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 						if (UObject* DefaultObject = MyControlRigClass->GetDefaultObject(false))
 						{
 							DefaultObject->SetFlags(RF_Transactional);
-							DefaultObject->Modify();
 
 							FString PinPath = InModel->GetPinPath(Pin->GetPair(), true);
 							FString DefaultValueString = Pin->DefaultValue;
@@ -415,7 +442,14 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 								FCachedPropertyPath PropertyPath(PinPath);
 								if (PropertyPathHelpers::SetPropertyValueFromString(DefaultObject, PropertyPath, DefaultValueString))
 								{
-									FBlueprintEditorUtils::MarkBlueprintAsModified(this);
+									if (Pin->bIsConstant)
+									{
+										FBlueprintEditorUtils::MarkBlueprintAsModified(this);
+									}
+									else
+									{
+										MarkPackageDirty();
+									}
 								}
 
 								TArray<UObject*> ArchetypeInstances;
@@ -429,6 +463,12 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 						}
 					}
 				}
+				break;
+			}
+			case EControlRigModelNotifType::LinkAdded:
+			case EControlRigModelNotifType::LinkRemoved:
+			{
+				FBlueprintEditorUtils::MarkBlueprintAsModified(this);
 				break;
 			}
 			default:
@@ -451,6 +491,8 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 
 bool UControlRigBlueprint::UpdateParametersOnControlRig(UControlRig* InRig)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TArray<UObject*> ArchetypeInstances;
 
 	if (InRig == nullptr)
@@ -518,6 +560,8 @@ bool UControlRigBlueprint::UpdateParametersOnControlRig(UControlRig* InRig)
 
 bool UControlRigBlueprint::PerformArrayOperation(const FString& InPropertyPath, TFunctionRef<bool(FScriptArrayHelper&,int32)> InOperation, bool bCallModify, bool bPropagateToInstances)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (UClass* MyControlRigClass = GeneratedClass)
 	{
 		if(UObject* DefaultObject = MyControlRigClass->GetDefaultObject(false))

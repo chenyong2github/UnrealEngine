@@ -10,7 +10,11 @@
 #include "Animation/AnimCurveTypes.h"
 #include "BonePose.h"
 #include "Logging/TokenizedMessage.h"
+#include "Stats/StatsHierarchical.h"
 #include "AnimNodeBase.generated.h"
+
+#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Method) \
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 class IAnimClassInterface;
 class UAnimBlueprint;

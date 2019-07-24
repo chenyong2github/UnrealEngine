@@ -3,7 +3,9 @@
 #include "LiveLinkMessageBusSource.h"
 
 #include "ILiveLinkClient.h"
+#include "ILiveLinkModule.h"
 #include "LiveLinkClient.h"
+#include "LiveLinkHeartbeatEmitter.h"
 #include "LiveLinkMessageBusDiscoveryManager.h"
 #include "LiveLinkMessages.h"
 #include "LiveLinkRoleTrait.h"
@@ -66,17 +68,10 @@ void FLiveLinkMessageBusSource::Update()
 	}
 	else
 	{
-		const double HeartbeatFrequency = GetDefault<ULiveLinkSettings>()->GetMessageBusHeartbeatFrequency();
 		const double HeartbeatTimeout = GetDefault<ULiveLinkSettings>()->GetMessageBusHeartbeatTimeout();
 		const double CurrentTime = FApp::GetCurrentTime();
 
 		bIsValid = CurrentTime - ConnectionLastActive < HeartbeatTimeout;
-		
-		if (CurrentTime - HeartbeatLastSent > HeartbeatFrequency)
-		{
-			MessageEndpoint->Send(new FLiveLinkHeartbeatMessage(), ConnectionAddress);
-			HeartbeatLastSent = CurrentTime;
-		}
 	}
 }
 
@@ -236,6 +231,8 @@ void FLiveLinkMessageBusSource::SendConnectMessage()
 	FLiveLinkConnectMessage* ConnectMessage = new FLiveLinkConnectMessage();
 	ConnectMessage->LiveLinkVersion = 2;
 	MessageEndpoint->Send(ConnectMessage, ConnectionAddress);
+	FLiveLinkHeartbeatEmitter& HeartbeatEmitter = ILiveLinkModule::Get().GetHeartbeatEmitter();
+	HeartbeatEmitter.StartHeartbeat(ConnectionAddress, MessageEndpoint);
 	bIsValid = true;
 }
 
@@ -247,7 +244,12 @@ bool FLiveLinkMessageBusSource::RequestSourceShutdown()
 		DiscoveryManager->RemoveDiscoveryMessageRequest();
 	}
 
-	FMessageEndpoint::SafeRelease(MessageEndpoint);
+	FLiveLinkHeartbeatEmitter& HeartbeatEmitter = ILiveLinkModule::Get().GetHeartbeatEmitter();
+	HeartbeatEmitter.StopHeartbeat(ConnectionAddress, MessageEndpoint);
+
+	// Disable the Endpoint message handling since the message could keep it alive a bit.
+	MessageEndpoint->Disable();
+	MessageEndpoint.Reset();
 
 	return true;
 }

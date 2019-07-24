@@ -124,19 +124,20 @@ UPlaneFalloff::NewEvaluationGraph(TArray<const UFieldNodeBase*>& Nodes) const
 	if (ensureMsgf(!Nodes.Contains(this), TEXT("Cycle Dependency Error : Graph nodes may not be resued in a single chain.")))
 	{
 		Nodes.Add(this);
-		return new FPlaneFalloff(Magnitude, MinRange, MaxRange, Default, Position, Normal, Falloff);
+		return new FPlaneFalloff(Magnitude, MinRange, MaxRange, Default, Distance, Position, Normal, Falloff);
 	}
 	return nullptr;
 }
 
 UPlaneFalloff* 
-UPlaneFalloff::SetPlaneFalloff(float InMagnitude, float InMinRange, float InMaxRange, float InDefault, FVector InPosition, FVector InNormal, EFieldFalloffType InFalloff)
+UPlaneFalloff::SetPlaneFalloff(float InMagnitude, float InMinRange, float InMaxRange, float InDefault, float InDistance, FVector InPosition, FVector InNormal, EFieldFalloffType InFalloff)
 {
 	this->Magnitude = InMagnitude;
 	this->MinRange = InMinRange;
 	this->MaxRange = InMaxRange;
 	this->Default = InDefault;
 	this->Position = InPosition;
+	this->Distance = InDistance;
 	this->Normal = InNormal;
 	this->Falloff = InFalloff;
 	return this;

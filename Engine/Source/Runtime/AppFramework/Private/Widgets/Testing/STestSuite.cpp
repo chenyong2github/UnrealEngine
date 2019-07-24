@@ -1151,9 +1151,9 @@ private:
 		const FVector2D Center = InParams.Geometry.AbsolutePosition + InParams.Geometry.GetLocalSize() * 0.5f;
 
 		const FSlateBrush* MyBrush = FCoreStyle::Get().GetBrush("ColorWheel.HueValueCircle");
-		// @todo this is not the correct way to do this
-		FSlateShaderResourceProxy* ResourceProxy = FSlateDataPayload::ResourceManager->GetShaderResource(*MyBrush);
-		FSlateResourceHandle Handle = FSlateApplication::Get().GetRenderer()->GetResourceHandle( *MyBrush );
+
+		FSlateResourceHandle Handle = MyBrush->GetRenderingResource();
+		const FSlateShaderResourceProxy* ResourceProxy = Handle.GetResourceProxy();
 
 		FVector2D UVCenter = FVector2D::ZeroVector;
 		FVector2D UVRadius = FVector2D(1,1);
@@ -4460,7 +4460,6 @@ class SInvalidationTest : public SCompoundWidget
 			.AutoHeight()
 			[
 				SNew(SInvalidationPanel)
-				.CacheRelativeTransforms(true)
 				[
 					SNew(SVerticalBox)
 
@@ -4478,7 +4477,7 @@ class SInvalidationTest : public SCompoundWidget
 private:
 	FReply ManuallyInvalidatePanel1()
 	{
-		CachePanel1->InvalidateCache();
+		CachePanel1->InvalidateRoot();
 		return FReply::Handled();
 	}
 

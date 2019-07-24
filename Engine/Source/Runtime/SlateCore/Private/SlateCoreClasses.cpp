@@ -21,16 +21,6 @@ FAutoConsoleVariableRef CVarSlateContrast(
 );
 
 
-
-int32 GSlateLayoutCaching = 0;
-
-FAutoConsoleVariableRef CVarSlateLayoutCaching(
-	TEXT("Slate.EnableLayoutCaching"),
-	GSlateLayoutCaching,
-	TEXT("Whether or not dynamic prepass and layout caching is enabled")
-);
-
-
 // Enable fast widget paths outside the editor by default.  Only reason we don't enable them everywhere
 // is that the editor is more complex than a game, and there are likely a larger swath of edge cases.
 int32 GSlateFastWidgetPath = 0;
@@ -42,6 +32,33 @@ FAutoConsoleVariableRef CVarSlateFastWidgetPath(
 );
 
 
+int32 GSlateEnableGlobalInvalidation = 0;
+static FAutoConsoleVariableRef CVarSlateNewUpdateMethod(
+	TEXT("Slate.EnableGlobalInvalidation"), 
+	GSlateEnableGlobalInvalidation, 
+	TEXT("")
+);
+
+bool GSlateIsOnFastUpdatePath = false;
+bool GSlateIsInInvalidationSlowPath = false;
+
+#if WITH_SLATE_DEBUGGING
+int32 GSlateInvalidationDebugging = 0;
+/** True if we should allow widgets to be cached in the UI at all. */
+FAutoConsoleVariableRef CVarInvalidationDebugging(
+	TEXT("Slate.InvalidationDebugging"),
+	GSlateInvalidationDebugging,
+	TEXT("Whether to show invalidation debugging visualization"));
+
+
+int32 GSlateHitTestGridDebugging = 0;
+/** True if we should allow widgets to be cached in the UI at all. */
+FAutoConsoleVariableRef CVarHitTestGridDebugging(
+	TEXT("Slate.HitTestGridDebugging"),
+	GSlateHitTestGridDebugging,
+	TEXT("Whether to show a visualization of everything in the hit teest grid"));
+
+#endif
 
 FSlateWidgetStyle::FSlateWidgetStyle()
 { }

@@ -75,9 +75,15 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 	check(Viewport);
 	if (Surface.Image == VK_NULL_HANDLE)
 	{
-		check(Viewport->AcquiredImageIndex == -1);
+		check(Viewport->AcquiredImageIndex == -1); //-V595
 		
-		Viewport->AcquireImageIndex();
+		Viewport->AcquireImageIndex(); //-V595
+		// If swapchain got invalidated (OUT_OF_DATE etc) in the above call, we may end up not having a valid viewport pointer at this point. Abort the whole thing.
+		if (Viewport == nullptr)
+		{
+			return;
+		}
+
 		int32 AcquiredImageIndex = Viewport->AcquiredImageIndex;
 		check(AcquiredImageIndex >= 0 && AcquiredImageIndex < Viewport->TextureViews.Num());
 
@@ -361,8 +367,8 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		if (InRTInfo.bHasResolveAttachments)
 		{
 			FRHITexture* ResolveRHITexture = InRTInfo.ColorResolveRenderTarget[Index].Texture;
-			ColorResolveTargetImages[Index] = Texture->Surface.Image;
 			FVulkanTextureBase* ResolveTexture = FVulkanTextureBase::Cast(ResolveRHITexture);
+			ColorResolveTargetImages[Index] = ResolveTexture->Surface.Image;
 
 			//resolve attachments only supported for 2d/2d array textures
 			FVulkanTextureView ResolveRTView;

@@ -1206,6 +1206,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Stops whatever montage is currently playing. Expectation is caller should only be stopping it if they are the current animating ability (or have good reason not to check) */
 	virtual void CurrentMontageStop(float OverrideBlendOutTime = -1.0f);
 
+	/** Stops current montage if it's the one given as the Montage param */
+	virtual void StopMontageIfCurrent(const UAnimMontage& Montage, float OverrideBlendOutTime = -1.0f);
+
 	/** Clear the animating ability that is passed in, if it's still currently animating */
 	virtual void ClearAnimatingAbility(UGameplayAbility* Ability);
 

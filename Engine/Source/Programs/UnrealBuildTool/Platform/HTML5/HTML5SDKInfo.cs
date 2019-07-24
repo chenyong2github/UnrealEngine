@@ -393,14 +393,22 @@ namespace UnrealBuildTool
 // jic output dump is needed...
 //				processInfo.RedirectStandardError = true;
 //				processInfo.RedirectStandardOutput = true;
-				Process process = Process.Start(processInfo);
-//				process.OutputDataReceived += (object sender, DataReceivedEventArgs e) => Log.TraceInformation("output>>" + e.Data);
-//				process.BeginOutputReadLine();
-//				process.ErrorDataReceived += (object sender, DataReceivedEventArgs e) => Log.TraceInformation("error>>" + e.Data);
-//				process.BeginErrorReadLine();
-				process.WaitForExit();
-				Log.TraceInformation("emcc ExitCode: {0}", process.ExitCode);
-				process.Close();
+				try
+				{
+					Process process = Process.Start(processInfo);
+//					process.OutputDataReceived += (object sender, DataReceivedEventArgs e) => Log.TraceInformation("output>>" + e.Data);
+//					process.BeginOutputReadLine();
+//					process.ErrorDataReceived += (object sender, DataReceivedEventArgs e) => Log.TraceInformation("error>>" + e.Data);
+//					process.BeginErrorReadLine();
+					process.WaitForExit();
+					Log.TraceInformation("emcc ExitCode: {0}", process.ExitCode);
+					process.Close();
+				}
+				catch (System.ComponentModel.Win32Exception ex)
+				{
+					// Process.Start() as terminated quick enough betore control has returned to process.WaitForExit()
+					Log.TraceInformation("Win32Exception ex.NativeErrorCode: {0}", ex.NativeErrorCode);
+				}
 				// uncomment OPTIMIZER (GUBP on build machines needs this)
 				// and PYTHON (reduce warnings on EMCC_DEBUG=1)
 				string pyth = Regex.Replace(PYTHON, @"\\", @"\\");

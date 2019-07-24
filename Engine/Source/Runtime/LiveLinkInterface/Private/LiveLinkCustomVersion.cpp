@@ -6,4 +6,4 @@
 const FGuid FLiveLinkCustomVersion::GUID(0xab965196, 0x45d808fc, 0xb7d7228d, 0x78ad569e);
 
 // Register the custom version with core
-FCustomVersionRegistration GRegisterLiveLinkCustomVersion(FLiveLinkCustomVersion::GUID, FLiveLinkCustomVersion::LatestVersion, TEXT("LiveLinkVer"));
+FCustomVersionRegistration GRegisterLiveLinkInterfaceCustomVersion(FLiveLinkCustomVersion::GUID, FLiveLinkCustomVersion::LatestVersion, TEXT("LiveLinkVer"));

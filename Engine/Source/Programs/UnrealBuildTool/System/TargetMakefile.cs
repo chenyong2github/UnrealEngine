@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 16;
+		public const int CurrentVersion = 18;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -37,6 +37,11 @@ namespace UnrealBuildTool
 		/// Any additional information about the build environment which the platform can use to invalidate the makefile
 		/// </summary>
 		public string ExternalMetadata;
+
+		/// <summary>
+		/// The main executable output by this target
+		/// </summary>
+		public FileReference ExecutableFile;
 
 		/// <summary>
 		/// Path to the receipt file for this target
@@ -154,17 +159,19 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ToolchainInfo">String describing the toolchain used to build. This will be output before executing actions.</param>
 		/// <param name="ExternalMetadata">External build metadata from the platform</param>
+		/// <param name="ExecutableFile">Path to the executable or primary output binary for this target</param>
 		/// <param name="ReceiptFile">Path to the receipt file</param>
 		/// <param name="ProjectIntermediateDirectory">Path to the project intermediate directory</param>
 		/// <param name="TargetType">The type of target</param>
 		/// <param name="ConfigValueTracker">Set of dependencies on config files</param>
 		/// <param name="bDeployAfterCompile">Whether to deploy the target after compiling</param>
 		/// <param name="bHasProjectScriptPlugin">Whether the target has a project script plugin</param>
-		public TargetMakefile(string ToolchainInfo, string ExternalMetadata, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
+		public TargetMakefile(string ToolchainInfo, string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
 		{
 			this.CreateTimeUtc = DateTime.UtcNow;
 			this.ToolchainInfo = ToolchainInfo;
 			this.ExternalMetadata = ExternalMetadata;
+			this.ExecutableFile = ExecutableFile;
 			this.ReceiptFile = ReceiptFile;
 			this.ProjectIntermediateDirectory = ProjectIntermediateDirectory;
 			this.TargetType = TargetType;
@@ -194,6 +201,7 @@ namespace UnrealBuildTool
 			CreateTimeUtc = new DateTime(Reader.ReadLong(), DateTimeKind.Utc);
 			ToolchainInfo = Reader.ReadString();
 			ExternalMetadata = Reader.ReadString();
+			ExecutableFile = Reader.ReadFileReference();
 			ReceiptFile = Reader.ReadFileReference();
 			ProjectIntermediateDirectory = Reader.ReadDirectoryReference();
 			TargetType = (TargetType)Reader.ReadInt();
@@ -226,6 +234,7 @@ namespace UnrealBuildTool
 			Writer.WriteLong(CreateTimeUtc.Ticks);
 			Writer.WriteString(ToolchainInfo);
 			Writer.WriteString(ExternalMetadata);
+			Writer.WriteFileReference(ExecutableFile);
 			Writer.WriteFileReference(ReceiptFile);
 			Writer.WriteDirectoryReference(ProjectIntermediateDirectory);
 			Writer.WriteInt((int)TargetType);
@@ -516,7 +525,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check whether the list has changed
-				List<FileItem> PrevFilesWithMarkup = Makefile.UObjectModuleHeaders.SelectMany(x => x.HeaderFiles).ToList();
+				List<FileItem> PrevFilesWithMarkup = Makefile.UObjectModuleHeaders.Where(x => !x.bUsePrecompiled).SelectMany(x => x.HeaderFiles).ToList();
 				List<FileItem> NextFilesWithMarkup = NewFilesWithMarkupBag.ToList();
 				if (NextFilesWithMarkup.Count != PrevFilesWithMarkup.Count || NextFilesWithMarkup.Intersect(PrevFilesWithMarkup).Count() != PrevFilesWithMarkup.Count)
 				{

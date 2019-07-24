@@ -5,5 +5,6 @@
 
 void FRigUnit_AnimRichCurve::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 }
 

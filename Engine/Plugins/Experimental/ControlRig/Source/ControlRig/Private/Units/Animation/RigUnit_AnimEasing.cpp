@@ -5,6 +5,7 @@
 
 void FRigUnit_AnimEasing::Execute(const FRigUnitContext& Context)
 {
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (FMath::IsNearlyEqual(SourceMinimum, SourceMaximum))
 	{
 		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("The source minimum and maximum are the same."));

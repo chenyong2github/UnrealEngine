@@ -610,6 +610,7 @@ void HDRSettingChangedSinkCallback()
 		
 		int32 OutputDevice = 0;
 		int32 ColorGamut = 0;
+		bool bNewValuesSet = false;
 		
 		// If we are turning HDR on we must set the appropriate OutputDevice and ColorGamut.
 		// If we are turning it off, we'll reset back to 0/0
@@ -621,12 +622,14 @@ void HDRSettingChangedSinkCallback()
 				// ScRGB, 1000 or 2000 nits, Rec2020
 				OutputDevice = (DisplayNitLevel == 1000) ? 5 : 6;
 				ColorGamut = 2;
+				bNewValuesSet = true;
 			}
 #elif PLATFORM_PS4
 			{
 				// PQ, 1000 or 2000 nits, Rec2020
 				OutputDevice = (DisplayNitLevel == 1000) ? 3 : 4;
 				ColorGamut = 2;
+				bNewValuesSet = true;
 			}
 
 #elif PLATFORM_MAC
@@ -634,29 +637,35 @@ void HDRSettingChangedSinkCallback()
 				// ScRGB, 1000 or 2000 nits, DCI-P3
 				OutputDevice = DisplayNitLevel == 1000 ? 5 : 6;
 				ColorGamut = 1;
+				bNewValuesSet = true;
 			}
 #elif PLATFORM_IOS
 			{
 				// Linear output to Apple's specific format.
 				OutputDevice = 7;
 				ColorGamut = 0;
+				bNewValuesSet = true;
 			}
 #elif PLATFORM_XBOXONE
 			{
 				// PQ, 1000 or 2000 nits, Rec2020
 				OutputDevice = (DisplayNitLevel == 1000) ? 3 : 4;
 				ColorGamut = 2;
+				bNewValuesSet = true;
 			}
 #endif
 		}
-		
-		static IConsoleVariable* CVarHDROutputDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
-		static IConsoleVariable* CVarHDRColorGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
-		check(CVarHDROutputDevice);
-		check(CVarHDRColorGamut);
-		
-		CVarHDROutputDevice->Set(OutputDevice, ECVF_SetByDeviceProfile);
-		CVarHDRColorGamut->Set(ColorGamut, ECVF_SetByDeviceProfile);
+
+		if (bNewValuesSet)
+		{
+			static IConsoleVariable* CVarHDROutputDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
+			static IConsoleVariable* CVarHDRColorGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
+			check(CVarHDROutputDevice);
+			check(CVarHDRColorGamut);
+
+			CVarHDROutputDevice->Set(OutputDevice, ECVF_SetByDeviceProfile);
+			CVarHDRColorGamut->Set(ColorGamut, ECVF_SetByDeviceProfile);
+		}
 		
 		// Now set the HDR setting.
 		GRHIIsHDREnabled = CVarHDROutputEnabled->GetValueOnAnyThread() != 0;
@@ -689,7 +698,7 @@ void SystemResolutionSinkCallback()
 
 			if (GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame)
 			{
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Resizing viewport due to setres change, %d x %d"), ResX, ResY);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Resizing viewport due to setres change, %d x %d\n"), ResX, ResY);
 				GEngine->GameViewport->ViewportFrame->ResizeFrame(ResX, ResY, WindowMode);
 			}
 		}
@@ -1153,6 +1162,15 @@ static FAutoConsoleVariableRef CVarLowMemoryTimeBetweenPurgingPendingKillObjects
 	ECVF_Default
 );
 
+// see also: s.ForceGCAfterLevelStreamedOut, s.ContinuouslyIncrementalGCWhileLevelsPendingPurge
+static float GLowMemoryTimeBetweenPurgingPendingLevels = 15.0f;
+static FAutoConsoleVariableRef CVarLowMemoryTimeBetweenPurgingPendingLevels(
+	TEXT("gc.LowMemory.TimeBetweenPurgingPendingLevels"),
+	GLowMemoryTimeBetweenPurgingPendingLevels,
+	TEXT("Time in seconds (game time) we should wait between GC when we're low on memory and there are levels pending unload"),
+	ECVF_Default
+);
+
 static float GLowMemoryMemoryThresholdMB = 0.0f;
 static FAutoConsoleVariableRef CVarLowMemoryThresholdMB(
 	TEXT("gc.LowMemory.MemoryThresholdMB"),
@@ -1198,12 +1216,21 @@ float UEngine::GetTimeBetweenGarbageCollectionPasses() const
 	}
 
 	// Do more frequent GCs if we're under the low memory threshold (if enabled)
-	if ( GLowMemoryMemoryThresholdMB > 0.0 && GLowMemoryTimeBetweenPurgingPendingKillObjects < TimeBetweenGC )
+	if ( GLowMemoryMemoryThresholdMB > 0.0 )
 	{
 		float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
 		if ( MBFree <= GLowMemoryMemoryThresholdMB)
 		{
-			TimeBetweenGC = GLowMemoryTimeBetweenPurgingPendingKillObjects;
+			if (GLowMemoryTimeBetweenPurgingPendingKillObjects < TimeBetweenGC)
+			{
+				TimeBetweenGC = GLowMemoryTimeBetweenPurgingPendingKillObjects;
+			}
+
+			// Go even faster if there are levels that need to be unloaded
+			if (GLowMemoryTimeBetweenPurgingPendingLevels < TimeBetweenGC && FLevelStreamingGCHelper::GetNumLevelsPendingPurge() > 0)
+			{
+				TimeBetweenGC = GLowMemoryTimeBetweenPurgingPendingLevels;
+			}
 		}
 	}
 

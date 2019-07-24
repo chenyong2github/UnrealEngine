@@ -132,9 +132,10 @@ int32 SObjectWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGe
 
 bool SObjectWidget::ComputeVolatility() const
 {
-	if ( CanRouteEvent() )
+	// @todo eliminate this
+	if (!GSlateEnableGlobalInvalidation && CanRouteEvent())
 	{
-		return SCompoundWidget::ComputeVolatility() || WidgetObject->IsPlayingAnimation();
+		return WidgetObject->IsPlayingAnimation() || SCompoundWidget::ComputeVolatility();
 	}
 
 	return SCompoundWidget::ComputeVolatility();

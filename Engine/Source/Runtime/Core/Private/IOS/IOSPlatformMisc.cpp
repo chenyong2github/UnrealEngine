@@ -1696,7 +1696,13 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
 
 bool FIOSPlatformMisc::HasSeparateChannelForDebugOutput()
 {
-    return FPlatformMisc::IsDebuggerPresent();
+#if UE_BUILD_SHIPPING
+    return false;
+#else
+    // We should not just check if we are being debugged because you can use the Xcode log even for
+    // apps launched outside the debugger.
+    return true;
+#endif
 }
 
 void FIOSPlatformMisc::GPUAssert()
@@ -1979,6 +1985,24 @@ void ReportEnsure( const TCHAR* ErrorMessage, int NumStackFramesToIgnore )
     
     bReentranceGuard = false;
     EnsureLock.Unlock();
+}
+
+FString FIOSCrashContext::CreateCrashFolder() const
+{
+	// create a crash-specific directory
+	char CrashInfoFolder[PATH_MAX] = {};
+	FCStringAnsi::Strncpy(CrashInfoFolder, GIOSAppInfo.CrashReportPath, PATH_MAX);
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "/CrashReport-UE4-");
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, GIOSAppInfo.AppNameUTF8);
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "-pid-");
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(getpid(), 10));
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "-");
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GIOSAppInfo.RunUUID.A, 16));
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GIOSAppInfo.RunUUID.B, 16));
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GIOSAppInfo.RunUUID.C, 16));
+	FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(GIOSAppInfo.RunUUID.D, 16));
+	
+	return FString(ANSI_TO_TCHAR(CrashInfoFolder));
 }
 
 

@@ -118,8 +118,10 @@ void UMovieSceneAudioSection::PostLoad()
 
 	if (StartOffsetToUpgrade.IsSet())
 	{
-		FFrameNumber StartFrame = UpgradeLegacyMovieSceneTime(this, LegacyFrameRate, StartOffsetToUpgrade.GetValue());
-		StartFrameOffset = StartFrame.Value;
+		FFrameRate DisplayRate = GetTypedOuter<UMovieScene>()->GetDisplayRate();
+		FFrameRate TickResolution = GetTypedOuter<UMovieScene>()->GetTickResolution();
+
+		StartFrameOffset = ConvertFrameTime(FFrameTime::FromDecimal(DisplayRate.AsDecimal() * StartOffsetToUpgrade.GetValue()), DisplayRate, TickResolution).FrameNumber;
 	}
 }
 

@@ -26,7 +26,7 @@ class DATAPREPCORE_API UDataprepFloatFilter : public UDataprepFilter
 	GENERATED_BODY()
 
 public:
-	inline bool Filter(float Float) const;
+	bool Filter(float Float) const;
 
 	//~ Begin UDataprepFilter Interface
 	virtual TArray<UObject*> FilterObjects(const TArray<UObject*>& Objects) const override;
@@ -37,9 +37,9 @@ public:
 	virtual UDataprepFetcher* GetFetcher() const override;
 	//~ Begin UDataprepFilter Interface
 
-	inline EDataprepFloatMatchType GetFloatMatchingCriteria() const;
-	inline float GetEqualValue() const;
-	inline float GetTolerance() const;
+	EDataprepFloatMatchType GetFloatMatchingCriteria() const;
+	float GetEqualValue() const;
+	float GetTolerance() const;
 
 	void SetFloatMatchingCriteria(EDataprepFloatMatchType FloatMatchingCriteria);
 	void SetEqualValue(float EqualValue);

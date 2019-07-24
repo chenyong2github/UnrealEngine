@@ -137,6 +137,11 @@ FCurveEditorTreeItem* FCurveEditorTree::FindItem(FCurveEditorTreeItemID ItemID)
 	return Items.Find(ItemID);
 }
 
+const FCurveEditorTreeItem* FCurveEditorTree::FindItem(FCurveEditorTreeItemID ItemID) const
+{
+	return Items.Find(ItemID);
+}
+
 const TArray<FCurveEditorTreeItemID>& FCurveEditorTree::GetRootItems() const
 {
 	return RootItems.ChildIDs;
@@ -382,6 +387,12 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 	{
 		FCurveEditorTreeItemID ItemID = TreeItems[Index];
 
+		const FCurveEditorTreeItem* TreeItem = Items.Find(ItemID);
+		if (!ensureAlwaysMsgf(TreeItem, TEXT("Selected tree item does not exist. This must have bee applied externally.")))
+		{
+			continue;
+		}
+
 		if (Index < LastDirectlySelected)
 		{
 			Selection.Add(ItemID, ECurveEditorTreeSelectionState::Explicit);
@@ -391,7 +402,7 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 			Selection.Add(ItemID, ECurveEditorTreeSelectionState::ImplicitChild);
 		}
 
-		for (FCurveEditorTreeItemID ChildID : Items.FindChecked(ItemID).GetChildren())
+		for (FCurveEditorTreeItemID ChildID : TreeItem->GetChildren())
 		{
 			if (FilterStates.Get(ChildID) != ECurveEditorTreeFilterState::NoMatch)
 			{

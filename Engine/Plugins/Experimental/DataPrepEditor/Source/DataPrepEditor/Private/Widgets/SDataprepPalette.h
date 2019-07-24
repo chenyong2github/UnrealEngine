@@ -28,9 +28,6 @@ private:
 	/** CallBack from the GraphActionMenu for when the custom row expender is created */
 	TSharedRef<class SExpanderArrow> OnCreateCustomRowExpander(const FCustomExpanderData& InCustomExpanderData) const;
 
-	/** Callback for when the category selection is changed */
-	void CategorySelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
-
 	/** Callback from the Asset Registry when a new asset is added. */
 	void AddAssetFromAssetRegistry(const FAssetData& InAddedAssetData);
 
@@ -42,16 +39,9 @@ private:
 
 	void RefreshAssetInRegistry(const FAssetData& InAssetData);
 
-	// The currently selected category 
-	TSharedPtr< FString > SelectedCategoryPtr;
-
 	// The options for the category selection
 	FText AllCategory;
 	FText SelectorsCategory;
 	FText OperationsCategory;
-	TSharedPtr< FString > AllCategoryPtr;
-	TSharedPtr< FString > SelectorsCategoryPtr;
-	TSharedPtr< FString > OperationsCategoryPtr;
-	TArray< TSharedPtr<FString> > CategoryNames;
 };
 

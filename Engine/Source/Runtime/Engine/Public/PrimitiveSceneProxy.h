@@ -215,7 +215,7 @@ public:
 #endif // RHI_RAYTRACING
 
 	/** Collects occluder geometry for software occlusion culling */
-	virtual bool CollectOccluderElements(class FOccluderElementsCollector& Collector) const { return false; }
+	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const { return 0; }
 
 	/** 
 	 * Gathers the primitive's dynamic mesh elements.  This will only be called if GetViewRelevance declares dynamic relevance.
@@ -455,6 +455,10 @@ public:
 	inline int32 GetVisibilityId() const { return VisibilityId; }
 	inline int16 GetTranslucencySortPriority() const { return TranslucencySortPriority; }
 	inline bool HasMotionBlurVelocityMeshes() const { return bHasMotionBlurVelocityMeshes; }
+
+	inline int32 GetVirtualTextureLodBias() const { return VirtualTextureLodBias; }
+	inline int32 GetVirtualTextureCullMips() const { return VirtualTextureCullMips; }
+	inline int32 GetVirtualTextureMinCoverage() const {	return VirtualTextureMinCoverage; }
 
 	inline bool IsMovable() const 
 	{ 
@@ -982,9 +986,17 @@ protected:
 
 	float DistanceFieldSelfShadowBias;
 
-	/** Array of virtual textures that this proxy should render to. */
+	/** Array of runtime virtual textures that this proxy should render to. */
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	/** Set of unique runtime virtual texture material types referenced by RuntimeVirtualTextures. */
 	TSet<ERuntimeVirtualTextureMaterialType> RuntimeVirtualTextureMaterialTypes;
+
+	/** Geometry Lod bias when rendering to runtime virtual texture. */
+	int8 VirtualTextureLodBias;
+	/** Number of low mips to skip when rendering to runtime virtual texture. */
+	int8 VirtualTextureCullMips;
+	/** Log2 of minimum estimated pixel coverage before culling from runtime virtual texture. */
+	int8 VirtualTextureMinCoverage;
 
 private:
 	/** The hierarchy of owners of this primitive.  These must not be dereferenced on the rendering thread, but the pointer values can be used for identification.  */
@@ -1084,10 +1096,10 @@ protected:
 /**
  * Returns if specified mesh command can be cached, or needs to be recreated every frame.
  */
-ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy);
+ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& MeshBatch);
 
 /**
  * Returns if specified mesh command can be cached, or needs to be recreated every frame; this is a slightly slower version
  * used for materials with external textures that need invalidating their PSOs.
  */
-ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FVertexFactory* RESTRICT VertexFactory, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const class FMaterialRenderProxy* MaterialRenderProxy, ERHIFeatureLevel::Type FeatureLevel);
+ENGINE_API extern bool SupportsCachingMeshDrawCommands(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& MeshBatch, ERHIFeatureLevel::Type FeatureLevel);

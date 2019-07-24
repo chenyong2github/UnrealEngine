@@ -1141,7 +1141,7 @@ namespace GeometryCollectionExample
 		}
 
 		{
-			FFieldSystemCommand CommandOut("FPlaneFalloff", new FPlaneFalloff(1.f, 3.f, 5.f, 7.f, FVector(9, 11, 13), FVector(17, 19, 23)));
+			FFieldSystemCommand CommandOut("FPlaneFalloff", new FPlaneFalloff(1.f, 3.f, 5.f, 7.f, 100.f, FVector(9, 11, 13), FVector(17, 19, 23)));
 			FFieldSystemCommand CommandIn = SaveAndLoad(CommandOut);
 			R.ExpectTrue(CommandIn == CommandOut);
 		}
@@ -1259,7 +1259,7 @@ namespace GeometryCollectionExample
 			FUniformInteger* UniformInteger = new FUniformInteger(3);
 			FConversionField<int32, float>*  ConversionFieldIF = new FConversionField<int32, float>(UniformInteger);
 
-			FPlaneFalloff* PlaneFalloff = new FPlaneFalloff(1.f, 3.f, 5.f, 7.f, FVector(9, 11, 13), FVector(17, 19, 23));
+			FPlaneFalloff* PlaneFalloff = new FPlaneFalloff(1.f, 3.f, 5.f, 7.f, 100.f, FVector(9, 11, 13), FVector(17, 19, 23));
 			FCullingField<float>* CullingFieldF = new FCullingField<float>(PlaneFalloff, ConversionFieldIF);
 
 

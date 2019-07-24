@@ -9158,6 +9158,13 @@ FString FBlueprintEditorUtils::GetClassNameWithoutSuffix(const UClass* Class)
 	}
 }
 
+FText FBlueprintEditorUtils::GetDeprecatedMemberMenuItemName(const FText& MemberName)
+{
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("MemberName"), MemberName);
+	return FText::Format(LOCTEXT("DeprecatedMemberMenuItemName", "{MemberName} (Deprecated)"), Args);
+}
+
 FText FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(const FText& MemberName, const FText& DetailedMessage)
 {
 	static FText UnknownName = LOCTEXT("UnknownDeprecatedMemberName", "[unknown]");

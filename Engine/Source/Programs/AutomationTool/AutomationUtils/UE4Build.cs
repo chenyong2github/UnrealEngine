@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -370,7 +370,10 @@ namespace AutomationTool
 					Version.BranchName = Branch;
 					Version.BuildVersionString = Build;
 
-					VersionFileUpdater.MakeFileWriteable(BuildVersionFile.FullName);
+					if (File.Exists(BuildVersionFile.FullName))
+					{
+						VersionFileUpdater.MakeFileWriteable(BuildVersionFile.FullName);
+					}
 
 					Version.Write(BuildVersionFile);
 				}
@@ -444,6 +447,15 @@ namespace AutomationTool
 			/// Whether to clean this target. If not specified, the target will be cleaned if -Clean is on the command line.
 			/// </summary>
 			public bool? Clean;
+
+			/// <summary>
+			/// Format as string
+			/// </summary>
+			/// <returns></returns>
+			public override string ToString()
+			{
+				return string.Format("{0} {1} {2}", TargetName, Platform, Config);
+			}
 		}
 
 

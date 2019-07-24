@@ -3,7 +3,7 @@
 #include "Evaluation/Blending/MovieSceneAccumulatedBlendState.h"
 #include "IMovieScenePlayer.h"
 
-void FMovieSceneAccumulatedBlendState::Consolidate(TMap<UObject*, TMap<FMovieSceneBlendingActuatorID, FActuatorTokenStackPtr>>& InOutBlendState, FMovieSceneEvaluationOperand InOperand, IMovieScenePlayer& Player)
+void FMovieSceneAccumulatedBlendState::Consolidate(TMap<FMovieSceneBlendingKey, FActuatorTokenStackPtr>& InOutBlendState, FMovieSceneEvaluationOperand InOperand, IMovieScenePlayer& Player)
 {
 	if (TokensToBlend.Num() == 0)
 	{
@@ -16,21 +16,28 @@ void FMovieSceneAccumulatedBlendState::Consolidate(TMap<UObject*, TMap<FMovieSce
 		{
 			if (UObject* Obj = WeakObj.Get())
 			{
-				Consolidate(InOutBlendState.FindOrAdd(Obj));
+				for (TInlineValue<FTokenEntry>& Token : TokensToBlend)
+				{
+					FMovieSceneBlendingKey Key = { Obj, Token->GetActuatorID() };
+
+					Token->Consolidate(InOutBlendState.FindOrAdd(Key));
+				}
 			}
 		}
 	}
 	else
 	{
 		// Explicit nullptr means master tracks
-		Consolidate(InOutBlendState.FindOrAdd(nullptr));
+		Consolidate(InOutBlendState);
 	}
 }
 
-void FMovieSceneAccumulatedBlendState::Consolidate(TMap<FMovieSceneBlendingActuatorID, FActuatorTokenStackPtr>& InOutBlendState)
+void FMovieSceneAccumulatedBlendState::Consolidate(TMap<FMovieSceneBlendingKey, FActuatorTokenStackPtr>& InOutBlendState)
 {
-	for (auto& Token : TokensToBlend)
+	for (TInlineValue<FTokenEntry>& Token : TokensToBlend)
 	{
-		Token->Consolidate(InOutBlendState);
+		FMovieSceneBlendingKey Key = { nullptr, Token->GetActuatorID() };
+
+		Token->Consolidate(InOutBlendState.FindOrAdd(Key));
 	}
 }

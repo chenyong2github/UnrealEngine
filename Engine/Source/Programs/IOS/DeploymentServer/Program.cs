@@ -27,6 +27,7 @@ namespace DeploymentServer
 	{
 		static int ExitCode = 0;
 		const int DefaultPort = 41000;
+		const int InternalVersion = 2;
 		static int Port = DefaultPort;
 		static bool IsRunningCommand = false;
 		static bool IsStopping = false;
@@ -40,6 +41,7 @@ namespace DeploymentServer
 		static public void LocalLog(string s)
 		{
 			LocalConsole.WriteLine(s);
+			LocalConsole.Flush();
 		}
 
 		class TCPPortForwarding
@@ -826,9 +828,9 @@ namespace DeploymentServer
 			System.Threading.Thread ProcessClient = null;
 			try
 			{
-				OutSm = new FileStream("DeploymentServer.log", FileMode.Create, FileAccess.Write);
+				OutSm = new FileStream("DeploymentServer.log", FileMode.Append, FileAccess.Write);
 				Writer = new StreamWriter(OutSm);
-				Console.SetOut(Writer);
+				LocalConsole = Writer;
 
 				DeploymentProxy.Deployer = new DeploymentImplementation();
 				long.TryParse(ConfigurationManager.AppSettings["DSTimeOut"], out TimeOut);
@@ -849,6 +851,8 @@ namespace DeploymentServer
 												.Select(m => m.Value)
 												.ToList();
 				ParseServerParam(Arguments);
+
+				LocalLog(string.Format("Deployment Server internal version {0}", InternalVersion.ToString()));
 				LocalLog(string.Format("Deployment Server listening to port {0}", Port.ToString()));
 				LocalLog(string.Format("Deployment Server inactivity timeout {0}", TimeOut.ToString()));
 				LocalLog(string.Format("Deployment Server starting from {0}", TestStartPath));
@@ -1209,7 +1213,7 @@ namespace DeploymentServer
 				{
 					NetworkStream ClStream = Client.GetStream();
 					string ClientIP = ((IPEndPoint)Client.Client.RemoteEndPoint).Address.ToString();
-					//LocalLog("Client [{0}] IP:{1} connected.", localID, ClientIP);
+					//LocalLog("Client [" + localID.ToString() + "] IP:" + ClientIP.ToString() + " connected.");
 
 					StreamWriter Writer = new StreamWriter(ClStream);
 					Writer.AutoFlush = true;
@@ -1331,9 +1335,15 @@ namespace DeploymentServer
 						}
 					}
 				}
-				catch (IOException)
+				catch (IOException /*ie*/)
 				{
 					// we expect this to happen so we don't log it
+					//LocalLog("IOException: " + ie.ToString());
+				}
+				catch (SocketException /*se*/)
+				{
+					// we expect this to happen so we don't log it
+					//LocalLog("SocketException: " + se.ToString());
 				}
 				catch (Exception e)
 				{
@@ -1349,7 +1359,7 @@ namespace DeploymentServer
 					{
 						if (Client.Client != null && Client.Client.RemoteEndPoint != null)
 						{
-							//LocalLog("Client [{0}] disconnected ({1}).", localID, LastCommand);
+							//LocalLog("Client [" + localID.ToString() + "] disconnected (" + LastCommand.ToString() + ").");
 						}
 						Client.Close();
 					}

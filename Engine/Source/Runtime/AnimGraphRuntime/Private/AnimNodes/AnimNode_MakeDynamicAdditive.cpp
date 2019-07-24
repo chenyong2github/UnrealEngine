@@ -13,6 +13,7 @@ FAnimNode_MakeDynamicAdditive::FAnimNode_MakeDynamicAdditive()
 
 void FAnimNode_MakeDynamicAdditive::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	Base.Initialize(Context);
@@ -21,18 +22,21 @@ void FAnimNode_MakeDynamicAdditive::Initialize_AnyThread(const FAnimationInitial
 
 void FAnimNode_MakeDynamicAdditive::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 	Base.CacheBones(Context);
 	Additive.CacheBones(Context);
 }
 
 void FAnimNode_MakeDynamicAdditive::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	Base.Update(Context.FractionalWeight(1.f));
 	Additive.Update(Context.FractionalWeight(1.f));
 }
 
 void FAnimNode_MakeDynamicAdditive::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	FPoseContext BaseEvalContext(Output);
 
 	Base.Evaluate(BaseEvalContext);
@@ -50,6 +54,7 @@ void FAnimNode_MakeDynamicAdditive::Evaluate_AnyThread(FPoseContext& Output)
 
 void FAnimNode_MakeDynamicAdditive::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugLine += FString::Printf(TEXT("(Mesh Space Additive: %s)"), bMeshSpaceAdditive ? TEXT("true") : TEXT("false"));
 

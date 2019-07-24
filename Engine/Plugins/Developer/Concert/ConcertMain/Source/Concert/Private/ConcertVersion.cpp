@@ -2,6 +2,7 @@
 
 #include "ConcertVersion.h"
 #include "Misc/EngineVersion.h"
+#include "Modules/BuildVersion.h"
 #include "Serialization/CustomVersion.h"
 
 #define LOCTEXT_NAMESPACE "ConcertVersion"
@@ -18,7 +19,7 @@ bool ValidateVersion(const int32 InCurrent, const int32 InOther, const FText InV
 		{
 			if (OutFailureReason)
 			{
-				*OutFailureReason = FText::Format(LOCTEXT("Error_InvalidIdenticalVersionFmt", "Invalid version for '{0}' (expected '{1}', got '{2}')"), InVersionDisplayName, InCurrent, InOther);
+				*OutFailureReason = FText::Format(LOCTEXT("Error_InvalidIdenticalVersionFmt", "Invalid version for '{0}' (expected '{1}', got '{2}')"), InVersionDisplayName, FText::AsNumber(InCurrent, &FNumberFormattingOptions::DefaultNoGrouping()), FText::AsNumber(InOther, &FNumberFormattingOptions::DefaultNoGrouping()));
 			}
 			return false;
 		}
@@ -29,7 +30,7 @@ bool ValidateVersion(const int32 InCurrent, const int32 InOther, const FText InV
 		{
 			if (OutFailureReason)
 			{
-				*OutFailureReason = FText::Format(LOCTEXT("Error_InvalidCompatibleVersionFmt", "Invalid version for '{0}' (expected '{1}' or greater, got '{2}')"), InVersionDisplayName, InCurrent, InOther);
+				*OutFailureReason = FText::Format(LOCTEXT("Error_InvalidCompatibleVersionFmt", "Invalid version for '{0}' (expected '{1}' or greater, got '{2}')"), InVersionDisplayName, FText::AsNumber(InCurrent, &FNumberFormattingOptions::DefaultNoGrouping()), FText::AsNumber(InOther, &FNumberFormattingOptions::DefaultNoGrouping()));
 			}
 			return false;
 		}
@@ -78,6 +79,7 @@ bool FConcertEngineVersionInfo::Validate(const FConcertEngineVersionInfo& InOthe
 
 void FConcertCustomVersionInfo::Initialize(const FCustomVersion& InVersion)
 {
+	FriendlyName = InVersion.GetFriendlyName();
 	Key = InVersion.Key;
 	Version = InVersion.Version;
 }
@@ -85,15 +87,35 @@ void FConcertCustomVersionInfo::Initialize(const FCustomVersion& InVersion)
 bool FConcertCustomVersionInfo::Validate(const FConcertCustomVersionInfo& InOther, const EConcertVersionValidationMode InValidationMode, FText* OutFailureReason) const
 {
 	check(Key == InOther.Key);
-	const FCustomVersion* EngineCustomVersion = FCustomVersionContainer::GetRegistered().GetVersion(Key);
-	return ConcertVersionUtil::ValidateVersion(Version, InOther.Version, EngineCustomVersion ? FText::AsCultureInvariant(EngineCustomVersion->GetFriendlyName().ToString()) : FText::AsCultureInvariant(Key.ToString()), InValidationMode, OutFailureReason);
+	return ConcertVersionUtil::ValidateVersion(Version, InOther.Version, FText::AsCultureInvariant(FriendlyName.IsNone() ? Key.ToString() : FriendlyName.ToString()), InValidationMode, OutFailureReason);
 }
 
 
 void FConcertSessionVersionInfo::Initialize()
 {
 	FileVersion.Initialize();
-	CompatibleEngineVersion.Initialize(FEngineVersion::CompatibleWith());
+	EngineVersion.Initialize(FEngineVersion::Current());
+
+	// For builds synced via UGS, we override the changelist of the engine version with the current build version changelist
+	// as this helps to keep the changelists of programmers and artists/designers in-sync when creating and joining sessions
+	//	eg) CL# 1 is a code change, and CL# 2 is a content change:
+	//	 - A programmer syncing CL# 2 would have an engine version with a CL# of 2 (from building their own editor), and a build version CL# of 2 (from UGS).
+	//	 - An artist/designer syncing CL# 2 would have an engine version with a CL# of 1 (from the pre-built editor), but a build version CL# of 2 (from UGS).
+	{
+		// Read the default data (rather than the executable specific data), as the default data 
+		// is updated when syncing, but the executable data is only updated when compiling
+		FBuildVersion BuildVersion;
+		if (FBuildVersion::TryRead(FBuildVersion::GetDefaultFileName(), BuildVersion))
+		{
+			// Only apply the build version if our engine changelist is compatible with the synced build
+			// If this check fails then it likely means that a programmer synced (updating the build version) 
+			// without also compiling their binaries (to update the engine version)
+			if (EngineVersion.Changelist >= (uint32)BuildVersion.CompatibleChangelist)
+			{
+				EngineVersion.Changelist = BuildVersion.Changelist;
+			}
+		}
+	}
 
 	for (const FCustomVersion& EngineCustomVersion : FCustomVersionContainer::GetRegistered().GetAllVersions())
 	{
@@ -109,7 +131,7 @@ bool FConcertSessionVersionInfo::Validate(const FConcertSessionVersionInfo& InOt
 		return false;
 	}
 	
-	if (!CompatibleEngineVersion.Validate(InOther.CompatibleEngineVersion, InValidationMode, OutFailureReason))
+	if (!EngineVersion.Validate(InOther.EngineVersion, InValidationMode, OutFailureReason))
 	{
 		return false;
 	}
@@ -125,8 +147,7 @@ bool FConcertSessionVersionInfo::Validate(const FConcertSessionVersionInfo& InOt
 		{
 			if (OutFailureReason)
 			{
-				const FCustomVersion* EngineCustomVersion = FCustomVersionContainer::GetRegistered().GetVersion(CustomVersion.Key);
-				*OutFailureReason = FText::Format(LOCTEXT("Error_MissingVersionFmt", "Invalid version for '{0}' (expected '{1}', got '<none>')"), EngineCustomVersion ? FText::AsCultureInvariant(EngineCustomVersion->GetFriendlyName().ToString()) : FText::AsCultureInvariant(CustomVersion.Key.ToString()), CustomVersion.Version);
+				*OutFailureReason = FText::Format(LOCTEXT("Error_MissingVersionFmt", "Invalid version for '{0}' (expected '{1}', got '<none>'). Do you have a required plugin disabled?"), FText::AsCultureInvariant(CustomVersion.FriendlyName.IsNone() ? CustomVersion.Key.ToString() : CustomVersion.FriendlyName.ToString()), CustomVersion.Version);
 			}
 			return false;
 		}
@@ -153,8 +174,7 @@ bool FConcertSessionVersionInfo::Validate(const FConcertSessionVersionInfo& InOt
 
 				if (!CustomVersion)
 				{
-					const FCustomVersion* EngineCustomVersion = FCustomVersionContainer::GetRegistered().GetVersion(OtherCustomVersion.Key);
-					*OutFailureReason = FText::Format(LOCTEXT("Error_ExtraCustomVersionFmt", "Invalid version for '{0}' (expected '<none>', got '{1}')"), EngineCustomVersion ? FText::AsCultureInvariant(EngineCustomVersion->GetFriendlyName().ToString()) : FText::AsCultureInvariant(OtherCustomVersion.Key.ToString()), OtherCustomVersion.Version);
+					*OutFailureReason = FText::Format(LOCTEXT("Error_ExtraCustomVersionFmt", "Invalid version for '{0}' (expected '<none>', got '{1}'). Do you have an extra plugin enabled?"), FText::AsCultureInvariant(OtherCustomVersion.FriendlyName.IsNone() ? OtherCustomVersion.Key.ToString() : OtherCustomVersion.FriendlyName.ToString()), OtherCustomVersion.Version);
 					break;
 				}
 			}

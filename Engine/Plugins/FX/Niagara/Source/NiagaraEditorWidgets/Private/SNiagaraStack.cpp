@@ -24,7 +24,7 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
-#include "ViewModels/Stack/NiagaraStackEmitterSpawnScriptItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackEmitterSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackEventScriptItemGroup.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IContentBrowserSingleton.h"
@@ -1079,7 +1079,8 @@ FText SNiagaraStack::GetEmitterNameToolTip() const
 
 void SNiagaraStack::OnStackViewNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo) const
 {
-	StackViewModel->GetEmitterHandleViewModel()->OnNameTextComitted(InText, CommitInfo);
+	const FGuid EditedEmitterGuid = StackViewModel->GetEmitterHandleViewModel()->GetEmitterHandle()->GetId();
+	StackViewModel->GetSystemViewModel()->EmitterNameChanged(InText, EditedEmitterGuid);
 }
 
 EVisibility SNiagaraStack::GetSourceEmitterNameVisibility() const

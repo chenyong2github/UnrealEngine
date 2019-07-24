@@ -17,6 +17,7 @@
 #include "ControlRigSequenceActions.h"
 #include "ControlRigEditorStyle.h"
 #include "Framework/Docking/LayoutExtender.h"
+#include "Framework/Application/SlateApplication.h"
 #include "LevelEditor.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "PropertyEditorModule.h"
@@ -69,12 +70,24 @@
 #include "ControlRigDetails.h"
 #include "Units/Deprecated/RigUnitEditor_TwoBoneIKFK.h"
 #include "Animation/AnimSequence.h"
+#include "Editor/SControlRigProfilingView.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
 DEFINE_LOG_CATEGORY(LogControlRigEditor);
 
 TMap<FName, TSubclassOf<URigUnitEditor_Base>> FControlRigEditorModule::RigUnitEditorClasses;
+
+TSharedRef<SDockTab> SpawnRigProfiler( const FSpawnTabArgs& Args )
+{
+	return SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SControlRigProfilingView)
+		];
+}
 
 void FControlRigEditorModule::StartupModule()
 {
@@ -302,10 +315,28 @@ void FControlRigEditorModule::StartupModule()
 
 	// register rig unit base editor class
 	RegisterRigUnitEditorClass("RigUnit_TwoBoneIKFK", URigUnitEditor_TwoBoneIKFK::StaticClass());
+
+#if WITH_EDITOR
+	if (FSlateApplication::IsInitialized())
+	{
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner("HierarchicalProfiler", FOnSpawnTab::CreateStatic(&SpawnRigProfiler))
+			.SetDisplayName(NSLOCTEXT("UnrealEditor", "HierarchicalProfilerTab", "Hierarchical Profiler"))
+			.SetTooltipText(NSLOCTEXT("UnrealEditor", "HierarchicalProfilerTooltip", "Open the Hierarchical Profiler tab."))
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
+			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.RigUnit")));
+	};
+#endif
 }
 
 void FControlRigEditorModule::ShutdownModule()
 {
+#if WITH_EDITOR
+	if (FSlateApplication::IsInitialized())
+	{
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner("ControlRigProfiler");
+	}
+#endif
+
 	FBlueprintEditorUtils::OnRefreshAllNodesEvent.Remove(RefreshAllNodesDelegateHandle);
 	FBlueprintEditorUtils::OnReconstructAllNodesEvent.Remove(ReconstructAllNodesDelegateHandle);
 	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.Remove(RenameVariableReferencesDelegateHandle);

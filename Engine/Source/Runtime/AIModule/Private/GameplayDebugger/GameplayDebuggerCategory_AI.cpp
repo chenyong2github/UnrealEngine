@@ -193,7 +193,9 @@ void FGameplayDebuggerCategory_AI::CollectData(APlayerController* OwnerPC, AActo
 		DataPack.MontageInfo = MyChar ? GetNameSafe(MyChar->GetCurrentMontage()) : FString();
 
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(MyPawn->GetWorld());
-		const ANavigationData* NavData = MyController && NavSys ? NavSys->GetNavDataForProps(MyController->GetNavAgentPropertiesRef()) : nullptr;
+		const ANavigationData* NavData = MyController && NavSys 
+			? NavSys->GetNavDataForProps(MyController->GetNavAgentPropertiesRef(), MyController->GetNavAgentLocation()) 
+			: nullptr;
 		DataPack.NavDataInfo = NavData ? NavData->GetConfig().Name.ToString() : FString();
 
 		CollectPathData(MyController);

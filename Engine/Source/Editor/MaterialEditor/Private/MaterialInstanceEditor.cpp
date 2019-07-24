@@ -45,6 +45,7 @@
 #include "MaterialStats.h"
 #include "MaterialEditingLibrary.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "DebugViewModeHelpers.h"
 #include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "MaterialInstanceEditor"
@@ -617,6 +618,7 @@ FMaterialInstanceEditor::~FMaterialInstanceEditor()
 		UPackage* Package = MaterialEditorInstance->SourceInstance->GetOutermost();
 		if (Package && Package->IsDirty() && Package != GetTransientPackage())
 		{
+			ClearDebugViewMaterials(MaterialEditorInstance->SourceInstance);
 			FMaterialEditorUtilities::BuildTextureStreamingData(MaterialEditorInstance->SourceInstance);
 		}
 	}
@@ -918,6 +920,13 @@ void FMaterialInstanceEditor::GenerateInheritanceMenu(UEditorMenu* Menu)
 	FEditorMenuSection& Section = Menu->AddSection(ParentName, LOCTEXT("ParentChain", "Parent Chain"));
 	if (bIsFunctionPreviewMaterial)
 	{
+		if (FunctionParentList.Num() == 0)
+		{
+			const FText NoParentText = LOCTEXT("NoParentFound", "No Parent Found");
+			TSharedRef<SWidget> NoParentWidget = SNew(STextBlock)
+				.Text(NoParentText);
+			Section.AddEntry(FEditorMenuEntry::InitWidget("NoParentEntry", NoParentWidget, FText::GetEmpty()));
+		}
 		for (FAssetData FunctionParent : FunctionParentList)
 		{
 			Local::AddMenuEntry(Section, FunctionParent, bIsFunctionPreviewMaterial);
@@ -925,6 +934,13 @@ void FMaterialInstanceEditor::GenerateInheritanceMenu(UEditorMenu* Menu)
 	}
 	else
 	{
+		if (MaterialParentList.Num() == 0)
+		{
+			const FText NoParentText = LOCTEXT("NoParentFound", "No Parent Found");
+			TSharedRef<SWidget> NoParentWidget = SNew(STextBlock)
+				.Text(NoParentText);
+			Section.AddEntry(FEditorMenuEntry::InitWidget("NoParentEntry", NoParentWidget, FText::GetEmpty()));
+		}
 		for (FAssetData MaterialParent : MaterialParentList)
 		{
 			Local::AddMenuEntry(Section, MaterialParent, bIsFunctionPreviewMaterial);

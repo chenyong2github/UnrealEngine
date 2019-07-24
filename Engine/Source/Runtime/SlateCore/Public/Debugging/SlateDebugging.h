@@ -22,6 +22,7 @@ class FSlateRect;
 class FWeakWidgetPath;
 class FWidgetPath;
 class FNavigationReply;
+class FSlateInvalidationRoot;
 
 UENUM()
 enum class ESlateDebuggingInputEvent : uint8
@@ -85,6 +86,10 @@ enum class ESlateDebuggingFocusEvent : uint8
 	FocusLost,
 	FocusReceived
 };
+
+
+#if WITH_SLATE_DEBUGGING
+
 
 struct SLATECORE_API FSlateDebuggingFocusEventArgs
 {
@@ -157,8 +162,6 @@ public:
 	const TSharedPtr<SWidget>& CaptureWidget;
 };
 
-
-#if WITH_SLATE_DEBUGGING
 
 /**
  * 
@@ -240,10 +243,19 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FUICommandRun, const FName& /*CommandName*/, const FText& /*CommandLabel*/);
 	static FUICommandRun CommandRun;
 
+	static void WidgetInvalidated(FSlateInvalidationRoot& InvalidationRoot, const class FWidgetProxy& WidgetProxy, const FLinearColor* CustomInvalidationColor = nullptr);
+
+	static void DrawInvalidationRoot(const SWidget& RootWidget, int32 LayerId, FSlateWindowElementList& OutDrawElements);
+
+	static void DrawInvalidatedWidgets(const FSlateInvalidationRoot& Root, const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements);
+
+	static void ClearInvalidatedWidgets(const FSlateInvalidationRoot& Root);
 private:
 
 	// This class is only for namespace use
 	FSlateDebugging() {}
+
+	static TArray<struct FInvalidatedWidgetDrawer> InvalidatedWidgetDrawers;
 };
 
 #endif

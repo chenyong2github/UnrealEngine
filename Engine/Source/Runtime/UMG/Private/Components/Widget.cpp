@@ -154,7 +154,7 @@ UWidget::UWidget(const FObjectInitializer& ObjectInitializer)
 	bIsEnabled = true;
 	bIsVariable = true;
 #if WITH_EDITOR
-	DesignerFlags = EWidgetDesignFlags::None;
+	DesignerFlags = static_cast<uint8>(EWidgetDesignFlags::None);
 #endif
 	Visibility = ESlateVisibility::Visible;
 	RenderOpacity = 1.0f;
@@ -579,7 +579,7 @@ void UWidget::ForceLayoutPrepass()
 	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
 	if (SafeWidget.IsValid())
 	{
-		SafeWidget->SlatePrepass(SafeWidget->GetCachedGeometry().Scale);
+		SafeWidget->SlatePrepass(SafeWidget->GetTickSpaceGeometry().Scale);
 	}
 }
 
@@ -723,13 +723,29 @@ void UWidget::RemoveFromParent()
 
 const FGeometry& UWidget::GetCachedGeometry() const
 {
+	return GetTickSpaceGeometry();
+}
+
+const FGeometry& UWidget::GetTickSpaceGeometry() const
+{
 	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
 	if ( SafeWidget.IsValid() )
 	{
-		return SafeWidget->GetCachedGeometry();
+		return SafeWidget->GetTickSpaceGeometry();
 	}
 
-	return SNullWidget::NullWidget->GetCachedGeometry();
+	return SNullWidget::NullWidget->GetTickSpaceGeometry();
+}
+
+const FGeometry& UWidget::GetPaintSpaceGeometry() const
+{
+	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
+	if (SafeWidget.IsValid())
+	{
+		return SafeWidget->GetPaintSpaceGeometry();
+	}
+
+	return SNullWidget::NullWidget->GetPaintSpaceGeometry();
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -920,9 +936,9 @@ ULocalPlayer* UWidget::GetOwningLocalPlayer() const
 #undef LOCTEXT_NAMESPACE
 #define LOCTEXT_NAMESPACE "UMGEditor"
 
-void UWidget::SetDesignerFlags(EWidgetDesignFlags::Type NewFlags)
+void UWidget::SetDesignerFlags(EWidgetDesignFlags NewFlags)
 {
-	DesignerFlags = ( EWidgetDesignFlags::Type )( DesignerFlags | NewFlags );
+	DesignerFlags = static_cast<uint8>(GetDesignerFlags() | NewFlags);
 
 	INamedSlotInterface* NamedSlotWidget = Cast<INamedSlotInterface>(this);
 	if (NamedSlotWidget)
@@ -1174,10 +1190,6 @@ void UWidget::SynchronizeProperties()
 
 	SafeWidget->SetRenderOpacity(RenderOpacity);
 
-#if !UE_BUILD_SHIPPING
-	SafeWidget->SetTag(GetFName());
-#endif
-
 	UpdateRenderTransform();
 	SafeWidget->SetRenderTransformPivot(RenderTransformPivot);
 
@@ -1202,6 +1214,10 @@ void UWidget::SynchronizeProperties()
 	{
 		SafeWidget->SetToolTipText(PROPERTY_BINDING(FText, ToolTipText));
 	}
+
+#if WITH_SLATE_DEBUGGING
+	SafeWidget->AddMetadata<FReflectionMetaData>(MakeShared<FReflectionMetaData>(GetFName(), GetClass(), this, GetSourceAssetOrClass()));
+#endif
 
 #if WITH_ACCESSIBILITY
 	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();

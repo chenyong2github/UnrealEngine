@@ -3,6 +3,7 @@
 #include "Widgets/Action/SDataprepFilter.h"
 
 #include "DataprepEditorStyle.h"
+#include "DataprepEditorUtils.h"
 #include "SelectionSystem/DataprepBoolFilter.h"
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepFloatFilter.h"
@@ -154,6 +155,7 @@ void SDataprepFilter::InverseFilter()
 	{
 		FScopedTransaction Transaction( LOCTEXT("InverseFilterTransaction", "Inverse the filter") );
 		Filter->SetIsExcludingResult( !Filter->IsExcludingResult() );
+		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 	}
 }
 

@@ -1326,7 +1326,22 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 			{
 				DelayedPacket& B = *(new(Delayed)DelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
 
-				B.SendTime = FPlatformTime::Seconds() + (double(PacketSimulationSettings.PktLag)  + 2.0f * (FMath::FRand() - 0.5f) * double(PacketSimulationSettings.PktLagVariance))/ 1000.f;
+				// ExtraLag goes from PktLag + [-PktLagVariance, PktLagVariance]
+				const double LagVariance = 2.0f * (FMath::FRand() - 0.5f) * double(PacketSimulationSettings.PktLagVariance);
+				const double ExtraLag = (double(PacketSimulationSettings.PktLag) + LagVariance) / 1000.f;
+				B.SendTime = FPlatformTime::Seconds() + ExtraLag;
+			}
+		}
+		else if (PacketSimulationSettings.PktLagMin > 0 && PacketSimulationSettings.PktLagMax > 0)
+		{
+			if (!ShouldDropOutgoingPacketForLossSimulation(SendBuffer.GetNumBits()))
+			{
+				DelayedPacket& B = *(new(Delayed)DelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
+
+				// ExtraLag goes from [PktLagMin, PktLagMax]
+				const double LagVariance = FMath::FRand() * double(PacketSimulationSettings.PktLagMax - PacketSimulationSettings.PktLagMin);
+				const double ExtraLag = (double(PacketSimulationSettings.PktLagMin) + LagVariance) / 1000.f;
+				B.SendTime = FPlatformTime::Seconds() + ExtraLag;
 			}
 		}
 		else if (!ShouldDropOutgoingPacketForLossSimulation(SendBuffer.GetNumBits()))
@@ -1398,9 +1413,10 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 bool UNetConnection::ShouldDropOutgoingPacketForLossSimulation(int64 NumBits) const
 {
 #if DO_ENABLE_NET_TEST
-	return Driver->IsSimulatingPacketLossBurst() ||
-		(NumBits > PacketSimulationSettings.PktLossMinSize * 8 && NumBits < PacketSimulationSettings.PktLossMaxSize * 8
-		&& PacketSimulationSettings.PktLoss > 0 && FMath::FRand() * 100.f < PacketSimulationSettings.PktLoss);
+	return Driver->IsSimulatingPacketLossBurst() || 
+		(PacketSimulationSettings.PktLoss > 0 && 
+         PacketSimulationSettings.ShouldDropPacketOfSize(NumBits) && 
+         FMath::FRand() * 100.f < PacketSimulationSettings.PktLoss);
 #else
 	return false;
 #endif
@@ -2687,7 +2703,7 @@ void UNetConnection::Tick()
 
 	// Lag simulation.
 #if DO_ENABLE_NET_TEST
-	if( PacketSimulationSettings.PktLag )
+	if(Delayed.Num() > 0)
 	{
 		for( int32 i=0; i < Delayed.Num(); i++ )
 		{
@@ -2699,7 +2715,7 @@ void UNetConnection::Tick()
 			}
 			else
 			{
-				// Break now instead of continuing to iterate through the list. Otherwise LagVariance may cause out of order sends
+				// Break now instead of continuing to iterate through the list. Otherwise may cause out of order sends
 				break;
 			}
 		}
@@ -3168,13 +3184,7 @@ void UChildConnection::HandleClientPlayer(APlayerController* PC, UNetConnection*
 void UNetConnection::UpdatePacketSimulationSettings(void)
 {
 	check(Driver);
-	PacketSimulationSettings.PktLoss = Driver->PacketSimulationSettings.PktLoss;
-	PacketSimulationSettings.PktLossMinSize = Driver->PacketSimulationSettings.PktLossMinSize;
-	PacketSimulationSettings.PktLossMaxSize = Driver->PacketSimulationSettings.PktLossMaxSize;
-	PacketSimulationSettings.PktOrder = Driver->PacketSimulationSettings.PktOrder;
-	PacketSimulationSettings.PktDup = Driver->PacketSimulationSettings.PktDup;
-	PacketSimulationSettings.PktLag = Driver->PacketSimulationSettings.PktLag;
-	PacketSimulationSettings.PktLagVariance = Driver->PacketSimulationSettings.PktLagVariance;
+	PacketSimulationSettings = Driver->PacketSimulationSettings;
 }
 #endif
 

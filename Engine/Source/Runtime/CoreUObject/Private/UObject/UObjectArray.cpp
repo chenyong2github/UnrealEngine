@@ -69,37 +69,37 @@ void FUObjectArray::CloseDisregardForGC()
 	if (!GIsRequestingExit)
 	{
 		ProcessNewlyLoadedUObjects();
-	}
 
-	UClass::AssembleReferenceTokenStreams();
+		UClass::AssembleReferenceTokenStreams();
 
-	if (GIsInitialLoad)
-	{
-		// Iterate over all objects and mark them to be part of root set.
-		int32 NumAlwaysLoadedObjects = 0;
-		int32 NumRootObjects = 0;
-		for (FObjectIterator It; It; ++It)
+		if (GIsInitialLoad)
 		{
-			UObject* Object = *It;
-			if (Object->IsSafeForRootSet())
+			// Iterate over all objects and mark them to be part of root set.
+			int32 NumAlwaysLoadedObjects = 0;
+			int32 NumRootObjects = 0;
+			for (FObjectIterator It; It; ++It)
 			{
-				NumRootObjects++;
-				Object->AddToRoot();
+				UObject* Object = *It;
+				if (Object->IsSafeForRootSet())
+				{
+					NumRootObjects++;
+					Object->AddToRoot();
+				}
+				else if (Object->IsRooted())
+				{
+					Object->RemoveFromRoot();
+				}
+				NumAlwaysLoadedObjects++;
 			}
-			else if (Object->IsRooted())
+
+			UE_LOG(LogUObjectArray, Log, TEXT("%i objects as part of root set at end of initial load."), NumAlwaysLoadedObjects);
+			if (GUObjectArray.DisregardForGCEnabled())
 			{
-				Object->RemoveFromRoot();
+				UE_LOG(LogUObjectArray, Log, TEXT("%i objects are not in the root set, but can never be destroyed because they are in the DisregardForGC set."), NumAlwaysLoadedObjects - NumRootObjects);
 			}
-			NumAlwaysLoadedObjects++;
-		}
 
-		UE_LOG(LogUObjectArray, Log, TEXT("%i objects as part of root set at end of initial load."), NumAlwaysLoadedObjects);
-		if (GUObjectArray.DisregardForGCEnabled())
-		{
-			UE_LOG(LogUObjectArray, Log, TEXT("%i objects are not in the root set, but can never be destroyed because they are in the DisregardForGC set."), NumAlwaysLoadedObjects - NumRootObjects);
+			GUObjectAllocator.BootMessage();
 		}
-
-		GUObjectAllocator.BootMessage();
 	}
 
 	// When disregard for GC pool is closed, make sure the first GC index is set after the last non-GC index.

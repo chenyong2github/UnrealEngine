@@ -49,86 +49,6 @@ struct FDataprepAssetProducer
 	int32 SupersededBy;
 };
 
-/**
- * Used for the internals of the DataprepAsset only.
- * FDataprepAssetAction manage the state of an action for the DataprepAsset.
- * Also, it report the notification from the action to Dataprep asset.
- */
-USTRUCT(Experimental)
-struct FDataprepAssetAction
-{
-	GENERATED_BODY()
-
-	FDataprepAssetAction()
-		: ActionAsset(nullptr)
-		, bIsEnabled(true)
-		, DataprepAssetPtr(nullptr)
-		, OnOperationOrderChangedHandle()
-	{}
-
-	FDataprepAssetAction(UDataprepActionAsset* InActionAsset, bool bInEnabled, UDataprepAsset& DataprepAsset)
-		: ActionAsset(nullptr)
-		, bIsEnabled(bInEnabled)
-		, DataprepAssetPtr(&DataprepAsset)
-		, OnOperationOrderChangedHandle()
-	{
-		SetActionAsset(InActionAsset);
-	}
-
-	FDataprepAssetAction(const FDataprepAssetAction& Other)
-		: ActionAsset(nullptr)
-		, bIsEnabled(Other.bIsEnabled)
-		, DataprepAssetPtr(Other.DataprepAssetPtr)
-		, OnOperationOrderChangedHandle()
-	{
-		SetActionAsset(Other.ActionAsset);
-	}
-
-	FDataprepAssetAction(FDataprepAssetAction&& Other)
-		: ActionAsset(nullptr)
-		, bIsEnabled(Other.bIsEnabled)
-		, DataprepAssetPtr(Other.DataprepAssetPtr)
-		, OnOperationOrderChangedHandle()
-	{
-		SetActionAsset(Other.ActionAsset);
-		Other.SetActionAsset( nullptr );
-	}
-
-	virtual ~FDataprepAssetAction();
-
-	FDataprepAssetAction& operator=(const FDataprepAssetAction& Other);
-
-	FDataprepAssetAction& operator=(FDataprepAssetAction&& Other);
-
-	UDataprepActionAsset* GetActionAsset() { return ActionAsset; }
-
-	const UDataprepActionAsset* GetActionAsset() const { return ActionAsset; }
-
-	void Enable(bool bInIsEnable) { bIsEnabled = bInIsEnable; }
-
-	bool IsEnabled() const { return bIsEnabled; }
-
-private:
-
-	void SetActionAsset(UDataprepActionAsset* InActionAsset);
-
-	void BindDataprepAssetToAction();
-
-	void UnbindDataprepAssetFromAction();
-
-	void OnActionOperationsOrderChanged();
-
-	UPROPERTY()
-	UDataprepActionAsset* ActionAsset;
-
-	UPROPERTY()
-	bool bIsEnabled;
-
-	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
-
-	FDelegateHandle OnOperationOrderChangedHandle;
-};
-
 
 UCLASS(Experimental)
 class DATAPREPCORE_API UDataprepAsset : public UObject
@@ -138,88 +58,12 @@ class DATAPREPCORE_API UDataprepAsset : public UObject
 public:
 	UDataprepAsset();
 
-	virtual ~UDataprepAsset();
+	virtual ~UDataprepAsset() = default;
 
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual void PostInitProperties() override;
 	// End of UObject interface
-
-	/**
-	 * Create an action at the end of actions array
-	 * @return The index of the added action
-	 */
-	int32 AddAction();
-
-	/**
-	 * Access to an action
-	 * @param Index the index of the desired action
-	 * @return A pointer to the action if it exist, otherwise nullptr
-	 */
-	inline UDataprepActionAsset* GetAction(int32 Index);
-
-	/**
-	 * Access to an action
-	 * @param Index the index of the desired action
-	 * @return A pointer to the action if it exist, otherwise nullptr
-	 */
-	inline const UDataprepActionAsset* GetAction(int32 Index) const;
-
-	/**
-	 * Get the number of action of this Dataprep
-	 * @return The number of action
-	 */
-	inline int32 GetActionsCount() const;
-
-	/**
-	 * Get enabled status of an action
-	 * @param Index The index of the action
-	 * @return True if the action is enabled. Always return false if the action index is invalid
-	 */
-	inline bool IsActionEnabled(int32 Index) const;
-
-	/**
-	 * Allow to set the enabled state of an action
-	 * @param Index The index of the action
-	 * @param bEnable The new enabled state of the action
-	 */
-	void EnableAction(int32 Index, bool bEnable);
-
-	/**
-	 * Move an action to another spot in the order of actions
-	 * This operation take O(n) time. Where n is the absolute value of ActionIndex - DestinationIndex
-	 * @param OperationIndex The Index of the operation to move
-	 * @param DestinationIndex The index of where the action will be move to
-	 * @return True if the operation was move
-	 */
-	bool MoveAction(int32 ActionIndex, int32 DestinationIndex);
-
-	/**
-	 * Remove an action from the Dataprep
-	 * @param Index The index of the action to remove
-	 * @return True if an action was removed
-	 */
-	bool RemoveAction(int32 Index);
-
-	/**
-	 * Allow an observer to be notified when the actions order changed that also include adding and removing an action
-	 * @return The delegate that will be broadcasted when the actions order changed
-	 */
-	DECLARE_EVENT(UDataprepAsset, FOnActionsOrderChanged)
-	FOnActionsOrderChanged& GetOnActionsOrderChanged()
-	{
-		return OnActionsOrderChanged;
-	}
-
-	/**
-	 * Allow an observer to be notified when the operations order of an action changed that also include adding and removing an operation
-	 * @return The delegate that will be broadcasted when the operations order of an action has changed
-	 */
-	DECLARE_EVENT_OneParam(UDataprepAsset, FOnActionOperationsOrderChanged, const UDataprepActionAsset* /** InActionAsset The modified action */)
-	FOnActionOperationsOrderChanged& GetOnActionOperationsOrderChanged()
-	{
-		return OnActionOperationsOrderChanged;
-	}
 
 	/**
 	 * Add a producer of a given class
@@ -292,6 +136,26 @@ public:
 		return Producers.IsValidIndex(Index) ? Producers[Index].SupersededBy != INDEX_NONE && Producers.IsValidIndex(Producers[Index].SupersededBy) && Producers[Producers[Index].SupersededBy].bIsEnabled : false;
 	}
 
+
+	/**
+	 * Allow an observer to be notified of an change in the pipeline
+	 * return The event that will be broadcasted when a object has receive a modification that might change the result of the pipeline
+	 */
+	DECLARE_EVENT_OneParam(UDataprepAsset, FOnDataprepPipelineChange, UObject* /*The object that was modified*/)
+	FOnDataprepPipelineChange& GetOnPipelineChange() { return OnPipelineChange; }
+
+	// struct to restrict the access scope
+	struct FDataprepPipelineChangeNotifier
+	{
+	private:
+		friend class FDataprepEditorUtils;
+
+		static void NotifyDataprepOfPipelineChange(UDataprepAsset& DataprepAsset, UObject* ModifiedObject)
+		{
+			DataprepAsset.OnPipelineChange.Broadcast( ModifiedObject );
+		}
+	};
+
 	/**
 	 * Allow an observer to be notified when when the consumer or one of the producer has changed
 	 * @return The delegate that will be broadcasted when when the consumer or one of the producer has changed
@@ -344,20 +208,10 @@ private:
 	  */
 	void ValidateProducerChanges( int32 Index, bool &bChangeAll );
 
-	void RemoveInvalidActions();
-
-	/** Ordered array of the actions */
-	UPROPERTY()
-	TArray<FDataprepAssetAction> Actions;
-
-	/** Delegate broadcasted when the actions order changed */
-	FOnActionsOrderChanged OnActionsOrderChanged;
-
-	/** Delegate broadcasted when the order of the operations of an action changed */
-	FOnActionOperationsOrderChanged OnActionOperationsOrderChanged;
 
 	/** Delegate broadcasted when the consumer or one of the producers has changed */
 	FOnDataprepAssetChanged OnChanged;
 
-	FDelegateHandle OnAssetDeletedHandle;
+	/** Event broadcasted when object in the pipeline was modified (Only broadcasted on changes that can affect the result of execution) */
+	FOnDataprepPipelineChange OnPipelineChange;
 };

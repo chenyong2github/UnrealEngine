@@ -11,7 +11,7 @@
 const float PixelCenterOffsetD3D11 = 0.0f;
 
 
-static D3D11_PRIMITIVE_TOPOLOGY GetD3D11PrimitiveType( ESlateDrawPrimitive::Type SlateType )
+static D3D11_PRIMITIVE_TOPOLOGY GetD3D11PrimitiveType( ESlateDrawPrimitive SlateType )
 {
 	switch( SlateType )
 	{
@@ -181,8 +181,11 @@ void FSlateD3D11RenderingPolicy::ReleaseResources()
 	}
 }
 
-void FSlateD3D11RenderingPolicy::UpdateVertexAndIndexBuffers( FSlateBatchData& InBatchData )
+void FSlateD3D11RenderingPolicy::BuildRenderingBuffers( FSlateBatchData& InBatchData )
 {	
+	// Merge render batches together to form final rendering calls
+	InBatchData.MergeRenderBatches();
+
 	if (!VertexBuffer.GetResource().IsValid() ||
 		!IndexBuffer.GetResource().IsValid())
 	{
@@ -191,9 +194,12 @@ void FSlateD3D11RenderingPolicy::UpdateVertexAndIndexBuffers( FSlateBatchData& I
 
 	if( InBatchData.GetRenderBatches().Num() > 0 )
 	{
-		if( InBatchData.GetNumBatchedVertices() > 0 )
+		const FSlateVertexArray& FinalVertexData = InBatchData.GetFinalVertexData();
+		const FSlateIndexArray& FinalIndexData = InBatchData.GetFinalIndexData();
+
+		if (FinalVertexData.Num() > 0)
 		{
-			uint32 NumVertices = InBatchData.GetNumBatchedVertices();
+			const uint32 NumVertices = FinalVertexData.Num();
 	
 			// resize if needed
 			if( NumVertices*sizeof(FSlateVertex) > VertexBuffer.GetBufferSize() )
@@ -205,9 +211,9 @@ void FSlateD3D11RenderingPolicy::UpdateVertexAndIndexBuffers( FSlateBatchData& I
 			}
 		}
 
-		if( InBatchData.GetNumBatchedIndices() > 0 )
+		if (FinalIndexData.Num() > 0)
 		{
-			uint32 NumIndices = InBatchData.GetNumBatchedIndices();
+			const uint32 NumIndices = FinalIndexData.Num();
 
 			// resize if needed
 			if( NumIndices > IndexBuffer.GetMaxNumIndices() )
@@ -226,7 +232,8 @@ void FSlateD3D11RenderingPolicy::UpdateVertexAndIndexBuffers( FSlateBatchData& I
 		}
 	
 		{
-			InBatchData.FillVertexAndIndexBuffer( VerticesPtr, IndicesPtr, /*bAbsoluteIndices*/ false );
+			FMemory::Memcpy(VerticesPtr, FinalVertexData.GetData(), FinalVertexData.Num() * sizeof(FSlateVertex));
+			FMemory::Memcpy(IndicesPtr, FinalIndexData.GetData(), FinalIndexData.Num() * sizeof(SlateIndex));
 		}
 
 		{
@@ -236,7 +243,7 @@ void FSlateD3D11RenderingPolicy::UpdateVertexAndIndexBuffers( FSlateBatchData& I
 	}
 }
 
-void FSlateD3D11RenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatrix, const TArray<FSlateRenderBatch>& RenderBatches )
+void FSlateD3D11RenderingPolicy::DrawElements(const FMatrix& ViewProjectionMatrix, int32 FirstBatchIndex, const TArray<FSlateRenderBatch>& RenderBatches)
 {
 	if (!VertexBuffer.GetResource().IsValid() ||
 		!IndexBuffer.GetResource().IsValid())
@@ -247,8 +254,7 @@ void FSlateD3D11RenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatr
 	VertexShader->BindShader();
 
 	ID3D11Buffer* Buffer = VertexBuffer.GetResource();
-	uint32 Stride = sizeof(FSlateVertex);
-	uint32 Offsets = 0;
+	const uint32 Stride = sizeof(FSlateVertex);
 
 #if SLATE_USE_32BIT_INDICES
 #define D3D_INDEX_FORMAT DXGI_FORMAT_R32_UINT
@@ -256,26 +262,29 @@ void FSlateD3D11RenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatr
 #define D3D_INDEX_FORMAT DXGI_FORMAT_R16_UINT
 #endif
 
-	GD3DDeviceContext->IASetVertexBuffers( 0, 1, &Buffer, &Stride, &Offsets );
+	
 	GD3DDeviceContext->IASetIndexBuffer( IndexBuffer.GetResource(), D3D_INDEX_FORMAT, 0 );
 
 	VertexShader->SetViewProjection( ViewProjectionMatrix );
 
 	PixelShader->BindShader();
 
-	TOptional<FSlateClippingState> LastClippingState;
+	const FSlateClippingState* LastClippingState = nullptr;
 
-	for( int32 BatchIndex = 0; BatchIndex < RenderBatches.Num(); ++BatchIndex )
+	int32 NextRenderBatchIndex = FirstBatchIndex;
+	while(NextRenderBatchIndex != INDEX_NONE)
 	{
-		const FSlateRenderBatch& RenderBatch = RenderBatches[BatchIndex];
+		const FSlateRenderBatch& RenderBatch = RenderBatches[NextRenderBatchIndex];
 
-		const FSlateShaderResource* Texture = RenderBatch.Texture;
+		NextRenderBatchIndex = RenderBatch.NextBatchIndex;
+
+		const FSlateShaderResource* ShaderResource = RenderBatch.GetShaderResource();
 		
-		const ESlateBatchDrawFlag DrawFlags = RenderBatch.DrawFlags;
+		const ESlateBatchDrawFlag DrawFlags = RenderBatch.GetDrawFlags();
 
-		const ESlateDrawEffect DrawEffects = RenderBatch.DrawEffects;
+		const ESlateDrawEffect DrawEffects = RenderBatch.GetDrawEffects();
 
-		const FShaderParams& ShaderParams = RenderBatch.ShaderParams;
+		const FShaderParams& ShaderParams = RenderBatch.GetShaderParams();
 
 		VertexShader->BindParameters();
 		
@@ -293,13 +302,14 @@ void FSlateD3D11RenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatr
 			GD3DDeviceContext->RSSetState( WireframeRasterState );
 		}
 		
-		if (RenderBatch.ClippingState != LastClippingState)
+		const FSlateClippingState* ClippingState = RenderBatch.GetClippingState();
+		if (ClippingState != LastClippingState)
 		{
-			LastClippingState = RenderBatch.ClippingState;
+			LastClippingState = ClippingState;
 
-			if (RenderBatch.ClippingState.IsSet())
+			if (ClippingState)
 			{
-				const FSlateClippingState& ClipState = RenderBatch.ClippingState.GetValue();
+				const FSlateClippingState& ClipState = *ClippingState;
 				if (ClipState.ScissorRect.IsSet())
 				{
 					const FSlateClippingZone& ScissorRect = ClipState.ScissorRect.GetValue();
@@ -324,12 +334,12 @@ void FSlateD3D11RenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatr
 			}
 		}
 
-		PixelShader->SetShaderType( RenderBatch.ShaderType );
+		PixelShader->SetShaderType( static_cast<uint8>(RenderBatch.GetShaderType()) );
 
 		// Disable stenciling and depth testing by default 
 		GD3DDeviceContext->OMSetDepthStencilState( DSStateOff, 0x00);
 
-		if( Texture )
+		if(ShaderResource)
 		{
 			TRefCountPtr<ID3D11SamplerState> SamplerState;
 			if( EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileU) || EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::TileV) )
@@ -341,7 +351,7 @@ void FSlateD3D11RenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatr
 				SamplerState = BilinearSamplerState_Clamp;
 			}
 
-			PixelShader->SetTexture( ((FSlateD3DTexture*)Texture)->GetTypedResource(), SamplerState );
+			PixelShader->SetTexture( ((FSlateD3DTexture*)ShaderResource)->GetTypedResource(), SamplerState );
 		}
 		else
 		{
@@ -353,13 +363,17 @@ void FSlateD3D11RenderingPolicy::DrawElements( const FMatrix& ViewProjectionMatr
 
 		PixelShader->BindParameters();
 
-		GD3DDeviceContext->IASetPrimitiveTopology( GetD3D11PrimitiveType(RenderBatch.DrawPrimitiveType) );
+		const uint32 Offset = RenderBatch.VertexOffset * sizeof(FSlateVertex);
 
-		check( RenderBatch.NumIndices > 0 );
-		const uint32 IndexCount = RenderBatch.NumIndices;
+		GD3DDeviceContext->IASetPrimitiveTopology(GetD3D11PrimitiveType(RenderBatch.GetDrawPrimitiveType()));
 
-		check(RenderBatch.IndexOffset + RenderBatch.NumIndices <= IndexBuffer.GetMaxNumIndices());
-		GD3DDeviceContext->DrawIndexed( IndexCount, RenderBatch.IndexOffset, RenderBatch.VertexOffset );
+		const uint32 IndexCount = RenderBatch.GetNumIndices();
+
+		check(IndexCount > 0);
+
+		GD3DDeviceContext->IASetVertexBuffers(0, 1, &Buffer, &Stride, &Offset);
+		check(RenderBatch.GetIndexOffset() + RenderBatch.GetNumIndices() <= IndexBuffer.GetMaxNumIndices());
+		GD3DDeviceContext->DrawIndexed(IndexCount, RenderBatch.GetIndexOffset(), 0);
 	}
 
 	// Reset the Raster state when finished, there are places that are making assumptions about the raster state

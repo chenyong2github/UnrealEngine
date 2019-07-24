@@ -34,6 +34,8 @@ FName UMovieSceneFolder::GetFolderName() const
 
 void UMovieSceneFolder::SetFolderName( FName InFolderName )
 {
+	Modify();
+
 	FolderName = InFolderName;
 }
 
@@ -46,6 +48,7 @@ const TArray<UMovieSceneFolder*>& UMovieSceneFolder::GetChildFolders() const
 
 void UMovieSceneFolder::AddChildFolder( UMovieSceneFolder* InChildFolder )
 {
+	Modify();
 
 #if WITH_EDITORONLY_DATA
 	// Ensure the added folder does not belong to any other folder in the same scene.
@@ -69,6 +72,8 @@ void UMovieSceneFolder::AddChildFolder( UMovieSceneFolder* InChildFolder )
 
 void UMovieSceneFolder::RemoveChildFolder( UMovieSceneFolder* InChildFolder )
 {
+	Modify();
+
 	ChildFolders.Remove(InChildFolder);
 }
 
@@ -81,6 +86,8 @@ const TArray<UMovieSceneTrack*>& UMovieSceneFolder::GetChildMasterTracks() const
 
 void UMovieSceneFolder::AddChildMasterTrack( UMovieSceneTrack* InMasterTrack )
 {
+	Modify();
+
 #if WITH_EDITORONLY_DATA
 	// Ensure the added track does not belong to any other folder in the same scene.
 	UMovieScene* OwningScene = GetTypedOuter<UMovieScene>();
@@ -102,6 +109,8 @@ void UMovieSceneFolder::AddChildMasterTrack( UMovieSceneTrack* InMasterTrack )
 
 void UMovieSceneFolder::RemoveChildMasterTrack( UMovieSceneTrack* InMasterTrack )
 {
+	Modify();
+
 	ChildMasterTracks.Remove( InMasterTrack );
 }
 
@@ -114,6 +123,8 @@ const TArray<FGuid>& UMovieSceneFolder::GetChildObjectBindings() const
 
 void UMovieSceneFolder::AddChildObjectBinding(const FGuid& InObjectBinding )
 {
+	Modify();
+
 #if WITH_EDITORONLY_DATA
 	// Ensure the added object  does not belong to any other folder in the same scene.
 	UMovieScene* OwningScene = GetTypedOuter<UMovieScene>();
@@ -135,6 +146,8 @@ void UMovieSceneFolder::AddChildObjectBinding(const FGuid& InObjectBinding )
 
 void UMovieSceneFolder::RemoveChildObjectBinding( const FGuid& InObjectBinding )
 {
+	Modify();
+
 	ChildObjectBindings.Remove( InObjectBinding );
 }
 

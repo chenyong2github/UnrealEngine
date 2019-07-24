@@ -255,9 +255,9 @@ void UDataprepRemoveObjectsOperation::OnExecution_Implementation(const FDataprep
 void FDataprepSetLOGGroupDetails::OnLODGroupChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type /*SelectInfo*/)
 {
 	int32 Index = LODGroupOptions.Find(NewValue);
-	if (Index != INDEX_NONE)
+	if (Index != INDEX_NONE && LodGroupPropertyHandle.IsValid() )
 	{
-		DataprepOperation->GroupName = LODGroupNames[Index];
+		LodGroupPropertyHandle->SetValue( LODGroupNames[Index] );
 	}
 }
 
@@ -309,6 +309,8 @@ void FDataprepSetLOGGroupDetails::CustomizeDetails(IDetailLayoutBuilder & Detail
 
 	FName CategoryName = CategoryNames.Num() > 0 ? CategoryNames[0] : FName( TEXT("SetLOGGroup_Internal") );
 	IDetailCategoryBuilder& ImportSettingsCategoryBuilder = DetailBuilder.EditCategory( CategoryName, FText::GetEmpty(), ECategoryPriority::Important );
+
+	LodGroupPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDataprepSetLODGroupOperation, GroupName));
 
 	// Hide GroupName property as it is replaced with custom widget
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDataprepSetLODGroupOperation, GroupName));

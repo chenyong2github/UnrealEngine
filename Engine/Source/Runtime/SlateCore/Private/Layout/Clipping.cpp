@@ -199,9 +199,20 @@ bool FSlateClippingZone::IsPointInside(const FVector2D& Point) const
 
 FSlateClippingState::FSlateClippingState(EClippingFlags InFlags /*= EClippingFlags::None*/)
 	: Flags(InFlags)
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_SLATE_DEBUGGING
 	, Debugging_StateIndex(INDEX_NONE)
 	, Debugging_StateIndexFromFrame(INDEX_NONE)
+#endif
+{
+}
+
+FSlateClippingState::FSlateClippingState(const FSlateClippingState& Other)
+	: StencilQuads(Other.StencilQuads)
+	, ScissorRect(Other.ScissorRect)
+	, Flags(Other.Flags)
+#if WITH_SLATE_DEBUGGING
+	, Debugging_StateIndex(Other.Debugging_StateIndex)
+	, Debugging_StateIndexFromFrame(Other.Debugging_StateIndexFromFrame)
 #endif
 {
 }
@@ -231,7 +242,7 @@ FSlateClippingManager::FSlateClippingManager()
 {
 }
 
-const FSlateClippingState* FSlateClippingManager::GetPreviousClippnigState(bool bWillIntersectWithParent) const
+const FSlateClippingState* FSlateClippingManager::GetPreviousClippingState(bool bWillIntersectWithParent) const
 {
 	const FSlateClippingState* PreviousClippingState = nullptr;
 
@@ -258,7 +269,7 @@ const FSlateClippingState* FSlateClippingManager::GetPreviousClippnigState(bool 
 
 FSlateClippingState FSlateClippingManager::CreateClippingState(const FSlateClippingZone& InClipRect) const
 {
-	const FSlateClippingState* PreviousClippingState = GetPreviousClippnigState(InClipRect.GetShouldIntersectParent());
+	const FSlateClippingState* PreviousClippingState = GetPreviousClippingState(InClipRect.GetShouldIntersectParent());
 
 	// Initialize the new clipping state
 	FSlateClippingState NewClippingState(InClipRect.GetAlwaysClip() ? EClippingFlags::AlwaysClip : EClippingFlags::None);
@@ -307,21 +318,15 @@ int32 FSlateClippingManager::PushClip(const FSlateClippingZone& InClipRect)
 
 int32 FSlateClippingManager::PushClippingState(const FSlateClippingState& NewClippingState)
 {
-	int32 NewClippingStateIndex = ClippingStates.Num();
+	int32 NewClippingStateIndex = ClippingStates.AddUnique(NewClippingState);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_SLATE_DEBUGGING
 	NewClippingState.SetDebuggingStateIndex(NewClippingStateIndex);
 #endif
 
 	ClippingStack.Add(NewClippingStateIndex);
-	ClippingStates.Add(NewClippingState);
 
 	return NewClippingStateIndex;
-}
-
-int32 FSlateClippingManager::PushAndMergePartialClippingState(const FSlateClippingState& NewPartialClippingState)
-{
-	return PushClippingState(MergePartialClippingState(NewPartialClippingState));
 }
 
 int32 FSlateClippingManager::GetClippingIndex() const
@@ -357,59 +362,17 @@ void FSlateClippingManager::PopClip()
 	}
 }
 
-int32 FSlateClippingManager::MergePartialClippingStates(const TArray<FSlateClippingState>& States)
-{
-	int32 Offset = ClippingStates.Num();
-
-	for (const FSlateClippingState& State : States)
-	{
-		ClippingStates.Add(MergePartialClippingState(State));
-	}
-
-	return Offset;
-}
-
-FSlateClippingState FSlateClippingManager::MergePartialClippingState(const FSlateClippingState& State) const
-{
-	if (State.GetClippingMethod() == EClippingMethod::Scissor)
-	{
-		return CreateClippingState(State.ScissorRect.GetValue());
-	}
-	else
-	{
-		const int32 CurrentIndex = GetClippingIndex();
-
-		if (CurrentIndex != INDEX_NONE)
-		{
-			const FSlateClippingState* PreviousClippingState = GetPreviousClippnigState(State.GetShouldIntersectParent());
-			if (PreviousClippingState)
-			{
-				FSlateClippingState NewState = State;
-				if (PreviousClippingState->GetClippingMethod() == EClippingMethod::Scissor)
-				{
-					NewState.StencilQuads.Insert(PreviousClippingState->ScissorRect.GetValue(), 0);
-				}
-				else
-				{
-					NewState.StencilQuads.Insert(PreviousClippingState->StencilQuads, 0);
-				}
-
-				return NewState;
-			}
-		}
-
-		return State;
-	}
-}
-
 void FSlateClippingManager::ResetClippingState()
 {
 	ClippingStates.Reset();
 	ClippingStack.Reset();
 }
 
-void FSlateClippingManager::CopyClippingStateTo(FSlateClippingManager& Other) const
+void FSlateClippingManager::PopToStackIndex(int32 Index)
 {
-	Other.ClippingStack = ClippingStack;
-	Other.ClippingStates = ClippingStates;
+	const int32 StartIndexToPop = Index + 1;
+	if (ClippingStack.Num() > StartIndexToPop)
+	{
+		ClippingStack.RemoveAt(StartIndexToPop, ClippingStack.Num() - StartIndexToPop, false);
+	}
 }

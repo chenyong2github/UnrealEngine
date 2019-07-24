@@ -181,8 +181,7 @@ private:
 
 	void ImportHierarchy(const FAssetData& InAssetData);
 	void CreateImportMenu(FMenuBuilder& MenuBuilder);
-	void CreateRefreshMenu(FMenuBuilder& MenuBuilder);
-	void RefreshHierarchy(const FAssetData& InAssetData);
+	bool ShouldFilterOnImport(const FAssetData& AssetData) const;
 
 	FName CreateUniqueName(const FName& InBaseName) const;
 
@@ -190,7 +189,6 @@ private:
 
 	void ClearDetailPanel() const;
 	void SelectBone(const FName& BoneName) const;
-
 public:
 	bool RenameBone(const FName& OldName, const FName& NewName);
 	bool OnVerifyNameChanged(const FName& OldName, const FName& NewName, FText& OutErrorMessage);

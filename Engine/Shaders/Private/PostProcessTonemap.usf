@@ -464,6 +464,13 @@ float4 TonemapCommonPS(
 
 	#else 
 
+		#if USE_MSAA
+			// look for PreTonemapMSAA 
+			SceneColor.rgb *= rcp(SceneColor.r*(-0.299) + SceneColor.g*(-0.587) + SceneColor.b*(-0.114) + 1.0);
+			// Try to kill negatives and NaNs here
+			SceneColor.rgb = max(SceneColor.rgb, 0); 
+		#endif
+	
 		half3 LinearColor = SceneColor.rgb * ColorScale0.rgb;
 
 		#if USE_BLOOM
@@ -758,10 +765,7 @@ void MainPS_ES2(
 	}
 
 	#if USE_GAMMA_ONLY
-		#if USE_MSAA
-			SceneColor.rgb *= rcp(SceneColor.r*(-0.299) + SceneColor.g*(-0.587) + SceneColor.b*(-0.114) + 1.0);
-		#endif
-
+		
 		#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
 			OutColor.rgb = pow(SceneColor.rgb, InverseGamma.x);
 		#else

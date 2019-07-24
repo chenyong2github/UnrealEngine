@@ -45,7 +45,7 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 #endif
 
 	/** The transform of this control */
-	UPROPERTY(EditAnywhere, Category="Control", Interp)
+	UPROPERTY(EditAnywhere, Category="Control", Interp, meta = (AnimationInput))
 	FEulerTransform Transform;
 
 	/** The base that transform is relative to */

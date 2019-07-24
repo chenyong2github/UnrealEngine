@@ -16,8 +16,8 @@ struct FNiagaraDynamicDataSprites;
 class NIAGARA_API FNiagaraRendererSprites : public FNiagaraRenderer
 {
 public:
-
 	FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	~FNiagaraRendererSprites();
 
 	//FNiagaraRenderer interface
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)override;

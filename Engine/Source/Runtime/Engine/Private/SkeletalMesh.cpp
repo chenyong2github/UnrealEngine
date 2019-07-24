@@ -1227,6 +1227,12 @@ void USkeletalMesh::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 	Super::AddReferencedObjects( This, Collector );
 }
 
+void USkeletalMesh::GetPreloadDependencies(TArray<UObject*>& OutDeps)
+{
+	Super::GetPreloadDependencies(OutDeps);
+	OutDeps.Add(Skeleton);
+}
+
 void USkeletalMesh::FlushRenderState()
 {
 	//TComponentReregisterContext<USkeletalMeshComponent> ReregisterContext;
@@ -4170,6 +4176,12 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				const FLODSectionElements& LODSection = LODSections[LODIndex];
 				check(LODSection.SectionElements.Num() == LODData.RenderSections.Num());
 
+			#if WITH_EDITORONLY_DATA
+				int32 SectionIndexPreview = MeshObject->SectionIndexPreview;
+				int32 MaterialIndexPreview = MeshObject->MaterialIndexPreview;
+				MeshObject->SectionIndexPreview = INDEX_NONE;
+				MeshObject->MaterialIndexPreview = INDEX_NONE;
+			#endif
 				for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
 				{
 					const FSkelMeshRenderSection& Section = Iter.GetSection();
@@ -4181,7 +4193,10 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 
 					RayTracingInstance.Materials.Add(MeshBatch);
 				}
-
+			#if WITH_EDITORONLY_DATA
+				MeshObject->SectionIndexPreview = SectionIndexPreview;
+				MeshObject->MaterialIndexPreview = MaterialIndexPreview;
+			#endif
 				if (bAnySegmentUsesWorldPositionOffset)
 				{
 					RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
@@ -4543,16 +4558,25 @@ bool FSkeletalMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Sec
 		{
 			// This is thread safe because material texture data is only updated while the renderthread is idle.
 			for (const FMaterialTextureInfo TextureData : Material->GetTextureStreamingData())
-	{
+			{
 				const int32 TextureIndex = TextureData.TextureIndex;
 				if (TextureData.IsValid(true))
-		{
+				{
 					OneOverScales[TextureIndex / 4][TextureIndex % 4] = 1.f / TextureData.SamplingScale;
 					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = TextureData.UVChannelIndex;
-		}
-	}
+				}
+			}
+			for (const FMaterialTextureInfo TextureData : Material->TextureStreamingDataMissingEntries)
+			{
+				const int32 TextureIndex = TextureData.TextureIndex;
+				if (TextureIndex >= 0 && TextureIndex < TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL)
+				{
+					OneOverScales[TextureIndex / 4][TextureIndex % 4] = 1.f;
+					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = 0;
+				}
+			}
 			return true;
-	}
+		}
 	}
 	return false;
 }

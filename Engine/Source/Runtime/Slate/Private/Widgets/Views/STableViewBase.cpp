@@ -196,7 +196,7 @@ EActiveTimerReturnType STableViewBase::UpdateInertialScroll(double InCurrentTime
 				if (CanUseInertialScroll(ScrollVelocity))
 				{
 					bKeepTicking = true;
-					ScrollBy(GetCachedGeometry(), ScrollVelocity * InDeltaTime, AllowOverscroll);
+					ScrollBy(GetTickSpaceGeometry(), ScrollVelocity * InDeltaTime, AllowOverscroll);
 				}
 				else
 				{
@@ -208,7 +208,7 @@ EActiveTimerReturnType STableViewBase::UpdateInertialScroll(double InCurrentTime
 			{
 				// If we are currently in overscroll, the list will need refreshing.
 				// Do this before UpdateOverscroll, as that could cause GetOverscroll() to be 0
-				if (Overscroll.GetOverscroll(GetCachedGeometry()) != 0.0f)
+				if (Overscroll.GetOverscroll(GetTickSpaceGeometry()) != 0.0f)
 				{
 					bKeepTicking = true;
 					RequestLayoutRefresh();
@@ -277,7 +277,7 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 
 			if (AllowOverscroll == EAllowOverscroll::Yes)
 			{
-				const float OverscrollAmount = Overscroll.GetOverscroll(GetCachedGeometry());
+				const float OverscrollAmount = Overscroll.GetOverscroll(GetTickSpaceGeometry());
 				ItemsPanel->SetOverscrollAmount( OverscrollAmount );
 			}
 
@@ -314,6 +314,8 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 
 			bItemsNeedRefresh = false;
 			ItemsPanel->SetRefreshPending(false);
+
+			Invalidate(EInvalidateWidget::ChildOrder);
 
 			if (ScrollIntoViewResult == EScrollIntoViewResult::Deferred)
 			{
@@ -910,7 +912,7 @@ TSharedRef<class SWidget> STableViewBase::GetScrollWidget()
 
 bool STableViewBase::CanUseInertialScroll( float ScrollAmount ) const
 {
-	const auto CurrentOverscroll = Overscroll.GetOverscroll(GetCachedGeometry());
+	const auto CurrentOverscroll = Overscroll.GetOverscroll(GetTickSpaceGeometry());
 
 	// We allow sampling for the inertial scroll if we are not in the overscroll region,
 	// Or if we are scrolling outwards of the overscroll region

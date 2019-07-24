@@ -81,7 +81,7 @@ using namespace Cm;
 
 struct RegionHandle : public Ps::UserAllocated
 {
-	PxU16	mHandle;			// Handle from region
+	MBP_Index	mHandle;		// Handle from region
 	PxU16	mInternalBPHandle;	// Index of region data within mRegions
 };
 
@@ -2969,7 +2969,7 @@ bool MBP::updateObject(MBP_Handle handle, const MBP_AABB& box)
 //			continue;
 		const PxU32 regionIndex = currentOverlaps[i];
 		const MBP_Index BPHandle = regions[regionIndex].mBP->addObject(box, handle, isStatic!=0);
-		newHandles[nbNewHandles].mHandle = Ps::to16(BPHandle);
+		newHandles[nbNewHandles].mHandle = BPHandle;
 		newHandles[nbNewHandles].mInternalBPHandle = Ps::to16(regionIndex);
 		nbNewHandles++;
 	}
@@ -3113,7 +3113,7 @@ bool MBP::updateObjectAfterNewRegionAdded(MBP_Handle handle, const MBP_AABB& box
 		PX_ASSERT(currentRegion.mBox.intersects(box));
 #endif
 		const MBP_Index BPHandle = addedRegion->addObject(box, handle, isStatic!=0);
-		newHandles[nbNewHandles].mHandle = Ps::to16(BPHandle);
+		newHandles[nbNewHandles].mHandle = BPHandle;
 		newHandles[nbNewHandles].mInternalBPHandle = Ps::to16(regionIndex);
 		nbNewHandles++;
 	}

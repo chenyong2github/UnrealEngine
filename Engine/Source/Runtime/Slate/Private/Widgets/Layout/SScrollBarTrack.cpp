@@ -129,7 +129,7 @@ void SScrollBarTrack::SetSizes(float InThumbOffsetFraction, float InThumbSizeFra
 		ThumbSizeFraction = 0.0f;
 	}
 
-	Invalidate(EInvalidateWidget::Paint);
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 bool SScrollBarTrack::IsNeeded() const

@@ -329,6 +329,7 @@ private:	// Handlers
 
 	void HandleLeavePartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete);
 
+	void RemovePlayerFromReservationBeacon(const FUniqueNetId& LocalUserId, const FUniqueNetId& PlayerToRemove);
 private:
 	TSharedPtr<const FOnlineParty> OssParty;
 
@@ -354,6 +355,7 @@ private:
 		FUniqueNetIdRepl SenderId;
 		FUserPlatform Platform;
 		bool bIsJIPApproval;
+		bool bIsPlayerRemoval = false;
 		TSharedPtr<const FOnlinePartyData> JoinData;
 	};
 	TQueue<FPendingMemberApproval> PendingApprovals;

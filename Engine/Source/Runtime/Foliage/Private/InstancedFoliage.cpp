@@ -1332,6 +1332,11 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 			Component->VirtualTextureRenderPassType = FoliageType->VirtualTextureRenderPassType;
 			bNeedsMarkRenderStateDirty = true;
 		}
+		if (Component->VirtualTextureCullMips != FoliageType->VirtualTextureCullMips)
+		{
+			Component->VirtualTextureCullMips = FoliageType->VirtualTextureCullMips;
+			bNeedsMarkRenderStateDirty = true;
+		}
 		if (Component->TranslucencySortPriority != FoliageType->TranslucencySortPriority)
 		{
 			Component->TranslucencySortPriority = FoliageType->TranslucencySortPriority;

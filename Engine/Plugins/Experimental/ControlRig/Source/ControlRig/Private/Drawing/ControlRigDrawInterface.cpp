@@ -103,7 +103,7 @@ void FControlRigDrawInterface::DrawRectangle(const FTransform& WorldOffset, cons
 	Instruction.Positions.Add(DrawTransform.TransformPosition(FVector(-Extent, Extent, 0.f)));
 	Instruction.Positions.Add(DrawTransform.TransformPosition(FVector(Extent, Extent, 0.f)));
 	Instruction.Positions.Add(DrawTransform.TransformPosition(FVector(Extent, -Extent, 0.f)));
-	Instruction.Positions.Add(Instruction.Positions[0]);
+	Instruction.Positions.Add(DrawTransform.TransformPosition(FVector(-Extent, -Extent, 0.f)));
 
 	DrawInstructions.Add(Instruction);
 }
@@ -121,7 +121,13 @@ void FControlRigDrawInterface::DrawArc(const FTransform& WorldOffset, const FTra
 	FQuat Rotation(FVector(0.f, 0.f, 1.f), MinimumAngle);
 	V = Rotation.RotateVector(V);
 	Instruction.Positions.Add(DrawTransform.TransformPosition(V));
-	Rotation = FQuat(FVector(0.f, 0.f, 1.f), (MaximumAngle - MinimumAngle) / float(Count));
+	float StepAngle = (MaximumAngle - MinimumAngle) / float(Count);
+	if (FMath::Abs<float>(MaximumAngle - MinimumAngle) >= PI * 2.f - SMALL_NUMBER)
+	{
+		StepAngle = (PI * 2.f) / float(Count);
+		Count++;
+	}
+	Rotation = FQuat(FVector(0.f, 0.f, 1.f), StepAngle);
 	for(int32 Index=1;Index<Count;Index++)
 	{
 		V = Rotation.RotateVector(V);
@@ -157,6 +163,8 @@ void FControlRigDrawInterface::DrawBezier(const FTransform& WorldOffset, const F
 
 void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, const FRigHierarchy& Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness)
 {
+	const TArray<FRigBone>& Bones = Hierarchy.GetBones();
+
 	switch (Mode)
 	{
 		case EControlRigDrawHierarchyMode::Axes:
@@ -165,12 +173,12 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, cons
 			FDrawIntruction InstructionY(EDrawType_Lines, FLinearColor::Green, Thickness);
 			FDrawIntruction InstructionZ(EDrawType_Lines, FLinearColor::Blue, Thickness);
 			FDrawIntruction InstructionParent(EDrawType_Lines, Color, Thickness);
-			InstructionX.Positions.Reserve(Hierarchy.Bones.Num() * 2);
-			InstructionY.Positions.Reserve(Hierarchy.Bones.Num() * 2);
-			InstructionZ.Positions.Reserve(Hierarchy.Bones.Num() * 2);
-			InstructionParent.Positions.Reserve(Hierarchy.Bones.Num() * 6);
+			InstructionX.Positions.Reserve(Bones.Num() * 2);
+			InstructionY.Positions.Reserve(Bones.Num() * 2);
+			InstructionZ.Positions.Reserve(Bones.Num() * 2);
+			InstructionParent.Positions.Reserve(Bones.Num() * 6);
 
-			for (const FRigBone& Bone : Hierarchy.Bones)
+			for (const FRigBone& Bone : Bones)
 			{
 				FTransform Transform = Bone.GlobalTransform * WorldOffset;
 				FVector P0 = Transform.GetLocation();
@@ -186,7 +194,7 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, cons
 
 				if (Bone.ParentIndex != INDEX_NONE)
 				{
-					FTransform ParentTransform = Hierarchy.Bones[Bone.ParentIndex].GlobalTransform * WorldOffset;
+					FTransform ParentTransform = Bones[Bone.ParentIndex].GlobalTransform * WorldOffset;
 					FVector P1 = ParentTransform.GetLocation();
 					InstructionParent.Positions.Add(P0);
 					InstructionParent.Positions.Add(P1);

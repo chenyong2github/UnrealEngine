@@ -40,12 +40,13 @@ void UAnimSequencerInstance::ResetPose()
 	GetProxyOnGameThread<FAnimSequencerInstanceProxy>().ResetPose();
 }
 
-void UAnimSequencerInstance::NativeInitializeAnimation()
-{
-	SavePose();
-}
-
 void UAnimSequencerInstance::SavePose()
 {
-	SavePoseSnapshot(UAnimSequencerInstance::SequencerPoseName);
+	if (USkeletalMeshComponent* SkeletalMeshComponent = GetSkelMeshComponent())
+	{
+		if (SkeletalMeshComponent->SkeletalMesh && SkeletalMeshComponent->GetComponentSpaceTransforms().Num() > 0)
+		{
+			SavePoseSnapshot(UAnimSequencerInstance::SequencerPoseName);
+		}
+	}
 }

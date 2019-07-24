@@ -166,7 +166,11 @@ namespace WindowsMixedReality
 
 #if PLATFORM_64BITS
 				// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
-				FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries/ThirdParty/Windows/x64/HolographicAppRemoting.dll"));
+				FString HoloLensLibraryDir = EngineDir / "Binaries/ThirdParty/Windows/x64";
+				FPlatformProcess::PushDllDirectory(*HoloLensLibraryDir);
+				FPlatformProcess::GetDllHandle(_TEXT("PerceptionDevice.dll"));
+				FPlatformProcess::GetDllHandle(_TEXT("HolographicAppRemoting.dll"));
+				FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
 #endif // PLATFORM_64BITS && WITH_EDITOR
 
 				// Then finally try to load the WMR Interop Library
@@ -181,7 +185,7 @@ namespace WindowsMixedReality
 						"Failed to load Windows Mixed Reality Interop Library!  Windows Mixed Reality cannot function.");
 					FMessageDialog::Open(EAppMsgType::Ok, ErrorText);
 					UE_LOG(LogWmrHmd, Error, TEXT("%s"), *ErrorText.ToString());
-				}			
+				}
 			}
 			else
 			{
@@ -324,8 +328,6 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::OnBeginPlay(FWorldContext & InWorldContext)
 	{
-		EnableStereo(true);
-
 		//start speech recognition if there are any commands we care to listen for
 		StartSpeechRecognition();
 
@@ -334,8 +336,6 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::OnEndPlay(FWorldContext & InWorldContext)
 	{
-		EnableStereo(false);
-
 		StopSpeechRecognition();
 
 		IWindowsMixedRealityHandTrackingModule::Get().RemoveLiveLinkSource();
@@ -475,16 +475,20 @@ namespace WindowsMixedReality
 
 		if (!HMD->IsRemoting() && HMD->HasUserPresenceChanged())
 		{
-			currentWornState = GetHMDWornState();
+			auto newWornState = GetHMDWornState();
 
-			// Broadcast HMD worn/ not worn delegates.
-			if (currentWornState == EHMDWornState::Worn)
+			if (newWornState != currentWornState)
 			{
-				FCoreDelegates::VRHeadsetPutOnHead.Broadcast();
-			}
-			else if (currentWornState == EHMDWornState::NotWorn)
-			{
-				FCoreDelegates::VRHeadsetRemovedFromHead.Broadcast();
+				currentWornState = newWornState;
+				// Broadcast HMD worn/ not worn delegates.
+				if (currentWornState == EHMDWornState::Worn)
+				{
+					FCoreDelegates::VRHeadsetPutOnHead.Broadcast();
+				}
+				else if (currentWornState == EHMDWornState::NotWorn)
+				{
+					FCoreDelegates::VRHeadsetRemovedFromHead.Broadcast();
+				}
 			}
 		}
 
@@ -505,7 +509,7 @@ namespace WindowsMixedReality
 		}
 
 		// Restore windows focus to game window to preserve keyboard/mouse input.
-		if ((currentWornState == EHMDWornState::Type::Worn) && GEngine)
+		if ((currentWornState == EHMDWornState::Type::Worn) && GEngine && GEngine->GameViewport)
 		{
 			HWND gameHWND = (HWND)GEngine->GameViewport->GetWindow()->GetNativeWindow()->GetOSWindowHandle();
 
@@ -1086,7 +1090,9 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealityHMD::HasVisibleAreaMesh() const
 	{
-		return VisibleAreaMesh[0].IsValid() && VisibleAreaMesh[1].IsValid();
+		//re-enable this when we're not running on the simulator once we can query for platform type
+		return false;
+		//return VisibleAreaMesh[0].IsValid() && VisibleAreaMesh[1].IsValid();
 	}
 
 	void FWindowsMixedRealityHMD::DrawVisibleAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const

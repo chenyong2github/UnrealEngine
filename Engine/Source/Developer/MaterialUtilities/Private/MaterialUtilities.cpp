@@ -754,6 +754,15 @@ public:
 	{
 		return Material && Material->MaterialDomain == MD_Volume;
 	}
+
+	virtual void GatherExpressionsForCustomInterpolators(TArray<UMaterialExpression*>& OutExpressions) const override
+	{
+		if(Material)
+		{
+			Material->GetAllExpressionsForCustomInterpolators(OutExpressions);
+		}
+	}
+
 private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;

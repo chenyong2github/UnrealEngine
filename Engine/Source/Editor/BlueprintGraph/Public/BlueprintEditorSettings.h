@@ -46,6 +46,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Workflow, meta=(DisplayName="Context Menu: Show Favorites Section"))
 	bool bShowContextualFavorites;
 
+	/** If enabled, deprecated functions will be visible in the context menu and will be available for override implementation. By default, functions marked as deprecated are not exposed in either case. */
+	UPROPERTY(EditAnywhere, config, Category = Workflow)
+	bool bExposeDeprecatedFunctions;
+
 	/** If enabled, then call-on-member actions will be spawned as a single node (instead of a GetMember + FunctionCall node). */
 	UPROPERTY(EditAnywhere, config, Category=Workflow)
 	bool bCompactCallOnMemberNodes;

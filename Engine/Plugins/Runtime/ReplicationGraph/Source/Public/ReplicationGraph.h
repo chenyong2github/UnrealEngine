@@ -114,7 +114,18 @@ public:
 		return NewNode;
 	}
 
-	void RemoveChildNode(UReplicationGraphNode* OutChildNode);
+	/** Node removal behavior */
+	enum class NodeOrdering
+	{
+		IgnoreOrdering, // Use faster removal but may break node processing order
+		KeepOrder,		// Use slower removal but keep the node order intact
+	};
+
+	/** Remove a child node from our list and flag it for destruction */
+	void RemoveChildNode(UReplicationGraphNode* OutChildNode, UReplicationGraphNode::NodeOrdering NodeOrder=UReplicationGraphNode::NodeOrdering::IgnoreOrdering);
+
+	/** Remove all null and about to be destroyed nodes from our list */
+	void CleanChildNodes(UReplicationGraphNode::NodeOrdering NodeOrder);
 
 protected:
 

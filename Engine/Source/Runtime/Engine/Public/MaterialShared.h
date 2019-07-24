@@ -667,9 +667,7 @@ namespace EMaterialShaderMapUsage
 class FMaterialShaderMapId
 {
 public:
-#if !WITH_EDITOR
 	FSHAHash CookedShaderMapIdHash;
-#endif
 
 #if WITH_EDITOR
 	/** 
@@ -698,10 +696,12 @@ public:
 	EMaterialShaderMapUsage::Type Usage;
 
 private:
+	/** Was the shadermap Id loaded in from a cooked resource. */
+	bool bIsCookedId;
+
 	/** Static parameters and base Id. */
 	FStaticParameterSet ParameterSet;
 	FString ParameterSetLayerParametersKey;
-
 public:
 	/** Guids of any functions the material was dependent on. */
 	TArray<FGuid> ReferencedFunctions;
@@ -734,6 +734,7 @@ public:
 		, FeatureLevel(ERHIFeatureLevel::SM4)
 #if WITH_EDITOR
 		, Usage(EMaterialShaderMapUsage::Default)
+		, bIsCookedId(false)
 #endif
 	{ }
 
@@ -744,12 +745,21 @@ public:
 	ENGINE_API void SetShaderDependencies(const TArray<FShaderType*>& ShaderTypes, const TArray<const FShaderPipelineType*>& ShaderPipelineTypes, const TArray<FVertexFactoryType*>& VFTypes, EShaderPlatform ShaderPlatform);
 #endif
 
-	void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar, bool bLoadedByCookedMaterial);
+
+	bool IsCookedId() const
+	{
+#if WITH_EDITOR
+		return bIsCookedId;
+#else
+		return true;
+#endif
+	}
 
 	bool IsValid() const
 	{
 #if WITH_EDITOR
-		return BaseMaterialId.IsValid();
+		return !IsCookedId() ? BaseMaterialId.IsValid() : (CookedShaderMapIdHash != FSHAHash());
 #else
 		return (CookedShaderMapIdHash != FSHAHash());
 #endif
@@ -758,7 +768,7 @@ public:
 	friend uint32 GetTypeHash(const FMaterialShaderMapId& Ref)
 	{
 #if WITH_EDITOR
-		return Ref.BaseMaterialId.A;
+		return !Ref.IsCookedId() ? Ref.BaseMaterialId.A : (*(uint32*)&Ref.CookedShaderMapIdHash.Hash[0]);
 #else
 		// Using the hash value directly instead of FSHAHash CRC as fairly uniform distribution
 		return *(uint32*)&Ref.CookedShaderMapIdHash.Hash[0];

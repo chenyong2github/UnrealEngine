@@ -2,6 +2,7 @@
 
 #include "Widgets/Action/SDataprepFloatFilter.h"
 
+#include "DataprepEditorUtils.h"
 #include "SchemaActions/DataprepFetcherMenuActionCollector.h"
 #include "SchemaActions/DataprepSchemaAction.h"
 #include "SelectionSystem/DataprepFloatFilter.h"
@@ -131,6 +132,7 @@ void SDataprepFloatFilter::OnSelectedCriteriaChanged(TSharedPtr<FListEntry> List
 	{
 		FScopedTransaction Transaction( LOCTEXT("SelectionCriteriaChangedTransaction", "Changed the Float Selection Criteria") );
 		Filter->SetFloatMatchingCriteria( FloatMatchType );
+		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 	}
 }
 
@@ -181,6 +183,7 @@ void SDataprepFloatFilter::OnEqualValueComitted(float NewEqualValue, ETextCommit
 		Filter->SetEqualValue( OldEqualValue );
 		FScopedTransaction Transaction( LOCTEXT("EqualValueChangedTransaction","Change the Equal Value") );
 		Filter->SetEqualValue( NewEqualValue );
+		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 		OldEqualValue = NewEqualValue;
 	}
 }
@@ -213,6 +216,7 @@ void SDataprepFloatFilter::OnToleranceComitted(float NewTolerance, ETextCommit::
 		Filter->SetTolerance( OldTolerance );
 		FScopedTransaction Transaction( LOCTEXT("ToleranceChangedTransaction", "Change the Tolerance") );
 		Filter->SetTolerance( NewTolerance );
+		FDataprepEditorUtils::NotifySystemOfChangeInPipeline( Filter );
 		OldTolerance = NewTolerance;
 	}
 }

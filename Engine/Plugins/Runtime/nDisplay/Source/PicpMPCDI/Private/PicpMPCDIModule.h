@@ -24,6 +24,7 @@ public:
 	
 	virtual void ApplyBlur(UTextureRenderTarget2D* InOutRenderTarget, UTextureRenderTarget2D* TemporaryRenderTarget, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType) override;
 	virtual void ApplyCompose(UTexture* InputTexture, UTextureRenderTarget2D* OutputRenderTarget, UTextureRenderTarget2D* Result) override;
+	virtual void ExecuteCompose() override;
 
 private:
 	FCriticalSection DataGuard;

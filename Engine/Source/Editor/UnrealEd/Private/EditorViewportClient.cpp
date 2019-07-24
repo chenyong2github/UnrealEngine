@@ -354,7 +354,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, CurrentGestureRotDelta(FRotator::ZeroRotator)
 	, GestureMoveForwardBackwardImpulse(0.0f)
 	, bForceAudioRealtime(false)
-	, RealTimeFrameCount(0)
+	, RealTimeUntilFrameNumber(0)
 	, bIsRealtime(false)
 	, bStoredRealtime(false)
 	, bStoredShowStats(false)
@@ -3606,11 +3606,6 @@ void FEditorViewportClient::SetupViewForRendering(FSceneViewFamily& ViewFamily, 
 
 void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 {
-	if (RealTimeFrameCount > 0)
-	{
-		--RealTimeFrameCount;
-	}
-
 	FViewport* ViewportBackup = Viewport;
 	Viewport = InViewport ? InViewport : Viewport;
 
@@ -5125,12 +5120,10 @@ void FEditorViewportClient::SetViewMode(EViewModeIndex InViewModeIndex)
 
 	if (IsPerspective())
 	{
-		if (InViewModeIndex == VMI_PrimitiveDistanceAccuracy || InViewModeIndex == VMI_MeshUVDensityAccuracy || InViewModeIndex == VMI_MaterialTextureScaleAccuracy)
+		if (InViewModeIndex == VMI_MaterialTextureScaleAccuracy)
 		{
-			FEditorBuildUtils::EditorBuildTextureStreaming(GetWorld(), InViewModeIndex);
+			FEditorBuildUtils::UpdateTextureStreamingMaterialBindings(GetWorld());
 		}
-		// Uncomment this to generate inital viewmode data.
-		// FEditorBuildUtils::CompileViewModeShaders(GetWorld(), InViewModeIndex);
 
 		PerspViewModeIndex = InViewModeIndex;
 		ApplyViewMode(PerspViewModeIndex, true, EngineShowFlags);

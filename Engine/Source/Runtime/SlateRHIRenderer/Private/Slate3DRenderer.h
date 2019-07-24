@@ -43,7 +43,7 @@ private:
 	TSharedPtr<class FSlateRHIRenderingPolicy> RenderTargetPolicy;
 
 	/** Element batcher that renders draw elements */
-	TSharedPtr<FSlateElementBatcher> ElementBatcher;
+	TUniquePtr<FSlateElementBatcher> ElementBatcher;
 
 	/** The draw buffer that is currently free for use by the game thread */
 	uint8 FreeBufferIndex;

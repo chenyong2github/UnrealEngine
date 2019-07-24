@@ -32,4 +32,5 @@ struct FConcertActionDefinition
 	TAttribute<FText> Text;        // The action name. Usually correspond to a button caption in UI.
 	TAttribute<FText> ToolTipText; // The action tooltip. Usually correspond to a button tooltip.
 	FOnExecuteAction  OnExecute;   // The function to call to execute the action.
+	TAttribute<FName> IconStyle;   // The icon brush style name (if set, it replaces the text).
 };

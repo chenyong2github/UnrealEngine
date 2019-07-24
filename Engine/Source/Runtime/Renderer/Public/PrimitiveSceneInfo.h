@@ -18,6 +18,7 @@
 class FPrimitiveSceneInfo;
 class FPrimitiveSceneProxy;
 class FReflectionCaptureProxy;
+class FPlanarReflectionSceneProxy;
 class FScene;
 class FViewInfo;
 class UPrimitiveComponent;
@@ -182,6 +183,25 @@ struct FPrimitiveVirtualTextureFlags
 	uint8 RuntimeVirtualTextureMask : RuntimeVirtualTexture_BitCount;
 };
 
+/** Lod data used for runtime virtual texture page rendering. Packed to reduce memory overhead since one of these is allocated per primitive. */
+struct FPrimitiveVirtualTextureLodInfo
+{
+	/** Minimum Lod for primitive in the runtime virtual texture. */
+	uint16 MinLod : 4;
+	/** Maximum Lod for primitive in the runtime virtual texture. */
+	uint16 MaxLod : 4;
+	/** Bias to use for Lod calculation in the runtime virtual texture. */
+	uint16 LodBias : 3;
+	/** 
+	 * Culling method used to remove the primitive from low mips of the runtime virtual texture.
+	 * 0: CullValue is the number of low mips for which we cull the primitive from the runtime virtual texture.
+	 * 1: CullValue is the pixel coverage threshold at which we cull the primitive from the runtime virtual texture. 
+	 */
+	uint16 CullMethod : 1;
+	/** Value used according to the CullMethod. */
+	uint16 CullValue : 4;
+};
+
 /** The type of the octree used by FScene to find primitives. */
 typedef TOctree<FPrimitiveSceneInfoCompact,struct FPrimitiveOctreeSemantics> FScenePrimitiveOctree;
 
@@ -248,7 +268,7 @@ public:
 	/** 
 	 * Planar reflection that was closest to this primitive, used for forward reflections.
 	 */
-	const class FPlanarReflectionSceneProxy* CachedPlanarReflectionProxy;
+	const FPlanarReflectionSceneProxy* CachedPlanarReflectionProxy;
 
 	/** 
 	 * Reflection capture proxy that was closest to this primitive, used for the forward shading rendering path. 
@@ -443,9 +463,14 @@ public:
 	int32 GetLightmapDataOffset() const { return LightmapDataOffset; }
 	int32 GetNumLightmapDataEntries() const { return NumLightmapDataEntries; }
 
+	/** Returns whether the primitive needs to call CacheReflectionCaptures. */
 	bool NeedsReflectionCaptureUpdate() const;
-	/** Cache per-primitive reflection captures used for mobile/forward rendering */
+
+	/** Cache per-primitive reflection captures used for mobile/forward rendering. */
 	void CacheReflectionCaptures();
+
+	/** Nulls out the cached per-primitive reflection captures. */
+	void RemoveCachedReflectionCaptures();
 
 	/** Helper function for writing out to the last render times to the game thread */
 	void UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const;

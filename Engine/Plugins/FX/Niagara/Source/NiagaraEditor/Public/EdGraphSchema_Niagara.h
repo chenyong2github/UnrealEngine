@@ -53,6 +53,31 @@ struct NIAGARAEDITOR_API FNiagaraSchemaAction_NewNode : public FEdGraphSchemaAct
 	}
 };
 
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraSchemaAction_NewComment : public FEdGraphSchemaAction
+{
+public:
+	GENERATED_USTRUCT_BODY();
+
+	FNiagaraSchemaAction_NewComment()
+		: FEdGraphSchemaAction()
+		, GraphEditor(nullptr)
+	{}
+
+	FNiagaraSchemaAction_NewComment(const TSharedPtr<SGraphEditor>& InGraphEditor)
+		: FEdGraphSchemaAction()
+		, GraphEditor(InGraphEditor)
+	{}
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+
+private:
+	/** SGraphEditor to use for getting new comment boxes dimensions */
+	TSharedPtr<SGraphEditor> GraphEditor;
+};
+
 UCLASS()
 class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 {

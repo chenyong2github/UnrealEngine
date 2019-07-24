@@ -78,6 +78,7 @@ namespace appSettings
 
 	// logging
 	extern SettingBool* g_showUndecoratedNames;
+	extern SettingBool* g_showTimestamps;
 	extern SettingBool* g_wordWrapOutput;
 	extern SettingBool* g_enableDevLog;
 	extern SettingBool* g_enableTelemetryLog;

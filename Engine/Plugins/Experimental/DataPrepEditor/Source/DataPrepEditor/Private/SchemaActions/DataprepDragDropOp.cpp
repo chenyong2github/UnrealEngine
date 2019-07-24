@@ -9,6 +9,7 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
 #include "EditorStyleSet.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Widgets/Text/STextBlock.h"
@@ -160,6 +161,11 @@ void FDataprepDragDropOp::DoDropOnPanel(const TSharedRef<SWidget>& Panel, FVecto
 		if ( !DoDropOnDataprepActionContext( Context ) )
 		{
 			Transaction.Cancel();
+		}
+
+		if ( UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked( EdGraph ) )
+		{
+			FBlueprintEditorUtils::MarkBlueprintAsModified( Blueprint );
 		}
 	}
 }

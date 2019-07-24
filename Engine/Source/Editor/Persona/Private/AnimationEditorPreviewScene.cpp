@@ -352,7 +352,8 @@ void FAnimationEditorPreviewScene::RefreshAdditionalMeshes(bool bAllowOverrideBa
 						}
 						else
 						{
-							UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimPreviewAttacheInstance>(NewComp);
+							bool bWasCreated = false;
+							UAnimCustomInstance::BindToSkeletalMeshComponent<UAnimPreviewAttacheInstance>(NewComp,bWasCreated);
 						}
 
 						AdditionalMeshes.Add(NewComp);
@@ -571,7 +572,7 @@ void FAnimationEditorPreviewScene::SetPreviewAnimationAsset(UAnimationAsset* Ani
 			}
 
 			// Treat it as invalid if it's got a bogus skeleton pointer
-			if (AnimAsset->GetSkeleton() != Skeleton)
+			if (AnimAsset->GetSkeleton() != Skeleton && Skeleton != nullptr)
 			{
 				return;
 			}

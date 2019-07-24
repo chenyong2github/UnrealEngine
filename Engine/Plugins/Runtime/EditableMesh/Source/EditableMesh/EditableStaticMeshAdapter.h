@@ -139,6 +139,8 @@ public:
 	virtual void GeometryHitTest(const FHitParamsIn& InParams, FHitParamsOut& OutParams) override;
 #endif // WITH_EDITOR
 
+	void SetRecreateSimpleCollision(bool bInRecreateSimplifiedCollision) { bRecreateSimplifiedCollision = bInRecreateSimplifiedCollision; }
+	bool GetRecreateSimpleCollision() const { return bRecreateSimplifiedCollision;  }
 
 private:
 
@@ -193,4 +195,7 @@ private:
 
 	/** Flag to indicate if a modification requires regenerating collision */
 	bool bUpdateCollisionNeeded;
+
+	/** Flag to indicate if the simple collision has to be regenerated */
+	bool bRecreateSimplifiedCollision;
 };

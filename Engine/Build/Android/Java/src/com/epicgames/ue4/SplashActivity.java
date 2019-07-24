@@ -37,7 +37,7 @@ public class SplashActivity extends Activity
 	private Intent GameActivityIntent;
 	private boolean WaitForPermission = false;
 
-	public static Logger Log = new Logger("UE4-SplashActivity");
+	public static Logger Log = new Logger("UE4", "SplashActivity");
 	
 	@SuppressLint("ObsoleteSdkInt")
 	@Override

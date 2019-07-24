@@ -23,13 +23,18 @@ void FLiveLinkTransformControllerData::ApplyTransform(USceneComponent* SceneComp
 {
 	if (SceneComponent)
 	{
+		FTransform ComponentTransform = Transform;
+		if (!bUseScale)
+		{
+			ComponentTransform.SetScale3D(FVector::OneVector);
+		}
 		if (bWorldTransform)
 		{
-			SceneComponent->SetWorldTransform(Transform, bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
+			SceneComponent->SetWorldTransform(ComponentTransform, bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
 		}
 		else
 		{
-			SceneComponent->SetRelativeTransform(Transform, bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
+			SceneComponent->SetRelativeTransform(ComponentTransform, bSweep, nullptr, bTeleport ? ETeleportType::TeleportPhysics : ETeleportType::ResetPhysics);
 		}
 	}
 }

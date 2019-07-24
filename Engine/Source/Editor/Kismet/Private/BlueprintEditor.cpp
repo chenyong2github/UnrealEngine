@@ -95,6 +95,7 @@
 #include "Editor.h"
 #include "IDetailsView.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Stats/StatsHierarchical.h"
 
 #include "BlueprintEditorTabs.h"
 
@@ -3346,6 +3347,8 @@ void FBlueprintEditor::OnBlueprintUnloaded(UBlueprint* InBlueprint)
 
 void FBlueprintEditor::Compile()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	UBlueprint* BlueprintObj = GetBlueprintObj();
 	if (BlueprintObj)
 	{
@@ -8028,7 +8031,7 @@ void FBlueprintEditor::OnEditTabClosed(TSharedRef<SDockTab> Tab)
 }
 
 // Tries to open the specified graph and bring it's document to the front
-TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Graph)
+TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Graph, bool bSetFocus)
 {
 	if (!Graph || Graph->IsPendingKill())
 	{
@@ -8045,7 +8048,10 @@ TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Gr
 	TSharedRef<SGraphEditor> NewGraphEditor = StaticCastSharedRef<SGraphEditor>(TabWithGraph->GetContent());
 
 	// Handover the keyboard focus to the new graph editor widget.
-	NewGraphEditor->CaptureKeyboard();
+	if (bSetFocus)
+	{
+		NewGraphEditor->CaptureKeyboard();
+	}
 
 	return NewGraphEditor;
 }

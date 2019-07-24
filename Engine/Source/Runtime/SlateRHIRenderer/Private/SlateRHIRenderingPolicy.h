@@ -18,7 +18,6 @@
 class FSlateFontServices;
 class FSlateRHIResourceManager;
 class FSlatePostProcessor;
-class ILayoutCache;
 class UDeviceProfile;
 
 struct FSlateRenderingParams
@@ -48,12 +47,9 @@ class FSlateRHIRenderingPolicy : public FSlateRenderingPolicy
 public:
 	FSlateRHIRenderingPolicy(TSharedRef<FSlateFontServices> InSlateFontServices, TSharedRef<FSlateRHIResourceManager> InResourceManager, TOptional<int32> InitialBufferSize = TOptional<int32>());
 
-	void UpdateVertexAndIndexBuffers(FRHICommandListImmediate& RHICmdList, FSlateBatchData& BatchData);
-	void UpdateVertexAndIndexBuffers(FRHICommandListImmediate& RHICmdList, FSlateBatchData& BatchData, const TSharedRef<FSlateRenderDataHandle, ESPMode::ThreadSafe>& RenderHandle);
+	void BuildRenderingBuffers(FRHICommandListImmediate& RHICmdList, FSlateBatchData& InBatchData);
 
-	void ReleaseCachingResourcesFor(FRHICommandListImmediate& RHICmdList, const ILayoutCache* Cacher);
-
-	void DrawElements(FRHICommandListImmediate& RHICmdList, class FSlateBackBuffer& BackBuffer, FTexture2DRHIRef& ColorTarget, FTexture2DRHIRef& DepthStencilTarget, const TArray<FSlateRenderBatch>& RenderBatches, const FSlateRenderingParams& Params);
+	void DrawElements(FRHICommandListImmediate& RHICmdList, class FSlateBackBuffer& BackBuffer, FTexture2DRHIRef& ColorTarget, FTexture2DRHIRef& DepthStencilTarget, int32 FirstBatchIndex, const TArray<FSlateRenderBatch>& RenderBatches, const FSlateRenderingParams& Params);
 
 	virtual TSharedRef<FSlateShaderResourceManager> GetResourceManager() const override { return ResourceManager; }
 	virtual bool IsVertexColorInLinearSpace() const override { return false; }
@@ -72,9 +68,6 @@ public:
 
 	virtual void FlushGeneratedResources();
 
-protected:
-	void UpdateVertexAndIndexBuffers(FRHICommandListImmediate& RHICmdList, FSlateBatchData& BatchData, TSlateElementVertexBuffer<FSlateVertex>& VertexBuffer, FSlateElementIndexBuffer& IndexBuffer);
-
 private:
 	ETextureSamplerFilter GetSamplerFilter(const UTexture* Texture) const;
 
@@ -85,17 +78,17 @@ private:
 	 * @param DrawEffects	Draw effects being used
 	 * @return The pixel shader for use with the shader type and draw effects
 	 */
-	class FSlateElementPS* GetTexturePixelShader( TShaderMap<FGlobalShaderType>* ShaderMap, ESlateShader::Type ShaderType, ESlateDrawEffect DrawEffects );
-	class FSlateMaterialShaderPS* GetMaterialPixelShader( const class FMaterial* Material, ESlateShader::Type ShaderType, ESlateDrawEffect DrawEffects );
+	class FSlateElementPS* GetTexturePixelShader( TShaderMap<FGlobalShaderType>* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects );
+	class FSlateMaterialShaderPS* GetMaterialPixelShader( const class FMaterial* Material, ESlateShader ShaderType, ESlateDrawEffect DrawEffects );
 	class FSlateMaterialShaderVS* GetMaterialVertexShader( const class FMaterial* Material, bool bUseInstancing );
 
 	/** @return The RHI primitive type from the Slate primitive type */
-	EPrimitiveType GetRHIPrimitiveType(ESlateDrawPrimitive::Type SlateType);
+	EPrimitiveType GetRHIPrimitiveType(ESlateDrawPrimitive SlateType);
 
 private:
 	/** Buffers used for rendering */
-	TSlateElementVertexBuffer<FSlateVertex> VertexBuffers;
-	FSlateElementIndexBuffer IndexBuffers;
+	TSlateElementVertexBuffer<FSlateVertex> MasterVertexBuffer;
+	FSlateElementIndexBuffer MasterIndexBuffer;
 
 	FSlateStencilClipVertexBuffer StencilVertexBuffer;
 

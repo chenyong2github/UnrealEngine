@@ -67,7 +67,7 @@ void FDataprepEditorStyle::Initialize()
 		TilteTextBlockStyle.SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 14));
 		StyleSet->Set("DataprepActionBlock.TitleTextBlockStyle", TilteTextBlockStyle);
 		StyleSet->Set("DataprepActionSteps.BackgroundColor", FLinearColor( 0.01033, 0.01033, 0.01033));
-		StyleSet->Set("DataprepActionStep.Padding", 25.f);
+		StyleSet->Set("DataprepActionStep.Padding", 10.f);
 	}
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());

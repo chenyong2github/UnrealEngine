@@ -172,12 +172,6 @@ void FPixelStreamingInputDevice::Tick(float DeltaTime)
 			// Make sure the viewport is active.
 			FSlateApplication::Get().ProcessApplicationActivationEvent(true);
 
-			// Double the number of hit test cells to cater for the possibility
-			// that the window will be off screen.
-			UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-			TSharedPtr<SWindow> Window = GameEngine->SceneViewport->FindWindow();
-			Window->GetHittestGrid()->SetNumCellsExcess(Window->GetHittestGrid()->GetNumCells());
-
 			UE_LOG(PixelStreamingInputDevice, Verbose, TEXT("MOUSE_ENTER"));
 		}
 		break;
@@ -185,11 +179,6 @@ void FPixelStreamingInputDevice::Tick(float DeltaTime)
 		{
 			// Restore normal application layer.
 			FSlateApplication::Get().OverridePlatformApplication(PixelStreamingApplicationWrapper->WrappedApplication);
-
-			// Reduce the number of hit test cells back to normal.
-			UGameEngine* GameEngine = Cast<UGameEngine>(GEngine);
-			TSharedPtr<SWindow> Window = GameEngine->SceneViewport->FindWindow();
-			Window->GetHittestGrid()->SetNumCellsExcess(FIntPoint(0, 0));
 
 			UE_LOG(PixelStreamingInputDevice, Verbose, TEXT("MOUSE_LEAVE"));
 		}

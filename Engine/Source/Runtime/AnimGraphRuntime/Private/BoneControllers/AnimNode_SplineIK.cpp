@@ -21,6 +21,7 @@ FAnimNode_SplineIK::FAnimNode_SplineIK()
 
 void FAnimNode_SplineIK::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	DebugLine += "(";
@@ -48,6 +49,7 @@ struct FSplineIKScratchArea : public TThreadSingleton<FSplineIKScratchArea>
 
 void FAnimNode_SplineIK::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	if (CachedBoneReferences.Num() > 0)
 	{
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
@@ -110,6 +112,7 @@ bool FAnimNode_SplineIK::IsValidToEvaluate(const USkeleton* Skeleton, const FBon
 
 void FAnimNode_SplineIK::InitializeBoneReferences(const FBoneContainer& RequiredBones) 
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	StartBone.Initialize(RequiredBones);
 	EndBone.Initialize(RequiredBones);
 

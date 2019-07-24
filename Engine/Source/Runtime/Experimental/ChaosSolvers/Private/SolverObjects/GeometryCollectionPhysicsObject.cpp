@@ -185,7 +185,7 @@ void PopulateSimulatedParticle(FGeometryCollectionPhysicsObject::FParticlesType&
 {
 	SCOPE_CYCLE_COUNTER(STAT_PopulateSimulatedParticle);
 
-	Particles.Disabled(RigidBodyIndex) = false;
+	Particles.SetDisabledLowLevel(RigidBodyIndex, false);
 
 	Particles.X(RigidBodyIndex) = WorldTransform.GetTranslation();
 	Particles.V(RigidBodyIndex) = Chaos::TVector<float, 3>( FVector(0) );
@@ -193,6 +193,7 @@ void PopulateSimulatedParticle(FGeometryCollectionPhysicsObject::FParticlesType&
 	Particles.W(RigidBodyIndex) = Chaos::TVector<float, 3>( FVector(0) );
 	Particles.P(RigidBodyIndex) = Particles.X(RigidBodyIndex);
 	Particles.Q(RigidBodyIndex) = Particles.R(RigidBodyIndex);
+	Particles.Island(RigidBodyIndex) = INDEX_NONE;
 
 	//todo: if mass to small use the right inertia
 	ensureMsgf(MassIn >= SharedParams.MinimumMassClamp, TEXT("Mass smaller than minimum mass clamp. Too late to change"));
@@ -501,7 +502,7 @@ void FGeometryCollectionPhysicsObject::StartFrameCallback(const float Dt, const 
 				const bool bDisabledNow = Particles.Disabled(ExternalParticleIndex);
 				if (bDisabledNow != bShouldBeDisabled)
 				{
-					Particles.Disabled(ExternalParticleIndex) = bShouldBeDisabled;
+					Particles.SetDisabledLowLevel(ExternalParticleIndex, bShouldBeDisabled);
 					ParticleUpdateLock.Lock();
 					if (!bShouldBeDisabled)
 					{
@@ -1041,19 +1042,28 @@ void FGeometryCollectionPhysicsObject::CreateRigidBodyCallback(FParticlesType& P
 
 			// num clusters
 			uint32 NumClusters=0;
+			TArray<bool> SubTreeContainsSimulatableParticle;
+			SubTreeContainsSimulatableParticle.SetNum(RecursiveOrder.Num());
 			for (const int32 TransformGroupIndex : RecursiveOrder)
 			{
 				if (Children[TransformGroupIndex].Num() > 0)
 				{
+					SubTreeContainsSimulatableParticle[TransformGroupIndex] = false;
+
 					TArray<uint32> RigidChildren, CollectionChildren;
 					for (const int32 ChildIndex : Children[TransformGroupIndex])
 					{
-						if(RigidBodyID[ChildIndex] != INDEX_NONE || Children[TransformGroupIndex].Num())
+						if(SubTreeContainsSimulatableParticle[ChildIndex])
 						{
 							NumClusters++;
+							SubTreeContainsSimulatableParticle[TransformGroupIndex] = true;
 							break;
 						}
 					}
+				}
+				else
+				{
+					SubTreeContainsSimulatableParticle[TransformGroupIndex] = (RigidBodyID[TransformGroupIndex] != INDEX_NONE);
 				}
 			}
 
@@ -1143,7 +1153,7 @@ void FGeometryCollectionPhysicsObject::CreateRigidBodyCallback(FParticlesType& P
 					if (!Particles.Disabled(RigidBodyIndex))
 					{
 						PendingActivationList.Add(TransformGroupIndex);
-						Particles.Disabled(RigidBodyIndex) = true;
+						GetSolver()->GetEvolution()->DisableParticle(RigidBodyIndex);
 					}
 				}
 			}
@@ -1172,10 +1182,13 @@ void FGeometryCollectionPhysicsObject::ActivateBodies()
 	{
 		if (InitializedState == ESimulationInitializationState::Created)
 		{
+			int32 ParentIndex = INDEX_NONE;
+
 			if (Parameters.EnableClustering && Parameters.ClusterGroupIndex)
 			{
 				Chaos::FPBDRigidsSolver::FClusteringType & Clustering = GetSolver()->GetRigidClustering();
 				Clustering.DecrementPendingClusterCounter(Parameters.ClusterGroupIndex);
+				ParentIndex = Parameters.ClusterGroupIndex;
 			}
 
 			Chaos::FPBDRigidsSolver::FParticlesType & Particles = GetSolver()->GetRigidParticles();
@@ -1185,10 +1198,8 @@ void FGeometryCollectionPhysicsObject::ActivateBodies()
 				checkSlow(RigidBodyIndex != INDEX_NONE);
 				if (Particles.Disabled(RigidBodyIndex))
 				{
-					Particles.Disabled(RigidBodyIndex) = false;
-					GetSolver()->NonDisabledIndices().Add(RigidBodyIndex);
+					GetSolver()->GetEvolution()->EnableParticle(RigidBodyIndex, ParentIndex);
 				}
-				GetSolver()->ActiveIndices().Add(RigidBodyIndex);
 			}
 
 			PendingActivationList.Reset(0);
@@ -3144,9 +3155,7 @@ void FGeometryCollectionPhysicsObject::OnRemoveFromScene()
 	{
 		for (int32 ParticleIndex = 0; ParticleIndex < Count; ++ParticleIndex)
 		{
-			Particles.Disabled(Begin + ParticleIndex) = true;
-			GetSolver()->ActiveIndices().Remove(Begin + ParticleIndex);
-			GetSolver()->NonDisabledIndices().Remove(Begin + ParticleIndex);
+			GetSolver()->GetEvolution()->DisableParticle(Begin + ParticleIndex);
 			GetSolver()->GetRigidClustering().GetTopLevelClusterParents().Remove(Begin + ParticleIndex);
 		}
 	}
@@ -3224,7 +3233,7 @@ void FGeometryCollectionPhysicsObject::CacheResults()
 	if(NumParticles > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CaptureDisabledState);
-		TargetResults.DisabledStates.Append(&Particles.Disabled(BaseParticleIndex), NumParticles);
+		TargetResults.DisabledStates.Append(&Particles.DisabledRef(BaseParticleIndex), NumParticles);
 	}
 
 	{

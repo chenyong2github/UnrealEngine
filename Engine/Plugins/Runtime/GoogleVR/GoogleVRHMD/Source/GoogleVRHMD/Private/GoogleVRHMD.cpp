@@ -1299,6 +1299,8 @@ void FGoogleVRHMD::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& R
 			instant_preview::PIXEL_FORMAT_BGRA,
 			ReadbackReferencePoses[latestReadbackTextureIndex]);
 
+		ReadbackCopyQueries[latestReadbackTextureIndex].ReleaseQuery();
+
 		SentTextureCount++;
 	}
 }

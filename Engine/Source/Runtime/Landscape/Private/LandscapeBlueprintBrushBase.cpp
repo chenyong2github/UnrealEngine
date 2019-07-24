@@ -13,6 +13,7 @@ ALandscapeBlueprintBrushBase::ALandscapeBlueprintBrushBase(const FObjectInitiali
 	, AffectHeightmap(false)
 	, AffectWeightmap(false)
 	, bIsVisible(true)
+	, LastRequestLayersContentUpdateFrameNumber(0)
 #endif
 {
 #if WITH_EDITOR
@@ -32,7 +33,20 @@ void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate()
 #if WITH_EDITORONLY_DATA
 	if (OwningLandscape)
 	{
-		OwningLandscape->RequestLayersContentUpdateForceAll();
+		uint32 ModeMask = 0;
+		if (AffectHeightmap)
+		{
+			ModeMask |= ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision;
+		}
+		if (AffectWeightmap)
+		{
+			ModeMask |= ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision;
+		}
+		if (ModeMask)
+		{
+			OwningLandscape->RequestLayersContentUpdateForceAll((ELandscapeLayerUpdateMode)ModeMask);
+			LastRequestLayersContentUpdateFrameNumber = GFrameNumber;
+		}
 	}
 #endif
 }
@@ -40,6 +54,27 @@ void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate()
 #if WITH_EDITOR
 void ALandscapeBlueprintBrushBase::Tick(float DeltaSeconds)
 {
+#if WITH_EDITORONLY_DATA
+	// Avoid computing collision and client updates every frame
+	// Wait until we didn't trigger any more landscape update requests (padding of a couple of frames)
+	if (LastRequestLayersContentUpdateFrameNumber + 5 == GFrameNumber)
+	{
+		uint32 ModeMask = 0;
+		if (AffectHeightmap)
+		{
+			ModeMask |= ELandscapeLayerUpdateMode::Update_Heightmap_All;
+		}
+		if (AffectWeightmap)
+		{
+			ModeMask |= ELandscapeLayerUpdateMode::Update_Weightmap_All;
+		}
+		if (ModeMask)
+		{
+			OwningLandscape->RequestLayersContentUpdateForceAll((ELandscapeLayerUpdateMode)ModeMask);
+		}
+	}
+#endif
+
 	// Forward the Tick to the instances class of this BP
 	if (GetClass()->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
 	{
@@ -104,17 +139,7 @@ void ALandscapeBlueprintBrushBase::PostEditMove(bool bFinished)
 {
 	Super::PostEditMove(bFinished);
 #if WITH_EDITORONLY_DATA
-	if (OwningLandscape)
-	{
-		if (bFinished)
-		{
-			OwningLandscape->RequestLayersContentUpdateForceAll();
-		}
-		else
-		{
-			OwningLandscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All_Editing);
-		}
-	}
+	RequestLandscapeUpdate();
 #endif
 }
 
@@ -144,9 +169,25 @@ void ALandscapeBlueprintBrushBase::Destroyed()
 void ALandscapeBlueprintBrushBase::SetOwningLandscape(ALandscape* InOwningLandscape)
 {
 #if WITH_EDITORONLY_DATA
+	if (OwningLandscape == InOwningLandscape)
+	{
+		return;
+	}
+
 	const bool bAlwaysMarkDirty = false;
 	Modify(bAlwaysMarkDirty);
+
+	if (OwningLandscape)
+	{
+		OwningLandscape->OnBlueprintBrushChanged();
+	}
+
 	OwningLandscape = InOwningLandscape;
+
+	if (OwningLandscape)
+	{
+		OwningLandscape->OnBlueprintBrushChanged();
+	}
 #endif
 }
 

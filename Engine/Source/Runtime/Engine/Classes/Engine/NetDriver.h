@@ -384,7 +384,7 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Works with all other settings.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktLoss;
+	int32	PktLoss = 0;
 
 	/**
 	* Sets the maximum size of packets in bytes that will be dropped
@@ -393,7 +393,7 @@ struct ENGINE_API FPacketSimulationSettings
 	* Works with all other settings.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
-	int32	PktLossMaxSize;
+	int32	PktLossMaxSize = 0;
 
 	/**
 	* Sets the minimum size of packets in bytes that will be dropped
@@ -402,7 +402,7 @@ struct ENGINE_API FPacketSimulationSettings
 	* Works with all other settings.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
-	int32	PktLossMinSize;
+	int32	PktLossMinSize = 0;
 
 	/**
 	 * When set, will cause calls to FlushNet to change ordering of packets at random.
@@ -412,7 +412,7 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Takes precedence over PktDup and PktLag.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktOrder;
+	int32	PktOrder = 0;
 
 	/**
 	 * When set, will cause calls to FlushNet to duplicate packets.
@@ -423,7 +423,7 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Cannot be used with PktOrder or PktLag.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktDup;
+	int32	PktDup = 0;
 	
 	/**
 	 * When set, will cause calls to FlushNet to delay packets.
@@ -432,34 +432,42 @@ struct ENGINE_API FPacketSimulationSettings
 	 * Cannot be used with PktOrder.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktLag;
+	int32	PktLag = 0;
 	
 	/**
 	 * When set, will cause PktLag to use variable lag instead of constant.
 	 * Value is treated as millisecond lag range (e.g. -GivenVariance <= 0 <= GivenVariance).
-	 * Clamped between 0 and 100.
 	 *
 	 * Can only be used when PktLag is enabled.
 	 */
 	UPROPERTY(EditAnywhere, Category="Simulation Settings")
-	int32	PktLagVariance;
+	int32	PktLagVariance = 0;
 
-	/** Ctor. Zeroes the settings */
-	FPacketSimulationSettings() : 
-		PktLoss(0),
-		PktLossMaxSize(INT_MAX/8),
-		PktLossMinSize(0),
-		PktOrder(0),
-		PktDup(0),
-		PktLag(0),
-		PktLagVariance(0) 
-	{
-	}
+	/**
+	 * If set lag values will randomly fluctuate between Min and Max.
+	 * Ignored if PktLag value is set
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktLagMin = 0;
+	
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktLagMax = 0;
 
 	/** reads in settings from the .ini file 
 	 * @note: overwrites all previous settings
 	 */
 	void LoadConfig(const TCHAR* OptionalQualifier = nullptr);
+	
+	/** 
+	 * Load a preconfigured emulation profile from the .ini
+	 * Returns true if the given profile existed
+	 */
+	bool LoadEmulationProfile(const TCHAR* ProfileName);
+
+	/**
+	 * Force new emulation settings and ignore config or cmdline values
+	 */
+	void ApplySettings(const FPacketSimulationSettings& NewSettings);
 
 	/**
 	 * Registers commands for auto-completion, etc.
@@ -467,9 +475,20 @@ struct ENGINE_API FPacketSimulationSettings
 	void RegisterCommands();
 
 	/**
-	 * Unregisters commands for auto-completion, etc.
+	 * Ensure that settings have proper values
 	 */
-	void UnregisterCommands();
+	void ValidateSettings();
+	void ResetSettings();
+
+	/**
+	* Tells if a packet fits the size settings to potentially be dropped
+	*/
+	bool ShouldDropPacketOfSize(int32 NumBits) const
+	{
+		const bool bIsBigEnough = NumBits > PktLossMinSize * 8;
+		const bool bIsSmallEnough = PktLossMaxSize == 0 || NumBits < PktLossMaxSize * 8;
+		return bIsBigEnough && bIsSmallEnough;
+	}
 
 	/**
 	 * Reads the settings from a string: command line or an exec
@@ -688,6 +707,13 @@ public:
 	 */
 	UPROPERTY(Config)
 	bool bNoTimeouts;
+
+	/**
+	 * If true this NetDriver will not apply the network emulation settings that simulate
+	 * latency and packet loss in non-shippable builds
+	 */
+	UPROPERTY(Config)
+	bool bNeverApplyNetworkEmulationSettings;
 
 	/** Connection to the server (this net driver is a client) */
 	UPROPERTY()
@@ -1046,7 +1072,12 @@ public:
 #if DO_ENABLE_NET_TEST
 	FPacketSimulationSettings	PacketSimulationSettings;
 
-	ENGINE_API void SetPacketSimulationSettings(FPacketSimulationSettings NewSettings);
+	/**
+	 * Modify the current emulation settings
+	 */
+	ENGINE_API void SetPacketSimulationSettings(const FPacketSimulationSettings& NewSettings);
+
+	void OnPacketSimulationSettingsChanged();
 #endif
 
 	// Constructors.

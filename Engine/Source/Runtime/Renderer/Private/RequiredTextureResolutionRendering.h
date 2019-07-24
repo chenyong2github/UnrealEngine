@@ -27,7 +27,7 @@ public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		return AllowDebugViewShaderMode(DVSM_RequiredTextureResolution, Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)) && Parameters.Material->GetFriendlyName().Contains(TEXT("RequiredTextureResolution"));
+		return AllowDebugViewShaderMode(DVSM_RequiredTextureResolution, Parameters.Platform, Parameters.Material->GetFeatureLevel()) && Parameters.Material->GetFriendlyName().Contains(TEXT("RequiredTextureResolution"));
 	}
 
 	FRequiredTextureResolutionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):

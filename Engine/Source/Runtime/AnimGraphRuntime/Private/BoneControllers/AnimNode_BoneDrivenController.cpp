@@ -36,6 +36,7 @@ FAnimNode_BoneDrivenController::FAnimNode_BoneDrivenController()
 
 void FAnimNode_BoneDrivenController::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugLine += "(";
 	AddDebugNodeData(DebugLine);
@@ -55,6 +56,7 @@ void FAnimNode_BoneDrivenController::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_BoneDrivenController::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateSkeletalControl_AnyThread)
 	check(OutBoneTransforms.Num() == 0);
 
 	// Early out if we're not driving from or to anything
@@ -171,6 +173,7 @@ void FAnimNode_BoneDrivenController::EvaluateSkeletalControl_AnyThread(FComponen
 
 void FAnimNode_BoneDrivenController::EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(EvaluateComponentSpaceInternal)
 	// Early out if we're not driving from or to anything
 	if (SourceComponent == EComponentType::None || DestinationMode == EDrivenDestinationMode::Bone)
 	{
@@ -286,6 +289,7 @@ void FAnimNode_BoneDrivenController::ConvertTargetComponentToBits()
 
 void FAnimNode_BoneDrivenController::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(InitializeBoneReferences)
 	SourceBone.Initialize(RequiredBones);
 	TargetBone.Initialize(RequiredBones);
 }

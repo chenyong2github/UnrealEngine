@@ -27,7 +27,7 @@
 #include "Misc/RuntimeErrors.h"
 #include "SceneTypes.h"
 #include "AssetRegistryModule.h"
-
+#include "DebugViewModeHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialEditingLibrary, Warning, All);
 
@@ -650,6 +650,7 @@ void UMaterialEditingLibrary::RecompileMaterial(UMaterial* Material)
 
 		UMaterialEditingLibrary::RebuildMaterialInstanceEditors(Material);
 
+		ClearDebugViewMaterials(Material);
 		FMaterialEditorUtilities::BuildTextureStreamingData(Material);
 	}
 }

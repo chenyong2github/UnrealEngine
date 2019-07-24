@@ -482,10 +482,12 @@ bool UNiagaraSystem::IsReadyToRun() const
 	return true;
 }
 
+#if WITH_EDITORONLY_DATA
 bool UNiagaraSystem::HasOutstandingCompilationRequests() const
 {
 	return ActiveCompilations.Num() > 0;
 }
+#endif
 
 bool UNiagaraSystem::HasSystemScriptDIsWithPerInstanceData() const
 {

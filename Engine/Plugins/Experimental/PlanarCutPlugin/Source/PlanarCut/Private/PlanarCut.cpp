@@ -2037,7 +2037,7 @@ void TransformPlanes(const FTransform& Transform, const FPlanarCells& Ref, TArra
 int32 CutWithPlanarCells(
 	FPlanarCells& Cells,
 	FGeometryCollection& Source,
-	int32 GeometryIdx,
+	int32 TransformIdx,
 	const TOptional<FTransform>& TransformCells,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
@@ -2045,15 +2045,15 @@ int32 CutWithPlanarCells(
 	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate
 )
 {
-	TArray<int32> GeometryIndices { GeometryIdx };
-	return CutMultipleWithPlanarCells(Cells, Source, GeometryIndices, TransformCells, bIncludeOutsideCellInOutput, CheckDistanceAcrossOutsideCellForProximity, bSetDefaultInternalMaterialsFromCollection, VertexInterpolate);
+	TArray<int32> TransformIndices { TransformIdx };
+	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, TransformCells, bIncludeOutsideCellInOutput, CheckDistanceAcrossOutsideCellForProximity, bSetDefaultInternalMaterialsFromCollection, VertexInterpolate);
 }
 
 // Cut multiple Geometry groups inside a GeometryCollection with PlanarCells, and add each cut cell back to the GeometryCollection as a new child of their source Geometry
 int32 CutMultipleWithPlanarCells(
 	FPlanarCells &Cells,
 	FGeometryCollection& Source,
-	const TArrayView<const int32>& GeometryIndices,
+	const TArrayView<const int32>& TransformIndices,
 	const TOptional<FTransform>& TransformCells,
 	bool bIncludeOutsideCellInOutput,
 	float CheckDistanceAcrossOutsideCellForProximity,
@@ -2086,8 +2086,9 @@ int32 CutMultipleWithPlanarCells(
 	static const FText SlowTaskText = NSLOCTEXT("CutMultipleWithPlanarCells", "CutMultipleWithPlanarCellsText", "Cutting geometry collection...");
 
 	int32 TotalFacesToProcess = 0;
-	for (int32 GeometryIdx : GeometryIndices)
+	for (int32 TransformIdx : TransformIndices)
 	{
+		int32 GeometryIdx = Source.TransformToGeometryIndex[TransformIdx];
 		TotalFacesToProcess += Source.FaceCount[GeometryIdx];
 	}
 
@@ -2104,10 +2105,10 @@ int32 CutMultipleWithPlanarCells(
 #endif
 
 	// TODO: Cannot yet make this a parallel for because the Voronoi pt->cell function is not thread-safe, but after that is fixed, consider threading this?
-	for (int32 GeometryIdx : GeometryIndices)
+	for (int32 ParentTransformIndex : TransformIndices)
 	{
+		int32 GeometryIdx = Source.TransformToGeometryIndex[ParentTransformIndex];
 		EnterProgressFrame(Source.FaceCount[GeometryIdx]);
-		int32 ParentTransformIndex = Source.TransformIndex[GeometryIdx];
 		if (Source.Children[ParentTransformIndex].Num())
 		{
 			// don't fracture an already-fractured geometry
@@ -2162,7 +2163,7 @@ int32 CutMultipleWithMultiplePlanes(
 	const TArrayView<const FPlane>& Planes,
 	FInternalSurfaceMaterials& InternalSurfaceMaterials,
 	FGeometryCollection& Collection,
-	const TArrayView<const int32>& GeometryIndices,
+	const TArrayView<const int32>& TransformIndices,
 	const TOptional<FTransform>& TransformCells,
 	bool bFlattenToSingleLayer,
 	bool bSetDefaultInternalMaterialsFromCollection,
@@ -2184,10 +2185,11 @@ int32 CutMultipleWithMultiplePlanes(
 	}
 
 	TArray<int32> TransformsToDelete;
-	NeedsCut.SetNum(GeometryIndices.Num());
+	NeedsCut.SetNum(TransformIndices.Num());
 	for (int32 Idx = 0; Idx < NeedsCut.Num(); Idx++)
 	{
-		NeedsCut[Idx] = GeometryIndices[Idx];
+		// add geometry idx corresponding to each input transform
+		NeedsCut[Idx] = Collection.TransformToGeometryIndex[TransformIndices[Idx]];
 	}
 
 	if (!Collection.HasAttribute("Proximity", FGeometryCollection::GeometryGroup))

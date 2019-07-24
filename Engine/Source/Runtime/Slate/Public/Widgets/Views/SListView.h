@@ -1245,6 +1245,30 @@ public:
 	}
 
 	/**
+	 * Set the selection state of multiple items.
+	 *
+	 * @param InItems     The Items whose selection state to modify
+	 * @param bSelected   true to select the items; false to unselect
+	 * @param SelectInfo  Provides context on how the selection changed
+	 */
+	void SetItemSelection( const TArray<ItemType>& InItems, bool bSelected, ESelectInfo::Type SelectInfo = ESelectInfo::Direct )
+	{
+		if ( InItems.Num() == 0 || SelectionMode.Get() == ESelectionMode::None )
+		{
+			return;
+		}
+
+		for (const ItemType & Item : InItems)
+		{
+			Private_SetItemSelection(Item, bSelected, SelectInfo != ESelectInfo::Direct);
+
+			// Any item after the first one selected will be direct
+			SelectInfo = ESelectInfo::Direct;
+		}
+		Private_SignalSelectionChanged(SelectInfo);
+	}
+
+	/**
 	 * Empty the selection set.
 	 */
 	void ClearSelection()

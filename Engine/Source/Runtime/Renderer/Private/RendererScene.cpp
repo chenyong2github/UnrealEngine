@@ -563,6 +563,7 @@ void FScene::CheckPrimitiveArrays()
 	check(Primitives.Num() == PrimitiveOcclusionFlags.Num());
 	check(Primitives.Num() == PrimitiveComponentIds.Num());
 	check(Primitives.Num() == PrimitiveVirtualTextureFlags.Num());
+	check(Primitives.Num() == PrimitiveVirtualTextureLod.Num());
 	check(Primitives.Num() == PrimitiveOcclusionBounds.Num());
 	check(Primitives.Num() == PrimitivesNeedingStaticMeshUpdate.Num());
 }
@@ -788,6 +789,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 	PrimitiveOcclusionFlags.AddUninitialized();
 	PrimitiveComponentIds.AddUninitialized();
 	PrimitiveVirtualTextureFlags.AddUninitialized();
+	PrimitiveVirtualTextureLod.AddUninitialized();
 	PrimitiveOcclusionBounds.AddUninitialized();
 	PrimitivesNeedingStaticMeshUpdate.Add(false);
 	
@@ -857,6 +859,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
+				TArraySwapElements(PrimitiveVirtualTextureLod, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
 				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
@@ -1584,6 +1587,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
+				TArraySwapElements(PrimitiveVirtualTextureLod, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
 				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 				SourceIndex = DestIndex;
@@ -1616,6 +1620,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 		PrimitiveOcclusionFlags.Pop();
 		PrimitiveComponentIds.Pop();
 		PrimitiveVirtualTextureFlags.Pop();
+		PrimitiveVirtualTextureLod.Pop();
 		PrimitiveOcclusionBounds.Pop();
 		PrimitivesNeedingStaticMeshUpdate.RemoveAt(PrimitivesNeedingStaticMeshUpdate.Num()-1);
 	}
@@ -2119,6 +2124,12 @@ void FScene::RemoveReflectionCapture(UReflectionCaptureComponent* Component)
 
 			Scene->ReflectionSceneData.bRegisteredReflectionCapturesHasChanged = true;
 
+			// Need to clear out all reflection captures on removal to avoid dangling pointers.
+			for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); ++PrimitiveIndex)
+			{
+				Scene->Primitives[PrimitiveIndex]->RemoveCachedReflectionCaptures();
+			}
+
 			int32 CaptureIndex = Proxy->PackedIndex;
 			Scene->ReflectionSceneData.RegisteredReflectionCaptures.RemoveAtSwap(CaptureIndex);
 			Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.RemoveAtSwap(CaptureIndex);
@@ -2608,7 +2619,8 @@ void FScene::GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSc
 		PreviousLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 	}
 
-	SingleCaptureIndex = PrimitiveSceneInfo->CachedReflectionCaptureProxy ? PrimitiveSceneInfo->CachedReflectionCaptureProxy->SortedCaptureIndex : -1;
+	// Get index if proxy exists, otherwise fall back to index 0 which will contain the default black cubemap
+	SingleCaptureIndex = PrimitiveSceneInfo->CachedReflectionCaptureProxy ? PrimitiveSceneInfo->CachedReflectionCaptureProxy->SortedCaptureIndex : 0;
 }
 
 struct FUpdateLightTransformParameters
@@ -3799,7 +3811,10 @@ void UpdateStaticMeshesForMaterials(const TArray<const FMaterial*>& MaterialReso
 					ENQUEUE_RENDER_COMMAND(FUpdateStaticMeshesForMaterials)(
 						[SceneProxy](FRHICommandListImmediate& RHICmdList)
 						{
-							SceneProxy->GetPrimitiveSceneInfo()->UpdateStaticMeshes(RHICmdList);
+							// Defer the caching until the next render tick, to make sure that all render components queued
+							// for re-creation are processed. Otherwise, we may end up caching mesh commands from stale data.
+							bool bReAddToDrawLists = false;
+							SceneProxy->GetPrimitiveSceneInfo()->UpdateStaticMeshes(RHICmdList, bReAddToDrawLists);
 						});
 				}
 			}

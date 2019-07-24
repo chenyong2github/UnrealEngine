@@ -38,7 +38,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector, LocalObjectBoundsMax)		// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(uint32,LightmapDataIndex)
 	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMin)	// Local space min bounds, pre-skinning
-	SHADER_PARAMETER(int32, SingleCaptureIndex)
+	SHADER_PARAMETER(int32, SingleCaptureIndex)			// Should default to 0 if no reflection captures are provided, as there will be a default black (0,0,0,0) cubemap in that slot
 	SHADER_PARAMETER(FVector, PreSkinnedLocalBoundsMax)	// Local space max bounds, pre-skinning
     SHADER_PARAMETER(uint32, OutputVelocity)
 	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
@@ -105,7 +105,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.UseVolumetricLightmapShadowFromStationaryLights = bUseVolumetricLightmap && bUseSingleSampleShadowFromStationaryLights ? 1.0f : 0.0f;
 	Result.DrawsVelocity = bDrawsVelocity ? 1 : 0;
 	Result.LightmapDataIndex = LightmapDataIndex;
-	Result.SingleCaptureIndex = SingleCaptureIndex;
+	// If SingleCaptureIndex is invalid, set it to 0 since there will be a default cubemap at that slot
+	Result.SingleCaptureIndex = FMath::Max(SingleCaptureIndex, 0);
 	Result.OutputVelocity = (bOutputVelocity) ? 1 : 0;
 
 	// Clear to 0

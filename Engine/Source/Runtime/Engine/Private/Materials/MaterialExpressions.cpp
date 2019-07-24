@@ -1279,6 +1279,30 @@ bool UMaterialExpression::HasClassAndNameCollision(UMaterialExpression* OtherExp
 	return GetClass() == OtherExpression->GetClass();
 }
 
+
+bool UMaterialExpression::HasConnectedOutputs() const
+{
+	bool bIsConnected = !GraphNode;
+	if (GraphNode)
+	{
+		UMaterialGraphNode* MatGraphNode = Cast<UMaterialGraphNode>(GraphNode);
+		if (MatGraphNode)
+		{
+			TArray<UEdGraphPin*> OutputPins;
+			MatGraphNode->GetOutputPins(OutputPins);
+			for (UEdGraphPin* Pin : OutputPins)
+			{
+				if (Pin->LinkedTo.Num() > 0)
+				{
+					bIsConnected = true;
+				}
+			}
+		}
+	}
+	return bIsConnected;
+}
+
+
 #endif // WITH_EDITOR
 
 
@@ -2480,13 +2504,16 @@ void UMaterialExpressionTextureSampleParameter::GetAllParameterInfo(TArray<FMate
 	{
 		NewParameter.ParameterLocation = Function;
 	}
+
+	if (HasConnectedOutputs())
 #endif
-
-	OutParameterInfo.AddUnique(NewParameter);
-
-	if(CurrentSize != OutParameterInfo.Num())
 	{
-		OutParameterIds.Add(ExpressionGUID);
+		OutParameterInfo.AddUnique(NewParameter);
+
+		if (CurrentSize != OutParameterInfo.Num())
+		{
+			OutParameterIds.Add(ExpressionGUID);
+		}
 	}
 }
 
@@ -6762,12 +6789,15 @@ void UMaterialExpressionParameter::GetAllParameterInfo(TArray<FMaterialParameter
 	{
 		NewParameter.ParameterLocation = Function;
 	}
-#endif
 
-	OutParameterInfo.AddUnique(NewParameter);
-	if(CurrentSize != OutParameterInfo.Num())
+	if (HasConnectedOutputs())
+#endif
 	{
-		OutParameterIds.Add(ExpressionGUID);
+		OutParameterInfo.AddUnique(NewParameter);
+		if (CurrentSize != OutParameterInfo.Num())
+		{
+			OutParameterIds.Add(ExpressionGUID);
+		}
 	}
 }
 
@@ -9898,11 +9928,14 @@ void UMaterialExpressionFontSampleParameter::GetAllParameterInfo(TArray<FMateria
 	{
 		NewParameter.ParameterLocation = Function;
 	}
+	if (HasConnectedOutputs())
 #endif
-	OutParameterInfo.AddUnique(NewParameter);
-	if(CurrentSize != OutParameterInfo.Num())
 	{
-		OutParameterIds.Add(ExpressionGUID);
+		OutParameterInfo.AddUnique(NewParameter);
+		if (CurrentSize != OutParameterInfo.Num())
+		{
+			OutParameterIds.Add(ExpressionGUID);
+		}
 	}
 }
 
@@ -15836,6 +15869,10 @@ int32 UMaterialExpressionCurveAtlasRowParameter::Compile(class FMaterialCompiler
 {
 	if (Atlas && Curve)
 	{
+		// Retrieve the curve index directly from the atlas rather than relying on the scalar parameter defaults
+		int32 CurveIndex = 0;
+		Atlas->GetCurveIndex(Curve, CurveIndex);
+		DefaultValue = (float)CurveIndex;
 		int32 Slot = Compiler->ScalarParameter(ParameterName, DefaultValue);
 
 		// Get Atlas texture object and texture size

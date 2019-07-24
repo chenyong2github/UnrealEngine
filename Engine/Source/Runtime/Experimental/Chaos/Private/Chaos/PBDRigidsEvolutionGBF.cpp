@@ -213,7 +213,7 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt)
 				if (ParticleDisableCount[Index] > DisableThreshold)
 				{
 					ParticleDisableCount[Index] = 0;
-					Particles.Disabled(Index) = true;
+					Particles.SetDisabledLowLevel(Index, true);
 					DisabledParticles[Island].Add(Index);
 					Particles.V(Index) = TVector<T, d>(0);
 					Particles.W(Index) = TVector<T, d>(0);
@@ -221,7 +221,7 @@ void TPBDRigidsEvolutionGBF<T, d>::AdvanceOneTimeStep(const T Dt)
 
 				if (!(ensure(!FMath::IsNaN(Particles.P(Index)[0])) && ensure(!FMath::IsNaN(Particles.P(Index)[1])) && ensure(!FMath::IsNaN(Particles.P(Index)[2]))))
 				{
-					Particles.Disabled(Index) = true;
+					Particles.SetDisabledLowLevel(Index, true);
 					DisabledParticles[Island].Add(Index);
 				}
 			}

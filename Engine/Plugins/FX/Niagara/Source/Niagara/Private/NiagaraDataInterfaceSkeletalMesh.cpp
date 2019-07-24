@@ -876,17 +876,65 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 	Data->MeshSkinWeightBufferSrv = SourceData->MeshSkinWeightBufferSrv;
 }
 
-USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(UNiagaraDataInterfaceSkeletalMesh* Interface, UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp)
+USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
 {
 	USkeletalMesh* Mesh = nullptr;
-	if (Interface->SourceComponent)
+	if (MeshUserParameter.Parameter.IsValid() && InstData)
 	{
-		Mesh = Interface->SourceComponent->SkeletalMesh;
-		FoundSkelComp = Interface->SourceComponent;
+		FNiagaraSystemInstance* SystemInstance = OwningComponent->GetSystemInstance();
+		if (UObject* UserParamObject = InstData->UserParamBinding.Init(SystemInstance->GetInstanceParameters(), MeshUserParameter.Parameter))
+		{
+			InstData->CachedUserParam = UserParamObject;
+			if (USkeletalMeshComponent* UserSkelMeshComp = Cast<USkeletalMeshComponent>(UserParamObject))
+			{
+				FoundSkelComp = UserSkelMeshComp;
+				Mesh = FoundSkelComp->SkeletalMesh;
+			}
+			else if (ASkeletalMeshActor* UserSkelMeshActor = Cast<ASkeletalMeshActor>(UserParamObject))
+			{
+				FoundSkelComp = UserSkelMeshActor->GetSkeletalMeshComponent();
+				Mesh = FoundSkelComp->SkeletalMesh;
+			}
+			else if (AActor* Actor = Cast<AActor>(UserParamObject))
+			{
+				TArray<UActorComponent*> SourceComps = Actor->GetComponentsByClass(USkeletalMeshComponent::StaticClass());
+				for (UActorComponent* ActorComp : SourceComps)
+				{
+					USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
+					if (SourceComp)
+					{
+						USkeletalMesh* PossibleMesh = SourceComp->SkeletalMesh;
+						if (PossibleMesh != nullptr/* && PossibleMesh->bAllowCPUAccess*/)
+						{
+							Mesh = PossibleMesh;
+							FoundSkelComp = SourceComp;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				//We have a valid, non-null UObject parameter type but it is not a type we can use to get a skeletal mesh from. 
+				UE_LOG(LogNiagara, Warning, TEXT("SkeletalMesh data interface using object parameter with invalid type. Skeletal Mesh Data Interfaces can only get a valid mesh from SkeletalMeshComponents, SkeletalMeshActors or Actors."));
+				UE_LOG(LogNiagara, Warning, TEXT("Invalid Parameter : %s"), *UserParamObject->GetFullName());
+				UE_LOG(LogNiagara, Warning, TEXT("Niagara Component : %s"), *OwningComponent->GetFullName());
+				UE_LOG(LogNiagara, Warning, TEXT("System : %s"), *OwningComponent->GetAsset()->GetFullName());
+			}
+		}
+		else
+		{
+			//WARNING - We have a valid user param but the object set is null.
+		}
 	}
-	else if (Interface->Source)
+	else if (SourceComponent)
 	{
-		ASkeletalMeshActor* MeshActor = Cast<ASkeletalMeshActor>(Interface->Source);
+		Mesh = SourceComponent->SkeletalMesh;
+		FoundSkelComp = SourceComponent;
+	}
+	else if (Source)
+	{
+		ASkeletalMeshActor* MeshActor = Cast<ASkeletalMeshActor>(Source);
 		USkeletalMeshComponent* SourceComp = nullptr;
 		if (MeshActor != nullptr)
 		{
@@ -894,7 +942,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(UNiagara
 		}
 		else
 		{
-			SourceComp = Interface->Source->FindComponentByClass<USkeletalMeshComponent>();
+			SourceComp = Source->FindComponentByClass<USkeletalMeshComponent>();
 		}
 
 		if (SourceComp)
@@ -904,7 +952,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(UNiagara
 		}
 		else
 		{
-			SceneComponent = Interface->Source->GetRootComponent();
+			SceneComponent = Source->GetRootComponent();
 		}
 	}
 	else
@@ -952,9 +1000,9 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(UNiagara
 		SceneComponent = FoundSkelComp;
 	}
 	
-	if (!Mesh && Interface->DefaultMesh)
+	if (!Mesh && DefaultMesh)
 	{
-		Mesh = Interface->DefaultMesh;
+		Mesh = DefaultMesh;
 	}
 
 	return Mesh;
@@ -973,16 +1021,18 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	TransformInverseTransposed = FMatrix::Identity;
 	PrevTransform = FMatrix::Identity;
 	PrevTransformInverseTransposed = FMatrix::Identity;
-	DeltaSeconds = 0.0f;
+	DeltaSeconds = SystemInstance->GetComponent()->GetWorld()->GetDeltaSeconds();
 	ChangeId = Interface->ChangeId;
 	bIsGpuUniformlyDistributedSampling = false;
 	MeshWeightStrideByte = 0;
 	MeshGpuSpawnStaticBuffers = nullptr;
 	MeshGpuSpawnDynamicBuffers = nullptr;
 
+	bAllowCPUMeshDataAccess = true;
+
 	// Get skel mesh and confirm have valid data
 	USkeletalMeshComponent* NewSkelComp = nullptr;
-	Mesh = UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMeshHelper(Interface, SystemInstance->GetComponent(), Component, NewSkelComp);
+	Mesh = Interface->GetSkeletalMesh(SystemInstance->GetComponent(), Component, NewSkelComp, this);
 	MeshSafe = Mesh;
 
 	if (!Mesh)
@@ -1104,16 +1154,15 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	bool bNeedDataImmediately = true;
 		
 	//Grab a handle to the skinning data if we have a component to skin.
-	ENDISkeletalMesh_SkinningMode SkinningMode = (Interface->bUseTriangleSampling || Interface->bUseVertexSampling) ? Interface->SkinningMode : ENDISkeletalMesh_SkinningMode::None;
+	const ENDISkeletalMesh_SkinningMode SkinningMode = Interface->SkinningMode;
 	FSkeletalMeshSkinningDataUsage Usage(
 		LODIndex,
-		SkinningMode == ENDISkeletalMesh_SkinningMode::SkinOnTheFly || SkinningMode == ENDISkeletalMesh_SkinningMode::PreSkin || Interface->bUseSkeletonSampling,
+		SkinningMode == ENDISkeletalMesh_SkinningMode::SkinOnTheFly || SkinningMode == ENDISkeletalMesh_SkinningMode::PreSkin,
 		SkinningMode == ENDISkeletalMesh_SkinningMode::PreSkin,
 		bNeedDataImmediately);
 
 	if (NewSkelComp)
 	{
-		SkinningMode = Interface->SkinningMode;
 		TWeakObjectPtr<USkeletalMeshComponent> SkelWeakCompPtr = NewSkelComp;
 		FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->GetSkeletalMeshGeneratedData();
 		SkinningData = GeneratedData.GetCachedSkinningData(SkelWeakCompPtr, Usage);
@@ -1133,52 +1182,29 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	FSkinWeightVertexBuffer* SkinWeightBuffer = nullptr;
 	FSkeletalMeshLODRenderData& LODData = GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
 
-	//Check for the validity of the Mesh's cpu data.
-	if ( Interface->bUseTriangleSampling || Interface->bUseVertexSampling )
+	// Check for the validity of the Mesh's cpu data.
 	{
-		if ( !Mesh->GetLODInfo(LODIndex)->bAllowCPUAccess )
+		if ( Mesh->GetLODInfo(LODIndex)->bAllowCPUAccess )
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to spawn from a whole mesh that does not allow CPU Access.\nInterface: %s\nMesh: %s\nLOD: %d"),
-				*Interface->GetFullName(),
-				*Mesh->GetFullName(),
-				LODIndex);
+			const bool LODDataNumVerticesCorrect = LODData.GetNumVertices() > 0;
+			const bool LODDataPositonNumVerticesCorrect = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() > 0;
+			const bool bSkinWeightBuffer = SkinWeightBuffer != nullptr;
+			const bool SkinWeightBufferNumVerticesCorrect = bSkinWeightBuffer && (SkinWeightBuffer->GetNumVertices() > 0);
+			const bool bIndexBufferValid = LODData.MultiSizeIndexContainer.IsIndexBufferValid();
+			const bool bIndexBufferFound = bIndexBufferValid && (LODData.MultiSizeIndexContainer.GetIndexBuffer() != nullptr);
+			const bool bIndexBufferNumCorrect = bIndexBufferFound && (LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num() > 0);
 
-			return false;
+			bAllowCPUMeshDataAccess = LODDataNumVerticesCorrect &&
+				LODDataPositonNumVerticesCorrect &&
+				bSkinWeightBuffer &&
+				SkinWeightBufferNumVerticesCorrect &&
+				bIndexBufferValid &&
+				bIndexBufferFound &&
+				bIndexBufferNumCorrect;
 		}
-
-		bool LODDataNumVerticesCorrect = LODData.GetNumVertices() > 0;
-		bool LODDataPositonNumVerticesCorrect = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() > 0;
-		bool bSkinWeightBuffer = SkinWeightBuffer != nullptr;
-		bool SkinWeightBufferNumVerticesCorrect = bSkinWeightBuffer && (SkinWeightBuffer->GetNumVertices() > 0);
-		bool bIndexBufferValid = LODData.MultiSizeIndexContainer.IsIndexBufferValid();
-		bool bIndexBufferFound = bIndexBufferValid && (LODData.MultiSizeIndexContainer.GetIndexBuffer() != nullptr);
-		bool bIndexBufferNumCorrect = bIndexBufferFound && (LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num() > 0);
-
-		bool bMeshCPUDataValid = LODDataNumVerticesCorrect &&
-			LODDataPositonNumVerticesCorrect &&
-			bSkinWeightBuffer &&
-			SkinWeightBufferNumVerticesCorrect &&
-			bIndexBufferValid &&
-			bIndexBufferFound &&
-			bIndexBufferNumCorrect;
-
-		if (!bMeshCPUDataValid)
+		else
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from a mesh with missing CPU vertex or index data.\nInterface: %s\nMesh: %s\nLOD: %d\n"
-				"LODDataNumVerticesCorrect: %d  LODDataPositonNumVerticesCorrect : %d  bSkinWeightBuffer : %d  SkinWeightBufferNumVerticesCorrect : %d bIndexBufferValid : %d  bIndexBufferFound : %d  bIndexBufferNumCorrect : %d"),
-				*Interface->GetFullName(),
-				*Mesh->GetFullName(),
-				LODIndex,
-				LODDataNumVerticesCorrect ? 1 : 0,
-				LODDataPositonNumVerticesCorrect ? 1 : 0,
-				bSkinWeightBuffer ? 1 : 0,
-				SkinWeightBufferNumVerticesCorrect ? 1 : 0,
-				bIndexBufferValid ? 1 : 0,
-				bIndexBufferFound ? 1 : 0,
-				bIndexBufferNumCorrect ? 1 : 0
-			);
-
-			return false;
+			bAllowCPUMeshDataAccess = false;
 		}
 	}
 
@@ -1285,12 +1311,22 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 		//The component we were bound to is no longer valid so we have to trigger a reset.
 		return true;
 	}
-		
+	
 	if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Comp))
 	{
-		if (!SkelComp->SkeletalMesh)
+		if (!SkelComp->SkeletalMesh)//TODO: Handle clearing the mesh gracefully.
 		{
 			return true;
+		}
+
+		//If the user ptr has been changed to look at a new mesh component. TODO: Handle more gracefully.
+		if (Interface->MeshUserParameter.Parameter.IsValid())
+		{
+			UObject* NewUserParam = UserParamBinding.GetValue();
+			if (CachedUserParam != NewUserParam)
+			{
+				return true;
+			}
 		}
 		
 		// Handle the case where they've procedurally swapped out the skeletal mesh from
@@ -1441,9 +1477,9 @@ UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInit
 	, Source(nullptr)
 	, SkinningMode(ENDISkeletalMesh_SkinningMode::SkinOnTheFly)
 	, WholeMeshLOD(INDEX_NONE)
-	, bUseTriangleSampling(true)
-	, bUseVertexSampling(true)
-	, bUseSkeletonSampling(true)
+#if WITH_EDITORONLY_DATA
+	, bRequiresCPUAccess(false)
+#endif
 	, ChangeId(0)
 {
 	Proxy = MakeShared<FNiagaraDataInterfaceProxySkeletalMesh, ESPMode::ThreadSafe>();
@@ -1469,14 +1505,14 @@ void UNiagaraDataInterfaceSkeletalMesh::PostEditChangeProperty(FPropertyChangedE
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+#if WITH_EDITORONLY_DATA
 	// If the change comes from an interaction (and not just a generic change) reset the usage flags.
 	// todo : this and the usage binding need to be done in the a precompilation parsing (or whever the script is compiled).
 	if (PropertyChangedEvent.Property)
 	{
-		bUseTriangleSampling = false;
-		bUseVertexSampling = false;
-		bUseSkeletonSampling = false;
+		bRequiresCPUAccess = false;
 	}
+#endif
 	ChangeId++;
 }
 
@@ -1501,46 +1537,53 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVMExternalFunction(const FVMExternalF
 		return;
 	}
 
-	BindTriangleSamplingFunction(BindingInfo, InstData, OutFunc);
-
+	// Bind skeleton sampling function
+	BindSkeletonSamplingFunction(BindingInfo, InstData, OutFunc);
 	if (OutFunc.IsBound())
 	{
 #if WITH_EDITOR
-		if (!bUseTriangleSampling)
+		if ( SkinningMode == ENDISkeletalMesh_SkinningMode::None )
 		{
-			bUseTriangleSampling = true;
-			MarkPackageDirty();
+			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to use skeleton sampling but skinning mode is none. Interface: %s"), *GetFullName());
 		}
 #endif // WITH_EDITOR
 		return;
 	}
 
+	// Bind triangle sampling function
+	BindTriangleSamplingFunction(BindingInfo, InstData, OutFunc);
+	if (OutFunc.IsBound())
+	{
+		if (!InstData->bAllowCPUMeshDataAccess)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to use triangle sampling but CPU access or the data is invalid. Interface: %s"), *GetFullName());
+			OutFunc.Unbind();
+			return;
+		}
+
+#if WITH_EDITOR
+		bRequiresCPUAccess = true;
+#endif // WITH_EDITOR
+		return;
+	}
+
+	// Bind vertex sampling function
 	BindVertexSamplingFunction(BindingInfo, InstData, OutFunc);
 
 	if (OutFunc.IsBound())
 	{
-#if WITH_EDITOR
-		if (!bUseVertexSampling)
+		if (!InstData->bAllowCPUMeshDataAccess)
 		{
-			bUseVertexSampling = true;
-			MarkPackageDirty();
+			UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to use vertex sampling but CPU access or the data is invalid. Interface: %s"), *GetFullName());
+			OutFunc.Unbind();
+			return;
 		}
+
+#if WITH_EDITOR
+		bRequiresCPUAccess = true;
 #endif // WITH_EDITOR
 		return;
 	}
-
-	BindSkeletonSamplingFunction(BindingInfo, InstData, OutFunc);
-
-#if WITH_EDITOR
-	if (OutFunc.IsBound())
-	{
-		if (!bUseSkeletonSampling)
-		{
-			bUseSkeletonSampling = true;
-			MarkPackageDirty();
-		}
-	}
-#endif // WITH_EDITOR
 }
 
 
@@ -1553,15 +1596,16 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 
 	UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceSkeletalMesh>(Destination);
 	OtherTyped->Source = Source;
+	OtherTyped->MeshUserParameter = MeshUserParameter;
 	OtherTyped->DefaultMesh = DefaultMesh;
 	OtherTyped->SkinningMode = SkinningMode;
 	OtherTyped->SamplingRegions = SamplingRegions;
 	OtherTyped->WholeMeshLOD = WholeMeshLOD;
 	OtherTyped->SpecificBones = SpecificBones;
 	OtherTyped->SpecificSockets = SpecificSockets;
-	OtherTyped->bUseTriangleSampling = bUseTriangleSampling;
-	OtherTyped->bUseVertexSampling = bUseVertexSampling;
-	OtherTyped->bUseSkeletonSampling = bUseSkeletonSampling;
+#if WITH_EDITORONLY_DATA
+	OtherTyped->bRequiresCPUAccess = bRequiresCPUAccess;
+#endif
 	return true;
 }
 
@@ -1574,6 +1618,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 	const UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<const UNiagaraDataInterfaceSkeletalMesh>(Other);
 	return OtherTyped->Source == Source &&
 		OtherTyped->DefaultMesh == DefaultMesh &&
+		OtherTyped->MeshUserParameter == MeshUserParameter &&
 		OtherTyped->SkinningMode == SkinningMode &&
 		OtherTyped->SamplingRegions == SamplingRegions &&
 		OtherTyped->WholeMeshLOD == WholeMeshLOD &&
@@ -1628,7 +1673,7 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceSkeletalMesh::GetErrors(
 	bool bHasNoMeshAssignedError = false;
 	
 	// Collect Errors
-	if (DefaultMesh != nullptr && (bUseTriangleSampling || bUseVertexSampling))
+	if (DefaultMesh != nullptr && bRequiresCPUAccess)
 	{
 		for (auto info : DefaultMesh->GetLODInfoArray())
 		{

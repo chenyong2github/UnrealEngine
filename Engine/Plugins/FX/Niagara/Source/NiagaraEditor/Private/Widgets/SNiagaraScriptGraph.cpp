@@ -25,6 +25,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GraphEditorActions.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptGraph"
 
@@ -148,6 +149,9 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 	Commands->MapAction(
 		FNiagaraEditorCommands::Get().FindInCurrentView,
 		FExecuteAction::CreateRaw(this, &SNiagaraScriptGraph::FocusGraphSearchBox));
+	Commands->MapAction(
+		FGraphEditorCommands::Get().CreateComment,
+		FExecuteAction::CreateRaw(this, &SNiagaraScriptGraph::OnCreateComment));
 	
 	TSharedRef<SGraphEditor> CreatedGraphEditor = SNew(SGraphEditor)
 		.AdditionalCommands(ViewModel->GetCommands())
@@ -503,6 +507,12 @@ void SNiagaraScriptGraph::FocusGraphSearchBox()
 		FSlateApplication::Get().GeneratePathToWidgetUnchecked(SearchBox.ToSharedRef(), WidgetToFocusPath, EVisibility::All);
 		FSlateApplication::Get().SetKeyboardFocus(WidgetToFocusPath, EFocusCause::SetDirectly);
 	}
+}
+
+void SNiagaraScriptGraph::OnCreateComment()
+{
+	FNiagaraSchemaAction_NewComment CommentAction = FNiagaraSchemaAction_NewComment(GraphEditor);
+	CommentAction.PerformAction(ViewModel->GetGraph(), nullptr, GraphEditor->GetPasteLocation(), false);
 }
 
 void SNiagaraScriptGraph::OnSearchBoxSearch(SSearchBox::SearchDirection Direction)

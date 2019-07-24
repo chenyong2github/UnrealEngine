@@ -32,10 +32,10 @@ protected:
 	UEditableMesh* GetEditableMeshForComponent(UActorComponent* PrimitiveActorComponent, TArray<UEditableMesh *>& SelectedMeshes);
 
 	/** Create a Geometry Actor */
-	class AGeometryCollectionActor* CreateNewGeometryActor(const FString& Name, const FTransform& Transform, UEditableMesh* SourceMesh, bool AddMaterials = false);
+	// class AGeometryCollectionActor* CreateNewGeometryActor(const FString& Name, const FTransform& Transform, UEditableMesh* SourceMesh, bool AddMaterials = false);
 
 	/** Create a geomerty Collection asset */
-	class UPackage* CreateGeometryCollectionPackage(UGeometryCollection*& GeometryCollection);
+	// class UPackage* CreateGeometryCollectionPackage(UGeometryCollection*& GeometryCollection);
 
 	/** Where fracturing is concerned we expect a single parent root node */
 	void AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollection);

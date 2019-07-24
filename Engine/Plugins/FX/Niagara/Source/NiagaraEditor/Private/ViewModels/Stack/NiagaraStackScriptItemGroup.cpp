@@ -216,7 +216,7 @@ public:
 		if (NewParameterNamespace.IsSet())
 		{
 			TArray<FNiagaraTypeDefinition> AvailableTypes;
-			FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes);
+			FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(AvailableTypes, NewParameterNamespace.Get(TEXT("Unknown")));
 			for (const FNiagaraTypeDefinition& AvailableType : AvailableTypes)
 			{
 				OutAddActions.Add(FScriptGroupAddAction::CreateNewParameterModuleAction(NewParameterNamespace.GetValue(), AvailableType));

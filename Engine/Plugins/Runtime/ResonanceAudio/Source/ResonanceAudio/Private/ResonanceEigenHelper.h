@@ -15,6 +15,7 @@ _Pragma("clang diagnostic ignored \"-Wshadow\"")
 #pragma warning(disable:4458) /* declaration of 'LocalVariable' hides class member */ 
 #pragma warning(disable:4459) /* declaration of 'LocalVariable' hides global declaration */ 
 #pragma warning(disable:6244) /* local declaration of <variable> hides previous declaration at <line> of <file> */
+#pragma warning(disable:4702) /* unreachable code */
 #endif
 
 

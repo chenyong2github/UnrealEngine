@@ -18,6 +18,9 @@ struct FLiveLinkTransformControllerData
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LiveLink")
 	bool bWorldTransform = true;
 
+	UPROPERTY(EditAnywhere, Category = "LiveLink", AdvancedDisplay)
+	bool bUseScale = true;
+
 	/**
 	 * Whether we sweep to the destination location, triggering overlaps along the way and stopping short of the target if blocked by something.
 	 * Only the root component is swept and checked for blocking collision, child components move without sweeping. If collision is off, this has no effect.

@@ -37,6 +37,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bSynchronizeCurveEditorSelection = true;
 	bIsolateCurveEditorToSelection = true;
 	LoopMode = ESequencerLoopMode::SLM_NoLoop;
+	bSnapKeysAndSectionsToPlayRange = false;
 	bKeepCursorInPlayRangeWhileScrubbing = false;
 	bKeepCursorInPlayRange = true;
 	bKeepPlayRangeInSectionBounds = true;
@@ -239,6 +240,20 @@ void USequencerSettings::SetSnapSectionTimesToSections( bool InbSnapSectionTimes
 	if ( bSnapSectionTimesToSections != InbSnapSectionTimesToSections )
 	{
 		bSnapSectionTimesToSections = InbSnapSectionTimesToSections;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetSnapKeysAndSectionsToPlayRange() const
+{
+	return bSnapKeysAndSectionsToPlayRange;
+}
+
+void USequencerSettings::SetSnapKeysAndSectionsToPlayRange(bool bInSnapKeysAndSectionsToPlayRange)
+{
+	if (bSnapKeysAndSectionsToPlayRange != bInSnapKeysAndSectionsToPlayRange)
+	{
+		bSnapKeysAndSectionsToPlayRange = bInSnapKeysAndSectionsToPlayRange;
 		SaveConfig();
 	}
 }

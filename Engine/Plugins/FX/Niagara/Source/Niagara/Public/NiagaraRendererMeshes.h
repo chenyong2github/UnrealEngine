@@ -16,8 +16,8 @@ class FNiagaraDataSet;
 class NIAGARA_API FNiagaraRendererMeshes : public FNiagaraRenderer
 {
 public:
-
 	FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	~FNiagaraRendererMeshes();
 	
 	//FNiagaraRenderer Interface
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;

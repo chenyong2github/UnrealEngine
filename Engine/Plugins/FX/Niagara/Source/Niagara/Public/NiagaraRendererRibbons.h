@@ -18,6 +18,7 @@ class NIAGARA_API FNiagaraRendererRibbons : public FNiagaraRenderer
 {
 public:
 	FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);	// FNiagaraRenderer Interface 
+	~FNiagaraRendererRibbons();
 
 	// FNiagaraRenderer Interface 
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) override;

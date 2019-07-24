@@ -324,6 +324,15 @@ void DecryptData(uint8* InData, uint32 InDataSize, FGuid InEncryptionKeyGuid)
 	}
 }
 
+#if !UE_BUILD_SHIPPING
+static int32 GPakCache_ForceDecompressionFails = 0;
+static FAutoConsoleVariableRef CVar_ForceDecompressionFails(
+	TEXT("ForceDecompressionFails"),
+	GPakCache_ForceDecompressionFails,
+	TEXT("If > 0, then force decompression failures to test the panic sync read fallback.")
+);
+#endif
+
 #if USE_PAK_PRECACHE
 #include "Async/TaskGraphInterfaces.h"
 #define PAK_CACHE_GRANULARITY (64*1024)
@@ -2720,6 +2729,7 @@ protected:
 	int64 BytesToRead;
 	FEvent* WaitEvent;
 	FCachedAsyncBlock* BlockPtr;
+	FName PanicPakFile;
 	EAsyncIOPriorityAndFlags PriorityAndFlags;
 	bool bRequestOutstanding;
 	bool bNeedsRemoval;
@@ -2732,6 +2742,7 @@ public:
 		, BytesToRead(InBytesToRead)
 		, WaitEvent(nullptr)
 		, BlockPtr(InBlockPtr)
+		, PanicPakFile(InPakFile)
 		, PriorityAndFlags(InPriorityAndFlags)
 		, bRequestOutstanding(true)
 		, bNeedsRemoval(true)
@@ -2850,6 +2861,22 @@ public:
 			}
 			SetAllComplete();
 		}
+	}
+
+	void PanicSyncRead(uint8* Buffer)
+	{
+		IFileHandle* Handle = IPlatformFile::GetPlatformPhysical().OpenRead(*PanicPakFile.ToString());
+		UE_CLOG(!Handle, LogPakFile, Fatal, TEXT("PanicSyncRead failed to open pak file %s"), *PanicPakFile.ToString());
+		if (!Handle->Seek(Offset))
+		{
+			UE_LOG(LogPakFile, Fatal, TEXT("PanicSyncRead failed to seek pak file %s   %d bytes at %lld "), *PanicPakFile.ToString(), BytesToRead, Offset);
+		}
+
+		if (!Handle->Read(Buffer, BytesToRead))
+		{
+			UE_LOG(LogPakFile, Fatal, TEXT("PanicSyncRead failed to read pak file %s   %d bytes at %lld "), *PanicPakFile.ToString(), BytesToRead, Offset);
+		}	
+		delete Handle;
 	}
 };
 
@@ -3477,6 +3504,22 @@ public:
 		{
 			check(Block.Raw && Block.RawSize && !Block.Processed);
 
+#if !UE_BUILD_SHIPPING
+			bool bCorrupted = false;
+			if (GPakCache_ForceDecompressionFails && FMath::FRand() < 0.001f)
+			{
+				int32 CorruptOffset = FMath::Clamp(int32(FMath::FRandRange(0, Block.RawSize - 1)), 0, Block.RawSize - 1);
+				uint8 CorruptValue = uint8(FMath::Clamp(int32(FMath::FRandRange(0, 255)), 0, 255));
+				if (Block.Raw[CorruptOffset] != CorruptValue)
+				{
+					UE_LOG(LogPakFile, Error, TEXT("Forcing corruption of decompression source data (predecryption) to verify panic read recovery.  Offset = %d, Value = 0x%x"), CorruptOffset, int32(CorruptValue));
+					Block.Raw[CorruptOffset] = CorruptValue;
+					bCorrupted = true;
+				}
+			}
+#endif
+
+
 			if (FileEntry.IsEncrypted())
 			{
 				INC_DWORD_STAT(STAT_PakCache_CompressedDecrypts);
@@ -3496,10 +3539,63 @@ public:
 				check(Block.DecompressionRawSize == Block.RawSize);
 			}
 
-			if( !FCompression::UncompressMemory(CompressionMethod, Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize) )
+			bool bFailed = !FCompression::UncompressMemory(CompressionMethod, Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize);
+
+#if !UE_BUILD_SHIPPING
+			if (bCorrupted && !bFailed)
 			{
-				const FString HexBytes = BytesToHex(Block.Raw,FMath::Min(Block.DecompressionRawSize,32));
-				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile:%s, EntryOffset:%lld, EntrySize:%lld, Method:%s, ProcessedSize:%d, RawSize:%d, Crc32:%u, BlockIndex:%d, Encrypt:%d, Delete:%d, Output:%p, Raw:%p, Processed:%p, Bytes:[%s...]"), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Block.ProcessedSize, Block.DecompressionRawSize, FCrc::MemCrc32( Block.Raw, Block.DecompressionRawSize ), Block.BlockIndex, FileEntry.IsEncrypted()?1:0, FileEntry.IsDeleteRecord()?1:0, Output, Block.Raw, Block.Processed, *HexBytes );
+				UE_LOG(LogPakFile, Error, TEXT("The payload was corrupted, but this did not trigger a decompression failed.....pretending it failed anyway because otherwise it can crash later."));
+				bFailed = true;
+			}
+#endif
+
+			if (bFailed)
+			{
+				{
+					const FString HexBytes = BytesToHex(Block.Raw, FMath::Min(Block.DecompressionRawSize, 32));
+					UE_LOG(LogPakFile, Error, TEXT("Pak Decompression failed. PakFile:%s, EntryOffset:%lld, EntrySize:%lld, Method:%s, ProcessedSize:%d, RawSize:%d, Crc32:%u, BlockIndex:%d, Encrypt:%d, Delete:%d, Output:%p, Raw:%p, Processed:%p, Bytes:[%s...]"), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Block.ProcessedSize, Block.DecompressionRawSize, FCrc::MemCrc32(Block.Raw, Block.DecompressionRawSize), Block.BlockIndex, FileEntry.IsEncrypted() ? 1 : 0, FileEntry.IsDeleteRecord() ? 1 : 0, Output, Block.Raw, Block.Processed, *HexBytes);
+				}
+				uint8* TempBuffer = (uint8*)FMemory::Malloc(Block.RawSize);
+				{
+					FScopeLock ScopedLock(&CriticalSection);
+					UE_CLOG(!Block.RawRequest, LogPakFile, Fatal, TEXT("Cannot retry because Block.RawRequest is null."));
+
+					Block.RawRequest->PanicSyncRead(TempBuffer);
+				}
+
+				if (FileEntry.IsEncrypted())
+				{
+					DecryptData(TempBuffer, Block.RawSize, EncryptionKeyGuid);
+				}
+				if (FMemory::Memcmp(TempBuffer, Block.Raw, Block.DecompressionRawSize) != 0)
+				{
+					UE_LOG(LogPakFile, Warning, TEXT("Panic re-read (and decrypt if applicable) resulted in a different buffer."));
+
+					int32 Offset = 0;
+					for (; Offset < Block.DecompressionRawSize; Offset++)
+					{
+						if (TempBuffer[Offset] != Block.Raw[Offset])
+						{
+							break;
+						}
+					}
+					UE_CLOG(Offset >= Block.DecompressionRawSize, LogPakFile, Fatal, TEXT("Buffers were different yet all bytes were the same????"));
+
+					UE_LOG(LogPakFile, Warning, TEXT("Buffers differ at offset %d."), Offset);
+					const FString HexBytes1 = BytesToHex(Block.Raw + Offset, FMath::Min(Block.DecompressionRawSize - Offset, 64));
+					UE_LOG(LogPakFile, Warning, TEXT("Original read (and decrypt) %s"), *HexBytes1);
+					const FString HexBytes2 = BytesToHex(TempBuffer + Offset, FMath::Min(Block.DecompressionRawSize - Offset, 64));
+					UE_LOG(LogPakFile, Warning, TEXT("Panic reread  (and decrypt) %s"), *HexBytes2);
+				}
+				if (!FCompression::UncompressMemory(CompressionMethod, Output, Block.ProcessedSize, TempBuffer, Block.DecompressionRawSize))
+				{
+					UE_LOG(LogPakFile, Fatal, TEXT("Retry was NOT sucessful."));
+				}
+				else
+				{
+					UE_LOG(LogPakFile, Warning, TEXT("Retry was sucessful."));
+				}
+				FMemory::Free(TempBuffer);
 			}
 			FMemory::Free(Block.Raw);
 			Block.Raw = nullptr;
@@ -4256,6 +4352,8 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
 	, ChunkID(ParseChunkIDFromFilename(Filename))
+	, bAttemptedPakEntryShrink(false)
+	, bAttemptedPakFilenameUnload(false)
  	, MappedFileHandle(nullptr)
 {
 	FArchive* Reader = GetSharedReader(NULL);
@@ -4281,6 +4379,8 @@ FPakFile::FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSig
 	, bIsValid(false)
 	, bFilenamesRemoved(false)
 	, ChunkID(ParseChunkIDFromFilename(Filename))
+	, bAttemptedPakEntryShrink(false)
+	, bAttemptedPakFilenameUnload(false)
 	, MappedFileHandle(nullptr)
 {
 	FArchive* Reader = GetSharedReader(LowerLevel);
@@ -4673,21 +4773,26 @@ static inline int32 CDECL CompareFMiniFileEntry(const void* Left, const void* Ri
 	return 0;
 }
 
-bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep)
+bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep, bool bAllowRetries)
 {
 	// If the process has already been done, get out of here.
-	if (bFilenamesRemoved)
+	if (bAttemptedPakFilenameUnload || bFilenamesRemoved)
 	{
-		return false;
+		return true;
 	}
+
+	UE_LOG(LogPakFile, Log, TEXT("Unloading filenames for pak '%s'"), *PakFilename);
 
 	LLM_SCOPE(ELLMTag::FileSystem);
 
+	// Set this flag so if unloading fails, we don't try again
+	bAttemptedPakFilenameUnload = true;
+
 	// Variables for the filename hashing and collision detection.
 	int NumRetries = 0;
-	const int MAX_RETRIES = 10;
+	const int MAX_RETRIES = bAllowRetries ? 10 : 1;
 	bool bHasCollision;
-	FilenameStartHash = 0;
+	FilenameStartHash = FCrc::StrCrc32(*GetFilename());
     
 	// Allocate the temporary array for hashing filenames. The Memset is to hopefully
 	// silence the Visual Studio static analyzer.
@@ -4700,10 +4805,11 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 		bHasCollision = false;
 
 		TMap<uint64, FPakEntry> NewCollisionCheckEntries;
+		NewCollisionCheckEntries.Reserve(NumEntries);
 
 		// Build the list of hashes from the Index based on the starting hash.
 		int32 EntryIndex = 0;
-		for (TMap<FString, FPakDirectory>::TConstIterator It(Index); It; ++It)
+		for (TMap<FString, FPakDirectory>::TConstIterator It(Index); (It && !bHasCollision); ++It)
 		{
 			for (FPakDirectory::TConstIterator DirectoryIt(It.Value()); DirectoryIt; ++DirectoryIt)
 			{
@@ -4716,7 +4822,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 				const FPakEntry* EntryFromPreviousPaks = CrossPakCollisionChecker.Find(FilenameHash);
 				const FPakEntry* EntryFromCurrentPak = NewCollisionCheckEntries.Find(FilenameHash);
 				const FPakEntry& CurrentEntry = Files[DirectoryIt.Value()];
-							   
+
 				if (EntryFromPreviousPaks && (FMemory::Memcmp(EntryFromPreviousPaks->Hash, CurrentEntry.Hash, sizeof(CurrentEntry.Hash))) != 0)
 				{
 					UE_LOG(LogPakFile, Verbose, TEXT("Detected collision with previous pak while hashing %s"), *FinalFilename);
@@ -4739,6 +4845,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 		{
 			++NumRetries;
 			++FilenameStartHash;
+			UE_LOG(LogPakFile, Verbose, TEXT("Collisions detected. Retrying with new seed..."));
 		}
 		else
 		{
@@ -4755,7 +4862,8 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 	if (NumRetries >= MAX_RETRIES)
 	{
 		//		FPlatformMisc::LowLevelOutputDebugString(TEXT("Can't unload pak filenames due to hash collision..."));
-		return true;
+		UE_LOG(LogPakFile, Warning, TEXT("FAILED unloading filenames for pak '%s'"), *PakFilename);
+		return false;
 	}
 
 	// Allocate the storage space.
@@ -4877,18 +4985,23 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 		Index.Empty(0);
 	}
 
-	return false;
+	return true;
 }
 
-void FPakFile::ShrinkPakEntriesMemoryUsage()
+bool FPakFile::ShrinkPakEntriesMemoryUsage()
 {
 	// If the process has already been done, get out of here.
-	if (MiniPakEntries != NULL)
+	if (bAttemptedPakEntryShrink || MiniPakEntries != nullptr)
 	{
-		return;
+		return true;
 	}
 
 	LLM_SCOPE(ELLMTag::FileSystem);
+
+	UE_LOG(LogPakFile, Log, TEXT("Shrinking entries for pak '%s'"), *PakFilename);
+
+	// Set this flag so if shrinking fails, we don't try again
+	bAttemptedPakEntryShrink = true;
 
 	// Wander every file entry.
 	int TotalSizeOfCompressedEntries = 0;
@@ -4901,6 +5014,8 @@ void FPakFile::ShrinkPakEntriesMemoryUsage()
 		bool bIsOffset32BitSafe = Entry.Offset <= MAX_uint32;
 		bool bIsSize32BitSafe = Entry.Size <= MAX_uint32;
 		bool bIsUncompressedSize32BitSafe = Entry.UncompressedSize <= MAX_uint32;
+		uint32 CompressedBlockAlignment = Entry.IsEncrypted() ? FAES::AESBlockSize : 1;
+		int64 HeaderSize = Entry.GetSerializedSize(Info.Version);
 
 		// This data fits into a bitfield (described below), and the data has
 		// to fit within a certain range of bits.
@@ -4921,21 +5036,28 @@ void FPakFile::ShrinkPakEntriesMemoryUsage()
 				bIsPossibleToShrink = false;
 				break;
 			}
-			if (Entry.CompressionBlocks.Num() > 0 && ((Info.HasRelativeCompressedChunkOffsets() ? 0 : Entry.Offset) + Entry.GetSerializedSize(Info.Version) != Entry.CompressionBlocks[0].CompressedStart))
+			if (Entry.CompressionBlocks.Num() > 0 && ((Info.HasRelativeCompressedChunkOffsets() ? 0 : Entry.Offset) + HeaderSize != Entry.CompressionBlocks[0].CompressedStart))
 			{
 				bIsPossibleToShrink = false;
 				break;
 			}
-			if (Entry.CompressionBlocks.Num() == 1 && ((Info.HasRelativeCompressedChunkOffsets() ? 0 : Entry.Offset) + Entry.GetSerializedSize(Info.Version) + Entry.Size != Entry.CompressionBlocks[0].CompressedEnd))
+			if (Entry.CompressionBlocks.Num() == 1)
 			{
-				bIsPossibleToShrink = false;
-				break;
+				uint64 Base = Info.HasRelativeCompressedChunkOffsets() ? 0 : Entry.Offset;
+				uint64 AlignedBlockSize = Align(Entry.CompressionBlocks[0].CompressedEnd - Entry.CompressionBlocks[0].CompressedStart, CompressedBlockAlignment);
+				if ((Base + HeaderSize + Entry.Size) != (Entry.CompressionBlocks[0].CompressedStart + AlignedBlockSize))
+				{
+					bIsPossibleToShrink = false;
+					break;
+				}
 			}
 			if (Entry.CompressionBlocks.Num() > 1)
 			{
 				for (int i = 1; i < Entry.CompressionBlocks.Num(); ++i)
 				{
-					if (Entry.CompressionBlocks[i].CompressedStart != Entry.CompressionBlocks[i - 1].CompressedEnd)
+					uint64 PrevBlockSize = Entry.CompressionBlocks[i - 1].CompressedEnd - Entry.CompressionBlocks[i - 1].CompressedStart;
+					PrevBlockSize = Align(PrevBlockSize, CompressedBlockAlignment);
+					if (Entry.CompressionBlocks[i].CompressedStart != (Entry.CompressionBlocks[i - 1].CompressedStart + PrevBlockSize))
 					{
 						bIsPossibleToShrink = false;
 						break;
@@ -4956,7 +5078,7 @@ void FPakFile::ShrinkPakEntriesMemoryUsage()
 		{
 			TotalSizeOfCompressedEntries +=
 				(bIsSize32BitSafe ? sizeof(uint32) : sizeof(uint64));
-			if (Entry.CompressionBlocks.Num() > 1)
+			if (Entry.CompressionBlocks.Num() > 1 || (Entry.CompressionBlocks.Num() == 1 && Entry.IsEncrypted()))
 			{
 				TotalSizeOfCompressedEntries += Entry.CompressionBlocks.Num() * sizeof(uint32);
 			}
@@ -4965,7 +5087,8 @@ void FPakFile::ShrinkPakEntriesMemoryUsage()
 
 	if (!bIsPossibleToShrink)
 	{
-		return;
+		UE_LOG(LogPakFile, Warning, TEXT("FAILED shrinking entries for pak file '%s'"), *PakFilename);
+		return false;
 	}
 
 	// Allocate the buffer to hold onto all of the bit-encoded compressed FPakEntry structures.
@@ -5063,7 +5186,7 @@ void FPakFile::ShrinkPakEntriesMemoryUsage()
 			}
 
 			// Build the Compression Blocks array.
-			if (FullEntry->CompressionBlocks.Num() > 1)
+			if (FullEntry->CompressionBlocks.Num() > 1 || (FullEntry->CompressionBlocks.Num() == 1 && FullEntry->IsEncrypted()))
 			{
 				for (int CompressionBlockIndex = 0; CompressionBlockIndex < FullEntry->CompressionBlocks.Num(); ++CompressionBlockIndex)
 				{
@@ -5072,6 +5195,16 @@ void FPakFile::ShrinkPakEntriesMemoryUsage()
 				}
 			}
 		}
+
+#if !UE_BUILD_SHIPPING
+		if (!FullEntry->IsDeleteRecord())
+		{
+			FPakEntry Test;
+			DecodePakEntry(MiniPakEntries + MiniPakEntriesOffsets[EntryIndex], &Test);
+			FMemory::Memcpy(Test.Hash, FullEntry->Hash, 20);
+			check(Test == *FullEntry);
+		}
+#endif
 	}
 
 	check(CurrentEntryPtr == MiniPakEntries + TotalSizeOfCompressedEntries);
@@ -5080,7 +5213,11 @@ void FPakFile::ShrinkPakEntriesMemoryUsage()
 	// space of the original anymore.
 	Files.Empty(0);
 
-	return;
+	static uint64 Total = 0;
+	Total += TotalSizeOfCompressedEntries;
+	UE_LOG(LogPakFile, Display, TEXT("Compressed pak entries down to %d bytes [Total = %llu bytes]"), TotalSizeOfCompressedEntries, Total);
+
+	return true;
 }
 
 #if DO_CHECK
@@ -5657,34 +5794,33 @@ void FPakPlatformFile::InitializeNewAsyncIO()
 void FPakPlatformFile::OptimizeMemoryUsageForMountedPaks()
 {
 #if !(IS_PROGRAM || WITH_EDITOR)
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Checking Pak Config\n"));
-			bool bUnloadPakEntryFilenamesIfPossible = FParse::Param(FCommandLine::Get(), TEXT("unloadpakentryfilenames"));
-			GConfig->GetBool(TEXT("Pak"), TEXT("UnloadPakEntryFilenamesIfPossible"), bUnloadPakEntryFilenamesIfPossible, GEngineIni);
+	bool bUnloadPakEntryFilenamesIfPossible = FParse::Param(FCommandLine::Get(), TEXT("unloadpakentryfilenames"));
+	GConfig->GetBool(TEXT("Pak"), TEXT("UnloadPakEntryFilenamesIfPossible"), bUnloadPakEntryFilenamesIfPossible, GEngineIni);
 
 	if ((bUnloadPakEntryFilenamesIfPossible && !FParse::Param(FCommandLine::Get(), TEXT("nounloadpakentries"))) || FParse::Param(FCommandLine::Get(), TEXT("unloadpakentries")))
-			{
-				// With [Pak] UnloadPakEntryFilenamesIfPossible enabled, [Pak] DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames
-				// can contain pak entry directory wildcards of which the entire recursive directory structure of filenames underneath a
-				// matching wildcard will be kept.
-				//
-				// Example:
-				//   [Pak]
-				//   DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames="*/Config/Tags/"
-				//   +DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames="*/Content/Localization/*"
-				TArray<FString> DirectoryRootsToKeep;
-				GConfig->GetArray(TEXT("Pak"), TEXT("DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames"), DirectoryRootsToKeep, GEngineIni);
+	{
+		// With [Pak] UnloadPakEntryFilenamesIfPossible enabled, [Pak] DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames
+		// can contain pak entry directory wildcards of which the entire recursive directory structure of filenames underneath a
+		// matching wildcard will be kept.
+		//
+		// Example:
+		//   [Pak]
+		//   DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames="*/Config/Tags/"
+		//   +DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames="*/Content/Localization/*"
+		TArray<FString> DirectoryRootsToKeep;
+		GConfig->GetArray(TEXT("Pak"), TEXT("DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames"), DirectoryRootsToKeep, GEngineIni);
 
-				FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
-				PakPlatformFile->UnloadPakEntryFilenames(&DirectoryRootsToKeep);
-			}
+		FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
+		PakPlatformFile->UnloadPakEntryFilenames(&DirectoryRootsToKeep);
+	}
 
-			bool bShrinkPakEntriesMemoryUsage = FParse::Param(FCommandLine::Get(), TEXT("shrinkpakentries"));
-			GConfig->GetBool(TEXT("Pak"), TEXT("ShrinkPakEntriesMemoryUsage"), bShrinkPakEntriesMemoryUsage, GEngineIni);
-			if (bShrinkPakEntriesMemoryUsage)
-			{
-				FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
-				PakPlatformFile->ShrinkPakEntriesMemoryUsage();
-			}
+	bool bShrinkPakEntriesMemoryUsage = FParse::Param(FCommandLine::Get(), TEXT("shrinkpakentries"));
+	GConfig->GetBool(TEXT("Pak"), TEXT("ShrinkPakEntriesMemoryUsage"), bShrinkPakEntriesMemoryUsage, GEngineIni);
+	if (bShrinkPakEntriesMemoryUsage)
+	{
+		FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
+		PakPlatformFile->ShrinkPakEntriesMemoryUsage();
+	}
 #endif
 }
 
@@ -5780,6 +5916,10 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 					FCoreDelegates::NewFileAddedDelegate.Broadcast(Filename);
 				}
 			}
+		}
+		else
+		{
+			delete Pak;
 		}
 	}
 	else
@@ -6026,6 +6166,11 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 
 		PendingEncryptedPakFiles.RemoveAll([InGuid](const FPakListDeferredEntry& Entry) { return Entry.EncryptionKeyGuid == InGuid; });
 
+		{
+			LLM_SCOPE(ELLMTag::FileSystem);
+			OptimizeMemoryUsageForMountedPaks();
+		}
+
 		UE_CLOG(InGuid.IsValid(), LogPakFile, Log, TEXT("Registered encryption key '%s': %d pak files mounted, %d remain pending"), *InGuid.ToString(), NumMounted, PendingEncryptedPakFiles.Num());
 	}
 }
@@ -6159,43 +6304,70 @@ bool FPakPlatformFile::CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFil
 
 void FPakPlatformFile::UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep)
 {
-	int32 NumFiles = 0;
+	int32 TotalNumFilenames = 0;
+	int32 NumFilenamesUnloaded = 0;
+	int32 NumPaks = 0;
 	double Timer = 0.0;
 	{
 		SCOPE_SECONDS_COUNTER(Timer);
 
 		TArray<FPakListEntry> Paks;
 		GetMountedPaks(Paks);
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Unloading Pak Entry Filenames\n"));
 		TMap<uint64, FPakEntry> CrossPakCollisionDetector;
-
-		for (const FPakListEntry& Pak : Paks)
+		
+		for (auto Pak : Paks)
 		{
-			NumFiles += Pak.PakFile->GetNumFiles();
+			if (Pak.PakFile->HasFilenames())
+			{
+				TotalNumFilenames += Pak.PakFile->GetNumFiles();
+			}
 		}
 
-		CrossPakCollisionDetector.Reserve(NumFiles);
+		CrossPakCollisionDetector.Reserve(TotalNumFilenames);
 
 		// Sort the pak list by number of entries so that we allow the larger ones a better chance of not encountering a collision
 		Algo::Sort(Paks, [](const FPakListEntry& A, const FPakListEntry& B) { return A.PakFile->GetNumFiles() > B.PakFile->GetNumFiles(); });
 
 		for (auto Pak : Paks)
 		{
-			bool bEncounteredCollisions = Pak.PakFile->UnloadPakEntryFilenames(CrossPakCollisionDetector, DirectoryRootsToKeep);
-			UE_CLOG(bEncounteredCollisions, LogPakFile, Warning, TEXT("Encountered name collisions while unloading pak index strings for %s"), *Pak.PakFile->GetFilename());
+			if (Pak.PakFile->HasFilenames())
+			{
+				NumPaks++;
+				int32 NumFilesInThisPak = Pak.PakFile->GetNumFiles();
+
+				if (Pak.PakFile->UnloadPakEntryFilenames(CrossPakCollisionDetector, DirectoryRootsToKeep))
+				{
+					NumFilenamesUnloaded += NumFilesInThisPak;
+				}
+			}
 		}
 	}
-	UE_LOG(LogPakFile, Log, TEXT("PakEntry filenames unloaded %d filenames in %.4fs"), NumFiles, Timer);
+	UE_LOG(LogPakFile, Log, TEXT("Unloaded %d/%d filenames from %d pak files in %.4fs"), NumFilenamesUnloaded, TotalNumFilenames, NumPaks, Timer);
 }
 
 void FPakPlatformFile::ShrinkPakEntriesMemoryUsage()
 {
-	TArray<FPakListEntry> Paks;
-	GetMountedPaks(Paks);
-	for (auto Pak : Paks)
+	double Timer = 0.0;
+	int32 NumPakFiles = 0;
+	int32 NumEntries = 0;
 	{
-		Pak.PakFile->ShrinkPakEntriesMemoryUsage();
+		SCOPE_SECONDS_COUNTER(Timer);
+
+		TArray<FPakListEntry> Paks;
+		GetMountedPaks(Paks);
+		for (auto Pak : Paks)
+		{
+			if (!Pak.PakFile->HasShrunkPakEntries())
+			{
+				NumPakFiles++;
+				if (Pak.PakFile->ShrinkPakEntriesMemoryUsage())
+				{
+					NumEntries += Pak.PakFile->GetNumFiles();
+				}
+			}
+		}
 	}
+	UE_LOG(LogPakFile, Log, TEXT("Shrunk %d entries from %d pak files in %.4fs"), NumEntries, NumPakFiles, Timer);
 }
 
 /**

@@ -32,6 +32,7 @@ struct FNiagaraParameterStore;
 struct FEdGraphEditAction;
 class UNiagaraNodeFunctionCall;
 class FNiagaraEmitterViewModel;
+class FNiagaraOverviewGraphViewModel;
 
 /** Defines different editing modes for this system view model. */
 enum class NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode
@@ -141,7 +142,7 @@ public:
 	const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& GetEmitterHandleViewModels();
 
 	/** Gets an emitter handle view model by id.  Returns an invalid shared ptr if it can't be found. */
-	TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelById(FGuid InEmitterHandleId);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelById(FGuid InEmitterHandleId);
 
 	/** Gets the view model for the System script. */
 	TSharedPtr<FNiagaraSystemScriptViewModel> GetSystemScriptViewModel();
@@ -165,16 +166,10 @@ public:
 	NIAGARAEDITOR_API ENiagaraSystemViewModelEditMode GetEditMode() const;
 
 	/** Adds a new emitter to the System from an emitter asset data. */
-	void AddEmitterFromAssetData(const FAssetData& AssetData);
+	NIAGARAEDITOR_API void AddEmitterFromAssetData(const FAssetData& AssetData);
 
 	/** Adds a new emitter to the System. */
 	void AddEmitter(UNiagaraEmitter& Emitter);
-
-	/** Duplicates the selected emitter in this System. */
-	void DuplicateEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleToDuplicate);
-
-	/** Deletes the selected emitter from the System. */
-	void DeleteEmitter(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleToDelete);
 
 	/** Deletes the emitters with the supplied ids from the system */
 	void DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete);
@@ -241,7 +236,7 @@ public:
 	void GetSelectedEmitterHandles(TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& OutSelectedEmitterHanldles);
 
 	/** Gets editor specific data which can be stored per system.  If this data hasn't been created the default version will be returned. */
-	const UNiagaraSystemEditorData& GetEditorData() const;
+	const NIAGARAEDITOR_API UNiagaraSystemEditorData& GetEditorData() const;
 
 	/** Gets editor specific data which is stored per system.  If this data hasn't been created then it will be created. */
 	UNiagaraSystemEditorData& GetOrCreateEditorData();
@@ -297,6 +292,15 @@ public:
 	/** Gets the stack module data for the provided emitter, for use in module dependencies. */
 	const TArray<FNiagaraStackModuleData>& GetStackModuleDataForEmitter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 
+	/** Gets the ViewModel for the system overview graph. */
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraOverviewGraphViewModel> GetOverviewGraphViewModel() const;
+
+	/** Sets the ViewModel for the system overview graph. */
+	void SetOverviewGraphViewModel(TSharedRef<FNiagaraOverviewGraphViewModel> InOverviewGraphViewModel);
+
+	/** Notifies views to update displayed Emitter name that has changed. */
+	NIAGARAEDITOR_API void EmitterNameChanged(const FText& InText, FGuid ChangedEmitterGuid);
+
 private:
 
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
@@ -322,9 +326,6 @@ private:
 
 	/** Gets the content for the add menu in sequencer. */
 	void GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder, TSharedRef<ISequencer> Sequencer);
-
-	/** Kills all system instances using the system being displayed by this view model. */
-	void KillSystemInstances();
 
 	/** Resets and rebuilds the data in the curve owner. */
 	void ResetCurveData();
@@ -543,4 +544,8 @@ private:
 
 	/** GUID used when sending message jobs to FNiagaraMessageManager for notifying the FNiagaraMessageLogViewModel with the same GUID key */
 	const TOptional<const FGuid> SystemMessageLogGuidKey;
+
+	/** ViewModel for the system overview graph */
+	TSharedPtr<FNiagaraOverviewGraphViewModel> OverviewGraphViewModel;
+
 };

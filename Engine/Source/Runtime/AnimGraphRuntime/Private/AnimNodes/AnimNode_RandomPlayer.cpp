@@ -16,6 +16,7 @@ FAnimNode_RandomPlayer::FAnimNode_RandomPlayer()
 
 void FAnimNode_RandomPlayer::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_Base::Initialize_AnyThread(Context);
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
@@ -76,6 +77,7 @@ void FAnimNode_RandomPlayer::Initialize_AnyThread(const FAnimationInitializeCont
 
 void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	if(Entries.Num() == 0)
@@ -168,6 +170,7 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 
 void FAnimNode_RandomPlayer::Evaluate_AnyThread(FPoseContext& Output)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	if(Entries.Num() > 0)
 	{
 		UAnimSequence* CurrentSequence = Entries[CurrentEntry].Sequence;
@@ -227,6 +230,7 @@ void FAnimNode_RandomPlayer::Evaluate_AnyThread(FPoseContext& Output)
 
 void FAnimNode_RandomPlayer::GatherDebugData(FNodeDebugData& DebugData)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 
 	DebugData.AddDebugItem(DebugLine, true);

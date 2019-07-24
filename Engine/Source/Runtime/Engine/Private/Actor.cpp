@@ -1798,9 +1798,8 @@ FName AActor::GetAttachParentSocketName() const
 	return NAME_None;
 }
 
-void AActor::GetAttachedActors(TArray<class AActor*>& OutActors) const
+void AActor::ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) const
 {
-	OutActors.Reset();
 	if (RootComponent != nullptr)
 	{
 		// Current set of components to check
@@ -1812,41 +1811,48 @@ void AActor::GetAttachedActors(TArray<class AActor*>& OutActors) const
 		CompsToCheck.Push(RootComponent);
 
 		// While still work left to do
-		while(CompsToCheck.Num() > 0)
+		while (CompsToCheck.Num() > 0)
 		{
 			// Get the next off the queue
 			const bool bAllowShrinking = false;
 			USceneComponent* SceneComp = CompsToCheck.Pop(bAllowShrinking);
 
 			// Add it to the 'checked' set, should not already be there!
-			if (!CheckedComps.Contains(SceneComp))
-			{
-				CheckedComps.Add(SceneComp);
+			CheckedComps.Add(SceneComp);
 
-				AActor* CompOwner = SceneComp->GetOwner();
-				if (CompOwner != nullptr)
+			AActor* CompOwner = SceneComp->GetOwner();
+			if (CompOwner != nullptr)
+			{
+				if (CompOwner != this)
 				{
-					if (CompOwner != this)
+					// If this component has a different owner, call the callback and stop if told.
+					if (!Functor(CompOwner))
 					{
-						// If this component has a different owner, add that owner to our output set and do nothing more
-						OutActors.AddUnique(CompOwner);
+						// The functor wants us to abort
+						return;
 					}
-					else
+				}
+				else
+				{
+					// This component is owned by us, we need to add its children
+					for (USceneComponent* ChildComp : SceneComp->GetAttachChildren())
 					{
-						// This component is owned by us, we need to add its children
-						for (USceneComponent* ChildComp : SceneComp->GetAttachChildren())
+						// Add any we have not explored yet to the set to check
+						if (ChildComp != nullptr && !CheckedComps.Contains(ChildComp))
 						{
-							// Add any we have not explored yet to the set to check
-							if ((ChildComp != nullptr) && !CheckedComps.Contains(ChildComp))
-							{
-								CompsToCheck.Push(ChildComp);
-							}
+							CompsToCheck.Push(ChildComp);
 						}
 					}
 				}
 			}
 		}
 	}
+}
+
+void AActor::GetAttachedActors(TArray<class AActor*>& OutActors) const
+{
+	OutActors.Reset();
+	ForEachAttachedActors([&OutActors](AActor * Actor) { OutActors.AddUnique(Actor); return true; });
 }
 
 bool AActor::ActorHasTag(FName Tag) const
@@ -4549,7 +4555,7 @@ void AActor::InvalidateLightingCacheDetailed(bool bTranslationOnly)
 
  // COLLISION
 
-bool AActor::ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params)
+bool AActor::ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params) const
 {
 	OutHit = FHitResult(1.f);
 	OutHit.TraceStart = Start;

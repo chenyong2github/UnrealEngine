@@ -23,35 +23,6 @@ public:
 	virtual TSharedPtr<struct FVirtualPointerPosition> TranslateMouseCoordinateFor3DChild( const TSharedRef<SWidget>& ChildWidget, const FGeometry& ViewportGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate ) const = 0;
 };
 
-
-struct FCachedWidget
-{
-	FCachedWidget(int32 InParentIndex, const FArrangedWidget& InWidget, int32 InClippingStateIndex, int32 InLayerId)
-		: WidgetPtr(InWidget.Widget)
-		, CachedGeometry(InWidget.Geometry)
-		, ClippingStateIndex(InClippingStateIndex)
-		, Children()
-		, ParentIndex(InParentIndex)
-		, LayerId(InLayerId)
-	{}
-
-	void AddChild(const int32 ChildIndex)
-	{
-		Children.Add(ChildIndex);
-	}
-
-	TWeakPtr<SWidget> WidgetPtr;
-	/** Allow widgets that implement this interface to insert widgets into the bubble path */
-	TWeakPtr<ICustomHitTestPath> CustomPath;
-	FGeometry CachedGeometry;
-	int32 ClippingStateIndex;
-	TArray<int32, TInlineAllocator<4> > Children;
-	int32 ParentIndex;
-	/** This is needed to be able to pick the best of the widgets within the virtual cursor's radius. */
-	int32 LayerId;
-};
-
-
 class SLATECORE_API FHittestGrid
 {
 public:
@@ -63,25 +34,29 @@ public:
 	 * Given a Slate Units coordinate in virtual desktop space, perform a hittest
 	 * and return the path along which the corresponding event would be bubbled.
 	 */
-	TArray<FWidgetAndPointer> GetBubblePath( FVector2D DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus );
+	TArray<FWidgetAndPointer> GetBubblePath(FVector2D DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus);
 
 	/**
-	 * Clear the hittesting area and prepare to execute a new frame.
-	 * Depending on monitor arrangement, the area to be hittested could begin
-	 * in the negative coordinates.
+	 * Set the position and size of the hittest area in desktop coordinates
 	 *
-	 * @param HittestArea       Size in Slate Units of the area we are considering for hittesting.
+	 * @param HittestPositionInDesktop	The position of this hit testing area in desktop coordinates.
+	 * @param HittestDimensions			The dimensions of this hit testing area.
+	 *
+	 * @return      Returns true if a clear of the hittest grid was required. 
 	 */
-	void ClearGridForNewFrame(const FSlateRect& HittestArea);
+	bool SetHittestArea(const FVector2D& HittestPositionInDesktop, const FVector2D& HittestDimensions, const FVector2D& HitestOffsetInWindow = FVector2D::ZeroVector);
 
-	void PushClip(const FSlateClippingZone& ClippingZone); 
+	/**
+	 * Clear the grid
+	 */
+	void Clear();
 
-	void PopClip();
+	/** Add / Remove SWidget from the HitTest Grid */
+	void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort);
+	void RemoveWidget(const TSharedRef<SWidget>& InWidget);
 
-	/** Add Widget into the hittest data structure so that we can later make queries about it. */
-	int32 InsertWidget(const int32 ParentHittestIndex, const EVisibility& Visibility, const FArrangedWidget& Widget, const FVector2D InWindowOffset, int32 LayerId);
-
-	void InsertCustomHitTestPath( TSharedRef<ICustomHitTestPath> CustomHitTestPath, int32 WidgetIndex );
+	/** Insert custom hit test data for a widget already in the grid */
+	void InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath);
 
 	/**
 	 * Finds the next focusable widget by searching through the hit test grid
@@ -93,27 +68,41 @@ public:
 	 */
 	TSharedPtr<SWidget> FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget);
 
-	/**
-	 * Get the size of the grid in cells.
-	 * @returns - The size of the grid in cells.
-	 */
-	FIntPoint GetNumCells() const
-	{
-		return NumCells;
-	}
-	
-	/**
-	 * Set an excess of cells which will increase the size of the grid. This
-	 * extends the desktop space beyond the norm and allows hits to take place
-	 * on areas outside the desktop.
-	 * @param InNumCellsExcess - The excess of cells.
-	 */
-	void SetNumCellsExcess(const FIntPoint& InNumCellsExcess)
-	{
-		NumCellsExcess = InNumCellsExcess;
-	}
+	void AppendGrid(FHittestGrid& OtherGrid);
+
+	FVector2D GetGridSize() const { return GridSize; }
+	FVector2D GetGridOrigin() const { return GridOrigin; }
+	FVector2D GetGridWindowOrigin() const { return GridWindowOrigin; }
+
+#if WITH_SLATE_DEBUGGING
+	void LogGrid() const;
+
+	void DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry, FSlateWindowElementList& WindowElementList) const;
+#endif
 
 private:
+
+	/**
+	 * Widget Data we maintain internally store along with the widget reference
+	 */
+	struct FWidgetData
+	{
+		FWidgetData(TSharedRef<SWidget> InWidget, const FIntPoint& InUpperLeftCell, const FIntPoint& InLowerRightCell, int64 InPrimarySort, int32 InSecondarySort)
+			: WeakWidget(InWidget)
+			, UpperLeftCell(InUpperLeftCell)
+			, LowerRightCell(InLowerRightCell)
+			, PrimarySort(InPrimarySort)
+			, SecondarySort(InSecondarySort)
+		{}
+		TWeakPtr<SWidget> WeakWidget;
+		TWeakPtr<ICustomHitTestPath> CustomPath;
+		FIntPoint UpperLeftCell;
+		FIntPoint LowerRightCell;
+		int64 PrimarySort;
+		int32 SecondarySort;
+
+		TSharedPtr<SWidget> GetWidget() const { return WeakWidget.Pin(); }
+	};
 
 	/**
 	 * All the available space is partitioned into Cells.
@@ -122,67 +111,40 @@ private:
 	 */
 	struct FCell
 	{
+		FCell();
+
+		void AddIndex(int32 WidgetIndex);
+		void RemoveIndex(int32 WidgetIndex);
+		void Sort(const TSparseArray<FWidgetData>& InWidgetArray);
+
+		const TArray<int32>& GetCachedWidgetIndexes() const;
+		
+	private:
+		bool bRequiresSort;
 		TArray<int32> CachedWidgetIndexes;
 	};
 
-	/** Shared arguments to helper functions. */
 	struct FGridTestingParams;
+
+	struct FIndexAndDistance
+	{
+		FIndexAndDistance(int32 InIndex = INDEX_NONE, float InDistanceSq = 0)
+			: WidgetIndex(InIndex)
+			, DistanceSqToWidget(InDistanceSq)
+		{}
+		int32 WidgetIndex;
+		float DistanceSqToWidget;
+	};
 
 	/** Helper functions */
 	bool IsValidCellCoord(const FIntPoint& CellCoord) const;
 	bool IsValidCellCoord(const int32 XCoord, const int32 YCoord) const;
 
-	/** Bubble path, distance to leafmost widget from point of picking, and LayerId of leafmost widget. */
-	struct FWidgetPathAndDist
-	{
-		/** Ctor */
-		FWidgetPathAndDist( float InDistanceSq = -1.0f )
-		: DistToTopWidgetSq(InDistanceSq)
-		, LayerId(0)
-		{}
+	/** Return the Index and distance to a hit given the testing params */
+	FIndexAndDistance GetHitIndexFromCellIndex(const FGridTestingParams& Params);
 
-		FWidgetPathAndDist(const TArray<FWidgetAndPointer>& InPath, float InDistanceSq, int32 InLayerId)
-		: BubblePath(InPath)
-		, DistToTopWidgetSq(InDistanceSq)
-		, LayerId(InLayerId)
-		{}
-
-		void Clear()
-		{
-			BubblePath.Reset();
-			DistToTopWidgetSq = -1.0f;
-		}
-
-		bool IsValidPath() const
-		{
-			return DistToTopWidgetSq >= 0.0f && BubblePath.Num() > 0;
-		}
-
-		TArray<FWidgetAndPointer> BubblePath;
-		float DistToTopWidgetSq;
-		int32 LayerId;
-	};
-
-	FWidgetPathAndDist GetWidgetPathAndDist(const FGridTestingParams& Params, const bool bIgnoreEnabledStatus) const;
-
-	/** Return Value for GetHitIndexFromCellIndex */
-	struct FIndexAndDistance
-	{
-		FIndexAndDistance( int32 InIndex = INDEX_NONE, float InDistanceSq = 0 )
-		: WidgetIndex(InIndex)
-		, DistanceSqToWidget(InDistanceSq)
-		{}
-		int32 WidgetIndex;
-		float DistanceSqToWidget;
-	};
-	FIndexAndDistance GetHitIndexFromCellIndex(const FGridTestingParams& Params) const;
-
-	TArray<FWidgetAndPointer> GetBubblePathFromHitIndex(const int32 HitIndex, const bool bIgnoreEnabledStatus) const;
-	
-	friend class SWidgetReflector;
-
-	/** @returns true if Child is a descendant of Parent. */
-	bool IsDescendantOf(const TSharedRef<SWidget> Parent, const FCachedWidget& Child);
+	/** @returns true if the child is a paint descendant of the provided Parent. */
+	bool IsDescendantOf(const TSharedRef<SWidget> Parent, const FWidgetData& ChildData);
 
 	/** Utility function for searching for the next focusable widget. */
 	template<typename TCompareFunc, typename TSourceSideFunc, typename TDestSideFunc>
@@ -194,35 +156,37 @@ private:
 	/** Access a cell at coordinates X, Y. Coordinates are row and column indexes. */
 	FORCEINLINE_DEBUGGABLE FCell& CellAt(const int32 X, const int32 Y)
 	{
-		checkf((Y*NumCells.X + X) < Cells.Num(), TEXT("HitTestGrid CellAt() failed: X= %d Y= %d NumCells.X= %d NumCells.Y= %d Cells.Num()= %d"), X, Y, NumCells.X, NumCells.Y, Cells.Num());
+		checkfSlow((Y*NumCells.X + X) < Cells.Num(), TEXT("HitTestGrid CellAt() failed: X= %d Y= %d NumCells.X= %d NumCells.Y= %d Cells.Num()= %d"), X, Y, NumCells.X, NumCells.Y, Cells.Num());
 		return Cells[Y*NumCells.X + X];
 	}
 
+	/** Access a cell at coordinates X, Y. Coordinates are row and column indexes. */
 	FORCEINLINE_DEBUGGABLE const FCell& CellAt( const int32 X, const int32 Y ) const
 	{
-		checkf((Y*NumCells.X + X) < Cells.Num(), TEXT("HitTestGrid CellAt() failed: X= %d Y= %d NumCells.X= %d NumCells.Y= %d Cells.Num()= %d"), X, Y, NumCells.X, NumCells.Y, Cells.Num());
+		checkfSlow((Y*NumCells.X + X) < Cells.Num(), TEXT("HitTestGrid CellAt() failed: X= %d Y= %d NumCells.X= %d NumCells.Y= %d Cells.Num()= %d"), X, Y, NumCells.X, NumCells.Y, Cells.Num());
 		return Cells[Y*NumCells.X + X];
 	}
 
-	/** All the widgets and their arranged geometries encountered this frame. */
-	TArray<FCachedWidget> WidgetsCachedThisFrame;
+	/** Map of all the widgets currently in the hit test grid to their stable index. */
+	TMap<SWidget*, int32> WidgetMap;
+
+	/** Stable indexed sparse array of all the widget data we track. */
+	TSparseArray<FWidgetData> WidgetArray;
 
 	/** The cells that make up the space partition. */
 	TArray<FCell> Cells;
 
-	/** Where the 0,0 of the upper-left-most cell corresponds to in desktop space. */
-	FVector2D GridOrigin;
-
 	/** The size of the grid in cells. */
 	FIntPoint NumCells;
 
-	/** The excess of cells which will increase the size of the grid. */
-	FIntPoint NumCellsExcess;
+	/** Where the 0,0 of the upper-left-most cell corresponds to in desktop space. */
+	FVector2D GridOrigin;
 
-	/** The clipping manager that manages any clipping for hit testable widgets. */
-	FSlateClippingManager ClippingManager;
+	/** Where the 0,0 of the upper-left-most cell corresponds to in window space. */
+	FVector2D GridWindowOrigin;
 
-	void LogGrid() const;
+	/** The Size of the current grid. */
+	FVector2D GridSize;
 
-	static void LogChildren(int32 Index, int32 IndentLevel, const TArray<FCachedWidget>& WidgetsCachedThisFrame);
+	//friend class SWidgetReflector;
 };

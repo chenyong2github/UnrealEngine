@@ -328,6 +328,8 @@ public:
 			NewSegment->bCastShadow = CopyFromSegment->bCastShadow;
 			NewSegment->TranslucencySortPriority = CopyFromSegment->TranslucencySortPriority;
 			NewSegment->RuntimeVirtualTextures = CopyFromSegment->RuntimeVirtualTextures;
+			NewSegment->VirtualTextureLodBias = CopyFromSegment->VirtualTextureLodBias;
+			NewSegment->VirtualTextureCullMips = CopyFromSegment->VirtualTextureCullMips;
 			NewSegment->VirtualTextureRenderPassType = CopyFromSegment->VirtualTextureRenderPassType;
 		}
 
@@ -686,6 +688,8 @@ public:
 		NewSegment->bCastShadow = Segment->bCastShadow;
 		NewSegment->TranslucencySortPriority = Segment->TranslucencySortPriority;
 		NewSegment->RuntimeVirtualTextures = Segment->RuntimeVirtualTextures;
+		NewSegment->VirtualTextureLodBias = Segment->VirtualTextureLodBias;
+		NewSegment->VirtualTextureCullMips = Segment->VirtualTextureCullMips;
 		NewSegment->VirtualTextureRenderPassType = Segment->VirtualTextureRenderPassType;
 
 		Segment->Connections[0].TangentLen *= t;

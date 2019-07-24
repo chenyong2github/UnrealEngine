@@ -684,8 +684,17 @@ bool UMovementComponent::ResolvePenetrationImpl(const FVector& ProposedAdjustmen
 				{
 					bMoved = MoveUpdatedComponent(Adjustment + MoveDelta, NewRotationQuat, true, nullptr, ETeleportType::TeleportPhysics);
 					UE_LOG(LogMovement, Verbose, TEXT("ResolvePenetration:   sweep by %s (adjusted attempt success = %d)"), *(Adjustment + MoveDelta).ToString(), bMoved);
+
+					// Finally, try the original move without MTD adjustments, but allowing depenetration along the MTD normal.
+					// This was blocked because MOVECOMP_NeverIgnoreBlockingOverlaps was true for the original move to try a better depenetration normal, but we might be running in to other geometry in the attempt.
+					// This won't necessarily get us all the way out of penetration, but can in some cases and does make progress in exiting the penetration.
+					if (!bMoved && FVector::DotProduct(MoveDelta, Adjustment) > 0.f)
+					{
+						bMoved = MoveUpdatedComponent(MoveDelta, NewRotationQuat, true, nullptr, ETeleportType::TeleportPhysics);
+						UE_LOG(LogMovement, Verbose, TEXT("ResolvePenetration:   sweep by %s (Original move, attempt success = %d)"), *(MoveDelta).ToString(), bMoved);
+					}
 				}
-			}	
+			}
 
 			return bMoved;
 		}

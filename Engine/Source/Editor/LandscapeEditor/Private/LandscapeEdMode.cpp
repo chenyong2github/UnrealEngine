@@ -4643,15 +4643,6 @@ bool FEdModeLandscape::CanEditLayer(FText* Reason /*=nullptr*/, FLandscapeLayer*
 				}
 				return false;
 			}
-			else if ((TargetLayerIndex > 0) && (CurrentTool->GetToolName() == FName("Ramp")))
-			{
-				if (Reason)
-				{
-					FLandscapeLayer* Layer = GetLayer(0);
-					*Reason = FText::Format(NSLOCTEXT("UnrealEd", "LandscapeLayersToolAvailableOnlyOnFirstLayer", "{0} Tool is only available on the first layer {1}."), CurrentTool->GetDisplayName(), Layer ? FText::FromName(Layer->Name) : FText::GetEmpty());
-				}
-				return false;
-			}
 			else if (CurrentTool->GetToolName() == FName("Retopologize"))
 			{
 				if (Reason)

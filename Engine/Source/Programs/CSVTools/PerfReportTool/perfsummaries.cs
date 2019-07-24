@@ -1477,7 +1477,7 @@ namespace PerfSummaries
 					{
 						return val.ToString("0");
 					}
-					if ( absVal >= 2.0f )
+					if ( absVal >= 50.0f )
 					{
 						return val.ToString("0.0");
 					}

@@ -3,6 +3,7 @@
 #include "ControlRigController.h"
 #include "EdGraphSchema_K2.h"
 #include "Logging/MessageLog.h"
+#include "Stats/StatsHierarchical.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigController"
 
@@ -19,6 +20,8 @@ UControlRigController::~UControlRigController()
 
 void UControlRigController::SetModel(UControlRigModel* InModel)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (Model != nullptr)
 	{
 		Model->OnModified().Remove(_ModelModifiedHandle);
@@ -34,6 +37,8 @@ void UControlRigController::SetModel(UControlRigModel* InModel)
 
 bool UControlRigController::Clear()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return Model->Clear();
 }
 
@@ -46,6 +51,8 @@ void UControlRigController::EnableMessageLog(bool bInEnabled)
 
 bool UControlRigController::OpenUndoBracket(const FString& Title)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -62,6 +69,8 @@ bool UControlRigController::OpenUndoBracket(const FString& Title)
 
 bool UControlRigController::CloseUndoBracket()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -88,6 +97,8 @@ UControlRigModel::FModifiedEvent& UControlRigController::OnModified()
 
 void UControlRigController::HandleModelModified(const UControlRigModel* InModel, EControlRigModelNotifType InType, const void* InPayload)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	_LastModelNotification = InType;
 
 	switch (InType)
@@ -280,6 +291,8 @@ void UControlRigController::LogError(const FString& Message) const
 
 bool UControlRigController::ConstructPreviewParameter(const FName& InDataType, EControlRigModelParameterType InParameterType, FControlRigModelNode& OutNode)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	ensure(InParameterType != EControlRigModelParameterType::None);
 
 	FEdGraphPinType PinType;
@@ -311,6 +324,8 @@ bool UControlRigController::ConstructPreviewParameter(const FName& InDataType, E
 
 bool UControlRigController::ConstructPreviewNode(const FName& InFunctionName, FControlRigModelNode& OutNode)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FControlRigModelNode Node;
 	Node.Index = 0;
 	Node.Name = InFunctionName;
@@ -332,6 +347,8 @@ bool UControlRigController::ConstructPreviewNode(const FName& InFunctionName, FC
 
 bool UControlRigController::AddParameter(const FName& InName, const FName& InDataType, EControlRigModelParameterType InParameterType, const FVector2D& InPosition, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -360,6 +377,8 @@ bool UControlRigController::AddParameter(const FName& InName, const FName& InDat
 
 bool UControlRigController::AddComment(const FName& InName, const FString& InText, const FVector2D& InPosition, const FVector2D& InSize, const FLinearColor& InColor, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -375,6 +394,8 @@ bool UControlRigController::AddComment(const FName& InName, const FString& InTex
 
 bool UControlRigController::AddNode(const FName& InFunctionName, const FVector2D& InPosition, const FName& InName, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -391,6 +412,8 @@ bool UControlRigController::AddNode(const FName& InFunctionName, const FVector2D
 
 bool UControlRigController::RemoveNode(const FName& InName, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -401,6 +424,8 @@ bool UControlRigController::RemoveNode(const FName& InName, bool bUndo)
 
 bool UControlRigController::SetNodePosition(const FName& InName, const FVector2D& InPosition, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -411,6 +436,8 @@ bool UControlRigController::SetNodePosition(const FName& InName, const FVector2D
 
 bool UControlRigController::SetNodeSize(const FName& InName, const FVector2D& InSize, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -421,6 +448,8 @@ bool UControlRigController::SetNodeSize(const FName& InName, const FVector2D& In
 
 bool UControlRigController::SetNodeColor(const FName& InName, const FLinearColor& InColor, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -431,6 +460,8 @@ bool UControlRigController::SetNodeColor(const FName& InName, const FLinearColor
 
 bool UControlRigController::SetParameterType(const FName& InName, EControlRigModelParameterType InParameterType, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -441,6 +472,8 @@ bool UControlRigController::SetParameterType(const FName& InName, EControlRigMod
 
 bool UControlRigController::SetCommentText(const FName& InName, const FString& InText, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -451,6 +484,8 @@ bool UControlRigController::SetCommentText(const FName& InName, const FString& I
 
 bool UControlRigController::RenameNode(const FName& InOldNodeName, const FName& InNewNodeName, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -461,6 +496,8 @@ bool UControlRigController::RenameNode(const FName& InOldNodeName, const FName& 
 
 bool UControlRigController::ClearSelection()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -483,6 +520,8 @@ bool UControlRigController::ClearSelection()
 
 bool UControlRigController::SetSelection(const TArray<FName>& InNodeSelection)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -527,6 +566,8 @@ bool UControlRigController::SetSelection(const TArray<FName>& InNodeSelection)
 
 bool UControlRigController::SelectNode(const FName& InName, bool bInSelected, bool bClearSelection)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -558,11 +599,15 @@ bool UControlRigController::SelectNode(const FName& InName, bool bInSelected, bo
 
 bool UControlRigController::DeselectNode(const FName& InName)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return SelectNode(InName, false, false);
 }
 
 bool UControlRigController::PrepareCycleCheckingForPin(const FName& InNodeName, const FName& InPinName, bool bIsInput)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -585,6 +630,8 @@ bool UControlRigController::PrepareCycleCheckingForPin(const FName& InNodeName, 
 
 bool UControlRigController::ResetCycleCheck()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -595,6 +642,8 @@ bool UControlRigController::ResetCycleCheck()
 
 bool UControlRigController::CanLink(const FName& InSourceNodeName, const FName& InSourceOutputPinName, const FName& InTargetNodeName, const FName& InTargetInputPinName, FString* OutFailureReason, bool bReportError) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -642,6 +691,8 @@ bool UControlRigController::CanLink(const FName& InSourceNodeName, const FName& 
 
 bool UControlRigController::MakeLink(const FName& InSourceNodeName, const FName& InSourceOutputPinName, const FName& InTargetNodeName, const FName& InTargetInputPinName, FString* OutFailureReason, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -703,6 +754,8 @@ bool UControlRigController::MakeLink(const FName& InSourceNodeName, const FName&
 
 bool UControlRigController::BreakLink(const FName& InSourceNodeName, const FName& InSourceOutputPinName, const FName& InTargetNodeName, const FName& InTargetInputPinName, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -738,6 +791,8 @@ bool UControlRigController::BreakLink(const FName& InSourceNodeName, const FName
 
 bool UControlRigController::BreakLinks(const FName& InNodeName, const FName& InPinName, bool bIsInput, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -760,6 +815,8 @@ bool UControlRigController::BreakLinks(const FName& InNodeName, const FName& InP
 
 bool UControlRigController::GetPinDefaultValue(const FName& InNodeName, const FName& InPinName, FString& OutDefaultValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -770,6 +827,8 @@ bool UControlRigController::GetPinDefaultValue(const FName& InNodeName, const FN
 
 bool UControlRigController::SetPinDefaultValue(const FName& InNodeName, const FName& InPinName, const FString& InDefaultValue, bool bLog, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -781,6 +840,8 @@ bool UControlRigController::SetPinDefaultValue(const FName& InNodeName, const FN
 
 bool UControlRigController::GetPinDefaultValueBool(const FName& InNodeName, const FName& InPinName, bool& OutDefaultValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DefaultValueString;
 	if(!GetPinDefaultValue(InNodeName, InPinName, DefaultValueString))
 	{
@@ -792,12 +853,16 @@ bool UControlRigController::GetPinDefaultValueBool(const FName& InNodeName, cons
 
 bool UControlRigController::SetPinDefaultValueBool(const FName& InNodeName, const FName& InPinName, bool InDefaultValue, bool bLog, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DefaultValueString = InDefaultValue ? TEXT("True") : TEXT("False");
 	return SetPinDefaultValue(InNodeName, InPinName, DefaultValueString, bLog, bUndo);
 }
 
 bool UControlRigController::GetPinDefaultValueFloat(const FName& InNodeName, const FName& InPinName, float& OutDefaultValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DefaultValueString;
 	if(!GetPinDefaultValue(InNodeName, InPinName, DefaultValueString))
 	{
@@ -809,12 +874,16 @@ bool UControlRigController::GetPinDefaultValueFloat(const FName& InNodeName, con
 
 bool UControlRigController::SetPinDefaultValueFloat(const FName& InNodeName, const FName& InPinName, float InDefaultValue, bool bLog, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DefaultValueString = FString::SanitizeFloat((double)InDefaultValue);
 	return SetPinDefaultValue(InNodeName, InPinName, DefaultValueString, bLog, bUndo);
 }
 
 bool UControlRigController::GetPinDefaultValueInt(const FName& InNodeName, const FName& InPinName, int32& OutDefaultValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DefaultValueString;
 	if(!GetPinDefaultValue(InNodeName, InPinName, DefaultValueString))
 	{
@@ -826,12 +895,16 @@ bool UControlRigController::GetPinDefaultValueInt(const FName& InNodeName, const
 
 bool UControlRigController::SetPinDefaultValueInt(const FName& InNodeName, const FName& InPinName, int32 InDefaultValue, bool bLog, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DefaultValueString = FString::FormatAsNumber(InDefaultValue);
 	return SetPinDefaultValue(InNodeName, InPinName, DefaultValueString, bLog, bUndo);
 }
 
 bool UControlRigController::GetPinDefaultValueName(const FName& InNodeName, const FName& InPinName, FName& OutDefaultValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DefaultValueString;
 	if(!GetPinDefaultValue(InNodeName, InPinName, DefaultValueString))
 	{
@@ -843,42 +916,58 @@ bool UControlRigController::GetPinDefaultValueName(const FName& InNodeName, cons
 
 bool UControlRigController::SetPinDefaultValueName(const FName& InNodeName, const FName& InPinName, const FName& InDefaultValue, bool bLog, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	FString DefaultValueString = InDefaultValue.ToString();
 	return SetPinDefaultValue(InNodeName, InPinName, DefaultValueString, bLog, bUndo);
 }
 
 bool UControlRigController::GetPinDefaultValueVector(const FName& InNodeName, const FName& InPinName, FVector& OutDefaultValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return GetPinDefaultValueStruct<FVector>(InNodeName, InPinName, OutDefaultValue);
 }
 
 bool UControlRigController::SetPinDefaultValueVector(const FName& InNodeName, const FName& InPinName, const FVector& InDefaultValue, bool bLog, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return SetPinDefaultValueStruct<FVector>(InNodeName, InPinName, InDefaultValue, bLog, bUndo);
 }
 
 bool UControlRigController::GetPinDefaultValueQuat(const FName& InNodeName, const FName& InPinName, FQuat& OutDefaultValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return GetPinDefaultValueStruct<FQuat>(InNodeName, InPinName, OutDefaultValue);
 }
 
 bool UControlRigController::SetPinDefaultValueQuat(const FName& InNodeName, const FName& InPinName, const FQuat& InDefaultValue, bool bLog, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return SetPinDefaultValueStruct<FQuat>(InNodeName, InPinName, InDefaultValue, bLog, bUndo);
 }
 
 bool UControlRigController::GetPinDefaultValueTransform(const FName& InNodeName, const FName& InPinName, FTransform& OutDefaultValue) const
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return GetPinDefaultValueStruct<FTransform>(InNodeName, InPinName, OutDefaultValue);
 }
 
 bool UControlRigController::SetPinDefaultValueTransform(const FName& InNodeName, const FName& InPinName, const FTransform& InDefaultValue, bool bLog, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	return SetPinDefaultValueStruct<FTransform>(InNodeName, InPinName, InDefaultValue, bLog, bUndo);
 }
 
 bool UControlRigController::AddArrayPin(const FName& InNodeName, const FName& InPinName, const FString& InDefaultValue, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -902,6 +991,8 @@ bool UControlRigController::AddArrayPin(const FName& InNodeName, const FName& In
 
 bool UControlRigController::PopArrayPin(const FName& InNodeName, const FName& InPinName, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -925,6 +1016,8 @@ bool UControlRigController::PopArrayPin(const FName& InNodeName, const FName& In
 
 bool UControlRigController::ClearArrayPin(const FName& InNodeName, const FName& InPinName, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -948,6 +1041,8 @@ bool UControlRigController::ClearArrayPin(const FName& InNodeName, const FName& 
 
 bool UControlRigController::SetArrayPinSize(const FName& InNodeName, const FName& InPinName, int32 InSize, const FString& InDefaultValue, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -972,6 +1067,8 @@ bool UControlRigController::SetArrayPinSize(const FName& InNodeName, const FName
 
 bool UControlRigController::ExpandPin(const FName& InNodeName, const FName& InPinName, bool bIsInput, bool bExpanded, bool bUndo)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -982,6 +1079,8 @@ bool UControlRigController::ExpandPin(const FName& InNodeName, const FName& InPi
 
 bool UControlRigController::FindPinTypeFromDataType(const FName& InDataType, FEdGraphPinType& OutPinType)
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	TArray<FEdGraphPinType> PinTypes;
 	UControlRigModel::GetParameterPinTypes(PinTypes);
 
@@ -1008,6 +1107,8 @@ bool UControlRigController::FindPinTypeFromDataType(const FName& InDataType, FEd
 
 bool UControlRigController::ResendAllNotifications()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -1018,6 +1119,8 @@ bool UControlRigController::ResendAllNotifications()
 
 bool UControlRigController::ResendAllPinDefaultNotifications()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -1027,6 +1130,8 @@ bool UControlRigController::ResendAllPinDefaultNotifications()
 
 bool UControlRigController::Undo()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;
@@ -1037,6 +1142,8 @@ bool UControlRigController::Undo()
 
 bool UControlRigController::Redo()
 {
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
 	if (!EnsureModel())
 	{
 		return false;

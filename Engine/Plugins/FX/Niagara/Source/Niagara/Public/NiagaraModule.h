@@ -45,6 +45,9 @@ public:
 
 	static FNiagaraWorldManager* GetWorldManager(UWorld* World);
 
+	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
+	static void OnBatcherDestroyed(class NiagaraEmitterInstanceBatcher* InBatcher);
+
 	void DestroyAllSystemSimulations(class UNiagaraSystem* System);
 
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created

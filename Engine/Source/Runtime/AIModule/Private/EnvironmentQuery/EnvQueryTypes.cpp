@@ -292,7 +292,7 @@ namespace FEQSHelpers
 		if (NavAgent)
 		{
 			const FNavAgentProperties& NavAgentProps = NavAgent->GetNavAgentPropertiesRef();
-			return NavSys->GetNavDataForProps(NavAgentProps);
+			return NavSys->GetNavDataForProps(NavAgentProps, NavAgent->GetNavAgentLocation());
 		}
 
 		return NavSys->GetDefaultNavDataInstance();

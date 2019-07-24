@@ -132,7 +132,7 @@ namespace FNiagaraStackGraphUtilities
 
 	void CleanUpStaleRapidIterationParameters(UNiagaraEmitter& Emitter);
 
-	void GetNewParameterAvailableTypes(TArray<FNiagaraTypeDefinition>& OutAvailableTypes);
+	void GetNewParameterAvailableTypes(TArray<FNiagaraTypeDefinition>& OutAvailableTypes, FName Namespace);
 
 	void GetScriptAssetsByDependencyProvided(ENiagaraScriptUsage AssetUsage, FName DependencyName, TArray<FAssetData>& OutAssets);
 
