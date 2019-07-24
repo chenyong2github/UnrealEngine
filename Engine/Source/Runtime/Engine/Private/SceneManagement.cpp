@@ -737,6 +737,16 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
+
+	//this can be deleted once sm4 support is removed.
+	if (!PrimitiveSceneData)
+	{
+		PrimitiveSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
+	}
+	if (!LightmapSceneData)
+	{
+		LightmapSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
+	}
 }
 
 FInstancedViewUniformShaderParameters::FInstancedViewUniformShaderParameters()
