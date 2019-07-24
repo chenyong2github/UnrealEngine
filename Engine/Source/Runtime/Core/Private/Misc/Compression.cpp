@@ -23,6 +23,7 @@ DEFINE_LOG_CATEGORY(LogCompression);
 DECLARE_STATS_GROUP( TEXT( "Compression" ), STATGROUP_Compression, STATCAT_Advanced );
 
 TMap<FName, struct ICompressionFormat*> FCompression::CompressionFormats;
+FCriticalSection FCompression::CompressionFormatsCriticalSection;
 
 
 static void *zalloc(void *opaque, unsigned int size, unsigned int num)
@@ -306,6 +307,7 @@ static ECompressionFlags CheckGlobalCompressionFlags(ECompressionFlags Flags)
 
 ICompressionFormat* FCompression::GetCompressionFormat(FName FormatName, bool bErrorOnFailure)
 {
+	FScopeLock Lock(&CompressionFormatsCriticalSection);
 	ICompressionFormat** ExistingFormat = CompressionFormats.Find(FormatName);
 	if (ExistingFormat == nullptr)
 	{
