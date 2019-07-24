@@ -478,26 +478,6 @@ IFileHandle* FNetworkPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWr
 	return Result;
 }
 
-IAsyncReadFileHandle* FNetworkPlatformFile::OpenAsyncRead(const TCHAR* Filename)
-{
-	FString RelativeFilename = Filename;
-	MakeStandardNetworkFilename(RelativeFilename);
-	// don't copy files in local directories
-	if (!IsInLocalDirectory(RelativeFilename))
-	{
-		EnsureFileIsLocal(RelativeFilename);
-	}
-
-	double StartTime;
-	float ThisTime;
-
-	StartTime = FPlatformTime::Seconds();
-	IAsyncReadFileHandle* Result = InnerPlatformFile->OpenAsyncRead(Filename);
-
-	ThisTime = 1000.0f * float(FPlatformTime::Seconds() - StartTime);
-	return Result;
-}
-
 IFileHandle* FNetworkPlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, bool bAllowRead)
 {
 //	FScopeLock ScopeLock(&SynchronizationObject);
