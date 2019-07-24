@@ -103,6 +103,12 @@ static FAutoConsoleVariableRef CVarRayTracingTranslucencyRefraction(
 	GRayTracingTranslucencyRefraction,
 	TEXT("Enables refraction in ray traced Translucency (default = 1)"));
 
+static float GRayTracingTranslucencyPrimaryRayBias = 1e-5;
+static FAutoConsoleVariableRef CVarRayTracingTranslucencyPrimaryRayBias(
+	TEXT("r.RayTracing.Translucency.PrimaryRayBias"),
+	GRayTracingTranslucencyPrimaryRayBias,
+	TEXT("Sets the bias to be subtracted from the primary ray TMax in ray traced Translucency. Larger bias reduces the chance of opaque objects being intersected in ray traversal, saving performance, but at the risk of skipping some thin translucent objects in proximity of opaque objects. (recommended range: 0.00001 - 0.1) (default = 0.00001)"));
+
 DECLARE_GPU_STAT_NAMED(RayTracingTranslucency, TEXT("Ray Tracing Translucency"));
 
 #if RHI_RAYTRACING
@@ -140,6 +146,7 @@ class FRayTracingTranslucencyRGS : public FGlobalShader
 		SHADER_PARAMETER(float, TranslucencyMaxRoughness)
 		SHADER_PARAMETER(int32, TranslucencyRefraction)
 		SHADER_PARAMETER(float, MaxNormalBias)
+		SHADER_PARAMETER(float, PrimaryRayBias)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
@@ -383,6 +390,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucencyView(
 	PassParameters->TranslucencyMaxRoughness = FMath::Clamp(GRayTracingTranslucencyMaxRoughness >= 0 ? GRayTracingTranslucencyMaxRoughness : View.FinalPostProcessSettings.RayTracingTranslucencyMaxRoughness, 0.01f, 1.0f);
 	PassParameters->TranslucencyRefraction = GRayTracingTranslucencyRefraction >= 0 ? GRayTracingTranslucencyRefraction : View.FinalPostProcessSettings.RayTracingTranslucencyRefraction;
 	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
+	PassParameters->PrimaryRayBias = GRayTracingTranslucencyPrimaryRayBias;
 
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
