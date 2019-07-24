@@ -154,6 +154,7 @@ bool FFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 			FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), GeometryCollectionProxy->Component);
 			FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionProxy->Component, BoneIndices, !Click.IsControlDown());
+			GeometryCollectionProxy->Component->Modify();
 
 			if (Toolkit.IsValid())
 			{
