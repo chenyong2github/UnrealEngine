@@ -1,9 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+// Generate vector truncation warnings to errors.
+#pragma warning(error: 3206)
+
 #define CONFIG_SORT_RAYS 0
 #define CONFIG_SORT_BIN_COUNT 16
+#define CONFIG_EARLY_RETURN 0
 
 #define DEBUG_SSRT 0
+
+#define DEBUG_RAY_COUNT 0
 
 
 #if QUALITY == 1
@@ -64,6 +70,7 @@
 #define IS_SSGI_SHADER 1
 
 #include "SSRTRayCast.ush"
+#include "SSRTTileClassificationBuffer.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../Random.ush"
 #include "../BRDF.ush"
@@ -182,14 +189,90 @@ float3 ComputeL(float3 N, float2 E)
 	return mul(TangentL, TangentBasis);
 }
 
+/** Test whether a screen space ray can be discarded or not based on tile information. */
+bool TestRayEarlyReturn(FSSRTTileInfos TileInfos, FSSRTRay Ray)
+#if CONFIG_EARLY_RETURN
+{
+	float2 RayStepPixel = Ray.RayStepScreen.xy * View.ViewSizeAndInvSize.xy;
+
+	// Screen position is vertically flipped from 
+	RayStepPixel.y = -RayStepPixel.y;
+
+	// Compute screen ray direction in [0; 2 PI[
+	float RayDirection = atan2(-RayStepPixel.y, -RayStepPixel.x) + PI;
+	
+	float DeltaU = length(RayStepPixel) * (0.5 * View.ViewSizeAndInvSize.z);
+	float DeltaZ = Ray.RayStepScreen.z;
+	float RayTheta = atan2(DeltaU, -DeltaZ);
+	
+	// Compare RayTheta according to RayDirection against the TileInfos.Directionality stored into SGPR.
+	bool bEarlyReturn;
+	#if DIRECTIONALITY_DIVISION == 8
+	FLATTEN
+	if (RayDirection < (0.5 * 2 * PI / DIRECTIONALITY_DIVISION) || RayDirection > (7.5 * 2 * PI / DIRECTIONALITY_DIVISION))
+	{
+		bEarlyReturn = RayTheta > TileInfos.Directionality[0];
+		//bEarlyReturn = true;
+	}
+	else if (RayDirection < (1.5 * 2 * PI / DIRECTIONALITY_DIVISION))
+	{
+		bEarlyReturn = RayTheta > TileInfos.Directionality[1];
+		//bEarlyReturn = true;
+	}
+	else if (RayDirection < (2.5 * 2 * PI / DIRECTIONALITY_DIVISION))
+	{
+		bEarlyReturn = RayTheta > TileInfos.Directionality[2];
+		//bEarlyReturn = true;
+		//bEarlyReturn = false;
+	}
+	else if (RayDirection < (3.5 * 2 * PI / DIRECTIONALITY_DIVISION))
+	{
+		bEarlyReturn = RayTheta > TileInfos.Directionality[3];
+		//bEarlyReturn = true;
+		//bEarlyReturn = false;
+	}
+	else if (RayDirection < (4.5 * 2 * PI / DIRECTIONALITY_DIVISION))
+	{
+		bEarlyReturn = RayTheta > TileInfos.Directionality[4];
+		//bEarlyReturn = true;
+	}
+	else if (RayDirection < (5.5 * 2 * PI / DIRECTIONALITY_DIVISION))
+	{
+		bEarlyReturn = RayTheta > TileInfos.Directionality[5];
+		//bEarlyReturn = true;
+	}
+	else if (RayDirection < (6.5 * 2 * PI / DIRECTIONALITY_DIVISION))
+	{
+		bEarlyReturn = RayTheta > TileInfos.Directionality[6];
+		//bEarlyReturn = true;
+	}
+	else
+	{
+		bEarlyReturn = RayTheta > TileInfos.Directionality[7];
+		//bEarlyReturn = true;
+	}
+	#else
+		#error Need to update this code.
+	#endif
+
+	return bEarlyReturn;
+}
+#else
+{
+	return false;
+}
+#endif
+
 #if CONFIG_SORT_RAYS
 
 uint SelectDirectionBin(
+	FSSRTTileInfos TileInfos,
 	uint2 GroupId,
 	uint GroupPixelId,
 	uint RaySequenceId,
 	float3 N,
-	float SceneDepth)
+	float SceneDepth,
+	inout bool bTraceRay)
 {
 	uint2 GroupPixelOffset = DecodeGroupPixelOffset(GroupPixelId);
 	uint2 PixelPosition = ComputePixelPosition(GroupId, GroupPixelOffset);
@@ -205,6 +288,14 @@ uint SelectDirectionBin(
 	UpdateLane2DCoordinateInformations(PixelPosition, /* out */ BufferUV, /* out */ ScreenPos);
 	
 	float3 TranslatedWorldPosition = ComputeTranslatedWorldPositions(ScreenPos, SceneDepth);
+	
+	FSSRTRay Ray = InitScreenSpaceRay(TranslatedWorldPosition, L, SceneDepth);
+	
+	// Early out if the tile classification can detect this ray direction is not going to intersect anything.
+	bool bEarlyOut = TestRayEarlyReturn(TileInfos, Ray);
+	
+	// Don't trace a ray if it can be early out by tile classification.
+	bTraceRay = bTraceRay && !bEarlyOut;
 
 	// TODO provide RayStartUVz
 	const float4 RayStartClip = mul(float4(TranslatedWorldPosition, 1), View.TranslatedWorldToClip);
@@ -216,11 +307,11 @@ uint SelectDirectionBin(
 	float2 RayPixelDirection = (RayEndScreen - RayStartScreen).xy * View.ViewSizeAndInvSize.xy;
 
 	float DirectionAngle = atan2(RayPixelDirection.x, RayPixelDirection.y);
-			
-	uint SelectedBinId = floor(DirectionAngle * (CONFIG_SORT_BIN_COUNT * rcp(2 * PI)) + (CONFIG_SORT_BIN_COUNT / 2 + 0.5)); 
-	SelectedBinId = clamp(SelectedBinId, 0, CONFIG_SORT_BIN_COUNT - 1);
+	
+	uint SelectedBinId = floor(DirectionAngle * ((CONFIG_SORT_BIN_COUNT - 1) * rcp(2 * PI)) + ((CONFIG_SORT_BIN_COUNT - 1) / 2 + 0.5)); 
+	SelectedBinId = clamp(SelectedBinId, 0, CONFIG_SORT_BIN_COUNT - 2);
 
-	return SelectedBinId;
+	return bTraceRay ? SelectedBinId : (CONFIG_SORT_BIN_COUNT - 1);
 } // SelectDirectionBin()
 
 #endif // CONFIG_SORT_RAYS
@@ -233,12 +324,18 @@ void MainCS(
 	// Id of the wave in the group.
 	uint GroupWaveIndex = GroupThreadIndex / 64;
 	
+	FSSRTTileInfos TileInfos;
 	{
 		const uint BinsAddress = TILE_PIXEL_COUNT * 2;
 
 		uint GroupPixelId = GroupThreadIndex % TILE_PIXEL_COUNT;
 		uint RaySequenceId = GroupThreadIndex / TILE_PIXEL_COUNT;
-		
+
+		// Compute TileCoord from GroupId to ensure the compiler understand it is group invariant to use scalar load.
+		uint2 TileCoord = GroupId / uint2(TILE_RES_DIVISOR / TILE_PIXEL_SIZE_X, TILE_RES_DIVISOR / TILE_PIXEL_SIZE_Y);
+		TileInfos = LoadTileInfos(TileCoord);
+
+
 		// Store GBuffer into LDS
 		{
 			BRANCH
@@ -251,10 +348,10 @@ void MainCS(
 		
 				FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 
-				bool bEarlyReturn = GBuffer.ShadingModelID == SHADINGMODELID_UNLIT || GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
+				bool bTraceRay = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT && GBuffer.ShadingModelID != SHADINGMODELID_SUBSURFACE_PROFILE;
 				
 				SharedMemory[TILE_PIXEL_COUNT * 0 | GroupPixelId] = CompressN(GBuffer.WorldNormal);
-				SharedMemory[TILE_PIXEL_COUNT * 1 | GroupPixelId] = asuint(bEarlyReturn ? -1.0 : GBuffer.Depth);
+				SharedMemory[TILE_PIXEL_COUNT * 1 | GroupPixelId] = asuint(bTraceRay ? GBuffer.Depth : -1.0);
 			}
 			else if (GroupWaveIndex == 1) // TODO.
 			{
@@ -271,6 +368,7 @@ void MainCS(
 			GroupMemoryBarrierWithGroupSync();
 
 			// Fetch information from LDS.
+			bool bTraceRay;
 			float3 N;
 			float SceneDepth;
 			{
@@ -278,16 +376,19 @@ void MainCS(
 				uint Raw1 = SharedMemory[TILE_PIXEL_COUNT * 1 | GroupPixelId];
 
 				N = DecompressN(Raw0);
-				SceneDepth = asfloat(Raw1);
+				SceneDepth = abs(asfloat(Raw1));
+				bTraceRay = asfloat(Raw1) > 0.0;
 			}
 
 			// Compute the ray's bin.
 			uint SelectedBinId = SelectDirectionBin(
+				TileInfos,
 				GroupId,
 				GroupPixelId,
 				RaySequenceId,
 				N,
-				SceneDepth);
+				SceneDepth,
+				/* inout */ bTraceRay);
 		
 			// Count ray in bins
 			uint OffsetInBin = 0;
@@ -314,7 +415,7 @@ void MainCS(
 			{
 				uint DestPos = SelectedBinStartingPos + OffsetInBin;
 
-				#if 0 // Uncomment me to measure performance improvement.
+				#if 1 // Uncomment me to measure performance improvement.
 					if (View.GeneralPurposeTweak > 0.5)
 						DestPos = GroupPixelId + RaySequenceId * TILE_PIXEL_COUNT;
 				#endif
@@ -325,7 +426,7 @@ void MainCS(
 
 				// TODO: Encoded N and 24bits and pack EncodedGroupPixelOffset.
                 SharedMemory[LANE_PER_GROUPS * 0 | DestPos] = asuint(CompressN(N) | (GroupPixelId << 24) | (RaySequenceId << (24 + TILE_PIXEL_SIZE_X_LOG + TILE_PIXEL_SIZE_Y_LOG)));
-				SharedMemory[LANE_PER_GROUPS * 1 | DestPos] = asuint(SceneDepth);
+				SharedMemory[LANE_PER_GROUPS * 1 | DestPos] = asuint(bTraceRay ? SceneDepth : -1.0);
 			}
 		}
 		#endif // CONFIG_SORT_RAYS
@@ -339,16 +440,18 @@ void MainCS(
 		uint RaySequenceId;
 		uint CompressedN;
 		float SceneDepth;
+		bool bTraceRay;
 		#if CONFIG_SORT_RAYS
 		{
-			uint Row0 = SharedMemory[LANE_PER_GROUPS * 0 | GroupThreadIndex];
-			uint Row1 = SharedMemory[LANE_PER_GROUPS * 1 | GroupThreadIndex];
+			uint Raw0 = SharedMemory[LANE_PER_GROUPS * 0 | GroupThreadIndex];
+			uint Raw1 = SharedMemory[LANE_PER_GROUPS * 1 | GroupThreadIndex];
 
 			// Unpack
-			RaySequenceId = Row0 >> (24 + TILE_PIXEL_SIZE_X_LOG + TILE_PIXEL_SIZE_Y_LOG);
-            GroupPixelId = (Row0 >> 24) % TILE_PIXEL_COUNT;
-			CompressedN = Row0;
-			SceneDepth = asfloat(Row1);
+			RaySequenceId = Raw0 >> (24 + TILE_PIXEL_SIZE_X_LOG + TILE_PIXEL_SIZE_Y_LOG);
+            GroupPixelId = (Raw0 >> 24) % TILE_PIXEL_COUNT;
+			CompressedN = Raw0;
+			SceneDepth = asfloat(Raw1);
+			bTraceRay = asfloat(Raw1) > 0;
 		}
 		#else // !CONFIG_SORT_RAYS
 		{
@@ -360,13 +463,15 @@ void MainCS(
 
 			CompressedN = Raw0;
 			SceneDepth = asfloat(Raw1);
+			bTraceRay = asfloat(Raw1) > 0;
 		}
 		#endif // !CONFIG_SORT_RAYS
 		
 		GroupMemoryBarrierWithGroupSync();
-		
-		const bool bTraceRay = SceneDepth > 0;
-		
+
+		#if DEBUG_RAY_COUNT
+			float DebugRayCount = 0.0;
+		#endif
 		uint2 CompressedColor;
 
 		BRANCH
@@ -389,16 +494,37 @@ void MainCS(
 	
             bool bDebugPrint = all(PixelPosition == uint2(View.ViewSizeAndInvSize.xy) / 2);
 
+			FSSRTRay Ray = InitScreenSpaceRay(TranslatedWorldPosition, L, SceneDepth);
+			
 			float Level;
 			float3 HitUVz;
-			bool bHit = RayCast(
-				HZBTexture, HZBTextureSampler,
-				TranslatedWorldPosition, L, 1, SceneDepth, 
-				CONFIG_RAY_STEPS, StepOffset,
-				HZBUvFactorAndInvFactor,
-				bDebugPrint,
-				/* out */ HitUVz,
-				/* out */ Level);
+			bool bHit;
+
+			#if !CONFIG_SORT_RAYS
+			// Early out if the tile classification can detect this ray direction is not going to intersect anything.
+			bool bEarlyOut = TestRayEarlyReturn(TileInfos, Ray);
+			
+			BRANCH
+			if (bEarlyOut)
+			{
+				bHit = false;
+				Level = 0;
+				HitUVz = 0;
+			}
+			else
+			#endif
+			{
+				bHit = CastScreenSpaceRay(
+					HZBTexture, HZBTextureSampler,
+					Ray, 1, CONFIG_RAY_STEPS, StepOffset,
+					HZBUvFactorAndInvFactor, bDebugPrint,
+					/* out */ HitUVz,
+					/* out */ Level);
+				
+				#if DEBUG_RAY_COUNT
+					DebugRayCount += 1.0;
+				#endif
+			}
 
 			#if 0 // Backface check
 			if (bHit)
@@ -409,10 +535,10 @@ void MainCS(
 			#endif
 			
 			// if there was a hit
-			//BRANCH // TODO
+			BRANCH
 			if (bHit)
 			{
-				float4 SampleColor = ColorTexture.SampleLevel(ColorTextureSampler, HitUVz, Level);
+				float4 SampleColor = ColorTexture.SampleLevel(ColorTextureSampler, HitUVz.xy, Level);
 				
 				float SampleColorWeight = 1.0;
 
@@ -454,6 +580,14 @@ void MainCS(
         {
             CompressedColor = uint2(0, 0);
         }
+		
+		// Output debugging info instead of actual intersection.
+		#if DEBUG_RAY_COUNT
+		{
+			CompressedColor.x = asuint(f32tof16(DebugRayCount) << 16);
+			CompressedColor.y = 0;
+		}
+		#endif
 		
 		uint DestPos = GroupPixelId + RaySequenceId * TILE_PIXEL_COUNT;
 			
@@ -512,6 +646,8 @@ void MainCS(
 
 			IndirectDiffuseOutput[OutputPixelCoordinate] = float4(DiffuseColor, 0.0);
 			AmbientOcclusionOutput[OutputPixelCoordinate] = AmbientOcclusion;
+			
+			//IndirectDiffuseOutput[OutputPixelCoordinate] = float4(TileInfos.Directionality[2] / PI, 0.0, 0.0, 0.0);
 		}
 	} // if (GroupThreadIndex < TILE_PIXEL_COUNT)
 } // MainCS()

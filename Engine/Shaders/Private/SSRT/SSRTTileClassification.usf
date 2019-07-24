@@ -1,0 +1,114 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "SSRTTileClassificationBuffer.ush"
+#include "SSRTRaycast.ush"
+#include "../SceneTextureParameters.ush"
+
+
+#define GROUP_TILE_SIZE 8
+
+
+float2 SamplePixelToHZBUV;
+
+Texture2D HZBTexture;
+
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+#define HZBTextureSampler GlobalPointClampedSampler
+
+#else
+SamplerState HZBTextureSampler;
+
+#endif
+
+
+RWBuffer<float> TileClassificationBufferOutput;
+RWTexture2D<float4> DebugOutput;
+
+//void StoreTileInfos(uint2 TileCoord, FSSRTTileInfos TileInfos)
+//{
+//	uint TileIndex = TileCoord.x + TileCoord.y * TileBufferExtent.x;
+//
+//	UNROLL_N(DIRECTIONALITY_COUNT)
+//	for (uint i = 0; i < DIRECTIONALITY_COUNT; i++)
+//	{
+//		TileClassificationBufferOutput[TileIndex + ViewTileCount * i] = TileInfos.Directionality[i];
+//	}
+//}
+
+
+[numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, DIRECTIONALITY_DIVISION)]
+void MainCS(
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupId : SV_GroupID,
+	uint3 GroupThreadId : SV_GroupThreadID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	uint2 TileCoord = DispatchThreadId;
+	uint DirectionId = GroupThreadId.z;
+
+	float2 ViewportUV = (TileCoord * GROUP_TILE_SIZE + GROUP_TILE_SIZE / 2) * View.ViewSizeAndInvSize.zw;
+
+	float DirectionAndle = float(DirectionId) * (2 * PI * rcp(float(DIRECTIONALITY_DIVISION)));
+
+	float2 RayPixelDirection = float2(cos(DirectionAndle), sin(DirectionAndle));
+
+	float2 RayStartScreen = ViewportUVToScreenPos(ViewportUV);
+	float2 RayStepScreen = normalize(View.ViewSizeAndInvSize.zw * RayPixelDirection);
+	RayStepScreen *= GetStepScreenFactorToClipAtScreenEdge(RayStartScreen, RayStepScreen);
+	
+	float2 RayEndViewportUV = ScreenPosToViewportUV(RayStartScreen + RayStepScreen);
+
+	float2 RayStartPixel = ViewportUV * View.ViewSizeAndInvSize.xy;
+	float2 RayEndPixel = RayEndViewportUV * View.ViewSizeAndInvSize.xy;
+	float MaxSampleDistance = length(RayStartPixel - RayEndPixel);
+
+	// HZB mip0 is already half resolution.
+	const float StartLevel = log2(GROUP_TILE_SIZE) - 1;
+
+	// TODO: should be furtherest depth.
+	float TileDeviceZ = HZBTexture.SampleLevel(HZBTextureSampler, RayStartPixel * SamplePixelToHZBUV, StartLevel).r;
+	
+	float MaxTheta = 0;
+
+	const float SampleDistanceExponent = 3;
+	const float MipLevelMultiplier = 0.5 * log2(SampleDistanceExponent - 1);
+	float CurrentSampleDistance = GROUP_TILE_SIZE;
+
+	for (uint i = 0; i < 16; i++)
+	{
+		float SamplePixelDistance = CurrentSampleDistance;
+
+		//if (SamplePixelDistance > 1.5 * MaxSampleDistance)
+		//	break;
+
+		float SampleLevel = StartLevel + i * MipLevelMultiplier;
+
+		float2 SamplePixel = RayStartPixel + RayPixelDirection * SamplePixelDistance;
+
+		// TODO: should be closest depth.
+		float SampleDiviceZ = HZBTexture.SampleLevel(HZBTextureSampler, SamplePixel * SamplePixelToHZBUV, SampleLevel).r;
+
+		// Screen space distance in viewport UV from origin of the ray.
+		float DeltaU = SamplePixelDistance * View.ViewSizeAndInvSize.z;
+
+		// Assumes inverted Z buffer.
+		float DeltaZ = SampleDiviceZ - TileDeviceZ;
+
+		float Theta = atan2(DeltaU, -DeltaZ);
+
+		MaxTheta = max(MaxTheta, Theta);
+		CurrentSampleDistance *= SampleDistanceExponent;
+	}
+
+	BRANCH
+	if (TileCoord.x < TileBufferExtent.x && TileCoord.y < TileBufferExtent.y)
+	{
+		uint TileIndex = TileCoord.x + TileCoord.y * TileBufferExtent.x;
+		TileClassificationBufferOutput[TileIndex + ViewTileCount * DirectionId] = MaxTheta;
+	}
+
+	//if (DirectionId == View.GeneralPurposeTweak)
+	//{
+	//	DebugOutput[TileCoord] = float4(MaxTheta / PI, TileDeviceZ, 0, 0);
+	//}
+} // MainCS()

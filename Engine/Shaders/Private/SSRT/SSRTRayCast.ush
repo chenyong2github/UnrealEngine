@@ -34,17 +34,34 @@ void PrintSample(
 #endif
 
 
+/** Return float multiplier to scale RayStepScreen such that it clip it right at the edge of the screen. */
+float GetStepScreenFactorToClipAtScreenEdge(float2 RayStartScreen, float2 RayStepScreen)
+{
+	// Computes the scale down factor for RayStepScreen required to fit on the X and Y axis in order to clip it in the viewport
+	const float RayStepScreenInvFactor = 0.5 * length(RayStepScreen);
+	const float2 S = 1 - max(abs(RayStepScreen + RayStartScreen * RayStepScreenInvFactor) - RayStepScreenInvFactor, 0.0f) / abs(RayStepScreen);
 
-bool RayCast(
-	Texture2D Texture, SamplerState Sampler,
-	float3 RayOriginTranslatedWorld, float3 RayDirection,
-	float Roughness, float SceneDepth,
-	uint NumSteps, float StepOffset,
-	float4 HZBUvFactorAndInvFactor, 
-	bool bDebugPrint,
-	out float3 OutHitUVz,
-	out float Level
-)
+	// Rescales RayStepScreen accordingly
+	const float RayStepFactor = min(S.x, S.y) / RayStepScreenInvFactor;
+
+	return RayStepFactor;
+}
+
+
+/** Structure that represent a ray to be shot in screen space. */
+struct FSSRTRay
+{
+	float3 RayStartScreen;
+	float3 RayStepScreen;
+
+	float CompareTolerance;
+};
+
+/** Compile a ray for screen space ray casting. */
+FSSRTRay InitScreenSpaceRay(
+	float3 RayOriginTranslatedWorld,
+	float3 RayDirection,
+	float SceneDepth)
 {
 	// TODO provide RayStartUVz
 	const float4 RayStartClip	= mul( float4( RayOriginTranslatedWorld, 1 ), View.TranslatedWorldToClip );
@@ -55,28 +72,42 @@ bool RayCast(
 
 	const float4 RayDepthClip	= RayStartClip + mul( float4( 0, 0, SceneDepth, 0 ), View.ViewToClip );
 	const float3 RayDepthScreen = RayDepthClip.xyz / RayDepthClip.w;
+	
+	FSSRTRay Ray;
+	Ray.RayStartScreen = RayStartScreen;
+	Ray.RayStepScreen = RayEndScreen - RayStartScreen;
 
-	float3 RayStepScreen = RayEndScreen - RayStartScreen;
+	// TODO
+	#if IS_SSGI_SHADER
+		Ray.CompareTolerance = max(abs(Ray.RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * 2);
+	#else
+		Ray.CompareTolerance = max(abs(Ray.RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * 4);
+	#endif
 
-	{
-		// Computes the scale down factor for RayStepScreen required to fit on the X and Y axis in order to clip it in the viewport
-		const float RayStepScreenInvFactor = 0.5 * length( RayStepScreen.xy );
-		const float2 S = 1 - max(abs(RayStepScreen.xy + RayStartScreen.xy * RayStepScreenInvFactor) - RayStepScreenInvFactor, 0.0f) / abs(RayStepScreen.xy);
+	return Ray;
+} // InitScreenSpaceRay()
 
-		// Rescales RayStepScreen accordingly
-		const float RayStepFactor = min(S.x, S.y) / RayStepScreenInvFactor;
-		RayStepScreen *= RayStepFactor;
-	}
+/** Cast a screen space ray. */
+bool CastScreenSpaceRay(
+	Texture2D Texture, SamplerState Sampler,
+	FSSRTRay Ray,
+	float Roughness,
+	uint NumSteps, float StepOffset,
+	float4 HZBUvFactorAndInvFactor, 
+	bool bDebugPrint,
+	out float3 OutHitUVz,
+	out float Level)
+{
+	const float3 RayStartScreen = Ray.RayStartScreen;
+	float3 RayStepScreen = Ray.RayStepScreen;
+
+	RayStepScreen *= GetStepScreenFactorToClipAtScreenEdge(RayStartScreen.xy, RayStepScreen.xy);
 
 	float3 RayStartUVz = float3( (RayStartScreen.xy * float2( 0.5, -0.5 ) + 0.5) * HZBUvFactorAndInvFactor.xy, RayStartScreen.z );
 	float3 RayStepUVz  = float3(  RayStepScreen.xy  * float2( 0.5, -0.5 )		 * HZBUvFactorAndInvFactor.xy, RayStepScreen.z );
 	
 	const float Step = 1.0 / NumSteps;
-	#if IS_SSGI_SHADER
-		float CompareTolerance = max( abs( RayStepUVz.z ), ( RayStartScreen.z - RayDepthScreen.z ) * 2 ) * Step;
-	#else
-		float CompareTolerance = max( abs( RayStepUVz.z ), ( RayStartScreen.z - RayDepthScreen.z ) * 4 ) * Step;
-	#endif
+	float CompareTolerance = Ray.CompareTolerance * Step;
 	
 	float LastDiff = 0;
 	Level = 1;
@@ -257,7 +288,29 @@ bool RayCast(
     }
 	
 	return bFoundAnyHit;
-}
+} // CastScreenSpaceRay()
+
+
+bool RayCast(
+	Texture2D Texture, SamplerState Sampler,
+	float3 RayOriginTranslatedWorld, float3 RayDirection,
+	float Roughness, float SceneDepth,
+	uint NumSteps, float StepOffset,
+	float4 HZBUvFactorAndInvFactor, 
+	bool bDebugPrint,
+	out float3 OutHitUVz,
+	out float Level)
+{
+	FSSRTRay Ray = InitScreenSpaceRay(RayOriginTranslatedWorld, RayDirection, SceneDepth);
+
+	return CastScreenSpaceRay(
+		Texture, Sampler,
+		Ray,
+		Roughness, NumSteps, StepOffset,
+		HZBUvFactorAndInvFactor, bDebugPrint,
+		/* out */ OutHitUVz,
+		/* out */ Level);
+} // RayCast()
 
 float ComputeHitVignetteFromScreenPos(float2 ScreenPos)
 {
