@@ -50,22 +50,6 @@ void UDataprepOperation::LogError(const FText& InLogText)
 	}
 }
 
-void UDataprepOperation::ReportProgress(float Progress)
-{
-	if ( OperationContext && OperationContext->DataprepProgressReporter )
-	{
-		OperationContext->DataprepProgressReporter->ReportProgress( Progress, *this );
-	}
-}
-
-void UDataprepOperation::ReportProgressWithMessage(float Progress, const FText& InMessage)
-{
-	if ( OperationContext && OperationContext->DataprepProgressReporter )
-	{
-		OperationContext->DataprepProgressReporter->ReportProgressWithMessage( Progress, InMessage, *this );
-	}
-}
-
 void UDataprepOperation::ExecuteOperation(TSharedRef<FDataprepOperationContext>&  InOperationContext)
 {
 	OperationContext = InOperationContext;
