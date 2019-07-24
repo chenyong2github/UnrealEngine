@@ -1173,7 +1173,7 @@ void UTakeRecorderActorSource::PostProcessCreatedObjectTemplateImpl(AActor* Obje
 	 	SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 	 	SkeletalMeshComponent->bEnableUpdateRateOptimizations = false;
 	 	SkeletalMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
-	 	SkeletalMeshComponent->ForcedLodModel = 1;
+	 	SkeletalMeshComponent->SetForcedLOD(1);
 	 }
 
 	// Disable auto-possession on recorded Pawns so that when the Spawnable is spawned it doesn't auto-possess the player

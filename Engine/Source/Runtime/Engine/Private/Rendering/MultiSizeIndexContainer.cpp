@@ -163,6 +163,57 @@ void FMultiSizeIndexContainer::Serialize(FArchive& Ar, bool bNeedsCPUAccess)
 	IndexBuffer->Serialize(Ar);
 }
 
+void FMultiSizeIndexContainer::SerializeMetaData(FArchive& Ar, bool bNeedsCPUAccess)
+{
+	Ar << DataTypeSize;
+
+	if (!IndexBuffer)
+	{
+		if (DataTypeSize == sizeof(uint16))
+		{
+			IndexBuffer = new FRawStaticIndexBuffer16or32<uint16>(bNeedsCPUAccess);
+		}
+		else
+		{
+			IndexBuffer = new FRawStaticIndexBuffer16or32<uint32>(bNeedsCPUAccess);
+		}
+	}
+
+	IndexBuffer->SerializeMetaData(Ar);
+}
+
+FIndexBufferRHIRef FMultiSizeIndexContainer::CreateRHIBuffer_RenderThread()
+{
+	if (IndexBuffer)
+	{
+		if (DataTypeSize == sizeof(uint16))
+		{
+			return static_cast<FRawStaticIndexBuffer16or32<uint16>*>(IndexBuffer)->CreateRHIBuffer_RenderThread();
+		}
+		else
+		{
+			return static_cast<FRawStaticIndexBuffer16or32<uint32>*>(IndexBuffer)->CreateRHIBuffer_RenderThread();
+		}
+	}
+	return nullptr;
+}
+
+FIndexBufferRHIRef FMultiSizeIndexContainer::CreateRHIBuffer_Async()
+{
+	if (IndexBuffer)
+	{
+		if (DataTypeSize == sizeof(uint16))
+		{
+			return static_cast<FRawStaticIndexBuffer16or32<uint16>*>(IndexBuffer)->CreateRHIBuffer_Async();
+		}
+		else
+		{
+			return static_cast<FRawStaticIndexBuffer16or32<uint32>*>(IndexBuffer)->CreateRHIBuffer_Async();
+		}
+	}
+	return nullptr;
+}
+
 #if WITH_EDITOR
 /**
 * Retrieves index buffer related data

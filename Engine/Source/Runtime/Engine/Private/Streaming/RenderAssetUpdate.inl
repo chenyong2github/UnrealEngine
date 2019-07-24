@@ -63,12 +63,22 @@ FRenderAssetUpdate::ETaskState TRenderAssetUpdate<TContext>::TickInternal(EThrea
 	{
 		return TS_Suspended;
 	}
+	else if (bDeferExecution)
+	{
+		bDeferExecution = false;
+		return TS_Suspended;
+	}
 	else if (RelevantThread == InCurrentThread)
 	{
 		ClearCallbacks();
 		RelevantCallback(FContext(RelevantAsset, InCurrentThread));
 		return TS_Locked;
 	} 
+	else if (RelevantThread == FRenderAssetUpdate::TT_GameThread && !ScheduledGTTasks)
+	{
+		ScheduleGTTask();
+		return TS_Locked;
+	}
 	else if (RelevantThread == FRenderAssetUpdate::TT_Render && !ScheduledRenderTasks)
 	{
 		if (GIsThreadedRendering)
