@@ -328,6 +328,10 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::OnBeginPlay(FWorldContext & InWorldContext)
 	{
+	#if PLATFORM_HOLOLENS
+		EnableStereo(true);
+	#endif
+
 		//start speech recognition if there are any commands we care to listen for
 		StartSpeechRecognition();
 
@@ -336,6 +340,10 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::OnEndPlay(FWorldContext & InWorldContext)
 	{
+	#if PLATFORM_HOLOLENS
+		EnableStereo(false);
+	#endif
+
 		StopSpeechRecognition();
 
 		IWindowsMixedRealityHandTrackingModule::Get().RemoveLiveLinkSource();
