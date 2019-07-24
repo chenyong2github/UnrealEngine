@@ -10,13 +10,16 @@
 
 float2 SamplePixelToHZBUV;
 
-Texture2D HZBTexture;
+Texture2D FurthestHZBTexture;
+Texture2D ClosestHZBTexture;
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
-#define HZBTextureSampler GlobalPointClampedSampler
+#define FurthestHZBTextureSampler GlobalPointClampedSampler
+#define ClosestHZBTextureSampler GlobalPointClampedSampler
 
 #else
-SamplerState HZBTextureSampler;
+SamplerState FurthestHZBTextureSampler;
+SamplerState ClosestHZBTextureSampler;
 
 #endif
 
@@ -66,7 +69,7 @@ void MainCS(
 	const float StartLevel = log2(GROUP_TILE_SIZE) - 1;
 
 	// TODO: should be furtherest depth.
-	float TileDeviceZ = HZBTexture.SampleLevel(HZBTextureSampler, RayStartPixel * SamplePixelToHZBUV, StartLevel).r;
+	float TileDeviceZ = FurthestHZBTexture.SampleLevel(FurthestHZBTextureSampler, RayStartPixel * SamplePixelToHZBUV, StartLevel).r;
 	
 	float MaxTheta = 0;
 
@@ -78,15 +81,15 @@ void MainCS(
 	{
 		float SamplePixelDistance = CurrentSampleDistance;
 
-		//if (SamplePixelDistance > 1.5 * MaxSampleDistance)
-		//	break;
+		if (SamplePixelDistance > 1.5 * MaxSampleDistance)
+			break;
 
 		float SampleLevel = StartLevel + i * MipLevelMultiplier;
 
 		float2 SamplePixel = RayStartPixel + RayPixelDirection * SamplePixelDistance;
 
 		// TODO: should be closest depth.
-		float SampleDiviceZ = HZBTexture.SampleLevel(HZBTextureSampler, SamplePixel * SamplePixelToHZBUV, SampleLevel).r;
+		float SampleDiviceZ = ClosestHZBTexture.SampleLevel(ClosestHZBTextureSampler, SamplePixel * SamplePixelToHZBUV, SampleLevel).r;
 
 		// Screen space distance in viewport UV from origin of the ray.
 		float DeltaU = SamplePixelDistance * View.ViewSizeAndInvSize.z;
@@ -107,8 +110,8 @@ void MainCS(
 		TileClassificationBufferOutput[TileIndex + ViewTileCount * DirectionId] = MaxTheta;
 	}
 
-	//if (DirectionId == View.GeneralPurposeTweak)
-	//{
-	//	DebugOutput[TileCoord] = float4(MaxTheta / PI, TileDeviceZ, 0, 0);
-	//}
+	if (DirectionId == View.GeneralPurposeTweak)
+	{
+		DebugOutput[TileCoord] = float4(MaxTheta / PI, TileDeviceZ, 0, 0);
+	}
 } // MainCS()

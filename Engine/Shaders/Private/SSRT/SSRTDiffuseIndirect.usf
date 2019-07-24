@@ -82,17 +82,17 @@
 	#define GroupMemoryBarrierWithGroupSync()
 #endif
 
-Texture2D HZBTexture;
+Texture2D FurthestHZBTexture;
 Texture2D ColorTexture;
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 
-#define HZBTextureSampler GlobalPointClampedSampler
+#define FurthestHZBTextureSampler GlobalPointClampedSampler
 #define ColorTextureSampler GlobalBilinearClampedSampler
 
 #else
 
-SamplerState HZBTextureSampler;
+SamplerState FurthestHZBTextureSampler;
 SamplerState ColorTextureSampler;
 
 #endif
@@ -515,7 +515,7 @@ void MainCS(
 			#endif
 			{
 				bHit = CastScreenSpaceRay(
-					HZBTexture, HZBTextureSampler,
+					FurthestHZBTexture, FurthestHZBTextureSampler,
 					Ray, 1, CONFIG_RAY_STEPS, StepOffset,
 					HZBUvFactorAndInvFactor, bDebugPrint,
 					/* out */ HitUVz,

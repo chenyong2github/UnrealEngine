@@ -251,12 +251,13 @@ class FSSRTDiffuseTileClassificationCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector2D, SamplePixelToHZBUV)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, HZBTextureSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClosestHZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ClosestHZBTextureSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRTTileClassificationParameters, TileClassificationParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSRTTileClassificationUAVs, TileClassificationUAVs)
@@ -334,8 +335,8 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 		SHADER_PARAMETER( FVector4,		PrevScreenPositionScaleBias )
 		SHADER_PARAMETER( float,		PrevSceneColorPreExposureCorrection )
 		
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, HZBTextureSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorTextureSampler)
@@ -695,7 +696,8 @@ void RenderScreenSpaceDiffuseIndirect(
 	int32 RayCountPerPixel;
 	GetSSRTGIShaderOptionsForQuality(Quality, &GroupSize, &RayCountPerPixel);
 
-	FRDGTexture* HZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB);
+	FRDGTexture* FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
+	FRDGTexture* ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB);
 	FRDGTexture* ColorTexture = GraphBuilder.RegisterExternalTexture(TemporalAAHistory.RT[0]);
 
 	// Reproject and reduce previous frame color.
@@ -761,14 +763,15 @@ void RenderScreenSpaceDiffuseIndirect(
 
 		FSSRTDiffuseTileClassificationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSRTDiffuseTileClassificationCS::FParameters>();
 		PassParameters->SamplePixelToHZBUV = FVector2D(
-			0.5f / float(HZBTexture->Desc.Extent.X),
-			0.5f / float(HZBTexture->Desc.Extent.Y));
+			0.5f / float(FurthestHZBTexture->Desc.Extent.X),
+			0.5f / float(FurthestHZBTexture->Desc.Extent.Y));
 
-		PassParameters->HZBTexture = HZBTexture;
-		PassParameters->HZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->FurthestHZBTexture = FurthestHZBTexture;
+		PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
-		PassParameters->SceneTextures = SceneTextures;
-		SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
+		PassParameters->ClosestHZBTexture = ClosestHZBTexture;
+		PassParameters->ClosestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
 		PassParameters->View = View.ViewUniformBuffer;
 
 		PassParameters->TileClassificationParameters = ClassificationParameters;
@@ -814,8 +817,8 @@ void RenderScreenSpaceDiffuseIndirect(
 
 		FScreenSpaceDiffuseIndirectCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceDiffuseIndirectCS::FParameters>();
 
-		PassParameters->HZBTexture = HZBTexture;
-		PassParameters->HZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->FurthestHZBTexture = FurthestHZBTexture;
+		PassParameters->FurthestHZBTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->ColorTexture = ReducedSceneColor;
 		PassParameters->ColorTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
