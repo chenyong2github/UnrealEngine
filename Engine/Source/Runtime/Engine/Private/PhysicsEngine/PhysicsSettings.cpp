@@ -163,7 +163,7 @@ void UPhysicsSettings::LoadSurfaceType()
 #endif	// WITH_EDITOR
 
 FChaosPhysicsSettings::FChaosPhysicsSettings() 
-	: DefaultThreadingModel(EChaosThreadingMode::TaskGraph)
+	: DefaultThreadingModel(EChaosThreadingMode::DedicatedThread)
 	, DedicatedThreadTickMode(EChaosSolverTickMode::VariableCappedWithTarget)
 	, DedicatedThreadBufferMode(EChaosBufferMode::Double)
 {
