@@ -417,6 +417,10 @@ const TCHAR* ToString(const ESendPartyInvitationCompletionResult Value)
 	{
 		return TEXT("NoPermission");
 	}
+	case ESendPartyInvitationCompletionResult::RateLimited:
+	{
+		return TEXT("RateLimited");
+	}
 	case ESendPartyInvitationCompletionResult::UnknownInternalFailure:
 	{
 		return TEXT("UnknownInternalFailure");
