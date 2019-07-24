@@ -1208,6 +1208,11 @@ protected:
 	 */
 	void StartSources(TArray<FWaveInstance*>& WaveInstances, int32 FirstActiveIndex, bool bGameTicking);
 
+	/**
+	 * This is overridden in Audio::FMixerDevice to propogate listener information to the audio thread.
+	 */
+	virtual void OnListenerUpdated(const TArray<FListener>& InListeners) {};
+
 private:
 
 	/**
