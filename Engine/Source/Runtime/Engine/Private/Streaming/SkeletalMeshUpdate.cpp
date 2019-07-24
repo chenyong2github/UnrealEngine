@@ -7,10 +7,12 @@ SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
 #include "Streaming/SkeletalMeshUpdate.h"
 #include "RenderUtils.h"
 #include "Containers/ResourceArray.h"
+#include "ContentStreaming.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Serialization/MemoryReader.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Streaming/RenderAssetUpdate.inl"
 
 template class TRenderAssetUpdate<FSkelMeshUpdateContext>;
