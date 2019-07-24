@@ -4056,6 +4056,20 @@ void FBlueprintEditor::OnAddExecutionPin()
 
 bool FBlueprintEditor::CanAddExecutionPin() const
 {
+	const FGraphPanelSelectionSet& SelectedNodes = GetSelectedNodes();
+
+	// Iterate over all nodes, and see if all can have a pin added
+	for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
+	{
+		if (UK2Node_ExecutionSequence* AddPinNode = Cast<UK2Node_ExecutionSequence>(*It))
+		{
+			if (!AddPinNode->CanAddPin())
+			{
+				return false;
+			}
+		}
+	}
+
 	return true;
 }
 
@@ -4100,17 +4114,16 @@ void FBlueprintEditor::OnInsertExecutionPin(EPinInsertPosition Position)
 
 bool FBlueprintEditor::CanInsertExecutionPin() const
 {
-	// We likely don't need to validate here, as we validated on menu population,
-	// but better to grey out the option if it is somehow created but will
-	// not execute correctly
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 	if (FocusedGraphEd.IsValid())
 	{
 		UEdGraphPin* SelectedPin = FocusedGraphEd->GetGraphPinForMenu();
 		if (SelectedPin)
 		{
-			UEdGraphNode* OwningNode = SelectedPin->GetOwningNode();
-			return Cast<UK2Node_ExecutionSequence>(OwningNode) != nullptr;
+			if (UK2Node_ExecutionSequence* ExecutionSequence = Cast<UK2Node_ExecutionSequence>(SelectedPin->GetOwningNode()))
+			{
+				return ExecutionSequence->CanAddPin();
+			}
 		}
 	}
 
