@@ -1884,6 +1884,7 @@ enum class ESendPartyInvitationCompletionResult : int8
 	AlreadyInParty,
 	PartyFull,
 	NoPermission,
+	RateLimited,
 	UnknownInternalFailure = 0,
 	Succeeded = 1
 };
