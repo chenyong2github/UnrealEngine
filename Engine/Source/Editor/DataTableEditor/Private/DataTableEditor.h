@@ -139,6 +139,7 @@ protected:
 	void PasteOnSelectedRow();
 	void DuplicateSelectedRow();
 	void RenameSelectedRowCommand();
+	void DeleteSelectedRow();
 
 	/** Helper function for creating and registering the tab containing the data table data */
 	virtual void CreateAndRegisterDataTableTab(const TSharedRef<class FTabManager>& InTabManager);
@@ -157,7 +158,8 @@ protected:
 	FReply OnRemoveClicked();
 	FReply OnMoveRowClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
 	FReply OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
-
+	FReply OnCopyClicked();
+	FReply OnPasteClicked();
 
 private:
 	UDataTable* GetEditableDataTable() const;
@@ -214,6 +216,9 @@ protected:
 
 	/** The name of the currently selected row */
 	FName HighlightedRowName;
+
+	/** The visible row index of the currently selected row */
+	int32 HighlightedVisibleRowIndex;
 
 	/** The current filter text applied to the data table */
 	FText ActiveFilterText;

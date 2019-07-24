@@ -246,6 +246,7 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 	ToolkitCommands->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FDataTableEditor::PasteOnSelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Duplicate, FExecuteAction::CreateSP(this, &FDataTableEditor::DuplicateSelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Rename, FExecuteAction::CreateSP(this, &FDataTableEditor::RenameSelectedRowCommand));
+	ToolkitCommands->MapAction(FGenericCommands::Get().Delete, FExecuteAction::CreateSP(this, &FDataTableEditor::DeleteSelectedRow));
 
 	Table->OnDataTableImported().AddSP(this, &FDataTableEditor::ImportDataTableUpdate);
 
@@ -271,12 +272,9 @@ FReply FDataTableEditor::OnAddClicked()
 	UDataTable* Table = GetEditableDataTable();
 
 	if (Table)
-	{
-		//const_cast<UDataTable*>(Table)
-		
+	{		
 		FName NewName = DataTableUtils::MakeValidName(TEXT("NewRow"));
-		const TArray<FName> ExisitngNames = Table->GetRowNames();
-		while (ExisitngNames.Contains(NewName))
+		while (Table->GetRowMap().Contains(NewName))
 		{
 			NewName.SetNumber(NewName.GetNumber() + 1);
 		}
@@ -284,6 +282,7 @@ FReply FDataTableEditor::OnAddClicked()
 		FDataTableEditorUtils::AddRow(Table, NewName);
 		FDataTableEditorUtils::SelectRow(Table, NewName);
 	}
+
 	return FReply::Handled();
 }
 
@@ -332,6 +331,26 @@ FReply FDataTableEditor::OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDi
 	{
 		// We move by the row map size, as FDataTableEditorUtils::MoveRow will automatically clamp this as appropriate
 		FDataTableEditorUtils::MoveRow(Table, HighlightedRowName, MoveDirection, Table->GetRowMap().Num());
+	}
+	return FReply::Handled();
+}
+
+FReply FDataTableEditor::OnCopyClicked()
+{
+	UDataTable* Table = GetEditableDataTable();
+	if (Table)
+	{
+		CopySelectedRow();
+	}
+	return FReply::Handled();
+}
+
+FReply FDataTableEditor::OnPasteClicked()
+{
+	UDataTable* Table = GetEditableDataTable();
+	if (Table)
+	{
+		PasteOnSelectedRow();
 	}
 	return FReply::Handled();
 }
@@ -595,7 +614,9 @@ void FDataTableEditor::DuplicateSelectedRow()
 	FName NewName = HighlightedRowName;
 
 	if (NewName == NAME_None || TablePtr == nullptr)
+	{
 		return;
+	}
 
 	const TArray<FName> ExistingNames = TablePtr->GetRowNames();
 	while (ExistingNames.Contains(NewName))
@@ -613,18 +634,27 @@ void FDataTableEditor::RenameSelectedRowCommand()
 	FName NewName = HighlightedRowName; 
 
 	if (NewName == NAME_None || TablePtr == nullptr)
-		return;
-
-	for (const FDataTableEditorRowListViewDataPtr& RowData : VisibleRows)
 	{
-		if (RowData->RowId == NewName)
-		{
-			TSharedPtr< SDataTableListViewRow > RowWidget = StaticCastSharedPtr< SDataTableListViewRow >(CellsListView->WidgetFromItem(RowData));
-			RowWidget->SetRowForRename();
-		}
+		return;
 	}
 
+	if (VisibleRows.IsValidIndex(HighlightedVisibleRowIndex))
+	{
+		TSharedPtr< SDataTableListViewRow > RowWidget = StaticCastSharedPtr< SDataTableListViewRow >(CellsListView->WidgetFromItem(VisibleRows[HighlightedVisibleRowIndex]));
+		RowWidget->SetRowForRename();
+	}
+}
 
+void FDataTableEditor::DeleteSelectedRow()
+{
+	UDataTable* TablePtr = Cast<UDataTable>(GetEditingObject());
+
+	if (HighlightedRowName == NAME_None || TablePtr == nullptr)
+	{
+		return;
+	}
+
+	FDataTableEditorUtils::RemoveRow(TablePtr, HighlightedRowName);
 }
 
 FText FDataTableEditor::GetFilterText() const
@@ -1014,6 +1044,38 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 					.Text(FText::FromString(FString(TEXT("\xf103"))) /*fa-angle-double-down*/)
 				]
 			]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2)
+				[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnCopyClicked)
+				.ToolTipText(LOCTEXT("CopyTooltip", "Copy the currently selected row"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Copy"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2)
+				[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnPasteClicked)
+				.ToolTipText(LOCTEXT("PasteTooltip", "Paste on the currently selected row"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Paste"))
+				]
+			]
 		]
 		+SVerticalBox::Slot()
 		.AutoHeight()
@@ -1153,17 +1215,24 @@ void FDataTableEditor::SetHighlightedRow(FName Name)
 	if (Name.IsNone())
 	{
 		HighlightedRowName = NAME_None;
-
 		CellsListView->ClearSelection();
+		HighlightedVisibleRowIndex = -1;
 	}
 	else
 	{
 		HighlightedRowName = Name;
 
-		FDataTableEditorRowListViewDataPtr* NewSelectionPtr = VisibleRows.FindByPredicate([&Name](const FDataTableEditorRowListViewDataPtr& RowData) -> bool
+		FDataTableEditorRowListViewDataPtr* NewSelectionPtr = NULL;
+		for (HighlightedVisibleRowIndex = 0; HighlightedVisibleRowIndex < VisibleRows.Num(); ++HighlightedVisibleRowIndex)
 		{
-			return RowData->RowId == Name;
-		});
+			if (VisibleRows[HighlightedVisibleRowIndex]->RowId == Name)
+			{
+				NewSelectionPtr = &(VisibleRows[HighlightedVisibleRowIndex]);
+
+				break;
+			}
+		}
+
 
 		// Synchronize the list views
 		if (NewSelectionPtr)
