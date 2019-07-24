@@ -5,6 +5,7 @@
 #include "HAL/UnrealMemory.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Parse.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
