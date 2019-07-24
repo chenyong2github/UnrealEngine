@@ -8,6 +8,11 @@
 #include "RenderCore.h"
 #include "ShaderCore.h"
 
+#define VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+
+#if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
+static TMap<FName, FName> GlobalShaderVariableToStructMap;
+#endif
 
 static TLinkedList<FShaderParametersMetadata*>* GUniformStructList = nullptr;
 
@@ -83,6 +88,25 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 		// Verify that during FName creation there's no case conversion
 		checkSlow(FCString::Strcmp(StructTypeName, *StructTypeFName.GetPlainNameString()) == 0);
 		GetNameStructMap().Add(FName(StructTypeFName), this);
+
+#if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
+		FName ShaderVariableFName(ShaderVariableName);
+
+		// Verify that the global variable name is unique so that we can disambiguate when reflecting from shader source.
+		if (FName* StructFName = GlobalShaderVariableToStructMap.Find(ShaderVariableFName))
+		{
+			checkf(
+				false,
+				TEXT("Found duplicate Uniform Buffer shader variable name %s defined by struct %s. Previous definition ")
+				TEXT("found on struct %s. Uniform buffer shader names must be unique to support name-based reflection of ")
+				TEXT("shader source files."),
+				ShaderVariableName,
+				StructTypeName,
+				*StructFName->GetPlainNameString());
+		}
+
+		GlobalShaderVariableToStructMap.Add(ShaderVariableFName, StructTypeFName);
+#endif
 	}
 	else
 	{
@@ -92,6 +116,20 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 		InitializeLayout();
 	}
 }
+
+FShaderParametersMetadata::~FShaderParametersMetadata()
+{
+	if (UseCase == EUseCase::GlobalShaderParameterStruct)
+	{
+		GlobalListLink.Unlink();
+		GetNameStructMap().Remove(FName(StructTypeName, FNAME_Find));
+
+#if VALIDATE_UNIFORM_BUFFER_UNIQUE_NAME
+		GlobalShaderVariableToStructMap.Remove(FName(ShaderVariableName, FNAME_Find));
+#endif
+	}
+}
+
 
 void FShaderParametersMetadata::InitializeAllGlobalStructs()
 {
