@@ -16,13 +16,13 @@ FSoundEffectBase::~FSoundEffectBase()
 }
 
 bool FSoundEffectBase::IsActive() const
-{ 
-	return bIsActive; 
+{
+	return bIsActive;
 }
 
 void FSoundEffectBase::SetEnabled(const bool bInIsEnabled)
-{ 
-	bIsActive = bInIsEnabled; 
+{
+	bIsActive = bInIsEnabled;
 }
 
 void FSoundEffectBase::SetPreset(USoundEffectPreset* Inpreset)
@@ -41,6 +41,11 @@ void FSoundEffectBase::SetPreset(USoundEffectPreset* Inpreset)
 	// Anytime notification occurs that the preset has been modified,
 	// flag for update.
 	bChanged = true;
+}
+
+USoundEffectPreset* FSoundEffectBase::GetPreset()
+{
+	return Preset;
 }
 
 void FSoundEffectBase::ClearPreset()
@@ -72,6 +77,7 @@ void FSoundEffectBase::EffectCommand(TFunction<void()> Command)
 {
 	CommandQueue.Enqueue(MoveTemp(Command));
 }
+
 void FSoundEffectBase::PumpPendingMessages()
 {
 	// Pumps the command queue
