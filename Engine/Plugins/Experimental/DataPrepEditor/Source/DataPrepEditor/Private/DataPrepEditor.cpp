@@ -125,33 +125,40 @@ public:
 class FDataprepProgressReporter : public IDataprepProgressReporter
 {
 public:
-	FDataprepProgressReporter( const FText& Title )
+	FDataprepProgressReporter()
 	{
-		ProgressTask = TSharedPtr<FScopedSlowTask>( new FScopedSlowTask( 100.0f, Title, true, *GWarn ) );
-		ProgressTask->MakeDialog(true);
 	}
 
-	virtual ~FDataprepProgressReporter() {}
-
-	// Begin IDataprepProgressReporter interface
-	virtual void ReportProgress(float Progress, const UObject& InObject) override
+	virtual ~FDataprepProgressReporter()
 	{
-		ReportProgressWithMessage( Progress, ProgressTask->GetCurrentMessage(), InObject );
 	}
 
-	virtual void ReportProgressWithMessage(float Progress, const FText& InMessage, const UObject& InObject)
+	virtual void PushTask( const FText& InTitle, float InAmountOfWork ) override
 	{
-		if( ProgressTask.IsValid() )
+		ProgressTasks.Emplace( new FScopedSlowTask( InAmountOfWork, InTitle, true, *GWarn ) );
+		ProgressTasks.Last()->MakeDialog(true);
+	}
+
+	virtual void PopTask() override
+	{
+		if(ProgressTasks.Num() > 0)
 		{
-			FText ProgressMsg = FText::FromString( FString::Printf( TEXT("%s : %s ..."), *InObject.GetName(), *InMessage.ToString() ) );
-			ProgressTask->EnterProgressFrame( Progress, ProgressMsg );
-			ProgressTask->EnterProgressFrame( 0.0f, ProgressMsg );
+			ProgressTasks.Pop();
 		}
 	}
-	// End IDataprepProgressReporter interface
+
+	// Begin IDataprepProgressReporter interface
+	virtual void ReportProgress( float Progress, const FText& InMessage ) override
+	{
+		if( ProgressTasks.Num() > 0 )
+		{
+			TSharedPtr<FScopedSlowTask>& ProgressTask = ProgressTasks.Last();
+			ProgressTask->EnterProgressFrame( Progress, InMessage );
+		}
+	}
 
 private:
-	TSharedPtr< FScopedSlowTask > ProgressTask;
+	TArray< TSharedPtr< FScopedSlowTask > > ProgressTasks;
 };
 
 FDataprepEditor::FDataprepEditor()
@@ -517,7 +524,7 @@ void FDataprepEditor::OnBuildWorld()
 	Context.SetWorld( PreviewWorld.Get() )
 		.SetRootPackage( TransientPackage )
 		.SetLogger( TSharedPtr< IDataprepLogger >( new FDataprepLogger ) )
-		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter( LOCTEXT("Dataprep_BuildWorld", "Importing ...") ) ) );
+		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter() ) );
 
 	DataprepAssetPtr->RunProducers( Context, Assets );
 
@@ -656,7 +663,7 @@ void FDataprepEditor::OnExecutePipeline()
 		RestoreFromSnapshot();
 	}
 
-	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepProgressReporter( LOCTEXT("Dataprep_ExecutePipeline", "Executing pipeline ...") ) );
+	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepProgressReporter() );
 
 	// Trigger execution of data preparation operations on world attached to recipe
 	{
@@ -670,12 +677,31 @@ void FDataprepEditor::OnExecutePipeline()
 		UEdGraphPin* StartNodePin = StartNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
 		if( StartNodePin && StartNodePin->LinkedTo.Num() > 0 )
 		{
-			UEdGraphPin* NextNodeInPin = StartNodePin->LinkedTo[0];
-			while( NextNodeInPin != nullptr )
+			int32 ActionNodeCount = 0;
+			for( UEdGraphPin* NextNodeInPin = StartNodePin->LinkedTo[0]; NextNodeInPin != nullptr ; )
+			{
+				UEdGraphNode* NextNode = NextNodeInPin->GetOwningNode();
+
+				if(UK2Node_DataprepAction* ActionNode = Cast<UK2Node_DataprepAction>(NextNode))
+				{
+					++ActionNodeCount;
+				}
+
+				UEdGraphPin* NextNodeOutPin = NextNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+				NextNodeInPin = NextNodeOutPin ? ( NextNodeOutPin->LinkedTo.Num() > 0 ? NextNodeOutPin->LinkedTo[0] : nullptr ) : nullptr;
+			}
+
+			ActionNodesExecuted.Reserve( ActionNodeCount );
+
+			FDataprepProgressTask Task( *ProgressReporter, LOCTEXT( "DataprepEditor_ExecutingPipeline", "Executing pipeline ..." ), (float)ActionNodeCount, 1.0f );
+
+			for( UEdGraphPin* NextNodeInPin = StartNodePin->LinkedTo[0]; NextNodeInPin != nullptr ; )
 			{
 				UEdGraphNode* NextNode = NextNodeInPin->GetOwningNode();
 				if( UK2Node_DataprepAction* ActionNode = Cast<UK2Node_DataprepAction>( NextNode ) )
 				{
+					Task.ReportNextStep( FText::Format( LOCTEXT( "DataprepEditor_ExecutingAction", "Executing \"{0}\" ..."), ActionNode->GetNodeTitle( ENodeTitleType::FullTitle ) ) );
+
 					// Break the loop if the node had already been executed
 					if( ActionNodesExecuted.Find( ActionNode ) )
 					{
@@ -792,7 +818,7 @@ void FDataprepEditor::OnCommitWorld()
 		.SetAssets( ValidAssets )
 		.SetTransientContentFolder( GetTransientContentFolder() )
 		.SetLogger( TSharedPtr<IDataprepLogger>( new FDataprepLogger ) )
-		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter( LOCTEXT("Dataprep_CommitWorld", "Committing ...") ) ) );
+		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter() ) );
 
 	FString OutReason;
 	if( !DataprepAssetPtr->RunConsumer( Context, OutReason ) )
