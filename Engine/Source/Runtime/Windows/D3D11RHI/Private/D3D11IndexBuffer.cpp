@@ -107,7 +107,7 @@ void* FD3D11DynamicRHI::RHILockIndexBuffer(FRHIIndexBuffer* IndexBufferRHI,uint3
 			// If the static buffer is being locked for reading, create a staging buffer.
 			D3D11_BUFFER_DESC StagingBufferDesc;
 			ZeroMemory( &StagingBufferDesc, sizeof( D3D11_BUFFER_DESC ) );
-			StagingBufferDesc.ByteWidth = Size;
+			StagingBufferDesc.ByteWidth = Desc.ByteWidth;
 			StagingBufferDesc.Usage = D3D11_USAGE_STAGING;
 			StagingBufferDesc.BindFlags = 0;
 			StagingBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
