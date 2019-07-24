@@ -1443,7 +1443,10 @@ void FBlueprintCompilationManagerImpl::FlushReinstancingQueueImpl()
 		FScopedDurationTimer ReinstTimer(GTimeReinstancing);
 		
 		TGuardValue<bool> ReinstancingGuard(GIsReinstancing, true);
-		FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(ClassesToReinstance, true);
+		
+		FBatchReplaceInstancesOfClassParameters Options;
+		Options.bArchetypesAreUpToDate = true;
+		FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(ClassesToReinstance, Options);
 
 		if (IsAsyncLoading())
 		{
@@ -1619,7 +1622,28 @@ void FBlueprintCompilationManagerImpl::ReparentHierarchies(const TMap<UClass*, U
 		OldClassToNewClassDerivedTypes.Add(ReinstancingJob.OldToNew);
 	}
 	TGuardValue<bool> ReinstancingGuard(GIsReinstancing, true);
-	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass( OldClassToNewClassDerivedTypes, /* bArchetypesAreUpToDate */ true );
+	FBatchReplaceInstancesOfClassParameters Options;
+	Options.bArchetypesAreUpToDate = true;
+
+	// Make sure we don't replace old instances that are in the *callers* old to new TMap!
+	TSet<UObject*> OldObjects;
+	for(TPair<UClass*, UClass*> OldToNew : OldClassToNewClassDerivedTypes)
+	{
+		TArray< UObject* > OldObjectsOfType;
+		GetObjectsOfClass(OldToNew.Key, OldObjectsOfType);
+
+		for(UObject* Obj : OldObjectsOfType)
+		{
+			if(Obj->HasAnyFlags(RF_NewerVersionExists))
+			{
+				OldObjects.Add(Obj);
+			}
+		}
+	}
+	Options.ObjectsThatShouldUseOldStuff = &OldObjects;
+	Options.InstancesThatShouldUseOldClass = &OldObjects;
+
+	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass( OldClassToNewClassDerivedTypes, Options );
 }
 
 
