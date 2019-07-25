@@ -14,7 +14,7 @@ uint2 TileBufferExtent;
 uint ViewTileCount;
 uint MaxTileCount;
 
-Buffer<float> TileClassificationBuffer;
+StructuredBuffer<float> TileClassificationBuffer;
 
 
 /** Information about tiles in SGPRs. */
@@ -34,7 +34,7 @@ FSSRTTileInfos LoadTileInfos(uint2 TileCoord)
 	UNROLL_N(DIRECTIONALITY_DIVISION)
 	for (uint i = 0; i < DIRECTIONALITY_DIVISION; i++)
 	{
-		TileInfos.Directionality[i] = TileClassificationBuffer.Load(TileIndex + ViewTileCount * i);
+		TileInfos.Directionality[i] = TileClassificationBuffer[TileIndex * DIRECTIONALITY_DIVISION + i];
 	}
 	return TileInfos;
 }

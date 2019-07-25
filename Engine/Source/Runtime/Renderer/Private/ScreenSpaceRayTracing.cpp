@@ -160,15 +160,15 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSRTTileClassificationParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSRTTileClassificationResources, )
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<float>, TileClassificationBuffer)
+	SHADER_PARAMETER_RDG_BUFFER(StructuredBuffer<float>, TileClassificationBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSRTTileClassificationSRVs, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, TileClassificationBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float>, TileClassificationBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSRTTileClassificationUAVs, )
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, TileClassificationBufferOutput)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, TileClassificationBufferOutput)
 END_SHADER_PARAMETER_STRUCT()
 
 FSSRTTileClassificationResources CreateTileClassificationResources(FRDGBuilder& GraphBuilder, const FViewInfo& View, FIntPoint MaxRenderTargetSize, FSSRTTileClassificationParameters* OutParameters)
@@ -180,7 +180,7 @@ FSSRTTileClassificationResources CreateTileClassificationResources(FRDGBuilder& 
 	OutParameters->ViewTileCount = OutParameters->TileBufferExtent.X * OutParameters->TileBufferExtent.Y;
 
 	FSSRTTileClassificationResources Resources;
-	Resources.TileClassificationBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), MaxTileCount * 8), TEXT("SSRTTileClassification"));
+	Resources.TileClassificationBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(float), MaxTileCount * 8), TEXT("SSRTTileClassification"));
 	return Resources;
 }
 

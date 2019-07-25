@@ -24,7 +24,7 @@ SamplerState ClosestHZBTextureSampler;
 #endif
 
 
-RWBuffer<float> TileClassificationBufferOutput;
+RWStructuredBuffer<float> TileClassificationBufferOutput;
 RWTexture2D<float4> DebugOutput;
 
 //void StoreTileInfos(uint2 TileCoord, FSSRTTileInfos TileInfos)
@@ -107,7 +107,7 @@ void MainCS(
 	if (TileCoord.x < TileBufferExtent.x && TileCoord.y < TileBufferExtent.y)
 	{
 		uint TileIndex = TileCoord.x + TileCoord.y * TileBufferExtent.x;
-		TileClassificationBufferOutput[TileIndex + ViewTileCount * DirectionId] = MaxTheta;
+		TileClassificationBufferOutput[TileIndex * DIRECTIONALITY_DIVISION + DirectionId] = MaxTheta;
 	}
 
 	if (DirectionId == View.GeneralPurposeTweak)
