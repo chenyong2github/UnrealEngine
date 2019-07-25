@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "ComponentSourceInterfaces.h"
 #include "MeshDescription.h"
-#include "ProceduralMeshcomponent.h"
+#include "ProceduralMeshComponent.h"
 
 class PROCEDURALMESHCOMPONENT_API  FProceduralMeshComponentTargetFactory : public FComponentTargetFactory
 {
