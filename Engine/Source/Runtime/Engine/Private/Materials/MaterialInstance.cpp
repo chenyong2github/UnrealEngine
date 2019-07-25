@@ -4195,6 +4195,12 @@ USubsurfaceProfile* UMaterialInstance::GetSubsurfaceProfile_Internal() const
 	return Parent ? Parent->GetSubsurfaceProfile_Internal() : 0;
 }
 
+bool UMaterialInstance::CastsRayTracedShadows() const
+{
+	//#dxr_todo: do per material instance override?
+	return Parent ? Parent->CastsRayTracedShadows() : true;
+}
+
 /** Checks to see if an input property should be active, based on the state of the material */
 bool UMaterialInstance::IsPropertyActive(EMaterialProperty InProperty) const
 {
