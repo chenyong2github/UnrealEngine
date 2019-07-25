@@ -460,18 +460,37 @@ private:
 
 	void AddTakesMenu(FMenuBuilder& MenuBuilder)
 	{
-		TArray<uint32> TakeNumbers;
+		TArray<FAssetData> AssetData;
 		uint32 CurrentTakeNumber = INDEX_NONE;
-		MovieSceneToolHelpers::GatherTakes(&SectionObject, TakeNumbers, CurrentTakeNumber);
+		MovieSceneToolHelpers::GatherTakes(&SectionObject, AssetData, CurrentTakeNumber);
 
-		for (auto TakeNumber : TakeNumbers)
+		AssetData.Sort([this](const FAssetData &A, const FAssetData &B) {
+			uint32 TakeNumberA = INDEX_NONE;
+			uint32 TakeNumberB = INDEX_NONE;
+			if (MovieSceneToolHelpers::GetTakeNumber(&SectionObject, A, TakeNumberA) && MovieSceneToolHelpers::GetTakeNumber(&SectionObject, B, TakeNumberB))
+			{
+				return TakeNumberA < TakeNumberB;
+			}
+			return true;
+		});
+
+		for (auto ThisAssetData : AssetData)
 		{
-			MenuBuilder.AddMenuEntry(
-				FText::Format(LOCTEXT("TakeNumber", "Take {0}"), FText::AsNumber(TakeNumber)),
-				FText::Format(LOCTEXT("TakeNumberTooltip", "Switch to take {0}"), FText::AsNumber(TakeNumber)),
-				TakeNumber == CurrentTakeNumber ? FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Star") : FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Empty"),
-				FUIAction(FExecuteAction::CreateSP(SubTrackEditor.Pin().ToSharedRef(), &FSubTrackEditor::SwitchTake, TakeNumber))
-			);
+			uint32 TakeNumber = INDEX_NONE;
+			if (MovieSceneToolHelpers::GetTakeNumber(&SectionObject, ThisAssetData, TakeNumber))
+			{
+				UObject* TakeObject = ThisAssetData.GetAsset();
+
+				if (TakeObject)
+				{
+					MenuBuilder.AddMenuEntry(
+						FText::Format(LOCTEXT("TakeNumber", "Take {0}"), FText::AsNumber(TakeNumber)),
+						FText::Format(LOCTEXT("TakeNumberTooltip", "Switch to {0}"), FText::FromString(TakeObject->GetPathName())),
+						TakeNumber == CurrentTakeNumber ? FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Star") : FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.Empty"),
+						FUIAction(FExecuteAction::CreateSP(SubTrackEditor.Pin().ToSharedRef(), &FSubTrackEditor::SwitchTake, TakeObject))
+					);
+				}
+			}
 		}
 	}
 
@@ -933,7 +952,7 @@ FKeyPropertyResult FSubTrackEditor::HandleRecordNewSequenceInternal(FFrameNumber
 	return KeyPropertyResult;
 }
 
-void FSubTrackEditor::SwitchTake(uint32 TakeNumber)
+void FSubTrackEditor::SwitchTake(UObject* TakeObject)
 {
 	bool bSwitchedTake = false;
 
@@ -950,8 +969,6 @@ void FSubTrackEditor::SwitchTake(uint32 TakeNumber)
 		}
 
 		UMovieSceneSubSection* Section = Cast<UMovieSceneSubSection>(Sections[SectionIndex]);
-
-		UObject* TakeObject = MovieSceneToolHelpers::GetTake(Section, TakeNumber);
 
 		if (TakeObject && TakeObject->IsA(UMovieSceneSequence::StaticClass()))
 		{

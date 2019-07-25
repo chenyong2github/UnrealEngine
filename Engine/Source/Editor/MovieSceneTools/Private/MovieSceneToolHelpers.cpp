@@ -363,7 +363,7 @@ FString MovieSceneToolHelpers::GenerateNewShotName(const TArray<UMovieSceneSecti
 	return ComposeShotName(ProjectSettings->ShotPrefix, ProjectSettings->FirstShotNumber, ProjectSettings->FirstTakeNumber);
 }
 
-void MovieSceneToolHelpers::GatherTakes(const UMovieSceneSection* Section, TArray<uint32>& TakeNumbers, uint32& CurrentTakeNumber)
+void MovieSceneToolHelpers::GatherTakes(const UMovieSceneSection* Section, TArray<FAssetData>& AssetData, uint32& OutCurrentTakeNumber)
 {
 	const UMovieSceneSubSection* SubSection = Cast<const UMovieSceneSubSection>(Section);
 	
@@ -372,7 +372,7 @@ void MovieSceneToolHelpers::GatherTakes(const UMovieSceneSection* Section, TArra
 		return;
 	}
 
-	if (FMovieSceneToolsModule::Get().GatherTakes(Section, TakeNumbers, CurrentTakeNumber))
+	if (FMovieSceneToolsModule::Get().GatherTakes(Section, AssetData, OutCurrentTakeNumber))
 	{
 		return;
 	}
@@ -383,7 +383,7 @@ void MovieSceneToolHelpers::GatherTakes(const UMovieSceneSection* Section, TArra
 
 	FString ShotPrefix;
 	uint32 ShotNumber = INDEX_NONE;
-	CurrentTakeNumber = INDEX_NONE;
+	OutCurrentTakeNumber = INDEX_NONE;
 
 	FString SubSectionName = SubSection->GetSequence()->GetName();
 	if (SubSection->IsA<UMovieSceneCinematicShotSection>())
@@ -392,7 +392,7 @@ void MovieSceneToolHelpers::GatherTakes(const UMovieSceneSection* Section, TArra
 		SubSectionName = ShotSection->GetShotDisplayName();
 	}
 
-	if (ParseShotName(SubSectionName, ShotPrefix, ShotNumber, CurrentTakeNumber))
+	if (ParseShotName(SubSectionName, ShotPrefix, ShotNumber, OutCurrentTakeNumber))
 	{
 		// Gather up all level sequence assets
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -413,24 +413,22 @@ void MovieSceneToolHelpers::GatherTakes(const UMovieSceneSection* Section, TArra
 				{
 					if (AssetShotPrefix == ShotPrefix && AssetShotNumber == ShotNumber)
 					{
-						TakeNumbers.Add(AssetTakeNumber);
+						AssetData.Add(AssetObject);
 					}
 				}
 			}
 		}
 	}
-
-	TakeNumbers.Sort();
 }
 
-UObject* MovieSceneToolHelpers::GetTake(const UMovieSceneSection* Section, uint32 TakeNumber)
+bool MovieSceneToolHelpers::GetTakeNumber(const UMovieSceneSection* Section, FAssetData AssetData, uint32& OutTakeNumber)
 {
-	const UMovieSceneSubSection* SubSection = Cast<const UMovieSceneSubSection>(Section);
-
-	if (UObject* TakeObject = FMovieSceneToolsModule::Get().GetTake(Section, TakeNumber))
+	if (FMovieSceneToolsModule::Get().GetTakeNumber(Section, AssetData, OutTakeNumber))
 	{
-		return TakeObject;
+		return true;
 	}
+
+	const UMovieSceneSubSection* SubSection = Cast<const UMovieSceneSubSection>(Section);
 
 	FAssetData ShotData(SubSection->GetSequence()->GetOuter());
 
@@ -459,29 +457,38 @@ UObject* MovieSceneToolHelpers::GetTake(const UMovieSceneSection* Section, uint3
 
 		for (auto AssetObject : ObjectList)
 		{
-			FString AssetPackagePath = AssetObject.PackagePath.ToString();
-			int32 AssetLastSlashPos = INDEX_NONE;
-			AssetPackagePath.FindLastChar(TCHAR('/'), AssetLastSlashPos);
-			AssetPackagePath = AssetPackagePath.Left(AssetLastSlashPos);
-
-			if (AssetPackagePath == ShotPackagePath)
+			if (AssetObject == AssetData)
 			{
-				FString AssetShotPrefix;
-				uint32 AssetShotNumber = INDEX_NONE;
-				uint32 AssetTakeNumber = INDEX_NONE;
+				FString AssetPackagePath = AssetObject.PackagePath.ToString();
+				int32 AssetLastSlashPos = INDEX_NONE;
+				AssetPackagePath.FindLastChar(TCHAR('/'), AssetLastSlashPos);
+				AssetPackagePath = AssetPackagePath.Left(AssetLastSlashPos);
 
-				if (ParseShotName(AssetObject.AssetName.ToString(), AssetShotPrefix, AssetShotNumber, AssetTakeNumber))
+				if (AssetPackagePath == ShotPackagePath)
 				{
-					if (AssetShotPrefix == ShotPrefix && AssetShotNumber == ShotNumber && TakeNumber == AssetTakeNumber)
+					FString AssetShotPrefix;
+					uint32 AssetShotNumber = INDEX_NONE;
+					uint32 AssetTakeNumber = INDEX_NONE;
+
+					if (ParseShotName(AssetObject.AssetName.ToString(), AssetShotPrefix, AssetShotNumber, AssetTakeNumber))
 					{
-						return AssetObject.GetAsset();
+						if (AssetShotPrefix == ShotPrefix && AssetShotNumber == ShotNumber)
+						{
+							OutTakeNumber = AssetTakeNumber;
+							return true;
+						}
 					}
 				}
 			}
 		}
 	}
 
-	return nullptr;
+	return false;
+}
+
+bool MovieSceneToolHelpers::SetTakeNumber(const UMovieSceneSection* Section, uint32 InTakeNumber)
+{
+	return FMovieSceneToolsModule::Get().SetTakeNumber(Section, InTakeNumber);
 }
 
 int32 MovieSceneToolHelpers::FindAvailableRowIndex(UMovieSceneTrack* InTrack, UMovieSceneSection* InSection)

@@ -18,7 +18,7 @@ class FTakesCoreTakeData : public IMovieSceneToolsTakeData
 public:
 	virtual ~FTakesCoreTakeData() { }
 
-	virtual bool GatherTakes(const UMovieSceneSection* Section, TArray<uint32>& TakeNumbers, uint32& CurrentTakeNumber)
+	virtual bool GatherTakes(const UMovieSceneSection* Section, TArray<FAssetData>& AssetData, uint32& OutCurrentTakeNumber)
 	{
 		const UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
 		if (!SubSection)
@@ -46,50 +46,82 @@ public:
 			int32 ThisTakeNumber = 0;
 			if (TakeNumberTag.IsSet() && LexTryParseString(ThisTakeNumber, *TakeNumberTag.GetValue()))
 			{
-				TakeNumbers.Add(ThisTakeNumber);
+				AssetData.Add(TakeData);
 			}
 		}
 
-		CurrentTakeNumber = TakeMetaData->GetTakeNumber();
+		OutCurrentTakeNumber = TakeMetaData->GetTakeNumber();
 
 		return true;
 	}
 
-	virtual UObject* GetTake(const UMovieSceneSection* Section, uint32 TakeNumber)
+	virtual bool GetTakeNumber(const UMovieSceneSection* Section, FAssetData AssetData, uint32& OutTakeNumber)
 	{
 		const UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
 		if (!SubSection)
 		{
-			return nullptr;
+			return false;
 		}
 
 		ULevelSequence* Sequence = Cast<ULevelSequence>(SubSection->GetSequence());
 		if (!Sequence)
 		{
-			return nullptr;
+			return false;
 		}
 
 		UTakeMetaData* TakeMetaData = Sequence->FindMetaData<UTakeMetaData>();
 		if (!TakeMetaData)
 		{
-			return nullptr;
+			return false;
 		}
 
 		TArray<FAssetData> TakeDatas = UTakesCoreBlueprintLibrary::FindTakes(TakeMetaData->GetSlate());
 		for (FAssetData TakeData : TakeDatas)
 		{
-			FAssetDataTagMapSharedView::FFindTagResult TakeNumberTag = TakeData.TagsAndValues.FindTag(UTakeMetaData::AssetRegistryTag_TakeNumber);
-
-			int32 ThisTakeNumber = 0;
-			if (TakeNumberTag.IsSet() && LexTryParseString(ThisTakeNumber, *TakeNumberTag.GetValue()))
+			if (TakeData == AssetData)
 			{
-				if (ThisTakeNumber == TakeNumber)
+				FAssetDataTagMapSharedView::FFindTagResult TakeNumberTag = TakeData.TagsAndValues.FindTag(UTakeMetaData::AssetRegistryTag_TakeNumber);
+
+				int32 ThisTakeNumber = 0;
+				if (TakeNumberTag.IsSet() && LexTryParseString(ThisTakeNumber, *TakeNumberTag.GetValue()))
 				{
-					return TakeData.GetAsset();
+					OutTakeNumber = ThisTakeNumber;
+					return true;
 				}
 			}
 		}
 
-		return nullptr;
+		return false;
+	}
+
+	virtual bool SetTakeNumber(const UMovieSceneSection* Section, uint32 InTakeNumber)
+	{
+		const UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section);
+		if (!SubSection)
+		{
+			return false;
+		}
+
+		ULevelSequence* Sequence = Cast<ULevelSequence>(SubSection->GetSequence());
+		if (!Sequence)
+		{
+			return false;
+		}
+
+		UTakeMetaData* TakeMetaData = Sequence->FindMetaData<UTakeMetaData>();
+		if (!TakeMetaData)
+		{
+			return false;
+		}
+
+		bool bWasLocked = TakeMetaData->IsLocked();
+		TakeMetaData->Unlock();
+		TakeMetaData->SetTakeNumber(InTakeNumber);
+		if (bWasLocked)
+		{
+			TakeMetaData->Lock();
+		}
+
+		return true;
 	}
 };

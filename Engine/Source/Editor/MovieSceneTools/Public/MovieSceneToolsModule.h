@@ -12,8 +12,9 @@ class UMovieSceneSection;
 class IMovieSceneToolsTakeData
 {
 public:
-	virtual bool GatherTakes(const UMovieSceneSection* Section, TArray<uint32>& TakeNumbers, uint32& CurrentTakeNumber) = 0;
-	virtual UObject* GetTake(const UMovieSceneSection* Section, uint32 TakeNumber) = 0;
+	virtual bool GatherTakes(const UMovieSceneSection* Section, TArray<FAssetData>& AssetData, uint32& OutCurrentTakeNumber) = 0;
+	virtual bool GetTakeNumber(const UMovieSceneSection* Section, FAssetData AssetData, uint32& OutTakeNumber) = 0;
+	virtual bool SetTakeNumber(const UMovieSceneSection*, uint32 InTakeNumber) = 0;
 };
 
 /**
@@ -36,9 +37,10 @@ public:
 	void RegisterTakeData(IMovieSceneToolsTakeData*);
 	void UnregisterTakeData(IMovieSceneToolsTakeData*);
 
-	bool GatherTakes(const UMovieSceneSection* Section, TArray<uint32>& TakeNumbers, uint32& CurrentTakeNumber);
-	UObject* GetTake(const UMovieSceneSection* Section, uint32 TakeNumber);
-		
+	bool GatherTakes(const UMovieSceneSection* Section, TArray<FAssetData>& AssetData, uint32& OutCurrentTakeNumber);
+	bool GetTakeNumber(const UMovieSceneSection* Section, FAssetData AssetData, uint32& OutTakeNumber);
+	bool SetTakeNumber(const UMovieSceneSection* Section, uint32 InTakeNumber);
+
 private:
 
 	void RegisterClipboardConversions();

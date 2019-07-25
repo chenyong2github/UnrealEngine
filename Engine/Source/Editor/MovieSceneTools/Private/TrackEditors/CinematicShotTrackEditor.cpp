@@ -462,13 +462,21 @@ void FCinematicShotTrackEditor::NewTake(UMovieSceneCinematicShotSection* Section
 	uint32 TakeNumber = INDEX_NONE;
 	if (MovieSceneToolHelpers::ParseShotName(Section->GetShotDisplayName(), ShotPrefix, ShotNumber, TakeNumber))
 	{
-		TArray<uint32> TakeNumbers;
-		uint32 CurrentTakeNumber;
-		MovieSceneToolHelpers::GatherTakes(Section, TakeNumbers, CurrentTakeNumber);
+		TArray<FAssetData> AssetData;
+		uint32 CurrentTakeNumber = INDEX_NONE;
+		MovieSceneToolHelpers::GatherTakes(Section, AssetData, CurrentTakeNumber);
 		uint32 NewTakeNumber = CurrentTakeNumber;
-		if (TakeNumbers.Num() > 0)
+
+		for (auto ThisAssetData : AssetData)
 		{
-			NewTakeNumber = TakeNumbers[TakeNumbers.Num()-1] + 1;
+			uint32 ThisTakeNumber = INDEX_NONE;
+			if (MovieSceneToolHelpers::GetTakeNumber(Section, ThisAssetData, ThisTakeNumber))
+			{
+				if (ThisTakeNumber >= NewTakeNumber)
+				{
+					NewTakeNumber = ThisTakeNumber + 1;
+				}
+			}
 		}
 
 		FString NewShotName = MovieSceneToolHelpers::ComposeShotName(ShotPrefix, ShotNumber, NewTakeNumber);
@@ -493,6 +501,8 @@ void FCinematicShotTrackEditor::NewTake(UMovieSceneCinematicShotSection* Section
 			NewShot->SetPreRollFrames(NewShotPrerollFrames);
 			NewShot->SetRowIndex(NewRowIndex);
 
+			MovieSceneToolHelpers::SetTakeNumber(NewShot, NewTakeNumber);
+
 			GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemsChanged );
 			GetSequencer()->EmptySelection();
 			GetSequencer()->SelectSection(NewShot);
@@ -502,7 +512,7 @@ void FCinematicShotTrackEditor::NewTake(UMovieSceneCinematicShotSection* Section
 }
 
 
-void FCinematicShotTrackEditor::SwitchTake(uint32 TakeNumber)
+void FCinematicShotTrackEditor::SwitchTake(UObject* TakeObject)
 {
 	bool bSwitchedTake = false;
 
@@ -519,8 +529,6 @@ void FCinematicShotTrackEditor::SwitchTake(uint32 TakeNumber)
 		}
 
 		UMovieSceneSubSection* Section = Cast<UMovieSceneSubSection>(Sections[SectionIndex]);
-
-		UObject* TakeObject = MovieSceneToolHelpers::GetTake(Section, TakeNumber);
 
 		if (TakeObject && TakeObject->IsA(UMovieSceneSequence::StaticClass()))
 		{
