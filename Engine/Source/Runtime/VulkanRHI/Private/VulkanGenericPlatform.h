@@ -89,6 +89,9 @@ public:
 
 	static bool SupportParallelRenderingTasks() { return true; }
 
+	/** The status quo is false, so the default is chosen to not change it. As platforms opt in it may be better to flip the default. */
+	static bool SupportsDynamicResolution() { return false; }
+
 	// Allow platforms to add extension features to the DeviceInfo pNext chain
 	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo) {}
 
