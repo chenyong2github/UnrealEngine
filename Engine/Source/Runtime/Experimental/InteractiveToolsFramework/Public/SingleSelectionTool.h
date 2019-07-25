@@ -11,10 +11,10 @@ class INTERACTIVETOOLSFRAMEWORK_API USingleSelectionTool : public UInteractiveTo
 {
 GENERATED_BODY()
 public:
-	void SetSelection(FComponentTarget ComponentTargetIn)
+	void SetSelection(TUniquePtr<FPrimitiveComponentTarget> ComponentTargetIn)
     {
 		ComponentTarget = MoveTemp(ComponentTargetIn);
 	}
 protected:
-	FComponentTarget ComponentTarget{};
+	TUniquePtr<FPrimitiveComponentTarget> ComponentTarget{};
 };

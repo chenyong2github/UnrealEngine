@@ -8,19 +8,17 @@
 #include "PhysicsEngine/BodySetup.h"
 
 
-namespace {
 FMeshDescription *
-GetMeshDescription(UStaticMeshComponent* Component, int LODIndex) {
-	return Component->GetStaticMesh()->GetMeshDescription(LODIndex);
+FStaticMeshComponentTarget::GetMesh() {
+	return Cast<UStaticMeshComponent>(Component)->GetStaticMesh()->GetMeshDescription(LODIndex);
 }
 
 void
-CommitInPlaceModification(UStaticMeshComponent* Component, int LODIndex,
-						  const TFunction<void(FMeshDescription*)>& ModifyFunction)
+FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 {
 	//bool bSaved = Component->Modify();
 	//check(bSaved);
-	UStaticMesh* StaticMesh = Component->GetStaticMesh();
+	UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 
 	// make sure transactional flag is on
 	StaticMesh->SetFlags(RF_Transactional);
@@ -29,7 +27,7 @@ CommitInPlaceModification(UStaticMeshComponent* Component, int LODIndex,
 	check(bSavedToTransactionBuffer);
 	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 
-	ModifyFunction(MeshDescription);
+	Committer(MeshDescription);
 
 	StaticMesh->CommitMeshDescription(LODIndex);
 	StaticMesh->PostEditChange();
@@ -39,25 +37,20 @@ CommitInPlaceModification(UStaticMeshComponent* Component, int LODIndex,
 
 	//Component->PostEditChange();
 }
-} // namespace
 
-FMeshDescriptionBridge
-MakeStaticMeshDescriptionBridge(UPrimitiveComponent* Component)
+bool
+FStaticMeshComponentTargetFactory::CanBuild(UActorComponent* Component)
 {
-	const int LODIndex{0};
+	return Component != nullptr;
+}
+
+TUniquePtr< FPrimitiveComponentTarget >
+FStaticMeshComponentTargetFactory::Build(UPrimitiveComponent* Component)
+{
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 	if (StaticMeshComponent != nullptr)
 	{
-		return {
-			[StaticMeshComponent, LODIndex]()
-			{
-				return GetMeshDescription(StaticMeshComponent, LODIndex);
-			},
-			[StaticMeshComponent, LODIndex](const FMeshDescriptionBridge::FCommitter& Committer)
-			{
-				CommitInPlaceModification(StaticMeshComponent, LODIndex, Committer);
-			}
-		};
+		return TUniquePtr< FPrimitiveComponentTarget > { new FStaticMeshComponentTarget{Component} };
 	}
-	return FMeshDescriptionBridge{};
+	return {};
 }

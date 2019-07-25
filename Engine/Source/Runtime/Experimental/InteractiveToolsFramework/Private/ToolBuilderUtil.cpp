@@ -8,18 +8,6 @@
 
 
 
-bool ToolBuilderUtil::IsMeshDescriptionSourceComponent(UActorComponent* ComponentObject)
-{
-	UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(ComponentObject);
-	if (StaticMeshComp != nullptr)
-	{
-		return true;
-	}
-	return false;
-}
-
-
-
 int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate)
 {
 	int nTypedComponents = 0;

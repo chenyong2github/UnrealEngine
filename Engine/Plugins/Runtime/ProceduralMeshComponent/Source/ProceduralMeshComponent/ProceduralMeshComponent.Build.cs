@@ -4,18 +4,20 @@ namespace UnrealBuildTool.Rules
 {
 	public class ProceduralMeshComponent : ModuleRules
 	{
-        public ProceduralMeshComponent(ReadOnlyTargetRules Target) : base(Target)
+		public ProceduralMeshComponent(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateIncludePaths.Add("../../../../Shaders/Shared");
+			PrivateIncludePaths.Add("../../../../Shaders/Shared");
 
-            PublicDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
 					"CoreUObject",
-                    "Engine",
-                    "RenderCore",
-                    "RHI"
+					"Engine",
+					"InteractiveToolsFramework",
+					"MeshDescription",
+					"RenderCore",
+					"RHI"
 				}
 				);
 		}

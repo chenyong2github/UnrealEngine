@@ -10,33 +10,10 @@
 
 // predeclarations
 class AActor;
+class UActorComponent;
 class UPrimitiveComponent;
 struct FMeshDescription;
 class UMaterialInterface;
-
-template <class MeshT>
-struct TMeshBridge
-{
-	using  FSource    = TFunction< MeshT*() >;
-	using  FCommitter = TFunction< void( MeshT* ) >;
-	using  FSink      = TFunction< void( const FCommitter& ) >;
-	using  FBuilder   = TFunction< TMeshBridge ( UPrimitiveComponent* ) >;
-
-	bool HasSource(){ return !!GetMesh; }
-	bool HasSink(){ return !!CommitMesh; }
-
-	FSource GetMesh{nullptr};
-	FSink   CommitMesh{nullptr};
-};
-using FMeshDescriptionBridge = TMeshBridge<FMeshDescription>;
-
-/**
- * Add a factory method to make MeshDescriptionSources from UActorComponent*
- * @param Builder The MeshDescriptionSourceBuilder
- * @return void
- */
-INTERACTIVETOOLSFRAMEWORK_API void AddMeshDescriptionBridgeBuilder( FMeshDescriptionBridge::FBuilder Builder );
-
 
 /**
  * Wrapper around a UObject Component that can provide a MeshDescription, and
@@ -46,9 +23,16 @@ INTERACTIVETOOLSFRAMEWORK_API void AddMeshDescriptionBridgeBuilder( FMeshDescrip
  *
  * (Conceivably this doesn't have to be backed by a Component, but most usage will assume there is an Actor)
  */
-class INTERACTIVETOOLSFRAMEWORK_API FComponentTarget
+class INTERACTIVETOOLSFRAMEWORK_API FPrimitiveComponentTarget
 {
 public:
+	virtual ~FPrimitiveComponentTarget(){}
+
+	/** Constructor UPrimitivecomponent*
+	 *  @param Component the UPrimitiveComponent* to target
+	 */
+	FPrimitiveComponentTarget( UPrimitiveComponent* Component ): Component( Component ){}
+
 	/** @return the Actor that owns this Component */
 	AActor* GetOwnerActor() const;
 
@@ -82,9 +66,28 @@ public:
 	 */
 	void SetOwnerVisibility(bool bVisible) const;
 
-	FMeshDescriptionBridge MeshDescriptionBridge{};
+	using  FCommitter  = TFunction< void( FMeshDescription* ) >;
+	virtual FMeshDescription* GetMesh() = 0;
+	virtual void CommitMesh( const FCommitter& ) = 0;
+
 	UPrimitiveComponent* Component{};
 };
+
+class INTERACTIVETOOLSFRAMEWORK_API FComponentTargetFactory
+{
+public:
+	virtual ~FComponentTargetFactory(){}
+	virtual bool CanBuild( UActorComponent* Candidate ) = 0;
+	virtual TUniquePtr<FPrimitiveComponentTarget> Build( UPrimitiveComponent* PrimitiveComponent ) = 0;
+};
+
+/**
+ * Add a factory method to make ComponentTarget from UPrimitiveComponent*
+ * @param Factory The ComponentTargetFactory
+ * @return void
+ */
+INTERACTIVETOOLSFRAMEWORK_API void AddComponentTargetFactory( TUniquePtr<FComponentTargetFactory> Factory );
+
 
 /**
  * Create a TargetComponent for the given Component
@@ -93,4 +96,12 @@ public:
  * @return An FComponentTarget instance. Must not return null, though the MeshSource and MeshSink in it's MeshBridge may
  * be
  */
-INTERACTIVETOOLSFRAMEWORK_API FComponentTarget MakeComponentTarget(UPrimitiveComponent* Component);
+INTERACTIVETOOLSFRAMEWORK_API TUniquePtr<FPrimitiveComponentTarget> MakeComponentTarget(UPrimitiveComponent* Component);
+
+
+/**
+ * Determine whether a TargetComponent can be created for the given Component
+ * @param Component A UObject that we would like to use as tool target.
+ * @return bool signifying whether or not a ComponentTarget can be built
+ */
+INTERACTIVETOOLSFRAMEWORK_API bool CanMakeComponentTarget(UActorComponent* Component);

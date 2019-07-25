@@ -11,10 +11,10 @@ class INTERACTIVETOOLSFRAMEWORK_API UMultiSelectionTool : public UInteractiveToo
 {
 GENERATED_BODY()
 public:
-	void SetSelection(TArray<FComponentTarget> ComponentTargetsIn)
+	void SetSelection(TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargetsIn)
     {
 		ComponentTargets = MoveTemp(ComponentTargetsIn);
 	}
 protected:
-	TArray<FComponentTarget> ComponentTargets{};
+	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets{};
 };

@@ -7,63 +7,75 @@
 
 namespace
 {
-	TArray<FMeshDescriptionBridge::FBuilder> Builders;
+	TArray<TUniquePtr<FComponentTargetFactory>> Factories;
 }
 
 void
-AddMeshDescriptionBridgeBuilder( FMeshDescriptionBridge::FBuilder Builder )
+AddComponentTargetFactory( TUniquePtr<FComponentTargetFactory> Factory )
 {
-	Builders.Push(MoveTemp(Builder));
+	Factories.Push( MoveTemp(Factory) );
 }
 
-FComponentTarget
+bool
+CanMakeComponentTarget(UActorComponent* Component)
+{
+	for ( const auto& Factory : Factories )
+	{
+		if ( Factory->CanBuild(Component) )
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+TUniquePtr<FPrimitiveComponentTarget>
 MakeComponentTarget(UPrimitiveComponent* Component)
 {
-	for ( const auto& Builder : Builders )
+	for ( const auto& Factory : Factories )
 	{
-		auto Bridge = Builder( Component );
-		if ( Bridge.HasSource() )
+		if ( Factory->CanBuild( Component ) )
 		{
-			return {Bridge, Component};
+			return Factory->Build( Component );
 		}
 	}
 	return {};
 }
 
 AActor*
-FComponentTarget::GetOwnerActor() const
+FPrimitiveComponentTarget::GetOwnerActor() const
 {
 	return Component->GetOwner();
 }
 
 UPrimitiveComponent*
-FComponentTarget::GetOwnerComponent() const
+FPrimitiveComponentTarget::GetOwnerComponent() const
 {
 	return Component;
 }
 
 
 void
-FComponentTarget::SetOwnerVisibility(bool bVisible) const
+FPrimitiveComponentTarget::SetOwnerVisibility(bool bVisible) const
 {
 	Component->SetVisibility(bVisible);
 }
 
 UMaterialInterface*
-FComponentTarget::GetMaterial(int32 MaterialIndex) const
+FPrimitiveComponentTarget::GetMaterial(int32 MaterialIndex) const
 {
 	return Component->GetMaterial(MaterialIndex);
 }
 
 FTransform
-FComponentTarget::GetWorldTransform() const
+FPrimitiveComponentTarget::GetWorldTransform() const
 {
 	//return Component->GetOwner()->GetActorTransform();
 	return Component->GetComponentTransform();
 }
 
 bool
-FComponentTarget::HitTest(const FRay& WorldRay, FHitResult& OutHit) const
+FPrimitiveComponentTarget::HitTest(const FRay& WorldRay, FHitResult& OutHit) const
 {
 	FVector End = WorldRay.PointAt(HALF_WORLD_MAX);
 	if (Component->LineTraceComponent(OutHit, WorldRay.Origin, End, FCollisionQueryParams(SCENE_QUERY_STAT(HitTest), true)))
