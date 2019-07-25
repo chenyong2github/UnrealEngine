@@ -8,6 +8,7 @@
 #include "IMovieSceneTools.h"
 
 class UMovieSceneSection;
+struct FAssetData;
 
 class IMovieSceneToolsTakeData
 {
