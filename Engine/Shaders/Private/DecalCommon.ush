@@ -36,7 +36,9 @@ void DecalCommonOutput(inout FPixelShaderIn In, inout FPixelShaderOut Out, float
 	Out.MRT[0] = float4(Color, Opacity);
 
 #if USE_PREEXPOSURE
-	Out.MRT[0].xyz *= View.PreExposure;
+	#if DECAL_BLEND_MODE != DECALBLENDMODEID_NORMAL
+		Out.MRT[0].xyz *= View.PreExposure;
+	#endif
 #endif
 
 #if (ES2_PROFILE || ES3_1_PROFILE)
