@@ -225,6 +225,10 @@ int32 SConstraintCanvas::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 
 			MaxLayerId = FMath::Max(MaxLayerId, CurWidgetsMaxLayerId);
 		}
+		else
+		{
+			//SlateGI - RemoveContent
+		}
 	}
 
 	return MaxLayerId;
