@@ -19,10 +19,14 @@ public:
 		StatsCounter
 	};
 
+	virtual FString FormatValue(double Value) const override;
+
 public:
 	ESeriesType Type;
 	uint32 Id; // frame type, timer id or stats counter id
+
 	bool bIsFloatingPoint; // for stats counters
+	bool bIsMemory; // for stats counters
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -8,11 +8,47 @@
 #include "TraceServices/SessionService.h"
 
 // Insights
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTimingGraphSeries
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FString FTimingGraphSeries::FormatValue(double Value) const
+{
+	switch (Type)
+	{
+	case FTimingGraphSeries::ESeriesType::Frame:
+		return FString::Printf(TEXT("%s (%g fps)"), *TimeUtils::FormatTimeAuto(Value), 1.0 / Value);
+
+	case FTimingGraphSeries::ESeriesType::Timer:
+		return TimeUtils::FormatTimeAuto(Value);
+
+	case FTimingGraphSeries::ESeriesType::StatsCounter:
+		if (bIsMemory)
+		{
+			const int64 MemValue = static_cast<int64>(Value);
+			return FString::Printf(TEXT("%s (%s bytes)"), *FText::AsMemory(MemValue).ToString(), *FText::AsNumber(MemValue).ToString());
+		}
+		if (bIsFloatingPoint)
+		{
+			return FString::Printf(TEXT("%g"), Value);
+		}
+		else
+		{
+			const int64 Int64Value = static_cast<int64>(Value);
+			return FText::AsNumber(Int64Value).ToString();
+		}
+		break;
+	}
+
+	return FGraphSeries::FormatValue(Value);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTimingGraphTrack
@@ -77,6 +113,7 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 
 	const TCHAR* CounterName = nullptr;
 	bool bIsFloatingPoint = false;
+	bool bIsMemory = false;
 
 	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
@@ -89,6 +126,7 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 			{
 				CounterName = Counter.GetName();
 				bIsFloatingPoint = Counter.IsFloatingPoint();
+				bIsMemory = (Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory);
 			});
 		}
 	}
@@ -102,6 +140,7 @@ TSharedPtr<FTimingGraphSeries> FTimingGraphTrack::AddStatsCounterSeries(uint32 C
 	Series->Type = FTimingGraphSeries::ESeriesType::StatsCounter;
 	Series->Id = CounterId;
 	Series->bIsFloatingPoint = bIsFloatingPoint;
+	Series->bIsMemory = bIsMemory;
 
 	Series->SetBaselineY(GetHeight() - 1.0f);
 	Series->SetScaleY(1.0);
@@ -264,8 +303,8 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 				const float TopY = 4.0f;
 				const float BottomY = GetHeight() - 4.0f;
 
-				const double HighValue = Series.GetValueForY(TopY);
 				const double LowValue = Series.GetValueForY(BottomY);
+				const double HighValue = Series.GetValueForY(TopY);
 
 				// If MinValue == MaxValue, we keep the previous baseline and scale, but only if the min/max value is already visible.
 				if (MinValue == MaxValue && (MinValue < LowValue || MaxValue > HighValue))
@@ -279,24 +318,27 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 					constexpr bool bIsAutoZoomAnimated = true;
 					if (bIsAutoZoomAnimated)
 					{
-						// Interpolate interval (animating the vertical position and scale of the graph series).
+						// Interpolate the min-max interval (animating the vertical position and scale of the graph series).
 						constexpr double InterpolationSpeed = 0.5;
-						MaxValue = InterpolationSpeed * MaxValue + (1.0 - InterpolationSpeed) * HighValue;
-						MinValue = InterpolationSpeed * MinValue + (1.0 - InterpolationSpeed) * LowValue;
+						const double NewMinValue = InterpolationSpeed * MinValue + (1.0 - InterpolationSpeed) * LowValue;
+						const double NewMaxValue = InterpolationSpeed * MaxValue + (1.0 - InterpolationSpeed) * HighValue;
+
+						// Check if we reach the target min-max interval.
+						const double ErrorTolerance = 0.5 / Series.GetScaleY(); // delta value for dy ~= 0.5 pixels
+						if (!FMath::IsNearlyEqual(NewMinValue, MinValue, ErrorTolerance) ||
+							!FMath::IsNearlyEqual(NewMaxValue, MaxValue, ErrorTolerance))
+						{
+							MinValue = NewMinValue;
+							MaxValue = NewMaxValue;
+
+							// Request a new update so we can further interpolate the min-max interval.
+							Series.SetDirtyFlag();
+						}
 					}
 
 					double BaselineY;
 					double ScaleY;
 					Series.ComputeBaselineAndScale(MinValue, MaxValue, TopY, BottomY, BaselineY, ScaleY);
-
-					constexpr double ErrorTolerance = 1e-15;
-					if (!FMath::IsNearlyEqual(BaselineY, Series.GetBaselineY(), ErrorTolerance) ||
-						!FMath::IsNearlyEqual(ScaleY, Series.GetScaleY(), ErrorTolerance))
-					{
-						// Request a new update so we can further interpolate the coefficients (until reaching targeted ones).
-						Series.SetDirtyFlag();
-					}
-
 					Series.SetBaselineY(BaselineY);
 					Series.SetScaleY(ScaleY);
 				}

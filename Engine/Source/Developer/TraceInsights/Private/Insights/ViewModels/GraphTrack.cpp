@@ -108,6 +108,13 @@ const FGraphSeries::FEvent* FGraphSeries::GetEvent(const float X, const float Y,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FString FGraphSeries::FormatValue(double Value) const
+{
+	return FString::Printf(TEXT("%g"), Value);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // FGraphTrack
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -178,9 +185,12 @@ void FGraphTrack::UpdateStats()
 
 	for (const TSharedPtr<FGraphSeries>& Series : AllSeries)
 	{
-		NumDrawPoints += Series->Points.Num();
-		NumDrawLines += Series->LinePoints.Num() / 2;
-		NumDrawBoxes += Series->Boxes.Num();
+		if (Series->IsVisible())
+		{
+			NumDrawPoints += Series->Points.Num();
+			NumDrawLines += Series->LinePoints.Num() / 2;
+			NumDrawBoxes += Series->Boxes.Num();
+		}
 	}
 }
 
@@ -555,10 +565,22 @@ void FGraphTrack::DrawHighlightedEvent(FDrawContext& DrawContext, const FTimingT
 void FGraphTrack::DrawTooltip(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const FVector2D& MousePosition, const FGraphTrack::FEvent& GraphEvent) const
 {
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	float DesiredTooltipWidth = FontMeasureService->Measure(GraphEvent.Series->GetName(), Font).X + 2 * FTimingViewTooltip::BorderX;
-	if (DesiredTooltipWidth < FTimingViewTooltip::MinWidth)
+
+	constexpr float ValueOffsetX = 48.0f;
+
+	float DesiredTooltipWidth = FTimingViewTooltip::MinWidth;
+
+	const float DesiredTooltipWidthByName = FontMeasureService->Measure(GraphEvent.Series->GetName(), Font).X + 2 * FTimingViewTooltip::BorderX;
+	if (DesiredTooltipWidth < DesiredTooltipWidthByName)
 	{
-		DesiredTooltipWidth = FTimingViewTooltip::MinWidth;
+		DesiredTooltipWidth = DesiredTooltipWidthByName;
+	}
+
+	FString ValueStr = GraphEvent.Series->FormatValue(GraphEvent.SeriesEvent.Value);
+	const float DesiredTooltipWidthByValue = ValueOffsetX + FontMeasureService->Measure(ValueStr, Font).X + 2 * FTimingViewTooltip::BorderX;
+	if (DesiredTooltipWidth < DesiredTooltipWidthByValue)
+	{
+		DesiredTooltipWidth = DesiredTooltipWidthByValue;
 	}
 
 	constexpr float LineH = 14.0f;
@@ -579,21 +601,20 @@ void FGraphTrack::DrawTooltip(FDrawContext& DrawContext, const FTimingTrackViewp
 	DrawContext.DrawText(X, Y, GraphEvent.Series->GetName().ToString(), Font, GraphEvent.Series->GetColor());
 	Y += LineH;
 
-	const float ValueX = X + 48.0f;
+	const float ValueX = X + ValueOffsetX;
 
 	DrawContext.DrawTextAligned(HAlign_Right, ValueX - 4.0f, Y, TEXT("Time:"), Font, TextColor);
-	FString InclStr = TimeUtils::FormatTimeAuto(GraphEvent.SeriesEvent.Time);
-	DrawContext.DrawText(ValueX, Y, InclStr, Font, ValueColor);
+	FString TimeStr = TimeUtils::FormatTimeAuto(GraphEvent.SeriesEvent.Time);
+	DrawContext.DrawText(ValueX, Y, TimeStr, Font, ValueColor);
 	Y += LineH;
 
 	DrawContext.DrawTextAligned(HAlign_Right, ValueX - 4.0f, Y, TEXT("Duration:"), Font, TextColor);
-	FString ExclStr = TimeUtils::FormatTimeAuto(GraphEvent.SeriesEvent.Duration);
-	DrawContext.DrawText(ValueX, Y, ExclStr, Font, ValueColor);
+	FString DurationStr = TimeUtils::FormatTimeAuto(GraphEvent.SeriesEvent.Duration);
+	DrawContext.DrawText(ValueX, Y, DurationStr, Font, ValueColor);
 	Y += LineH;
 
 	DrawContext.DrawTextAligned(HAlign_Right, ValueX - 4.0f, Y, TEXT("Value:"), Font, TextColor);
-	FString DepthStr = FString::Printf(TEXT("%g"), GraphEvent.SeriesEvent.Value);
-	DrawContext.DrawText(ValueX, Y, DepthStr, Font, ValueColor);
+	DrawContext.DrawText(ValueX, Y, ValueStr, Font, ValueColor);
 	Y += LineH;
 
 	DrawContext.LayerId++;
@@ -1321,11 +1342,47 @@ void FGraphTrackBuilder::AddBox(double Time, double Duration, double Value)
 		W = 1.0f;
 	}
 
-	// TODO: reduction algorithm
+	const float Y = Series.GetRoundedYForValue(Value);
+
+	// simple reduction
+	if (W == 1.0f && Series.Boxes.Num() > 0)
+	{
+		FGraphSeries::FBox& LastBox = Series.Boxes.Last();
+		if (LastBox.W == 1.0f && LastBox.X == X1)
+		{
+			const float RoundedBaselineY = FMath::RoundToFloat(Series.GetBaselineY());
+
+			if (LastBox.Y < RoundedBaselineY)
+			{
+				if (Y < RoundedBaselineY)
+				{
+					// Merge current box with previous one.
+					if (Y < LastBox.Y)
+					{
+						LastBox.Y = Y;
+					}
+					return;
+				}
+			}
+			else
+			{
+				if (Y >= RoundedBaselineY)
+				{
+					// Merge current box with previous one.
+					if (Y > LastBox.Y)
+					{
+						LastBox.Y = Y;
+					}
+					return;
+				}
+			}
+		}
+	}
+
 	FGraphSeries::FBox Box;
 	Box.X = X1;
 	Box.W = W;
-	Box.Y = Series.GetRoundedYForValue(Value);
+	Box.Y = Y;
 	Series.Boxes.Add(Box);
 }
 

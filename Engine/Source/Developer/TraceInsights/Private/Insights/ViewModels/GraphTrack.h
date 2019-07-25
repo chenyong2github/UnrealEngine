@@ -38,7 +38,7 @@ public:
 
 public:
 	FGraphSeries();
-	~FGraphSeries();
+	virtual ~FGraphSeries();
 
 	const FText& GetName() const { return Name; }
 	void SetName(const TCHAR* InName) { Name = FText::FromString(InName); }
@@ -142,6 +142,8 @@ public:
 	 * @return A pointer to an Event located at (X, Y) coordinates, if any; nullptr if no event is located at respective coordinates
 	 */
 	const FGraphSeries::FEvent* GetEvent(const float PosX, const float PosY, const FTimingTrackViewport& Viewport, bool bCheckLine, bool bCheckBox) const;
+
+	virtual FString FormatValue(double Value) const;
 
 private:
 	FText Name;
