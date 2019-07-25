@@ -366,7 +366,7 @@ public:
 	*
 	* @return true if bulk data has been loaded or async loading was not used to load this data, false otherwise
 	*/
-	bool IsAsyncLoadingComplete();
+	bool IsAsyncLoadingComplete() const;
 
 	/**
 	* Returns whether this bulk data is used
