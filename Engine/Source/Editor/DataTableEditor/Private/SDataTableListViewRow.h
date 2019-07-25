@@ -48,6 +48,8 @@ public:
 private:
 
 	void OnSearchForReferences();
+	void OnInsertNewRow();
+
 	TSharedRef<SWidget> MakeCellWidget(const int32 InRowIndex, const FName& InColumnId);
 
 	TSharedPtr<SInlineEditableTextBlock> InlineEditableText;

@@ -6842,6 +6842,7 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 
 		Set("DataTableEditor.Copy", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon16x16));
 		Set("DataTableEditor.Paste", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon16x16));
+		Set("DataTableEditor.Duplicate", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Duplicate_40x", Icon16x16));
 
 		Set( "DataTableEditor.CellText", FTextBlockStyle(NormalText)
 			.SetFont( DEFAULT_FONT("Regular", 9 ))

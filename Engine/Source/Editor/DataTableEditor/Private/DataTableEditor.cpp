@@ -32,6 +32,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "SourceCodeNavigation.h"
 #include "PropertyEditorModule.h"
 #include "UObject/StructOnScope.h"
@@ -351,6 +352,16 @@ FReply FDataTableEditor::OnPasteClicked()
 	if (Table)
 	{
 		PasteOnSelectedRow();
+	}
+	return FReply::Handled();
+}
+
+FReply FDataTableEditor::OnDuplicateClicked()
+{
+	UDataTable* Table = GetEditableDataTable();
+	if (Table)
+	{
+		DuplicateSelectedRow();
 	}
 	return FReply::Handled();
 }
@@ -920,6 +931,7 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 		.Thickness(FVector2D(12.0f, 12.0f));
 
 	ColumnNamesHeaderRow = SNew(SHeaderRow);
+
 	ColumnNamesHeaderRow->AddColumn(
 		SHeaderRow::Column(RowNameColumnId)
 		.DefaultLabel(FText::GetEmpty())
@@ -969,12 +981,67 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 				.ForegroundColor(FSlateColor::UseForeground())
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnCopyClicked)
+				.ToolTipText(LOCTEXT("CopyTooltip", "Copy the currently selected row"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Copy"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnPasteClicked)
+				.ToolTipText(LOCTEXT("PasteTooltip", "Paste on the currently selected row"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Paste"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &FDataTableEditor::OnDuplicateClicked)
+				.ToolTipText(LOCTEXT("DuplicateTooltip", "Duplicate the currently selected row"))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Duplicate"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
 				.OnClicked(this, &FDataTableEditor::OnRemoveClicked)
 				.ToolTipText(LOCTEXT("RemoveRowTooltip", "Remove the currently selected row from the data table"))
 				[
 					SNew(SImage)
 					.Image(FEditorStyle::Get().GetBrush("Cross"))
 				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SSeparator)
+				.Orientation(Orient_Vertical)
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -1042,38 +1109,6 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
 					.Text(FText::FromString(FString(TEXT("\xf103"))) /*fa-angle-double-down*/)
-				]
-			]
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2)
-				[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnCopyClicked)
-				.ToolTipText(LOCTEXT("CopyTooltip", "Copy the currently selected row"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Copy"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2)
-				[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &FDataTableEditor::OnPasteClicked)
-				.ToolTipText(LOCTEXT("PasteTooltip", "Paste on the currently selected row"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::Get().GetBrush("DataTableEditor.Paste"))
 				]
 			]
 		]

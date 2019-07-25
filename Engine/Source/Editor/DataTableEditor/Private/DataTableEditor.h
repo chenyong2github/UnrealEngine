@@ -160,6 +160,7 @@ protected:
 	FReply OnMoveToExtentClicked(FDataTableEditorUtils::ERowMoveDirection MoveDirection);
 	FReply OnCopyClicked();
 	FReply OnPasteClicked();
+	FReply OnDuplicateClicked();
 
 private:
 	UDataTable* GetEditableDataTable() const;

@@ -30,7 +30,9 @@ FReply SDataTableListViewRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && RowDataPtr.IsValid() && FEditorDelegates::OnOpenReferenceViewer.IsBound() && DataTableEditor.IsValid())
 	{
 		FDataTableEditorUtils::SelectRow(DataTableEditor.Pin()->GetDataTable(), RowDataPtr->RowId);
-		TSharedRef<SWidget> MenuWidget = FDataTableRowUtils::MakeRowActionsMenu(DataTableEditor.Pin(), FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnSearchForReferences));
+		TSharedRef<SWidget> MenuWidget = FDataTableRowUtils::MakeRowActionsMenu(DataTableEditor.Pin(),
+			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnSearchForReferences),
+			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow));
 
 		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuWidget, MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect::ContextMenu);
@@ -52,6 +54,29 @@ void SDataTableListViewRow::OnSearchForReferences()
 			AssetIdentifiers.Add(FAssetIdentifier(SourceDataTable, RowDataPtr->RowId));
 
 			FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers);
+		}
+	}
+}
+
+void SDataTableListViewRow::OnInsertNewRow()
+{
+	if (DataTableEditor.IsValid() && RowDataPtr.IsValid())
+	{
+		if (FDataTableEditor* DataTableEditorPtr = DataTableEditor.Pin().Get())
+		{
+			UDataTable* SourceDataTable = const_cast<UDataTable*>(DataTableEditorPtr->GetDataTable());
+
+			if (SourceDataTable)
+			{
+				FName NewName = DataTableUtils::MakeValidName(TEXT("NewRow"));
+				while (SourceDataTable->GetRowMap().Contains(NewName))
+				{
+					NewName.SetNumber(NewName.GetNumber() + 1);
+				}
+
+				FDataTableEditorUtils::AddRow(SourceDataTable, NewName);
+				FDataTableEditorUtils::SelectRow(SourceDataTable, NewName);
+			}
 		}
 	}
 }
