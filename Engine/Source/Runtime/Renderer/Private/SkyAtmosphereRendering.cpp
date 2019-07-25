@@ -75,7 +75,7 @@ static TAutoConsoleVariable<float> CVarSkyAtmosphereFastSkyLUTWidth(
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<float> CVarSkyAtmosphereFastSkyLUTHeight(
-	TEXT("r.SkyAtmosphere.FastSkyLUT.Height"), 108,
+	TEXT("r.SkyAtmosphere.FastSkyLUT.Height"), 104,
 	TEXT(""),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
@@ -94,7 +94,7 @@ static TAutoConsoleVariable<int32> CVarSkyAtmosphereAerialPerspectiveDepthTest(
 ////////////////////////////////////////////////////////////////////////// Aerial perspective LUT
 
 static TAutoConsoleVariable<float> CVarSkyAtmosphereAerialPerspectiveLUTDepthResolution(
-	TEXT("r.SkyAtmosphere.AerialPerspectiveLUT.DepthResolution"), 32.0f,
+	TEXT("r.SkyAtmosphere.AerialPerspectiveLUT.DepthResolution"), 16.0f,
 	TEXT("The number of depth slice to use for the aerial perspective volume texture."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
@@ -1102,6 +1102,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphere);
 
 	FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
+	const FAtmosphereSetup& Atmosphere = SkyInfo.GetAtmosphereSetup();
 	const bool bMultiScattering = SkyInfo.IsMultiScatteringEnabled();
 	const bool bFastSky = CVarSkyAtmosphereFastSkyLUT.GetValueOnRenderThread() > 0;
 	const bool bFastAerialPespective = CVarSkyAtmosphereAerialPerspectiveApplyOnOpaque.GetValueOnRenderThread() > 0;
@@ -1127,6 +1128,13 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 
 		const bool bLightDiskEnabled = !View.bIsReflectionCapture;
 
+		const FVector ViewOrigin = View.ViewMatrices.GetViewOrigin();
+		const float KmToCm = 100000.0f;
+		const FVector PlanetOrigin = FVector(0.0f, 0.0f, -Atmosphere.BottomRadius * KmToCm);
+		const float TopOfAtmosphere = Atmosphere.TopRadius * KmToCm;
+		const float SafeEdge = 1000.0f;	// 10 meters
+		const bool ForceRayMarching = (FVector::Distance(ViewOrigin, PlanetOrigin) - TopOfAtmosphere - SafeEdge) > 0.0f;
+
 		// Render the sky, and optionally the atmosphere aerial perspective, on the scene luminance buffer
 		if (!bIsMobilePlatformAndOnlySkyPixel)
 		{
@@ -1138,8 +1146,8 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 		{
 			FRenderSkyAtmospherePS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FSkyPermutationMultiScatteringApprox>(bMultiScattering);
-			PermutationVector.Set<FFastSky>(bFastSky);
-			PermutationVector.Set<FFastAerialPespective>(bFastAerialPespective);
+			PermutationVector.Set<FFastSky>(bFastSky && !ForceRayMarching);
+			PermutationVector.Set<FFastAerialPespective>(bFastAerialPespective && !ForceRayMarching);
 			PermutationVector.Set<FSourceDiskEnabled>(bLightDiskEnabled);
 			PermutationVector.Set<FOnlySkyPixel>(bIsMobilePlatformAndOnlySkyPixel);
 			PermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
@@ -1174,7 +1182,6 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 				float HalfHorizontalFOV = FMath::Atan(1.0f / ViewProjectionMatrix.M[0][0]);
 				float HalfVerticalFOV = FMath::Atan(1.0f / ViewProjectionMatrix.M[1][1]);
 				const float HalfFOV = View.FOV * 0.5f * PI / 180.0f;
-				const float KmToCm = 100000.0f;
 				const float StartDepthView = FMath::Cos(FMath::Max(HalfHorizontalFOV, HalfVerticalFOV)) * InternalCommonParameters.CameraAerialPerspectiveVolumeStartDepth * KmToCm;
 				const FVector4 Projected = ViewProjectionMatrix.TransformFVector4(FVector4(0.0f, 0.0f, StartDepthView, 1.0f));
 				VsPassParameters.StartDepthZ = Projected.Z / Projected.W;

@@ -126,10 +126,6 @@ float3 GetCameraPlanetPos()
 	return GetCameraWorldPos()*CM_TO_SKY_UNIT + float3(0, 0, Atmosphere.BottomRadius);
 }
 
-
-
-
-
 bool MoveToTopAtmosphere(inout float3 WorldPos, in float3 WorldDir, in float AtmosphereTopRadius)
 {
 	float ViewHeight = length(WorldPos);
@@ -161,6 +157,11 @@ bool MoveToTopAtmosphere(inout float3 WorldPos, in float3 WorldDir, in float Atm
 
 
 
+
+////////////////////////////////////////////////////////////
+// Participating medium properties
+////////////////////////////////////////////////////////////
+
 float RayleighPhase(float CosTheta)
 {
 	float Factor = 3.0f / (16.0f * PI);
@@ -175,15 +176,6 @@ float HgPhase(float G, float CosTheta)
 	float Denom = 1.0f + G * G + 2.0f * G * CosTheta;
 	return Numer / (4.0f * PI * Denom * sqrt(Denom));
 }
-
-
-
-
-
-
-
-
-
 
 float3 GetAlbedo(float3 Scattering, float3 Extinction)
 {
@@ -248,32 +240,6 @@ MediumSampleRGB SampleMediumRGB(in float3 WorldPos)
 
 
 
-
-#define DEFAULT_SAMPLE_OFFSET 0.3f
-float SkyAtmosphereNoise(float2 UV)
-{
-//	return DEFAULT_SAMPLE_OFFSET;
-//	return float(Rand3DPCG32(int3(UV.x, UV.y, S)).x) / 4294967296.0f;
-#if VIEWDATA_AVAILABLE && PER_PIXEL_NOISE
-	return InterleavedGradientNoise(UV.xy, float(View.StateFrameIndexMod8));
-#else
-	return DEFAULT_SAMPLE_OFFSET;
-#endif
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ////////////////////////////////////////////////////////////
 // LUT functions
 ////////////////////////////////////////////////////////////
@@ -306,7 +272,8 @@ void LutTransmittanceParamsToUv(in float ViewHeight, in float ViewZenithCosAngle
 }
 
 // SkyViewLut is a new texture used for fast sky rendering.
-// 
+// It is low resolution of the sky rendering around the camera,
+// basically a lat/long parameterisation with more texel close to the horizon for more accuracy during sun set.
 
 void UvToSkyViewLutParams(out float3 ViewDir, in float ViewHeight, in float2 UV)
 {
@@ -350,18 +317,9 @@ void UvToSkyViewLutParams(out float3 ViewDir, in float ViewHeight, in float2 UV)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+////////////////////////////////////////////////////////////
+// Utilities
+////////////////////////////////////////////////////////////
 
 #if USE_PREEXPOSURE && VIEWDATA_AVAILABLE
 #define ViewPreExposure View.PreExposure
@@ -385,9 +343,6 @@ Texture2D<float4> TransmittanceLutTexture;
 Texture2D<float4> MultiScatteredLuminanceLutTexture;
 Texture2D<float4> SkyViewLutTexture;
 Texture3D<float4> CameraAerialPerspectiveVolumeTexture;
-
-
-
 
 
 
@@ -445,10 +400,28 @@ float3 GetTransmittance(in float LightZenithCosAngle, in float PHeight)
 }
 
 
+#define DEFAULT_SAMPLE_OFFSET 0.3f
+float SkyAtmosphereNoise(float2 UV)
+{
+	//	return DEFAULT_SAMPLE_OFFSET;
+	//	return float(Rand3DPCG32(int3(UV.x, UV.y, S)).x) / 4294967296.0f;
+#if VIEWDATA_AVAILABLE && PER_PIXEL_NOISE
+	return InterleavedGradientNoise(UV.xy, float(View.StateFrameIndexMod8));
+#else
+	return DEFAULT_SAMPLE_OFFSET;
+#endif
+}
 
 
 
 
+
+
+
+
+////////////////////////////////////////////////////////////
+// Main scattering/transmitance integration fucntion
+////////////////////////////////////////////////////////////
 
 struct SingleScatteringResult
 {
@@ -556,7 +529,6 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	float RayleighPhaseValueLight1 = RayleighPhase(cosTheta);
 #endif
 
-
 	// Ray march the atmosphere to integrate optical depth
 	float3 L = 0.0f;
 	float3 Throughput = 1.0f;
@@ -572,6 +544,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	float PixelNoise = PER_PIXEL_NOISE ? SkyAtmosphereNoise(PixPos.xy) : DEFAULT_SAMPLE_OFFSET;
 	for (float SampleI = 0.0f; SampleI < SampleCount; SampleI += 1.0f)
 	{
+		// Compute current ray t and sample point P
 		if (Sampling.VariableSampleCount)
 		{
 			// More expenssive but artefact free
@@ -599,15 +572,15 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 			t = tMax * SampleI / SampleCount;
 		}
 		float3 P = WorldPos + t * WorldDir;
+		float PHeight = length(P);
 
+		// Sample the medium
 		MediumSampleRGB Medium = SampleMediumRGB(P);
 		const float3 SampleOpticalDepth = Medium.Extinction * dt * AerialPespectiveViewDistanceScale;
 		const float3 SampleTransmittance = exp(-SampleOpticalDepth);
 		OpticalDepth += SampleOpticalDepth;
 
-		float PHeight = length(P);
-
-		// Phase and trnasmittance for light 0
+		// Phase and transmittance for light 0
 		const float3 UpVector = P / PHeight;
 		float Light0ZenithCosAngle = dot(Light0Dir, UpVector);
 		float3 TransmittanceToLight0 = GetTransmittance(Light0ZenithCosAngle, PHeight);
@@ -620,7 +593,6 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		{
 			PhaseTimesScattering0 = Medium.Scattering * uniformPhase;
 		}
-
 #if SECOND_ATMOSPHERE_LIGHT_ENABLED
 		// Phase and transmittance for light 1
 		float Light1ZenithCosAngle = dot(Light1Dir, UpVector);
@@ -661,7 +633,6 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		// The way to fix that is to use a proper analytical integration as porposed in slide 28 of http://www.frostbite.com/2015/08/physically-based-unified-volumetric-rendering-in-frostbite/ 
 		// However, it is possible to disable as it can also work using simple power serie sum unroll up to 5th order. The rest of the orders has a really low contribution. 
 #define MULTI_SCATTERING_POWER_SERIE 0 
-
 #if MULTI_SCATTERING_POWER_SERIE==0 
 		// 1 is the integration of luminance over the 4pi of a sphere, and assuming an isotropic phase function of 1.0/(4*PI) 
 		Result.MultiScatAs1 += Throughput * Medium.Scattering * 1.0f * dt;
@@ -670,7 +641,6 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		float3 MSint = (MS - MS * SampleTransmittance) / Medium.Extinction;
 		Result.MultiScatAs1 += Throughput * MSint;
 #endif 
-
 
 #if 0
 		L += Throughput * S * dt;
@@ -723,26 +693,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 float StartDepthZ;
-
 
 void SkyAtmosphereVS(
 	in uint VertexId : SV_VertexID,
@@ -760,12 +711,6 @@ void SkyAtmosphereVS(
 
 	Position = float4(UV, Depth, 1.0f);
 }
-
-
-
-
-
-
 
 
 
@@ -788,6 +733,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 	float2 PixPos = SVPos.xy;
 	float2 UvBuffer = PixPos * View.BufferSizeAndInvSize.zw;	// Uv for depth buffer read (size can be larger than viewport)
 
+	// Debug print a texture
 	//const float displaySize = 256.0f;
 	//if(all(PixPos<displaySize))
 	//{
@@ -914,8 +860,6 @@ void RenderSkyAtmosphereRayMarchingPS(
 
 #endif // FASTAERIALPERSPECTIVE_ENABLED
 }
-
-
 
 
 
@@ -1052,7 +996,6 @@ void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 
 
 
-
 RWTexture2D<float3> SkyViewLutUAV;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -1066,8 +1009,6 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	float ViewHeight = length(WorldPos);
 
 
-
-	// TODO explain the mapping that is happening here...
 	// TODO we need a valid local basis for lights and we need to transform them in it. 
 	// ===> Without that, the Sky lut is only valid for camera is close to the origin (at the Z-top of the planet)
 	float3 WorldDir;
@@ -1102,7 +1043,6 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 
 	SkyViewLutUAV[int2(PixPos)] = ss.L;
 }
-
 
 
 
@@ -1201,8 +1141,6 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 
 
 
-
-
 RWTexture3D<float4> CameraAerialPerspectiveVolumeUAV;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
@@ -1258,7 +1196,6 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 			float3 MiddlePointOnGround = normalize(MiddlePoint) * Atmosphere.BottomRadius;// *1.001f;
 			VoxelWorldPos = CamPos + 2.0f * (MiddlePointOnGround - CamPos);
 
-
 			//CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(1, 0, 0, 0);
 			//return; // debug
 		}
@@ -1266,7 +1203,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 		{
 			//No obstruction from the planet, so use the point on the ground
 			VoxelWorldPos = normalize(VoxelWorldPos) * (Atmosphere.BottomRadius);
-			//VoxelWorldPos = CamPos + CameraToVoxelDir * PlanetNearT;		// better but gives visuall artefact as visible voxels on a simple plane at altitude 0
+			//VoxelWorldPos = CamPos + CameraToVoxelDir * PlanetNearT;		// better match but gives visual artefact as visible voxels on a simple plane at altitude 0
 
 			//CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(0, 1, 0, 0);
 			//return; // debug
@@ -1310,7 +1247,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 	const float DeviceZ = FarDepthValue;
 	const bool MieRayPhase = true;
 	const float AerialPespectiveViewDistanceScale = SkyAtmosphere.AerialPespectiveViewDistanceScale;
-	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
+	SingleScatteringResult ss = IntegrateSingleScatteredLuminance( 
 		float4(PixPos, 0.0f, 1.0f), RayStartWorldPos, WorldDir,
 		Ground, Sampling, DeviceZ, MieRayPhase,
 		View.AtmosphereLightDirection[0].xyz, View.AtmosphereLightDirection[1].xyz, View.AtmosphereLightColor[0].rgb, View.AtmosphereLightColor[1].rgb,
@@ -1320,7 +1257,6 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 	const float Transmittance = dot(ss.Transmittance, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
 	CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(ss.L, Transmittance);
 }
-
 
 
 

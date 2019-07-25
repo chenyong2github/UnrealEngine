@@ -73,7 +73,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget>& GetDistantSkyLightLutTexture() { return DistantSkyLightLutTexture; }
 	FTextureRHIRef GetDistantSkyLightLutTextureRHI();
 
-	const FAtmosphereSetup GetAtmosphereSetup() const { return AtmosphereSetup; }
+	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
 	const FAtmosphereUniformShaderParameters* GetAtmosphereShaderParameters() const { return &AtmosphereUniformShaderParameters; }
 
 	bool bStaticLightingBuilt;
