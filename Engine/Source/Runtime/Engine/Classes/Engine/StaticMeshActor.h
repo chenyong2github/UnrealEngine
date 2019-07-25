@@ -62,13 +62,11 @@ protected:
 #endif // WITH_EDITOR	
 	//~ End UObject Interface.
 	
-	void SetStaticMeshComponent(class UStaticMeshComponent* InStaticMeshComponent);
-
 public:
 	/** Returns StaticMeshComponent subobject **/
 	class UStaticMeshComponent* GetStaticMeshComponent() const { return StaticMeshComponent; }
 
-	/** Name of the StaticMeshComponent. Use this name if you want to prevent creation of the component (with ObjectInitializer.DoNotCreateDefaultSubobject). */
+	/** Name of the StaticMeshComponent.  Use this name if you want to use a different class (with ObjectInitializer.SetDefaultSubobjectClass). */
 	static FName StaticMeshComponentName;
 };
 
