@@ -179,7 +179,7 @@ namespace Tools.DotNETCommon
 				{
 					HashEntry RHSEntry = RHS.GetEntryForName(Entry.Name);
 					Log.TraceInformation("RHS hash mismatch for {0}", Entry.Name);
-					Log.TraceInformation("Current:\n\t{0}\n\t{1}\n\t{2}", Entry.Hash, Entry.Name, Entry.MetaData);
+					Log.TraceInformation("LHS:\n\t{0}\n\t{1}\n\t{2}", Entry.Hash, Entry.Name, Entry.MetaData);
 					Log.TraceInformation("RHS:\n\t{0}\n\t{1}\n\t{2}", RHSEntry.Hash, RHSEntry.Name, RHSEntry.MetaData);
 				}
 			}
