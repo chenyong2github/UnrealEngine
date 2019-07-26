@@ -902,7 +902,8 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		int t2 = AddTriangleInternal(f, b, c, InvalidID, InvalidID, InvalidID);
 		if (HasTriangleGroups())
 		{
-			TriangleGroups->InsertAt((*TriangleGroups)[t0], t2);
+			int group0 = (*TriangleGroups)[t0];
+			TriangleGroups->InsertAt(group0, t2);
 		}
 
 		// rewrite edge bc, create edge af
@@ -983,8 +984,10 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		int t3 = AddTriangleInternal(f, d, b, InvalidID, InvalidID, InvalidID);
 		if (HasTriangleGroups()) 
 		{
-			TriangleGroups->InsertAt((*TriangleGroups)[t0], t2);
-			TriangleGroups->InsertAt((*TriangleGroups)[t1], t3);
+			int group0 = (*TriangleGroups)[t0];
+			TriangleGroups->InsertAt(group0, t2);
+			int group1 = (*TriangleGroups)[t1];
+			TriangleGroups->InsertAt(group1, t3);
 		}
 
 		// update the edges we found above, to point to triangles

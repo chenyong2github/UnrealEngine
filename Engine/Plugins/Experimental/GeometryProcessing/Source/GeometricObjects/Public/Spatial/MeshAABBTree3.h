@@ -531,10 +531,13 @@ protected:
 		// ok now append internal node boxes & index ptrs
 		for (i = 0; i < Nodes.IBoxCur; ++i)
 		{
-			BoxCenters.InsertAt(Nodes.BoxCenters[i], iBoxShift + i);
-			BoxExtents.InsertAt(Nodes.BoxExtents[i], iBoxShift + i);
+			FVector3d NodeBoxCenter = Nodes.BoxCenters[i];		// cannot pass as argument in case a resize happens
+			BoxCenters.InsertAt(NodeBoxCenter, iBoxShift + i);
+			FVector3d NodeBoxExtents = Nodes.BoxExtents[i];
+			BoxExtents.InsertAt(NodeBoxExtents, iBoxShift + i);
 			// internal node indices are shifted
-			BoxToIndex.InsertAt(iIndexShift + Nodes.BoxToIndex[i], iBoxShift + i);
+			int NodeBoxIndex = Nodes.BoxToIndex[i];
+			BoxToIndex.InsertAt(iIndexShift + NodeBoxIndex, iBoxShift + i);
 		}
 
 		// now append index list
