@@ -3,6 +3,8 @@
 #include "SNiagaraStackEntryWidget.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackEntryWidget"
 

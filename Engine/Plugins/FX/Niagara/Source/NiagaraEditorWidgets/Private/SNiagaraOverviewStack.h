@@ -5,6 +5,7 @@
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
 #include "UObject/ObjectKey.h"
 
 class UNiagaraStackEntry;
