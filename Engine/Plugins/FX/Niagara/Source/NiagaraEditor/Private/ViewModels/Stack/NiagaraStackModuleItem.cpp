@@ -393,7 +393,12 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 	TArray<UNiagaraNodeFunctionCall*> FoundCalls;
 	TArray<FNiagaraModuleDependency> DependenciesNeeded;
 
-	TArray<FNiagaraStackModuleData> SystemModuleData = GetSystemViewModel()->GetStackModuleDataForEmitter(GetEmitterViewModel());
+
+	TArray<FNiagaraStackModuleData> SystemModuleData;
+	if (GetEmitterViewModel().IsValid())
+	{
+		SystemModuleData = GetSystemViewModel()->GetStackModuleDataForEmitter(GetEmitterViewModel().ToSharedRef());
+	}
 	int32 ModuleIndex = INDEX_NONE;
 	for (int i = 0; i < SystemModuleData.Num(); i++)
 	{

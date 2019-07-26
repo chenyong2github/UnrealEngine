@@ -132,7 +132,7 @@ UObject* UNiagaraSystemFactoryNew::FactoryCreateNew(UClass* Class, UObject* InPa
 
 		for (UNiagaraEmitter* EmitterToAddToNewSystem : EmittersToAddToNewSystem)
 		{
-			FNiagaraEditorUtilities::AddEmitterToSystem(*NewSystem, *EmitterToAddToNewSystem, false);
+			FNiagaraEditorUtilities::AddEmitterToSystem(*NewSystem, *EmitterToAddToNewSystem);
 		}
 	}
 	else

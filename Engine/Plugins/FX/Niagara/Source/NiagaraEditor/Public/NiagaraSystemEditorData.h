@@ -78,20 +78,18 @@ public:
 
 	UEdGraph* GetSystemOverviewGraph() const;
 
-	void SystemOverviewHandleAdded(const FGuid AddedHandleGuid) const;
+	const FNiagaraGraphViewSettings& GetSystemOverviewGraphViewSettings() const;
 
-	void SystemOverviewHandlesRemoved() const;
+	void SetSystemOverviewGraphViewSettings(const FNiagaraGraphViewSettings& InOverviewGraphViewSettings);
 
-	void Initialize(UNiagaraSystem* OwnerSystem, bool bEditingSystem);
+	bool GetOwningSystemIsPlaceholder() const;
+
+	void SetOwningSystemIsPlaceholder(bool bInSystemIsPlaceholder, UNiagaraSystem& OwnerSystem);
+
+	void SynchronizeOverviewGraphWithSystem(UNiagaraSystem& OwnerSystem);
 
 private:
-	void UpdatePlaybackRangeFromEmitters(UNiagaraSystem* OwnerSystem);
-
-	bool GetSystemOverviewGraphIsValid() const;
-
-	void InitSystemOverviewGraph();
-
-	const FVector2D GetGoodPlaceForNewOverviewNode() const;
+	void UpdatePlaybackRangeFromEmitters(UNiagaraSystem& OwnerSystem);
 
 private:
 	UPROPERTY(Instanced)
@@ -114,5 +112,8 @@ private:
 	UEdGraph* SystemOverviewGraph;
 
 	UPROPERTY()
-	UNiagaraSystem* OwningSystem;
+	FNiagaraGraphViewSettings OverviewGraphViewSettings;
+
+	UPROPERTY()
+	bool bSystemIsPlaceholder;
 };

@@ -8,6 +8,7 @@
 
 class UNiagaraEmitter;
 class UNiagaraScript;
+class FNiagaraSystemViewModel;
 class FNiagaraScriptViewModel;
 class FNiagaraScriptGraphViewModel;
 class UNiagaraEmitterEditorData;
@@ -23,25 +24,32 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnEmitterChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnPropertyChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnScriptCompiled);
+	DECLARE_MULTICAST_DELEGATE(FOnParentRemoved);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnScriptGraphChanged, const FEdGraphEditAction&, const UNiagaraScript&);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnScriptParameterStoreChanged, const FNiagaraParameterStore&, const UNiagaraScript&);
 
 public:
-	/** Creates a new emitter editor view model with the supplied emitter handle and simulation. */
-	FNiagaraEmitterViewModel(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
+	/** Creates a new emitter editor view model.  It must be initialized before use. */
+	FNiagaraEmitterViewModel();
 	virtual ~FNiagaraEmitterViewModel();
 
-	/** Reuse this view model with new parameters.*/
-	bool Set(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
+	/** Initialize this view model with an emitter and simulation. */
+	bool Initialize(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 
-	/** Sets this view model to a different emitter. */
-	void SetEmitter(UNiagaraEmitter* InEmitter);
+	/** Resets this view model to initial conditions. */
+	void Reset();
+
+	/** Gets the currently assigned simulation if there is one. */
+	TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> GetSimulation() const;
 
 	/** Sets the current simulation for the emitter. */
 	void SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 
 	/** Gets the emitter represented by this view model. */
 	NIAGARAEDITOR_API UNiagaraEmitter* GetEmitter();
+
+	/** Gets whether or not this emitter has a parent emitter. */
+	NIAGARAEDITOR_API bool HasParentEmitter() const;
 
 	/** Gets the parent emitter for the emitter represented by this view model, if it has one. */
 	NIAGARAEDITOR_API const UNiagaraEmitter* GetParentEmitter() const;
@@ -51,6 +59,9 @@ public:
 
 	/** Gets the text representation of the parent emitter path. */
 	NIAGARAEDITOR_API FText GetParentPathNameText() const;
+
+	/** Removes the parent emitter from this emitter. */
+	NIAGARAEDITOR_API void RemoveParentEmitter();
 
 	/** Gets text representing stats for the emitter. */
 	//~ TODO: Instead of a single string here, we should probably have separate controls with tooltips etc.
@@ -71,6 +82,9 @@ public:
 	/** Gets a delegate which is called when the shared script is compiled. */
 	FOnScriptCompiled& OnScriptCompiled();
 
+	/** Gets a delegate which is called when this emitters parent is removed. */
+	FOnParentRemoved& OnParentRemoved();
+
 	/** Gets a multicast delegate which is called any time a graph on a script owned by this emitter changes. */
 	FOnScriptGraphChanged& OnScriptGraphChanged();
 
@@ -86,6 +100,9 @@ public:
 	void Cleanup();
 
 private:
+	/** Sets this view model to a different emitter. */
+	void SetEmitter(UNiagaraEmitter* InEmitter);
+
 	void OnVMCompiled(UNiagaraEmitter* InEmitter);
 
 	void AddScriptEventHandlers();
@@ -99,7 +116,6 @@ private:
 	void OnEmitterPropertiesChanged();
 
 private:
-
 	/** The text format stats display .*/
 	static const FText StatsFormat;
 
@@ -125,6 +141,9 @@ private:
 	FOnPropertyChanged OnPropertyChangedDelegate;
 
 	FOnScriptCompiled OnScriptCompiledDelegate;
+
+	/** A multicast delegate which is called when this emitters parent is removed. */
+	FOnParentRemoved OnParentRemovedDelegate;
 
 	FOnScriptGraphChanged OnScriptGraphChangedDelegate;
 
