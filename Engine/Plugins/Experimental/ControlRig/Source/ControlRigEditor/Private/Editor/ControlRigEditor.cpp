@@ -469,7 +469,6 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 	if (DebuggedControlRig)
 	{
 		bool bIsExternalControlRig = DebuggedControlRig != ControlRig;
-		DebuggedControlRig->DrawInterface = &DrawInterface;
 		DebuggedControlRig->ControlRigLog = &ControlRigLog;
 
 		UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent());
@@ -601,7 +600,6 @@ void FControlRigEditor::Compile()
 		if (ControlRig)
 		{
 			ControlRig->ControlRigLog = &ControlRigLog;
-			ControlRig->DrawInterface = &DrawInterface;
 
 			UControlRigBlueprintGeneratedClass* GeneratedClass = Cast<UControlRigBlueprintGeneratedClass>(ControlRig->GetClass());
 			if (GeneratedClass)
@@ -1334,7 +1332,6 @@ void FControlRigEditor::UpdateControlRig()
 				ControlRig->ExecutionType = ERigExecutionType::Editing;
 
 				ControlRig->ControlRigLog = &ControlRigLog;
-				ControlRig->DrawInterface = &DrawInterface;
  			}
 
 			CacheBoneNameList();

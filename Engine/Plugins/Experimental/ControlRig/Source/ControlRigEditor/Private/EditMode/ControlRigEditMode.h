@@ -9,6 +9,7 @@
 #include "ControlUnitProxy.h"
 #include "ControlRigModel.h"
 #include "Rigs/RigHierarchyContainer.h"
+#include "Drawing/ControlRigDrawInterface.h"
 
 class FEditorViewportClient;
 class FViewport;
@@ -199,6 +200,9 @@ protected:
 
 	/** The sequencer GUID of the object we are animating */
 	FGuid ControlRigGuid;
+
+	/** The draw interface to use for the control rig */
+	FControlRigDrawInterface DrawInterface;
 
 	/** Sequencer we are currently bound to */
 	TWeakPtr<ISequencer> WeakSequencer;

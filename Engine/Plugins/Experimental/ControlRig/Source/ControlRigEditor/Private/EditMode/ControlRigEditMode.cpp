@@ -123,6 +123,7 @@ void FControlRigEditMode::SetObjects_Internal()
 	if(WeakControlRig.IsValid())
 	{
 		SelectedObjects.Add(WeakControlRig);
+		WeakControlRig.Get()->DrawInterface = &DrawInterface;
 	}
 
 	if(UsesToolkits())
@@ -368,16 +369,16 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 			bRender = false;
 		}
 
+		FTransform ComponentTransform = FTransform::Identity;
+		if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+		{
+			USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
+			ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
+		}
 		if (bRender)
 		{
 			if (Settings->bDisplayHierarchy)
 			{
-				FTransform ComponentTransform = FTransform::Identity;
-				if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
-				{
-					USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
-					ComponentTransform = Component ? Component->GetComponentTransform() : FTransform::Identity;
-				}
 
 				// each base hierarchy Bone
 				const FRigBoneHierarchy& BaseHierarchy = ControlRig->GetBoneHierarchy();
@@ -390,10 +391,10 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 					{
 						const FTransform ParentTransform = BaseHierarchy.GetGlobalTransform(CurrentBone.ParentIndex);
 
-						PDI->DrawLine(Transform.GetLocation(), ParentTransform.GetLocation(), FLinearColor::White, SDPG_Foreground);
+						PDI->DrawLine(ComponentTransform.TransformPosition(Transform.GetLocation()),ComponentTransform.TransformPosition(ParentTransform.GetLocation()), FLinearColor::White, SDPG_Foreground);
 					}
 
-					PDI->DrawPoint(Transform.GetLocation(), FLinearColor::White, 5.0f, SDPG_Foreground);
+					PDI->DrawPoint(ComponentTransform.TransformPosition(Transform.GetLocation()), FLinearColor::White, 5.0f, SDPG_Foreground);
 				}
 			}
 
@@ -420,7 +421,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 					{
 						for (const FVector& Point : Instruction.Positions)
 						{
-							PDI->DrawPoint(Point, Instruction.Color, Instruction.Thickness, SDPG_Foreground);
+							PDI->DrawPoint(ComponentTransform.TransformPosition(Point), Instruction.Color, Instruction.Thickness, SDPG_Foreground);
 						}
 						break;
 					}
@@ -429,7 +430,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						const TArray<FVector>& Points = Instruction.Positions;
 						for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex += 2)
 						{
-							PDI->DrawLine(Points[PointIndex], Points[PointIndex+1], Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+							PDI->DrawLine(ComponentTransform.TransformPosition(Points[PointIndex]), ComponentTransform.TransformPosition(Points[PointIndex+1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
 						}
 						break;
 					}
@@ -438,7 +439,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						const TArray<FVector>& Points = Instruction.Positions;
 						for (int32 PointIndex = 0; PointIndex < Points.Num() - 1; PointIndex++)
 						{
-							PDI->DrawLine(Points[PointIndex], Points[PointIndex + 1], Instruction.Color, SDPG_Foreground, Instruction.Thickness);
+							PDI->DrawLine(ComponentTransform.TransformPosition(Points[PointIndex]), ComponentTransform.TransformPosition(Points[PointIndex + 1]), Instruction.Color, SDPG_Foreground, Instruction.Thickness);
 						}
 						break;
 					}
