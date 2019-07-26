@@ -270,10 +270,11 @@ FAudioEffectsManager* FAudioDevice::CreateEffectsManager()
 	return new FAudioEffectsManager(this);
 }
 
-FAudioQualitySettings FAudioDevice::GetQualityLevelSettings()
+const FAudioQualitySettings& FAudioDevice::GetQualityLevelSettings()
 {
 	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-	return AudioSettings->GetQualityLevelSettings(GEngine->GetGameUserSettings()->GetAudioQualityLevel());
+	const int32 QualityLevel = GEngine ? GEngine->GetGameUserSettings()->GetAudioQualityLevel() : 0;
+	return AudioSettings->GetQualityLevelSettings(QualityLevel);
 }
 
 bool FAudioDevice::Init(int32 InMaxChannels)
