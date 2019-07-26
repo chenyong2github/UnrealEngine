@@ -137,6 +137,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 #define A(x) #x
 #define B(x) A(x)
 #define SWITCH_RHI_STR B(SWITCHRHI)
+		FApp::SetGraphicsRHI(TEXT("Switch"));
 		const TCHAR* SwitchRHIModuleName = TEXT(SWITCH_RHI_STR);
 		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(SwitchRHIModuleName);
 		if (!DynamicRHIModule->IsSupported())
@@ -146,13 +147,13 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 		}
 		LoadedRHIModuleName = SwitchRHIModuleName;
-		FApp::SetGraphicsRHI(TEXT("Switch"));
 	}
 	else
 #endif
 
 	if (bForceOpenGL)
 	{
+		FApp::SetGraphicsRHI(TEXT("OpenGL"));
 		const TCHAR* OpenGLRHIModuleName = TEXT("OpenGLDrv");
 		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(OpenGLRHIModuleName);
 
@@ -163,10 +164,10 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 		}
 		LoadedRHIModuleName = OpenGLRHIModuleName;
-		FApp::SetGraphicsRHI(TEXT("OpenGL"));
 	}
 	else if (bForceVulkan)
 	{
+		FApp::SetGraphicsRHI(TEXT("Vulkan"));
 		const TCHAR* VulkanRHIModuleName = TEXT("VulkanRHI");
 		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(VulkanRHIModuleName);
 		if (!DynamicRHIModule->IsSupported())
@@ -176,10 +177,10 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 		}
 		LoadedRHIModuleName = VulkanRHIModuleName;
-		FApp::SetGraphicsRHI(TEXT("Vulkan"));
 	}
 	else if (bForceD3D12 || bPreferD3D12)
 	{
+		FApp::SetGraphicsRHI(TEXT("DirectX 12"));
 		LoadedRHIModuleName = TEXT("D3D12RHI");
 		DynamicRHIModule = FModuleManager::LoadModulePtr<IDynamicRHIModule>(LoadedRHIModuleName);
 
@@ -201,18 +202,18 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "UseExpressionEncoder", "Fraps has been known to crash D3D12. Please use Microsoft Expression Encoder instead for capturing."));
 		}
-		FApp::SetGraphicsRHI(TEXT("DirectX 12"));
 	}
 
 	// Fallback to D3D11RHI if nothing is selected
 	if (!DynamicRHIModule)
 	{
+		FApp::SetGraphicsRHI(TEXT("DirectX 11"));
 		const TCHAR* D3D11RHIModuleName = TEXT("D3D11RHI");
 		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(D3D11RHIModuleName);
 
 		if (!DynamicRHIModule->IsSupported())
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX11Feature", "Failed to find a graphics adapter with the minimum required DX11 feature level."));
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX11Feature", "DX11 feature level 10.0 is required to run the engine."));
 			FPlatformMisc::RequestExit(1);
 			DynamicRHIModule = NULL;
 		}
@@ -221,7 +222,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "UseExpressionEncoderDX11", "Fraps has been known to crash D3D11. Please use Microsoft Expression Encoder instead for capturing."));
 		}
 		LoadedRHIModuleName = D3D11RHIModuleName;
-		FApp::SetGraphicsRHI(TEXT("DirectX 11"));
 	}
 	return DynamicRHIModule;
 }

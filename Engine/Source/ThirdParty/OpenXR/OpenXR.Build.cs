@@ -9,7 +9,7 @@ public class OpenXR : ModuleRules
 	public OpenXR(ReadOnlyTargetRules Target) : base(Target)
 	{
 		/** Mark the current version of the OpenXR SDK */
-		string OpenXRVersion = "0_90";
+		string OpenXRVersion = "1_0";
 		Type = ModuleType.External;
 
         string RootPath = Target.UEThirdPartySourceDirectory + "OpenXR";
@@ -17,7 +17,15 @@ public class OpenXR : ModuleRules
 
         PublicSystemIncludePaths.Add(RootPath + "/include");
 
-        if (Target.Platform == UnrealTargetPlatform.Win64)
+		if(Target.Platform == UnrealTargetPlatform.Win32)
+		{
+            PublicLibraryPaths.Add(LoaderPath + "/win32");
+            PublicAdditionalLibraries.Add(String.Format("openxr_loader-{0}.lib", OpenXRVersion));
+
+			PublicDelayLoadDLLs.Add(String.Format("openxr_loader-{0}.dll", OpenXRVersion));
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/OpenXR/win32/" + String.Format("openxr_loader-{0}.dll", OpenXRVersion));	
+		}
+        else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
             PublicLibraryPaths.Add(LoaderPath + "/win64");
             PublicAdditionalLibraries.Add(String.Format("openxr_loader-{0}.lib", OpenXRVersion));
