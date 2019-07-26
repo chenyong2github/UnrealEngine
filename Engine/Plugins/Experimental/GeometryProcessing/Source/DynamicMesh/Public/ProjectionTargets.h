@@ -5,14 +5,13 @@
 // Port of geometry3cpp ProjectionTargets
 
 #include "DynamicMeshAABBTree3.h"
-#include "Distance/DistPoint3Triangle3.h"
 
 
 /**
  * FMeshProjectionTarget provides an IProjectionTarget interface to a FDynamicMesh + FDynamicMeshAABBTree3
  * Use to project points to mesh surface.
  */
-class FMeshProjectionTarget : public IOrientedProjectionTarget
+class DYNAMICMESH_API FMeshProjectionTarget : public IOrientedProjectionTarget
 {
 public:
 	/** The mesh to project onto */
@@ -36,42 +35,12 @@ public:
 	/**
 	 * @return Projection of Point onto this target
 	 */
-	virtual FVector3d Project(const FVector3d& Point, int Identifier = -1) override
-	{
-		double fDistSqr;
-		int tNearestID = Spatial->FindNearestTriangle(Point, fDistSqr);
-		if (tNearestID <= 0)
-		{
-			return Point;
-		}
-		FTriangle3d Triangle;
-		Mesh->GetTriVertices(tNearestID, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
-
-		FDistPoint3Triangle3d DistanceQuery(Point, Triangle);
-		DistanceQuery.GetSquared();
-		return DistanceQuery.ClosestTrianglePoint;
-	}
+	virtual FVector3d Project(const FVector3d& Point, int Identifier = -1) override;
 
 	/**
 	 * @return Projection of Point onto this target, and set ProjectNormalOut to the triangle normal at the returned point (*not* interpolated vertex normal)
 	 */
-	virtual FVector3d Project(const FVector3d& Point, FVector3d& ProjectNormalOut, int Identifier = -1) override
-	{
-		double fDistSqr;
-		int tNearestID = Spatial->FindNearestTriangle(Point, fDistSqr);
-		if (tNearestID <= 0)
-		{
-			return Point;
-		}
-		FTriangle3d Triangle;
-		Mesh->GetTriVertices(tNearestID, Triangle.V[0], Triangle.V[1], Triangle.V[2]);
-
-		ProjectNormalOut = Triangle.Normal();
-
-		FDistPoint3Triangle3d DistanceQuery(Point, Triangle);
-		DistanceQuery.GetSquared();
-		return DistanceQuery.ClosestTrianglePoint;
-	}
+	virtual FVector3d Project(const FVector3d& Point, FVector3d& ProjectNormalOut, int Identifier = -1) override;
 
 
 };
