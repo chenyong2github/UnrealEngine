@@ -87,8 +87,11 @@ namespace UnrealBuildTool.Rules
 						"UtilityShaders",
 						"Projects",
                         "WindowsMixedRealityHandTracking",
+						"AugmentedReality",
+						"HoloLensAR"
 					}
 					);
+
 
 				if (Target.bBuildEditor == true)
 				{
@@ -121,10 +124,9 @@ namespace UnrealBuildTool.Rules
 				else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 				{
 					PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/HoloLens");
-                    PrivateDependencyModuleNames.Add("HoloLensAR");
-				}
+ 				}
 
-                bFasterWithoutUnity = true;
+				bFasterWithoutUnity = true;
 
 				PCHUsage = PCHUsageMode.NoSharedPCHs;
 				PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";
