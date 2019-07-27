@@ -57,8 +57,13 @@ void FOpenXRSwapchain::ReleaseResources_RHIThread()
 	xrDestroySwapchain(Handle);
 }
 
-XrSwapchain CreateSwapchain(XrSession InSession, uint32 PlatformFormat, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 TargetableTextureFlags)
+uint8 GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFormat, TFunction<uint32(uint8)> ToPlatformFormat = nullptr)
 {
+	if (!ToPlatformFormat)
+	{
+		ToPlatformFormat = [](uint8 InFormat) { return GPixelFormats[InFormat].PlatformFormat; };
+	}
+
 	uint32_t FormatsCount;
 	xrEnumerateSwapchainFormats(InSession, 0, &FormatsCount, nullptr);
 
@@ -67,12 +72,44 @@ XrSwapchain CreateSwapchain(XrSession InSession, uint32 PlatformFormat, uint32 S
 	XR_ENSURE(xrEnumerateSwapchainFormats(InSession, (uint32_t)Formats.Num(), &FormatsCount, Formats.GetData()));
 	ensure(FormatsCount == Formats.Num());
 
-	if (!Formats.Contains(PlatformFormat))
+	// Return immediately if the runtime supports the exact format being requested.
+	uint32 PlatformFormat = ToPlatformFormat(RequestedFormat);
+	if (Formats.Contains(PlatformFormat))
 	{
-		UE_LOG(LogHMD, Log, TEXT("Swapchain format not supported (%d), falling back to runtime preferred format (%d)."), PlatformFormat, Formats[0]);
-		PlatformFormat = Formats[0];
+		return RequestedFormat;
 	}
 
+	// Search for an 8bpc fallback format in order of preference (first element in the array has the high preference).
+	uint8 FallbackFormat = 0;
+	uint32 FallbackPlatformFormat = 0;
+	for (int64_t Format : Formats)
+	{
+		if (Format == ToPlatformFormat(PF_B8G8R8A8))
+		{
+			FallbackFormat = PF_B8G8R8A8;
+			FallbackPlatformFormat = Format;
+			break;
+		}
+		else if (Format == ToPlatformFormat(PF_R8G8B8A8))
+		{
+			FallbackFormat = PF_R8G8B8A8;
+			FallbackPlatformFormat = Format;
+			break;
+		}
+	}
+
+	if (!FallbackFormat)
+	{
+		UE_LOG(LogHMD, Warning, TEXT("No compatible swapchain format found!"));
+		return PF_Unknown;
+	}
+
+	UE_LOG(LogHMD, Warning, TEXT("Swapchain format not supported (%d), falling back to runtime preferred format (%d)."), PlatformFormat, FallbackPlatformFormat);
+	return FallbackFormat;
+}
+
+XrSwapchain CreateSwapchain(XrSession InSession, uint32 PlatformFormat, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 TargetableTextureFlags)
+{
 	XrSwapchainUsageFlags Usage = 0;
 	if (TargetableTextureFlags & TexCreate_RenderTargetable)
 	{
@@ -129,11 +166,22 @@ TArray<T> EnumerateImages(XrSwapchain InSwapchain, XrStructureType InType)
 #ifdef XR_USE_GRAPHICS_API_D3D11
 FXRSwapChainPtr CreateSwapchain_D3D11(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags)
 {
-	// We need to convert typeless to typed formats to create a swapchain
-	DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[Format].PlatformFormat;
-	PlatformFormat = FindDepthStencilDXGIFormat(PlatformFormat);
-	PlatformFormat = FindShaderResourceDXGIFormat(PlatformFormat, Flags & TexCreate_SRGB);
-	XrSwapchain Swapchain = CreateSwapchain(InSession, PlatformFormat, SizeX, SizeY, NumMips, NumSamples, TargetableTextureFlags);
+	TFunction<uint32(uint8)> ToPlatformFormat = [Flags](uint8 InFormat)
+	{
+		// We need to convert typeless to typed formats to create a swapchain
+		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[InFormat].PlatformFormat;
+		PlatformFormat = FindDepthStencilDXGIFormat(PlatformFormat);
+		PlatformFormat = FindShaderResourceDXGIFormat(PlatformFormat, Flags & TexCreate_SRGB);
+		return PlatformFormat;
+	};
+
+	Format = GetNearestSupportedSwapchainFormat(InSession, Format, ToPlatformFormat);
+	if (!Format)
+	{
+		return nullptr;
+	}
+
+	XrSwapchain Swapchain = CreateSwapchain(InSession, ToPlatformFormat(Format), SizeX, SizeY, NumMips, NumSamples, TargetableTextureFlags);
 	if (!Swapchain)
 	{
 		return nullptr;
@@ -156,11 +204,22 @@ FXRSwapChainPtr CreateSwapchain_D3D11(XrSession InSession, uint8 Format, uint32 
 #ifdef XR_USE_GRAPHICS_API_D3D12
 FXRSwapChainPtr CreateSwapchain_D3D12(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags)
 {
-	// We need to convert typeless to typed formats to create a swapchain
-	DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[Format].PlatformFormat;
-	PlatformFormat = FindDepthStencilDXGIFormat_D3D12(PlatformFormat);
-	PlatformFormat = FindShaderResourceDXGIFormat_D3D12(PlatformFormat, Flags & TexCreate_SRGB);
-	XrSwapchain Swapchain = CreateSwapchain(InSession, Format, SizeX, SizeY, NumMips, NumSamples, TargetableTextureFlags);
+	TFunction<uint32(uint8)> ToPlatformFormat = [Flags](uint8 InFormat)
+	{
+		// We need to convert typeless to typed formats to create a swapchain
+		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[InFormat].PlatformFormat;
+		PlatformFormat = FindDepthStencilDXGIFormat_D3D12(PlatformFormat);
+		PlatformFormat = FindShaderResourceDXGIFormat_D3D12(PlatformFormat, Flags & TexCreate_SRGB);
+		return PlatformFormat;
+	};
+
+	Format = GetNearestSupportedSwapchainFormat(InSession, Format, ToPlatformFormat);
+	if (!Format)
+	{
+		return nullptr;
+	}
+
+	XrSwapchain Swapchain = CreateSwapchain(InSession, ToPlatformFormat(Format), SizeX, SizeY, NumMips, NumSamples, TargetableTextureFlags);
 	if (!Swapchain)
 	{
 		return nullptr;
@@ -183,6 +242,12 @@ FXRSwapChainPtr CreateSwapchain_D3D12(XrSession InSession, uint8 Format, uint32 
 #ifdef XR_USE_GRAPHICS_API_OPENGL
 FXRSwapChainPtr CreateSwapchain_OpenGL(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags)
 {
+	Format = GetNearestSupportedSwapchainFormat(InSession, Format);
+	if (!Format)
+	{
+		return nullptr;
+	}
+
 	XrSwapchain Swapchain = CreateSwapchain(InSession, GPixelFormats[Format].PlatformFormat, SizeX, SizeY, NumMips, NumSamples, TargetableTextureFlags);
 	if (!Swapchain)
 	{
@@ -206,6 +271,12 @@ FXRSwapChainPtr CreateSwapchain_OpenGL(XrSession InSession, uint8 Format, uint32
 #ifdef XR_USE_GRAPHICS_API_VULKAN
 FXRSwapChainPtr CreateSwapchain_Vulkan(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, uint32 TargetableTextureFlags)
 {
+	Format = GetNearestSupportedSwapchainFormat(InSession, Format);
+	if (!Format)
+	{
+		return nullptr;
+	}
+
 	XrSwapchain Swapchain = CreateSwapchain(InSession, GPixelFormats[Format].PlatformFormat, SizeX, SizeY, NumMips, NumSamples, TargetableTextureFlags);
 	if (!Swapchain)
 	{
