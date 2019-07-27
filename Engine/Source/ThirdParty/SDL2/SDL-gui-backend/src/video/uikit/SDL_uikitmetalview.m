@@ -1,6 +1,6 @@
 /*
  Simple DirectMedia Layer
- Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+ Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
  
  This software is provided 'as-is', without any express or implied
  warranty.  In no event will the authors be held liable for any damages
@@ -49,9 +49,8 @@
 {
     if ((self = [super initWithFrame:frame])) {
         self.tag = METALVIEW_TAG;
-        /* Set the desired scale. */
-        ((CAMetalLayer *) self.layer).drawableSize = self.bounds.size;
         self.layer.contentsScale = scale;
+        [self updateDrawableSize];
     }
 
     return self;
@@ -60,14 +59,16 @@
 /* Set the size of the metal drawables when the view is resized. */
 - (void)layoutSubviews
 {
-    CGSize bounds;
-
     [super layoutSubviews];
+    [self updateDrawableSize];
+}
 
-    bounds = [self bounds].size;
-    bounds.width *= self.layer.contentsScale;
-    bounds.height *= self.layer.contentsScale;
-    ((CAMetalLayer *) self.layer).drawableSize = bounds;
+- (void)updateDrawableSize
+{
+    CGSize size = self.bounds.size;
+    size.width *= self.layer.contentsScale;
+    size.height *= self.layer.contentsScale;
+    ((CAMetalLayer *)self.layer).drawableSize = size;
 }
 
 @end
@@ -89,12 +90,9 @@ UIKit_Mtl_AddMetalView(SDL_Window* window)
          * dimensions of the screen rather than the dimensions in points
          * yielding high resolution on retine displays.
          */
-#ifdef __IPHONE_8_0
         if ([data.uiwindow.screen respondsToSelector:@selector(nativeScale)]) {
             scale = data.uiwindow.screen.nativeScale;
-        } else
-#endif
-        {
+        } else {
             scale = data.uiwindow.screen.scale;
         }
     }
