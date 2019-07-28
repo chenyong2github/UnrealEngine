@@ -795,7 +795,7 @@ bool FOpenXRHMD::OnStereoStartup()
 	XR_ENSURE(xrEnumerateReferenceSpaces(Session, (uint32_t)spaces.Num(), &referenceSpacesCount, spaces.GetData()));
 	ensure(referenceSpacesCount == spaces.Num());
 
-	XrSpace HmdSpace;
+	XrSpace HmdSpace = XR_NULL_HANDLE;
 	XrReferenceSpaceCreateInfo SpaceInfo;
 
 	ensure(spaces.Contains(XR_REFERENCE_SPACE_TYPE_VIEW));
