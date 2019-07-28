@@ -243,6 +243,8 @@ namespace Tools.DotNETCommon
 
 				string String = Encoding.UTF8.GetString(MS.ToArray());
 
+				Directory.CreateDirectory(Path.GetDirectoryName(OutPath));
+
 				File.WriteAllText(OutPath, String);
 			}
 		}
