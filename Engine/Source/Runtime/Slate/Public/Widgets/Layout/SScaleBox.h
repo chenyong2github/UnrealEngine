@@ -159,8 +159,7 @@ protected:
 	virtual float GetRelativeLayoutScale(const FSlotBase& Child, float LayoutScaleMultiplier) const override;
 	// End SWidget overrides.
 
-	bool DoesScaleRequireNormalizingPrepass() const;
-	bool DoesScaleRequireLocalGeometry() const;
+	bool DoesScaleRequireNormalizingPrepassOrLocalGeometry() const;
 	bool IsDesiredSizeDependentOnAreaAndScale() const;
 	float ComputeContentScale(const FGeometry& PaintGeometry) const;
 
@@ -192,7 +191,7 @@ protected:
 	mutable TOptional<FVector2D> LastAllocatedArea;
 	mutable TOptional<FGeometry> LastPaintGeometry;
 
-	mutable TOptional<FVector2D> ContentDesiredSize;
+	mutable TOptional<FVector2D> NormalizedContentDesiredSize;
 
 	/**  */
 	mutable TOptional<float> ComputedContentScale;
