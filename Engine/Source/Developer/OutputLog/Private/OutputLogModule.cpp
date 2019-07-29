@@ -14,6 +14,7 @@
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Editor.h"
+#include "Misc/ConfigCacheIni.h"
 
 IMPLEMENT_MODULE( FOutputLogModule, OutputLog );
 
