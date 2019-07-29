@@ -558,11 +558,6 @@ namespace UnrealGameSync
 					// Create a filter for all the files we don't want
 					FileFilter Filter = new FileFilter(UserFilter);
 					Filter.Exclude(BuildVersionFileName);
-					if (!ProjectConfigFile.GetValue("Options.UseFastModularVersioningV2", false))
-					{
-						Filter.Exclude(VersionHeaderFileName);
-						Filter.Exclude(ObjectVersionFileName);
-					}
 					if (Context.Options.HasFlag(WorkspaceUpdateOptions.ContentOnly))
 					{
 						Filter.Exclude("*.usf");
