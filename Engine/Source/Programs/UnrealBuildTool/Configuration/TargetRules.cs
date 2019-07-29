@@ -216,7 +216,17 @@ namespace UnrealBuildTool
 		/// Whether the output from this target can be publicly distributed, even if it has dependencies on modules that are in folders 
 		/// with special restrictions (eg. CarefullyRedist, NotForLicensees, NoRedist).
 		/// </summary>
-		public bool bOutputPubliclyDistributable = false;
+		public bool bLegalToDistributeBinary = false;
+
+		/// <summary>
+		/// Obsolete. Use bLegalToDistributeBinary instead.
+		/// </summary>
+		[Obsolete("bOutputPubliclyDistributable has been deprecated in 4.24. Use bLegalToDistributeBinary instead.")]
+		public bool bOutputPubliclyDistributable
+		{
+			get { return bLegalToDistributeBinary; }
+			set { bLegalToDistributeBinary = value; }
+		}
 
 		/// <summary>
 		/// Specifies the configuration whose binaries do not require a "-Platform-Configuration" suffix.
@@ -1705,9 +1715,9 @@ namespace UnrealBuildTool
 			get { return Inner.bDebugBuildsActuallyUseDebugCRT; }
 		}
 
-		public bool bOutputPubliclyDistributable
+		public bool bLegalToDistributeBinary
 		{
-			get { return Inner.bOutputPubliclyDistributable; }
+			get { return Inner.bLegalToDistributeBinary; }
 		}
 
 		public UnrealTargetConfiguration UndecoratedConfiguration

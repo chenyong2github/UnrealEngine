@@ -323,7 +323,7 @@ namespace UnrealBuildTool
 		public Dictionary<RestrictedFolder, DirectoryReference> FindRestrictedFolderReferences(DirectoryReference ProjectDir)
 		{
 			Dictionary<RestrictedFolder, DirectoryReference> References = new Dictionary<RestrictedFolder, DirectoryReference>();
-			if (!Rules.bOutputPubliclyDistributable)
+			if (!Rules.bLegalToDistributeObjectCode)
 			{
 				// Find all the directories that this module references
 				HashSet<DirectoryReference> ReferencedDirs = new HashSet<DirectoryReference>();

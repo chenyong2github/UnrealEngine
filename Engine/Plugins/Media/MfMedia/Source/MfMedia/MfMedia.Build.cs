@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public MfMedia(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bOutputPubliclyDistributable = true;
-
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
 					"Media",

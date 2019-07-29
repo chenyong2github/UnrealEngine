@@ -1786,7 +1786,7 @@ namespace UnrealBuildTool
 			if(!Rules.bDisableLinking)
 			{
 				// Check the distribution level of all binaries based on the dependencies they have
-				if(ProjectFile == null && !Rules.bOutputPubliclyDistributable)
+				if(ProjectFile == null && !Rules.bLegalToDistributeBinary)
 				{
 					Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache = new Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>>();
 

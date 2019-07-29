@@ -587,7 +587,17 @@ namespace UnrealBuildTool
 		/// dependencies on modules that are not (i.e. CarefullyRedist, NotForLicensees, NoRedist).
 		/// This should be used when you plan to release binaries but not source.
 		/// </summary>
-		public bool bOutputPubliclyDistributable = false;
+		public bool bLegalToDistributeObjectCode = false;
+
+		/// <summary>
+		/// Obsolete. Use bLegalToDistributeObjectCode instead.
+		/// </summary>
+		[Obsolete("bOutputPubliclyDistributable has been deprecated in 4.24. Use bLegalToDistributeObjectCode instead.")]
+		public bool bOutputPubliclyDistributable
+		{
+			get { return bLegalToDistributeObjectCode; }
+			set { bLegalToDistributeObjectCode = value; }
+		}
 
 		/// <summary>
 		/// List of folders which are whitelisted to be referenced when compiling this binary, without propagating restricted folder names

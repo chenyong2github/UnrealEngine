@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public MfMediaFactory(ReadOnlyTargetRules Target) : base(Target)
 		{
-			// this is for Xbox and Windows, so it's using public APIs, so we can distribute it in binary
-			bOutputPubliclyDistributable = true;
-
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
 					"Media",
