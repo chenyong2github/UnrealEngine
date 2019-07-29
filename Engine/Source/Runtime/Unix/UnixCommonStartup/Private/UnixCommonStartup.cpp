@@ -32,6 +32,7 @@ void CommonUnixCrashHandler(const FGenericCrashContext& GenericContext)
 	const_cast< FUnixCrashContext& >(Context).CaptureStackTrace();
 	if (GLog)
 	{
+		GLog->SetCurrentThreadAsMasterThread();
 		GLog->Flush();
 	}
 	if (GWarn)
