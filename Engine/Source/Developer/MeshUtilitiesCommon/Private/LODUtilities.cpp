@@ -16,6 +16,7 @@
 #include "MeshUtilities.h"
 #include "OverlappingCorners.h"
 #include "Assets/ClothingAsset.h"
+#include "Framework/Commands/UIAction.h"
 
 #include "ObjectTools.h"
 #include "ScopedTransaction.h"

@@ -6,6 +6,7 @@
 #include "MeshBuild.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
+#include "Framework/Commands/UIAction.h"
 
 
 

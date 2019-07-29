@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"Engine",
                     "ClothingSystemRuntime",
+					"Slate",
                 }
             );
         }
