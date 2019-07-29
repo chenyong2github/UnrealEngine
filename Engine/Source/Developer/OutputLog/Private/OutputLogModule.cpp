@@ -65,6 +65,9 @@ private:
 /** Our global output log app spawner */
 static TSharedPtr<FOutputLogHistory> OutputLogHistory;
 
+/** Our global active output log */
+static TWeakPtr<SOutputLog> OutputLog;
+
 TSharedRef<SDockTab> SpawnOutputLog( const FSpawnTabArgs& Args )
 {
 	return SNew(SDockTab)
@@ -72,7 +75,7 @@ TSharedRef<SDockTab> SpawnOutputLog( const FSpawnTabArgs& Args )
 		.TabRole( ETabRole::NomadTab )
 		.Label( NSLOCTEXT("OutputLog", "TabTitle", "Output Log") )
 		[
-			SNew(SOutputLog).Messages( OutputLogHistory->GetMessages() )
+			SAssignNew(OutputLog, SOutputLog).Messages( OutputLogHistory->GetMessages() )
 		];
 }
 
@@ -100,7 +103,9 @@ void FOutputLogModule::StartupModule()
 		.SetTooltipText(NSLOCTEXT("UnrealEditor", "DeviceOutputLogTooltipText", "Open the Device Output Log tab."))
 		.SetGroup( WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory() )
 		.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "Log.TabIcon") );
-	
+
+	FEditorDelegates::BeginPIE.AddRaw(this, &FOutputLogModule::ClearOnPIE);
+
 	OutputLogHistory = MakeShareable(new FOutputLogHistory);
 }
 
@@ -111,6 +116,8 @@ void FOutputLogModule::ShutdownModule()
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OutputLogModule::OutputLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName);
 	}
+
+	FEditorDelegates::BeginPIE.RemoveAll(this);
 
 	OutputLogHistory.Reset();
 }
@@ -183,6 +190,25 @@ void FOutputLogModule::CloseDebugConsole()
 		{
 			WindowForExistingConsole->RemoveOverlaySlot( PinnedDebugConsole.ToSharedRef() );
 			DebugConsole.Reset();
+		}
+	}
+}
+
+void FOutputLogModule::ClearOnPIE(const bool bIsSimulating)
+{
+	if (OutputLog.IsValid())
+	{
+		bool bClearOnPIEEnabled = false;
+		GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), bClearOnPIEEnabled, GEditorPerProjectIni);
+
+		if (bClearOnPIEEnabled)
+		{
+			TSharedPtr<SOutputLog> OutputLogShared = OutputLog.Pin();
+
+			if (OutputLogShared->CanClearLog())
+			{
+				OutputLogShared->OnClearLog();
+			}
 		}
 	}
 }

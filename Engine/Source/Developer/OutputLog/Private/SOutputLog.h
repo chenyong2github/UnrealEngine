@@ -341,6 +341,16 @@ public:
 	 */
 	static bool CreateLogMessages(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category, TArray< TSharedPtr<FLogMessage> >& OutMessages);
 
+	/**
+	* Called when delete all is selected
+	*/
+	void OnClearLog();
+
+	/**
+	 * Called to determine whether delete all is currently a valid command
+	 */
+	bool CanClearLog() const;
+
 protected:
 
 	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
@@ -353,21 +363,11 @@ protected:
 	 * Extends the context menu used by the text box
 	 */
 	void ExtendTextBoxMenu(FMenuBuilder& Builder);
-
-	/**
-	 * Called when delete all is selected
-	 */
-	void OnClearLog();
-
+	
 	/**
 	 * Called when the user scrolls the log window vertically
 	 */
 	void OnUserScrolled(float ScrollOffset);
-
-	/**
-	 * Called to determine whether delete all is currently a valid command
-	 */
-	bool CanClearLog() const;
 
 	/** Called when a console command is entered for this output log */
 	void OnConsoleCommandExecuted();
@@ -437,9 +437,17 @@ private:
 
 	void SetWordWrapEnabled(ECheckBoxState InValue);
 
+	bool IsClearOnPIEEnabled() const;
+
+	void SetClearOnPIE(ECheckBoxState InValue);
+
 	FSlateColor GetViewButtonForegroundColor() const;
 
 	TSharedRef<SWidget> GetViewButtonContent();
+
+	void OpenLogFileInExplorer();
+
+	void OpenLogFileInExternalEditor();
 
 public:
 	/** Visible messages filter */

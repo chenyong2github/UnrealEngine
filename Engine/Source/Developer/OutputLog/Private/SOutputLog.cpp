@@ -24,6 +24,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/CoreDelegates.h"
+#include "HAL/PlatformOutputDevices.h"
+
 
 #define LOCTEXT_NAMESPACE "SOutputLog"
 /** Expression context to test the given messages against the current text filter */
@@ -1176,6 +1178,19 @@ void SOutputLog::SetWordWrapEnabled(ECheckBoxState InValue)
 	}
 }
 
+bool SOutputLog::IsClearOnPIEEnabled() const
+{
+	bool ClearOnPIEEnabled = false;
+	GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), ClearOnPIEEnabled, GEditorPerProjectIni);
+	return ClearOnPIEEnabled;
+}
+
+void SOutputLog::SetClearOnPIE(ECheckBoxState InValue)
+{
+	const bool ClearOnPIEEnabled = (InValue == ECheckBoxState::Checked);
+	GConfig->SetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), ClearOnPIEEnabled, GEditorPerProjectIni);
+}
+
 void SOutputLog::OnFilterTextChanged(const FText& InFilterText)
 {
 	if (Filter.GetFilterText().ToString().Equals(InFilterText.ToString(), ESearchCase::CaseSensitive))
@@ -1393,8 +1408,68 @@ TSharedRef<SWidget> SOutputLog::GetViewButtonContent()
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
 	);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearOnPIE", "Clear on PIE"),
+		LOCTEXT("ClearOnPIEToolTip", "Enable clearing of the Output Log on PIE startup."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this] {
+				// This is a toggle, hence that it is inverted
+				SetClearOnPIE(IsClearOnPIEEnabled() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked);
+			}),
+			FCanExecuteAction::CreateLambda([] { return true; }),
+			FIsActionChecked::CreateSP(this, &SOutputLog::IsClearOnPIEEnabled)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+	MenuBuilder.AddMenuSeparator();
+
+	//Show Source In Explorer
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("FindSourceFile", "Open Source Location"),
+		LOCTEXT("FindSourceFileTooltip", "Opens the folder containing the source of the Output Log."),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "OutputLog.OpenSourceLocation"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SOutputLog::OpenLogFileInExplorer)
+		)
+	);
+	
+	// Open In External Editor
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenInExternalEditor", "Open In External Editor"),
+		LOCTEXT("OpenInExternalEditorTooltip", "Opens the Output Log in the default external editor."),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "OutputLog.OpenInExternalEditor"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SOutputLog::OpenLogFileInExternalEditor)
+		)
+	);
+
+
 	return MenuBuilder.MakeWidget();
 }
+
+void SOutputLog::OpenLogFileInExplorer()
+{
+	FString Path = FPaths::ConvertRelativePathToFull(FPaths::ProjectLogDir());
+	if (!Path.Len() || !IFileManager::Get().DirectoryExists(*Path))
+	{
+		return;
+	}
+
+	FPlatformProcess::ExploreFolder(*FPaths::GetPath(Path));
+}
+
+void SOutputLog::OpenLogFileInExternalEditor()
+{
+	FString Path = FPaths::ConvertRelativePathToFull(FGenericPlatformOutputDevices::GetAbsoluteLogFilename());
+	if (!Path.Len() || IFileManager::Get().FileSize(*Path) == INDEX_NONE)
+	{
+		return;
+	}
+
+	FPlatformProcess::LaunchFileInDefaultExternalApplication(*Path, NULL, ELaunchVerb::Open);
+} 
 
 bool FLogFilter::IsMessageAllowed(const TSharedPtr<FLogMessage>& Message)
 {
