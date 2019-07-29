@@ -9182,7 +9182,16 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 			else if (ir.meta[base].decoration.builtin_type != BuiltInSampleMask)
 			/* UE Change End: Sample mask input for Metal is not an array */
 			{
+				if (is_packed)
+				{
+					if (!remove_duplicate_swizzle(expr))
+						remove_unity_swizzle(base, expr);
+				}
 				append_index(index);
+				if (is_packed)
+				{
+					expr = unpack_expression_type(expr, *type, packed_type);
+				}
 			}
 			
 			type_id = type->parent_type;
