@@ -854,6 +854,19 @@ mtlpp::Function TMetalBaseShader<BaseResourceType, ShaderType>::GetCompiledFunct
 		}
 	}	
 	
+	if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs) && Bindings.ArgumentBuffers && ArgumentEncoders.Num() == 0)
+	{
+		uint32 ArgumentBuffers = Bindings.ArgumentBuffers;
+		while(ArgumentBuffers)
+		{
+			uint32 Index = __builtin_ctz(ArgumentBuffers);
+			ArgumentBuffers &= ~(1 << Index);
+			
+			mtlpp::ArgumentEncoder ArgumentEncoder = Function.NewArgumentEncoderWithBufferIndex(Index);
+			ArgumentEncoders.Add(Index, ArgumentEncoder);
+		}
+	}
+									
     check(Func);
 	return Func;
 }
@@ -961,6 +974,11 @@ FMetalShaderPipeline* FMetalComputeShader::GetPipeline()
 	check(Pipeline);
 
 	return Pipeline;
+}
+									
+mtlpp::Function FMetalComputeShader::GetFunction()
+{
+	return GetCompiledFunction();
 }
 
 FMetalVertexShader::FMetalVertexShader(const TArray<uint8>& InCode)

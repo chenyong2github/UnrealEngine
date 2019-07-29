@@ -134,6 +134,9 @@ public:
 	// List of memory copies from RHIUniformBuffer to packed uniforms
 	TArray<CrossCompiler::FUniformBufferCopyInfo> UniformBuffersCopyInfo;
 	
+	/* Argument encoders for shader IABs */
+	TMap<uint32, mtlpp::ArgumentEncoder> ArgumentEncoders;
+	
 	/** The binding for the buffer side-table if present */
 	int32 SideTableBinding;
 
@@ -258,6 +261,7 @@ public:
 	virtual ~FMetalComputeShader();
 	
 	FMetalShaderPipeline* GetPipeline();
+	mtlpp::Function GetFunction();
 	
 	// thread group counts
 	int32 NumThreadsX;
@@ -876,27 +880,88 @@ public:
 	void Swap(FMetalVertexBuffer& Other);
 };
 
+struct FMetalArgumentDesc
+{
+	FMetalArgumentDesc()
+	: DataType((mtlpp::DataType)0)
+	, Index(0)
+	, ArrayLength(0)
+	, Access(mtlpp::ArgumentAccess::ReadOnly)
+	, TextureType((mtlpp::TextureType)0)
+	, ConstantBlockAlignment(0)
+	{
+		
+	}
+	
+	mtlpp::DataType DataType;
+	NSUInteger Index;
+	NSUInteger ArrayLength;
+	mtlpp::ArgumentAccess Access;
+	mtlpp::TextureType TextureType;
+	NSUInteger ConstantBlockAlignment;
+	
+	void FillDescriptor(mtlpp::ArgumentDescriptor& Desc) const
+	{
+		Desc.SetDataType(DataType);
+		Desc.SetIndex(Index);
+		Desc.SetArrayLength(ArrayLength);
+		Desc.SetAccess(Access);
+		Desc.SetTextureType(TextureType);
+		Desc.SetConstantBlockAlignment(ConstantBlockAlignment);
+	}
+	
+	void SetDataType(mtlpp::DataType Type)
+	{
+		DataType = Type;
+	}
+	
+	void SetIndex(NSUInteger i)
+	{
+		Index = i;
+	}
+	
+	void SetArrayLength(NSUInteger Len)
+	{
+		ArrayLength = Len;
+	}
+	
+	void SetAccess(mtlpp::ArgumentAccess InAccess)
+	{
+		Access = InAccess;
+	}
+	
+	void SetTextureType(mtlpp::TextureType Type)
+	{
+		TextureType = Type;
+	}
+	
+	void SetConstantBlockAlignment(NSUInteger Align)
+	{
+		ConstantBlockAlignment = Align;
+	}
+	
+	bool operator==(FMetalArgumentDesc const& Other) const
+	{
+		if (this != &Other)
+		{
+			return (DataType == Other.DataType && Index == Other.Index && ArrayLength == Other.ArrayLength && Access == Other.Access && TextureType == Other.TextureType && ConstantBlockAlignment == Other.ConstantBlockAlignment);
+		}
+		return true;
+	}
+	
+	friend uint32 GetTypeHash(FMetalArgumentDesc const& Desc)
+	{
+		uint32 Hash = 0;
+		Hash ^= ((uint32)Desc.DataType * (uint32)Desc.TextureType * (uint32)Desc.Access * Desc.ArrayLength) << Desc.Index;
+		return Hash;
+	}
+};
+
+@class FMetalIAB;
+
 class FMetalUniformBuffer : public FRHIUniformBuffer, public FMetalRHIBuffer
 {
 public:
-
-	// Constructor
-	FMetalUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
-
-	// Destructor 
-	virtual ~FMetalUniformBuffer();
-	
-	void const* GetData();
-
-	void InitIAB();
-
-	void UpdateResourceTable(TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
-	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
-	
-	/** Resource table containing RHI references. */
-	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
-	
-	TSet<FRHITextureReference*> TextureReferences;
 
 	struct Argument
 	{
@@ -904,7 +969,7 @@ public:
 		Argument(FMetalBuffer const& InBuffer, mtlpp::ResourceUsage const InUsage) : Buffer(InBuffer), Usage(InUsage) {}
 		Argument(FMetalTexture const& InTexture, mtlpp::ResourceUsage const InUsage) : Texture(InTexture), Usage(InUsage) {}
 		Argument(FMetalSampler const& InSampler) : Sampler(InSampler), Usage(mtlpp::ResourceUsage::Read) {}
-
+		
 		FMetalBuffer Buffer;
 		FMetalTexture Texture;
 		FMetalSampler Sampler;
@@ -916,15 +981,38 @@ public:
 		FMetalIndirectArgumentBuffer();
 		~FMetalIndirectArgumentBuffer();
 		
+		int64 UpdateNum; // The resource & declarations have been updated
+		int64 UpdateEnc; // The IAB encoder needs to be updated.
+		int64 UpdateIAB; // The IAB needs to be updated.
+		TArray<FMetalArgumentDesc> IndirectArgumentsDecl;
 		TArray<Argument> IndirectArgumentResources;
-		FMetalBuffer IndirectArgumentBuffer;
-		FMetalBuffer IndirectArgumentBufferSideTable;
+		TArray<uint32> IndirectBufferSizes;
+		FMetalIAB* IndirectArgumentBuffer;
 	};
 	
-	EUniformBufferUsage UniformUsage;
+	// Constructor
+	FMetalUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
+
+	// Destructor 
+	virtual ~FMetalUniformBuffer();
+	
+	void const* GetData();
+
+	void InitIAB();
+	void UpdateIAB();
+	void UpdateTextureReference(FRHITextureReference* ModifiedRef);
+	void UpdateResourceTable(TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
+	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
+	FMetalIAB* UploadIAB(class FMetalContext* Ctx);
 	FMetalIndirectArgumentBuffer& GetIAB();
+	
+	/** Resource table containing RHI references. */
+	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
+	TMap<FRHITextureReference*, TBitArray<>> TextureReferences;
+	EUniformBufferUsage UniformUsage;
 	FMetalIndirectArgumentBuffer* IAB;
 	TArray<EUniformBufferBaseType> ResourceTypes;
+	int64 UpdateNum;
 	uint32 NumResources;
 	uint32 ConstantSize;
 };

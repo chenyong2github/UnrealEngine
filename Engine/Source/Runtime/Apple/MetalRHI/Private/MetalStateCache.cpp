@@ -2798,9 +2798,9 @@ void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, m
 			}
 		}
 		
-		if (IAB.IndirectArgumentBufferSideTable)
+		if (IAB.IndirectArgumentBuffer->IndirectArgumentBufferSideTable)
 		{
-			CommandEncoder.UseIndirectArgumentResource(IAB.IndirectArgumentBufferSideTable, mtlpp::ResourceUsage::Read);
+			CommandEncoder.UseIndirectArgumentResource(IAB.IndirectArgumentBuffer->IndirectArgumentBufferSideTable, mtlpp::ResourceUsage::Read);
 		}
 		
 		if (Buffer->Buffer)

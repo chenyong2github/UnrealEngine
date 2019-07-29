@@ -746,10 +746,7 @@ void FMetalDeviceContext::UpdateIABs(FRHITextureReference* ModifiedRef)
 		{
 			if (UB && UB->IAB && UB->TextureReferences.Contains(ModifiedRef))
 			{
-				FMetalUniformBuffer::FMetalIndirectArgumentBuffer* IAB = UB->IAB;
-				UB->IAB = nullptr;
-				UB->InitIAB();
-				delete IAB;
+				UB->UpdateTextureReference(ModifiedRef);
 			}
 		}
 	}
