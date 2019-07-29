@@ -4527,3 +4527,31 @@ namespace UE4CodeGen_Private
 		NewClass->StaticLink();
 	}
 }
+
+EDataValidationResult CombineDataValidationResults(EDataValidationResult Result1, EDataValidationResult Result2)
+{
+	/**
+	 * Anything combined with an Invalid result is Invalid. Any result combined with a NotValidated result is the same result
+	 *
+	 * The combined results should match the following matrix
+	 *
+	 *				|	NotValidated	|	Valid	|	Invalid
+	 * -------------+-------------------+-----------+----------
+	 * NotValidated	|	NotValidated	|	Valid	|	Invalid
+	 * Valid		|	Valid			|	Valid	|	Invalid
+	 * Invalid		|	Invalid			|	Invalid	|	Invalid
+	 *
+	 */
+
+	if (Result1 == EDataValidationResult::Invalid || Result2 == EDataValidationResult::Invalid)
+	{
+		return EDataValidationResult::Invalid;
+	}
+
+	if (Result1 == EDataValidationResult::Valid || Result2 == EDataValidationResult::Valid)
+	{
+		return EDataValidationResult::Valid;
+	}
+
+	return EDataValidationResult::NotValidated;
+}
