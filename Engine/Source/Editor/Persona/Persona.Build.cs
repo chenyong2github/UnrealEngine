@@ -63,6 +63,7 @@ public class Persona : ModuleRules
                 "CommonMenuExtensions",
                 "PinnedCommandList",
                 "RenderCore",
+				"MeshUtilitiesCommon",
             }
         );
 

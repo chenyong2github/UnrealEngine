@@ -14,6 +14,10 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "Core",
+					"CoreUObject",
+					"RenderCore",
+					"Engine",
+                    "ClothingSystemRuntime",
                 }
             );
         }

@@ -24,6 +24,7 @@
 #include "Stats/StatsMisc.h"
 #include "Assets/ClothingAsset.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+#include "LODUtilities.h"
 
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshReduction"
@@ -1364,7 +1365,7 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 			}
 
 			// Pre-process the influences.  This is required for BuildSkeletalMesh to work correctly.
-			ProcessImportMeshInfluences(SkinnedMesh.NumIndices() /* = SkeletalMeshData.Wedges.Num()*/, RawBoneInfluences);
+			FLODUtilities::ProcessImportMeshInfluences(SkinnedMesh.NumIndices() /* = SkeletalMeshData.Wedges.Num()*/, RawBoneInfluences);
 
 
 			// Make an output array for this profile.

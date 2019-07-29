@@ -105,7 +105,6 @@ namespace SkeletalMeshImportData
 
 extern UNREALED_API ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, bool bSaveMaterials, int32 ReimportLODIndex);
 extern UNREALED_API void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* SkeletalMesh, int32 ReimportLODIndex, bool bCanShowDialog, bool bImportSkinningOnly);
-extern UNREALED_API void ProcessImportMeshInfluences(const int32 WedgeCount, TArray <SkeletalMeshImportData::FRawBoneInfluence>& Influences);
 extern UNREALED_API void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData);
 extern UNREALED_API void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData);
 extern UNREALED_API bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData);

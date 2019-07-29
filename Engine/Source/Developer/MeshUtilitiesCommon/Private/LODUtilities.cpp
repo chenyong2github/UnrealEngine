@@ -17,18 +17,7 @@
 #include "OverlappingCorners.h"
 #include "Assets/ClothingAsset.h"
 
-#include "IAssetTools.h"
-#include "AssetToolsModule.h"
-#include "Factories/FbxFactory.h"
-#include "Factories/FbxAnimSequenceImportData.h"
-#include "Factories/FbxSkeletalMeshImportData.h"
-#include "Factories/FbxStaticMeshImportData.h"
-#include "Factories/FbxTextureImportData.h"
-#include "Factories/FbxImportUI.h"
-#include "AssetRegistryModule.h"
 #include "ObjectTools.h"
-#include "AssetImportTask.h"
-#include "FbxImporter.h"
 #include "ScopedTransaction.h"
 
 #if WITH_APEX_CLOTHING
@@ -39,15 +28,170 @@
 #include "IMeshReductionManagerModule.h"
 #include "Animation/SkinWeightProfile.h"
 
-#include "IDesktopPlatform.h"
-#include "DesktopPlatformModule.h"
-#include "EditorDirectories.h"
-#include "Framework/Application/SlateApplication.h"
-
-
 #define LOCTEXT_NAMESPACE "LODUtilities"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLODUtilities, Log, All);
+
+
+/**
+* Process and update the vertex Influences using the predefined wedges
+*
+* @param WedgeCount - The number of wedges in the corresponding mesh.
+* @param Influences - BoneWeights and Ids for the corresponding vertices.
+*/
+void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences)
+{
+
+	// Sort influences by vertex index.
+	struct FCompareVertexIndex
+	{
+		bool operator()(const SkeletalMeshImportData::FRawBoneInfluence& A, const SkeletalMeshImportData::FRawBoneInfluence& B) const
+		{
+			if (A.VertexIndex > B.VertexIndex) return false;
+			else if (A.VertexIndex < B.VertexIndex) return true;
+			else if (A.Weight < B.Weight) return false;
+			else if (A.Weight > B.Weight) return true;
+			else if (A.BoneIndex > B.BoneIndex) return false;
+			else if (A.BoneIndex < B.BoneIndex) return true;
+			else									  return  false;
+		}
+	};
+	Influences.Sort(FCompareVertexIndex());
+
+	TArray <SkeletalMeshImportData::FRawBoneInfluence> NewInfluences;
+	int32	LastNewInfluenceIndex = 0;
+	int32	LastVertexIndex = INDEX_NONE;
+	int32	InfluenceCount = 0;
+
+	float TotalWeight = 0.f;
+	const float MINWEIGHT = 0.01f;
+
+	int MaxVertexInfluence = 0;
+	float MaxIgnoredWeight = 0.0f;
+
+	//We have to normalize the data before filtering influences
+	//Because influence filtering is base on the normalize value.
+	//Some DCC like Daz studio don't have normalized weight
+	for (int32 i = 0; i < Influences.Num(); i++)
+	{
+		// if less than min weight, or it's more than 8, then we clear it to use weight
+		InfluenceCount++;
+		TotalWeight += Influences[i].Weight;
+		// we have all influence for the same vertex, normalize it now
+		if (i + 1 >= Influences.Num() || Influences[i].VertexIndex != Influences[i + 1].VertexIndex)
+		{
+			// Normalize the last set of influences.
+			if (InfluenceCount && (TotalWeight != 1.0f))
+			{
+				float OneOverTotalWeight = 1.f / TotalWeight;
+				for (int r = 0; r < InfluenceCount; r++)
+				{
+					Influences[i - r].Weight *= OneOverTotalWeight;
+				}
+			}
+
+			if (MaxVertexInfluence < InfluenceCount)
+			{
+				MaxVertexInfluence = InfluenceCount;
+			}
+
+			// clear to count next one
+			InfluenceCount = 0;
+			TotalWeight = 0.f;
+		}
+
+		if (InfluenceCount > MAX_TOTAL_INFLUENCES &&  Influences[i].Weight > MaxIgnoredWeight)
+		{
+			MaxIgnoredWeight = Influences[i].Weight;
+		}
+	}
+
+	// warn about too many influences
+	if (MaxVertexInfluence > MAX_TOTAL_INFLUENCES)
+	{
+		UE_LOG(LogLODUtilities, Warning, TEXT("Warning skeletal mesh influence count of %d exceeds max count of %d. Influence truncation will occur. Maximum Ignored Weight %f"), MaxVertexInfluence, MAX_TOTAL_INFLUENCES, MaxIgnoredWeight);
+	}
+
+	for (int32 i = 0; i < Influences.Num(); i++)
+	{
+		// we found next verts, normalize it now
+		if (LastVertexIndex != Influences[i].VertexIndex)
+		{
+			// Normalize the last set of influences.
+			if (InfluenceCount && (TotalWeight != 1.0f))
+			{
+				float OneOverTotalWeight = 1.f / TotalWeight;
+				for (int r = 0; r < InfluenceCount; r++)
+				{
+					NewInfluences[LastNewInfluenceIndex - r].Weight *= OneOverTotalWeight;
+				}
+			}
+
+			// now we insert missing verts
+			if (LastVertexIndex != INDEX_NONE)
+			{
+				int32 CurrentVertexIndex = Influences[i].VertexIndex;
+				for (int32 j = LastVertexIndex + 1; j < CurrentVertexIndex; j++)
+				{
+					// Add a 0-bone weight if none other present (known to happen with certain MAX skeletal setups).
+					LastNewInfluenceIndex = NewInfluences.AddUninitialized();
+					NewInfluences[LastNewInfluenceIndex].VertexIndex = j;
+					NewInfluences[LastNewInfluenceIndex].BoneIndex = 0;
+					NewInfluences[LastNewInfluenceIndex].Weight = 1.f;
+				}
+			}
+
+			// clear to count next one
+			InfluenceCount = 0;
+			TotalWeight = 0.f;
+			LastVertexIndex = Influences[i].VertexIndex;
+		}
+
+		// if less than min weight, or it's more than 8, then we clear it to use weight
+		if (Influences[i].Weight > MINWEIGHT && InfluenceCount < MAX_TOTAL_INFLUENCES)
+		{
+			LastNewInfluenceIndex = NewInfluences.Add(Influences[i]);
+			InfluenceCount++;
+			TotalWeight += Influences[i].Weight;
+		}
+	}
+
+	Influences = NewInfluences;
+
+	// Ensure that each vertex has at least one influence as e.g. CreateSkinningStream relies on it.
+	// The below code relies on influences being sorted by vertex index.
+	if (Influences.Num() == 0)
+	{
+		// warn about no influences
+		UE_LOG(LogLODUtilities, Warning, TEXT("Warning skeletal mesh has no vertex influences"));
+		// add one for each wedge entry
+		Influences.AddUninitialized(WedgeCount);
+		for (int32 WedgeIdx = 0; WedgeIdx < WedgeCount; WedgeIdx++)
+		{
+			Influences[WedgeIdx].VertexIndex = WedgeIdx;
+			Influences[WedgeIdx].BoneIndex = 0;
+			Influences[WedgeIdx].Weight = 1.0f;
+		}
+		for (int32 i = 0; i < Influences.Num(); i++)
+		{
+			int32 CurrentVertexIndex = Influences[i].VertexIndex;
+
+			if (LastVertexIndex != CurrentVertexIndex)
+			{
+				for (int32 j = LastVertexIndex + 1; j < CurrentVertexIndex; j++)
+				{
+					// Add a 0-bone weight if none other present (known to happen with certain MAX skeletal setups).
+					Influences.InsertUninitialized(i, 1);
+					Influences[i].VertexIndex = j;
+					Influences[i].BoneIndex = 0;
+					Influences[i].Weight = 1.f;
+				}
+				LastVertexIndex = CurrentVertexIndex;
+			}
+		}
+	}
+}
+
 
 bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount /*= 0*/, bool bRegenerateEvenIfImported /*= false*/, bool bGenerateBaseLOD /*= false*/)
 {
@@ -870,7 +1014,8 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
 		FSkeletalMeshOptimizationSettings& Settings = SkeletalMesh->GetLODInfo(DesiredLOD)->ReductionSettings;
 
-		if (SkeletalMeshResource->LODModels.IsValidIndex(DesiredLOD) && !SkeletalMesh->GetLODInfo(DesiredLOD)->bHasBeenSimplified)
+		//We must save the original reduction data, special case when we reduce inline we save even if its already simplified
+		if (SkeletalMeshResource->LODModels.IsValidIndex(DesiredLOD) && (!SkeletalMesh->GetLODInfo(DesiredLOD)->bHasBeenSimplified || DesiredLOD == Settings.BaseLOD))
 		{
 			FSkeletalMeshLODModel& SrcModel = SkeletalMeshResource->LODModels[DesiredLOD];
 			while (DesiredLOD >= SkeletalMeshResource->OriginalReductionSourceMeshData.Num())
@@ -1448,7 +1593,7 @@ void MatchVertexIndexUsingPosition(
 	}
 }
 
-bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, const UnFbx::FBXImportOptions& ImportOptions, int32 LODIndexDest)
+bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace)
 {
 	//Ensure log message only once
 	bool bNoMatchMsgDone = false;
@@ -1717,10 +1862,10 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 
 	//Set the options with the current asset build options
 	IMeshUtilities::MeshBuildOptions BuildOptions;
-	BuildOptions.OverlappingThresholds = ImportOptions.OverlappingThresholds;
-	BuildOptions.bComputeNormals = !ImportOptions.ShouldImportNormals() || !ImportDataDest.bHasNormals;
-	BuildOptions.bComputeTangents = !ImportOptions.ShouldImportTangents() || !ImportDataDest.bHasTangents;
-	BuildOptions.bUseMikkTSpace = (ImportOptions.NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!ImportOptions.ShouldImportNormals() || !ImportOptions.ShouldImportTangents());
+	BuildOptions.OverlappingThresholds = OverlappingThresholds;
+	BuildOptions.bComputeNormals = !ShouldImportNormals || !ImportDataDest.bHasNormals;
+	BuildOptions.bComputeTangents = !ShouldImportTangents || !ImportDataDest.bHasTangents;
+	BuildOptions.bUseMikkTSpace = (bUseMikkTSpace) && (!ShouldImportNormals || !ShouldImportTangents);
 	BuildOptions.bRemoveDegenerateTriangles = false;
 
 	//Build the skeletal mesh asset
@@ -1734,7 +1879,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 	return bBuildSuccess;
 }
 
-bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, USkeletalMesh* SkeletalMeshSrc, const UnFbx::FBXImportOptions& ImportOptions, int32 LODIndexDest, int32 LODIndexSrc)
+bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, USkeletalMesh* SkeletalMeshSrc, int32 LODIndexDest, int32 LODIndexSrc, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace)
 {
 	//Grab all the destination structure
 	check(SkeletalMeshDest);
@@ -1778,7 +1923,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 	LODModelDest.RawSkeletalMeshBulkData.SaveRawMesh(ImportDataDest);
 
 	//Build the alternate buffer with all the data into the bulk
-	return UpdateAlternateSkinWeights(SkeletalMeshDest, ProfileNameDest, ImportOptions, LODIndexDest);
+	return UpdateAlternateSkinWeights(SkeletalMeshDest, ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace);
 }
 
 void FLODUtilities::GenerateImportedSkinWeightProfileData(const FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData &ImportedProfileData)
@@ -1849,326 +1994,6 @@ void FLODUtilities::RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODMod
 	}
 }
 
-bool FLODUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, FString Path, int32 TargetLODIndex, const FName& ProfileName, bool bReregisterComponent)
-{
-	check(SkeletalMesh);
-	check(SkeletalMesh->GetLODInfo(TargetLODIndex));
-	FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(TargetLODIndex);
-	
-	if (LODInfo && LODInfo->bHasBeenSimplified && LODInfo->ReductionSettings.BaseLOD != TargetLODIndex)
-	{
-		//We cannot remove alternate skin weights profile for a generated LOD
-		UE_LOG(LogLODUtilities, Error, TEXT("Cannot import Skin Weight Profile for a generated LOD."));
-		return false;
-	}
-
-	FString AbsoluteFilePath = UAssetImportData::ResolveImportFilename(Path, SkeletalMesh->GetOutermost());
-	if (!FPaths::FileExists(AbsoluteFilePath))
-	{
-		UE_LOG(LogLODUtilities, Error, TEXT("Path containing Skin Weight Profile data does not exist (%s)."), *Path);
-		return false;
-	}
-	UnFbx::FBXImportOptions ImportOptions;
-	//Import the alternate fbx into a temporary skeletal mesh using the same import options
-	UFbxFactory* FbxFactory = NewObject<UFbxFactory>(UFbxFactory::StaticClass());
-	FbxFactory->AddToRoot();
-
-	FbxFactory->ImportUI = NewObject<UFbxImportUI>(FbxFactory);
-	UFbxSkeletalMeshImportData* OriginalSkeletalMeshImportData = UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(SkeletalMesh, nullptr);
-	if (OriginalSkeletalMeshImportData != nullptr)
-	{
-		//Copy the skeletal mesh import data options
-		FbxFactory->ImportUI->SkeletalMeshImportData = DuplicateObject<UFbxSkeletalMeshImportData>(OriginalSkeletalMeshImportData, FbxFactory);
-	}
-	//Skip the auto detect type on import, the test set a specific value
-	FbxFactory->SetDetectImportTypeOnImport(false);
-	FbxFactory->ImportUI->bImportAsSkeletal = true;
-	FbxFactory->ImportUI->MeshTypeToImport = FBXIT_SkeletalMesh;
-	FbxFactory->ImportUI->bIsReimport = false;
-	FbxFactory->ImportUI->ReimportMesh = nullptr;
-	FbxFactory->ImportUI->bAllowContentTypeImport = true;
-	FbxFactory->ImportUI->bImportAnimations = false;
-	FbxFactory->ImportUI->bAutomatedImportShouldDetectType = false;
-	FbxFactory->ImportUI->bCreatePhysicsAsset = false;
-	FbxFactory->ImportUI->bImportMaterials = false;
-	FbxFactory->ImportUI->bImportTextures = false;
-	FbxFactory->ImportUI->bImportMesh = true;
-	FbxFactory->ImportUI->bImportRigidMesh = false;
-	FbxFactory->ImportUI->bIsObjImport = false;
-	FbxFactory->ImportUI->bOverrideFullName = true;
-	FbxFactory->ImportUI->Skeleton = nullptr;
-	
-	//Force some skeletal mesh import options
-	if (FbxFactory->ImportUI->SkeletalMeshImportData)
-	{
-		FbxFactory->ImportUI->SkeletalMeshImportData->bImportMeshLODs = false;
-		FbxFactory->ImportUI->SkeletalMeshImportData->bImportMorphTargets = false;
-		FbxFactory->ImportUI->SkeletalMeshImportData->bUpdateSkeletonReferencePose = false;
-		FbxFactory->ImportUI->SkeletalMeshImportData->ImportContentType = EFBXImportContentType::FBXICT_All; //We need geo and skinning, so we can match the weights
-	}
-	//Force some material options
-	if (FbxFactory->ImportUI->TextureImportData)
-	{
-		FbxFactory->ImportUI->TextureImportData->MaterialSearchLocation = EMaterialSearchLocation::Local;
-		FbxFactory->ImportUI->TextureImportData->BaseMaterialName.Reset();
-	}
-
-	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	FString ImportAssetPath = TEXT("/Engine/TempEditor/SkeletalMeshTool");
-	//Empty the temporary path
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	
-	auto DeletePathAssets = [&AssetRegistryModule, &ImportAssetPath]()
-	{
-		TArray<FAssetData> AssetsToDelete;
-		AssetRegistryModule.Get().GetAssetsByPath(FName(*ImportAssetPath), AssetsToDelete, true);
-		ObjectTools::DeleteAssets(AssetsToDelete, false);
-		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-	};
-
-	DeletePathAssets();
-
-	ApplyImportUIToImportOptions(FbxFactory->ImportUI, ImportOptions);
-
-	TArray<FString> ImportFilePaths;
-	ImportFilePaths.Add(AbsoluteFilePath);
-
-	UAssetImportTask* Task = NewObject<UAssetImportTask>();
-	Task->AddToRoot();
-	Task->bAutomated = true;
-	Task->bReplaceExisting = true;
-	Task->DestinationPath = ImportAssetPath;
-	Task->bSave = false;
-	Task->DestinationName = FGuid::NewGuid().ToString(EGuidFormats::Digits);
-	Task->Options = FbxFactory->ImportUI->SkeletalMeshImportData;
-	Task->Filename = AbsoluteFilePath;
-	Task->Factory = FbxFactory;
-	FbxFactory->SetAssetImportTask(Task);
-	TArray<UAssetImportTask*> Tasks;
-	Tasks.Add(Task);
-	AssetToolsModule.Get().ImportAssetTasks(Tasks);
-
-	UObject* ImportedObject = nullptr;
-	
-	for (FString AssetPath : Task->ImportedObjectPaths)
-	{
-		FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FName(*AssetPath));
-		ImportedObject = AssetData.GetAsset();
-		if (ImportedObject != nullptr)
-		{
-			break;
-		}
-	}
-	
-	//Factory and task can now be garbage collected
-	Task->RemoveFromRoot();
-	FbxFactory->RemoveFromRoot();
-
-	USkeletalMesh* TmpSkeletalMesh = Cast<USkeletalMesh>(ImportedObject);
-	if (TmpSkeletalMesh == nullptr || TmpSkeletalMesh->Skeleton == nullptr)
-	{
-		UE_LOG(LogLODUtilities, Error, TEXT("Failed to import Skin Weight Profile from provided FBX file (%s)."), *Path);
-		DeletePathAssets();
-		return false;
-	}
-
-	//The LOD index of the source is always 0, 
-	const int32 SrcLodIndex = 0;
-	bool bResult = false;
-
-	if (SkeletalMesh && TmpSkeletalMesh)
-	{
-		if (FSkeletalMeshModel* TargetModel = SkeletalMesh->GetImportedModel())
-		{
-			if (TargetModel->LODModels.IsValidIndex(TargetLODIndex))
-			{
-				//Prepare the profile data
-				FSkeletalMeshLODModel& TargetLODModel = TargetModel->LODModels[TargetLODIndex];
-				
-				// Prepare the profile data
-				FSkinWeightProfileInfo* Profile = SkeletalMesh->GetSkinWeightProfiles().FindByPredicate([ProfileName](FSkinWeightProfileInfo Profile) { return Profile.Name == ProfileName; });
-
-				const bool bIsReimport = Profile != nullptr;
-				FText TransactionName = bIsReimport ? NSLOCTEXT("UnrealEd", "UpdateAlternateSkinningWeight", "Update Alternate Skinning Weight")
-					: NSLOCTEXT("UnrealEd", "ImportAlternateSkinningWeight", "Import Alternate Skinning Weight");
-				FScopedTransaction ScopedTransaction(TransactionName);
-				SkeletalMesh->Modify();
-
-				if (bIsReimport)
-				{
-					// Update source file path
-					FString& StoredPath = Profile->PerLODSourceFiles.FindOrAdd(TargetLODIndex);
-					StoredPath = UAssetImportData::SanitizeImportFilename(AbsoluteFilePath, SkeletalMesh->GetOutermost());
-					Profile->PerLODSourceFiles.KeySort([](int32 A, int32 B) { return A < B; });
-				}
-				
-				// Clear profile data before import
-				FImportedSkinWeightProfileData& ProfileData = TargetLODModel.SkinWeightProfiles.FindOrAdd(ProfileName);
-				ProfileData.SkinWeights.Empty();
-				ProfileData.SourceModelInfluences.Empty();
-
-				FImportedSkinWeightProfileData PreviousProfileData = ProfileData;
-				
-				TArray<FRawSkinWeight>& SkinWeights = ProfileData.SkinWeights;
-				if (bReregisterComponent)
-				{
-					TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
-					SkeletalMesh->ReleaseResources();
-					SkeletalMesh->ReleaseResourcesFence.Wait();
-
-					bResult = UpdateAlternateSkinWeights(SkeletalMesh, ProfileName, TmpSkeletalMesh, ImportOptions, TargetLODIndex, SrcLodIndex);
-					SkeletalMesh->PostEditChange();
-					SkeletalMesh->InitResources();
-				}
-				else
-				{
-					bResult = UpdateAlternateSkinWeights(SkeletalMesh, ProfileName, TmpSkeletalMesh, ImportOptions, TargetLODIndex, SrcLodIndex);
-				}
-								
-				if (!bResult)
-				{
-					// Remove invalid profile data due to failed import
-					if (!bIsReimport)
-					{
-						TargetLODModel.SkinWeightProfiles.Remove(ProfileName);
-					}
-					else
-					{
-						// Otherwise restore previous data
-						ProfileData = PreviousProfileData;
-					}
-				}
-
-				// Only add if it is an initial import and it was successful 
-				if (!bIsReimport && bResult)
-				{
-					FSkinWeightProfileInfo SkeletalMeshProfile;
-					SkeletalMeshProfile.DefaultProfile = (SkeletalMesh->GetNumSkinWeightProfiles() == 0);
-					SkeletalMeshProfile.DefaultProfileFromLODIndex = TargetLODIndex;
-					SkeletalMeshProfile.Name = ProfileName;
-					SkeletalMeshProfile.PerLODSourceFiles.Add(TargetLODIndex, UAssetImportData::SanitizeImportFilename(AbsoluteFilePath, SkeletalMesh->GetOutermost()));
-					SkeletalMesh->AddSkinWeightProfile(SkeletalMeshProfile);
-
-					Profile = &SkeletalMeshProfile;
-				}
-			}
-		}
-	}
-	
-	//Make sure all created objects are gone
-	DeletePathAssets();
-
-	return bResult;
-}
-
-bool FLODUtilities::ReimportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, int32 TargetLODIndex, bool bReregisterComponent)
-{
-	bool bResult = false;
-
-	//Bulk work of the function, we use a lambda because of the re-register component option.
-	auto DoWork = [&SkeletalMesh, &TargetLODIndex, &bResult]()
-	{
-		const TArray<FSkinWeightProfileInfo>& SkinWeightProfiles = SkeletalMesh->GetSkinWeightProfiles();
-		for (int32 ProfileIndex = 0; ProfileIndex < SkinWeightProfiles.Num(); ++ProfileIndex)
-		{
-			const FSkinWeightProfileInfo& ProfileInfo = SkinWeightProfiles[ProfileIndex];
-
-			const FString* PathNamePtr = ProfileInfo.PerLODSourceFiles.Find(TargetLODIndex);
-			//Skip profile that do not have data for TargetLODIndex
-			if (!PathNamePtr)
-			{
-				continue;
-			}
-
-			const FString& PathName = *PathNamePtr;
-
-			if (FPaths::FileExists(PathName))
-			{
-				bResult |= FLODUtilities::ImportAlternateSkinWeight(SkeletalMesh, PathName, TargetLODIndex, ProfileInfo.Name, false);
-			}
-			else
-			{
-				FText WarningMessage = FText::Format(LOCTEXT("Warning_SkinWeightsFileMissing", "Previous file {0} containing Skin Weight data for LOD {1} could not be found, do you want to specify a new path?"), FText::FromString(PathName), TargetLODIndex);
-				if (EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
-				{
-					const FString PickedFileName = FLODUtilities::PickSkinWeightFBXPath(TargetLODIndex);
-					if (!PickedFileName.IsEmpty() && FPaths::FileExists(PickedFileName))
-					{
-						bResult |= FLODUtilities::ImportAlternateSkinWeight(SkeletalMesh, PickedFileName, TargetLODIndex, ProfileInfo.Name, false);
-					}
-				}
-			}
-		}
-	};
-
-	if (bReregisterComponent)
-	{
-		TComponentReregisterContext<USkinnedMeshComponent> ReregisterContext;
-		SkeletalMesh->ReleaseResources();
-		SkeletalMesh->ReleaseResourcesFence.Wait();
-
-		DoWork();
-
-		SkeletalMesh->PostEditChange();
-		SkeletalMesh->InitResources();
-	}
-	else
-	{
-		DoWork();
-	}
-	
-	if (bResult)
-	{
-		FLODUtilities::RegenerateDependentLODs(SkeletalMesh, TargetLODIndex);
-	}
-	
-	return bResult;
-}
-
-bool FLODUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* SkeletalMesh, const FName& ProfileName, int32 LODIndex)
-{
-	check(SkeletalMesh);
-	check(SkeletalMesh->GetImportedModel());
-	check(SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex));
-	FSkeletalMeshLODModel& LODModelDest = SkeletalMesh->GetImportedModel()->LODModels[LODIndex];
-	LODModelDest.SkinWeightProfiles.Remove(ProfileName);
-
-	FSkeletalMeshImportData ImportDataDest;
-	LODModelDest.RawSkeletalMeshBulkData.LoadRawMesh(ImportDataDest);
-
-	//Rechunk the skeletal mesh since we remove it, we rebuild the skeletal mesh to achieve rechunking
-	UFbxSkeletalMeshImportData* OriginalSkeletalMeshImportData = UFbxSkeletalMeshImportData::GetImportDataForSkeletalMesh(SkeletalMesh, nullptr);
-
-	TArray<FVector> LODPointsDest;
-	TArray<SkeletalMeshImportData::FMeshWedge> LODWedgesDest;
-	TArray<SkeletalMeshImportData::FMeshFace> LODFacesDest;
-	TArray<SkeletalMeshImportData::FVertInfluence> LODInfluencesDest;
-	TArray<int32> LODPointToRawMapDest;
-	ImportDataDest.CopyLODImportData(LODPointsDest, LODWedgesDest, LODFacesDest, LODInfluencesDest, LODPointToRawMapDest);
-
-	const bool bShouldImportNormals = OriginalSkeletalMeshImportData->NormalImportMethod == FBXNIM_ImportNormals || OriginalSkeletalMeshImportData->NormalImportMethod == FBXNIM_ImportNormalsAndTangents;
-	const bool bShouldImportTangents = OriginalSkeletalMeshImportData->NormalImportMethod == FBXNIM_ImportNormalsAndTangents;
-	//Set the options with the current asset build options
-	IMeshUtilities::MeshBuildOptions BuildOptions;
-	BuildOptions.OverlappingThresholds.ThresholdPosition = OriginalSkeletalMeshImportData->ThresholdPosition;
-	BuildOptions.OverlappingThresholds.ThresholdTangentNormal = OriginalSkeletalMeshImportData->ThresholdTangentNormal;
-	BuildOptions.OverlappingThresholds.ThresholdUV = OriginalSkeletalMeshImportData->ThresholdUV;
-	BuildOptions.bComputeNormals = !bShouldImportNormals || !ImportDataDest.bHasNormals;
-	BuildOptions.bComputeTangents = !bShouldImportTangents || !ImportDataDest.bHasTangents;
-	BuildOptions.bUseMikkTSpace = (OriginalSkeletalMeshImportData->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!bShouldImportNormals || !bShouldImportTangents);
-	BuildOptions.bRemoveDegenerateTriangles = false;
-
-	//Build the skeletal mesh asset
-	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
-	TArray<FText> WarningMessages;
-	TArray<FName> WarningNames;
-	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
-	const bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMesh->RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
-	RegenerateAllImportSkinWeightProfileData(LODModelDest);
-
-	return bBuildSuccess;
-}
-
 void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 LODIndex)
 {
 	FSkeletalMeshUpdateContext UpdateContext;
@@ -2205,48 +2030,6 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 		SkeletalMesh->PostEditChange();
 		SkeletalMesh->InitResources();
 	}
-}
-
-FString FLODUtilities::PickSkinWeightFBXPath(int32 LODIndex)
-{
-	FString PickedFileName("");
-
-	FString ExtensionStr;
-	ExtensionStr += TEXT("FBX files|*.fbx|");
-
-	// First, display the file open dialog for selecting the file.
-	TArray<FString> OpenFilenames;
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	bool bOpen = false;
-	if (DesktopPlatform)
-	{
-		const FString DialogTitle = TEXT("Pick FBX file containing Skin Weight data for LOD ") + FString::FormatAsNumber(LODIndex);
-		bOpen = DesktopPlatform->OpenFileDialog(
-			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-			DialogTitle,
-			*FEditorDirectories::Get().GetLastDirectory(ELastDirectory::FBX),
-			TEXT(""),
-			*ExtensionStr,
-			EFileDialogFlags::None,
-			OpenFilenames
-		);
-	}
-
-	if (bOpen)
-	{
-		if (OpenFilenames.Num() == 1)
-		{
-			PickedFileName = OpenFilenames[0];
-			// Set last directory path for FBX files
-			FEditorDirectories::Get().SetLastDirectory(ELastDirectory::FBX, FPaths::GetPath(PickedFileName));
-		}
-		else
-		{
-			// Error
-		}
-	}
-
-	return PickedFileName;
 }
 
 //////////////////////////////////////////////////////////////////////////

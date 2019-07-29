@@ -3,13 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MeshBuild.h"
 #include "Engine/SkeletalMesh.h"
-#include "Framework/Commands/UIAction.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 
-namespace UnFbx
-{
-	struct FBXImportOptions;
-}
+
 
 //////////////////////////////////////////////////////////////////////////
 // FSkeletalMeshUpdateContext
@@ -26,9 +24,18 @@ struct FSkeletalMeshUpdateContext
 //////////////////////////////////////////////////////////////////////////
 // FLODUtilities
 
-class UNREALED_API FLODUtilities
+class MESHUTILITIESCOMMON_API FLODUtilities
 {
 public:
+
+	/**
+	* Process and update the vertex Influences using the predefined wedges
+	* 
+	* @param WedgeCount - The number of wedges in the corresponding mesh.
+	* @param Influences - BoneWeights and Ids for the corresponding vertices. 
+	*/
+	static void ProcessImportMeshInfluences(const int32 WedgeCount, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences);
+
 	/** Regenerate LODs of the mesh
 	*
 	* @param SkeletalMesh : the mesh that will regenerate LOD
@@ -75,29 +82,6 @@ public:
 	 */
 	static void RefreshLODChange(const USkeletalMesh* SkeletalMesh);
 
-	/**
-	* This function import a new set of skin weights for a specified LOD. Return true if the weights are successfully updates.
-	* If it return false, nothing in the skeletal skin weights was modified.
-	*
-	* @param SkeletalMesh - The skeletal mesh to operate on.
-	* @param Path - The file path to import the weight from
-	* @Param TargetLODIndex - The LODIndex to imp[ort the skin weight
-	* @Param ProfileName - The name of the profile to associate the imported skin weight
-	* @param bReregisterComponent - if true the component using the skeletal mesh will all be re register.
-	*/
-	static bool ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, FString Path, int32 TargetLODIndex, const FName& ProfileName, bool bReregisterComponent = true);
-	
-	/**
-	* This function reimport all skin weights profile for a specified LOD. Return true if the weights are successfully updates.
-	* If it return false, nothing in the skeletal skin weights was modified.
-	*
-	* @param SkeletalMesh - The skeletal mesh to operate on.
-	* @Param TargetLODIndex - The LODIndex to imp[ort the skin weight
-	* @param bReregisterComponent - if true the component using the skeletal mesh will all be re register.
-	*/
-	static bool ReimportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, int32 TargetLODIndex, bool bReregisterComponent = true);
-
-	static bool RemoveSkinnedWeightProfileData(USkeletalMesh* SkeletalMesh, const FName& ProfileName, int32 LODIndex);
 
 	/*
 	 * Regenerate LOD that are dependent of LODIndex
@@ -105,17 +89,9 @@ public:
 	static void RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
 	/*
-	 * Ask user a FBX file path for a particular LOD
-	 */
-	static FString PickSkinWeightFBXPath(int32 LODIndex);
-
-	/*
 	 * Build the morph targets for the specified LOD. The function use the Morph target data stored in the FSkeletalMeshImportData ImportData structure
 	 */
 	static void BuildMorphTargets(USkeletalMesh* SkeletalMesh, class FSkeletalMeshImportData &ImportData, int32 LODIndex, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace);
-
-private:
-	FLODUtilities() {}
 
 	/**
 	 *	This function apply the skinning weights from asource skeletal mesh to the destination skeletal mesh.
@@ -128,19 +104,27 @@ private:
 	 * @param LODIndexDest - the destination LOD
 	 * @param LODIndexSrc - the Source LOD index
 	 */
-	static bool UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, USkeletalMesh* SkeletalMeshSrc, const UnFbx::FBXImportOptions& ImportOptions, int32 LODIndexDest, int32 LODIndexSrc);
-	/**
+	static bool UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, USkeletalMesh* SkeletalMeshSrc, int32 LODIndexDest, int32 LODIndexSrc, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace);
+
+	
+	/*
 	 *	This function apply the skinning weights from the saved imported skinning weight data to the destination skeletal mesh.
 	 *  The Destination will receive the weights has the alternate weights.
 	 *
 	 * @param SkeletalMeshDest - The skeletal mesh that will receive the alternate skinning weights.
 	 * @param LODIndexDest - the destination LOD
 	 */
-	static bool UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, const UnFbx::FBXImportOptions& ImportOptions, int32 LODIndexDest);
-	/** Generate the editor-only data stored for a skin weight profile (relies on bone indices) */
-	static void GenerateImportedSkinWeightProfileData(const FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData& ImportedProfileData);
+	static bool UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace);
+
 	/** Re-generate all (editor-only) skin weight profile, used whenever we rebuild the skeletal mesh data which could change the chunking and bone indices */
 	static void RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest);
+
+private:
+	FLODUtilities() {}
+
+	/** Generate the editor-only data stored for a skin weight profile (relies on bone indices) */
+	static void GenerateImportedSkinWeightProfileData(const FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData& ImportedProfileData);
+	
 
 	/**
 	 *	Simplifies the static mesh based upon various user settings for DesiredLOD

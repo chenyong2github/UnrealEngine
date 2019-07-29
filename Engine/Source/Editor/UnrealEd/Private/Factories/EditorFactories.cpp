@@ -264,7 +264,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Factories/TextureImportSettings.h"
 
-#include "LODUtilities.h"
+#include "SkinWeightsUtilities.h"
 
 DEFINE_LOG_CATEGORY(LogEditorFactories);
 
@@ -6169,7 +6169,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 			//Restore skin weight profile infos, then reimport affected LODs
 			TArray<FSkinWeightProfileInfo>&SkinWeightsProfile = SkeletalMesh->GetSkinWeightProfiles();
 			SkinWeightsProfile = ExistingSkinWeightProfileInfos;
-			FLODUtilities::ReimportAlternateSkinWeight(SkeletalMesh, 0, true);
+			FSkinWeightsUtilities::ReimportAlternateSkinWeight(SkeletalMesh, 0, true);
 		}
 
 		// Reimporting can have dangerous effects if the mesh is still in the transaction buffer.  Reset the transaction buffer if this is the case
