@@ -25,7 +25,7 @@
 #include "Features/IModularFeatures.h"
 #include "Misc/CoreDelegates.h"
 #include "HAL/PlatformOutputDevices.h"
-
+#include "HAL/FileManager.h"
 
 #define LOCTEXT_NAMESPACE "SOutputLog"
 /** Expression context to test the given messages against the current text filter */
