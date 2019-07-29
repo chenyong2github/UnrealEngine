@@ -8,6 +8,30 @@
 #include "Engine/SkeletalMesh.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 
+void FSkeletalMeshImportData::CopyDataNeedByMorphTargetImport(FSkeletalMeshImportData& Other) const
+{
+	Other.Points = Points;
+	Other.PointToRawMap = PointToRawMap;
+	Other.bDiffPose = bDiffPose;
+	Other.bUseT0AsRefPose = bUseT0AsRefPose;
+}
+
+void FSkeletalMeshImportData::KeepAlternateSkinningBuildDataOnly()
+{
+	//No need of any alternate restore data, since we are this data if this function is called
+	AlternateInfluenceProfileNames.Empty();
+	AlternateInfluences.Empty();
+	
+	//No need of the morph target restore data
+	MorphTargetModifiedPoints.Empty();
+	MorphTargetNames.Empty();
+	MorphTargets.Empty();
+
+	//Remove material array and PointToRawMap
+	Materials.Empty();
+	PointToRawMap.Empty();
+}
+
 /**
 * Takes an imported bone name, removes any leading or trailing spaces, and converts the remaining spaces to dashes.
 */
@@ -467,6 +491,7 @@ enum
 	// Engine raw mesh version:
 	RAW_SKELETAL_MESH_BULKDATA_VER_INITIAL = 0,
 	RAW_SKELETAL_MESH_BULKDATA_VER_AlternateInfluence = 1,
+	RAW_SKELETAL_MESH_BULKDATA_VER_RebuildSystem = 2,
 	// Add new raw mesh versions here.
 
 	RAW_SKELETAL_MESH_BULKDATA_VER_PLUS_ONE,
@@ -514,11 +539,55 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 	{
 		ProcessImportMeshInfluences(RawMesh);
 	}
+
+	
+	if (Version >= RAW_SKELETAL_MESH_BULKDATA_VER_RebuildSystem)
+	{
+		Ar << RawMesh.MorphTargets;
+		Ar << RawMesh.MorphTargetModifiedPoints;
+		Ar << RawMesh.MorphTargetNames;
+		Ar << RawMesh.AlternateInfluences;
+		Ar << RawMesh.AlternateInfluenceProfileNames;
+	}
+	else if (Ar.IsLoading())
+	{
+		RawMesh.MorphTargets.Empty();
+		RawMesh.MorphTargetModifiedPoints.Empty();
+		RawMesh.MorphTargetNames.Empty();
+		RawMesh.AlternateInfluences.Empty();
+		RawMesh.AlternateInfluenceProfileNames.Empty();
+	}
+
 	return Ar;
 }
 
 void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
+	if (Ar.IsLoading())
+	{
+		//Save the custom version so we can load FReductionSkeletalMeshData later
+		SerializeLoadingCustomVersionContainer = Ar.GetCustomVersions();
+		bUseSerializeLoadingCustomVersion = false;
+		const FCustomVersionContainer& RegisteredCustomVersionContainer = FCustomVersionContainer::GetRegistered();
+		const FCustomVersionArray& ArchiveCustomVersionArray = SerializeLoadingCustomVersionContainer.GetAllVersions();
+		for (const FCustomVersion& ArchiveVersion : ArchiveCustomVersionArray)
+		{
+			const FCustomVersion* RegisteredVersion = RegisteredCustomVersionContainer.GetVersion(ArchiveVersion.Key);
+			if (!RegisteredVersion || RegisteredVersion->Version != ArchiveVersion.Version)
+			{
+				bUseSerializeLoadingCustomVersion = true;
+				break;
+			}
+		}
+	}
+
+	if (Ar.IsSaving() && bUseSerializeLoadingCustomVersion == true)
+	{
+		//We need to update the FReductionSkeletalMeshData serialize version to the latest in case we save the Parent bulkdata
+		FSkeletalMeshImportData MeshImportData;
+		LoadRawMesh(MeshImportData);
+		SaveRawMesh(MeshImportData);
+	}
 	BulkData.Serialize(Ar, Owner);
 	Ar << Guid;
 	Ar << bGuidIsHash;
@@ -526,6 +595,10 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 void FRawSkeletalMeshBulkData::SaveRawMesh(FSkeletalMeshImportData& InMesh)
 {
+	//Saving the bulk data mean we do not need anymore the SerializeLoadingCustomVersionContainer of the parent bulk data
+	SerializeLoadingCustomVersionContainer.Empty();
+	bUseSerializeLoadingCustomVersion = false;
+
 	TArray<uint8> TempBytes;
 	FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
 	Ar << InMesh;
@@ -545,6 +618,11 @@ void FRawSkeletalMeshBulkData::LoadRawMesh(FSkeletalMeshImportData& OutMesh)
 			BulkData.Lock(LOCK_READ_ONLY), BulkData.GetElementCount(),
 			/*bInFreeOnClose=*/ false, /*bIsPersistent=*/ true
 		);
+		//If we load the bulkdata content and the bulk was using customVersion, we must set the same until we save the reduction data
+		if (bUseSerializeLoadingCustomVersion)
+		{
+			Ar.SetCustomVersions(SerializeLoadingCustomVersionContainer);
+		}
 		Ar << OutMesh;
 		BulkData.Unlock();
 	}

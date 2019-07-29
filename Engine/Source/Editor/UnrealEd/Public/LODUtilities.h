@@ -109,18 +109,34 @@ public:
 	 */
 	static FString PickSkinWeightFBXPath(int32 LODIndex);
 
+	/*
+	 * Build the morph targets for the specified LOD. The function use the Morph target data stored in the FSkeletalMeshImportData ImportData structure
+	 */
+	static void BuildMorphTargets(USkeletalMesh* SkeletalMesh, class FSkeletalMeshImportData &ImportData, int32 LODIndex, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace);
+
 private:
 	FLODUtilities() {}
 
 	/**
 	 *	This function apply the skinning weights from asource skeletal mesh to the destination skeletal mesh.
 	 *  The Destination will receive the weights has the alternate weights.
+	 *  We extract the imported skinning weight data from the SkeletalMeshSrc and we save the imported raw data into the destination mesh.
+	 *  Then we call UpdateAlternateSkinWeights without the SkeletalMeshSrc
 	 *
 	 * @param SkeletalMeshDest - The skeletal mesh that will receive the alternate skinning weights.
 	 * @param SkeletalMeshSrc - The skeletal mesh that contain the alternate skinning weights.
-	 * @param LODIndex - the destination LOD
+	 * @param LODIndexDest - the destination LOD
+	 * @param LODIndexSrc - the Source LOD index
 	 */
 	static bool UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, USkeletalMesh* SkeletalMeshSrc, const UnFbx::FBXImportOptions& ImportOptions, int32 LODIndexDest, int32 LODIndexSrc);
+	/**
+	 *	This function apply the skinning weights from the saved imported skinning weight data to the destination skeletal mesh.
+	 *  The Destination will receive the weights has the alternate weights.
+	 *
+	 * @param SkeletalMeshDest - The skeletal mesh that will receive the alternate skinning weights.
+	 * @param LODIndexDest - the destination LOD
+	 */
+	static bool UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, const FName& ProfileNameDest, const UnFbx::FBXImportOptions& ImportOptions, int32 LODIndexDest);
 	/** Generate the editor-only data stored for a skin weight profile (relies on bone indices) */
 	static void GenerateImportedSkinWeightProfileData(const FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData& ImportedProfileData);
 	/** Re-generate all (editor-only) skin weight profile, used whenever we rebuild the skeletal mesh data which could change the chunking and bone indices */
