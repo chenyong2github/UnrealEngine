@@ -25,7 +25,7 @@ struct FSkeletalMeshUpdateContext
 //////////////////////////////////////////////////////////////////////////
 // FLODUtilities
 
-class MESHUTILITIESCOMMON_API FLODUtilities
+class SKELETALMESHUTILITIESCOMMON_API FLODUtilities
 {
 public:
 

@@ -34,7 +34,7 @@ public class SkeletalMeshEditor : ModuleRules
                 "ClothingSystemRuntime",
                 "ClothingSystemEditorInterface",
 				"ClothingSystemRuntimeInterface",
-				"MeshUtilitiesCommon",
+				"SkeletalMeshUtilitiesCommon",
             }
 		);
 

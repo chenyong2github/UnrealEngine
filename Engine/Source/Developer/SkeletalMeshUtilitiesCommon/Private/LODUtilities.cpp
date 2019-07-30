@@ -29,6 +29,10 @@
 #include "IMeshReductionManagerModule.h"
 #include "Animation/SkinWeightProfile.h"
 
+#include "Modules/ModuleManager.h"
+
+IMPLEMENT_MODULE(FDefaultModuleImpl, SkeletalMeshUtilitiesCommon)
+
 #define LOCTEXT_NAMESPACE "LODUtilities"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLODUtilities, Log, All);

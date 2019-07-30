@@ -57,7 +57,7 @@ namespace UnrealBuildTool.Rules
                     "MeshBoneReduction",
                     "QuadricMeshReduction",
                     "ClothingSystemRuntime",
-                    "MeshUtilitiesCommon",
+                    "SkeletalMeshUtilitiesCommon",
 					// ... add private dependencies that you statically link with here ...
                     // QuadricMeshReduction is only for testing
 				}

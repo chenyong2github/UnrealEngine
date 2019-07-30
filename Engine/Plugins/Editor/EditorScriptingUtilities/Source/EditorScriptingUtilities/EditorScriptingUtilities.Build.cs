@@ -27,7 +27,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
-					"MeshUtilitiesCommon",
+                    "SkeletalMeshUtilitiesCommon",
 				}
 			);
 		}
