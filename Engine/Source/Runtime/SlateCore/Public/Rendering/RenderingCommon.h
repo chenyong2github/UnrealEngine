@@ -882,80 +882,35 @@ public:
 	virtual void DrawRenderThread(class FRHICommandListImmediate& RHICmdList, const void* RenderTarget) = 0;
 };
 
+/*
+ * A proxy object used to access a slate per-instance data buffer on the render thread.
+ */
+class ISlateUpdatableInstanceBufferRenderProxy
+{
+protected:
+	virtual ~ISlateUpdatableInstanceBufferRenderProxy() {};
+
+public:
+	virtual void BindStreamSource(class FRHICommandList& RHICmdList, int32 StreamIndex, uint32 InstanceOffset) = 0;
+};
+
+typedef TArray<FVector4> FSlateInstanceBufferData;
+
 /**
  * Represents a per instance data buffer for a custom Slate mesh element.
- * Use FSlateInstanceBufferUpdate to update the per-instance data.
- *  e.g.
- *    TSharedRef<FSlateInstanceBufferUpdate> NewUpdate = InstanceBuffer.BeginUpdate();
- *     NewUpdate.GetData().Add( FVector4(1,1,1,1) )
- *     FSlateInstanceBufferUpdate::CommitUpdate(NewUpdate);
  */
 class ISlateUpdatableInstanceBuffer
 {
 public:
-	virtual ~ISlateUpdatableInstanceBuffer(){};
+	virtual ~ISlateUpdatableInstanceBuffer() {};
 	friend class FSlateInstanceBufferUpdate;
-
-   /**
-	* Use this method to begin a new update to this instance of the buffer:
-	*/
-	virtual TSharedPtr<class FSlateInstanceBufferUpdate> BeginUpdate() = 0;
 
 	/** How many instances should we draw? */
 	virtual uint32 GetNumInstances() const = 0;
 
-private:
-	friend class FSlateInstanceBufferUpdate;
+	/** Returns the pointer to the render proxy, to be forwarded to the render thread. */
+	virtual ISlateUpdatableInstanceBufferRenderProxy* GetRenderProxy() const = 0;
 
-	/** Updates rendering data for the GPU */
-	virtual void UpdateRenderingData(int32 NumInstancesToUse) = 0;
-
-	/** @return an array of instance data that is safe to populate (e.g not in use by the renderer) */
-	virtual TArray<FVector4>& GetBufferData() = 0;
+	/** Updates the buffer with the provided data. */
+	virtual void Update(FSlateInstanceBufferData& Data) = 0;
 };
-
-/** Represents an update to the per-instance buffer. */
-class FSlateInstanceBufferUpdate
-{
-public:
-	/** Access the per-instance data for modiciation */
-	FORCEINLINE TArray<FVector4>& GetData(){ return Data; }
-	
-	/** Send an update to the render thread */
-	static void CommitUpdate(TSharedPtr<FSlateInstanceBufferUpdate>& UpdateToCommit)
-	{
-		ensure(UpdateToCommit.GetSharedReferenceCount() == 1);
-		UpdateToCommit->CommitUpdate_Internal();
-		UpdateToCommit.Reset();
-	}
-
-	~FSlateInstanceBufferUpdate()
-	{
-		if (!bWasCommitted)
-		{
-			CommitUpdate_Internal();
-		}
-	}
-
-private:
-	friend class FSlateUpdatableInstanceBuffer;
-	FSlateInstanceBufferUpdate(ISlateUpdatableInstanceBuffer& InBuffer)
-		: Buffer(InBuffer)
-		, Data(InBuffer.GetBufferData())
-		, InstanceCount(0)
-		, bWasCommitted(false)
-	{
-	}
-
-	void CommitUpdate_Internal()
-	{
-		Buffer.UpdateRenderingData(Data.Num());
-		bWasCommitted = true;
-	}
-
-	ISlateUpdatableInstanceBuffer& Buffer;
-	TArray<FVector4>& Data;
-	uint32 InstanceCount;
-	bool bWasCommitted;
-};
-

@@ -117,38 +117,6 @@ public:
 
 	int32 GetMinBufferSize() const { return MinBufferSize; }
 
-	void* LockBuffer(int32 NumVertices, bool bInRenderThread)
-	{
-		uint32 RequiredBufferSize = NumVertices*sizeof(VertexType);	
-
-		if (bInRenderThread)
-		{
-			// Render thread
-			return RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly);
-		}
-		else
-		{
-			// RHI thread
-			check(0); // TODO
-			return nullptr;
-			//return GDynamicRHI->RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly);
-		}
-	
-	}
-
-	void UnlockBuffer(bool bInRenderThread)
-	{
-		if (bInRenderThread)
-		{
-			RHIUnlockVertexBuffer(VertexBufferRHI);
-		}
-		else
-		{
-			check(0); // TODO
-			//return GDynamicRHI->RHIUnlockVertexBuffer(VertexBufferRHI);
-		}
-	}
-
 private:
 	/** Resizes the buffer to the passed in size.  Preserves internal data*/
 	void ResizeBuffer( int32 NewSizeBytes )

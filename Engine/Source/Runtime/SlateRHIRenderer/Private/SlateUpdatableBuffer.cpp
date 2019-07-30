@@ -3,102 +3,66 @@
 #include "SlateUpdatableBuffer.h"
 #include "RenderingThread.h"
 
-DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time"), STAT_SlateUpdateInstanceBuffer, STATGROUP_Slate);
+DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time (RT)"), STAT_SlateUpdateInstanceBuffer_RT, STATGROUP_Slate);
+DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time (RHIT)"), STAT_SlateUpdateInstanceBuffer_RHIT, STATGROUP_Slate);
 
-struct FSlateUpdateInstanceBufferCommand final : public FRHICommand<FSlateUpdateInstanceBufferCommand>
+FSlateUpdatableInstanceBuffer::FSlateUpdatableInstanceBuffer(int32 InitialInstanceCount)
 {
-	TSlateElementVertexBuffer<FVector4>& InstanceBuffer;
-	const TArray<FVector4>& InstanceData;
-
-	FSlateUpdateInstanceBufferCommand(TSlateElementVertexBuffer<FVector4>& InInstanceBuffer, const TArray<FVector4>& InInstanceData )
-		: InstanceBuffer(InInstanceBuffer)
-		, InstanceData(InInstanceData)
-	{}
-
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		SCOPE_CYCLE_COUNTER( STAT_SlateUpdateInstanceBuffer );
-		const bool bIsInRenderingThread = !IsRunningRHIInSeparateThread() || CmdList.Bypass();
-
-		int32 RequiredVertexBufferSize = InstanceData.Num()*sizeof(FVector4);
-		uint8* InstanceBufferData = (uint8*)InstanceBuffer.LockBuffer(RequiredVertexBufferSize, bIsInRenderingThread);
-
-		FMemory::Memcpy( InstanceBufferData, InstanceData.GetData(), InstanceData.Num()*sizeof(FVector4) );
-	
-		InstanceBuffer.UnlockBuffer(bIsInRenderingThread);
-	}
-};
-
-FSlateUpdatableInstanceBuffer::FSlateUpdatableInstanceBuffer( int32 InitialInstanceCount )
-	: FreeBufferIndex(0)
-{
-	InstanceBufferResource.Init(InitialInstanceCount);
-	for( int32 BufferIndex = 0; BufferIndex < SlateRHIConstants::NumBuffers; ++BufferIndex )
-	{
-		BufferData[BufferIndex].Reserve( InitialInstanceCount );
-	}
-
+	Proxy = new FRenderProxy;
+	Proxy->InstanceBufferResource.Init(InitialInstanceCount);
 }
 
 FSlateUpdatableInstanceBuffer::~FSlateUpdatableInstanceBuffer()
 {
-	InstanceBufferResource.Destroy();
-	FlushRenderingCommands();
+	ENQUEUE_RENDER_COMMAND(SlateUpdatableInstanceBuffer_DeleteProxy)(
+		[Ptr = Proxy](FRHICommandListImmediate&)
+	{
+		delete Ptr;
+	});
+
+	Proxy = nullptr;
 }
 
-void FSlateUpdatableInstanceBuffer::BindStreamSource(FRHICommandListImmediate& RHICmdList, int32 StreamIndex, uint32 InstanceOffset)
+void FSlateUpdatableInstanceBuffer::Update(FSlateInstanceBufferData& Data)
 {
-	RHICmdList.SetStreamSource(StreamIndex, InstanceBufferResource.VertexBufferRHI, InstanceOffset*sizeof(FVector4));
-}
+	check(!IsInRenderingThread() && !IsInRHIThread());
 
-TSharedPtr<class FSlateInstanceBufferUpdate> FSlateUpdatableInstanceBuffer::BeginUpdate()
-{
-	return MakeShareable(new FSlateInstanceBufferUpdate(*this));
-}
-
-uint32 FSlateUpdatableInstanceBuffer::GetNumInstances() const
-{
-	return NumInstances;
-}
-
-void FSlateUpdatableInstanceBuffer::UpdateRenderingData(int32 NumInstancesToUse)
-{
-	NumInstances = NumInstancesToUse;
+	NumInstances = Data.Num();
 	if (NumInstances > 0)
 	{
-		// Enqueue a command to unlock the draw buffer after all windows have been drawn
-		FSlateUpdatableInstanceBuffer* Self = this;
-		int32 BufferIndex = FreeBufferIndex;
-		ENQUEUE_RENDER_COMMAND(SlateBeginDrawingWindowsCommand)(
-			[Self, BufferIndex](FRHICommandListImmediate& RHICmdList)
-			{
-				Self->UpdateRenderingData_RenderThread(RHICmdList, BufferIndex);
-			});
-	
-		FreeBufferIndex = (FreeBufferIndex + 1) % SlateRHIConstants::NumBuffers;
+		// Enqueue a render thread command to update the proxy with the new data.
+		ENQUEUE_RENDER_COMMAND(SlateUpdatableInstanceBuffer_Update)(
+			[Ptr = Proxy, LocalDataRT = MoveTemp(Data)](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			Ptr->Update(RHICmdList, LocalDataRT);
+		});
 	}
 }
 
-TArray<FVector4>& FSlateUpdatableInstanceBuffer::GetBufferData()
+void FSlateUpdatableInstanceBuffer::FRenderProxy::Update(FRHICommandListImmediate& RHICmdList, FSlateInstanceBufferData& Data)
 {
-	return BufferData[FreeBufferIndex];
+	SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBuffer_RT);
+
+	InstanceBufferResource.PreFillBuffer(Data.Num(), false);
+
+	// Enqueue the lock/unlock to the RHI thread
+	FRHIVertexBuffer* VertexBuffer = InstanceBufferResource.VertexBufferRHI;
+	RHICmdList.EnqueueLambda([VertexBuffer, LocalData = MoveTemp(Data)](FRHICommandListImmediate& InRHICmdList)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBuffer_RHIT);
+
+		int32 RequiredVertexBufferSize = LocalData.Num() * LocalData.GetTypeSize();
+		uint8* InstanceBufferData = (uint8*)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, RequiredVertexBufferSize, RLM_WriteOnly);
+
+		FMemory::Memcpy(InstanceBufferData, LocalData.GetData(), RequiredVertexBufferSize);
+
+		InRHICmdList.UnlockVertexBuffer(VertexBuffer);
+	});
+
+	RHICmdList.RHIThreadFence(true);
 }
 
-void FSlateUpdatableInstanceBuffer::UpdateRenderingData_RenderThread(FRHICommandListImmediate& RHICmdList, int32 BufferIndex)
+void FSlateUpdatableInstanceBuffer::FRenderProxy::BindStreamSource(FRHICommandList& RHICmdList, int32 StreamIndex, uint32 InstanceOffset)
 {
-	SCOPE_CYCLE_COUNTER( STAT_SlateUpdateInstanceBuffer );
-
-	const TArray<FVector4>& RenderThreadBufferData = BufferData[BufferIndex];
-	InstanceBufferResource.PreFillBuffer( RenderThreadBufferData.Num(), false );
-
-	if(!IsRunningRHIInSeparateThread() || RHICmdList.Bypass())
-	{
-		FSlateUpdateInstanceBufferCommand Command(InstanceBufferResource, RenderThreadBufferData);
-		Command.Execute(RHICmdList);
-	}
-	else
-	{
-		ALLOC_COMMAND_CL(RHICmdList, FSlateUpdateInstanceBufferCommand)(InstanceBufferResource, RenderThreadBufferData);
-	}
+	RHICmdList.SetStreamSource(StreamIndex, InstanceBufferResource.VertexBufferRHI, InstanceOffset * sizeof(FVector4));
 }
-

@@ -10,29 +10,34 @@
 /**
  * Represents a per instance data buffer for a custom Slate mesh element
  */
-class FSlateUpdatableInstanceBuffer : public ISlateUpdatableInstanceBuffer
+class FSlateUpdatableInstanceBuffer final : public ISlateUpdatableInstanceBuffer
 {
-public:
+	// Owned by the render thread
+	struct FRenderProxy final : public ISlateUpdatableInstanceBufferRenderProxy
+	{
+		TSlateElementVertexBuffer<FVector4> InstanceBufferResource;
 
-	FSlateUpdatableInstanceBuffer( int32 InstanceCount );
+		virtual ~FRenderProxy()
+		{
+			InstanceBufferResource.Destroy();
+		}
+
+		void Update(FRHICommandListImmediate& RHICmdList, FSlateInstanceBufferData& Data);
+
+		virtual void BindStreamSource(FRHICommandList& RHICmdList, int32 StreamIndex, uint32 InstanceOffset) override final;
+	} *Proxy;
+
+public:
+	FSlateUpdatableInstanceBuffer(int32 InstanceCount);
 	~FSlateUpdatableInstanceBuffer();
-	void BindStreamSource(FRHICommandListImmediate& RHICmdList, int32 StreamIndex, uint32 InstanceOffset);
 
 private:
 	// BEGIN ISlateUpdatableInstanceBuffer
-	virtual TSharedPtr<class FSlateInstanceBufferUpdate> BeginUpdate() override;
-	virtual uint32 GetNumInstances() const override;
-	virtual void UpdateRenderingData(int32 NumInstancesToUse) override;
-	virtual TArray<FVector4>& GetBufferData() override;
+	virtual uint32 GetNumInstances() const override final { return NumInstances; }
+	virtual ISlateUpdatableInstanceBufferRenderProxy* GetRenderProxy() const override final { return Proxy; }
+	virtual void Update(FSlateInstanceBufferData& Data) override final;
 	// END ISlateUpdatableInstanceBuffer
 
-	void UpdateRenderingData_RenderThread(FRHICommandListImmediate& RHICmdList, int32 BufferIndex);
 private:
-	TArray<FVector4> BufferData[SlateRHIConstants::NumBuffers];
-	TSlateElementVertexBuffer<FVector4> InstanceBufferResource;
 	uint32 NumInstances;
-	int32 FreeBufferIndex;
 };
-
-
-

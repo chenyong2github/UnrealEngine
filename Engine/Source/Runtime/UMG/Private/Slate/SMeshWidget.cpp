@@ -139,15 +139,10 @@ void SMeshWidget::EnableInstancing(uint32 MeshId, int32 InitialSize)
 	}
 }
 
-TSharedPtr<FSlateInstanceBufferUpdate> SMeshWidget::BeginPerInstanceBufferUpdate(uint32 MeshId, int32 InitialSize)
+void SMeshWidget::UpdatePerInstanceBuffer(uint32 MeshId, FSlateInstanceBufferData& Data)
 {
-	EnableInstancing(MeshId, InitialSize);
-	return BeginPerInstanceBufferUpdateConst( MeshId );
-}
-
-TSharedPtr<FSlateInstanceBufferUpdate> SMeshWidget::BeginPerInstanceBufferUpdateConst(uint32 MeshId) const
-{
-	return RenderData[MeshId].PerInstanceBuffer->BeginUpdate();
+	EnableInstancing(MeshId, Data.Num() * Data.GetTypeSize());
+	RenderData[MeshId].PerInstanceBuffer->Update(Data);
 }
 
 
@@ -249,12 +244,12 @@ FString SMeshWidget::GetReferencerName() const
 	return TEXT("SMeshWidget");
 }
 
-void SMeshWidget::PushUpdate(uint32 VectorArtId, const SMeshWidget& Widget, const FVector2D& Position, float Scale, uint32 BaseAddress)
+void SMeshWidget::PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVector2D& Position, float Scale, uint32 BaseAddress)
 {
 	PushUpdate(VectorArtId, Widget, Position, Scale, static_cast<float>(BaseAddress));
 }
 
-void SMeshWidget::PushUpdate(uint32 VectorArtId, const SMeshWidget& Widget, const FVector2D& Position, float Scale, float OptionalFloat /*= 0*/)
+void SMeshWidget::PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVector2D& Position, float Scale, float OptionalFloat /*= 0*/)
 {
 	FSlateVectorArtInstanceData Data;
 	Data.SetPosition(Position);
@@ -262,9 +257,8 @@ void SMeshWidget::PushUpdate(uint32 VectorArtId, const SMeshWidget& Widget, cons
 	Data.SetBaseAddress(OptionalFloat);
 
 	{
-		TSharedPtr<FSlateInstanceBufferUpdate> PerInstaceUpdate = Widget.BeginPerInstanceBufferUpdateConst(VectorArtId);
-		PerInstaceUpdate->GetData().Empty();
-		PerInstaceUpdate->GetData().Add(Data.GetData());
-		FSlateInstanceBufferUpdate::CommitUpdate(PerInstaceUpdate);
+		FSlateInstanceBufferData PerInstanceData;
+		PerInstanceData.Add(Data.GetData());
+		Widget.UpdatePerInstanceBuffer(VectorArtId, PerInstanceData);
 	}
 }
