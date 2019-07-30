@@ -21,6 +21,9 @@
 #include "IUATHelperModule.h"
 #include "AssetRegistryModule.h"
 
+#include "Editor/MainFrame/Public/Interfaces/IMainFrameModule.h"
+#include "Editor/EditorPerProjectUserSettings.h"
+
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Logging/TokenizedMessage.h"
@@ -125,6 +128,21 @@ public:
 				// Handling the notification expiration in callback
 				ExpireNotificationItemPtr = NotificationItem;
 				NotificationItem->SetCompletionState(CompletionState);
+			}
+
+			// Since the task was probably fairly long, we should try and grab the users attention if they have the option enabled.
+			const UEditorPerProjectUserSettings* SettingsPtr = GetDefault<UEditorPerProjectUserSettings>();
+			if (SettingsPtr->bGetAttentionOnUATCompletion)
+			{
+				IMainFrameModule* MainFrame = FModuleManager::LoadModulePtr<IMainFrameModule>("MainFrame");
+				if (MainFrame != nullptr)
+				{
+					TSharedPtr<SWindow> ParentWindow = MainFrame->GetParentWindow();
+					if (ParentWindow != nullptr)
+					{
+						ParentWindow->DrawAttention(FWindowDrawAttentionParameters(EWindowDrawAttentionRequestType::UntilActivated));
+					}
+				}
 			}
 		}
 	}
