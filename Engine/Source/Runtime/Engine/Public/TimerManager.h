@@ -168,7 +168,7 @@ public:
 	// ----------------------------------
 	// Timer API
 
-	FTimerManager();
+	explicit FTimerManager(UGameInstance* GameInstance = nullptr);
 	virtual ~FTimerManager();
 
 	/**
@@ -391,7 +391,7 @@ public:
 	/** Debug command to output info on all timers currently set to the log. */
 	void ListTimers() const;
 
-	/** Used by the UGameInstance constructor to set this manager's owning game instance. */
+private:
 	void SetGameInstance(UGameInstance* InGameInstance);
 
 // This should be private, but needs to be public for testing.
