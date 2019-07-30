@@ -77,6 +77,7 @@ protected:
 	bool bFinished;
 	bool bLooped;
 	bool bInitialDelayApplied;
+    bool bIsTearingDown;
 	uint32 CurrentIteration;
 
 	FFunctionalTestDoneSignature TestFinishedObserver;
