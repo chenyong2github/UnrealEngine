@@ -73,10 +73,11 @@ FFrameTime UMediaBundleTimeSynchronizationSource::GetNewestSampleTime() const
 		const TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe>& Player = MediaBundle->GetMediaPlayer()->GetPlayerFacade()->GetPlayer();
 		if (Player.IsValid())
 		{
-			//If there is a sample in the Texture, we consider it as the next one to be used/rendered
-			if (MediaBundle->GetMediaTexture()->GetAvailableSampleCount() > 0)
+			//If there is a valid sample timestamp, we consider it as the next one to be used/rendered
+			const FTimespan NextAvailableTime = MediaBundle->GetMediaTexture()->GetNextSampleTime();
+			if (NextAvailableTime != FTimespan::MinValue())
 			{
-				UseTimespan = MediaBundle->GetMediaTexture()->GetNextSampleTime();
+				UseTimespan = NextAvailableTime;
 			}
 
 			if (Player->GetCache().GetSampleCount(EMediaCacheState::Loaded) > 0)
@@ -108,10 +109,11 @@ FFrameTime UMediaBundleTimeSynchronizationSource::GetOldestSampleTime() const
 		const TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe>& Player = MediaBundle->GetMediaPlayer()->GetPlayerFacade()->GetPlayer();
 		if (Player.IsValid())
 		{
-			//If there is a sample in the Texture, we consider it as the next one to be used/rendered
-			if (MediaBundle->GetMediaTexture()->GetAvailableSampleCount() > 0)
+			//If there is a valid sample timestamp, we consider it as the next one to be used/rendered
+			const FTimespan NextAvailableTime = MediaBundle->GetMediaTexture()->GetNextSampleTime();
+			if (NextAvailableTime != FTimespan::MinValue())
 			{
-				UseTimespan = MediaBundle->GetMediaTexture()->GetNextSampleTime();
+				UseTimespan = NextAvailableTime;
 			}
 
 			if (Player->GetCache().GetSampleCount(EMediaCacheState::Loaded) > 0)
