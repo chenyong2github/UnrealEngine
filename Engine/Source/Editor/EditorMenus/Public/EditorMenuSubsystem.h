@@ -260,6 +260,8 @@ public:
 	/** Removes a string based command handler. */
 	void UnregisterStringCommandHandler(const FName InName);
 
+	static FName JoinMenuPaths(const FName Base, const FName Child);
+
 	friend struct FEditorMenuOwnerScoped;
 	friend struct FEditorMenuStringCommand;
 
@@ -330,8 +332,6 @@ private:
 	int32 FindCustomizedMenuIndex(const FName InName);
 
 	void UnregisterOwnerInternal(FEditorMenuOwner Owner);
-
-	static FName JoinMenuPaths(const FName Base, const FName Child);
 
 	static bool GetDisplayUIExtensionPoints();
 
