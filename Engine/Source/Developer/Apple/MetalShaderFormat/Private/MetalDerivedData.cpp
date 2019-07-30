@@ -320,6 +320,7 @@ FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _
 	, GUIDHash(_GUIDHash)
 	, VersionEnum(_VersionEnum)
 	, CCFlags(_CCFlags)
+	, IABTier(0)
 	, HlslCompilerTarget(_HlslCompilerTarget)
 	, MetalCompilerTarget(_MetalCompilerTarget)
 	, Semantics(_Semantics)
@@ -330,6 +331,14 @@ FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _
 	, Standard(_Standard)
 	, MinOSVersion(_MinOSVersion)
 {
+	FString const* IABVersion = Input.Environment.GetDefinitions().Find(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"));
+	if (IABVersion)
+	{
+		if(IABVersion->IsNumeric())
+		{
+			LexFromString(IABTier, *(*IABVersion));
+		}
+	}
 }
 
 FMetalShaderOutputCooker::~FMetalShaderOutputCooker()
@@ -368,7 +377,7 @@ FString FMetalShaderOutputCooker::GetPluginSpecificCacheKeySuffix() const
 			Flags |= (1llu << uint64(Flag));
 		}
 
-		CachedOutputName = FString::Printf(TEXT("%s-%s_%s-%u_%hu_%llu_%hhu_%s_%s"), *Input.ShaderFormat.GetPlainNameString(), *Input.EntryPointName, *Hash.ToString(), Len, FormatVers, Flags, VersionEnum, *GUIDHash.ToString(), *Standard);
+		CachedOutputName = FString::Printf(TEXT("%s-%s_%s-%u_%hu_%llu_%hhu_%d_%s_%s"), *Input.ShaderFormat.GetPlainNameString(), *Input.EntryPointName, *Hash.ToString(), Len, FormatVers, Flags, VersionEnum, IABTier, *GUIDHash.ToString(), *Standard);
 	}
 
 	return CachedOutputName;
@@ -648,7 +657,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			
 			TArray<FString> TableNames;
 			TMap<FString, FMetalResourceTableEntry> ResourceTable;
-			if (VersionEnum >= 5)
+			if (IABTier >= 1)
 			{
 				for (auto Pair : Input.Environment.ResourceTableLayoutHashes)
 				{
@@ -1914,13 +1923,14 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			{
 				case 6:
 				case 5:
-				{
-					FCStringAnsi::Snprintf(ArgumentBufferOffset, 3, "%u", IABOffsetIndex);
-					Defines[TargetDesc.numOptions++] = { "argument_buffers", "1" };
-					Defines[TargetDesc.numOptions++] = { "argument_buffer_offset", ArgumentBufferOffset };
-				}
 				case 4:
 				{
+					if (IABTier > 1)
+					{
+						FCStringAnsi::Snprintf(ArgumentBufferOffset, 3, "%u", IABOffsetIndex);
+						Defines[TargetDesc.numOptions++] = { "argument_buffers", "1" };
+						Defines[TargetDesc.numOptions++] = { "argument_buffer_offset", ArgumentBufferOffset };
+					}
 					Defines[TargetDesc.numOptions++] = { "texture_buffer_native", "1" };
 					TargetDesc.version = "20100";
 					break;
@@ -2072,7 +2082,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		}
 		
 		// Version 6 means Tier 2 IABs for now.
-		if (VersionEnum >= 6)
+		if (IABTier >= 2)
 		{
 			char BufferIdx[3];
 			for (auto& IAB : IABs)

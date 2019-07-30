@@ -33,6 +33,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 , RuntimeDebuggingLevel(EMetalDebugLevelOff)
 {
 	int32 MaxShaderVersion = 0;
+	int32 IndirectArgumentTier = 0;
 #if PLATFORM_MAC
 	int32 DefaultMaxShaderVersion = 3;
 	int32 MinShaderVersion = 3;
@@ -46,6 +47,10 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
     {
         MaxShaderVersion = DefaultMaxShaderVersion;
     }
+	if(!GConfig->GetInt(Settings, TEXT("IndirectArgumentTier"), IndirectArgumentTier, GEngineIni))
+	{
+		IndirectArgumentTier = 0;
+	}
 	MaxShaderVersion = FMath::Max(MinShaderVersion, MaxShaderVersion);
 	ValidateVersion(MaxShaderVersion);
 
@@ -239,7 +244,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			{
 				Features |= EMetalFeaturesTextureBuffers;
             }
-            if (MaxShaderVersion >= 5)
+            if (IndirectArgumentTier >= 1)
             {
                 Features |= EMetalFeaturesIABs;
             }
