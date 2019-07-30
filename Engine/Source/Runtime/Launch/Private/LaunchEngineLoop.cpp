@@ -3634,7 +3634,7 @@ void FEngineLoop::Exit()
 
 
 	// Make sure we're not in the middle of loading something.
-	FlushAsyncLoading();
+	CancelAsyncLoading();
 
 	// Block till all outstanding resource streaming requests are fulfilled.
 	if (!IStreamingManager::HasShutdown())

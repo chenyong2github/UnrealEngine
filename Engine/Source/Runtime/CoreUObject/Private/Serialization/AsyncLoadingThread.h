@@ -228,6 +228,11 @@ private:
 
 	FThreadSafeCounter AsyncThreadReady;
 
+	/** When cancelling async loading: list of package requests to cancel */
+	TArray<FAsyncPackageDesc*> QueuedPackagesToCancel;
+	/** When cancelling async loading: list of packages to cancel */
+	TSet<FAsyncPackage*> PackagesToCancel;
+
 	/** Async loading thread ID */
 	static uint32 AsyncLoadingThreadID;
 
@@ -577,6 +582,7 @@ private:
 
 	/** Cancels async loading internally */
 	void CancelAsyncLoadingInternal();
+	void FinalizeCancelAsyncLoadingInternal();
 
 	/** Number of times we re-entered the async loading tick, mostly used by singlethreaded ticking. Debug purposes only. */
 	int32 AsyncLoadingTickCounter;
