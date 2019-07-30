@@ -130,6 +130,8 @@
 #include "ISerializedRecorder.h"
 #include "Features/IModularFeatures.h"
 #include "SequencerContextMenus.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -3290,6 +3292,12 @@ void FSequencer::ResetPerMovieSceneData()
 
 void FSequencer::RecordSelectedActors()
 {
+	// Keep track of how many people actually used record new sequence
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Sequencer.RecordSelectedActors"));
+	}
+
 	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
 	if (SequenceRecorder.IsRecording())
 	{
