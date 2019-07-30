@@ -3659,11 +3659,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		// point to the new version of the path
 		Filename = *NewPath;
 
-		// We need to fulfill all pending streaming and async loading requests to then allow us to lock the global IO manager. 
-		// The latter implies flushing all file handles which is a pre-requisite of saving a package. The code basically needs 
-		// to be sure that we are not reading from a file that is about to be overwritten and that there is no way we might 
-		// start reading from the file till we are done overwriting it.
-		FlushAsyncLoading();
+		if (!bSavingConcurrent)
+		{
+			// We need to fulfill all pending streaming and async loading requests to then allow us to lock the global IO manager. 
+			// The latter implies flushing all file handles which is a pre-requisite of saving a package. The code basically needs 
+			// to be sure that we are not reading from a file that is about to be overwritten and that there is no way we might 
+			// start reading from the file till we are done overwriting it.
+			FlushAsyncLoading();
+		}
 
 		(*GFlushStreamingFunc)();
 
@@ -3845,7 +3848,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						: bSavingConcurrent(InSavingConcurrent)
 					{
 						// We need the same lock as GC so that no StaticFindObject can happen in parallel to saveing a package
-						FGCCSyncObject::Get().GCLock();
+						if (IsInGameThread())
+						{
+							FGCCSyncObject::Get().GCLock();
+						}
+						else
+						{
+							FGCCSyncObject::Get().LockAsync();
+						}
 
 						// Do not change GIsSavingPackage while saving concurrently. It should have been set before and after all packages are saved
 						if (!bSavingConcurrent)
@@ -3859,7 +3869,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						{
 							GIsSavingPackage = false;
 						}
-						FGCCSyncObject::Get().GCUnlock();
+						if (IsInGameThread())
+						{
+							FGCCSyncObject::Get().GCUnlock();
+						}
+						else
+						{
+							FGCCSyncObject::Get().UnlockAsync();
+						}
 					}
 
 					bool bSavingConcurrent;
