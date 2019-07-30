@@ -2564,12 +2564,18 @@ string CompilerMSL::unpack_expression_type(string expr_str, const SPIRType &type
 		packed_type = &get<SPIRType>(packed_type_id);
 
 	// float[] and float2[] cases are really just padding, so directly swizzle from the backing float4 instead.
-	if (packed_type && is_array(*packed_type) && is_scalar(*packed_type) && !expression_ends_with(expr_str, ".x"))
-		return enclose_expression(expr_str) + ".x";
-	else if (packed_type && is_array(*packed_type) && is_vector(*packed_type) && packed_type->vecsize == 2 && !expression_ends_with(expr_str, ".xy"))
-		return enclose_expression(expr_str) + ".xy";
+	if (packed_type && is_array(*packed_type) && is_scalar(*packed_type))
+	{
+		return !expression_ends_with(expr_str, ".x") ? enclose_expression(expr_str) + ".x" : expr_str;
+	}
+	else if (packed_type && is_array(*packed_type) && is_vector(*packed_type) && packed_type->vecsize == 2)
+	{
+		return !expression_ends_with(expr_str, ".xy") ? enclose_expression(expr_str) + ".xy" : expr_str;
+	}
 	else
+	{
 		return join(type_to_glsl(type), "(", expr_str, ")");
+	}
 }
 /* UE Change End: Metal expands float[]/float2[] members inside structs to float4[] so we must unpack */
 
