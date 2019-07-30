@@ -117,6 +117,12 @@ struct FIndexRange
 	int32 Count;
 };
 
+struct FStaticVirtualMethodInfo
+{
+	FString ReturnType;
+	FString Name;
+	FString Params;
+};
 
 struct ClassDefinitionRange
 {
@@ -235,6 +241,7 @@ public:
 
 protected:
 	friend struct FScriptLocation;
+	friend struct FNativeClassHeaderGenerator;
 
 	// For compiling messages and errors.
 	FFeedbackContext* Warn;
@@ -419,6 +426,9 @@ protected:
 	// List of all net service functions with undeclared response functions 
 	TMap<int32, FString> RPCsNeedingHookup;
 
+	// List of all static virtual methods defined on structs
+	static TMap<UStruct*, TArray<FStaticVirtualMethodInfo>> StructStaticVirtualMethods;
+
 	// Constructor.
 	explicit FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& InModule);
 
@@ -562,6 +572,7 @@ protected:
 	void CompileFunctionDeclaration(FClasses& AllClasses);
 	void CompileVariableDeclaration (FClasses& AllClasses, UStruct* Struct);
 	void CompileInterfaceDeclaration(FClasses& AllClasses);
+	void CompileStaticMethodDeclaration(FClasses& AllClasses, UStruct* Struct);
 
 	FClass* ParseInterfaceNameDeclaration(FClasses& AllClasses, FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
 	bool TryParseIInterfaceClass(FClasses& AllClasses);

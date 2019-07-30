@@ -3299,6 +3299,63 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 	const FString SingletonName = GetSingletonName(Struct);
 
+	FString StaticVirtualMacroPrefix(StructNameCPP);
+	StaticVirtualMacroPrefix = FString::Printf(TEXT("UE_%s"), *StaticVirtualMacroPrefix.Mid(1));
+
+	const TArray<FStaticVirtualMethodInfo>* StructStaticVirtualMethods = FHeaderParser::StructStaticVirtualMethods.Find(Struct);
+	if(StructStaticVirtualMethods)
+	{
+		const TCHAR* Comma = TEXT(", ");
+		TArray<FString> PropertyNames, PropertyArguments;
+		for (UProperty* Prop : TFieldRange<UProperty>(Struct))
+		{
+			bool bIsInput = Prop->HasMetaData(TEXT("Input"));
+			bool bIsOutput = Prop->HasMetaData(TEXT("Output"));
+			bool bIsConstant = Prop->HasMetaData(TEXT("Constant"));
+
+			FString Name = Prop->GetName();
+			PropertyNames.Add(Name);
+
+			FString CPPType;
+			FString ExtendedCPPType;
+			CPPType = Prop->GetCPPType(&ExtendedCPPType);
+			CPPType += ExtendedCPPType;
+
+			if (CPPType.StartsWith(TEXT("F"), ESearchCase::CaseSensitive) ||
+				CPPType.StartsWith(TEXT("T"), ESearchCase::CaseSensitive) ||
+				CPPType.StartsWith(TEXT("E"), ESearchCase::CaseSensitive))
+			{
+				if (bIsConstant || (bIsInput && !bIsOutput))
+				{
+					PropertyArguments.Add(FString::Printf(TEXT("const %s& %s"), *CPPType, *Name));
+				}
+				else
+				{
+					PropertyArguments.Add(FString::Printf(TEXT("%s& %s"), *CPPType, *Name));
+				}
+			}
+			else if (bIsConstant || (bIsInput && !bIsOutput))
+			{
+				PropertyArguments.Add(FString::Printf(TEXT("const %s %s"), *CPPType, *Name));
+			}
+			else
+			{
+				PropertyArguments.Add(FString::Printf(TEXT("%s& %s"), *CPPType, *Name));
+			}
+		}
+
+		OutGeneratedHeaderText.Log(TEXT("\n"));
+		OutGeneratedHeaderText.Logf(TEXT("#define %s_MEMBER_NAMES %s\n"), *StaticVirtualMacroPrefix, *FString::Join(PropertyNames, Comma));
+		OutGeneratedHeaderText.Logf(TEXT("#define %s_MEMBER_ARGUMENTS %s\n"), *StaticVirtualMacroPrefix, *FString::Join(PropertyArguments, Comma));
+		OutGeneratedHeaderText.Logf(TEXT("#define %s_DECLARE_STATIC_VIRTUAL_METHOD(ReturnType, FunctionName, ...) \\\n"), *StaticVirtualMacroPrefix);
+		OutGeneratedHeaderText.Logf(TEXT("    static ReturnType Static##FunctionName(%s_MEMBER_ARGUMENTS, ##__VA_ARGS__);\n"), *StaticVirtualMacroPrefix);
+		OutGeneratedHeaderText.Logf(TEXT("#define %s_IMPLEMENT_STATIC_VIRTUAL_METHOD(ReturnType, FunctionName, ...) \\\n"), *StaticVirtualMacroPrefix);
+		OutGeneratedHeaderText.Logf(TEXT("    ReturnType %s::Static##FunctionName(%s_MEMBER_ARGUMENTS, ##__VA_ARGS__)\n"), StructNameCPP, *StaticVirtualMacroPrefix);
+		OutGeneratedHeaderText.Logf(TEXT("#define %s_INVOKE_STATIC_VIRTUAL_METHOD(FunctionName, ...) \\\n"), *StaticVirtualMacroPrefix);
+		OutGeneratedHeaderText.Logf(TEXT("    %s::Static##FunctionName(%s_MEMBER_NAMES, ##__VA_ARGS__);\n"), StructNameCPP, *StaticVirtualMacroPrefix);
+		OutGeneratedHeaderText.Log(TEXT("\n"));
+	}
+
 	// Export struct.
 	if (Struct->StructFlags & STRUCT_Native)
 	{
@@ -3313,9 +3370,26 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		const FString FriendLine = FString::Printf(TEXT("\tfriend struct %s_Statics;\r\n"), *SingletonName.LeftChop(2));
 		const FString StaticClassLine = FString::Printf(TEXT("\t%sstatic class UScriptStruct* StaticStruct();\r\n"), *RequiredAPI);
 		const FString PrivatePropertiesOffset = PrivatePropertiesOffsetGetters(Struct, StructNameCPP);
+		
+		FString StaticVirtualMethodsDeclarations;
+		if (StructStaticVirtualMethods)
+		{
+			for (const FStaticVirtualMethodInfo& Info : (*StructStaticVirtualMethods))
+			{
+				if (Info.Params.IsEmpty())
+				{
+					StaticVirtualMethodsDeclarations += FString::Printf(TEXT("\t%s_DECLARE_STATIC_VIRTUAL_METHOD(%s, %s)\n"), *StaticVirtualMacroPrefix, *Info.ReturnType, *Info.Name);
+				}
+				else
+				{
+					StaticVirtualMethodsDeclarations += FString::Printf(TEXT("\t%s_DECLARE_STATIC_VIRTUAL_METHOD(%s, %s, %s)\n"), *StaticVirtualMacroPrefix, *Info.ReturnType, *Info.Name, *Info.Params);
+				}
+			}
+		}
+
 		const FString SuperTypedef = BaseStruct ? FString::Printf(TEXT("\ttypedef %s Super;\r\n"), NameLookupCPP.GetNameCPP(BaseStruct)) : FString();
 
-		const FString CombinedLine = FriendLine + StaticClassLine + PrivatePropertiesOffset + SuperTypedef;
+		const FString CombinedLine = FriendLine + StaticClassLine + StaticVirtualMethodsDeclarations + PrivatePropertiesOffset + SuperTypedef;
 		const FString MacroName = SourceFile.GetGeneratedBodyMacroName(Struct->StructMacroDeclaredLineNumber);
 
 		const FString Macroized = Macroize(*MacroName, *CombinedLine);
@@ -3518,6 +3592,62 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 	Out.Log(GeneratedStructRegisterFunctionText);
 	Out.Logf(TEXT("\tuint32 %s() { return %uU; }\r\n"), *HashFuncName, StructHash);
+
+	if (StructStaticVirtualMethods)
+	{
+		Out.Log(TEXT("\n"));
+		for (const FStaticVirtualMethodInfo& Info : (*StructStaticVirtualMethods))
+		{
+			// implement the virtual function body.
+			Out.Logf(TEXT("%s %s::%s(%s)\n"), *Info.ReturnType, StructNameCPP, *Info.Name, *Info.Params);
+			Out.Log(TEXT("{\n"));
+			if (Info.Params.IsEmpty())
+			{
+				if(Info.ReturnType.IsEmpty() || (Info.ReturnType == TEXT("void")))
+				{
+					Out.Logf(TEXT("    %s_INVOKE_STATIC_VIRTUAL_METHOD(%s);\n"), *StaticVirtualMacroPrefix, *Info.Name);
+				}
+				else
+				{
+					Out.Logf(TEXT("    return %s_INVOKE_STATIC_VIRTUAL_METHOD(%s);\n"), *StaticVirtualMacroPrefix, *Info.Name);
+				}
+			}
+			else
+			{
+				TArray<FString> Params;
+				FString ParamPrev, ParamLeft, ParamRight;
+				ParamPrev = Info.Params;
+				while (ParamPrev.Contains(TEXT(",")))
+				{
+					ParamPrev.Split(TEXT(","), &ParamLeft, &ParamRight);
+					Params.Add(ParamLeft.TrimStartAndEnd());
+					ParamPrev = ParamRight;
+				} 
+				Params.Add(ParamPrev.TrimStartAndEnd());
+
+				for (int32 ParamIndex=0;ParamIndex<Params.Num(); ParamIndex++)
+				{
+					int32 LastSpace = INDEX_NONE;
+					if (Params[ParamIndex].FindLastChar(TCHAR(' '), LastSpace))
+					{
+						Params[ParamIndex] = Params[ParamIndex].Mid(LastSpace + 1);
+					}
+				}
+
+				if(Info.ReturnType.IsEmpty() || (Info.ReturnType == TEXT("void")))
+				{
+					Out.Logf(TEXT("    %s_INVOKE_STATIC_VIRTUAL_METHOD(%s, %s);\n"), *StaticVirtualMacroPrefix, *Info.Name, *FString::Join(Params, TEXT(", ")));
+				}
+				else
+				{
+					Out.Logf(TEXT("    return %s_INVOKE_STATIC_VIRTUAL_METHOD(%s, %s);\n"), *StaticVirtualMacroPrefix, *Info.Name, *FString::Join(Params, TEXT(", ")));
+				}
+			}
+			Out.Log(TEXT("}\n"));
+		}
+
+		Out.Log(TEXT("\n"));
+	}
 }
 
 void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out, const FUnrealSourceFile& SourceFile, UEnum* Enum)

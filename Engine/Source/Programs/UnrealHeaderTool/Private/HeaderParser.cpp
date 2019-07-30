@@ -72,6 +72,7 @@ static const FName NAME_DocumentationPolicy(TEXT("DocumentationPolicy"));
 EGeneratedCodeVersion FHeaderParser::DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
 TArray<FString> FHeaderParser::StructsWithNoPrefix;
 TArray<FString> FHeaderParser::StructsWithTPrefix;
+TMap<UStruct*, TArray<FStaticVirtualMethodInfo>> FHeaderParser::StructStaticVirtualMethods;
 TArray<FString> FHeaderParser::DelegateParameterCountStrings;
 TMap<FString, FString> FHeaderParser::TypeRedirectMap;
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
@@ -2493,6 +2494,10 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 		else if (Token.Matches(TEXT("UFUNCTION"), ESearchCase::CaseSensitive))
 		{
 			FError::Throwf(TEXT("USTRUCTs cannot contain UFUNCTIONs."));
+		}
+		else if (Token.Matches(TEXT("STATIC_VIRTUAL_METHOD"), ESearchCase::CaseSensitive))
+		{
+			CompileStaticMethodDeclaration(AllClasses, Struct);
 		}
 		else if (Token.Matches(TEXT("GENERATED_USTRUCT_BODY")) || Token.Matches(TEXT("GENERATED_BODY")))
 		{
@@ -6158,6 +6163,79 @@ void FHeaderParser::CompileInterfaceDeclaration(FClasses& AllClasses)
 	// Push the interface class nesting.
 	// we need a more specific set of allow flags for ENestType::Interface, only function declaration is allowed, no other stuff are allowed
 	PushNest(ENestType::Interface, InterfaceClass);
+}
+
+void FHeaderParser::CompileStaticMethodDeclaration(FClasses& AllClasses, UStruct* Struct)
+{
+	if (!MatchSymbol(TEXT("(")))
+	{
+		FError::Throwf(TEXT("Bad STATICMETHOD definition"));
+	}
+
+	// find the next close brace
+	while (!MatchSymbol(TEXT(")")))
+	{
+		FToken Token;
+		if (!GetToken(Token))
+		{
+			break;
+		}
+	}
+
+	FToken PrefixToken, ReturnTypeToken, NameToken, PostfixToken;
+	if (!GetToken(PrefixToken))
+	{
+		return;
+	}
+
+	if (FString(PrefixToken.Identifier).Equals(TEXT("virtual")))
+	{
+		if (!GetToken(ReturnTypeToken))
+		{
+			return;
+		}
+	}
+	else
+	{
+		ReturnTypeToken = PrefixToken;
+	}
+
+	if (!GetToken(NameToken))
+	{
+		return;
+	}
+
+	if (!MatchSymbol(TEXT("(")))
+	{
+		FError::Throwf(TEXT("Bad STATICMETHOD definition"));
+	}
+
+	TArray<FString> ParamsContent;
+	while (!MatchSymbol(TEXT(")")))
+	{
+		FToken Token;
+		if (!GetToken(Token))
+		{
+			break;
+		}
+		ParamsContent.Add(FString(Token.Identifier));
+	}
+
+	while (!FString(PostfixToken.Identifier).Equals(TEXT(";")))
+	{
+		if (!GetToken(PostfixToken))
+		{
+			return;
+		}
+	}
+
+	FStaticVirtualMethodInfo Info;
+	Info.ReturnType = ReturnTypeToken.Identifier;
+	Info.Name = NameToken.Identifier;
+	Info.Params = FString::Join(ParamsContent, TEXT(" "));
+
+	TArray<FStaticVirtualMethodInfo>& Infos = StructStaticVirtualMethods.FindOrAdd(Struct);
+	Infos.Add(Info);
 }
 
 // Returns true if the token is a dynamic delegate declaration
