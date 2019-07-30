@@ -600,8 +600,6 @@ void USCS_Node::ValidateGuid()
 	}
 }
 
-#endif
-
 EDataValidationResult USCS_Node::IsDataValid(TArray<FText>& ValidationErrors)
 {
 	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
@@ -626,3 +624,5 @@ EDataValidationResult USCS_Node::IsDataValid(TArray<FText>& ValidationErrors)
 
 	return Result;
 }
+
+#endif // WITH_EDITOR

@@ -1141,6 +1141,7 @@ void USimpleConstructionScript::ValidateSceneRootNodes()
 #endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
 EDataValidationResult USimpleConstructionScript::IsDataValid(TArray<FText>& ValidationErrors)
 {
 	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
@@ -1157,7 +1158,6 @@ EDataValidationResult USimpleConstructionScript::IsDataValid(TArray<FText>& Vali
 	return Result;
 }
 
-#if WITH_EDITOR
 void USimpleConstructionScript::GenerateListOfExistingNames(TSet<FName>& CurrentNames) const
 {
 	TArray<const USCS_Node*> ChildrenNodes = GetAllNodesConst();
