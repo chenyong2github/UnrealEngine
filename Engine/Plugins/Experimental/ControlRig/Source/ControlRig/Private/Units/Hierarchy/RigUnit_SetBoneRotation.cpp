@@ -8,7 +8,7 @@ FString FRigUnit_SetBoneRotation::GetUnitLabel() const
 	return FString::Printf(TEXT("Set Rotation %s"), *Bone.ToString());
 }
 
-void FRigUnit_SetBoneRotation::Execute(const FRigUnitContext& Context)
+UE_RigUnit_SetBoneRotation_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();

@@ -3,7 +3,7 @@
 #include "Units/Math/RigUnit_Noise.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_NoiseFloat::Execute(const FRigUnitContext& Context)
+UE_RigUnit_NoiseFloat_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -17,7 +17,7 @@ void FRigUnit_NoiseFloat::Execute(const FRigUnitContext& Context)
 	Time = Time + Speed * Context.DeltaTime;
 }
 
-void FRigUnit_NoiseVector::Execute(const FRigUnitContext& Context)
+UE_RigUnit_NoiseVector_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

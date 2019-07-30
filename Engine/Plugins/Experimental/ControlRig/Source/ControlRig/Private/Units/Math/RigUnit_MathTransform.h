@@ -64,6 +64,7 @@ struct FRigUnit_MathTransformFromEulerTransform : public FRigUnit_MathTransformB
 		Result = FTransform::Identity;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -87,6 +88,7 @@ struct FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBas
 		Result = FEulerTransform::Identity;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -103,6 +105,7 @@ USTRUCT(meta=(DisplayName="Multiply", PrototypeName="Multiply", Keywords="Produc
 struct FRigUnit_MathTransformMul : public FRigUnit_MathTransformBinaryOp
 {
 	GENERATED_BODY()
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -119,6 +122,7 @@ struct FRigUnit_MathTransformMakeRelative : public FRigUnit_MathTransformBase
 		Global = Parent = Local = FTransform::Identity;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -138,6 +142,7 @@ USTRUCT(meta=(DisplayName="Inverse", PrototypeName="Inverse"))
 struct FRigUnit_MathTransformInverse : public FRigUnit_MathTransformUnaryOp
 {
 	GENERATED_BODY()
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -155,6 +160,7 @@ struct FRigUnit_MathTransformLerp : public FRigUnit_MathTransformBase
 		T = 0.f;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -184,6 +190,7 @@ struct FRigUnit_MathTransformSelectBool : public FRigUnit_MathTransformBase
 		IfTrue = IfFalse = Result = FTransform::Identity;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -213,6 +220,7 @@ struct FRigUnit_MathTransformRotateVector : public FRigUnit_MathTransformBase
 		Direction = Result = FVector::ZeroVector;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -239,6 +247,7 @@ struct FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
 		Location = Result = FVector::ZeroVector;
 	}
 	
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -269,6 +278,7 @@ struct FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransformBase
 		EulerTransform = FEulerTransform::Identity;
 	}
 	
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))

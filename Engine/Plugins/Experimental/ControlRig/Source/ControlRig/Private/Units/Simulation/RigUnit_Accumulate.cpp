@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_Accumulate.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_AccumulateFloatAdd::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateFloatAdd_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -20,7 +20,7 @@ void FRigUnit_AccumulateFloatAdd::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateVectorAdd::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateVectorAdd_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -37,7 +37,7 @@ void FRigUnit_AccumulateVectorAdd::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateFloatMul::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateFloatMul_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -55,7 +55,7 @@ void FRigUnit_AccumulateFloatMul::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateVectorMul::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateVectorMul_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -73,7 +73,7 @@ void FRigUnit_AccumulateVectorMul::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateQuatMul::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateQuatMul_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -98,7 +98,7 @@ void FRigUnit_AccumulateQuatMul::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateTransformMul::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateTransformMul_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -125,7 +125,7 @@ void FRigUnit_AccumulateTransformMul::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateFloatLerp::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateFloatLerp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -138,7 +138,7 @@ void FRigUnit_AccumulateFloatLerp::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateVectorLerp::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateVectorLerp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -151,7 +151,7 @@ void FRigUnit_AccumulateVectorLerp::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateQuatLerp::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateQuatLerp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -164,7 +164,7 @@ void FRigUnit_AccumulateQuatLerp::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateTransformLerp::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateTransformLerp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -181,7 +181,7 @@ void FRigUnit_AccumulateTransformLerp::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateFloatRange::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateFloatRange_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -195,7 +195,7 @@ void FRigUnit_AccumulateFloatRange::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_AccumulateVectorRange::Execute(const FRigUnitContext& Context)
+UE_RigUnit_AccumulateVectorRange_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

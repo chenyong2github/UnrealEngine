@@ -3,7 +3,7 @@
 #include "RigUnit_CCDIK.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_CCDIK::Execute(const FRigUnitContext& Context)
+UE_RigUnit_CCDIK_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
@@ -72,7 +72,7 @@ void FRigUnit_CCDIK::Execute(const FRigUnitContext& Context)
 			{
 				const FTransform& GlobalTransform = Hierarchy->GetGlobalTransform(BoneIndices[ChainIndex]);
 				const FTransform& LocalTransform = Hierarchy->GetLocalTransform(BoneIndices[ChainIndex]);
-				Chain.Add(CCDIKChainLink(GlobalTransform, LocalTransform, ChainIndex));
+				Chain.Add(FCCDIKChainLink(GlobalTransform, LocalTransform, ChainIndex));
 			}
 
 			for (float& Limit : RotationLimitsPerBone)
@@ -95,7 +95,7 @@ void FRigUnit_CCDIK::Execute(const FRigUnitContext& Context)
 			{
 				for (int32 LinkIndex = 0; LinkIndex < BoneIndices.Num(); LinkIndex++)
 				{
-					const CCDIKChainLink& CurrentLink = Chain[LinkIndex];
+					const FCCDIKChainLink& CurrentLink = Chain[LinkIndex];
 					Hierarchy->SetGlobalTransform(BoneIndices[LinkIndex], CurrentLink.Transform, bPropagateToChildren);
 				}
 

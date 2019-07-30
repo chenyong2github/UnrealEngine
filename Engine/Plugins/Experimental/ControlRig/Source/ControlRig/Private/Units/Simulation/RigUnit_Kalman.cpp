@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_Kalman.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_KalmanFloat::Execute(const FRigUnitContext& Context)
+UE_RigUnit_KalmanFloat_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
@@ -49,7 +49,7 @@ void FRigUnit_KalmanFloat::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_KalmanVector::Execute(const FRigUnitContext& Context)
+UE_RigUnit_KalmanVector_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
@@ -95,7 +95,7 @@ void FRigUnit_KalmanVector::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_KalmanTransform::Execute(const FRigUnitContext& Context)
+UE_RigUnit_KalmanTransform_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)

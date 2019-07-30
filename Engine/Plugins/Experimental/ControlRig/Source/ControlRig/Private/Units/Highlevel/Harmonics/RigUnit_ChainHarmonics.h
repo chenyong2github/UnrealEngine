@@ -161,6 +161,7 @@ struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
 		Time = FVector::ZeroVector;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input, Constant, BoneName))

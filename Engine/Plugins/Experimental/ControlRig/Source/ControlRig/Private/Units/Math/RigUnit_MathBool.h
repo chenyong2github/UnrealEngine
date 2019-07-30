@@ -98,6 +98,7 @@ struct FRigUnit_MathBoolNot : public FRigUnit_MathBoolUnaryOp
 {
 	GENERATED_BODY()
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -109,6 +110,7 @@ struct FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -120,6 +122,7 @@ struct FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -131,6 +134,7 @@ struct FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -141,6 +145,7 @@ USTRUCT(meta=(DisplayName="Equals", PrototypeName="Equals", Keywords="Same,=="))
 struct FRigUnit_MathBoolEquals : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_MathBoolEquals()
@@ -166,6 +171,7 @@ USTRUCT(meta=(DisplayName="Not Equals", PrototypeName="NotEquals", Keywords="Dif
 struct FRigUnit_MathBoolNotEquals : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_MathBoolNotEquals()

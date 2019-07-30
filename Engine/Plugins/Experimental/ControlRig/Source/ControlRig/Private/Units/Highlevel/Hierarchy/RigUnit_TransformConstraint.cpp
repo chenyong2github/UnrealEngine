@@ -5,7 +5,7 @@
 #include "HelperUtil.h"
 #include "AnimationCoreLibrary.h"
 
-void FRigUnit_TransformConstraint::Execute(const FRigUnitContext& Context)
+UE_RigUnit_TransformConstraint_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
@@ -35,23 +35,23 @@ void FRigUnit_TransformConstraint::Execute(const FRigUnitContext& Context)
 
 						if (bTranslationFilterValid && bRotationFilterValid && bScaleFilterValid)
 						{
-							AddConstraintData(ETransformConstraintType::Parent, TargetIndex, SourceTransform, InputBaseTransform);
+							AddConstraintData(Targets, ETransformConstraintType::Parent, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
 						}
 						else
 						{
 							if (bTranslationFilterValid)
 							{
-								AddConstraintData(ETransformConstraintType::Translation, TargetIndex, SourceTransform, InputBaseTransform);
+								AddConstraintData(Targets, ETransformConstraintType::Translation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
 							}
 
 							if (bRotationFilterValid)
 							{
-								AddConstraintData(ETransformConstraintType::Rotation, TargetIndex, SourceTransform, InputBaseTransform);
+								AddConstraintData(Targets, ETransformConstraintType::Rotation, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
 							}
 
 							if (bScaleFilterValid)
 							{
-								AddConstraintData(ETransformConstraintType::Scale, TargetIndex, SourceTransform, InputBaseTransform);
+								AddConstraintData(Targets, ETransformConstraintType::Scale, TargetIndex, SourceTransform, InputBaseTransform, ConstraintData, ConstraintDataToTargets);
 							}
 						}
 					}
@@ -93,13 +93,13 @@ void FRigUnit_TransformConstraint::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_TransformConstraint::AddConstraintData(ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform)
+void FRigUnit_TransformConstraint::AddConstraintData(const TArray<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets)
 {
 	const FConstraintTarget& Target = Targets[TargetIndex];
 
-	int32 NewIndex = ConstraintData.AddDefaulted();
+	int32 NewIndex = OutConstraintData.AddDefaulted();
 	check(NewIndex != INDEX_NONE);
-	FConstraintData& NewData = ConstraintData[NewIndex];
+	FConstraintData& NewData = OutConstraintData[NewIndex];
 	NewData.Constraint = FTransformConstraintDescription(ConstraintType);
 	NewData.bMaintainOffset = Target.bMaintainOffset;
 	NewData.Weight = Target.Weight;
@@ -109,5 +109,5 @@ void FRigUnit_TransformConstraint::AddConstraintData(ETransformConstraintType Co
 		NewData.SaveInverseOffset(SourceTransform, Target.Transform, InBaseTransform);
 	}
 
-	ConstraintDataToTargets.Add(NewIndex, TargetIndex);
+	OutConstraintDataToTargets.Add(NewIndex, TargetIndex);
 }

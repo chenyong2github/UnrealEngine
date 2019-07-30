@@ -17,6 +17,7 @@ struct FRigUnit_NoiseFloat : public FRigUnit_MathBase
 		Frequency = Maximum = 1.f;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -55,6 +56,7 @@ struct FRigUnit_NoiseVector : public FRigUnit_MathBase
 		Maximum = 1.f;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

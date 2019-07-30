@@ -40,6 +40,7 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_CCDIK()
@@ -109,9 +110,14 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	bool bPropagateToChildren;
 
-	TArray<CCDIKChainLink> Chain;
+	UPROPERTY(transient)
+	TArray<FCCDIKChainLink> Chain;
+	UPROPERTY(transient)
 	TArray<int32> BoneIndices;
+	UPROPERTY(transient)
 	TArray<int32> RotationLimitIndex;
+	UPROPERTY(transient)
 	TArray<float> RotationLimitsPerBone;
+	UPROPERTY(transient)
 	int32 EffectorIndex;
 };

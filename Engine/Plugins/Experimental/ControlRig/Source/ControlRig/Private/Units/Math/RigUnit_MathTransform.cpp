@@ -4,61 +4,61 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_MathTransformFromEulerTransform::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformFromEulerTransform_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = EulerTransform.ToFTransform();
 }
 
-void FRigUnit_MathTransformToEulerTransform::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformToEulerTransform_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.FromFTransform(Value);
 }
 
-void FRigUnit_MathTransformMul::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformMul_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A * B;
 }
 
-void FRigUnit_MathTransformMakeRelative::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformMakeRelative_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Local = Global.GetRelativeTransform(Parent);
 }
 
-void FRigUnit_MathTransformInverse::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformInverse_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.Inverse();
 }
 
-void FRigUnit_MathTransformLerp::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformLerp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FControlRigMathLibrary::LerpTransform(A, B, T);
 }
 
-void FRigUnit_MathTransformSelectBool::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformSelectBool_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
-void FRigUnit_MathTransformRotateVector::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformRotateVector_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Transform.TransformVector(Direction);
 }
 
-void FRigUnit_MathTransformTransformVector::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformTransformVector_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Transform.TransformPosition(Location);
 }
 
-void FRigUnit_MathTransformFromSRT::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathTransformFromSRT_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Transform.SetLocation(Location);

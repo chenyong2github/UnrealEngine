@@ -4,7 +4,7 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_SlideChain::Execute(const FRigUnitContext& Context)
+UE_RigUnit_SlideChain_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
 
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();

@@ -16,6 +16,7 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_FABRIK()
@@ -65,7 +66,12 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	int32 MaxIterations;
 
-	TArray<FABRIKChainLink> Chain;
+	UPROPERTY(transient)
+	TArray<FFABRIKChainLink> Chain;
+
+	UPROPERTY(transient)
 	TArray<int32> BoneIndices;
+
+	UPROPERTY(transient)
 	int32 EffectorIndex;
 };

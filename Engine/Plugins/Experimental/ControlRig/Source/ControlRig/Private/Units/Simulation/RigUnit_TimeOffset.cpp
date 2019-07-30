@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_TimeOffset.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
+UE_RigUnit_TimeOffsetFloat_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
@@ -111,7 +111,7 @@ void FRigUnit_TimeOffsetFloat::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
+UE_RigUnit_TimeOffsetVector_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
@@ -219,7 +219,7 @@ void FRigUnit_TimeOffsetVector::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_TimeOffsetTransform::Execute(const FRigUnitContext& Context)
+UE_RigUnit_TimeOffsetTransform_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;

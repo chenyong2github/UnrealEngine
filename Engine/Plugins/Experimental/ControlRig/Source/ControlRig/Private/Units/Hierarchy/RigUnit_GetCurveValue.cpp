@@ -8,7 +8,7 @@ FString FRigUnit_GetCurveValue::GetUnitLabel() const
 	return FString::Printf(TEXT("Get Curve %s"), *Curve.ToString());
 }
 
-void FRigUnit_GetCurveValue::Execute(const FRigUnitContext& Context)
+UE_RigUnit_GetCurveValue_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	const FRigCurveContainer* CurveContainer = Context.GetCurves();

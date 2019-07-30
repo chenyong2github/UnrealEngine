@@ -45,6 +45,7 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 		: BaseTransformSpace(ETransformSpaceMode::GlobalSpace)
 	{}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, BoneName))
@@ -65,10 +66,12 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 	TArray<FConstraintTarget> Targets;
 
 private:
+	static void AddConstraintData(const TArray<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets);
+
 	// note that Targets.Num () != ConstraintData.Num()
+	UPROPERTY(transient)
 	TArray<FConstraintData>	ConstraintData;
 
-	void AddConstraintData(ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform);
-
+	UPROPERTY(transient)
 	TMap<int32, int32> ConstraintDataToTargets;
 };

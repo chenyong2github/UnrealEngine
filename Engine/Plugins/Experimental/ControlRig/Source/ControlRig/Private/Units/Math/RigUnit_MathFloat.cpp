@@ -3,25 +3,25 @@
 #include "Units/Math/RigUnit_MathFloat.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_MathFloatAdd::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatAdd_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A + B;
 }
 
-void FRigUnit_MathFloatSub::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatSub_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A - B;
 }
 
-void FRigUnit_MathFloatMul::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatMul_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A * B;
 }
 
-void FRigUnit_MathFloatDiv::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatDiv_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(FMath::IsNearlyZero(B))
@@ -33,7 +33,7 @@ void FRigUnit_MathFloatDiv::Execute(const FRigUnitContext& Context)
 	Result = A / B;
 }
 
-void FRigUnit_MathFloatMod::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatMod_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(FMath::IsNearlyZero(B) || B < 0.f)
@@ -45,25 +45,25 @@ void FRigUnit_MathFloatMod::Execute(const FRigUnitContext& Context)
 	Result = FMath::Fmod(A, B);
 }
 
-void FRigUnit_MathFloatMin::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatMin_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Min<float>(A, B);
 }
 
-void FRigUnit_MathFloatMax::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatMax_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Max<float>(A, B);
 }
 
-void FRigUnit_MathFloatPow::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatPow_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Pow(A, B);
 }
 
-void FRigUnit_MathFloatSqrt::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatSqrt_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(Value < 0.f)
@@ -75,55 +75,55 @@ void FRigUnit_MathFloatSqrt::Execute(const FRigUnitContext& Context)
 	Result = FMath::Sqrt(Value);
 }
 
-void FRigUnit_MathFloatNegate::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatNegate_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = -Value;
 }
 
-void FRigUnit_MathFloatAbs::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatAbs_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Abs(Value);
 }
 
-void FRigUnit_MathFloatFloor::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatFloor_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::FloorToFloat(Value);
 }
 
-void FRigUnit_MathFloatCeil::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatCeil_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::CeilToFloat(Value);
 }
 
-void FRigUnit_MathFloatRound::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatRound_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::RoundToFloat(Value);
 }
 
-void FRigUnit_MathFloatSign::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatSign_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value < 0.f ? -1.f : 1.f;
 }
 
-void FRigUnit_MathFloatClamp::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatClamp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Clamp<float>(Value, Minimum, Maximum);
 }
 
-void FRigUnit_MathFloatLerp::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatLerp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Lerp<float>(A, B, T);
 }
 
-void FRigUnit_MathFloatRemap::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatRemap_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	float Ratio = 0.f;
@@ -142,43 +142,43 @@ void FRigUnit_MathFloatRemap::Execute(const FRigUnitContext& Context)
 	Result = FMath::Lerp<float>(TargetMinimum, TargetMaximum, Ratio);
 }
 
-void FRigUnit_MathFloatEquals::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatEquals_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A == B;
 }
 
-void FRigUnit_MathFloatNotEquals::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatNotEquals_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
 }
 
-void FRigUnit_MathFloatGreater::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatGreater_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A > B;
 }
 
-void FRigUnit_MathFloatLess::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatLess_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A < B;
 }
 
-void FRigUnit_MathFloatGreaterEqual::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatGreaterEqual_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A >= B;
 }
 
-void FRigUnit_MathFloatLessEqual::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatLessEqual_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A <= B;
 }
 
-void FRigUnit_MathFloatIsNearlyZero::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatIsNearlyZero_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(Tolerance < 0.f)
@@ -188,7 +188,7 @@ void FRigUnit_MathFloatIsNearlyZero::Execute(const FRigUnitContext& Context)
 	Result = FMath::IsNearlyZero(Value, FMath::Max<float>(Tolerance, SMALL_NUMBER));
 }
 
-void FRigUnit_MathFloatIsNearlyEqual::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatIsNearlyEqual_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(Tolerance < 0.f)
@@ -198,43 +198,43 @@ void FRigUnit_MathFloatIsNearlyEqual::Execute(const FRigUnitContext& Context)
 	Result = FMath::IsNearlyEqual(A, B, FMath::Max<float>(Tolerance, SMALL_NUMBER));
 }
 
-void FRigUnit_MathFloatSelectBool::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatSelectBool_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
-void FRigUnit_MathFloatDeg::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatDeg_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::RadiansToDegrees(Value);
 }
 
-void FRigUnit_MathFloatRad::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatRad_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::DegreesToRadians(Value);
 }
 
-void FRigUnit_MathFloatSin::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatSin_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Sin(Value);
 }
 
-void FRigUnit_MathFloatCos::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatCos_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Cos(Value);
 }
 
-void FRigUnit_MathFloatTan::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatTan_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Tan(Value);
 }
 
-void FRigUnit_MathFloatAsin::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatAsin_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (!FMath::IsWithinInclusive<float>(Value, -1.f, 1.f))
@@ -246,7 +246,7 @@ void FRigUnit_MathFloatAsin::Execute(const FRigUnitContext& Context)
 	Result = FMath::Asin(Value);
 }
 
-void FRigUnit_MathFloatAcos::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatAcos_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (!FMath::IsWithinInclusive<float>(Value, -1.f, 1.f))
@@ -258,13 +258,13 @@ void FRigUnit_MathFloatAcos::Execute(const FRigUnitContext& Context)
 	Result = FMath::Acos(Value);
 }
 
-void FRigUnit_MathFloatAtan::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatAtan_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Atan(Value);
 }
 
-void FRigUnit_MathFloatLawOfCosine::Execute(const FRigUnitContext& Context)
+UE_RigUnit_MathFloatLawOfCosine_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if ((A <= 0.f) || (B <= 0.f) || (C <= 0.f) || (A + B < C) || (A + C < B) || (B + C < A))

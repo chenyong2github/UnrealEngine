@@ -21,22 +21,28 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 	{
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** Combine Transform and Base to make the resultant transform */
 	FTransform GetResultantTransform() const;
+	static FTransform StaticGetResultantTransform(const FEulerTransform& InTransform, const FTransform& InBase, const FTransformFilter& InFilter);
 
 	/** Combine Transform and Base to make the resultant transform (as a matrix) */
 	FMatrix GetResultantMatrix() const;
+	static FMatrix StaticGetResultantMatrix(const FEulerTransform& InTransform, const FTransform& InBase, const FTransformFilter& InFilter);
 
 	/** Set the transform using a resultant transform (already incorporating Base) */
 	void SetResultantTransform(const FTransform& InResultantTransform);
+	static void StaticSetResultantTransform(const FTransform& InResultantTransform, const FTransform& InBase, FEulerTransform& OutTransform);
 
 	/** Set the transform using a resultant matrix (already incorporating Base) */
 	void SetResultantMatrix(const FMatrix& InResultantMatrix);
+	static void StaticSetResultantMatrix(const FMatrix& InResultantMatrix, const FTransform& InBase, FEulerTransform& OutTransform);
 
 	/** Get the local transform (i.e. without base) with filter applied */
 	FEulerTransform GetFilteredTransform() const;
+	static FEulerTransform StaticGetFilteredTransform(const FEulerTransform& InTransform, const FTransformFilter& InFilter);
 
 #if WITH_EDITORONLY_DATA
 	/** Actor class to use to display this in the viewport */

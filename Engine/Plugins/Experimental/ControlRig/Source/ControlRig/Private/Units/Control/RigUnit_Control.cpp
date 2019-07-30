@@ -3,7 +3,7 @@
 #include "Units/Control/RigUnit_Control.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_Control::Execute(const FRigUnitContext& Context)
+UE_RigUnit_Control_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -11,37 +11,62 @@ void FRigUnit_Control::Execute(const FRigUnitContext& Context)
 		Transform.FromFTransform(InitTransform);
 	}
 
-	Result = GetResultantTransform();
+	Result = StaticGetResultantTransform(Transform, Base, Filter);
 }
 
 FTransform FRigUnit_Control::GetResultantTransform() const
 {
-	return GetFilteredTransform().ToFTransform() * Base;
+	return StaticGetResultantTransform(Transform, Base, Filter);
+}
+
+FTransform FRigUnit_Control::StaticGetResultantTransform(const FEulerTransform& InTransform, const FTransform& InBase, const FTransformFilter& InFilter)
+{
+	return StaticGetFilteredTransform(InTransform, InFilter).ToFTransform() * InBase;
 }
 
 FMatrix FRigUnit_Control::GetResultantMatrix() const
 {
-	const FEulerTransform FilteredTransform = GetFilteredTransform();
-	return FScaleRotationTranslationMatrix(FilteredTransform.Scale, FilteredTransform.Rotation, FilteredTransform.Location) * Base.ToMatrixWithScale();
+	return StaticGetResultantMatrix(Transform, Base, Filter);
+}
+
+FMatrix FRigUnit_Control::StaticGetResultantMatrix(const FEulerTransform& InTransform, const FTransform& InBase, const FTransformFilter& InFilter)
+{
+	const FEulerTransform FilteredTransform = StaticGetFilteredTransform(InTransform, InFilter);
+	return FScaleRotationTranslationMatrix(FilteredTransform.Scale, FilteredTransform.Rotation, FilteredTransform.Location) * InBase.ToMatrixWithScale();
 }
 
 void FRigUnit_Control::SetResultantTransform(const FTransform& InResultantTransform)
 {
-	Transform.FromFTransform(InResultantTransform.GetRelativeTransform(Base));
+	StaticSetResultantTransform(InResultantTransform, Base, Transform);
+}
+
+void FRigUnit_Control::StaticSetResultantTransform(const FTransform& InResultantTransform, const FTransform& InBase, FEulerTransform& OutTransform)
+{
+	OutTransform.FromFTransform(InResultantTransform.GetRelativeTransform(InBase));
 }
 
 void FRigUnit_Control::SetResultantMatrix(const FMatrix& InResultantMatrix)
 {
-	const FMatrix RelativeTransform = InResultantMatrix * Base.ToMatrixWithScale().Inverse();
+	StaticSetResultantMatrix(InResultantMatrix, Base, Transform);
+}
 
-	Transform.Location = RelativeTransform.GetOrigin();
-	Transform.Rotation = RelativeTransform.Rotator();
-	Transform.Scale = RelativeTransform.GetScaleVector();
+void FRigUnit_Control::StaticSetResultantMatrix(const FMatrix& InResultantMatrix, const FTransform& InBase, FEulerTransform& OutTransform)
+{
+	const FMatrix RelativeTransform = InResultantMatrix * InBase.ToMatrixWithScale().Inverse();
+
+	OutTransform.Location = RelativeTransform.GetOrigin();
+	OutTransform.Rotation = RelativeTransform.Rotator();
+	OutTransform.Scale = RelativeTransform.GetScaleVector();
 }
 
 FEulerTransform FRigUnit_Control::GetFilteredTransform() const
 {
-	FEulerTransform FilteredTransform = Transform;
-	Filter.FilterTransform(FilteredTransform);
+	return StaticGetFilteredTransform(Transform, Filter);
+}
+
+FEulerTransform FRigUnit_Control::StaticGetFilteredTransform(const FEulerTransform& InTransform, const FTransformFilter& InFilter)
+{
+	FEulerTransform FilteredTransform = InTransform;
+	InFilter.FilterTransform(FilteredTransform);
 	return FilteredTransform;
 }

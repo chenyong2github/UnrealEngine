@@ -5,10 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "BoneIndices.h"
+#include "CCDIK.Generated.h"
 
 /** Transient structure for CCDIK node evaluation */
-struct CCDIKChainLink
+USTRUCT()
+struct FCCDIKChainLink
 {
+	GENERATED_USTRUCT_BODY()
+
 public:
 	/** Transform of bone in component space. */
 	FTransform Transform;
@@ -25,13 +29,13 @@ public:
 
 	float CurrentAngleDelta;
 
-	CCDIKChainLink()
+	FCCDIKChainLink()
 		: TransformIndex(INDEX_NONE)
 		, CurrentAngleDelta(0.f)
 	{
 	}
 
-	CCDIKChainLink(const FTransform& InTransform, const FTransform& InLocalTransform, const int32& InTransformIndex)
+	FCCDIKChainLink(const FTransform& InTransform, const FTransform& InLocalTransform, const int32& InTransformIndex)
 		: Transform(InTransform)
 		, LocalTransform(InLocalTransform)
 		, TransformIndex(InTransformIndex)
@@ -42,5 +46,5 @@ public:
 
 namespace AnimationCore
 {
-	ANIMATIONCORE_API bool SolveCCDIK(TArray<CCDIKChainLink>& InOutChain, const FVector& TargetPosition, float Precision, int32 MaxIteration, bool bStartFromTail, bool bEnableRotationLimit, const TArray<float>& RotationLimitPerJoints);
+	ANIMATIONCORE_API bool SolveCCDIK(TArray<FCCDIKChainLink>& InOutChain, const FVector& TargetPosition, float Precision, int32 MaxIteration, bool bStartFromTail, bool bEnableRotationLimit, const TArray<float>& RotationLimitPerJoints);
 };

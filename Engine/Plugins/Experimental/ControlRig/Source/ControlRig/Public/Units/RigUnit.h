@@ -42,16 +42,16 @@ struct CONTROLRIG_API FRigUnit
 	/* 
 	 * This is property name given by ControlRig as transient when initialized, so only available in run-time
 	 */
-	UPROPERTY(BlueprintReadOnly, transient, Category=FRigUnit)
+	UPROPERTY(BlueprintReadOnly, transient, Category=FRigUnit, meta = (Constant))
 	FName RigUnitName;
 	
 	/* 
 	 * This is struct name given by ControlRig as transient when initialized, so only available in run-time
 	 */
-	UPROPERTY(BlueprintReadOnly, transient, Category=FRigUnit)
+	UPROPERTY(BlueprintReadOnly, transient, Category=FRigUnit, meta = (Constant))
 	FName RigUnitStructName;
 
-	UPROPERTY(EditAnywhere, Category = FRigUnit)
+	UPROPERTY(EditAnywhere, Category = FRigUnit, meta = (Constant))
 	EUnitExecutionType ExecutionType;
 };
 

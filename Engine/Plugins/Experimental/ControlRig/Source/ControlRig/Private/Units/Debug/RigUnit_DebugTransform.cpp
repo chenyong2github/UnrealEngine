@@ -3,7 +3,7 @@
 #include "Units/Debug/RigUnit_DebugTransform.h"
 #include "Units/RigUnitContext.h"
 
-void FRigUnit_DebugTransform::Execute(const FRigUnitContext& Context)
+UE_RigUnit_DebugTransform_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -43,7 +43,7 @@ void FRigUnit_DebugTransform::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_DebugTransformMutable::Execute(const FRigUnitContext& Context)
+UE_RigUnit_DebugTransformMutable_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -83,7 +83,7 @@ void FRigUnit_DebugTransformMutable::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_DebugTransformArrayMutable::Execute(const FRigUnitContext& Context)
+UE_RigUnit_DebugTransformArrayMutable_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

@@ -19,6 +19,7 @@ struct FRigUnit_AccumulateFloatAdd : public FRigUnit_SimBase
 		bIntegrateDeltaTime = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -51,6 +52,7 @@ struct FRigUnit_AccumulateVectorAdd : public FRigUnit_SimBase
 		bIntegrateDeltaTime = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -83,6 +85,7 @@ struct FRigUnit_AccumulateFloatMul : public FRigUnit_SimBase
 		bIntegrateDeltaTime = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -115,6 +118,7 @@ struct FRigUnit_AccumulateVectorMul : public FRigUnit_SimBase
 		bIntegrateDeltaTime = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -147,6 +151,7 @@ struct FRigUnit_AccumulateQuatMul : public FRigUnit_SimBase
 		bIntegrateDeltaTime = bFlipOrder = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -182,6 +187,7 @@ struct FRigUnit_AccumulateTransformMul : public FRigUnit_SimBase
 		bIntegrateDeltaTime = bFlipOrder = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -217,6 +223,7 @@ struct FRigUnit_AccumulateFloatLerp : public FRigUnit_SimBase
 		bIntegrateDeltaTime = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -253,6 +260,7 @@ struct FRigUnit_AccumulateVectorLerp : public FRigUnit_SimBase
 		bIntegrateDeltaTime = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -289,6 +297,7 @@ struct FRigUnit_AccumulateQuatLerp : public FRigUnit_SimBase
 		bIntegrateDeltaTime = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -325,6 +334,7 @@ struct FRigUnit_AccumulateTransformLerp : public FRigUnit_SimBase
 		bIntegrateDeltaTime = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -359,6 +369,7 @@ struct FRigUnit_AccumulateFloatRange : public FRigUnit_SimBase
 		Value = Minimum = Maximum = AccumulatedMinimum = AccumulatedMaximum = 0.f;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -390,6 +401,7 @@ struct FRigUnit_AccumulateVectorRange : public FRigUnit_SimBase
 		Value = Minimum = Maximum = AccumulatedMinimum = AccumulatedMaximum = FVector::ZeroVector;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

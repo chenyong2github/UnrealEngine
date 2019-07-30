@@ -4,7 +4,7 @@
 #include "Units/RigUnitContext.h"
 #include "KismetAnimationLibrary.h"
 
-void FRigUnit_StartProfilingTimer::Execute(const FRigUnitContext& Context)
+UE_RigUnit_StartProfilingTimer_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Update)
@@ -13,7 +13,7 @@ void FRigUnit_StartProfilingTimer::Execute(const FRigUnitContext& Context)
 	}
 }
 
-void FRigUnit_EndProfilingTimer::Execute(const FRigUnitContext& Context)
+UE_RigUnit_EndProfilingTimer_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

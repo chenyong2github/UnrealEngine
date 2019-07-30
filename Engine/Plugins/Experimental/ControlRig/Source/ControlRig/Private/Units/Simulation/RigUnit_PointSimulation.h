@@ -123,6 +123,7 @@ struct FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 		Bezier = FCRFourPointBezier();
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** The points to simulate */

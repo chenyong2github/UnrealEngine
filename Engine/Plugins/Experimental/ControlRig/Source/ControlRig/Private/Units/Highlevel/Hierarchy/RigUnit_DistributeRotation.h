@@ -47,6 +47,7 @@ struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 		bPropagateToChildren = false;
 	}
 
+	STATIC_VIRTUAL_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** 
