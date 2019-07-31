@@ -17,6 +17,7 @@
 #include "Containers/ArrayView.h"
 #include "CurveDataAbstraction.h"
 #include "CurveEditorSnapMetrics.h"
+#include "UObject/StructOnScope.h"
 
 #define LOCTEXT_NAMESPACE "CurveEditorToolCommands"
 
