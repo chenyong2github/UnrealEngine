@@ -10,7 +10,6 @@
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/Parse.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/CommandLine.h"
 #include "Internationalization/Culture.h"

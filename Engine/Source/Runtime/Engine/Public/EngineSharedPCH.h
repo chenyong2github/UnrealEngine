@@ -210,7 +210,6 @@
 #include "Serialization/BufferReader.h"
 #include "Containers/StaticArray.h"
 #include "Misc/SecureHash.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "Modules/Boilerplate/ModuleBoilerplate.h"

@@ -13,7 +13,6 @@
 #include "Misc/DateTime.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformTime.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/UniquePtr.h"
 

@@ -9,7 +9,6 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/FileManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
 
 #ifndef PLATFORM_FILE_READER_BUFFER_SIZE

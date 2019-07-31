@@ -11,7 +11,6 @@
 #include "Misc/Guid.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/UObjectIterator.h"
-#include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
 #include "RenderResource.h"
 #include "PackedNormal.h"

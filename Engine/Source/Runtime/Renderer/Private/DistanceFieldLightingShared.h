@@ -23,8 +23,6 @@ class FSceneRenderer;
 class FShaderParameterMap;
 class FViewInfo;
 
-template<typename ReferencedType> class TScopedPointer;
-
 DECLARE_LOG_CATEGORY_EXTERN(LogDistanceField, Warning, All);
 
 /** Tile sized used for most AO compute shaders. */

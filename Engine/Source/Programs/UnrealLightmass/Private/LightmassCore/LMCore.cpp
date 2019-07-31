@@ -5,7 +5,6 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformTime.h"
-#include "Templates/ScopedPointer.h"
 #include "UnrealLightmass.h"
 #include "Misc/Paths.h"
 #include "Templates/UniquePtr.h"

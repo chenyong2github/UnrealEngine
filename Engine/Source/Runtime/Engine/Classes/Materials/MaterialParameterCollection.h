@@ -10,7 +10,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
-#include "Templates/ScopedPointer.h"
 #include "UniformBuffer.h"
 #include "Templates/UniquePtr.h"
 #include "RenderCommandFence.h"

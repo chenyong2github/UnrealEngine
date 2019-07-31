@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "Generation/FileAttributesParser.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/FileHelper.h"
 #include "Templates/UniquePtr.h"
 

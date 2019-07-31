@@ -20,7 +20,6 @@
 #include "Styling/CoreStyle.h"
 #include "Framework/Commands/InputChord.h"
 #include "GraphEditor.h"
-#include "Templates/ScopedPointer.h"
 #include "Layout/ArrangedChildren.h"
 #include "Types/PaintArgs.h"
 #include "EditorStyleSet.h"

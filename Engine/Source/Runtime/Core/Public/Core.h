@@ -123,7 +123,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Serialization/Archive.h"
 #include "Serialization/ArchiveProxy.h"
 #include "Serialization/NameAsStringProxyArchive.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/Sorting.h"
 #include "Containers/Array.h"
 #include "Containers/ScriptArray.h"

@@ -15,7 +15,6 @@
 #include "Shader.h"
 #include "VertexFactory.h"
 #include "SceneTypes.h"
-#include "Templates/ScopedPointer.h"
 #include "Materials/MaterialInterface.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"

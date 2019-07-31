@@ -3,7 +3,6 @@
 #include "IoProfilerManager.h"
 
 #include "Modules/ModuleManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/SessionService.h"

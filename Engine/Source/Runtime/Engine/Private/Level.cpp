@@ -7,7 +7,6 @@ Level.cpp: Level-related functions
 #include "Engine/Level.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/RenderingObjectVersion.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Package.h"
 #include "Serialization/AsyncLoading.h"

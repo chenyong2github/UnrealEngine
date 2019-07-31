@@ -6,7 +6,6 @@
 
 #include "Stats/StatsFile.h"
 #include "HAL/FileManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/Paths.h"
 #include "Internationalization/Internationalization.h"
 #include "Serialization/MemoryWriter.h"

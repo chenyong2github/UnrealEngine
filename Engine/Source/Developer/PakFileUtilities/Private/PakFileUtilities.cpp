@@ -3182,7 +3182,7 @@ bool GenerateHashesFromPak(const TCHAR* InPakFilename, const TCHAR* InDestPakFil
 				    EntryInfo.Serialize(PakReader, PakFile.GetInfo().Version);
 				    if (EntryInfo == Entry)
 				    {
-					    // TAutoPtr<FArchive> FileHandle(IFileManager::Get().CreateFileWriter(*DestFilename));
+					    // TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileWriter(*DestFilename));
 					    TArray<uint8> Bytes;
 					    FMemoryWriter MemoryFile(Bytes);
 					    FArchive* FileHandle = &MemoryFile;

@@ -8,7 +8,6 @@
 #include "EngineStats.h"
 #include "EngineGlobals.h"
 #include "RenderingThread.h"
-#include "Templates/ScopedPointer.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "Misc/ConfigCacheIni.h"

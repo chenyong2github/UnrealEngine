@@ -3,7 +3,6 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
-#include "Templates/ScopedPointer.h"
 #include "Features/IModularFeatures.h"
 #include "Windows/WindowsPlatformProcess.h"
 #include "Templates/UniquePtr.h"

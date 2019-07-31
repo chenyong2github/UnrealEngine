@@ -11,7 +11,6 @@
 #include "CoreMinimal.h"
 #include "SlateFwd.h"
 #include "Engine/Level.h"
-#include "Templates/ScopedPointer.h"
 #include "StaticLighting.h"
 #include "LightingBuildOptions.h"
 #include "Templates/UniquePtr.h"

@@ -8,7 +8,6 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "Misc/WorldCompositionUtility.h"
-#include "Templates/ScopedPointer.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
 #include "Serialization/CustomVersion.h"

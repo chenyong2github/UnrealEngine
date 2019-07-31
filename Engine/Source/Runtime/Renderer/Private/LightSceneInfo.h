@@ -8,7 +8,6 @@
 
 #include "CoreMinimal.h"
 #include "RenderResource.h"
-#include "Templates/ScopedPointer.h"
 #include "Math/GenericOctreePublic.h"
 #include "SceneManagement.h"
 #include "Math/GenericOctree.h"

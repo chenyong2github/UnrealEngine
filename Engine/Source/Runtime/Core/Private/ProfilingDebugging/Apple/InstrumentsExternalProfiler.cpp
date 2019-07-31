@@ -6,7 +6,6 @@
 #include "Misc/AssertionMacros.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "Features/IModularFeatures.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
 #include "Apple/ApplePlatformDebugEvents.h"
 #include "Misc/Paths.h"

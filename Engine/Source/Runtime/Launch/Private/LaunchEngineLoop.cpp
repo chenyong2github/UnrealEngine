@@ -24,7 +24,6 @@
 #include "Misc/App.h"
 #include "Misc/OutputDeviceConsole.h"
 #include "HAL/PlatformFilemanager.h"
-#include "Templates/ScopedPointer.h"
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
 #include "Stats/StatsMallocProfilerProxy.h"

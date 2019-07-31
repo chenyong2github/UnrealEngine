@@ -4,7 +4,6 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Modules/ModuleManager.h"
-#include "Templates/ScopedPointer.h"
 #include "Templates/UniquePtr.h"
 
 // Insights

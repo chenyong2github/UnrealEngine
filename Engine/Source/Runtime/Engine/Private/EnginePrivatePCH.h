@@ -211,7 +211,6 @@
 #include "Misc/SecureHash.h"
 #include "Containers/StaticArray.h"
 #include "Async/Future.h"
-#include "Templates/ScopedPointer.h"
 #include "Serialization/ArchiveProxy.h"
 #include "UObject/DebugSerializationFlags.h"
 #include "Math/SHMath.h"

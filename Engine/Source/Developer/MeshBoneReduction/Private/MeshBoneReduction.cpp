@@ -7,7 +7,6 @@
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "UObject/UObjectHash.h"
-#include "Templates/ScopedPointer.h"
 #include "ComponentReregisterContext.h"
 #include "Templates/UniquePtr.h"
 #include "Rendering/SkeletalMeshModel.h"

@@ -11,7 +11,6 @@
 #include "Containers/IndirectArray.h"
 #include "Stats/Stats.h"
 #include "Containers/List.h"
-#include "Templates/ScopedPointer.h"
 #include "Async/AsyncWork.h"
 #include "Async/AsyncFileHandle.h"
 #include "RHI.h"

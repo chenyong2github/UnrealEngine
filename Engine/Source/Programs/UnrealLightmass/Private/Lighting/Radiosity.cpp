@@ -3,7 +3,6 @@
 #include "Raster.h"
 #include "LightingSystem.h"
 #include "LightmassSwarm.h"
-#include "Templates/ScopedPointer.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformProcess.h"
 #include "TextureMappingSetup.h"
