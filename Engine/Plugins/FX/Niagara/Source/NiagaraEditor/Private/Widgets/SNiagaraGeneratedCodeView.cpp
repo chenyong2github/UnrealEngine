@@ -531,7 +531,11 @@ SNiagaraGeneratedCodeView::~SNiagaraGeneratedCodeView()
 {
 	if (SystemViewModel.IsValid())
 	{
-		SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+		if (SystemViewModel->GetSelectionViewModel())
+		{
+			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+		}
+
 		if (SystemViewModel->GetSystemScriptViewModel().IsValid())
 		{
 			SystemViewModel->GetSystemScriptViewModel()->OnSystemCompiled().RemoveAll(this);
