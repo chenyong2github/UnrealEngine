@@ -288,7 +288,8 @@ template <typename T>
 struct TCallTraitsBase
 {
 private:
-	enum { PassByValue = TOr<TAndValue<(sizeof(T) <= sizeof(void*)), TIsPODType<T>>, TIsArithmetic<T>, TIsPointer<T>>::Value };
+	enum { PassByValue = TOr<TAndValue<(sizeof(T) <= sizeof(void*)), TIsPODType<T>>, TIsArithmetic<T>>::Value };
+
 public:
 	typedef T ValueType;
 	typedef T& Reference;

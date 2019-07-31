@@ -132,12 +132,6 @@ public:
 	{
 	}
 
-	/** Construct from another lazy pointer */
-	FORCEINLINE FLazyObjectPtr(const FLazyObjectPtr& Other)
-	{
-		(*this)=Other;
-	}
-
 	/** Construct from object already in memory */
 	explicit FORCEINLINE FLazyObjectPtr(const UObject* Object)
 	{
@@ -148,12 +142,6 @@ public:
 	FORCEINLINE void operator=(const UObject *Object)
 	{
 		TPersistentObjectPtr<FUniqueObjectGuid>::operator=(Object);
-	}
-
-	/** Copy from a lazy pointer */
-	FORCEINLINE void operator=(const FLazyObjectPtr& Other)
-	{
-		TPersistentObjectPtr<FUniqueObjectGuid>::operator=(Other);
 	}
 
 	/** Copy from a unique object identifier */
