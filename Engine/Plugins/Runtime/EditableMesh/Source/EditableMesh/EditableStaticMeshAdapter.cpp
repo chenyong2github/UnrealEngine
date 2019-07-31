@@ -1692,7 +1692,7 @@ void UEditableStaticMeshAdapter::OnCreatePolygonGroups( const UEditableMesh* Edi
 			Info.bEnableCollision = StaticMeshSection.bEnableCollision;
 			Info.bCastShadow = StaticMeshSection.bCastShadow;
 			Info.MaterialIndex = StaticMeshSection.MaterialIndex;
-			StaticMesh->SectionInfoMap.Set( StaticMeshLODIndex, LODSectionIndex, Info );
+			StaticMesh->GetSectionInfoMap().Set( StaticMeshLODIndex, LODSectionIndex, Info );
 #endif
 		}
 
@@ -1794,14 +1794,14 @@ void UEditableStaticMeshAdapter::OnDeletePolygonGroups( const UEditableMesh* Edi
 
 #if WITH_EDITORONLY_DATA
 			// SectionInfoMap must be re-indexed to account for the removed Section
-			uint32 NumSectionInfo = StaticMesh->SectionInfoMap.GetSectionNumber( StaticMeshLODIndex );
+			uint32 NumSectionInfo = StaticMesh->GetSectionInfoMap().GetSectionNumber( StaticMeshLODIndex );
 			for ( uint32 Index = RenderingSectionIndex + 1; Index < NumSectionInfo; ++Index )
 			{
-				FMeshSectionInfo SectionInfo = StaticMesh->SectionInfoMap.Get( StaticMeshLODIndex, Index );
-				StaticMesh->SectionInfoMap.Set( StaticMeshLODIndex, Index - 1, SectionInfo );
+				FMeshSectionInfo SectionInfo = StaticMesh->GetSectionInfoMap().Get( StaticMeshLODIndex, Index );
+				StaticMesh->GetSectionInfoMap().Set( StaticMeshLODIndex, Index - 1, SectionInfo );
 			}
 			// And remove the last SectionInfo from the map which is now invalid
-			StaticMesh->SectionInfoMap.Remove( StaticMeshLODIndex, NumSectionInfo - 1 );
+			StaticMesh->GetSectionInfoMap().Remove( StaticMeshLODIndex, NumSectionInfo - 1 );
 #endif
 		}
 

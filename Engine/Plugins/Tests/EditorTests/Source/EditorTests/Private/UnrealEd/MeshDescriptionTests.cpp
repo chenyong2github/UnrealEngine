@@ -478,7 +478,7 @@ bool FMeshDescriptionTest::ConversionTest(FAutomationTestExecutionInfo& Executio
 			}
 
 			//MeshDescription to RawMesh to MeshDescription
-			for(int32 LodIndex = 0; LodIndex < AssetMesh->SourceModels.Num(); ++LodIndex)
+			for(int32 LodIndex = 0; LodIndex < AssetMesh->GetNumSourceModels(); ++LodIndex)
 			{
 				const FMeshDescription* ReferenceAssetMesh = AssetMesh->GetMeshDescription(LodIndex);
 				if (ReferenceAssetMesh == nullptr)
@@ -500,17 +500,17 @@ bool FMeshDescriptionTest::ConversionTest(FAutomationTestExecutionInfo& Executio
 			}
 
 			//RawMesh to MeshDescription to RawMesh
-			for (int32 LodIndex = 0; LodIndex < AssetMesh->SourceModels.Num(); ++LodIndex)
+			for (int32 LodIndex = 0; LodIndex < AssetMesh->GetNumSourceModels(); ++LodIndex)
 			{
-				if (AssetMesh->SourceModels[LodIndex].RawMeshBulkData->IsEmpty())
+				if (AssetMesh->GetSourceModel(LodIndex).RawMeshBulkData->IsEmpty())
 				{
 					check(LodIndex != 0);
 					continue;
 				}
 				FRawMesh ReferenceRawMesh;
-				AssetMesh->SourceModels[LodIndex].LoadRawMesh(ReferenceRawMesh);
+				AssetMesh->GetSourceModel(LodIndex).LoadRawMesh(ReferenceRawMesh);
 				FRawMesh ResultRawMesh;
-				AssetMesh->SourceModels[LodIndex].LoadRawMesh(ResultRawMesh);
+				AssetMesh->GetSourceModel(LodIndex).LoadRawMesh(ResultRawMesh);
 				//Create a temporary Mesh Description
 				FMeshDescription MeshDescription;
 				UStaticMesh::RegisterMeshAttributes(MeshDescription);
@@ -565,7 +565,7 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 		FMeshDescription MeshDescription(*OriginalMeshDescription);
 
 		FRawMesh RawMesh;
-		AssetMesh->SourceModels[0].LoadRawMesh(RawMesh);
+		AssetMesh->GetSourceModel(0).LoadRawMesh(RawMesh);
 
 		//const TVertexAttributeArray<FVector>& VertexPositions = MeshDescription.VertexAttributes().GetAttributes<FVector>(MeshAttribute::Vertex::Position);
 		const TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);

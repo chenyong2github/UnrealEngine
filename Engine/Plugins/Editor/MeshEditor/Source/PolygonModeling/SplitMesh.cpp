@@ -257,7 +257,7 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 		NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
 		UPackage* NewPackage = CreatePackage(nullptr, *NewPackageName);
 		UStaticMesh* NewStaticMesh = NewObject<UStaticMesh>(NewPackage, *NewMeshName, RF_Public);
-		new (NewStaticMesh->SourceModels) FStaticMeshSourceModel();
+		NewStaticMesh->AddSourceModel();
 		FMeshDescription* NewMeshDescription = NewStaticMesh->CreateMeshDescription(0);
 		check(NewMeshDescription);
 
