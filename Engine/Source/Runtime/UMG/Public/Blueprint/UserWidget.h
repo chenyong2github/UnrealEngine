@@ -900,9 +900,10 @@ public:
 	 * @param NumLoopsToPlay The number of times to loop this animation (0 to loop indefinitely)
 	 * @param PlaybackSpeed The speed at which the animation should play
 	 * @param PlayMode Specifies the playback mode
+	 * @param bRestoreState Restores widgets to their pre-animated state when the animation stops
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface|Animation")
-	UUMGSequencePlayer* PlayAnimation(UWidgetAnimation* InAnimation, float StartAtTime = 0.0f, int32 NumLoopsToPlay = 1, EUMGSequencePlayMode::Type PlayMode = EUMGSequencePlayMode::Forward, float PlaybackSpeed = 1.0f);
+	UUMGSequencePlayer* PlayAnimation(UWidgetAnimation* InAnimation, float StartAtTime = 0.0f, int32 NumLoopsToPlay = 1, EUMGSequencePlayMode::Type PlayMode = EUMGSequencePlayMode::Forward, float PlaybackSpeed = 1.0f, bool bRestoreState = false);
 
 	/**
 	 * Plays an animation in this widget a specified number of times
@@ -928,9 +929,10 @@ public:
 	 * @param NumLoopsToPlay The number of times to loop this animation (0 to loop indefinitely)
 	 * @param PlayMode Specifies the playback mode
 	 * @param PlaybackSpeed The speed at which the animation should play
+	 * @param bRestoreState Restores widgets to their pre-animated state when the animation stops
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface|Animation")
-	UUMGSequencePlayer* PlayAnimationTimeRange(UWidgetAnimation* InAnimation, float StartAtTime = 0.0f, float EndAtTime = 0.0f, int32 NumLoopsToPlay = 1, EUMGSequencePlayMode::Type PlayMode = EUMGSequencePlayMode::Forward, float PlaybackSpeed = 1.0f);
+	UUMGSequencePlayer* PlayAnimationTimeRange(UWidgetAnimation* InAnimation, float StartAtTime = 0.0f, float EndAtTime = 0.0f, int32 NumLoopsToPlay = 1, EUMGSequencePlayMode::Type PlayMode = EUMGSequencePlayMode::Forward, float PlaybackSpeed = 1.0f, bool bRestoreState = false);
 
 	/**
 	 * Plays an animation on this widget relative to it's current state forward.  You should use this version in situations where
@@ -940,9 +942,10 @@ public:
 	 * @param InAnimation The animation to play
 	 * @param PlayMode Specifies the playback mode
 	 * @param PlaybackSpeed The speed at which the animation should play
+	 * @param bRestoreState Restores widgets to their pre-animated state when the animation stops
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface|Animation")
-	UUMGSequencePlayer* PlayAnimationForward(UWidgetAnimation* InAnimation, float PlaybackSpeed = 1.0f);
+	UUMGSequencePlayer* PlayAnimationForward(UWidgetAnimation* InAnimation, float PlaybackSpeed = 1.0f, bool bRestoreState = false);
 
 	/**
 	 * Plays an animation on this widget relative to it's current state in reverse.  You should use this version in situations where
@@ -952,9 +955,10 @@ public:
 	 * @param InAnimation The animation to play
 	 * @param PlayMode Specifies the playback mode
 	 * @param PlaybackSpeed The speed at which the animation should play
+	 * @param bRestoreState Restores widgets to their pre-animated state when the animation stops
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface|Animation")
-	UUMGSequencePlayer* PlayAnimationReverse(UWidgetAnimation* InAnimation, float PlaybackSpeed = 1.0f);
+	UUMGSequencePlayer* PlayAnimationReverse(UWidgetAnimation* InAnimation, float PlaybackSpeed = 1.0f, bool bRestoreState = false);
 
 	/**
 	 * Stops an already running animation in this widget

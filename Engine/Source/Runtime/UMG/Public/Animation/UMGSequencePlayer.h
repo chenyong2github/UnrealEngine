@@ -25,10 +25,10 @@ public:
 	void Tick( float DeltaTime );
 
 	/** Begins playing or restarts an animation */
-	void Play(float StartAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed);
+	void Play(float StartAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
 
 	/** Begins playing or restarts an animation  and plays to the specified end time */
-	void PlayTo(float StartAtTime, float EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed);
+	void PlayTo(float StartAtTime, float EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
 
 	/** Stops a running animation and resets time */
 	void Stop();
@@ -83,7 +83,7 @@ public:
 
 private:
 	/** Internal play function with a verbose parameter set */
-	void PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed);
+	void PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
 
 	/** Apply any latent actions which may have accumulated while the sequence was being evaluated */
 	void ApplyLatentActions();
@@ -125,6 +125,9 @@ private:
 
 	/** The speed at which the animation should be played */
 	float PlaybackSpeed;
+
+	/** Whether to restore pre-animated state */
+	bool bRestoreState;
 
 	/** The current playback mode. */
 	EUMGSequencePlayMode::Type PlayMode;
