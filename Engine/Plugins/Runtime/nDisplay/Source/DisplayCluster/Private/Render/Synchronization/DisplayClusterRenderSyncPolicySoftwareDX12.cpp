@@ -24,8 +24,6 @@ FDisplayClusterRenderSyncPolicySoftwareDX12::~FDisplayClusterRenderSyncPolicySof
 
 bool FDisplayClusterRenderSyncPolicySoftwareDX12::SynchronizeClusterRendering(int32& InOutSyncInterval)
 {
-	check(IsInRenderingThread());
-
 	if(!(GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport))
 	{
 		return false;
