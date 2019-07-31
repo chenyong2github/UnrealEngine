@@ -18,6 +18,7 @@ class ITimeSliderController;
 class SScrollBox;
 class SCurveEditorView;
 class SCurveEditorViewContainer;
+class SCurveEditorToolProperties;
 class FTabManager;
 class UCurveEditorFilterBase;
 
@@ -267,6 +268,9 @@ private:
 	/** Edit panel */
 	TSharedPtr<SCurveKeyDetailPanel> KeyDetailsView;
 
+	/** Tool options panel */
+	TSharedPtr<SCurveEditorToolProperties> ToolPropertiesPanel;
+
 	/** Map of edit UI widgets for each curve in the current selection set */
 	TMap<FCurveModelID, TSharedPtr<SWidget>> CurveToEditUI;
 
@@ -286,6 +290,9 @@ private:
 
 	/** Rebuild the Curve Views layout to match the currently specified View Mode. */
 	void RebuildCurveViews();
+
+	/** Reconstructs the properties widget on tool switch */
+	void OnCurveEditorToolChanged(FCurveEditorToolID InToolId);
 
 	/** The last set View Mode for this UI. */
 	ECurveEditorViewID DefaultViewID;

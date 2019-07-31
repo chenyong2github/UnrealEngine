@@ -10,17 +10,36 @@
 #include "ScopedTransaction.h"
 #include "CurveEditorSnapMetrics.h"
 
+#include "CurveEditorTransformTool.generated.h"
+
 class FCurveEditor;
 struct FPointerEvent;
 
-enum class ECurveEditorAnchorFlags : uint8
+enum class ECurveEditorAnchorFlags : uint16
 {
 	None = 0x00,
 	Top = 0x01,
 	Left = 0x02,
 	Right = 0x04,
 	Bottom = 0x08,
-	Center = 0x10
+	Center = 0x10,
+	FalloffTopLeft = 0x20,
+	FalloffTopRight = 0x40,
+	FalloffLeft = 0x80,
+	FalloffRight = 0x100,
+	FalloffAll = FalloffTopLeft | FalloffTopRight | FalloffLeft | FalloffRight,
+	CenterScale = 0x200
+};
+
+enum class EToolTransformInterpType : uint8
+{
+	Linear,
+	Sinusoidal,
+	Cubic,
+	CircularIn,
+	CircularOut,
+	ExpIn,
+	ExpOut,
 };
 
 ENUM_CLASS_FLAGS(ECurveEditorAnchorFlags);
@@ -35,34 +54,61 @@ struct FCurveEditorTransformWidget
 
 public:
 	ECurveEditorAnchorFlags SelectedAnchorFlags;
-	
+
 	FGeometry MakeGeometry(const FGeometry& InWidgetGeometry) const
 	{
 		return InWidgetGeometry.MakeChild(Size, FSlateLayoutTransform(Position));
 	}
 
-	ECurveEditorAnchorFlags GetAnchorFlagsForMousePosition(const FGeometry& InWidgetGeometry, const FVector2D& InMouseScreenPosition) const;
+	ECurveEditorAnchorFlags GetAnchorFlagsForMousePosition(const FGeometry& InWidgetGeometry, float  FalloffHeight, float FalloffWidth, const FVector2D& RelativeCenterScale, const FVector2D& InMouseScreenPosition) const;
 
 	void GetCenterGeometry(const FGeometry& InWidgetGeometry, FGeometry& OutCenter) const;
 	void GetSidebarGeometry(const FGeometry& InWidgetGeometry, FGeometry& OutLeft, FGeometry& OutRight, FGeometry& OutTop, FGeometry& OutBottom) const;
 	void GetCornerGeometry(const FGeometry& InWidgetGeometry, FGeometry& OutTopLeft, FGeometry& OutTopRight, FGeometry& OutBottomLeft, FGeometry& OutBottomRight) const;
+	void GetFalloffGeometry(const FGeometry& InWidgetGeometry, float FalloffHeight, float FalloffWidth, FGeometry& OutTopLeft, FGeometry& OutTopRight, FGeometry& OutLeft, FGeometry& OutRight) const;
+	void GetScaleCenterGeometry(const FGeometry& InWidgetGeometry, FVector2D ScaleCenter, FGeometry& OutInputBoxGeometry) const;
+
 
 	FVector2D Size;
 	FVector2D Position;
 	bool Visible;
 
+	// stores the physical bounds instead of the marquee bounds, for scale calculations
+	FVector2D BoundsSize;
+	FVector2D BoundsPosition;
+
 	FVector2D StartSize;
 	FVector2D StartPosition;
 };
 
+USTRUCT()
+struct FTransformToolOptions
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
+	float UpperBound;
+
+	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
+	float LowerBound;
+
+	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
+	float LeftBound;
+
+	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
+	float RightBound;
+};
 
 class FCurveEditorTransformTool : public ICurveEditorToolExtension
 {
 public:
 	FCurveEditorTransformTool(TWeakPtr<FCurveEditor> InCurveEditor)
-		: WeakCurveEditor(InCurveEditor)
-	{
-	}
+		: WeakCurveEditor(InCurveEditor), 
+		FalloffInterpType(EToolTransformInterpType::Linear),
+		FalloffHeight(0.0f), 
+		FalloffWidth(0.0f), 
+		RelativeScaleCenter(FVector2D(0.5f, 0.5f))
+	{}
 
 	// ICurveEditorToolExtension Interface
 	virtual void OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 PaintOnLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -74,16 +120,21 @@ public:
 	virtual FReply OnMouseMove(TSharedRef<SWidget> OwningWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(TSharedRef<SWidget> OwningWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnFocusLost(const FFocusEvent& InFocusEvent);
+	TSharedPtr<FStructOnScope> GetToolOptions() const override { return ToolOptionsOnScope; }
+	virtual void OnToolOptionsUpdated(const FPropertyChangedEvent& InPropertyChangedEvent) override;
 	// ~ICurveEditorToolExtension
 
 private:
 	void UpdateMarqueeBoundingBox();
-	void DrawMarqueeWidget(const FCurveEditorTransformWidget& InTransformWidget, const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 PaintOnLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const;
+	void UpdateToolOptions();
+	void DrawMarqueeWidget(const FCurveEditorTransformWidget& InTransformWidget, const FPaintArgs& InArgs, const FGeometry& InAllottedGeometry, const FSlateRect& InMyCullingRect, FSlateWindowElementList& OutDrawElements, const int32 InPaintOnLayerId, const FWidgetStyle& InWidgetStyle, const bool bInParentEnabled) const;
+	void ScaleFrom(const FVector2D& InPanelSpaceCenter, const FVector2D& InChangeAmount, const bool bInFalloffOn, const bool bInAffectsX, const bool bInAffectsY) const;
 
 	void OnDragStart();
-	void OnDrag(const FPointerEvent& MouseEvent);
+	void OnDrag(const FPointerEvent& InMouseEvent, const FVector2D& InLocalMousePosition);
 	void OnDragEnd();
 	void StopDragIfPossible();
+
 private:
 	/** Weak pointer back to the Curve Editor this belongs to. */
 	TWeakPtr<FCurveEditor> WeakCurveEditor;
@@ -114,8 +165,34 @@ private:
 
 	/** Key dragging data stored per-curve */
 	TArray<FKeyData> KeysByCurve;
+	TRange<double> InputMinMax;
 
 	FVector2D InitialMousePosition;
-
 	FCurveEditorAxisSnap::FSnapState SnappingState;
+
+	// UStruct that displays properties to be modified on screen
+	FTransformToolOptions ToolOptions;
+	TSharedPtr<FStructOnScope> ToolOptionsOnScope;
+
+	// helper struct for checking if tool has changed outside of own operations, i.e. middle click
+	struct ToolBounds { FVector2D Positon, Size; };
+	ToolBounds PrevState;
+
+private:
+	/** specifies the falloff curve applied to soft selection */
+	EToolTransformInterpType FalloffInterpType;
+	/** Soft Selection Height, if 0.0 as we go up to 1.0 we go up to the top edge */
+	float FalloffHeight;
+	/** Soft Selection Width, if 0.0 we peak directly at the midpoint gradually scaling out till we reach 1.0fff */
+	float FalloffWidth;
+
+	/** point to scale from, relative to current bounds */
+	FVector2D RelativeScaleCenter;
+
+	/** Get Soft Select Change Based upon Input Value and internal soft selection weight values*/
+	double GetFalloffWeight(double InputValue) const;
+
+	/** Modify the Falloff Weight by type of Interpolation */
+	double ModifyWeightByInterpType(double Weight) const;
 };
+

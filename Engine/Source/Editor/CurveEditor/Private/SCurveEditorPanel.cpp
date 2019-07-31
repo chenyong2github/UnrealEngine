@@ -37,6 +37,7 @@
 #include "CommonFrameRates.h"
 #include "CurveEditorViewRegistry.h"
 #include "SCurveEditorViewContainer.h"
+#include "SCurveEditorToolProperties.h"
 #include "Fonts/FontMeasure.h"
 #include "CurveEditorHelpers.h"
 
@@ -139,6 +140,8 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 	CurveEditor->BindCommands();
 	CurveEditor->SetTimeSliderController(InArgs._ExternalTimeSliderController);
 
+	CurveEditor->OnActiveToolChangedDelegate.AddSP(this, &SCurveEditorPanel::OnCurveEditorToolChanged);
+
 	CommandList = MakeShared<FUICommandList>();
 	CommandList->Append(InCurveEditor->GetCommands().ToSharedRef());
 
@@ -199,6 +202,14 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 				.HAlign(HAlign_Right)
 				[
 					ScrollBar
+				]
+
+				+ SOverlay::Slot()
+				.Padding(10.0f, 10.0f)
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
+				[
+					SAssignNew(ToolPropertiesPanel, SCurveEditorToolProperties, InCurveEditor, FCurveEditorToolID::Unset())
 				]
 			]
 		]
@@ -660,6 +671,11 @@ void SCurveEditorPanel::UpdateCommonCurveInfo()
 	CachedCommonKeyAttributes = AccumulatedKeyAttributes.Get(FKeyAttributes());
 }
 
+void SCurveEditorPanel::OnCurveEditorToolChanged(FCurveEditorToolID InToolId)
+{
+	ToolPropertiesPanel->OnToolChanged(InToolId);
+}
+
 void SCurveEditorPanel::UpdateEditBox()
 {
 	const FCurveEditorSelection& Selection = CurveEditor->Selection;
@@ -1071,8 +1087,8 @@ TSharedPtr<FExtender> SCurveEditorPanel::GetToolbarExtender()
 				ToolBarBuilder.AddComboButton(
 					FUIAction(),
 					FOnGetContent::CreateSP(InEditorPanel, &SCurveEditorPanel::MakeGridSpacingMenu),
-					LOCTEXT("ValueSnappingOptions", "Value Snapping"),
-					LOCTEXT("ValueSnappingOptionsToolTip", "Choose what precision the Value axis is snapped to while moving keys."),
+					LOCTEXT("GridSnappingOptions", "Grid Snapping"),
+					LOCTEXT("GridSnappingOptionsToolTip", "Choose the spacing between horizontal grid lines."),
 					TAttribute<FSlateIcon>(),
 					true);
 
