@@ -19,7 +19,8 @@ FGrassRenderingNotificationImpl GGrassRenderingNotification;
 
 bool FGrassRenderingNotificationImpl::ShouldShowNotification(const bool bIsNotificationAlreadyActive) const
 {
-	return ALandscapeProxy::TotalComponentsNeedingGrassMapRender > 0;
+	// Avoid showing the notification when a user is interacting as it causes a focus lost event which prevents them from dragging
+	return ALandscapeProxy::TotalComponentsNeedingGrassMapRender > 0 && !(FSlateApplication::Get().HasAnyMouseCaptor() || GUnrealEd->IsUserInteracting());
 }
 
 void FGrassRenderingNotificationImpl::SetNotificationText(const TSharedPtr<SNotificationItem>& InNotificationItem) const
