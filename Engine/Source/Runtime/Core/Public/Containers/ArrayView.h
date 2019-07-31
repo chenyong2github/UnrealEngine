@@ -273,7 +273,7 @@ public:
 	 * @param InNum number of elements in the new view
 	 * @returns Sliced view
 	 */
-	FORCEINLINE TArrayView Slice(int32 Index, int32 InNum)
+	FORCEINLINE TArrayView Slice(int32 Index, int32 InNum) const
 	{
 		check(InNum > 0);
 		check(IsValidIndex(Index));
