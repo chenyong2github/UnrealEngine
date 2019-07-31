@@ -93,7 +93,7 @@ UE_RigUnit_TransformConstraint_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, co
 	}
 }
 
-void FRigUnit_TransformConstraint::AddConstraintData(const TArray<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets)
+void FRigUnit_TransformConstraint::AddConstraintData(const TArrayView<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets)
 {
 	const FConstraintTarget& Target = Targets[TargetIndex];
 

@@ -29,10 +29,10 @@ public:
 
 
 	void DrawPoint(const FTransform& WorldOffset, const FVector& Position, float Size, const FLinearColor& Color);
-	void DrawPoints(const FTransform& WorldOffset, const TArray<FVector>& Points, float Size, const FLinearColor& Color);
+	void DrawPoints(const FTransform& WorldOffset, const TArrayView<FVector>& Points, float Size, const FLinearColor& Color);
 	void DrawLine(const FTransform& WorldOffset, const FVector& LineStart, const FVector& LineEnd, const FLinearColor& Color, float Thickness = 0.f);
-	void DrawLines(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness = 0.f);
-	void DrawLineStrip(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness = 0.f);
+	void DrawLines(const FTransform& WorldOffset, const TArrayView<FVector>& Positions, const FLinearColor& Color, float Thickness = 0.f);
+	void DrawLineStrip(const FTransform& WorldOffset, const TArrayView<FVector>& Positions, const FLinearColor& Color, float Thickness = 0.f);
 	void DrawBox(const FTransform& WorldOffset, const FTransform& Transform, const FLinearColor& Color, float Thickness = 0.f);
 	void DrawAxes(const FTransform& WorldOffset, const FTransform& Transform, float Size, float Thickness = 0.f);
 	void DrawRectangle(const FTransform& WorldOffset, const FTransform& Transform, float Size, const FLinearColor& Color, float Thickness);

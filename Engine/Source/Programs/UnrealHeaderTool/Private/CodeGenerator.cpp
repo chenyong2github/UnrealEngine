@@ -3302,57 +3302,83 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	FString StaticVirtualMacroPrefix(StructNameCPP);
 	StaticVirtualMacroPrefix = FString::Printf(TEXT("UE_%s"), *StaticVirtualMacroPrefix.Mid(1));
 
+	const TCHAR* Comma = TEXT(", ");
+	TArray<FString> MemberNames, MemberDeclarations, MemberCasts, MemberCastProlog;
+	TMap<FString, FString> MemberMaxArraySizeGetters;
 	const TArray<FStaticVirtualMethodInfo>* StructStaticVirtualMethods = FHeaderParser::StructStaticVirtualMethods.Find(Struct);
 	if(StructStaticVirtualMethods)
 	{
-		const TCHAR* Comma = TEXT(", ");
-		TArray<FString> PropertyNames, PropertyArguments;
+		const TCHAR* FText = TEXT("F");
+		const TCHAR* TText = TEXT("T");
+		const TCHAR* EText = TEXT("E");
+		const TCHAR* InputText = TEXT("Input");
+		const TCHAR* OutputText = TEXT("Output");
+		const TCHAR* ConstantText = TEXT("Constant");
+		const TCHAR* MaxArraySizeText = TEXT("MaxArraySize");
+		const TCHAR* TArrayText = TEXT("TArray");
+		const TCHAR* TArrayViewText = TEXT("TArrayView");
+
 		for (UProperty* Prop : TFieldRange<UProperty>(Struct))
 		{
-			bool bIsInput = Prop->HasMetaData(TEXT("Input"));
-			bool bIsOutput = Prop->HasMetaData(TEXT("Output"));
-			bool bIsConstant = Prop->HasMetaData(TEXT("Constant"));
+			bool bIsInput = Prop->HasMetaData(InputText);
+			bool bIsOutput = Prop->HasMetaData(OutputText);
+			bool bIsConstant = Prop->HasMetaData(ConstantText);
+			bIsConstant = bIsConstant || (bIsInput && !bIsOutput);
 
 			FString Name = Prop->GetName();
-			PropertyNames.Add(Name);
+			MemberNames.Add(Name);
 
-			FString CPPType;
+			FString MemberCPPType;
 			FString ExtendedCPPType;
-			CPPType = Prop->GetCPPType(&ExtendedCPPType);
-			CPPType += ExtendedCPPType;
+			MemberCPPType = Prop->GetCPPType(&ExtendedCPPType);
+			MemberCPPType += ExtendedCPPType;
+			
+			FString ParameterCPPType = MemberCPPType;
+			FString MemberCast = Name;
 
-			if (CPPType.StartsWith(TEXT("F"), ESearchCase::CaseSensitive) ||
-				CPPType.StartsWith(TEXT("T"), ESearchCase::CaseSensitive) ||
-				CPPType.StartsWith(TEXT("E"), ESearchCase::CaseSensitive))
+			if (MemberCPPType.StartsWith(TArrayText))
 			{
-				if (bIsConstant || (bIsInput && !bIsOutput))
+				if (bIsConstant || Prop->HasMetaData(MaxArraySizeText))
 				{
-					PropertyArguments.Add(FString::Printf(TEXT("const %s& %s"), *CPPType, *Name));
+					ParameterCPPType = FString::Printf(TEXT("%s%s"), TArrayViewText, *MemberCPPType.RightChop(6));
+					if (!bIsConstant && Prop->HasMetaData(MaxArraySizeText))
+					{
+						MemberCast = FString::Printf(TEXT("%s_ArrayViewCast"), *Name);
+						MemberMaxArraySizeGetters.Add(Name, Prop->GetMetaData(MaxArraySizeText));
+						MemberCastProlog.Add(FString::Printf(TEXT("%s.SetNumUninitialized(%s_MaxArraySize());"), *Name, *Name));
+						MemberCastProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *ParameterCPPType, *MemberCast, *Name));
+					}
+				}
+			}
+
+			if (ParameterCPPType.StartsWith(FText, ESearchCase::CaseSensitive) ||
+				ParameterCPPType.StartsWith(TText, ESearchCase::CaseSensitive) ||
+				ParameterCPPType.StartsWith(EText, ESearchCase::CaseSensitive))
+			{
+				if (bIsConstant)
+				{
+					MemberDeclarations.Add(FString::Printf(TEXT("const %s& %s"), *ParameterCPPType, *Name));
 				}
 				else
 				{
-					PropertyArguments.Add(FString::Printf(TEXT("%s& %s"), *CPPType, *Name));
+					MemberDeclarations.Add(FString::Printf(TEXT("%s& %s"), *ParameterCPPType, *Name));
 				}
 			}
-			else if (bIsConstant || (bIsInput && !bIsOutput))
+			else if (bIsConstant)
 			{
-				PropertyArguments.Add(FString::Printf(TEXT("const %s %s"), *CPPType, *Name));
+				MemberDeclarations.Add(FString::Printf(TEXT("const %s %s"), *ParameterCPPType, *Name));
 			}
 			else
 			{
-				PropertyArguments.Add(FString::Printf(TEXT("%s& %s"), *CPPType, *Name));
+				MemberDeclarations.Add(FString::Printf(TEXT("%s& %s"), *ParameterCPPType, *Name));
 			}
+
+			MemberCasts.Add(MemberCast);
 		}
 
 		OutGeneratedHeaderText.Log(TEXT("\n"));
-		OutGeneratedHeaderText.Logf(TEXT("#define %s_MEMBER_NAMES %s\n"), *StaticVirtualMacroPrefix, *FString::Join(PropertyNames, Comma));
-		OutGeneratedHeaderText.Logf(TEXT("#define %s_MEMBER_ARGUMENTS %s\n"), *StaticVirtualMacroPrefix, *FString::Join(PropertyArguments, Comma));
-		OutGeneratedHeaderText.Logf(TEXT("#define %s_DECLARE_STATIC_VIRTUAL_METHOD(ReturnType, FunctionName, ...) \\\n"), *StaticVirtualMacroPrefix);
-		OutGeneratedHeaderText.Logf(TEXT("    static ReturnType Static##FunctionName(%s_MEMBER_ARGUMENTS, ##__VA_ARGS__);\n"), *StaticVirtualMacroPrefix);
 		OutGeneratedHeaderText.Logf(TEXT("#define %s_IMPLEMENT_STATIC_VIRTUAL_METHOD(ReturnType, FunctionName, ...) \\\n"), *StaticVirtualMacroPrefix);
-		OutGeneratedHeaderText.Logf(TEXT("    ReturnType %s::Static##FunctionName(%s_MEMBER_ARGUMENTS, ##__VA_ARGS__)\n"), StructNameCPP, *StaticVirtualMacroPrefix);
-		OutGeneratedHeaderText.Logf(TEXT("#define %s_INVOKE_STATIC_VIRTUAL_METHOD(FunctionName, ...) \\\n"), *StaticVirtualMacroPrefix);
-		OutGeneratedHeaderText.Logf(TEXT("    %s::Static##FunctionName(%s_MEMBER_NAMES, ##__VA_ARGS__);\n"), StructNameCPP, *StaticVirtualMacroPrefix);
+		OutGeneratedHeaderText.Logf(TEXT("\tReturnType %s::Static##FunctionName(\\\n\t\t%s, ##__VA_ARGS__)\n"), StructNameCPP, *FString::Join(MemberDeclarations, TEXT(",\\\n\t\t")));
 		OutGeneratedHeaderText.Log(TEXT("\n"));
 	}
 
@@ -3376,14 +3402,13 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		{
 			for (const FStaticVirtualMethodInfo& Info : (*StructStaticVirtualMethods))
 			{
-				if (Info.Params.IsEmpty())
-				{
-					StaticVirtualMethodsDeclarations += FString::Printf(TEXT("\t%s_DECLARE_STATIC_VIRTUAL_METHOD(%s, %s)\n"), *StaticVirtualMacroPrefix, *Info.ReturnType, *Info.Name);
-				}
-				else
-				{
-					StaticVirtualMethodsDeclarations += FString::Printf(TEXT("\t%s_DECLARE_STATIC_VIRTUAL_METHOD(%s, %s, %s)\n"), *StaticVirtualMacroPrefix, *Info.ReturnType, *Info.Name, *Info.Params);
-				}
+				FString ParamsSuffix = Info.Params.IsEmpty() ? TEXT("") : FString::Printf(TEXT(", %s"), *Info.Params);
+				StaticVirtualMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s);\r\n"), *Info.ReturnType, *Info.Name, *FString::Join(MemberDeclarations, TEXT(",\r\n\t\t")), *ParamsSuffix);
+			}
+
+			for (const TPair<FString, FString>& MemberArraySizeGetter : MemberMaxArraySizeGetters)
+			{
+				StaticVirtualMethodsDeclarations += FString::Printf(TEXT("\tint32 %s_MaxArraySize() const { return %s; }\r\n"), *MemberArraySizeGetter.Key, *MemberArraySizeGetter.Value);
 			}
 		}
 
@@ -3601,18 +3626,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			// implement the virtual function body.
 			Out.Logf(TEXT("%s %s::%s(%s)\n"), *Info.ReturnType, StructNameCPP, *Info.Name, *Info.Params);
 			Out.Log(TEXT("{\n"));
-			if (Info.Params.IsEmpty())
+			for (const FString& MemberCastPrologLine : MemberCastProlog)
 			{
-				if(Info.ReturnType.IsEmpty() || (Info.ReturnType == TEXT("void")))
-				{
-					Out.Logf(TEXT("    %s_INVOKE_STATIC_VIRTUAL_METHOD(%s);\n"), *StaticVirtualMacroPrefix, *Info.Name);
-				}
-				else
-				{
-					Out.Logf(TEXT("    return %s_INVOKE_STATIC_VIRTUAL_METHOD(%s);\n"), *StaticVirtualMacroPrefix, *Info.Name);
-				}
+				Out.Logf(TEXT("\t%s\n"), *MemberCastPrologLine);
 			}
-			else
+
+			FString ReturnPrefix = (Info.ReturnType.IsEmpty() || (Info.ReturnType == TEXT("void"))) ? TEXT("") : TEXT("return ");
+			FString ParamSuffix;
+
+			if (!Info.Params.IsEmpty())
 			{
 				TArray<FString> Params;
 				FString ParamPrev, ParamLeft, ParamRight;
@@ -3633,16 +3655,11 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 						Params[ParamIndex] = Params[ParamIndex].Mid(LastSpace + 1);
 					}
 				}
-
-				if(Info.ReturnType.IsEmpty() || (Info.ReturnType == TEXT("void")))
-				{
-					Out.Logf(TEXT("    %s_INVOKE_STATIC_VIRTUAL_METHOD(%s, %s);\n"), *StaticVirtualMacroPrefix, *Info.Name, *FString::Join(Params, TEXT(", ")));
-				}
-				else
-				{
-					Out.Logf(TEXT("    return %s_INVOKE_STATIC_VIRTUAL_METHOD(%s, %s);\n"), *StaticVirtualMacroPrefix, *Info.Name, *FString::Join(Params, TEXT(", ")));
-				}
+				ParamSuffix = FString::Printf(TEXT(", %s"), *FString::Join(Params, Comma));
 			}
+
+			Out.Logf(TEXT("    %s%s::Static%s(%s%s);\n"), *ReturnPrefix, StructNameCPP, *Info.Name, *FString::Join(MemberCasts, Comma), *ParamSuffix);
+
 			Out.Log(TEXT("}\n"));
 		}
 

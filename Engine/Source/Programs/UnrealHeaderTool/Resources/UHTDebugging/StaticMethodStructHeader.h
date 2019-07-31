@@ -45,6 +45,12 @@ struct FStaticMethodStruct : public FStaticMethodStructBase
 	UPROPERTY(meta = (Input, Output))
 	TArray<FVector> E;
 
+	UPROPERTY(meta = (Input))
+	TArray<FVector> F;
+
+	UPROPERTY(meta = (Output, MaxArraySize = 8))
+	TArray<FVector> G;
+
 	UPROPERTY()
 	float Cache;
 };

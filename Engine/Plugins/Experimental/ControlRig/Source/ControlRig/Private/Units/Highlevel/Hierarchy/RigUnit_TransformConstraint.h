@@ -66,7 +66,7 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 	TArray<FConstraintTarget> Targets;
 
 private:
-	static void AddConstraintData(const TArray<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets);
+	static void AddConstraintData(const TArrayView<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets);
 
 	// note that Targets.Num () != ConstraintData.Num()
 	UPROPERTY(transient)

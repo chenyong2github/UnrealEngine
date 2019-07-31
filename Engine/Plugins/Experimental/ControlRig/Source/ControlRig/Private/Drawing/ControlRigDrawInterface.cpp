@@ -10,7 +10,7 @@ void FControlRigDrawInterface::DrawPoint(const FTransform& WorldOffset, const FV
 	DrawInstructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawPoints(const FTransform& WorldOffset, const TArray<FVector>& Points, float Size, const FLinearColor& Color)
+void FControlRigDrawInterface::DrawPoints(const FTransform& WorldOffset, const TArrayView<FVector>& Points, float Size, const FLinearColor& Color)
 {
 	FDrawIntruction Instruction(EDrawType_Point, Color, Size);
 	for(const FVector& Point : Points)
@@ -28,7 +28,7 @@ void FControlRigDrawInterface::DrawLine(const FTransform& WorldOffset, const FVe
 	DrawInstructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const TArrayView<FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
 	FDrawIntruction Instruction(EDrawType_Lines, Color, Thickness);
 	for (const FVector& Point : Positions)
@@ -38,7 +38,7 @@ void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const TA
 	DrawInstructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawLineStrip(const FTransform& WorldOffset, const TArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawLineStrip(const FTransform& WorldOffset, const TArrayView<FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
 	FDrawIntruction Instruction(EDrawType_LineStrip, Color, Thickness);
 	for (const FVector& Point : Positions)

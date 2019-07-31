@@ -17,35 +17,38 @@ UE_RigUnit_KalmanFloat_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRig
 		return;
 	}
 
-	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 1, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
+		for (float& Element : Buffer)
+		{
+			Element = FLT_MAX;
+			LastInsertIndex = -1;
+		}
 	}
 	else
 	{
-		if(Buffer.Num() < MaxSize)
+		if(LastInsertIndex == Buffer.Num() - 1)
 		{
-			Buffer.Add(Value);
-			LastInsertIndex = 0;
+			LastInsertIndex = -1;
 		}
-		else
-		{
-			Buffer[LastInsertIndex++] = Value;
-			if(LastInsertIndex == Buffer.Num())
-			{
-				LastInsertIndex = 0;
-			}
-		}
+		Buffer[++LastInsertIndex] = Value;
 
 		Result = 0.f;
+		int32 NumberValidEntries = 0;
 		for(const float F : Buffer)
 		{
+			if (F == FLT_MAX)
+			{
+				break;
+			}
 			Result += F;
+			NumberValidEntries++;
 		}
 
-		Result = Result / float(Buffer.Num());
+		if (NumberValidEntries > 0)
+		{
+			Result = Result / float(NumberValidEntries);
+		}
 	}
 }
 
@@ -63,35 +66,38 @@ UE_RigUnit_KalmanVector_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRi
 		return;
 	}
 
-	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 1, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
+		for (FVector& Element : Buffer)
+		{
+			Element.X = FLT_MAX;
+			LastInsertIndex = -1;
+		}
 	}
 	else
 	{
-		if(Buffer.Num() < MaxSize)
+		if(LastInsertIndex == Buffer.Num() - 1)
 		{
-			Buffer.Add(Value);
-			LastInsertIndex = 0;
+			LastInsertIndex = -1;
 		}
-		else
-		{
-			Buffer[LastInsertIndex++] = Value;
-			if(LastInsertIndex == Buffer.Num())
-			{
-				LastInsertIndex = 0;
-			}
-		}
+		Buffer[++LastInsertIndex] = Value;
 
 		Result = FVector::ZeroVector;
-		for(const FVector& F : Buffer)
+		int32 NumberValidEntries = 0;
+		for (const FVector& F : Buffer)
 		{
+			if (F.X == FLT_MAX)
+			{
+				break;
+			}
 			Result += F;
+			NumberValidEntries++;
 		}
 
-		Result = Result / float(Buffer.Num());
+		if (NumberValidEntries > 0)
+		{
+			Result = Result / float(NumberValidEntries);
+		}
 	}
 }
 
@@ -109,46 +115,50 @@ UE_RigUnit_KalmanTransform_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const 
 		return;
 	}
 
-	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 1, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
+		for (FTransform& Element : Buffer)
+		{
+			Element.SetTranslation(FVector(FLT_MAX));
+			LastInsertIndex = -1;
+		}
 	}
 	else
 	{
-		if(Buffer.Num() < MaxSize)
+		if(LastInsertIndex == Buffer.Num() - 1)
 		{
-			Buffer.Add(Value);
-			LastInsertIndex = 0;
+			LastInsertIndex = -1;
 		}
-		else
-		{
-			Buffer[LastInsertIndex++] = Value;
-			if(LastInsertIndex == Buffer.Num())
-			{
-				LastInsertIndex = 0;
-			}
-		}
+		Buffer[++LastInsertIndex] = Value;
 
 		FVector Location = FVector::ZeroVector;
 		FVector AxisX = FVector::ZeroVector;
 		FVector AxisY = FVector::ZeroVector;
 		FVector Scale = FVector::ZeroVector;
 		
+		int32 NumberValidEntries = 0;
+
 		for(const FTransform& F : Buffer)
 		{
+			if (F.GetLocation().X == FLT_MAX)
+			{
+				break;
+			}
 			Location += F.GetLocation();
 			AxisX += F.TransformVectorNoScale(FVector(1.f, 0.f, 0.f));
 			AxisY += F.TransformVectorNoScale(FVector(0.f, 1.f, 0.f));
 			AxisY += F.GetLocation();
 			Scale += F.GetScale3D();
+			NumberValidEntries++;
 		}
 
-		Location = Location / float(Buffer.Num());
-		AxisX = (AxisX / float(Buffer.Num())).GetSafeNormal();
-		AxisY = (AxisY / float(Buffer.Num())).GetSafeNormal();
-		Scale = Scale / float(Buffer.Num());
+		if (NumberValidEntries > 0)
+		{
+			Location = Location / float(NumberValidEntries);
+			AxisX = (AxisX / float(NumberValidEntries)).GetSafeNormal();
+			AxisY = (AxisY / float(NumberValidEntries)).GetSafeNormal();
+			Scale = Scale / float(NumberValidEntries);
+		}
 
 		Result.SetLocation(Location);
 		Result.SetRotation(FRotationMatrix::MakeFromXY(AxisX, AxisY).ToQuat());
