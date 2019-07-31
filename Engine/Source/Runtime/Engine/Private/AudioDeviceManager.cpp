@@ -185,6 +185,9 @@ void FAudioDeviceManager::ToggleAudioMixer()
 					// Make a new audio device using the new audio device module
 					AudioDevice = AudioDeviceModule->CreateAudioDevice();
 
+					// Set the new audio device into the slot of the old audio device in the manager
+					Devices[DeviceIndex] = AudioDevice;
+
 					// Set the new audio device handle to the old audio device handle
 					AudioDevice->DeviceHandle = Handle;
 
@@ -208,9 +211,6 @@ void FAudioDeviceManager::ToggleAudioMixer()
 
 					// Fade in the new audio device (used only in audio mixer to prevent pops on startup/shutdown)
 					AudioDevice->FadeIn();
-
-					// Set the new audio device into the slot of the old audio device in the manager
-					Devices[DeviceIndex] = AudioDevice;
 				}
 			}
 
