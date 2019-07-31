@@ -44,11 +44,9 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 	FEulerTransform GetFilteredTransform() const;
 	static FEulerTransform StaticGetFilteredTransform(const FEulerTransform& InTransform, const FTransformFilter& InFilter);
 
-#if WITH_EDITORONLY_DATA
 	/** Actor class to use to display this in the viewport */
 	UPROPERTY()
 	TSubclassOf<AControlRigControl> ControlClass;
-#endif
 
 	/** The transform of this control */
 	UPROPERTY(EditAnywhere, Category="Control", Interp, meta = (AnimationInput))

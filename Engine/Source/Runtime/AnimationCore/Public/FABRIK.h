@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "BoneIndices.h"
-#include "FABRIK.Generated.h"
+#include "FABRIK.generated.h"
 
 struct FBoneContainer;
 /**

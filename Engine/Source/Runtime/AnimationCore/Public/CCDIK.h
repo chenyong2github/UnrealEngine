@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "BoneIndices.h"
-#include "CCDIK.Generated.h"
+#include "CCDIK.generated.h"
 
 /** Transient structure for CCDIK node evaluation */
 USTRUCT()
