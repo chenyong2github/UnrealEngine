@@ -2,7 +2,7 @@
 
 #include "AssetTools/MediaTextureActions.h"
 #include "Engine/Texture.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/PackageName.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -23,14 +23,12 @@ bool FMediaTextureActions::CanFilter()
 	return true;
 }
 
-
-void FMediaTextureActions::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FMediaTextureActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	FAssetTypeActions_Base::GetActions(InObjects, MenuBuilder);
-
 	auto Textures = GetTypedWeakObjectPtrs<UTexture>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"MediaTexture_CreateMaterial",
 		LOCTEXT("MediaTexture_CreateMaterial", "Create Material"),
 		LOCTEXT("MediaTexture_CreateMaterialTooltip", "Creates a new material using this texture."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Material"),

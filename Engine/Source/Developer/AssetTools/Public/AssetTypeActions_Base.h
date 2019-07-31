@@ -18,6 +18,7 @@
 struct FAssetData;
 struct FARFilter;
 class FMenuBuilder;
+struct FEditorMenuSection;
 
 /** A base class for all AssetTypeActions. Provides helper functions useful for many types. Deriving from this class is optional. */
 class FAssetTypeActions_Base : public IAssetTypeActions
@@ -32,6 +33,11 @@ public:
 	}
 
 	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override
+	{
+
+	}
+
+	virtual void GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section) override
 	{
 
 	}
@@ -182,6 +188,20 @@ protected:
 		for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 		{
 			TypedObjects.Add( CastChecked<T>(*ObjIt) );
+		}
+
+		return TypedObjects;
+	}
+
+	template <typename T>
+	static TArray<T> GetTypedObjectPtrs(const TArray<UObject*>& InObjects)
+	{
+		check(InObjects.Num() > 0);
+
+		TArray<T> TypedObjects;
+		for (UObject* ObjIt : InObjects)
+		{
+			TypedObjects.Add(CastChecked<T>(ObjIt));
 		}
 
 		return TypedObjects;

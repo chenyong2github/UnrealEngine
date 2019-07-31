@@ -388,48 +388,6 @@ TWeakPtr<IClassTypeActions> UAssetToolsImpl::GetClassTypeActionsForClass( UClass
 	return MostDerivedClassTypeActions;
 }
 
-bool UAssetToolsImpl::GetAssetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder, bool bIncludeHeading )
-{
-	bool bAddedActions = false;
-
-	if ( InObjects.Num() )
-	{
-		// Find the most derived common class for all passed in Objects
-		UClass* CommonClass = InObjects[0]->GetClass();
-		for (int32 ObjIdx = 1; ObjIdx < InObjects.Num(); ++ObjIdx)
-		{
-			while (!InObjects[ObjIdx]->IsA(CommonClass))
-			{
-				CommonClass = CommonClass->GetSuperClass();
-			}
-		}
-
-		// Get the nearest common asset type for all the selected objects
-		TSharedPtr<IAssetTypeActions> CommonAssetTypeActions = GetAssetTypeActionsForClass(CommonClass).Pin();
-
-		// If we found a common type actions object, get actions from it
-		if ( CommonAssetTypeActions.IsValid() && CommonAssetTypeActions->HasActions(InObjects) )
-		{
-			if ( bIncludeHeading )
-			{
-				MenuBuilder.BeginSection("GetAssetActions", FText::Format( LOCTEXT("AssetSpecificOptionsMenuHeading", "{0} Actions"), CommonAssetTypeActions->GetName() ) );
-			}
-
-			// Get the actions
-			CommonAssetTypeActions->GetActions(InObjects, MenuBuilder);
-
-			if ( bIncludeHeading )
-			{
-				MenuBuilder.EndSection();
-			}
-
-			bAddedActions = true;
-		}
-	}
-
-	return bAddedActions;
-}
-
 struct FRootedOnScope
 {
 	UObject* Obj;

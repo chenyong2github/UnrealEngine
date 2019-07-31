@@ -2,6 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_StaticMesh.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "EditorFramework/AssetImportData.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
@@ -23,13 +24,14 @@ static TAutoConsoleVariable<int32> CVarEnableSaveGeneratedLODsInPackage(
 	TEXT("1 - Enable this option and save the LODs in the Package.\n"),
 	ECVF_Default);
 
-void FAssetTypeActions_StaticMesh::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_StaticMesh::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Meshes = GetTypedWeakObjectPtrs<UStaticMesh>(InObjects);
 
 	if (CVarEnableSaveGeneratedLODsInPackage.GetValueOnGameThread() != 0)
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"ObjectContext_SaveGeneratedLODsInPackage",
 			NSLOCTEXT("AssetTypeActions_StaticMesh", "ObjectContext_SaveGeneratedLODsInPackage", "Save Generated LODs"),
 			NSLOCTEXT("AssetTypeActions_StaticMesh", "ObjectContext_SaveGeneratedLODsInPackageTooltip", "Run the mesh reduce and save the generated LODs as part of the package."),
 			FSlateIcon(),
@@ -40,15 +42,18 @@ void FAssetTypeActions_StaticMesh::GetActions( const TArray<UObject*>& InObjects
 			);
 	}
 
-	MenuBuilder.AddSubMenu(
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		NAME_None,
+		"StaticMesh_LODMenu",
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_LODMenu", "Level Of Detail"),
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_LODTooltip", "LOD Options and Tools"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_StaticMesh::GetLODMenu, Meshes),
 		false,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions")
-		);
+		));
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ObjectContext_ClearVertexColors",
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "ObjectContext_ClearVertexColors", "Remove Vertex Colors"),
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "ObjectContext_ClearVertexColorsTooltip", "Removes vertex colors from all LODS in all selected meshes."),
 		FSlateIcon(),

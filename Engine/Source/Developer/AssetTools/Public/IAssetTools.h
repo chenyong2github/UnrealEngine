@@ -193,16 +193,6 @@ public:
 	virtual TWeakPtr<IClassTypeActions> GetClassTypeActionsForClass(UClass* Class) const = 0;
 
 	/**
-	 * Fills out a menubuilder with a list of commands that can be applied to the specified objects.
-	 *
-	 * @param InObjects the objects for which to generate type-specific menu options
-	 * @param MenuBuilder the menu in which to build options
-	 * @param bIncludeHeader if true, will include a heading in the menu if any options were found
-	 * @return true if any options were added to the MenuBuilder
-	 */
-	virtual bool GetAssetActions(const TArray<UObject*>& InObjects, class FMenuBuilder& MenuBuilder, bool bIncludeHeading = true) = 0;
-
-	/**
 	 * Creates an asset with the specified name, path, and factory
 	 *
 	 * @param AssetName the name of the new asset
