@@ -864,6 +864,17 @@ mtlpp::Function TMetalBaseShader<BaseResourceType, ShaderType>::GetCompiledFunct
 			
 			mtlpp::ArgumentEncoder ArgumentEncoder = Function.NewArgumentEncoderWithBufferIndex(Index);
 			ArgumentEncoders.Add(Index, ArgumentEncoder);
+			
+			TBitArray<> Resources;
+			for (uint8 Id : Bindings.ArgumentBufferMasks[Index])
+			{
+				if (Id >= Resources.Num())
+				{
+					Resources.Add(false, (Id + 1) - Resources.Num());
+				}
+				Resources[Id] = true;
+			}
+			ArgumentBitmasks.Add(Index, Resources);
 		}
 	}
 									

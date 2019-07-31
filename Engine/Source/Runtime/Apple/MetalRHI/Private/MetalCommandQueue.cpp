@@ -247,6 +247,11 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
             if (IndirectArgumentTier >= 1)
             {
                 Features |= EMetalFeaturesIABs;
+				
+				if (IndirectArgumentTier >= 2)
+				{
+					Features |= EMetalFeaturesTier2IABs;
+				}
             }
             
             IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));

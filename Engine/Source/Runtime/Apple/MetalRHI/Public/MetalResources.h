@@ -137,6 +137,9 @@ public:
 	/* Argument encoders for shader IABs */
 	TMap<uint32, mtlpp::ArgumentEncoder> ArgumentEncoders;
 	
+	/* Tier1 Argument buffer bitmasks */
+	TMap<uint32, TBitArray<>> ArgumentBitmasks;
+	
 	/** The binding for the buffer side-table if present */
 	int32 SideTableBinding;
 
@@ -988,6 +991,8 @@ public:
 		TArray<Argument> IndirectArgumentResources;
 		TArray<uint32> IndirectBufferSizes;
 		FMetalIAB* IndirectArgumentBuffer;
+		TMap<TBitArray<>, FMetalIAB*> Tier1IABs;
+		FRWLock Mutex;
 	};
 	
 	// Constructor
@@ -1003,7 +1008,7 @@ public:
 	void UpdateTextureReference(FRHITextureReference* ModifiedRef);
 	void UpdateResourceTable(TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
 	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource>>& Resources, EUniformBufferValidation Validation);
-	FMetalIAB* UploadIAB(class FMetalContext* Ctx);
+	FMetalIAB* UploadIAB(class FMetalContext* Ctx, TBitArray<> const& Bitmask, mtlpp::ArgumentEncoder const& Encoder);
 	FMetalIndirectArgumentBuffer& GetIAB();
 	
 	/** Resource table containing RHI references. */

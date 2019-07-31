@@ -18,6 +18,8 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalIAB)
 -(instancetype)init
 {
 	id Self = [super init];
+	if (Self)
+		((FMetalIAB*)Self)->UpdateIAB = 0;
 	return Self;
 }
 -(void)dealloc
@@ -210,58 +212,150 @@ FMetalUniformBuffer::FMetalIndirectArgumentBuffer::~FMetalIndirectArgumentBuffer
 {
 	if (IndirectArgumentBuffer)
 		SafeReleaseMetalObject(IndirectArgumentBuffer);
+	
+	for (auto& Pair : Tier1IABs)
+	{
+		SafeReleaseMetalObject(Pair.Value);
+	}
 }
 
-FMetalIAB* FMetalUniformBuffer::UploadIAB(FMetalContext* Ctx)
+FMetalIAB* FMetalUniformBuffer::UploadIAB(FMetalContext* Ctx, TBitArray<> const& Bitmask, mtlpp::ArgumentEncoder const& IABEncoder)
 {
 	check(IAB);
 	
 	int64 UpdateIAB = FPlatformAtomics::InterlockedCompareExchange(&IAB->UpdateIAB, 0, IAB->UpdateIAB);
-	if (UpdateIAB && Ctx)
+	if (!FMetalCommandQueue::SupportsFeature(EMetalFeaturesTier2IABs) || UpdateIAB)
 	{
-		FMetalIAB* NewIAB = IAB->IndirectArgumentBuffer;
-		mtlpp::ArgumentEncoder Encoder = FMetalArgumentEncoderCache::Get().CreateEncoder(IAB->IndirectArgumentsDecl);
+		FRWScopeLock Lock(IAB->Mutex, SLT_ReadOnly);
+		
+		FMetalIAB* NewIAB = nullptr;
+		mtlpp::ArgumentEncoder Encoder;
+		FMetalBuffer EncodingBuffer;
+		if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesTier2IABs))
+		{
+			Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+			
+			NewIAB = IAB->IndirectArgumentBuffer;
+			Encoder = FMetalArgumentEncoderCache::Get().CreateEncoder(IAB->IndirectArgumentsDecl);
+			
+			if (!NewIAB->IndirectArgumentBuffer)
+				NewIAB->IndirectArgumentBuffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Encoder.GetEncodedLength(), 16, BUF_Dynamic, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)mtlpp::StorageMode::Private << mtlpp::ResourceStorageModeShift)), true);
+			
+			EncodingBuffer = Ctx->GetCurrentRenderPass().AllocateTemporyBufferForCopy(NewIAB->IndirectArgumentBuffer, Encoder.GetEncodedLength(), 16);
+			
+			if (!NewIAB->IndirectArgumentBufferSideTable)
+				NewIAB->IndirectArgumentBufferSideTable = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(IAB->IndirectBufferSizes.Num() * sizeof(uint32), 16, BUF_Dynamic, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)mtlpp::StorageMode::Private << mtlpp::ResourceStorageModeShift)), true);
+			
+			FMetalBuffer Temp = Ctx->GetCurrentRenderPass().AllocateTemporyBufferForCopy(NewIAB->IndirectArgumentBufferSideTable, NewIAB->IndirectArgumentBufferSideTable.GetLength(), 16);
+			
+			FMemory::Memcpy(Temp.GetContents(), IAB->IndirectBufferSizes.GetData(), IAB->IndirectBufferSizes.Num() * sizeof(uint32));
+			
+#if PLATFORM_MAC
+			if(Temp.GetStorageMode() == mtlpp::StorageMode::Managed)
+			{
+				MTLPP_VALIDATE(mtlpp::Buffer, Temp, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, IAB->IndirectBufferSizes.Num() * sizeof(uint32))));
+			}
+#endif
+			Ctx->AsyncCopyFromBufferToBuffer(Temp, 0, NewIAB->IndirectArgumentBufferSideTable, 0, NewIAB->IndirectArgumentBufferSideTable.GetLength());
+		}
+		else
+		{
+			NewIAB = IAB->Tier1IABs.FindRef(Bitmask);
+			if (NewIAB && (NewIAB->UpdateIAB == UpdateIAB))
+			{
+				return NewIAB;
+			}
+			
+			Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+			NewIAB = [FMetalIAB new];
+			NewIAB->UpdateIAB = UpdateIAB;
+			
+			uint32 SetBits = 0;
+			for (uint32 i = 0; i < Bitmask.Num(); i++)
+			{
+				if (Bitmask[i])
+				{
+					SetBits++;
+				}
+			}
+			
+			Encoder = IABEncoder;
+			
+			NewIAB->IndirectArgumentBuffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Encoder.GetEncodedLength(), 16, BUF_Dynamic, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)BUFFER_STORAGE_MODE << mtlpp::ResourceStorageModeShift)), true);
+			
+			NewIAB->IndirectArgumentBufferSideTable = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(SetBits * sizeof(uint32) * 2, 16, BUF_Dynamic, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)BUFFER_STORAGE_MODE << mtlpp::ResourceStorageModeShift)), true);
+			
+			uint32 j = 0;
+			uint32* Ptr = (uint32*)NewIAB->IndirectArgumentBufferSideTable.GetContents();
+			for (uint32 i = 0; i < Bitmask.Num(); i++)
+			{
+				if (Bitmask[i])
+				{
+					Ptr[j * 2] = IAB->IndirectBufferSizes[i * 2];
+					Ptr[(j * 2) + 1] = IAB->IndirectBufferSizes[(i * 2) + 1];
+					j++;
+				}
+			}
+			
+			EncodingBuffer = NewIAB->IndirectArgumentBuffer;
+			
+			if (IAB->Tier1IABs.Contains(Bitmask))
+			{
+				SafeReleaseMetalObject(IAB->Tier1IABs[Bitmask]);
+			}
+			
+			IAB->Tier1IABs.Add(Bitmask, NewIAB);
+		}
 		NewIAB->IndirectArgumentEncoder = Encoder;
 		
-		if (!NewIAB->IndirectArgumentBuffer)
-			NewIAB->IndirectArgumentBuffer = GetMetalDeviceContext().GetResourceHeap().CreateBuffer(Encoder.GetEncodedLength(), 16, BUF_Dynamic, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)mtlpp::StorageMode::Private << mtlpp::ResourceStorageModeShift)), true);
+		Encoder.SetArgumentBuffer(EncodingBuffer, 0);
 		
-		FMetalBuffer Temp = Ctx->GetCurrentRenderPass().AllocateTemporyBufferForCopy(NewIAB->IndirectArgumentBuffer, Encoder.GetEncodedLength(), 16);
-		
-		Encoder.SetArgumentBuffer(Temp, 0);
-		
+		NSUInteger MTLIndex = 0;
 		for (FMetalArgumentDesc const& Arg : IAB->IndirectArgumentsDecl)
 		{
 			NSUInteger NewIndex = Arg.Index;
-			switch(Arg.DataType)
+			if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesTier2IABs) || (NewIndex < Bitmask.Num() && Bitmask[NewIndex]))
 			{
-				case mtlpp::DataType::Pointer:
-					if (IAB->IndirectArgumentResources[NewIndex].Buffer)
-						Encoder.SetBuffer(IAB->IndirectArgumentResources[NewIndex].Buffer, 0, NewIndex);
-					break;
-				case mtlpp::DataType::Texture:
-					if (IAB->IndirectArgumentResources[NewIndex].Texture)
-						Encoder.SetTexture(IAB->IndirectArgumentResources[NewIndex].Texture, NewIndex);
-					break;
-				case mtlpp::DataType::Sampler:
-					if (IAB->IndirectArgumentResources[NewIndex].Sampler)
-						Encoder.SetSamplerState(IAB->IndirectArgumentResources[NewIndex].Sampler, NewIndex);
-					break;
-				default:
-					break;
+				NSUInteger ResourceIndex = FMetalCommandQueue::SupportsFeature(EMetalFeaturesTier2IABs) ? NewIndex : MTLIndex++;
+				switch(Arg.DataType)
+				{
+					case mtlpp::DataType::Pointer:
+						if (IAB->IndirectArgumentResources[NewIndex].Buffer)
+							Encoder.SetBuffer(IAB->IndirectArgumentResources[NewIndex].Buffer, 0, ResourceIndex);
+						break;
+					case mtlpp::DataType::Texture:
+						if (IAB->IndirectArgumentResources[NewIndex].Texture)
+							Encoder.SetTexture(IAB->IndirectArgumentResources[NewIndex].Texture, ResourceIndex);
+						break;
+					case mtlpp::DataType::Sampler:
+						if (IAB->IndirectArgumentResources[NewIndex].Sampler)
+							Encoder.SetSamplerState(IAB->IndirectArgumentResources[NewIndex].Sampler, ResourceIndex);
+						break;
+					default:
+						break;
+				}
 			}
 		}
 		
 #if PLATFORM_MAC
-		if(Temp.GetStorageMode() == mtlpp::StorageMode::Managed)
+		if(EncodingBuffer.GetStorageMode() == mtlpp::StorageMode::Managed)
 		{
-			MTLPP_VALIDATE(mtlpp::Buffer, Temp, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, Encoder.GetEncodedLength())));
+			MTLPP_VALIDATE(mtlpp::Buffer, EncodingBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, Encoder.GetEncodedLength())));
 		}
 #endif
-		
-		Ctx->AsyncCopyFromBufferToBuffer(Temp, 0, NewIAB->IndirectArgumentBuffer, 0, Encoder.GetEncodedLength());
+		if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesTier2IABs))
+		{
+			Ctx->AsyncCopyFromBufferToBuffer(EncodingBuffer, 0, NewIAB->IndirectArgumentBuffer, 0, Encoder.GetEncodedLength());
+		}
 	}
-	return IAB->IndirectArgumentBuffer;
+	if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesTier2IABs))
+	{
+		return IAB->IndirectArgumentBuffer;
+	}
+	else
+	{
+		return IAB->Tier1IABs[Bitmask];
+	}
 }
 
 FMetalUniformBuffer::FMetalIndirectArgumentBuffer& FMetalUniformBuffer::GetIAB()
@@ -354,6 +448,8 @@ void FMetalUniformBuffer::UpdateIAB()
 			Desc.SetIndex(Index++);
 			Desc.SetAccess(mtlpp::ArgumentAccess::ReadOnly);
 			Desc.SetDataType(mtlpp::DataType::Pointer);
+			
+			BufferSizes.AddZeroed(2);
 			
 			IAB->IndirectArgumentResources.Add(Argument(FMetalBuffer(), mtlpp::ResourceUsage::Read));
 		}
@@ -618,6 +714,8 @@ void FMetalUniformBuffer::UpdateIAB()
 			Desc.SetIndex(Index++);
 			Desc.SetAccess(mtlpp::ArgumentAccess::ReadOnly);
 			Desc.SetDataType(mtlpp::DataType::Pointer);
+			
+			BufferSizes.AddZeroed(2);
 			
 			if (ConstantSize > 0)
 				IAB->IndirectArgumentResources.Add(Argument(Buffer, mtlpp::ResourceUsage::Read));

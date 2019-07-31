@@ -547,10 +547,9 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIVertexShader* Vertex
 	if ((Bindings.ArgumentBuffers) & 1 << BufferIndex)
 	{
 		auto* UB = (FMetalUniformBuffer*)BufferRHI;
-		UB->UploadIAB(Context);
-		auto& IAB = UB->GetIAB();
+		auto* IAB = UB->UploadIAB(Context, VertexShader->ArgumentBitmasks[BufferIndex], VertexShader->ArgumentEncoders[BufferIndex]);
 		// check(IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength() == VertexShader->ArgumentEncoders[BufferIndex].GetEncodedLength());
-		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Vertex, IAB.IndirectArgumentBuffer->IndirectArgumentBuffer, nil, 0, IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
+		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Vertex, IAB->IndirectArgumentBuffer, nil, 0, IAB->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
 	}
 	else if ((Bindings.ConstantBuffers) & 1 << BufferIndex)
 	{
@@ -572,10 +571,9 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIHullShader* HullShad
 	if ((Bindings.ArgumentBuffers) & 1 << BufferIndex)
 	{
 		auto* UB = (FMetalUniformBuffer*)BufferRHI;
-		UB->UploadIAB(Context);
-		auto& IAB = UB->GetIAB();
+		auto* IAB = UB->UploadIAB(Context, HullShader->ArgumentBitmasks[BufferIndex], HullShader->ArgumentEncoders[BufferIndex]);
 		// check(IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength() == HullShader->ArgumentEncoders[BufferIndex].GetEncodedLength());
-		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Hull, IAB.IndirectArgumentBuffer->IndirectArgumentBuffer, nil, 0, IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
+		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Hull, IAB->IndirectArgumentBuffer, nil, 0, IAB->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
 	}
 	else if ((Bindings.ConstantBuffers) & 1 << BufferIndex)
 	{
@@ -598,10 +596,9 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIDomainShader* Domain
 	if ((Bindings.ArgumentBuffers) & 1 << BufferIndex)
 	{
 		auto* UB = (FMetalUniformBuffer*)BufferRHI;
-		UB->UploadIAB(Context);
-		auto& IAB = UB->GetIAB();
+		auto* IAB = UB->UploadIAB(Context, DomainShader->ArgumentBitmasks[BufferIndex], DomainShader->ArgumentEncoders[BufferIndex]);
 		// check(IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength() == DomainShader->ArgumentEncoders[BufferIndex].GetEncodedLength());
-		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Domain, IAB.IndirectArgumentBuffer->IndirectArgumentBuffer, nil, 0, IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
+		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Domain, IAB->IndirectArgumentBuffer, nil, 0, IAB->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
 	}
 	else if ((Bindings.ConstantBuffers) & 1 << BufferIndex)
 	{
@@ -628,10 +625,9 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIPixelShader* PixelSh
 	if ((Bindings.ArgumentBuffers) & 1 << BufferIndex)
 	{
 		auto* UB = (FMetalUniformBuffer*)BufferRHI;
-		UB->UploadIAB(Context);
-		auto& IAB = UB->GetIAB();
+		auto* IAB = UB->UploadIAB(Context, PixelShader->ArgumentBitmasks[BufferIndex], PixelShader->ArgumentEncoders[BufferIndex]);
 		// check(IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength() == PixelShader->ArgumentEncoders[BufferIndex].GetEncodedLength());
-		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Pixel, IAB.IndirectArgumentBuffer->IndirectArgumentBuffer, nil, 0, IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
+		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Pixel, IAB->IndirectArgumentBuffer, nil, 0, IAB->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
 	}
 	else if ((Bindings.ConstantBuffers) & 1 << BufferIndex)
 	{
@@ -652,10 +648,9 @@ void FMetalRHICommandContext::RHISetShaderUniformBuffer(FRHIComputeShader* Compu
 	if ((Bindings.ArgumentBuffers) & 1 << BufferIndex)
 	{
 		auto* UB = (FMetalUniformBuffer*)BufferRHI;
-		UB->UploadIAB(Context);
-		auto& IAB = UB->GetIAB();
+		auto* IAB = UB->UploadIAB(Context, ComputeShader->ArgumentBitmasks[BufferIndex], ComputeShader->ArgumentEncoders[BufferIndex]);
 		// check(IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength() == ComputeShader->ArgumentEncoders[BufferIndex].GetEncodedLength());
-		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Compute, IAB.IndirectArgumentBuffer->IndirectArgumentBuffer, nil, 0, IAB.IndirectArgumentBuffer->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
+		Context->GetCurrentState().SetShaderBuffer(EMetalShaderStages::Compute, IAB->IndirectArgumentBuffer, nil, 0, IAB->IndirectArgumentEncoder.GetEncodedLength(), BufferIndex, mtlpp::ResourceUsage::Read);
 	}
 	else if ((Bindings.ConstantBuffers) & 1 << BufferIndex)
 	{

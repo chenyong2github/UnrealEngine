@@ -72,7 +72,9 @@ typedef NS_OPTIONS(uint64, EMetalFeatures)
     /** Supports tile shaders */
     EMetalFeaturesTileShaders = 1llu << 26llu,
 	/** Supports separate tessellation shader execution */
-	EMetalFeaturesSeparateTessellation = 1llu << 27llu
+	EMetalFeaturesSeparateTessellation = 1llu << 27llu,
+	/** Supports indirect argument buffers Tier 2 */
+	EMetalFeaturesTier2IABs = 1llu << 28llu,
 };
 
 /**
