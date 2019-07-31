@@ -167,7 +167,7 @@ namespace WindowsMixedReality
 				FString HoloLensLibraryDir = EngineDir / "Binaries/ThirdParty/Windows/x64";
 				FPlatformProcess::PushDllDirectory(*HoloLensLibraryDir);
 				FPlatformProcess::GetDllHandle(_TEXT("PerceptionDevice.dll"));
-				FPlatformProcess::GetDllHandle(_TEXT("HolographicAppRemoting.dll"));
+				FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Holographic.AppRemoting.dll"));
 				FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
 #endif // PLATFORM_64BITS && WITH_EDITOR
 
