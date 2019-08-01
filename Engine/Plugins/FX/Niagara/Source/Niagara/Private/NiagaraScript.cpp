@@ -1120,6 +1120,19 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 	}
 }
 
+bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	if (ShouldCacheShadersForCooking())
+	{
+		if (UNiagaraSystem* SystemOwner = FindRootSystem())
+		{
+			return !SystemOwner->HasOutstandingCompilationRequests();
+		}
+	}
+
+	return true;
+}
+
 void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FNiagaraShaderScript*>& InOutCachedResources)
 {
 	if (CanBeRunOnGpu())
