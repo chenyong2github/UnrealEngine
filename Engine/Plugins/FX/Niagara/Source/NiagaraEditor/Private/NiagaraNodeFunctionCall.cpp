@@ -17,6 +17,7 @@
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
+#include "SNiagaraGraphNodeFunctionCallWithSpecifiers.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -125,6 +126,22 @@ void UNiagaraNodeFunctionCall::UpgradeDIFunctionCalls()
 		}
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Function: %s"), *Signature.GetName());
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgrade Note: %s"),* UpgradeNote);
+	}
+}
+
+TSharedPtr<SGraphNode> UNiagaraNodeFunctionCall::CreateVisualWidget()
+{
+	if (!FunctionScript && FunctionSpecifiers.Num() == 0)
+	{
+		FunctionSpecifiers = Signature.FunctionSpecifiers;
+	}
+	if (FunctionSpecifiers.Num() == 0)
+	{
+		return Super::CreateVisualWidget();
+	}
+	else
+	{
+		return SNew(SNiagaraGraphNodeFunctionCallWithSpecifiers, this);
 	}
 }
 
@@ -543,7 +560,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 				}
 			}
 		}
-
+		Signature.FunctionSpecifiers = FunctionSpecifiers;
 		bError = CompileInputPins(Translator, Inputs);
 	}		
 	else
