@@ -3633,7 +3633,22 @@ void FEngineLoop::Exit()
 
 
 	// Make sure we're not in the middle of loading something.
-	CancelAsyncLoading();
+	{
+		bool bFlushOnExit = true;
+		if (GConfig)
+		{
+			FBoolConfigValueHelper FlushStreamingOnExitHelper(TEXT("/Script/Engine.StreamingSettings"), TEXT("s.FlushStreamingOnExit"), GEngineIni);
+			bFlushOnExit = FlushStreamingOnExitHelper;			
+		}
+		if (bFlushOnExit)
+		{
+			FlushAsyncLoading();
+		}
+		else
+		{
+			CancelAsyncLoading();
+		}
+	}
 
 	// Block till all outstanding resource streaming requests are fulfilled.
 	if (!IStreamingManager::HasShutdown())

@@ -134,14 +134,21 @@ struct FAsyncPackageScope
 	}
 };
 
-static int32 GAsyncLoadingThreadEnabled;
-static FAutoConsoleVariableRef CVarAsyncLoadingThreadEnabledg(
+static int32 GAsyncLoadingThreadEnabled = 0;
+static FAutoConsoleVariableRef CVarAsyncLoadingThreadEnabled(
 	TEXT("s.AsyncLoadingThreadEnabled"),
 	GAsyncLoadingThreadEnabled,
 	TEXT("Placeholder console variable, currently not used in runtime."),
 	ECVF_Default
 	);
 
+static int32 GFlushStreamingOnExit = 1;
+static FAutoConsoleVariableRef CFlushStreamingOnExit(
+	TEXT("s.FlushStreamingOnExit"),
+	GFlushStreamingOnExit,
+	TEXT("Placeholder console variable, currently not used in runtime."),
+	ECVF_Default
+);
 
 static int32 GWarnIfTimeLimitExceeded = 0;
 static FAutoConsoleVariableRef CVarWarnIfTimeLimitExceeded(
