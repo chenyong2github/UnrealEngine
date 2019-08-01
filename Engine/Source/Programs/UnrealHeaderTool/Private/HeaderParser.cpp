@@ -72,7 +72,7 @@ static const FName NAME_DocumentationPolicy(TEXT("DocumentationPolicy"));
 EGeneratedCodeVersion FHeaderParser::DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
 TArray<FString> FHeaderParser::StructsWithNoPrefix;
 TArray<FString> FHeaderParser::StructsWithTPrefix;
-TMap<UStruct*, TArray<FStaticVirtualMethodInfo>> FHeaderParser::StructStaticVirtualMethods;
+TMap<UStruct*, TArray<FMultiplexMethodInfo>> FHeaderParser::StructMultiplexMethods;
 TArray<FString> FHeaderParser::DelegateParameterCountStrings;
 TMap<FString, FString> FHeaderParser::TypeRedirectMap;
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
@@ -2495,7 +2495,7 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 		{
 			FError::Throwf(TEXT("USTRUCTs cannot contain UFUNCTIONs."));
 		}
-		else if (Token.Matches(TEXT("STATIC_VIRTUAL_METHOD"), ESearchCase::CaseSensitive))
+		else if (Token.Matches(TEXT("MULTIPLEX_METHOD"), ESearchCase::CaseSensitive))
 		{
 			CompileStaticMethodDeclaration(AllClasses, Struct);
 		}
@@ -6229,12 +6229,12 @@ void FHeaderParser::CompileStaticMethodDeclaration(FClasses& AllClasses, UStruct
 		}
 	}
 
-	FStaticVirtualMethodInfo Info;
+	FMultiplexMethodInfo Info;
 	Info.ReturnType = ReturnTypeToken.Identifier;
 	Info.Name = NameToken.Identifier;
 	Info.Params = FString::Join(ParamsContent, TEXT(" "));
 
-	TArray<FStaticVirtualMethodInfo>& Infos = StructStaticVirtualMethods.FindOrAdd(Struct);
+	TArray<FMultiplexMethodInfo>& Infos = StructMultiplexMethods.FindOrAdd(Struct);
 	Infos.Add(Info);
 }
 

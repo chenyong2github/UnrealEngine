@@ -1,9 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	AngularLimit.h: Angular limit features
-=============================================================================*/
-
 #pragma once
 
 #include "CoreMinimal.h"

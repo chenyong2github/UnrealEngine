@@ -117,7 +117,7 @@ struct FIndexRange
 	int32 Count;
 };
 
-struct FStaticVirtualMethodInfo
+struct FMultiplexMethodInfo
 {
 	FString ReturnType;
 	FString Name;
@@ -426,8 +426,8 @@ protected:
 	// List of all net service functions with undeclared response functions 
 	TMap<int32, FString> RPCsNeedingHookup;
 
-	// List of all static virtual methods defined on structs
-	static TMap<UStruct*, TArray<FStaticVirtualMethodInfo>> StructStaticVirtualMethods;
+	// List of all multiplex methods defined on structs
+	static TMap<UStruct*, TArray<FMultiplexMethodInfo>> StructMultiplexMethods;
 
 	// Constructor.
 	explicit FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& InModule);
