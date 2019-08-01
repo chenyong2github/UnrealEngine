@@ -93,10 +93,10 @@ void SStatsView::Construct(const FArguments& InArgs)
 				.AutoHeight()
 				[
 					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
+					.HintText(LOCTEXT("SearchBoxHint", "Search stats or groups"))
 					.OnTextChanged(this, &SStatsView::SearchBox_OnTextChanged)
 					.IsEnabled(this, &SStatsView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search stats or group"))
 				]
 
 				// Group by
@@ -131,7 +131,7 @@ void SStatsView::Construct(const FArguments& InArgs)
 					]
 				]
 
-				// Check boxes for: GpuScope, ComputeScope, CpuScope
+				// Check boxes for: Int64, Float
 				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
@@ -642,7 +642,6 @@ void SStatsView::InsightsManager_OnSessionChanged()
 
 void SStatsView::UpdateTree()
 {
-	// Create groups, sort timers within the group and apply filtering.
 	CreateGroups();
 	SortStats();
 	ApplyFiltering();
@@ -662,13 +661,13 @@ void SStatsView::ApplyFiltering()
 		GroupPtr->ClearFilteredChildren();
 		const bool bIsGroupVisible = Filters->PassesAllFilters(GroupPtr);
 
-		const TArray<FStatsNodePtr>& GroupChildren = GroupPtr->GetChildren();
+		const TArray<Insights::FBaseTreeNodePtr>& GroupChildren = GroupPtr->GetChildren();
 		const int32 NumChildren = GroupChildren.Num();
 		int32 NumVisibleChildren = 0;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
 			// Add a child.
-			const FStatsNodePtr& NodePtr = GroupChildren[Cx];
+			const FStatsNodePtr& NodePtr = StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(GroupChildren[Cx]);
 			const bool bIsChildVisible = Filters->PassesAllFilters(NodePtr) && bStatsNodeIsVisible[static_cast<int>(NodePtr->GetType())];
 			if (bIsChildVisible)
 			{
@@ -681,15 +680,15 @@ void SStatsView::ApplyFiltering()
 		{
 			// Add a group.
 			FilteredGroupNodes.Add(GroupPtr);
-			GroupPtr->bForceExpandGroupNode = true;
+			GroupPtr->SetExpansion(true);
 		}
 		else
 		{
-			GroupPtr->bForceExpandGroupNode = false;
+			GroupPtr->SetExpansion(false);
 		}
 	}
 
-	// Only expand timer nodes if we have a text filter.
+	// Only expand stats nodes if we have a text filter.
 	const bool bNonEmptyTextFilter = !TextFilter->GetRawFilterText().IsEmpty();
 	if (bNonEmptyTextFilter)
 	{
@@ -703,7 +702,7 @@ void SStatsView::ApplyFiltering()
 		for (int32 Fx = 0; Fx < FilteredGroupNodes.Num(); Fx++)
 		{
 			const FStatsNodePtr& GroupPtr = FilteredGroupNodes[Fx];
-			TreeView->SetItemExpansion(GroupPtr, GroupPtr->bForceExpandGroupNode);
+			TreeView->SetItemExpansion(GroupPtr, GroupPtr->IsExpanded());
 		}
 	}
 	else
@@ -800,11 +799,11 @@ void SStatsView::TreeView_OnSelectionChanged(FStatsNodePtr SelectedItem, ESelect
 		TArray<FStatsNodePtr> SelectedItems = TreeView->GetSelectedItems();
 		if (SelectedItems.Num() == 1)
 		{
-			//HighlightedStatsName = SelectedItems[0]->GetName();
+			//HighlightedNodeName = SelectedItems[0]->GetName();
 		}
 		else
 		{
-			//HighlightedStatsName = NAME_None;
+			//HighlightedNodeName = NAME_None;
 		}
 	}
 }
@@ -813,7 +812,12 @@ void SStatsView::TreeView_OnSelectionChanged(FStatsNodePtr SelectedItem, ESelect
 
 void SStatsView::TreeView_OnGetChildren(FStatsNodePtr InParent, TArray<FStatsNodePtr>& OutChildren)
 {
-	OutChildren = InParent->GetFilteredChildren();
+	const TArray<Insights::FBaseTreeNodePtr>& Children = InParent->GetFilteredChildren();
+	OutChildren.Reset(Children.Num());
+	for (const Insights::FBaseTreeNodePtr& Child : Children)
+	{
+		OutChildren.Add(StaticCastSharedPtr<FStatsNode, Insights::FBaseTreeNode>(Child));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -825,15 +829,18 @@ void SStatsView::UpdateStatsNode(FStatsNodePtr StatsNode)
 	if (!StatsNode->IsGroup())
 	{
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->TimingView : nullptr;
-		if (TimingView.IsValid())
+		if (Wnd.IsValid())
 		{
-			TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
-			if (GraphTrack.IsValid())
+			TSharedPtr<STimingView> TimingView = Wnd->GetTimingView();
+			if (TimingView.IsValid())
 			{
-				uint32 StatsCounterId = static_cast<uint32>(StatsNode->GetId());
-				TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
-				bAddedToGraphFlag = Series.IsValid();
+				TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
+				if (GraphTrack.IsValid())
+				{
+					uint32 StatsCounterId = static_cast<uint32>(StatsNode->GetId());
+					TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
+					bAddedToGraphFlag = Series.IsValid();
+				}
 			}
 		}
 	}
@@ -848,31 +855,34 @@ void SStatsView::TreeView_OnMouseButtonDoubleClick(FStatsNodePtr StatsNode)
 	if (!StatsNode->IsGroup())
 	{
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->TimingView : nullptr;
-		if (TimingView.IsValid())
+		if (Wnd.IsValid())
 		{
-			TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
-			if (GraphTrack.IsValid())
+			TSharedPtr<STimingView> TimingView = Wnd->GetTimingView();
+			if (TimingView.IsValid())
 			{
-				uint32 StatsCounterId = static_cast<uint32>(StatsNode->GetId());
-				TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
-				if (Series.IsValid())
+				TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
+				if (GraphTrack.IsValid())
 				{
-					GraphTrack->RemoveStatsCounterSeries(StatsCounterId);
-					GraphTrack->SetDirtyFlag();
-					StatsNode->SetAddedToGraphFlag(false);
-				}
-				else
-				{
-					GraphTrack->AddStatsCounterSeries(StatsCounterId, StatsNode->GetColor());
-					GraphTrack->SetDirtyFlag();
-					StatsNode->SetAddedToGraphFlag(true);
+					uint32 StatsCounterId = static_cast<uint32>(StatsNode->GetId());
+					TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetStatsCounterSeries(StatsCounterId);
+					if (Series.IsValid())
+					{
+						GraphTrack->RemoveStatsCounterSeries(StatsCounterId);
+						GraphTrack->SetDirtyFlag();
+						StatsNode->SetAddedToGraphFlag(false);
+					}
+					else
+					{
+						GraphTrack->AddStatsCounterSeries(StatsCounterId, StatsNode->GetColor());
+						GraphTrack->SetDirtyFlag();
+						StatsNode->SetAddedToGraphFlag(true);
+					}
 				}
 			}
 		}
 
-		//im:TODO: const bool bIsStatsCounterTracked = FTimingProfilerManager::Get()->IsStatsCounterTracked(StatsNode->GetId());
-	//	if (!bIsStatsCounterTracked)
+		//im:TODO: const bool bIsTracked = FTimingProfilerManager::Get()->IsStatsCounterTracked(StatsNode->GetId());
+	//	if (!bIsTracked)
 	//	{
 	//		// Add a new graph series.
 	//		FTimingProfilerManager::Get()->TrackStatsCounter(StatsNode->GetId());
@@ -903,7 +913,7 @@ TSharedRef<ITableRow> SStatsView::TreeView_OnGenerateRow(FStatsNodePtr StatsNode
 		.OnSetHoveredTableCell(this, &SStatsView::TableRow_SetHoveredTableCell)
 		.OnGetColumnOutlineHAlignmentDelegate(this, &SStatsView::TableRow_GetColumnOutlineHAlignment)
 		.HighlightText(this, &SStatsView::TableRow_GetHighlightText)
-		.HighlightedStatsName(this, &SStatsView::TableRow_GetHighlightedStatsName)
+		.HighlightedNodeName(this, &SStatsView::TableRow_GetHighlightedNodeName)
 		.StatsNodePtr(StatsNodePtr);
 
 	return TableRow;
@@ -965,9 +975,9 @@ FText SStatsView::TableRow_GetHighlightText() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FName SStatsView::TableRow_GetHighlightedStatsName() const
+FName SStatsView::TableRow_GetHighlightedNodeName() const
 {
-	return HighlightedStatsName;
+	return HighlightedNodeName;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1105,7 +1115,6 @@ void SStatsView::GroupBy_OnSelectionChanged(TSharedPtr<EStatsGroupingMode> NewGr
 	{
 		GroupingMode = *NewGroupingMode;
 
-		// Create groups, sort timers within the group and apply filtering.
 		CreateGroups();
 		SortStats();
 		ApplyFiltering();
@@ -1196,7 +1205,7 @@ void SStatsView::SetSortModeForColumn(const FName& ColumnId, const EColumnSortMo
 	ColumnBeingSorted = ColumnId;
 	ColumnSortMode = SortMode;
 
-	// Sort timers and apply filtering.
+	// Sort stats and apply filtering.
 	SortStats();
 	ApplyFiltering();
 }
@@ -1454,9 +1463,10 @@ void SStatsView::RebuildTree(bool bResync)
 
 	if (bResync)
 	{
-		StatsNodes.Empty(StatsNodes.Num());
-		//StatsNodesMap.Empty(StatsNodesMap.Num());
-		StatsNodesIdMap.Empty(StatsNodesIdMap.Num());
+		const int32 PreviousNodeCount = StatsNodes.Num();
+		StatsNodes.Empty(PreviousNodeCount);
+		//StatsNodesMap.Empty(PreviousNodeCount);
+		StatsNodesIdMap.Empty(PreviousNodeCount);
 		bListHasChanged = true;
 	}
 
@@ -1466,9 +1476,9 @@ void SStatsView::RebuildTree(bool bResync)
 
 		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
 
-		if (!bResync)
+		if (CountersProvider.GetCounterCount() != StatsNodes.Num())
 		{
-			bResync = (CountersProvider.GetCounterCount() != StatsNodes.Num());
+			bResync = true;
 		}
 
 		if (bResync)
@@ -1476,9 +1486,10 @@ void SStatsView::RebuildTree(bool bResync)
 			// Save selection.
 			TreeView->GetSelectedItems(SelectedItems);
 
-			StatsNodes.Empty(StatsNodes.Num());
-			//StatsNodesMap.Empty(StatsNodesMap.Num());
-			StatsNodesIdMap.Empty(StatsNodesIdMap.Num());
+			const int32 PreviousNodeCount = StatsNodes.Num();
+			StatsNodes.Empty(PreviousNodeCount);
+			//StatsNodesMap.Empty(PreviousNodeCount);
+			StatsNodesIdMap.Empty(PreviousNodeCount);
 			bListHasChanged = true;
 
 			CountersProvider.EnumerateCounters([this](const Trace::ICounter& Counter)

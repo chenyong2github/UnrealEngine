@@ -152,40 +152,4 @@ const FText FStatsNode::GetTextForAggregatedStatsUpperQuartile() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FText FStatsNode::GetNameEx() const
-{
-	FText Text = FText::GetEmpty();
-
-	if (IsGroup())
-	{
-		const int32 NumChildren = Children.Num();
-		const int32 NumFilteredChildren = FilteredChildren.Num();
-
-		if (NumFilteredChildren == NumChildren)
-		{
-			Text = FText::Format(LOCTEXT("StatsNodeGroupTextFmt1", "{0} ({1})"), FText::FromName(Name), FText::AsNumber(NumChildren));
-		}
-		else
-		{
-			Text = FText::Format(LOCTEXT("StatsNodeGroupTextFmt2", "{0} ({1} / {2})"), FText::FromName(Name), FText::AsNumber(NumFilteredChildren), FText::AsNumber(NumChildren));
-		}
-	}
-	else
-	{
-		//const bool bIsStatTracked = FProfilerManager::Get()->IsStatTracked(GroupOrStatNode->GetStatID());
-		//if (bIsStatTracked)
-		//{
-		//	Text = FText::Format(LOCTEXT("StatsNodeTrackedTextFmt", "{0}*"), FText::FromName(Name));
-		//}
-		//else
-		{
-			Text = FText::FromName(Name);
-		}
-	}
-
-	return Text;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 #undef LOCTEXT_NAMESPACE

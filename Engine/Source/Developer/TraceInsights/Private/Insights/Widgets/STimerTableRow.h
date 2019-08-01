@@ -27,7 +27,7 @@ public:
 		SLATE_EVENT(FSetHoveredTimerTableCell, OnSetHoveredTableCell)
 		SLATE_EVENT(FGetColumnOutlineHAlignmentDelegate, OnGetColumnOutlineHAlignmentDelegate)
 		SLATE_ATTRIBUTE(FText, HighlightText)
-		SLATE_ATTRIBUTE(FName, HighlightedTimerName)
+		SLATE_ATTRIBUTE(FName, HighlightedNodeName)
 		SLATE_ARGUMENT(FTimerNodePtr, TimerNodePtr)
 	SLATE_END_ARGS()
 
@@ -53,21 +53,6 @@ public:
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 protected:
-	/**
-	 * @return a text which describes this table row, refers to both groups and timers
-	 */
-	FText GetText() const;
-
-	/**
-	 * @return a font style which is used to draw this table row, refers to both groups and timers
-	 */
-	FSlateFontInfo GetFont() const;
-
-	/**
-	 * @return a color and opacity value used to draw this table row, refers to both groups and timers
-	 */
-	FSlateColor GetColorAndOpacity() const;
-
 	FSlateColor GetBackgroundColorAndOpacity() const;
 	FSlateColor GetBackgroundColorAndOpacity(double Time) const;
 	FSlateColor GetOutlineColorAndOpacity() const;
@@ -88,6 +73,6 @@ protected:
 	/** Text to be highlighted on timer name. */
 	TAttribute<FText> HighlightText;
 
-	/** Name of the timer that should be drawn as highlighted. */
-	TAttribute<FName> HighlightedTimerName;
+	/** Name of the timer node that should be drawn as highlighted. */
+	TAttribute<FName> HighlightedNodeName;
 };

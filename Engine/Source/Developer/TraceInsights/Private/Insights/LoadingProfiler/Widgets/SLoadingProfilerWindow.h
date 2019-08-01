@@ -3,40 +3,89 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Docking/TabManager.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
 #include "Misc/Guid.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SCompoundWidget.h"
 
 // Insights
 #include "Insights/InsightsManager.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FActiveTimerHandle;
 class STimingView;
 
+namespace Insights
+{
+	class STableTreeView;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FLoadingProfilerTabs
+{
+	// Tab identifiers
+	static const FName ToolbarID;
+	static const FName TimingViewID;
+	static const FName EventAggregationTreeViewID;
+	static const FName ObjectTypeAggregationTreeViewID;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /** Implements the timing profiler window. */
-class SIoProfilerWindow : public SCompoundWidget
+class SLoadingProfilerWindow : public SCompoundWidget
 {
 public:
 	/** Default constructor. */
-	SIoProfilerWindow();
+	SLoadingProfilerWindow();
 
 	/** Virtual destructor. */
-	virtual ~SIoProfilerWindow();
+	virtual ~SLoadingProfilerWindow();
 
-	SLATE_BEGIN_ARGS(SIoProfilerWindow){}
+	SLATE_BEGIN_ARGS(SLoadingProfilerWindow) {}
 	SLATE_END_ARGS()
 
+	void Reset();
+
 	/** Constructs this widget. */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
+
+	void ShowTab(const FName& TabID);
+	void HideTab(const FName& TabID);
+	void ShowHideTab(const FName& TabID, bool bShow) { bShow ? ShowTab(TabID) : HideTab(TabID); }
+
+	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
 
 	TSharedPtr<STimingView> GetTimingView() const { return TimingView; }
+	TSharedPtr<Insights::STableTreeView> GetEventAggregationTreeView() const { return EventAggregationTreeView; }
+	TSharedPtr<Insights::STableTreeView> GetObjectTypeAggregationTreeView() const { return ObjectTypeAggregationTreeView; }
 
 private:
-	/** Callback for determining the visibility of the Timing view. */
-	EVisibility IsTimingViewVisible() const;
+	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
+	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
+	void OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_EventAggregationTreeView(const FSpawnTabArgs& Args);
+	void OnEventAggregationTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	TSharedRef<SDockTab> SpawnTab_ObjectTypeAggregationTreeView(const FSpawnTabArgs& Args);
+	void OnObjectTypeAggregationTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	/**
+	 * Fill the main menu with menu items.
+	 *
+	 * @param MenuBuilder The multi-box builder that should be filled with content for this pull-down menu.
+	 * @param TabManager A Tab Manager from which to populate tab spawner menu items.
+	 */
+	static void FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager);
 
 	/** Callback for determining the visibility of the 'Select a session' overlay. */
 	EVisibility IsSessionOverlayVisible() const;
@@ -102,12 +151,21 @@ private:
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
 
 private:
-	/** Widget for the timing track */
+	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;
 
-	/** The number of seconds the profiler has been active */
-	float DurationActive;
+	/** The Event Aggregation tree view widget */
+	TSharedPtr<Insights::STableTreeView> EventAggregationTreeView;
+
+	/** The Object Type Aggregation tree view widget */
+	TSharedPtr<Insights::STableTreeView> ObjectTypeAggregationTreeView;
+
+	/** Holds the tab manager that manages the front-end's tabs. */
+	TSharedPtr<FTabManager> TabManager;
 
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
+
+	/** The number of seconds the profiler has been active */
+	float DurationActive;
 };

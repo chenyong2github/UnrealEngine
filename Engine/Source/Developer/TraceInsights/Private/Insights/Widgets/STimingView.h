@@ -249,6 +249,9 @@ public:
 
 	const FTimingTrackViewport& GetViewport() { return Viewport; }
 
+	double GetSelectionStartTime() const { return SelectionStartTime; }
+	double GetSelectionEndTime() const { return SelectionEndTime; }
+
 	bool IsTimeSelected(double Time) const { return Time >= SelectionStartTime && Time < SelectionEndTime; }
 	bool IsTimeSelectedInclusive(double Time) const { return Time >= SelectionStartTime && Time <= SelectionEndTime; }
 

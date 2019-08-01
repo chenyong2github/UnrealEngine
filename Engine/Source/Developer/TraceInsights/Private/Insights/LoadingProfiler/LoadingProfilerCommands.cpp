@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Insights/IoProfilerCommands.h"
+#include "LoadingProfilerCommands.h"
 
 #include "DesktopPlatformModule.h"
 #include "EditorStyleSet.h"
@@ -9,17 +9,17 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
-#include "Insights/IoProfilerManager.h"
+#include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define LOCTEXT_NAMESPACE "FIoProfilerCommands"
+#define LOCTEXT_NAMESPACE "FLoadingProfilerCommands"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FIoProfilerMenuBuilder
+// FLoadingProfilerMenuBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FIoProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const TSharedPtr< FUICommandInfo >& UICommandInfo, const FUIAction& UIAction)
+void FLoadingProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const TSharedPtr< FUICommandInfo >& UICommandInfo, const FUIAction& UIAction)
 {
 	MenuBuilder.AddMenuEntry
 	(
@@ -33,13 +33,13 @@ void FIoProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const TShar
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FIoProfilerCommands
+// FLoadingProfilerCommands
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FIoProfilerCommands::FIoProfilerCommands()
-	: TCommands<FIoProfilerCommands>(
-		TEXT("IoProfilerCommand"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "IoProfilerCommand", "Asset Loading Insights Command"), // Localized context name for displaying
+FLoadingProfilerCommands::FLoadingProfilerCommands()
+	: TCommands<FLoadingProfilerCommands>(
+		TEXT("LoadingProfilerCommand"), // Context name for fast lookup
+		NSLOCTEXT("Contexts", "LoadingProfilerCommand", "Asset Loading Insights"), // Localized context name for displaying
 		NAME_None, // Parent
 		FEditorStyle::GetStyleSetName() // Icon Style Set
 	)
@@ -50,9 +50,11 @@ FIoProfilerCommands::FIoProfilerCommands()
 
 // UI_COMMAND takes long for the compiler to optimize
 PRAGMA_DISABLE_OPTIMIZATION
-void FIoProfilerCommands::RegisterCommands()
+void FLoadingProfilerCommands::RegisterCommands()
 {
 	UI_COMMAND(ToggleTimingViewVisibility, "Timing", "Toggles the visibility of the main Timing view", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::T));
+	UI_COMMAND(ToggleEventAggregationTreeViewVisibility, "Event Aggregation", "Toggles the visibility of the Event Aggregation table/tree view", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleObjectTypeAggregationTreeViewVisibility, "Object Type Aggregation", "Toggles the visibility of the Object Type Aggregation table/tree view", EUserInterfaceActionType::ToggleButton, FInputChord());
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
@@ -62,38 +64,40 @@ PRAGMA_ENABLE_OPTIMIZATION
 
 #define IMPLEMENT_TOGGLE_COMMAND(CmdName, IsEnabled, SetIsEnabled) \
 	\
-	void FIoProfilerActionManager::Map_##CmdName##_Global()\
+	void FLoadingProfilerActionManager::Map_##CmdName##_Global()\
 	{\
 		This->CommandList->MapAction(This->GetCommands().CmdName, CmdName##_Custom());\
 	}\
 	\
-	const FUIAction FIoProfilerActionManager::CmdName##_Custom() \
+	const FUIAction FLoadingProfilerActionManager::CmdName##_Custom() \
 	{\
 		FUIAction UIAction;\
-		UIAction.ExecuteAction = FExecuteAction::CreateRaw(this, &FIoProfilerActionManager::CmdName##_Execute);\
-		UIAction.CanExecuteAction = FCanExecuteAction::CreateRaw(this, &FIoProfilerActionManager::CmdName##_CanExecute);\
-		UIAction.GetActionCheckState = FGetActionCheckState::CreateRaw(this, &FIoProfilerActionManager::CmdName##_GetCheckState);\
+		UIAction.ExecuteAction = FExecuteAction::CreateRaw(this, &FLoadingProfilerActionManager::CmdName##_Execute);\
+		UIAction.CanExecuteAction = FCanExecuteAction::CreateRaw(this, &FLoadingProfilerActionManager::CmdName##_CanExecute);\
+		UIAction.GetActionCheckState = FGetActionCheckState::CreateRaw(this, &FLoadingProfilerActionManager::CmdName##_GetCheckState);\
 		return UIAction;\
 	}\
 	\
-	void FIoProfilerActionManager::CmdName##_Execute()\
+	void FLoadingProfilerActionManager::CmdName##_Execute()\
 	{\
 		const bool b##IsEnabled = !This->IsEnabled();\
 		This->SetIsEnabled(b##IsEnabled);\
 	}\
 	\
-	bool FIoProfilerActionManager::CmdName##_CanExecute() const\
+	bool FLoadingProfilerActionManager::CmdName##_CanExecute() const\
 	{\
 		return FInsightsManager::Get()->GetSession().IsValid();\
 	}\
 	\
-	ECheckBoxState FIoProfilerActionManager::CmdName##_GetCheckState() const\
+	ECheckBoxState FLoadingProfilerActionManager::CmdName##_GetCheckState() const\
 	{\
 		const bool b##IsEnabled = This->IsEnabled();\
 		return b##IsEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;\
 	}
 
-IMPLEMENT_TOGGLE_COMMAND(ToggleTimingViewVisibility, IsTimingViewVisible, SetTimingViewVisible)
+IMPLEMENT_TOGGLE_COMMAND(ToggleTimingViewVisibility, IsTimingViewVisible, ShowHideTimingView)
+IMPLEMENT_TOGGLE_COMMAND(ToggleEventAggregationTreeViewVisibility, IsEventAggregationTreeViewVisible, ShowHideEventAggregationTreeView)
+IMPLEMENT_TOGGLE_COMMAND(ToggleObjectTypeAggregationTreeViewVisibility, IsObjectTypeAggregationTreeViewVisible, ShowHideObjectTypeAggregationTreeView)
 
 #undef IMPLEMENT_TOGGLE_COMMAND
 

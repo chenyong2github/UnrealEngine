@@ -351,11 +351,15 @@ void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
 		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Window.IsValid())
 		{
-			const double StartTime = SampleRef.Sample->LargestFrameStartTime;
-			const double Duration = SampleRef.Sample->LargestFrameDuration;
-			Window->TimingView->CenterOnTimeInterval(StartTime, Duration);
-			Window->TimingView->SelectTimeInterval(StartTime, Duration);
-			FSlateApplication::Get().SetKeyboardFocus(Window->TimingView);
+			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+			if (TimingView.IsValid())
+			{
+				const double StartTime = SampleRef.Sample->LargestFrameStartTime;
+				const double Duration = SampleRef.Sample->LargestFrameDuration;
+				TimingView->CenterOnTimeInterval(StartTime, Duration);
+				TimingView->SelectTimeInterval(StartTime, Duration);
+				FSlateApplication::Get().SetKeyboardFocus(TimingView);
+			}
 		}
 	}
 }
@@ -444,20 +448,24 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		}
 
 		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Window && Window->TimingView)
+		if (Window)
 		{
-			const FFrameTrackTimeline* TimelinePtr = nullptr;
-			for (const TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
+			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+			if (TimingView)
 			{
-				TimelinePtr = &KeyValuePair.Value;
-				break; // stop at first enumerated timeline
-			}
-			if (TimelinePtr)
-			{
-				// Highlight the area corresponding to viewport of Timing View.
-				const double StartTime = Window->TimingView->GetViewport().StartTime;
-				const double EndTime = Window->TimingView->GetViewport().EndTime;
-				Helper.DrawHighlightedInterval(*TimelinePtr, StartTime, EndTime);
+				const FFrameTrackTimeline* TimelinePtr = nullptr;
+				for (const TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
+				{
+					TimelinePtr = &KeyValuePair.Value;
+					break; // stop at first enumerated timeline
+				}
+				if (TimelinePtr)
+				{
+					// Highlight the area corresponding to viewport of Timing View.
+					const double StartTime = TimingView->GetViewport().StartTime;
+					const double EndTime = TimingView->GetViewport().EndTime;
+					Helper.DrawHighlightedInterval(*TimelinePtr, StartTime, EndTime);
+				}
 			}
 		}
 

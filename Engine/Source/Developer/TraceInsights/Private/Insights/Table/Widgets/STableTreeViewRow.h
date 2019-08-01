@@ -10,25 +10,32 @@
 #include "Widgets/Views/STreeView.h"
 
 // Insights
-#include "Insights/ViewModels/StatsNodeHelper.h"
+#include "Insights/Table/ViewModels/TableTreeNode.h"
 
-DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldBeEnabledDelegate, const uint32 /*StatsId*/);
+namespace Insights
+{
+
+class FTable;
+class FTableColumn;
+
+DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldBeEnabledDelegate, const uint32 /*TreeNodeId*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
-DECLARE_DELEGATE_TwoParams(FSetHoveredStatsTableCell, const FName /*ColumnId*/, const FStatsNodePtr /*StatsNodePtr*/);
 DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
+DECLARE_DELEGATE_ThreeParams(FSetHoveredTableTreeViewCell, TSharedPtr<FTable> /*TablePtr*/, TSharedPtr<FTableColumn> /*ColumnPtr*/, const FTableTreeNodePtr /*NodePtr*/);
 
-/** Widget that represents a table row in the stats' tree control. Generates widgets for each column on demand. */
-class SStatsTableRow : public SMultiColumnTableRow<FStatsNodePtr>
+/** Widget that represents a table row in the tree control. Generates widgets for each column on demand. */
+class STableTreeViewRow : public SMultiColumnTableRow<FTableTreeNodePtr>
 {
 public:
-	SLATE_BEGIN_ARGS(SStatsTableRow) {}
+	SLATE_BEGIN_ARGS(STableTreeViewRow) {}
 		SLATE_EVENT(FShouldBeEnabledDelegate, OnShouldBeEnabled)
 		SLATE_EVENT(FIsColumnVisibleDelegate, OnIsColumnVisible)
-		SLATE_EVENT(FSetHoveredStatsTableCell, OnSetHoveredTableCell)
 		SLATE_EVENT(FGetColumnOutlineHAlignmentDelegate, OnGetColumnOutlineHAlignmentDelegate)
+		SLATE_EVENT(FSetHoveredTableTreeViewCell, OnSetHoveredCell)
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ATTRIBUTE(FName, HighlightedNodeName)
-		SLATE_ARGUMENT(FStatsNodePtr, StatsNodePtr)
+		SLATE_ARGUMENT(TSharedPtr<FTable>, TablePtr)
+		SLATE_ARGUMENT(FTableTreeNodePtr, TableTreeNodePtr)
 	SLATE_END_ARGS()
 
 public:
@@ -59,20 +66,25 @@ protected:
 	const FSlateBrush* GetOutlineBrush(const FName ColumnId) const;
 	bool HandleShouldBeEnabled() const;
 	EVisibility IsColumnVisible(const FName ColumnId) const;
-	void OnSetHoveredTableCell(const FName ColumnId, const FStatsNodePtr SamplePtr);
+	void OnSetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, const FTableTreeNodePtr InTreeNodePtr);
 
 protected:
+	/** A shared pointer to the table view model. */
+	TSharedPtr<FTable> TablePtr;
+
 	/** Data context for this table row. */
-	FStatsNodePtr StatsNodePtr;
+	FTableTreeNodePtr TableTreeNodePtr;
 
 	FShouldBeEnabledDelegate OnShouldBeEnabled;
 	FIsColumnVisibleDelegate IsColumnVisibleDelegate;
-	FSetHoveredStatsTableCell SetHoveredTableCellDelegate;
+	FSetHoveredTableTreeViewCell SetHoveredCellDelegate;
 	FGetColumnOutlineHAlignmentDelegate GetColumnOutlineHAlignmentDelegate;
 
-	/** Text to be highlighted on stats name. */
+	/** Text to be highlighted on tree node's name. */
 	TAttribute<FText> HighlightText;
 
-	/** Name of the stats node that should be drawn as highlighted. */
+	/** Name of the tree node that should be drawn as highlighted. */
 	TAttribute<FName> HighlightedNodeName;
 };
+
+} // namespace Insights

@@ -64,7 +64,7 @@ protected:
 
 public:
 	/**
-	 * @return the global instance of the Timing Profiler manager (FTimingProfilerManager).
+	 * @return the global instance of the Timing Profiler (Timing Insights) manager.
 	 * This is an internal singleton and cannot be used outside ProfilerModule.
 	 * For external use:
 	 *     IProfilerModule& ProfilerModule = FModuleManager::Get().LoadModuleChecked<IProfilerModule>("Profiler");
@@ -148,7 +148,7 @@ protected:
 	/** List of UI commands for this manager. This will be filled by this and corresponding classes. */
 	TSharedRef<FUICommandList> CommandList;
 
-	/** An instance of the Timing Manager action manager. */
+	/** An instance of the Timing Profiler action manager. */
 	FTimingProfilerActionManager ActionManager;
 
 	/** A weak pointer to the Timing Profiler window. */

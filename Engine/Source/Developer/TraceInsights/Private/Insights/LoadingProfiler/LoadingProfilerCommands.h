@@ -12,11 +12,11 @@ class FMenuBuilder;
 /**
  * Class that holds all profiler commands.
  */
-class FIoProfilerCommands : public TCommands<FIoProfilerCommands>
+class FLoadingProfilerCommands : public TCommands<FLoadingProfilerCommands>
 {
 public:
 	/** Default constructor. */
-	FIoProfilerCommands();
+	FLoadingProfilerCommands();
 
 	/** Initialize commands. */
 	virtual void RegisterCommands() override;
@@ -29,15 +29,21 @@ public:
 	//     const FUIAction <CommandName>_Custom(...) const;
 	//////////////////////////////////////////////////
 
-	/** Toggles visibility for the Timing View. Global and custom command. */
+	/** Toggles visibility for the Timing view. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleTimingViewVisibility;
+
+	/** Toggles visibility for the Event Aggregation tree view. Global and custom command. */
+	TSharedPtr<FUICommandInfo> ToggleEventAggregationTreeViewVisibility;
+
+	/** Toggles visibility for the Object Type Aggregation tree view. Global and custom command. */
+	TSharedPtr<FUICommandInfo> ToggleObjectTypeAggregationTreeViewVisibility;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Menu builder. Helper class for adding a customized menu entry using the global UI command info.
  */
-class FIoProfilerMenuBuilder
+class FLoadingProfilerMenuBuilder
 {
 public:
 	/**
@@ -60,13 +66,13 @@ public:
  * Class that provides helper functions for the commands to avoid cluttering profiler manager with many small functions.
  * Can't contain any variables. Directly operates on the profiler manager instance.
  */
-class FIoProfilerActionManager
+class FLoadingProfilerActionManager
 {
-	friend class FIoProfilerManager;
+	friend class FLoadingProfilerManager;
 
 private:
 	/** Private constructor. */
-	FIoProfilerActionManager(class FIoProfilerManager* Instance)
+	FLoadingProfilerActionManager(class FLoadingProfilerManager* Instance)
 		: This(Instance)
 	{}
 
@@ -83,11 +89,13 @@ protected:\
 	ECheckBoxState CmdName##_GetCheckState() const; /**< Handles FGetActionCheckState for CmdName. */
 
 	DECLARE_TOGGLE_COMMAND(ToggleTimingViewVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleEventAggregationTreeViewVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleObjectTypeAggregationTreeViewVisibility)
 #undef DECLARE_TOGGLE_COMMAND
 
 	//////////////////////////////////////////////////
 
 protected:
 	/** Reference to the global instance of the profiler manager. */
-	class FIoProfilerManager* This;
+	class FLoadingProfilerManager* This;
 };

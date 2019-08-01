@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "SStatsTableRow.h"
+#include "STableTreeViewRow.h"
 
 #include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
@@ -9,37 +9,43 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
-#include "Insights/ViewModels/StatsViewColumnFactory.h"
-#include "Insights/Widgets/SStatsViewTooltip.h"
-#include "Insights/Widgets/SStatsTableCell.h"
+#include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/Table/Widgets/STableTreeViewCell.h"
 
-#define LOCTEXT_NAMESPACE "SStatsView"
+#define LOCTEXT_NAMESPACE "STableTreeView"
+
+namespace Insights
+{
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void SStatsTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
+void STableTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	OnShouldBeEnabled = InArgs._OnShouldBeEnabled;
 	IsColumnVisibleDelegate = InArgs._OnIsColumnVisible;
-	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
+	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 	GetColumnOutlineHAlignmentDelegate = InArgs._OnGetColumnOutlineHAlignmentDelegate;
 
 	HighlightText = InArgs._HighlightText;
 	HighlightedNodeName = InArgs._HighlightedNodeName;
 
-	StatsNodePtr = InArgs._StatsNodePtr;
+	TablePtr = InArgs._TablePtr;
+	TableTreeNodePtr = InArgs._TableTreeNodePtr;
 
-	SetEnabled(TAttribute<bool>(this, &SStatsTableRow::HandleShouldBeEnabled));
+	SetEnabled(TAttribute<bool>(this, &STableTreeViewRow::HandleShouldBeEnabled));
 
-	SMultiColumnTableRow<FStatsNodePtr>::Construct(SMultiColumnTableRow<FStatsNodePtr>::FArguments(), InOwnerTableView);
+	SMultiColumnTableRow<FTableTreeNodePtr>::Construct(SMultiColumnTableRow<FTableTreeNodePtr>::FArguments(), InOwnerTableView);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStatsTableRow::GenerateWidgetForColumn(const FName& ColumnId)
+TSharedRef<SWidget> STableTreeViewRow::GenerateWidgetForColumn(const FName& ColumnId)
 {
+	TSharedPtr<FTableColumn> ColumnPtr = TablePtr->FindColumnChecked(ColumnId);
+
 	return
 		SNew(SOverlay)
 		.Visibility(EVisibility::SelfHitTestInvisible)
@@ -49,26 +55,27 @@ TSharedRef<SWidget> SStatsTableRow::GenerateWidgetForColumn(const FName& ColumnI
 		[
 			SNew(SImage)
 			.Image(FEditorStyle::GetBrush("Profiler.LineGraphArea"))
-			.ColorAndOpacity(this, &SStatsTableRow::GetBackgroundColorAndOpacity)
+			.ColorAndOpacity(this, &STableTreeViewRow::GetBackgroundColorAndOpacity)
 		]
 
 		+SOverlay::Slot()
 		.Padding(0.0f)
 		[
 			SNew(SImage)
-			.Image(this, &SStatsTableRow::GetOutlineBrush, ColumnId)
-			.ColorAndOpacity(this, &SStatsTableRow::GetOutlineColorAndOpacity)
+			.Image(this, &STableTreeViewRow::GetOutlineBrush, ColumnId)
+			.ColorAndOpacity(this, &STableTreeViewRow::GetOutlineColorAndOpacity)
 		]
 
 		+SOverlay::Slot()
 		[
-			SNew(SStatsTableCell, SharedThis(this))
-			.Visibility(this, &SStatsTableRow::IsColumnVisible, ColumnId)
-			.StatsNodePtr(StatsNodePtr)
-			.ColumnId(ColumnId)
+			SNew(STableTreeViewCell, SharedThis(this))
+			.Visibility(this, &STableTreeViewRow::IsColumnVisible, ColumnId)
+			.TablePtr(TablePtr)
+			.ColumnPtr(ColumnPtr)
+			.TableTreeNodePtr(TableTreeNodePtr)
 			.HighlightText(HighlightText)
-			.IsNameColumn(ColumnId == FStatsViewColumnFactory::Get().Collection[0]->Id) // name column
-			.OnSetHoveredTableCell(this, &SStatsTableRow::OnSetHoveredTableCell)
+			.IsNameColumn(ColumnPtr->IsHierarchy())
+			.OnSetHoveredCell(this, &STableTreeViewRow::OnSetHoveredCell)
 		];
 }
 
@@ -76,46 +83,21 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SStatsTableRow::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply STableTreeViewRow::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	//im:TODO
-	//if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
-	//{
-	//	if (StatsNode->IsGroup())
-	//	{
-	//		// Add all timer Ids for the group.
-	//		TArray<int32> StatsIds;
-	//		const TArray<FStatsNodePtr>& FilteredChildren = StatsNode->GetFilteredChildren();
-	//		const int32 NumFilteredChildren = FilteredChildren.Num();
-	//
-	//		StatsIds.Reserve(NumFilteredChildren);
-	//		for (int32 Nx = 0; Nx < NumFilteredChildren; ++Nx)
-	//		{
-	//			StatsIds.Add(FilteredChildren[Nx]->GetId());
-	//		}
-	//
-	//		return FReply::Handled().BeginDragDrop(FStatIDDragDropOp::NewGroup(StatsIds, StatsNode->GetName().GetPlainNameString()));
-	//	}
-	//	else
-	//	{
-	//		return FReply::Handled().BeginDragDrop(FStatIDDragDropOp::NewSingle(StatsNode->GetId(), StatsNode->GetName().GetPlainNameString()));
-	//	}
-	//}
-
-	return SMultiColumnTableRow<FStatsNodePtr>::OnDragDetected(MyGeometry, MouseEvent);
+	return SMultiColumnTableRow<FTableTreeNodePtr>::OnDragDetected(MyGeometry, MouseEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FSlateColor SStatsTableRow::GetBackgroundColorAndOpacity() const
+FSlateColor STableTreeViewRow::GetBackgroundColorAndOpacity() const
 {
-	//return GetBackgroundColorAndOpacity(StatsNodePtr->GetAggregatedStats().Sum);
 	return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FSlateColor SStatsTableRow::GetBackgroundColorAndOpacity(double Time) const
+FSlateColor STableTreeViewRow::GetBackgroundColorAndOpacity(double Time) const
 {
 	const FLinearColor Color =	Time > TimeUtils::Second      ? FLinearColor(0.3f, 0.0f, 0.0f, 1.0f) :
 								Time > TimeUtils::Milisecond  ? FLinearColor(0.3f, 0.1f, 0.0f, 1.0f) :
@@ -126,17 +108,17 @@ FSlateColor SStatsTableRow::GetBackgroundColorAndOpacity(double Time) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FSlateColor SStatsTableRow::GetOutlineColorAndOpacity() const
+FSlateColor STableTreeViewRow::GetOutlineColorAndOpacity() const
 {
 	const FLinearColor NoColor(0.0f, 0.0f, 0.0f, 0.0f);
-	const bool bShouldBeHighlighted = StatsNodePtr->GetName() == HighlightedNodeName.Get();
+	const bool bShouldBeHighlighted = TableTreeNodePtr->GetName() == HighlightedNodeName.Get();
 	const FLinearColor OutlineColorAndOpacity = bShouldBeHighlighted ? FLinearColor(FColorList::SlateBlue) : NoColor;
 	return OutlineColorAndOpacity;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FSlateBrush* SStatsTableRow::GetOutlineBrush(const FName ColumnId) const
+const FSlateBrush* STableTreeViewRow::GetOutlineBrush(const FName ColumnId) const
 {
 	EHorizontalAlignment Result = HAlign_Center;
 	if (IsColumnVisibleDelegate.IsBound())
@@ -162,11 +144,11 @@ const FSlateBrush* SStatsTableRow::GetOutlineBrush(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SStatsTableRow::HandleShouldBeEnabled() const
+bool STableTreeViewRow::HandleShouldBeEnabled() const
 {
 	bool bResult = false;
 
-	if (StatsNodePtr->IsGroup())
+	if (TableTreeNodePtr->IsGroup())
 	{
 		bResult = true;
 	}
@@ -174,7 +156,7 @@ bool SStatsTableRow::HandleShouldBeEnabled() const
 	{
 		if (OnShouldBeEnabled.IsBound())
 		{
-			bResult = OnShouldBeEnabled.Execute(StatsNodePtr->GetId());
+			bResult = OnShouldBeEnabled.Execute(TableTreeNodePtr->GetId());
 		}
 	}
 
@@ -183,7 +165,7 @@ bool SStatsTableRow::HandleShouldBeEnabled() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EVisibility SStatsTableRow::IsColumnVisible(const FName ColumnId) const
+EVisibility STableTreeViewRow::IsColumnVisible(const FName ColumnId) const
 {
 	EVisibility Result = EVisibility::Collapsed;
 
@@ -197,11 +179,13 @@ EVisibility SStatsTableRow::IsColumnVisible(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStatsTableRow::OnSetHoveredTableCell(const FName InColumnId, const FStatsNodePtr InSamplePtr)
+void STableTreeViewRow::OnSetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, const FTableTreeNodePtr InTreeNodePtr)
 {
-	SetHoveredTableCellDelegate.ExecuteIfBound(InColumnId, InSamplePtr);
+	SetHoveredCellDelegate.ExecuteIfBound(InTablePtr, InColumnPtr, InTreeNodePtr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights
 
 #undef LOCTEXT_NAMESPACE

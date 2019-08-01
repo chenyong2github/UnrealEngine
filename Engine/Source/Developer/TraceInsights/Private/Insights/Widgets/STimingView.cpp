@@ -35,6 +35,9 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
+#include "Insights/LoadingProfiler/LoadingProfilerManager.h"
+#include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
+#include "Insights/Table/Widgets/STableTreeView.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/BaseTimingTrack.h"
@@ -404,13 +407,15 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd)
 		{
-			if (Wnd->TimersView)
+			TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
+			if (TimersView)
 			{
-				Wnd->TimersView->RebuildTree(false);
+				TimersView->RebuildTree(false);
 			}
-			if (Wnd->StatsView)
+			TSharedPtr<SStatsView> StatsView = Wnd->GetStatsView();
+			if (StatsView)
 			{
-				Wnd->StatsView->RebuildTree(false);
+				StatsView->RebuildTree(false);
 			}
 		}
 	}
@@ -2191,18 +2196,29 @@ void STimingView::UpdateAggregatedStats()
 	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 	if (Wnd)
 	{
-		if (Wnd->TimersView)
+		TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
+		if (TimersView)
 		{
-			Wnd->TimersView->UpdateStats(SelectionStartTime, SelectionEndTime);
+			TimersView->UpdateStats(SelectionStartTime, SelectionEndTime);
 		}
-		if (Wnd->StatsView)
+		TSharedPtr<SStatsView> StatsView = Wnd->GetStatsView();
+		if (StatsView)
 		{
-			Wnd->StatsView->UpdateStats(SelectionStartTime, SelectionEndTime);
+			StatsView->UpdateStats(SelectionStartTime, SelectionEndTime);
 		}
 	}
 
 	if (bAssetLoadingMode)
 	{
+		TSharedPtr<Insights::STableTreeView> EventAggregationTreeView;
+		TSharedPtr<Insights::STableTreeView> ObjectTypeAggregationTreeView;
+		TSharedPtr<SLoadingProfilerWindow> LoadingProfilerWnd = FLoadingProfilerManager::Get()->GetProfilerWindow();
+		if (LoadingProfilerWnd)
+		{
+			EventAggregationTreeView = LoadingProfilerWnd->GetEventAggregationTreeView();
+			ObjectTypeAggregationTreeView = LoadingProfilerWnd->GetObjectTypeAggregationTreeView();
+		}
+
 		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
@@ -2287,15 +2303,21 @@ void STimingView::UpdateAggregatedStats()
 			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
 
 			{
+				//TODO: LoadTimeProfilerProvider.UpdateEventAggregation(EventAggregationTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
 				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
+				EventAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(EventAggregationTable));
+				EventAggregationTreeView->RebuildTree(true);
 				ReadTable(EventAggregationTable, EventAggregation, EventAggregationTotalCount);
-				delete EventAggregationTable;
+				//delete EventAggregationTable;
 			}
 
 			{
+				//TODO: LoadTimeProfilerProvider.UpdateObjectTypeAggregation(EventAggregationTreeView->GetTable(), SelectionStartTime, SelectionEndTime)
 				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
+				ObjectTypeAggregationTreeView->GetTable()->UpdateSourceTable(MakeShareable(ObjectTypeAggregationTable));
+				ObjectTypeAggregationTreeView->RebuildTree(true);
 				ReadTable(ObjectTypeAggregationTable, ObjectTypeAggregation, ObjectTypeAggregationTotalCount);
-				delete ObjectTypeAggregationTable;
+				//delete ObjectTypeAggregationTable;
 			}
 		}
 	}
@@ -2442,9 +2464,10 @@ void STimingView::OnSelectedTimingEventChanged()
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd)
 		{
-			if (Wnd->TimersView)
+			TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
+			if (TimersView)
 			{
-				Wnd->TimersView->SelectTimerNode(SelectedTimingEvent.TypeId);
+				TimersView->SelectTimerNode(SelectedTimingEvent.TypeId);
 			}
 		}
 	}

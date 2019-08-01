@@ -3,7 +3,6 @@
 #include "TimingProfilerManager.h"
 
 #include "Modules/ModuleManager.h"
-#include "Templates/UniquePtr.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/SessionService.h"
 
@@ -124,30 +123,7 @@ void FTimingProfilerManager::OnSessionChanged()
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())
 	{
-		if (Wnd->FrameTrack)
-		{
-			Wnd->FrameTrack->Reset();
-		}
-		if (Wnd->GraphTrack)
-		{
-			Wnd->GraphTrack->Reset();
-		}
-		if (Wnd->TimingView)
-		{
-			Wnd->TimingView->Reset();
-		}
-		if (Wnd->TimersView)
-		{
-			Wnd->TimersView->RebuildTree();
-		}
-		if (Wnd->StatsView)
-		{
-			Wnd->StatsView->RebuildTree();
-		}
-		if (Wnd->LogView)
-		{
-			Wnd->LogView->Reset();
-		}
+		Wnd->Reset();
 	}
 }
 
@@ -155,8 +131,6 @@ void FTimingProfilerManager::OnSessionChanged()
 
 void FTimingProfilerManager::ShowHideFramesTrack(const bool bFramesTrackVisibleState)
 {
-	bool bWasFramesTrackVisible = bIsFramesTrackVisible;
-
 	bIsFramesTrackVisible = bFramesTrackVisibleState;
 
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
@@ -170,8 +144,6 @@ void FTimingProfilerManager::ShowHideFramesTrack(const bool bFramesTrackVisibleS
 
 void FTimingProfilerManager::ShowHideGraphTrack(const bool bGraphTrackVisibleState)
 {
-	bool bWasGraphTrackVisible = bIsGraphTrackVisible;
-
 	bIsGraphTrackVisible = bGraphTrackVisibleState;
 
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
@@ -185,8 +157,6 @@ void FTimingProfilerManager::ShowHideGraphTrack(const bool bGraphTrackVisibleSta
 
 void FTimingProfilerManager::ShowHideTimingView(const bool bTimingViewVisibleState)
 {
-	bool bWasTimingViewVisible = bIsTimingViewVisible;
-
 	bIsTimingViewVisible = bTimingViewVisibleState;
 
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
@@ -200,8 +170,6 @@ void FTimingProfilerManager::ShowHideTimingView(const bool bTimingViewVisibleSta
 
 void FTimingProfilerManager::ShowHideTimersView(const bool bTimersViewVisibleState)
 {
-	bool bWasTimersViewVisible = bIsTimersViewVisible;
-
 	bIsTimersViewVisible = bTimersViewVisibleState;
 
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
@@ -215,8 +183,6 @@ void FTimingProfilerManager::ShowHideTimersView(const bool bTimersViewVisibleSta
 
 void FTimingProfilerManager::ShowHideStatsCountersView(const bool bStatsCountersViewVisibleState)
 {
-	bool bWasStatsCountersViewVisible = bIsStatsCountersViewVisible;
-
 	bIsStatsCountersViewVisible = bStatsCountersViewVisibleState;
 
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
@@ -230,8 +196,6 @@ void FTimingProfilerManager::ShowHideStatsCountersView(const bool bStatsCounters
 
 void FTimingProfilerManager::ShowHideLogView(const bool bLogViewVisibleState)
 {
-	bool bWasLogViewVisible = bIsLogViewVisible;
-
 	bIsLogViewVisible = bLogViewVisibleState;
 
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
@@ -247,15 +211,19 @@ const FTimerNodePtr FTimingProfilerManager::GetTimerNode(uint64 TypeId) const
 {
 	const FTimerNodePtr* TimerNodePtrPtr = nullptr;
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
-	if (Wnd.IsValid() && Wnd->TimersView)
+	if (Wnd.IsValid())
 	{
-		TimerNodePtrPtr = Wnd->TimersView->GetTimerNode(TypeId);
-		if (TimerNodePtrPtr == nullptr)
+		TSharedPtr<STimersView> TimersView = Wnd->GetTimersView();
+		if (TimersView.IsValid())
 		{
-			// List of timers in TimersView not up to date?
-			// Refresh and try again.
-			Wnd->TimersView->RebuildTree(false);
-			TimerNodePtrPtr = Wnd->TimersView->GetTimerNode(TypeId);
+			TimerNodePtrPtr = TimersView->GetTimerNode(TypeId);
+			if (TimerNodePtrPtr == nullptr)
+			{
+				// List of timers in TimersView not up to date?
+				// Refresh and try again.
+				TimersView->RebuildTree(false);
+				TimerNodePtrPtr = TimersView->GetTimerNode(TypeId);
+			}
 		}
 	}
 	return TimerNodePtrPtr ? *TimerNodePtrPtr : nullptr;

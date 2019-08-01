@@ -23,7 +23,7 @@ struct FInsightsManagerTabs
 {
 	static const FName StartPageTabId;
 	static const FName TimingProfilerTabId;
-	static const FName IoProfilerTabId;
+	static const FName LoadingProfilerTabId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

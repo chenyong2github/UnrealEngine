@@ -6,6 +6,7 @@
 #include "Logging/LogVerbosity.h"
 #include "Misc/ScopeLock.h"
 #include "SlateFwd.h"
+#include "Templates/UniquePtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SCompoundWidget.h"

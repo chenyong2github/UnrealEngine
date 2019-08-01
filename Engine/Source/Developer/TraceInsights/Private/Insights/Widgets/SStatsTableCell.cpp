@@ -39,7 +39,7 @@ void SStatsTableCell::Construct(const FArguments& InArgs, const TSharedRef<class
 
 TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
 {
-	if (InArgs._IsStatsNameColumn)
+	if (InArgs._IsNameColumn)
 	{
 		return GenerateWidgetForNameColumn(InArgs, TableRow);
 	}
@@ -66,7 +66,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 			SNew(SExpanderArrow, TableRow)
 		]
 
-		// Info icon + tooltip.
+		// Info icon + tooltip
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.HAlign(HAlign_Center)
@@ -78,7 +78,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 			.ToolTip(SStatsViewTooltip::GetTableCellTooltip(StatsNodePtr))
 		]
 
-		// Color box.
+		// Color box
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.HAlign(HAlign_Center)
@@ -105,34 +105,13 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForNameColumn(const FArgument
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
-			//.Text(StatsNodePtr->GetNameEx())
-			.Text(this, &SStatsTableCell::GetNameEx)
+			.Text(this, &SStatsTableCell::GetDisplayName)
 			.HighlightText(InArgs._HighlightText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &SStatsTableCell::GetColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SStatsTableCell::GetShadowColorAndOpacity)
 		]
-
-		/*
-		// Culled children warning icon + tooltip.
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), TEXT("HoverHintOnly"))
-			.ContentPadding(0.0f)
-			.IsFocusable(false)
-			//.OnClicked(this, &SStatsTableCell::ExpandCulledEvents_OnClicked)
-			[
-				SNew(SImage)
-				.Visibility(this, &SStatsTableCell::GetCulledEventsIconVisibility)
-				.Image(FEditorStyle::GetBrush("Profiler.EventGraph.HasCulledEventsSmall"))
-				.ToolTipText(LOCTEXT("HasCulledEvents_TT", "This event contains culled children, if you want to see all children, please disable culling or use function details, or press this icon"))
-			]
-		]*/
-		;
+	;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -145,6 +124,7 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForStatsColumn(const FArgumen
 	return
 		SNew(SHorizontalBox)
 
+		// Value
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		.VAlign(VAlign_Center)
@@ -156,7 +136,8 @@ TSharedRef<SWidget> SStatsTableCell::GenerateWidgetForStatsColumn(const FArgumen
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &SStatsTableCell::GetStatsColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SStatsTableCell::GetShadowColorAndOpacity)
-		];
+		]
+	;
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

@@ -154,11 +154,15 @@ public:
 				const double Time = CacheEntry.Time;
 
 				TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-				if (Window && Window->TimingView)
+				if (Window)
 				{
-					if (Window->TimingView->IsTimeSelectedInclusive(Time))
+					TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+					if (TimingView)
 					{
-						return FSlateColor(FLinearColor(0.25f, 0.5f, 1.0f, 0.25f));
+						if (TimingView->IsTimeSelectedInclusive(Time))
+						{
+							return FSlateColor(FLinearColor(0.25f, 0.5f, 1.0f, 0.25f));
+						}
 					}
 				}
 			}
@@ -185,19 +189,23 @@ public:
 			const double Time = CacheEntry.Time;
 
 			TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-			if (Window && Window->TimingView)
+			if (Window)
 			{
-				if (Window->TimingView->IsTimeSelectedInclusive(Time))
+				TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+				if (TimingView)
 				{
-					if (IsSelected)
+					if (TimingView->IsTimeSelectedInclusive(Time))
 					{
-						//return FSlateColor(FLinearColor(0.0f, 0.1f, 0.5f, 1.0f));
-						return FSlateColor(FLinearColor(0.0f, 0.05f, 0.2f, 1.0f));
-					}
-					else
-					{
-						//return FSlateColor(FLinearColor(0.2f, 0.4f, 0.8f, 1.0f));
-						return FSlateColor(FLinearColor(0.4f, 0.8f, 1.6f, 1.0f));
+						if (IsSelected)
+						{
+							//return FSlateColor(FLinearColor(0.0f, 0.1f, 0.5f, 1.0f));
+							return FSlateColor(FLinearColor(0.0f, 0.05f, 0.2f, 1.0f));
+						}
+						else
+						{
+							//return FSlateColor(FLinearColor(0.2f, 0.4f, 0.8f, 1.0f));
+							return FSlateColor(FLinearColor(0.4f, 0.8f, 1.6f, 1.0f));
+						}
 					}
 				}
 			}
@@ -930,21 +938,25 @@ void SLogView::OnSelectionChanged(TSharedPtr<FLogMessage> LogMessage, ESelectInf
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
-		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-		if (Window && Window->TimingView)
+		// Single item selection.
+		if (LogMessage.IsValid())
 		{
-			// Single item selection.
-			if (LogMessage.IsValid())
+			TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+			if (Window)
 			{
-				const double Time = Cache.Get(LogMessage->GetIndex()).Time;
+				TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+				if (TimingView)
+				{
+					const double Time = Cache.Get(LogMessage->GetIndex()).Time;
 
-				if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
-				{
-					Window->TimingView->SelectToTimeMarker(Time);
-				}
-				else
-				{
-					Window->TimingView->SetAndCenterOnTimeMarker(Time);
+					if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+					{
+						TimingView->SelectToTimeMarker(Time);
+					}
+					else
+					{
+						TimingView->SetAndCenterOnTimeMarker(Time);
+					}
 				}
 			}
 		}

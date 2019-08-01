@@ -7,7 +7,7 @@
 #include "Templates/UniquePtr.h"
 
 // Insights
-#include "Insights/IoProfilerManager.h"
+#include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -18,7 +18,7 @@
 
 const FName FInsightsManagerTabs::StartPageTabId(TEXT("StartPage"));
 const FName FInsightsManagerTabs::TimingProfilerTabId(TEXT("TimingProfiler"));
-const FName FInsightsManagerTabs::IoProfilerTabId(TEXT("IoProfiler"));
+const FName FInsightsManagerTabs::LoadingProfilerTabId(TEXT("LoadingProfiler"));
 
 TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
 
@@ -148,10 +148,10 @@ void FInsightsManager::OnSessionChanged()
 		TimingProfilerManager->OnSessionChanged();
 	}
 
-	if (TSharedPtr<FIoProfilerManager> IoProfilerManager = FIoProfilerManager::Get())
+	if (TSharedPtr<FLoadingProfilerManager> LoadingProfilerManager = FLoadingProfilerManager::Get())
 	{
-		// FIXME: make IoProfilerManager to register to SessionChangedEvent instead
-		IoProfilerManager->OnSessionChanged();
+		// FIXME: make LoadingProfilerManager to register to SessionChangedEvent instead
+		LoadingProfilerManager->OnSessionChanged();
 	}
 
 	SessionChangedEvent.Broadcast();
@@ -166,9 +166,9 @@ void FInsightsManager::SpawnAndActivateTabs()
 	{
 		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::TimingProfilerTabId);
 	}
-	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::IoProfilerTabId))
+	if (FGlobalTabmanager::Get()->HasTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId))
 	{
-		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::IoProfilerTabId);
+		FGlobalTabmanager::Get()->InvokeTab(FInsightsManagerTabs::LoadingProfilerTabId);
 	}
 
 	// Ensure Timing Insights / Timing View is the active tab / view.
@@ -176,7 +176,7 @@ void FInsightsManager::SpawnAndActivateTabs()
 	{
 		TimingInsightsTab->ActivateInParent(ETabActivationCause::SetDirectly);
 
-		//TOOD: FTimingProfilerManager::Get()->SpawnAndActivateTabs();
+		//TODO: FTimingProfilerManager::Get()->ActivateWindow();
 		TSharedPtr<class STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd)
 		{

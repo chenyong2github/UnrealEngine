@@ -153,7 +153,7 @@ protected:
 	EHorizontalAlignment TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const;
 
 	FText TableRow_GetHighlightText() const;
-	FName TableRow_GetHighlightedStatsName() const;
+	FName TableRow_GetHighlightedNodeName() const;
 
 	bool TableRow_ShouldBeEnabled(const uint32 StatsId) const;
 
@@ -276,7 +276,7 @@ protected:
 	FStatsNodePtr HoveredStatsNodePtr;
 
 	/** Name of the stats that should be drawn as highlighted. */
-	FName HighlightedStatsName;
+	FName HighlightedNodeName;
 
 	//////////////////////////////////////////////////
 	// Stats Nodes

@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "STimerTableCell.h"
+#include "STableTreeViewCell.h"
 
 #include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
@@ -11,22 +11,26 @@
 #include "Widgets/Views/SExpanderArrow.h"
 
 // Insights
-#include "Insights/ViewModels/TimersViewColumn.h"
-#include "Insights/ViewModels/TimersViewColumnFactory.h"
-#include "Insights/Widgets/STimersViewTooltip.h"
+#include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 
-#define LOCTEXT_NAMESPACE "STimersView"
+#define LOCTEXT_NAMESPACE "STableTreeView"
+
+namespace Insights
+{
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+void STableTreeViewCell::Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	SetHoveredTableCellDelegate = InArgs._OnSetHoveredTableCell;
-	TimerNodePtr = InArgs._TimerNodePtr;
-	ColumnId = InArgs._ColumnId;
-	//HighlightText = InArgs._HighlightText;
+	TablePtr = InArgs._TablePtr;
+	ColumnPtr = InArgs._ColumnPtr;
+	TableTreeNodePtr = InArgs._TableTreeNodePtr;
+
+	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	ChildSlot
 		[
@@ -36,7 +40,7 @@ void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<class
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
 	if (InArgs._IsNameColumn)
 	{
@@ -44,16 +48,14 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForColumn(const FArguments& I
 	}
 	else
 	{
-		return GenerateWidgetForStatsColumn(InArgs, TableRow);
+		return GenerateWidgetForTableColumn(InArgs, TableRow);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	const FTimersViewColumn& Column = *FTimersViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
-
 	return
 		SNew(SHorizontalBox)
 
@@ -72,34 +74,33 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForNameColumn(const FArgument
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Visibility(this, &STimerTableCell::GetHintIconVisibility)
+			.Visibility(this, &STableTreeViewCell::GetHintIconVisibility)
 			.Image(FEditorStyle::GetBrush("Profiler.Tooltip.HintIcon10"))
-			.ToolTip(STimersViewTooltip::GetTableCellTooltip(TimerNodePtr))
+			.ToolTip(STableTreeViewTooltip::GetCellTooltip(TableTreeNodePtr, ColumnPtr))
 		]
 
 		// Name
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.HAlign(Column.HorizontalAlignment)
+		.HAlign(ColumnPtr->GetHorizontalAlignment())
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
-			.Text(this, &STimerTableCell::GetDisplayName)
+			.Text(this, &STableTreeViewCell::GetDisplayName)
 			.HighlightText(InArgs._HighlightText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
-			.ColorAndOpacity(this, &STimerTableCell::GetColorAndOpacity)
-			.ShadowColorAndOpacity(this, &STimerTableCell::GetShadowColorAndOpacity)
+			.ColorAndOpacity(this, &STableTreeViewCell::GetColorAndOpacity)
+			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
 		]
 	;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimerTableCell::GenerateWidgetForStatsColumn(const FArguments& InArgs, const TSharedRef<class ITableRow>& TableRow)
+TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
 {
-	const FTimersViewColumn& Column = *FTimersViewColumnFactory::Get().ColumnIdToPtrMapping.FindChecked(ColumnId);
-	const FText FormattedValue = Column.GetFormattedValue(*TimerNodePtr);
+	const FText FormattedValue = ColumnPtr->GetValueAsText(TableTreeNodePtr->GetRowId());
 
 	return
 		SNew(SHorizontalBox)
@@ -108,14 +109,14 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForStatsColumn(const FArgumen
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		.VAlign(VAlign_Center)
-		.HAlign(Column.HorizontalAlignment)
+		.HAlign(ColumnPtr->GetHorizontalAlignment())
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
 			.Text(FormattedValue)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
-			.ColorAndOpacity(this, &STimerTableCell::GetStatsColorAndOpacity)
-			.ShadowColorAndOpacity(this, &STimerTableCell::GetShadowColorAndOpacity)
+			.ColorAndOpacity(this, &STableTreeViewCell::GetStatsColorAndOpacity)
+			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
 		]
 	;
 }
@@ -123,5 +124,7 @@ TSharedRef<SWidget> STimerTableCell::GenerateWidgetForStatsColumn(const FArgumen
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace Insights
 
 #undef LOCTEXT_NAMESPACE
