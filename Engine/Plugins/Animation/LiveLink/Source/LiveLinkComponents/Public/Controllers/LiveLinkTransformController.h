@@ -10,7 +10,7 @@ struct FTransform;
 class USceneComponent;
 
 USTRUCT(BlueprintType)
-struct FLiveLinkTransformControllerData
+struct LIVELINKCOMPONENTS_API FLiveLinkTransformControllerData
 {
 	GENERATED_BODY()
 
