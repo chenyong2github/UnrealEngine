@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_TextureRenderTarget.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Engine/Texture2D.h"
 #include "EditorStyleSet.h"
 #include "Engine/TextureCube.h"
@@ -11,13 +11,14 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_TextureRenderTarget::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_TextureRenderTarget::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	FAssetTypeActions_Texture::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_Texture::GetActions(InObjects, Section);
 
 	auto RenderTargets = GetTypedWeakObjectPtrs<UTextureRenderTarget>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"TextureRenderTarget_CreateStatic",
 		LOCTEXT("TextureRenderTarget_CreateStatic", "Create Static Texture"),
 		LOCTEXT("TextureRenderTarget_CreateStaticTooltip", "Creates a static texture from the selected render targets."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Texture2D"),

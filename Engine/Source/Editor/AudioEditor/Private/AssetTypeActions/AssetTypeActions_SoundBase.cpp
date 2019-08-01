@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_SoundBase.h"
 #include "Sound/SoundBase.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
 #include "Components/AudioComponent.h"
@@ -17,11 +17,12 @@ UClass* FAssetTypeActions_SoundBase::GetSupportedClass() const
 	return USoundBase::StaticClass();
 }
 
-void FAssetTypeActions_SoundBase::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_SoundBase::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Sounds = GetTypedWeakObjectPtrs<USoundBase>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sound_PlaySound",
 		LOCTEXT("Sound_PlaySound", "Play"),
 		LOCTEXT("Sound_PlaySoundTooltip", "Plays the selected sound."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
@@ -31,7 +32,8 @@ void FAssetTypeActions_SoundBase::GetActions( const TArray<UObject*>& InObjects,
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sound_StopSound",
 		LOCTEXT("Sound_StopSound", "Stop"),
 		LOCTEXT("Sound_StopSoundTooltip", "Stops the selected sounds."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),

@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_Skeleton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimSequenceBase.h"
@@ -425,23 +425,26 @@ FCreateRigDlg::EResult FCreateRigDlg::ShowModal()
 }
 
 ///////////////////////////////
-void FAssetTypeActions_Skeleton::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_Skeleton::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Skeletons = GetTypedWeakObjectPtrs<USkeleton>(InObjects);
 
 	// create menu
-	MenuBuilder.AddSubMenu(
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			NAME_None,
+			"CreateSkeletonSubmenu",
 			LOCTEXT("CreateSkeletonSubmenu", "Create"),
 			LOCTEXT("CreateSkeletonSubmenu_ToolTip", "Create assets for this skeleton"),
 			FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_Skeleton::FillCreateMenu, Skeletons),
 			false, 
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
-			);
+			));
 
 	// only show if one is selected. It won't work since I changed the window to be normal window
 	if (Skeletons.Num() == 1)
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"Skeleton_Retarget",
 			LOCTEXT("Skeleton_Retarget", "Retarget to Another Skeleton"),
 			LOCTEXT("Skeleton_RetargetTooltip", "Allow all animation assets for this skeleton retarget to another skeleton."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.RetargetSkeleton"),
@@ -454,7 +457,8 @@ void FAssetTypeActions_Skeleton::GetActions( const TArray<UObject*>& InObjects, 
 
 	// @todo ImportAnimation
 	/*
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Skeleton_ImportAnimation",
 		LOCTEXT("Skeleton_ImportAnimation", "Import Animation"),
 		LOCTEXT("Skeleton_ImportAnimationTooltip", "Imports an animation for the selected skeleton."),
 		FSlateIcon(),
@@ -463,7 +467,7 @@ void FAssetTypeActions_Skeleton::GetActions( const TArray<UObject*>& InObjects, 
 			FCanExecuteAction()
 			)
 		);
-	*/
+	*/;
 }
 
 void FAssetTypeActions_Skeleton::FillCreateMenu(FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<USkeleton>> Skeletons) const

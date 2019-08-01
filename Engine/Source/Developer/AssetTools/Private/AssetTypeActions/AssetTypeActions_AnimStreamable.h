@@ -16,10 +16,10 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(181,230,29); }
 	virtual UClass* GetSupportedClass() const override { return UAnimStreamable::StaticClass(); }
 	virtual bool CanFilter() override { return true; }
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 };
 
-void FAssetTypeActions_AnimStreamable::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_AnimStreamable::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	/*auto Sequences = GetTypedWeakObjectPtrs<UAnimStreamable>(InObjects);
 

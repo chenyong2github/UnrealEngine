@@ -8,7 +8,7 @@
 #include "NiagaraSystemFactoryNew.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "IContentBrowserSingleton.h"
@@ -52,11 +52,12 @@ UClass* FAssetTypeActions_NiagaraEmitter::GetSupportedClass() const
 	return UNiagaraEmitter::StaticClass();
 }
 
-void FAssetTypeActions_NiagaraEmitter::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_NiagaraEmitter::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto NiagaraEmitters = GetTypedWeakObjectPtrs<UNiagaraEmitter>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Emitter_NewNiagaraSystem",
 		LOCTEXT("Emitter_NewNiagaraSystem", "Create Niagara System"),
 		LOCTEXT("Emitter_NewNiagaraSystemTooltip", "Creates a niagara system using this emitter as a base."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.ParticleSystem"),
@@ -74,7 +75,8 @@ void FAssetTypeActions_NiagaraEmitter::GetActions(const TArray<UObject*>& InObje
 		}
 	}
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"MarkDependentCompilableAssetsDirty",
 		LOCTEXT("MarkDependentCompilableAssetsDirtyLabel", "Mark dependent compilable assets dirty"),
 		LOCTEXT("MarkDependentCompilableAssetsDirtyToolTip", "Finds all niagara assets which depend on this asset either directly or indirectly,\n and marks them dirty so they can be saved with the latest version."),
 		FSlateIcon(),

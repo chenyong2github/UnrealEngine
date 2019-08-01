@@ -2,17 +2,18 @@
 
 #include "AssetTypeActions/AssetTypeActions_FontFace.h"
 #include "FontEditorModule.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "EditorReimportHandler.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_FontFace::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_FontFace::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto FontFaces = GetTypedWeakObjectPtrs<UFontFace>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ReimportFontFaceLabel",
 		LOCTEXT("ReimportFontFaceLabel", "Reimport"),
 		LOCTEXT("ReimportFontFaceTooltip", "Reimport the selected font(s)."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),

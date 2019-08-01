@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_CurveTable.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/FileHelper.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Framework/Application/SlateApplication.h"
@@ -11,7 +11,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_CurveTable::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_CurveTable::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Tables = GetTypedWeakObjectPtrs<UObject>(InObjects);
 
@@ -25,7 +25,8 @@ void FAssetTypeActions_CurveTable::GetActions( const TArray<UObject*>& InObjects
 		}
 	}
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"CurveTable_ExportAsCSV",
 		LOCTEXT("CurveTable_ExportAsCSV", "Export as CSV"),
 		LOCTEXT("CurveTable_ExportAsCSVTooltip", "Export the curve table as a file containing CSV data."),
 		FSlateIcon(),
@@ -35,7 +36,8 @@ void FAssetTypeActions_CurveTable::GetActions( const TArray<UObject*>& InObjects
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"CurveTable_ExportAsJSON",
 		LOCTEXT("CurveTable_ExportAsJSON", "Export as JSON"),
 		LOCTEXT("CurveTable_ExportAsJSONTooltip", "Export the curve table as a file containing JSON data."),
 		FSlateIcon(),
@@ -50,7 +52,8 @@ void FAssetTypeActions_CurveTable::GetActions( const TArray<UObject*>& InObjects
 	PotentialFileExtensions.Add(TEXT(".xlsm"));
 	PotentialFileExtensions.Add(TEXT(".csv"));
 	PotentialFileExtensions.Add(TEXT(".json"));
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"CurveTable_OpenSourceData",
 		LOCTEXT("CurveTable_OpenSourceData", "Open Source Data"),
 		LOCTEXT("CurveTable_OpenSourceDataTooltip", "Opens the curve table's source data file in an external editor. It will search using the following extensions: .xls/.xlsm/.csv/.json"),
 		FSlateIcon(),

@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_DialogueWave.h"
 #include "Misc/PackageName.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
 #include "Factories/SoundCueFactoryNew.h"
@@ -12,11 +12,12 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto DialogueWaves = GetTypedWeakObjectPtrs<UDialogueWave>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sound_PlaySound",
 		LOCTEXT("Sound_PlaySound", "Play"),
 		LOCTEXT("Sound_PlaySoundTooltip", "Plays the selected sound."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
@@ -26,7 +27,8 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 		)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sound_StopSound",
 		LOCTEXT("Sound_StopSound", "Stop"),
 		LOCTEXT("Sound_StopSoundTooltip", "Stops the selected sounds."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),
@@ -36,7 +38,8 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 		)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"DialogueWave_CreateCue",
 		LOCTEXT("DialogueWave_CreateCue", "Create Cue"),
 		LOCTEXT("DialogueWave_CreateCueTooltip", "Creates a sound cue using this dialogue wave."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),

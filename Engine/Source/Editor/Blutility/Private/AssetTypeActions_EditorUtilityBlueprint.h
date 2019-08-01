@@ -7,7 +7,6 @@
 #include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 
-class FMenuBuilder;
 
 class FAssetTypeActions_EditorUtilityBlueprint : public FAssetTypeActions_Blueprint
 {
@@ -17,7 +16,7 @@ public:
 	virtual FColor GetTypeColor() const override;
 	virtual UClass* GetSupportedClass() const override;
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 	virtual uint32 GetCategories() override;
 	virtual bool CanLocalize() const override { return false; }
 	// End of IAssetTypeActions interface

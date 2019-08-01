@@ -21,7 +21,7 @@
 #include "Editor.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/FeedbackContext.h"
@@ -44,7 +44,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Texture::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_Texture::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Textures = GetTypedWeakObjectPtrs<UTexture>(InObjects);
 	bool bHasVirtualTextures = false;
@@ -62,7 +62,8 @@ void FAssetTypeActions_Texture::GetActions( const TArray<UObject*>& InObjects, F
 		}
 	}
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Texture_CreateMaterial",
 		LOCTEXT("Texture_CreateMaterial", "Create Material"),
 		LOCTEXT("Texture_CreateMaterialTooltip", "Creates a new material using this texture."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Material"),
@@ -74,7 +75,8 @@ void FAssetTypeActions_Texture::GetActions( const TArray<UObject*>& InObjects, F
 
 	if (bHasNonVirtualTextures)
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"Texture_ConvertToVT",
 			LOCTEXT("Texture_ConvertToVT", "Convert to Virtual Texture"),
 			LOCTEXT("Texture_ConvertToVTTooltip", "Converts this texture to a virtual texture if it fits the size limit imposed in the texture importer settings."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Texture2D"),
@@ -87,7 +89,8 @@ void FAssetTypeActions_Texture::GetActions( const TArray<UObject*>& InObjects, F
 
 	if (bHasVirtualTextures)
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"Texture_ConvertToRegular",
 			LOCTEXT("Texture_ConvertToRegular", "Convert to Regular Texture"),
 			LOCTEXT("Texture_ConvertToRegularTooltip", "Converts this texture to a regular 2D texture if it is a virtual texture."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Texture2D"),
@@ -100,7 +103,8 @@ void FAssetTypeActions_Texture::GetActions( const TArray<UObject*>& InObjects, F
 
 	if ( InObjects.Num() == 1 )
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"Texture_FindMaterials",
 			LOCTEXT("Texture_FindMaterials", "Find Materials Using This"),
 			LOCTEXT("Texture_FindMaterialsTooltip", "Finds all materials that use this material in the content browser."),
 			FSlateIcon(),

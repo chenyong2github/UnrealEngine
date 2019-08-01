@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_AnimSequence.h"
 #include "Animation/AnimSequence.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "EditorReimportHandler.h"
 #include "Animation/AnimMontage.h"
@@ -27,34 +27,38 @@ UClass* FAssetTypeActions_AnimSequence::GetSupportedClass() const
 	return UAnimSequence::StaticClass(); 
 }
 
-void FAssetTypeActions_AnimSequence::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Sequences = GetTypedWeakObjectPtrs<UAnimSequence>(InObjects);
 
 	// create menu
-	MenuBuilder.AddSubMenu(
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		NAME_None,
+		"CreateAnimSubmenu",
 		LOCTEXT("CreateAnimSubmenu", "Create"),
 		LOCTEXT("CreateAnimSubmenu_ToolTip", "Create assets from this anim sequence"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_AnimSequence::FillCreateMenu, Sequences),
 		false,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
-		);
+		));
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"AnimSequence_ReimportWithNewSource",
 		LOCTEXT("AnimSequence_ReimportWithNewSource", "Reimport with New Source"),
 		LOCTEXT("AnimSequence_ReimportWithNewSourceTooltip", "Reimport the selected sequence(s) from a new source file."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.ReimportAnim"),
 		FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteReimportWithNewSource, Sequences))
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"AnimSequence_AddAnimationModifier",
 		LOCTEXT("AnimSequence_AddAnimationModifier", "Add Animation Modifier(s)"),
 		LOCTEXT("AnimSequence_AddAnimationModifierTooltip", "Apply new animation modifier(s)."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimationModifier"),
 		FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimSequence::ExecuteAddNewAnimationModifier, Sequences))
 	);
 
-	FAssetTypeActions_AnimationAsset::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_AnimationAsset::GetActions(InObjects, Section);
 }
 
 void FAssetTypeActions_AnimSequence::FillCreateMenu(FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UAnimSequence>> Sequences) const

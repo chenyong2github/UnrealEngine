@@ -3,13 +3,13 @@
 #include "GeometryCollection/AssetTypeActions_GeometryCollection.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
+#include "EditorMenuSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 UClass* FAssetTypeActions_GeometryCollection::GetSupportedClass() const
 {
-	return 
-		UGeometryCollection::StaticClass();
+	return UGeometryCollection::StaticClass();
 }
 
 UThumbnailInfo* FAssetTypeActions_GeometryCollection::GetThumbnailInfo(UObject* Asset) const
@@ -25,9 +25,9 @@ UThumbnailInfo* FAssetTypeActions_GeometryCollection::GetThumbnailInfo(UObject* 
 	return ThumbnailInfo;
 }
 
-void FAssetTypeActions_GeometryCollection::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_GeometryCollection::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	FAssetTypeActions_Base::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_Base::GetActions(InObjects, Section);
 	//Set("ClassIcon.GeometryCollection", new IMAGE_BRUSH("Icons/AssetIcons/GeometryCollectionComponentAtlasGroup_16x", Icon16x16));
 	//Set("ClassThumbnail.GeometryCollection", new IMAGE_BRUSH("Icons/AssetIcons/GeometryCollectionComponentAtlasGroup_64x", Icon64x64));
 	// IconPath = Plugin->GetBaseDir() / TEXT("Resources/Icon128.png");

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Texture2D.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/PackageName.h"
 #include "EditorStyleSet.h"
 #include "Factories/SlateBrushAssetFactory.h"
@@ -14,13 +14,14 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Texture2D::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_Texture2D::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	FAssetTypeActions_Texture::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_Texture::GetActions(InObjects, Section);
 
 	auto Textures = GetTypedWeakObjectPtrs<UTexture2D>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Texture2D_CreateSlateBrush",
 		LOCTEXT("Texture2D_CreateSlateBrush", "Create Slate Brush"),
 		LOCTEXT("Texture2D_CreateSlateBrushToolTip", "Creates a new slate brush using this texture."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SlateBrushAsset"),
@@ -30,7 +31,8 @@ void FAssetTypeActions_Texture2D::GetActions( const TArray<UObject*>& InObjects,
 	static const auto AllowVolumeTextureAssetCreationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowVolumeTextureAssetCreation"));
 	if (InObjects.Num() == 1 && AllowVolumeTextureAssetCreationVar->GetValueOnGameThread() != 0)
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"Texture2D_CreateVolumeTexture",
 			LOCTEXT("Texture2D_CreateVolumeTexture", "Create Volume Texture"),
 			LOCTEXT("Texture2D_CreateVolumeTextureToolTip", "Creates a new volume texture using this texture."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Sphere"),

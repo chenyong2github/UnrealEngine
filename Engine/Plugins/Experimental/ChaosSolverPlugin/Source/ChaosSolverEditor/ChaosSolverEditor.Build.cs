@@ -25,8 +25,9 @@ namespace UnrealBuildTool.Rules
                     "ChaosSolverEngine",
                     "RawMesh",
                     "AssetTools",
-                    "AssetRegistry"
-                }
+                    "AssetRegistry",
+					"EditorMenus",
+				}
 				);
 		}
 	}

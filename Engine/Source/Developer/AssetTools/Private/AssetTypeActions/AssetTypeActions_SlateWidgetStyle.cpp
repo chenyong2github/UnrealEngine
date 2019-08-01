@@ -1,12 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_SlateWidgetStyle.h"
+#include "EditorMenuSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 
-void FAssetTypeActions_SlateWidgetStyle::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_SlateWidgetStyle::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Styles = GetTypedWeakObjectPtrs< USlateWidgetStyleAsset >(InObjects);
 }

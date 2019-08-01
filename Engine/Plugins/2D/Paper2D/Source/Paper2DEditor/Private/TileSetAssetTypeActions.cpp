@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "TileSetAssetTypeActions.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Engine/Texture.h"
 #include "Misc/PackageName.h"
 #include "EditorStyleSet.h"
@@ -58,20 +58,22 @@ uint32 FTileSetAssetTypeActions::GetCategories()
 	return MyAssetCategory;
 }
 
-void FTileSetAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FTileSetAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	TArray<TWeakObjectPtr<UPaperTileSet>> TileSets = GetTypedWeakObjectPtrs<UPaperTileSet>(InObjects);
 
 	if (TileSets.Num() == 1)
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"TileSet_CreateTileMap",
 			LOCTEXT("TileSet_CreateTileMap", "Create Tile Map"),
 			LOCTEXT("TileSet_CreateTileMapTooltip", "Creates a tile map using the selected tile set as a guide for tile size, etc..."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PaperTileSet"),
 			FUIAction(FExecuteAction::CreateSP(this, &FTileSetAssetTypeActions::ExecuteCreateTileMap, TileSets[0]))
 			);
 
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"TileSet_ConditionTileSet",
 			LOCTEXT("TileSet_ConditionTileSet", "Condition Tile Sheet Texture"),
 			LOCTEXT("TileSet_ConditionTileSetTooltip", "Conditions the tile sheet texture for the selected tile set by duplicating tile edges to create a buffer zone around each tile"),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.Texture2D"),

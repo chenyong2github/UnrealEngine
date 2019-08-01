@@ -18,7 +18,8 @@ public class GeometryCacheEd : ModuleRules
                 "RHI",		
                 "UnrealEd",
 				"AssetTools",
-                "GeometryCache"
+                "GeometryCache",
+				"EditorMenus",
 			}
 		);
 	}

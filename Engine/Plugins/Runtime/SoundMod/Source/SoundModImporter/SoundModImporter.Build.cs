@@ -14,7 +14,8 @@ public class SoundModImporter : ModuleRules
 				"SlateCore",
                 "Slate",
 				"SoundMod",
-				"UnrealEd"
+				"UnrealEd",
+				"EditorMenus",
 			});
 
 		PrivateIncludePathModuleNames.AddRange(

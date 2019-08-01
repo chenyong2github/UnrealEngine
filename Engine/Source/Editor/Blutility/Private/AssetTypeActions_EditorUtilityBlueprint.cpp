@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_EditorUtilityBlueprint.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/PackageName.h"
 #include "Misc/MessageDialog.h"
 #include "EditorUtilityBlueprintFactory.h"
@@ -38,11 +38,12 @@ bool FAssetTypeActions_EditorUtilityBlueprint::HasActions(const TArray<UObject*>
 	return true;
 }
 
-void FAssetTypeActions_EditorUtilityBlueprint::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_EditorUtilityBlueprint::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Blueprints = GetTypedWeakObjectPtrs<UEditorUtilityBlueprint>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"EditorUtility_Run",
 		LOCTEXT("EditorUtility_Run", "Run Editor Utility Blueprint"),
 		LOCTEXT("EditorUtility_RunTooltip", "Runs this Editor Utility Blueprint."),
 		FSlateIcon(),

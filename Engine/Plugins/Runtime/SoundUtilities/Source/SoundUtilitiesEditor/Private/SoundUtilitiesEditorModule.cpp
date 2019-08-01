@@ -8,26 +8,29 @@
 #include "AssetToolsModule.h"
 #include "AssetTypeActions_SoundSimple.h"
 #include "AssetTypeActions_Base.h"
+#include "EditorMenuSubsystem.h"
 #include "AudioEditorModule.h"
-
+#include "SoundWaveAssetActionExtender.h"
 
 IMPLEMENT_MODULE(FSoundUtilitiesEditorModule, SoundUtilitiesEditor)
 
 void FSoundUtilitiesEditorModule::StartupModule()
 {
-	SoundWaveAssetActionExtender = TSharedPtr<ISoundWaveAssetActionExtensions>(new FSoundWaveAssetActionExtender());
-
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	// Now that we've loaded this module, we need to register our effect preset actions
-	IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
-	AudioEditorModule->AddSoundWaveActionExtender(SoundWaveAssetActionExtender);
-
+	
 	// Register asset actions
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundSimple));
+
+	UEditorMenuSubsystem::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FSoundUtilitiesEditorModule::RegisterMenus));
 }
 
 void FSoundUtilitiesEditorModule::ShutdownModule()
 {
+	UEditorMenuSubsystem::UnRegisterStartupCallback(this);
+	UEditorMenuSubsystem::UnregisterOwner("SoundUtilities");
 }
 
+void FSoundUtilitiesEditorModule::RegisterMenus()
+{
+	FSoundWaveAssetActionExtender::RegisterMenus();
+}

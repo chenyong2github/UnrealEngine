@@ -5,7 +5,7 @@
 #include "Misc/PackageName.h"
 #include "AssetData.h"
 #include "Sound/SoundWave.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "Factories/SoundCueFactoryNew.h"
 #include "EditorFramework/AssetImportData.h"
@@ -27,13 +27,14 @@ UClass* FAssetTypeActions_SoundWave::GetSupportedClass() const
 	return USoundWave::StaticClass();
 }
 
-void FAssetTypeActions_SoundWave::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_SoundWave::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	FAssetTypeActions_SoundBase::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_SoundBase::GetActions(InObjects, Section);
 
 	TArray<TWeakObjectPtr<USoundWave>> SoundNodes = GetTypedWeakObjectPtrs<USoundWave>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"SoundWave_CreateCue",
 		LOCTEXT("SoundWave_CreateCue", "Create Cue"),
 		LOCTEXT("SoundWave_CreateCueTooltip", "Creates a sound cue using this sound wave."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
@@ -43,21 +44,12 @@ void FAssetTypeActions_SoundWave::GetActions( const TArray<UObject*>& InObjects,
 			)
 		);
 
-	MenuBuilder.AddSubMenu(
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		NAME_None,
+		"SoundWave_CreateDialogue",
 		LOCTEXT("SoundWave_CreateDialogue", "Create Dialogue"),
 		LOCTEXT("SoundWave_CreateDialogueTooltip", "Creates a dialogue wave using this sound wave."),
-		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_SoundWave::FillVoiceMenu, SoundNodes));
-
-	// Check for any sound wave asset action extensions
-	IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
-	TArray<TSharedPtr<ISoundWaveAssetActionExtensions>> Extensions;
-	AudioEditorModule->GetSoundWaveActionExtenders(Extensions);
-	
-	for (TSharedPtr<ISoundWaveAssetActionExtensions> Extension : Extensions)
-	{
-		Extension->GetExtendedActions(SoundNodes, MenuBuilder);
-	}
-
+		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_SoundWave::FillVoiceMenu, SoundNodes)));
 }
 
 void FAssetTypeActions_SoundWave::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const

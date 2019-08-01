@@ -5,7 +5,7 @@
 #include "EditorStyleSet.h"
 #include "Factories/SoundCueFactoryNew.h"
 #include "Factories/SoundCueTemplateFactory.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "IContentBrowserSingleton.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundCueTemplate.h"
@@ -21,11 +21,12 @@ UClass* FAssetTypeActions_SoundCueTemplate::GetSupportedClass() const
 	return USoundCueTemplate::StaticClass();
 }
 
-void FAssetTypeActions_SoundCueTemplate::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_SoundCueTemplate::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	TArray<TWeakObjectPtr<USoundCueTemplate>> Cues = GetTypedWeakObjectPtrs<USoundCueTemplate>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"SoundCueTemplate_CopyToSoundCue",
 		LOCTEXT("SoundCueTemplate_CopyToSoundCue", "Copy To Sound Cue"),
 		LOCTEXT("SoundCueTemplate_CopyToSoundCueTooltip", "Exports a Sound Cue Template to a Sound Cue."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),

@@ -7,7 +7,6 @@
 #include "AssetTypeActions_CSVAssetBase.h"
 #include "Engine/DataTable.h"
 
-class FMenuBuilder;
 
 class FAssetTypeActions_DataTable : public FAssetTypeActions_CSVAssetBase
 {
@@ -15,7 +14,7 @@ public:
 	// IAssetTypeActions Implementation
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_DataTable", "Data Table"); }
 	virtual UClass* GetSupportedClass() const override { return UDataTable::StaticClass(); }
-	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override;
 	virtual void PerformAssetDiff(UObject* Asset1, UObject* Asset2, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const override;

@@ -1,16 +1,17 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Redirector.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "AssetTools.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Redirector::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_Redirector::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Redirectors = GetTypedWeakObjectPtrs<UObjectRedirector>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Redirector_FindTarget",
 		LOCTEXT("Redirector_FindTarget","Find Target"),
 		LOCTEXT("Redirector_FindTargetTooltip", "Finds the asset that this redirector targets in the asset tree."),
 		FSlateIcon(),
@@ -20,7 +21,8 @@ void FAssetTypeActions_Redirector::GetActions( const TArray<UObject*>& InObjects
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Redirector_FixUp",
 		LOCTEXT("Redirector_FixUp","Fix Up"),
 		LOCTEXT("Redirector_FixUpTooltip", "Finds referencers to selected redirectors and resaves them if possible, then deletes any redirectors that had all their referencers fixed."),
 		FSlateIcon(),

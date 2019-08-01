@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "GameFramework/Actor.h"
 #include "Misc/PackageName.h"
 #include "Misc/MessageDialog.h"
@@ -19,7 +19,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Blueprint::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_Blueprint::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	TArray<TWeakObjectPtr<UBlueprint>> Blueprints = GetTypedWeakObjectPtrs<UBlueprint>(InObjects);
 	
@@ -38,16 +38,17 @@ void FAssetTypeActions_Blueprint::GetActions( const TArray<UObject*>& InObjects,
 
 		if (bCanEditSharedDefaults)
 		{
-			MenuBuilder.AddMenuEntry(
-			LOCTEXT("Blueprint_EditDefaults", "Edit Shared Defaults"),
-			LOCTEXT("Blueprint_EditDefaultsTooltip", "Edit the shared default properties of the selected blueprints."),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults"),
-			FUIAction(
-				FExecuteAction::CreateSP( this, &FAssetTypeActions_Blueprint::ExecuteEditDefaults, Blueprints ),
-				FCanExecuteAction()
-				)
-			);
-		}	
+			Section.AddMenuEntry(
+				"Blueprint_EditDefaults",
+				LOCTEXT("Blueprint_EditDefaults", "Edit Shared Defaults"),
+				LOCTEXT("Blueprint_EditDefaultsTooltip", "Edit the shared default properties of the selected blueprints."),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults"),
+				FUIAction(
+					FExecuteAction::CreateSP( this, &FAssetTypeActions_Blueprint::ExecuteEditDefaults, Blueprints ),
+					FCanExecuteAction()
+					)
+				);
+		}
 	}
 
 	if ( Blueprints.Num() == 1 && CanCreateNewDerivedBlueprint() )
@@ -56,7 +57,8 @@ void FAssetTypeActions_Blueprint::GetActions( const TArray<UObject*>& InObjects,
 		DynamicTooltipGetter.BindSP(this, &FAssetTypeActions_Blueprint::GetNewDerivedBlueprintTooltip, Blueprints[0]);
 		TAttribute<FText> DynamicTooltipAttribute = TAttribute<FText>::Create(DynamicTooltipGetter);
 
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"Blueprint_NewDerivedBlueprint",
 			LOCTEXT("Blueprint_NewDerivedBlueprint", "Create Child Blueprint Class"),
 			DynamicTooltipAttribute,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),

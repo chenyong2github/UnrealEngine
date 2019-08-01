@@ -19,7 +19,8 @@ public class PaperSpriteSheetImporter : ModuleRules
 				"Paper2DEditor",
 				"AssetTools",
 				"ContentBrowser",
-                "EditorStyle"
+                "EditorStyle",
+				"EditorMenus",
 			});
 
 		PrivateIncludePathModuleNames.AddRange(

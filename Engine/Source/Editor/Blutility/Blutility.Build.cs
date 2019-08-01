@@ -36,8 +36,9 @@ public class Blutility : ModuleRules
                 "BlueprintGraph",
 				"UMG",
                 "UMGEditor",
-                "KismetCompiler"
-            }
+                "KismetCompiler",
+				"EditorMenus",
+			}
 			);
 	}
 }

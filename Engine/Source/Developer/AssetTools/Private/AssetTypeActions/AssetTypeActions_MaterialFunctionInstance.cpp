@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_MaterialFunctionInstance.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "EditorStyleSet.h"
@@ -14,13 +14,14 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_MaterialFunctionInstance::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_MaterialFunctionInstance::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto MFIs = GetTypedWeakObjectPtrs<UMaterialFunctionInstance>(InObjects);
 
-	FAssetTypeActions_MaterialFunction::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_MaterialFunction::GetActions(InObjects, Section);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"MaterialFunctionInstance_FindParent",
 		LOCTEXT("MaterialFunctionInstance_FindParent", "Find Parent"),
 		LOCTEXT("MaterialFunctionInstance_FindParentTooltip", "Finds the function this instance is based on in the content browser."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),

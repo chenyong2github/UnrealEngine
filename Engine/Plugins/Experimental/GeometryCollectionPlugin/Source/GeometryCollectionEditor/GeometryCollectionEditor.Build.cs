@@ -29,7 +29,8 @@ namespace UnrealBuildTool.Rules
 				    "AssetRegistry",
 				    "SceneOutliner",
 				    "FieldSystemCore",
-					"EditorStyle"
+					"EditorStyle",
+					"EditorMenus",
 				}
 			);
 		}

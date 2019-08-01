@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Class.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "AssetData.h"
 #include "HAL/FileManager.h"
 #include "EditorStyleSet.h"
@@ -17,7 +17,7 @@ bool FAssetTypeActions_Class::HasActions(const TArray<UObject*>& InObjects) cons
 	return true;
 }
 
-void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	UClass *const BaseClass = (InObjects.Num() == 1) ? Cast<UClass>(InObjects[0]) : nullptr;
 
@@ -103,7 +103,8 @@ void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FMen
 		NewDerivedBlueprintClassToolTip = LOCTEXT("Class_NewDerivedBlueprintClassTooltip_InvalidNumberOfBases", "Can only create a Blueprint class when there is a single base class selected.");
 	}
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"NewDerivedCppClass",
 		NewDerivedCppClassLabel,
 		NewDerivedCppClassToolTip,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.AddCodeToProject"),
@@ -113,7 +114,8 @@ void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FMen
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"NewDerivedBlueprintClass",
 		NewDerivedBlueprintClassLabel,
 		NewDerivedBlueprintClassToolTip,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.CreateClassBlueprint"),

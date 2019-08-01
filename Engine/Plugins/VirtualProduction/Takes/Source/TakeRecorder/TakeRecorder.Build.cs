@@ -32,6 +32,7 @@ public class TakeRecorder : ModuleRules
 				"UnrealEd",
 				"WorkspaceMenuStructure",
 				"Analytics",
+				"EditorMenus",
 			}
 		);
 

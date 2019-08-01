@@ -12,18 +12,19 @@
 #include "SSkeletonWidget.h"
 #include "IAnimationEditorModule.h"
 #include "Preferences/PersonaOptions.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Algo/Transform.h"
 #include "IPersonaToolkit.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_AnimationAsset::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_AnimationAsset::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto AnimAssets = GetTypedWeakObjectPtrs<UAnimationAsset>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"AnimSequenceBase_OpenInNewWindow",
 		LOCTEXT("AnimSequenceBase_OpenInNewWindow", "Open In New Window"),
 		LOCTEXT("AnimSequenceBase_OpenInNewWindowTooltip", "Will always open asset in a new window, and not re-use existing window. (Shift+Double-Click)"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
@@ -33,7 +34,8 @@ void FAssetTypeActions_AnimationAsset::GetActions( const TArray<UObject*>& InObj
 		)
 	);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"AnimSequenceBase_FindSkeleton",
 		LOCTEXT("AnimSequenceBase_FindSkeleton", "Find Skeleton"),
 		LOCTEXT("AnimSequenceBase_FindSkeletonTooltip", "Finds the skeleton for the selected assets in the content browser."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.FindSkeleton"),
@@ -43,13 +45,15 @@ void FAssetTypeActions_AnimationAsset::GetActions( const TArray<UObject*>& InObj
 			)
 		);
 
-	MenuBuilder.AddSubMenu( 
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		NAME_None,
+		"RetargetAnimSubmenu", 
 		LOCTEXT("RetargetAnimSubmenu", "Retarget Anim Assets"),
 		LOCTEXT("RetargetAnimSubmenu_ToolTip", "Opens the retarget anim assets menu"),
 		FNewMenuDelegate::CreateSP( this, &FAssetTypeActions_AnimationAsset::FillRetargetMenu, InObjects ),
 		false,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.RetargetSkeleton")
-		);
+		));
 }
 
 void FAssetTypeActions_AnimationAsset::FillRetargetMenu( FMenuBuilder& MenuBuilder, const TArray<UObject*> InObjects )

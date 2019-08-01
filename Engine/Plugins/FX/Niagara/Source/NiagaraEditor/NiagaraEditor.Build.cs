@@ -47,6 +47,7 @@ public class NiagaraEditor : ModuleRules
                 "AdvancedPreviewScene",
 				"Projects",
                 "MainFrame",
+				"EditorMenus",
 			}
         );
 

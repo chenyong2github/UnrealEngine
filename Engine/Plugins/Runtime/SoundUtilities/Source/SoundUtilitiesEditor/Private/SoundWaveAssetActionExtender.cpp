@@ -1,12 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SoundWaveAssetActionExtender.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "AssetTypeActions_Base.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "ContentBrowserMenuContexts.h"
+#include "ObjectEditorUtils.h"
 #include "EditorStyleSet.h"
 #include "Sound/SoundWave.h"
 #include "SoundSimple.h"
@@ -14,24 +14,40 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FSoundWaveAssetActionExtender::GetExtendedActions(const TArray<TWeakObjectPtr<USoundWave>>& InSounds, FMenuBuilder& MenuBuilder)
+void FSoundWaveAssetActionExtender::RegisterMenus()
 {
-	const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateSimpleSound", "Create Simple Sound");
-	const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateSimpleSoundTooltip", "Creates a simple sound asset using the selected sound waves.");
-	const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundSimple");
-	const FUIAction UIAction = FUIAction(FExecuteAction::CreateSP(this, &FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound, InSounds), FCanExecuteAction());
+	if (!UEditorMenuSubsystem::IsRunningEditorUI())
+	{
+		return;
+	}
 
-	MenuBuilder.AddMenuEntry(Label, ToolTip, Icon, UIAction);
+	FEditorMenuOwnerScoped MenuOwner("SoundUtilities");
+	UEditorMenu* Menu = UEditorMenuSubsystem::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundWave");
+	FEditorMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+	
+	Section.AddDynamicEntry("SoundWaveAsset", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
+	{
+		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateSimpleSound", "Create Simple Sound");
+		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateSimpleSoundTooltip", "Creates a simple sound asset using the selected sound waves.");
+		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundSimple");
+		const FEditorMenuExecuteAction UIAction = FEditorMenuExecuteAction::CreateStatic(&FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound);
+
+		InSection.AddMenuEntry("SoundWave_CreateSimpleSound", Label, ToolTip, Icon, UIAction);
+	}));
 }
 
-void FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound(TArray<TWeakObjectPtr<USoundWave>> SoundWaves)
+void FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound(const FEditorMenuContext& MenuContext)
 {
-	const FString DefaultSuffix = TEXT("_SimpleSound");
-
-	if (SoundWaves.Num() > 0)
+	UContentBrowserAssetContextMenuContext* Context = MenuContext.Find<UContentBrowserAssetContextMenuContext>();
+	if (!Context || Context->SelectedObjects.Num() == 0)
 	{
-		USoundWave* SoundWave = SoundWaves[0].Get();
+		return;
+	}
 
+	const FString DefaultSuffix = TEXT("_SimpleSound");
+	
+	if (USoundWave* SoundWave = Cast<USoundWave>(Context->SelectedObjects[0]))
+	{
 		// Determine an appropriate name
 		FString Name;
 		FString PackagePath;
@@ -41,10 +57,13 @@ void FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound(TArray<TWeakObjectP
 
 		// Create the factory used to generate the asset
 		USoundSimpleFactory* Factory = NewObject<USoundSimpleFactory>();
-
-		for (int32 i = 0; i < SoundWaves.Num(); ++i)
+		Factory->SoundWaves.Reset();
+		for (UObject* Object : Context->SelectedObjects)
 		{
-			Factory->SoundWaves.Add(SoundWaves[i].Get());
+			if (USoundWave* Wave = Cast<USoundWave>(Object))
+			{
+				Factory->SoundWaves.Add(Wave);
+			}
 		}
 
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");

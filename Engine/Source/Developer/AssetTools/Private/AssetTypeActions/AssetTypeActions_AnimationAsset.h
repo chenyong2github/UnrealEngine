@@ -8,8 +8,6 @@
 #include "Animation/AnimationAsset.h"
 #include "EditorAnimUtils.h"
 
-class FMenuBuilder;
-
 class FAssetTypeActions_AnimationAsset : public FAssetTypeActions_Base
 {
 public:
@@ -18,7 +16,7 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(80,123,72); }
 	virtual UClass* GetSupportedClass() const override { return UAnimationAsset::StaticClass(); }
 	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
-	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	virtual bool CanFilter() override { return false; }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Animation; }

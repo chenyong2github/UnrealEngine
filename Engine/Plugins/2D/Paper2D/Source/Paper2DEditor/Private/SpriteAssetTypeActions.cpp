@@ -2,6 +2,7 @@
 
 #include "SpriteAssetTypeActions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/PackageName.h"
 #include "Misc/FeedbackContext.h"
 #include "EditorStyleSet.h"
@@ -58,11 +59,12 @@ uint32 FSpriteAssetTypeActions::GetCategories()
 	return MyAssetCategory;
 }
 
-void FSpriteAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FSpriteAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Sprites = GetTypedWeakObjectPtrs<UPaperSprite>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sprite_CreateFlipbook",
 		LOCTEXT("Sprite_CreateFlipbook", "Create Flipbook"),
 		LOCTEXT("Sprite_CreateFlipbookTooltip", "Creates flipbooks from the selected sprites."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PaperFlipbook"),

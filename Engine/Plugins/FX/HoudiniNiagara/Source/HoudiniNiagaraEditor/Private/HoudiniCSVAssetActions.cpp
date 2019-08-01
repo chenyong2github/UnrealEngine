@@ -22,7 +22,7 @@
 */
 #include "HoudiniCSVAssetActions.h"
 
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "HoudiniCSV.h"
 #include "EditorStyleSet.h"
 #include "Toolkits/AssetEditorToolkit.h"
@@ -43,13 +43,14 @@ bool FHoudiniCSVAssetActions::CanFilter()
 }
 
 
-void FHoudiniCSVAssetActions::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FHoudiniCSVAssetActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-    FAssetTypeActions_Base::GetActions(InObjects, MenuBuilder);
+    FAssetTypeActions_Base::GetActions(InObjects, Section);
 
     auto HoudiniCSVAssets = GetTypedWeakObjectPtrs<UHoudiniCSV>(InObjects);
 
-    MenuBuilder.AddMenuEntry(
+    Section.AddMenuEntry(
+		"ReimportHoudiniCSVLabel",
 		LOCTEXT("ReimportHoudiniCSVLabel", "Reimport"),
 		LOCTEXT("ReimportHoudiniCSVTooltip", "Reimport the selected Houdini CSV file(s)."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),
@@ -59,7 +60,8 @@ void FHoudiniCSVAssetActions::GetActions(const TArray<UObject*>& InObjects, FMen
 		)
     );
 
-    MenuBuilder.AddMenuEntry(
+    Section.AddMenuEntry(
+		"OpenHoudiniCSVLabel",
 		LOCTEXT("OpenHoudiniCSVLabel", "Open in Text Editor"),
 		LOCTEXT("OpenHoudiniCSVTooltip", "Open the selected Houdini CSV file(s) in a Text Editor."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
@@ -69,7 +71,8 @@ void FHoudiniCSVAssetActions::GetActions(const TArray<UObject*>& InObjects, FMen
 		)
     );
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"FindHoudiniCSVInExplorer",
 		LOCTEXT("FindHoudiniCSVInExplorer", "Find Source CSV"),
 		LOCTEXT("FindHoudiniCSVInExplorerTooltip", "Opens explorer at the location of this asset's source CSV file."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),

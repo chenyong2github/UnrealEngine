@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_CurveLinearColorAtlas.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Engine/Texture2D.h"
 #include "EditorStyleSet.h"
 #include "Engine/TextureCube.h"
@@ -11,9 +11,9 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_CurveLinearColorAtlas::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_CurveLinearColorAtlas::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	FAssetTypeActions_Texture::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_Texture::GetActions(InObjects, Section);
 }
 
 

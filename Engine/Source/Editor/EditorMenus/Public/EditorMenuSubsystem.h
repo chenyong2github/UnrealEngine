@@ -125,6 +125,27 @@ public:
 	 */
 	static bool IsRunningEditorUI();
 
+	static void RegisterStartupCallback(const FSimpleMulticastDelegate::FDelegate& Delegate)
+	{
+		if (IsRunningEditorUI())
+		{
+			if (UEditorMenuSubsystem::TryGet())
+			{
+				Delegate.Execute();
+			}
+			else
+			{
+				// Wait until editor subsystems have been constructed
+				FCoreDelegates::OnPostEngineInit.Add(Delegate);
+			}
+		}
+	}
+
+	static void UnRegisterStartupCallback(const void* UserPointer)
+	{
+		FCoreDelegates::OnPostEngineInit.RemoveAll(UserPointer);
+	}
+
 	// UEditorSubsystem implementation
 	virtual void Initialize(FSubsystemCollectionBase& Collection);
 	virtual void Deinitialize();

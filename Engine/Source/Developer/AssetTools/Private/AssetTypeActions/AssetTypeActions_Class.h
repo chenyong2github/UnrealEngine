@@ -8,7 +8,6 @@
 #include "AssetTypeActions/AssetTypeActions_ClassTypeBase.h"
 
 struct FAssetData;
-class FMenuBuilder;
 class IClassTypeActions;
 
 class FAssetTypeActions_Class : public FAssetTypeActions_ClassTypeBase
@@ -21,7 +20,7 @@ public:
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Basic; }
 	
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 
 	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
 

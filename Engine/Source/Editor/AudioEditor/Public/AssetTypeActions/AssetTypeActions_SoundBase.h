@@ -6,7 +6,6 @@
 #include "AssetTypeActions_Base.h"
 
 struct FAssetData;
-class FMenuBuilder;
 class USoundBase;
 
 class AUDIOEDITOR_API FAssetTypeActions_SoundBase : public FAssetTypeActions_Base
@@ -17,7 +16,7 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(97, 85, 212); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
-	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 	virtual void AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType ) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 	virtual bool CanFilter() override { return false; }

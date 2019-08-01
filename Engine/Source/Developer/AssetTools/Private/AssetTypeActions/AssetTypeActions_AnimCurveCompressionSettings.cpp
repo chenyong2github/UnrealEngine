@@ -4,7 +4,7 @@
 #include "Animation/AnimSequence.h"
 #include "Dialogs/Dialogs.h"
 #include "EditorStyleSet.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/UObjectIterator.h"
 
@@ -41,7 +41,7 @@ void FAssetTypeActions_AnimCurveCompressionSettings::AddToolbarExtension(FToolBa
 	Builder.EndSection();
 }
 
-void FAssetTypeActions_AnimCurveCompressionSettings::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_AnimCurveCompressionSettings::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto SettingAssets = GetTypedWeakObjectPtrs<UAnimCurveCompressionSettings>(InObjects);
 
@@ -50,7 +50,8 @@ void FAssetTypeActions_AnimCurveCompressionSettings::GetActions(const TArray<UOb
 		return;
 	}
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"AnimCurveCompressionSettings_Compress",
 		LOCTEXT("AnimCurveCompressionSettings_Compress", "Compress"),
 		LOCTEXT("AnimCurveCompressionSettings_CompressTooltip", "All animation sequences that use these settings will be compressed."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.ApplyCompression.Small"),

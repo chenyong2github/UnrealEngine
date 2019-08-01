@@ -24,8 +24,9 @@ namespace UnrealBuildTool.Rules
                     "FieldSystemEngine",
                     "RawMesh",
                     "AssetTools",
-                    "AssetRegistry"
-                }
+                    "AssetRegistry",
+					"EditorMenus",
+				}
 				);
 		}
 	}

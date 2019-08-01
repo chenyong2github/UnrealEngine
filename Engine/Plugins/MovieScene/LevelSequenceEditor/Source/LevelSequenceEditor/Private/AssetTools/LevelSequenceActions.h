@@ -7,7 +7,6 @@
 #include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
 
-struct FLevelSequenceActionExtender;
 
 /**
  * Implements actions for ULevelSequence assets.
@@ -24,22 +23,6 @@ public:
 	 */
 	FLevelSequenceActions(const TSharedRef<ISlateStyle>& InStyle);
 
-	/**
-	 * Register a new extender that can add new actions to level sequence assets
-	 */
-	void RegisterLevelSequenceActionExtender(const TSharedRef<FLevelSequenceActionExtender>& InExtender)
-	{
-		ActionExtenders.AddUnique(InExtender);
-	}
-
-	/**
-	 * Unregister a previously registered action extender
-	 */
-	void UnregisterLevelSequenceActionExtender(const TSharedRef<FLevelSequenceActionExtender>& InExtender)
-	{
-		ActionExtenders.Remove(InExtender);
-	}
-
 public:
 	
 	// IAssetTypeActions interface
@@ -51,14 +34,10 @@ public:
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
 	virtual bool ShouldForceWorldCentric() override;
 	virtual bool CanLocalize() const override { return false; }
-	virtual bool HasActions( const TArray<UObject*>& InObjects ) const override;
-	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
+	virtual bool HasActions(const TArray<UObject*>& InObjects) const { return false; }
 
 private:
 
 	/** Pointer to the style set to use for toolkits. */
 	TSharedRef<ISlateStyle> Style;
-
-	/** Array of registered action extenders. */
-	TArray<TSharedRef<FLevelSequenceActionExtender>> ActionExtenders;
 };

@@ -6,7 +6,7 @@
 #include "NiagaraEditorStyle.h"
 #include "AssetData.h"
 #include "NiagaraEditorUtilities.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptAssetTypeActions"
 
@@ -74,9 +74,10 @@ bool FAssetTypeActions_NiagaraScript::HasActions(const TArray<UObject*>& InObjec
 	return true;
 }
 
-void FAssetTypeActions_NiagaraScript::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_NiagaraScript::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"MarkDependentCompilableAssetsDirty",
 		LOCTEXT("MarkDependentCompilableAssetsDirtyLabel", "Mark dependent compilable assets dirty"),
 		LOCTEXT("MarkDependentCompilableAssetsDirtyToolTip", "Finds all niagara assets which depend on this asset either directly or indirectly,\n and marks them dirty so they can be saved with the latest version."),
 		FSlateIcon(),

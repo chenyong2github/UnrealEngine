@@ -5,7 +5,6 @@
 #include "Engine/Engine.h"
 #include "LevelSequence.h"
 #include "LevelSequenceEditorToolkit.h"
-#include "LevelSequenceActionExtender.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -86,21 +85,6 @@ bool FLevelSequenceActions::ShouldForceWorldCentric()
 {
 	// @todo sequencer: Hack to force world-centric mode for Sequencer
 	return true;
-}
-
-
-bool FLevelSequenceActions::HasActions( const TArray<UObject*>& InObjects ) const
-{
-	return ActionExtenders.Num() > 0;
-}
-
-
-void FLevelSequenceActions::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
-{
-	for (const TSharedRef<FLevelSequenceActionExtender>& Extender : ActionExtenders)
-	{
-		Extender->GetActions(InObjects, MenuBuilder);
-	}
 }
 
 

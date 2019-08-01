@@ -7,7 +7,6 @@
 #include "AssetTypeActions_Base.h"
 #include "Sound/DialogueWave.h"
 
-class FMenuBuilder;
 
 class FAssetTypeActions_DialogueWave : public FAssetTypeActions_Base
 {
@@ -19,7 +18,7 @@ public:
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 	virtual bool CanFilter() override { return true; }
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 
 private:

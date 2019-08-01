@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/FeedbackContext.h"
 #include "Editor/Cascade/Public/CascadeModule.h"
 #include "Particles/ParticleEmitter.h"
@@ -9,11 +9,12 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_ParticleSystem::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_ParticleSystem::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto ParticleSystems = GetTypedWeakObjectPtrs<UParticleSystem>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ParticleSystem_CopyParameters",
 		LOCTEXT("ParticleSystem_CopyParameters", "Copy Parameters"),
 		LOCTEXT("ParticleSystem_CopyParametersTooltip", "Copies particle system parameters to the clipboard."),
 		FSlateIcon(),
@@ -23,7 +24,8 @@ void FAssetTypeActions_ParticleSystem::GetActions( const TArray<UObject*>& InObj
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ParticleSystem_ConvertToSeeded",
 		LOCTEXT("ParticleSystem_ConvertToSeeded", "Convert To Seeded"),
 		LOCTEXT("ParticleSystem_ConvertToSeededTooltip", "Convert all modules in this particle system to random seeded modules"),
 		FSlateIcon(),

@@ -5,13 +5,13 @@
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "Field/FieldSystem.h"
 #include "Field/FieldSystemAsset.h"
+#include "EditorMenuSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 UClass* FAssetTypeActions_FieldSystem::GetSupportedClass() const
 {
-	return 
-		UFieldSystem::StaticClass();
+	return UFieldSystem::StaticClass();
 }
 
 UThumbnailInfo* FAssetTypeActions_FieldSystem::GetThumbnailInfo(UObject* Asset) const
@@ -20,9 +20,9 @@ UThumbnailInfo* FAssetTypeActions_FieldSystem::GetThumbnailInfo(UObject* Asset) 
 	return NewObject<USceneThumbnailInfo>(FieldSystem, NAME_None, RF_Transactional);
 }
 
-void FAssetTypeActions_FieldSystem::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_FieldSystem::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	FAssetTypeActions_Base::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_Base::GetActions(InObjects, Section);
 }
 
 void FAssetTypeActions_FieldSystem::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)

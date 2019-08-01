@@ -6,7 +6,6 @@
 #include "AssetTypeActions/AssetTypeActions_Texture.h"
 #include "Engine/TextureRenderTarget.h"
 
-class FMenuBuilder;
 
 class FAssetTypeActions_TextureRenderTarget : public FAssetTypeActions_Texture
 {
@@ -16,7 +15,7 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(128,64,64); }
 	virtual UClass* GetSupportedClass() const override { return UTextureRenderTarget::StaticClass(); }
 	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
-	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 	virtual bool IsImportedAsset() const override { return false; }
 
 private:

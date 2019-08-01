@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_DataTable.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/FileHelper.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Dialogs/Dialogs.h"
@@ -13,7 +13,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_DataTable::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_DataTable::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Tables = GetTypedWeakObjectPtrs<UObject>(InObjects);
 	
@@ -27,7 +27,8 @@ void FAssetTypeActions_DataTable::GetActions( const TArray<UObject*>& InObjects,
 		}
 	}
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"DataTable_ExportAsCSV",
 		LOCTEXT("DataTable_ExportAsCSV", "Export as CSV"),
 		LOCTEXT("DataTable_ExportAsCSVTooltip", "Export the data table as a file containing CSV data."),
 		FSlateIcon(),
@@ -37,7 +38,8 @@ void FAssetTypeActions_DataTable::GetActions( const TArray<UObject*>& InObjects,
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"DataTable_ExportAsJSON",
 		LOCTEXT("DataTable_ExportAsJSON", "Export as JSON"),
 		LOCTEXT("DataTable_ExportAsJSONTooltip", "Export the data table as a file containing JSON data."),
 		FSlateIcon(),
@@ -52,7 +54,8 @@ void FAssetTypeActions_DataTable::GetActions( const TArray<UObject*>& InObjects,
 	PotentialFileExtensions.Add(TEXT(".xlsm"));
 	PotentialFileExtensions.Add(TEXT(".csv"));
 	PotentialFileExtensions.Add(TEXT(".json"));
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"DataTable_OpenSourceData",
 		LOCTEXT("DataTable_OpenSourceData", "Open Source Data"),
 		LOCTEXT("DataTable_OpenSourceDataTooltip", "Opens the data table's source data file in an external editor. It will search using the following extensions: .xls/.xlsm/.csv/.json"),
 		FSlateIcon(),

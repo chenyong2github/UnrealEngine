@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_SkeletalMesh.h"
 #include "Animation/Skeleton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/PackageName.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Misc/MessageDialog.h"
@@ -448,36 +448,43 @@ FAssetTypeActions_SkeletalMesh::FAssetTypeActions_SkeletalMesh()
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FAssetTypeActions_SkeletalMesh::OnAssetRemoved);
 }
 
-void FAssetTypeActions_SkeletalMesh::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_SkeletalMesh::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Meshes = GetTypedWeakObjectPtrs<USkeletalMesh>(InObjects);
 
-	MenuBuilder.AddSubMenu(
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			NAME_None,
+			"CreateSkeletalMeshSubmenu",
 			LOCTEXT("CreateSkeletalMeshSubmenu", "Create"),
 			LOCTEXT("CreateSkeletalMeshSubmenu_ToolTip", "Create related assets"),
 			FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_SkeletalMesh::FillCreateMenu, Meshes),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
-			);
+			));
 
-	MenuBuilder.AddSubMenu(	
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		NAME_None,
+		"SkeletalMesh_LODImport",	
 		LOCTEXT("SkeletalMesh_LODImport", "Import LOD"),
 		LOCTEXT("SkeletalMesh_LODImportTooltip", "Select which LODs to import."),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_SkeletalMesh::GetLODMenu, Meshes)
-		);
+		));
 	
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ImportClothing_Entry",
 		LOCTEXT("ImportClothing_Entry", "Import Clothing Asset..."),
 		LOCTEXT("ImportClothing_ToolTip", "Import a clothing asset from a supported file on disk into this skeletal mesh."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_SkeletalMesh::ExecuteImportClothing, Meshes)));
 
 	// skeleton menu
-	MenuBuilder.AddSubMenu(
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		NAME_None,
+		"SkeletonSubmenu",
 		LOCTEXT("SkeletonSubmenu", "Skeleton"),
 		LOCTEXT("SkeletonSubmenu_ToolTip", "Skeleton related actions"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_SkeletalMesh::FillSkeletonMenu, Meshes)
-	);
+	));
 }
 
 void FAssetTypeActions_SkeletalMesh::FillCreateMenu(FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<USkeletalMesh>> Meshes) const

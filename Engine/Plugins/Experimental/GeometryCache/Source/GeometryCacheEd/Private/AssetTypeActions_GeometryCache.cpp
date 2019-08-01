@@ -4,6 +4,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "GeometryCache.h"
+#include "EditorMenuSubsystem.h"
 
 FText FAssetTypeActions_GeometryCache::GetName() const
 {
@@ -25,9 +26,9 @@ bool FAssetTypeActions_GeometryCache::HasActions(const TArray<UObject*>& InObjec
 	return false;
 }
 
-void FAssetTypeActions_GeometryCache::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_GeometryCache::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
-	FAssetTypeActions_Base::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_Base::GetActions(InObjects, Section);
 }
 
 void FAssetTypeActions_GeometryCache::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor /*= TSharedPtr<IToolkitHost>()*/)

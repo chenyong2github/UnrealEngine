@@ -369,16 +369,6 @@ protected:
 		return OnMasterSequenceCreatedEvent;
 	}
 
-	virtual void RegisterLevelSequenceActionExtender(TSharedRef<FLevelSequenceActionExtender> InExtender) override
-	{
-		LevelSequenceTypeActions->RegisterLevelSequenceActionExtender(InExtender);
-	}
-
-	virtual void UnregisterLevelSequenceActionExtender(TSharedRef<FLevelSequenceActionExtender> InExtender) override
-	{
-		LevelSequenceTypeActions->UnregisterLevelSequenceActionExtender(InExtender);
-	}
-
 	static TSharedRef<ISequencerEditorObjectBinding> OnCreateActorBinding(TSharedRef<ISequencer> InSequencer)
 	{
 		return MakeShareable(new FLevelSequenceEditorActorBinding(InSequencer));

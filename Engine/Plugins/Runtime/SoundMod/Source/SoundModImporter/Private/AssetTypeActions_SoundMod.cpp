@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_SoundMod.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Editor.h"
 #include "Components/AudioComponent.h"
 #include "SoundMod.h"
@@ -13,11 +13,12 @@ UClass* FAssetTypeActions_SoundMod::GetSupportedClass() const
 	return USoundMod::StaticClass();
 }
 
-void FAssetTypeActions_SoundMod::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_SoundMod::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Sounds = GetTypedWeakObjectPtrs<USoundMod>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sound_PlaySound",
 		LOCTEXT("Sound_PlaySound", "Play"),
 		LOCTEXT("Sound_PlaySoundTooltip", "Plays the selected sound."),
 		FSlateIcon(),
@@ -27,7 +28,8 @@ void FAssetTypeActions_SoundMod::GetActions(const TArray<UObject*>& InObjects, F
 		)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Sound_StopSound",
 		LOCTEXT("Sound_StopSound", "Stop"),
 		LOCTEXT("Sound_StopSoundTooltip", "Stops the selected sounds."),
 		FSlateIcon(),

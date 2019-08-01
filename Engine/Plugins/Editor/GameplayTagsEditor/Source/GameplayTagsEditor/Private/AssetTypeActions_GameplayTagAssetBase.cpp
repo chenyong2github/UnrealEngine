@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_GameplayTagAssetBase.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "UObject/UnrealType.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -20,7 +20,7 @@ bool FAssetTypeActions_GameplayTagAssetBase::HasActions(const TArray<UObject*>& 
 	return true;
 }
 
-void FAssetTypeActions_GameplayTagAssetBase::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_GameplayTagAssetBase::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	TArray<UObject*> ContainerObjectOwners;
 	TArray<FGameplayTagContainer*> Containers;
@@ -41,7 +41,8 @@ void FAssetTypeActions_GameplayTagAssetBase::GetActions(const TArray<UObject*>& 
 	ensure(Containers.Num() == ContainerObjectOwners.Num());
 	if (Containers.Num() > 0 && (Containers.Num() == ContainerObjectOwners.Num()))
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"GameplayTags_Edit",
 			LOCTEXT("GameplayTags_Edit", "Edit Gameplay Tags..."),
 			LOCTEXT("GameplayTags_EditToolTip", "Opens the Gameplay Tag Editor."),
 			FSlateIcon(),

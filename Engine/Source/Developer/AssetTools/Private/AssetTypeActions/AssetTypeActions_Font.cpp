@@ -1,18 +1,19 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Font.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "EditorReimportHandler.h"
 #include "FontEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Font::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FAssetTypeActions_Font::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Fonts = GetTypedWeakObjectPtrs<UFont>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ReimportFont",
 		LOCTEXT("ReimportFontLabel", "Reimport"),
 		LOCTEXT("ReimportFontTooltip", "Reimport the selected font(s)."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.ReimportAsset"),

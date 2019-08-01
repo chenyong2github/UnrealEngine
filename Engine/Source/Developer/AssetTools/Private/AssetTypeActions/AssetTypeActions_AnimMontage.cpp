@@ -3,14 +3,14 @@
 #include "AssetTypeActions/AssetTypeActions_AnimMontage.h"
 #include "Factories/AnimMontageFactory.h"
 #include "AnimationEditorUtils.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "AssetTools.h"
 #include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 
-void FAssetTypeActions_AnimMontage::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_AnimMontage::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Montages = GetTypedWeakObjectPtrs<UAnimMontage>(InObjects);
 
@@ -29,7 +29,8 @@ void FAssetTypeActions_AnimMontage::GetActions( const TArray<UObject*>& InObject
 	if (!bContainsChildMontage)
 	{
 		// create mew child anim montage
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"AnimMontage_CreateChildMontage",
 			LOCTEXT("AnimMontage_CreateChildMontage", "Create Child Montage"),
 			LOCTEXT("AnimMontage_CreateChildMontageTooltip", "Create Child Animation Montage and remap to another animation assets."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
@@ -37,7 +38,7 @@ void FAssetTypeActions_AnimMontage::GetActions( const TArray<UObject*>& InObject
 		);
 	}
 
-	FAssetTypeActions_AnimationAsset::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_AnimationAsset::GetActions(InObjects, Section);
 }
 
 void FAssetTypeActions_AnimMontage::CreateChildAnimMontage(TArray<TWeakObjectPtr<UAnimMontage>> AnimMontages) 

@@ -6,7 +6,6 @@
 #include "UObject/ObjectRedirector.h"
 #include "AssetTypeActions_Base.h"
 
-class FMenuBuilder;
 
 class FAssetTypeActions_Redirector : public FAssetTypeActions_Base
 {
@@ -16,7 +15,7 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(128, 128, 128); }
 	virtual UClass* GetSupportedClass() const override { return UObjectRedirector::StaticClass(); }
 	virtual bool HasActions ( const TArray<UObject*>& InObjects ) const override { return true; }
-	virtual void GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder ) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 	virtual void AssetsActivated( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType ) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
 	virtual bool CanLocalize() const override { return false; }

@@ -18,6 +18,8 @@ namespace UnrealBuildTool.Rules
                     "EditorStyle",
                     "Slate",
                     "SlateCore",
+					"ContentBrowser",
+					"EditorMenus",
 				}
 			);
 

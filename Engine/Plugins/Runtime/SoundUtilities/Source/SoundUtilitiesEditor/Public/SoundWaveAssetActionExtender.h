@@ -2,17 +2,11 @@
 
 #pragma once
 
-#include "AudioEditorModule.h"
-
-
-class FSoundWaveAssetActionExtender :	public ISoundWaveAssetActionExtensions,
-												public TSharedFromThis<FSoundWaveAssetActionExtender>
+class FSoundWaveAssetActionExtender
 {
 public:
-	virtual ~FSoundWaveAssetActionExtender() {}
-
-	virtual void GetExtendedActions(const TArray<TWeakObjectPtr<USoundWave>>& InObjects, FMenuBuilder& MenuBuilder) override;
-
-	void ExecuteCreateSimpleSound(TArray<TWeakObjectPtr<USoundWave>> Objects);
+	static void RegisterMenus();
+	static void GetExtendedActions(const struct FEditorMenuContext& MenuContext);
+	static void ExecuteCreateSimpleSound(const struct FEditorMenuContext& MenuContext);
 };
 

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "AssetTypeActions_Base.h"
 
-class FMenuBuilder;
 
 /** Base asset type actions for any classes with gameplay tagging */
 class GAMEPLAYTAGSEDITOR_API FAssetTypeActions_GameplayTagAssetBase : public FAssetTypeActions_Base
@@ -19,7 +18,7 @@ public:
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
 
 	/** Overridden to offer the gameplay tagging options */
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
 
 	/** Overridden to specify misc category */
 	virtual uint32 GetCategories() override;

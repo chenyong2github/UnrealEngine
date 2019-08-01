@@ -16,6 +16,8 @@
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
+#include "ContentBrowserMenuContexts.h"
 #include "Features/IModularFeatures.h"
 #include "ITakeRecorderDropHandler.h"
 #include "ISettingsModule.h"
@@ -26,7 +28,6 @@
 #include "ISequencer.h"
 #include "LevelSequence.h"
 #include "LevelSequenceEditorModule.h"
-#include "LevelSequenceActionExtender.h"
 #include "SequencerSettings.h"
 #include "TakeMetaData.h"
 #include "FileHelpers.h"
@@ -164,14 +165,36 @@ namespace
 	}
 }
 
-struct FTakeRecorderLevelSequenceActionExtender : FLevelSequenceActionExtender
+void FTakeRecorderModule::RegisterMenus()
 {
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override
+#if WITH_EDITOR
+	if (!UEditorMenuSubsystem::IsRunningEditorUI())
 	{
-		ULevelSequence* LevelSequence = InObjects.Num() == 1 ? Cast<ULevelSequence>(InObjects[0]) : nullptr;
+		return;
+	}
+
+	FEditorMenuOwnerScoped MenuOwner("TakeRecorder");
+	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+	UEditorMenu* Menu = EditorMenus->ExtendMenu("ContentBrowser.AssetContextMenu.LevelSequence");
+	if (!Menu)
+	{
+		return;
+	}
+
+	FEditorMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+	Section.AddDynamicEntry("TakeRecorderActions", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
+	{
+		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+		if (!Context)
+		{
+			return;
+		}
+
+		ULevelSequence* LevelSequence = Context->SelectedObjects.Num() == 1 ? Cast<ULevelSequence>(Context->SelectedObjects[0]) : nullptr;
 		if (LevelSequence)
 		{
-			MenuBuilder.AddMenuEntry(
+			InSection.AddMenuEntry(
+				"OpenInTakeRecorder_Label",
 				LOCTEXT("OpenInTakeRecorder_Label", "Open in Take Recorder"),
 				LOCTEXT("OpenInTakeRecorder_Tooltip", "Opens this level sequence asset in Take Recorder"),
 				FSlateIcon(FTakeRecorderStyle::StyleName, "TakeRecorder.TabIcon"),
@@ -217,7 +240,8 @@ struct FTakeRecorderLevelSequenceActionExtender : FLevelSequenceActionExtender
 			}
 
 			if (bHasMapTag) {
-				MenuBuilder.AddMenuEntry(
+				InSection.AddMenuEntry(
+					"TakeRecorderOpenMap_Label",
 					LOCTEXT("TakeRecorderOpenMap_Label", "Open Map"),
 					LOCTEXT("TakeRecorderOpenMap_Tooltip", "Opens the map used to create this Level Sequence Asset"),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Levels" ),
@@ -242,8 +266,9 @@ struct FTakeRecorderLevelSequenceActionExtender : FLevelSequenceActionExtender
 				);
 			}
 		}
-	}
-};
+	}));
+#endif // WITH_EDITOR
+}
 
 FTakeRecorderModule::FTakeRecorderModule()
 	: SequencerSettings(nullptr)
@@ -260,10 +285,28 @@ void FTakeRecorderModule::StartupModule()
 	RegisterAssetTools();
 	RegisterSettings();
 	RegisterSerializedRecorder();
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		if (UEditorMenuSubsystem::TryGet())
+		{
+			RegisterMenus();
+		}
+		else
+		{
+			FCoreDelegates::OnPostEngineInit.AddRaw(this, &FTakeRecorderModule::RegisterMenus);
+		}
+	}
+#endif
 }
 
 void FTakeRecorderModule::ShutdownModule()
 {
+#if WITH_EDITOR
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+#endif
+
 	FTakeRecorderCommands::Unregister();
 
 	UnregisterDetailCustomizations();
@@ -365,19 +408,6 @@ void FTakeRecorderModule::RegisterAssetTools()
 		TakePresetActions = MakeShared<FTakePresetActions>();
 		AssetTools.RegisterAssetTypeActions(TakePresetActions.ToSharedRef());
 	}
-
-#if WITH_EDITOR
-
-	if (GIsEditor)
-	{
-		ILevelSequenceEditorModule& LevelSequenceEditorModule = FModuleManager::LoadModuleChecked<ILevelSequenceEditorModule>("LevelSequenceEditor");
-		{
-			LevelSequenceAssetActionExtender = MakeShared<FTakeRecorderLevelSequenceActionExtender>();
-			LevelSequenceEditorModule.RegisterLevelSequenceActionExtender(LevelSequenceAssetActionExtender.ToSharedRef());
-		}
-	}
-
-#endif
 }
 
 void FTakeRecorderModule::UnregisterAssetTools()
@@ -386,12 +416,6 @@ void FTakeRecorderModule::UnregisterAssetTools()
 	if (AssetToolsModule)
 	{
 		AssetToolsModule->Get().UnregisterAssetTypeActions(TakePresetActions.ToSharedRef());
-	}
-
-	ILevelSequenceEditorModule* LevelSequenceEditorModule = FModuleManager::GetModulePtr<ILevelSequenceEditorModule>("LevelSequenceEditor");
-	if (LevelSequenceEditorModule)
-	{
-		LevelSequenceEditorModule->UnregisterLevelSequenceActionExtender(LevelSequenceAssetActionExtender.ToSharedRef());
 	}
 }
 

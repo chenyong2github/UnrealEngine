@@ -1,20 +1,21 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_MaterialInstanceConstant.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "AssetTools.h"
 #include "MaterialEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_MaterialInstanceConstant::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_MaterialInstanceConstant::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto MICs = GetTypedWeakObjectPtrs<UMaterialInstanceConstant>(InObjects);
 
-	FAssetTypeActions_MaterialInterface::GetActions(InObjects, MenuBuilder);
+	FAssetTypeActions_MaterialInterface::GetActions(InObjects, Section);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"MaterialInstanceConstant_FindParent",
 		LOCTEXT("MaterialInstanceConstant_FindParent", "Find Parent"),
 		LOCTEXT("MaterialInstanceConstant_FindParentTooltip", "Finds the material this instance is based on in the content browser."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),

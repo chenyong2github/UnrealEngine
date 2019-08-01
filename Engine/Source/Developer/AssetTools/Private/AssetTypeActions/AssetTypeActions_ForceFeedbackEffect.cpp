@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_ForceFeedbackEffect.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "AssetData.h"
@@ -17,11 +17,12 @@ UClass* FAssetTypeActions_ForceFeedbackEffect::GetSupportedClass() const
 	return UForceFeedbackEffect::StaticClass();
 }
 
-void FAssetTypeActions_ForceFeedbackEffect::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_ForceFeedbackEffect::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	TArray<TWeakObjectPtr<UForceFeedbackEffect>> Effects = GetTypedWeakObjectPtrs<UForceFeedbackEffect>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ForceFeedbackEffect_PlayEffect",
 		LOCTEXT("ForceFeedbackEffect_PlayEffect", "Play"),
 		LOCTEXT("ForceFeedbackEffect_PlayEffectTooltip", "Plays the selected force feedback effect."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
@@ -31,7 +32,8 @@ void FAssetTypeActions_ForceFeedbackEffect::GetActions( const TArray<UObject*>& 
 			)
 		);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"ForceFeedbackEffect_StopEffect",
 		LOCTEXT("ForceFeedbackEffect_StopEffect", "Stop"),
 		LOCTEXT("ForceFeedbackEffect_StopEffectTooltip", "Stops the selected force feedback effect."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),

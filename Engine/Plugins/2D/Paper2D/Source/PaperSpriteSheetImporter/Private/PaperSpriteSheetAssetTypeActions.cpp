@@ -2,7 +2,7 @@
 
 #include "PaperSpriteSheetAssetTypeActions.h"
 #include "Misc/PackageName.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Misc/FeedbackContext.h"
 #include "EditorStyleSet.h"
 #include "EditorFramework/AssetImportData.h"
@@ -57,11 +57,12 @@ void FPaperSpriteSheetAssetTypeActions::GetResolvedSourceFilePaths(const TArray<
 	}
 }
 
-void FPaperSpriteSheetAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
+void FPaperSpriteSheetAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto SpriteSheetImports = GetTypedWeakObjectPtrs<UPaperSpriteSheet>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"SpriteSheet_CreateFlipbooks",
 		LOCTEXT("SpriteSheet_CreateFlipbooks", "Create Flipbooks"),
 		LOCTEXT("SpriteSheet_CreateFlipbooksTooltip", "Creates flipbooks from sprites in this sprite sheet."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PaperFlipbook"),

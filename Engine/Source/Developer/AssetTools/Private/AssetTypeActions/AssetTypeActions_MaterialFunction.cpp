@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_MaterialFunction.h"
 #include "Factories/MaterialFunctionInstanceFactory.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "EditorStyleSet.h"
@@ -24,14 +24,15 @@ const FString LayerCompareString = (TEXT("MaterialLayer"));
 const FString BlendCompareString = (TEXT("MaterialLayerBlend"));
 
 
-void FAssetTypeActions_MaterialFunction::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_MaterialFunction::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto Functions = GetTypedWeakObjectPtrs<UMaterialFunctionInterface>(InObjects);
 
 	IMaterialEditorModule& MaterialEditorModule = FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
 	if (MaterialEditorModule.MaterialLayersEnabled())
 	{
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"MaterialFunction_NewMFI",
 			GetInstanceText(),
 			LOCTEXT("Material_NewMFITooltip", "Creates a parameterized function using this function as a base."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MaterialInstanceActor"),
@@ -41,7 +42,8 @@ void FAssetTypeActions_MaterialFunction::GetActions( const TArray<UObject*>& InO
 		);
 	}
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"MaterialFunction_FindMaterials",
 		LOCTEXT("MaterialFunction_FindMaterials", "Find Materials Using This"),
 		LOCTEXT("MaterialFunction_FindMaterialsTooltip", "Finds the materials that reference this material function in the content browser."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.GenericFind"),

@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_MaterialInterface.h"
 #include "Misc/PackageName.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "EditorStyleSet.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
@@ -13,11 +13,12 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_MaterialInterface::GetActions( const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder )
+void FAssetTypeActions_MaterialInterface::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
 {
 	auto MaterialInterfaces = GetTypedWeakObjectPtrs<UMaterialInterface>(InObjects);
 
-	MenuBuilder.AddMenuEntry(
+	Section.AddMenuEntry(
+		"Material_NewMIC",
 		LOCTEXT("Material_NewMIC", "Create Material Instance"),
 		LOCTEXT("Material_NewMICTooltip", "Creates a parameterized material using this material as a base."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MaterialInstanceActor"),

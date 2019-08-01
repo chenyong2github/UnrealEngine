@@ -7,7 +7,6 @@
 
 
 class UObject;
-struct FLevelSequenceActionExtender;
 
 
 /**
@@ -19,7 +18,4 @@ class ILevelSequenceEditorModule
 public:
 	DECLARE_EVENT_OneParam(ILevelSequenceEditorModule, FOnMasterSequenceCreated, UObject*);
 	virtual FOnMasterSequenceCreated& OnMasterSequenceCreated() = 0;
-
-	virtual void RegisterLevelSequenceActionExtender(TSharedRef<FLevelSequenceActionExtender> InExtender) = 0;
-	virtual void UnregisterLevelSequenceActionExtender(TSharedRef<FLevelSequenceActionExtender> InExtender) = 0;
 };
