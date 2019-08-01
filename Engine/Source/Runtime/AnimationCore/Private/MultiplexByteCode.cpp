@@ -2,6 +2,21 @@
 
 #include "MultiplexByteCode.h"
 
+FMultiplexByteCodeTable::FMultiplexByteCodeTable()
+{
+}
+
+FMultiplexByteCodeTable::FMultiplexByteCodeTable(const FMultiplexByteCode& InByteCode)
+{
+	uint64 Address = 0;
+	while (Address < InByteCode.Num())
+	{
+		EMultiplexOpCode OpCode = InByteCode.GetOpCodeAt(Address);
+		Entries.Add(FMultiplexByteCodeTableEntry(OpCode, Address));
+		Address += InByteCode.GetOpNumBytesAt(Address);
+	}
+}
+
 FMultiplexByteCode::FMultiplexByteCode()
 {
 }
@@ -9,6 +24,71 @@ FMultiplexByteCode::FMultiplexByteCode()
 void FMultiplexByteCode::Reset()
 {
 	ByteCode.Reset();
+}
+
+uint64 FMultiplexByteCode::Num() const
+{
+	return (uint64)ByteCode.Num();
+}
+
+uint64 FMultiplexByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeArguments) const
+{
+	EMultiplexOpCode OpCode = GetOpCodeAt(InByteCodeIndex);
+	switch (OpCode)
+	{
+		case EMultiplexOpCode::Copy:
+		{
+			return (uint64)sizeof(FMultiplexCopyOp);
+		}
+		case EMultiplexOpCode::Increment:
+		{
+			return (uint64)sizeof(FMultiplexIncrementOp);
+		}
+		case EMultiplexOpCode::Decrement:
+		{
+			return (uint64)sizeof(FMultiplexDecrementOp);
+		}
+		case EMultiplexOpCode::Equals:
+		{
+			return (uint64)sizeof(FMultiplexEqualsOp);
+		}
+		case EMultiplexOpCode::NotEquals:
+		{
+			return (uint64)sizeof(FMultiplexNotEqualsOp);
+		}
+		case EMultiplexOpCode::Jump:
+		{
+			return (uint64)sizeof(FMultiplexJumpOp);
+		}
+		case EMultiplexOpCode::JumpIfTrue:
+		{
+			return (uint64)sizeof(FMultiplexJumpIfTrueOp);
+		}
+		case EMultiplexOpCode::JumpIfFalse:
+		{
+			return (uint64)sizeof(FMultiplexJumpIfFalseOp);
+		}
+		case EMultiplexOpCode::Execute:
+		{
+			uint64 NumBytes = (uint64)sizeof(FMultiplexExecuteOp);
+			if(bIncludeArguments)
+			{
+				const FMultiplexExecuteOp& ExecuteOp = GetOpAt<FMultiplexExecuteOp>(InByteCodeIndex);
+				NumBytes += (uint64)ExecuteOp.ArgumentCount * (uint64)sizeof(FMultiplexArgument);
+			}
+			return NumBytes;
+		}
+		case EMultiplexOpCode::Exit:
+		{
+			return (uint64)sizeof(FMultiplexExitOp);
+		}
+		case EMultiplexOpCode::Invalid:
+		{
+			ensure(false);
+			return 0;
+		}
+	}
+	return 0;
 }
 
 uint64 FMultiplexByteCode::AddCopyOp(const FMultiplexArgument& InSource, const FMultiplexArgument& InTarget, int32 InSourceOffset, int32 InTargetOffset, int32 InNumBytes)

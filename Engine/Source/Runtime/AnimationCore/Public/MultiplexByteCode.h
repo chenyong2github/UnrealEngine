@@ -6,6 +6,8 @@
 #include "MultiplexRegistry.h"
 #include "MultiplexByteCode.generated.h"
 
+struct FMultiplexByteCode;
+
 UENUM()
 enum class EMultiplexOpCode : uint8
 {
@@ -232,13 +234,53 @@ struct ANIMATIONCORE_API FMultiplexExecuteOp : public FMultiplexBaseOp
 	uint16 ArgumentCount;
 };
 
-
 struct ANIMATIONCORE_API FMultiplexExitOp : public FMultiplexBaseOp
 {
 	FMultiplexExitOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Exit)
 	{
 	}
+};
+
+USTRUCT()
+struct ANIMATIONCORE_API FMultiplexByteCodeTableEntry
+{
+	GENERATED_USTRUCT_BODY()
+
+	FMultiplexByteCodeTableEntry(EMultiplexOpCode InOpCode = EMultiplexOpCode::Invalid, uint64 InByteCodeIndex = UINT64_MAX)
+		: OpCode(InOpCode)
+		, ByteCodeIndex(InByteCodeIndex)
+	{
+	}
+
+	UPROPERTY()
+	EMultiplexOpCode OpCode;
+
+	UPROPERTY()
+	uint64 ByteCodeIndex;
+};
+
+USTRUCT()
+struct ANIMATIONCORE_API FMultiplexByteCodeTable
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+
+	FMultiplexByteCodeTable();
+
+	FORCEINLINE int32 Num() const { return Entries.Num(); }
+	FORCEINLINE const FMultiplexByteCodeTableEntry& operator[](int32 InIndex) const { return Entries[InIndex]; }
+
+private:
+
+	// hide utility constructor
+	FMultiplexByteCodeTable(const FMultiplexByteCode& InByteCode);
+
+	UPROPERTY()
+	TArray<FMultiplexByteCodeTableEntry> Entries;
+
+	friend struct FMultiplexByteCode;
 };
 
 USTRUCT()
@@ -251,6 +293,7 @@ public:
 	FMultiplexByteCode();
 
 	void Reset();
+	uint64 Num() const;
 
 	uint64 AddCopyOp(const FMultiplexArgument& InSource, const FMultiplexArgument& InTarget, int32 InSourceOffset = INDEX_NONE, int32 InTargetOffset = INDEX_NONE, int32 InNumBytes = INDEX_NONE);
 	uint64 AddIncrementOp(const FMultiplexArgument& InArg);
@@ -263,17 +306,31 @@ public:
 	uint64 AddExecuteOp(uint16 InFunctionIndex, const TArrayView<FMultiplexArgument>& InArguments);
 	uint64 AddExitOp();
 
+	FORCEINLINE FMultiplexByteCodeTable GetTable() const
+	{
+		return FMultiplexByteCodeTable(*this);
+	}
+
 	FORCEINLINE EMultiplexOpCode GetOpCodeAt(uint64 InByteCodeIndex) const
 	{
 		ensure(InByteCodeIndex >= 0 && InByteCodeIndex < ByteCode.Num());
 		return (EMultiplexOpCode)ByteCode[InByteCodeIndex];
 	}
 
+	uint64 GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeArguments = true) const;
+
 	template<class OpType>
 	FORCEINLINE const OpType& GetOpAt(uint64 InByteCodeIndex) const
 	{
 		ensure(InByteCodeIndex >= 0 && InByteCodeIndex <= ByteCode.Num() - sizeof(OpType));
 		return *(const OpType*)(ByteCode.GetData() + InByteCodeIndex);
+	}
+
+	template<class OpType>
+	FORCEINLINE const OpType& GetOpAt(const FMultiplexByteCodeTableEntry& InEntry) const
+	{
+		ensure(OpType().OpCode == InEntry.OpCode);
+		return GetOpAt<OpType>(InEntry.ByteCodeIndex);
 	}
 
 	FORCEINLINE TArrayView<FMultiplexArgument> GetArgumentsAt(uint64 InByteCodeIndex, uint16 InArgumentCount) const
@@ -286,6 +343,12 @@ public:
 	{
 		const FMultiplexExecuteOp& ExecuteOp = GetOpAt<FMultiplexExecuteOp>(InByteCodeIndex);
 		return GetArgumentsAt(InByteCodeIndex + sizeof(FMultiplexExecuteOp), ExecuteOp.ArgumentCount);
+	}
+
+	FORCEINLINE TArrayView<FMultiplexArgument> GetArgumentsForExecuteOp(const FMultiplexByteCodeTableEntry& InEntry) const
+	{
+		const FMultiplexExecuteOp& ExecuteOp = GetOpAt<FMultiplexExecuteOp>(InEntry);
+		return GetArgumentsAt(InEntry.ByteCodeIndex + sizeof(FMultiplexExecuteOp), ExecuteOp.ArgumentCount);
 	}
 
 	FORCEINLINE const TArrayView<uint8> GetByteCode() const
