@@ -31,6 +31,7 @@ enum class ECurveEditorAnchorFlags : uint16
 	CenterScale = 0x200
 };
 
+UENUM()
 enum class EToolTransformInterpType : uint8
 {
 	Linear,
@@ -39,7 +40,7 @@ enum class EToolTransformInterpType : uint8
 	CircularIn,
 	CircularOut,
 	ExpIn,
-	ExpOut,
+	ExpOut
 };
 
 ENUM_CLASS_FLAGS(ECurveEditorAnchorFlags);
@@ -97,6 +98,10 @@ struct FTransformToolOptions
 
 	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
 	float RightBound;
+
+	/** specifies the falloff type applied to curve selection */
+	UPROPERTY(Transient, EditAnywhere, Category = ToolOptions)
+	EToolTransformInterpType FalloffInterpType;
 };
 
 class FCurveEditorTransformTool : public ICurveEditorToolExtension
@@ -104,11 +109,12 @@ class FCurveEditorTransformTool : public ICurveEditorToolExtension
 public:
 	FCurveEditorTransformTool(TWeakPtr<FCurveEditor> InCurveEditor)
 		: WeakCurveEditor(InCurveEditor), 
-		FalloffInterpType(EToolTransformInterpType::Linear),
 		FalloffHeight(0.0f), 
 		FalloffWidth(0.0f), 
 		RelativeScaleCenter(FVector2D(0.5f, 0.5f))
-	{}
+	{
+		ToolOptions.FalloffInterpType = EToolTransformInterpType::Linear;
+	}
 
 	// ICurveEditorToolExtension Interface
 	virtual void OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 PaintOnLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -170,17 +176,15 @@ private:
 	FVector2D InitialMousePosition;
 	FCurveEditorAxisSnap::FSnapState SnappingState;
 
-	// UStruct that displays properties to be modified on screen
+	/** UStruct that displays properties to be modified on screen */
 	FTransformToolOptions ToolOptions;
 	TSharedPtr<FStructOnScope> ToolOptionsOnScope;
 
-	// helper struct for checking if tool has changed outside of own operations, i.e. middle click
+	/** helper struct for checking if tool has changed outside of own operations, i.e. middle click */
 	struct ToolBounds { FVector2D Positon, Size; };
 	ToolBounds PrevState;
 
 private:
-	/** specifies the falloff curve applied to soft selection */
-	EToolTransformInterpType FalloffInterpType;
 	/** Soft Selection Height, if 0.0 as we go up to 1.0 we go up to the top edge */
 	float FalloffHeight;
 	/** Soft Selection Width, if 0.0 we peak directly at the midpoint gradually scaling out till we reach 1.0fff */
