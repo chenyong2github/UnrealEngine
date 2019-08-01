@@ -111,6 +111,16 @@ public:
 		}
 	}
 
+	virtual void ReleaseRHI() override
+	{
+		if (CreateUAV)
+		{
+			TextureUAV.SafeRelease();
+		}
+		
+		FTextureResource::ReleaseRHI();
+	}
+
 	FUnorderedAccessViewRHIRef TextureUAV;
 
 private:
