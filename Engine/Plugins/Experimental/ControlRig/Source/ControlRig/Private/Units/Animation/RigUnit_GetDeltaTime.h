@@ -18,7 +18,7 @@ struct FRigUnit_GetDeltaTime : public FRigUnit_AnimBase
 		Result = 0.f;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Output))

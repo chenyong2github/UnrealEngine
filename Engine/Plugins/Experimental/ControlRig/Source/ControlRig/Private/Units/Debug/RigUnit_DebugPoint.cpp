@@ -3,7 +3,7 @@
 #include "Units/Debug/RigUnit_DebugPoint.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_DebugPoint_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_DebugPoint_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -40,7 +40,7 @@ UE_RigUnit_DebugPoint_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigU
 	}
 }
 
-UE_RigUnit_DebugPointMutable_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_DebugPointMutable_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

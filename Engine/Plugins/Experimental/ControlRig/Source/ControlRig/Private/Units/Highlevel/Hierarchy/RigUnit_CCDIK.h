@@ -40,7 +40,7 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_CCDIK()

@@ -54,7 +54,7 @@ struct FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMutable
 		WaveTime = FVector::ZeroVector;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** The bones to drive. */

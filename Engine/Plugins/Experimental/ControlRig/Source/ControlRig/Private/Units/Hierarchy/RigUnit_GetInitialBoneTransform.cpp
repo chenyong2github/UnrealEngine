@@ -8,7 +8,7 @@ FString FRigUnit_GetInitialBoneTransform::GetUnitLabel() const
 	return FString::Printf(TEXT("Get Initial Transform %s"), *Bone.ToString());
 }
 
-UE_RigUnit_GetInitialBoneTransform_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_GetInitialBoneTransform_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	const FRigBoneHierarchy* Hierarchy = Context.GetBones();

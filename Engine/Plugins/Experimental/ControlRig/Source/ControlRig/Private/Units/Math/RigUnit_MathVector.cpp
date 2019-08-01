@@ -4,37 +4,37 @@
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 
-UE_RigUnit_MathVectorFromFloat_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorFromFloat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FVector(Value, Value, Value);
 }
 
-UE_RigUnit_MathVectorAdd_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorAdd_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A + B;
 }
 
-UE_RigUnit_MathVectorSub_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorSub_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A - B;
 }
 
-UE_RigUnit_MathVectorMul_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A * B;
 }
 
-UE_RigUnit_MathVectorScale_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorScale_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value * Factor;
 }
 
-UE_RigUnit_MathVectorDiv_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorDiv_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(FMath::IsNearlyZero(B.X) || FMath::IsNearlyZero(B.Y) || FMath::IsNearlyZero(B.Z))
@@ -57,7 +57,7 @@ UE_RigUnit_MathVectorDiv_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FR
 	Result = A / B;
 }
 
-UE_RigUnit_MathVectorMod_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorMod_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(FMath::IsNearlyZero(B.X) || FMath::IsNearlyZero(B.Y) || FMath::IsNearlyZero(B.Z) || B.X < 0.f || B.Y < 0.f || B.Z < 0.f)
@@ -83,7 +83,7 @@ UE_RigUnit_MathVectorMod_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FR
 	Result.Z = FMath::Fmod(A.Z, B.Z);
 }
 
-UE_RigUnit_MathVectorMin_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorMin_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::Min<float>(A.X, B.X);
@@ -91,7 +91,7 @@ UE_RigUnit_MathVectorMin_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FR
 	Result.Z = FMath::Min<float>(A.Z, B.Z);
 }
 
-UE_RigUnit_MathVectorMax_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorMax_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::Max<float>(A.X, B.X);
@@ -99,13 +99,13 @@ UE_RigUnit_MathVectorMax_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FR
 	Result.Z = FMath::Max<float>(A.Z, B.Z);
 }
 
-UE_RigUnit_MathVectorNegate_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorNegate_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = -Value;
 }
 
-UE_RigUnit_MathVectorAbs_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorAbs_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::Abs(Value.X);
@@ -113,7 +113,7 @@ UE_RigUnit_MathVectorAbs_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FR
 	Result.Z = FMath::Abs(Value.Z);
 }
 
-UE_RigUnit_MathVectorFloor_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorFloor_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::FloorToFloat(Value.X);
@@ -121,7 +121,7 @@ UE_RigUnit_MathVectorFloor_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const 
 	Result.Z = FMath::FloorToFloat(Value.Z);
 }
 
-UE_RigUnit_MathVectorCeil_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorCeil_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::CeilToFloat(Value.X);
@@ -129,7 +129,7 @@ UE_RigUnit_MathVectorCeil_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const F
 	Result.Z = FMath::CeilToFloat(Value.Z);
 }
 
-UE_RigUnit_MathVectorRound_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorRound_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::RoundToFloat(Value.X);
@@ -137,13 +137,13 @@ UE_RigUnit_MathVectorRound_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const 
 	Result.Z = FMath::RoundToFloat(Value.Z);
 }
 
-UE_RigUnit_MathVectorSign_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorSign_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.GetSignVector();
 }
 
-UE_RigUnit_MathVectorClamp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorClamp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::Clamp<float>(Value.X, Minimum.X, Maximum.X);
@@ -151,13 +151,13 @@ UE_RigUnit_MathVectorClamp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const 
 	Result.Z = FMath::Clamp<float>(Value.Z, Minimum.Z, Maximum.Z);
 }
 
-UE_RigUnit_MathVectorLerp_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Lerp<FVector>(A, B, T);
 }
 
-UE_RigUnit_MathVectorRemap_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorRemap_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FVector Ratio(0.f, 0.f, 0.f);
@@ -189,19 +189,19 @@ UE_RigUnit_MathVectorRemap_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const 
 	Result = FMath::Lerp<FVector>(TargetMinimum, TargetMaximum, Ratio);
 }
 
-UE_RigUnit_MathVectorEquals_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorEquals_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A == B;
 }
 
-UE_RigUnit_MathVectorNotEquals_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorNotEquals_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
 }
 
-UE_RigUnit_MathVectorIsNearlyZero_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorIsNearlyZero_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(Tolerance < 0.f)
@@ -211,7 +211,7 @@ UE_RigUnit_MathVectorIsNearlyZero_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute,
 	Result = Value.IsNearlyZero(FMath::Max<float>(Tolerance, SMALL_NUMBER));
 }
 
-UE_RigUnit_MathVectorIsNearlyEqual_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorIsNearlyEqual_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(Tolerance < 0.f)
@@ -221,55 +221,55 @@ UE_RigUnit_MathVectorIsNearlyEqual_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute
 	Result = (A - B).IsNearlyZero(FMath::Max<float>(Tolerance, SMALL_NUMBER));
 }
 
-UE_RigUnit_MathVectorSelectBool_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorSelectBool_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
-UE_RigUnit_MathVectorDeg_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorDeg_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::RadiansToDegrees(Value);
 }
 
-UE_RigUnit_MathVectorRad_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorRad_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::DegreesToRadians(Value);
 }
 
-UE_RigUnit_MathVectorLengthSquared_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorLengthSquared_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.SizeSquared();
 }
 
-UE_RigUnit_MathVectorLength_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorLength_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.Size();
 }
 
-UE_RigUnit_MathVectorDistance_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorDistance_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FVector::Distance(A, B);
 }
 
-UE_RigUnit_MathVectorCross_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorCross_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A ^ B;
 }
 
-UE_RigUnit_MathVectorDot_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorDot_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A | B;
 }
 
-UE_RigUnit_MathVectorUnit_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorUnit_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Value.IsNearlyZero())
@@ -281,7 +281,7 @@ UE_RigUnit_MathVectorUnit_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const F
 	Result = Value.GetUnsafeNormal();
 }
 
-UE_RigUnit_MathVectorMirror_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorMirror_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Normal.IsNearlyZero())
@@ -293,7 +293,7 @@ UE_RigUnit_MathVectorMirror_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const
 	Result = Value.MirrorByVector(Normal.GetSafeNormal());
 }
 
-UE_RigUnit_MathVectorAngle_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorAngle_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -312,7 +312,7 @@ UE_RigUnit_MathVectorAngle_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const 
 	Result = FQuat::FindBetween(A, B).GetAngle();
 }
 
-UE_RigUnit_MathVectorParallel_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorParallel_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -331,7 +331,7 @@ UE_RigUnit_MathVectorParallel_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, con
 	Result = FVector::Parallel(A, B);
 }
 
-UE_RigUnit_MathVectorOrthogonal_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorOrthogonal_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -350,7 +350,7 @@ UE_RigUnit_MathVectorOrthogonal_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, c
 	Result = FVector::Orthogonal(A, B);
 }
 
-UE_RigUnit_MathVectorBezierFourPoint_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_MathVectorBezierFourPoint_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FControlRigMathLibrary::FourPointBezier(Bezier, T, Result, Tangent);

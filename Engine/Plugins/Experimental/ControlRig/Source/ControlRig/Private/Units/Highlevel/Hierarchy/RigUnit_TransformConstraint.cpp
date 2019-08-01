@@ -5,7 +5,7 @@
 #include "HelperUtil.h"
 #include "AnimationCoreLibrary.h"
 
-UE_RigUnit_TransformConstraint_IMPLEMENT_STATIC_VIRTUAL_METHOD(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_TransformConstraint_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 

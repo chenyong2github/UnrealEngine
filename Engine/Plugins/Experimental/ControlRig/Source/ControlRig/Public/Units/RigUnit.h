@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ControlRigDefines.h"
+#include "MultiplexRegistry.h"
 #include "RigUnit.generated.h"
 
 struct FRigUnitContext;

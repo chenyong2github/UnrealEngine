@@ -108,7 +108,7 @@ struct FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMutable
 		ChainLength = 0.f;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** 

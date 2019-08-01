@@ -45,7 +45,7 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 		: BaseTransformSpace(ETransformSpaceMode::GlobalSpace)
 	{}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, Constant, BoneName))

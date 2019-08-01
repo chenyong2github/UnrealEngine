@@ -24,7 +24,7 @@ struct FRigUnit_AnimEvalRichCurve : public FRigUnit_AnimBase
 		SourceMaximum = TargetMaximum = 1.f;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))

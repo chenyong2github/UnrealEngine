@@ -74,7 +74,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 		PoleVectorIndex = INDEX_NONE;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** 

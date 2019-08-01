@@ -23,7 +23,7 @@ struct FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 		Point = FCRSimPoint();
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

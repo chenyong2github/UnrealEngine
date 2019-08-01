@@ -22,7 +22,7 @@ struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 		LastInsertIndex = 0;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */
@@ -71,7 +71,7 @@ struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 		LastInsertIndex = 0;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */
@@ -120,7 +120,7 @@ struct FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 		LastInsertIndex = 0;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */

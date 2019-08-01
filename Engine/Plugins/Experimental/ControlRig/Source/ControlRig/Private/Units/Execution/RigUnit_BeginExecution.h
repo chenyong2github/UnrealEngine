@@ -11,7 +11,7 @@ struct FRigUnit_BeginExecution : public FRigUnit
 {
 	GENERATED_BODY()
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	// The execution result

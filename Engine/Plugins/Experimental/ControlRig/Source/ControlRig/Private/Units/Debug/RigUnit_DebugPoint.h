@@ -34,7 +34,7 @@ struct FRigUnit_DebugPoint : public FRigUnit_DebugBase
 		bEnabled = true;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input, Output))
@@ -78,7 +78,7 @@ struct FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMutable
 		bEnabled = true;
 	}
 
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

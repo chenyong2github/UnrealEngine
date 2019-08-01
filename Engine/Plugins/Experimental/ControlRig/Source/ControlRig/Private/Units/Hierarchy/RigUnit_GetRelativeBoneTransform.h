@@ -19,7 +19,7 @@ struct FRigUnit_GetRelativeBoneTransform : public FRigUnit
 	{}
 
 	virtual FString GetUnitLabel() const override;
-	STATIC_VIRTUAL_METHOD()
+	MULTIPLEX_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**
