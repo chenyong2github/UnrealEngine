@@ -20,9 +20,7 @@ struct ANIMATIONCORE_API FMultiplexAddress
 		, ByteIndex(INDEX_NONE)
 		, ElementSize(0)
 		, ElementCount(0)
-#if WITH_EDITORONLY_DATA
 		, Name(NAME_None)
-#endif
 	{
 	}
 
@@ -37,10 +35,8 @@ struct ANIMATIONCORE_API FMultiplexAddress
 	UPROPERTY()
 	int32 ElementCount;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 		FName Name;
-#endif
 
 	FORCEINLINE bool IsArray() const { return ElementCount > 1; }
 	FORCEINLINE int32 NumBytes() const { return ElementCount * ElementSize;  }
@@ -89,18 +85,17 @@ struct ANIMATIONCORE_API FMultiplexStorage
 	
 public:
 
-	FMultiplexStorage();
+	FMultiplexStorage(bool bInUseNames = true);
 	~FMultiplexStorage();
 
 	FMultiplexStorage& operator= (const FMultiplexStorage &InOther);
 
+	FORCEINLINE bool SupportsNames() const { return bUseNameMap;  }
 	FORCEINLINE int32 Num() const { return Addresses.Num(); }
 	FORCEINLINE const FMultiplexAddress& operator[](int32 InIndex) const { return Addresses[InIndex]; }
 	FORCEINLINE FMultiplexAddress& operator[](int32 InIndex) { return Addresses[InIndex]; }
-#if WITH_EDITORONLY_DATA
 	FORCEINLINE const FMultiplexAddress& operator[](const FName& InName) const { return Addresses[GetIndex(InName)]; }
 	FORCEINLINE FMultiplexAddress& operator[](const FName& InName) { return Addresses[GetIndex(InName)]; }
-#endif
 
 	FORCEINLINE TArray<FMultiplexAddress>::RangedForIteratorType      begin() { return Addresses.begin(); }
 	FORCEINLINE TArray<FMultiplexAddress>::RangedForConstIteratorType begin() const { return Addresses.begin(); }
@@ -146,10 +141,27 @@ public:
 		return TArrayView<T>((T*)&Data[Address.ByteIndex], Address.ElementCount);
 	}
 
-#if WITH_EDITORONLY_DATA
+	bool Copy(
+		int32 InSourceAddressIndex,
+		int32 InTargetAddressIndex,
+		int32 InSourceByteOffset = INDEX_NONE,
+		int32 InTargetByteOffset = INDEX_NONE,
+		int32 InNumBytes = INDEX_NONE);
+
+	bool Copy(
+		const FName& InSourceName,
+		const FName& InTargetName,
+		int32 InSourceByteOffset = INDEX_NONE,
+		int32 InTargetByteOffset = INDEX_NONE,
+		int32 InNumBytes = INDEX_NONE);
 
 	FORCEINLINE int32 GetIndex(const FName& InName) const
 	{
+		if (!bUseNameMap)
+		{
+			return INDEX_NONE;
+		}
+
 		if (NameMap.Num() != Addresses.Num())
 		{
 			for (int32 Index = 0; Index < Addresses.Num(); Index++)
@@ -172,16 +184,37 @@ public:
 		return INDEX_NONE;
 	}
 
-	FORCEINLINE bool IsNameAvailable(const FName& InPotentialNewName) const { return GetIndex(InPotentialNewName) == INDEX_NONE; }
+	FORCEINLINE bool IsNameAvailable(const FName& InPotentialNewName) const\
+	{
+		if (!bUseNameMap)
+		{
+			return false;
+		}
+		return GetIndex(InPotentialNewName) == INDEX_NONE;
+	}
 
 	void Reset();
 
+	int32 Add(int32 InElementSize, int32 InCount, const void* InData = nullptr);
+
 	int32 Add(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InData = nullptr);
+
+	template<class T>
+	int32 Add(const T& InValue)
+	{
+		return Add(sizeof(T), 1, (const void*)&InValue);
+	}
 
 	template<class T>
 	int32 Add(const FName& InNewName, const T& InValue)
 	{
 		return Add(InNewName, sizeof(T), 1, (const void*)&InValue);
+	}
+
+	template<class T>
+	int32 AddArray(const TArray<T>& InArray)
+	{
+		return Add(sizeof(T), InArray.Num(), (const void*)InArray.GetData());
 	}
 
 	template<class T>
@@ -197,8 +230,6 @@ public:
 	bool Resize(int32 InAddressIndex, int32 InNewElementCount);
 	bool Resize(const FName& InAddressName, int32 InNewElementCount);
 
-#endif
-
 	void UpdateAddresses();
 
 private:
@@ -207,13 +238,14 @@ private:
 	FMultiplexStorage(const FMultiplexStorage& Other) {}
 
 	UPROPERTY()
+	bool bUseNameMap;
+
+	UPROPERTY()
 	TArray<FMultiplexAddress> Addresses;
 
 	UPROPERTY()
 	TArray<uint8> Data;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	TMap<FName, int32> NameMap;
-#endif
 };

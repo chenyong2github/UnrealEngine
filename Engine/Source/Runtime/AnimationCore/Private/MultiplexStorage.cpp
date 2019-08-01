@@ -2,7 +2,8 @@
 
 #include "MultiplexStorage.h"
 
-FMultiplexStorage::FMultiplexStorage()
+FMultiplexStorage::FMultiplexStorage(bool bInUseNames)
+	:bUseNameMap(bInUseNames)
 {
 }
 
@@ -12,6 +13,7 @@ FMultiplexStorage::~FMultiplexStorage()
 
 FMultiplexStorage& FMultiplexStorage::operator= (const FMultiplexStorage &InOther)
 {
+	bUseNameMap = InOther.bUseNameMap;
 	Data.Reset();
 	Data.Append(InOther.Data);
 	Addresses.Reset();
@@ -20,25 +22,125 @@ FMultiplexStorage& FMultiplexStorage::operator= (const FMultiplexStorage &InOthe
 	return *this;
 }
 
-#if WITH_EDITORONLY_DATA
-
 void FMultiplexStorage::Reset()
 {
+	Data.Reset();
+	Addresses.Reset();
+	NameMap.Reset();
+}
 
+bool FMultiplexStorage::Copy(
+	int32 InSourceAddressIndex,
+	int32 InTargetAddressIndex,
+	int32 InSourceByteOffset,
+	int32 InTargetByteOffset,
+	int32 InNumBytes)
+{
+	ensure(Addresses.IsValidIndex(InSourceAddressIndex));
+	ensure(Addresses.IsValidIndex(InTargetAddressIndex));
+
+	if (InSourceAddressIndex == InTargetAddressIndex && InSourceByteOffset == InTargetByteOffset)
+	{
+		return false;
+	}
+
+	const FMultiplexAddress& Source = Addresses[InSourceAddressIndex];
+	const FMultiplexAddress& Target = Addresses[InTargetAddressIndex];
+
+	int32 SourceStartByte = Source.ByteIndex;
+	int32 SourceNumBytes = Source.NumBytes();
+	if(InSourceByteOffset != INDEX_NONE)
+	{
+		ensure(InNumBytes != INDEX_NONE);
+		ensure(InSourceByteOffset >= 0 && InSourceByteOffset < Source.NumBytes());
+		ensure(InNumBytes > 0 && InSourceByteOffset + InNumBytes <= Source.NumBytes());
+
+		SourceStartByte += InSourceByteOffset;
+		SourceNumBytes = InNumBytes;
+	}
+
+	int32 TargetStartByte = Target.ByteIndex;
+	int32 TargetNumBytes = Target.NumBytes();
+	if(InTargetByteOffset != INDEX_NONE)
+	{
+		ensure(InNumBytes != INDEX_NONE);
+		ensure(InTargetByteOffset >= 0 && InTargetByteOffset < Target.NumBytes());
+		ensure(InNumBytes > 0 && InTargetByteOffset + InNumBytes <= Target.NumBytes());
+
+		TargetStartByte += InTargetByteOffset;
+		TargetNumBytes = InNumBytes;
+	}
+
+	if (SourceNumBytes != TargetNumBytes)
+	{
+		return false;
+	}
+
+	FMemory::Memcpy(&Data[TargetStartByte], &Data[SourceStartByte], TargetNumBytes);
+
+	return true;
+}
+
+bool FMultiplexStorage::Copy(
+	const FName& InSourceName,
+	const FName& InTargetName,
+	int32 InSourceByteOffset,
+	int32 InTargetByteOffset,
+	int32 InNumBytes)
+{
+	ensure(bUseNameMap);
+
+	int32 SourceAddressIndex = GetIndex(InSourceName);
+	int32 TargetAddressIndex = GetIndex(InTargetName);
+
+	if(SourceAddressIndex == INDEX_NONE || TargetAddressIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	return Copy(SourceAddressIndex, TargetAddressIndex, InSourceByteOffset, InTargetByteOffset, InNumBytes);
+}
+
+int32 FMultiplexStorage::Add(int32 InElementSize, int32 InCount, const void* InData)
+{
+	FName Name = NAME_None;
+
+	if (bUseNameMap)
+	{
+		const TCHAR* AddressPrefix = TEXT("Address");
+		int32 AddressSuffix = 0;
+		do
+		{
+			Name = FName(*FString::Printf(TEXT("%s_%d"), AddressPrefix, AddressSuffix++));
+		}
+		while (!IsNameAvailable(Name));
+	}
+
+	return Add(Name, InElementSize, InCount, InData);
 }
 
 int32 FMultiplexStorage::Add(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InData)
 {
+	if (bUseNameMap)
+	{
+		ensure(InNewName != NAME_None);
+	}
 	ensure(InElementSize > 0 && InCount > 0);
 
-	if (!IsNameAvailable(InNewName))
+	if (bUseNameMap)
 	{
-		return INDEX_NONE;
+		if (!IsNameAvailable(InNewName))
+		{
+			return INDEX_NONE;
+		}
 	}
 
 	FMultiplexAddress NewAddress;
 	NewAddress.ByteIndex = Data.Num();
-	NewAddress.Name = InNewName;
+	if (bUseNameMap)
+	{
+		NewAddress.Name = InNewName;
+	}
 	NewAddress.ElementSize = InElementSize;
 	NewAddress.ElementCount = InCount;
 
@@ -77,6 +179,7 @@ bool FMultiplexStorage::Remove(int32 InAddressIndex)
 
 bool FMultiplexStorage::Remove(const FName& InAddressName)
 {
+	ensure(bUseNameMap);
 	return Remove(GetIndex(InAddressName));
 }
 
@@ -100,6 +203,8 @@ FName FMultiplexStorage::Rename(int32 InAddressIndex, const FName& InNewName)
 
 FName FMultiplexStorage::Rename(const FName& InOldName, const FName& InNewName)
 {
+	ensure(bUseNameMap);
+
 	int32 AddressIndex = GetIndex(InOldName);
 	if (AddressIndex == INDEX_NONE)
 	{
@@ -156,6 +261,8 @@ bool FMultiplexStorage::Resize(int32 InAddressIndex, int32 InNewElementCount)
 
 bool FMultiplexStorage::Resize(const FName& InAddressName, int32 InNewElementCount)
 {
+	ensure(bUseNameMap);
+
 	int32 AddressIndex = GetIndex(InAddressName);
 	if (AddressIndex == INDEX_NONE)
 	{
@@ -165,8 +272,6 @@ bool FMultiplexStorage::Resize(const FName& InAddressName, int32 InNewElementCou
 	return Resize(AddressIndex, InNewElementCount);
 }
 
-#endif
-
 void FMultiplexStorage::UpdateAddresses()
 {
 	for (FMultiplexAddress& Address : Addresses)
@@ -174,13 +279,12 @@ void FMultiplexStorage::UpdateAddresses()
 		Address.Pointer = &Data[Address.ByteIndex];
 	}
 
-#if WITH_EDITORONLY_DATA
-
-	NameMap.Reset();
-	for (int32 Index = 0; Index < Addresses.Num(); Index++)
+	if (bUseNameMap)
 	{
-		NameMap.Add(Addresses[Index].Name, Index);
+		NameMap.Reset();
+		for (int32 Index = 0; Index < Addresses.Num(); Index++)
+		{
+			NameMap.Add(Addresses[Index].Name, Index);
+		}
 	}
-
-#endif
 }
