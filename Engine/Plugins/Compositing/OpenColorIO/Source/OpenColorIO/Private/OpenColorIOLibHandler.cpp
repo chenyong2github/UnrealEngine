@@ -4,7 +4,7 @@
 
 #include "HAL/PlatformProcess.h"
 #include "Interfaces/IPluginManager.h"
-#include "IOpenColorIOEditorModule.h"
+#include "IOpenColorIOModule.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
 
@@ -29,7 +29,7 @@ bool FOpenColorIOLibHandler::Initialize()
 
 	if (!FPaths::FileExists(DLLPath))
 	{
-		UE_LOG(LogOpenColorIOEditor, Error, TEXT("Failed to find the OpenColorIO dll. Plug-in will not be functional."));
+		UE_LOG(LogOpenColorIO, Error, TEXT("Failed to find the OpenColorIO dll. Plug-in will not be functional."));
 		return false;
 	}
 	
@@ -38,7 +38,7 @@ bool FOpenColorIOLibHandler::Initialize()
 
 	if (LibHandle == nullptr)
 	{
-		UE_LOG(LogOpenColorIOEditor, Error, TEXT("Failed to load required library %s. Plug-in will not be functional."), *DLLPath);
+		UE_LOG(LogOpenColorIO, Error, TEXT("Failed to load required library %s. Plug-in will not be functional."), *DLLPath);
 		return false;
 	}
 
