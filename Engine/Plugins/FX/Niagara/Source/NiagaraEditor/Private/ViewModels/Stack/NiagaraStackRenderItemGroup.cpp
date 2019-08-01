@@ -150,7 +150,7 @@ void UNiagaraStackRenderItemGroup::RefreshChildrenInternal(const TArray<UNiagara
 		{
 			RendererItem = NewObject<UNiagaraStackRendererItem>(this);
 			RendererItem->Initialize(CreateDefaultChildRequiredData(), RendererProperties);
-			RendererItem->SetOnModifiedGroupItems(UNiagaraStackItem::FOnModifiedGroupItems::CreateUObject(this, &UNiagaraStackRenderItemGroup::ChildModifiedGroupItems));
+			RendererItem->OnModifiedGroupItems().AddUObject(this, &UNiagaraStackRenderItemGroup::ChildModifiedGroupItems);
 		}
 
 		NewChildren.Add(RendererItem);

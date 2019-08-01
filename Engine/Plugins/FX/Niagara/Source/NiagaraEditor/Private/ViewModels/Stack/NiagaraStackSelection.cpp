@@ -3,6 +3,7 @@
 #include "ViewModels/Stack/NiagaraStackSelection.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackSpacer.h"
+#include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystemEditorData.h"
 
@@ -33,6 +34,15 @@ void UNiagaraStackSelection::SetSelectedEntries(const TArray<UNiagaraStackEntry*
 
 void UNiagaraStackSelection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
+	for (UNiagaraStackEntry* CurrentChild : CurrentChildren)
+	{
+		UNiagaraStackItem* CurrentChildItem = Cast<UNiagaraStackItem>(CurrentChild);
+		if (CurrentChildItem != nullptr)
+		{
+			CurrentChildItem->OnModifiedGroupItems().RemoveAll(this);
+		}
+	}
+
 	auto GetOrCreateSpacer = [&](FName SpacerExecutionCategory, FName SpacerKey)
 	{
 		UNiagaraStackSpacer* Spacer = FindCurrentChildOfTypeByPredicate<UNiagaraStackSpacer>(CurrentChildren,
@@ -53,16 +63,23 @@ void UNiagaraStackSelection::RefreshChildrenInternal(const TArray<UNiagaraStackE
 	int32 EntryIndex = 0;
 	for (TWeakObjectPtr<UNiagaraStackEntry> SelectedEntry : SelectedEntries)
 	{
-		if (EntryIndex > 0)
+		if (SelectedEntry.IsValid() && SelectedEntry->IsFinalized() == false)
 		{
-			NewChildren.Add(GetOrCreateSpacer(NAME_None, *FString::Printf(TEXT("SelectionSpacer_%i"), EntryIndex)));
-		}
+			if (EntryIndex > 0)
+			{
+				NewChildren.Add(GetOrCreateSpacer(NAME_None, *FString::Printf(TEXT("SelectionSpacer_%i"), EntryIndex)));
+			}
 
-		if (SelectedEntry.IsValid())
-		{
+			UNiagaraStackItem* SelectedItem = Cast<UNiagaraStackItem>(SelectedEntry);
+			if (SelectedItem != nullptr)
+			{
+				SelectedItem->OnModifiedGroupItems().AddUObject(this, &UNiagaraStackEntry::RefreshChildren);
+			}
+
 			SelectedEntry->SetIsExpanded(true);
 			NewChildren.Add(SelectedEntry.Get());
+
+			EntryIndex++;
 		}
-		EntryIndex++;
 	}
 }
