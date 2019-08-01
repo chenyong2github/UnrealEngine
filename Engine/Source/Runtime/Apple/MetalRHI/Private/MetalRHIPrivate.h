@@ -325,5 +325,15 @@ FORCEINLINE EMetalShaderStages GetMetalShaderFrequency(EShaderFrequency Stage)
 	}
 }
 
+@interface FMetalIAB : FApplePlatformObject<NSObject>
+{
+@public
+	FMetalBuffer IndirectArgumentBuffer;
+	FMetalBuffer IndirectArgumentBufferSideTable;
+	mtlpp::ArgumentEncoder IndirectArgumentEncoder;
+	int64 UpdateIAB;
+}
+@end
+
 #include "MetalStateCache.h"
 #include "MetalContext.h"
