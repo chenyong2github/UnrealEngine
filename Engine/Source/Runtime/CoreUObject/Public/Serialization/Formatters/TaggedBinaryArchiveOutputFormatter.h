@@ -44,6 +44,12 @@ public:
 	virtual void EnterMapElement_TextOnly(FString& Name, EArchiveValueType& OutType) override;
 	virtual void LeaveMapElement() override;
 
+	virtual void EnterAttributedValue() override;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
+	virtual void EnterAttributedValueValue() override;
+	virtual void LeaveAttribute() override;
+	virtual void LeaveAttributedValue() override;
+
 	virtual void Serialize(uint8& Value) override;
 	virtual void Serialize(uint16& Value) override;
 	virtual void Serialize(uint32& Value) override;
@@ -87,14 +93,30 @@ private:
 		int32 NumItems;
 	};
 
+	struct FAttribute
+	{
+		int32  NameIdx;
+		uint64 Offset;
+		uint64 Size;
+	};
+
+	struct FAttributedValue
+	{
+		int64 AttributeTableOffsetOffset = 0; // The offset to the attribute table offset in the file
+
+		TArray<FAttribute> Attributes;
+	};
+
 	FArchive& Inner;
 	TFunction<void(FArchive&, UObject*&)> SerializeObject;
 
 	TArray<FString> Names;
 	TMap<FString, int32> NameToIndex;
 
-	int64 StartOffset;
-	int32 NextRecordIdx;
+	int64 StartOffset   = 0;
+	int32 NextRecordIdx = 0;
+	TArray<FAttributedValue> AttributedValues;
+	TArray<int32> AttributedValueStack;
 	TArray<FRecord> Records;
 	TArray<int32> RecordStack;
 	TArray<FStream> Streams;

@@ -42,6 +42,12 @@ public:
 	virtual void EnterMapElement_TextOnly(FString& Name, EArchiveValueType& OutType) override;
 	virtual void LeaveMapElement() override;
 
+	virtual void EnterAttributedValue() override;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
+	virtual void EnterAttributedValueValue() override;
+	virtual void LeaveAttribute() override;
+	virtual void LeaveAttributedValue() override;
+
 	virtual void Serialize(uint8& Value) override;
 	virtual void Serialize(uint16& Value) override;
 	virtual void Serialize(uint32& Value) override;
@@ -149,6 +155,26 @@ inline void FBinaryArchiveFormatter::EnterMapElement(FString& Name)
 }
 
 inline void FBinaryArchiveFormatter::LeaveMapElement()
+{
+}
+
+inline void FBinaryArchiveFormatter::EnterAttributedValue()
+{
+}
+
+inline void FBinaryArchiveFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+}
+
+inline void FBinaryArchiveFormatter::EnterAttributedValueValue()
+{
+}
+
+inline void FBinaryArchiveFormatter::LeaveAttribute()
+{
+}
+
+inline void FBinaryArchiveFormatter::LeaveAttributedValue()
 {
 }
 

@@ -44,6 +44,12 @@ public:
 	virtual void EnterMapElement_TextOnly(FString& OutName, EArchiveValueType& OutType) override;
 	virtual void LeaveMapElement() override;
 
+	virtual void EnterAttributedValue() override;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
+	virtual void EnterAttributedValueValue() override;
+	virtual void LeaveAttribute() override;
+	virtual void LeaveAttributedValue() override;
+
 	virtual void Serialize(uint8& Value) override;
 	virtual void Serialize(uint16& Value) override;
 	virtual void Serialize(uint32& Value) override;
@@ -87,6 +93,20 @@ private:
 		int32 NumItems;
 	};
 
+	struct FAttribute
+	{
+		int32  NameIdx;
+		int64  StartOffset;
+		uint64 Size;
+	};
+
+	struct FAttributedValue
+	{
+		TArray<FAttribute> Attributes;
+		int64 ValueOffset;
+		int64 ValueSize;
+	};
+
 	FArchive& Inner;
 	TFunction<void(FArchive&, UObject*&)> SerializeObject;
 
@@ -97,6 +117,7 @@ private:
 	TArray<FRecord> Records;
 	TArray<int32> RecordStack;
 	TArray<FStream> Streams;
+	TArray<FAttributedValue> AttributedValues;
 	EArchiveValueType CurrentType;
 
 	uint64 ReadSize();

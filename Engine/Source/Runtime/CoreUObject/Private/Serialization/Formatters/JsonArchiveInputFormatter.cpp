@@ -58,7 +58,7 @@ bool FJsonArchiveInputFormatter::HasDocumentTree() const
 void FJsonArchiveInputFormatter::EnterRecord()
 {
 	TSharedPtr<FJsonValue>& Value = ValueStack.Top();
-	ObjectStack.Add(FObjectRecord(Value->AsObject(), ValueStack.Num()));
+	ObjectStack.Emplace(Value->AsObject(), ValueStack.Num());
 }
 
 void FJsonArchiveInputFormatter::EnterRecord_TextOnly(TArray<FString>& OutFieldNames)
@@ -211,6 +211,58 @@ void FJsonArchiveInputFormatter::LeaveMapElement()
 {
 	ValueStack.Pop();
 	++MapIteratorStack.Top();
+}
+
+void FJsonArchiveInputFormatter::EnterAttributedValue()
+{
+	TSharedPtr<FJsonValue>& Value = ValueStack.Top();
+	const TSharedPtr<FJsonObject>* ObjectPtr = nullptr;
+	if (Value->TryGetObject(ObjectPtr))
+	{
+		FJsonObject& ObjectRef = **ObjectPtr;
+
+		TSharedPtr<FJsonValue> Field = ObjectRef.TryGetField(EscapeFieldName(TEXT("_Value")));
+		if (Field.IsValid())
+		{
+			ObjectStack.Emplace(*ObjectPtr, ValueStack.Num());
+			return;
+		}
+	}
+
+	ObjectStack.Emplace(nullptr, ValueStack.Num());
+}
+
+void FJsonArchiveInputFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+	TSharedPtr<FJsonObject>& NewObject = ObjectStack.Top().JsonObject;
+	TSharedPtr<FJsonValue> Field = NewObject->TryGetField(EscapeFieldName(*FString::Printf(TEXT("_%s"), AttributeName.Name)));
+	check(Field.IsValid());
+	ValueStack.Add(Field);
+}
+
+void FJsonArchiveInputFormatter::EnterAttributedValueValue()
+{
+	if (TSharedPtr<FJsonObject>& Object = ObjectStack.Top().JsonObject)
+	{
+		TSharedPtr<FJsonValue> Field = Object->TryGetField(EscapeFieldName(TEXT("_Value")));
+		checkSlow(Field);
+		ValueStack.Add(Field);
+	}
+	else
+	{
+		ValueStack.Add(CopyTemp(ValueStack.Top()));
+	}
+}
+
+void FJsonArchiveInputFormatter::LeaveAttribute()
+{
+	ValueStack.Pop();
+}
+
+void FJsonArchiveInputFormatter::LeaveAttributedValue()
+{
+	check(ValueStack.Num() == ObjectStack.Top().ValueCountOnCreation);
+	ObjectStack.Pop();
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint8& Value)

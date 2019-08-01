@@ -14,15 +14,16 @@
 
 struct FStructuredArchive::FContainer
 {
-	int Index;
-	int Count;
+	int  Index                   = 0;
+	int  Count                   = 0;
+	bool bAttributedValueWritten = false;
+
 #if CHECK_UNIQUE_FIELD_NAMES
 	TSet<FString> KeyNames;
 #endif
 
-	FContainer(int InCount)
-		: Index(0)
-		, Count(InCount)
+	explicit FContainer(int InCount)
+		: Count(InCount)
 	{
 	}
 };
@@ -95,7 +96,7 @@ FStructuredArchive::FSlot FStructuredArchive::Open()
 	check(NextElementId == RootElementId + 1);
 	check(CurrentSlotElementId == INDEX_NONE);
 
-	CurrentScope.Add(FElement(RootElementId, EElementType::Root));
+	CurrentScope.Emplace(RootElementId, EElementType::Root);
 
 	CurrentSlotElementId = NextElementId++;
 
@@ -107,20 +108,49 @@ void FStructuredArchive::Close()
 	SetScope(0, RootElementId);
 }
 
-void FStructuredArchive::EnterSlot(int32 ElementId)
+void FStructuredArchive::EnterSlot(int32 ParentDepth, int32 ElementId)
 {
-	checkf(ElementId == CurrentSlotElementId, TEXT("Attempt to serialize data into an invalid slot"));
+	// If the slot being entered has attributes, enter the value slot first.
+	if (ParentDepth + 1 < CurrentScope.Num() && CurrentScope[ParentDepth + 1].Id == ElementId && CurrentScope[ParentDepth + 1].Type == EElementType::AttributedValue)
+	{
+#if DO_GUARD_SLOW
+		checkf(CurrentSlotElementId == INDEX_NONE && !CurrentContainer.Top()->bAttributedValueWritten, TEXT("Attempt to serialize data into an invalid slot"));
+		CurrentContainer.Top()->bAttributedValueWritten = true;
+#else
+		checkf(CurrentSlotElementId == INDEX_NONE, TEXT("Attempt to serialize data into an invalid slot"));
+#endif
 
-	CurrentSlotElementId = INDEX_NONE;
+		SetScope(ParentDepth + 1, ElementId);
+		Formatter.EnterAttributedValueValue();
+	}
+	else
+	{
+		checkf(ElementId == CurrentSlotElementId, TEXT("Attempt to serialize data into an invalid slot"));
+		CurrentSlotElementId = INDEX_NONE;
+	}
+
+	CurrentEnteringAttributeState = EEnteringAttributeState::NotEnteringAttribute;
 }
 
-void FStructuredArchive::EnterSlot(int32 ElementId, EElementType ElementType)
+int32 FStructuredArchive::EnterSlot(int32 ParentDepth, int32 ElementId, EElementType ElementType)
 {
-	checkf(ElementId == CurrentSlotElementId, TEXT("Attempt to serialize data into an invalid slot"));
+	EnterSlot(ParentDepth, ElementId);
 
-	CurrentSlotElementId = INDEX_NONE;
+	int32 Result = ParentDepth + 1;
 
-	CurrentScope.Add(FElement(ElementId, ElementType));
+	// If we're entering the value of an attributed slot, we need to return a depth one higher than usual, because we're
+	// inside an attributed value container.
+	//
+	// We don't need to do adjust for attributes, because entering the attribute slot will bump the depth anyway.
+	if (ParentDepth + 1 < CurrentScope.Num() &&
+		CurrentScope[ParentDepth + 1].Type == EElementType::AttributedValue &&
+		CurrentEnteringAttributeState == EEnteringAttributeState::NotEnteringAttribute)
+	{
+		++Result;
+	}
+
+	CurrentScope.Emplace(ElementId, ElementType);
+	return Result;
 }
 
 void FStructuredArchive::LeaveSlot()
@@ -146,6 +176,9 @@ void FStructuredArchive::LeaveSlot()
 #if DO_GUARD_SLOW
 			CurrentContainer.Top()->Index++;
 #endif
+			break;
+		case EElementType::AttributedValue:
+			Formatter.LeaveAttribute();
 			break;
 		}
 	}
@@ -193,6 +226,12 @@ void FStructuredArchive::SetScope(int32 Depth, int32 ElementId)
 				delete CurrentContainer.Pop(false);
 #endif
 				break;
+			case EElementType::AttributedValue:
+				Formatter.LeaveAttributedValue();
+#if DO_GUARD_SLOW
+				delete CurrentContainer.Pop(false);
+#endif
+				break;
 			}
 
 			// Remove the element from the stack
@@ -213,7 +252,7 @@ void FStructuredArchive::SetScope(int32 Depth, int32 ElementId)
 
 FStructuredArchive::FRecord FStructuredArchive::FSlot::EnterRecord()
 {
-	Ar.EnterSlot(ElementId, EElementType::Record);
+	int32 NewDepth = Ar.EnterSlot(Depth, ElementId, EElementType::Record);
 
 #if DO_GUARD_SLOW
 	Ar.CurrentContainer.Add(new FContainer(0));
@@ -221,12 +260,12 @@ FStructuredArchive::FRecord FStructuredArchive::FSlot::EnterRecord()
 
 	Ar.Formatter.EnterRecord();
 
-	return FRecord(Ar, Depth + 1, ElementId);
+	return FRecord(Ar, NewDepth, ElementId);
 }
 
 FStructuredArchive::FRecord FStructuredArchive::FSlot::EnterRecord_TextOnly(TArray<FString>& OutFieldNames)
 {
-	Ar.EnterSlot(ElementId, EElementType::Record);
+	int32 NewDepth = Ar.EnterSlot(Depth, ElementId, EElementType::Record);
 
 #if DO_GUARD_SLOW
 	Ar.CurrentContainer.Add(new FContainer(0));
@@ -234,12 +273,12 @@ FStructuredArchive::FRecord FStructuredArchive::FSlot::EnterRecord_TextOnly(TArr
 
 	Ar.Formatter.EnterRecord_TextOnly(OutFieldNames);
 
-	return FRecord(Ar, Depth + 1, ElementId);
+	return FRecord(Ar, NewDepth, ElementId);
 }
 
 FStructuredArchive::FArray FStructuredArchive::FSlot::EnterArray(int32& Num)
 {
-	Ar.EnterSlot(ElementId, EElementType::Array);
+	int32 NewDepth = Ar.EnterSlot(Depth, ElementId, EElementType::Array);
 
 	Ar.Formatter.EnterArray(Num);
 
@@ -247,30 +286,30 @@ FStructuredArchive::FArray FStructuredArchive::FSlot::EnterArray(int32& Num)
 	Ar.CurrentContainer.Add(new FContainer(Num));
 #endif
 
-	return FArray(Ar, Depth + 1, ElementId);
+	return FArray(Ar, NewDepth, ElementId);
 }
 
 FStructuredArchive::FStream FStructuredArchive::FSlot::EnterStream()
 {
-	Ar.EnterSlot(ElementId, EElementType::Stream);
+	int32 NewDepth = Ar.EnterSlot(Depth, ElementId, EElementType::Stream);
 
 	Ar.Formatter.EnterStream();
 
-	return FStream(Ar, Depth + 1, ElementId);
+	return FStream(Ar, NewDepth, ElementId);
 }
 
 FStructuredArchive::FStream FStructuredArchive::FSlot::EnterStream_TextOnly(int32& OutNumElements)
 {
-	Ar.EnterSlot(ElementId, EElementType::Stream);
+	int32 NewDepth = Ar.EnterSlot(Depth, ElementId, EElementType::Stream);
 
 	Ar.Formatter.EnterStream_TextOnly(OutNumElements);
 
-	return FStream(Ar, Depth + 1, ElementId);
+	return FStream(Ar, NewDepth, ElementId);
 }
 
 FStructuredArchive::FMap FStructuredArchive::FSlot::EnterMap(int32& Num)
 {
-	Ar.EnterSlot(ElementId, EElementType::Map);
+	int32 NewDepth = Ar.EnterSlot(Depth, ElementId, EElementType::Map);
 
 	Ar.Formatter.EnterMap(Num);
 
@@ -278,19 +317,60 @@ FStructuredArchive::FMap FStructuredArchive::FSlot::EnterMap(int32& Num)
 	Ar.CurrentContainer.Add(new FContainer(Num));
 #endif
 
-	return FMap(Ar, Depth + 1, ElementId);
+	return FMap(Ar, NewDepth, ElementId);
+}
+
+FStructuredArchive::FSlot FStructuredArchive::FSlot::EnterAttribute(FArchiveFieldName AttributeName)
+{
+	check(Ar.CurrentScope.Num() > 0);
+
+	int32 NewDepth = Depth + 1;
+	if (NewDepth >= Ar.CurrentScope.Num() || Ar.CurrentScope[NewDepth].Id != ElementId || Ar.CurrentScope[NewDepth].Type != EElementType::AttributedValue)
+	{
+		int32 NewDepthCheck = Ar.EnterSlot(Depth, ElementId, EElementType::AttributedValue);
+		checkSlow(NewDepth == NewDepthCheck);
+
+		Ar.Formatter.EnterAttributedValue();
+
+#if DO_GUARD_SLOW
+		Ar.CurrentContainer.Add(new FContainer(0));
+#endif
+	}
+
+	Ar.CurrentEnteringAttributeState = EEnteringAttributeState::NotEnteringAttribute;
+
+	int32 AttributedValueId = Ar.CurrentScope[NewDepth].Id;
+
+	Ar.SetScope(NewDepth, AttributedValueId);
+
+	Ar.CurrentSlotElementId = Ar.NextElementId++;
+
+#if DO_GUARD_SLOW
+#if CHECK_UNIQUE_FIELD_NAMES
+	if (!Ar.GetUnderlyingArchive().IsLoading())
+	{
+		FContainer& Container = *Ar.CurrentContainer.Top();
+		checkf(!Container.KeyNames.Contains(Name.Name), TEXT("Multiple attributes called '%s' serialized into attributed value"), AttributeName.Name);
+		Container.KeyNames.Add(Name.Name);
+	}
+#endif
+#endif
+
+	Ar.Formatter.EnterAttribute(AttributeName);
+
+	return FSlot(Ar, NewDepth, Ar.CurrentSlotElementId);
 }
 
 void FStructuredArchive::FSlot::Serialize(TArray<uint8>& Data)
 {
-	Ar.EnterSlot(ElementId);
+	Ar.EnterSlot(Depth, ElementId);
 	Ar.Formatter.Serialize(Data);
 	Ar.LeaveSlot();
 }
 
 void FStructuredArchive::FSlot::Serialize(void* Data, uint64 DataSize)
 {
-	Ar.EnterSlot(ElementId);
+	Ar.EnterSlot(Depth, ElementId);
 	Ar.Formatter.Serialize(Data, DataSize);
 	Ar.LeaveSlot();
 }

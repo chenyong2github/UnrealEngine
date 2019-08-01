@@ -8,7 +8,6 @@ FTaggedBinaryArchiveOutputFormatter::FTaggedBinaryArchiveOutputFormatter(FArchiv
 	: Inner(InInner)
 	, SerializeObject(InSerializeObject)
 	, StartOffset(Inner.Tell())
-	, NextRecordIdx(0)
 {
 	Inner.SetIsTextFormat(true);
 
@@ -206,6 +205,67 @@ void FTaggedBinaryArchiveOutputFormatter::EnterMapElement_TextOnly(FString& Name
 
 void FTaggedBinaryArchiveOutputFormatter::LeaveMapElement()
 {
+}
+
+void FTaggedBinaryArchiveOutputFormatter::EnterAttributedValue()
+{
+	WriteType(EArchiveValueType::AttributedValue);
+
+	int64 AttributeTableOffsetOffset = Inner.Tell();
+
+	// Position to be written into when the attributed value is left and the attribute table is written
+	int64 AttributeTableOffset = 0;
+	Inner << AttributeTableOffset;
+
+	FAttributedValue& AttributedValue = AttributedValues.Emplace_GetRef();
+	AttributedValue.AttributeTableOffsetOffset = AttributeTableOffsetOffset;
+}
+
+void FTaggedBinaryArchiveOutputFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+	WriteType(EArchiveValueType::Attribute);
+
+	FAttributedValue& AttributedValue = AttributedValues.Top();
+
+	FAttribute& Attribute = AttributedValue.Attributes.Emplace_GetRef();
+	Attribute.NameIdx = FindOrAddName(AttributeName.Name);
+	Attribute.Offset = Inner.Tell();
+}
+
+void FTaggedBinaryArchiveOutputFormatter::EnterAttributedValueValue()
+{
+}
+
+void FTaggedBinaryArchiveOutputFormatter::LeaveAttribute()
+{
+	FAttributedValue& AttributedValue = AttributedValues.Top();
+	FAttribute& Attribute = AttributedValue.Attributes.Emplace_GetRef();
+
+	int64 CurrentOffset = Inner.Tell();
+	Attribute.Size = CurrentOffset - Attribute.Offset;
+}
+
+void FTaggedBinaryArchiveOutputFormatter::LeaveAttributedValue()
+{
+	FAttributedValue& AttributedValue = AttributedValues.Top();
+
+	int64 AttributeTableOffset = Inner.Tell();
+
+	int32 NumAttributes = AttributedValue.Attributes.Num();
+	Inner << NumAttributes;
+	for (FAttribute& Attribute : AttributedValue.Attributes)
+	{
+		Inner << Attribute.NameIdx;
+		WriteSize(Attribute.Size);
+	}
+
+	int64 AttributeTableEnd = Inner.Tell();
+
+	Inner.Seek(AttributedValue.AttributeTableOffsetOffset);
+	Inner << AttributeTableOffset;
+	Inner.Seek(AttributeTableEnd);
+
+	AttributedValues.Pop();
 }
 
 void FTaggedBinaryArchiveOutputFormatter::Serialize(uint8& Value)

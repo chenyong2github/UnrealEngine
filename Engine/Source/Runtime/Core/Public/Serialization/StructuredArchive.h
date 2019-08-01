@@ -29,11 +29,34 @@ template<typename T> struct TNamedValue
 };
 
 /**
+ * Class to contain a named attribute for serialization. Intended to be created as a temporary and passed to object serialization methods.
+ */
+template<typename T> struct TNamedAttribute
+{
+	FArchiveFieldName Name;
+	T& Value;
+
+	explicit FORCEINLINE TNamedAttribute(FArchiveFieldName InName, T& InValue)
+		: Name(InName)
+		, Value(InValue)
+	{
+	}
+};
+
+/**
  * Helper function to construct a TNamedValue, deducing the value type.
  */
 template<typename T> FORCEINLINE TNamedValue<T> MakeNamedValue(FArchiveFieldName Name, T& Value)
 {
 	return TNamedValue<T>(Name, Value);
+}
+
+/**
+ * Helper function to construct a TNamedValue, deducing the value type.
+ */
+template<typename T> FORCEINLINE TNamedAttribute<T> MakeNamedAttribute(FArchiveFieldName Name, T& Value)
+{
+	return TNamedAttribute<T>(Name, Value);
 }
 
 /** Construct a TNamedValue given an ANSI string and value reference. */
@@ -43,8 +66,18 @@ template<typename T> FORCEINLINE TNamedValue<T> MakeNamedValue(FArchiveFieldName
 	#define NAMED_ITEM(Name, Value) MakeNamedValue(FArchiveFieldName(), Value)
 #endif
 
+/** Construct a TNamedValue given an ANSI string and value reference. */
+#if WITH_TEXT_ARCHIVE_SUPPORT
+#define MAKE_NAMED_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(TEXT(Name)), Value)
+#else
+#define MAKE_NAMED_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(), Value)
+#endif
+
 /** Construct a TNamedValue using the name of a field or variable. */
 #define NAMED_FIELD(Field) NAMED_ITEM(#Field, Field)
+
+/** Construct a TNamedAttribute using the name of a field or variable. */
+#define NAMED_ATTRIBUTE(Field) MAKE_NAMED_ATTRIBUTE(#Field, Field)
 
 /** Typedef for which formatter type to support */
 #if WITH_TEXT_ARCHIVE_SUPPORT
@@ -145,6 +178,7 @@ public:
 		FStream EnterStream();
 		FStream EnterStream_TextOnly(int32& OutNumElements);
 		FMap EnterMap(int32& Num);
+		FSlot EnterAttribute(FArchiveFieldName AttributeName);
 
 		// We don't support chaining writes to a single slot, so this returns void.
 		template <typename ArgType>
@@ -153,12 +187,18 @@ public:
 		>::Type operator<<(ArgType&& Arg)
 		{
 #if WITH_TEXT_ARCHIVE_SUPPORT
-			Ar.EnterSlot(ElementId);
+			Ar.EnterSlot(Depth, ElementId);
 			Ar.Formatter.Serialize(Forward<ArgType>(Arg));
 			Ar.LeaveSlot();
 #else
 			Ar.Formatter.Serialize(Forward<ArgType>(Arg));
 #endif
+		}
+
+		template <typename T>
+		FORCEINLINE void operator<<(TNamedAttribute<T> Item)
+		{
+			EnterAttribute(Item.Name) << Item.Value;
 		}
 
 		void Serialize(TArray<uint8>& Data);
@@ -291,6 +331,13 @@ private:
 		Array,
 		Stream,
 		Map,
+		AttributedValue,
+	};
+
+	enum class EEnteringAttributeState
+	{
+		NotEnteringAttribute,
+		EnteringAttribute,
 	};
 
 	struct FElement
@@ -338,14 +385,21 @@ private:
 #endif
 
 	/**
+	 * Whether or not we've just entered an attribute
+	 */
+	EEnteringAttributeState CurrentEnteringAttributeState = EEnteringAttributeState::NotEnteringAttribute;
+
+	/**
 	 * Enters the current slot for serializing a value. Asserts if the archive is not in a state about to write to an empty-slot.
 	 */
-	void EnterSlot(int32 ElementId);
+	void EnterSlot(int32 ParentDepth, int32 ElementId);
 
 	/**
 	 * Enters the current slot, adding an element onto the stack. Asserts if the archive is not in a state about to write to an empty-slot.
+	 *
+	 * @return  The depth of the newly-entered slot.
 	 */
-	void EnterSlot(int32 ElementId, EElementType ElementType);
+	int32 EnterSlot(int32 ParentDepth, int32 ElementId, EElementType ElementType);
 
 	/**
 	 * Leaves slot at the top of the current scope

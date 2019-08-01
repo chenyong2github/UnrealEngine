@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/Formatters/TaggedBinaryArchiveInputFormatter.h"
+#include "Algo/Find.h"
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
@@ -220,6 +221,77 @@ void FTaggedBinaryArchiveInputFormatter::LeaveMapElement()
 	CurrentType = EArchiveValueType::None;
 }
 
+void FTaggedBinaryArchiveInputFormatter::EnterAttributedValue()
+{
+	ExpectType(EArchiveValueType::AttributedValue);
+
+	int64 AttributeTableOffset = ReadSize();
+	int64 CurrentOffset = Inner.Tell();
+	Inner.Seek(AttributeTableOffset);
+
+	int32 NumAttributes = 0;
+	Inner << NumAttributes;
+
+	FAttributedValue& AttributedValue = AttributedValues.Emplace_GetRef();
+	AttributedValue.Attributes.SetNum(NumAttributes);
+
+	// Read attribute table
+	for (FAttribute& Attribute : AttributedValue.Attributes)
+	{
+		ExpectType(EArchiveValueType::Attribute);
+
+		Inner << Attribute.NameIdx;
+		Attribute.Size = ReadSize();
+	}
+
+	Inner.Seek(CurrentOffset);
+
+	// Calculate attribute offsets from end of table
+	for (FAttribute& Attribute : AttributedValue.Attributes)
+	{
+		Attribute.StartOffset = CurrentOffset;
+		CurrentOffset += Attribute.Size;
+	}
+
+	AttributedValue.ValueOffset = CurrentOffset;
+}
+
+void FTaggedBinaryArchiveInputFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+	ExpectType(EArchiveValueType::Attribute);
+
+	FAttributedValue& AttributedValue = AttributedValues.Top();
+
+	int32 NameIdx = NameToIndex.FindChecked(AttributeName.Name);
+	const FAttribute* Attribute = Algo::FindBy(AttributedValue.Attributes, NameIdx, &FAttribute::NameIdx);
+	check(Attribute);
+	Inner.Seek(Attribute->StartOffset);
+}
+
+void FTaggedBinaryArchiveInputFormatter::EnterAttributedValueValue()
+{
+	ExpectType(EArchiveValueType::Attribute);
+
+	FAttributedValue& AttributedValue = AttributedValues.Top();
+
+	Inner.Seek(AttributedValue.ValueOffset);
+}
+
+void FTaggedBinaryArchiveInputFormatter::LeaveAttribute()
+{
+	FAttributedValue& AttributedValue = AttributedValues.Top();
+
+	CurrentType = EArchiveValueType::None;
+}
+
+void FTaggedBinaryArchiveInputFormatter::LeaveAttributedValue()
+{
+	FAttributedValue& AttributedValue = AttributedValues.Last();
+
+	Inner.Seek(AttributedValue.ValueOffset + AttributedValue.ValueSize);
+	AttributedValues.Pop();
+}
+
 void FTaggedBinaryArchiveInputFormatter::Serialize(uint8& Value)
 {
 	ReadNumericValue(Value);
@@ -367,9 +439,10 @@ EArchiveValueType FTaggedBinaryArchiveInputFormatter::ReadType()
 	return Type;
 }
 
-void FTaggedBinaryArchiveInputFormatter::ExpectType(EArchiveValueType Type)
+void FTaggedBinaryArchiveInputFormatter::ExpectType(EArchiveValueType InType)
 {
-	verify(ReadType() == Type);
+	EArchiveValueType Type = ReadType();
+	ensure(Type == InType);
 }
 
 template<typename NumericType> void FTaggedBinaryArchiveInputFormatter::ReadNumericValue(NumericType& OutValue)

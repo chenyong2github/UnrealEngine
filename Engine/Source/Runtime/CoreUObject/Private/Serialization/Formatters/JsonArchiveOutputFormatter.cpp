@@ -17,9 +17,6 @@ FJsonArchiveOutputFormatter::FJsonArchiveOutputFormatter(FArchive& InInner)
 	, Newline(LINE_TERMINATOR_ANSI, ARRAY_COUNT(LINE_TERMINATOR_ANSI) - 1)
 {
 	Inner.SetIsTextFormat(true);
-
-	bNeedsComma = false;
-	bNeedsNewline = false;
 }
 
 FJsonArchiveOutputFormatter::~FJsonArchiveOutputFormatter()
@@ -180,6 +177,44 @@ void FJsonArchiveOutputFormatter::EnterMapElement_TextOnly(FString& Name, EArchi
 void FJsonArchiveOutputFormatter::LeaveMapElement()
 {
 	LeaveField();
+}
+
+void FJsonArchiveOutputFormatter::EnterAttributedValue()
+{
+	NumAttributesStack.Push(0);
+}
+
+void FJsonArchiveOutputFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+	WriteOptionalComma();
+	WriteOptionalNewline();
+	WriteOptionalAttributedBlockOpening();
+	WriteOptionalComma();
+	WriteOptionalNewline();
+	checkf(FCString::Strcmp(AttributeName.Name, TEXT("Value")) != 0, TEXT("Attributes called 'Value' are reserved by the implementation"));
+	WriteFieldName(*FString::Printf(TEXT("_%s"), AttributeName.Name));
+	++NumAttributesStack.Top();
+}
+
+void FJsonArchiveOutputFormatter::LeaveAttribute()
+{
+	bNeedsComma = true;
+	bNeedsNewline = true;
+}
+
+void FJsonArchiveOutputFormatter::LeaveAttributedValue()
+{
+	WriteOptionalAttributedBlockClosing();
+	NumAttributesStack.Pop();
+	bNeedsComma = true;
+	bNeedsNewline = true;
+}
+
+void FJsonArchiveOutputFormatter::EnterAttributedValueValue()
+{
+	WriteOptionalComma();
+	WriteOptionalNewline();
+	WriteOptionalAttributedBlockValue();
 }
 
 void FJsonArchiveOutputFormatter::Serialize(uint8& Value)
@@ -459,6 +494,36 @@ void FJsonArchiveOutputFormatter::WriteOptionalNewline()
 	{
 		Inner.Serialize(Newline.GetData(), Newline.Num());
 		bNeedsNewline = false;
+	}
+}
+
+void FJsonArchiveOutputFormatter::WriteOptionalAttributedBlockOpening()
+{
+	if (NumAttributesStack.Top() == 0)
+	{
+		Write('{');
+		Newline.Add('\t');
+		bNeedsNewline = true;
+	}
+}
+
+void FJsonArchiveOutputFormatter::WriteOptionalAttributedBlockValue()
+{
+	if (NumAttributesStack.Top() != 0)
+	{
+		WriteFieldName(TEXT("_Value"));
+	}
+}
+
+void FJsonArchiveOutputFormatter::WriteOptionalAttributedBlockClosing()
+{
+	if (NumAttributesStack.Top() != 0)
+	{
+		Newline.Pop(false);
+		WriteOptionalNewline();
+		Write("}");
+		bNeedsComma                  = true;
+		bNeedsNewline                = true;
 	}
 }
 
