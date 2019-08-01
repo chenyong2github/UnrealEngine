@@ -35,7 +35,6 @@ public class AssetTools : ModuleRules
 				"RHI",
 				"MaterialEditor",
 				"EditorMenus",
-				"ContentBrowser",
             }
 		);
 
@@ -71,6 +70,7 @@ public class AssetTools : ModuleRules
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",
+				"ContentBrowser",
 				"CollectionManager",
 				"CurveTableEditor",
 				"DataTableEditor",
