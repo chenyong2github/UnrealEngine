@@ -19,6 +19,8 @@ public:
 	{
 	}
 
+	FORCEINLINE bool operator ==(int32 InOther) const { return Address == InOther; }
+
 	FORCEINLINE bool IsLiteral() const { return Address < 0; }
 	FORCEINLINE int32 StorageType() const { return Address < 0 ? 1 : 0; }
 	FORCEINLINE int32 Index() const { return Address < 0 ? -(Address + 1) : Address; }

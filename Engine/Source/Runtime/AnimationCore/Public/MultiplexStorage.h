@@ -32,7 +32,7 @@ struct ANIMATIONCORE_API FMultiplexAddress
 	int32 ElementCount;
 
 	UPROPERTY()
-		FName Name;
+	FName Name;
 
 	FORCEINLINE bool IsArray() const { return ElementCount > 1; }
 	FORCEINLINE int32 NumBytes() const { return ElementCount * ElementSize;  }
