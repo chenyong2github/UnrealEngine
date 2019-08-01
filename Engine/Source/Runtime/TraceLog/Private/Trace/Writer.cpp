@@ -719,6 +719,11 @@ static void Writer_UpdateControl()
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_InitializeControl()
 {
+#if PLATFORM_SWITCH
+	GControlState = EControlState::Failed;
+	return;
+#endif
+
 	Writer_ControlAddCommand("Connect", nullptr,
 		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
 		{
