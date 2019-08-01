@@ -778,11 +778,14 @@ public:
 				if (Visitor.FoundVirtualTexture)
 				{
 					// virtual texture connected to an invalid property, report the correct error
+#if MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE
 					if (PropertyToValidate == MP_OpacityMask)
 					{
 						Errorf(TEXT("Sampling a virtual texture is currently not supported when connected to the Opacity Mask material attribute."));
 					}
-					else if (ShaderFrequencyToValidate != SF_Pixel)
+					else
+#endif
+					if (ShaderFrequencyToValidate != SF_Pixel)
 					{
 						Errorf(TEXT("Sampling a virtual texture is currently only supported from pixel shader."));
 					}
