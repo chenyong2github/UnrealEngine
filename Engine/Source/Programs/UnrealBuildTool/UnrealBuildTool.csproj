@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="12.0">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Development</Configuration>
@@ -183,6 +183,7 @@
     <Compile Include="ProjectFiles\VisualStudio\VCProject.cs" />
     <Compile Include="ProjectFiles\VisualStudio\VCProjectFileGenerator.cs" />
     <Compile Include="ProjectFiles\VisualStudio\VCSolutionOptions.cs" />
+    <Compile Include="ProjectFiles\Xcode\XcodeFrameworkWrapperProject.cs" />
     <Compile Include="ProjectFiles\Xcode\XcodeProject.cs" />
     <Compile Include="ProjectFiles\Xcode\XcodeProjectFileGenerator.cs" />
     <Compile Include="System\Action.cs" />

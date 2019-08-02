@@ -257,6 +257,9 @@ namespace iPhonePackager
 							case "-autosigning":
 								Config.bAutomaticSigning = true;
 								break;
+							case "-buildasframework":
+								Config.bBuildAsFramework = true;
+								break;
 						}
 
 						// get the stage dir path

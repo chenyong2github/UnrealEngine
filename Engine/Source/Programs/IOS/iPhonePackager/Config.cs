@@ -336,6 +336,11 @@ namespace iPhonePackager
 		public static bool bCookOnTheFly = false;
 
 		/// <summary>
+		/// Whether to build the project as an IOS framework.
+		/// </summary>
+		public static bool bBuildAsFramework = false;
+
+		/// <summary>
 		/// Whether the install should be performed on a provision
 		/// </summary>
 		public static bool bProvision = false;

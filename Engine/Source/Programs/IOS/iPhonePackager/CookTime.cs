@@ -9,6 +9,7 @@ using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 using Ionic.Zip;
@@ -305,32 +306,40 @@ namespace iPhonePackager
 			{
 				string SourceDir = Path.GetFullPath(ZipSourceDir);
 				string[] PayloadFiles = Directory.GetFiles(SourceDir, "*.*", Config.bIterate ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories);
+				HashSet<string> ExistingFiles = new HashSet<string>(FileSystem.GetAllPayloadFiles());
+				// We don't want to replace ue4commandline if we're building as a framework, since the wrapper project has its own ue4commandline file.
+				HashSet<string> FilesToNotReplace = new HashSet<string>()
+					{ "ue4commandline.txt" };
+
 				foreach (string Filename in PayloadFiles)
 				{
 					// Get the relative path to the file (this implementation only works because we know the files are all
 					// deeper than the base dir, since they were generated from a search)
 					string AbsoluteFilename = Path.GetFullPath(Filename);
 					string RelativeFilename = AbsoluteFilename.Substring(SourceDir.Length + 1).Replace('\\', '/');
-
-					string ZipAbsolutePath = String.Format("Payload/{0}{1}.app/{2}",
-						Program.GameName + (Program.IsClient ? "Client" : ""),
-						Program.Architecture,
-						RelativeFilename);
-
-					byte[] FileContents = File.ReadAllBytes(AbsoluteFilename);
-					if (FileContents.Length == 0)
+					
+					if (!Config.bBuildAsFramework || (!(FilesToNotReplace.Contains(RelativeFilename) && ExistingFiles.Contains(RelativeFilename))))
 					{
-						// Zero-length files added by Ionic cause installation/upgrade to fail on device with error 0xE8000050
-						// We store a single byte in the files as a workaround for now
-						FileContents = new byte[1];
-						FileContents[0] = 0;
-					}
+						string ZipAbsolutePath = String.Format("Payload/{0}{1}.app/{2}",
+							Program.GameName + (Program.IsClient ? "Client" : ""),
+							Program.Architecture,
+							RelativeFilename);
 
-					FileSystem.WriteAllBytes(RelativeFilename, FileContents);
+						byte[] FileContents = File.ReadAllBytes(AbsoluteFilename);
+						if (FileContents.Length == 0)
+						{
+							// Zero-length files added by Ionic cause installation/upgrade to fail on device with error 0xE8000050
+							// We store a single byte in the files as a workaround for now
+							FileContents = new byte[1];
+							FileContents[0] = 0;
+						}
 
-					if ((FileContents.Length >= 1024 * 1024) || (Config.bVerbose))
-					{
-						FilesBeingModifiedToPrintOut.Add(ZipAbsolutePath);
+						FileSystem.WriteAllBytes(RelativeFilename, FileContents);
+
+						if ((FileContents.Length >= 1024 * 1024) || (Config.bVerbose))
+						{
+							FilesBeingModifiedToPrintOut.Add(ZipAbsolutePath);
+						}
 					}
 				}
 			}

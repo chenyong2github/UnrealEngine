@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -29,6 +29,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-CreateStub", Value = "true")]
 		public bool bCreateStubIPA = false;
+
+		/// <summary>
+		/// Whether to build the iOS project as a framework.
+		/// </summary>
+		public bool bBuildAsFramework = false;
+
+		/// <summary>
+		/// Whether to generate a native Xcode project as a wrapper for the framework.
+		/// </summary>
+		public bool bGenerateFrameworkWrapperProject = false;
 
 		/// <summary>
 		/// Don't generate crashlytics data
@@ -102,7 +112,17 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bStripSymbols; }
 		}
-			
+		
+		public bool bBuildAsFramework
+		{
+			get { return Inner.bBuildAsFramework; }
+		}
+
+		public bool bGenerateFrameworkWrapperProject
+		{
+			get { return Inner.bGenerateFrameworkWrapperProject; }
+		}
+
 		public bool bGeneratedSYM
 		{
 			get { return Inner.bGeneratedSYM; }
@@ -160,11 +180,25 @@ namespace UnrealBuildTool
 		public readonly FileReference ProjectFile;
 
 		/// <summary>
+		/// Whether to build the iOS project as a framework.
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bBuildAsFramework")]
+		[CommandLine("-build-as-framework")]
+		public readonly bool bBuildAsFramework = false;
+
+		/// <summary>
+		/// Whether to generate a native Xcode project as a wrapper for the framework.
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bGenerateFrameworkWrapperProject")]
+		public readonly bool bGenerateFrameworkWrapperProject = false;
+
+		/// <summary>
 		/// Whether to generate a dSYM file or not.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bGeneratedSYMFile")]
 		[CommandLine("-generatedsymfile")]
 		public readonly bool bGeneratedSYMFile = false;
+		
 		/// <summary>
 		/// Whether to generate a dSYM bundle (as opposed to single file dSYM)
 		/// </summary>
@@ -710,8 +744,6 @@ namespace UnrealBuildTool
 			return BinaryPaths;
 		}
 
-
-
 		public override void ResetTarget(TargetRules Target)
 		{
 			// we currently don't have any simulator libs for PhysX
@@ -738,6 +770,8 @@ namespace UnrealBuildTool
 			{
 				Target.IOSPlatform.bGeneratedSYM = true;
 			}
+
+			Target.IOSPlatform.bBuildAsFramework = Target.IOSPlatform.ProjectSettings.bBuildAsFramework;
 		}
 
 		public override void ValidateTarget(TargetRules Target)
@@ -752,6 +786,24 @@ namespace UnrealBuildTool
 			{
 				Target.GlobalDefinitions.Add("HAS_METAL=0");
 			}
+
+			if (Target.IOSPlatform.bBuildAsFramework)
+			{
+				Target.bShouldCompileAsDLL = true;
+				int PreviousDefinition = Target.GlobalDefinitions.FindIndex(s => s.Contains("BUILD_EMBEDDED_APP"));
+				if (PreviousDefinition >= 0)
+				{
+					Target.GlobalDefinitions.RemoveAt(PreviousDefinition);
+				}
+
+				Target.GlobalDefinitions.Add("BUILD_EMBEDDED_APP=1");
+				
+				if (Target.Platform == UnrealTargetPlatform.IOS)
+				{
+					Target.ExportPublicHeader = "Headers/PreIOSEmbeddedView.h";
+				}
+			}
+
 
 			Target.bCheckSystemHeadersForModification = false;
 		}

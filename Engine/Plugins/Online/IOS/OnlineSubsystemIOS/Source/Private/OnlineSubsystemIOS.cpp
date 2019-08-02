@@ -4,6 +4,7 @@
 #include "IOS/IOSAppDelegate.h"
 #import "OnlineStoreKitHelper.h"
 #import "OnlineAppStoreUtils.h"
+#include "Misc/ConfigCacheIni.h"
 
 FOnlineSubsystemIOS::FOnlineSubsystemIOS(FName InInstanceName)
 	: FOnlineSubsystemImpl(IOS_SUBSYSTEM, InInstanceName)

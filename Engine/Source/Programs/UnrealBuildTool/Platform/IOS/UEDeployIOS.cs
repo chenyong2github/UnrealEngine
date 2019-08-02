@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -770,7 +770,7 @@ namespace UnrealBuildTool
 
 			File.WriteAllText(PListFile, Text.ToString());
 
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+            if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac && !ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBuildAsFramework(ProjectFile))
 			{
 				if (!Directory.Exists(AppDirectory))
 				{
@@ -954,6 +954,11 @@ namespace UnrealBuildTool
 			{
 				throw new BuildException("UEDeployIOS.PrepForUATPackageOrDeploy only supports running on the Mac");
 			}
+
+			// If we are building as a framework, we don't need to do all of this.
+			if (ProjectFiles.Xcode.XcodeFrameworkWrapperUtils.GetBuildAsFramework(ProjectFile))
+				return false;
+
 
 			string SubDir = GetTargetPlatformName();
 

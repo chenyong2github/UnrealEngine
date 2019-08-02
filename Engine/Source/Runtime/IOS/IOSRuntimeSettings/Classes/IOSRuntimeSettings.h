@@ -203,7 +203,7 @@ class IOSRUNTIMESETTINGS_API UIOSRuntimeSettings : public UObject
 {
 public:
 	GENERATED_UCLASS_BODY()
-
+    
 	// Should Game Center support (iOS Online Subsystem) be enabled?
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online, meta = (ConfigHierarchyEditable))
 	uint32 bEnableGameCenterSupport : 1;
@@ -244,6 +244,14 @@ public:
 	UPROPERTY(GlobalConfig)
 	bool bSupportsOpenGLES2;
 	
+    // Whether to build the iOS project as a framework.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Build project as a framework"))
+    bool bBuildAsFramework;
+
+    // Whether to generate a native Xcode project as a wrapper for the framework.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Generate a native Xcode wrapper project for the framework"))
+    bool bGenerateFrameworkWrapperProject;
+
 	// Remotely compile shaders offline
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
 	bool EnableRemoteShaderCompile;
