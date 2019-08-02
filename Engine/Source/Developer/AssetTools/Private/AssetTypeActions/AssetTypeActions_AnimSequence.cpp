@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_AnimSequence.h"
 #include "Animation/AnimSequence.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "EditorReimportHandler.h"
 #include "Animation/AnimMontage.h"
@@ -27,12 +27,12 @@ UClass* FAssetTypeActions_AnimSequence::GetSupportedClass() const
 	return UAnimSequence::StaticClass(); 
 }
 
-void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Sequences = GetTypedWeakObjectPtrs<UAnimSequence>(InObjects);
 
 	// create menu
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 		NAME_None,
 		"CreateAnimSubmenu",
 		LOCTEXT("CreateAnimSubmenu", "Create"),

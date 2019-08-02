@@ -35,7 +35,7 @@ namespace UnrealBuildTool.Rules
 					"MainFrame",
 					"UnrealEd",
 					"SourceControl",
-					"EditorMenus",
+					"ToolMenus",
 				}
 			);
 

@@ -5,18 +5,18 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogEditorMenus, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogToolMenus, Log, All);
 
-class IEditorMenusModule : public IModuleInterface
+class IToolMenusModule : public IModuleInterface
 {
 public:
 
 	/**
 	 * Retrieve the module instance.
 	 */
-	static inline IEditorMenusModule& Get()
+	static inline IToolMenusModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked<IEditorMenusModule>("EditorMenus");
+		return FModuleManager::LoadModuleChecked<IToolMenusModule>("ToolMenus");
 	}
 
 	/**
@@ -26,6 +26,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded("EditorMenus");
+		return FModuleManager::Get().IsModuleLoaded("ToolMenus");
 	}
 };
+

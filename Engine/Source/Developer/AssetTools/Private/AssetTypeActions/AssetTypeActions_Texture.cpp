@@ -21,7 +21,7 @@
 #include "Editor.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/FeedbackContext.h"
@@ -44,7 +44,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Texture::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_Texture::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Textures = GetTypedWeakObjectPtrs<UTexture>(InObjects);
 	bool bHasVirtualTextures = false;

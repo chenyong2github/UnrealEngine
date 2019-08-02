@@ -12,7 +12,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "UObject/Package.h"
 
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "StandaloneAssetEditorToolkit"
 
@@ -43,9 +43,9 @@ void SStandaloneAssetEditorToolkitHost::SetupInitialContent( const TSharedRef<FT
 	//				- In standalone, just draws under the toolkit's menu
 
 	const FName AssetEditorMenuName = GetMenuName();
-	if (!UEditorMenuSubsystem::Get()->IsMenuRegistered(AssetEditorMenuName))
+	if (!UToolMenus::Get()->IsMenuRegistered(AssetEditorMenuName))
 	{
-		UEditorMenuSubsystem::Get()->RegisterMenu(AssetEditorMenuName, "MainFrame.MainMenu");
+		UToolMenus::Get()->RegisterMenu(AssetEditorMenuName, "MainFrame.MainMenu");
 	}
 
 	if (bCreateDefaultStandaloneMenu)
@@ -184,7 +184,7 @@ FName SStandaloneAssetEditorToolkitHost::GetMenuName() const
 	FName MenuAppName;
 	if (HostedAssetEditorToolkit.IsValid())
 	{
-		MenuAppName = HostedAssetEditorToolkit->GetEditorMenuAppName();
+		MenuAppName = HostedAssetEditorToolkit->GetToolMenuAppName();
 	}
 	else
 	{
@@ -199,9 +199,9 @@ void SStandaloneAssetEditorToolkitHost::GenerateMenus(bool bForceCreateMenu)
 	if( bForceCreateMenu || DefaultMenuWidget != SNullWidget::NullWidget )
 	{
 		const FName AssetEditorMenuName = GetMenuName();
-		FEditorMenuContext EditorMenuContext(HostedAssetEditorToolkit->GetToolkitCommands(), FExtender::Combine(MenuExtenders).ToSharedRef());
+		FToolMenuContext ToolMenuContext(HostedAssetEditorToolkit->GetToolkitCommands(), FExtender::Combine(MenuExtenders).ToSharedRef());
 		IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
-		DefaultMenuWidget = MainFrameModule.MakeMainMenu( MyTabManager, AssetEditorMenuName, EditorMenuContext );
+		DefaultMenuWidget = MainFrameModule.MakeMainMenu( MyTabManager, AssetEditorMenuName, ToolMenuContext );
 
 		MenuWidgetContent->SetContent(DefaultMenuWidget.ToSharedRef());
 	}

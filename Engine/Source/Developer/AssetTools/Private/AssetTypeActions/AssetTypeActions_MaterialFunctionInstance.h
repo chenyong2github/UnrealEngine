@@ -14,7 +14,7 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "FAssetTypeActions_MaterialFunctionInstance", "Material Function Instance"); }
 	virtual UClass* GetSupportedClass() const override { return UMaterialFunctionInstance::StaticClass(); }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::None; }
-	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
 

@@ -2,7 +2,7 @@
 
 #include "SpriteAssetTypeActions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/PackageName.h"
 #include "Misc/FeedbackContext.h"
 #include "EditorStyleSet.h"
@@ -59,7 +59,7 @@ uint32 FSpriteAssetTypeActions::GetCategories()
 	return MyAssetCategory;
 }
 
-void FSpriteAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FSpriteAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Sprites = GetTypedWeakObjectPtrs<UPaperSprite>(InObjects);
 

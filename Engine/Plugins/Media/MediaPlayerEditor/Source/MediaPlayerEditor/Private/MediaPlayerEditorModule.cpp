@@ -39,7 +39,7 @@
 #include "Models/MediaPlayerEditorCommands.h"
 #include "Shared/MediaPlayerEditorStyle.h"
 #include "Visualizers/MediaSoundComponentVisualizer.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Widgets/SMediaPlayerEditorMedia.h"
 
 #include "MediaPlayerEditorLog.h"

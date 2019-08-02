@@ -11,17 +11,17 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Styling/SlateTypes.h"
 
-#include "EditorMenuMisc.h"
-#include "EditorMenuContext.h"
-#include "EditorMenuSection.h"
+#include "ToolMenuMisc.h"
+#include "ToolMenuContext.h"
+#include "ToolMenuSection.h"
 
-#include "EditorMenuEntryScript.generated.h"
+#include "ToolMenuEntryScript.generated.h"
 
-struct FEditorMenuEntry;
-struct FEditorMenuSection;
+struct FToolMenuEntry;
+struct FToolMenuSection;
 
-USTRUCT(BlueprintType, meta=(HasNativeBreak="EditorMenus.EditorMenuEntryExtensions.BreakScriptSlateIcon", HasNativeMake="EditorMenus.EditorMenuEntryExtensions.MakeScriptSlateIcon"))
-struct EDITORMENUS_API FScriptSlateIcon
+USTRUCT(BlueprintType, meta=(HasNativeBreak="ToolMenus.ToolMenuEntryExtensions.BreakScriptSlateIcon", HasNativeMake="ToolMenus.ToolMenuEntryExtensions.MakeScriptSlateIcon"))
+struct TOOLMENUS_API FScriptSlateIcon
 {
 	GENERATED_BODY()
 
@@ -30,13 +30,13 @@ public:
 	FScriptSlateIcon(const FName InStyleSetName, const FName InStyleName);
 	FScriptSlateIcon(const FName InStyleSetName, const FName InStyleName, const FName InSmallStyleName);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	FName StyleSetName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	FName StyleName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	FName SmallStyleName;
 
 	operator FSlateIcon() const { return GetSlateIcon(); }
@@ -45,13 +45,13 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct EDITORMENUS_API FEditorMenuEntryScriptDataAdvanced
+struct TOOLMENUS_API FToolMenuEntryScriptDataAdvanced
 {
 	GENERATED_BODY()
 
 public:
 
-	FEditorMenuEntryScriptDataAdvanced();
+	FToolMenuEntryScriptDataAdvanced();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Advanced")
 	FName TutorialHighlight;
@@ -76,7 +76,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct EDITORMENUS_API FEditorMenuEntryScriptData
+struct TOOLMENUS_API FToolMenuEntryScriptData
 {
 	GENERATED_BODY()
 
@@ -105,48 +105,48 @@ public:
 	FName OwnerName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
-	FEditorMenuInsert InsertPosition;
+	FToolMenuInsert InsertPosition;
 
 	UPROPERTY(EditAnywhere,  BlueprintReadWrite, Category = "Advanced")
-	FEditorMenuEntryScriptDataAdvanced Advanced;
+	FToolMenuEntryScriptDataAdvanced Advanced;
 };
 
 UCLASS(Blueprintable, abstract)
-class EDITORMENUS_API UEditorMenuEntryScript : public UObject
+class TOOLMENUS_API UToolMenuEntryScript : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Action")
-	void Execute(const FEditorMenuContext& Context);
+	void Execute(const FToolMenuContext& Context);
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Advanced")
-	bool CanExecute(const FEditorMenuContext& Context) const;
-	virtual bool CanExecute_Implementation(const FEditorMenuContext& Context) const { return true; }
+	bool CanExecute(const FToolMenuContext& Context) const;
+	virtual bool CanExecute_Implementation(const FToolMenuContext& Context) const { return true; }
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Advanced")
-	ECheckBoxState GetCheckState(const FEditorMenuContext& Context) const;
-	virtual ECheckBoxState GetCheckState_Implementation(const FEditorMenuContext& Context) const { return ECheckBoxState::Undetermined; }
+	ECheckBoxState GetCheckState(const FToolMenuContext& Context) const;
+	virtual ECheckBoxState GetCheckState_Implementation(const FToolMenuContext& Context) const { return ECheckBoxState::Undetermined; }
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Advanced")
-	bool IsVisible(const FEditorMenuContext& Context) const;
-	virtual bool IsVisible_Implementation(const FEditorMenuContext& Context) const { return true; }
+	bool IsVisible(const FToolMenuContext& Context) const;
+	virtual bool IsVisible_Implementation(const FToolMenuContext& Context) const { return true; }
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Advanced")
-	FText GetLabel(const FEditorMenuContext& Context) const;
-	virtual FText GetLabel_Implementation(const FEditorMenuContext& Context) const { return Data.Label; }
+	FText GetLabel(const FToolMenuContext& Context) const;
+	virtual FText GetLabel_Implementation(const FToolMenuContext& Context) const { return Data.Label; }
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Advanced")
-	FText GetToolTip(const FEditorMenuContext& Context) const;
-	virtual FText GetToolTip_Implementation(const FEditorMenuContext& Context) const { return Data.ToolTip; }
+	FText GetToolTip(const FToolMenuContext& Context) const;
+	virtual FText GetToolTip_Implementation(const FToolMenuContext& Context) const { return Data.ToolTip; }
 
 	UFUNCTION(BlueprintNativeEvent, Category = "Advanced")
-	FScriptSlateIcon GetIcon(const FEditorMenuContext& Context) const;
-	virtual FScriptSlateIcon GetIcon_Implementation(const FEditorMenuContext& Context) const { return Data.Icon; }
+	FScriptSlateIcon GetIcon(const FToolMenuContext& Context) const;
+	virtual FScriptSlateIcon GetIcon_Implementation(const FToolMenuContext& Context) const { return Data.Icon; }
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Advanced")
-	void ConstructMenuEntry(UEditorMenu* Menu, const FName SectionName, const FEditorMenuContext& Context);
+	void ConstructMenuEntry(UToolMenu* Menu, const FName SectionName, const FToolMenuContext& Context);
 
 	UFUNCTION(BlueprintCallable, Category = "Advanced")
 	void RegisterMenuEntry();
@@ -156,23 +156,23 @@ public:
 
 private:
 
-	friend struct FEditorMenuSection;
-	friend class UEditorMenuSubsystem;
+	friend struct FToolMenuSection;
+	friend class UToolMenus;
 
-	TAttribute<FText> CreateLabelAttribute(FEditorMenuContext& Context);
+	TAttribute<FText> CreateLabelAttribute(FToolMenuContext& Context);
 
-	TAttribute<FText> CreateToolTipAttribute(FEditorMenuContext& Context);
+	TAttribute<FText> CreateToolTipAttribute(FToolMenuContext& Context);
 
-	TAttribute<FSlateIcon> CreateIconAttribute(FEditorMenuContext& Context);
+	TAttribute<FSlateIcon> CreateIconAttribute(FToolMenuContext& Context);
 
-	void ToMenuEntry(FEditorMenuEntry& Output);
+	void ToMenuEntry(FToolMenuEntry& Output);
 
 	bool IsDynamicConstruct() const;
 
-	FSlateIcon GetSlateIcon(const FEditorMenuContext& Context) const;
+	FSlateIcon GetSlateIcon(const FToolMenuContext& Context) const;
 
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data")
-	FEditorMenuEntryScriptData Data;
+	FToolMenuEntryScriptData Data;
 };

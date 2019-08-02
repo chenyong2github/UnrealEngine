@@ -56,7 +56,7 @@ public class Kismet : ModuleRules
                 "UMGEditor",
                 "UMG", // for SBlueprintDiff
                 "WorkspaceMenuStructure",
-				"EditorMenus",
+				"ToolMenus",
             }
 			);
 

@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_SoundBase.h"
 #include "Sound/SoundBase.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
 #include "Components/AudioComponent.h"
@@ -17,7 +17,7 @@ UClass* FAssetTypeActions_SoundBase::GetSupportedClass() const
 	return USoundBase::StaticClass();
 }
 
-void FAssetTypeActions_SoundBase::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_SoundBase::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Sounds = GetTypedWeakObjectPtrs<USoundBase>(InObjects);
 

@@ -2,7 +2,7 @@
 
 #include "SLevelEditor.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Framework/Docking/LayoutService.h"
 #include "EditorModeRegistry.h"
 #include "EdMode.h"
@@ -699,26 +699,26 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		InitOptions.bShowTransient = true;
 		InitOptions.Mode = ESceneOutlinerMode::ActorBrowsing;
 		{
-			UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+			UToolMenus* ToolMenus = UToolMenus::Get();
 			static const FName MenuName = "LevelEditor.LevelEditorSceneOutliner.ContextMenu";
-			if (!EditorMenus->IsMenuRegistered(MenuName))
+			if (!ToolMenus->IsMenuRegistered(MenuName))
 			{
-				UEditorMenu* Menu = EditorMenus->RegisterMenu(MenuName, "SceneOutliner.DefaultContextMenuBase");
-				FEditorMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+				UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName, "SceneOutliner.DefaultContextMenuBase");
+				FToolMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 				{
 					FName LevelContextMenuName = FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext::SceneOutliner);
 					if (LevelContextMenuName != NAME_None)
 					{
 						// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
-						UEditorMenu* OtherMenu = UEditorMenuSubsystem::Get()->GenerateMenu(LevelContextMenuName, InMenu->Context);
+						UToolMenu* OtherMenu = UToolMenus::Get()->GenerateMenu(LevelContextMenuName, InMenu->Context);
 						InMenu->Sections.Append(OtherMenu->Sections);
 					}
 				}));
-				Section.InsertPosition = FEditorMenuInsert("MainSection", EEditorMenuInsertType::Before);
+				Section.InsertPosition = FToolMenuInsert("MainSection", EToolMenuInsertType::Before);
 			}
 
 			TWeakPtr<SLevelEditor> WeakLevelEditor = SharedThis(this);
-			InitOptions.ModifyContextMenu.BindLambda([=](FName& OutMenuName, FEditorMenuContext& MenuContext)
+			InitOptions.ModifyContextMenu.BindLambda([=](FName& OutMenuName, FToolMenuContext& MenuContext)
 			{
 				OutMenuName = MenuName;
 

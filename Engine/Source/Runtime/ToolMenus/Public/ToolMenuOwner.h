@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 
-#include "EditorMenuOwner.generated.h"
+#include "ToolMenuOwner.generated.h"
 
 
-USTRUCT(BlueprintType, meta=(HasNativeBreak="EditorMenus.EditorMenuEntryExtensions.BreakEditorMenuOwner", HasNativeMake="EditorMenus.EditorMenuEntryExtensions.MakeEditorMenuOwner"))
-struct EDITORMENUS_API FEditorMenuOwner
+USTRUCT(BlueprintType, meta=(HasNativeBreak="ToolMenus.ToolMenuEntryExtensions.BreakToolMenuOwner", HasNativeMake="ToolMenus.ToolMenuEntryExtensions.MakeToolMenuOwner"))
+struct TOOLMENUS_API FToolMenuOwner
 {
 	GENERATED_BODY()
 
@@ -27,13 +27,13 @@ private:
 	};
 
 public:
-	FORCEINLINE FEditorMenuOwner() : ValueInt64(0), ValueType(EValueType::None) {}
-	FORCEINLINE FEditorMenuOwner(void* InPointer) : ValueInt64(reinterpret_cast<int64>(InPointer)), ValueType(EValueType::Pointer) {}
+	FORCEINLINE FToolMenuOwner() : ValueInt64(0), ValueType(EValueType::None) {}
+	FORCEINLINE FToolMenuOwner(void* InPointer) : ValueInt64(reinterpret_cast<int64>(InPointer)), ValueType(EValueType::Pointer) {}
 
-	FEditorMenuOwner(const WIDECHAR* InValue) : FEditorMenuOwner(FName(InValue)) {}
-	FEditorMenuOwner(const ANSICHAR* InValue) : FEditorMenuOwner(FName(InValue)) {}
+	FToolMenuOwner(const WIDECHAR* InValue) : FToolMenuOwner(FName(InValue)) {}
+	FToolMenuOwner(const ANSICHAR* InValue) : FToolMenuOwner(FName(InValue)) {}
 
-	FEditorMenuOwner(const FName InValue)
+	FToolMenuOwner(const FName InValue)
 	{
 		if (InValue == NAME_None)
 		{
@@ -48,17 +48,17 @@ public:
 		}
 	}
 
-	FORCEINLINE bool operator==(const FEditorMenuOwner& Other) const
+	FORCEINLINE bool operator==(const FToolMenuOwner& Other) const
 	{
 		return Other.ValueInt64 == ValueInt64 && Other.ValueType == ValueType;
 	}
 
-	FORCEINLINE bool operator!=(const FEditorMenuOwner& Other) const
+	FORCEINLINE bool operator!=(const FToolMenuOwner& Other) const
 	{
 		return Other.ValueInt64 != ValueInt64 || Other.ValueType != ValueType;
 	}
 
-	friend uint32 GetTypeHash(const FEditorMenuOwner& Key)
+	friend uint32 GetTypeHash(const FToolMenuOwner& Key)
 	{
 		return GetTypeHash(Key.ValueInt64);
 	}

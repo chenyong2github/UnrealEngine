@@ -1,17 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "EditorMenuEntryScript.h"
-#include "EditorMenuEntry.h"
-#include "EditorMenuSubsystem.h"
-#include "IEditorMenusModule.h"
+#include "ToolMenuEntryScript.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenus.h"
+#include "IToolMenusModule.h"
 
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Internationalization.h"
-
-#include "Editor.h"
 
 FScriptSlateIcon::FScriptSlateIcon()
 {
@@ -47,9 +45,9 @@ FSlateIcon FScriptSlateIcon::GetSlateIcon() const
 	return FSlateIcon(StyleSetName, StyleName, SmallStyleName);
 }
 
-TAttribute<FText> UEditorMenuEntryScript::CreateLabelAttribute(FEditorMenuContext& Context)
+TAttribute<FText> UToolMenuEntryScript::CreateLabelAttribute(FToolMenuContext& Context)
 {
-	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, GetLabel);
+	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, GetLabel);
 	if (GetClass()->IsFunctionImplementedInScript(FunctionName))
 	{
 		return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateUFunction(this, FunctionName, Context));
@@ -58,9 +56,9 @@ TAttribute<FText> UEditorMenuEntryScript::CreateLabelAttribute(FEditorMenuContex
 	return Data.Label;
 }
 
-TAttribute<FText> UEditorMenuEntryScript::CreateToolTipAttribute(FEditorMenuContext& Context)
+TAttribute<FText> UToolMenuEntryScript::CreateToolTipAttribute(FToolMenuContext& Context)
 {
-	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, GetToolTip);
+	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, GetToolTip);
 	if (GetClass()->IsFunctionImplementedInScript(FunctionName))
 	{
 		return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateUFunction(this, FunctionName, Context));
@@ -69,16 +67,16 @@ TAttribute<FText> UEditorMenuEntryScript::CreateToolTipAttribute(FEditorMenuCont
 	return Data.ToolTip;
 }
 
-TAttribute<FSlateIcon> UEditorMenuEntryScript::CreateIconAttribute(FEditorMenuContext& Context)
+TAttribute<FSlateIcon> UToolMenuEntryScript::CreateIconAttribute(FToolMenuContext& Context)
 {
-	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, GetIcon);
+	static const FName FunctionName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, GetIcon);
 	if (GetClass()->IsFunctionImplementedInScript(FunctionName))
 	{
-		TWeakObjectPtr<UEditorMenuEntryScript> WeakThis(this);
+		TWeakObjectPtr<UToolMenuEntryScript> WeakThis(this);
 		TAttribute<FSlateIcon>::FGetter Getter;
 		Getter.BindLambda([=]()
 		{
-			if (UEditorMenuEntryScript* Object = WeakThis.Get())
+			if (UToolMenuEntryScript* Object = WeakThis.Get())
 			{
 				return Object->GetIcon(Context).GetSlateIcon();
 			}
@@ -94,17 +92,17 @@ TAttribute<FSlateIcon> UEditorMenuEntryScript::CreateIconAttribute(FEditorMenuCo
 	return Data.Icon.GetSlateIcon();
 }
 
-FSlateIcon UEditorMenuEntryScript::GetSlateIcon(const FEditorMenuContext& Context) const
+FSlateIcon UToolMenuEntryScript::GetSlateIcon(const FToolMenuContext& Context) const
 {
 	return GetIcon(Context).GetSlateIcon();
 }
 
-void UEditorMenuEntryScript::RegisterMenuEntry()
+void UToolMenuEntryScript::RegisterMenuEntry()
 {
-	UEditorMenuSubsystem::AddMenuEntryObject(this);
+	UToolMenus::AddMenuEntryObject(this);
 }
 
-void UEditorMenuEntryScript::InitEntry(const FName OwnerName, const FName Menu, const FName Section, const FName Name, const FText& Label, const FText& ToolTip)
+void UToolMenuEntryScript::InitEntry(const FName OwnerName, const FName Menu, const FName Section, const FName Name, const FText& Label, const FText& ToolTip)
 {
 	Data.OwnerName = OwnerName;
 	Data.Menu = Menu;
@@ -114,16 +112,16 @@ void UEditorMenuEntryScript::InitEntry(const FName OwnerName, const FName Menu, 
 	Data.ToolTip = ToolTip;
 }
 
-void UEditorMenuEntryScript::ToMenuEntry(FEditorMenuEntry& Output)
+void UToolMenuEntryScript::ToMenuEntry(FToolMenuEntry& Output)
 {
 	if (Data.Advanced.bIsSubMenu)
 	{
-		Output = FEditorMenuEntry::InitSubMenu(
+		Output = FToolMenuEntry::InitSubMenu(
 			Data.Menu,
 			Data.Name,
 			Data.Label,
 			Data.ToolTip,
-			FNewEditorMenuChoice(), // Menu will be opened by string: 'Menu' + '.' + 'Name'
+			FNewToolMenuChoice(), // Menu will be opened by string: 'Menu' + '.' + 'Name'
 			Data.Advanced.bOpenSubMenuOnClick,
 			Data.Icon,
 			Data.Advanced.bShouldCloseWindowAfterMenuSelection);
@@ -132,9 +130,9 @@ void UEditorMenuEntryScript::ToMenuEntry(FEditorMenuEntry& Output)
 	{
 		if (Data.Advanced.EntryType == EMultiBlockType::ToolBarButton)
 		{
-			Output = FEditorMenuEntry::InitToolBarButton(
+			Output = FToolMenuEntry::InitToolBarButton(
 				Data.Name,
-				FEditorUIActionChoice(), // Action will be handled by 'ScriptObject'
+				FToolUIActionChoice(), // Action will be handled by 'ScriptObject'
 				Data.Label,
 				Data.ToolTip,
 				Data.Icon,
@@ -144,7 +142,7 @@ void UEditorMenuEntryScript::ToMenuEntry(FEditorMenuEntry& Output)
 		}
 		else
 		{
-			Output = FEditorMenuEntry::InitMenuEntry(Data.Name, Data.Label, Data.ToolTip, Data.Icon, FUIAction());
+			Output = FToolMenuEntry::InitMenuEntry(Data.Name, Data.Label, Data.ToolTip, Data.Icon, FUIAction());
 			Output.UserInterfaceActionType = Data.Advanced.UserInterfaceActionType;
 			Output.TutorialHighlightName = Data.Advanced.TutorialHighlight;
 		}
@@ -160,7 +158,7 @@ void UEditorMenuEntryScript::ToMenuEntry(FEditorMenuEntry& Output)
 	Output.Owner = Data.OwnerName;
 }
 
-FEditorMenuEntryScriptDataAdvanced::FEditorMenuEntryScriptDataAdvanced() :
+FToolMenuEntryScriptDataAdvanced::FToolMenuEntryScriptDataAdvanced() :
 	EntryType(EMultiBlockType::MenuEntry),
 	UserInterfaceActionType(EUserInterfaceActionType::Button),
 	bIsSubMenu(false),

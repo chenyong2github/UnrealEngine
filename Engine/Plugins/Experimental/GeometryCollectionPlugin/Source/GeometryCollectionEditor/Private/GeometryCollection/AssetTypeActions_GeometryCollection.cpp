@@ -3,7 +3,7 @@
 #include "GeometryCollection/AssetTypeActions_GeometryCollection.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -25,7 +25,7 @@ UThumbnailInfo* FAssetTypeActions_GeometryCollection::GetThumbnailInfo(UObject* 
 	return ThumbnailInfo;
 }
 
-void FAssetTypeActions_GeometryCollection::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_GeometryCollection::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	FAssetTypeActions_Base::GetActions(InObjects, Section);
 	//Set("ClassIcon.GeometryCollection", new IMAGE_BRUSH("Icons/AssetIcons/GeometryCollectionComponentAtlasGroup_16x", Icon16x16));

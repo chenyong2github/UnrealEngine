@@ -10,7 +10,7 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
@@ -459,15 +459,15 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 
 	if (!WorldModel->IsReadOnly())
 	{
-		UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+		UToolMenus* ToolMenus = UToolMenus::Get();
 		static const FName MenuName = "WorldBrowser.WorldHierarchy.LevelContextMenu";
-		if (!EditorMenus->IsMenuRegistered(MenuName))
+		if (!ToolMenus->IsMenuRegistered(MenuName))
 		{
-			EditorMenus->RegisterMenu(MenuName);
+			ToolMenus->RegisterMenu(MenuName);
 		}
 
-		FEditorMenuContext Context(WorldModel->GetCommandList(), TSharedPtr<FExtender>());
-		UEditorMenu* Menu = EditorMenus->GenerateMenu(MenuName, Context);
+		FToolMenuContext Context(WorldModel->GetCommandList(), TSharedPtr<FExtender>());
+		UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
 
 		TArray<WorldHierarchy::FWorldTreeItemPtr> SelectedItems = GetSelectedTreeItems();
 
@@ -482,7 +482,7 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 			RootTreeItems[0]->GenerateContextMenu(Menu, *this);
 		}
 
-		Menu->AddDynamicSection("HierarchyDynamicSection", FNewEditorMenuDelegateLegacy::CreateLambda([=](FMenuBuilder& MenuBuilder, UEditorMenu* Menu)
+		Menu->AddDynamicSection("HierarchyDynamicSection", FNewToolMenuDelegateLegacy::CreateLambda([=](FMenuBuilder& MenuBuilder, UToolMenu* Menu)
 		{
 			WorldModel->BuildHierarchyMenu(MenuBuilder);
 		}));
@@ -507,8 +507,8 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 
 			if (bAllSelectedItemsCanMove && FLevelFolders::IsAvailable())
 			{
-				FEditorMenuSection& Section = Menu->AddSection("Section");
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				FToolMenuSection& Section = Menu->AddSection("Section");
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->MenuName,
 					"MoveSelectionTo",
 					LOCTEXT("MoveSelectionTo", "Move To"),
@@ -519,8 +519,8 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 
 			if (bOnlyFoldersSelected)
 			{
-				FEditorMenuSection& Section = Menu->AddSection("Section");
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				FToolMenuSection& Section = Menu->AddSection("Section");
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->MenuName,
 					"SelectSubmenu",
 					LOCTEXT("SelectSubmenu", "Select"),
@@ -530,7 +530,7 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 			}
 		}
 
-		MenuWidget = EditorMenus->GenerateWidget(Menu);
+		MenuWidget = ToolMenus->GenerateWidget(Menu);
 	}
 
 	return MenuWidget;

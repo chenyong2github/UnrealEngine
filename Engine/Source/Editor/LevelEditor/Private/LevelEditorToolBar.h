@@ -8,7 +8,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Editor/LevelEditor/Private/SLevelEditor.h"
 
-class UEditorMenu;
+class UToolMenu;
 
 /**
  * Unreal level editor main toolbar

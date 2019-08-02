@@ -9,7 +9,7 @@
 #include "SceneOutlinerDragDrop.h"
 #include "SSceneOutliner.h"
 
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "LevelEditor.h"
 #include "EditorActorFolders.h"
 
@@ -82,13 +82,13 @@ bool FWorldTreeItem::CanInteract() const
 	return Flags.bInteractive;
 }
 
-void FWorldTreeItem::GenerateContextMenu(UEditorMenu* Menu, SSceneOutliner& Outliner)
+void FWorldTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner)
 {
 	auto SharedOutliner = StaticCastSharedRef<SSceneOutliner>(Outliner.AsShared());
 	
 	const FSlateIcon WorldSettingsIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.WorldProperties.Tab");
 	const FSlateIcon NewFolderIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon");
-	FEditorMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = Menu->AddSection("Section");
 	Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(this, &FWorldTreeItem::CreateFolder, TWeakPtr<SSceneOutliner>(SharedOutliner))));
 	Section.AddMenuEntry("OpenWorldSettings", LOCTEXT("OpenWorldSettings", "World Settings"), FText(), WorldSettingsIcon, FExecuteAction::CreateSP(this, &FWorldTreeItem::OpenWorldSettings));
 }

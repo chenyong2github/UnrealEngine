@@ -3,14 +3,14 @@
 #include "AssetTypeActions/AssetTypeActions_AnimMontage.h"
 #include "Factories/AnimMontageFactory.h"
 #include "AnimationEditorUtils.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "AssetTools.h"
 #include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 
-void FAssetTypeActions_AnimMontage::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_AnimMontage::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Montages = GetTypedWeakObjectPtrs<UAnimMontage>(InObjects);
 

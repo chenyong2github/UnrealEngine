@@ -12,7 +12,7 @@
 #include "SlateOptMacros.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
@@ -1492,18 +1492,18 @@ namespace HLODOutliner
 
 		if (SelectedItems.Num() && bSameType)
 		{
-			UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+			UToolMenus* ToolMenus = UToolMenus::Get();
 			static const FName MenuName = "HierarchicalLODOutliner.HLODOutlinerContextMenu";
-			if (!EditorMenus->IsMenuRegistered(MenuName))
+			if (!ToolMenus->IsMenuRegistered(MenuName))
 			{
-				EditorMenus->RegisterMenu(MenuName);
+				ToolMenus->RegisterMenu(MenuName);
 			}
 
 			// Build up the menu for a selection
-			FEditorMenuContext Context;
-			UEditorMenu* Menu = EditorMenus->GenerateMenu(MenuName, Context);
+			FToolMenuContext Context;
+			UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
 			TreeView->GetSelectedItems()[0]->GenerateContextMenu(Menu, *this);
-			return EditorMenus->GenerateWidget(Menu);
+			return ToolMenus->GenerateWidget(Menu);
 		}
 
 		return TSharedPtr<SWidget>();

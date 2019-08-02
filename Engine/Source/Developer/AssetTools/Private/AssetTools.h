@@ -10,7 +10,7 @@
 #include "AssetTools.generated.h"
 
 class FAssetFixUpRedirectors;
-class UEditorMenu;
+class UToolMenu;
 class IClassTypeActions;
 class UAutomatedAssetImportData;
 class UFactory;

@@ -2,9 +2,9 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class EditorMenus : ModuleRules
+	public class ToolMenus : ModuleRules
 	{
-		public EditorMenus(ReadOnlyTargetRules Target) : base(Target)
+		public ToolMenus(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
@@ -13,9 +13,7 @@ namespace UnrealBuildTool.Rules
 					"ApplicationCore",
 					"Slate",
 					"SlateCore",
-					"EditorSubSystem",
 					"Engine",
-					"UnrealEd",
 				}
 			);
 		}

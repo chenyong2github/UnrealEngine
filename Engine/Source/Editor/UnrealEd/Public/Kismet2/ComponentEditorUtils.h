@@ -9,7 +9,7 @@
 #include "GameFramework/Actor.h"
 #include "UObject/UObjectHash.h"
 
-class UEditorMenu;
+class UToolMenu;
 class UMaterialInterface;
 
 class UNREALED_API FComponentEditorUtils
@@ -246,7 +246,7 @@ public:
 	* @param Menu Used to register the menu options
 	* @param SelectedComponents The selected components to create menu options for
 	*/
-	static void FillComponentContextMenuOptions(UEditorMenu* Menu, const TArray<UActorComponent*>& SelectedComponents);
+	static void FillComponentContextMenuOptions(UToolMenu* Menu, const TArray<UActorComponent*>& SelectedComponents);
 
 	/**
 	 * Tries to find a match for ComponentInstance in the ComponentList. First by name and then if multiple Components have a matching name try to match the SceneComponent hierarchy to find the best match.

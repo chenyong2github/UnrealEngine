@@ -82,7 +82,7 @@
 #include "Engine/InheritableComponentHandler.h"
 #include "Stats/StatsHierarchical.h"
 #include "Classes/EditorStyleSettings.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 DECLARE_CYCLE_STAT(TEXT("Compile Blueprint"), EKismetCompilerStats_CompileBlueprint, STATGROUP_KismetCompiler);
 DECLARE_CYCLE_STAT(TEXT("Broadcast Precompile"), EKismetCompilerStats_BroadcastPrecompile, STATGROUP_KismetCompiler);
@@ -2452,7 +2452,7 @@ bool FKismetEditorUtilities::AnyBoundLevelScriptEventForActor(AActor* Actor, boo
 	return false;
 }
 
-void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(UEditorMenu* Menu, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName)
+void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(UToolMenu* Menu, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName)
 {
 	struct FCreateEventForActorHelper
 	{
@@ -2522,7 +2522,7 @@ void FKismetEditorUtilities::AddLevelScriptEventOptionsForActor(UEditorMenu* Men
 		// Now build the menu
 		for(FEventCategory& Category : CategorizedEvents)
 		{
-			FEditorMenuSection& Section = Menu->AddSection(NAME_None, FText::FromString(Category.CategoryName));
+			FToolMenuSection& Section = Menu->AddSection(NAME_None, FText::FromString(Category.CategoryName));
 
 			for(UProperty* Property : Category.EventProperties)
 			{

@@ -18,7 +18,7 @@ public:
 	virtual uint32 GetCategories() override { return FNiagaraEditorModule::GetAssetCategory(); }
 	virtual FText GetDisplayNameFromAssetData(const FAssetData& AssetData) const override;
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
-	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	// End IAssetTypeActions Interface
 
 	/** Get the action type name. */

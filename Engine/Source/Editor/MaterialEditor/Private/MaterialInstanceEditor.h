@@ -15,7 +15,7 @@
 #include "TickableEditorObject.h"
 
 class FCanvas;
-class UEditorMenu;
+class UToolMenu;
 class UMaterialEditorInstanceConstant;
 class UMaterialInterface;
 class UMaterialInstanceConstant;
@@ -158,7 +158,7 @@ private:
 	/** Builds the toolbar widget for the material editor */
 	void ExtendToolbar();
 
-	void GenerateInheritanceMenu(UEditorMenu* Menu);
+	void GenerateInheritanceMenu(UToolMenu* Menu);
 
 	/** If re-initializing for a material function instance re-generate the proxy materials */
 	void ReInitMaterialFunctionProxies();

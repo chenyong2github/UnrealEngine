@@ -1,14 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_MaterialInstanceConstant.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "AssetTools.h"
 #include "MaterialEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_MaterialInstanceConstant::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_MaterialInstanceConstant::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto MICs = GetTypedWeakObjectPtrs<UMaterialInstanceConstant>(InObjects);
 

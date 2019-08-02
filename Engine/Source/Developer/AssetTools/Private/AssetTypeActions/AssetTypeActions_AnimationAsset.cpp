@@ -12,14 +12,14 @@
 #include "SSkeletonWidget.h"
 #include "IAnimationEditorModule.h"
 #include "Preferences/PersonaOptions.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Algo/Transform.h"
 #include "IPersonaToolkit.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_AnimationAsset::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_AnimationAsset::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto AnimAssets = GetTypedWeakObjectPtrs<UAnimationAsset>(InObjects);
 
@@ -45,7 +45,7 @@ void FAssetTypeActions_AnimationAsset::GetActions(const TArray<UObject*>& InObje
 			)
 		);
 
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 		NAME_None,
 		"RetargetAnimSubmenu", 
 		LOCTEXT("RetargetAnimSubmenu", "Retarget Anim Assets"),

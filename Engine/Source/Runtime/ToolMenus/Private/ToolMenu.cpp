@@ -1,19 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "EditorMenu.h"
-#include "EditorMenuSubsystem.h"
-#include "IEditorMenusModule.h"
+#include "ToolMenu.h"
+#include "ToolMenus.h"
+#include "IToolMenusModule.h"
 
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Internationalization.h"
-#include "AssetTypeCategories.h"
 
-#include "Editor.h"
-
-UEditorMenu::UEditorMenu() :
+UToolMenu::UToolMenu() :
 	MenuType(EMultiBoxType::Menu)
 	, bShouldCloseWindowAfterMenuSelection(true)
 	, bCloseSelfOnly(false)
@@ -25,7 +22,7 @@ UEditorMenu::UEditorMenu() :
 {
 }
 
-void UEditorMenu::InitMenu(const FEditorMenuOwner InOwner, FName InName, FName InParent, EMultiBoxType InType)
+void UToolMenu::InitMenu(const FToolMenuOwner InOwner, FName InName, FName InParent, EMultiBoxType InType)
 {
 	MenuOwner = InOwner;
 	MenuName = InName;
@@ -33,7 +30,7 @@ void UEditorMenu::InitMenu(const FEditorMenuOwner InOwner, FName InName, FName I
 	MenuType = InType;
 }
 
-void UEditorMenu::InitGeneratedCopy(const UEditorMenu* Source)
+void UToolMenu::InitGeneratedCopy(const UToolMenu* Source)
 {
 	// Skip sections and context
 
@@ -51,7 +48,7 @@ void UEditorMenu::InitGeneratedCopy(const UEditorMenu* Source)
 	MenuOwner = Source->MenuOwner;
 }
 
-int32 UEditorMenu::IndexOfSection(const FName InSectionName) const
+int32 UToolMenu::IndexOfSection(const FName InSectionName) const
 {
 	for (int32 i=0; i < Sections.Num(); ++i)
 	{
@@ -64,15 +61,15 @@ int32 UEditorMenu::IndexOfSection(const FName InSectionName) const
 	return INDEX_NONE;
 }
 
-int32 UEditorMenu::FindInsertIndex(const FEditorMenuSection& InSection) const
+int32 UToolMenu::FindInsertIndex(const FToolMenuSection& InSection) const
 {
-	const FEditorMenuInsert InInsertPosition = InSection.InsertPosition;
+	const FToolMenuInsert InInsertPosition = InSection.InsertPosition;
 	if (InInsertPosition.IsDefault())
 	{
 		return Sections.Num();
 	}
 
-	if (InInsertPosition.Position == EEditorMenuInsertType::First)
+	if (InInsertPosition.Position == EToolMenuInsertType::First)
 	{
 		for (int32 i = 0; i < Sections.Num(); ++i)
 		{
@@ -91,7 +88,7 @@ int32 UEditorMenu::FindInsertIndex(const FEditorMenuSection& InSection) const
 		return DestIndex;
 	}
 
-	if (InInsertPosition.Position == EEditorMenuInsertType::After)
+	if (InInsertPosition.Position == EToolMenuInsertType::After)
 	{
 		++DestIndex;
 	}
@@ -107,16 +104,16 @@ int32 UEditorMenu::FindInsertIndex(const FEditorMenuSection& InSection) const
 	return Sections.Num();
 }
 
-FEditorMenuSection& UEditorMenu::AddDynamicSection(const FName SectionName, const FNewSectionConstructChoice& InConstruct, const FEditorMenuInsert InPosition)
+FToolMenuSection& UToolMenu::AddDynamicSection(const FName SectionName, const FNewSectionConstructChoice& InConstruct, const FToolMenuInsert InPosition)
 {
-	FEditorMenuSection& Section = AddSection(SectionName, TAttribute< FText >(), InPosition);
+	FToolMenuSection& Section = AddSection(SectionName, TAttribute< FText >(), InPosition);
 	Section.Construct = InConstruct;
 	return Section;
 }
 
-FEditorMenuSection& UEditorMenu::AddSection(const FName SectionName, const TAttribute< FText >& InLabel, const FEditorMenuInsert InPosition)
+FToolMenuSection& UToolMenu::AddSection(const FName SectionName, const TAttribute< FText >& InLabel, const FToolMenuInsert InPosition)
 {
-	for (FEditorMenuSection& Section : Sections)
+	for (FToolMenuSection& Section : Sections)
 	{
 		if (Section.Name == SectionName)
 		{
@@ -134,45 +131,45 @@ FEditorMenuSection& UEditorMenu::AddSection(const FName SectionName, const TAttr
 		}
 	}
 
-	FEditorMenuSection& NewSection = Sections.AddDefaulted_GetRef();
+	FToolMenuSection& NewSection = Sections.AddDefaulted_GetRef();
 	NewSection.InitSection(SectionName, InLabel, InPosition);
 	return NewSection;
 }
 
-void UEditorMenu::AddSectionScript(const FName SectionName, const FText& InLabel, const FName InsertName, const EEditorMenuInsertType InsertType)
+void UToolMenu::AddSectionScript(const FName SectionName, const FText& InLabel, const FName InsertName, const EToolMenuInsertType InsertType)
 {
-	FEditorMenuSection& Section = FindOrAddSection(SectionName);
+	FToolMenuSection& Section = FindOrAddSection(SectionName);
 	Section.Label = InLabel;
-	Section.InsertPosition = FEditorMenuInsert(InsertName, InsertType);
+	Section.InsertPosition = FToolMenuInsert(InsertName, InsertType);
 }
 
-void UEditorMenu::AddDynamicSectionScript(const FName SectionName, UEditorMenuSectionDynamic* InObject)
+void UToolMenu::AddDynamicSectionScript(const FName SectionName, UToolMenuSectionDynamic* InObject)
 {
-	FEditorMenuSection& Section = FindOrAddSection(SectionName);
-	Section.EditorMenuSectionDynamic = InObject;
+	FToolMenuSection& Section = FindOrAddSection(SectionName);
+	Section.ToolMenuSectionDynamic = InObject;
 }
 
-void UEditorMenu::AddMenuEntryObject(UEditorMenuEntryScript* InObject)
+void UToolMenu::AddMenuEntryObject(UToolMenuEntryScript* InObject)
 {
 	FindOrAddSection(InObject->Data.Section).AddEntryObject(InObject);
 }
 
-UEditorMenu* UEditorMenu::AddSubMenuScript(const FName InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)
+UToolMenu* UToolMenu::AddSubMenuScript(const FName InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)
 {
 	return AddSubMenu(InOwner, SectionName, InName, InLabel, InToolTip);
 }
 
-UEditorMenu* UEditorMenu::AddSubMenu(const FEditorMenuOwner InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)
+UToolMenu* UToolMenu::AddSubMenu(const FToolMenuOwner InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)
 {
-	FEditorMenuEntry Args = FEditorMenuEntry::InitSubMenu(MenuName, InName, InLabel, InToolTip, FNewEditorMenuChoice());
+	FToolMenuEntry Args = FToolMenuEntry::InitSubMenu(MenuName, InName, InLabel, InToolTip, FNewToolMenuChoice());
 	Args.Owner = InOwner;
 	FindOrAddSection(SectionName).AddEntry(Args);
-	return UEditorMenuSubsystem::Get()->ExtendMenu(*(MenuName.ToString() + TEXT(".") + InName.ToString()));
+	return UToolMenus::Get()->ExtendMenu(*(MenuName.ToString() + TEXT(".") + InName.ToString()));
 }
 
-FEditorMenuSection* UEditorMenu::FindSection(const FName SectionName)
+FToolMenuSection* UToolMenu::FindSection(const FName SectionName)
 {
-	for (FEditorMenuSection& Section : Sections)
+	for (FToolMenuSection& Section : Sections)
 	{
 		if (Section.Name == SectionName)
 		{
@@ -183,9 +180,9 @@ FEditorMenuSection* UEditorMenu::FindSection(const FName SectionName)
 	return nullptr;
 }
 
-FEditorMenuSection& UEditorMenu::FindOrAddSection(const FName SectionName)
+FToolMenuSection& UToolMenu::FindOrAddSection(const FName SectionName)
 {
-	for (FEditorMenuSection& Section : Sections)
+	for (FToolMenuSection& Section : Sections)
 	{
 		if (Section.Name == SectionName)
 		{
@@ -196,12 +193,12 @@ FEditorMenuSection& UEditorMenu::FindOrAddSection(const FName SectionName)
 	return AddSection(SectionName);
 }
 
-void UEditorMenu::RemoveSection(const FName SectionName)
+void UToolMenu::RemoveSection(const FName SectionName)
 {
-	Sections.RemoveAll([SectionName](const FEditorMenuSection& Section) { return Section.Name == SectionName; });
+	Sections.RemoveAll([SectionName](const FToolMenuSection& Section) { return Section.Name == SectionName; });
 }
 
-bool UEditorMenu::FindEntry(const FName EntryName, int32& SectionIndex, int32& EntryIndex) const
+bool UToolMenu::FindEntry(const FName EntryName, int32& SectionIndex, int32& EntryIndex) const
 {
 	for (int32 i=0; i < Sections.Num(); ++i)
 	{
@@ -216,7 +213,7 @@ bool UEditorMenu::FindEntry(const FName EntryName, int32& SectionIndex, int32& E
 	return false;
 }
 
-void UEditorMenu::AddMenuEntry(const FName SectionName, const FEditorMenuEntry& Args)
+void UToolMenu::AddMenuEntry(const FName SectionName, const FToolMenuEntry& Args)
 {
 	FindOrAddSection(SectionName).AddEntry(Args);
 }

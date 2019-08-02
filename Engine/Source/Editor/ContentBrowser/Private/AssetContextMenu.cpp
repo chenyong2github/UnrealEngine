@@ -20,7 +20,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"
 #include "Widgets/Input/SButton.h"
 #include "EditorStyleSet.h"
@@ -136,13 +136,13 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(const TArray<FAssetData>&
 	UContentBrowserAssetContextMenuContext* ContextObject = NewObject<UContentBrowserAssetContextMenuContext>();
 	ContextObject->AssetContextMenu = SharedThis(this);
 
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+	UToolMenus* ToolMenus = UToolMenus::Get();
 
 	static const FName BaseMenuName("ContentBrowser.AssetContextMenu");
 	RegisterContextMenu(BaseMenuName);
 
 	// Create menu hierarchy based on class hierarchy
-	TArray<UEditorMenu*> MenuHierarchy;
+	TArray<UToolMenu*> MenuHierarchy;
 	FName MenuName = BaseMenuName;
 	{
 		// Objects must be loaded for this operation... for now
@@ -174,15 +174,15 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(const TArray<FAssetData>&
 			{
 				ContextObject->CommonAssetTypeActions = CommonAssetTypeActions;
 				AssetTypeActionsClass = CommonAssetTypeActions->GetSupportedClass();
-				MenuName = UEditorMenuSubsystem::JoinMenuPaths(BaseMenuName, AssetTypeActionsClass->GetFName());
+				MenuName = UToolMenus::JoinMenuPaths(BaseMenuName, AssetTypeActionsClass->GetFName());
 			}
 
 			// Find menus for common class
 			UClass* ClassWithMenu = CommonClass;
 			while (ClassWithMenu)
 			{
-				FName CheckName = UEditorMenuSubsystem::JoinMenuPaths(BaseMenuName, ClassWithMenu->GetFName());
-				UEditorMenu* FoundMenu = EditorMenus->FindMenu(CheckName);
+				FName CheckName = UToolMenus::JoinMenuPaths(BaseMenuName, ClassWithMenu->GetFName());
+				UToolMenu* FoundMenu = ToolMenus->FindMenu(CheckName);
 				if (FoundMenu && FoundMenu->Sections.Num() > 0)
 				{
 					// Change generated menu's name if necessary
@@ -201,13 +201,13 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(const TArray<FAssetData>&
 			}
 		}
 
-		MenuHierarchy.Add(EditorMenus->FindMenu(BaseMenuName));
+		MenuHierarchy.Add(ToolMenus->FindMenu(BaseMenuName));
 
 		Algo::Reverse(MenuHierarchy);
 	}
 
-	FEditorMenuContext MenuContext(InCommandList, MenuExtender, ContextObject);
-	UEditorMenu* Menu = EditorMenus->GenerateMenu(MenuHierarchy, MenuContext);
+	FToolMenuContext MenuContext(InCommandList, MenuExtender, ContextObject);
+	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuHierarchy, MenuContext);
 	Menu->MenuName = MenuName;
 
 	// Only add something if at least one asset is selected
@@ -238,18 +238,18 @@ TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(const TArray<FAssetData>&
 		AddSourceControlMenuOptions(Menu);
 	}
 	
-	return EditorMenus->GenerateWidget(Menu);
+	return ToolMenus->GenerateWidget(Menu);
 }
 
 void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 {
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	if (!EditorMenus->IsMenuRegistered(MenuName))
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (!ToolMenus->IsMenuRegistered(MenuName))
 	{
-		UEditorMenu* Menu = EditorMenus->RegisterMenu(MenuName);
-		FEditorMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
+		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 
-		Section.AddDynamicEntry("GetActions", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
+		Section.AddDynamicEntry("GetActions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 		{
 			UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
 			if (Context && Context->CommonAssetTypeActions.IsValid())
@@ -258,7 +258,7 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 			}
 		}));
 
-		Section.AddDynamicEntry("GetActionsLegacy", FNewEditorMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UEditorMenu* InMenu)
+		Section.AddDynamicEntry("GetActionsLegacy", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* InMenu)
 		{
 			UContentBrowserAssetContextMenuContext* Context = InMenu->FindContext<UContentBrowserAssetContextMenuContext>();
 			if (Context && Context->CommonAssetTypeActions.IsValid())
@@ -299,7 +299,7 @@ void FAssetContextMenu::SetOnAssetViewRefreshRequested(const FOnAssetViewRefresh
 	OnAssetViewRefreshRequested = InOnAssetViewRefreshRequested;
 }
 
-bool FAssetContextMenu::AddImportedAssetMenuOptions(UEditorMenu* Menu)
+bool FAssetContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 {
 	if (AreImportedAssetActionsVisible())
 	{
@@ -308,9 +308,9 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UEditorMenu* Menu)
 		int32 ValidSelectedAssetCount = 0;
 		GetSelectedAssetSourceFilePaths(ResolvedFilePaths, SourceFileLabels, ValidSelectedAssetCount);
 
-		FEditorMenuSection& Section = Menu->AddSection("ImportedAssetActions", LOCTEXT("ImportedAssetActionsMenuHeading", "Imported Asset"));
+		FToolMenuSection& Section = Menu->AddSection("ImportedAssetActions", LOCTEXT("ImportedAssetActionsMenuHeading", "Imported Asset"));
 		{
-			auto CreateSubMenu = [this](UEditorMenu* SubMenu, bool bReimportWithNewFile)
+			auto CreateSubMenu = [this](UToolMenu* SubMenu, bool bReimportWithNewFile)
 			{
 				//Get the data, we cannot use the closure since the lambda will be call when the function scope will be gone
 				TArray<FString> ResolvedFilePaths;
@@ -319,7 +319,7 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UEditorMenu* Menu)
 				GetSelectedAssetSourceFilePaths(ResolvedFilePaths, SourceFileLabels, ValidSelectedAssetCount);
 				if (SourceFileLabels.Num() > 0 )
 				{
-					FEditorMenuSection& SubSection = SubMenu->AddSection("Section");
+					FToolMenuSection& SubSection = SubMenu->AddSection("Section");
 					for (int32 SourceFileIndex = 0; SourceFileIndex < SourceFileLabels.Num(); ++SourceFileIndex)
 					{
 						FText ReimportLabel = FText::Format(LOCTEXT("ReimportNoLabel", "SourceFile {0}"), SourceFileIndex);
@@ -370,19 +370,19 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UEditorMenu* Menu)
 			//Reimport Menu
 			if (ValidSelectedAssetCount == 1 && SourceFileLabels.Num() > 1)
 			{
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"Reimport",
 					LOCTEXT("Reimport", "Reimport"),
 					LOCTEXT("ReimportEmptyTooltip", ""),
-					FNewEditorMenuDelegate::CreateLambda(CreateSubMenu, false) ));
+					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, false) ));
 				//With new file
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"ReimportWithNewFile",
 					LOCTEXT("ReimportWithNewFile", "Reimport With New File"),
 					LOCTEXT("ReimportEmptyTooltip", ""),
-					FNewEditorMenuDelegate::CreateLambda(CreateSubMenu, true)));
+					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, true)));
 			}
 			else
 			{
@@ -444,13 +444,13 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UEditorMenu* Menu)
 	return false;
 }
 
-bool FAssetContextMenu::AddCommonMenuOptions(UEditorMenu* Menu)
+bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 {
 	int32 NumAssetItems, NumClassItems;
 	ContentBrowserUtils::CountItemTypes(SelectedAssets, NumAssetItems, NumClassItems);
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("CommonAssetActions", LOCTEXT("CommonAssetActionsMenuHeading", "Common"));
+		FToolMenuSection& Section = Menu->AddSection("CommonAssetActions", LOCTEXT("CommonAssetActionsMenuHeading", "Common"));
 
 		// Edit
 		Section.AddMenuEntry(
@@ -493,12 +493,12 @@ bool FAssetContextMenu::AddCommonMenuOptions(UEditorMenu* Menu)
 				);
 
 			// Asset Actions sub-menu
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				Menu->GetMenuName(),
 				"AssetActionsSubMenu",
 				LOCTEXT("AssetActionsSubMenuLabel", "Asset Actions"),
 				LOCTEXT("AssetActionsSubMenuToolTip", "Other asset actions"),
-				FNewEditorMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeAssetActionsSubMenu),
+				FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeAssetActionsSubMenu),
 				FUIAction(
 					FExecuteAction(),
 					FCanExecuteAction::CreateSP( this, &FAssetContextMenu::CanExecuteAssetActions )
@@ -511,12 +511,12 @@ bool FAssetContextMenu::AddCommonMenuOptions(UEditorMenu* Menu)
 			if (NumClassItems == 0)
 			{
 				// Asset Localization sub-menu
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"LocalizationSubMenu",
 					LOCTEXT("LocalizationSubMenuLabel", "Asset Localization"),
 					LOCTEXT("LocalizationSubMenuToolTip", "Manage the localization of this asset"),
-					FNewEditorMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeAssetLocalizationSubMenu),
+					FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeAssetLocalizationSubMenu),
 					FUIAction(),
 					EUserInterfaceActionType::Button,
 					false,
@@ -529,9 +529,9 @@ bool FAssetContextMenu::AddCommonMenuOptions(UEditorMenu* Menu)
 	return true;
 }
 
-void FAssetContextMenu::AddExploreMenuOptions(UEditorMenu* Menu)
+void FAssetContextMenu::AddExploreMenuOptions(UToolMenu* Menu)
 {
-	FEditorMenuSection& Section = Menu->AddSection("AssetContextExploreMenuOptions", LOCTEXT("AssetContextExploreMenuOptionsHeading", "Explore"));
+	FToolMenuSection& Section = Menu->AddSection("AssetContextExploreMenuOptions", LOCTEXT("AssetContextExploreMenuOptionsHeading", "Explore"));
 	{
 		// Find in Content Browser
 		Section.AddMenuEntry(
@@ -554,10 +554,10 @@ void FAssetContextMenu::AddExploreMenuOptions(UEditorMenu* Menu)
 	}
 }
 
-void FAssetContextMenu::MakeAssetActionsSubMenu(UEditorMenu* Menu)
+void FAssetContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 {	
 	{
-		FEditorMenuSection& Section = Menu->AddSection("AssetActionsSection");
+		FToolMenuSection& Section = Menu->AddSection("AssetActionsSection");
 
 		// Create BP Using This
 		Section.AddMenuEntry(
@@ -602,7 +602,7 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UEditorMenu* Menu)
 
 	// FIND ACTIONS
 	{
-		FEditorMenuSection& Section = Menu->AddSection("AssetContextFindActions", LOCTEXT("AssetContextFindActionsMenuHeading", "Find"));
+		FToolMenuSection& Section = Menu->AddSection("AssetContextFindActions", LOCTEXT("AssetContextFindActionsMenuHeading", "Find"));
 		// Select Actors Using This Asset
 		Section.AddMenuEntry(
 			"FindAssetInWorld",
@@ -618,7 +618,7 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UEditorMenu* Menu)
 
 	// MOVE ACTIONS
 	{
-		FEditorMenuSection& Section = Menu->AddSection("AssetContextMoveActions", LOCTEXT("AssetContextMoveActionsMenuHeading", "Move"));
+		FToolMenuSection& Section = Menu->AddSection("AssetContextMoveActions", LOCTEXT("AssetContextMoveActionsMenuHeading", "Move"));
 		bool bHasExportableAssets = false;
 		for (const FAssetData& AssetData : SelectedAssets)
 		{
@@ -670,7 +670,7 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UEditorMenu* Menu)
 
 	// ADVANCED ACTIONS
 	{
-		FEditorMenuSection& Section = Menu->AddSection("AssetContextAdvancedActions", LOCTEXT("AssetContextAdvancedActionsMenuHeading", "Advanced"));
+		FToolMenuSection& Section = Menu->AddSection("AssetContextAdvancedActions", LOCTEXT("AssetContextAdvancedActionsMenuHeading", "Advanced"));
 
 		// Reload
 		Section.AddMenuEntry(
@@ -751,12 +751,12 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UEditorMenu* Menu)
 				FUIAction( FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteAssignChunkID) )
 				);
 
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				Menu->GetMenuName(),
 				"RemoveAssetFromChunk",
 				LOCTEXT("RemoveAssetFromChunk", "Remove from Chunk..."),
 				LOCTEXT("RemoveAssetFromChunkTooltip", "Removed an asset from a Chunk it's assigned to."),
-				FNewEditorMenuDelegate::CreateRaw(this, &FAssetContextMenu::MakeChunkIDListMenu)
+				FNewToolMenuDelegate::CreateRaw(this, &FAssetContextMenu::MakeChunkIDListMenu)
 				));
 
 			Section.AddMenuEntry(
@@ -771,7 +771,7 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UEditorMenu* Menu)
 
 	if (GetDefault<UEditorExperimentalSettings>()->bTextAssetFormatSupport)
 	{
-		FEditorMenuSection& FormatActionsSection = Menu->AddSection("AssetContextTextAssetFormatActions", LOCTEXT("AssetContextTextAssetFormatActionsHeading", "Text Assets"));
+		FToolMenuSection& FormatActionsSection = Menu->AddSection("AssetContextTextAssetFormatActions", LOCTEXT("AssetContextTextAssetFormatActionsHeading", "Text Assets"));
 		{
 			FormatActionsSection.AddMenuEntry(
 				"ExportToTextFormat",
@@ -822,7 +822,7 @@ bool FAssetContextMenu::CanExecuteAssetActions() const
 	return !bAtLeastOneClassSelected;
 }
 
-void FAssetContextMenu::MakeAssetLocalizationSubMenu(UEditorMenu* Menu)
+void FAssetContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 {
 	TArray<FCultureRef> CurrentCultures;
 
@@ -952,7 +952,7 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UEditorMenu* Menu)
 #if USE_STABLE_LOCALIZATION_KEYS
 	// Add the Localization ID options
 	{
-		FEditorMenuSection& Section = Menu->AddSection("LocalizationId", LOCTEXT("LocalizationIdHeading", "Localization ID"));
+		FToolMenuSection& Section = Menu->AddSection("LocalizationId", LOCTEXT("LocalizationIdHeading", "Localization ID"));
 		{
 			// Show the localization ID if we have a single asset selected
 			if (SelectedAssets.Num() == 1)
@@ -985,7 +985,7 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UEditorMenu* Menu)
 		FString PackageFilename;
 		if (FPackageName::DoesPackageExist(SelectedAssets[0].PackageName.ToString(), nullptr, &PackageFilename))
 		{
-			FEditorMenuSection& Section = Menu->AddSection("LocalizationCache", LOCTEXT("LocalizationCacheHeading", "Localization Cache"));
+			FToolMenuSection& Section = Menu->AddSection("LocalizationCache", LOCTEXT("LocalizationCacheHeading", "Localization Cache"));
 			{
 				// Always show the reset localization ID option
 				Section.AddMenuEntry(
@@ -1002,7 +1002,7 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UEditorMenu* Menu)
 	// If we found source assets for localized assets, then we can show the Source Asset options
 	if (SourceAssetsState.CurrentAssets.Num() > 0)
 	{
-		FEditorMenuSection& Section = Menu->AddSection("ManageSourceAsset", LOCTEXT("ManageSourceAssetHeading", "Manage Source Asset"));
+		FToolMenuSection& Section = Menu->AddSection("ManageSourceAsset", LOCTEXT("ManageSourceAssetHeading", "Manage Source Asset"));
 		{
 			Section.AddMenuEntry(
 				"ShowSourceAsset",
@@ -1025,14 +1025,14 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UEditorMenu* Menu)
 	// If we currently have source assets selected, then we can show the Localized Asset options
 	if (SourceAssetsState.SelectedAssets.Num() > 0)
 	{
-		FEditorMenuSection& Section = Menu->AddSection("ManageLocalizedAsset", LOCTEXT("ManageLocalizedAssetHeading", "Manage Localized Asset"));
+		FToolMenuSection& Section = Menu->AddSection("ManageLocalizedAsset", LOCTEXT("ManageLocalizedAssetHeading", "Manage Localized Asset"));
 		{
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				Menu->GetMenuName(),
 				"CreateLocalizedAsset",
 				LOCTEXT("CreateLocalizedAsset", "Create Localized Asset"),
 				LOCTEXT("CreateLocalizedAssetTooltip", "Create a new localized asset."),
-				FNewEditorMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeCreateLocalizedAssetSubMenu, SourceAssetsState.SelectedAssets, LocalizedAssetsState),
+				FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeCreateLocalizedAssetSubMenu, SourceAssetsState.SelectedAssets, LocalizedAssetsState),
 				FUIAction(),
 				EUserInterfaceActionType::Button,
 				false,
@@ -1047,24 +1047,24 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UEditorMenu* Menu)
 
 			if (NumLocalizedAssets > 0)
 			{
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"ShowLocalizedAsset",
 					LOCTEXT("ShowLocalizedAsset", "Show Localized Asset"),
 					LOCTEXT("ShowLocalizedAssetTooltip", "Show the localized asset in the Content Browser."),
-					FNewEditorMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeShowLocalizedAssetSubMenu, LocalizedAssetsState),
+					FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeShowLocalizedAssetSubMenu, LocalizedAssetsState),
 					FUIAction(),
 					EUserInterfaceActionType::Button,
 					false,
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser")
 					));
 
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"EditLocalizedAsset",
 					LOCTEXT("EditLocalizedAsset", "Edit Localized Asset"),
 					LOCTEXT("EditLocalizedAssetTooltip", "Edit the localized asset."),
-					FNewEditorMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeEditLocalizedAssetSubMenu, LocalizedAssetsState),
+					FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::MakeEditLocalizedAssetSubMenu, LocalizedAssetsState),
 					FUIAction(),
 					EUserInterfaceActionType::Button,
 					false,
@@ -1075,9 +1075,9 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UEditorMenu* Menu)
 	}
 }
 
-void FAssetContextMenu::MakeCreateLocalizedAssetSubMenu(UEditorMenu* Menu, TSet<FName> InSelectedSourceAssets, TArray<FLocalizedAssetsState> InLocalizedAssetsState)
+void FAssetContextMenu::MakeCreateLocalizedAssetSubMenu(UToolMenu* Menu, TSet<FName> InSelectedSourceAssets, TArray<FLocalizedAssetsState> InLocalizedAssetsState)
 {
-	FEditorMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = Menu->AddSection("Section");
 
 	for (const FLocalizedAssetsState& LocalizedAssetsStateForCulture : InLocalizedAssetsState)
 	{
@@ -1095,9 +1095,9 @@ void FAssetContextMenu::MakeCreateLocalizedAssetSubMenu(UEditorMenu* Menu, TSet<
 	}
 }
 
-void FAssetContextMenu::MakeShowLocalizedAssetSubMenu(UEditorMenu* Menu, TArray<FLocalizedAssetsState> InLocalizedAssetsState)
+void FAssetContextMenu::MakeShowLocalizedAssetSubMenu(UToolMenu* Menu, TArray<FLocalizedAssetsState> InLocalizedAssetsState)
 {
-	FEditorMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = Menu->AddSection("Section");
 
 	for (const FLocalizedAssetsState& LocalizedAssetsStateForCulture : InLocalizedAssetsState)
 	{
@@ -1114,9 +1114,9 @@ void FAssetContextMenu::MakeShowLocalizedAssetSubMenu(UEditorMenu* Menu, TArray<
 	}
 }
 
-void FAssetContextMenu::MakeEditLocalizedAssetSubMenu(UEditorMenu* Menu, TArray<FLocalizedAssetsState> InLocalizedAssetsState)
+void FAssetContextMenu::MakeEditLocalizedAssetSubMenu(UToolMenu* Menu, TArray<FLocalizedAssetsState> InLocalizedAssetsState)
 {
-	FEditorMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = Menu->AddSection("Section");
 
 	for (const FLocalizedAssetsState& LocalizedAssetsStateForCulture : InLocalizedAssetsState)
 	{
@@ -1198,9 +1198,9 @@ void FAssetContextMenu::ExecuteOpenEditorsForAssets(TArray<FName> InAssets)
 	FAssetEditorManager::Get().OpenEditorsForAssets(InAssets);
 }
 
-bool FAssetContextMenu::AddReferenceMenuOptions(UEditorMenu* Menu)
+bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
 {
-	FEditorMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
+	FToolMenuSection& Section = Menu->AddSection("AssetContextReferences", LOCTEXT("ReferencesMenuHeading", "References"));
 	{
 		Section.AddMenuEntry(
 			"CopyReference",
@@ -1214,7 +1214,7 @@ bool FAssetContextMenu::AddReferenceMenuOptions(UEditorMenu* Menu)
 	return true;
 }
 
-bool FAssetContextMenu::AddDocumentationMenuOptions(UEditorMenu* Menu)
+bool FAssetContextMenu::AddDocumentationMenuOptions(UToolMenu* Menu)
 {
 	bool bAddedOption = false;
 
@@ -1252,7 +1252,7 @@ bool FAssetContextMenu::AddDocumentationMenuOptions(UEditorMenu* Menu)
 
 				const FString CodeFileName = FPaths::GetCleanFilename( *ClassHeaderPath );
 
-				FEditorMenuSection& Section = Menu->AddSection( "AssetCode"/*, LOCTEXT("AssetCodeHeading", "C++")*/ );
+				FToolMenuSection& Section = Menu->AddSection( "AssetCode"/*, LOCTEXT("AssetCodeHeading", "C++")*/ );
 				{
 					Section.AddMenuEntry(
 						"GoToCodeForAsset",
@@ -1270,7 +1270,7 @@ bool FAssetContextMenu::AddDocumentationMenuOptions(UEditorMenu* Menu)
 		{
 			bAddedOption = true;
 
-			FEditorMenuSection& Section = Menu->AddSection( "AssetDocumentation"/*, LOCTEXT("AseetDocsHeading", "Documentation")*/ );
+			FToolMenuSection& Section = Menu->AddSection( "AssetDocumentation"/*, LOCTEXT("AseetDocsHeading", "Documentation")*/ );
 			{
 					if (bIsBlueprint)
 					{
@@ -1345,7 +1345,7 @@ bool FAssetContextMenu::AddDocumentationMenuOptions(UEditorMenu* Menu)
 	return bAddedOption;
 }
 
-bool FAssetContextMenu::AddAssetTypeMenuOptions(UEditorMenu* Menu, TArray<UObject*>& SelectedObjects)
+bool FAssetContextMenu::AddAssetTypeMenuOptions(UToolMenu* Menu, TArray<UObject*>& SelectedObjects)
 {
 	bool bAnyTypeOptions = false;
 
@@ -1353,7 +1353,7 @@ bool FAssetContextMenu::AddAssetTypeMenuOptions(UEditorMenu* Menu, TArray<UObjec
 	{
 		// Label "GetAssetActions" section
 		UContentBrowserAssetContextMenuContext* Context = Menu->FindContext<UContentBrowserAssetContextMenuContext>();
-		FEditorMenuSection* Section = Menu->FindSection("GetAssetActions");
+		FToolMenuSection* Section = Menu->FindSection("GetAssetActions");
 		if (Section && Section->Blocks.Num() > 0 && Context)
 		{
 			if (Context->CommonAssetTypeActions.IsValid())
@@ -1372,19 +1372,19 @@ bool FAssetContextMenu::AddAssetTypeMenuOptions(UEditorMenu* Menu, TArray<UObjec
 	return bAnyTypeOptions;
 }
 
-bool FAssetContextMenu::AddSourceControlMenuOptions(UEditorMenu* Menu)
+bool FAssetContextMenu::AddSourceControlMenuOptions(UToolMenu* Menu)
 {
-	FEditorMenuSection& Section = Menu->AddSection("AssetContextSourceControl");
+	FToolMenuSection& Section = Menu->AddSection("AssetContextSourceControl");
 	
 	if ( ISourceControlModule::Get().IsEnabled() )
 	{
 		// SCC sub menu
-		Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		Section.AddEntry(FToolMenuEntry::InitSubMenu(
 			Menu->GetMenuName(),
 			"SourceControlSubMenu",
 			LOCTEXT("SourceControlSubMenuLabel", "Source Control"),
 			LOCTEXT("SourceControlSubMenuToolTip", "Source control actions."),
-			FNewEditorMenuDelegate::CreateSP(this, &FAssetContextMenu::FillSourceControlSubMenu),
+			FNewToolMenuDelegate::CreateSP(this, &FAssetContextMenu::FillSourceControlSubMenu),
 			FUIAction(
 				FExecuteAction(),
 				FCanExecuteAction::CreateSP( this, &FAssetContextMenu::CanExecuteSourceControlActions )
@@ -1425,9 +1425,9 @@ bool FAssetContextMenu::AddSourceControlMenuOptions(UEditorMenu* Menu)
 	return true;
 }
 
-void FAssetContextMenu::FillSourceControlSubMenu(UEditorMenu* Menu)
+void FAssetContextMenu::FillSourceControlSubMenu(UToolMenu* Menu)
 {
-	FEditorMenuSection& Section = Menu->AddSection("AssetSourceControlActions", LOCTEXT("AssetSourceControlActionsMenuHeading", "Source Control"));
+	FToolMenuSection& Section = Menu->AddSection("AssetSourceControlActions", LOCTEXT("AssetSourceControlActionsMenuHeading", "Source Control"));
 
 	if( CanExecuteSCCMerge() )
 	{
@@ -1555,12 +1555,12 @@ bool FAssetContextMenu::CanExecuteSourceControlActions() const
 	return !bAtLeastOneClassSelected;
 }
 
-bool FAssetContextMenu::AddCollectionMenuOptions(UEditorMenu* Menu)
+bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 {
 	class FManageCollectionsContextMenu
 	{
 	public:
-		static void CreateManageCollectionsSubMenu(UEditorMenu* SubMenu, TSharedRef<FCollectionAssetManagement> QuickAssetManagement)
+		static void CreateManageCollectionsSubMenu(UToolMenu* SubMenu, TSharedRef<FCollectionAssetManagement> QuickAssetManagement)
 		{
 			FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
@@ -1570,7 +1570,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UEditorMenu* Menu)
 			CreateManageCollectionsSubMenu(SubMenu, QuickAssetManagement, MoveTemp(AvailableCollections));
 		}
 
-		static void CreateManageCollectionsSubMenu(UEditorMenu* SubMenu, TSharedRef<FCollectionAssetManagement> QuickAssetManagement, TArray<FCollectionNameType> AvailableCollections)
+		static void CreateManageCollectionsSubMenu(UToolMenu* SubMenu, TSharedRef<FCollectionAssetManagement> QuickAssetManagement, TArray<FCollectionNameType> AvailableCollections)
 		{
 			FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
@@ -1579,7 +1579,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UEditorMenu* Menu)
 				return One.Name.LexicalLess(Two.Name);
 			});
 
-			FEditorMenuSection& Section = SubMenu->AddSection("Section");
+			FToolMenuSection& Section = SubMenu->AddSection("Section");
 			for (const FCollectionNameType& AvailableCollection : AvailableCollections)
 			{
 				// Never display system collections
@@ -1601,12 +1601,12 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UEditorMenu* Menu)
 
 				if (AvailableChildCollections.Num() > 0)
 				{
-					Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+					Section.AddEntry(FToolMenuEntry::InitSubMenu(
 						SubMenu->GetMenuName(),
 						NAME_None,
 						FText::FromName(AvailableCollection.Name), 
 						FText::GetEmpty(), 
-						FNewEditorMenuDelegate::CreateStatic(&FManageCollectionsContextMenu::CreateManageCollectionsSubMenu, QuickAssetManagement, AvailableChildCollections),
+						FNewToolMenuDelegate::CreateStatic(&FManageCollectionsContextMenu::CreateManageCollectionsSubMenu, QuickAssetManagement, AvailableChildCollections),
 						FUIAction(
 							FExecuteAction::CreateStatic(&FManageCollectionsContextMenu::OnCollectionClicked, QuickAssetManagement, AvailableCollection),
 							FCanExecuteAction::CreateStatic(&FManageCollectionsContextMenu::IsCollectionEnabled, QuickAssetManagement, AvailableCollection),
@@ -1665,7 +1665,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UEditorMenu* Menu)
 
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
-	FEditorMenuSection& Section = Menu->AddSection("AssetContextCollections", LOCTEXT("AssetCollectionOptionsMenuHeading", "Collections"));
+	FToolMenuSection& Section = Menu->AddSection("AssetContextCollections", LOCTEXT("AssetCollectionOptionsMenuHeading", "Collections"));
 
 	// Show a sub-menu that allows you to quickly add or remove the current asset selection from the available collections
 	if (CollectionManagerModule.Get().HasCollections())
@@ -1673,12 +1673,12 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UEditorMenu* Menu)
 		TSharedRef<FCollectionAssetManagement> QuickAssetManagement = MakeShareable(new FCollectionAssetManagement());
 		QuickAssetManagement->SetCurrentAssets(SelectedAssets);
 
-		Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		Section.AddEntry(FToolMenuEntry::InitSubMenu(
 			Menu->GetMenuName(),
 			"ManageCollections",
 			LOCTEXT("ManageCollections", "Manage Collections"),
 			LOCTEXT("ManageCollections_ToolTip", "Manage the collections that the selected asset(s) belong to."),
-			FNewEditorMenuDelegate::CreateStatic(&FManageCollectionsContextMenu::CreateManageCollectionsSubMenu, QuickAssetManagement)
+			FNewToolMenuDelegate::CreateStatic(&FManageCollectionsContextMenu::CreateManageCollectionsSubMenu, QuickAssetManagement)
 			));
 
 		bHasAddedItems = true;
@@ -3185,7 +3185,7 @@ void FAssetContextMenu::GetSelectedPackages(TArray<UPackage*>& OutPackages) cons
 	}
 }
 
-void FAssetContextMenu::MakeChunkIDListMenu(UEditorMenu* Menu)
+void FAssetContextMenu::MakeChunkIDListMenu(UToolMenu* Menu)
 {
 	TArray<int32> FoundChunks;
 	TArray< FAssetData > AssetViewSelectedAssets = AssetView.Pin()->GetSelectedAssets();
@@ -3202,7 +3202,7 @@ void FAssetContextMenu::MakeChunkIDListMenu(UEditorMenu* Menu)
 		}
 	}
 
-	FEditorMenuSection& Section = Menu->AddSection("Chunks");
+	FToolMenuSection& Section = Menu->AddSection("Chunks");
 	for (auto ChunkID : FoundChunks)
 	{
 		Section.AddMenuEntry(

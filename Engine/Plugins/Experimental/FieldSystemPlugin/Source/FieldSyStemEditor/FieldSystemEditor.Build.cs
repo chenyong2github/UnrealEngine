@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
                     "RawMesh",
                     "AssetTools",
                     "AssetRegistry",
-					"EditorMenus",
+					"ToolMenus",
 				}
 				);
 		}

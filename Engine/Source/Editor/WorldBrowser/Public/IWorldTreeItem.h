@@ -14,7 +14,7 @@ class SWidget;
 class SWorldHierarchy;
 class FLevelCollectionModel;
 class SWorldHierarchyImpl;
-class UEditorMenu;
+class UToolMenu;
 
 namespace WorldHierarchy
 {
@@ -270,7 +270,7 @@ namespace WorldHierarchy
 		virtual bool CanChangeParents() const = 0;
 
 		/** Generates a context menu option for this item if and only if it's the only item selected in the hierarchy */
-		virtual void GenerateContextMenu(UEditorMenu* Menu, const SWorldHierarchyImpl& Hierarchy) {}
+		virtual void GenerateContextMenu(UToolMenu* Menu, const SWorldHierarchyImpl& Hierarchy) {}
 
 		/** Sets the item's visible status */
 		virtual void SetVisible(bool bVisible) = 0;

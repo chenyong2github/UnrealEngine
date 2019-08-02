@@ -1,24 +1,22 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "EditorMenuContext.h"
-#include "EditorMenuSubsystem.h"
-#include "IEditorMenusModule.h"
+#include "ToolMenuContext.h"
+#include "ToolMenus.h"
+#include "IToolMenusModule.h"
 
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Internationalization.h"
-#include "Toolkits/AssetEditorToolkit.h"
 
-#include "Editor.h"
 
-FEditorMenuContext::FEditorMenuContext()
+FToolMenuContext::FToolMenuContext()
 {
 
 }
 
-FEditorMenuContext::FEditorMenuContext(UObject* InContext)
+FToolMenuContext::FToolMenuContext(UObject* InContext)
 {
 	if (InContext)
 	{
@@ -26,7 +24,7 @@ FEditorMenuContext::FEditorMenuContext(UObject* InContext)
 	}
 }
 
-FEditorMenuContext::FEditorMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender, UObject* InContext)
+FToolMenuContext::FToolMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender, UObject* InContext)
 {
 	if (InContext)
 	{
@@ -41,7 +39,7 @@ FEditorMenuContext::FEditorMenuContext(TSharedPtr<FUICommandList> InCommandList,
 	AppendCommandList(InCommandList);
 }
 
-UObject* FEditorMenuContext::FindByClass(UClass* InClass) const
+UObject* FToolMenuContext::FindByClass(UClass* InClass) const
 {
 	for (UObject* ContextObject : ContextObjects)
 	{
@@ -54,13 +52,13 @@ UObject* FEditorMenuContext::FindByClass(UClass* InClass) const
 	return nullptr;
 }
 
-void FEditorMenuContext::AppendCommandList(const TSharedRef<FUICommandList>& InCommandList)
+void FToolMenuContext::AppendCommandList(const TSharedRef<FUICommandList>& InCommandList)
 {
 	const TSharedPtr<FUICommandList> List = InCommandList;
 	AppendCommandList(List);
 }
 
-void FEditorMenuContext::AppendCommandList(const TSharedPtr<FUICommandList>& InCommandList)
+void FToolMenuContext::AppendCommandList(const TSharedPtr<FUICommandList>& InCommandList)
 {
 	if (InCommandList.IsValid())
 	{
@@ -83,7 +81,7 @@ void FEditorMenuContext::AppendCommandList(const TSharedPtr<FUICommandList>& InC
 	}
 }
 
-const FUIAction* FEditorMenuContext::GetActionForCommand(TSharedPtr<const FUICommandInfo> Command, TSharedPtr<const FUICommandList>& OutCommandList) const
+const FUIAction* FToolMenuContext::GetActionForCommand(TSharedPtr<const FUICommandInfo> Command, TSharedPtr<const FUICommandList>& OutCommandList) const
 {
 	for (const TSharedPtr<FUICommandList>& CommandListIter : CommandLists)
 	{
@@ -100,35 +98,22 @@ const FUIAction* FEditorMenuContext::GetActionForCommand(TSharedPtr<const FUICom
 	return nullptr;
 }
 
-void FEditorMenuContext::AddExtender(const TSharedPtr<FExtender>& InExtender)
+void FToolMenuContext::AddExtender(const TSharedPtr<FExtender>& InExtender)
 {
-	if (!ExtensibilityManager.IsValid())
-	{
-		ExtensibilityManager = MakeShared<FExtensibilityManager>();
-	}
-
-	ExtensibilityManager->AddExtender(InExtender);
+	Extenders.AddUnique(InExtender);
 }
 
-TSharedPtr<FExtender> FEditorMenuContext::GetAllExtenders()
+TSharedPtr<FExtender> FToolMenuContext::GetAllExtenders()
 {
-	if (ExtensibilityManager.IsValid())
-	{
-		return ExtensibilityManager->GetAllExtenders();
-	}
-
-	return TSharedPtr<FExtender>();
+	return FExtender::Combine(Extenders);
 }
 
-void FEditorMenuContext::ResetExtenders()
+void FToolMenuContext::ResetExtenders()
 {
-	if (ExtensibilityManager.IsValid())
-	{
-		ExtensibilityManager.Reset();
-	}
+	Extenders.Reset();
 }
 
-void FEditorMenuContext::AppendObjects(const TArray<UObject*>& InObjects)
+void FToolMenuContext::AppendObjects(const TArray<UObject*>& InObjects)
 {
 	for (UObject* Object : InObjects)
 	{
@@ -136,7 +121,7 @@ void FEditorMenuContext::AppendObjects(const TArray<UObject*>& InObjects)
 	}
 }
 
-void FEditorMenuContext::AddObject(UObject* InObject)
+void FToolMenuContext::AddObject(UObject* InObject)
 {
 	ContextObjects.AddUnique(InObject);
 }

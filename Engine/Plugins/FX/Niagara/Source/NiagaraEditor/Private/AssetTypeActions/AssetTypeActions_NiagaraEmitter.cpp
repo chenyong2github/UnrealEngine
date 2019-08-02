@@ -8,7 +8,7 @@
 #include "NiagaraSystemFactoryNew.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "IContentBrowserSingleton.h"
@@ -52,7 +52,7 @@ UClass* FAssetTypeActions_NiagaraEmitter::GetSupportedClass() const
 	return UNiagaraEmitter::StaticClass();
 }
 
-void FAssetTypeActions_NiagaraEmitter::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_NiagaraEmitter::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto NiagaraEmitters = GetTypedWeakObjectPtrs<UNiagaraEmitter>(InObjects);
 

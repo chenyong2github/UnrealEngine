@@ -37,7 +37,7 @@ public class Blutility : ModuleRules
 				"UMG",
                 "UMGEditor",
                 "KismetCompiler",
-				"EditorMenus",
+				"ToolMenus",
 			}
 			);
 	}

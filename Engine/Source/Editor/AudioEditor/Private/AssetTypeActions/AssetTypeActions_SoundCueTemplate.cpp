@@ -5,7 +5,7 @@
 #include "EditorStyleSet.h"
 #include "Factories/SoundCueFactoryNew.h"
 #include "Factories/SoundCueTemplateFactory.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "IContentBrowserSingleton.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundCueTemplate.h"
@@ -21,7 +21,7 @@ UClass* FAssetTypeActions_SoundCueTemplate::GetSupportedClass() const
 	return USoundCueTemplate::StaticClass();
 }
 
-void FAssetTypeActions_SoundCueTemplate::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_SoundCueTemplate::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	TArray<TWeakObjectPtr<USoundCueTemplate>> Cues = GetTypedWeakObjectPtrs<USoundCueTemplate>(InObjects);
 

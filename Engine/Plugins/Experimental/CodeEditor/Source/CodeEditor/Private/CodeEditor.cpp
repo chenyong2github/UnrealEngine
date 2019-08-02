@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Framework/Docking/TabManager.h"
 #include "Toolkits/IToolkitHost.h"
 #include "CodeEditorStyle.h"
@@ -37,14 +37,14 @@ public:
 
 	virtual void OnPostEngineInit()
 	{
-		if (UEditorMenuSubsystem::IsRunningEditorUI())
+		if (UToolMenus::IsToolMenuUIEnabled())
 		{
-			UEditorMenu* Menu = UEditorMenuSubsystem::Get()->ExtendMenu("LevelEditor.MainMenu.File");
-			FEditorMenuSection& Section = Menu->FindOrAddSection("FileProject");
+			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
+			FToolMenuSection& Section = Menu->FindOrAddSection("FileProject");
 
-			FEditorMenuOwnerScoped OwnerScoped(this);
+			FToolMenuOwnerScoped OwnerScoped(this);
 			{
-				FEditorMenuEntry& MenuEntry = Section.AddMenuEntry(
+				FToolMenuEntry& MenuEntry = Section.AddMenuEntry(
 					"EditSourceCode",
 					LOCTEXT("CodeEditorTabTitle", "Edit Source Code"),
 					LOCTEXT("CodeEditorTooltipText", "Open the Code Editor tab."),
@@ -54,7 +54,7 @@ public:
 						FExecuteAction::CreateStatic(&FCodeEditor::OpenCodeEditor)
 					)
 				);
-				MenuEntry.InsertPosition = FEditorMenuInsert(NAME_None, EEditorMenuInsertType::First);
+				MenuEntry.InsertPosition = FToolMenuInsert(NAME_None, EToolMenuInsertType::First);
 			}
 		}
 	}
@@ -79,7 +79,7 @@ public:
 		FGlobalTabmanager::Get()->UnregisterTabSpawner( CodeEditorTabName );
 
 		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
-		UEditorMenuSubsystem::UnregisterOwner(this);
+		UToolMenus::UnregisterOwner(this);
 
 		FCodeEditorStyle::Shutdown();
 	}

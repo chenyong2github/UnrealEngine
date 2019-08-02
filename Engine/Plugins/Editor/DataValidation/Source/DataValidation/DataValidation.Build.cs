@@ -35,7 +35,7 @@ public class DataValidation : ModuleRules
 				"KismetCompiler",
 				"SandboxFile",
 				"Blutility",
-				"EditorMenus",
+				"ToolMenus",
 			}
 		);
 	}

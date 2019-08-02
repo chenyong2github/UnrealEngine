@@ -4,7 +4,7 @@
 #include "Animation/AnimSequence.h"
 #include "Dialogs/Dialogs.h"
 #include "EditorStyleSet.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/UObjectIterator.h"
 
@@ -41,7 +41,7 @@ void FAssetTypeActions_AnimCurveCompressionSettings::AddToolbarExtension(FToolBa
 	Builder.EndSection();
 }
 
-void FAssetTypeActions_AnimCurveCompressionSettings::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_AnimCurveCompressionSettings::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto SettingAssets = GetTypedWeakObjectPtrs<UAnimCurveCompressionSettings>(InObjects);
 

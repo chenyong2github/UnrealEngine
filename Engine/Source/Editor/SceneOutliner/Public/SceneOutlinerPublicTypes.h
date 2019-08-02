@@ -10,7 +10,7 @@
 #include "SceneOutlinerFilters.h"
 
 class FExtender;
-struct FEditorMenuContext;
+struct FToolMenuContext;
 
 enum class ESceneOutlinerMode : uint8
 {
@@ -24,7 +24,7 @@ enum class ESceneOutlinerMode : uint8
 	ComponentPicker,
 };
 
-DECLARE_DELEGATE_TwoParams(FSceneOutlinerModifyContextMenu, FName& /* MenuName */, FEditorMenuContext& /* MenuContext */);
+DECLARE_DELEGATE_TwoParams(FSceneOutlinerModifyContextMenu, FName& /* MenuName */, FToolMenuContext& /* MenuContext */);
 
 namespace SceneOutliner
 {

@@ -4,23 +4,22 @@
 
 #include "CoreMinimal.h"
 
-#include "EditorMenuContext.generated.h"
+#include "ToolMenuContext.generated.h"
 
 struct FUIAction;
 class FUICommandInfo;
 class FUICommandList;
 class FTabManager;
 class FExtender;
-class FExtensibilityManager;
 
 UCLASS(BlueprintType, Abstract)
-class EDITORMENUS_API UEditorMenuContextBase : public UObject
+class TOOLMENUS_API UToolMenuContextBase : public UObject
 {
 	GENERATED_BODY()
 };
 
 UCLASS()
-class EDITORMENUS_API USlateTabManagerContext : public UEditorMenuContextBase
+class TOOLMENUS_API USlateTabManagerContext : public UToolMenuContextBase
 {
 	GENERATED_BODY()
 public:
@@ -29,14 +28,14 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct EDITORMENUS_API FEditorMenuContext
+struct TOOLMENUS_API FToolMenuContext
 {
 	GENERATED_BODY()
 public:
-	
-	FEditorMenuContext();
-	FEditorMenuContext(UObject* InContext);
-	FEditorMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender = TSharedPtr<FExtender>(), UObject* InContext = nullptr);
+
+	FToolMenuContext();
+	FToolMenuContext(UObject* InContext);
+	FToolMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender = TSharedPtr<FExtender>(), UObject* InContext = nullptr);
 
 	template <typename TContextType>
 	TContextType* Find() const
@@ -51,7 +50,7 @@ public:
 
 		return nullptr;
 	}
-	
+
 	UObject* FindByClass(UClass* InClass) const;
 
 	void AppendCommandList(const TSharedRef<FUICommandList>& InCommandList);
@@ -66,11 +65,11 @@ public:
 	void AppendObjects(const TArray<UObject*>& InObjects);
 	void AddObject(UObject* InObject);
 
-	friend class UEditorMenuSubsystem;
-	friend struct FEditorMenuEntry;
+	friend class UToolMenus;
+	friend struct FToolMenuEntry;
 
 private:
-	
+
 	UPROPERTY()
 	TArray<UObject*> ContextObjects;
 
@@ -78,6 +77,6 @@ private:
 
 	TSharedPtr<FUICommandList> CommandList;
 
-	TSharedPtr<FExtensibilityManager> ExtensibilityManager;
+	TArray<TSharedPtr<FExtender>> Extenders;
 };
 

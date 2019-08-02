@@ -185,9 +185,9 @@ public:
 	/** Regenerates the menubar and toolbar widgets */
 	void RegenerateMenusAndToolbars();
 
-	/** Get name used by editor menu subsystem */
-	FName GetEditorMenuToolbarName() const;
-	FName GetEditorMenuAppName() const;
+	/** Get name used by tool menu */
+	FName GetToolMenuToolbarName() const;
+	FName GetToolMenuAppName() const;
 
 	/** Called at the end of RegenerateMenusAndToolbars() */
 	virtual void PostRegenerateMenusAndToolbars() { }

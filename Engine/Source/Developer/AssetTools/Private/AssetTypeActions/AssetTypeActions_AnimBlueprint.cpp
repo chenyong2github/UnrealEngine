@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_AnimBlueprint.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Images/SImage.h"
@@ -21,7 +21,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	FAssetTypeActions_Blueprint::GetActions(InObjects, Section);
 
@@ -38,18 +38,18 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 			)
 		);
 
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 		NAME_None,
 		"RetargetBlueprintSubmenu",
 		LOCTEXT("RetargetBlueprintSubmenu", "Retarget Anim Blueprints"),
 		LOCTEXT("RetargetBlueprintSubmenu_ToolTip", "Opens the retarget blueprints menu"),
-		FNewEditorMenuDelegate::CreateSP( this, &FAssetTypeActions_AnimBlueprint::FillRetargetMenu, InObjects),
+		FNewToolMenuDelegate::CreateSP( this, &FAssetTypeActions_AnimBlueprint::FillRetargetMenu, InObjects),
 		false,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.RetargetSkeleton")
 		));
 }
 
-void FAssetTypeActions_AnimBlueprint::FillRetargetMenu(UEditorMenu* MenuBuilder, const TArray<UObject*> InObjects)
+void FAssetTypeActions_AnimBlueprint::FillRetargetMenu(UToolMenu* MenuBuilder, const TArray<UObject*> InObjects)
 {
 	bool bAllSkeletonsNull = true;
 
@@ -65,7 +65,7 @@ void FAssetTypeActions_AnimBlueprint::FillRetargetMenu(UEditorMenu* MenuBuilder,
 		}
 	}
 
-	FEditorMenuSection& Section = MenuBuilder->AddSection("Section");
+	FToolMenuSection& Section = MenuBuilder->AddSection("Section");
 	if(bAllSkeletonsNull)
 	{
 		Section.AddMenuEntry(

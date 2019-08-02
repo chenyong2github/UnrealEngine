@@ -14,7 +14,7 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(100,100,255); }
 	virtual UClass* GetSupportedClass() const override { return UAnimMontage::StaticClass(); }
 	virtual bool CanFilter() override { return true; }
-	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 
 private:
    	/* 

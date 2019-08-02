@@ -4,7 +4,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "GeometryCache.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 FText FAssetTypeActions_GeometryCache::GetName() const
 {
@@ -26,7 +26,7 @@ bool FAssetTypeActions_GeometryCache::HasActions(const TArray<UObject*>& InObjec
 	return false;
 }
 
-void FAssetTypeActions_GeometryCache::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_GeometryCache::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	FAssetTypeActions_Base::GetActions(InObjects, Section);
 }

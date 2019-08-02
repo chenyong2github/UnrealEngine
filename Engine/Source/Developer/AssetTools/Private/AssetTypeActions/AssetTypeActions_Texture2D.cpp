@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Texture2D.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/PackageName.h"
 #include "EditorStyleSet.h"
 #include "Factories/SlateBrushAssetFactory.h"
@@ -14,7 +14,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Texture2D::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_Texture2D::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	FAssetTypeActions_Texture::GetActions(InObjects, Section);
 

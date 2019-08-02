@@ -7,7 +7,7 @@
 #include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
 
-struct FEditorMenuSection;
+struct FToolMenuSection;
 class UTexture;
 
 /**
@@ -21,7 +21,7 @@ public:
 	//~ FAssetTypeActions_Base overrides
 
 	virtual bool CanFilter() override;
-	virtual void GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section) override;
 	virtual uint32 GetCategories() override;
 	virtual FText GetName() const override;
 	virtual UClass* GetSupportedClass() const override;

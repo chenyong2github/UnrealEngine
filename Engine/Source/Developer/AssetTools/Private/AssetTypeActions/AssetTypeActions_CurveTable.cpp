@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_CurveTable.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/FileHelper.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Framework/Application/SlateApplication.h"
@@ -11,7 +11,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_CurveTable::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_CurveTable::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Tables = GetTypedWeakObjectPtrs<UObject>(InObjects);
 

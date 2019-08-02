@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_EditorUtilityBlueprint.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/PackageName.h"
 #include "Misc/MessageDialog.h"
 #include "EditorUtilityBlueprintFactory.h"
@@ -38,7 +38,7 @@ bool FAssetTypeActions_EditorUtilityBlueprint::HasActions(const TArray<UObject*>
 	return true;
 }
 
-void FAssetTypeActions_EditorUtilityBlueprint::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_EditorUtilityBlueprint::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Blueprints = GetTypedWeakObjectPtrs<UEditorUtilityBlueprint>(InObjects);
 

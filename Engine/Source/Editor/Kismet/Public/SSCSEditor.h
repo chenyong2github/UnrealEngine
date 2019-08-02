@@ -25,7 +25,7 @@
 #include "ScopedTransaction.h"
 
 class FMenuBuilder;
-class UEditorMenu;
+class UToolMenu;
 class FSCSEditorTreeNode;
 class SSCSEditor;
 class UPrimitiveComponent;
@@ -1022,7 +1022,7 @@ protected:
 	void RegisterContextMenu();
 
 	/** Populate context menu on the fly */
-	void PopulateContextMenu(UEditorMenu* InMenu);
+	void PopulateContextMenu(UToolMenu* InMenu);
 
 	/** Called when the level editor requests a component to be renamed. */
 	void OnLevelComponentRequestRename(const UActorComponent* InComponent);

@@ -7,8 +7,8 @@
 #include "LevelEditorMenuContext.h"
 
 class FExtender;
-class UEditorMenu;
-struct FEditorMenuContext;
+class UToolMenu;
+struct FToolMenuContext;
 class SLevelEditor;
 class SWidget;
 
@@ -51,10 +51,10 @@ public:
 	 * @param	ContextType		The context we should use to specialize this menu
 	 * @param	Extender		Allows extension of this menu based on context.
 	 */
-	static UEditorMenu* GenerateMenu(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>());
+	static UToolMenu* GenerateMenu(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>());
 
 	/* Adds required information to Context for build menu based on current selection */
-	static FName InitMenuContext(FEditorMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType);
+	static FName InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType);
 
 	/* Returns name of menu to display based on current selection */
 	static FName GetContextMenuName(ELevelEditorMenuContext ContextType);
@@ -71,5 +71,5 @@ private:
 	 * @param Menu		The menu to add items to.
 	 * @param SelectedActorInfo	Information about the selected actors.
 	 */
-	static void BuildGroupMenu(UEditorMenu* Menu, const struct FSelectedActorInfo& SelectedActorInfo);
+	static void BuildGroupMenu(UToolMenu* Menu, const struct FSelectedActorInfo& SelectedActorInfo);
 };

@@ -2,13 +2,13 @@
 
 #include "AssetTypeActions/AssetTypeActions_FontFace.h"
 #include "FontEditorModule.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "EditorReimportHandler.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_FontFace::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_FontFace::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto FontFaces = GetTypedWeakObjectPtrs<UFontFace>(InObjects);
 

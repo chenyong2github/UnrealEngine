@@ -26,7 +26,7 @@
 #include "AssetToolsLog.h"
 #include "AssetToolsModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "IClassTypeActions.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_Curve.h"

@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_GameplayTagAssetBase.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "UObject/UnrealType.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -20,7 +20,7 @@ bool FAssetTypeActions_GameplayTagAssetBase::HasActions(const TArray<UObject*>& 
 	return true;
 }
 
-void FAssetTypeActions_GameplayTagAssetBase::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_GameplayTagAssetBase::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	TArray<UObject*> ContainerObjectOwners;
 	TArray<FGameplayTagContainer*> Containers;

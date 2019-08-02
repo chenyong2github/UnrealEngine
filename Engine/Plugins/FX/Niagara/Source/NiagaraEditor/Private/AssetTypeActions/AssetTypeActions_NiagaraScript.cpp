@@ -6,7 +6,7 @@
 #include "NiagaraEditorStyle.h"
 #include "AssetData.h"
 #include "NiagaraEditorUtilities.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptAssetTypeActions"
 
@@ -74,7 +74,7 @@ bool FAssetTypeActions_NiagaraScript::HasActions(const TArray<UObject*>& InObjec
 	return true;
 }
 
-void FAssetTypeActions_NiagaraScript::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_NiagaraScript::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	Section.AddMenuEntry(
 		"MarkDependentCompilableAssetsDirty",

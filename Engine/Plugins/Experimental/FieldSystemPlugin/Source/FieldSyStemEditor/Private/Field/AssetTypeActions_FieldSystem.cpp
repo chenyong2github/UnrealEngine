@@ -5,7 +5,7 @@
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "Field/FieldSystem.h"
 #include "Field/FieldSystemAsset.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -20,7 +20,7 @@ UThumbnailInfo* FAssetTypeActions_FieldSystem::GetThumbnailInfo(UObject* Asset) 
 	return NewObject<USceneThumbnailInfo>(FieldSystem, NAME_None, RF_Transactional);
 }
 
-void FAssetTypeActions_FieldSystem::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_FieldSystem::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	FAssetTypeActions_Base::GetActions(InObjects, Section);
 }

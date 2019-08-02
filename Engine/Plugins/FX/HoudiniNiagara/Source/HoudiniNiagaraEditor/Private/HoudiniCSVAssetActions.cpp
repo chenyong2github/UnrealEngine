@@ -22,7 +22,7 @@
 */
 #include "HoudiniCSVAssetActions.h"
 
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "HoudiniCSV.h"
 #include "EditorStyleSet.h"
 #include "Toolkits/AssetEditorToolkit.h"
@@ -43,7 +43,7 @@ bool FHoudiniCSVAssetActions::CanFilter()
 }
 
 
-void FHoudiniCSVAssetActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FHoudiniCSVAssetActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
     FAssetTypeActions_Base::GetActions(InObjects, Section);
 

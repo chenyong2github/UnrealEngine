@@ -34,7 +34,7 @@ public class AssetTools : ModuleRules
                 "Projects",
 				"RHI",
 				"MaterialEditor",
-				"EditorMenus",
+				"ToolMenus",
             }
 		);
 

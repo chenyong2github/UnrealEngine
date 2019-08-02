@@ -234,15 +234,15 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 }
 
 
-TSharedRef<SWidget> FMainFrameModule::MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext ) const
+TSharedRef<SWidget> FMainFrameModule::MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const
 {
-	return FMainMenu::MakeMainMenu( TabManager, MenuName, EditorMenuContext );
+	return FMainMenu::MakeMainMenu(TabManager, MenuName, ToolMenuContext);
 }
 
 
-TSharedRef<SWidget> FMainFrameModule::MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext ) const
+TSharedRef<SWidget> FMainFrameModule::MakeMainTabMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const
 {
-	return FMainMenu::MakeMainTabMenu( TabManager, MenuName, EditorMenuContext );
+	return FMainMenu::MakeMainTabMenu(TabManager, MenuName, ToolMenuContext);
 }
 
 

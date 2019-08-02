@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "EditorMenuSubsystem.h"
-#include "IEditorMenusModule.h"
+#include "ToolMenus.h"
+#include "IToolMenusModule.h"
 
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
@@ -9,32 +9,31 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/Internationalization.h"
-#include "Editor/EditorPerProjectUserSettings.h"
-#include "HAL/PlatformApplicationMisc.h"
 
-#include "Editor.h"
+#include "HAL/PlatformApplicationMisc.h" // For clipboard
+#include "TimerManager.h" // For deferred one off ticks
 
-#define LOCTEXT_NAMESPACE "EditorMenuSubsystem"
+#define LOCTEXT_NAMESPACE "ToolMenuSubsystem"
 
-FAutoConsoleCommand EditorMenusRefreshMenuWidget = FAutoConsoleCommand(
-	TEXT("EditorMenus.RefreshAllWidgets"),
-	TEXT("Refresh All Editor Menu Widgets"),
+FAutoConsoleCommand ToolMenusRefreshMenuWidget = FAutoConsoleCommand(
+	TEXT("ToolMenus.RefreshAllWidgets"),
+	TEXT("Refresh All Tool Menu Widgets"),
 	FConsoleCommandDelegate::CreateLambda([]() {
-		UEditorMenuSubsystem::Get()->RefreshAllWidgets();
+		UToolMenus::Get()->RefreshAllWidgets();
 	}));
 
-FName FEditorMenuStringCommand::GetTypeName() const
+FName FToolMenuStringCommand::GetTypeName() const
 {
 	static const FName CommandName("Command");
 	static const FName PythonName("Python");
 
 	switch (Type)
 	{
-	case EEditorMenuStringCommandType::Command:
+	case EToolMenuStringCommandType::Command:
 		return CommandName;
-	case EEditorMenuStringCommandType::Python:
+	case EToolMenuStringCommandType::Python:
 		return PythonName;
-	case EEditorMenuStringCommandType::Custom:
+	case EToolMenuStringCommandType::Custom:
 		return CustomType;
 	default:
 		break;
@@ -43,38 +42,49 @@ FName FEditorMenuStringCommand::GetTypeName() const
 	return NAME_None;
 }
 
-FExecuteAction FEditorMenuStringCommand::ToExecuteAction(const FEditorMenuContext& Context) const
+FExecuteAction FToolMenuStringCommand::ToExecuteAction(const FToolMenuContext& Context) const
 {
 	if (IsBound())
 	{
-		return FExecuteAction::CreateStatic(&UEditorMenuSubsystem::ExecuteStringCommand, *this, Context);
+		return FExecuteAction::CreateStatic(&UToolMenus::ExecuteStringCommand, *this, Context);
 	}
 
 	return FExecuteAction();
 }
 
-FEditorUIActionChoice::FEditorUIActionChoice(const TSharedPtr< const FUICommandInfo >& InCommand, const FUICommandList& InCommandList)
+FToolUIActionChoice::FToolUIActionChoice(const TSharedPtr< const FUICommandInfo >& InCommand, const FUICommandList& InCommandList)
 {
 	if (InCommand.IsValid())
 	{
 		if (const FUIAction* UIAction = InCommandList.GetActionForCommand(InCommand))
 		{
 			Action = *UIAction;
-			EditorAction.Reset();
-			DynamicEditorAction.Reset();
+			ToolAction.Reset();
+			DynamicToolAction.Reset();
 		}
 	}
 }
 
-UEditorMenuSubsystem::UEditorMenuSubsystem() :
-	UEditorSubsystem(),
+UToolMenus::UToolMenus() :
 	bNextTickTimerIsSet(false),
 	bRefreshWidgetsNextTick(false),
 	bCleanupStaleWidgetsNextTick(false)
 {
 }
 
-bool UEditorMenuSubsystem::IsRunningEditorUI()
+UToolMenus* UToolMenus::Get()
+{
+	static UToolMenus* Singleton = nullptr;
+	if (!Singleton)
+	{
+		Singleton = NewObject<UToolMenus>();
+		Singleton->AddToRoot();
+		check(Singleton);
+	}
+	return Singleton;
+}
+
+bool UToolMenus::IsToolMenuUIEnabled()
 {
 	if (!FSlateApplication::IsInitialized())
 	{
@@ -84,53 +94,42 @@ bool UEditorMenuSubsystem::IsRunningEditorUI()
 	return !IsRunningCommandlet() && !IsRunningGame() && !IsRunningDedicatedServer() && !IsRunningClientOnly();
 }
 
-void UEditorMenuSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-}
-
-void UEditorMenuSubsystem::Deinitialize()
-{
-	GeneratedMenuWidgets.Reset();
-	WidgetObjectReferences.Reset();
-	Menus.Reset();
-}
-
-FName UEditorMenuSubsystem::JoinMenuPaths(const FName Base, const FName Child)
+FName UToolMenus::JoinMenuPaths(const FName Base, const FName Child)
 {
 	return *(Base.ToString() + TEXT(".") + Child.ToString());
 }
 
-bool UEditorMenuSubsystem::GetDisplayUIExtensionPoints()
+bool UToolMenus::GetDisplayUIExtensionPoints() const
 {
-	return GetDefault<UEditorPerProjectUserSettings>()->bDisplayUIExtensionPoints;
+	return ShouldDisplayExtensionPoints.IsBound() && ShouldDisplayExtensionPoints.Execute();
 }
 
-UEditorMenu* UEditorMenuSubsystem::FindMenu(const FName Name)
+UToolMenu* UToolMenus::FindMenu(const FName Name)
 {
-	UEditorMenu** Found = Menus.Find(Name);
+	UToolMenu** Found = Menus.Find(Name);
 	return Found ? *Found : nullptr;
 }
 
-bool UEditorMenuSubsystem::IsMenuRegistered(const FName Name) const
+bool UToolMenus::IsMenuRegistered(const FName Name) const
 {
-	const UEditorMenu* const * Found = Menus.Find(Name);
+	const UToolMenu* const * Found = Menus.Find(Name);
 	return Found && *Found && (*Found)->IsRegistered();
 }
 
-TArray<UEditorMenu*> UEditorMenuSubsystem::CollectHierarchy(const FName InName)
+TArray<UToolMenu*> UToolMenus::CollectHierarchy(const FName InName)
 {
-	TArray<UEditorMenu*> Result;
+	TArray<UToolMenu*> Result;
 
-	UEditorMenu* Current = FindMenu(InName);
+	UToolMenu* Current = FindMenu(InName);
 	while (Current)
 	{
 		// Detect infinite loop
-		for (UEditorMenu* Other : Result)
+		for (UToolMenu* Other : Result)
 		{
 			if (Other->MenuName == Current->MenuName)
 			{
-				UE_LOG(LogEditorMenus, Warning, TEXT("Infinite loop detected in editor menu: %s"), *InName.ToString());
-				return TArray<UEditorMenu*>();
+				UE_LOG(LogToolMenus, Warning, TEXT("Infinite loop detected in tool menu: %s"), *InName.ToString());
+				return TArray<UToolMenu*>();
 			}
 		}
 
@@ -151,30 +150,30 @@ TArray<UEditorMenu*> UEditorMenuSubsystem::CollectHierarchy(const FName InName)
 	return Result;
 }
 
-void UEditorMenuSubsystem::ListAllParents(const FName InName, TArray<FName>& AllParents)
+void UToolMenus::ListAllParents(const FName InName, TArray<FName>& AllParents)
 {
-	for (const UEditorMenu* Menu : CollectHierarchy(InName))
+	for (const UToolMenu* Menu : CollectHierarchy(InName))
 	{
 		AllParents.Add(Menu->MenuName);
 	}
 }
 
-void UEditorMenuSubsystem::AssembleMenuByName(UEditorMenu* GeneratedMenu, const FName InName)
+void UToolMenus::AssembleMenuByName(UToolMenu* GeneratedMenu, const FName InName)
 {
-	if (UEditorMenu* Menu = FindMenu(InName))
+	if (UToolMenu* Menu = FindMenu(InName))
 	{
 		GeneratedMenu->InitGeneratedCopy(Menu);
 		AssembleMenuHierarchy(GeneratedMenu, CollectHierarchy(InName));
 	}
 }
 
-void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const UEditorMenu* Other, FEditorMenuSection* DestSection, const FEditorMenuSection& OtherSection)
+void UToolMenus::AssembleMenuSection(UToolMenu* GeneratedMenu, const UToolMenu* Other, FToolMenuSection* DestSection, const FToolMenuSection& OtherSection)
 {
 	// Build list of blocks in expected order including blocks created by construct delegates
-	TArray<FEditorMenuEntry> RemainingBlocks;
+	TArray<FToolMenuEntry> RemainingBlocks;
 
-	UEditorMenu* ConstructedEntries = nullptr;
-	for (const FEditorMenuEntry& Block : OtherSection.Blocks)
+	UToolMenu* ConstructedEntries = nullptr;
+	for (const FToolMenuEntry& Block : OtherSection.Blocks)
 	{
 		if (!Block.IsNonLegacyDynamicConstruct())
 		{
@@ -184,22 +183,22 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 
 		if (ConstructedEntries == nullptr)
 		{
-			ConstructedEntries = NewObject<UEditorMenu>(this);
+			ConstructedEntries = NewObject<UToolMenu>(this);
 			ConstructedEntries->Context = DestSection->Context;
 		}
 
-		TArray<FEditorMenuEntry> GeneratedEntries;
+		TArray<FToolMenuEntry> GeneratedEntries;
 		GeneratedEntries.Add(Block);
 
 		int32 NumIterations = 0;
 		while (GeneratedEntries.Num() > 0)
 		{
-			FEditorMenuEntry& GeneratedEntry = GeneratedEntries[0];
+			FToolMenuEntry& GeneratedEntry = GeneratedEntries[0];
 			if (GeneratedEntry.IsNonLegacyDynamicConstruct())
 			{
 				if (NumIterations++ > 5000)
 				{
-					UE_LOG(LogEditorMenus, Warning, TEXT("Possible infinite loop for menu: %s, section: %s, block: %s"), *Other->MenuName.ToString(), *OtherSection.Name.ToString(), *Block.Name.ToString());
+					UE_LOG(LogToolMenus, Warning, TEXT("Possible infinite loop for menu: %s, section: %s, block: %s"), *Other->MenuName.ToString(), *OtherSection.Name.ToString(), *Block.Name.ToString());
 					break;
 				}
 				
@@ -210,7 +209,7 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 				}
 				else
 				{
-					FEditorMenuSection& ConstructedSection = ConstructedEntries->AddSection(DestSection->Name);
+					FToolMenuSection& ConstructedSection = ConstructedEntries->AddSection(DestSection->Name);
 					ConstructedSection.Context = ConstructedEntries->Context;
 					GeneratedEntry.Construct.Execute(ConstructedSection);
 				}
@@ -219,9 +218,9 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 				// Combine all user's choice of selections here into the current section target
 				// If the user wants to add items to different sections they will need to create dynamic section instead (for now)
 				int32 NumBlocksInserted = 0;
-				for (FEditorMenuSection& ConstructedSection : ConstructedEntries->Sections)
+				for (FToolMenuSection& ConstructedSection : ConstructedEntries->Sections)
 				{
-					for (FEditorMenuEntry& ConstructedBlock : ConstructedSection.Blocks)
+					for (FToolMenuEntry& ConstructedBlock : ConstructedSection.Blocks)
 					{
 						if (ConstructedBlock.InsertPosition.IsDefault())
 						{
@@ -252,7 +251,7 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 		int32 NumHandled = 0;
 		for (int32 i = 0; i < RemainingBlocks.Num(); ++i)
 		{
-			FEditorMenuEntry& Block = RemainingBlocks[i];
+			FToolMenuEntry& Block = RemainingBlocks[i];
 			int32 DestIndex = DestSection->FindBlockInsertIndex(Block);
 			if (DestIndex != INDEX_NONE)
 			{
@@ -266,21 +265,21 @@ void UEditorMenuSubsystem::AssembleMenuSection(UEditorMenu* GeneratedMenu, const
 		}
 		if (NumHandled == 0)
 		{
-			for (const FEditorMenuEntry& Block : RemainingBlocks)
+			for (const FToolMenuEntry& Block : RemainingBlocks)
 			{
-				UE_LOG(LogEditorMenus, Warning, TEXT("Menu item not found: '%s' for insert: '%s'"), *Block.InsertPosition.Name.ToString(), *Block.Name.ToString());
+				UE_LOG(LogToolMenus, Warning, TEXT("Menu item not found: '%s' for insert: '%s'"), *Block.InsertPosition.Name.ToString(), *Block.Name.ToString());
 			}
 			break;
 		}
 	}
 }
 
-void UEditorMenuSubsystem::AssembleMenu(UEditorMenu* GeneratedMenu, const UEditorMenu* Other)
+void UToolMenus::AssembleMenu(UToolMenu* GeneratedMenu, const UToolMenu* Other)
 {
-	TArray<FEditorMenuSection> RemainingSections;
+	TArray<FToolMenuSection> RemainingSections;
 
-	UEditorMenu* ConstructedSections = nullptr;
-	for (const FEditorMenuSection& OtherSection : Other->Sections)
+	UToolMenu* ConstructedSections = nullptr;
+	for (const FToolMenuSection& OtherSection : Other->Sections)
 	{
 		if (!OtherSection.IsNonLegacyDynamic())
 		{
@@ -290,11 +289,11 @@ void UEditorMenuSubsystem::AssembleMenu(UEditorMenu* GeneratedMenu, const UEdito
 		
 		if (ConstructedSections == nullptr)
 		{
-			ConstructedSections = NewObject<UEditorMenu>(this);
+			ConstructedSections = NewObject<UToolMenu>(this);
 			ConstructedSections->Context = GeneratedMenu->Context;
 		}
 
-		TArray<FEditorMenuSection> GeneratedSections;
+		TArray<FToolMenuSection> GeneratedSections;
 		GeneratedSections.Add(OtherSection);
 
 		int32 NumIterations = 0;
@@ -304,22 +303,22 @@ void UEditorMenuSubsystem::AssembleMenu(UEditorMenu* GeneratedMenu, const UEdito
 			{
 				if (NumIterations++ > 5000)
 				{
-					UE_LOG(LogEditorMenus, Warning, TEXT("Possible infinite loop for menu: %s, section: %s"), *Other->MenuName.ToString(), *OtherSection.Name.ToString());
+					UE_LOG(LogToolMenus, Warning, TEXT("Possible infinite loop for menu: %s, section: %s"), *Other->MenuName.ToString(), *OtherSection.Name.ToString());
 					break;
 				}
 
 				ConstructedSections->Sections.Reset();
 				
-				if (GeneratedSections[0].EditorMenuSectionDynamic)
+				if (GeneratedSections[0].ToolMenuSectionDynamic)
 				{
-					GeneratedSections[0].EditorMenuSectionDynamic->ConstructSections(ConstructedSections, GeneratedMenu->Context);
+					GeneratedSections[0].ToolMenuSectionDynamic->ConstructSections(ConstructedSections, GeneratedMenu->Context);
 				}
-				else if (GeneratedSections[0].Construct.NewEditorMenuDelegate.IsBound())
+				else if (GeneratedSections[0].Construct.NewToolMenuDelegate.IsBound())
 				{
-					GeneratedSections[0].Construct.NewEditorMenuDelegate.Execute(ConstructedSections);
+					GeneratedSections[0].Construct.NewToolMenuDelegate.Execute(ConstructedSections);
 				}
 
-				for (FEditorMenuSection& ConstructedSection : ConstructedSections->Sections)
+				for (FToolMenuSection& ConstructedSection : ConstructedSections->Sections)
 				{
 					if (ConstructedSection.InsertPosition.IsDefault())
 					{
@@ -349,10 +348,10 @@ void UEditorMenuSubsystem::AssembleMenu(UEditorMenu* GeneratedMenu, const UEdito
 		int32 NumHandled = 0;
 		for (int32 i=0; i < RemainingSections.Num(); ++i)
 		{
-			const FEditorMenuSection& RemainingSection = RemainingSections[i];
+			const FToolMenuSection& RemainingSection = RemainingSections[i];
 
 			// Update existing section
-			FEditorMenuSection* Section = GeneratedMenu->FindSection(RemainingSection.Name);
+			FToolMenuSection* Section = GeneratedMenu->FindSection(RemainingSection.Name);
 			if (!Section)
 			{
 				// Try add new section (if insert location exists)
@@ -377,16 +376,16 @@ void UEditorMenuSubsystem::AssembleMenu(UEditorMenu* GeneratedMenu, const UEdito
 		}
 		if (NumHandled == 0)
 		{
-			for (const FEditorMenuSection& RemainingSection : RemainingSections)
+			for (const FToolMenuSection& RemainingSection : RemainingSections)
 			{
-				UE_LOG(LogEditorMenus, Warning, TEXT("Menu section not found: '%s' for insert: '%s'"), *RemainingSection.InsertPosition.Name.ToString(), *RemainingSection.Name.ToString());
+				UE_LOG(LogToolMenus, Warning, TEXT("Menu section not found: '%s' for insert: '%s'"), *RemainingSection.InsertPosition.Name.ToString(), *RemainingSection.Name.ToString());
 			}
 			break;
 		}
 	}
 }
 
-int32 UEditorMenuSubsystem::FindCustomizedMenuIndex(const FName InName)
+int32 UToolMenus::FindCustomizedMenuIndex(const FName InName)
 {
 	for (int32 i = 0; i < CustomizedMenus.Num(); ++i)
 	{
@@ -399,24 +398,24 @@ int32 UEditorMenuSubsystem::FindCustomizedMenuIndex(const FName InName)
 	return INDEX_NONE;
 }
 
-FCustomizedEditorMenu* UEditorMenuSubsystem::FindCustomizedMenu(const FName InName)
+FCustomizedToolMenu* UToolMenus::FindCustomizedMenu(const FName InName)
 {
 	int32 FoundIndex = FindCustomizedMenuIndex(InName);
 	return (FoundIndex != INDEX_NONE) ? &CustomizedMenus[FoundIndex] : nullptr;
 }
 
-void UEditorMenuSubsystem::ApplyCustomization(UEditorMenu* GeneratedMenu)
+void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 {
-	const FCustomizedEditorMenu* CustomizedMenu = FindCustomizedMenu(GeneratedMenu->MenuName);
+	const FCustomizedToolMenu* CustomizedMenu = FindCustomizedMenu(GeneratedMenu->MenuName);
 	if (CustomizedMenu == nullptr)
 	{
 		return;
 	}
 
-	TArray<FEditorMenuSection> NewSections;
+	TArray<FToolMenuSection> NewSections;
 	NewSections.Reserve(GeneratedMenu->Sections.Num());
 
-	for (const FCustomizedEditorMenuSection& CustomizedSection : CustomizedMenu->Sections)
+	for (const FCustomizedToolMenuSection& CustomizedSection : CustomizedMenu->Sections)
 	{
 		int32 SectionIndex = GeneratedMenu->IndexOfSection(CustomizedSection.Name);
 		if (SectionIndex == INDEX_NONE)
@@ -424,9 +423,9 @@ void UEditorMenuSubsystem::ApplyCustomization(UEditorMenu* GeneratedMenu)
 			continue;
 		}
 
-		FEditorMenuSection& Section = GeneratedMenu->Sections[SectionIndex];
+		FToolMenuSection& Section = GeneratedMenu->Sections[SectionIndex];
 
-		TArray<FEditorMenuEntry> NewBlocks;
+		TArray<FToolMenuEntry> NewBlocks;
 		NewBlocks.Reserve(Section.Blocks.Num());
 
 		for (const FName ItemName : CustomizedSection.Items)
@@ -441,7 +440,7 @@ void UEditorMenuSubsystem::ApplyCustomization(UEditorMenu* GeneratedMenu)
 		}
 
 		// Remaining blocks
-		for (FEditorMenuEntry& Block : Section.Blocks)
+		for (FToolMenuEntry& Block : Section.Blocks)
 		{
 			NewBlocks.Add(Block);
 		}
@@ -458,7 +457,7 @@ void UEditorMenuSubsystem::ApplyCustomization(UEditorMenu* GeneratedMenu)
 	// Hide
 	for (int32 SectionIndex=0; SectionIndex < NewSections.Num(); ++SectionIndex)
 	{
-		FEditorMenuSection& Section = NewSections[SectionIndex];
+		FToolMenuSection& Section = NewSections[SectionIndex];
 		if (CustomizedMenu->HiddenSections.Contains(Section.Name))
 		{
 			NewSections.RemoveAt(SectionIndex);
@@ -479,7 +478,7 @@ void UEditorMenuSubsystem::ApplyCustomization(UEditorMenu* GeneratedMenu)
 	GeneratedMenu->Sections = NewSections;
 }
 
-void UEditorMenuSubsystem::AssembleMenuHierarchy(UEditorMenu* GeneratedMenu, const TArray<UEditorMenu*>& Hierarchy)
+void UToolMenus::AssembleMenuHierarchy(UToolMenu* GeneratedMenu, const TArray<UToolMenu*>& Hierarchy)
 {
 	if (GeneratedMenu->MenuType == EMultiBoxType::MenuBar)
 	{
@@ -489,12 +488,12 @@ void UEditorMenuSubsystem::AssembleMenuHierarchy(UEditorMenu* GeneratedMenu, con
 			GeneratedMenu->Sections.AddDefaulted();
 		}
 
-		FEditorMenuSection& MenuBarSection = GeneratedMenu->Sections[0];
-		for (const UEditorMenu* MenuData : Hierarchy)
+		FToolMenuSection& MenuBarSection = GeneratedMenu->Sections[0];
+		for (const UToolMenu* MenuData : Hierarchy)
 		{
-			for (const FEditorMenuSection& Section : MenuData->Sections)
+			for (const FToolMenuSection& Section : MenuData->Sections)
 			{
-				for (const FEditorMenuEntry& Block : Section.Blocks)
+				for (const FToolMenuEntry& Block : Section.Blocks)
 				{
 					MenuBarSection.AssembleBlock(Block);
 				}
@@ -503,7 +502,7 @@ void UEditorMenuSubsystem::AssembleMenuHierarchy(UEditorMenu* GeneratedMenu, con
 	}
 	else
 	{
-		for (const UEditorMenu* FoundParent : Hierarchy)
+		for (const UToolMenu* FoundParent : Hierarchy)
 		{
 			AssembleMenu(GeneratedMenu, FoundParent);
 		}
@@ -512,12 +511,12 @@ void UEditorMenuSubsystem::AssembleMenuHierarchy(UEditorMenu* GeneratedMenu, con
 	ApplyCustomization(GeneratedMenu);
 }
 
-void UEditorMenuSubsystem::FillMenuDynamic(FMenuBuilder& MenuBuilder, FNewEditorMenuDelegate InConstructMenu, const FEditorMenuContext Context)
+void UToolMenus::FillMenuDynamic(FMenuBuilder& MenuBuilder, FNewToolMenuDelegate InConstructMenu, const FToolMenuContext Context)
 {
 	if (InConstructMenu.IsBound())
 	{
 		// Create final menu
-		UEditorMenu* MenuData = NewObject<UEditorMenu>();
+		UToolMenu* MenuData = NewObject<UToolMenu>();
 		MenuData->Context = Context;
 		InConstructMenu.Execute(MenuData);
 
@@ -526,10 +525,10 @@ void UEditorMenuSubsystem::FillMenuDynamic(FMenuBuilder& MenuBuilder, FNewEditor
 	}
 }
 
-void UEditorMenuSubsystem::FillMenu(class FMenuBuilder& MenuBuilder, FName InMenuName, FEditorMenuContext InMenuContext)
+void UToolMenus::FillMenu(class FMenuBuilder& MenuBuilder, FName InMenuName, FToolMenuContext InMenuContext)
 {
 	// Create combined final menu
-	UEditorMenu* GeneratedMenu = NewObject<UEditorMenu>();
+	UToolMenu* GeneratedMenu = NewObject<UToolMenu>();
 	GeneratedMenu->Context = InMenuContext;
 	AssembleMenuByName(GeneratedMenu, InMenuName);
 
@@ -537,17 +536,17 @@ void UEditorMenuSubsystem::FillMenu(class FMenuBuilder& MenuBuilder, FName InMen
 	PopulateMenuBuilder(MenuBuilder, GeneratedMenu);
 }
 
-TSharedRef<SWidget> UEditorMenuSubsystem::GenerateToolbarComboButtonMenu(const FName SubMenuFullName, FEditorMenuContext InContext)
+TSharedRef<SWidget> UToolMenus::GenerateToolbarComboButtonMenu(const FName SubMenuFullName, FToolMenuContext InContext)
 {
 	return GenerateWidget(SubMenuFullName, InContext);
 }
 
-void UEditorMenuSubsystem::FillMenuBarDropDown(class FMenuBuilder& MenuBuilder, FName InParentName, FName InChildName, FEditorMenuContext InMenuContext)
+void UToolMenus::FillMenuBarDropDown(class FMenuBuilder& MenuBuilder, FName InParentName, FName InChildName, FToolMenuContext InMenuContext)
 {
-	if (UEditorMenu* MenuToUse = FindSubMenuToGenerateWith(InParentName, InChildName))
+	if (UToolMenu* MenuToUse = FindSubMenuToGenerateWith(InParentName, InChildName))
 	{
 		// Create combined final menu
-		UEditorMenu* GeneratedMenu = NewObject<UEditorMenu>();
+		UToolMenu* GeneratedMenu = NewObject<UToolMenu>();
 		GeneratedMenu->Context = InMenuContext;
 		AssembleMenuByName(GeneratedMenu, MenuToUse->MenuName);
 		GeneratedMenu->MenuName = JoinMenuPaths(InParentName, InChildName);
@@ -557,7 +556,7 @@ void UEditorMenuSubsystem::FillMenuBarDropDown(class FMenuBuilder& MenuBuilder, 
 	}
 }
 
-void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEditorMenu* MenuData)
+void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuData)
 {
 	if (GetDisplayUIExtensionPoints())
 	{
@@ -571,17 +570,17 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 		);
 	}
 
-	for (FEditorMenuSection& Section : MenuData->Sections)
+	for (FToolMenuSection& Section : MenuData->Sections)
 	{
-		if (Section.Construct.NewEditorMenuDelegateLegacy.IsBound())
+		if (Section.Construct.NewToolMenuDelegateLegacy.IsBound())
 		{
-			Section.Construct.NewEditorMenuDelegateLegacy.Execute(MenuBuilder, MenuData);
+			Section.Construct.NewToolMenuDelegateLegacy.Execute(MenuBuilder, MenuData);
 			continue;
 		}
 
 		MenuBuilder.BeginSection(Section.Name, Section.Label);
 
-		for (FEditorMenuEntry& Block : Section.Blocks)
+		for (FToolMenuEntry& Block : Section.Blocks)
 		{
 			if (Block.ConstructLegacy.IsBound())
 			{
@@ -613,13 +612,13 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 							Block.Name
 						);
 					}
-					else if (Block.SubMenuData.ConstructMenu.NewEditorMenuDelegate.IsBound())
+					else if (Block.SubMenuData.ConstructMenu.NewToolMenuDelegate.IsBound())
 					{
 						// SubMenu constructed each time it is opened
 						MenuBuilder.AddSubMenu(
 							Block.Label,
 							Block.ToolTip,
-							FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenuDynamic, Block.SubMenuData.ConstructMenu.NewEditorMenuDelegate, MenuData->Context),
+							FNewMenuDelegate::CreateUObject(this, &UToolMenus::FillMenuDynamic, Block.SubMenuData.ConstructMenu.NewToolMenuDelegate, MenuData->Context),
 							Block.SubMenuData.bOpenSubMenuOnClick,
 							Block.Icon.Get(),
 							Block.bShouldCloseWindowAfterMenuSelection,
@@ -630,7 +629,7 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 					{
 						// SubMenu registered once by name in database
 						FName SubMenuFullName = JoinMenuPaths(MenuData->MenuName, Block.Name);
-						FNewMenuDelegate NewMenuDelegate = FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenu, SubMenuFullName, MenuData->Context);
+						FNewMenuDelegate NewMenuDelegate = FNewMenuDelegate::CreateUObject(this, &UToolMenus::FillMenu, SubMenuFullName, MenuData->Context);
 
 						if (Widget.IsValid())
 						{
@@ -671,7 +670,7 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 						}
 						else
 						{
-							UE_LOG(LogEditorMenus, Error, TEXT("UI command not found for menu entry: %s, menu: %s"), *Block.Name.ToString(), *MenuData->MenuName.ToString());
+							UE_LOG(LogToolMenus, Error, TEXT("UI command not found for menu entry: %s, menu: %s"), *Block.Name.ToString(), *MenuData->MenuName.ToString());
 						}
 
 						MenuBuilder.AddMenuEntry(Block.Command, Block.Name, Block.Label, Block.ToolTip, Block.Icon.Get());
@@ -683,7 +682,7 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 					}
 					else if (Block.ScriptObject)
 					{
-						UEditorMenuEntryScript* ScriptObject = Block.ScriptObject;
+						UToolMenuEntryScript* ScriptObject = Block.ScriptObject;
 						const FSlateIcon Icon = ScriptObject->CreateIconAttribute(MenuData->Context).Get();
 						MenuBuilder.AddMenuEntry(ScriptObject->CreateLabelAttribute(MenuData->Context), ScriptObject->CreateToolTipAttribute(MenuData->Context), Icon, UIAction, ScriptObject->Data.Name, Block.UserInterfaceActionType, Block.TutorialHighlightName);
 					}
@@ -710,7 +709,7 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 			}
 			else
 			{
-				UE_LOG(LogEditorMenus, Warning, TEXT("Menu '%s', item '%s', type not currently supported: %d"), *MenuData->MenuName.ToString(), *Block.Name.ToString(), Block.Type);
+				UE_LOG(LogToolMenus, Warning, TEXT("Menu '%s', item '%s', type not currently supported: %d"), *MenuData->MenuName.ToString(), *Block.Name.ToString(), Block.Type);
 			}
 		}
 
@@ -720,9 +719,9 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 	AddReferencedContextObjects(MenuBuilder.GetMultiBox(), MenuData->Context);
 }
 
-void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilder, UEditorMenu* MenuData)
+void UToolMenus::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilder, UToolMenu* MenuData)
 {
-	for (FEditorMenuSection& Section : MenuData->Sections)
+	for (FToolMenuSection& Section : MenuData->Sections)
 	{
 		if (Section.Construct.NewToolBarDelegateLegacy.IsBound())
 		{
@@ -732,7 +731,7 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 
 		ToolBarBuilder.BeginSection(Section.Name);
 
-		for (FEditorMenuEntry& Block : Section.Blocks)
+		for (FToolMenuEntry& Block : Section.Blocks)
 		{
 			if (Block.ToolBarData.ConstructLegacy.IsBound())
 			{
@@ -761,7 +760,7 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 					}
 					else
 					{
-						UE_LOG(LogEditorMenus, Error, TEXT("UI command not found for toolbar entry: %s, toolbar: %s"), *Block.Name.ToString(), *MenuData->MenuName.ToString());
+						UE_LOG(LogToolMenus, Error, TEXT("UI command not found for toolbar entry: %s, toolbar: %s"), *Block.Name.ToString(), *MenuData->MenuName.ToString());
 					}
 
 					ToolBarBuilder.AddToolBarButton(Block.Command, Block.Name, Block.Label, Block.ToolTip, Block.Icon, Block.TutorialHighlightName);
@@ -773,7 +772,7 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 				}
 				else if (Block.ScriptObject)
 				{
-					UEditorMenuEntryScript* ScriptObject = Block.ScriptObject;
+					UToolMenuEntryScript* ScriptObject = Block.ScriptObject;
 					TAttribute<FSlateIcon> Icon = ScriptObject->CreateIconAttribute(MenuData->Context);
 					ToolBarBuilder.AddToolBarButton(UIAction, ScriptObject->Data.Name, ScriptObject->CreateLabelAttribute(MenuData->Context), ScriptObject->CreateToolTipAttribute(MenuData->Context), Icon, Block.UserInterfaceActionType, Block.TutorialHighlightName);
 				}
@@ -792,7 +791,7 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 				else
 				{
 					FName SubMenuFullName = JoinMenuPaths(MenuData->MenuName, Block.Name);
-					FOnGetContent Delegate = FOnGetContent::CreateUObject(this, &UEditorMenuSubsystem::GenerateToolbarComboButtonMenu, SubMenuFullName, MenuData->Context);
+					FOnGetContent Delegate = FOnGetContent::CreateUObject(this, &UToolMenus::GenerateToolbarComboButtonMenu, SubMenuFullName, MenuData->Context);
 					ToolBarBuilder.AddComboButton(UIAction, Delegate, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBarData.bSimpleComboBox, Block.TutorialHighlightName);
 				}
 			}
@@ -806,7 +805,7 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 			}
 			else
 			{
-				UE_LOG(LogEditorMenus, Warning, TEXT("Toolbar '%s', item '%s', type not currently supported: %d"), *MenuData->MenuName.ToString(), *Block.Name.ToString(), Block.Type);
+				UE_LOG(LogToolMenus, Warning, TEXT("Toolbar '%s', item '%s', type not currently supported: %d"), *MenuData->MenuName.ToString(), *Block.Name.ToString(), Block.Type);
 			}
 		}
 
@@ -829,16 +828,16 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 	AddReferencedContextObjects(ToolBarBuilder.GetMultiBox(), MenuData->Context);
 }
 
-void UEditorMenuSubsystem::PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilder, UEditorMenu* GeneratedMenu)
+void UToolMenus::PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilder, UToolMenu* GeneratedMenu)
 {
 	if (GeneratedMenu->Sections.Num() > 0)
 	{
-		for (FEditorMenuEntry& Block : GeneratedMenu->Sections[0].Blocks)
+		for (FToolMenuEntry& Block : GeneratedMenu->Sections[0].Blocks)
 		{
 			MenuBarBuilder.AddPullDownMenu(
 				Block.Label.Get(),
 				Block.ToolTip.Get(),
-				FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenuBarDropDown, GeneratedMenu->MenuName, Block.Name, GeneratedMenu->Context),
+				FNewMenuDelegate::CreateUObject(this, &UToolMenus::FillMenuBarDropDown, GeneratedMenu->MenuName, Block.Name, GeneratedMenu->Context),
 				Block.Name
 			);
 		}
@@ -847,11 +846,11 @@ void UEditorMenuSubsystem::PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilde
 	}
 }
 
-FOnGetContent UEditorMenuSubsystem::ConvertWidgetChoice(const FNewEditorMenuWidgetChoice& Choice, const FEditorMenuContext& Context) const
+FOnGetContent UToolMenus::ConvertWidgetChoice(const FNewToolMenuWidgetChoice& Choice, const FToolMenuContext& Context) const
 {
-	if (Choice.NewEditorMenuWidget.IsBound())
+	if (Choice.NewToolMenuWidget.IsBound())
 	{
-		return FOnGetContent::CreateLambda([ToCall = Choice.NewEditorMenuWidget, Context]()
+		return FOnGetContent::CreateLambda([ToCall = Choice.NewToolMenuWidget, Context]()
 		{
 			if (ToCall.IsBound())
 			{
@@ -861,16 +860,16 @@ FOnGetContent UEditorMenuSubsystem::ConvertWidgetChoice(const FNewEditorMenuWidg
 			return SNullWidget::NullWidget;
 		});
 	}
-	else if (Choice.NewEditorMenu.IsBound())
+	else if (Choice.NewToolMenu.IsBound())
 	{
-		return FOnGetContent::CreateLambda([ToCall = Choice.NewEditorMenu, Context]()
+		return FOnGetContent::CreateLambda([ToCall = Choice.NewToolMenu, Context]()
 		{
 			if (ToCall.IsBound())
 			{
-				UEditorMenu* MenuData = NewObject<UEditorMenu>();
+				UToolMenu* MenuData = NewObject<UToolMenu>();
 				MenuData->Context = Context;
 				ToCall.Execute(MenuData);
-				return UEditorMenuSubsystem::Get()->GenerateWidget(MenuData);
+				return UToolMenus::Get()->GenerateWidget(MenuData);
 			}
 
 			return SNullWidget::NullWidget;
@@ -879,7 +878,7 @@ FOnGetContent UEditorMenuSubsystem::ConvertWidgetChoice(const FNewEditorMenuWidg
 	return Choice.OnGetContent;
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorMenuEntry& Block, const FEditorMenuContext& Context)
+FUIAction UToolMenus::ConvertUIAction(const FToolMenuEntry& Block, const FToolMenuContext& Context)
 {
 	FUIAction UIAction;
 	
@@ -900,15 +899,15 @@ FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorMenuEntry& Block, c
 	return UIAction;
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorUIActionChoice& Choice, const FEditorMenuContext& Context)
+FUIAction UToolMenus::ConvertUIAction(const FToolUIActionChoice& Choice, const FToolMenuContext& Context)
 {
-	if (const FEditorUIAction* EditorAction = Choice.GetEditorUIAction())
+	if (const FToolUIAction* ToolAction = Choice.GetToolUIAction())
 	{
-		return ConvertUIAction(*EditorAction, Context);
+		return ConvertUIAction(*ToolAction, Context);
 	}
-	else if (const FEditorDynamicUIAction* DynamicEditorAction = Choice.GetEditorDynamicUIAction())
+	else if (const FToolDynamicUIAction* DynamicToolAction = Choice.GetToolDynamicUIAction())
 	{
-		return ConvertUIAction(*DynamicEditorAction, Context);
+		return ConvertUIAction(*DynamicToolAction, Context);
 	}
 	else if (const FUIAction* Action = Choice.GetUIAction())
 	{
@@ -918,7 +917,7 @@ FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorUIActionChoice& Cho
 	return FUIAction();
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorUIAction& Actions, const FEditorMenuContext& Context)
+FUIAction UToolMenus::ConvertUIAction(const FToolUIAction& Actions, const FToolMenuContext& Context)
 {
 	FUIAction UIAction;
 
@@ -957,7 +956,7 @@ FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorUIAction& Actions, 
 	return UIAction;
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorDynamicUIAction& Actions, const FEditorMenuContext& Context)
+FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const FToolMenuContext& Context)
 {
 	FUIAction UIAction;
 
@@ -996,7 +995,7 @@ FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorDynamicUIAction& Ac
 	return UIAction;
 }
 
-FUIAction UEditorMenuSubsystem::ConvertScriptObjectToUIAction(UEditorMenuEntryScript* ScriptObject, const FEditorMenuContext& Context)
+FUIAction UToolMenus::ConvertScriptObjectToUIAction(UToolMenuEntryScript* ScriptObject, const FToolMenuContext& Context)
 {
 	FUIAction UIAction;
 
@@ -1004,25 +1003,25 @@ FUIAction UEditorMenuSubsystem::ConvertScriptObjectToUIAction(UEditorMenuEntrySc
 	{
 		UClass* ScriptClass = ScriptObject->GetClass();
 
-		static const FName ExecuteName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, Execute);
+		static const FName ExecuteName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, Execute);
 		if (ScriptClass->IsFunctionImplementedInScript(ExecuteName))
 		{
 			UIAction.ExecuteAction.BindUFunction(ScriptObject, ExecuteName, Context);
 		}
 
-		static const FName CanExecuteName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, CanExecute);
+		static const FName CanExecuteName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, CanExecute);
 		if (ScriptClass->IsFunctionImplementedInScript(CanExecuteName))
 		{
 			UIAction.CanExecuteAction.BindUFunction(ScriptObject, CanExecuteName, Context);
 		}
 
-		static const FName GetCheckStateName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, GetCheckState);
+		static const FName GetCheckStateName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, GetCheckState);
 		if (ScriptClass->IsFunctionImplementedInScript(GetCheckStateName))
 		{
 			UIAction.GetActionCheckState.BindUFunction(ScriptObject, GetCheckStateName, Context);
 		}
 
-		static const FName IsVisibleName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, IsVisible);
+		static const FName IsVisibleName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, IsVisible);
 		if (ScriptClass->IsFunctionImplementedInScript(IsVisibleName))
 		{
 			UIAction.IsActionVisibleDelegate.BindUFunction(ScriptObject, IsVisibleName, Context);
@@ -1032,59 +1031,50 @@ FUIAction UEditorMenuSubsystem::ConvertScriptObjectToUIAction(UEditorMenuEntrySc
 	return UIAction;
 }
 
-void UEditorMenuSubsystem::ExecuteStringCommand(const FEditorMenuStringCommand StringCommand, const FEditorMenuContext Context)
+void UToolMenus::ExecuteStringCommand(const FToolMenuStringCommand StringCommand, const FToolMenuContext Context)
 {
 	if (StringCommand.IsBound())
 	{
-		static const FName CommandTypeName("Command");
 		const FName TypeName = StringCommand.GetTypeName();
-
-		UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-		if (const FEditorMenuExecuteString* Handler = EditorMenus->StringCommandHandlers.Find(TypeName))
+		UToolMenus* ToolMenus = UToolMenus::Get();
+		if (const FToolMenuExecuteString* Handler = ToolMenus->StringCommandHandlers.Find(TypeName))
 		{
 			if (Handler->IsBound())
 			{
 				Handler->Execute(StringCommand.String, Context);
 			}
 		}
-		else if (TypeName == CommandTypeName)
-		{
-			if (GEditor)
-			{
-				GEditor->Exec(nullptr, *StringCommand.String);
-			}
-		}
 		else
 		{
-			UE_LOG(LogEditorMenus, Warning, TEXT("Unknown string command handler type: '%s'"), *TypeName.ToString());
+			UE_LOG(LogToolMenus, Warning, TEXT("Unknown string command handler type: '%s'"), *TypeName.ToString());
 		}
 	}
 }
 
-UEditorMenu* UEditorMenuSubsystem::FindSubMenuToGenerateWith(const FName InParentName, const FName InChildName)
+UToolMenu* UToolMenus::FindSubMenuToGenerateWith(const FName InParentName, const FName InChildName)
 {
 	FName BaseName = InParentName;
 	while (BaseName != NAME_None)
 	{
 		FName JoinedName = JoinMenuPaths(BaseName, InChildName);
-		if (UEditorMenu* Found = FindMenu(JoinedName))
+		if (UToolMenu* Found = FindMenu(JoinedName))
 		{
 			return Found;
 		}
 
-		UEditorMenu* BaseData = FindMenu(BaseName);
+		UToolMenu* BaseData = FindMenu(BaseName);
 		BaseName = BaseData ? BaseData->MenuParent : NAME_None;
 	}
 
 	return nullptr;
 }
 
-UObject* UEditorMenuSubsystem::FindContext(const FEditorMenuContext& InContext, UClass* InClass)
+UObject* UToolMenus::FindContext(const FToolMenuContext& InContext, UClass* InClass)
 {
 	return InContext.FindByClass(InClass);
 }
 
-void UEditorMenuSubsystem::AddReferencedContextObjects(const TSharedRef<FMultiBox>& InMultiBox, const FEditorMenuContext& InMenuContext)
+void UToolMenus::AddReferencedContextObjects(const TSharedRef<FMultiBox>& InMultiBox, const FToolMenuContext& InMenuContext)
 {
 	if (InMenuContext.ContextObjects.Num() == 0)
 	{
@@ -1101,9 +1091,9 @@ void UEditorMenuSubsystem::AddReferencedContextObjects(const TSharedRef<FMultiBo
 	}
 }
 
-void UEditorMenuSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+void UToolMenus::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	UEditorMenuSubsystem* This = CastChecked<UEditorMenuSubsystem>(InThis);
+	UToolMenus* This = CastChecked<UToolMenus>(InThis);
 
 	for (auto It = This->WidgetObjectReferences.CreateIterator(); It; ++It)
 	{
@@ -1120,14 +1110,14 @@ void UEditorMenuSubsystem::AddReferencedObjects(UObject* InThis, FReferenceColle
 	Super::AddReferencedObjects(InThis, Collector);
 }
 
-UEditorMenu* UEditorMenuSubsystem::GenerateMenu(const FName Name, FEditorMenuContext& InMenuContext)
+UToolMenu* UToolMenus::GenerateMenu(const FName Name, FToolMenuContext& InMenuContext)
 {
 	return GenerateMenu(CollectHierarchy(Name), InMenuContext);
 }
 
-UEditorMenu* UEditorMenuSubsystem::GenerateMenu(const TArray<UEditorMenu*>& Hierarchy, FEditorMenuContext& InMenuContext)
+UToolMenu* UToolMenus::GenerateMenu(const TArray<UToolMenu*>& Hierarchy, FToolMenuContext& InMenuContext)
 {
-	UEditorMenu* GeneratedMenu = NewObject<UEditorMenu>(this);
+	UToolMenu* GeneratedMenu = NewObject<UToolMenu>(this);
 
 	if (Hierarchy.Num() > 0)
 	{
@@ -1140,32 +1130,32 @@ UEditorMenu* UEditorMenuSubsystem::GenerateMenu(const TArray<UEditorMenu*>& Hier
 	return GeneratedMenu;
 }
 
-TSharedRef< class SWidget > UEditorMenuSubsystem::GenerateWidget(const FName InName, FEditorMenuContext& InMenuContext)
+TSharedRef< class SWidget > UToolMenus::GenerateWidget(const FName InName, FToolMenuContext& InMenuContext)
 {
-	UEditorMenu* Generated = GenerateMenu(InName, InMenuContext);
+	UToolMenu* Generated = GenerateMenu(InName, InMenuContext);
 	return GenerateWidget(Generated);
 }
 
-TSharedRef<SWidget> UEditorMenuSubsystem::GenerateWidget(const TArray<UEditorMenu*>& Hierarchy, FEditorMenuContext& InMenuContext)
+TSharedRef<SWidget> UToolMenus::GenerateWidget(const TArray<UToolMenu*>& Hierarchy, FToolMenuContext& InMenuContext)
 {
 	if (Hierarchy.Num() == 0)
 	{
 		return SNullWidget::NullWidget;
 	}
 
-	UEditorMenu* Generated = GenerateMenu(Hierarchy, InMenuContext);
+	UToolMenu* Generated = GenerateMenu(Hierarchy, InMenuContext);
 	return GenerateWidget(Generated);
 }
 
-TSharedRef<SWidget> UEditorMenuSubsystem::GenerateWidget(UEditorMenu* GeneratedMenu)
+TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 {
 	CleanupStaleWidgetsNextTick();
 
-	FGeneratedEditorMenuWidgets& WidgetsForMenuName = GeneratedMenuWidgets.FindOrAdd(GeneratedMenu->MenuName);
+	FGeneratedToolMenuWidgets& WidgetsForMenuName = GeneratedMenuWidgets.FindOrAdd(GeneratedMenu->MenuName);
 
 	// Store a copy so that we can call 'Refresh' on menus not in the database
-	FGeneratedEditorMenuWidget& GeneratedMenuWidget = WidgetsForMenuName.Instances.AddDefaulted_GetRef();
-	GeneratedMenuWidget.GeneratedMenu = DuplicateObject<UEditorMenu>(GeneratedMenu, this);
+	FGeneratedToolMenuWidget& GeneratedMenuWidget = WidgetsForMenuName.Instances.AddDefaulted_GetRef();
+	GeneratedMenuWidget.GeneratedMenu = DuplicateObject<UToolMenu>(GeneratedMenu, this);
 	// Copy native properties that serialize does not
 	GeneratedMenuWidget.GeneratedMenu->Context = GeneratedMenu->Context;
 	GeneratedMenuWidget.GeneratedMenu->StyleSet = GeneratedMenu->StyleSet;
@@ -1200,28 +1190,37 @@ TSharedRef<SWidget> UEditorMenuSubsystem::GenerateWidget(UEditorMenu* GeneratedM
 	return SNullWidget::NullWidget;
 }
 
-void UEditorMenuSubsystem::SetNextTickTimer()
+void UToolMenus::SetTimerManager(const TSharedRef<class FTimerManager>& InTimerManager)
+{
+	TimerManager = InTimerManager;
+}
+
+void UToolMenus::SetNextTickTimer()
 {
 	if (!bNextTickTimerIsSet)
 	{
 		bNextTickTimerIsSet = true;
-		GEditor->GetTimerManager()->SetTimerForNextTick(this, &UEditorMenuSubsystem::HandleNextTick);
+
+		if (TimerManager.IsValid())
+		{
+			TimerManager.Pin()->SetTimerForNextTick(this, &UToolMenus::HandleNextTick);
+		}
 	}
 }
 
-void UEditorMenuSubsystem::CleanupStaleWidgetsNextTick()
+void UToolMenus::CleanupStaleWidgetsNextTick()
 {
 	bCleanupStaleWidgetsNextTick = true;
 	SetNextTickTimer();
 }
 
-void UEditorMenuSubsystem::RefreshAllWidgets()
+void UToolMenus::RefreshAllWidgets()
 {
 	bRefreshWidgetsNextTick = true;
 	SetNextTickTimer();
 }
 
-void UEditorMenuSubsystem::HandleNextTick()
+void UToolMenus::HandleNextTick()
 {
 	if (bCleanupStaleWidgetsNextTick || bRefreshWidgetsNextTick)
 	{
@@ -1232,7 +1231,7 @@ void UEditorMenuSubsystem::HandleNextTick()
 		{
 			for (auto WidgetsForMenuNameIt = GeneratedMenuWidgets.CreateIterator(); WidgetsForMenuNameIt; ++WidgetsForMenuNameIt)
 			{
-				FGeneratedEditorMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;
+				FGeneratedToolMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;
 				for (auto Instance = WidgetsForMenuName.Instances.CreateIterator(); Instance; ++Instance)
 				{
 					if (Instance->Widget.IsValid())
@@ -1249,11 +1248,11 @@ void UEditorMenuSubsystem::HandleNextTick()
 	bNextTickTimerIsSet = false;
 }
 
-void UEditorMenuSubsystem::CleanupStaleWidgets()
+void UToolMenus::CleanupStaleWidgets()
 {
 	for (auto WidgetsForMenuNameIt = GeneratedMenuWidgets.CreateIterator(); WidgetsForMenuNameIt; ++WidgetsForMenuNameIt)
 	{
-		FGeneratedEditorMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;
+		FGeneratedToolMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;
 
 		for (auto Instance = WidgetsForMenuName.Instances.CreateIterator(); Instance; ++Instance)
 		{
@@ -1270,9 +1269,9 @@ void UEditorMenuSubsystem::CleanupStaleWidgets()
 	}
 }
 
-bool UEditorMenuSubsystem::RefreshMenuWidget(const FName InName)
+bool UToolMenus::RefreshMenuWidget(const FName InName)
 {
-	if (FGeneratedEditorMenuWidgets* WidgetsForMenuName = GeneratedMenuWidgets.Find(InName))
+	if (FGeneratedToolMenuWidgets* WidgetsForMenuName = GeneratedMenuWidgets.Find(InName))
 	{
 		for (auto Instance = WidgetsForMenuName->Instances.CreateIterator(); Instance; ++Instance)
 		{
@@ -1290,7 +1289,7 @@ bool UEditorMenuSubsystem::RefreshMenuWidget(const FName InName)
 	return false;
 }
 
-bool UEditorMenuSubsystem::RefreshMenuWidget(const FName InName, FGeneratedEditorMenuWidget& GeneratedMenuWidget)
+bool UToolMenus::RefreshMenuWidget(const FName InName, FGeneratedToolMenuWidget& GeneratedMenuWidget)
 {
 	if (!GeneratedMenuWidget.Widget.IsValid())
 	{
@@ -1298,7 +1297,7 @@ bool UEditorMenuSubsystem::RefreshMenuWidget(const FName InName, FGeneratedEdito
 	}
 
 	// Regenerate menu from database
-	UEditorMenu* GeneratedMenu = GenerateMenu(InName, GeneratedMenuWidget.GeneratedMenu->Context);
+	UToolMenu* GeneratedMenu = GenerateMenu(InName, GeneratedMenuWidget.GeneratedMenu->Context);
 	GeneratedMenuWidget.GeneratedMenu = GeneratedMenu;
 
 	// Regenerate Multibox
@@ -1328,26 +1327,26 @@ bool UEditorMenuSubsystem::RefreshMenuWidget(const FName InName, FGeneratedEdito
 	return true;
 }
 
-UEditorMenu* UEditorMenuSubsystem::GenerateMenuAsBuilder(const UEditorMenu* InMenu, FEditorMenuContext& InMenuContext)
+UToolMenu* UToolMenus::GenerateMenuAsBuilder(const UToolMenu* InMenu, FToolMenuContext& InMenuContext)
 {
-	TArray<UEditorMenu*> Hierarchy = CollectHierarchy(InMenu->MenuName);
+	TArray<UToolMenu*> Hierarchy = CollectHierarchy(InMenu->MenuName);
 
 	// Insert InMenu as second to last so items in InMenu appear before items registered in database by other plugins
 	if (Hierarchy.Num() > 0)
 	{
-		Hierarchy.Insert((UEditorMenu*)InMenu, Hierarchy.Num() - 1);
+		Hierarchy.Insert((UToolMenu*)InMenu, Hierarchy.Num() - 1);
 	}
 	else
 	{
-		Hierarchy.Add((UEditorMenu*)InMenu);
+		Hierarchy.Add((UToolMenu*)InMenu);
 	}
 
 	return GenerateMenu(Hierarchy, InMenuContext);
 }
 
-UEditorMenu* UEditorMenuSubsystem::RegisterMenu(const FName InName, const FName InParent, EMultiBoxType InType, bool bWarnIfAlreadyRegistered)
+UToolMenu* UToolMenus::RegisterMenu(const FName InName, const FName InParent, EMultiBoxType InType, bool bWarnIfAlreadyRegistered)
 {
-	if (UEditorMenu* Found = FindMenu(InName))
+	if (UToolMenu* Found = FindMenu(InName))
 	{
 		if (!Found->bRegistered)
 		{
@@ -1358,99 +1357,99 @@ UEditorMenu* UEditorMenuSubsystem::RegisterMenu(const FName InName, const FName 
 		}
 		else if (bWarnIfAlreadyRegistered)
 		{
-			UE_LOG(LogEditorMenus, Warning, TEXT("Menu already registered : %s"), *InName.ToString());
+			UE_LOG(LogToolMenus, Warning, TEXT("Menu already registered : %s"), *InName.ToString());
 		}
 
 		return Found;
 	}
 
-	UEditorMenu* EditorMenu = NewObject<UEditorMenu>(this);
-	EditorMenu->InitMenu(CurrentOwner(), InName, InParent, InType);
-	EditorMenu->bRegistered = true;
-	Menus.Add(InName, EditorMenu);
-	return EditorMenu;
+	UToolMenu* ToolMenu = NewObject<UToolMenu>(this);
+	ToolMenu->InitMenu(CurrentOwner(), InName, InParent, InType);
+	ToolMenu->bRegistered = true;
+	Menus.Add(InName, ToolMenu);
+	return ToolMenu;
 }
 
-UEditorMenu* UEditorMenuSubsystem::ExtendMenu(const FName InName)
+UToolMenu* UToolMenus::ExtendMenu(const FName InName)
 {
-	if (UEditorMenu* Found = FindMenu(InName))
+	if (UToolMenu* Found = FindMenu(InName))
 	{
 		return Found;
 	}
 
-	UEditorMenu* EditorMenu = NewObject<UEditorMenu>(this);
-	EditorMenu->MenuName = InName;
-	EditorMenu->bRegistered = false;
-	Menus.Add(InName, EditorMenu);
-	return EditorMenu;
+	UToolMenu* ToolMenu = NewObject<UToolMenu>(this);
+	ToolMenu->MenuName = InName;
+	ToolMenu->bRegistered = false;
+	Menus.Add(InName, ToolMenu);
+	return ToolMenu;
 }
 
-void UEditorMenuSubsystem::RemoveMenu(const FName MenuName)
+void UToolMenus::RemoveMenu(const FName MenuName)
 {
 	Menus.Remove(MenuName);
 }
 
-bool UEditorMenuSubsystem::AddMenuEntryObject(UEditorMenuEntryScript* MenuEntryObject)
+bool UToolMenus::AddMenuEntryObject(UToolMenuEntryScript* MenuEntryObject)
 {
-	UEditorMenu* Menu = UEditorMenuSubsystem::Get()->ExtendMenu(MenuEntryObject->Data.Menu);
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(MenuEntryObject->Data.Menu);
 	Menu->AddMenuEntryObject(MenuEntryObject);
 	return true;
 }
 
-void UEditorMenuSubsystem::SetSectionLabel(const FName MenuName, const FName SectionName, const FText Label)
+void UToolMenus::SetSectionLabel(const FName MenuName, const FName SectionName, const FText Label)
 {
 	ExtendMenu(MenuName)->FindOrAddSection(SectionName).Label = TAttribute<FText>(Label);
 }
 
-void UEditorMenuSubsystem::SetSectionPosition(const FName MenuName, const FName SectionName, const FName PositionName, const EEditorMenuInsertType PositionType)
+void UToolMenus::SetSectionPosition(const FName MenuName, const FName SectionName, const FName PositionName, const EToolMenuInsertType PositionType)
 {
-	ExtendMenu(MenuName)->FindOrAddSection(SectionName).InsertPosition = FEditorMenuInsert(PositionName, PositionType);
+	ExtendMenu(MenuName)->FindOrAddSection(SectionName).InsertPosition = FToolMenuInsert(PositionName, PositionType);
 }
 
-void UEditorMenuSubsystem::AddSection(const FName MenuName, const FName SectionName, const TAttribute< FText >& InLabel, const FEditorMenuInsert InPosition)
+void UToolMenus::AddSection(const FName MenuName, const FName SectionName, const TAttribute< FText >& InLabel, const FToolMenuInsert InPosition)
 {
-	UEditorMenu* Menu = ExtendMenu(MenuName);
-	FEditorMenuSection* Section = Menu->FindSection(SectionName);
+	UToolMenu* Menu = ExtendMenu(MenuName);
+	FToolMenuSection* Section = Menu->FindSection(SectionName);
 	if (!Section)
 	{
 		Menu->AddSection(SectionName, InLabel, InPosition);
 	}
 }
 
-void UEditorMenuSubsystem::RemoveSection(const FName MenuName, const FName InSection)
+void UToolMenus::RemoveSection(const FName MenuName, const FName InSection)
 {
-	if (UEditorMenu* Menu = FindMenu(MenuName))
+	if (UToolMenu* Menu = FindMenu(MenuName))
 	{
 		Menu->RemoveSection(InSection);
 	}
 }
 
-void UEditorMenuSubsystem::AddEntry(const FName MenuName, const FName InSection, const FEditorMenuEntry& InEntry)
+void UToolMenus::AddEntry(const FName MenuName, const FName InSection, const FToolMenuEntry& InEntry)
 {
 	ExtendMenu(MenuName)->FindOrAddSection(InSection).AddEntry(InEntry);
 }
 
-void UEditorMenuSubsystem::RemoveEntry(const FName MenuName, const FName InSection, const FName InName)
+void UToolMenus::RemoveEntry(const FName MenuName, const FName InSection, const FName InName)
 {
-	if (UEditorMenu* Menu = FindMenu(MenuName))
+	if (UToolMenu* Menu = FindMenu(MenuName))
 	{
-		if (FEditorMenuSection* Section = Menu->FindSection(InSection))
+		if (FToolMenuSection* Section = Menu->FindSection(InSection))
 		{
 			Section->RemoveEntry(InName);
 		}
 	}
 }
 
-void UEditorMenuSubsystem::UnregisterOwnerInternal(FEditorMenuOwner InOwner)
+void UToolMenus::UnregisterOwnerInternal(FToolMenuOwner InOwner)
 {
-	if (InOwner != FEditorMenuOwner())
+	if (InOwner != FToolMenuOwner())
 	{
 		for (auto It = Menus.CreateIterator(); It; ++It)
 		{
 			int32 NumEntriesRemoved = 0;
 
-			UEditorMenu* Menu = It->Value;
-			for (FEditorMenuSection& Section : Menu->Sections)
+			UToolMenu* Menu = It->Value;
+			for (FToolMenuSection& Section : Menu->Sections)
 			{
 				NumEntriesRemoved += Section.RemoveEntriesByOwner(InOwner);
 			}
@@ -1464,38 +1463,38 @@ void UEditorMenuSubsystem::UnregisterOwnerInternal(FEditorMenuOwner InOwner)
 	}
 }
 
-FEditorMenuOwner UEditorMenuSubsystem::CurrentOwner() const
+FToolMenuOwner UToolMenus::CurrentOwner() const
 {
 	if (OwnerStack.Num() > 0)
 	{
 		return OwnerStack.Last();
 	}
 
-	return FEditorMenuOwner();
+	return FToolMenuOwner();
 }
 
-void UEditorMenuSubsystem::PushOwner(const FEditorMenuOwner InOwner)
+void UToolMenus::PushOwner(const FToolMenuOwner InOwner)
 {
 	OwnerStack.Add(InOwner);
 }
 
-void UEditorMenuSubsystem::PopOwner(const FEditorMenuOwner InOwner)
+void UToolMenus::PopOwner(const FToolMenuOwner InOwner)
 {
-	FEditorMenuOwner PoppedOwner = OwnerStack.Pop(false);
+	FToolMenuOwner PoppedOwner = OwnerStack.Pop(false);
 	check(PoppedOwner == InOwner);
 }
 
-void UEditorMenuSubsystem::UnregisterOwnerByName(FName InOwnerName)
+void UToolMenus::UnregisterOwnerByName(FName InOwnerName)
 {
 	UnregisterOwnerInternal(InOwnerName);
 }
 
-void UEditorMenuSubsystem::RegisterStringCommandHandler(const FName InName, const FEditorMenuExecuteString& InDelegate)
+void UToolMenus::RegisterStringCommandHandler(const FName InName, const FToolMenuExecuteString& InDelegate)
 {
 	StringCommandHandlers.Add(InName, InDelegate);
 }
 
-void UEditorMenuSubsystem::UnregisterStringCommandHandler(const FName InName)
+void UToolMenus::UnregisterStringCommandHandler(const FName InName)
 {
 	StringCommandHandlers.Remove(InName);
 }

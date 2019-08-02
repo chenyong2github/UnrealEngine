@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_ParticleSystem.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/FeedbackContext.h"
 #include "Editor/Cascade/Public/CascadeModule.h"
 #include "Particles/ParticleEmitter.h"
@@ -9,7 +9,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_ParticleSystem::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_ParticleSystem::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto ParticleSystems = GetTypedWeakObjectPtrs<UParticleSystem>(InObjects);
 

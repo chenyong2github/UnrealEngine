@@ -67,7 +67,7 @@ public class LevelEditor : ModuleRules
 				"MaterialShaderQualitySettings",
 				"PixelInspectorModule",
 				"CommonMenuExtensions",
-				"EditorMenus",
+				"ToolMenus",
 			}
 		);
 

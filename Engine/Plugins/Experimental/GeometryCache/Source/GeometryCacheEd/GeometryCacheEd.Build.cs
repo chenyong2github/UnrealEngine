@@ -19,7 +19,7 @@ public class GeometryCacheEd : ModuleRules
                 "UnrealEd",
 				"AssetTools",
                 "GeometryCache",
-				"EditorMenus",
+				"ToolMenus",
 			}
 		);
 	}

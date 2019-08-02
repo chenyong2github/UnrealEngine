@@ -20,7 +20,7 @@ public class PaperSpriteSheetImporter : ModuleRules
 				"AssetTools",
 				"ContentBrowser",
                 "EditorStyle",
-				"EditorMenus",
+				"ToolMenus",
 			});
 
 		PrivateIncludePathModuleNames.AddRange(

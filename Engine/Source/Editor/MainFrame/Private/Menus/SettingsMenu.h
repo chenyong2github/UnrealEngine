@@ -12,7 +12,7 @@
 #include "ISettingsContainer.h"
 #include "ISettingsSection.h"
 
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "FSettingsMenu"
 
@@ -29,7 +29,7 @@ public:
 	 * @param MenuBuilder The builder for the menu that owns this menu.
 	 * @param SettingsContainerName The name of the settings container to create the menu for.
 	 */
-	static void MakeMenu( UEditorMenu* MenuBuilder, FName SettingsContainerName )
+	static void MakeMenu( UToolMenu* MenuBuilder, FName SettingsContainerName )
 	{
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 
@@ -59,7 +59,7 @@ public:
 
 			if (SettingsCategory->GetSections(SettingsSections) > 0)
 			{
-				FEditorMenuSection& Section = MenuBuilder->AddSection(SettingsCategory->GetName(), SettingsCategory->GetDisplayName());
+				FToolMenuSection& Section = MenuBuilder->AddSection(SettingsCategory->GetName(), SettingsCategory->GetDisplayName());
 
 				SettingsSections.Sort(
 					[](const ISettingsSectionPtr& First, const ISettingsSectionPtr& Second)

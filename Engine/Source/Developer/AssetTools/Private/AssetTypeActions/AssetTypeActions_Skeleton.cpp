@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_Skeleton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimSequenceBase.h"
@@ -425,12 +425,12 @@ FCreateRigDlg::EResult FCreateRigDlg::ShowModal()
 }
 
 ///////////////////////////////
-void FAssetTypeActions_Skeleton::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_Skeleton::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Skeletons = GetTypedWeakObjectPtrs<USkeleton>(InObjects);
 
 	// create menu
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 			NAME_None,
 			"CreateSkeletonSubmenu",
 			LOCTEXT("CreateSkeletonSubmenu", "Create"),

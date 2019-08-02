@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
 				    "SceneOutliner",
 				    "FieldSystemCore",
 					"EditorStyle",
-					"EditorMenus",
+					"ToolMenus",
 				}
 			);
 		}

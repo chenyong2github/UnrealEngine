@@ -18,7 +18,7 @@ public:
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
 
 	/** Overridden to offer the gameplay tagging options */
-	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 
 	/** Overridden to specify misc category */
 	virtual uint32 GetCategories() override;

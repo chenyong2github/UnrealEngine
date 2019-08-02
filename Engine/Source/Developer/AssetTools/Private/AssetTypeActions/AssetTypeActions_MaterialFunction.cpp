@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_MaterialFunction.h"
 #include "Factories/MaterialFunctionInstanceFactory.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "EditorStyleSet.h"
@@ -24,7 +24,7 @@ const FString LayerCompareString = (TEXT("MaterialLayer"));
 const FString BlendCompareString = (TEXT("MaterialLayerBlend"));
 
 
-void FAssetTypeActions_MaterialFunction::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_MaterialFunction::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Functions = GetTypedWeakObjectPtrs<UMaterialFunctionInterface>(InObjects);
 

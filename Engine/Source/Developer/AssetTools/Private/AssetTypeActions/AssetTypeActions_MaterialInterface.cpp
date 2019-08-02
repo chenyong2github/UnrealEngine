@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_MaterialInterface.h"
 #include "Misc/PackageName.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
@@ -13,7 +13,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_MaterialInterface::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_MaterialInterface::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto MaterialInterfaces = GetTypedWeakObjectPtrs<UMaterialInterface>(InObjects);
 

@@ -2,7 +2,7 @@
 
 #include "AssetTools/MediaTextureActions.h"
 #include "Engine/Texture.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/PackageName.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -23,7 +23,7 @@ bool FMediaTextureActions::CanFilter()
 	return true;
 }
 
-void FMediaTextureActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FMediaTextureActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Textures = GetTypedWeakObjectPtrs<UTexture>(InObjects);
 

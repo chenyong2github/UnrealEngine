@@ -43,7 +43,7 @@ namespace UnrealBuildTool.Rules
 					"LevelEditor",
                     "AssetRegistry",
 					"Analytics",
-					"EditorMenus",
+					"ToolMenus",
 				}
 			);
 

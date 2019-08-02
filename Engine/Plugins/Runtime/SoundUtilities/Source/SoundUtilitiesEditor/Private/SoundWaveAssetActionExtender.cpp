@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "SoundWaveAssetActionExtender.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "AssetTypeActions_Base.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -16,27 +16,27 @@
 
 void FSoundWaveAssetActionExtender::RegisterMenus()
 {
-	if (!UEditorMenuSubsystem::IsRunningEditorUI())
+	if (!UToolMenus::IsToolMenuUIEnabled())
 	{
 		return;
 	}
 
-	FEditorMenuOwnerScoped MenuOwner("SoundUtilities");
-	UEditorMenu* Menu = UEditorMenuSubsystem::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundWave");
-	FEditorMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+	FToolMenuOwnerScoped MenuOwner("SoundUtilities");
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SoundWave");
+	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 	
-	Section.AddDynamicEntry("SoundWaveAsset", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
+	Section.AddDynamicEntry("SoundWaveAsset", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateSimpleSound", "Create Simple Sound");
 		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateSimpleSoundTooltip", "Creates a simple sound asset using the selected sound waves.");
 		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundSimple");
-		const FEditorMenuExecuteAction UIAction = FEditorMenuExecuteAction::CreateStatic(&FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound);
+		const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound);
 
 		InSection.AddMenuEntry("SoundWave_CreateSimpleSound", Label, ToolTip, Icon, UIAction);
 	}));
 }
 
-void FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound(const FEditorMenuContext& MenuContext)
+void FSoundWaveAssetActionExtender::ExecuteCreateSimpleSound(const FToolMenuContext& MenuContext)
 {
 	UContentBrowserAssetContextMenuContext* Context = MenuContext.Find<UContentBrowserAssetContextMenuContext>();
 	if (!Context || Context->SelectedObjects.Num() == 0)

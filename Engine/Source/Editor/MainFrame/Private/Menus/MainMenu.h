@@ -11,7 +11,7 @@
 #include "ILocalizationDashboardModule.h"
 
 class FMenuBuilder;
-struct FEditorMenuContext;
+struct FToolMenuContext;
 
 /**
  * Unreal editor main frame Slate widget
@@ -25,9 +25,9 @@ public:
 	 *
 	 * @param TabManager Create the workspace menu based on this tab manager.
 	 * @param MenuName Identifier associated with the menu.
-	 * @return EditorMenuContext Context containing state.
+	 * @return ToolMenuContext Context containing state.
 	 */
-	static TSharedRef<SWidget> MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext );
+	static TSharedRef<SWidget> MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext );
 
 	/**
 	 * Static: Creates a widget for the main tab's menu bar.  This is just like the main menu bar, but also includes.
@@ -35,9 +35,9 @@ public:
 	 *
 	 * @param TabManager Create the workspace menu based on this tab manager.
 	 * @param MenuName Identifier associated with the menu.
-	 * @return EditorMenuContext Context containing state.
+	 * @return ToolMenuContext Context containing state.
 	 */
-	static TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext );
+	static TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext );
 
 	/**
 	 * Static: Registers main menu with menu system.

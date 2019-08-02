@@ -28,7 +28,7 @@
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetEditorToolkit"
 
@@ -962,7 +962,7 @@ void FAssetEditorToolkit::FillDefaultHelpMenuCommands( FMenuBuilder& MenuBuilder
 	MenuBuilder.AddMenuEntry(FGlobalEditorCommonCommands::Get().OpenDocumentation, NAME_None, ToolTip);
 }
 
-FName FAssetEditorToolkit::GetEditorMenuAppName() const
+FName FAssetEditorToolkit::GetToolMenuAppName() const
 {
 	if (IsSimpleAssetEditor() && EditingObjects.Num() == 1 && EditingObjects[0])
 	{
@@ -972,22 +972,22 @@ FName FAssetEditorToolkit::GetEditorMenuAppName() const
 	return GetToolkitFName();
 }
 
-FName FAssetEditorToolkit::GetEditorMenuToolbarName() const
+FName FAssetEditorToolkit::GetToolMenuToolbarName() const
 {
-	return *(TEXT("AssetEditor.") + GetEditorMenuAppName().ToString() + TEXT(".ToolBar"));
+	return *(TEXT("AssetEditor.") + GetToolMenuAppName().ToString() + TEXT(".ToolBar"));
 }
 
 void FAssetEditorToolkit::RegisterMenus()
 {
 	static const FName DefaultToolBarName("AssetEditor.DefaultToolBar");
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	if (!EditorMenus->IsMenuRegistered(DefaultToolBarName))
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (!ToolMenus->IsMenuRegistered(DefaultToolBarName))
 	{
-		UEditorMenu* ToolbarBuilder = EditorMenus->RegisterMenu(DefaultToolBarName, NAME_None, EMultiBoxType::ToolBar);
+		UToolMenu* ToolbarBuilder = ToolMenus->RegisterMenu(DefaultToolBarName, NAME_None, EMultiBoxType::ToolBar);
 		{
-			FEditorMenuSection& Section = ToolbarBuilder->AddSection("Asset");
-			Section.AddEntry(FEditorMenuEntry::InitToolBarButton(FAssetEditorCommonCommands::Get().SaveAsset));
-			Section.AddEntry(FEditorMenuEntry::InitToolBarButton(FGlobalEditorCommonCommands::Get().FindInContentBrowser, LOCTEXT("FindInContentBrowserButton", "Browse")));
+			FToolMenuSection& Section = ToolbarBuilder->AddSection("Asset");
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FAssetEditorCommonCommands::Get().SaveAsset));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FGlobalEditorCommonCommands::Get().FindInContentBrowser, LOCTEXT("FindInContentBrowserButton", "Browse")));
 		}
 	}
 }
@@ -998,24 +998,24 @@ void FAssetEditorToolkit::GenerateToolbar()
 
 	RegisterMenus();
 
-	const FName ToolBarName = GetEditorMenuToolbarName();
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	UEditorMenu* FoundMenu = EditorMenus->FindMenu(ToolBarName);
+	const FName ToolBarName = GetToolMenuToolbarName();
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* FoundMenu = ToolMenus->FindMenu(ToolBarName);
 	if (!FoundMenu || !FoundMenu->IsRegistered())
 	{
-		FoundMenu = EditorMenus->RegisterMenu(ToolBarName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
+		FoundMenu = ToolMenus->RegisterMenu(ToolBarName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
 	}
 
-	FEditorMenuContext MenuContext(GetToolkitCommands(), Extender);
+	FToolMenuContext MenuContext(GetToolkitCommands(), Extender);
 
 	UAssetEditorToolkitMenuContext* ToolkitMenuContext = NewObject<UAssetEditorToolkitMenuContext>(FoundMenu);
 	ToolkitMenuContext->Toolkit = AsShared();
 	MenuContext.AddObject(ToolkitMenuContext);
 
-	UEditorMenu* GeneratedToolbar = EditorMenus->GenerateMenu(ToolBarName, MenuContext);
+	UToolMenu* GeneratedToolbar = ToolMenus->GenerateMenu(ToolBarName, MenuContext);
 	GeneratedToolbar->bToolBarIsFocusable = bIsToolbarFocusable;
 	GeneratedToolbar->bToolBarForceSmallIcons = bIsToolbarUsingSmallIcons;
-	TSharedRef< class SWidget > ToolBarWidget = EditorMenus->GenerateWidget(GeneratedToolbar);
+	TSharedRef< class SWidget > ToolBarWidget = ToolMenus->GenerateWidget(GeneratedToolbar);
 
 	TSharedRef<SHorizontalBox> MiscWidgets = SNew(SHorizontalBox);
 

@@ -15,7 +15,7 @@
 #include "MRUFavoritesList.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "IDocumentation.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditorMenu"
 
@@ -25,9 +25,9 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 	{
 		static void RegisterFileLoadAndSaveItems()
 		{
-			UEditorMenu* Menu = UEditorMenuSubsystem::Get()->ExtendMenu("LevelEditor.MainMenu.File");
-			FEditorMenuSection& Section = Menu->FindOrAddSection("FileLoadAndSave");
-			FEditorMenuInsert InsertPos(NAME_None, EEditorMenuInsertType::First);
+			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
+			FToolMenuSection& Section = Menu->FindOrAddSection("FileLoadAndSave");
+			FToolMenuInsert InsertPos(NAME_None, EToolMenuInsertType::First);
 
 			// New Level
 			Section.AddMenuEntry( FLevelEditorCommands::Get().NewLevel ).InsertPosition = InsertPos;
@@ -50,12 +50,12 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 		static void FillFileRecentAndFavoriteFileItems()
 		{
-			UEditorMenu* Menu = UEditorMenuSubsystem::Get()->ExtendMenu("LevelEditor.MainMenu.File");
-			FEditorMenuInsert SectionInsertPos("FileRecentFiles", EEditorMenuInsertType::Before);
+			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
+			FToolMenuInsert SectionInsertPos("FileRecentFiles", EToolMenuInsertType::Before);
 
 			// Import/Export
 			{
-				FEditorMenuSection& Section = Menu->AddSection("FileActors", LOCTEXT("ImportExportHeading", "Actors"), SectionInsertPos);
+				FToolMenuSection& Section = Menu->AddSection("FileActors", LOCTEXT("ImportExportHeading", "Actors"), SectionInsertPos);
 				{
 					// Import Into Level
 					Section.AddMenuEntry(FLevelEditorCommands::Get().ImportScene);
@@ -87,12 +87,12 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 						}
 					};
 
-					static void MakeFavoriteLevelMenu(UEditorMenu* InMenu)
+					static void MakeFavoriteLevelMenu(UToolMenu* InMenu)
 					{
 						// Add a button to add/remove the currently loaded map as a favorite
 						if (FLevelEditorActionCallbacks::ToggleFavorite_CanExecute())
 						{
-							FEditorMenuSection& Section = InMenu->AddSection("LevelEditorToggleFavorite");
+							FToolMenuSection& Section = InMenu->AddSection("LevelEditorToggleFavorite");
 							{
 								TAttribute<FText> ToggleFavoriteLabel;
 								ToggleFavoriteLabel.BindStatic(&Local::GetToggleFavoriteLabelText);
@@ -117,20 +117,20 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 					}
 				};
 
-				FEditorMenuSection& Section = Menu->AddSection("FileFavoriteLevels", TAttribute<FText>(), SectionInsertPos);
+				FToolMenuSection& Section = Menu->AddSection("FileFavoriteLevels", TAttribute<FText>(), SectionInsertPos);
 
-				Section.AddDynamicEntry("FileFavoriteLevels", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
+				Section.AddDynamicEntry("FileFavoriteLevels", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 				{
 					IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
 					const FMainMRUFavoritesList& RecentsAndFavorites = *MainFrameModule.GetMRUFavoritesList();
 					if (RecentsAndFavorites.GetNumItems() > 0)
 					{
-						InSection.AddEntry(FEditorMenuEntry::InitSubMenu(
+						InSection.AddEntry(FToolMenuEntry::InitSubMenu(
 							"LevelEditor.MainMenu.File",
 							"FavoriteLevelsSubMenu",
 							LOCTEXT("FavoriteLevelsSubMenu", "Favorite Levels"),
 							LOCTEXT("RecentLevelsSubMenu_ToolTip", "Select a level to load"),
-							FNewEditorMenuDelegate::CreateStatic(&FFavoriteLevelMenu::MakeFavoriteLevelMenu),
+							FNewToolMenuDelegate::CreateStatic(&FFavoriteLevelMenu::MakeFavoriteLevelMenu),
 							false,
 							FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.FavoriteLevels")
 						));
@@ -142,7 +142,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 			{
 				struct FRecentLevelMenu
 				{
-					static void MakeRecentLevelMenu( UEditorMenu* InMenu )
+					static void MakeRecentLevelMenu( UToolMenu* InMenu )
 					{
 						const FMainMRUFavoritesList& MRUFavorites = *FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" ).GetMRUFavoritesList();
 						const int32 NumRecents = MRUFavorites.GetNumItems();
@@ -162,19 +162,19 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 					}
 				};
 
-				FEditorMenuSection& Section = Menu->AddSection("FileRecentLevels", TAttribute<FText>(), SectionInsertPos);
-				Section.AddDynamicEntry("FileRecentLevels", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
+				FToolMenuSection& Section = Menu->AddSection("FileRecentLevels", TAttribute<FText>(), SectionInsertPos);
+				Section.AddDynamicEntry("FileRecentLevels", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 				{
 					IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
 					const FMainMRUFavoritesList& RecentsAndFavorites = *MainFrameModule.GetMRUFavoritesList();
 					if (RecentsAndFavorites.GetNumItems() > 0)
 					{
-						InSection.AddEntry(FEditorMenuEntry::InitSubMenu(
+						InSection.AddEntry(FToolMenuEntry::InitSubMenu(
 							"LevelEditor.MainMenu.File",
 							"RecentLevelsSubMenu",
 							LOCTEXT("RecentLevelsSubMenu", "Recent Levels"),
 							LOCTEXT("RecentLevelsSubMenu_ToolTip", "Select a level to load"),
-							FNewEditorMenuDelegate::CreateStatic(&FRecentLevelMenu::MakeRecentLevelMenu),
+							FNewToolMenuDelegate::CreateStatic(&FRecentLevelMenu::MakeRecentLevelMenu),
 							false,
 							FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentLevels")
 						));
@@ -185,10 +185,10 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 		static void ExtendEditMenu()
 		{
-			UEditorMenu* Menu = UEditorMenuSubsystem::Get()->RegisterMenu("LevelEditor.MainMenu.Edit", "MainFrame.MainMenu.Edit");
+			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Edit", "MainFrame.MainMenu.Edit");
 			// Edit Actor
 			{
-				FEditorMenuSection& Section = Menu->AddSection("EditMain", LOCTEXT("MainHeading", "Edit"), FEditorMenuInsert("EditHistory", EEditorMenuInsertType::After));
+				FToolMenuSection& Section = Menu->AddSection("EditMain", LOCTEXT("MainHeading", "Edit"), FToolMenuInsert("EditHistory", EToolMenuInsertType::After));
 				{		
 					Section.AddMenuEntry( FGenericCommands::Get().Cut );
 					Section.AddMenuEntry( FGenericCommands::Get().Copy );
@@ -202,8 +202,8 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 		static void ExtendHelpMenu()
 		{
-			UEditorMenu* Menu = UEditorMenuSubsystem::Get()->RegisterMenu("LevelEditor.MainMenu.Help", "MainFrame.MainMenu.Help");
-			FEditorMenuSection& Section = Menu->AddSection("HelpBrowse", NSLOCTEXT("MainHelpMenu", "Browse", "Browse"), FEditorMenuInsert("BugReporting", EEditorMenuInsertType::Before));
+			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Help", "MainFrame.MainMenu.Help");
+			FToolMenuSection& Section = Menu->AddSection("HelpBrowse", NSLOCTEXT("MainHelpMenu", "Browse", "Browse"), FToolMenuInsert("BugReporting", EToolMenuInsertType::Before));
 			{
 				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseDocumentation );
 
@@ -218,10 +218,10 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 		}
 	};
 
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	EditorMenus->RegisterMenu("LevelEditor.MainMenu", "MainFrame.MainMenu", EMultiBoxType::MenuBar);
-	EditorMenus->RegisterMenu("LevelEditor.MainMenu.File", "MainFrame.MainTabMenu.File");
-	EditorMenus->RegisterMenu("LevelEditor.MainMenu.Window", "MainFrame.MainMenu.Window");
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	ToolMenus->RegisterMenu("LevelEditor.MainMenu", "MainFrame.MainMenu", EMultiBoxType::MenuBar);
+	ToolMenus->RegisterMenu("LevelEditor.MainMenu.File", "MainFrame.MainTabMenu.File");
+	ToolMenus->RegisterMenu("LevelEditor.MainMenu.Window", "MainFrame.MainMenu.Window");
 
 	// Add level loading and saving menu items
 	Local::RegisterFileLoadAndSaveItems();
@@ -240,10 +240,10 @@ TSharedRef< SWidget > FLevelEditorMenu::MakeLevelEditorMenu( const TSharedPtr<FU
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr<FExtender> Extenders = LevelEditorModule.GetMenuExtensibilityManager()->GetAllExtenders();
-	FEditorMenuContext EditorMenuContext(CommandList, Extenders.ToSharedRef());
+	FToolMenuContext ToolMenuContext(CommandList, Extenders.ToSharedRef());
 
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
-	TSharedRef< SWidget > MenuBarWidget = MainFrameModule.MakeMainTabMenu( LevelEditor->GetTabManager(), "LevelEditor.MainMenu", EditorMenuContext );
+	TSharedRef< SWidget > MenuBarWidget = MainFrameModule.MakeMainTabMenu( LevelEditor->GetTabManager(), "LevelEditor.MainMenu", ToolMenuContext );
 
 	return MenuBarWidget;
 }

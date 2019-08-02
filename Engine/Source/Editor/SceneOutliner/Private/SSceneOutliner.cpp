@@ -12,7 +12,7 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "EditorStyleSet.h"
@@ -1716,7 +1716,7 @@ namespace SceneOutliner
 		ContextObject->NumSelectedItems = OutlinerTreeView->GetNumItemsSelected();
 		ContextObject->NumSelectedFolders = ItemSelection.Folders.Num();
 		ContextObject->NumWorldsSelected = ItemSelection.Worlds.Num();
-		FEditorMenuContext Context(ContextObject);
+		FToolMenuContext Context(ContextObject);
 
 		// Allow other systems to override menu name and provide additional context
 		static const FName DefaultContextMenuName("SceneOutliner.DefaultContextMenu");
@@ -1724,14 +1724,14 @@ namespace SceneOutliner
 		SharedData->ModifyContextMenu.ExecuteIfBound(MenuName, Context);
 
 		// Build up the menu for a selection
-		UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-		UEditorMenu* Menu = EditorMenus->GenerateMenu(MenuName, Context);
+		UToolMenus* ToolMenus = UToolMenus::Get();
+		UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
 
-		for (const FEditorMenuSection& Section : Menu->Sections)
+		for (const FToolMenuSection& Section : Menu->Sections)
 		{
 			if (Section.Blocks.Num() > 0)
 			{
-				return EditorMenus->GenerateWidget(Menu);
+				return ToolMenus->GenerateWidget(Menu);
 			}
 		}
 
@@ -1743,13 +1743,13 @@ namespace SceneOutliner
 		static const FName DefaultContextBaseMenuName("SceneOutliner.DefaultContextMenuBase");
 		static const FName DefaultContextMenuName("SceneOutliner.DefaultContextMenu");
 
-		UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+		UToolMenus* ToolMenus = UToolMenus::Get();
 
-		if (!EditorMenus->IsMenuRegistered(DefaultContextBaseMenuName))
+		if (!ToolMenus->IsMenuRegistered(DefaultContextBaseMenuName))
 		{
-			UEditorMenu* Menu = EditorMenus->RegisterMenu(DefaultContextBaseMenuName);
+			UToolMenu* Menu = ToolMenus->RegisterMenu(DefaultContextBaseMenuName);
 
-			Menu->AddDynamicSection("DynamicSection1", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+			Menu->AddDynamicSection("DynamicSection1", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
 				USceneOutlinerMenuContext* Context = InMenu->FindContext<USceneOutlinerMenuContext>();
 				if (!Context || !Context->SceneOutliner.IsValid())
@@ -1779,21 +1779,21 @@ namespace SceneOutliner
 						// If we've only got folders selected, show the selection and edit sub menus
 						if (Context->NumSelectedItems > 0 && Context->NumSelectedFolders == Context->NumSelectedItems)
 						{
-							InMenu->FindOrAddSection("Section").AddEntry(FEditorMenuEntry::InitSubMenu(
+							InMenu->FindOrAddSection("Section").AddEntry(FToolMenuEntry::InitSubMenu(
 								InMenu->MenuName,
 								"SelectSubMenu",
 								LOCTEXT("SelectSubmenu", "Select"),
 								LOCTEXT("SelectSubmenu_Tooltip", "Select the contents of the current selection"),
-								FNewEditorMenuDelegate::CreateSP(SceneOutliner, &SSceneOutliner::FillSelectionSubMenu)));
+								FNewToolMenuDelegate::CreateSP(SceneOutliner, &SSceneOutliner::FillSelectionSubMenu)));
 						}
 					}
 				}
 			}));
 
-			Menu->AddDynamicSection("DynamicMainSection", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+			Menu->AddDynamicSection("DynamicMainSection", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
 				// We always create a section here, even if there is no parent so that clients can still extend the menu
-				FEditorMenuSection& Section = InMenu->AddSection("MainSection");
+				FToolMenuSection& Section = InMenu->AddSection("MainSection");
 
 				if (USceneOutlinerMenuContext* Context = InMenu->FindContext<USceneOutlinerMenuContext>())
 				{
@@ -1801,26 +1801,26 @@ namespace SceneOutliner
 					// Can't move worlds or level blueprints
 					if (Context->bShowParentTree && Context->NumSelectedItems > 0 && Context->NumWorldsSelected == 0 && Context->SceneOutliner.IsValid())
 					{
-						Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+						Section.AddEntry(FToolMenuEntry::InitSubMenu(
 							InMenu->MenuName,
 							"MoveActorsTo",
 							LOCTEXT("MoveActorsTo", "Move To"),
 							LOCTEXT("MoveActorsTo_Tooltip", "Move selection to another folder"),
-							FNewEditorMenuDelegate::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::FillFoldersSubMenu)));
+							FNewToolMenuDelegate::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::FillFoldersSubMenu)));
 					}
 				}
 			}));
 		}
 
-		if (!EditorMenus->IsMenuRegistered(DefaultContextMenuName))
+		if (!ToolMenus->IsMenuRegistered(DefaultContextMenuName))
 		{
-			EditorMenus->RegisterMenu(DefaultContextMenuName, DefaultContextBaseMenuName);
+			ToolMenus->RegisterMenu(DefaultContextMenuName, DefaultContextBaseMenuName);
 		}
 	}
 
-	void SSceneOutliner::FillFoldersSubMenu(UEditorMenu* Menu) const
+	void SSceneOutliner::FillFoldersSubMenu(UToolMenu* Menu) const
 	{
-		FEditorMenuSection& Section = Menu->AddSection("Section");
+		FToolMenuSection& Section = Menu->AddSection("Section");
 		Section.AddMenuEntry("CreateNew", LOCTEXT( "CreateNew", "Create New Folder" ), LOCTEXT( "CreateNew_ToolTip", "Move to a new folder" ),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon"), FExecuteAction::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::CreateFolder));
 
@@ -1891,7 +1891,7 @@ namespace SceneOutliner
 		return ExcludedParents;
 	}
 
-	void SSceneOutliner::AddMoveToFolderOutliner(UEditorMenu* Menu) const
+	void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 	{
 		// We don't show this if there aren't any folders in the world
 		if (!FActorFolders::Get().GetFolderPropertiesForWorld(*SharedData->RepresentingWorld).Num())
@@ -1951,17 +1951,17 @@ namespace SceneOutliner
 				.OnItemPickedDelegate(FOnSceneOutlinerItemPicked::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::MoveSelectionTo))
 			];
 
-		FEditorMenuSection& Section = Menu->AddSection(FName(), LOCTEXT("ExistingFolders", "Existing:"));
-		Section.AddEntry(FEditorMenuEntry::InitWidget(
+		FToolMenuSection& Section = Menu->AddSection(FName(), LOCTEXT("ExistingFolders", "Existing:"));
+		Section.AddEntry(FToolMenuEntry::InitWidget(
 			"MiniSceneOutliner",
 			MiniSceneOutliner,
 			FText::GetEmpty(),
 			false));
 	}
 
-	void SSceneOutliner::FillSelectionSubMenu(UEditorMenu* Menu) const
+	void SSceneOutliner::FillSelectionSubMenu(UToolMenu* Menu) const
 	{
-		FEditorMenuSection& Section = Menu->AddSection("Section");
+		FToolMenuSection& Section = Menu->AddSection("Section");
 		Section.AddMenuEntry(
 			"AddChildrenToSelection",
 			LOCTEXT( "AddChildrenToSelection", "Immediate Children" ),

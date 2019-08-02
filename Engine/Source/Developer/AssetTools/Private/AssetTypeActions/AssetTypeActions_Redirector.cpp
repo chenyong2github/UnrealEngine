@@ -1,12 +1,12 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Redirector.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "AssetTools.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_Redirector::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_Redirector::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Redirectors = GetTypedWeakObjectPtrs<UObjectRedirector>(InObjects);
 

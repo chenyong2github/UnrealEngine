@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Class.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "AssetData.h"
 #include "HAL/FileManager.h"
 #include "EditorStyleSet.h"
@@ -17,7 +17,7 @@ bool FAssetTypeActions_Class::HasActions(const TArray<UObject*>& InObjects) cons
 	return true;
 }
 
-void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_Class::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	UClass *const BaseClass = (InObjects.Num() == 1) ? Cast<UClass>(InObjects[0]) : nullptr;
 

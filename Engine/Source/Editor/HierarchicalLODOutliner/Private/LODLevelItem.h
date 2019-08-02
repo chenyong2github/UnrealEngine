@@ -6,7 +6,7 @@
 #include "TreeItemID.h"
 #include "ITreeItem.h"
 
-class UEditorMenu;
+class UToolMenu;
 
 namespace HLODOutliner
 {
@@ -37,7 +37,7 @@ namespace HLODOutliner
 
 		//~ Begin ITreeItem Interface.
 		virtual bool CanInteract() const override;
-		virtual void GenerateContextMenu(UEditorMenu* Menu, SHLODOutliner& Outliner) override;
+		virtual void GenerateContextMenu(UToolMenu* Menu, SHLODOutliner& Outliner) override;
 		virtual FString GetDisplayString() const override;
 		virtual FTreeItemID GetID() override;
 		//~ Begin ITreeItem Interface.

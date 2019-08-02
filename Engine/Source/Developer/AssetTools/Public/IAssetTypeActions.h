@@ -58,7 +58,7 @@ public:
 	virtual void GetActions( const TArray<UObject*>& InObjects, class FMenuBuilder& MenuBuilder ) = 0;
 
 	/** Generates a menu section for the specified objects. */
-	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) = 0;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) = 0;
 
 	/** Opens the asset editor for the specified objects. If EditWithinLevelEditor is valid, the world-centric editor will be used. */
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) = 0;

@@ -172,7 +172,7 @@ public class UnrealEd : ModuleRules
 				"TimeManagement",
                 "LandscapeEditorUtilities",
                 "DerivedDataCache",
-				"EditorMenus",
+				"ToolMenus",
             }
 		);
 

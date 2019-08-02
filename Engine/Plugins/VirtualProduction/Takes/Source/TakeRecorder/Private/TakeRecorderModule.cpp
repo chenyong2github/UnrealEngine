@@ -16,7 +16,7 @@
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"
 #include "Features/IModularFeatures.h"
 #include "ITakeRecorderDropHandler.h"
@@ -168,21 +168,21 @@ namespace
 void FTakeRecorderModule::RegisterMenus()
 {
 #if WITH_EDITOR
-	if (!UEditorMenuSubsystem::IsRunningEditorUI())
+	if (!UToolMenus::IsToolMenuUIEnabled())
 	{
 		return;
 	}
 
-	FEditorMenuOwnerScoped MenuOwner("TakeRecorder");
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	UEditorMenu* Menu = EditorMenus->ExtendMenu("ContentBrowser.AssetContextMenu.LevelSequence");
+	FToolMenuOwnerScoped MenuOwner("TakeRecorder");
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* Menu = ToolMenus->ExtendMenu("ContentBrowser.AssetContextMenu.LevelSequence");
 	if (!Menu)
 	{
 		return;
 	}
 
-	FEditorMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-	Section.AddDynamicEntry("TakeRecorderActions", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
+	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+	Section.AddDynamicEntry("TakeRecorderActions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
 		if (!Context)
@@ -289,7 +289,7 @@ void FTakeRecorderModule::StartupModule()
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		if (UEditorMenuSubsystem::TryGet())
+		if (UToolMenus::TryGet())
 		{
 			RegisterMenus();
 		}

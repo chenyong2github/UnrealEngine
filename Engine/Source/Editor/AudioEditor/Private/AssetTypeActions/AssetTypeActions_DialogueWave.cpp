@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_DialogueWave.h"
 #include "Misc/PackageName.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
 #include "Factories/SoundCueFactoryNew.h"
@@ -12,7 +12,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto DialogueWaves = GetTypedWeakObjectPtrs<UDialogueWave>(InObjects);
 

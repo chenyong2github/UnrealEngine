@@ -11,7 +11,7 @@
 #include "TimeSynthClip.h"
 #include "TimeSynthSoundWaveAssetActionExtender.h"
 #include "TimeSynthVolumeGroup.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "AudioEditorModule.h"
 
 
@@ -23,13 +23,13 @@ void FTimeSynthEditorModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TimeSynthClip));
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TimeSynthVolumeGroup));
 
-	UEditorMenuSubsystem::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FTimeSynthEditorModule::RegisterMenus));
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FTimeSynthEditorModule::RegisterMenus));
 }
 
 void FTimeSynthEditorModule::ShutdownModule()
 {
-	UEditorMenuSubsystem::UnRegisterStartupCallback(this);
-	UEditorMenuSubsystem::UnregisterOwner("TimeSynth");
+	UToolMenus::UnRegisterStartupCallback(this);
+	UToolMenus::UnregisterOwner("TimeSynth");
 }
 
 void FTimeSynthEditorModule::RegisterMenus()

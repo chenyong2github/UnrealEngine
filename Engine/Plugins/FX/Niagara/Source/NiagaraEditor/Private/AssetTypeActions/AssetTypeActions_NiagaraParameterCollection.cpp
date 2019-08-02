@@ -9,7 +9,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_NiagaraParameterCollection"
@@ -34,7 +34,7 @@ void FAssetTypeActions_NiagaraParameterCollection::OpenAssetEditor(const TArray<
 	}
 }
 
-void FAssetTypeActions_NiagaraParameterCollection::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_NiagaraParameterCollection::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Collections = GetTypedWeakObjectPtrs<UNiagaraParameterCollection>(InObjects);
 

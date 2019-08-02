@@ -13,7 +13,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "Kismet2/ComponentEditorUtils.h"
@@ -63,14 +63,14 @@ public:
 	 *
 	 * @param MenuBuilder	The menu to add items to
 	 */
-	static void FillSelectActorMenu(UEditorMenu* Menu);
+	static void FillSelectActorMenu(UToolMenu* Menu);
 
 	/**
 	 * Fills in menu options for the actor visibility menu
 	 *
 	 * @param MenuBuilder	The menu to add items to
 	 */
-	static void FillActorVisibilityMenu(UEditorMenu* Menu);
+	static void FillActorVisibilityMenu(UToolMenu* Menu);
 
 	/**
 	 * Fills in menu options for the actor level menu
@@ -79,42 +79,42 @@ public:
 	 * @param bAllInCurrentLevel	true if all selected actors are in the current level
 	 * @param MenuBuilder			The menu to add items to
 	 */
-	static void FillActorLevelMenu(UEditorMenu* Menu);
+	static void FillActorLevelMenu(UToolMenu* Menu);
 
 	/**
 	 * Fills in menu options for the transform menu
 	 *
 	 * @param MenuBuilder	The menu to add items to
 	 */
-	static void FillTransformMenu(UEditorMenu* Menu);
+	static void FillTransformMenu(UToolMenu* Menu);
 
 	/**
 	 * Fills in menu options for the Fill Actor menu
 	 *
 	 * @param MenuBuilder	The menu to add items to
 	 */
-	static void FillActorMenu(UEditorMenu* Menu);
+	static void FillActorMenu(UToolMenu* Menu);
 
 	/**
 	 * Fills in menu options for the snap menu
 	 *
 	 * @param MenuBuilder	The menu to add items to
 	 */
-	static void FillSnapAlignMenu(UEditorMenu* Menu);
+	static void FillSnapAlignMenu(UToolMenu* Menu);
 
 	/**
 	 * Fills in menu options for the pivot menu
 	 *
 	 * @param MenuBuilder	The menu to add items to
 	 */
-	static void FillPivotMenu(UEditorMenu* Menu);
+	static void FillPivotMenu(UToolMenu* Menu);
 	
 	/**
 	 * Fills in menu options for the group menu
 	 *
 	 * @param MenuBuilder	The menu to add items to
 	 */
-	static void FillGroupMenu( UEditorMenu* Menu );
+	static void FillGroupMenu( UToolMenu* Menu );
 
 	/**
 	 * Fills in menu options for the edit menu
@@ -122,7 +122,7 @@ public:
 	 * @param MenuBuilder	The menu to add items to
 	 * @param ContextType	The context for this editor menu
 	 */
-	static void FillEditMenu(UEditorMenu* Menu);
+	static void FillEditMenu(UToolMenu* Menu);
 
 private:
 	/**
@@ -130,7 +130,7 @@ private:
 	 *
 	 * @param MenuBuilder	The menu to add items to
 	 */
-	static void FillMatineeSelectActorMenu(UEditorMenu* Menu);
+	static void FillMatineeSelectActorMenu(UToolMenu* Menu);
 };
 
 FSelectedActorInfo FLevelEditorContextMenuImpl::SelectionInfo;
@@ -142,19 +142,19 @@ struct FLevelScriptEventMenuHelper
 	*
 	* @param MenuBuilder	The menu to add items to
 	*/
-	static void FillLevelBlueprintEventsMenu(UEditorMenu* Menu, const TArray<AActor*>& SelectedActors);
+	static void FillLevelBlueprintEventsMenu(UToolMenu* Menu, const TArray<AActor*>& SelectedActors);
 };
 
 void FLevelEditorContextMenu::RegisterComponentContextMenu()
 {
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	if (EditorMenus->IsMenuRegistered("LevelEditor.ComponentContextMenu"))
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (ToolMenus->IsMenuRegistered("LevelEditor.ComponentContextMenu"))
 	{
 		return;
 	}
 
-	UEditorMenu* Menu = EditorMenus->RegisterMenu("LevelEditor.ComponentContextMenu");
-	Menu->AddDynamicSection("ComponentControlDynamic", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+	UToolMenu* Menu = ToolMenus->RegisterMenu("LevelEditor.ComponentContextMenu");
+	Menu->AddDynamicSection("ComponentControlDynamic", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 	{
 		ULevelEditorContextMenuContext* LevelEditorContext = InMenu->FindContext<ULevelEditorContextMenuContext>();
 		if (!LevelEditorContext)
@@ -169,7 +169,7 @@ void FLevelEditorContextMenu::RegisterComponentContextMenu()
 		}
 
 		{
-			FEditorMenuSection& Section = InMenu->AddSection("ComponentControl", LOCTEXT("ComponentControlHeading", "Component"));
+			FToolMenuSection& Section = InMenu->AddSection("ComponentControl", LOCTEXT("ComponentControlHeading", "Component"));
 
 			AActor* OwnerActor = GEditor->GetSelectedActors()->GetTop<AActor>();
 			if(OwnerActor)
@@ -199,14 +199,14 @@ void FLevelEditorContextMenu::RegisterComponentContextMenu()
 
 void FLevelEditorContextMenu::RegisterActorContextMenu()
 {
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	if (EditorMenus->IsMenuRegistered("LevelEditor.ActorContextMenu"))
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (ToolMenus->IsMenuRegistered("LevelEditor.ActorContextMenu"))
 	{
 		return;
 	}
 
-	UEditorMenu* Menu = EditorMenus->RegisterMenu("LevelEditor.ActorContextMenu");
-	Menu->AddDynamicSection("ActorContextMenuDynamic", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+	UToolMenu* Menu = ToolMenus->RegisterMenu("LevelEditor.ActorContextMenu");
+	Menu->AddDynamicSection("ActorContextMenuDynamic", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 	{
 		ULevelEditorContextMenuContext* LevelEditorContext = InMenu->FindContext<ULevelEditorContextMenuContext>();
 		if (!LevelEditorContext || !LevelEditorContext->LevelEditor.IsValid())
@@ -232,7 +232,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 		if (bCanSyncToContentBrowser || ReferencedAssets.Num() > 0)
 		{
 			{
-				FEditorMenuSection& Section = InMenu->AddSection("ActorAsset", LOCTEXT("AssetHeading", "Asset"));
+				FToolMenuSection& Section = InMenu->AddSection("ActorAsset", LOCTEXT("AssetHeading", "Asset"));
 				if (bCanSyncToContentBrowser)
 				{
 					Section.AddMenuEntry(FGlobalEditorCommonCommands::Get().FindInContentBrowser);
@@ -264,7 +264,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 
 
 		{
-			FEditorMenuSection& Section = InMenu->AddSection("ActorControl", LOCTEXT("ActorHeading", "Actor"));
+			FToolMenuSection& Section = InMenu->AddSection("ActorControl", LOCTEXT("ActorHeading", "Actor"));
 			Section.AddMenuEntry(FEditorViewportCommands::Get().FocusViewportToSelection);
 
 
@@ -317,7 +317,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 				{
 					const FString CodeFileName = FPaths::GetCleanFilename(*ClassHeaderPath);
 
-					FEditorMenuSection& Section = InMenu->AddSection("ActorCode", LOCTEXT("ActorCodeHeading", "C++"));
+					FToolMenuSection& Section = InMenu->AddSection("ActorCode", LOCTEXT("ActorCodeHeading", "C++"));
 					{
 						Section.AddMenuEntry(FLevelEditorCommands::Get().GoToCodeForActor,
 							FText::Format(LOCTEXT("GoToCodeForActor", "Open {0}"), FText::FromString(CodeFileName)),
@@ -329,7 +329,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			const FString DocumentationLink = FEditorClassUtils::GetDocumentationLink(SelectionInfo.SelectionClass);
 			if (!DocumentationLink.IsEmpty())
 			{
-				FEditorMenuSection& Section = InMenu->AddSection("ActorDocumentation", LOCTEXT("ActorDocsHeading", "Documentation"));
+				FToolMenuSection& Section = InMenu->AddSection("ActorDocumentation", LOCTEXT("ActorDocsHeading", "Documentation"));
 				{
 					Section.AddMenuEntry(FLevelEditorCommands::Get().GoToDocsForActor,
 						LOCTEXT("GoToDocsForActor", "View Documentation"),
@@ -340,46 +340,46 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 		}
 
 		{
-			FEditorMenuSection& Section = InMenu->AddSection("ActorSelectVisibilityLevels");
+			FToolMenuSection& Section = InMenu->AddSection("ActorSelectVisibilityLevels");
 
 			// Add a sub-menu for "Select"
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				InMenu->MenuName,
 				"SelectSubMenu",
 				LOCTEXT("SelectSubMenu", "Select"),
 				LOCTEXT("SelectSubMenu_ToolTip", "Opens the actor selection menu"),
-				FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSelectActorMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSelectActorMenu)));
 
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				InMenu->MenuName,
 				"EditSubMenu",
 				LOCTEXT("EditSubMenu", "Edit"),
 				FText::GetEmpty(),
-				FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu)));
 
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				InMenu->MenuName,
 				"VisibilitySubMenu",
 				LOCTEXT("VisibilitySubMenu", "Visibility"),
 				LOCTEXT("VisibilitySubMenu_ToolTip", "Selected actor visibility options"),
-				FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorVisibilityMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorVisibilityMenu)));
 
 			// Build the menu for grouping actors
 			BuildGroupMenu(InMenu, SelectionInfo);
 
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				InMenu->MenuName,
 				"LevelSubMenu",
 				LOCTEXT("LevelSubMenu", "Level"),
 				LOCTEXT("LevelSubMenu_ToolTip", "Options for interacting with this actor's level"),
-				FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorLevelMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorLevelMenu)));
 		}
 
 		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport)
 		{
 			LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(InMenu);
 
-			FEditorMenuSection& Section = InMenu->AddSection("OpenMergeActor");
+			FToolMenuSection& Section = InMenu->AddSection("OpenMergeActor");
 			Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMergeActor,
 					LOCTEXT("OpenMergeActor", "Merge Actors"),
 					LOCTEXT("OpenMergeActor_ToolTip", "Click to open the Merge Actor panel"));
@@ -389,7 +389,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 		{
 			if (SelectionInfo.NumSelected > 0)
 			{
-				FEditorMenuSection& Section = InMenu->AddSection("Simulation", NSLOCTEXT("LevelViewportContextMenu", "SimulationHeading", "Simulation"));
+				FToolMenuSection& Section = InMenu->AddSection("Simulation", NSLOCTEXT("LevelViewportContextMenu", "SimulationHeading", "Simulation"));
 				{
 					Section.AddMenuEntry(FLevelEditorCommands::Get().KeepSimulationChanges);
 				}
@@ -397,7 +397,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 		}
 
 		{
-			FEditorMenuSection& Section = InMenu->AddSection("LevelViewportAttach");
+			FToolMenuSection& Section = InMenu->AddSection("LevelViewportAttach");
 
 			// Only display the attach menu if we have actors selected
 			if (GEditor->GetSelectedActorCount())
@@ -407,33 +407,33 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 					Section.AddMenuEntry(FLevelEditorCommands::Get().DetachFromParent);
 				}
 
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					InMenu->GetMenuName(),
 					"ActorAttachToSubMenu",
 					LOCTEXT("ActorAttachToSubMenu", "Attach To"),
 					LOCTEXT("ActorAttachToSubMenu_ToolTip", "Attach Actor as child"),
-					FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorMenu)));
+					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorMenu)));
 			}
 
 			// Add a heading for "Movement" if an actor is selected
 			if (GEditor->GetSelectedActorIterator())
 			{
 				// Add a sub-menu for "Transform"
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					InMenu->GetMenuName(),
 					"TransformSubMenu",
 					LOCTEXT("TransformSubMenu", "Transform"),
 					LOCTEXT("TransformSubMenu_ToolTip", "Actor transform utils"),
-					FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillTransformMenu)));
+					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillTransformMenu)));
 			}
 
 			// Add a sub-menu for "Pivot"
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				InMenu->MenuName,
 				"PivotSubMenu",
 				LOCTEXT("PivotSubMenu", "Pivot"),
 				LOCTEXT("PivotSubMenu_ToolTip", "Actor pivoting utils"),
-				FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillPivotMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillPivotMenu)));
 		}
 
 		FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(InMenu, SelectedActors);
@@ -442,27 +442,27 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 
 void FLevelEditorContextMenu::RegisterSceneOutlinerContextMenu()
 {
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	if (EditorMenus->IsMenuRegistered("LevelEditor.SceneOutlinerContextMenu"))
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (ToolMenus->IsMenuRegistered("LevelEditor.SceneOutlinerContextMenu"))
 	{
 		return;
 	}
 
-	UEditorMenu* Menu = EditorMenus->RegisterMenu("LevelEditor.SceneOutlinerContextMenu");
-	Menu->AddDynamicSection("SelectVisibilityLevels", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+	UToolMenu* Menu = ToolMenus->RegisterMenu("LevelEditor.SceneOutlinerContextMenu");
+	Menu->AddDynamicSection("SelectVisibilityLevels", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 	{
 		if (ULevelEditorContextMenuContext* LevelEditorContext = InMenu->FindContext<ULevelEditorContextMenuContext>())
 		{
 			TWeakPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditorContext->LevelEditor.Pin()->GetSceneOutliner();
 			if (SceneOutlinerPtr.IsValid())
 			{
-				FEditorMenuSection& Section = InMenu->AddSection("SelectVisibilityLevels");
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				FToolMenuSection& Section = InMenu->AddSection("SelectVisibilityLevels");
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					InMenu->MenuName,
 					"EditSubMenu",
 					LOCTEXT("EditSubMenu", "Edit"),
 					FText::GetEmpty(),
-					FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu)
+					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu)
 				));
 			}
 		}
@@ -487,7 +487,7 @@ FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext Contex
 	return NAME_None;
 }
 
-FName FLevelEditorContextMenu::InitMenuContext(FEditorMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType)
+FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType)
 {
 	RegisterComponentContextMenu();
 	RegisterActorContextMenu();
@@ -531,24 +531,24 @@ FName FLevelEditorContextMenu::InitMenuContext(FEditorMenuContext& Context, TWea
 	return GetContextMenuName(ContextType);
 }
 
-UEditorMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender)
+UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender)
 {
-	FEditorMenuContext Context;
+	FToolMenuContext Context;
 	if (Extender.IsValid())
 	{
 		Context.AddExtender(Extender);
 	}
 
 	FName ContextMenuName = InitMenuContext(Context, LevelEditor, ContextType);
-	return UEditorMenuSubsystem::Get()->GenerateMenu(ContextMenuName, Context);
+	return UToolMenus::Get()->GenerateMenu(ContextMenuName, Context);
 }
 
 // NOTE: We intentionally receive a WEAK pointer here because we want to be callable by a delegate whose
 //       payload contains a weak reference to a level editor instance
 TSharedPtr< SWidget > FLevelEditorContextMenu::BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender)
 {
-	UEditorMenu* Menu = GenerateMenu(LevelEditor, ContextType, Extender);
-	return UEditorMenuSubsystem::Get()->GenerateWidget(Menu);
+	UToolMenu* Menu = GenerateMenu(LevelEditor, ContextType, Extender);
+	return UToolMenus::Get()->GenerateWidget(Menu);
 }
 
 namespace EViewOptionType
@@ -703,11 +703,11 @@ FSlateColor InvertOnHover( const TWeakPtr< SWidget > WidgetPtr )
 	return FSlateColor::UseForeground();
 }
 
-void FLevelEditorContextMenu::BuildGroupMenu(UEditorMenu* Menu, const FSelectedActorInfo& SelectedActorInfo)
+void FLevelEditorContextMenu::BuildGroupMenu(UToolMenu* Menu, const FSelectedActorInfo& SelectedActorInfo)
 {
 	if( UActorGroupingUtils::IsGroupingActive() )
 	{
-		FEditorMenuSection& Section = Menu->AddSection("GroupMenu");
+		FToolMenuSection& Section = Menu->AddSection("GroupMenu");
 
 		// Whether or not we added a grouping sub-menu
 		bool bNeedGroupSubMenu = SelectedActorInfo.bHaveSelectedLockedGroup || SelectedActorInfo.bHaveSelectedUnlockedGroup;
@@ -729,23 +729,23 @@ void FLevelEditorContextMenu::BuildGroupMenu(UEditorMenu* Menu, const FSelectedA
 		
 		if( bNeedGroupSubMenu )
 		{
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				Menu->GetMenuName(),
 				"GroupMenu",
 				LOCTEXT("GroupMenu", "Groups"),
 				LOCTEXT("GroupMenu_ToolTip", "Opens the actor grouping menu"),
-				FNewEditorMenuDelegate::CreateStatic( &FLevelEditorContextMenuImpl::FillGroupMenu)));
+				FNewToolMenuDelegate::CreateStatic( &FLevelEditorContextMenuImpl::FillGroupMenu)));
 		}
 	}
 }
 
-void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
+void FLevelEditorContextMenuImpl::FillSelectActorMenu(UToolMenu* Menu)
 {
 	FText SelectAllActorStr = FText::Format( LOCTEXT("SelectActorsOfSameClass", "Select All {0}(s)"), FText::FromString( SelectionInfo.SelectionStr ) );
 	int32 NumSelectedSurfaces = AssetSelectionUtils::GetNumSelectedSurfaces( SelectionInfo.SharedWorld );
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("SelectActorGeneral", LOCTEXT("SelectAnyHeading", "General"));
+		FToolMenuSection& Section = Menu->AddSection("SelectActorGeneral", LOCTEXT("SelectAnyHeading", "General"));
 		Section.AddMenuEntry( FGenericCommands::Get().SelectAll, TAttribute<FText>(), LOCTEXT("SelectAll_ToolTip", "Selects all actors") );
 		Section.AddMenuEntry( FLevelEditorCommands::Get().SelectNone );
 		Section.AddMenuEntry( FLevelEditorCommands::Get().InvertSelection );
@@ -754,19 +754,19 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 	if( !SelectionInfo.bHaveBrush && SelectionInfo.bAllSelectedActorsOfSameType && SelectionInfo.SelectionStr.Len() != 0 )
 	{
 		// These menu options appear if only if all the actors are the same type and we aren't selecting brush
-		FEditorMenuSection& Section = Menu->AddSection("SelectAllActorsOfSameClass");
+		FToolMenuSection& Section = Menu->AddSection("SelectAllActorsOfSameClass");
 		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllActorsOfSameClass, SelectAllActorStr);
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("SelectActorHierarchy", LOCTEXT("SelectHierarchyHeading", "Hierarchy"));
+		FToolMenuSection& Section = Menu->AddSection("SelectActorHierarchy", LOCTEXT("SelectHierarchyHeading", "Hierarchy"));
 		Section.AddMenuEntry( FLevelEditorCommands::Get().SelectImmediateChildren );
 		Section.AddMenuEntry( FLevelEditorCommands::Get().SelectAllDescendants );
 	}
 
 	// Add brush commands when we have a brush or any surfaces selected
 	{
-		FEditorMenuSection& Section = Menu->AddSection("SelectBSP", LOCTEXT("SelectBSPHeading", "BSP"));
+		FToolMenuSection& Section = Menu->AddSection("SelectBSP", LOCTEXT("SelectBSPHeading", "BSP"));
 		if( SelectionInfo.bHaveBrush || NumSelectedSurfaces > 0 )
 		{
 			if( SelectionInfo.bAllSelectedAreBrushes )
@@ -784,7 +784,7 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 	{
 		// If any actors are selected add lights selection options
 		{
-			FEditorMenuSection& Section = Menu->AddSection("SelectLights", LOCTEXT("SelectLightHeading", "Lights"));
+			FToolMenuSection& Section = Menu->AddSection("SelectLights", LOCTEXT("SelectLightHeading", "Lights"));
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SelectRelevantLights);
 
 			if ( SelectionInfo.bHaveLight )
@@ -798,7 +798,7 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 		{
 			// if any static meshes are selected allow selecting actors using the same mesh
 			{
-				FEditorMenuSection& Section = Menu->AddSection("SelectMeshes", LOCTEXT("SelectStaticMeshHeading", "Static Meshes"));
+				FToolMenuSection& Section = Menu->AddSection("SelectMeshes", LOCTEXT("SelectStaticMeshHeading", "Static Meshes"));
 				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectStaticMeshesOfSameClass, LOCTEXT("SelectStaticMeshesOfSameClass_Menu", "Select Matching (Selected Classes)"));
 				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectStaticMeshesAllClasses, LOCTEXT("SelectStaticMeshesAllClasses_Menu", "Select Matching (All Classes)"));
 			}
@@ -806,7 +806,7 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 			if (SelectionInfo.NumSelected == 1)
 			{
 				{
-					FEditorMenuSection& Section = Menu->AddSection("SelectHLODCluster", LOCTEXT("SelectHLODClusterHeading", "Hierachical LODs"));
+					FToolMenuSection& Section = Menu->AddSection("SelectHLODCluster", LOCTEXT("SelectHLODClusterHeading", "Hierachical LODs"));
 					Section.AddMenuEntry(FLevelEditorCommands::Get().SelectOwningHierarchicalLODCluster, LOCTEXT("SelectOwningHierarchicalLODCluster_Menu", "Select Owning HierarchicalLODCluster"));
 				}
 			}			
@@ -816,7 +816,7 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 		{
 			// if any skeletal meshes are selected allow selecting actors using the same mesh
 			{
-				FEditorMenuSection& Section = Menu->AddSection("SelectSkeletalMeshes", LOCTEXT("SelectSkeletalMeshHeading", "Skeletal Meshes"));
+				FToolMenuSection& Section = Menu->AddSection("SelectSkeletalMeshes", LOCTEXT("SelectSkeletalMeshHeading", "Skeletal Meshes"));
 				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectSkeletalMeshesOfSameClass);
 				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectSkeletalMeshesAllClasses);
 			}
@@ -825,7 +825,7 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 		if( SelectionInfo.bHaveEmitter )
 		{
 			{
-				FEditorMenuSection& Section = Menu->AddSection("SelectEmitters", LOCTEXT("SelectEmitterHeading", "Emitters"));
+				FToolMenuSection& Section = Menu->AddSection("SelectEmitters", LOCTEXT("SelectEmitterHeading", "Emitters"));
 				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectMatchingEmitter);
 			}
 		}
@@ -833,7 +833,7 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 
 	if( SelectionInfo.bHaveBrush || SelectionInfo.NumSelected > 0 )
 	{
-		FEditorMenuSection& Section = Menu->AddSection("SelectMaterial", LOCTEXT("SelectMaterialHeading", "Materials"));
+		FToolMenuSection& Section = Menu->AddSection("SelectMaterial", LOCTEXT("SelectMaterialHeading", "Materials"));
 		{
 			Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllWithSameMaterial);
 		}
@@ -842,7 +842,7 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 	// Add geometry collection commands
 	if (FModuleManager::Get().IsModuleLoaded("GeometryCollectionEditor"))
 	{
-		FEditorMenuSection& Section = Menu->AddSection("SelectBones", LOCTEXT("GeometryCollectionHeading", "Geometry Collection"));
+		FToolMenuSection& Section = Menu->AddSection("SelectBones", LOCTEXT("GeometryCollectionHeading", "Geometry Collection"));
 		{
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GeometryCollectionSelectAllGeometry);
 			Section.AddMenuEntry(FLevelEditorCommands::Get().GeometryCollectionSelectNone);
@@ -854,10 +854,10 @@ void FLevelEditorContextMenuImpl::FillSelectActorMenu(UEditorMenu* Menu)
 	FillMatineeSelectActorMenu( Menu );
 }
 
-void FLevelEditorContextMenuImpl::FillMatineeSelectActorMenu(UEditorMenu* Menu)
+void FLevelEditorContextMenuImpl::FillMatineeSelectActorMenu(UToolMenu* Menu)
 {
 	{
-		FEditorMenuSection& Section = Menu->AddSection("SelectMatinee", LOCTEXT("SelectMatineeHeading", "Matinee"));
+		FToolMenuSection& Section = Menu->AddSection("SelectMatinee", LOCTEXT("SelectMatineeHeading", "Matinee"));
 		// show list of Matinee Actors that controls this actor
 		// this is ugly but we don't have good way of knowing which Matinee actor controls me
 		// in the future this can be cached to TMap somewhere and use that list
@@ -938,10 +938,10 @@ void FLevelEditorContextMenuImpl::FillMatineeSelectActorMenu(UEditorMenu* Menu)
 	}
 }
 
-void FLevelEditorContextMenuImpl::FillActorVisibilityMenu(UEditorMenu* Menu)
+void FLevelEditorContextMenuImpl::FillActorVisibilityMenu(UToolMenu* Menu)
 {
 	{
-		FEditorMenuSection& Section = Menu->AddSection("VisibilitySelected");
+		FToolMenuSection& Section = Menu->AddSection("VisibilitySelected");
 		// Show 'Show Selected' only if the selection has any hidden actors
 		if ( SelectionInfo.bHaveHidden )
 		{
@@ -951,23 +951,23 @@ void FLevelEditorContextMenuImpl::FillActorVisibilityMenu(UEditorMenu* Menu)
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("VisibilityAll");
+		FToolMenuSection& Section = Menu->AddSection("VisibilityAll");
 		Section.AddMenuEntry(FLevelEditorCommands::Get().ShowSelectedOnly);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().ShowAll);
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("VisibilityStartup");
+		FToolMenuSection& Section = Menu->AddSection("VisibilityStartup");
 		Section.AddMenuEntry(FLevelEditorCommands::Get().ShowAllStartup);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().ShowSelectedStartup);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().HideSelectedStartup);
 	}
 }
 
-void FLevelEditorContextMenuImpl::FillActorLevelMenu(UEditorMenu* Menu)
+void FLevelEditorContextMenuImpl::FillActorLevelMenu(UToolMenu* Menu)
 {
 	{
-		FEditorMenuSection& Section = Menu->AddSection("ActorLevel", LOCTEXT("ActorLevel", "Actor Level"));
+		FToolMenuSection& Section = Menu->AddSection("ActorLevel", LOCTEXT("ActorLevel", "Actor Level"));
 		if( SelectionInfo.SharedLevel && SelectionInfo.SharedWorld && SelectionInfo.SharedWorld->GetCurrentLevel() != SelectionInfo.SharedLevel )
 		{
 			// All actors are in the same level and that level is not the current level 
@@ -987,12 +987,12 @@ void FLevelEditorContextMenuImpl::FillActorLevelMenu(UEditorMenu* Menu)
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("LevelBlueprint", LOCTEXT("LevelBlueprint", "Level Blueprint"));
+		FToolMenuSection& Section = Menu->AddSection("LevelBlueprint", LOCTEXT("LevelBlueprint", "Level Blueprint"));
 		Section.AddMenuEntry(FLevelEditorCommands::Get().FindActorInLevelScript);
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("LevelBrowser", LOCTEXT("LevelBrowser", "Level Browser"));
+		FToolMenuSection& Section = Menu->AddSection("LevelBrowser", LOCTEXT("LevelBrowser", "Level Browser"));
 		Section.AddMenuEntry(FLevelEditorCommands::Get().FindLevelsInLevelBrowser);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().AddLevelsToSelection);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().RemoveLevelsFromSelection);
@@ -1000,28 +1000,28 @@ void FLevelEditorContextMenuImpl::FillActorLevelMenu(UEditorMenu* Menu)
 }
 
 
-void FLevelEditorContextMenuImpl::FillTransformMenu(UEditorMenu* Menu)
+void FLevelEditorContextMenuImpl::FillTransformMenu(UToolMenu* Menu)
 {
 	if ( FLevelEditorActionCallbacks::ActorSelected_CanExecute() )
 	{
 		{
-			FEditorMenuSection& Section = Menu->AddSection("TransformSnapAlign");
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			FToolMenuSection& Section = Menu->AddSection("TransformSnapAlign");
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				Menu->GetMenuName(),
 				"SnapAlignSubMenu",
 				LOCTEXT("SnapAlignSubMenu", "Snap/Align"), 
 				LOCTEXT("SnapAlignSubMenu_ToolTip", "Actor snap/align utils"),
-				FNewEditorMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSnapAlignMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSnapAlignMenu)));
 		}
 
 		{
-			FEditorMenuSection& Section = Menu->AddSection("DeltaTransformToActors");
+			FToolMenuSection& Section = Menu->AddSection("DeltaTransformToActors");
 			Section.AddMenuEntry(FLevelEditorCommands::Get().DeltaTransformToActors);
 		}
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("MirrorLock");
+		FToolMenuSection& Section = Menu->AddSection("MirrorLock");
 		Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorX);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorY);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorZ);
@@ -1029,7 +1029,7 @@ void FLevelEditorContextMenuImpl::FillTransformMenu(UEditorMenu* Menu)
 	}
 }
 
-void FLevelEditorContextMenuImpl::FillActorMenu(UEditorMenu* Menu)
+void FLevelEditorContextMenuImpl::FillActorMenu(UToolMenu* Menu)
 {
 	struct Local
 	{
@@ -1051,7 +1051,7 @@ void FLevelEditorContextMenuImpl::FillActorMenu(UEditorMenu* Menu)
 		InitOptions.Filters->AddFilterPredicate( SceneOutliner::FActorFilterPredicate::CreateStatic( &FLevelEditorActionCallbacks::IsAttachableActor) );
 	}		
 
-	FEditorMenuSection& Section = Menu->AddSection("Actor");
+	FToolMenuSection& Section = Menu->AddSection("Actor");
 	if(SelectionInfo.bHaveAttachedActor)
 	{
 		Section.AddMenuEntry(FLevelEditorCommands::Get().DetachFromParent, LOCTEXT("None", "None"));
@@ -1102,12 +1102,12 @@ void FLevelEditorContextMenuImpl::FillActorMenu(UEditorMenu* Menu)
 			]
 		];
 
-	Section.AddEntry(FEditorMenuEntry::InitWidget("PickParentActor", MenuWidget, FText::GetEmpty(), false));
+	Section.AddEntry(FToolMenuEntry::InitWidget("PickParentActor", MenuWidget, FText::GetEmpty(), false));
 }
 
-void FLevelEditorContextMenuImpl::FillSnapAlignMenu(UEditorMenu* Menu)
+void FLevelEditorContextMenuImpl::FillSnapAlignMenu(UToolMenu* Menu)
 {
-	FEditorMenuSection& Section = Menu->AddSection("SnapAlign");
+	FToolMenuSection& Section = Menu->AddSection("SnapAlign");
 	Section.AddMenuEntry( FLevelEditorCommands::Get().SnapOriginToGrid );
 	Section.AddMenuEntry( FLevelEditorCommands::Get().SnapOriginToGridPerActor );
 	Section.AddMenuEntry( FLevelEditorCommands::Get().AlignOriginToGrid );
@@ -1166,10 +1166,10 @@ void FLevelEditorContextMenuImpl::FillSnapAlignMenu(UEditorMenu* Menu)
 */
 }
 
-void FLevelEditorContextMenuImpl::FillPivotMenu( UEditorMenu* Menu )
+void FLevelEditorContextMenuImpl::FillPivotMenu( UToolMenu* Menu )
 {
 	{
-		FEditorMenuSection& Section = Menu->AddSection("SaveResetPivot");
+		FToolMenuSection& Section = Menu->AddSection("SaveResetPivot");
 		Section.AddMenuEntry(FLevelEditorCommands::Get().SavePivotToPrePivot);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().ResetPrePivot);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().MovePivotHere);
@@ -1177,14 +1177,14 @@ void FLevelEditorContextMenuImpl::FillPivotMenu( UEditorMenu* Menu )
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("MovePivot");
+		FToolMenuSection& Section = Menu->AddSection("MovePivot");
 		Section.AddMenuEntry(FLevelEditorCommands::Get().MovePivotToCenter);
 	}
 }
 
-void FLevelEditorContextMenuImpl::FillGroupMenu( UEditorMenu* Menu )
+void FLevelEditorContextMenuImpl::FillGroupMenu( UToolMenu* Menu )
 {
-	FEditorMenuSection& Section = Menu->AddSection("Group");
+	FToolMenuSection& Section = Menu->AddSection("Group");
 
 	if( SelectionInfo.NumSelectedUngroupedActors > 1 )
 	{
@@ -1228,9 +1228,9 @@ void FLevelEditorContextMenuImpl::FillGroupMenu( UEditorMenu* Menu )
 	}
 }
 
-void FLevelEditorContextMenuImpl::FillEditMenu( UEditorMenu* Menu )
+void FLevelEditorContextMenuImpl::FillEditMenu( UToolMenu* Menu )
 {
-	FEditorMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = Menu->AddSection("Section");
 
 	Section.AddMenuEntry( FGenericCommands::Get().Cut );
 	Section.AddMenuEntry( FGenericCommands::Get().Copy );
@@ -1248,7 +1248,7 @@ void FLevelEditorContextMenuImpl::FillEditMenu( UEditorMenu* Menu )
 	Section.AddMenuEntry( FGenericCommands::Get().Rename );
 }
 
-void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UEditorMenu* Menu, const TArray<AActor*>& SelectedActors)
+void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UToolMenu* Menu, const TArray<AActor*>& SelectedActors)
 {
 	AActor* SelectedActor = (1 == SelectedActors.Num()) ? SelectedActors[0] : NULL;
 
@@ -1261,16 +1261,16 @@ void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UEditorMenu* Menu
 		{
 			TWeakObjectPtr<AActor> ActorPtr(SelectedActor);
 
-			FEditorMenuSection& Section = Menu->AddSection("LevelBlueprintEvents", LOCTEXT("LevelBlueprintEvents", "Level Blueprint Events"));
+			FToolMenuSection& Section = Menu->AddSection("LevelBlueprintEvents", LOCTEXT("LevelBlueprintEvents", "Level Blueprint Events"));
 
 			if (bAnyEventExists)
 			{
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"JumpEventSubMenu",
 					LOCTEXT("JumpEventSubMenu", "Jump to Event"),
 					FText::GetEmpty(),
-					FNewEditorMenuDelegate::CreateStatic(&FKismetEditorUtilities::AddLevelScriptEventOptionsForActor
+					FNewToolMenuDelegate::CreateStatic(&FKismetEditorUtilities::AddLevelScriptEventOptionsForActor
 					, ActorPtr
 					, true
 					, false
@@ -1279,12 +1279,12 @@ void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UEditorMenu* Menu
 
 			if (bAnyEventCanBeAdded)
 			{
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"AddEventSubMenu",
 					LOCTEXT("AddEventSubMenu", "Add Event"),
 					FText::GetEmpty(),
-					FNewEditorMenuDelegate::CreateStatic(&FKismetEditorUtilities::AddLevelScriptEventOptionsForActor
+					FNewToolMenuDelegate::CreateStatic(&FKismetEditorUtilities::AddLevelScriptEventOptionsForActor
 					, ActorPtr
 					, false
 					, true

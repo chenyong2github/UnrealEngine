@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_SkeletalMesh.h"
 #include "Animation/Skeleton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/PackageName.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Misc/MessageDialog.h"
@@ -448,11 +448,11 @@ FAssetTypeActions_SkeletalMesh::FAssetTypeActions_SkeletalMesh()
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FAssetTypeActions_SkeletalMesh::OnAssetRemoved);
 }
 
-void FAssetTypeActions_SkeletalMesh::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_SkeletalMesh::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Meshes = GetTypedWeakObjectPtrs<USkeletalMesh>(InObjects);
 
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 			NAME_None,
 			"CreateSkeletalMeshSubmenu",
 			LOCTEXT("CreateSkeletalMeshSubmenu", "Create"),
@@ -462,7 +462,7 @@ void FAssetTypeActions_SkeletalMesh::GetActions(const TArray<UObject*>& InObject
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
 			));
 
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 		NAME_None,
 		"SkeletalMesh_LODImport",	
 		LOCTEXT("SkeletalMesh_LODImport", "Import LOD"),
@@ -478,7 +478,7 @@ void FAssetTypeActions_SkeletalMesh::GetActions(const TArray<UObject*>& InObject
 		FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_SkeletalMesh::ExecuteImportClothing, Meshes)));
 
 	// skeleton menu
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 		NAME_None,
 		"SkeletonSubmenu",
 		LOCTEXT("SkeletonSubmenu", "Skeleton"),

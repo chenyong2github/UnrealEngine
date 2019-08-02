@@ -71,7 +71,7 @@
 #include "Algo/Find.h"
 #include "ActorEditorUtils.h"
 
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "SSCSEditorMenuContext.h"
 #include "Kismet2/ComponentEditorContextMenuContex.h"
 
@@ -3921,7 +3921,7 @@ void SSCSEditor::GetSelectedItemsForContextMenu(TArray<FComponentEventConstructi
 	}
 }
 
-void SSCSEditor::PopulateContextMenu(UEditorMenu* Menu)
+void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 {
 	TArray<FSCSEditorTreeNodePtrType> SelectedItems = SCSTreeWidget->GetSelectedItems();
 
@@ -3965,7 +3965,7 @@ void SSCSEditor::PopulateContextMenu(UEditorMenu* Menu)
 
 					if (EditorMode == EComponentEditorMode::BlueprintSCS)
 					{
-						FEditorMenuSection& BlueprintSCSSection = Menu->AddSection("BlueprintSCS");
+						FToolMenuSection& BlueprintSCSSection = Menu->AddSection("BlueprintSCS");
 						if (SelectedItems.Num() == 1)
 						{
 							BlueprintSCSSection.AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
@@ -3989,7 +3989,7 @@ void SSCSEditor::PopulateContextMenu(UEditorMenu* Menu)
 							// Build an event submenu if we can generate events
 							if( FBlueprintEditorUtils::CanClassGenerateEvents( SelectedClass ))
 							{
-								BlueprintSCSSection.AddEntry(FEditorMenuEntry::InitSubMenu(
+								BlueprintSCSSection.AddEntry(FToolMenuEntry::InitSubMenu(
 									Menu->GetMenuName(),
 									"AddEventSubMenu",
 									LOCTEXT("AddEventSubMenu", "Add Event"), 
@@ -4012,7 +4012,7 @@ void SSCSEditor::PopulateContextMenu(UEditorMenu* Menu)
 
 		if (bOnlyShowPasteOption)
 		{
-			FEditorMenuSection& Section = Menu->AddSection("PasteComponent", LOCTEXT("EditComponentHeading", "Edit") );
+			FToolMenuSection& Section = Menu->AddSection("PasteComponent", LOCTEXT("EditComponentHeading", "Edit") );
 			{
 				Section.AddMenuEntry( FGenericCommands::Get().Paste );
 			}
@@ -4022,11 +4022,11 @@ void SSCSEditor::PopulateContextMenu(UEditorMenu* Menu)
 
 void SSCSEditor::RegisterContextMenu()
 {
-	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
-	if (!EditorMenus->IsMenuRegistered("Kismet.SCSEditorContextMenu"))
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (!ToolMenus->IsMenuRegistered("Kismet.SCSEditorContextMenu"))
 	{
-		UEditorMenu* Menu = EditorMenus->RegisterMenu("Kismet.SCSEditorContextMenu");
-		Menu->AddDynamicSection("SCSEditorDynamic", FNewEditorMenuDelegate::CreateLambda([](UEditorMenu* InMenu)
+		UToolMenu* Menu = ToolMenus->RegisterMenu("Kismet.SCSEditorContextMenu");
+		Menu->AddDynamicSection("SCSEditorDynamic", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
 			USSCSEditorMenuContext* ContextObject = InMenu->FindContext<USSCSEditorMenuContext>();
 			if (ContextObject && ContextObject->SCSEditor.IsValid())
@@ -4046,8 +4046,8 @@ TSharedPtr< SWidget > SSCSEditor::CreateContextMenu()
 		RegisterContextMenu();
 		USSCSEditorMenuContext* ContextObject = NewObject<USSCSEditorMenuContext>();
 		ContextObject->SCSEditor = SharedThis(this);
-		FEditorMenuContext EditorMenuContext(CommandList, TSharedPtr<FExtender>(), ContextObject);
-		return UEditorMenuSubsystem::Get()->GenerateWidget("Kismet.SCSEditorContextMenu", EditorMenuContext);
+		FToolMenuContext ToolMenuContext(CommandList, TSharedPtr<FExtender>(), ContextObject);
+		return UToolMenus::Get()->GenerateWidget("Kismet.SCSEditorContextMenu", ToolMenuContext);
 	}
 	return TSharedPtr<SWidget>();
 }

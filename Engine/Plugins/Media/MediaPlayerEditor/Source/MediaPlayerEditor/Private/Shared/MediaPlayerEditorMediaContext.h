@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #include "MediaPlayerEditorMediaContext.generated.h"
 
 class SMediaPlayerEditorMedia;
 
 UCLASS(BlueprintType)
-class MEDIAPLAYEREDITOR_API UMediaPlayerEditorMediaContext : public UEditorMenuContextBase
+class MEDIAPLAYEREDITOR_API UMediaPlayerEditorMediaContext : public UToolMenuContextBase
 {
 	GENERATED_BODY()
 

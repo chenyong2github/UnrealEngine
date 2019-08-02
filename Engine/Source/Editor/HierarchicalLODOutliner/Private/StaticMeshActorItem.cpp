@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "HLODOutliner.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshActorItem"
@@ -20,10 +20,10 @@ bool HLODOutliner::FStaticMeshActorItem::CanInteract() const
 	return true;
 }
 
-void HLODOutliner::FStaticMeshActorItem::GenerateContextMenu(UEditorMenu* Menu, SHLODOutliner& Outliner)
+void HLODOutliner::FStaticMeshActorItem::GenerateContextMenu(UToolMenu* Menu, SHLODOutliner& Outliner)
 {
 	auto SharedOutliner = StaticCastSharedRef<SHLODOutliner>(Outliner.AsShared());
-	FEditorMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = Menu->AddSection("Section");
 	Section.AddMenuEntry("RemoveSMActorFromCluster", LOCTEXT("RemoveSMActorFromCluster", "Remove From Cluster"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SHLODOutliner::RemoveStaticMeshActorFromCluster)));
 	Section.AddMenuEntry("RemoveSMActorFromCluster", LOCTEXT("ExcludeSMActorFromGeneration", "Exclude From Cluster Generation"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SHLODOutliner::ExcludeFromClusterGeneration)));
 }

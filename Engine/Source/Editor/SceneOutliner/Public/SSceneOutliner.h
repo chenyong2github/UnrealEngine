@@ -20,7 +20,7 @@
 #include "Framework/Commands/UICommandList.h"
 
 class FMenuBuilder;
-class UEditorMenu;
+class UToolMenu;
 class ISceneOutlinerColumn;
 class SComboButton;
 
@@ -507,9 +507,9 @@ namespace SceneOutliner
 
 		/** Build a context menu for right-clicking an item in the tree */
 		TSharedPtr<SWidget> BuildDefaultContextMenu();
-		void FillFoldersSubMenu(UEditorMenu* Menu) const;
-		void AddMoveToFolderOutliner(UEditorMenu* Menu) const;
-		void FillSelectionSubMenu(UEditorMenu* Menun) const;
+		void FillFoldersSubMenu(UToolMenu* Menu) const;
+		void AddMoveToFolderOutliner(UToolMenu* Menu) const;
+		void FillSelectionSubMenu(UToolMenu* Menun) const;
 		TSharedRef<TSet<FName>> GatherInvalidMoveToDestinations() const;
 
 	private:

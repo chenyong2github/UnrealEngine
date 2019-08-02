@@ -7,7 +7,7 @@
 #include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
 
-struct FEditorMenuSection;
+struct FToolMenuSection;
 class FMenuBuilder;
 
 class FAssetTypeActions_StaticMesh : public FAssetTypeActions_Base
@@ -18,7 +18,7 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(0, 255, 255); }
 	virtual UClass* GetSupportedClass() const override { return UStaticMesh::StaticClass(); }
 	virtual bool HasActions( const TArray<UObject*>& InObjects ) const override { return true; }
-	virtual void GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section) override;
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Basic; }
 	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;

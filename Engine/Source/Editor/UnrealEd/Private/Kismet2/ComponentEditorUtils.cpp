@@ -27,7 +27,7 @@
 #include "Editor.h"
 #include "Toolkits/AssetEditorManager.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Kismet2/ComponentEditorContextMenuContex.h"
 
 #define LOCTEXT_NAMESPACE "ComponentEditorUtils"
@@ -915,11 +915,11 @@ FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActor
 	return NAME_None;
 }
 
-void FComponentEditorUtils::FillComponentContextMenuOptions(UEditorMenu* Menu, const TArray<UActorComponent*>& SelectedComponents)
+void FComponentEditorUtils::FillComponentContextMenuOptions(UToolMenu* Menu, const TArray<UActorComponent*>& SelectedComponents)
 {
 	// Basic commands
 	{
-		FEditorMenuSection& Section = Menu->AddSection("EditComponent", LOCTEXT("EditComponentHeading", "Edit"));
+		FToolMenuSection& Section = Menu->AddSection("EditComponent", LOCTEXT("EditComponentHeading", "Edit"));
 		Section.AddMenuEntry(FGenericCommands::Get().Cut);
 		Section.AddMenuEntry(FGenericCommands::Get().Copy);
 		Section.AddMenuEntry(FGenericCommands::Get().Paste);
@@ -935,7 +935,7 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(UEditorMenu* Menu, c
 		if (Component->GetClass()->ClassGeneratedBy)
 		{
 			{
-				FEditorMenuSection& Section = Menu->AddSection("ComponentAsset", LOCTEXT("ComponentAssetHeading", "Asset"));
+				FToolMenuSection& Section = Menu->AddSection("ComponentAsset", LOCTEXT("ComponentAssetHeading", "Asset"));
 				Section.AddMenuEntry(
 					"GoToBlueprintForComponent",
 					FText::Format(LOCTEXT("GoToBlueprintForComponent", "Edit {0}"), FText::FromString(Component->GetClass()->ClassGeneratedBy->GetName())),
@@ -958,7 +958,7 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(UEditorMenu* Menu, c
 		else
 		{
 			{
-				FEditorMenuSection& Section = Menu->AddSection("ComponentCode", LOCTEXT("ComponentCodeHeading", "C++"));
+				FToolMenuSection& Section = Menu->AddSection("ComponentCode", LOCTEXT("ComponentCodeHeading", "C++"));
 				if (FSourceCodeNavigation::IsCompilerAvailable())
 				{
 					FString ClassHeaderPath;

@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_StaticMesh.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "EditorFramework/AssetImportData.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
@@ -24,7 +24,7 @@ static TAutoConsoleVariable<int32> CVarEnableSaveGeneratedLODsInPackage(
 	TEXT("1 - Enable this option and save the LODs in the Package.\n"),
 	ECVF_Default);
 
-void FAssetTypeActions_StaticMesh::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_StaticMesh::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Meshes = GetTypedWeakObjectPtrs<UStaticMesh>(InObjects);
 
@@ -42,7 +42,7 @@ void FAssetTypeActions_StaticMesh::GetActions(const TArray<UObject*>& InObjects,
 			);
 	}
 
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 		NAME_None,
 		"StaticMesh_LODMenu",
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_LODMenu", "Level Of Detail"),

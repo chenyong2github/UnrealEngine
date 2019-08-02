@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "TileSetAssetTypeActions.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Engine/Texture.h"
 #include "Misc/PackageName.h"
 #include "EditorStyleSet.h"
@@ -58,7 +58,7 @@ uint32 FTileSetAssetTypeActions::GetCategories()
 	return MyAssetCategory;
 }
 
-void FTileSetAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FTileSetAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	TArray<TWeakObjectPtr<UPaperTileSet>> TileSets = GetTypedWeakObjectPtrs<UPaperTileSet>(InObjects);
 

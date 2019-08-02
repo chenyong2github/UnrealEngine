@@ -19,7 +19,7 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
                     "ContentBrowser",
-					"EditorMenus",
+					"ToolMenus",
 				}
 			);
 

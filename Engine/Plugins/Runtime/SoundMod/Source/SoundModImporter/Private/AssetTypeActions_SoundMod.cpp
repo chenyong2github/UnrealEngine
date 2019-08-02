@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_SoundMod.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Editor.h"
 #include "Components/AudioComponent.h"
 #include "SoundMod.h"
@@ -13,7 +13,7 @@ UClass* FAssetTypeActions_SoundMod::GetSupportedClass() const
 	return USoundMod::StaticClass();
 }
 
-void FAssetTypeActions_SoundMod::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_SoundMod::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Sounds = GetTypedWeakObjectPtrs<USoundMod>(InObjects);
 

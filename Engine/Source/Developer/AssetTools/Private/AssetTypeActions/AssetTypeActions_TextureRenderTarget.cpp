@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_TextureRenderTarget.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Engine/Texture2D.h"
 #include "EditorStyleSet.h"
 #include "Engine/TextureCube.h"
@@ -11,7 +11,7 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_TextureRenderTarget::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_TextureRenderTarget::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	FAssetTypeActions_Texture::GetActions(InObjects, Section);
 

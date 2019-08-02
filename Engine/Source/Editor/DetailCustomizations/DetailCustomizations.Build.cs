@@ -59,7 +59,7 @@ public class DetailCustomizations : ModuleRules
 				"AudioSettingsEditor",
 				"HeadMountedDisplay",
                 "DataTableEditor",
-				"EditorMenus",
+				"ToolMenus",
             }
 		);
 

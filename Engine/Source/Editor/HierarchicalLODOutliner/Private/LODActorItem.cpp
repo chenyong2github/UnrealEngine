@@ -3,7 +3,7 @@
 #include "LODActorItem.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Modules/ModuleManager.h"
 #include "HLODOutliner.h"
 #include "IHierarchicalLODUtilities.h"
@@ -24,11 +24,11 @@ bool HLODOutliner::FLODActorItem::CanInteract() const
 	return true;
 }
 
-void HLODOutliner::FLODActorItem::GenerateContextMenu(UEditorMenu* Menu, SHLODOutliner& Outliner)
+void HLODOutliner::FLODActorItem::GenerateContextMenu(UToolMenu* Menu, SHLODOutliner& Outliner)
 {
 	auto SharedOutliner = StaticCastSharedRef<SHLODOutliner>(Outliner.AsShared());
 
-	FEditorMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = Menu->AddSection("Section");
 	Section.AddMenuEntry("SelectLODActor", LOCTEXT("SelectLODActor", "Select LOD Actor"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SHLODOutliner::SelectLODActor)));
 
 	Section.AddMenuEntry("SelectContainedActors", LOCTEXT("SelectContainedActors", "Select Contained Actors"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(&Outliner, &SHLODOutliner::SelectContainedActors)));

@@ -9,7 +9,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
@@ -280,9 +280,9 @@ static void GetContentBrowserSelectionFactoryMenuEntries( FAssetData& TargetAsse
  * @param	AssetMenuOptions	Menu options to use
  * @param	CreateMode			The creation mode to use
  */
-static void FillAssetAddReplaceActorMenu(UEditorMenu* Menu, const FAssetData Asset, const TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions, EActorCreateMode::Type CreateMode)
+static void FillAssetAddReplaceActorMenu(UToolMenu* Menu, const FAssetData Asset, const TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions, EActorCreateMode::Type CreateMode)
 {
-	FEditorMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = Menu->AddSection("Section");
 	for( int32 ItemIndex = 0; ItemIndex < AssetMenuOptions.Num(); ++ItemIndex )
 	{
 		const FActorFactoryAssetProxy::FMenuItem& MenuItem = AssetMenuOptions[ItemIndex];
@@ -319,7 +319,7 @@ static void FillAssetAddReplaceActorMenu(UEditorMenu* Menu, const FAssetData Ass
  * @param	CreateMode			The creation mode to use
  * @param	LabelOverride		The lable to use, if any.
  */
-static void BuildSingleAssetAddReplaceActorMenu(FEditorMenuSection& Section, const FAssetData& Asset, const TArray< FActorFactoryAssetProxy::FMenuItem >& AssetMenuOptions, EActorCreateMode::Type CreateMode, const FText& LabelOverride = FText::GetEmpty())
+static void BuildSingleAssetAddReplaceActorMenu(FToolMenuSection& Section, const FAssetData& Asset, const TArray< FActorFactoryAssetProxy::FMenuItem >& AssetMenuOptions, EActorCreateMode::Type CreateMode, const FText& LabelOverride = FText::GetEmpty())
 {
 	if ( !Asset.IsValid() || AssetMenuOptions.Num() == 0 )
 	{
@@ -340,18 +340,18 @@ static void BuildSingleAssetAddReplaceActorMenu(FEditorMenuSection& Section, con
 			Action = FUIAction( FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::AddActor_Clicked, MenuItem.FactoryToUse,  MenuItem.AssetData, CreateMode == EActorCreateMode::Placement ) );
 		}
 
-		Section.AddEntry(FEditorMenuEntry::InitMenuEntry(NAME_None, Action, SNew(SAssetMenuEntry, Asset, AssetMenuOptions).LabelOverride(LabelOverride)));
+		Section.AddEntry(FToolMenuEntry::InitMenuEntry(NAME_None, Action, SNew(SAssetMenuEntry, Asset, AssetMenuOptions).LabelOverride(LabelOverride)));
 	}
 	else
 	{
-		FEditorMenuEntry Entry = FEditorMenuEntry::InitWidget(NAME_None, SNew( SAssetMenuEntry, Asset, AssetMenuOptions ).LabelOverride( LabelOverride ), FText());
+		FToolMenuEntry Entry = FToolMenuEntry::InitWidget(NAME_None, SNew( SAssetMenuEntry, Asset, AssetMenuOptions ).LabelOverride( LabelOverride ), FText());
 		Entry.SubMenuData.bIsSubMenu = true;
-		Entry.SubMenuData.ConstructMenu = FNewEditorMenuDelegate::CreateStatic(&FillAssetAddReplaceActorMenu, Asset, AssetMenuOptions, CreateMode);
+		Entry.SubMenuData.ConstructMenu = FNewToolMenuDelegate::CreateStatic(&FillAssetAddReplaceActorMenu, Asset, AssetMenuOptions, CreateMode);
 		Section.AddEntry(Entry);
 	}
 }
 
-void LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(UEditorMenu* Menu)
+void LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(UToolMenu* Menu)
 {
 	FAssetData TargetAssetData;
 	TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions;
@@ -360,22 +360,22 @@ void LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(UEdit
 	if ( AssetMenuOptions.Num() == 0 )
 	{
 		{
-			FEditorMenuSection& Section = Menu->AddSection("ActorType");
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			FToolMenuSection& Section = Menu->AddSection("ActorType");
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				Menu->GetMenuName(),
 				"LevelViewportContextMenu",
 				NSLOCTEXT("LevelViewportContextMenu", "AddActorHeading", "Place Actor") , 
 				NSLOCTEXT("LevelViewportContextMenu", "AddActorMenu_ToolTip", "Templates for adding a new actor to the world"),
-				FNewEditorMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add)));
+				FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add)));
 
 			if ( CanReplaceActors() )
 			{
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"LevelViewportContextMenu",
 					NSLOCTEXT("LevelViewportContextMenu", "ReplaceActorHeading", "Replace Selected Actors with") , 
 					NSLOCTEXT("LevelViewportContextMenu", "ReplaceActorMenu_ToolTip", "Templates for replacing selected with new actors in the world"),
-					FNewEditorMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Replace)));
+					FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Replace)));
 			}
 		}
 	}
@@ -387,40 +387,40 @@ void LevelEditorCreateActorMenu::FillAddReplaceViewportContextMenuSections(UEdit
 		}
 
 		{
-			FEditorMenuSection& Section = Menu->AddSection("AddActor", NSLOCTEXT("LevelViewportContextMenu", "AddActorHeading", "Place Actor"));
+			FToolMenuSection& Section = Menu->AddSection("AddActor", NSLOCTEXT("LevelViewportContextMenu", "AddActorHeading", "Place Actor"));
 			FUIAction Action( FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::AddActor_Clicked, AssetMenuOptions[0].FactoryToUse,  AssetMenuOptions[0].AssetData, false ) );
 			TSharedRef<SWidget> Widget = SNew(SAssetMenuEntry, TargetAssetData, AssetMenuOptions);
-			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+			Section.AddEntry(FToolMenuEntry::InitSubMenu(
 				Menu->GetMenuName(),
 				"AddActor",
 				Action,
 				Widget,
-				FNewEditorMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add)
+				FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Add)
 			));
 		}
 
 		if ( CanReplaceActors() )
 		{
 			{
-				FEditorMenuSection& Section = Menu->AddSection("ReplaceActor", NSLOCTEXT("LevelViewportContextMenu", "ReplaceActorHeading", "Replace Selected Actors with"));
+				FToolMenuSection& Section = Menu->AddSection("ReplaceActor", NSLOCTEXT("LevelViewportContextMenu", "ReplaceActorHeading", "Replace Selected Actors with"));
 				FUIAction Action( FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ReplaceActors_Clicked, AssetMenuOptions[0].FactoryToUse,  AssetMenuOptions[0].AssetData ) );
 				TSharedRef<SWidget> Widget = SNew(SAssetMenuEntry, TargetAssetData, AssetMenuOptions);
-				Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
 					Menu->GetMenuName(),
 					"ReplaceActor",
 					Action,
 					Widget,
-					FNewEditorMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Replace)
+					FNewToolMenuDelegate::CreateStatic(&LevelEditorCreateActorMenu::FillAddReplaceActorMenu, EActorCreateMode::Replace)
 				));
 			}
 		}
 	}
 }
 
-void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UEditorMenu* Menu, EActorCreateMode::Type CreateMode)
+void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UToolMenu* Menu, EActorCreateMode::Type CreateMode)
 {
 	{
-		FEditorMenuSection& Section = Menu->AddSection("ContentBrowserActor", NSLOCTEXT("LevelViewportContextMenu", "AssetSelectionSection", "Selection"));
+		FToolMenuSection& Section = Menu->AddSection("ContentBrowserActor", NSLOCTEXT("LevelViewportContextMenu", "AssetSelectionSection", "Selection"));
 		FAssetData TargetAssetData;
 		TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions;
 		GetContentBrowserSelectionFactoryMenuEntries( /*OUT*/TargetAssetData, /*OUT*/AssetMenuOptions );
@@ -429,7 +429,7 @@ void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UEditorMenu* Menu, EAct
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("RecentlyPlaced", NSLOCTEXT("LevelViewportContextMenu", "RecentlyPlacedSection", "Recently Placed"));
+		FToolMenuSection& Section = Menu->AddSection("RecentlyPlaced", NSLOCTEXT("LevelViewportContextMenu", "RecentlyPlacedSection", "Recently Placed"));
 		if ( IPlacementModeModule::IsAvailable() )
 		{
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -464,7 +464,7 @@ void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UEditorMenu* Menu, EAct
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("Lights", NSLOCTEXT("LevelViewportContextMenu", "LightsSection", "Lights"));
+		FToolMenuSection& Section = Menu->AddSection("Lights", NSLOCTEXT("LevelViewportContextMenu", "LightsSection", "Lights"));
 		TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions;
 
 		{
@@ -501,7 +501,7 @@ void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UEditorMenu* Menu, EAct
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("Primitives", NSLOCTEXT("LevelViewportContextMenu", "PrimitivesSection", "Primitives"));
+		FToolMenuSection& Section = Menu->AddSection("Primitives", NSLOCTEXT("LevelViewportContextMenu", "PrimitivesSection", "Primitives"));
 		TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions;
 		{
 			AssetMenuOptions.Empty();
@@ -554,7 +554,7 @@ void LevelEditorCreateActorMenu::FillAddReplaceActorMenu(UEditorMenu* Menu, EAct
 	}
 
 	{
-		FEditorMenuSection& Section = Menu->AddSection("Custom", NSLOCTEXT("LevelViewportContextMenu", "CustomSection", "Custom Actors"));
+		FToolMenuSection& Section = Menu->AddSection("Custom", NSLOCTEXT("LevelViewportContextMenu", "CustomSection", "Custom Actors"));
 		TArray< FActorFactoryAssetProxy::FMenuItem > AssetMenuOptions;
 		FText UnusedErrorMessage;
 		const FAssetData NoAssetData;

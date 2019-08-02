@@ -6,7 +6,7 @@ class FTimeSynthSoundWaveAssetActionExtender
 {
 public:
 	static void RegisterMenus();
-	static void ExecuteCreateTimeSyncClip(const struct FEditorMenuContext& MenuContext);
-	static void ExecuteCreateTimeSyncClipSet(const struct FEditorMenuContext& MenuContext);
+	static void ExecuteCreateTimeSyncClip(const struct FToolMenuContext& MenuContext);
+	static void ExecuteCreateTimeSyncClipSet(const struct FToolMenuContext& MenuContext);
 };
 

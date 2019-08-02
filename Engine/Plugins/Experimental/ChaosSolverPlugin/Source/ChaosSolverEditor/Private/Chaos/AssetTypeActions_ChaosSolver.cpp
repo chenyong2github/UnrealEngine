@@ -4,7 +4,7 @@
 
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "Chaos/ChaosSolver.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -19,7 +19,7 @@ UThumbnailInfo* FAssetTypeActions_ChaosSolver::GetThumbnailInfo(UObject* Asset) 
 	return NewObject<USceneThumbnailInfo>(ChaosSolver, NAME_None, RF_Transactional);
 }
 
-void FAssetTypeActions_ChaosSolver::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_ChaosSolver::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	FAssetTypeActions_Base::GetActions(InObjects, Section);
 }

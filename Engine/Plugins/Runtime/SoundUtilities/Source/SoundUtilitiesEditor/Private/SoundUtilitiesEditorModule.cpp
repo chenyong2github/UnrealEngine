@@ -8,7 +8,7 @@
 #include "AssetToolsModule.h"
 #include "AssetTypeActions_SoundSimple.h"
 #include "AssetTypeActions_Base.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "AudioEditorModule.h"
 #include "SoundWaveAssetActionExtender.h"
 
@@ -21,13 +21,13 @@ void FSoundUtilitiesEditorModule::StartupModule()
 	// Register asset actions
 	AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundSimple));
 
-	UEditorMenuSubsystem::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FSoundUtilitiesEditorModule::RegisterMenus));
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FSoundUtilitiesEditorModule::RegisterMenus));
 }
 
 void FSoundUtilitiesEditorModule::ShutdownModule()
 {
-	UEditorMenuSubsystem::UnRegisterStartupCallback(this);
-	UEditorMenuSubsystem::UnregisterOwner("SoundUtilities");
+	UToolMenus::UnRegisterStartupCallback(this);
+	UToolMenus::UnregisterOwner("SoundUtilities");
 }
 
 void FSoundUtilitiesEditorModule::RegisterMenus()

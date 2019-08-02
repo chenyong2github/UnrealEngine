@@ -10,7 +10,7 @@
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 
-class UEditorMenu;
+class UToolMenu;
 class IBlueprintEditor;
 class UEdGraph;
 struct Rect;
@@ -277,7 +277,7 @@ public:
 	static bool AnyBoundLevelScriptEventForActor(AActor* Actor, bool bCouldAddAny);
 
 	/** It lists bounded LevelScriptEvents for given actor */
-	static void AddLevelScriptEventOptionsForActor(UEditorMenu* Menu, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName);
+	static void AddLevelScriptEventOptionsForActor(UToolMenu* Menu, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName);
 	
 	/** Return information about the given macro graph */
 	static void GetInformationOnMacro(UEdGraph* MacroGraph, /*out*/ class UK2Node_Tunnel*& EntryNode, /*out*/ class UK2Node_Tunnel*& ExitNode, bool& bIsPure);

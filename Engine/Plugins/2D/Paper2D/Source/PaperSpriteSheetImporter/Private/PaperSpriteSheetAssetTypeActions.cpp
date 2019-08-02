@@ -2,7 +2,7 @@
 
 #include "PaperSpriteSheetAssetTypeActions.h"
 #include "Misc/PackageName.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "Misc/FeedbackContext.h"
 #include "EditorStyleSet.h"
 #include "EditorFramework/AssetImportData.h"
@@ -57,7 +57,7 @@ void FPaperSpriteSheetAssetTypeActions::GetResolvedSourceFilePaths(const TArray<
 	}
 }
 
-void FPaperSpriteSheetAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FPaperSpriteSheetAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto SpriteSheetImports = GetTypedWeakObjectPtrs<UPaperSpriteSheet>(InObjects);
 

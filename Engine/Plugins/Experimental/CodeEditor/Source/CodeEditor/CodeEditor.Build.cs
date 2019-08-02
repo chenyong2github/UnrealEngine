@@ -27,7 +27,7 @@ namespace UnrealBuildTool.Rules
 					"DirectoryWatcher",
 					"LevelEditor",
 					"Engine",
-					"EditorMenus",
+					"ToolMenus",
 				}
 				);
 		}

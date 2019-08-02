@@ -6,7 +6,7 @@
 #include "GameFramework/HUD.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
@@ -94,7 +94,7 @@ void FDataValidationModule::ShutdownModule()
 		}
 
 		// remove menu extension
-		UEditorMenuSubsystem::UnregisterOwner(this);
+		UToolMenus::UnregisterOwner(this);
 		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 
 		UPackage::PackageSavedEvent.RemoveAll(this);
@@ -103,10 +103,10 @@ void FDataValidationModule::ShutdownModule()
 
 void FDataValidationModule::RegisterMenus()
 {
-	FEditorMenuOwnerScoped OwnerScoped(this);
-	UEditorMenu* Menu = UEditorMenuSubsystem::Get()->ExtendMenu("LevelEditor.MainMenu.File");
-	FEditorMenuSection& Section = Menu->AddSection("DataValidation", LOCTEXT("DataValidation", "DataValidation"), FEditorMenuInsert("FileLoadAndSave", EEditorMenuInsertType::After));
-	Section.AddEntry(FEditorMenuEntry::InitMenuEntry(
+	FToolMenuOwnerScoped OwnerScoped(this);
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
+	FToolMenuSection& Section = Menu->AddSection("DataValidation", LOCTEXT("DataValidation", "DataValidation"), FToolMenuInsert("FileLoadAndSave", EToolMenuInsertType::After));
+	Section.AddEntry(FToolMenuEntry::InitMenuEntry(
 		"ValidateData",
 		TAttribute<FText>::Create(&Menu_ValidateDataGetTitle),
 		LOCTEXT("ValidateDataTooltip", "Validates all user data in content directory."),

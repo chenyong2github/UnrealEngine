@@ -53,7 +53,6 @@ public class HoudiniNiagaraEditor : ModuleRules
                 "HoudiniNiagara",
                 "UnrealEd",
 				"EditorStyle",
-				"EditorMenus",
 			}
         );
 			
@@ -69,7 +68,7 @@ public class HoudiniNiagaraEditor : ModuleRules
                 "NiagaraShader",
                 "UtilityShaders",
                 "HoudiniNiagara",
-				"EditorMenus",
+				"ToolMenus",
 			}
         );
 

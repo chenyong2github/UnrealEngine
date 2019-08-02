@@ -17,7 +17,7 @@ public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_AnimBlueprint", "Animation Blueprint"); }
 	virtual FColor GetTypeColor() const override { return FColor(200,116,0); }
 	virtual UClass* GetSupportedClass() const override { return UAnimBlueprint::StaticClass(); }
-	virtual void GetActions(const TArray<UObject*>& InObjects, struct FEditorMenuSection& Section) override;
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Animation; }
 	virtual void PerformAssetDiff(UObject* Asset1, UObject* Asset2, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const override;
@@ -30,7 +30,7 @@ public:
 private:
 
 	/** Handler to fill the retarget submenu */
-	void FillRetargetMenu(class UEditorMenu* Menu, const TArray<UObject*> InObjects);
+	void FillRetargetMenu(class UToolMenu* Menu, const TArray<UObject*> InObjects);
 
 	/** Handler for when FindSkeleton is selected */
 	void ExecuteFindSkeleton(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects);

@@ -37,7 +37,7 @@
 #include "AssetToolsModule.h"
 #include "IClassTypeActions.h"
 #include "ClassTypeActions_EditorTutorial.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "IntroTutorials"
 
@@ -160,7 +160,7 @@ void FIntroTutorials::StartupModule()
 
 void FIntroTutorials::ShutdownModule()
 {
-	UEditorMenuSubsystem::UnregisterOwner(this);
+	UToolMenus::UnregisterOwner(this);
 
 	if (!bDisableTutorials && !IsRunningCommandlet())
 	{
@@ -219,10 +219,10 @@ void FIntroTutorials::ShutdownModule()
 
 void FIntroTutorials::RegisterSummonTutorialsMenuEntries()
 {
-	FEditorMenuOwnerScoped OwnerScoped(this);
-	UEditorMenu* HelpMenu = UEditorMenuSubsystem::Get()->ExtendMenu("LevelEditor.MainMenu.Help");
-	FEditorMenuSection& Section = HelpMenu->AddSection("Tutorials", LOCTEXT("TutorialsLabel", "Tutorials"), FEditorMenuInsert("HelpBrowse", EEditorMenuInsertType::After));
-	Section.AddEntry(FEditorMenuEntry::InitMenuEntry(
+	FToolMenuOwnerScoped OwnerScoped(this);
+	UToolMenu* HelpMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Help");
+	FToolMenuSection& Section = HelpMenu->AddSection("Tutorials", LOCTEXT("TutorialsLabel", "Tutorials"), FToolMenuInsert("HelpBrowse", EToolMenuInsertType::After));
+	Section.AddEntry(FToolMenuEntry::InitMenuEntry(
 		"Tutorials",
 		LOCTEXT("TutorialsMenuEntryTitle", "Tutorials"),
 		LOCTEXT("TutorialsMenuEntryToolTip", "Opens up introductory tutorials covering the basics of using the Unreal Engine 4 Editor."),

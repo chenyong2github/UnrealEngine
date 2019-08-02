@@ -5,7 +5,7 @@
 #include "Misc/PackageName.h"
 #include "AssetData.h"
 #include "Sound/SoundWave.h"
-#include "EditorMenuSubsystem.h"
+#include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "Factories/SoundCueFactoryNew.h"
 #include "EditorFramework/AssetImportData.h"
@@ -27,7 +27,7 @@ UClass* FAssetTypeActions_SoundWave::GetSupportedClass() const
 	return USoundWave::StaticClass();
 }
 
-void FAssetTypeActions_SoundWave::GetActions(const TArray<UObject*>& InObjects, FEditorMenuSection& Section)
+void FAssetTypeActions_SoundWave::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	FAssetTypeActions_SoundBase::GetActions(InObjects, Section);
 
@@ -44,7 +44,7 @@ void FAssetTypeActions_SoundWave::GetActions(const TArray<UObject*>& InObjects, 
 			)
 		);
 
-	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+	Section.AddEntry(FToolMenuEntry::InitSubMenu(
 		NAME_None,
 		"SoundWave_CreateDialogue",
 		LOCTEXT("SoundWave_CreateDialogue", "Create Dialogue"),

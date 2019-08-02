@@ -213,6 +213,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
+#include "ToolMenus.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -779,6 +780,15 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 	};
 	// Sort by menu priority.
 	ActorFactories.Sort(FCompareUActorFactoryByMenuPriority());
+
+	if (FSlateApplication::IsInitialized() && UToolMenus::IsToolMenuUIEnabled())
+	{
+		UToolMenus::Get()->SetTimerManager(TimerManager.ToSharedRef());
+		UToolMenus::Get()->ShouldDisplayExtensionPoints.BindStatic(&GetDisplayMultiboxHooks);
+		UToolMenus::Get()->RegisterStringCommandHandler("Command", FToolMenuExecuteString::CreateLambda([](const FString& InString, const FToolMenuContext& InContext) {
+			GEditor->Exec(nullptr, *InString);
+		}));
+	}
 }
 
 bool UEditorEngine::HandleOpenAsset(UObject* Asset)
@@ -1170,6 +1180,12 @@ void UEditorEngine::FinishDestroy()
 		{
 			// this needs to be already cleaned up
 			UE_LOG(LogEditor, Warning, TEXT("Warning: Play world is active"));
+		}
+
+		if (UToolMenus* ToolMenus = UToolMenus::TryGet())
+		{
+			ToolMenus->ShouldDisplayExtensionPoints.Unbind();
+			ToolMenus->UnregisterStringCommandHandler("Command");
 		}
 
 		EditorSubsystemCollection.Deinitialize();
