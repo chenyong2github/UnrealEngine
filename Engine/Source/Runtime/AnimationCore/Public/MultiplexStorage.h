@@ -6,19 +6,34 @@
 #include "UObject/ObjectMacros.h"
 #include "MultiplexStorage.generated.h"
 
+UENUM()
+enum class EMultiplexAddressType : uint8
+{
+	Plain,
+	String,
+	Name,
+	Struct,
+	Invalid
+};
+
 USTRUCT()
 struct ANIMATIONCORE_API FMultiplexAddress
 {
 	GENERATED_USTRUCT_BODY()
 
 	FMultiplexAddress()
-		: Pointer(nullptr)
+		: Type(EMultiplexAddressType::Invalid)
+		, Pointer(nullptr)
 		, ByteIndex(INDEX_NONE)
 		, ElementSize(0)
 		, ElementCount(0)
 		, Name(NAME_None)
+		, ScriptStructIndex(INDEX_NONE)
 	{
 	}
+
+	UPROPERTY()
+	EMultiplexAddressType Type;
 
 	void* Pointer;
 
@@ -34,13 +49,16 @@ struct ANIMATIONCORE_API FMultiplexAddress
 	UPROPERTY()
 	FName Name;
 
+	UPROPERTY()
+	int32 ScriptStructIndex;
+
 	FORCEINLINE bool IsArray() const { return ElementCount > 1; }
+	FORCEINLINE bool IsPlain() const { return ScriptStructIndex == INDEX_NONE;  }
 	FORCEINLINE int32 NumBytes() const { return ElementCount * ElementSize;  }
 
 	template<class T>
 	FORCEINLINE const T* Get() const
 	{
-		ensure(sizeof(T) == ElementSize);
 		ensure(ElementCount > 0);
 		return (const T*)Pointer;
 	}
@@ -54,7 +72,6 @@ struct ANIMATIONCORE_API FMultiplexAddress
 	template<class T>
 	FORCEINLINE T* Get()
 	{
-		ensure(sizeof(T) == ElementSize);
 		ensure(ElementCount > 0);
 		return (T*)Pointer;
 	}
@@ -68,7 +85,6 @@ struct ANIMATIONCORE_API FMultiplexAddress
 	template<class T>
 	FORCEINLINE TArrayView<T> GetArray()
 	{
-		ensure(sizeof(T) == ElementSize);
 		ensure(ElementCount > 0);
 		return TArrayView<T>((T*)Pointer, ElementCount);
 	}
@@ -98,11 +114,27 @@ public:
 	FORCEINLINE TArray<FMultiplexAddress>::RangedForIteratorType      end() { return Addresses.end(); }
 	FORCEINLINE TArray<FMultiplexAddress>::RangedForConstIteratorType end() const { return Addresses.end(); }
 
+	FORCEINLINE const void* GetData(int32 InAddressIndex) const
+	{
+		ensure(Addresses.IsValidIndex(InAddressIndex));
+		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		ensure(Address.ElementCount > 0);
+		return (const void*)&Data[Address.ByteIndex];
+	}
+
+	FORCEINLINE void* GetData(int32 InAddressIndex)
+	{
+		ensure(Addresses.IsValidIndex(InAddressIndex));
+		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		ensure(Address.ElementCount > 0);
+		return (void*)&Data[Address.ByteIndex];
+	}
+
 	template<class T>
 	FORCEINLINE const T* Get(int32 InAddressIndex) const
 	{
+		ensure(Addresses.IsValidIndex(InAddressIndex));
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
-		ensure(sizeof(T) == Address.ElementSize);
 		ensure(Address.ElementCount > 0);
 		return (const T*)&Data[Address.ByteIndex];
 	}
@@ -116,8 +148,8 @@ public:
 	template<class T>
 	FORCEINLINE T* Get(int32 InAddressIndex)
 	{
+		ensure(Addresses.IsValidIndex(InAddressIndex));
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
-		ensure(sizeof(T) == Address.ElementSize);
 		ensure(Address.ElementCount > 0);
 		return (T*)&Data[Address.ByteIndex];
 	}
@@ -131,10 +163,22 @@ public:
 	template<class T>
 	FORCEINLINE TArrayView<T> GetArray(int32 InAddressIndex)
 	{
+		ensure(Addresses.IsValidIndex(InAddressIndex));
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
-		ensure(sizeof(T) == Address.ElementSize);
 		ensure(Address.ElementCount > 0);
 		return TArrayView<T>((T*)&Data[Address.ByteIndex], Address.ElementCount);
+	}
+
+	FORCEINLINE UScriptStruct* GetScriptStruct(int32 InAddressIndex) const
+	{
+		ensure(Addresses.IsValidIndex(InAddressIndex));
+		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		if (Address.ScriptStructIndex != INDEX_NONE)
+		{
+			ensure(ScriptStructs.IsValidIndex(Address.ScriptStructIndex));
+			return ScriptStructs[Address.ScriptStructIndex];
+		}
+		return nullptr;
 	}
 
 	bool Copy(
@@ -191,32 +235,129 @@ public:
 
 	void Reset();
 
-	int32 Add(int32 InElementSize, int32 InCount, const void* InData = nullptr);
+	int32 Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr);
+	int32 Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr);
+	bool Construct(int32 InAddressIndex, int32 InElementIndex = INDEX_NONE);
+	bool Destroy(int32 InAddressIndex, int32 InElementIndex = INDEX_NONE);
 
-	int32 Add(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InData = nullptr);
-
-	template<class T>
-	int32 Add(const T& InValue)
+	int32 AddPlainArray(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr)
 	{
-		return Add(sizeof(T), 1, (const void*)&InValue);
+		return Allocate(InNewName, InElementSize, InCount, InDataPtr);
 	}
 
 	template<class T>
-	int32 Add(const FName& InNewName, const T& InValue)
+	int32 AddPlainArray(const FName& InNewName, int32 InCount, const T* InDataPtr = nullptr)
 	{
-		return Add(InNewName, sizeof(T), 1, (const void*)&InValue);
+		return Allocate(InNewName, sizeof(T), InCount, (const void*)InDataPtr);
 	}
 
 	template<class T>
-	int32 AddArray(const TArray<T>& InArray)
+	int32 AddPlainArray(const FName& InNewName, const TArray<T>& InArray)
 	{
-		return Add(sizeof(T), InArray.Num(), (const void*)InArray.GetData());
+		return AddPlainArray<T>(InNewName, InArray.Num(), InArray.GetData());
 	}
 
 	template<class T>
-	int32 AddArray(const FName& InNewName, const TArray<T>& InArray)
+	int32 AddPlainArray(const TArray<T>& InArray)
 	{
-		return Add(InNewName, sizeof(T), InArray.Num(), (const void*)InArray.GetData());
+		return AddPlainArray<T>(NAME_None, InArray);
+	}
+
+	int32 AddPlain(const FName& InNewName, int32 InElementSize, const void* InValuePtr)
+	{
+		return AddPlainArray(InNewName, InElementSize, 1, InValuePtr);
+	}
+
+	int32 AddPlain(int32 InElementSize, const void* InValuePtr)
+	{
+		return AddPlain(NAME_None, InElementSize, InValuePtr);
+	}
+
+	template<class T>
+	int32 AddPlain(const FName& InNewName, const T& InValue)
+	{
+		return AddPlainArray<T>(InNewName, 1, &InValue);
+	}
+
+	template<class T>
+	int32 AddPlain(const T& InValue)
+	{
+		return AddPlain<T>(NAME_None, InValue);
+	}
+
+	int32 AddStructArray(const FName& InNewName, UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr)
+	{
+		int32 Address = Allocate(InNewName, InScriptStruct->GetStructureSize(), InCount, nullptr);
+		if (Address == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
+
+		Addresses[Address].Type = EMultiplexAddressType::Struct;
+		Addresses[Address].ScriptStructIndex = FindOrAddScriptStruct(InScriptStruct);
+
+		// construct the content
+		Construct(Address);
+
+		// copy values from the provided data
+		if (InDataPtr != nullptr)
+		{
+			InScriptStruct->CopyScriptStruct(GetData(Address), InDataPtr, InCount);
+		}
+
+		return Address;
+	}
+
+	int32 AddStructArray(UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr)
+	{
+		return AddStructArray(NAME_None, InScriptStruct, InCount, InDataPtr);
+	}
+
+	template<class T>
+	int32 AddStructArray(const FName& InNewName, int32 InCount, const T* InDataPtr = nullptr)
+	{
+		// if you are hitting this - you might need to use AddPlainArray instead!
+		UScriptStruct* Struct = T::StaticStruct();
+		if (Struct == nullptr)
+		{
+			return INDEX_NONE;
+		}
+	
+		return AddStructArray(InNewName, Struct, InCount, InDataPtr);
+	}
+
+	template<class T>
+	int32 AddStructArray(const FName& InNewName, const TArray<T>& InArray)
+	{
+		return AddStructArray<T>(InNewName, InArray.Num(), InArray.GetData());
+	}
+
+	template<class T>
+	int32 AddStructArray(const TArray<T>& InArray)
+	{
+		return AddStructArray<T>(NAME_None, InArray);
+	}
+
+	int32 AddStruct(const FName& InNewName, UScriptStruct* InScriptStruct, const void* InValuePtr)
+	{
+		return AddStructArray(InNewName, InScriptStruct, 1, InValuePtr);
+	}
+
+	int32 AddStruct(UScriptStruct* InScriptStruct, const void* InValuePtr)
+	{
+		return AddStruct(NAME_None, InScriptStruct, InValuePtr);
+	}
+
+	template<class T>
+	int32 AddStruct(const FName& InNewName, const T& InValue)
+	{
+		return AddStructArray<T>(InNewName, 1, &InValue);
+	}
+
+	template<class T>
+	int32 AddStruct(const T& InValue)
+	{
+		return AddStruct<T>(NAME_None, InValue);
 	}
 
 	bool Remove(int32 InAddressIndex);
@@ -233,6 +374,9 @@ private:
 	// disable copy constructor
 	FMultiplexStorage(const FMultiplexStorage& Other) {}
 
+	void FillWithZeroes(int32 InAddressIndex);
+	int32 FindOrAddScriptStruct(UScriptStruct* InScriptStruct);
+
 	UPROPERTY()
 	bool bUseNameMap;
 
@@ -241,6 +385,9 @@ private:
 
 	UPROPERTY()
 	TArray<uint8> Data;
+
+	UPROPERTY()
+	TArray<UScriptStruct*> ScriptStructs;
 
 	UPROPERTY(transient)
 	TMap<FName, int32> NameMap;

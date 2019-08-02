@@ -12,7 +12,6 @@ FMultiplexRegistry& FMultiplexRegistry::Get()
 
 void FMultiplexRegistry::Refresh()
 {
-	// todo
 }
 
 void FMultiplexRegistry::Register(const TCHAR* InName, FMultiplexFunctionPtr InFunctionPtr)
