@@ -488,6 +488,17 @@ struct RENDERCORE_API FRDGBufferDesc
 		return Desc;
 	}
 
+	static FRDGBufferDesc CreateByteAddressDesc(uint32 NumBytes)
+	{
+		check(NumBytes % 4 == 0);
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
+		Desc.Usage = EBufferUsageFlags(BUF_UnorderedAccess | BUF_ShaderResource | BUF_ByteAddressBuffer);
+		Desc.BytesPerElement = 4;
+		Desc.NumElements = NumBytes / 4;
+		return Desc;
+	}
+
 	/** Returns the total number of bytes allocated for a such buffer. */
 	uint32 GetTotalNumBytes() const
 	{

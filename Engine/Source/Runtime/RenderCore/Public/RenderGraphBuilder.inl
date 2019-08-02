@@ -96,6 +96,11 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	{
 		checkf(Name, TEXT("Creating a render graph buffer requires a valid debug name."));
 		Validation.ExecuteGuard(TEXT("CreateBuffer"), Name);
+
+		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer && (Desc.Usage | BUF_ByteAddressBuffer))
+		{
+			check(Desc.BytesPerElement == 4);
+		}
 	}
 #endif
 
