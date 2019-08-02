@@ -3671,7 +3671,7 @@ bool GameProjectUtils::ProjectRequiresBuild(const FName InPlatformInfoName)
 
 	// check to see if any plugins beyond the defaults have been enabled
 	const PlatformInfo::FPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(InPlatformInfoName);
-	FName PlatformName = (PlatformInfo != nullptr) ? PlatformInfo->VanillaPlatformName : InPlatformInfoName;
+	FName PlatformName = (PlatformInfo != nullptr) ? PlatformInfo->UBTTargetId : InPlatformInfoName;
 	bRequiresBuild |= !HasDefaultPluginSettings(PlatformName.ToString());
 
 	// check to see if Blueprint nativization is enabled in the Project settings
