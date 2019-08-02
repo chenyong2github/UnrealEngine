@@ -572,7 +572,7 @@ protected:
 	void CompileFunctionDeclaration(FClasses& AllClasses);
 	void CompileVariableDeclaration (FClasses& AllClasses, UStruct* Struct);
 	void CompileInterfaceDeclaration(FClasses& AllClasses);
-	void CompileStaticMethodDeclaration(FClasses& AllClasses, UStruct* Struct);
+	void CompileMultiplexMethodDeclaration(FClasses& AllClasses, UStruct* Struct);
 
 	FClass* ParseInterfaceNameDeclaration(FClasses& AllClasses, FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
 	bool TryParseIInterfaceClass(FClasses& AllClasses);
