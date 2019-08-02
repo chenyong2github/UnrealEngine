@@ -66,17 +66,24 @@ void Chaos::TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::DebugDraw(I
 }
 #endif
 
-template<class OBJECT_ARRAY, class T, int d>
+template<class OBJECT_ARRAY, class T, int d, typename TPayloadType>
 TArray<int32> MakeNewLeaf(const OBJECT_ARRAY& Objects, const TArray<int32>& AllObjects, const TArray<int32>* /*Type*/)
 {
 	return TArray<int32>(AllObjects);
 }
 
-template<class OBJECT_ARRAY, class T, int d>
-TBoundingVolume<OBJECT_ARRAY, T, d> MakeNewLeaf(const OBJECT_ARRAY& Objects, const TArray<int32>& AllObjects, const TBoundingVolume<OBJECT_ARRAY, T, d>* /*Type*/)
+template<class OBJECT_ARRAY, class T, int d, typename TPayloadType>
+TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d> MakeNewLeaf(const OBJECT_ARRAY& Objects, const TArray<int32>& AllObjects, const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>* /*Type*/)
 {
+#if CHAOS_PARTICLEHANDLE_TODO
 	// @todo(mlentine): This is pretty dirty but should work for now.
-	return TBoundingVolume<OBJECT_ARRAY, T, d>(Objects, reinterpret_cast<const TArray<uint32>&>(AllObjects));
+	return TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>(Objects, reinterpret_cast<const TArray<uint32>&>(AllObjects));
+#else
+	TArray<TSOAView<OBJECT_ARRAY>> SOAs;
+	SOAs.Add(TSOAView<OBJECT_ARRAY>(const_cast<OBJECT_ARRAY*>(&Objects)));	//todo: this const_cast is here because bvh is holding on to things as const but giving it out as non const. Not sure if we should change API or not
+	//return TBoundingVolume<OBJECT_ARRAY, T, d>(MakeParticleView<OBJECT_ARRAY>({ {&Objects} }));
+	return TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>(MakeParticleView<OBJECT_ARRAY>(MoveTemp(SOAs)));
+#endif
 }
 
 template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
@@ -167,27 +174,32 @@ void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::UpdateHierarchyImp
 	else
 	{
 		Elements[0].LeafIndex = Leafs.Num();
-		Leafs.Add(MakeNewLeaf<OBJECT_ARRAY, T, d>(*MObjects, AllObjects, static_cast<LEAF_TYPE*>(nullptr)));
+		Leafs.Add(MakeNewLeaf<OBJECT_ARRAY, T, d, TPayloadType>(*MObjects, AllObjects, static_cast<LEAF_TYPE*>(nullptr)));
 	}
 	check(Elements[0].LeafIndex < Leafs.Num() || Elements[0].MChildren.Num() > 0);
 	UE_LOG(LogChaos, Verbose, TEXT("Generated Tree with %d Nodes"), Elements.Num());
 	//PrintTree("", &Elements[0]);
 }
 
-template<class OBJECT_ARRAY, class T, int d>
+template<class OBJECT_ARRAY, typename TPayloadType, class T, int d>
 TArray<int32> FindAllIntersectionsLeafHelper(const TArray<int32>& Leaf, const TVector<T, d>& Point)
 {
 	return Leaf;
 }
 
-template<class OBJECT_ARRAY, class T, int d>
-TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<OBJECT_ARRAY, T, d>& Leaf, const TVector<T, d>& Point)
+template<class OBJECT_ARRAY,typename TPayloadType, class T, int d>
+TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf, const TVector<T, d>& Point)
 {
+#if CHAOS_PARTICLEHANDLE_TODO
 	return Leaf.FindAllIntersections(Point);
+#else
+	check(false);
+	return TArray<int32>();
+#endif
 }
 
-template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
-TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TVector<T, d>& Point) const
+template<class OBJECT_ARRAY, typename TPayloadType, class T, int d>
+TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, TPayloadType, T, d>::FindAllIntersectionsHelper(const TBVHNode<T,d>& MyNode, const TVector<T, d>& Point) const
 {
 	TBox<T, d> MBox(MyNode.MMin, MyNode.MMax);
 	if (MBox.SignedDistance(Point) > 0)
@@ -196,7 +208,7 @@ TArray<int32> TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::FindAllIn
 	}
 	if (MyNode.MChildren.Num() == 0)
 	{
-		return FindAllIntersectionsLeafHelper<OBJECT_ARRAY, T, d>(Leafs[MyNode.LeafIndex], Point);
+		return FindAllIntersectionsLeafHelper<OBJECT_ARRAY, TPayloadType, T, d>(Leafs[MyNode.LeafIndex], Point);
 	}
 	const TVector<T, d> ObjectCenter = MBox.Center();
 	int32 Child = 0;
@@ -278,16 +290,20 @@ struct TSpecializeParticlesHelper<TParticles<T,d>>
 	}
 };
 
-template<class OBJECT_ARRAY, class T, int d, typename QUERY_OBJECT>
+template<class OBJECT_ARRAY, typename TPayloadType, typename T, int d, typename QUERY_OBJECT>
 TArray<int32> FindAllIntersectionsLeafHelper(const TArray<int32>& Leaf, const QUERY_OBJECT& QueryObject)
 {
 	return Leaf;
 }
 
-template<class OBJECT_ARRAY, class T, int d, typename QUERY_OBJECT>
-TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<OBJECT_ARRAY, T, d>& Leaf, const QUERY_OBJECT& QueryObject)
+template<class OBJECT_ARRAY, typename TPayloadType, class T, int d, typename QUERY_OBJECT>
+TArray<int32> FindAllIntersectionsLeafHelper(const TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf, const QUERY_OBJECT& QueryObject)
 {
+#if CHAOS_PARTICLEHANDLE_TODO
 	return Leaf.FindAllIntersectionsImp(QueryObject);
+#else
+	return TArray<int32>();
+#endif
 }
 
 int32 FindAllIntersectionsSingleThreaded = 1;
@@ -304,7 +320,7 @@ void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::FindAllIntersectio
 	}
 	if (MyNode.MChildren.Num() == 0)
 	{
-		TSpecializeParticlesHelper<OBJECT_ARRAY>::AccumulateChildrenResults(AccumulateElements, FindAllIntersectionsLeafHelper<OBJECT_ARRAY, T, d>(Leafs[MyNode.LeafIndex], QueryObject), QueryObject, MWorldSpaceBoxes);
+		TSpecializeParticlesHelper<OBJECT_ARRAY>::AccumulateChildrenResults(AccumulateElements, FindAllIntersectionsLeafHelper<OBJECT_ARRAY, TPayloadType, T, d>(Leafs[MyNode.LeafIndex], QueryObject), QueryObject, MWorldSpaceBoxes);
 		return;
 	}
 	
@@ -473,7 +489,7 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::GenerateNextLevel
 		}
 		else
 		{
-			LocalLeafs[i] = MakeNewLeaf<OBJECT_ARRAY, T, d>(*MObjects, LocalObjects[i], static_cast<LEAF_TYPE*>(nullptr));
+			LocalLeafs[i] = MakeNewLeaf<OBJECT_ARRAY, T, d, TPayloadType>(*MObjects, LocalObjects[i], static_cast<LEAF_TYPE*>(nullptr));
 		}
 	});
 	CriticalSection.Lock();
@@ -616,7 +632,7 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::GenerateNextLevel
 		}
 		else
 		{
-			LocalLeafs[i] = MakeNewLeaf<OBJECT_ARRAY, T, d>(*MObjects, LocalObjects[i], static_cast<LEAF_TYPE*>(nullptr));
+			LocalLeafs[i] = MakeNewLeaf<OBJECT_ARRAY, T, d, TPayloadType>(*MObjects, LocalObjects[i], static_cast<LEAF_TYPE*>(nullptr));
 		}
 	});
 	CriticalSection.Lock();
@@ -637,13 +653,15 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::GenerateNextLevel
 
 namespace Chaos
 {
-template <typename OBJECT_ARRAY, typename T, int d>
-void FixupLeafObj(const OBJECT_ARRAY& Objects, TArray<TBoundingVolume<OBJECT_ARRAY, T, d>>& Leafs)
+template <typename OBJECT_ARRAY, typename TPayloadType, typename T, int d>
+void FixupLeafObj(const OBJECT_ARRAY& Objects, TArray<TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>>& Leafs)
 {
-	for (TBoundingVolume<OBJECT_ARRAY, T, d>& Leaf : Leafs)
+#if CHAOS_PARTICLEHANDLE_TODO
+	for (TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& Leaf : Leafs)
 	{
 		Leaf.SetObjects(Objects);
 	}
+#endif
 }
 
 template <typename OBJECT_ARRAY>
@@ -661,9 +679,11 @@ void TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>::Serialize(FArchive
 	}
 }
 }
+
+template class CHAOS_API Chaos::TBoundingVolume<TArray<Chaos::TSphere<float, 3>*>, int32, float, 3>;
 template class CHAOS_API Chaos::TBoundingVolumeHierarchy<TArray<Chaos::TSphere<float, 3>*>, TArray<int32>, float, 3>;
 template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TArray<int32>, float, 3>;
 template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, TArray<int32>, float, 3>;
 template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TArray<int32>, float, 3>;
-template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TBoundingVolume<Chaos::TPBDRigidParticles<float, 3>, float, 3>, float, 3>;
-template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TBoundingVolume<Chaos::TGeometryParticles<float, 3>, float, 3>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TBoundingVolume<Chaos::TPBDRigidParticles<float, 3>, TPBDRigidParticleHandle<float,3>*, float, 3>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TBoundingVolume<Chaos::TGeometryParticles<float, 3>, TGeometryParticleHandle<float,3>*, float, 3>, float, 3>;

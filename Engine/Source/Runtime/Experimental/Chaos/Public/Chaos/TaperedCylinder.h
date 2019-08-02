@@ -330,6 +330,14 @@ namespace Chaos
 		static TRotation<T, 3> GetRotationOfMass()
 		{ return TRotation<T, 3>(TVector<T, 3>(0), 1); }
 
+		virtual uint32 GetTypeHash() const override
+		{
+			const uint32 PlaneHashes = HashCombine(MPlane1.GetTypeHash(), MPlane2.GetTypeHash());
+			const uint32 PropertyHash = HashCombine(::GetTypeHash(MHeight), HashCombine(::GetTypeHash(MRadius1), ::GetTypeHash(MRadius2)));
+
+			return HashCombine(PlaneHashes, PropertyHash);
+		}
+
 	private:
 		//Phi is distance from closest point on plane1
 		T GetRadius(const T& Phi) const

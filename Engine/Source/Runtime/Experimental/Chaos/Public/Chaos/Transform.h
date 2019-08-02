@@ -148,5 +148,10 @@ class TRigidTransform<float, 3> : public FTransform
 };
 }
 
+inline uint32 GetTypeHash(const Chaos::TRigidTransform<float, 3>& InTransform)
+{
+	return HashCombine(GetTypeHash(InTransform.GetTranslation()), HashCombine(GetTypeHash(InTransform.GetRotation().Euler()), GetTypeHash(InTransform.GetScale3D())));
+}
+
 CHAOS_API Chaos::PMatrix<float, 4, 4> operator*(const Chaos::TRigidTransform<float, 3>& Transform, const Chaos::PMatrix<float, 4, 4>& Matrix);
 CHAOS_API Chaos::PMatrix<float, 4, 4> operator*(const Chaos::PMatrix<float, 4, 4>& Matrix, const Chaos::TRigidTransform<float, 3>& Transform);

@@ -10,12 +10,12 @@
 
 class FPhysScene_PhysX;
 
-#if WITH_PHYSX
-
 // FILTER DATA
 
 /** Utility for creating a PhysX PxFilterData for performing a query (trace) against the scene */
 FCollisionFilterData CreateQueryFilterData(const uint8 MyChannel, const bool bTraceComplex, const FCollisionResponseContainer& InCollisionResponseContainer, const struct FCollisionQueryParams& QueryParam, const struct FCollisionObjectQueryParams & ObjectParam, const bool bMultitrace);
+
+#if WITH_PHYSX
 
 struct FConstraintBrokenDelegateData
 {
@@ -39,5 +39,4 @@ public:
 	virtual FPhysicsReplication* Create(FPhysScene* OwningPhysScene) = 0;
 	virtual void Destroy(FPhysicsReplication* PhysicsReplication) = 0;
 };
-
 #endif // WITH_PHYX

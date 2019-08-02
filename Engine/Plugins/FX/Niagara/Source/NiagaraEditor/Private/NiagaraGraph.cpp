@@ -1574,7 +1574,6 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		for (int32 Index = 0; Index < History.VariablesWithOriginalAliasesIntact.Num(); Index++)
 		{
 			const FNiagaraVariable& Parameter = History.VariablesWithOriginalAliasesIntact[Index];
-
 			for (const UEdGraphPin* WritePin : History.PerVariableWriteHistory[Index])
 			{
 				AddParameterReference(Parameter, WritePin);
@@ -1620,6 +1619,34 @@ void UNiagaraGraph::RefreshParameterReferences() const
 	for (const FNiagaraVariable& UnreferencedParameterToRemove : CandidateUnreferencedParametersToRemove)
 	{
 		ParameterToReferencesMap.Remove(UnreferencedParameterToRemove);
+	}
+	
+	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
+	if (UseShaderStagesCVar->GetInt() == 1)
+	{
+		// Add the array indices to the parameters
+		// When a particle attribute is created we need access the corresponding RegisterIdx if we want to 
+		// query this attribute at a different location inside the InputData buffer. This index must be 
+		// available as well inside the UI if we want to pass it to nodes. It is why we are adding them automatically 
+		// to the ParameterToReferencesMap.
+		TArray<FString> RegisterNames;
+		for (auto& ParameterEntry : ParameterToReferencesMap)
+		{
+			const FNiagaraVariable& NiagaraVariable = ParameterEntry.Key;
+			if (FNiagaraParameterMapHistory::IsAttribute(NiagaraVariable))
+			{
+				const FString VariableName = FHlslNiagaraTranslator::GetSanitizedSymbolName(NiagaraVariable.GetName().ToString());
+				RegisterNames.Add(VariableName.Replace(PARAM_MAP_ATTRIBUTE_STR, PARAM_MAP_INDICES_STR));
+			}
+		}
+		for (const FString& RegisterName : RegisterNames)
+		{
+			FNiagaraVariable Parameter = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), *RegisterName);
+			if (ParameterToReferencesMap.Find(Parameter) == nullptr)
+			{
+				ParameterToReferencesMap.Add(Parameter, false);
+			}
+		}
 	}
 
 	bParameterReferenceRefreshPending = false;

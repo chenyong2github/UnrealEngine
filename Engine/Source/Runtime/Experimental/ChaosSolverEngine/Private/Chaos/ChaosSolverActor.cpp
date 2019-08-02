@@ -2,7 +2,7 @@
 
 #include "Chaos/ChaosSolverActor.h"
 #include "UObject/ConstructorHelpers.h"
-#include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"
 #include "ChaosModule.h"
 
 #include "Components/BillboardComponent.h"
@@ -23,6 +23,7 @@
 
 #if CHAOS_DEBUG_SUBSTEP
 #include "HAL/IConsoleManager.h"
+#include "Chaos/Utilities.h"
 
 class FChaosSolverActorConsoleObjects final
 {
@@ -72,11 +73,10 @@ private:
 	{
 		for (auto SolverActor: SolverActors)
 		{
-			const Chaos::FPBDRigidsSolver* const Solver = SolverActor.Value->GetSolver();
+			const Chaos::FPhysicsSolver* const Solver = SolverActor.Value->GetSolver();
 			if (Solver)
 			{
-				const FSolverObjectStorage& SolverObjectStorage = Solver->GetObjectStorage_GameThread();
-				UE_LOG(LogChaosDebug, Display, TEXT("%s (%d objects)"), *SolverActor.Key, SolverObjectStorage.GetNumObjects());
+				UE_LOG(LogChaosDebug, Display, TEXT("%s (%d objects)"), *SolverActor.Key, Solver->GetNumPhysicsProxies());
 			}
 		}
 	}
@@ -84,7 +84,7 @@ private:
 	void Pause(const TArray<FString>& Args)
 	{
 		AChaosSolverActor* const* SolverActor;
-		Chaos::FPBDRigidsSolver* Solver;
+		Chaos::FPhysicsSolver* Solver;
 		switch (Args.Num())
 		{
 		default:
@@ -101,6 +101,7 @@ private:
 			if ((SolverActor = SolverActors.Find(Args[0])) != nullptr &&
 				(Solver = (*SolverActor)->GetSolver()) != nullptr)
 			{
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 				if (Args[1] == TEXT("0"))
 				{
 					Solver->GetDebugSubstep().Enable(false);
@@ -119,6 +120,7 @@ private:
 #endif
 					return;
 				}
+#endif
 			}
 			break;  // Invalid arguments
 		}
@@ -132,8 +134,9 @@ private:
 
 	void Step(const TArray<FString>& Args)
 	{
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 		AChaosSolverActor* const* SolverActor;
-		Chaos::FPBDRigidsSolver* Solver;
+		Chaos::FPhysicsSolver* Solver;
 		switch (Args.Num())
 		{
 		default:
@@ -152,12 +155,14 @@ private:
 		UE_LOG(LogChaosDebug, Display, TEXT("  p.Chaos.Solver.Step [SolverName]"));
 		UE_LOG(LogChaosDebug, Display, TEXT("  SolverName  The Id name of the solver as shown by p.Chaos.Solver.List"));
 		UE_LOG(LogChaosDebug, Display, TEXT("Example: p.Chaos.Solver.Step ChaosSolverActor_3"));
+#endif
 	}
 
 	void Substep(const TArray<FString>& Args)
 	{
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 		AChaosSolverActor* const* SolverActor;
-		Chaos::FPBDRigidsSolver* Solver;
+		Chaos::FPhysicsSolver* Solver;
 		switch (Args.Num())
 		{
 		default:
@@ -176,6 +181,7 @@ private:
 		UE_LOG(LogChaosDebug, Display, TEXT("  p.Chaos.Solver.Substep [SolverName]"));
 		UE_LOG(LogChaosDebug, Display, TEXT("  SolverName  The Id name of the solver as shown by p.Chaos.Solver.List"));
 		UE_LOG(LogChaosDebug, Display, TEXT("Example: p.Chaos.Solver.Substep ChaosSolverActor_3"));
+#endif
 	}
 
 private:
@@ -205,6 +211,8 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 	// @question(Benn) : Does this need to be created on the Physics thread using a queued command?
 	PhysScene = MakeShareable(new FPhysScene_Chaos(this));
 	Solver = PhysScene->GetSolver();
+	// @todo: This should be gated by a parameter
+	Solver->GetEvolution()->AddForceFunction(Chaos::Utilities::GetRigidsGravityFunction(Chaos::TVector<float, 3>(0, 0, -1), 980.f));
 #endif
 	// Ticking setup for collision/breaking notifies
 	PrimaryActorTick.TickGroup = TG_PostPhysics;
@@ -265,7 +273,7 @@ void AChaosSolverActor::BeginPlay()
 	Chaos::IDispatcher* PhysDispatcher = PhysScene->GetDispatcher();
 	if (PhysDispatcher)
 	{
-		PhysDispatcher->EnqueueCommand(Solver,
+		PhysDispatcher->EnqueueCommandImmediate(Solver,
 			[InTimeStepMultiplier = TimeStepMultiplier
 			, InCollisionIterations = CollisionIterations
 			, InPushOutIterations = PushOutIterations
@@ -281,14 +289,16 @@ void AChaosSolverActor::BeginPlay()
 			, InHasFloor = bHasFloor
 			, InFloorHeight = FloorHeight
 			, InMassScale = MassScale]
-		(Chaos::FPBDRigidsSolver* InSolver)
+		(Chaos::FPhysicsSolver* InSolver)
 		{
+#if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 			InSolver->SetTimeStepMultiplier(InTimeStepMultiplier);
 			InSolver->SetIterations(InCollisionIterations);
 			InSolver->SetPushOutIterations(InPushOutIterations);
 			InSolver->SetPushOutPairIterations(InPushOutPairIterations);
 			InSolver->SetClusterConnectionFactor(InClusterConnectionFactor);
 			InSolver->SetClusterUnionConnectionType((Chaos::FClusterCreationParameters<float>::EConnectionMethod)InClusterUnionConnectionType);
+#endif
 			InSolver->SetGenerateCollisionData(InDoGenerateCollisionData);
 			InSolver->SetGenerateBreakingData(InDoGenerateBreakingData);
 			InSolver->SetGenerateTrailingData(InDoGenerateTrailingData);
@@ -297,14 +307,20 @@ void AChaosSolverActor::BeginPlay()
 			InSolver->SetTrailingFilterSettings(InTrailingFilterSettings);
 			InSolver->SetHasFloor(InHasFloor);
 			InSolver->SetFloorHeight(InFloorHeight);
+#if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 			InSolver->SetMassScale(InMassScale);
+#endif
 			InSolver->SetEnabled(true);
+#if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 #if CHAOS_WITH_PAUSABLE_SOLVER
 			InSolver->SetPaused(false);
 #endif  // #if CHAOS_WITH_PAUSABLE_SOLVER
+#endif  // #if TODO_REIMPLEMENT_SOLVER_SETTINGS_ACCESSORS
 		});
 	}
 #endif
+
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 #if CHAOS_DEBUG_SUBSTEP
 	if (!ChaosSolverActorConsoleObjects)
 	{
@@ -318,6 +334,7 @@ void AChaosSolverActor::BeginPlay()
 	}
 #endif  // #if WITH_EDITOR
 #endif  // #if CHAOS_DEBUG_SUBSTEP
+#endif  // #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 }
 
 void AChaosSolverActor::EndPlay(EEndPlayReason::Type ReasonEnd)
@@ -326,7 +343,7 @@ void AChaosSolverActor::EndPlay(EEndPlayReason::Type ReasonEnd)
 	Chaos::IDispatcher* PhysDispatcher = PhysScene->GetDispatcher();
 	if (PhysDispatcher)
 	{
-		PhysDispatcher->EnqueueCommand(Solver, [](Chaos::FPBDRigidsSolver* InSolver)
+		PhysDispatcher->EnqueueCommandImmediate(Solver, [](Chaos::FPhysicsSolver* InSolver)
 		{
 			// #TODO BG - We should really reset the solver here but the current reset function
 			// is really heavy handed and clears out absolutely everything. Ideally we want to keep
@@ -335,9 +352,11 @@ void AChaosSolverActor::EndPlay(EEndPlayReason::Type ReasonEnd)
 		});
 	}
 #endif
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 #if CHAOS_DEBUG_SUBSTEP
 	ChaosSolverActorConsoleObjects->RemoveSolver(GetName());
 #endif  // #if CHAOS_DEBUG_SUBSTEP
+#endif  // #if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 }
 
 void AChaosSolverActor::PostRegisterAllComponents()
@@ -373,7 +392,7 @@ void AChaosSolverActor::SetSolverActive(bool bActive)
 
 		if(Dispatcher)
 		{
-			Dispatcher->EnqueueCommand(Solver, [bShouldBeActive = bActive](Chaos::FPBDRigidsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [bShouldBeActive = bActive](Chaos::FPhysicsSolver* InSolver)
 			{
 				InSolver->SetEnabled(bShouldBeActive);
 			});
@@ -393,114 +412,121 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 		Chaos::IDispatcher* PhysDispatcher = PhysScene->GetDispatcher();
 		if (PhysDispatcher)
 		{
+#if TODO_REIMPLEMENT_TIMESTEP_MULTIPLIER
 			if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, TimeStepMultiplier))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InTimeStepMultiplier = TimeStepMultiplier]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InTimeStepMultiplier = TimeStepMultiplier]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetTimeStepMultiplier(InTimeStepMultiplier);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, CollisionIterations))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InCollisionIterations = CollisionIterations]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InCollisionIterations = CollisionIterations]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetIterations(InCollisionIterations);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, PushOutIterations))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InPushOutIterations = PushOutIterations]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InPushOutIterations = PushOutIterations]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetPushOutIterations(InPushOutIterations);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, PushOutPairIterations))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InPushOutPairIterations = PushOutPairIterations]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InPushOutPairIterations = PushOutPairIterations]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetPushOutPairIterations(InPushOutPairIterations);
 				});
 			}
-			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, DoGenerateCollisionData))
+			else
+#endif
+			if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, DoGenerateCollisionData))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InDoGenerateCollisionData = DoGenerateCollisionData]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InDoGenerateCollisionData = DoGenerateCollisionData]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetGenerateCollisionData(InDoGenerateCollisionData);
 				});
 			}
 			else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, CollisionFilterSettings))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InCollisionFilterSettings = CollisionFilterSettings]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InCollisionFilterSettings = CollisionFilterSettings]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetCollisionFilterSettings(InCollisionFilterSettings);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, DoGenerateBreakingData))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InDoGenerateBreakingData = DoGenerateBreakingData]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InDoGenerateBreakingData = DoGenerateBreakingData]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetGenerateBreakingData(InDoGenerateBreakingData);
 				});
 			}
 			else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, BreakingFilterSettings))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InBreakingFilterSettings = BreakingFilterSettings]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InBreakingFilterSettings = BreakingFilterSettings]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetBreakingFilterSettings(InBreakingFilterSettings);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, DoGenerateTrailingData))
 			{
-			PhysDispatcher->EnqueueCommand(Solver, [InDoGenerateTrailingData = DoGenerateTrailingData]
-			(Chaos::FPBDRigidsSolver* InSolver)
-			{
-				InSolver->SetGenerateTrailingData(InDoGenerateTrailingData);
-			});
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InDoGenerateTrailingData = DoGenerateTrailingData]
+				(Chaos::FPhysicsSolver* InSolver)
+				{
+					InSolver->SetGenerateTrailingData(InDoGenerateTrailingData);
+				});
 			}
 			else if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, TrailingFilterSettings))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InTrailingFilterSettings = TrailingFilterSettings]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InTrailingFilterSettings = TrailingFilterSettings]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetTrailingFilterSettings(InTrailingFilterSettings);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, bHasFloor))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InHasFloor = bHasFloor]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InHasFloor = bHasFloor]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetHasFloor(InHasFloor);
 				});
 			}
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, FloorHeight))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InFloorHeight = FloorHeight]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InFloorHeight = FloorHeight]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetFloorHeight(InFloorHeight);
 				});
 			}
+#if TODO_REIMPLEMENT_TIMESTEP_MULTIPLIER
 			else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AChaosSolverActor, MassScale))
 			{
-				PhysDispatcher->EnqueueCommand(Solver, [InMassScale = MassScale]
-				(Chaos::FPBDRigidsSolver* InSolver)
+				PhysDispatcher->EnqueueCommandImmediate(Solver, [InMassScale = MassScale]
+				(Chaos::FPhysicsSolver* InSolver)
 				{
 					InSolver->SetMassScale(InMassScale);
 				});
 			}
+#endif
 		}
 	}
 #endif
+
 #if CHAOS_DEBUG_SUBSTEP
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 	if (Solver && PropertyChangedEvent.Property)
 	{
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FChaosDebugSubstepControl, bPause))
@@ -528,8 +554,10 @@ void AChaosSolverActor::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 		}
 	}
 #endif
+#endif
 }
 
+#if TODO_REIMPLEMENT_SERIALIZATION_FOR_PERF_TEST
 #if !UE_BUILD_SHIPPING
 void SerializeForPerfTest(const TArray< FString >&, UWorld* World, FOutputDevice&)
 {
@@ -540,13 +568,14 @@ void SerializeForPerfTest(const TArray< FString >&, UWorld* World, FOutputDevice
 	//todo(mlentine): use this once chaos solver actors are in
 	for (TActorIterator<AChaosSolverActor> Itr(World); Itr; ++Itr)
 	{
-		Chaos::FPBDRigidsSolver* Solver = Itr->GetSolver();
-		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommand(Solver, [FileName](Chaos::FPBDRigidsSolver* SolverIn) { SolverIn->SerializeForPerfTest(FileName); });
+		Chaos::FPhysicsSolver* Solver = Itr->GetSolver();
+		FChaosSolversModule::GetModule()->GetDispatcher()->EnqueueCommandImmediate(Solver, [FileName](Chaos::FPhysicsSolver* SolverIn) { SolverIn->SerializeForPerfTest(FileName); });
 	}
 #endif
 }
 
 FAutoConsoleCommand SerializeForPerfTestCommand(TEXT("p.SerializeForPerfTest"), TEXT(""), FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(&SerializeForPerfTest));
+#endif
 #endif
 
 #endif

@@ -1095,7 +1095,9 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			if (!bResult)
 			{
 				UE_LOG(LogNiagara, Error, TEXT("Error initializing data interface \"%s\" for system. %u | %s"), *Interface->GetPathName(), Component, *Component->GetAsset()->GetName());
-			}
+			}		
+
+			
 		}
 		else
 		{

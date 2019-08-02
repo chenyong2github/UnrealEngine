@@ -24,6 +24,7 @@
 #include "Modules/ModuleManager.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "AnimationRuntime.h"
 
 #include "Logging/MessageLog.h"
 #include "CollisionDebugDrawingPublic.h"
@@ -636,18 +637,16 @@ void USkeletalMeshComponent::InstantiatePhysicsAssetRefPose(const UPhysicsAsset&
 {
 	if(SkeletalMesh)
 	{
-		auto BoneTMCallable = [this](int32 BoneIndex)
-		{
-			const FReferenceSkeleton& RefSkel = SkeletalMesh->RefSkeleton;
+		// @todo(ccaulfield): check perf here against uncached version: FAnimationRuntime::GetComponentSpaceTransform for RBAN scenarios
+		const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+		TArray<FTransform> CachedTransforms;
+		TArray<bool> CachedTransformReady;
+		CachedTransforms.SetNumUninitialized(RefSkeleton.GetRefBonePose().Num());
+		CachedTransformReady.SetNumZeroed(RefSkeleton.GetRefBonePose().Num());
 
-			if(RefSkel.IsValidIndex(BoneIndex))
-			{
-				return RefSkel.GetRefBonePose()[BoneIndex];
-			}
-			else
-			{
-				return FTransform::Identity;
-			}
+		auto BoneTMCallable = [&](int32 BoneIndex)
+		{
+			return FAnimationRuntime::GetComponentSpaceTransformWithCache(RefSkeleton, RefSkeleton.GetRefBonePose(), BoneIndex, CachedTransforms, CachedTransformReady);
 		};
 
 		InstantiatePhysicsAsset_Internal(PhysAsset, Scale3D, OutBodies, OutConstraints, BoneTMCallable, PhysScene, OwningComponent, UseRootBodyIndex, UseAggregate);
@@ -915,14 +914,14 @@ void USkeletalMeshComponent::TermBodiesBelow(FName ParentBoneName)
 
 float USkeletalMeshComponent::GetTotalMassBelowBone(FName InBoneName)
 {
-	float TotalMass = 0.f;
+	float TotalBodyMass = 0.f;
 
-	ForEachBodyBelow(InBoneName, /*bIncludeSelf=*/true, /*bSkipCustomPhysics=*/false, [&TotalMass](FBodyInstance* BI)
+	ForEachBodyBelow(InBoneName, /*bIncludeSelf=*/true, /*bSkipCustomPhysics=*/false, [&TotalBodyMass](FBodyInstance* BI)
 	{
-		TotalMass += BI->GetBodyMass();
+		TotalBodyMass += BI->GetBodyMass();
 	});
 
-	return TotalMass;
+	return TotalBodyMass;
 }
 
 void USkeletalMeshComponent::SetAllBodiesSimulatePhysics(bool bNewSimulate)
@@ -2460,13 +2459,21 @@ void USkeletalMeshComponent::FindClothCollisions(FClothCollisionData& OutCollisi
 	}
 }
 
-void USkeletalMeshComponent::ExtractCollisionsForCloth(USkeletalMeshComponent* SourceComponent, UPhysicsAsset* PhysicsAsset, USkeletalMeshComponent* DestClothComponent, FClothCollisionData& OutCollisions, FClothCollisionSource& ClothCollisionSource)
+void USkeletalMeshComponent::ExtractCollisionsForCloth(
+	USkeletalMeshComponent* SourceComponent, 
+	UPhysicsAsset* PhysicsAsset, 
+	USkeletalMeshComponent* DestClothComponent, 
+	FClothCollisionData& OutCollisions, 
+	FClothCollisionSource& ClothCollisionSource)
 {
-	// Extract collisions from this mesh 'raw', as this isnt a mesh that has cloth simulation
+	// Extract collisions from this mesh 'raw', as this isn't a mesh that has cloth simulation
 	// (but we want it to affect other meshes with cloth simulation)
 	if(SourceComponent->SkeletalMesh && PhysicsAsset)
 	{
-		const FTransform& ComponentToComponentTransform = SourceComponent->GetComponentTransform() * DestClothComponent->GetComponentTransform().Inverse();
+		const FTransform& ComponentToComponentTransform = 
+			SourceComponent != DestClothComponent ? 
+				SourceComponent->GetComponentTransform() * DestClothComponent->GetComponentTransform().Inverse() : 
+				FTransform::Identity;
 
 		// Init cache on first copy
 		if(!ClothCollisionSource.bCached || ClothCollisionSource.CachedSkeletalMesh.Get() != SourceComponent->SkeletalMesh)
@@ -2698,8 +2705,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 
 							case ECollisionShapeType::Sphere:
 							{
-								PxSphereGeometry SphereGeo;
-								GeoCollection.GetSphereGeometry(SphereGeo);
+								PxSphereGeometry& SphereGeo = GeoCollection.GetSphereGeometry();
 
 								NewCollisionData.Spheres.AddDefaulted();
 								FClothCollisionPrim_Sphere& NewSphere = NewCollisionData.Spheres.Last();
@@ -2712,8 +2718,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 
 							case ECollisionShapeType::Capsule:
 							{
-								PxCapsuleGeometry CapGeo;
-								GeoCollection.GetCapsuleGeometry(CapGeo);
+								PxCapsuleGeometry& CapGeo = GeoCollection.GetCapsuleGeometry();
 
 								const int32 BaseSphereIndex = NewCollisionData.Spheres.Num();
 
@@ -2741,8 +2746,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 
 							case ECollisionShapeType::Box:
 							{
-								PxBoxGeometry BoxGeo;
-								GeoCollection.GetBoxGeometry(BoxGeo);
+								PxBoxGeometry& BoxGeo = GeoCollection.GetBoxGeometry();
 
 								// We're building the box in local space, so to get to the cloth transform
 								// we need to go through local -> actor -> world -> cloth
@@ -2786,8 +2790,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 
 							case ECollisionShapeType::Convex:
 							{
-								PxConvexMeshGeometry MeshGeo;
-								GeoCollection.GetConvexGeometry(MeshGeo);
+								PxConvexMeshGeometry& MeshGeo = GeoCollection.GetConvexGeometry();
 
 								// we need to inflate the hull to get nicer collisions (only particles collide)
 								const static float Inflate = 2.0f;
@@ -3286,19 +3289,19 @@ float USkeletalMeshComponent::GetBoneMass(FName BoneName, bool bScaleMass) const
 FVector USkeletalMeshComponent::GetSkeletalCenterOfMass() const
 {
 	FVector Location = FVector::ZeroVector;
-	float TotalMass = 0.0f;
+	float Mass = 0.0f;
 	for (int32 i = 0; i < Bodies.Num(); i++)
 	{
 		FBodyInstance* BI = Bodies[i];
 		if (BI->IsValidBodyInstance())
 		{
-			float Mass = BI->MassScale*BI->GetBodyMass();
-			Location += Mass*BI->GetCOMPosition();
-			TotalMass += Mass;
+			float BodyMass = BI->MassScale*BI->GetBodyMass();
+			Location += BodyMass*BI->GetCOMPosition();
+			Mass += BodyMass;
 		}
 	}
 
-	return Location / TotalMass;
+	return Location / Mass;
 }
 
 void USkeletalMeshComponent::SetAllUseCCD(bool InUseCCD)

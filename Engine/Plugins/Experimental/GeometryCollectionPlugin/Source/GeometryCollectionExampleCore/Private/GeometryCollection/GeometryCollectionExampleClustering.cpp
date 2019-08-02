@@ -17,7 +17,7 @@
 
 
 #include "GeometryCollection/GeometryDynamicCollection.h"
-#include "SolverObjects/SolverObjects.h"
+#include "PhysicsProxy/PhysicsProxies.h"
 #include "Chaos/ErrorReporter.h"
 #include "ChaosSolversModule.h"
 #include "Chaos/PBDRigidClustering.h"
@@ -31,6 +31,7 @@ DEFINE_LOG_CATEGORY_STATIC(GCTCL_Log, Verbose, All);
 // has to go and fix up so many callsites here and they're all pretty much
 // Identical. The similar code should be pulled out
 
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 namespace GeometryCollectionExample
 {
 #if INCLUDE_CHAOS
@@ -86,7 +87,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -178,7 +179,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -324,7 +325,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
 		PhysObject->Initialize();
 		PhysObject->SetCollisionParticlesPerObjectFraction(1.0);
 
@@ -454,7 +455,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 		
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -586,7 +587,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -744,7 +745,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -877,7 +878,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -1115,7 +1116,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -1335,10 +1336,10 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection2, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
-		FGeometryCollectionPhysicsObject* PhysObject2 = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection2.Get(), InitFunc2, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject2 = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection2.Get(), InitFunc2, nullptr, nullptr);;
 		PhysObject2->Initialize();
 
 
@@ -1473,10 +1474,10 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection2, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
-		FGeometryCollectionPhysicsObject* PhysObject2 = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection2.Get(), InitFunc2, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject2 = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection2.Get(), InitFunc2, nullptr, nullptr);;
 		PhysObject2->Initialize();
 
 
@@ -1610,10 +1611,10 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection2, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
-		FGeometryCollectionPhysicsObject* PhysObject2 = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection2.Get(), InitFunc2, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject2 = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection2.Get(), InitFunc2, nullptr, nullptr);;
 		PhysObject2->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -1719,7 +1720,7 @@ namespace GeometryCollectionExample
 			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
 		};
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
@@ -1808,7 +1809,7 @@ namespace GeometryCollectionExample
 		};
 
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
 		PhysObject->Initialize();
 
 
@@ -1915,9 +1916,9 @@ namespace GeometryCollectionExample
 		FalloffField->Position = FVector(0.0, 0.0, 0.0);
 		FalloffField->Falloff = EFieldFalloffType::Field_FallOff_None;
 
-		FFieldSystemPhysicsObject* FieldObject = new FFieldSystemPhysicsObject(nullptr);
+		FFieldSystemPhysicsProxy* FieldObject = new FFieldSystemPhysicsProxy(nullptr);
 
-		FGeometryCollectionPhysicsObject* PhysObject = new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
+		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
 		Chaos::FPBDRigidsSolver::FClusteringType & Clustering = Solver->GetRigidClustering();
 
@@ -1988,20 +1989,20 @@ namespace GeometryCollectionExample
 		P.SizeData.MaxLevelSetResolution = 20;
 
 		SimulationObjects<T>* Object = new SimulationObjects<T>(P, CreateClusteredBody_FracturedGeometry());
-		Object->PhysicsObject->Initialize();
-		Object->PhysicsObject->ActivateBodies();
+		Object->PhysicsProxy->Initialize();
+		Object->PhysicsProxy->ActivateBodies();
 
 		typedef TUniquePtr<Chaos::TImplicitObject<float, 3>> FImplicitPointer;
-		const TManagedArray<FImplicitPointer> & Implicits = Object->RestCollection->template GetAttribute<FImplicitPointer>(FGeometryCollectionPhysicsObject::ImplicitsAttribute, FTransformCollection::TransformGroup);
+		const TManagedArray<FImplicitPointer> & Implicits = Object->RestCollection->template GetAttribute<FImplicitPointer>(FGeometryCollectionPhysicsProxy::ImplicitsAttribute, FTransformCollection::TransformGroup);
 
 		typedef TUniquePtr< FCollisionStructureManager::FSimplicial > FSimplicialPointer;
-		const TManagedArray<FSimplicialPointer> & Simplicials = Object->RestCollection->template GetAttribute<FSimplicialPointer>(FGeometryCollectionPhysicsObject::SimplicialsAttribute, FTransformCollection::TransformGroup);
+		const TManagedArray<FSimplicialPointer> & Simplicials = Object->RestCollection->template GetAttribute<FSimplicialPointer>(FGeometryCollectionPhysicsProxy::SimplicialsAttribute, FTransformCollection::TransformGroup);
 
 
 		Chaos::FPBDRigidsSolver* Solver = FChaosSolversModule::GetModule()->CreateSolver(true);
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
-		Solver->RegisterObject(Object->PhysicsObject.Get());
+		Solver->RegisterObject(Object->PhysicsProxy.Get());
 		Solver->AdvanceSolverBy(1 / 24.);
 		Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
 
@@ -2013,9 +2014,9 @@ namespace GeometryCollectionExample
 			CollisionParticlesPerObjectFractionDefault = CVarCollisionParticlesPerObjectFractionDefault->GetFloat();
 		}
 
-		R.ExpectTrue(Particles.CollisionParticles(Object->PhysicsObject->RigidBodyIDArray_TestingAccess()[10])->Size() == (int)(Simplicials[10]->Size() * CollisionParticlesPerObjectFractionDefault));
-		R.ExpectTrue(Particles.CollisionParticles(Object->PhysicsObject->RigidBodyIDArray_TestingAccess()[11])->Size() == (int)(Simplicials[11]->Size() * CollisionParticlesPerObjectFractionDefault));
-		R.ExpectTrue(Particles.CollisionParticles(Object->PhysicsObject->RigidBodyIDArray_TestingAccess()[12])->Size() == (int)(Simplicials[12]->Size() * CollisionParticlesPerObjectFractionDefault));
+		R.ExpectTrue(Particles.CollisionParticles(Object->PhysicsProxy->RigidBodyIDArray_TestingAccess()[10])->Size() == (int)(Simplicials[10]->Size() * CollisionParticlesPerObjectFractionDefault));
+		R.ExpectTrue(Particles.CollisionParticles(Object->PhysicsProxy->RigidBodyIDArray_TestingAccess()[11])->Size() == (int)(Simplicials[11]->Size() * CollisionParticlesPerObjectFractionDefault));
+		R.ExpectTrue(Particles.CollisionParticles(Object->PhysicsProxy->RigidBodyIDArray_TestingAccess()[12])->Size() == (int)(Simplicials[12]->Size() * CollisionParticlesPerObjectFractionDefault));
 
 		// cleanup
 		//for (auto Obj : Collections) delete Obj;
@@ -2027,3 +2028,4 @@ namespace GeometryCollectionExample
 	}
 	template bool RigidBodiess_ClusterTest_ParticleImplicitCollisionGeometry<float>(ExampleResponse&& R);
 }
+#endif

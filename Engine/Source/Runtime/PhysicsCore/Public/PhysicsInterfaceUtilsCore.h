@@ -2,12 +2,13 @@
 
 #pragma once
 
+#include "PhysicsInterfaceTypesCore.h"
+#include "PhysicsInterfaceDeclaresCore.h"
+
 #if WITH_PHYSX
 
 #include "PhysXPublicCore.h"
 #include "Containers/Union.h"
-#include "PhysicsInterfaceTypesCore.h"
-#include "PhysicsInterfaceDeclaresCore.h"
 #include "CollisionShape.h"
 
 
@@ -136,14 +137,11 @@ PHYSICSCORE_API PxTransform ConvertToPhysXCapsulePose(const FTransform& GeomPose
 
 // FILTER DATA
 
-//Find the face index for a given hit. This gives us a chance to modify face index based on things like most opposing normal
-PHYSICSCORE_API PxU32 FindFaceIndex(const FHitLocation& PHit, const FVector& UnitDirection);
-
 // Adapts a FCollisionShape to a PxGeometry type, used for various queries
-struct PHYSICSCORE_API FPhysXShapeAdaptor
+struct PHYSICSCORE_API FPhysXShapeAdapter
 {
 public:
-	FPhysXShapeAdaptor(const FQuat& Rot, const FCollisionShape& CollisionShape);
+	FPhysXShapeAdapter(const FQuat& Rot, const FCollisionShape& CollisionShape);
 
 	const PxGeometry& GetGeometry() const
 	{
@@ -167,3 +165,6 @@ private:
 };
 
 #endif // WITH_PHYX
+
+//Find the face index for a given hit. This gives us a chance to modify face index based on things like most opposing normal
+PHYSICSCORE_API uint32 FindFaceIndex(const FHitLocation& PHit, const FVector& UnitDirection);
