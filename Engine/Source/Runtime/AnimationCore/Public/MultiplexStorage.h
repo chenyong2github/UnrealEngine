@@ -21,12 +21,13 @@ struct ANIMATIONCORE_API FMultiplexAddress
 {
 	GENERATED_USTRUCT_BODY()
 
-	FMultiplexAddress()
+		FMultiplexAddress()
 		: Type(EMultiplexAddressType::Invalid)
 		, Pointer(nullptr)
 		, ByteIndex(INDEX_NONE)
 		, ElementSize(0)
 		, ElementCount(0)
+		, AlignmentBytes(0)
 		, Name(NAME_None)
 		, ScriptStructIndex(INDEX_NONE)
 	{
@@ -47,14 +48,18 @@ struct ANIMATIONCORE_API FMultiplexAddress
 	int32 ElementCount;
 
 	UPROPERTY()
+	int32 AlignmentBytes;
+
+	UPROPERTY()
 	FName Name;
 
 	UPROPERTY()
 	int32 ScriptStructIndex;
 
+	FORCEINLINE int32 FirstByte() const { return ByteIndex + AlignmentBytes; }
 	FORCEINLINE bool IsArray() const { return ElementCount > 1; }
 	FORCEINLINE bool IsPlain() const { return ScriptStructIndex == INDEX_NONE;  }
-	FORCEINLINE int32 NumBytes() const { return ElementCount * ElementSize;  }
+	FORCEINLINE int32 NumBytes(bool bIncludeAlignment = true) const { return ElementCount * ElementSize + (bIncludeAlignment ? AlignmentBytes : 0); }
 
 	template<class T>
 	FORCEINLINE const T* Get() const
@@ -98,6 +103,7 @@ struct ANIMATIONCORE_API FMultiplexStorage
 public:
 
 	FMultiplexStorage(bool bInUseNames = true);
+	FMultiplexStorage(const FMultiplexStorage& Other);
 	~FMultiplexStorage();
 
 	FMultiplexStorage& operator= (const FMultiplexStorage &InOther);
@@ -119,7 +125,7 @@ public:
 		ensure(Addresses.IsValidIndex(InAddressIndex));
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
-		return (const void*)&Data[Address.ByteIndex];
+		return (const void*)&Data[Address.FirstByte()];
 	}
 
 	FORCEINLINE void* GetData(int32 InAddressIndex)
@@ -127,7 +133,7 @@ public:
 		ensure(Addresses.IsValidIndex(InAddressIndex));
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
-		return (void*)&Data[Address.ByteIndex];
+		return (void*)&Data[Address.FirstByte()];
 	}
 
 	template<class T>
@@ -136,7 +142,7 @@ public:
 		ensure(Addresses.IsValidIndex(InAddressIndex));
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
-		return (const T*)&Data[Address.ByteIndex];
+		return (const T*)&Data[Address.FirstByte()];
 	}
 
 	template<class T>
@@ -151,7 +157,7 @@ public:
 		ensure(Addresses.IsValidIndex(InAddressIndex));
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
-		return (T*)&Data[Address.ByteIndex];
+		return (T*)&Data[Address.FirstByte()];
 	}
 
 	template<class T>
@@ -166,7 +172,7 @@ public:
 		ensure(Addresses.IsValidIndex(InAddressIndex));
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
-		return TArrayView<T>((T*)&Data[Address.ByteIndex], Address.ElementCount);
+		return TArrayView<T>((T*)&Data[Address.FirstByte()], Address.ElementCount);
 	}
 
 	FORCEINLINE UScriptStruct* GetScriptStruct(int32 InAddressIndex) const
@@ -236,11 +242,6 @@ public:
 	}
 
 	void Reset();
-
-	int32 Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr);
-	int32 Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr);
-	bool Construct(int32 InAddressIndex, int32 InElementIndex = INDEX_NONE);
-	bool Destroy(int32 InAddressIndex, int32 InElementIndex = INDEX_NONE);
 
 	FORCEINLINE int32 AddPlainArray(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr)
 	{
@@ -368,7 +369,7 @@ public:
 
 	FORCEINLINE int32 AddStructArray(const FName& InNewName, UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr)
 	{
-		int32 Address = Allocate(InNewName, InScriptStruct->GetStructureSize(), InCount, nullptr);
+		int32 Address = Allocate(InNewName, InScriptStruct->GetStructureSize(), InCount, nullptr, false);
 		if (Address == INDEX_NONE)
 		{
 			return INDEX_NONE;
@@ -376,6 +377,8 @@ public:
 
 		Addresses[Address].Type = EMultiplexAddressType::Struct;
 		Addresses[Address].ScriptStructIndex = FindOrAddScriptStruct(InScriptStruct);
+
+		UpdateAddresses();
 
 		// construct the content
 		Construct(Address);
@@ -452,8 +455,10 @@ public:
 
 private:
 
-	// disable copy constructor
-	FMultiplexStorage(const FMultiplexStorage& Other) {}
+	int32 Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, bool bUpdateAddresses = true);
+	int32 Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, bool bUpdateAddresses = true);
+	bool Construct(int32 InAddressIndex, int32 InElementIndex = INDEX_NONE);
+	bool Destroy(int32 InAddressIndex, int32 InElementIndex = INDEX_NONE);
 
 	void FillWithZeroes(int32 InAddressIndex);
 	int32 FindOrAddScriptStruct(UScriptStruct* InScriptStruct);
