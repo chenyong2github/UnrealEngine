@@ -91,6 +91,7 @@ public:
 
 	UToolMenus();
 
+	UFUNCTION(BlueprintCallable, Category = "Tool Menus")
 	static UToolMenus* Get();
 
 	/** Try to get UToolMenus without forcing ToolMenus module to load. */
