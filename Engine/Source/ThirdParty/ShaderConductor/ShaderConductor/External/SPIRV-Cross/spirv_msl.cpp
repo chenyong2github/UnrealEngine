@@ -5827,11 +5827,10 @@ string CompilerMSL::to_struct_member(const SPIRType &type, uint32_t member_type_
 			td_line += ";";
 			add_typedef_line(td_line);
 		}
-		else if (is_array(membertype) && membertype.vecsize <= 2 && membertype.basetype != SPIRType::Struct)
+		else if (is_array(membertype) && membertype.vecsize < 2 && membertype.basetype != SPIRType::Struct)
 		{
-			// A "packed" float array, but we pad here instead to 4-vector.
+			// A "packed" float array, do nothing.
 			override_type = membertype;
-			override_type.vecsize = 4;
 			effective_membertype = &override_type;
 		}
 		else
