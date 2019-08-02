@@ -12,6 +12,11 @@ UE_RigUnit_SpringIK_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Co
 		return;
 	}
 
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	int32& PoleVectorIndex = WorkData.PoleVectorIndex;
+	TArray<FTransform>& Transforms = WorkData.Transforms;
+	FCRSimPointContainer& Simulation = WorkData.Simulation;
+
 	if (Context.State == EControlRigState::Init)
 	{
 		BoneIndices.Reset();

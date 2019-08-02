@@ -12,6 +12,12 @@ UE_RigUnit_DistributeRotation_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitC
 		return;
 	}
 
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<int32>& BoneRotationA = WorkData.BoneRotationA;
+	TArray<int32>& BoneRotationB = WorkData.BoneRotationB;
+	TArray<float>& BoneRotationT = WorkData.BoneRotationT;
+	TArray<FTransform>& BoneLocalTransforms = WorkData.BoneLocalTransforms;
+
 	if (Context.State == EControlRigState::Init)
 	{
 		BoneIndices.Reset();
@@ -208,21 +214,21 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 
 	Init();
 
-	AddErrorIfFalse(Unit.BoneRotationA[0] == 0, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[0] == 0, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[0], 0.f, 0.001f), TEXT("unexpected bone t"));
-	AddErrorIfFalse(Unit.BoneRotationA[1] == 0, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[1] == 2, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[1], 0.5f, 0.001f), TEXT("unexpected bone t"));
-	AddErrorIfFalse(Unit.BoneRotationA[2] == 2, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[2] == 2, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[2], 0.f, 0.001f), TEXT("unexpected bone t"));
-	AddErrorIfFalse(Unit.BoneRotationA[3] == 2, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[3] == 1, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[3], 0.5f, 0.001f), TEXT("unexpected bone t"));
-	AddErrorIfFalse(Unit.BoneRotationA[4] == 1, TEXT("unexpected bone a"));
-	AddErrorIfFalse(Unit.BoneRotationB[4] == 1, TEXT("unexpected bone b"));
-	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.BoneRotationT[4], 0.0f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[0] == 0, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[0] == 0, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[0], 0.f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[1] == 0, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[1] == 2, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[1], 0.5f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[2] == 2, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[2] == 2, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[2], 0.f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[3] == 2, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[3] == 1, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[3], 0.5f, 0.001f), TEXT("unexpected bone t"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationA[4] == 1, TEXT("unexpected bone a"));
+	AddErrorIfFalse(Unit.WorkData.BoneRotationB[4] == 1, TEXT("unexpected bone b"));
+	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.BoneRotationT[4], 0.0f, 0.001f), TEXT("unexpected bone t"));
 
 	Execute();
 

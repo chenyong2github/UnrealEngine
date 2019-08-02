@@ -10,6 +10,9 @@ UE_RigUnit_PointSimulation_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCont
 
 	float DeltaTime = Context.DeltaTime;
 
+	FCRSimPointContainer& Simulation = WorkData.Simulation;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+
 	if (Context.State == EControlRigState::Init ||
 		Simulation.Points.Num() != Points.Num() ||
 		Simulation.Springs.Num() != Links.Num() ||

@@ -82,6 +82,46 @@ struct FRigUnit_FitChainToCurve_DebugSettings
 	FTransform WorldOffset;
 };
 
+USTRUCT()
+struct FRigUnit_FitChainToCurve_WorkData
+{
+	GENERATED_BODY()
+
+	FRigUnit_FitChainToCurve_WorkData()
+	{
+		ChainLength = 0.f;
+	}
+
+	UPROPERTY()
+	float ChainLength;
+
+	UPROPERTY()
+	TArray<FVector> BonePositions;
+
+	UPROPERTY()
+	TArray<float> BoneSegments;
+
+	UPROPERTY()
+	TArray<FVector> CurvePositions;
+
+	UPROPERTY()
+	TArray<float> CurveSegments;
+
+	UPROPERTY()
+	TArray<int32> BoneIndices;
+
+	UPROPERTY()
+	TArray<int32> BoneRotationA;
+
+	UPROPERTY()
+	TArray<int32> BoneRotationB;
+
+	UPROPERTY()
+	TArray<float> BoneRotationT;
+
+	UPROPERTY()
+	TArray<FTransform> BoneLocalTransforms;
+};
 /**
  * Fits a given chain to a four point bezier curve.
  * Additionally provides rotational control matching the features of the Distribute Rotation node.
@@ -105,7 +145,6 @@ struct FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMutable
 		RotationEaseType = EControlRigAnimEasingType::Linear;
 		bPropagateToChildren = false;
 		DebugSettings = FRigUnit_FitChainToCurve_DebugSettings();
-		ChainLength = 0.f;
 	}
 
 	MULTIPLEX_METHOD()
@@ -196,33 +235,6 @@ struct FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	FRigUnit_FitChainToCurve_DebugSettings DebugSettings;
 
-	UPROPERTY()
-	float ChainLength;
-
-	UPROPERTY()
-	TArray<FVector> BonePositions;
-
-	UPROPERTY()
-	TArray<float> BoneSegments;
-
-	UPROPERTY()
-	TArray<FVector> CurvePositions;
-
-	UPROPERTY()
-	TArray<float> CurveSegments;
-
-	UPROPERTY()
-	TArray<int32> BoneIndices;
-
-	UPROPERTY()
-	TArray<int32> BoneRotationA;
-
-	UPROPERTY()
-	TArray<int32> BoneRotationB;
-
-	UPROPERTY()
-	TArray<float> BoneRotationT;
-
-	UPROPERTY()
-	TArray<FTransform> BoneLocalTransforms;
+	UPROPERTY(transient)
+	FRigUnit_FitChainToCurve_WorkData WorkData;
 };

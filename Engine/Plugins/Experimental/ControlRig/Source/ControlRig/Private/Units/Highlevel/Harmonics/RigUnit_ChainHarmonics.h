@@ -137,6 +137,44 @@ struct FRigUnit_ChainHarmonics_Pendulum
 	float UnwindMaximum;
 };
 
+USTRUCT()
+struct FRigUnit_ChainHarmonics_WorkData
+{
+	GENERATED_BODY()
+
+	FRigUnit_ChainHarmonics_WorkData()
+	{
+		Time = FVector::ZeroVector;
+	}
+
+	UPROPERTY()
+	FVector Time;
+
+	UPROPERTY()
+	TArray<int32> Bones;
+
+	UPROPERTY()
+	TArray<float> Ratio;
+
+	UPROPERTY()
+	TArray<FVector> LocalTip;
+
+	UPROPERTY()
+	TArray<FVector> PendulumTip;
+
+	UPROPERTY()
+	TArray<FVector> PendulumPosition;
+
+	UPROPERTY()
+	TArray<FVector> PendulumVelocity;
+
+	UPROPERTY()
+	TArray<FVector> HierarchyLine;
+
+	UPROPERTY()
+	TArray<FVector> VelocityLines;
+};
+
 USTRUCT(meta=(DisplayName="ChainHarmonics"))
 struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
 {
@@ -157,8 +195,6 @@ struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
 
 		bDrawDebug = true;
 		DrawWorldOffset = FTransform::Identity;
-
-		Time = FVector::ZeroVector;
 	}
 
 	MULTIPLEX_METHOD()
@@ -188,30 +224,6 @@ struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	FTransform DrawWorldOffset;
 
-	UPROPERTY()
-	FVector Time;
-
-	UPROPERTY()
-	TArray<int32> Bones;
-
-	UPROPERTY()
-	TArray<float> Ratio;
-
-	UPROPERTY()
-	TArray<FVector> LocalTip;
-
-	UPROPERTY()
-	TArray<FVector> PendulumTip;
-
-	UPROPERTY()
-	TArray<FVector> PendulumPosition;
-
-	UPROPERTY()
-	TArray<FVector> PendulumVelocity;
-
-	UPROPERTY()
-	TArray<FVector> HierarchyLine;
-
-	UPROPERTY()
-	TArray<FVector> VelocityLines;
+	UPROPERTY(transient)
+	FRigUnit_ChainHarmonics_WorkData WorkData;
 };

@@ -6,6 +6,9 @@
 UE_RigUnit_ModifyBoneTransforms_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	TArray<int32>& CachedBoneIndices = WorkData.CachedBoneIndices;
+
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy)
 	{

@@ -31,6 +31,23 @@ struct FRigUnit_BoneHarmonics_BoneTarget
 	float Ratio;
 };
 
+USTRUCT()
+struct FRigUnit_BoneHarmonics_WorkData
+{
+	GENERATED_BODY()
+
+	FRigUnit_BoneHarmonics_WorkData()
+	{
+		WaveTime = FVector::ZeroVector;
+	}
+
+	UPROPERTY()
+	TArray<int32> BoneIndices;
+
+	UPROPERTY()
+	FVector WaveTime;
+};
+
 /**
  * Performs point based simulation
  */
@@ -51,7 +68,6 @@ struct FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMutable
 		WaveMaximum = 1.f;
 		RotationOrder = EControlRigRotationOrder::YZX;
 		bPropagateToChildren = false;
-		WaveTime = FVector::ZeroVector;
 	}
 
 	MULTIPLEX_METHOD()
@@ -97,10 +113,7 @@ struct FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	bool bPropagateToChildren;
 
-	UPROPERTY()
-	TArray<int32> BoneIndices;
-
-	UPROPERTY()
-	FVector WaveTime;
+	UPROPERTY(transient)
+	FRigUnit_BoneHarmonics_WorkData WorkData;
 };
 

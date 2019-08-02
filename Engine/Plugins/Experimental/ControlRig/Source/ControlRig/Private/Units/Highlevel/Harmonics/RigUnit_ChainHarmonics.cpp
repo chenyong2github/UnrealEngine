@@ -11,6 +11,16 @@ UE_RigUnit_ChainHarmonics_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitConte
 	{
 		return;
 	}
+
+	FVector& Time = WorkData.Time;
+	TArray<int32>& Bones = WorkData.Bones;
+	TArray<float>& Ratio = WorkData.Ratio;
+	TArray<FVector>& LocalTip = WorkData.LocalTip;
+	TArray<FVector>& PendulumTip = WorkData.PendulumTip;
+	TArray<FVector>& PendulumPosition = WorkData.PendulumPosition;
+	TArray<FVector>& PendulumVelocity = WorkData.PendulumVelocity;
+	TArray<FVector>& HierarchyLine = WorkData.HierarchyLine;
+	TArray<FVector>& VelocityLines = WorkData.VelocityLines;
 	
 	if (Context.State == EControlRigState::Init)
 	{

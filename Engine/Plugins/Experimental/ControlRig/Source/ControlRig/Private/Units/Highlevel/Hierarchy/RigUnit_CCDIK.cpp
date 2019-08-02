@@ -12,6 +12,12 @@ UE_RigUnit_CCDIK_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Conte
 		return;
 	}
 
+	TArray<FCCDIKChainLink>& Chain = WorkData.Chain;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<int32>& RotationLimitIndex = WorkData.RotationLimitIndex;
+	TArray<float>& RotationLimitsPerBone = WorkData.RotationLimitsPerBone;
+	int32& EffectorIndex = WorkData.EffectorIndex;
+
 	if (Context.State == EControlRigState::Init ||
 		RotationLimits.Num() != RotationLimitIndex.Num())
 	{

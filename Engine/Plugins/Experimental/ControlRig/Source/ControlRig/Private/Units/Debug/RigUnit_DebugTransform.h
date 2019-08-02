@@ -107,10 +107,19 @@ struct FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
 	bool bEnabled;
 };
 
+USTRUCT()
+struct FRigUnit_DebugTransformArrayMutable_WorkData
+{
+	GENERATED_BODY()
+		
+	UPROPERTY()
+	TArray<FTransform> DrawTransforms;
+};
+
 USTRUCT(meta=(DisplayName="Draw Transform Array"))
 struct FRigUnit_DebugTransformArrayMutable : public FRigUnit_DebugBaseMutable
 {
-	GENERATED_BODY()
+ 	GENERATED_BODY()
 
 	FRigUnit_DebugTransformArrayMutable()
 	{
@@ -149,6 +158,6 @@ struct FRigUnit_DebugTransformArrayMutable : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input, Constant, BoneName))
 	bool bEnabled;
 
-	UPROPERTY()
-	TArray<FTransform> DrawTransforms;
+	UPROPERTY(transient)
+	FRigUnit_DebugTransformArrayMutable_WorkData WorkData;
 };

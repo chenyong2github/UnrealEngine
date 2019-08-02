@@ -31,15 +31,12 @@ UE_RigUnit_TimeOffsetFloat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCont
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
-		DeltaTimes.Reset();
-		DeltaTimes.Reserve(MaxSize);
+		UpperBound = 0;
 		Result = Value;
 		return;
 	}
 
-	if (Buffer.Num() == 0)
+	if (UpperBound == 0)
 	{
 		Result = Value;
 	}
@@ -50,7 +47,7 @@ UE_RigUnit_TimeOffsetFloat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCont
 		float T = 0.f;
 
 		int32 Index = LastInsertIndex;
-		if (SecondsAgo < DeltaTimes[Index] || Buffer.Num() == 1)
+		if (SecondsAgo < DeltaTimes[Index] || UpperBound == 1)
 		{
 			B = Buffer[Index];
 			T = SecondsAgo / DeltaTimes[Index];
@@ -58,7 +55,7 @@ UE_RigUnit_TimeOffsetFloat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCont
 		else
 		{
 			float AccumulatedTime = 0.f;
-			for (int32 TimeIndex = 0; TimeIndex < DeltaTimes.Num(); TimeIndex++)
+			for (int32 TimeIndex = 0; TimeIndex < UpperBound; TimeIndex++)
 			{
 				B = Buffer[Index];
 
@@ -70,7 +67,7 @@ UE_RigUnit_TimeOffsetFloat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCont
 				AccumulatedTime = AccumulatedTime + DeltaTimes[Index];;
 				A = B;
 
-				Index = (Index - 1 + DeltaTimes.Num()) % DeltaTimes.Num();
+				Index = (Index - 1 + UpperBound) % UpperBound;
 			}
 		}
 
@@ -79,26 +76,26 @@ UE_RigUnit_TimeOffsetFloat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCont
 
 	if (Context.DeltaTime > SMALL_NUMBER)
 	{
-		if (Buffer.Num() == 0)
+		if (UpperBound == 0)
 		{
-			LastInsertIndex = Buffer.Num();
-			Buffer.Add(Value);
-			DeltaTimes.Add(Context.DeltaTime);
+			LastInsertIndex = UpperBound;
+			Buffer[UpperBound] = Value;
+			DeltaTimes[UpperBound++] = Context.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
 			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
 			{
-				if (Buffer.Num() < MaxSize)
+				if (UpperBound < MaxSize)
 				{
-					LastInsertIndex = Buffer.Num();
-					Buffer.Add(Value);
-					DeltaTimes.Add(Context.DeltaTime);
+					LastInsertIndex = UpperBound;
+					Buffer[UpperBound] = Value;
+					DeltaTimes[UpperBound++] = Context.DeltaTime;
 				}
 				else
 				{
-					LastInsertIndex = (LastInsertIndex + 1) % Buffer.Num();
+					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
 					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
 				}
@@ -139,15 +136,12 @@ UE_RigUnit_TimeOffsetVector_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCon
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
-		DeltaTimes.Reset();
-		DeltaTimes.Reserve(MaxSize);
+		UpperBound = 0;
 		Result = Value;
 		return;
 	}
 
-	if (Buffer.Num() == 0)
+	if (UpperBound == 0)
 	{
 		Result = Value;
 	}
@@ -158,7 +152,7 @@ UE_RigUnit_TimeOffsetVector_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCon
 		float T = 0.f;
 
 		int32 Index = LastInsertIndex;
-		if (SecondsAgo < DeltaTimes[Index] || Buffer.Num() == 1)
+		if (SecondsAgo < DeltaTimes[Index] || UpperBound == 1)
 		{
 			B = Buffer[Index];
 			T = SecondsAgo / DeltaTimes[Index];
@@ -166,7 +160,7 @@ UE_RigUnit_TimeOffsetVector_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCon
 		else
 		{
 			float AccumulatedTime = 0.f;
-			for (int32 TimeIndex = 0; TimeIndex < DeltaTimes.Num(); TimeIndex++)
+			for (int32 TimeIndex = 0; TimeIndex < UpperBound; TimeIndex++)
 			{
 				B = Buffer[Index];
 
@@ -178,7 +172,7 @@ UE_RigUnit_TimeOffsetVector_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCon
 				AccumulatedTime = AccumulatedTime + DeltaTimes[Index];;
 				A = B;
 
-				Index = (Index - 1 + DeltaTimes.Num()) % DeltaTimes.Num();
+				Index = (Index - 1 + UpperBound) % UpperBound;
 			}
 		}
 
@@ -187,26 +181,26 @@ UE_RigUnit_TimeOffsetVector_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCon
 
 	if (Context.DeltaTime > SMALL_NUMBER)
 	{
-		if (Buffer.Num() == 0)
+		if (UpperBound == 0)
 		{
-			LastInsertIndex = Buffer.Num();
-			Buffer.Add(Value);
-			DeltaTimes.Add(Context.DeltaTime);
+			LastInsertIndex = UpperBound;
+			Buffer[UpperBound] = Value;
+			DeltaTimes[UpperBound++] = Context.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
 			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
 			{
-				if (Buffer.Num() < MaxSize)
+				if (UpperBound < MaxSize)
 				{
-					LastInsertIndex = Buffer.Num();
-					Buffer.Add(Value);
-					DeltaTimes.Add(Context.DeltaTime);
+					LastInsertIndex = UpperBound;
+					Buffer[UpperBound] = Value;
+					DeltaTimes[UpperBound++] = Context.DeltaTime;
 				}
 				else
 				{
-					LastInsertIndex = (LastInsertIndex + 1) % Buffer.Num();
+					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
 					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
 				}
@@ -247,15 +241,12 @@ UE_RigUnit_TimeOffsetTransform_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 	int32 MaxSize = FMath::Clamp<int32>(BufferSize, 2, 512);
 	if (Context.State == EControlRigState::Init)
 	{
-		Buffer.Reset();
-		Buffer.Reserve(MaxSize);
-		DeltaTimes.Reset();
-		DeltaTimes.Reserve(MaxSize);
+		UpperBound = 0;
 		Result = Value;
 		return;
 	}
 
-	if (Buffer.Num() == 0)
+	if (UpperBound == 0)
 	{
 		Result = Value;
 	}
@@ -266,7 +257,7 @@ UE_RigUnit_TimeOffsetTransform_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 		float T = 0.f;
 
 		int32 Index = LastInsertIndex;
-		if (SecondsAgo < DeltaTimes[Index] || Buffer.Num() == 1)
+		if (SecondsAgo < DeltaTimes[Index] || UpperBound == 1)
 		{
 			B = Buffer[Index];
 			T = SecondsAgo / DeltaTimes[Index];
@@ -274,7 +265,7 @@ UE_RigUnit_TimeOffsetTransform_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 		else
 		{
 			float AccumulatedTime = 0.f;
-			for (int32 TimeIndex = 0; TimeIndex < DeltaTimes.Num(); TimeIndex++)
+			for (int32 TimeIndex = 0; TimeIndex < UpperBound; TimeIndex++)
 			{
 				B = Buffer[Index];
 
@@ -286,7 +277,7 @@ UE_RigUnit_TimeOffsetTransform_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 				AccumulatedTime = AccumulatedTime + DeltaTimes[Index];;
 				A = B;
 
-				Index = (Index - 1 + DeltaTimes.Num()) % DeltaTimes.Num();
+				Index = (Index - 1 + UpperBound) % UpperBound;
 			}
 		}
 
@@ -297,26 +288,26 @@ UE_RigUnit_TimeOffsetTransform_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 
 	if (Context.DeltaTime > SMALL_NUMBER)
 	{
-		if (Buffer.Num() == 0)
+		if (UpperBound == 0)
 		{
-			LastInsertIndex = Buffer.Num();
-			Buffer.Add(Value);
-			DeltaTimes.Add(Context.DeltaTime);
+			LastInsertIndex = UpperBound;
+			Buffer[UpperBound] = Value;
+			DeltaTimes[UpperBound++] = Context.DeltaTime;
 		}
 		else
 		{
 			float SecondsPerEntry = TimeRange / float(MaxSize - 1);
 			if (DeltaTimes[LastInsertIndex] > SecondsPerEntry - Context.DeltaTime * 0.5f)
 			{
-				if (Buffer.Num() < MaxSize)
+				if (UpperBound < MaxSize)
 				{
-					LastInsertIndex = Buffer.Num();
-					Buffer.Add(Value);
-					DeltaTimes.Add(Context.DeltaTime);
+					LastInsertIndex = UpperBound;
+					Buffer[UpperBound] = Value;
+					DeltaTimes[UpperBound++] = Context.DeltaTime;
 				}
 				else
 				{
-					LastInsertIndex = (LastInsertIndex + 1) % Buffer.Num();
+					LastInsertIndex = (LastInsertIndex + 1) % UpperBound;
 					Buffer[LastInsertIndex] = Value;
 					DeltaTimes[LastInsertIndex] = Context.DeltaTime;
 				}

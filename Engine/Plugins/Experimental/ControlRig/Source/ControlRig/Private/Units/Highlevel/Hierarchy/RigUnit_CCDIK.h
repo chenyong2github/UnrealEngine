@@ -30,6 +30,32 @@ struct FRigUnit_CCDIK_RotationLimit
 	float Limit;
 };
 
+USTRUCT()
+struct FRigUnit_CCDIK_WorkData
+{
+	GENERATED_BODY()
+
+	FRigUnit_CCDIK_WorkData()
+	{
+		EffectorIndex = INDEX_NONE;
+	}
+
+	UPROPERTY()
+	TArray<FCCDIKChainLink> Chain;
+
+	UPROPERTY()
+	TArray<int32> BoneIndices;
+
+	UPROPERTY()
+	TArray<int32> RotationLimitIndex;
+
+	UPROPERTY()
+	TArray<float> RotationLimitsPerBone;
+
+	UPROPERTY()
+	int32 EffectorIndex;
+};
+
 /**
  * The CCID solver can solve N-Bone chains using 
  * the Cyclic Coordinate Descent Inverse Kinematics algorithm.
@@ -45,7 +71,6 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 
 	FRigUnit_CCDIK()
 	{
-		EffectorIndex = INDEX_NONE;
 		EffectorTransform = FTransform::Identity;
 		Precision = 1.f;
 		MaxIterations = 10;
@@ -111,13 +136,5 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 	bool bPropagateToChildren;
 
 	UPROPERTY(transient)
-	TArray<FCCDIKChainLink> Chain;
-	UPROPERTY(transient)
-	TArray<int32> BoneIndices;
-	UPROPERTY(transient)
-	TArray<int32> RotationLimitIndex;
-	UPROPERTY(transient)
-	TArray<float> RotationLimitsPerBone;
-	UPROPERTY(transient)
-	int32 EffectorIndex;
+	FRigUnit_CCDIK_WorkData WorkData;
 };

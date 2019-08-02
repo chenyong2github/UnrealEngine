@@ -12,6 +12,9 @@ UE_RigUnit_BoneHarmonics_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContex
 		return;
 	}
 
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	FVector& WaveTime = WorkData.WaveTime;
+
 	if (Context.State == EControlRigState::Init ||
 		BoneIndices.Num() != Bones.Num())
 	{

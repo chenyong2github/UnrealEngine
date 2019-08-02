@@ -96,24 +96,24 @@ UE_RigUnit_DebugTransformArrayMutable_IMPLEMENT_MULTIPLEX(void, Execute, const F
 		return;
 	}
 
-	DrawTransforms.SetNumUninitialized(Transforms.Num());
+	WorkData.DrawTransforms.SetNumUninitialized(Transforms.Num());
 	if (Space != NAME_None && Context.GetBones() != nullptr)
 	{
 		FTransform SpaceTransform = Context.GetBones()->GetGlobalTransform(Space);
 		for(int32 Index=0;Index<Transforms.Num();Index++)
 		{
-			DrawTransforms[Index] = Transforms[Index] * SpaceTransform;
+			WorkData.DrawTransforms[Index] = Transforms[Index] * SpaceTransform;
 		}
 	}
 	else
 	{
 		for(int32 Index=0;Index<Transforms.Num();Index++)
 		{
-			DrawTransforms[Index] = Transforms[Index];
+			WorkData.DrawTransforms[Index] = Transforms[Index];
 		}
 	}
 
-	for(FTransform& DrawTransform : DrawTransforms)
+	for(FTransform& DrawTransform : WorkData.DrawTransforms)
 	{
 		switch (Mode)
 		{

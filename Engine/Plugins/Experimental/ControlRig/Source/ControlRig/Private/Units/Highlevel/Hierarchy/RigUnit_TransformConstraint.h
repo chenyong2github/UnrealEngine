@@ -36,6 +36,19 @@ struct FConstraintTarget
 	{}
 };
 
+USTRUCT()
+struct FRigUnit_TransformConstraint_WorkData
+{
+	GENERATED_BODY()
+
+	// note that Targets.Num () != ConstraintData.Num()
+	UPROPERTY()
+	TArray<FConstraintData>	ConstraintData;
+
+	UPROPERTY()
+	TMap<int32, int32> ConstraintDataToTargets;
+};
+
 USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms"))
 struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 {
@@ -68,10 +81,6 @@ struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 private:
 	static void AddConstraintData(const TArrayView<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets);
 
-	// note that Targets.Num () != ConstraintData.Num()
 	UPROPERTY(transient)
-	TArray<FConstraintData>	ConstraintData;
-
-	UPROPERTY(transient)
-	TMap<int32, int32> ConstraintDataToTargets;
+	FRigUnit_TransformConstraint_WorkData WorkData;
 };

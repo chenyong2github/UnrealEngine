@@ -54,6 +54,14 @@ struct FRigUnit_ModifyBoneTransforms_PerBone
 	FTransform Transform;
 };
 
+USTRUCT()
+struct FRigUnit_ModifyBoneTransforms_WorkData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<int32> CachedBoneIndices;
+};
 
 /**
  * SetBoneTransform is used to perform a change in the hierarchy by setting a single bone's transform.
@@ -105,6 +113,6 @@ struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 	EControlRigModifyBoneMode Mode;
 
 	// Used to cache the internally used bone index
-	UPROPERTY()
-	TArray<int32> CachedBoneIndices;
+	UPROPERTY(transient)
+	FRigUnit_ModifyBoneTransforms_WorkData WorkData;
 };

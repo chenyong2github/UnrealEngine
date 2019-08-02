@@ -6,6 +6,32 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_SlideChain.generated.h"
 
+USTRUCT()
+struct FRigUnit_SlideChain_WorkData
+{
+	GENERATED_BODY()
+
+	FRigUnit_SlideChain_WorkData()
+	{
+		ChainLength = 0.f;
+	}
+
+	UPROPERTY()
+	float ChainLength;
+
+	UPROPERTY()
+	TArray<float> BoneSegments;
+
+	UPROPERTY()
+	TArray<int32> BoneIndices;
+
+	UPROPERTY()
+	TArray<FTransform> Transforms;
+
+	UPROPERTY()
+	TArray<FTransform> BlendedTransforms;
+};
+
 /**
  * Slides an existing chain along itself with control over extrapolation.
  */
@@ -19,7 +45,6 @@ struct FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 		StartBone = EndBone = NAME_None;
 		SlideAmount = 0.f;
 		bPropagateToChildren = false;
-		ChainLength = 0.f;
 	}
 
 	MULTIPLEX_METHOD()
@@ -51,18 +76,6 @@ struct FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	bool bPropagateToChildren;
 
-	UPROPERTY()
-	float ChainLength;
-
-	UPROPERTY()
-	TArray<float> BoneSegments;
-
-	UPROPERTY()
-	TArray<int32> BoneIndices;
-
-	UPROPERTY()
-	TArray<FTransform> Transforms;
-
-	UPROPERTY()
-	TArray<FTransform> BlendedTransforms;
+	UPROPERTY(transient)
+	FRigUnit_SlideChain_WorkData WorkData;
 };

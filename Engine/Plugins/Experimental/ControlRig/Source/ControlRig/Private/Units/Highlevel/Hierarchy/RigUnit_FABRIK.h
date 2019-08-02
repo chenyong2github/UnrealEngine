@@ -6,6 +6,26 @@
 #include "FABRIK.h"
 #include "RigUnit_FABRIK.generated.h"
 
+USTRUCT()
+struct FRigUnit_FABRIK_WorkData
+{
+	GENERATED_BODY()
+
+	FRigUnit_FABRIK_WorkData()
+	{
+		EffectorIndex = INDEX_NONE;
+	}
+
+	UPROPERTY()
+	TArray<FFABRIKChainLink> Chain;
+
+	UPROPERTY()
+	TArray<int32> BoneIndices;
+
+	UPROPERTY()
+	int32 EffectorIndex;
+};
+
 /**
  * The FABRIK solver can solve N-Bone chains using 
  * the Forward and Backward Reaching Inverse Kinematics algorithm.
@@ -21,7 +41,6 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 
 	FRigUnit_FABRIK()
 	{
-		EffectorIndex = INDEX_NONE;
 		Precision = 1.f;
 		MaxIterations = 10;
 		EffectorTransform = FTransform::Identity;
@@ -67,11 +86,5 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 	int32 MaxIterations;
 
 	UPROPERTY(transient)
-	TArray<FFABRIKChainLink> Chain;
-
-	UPROPERTY(transient)
-	TArray<int32> BoneIndices;
-
-	UPROPERTY(transient)
-	int32 EffectorIndex;
+	FRigUnit_FABRIK_WorkData WorkData;
 };

@@ -12,6 +12,17 @@ UE_RigUnit_FitChainToCurve_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCont
 		return;
 	}
 
+	float& ChainLength = WorkData.ChainLength;
+	TArray<FVector>& BonePositions = WorkData.BonePositions;
+	TArray<float>& BoneSegments = WorkData.BoneSegments;
+	TArray<FVector>& CurvePositions = WorkData.CurvePositions;
+	TArray<float>& CurveSegments = WorkData.CurveSegments;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<int32>& BoneRotationA = WorkData.BoneRotationA;
+	TArray<int32>& BoneRotationB = WorkData.BoneRotationB;
+	TArray<float>& BoneRotationT = WorkData.BoneRotationT;
+	TArray<FTransform>& BoneLocalTransforms = WorkData.BoneLocalTransforms;
+
 	if (Context.State == EControlRigState::Init)
 	{
 		BoneIndices.Reset();

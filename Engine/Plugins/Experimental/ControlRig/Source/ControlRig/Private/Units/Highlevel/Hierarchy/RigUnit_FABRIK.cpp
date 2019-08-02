@@ -12,6 +12,10 @@ UE_RigUnit_FABRIK_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Cont
 		return;
 	}
 
+	TArray<FFABRIKChainLink>& Chain = WorkData.Chain;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	int32& EffectorIndex = WorkData.EffectorIndex;
+
 	if (Context.State == EControlRigState::Init)
 	{
 		BoneIndices.Reset();

@@ -44,6 +44,29 @@ struct FRigUnit_SpringIK_DebugSettings
 	FTransform WorldOffset;
 };
 
+USTRUCT()
+struct FRigUnit_SpringIK_WorkData
+{
+	GENERATED_BODY()
+
+	FRigUnit_SpringIK_WorkData()
+	{
+		PoleVectorIndex = INDEX_NONE;
+	}
+
+	UPROPERTY()
+	TArray<int32> BoneIndices;
+
+	UPROPERTY()
+	int32 PoleVectorIndex;
+
+	UPROPERTY()
+	TArray<FTransform> Transforms;
+
+	UPROPERTY()
+	FCRSimPointContainer Simulation;
+};
+
 /**
  * The Spring IK solver uses a verlet integrator to perform an IK solve.
  * It support custom constraints including distance, length etc.
@@ -71,7 +94,6 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 		bLimitLocalPosition = true;
 		bPropagateToChildren = false;
 		DebugSettings = FRigUnit_SpringIK_DebugSettings();
-		PoleVectorIndex = INDEX_NONE;
 	}
 
 	MULTIPLEX_METHOD()
@@ -196,15 +218,6 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	FRigUnit_SpringIK_DebugSettings DebugSettings;
 
-	UPROPERTY()
-	TArray<int32> BoneIndices;
-
-	UPROPERTY()
-	int32 PoleVectorIndex;
-
-	UPROPERTY()
-	TArray<FTransform> Transforms;
-
-	UPROPERTY()
-	FCRSimPointContainer Simulation;
+	UPROPERTY(transient)
+	FRigUnit_SpringIK_WorkData WorkData;
 };

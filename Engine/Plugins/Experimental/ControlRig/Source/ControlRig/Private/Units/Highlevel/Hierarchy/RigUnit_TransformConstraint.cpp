@@ -9,6 +9,9 @@ UE_RigUnit_TransformConstraint_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
+	TArray<FConstraintData>&	ConstraintData = WorkData.ConstraintData;
+	TMap<int32, int32>& ConstraintDataToTargets = WorkData.ConstraintDataToTargets;
+
 	if (Context.State == EControlRigState::Init)
 	{
 		ConstraintData.Reset();

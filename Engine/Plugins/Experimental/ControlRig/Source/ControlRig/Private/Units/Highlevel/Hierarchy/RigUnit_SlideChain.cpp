@@ -13,6 +13,12 @@ UE_RigUnit_SlideChain_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& 
 		return;
 	}
 
+	float& ChainLength = WorkData.ChainLength;
+	TArray<float>& BoneSegments = WorkData.BoneSegments;
+	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<FTransform>& Transforms = WorkData.Transforms;
+	TArray<FTransform>& BlendedTransforms = WorkData.BlendedTransforms;
+
 	if (Context.State == EControlRigState::Init)
 	{
 		BoneSegments.Reset();

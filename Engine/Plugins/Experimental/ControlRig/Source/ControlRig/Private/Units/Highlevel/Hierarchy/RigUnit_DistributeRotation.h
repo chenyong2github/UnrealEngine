@@ -30,6 +30,27 @@ struct FRigUnit_DistributeRotation_Rotation
 	float Ratio;
 };
 
+USTRUCT()
+struct FRigUnit_DistributeRotation_WorkData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<int32> BoneIndices;
+
+	UPROPERTY()
+	TArray<int32> BoneRotationA;
+
+	UPROPERTY()
+	TArray<int32> BoneRotationB;
+
+	UPROPERTY()
+	TArray<float> BoneRotationT;
+
+	UPROPERTY()
+	TArray<FTransform> BoneLocalTransforms;
+};
+
 /**
  * Distributes rotations provided along a chain.
  * Each rotation is expressed by a quaternion and a ratio, where the ratio is between 0.0 and 1.0
@@ -82,18 +103,6 @@ struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	bool bPropagateToChildren;
 
-	UPROPERTY()
-	TArray<int32> BoneIndices;
-
-	UPROPERTY()
-	TArray<int32> BoneRotationA;
-
-	UPROPERTY()
-	TArray<int32> BoneRotationB;
-
-	UPROPERTY()
-	TArray<float> BoneRotationT;
-
-	UPROPERTY()
-	TArray<FTransform> BoneLocalTransforms;
+	UPROPERTY(transient)
+	FRigUnit_DistributeRotation_WorkData WorkData;
 };
