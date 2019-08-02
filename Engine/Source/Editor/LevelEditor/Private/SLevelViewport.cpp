@@ -45,7 +45,7 @@
 #include "SLevelEditor.h"
 #include "AssetSelection.h"
 #include "Kismet2/DebuggerCommands.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "DragAndDrop/ClassDragDropOp.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/ExportTextDragDropOp.h"
@@ -1957,7 +1957,8 @@ bool SLevelViewport::IsVolumeVisible( int32 VolumeID ) const
 
 /** Called when a user selects show or hide all from the layers visibility menu. **/
 void SLevelViewport::OnToggleAllLayers( bool bVisible )
-{	
+{
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 	if (bVisible)
 	{
 		// clear all hidden layers
@@ -1967,12 +1968,12 @@ void SLevelViewport::OnToggleAllLayers( bool bVisible )
 	{
 		// hide them all
 		TArray<FName> AllLayerNames;
-		GEditor->Layers->AddAllLayerNamesTo(AllLayerNames);
+		Layers->AddAllLayerNamesTo(AllLayerNames);
 		LevelViewportClient->ViewHiddenLayers = AllLayerNames;
 	}
 
 	// update actor visibility for this view
-	GEditor->Layers->UpdatePerViewVisibility(LevelViewportClient.Get());
+	Layers->UpdatePerViewVisibility(LevelViewportClient.Get());
 
 	LevelViewportClient->Invalidate(); 
 }
@@ -1991,7 +1992,8 @@ void SLevelViewport::ToggleShowLayer( FName LayerName )
 	}
 
 	// update actor visibility for this view
-	GEditor->Layers->UpdatePerViewVisibility(LevelViewportClient.Get(), LayerName);
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	Layers->UpdatePerViewVisibility(LevelViewportClient.Get(), LayerName);
 
 	LevelViewportClient->Invalidate(); 
 }
@@ -2144,7 +2146,8 @@ void SLevelViewport::OnUseDefaultShowFlags(bool bUseSavedDefaults)
 	{
 		LevelViewportClient->InitializeVisibilityFlags();
 		GUnrealEd->UpdateVolumeActorVisibility(nullptr, LevelViewportClient.Get());
-		GEditor->Layers->UpdatePerViewVisibility(LevelViewportClient.Get());
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		Layers->UpdatePerViewVisibility(LevelViewportClient.Get());
 	}
 
 	LevelViewportClient->Invalidate();

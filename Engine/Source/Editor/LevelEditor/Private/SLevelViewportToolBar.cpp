@@ -19,7 +19,7 @@
 #include "EditorShowFlags.h"
 #include "LevelViewportActions.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "IDeviceProfileServicesModule.h"
 #include "EditorViewportCommands.h"
@@ -1165,7 +1165,8 @@ void SLevelViewportToolBar::FillShowLayersMenu( FMenuBuilder& MenuBuilder, TWeak
 		{
 			// Get all the layers and create an entry for each of them
 			TArray<FName> AllLayerNames;
-			GEditor->Layers->AddAllLayerNamesTo(AllLayerNames);
+			ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+			Layers->AddAllLayerNamesTo(AllLayerNames);
 
 			for( int32 LayerIndex = 0; LayerIndex < AllLayerNames.Num(); ++LayerIndex )
 			{

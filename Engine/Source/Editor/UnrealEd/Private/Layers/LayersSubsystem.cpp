@@ -1,46 +1,126 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Layers/Layers.h"
+#include "Layers/LayersSubsystem.h"
 #include "Engine/Brush.h"
 #include "Components/PrimitiveComponent.h"
 #include "Layers/Layer.h"
 #include "LevelEditorViewport.h"
 #include "Misc/IFilter.h"
 #include "Engine/Selection.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Editor.h"
 
 #include "ActorEditorUtils.h"
 
-FLayers::FLayers( const TWeakObjectPtr< UEditorEngine >& InEditor )
+class FLayersBroadcast
 {
-	check( InEditor.IsValid() );
+public:
 
-	Editor = InEditor;
+	/**
+	 *	Constructor
+	 */
+	FLayersBroadcast(ULayersSubsystem* InLayersSubsystem);
+
+	/**
+	 *	Destructor
+	 */
+	~FLayersBroadcast();
+
+	void Deinitialize();
+
+private:
+	void Initialize();
+
+	/**
+	 * Delegate handler for FEditorDelegates::MapChange. It internally calls LayersSubsystem->EditorMapChange().
+	 **/
+	void OnEditorMapChange(uint32 MapChangeFlags = 0);
+	/**
+	 * Delegate handler for FEditorDelegates::RefreshLayerBrowser. It internally calls LayersSubsystem->EditorRefreshLayerBrowser() to refresh the actors of each layer.
+	 **/
+	void OnEditorRefreshLayerBrowser();
+
+	ULayersSubsystem* LayersSubsystem;
+
+	bool bIsInitialized;
+};
+
+FLayersBroadcast::FLayersBroadcast(ULayersSubsystem* InLayersSubsystem)
+	: LayersSubsystem(InLayersSubsystem)
+	, bIsInitialized(false)
+{
+	Initialize();
+}
+
+FLayersBroadcast::~FLayersBroadcast()
+{
+	Deinitialize();
+}
+
+void FLayersBroadcast::Deinitialize()
+{
+	if (bIsInitialized)
+	{
+		bIsInitialized = false;
+		// Remove all callback functions from FEditorDelegates::MapChange.Broadcast() and FEditorDelegates::RefreshLayerBrowser.Broadcast()
+		FEditorDelegates::MapChange.RemoveAll(this);
+		FEditorDelegates::RefreshLayerBrowser.RemoveAll(this);
+	}
+}
+
+void FLayersBroadcast::Initialize()
+{
+	if (!bIsInitialized)
+	{
+		bIsInitialized = true;
+		// Add callback function to FEditorDelegates::MapChange.Broadcast() and FEditorDelegates::RefreshLayerBrowser.Broadcast()
+		FEditorDelegates::MapChange.AddRaw(this, &FLayersBroadcast::OnEditorMapChange);
+		FEditorDelegates::RefreshLayerBrowser.AddRaw(this, &FLayersBroadcast::OnEditorRefreshLayerBrowser);
+	}
+}
+
+void FLayersBroadcast::OnEditorMapChange(uint32 MapChangeFlags)
+{
+	LayersSubsystem->EditorMapChange();
+}
+
+void FLayersBroadcast::OnEditorRefreshLayerBrowser()
+{
+	LayersSubsystem->EditorRefreshLayerBrowser();
 }
 
 
-FLayers::~FLayers()
+
+
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+void ULayersSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	FEditorDelegates::MapChange.RemoveAll(this);
-	// Remove all callback functions from FEditorDelegates::RefreshLayerBrowser.Broadcast()
-	FEditorDelegates::RefreshLayerBrowser.RemoveAll(this);
+	Super::Initialize(Collection);
+
+	// Subsystems are loaded, so we can set up the broadcast functions for GetEditorSubsystem<ULayersSubsystem>()
+	LayersBroadcast = MakeShareable(new FLayersBroadcast(this));
 }
 
-
-void FLayers::Initialize()
+void ULayersSubsystem::Deinitialize()
 {
-	FEditorDelegates::MapChange.AddRaw(this, &FLayers::OnEditorMapChange);
-	// Add callback function to FEditorDelegates::RefreshLayerBrowser.Broadcast()
-	FEditorDelegates::RefreshLayerBrowser.AddRaw(this, &FLayers::OnEditorRefreshLayerBrowser);
+	Super::Deinitialize();
+
+	LayersBroadcast->Deinitialize();
 }
 
-void FLayers::OnEditorMapChange(uint32 MapChangeFlags)
+ULayersSubsystem::~ULayersSubsystem()
+{
+}
+
+void ULayersSubsystem::EditorMapChange()
 {
 	LayersChanged.Broadcast( ELayersAction::Reset, NULL, NAME_None );
 }
 
-void FLayers::OnEditorRefreshLayerBrowser()
+void ULayersSubsystem::EditorRefreshLayerBrowser()
 {
 	// bNotifySelectionChange is false because the functions calling FEditorDelegates::RefreshLayerBrowser.Broadcast usually call GEditor->NoteSelectionChange
 	const bool bNotifySelectionChange = false;
@@ -51,51 +131,29 @@ void FLayers::OnEditorRefreshLayerBrowser()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-// Helper functions.
-//
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TWeakObjectPtr< ULayer > FLayers::EnsureLayerExists( const FName& LayerName )
-{
-	TWeakObjectPtr< ULayer > Layer;
-	if( !TryGetLayer( LayerName, Layer ) )
-	{
-		Layer = CreateLayer( LayerName );
-	}
-
-	return Layer;
-}
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
 // Operations on Levels
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLayers::AddLevelLayerInformation( const TWeakObjectPtr< ULevel >& Level )
+void ULayersSubsystem::AddLevelLayerInformation(ULevel* Level)
 {
-	if( !Level.IsValid() )
+	if (Level)
 	{
-		return;
-	}
-
-	for( auto ActorIter = Level->Actors.CreateConstIterator(); ActorIter; ++ActorIter )
-	{
-		InitializeNewActorLayers( *ActorIter );
+		for (auto ActorIter = Level->Actors.CreateConstIterator(); ActorIter; ++ActorIter)
+		{
+			InitializeNewActorLayers(*ActorIter);
+		}
 	}
 }
 
-void FLayers::RemoveLevelLayerInformation( const TWeakObjectPtr< ULevel >& Level )
+void ULayersSubsystem::RemoveLevelLayerInformation(ULevel* Level)
 {
-	if( !Level.IsValid() )
+	if (Level)
 	{
-		return;
-	}
-
-	for( auto ActorIter = Level->Actors.CreateConstIterator(); ActorIter; ++ActorIter )
-	{
-		DisassociateActorFromLayers( *ActorIter );
+		for (auto ActorIter = Level->Actors.CreateConstIterator(); ActorIter; ++ActorIter)
+		{
+			DisassociateActorFromLayers(*ActorIter);
+		}
 	}
 }
 
@@ -106,22 +164,22 @@ void FLayers::RemoveLevelLayerInformation( const TWeakObjectPtr< ULevel >& Level
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FLayers::IsActorValidForLayer( const TWeakObjectPtr< AActor >& Actor )
+bool ULayersSubsystem::IsActorValidForLayer(AActor* Actor)
 {
-	if( !Actor.IsValid() || Actor->GetClass() == nullptr || Actor->GetWorld() == nullptr)
+	if (!Actor || Actor->GetClass() == nullptr || Actor->GetWorld() == nullptr)
 	{
 		return false;
 	}
 
-	const bool bIsBuilderBrush			= FActorEditorUtils::IsABuilderBrush(Actor.Get());
-	const bool bIsHidden				= ( Actor->GetClass()->GetDefaultObject<AActor>()->bHiddenEd == true );
-	const bool bIsInEditorWorld			= ( Actor->GetWorld()->WorldType == EWorldType::Editor );
-	const bool bIsValid					= !bIsHidden && !bIsBuilderBrush && bIsInEditorWorld;
+	const bool bIsBuilderBrush = FActorEditorUtils::IsABuilderBrush(Actor);
+	const bool bIsHidden = (Actor->GetClass()->GetDefaultObject<AActor>()->bHiddenEd == true);
+	const bool bIsInEditorWorld = (Actor->GetWorld()->WorldType == EWorldType::Editor);
+	const bool bIsValid = !bIsHidden && !bIsBuilderBrush && bIsInEditorWorld;
 
 	return bIsValid;
 }
 
-bool FLayers::InitializeNewActorLayers( const TWeakObjectPtr< AActor >& Actor )
+bool ULayersSubsystem::InitializeNewActorLayers(AActor* Actor)
 {
 	if(	!IsActorValidForLayer( Actor ) )
 	{
@@ -131,7 +189,7 @@ bool FLayers::InitializeNewActorLayers( const TWeakObjectPtr< AActor >& Actor )
 	for( auto LayerNameIt = Actor->Layers.CreateConstIterator(); LayerNameIt; ++LayerNameIt )
 	{
 		const FName LayerName = *LayerNameIt;
-		TWeakObjectPtr< ULayer > Layer = EnsureLayerExists( LayerName );
+		ULayer* Layer = EnsureLayerExists( LayerName );
 
 		Layer->Modify();
 		AddActorToStats( Layer, Actor);
@@ -145,12 +203,12 @@ bool FLayers::InitializeNewActorLayers( const TWeakObjectPtr< AActor >& Actor )
 	bool bActorSelectionChanged = false;
 	const bool bActorNotifySelectionChange = true;
 	const bool bActorRedrawViewports = false;
-	UpdateActorVisibility( Actor, bActorSelectionChanged, bActorModified, bActorNotifySelectionChange, bActorRedrawViewports );
+	UpdateActorVisibility(Actor, bActorSelectionChanged, bActorModified, bActorNotifySelectionChange, bActorRedrawViewports);
 
 	return Actor->Layers.Num() > 0;
 }
 
-bool FLayers::DisassociateActorFromLayers( const TWeakObjectPtr< AActor >& Actor )
+bool ULayersSubsystem::DisassociateActorFromLayers(AActor* Actor)
 {
 	if(	!IsActorValidForLayer( Actor ) )
 	{
@@ -161,7 +219,7 @@ bool FLayers::DisassociateActorFromLayers( const TWeakObjectPtr< AActor >& Actor
 	for( auto LayerNameIt = Actor->Layers.CreateConstIterator(); LayerNameIt; ++LayerNameIt )
 	{
 		const FName LayerName = *LayerNameIt;
-		TWeakObjectPtr< ULayer > Layer = EnsureLayerExists( LayerName );
+		ULayer* Layer = EnsureLayerExists( LayerName );
 
 		Layer->Modify();
 		RemoveActorFromStats( Layer, Actor);
@@ -172,112 +230,59 @@ bool FLayers::DisassociateActorFromLayers( const TWeakObjectPtr< AActor >& Actor
 }
 
 
-void FLayers::AddActorToStats( const TWeakObjectPtr< ULayer >& Layer, const TWeakObjectPtr< AActor >& Actor )
+UWorld* ULayersSubsystem::GetWorld() const
 {
-	if( !Actor.IsValid() )
-	{
-		return;
-	}
-
-	UClass* ActorClass = Actor->GetClass();
-
-	bool bFoundClassStats = false;
-	for( auto StatsIt = Layer->ActorStats.CreateIterator(); StatsIt; ++StatsIt )
-	{
-		FLayerActorStats& Stats = *StatsIt;
-
-		if( Stats.Type == ActorClass )
-		{
-			Stats.Total++;
-			bFoundClassStats = true;
-			break;
-		}
-	}
-
-	if( !bFoundClassStats )
-	{
-		FLayerActorStats NewActorStats;
-		NewActorStats.Total = 1;
-		NewActorStats.Type = ActorClass;
-
-		Layer->ActorStats.Add( NewActorStats );
-	}
-
-	LayersChanged.Broadcast( ELayersAction::Modify, Layer, TEXT( "ActorStats" ) );
-}
-
-void FLayers::RemoveActorFromStats( const TWeakObjectPtr< ULayer >& Layer, const TWeakObjectPtr< AActor >& Actor )
-{
-	if( !Actor.IsValid() )
-	{
-		return;
-	}
-
-	UClass* ActorClass = Actor->GetClass();
-
-	bool bFoundClassStats = false;
-	for (int StatsIndex = 0; StatsIndex < Layer->ActorStats.Num() ; StatsIndex++)
-	{
-		FLayerActorStats& Stats = Layer->ActorStats[ StatsIndex ];
-
-		if( Stats.Type == ActorClass )
-		{
-			bFoundClassStats = true;
-			--Stats.Total;
-
-			if( Stats.Total == 0 )
-			{
-				Layer->ActorStats.RemoveAt( StatsIndex );
-			}
-			break;
-		}
-	}
-
-	if( bFoundClassStats )
-	{
-		LayersChanged.Broadcast( ELayersAction::Modify, Layer, TEXT( "ActorStats" ) );
-	}
+	return GWorld;
 }
 
 
-bool FLayers::AddActorToLayer( const TWeakObjectPtr< AActor >& Actor, const FName& LayerName )
+bool ULayersSubsystem::AddActorToLayer(AActor* Actor, const FName& LayerName)
 {
-	TArray< TWeakObjectPtr< AActor > > Actors;
+	TArray< AActor* > Actors;
 	Actors.Add(Actor);
 
 	TArray< FName > LayerNames;
 	LayerNames.Add(LayerName);
 
-	return AddActorsToLayers( Actors, LayerNames );
+	return AddActorsToLayers(Actors, LayerNames);
 }
 
-bool FLayers::AddActorToLayers( const TWeakObjectPtr< AActor >& Actor, const TArray< FName >& LayerNames )
+bool ULayersSubsystem::AddActorToLayers(AActor* Actor, const TArray< FName >& LayerNames)
 {
-	TArray< TWeakObjectPtr< AActor > > Actors;
+	TArray< AActor* > Actors;
 	Actors.Add(Actor);
 
-	return AddActorsToLayers( Actors, LayerNames );
+	return AddActorsToLayers(Actors, LayerNames);
 }
 
-bool FLayers::AddActorsToLayer( const TArray< TWeakObjectPtr< AActor > >& Actors, const FName& LayerName )
+bool ULayersSubsystem::AddActorsToLayer(const TArray< AActor* >& Actors, const FName& LayerName)
 {
 	TArray< FName > LayerNames;
 	LayerNames.Add(LayerName);
 
-	return AddActorsToLayers( Actors, LayerNames );
+	return AddActorsToLayers(Actors, LayerNames);
 }
 
-bool FLayers::AddActorsToLayers( const TArray< TWeakObjectPtr< AActor > >& Actors, const TArray< FName >& LayerNames )
+
+bool ULayersSubsystem::AddActorsToLayer(const TArray< TWeakObjectPtr< AActor > >& Actors, const FName& LayerName)
+{
+	TArray< FName > LayerNames;
+	LayerNames.Add(LayerName);
+
+	return AddActorsToLayers(Actors, LayerNames);
+}
+
+bool ULayersSubsystem::AddActorsToLayers( const TArray< AActor* >& Actors, const TArray< FName >& LayerNames )
 {
 	bool bChangesOccurred = false;
 
 	if ( LayerNames.Num() > 0 ) 
 	{
-		Editor->GetSelectedActors()->BeginBatchSelectOperation();
+		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
 
 		for( auto ActorIt = Actors.CreateConstIterator(); ActorIt; ++ActorIt )
 		{
-			const TWeakObjectPtr< AActor > Actor = *ActorIt;
+			AActor* Actor = *ActorIt;
 
 			if ( !IsActorValidForLayer( Actor ) )
 			{
@@ -297,7 +302,7 @@ bool FLayers::AddActorsToLayers( const TArray< TWeakObjectPtr< AActor > >& Actor
 						bActorWasModified = true;
 					}
 
-					TWeakObjectPtr< ULayer > Layer = EnsureLayerExists( LayerName );
+					ULayer* Layer = EnsureLayerExists( LayerName );
 					Actor->Layers.Add( LayerName );
 
 					Layer->Modify();
@@ -321,48 +326,68 @@ bool FLayers::AddActorsToLayers( const TArray< TWeakObjectPtr< AActor > >& Actor
 			}
 		} //END Iteration over Actors
 
-		Editor->GetSelectedActors()->EndBatchSelectOperation();
+		GEditor->GetSelectedActors()->EndBatchSelectOperation();
 	}
 
 	return bChangesOccurred;
 }
 
-
-bool FLayers::RemoveActorFromLayer( const TWeakObjectPtr< AActor >& Actor, const FName& LayerName, const bool bUpdateStats )
+bool ULayersSubsystem::AddActorsToLayers(const TArray< TWeakObjectPtr< AActor > >& Actors, const TArray< FName >& LayerNames)
 {
-	TArray< TWeakObjectPtr< AActor > > Actors;
+	TArray< AActor* > ActorsRawPtr;
+	for (auto ActorIt = Actors.CreateConstIterator(); ActorIt; ++ActorIt)
+	{
+		AActor* Actor = (*ActorIt).Get();
+		ActorsRawPtr.Add(Actor);
+	}
+
+	return AddActorsToLayers(ActorsRawPtr, LayerNames);
+}
+
+
+bool ULayersSubsystem::RemoveActorFromLayer(AActor* Actor, const FName& LayerName, const bool bUpdateStats)
+{
+	TArray< AActor* > Actors;
 	Actors.Add(Actor);
 
 	TArray< FName > LayerNames;
 	LayerNames.Add(LayerName);
 
-	return RemoveActorsFromLayers( Actors, LayerNames, bUpdateStats );
+	return RemoveActorsFromLayers(Actors, LayerNames, bUpdateStats);
 }
 
-bool FLayers::RemoveActorFromLayers( const TWeakObjectPtr< AActor >& Actor, const TArray< FName >& LayerNames, const bool bUpdateStats )
+bool ULayersSubsystem::RemoveActorFromLayers(AActor* Actor, const TArray< FName >& LayerNames, const bool bUpdateStats)
 {
-	TArray< TWeakObjectPtr< AActor > > Actors;
+	TArray< AActor* > Actors;
 	Actors.Add(Actor);
 
-	return RemoveActorsFromLayers( Actors, LayerNames, bUpdateStats );
+	return RemoveActorsFromLayers(Actors, LayerNames, bUpdateStats);
 }
 
-bool FLayers::RemoveActorsFromLayer( const TArray< TWeakObjectPtr< AActor > >& Actors, const FName& LayerName, const bool bUpdateStats )
+bool ULayersSubsystem::RemoveActorsFromLayer(const TArray< AActor* >& Actors, const FName& LayerName, const bool bUpdateStats)
 {
 	TArray< FName > LayerNames;
 	LayerNames.Add(LayerName);
 
-	return RemoveActorsFromLayers( Actors, LayerNames, bUpdateStats );
+	return RemoveActorsFromLayers(Actors, LayerNames, bUpdateStats);
 }
 
-bool FLayers::RemoveActorsFromLayers( const TArray< TWeakObjectPtr< AActor > >& Actors, const TArray< FName >& LayerNames, const bool bUpdateStats )
+bool ULayersSubsystem::RemoveActorsFromLayer(const TArray< TWeakObjectPtr< AActor > >& Actors, const FName& LayerName, const bool bUpdateStats)
 {
-	Editor->GetSelectedActors()->BeginBatchSelectOperation();
+	TArray< FName > LayerNames;
+	LayerNames.Add(LayerName);
+
+	return RemoveActorsFromLayers(Actors, LayerNames, bUpdateStats);
+}
+
+bool ULayersSubsystem::RemoveActorsFromLayers( const TArray< AActor* >& Actors, const TArray< FName >& LayerNames, const bool bUpdateStats )
+{
+	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
 
 	bool bChangesOccurred = false;
 	for( auto ActorIt = Actors.CreateConstIterator(); ActorIt; ++ActorIt )
 	{
-		const TWeakObjectPtr< AActor > Actor = *ActorIt;
+		AActor* Actor = *ActorIt;
 
 		if ( !IsActorValidForLayer( Actor ) )
 		{
@@ -383,7 +408,7 @@ bool FLayers::RemoveActorsFromLayers( const TArray< TWeakObjectPtr< AActor > >& 
 
 				Actor->Layers.Remove( LayerName );
 
-				TWeakObjectPtr< ULayer > Layer;
+				ULayer* Layer;
 				if( bUpdateStats && TryGetLayer( LayerName, Layer ))
 				{
 					Layer->Modify();
@@ -408,9 +433,21 @@ bool FLayers::RemoveActorsFromLayers( const TArray< TWeakObjectPtr< AActor > >& 
 		}
 	} //END Iteration over Actors
 
-	Editor->GetSelectedActors()->EndBatchSelectOperation();
+	GEditor->GetSelectedActors()->EndBatchSelectOperation();
 
 	return bChangesOccurred;
+}
+
+bool ULayersSubsystem::RemoveActorsFromLayers(const TArray< TWeakObjectPtr< AActor > >& Actors, const TArray< FName >& LayerNames, const bool bUpdateStats)
+{
+	TArray< AActor* > ActorsRawPtr;
+	for (auto ActorIt = Actors.CreateConstIterator(); ActorIt; ++ActorIt)
+	{
+		AActor* Actor = (*ActorIt).Get();
+		ActorsRawPtr.Add(Actor);
+	}
+
+	return RemoveActorsFromLayers(ActorsRawPtr, LayerNames, bUpdateStats);
 }
 
 
@@ -419,15 +456,15 @@ bool FLayers::RemoveActorsFromLayers( const TArray< TWeakObjectPtr< AActor > >& 
 // Operations on selected actors.
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-TArray< TWeakObjectPtr< AActor > > FLayers::GetSelectedActors() const
+TArray< AActor* > ULayersSubsystem::GetSelectedActors() const
 {
 	// Unfortunately, the batch selection operation is not entirely effective
 	// and the result can be that the iterator becomes invalid when adding an actor to a layer
 	// due to unintended selection change notifications being fired.
-	TArray< TWeakObjectPtr< AActor > > CurrentlySelectedActors;
-	for( FSelectionIterator It( Editor->GetSelectedActorIterator() ); It; ++It )
+	TArray< AActor* > CurrentlySelectedActors;
+	for( FSelectionIterator It(GEditor->GetSelectedActorIterator() ); It; ++It )
 	{
-		const TWeakObjectPtr< AActor > Actor = static_cast< AActor* >( *It );
+		AActor* Actor = static_cast<AActor*>(*It);
 		checkSlow( Actor->IsA(AActor::StaticClass()) );
 
 		CurrentlySelectedActors.Add( Actor );
@@ -436,22 +473,22 @@ TArray< TWeakObjectPtr< AActor > > FLayers::GetSelectedActors() const
 	return CurrentlySelectedActors;
 }
 
-bool FLayers::AddSelectedActorsToLayer( const FName& LayerName )
+bool ULayersSubsystem::AddSelectedActorsToLayer( const FName& LayerName )
 {
 	return AddActorsToLayer( GetSelectedActors(), LayerName );
 }
 
-bool FLayers::RemoveSelectedActorsFromLayer( const FName& LayerName )
+bool ULayersSubsystem::RemoveSelectedActorsFromLayer( const FName& LayerName )
 {
 	return RemoveActorsFromLayer( GetSelectedActors(), LayerName );
 }
 
-bool FLayers::AddSelectedActorsToLayers( const TArray< FName >& LayerNames )
+bool ULayersSubsystem::AddSelectedActorsToLayers( const TArray< FName >& LayerNames )
 {
 	return AddActorsToLayers( GetSelectedActors(), LayerNames );
 }
 
-bool FLayers::RemoveSelectedActorsFromLayers( const TArray< FName >& LayerNames )
+bool ULayersSubsystem::RemoveSelectedActorsFromLayers( const TArray< FName >& LayerNames )
 {
 	return RemoveActorsFromLayers( GetSelectedActors(), LayerNames );
 }
@@ -462,89 +499,99 @@ bool FLayers::RemoveSelectedActorsFromLayers( const TArray< FName >& LayerNames 
 // Operations on actors in layers
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool FLayers::SelectActorsInLayers( const TArray< FName >& LayerNames, bool bSelect, bool bNotify, bool bSelectEvenIfHidden, const TSharedPtr< ActorFilter >& Filter )
+bool ULayersSubsystem::SelectActorsInLayer(const FName& LayerName, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden)
 {
-	if ( LayerNames.Num() == 0 )
-	{
-		return true;
-	}
+	return SelectActorsInLayer(LayerName, bSelect, bNotify, bSelectEvenIfHidden, nullptr);
+}
 
-	Editor->GetSelectedActors()->BeginBatchSelectOperation();
+bool ULayersSubsystem::SelectActorsInLayer(const FName& LayerName, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr< ActorFilter >& Filter)
+{
+	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
 	bool bChangesOccurred = false;
-
 	// Iterate over all actors, looking for actors in the specified layers.
-	for( const TWeakObjectPtr< AActor > Actor : FActorRange(GetWorld()) )
+	for (FActorIterator It(GetWorld()); It; ++It)
 	{
-		if( !IsActorValidForLayer( Actor ) )
+		AActor* Actor = *It;
+		if (!IsActorValidForLayer(Actor))
 		{
 			continue;
 		}
 
-		if( Filter.IsValid() && !Filter->PassesFilter( Actor ) )
+		if (Filter.IsValid() && !Filter->PassesFilter(Actor))
 		{
 			continue;
 		}
 
-		for( auto LayerNameIt = LayerNames.CreateConstIterator(); LayerNameIt; ++LayerNameIt )
+		if (Actor->Layers.Contains(LayerName))
 		{
-			if ( Actor->Layers.Contains( *LayerNameIt ) )
-			{
-				// The actor was found to be in a specified layer.
-				// Set selection state and move on to the next actor.
-				bool bNotifyForActor = false;
-				Editor->GetSelectedActors()->Modify();
-				Editor->SelectActor( Actor.Get(), bSelect, bNotifyForActor, bSelectEvenIfHidden );
-				bChangesOccurred = true;
-				break;
-			}
+			// The actor was found to be in a specified layer.
+			// Set selection state and move on to the next actor.
+			bool bNotifyForActor = false;
+			GEditor->GetSelectedActors()->Modify();
+			GEditor->SelectActor(Actor, bSelect, bNotifyForActor, bSelectEvenIfHidden);
+			bChangesOccurred = true;
 		}
 	}
 
-	Editor->GetSelectedActors()->EndBatchSelectOperation();
+	GEditor->GetSelectedActors()->EndBatchSelectOperation();
 
-	if( bNotify )
+	if (bNotify)
 	{
-		Editor->NoteSelectionChange();
+		GEditor->NoteSelectionChange();
 	}
 
 	return bChangesOccurred;
 }
 
 
-bool FLayers::SelectActorsInLayer( const FName& LayerName, bool bSelect, bool bNotify, bool bSelectEvenIfHidden, const TSharedPtr< ActorFilter >& Filter )
+bool ULayersSubsystem::SelectActorsInLayers(const TArray< FName >& LayerNames, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden)
 {
-	Editor->GetSelectedActors()->BeginBatchSelectOperation();
-	bool bChangesOccurred = false;
-	// Iterate over all actors, looking for actors in the specified layers.
-	for( FActorIterator It(GetWorld()); It ; ++It )
+	return SelectActorsInLayers(LayerNames, bSelect, bNotify, bSelectEvenIfHidden, nullptr);
+}
+
+bool ULayersSubsystem::SelectActorsInLayers(const TArray< FName >& LayerNames, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden, const TSharedPtr< ActorFilter >& Filter)
+{
+	if (LayerNames.Num() == 0)
 	{
-		const TWeakObjectPtr< AActor > Actor = *It;
-		if( !IsActorValidForLayer( Actor ) )
+		return true;
+	}
+
+	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+	bool bChangesOccurred = false;
+
+	// Iterate over all actors, looking for actors in the specified layers.
+	for (AActor* Actor : FActorRange(GetWorld()))
+	{
+		if (!IsActorValidForLayer(Actor))
 		{
 			continue;
 		}
 
-		if( Filter.IsValid() && !Filter->PassesFilter( Actor ) )
+		if (Filter.IsValid() && !Filter->PassesFilter(TWeakObjectPtr< AActor >(Actor)))
 		{
 			continue;
 		}
 
-		if ( Actor->Layers.Contains( LayerName ) )
+		for (auto LayerNameIt = LayerNames.CreateConstIterator(); LayerNameIt; ++LayerNameIt)
 		{
-			// The actor was found to be in a specified layer.
-			// Set selection state and move on to the next actor.
-			bool bNotifyForActor = false;
-			Editor->GetSelectedActors()->Modify();
-			Editor->SelectActor( Actor.Get(), bSelect, bNotifyForActor, bSelectEvenIfHidden );
-			bChangesOccurred = true;
+			if (Actor->Layers.Contains(*LayerNameIt))
+			{
+				// The actor was found to be in a specified layer.
+				// Set selection state and move on to the next actor.
+				bool bNotifyForActor = false;
+				GEditor->GetSelectedActors()->Modify();
+				GEditor->SelectActor(Actor, bSelect, bNotifyForActor, bSelectEvenIfHidden);
+				bChangesOccurred = true;
+				break;
+			}
 		}
 	}
 
-	Editor->GetSelectedActors()->EndBatchSelectOperation();
+	GEditor->GetSelectedActors()->EndBatchSelectOperation();
 
-	if( bNotify )
+	if (bNotify)
 	{
-		Editor->NoteSelectionChange();
+		GEditor->NoteSelectionChange();
 	}
 
 	return bChangesOccurred;
@@ -556,7 +603,7 @@ bool FLayers::SelectActorsInLayer( const FName& LayerName, bool bSelect, bool bN
 // Operations on actor viewport visibility regarding layers
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void FLayers::UpdatePerViewVisibility( FLevelEditorViewportClient* ViewportClient, const FName& LayerThatChanged )
+void ULayersSubsystem::UpdatePerViewVisibility( FLevelEditorViewportClient* ViewportClient, const FName& LayerThatChanged )
 {
 	const int32 ViewIndex = ViewportClient->ViewIndex;
 	// get the viewport client
@@ -567,7 +614,7 @@ void FLayers::UpdatePerViewVisibility( FLevelEditorViewportClient* ViewportClien
 	}
 	for( FActorIterator It(ViewportClient->GetWorld()) ; It ; ++It )
 	{
-		const TWeakObjectPtr< AActor > Actor = *It;
+		AActor* Actor = *It;
 		if( !IsActorValidForLayer( Actor ) )
 		{
 			continue;
@@ -597,7 +644,7 @@ void FLayers::UpdatePerViewVisibility( FLevelEditorViewportClient* ViewportClien
 }
 
 
-void FLayers::UpdateAllViewVisibility( const FName& LayerThatChanged )
+void ULayersSubsystem::UpdateAllViewVisibility( const FName& LayerThatChanged )
 {
 	// update all views's hidden layers if they had this one
 	for (FLevelEditorViewportClient* ViewportClient : GEditor->GetLevelViewportClients())
@@ -607,7 +654,7 @@ void FLayers::UpdateAllViewVisibility( const FName& LayerThatChanged )
 }
 
 
-void FLayers::UpdateActorViewVisibility( FLevelEditorViewportClient* ViewportClient, const TWeakObjectPtr< AActor >& Actor, bool bReregisterIfDirty )
+void ULayersSubsystem::UpdateActorViewVisibility(FLevelEditorViewportClient* ViewportClient, AActor* Actor, bool bReregisterIfDirty)
 {
 	// get the viewport client
 	const int32 ViewIndex = ViewportClient->ViewIndex;
@@ -648,7 +695,7 @@ void FLayers::UpdateActorViewVisibility( FLevelEditorViewportClient* ViewportCli
 }
 
 
-void FLayers::UpdateActorAllViewsVisibility( const TWeakObjectPtr< AActor >& Actor )
+void ULayersSubsystem::UpdateActorAllViewsVisibility(AActor* Actor)
 {
 	uint64 OriginalHiddenViews = Actor->HiddenEditorViews;
 
@@ -675,7 +722,7 @@ void FLayers::UpdateActorAllViewsVisibility( const TWeakObjectPtr< AActor >& Act
 }
 
 
-void FLayers::RemoveViewFromActorViewVisibility( FLevelEditorViewportClient* ViewportClient )
+void ULayersSubsystem::RemoveViewFromActorViewVisibility( FLevelEditorViewportClient* ViewportClient )
 {
 	const int32 ViewIndex = ViewportClient->ViewIndex;
 
@@ -687,7 +734,7 @@ void FLayers::RemoveViewFromActorViewVisibility( FLevelEditorViewportClient* Vie
 	// Iterate over all actors, looking for actors in the specified layers.
 	for( FActorIterator It(ViewportClient->GetWorld()) ; It ; ++It )
 	{
-		const TWeakObjectPtr< AActor > Actor = *It;
+		AActor* Actor = *It;
 
 		if( !IsActorValidForLayer( Actor ) )
 		{
@@ -763,7 +810,7 @@ static void UpdateBrushLayerVisibility(ABrush* Brush, bool bIsHidden)
 	}
 }
 
-bool FLayers::UpdateActorVisibility( const TWeakObjectPtr< AActor >& Actor, bool& bOutSelectionChanged, bool& bOutActorModified, bool bNotifySelectionChange, bool bRedrawViewports )
+bool ULayersSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutSelectionChanged, bool& bOutActorModified, const bool bNotifySelectionChange, const bool bRedrawViewports)
 {
 	bOutActorModified = false;
 	bOutSelectionChanged = false;
@@ -791,7 +838,7 @@ bool FLayers::UpdateActorVisibility( const TWeakObjectPtr< AActor >& Actor, bool
 	bool bActorBelongsToVisibleLayer = false;
 	for( int32 LayerIndex = 0 ; LayerIndex < GetWorld()->Layers.Num() ; ++LayerIndex )
 	{
-		const TWeakObjectPtr< ULayer > Layer =  GetWorld()->Layers[ LayerIndex ];
+		ULayer* Layer =  GetWorld()->Layers[ LayerIndex ];
 
 		if( !Layer->bIsVisible )
 		{
@@ -806,7 +853,7 @@ bool FLayers::UpdateActorVisibility( const TWeakObjectPtr< AActor >& Actor, bool
 				Actor->MarkComponentsRenderStateDirty();
 				bOutActorModified = true;
 
-				if (ABrush* Brush = Cast<ABrush>(Actor.Get()))
+				if (ABrush* Brush = Cast<ABrush>(Actor))
 				{
 					const bool bIsHidden = false;
 					UpdateBrushLayerVisibility(Brush, bIsHidden);
@@ -828,7 +875,7 @@ bool FLayers::UpdateActorVisibility( const TWeakObjectPtr< AActor >& Actor, bool
 			Actor->MarkComponentsRenderStateDirty();
 			bOutActorModified = true;
 
-			if (ABrush* Brush = Cast<ABrush>(Actor.Get()))
+			if (ABrush* Brush = Cast<ABrush>(Actor))
 			{
 				const bool bIsHidden = true;
 				UpdateBrushLayerVisibility(Brush, bIsHidden);
@@ -841,7 +888,7 @@ bool FLayers::UpdateActorVisibility( const TWeakObjectPtr< AActor >& Actor, bool
 			bool bSelect = false;
 			bool bNotify = false;
 			bool bIncludeHidden = true;
-			Editor->SelectActor( Actor.Get(), bSelect, bNotify, bIncludeHidden );
+			GEditor->SelectActor( Actor, bSelect, bNotify, bIncludeHidden );
 
 			bOutSelectionChanged = true;
 			bOutActorModified = true;
@@ -850,25 +897,25 @@ bool FLayers::UpdateActorVisibility( const TWeakObjectPtr< AActor >& Actor, bool
 
 	if ( bNotifySelectionChange && bOutSelectionChanged )
 	{
-		Editor->NoteSelectionChange();
+		GEditor->NoteSelectionChange();
 	}
 
 	if( bRedrawViewports )
 	{
-		Editor->RedrawLevelEditingViewports();
+		GEditor->RedrawLevelEditingViewports();
 	}
 
 	return bOutActorModified || bOutSelectionChanged;
 }
 
 
-bool FLayers::UpdateAllActorsVisibility( bool bNotifySelectionChange, bool bRedrawViewports )
+bool ULayersSubsystem::UpdateAllActorsVisibility(const bool bNotifySelectionChange, const bool bRedrawViewports)
 {
 	bool bSelectionChanged = false;
 	bool bChangesOccurred = false;
 	for( FActorIterator It(GetWorld()) ; It ; ++It )
 	{
-		const TWeakObjectPtr< AActor > Actor = *It;
+		AActor* Actor = *It;
 
 		bool bActorModified = false;
 		bool bActorSelectionChanged = false;
@@ -881,12 +928,12 @@ bool FLayers::UpdateAllActorsVisibility( bool bNotifySelectionChange, bool bRedr
 
 	if ( bNotifySelectionChange && bSelectionChanged )
 	{
-		Editor->NoteSelectionChange();
+		GEditor->NoteSelectionChange();
 	}
 
 	if( bRedrawViewports )
 	{
-		Editor->RedrawLevelEditingViewports();
+		GEditor->RedrawLevelEditingViewports();
 	}
 
 	return bChangesOccurred;
@@ -899,54 +946,115 @@ bool FLayers::UpdateAllActorsVisibility( bool bNotifySelectionChange, bool bRedr
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FLayers::AppendActorsForLayer( const FName& LayerName, TArray< TWeakObjectPtr< AActor > >& InActors, const TSharedPtr< ActorFilter >& Filter ) const
+void ULayersSubsystem::AppendActorsFromLayer(const FName& LayerName, TArray< AActor* >& InOutActors) const
 {
-	for( FActorIterator ActorIt(GetWorld()); ActorIt; ++ActorIt ) 
+	AppendActorsFromLayer(LayerName, InOutActors, nullptr);
+}
+
+#define LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYER_PART_1 \
+	for (FActorIterator ActorIt(GetWorld()); ActorIt; ++ActorIt) \
 	{
-		const TWeakObjectPtr< AActor > Actor = *ActorIt;
-
-		if( Filter.IsValid() && !Filter->PassesFilter( Actor ))
-		{
-			continue;
-		}
-
-		if( Actor->Layers.Contains( LayerName ) )
-		{
-			InActors.Add( Actor );
-		}
+#define LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYER_PART_2 \
+		if (Filter.IsValid() && !Filter->PassesFilter(Actor)) \
+		{ \
+			continue; \
+		} \
+		 \
+		if (Actor->Layers.Contains(LayerName)) \
+		{ \
+			InOutActors.Add(Actor); \
+		} \
 	}
+
+void ULayersSubsystem::AppendActorsFromLayer(const FName& LayerName, TArray< AActor* >& InOutActors, const TSharedPtr< ActorFilter >& Filter) const
+{
+	LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYER_PART_1
+		AActor* Actor = *ActorIt;
+	LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYER_PART_2
+}
+
+void ULayersSubsystem::AppendActorsFromLayer(const FName& LayerName, TArray< TWeakObjectPtr< AActor > >& InOutActors, const TSharedPtr< ActorFilter >& Filter) const
+{
+	LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYER_PART_1
+		const TWeakObjectPtr< AActor > Actor = *ActorIt;
+	LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYER_PART_2
 }
 
 
-void FLayers::AppendActorsForLayers( const TArray< FName >& LayerNames, TArray< TWeakObjectPtr< AActor > >& OutActors, const TSharedPtr< ActorFilter >& Filter ) const
+void ULayersSubsystem::AppendActorsFromLayers(const TArray< FName >& LayerNames, TArray< AActor* >& InOutActors) const
 {
-	for( FActorIterator ActorIt(GetWorld()); ActorIt; ++ActorIt )
+	AppendActorsFromLayers(LayerNames, InOutActors, nullptr);
+}
+
+#define LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYERS_PART_1 \
+	for (FActorIterator ActorIt(GetWorld()); ActorIt; ++ActorIt) \
 	{
-		const TWeakObjectPtr< AActor > Actor = *ActorIt;
-
-		if( Filter.IsValid() && !Filter->PassesFilter( Actor ))
-		{
-			continue;
-		}
-
-		for( auto LayerNameIt = LayerNames.CreateConstIterator(); LayerNameIt; ++LayerNameIt )
-		{
-			const FName& LayerName = *LayerNameIt;
-
-			if( Actor->Layers.Contains( LayerName ) )
-			{
-				OutActors.Add( Actor );
-				break;
-			}
-		}
+#define LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYERS_PART_2 \
+		if (Filter.IsValid() && !Filter->PassesFilter(Actor)) \
+		{ \
+			continue; \
+		} \
+		 \
+		for (auto LayerNameIt = LayerNames.CreateConstIterator(); LayerNameIt; ++LayerNameIt) \
+		{ \
+			const FName& LayerName = *LayerNameIt; \
+			 \
+			if (Actor->Layers.Contains(LayerName)) \
+			{ \
+				InOutActors.Add(Actor); \
+				break; \
+			} \
+		} \
 	}
+
+void ULayersSubsystem::AppendActorsFromLayers(const TArray< FName >& LayerNames, TArray< AActor* >& InOutActors, const TSharedPtr< ActorFilter >& Filter) const
+{
+	LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYERS_PART_1
+		AActor* Actor = *ActorIt;
+	LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYERS_PART_2
+}
+
+void ULayersSubsystem::AppendActorsFromLayers(const TArray< FName >& LayerNames, TArray< TWeakObjectPtr< AActor > >& InOutActors, const TSharedPtr< ActorFilter >& Filter) const
+{
+	LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYERS_PART_1
+		const TWeakObjectPtr< AActor > Actor = *ActorIt;
+	LAYERS_SUBSYSTEM_APPEND_ACTORS_FOR_LAYERS_PART_2
 }
 
 
-void FLayers::SetLayerVisibility( const FName& LayerName, bool bIsVisible )
+TArray< AActor* > ULayersSubsystem::GetActorsFromLayer(const FName& LayerName) const
 {
-	const TWeakObjectPtr< ULayer > Layer = EnsureLayerExists( LayerName );
-	check( Layer != NULL );
+	TArray< AActor* > OutActors;
+	AppendActorsFromLayer(LayerName, OutActors);
+	return OutActors;
+}
+
+TArray< AActor* > ULayersSubsystem::GetActorsFromLayer(const FName& LayerName, const TSharedPtr< ActorFilter >& Filter) const
+{
+	TArray< AActor* > OutActors;
+	AppendActorsFromLayer(LayerName, OutActors, Filter);
+	return OutActors;
+}
+
+TArray< AActor* > ULayersSubsystem::GetActorsFromLayers(const TArray< FName >& LayerNames) const
+{
+	TArray< AActor* > OutActors;
+	AppendActorsFromLayers(LayerNames, OutActors);
+	return OutActors;
+}
+
+TArray< AActor* > ULayersSubsystem::GetActorsFromLayers(const TArray< FName >& LayerNames, const TSharedPtr< ActorFilter >& Filter) const
+{
+	TArray< AActor* > OutActors;
+	AppendActorsFromLayers(LayerNames, OutActors, Filter);
+	return OutActors;
+}
+
+
+void ULayersSubsystem::SetLayerVisibility( const FName& LayerName, const bool bIsVisible )
+{
+	ULayer* Layer = EnsureLayerExists( LayerName );
+	check( Layer != nullptr );
 	
 	Layer->Modify();
 	Layer->bIsVisible = bIsVisible;
@@ -956,7 +1064,7 @@ void FLayers::SetLayerVisibility( const FName& LayerName, bool bIsVisible )
 }
 
 
-void FLayers::SetLayersVisibility( const TArray< FName >& LayerNames, bool bIsVisible )
+void ULayersSubsystem::SetLayersVisibility( const TArray< FName >& LayerNames, const bool bIsVisible )
 {
 	if( LayerNames.Num() == 0 )
 	{
@@ -966,7 +1074,7 @@ void FLayers::SetLayersVisibility( const TArray< FName >& LayerNames, bool bIsVi
 	bool bChangeOccurred = false;
 	for( auto LayerNameIt = LayerNames.CreateConstIterator(); LayerNameIt; ++LayerNameIt )
 	{
-		const TWeakObjectPtr< ULayer > Layer = EnsureLayerExists( *LayerNameIt );
+		ULayer* Layer = EnsureLayerExists( *LayerNameIt );
 		check( Layer != NULL );
 
 		if( Layer->bIsVisible != bIsVisible )
@@ -985,9 +1093,9 @@ void FLayers::SetLayersVisibility( const TArray< FName >& LayerNames, bool bIsVi
 }
 
 
-void FLayers::ToggleLayerVisibility( const FName& LayerName )
+void ULayersSubsystem::ToggleLayerVisibility( const FName& LayerName )
 {
-	const TWeakObjectPtr< ULayer > Layer = EnsureLayerExists( LayerName );
+	ULayer* Layer = EnsureLayerExists( LayerName );
 	check( Layer != NULL );
 
 	Layer->Modify();
@@ -998,7 +1106,7 @@ void FLayers::ToggleLayerVisibility( const FName& LayerName )
 }
 
 
-void FLayers::ToggleLayersVisibility( const TArray< FName >& LayerNames )
+void ULayersSubsystem::ToggleLayersVisibility( const TArray< FName >& LayerNames )
 {
 	if( LayerNames.Num() == 0 )
 	{
@@ -1007,7 +1115,7 @@ void FLayers::ToggleLayersVisibility( const TArray< FName >& LayerNames )
 
 	for( auto LayerNameIt = LayerNames.CreateConstIterator(); LayerNameIt; ++LayerNameIt )
 	{
-		const TWeakObjectPtr< ULayer > Layer = EnsureLayerExists( *LayerNameIt );
+		ULayer* Layer = EnsureLayerExists( *LayerNameIt );
 		check( Layer != NULL );
 
 		Layer->Modify();
@@ -1019,19 +1127,19 @@ void FLayers::ToggleLayersVisibility( const TArray< FName >& LayerNames )
 }
 
 
-void FLayers::MakeAllLayersVisible()
+void ULayersSubsystem::MakeAllLayersVisible()
 {
 	TArray< FName > AllLayerNames;
-	FLayers::AddAllLayerNamesTo( AllLayerNames );
+	ULayersSubsystem::AddAllLayerNamesTo( AllLayerNames );
 	for( auto LayerIt = GetWorld()->Layers.CreateIterator(); LayerIt; ++LayerIt )
 	{
-		TWeakObjectPtr< ULayer > Layer = *LayerIt;
+		ULayer* Layer = *LayerIt;
 
 		if( !Layer->bIsVisible )
 		{
 			Layer->Modify();
 			Layer->bIsVisible = true;
-			LayersChanged.Broadcast( ELayersAction::Modify, Layer, "bIsVisible" );
+			LayersChanged.Broadcast( ELayersAction::Modify, TWeakObjectPtr< ULayer >(Layer), "bIsVisible" );
 		}
 	}
 
@@ -1039,71 +1147,83 @@ void FLayers::MakeAllLayersVisible()
 }
 
 
-TWeakObjectPtr< ULayer > FLayers::GetLayer( const FName& LayerName ) const
+ULayer* ULayersSubsystem::GetLayer(const FName& LayerName) const
 {
-	for( auto LayerIt = GetWorld()->Layers.CreateConstIterator(); LayerIt; ++LayerIt )
+	for (auto LayerIt = GetWorld()->Layers.CreateConstIterator(); LayerIt; ++LayerIt)
 	{
-		TWeakObjectPtr< ULayer > Layer = *LayerIt;
-		if( Layer->LayerName == LayerName )
+		ULayer* Layer = *LayerIt;
+		if (Layer->LayerName == LayerName)
 		{
 			return Layer;
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 
-bool FLayers::TryGetLayer( const FName& LayerName, TWeakObjectPtr< ULayer >& OutLayer )
+bool ULayersSubsystem::IsLayer(const FName& LayerName)
 {
-	OutLayer = GetLayer( LayerName );
-	return OutLayer != NULL;
+	ULayer* OutLayer = GetLayer(LayerName);
+	return (OutLayer != nullptr);
+}
+
+bool ULayersSubsystem::TryGetLayer(const FName& LayerName, ULayer*& OutLayer)
+{
+	OutLayer = GetLayer(LayerName);
+	return (OutLayer != nullptr);
 }
 
 
-void FLayers::AddAllLayerNamesTo( TArray< FName >& OutLayers ) const
+void ULayersSubsystem::AddAllLayerNamesTo( TArray< FName >& OutLayers ) const
 {
 	for( auto LayerIt = GetWorld()->Layers.CreateConstIterator(); LayerIt; ++LayerIt )
 	{
-		TWeakObjectPtr< ULayer > Layer = *LayerIt;
+		ULayer* Layer = *LayerIt;
 		OutLayers.Add( Layer->LayerName );
 	}
 }
 
-
-void FLayers::AddAllLayersTo( TArray< TWeakObjectPtr< ULayer > >& OutLayers ) const
-{
-	for( auto LayerIt = GetWorld()->Layers.CreateConstIterator(); LayerIt; ++LayerIt )
-	{
-		OutLayers.Add( *LayerIt );
+#define LAYERS_SUBSYSTEM_ADD_ALL_LAYERS_TO \
+	for (auto LayerIt = GetWorld()->Layers.CreateConstIterator(); LayerIt; ++LayerIt) \
+	{ \
+		OutLayers.Add(*LayerIt); \
 	}
+
+void ULayersSubsystem::AddAllLayersTo(TArray< ULayer* >& OutLayers) const
+{
+	LAYERS_SUBSYSTEM_ADD_ALL_LAYERS_TO
+}
+
+void ULayersSubsystem::AddAllLayersTo(TArray< TWeakObjectPtr< ULayer > >& OutLayers) const
+{
+	LAYERS_SUBSYSTEM_ADD_ALL_LAYERS_TO
 }
 
 
-TWeakObjectPtr< ULayer > FLayers::CreateLayer( const FName& LayerName )
+ULayer* ULayersSubsystem::CreateLayer(const FName& LayerName)
 {
 	ULayer* NewLayer = NewObject<ULayer>(GetWorld(), NAME_None, RF_Transactional);
-	check( NewLayer != NULL );
+	check(NewLayer != NULL);
 
 	GetWorld()->Modify();
-	GetWorld()->Layers.Add( NewLayer );
+	GetWorld()->Layers.Add(NewLayer);
 
 	NewLayer->LayerName = LayerName;
 	NewLayer->bIsVisible = true;
 
-	LayersChanged.Broadcast( ELayersAction::Add, NewLayer, NAME_None );
+	LayersChanged.Broadcast(ELayersAction::Add, NewLayer, NAME_None);
 
 	return NewLayer;
 }
 
 
-void FLayers::DeleteLayers( const TArray< FName >& LayersToDelete )
+void ULayersSubsystem::DeleteLayers( const TArray< FName >& LayersToDelete )
 {
 	TArray< FName > ValidLayersToDelete;
 	for( auto LayerNameIt = LayersToDelete.CreateConstIterator(); LayerNameIt; ++LayerNameIt )
 	{
-		TWeakObjectPtr< ULayer > Layer;
-		if( TryGetLayer( *LayerNameIt, OUT Layer ) )
+		if( IsLayer( *LayerNameIt ) )
 		{
 			ValidLayersToDelete.Add( *LayerNameIt );
 		}
@@ -1112,7 +1232,7 @@ void FLayers::DeleteLayers( const TArray< FName >& LayersToDelete )
 	// Iterate over all actors, looking for actors in the specified layers.
 	for( FActorIterator It(GetWorld()); It ; ++It )
 	{
-		const TWeakObjectPtr< AActor > Actor = *It;
+		AActor* Actor = *It;
 
 		//The Layer must exist in order to remove actors from it,
 		//so we have to wait to delete the ULayer object till after
@@ -1135,17 +1255,16 @@ void FLayers::DeleteLayers( const TArray< FName >& LayersToDelete )
 }
 
 
-void FLayers::DeleteLayer( const FName& LayerToDelete )
+void ULayersSubsystem::DeleteLayer( const FName& LayerToDelete )
 {
-	TWeakObjectPtr< ULayer > Layer;
-	if( !TryGetLayer( LayerToDelete, Layer ) )
+	if( !IsLayer( LayerToDelete ) )
 	{
 		return;
 	}
 	// Iterate over all actors, looking for actors in the specified layer.
 	for( FActorIterator It(GetWorld()) ; It ; ++It )
 	{
-		const TWeakObjectPtr< AActor > Actor = *It;
+		AActor* Actor = *It;
 
 		//The Layer must exist in order to remove actors from it,
 		//so we have to wait to delete the ULayer object till after
@@ -1168,7 +1287,7 @@ void FLayers::DeleteLayer( const FName& LayerToDelete )
 }
 
 
-bool FLayers::RenameLayer( const FName OriginalLayerName, const FName& NewLayerName )
+bool ULayersSubsystem::RenameLayer( const FName& OriginalLayerName, const FName& NewLayerName )
 {
 	// We specifically don't pass the original LayerName by reference to avoid it changing
 	// it's original value, in case, it would be the reference of the Layer's actually FName
@@ -1177,7 +1296,7 @@ bool FLayers::RenameLayer( const FName OriginalLayerName, const FName& NewLayerN
 		return false;
 	}
 
-	TWeakObjectPtr< ULayer > Layer;
+	ULayer* Layer;
 	if( !TryGetLayer( OriginalLayerName, Layer ) )
 	{
 		return false;
@@ -1189,13 +1308,13 @@ bool FLayers::RenameLayer( const FName OriginalLayerName, const FName& NewLayerN
 	// Iterate over all actors, swapping layers.
 	for( FActorIterator It(GetWorld()) ; It ; ++It )
 	{
-		const TWeakObjectPtr< AActor > Actor = *It;
+		AActor* Actor = *It;
 		if( !IsActorValidForLayer( Actor ) )
 		{
 			continue;
 		}
 
-		if ( FLayers::RemoveActorFromLayer( Actor, OriginalLayerName ) )
+		if ( ULayersSubsystem::RemoveActorFromLayer( Actor, OriginalLayerName ) )
 		{
 			// No need to mark the actor as modified these functions take care of that
 			AddActorToLayer( Actor, NewLayerName );
@@ -1215,4 +1334,91 @@ bool FLayers::RenameLayer( const FName OriginalLayerName, const FName& NewLayerN
 	LayersChanged.Broadcast( ELayersAction::Rename, Layer, "LayerName" );
 
 	return true;
-} 
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Helper functions.
+//
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void ULayersSubsystem::AddActorToStats(ULayer* Layer, AActor* Actor)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	UClass* ActorClass = Actor->GetClass();
+
+	bool bFoundClassStats = false;
+	for (auto StatsIt = Layer->ActorStats.CreateIterator(); StatsIt; ++StatsIt)
+	{
+		FLayerActorStats& Stats = *StatsIt;
+
+		if (Stats.Type == ActorClass)
+		{
+			Stats.Total++;
+			bFoundClassStats = true;
+			break;
+		}
+	}
+
+	if (!bFoundClassStats)
+	{
+		FLayerActorStats NewActorStats;
+		NewActorStats.Total = 1;
+		NewActorStats.Type = ActorClass;
+
+		Layer->ActorStats.Add(NewActorStats);
+	}
+
+	LayersChanged.Broadcast(ELayersAction::Modify, Layer, TEXT("ActorStats"));
+}
+
+void ULayersSubsystem::RemoveActorFromStats(ULayer* Layer, AActor* Actor)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	UClass* ActorClass = Actor->GetClass();
+
+	bool bFoundClassStats = false;
+	for (int StatsIndex = 0; StatsIndex < Layer->ActorStats.Num(); StatsIndex++)
+	{
+		FLayerActorStats& Stats = Layer->ActorStats[StatsIndex];
+
+		if (Stats.Type == ActorClass)
+		{
+			bFoundClassStats = true;
+			--Stats.Total;
+
+			if (Stats.Total == 0)
+			{
+				Layer->ActorStats.RemoveAt(StatsIndex);
+			}
+			break;
+		}
+	}
+
+	if (bFoundClassStats)
+	{
+		LayersChanged.Broadcast(ELayersAction::Modify, Layer, TEXT("ActorStats"));
+	}
+}
+
+ULayer* ULayersSubsystem::EnsureLayerExists(const FName& LayerName)
+{
+	ULayer* Layer;
+	if (!TryGetLayer(LayerName, Layer))
+	{
+		Layer = CreateLayer(LayerName);
+	}
+
+	return Layer;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

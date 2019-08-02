@@ -5,7 +5,6 @@
 #include "ActorFactories/ActorFactoryEmptyActor.h"
 #include "Engine/Selection.h"
 #include "ScopedTransaction.h"
-#include "Layers/ILayers.h"
 #include "IAssetRegistry.h"
 #include "AssetRegistryModule.h"
 #include "IUSDImporterModule.h"

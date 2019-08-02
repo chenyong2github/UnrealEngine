@@ -42,7 +42,7 @@
 #include "MouseDeltaTracker.h"
 #include "ScopedTransaction.h"
 #include "HModel.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "StaticLightingSystem/StaticLightingPrivate.h"
 #include "SEditorViewport.h"
 #include "LevelEditor.h"
@@ -1683,7 +1683,8 @@ FLevelEditorViewportClient::~FLevelEditorViewportClient()
 		GEngine->OnActorMoved().RemoveAll(this);
 
 		// make sure all actors have this view removed from their visibility bits
-		GEditor->Layers->RemoveViewFromActorViewVisibility(this);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		Layers->RemoveViewFromActorViewVisibility(this);
 
 		GEditor->RemoveLevelViewportClients(this);
 
@@ -1707,7 +1708,8 @@ FLevelEditorViewportClient::~FLevelEditorViewportClient()
 void FLevelEditorViewportClient::InitializeVisibilityFlags()
 {
 	// make sure all actors know about this view for per-view layer vis
-	GEditor->Layers->UpdatePerViewVisibility(this);
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	Layers->UpdatePerViewVisibility(this);
 
 	// Get the number of volume classes so we can initialize our bit array
 	TArray<UClass*> VolumeClasses;

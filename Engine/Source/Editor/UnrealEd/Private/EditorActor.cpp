@@ -49,7 +49,7 @@
 #include "EditorLevelUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "Editor/GeometryMode/Public/GeometryEdMode.h"
 #include "Editor/GeometryMode/Public/EditorGeometry.h"
 #include "ActorEditorUtils.h"
@@ -367,6 +367,7 @@ void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool 
 		FScopedLevelDirtied			LevelDirtyCallback;
 
 		// Update the actors' locations and update the global list of visible layers.
+		ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
 		{
 			AActor* Actor = static_cast<AActor*>( *It );
@@ -385,10 +386,10 @@ void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool 
 			FActorLabelUtilities::SetActorLabelUnique(Actor, Actor->GetActorLabel(), &ActorLabels);
 			ActorLabels.Add(Actor->GetActorLabel());
 
-			GEditor->Layers->InitializeNewActorLayers(Actor);
+			LayersSubsystem->InitializeNewActorLayers(Actor);
 
 			// Ensure any layers this actor belongs to are visible
-			GEditor->Layers->SetLayersVisibility(Actor->Layers, true);
+			LayersSubsystem->SetLayersVisibility(Actor->Layers, true);
 
 			Actor->CheckDefaultSubobjects();
 			Actor->InvalidateLightingCache();
@@ -823,6 +824,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 		}
 	}
 
+	ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 	for ( int32 ActorIndex = 0 ; ActorIndex < ActorsToDelete.Num() ; ++ActorIndex )
 	{
 		AActor* Actor = ActorsToDelete[ ActorIndex ];
@@ -1052,7 +1054,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 		UE_LOG(LogEditorActor, Log,  TEXT("Deleted Actor: %s"), *Actor->GetClass()->GetName() );
 
 		// Destroy actor and clear references.
-		GEditor->Layers->DisassociateActorFromLayers( Actor );
+		LayersSubsystem->DisassociateActorFromLayers( Actor );
 		bool WasDestroyed = Actor->GetWorld()->EditorDestroyActor( Actor, false );
 		checkf( WasDestroyed,TEXT( "Failed to destroy Actor %s (%s)"), *Actor->GetClass()->GetName(), *Actor->GetActorLabel() );
 
@@ -1154,6 +1156,7 @@ void UUnrealEdEngine::edactReplaceSelectedBrush( UWorld* InWorld )
 	SelectedActors->Modify();
 
 	// Replace brushes.
+	ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 	for ( int32 BrushIndex = 0 ; BrushIndex < BrushesToReplace.Num() ; ++BrushIndex )
 	{
 		ABrush* SrcBrush = BrushesToReplace[BrushIndex];
@@ -1167,14 +1170,14 @@ void UUnrealEdEngine::edactReplaceSelectedBrush( UWorld* InWorld )
 
 			NewBrush->Modify();
 
-				NewBrush->Layers.Append( SrcBrush->Layers );
+			NewBrush->Layers.Append( SrcBrush->Layers );
 
 			NewBrush->CopyPosRotScaleFrom( SrcBrush );
 			NewBrush->PostEditMove( true );
 			SelectActor( SrcBrush, false, false );
 			SelectActor( NewBrush, true, false );
 
-			GEditor->Layers->DisassociateActorFromLayers( SrcBrush );
+			LayersSubsystem->DisassociateActorFromLayers( SrcBrush );
 			InWorld->EditorDestroyActor( SrcBrush, true );
 		}
 	}
@@ -1195,7 +1198,8 @@ AActor* UUnrealEdEngine::ReplaceActor( AActor* CurrentActor, UClass* NewActorCla
 	if( NewActor )
 	{
 		NewActor->Modify();
-		GEditor->Layers->InitializeNewActorLayers( NewActor );
+		ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		LayersSubsystem->InitializeNewActorLayers( NewActor );
 
 		const bool bCurrentActorSelected = GetSelectedActors()->IsSelected( CurrentActor );
 		if ( bCurrentActorSelected )
@@ -1207,10 +1211,10 @@ AActor* UUnrealEdEngine::ReplaceActor( AActor* CurrentActor, UClass* NewActorCla
 		}
 
 		{
-			GEditor->Layers->DisassociateActorFromLayers( NewActor );
+			LayersSubsystem->DisassociateActorFromLayers( NewActor );
 			NewActor->Layers.Empty();
 
-			GEditor->Layers->AddActorToLayers( NewActor, CurrentActor->Layers );
+			LayersSubsystem->AddActorToLayers( NewActor, CurrentActor->Layers );
 
 			NewActor->SetActorLabel( CurrentActor->GetActorLabel() );
 			NewActor->Tags = CurrentActor->Tags;
@@ -1218,7 +1222,7 @@ AActor* UUnrealEdEngine::ReplaceActor( AActor* CurrentActor, UClass* NewActorCla
 			NewActor->EditorReplacedActor( CurrentActor );
 		}
 
-		GEditor->Layers->DisassociateActorFromLayers( CurrentActor );
+		LayersSubsystem->DisassociateActorFromLayers( CurrentActor );
 		CurrentActor->GetWorld()->EditorDestroyActor( CurrentActor, true );
 
 		// Note selection change if necessary and requested.

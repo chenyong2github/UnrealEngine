@@ -39,7 +39,7 @@
 #include "ScopedTransaction.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "MeshAttributes.h"
 #include "GeometryCollection/GeometryCollectionConversion.h"
 
@@ -1650,7 +1650,8 @@ AActor* FFractureEditorModeToolkit::AddActor(ULevel* InLevel, UClass* Class)
 	}
 
 	// If this actor is part of any layers (set in its default properties), add them into the visible layers list.
-	GEditor->Layers->SetLayersVisibility(Actor->Layers, true);
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	Layers->SetLayersVisibility(Actor->Layers, true);
 
 	// Clean up.
 	Actor->MarkPackageDirty();

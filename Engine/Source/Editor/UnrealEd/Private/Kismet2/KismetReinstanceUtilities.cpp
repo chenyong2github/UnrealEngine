@@ -21,7 +21,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "Editor.h"
 #include "Serialization/ArchiveHasReferences.h"
 #include "Toolkits/AssetEditorManager.h"
@@ -1253,9 +1253,13 @@ void FActorReplacementHelper::Finalize(const TMap<UObject*, UObject*>& OldToNewI
 
 	// Destroy actor and clear references.
 	NewActor->Modify();
-	if (GEditor && GEditor->Layers.IsValid())
+	if (GEditor)
 	{
-		GEditor->Layers->InitializeNewActorLayers(NewActor);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		if (Layers)
+		{
+			Layers->InitializeNewActorLayers(NewActor);
+		}
 	}
 }
 
@@ -1848,9 +1852,13 @@ static void ReplaceActorHelper(UObject* OldObject, UClass* OldClass, UObject*& N
 		}
 		bSelectionChanged = true;
 	}
-	if (GEditor && GEditor->Layers.IsValid())
+	if (GEditor)
 	{
-		GEditor->Layers->DisassociateActorFromLayers(OldActor);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		if (Layers)
+		{
+			Layers->DisassociateActorFromLayers(OldActor);
+		}
 	}
 
 	World->EditorDestroyActor(OldActor, /*bShouldModifyLevel =*/true);

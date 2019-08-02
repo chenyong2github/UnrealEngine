@@ -7,12 +7,22 @@
 
 #define LOCTEXT_NAMESPACE "Layer"
 
-FLayerViewModel::FLayerViewModel( const TWeakObjectPtr< ULayer >& InLayer, const TSharedRef< ILayers >& InWorldLayers, const TWeakObjectPtr< UEditorEngine >& InEditor )
-	: WorldLayers( InWorldLayers )
-	, Editor( InEditor )
+DEFINE_LOG_CATEGORY_STATIC(LogLayerViewModel, Fatal, All);
+
+FLayerViewModel::FLayerViewModel( const TWeakObjectPtr< ULayer >& InLayer, const TWeakObjectPtr< UEditorEngine >& InEditor )
+	: Editor( InEditor )
+	, WorldLayers(Editor.IsValid() ? Editor->GetEditorSubsystem<ULayersSubsystem>() : nullptr)
 	, Layer( InLayer )
 {
-
+	// Sanity checks
+	if (!Editor.IsValid())
+	{
+		UE_LOG(LogLayerViewModel, Fatal, TEXT("This function requires Editor.IsValid() == true."));
+	}
+	else if (WorldLayers == nullptr)
+	{
+		UE_LOG(LogLayerViewModel, Fatal, TEXT("This function requires Editor->GetEditorSubsystem<ULayersSubsystem>() to be already loaded rather than being a nullptr."));
+	}
 }
 
 
@@ -102,8 +112,8 @@ bool FLayerViewModel::CanRenameTo( const FName& NewLayerName, FString& OutMessag
 		return false;
 	}
 
-	TWeakObjectPtr< ULayer > FoundLayer;
-	if ( WorldLayers->TryGetLayer( NewLayerName, FoundLayer ) && FoundLayer != Layer )
+	ULayer* FoundLayer;
+	if ( WorldLayers->TryGetLayer( NewLayerName, FoundLayer ) && FoundLayer != Layer.Get() )
 	{
 		OutMessage = LOCTEXT("RenameFailed_AlreadyExists", "This layer already exists").ToString();
 		return false;
@@ -127,8 +137,7 @@ void FLayerViewModel::RenameTo( const FName& NewLayerName )
 
 	int32 LayerIndex = 0;
 	FName UniqueNewLayerName = NewLayerName;
-	TWeakObjectPtr< ULayer > FoundLayer;
-	while( WorldLayers->TryGetLayer( UniqueNewLayerName, FoundLayer ) )
+	while( WorldLayers->IsLayer( UniqueNewLayerName ) )
 	{
 		UniqueNewLayerName = FName( *FString::Printf( TEXT( "%s_%d" ), *NewLayerName.ToString(), ++LayerIndex ) );
 	}
@@ -164,7 +173,7 @@ bool FLayerViewModel::CanAssignActors( const TArray< TWeakObjectPtr<AActor> > Ac
 		FFormatNamedArguments ActorArgs;
 		ActorArgs.Add(TEXT("ActorName"), FText::FromName(Actor->GetFName()));
 
-		if( !WorldLayers->IsActorValidForLayer( Actor ) )
+		if( !WorldLayers->IsActorValidForLayer( Actor.Get() ) )
 		{
 			OutMessage = FText::Format(LOCTEXT("InvalidLayers", "Actor '{ActorName}' cannot be associated with Layers"), ActorArgs);
 			return false;
@@ -216,7 +225,7 @@ bool FLayerViewModel::CanAssignActor( const TWeakObjectPtr<AActor> Actor, FText&
 
 	Args.Add(TEXT("ActorName"), FText::FromName(Actor->GetFName()));
 
-	if( !WorldLayers->IsActorValidForLayer( Actor ) )
+	if( !WorldLayers->IsActorValidForLayer( Actor.Get()) )
 	{
 		OutMessage = FText::Format(LOCTEXT("InvalidLayers", "Actor '{ActorName}' cannot be associated with Layers"), Args);
 		return false;
@@ -240,7 +249,7 @@ void FLayerViewModel::AppendActors( TArray< TWeakObjectPtr< AActor > >& InActors
 		return;
 	}
 
-	WorldLayers->AppendActorsForLayer( Layer->LayerName, InActors );
+	WorldLayers->AppendActorsFromLayer( Layer->LayerName, InActors );
 }
 
 
@@ -260,7 +269,7 @@ void FLayerViewModel::AppendActorsOfSpecificType( TArray< TWeakObjectPtr< AActor
 	};
 
 	TSharedRef< TDelegateFilter< const TWeakObjectPtr< AActor >& > > Filter = MakeShareable( new TDelegateFilter< const TWeakObjectPtr< AActor >& >( TDelegateFilter< const TWeakObjectPtr< AActor >& >::FPredicate::CreateStatic( &Local::ActorIsOfClass, Class ) ) );
-	WorldLayers->AppendActorsForLayer( Layer->LayerName, InActors, Filter );
+	WorldLayers->AppendActorsFromLayer( Layer->LayerName, InActors, Filter );
 }
 
 
@@ -272,7 +281,7 @@ void FLayerViewModel::AddActor( const TWeakObjectPtr< AActor >& Actor )
 	}
 
 	const FScopedTransaction Transaction( LOCTEXT("AddActor", "Add Actor to Layer") );
-	WorldLayers->AddActorToLayer( Actor, Layer->LayerName );
+	WorldLayers->AddActorToLayer( Actor.Get(), Layer->LayerName );
 }
 
 
@@ -308,7 +317,7 @@ void FLayerViewModel::RemoveActor( const TWeakObjectPtr< AActor >& Actor )
 	}
 
 	const FScopedTransaction Transaction( LOCTEXT("RemoveActor", "Remove Actor from Layer") );
-	WorldLayers->RemoveActorFromLayer( Actor, Layer->LayerName );
+	WorldLayers->RemoveActorFromLayer( Actor.Get(), Layer->LayerName );
 }
 
 

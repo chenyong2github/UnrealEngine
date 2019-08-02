@@ -35,7 +35,7 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 
 #include "BusyCursor.h"
 #include "LevelUtils.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 
 #include "ScopedTransaction.h"
 #include "ActorEditorUtils.h"
@@ -670,10 +670,8 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 
 bool UEditorLevelUtils::RemoveLevelFromWorld(ULevel* InLevel)
 {
-	if (GEditor->Layers.IsValid())
-	{
-		GEditor->Layers->RemoveLevelLayerInformation(InLevel);
-	}
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	Layers->RemoveLevelLayerInformation(InLevel);
 
 	GEditor->CloseEditedWorldAssets(CastChecked<UWorld>(InLevel->GetOuter()));
 
@@ -999,9 +997,10 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 			StreamingLevel->SetShouldBeVisibleInEditor(bShouldBeVisible);
 		}
 
-		if (!bShouldBeVisible && GEditor->Layers.IsValid())
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		if (!bShouldBeVisible)
 		{
-			GEditor->Layers->RemoveLevelLayerInformation(Level);
+			Layers->RemoveLevelLayerInformation(Level);
 		}
 
 		// UpdateLevelStreaming sets Level->bIsVisible directly, so we need to make sure it gets saved to the transaction buffer.
@@ -1036,9 +1035,9 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 			check(Level->bIsVisible == bShouldBeVisible);
 		}
 
-		if (bShouldBeVisible && GEditor->Layers.IsValid())
+		if (bShouldBeVisible)
 		{
-			GEditor->Layers->AddLevelLayerInformation(Level);
+			Layers->AddLevelLayerInformation(Level);
 		}
 
 		// Force the level's layers to be visible, if desired
@@ -1053,8 +1052,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 			{
 				bool bModified = false;
 				if (bShouldBeVisible && bForceLayersVisible &&
-					GEditor->Layers.IsValid() &&
-					GEditor->Layers->IsActorValidForLayer(Actor))
+					Layers->IsActorValidForLayer(Actor))
 				{
 					// Make the actor layer visible, if it's not already.
 					if (Actor->bHiddenEdLayer)
@@ -1068,7 +1066,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 					}
 
 					const bool bIsVisible = true;
-					GEditor->Layers->SetLayersVisibility(Actor->Layers, bIsVisible);
+					Layers->SetLayersVisibility(Actor->Layers, bIsVisible);
 				}
 
 				// Set the visibility of each actor in the streaming level
@@ -1157,13 +1155,12 @@ void UEditorLevelUtils::SetLevelsVisibility(const TArray<ULevel*>& Levels, const
 
 	// If at least 1 level becomes visible, force layers to update their actor status
 	// Otherwise, changes made on the layers for actors belonging to a non-visible level would not work
-	if (GEditor->Layers.IsValid())
 	{
 		for (int32 LevelIndex = 0; LevelIndex < bTheyShouldBeVisible.Num(); ++LevelIndex)
 		{
 			if (bTheyShouldBeVisible[LevelIndex])
 			{
-				// Equivalent to GEditor->Layers->UpdateAllActorsVisibilityDefault();
+				// Equivalent to GEditor->GetEditorSubsystem<ULayersSubsystem>()->UpdateAllActorsVisibilityDefault();
 				FEditorDelegates::RefreshLayerBrowser.Broadcast();
 				break;
 			}

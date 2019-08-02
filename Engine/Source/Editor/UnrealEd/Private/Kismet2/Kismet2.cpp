@@ -65,7 +65,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "IAssetTools.h"
 #include "AssetRegistryModule.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "ScopedTransaction.h"
 #include "AssetToolsModule.h"
 #include "EngineAnalytics.h"
@@ -1900,6 +1900,7 @@ AActor* FKismetEditorUtilities::CreateBlueprintInstanceFromSelection(UBlueprint*
 
 	GEditor->GetSelectedActors()->Modify();
 
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 	for(auto It(SelectedActors.CreateIterator());It;++It)
 	{
 		if (AActor* Actor = *It)
@@ -1907,13 +1908,13 @@ AActor* FKismetEditorUtilities::CreateBlueprintInstanceFromSelection(UBlueprint*
 			// Remove from active selection in editor
 			GEditor->SelectActor(Actor, /*bSelected=*/ false, /*bNotify=*/ false);
 
-			GEditor->Layers->DisassociateActorFromLayers(Actor);
+			Layers->DisassociateActorFromLayers(Actor);
 			World->EditorDestroyActor(Actor, false);
 		}
 	}
 
 	AActor* NewActor = World->SpawnActor(Blueprint->GeneratedClass, &Location, &Rotator);
-	GEditor->Layers->InitializeNewActorLayers(NewActor);
+	Layers->InitializeNewActorLayers(NewActor);
 	FActorLabelUtilities::SetActorLabelUnique(NewActor, Blueprint->GetName());
 	// Quietly ensure that no components are selected
 	USelection* ComponentSelection = GEditor->GetSelectedComponents();

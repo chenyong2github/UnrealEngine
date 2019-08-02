@@ -100,7 +100,7 @@
 #include "PackageBackup.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
-#include "Layers/Layers.h"
+#include "Layers/LayersSubsystem.h"
 #include "EditorLevelUtils.h"
 
 #include "Toolkits/AssetEditorManager.h"
@@ -929,7 +929,12 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 
 	LoadEditorFeatureLevel();
 
-	Layers = FLayers::Create( MakeWeakObjectPtr( this ) );
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// ILayers (GEditor->Layers) has been deprecated, use ULayersSubsystem (GEditor->GetEditorSubsystem<ULayersSubsystem>()) instead.
+	// We temporaily assign Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>(), but we will remove Layers in future releases.
+	Layers = MakeShareable(GetEditorSubsystem<ULayersSubsystem>(), [](ULayersSubsystem*) {});
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 	// Init transactioning.
 	Trans = CreateTrans();
@@ -3339,10 +3344,7 @@ void UEditorEngine::ConvertSelectedBrushesToVolumes( UClass* VolumeClass )
 				NewVolume->Modify();
 
 				// Destroy the old actor.
-				if (Layers.IsValid())
-				{
-					Layers->DisassociateActorFromLayers( CurBrushActor );
-				}
+				GetEditorSubsystem<ULayersSubsystem>()->DisassociateActorFromLayers( CurBrushActor );
 				World->EditorDestroyActor( CurBrushActor, true );
 			}
 		}
@@ -5134,10 +5136,8 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 			}
 
 			NewActor->Layers.Empty();
-			if (Layers.IsValid())
-			{
-				Layers->AddActorToLayers( NewActor, OldActor->Layers );
-			}
+			ULayersSubsystem* LayersSubsystem = GetEditorSubsystem<ULayersSubsystem>();
+			LayersSubsystem->AddActorToLayers( NewActor, OldActor->Layers );
 
 			// Preserve the label and tags from the old actor
 			NewActor->SetActorLabel( OldActor->GetActorLabel() );
@@ -5188,10 +5188,7 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 				FBlueprintEditorUtils::ReplaceAllActorRefrences(LSB, OldActor, NewActor);
 			}
 
-			if (Layers.IsValid())
-			{
-				Layers->DisassociateActorFromLayers( OldActor );
-			}
+			LayersSubsystem->DisassociateActorFromLayers( OldActor );
 			World->EditorDestroyActor(OldActor, true);
 
 			// If any brush actors were modified, update the BSP in the appropriate levels
@@ -5435,6 +5432,7 @@ void UEditorEngine::ConvertLightActors( UClass* ConvertToClass )
 		int32 NumLightsToConvert = ActorsToConvert.Num();
 
 		// Convert each light 
+		ULayersSubsystem* LayersSubsystem = GetEditorSubsystem<ULayersSubsystem>();
 		for( int32 ActorIdx = 0; ActorIdx < ActorsToConvert.Num(); ++ActorIdx )
 		{
 			AActor* ActorToConvert = ActorsToConvert[ ActorIdx ];
@@ -5475,10 +5473,7 @@ void UEditorEngine::ConvertLightActors( UClass* ConvertToClass )
 			NewActor->PostEditChange();
 			NewActor->PostEditMove( true );
 			NewActor->Modify();
-			if (Layers.IsValid())
-			{
-				Layers->InitializeNewActorLayers( NewActor );
-			}
+			LayersSubsystem->InitializeNewActorLayers( NewActor );
 
 			// We have converted another light.
 			++NumLightsConverted;
@@ -5486,10 +5481,7 @@ void UEditorEngine::ConvertLightActors( UClass* ConvertToClass )
 			UE_LOG(LogEditor, Log, TEXT("Converted: %s to %s"), *ActorToConvert->GetName(), *NewActor->GetName() );
 
 			// Destroy the old actor.
-			if (Layers.IsValid())
-			{
-				Layers->DisassociateActorFromLayers(ActorToConvert);
-			}
+			LayersSubsystem->DisassociateActorFromLayers(ActorToConvert);
 			World->EditorDestroyActor( ActorToConvert, true );
 
 			if (NewActor->IsPendingKillOrUnreachable())
@@ -5674,10 +5666,8 @@ AActor* UEditorEngine::ConvertBrushesToStaticMesh(const FString& InStaticMeshPac
 		NewActor->PostEditChange();
 		NewActor->PostEditMove( true );
 		NewActor->Modify();
-		if (Layers.IsValid())
-		{
-			Layers->InitializeNewActorLayers(NewActor);
-		}
+		ULayersSubsystem* LayersSubsystem = GetEditorSubsystem<ULayersSubsystem>();
+		LayersSubsystem->InitializeNewActorLayers(NewActor);
 
 		// Teleport the new actor to the old location but not the old rotation. The static mesh is built to the rotation already.
 		NewActor->TeleportTo(InPivotLocation, FRotator(0.0f, 0.0f, 0.0f), false, true);
@@ -5685,10 +5675,7 @@ AActor* UEditorEngine::ConvertBrushesToStaticMesh(const FString& InStaticMeshPac
 		// Destroy the old brushes.
 		for( int32 BrushIdx = 0; BrushIdx < InBrushesToConvert.Num(); ++BrushIdx )
 		{
-			if (Layers.IsValid())
-			{
-				Layers->DisassociateActorFromLayers(InBrushesToConvert[BrushIdx]);
-			}
+			LayersSubsystem->DisassociateActorFromLayers(InBrushesToConvert[BrushIdx]);
 			GWorld->EditorDestroyActor( InBrushesToConvert[BrushIdx], true );
 		}
 
@@ -5858,6 +5845,7 @@ void UEditorEngine::DoConvertActors( const TArray<AActor*>& ActorsToConvert, UCl
 
 		}
 
+		ULayersSubsystem* LayersSubsystem = GetEditorSubsystem<ULayersSubsystem>();
 		for( int32 ActorIdx = 0; ActorIdx < ActorsToConvert.Num(); ++ActorIdx )
 		{
 			AActor* ActorToConvert = ActorsToConvert[ ActorIdx ];
@@ -5990,17 +5978,11 @@ void UEditorEngine::DoConvertActors( const TArray<AActor*>& ActorsToConvert, UCl
 						NewActor->InvalidateLightingCache();
 						NewActor->PostEditChange();
 						NewActor->PostEditMove( true );
-						if (Layers.IsValid())
-						{
-							Layers->InitializeNewActorLayers( NewActor );
-						}
+						LayersSubsystem->InitializeNewActorLayers( NewActor );
 
 						// Destroy the old actor.
 						ActorToConvert->Modify();
-						if (Layers.IsValid())
-						{
-							Layers->DisassociateActorFromLayers(ActorToConvert);
-						}
+						LayersSubsystem->DisassociateActorFromLayers(ActorToConvert);
 						World->EditorDestroyActor( ActorToConvert, true );	
 					}
 				}
@@ -6276,10 +6258,7 @@ AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform
 	if( Actor )
 	{
 		// If this actor is part of any layers (set in its default properties), add them into the visible layers list.
-		if (Layers.IsValid())
-		{
-			Layers->SetLayersVisibility(Actor->Layers, true);
-		}
+		GetEditorSubsystem<ULayersSubsystem>()->SetLayersVisibility(Actor->Layers, true);
 
 		// Clean up.
 		Actor->MarkPackageDirty();
@@ -6341,6 +6320,7 @@ TArray<AActor*> UEditorEngine::AddExportTextActors(const FString& ExportText, bo
 				FSnappingUtils::SnapPointToGrid( Location, FVector(0, 0, 0) );
 
 				// For every spawned actor, teleport to the target loction, preserving the relative translation to the other spawned actors.
+				ULayersSubsystem* LayersSubsystem = GetEditorSubsystem<ULayersSubsystem>();
 				for ( int32 ActorIdx = 0; ActorIdx < NewActors.Num(); ++ActorIdx )
 				{
 					AActor* Actor = NewActors[ActorIdx];
@@ -6350,10 +6330,7 @@ TArray<AActor*> UEditorEngine::AddExportTextActors(const FString& ExportText, bo
 					Actor->InvalidateLightingCache();
 					Actor->PostEditMove( true );
 
-					if (Layers.IsValid())
-					{
-						Layers->SetLayersVisibility( Actor->Layers, true );
-					}
+					LayersSubsystem->SetLayersVisibility( Actor->Layers, true );
 
 					Actor->MarkPackageDirty();
 				}

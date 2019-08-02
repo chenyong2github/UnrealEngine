@@ -32,7 +32,7 @@ namespace ELayersAction
 	};
 }
 
-class ILayers 
+class UE_DEPRECATED(4.24, "ILayers and GEditor->Layers have been deprecated, use ULayersSubsystem and GEditor->GetEditorSubsystem<ULayersSubsystem>() instead.") ILayers
 {
 
 public:
@@ -52,14 +52,18 @@ public:
 	 *
 	 *	@param	Level	The process
 	 */
-	virtual void AddLevelLayerInformation( const TWeakObjectPtr< ULevel >& Level ) = 0;
+	virtual void AddLevelLayerInformation(ULevel* Level) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and AddLevelLayerInformation(ULevel* Level), which are compatible with BluePrints.")
+	void AddLevelLayerInformation(const TWeakObjectPtr< ULevel >& Level);
 
 	/**
 	 *	Purges any information regarding layers associated with the level and it contents
 	 *
 	 *	@param	Level	The process
 	 */
-	virtual void RemoveLevelLayerInformation( const TWeakObjectPtr< ULevel >& Level ) = 0;
+	virtual void RemoveLevelLayerInformation(ULevel* Level) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and RemoveLevelLayerInformation(ULevel* Level), which are compatible with BluePrints.")
+	void RemoveLevelLayerInformation(const TWeakObjectPtr< ULevel >& Level);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Operations on an individual actor.
@@ -69,21 +73,27 @@ public:
 	 *
 	 *	@param	Actor	The actor to validate
 	 */
-	virtual bool IsActorValidForLayer( const TWeakObjectPtr< AActor >& Actor ) = 0;
+	virtual bool IsActorValidForLayer(AActor* Actor) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and IsActorValidForLayer(AActor* Actor), which are compatible with BluePrints.")
+	bool IsActorValidForLayer(const TWeakObjectPtr< AActor >& Actor);
 
 	/**
 	 *	Synchronizes an newly created Actor's layers with the layer system
 	 *
 	 *	@param	Actor	The actor to initialize
 	 */
-	virtual bool InitializeNewActorLayers( const TWeakObjectPtr< AActor >& Actor ) = 0;
+	virtual bool InitializeNewActorLayers(AActor* Actor) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and InitializeNewActorLayers(AActor* Actor), which are compatible with BluePrints.")
+	bool InitializeNewActorLayers(const TWeakObjectPtr< AActor >& Actor);
 
 	/**
 	 *	Disassociates an Actor's layers from the layer system, general used before deleting the Actor
 	 *
 	 *	@param	Actor	The actor to disassociate from the layer system
 	 */
-	virtual bool DisassociateActorFromLayers( const TWeakObjectPtr< AActor >& Actor ) = 0;
+	virtual bool DisassociateActorFromLayers(AActor* Actor) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and DisassociateActorFromLayers(AActor* Actor), which are compatible with BluePrints.")
+	bool DisassociateActorFromLayers(const TWeakObjectPtr< AActor >& Actor);
 
 	/**
 	 * Adds the actor to the named layer.
@@ -92,7 +102,9 @@ public:
 	 * @param	LayerName	The name of the layer to add the actor to
 	 * @return				true if the actor was added.  false is returned if the actor already belongs to the layer.
 	 */
-	virtual bool AddActorToLayer( const TWeakObjectPtr< AActor >& Actor, const FName& LayerName ) = 0;
+	virtual bool AddActorToLayer(AActor* Actor, const FName& LayerName) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and AddActorToLayer(AActor* Actor, const FName& LayerName), which are compatible with BluePrints.")
+	bool AddActorToLayer(const TWeakObjectPtr< AActor >& Actor, const FName& LayerName);
 
 	/**
 	 * Adds the provided actor to the named layers.
@@ -101,7 +113,9 @@ public:
 	 * @param	LayerNames	A valid list of layer names.
 	 * @return				true if the actor was added to at least one of the provided layers.
 	 */
-	virtual bool AddActorToLayers( const TWeakObjectPtr< AActor >& Actor, const TArray< FName >& LayerNames ) = 0;
+	virtual bool AddActorToLayers(AActor* Actor, const TArray< FName >& LayerNames) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and AddActorToLayers(AActor* Actor, const TArray< FName >& LayerNames), which are compatible with BluePrints.")
+	bool AddActorToLayers(const TWeakObjectPtr< AActor >& Actor, const TArray< FName >& LayerNames);
 
 	/**
 	 * Removes an actor from the specified layer.
@@ -110,7 +124,9 @@ public:
 	 * @param	LayerToRemove	The name of the layer to remove the actor from
 	 * @return					true if the actor was removed from the layer.  false is returned if the actor already belonged to the layer.
 	 */
-	virtual bool RemoveActorFromLayer( const TWeakObjectPtr< AActor >& Actor, const FName& LayerToRemove, const bool bUpdateStats = true ) = 0;
+	virtual bool RemoveActorFromLayer(AActor* Actor, const FName& LayerToRemove, const bool bUpdateStats = true) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and RemoveActorFromLayer(AActor* Actor, const FName& LayerToRemove, const bool bUpdateStats = true), which are compatible with BluePrints.")
+	bool RemoveActorFromLayer(const TWeakObjectPtr< AActor >& Actor, const FName& LayerToRemove, const bool bUpdateStats = true);
 	
 	/**
 	 * Removes the provided actor from the named layers.
@@ -119,7 +135,9 @@ public:
 	 * @param	LayerNames	A valid list of layer names.
 	 * @return				true if the actor was removed from at least one of the provided layers.
 	 */
-	virtual bool RemoveActorFromLayers( const TWeakObjectPtr< AActor >& Actor, const TArray< FName >& LayerNames, const bool bUpdateStats = true ) = 0;
+	virtual bool RemoveActorFromLayers(AActor* Actor, const TArray< FName >& LayerNames, const bool bUpdateStats = true) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and RemoveActorFromLayers(AActor* Actor, const TArray< FName >& LayerNames, const bool bUpdateStats = true), which are compatible with BluePrints.")
+	bool RemoveActorFromLayers(const TWeakObjectPtr< AActor >& Actor, const TArray< FName >& LayerNames, const bool bUpdateStats = true);
 
 
 	/////////////////////////////////////////////////
@@ -211,7 +229,7 @@ public:
 	 * @param	Filter	[optional]				Actor that don't pass the specified filter restrictions won't be selected
 	 * @return									true if at least one actor was selected/deselected.
 	 */
-	virtual bool SelectActorsInLayers( const TArray< FName >& LayerNames, bool bSelect, bool bNotify, bool bSelectEvenIfHidden = false, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >( NULL ) ) = 0;
+	virtual bool SelectActorsInLayers( const TArray< FName >& LayerNames, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden = false, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >( NULL ) ) = 0;
 
 	/**
 	 * Selects/de-selects actors belonging to the named layer.
@@ -223,7 +241,7 @@ public:
 	 * @param	Filter	[optional]				Actor that don't pass the specified filter restrictions won't be selected
 	 * @return									true if at least one actor was selected/deselected.
 	 */
-	virtual bool SelectActorsInLayer( const FName& LayerName, bool bSelect, bool bNotify, bool bSelectEvenIfHidden = false, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >( NULL ) ) = 0;
+	virtual bool SelectActorsInLayer( const FName& LayerName, const bool bSelect, const bool bNotify, const bool bSelectEvenIfHidden = false, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >( NULL ) ) = 0;
 
 
 	/////////////////////////////////////////////////
@@ -251,14 +269,18 @@ public:
 	 * @param Actor								Actor to update
 	 * @param bReregisterIfDirty [optional]		If true, the actor will reregister itself to give the rendering thread updated information
 	 */
-	virtual void UpdateActorViewVisibility( class FLevelEditorViewportClient* ViewportClient, const TWeakObjectPtr< AActor >& Actor, bool bReregisterIfDirty = true ) = 0;
+	virtual void UpdateActorViewVisibility(class FLevelEditorViewportClient* ViewportClient, AActor* Actor, bool bReregisterIfDirty = true) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and UpdateActorAllViewsVisibility(AActor* Actor), which are compatible with BluePrints.")
+	void UpdateActorViewVisibility(class FLevelEditorViewportClient* ViewportClient, const TWeakObjectPtr< AActor >& Actor, bool bReregisterIfDirty = true);
 
 	/**
 	 * Updates per-view visibility for the given actor for all views
 	 *
 	 * @param Actor		Actor to update
 	 */
-	virtual void UpdateActorAllViewsVisibility( const TWeakObjectPtr< AActor >& Actor ) = 0;
+	virtual void UpdateActorAllViewsVisibility(AActor* Actor) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and UpdateActorAllViewsVisibility(AActor* Actor), which are compatible with BluePrints.")
+	void UpdateActorAllViewsVisibility(const TWeakObjectPtr< AActor >& Actor);
 
 	/**
 	 * Removes the corresponding visibility bit from all actors (slides the later bits down 1)
@@ -276,7 +298,9 @@ public:
 	 * @param	bNotifySelectionChange		If true the Editor is notified of the selection change; if false, the Editor will not be notified
 	 * @param	bRedrawViewports			If true the viewports will be redrawn; if false, they will not
 	 */
-	virtual bool UpdateActorVisibility( const TWeakObjectPtr< AActor >& Actor, bool& bOutSelectionChanged, bool& bOutActorModified, bool bNotifySelectionChange, bool bRedrawViewports ) = 0;
+	virtual bool UpdateActorVisibility(AActor* Actor, bool& bOutSelectionChanged, bool& bOutActorModified, const  bool bNotifySelectionChange, const bool bRedrawViewports) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and UpdateActorVisibility(AActor* Actor, bool& bOutSelectionChanged, bool& bOutActorModified, bool bNotifySelectionChange, bool bRedrawViewports), which are compatible with BluePrints.")
+	bool UpdateActorVisibility(const TWeakObjectPtr< AActor >& Actor, bool& bOutSelectionChanged, bool& bOutActorModified, bool bNotifySelectionChange, bool bRedrawViewports);
 
 	/**
 	 * Updates the visibility of all actors in the viewports
@@ -284,7 +308,7 @@ public:
 	 * @param	bNotifySelectionChange		If true the Editor is notified of the selection change; if false, the Editor will not be notified
 	 * @param	bRedrawViewports			If true the viewports will be redrawn; if false, they will not
 	 */
-	virtual bool UpdateAllActorsVisibility( bool bNotifySelectionChange, bool bRedrawViewports ) = 0;
+	virtual bool UpdateAllActorsVisibility(const bool bNotifySelectionChange, const bool bRedrawViewports ) = 0;
 
 
 	/////////////////////////////////////////////////
@@ -294,17 +318,21 @@ public:
 	 *	Appends all the actors associated with the specified layer
 	 *
 	 *	@param	LayerName	The layer to find actors for
-	 *	@param	InActors	The list to append the found actors to
+	 *	@param	InOutActors	The list to append the found actors to
 	 */
-	virtual void AppendActorsForLayer( const FName& LayerName, TArray< TWeakObjectPtr< AActor > >& InActors, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >( NULL )  ) const = 0;
+	virtual void AppendActorsFromLayer(const FName& LayerName, TArray< TWeakObjectPtr< AActor > >& InOutActors, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >(nullptr)) const = 0;
+	UE_DEPRECATED(4.24, "This function has been deprecated. Instead, use AppendActorsForLayer.")
+	void AppendActorsForLayer(const FName& LayerName, TArray< TWeakObjectPtr< AActor > >& InOutActors, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >(nullptr)) const;
 
 	/**
 	 *	Appends all the actors associated with ANY of the specified layers
 	 *
 	 *	@param	LayerNames	The layers to find actors for
-	 *	@param	InActors	The list to append the found actors to
+	 *	@param	InOutActors	The list to append the found actors to
 	 */
-	virtual void AppendActorsForLayers( const TArray< FName >& LayerNames, TArray< TWeakObjectPtr< AActor > >& InActors, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >( NULL )  ) const = 0;
+	virtual void AppendActorsFromLayers(const TArray< FName >& LayerNames, TArray< TWeakObjectPtr< AActor > >& InOutActors, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >(nullptr)) const = 0;
+	UE_DEPRECATED(4.24, "This function has been deprecated. Instead, use AppendActorsFromLayers.")
+	void AppendActorsForLayers(const TArray< FName >& LayerNames, TArray< TWeakObjectPtr< AActor > >& InOutActors, const TSharedPtr< ActorFilter >& Filter = TSharedPtr< ActorFilter >(nullptr)) const;
 
 	/**
 	 * Changes the named layer's visibility to the provided state
@@ -312,7 +340,7 @@ public:
 	 * @param	LayerName	The name of the layer to affect
 	 * @param	bIsVisible	If true the layer will be visible; if false, the layer will not be visible
 	 */
-	virtual void SetLayerVisibility( const FName& LayerName, bool bIsVisible ) = 0;
+	virtual void SetLayerVisibility( const FName& LayerName, const bool bIsVisible ) = 0;
 
 	/**
 	 * Changes visibility of the named layers to the provided state
@@ -347,7 +375,7 @@ public:
 	 * @param	LayerName	The name of the layer whose ULayer Object is returned
 	 * @return				The ULayer Object of the provided layer name
 	 */
-	virtual TWeakObjectPtr< ULayer > GetLayer( const FName& LayerName ) const = 0;
+	virtual ULayer* GetLayer(const FName& LayerName) const = 0;
 
 	/**
 	 * Attempts to get the ULayer Object of the provided layer name. 
@@ -356,7 +384,9 @@ public:
 	 * @param	OutLayer[OUT] 	Set to the ULayer Object of the named layer. Set to Invalid if no ULayer Object exists.
 	 * @return					If true a valid ULayer Object was found and set to OutLayer; if false, a valid ULayer object was not found and invalid set to OutLayer
 	 */
-	virtual bool TryGetLayer( const FName& LayerName, TWeakObjectPtr< ULayer >& OutLayer ) = 0;
+	virtual bool TryGetLayer(const FName& LayerName, ULayer*& OutLayer) = 0;
+	UE_DEPRECATED(4.24, "This function and ILayers have been deprecated. Instead, use ULayersSubsystem and TryGetLayer(const FName& LayerName, ULayer*& OutLayer), which are compatible with BluePrints.")
+	bool TryGetLayer(const FName& LayerName, TWeakObjectPtr< ULayer >& OutLayer);
 
 	/**
 	 * Gets all known layers and appends their names to the provide array
@@ -370,7 +400,8 @@ public:
 	 *
 	 * @param OutLayers[OUT] Output array to store all known layers
 	 */
-	virtual void AddAllLayersTo( TArray< TWeakObjectPtr< ULayer > >& OutLayers ) const = 0;
+	virtual void AddAllLayersTo(TArray< ULayer* >& OutLayers) const = 0;
+	virtual void AddAllLayersTo(TArray< TWeakObjectPtr< ULayer > >& OutLayers) const = 0;
 
 	/**
 	 * Creates a ULayer Object for the named layer
@@ -378,7 +409,7 @@ public:
 	 * @param	LayerName	The name of the layer to create
 	 * @return				The newly created ULayer Object for the named layer
 	 */
-	virtual TWeakObjectPtr< ULayer > CreateLayer( const FName& LayerName ) = 0;
+	virtual ULayer* CreateLayer(const FName& LayerName) = 0;
 
 	/**
 	 * Deletes all of the provided layers, disassociating all actors from them
@@ -400,6 +431,6 @@ public:
 	 * @param	OriginalLayerName	The name of the layer to be renamed
 	 * @param	NewLayerName		The new name for the layer to be renamed
 	 */
-	virtual bool RenameLayer( const FName OriginalLayerName, const FName& NewLayerName ) = 0;
+	virtual bool RenameLayer( const FName& OriginalLayerName, const FName& NewLayerName ) = 0;
 
 };

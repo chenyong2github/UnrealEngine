@@ -100,7 +100,7 @@
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "ScopedTransaction.h"
 #include "SurfaceIterators.h"
 #include "LightMap.h"
@@ -1689,7 +1689,7 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 	RedrawLevelEditingViewports();
 
 	// Building the map can cause actors be created, so trigger a notification for that
-	FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::MapRebuild );
+	FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::MapRebuild);
 	GEngine->BroadcastLevelActorListChanged();
 	
 	GWarn->EndSlowTask();
@@ -2261,7 +2261,7 @@ UWorld* UEditorEngine::NewMap()
 	// Starting a new map will wipe existing actors and add some defaults actors to the scene, so we need
 	// to notify other systems about this
 	GEngine->BroadcastLevelActorListChanged();
-	FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::NewMap );
+	FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::NewMap);
 
 	FMessageLog("LoadErrors").NewPage(LOCTEXT("NewMapLogPage", "New Map"));
 	FEditorDelegates::DisplayLoadErrors.Broadcast();
@@ -2658,7 +2658,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 
 					// A new level was loaded into the editor, so we need to let other systems know about the new
 					// actors in the scene
-					FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::NewMap );
+					FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::NewMap);
 					GEngine->BroadcastLevelActorListChanged();
 
 					NoteSelectionChange();
@@ -2700,8 +2700,8 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					ULightComponent::ReassignStationaryLightChannels(Context.World(), false, NULL);
 
 					// Process Layers
-					if (Layers.IsValid())
 					{
+						ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 						for( auto LayerIter = Context.World()->Layers.CreateIterator(); LayerIter; ++LayerIter )
 						{
 							// Clear away any previously cached actor stats
@@ -2714,7 +2714,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						{
 							TWeakObjectPtr< AActor > Actor = *It;
 
-							if( !Layers->IsActorValidForLayer( Actor ) )
+							if( !LayersSubsystem->IsActorValidForLayer( Actor.Get() ) )
 							{
 								continue;
 							}
@@ -2722,10 +2722,9 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 							for( auto NameIt = Actor->Layers.CreateConstIterator(); NameIt; ++NameIt )
 							{
 								auto Name = *NameIt;
-								TWeakObjectPtr< ULayer > Layer;
-								if( !Layers->TryGetLayer( Name, Layer ) )
+								if( !LayersSubsystem->IsLayer( Name ) )
 								{
-									Layers->CreateLayer( Name );
+									LayersSubsystem->CreateLayer( Name );
 
 									// The layers created here need to be hidden.
 									LayersToHide.AddUnique( Name );
@@ -2734,11 +2733,11 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 								Actor->Layers.AddUnique( Name );
 							}
 
-							Layers->InitializeNewActorLayers( Actor );
+							LayersSubsystem->InitializeNewActorLayers( Actor.Get() );
 						}
 
 						const bool bIsVisible = false;
-						Layers->SetLayersVisibility( LayersToHide, bIsVisible );
+						LayersSubsystem->SetLayersVisibility( LayersToHide, bIsVisible );
 					}
 
 					InitializingFeedback.EnterProgressFrame();
@@ -2807,7 +2806,7 @@ bool UEditorEngine::Map_Import( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 
 		// Importing content into a map will likely cause the list of actors in the level to change,
 		// so we'll trigger an event to notify other systems
-		FEditorDelegates::MapChange.Broadcast( MapChangeEventFlags::NewMap );
+		FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::NewMap);
 		GEngine->BroadcastLevelActorListChanged();
 
 		NoteSelectionChange();

@@ -6,7 +6,7 @@
 #include "Editor.h"
 #include "Engine/Selection.h"
 #include "PackageTools.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "EditableMeshFactory.h"
 #include "EditorSupportDelegates.h"
@@ -84,7 +84,8 @@ namespace CommandCommon
 		}
 
 		// If this actor is part of any layers (set in its default properties), add them into the visible layers list.
-		GEditor->Layers->SetLayersVisibility(Actor->Layers, true);
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		Layers->SetLayersVisibility(Actor->Layers, true);
 
 		// Clean up.
 		Actor->MarkPackageDirty();

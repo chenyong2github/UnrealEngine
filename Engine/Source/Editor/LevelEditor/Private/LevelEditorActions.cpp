@@ -55,7 +55,7 @@
 #include "Editor/SceneOutliner/Private/SSocketChooser.h"
 #include "SnappingUtils.h"
 #include "LevelEditorViewport.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "IPlacementMode.h"
 #include "IPlacementModeModule.h"
 #include "AssetSelection.h"
@@ -2742,9 +2742,10 @@ void FLevelEditorActionCallbacks::SelectActorsInLayers()
 		}
 	}
 
-	bool bSelect = true;
-	bool bNotify = true;
-	GEditor->Layers->SelectActorsInLayers( SelectedLayers, bSelect, bNotify );
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	const bool bSelect = true;
+	const bool bNotify = true;
+	Layers->SelectActorsInLayers( SelectedLayers, bSelect, bNotify );
 }
 
 void FLevelEditorActionCallbacks::SetWidgetMode( FWidget::EWidgetMode WidgetMode )

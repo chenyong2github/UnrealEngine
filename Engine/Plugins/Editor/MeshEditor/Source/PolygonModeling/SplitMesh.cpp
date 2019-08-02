@@ -14,7 +14,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "ScopedTransaction.h"
 #include "Engine/StaticMeshActor.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "IMeshBuilderModule.h"
 #include "Materials/Material.h"
 #include "AssetSelection.h"
@@ -48,7 +48,8 @@ static AActor* AddActor(ULevel* InLevel, UClass* Class)
 	}
 
 	// If this actor is part of any layers (set in its default properties), add them into the visible layers list.
-	GEditor->Layers->SetLayersVisibility(Actor->Layers, true);
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	Layers->SetLayersVisibility(Actor->Layers, true);
 
 	// Clean up.
 	Actor->MarkPackageDirty();

@@ -85,7 +85,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Layers/ILayers.h"
+#include "Layers/LayersSubsystem.h"
 #include "Engine/SCS_Node.h"
 #include "ShaderCompiler.h"
 #include "Templates/UniquePtr.h"
@@ -2573,6 +2573,7 @@ namespace ObjectTools
 		// Destroy all Actor instances
 		if ( ActorsToDelete.Num() > 0 )
 		{
+			ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 			for ( TArray<AActor*>::TConstIterator ActorItr( ActorsToDelete ); ActorItr; ++ActorItr )
 			{
 				AActor* CurActor = *ActorItr;
@@ -2590,7 +2591,7 @@ namespace ObjectTools
 					}
 
 					// Destroy the Actor instance. This is similar to edactDeleteSelected(), but we don't request user confirmation here.
-					GEditor->Layers->DisassociateActorFromLayers( CurActor );
+					Layers->DisassociateActorFromLayers( CurActor );
 					if( CurActor->GetWorld() )
 					{
 						CurActor->GetWorld()->EditorDestroyActor( CurActor, false );

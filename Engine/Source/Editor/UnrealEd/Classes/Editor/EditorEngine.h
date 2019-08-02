@@ -725,6 +725,7 @@ private:
 public:
 
 	/** The "manager" of all the layers for the UWorld currently being edited */
+	UE_DEPRECATED(4.24, "ILayers and FLayers (GEditor->Layers) have been deprecated, use ULayersSubsystem (GEditor->GetEditorSubsystem<ULayersSubsystem>()) instead.")
 	TSharedPtr< class ILayers >				Layers;
 
 	/** List of all viewport clients */
