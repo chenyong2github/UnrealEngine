@@ -59,6 +59,18 @@ void UNetworkPredictionComponent::GetLifetimeReplicatedProps(TArray< FLifetimePr
 #endif
 }
 
+FNetworkSimulationModelInitParameters UNetworkPredictionComponent::GetSimulationInitParameters(ENetRole Role)
+{
+	// These are reasonable defaults but may not be right for everyone
+	FNetworkSimulationModelInitParameters InitParams;
+	InitParams.InputBufferSize = Role != ROLE_SimulatedProxy ? 32 : 0;
+	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
+	InitParams.AuxBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
+	InitParams.DebugBufferSize = 32;
+	InitParams.HistoricBufferSize = 128;
+	return InitParams;
+}
+
 bool UNetworkPredictionComponent::IsLocallyControlled()
 {
 	// This awkward because, engine wide, "Is Locally Controlled" is really only a built in concept to Pawns.
