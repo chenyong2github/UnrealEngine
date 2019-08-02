@@ -161,7 +161,11 @@ public:
 		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
 		if (TraceSessionPin.IsValid())
 		{
-			return FText::AsMemory(TraceSessionPin->Size);
+			//FNumberFormattingOptions FormattingOptions;
+			//FormattingOptions.MinimumFractionalDigits = 1;
+			//FormattingOptions.MaximumFractionalDigits = 1;
+			//return FText::AsMemory(TraceSessionPin->Size, &FormattingOptions);
+			return FText::Format(LOCTEXT("SessionFileSizeFormatKiB", "{0} KiB"), TraceSessionPin->Size / 1024);
 		}
 		else
 		{
@@ -222,13 +226,28 @@ public:
 		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
 		if (TraceSessionPin.IsValid())
 		{
-			return FText::Format(LOCTEXT("TraceSessionTooltipFormat", "{0}\n{1}\nTimestamp: {2}\nFile Size: {3} bytes\nStatus: {4}"),
-				TraceSessionPin->Name,
-				TraceSessionPin->Uri,
-				FText::AsDateTime(TraceSessionPin->TimeStamp),
-				FText::AsNumber(TraceSessionPin->Size),
-				TraceSessionPin->bIsLive ? LOCTEXT("LiveTraceSessionStatus", "LIVE") : LOCTEXT("OfflineTraceSessionStatus", "Offline")
-			);
+			const FText Status = TraceSessionPin->bIsLive ? LOCTEXT("LiveTraceSessionStatus", "LIVE") : LOCTEXT("OfflineTraceSessionStatus", "Offline");
+			if (TraceSessionPin->Size > 1024)
+			{
+				return FText::Format(LOCTEXT("TraceSessionTooltipFormat1", "{0}\n{1}\nTimestamp: {2}\nFile Size: {3} bytes ({4})\nStatus: {5}"),
+					TraceSessionPin->Name,
+					TraceSessionPin->Uri,
+					FText::AsDateTime(TraceSessionPin->TimeStamp),
+					FText::AsNumber(TraceSessionPin->Size),
+					FText::AsMemory(TraceSessionPin->Size),
+					Status
+				);
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("TraceSessionTooltipFormat2", "{0}\n{1}\nTimestamp: {2}\nFile Size: {3} bytes\nStatus: {4}"),
+					TraceSessionPin->Name,
+					TraceSessionPin->Uri,
+					FText::AsDateTime(TraceSessionPin->TimeStamp),
+					FText::AsNumber(TraceSessionPin->Size),
+					Status
+				);
+			}
 		}
 		else
 		{
@@ -762,7 +781,7 @@ void SStartPageWindow::RefreshTraceSessionList()
 
 	AvailableSessionCount = AvailableSessions.Num();
 
-	// Count number of live sessions.
+	// Count number of live sessions and update file sizes.
 	int32 OldLiveSessionCount = LiveSessionCount;
 	LiveSessionCount = 0;
 	for (Trace::FSessionHandle SessionHandle : AvailableSessions)
@@ -772,6 +791,12 @@ void SStartPageWindow::RefreshTraceSessionList()
 		if (SessionInfo.bIsLive)
 		{
 			++LiveSessionCount;
+		}
+
+		TSharedPtr<FTraceSession>* TraceSessionPtrPtr = TraceSessionsMap.Find(SessionHandle);
+		if (TraceSessionPtrPtr)
+		{
+			(*TraceSessionPtrPtr)->Size = SessionInfo.Size;
 		}
 	}
 
@@ -783,18 +808,21 @@ void SStartPageWindow::RefreshTraceSessionList()
 		TSharedPtr<FTraceSession> NewSelectedTraceSession;
 
 		TraceSessions.Reset();
+		TraceSessionsMap.Reset();
 
 		for (Trace::FSessionHandle SessionHandle : AvailableSessions)
 		{
 			Trace::FSessionInfo SessionInfo;
 			SessionService->GetSessionInfo(SessionHandle, SessionInfo);
 
-			TraceSessions.Add(MakeShareable(new FTraceSession(SessionHandle, SessionInfo)));
+			const TSharedPtr<FTraceSession> TraceSessionPtr = MakeShareable(new FTraceSession(SessionHandle, SessionInfo));
+			TraceSessions.Add(TraceSessionPtr);
+			TraceSessionsMap.Add(SessionHandle, TraceSessionPtr);
 
 			// Identify the previously selected session (if stil available) to ensure selection remains unchanged.
 			if (SelectedTraceSession && SelectedTraceSession->SessionHandle == SessionHandle)
 			{
-				NewSelectedTraceSession = TraceSessions.Last();
+				NewSelectedTraceSession = TraceSessionPtr;
 			}
 		}
 		Algo::SortBy(TraceSessions, &FTraceSession::TimeStamp);

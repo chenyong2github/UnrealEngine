@@ -204,6 +204,7 @@ private:
 
 	TSharedPtr<SListView<TSharedPtr<FTraceSession>>> TraceSessionsListView;
 	TArray<TSharedPtr<FTraceSession>> TraceSessions;
+	TMap<Trace::FSessionHandle, TSharedPtr<FTraceSession>> TraceSessionsMap;
 	TSharedPtr<SEditableTextBox> HostTextBox;
 	TSharedPtr<FTraceSession> SelectedTraceSession;
 

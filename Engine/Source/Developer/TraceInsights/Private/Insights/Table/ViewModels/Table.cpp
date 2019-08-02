@@ -4,6 +4,7 @@
 #include "TraceServices/Containers/Tables.h"
 
 // Insights
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 
 #define LOCTEXT_NAMESPACE "Insights_Table"
@@ -107,11 +108,6 @@ void FTable::CreateHierarchyColumn(const TCHAR* ColumnName)
 	constexpr float MinColumnWidth = 0.0f;
 	constexpr float MaxColumnWidth = FLT_MAX;
 
-	FTableColumn::FGetValueAsTextFunction GetValueAsTextFn = [](const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId)->FText
-	{
-		return FText();
-	};
-
 	TSharedPtr<FTableColumn> ColumnPtr = MakeShareable(new FTableColumn
 	(
 		-1, // Order
@@ -124,8 +120,7 @@ void FTable::CreateHierarchyColumn(const TCHAR* ColumnName)
 		HorizontalAlignment,
 		InitialColumnWidth,
 		MinColumnWidth,
-		MaxColumnWidth,
-		GetValueAsTextFn
+		MaxColumnWidth
 	));
 
 	AddColumn(ColumnPtr);
@@ -219,7 +214,33 @@ void FTable::CreateColumns()
 			{
 				Reader->SetRowIndex(RowId.RowIndex);
 				float Value = Reader->GetValueFloat(Column.GetIndex());
-				return FText::AsNumber(Value);
+				if (Value == 0.0f)
+				{
+					return FText::FromString(TEXT("0"));
+				}
+				else
+				{
+					return FText::FromString(FString::Printf(TEXT("%f"), Value));
+				}
+			}
+			return FText::GetEmpty();
+		};
+
+		FTableColumn::FGetValueAsTextFunction GetFloatValueAsTextFn2 = [](const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) -> FText
+		{
+			TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
+			if (Reader.IsValid() && RowId.HasValidIndex())
+			{
+				Reader->SetRowIndex(RowId.RowIndex);
+				float Value = Reader->GetValueFloat(Column.GetIndex());
+				if (Value == 0.0f)
+				{
+					return FText::FromString(TEXT("0"));
+				}
+				else
+				{
+					return FText::FromString(FString::Printf(TEXT("%f (%s)"), Value, *TimeUtils::FormatTimeAuto(static_cast<double>(Value))));
+				}
 			}
 			return FText::GetEmpty();
 		};
@@ -231,7 +252,33 @@ void FTable::CreateColumns()
 			{
 				Reader->SetRowIndex(RowId.RowIndex);
 				double Value = Reader->GetValueDouble(Column.GetIndex());
-				return FText::AsNumber(Value);
+				if (Value == 0.0)
+				{
+					return FText::FromString(TEXT("0"));
+				}
+				else
+				{
+					return FText::FromString(FString::Printf(TEXT("%f"), Value));
+				}
+			}
+			return FText::GetEmpty();
+		};
+
+		FTableColumn::FGetValueAsTextFunction GetDoubleValueAsTextFn2 = [](const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) -> FText
+		{
+			TSharedPtr<Trace::IUntypedTableReader> Reader = Table.GetTableReader();
+			if (Reader.IsValid() && RowId.HasValidIndex())
+			{
+				Reader->SetRowIndex(RowId.RowIndex);
+				double Value = Reader->GetValueDouble(Column.GetIndex());
+				if (Value == 0.0)
+				{
+					return FText::FromString(TEXT("0"));
+				}
+				else
+				{
+					return FText::FromString(FString::Printf(TEXT("%f (%s)"), Value, *TimeUtils::FormatTimeAuto(Value)));
+				}
 			}
 			return FText::GetEmpty();
 		};
@@ -249,6 +296,7 @@ void FTable::CreateColumns()
 		};
 
 		FTableColumn::FGetValueAsTextFunction GetValueAsTextFn = GetUnknownValueAsTextFn;
+		FTableColumn::FGetValueAsTextFunction GetValueAsTooltipTextFn = GetUnknownValueAsTextFn;
 
 		switch (ColumnType)
 		{
@@ -256,26 +304,31 @@ void FTable::CreateColumns()
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 40.0f;
 			GetValueAsTextFn = GetBoolValueAsTextFn;
+			GetValueAsTooltipTextFn = GetBoolValueAsTextFn;
 			break;
 		case Trace::TableColumnType_Int:
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 60.0f;
 			GetValueAsTextFn = GetIntValueAsTextFn;
+			GetValueAsTooltipTextFn = GetIntValueAsTextFn;
 			break;
 		case Trace::TableColumnType_Float:
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 60.0f;
 			GetValueAsTextFn = GetFloatValueAsTextFn;
+			GetValueAsTooltipTextFn = GetFloatValueAsTextFn2;
 			break;
 		case Trace::TableColumnType_Double:
 			HorizontalAlignment = HAlign_Right;
 			InitialColumnWidth = 80.0f;
 			GetValueAsTextFn = GetDoubleValueAsTextFn;
+			GetValueAsTooltipTextFn = GetDoubleValueAsTextFn2;
 			break;
 		case Trace::TableColumnType_CString:
 			HorizontalAlignment = HAlign_Left;
 			InitialColumnWidth = FMath::Max(120.0f, 6.0f * ColumnNameStr.Len());
 			GetValueAsTextFn = GetStringValueAsTextFn;
+			GetValueAsTooltipTextFn = GetStringValueAsTextFn;
 			break;
 		}
 
@@ -291,9 +344,11 @@ void FTable::CreateColumns()
 			HorizontalAlignment,
 			InitialColumnWidth,
 			MinColumnWidth,
-			MaxColumnWidth,
-			GetValueAsTextFn
+			MaxColumnWidth
 		));
+
+		ColumnPtr->SetValueAsTextFunction(GetValueAsTextFn);
+		ColumnPtr->SetValueAsTooltipTextFunction(GetValueAsTooltipTextFn);
 
 		AddColumn(ColumnPtr);
 	}

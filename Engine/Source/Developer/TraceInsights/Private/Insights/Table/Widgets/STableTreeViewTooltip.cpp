@@ -173,6 +173,23 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetCellTooltip(const TSharedPtr<FTab
 					]
 				]
 
+				+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2.0f)
+					[
+						SNew(SSeparator)
+						.Orientation(Orient_Horizontal)
+					]
+
+				+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2.0f)
+					[
+						SAssignNew(GridPanel, SGridPanel)
+
+						// Values for each table column are added here.
+					]
+
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				.Padding(2.0f)
@@ -183,7 +200,45 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetCellTooltip(const TSharedPtr<FTab
 			]
 		];
 
+	TSharedPtr<FTable> Table = TreeNodePtr->GetParentTable().Pin();
+	if (Table.IsValid())
+	{
+		int32 Row = 0;
+		for (const TSharedPtr<FTableColumn>& Column : Table->GetColumns())
+		{
+			if (!Column->IsHierarchy() && TreeNodePtr->GetRowId().HasValidIndex())
+			{
+				FText Name = FText::Format(LOCTEXT("TooltipValueFormat", "{0}:"), Column->GetTitleName());
+				AddGridRow(GridPanel, Row, Name, Column->GetValueAsTooltipText(TreeNodePtr->GetRowId()));
+			}
+		}
+	}
+
 	return TableCellTooltip;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeViewTooltip::AddGridRow(TSharedPtr<SGridPanel> Grid, int32& Row, const FText& Name, const FText& Value)
+{
+	Grid->AddSlot(0, Row)
+		.Padding(2.0f)
+		[
+			SNew(STextBlock)
+			.Text(Name)
+			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+		];
+
+	Grid->AddSlot(1, Row)
+		.Padding(2.0f)
+		.HAlign(HAlign_Left)
+		[
+			SNew(STextBlock)
+			.Text(Value)
+			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+		];
+
+	Row++;
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

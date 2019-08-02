@@ -53,8 +53,7 @@ public:
 		const EHorizontalAlignment InHorizontalAlignment,
 		const float InInitialWidth,
 		const float InMinWidth,
-		const float InMaxWidth,
-		const FGetValueAsTextFunction InGetValueAsTextFn
+		const float InMaxWidth
 	)
 		: Order(InOrder)
 		, Index(InIndex)
@@ -67,9 +66,15 @@ public:
 		, InitialWidth(InInitialWidth)
 		, MinWidth(InMinWidth)
 		, MaxWidth(InMaxWidth)
-		, GetValueAsTextFn(InGetValueAsTextFn)
+		, GetValueAsTextFn(nullptr)
+		, GetValueAsTooltipTextFn(nullptr)
 		, ParentTable(nullptr)
 	{
+		GetValueAsTextFn = [](const FTable& Table, const FTableColumn& Column, const FTableRowId& RowId) -> FText
+		{
+			return FText();
+		};
+		GetValueAsTooltipTextFn = GetValueAsTextFn;
 	}
 
 	int32 GetOrder() const { return Order; }
@@ -118,6 +123,14 @@ public:
 		return GetValueAsTextFn(*ParentTable.Pin(), *this, InRowId);
 	}
 
+	FText GetValueAsTooltipText(const FTableRowId& InRowId) const
+	{
+		return GetValueAsTooltipTextFn(*ParentTable.Pin(), *this, InRowId);
+	}
+
+	void SetValueAsTextFunction(const FGetValueAsTextFunction InGetValueAsTextFn) { GetValueAsTextFn = InGetValueAsTextFn; }
+	void SetValueAsTooltipTextFunction(const FGetValueAsTextFunction InGetValueAsTooltipTextFn) { GetValueAsTooltipTextFn = InGetValueAsTooltipTextFn; }
+
 	TWeakPtr<FTable> GetParentTable() const { return ParentTable; }
 	void SetParentTable(TWeakPtr<FTable> InParentTable) { ParentTable = InParentTable; }
 
@@ -154,8 +167,11 @@ private:
 	float MaxWidth; /**< Maximum column width. */
 	//float Width; /**< Current column width. */
 
-	/** Custom function used to format (as an FText) the value displayed by this column. */
+	/** Custom function used to format (as an FText) the value displayed by this column (usually in table views). */
 	FGetValueAsTextFunction GetValueAsTextFn;
+
+	/** Custom function used to format (as an FText) the value displayed by this column (usually in tooltips; i.e. with increased precission). */
+	FGetValueAsTextFunction GetValueAsTooltipTextFn;
 
 	/* Parent table. Only one table instance can own this column. */
 	TWeakPtr<FTable> ParentTable;
