@@ -460,6 +460,30 @@ FVector USplineComponent::GetScaleAtSplineInputKey(float InKey) const
 	return Scale;
 }
 
+template<class T>
+T GetPropertyValueAtSplineInputKey(const USplineMetadata* Metadata, float InKey, FName PropertyName)
+{
+	if (Metadata)
+	{
+		if (UProperty* Property = Metadata->GetClass()->FindPropertyByName(PropertyName))
+		{
+			const FInterpCurve<T>* Curve = Property->ContainerPtrToValuePtr<FInterpCurve<T>>(Metadata);
+			return Curve->Eval(InKey, T(0));
+		}
+	}
+
+	return T(0);
+}
+
+float USplineComponent::GetFloatPropertyAtSplineInputKey(float InKey, FName PropertyName) const
+{
+	return GetPropertyValueAtSplineInputKey<float>(GetSplinePointsMetadata(), InKey, PropertyName);
+}
+
+FVector USplineComponent::GetVectorPropertyAtSplineInputKey(float InKey, FName PropertyName) const
+{
+	return GetPropertyValueAtSplineInputKey<FVector>(GetSplinePointsMetadata(), InKey, PropertyName);
+}
 
 void USplineComponent::SetClosedLoop(bool bInClosedLoop, bool bUpdateSpline)
 {
