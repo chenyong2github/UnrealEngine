@@ -3013,7 +3013,7 @@ namespace AutomationTool
 					FinalFiles.Add(new FileReference(TargetFileInfo));
 				}
 			}			
-			CodeSignWindows.Sign(FinalFiles, CodeSignWindows.SignatureType.SHA1);
+			CodeSignWindows.Sign(FinalFiles.Where(x => !x.HasExtension(".msi")).ToList(), CodeSignWindows.SignatureType.SHA1); // MSI files can only have one signature; prefer SHA256
 			CodeSignWindows.Sign(FinalFiles, CodeSignWindows.SignatureType.SHA256);
 		}
 	}
