@@ -183,6 +183,12 @@ public:
 	/** Ensure that the track area column is either show or hidden, depending on the visibility of the curve editor */
 	void UpdateTrackArea();
 
+	/** Add a SSequencerTreeView object that should be modified or updated when this Treeview is updated */
+	void AddSlaveTreeView(TSharedPtr<SSequencerTreeView> SlaveTreeView);
+	
+	/** Set whether this TreeView should show only pinned nodes or only non-pinned nodes  */
+	void SetShowPinned(bool bShowPinned) { bShowPinnedNodes = bShowPinned; }
+
 protected:
 	
 	/** Linear, sorted array of nodes that we currently have generated widgets for */
@@ -219,6 +225,9 @@ private:
 	/** A global highlight for the currently hovered tree node hierarchy */
 	TOptional<FHighlightRegion> HighlightRegion;
 
+	/** SSequencerTreeView objects that should be modified or updated when this Treeview is updated */
+	TArray<TSharedPtr<SSequencerTreeView>> SlaveTreeViews;
+
 	/** When true, the sequencer selection is being updated from a change in the tree seleciton. */
 	bool bUpdatingSequencerSelection;
 
@@ -227,6 +236,9 @@ private:
 
 	/** Right mouse button is down, don't update sequencer selection. */
 	bool bRightMouseButtonDown;
+
+	/** Whether this tree is for pinned nodes or non-pinned nodes */
+	bool bShowPinnedNodes;
 
 	/**
 	 * When true a sequencer selection change broadcast was suppressed when updating sequencer selection

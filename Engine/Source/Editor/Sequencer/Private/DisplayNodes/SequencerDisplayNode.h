@@ -427,6 +427,21 @@ public:
 	bool IsExpanded() const;
 
 	/**
+	 * @return Whether or not this node is pinned
+	 */
+	bool IsPinned() const;
+
+	/**
+	 * Toggle whether or not this node is pinned
+	 */
+	void TogglePinned();
+
+	/**
+	 * If this node is pinned, unpin it.
+	 */
+	void Unpin();
+
+	/**
 	 * @return Whether this node is explicitly hidden from the view or not
 	 */
 	bool IsHidden() const;
@@ -507,6 +522,11 @@ public:
 
 private:
 
+	/**
+	 * @return The base node this node belongs to, for collections of tracks that are part of an object
+	 */
+	FSequencerDisplayNode* GetBaseNode() const;
+
 	/** Callback for executing a "Rename Node" context menu action. */
 	void HandleContextMenuRenameNodeExecute();
 
@@ -537,6 +557,9 @@ protected:
 
 	/** Whether or not the node is expanded */
 	bool bExpanded;
+
+	/** Whether or not the node is pinned */
+	bool bPinned;
 
 	/** Event that is triggered when rename is requested */
 	FRequestRenameEvent RenameRequestedEvent;

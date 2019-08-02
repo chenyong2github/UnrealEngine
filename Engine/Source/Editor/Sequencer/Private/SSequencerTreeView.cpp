@@ -9,6 +9,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
+#include "SSequencerTreeView.h"
 
 static FName TrackAreaName = "TrackArea";
 
@@ -145,6 +146,7 @@ void SSequencerTreeView::Construct(const FArguments& InArgs, const TSharedRef<FS
 	bSequencerSelectionChangeBroadcastWasSupressed = false;
 	bPhysicalNodesNeedUpdate = false;
 	bRightMouseButtonDown = false;
+	bShowPinnedNodes = false;
 
 	// We 'leak' these delegates (they'll get cleaned up automatically when the invocation list changes)
 	// It's not safe to attempt their removal in ~SSequencerTreeView because SequencerNodeTree->GetSequencer() may not be valid
@@ -314,8 +316,21 @@ void SSequencerTreeView::ReportChildRowGeometry(const FDisplayNodeRef& InNode, c
 		FVector2D(0,0)
 	).Y;
 
-	CachedRowGeometry.Add(InNode, FCachedGeometry(InNode, ChildOffset, InGeometry.Size.Y));
+	if (InNode->IsPinned() != bShowPinnedNodes)
+	{
+		CachedRowGeometry.Remove(InNode);
+	}
+	else
+	{
+		CachedRowGeometry.Add(InNode, FCachedGeometry(InNode, ChildOffset, InGeometry.Size.Y));
+	}
+
 	bPhysicalNodesNeedUpdate = true;
+
+	for (TSharedPtr<SSequencerTreeView> SlaveTreeView : SlaveTreeViews)
+	{
+		SlaveTreeView->ReportChildRowGeometry(InNode, InGeometry);
+	}
 }
 
 void SSequencerTreeView::OnChildRowRemoved(const FDisplayNodeRef& InNode)
@@ -417,6 +432,11 @@ void SSequencerTreeView::UpdateTrackArea()
 			.FillWidth(Column->Width)
 		);
 	}
+}
+
+void SSequencerTreeView::AddSlaveTreeView(TSharedPtr<SSequencerTreeView> SlaveTreeView)
+{
+	SlaveTreeViews.Add(SlaveTreeView);
 }
 
 void SSequencerTreeView::OnRightMouseButtonDown(const FPointerEvent& MouseEvent)
@@ -635,6 +655,11 @@ void SSequencerTreeView::SynchronizeTreeSelectionWithSequencerSelection()
 		}
 		bUpdatingTreeSelection = false;
 	}
+
+	for (TSharedPtr<SSequencerTreeView> SlaveTreeView : SlaveTreeViews)
+	{
+		SlaveTreeView->SynchronizeTreeSelectionWithSequencerSelection();
+	}
 }
 
 void SSequencerTreeView::Private_SetItemSelection( FDisplayNodeRef TheItem, bool bShouldBeSelected, bool bWasUserDirected )
@@ -758,8 +783,15 @@ TSharedPtr<SWidget> SSequencerTreeView::OnContextMenuOpening()
 void SSequencerTreeView::Refresh()
 {
 	RootNodes.Reset();
-	Algo::CopyIf(SequencerNodeTree->GetRootNodes(), RootNodes, &FSequencerDisplayNode::IsVisible);
 
+	for (auto& Item : SequencerNodeTree->GetRootNodes())
+	{
+		if (Item->IsVisible() && Item->IsPinned() == bShowPinnedNodes)
+		{
+			RootNodes.Add(Item);
+		}
+	}
+	
 	// Reset item expansion since we don't know if any expansion states may have changed in-between refreshes
 	{
 		STreeView::OnExpansionChanged.Unbind();
@@ -783,6 +815,11 @@ void SSequencerTreeView::Refresh()
 	bUpdatingTreeSelection = false;
 
 	RebuildList();
+
+	for (TSharedPtr<SSequencerTreeView> SlaveTreeView : SlaveTreeViews)
+	{
+		SlaveTreeView->Refresh();
+	}
 }
 
 void SSequencerTreeView::ScrollByDelta(float DeltaInSlateUnits)

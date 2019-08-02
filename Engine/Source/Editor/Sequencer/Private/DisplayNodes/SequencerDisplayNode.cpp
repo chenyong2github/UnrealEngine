@@ -399,6 +399,7 @@ FSequencerDisplayNode::FSequencerDisplayNode( FName InNodeName, FSequencerNodeTr
 	, ParentTree( InParentTree )
 	, NodeName( InNodeName )
 	, bExpanded( false )
+	, bPinned(false)
 	, bHasBeenInitialized( false )
 {
 	SortType = EDisplayNodeSortType::Undefined;
@@ -966,6 +967,22 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			EUserInterfaceActionType::ToggleButton
 		);
 
+		// Only support pinning root nodes
+		if (GetBaseNode()->IsRootNode())
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ToggleNodePin", "Pinned"),
+				LOCTEXT("ToggleNodePinTooltip", "Pin or unpin this node or selected tracks"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FSequencerDisplayNode::TogglePinned),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(this, &FSequencerDisplayNode::IsPinned)
+				),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
 
 		// Add cut, copy and paste functions to the tracks
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
@@ -1096,6 +1113,42 @@ void FSequencerDisplayNode::SetExpansionState(bool bInExpanded)
 bool FSequencerDisplayNode::IsExpanded() const
 {
 	return bExpanded;
+}
+
+FSequencerDisplayNode* FSequencerDisplayNode::GetBaseNode() const
+{
+	ESequencerNode::Type Type = GetType();
+
+	if (IsRootNode() || Type == ESequencerNode::Folder || Type == ESequencerNode::Object || GetParentOrRoot()->GetType() == ESequencerNode::Folder)
+	{
+		return (FSequencerDisplayNode*)this;
+	}
+
+	return GetParentOrRoot()->GetBaseNode();
+}
+
+bool FSequencerDisplayNode::IsPinned() const
+{
+	return GetBaseNode()->bPinned;
+}
+
+void FSequencerDisplayNode::TogglePinned()
+{
+	FSequencerDisplayNode* BaseNode = GetBaseNode();
+	bool bShouldPin = !BaseNode->bPinned;
+	ParentTree.UnpinAllNodes();
+	BaseNode->bPinned = bShouldPin;
+	ParentTree.GetSequencer().RefreshTree();
+}
+
+void FSequencerDisplayNode::Unpin()
+{
+	FSequencerDisplayNode* BaseNode = GetBaseNode();
+	if (BaseNode->bPinned)
+	{
+		BaseNode->bPinned = false;
+		ParentTree.GetSequencer().RefreshTree();
+	}
 }
 
 

@@ -277,8 +277,12 @@ public:
 	/** Access the tree view for this sequencer */
 	TSharedPtr<SSequencerTreeView> GetTreeView() const;
 
-	/** Generate a helper structure that can be used to transform between phsyical space and virtual space in the track area */
-	FVirtualTrackArea GetVirtualTrackArea() const;
+	/** 
+	 * Generate a helper structure that can be used to transform between phsyical space and virtual space in the track area
+	 *
+	 * @param InTrackArea	(optional) The track area to generate helper structure for, if not specified the main track area will be used.
+	 */
+	FVirtualTrackArea GetVirtualTrackArea(const SSequencerTrackArea* InTrackArea = nullptr) const;
 
 	/** Access this widget's track area widget */
 	TSharedPtr<SSequencerTrackArea> GetTrackAreaWidget() const { return TrackArea; }
@@ -537,6 +541,9 @@ private:
 	/** Section area widget */
 	TSharedPtr<SSequencerTrackArea> TrackArea;
 
+	/** Section area widget for pinned tracks*/
+	TSharedPtr<SSequencerTrackArea> PinnedTrackArea;
+
 	/** Outliner widget */
 	TSharedPtr<SSequencerTrackOutliner> TrackOutliner;
 
@@ -563,6 +570,9 @@ private:
 
 	/** The sequencer tree view responsible for the outliner and track areas */
 	TSharedPtr<SSequencerTreeView> TreeView;
+
+	/** The sequencer tree view for pinned tracks */
+	TSharedPtr<SSequencerTreeView> PinnedTreeView;
 
 	/** Dropdown for selecting breadcrumbs */
 	TSharedPtr<class SComboButton> BreadcrumbPickerButton;

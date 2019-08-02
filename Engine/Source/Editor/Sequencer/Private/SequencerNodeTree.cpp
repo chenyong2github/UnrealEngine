@@ -936,3 +936,13 @@ FCurveEditorTreeItemID FSequencerNodeTree::FindCurveEditorTreeItem(TSharedRef<FS
 	}
 	return FCurveEditorTreeItemID::Invalid();
 }
+
+void FSequencerNodeTree::UnpinAllNodes()
+{
+	const bool bIncludeRootNode = false;
+	RootNode->Traverse_ParentFirst([](FSequencerDisplayNode& InNode)
+	{
+		InNode.Unpin();
+		return true;
+	}, bIncludeRootNode);
+}

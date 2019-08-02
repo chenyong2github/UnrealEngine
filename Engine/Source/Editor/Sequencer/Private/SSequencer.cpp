@@ -399,6 +399,16 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar)
 		.Thickness(FVector2D(9.0f, 9.0f));
 	SAssignNew(TrackOutliner, SSequencerTrackOutliner);
+
+	SAssignNew(PinnedTrackArea, SSequencerTrackArea, TimeSliderControllerRef, InSequencer);
+	SAssignNew(PinnedTreeView, SSequencerTreeView, InSequencer->GetNodeTree(), PinnedTrackArea.ToSharedRef())
+		.Clipping(EWidgetClipping::ClipToBounds)
+		.OnGetContextMenuContent(FOnGetContextMenuContent::CreateSP(this, &SSequencer::GetContextMenuContent));
+
+	PinnedTrackArea->SetTreeView(PinnedTreeView);
+	PinnedTrackArea->SetShowPinned(true);
+	PinnedTreeView->SetShowPinned(true);
+
 	SAssignNew(TrackArea, SSequencerTrackArea, TimeSliderControllerRef, InSequencer);
 	SAssignNew(TreeView, SSequencerTreeView, InSequencer->GetNodeTree(), TrackArea.ToSharedRef())
 		.ExternalScrollbar(ScrollBar)
@@ -406,6 +416,8 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		.OnGetContextMenuContent(FOnGetContextMenuContent::CreateSP(this, &SSequencer::GetContextMenuContent));
 
 	TrackArea->SetTreeView(TreeView);
+
+	TreeView->AddSlaveTreeView(PinnedTreeView);
 
 	TAttribute<FAnimatedRange> ViewRangeAttribute = InArgs._ViewRange;
 	
@@ -688,29 +700,67 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 							+ SOverlay::Slot()
 							[
-								SNew(SScrollBorder, TreeView.ToSharedRef())
-								[
-									SNew(SHorizontalBox)
+								SNew(SVerticalBox)
 
-									// outliner tree
-									+ SHorizontalBox::Slot()
-									.FillWidth( FillCoefficient_0 )
+								+SVerticalBox::Slot()
+								.AutoHeight()
+								[
+									SNew(SBorder)
+									.Padding(FMargin(0.0f, 0.0f, 0.0f, CommonPadding))
 									[
-										SNew(SBox)
+										SNew(SHorizontalBox)
+
+										// outliner tree
+										+ SHorizontalBox::Slot()
+										.FillWidth( FillCoefficient_0 )
 										[
-											TreeView.ToSharedRef()
+											SNew(SBox)
+											[
+												PinnedTreeView.ToSharedRef()
+											]
+										]
+
+										// track area
+										+ SHorizontalBox::Slot()
+										.FillWidth( FillCoefficient_1 )
+										[
+											SNew(SBox)
+											.Padding(ResizeBarPadding)
+											.Clipping(EWidgetClipping::ClipToBounds)
+											[
+												PinnedTrackArea.ToSharedRef()
+											]
 										]
 									]
 
-									// track area
-									+ SHorizontalBox::Slot()
-									.FillWidth( FillCoefficient_1 )
+								]
+
+								+SVerticalBox::Slot()
+								[
+									SNew(SScrollBorder, TreeView.ToSharedRef())
 									[
-										SNew(SBox)
-										.Padding(ResizeBarPadding)
-										.Clipping(EWidgetClipping::ClipToBounds)
+										SNew(SHorizontalBox)
+
+										// outliner tree
+										+ SHorizontalBox::Slot()
+										.FillWidth( FillCoefficient_0 )
 										[
-											TrackArea.ToSharedRef()
+											SNew(SBox)
+											[
+												TreeView.ToSharedRef()
+											]
+										]
+
+										// track area
+										+ SHorizontalBox::Slot()
+										.FillWidth( FillCoefficient_1 )
+										[
+											SNew(SBox)
+											.Padding(ResizeBarPadding)
+											.Clipping(EWidgetClipping::ClipToBounds)
+											[
+												TrackArea.ToSharedRef()
+											]
 										]
 									]
 								]
@@ -2276,6 +2326,7 @@ void RestoreKeySelection(const TSet<FSequencerSelectedKey>& OldKeys, FSequencerS
 void SSequencer::UpdateLayoutTree()
 {
 	TrackArea->Empty();
+	PinnedTrackArea->Empty();
 
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	if ( Sequencer.IsValid() )
@@ -2330,6 +2381,7 @@ void SSequencer::UpdateLayoutTree()
 					while (Parent.IsValid())
 					{
 						TreeView->SetItemExpansion(Parent->AsShared(), true);
+						PinnedTreeView->SetItemExpansion(Parent->AsShared(), true);
 						Parent = Parent->GetParent();
 					}
 
@@ -2979,9 +3031,18 @@ FPaintPlaybackRangeArgs SSequencer::GetSectionPlaybackRangeArgs() const
 }
 
 
-FVirtualTrackArea SSequencer::GetVirtualTrackArea() const
+FVirtualTrackArea SSequencer::GetVirtualTrackArea(const SSequencerTrackArea* InTrackArea) const
 {
-	return FVirtualTrackArea(*SequencerPtr.Pin(), *TreeView.Get(), TrackArea->GetCachedGeometry());
+	const SSequencerTrackArea* TargetTrackArea = TrackArea.Get();
+	TSharedPtr<SSequencerTreeView> TargetTreeView = TreeView;
+	
+	if (InTrackArea != nullptr)
+	{
+		TargetTrackArea = InTrackArea;
+		TargetTreeView = TargetTrackArea->GetTreeView().Pin();
+	}
+
+	return FVirtualTrackArea(*SequencerPtr.Pin(), *TargetTreeView.Get(), TargetTrackArea->GetCachedGeometry());
 }
 
 FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TSharedPtr<FMovieSceneClipboard> Clipboard)

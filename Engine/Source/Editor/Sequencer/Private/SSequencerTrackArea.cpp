@@ -43,6 +43,8 @@ void SSequencerTrackArea::Construct(const FArguments& InArgs, TSharedRef<FSequen
 	Sequencer = InSequencer;
 	TimeSliderController = InTimeSliderController;
 
+	bShowPinnedNodes = false;
+
 	// Input stack in order or priority
 
 	// Space for the edit tool
@@ -50,7 +52,7 @@ void SSequencerTrackArea::Construct(const FArguments& InArgs, TSharedRef<FSequen
 	// The time slider controller
 	InputStack.AddHandler(TimeSliderController.Get());
 
-	EditTools.Add(MakeShared<FSequencerEditTool_Selection>(*InSequencer));
+	EditTools.Add(MakeShared<FSequencerEditTool_Selection>(*InSequencer, *this));
 	EditTools.Add(MakeShared<FSequencerEditTool_Movement>(*InSequencer));
 }
 
@@ -87,6 +89,12 @@ void SSequencerTrackArea::OnArrangeChildren( const FGeometry& AllottedGeometry, 
 
 		const EVisibility ChildVisibility = CurChild.GetWidget()->GetVisibility();
 		if (!ArrangedChildren.Accepts(ChildVisibility))
+		{
+			continue;
+		}
+
+		TSharedPtr<SSequencerTrackLane> PinnedTrackLane = CurChild.TrackLane.Pin();
+		if (PinnedTrackLane->IsPinned() != bShowPinnedNodes)
 		{
 			continue;
 		}

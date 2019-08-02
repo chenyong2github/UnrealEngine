@@ -82,6 +82,12 @@ public:
 	 */
 	void FilterNodes( const FString& InFilter );
 
+
+	/**
+	 * Unpins any pinned nodes in this tree
+	 */
+	void UnpinAllNodes();
+
 	/**
 	 * @return All nodes in a flat array
 	 */
