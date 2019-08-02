@@ -2566,7 +2566,7 @@ string CompilerMSL::unpack_expression_type(string expr_str, const SPIRType &type
 	// float[] and float2[] cases are really just padding, so directly swizzle from the backing float4 instead.
 	if (packed_type && is_array(*packed_type) && is_scalar(*packed_type))
 	{
-		return !expression_ends_with(expr_str, ".x") ? enclose_expression(expr_str) + ".x" : expr_str;
+		return expr_str;
 	}
 	else if (packed_type && is_array(*packed_type) && is_vector(*packed_type) && packed_type->vecsize == 2)
 	{
