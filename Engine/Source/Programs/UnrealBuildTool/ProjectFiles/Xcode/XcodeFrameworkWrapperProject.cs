@@ -271,14 +271,16 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		public static bool GetBuildAsFramework(FileReference ProjectFile)
 		{
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bBuildAsFramework", out bool bBuildAsFramework);
+			bool bBuildAsFramework;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bBuildAsFramework", out bBuildAsFramework);
 			return bBuildAsFramework;
 		}
 		
 		public static bool GetGenerateFrameworkWrapperProject(FileReference ProjectFile)
 		{
 		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
-			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bGenerateFrameworkWrapperProject", out bool bGenerateFrameworkWrapperProject);
+			bool bGenerateFrameworkWrapperProject;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bGenerateFrameworkWrapperProject", out bGenerateFrameworkWrapperProject);
 			return bGenerateFrameworkWrapperProject;
 		}
 	}
