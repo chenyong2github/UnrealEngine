@@ -3400,7 +3400,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 			MemberDeclarations.Add(FString::Printf(TEXT("%s %s"), *ParameterCPPType, *Name));
 			FString AddressName = FString::Printf(TEXT("%s_Address"), *Name);
-			MemberMulticastProlog.Add(FString::Printf(TEXT("%s %s = MultiplexStorage[%s.StorageType()][%s.Index()].%s<%s>();"), *ExtractedMulticastCPPType, *Name, *AddressName, *AddressName, *MulticastGetter, *MultiCastCPPType));
+			MemberMulticastProlog.Add(FString::Printf(TEXT("%s %s = MultiplexStorage[%s.StorageType()]->%s<%s>(%s.Index());"), *ExtractedMulticastCPPType, *Name, *AddressName, *MulticastGetter, *MultiCastCPPType, *AddressName));
 		}
 
 		OutGeneratedHeaderText.Log(TEXT("\n"));
@@ -3431,7 +3431,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 				FString ParamsSuffix = Info.Params.IsEmpty() ? TEXT("") : FString::Printf(TEXT(", %s"), *Info.Params);
 				MultiplexMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s);\r\n"), *Info.ReturnType, *Info.Name, *FString::Join(MemberDeclarations, TEXT(",\r\n\t\t")), *ParamsSuffix);
-				MultiplexMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Multiplex%s(const TArrayView<FMultiplexArgument>& MultiplexAddresses, FMultiplexStorage* MultiplexStorage, const TArrayView<void*>& AdditionalArgs);\r\n"), *Info.ReturnType, *Info.Name);
+				MultiplexMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Multiplex%s(const TArrayView<FMultiplexArgument>& MultiplexAddresses, FMultiplexStorage** MultiplexStorage, const TArrayView<void*>& AdditionalArgs);\r\n"), *Info.ReturnType, *Info.Name);
 			}
 		}
 
@@ -3731,7 +3731,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				ParamDeclarationSuffix = FString::Printf(TEXT(", %s"), *Info.Params);
 			}
 
-			Out.Logf(TEXT("%s %s::Multiplex%s(const TArrayView<FMultiplexArgument>& MultiplexAddresses, FMultiplexStorage* MultiplexStorage, const TArrayView<void*>& AdditionalArgs)\r\n"), *Info.ReturnType, StructNameCPP, *Info.Name);
+			Out.Logf(TEXT("%s %s::Multiplex%s(const TArrayView<FMultiplexArgument>& MultiplexAddresses, FMultiplexStorage** MultiplexStorage, const TArrayView<void*>& AdditionalArgs)\r\n"), *Info.ReturnType, StructNameCPP, *Info.Name);
 			Out.Log(TEXT("{\r\n"));
 
 			if (ParameterExtractionProlog.Num() > 0)

@@ -17,6 +17,11 @@ FMultiplexByteCodeTable::FMultiplexByteCodeTable(const FMultiplexByteCode& InByt
 	}
 }
 
+void FMultiplexByteCodeTable::Reset()
+{
+	Entries.Reset();
+}
+
 FMultiplexByteCode::FMultiplexByteCode()
 {
 }

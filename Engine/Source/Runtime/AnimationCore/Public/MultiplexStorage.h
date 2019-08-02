@@ -6,6 +6,41 @@
 #include "UObject/ObjectMacros.h"
 #include "MultiplexStorage.generated.h"
 
+struct ANIMATIONCORE_API FMultiplexArgument
+{
+public:
+
+	FMultiplexArgument()
+		:Address(INDEX_NONE)
+	{
+	}
+
+	FMultiplexArgument(int32 InAddress)
+		:Address(InAddress)
+	{
+	}
+
+	static FMultiplexArgument MakeArgument(int32 InAddress)
+	{
+		return FMultiplexArgument(InAddress);
+	}
+
+	static FMultiplexArgument MakeLiteral(int32 InAddress)
+	{
+		return FMultiplexArgument(-1 - InAddress);
+	}
+
+	FORCEINLINE bool operator ==(int32 InOther) const { return Address == InOther; }
+
+	FORCEINLINE bool IsLiteral() const { return Address < 0; }
+	FORCEINLINE int32 StorageType() const { return Address < 0 ? 1 : 0; }
+	FORCEINLINE int32 Index() const { return Address < 0 ? -(Address + 1) : Address; }
+	FORCEINLINE int32 NativeAddress() const { return Address; }
+
+private:
+	int32 Address;
+};
+
 UENUM()
 enum class EMultiplexAddressType : uint8
 {
@@ -112,6 +147,8 @@ public:
 	FORCEINLINE int32 Num() const { return Addresses.Num(); }
 	FORCEINLINE const FMultiplexAddress& operator[](int32 InIndex) const { return Addresses[InIndex]; }
 	FORCEINLINE FMultiplexAddress& operator[](int32 InIndex) { return Addresses[InIndex]; }
+	FORCEINLINE const FMultiplexAddress& operator[](const FMultiplexArgument& InArg) const { return Addresses[InArg.Index()]; }
+	FORCEINLINE FMultiplexAddress& operator[](const FMultiplexArgument& InArg) { return Addresses[InArg.Index()]; }
 	FORCEINLINE const FMultiplexAddress& operator[](const FName& InName) const { return Addresses[GetIndex(InName)]; }
 	FORCEINLINE FMultiplexAddress& operator[](const FName& InName) { return Addresses[GetIndex(InName)]; }
 
@@ -146,9 +183,21 @@ public:
 	}
 
 	template<class T>
+	FORCEINLINE const T* Get(const FMultiplexArgument& InArgument) const
+	{
+		return Get<T>(InArgument.Index());
+	}
+
+	template<class T>
 	FORCEINLINE const T& GetRef(int32 InAddressIndex) const
 	{
 		return *Get<T>(InAddressIndex);
+	}
+
+	template<class T>
+	FORCEINLINE const T& GetRef(const FMultiplexArgument& InArgument) const
+	{
+		return GetRef<T>(InArgument.Index());
 	}
 
 	template<class T>
@@ -161,9 +210,21 @@ public:
 	}
 
 	template<class T>
+	FORCEINLINE T* Get(const FMultiplexArgument& InArgument)
+	{
+		return Get<T>(InArgument.Index())
+	}
+
+	template<class T>
 	FORCEINLINE T& GetRef(int32 InAddressIndex)
 	{
 		return *Get<T>(InAddressIndex);
+	}
+
+	template<class T>
+	FORCEINLINE T& GetRef(const FMultiplexArgument& InArgument)
+	{
+		return GetRef<T>(InArgument.Index());
 	}
 
 	template<class T>
@@ -173,6 +234,12 @@ public:
 		const FMultiplexAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
 		return TArrayView<T>((T*)&Data[Address.FirstByte()], Address.ElementCount);
+	}
+	
+	template<class T>
+	FORCEINLINE TArrayView<T> GetArray(const FMultiplexArgument& InArgument)
+	{
+		return GetArray<T>(InArgument.Index());
 	}
 
 	FORCEINLINE UScriptStruct* GetScriptStruct(int32 InAddressIndex) const

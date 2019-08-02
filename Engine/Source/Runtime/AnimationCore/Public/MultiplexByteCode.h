@@ -161,36 +161,36 @@ struct ANIMATIONCORE_API FMultiplexJumpOp : public FMultiplexBaseOp
 {
 	FMultiplexJumpOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Jump)
-	, ByteCodeIndex(UINT64_MAX)
+	, InstructionIndex(INDEX_NONE)
 	{
 	}
 
-	FMultiplexJumpOp(uint64 InByteCodeIndex)
+	FMultiplexJumpOp(int32 InInstructionIndex)
 	: FMultiplexBaseOp(EMultiplexOpCode::Jump)
-	, ByteCodeIndex(InByteCodeIndex)
+	, InstructionIndex(InInstructionIndex)
 	{
 	}
 
-	uint64 ByteCodeIndex;
+	int32 InstructionIndex;
 };
 
 struct ANIMATIONCORE_API FMultiplexJumpIfTrueOp : public FMultiplexBaseOp
 {
 	FMultiplexJumpIfTrueOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::JumpIfTrue)
-	, ByteCodeIndex(UINT64_MAX)
+	, InstructionIndex(INDEX_NONE)
 	, Condition()
 	{
 	}
 
-	FMultiplexJumpIfTrueOp(uint64 InByteCodeIndex, FMultiplexArgument InCondition)
+	FMultiplexJumpIfTrueOp(int32 InInstructionIndex, FMultiplexArgument InCondition)
 	: FMultiplexBaseOp(EMultiplexOpCode::JumpIfTrue)
-	, ByteCodeIndex(InByteCodeIndex)
+	, InstructionIndex(InInstructionIndex)
 	, Condition(InCondition)
 	{
 	}
 
-	uint64 ByteCodeIndex;
+	int32 InstructionIndex;
 	FMultiplexArgument Condition;
 };
 
@@ -198,19 +198,19 @@ struct ANIMATIONCORE_API FMultiplexJumpIfFalseOp : public FMultiplexBaseOp
 {
 	FMultiplexJumpIfFalseOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::JumpIfFalse)
-	, ByteCodeIndex(UINT64_MAX)
+	, InstructionIndex(INDEX_NONE)
 	, Condition()
 	{
 	}
 
-	FMultiplexJumpIfFalseOp(uint64 InByteCodeIndex, FMultiplexArgument InCondition)
+	FMultiplexJumpIfFalseOp(int32 InInstructionIndex, FMultiplexArgument InCondition)
 	: FMultiplexBaseOp(EMultiplexOpCode::JumpIfFalse)
-	, ByteCodeIndex(InByteCodeIndex)
+	, InstructionIndex(InInstructionIndex)
 	, Condition(InCondition)
 	{
 	}
 
-	uint64 ByteCodeIndex;
+	int32 InstructionIndex;
 	FMultiplexArgument Condition;
 };
 
@@ -269,6 +269,8 @@ public:
 
 	FMultiplexByteCodeTable();
 
+	void Reset();
+	FORCEINLINE bool IsValidIndex(int32 InIndex) const { return Entries.IsValidIndex(InIndex); }
 	FORCEINLINE int32 Num() const { return Entries.Num(); }
 	FORCEINLINE const FMultiplexByteCodeTableEntry& operator[](int32 InIndex) const { return Entries[InIndex]; }
 

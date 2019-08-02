@@ -5,31 +5,7 @@
 #include "CoreMinimal.h"
 #include "MultiplexStorage.h"
 
-struct ANIMATIONCORE_API FMultiplexArgument
-{
-public:
-
-	FMultiplexArgument()
-		:Address(INDEX_NONE)
-	{
-	}
-
-	FMultiplexArgument(int32 InAddress)
-		:Address(InAddress)
-	{
-	}
-
-	FORCEINLINE bool operator ==(int32 InOther) const { return Address == InOther; }
-
-	FORCEINLINE bool IsLiteral() const { return Address < 0; }
-	FORCEINLINE int32 StorageType() const { return Address < 0 ? 1 : 0; }
-	FORCEINLINE int32 Index() const { return Address < 0 ? -(Address + 1) : Address; }
-
-private:
-	int32 Address;
-};
-
-typedef void (*FMultiplexFunctionPtr)(const TArrayView<FMultiplexArgument>&, FMultiplexStorage*, const TArrayView<void*>&);
+typedef void (*FMultiplexFunctionPtr)(const TArrayView<FMultiplexArgument>&, FMultiplexStorage**, const TArrayView<void*>&);
 
 struct ANIMATIONCORE_API FMultiplexFunction
 {
