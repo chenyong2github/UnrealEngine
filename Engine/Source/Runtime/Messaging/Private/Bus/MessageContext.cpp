@@ -115,6 +115,12 @@ const FMessageAddress& FMessageContext::GetSender() const
 }
 
 
+const FMessageAddress& FMessageContext::GetForwarder() const
+{
+	return Sender;
+}
+
+
 ENamedThreads::Type FMessageContext::GetSenderThread() const
 {
 	return SenderThread;

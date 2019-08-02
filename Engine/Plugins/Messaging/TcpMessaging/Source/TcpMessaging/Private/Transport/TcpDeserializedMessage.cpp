@@ -194,6 +194,12 @@ const FMessageAddress& FTcpDeserializedMessage::GetSender() const
 }
 
 
+const FMessageAddress& FTcpDeserializedMessage::GetForwarder() const
+{
+	return Sender;
+}
+
+
 ENamedThreads::Type FTcpDeserializedMessage::GetSenderThread() const
 {
 	return ENamedThreads::AnyThread;
