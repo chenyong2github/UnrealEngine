@@ -149,6 +149,7 @@ private:
 	IConsoleCommand* PreventSystemRecompileCommand;
 	IConsoleCommand* PreventAllSystemRecompilesCommand;
 	IConsoleCommand* UpgradeAllNiagaraAssetsCommand;
+	IConsoleCommand* DumpCompileIdDataForAssetCommand;
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
 };
