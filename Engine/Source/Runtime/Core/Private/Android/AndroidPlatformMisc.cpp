@@ -1765,7 +1765,8 @@ bool FAndroidMisc::ShouldUseVulkan()
 		static const auto CVarDisableVulkan = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Android.DisableVulkanSupport"));
 
 		const bool bVulkanAvailable = IsVulkanAvailable();
-		const bool bVulkanDisabledCVar = CVarDisableVulkan->GetValueOnAnyThread() == 1;
+
+		const bool bVulkanDisabledCVar = !IsStandaloneStereoOnlyDevice() && CVarDisableVulkan->GetValueOnAnyThread() == 1;
 
 		if (bVulkanAvailable && !bVulkanDisabledCVar)
 		{
