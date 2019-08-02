@@ -15,6 +15,7 @@
 #include "Kismet2/StructureEditorUtils.h"
 #include "DataTableEditorUtils.h"
 #include "SRowEditor.h"
+#include "Widgets/Input/SSearchBox.h"
 
 class FJsonObject;
 
@@ -91,6 +92,10 @@ protected:
 	
 	void OnFilterTextChanged(const FText& InFilterText);
 
+	void OnFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
+
+	void OnFilterCleared();
+
 	virtual void PostRegenerateMenusAndToolbars() override;
 
 	FReply OnFindRowInContentBrowserClicked();
@@ -162,6 +167,11 @@ protected:
 	FReply OnPasteClicked();
 	FReply OnDuplicateClicked();
 
+	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
+	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+	void OnColumnNumberSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+	void OnColumnNameSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+
 private:
 	UDataTable* GetEditableDataTable() const;
 
@@ -189,6 +199,9 @@ protected:
 	TSharedPtr<class IDetailsView> PropertyView;
 
 	/** UI for the "Row Editor" tab */
+	TSharedPtr<SSearchBox> SearchBoxWidget;
+
+	/** UI for the "Row Editor" tab */
 	TSharedPtr<SWidget> RowEditorTabWidget;
 
 	/** Array of the columns that are available for editing */
@@ -196,7 +209,7 @@ protected:
 
 	/** Array of the rows that are available for editing */
 	TArray<FDataTableEditorRowListViewDataPtr> AvailableRows;
-	
+
 	/** Array of the rows that match the active filter(s) */
 	TArray<FDataTableEditorRowListViewDataPtr> VisibleRows;
 
@@ -224,6 +237,12 @@ protected:
 	/** The current filter text applied to the data table */
 	FText ActiveFilterText;
 
+	/** Currently selected sorting mode */
+	EColumnSortMode::Type SortMode;
+
+	/** Specify which column to sort with */
+	FName SortByColumn;
+
 	FOnRowHighlighted CallbackOnRowHighlighted;
 
 	FSimpleDelegate CallbackOnDataTableUndoRedo;
@@ -239,4 +258,7 @@ protected:
 
 	/** The column id for the row name list view column */
 	static const FName RowNameColumnId;
+
+	/** The column id for the row number list view column */
+	static const FName RowNumberColumnId;
 };

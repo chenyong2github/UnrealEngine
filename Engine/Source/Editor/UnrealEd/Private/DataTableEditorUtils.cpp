@@ -766,6 +766,7 @@ void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable
 		}
 
 		CachedRowData->DesiredRowHeight = FontMeasure->GetMaxCharacterHeight(CellTextStyle.Font);
+		CachedRowData->RowNum = Index + 1;
 
 		// Always rebuild cell data
 		{

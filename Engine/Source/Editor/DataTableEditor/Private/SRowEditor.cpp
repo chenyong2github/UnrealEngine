@@ -241,12 +241,6 @@ void SRowEditor::OnSelectionChanged(TSharedPtr<FName> InItem, ESelectInfo::Type 
 		SelectedName = InItem;
 
 		Restore();
-
-		if (RenameTextBox.IsValid())
-		{
-			// refresh name, in case of a pending rename action
-			RenameTextBox->SetText(TAttribute<FText>(this, &SRowEditor::GetCurrentNameAsText));
-		}
 	}
 }
 

@@ -48,6 +48,7 @@ const FName FDataTableEditor::DataTableTabId("DataTableEditor_DataTable");
 const FName FDataTableEditor::DataTableDetailsTabId("DataTableEditor_DataTableDetails");
 const FName FDataTableEditor::RowEditorTabId("DataTableEditor_RowEditor");
 const FName FDataTableEditor::RowNameColumnId("RowName");
+const FName FDataTableEditor::RowNumberColumnId("RowNumber");
 
 void FDataTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -366,6 +367,114 @@ FReply FDataTableEditor::OnDuplicateClicked()
 	return FReply::Handled();
 }
 
+EColumnSortMode::Type FDataTableEditor::GetColumnSortMode(const FName ColumnId) const
+{
+	if (SortByColumn != ColumnId)
+	{
+		return EColumnSortMode::None;
+	}
+
+	return SortMode;
+}
+
+void FDataTableEditor::OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode)
+{
+	int32 ColumnIndex;
+
+	SortMode = InSortMode;
+	SortByColumn = ColumnId;
+
+	for (ColumnIndex = 0; ColumnIndex < AvailableColumns.Num(); ++ColumnIndex)
+	{
+		if (AvailableColumns[ColumnIndex]->ColumnId == ColumnId)
+		{
+			break;
+		}
+	}
+
+	if (AvailableColumns.IsValidIndex(ColumnIndex))
+	{
+		if (InSortMode == EColumnSortMode::Ascending)
+		{
+			VisibleRows.Sort([ColumnIndex](const FDataTableEditorRowListViewDataPtr& first, const FDataTableEditorRowListViewDataPtr& second)
+			{					
+				int32 Result = (first->CellData[ColumnIndex].ToString()).Compare(second->CellData[ColumnIndex].ToString());
+
+				if (!Result)
+				{
+					return first->RowNum < second->RowNum;
+
+				}
+
+				return Result < 0;
+			});
+
+		}
+		else if (InSortMode == EColumnSortMode::Descending)
+		{
+			VisibleRows.Sort([ColumnIndex](const FDataTableEditorRowListViewDataPtr& first, const FDataTableEditorRowListViewDataPtr& second)
+			{
+				int32 Result = (first->CellData[ColumnIndex].ToString()).Compare(second->CellData[ColumnIndex].ToString());
+
+				if (!Result)
+				{
+					return first->RowNum > second->RowNum;
+				}
+
+				return Result > 0;
+			});
+		}
+	}
+
+	CellsListView->RequestListRefresh();
+}
+
+void FDataTableEditor::OnColumnNumberSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode)
+{
+	SortMode = InSortMode;
+	SortByColumn = ColumnId;
+
+	if (InSortMode == EColumnSortMode::Ascending)
+	{
+		VisibleRows.Sort([](const FDataTableEditorRowListViewDataPtr& first, const FDataTableEditorRowListViewDataPtr& second)
+		{
+			return first->RowNum < second->RowNum;
+		});
+	}
+	else if (InSortMode == EColumnSortMode::Descending)
+	{
+		VisibleRows.Sort([](const FDataTableEditorRowListViewDataPtr& first, const FDataTableEditorRowListViewDataPtr& second)
+		{
+			return first->RowNum > second->RowNum;
+		});
+	}
+
+	CellsListView->RequestListRefresh();
+}
+
+void FDataTableEditor::OnColumnNameSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode)
+{
+	SortMode = InSortMode;
+	SortByColumn = ColumnId;
+
+	if (InSortMode == EColumnSortMode::Ascending)
+	{
+		VisibleRows.Sort([](const FDataTableEditorRowListViewDataPtr& first, const FDataTableEditorRowListViewDataPtr& second)
+		{
+			return (first->DisplayName).ToString() < (second->DisplayName).ToString();
+		});
+	}
+	else if (InSortMode == EColumnSortMode::Descending)
+	{
+		VisibleRows.Sort([](const FDataTableEditorRowListViewDataPtr& first, const FDataTableEditorRowListViewDataPtr& second)
+		{
+			return (first->DisplayName).ToString() > (second->DisplayName).ToString();
+		});
+	}
+
+	CellsListView->RequestListRefresh();
+}
+
 UDataTable* FDataTableEditor::GetEditableDataTable() const
 {
 	return Cast<UDataTable>(GetEditingObject());
@@ -675,8 +784,34 @@ FText FDataTableEditor::GetFilterText() const
 
 void FDataTableEditor::OnFilterTextChanged(const FText& InFilterText)
 {
-	ActiveFilterText = InFilterText;
-	UpdateVisibleRows();
+	if (InFilterText.IsEmpty())
+	{
+		OnFilterCleared();
+	}
+	else
+	{
+		ActiveFilterText = InFilterText;
+		UpdateVisibleRows();
+	}
+}
+
+void FDataTableEditor::OnFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
+{
+	if (CommitInfo == ETextCommit::OnCleared)
+	{
+		OnFilterCleared();
+	}
+}
+
+void FDataTableEditor::OnFilterCleared()
+{
+	ActiveFilterText = FText();
+	if (VisibleRows.IsValidIndex(HighlightedVisibleRowIndex))
+	{
+		VisibleRows = AvailableRows;
+		SearchBoxWidget->SetText(ActiveFilterText);
+		CellsListView->RequestListRefresh();
+	}
 }
 
 void FDataTableEditor::PostRegenerateMenusAndToolbars()
@@ -808,10 +943,19 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 		ColumnNamesHeaderRow->ClearColumns();
 
 		ColumnNamesHeaderRow->AddColumn(
+			SHeaderRow::Column(RowNumberColumnId)
+			.DefaultLabel(FText::GetEmpty())
+			.SortMode(this, &FDataTableEditor::GetColumnSortMode, RowNumberColumnId)
+			.OnSort(this, &FDataTableEditor::OnColumnNumberSortModeChanged)
+		);
+
+		ColumnNamesHeaderRow->AddColumn(
 			SHeaderRow::Column(RowNameColumnId)
 			.DefaultLabel(FText::GetEmpty())
 			.ManualWidth(this, &FDataTableEditor::GetRowNameColumnWidth)
 			.OnWidthChanged(this, &FDataTableEditor::OnRowNameColumnResized)
+			.SortMode(this, &FDataTableEditor::GetColumnSortMode, RowNameColumnId)
+			.OnSort(this, &FDataTableEditor::OnColumnNameSortModeChanged)
 		);
 
 		for (int32 ColumnIndex = 0; ColumnIndex < AvailableColumns.Num(); ++ColumnIndex)
@@ -823,6 +967,8 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 				.DefaultLabel(ColumnData->DisplayName)
 				.ManualWidth(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &FDataTableEditor::GetColumnWidth, ColumnIndex)))
 				.OnWidthChanged(this, &FDataTableEditor::OnColumnResized, ColumnIndex)
+				.SortMode(this, &FDataTableEditor::GetColumnSortMode, ColumnData->ColumnId)
+				.OnSort(this, &FDataTableEditor::OnColumnSortModeChanged)
 				[
 					SNew(SBox)
 					.Padding(FMargin(0, 4, 0, 4))
@@ -931,13 +1077,6 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 		.Thickness(FVector2D(12.0f, 12.0f));
 
 	ColumnNamesHeaderRow = SNew(SHeaderRow);
-
-	ColumnNamesHeaderRow->AddColumn(
-		SHeaderRow::Column(RowNameColumnId)
-		.DefaultLabel(FText::GetEmpty())
-		.ManualWidth(this, &FDataTableEditor::GetRowNameColumnWidth)
-		.OnWidthChanged(this, &FDataTableEditor::OnRowNameColumnResized)
-	);
 
 	CellsListView = SNew(SListView<FDataTableEditorRowListViewDataPtr>)
 		.ListItemsSource(&VisibleRows)
@@ -1053,7 +1192,7 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked(this, &FDataTableEditor::OnMoveRowClicked, FDataTableEditorUtils::ERowMoveDirection::Up)
-				.ToolTipText(LOCTEXT("MoveUpTooltip", "Move the currently selected row up by one in the data table"))
+				.ToolTipText(LOCTEXT("MoveUpTooltip", "Move the currently selected row up by one in the data table sorted by row number"))
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
@@ -1070,7 +1209,7 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked(this, &FDataTableEditor::OnMoveRowClicked, FDataTableEditorUtils::ERowMoveDirection::Down)
-				.ToolTipText(LOCTEXT("MoveDownTooltip", "Move the currently selected row down by one in the data table"))
+				.ToolTipText(LOCTEXT("MoveDownTooltip", "Move the currently selected row down by one in the data table sorted by row number"))
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
@@ -1087,7 +1226,7 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked(this, &FDataTableEditor::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Up)
-				.ToolTipText(LOCTEXT("MoveToTopTooltip", "Move the currently selected row to the top of the data table"))
+				.ToolTipText(LOCTEXT("MoveToTopTooltip", "Move the currently selected row to the top of the data table sorted by row number"))
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
@@ -1104,20 +1243,20 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked(this, &FDataTableEditor::OnMoveToExtentClicked, FDataTableEditorUtils::ERowMoveDirection::Down)
-				.ToolTipText(LOCTEXT("MoveToBottomTooltip", "Move the currently selected row to the bottom of the data table"))
+				.ToolTipText(LOCTEXT("MoveToBottomTooltip", "Move the currently selected row to the bottom of the data table based on row number"))
 				[
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
 					.Text(FText::FromString(FString(TEXT("\xf103"))) /*fa-angle-double-down*/)
 				]
 			]
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SSearchBox)
-			.InitialText(this, &FDataTableEditor::GetFilterText)
-			.OnTextChanged(this, &FDataTableEditor::OnFilterTextChanged)
+			+ SHorizontalBox::Slot()
+			[
+				SAssignNew(SearchBoxWidget, SSearchBox)
+				.InitialText(this, &FDataTableEditor::GetFilterText)
+				.OnTextChanged(this, &FDataTableEditor::OnFilterTextChanged)
+				.OnTextCommitted(this, &FDataTableEditor::OnFilterTextCommitted)
+			]
 		]
 		+SVerticalBox::Slot()
 		[

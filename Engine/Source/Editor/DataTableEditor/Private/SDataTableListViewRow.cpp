@@ -158,6 +158,19 @@ TSharedRef<SWidget> SDataTableListViewRow::MakeCellWidget(const int32 InRowIndex
 	FDataTableEditor* DataTableEdit = DataTableEditor.Pin().Get();
 	TArray<FDataTableEditorColumnHeaderDataPtr>& AvailableColumns = DataTableEdit->AvailableColumns;
 
+	if (InColumnId.IsEqual(FName(TEXT("RowNumber"))))
+	{
+		return SNew(SBox)
+			.Padding(FMargin(4, 2, 4, 2))
+			[
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), "DataTableEditor.CellText")
+				.Text(FText::FromString(FString::FromInt(RowDataPtr->RowNum)))
+				.ColorAndOpacity(DataTableEdit, &FDataTableEditor::GetRowTextColor, RowDataPtr->RowId)
+				.HighlightText(DataTableEdit, &FDataTableEditor::GetFilterText)
+			];
+	}
+
 	if (InColumnId.IsEqual(FName(TEXT("RowName"))))
 	{
 		return SNew(SBox)
@@ -166,6 +179,7 @@ TSharedRef<SWidget> SDataTableListViewRow::MakeCellWidget(const int32 InRowIndex
 				SAssignNew(InlineEditableText, SInlineEditableTextBlock)
 				.Text(RowDataPtr->DisplayName)
 				.OnTextCommitted(this, &SDataTableListViewRow::OnRowRenamed)
+				.HighlightText(DataTableEdit, &FDataTableEditor::GetFilterText)
 				.ColorAndOpacity(DataTableEdit, &FDataTableEditor::GetRowTextColor, RowDataPtr->RowId)
 			];
 	}
