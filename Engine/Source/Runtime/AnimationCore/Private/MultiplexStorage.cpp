@@ -26,40 +26,7 @@ FMultiplexStorage& FMultiplexStorage::operator= (const FMultiplexStorage &InOthe
 	for (int32 Index = 0; Index < Addresses.Num(); Index++)
 	{
 		Construct(Index);
-
-		switch (Addresses[Index].Type)
-		{
-			case EMultiplexAddressType::Plain:
-			{
-				// the mem copy through the data array is enough!
-				break;
-			}
-			case EMultiplexAddressType::String:
-			{
-				FString* TargetStrings = (FString*)GetData(Index);
-				FString* SourceStrings = (FString*)InOther.GetData(Index);
-				for (int32 ElementIndex = 0; ElementIndex < Addresses[Index].ElementCount; ElementIndex++)
-				{
-					TargetStrings[ElementIndex] = SourceStrings[ElementIndex];
-				}
-				break;
-			}
-			case EMultiplexAddressType::Name:
-			{
-				// is this right? Nothing to do since name can just be mem copied?
-				break;
-			}
-			case EMultiplexAddressType::Struct:
-			{
-				UScriptStruct* ScriptStruct = GetScriptStruct(Index);
-				ScriptStruct->CopyScriptStruct(GetData(Index), InOther.GetData(Index), Addresses[Index].ElementCount);
-				break;
-			}
-			case EMultiplexAddressType::Invalid:
-			{
-				break;
-			}
-		}
+		Copy(Index, Index, &InOther);
 	}
 
 	return *this;
@@ -81,19 +48,25 @@ void FMultiplexStorage::Reset()
 bool FMultiplexStorage::Copy(
 	int32 InSourceAddressIndex,
 	int32 InTargetAddressIndex,
+	const FMultiplexStorage* InSourceStorage,
 	int32 InSourceByteOffset,
 	int32 InTargetByteOffset,
 	int32 InNumBytes)
 {
-	ensure(Addresses.IsValidIndex(InSourceAddressIndex));
+	if (InSourceStorage == nullptr)
+	{
+		InSourceStorage = this;
+	}
+
+	ensure(InSourceStorage->Addresses.IsValidIndex(InSourceAddressIndex));
 	ensure(Addresses.IsValidIndex(InTargetAddressIndex));
 
-	if (InSourceAddressIndex == InTargetAddressIndex && InSourceByteOffset == InTargetByteOffset)
+	if (InSourceAddressIndex == InTargetAddressIndex && InSourceByteOffset == InTargetByteOffset && this == InSourceStorage)
 	{
 		return false;
 	}
 
-	const FMultiplexAddress& Source = Addresses[InSourceAddressIndex];
+	const FMultiplexAddress& Source = InSourceStorage->Addresses[InSourceAddressIndex];
 	const FMultiplexAddress& Target = Addresses[InTargetAddressIndex];
 
 	int32 SourceStartByte = Source.ByteIndex;
@@ -129,27 +102,32 @@ bool FMultiplexStorage::Copy(
 	{
 		case EMultiplexAddressType::Plain:
 		{
-			FMemory::Memcpy(&Data[TargetStartByte], &Data[SourceStartByte], TargetNumBytes);
+			FMemory::Memcpy(&Data[TargetStartByte], &InSourceStorage->Data[SourceStartByte], TargetNumBytes);
 			break;
 		}
 		case EMultiplexAddressType::Struct:
 		{
 			UScriptStruct* ScriptStruct = GetScriptStruct(InTargetAddressIndex);
 			int32 NumStructs = TargetNumBytes / ScriptStruct->GetStructureSize();
-			ScriptStruct->CopyScriptStruct(&Data[TargetStartByte], &Data[SourceStartByte], NumStructs);
+			ScriptStruct->CopyScriptStruct(&Data[TargetStartByte], &InSourceStorage->Data[SourceStartByte], NumStructs);
 			break;
 		}
 		case EMultiplexAddressType::Name:
 		{
-			// is this right? can we just copy a name?
-			FMemory::Memcpy(&Data[TargetStartByte], &Data[SourceStartByte], TargetNumBytes);
+			int32 NumNames = TargetNumBytes / sizeof(FName);
+			TArrayView<FName> TargetNames((FName*)&Data[TargetStartByte], NumNames);
+			TArrayView<FName> SourceNames((FName*)&InSourceStorage->Data[SourceStartByte], NumNames);
+			for (int32 Index = 0; Index < NumNames; Index++)
+			{
+				TargetNames[Index] = SourceNames[Index];
+			}
 			break;
 		}
 		case EMultiplexAddressType::String:
 		{
 			int32 NumStrings = TargetNumBytes / sizeof(FString);
-			FString* TargetStrings = (FString*)&Data[TargetStartByte];
-			FString* SourceStrings = (FString*)&Data[SourceStartByte];
+			TArrayView<FString> TargetStrings((FString*)&Data[TargetStartByte], NumStrings);
+			TArrayView<FString> SourceStrings((FString*)&InSourceStorage->Data[SourceStartByte], NumStrings);
 			for (int32 Index = 0; Index < NumStrings; Index++)
 			{
 				TargetStrings[Index] = SourceStrings[Index];
@@ -168,6 +146,7 @@ bool FMultiplexStorage::Copy(
 bool FMultiplexStorage::Copy(
 	const FName& InSourceName,
 	const FName& InTargetName,
+	const FMultiplexStorage* InSourceStorage,
 	int32 InSourceByteOffset,
 	int32 InTargetByteOffset,
 	int32 InNumBytes)
@@ -182,7 +161,7 @@ bool FMultiplexStorage::Copy(
 		return false;
 	}
 
-	return Copy(SourceAddressIndex, TargetAddressIndex, InSourceByteOffset, InTargetByteOffset, InNumBytes);
+	return Copy(SourceAddressIndex, TargetAddressIndex, InSourceStorage, InSourceByteOffset, InTargetByteOffset, InNumBytes);
 }
 
 int32 FMultiplexStorage::Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr)
@@ -257,7 +236,7 @@ bool FMultiplexStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
 			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Address.ByteIndex : Address.ByteIndex + InElementIndex * Address.ElementSize];
 			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
 
-			FMemory::Memzero(DataPtr, Address.NumBytes());
+			FMemory::Memzero(DataPtr, Count * Address.ElementSize);
 			for (int32 Index = 0; Index < Count; Index++)
 			{
 				DataPtr[Index] = FString();
@@ -269,7 +248,7 @@ bool FMultiplexStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
 			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Address.ByteIndex : Address.ByteIndex + InElementIndex * Address.ElementSize];
 			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
 
-			FMemory::Memzero(DataPtr, Address.NumBytes());
+			FMemory::Memzero(DataPtr, Count * Address.ElementSize);
 			for (int32 Index = 0; Index < Count; Index++)
 			{
 				DataPtr[Index] = FName();
