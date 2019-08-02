@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorSubsystem.h"
 #include "Layers/ILayers.h"
 
 #include "LayersSubsystem.generated.h"
