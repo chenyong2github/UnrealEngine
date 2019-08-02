@@ -39,6 +39,7 @@ public:
 	TSharedPtr< FUICommandInfo > AddOptionPin;
 	TSharedPtr< FUICommandInfo > RemoveOptionPin;
 	TSharedPtr< FUICommandInfo > ChangePinType;
+	TSharedPtr< FUICommandInfo > DeleteAndReconnectNodes;
 
 	// Pin visibility modes
 	TSharedPtr< FUICommandInfo > ShowAllPins;

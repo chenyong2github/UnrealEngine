@@ -1221,6 +1221,11 @@ TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FT
 				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanDeleteNodes )
 				);
 
+			GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DeleteAndReconnectNodes,
+				FExecuteAction::CreateSP(this, &FBlueprintEditor::DeleteSelectedNodes),
+				FCanExecuteAction::CreateSP(this, &FBlueprintEditor::CanDeleteNodes)
+			);
+
 			GraphEditorCommands->MapAction( FGenericCommands::Get().Copy,
 				FExecuteAction::CreateSP( this, &FBlueprintEditor::CopySelectedNodes ),
 				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanCopyNodes )
@@ -5482,6 +5487,13 @@ void FBlueprintEditor::DeleteSelectedNodes()
 					DocumentManager->CleanInvalidTabs();
 				}
 				AnalyticsTrackNodeEvent( GetBlueprintObj(), Node, true );
+				
+				// If the user is pressing shift then try and reconnect the pins
+				if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+				{
+					ReconnectExecPins(K2Node);
+				}
+				
 				FBlueprintEditorUtils::RemoveNode(GetBlueprintObj(), Node, true);
 			}
 		}
@@ -5497,6 +5509,32 @@ void FBlueprintEditor::DeleteSelectedNodes()
 	}
 
 	//@TODO: Reselect items that were not deleted
+}
+
+void FBlueprintEditor::ReconnectExecPins(UK2Node* Node)
+{
+	// Only do this on impure nodes
+	if (Node && !Node->IsNodePure())
+	{
+		// Are there exec/then connections?
+		UEdGraphPin* const ExecPin = Node->GetExecPin();
+		UEdGraphPin* const ThenPin = Node->FindPin(UEdGraphSchema_K2::PN_Then);
+		// Nodes with multiple "then" pins (branch, sequence, foreach, etc) will actually have the FindPin return nullptr
+		if (ExecPin && ThenPin)
+		{
+			// Make a connection from every incoming exec pin to every outgoing then pin
+			for (UEdGraphPin* const IncomingConnectionPin : ExecPin->LinkedTo)
+			{
+				if (IncomingConnectionPin)
+				{
+					for (UEdGraphPin* const ConnectedCompletePin : ThenPin->LinkedTo)
+					{
+						IncomingConnectionPin->MakeLinkTo(ConnectedCompletePin);
+					}
+				}
+			}
+		}
+	}
 }
 
 bool FBlueprintEditor::CanDeleteNodes() const

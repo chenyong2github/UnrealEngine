@@ -833,6 +833,14 @@ protected:
 	virtual void DeleteSelectedNodes();
 	bool CanDeleteNodes() const;
 
+	/**
+	* Given a node, make connections from anything connected to it's input pin to
+	* anything connected to it's "then" pins. Only works on impure nodes with single exec/then pins.
+	* 
+	* @param Node	The node to reconnect
+	*/
+	void ReconnectExecPins(class UK2Node* Node);
+
 	void DeleteSelectedDuplicatableNodes();
 
 	void CutSelectedNodes();
