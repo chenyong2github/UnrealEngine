@@ -68,6 +68,12 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 
 #define PLATFORM_GLOBAL_LOG_CATEGORY						LogWindows
 
+#if _MSC_FULL_VER >= 191125507 && defined(_MSVC_LANG) && _MSVC_LANG >= 201402
+	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 1
+#else
+	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 0
+#endif
+
 
 // Q: Why is there a __nop() before __debugbreak()?
 // A: VS' debug engine has a bug where it will silently swallow explicit

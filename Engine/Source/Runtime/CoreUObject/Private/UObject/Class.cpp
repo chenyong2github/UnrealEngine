@@ -2487,7 +2487,7 @@ uint32 UScriptStruct::GetStructTypeHash(const void* Src) const
 	// UMapProperty::ConvertFromType).
 
 	UScriptStruct::ICppStructOps* TheCppStructOps = GetCppStructOps();
-	return TheCppStructOps->GetTypeHash(Src);
+	return TheCppStructOps->GetStructTypeHash(Src);
 }
 
 void UScriptStruct::InitializeStruct(void* InDest, int32 ArrayDim) const

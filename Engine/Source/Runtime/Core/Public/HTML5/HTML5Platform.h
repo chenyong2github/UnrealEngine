@@ -74,6 +74,12 @@ typedef FHTML5Types FPlatformTypes;
 	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO 0
 #endif
 
+#if __has_feature(cxx_if_constexpr)
+	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 1
+#else
+	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 0
+#endif
+
 // Function type macros.
 #define FORCEINLINE		inline __attribute__((__always_inline__))					/* Force code to be inline */
 #define FORCENOINLINE	__attribute__((noinline))									/* Force code to NOT be inline */
