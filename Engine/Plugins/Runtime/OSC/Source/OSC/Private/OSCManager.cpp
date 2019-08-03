@@ -3,7 +3,9 @@
 
 #include "IPAddress.h"
 #include "OSCMessage.h"
+#include "OSCMessagePacket.h"
 #include "OSCBundle.h"
+#include "OSCBundlePacket.h"
 #include "OSCLog.h"
 #include "SocketSubsystem.h"
 
@@ -36,7 +38,7 @@ namespace
 
 	const FOSCType* GetOSCTypeAtIndex(const FOSCMessage& Message, const int32 Index)
 	{
-		const TSharedPtr<FOSCMessagePacket>& Packet = Message.GetPacket();
+		const TSharedPtr<FOSCMessagePacket>& Packet = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
 		if (Packet.IsValid())
 		{
 			TArray<FOSCType>& Args = Packet->GetArguments();
@@ -97,25 +99,30 @@ UOSCClient* UOSCManager::CreateOSCClient(FString SendIPAddress, int32 Port)
 
 void UOSCManager::ClearMessage(FOSCMessage& Message)
 {
-	if (Message.GetPacket().IsValid())
+	const TSharedPtr<FOSCMessagePacket>& Packet = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	if (Packet.IsValid())
 	{
-		Message.GetPacket()->GetArguments().Reset();
+		Packet->GetArguments().Reset();
 	}
 }
 
 void UOSCManager::ClearBundle(FOSCBundle& Bundle)
 {
-	if (Bundle.GetPacket().IsValid())
+	const TSharedPtr<FOSCBundlePacket>& Packet = StaticCastSharedPtr<FOSCBundlePacket>(Bundle.GetPacket());
+	if (Packet.IsValid())
 	{
-		Bundle.GetPacket()->GetPackets().Reset();
+		Packet->GetPackets().Reset();
 	}
 }
 
 FOSCBundle& UOSCManager::AddMessageToBundle(const FOSCMessage& Message, FOSCBundle& Bundle)
 {
-	if (Message.GetPacket().IsValid() && Bundle.GetPacket().IsValid())
+	const TSharedPtr<FOSCBundlePacket>& BundlePacket = StaticCastSharedPtr<FOSCBundlePacket>(Bundle.GetPacket());
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+
+	if (MessagePacket.IsValid() && BundlePacket.IsValid())
 	{
-		Bundle.GetPacket()->GetPackets().Add(Message.GetPacket());
+		BundlePacket->GetPackets().Add(MessagePacket);
 	}
 
 	return Bundle;
@@ -123,9 +130,12 @@ FOSCBundle& UOSCManager::AddMessageToBundle(const FOSCMessage& Message, FOSCBund
 
 FOSCBundle& UOSCManager::AddBundleToBundle(const FOSCBundle& InBundle, FOSCBundle& OutBundle)
 {
-	if (InBundle.GetPacket().IsValid() && OutBundle.GetPacket().IsValid())
+	const TSharedPtr<FOSCBundlePacket>& InBundlePacket = StaticCastSharedPtr<FOSCBundlePacket>(InBundle.GetPacket());
+	const TSharedPtr<FOSCBundlePacket>& OutBundlePacket = StaticCastSharedPtr<FOSCBundlePacket>(OutBundle.GetPacket());
+
+	if (InBundlePacket.IsValid() && OutBundlePacket.IsValid())
 	{
-		OutBundle.GetPacket()->GetPackets().Add(InBundle.GetPacket());
+		InBundlePacket->GetPackets().Add(OutBundlePacket);
 	}
 
 	return OutBundle;
@@ -133,37 +143,43 @@ FOSCBundle& UOSCManager::AddBundleToBundle(const FOSCBundle& InBundle, FOSCBundl
 
 FOSCMessage& UOSCManager::AddFloat(FOSCMessage& Message, float Value)
 {
-	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	MessagePacket->GetArguments().Add(FOSCType(Value));
 	return Message;
 }
 
 FOSCMessage& UOSCManager::AddInt32(FOSCMessage& Message, int32 Value)
 {
-	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	MessagePacket->GetArguments().Add(FOSCType(Value));
 	return Message;
 }
 
 FOSCMessage& UOSCManager::AddInt64(FOSCMessage& Message, int64 Value)
 {
-	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	MessagePacket->GetArguments().Add(FOSCType(Value));
 	return Message;
 }
 
 FOSCMessage& UOSCManager::AddString(FOSCMessage& Message, FString Value)
 {
-	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	MessagePacket->GetArguments().Add(FOSCType(Value));
 	return Message;
 }
 
 FOSCMessage& UOSCManager::AddBlob(FOSCMessage& Message, TArray<uint8>& Value)
 {
-	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	MessagePacket->GetArguments().Add(FOSCType(Value));
 	return Message;
 }
 
 FOSCMessage& UOSCManager::AddBool(FOSCMessage& Message, bool Value)
 {
-	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	MessagePacket->GetArguments().Add(FOSCType(Value));
 	return Message;
 }
 
@@ -171,10 +187,10 @@ void UOSCManager::GetMessagesFromBundle(const FOSCBundle& Bundle, TArray<FOSCMes
 {
 	if (Bundle.GetPacket().IsValid())
 	{
-		const TSharedPtr<FOSCBundlePacket> BundlePacket = Bundle.GetPacket();
+		const TSharedPtr<FOSCBundlePacket>& BundlePacket = StaticCastSharedPtr<FOSCBundlePacket>(Bundle.GetPacket());
 		for (int32 i = 0; i < BundlePacket->GetPackets().Num(); i++)
 		{
-			const TSharedPtr<FOSCPacket>& Packet = BundlePacket->GetPackets()[i];
+			const TSharedPtr<IOSCPacket>& Packet = BundlePacket->GetPackets()[i];
 			if (Packet->IsMessage())
 			{
 				Messages.Emplace(StaticCastSharedPtr<FOSCMessagePacket>(Packet));
@@ -198,7 +214,8 @@ void UOSCManager::GetAllFloats(const FOSCMessage& Message, TArray<float>& Values
 {
 	if (Message.GetPacket().IsValid())
 	{
-		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+		const TArray<FOSCType>& Args = MessagePacket->GetArguments();
 		for (int32 i = 0; i < Args.Num(); i++)
 		{
 			const FOSCType& OSCType = Args[i];
@@ -225,7 +242,8 @@ void UOSCManager::GetAllInt32s(const FOSCMessage& Message, TArray<int32>& Values
 {
 	if (Message.GetPacket().IsValid())
 	{
-		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+		const TArray<FOSCType>& Args = MessagePacket->GetArguments();
 		for (int32 i = 0; i < Args.Num(); i++)
 		{
 			const FOSCType& OSCType = Args[i];
@@ -250,9 +268,10 @@ void UOSCManager::GetInt64(const FOSCMessage& Message, const int32 Index, int64&
 
 void UOSCManager::GetAllInt64s(const FOSCMessage& Message, TArray<int64>& Values)
 {
-	if (Message.GetPacket().IsValid())
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	if (MessagePacket.IsValid())
 	{
-		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		const TArray<FOSCType>& Args = MessagePacket->GetArguments();
 		for (int32 i = 0; i < Args.Num(); i++)
 		{
 			const FOSCType& OSCType = Args[i];
@@ -277,9 +296,10 @@ void UOSCManager::GetString(const FOSCMessage& Message, const int32 Index, FStri
 
 void UOSCManager::GetAllStrings(const FOSCMessage& Message, TArray<FString>& Values)
 {
-	if (Message.GetPacket().IsValid())
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	if (MessagePacket.IsValid())
 	{
-		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		const TArray<FOSCType>& Args = MessagePacket->GetArguments();
 		for (int32 i = 0; i < Args.Num(); i++)
 		{
 			const FOSCType& OSCType = Args[i];
@@ -304,9 +324,10 @@ void UOSCManager::GetBool(const FOSCMessage& Message, const int32 Index, bool& V
 
 void UOSCManager::GetAllBools(const FOSCMessage& Message, TArray<bool>& Values)
 {
-	if (Message.GetPacket().IsValid())
+	const TSharedPtr<FOSCMessagePacket>& MessagePacket = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
+	if (MessagePacket.IsValid())
 	{
-		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		const TArray<FOSCType>& Args = MessagePacket->GetArguments();
 		for (int32 i = 0; i < Args.Num(); i++)
 		{
 			const FOSCType& OSCType = Args[i];
