@@ -217,6 +217,7 @@ void FLiveCodingModule::Compile()
 		EnableForSession(true);
 		if(bStarted)
 		{
+			UpdateModules(); // Need to do this immediately rather than waiting until next tick
 			LppTriggerRecompile();
 			GIsCompileActive = true;
 		}
