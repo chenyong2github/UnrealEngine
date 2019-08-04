@@ -3,7 +3,11 @@
 #include "Policy/EasyBlend/DX11/DisplayClusterProjectionEasyBlendLibraryDX11.h"
 #include "DisplayClusterProjectionLog.h"
 
+#include "IDisplayClusterProjection.h"
+
 #include "HAL/PlatformProcess.h"
+#include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
 #include "EasyBlendSDKDXApi.h"
@@ -56,10 +60,12 @@ bool DisplayClusterProjectionEasyBlendLibraryDX11::Initialize()
 		if (!DllHandle)
 		{
 #ifdef PLATFORM_WINDOWS
-			// nDisplay supports Win64 only
-			const FString LibName = TEXT("mplEasyBlendSDKDX1164.dll");
+			const FString LibName   = TEXT("mplEasyBlendSDKDX1164.dll");
+			const FString PluginDir = IPluginManager::Get().FindPlugin(TEXT("nDisplay"))->GetBaseDir();
+			const FString DllPath   = FPaths::Combine(PluginDir, TEXT("ThirdParty/EasyBlend/DLL"), LibName);
+			
 			// Try to load DLL
-			DllHandle = FPlatformProcess::GetDllHandle(*LibName);
+			DllHandle = FPlatformProcess::GetDllHandle(*DllPath);
 
 			if (DllHandle)
 			{
@@ -108,7 +114,7 @@ bool DisplayClusterProjectionEasyBlendLibraryDX11::Initialize()
 			}
 			else
 			{
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend API. No <%> library found."), *LibName);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend API. No <%s> library found."), *DllPath);
 				return false;
 			}
 #endif

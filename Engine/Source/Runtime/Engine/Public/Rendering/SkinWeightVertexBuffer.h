@@ -95,6 +95,10 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar, FSkinWeightVertexBuffer& VertexBuffer);
 
+	void SerializeMetaData(FArchive& Ar);
+
+	void CopyMetaData(const FSkinWeightVertexBuffer& Other);
+
 	// FRenderResource interface.
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -182,6 +186,35 @@ public:
 		return *this;
 	}
 
+	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
+	FVertexBufferRHIRef CreateRHIBuffer_RenderThread();
+	FVertexBufferRHIRef CreateRHIBuffer_Async();
+
+	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
+	template <uint32 MaxNumUpdates>
+	void InitRHIForStreaming(FRHIVertexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		if (VertexBufferRHI && IntermediateBuffer)
+		{
+			check(SRVValue);
+			Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
+			Batcher.QueueUpdateRequest(SRVValue, VertexBufferRHI, 4, PF_R32_UINT);
+		}
+	}
+
+	template <uint32 MaxNumUpdates>
+	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		if (VertexBufferRHI)
+		{
+			Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
+		}
+		if (SRVValue)
+		{
+			Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
+		}
+	}
+
 protected:
 	// guaranteed only to be valid if the vertex buffer is valid
 	FShaderResourceViewRHIRef SRVValue;
@@ -214,4 +247,7 @@ private:
 	template <bool bUsesExtraBoneInfluences>
 	void SetWeightsForVertex(uint32 VertexIndex, const FSoftSkinVertex& SrcVertex);
 #endif //WITH_EDITOR
+
+	template <bool bRenderThread>
+	FVertexBufferRHIRef CreateRHIBuffer_Internal();
 };

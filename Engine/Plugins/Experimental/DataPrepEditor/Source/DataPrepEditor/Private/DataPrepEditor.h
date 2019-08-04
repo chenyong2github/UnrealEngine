@@ -86,6 +86,12 @@ public:
 	/** Gets or sets the flag for context sensitivity in the graph action menu */
 	bool& GetIsContextSensitive() { return bIsActionMenuContextSensitive; }
 
+	/** Returns root package which all transient packages are created under */
+	static const FString& GetRootPackagePath();
+
+	/** Returns root directory which all transient directories and data are created under */
+	static const FString& GetRootTemporaryDir();
+
 private:
 	void BindCommands();
 	void OnSaveScene();
@@ -148,8 +154,11 @@ private:
 	/** Handles changes in the Dataprep asset */
 	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index);
 
-	/** Handles change to the dataprep pipeline */
+	/** Handles change to the Dataprep pipeline */
 	void OnDataprepPipelineChange(UObject* ChangedObject);
+
+	/** Remove all temporary data remaining from previous runs of the Dataprep editor */
+	void CleanUpTemporaryDirectories();
 
 private:
 	bool bWorldBuilt;

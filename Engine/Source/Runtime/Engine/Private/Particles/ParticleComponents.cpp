@@ -3860,8 +3860,8 @@ void UParticleSystemComponent::OnRegister()
 	}
 
 	UE_LOG(LogParticles,Verbose,
-		TEXT("OnRegister %s Component=0x%p Scene=0x%p FXSystem=0x%p"),
-		Template != NULL ? *Template->GetName() : TEXT("NULL"), this, World->Scene, FXSystem);
+		TEXT("OnRegister %s Component=0x%p World=0x%p Scene=0x%p FXSystem=0x%p"),
+		Template != NULL ? *Template->GetName() : TEXT("NULL"), this, GetWorld(), World->Scene, FXSystem);
 
 	if (LODLevel == -1)
 	{
@@ -8552,6 +8552,15 @@ FPSCTickData& UParticleSystemComponent::GetManagerTickData()
 FParticleSystemWorldManager* UParticleSystemComponent::GetWorldManager()const
 {
 	return FParticleSystemWorldManager::Get(GetWorld());
+}
+
+void UParticleSystemComponent::SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule)
+{
+	AutoAttachParent = Parent;
+	AutoAttachSocketName = SocketName;
+	AutoAttachLocationRule = LocationRule;
+	AutoAttachRotationRule = RotationRule;
+	AutoAttachScaleRule = ScaleRule;
 }
 
 #undef LOCTEXT_NAMESPACE

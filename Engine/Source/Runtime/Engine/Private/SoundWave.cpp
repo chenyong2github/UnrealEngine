@@ -176,12 +176,13 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	RawPCMDataSize = 0;
 	SetPrecacheState(ESoundWavePrecacheState::NotStarted);
 
-#if WITH_EDITORONLY_DATA
-	FFTSize = ESoundWaveFFTSize::Medium_512;
 	FrequenciesToAnalyze.Add(100.0f);
 	FrequenciesToAnalyze.Add(500.0f);
 	FrequenciesToAnalyze.Add(1000.0f);
 	FrequenciesToAnalyze.Add(5000.0f);
+
+#if WITH_EDITORONLY_DATA
+	FFTSize = ESoundWaveFFTSize::Medium_512;
 	FFTAnalysisFrameSize = 1024;
 	FFTAnalysisAttackTime = 10;
 	FFTAnalysisReleaseTime = 3000;
@@ -308,8 +309,6 @@ void USoundWave::Serialize( FArchive& Ar )
 
 	bool bShouldStreamSound = false;
 
-	if (Ar.IsSaving() || Ar.IsCooking())
-	{
 #if WITH_EDITORONLY_DATA
 		if (bVirtualizeWhenSilent_DEPRECATED)
 		{
@@ -318,6 +317,8 @@ void USoundWave::Serialize( FArchive& Ar )
 		}
 #endif // WITH_EDITORONLY_DATA
 
+	if (Ar.IsSaving() || Ar.IsCooking())
+	{
 #if WITH_ENGINE
 		// If there is an AutoStreamingThreshold set for the platform we're cooking to,
 		// we use it to determine whether this USoundWave should be streaming:
@@ -798,7 +799,7 @@ void USoundWave::PostLoad()
 void USoundWave::EnsureZerothChunkIsLoaded()
 {
 	// If the zeroth chunk is already loaded, early exit.
-	if (ZerothChunkData.Num() > 0)
+	if (ZerothChunkData.Num() > 0 || !ShouldUseStreamCaching())
 	{
 		return;
 	}
@@ -852,12 +853,7 @@ uint32 USoundWave::GetSizeOfChunk(uint32 ChunkIndex)
 {
 	check(ChunkIndex < GetNumChunks());
 
-	if (ChunkIndex == 0)
-	{
-		EnsureZerothChunkIsLoaded();
-		return ZerothChunkData.Num();
-	}
-	else if(RunningPlatformData)
+	if(RunningPlatformData)
 	{
 		return RunningPlatformData->Chunks[ChunkIndex].AudioDataSize;
 	}
@@ -1442,6 +1438,7 @@ void USoundWave::FreeResources()
 	ResourceID = 0;
 	bDynamicResource = false;
 	DecompressionType = DTYPE_Setup;
+	SetPrecacheState(ESoundWavePrecacheState::NotStarted);
 	bDecompressedFromOgg = false;
 
 	if (ResourceState == ESoundWaveResourceState::Freeing)

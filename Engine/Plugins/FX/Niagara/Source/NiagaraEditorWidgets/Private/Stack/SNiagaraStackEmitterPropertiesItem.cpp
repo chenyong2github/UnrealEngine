@@ -4,7 +4,7 @@
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorStyle.h"
 #include "EditorStyleSet.h"
-#include "ViewModels/Stack/NiagaraStackEmitterSpawnScriptItemGroup.h"
+#include "ViewModels/Stack/NiagaraStackEmitterSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -25,12 +25,8 @@ void SNiagaraStackEmitterPropertiesItem::Construct(const FArguments& InArgs, UNi
 		+ SHorizontalBox::Slot()
 		.Padding(0)
 		[
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
-			.ToolTipText_UObject(EmitterPropertiesItem, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(EmitterPropertiesItem, &UNiagaraStackEntry::GetDisplayName)
-			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.ColorAndOpacity(this, &SNiagaraStackEmitterPropertiesItem::GetTextColorForSearch)
+			SNew(SNiagaraStackDisplayName, InEmitterPropertiesItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
+			.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch)
 		]
 		// Reset to base Button
 		+ SHorizontalBox::Slot()

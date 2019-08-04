@@ -130,13 +130,14 @@ UPlaneFalloff::NewEvaluationGraph(TArray<const UFieldNodeBase*>& Nodes) const
 }
 
 UPlaneFalloff* 
-UPlaneFalloff::SetPlaneFalloff(float InMagnitude, float InMinRange, float InMaxRange, float InDefault, FVector InPosition, FVector InNormal, EFieldFalloffType InFalloff)
+UPlaneFalloff::SetPlaneFalloff(float InMagnitude, float InMinRange, float InMaxRange, float InDefault, float InDistance, FVector InPosition, FVector InNormal, EFieldFalloffType InFalloff)
 {
 	this->Magnitude = InMagnitude;
 	this->MinRange = InMinRange;
 	this->MaxRange = InMaxRange;
 	this->Default = InDefault;
 	this->Position = InPosition;
+	this->Distance = InDistance;
 	this->Normal = InNormal;
 	this->Falloff = InFalloff;
 	return this;

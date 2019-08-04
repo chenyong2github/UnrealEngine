@@ -3,9 +3,11 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "PBDRigidsSolver.h"
+#include "Chaos/Declares.h"
 #include "Chaos/ChaosSolver.h"
 #include "Chaos/ChaosSolverActor.h"
+#include "EventManager.h"
+#include "EventsData.h"
 #include "HAL/ThreadSafeBool.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "ChaosCollisionEventFilter.h"
@@ -36,7 +38,7 @@ UCLASS(ClassGroup = (Chaos, Common), hidecategories = (Object, ActorComponent, P
 class GEOMETRYCOLLECTIONENGINE_API UChaosDestructionListener : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
-
+		
 public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
@@ -45,6 +47,8 @@ public:
 	//~ End UObject Interface
 	
 	//~ Begin UActorComponent interface
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	//~ End UActorComponent interface
 
@@ -149,18 +153,14 @@ public:
 	void SortTrailingEvents(UPARAM(ref) TArray<FChaosTrailingEventData>& TrailingEvents, EChaosTrailingSortMethod SortMethod);
 
 private:
-
 	// Updates the scene component transform settings
 	void UpdateTransformSettings();
 
 	// Retrieves data from solvers
 	void GetDataFromSolvers();
 
-	// Retrieve data from GeometryCollectionPhysicsObjects
-	void GetDataFromGeometryCollectionPhysicsObjects();
-
-	void UpdateSolvers();
-	void UpdateGeometryCollectionPhysicsObjects();
+	void ClearEvents();
+	void UpdateEvents();
 
 protected:
 
@@ -180,9 +180,9 @@ protected:
 
 #if INCLUDE_CHAOS
 	// The raw data arrays derived from the solvers
-	Chaos::FPBDRigidsSolver::FCollisionDataArray RawCollisionDataArray;
-	Chaos::FPBDRigidsSolver::FBreakingDataArray RawBreakingDataArray;
-	TArray<Chaos::TTrailingData<float, 3>> RawTrailingDataArray;
+	Chaos::FCollisionDataArray RawCollisionDataArray;
+	Chaos::FBreakingDataArray RawBreakingDataArray;
+	Chaos::FTrailingDataArray RawTrailingDataArray;
 #endif
 
 	FTransform ChaosComponentTransform;
@@ -195,10 +195,10 @@ protected:
 
 #if INCLUDE_CHAOS
 	// The list of rigid body solvers, used to retrieve destruction events
-	TSet<Chaos::FPBDRigidsSolver*> Solvers;
+	TSet<Chaos::FPhysicsSolver*> Solvers;
 
-	// The list of GeometryCollectionPhysicsObjects, used to retrieve destruction events
-	TArray<const FGeometryCollectionPhysicsObject*> GeometryCollectionPhysicsObjects;
+	// The list of GeometryCollectionPhysicsProxy, used to retrieve destruction events
+	TArray<const FGeometryCollectionPhysicsProxy*> GeometryCollectionPhysicsProxies;
 
 	TSharedPtr<FChaosCollisionEventFilter> ChaosCollisionFilter;
 	TSharedPtr<FChaosBreakingEventFilter> ChaosBreakingFilter;
@@ -210,14 +210,26 @@ public:
 		ChaosCollisionFilter = InCollisionFilter;
 	}
 
-	void SetBreakingFilter(TSharedPtr < FChaosBreakingEventFilter> InBreakingFilter)
+	void SetBreakingFilter(TSharedPtr<FChaosBreakingEventFilter> InBreakingFilter)
 	{
 		ChaosBreakingFilter = InBreakingFilter;
 	}
 
-	void SetTrailingFilter(TSharedPtr < FChaosTrailingEventFilter> InTrailingFilter)
+	void SetTrailingFilter(TSharedPtr<FChaosTrailingEventFilter> InTrailingFilter)
 	{
 		ChaosTrailingFilter = InTrailingFilter;
 	}
-#endif
+
+	void RegisterChaosEvents(FPhysScene* Scene);
+	void UnregisterChaosEvents(FPhysScene* Scene);
+
+	void RegisterChaosEvents(TSharedPtr<FPhysScene_Chaos> Scene);
+	void UnregisterChaosEvents(TSharedPtr<FPhysScene_Chaos> Scene);
+
+
+	// Chaos Event Handlers
+	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
+	void HandleBreakingEvents(const Chaos::FBreakingEventData& BreakingData);
+	void HandleTrailingEvents(const Chaos::FTrailingEventData& TrailingData);
+#endif // INCLUDE_CHAOS
 };

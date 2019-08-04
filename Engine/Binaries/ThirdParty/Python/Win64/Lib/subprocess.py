@@ -653,11 +653,11 @@ class Popen(object):
                 print('NICKNICK: subprocess.py START OF CIS BUGHUNT DUMP')
                 print(executable)
                 print(args)
-                pprint(vars(e)) # TEMP CIS BUGHUNT
                 print('NICKNICK: subprocess.py END OF CIS BUGHUNT DUMP')
                 if e.winerror != 5:
                     print('NICKNICK: subprocess.py e.winerror:', e.winerror)
                     raise WindowsError(*e.args)
+                hp = None
 # EPIC EDIT end -- nick.shin 2019-06-21 -- UE-76599
             finally:
                 # Child is launched. Close the parent's copy of those pipe
@@ -674,10 +674,15 @@ class Popen(object):
                     _close_in_parent(errwrite)
 
             # Retain the process handle, but close the thread handle
-            self._child_created = True
+# EPIC EDIT start -- nick.shin 2019-07-16 -- UE-76599
             self._handle = hp
-            self.pid = pid
-            ht.Close()
+            if hp is not None:
+                self._child_created = True
+                self.pid = pid
+                ht.Close()
+            else:
+                self.returncode = 0
+# EPIC EDIT end -- nick.shin 2019-07-16 -- UE-76599
 
         def _internal_poll(self, _deadstate=None,
                 _WaitForSingleObject=_subprocess.WaitForSingleObject,

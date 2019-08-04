@@ -77,6 +77,11 @@ namespace WindowsMixedReality
 			}
 		}
 
+		std::map<winrt::hstring, std::function<void()>> KeywordMap()
+		{
+			return keywordMap;
+		}
+
 	private:
 		winrt::Windows::Media::SpeechRecognition::SpeechRecognizer m_SpeechRecognizer;
 		winrt::event_token resultsGeneratedToken;

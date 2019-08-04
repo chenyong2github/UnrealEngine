@@ -154,6 +154,7 @@ bool FFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 			FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), GeometryCollectionProxy->Component);
 			FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionProxy->Component, BoneIndices, !Click.IsControlDown());
+			GeometryCollectionProxy->Component->Modify();
 
 			if (Toolkit.IsValid())
 			{
@@ -343,7 +344,7 @@ void FFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionCom
 {
 	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeometryComponents)
 	{
-		FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection();
+		FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
 		UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
 
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();

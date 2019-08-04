@@ -150,4 +150,7 @@ protected:
 
 	void UpdateMappingProxy(FDialogueContextMapping& ContextMapping);
 
+private:
+	void CopySoundBasePropertiesToProxy(const USoundBase* InSoundBase, USoundBase* Proxy);
+
 };

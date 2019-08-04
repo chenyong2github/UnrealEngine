@@ -5,7 +5,6 @@
 #include "GeometryCollection/GeometryCollectionParticlesData.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
-#include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 
 #include "DrawDebugHelpers.h"
 #include "Debug/DebugDrawService.h"
@@ -20,8 +19,8 @@
 #include "HAL/IConsoleManager.h"
 #if INCLUDE_CHAOS
 #include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"  // #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 #endif  // #if INCLUDE_CHAOS
-
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDrawActor, Log, All);
 
@@ -287,6 +286,7 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 	if (World && SelectedRigidBody.Id != INDEX_NONE && !SelectedRigidBody.GeometryCollection)
 	{
 #if INCLUDE_CHAOS
+#if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		// Check the id is within the selected solver range
 		const Chaos::FPBDRigidsSolver* const Solver = 
 			SelectedRigidBody.Solver ? SelectedRigidBody.Solver->GetSolver() :  // Selected solver
@@ -299,6 +299,7 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 			UE_LOG(LogGeometryCollectionDebugDrawActor, VeryVerbose, TEXT("The selection id is out of range."));
 		}
 		else  // Statement continues below...
+#endif  // #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 #endif  // #if INCLUDE_CHAOS
 		{
 			UE_LOG(LogGeometryCollectionDebugDrawActor, VeryVerbose, TEXT("The selection couldn't be found. The property update will run on all components still containing any invalid rigid body ids."));
@@ -2028,7 +2029,7 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyIdNoChecks(const UGeometryC
 	// Retrieve disabled state
 	const bool bIsDisabled = ParticlesData.IsDisabled(TransformIndex);
 	const TManagedArray<int32>& ParentArray = GeometryCollectionComponent->GetParentArray();
-	const FColor& DisabledColor = bIsDisabled ? FColor::Black: Color;
+	const FColor& DisabledColor = bIsDisabled ? FColor::Silver: Color;
 
 	// Draw rigid body id
 	const FString Text = FString::Printf(TEXT("%d"), RigidBodyId);

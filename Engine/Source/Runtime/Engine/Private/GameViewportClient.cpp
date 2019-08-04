@@ -1566,6 +1566,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	}
 
 	// Render the UI.
+	if (FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UIDrawingTime);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UI);
@@ -2474,22 +2475,22 @@ void UGameViewportClient::DrawTransition(UCanvas* Canvas)
 	{
 		switch (GetOuterUEngine()->TransitionType)
 		{
-		case TT_Loading:
+		case ETransitionType::Loading:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "LoadingMessage", "LOADING").ToString());
 			break;
-		case TT_Saving:
+		case ETransitionType::Saving:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "SavingMessage", "SAVING").ToString());
 			break;
-		case TT_Connecting:
+		case ETransitionType::Connecting:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "ConnectingMessage", "CONNECTING").ToString());
 			break;
-		case TT_Precaching:
+		case ETransitionType::Precaching:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "PrecachingMessage", "PRECACHING").ToString());
 			break;
-		case TT_Paused:
+		case ETransitionType::Paused:
 			DrawTransitionMessage(Canvas, NSLOCTEXT("GameViewportClient", "PausedMessage", "PAUSED").ToString());
 			break;
-		case TT_WaitingToConnect:
+		case ETransitionType::WaitingToConnect:
 			DrawTransitionMessage(Canvas, TEXT("Waiting to connect...")); // Temp - localization of the FString messages is broke atm. Loc this when its fixed.
 			break;
 		}
@@ -3431,7 +3432,7 @@ bool UGameViewportClient::HandleForceSkelLODCommand( const TCHAR* Cmd, FOutputDe
 		USkeletalMeshComponent* SkelComp = *It;
 		if( SkelComp->GetScene() == InWorld->Scene && !SkelComp->IsTemplate())
 		{
-			SkelComp->ForcedLodModel = ForceLod;
+			SkelComp->SetForcedLOD(ForceLod);
 		}
 	}
 	return true;

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Rendering/RenderingCommon.h"
+#include "RenderingThread.h"
 #include "Interfaces/ISlateRHIRendererModule.h"
 #include "SlateElementVertexBuffer.h"
 
@@ -27,6 +28,7 @@ private:
 	// END ISlateUpdatableInstanceBuffer
 
 	void UpdateRenderingData_RenderThread(FRHICommandListImmediate& RHICmdList, int32 BufferIndex);
+
 private:
 	TArray<FVector4> BufferData[SlateRHIConstants::NumBuffers];
 	TSlateElementVertexBuffer<FVector4> InstanceBufferResource;

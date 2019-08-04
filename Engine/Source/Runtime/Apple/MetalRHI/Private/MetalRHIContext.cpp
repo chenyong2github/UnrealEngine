@@ -126,7 +126,7 @@ void FMetalRHIComputeContext::RHISubmitCommandsHint()
 	{
 		Context->InitFrame(false, 0, 0);
 	}
-	Context->FinishFrame();
+	Context->FinishFrame(false);
 	
 #if ENABLE_METAL_GPUPROFILE
 	FMetalContext::MakeCurrent(&GetMetalDeviceContext());

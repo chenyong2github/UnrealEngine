@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/GCObject.h"
 
 class FSlateWindowElementList;
 class SWindow;
@@ -10,7 +11,7 @@ class SWindow;
 /**
  * Implements a draw buffer for Slate.
  */
-class SLATECORE_API FSlateDrawBuffer
+class SLATECORE_API FSlateDrawBuffer : public FGCObject
 {
 public:
 
@@ -61,6 +62,13 @@ public:
 	 * @see Lock
 	 */
 	void Unlock();
+
+	/** FGCObject Interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const
+	{
+		return TEXT("FSlateDrawBuffer for Uncached Elements");
+	}
 
 protected:
 	// List of window element lists.

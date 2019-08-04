@@ -1528,7 +1528,7 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 		if( CharacterOwner->RootMotionRepMoves.Num() > 0 )
 		{
 			// Move Actor back to position of that buffered move. (server replicated position).
-			const FSimulatedRootMotionReplicatedMove& RootMotionRepMove = CharacterOwner->RootMotionRepMoves.Last();
+			FSimulatedRootMotionReplicatedMove& RootMotionRepMove = CharacterOwner->RootMotionRepMoves.Last();
 			if( CharacterOwner->RestoreReplicatedMove(RootMotionRepMove) )
 			{
 				bCorrectedToServer = true;
@@ -1537,6 +1537,11 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 
 			CharacterOwner->PostNetReceiveVelocity(RootMotionRepMove.RootMotion.LinearVelocity);
 			LastUpdateVelocity = RootMotionRepMove.RootMotion.LinearVelocity;
+
+			// Convert RootMotionSource Server IDs -> Local IDs in AuthoritativeRootMotion and cull invalid
+			// so that when we use this root motion it has the correct IDs
+			ConvertRootMotionServerIDsToLocalIDs(CurrentRootMotion, RootMotionRepMove.RootMotion.AuthoritativeRootMotion, RootMotionRepMove.Time);
+			RootMotionRepMove.RootMotion.AuthoritativeRootMotion.CullInvalidSources();
 
 			// Set root motion states to that of repped in state
 			CurrentRootMotion.UpdateStateFrom(RootMotionRepMove.RootMotion.AuthoritativeRootMotion, true);
@@ -2148,12 +2153,18 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 	// no movement if we can't move, or if currently doing physical simulation on UpdatedComponent
 	if (MovementMode == MOVE_None || UpdatedComponent->Mobility != EComponentMobility::Movable || UpdatedComponent->IsSimulatingPhysics())
 	{
-		if (!CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion && CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh())
+		if (!CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion)
 		{
 			// Consume root motion
-			TickCharacterPose(DeltaSeconds);
-			RootMotionParams.Clear();
-			CurrentRootMotion.Clear();
+			if (CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh())
+			{
+				TickCharacterPose(DeltaSeconds);
+				RootMotionParams.Clear();
+			}
+			if (CurrentRootMotion.HasActiveRootMotionSources())
+			{
+				CurrentRootMotion.Clear();
+			}
 		}
 		// Clear pending physics forces
 		ClearAccumulatedForces();
@@ -3154,8 +3165,8 @@ bool UCharacterMovementComponent::IsCrouching() const
 
 void UCharacterMovementComponent::CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration)
 {
-	// Do not update velocity when using root motion or when SimulatedProxy - SimulatedProxy are repped their Velocity
-	if (!HasValidData() || HasAnimRootMotion() || DeltaTime < MIN_TICK_TIME || (CharacterOwner && CharacterOwner->Role == ROLE_SimulatedProxy))
+	// Do not update velocity when using root motion or when SimulatedProxy and not simulating root motion - SimulatedProxy are repped their Velocity
+	if (!HasValidData() || HasAnimRootMotion() || DeltaTime < MIN_TICK_TIME || (CharacterOwner && CharacterOwner->Role == ROLE_SimulatedProxy && !bWasSimulatingRootMotion))
 	{
 		return;
 	}
@@ -6885,9 +6896,17 @@ void UCharacterMovementComponent::VisualizeMovement() const
 	{
 		const FColor DebugColor = FColor::Blue;
 		HeightOffset += 20.f;
-		const FVector DebugLocation = TopOfCapsule + FVector(0.f,0.f,HeightOffset);
+		FVector DebugLocation = TopOfCapsule + FVector(0.f,0.f,HeightOffset);
 		FString DebugText = FString::Printf(TEXT("MovementMode: %s"), *GetMovementName());
 		DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, DebugColor, 0.f, true);
+
+		if (IsInWater())
+		{
+			HeightOffset += 15.f;
+			DebugLocation = TopOfCapsule + FVector(0.f, 0.f, HeightOffset);
+			DebugText = FString::Printf(TEXT("ImmersionDepth: %.2f"), ImmersionDepth());
+			DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, DebugColor, 0.f, true);
+		}
 	}
 
 	// Root motion (additive)
@@ -10044,7 +10063,11 @@ void UCharacterMovementComponent::ConvertRootMotionServerIDsToLocalIDs(const FRo
 
 			// If no mapping found, find match out of Local RootMotionSources that are not already mapped
 			bool bMatchFound = false;
-			for (const TSharedPtr<FRootMotionSource>& LocalRootMotionSource : LocalRootMotionToMatchWith.RootMotionSources)
+			TArray<TSharedPtr<FRootMotionSource>> LocalRootMotionSources;
+			LocalRootMotionSources.Reserve(LocalRootMotionToMatchWith.RootMotionSources.Num() + LocalRootMotionToMatchWith.PendingAddRootMotionSources.Num());
+			LocalRootMotionSources.Append(LocalRootMotionToMatchWith.RootMotionSources);
+			LocalRootMotionSources.Append(LocalRootMotionToMatchWith.PendingAddRootMotionSources);
+			for (const TSharedPtr<FRootMotionSource>& LocalRootMotionSource : LocalRootMotionSources)
 			{
 				if (LocalRootMotionSource.IsValid())
 				{

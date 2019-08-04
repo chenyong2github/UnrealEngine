@@ -447,6 +447,15 @@ namespace AutomationTool
 			/// Whether to clean this target. If not specified, the target will be cleaned if -Clean is on the command line.
 			/// </summary>
 			public bool? Clean;
+
+			/// <summary>
+			/// Format as string
+			/// </summary>
+			/// <returns></returns>
+			public override string ToString()
+			{
+				return string.Format("{0} {1} {2}", TargetName, Platform, Config);
+			}
 		}
 
 
@@ -833,6 +842,10 @@ namespace AutomationTool
 									ToolElement.SetAttribute("AutoReserveMemory", Element.Attributes["AutoReserveMemory"].Value);
 								}
 								ToolElement.SetAttribute("OutputFileMasks", Element.Attributes["OutputFileMasks"].Value);
+								if(Element.HasAttribute("AutoRecover"))
+								{
+									ToolElement.SetAttribute("AutoRecover", Element.Attributes["AutoRecover"].Value);
+								}
 								//ToolElement.SetAttribute("AllowRestartOnLocal", "false");  //vs2012 can't really restart, so we will go with this for now
 								if (Element.Attributes["OutputFileMasks"].Value == "PCLaunch.rc.res")
 								{

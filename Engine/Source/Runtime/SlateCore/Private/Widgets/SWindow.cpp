@@ -983,6 +983,9 @@ FSlateRect SWindow::GetFullScreenInfo() const
 void SWindow::SetCachedScreenPosition(FVector2D NewPosition)
 {
 	ScreenPosition = NewPosition;
+
+	InvalidateScreenPosition();
+
 	OnWindowMoved.ExecuteIfBound( SharedThis( this ) );
 }
 
@@ -2059,9 +2062,19 @@ int32 SWindow::PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowEle
 
 	OutDrawElements.EndDeferredGroup();
 
+	if (Context.bAllowFastPathUpdate)
+	{
+		OutDrawElements.PushCachedElementData(GetCachedElements());
+	}
+
 	if (OutDrawElements.ShouldResolveDeferred())
 	{
 		Result.MaxLayerIdPainted = OutDrawElements.PaintDeferred(Result.MaxLayerIdPainted, Context.CullingRect);
+	}
+
+	if (Context.bAllowFastPathUpdate)
+	{
+		OutDrawElements.PopCachedElementData();
 	}
 
 	return Result.MaxLayerIdPainted;

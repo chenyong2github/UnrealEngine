@@ -1,4 +1,4 @@
-/* Header file automatically generated from HolographicAppRemoting.idl */
+/* Header file automatically generated from Microsoft.Holographic.AppRemoting.idl */
 /*
  * File built with Microsoft(R) MIDLRT Compiler Engine Version 10.00.0226 
  */
@@ -321,6 +321,20 @@ namespace Microsoft {
 
 #endif // ____x_Microsoft_CHolographic_CAppRemoting_CIOnDataChannelCreatedHandler_FWD_DEFINED__
 
+#ifndef ____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_FWD_DEFINED__
+#define ____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_FWD_DEFINED__
+
+namespace Microsoft {
+    namespace Holographic {
+        namespace AppRemoting {
+            interface IOnListeningHandler;
+        } /* AppRemoting */
+    } /* Holographic */
+} /* Microsoft */
+#define __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler Microsoft::Holographic::AppRemoting::IOnListeningHandler
+
+#endif // ____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_FWD_DEFINED__
+
 #ifndef ____x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext_FWD_DEFINED__
 #define ____x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext_FWD_DEFINED__
 
@@ -489,11 +503,24 @@ namespace Microsoft {
             {
                 ConnectionFailureReason_None,
                 ConnectionFailureReason_Unknown,
-                ConnectionFailureReason_Unreachable,
+                ConnectionFailureReason_NoServerCertificate,
+                ConnectionFailureReason_HandshakePortBusy,
+                ConnectionFailureReason_HandshakeUnreachable,
+                ConnectionFailureReason_HandshakeConnectionFailed,
                 ConnectionFailureReason_AuthenticationFailed,
+                ConnectionFailureReason_RemotingVersionMismatch,
+                ConnectionFailureReason_IncompatibleTransportProtocols,
                 ConnectionFailureReason_HandshakeFailed,
+                ConnectionFailureReason_TransportPortBusy,
+                ConnectionFailureReason_TransportUnreachable,
+                ConnectionFailureReason_TransportConnectionFailed,
                 ConnectionFailureReason_ProtocolVersionMismatch,
+                ConnectionFailureReason_ProtocolError,
+                ConnectionFailureReason_VideoCodecNotAvailable,
+                ConnectionFailureReason_Canceled,
                 ConnectionFailureReason_ConnectionLost,
+                ConnectionFailureReason_DeviceLost,
+                ConnectionFailureReason_DisconnectRequest,
             };
             
         } /* AppRemoting */
@@ -1270,6 +1297,38 @@ EXTERN_C const IID IID___x_Microsoft_CHolographic_CAppRemoting_CIOnDataChannelCr
 #endif /* !defined(____x_Microsoft_CHolographic_CAppRemoting_CIOnDataChannelCreatedHandler_INTERFACE_DEFINED__) */
 
 
+/*
+ *
+ * Delegate Microsoft.Holographic.AppRemoting.OnListeningHandler
+ *
+ */
+#if !defined(____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_INTERFACE_DEFINED__)
+#define ____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_INTERFACE_DEFINED__
+
+namespace Microsoft {
+    namespace Holographic {
+        namespace AppRemoting {
+            /* [object, version, uuid("2ffb25e4-bf1c-403c-b2f8-69534c7ff11b")] */
+            MIDL_INTERFACE("2ffb25e4-bf1c-403c-b2f8-69534c7ff11b")
+            IOnListeningHandler : public IUnknown
+            {
+            public:
+                virtual HRESULT STDMETHODCALLTYPE Invoke(
+                    /* [in] */unsigned short port
+                    ) = 0;
+                
+            };
+
+            extern MIDL_CONST_ID IID & IID_IOnListeningHandler=_uuidof(IOnListeningHandler);
+            
+        } /* AppRemoting */
+    } /* Holographic */
+} /* Microsoft */
+
+EXTERN_C const IID IID___x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler;
+#endif /* !defined(____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_INTERFACE_DEFINED__) */
+
+
 namespace Microsoft {
     namespace Holographic {
         namespace AppRemoting {
@@ -1338,6 +1397,13 @@ namespace Microsoft {
                     /* [retval, out] */EventRegistrationToken * token
                     ) = 0;
                 /* [eventremove] */virtual HRESULT STDMETHODCALLTYPE remove_OnDisconnected(
+                    /* [in] */EventRegistrationToken token
+                    ) = 0;
+                /* [eventadd] */virtual HRESULT STDMETHODCALLTYPE add_OnListening(
+                    /* [in] */Microsoft::Holographic::AppRemoting::IOnListeningHandler  * handler,
+                    /* [retval, out] */EventRegistrationToken * token
+                    ) = 0;
+                /* [eventremove] */virtual HRESULT STDMETHODCALLTYPE remove_OnListening(
                     /* [in] */EventRegistrationToken token
                     ) = 0;
                 /* [eventadd] */virtual HRESULT STDMETHODCALLTYPE add_OnSendFrame(
@@ -1449,28 +1515,6 @@ extern const __declspec(selectany) _Null_terminated_ WCHAR RuntimeClass_Microsof
 
 /*
  *
- * Struct Microsoft.Holographic.AppRemoting.CameraPoseMode
- *
- */
-
-
-namespace Microsoft {
-    namespace Holographic {
-        namespace AppRemoting {
-            /* [version, v1_enum] */
-            enum CameraPoseMode : int
-            {
-                CameraPoseMode_UseRemoteCameraPose,
-                CameraPoseMode_UsePlayerCameraPose,
-            };
-            
-        } /* AppRemoting */
-    } /* Holographic */
-} /* Microsoft */
-
-
-/*
- *
  * Struct Microsoft.Holographic.AppRemoting.BlitResult
  *
  */
@@ -1482,7 +1526,7 @@ namespace Microsoft {
             /* [version, v1_enum] */
             enum BlitResult : int
             {
-                BlitResult_Success,
+                BlitResult_Success_Color,
                 BlitResult_Failed_NoRemoteFrameAvailable,
                 BlitResult_Failed_NoCamera,
             };
@@ -1590,11 +1634,12 @@ namespace Microsoft {
                 /* [eventremove] */virtual HRESULT STDMETHODCALLTYPE remove_OnDisconnected(
                     /* [in] */EventRegistrationToken token
                     ) = 0;
-                /* [propget] */virtual HRESULT STDMETHODCALLTYPE get_PoseMode(
-                    /* [out, retval] */Microsoft::Holographic::AppRemoting::CameraPoseMode * value
+                /* [eventadd] */virtual HRESULT STDMETHODCALLTYPE add_OnListening(
+                    /* [in] */Microsoft::Holographic::AppRemoting::IOnListeningHandler  * handler,
+                    /* [retval, out] */EventRegistrationToken * token
                     ) = 0;
-                /* [propput] */virtual HRESULT STDMETHODCALLTYPE put_PoseMode(
-                    /* [in] */Microsoft::Holographic::AppRemoting::CameraPoseMode value
+                /* [eventremove] */virtual HRESULT STDMETHODCALLTYPE remove_OnListening(
+                    /* [in] */EventRegistrationToken token
                     ) = 0;
                 virtual HRESULT STDMETHODCALLTYPE BlitRemoteFrame(
                     /* [out, retval] */Microsoft::Holographic::AppRemoting::BlitResult * result
@@ -1802,6 +1847,12 @@ typedef interface __x_Microsoft_CHolographic_CAppRemoting_CIOnDataChannelCreated
 
 #endif // ____x_Microsoft_CHolographic_CAppRemoting_CIOnDataChannelCreatedHandler_FWD_DEFINED__
 
+#ifndef ____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_FWD_DEFINED__
+#define ____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_FWD_DEFINED__
+typedef interface __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler;
+
+#endif // ____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_FWD_DEFINED__
+
 #ifndef ____x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext_FWD_DEFINED__
 #define ____x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext_FWD_DEFINED__
 typedef interface __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext;
@@ -1971,11 +2022,24 @@ enum __x_Microsoft_CHolographic_CAppRemoting_CConnectionFailureReason
 {
     ConnectionFailureReason_None,
     ConnectionFailureReason_Unknown,
-    ConnectionFailureReason_Unreachable,
+    ConnectionFailureReason_NoServerCertificate,
+    ConnectionFailureReason_HandshakePortBusy,
+    ConnectionFailureReason_HandshakeUnreachable,
+    ConnectionFailureReason_HandshakeConnectionFailed,
     ConnectionFailureReason_AuthenticationFailed,
+    ConnectionFailureReason_RemotingVersionMismatch,
+    ConnectionFailureReason_IncompatibleTransportProtocols,
     ConnectionFailureReason_HandshakeFailed,
+    ConnectionFailureReason_TransportPortBusy,
+    ConnectionFailureReason_TransportUnreachable,
+    ConnectionFailureReason_TransportConnectionFailed,
     ConnectionFailureReason_ProtocolVersionMismatch,
+    ConnectionFailureReason_ProtocolError,
+    ConnectionFailureReason_VideoCodecNotAvailable,
+    ConnectionFailureReason_Canceled,
     ConnectionFailureReason_ConnectionLost,
+    ConnectionFailureReason_DeviceLost,
+    ConnectionFailureReason_DisconnectRequest,
 };
 
 
@@ -3579,6 +3643,62 @@ EXTERN_C const IID IID___x_Microsoft_CHolographic_CAppRemoting_CIOnDataChannelCr
 #endif /* !defined(____x_Microsoft_CHolographic_CAppRemoting_CIOnDataChannelCreatedHandler_INTERFACE_DEFINED__) */
 
 
+/*
+ *
+ * Delegate Microsoft.Holographic.AppRemoting.OnListeningHandler
+ *
+ */
+#if !defined(____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_INTERFACE_DEFINED__)
+#define ____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_INTERFACE_DEFINED__
+/* [object, version, uuid("2ffb25e4-bf1c-403c-b2f8-69534c7ff11b")] */
+typedef struct __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandlerVtbl
+{
+    BEGIN_INTERFACE
+    HRESULT ( STDMETHODCALLTYPE *QueryInterface )(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler * This,
+    /* [in] */ __RPC__in REFIID riid,
+    /* [annotation][iid_is][out] */
+    _COM_Outptr_  void **ppvObject);
+
+ULONG ( STDMETHODCALLTYPE *AddRef )(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler * This);
+
+ULONG ( STDMETHODCALLTYPE *Release )(
+    __RPC__in __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler * This);
+HRESULT ( STDMETHODCALLTYPE *Invoke )(
+        __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler * This,
+        /* [in] */unsigned short port
+        );
+    END_INTERFACE
+    
+} __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandlerVtbl;
+
+interface __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler
+{
+    CONST_VTBL struct __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandlerVtbl *lpVtbl;
+};
+
+#ifdef COBJMACROS
+#define __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_QueryInterface(This,riid,ppvObject) \
+( (This)->lpVtbl->QueryInterface(This,riid,ppvObject) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_AddRef(This) \
+        ( (This)->lpVtbl->AddRef(This) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_Release(This) \
+        ( (This)->lpVtbl->Release(This) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_Invoke(This,port) \
+    ( (This)->lpVtbl->Invoke(This,port) )
+
+
+#endif /* COBJMACROS */
+
+
+EXTERN_C const IID IID___x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler;
+#endif /* !defined(____x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler_INTERFACE_DEFINED__) */
+
+
 
 /*
  *
@@ -3676,6 +3796,15 @@ HRESULT ( STDMETHODCALLTYPE *Connect )(
         __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext * This,
         /* [in] */EventRegistrationToken token
         );
+    /* [eventadd] */HRESULT ( STDMETHODCALLTYPE *add_OnListening )(
+        __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext * This,
+        /* [in] */__x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler  * handler,
+        /* [retval, out] */EventRegistrationToken * token
+        );
+    /* [eventremove] */HRESULT ( STDMETHODCALLTYPE *remove_OnListening )(
+        __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext * This,
+        /* [in] */EventRegistrationToken token
+        );
     /* [eventadd] */HRESULT ( STDMETHODCALLTYPE *add_OnSendFrame )(
         __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext * This,
         /* [in] */__x_Microsoft_CHolographic_CAppRemoting_CIOnSendFrameHandler  * handler,
@@ -3760,6 +3889,12 @@ interface __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext
 
 #define __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext_remove_OnDisconnected(This,token) \
     ( (This)->lpVtbl->remove_OnDisconnected(This,token) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext_add_OnListening(This,handler,token) \
+    ( (This)->lpVtbl->add_OnListening(This,handler,token) )
+
+#define __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext_remove_OnListening(This,token) \
+    ( (This)->lpVtbl->remove_OnListening(This,token) )
 
 #define __x_Microsoft_CHolographic_CAppRemoting_CIRemoteContext_add_OnSendFrame(This,handler,token) \
     ( (This)->lpVtbl->add_OnSendFrame(This,handler,token) )
@@ -3926,20 +4061,6 @@ extern const __declspec(selectany) _Null_terminated_ WCHAR RuntimeClass_Microsof
 
 /*
  *
- * Struct Microsoft.Holographic.AppRemoting.CameraPoseMode
- *
- */
-
-/* [version, v1_enum] */
-enum __x_Microsoft_CHolographic_CAppRemoting_CCameraPoseMode
-{
-    CameraPoseMode_UseRemoteCameraPose,
-    CameraPoseMode_UsePlayerCameraPose,
-};
-
-
-/*
- *
  * Struct Microsoft.Holographic.AppRemoting.BlitResult
  *
  */
@@ -3947,7 +4068,7 @@ enum __x_Microsoft_CHolographic_CAppRemoting_CCameraPoseMode
 /* [version, v1_enum] */
 enum __x_Microsoft_CHolographic_CAppRemoting_CBlitResult
 {
-    BlitResult_Success,
+    BlitResult_Success_Color,
     BlitResult_Failed_NoRemoteFrameAvailable,
     BlitResult_Failed_NoCamera,
 };
@@ -4070,13 +4191,14 @@ HRESULT ( STDMETHODCALLTYPE *Connect )(
         __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext * This,
         /* [in] */EventRegistrationToken token
         );
-    /* [propget] */HRESULT ( STDMETHODCALLTYPE *get_PoseMode )(
+    /* [eventadd] */HRESULT ( STDMETHODCALLTYPE *add_OnListening )(
         __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext * This,
-        /* [out, retval] */enum __x_Microsoft_CHolographic_CAppRemoting_CCameraPoseMode * value
+        /* [in] */__x_Microsoft_CHolographic_CAppRemoting_CIOnListeningHandler  * handler,
+        /* [retval, out] */EventRegistrationToken * token
         );
-    /* [propput] */HRESULT ( STDMETHODCALLTYPE *put_PoseMode )(
+    /* [eventremove] */HRESULT ( STDMETHODCALLTYPE *remove_OnListening )(
         __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext * This,
-        /* [in] */enum __x_Microsoft_CHolographic_CAppRemoting_CCameraPoseMode value
+        /* [in] */EventRegistrationToken token
         );
     HRESULT ( STDMETHODCALLTYPE *BlitRemoteFrame )(
         __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext * This,
@@ -4158,11 +4280,11 @@ interface __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext
 #define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_remove_OnDisconnected(This,token) \
     ( (This)->lpVtbl->remove_OnDisconnected(This,token) )
 
-#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_get_PoseMode(This,value) \
-    ( (This)->lpVtbl->get_PoseMode(This,value) )
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_add_OnListening(This,handler,token) \
+    ( (This)->lpVtbl->add_OnListening(This,handler,token) )
 
-#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_put_PoseMode(This,value) \
-    ( (This)->lpVtbl->put_PoseMode(This,value) )
+#define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_remove_OnListening(This,token) \
+    ( (This)->lpVtbl->remove_OnListening(This,token) )
 
 #define __x_Microsoft_CHolographic_CAppRemoting_CIPlayerContext_BlitRemoteFrame(This,result) \
     ( (This)->lpVtbl->BlitRemoteFrame(This,result) )

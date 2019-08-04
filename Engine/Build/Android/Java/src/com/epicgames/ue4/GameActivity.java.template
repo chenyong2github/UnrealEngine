@@ -141,6 +141,7 @@ import android.view.WindowManager;
 import android.view.Window;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.text.TextUtils;
 
 import android.media.AudioManager;
 
@@ -633,6 +634,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
         return packages.contains(packagename);
     }
 
+	public String AndroidThunkJava_GetCommandLine()
+	{
+		String commandLine = "";
+		//$${gameActivityGetCommandLineAdditions}$$
+		return commandLine;
+	}
+
 	public void ParseCommandline(String ProjectName)
 	{
 		if (bHaveParsedCommandline)
@@ -640,6 +648,14 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			return;
 		}
 		bHaveParsedCommandline = true;
+		
+		String tempCommandLine = AndroidThunkJava_GetCommandLine();
+		if(!TextUtils.isEmpty(tempCommandLine)) {
+			// remember full commandline for regex checks by configrules
+			CommandLineFull = tempCommandLine;
+			parseCommandLineParams(tempCommandLine);
+			return;
+		}
 
 		File file;
 		InputStream stream = null;
@@ -688,31 +704,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 					{
 						// remember full commandline for regex checks by configrules
 						CommandLineFull = line;
-
-						// parse the line
-						ArrayList<String> sets = ParseSegments(line, " ", "\"", "\"");
-						for (String set : sets)
-						{
-							String argument = set.trim();
-
-							if (argument.startsWith("-"))
-							{
-								argument = argument.substring(1);
-								ArrayList<String> keyvalues = ParseSegments(argument, "=", "\"", "\"");
-								if (keyvalues.size() == 2)
-								{
-									CommandLineFlags.put(keyvalues.get(0).toLowerCase(), RemoveSurrounds(keyvalues.get(1), "\"", "\""));
-								}
-								else
-								{
-									CommandLineFlags.put(argument.toLowerCase(), "");
-								}
-							}
-							else
-							{
-								CommandLineArguments.add(RemoveSurrounds(argument, "\"", "\""));
-							}
-						}
+						parseCommandLineParams(line);
 					}
 				}
 			}
@@ -729,6 +721,33 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				catch (IOException ie)
 				{
 				}
+			}
+		}
+	}
+
+	private void parseCommandLineParams(String line) {
+		// parse the line
+		ArrayList<String> sets = ParseSegments(line, " ", "\"", "\"");
+		for (String set : sets)
+		{
+			String argument = set.trim();
+
+			if (argument.startsWith("-"))
+			{
+				argument = argument.substring(1);
+				ArrayList<String> keyvalues = ParseSegments(argument, "=", "\"", "\"");
+				if (keyvalues.size() == 2)
+				{
+					CommandLineFlags.put(keyvalues.get(0).toLowerCase(), RemoveSurrounds(keyvalues.get(1), "\"", "\""));
+				}
+				else
+				{
+					CommandLineFlags.put(argument.toLowerCase(), "");
+				}
+			}
+			else
+			{
+				CommandLineArguments.add(RemoveSurrounds(argument, "\"", "\""));
 			}
 		}
 	}
@@ -2843,46 +2862,49 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		
 		// check for display cutouts to set safe zone
 		View mainRootView = mainDecorView.findViewById(android.R.id.content).getRootView();
-		mainRootView.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
-            @Override
-       	    public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
-				if (Build.VERSION.SDK_INT >= 28)
-				{
-					DisplayCutout cutout = insets.getDisplayCutout();
-					if (cutout != null)
+		if (Build.VERSION.SDK_INT > 19)
+		{
+			mainRootView.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+				@Override
+       			public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+					if (Build.VERSION.SDK_INT >= 28)
 					{
-						Rect fullViewRect = new Rect();
-						mainDecorView.getDrawingRect( mainDecorViewRect );
+						DisplayCutout cutout = insets.getDisplayCutout();
+						if (cutout != null)
+						{
+							Rect fullViewRect = new Rect();
+							mainDecorView.getDrawingRect( mainDecorViewRect );
 
-						android.view.Display display = getWindowManager().getDefaultDisplay();
-						android.graphics.Point displaySize = new android.graphics.Point();
-						display.getRealSize(displaySize);
+							android.view.Display display = getWindowManager().getDefaultDisplay();
+							android.graphics.Point displaySize = new android.graphics.Point();
+							display.getRealSize(displaySize);
 
-						// store safezone independent of resolution
-						float invX = 1.0f / (displaySize.x != 0.0f ? displaySize.x : 1.0f);
-						float invY = 1.0f / (displaySize.y != 0.0f ? displaySize.y : 1.0f);
-						safezoneF.left = (safezone.left = cutout.getSafeInsetLeft()) * invX;
-						safezoneF.top = (safezone.top = cutout.getSafeInsetTop()) * invY;
-						safezoneF.right = (safezone.right = cutout.getSafeInsetRight()) * invX;
-						safezoneF.bottom = (safezone.bottom = cutout.getSafeInsetBottom()) *invY;
-						nativeSetSafezoneInfo(displaySize.y > displaySize.x, safezoneF.left, safezoneF.top, safezoneF.right, safezoneF.bottom);
+							// store safezone independent of resolution
+							float invX = 1.0f / (displaySize.x != 0.0f ? displaySize.x : 1.0f);
+							float invY = 1.0f / (displaySize.y != 0.0f ? displaySize.y : 1.0f);
+							safezoneF.left = (safezone.left = cutout.getSafeInsetLeft()) * invX;
+							safezoneF.top = (safezone.top = cutout.getSafeInsetTop()) * invY;
+							safezoneF.right = (safezone.right = cutout.getSafeInsetRight()) * invX;
+							safezoneF.bottom = (safezone.bottom = cutout.getSafeInsetBottom()) *invY;
+							nativeSetSafezoneInfo(displaySize.y > displaySize.x, safezoneF.left, safezoneF.top, safezoneF.right, safezoneF.bottom);
 
-						//Log.debug("FullViewRect: " + fullViewRect.toString());	
-						//Log.debug("DisplayCutout: " + cutout.toString());
-						//Log.debug("SafeTop: " + cutout.getSafeInsetTop());
-						//Log.debug("SafeBottom: " + cutout.getSafeInsetBottom());
-						//Log.debug("SafeLeft: " + cutout.getSafeInsetLeft());
-						//Log.debug("SafeRight: " + cutout.getSafeInsetRight());
-						//List<Rect>bounds = cutout.getBoundingRects();
-						//for (Rect r : bounds)
-						//{
-						//	Log.debug("Rect: " + r.toString());
-						//}
+							//Log.debug("FullViewRect: " + fullViewRect.toString());	
+							//Log.debug("DisplayCutout: " + cutout.toString());
+							//Log.debug("SafeTop: " + cutout.getSafeInsetTop());
+							//Log.debug("SafeBottom: " + cutout.getSafeInsetBottom());
+							//Log.debug("SafeLeft: " + cutout.getSafeInsetLeft());
+							//Log.debug("SafeRight: " + cutout.getSafeInsetRight());
+							//List<Rect>bounds = cutout.getBoundingRects();
+							//for (Rect r : bounds)
+							//{
+							//	Log.debug("Rect: " + r.toString());
+							//}
+						}
 					}
+					return insets;
 				}
-				return insets;
-			}
-        });
+			});
+		}
 
 		createVirtualKeyboardInput();
 		
@@ -3875,7 +3897,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				break;
 				case VK_CMD_HIDE:
 				{
-						if(bKeyboardShowing)
+						if (bKeyboardShowing || newVirtualKeyboardInput.getVisibility() != View.GONE)
 						{
 							//Log.debug("VK: Hide newVirtualKeyboardInput");
 
@@ -4022,7 +4044,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return loginId;
 	}
 
-	public boolean writeFile(String filename, String contents)
+	public static boolean writeFile(String filename, String contents)
 	{
 		File file = new File(filename);
 

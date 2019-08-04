@@ -328,6 +328,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	bool IsPaused()const;
 
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	UNiagaraDataInterface * GetDataInterface(const FString &Name);
+
 	//~ Begin UObject Interface.
 	virtual void PostLoad();
 #if WITH_EDITOR
@@ -418,8 +421,7 @@ public:
 	 * @param  ScaleRule		Option for how we handle our scale when we attach to Parent.
 	 * @see bAutoManageAttachment, AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule
 	 */
-	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule);
+	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) override;
 
 	UPROPERTY(EditAnywhere, Category = Preview, Transient, meta=(EditCondition=bEnablePreviewDetailLevel))
 	int32 PreviewDetailLevel;

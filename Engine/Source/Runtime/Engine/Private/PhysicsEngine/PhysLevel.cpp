@@ -266,7 +266,7 @@ void PostEngineInitialize()
 		// If the solver module is available, pass along our settings provider
 		// #BG - Collect all chaos modules settings into one provider?
 		ChaosModule->SetSettingsProvider(&GEngineChaosSettingsProvider);
-		ChaosModule->Initialize();
+		ChaosModule->OnSettingsChanged();
 	}
 #endif
 }

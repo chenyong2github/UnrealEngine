@@ -120,8 +120,6 @@ public:
 	/** Default constructor that initializes good defaults for UEditableStaticMeshAdapter */
 	UEditableStaticMeshAdapter();
 
-	virtual void BeginDestroy() override;
-
 	virtual void Serialize( FArchive& Ar ) override;
 
 	/** Creates a editable static mesh from the specified component and sub-mesh address */
@@ -168,6 +166,8 @@ public:
 	virtual void GeometryHitTest(const FHitParamsIn& InParams, FHitParamsOut& OutParams) override;
 #endif // WITH_EDITOR
 
+	void SetRecreateSimpleCollision(bool bInRecreateSimplifiedCollision) { bRecreateSimplifiedCollision = bInRecreateSimplifiedCollision; }
+	bool GetRecreateSimpleCollision() const { return bRecreateSimplifiedCollision;  }
 
 private:
 
@@ -225,4 +225,7 @@ private:
 
 	/** Flag to indicate if a modification requires regenerating collision */
 	bool bUpdateCollisionNeeded;
+
+	/** Flag to indicate if the simple collision has to be regenerated */
+	bool bRecreateSimplifiedCollision;
 };

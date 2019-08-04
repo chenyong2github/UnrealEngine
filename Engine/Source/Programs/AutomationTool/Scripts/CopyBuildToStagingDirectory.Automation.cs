@@ -1368,6 +1368,8 @@ public partial class Project : CommandUtils
 			return null;
 		}
 
+		bool bChunkedBuild = SC.PlatformUsesChunkManifests && DoesChunkPakManifestExist(Params, SC);
+
 		ConfigHierarchy PakRulesConfig = new ConfigHierarchy(ConfigFiles);
 
 		List<PakFileRules> RulesList = new List<PakFileRules>();
@@ -1375,8 +1377,29 @@ public partial class Project : CommandUtils
 		{
 			//LogInformation("Building PakFileRules for Section {0}", SectionName);
 
-			string PlatformString, TargetString, PakString;
+			bool bOnlyChunkedBuilds = false;
+			if (!PakRulesConfig.TryGetValue(SectionName, "bOnlyChunkedBuilds", out bOnlyChunkedBuilds))
+			{
+				bOnlyChunkedBuilds = false;
+			}
 
+			bool bOnlyNonChunkedBuilds = false;
+			if (!PakRulesConfig.TryGetValue(SectionName, "bOnlyNonChunkedBuilds", out bOnlyNonChunkedBuilds))
+			{
+				bOnlyNonChunkedBuilds = false;
+			}
+
+			if (bChunkedBuild && bOnlyNonChunkedBuilds)
+			{
+				continue;
+			}
+
+			if(!bChunkedBuild && bOnlyChunkedBuilds)
+			{
+				continue;
+			}
+
+			string PlatformString;
 			if (PakRulesConfig.TryGetValue(SectionName, "Platforms", out PlatformString))
 			{
 				string[] PlatformStrings = PlatformString.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -1404,6 +1427,7 @@ public partial class Project : CommandUtils
 				}
 			}
 
+			string TargetString;
 			if (PakRulesConfig.TryGetValue(SectionName, "Targets", out TargetString))
 			{
 				string[] TargetStrings = TargetString.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -1437,6 +1461,7 @@ public partial class Project : CommandUtils
 			PakRules.Name = SectionName;
 			PakRulesConfig.TryGetValue(SectionName, "bExcludeFromPaks", out PakRules.bExcludeFromPaks);
 			PakRulesConfig.TryGetValue(SectionName, "bOverrideChunkManifest", out PakRules.bOverrideChunkManifest);
+			string PakString;
 			PakRulesConfig.TryGetValue(SectionName, "OverridePaks", out PakString);
 
 			if (PakString != null && PakString.Length > 0)
@@ -1503,6 +1528,7 @@ public partial class Project : CommandUtils
 					{
 						return;
 					}
+
 					if (PakRules.OverridePaks != null)
 					{
 						LogInformation("Overridding chunk assignment {0} to {1}, this can cause broken references", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
@@ -1511,7 +1537,6 @@ public partial class Project : CommandUtils
 					{
 						LogInformation("Removing {0} from pak despite chunk assignment, this can cause broken references", StagingFile.Key);
 					}
-
 				}
 
 				bExcludeFromPaks = PakRules.bExcludeFromPaks;
@@ -1525,6 +1550,7 @@ public partial class Project : CommandUtils
 				{
 					//LogInformation("Excluding {0} from pak file", StagingFile.Key);
 				}
+
 				return;
 			}
 		}
@@ -1540,18 +1566,19 @@ public partial class Project : CommandUtils
 	{
 		LogInformation("Creating pak using staging manifest.");
 
-		DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "")));
+		DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "") + "_" + SC.CookPlatform));
 
 		var UnrealPakResponseFile = CreatePakResponseFileFromStagingManifest(SC, SC.FilesToStage.UFSFiles);
 
 		List<PakFileRules> PakRulesList = GetPakFileRules(Params, SC);
 
-		List<string> PakList = new List<string>();
 		List<string> FilesToRemove = new List<string>();
 
 		// Apply the pak file rules, this can remove things but will not override the pak file name
 		foreach (var StagingFile in UnrealPakResponseFile)
 		{
+			List<string> PakList = new List<string>();
+
 			bool bExcludeFromPaks = false;
 			ApplyPakFileRules(PakRulesList, StagingFile, PakList, out bExcludeFromPaks);
 
@@ -2332,7 +2359,7 @@ public partial class Project : CommandUtils
 	private static void CreatePaksUsingChunkManifests(ProjectParams Params, DeploymentContext SC)
 	{
 		LogInformation("Creating pak using streaming install manifests.");
-		DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "")));
+		DumpManifest(SC, CombinePaths(CmdEnv.LogFolder, "PrePak" + (SC.DedicatedServer ? "_Server" : "") + "_" + SC.CookPlatform));
 
 		ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType);
 
@@ -2421,9 +2448,9 @@ public partial class Project : CommandUtils
 					ChunkDefinition Chunk = ChunkDefinitions[ChunkIndex];
 
 					if (Chunk.Manifest.Contains(OriginalFilename) ||
-							Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
-							Chunk.Manifest.Contains(NoExtension) ||
-							Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
+						Chunk.Manifest.Contains(OriginalReplaceSlashes) ||
+						Chunk.Manifest.Contains(NoExtension) ||
+						Chunk.Manifest.Contains(NoExtensionReplaceSlashes))
 					{
 						PakList.Add(Chunk.ChunkName);
 					}

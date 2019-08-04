@@ -20,8 +20,8 @@
 #include "Modules/ModuleManager.h"
 #include "ChaosSolversModule.h"
 #include "ChaosStats.h"
-#include "SolverObjects/GeometryCollectionPhysicsObject.h"
-#include "PBDRigidsSolver.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
+#include "PhysicsSolver.h"
 
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
@@ -48,6 +48,7 @@ FGeometryCollectionSQAccelerator GlobalGeomCollectionAccelerator;	//todo(ocohen)
 
 void HackRegisterGeomAccelerator(UGeometryCollectionComponent& Component)
 {
+#if TODO_REIMPLEMENT_SCENEQUERY_CROSSENGINE
 	if (UWorld* World = Component.GetWorld())
 	{
 		if (FPhysScene* PhysScene = World->GetPhysicsScene())
@@ -58,6 +59,7 @@ void HackRegisterGeomAccelerator(UGeometryCollectionComponent& Component)
 			}
 		}
 	}
+#endif
 }
 #endif
 
@@ -113,7 +115,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, NavmeshInvalidationTimeSliceIndex(0)
 	, IsObjectDynamic(false)
 	, IsObjectLoading(true)
-	, PhysicsObject(nullptr)
+	, PhysicsProxy(nullptr)
 #if WITH_EDITOR && WITH_EDITORONLY_DATA
 	, EditorActor(nullptr)
 #endif
@@ -146,7 +148,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 
 
 #if INCLUDE_CHAOS
-Chaos::FPBDRigidsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
+Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
 {
 	return	GeometryCollectionComponent.ChaosSolverActor != nullptr ? GeometryCollectionComponent.ChaosSolverActor->GetSolver() : GeometryCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver();
 }
@@ -206,16 +208,16 @@ void UGeometryCollectionComponent::BeginPlay()
 	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 	if (ChaosModule != nullptr)
 	{
-		Chaos::FPBDRigidsSolver* Solver = GetSolver(*this);
+		Chaos::FPhysicsSolver* Solver = GetSolver(*this);
 		if (Solver != nullptr)
 		{
-			if (PhysicsObject != nullptr)
+			if (PhysicsProxy != nullptr)
 			{
-				ChaosModule->GetDispatcher()->EnqueueCommand(Solver, [&InPhysicsObject = PhysicsObject](Chaos::FPBDRigidsSolver* InSolver)
+				ChaosModule->GetDispatcher()->EnqueueCommandImmediate(Solver, [&InPhysicsProxy = PhysicsProxy](Chaos::FPhysicsSolver* InSolver)
 				{
-					if (InPhysicsObject)
+					if (InPhysicsProxy)
 					{
-						InPhysicsObject->ActivateBodies();
+						InPhysicsProxy->ActivateBodies();
 					}
 				});
 			}
@@ -375,7 +377,7 @@ bool UGeometryCollectionComponent::ShouldCreatePhysicsState() const
 
 bool UGeometryCollectionComponent::HasValidPhysicsState() const
 {
-	return PhysicsObject != nullptr;
+	return PhysicsProxy != nullptr;
 }
 
 void UGeometryCollectionComponent::SetNotifyBreaks(bool bNewNotifyBreaks)
@@ -854,12 +856,15 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 				{
 #if INCLUDE_CHAOS
 					// clear events on the solver
-					Chaos::FPBDRigidsSolver *Solver = GetSolver(*this);
+					Chaos::FPhysicsSolver *Solver = GetSolver(*this);
 					
 					if (Solver)
 					{
+#if TODO_REPLACE_SOLVER_LOCK
 						Chaos::FSolverWriteLock ScopedWriteLock(Solver);
+#endif
 
+#if TODO_REIMPLEMENT_EVENTS_DATA_ARRAYS
 						//////////////////////////////////////////////////////////////////////////
 						// Temporary workaround for writing on multiple threads.
 						// The following is called wide from the render thread to populate
@@ -870,9 +875,9 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 						// TO BE REFACTORED
 						// #TODO BG
 						//////////////////////////////////////////////////////////////////////////
-						Chaos::FPBDRigidsSolver::FAllCollisionData *CollisionDataToWriteTo = const_cast<Chaos::FPBDRigidsSolver::FAllCollisionData*>(Solver->GetAllCollisions_FromSequencerCache_NEEDSLOCK());
-						Chaos::FPBDRigidsSolver::FAllBreakingData *BreakingDataToWriteTo = const_cast<Chaos::FPBDRigidsSolver::FAllBreakingData*>(Solver->GetAllBreakings_FromSequencerCache_NEEDSLOCK());
-						Chaos::FPBDRigidsSolver::FAllTrailingData *TrailingDataToWriteTo = const_cast<Chaos::FPBDRigidsSolver::FAllTrailingData*>(Solver->GetAllTrailings_FromSequencerCache_NEEDSLOCK());
+						Chaos::FPhysicsSolver::FAllCollisionData *CollisionDataToWriteTo = const_cast<Chaos::FPhysicsSolver::FAllCollisionData*>(Solver->GetAllCollisions_FromSequencerCache_NEEDSLOCK());
+						Chaos::FPhysicsSolver::FAllBreakingData *BreakingDataToWriteTo = const_cast<Chaos::FPhysicsSolver::FAllBreakingData*>(Solver->GetAllBreakings_FromSequencerCache_NEEDSLOCK());
+						Chaos::FPhysicsSolver::FAllTrailingData *TrailingDataToWriteTo = const_cast<Chaos::FPhysicsSolver::FAllTrailingData*>(Solver->GetAllTrailings_FromSequencerCache_NEEDSLOCK());
 
 						if (!FMath::IsNearlyEqual(CollisionDataToWriteTo->TimeCreated, DesiredCacheTime))
 						{
@@ -883,7 +888,7 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 						int32 Index = CacheParameters.TargetCache->GetData()->FindLastKeyBefore(CurrentCacheTime);
 						const FRecordedFrame *RecordedFrame = &CacheParameters.TargetCache->GetData()->Records[Index];				
 
-						if (RecordedFrame && PhysicsObject && !EventsPlayed[Index])
+						if (RecordedFrame && PhysicsProxy && !EventsPlayed[Index])
 						{
 							EventsPlayed[Index] = true;
 
@@ -905,7 +910,9 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 									AllCollisionsDataArrayItem.AngularVelocity2 = RecordedFrame->Collisions[Idx].AngularVelocity2;
 									AllCollisionsDataArrayItem.Mass1 = RecordedFrame->Collisions[Idx].Mass1;
 									AllCollisionsDataArrayItem.Mass2 = RecordedFrame->Collisions[Idx].Mass2;
+#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
 									AllCollisionsDataArrayItem.ParticleIndex = RecordedFrame->Collisions[Idx].ParticleIndex;
+#endif
 									AllCollisionsDataArrayItem.LevelsetIndex = RecordedFrame->Collisions[Idx].LevelsetIndex;
 									AllCollisionsDataArrayItem.ParticleIndexMesh = RecordedFrame->Collisions[Idx].ParticleIndexMesh;
 									AllCollisionsDataArrayItem.LevelsetIndexMesh = RecordedFrame->Collisions[Idx].LevelsetIndexMesh;
@@ -925,7 +932,9 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 									AllBreakingsDataArrayItem.Velocity = RecordedFrame->Breakings[Idx].Velocity;
 									AllBreakingsDataArrayItem.AngularVelocity = RecordedFrame->Breakings[Idx].AngularVelocity;
 									AllBreakingsDataArrayItem.Mass = RecordedFrame->Breakings[Idx].Mass;
+#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
 									AllBreakingsDataArrayItem.ParticleIndex = RecordedFrame->Breakings[Idx].ParticleIndex;
+#endif
 									AllBreakingsDataArrayItem.ParticleIndexMesh = RecordedFrame->Breakings[Idx].ParticleIndexMesh;
 								}
 							}
@@ -943,11 +952,14 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 									AllTrailingsDataArrayItem.Velocity = Trailing.Velocity;
 									AllTrailingsDataArrayItem.AngularVelocity = Trailing.AngularVelocity;
 									AllTrailingsDataArrayItem.Mass = Trailing.Mass;
+#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
 									AllTrailingsDataArrayItem.ParticleIndex = Trailing.ParticleIndex;
+#endif
 									AllTrailingsDataArrayItem.ParticleIndexMesh = Trailing.ParticleIndexMesh;
 								}
 							}
 						}
+#endif
 					}
 #endif
 				}								
@@ -1095,6 +1107,12 @@ void UGeometryCollectionComponent::OnRegister()
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::OnRegister()[%p]"), this,RestCollection );
 	ResetDynamicCollection();
+
+#if WITH_EDITOR
+	FScopedColorEdit ColorEdit(this);
+	ColorEdit.ResetBoneSelection();
+	ColorEdit.ResetHighlightedBones();
+#endif
 	Super::OnRegister();
 }
 
@@ -1153,7 +1171,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 	DummyBodyInstance.SetResponseToAllChannels(ECR_Block);
 #endif
 
-	if (!PhysicsObject)
+	if (!PhysicsProxy)
 	{
 #if WITH_EDITOR && WITH_EDITORONLY_DATA
 		EditorActor = nullptr;
@@ -1385,9 +1403,9 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			}
 			// end temporary 
 
-			PhysicsObject = new FGeometryCollectionPhysicsObject(this, DynamicCollection.Get(), InitFunc, CacheSyncFunc, FinalSyncFunc);
+			PhysicsProxy = new FGeometryCollectionPhysicsProxy(this, DynamicCollection.Get(), InitFunc, CacheSyncFunc, FinalSyncFunc);
 			TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
-			Scene->AddObject(this, PhysicsObject);
+			Scene->AddObject(this, PhysicsProxy);
 
 			RegisterForEvents();
 		}
@@ -1396,7 +1414,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 
 #if INCLUDE_CHAOS
 #if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	if (PhysicsObject)
+	if (PhysicsProxy)
 	{
 		GlobalGeomCollectionAccelerator.AddComponent(this);
 	}
@@ -1422,14 +1440,14 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 #endif
 
 #if INCLUDE_CHAOS
-	if(PhysicsObject)
+	if(PhysicsProxy)
 	{
 		TSharedPtr<FPhysScene_Chaos> Scene = GetPhysicsScene();
-		Scene->RemoveObject(PhysicsObject);
+		Scene->RemoveObject(PhysicsProxy);
 		InitializationState = ESimulationInitializationState::Unintialized;
 
 		// Discard the pointer (cleanup happens through the scene or dedicated thread)
-		PhysicsObject = nullptr;
+		PhysicsProxy = nullptr;
 	}
 #endif
 }
@@ -1596,21 +1614,18 @@ bool FScopedColorEdit::IsBoneSelected(int BoneIndex) const
 
 void FScopedColorEdit::SetSelectedBones(const TArray<int32>& SelectedBonesIn)
 {
-	Component->Modify();
 	bUpdated = true;
 	Component->SelectedBones = SelectedBonesIn;
 }
 
 void FScopedColorEdit::AppendSelectedBones(const TArray<int32>& SelectedBonesIn)
 {
-	Component->Modify();
 	bUpdated = true;
 	Component->SelectedBones.Append(SelectedBonesIn);
 }
 
 void FScopedColorEdit::ToggleSelectedBones(const TArray<int32>& SelectedBonesIn)
 {
-	Component->Modify();
 	bUpdated = true;
 	for (int32 BoneIndex : SelectedBonesIn)
 	{
@@ -1629,7 +1644,6 @@ void FScopedColorEdit::AddSelectedBone(int32 BoneIndex)
 {
 	if (!Component->SelectedBones.Contains(BoneIndex))
 	{
-		Component->Modify();
 		bUpdated = true;
 		Component->SelectedBones.Push(BoneIndex);
 	}
@@ -1639,7 +1653,6 @@ void FScopedColorEdit::ClearSelectedBone(int32 BoneIndex)
 {
 	if (Component->SelectedBones.Contains(BoneIndex))
 	{
-		Component->Modify();
 		bUpdated = true;
 		Component->SelectedBones.Remove(BoneIndex);
 	}
@@ -1654,7 +1667,6 @@ void FScopedColorEdit::ResetBoneSelection()
 {
 	if (Component->SelectedBones.Num() > 0)
 	{
-		Component->Modify();
 		bUpdated = true;
 	}
 
@@ -1665,7 +1677,6 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 {
 	check(Component);
 
-	Component->Modify();
 	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
 	if (GeometryCollection)
 	{
@@ -1857,7 +1868,7 @@ void FScopedColorEdit::UpdateBoneColors()
 {
 	// @todo FractureTools - For large fractures updating colors this way is extremely slow because the render state (and thus all buffers) must be recreated.
 	// It would be better to push the update to the proxy via a render command and update the existing buffer directly
-	FGeometryCollectionEdit GeometryCollectionEdit = Component->EditRestCollection();
+	FGeometryCollectionEdit GeometryCollectionEdit = Component->EditRestCollection(GeometryCollection::EEditUpdate::None);
 	UGeometryCollection* GeometryCollection = GeometryCollectionEdit.GetRestCollection();
 	if(GeometryCollection)
 	{
@@ -1874,7 +1885,7 @@ void FScopedColorEdit::UpdateBoneColors()
 		}
 		TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
 
-		for (int BoneIndex = 0; BoneIndex < Parents.Num(); BoneIndex++)
+		for (int32 BoneIndex = 0, NumBones = Parents.Num() ; BoneIndex < NumBones; ++BoneIndex)
 		{
 			FLinearColor BoneColor = FLinearColor(FColor::Black);
 
@@ -1953,7 +1964,7 @@ void UGeometryCollectionComponent::ApplyPhysicsField(bool Enabled, EGeometryColl
 void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& InCommand)
 {
 #if INCLUDE_CHAOS
-	if (PhysicsObject)
+	if (PhysicsProxy)
 	{
 		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 		checkSlow(ChaosModule);
@@ -1961,10 +1972,10 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 		Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
 		checkSlow(PhysicsDispatcher); // Should always have one of these
 
-		PhysicsDispatcher->EnqueueCommand([PhysicsObject = this->PhysicsObject, NewCommand = InCommand]()
+		PhysicsDispatcher->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
 		{
 			// Pass through nullptr here as geom component commands can never affect other solvers
-			PhysicsObject->BufferCommand(nullptr, NewCommand);
+			PhysicsProxy->BufferCommand(nullptr, NewCommand);
 		});
 	}
 #endif
@@ -2056,7 +2067,7 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 	Module->LockResultsRead();
 
-	const FGeometryCollectionResults* Results = PhysicsObject ? &PhysicsObject->GetPhysicsResults().GetGameDataForRead() : nullptr;
+	const FGeometryCollectionResults* Results = PhysicsProxy ? &PhysicsProxy->GetPhysicsResults().GetGameDataForRead() : nullptr;
 
 	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
 	if(NumTransforms > 0)

@@ -30,14 +30,22 @@ public class MixedRealityInteropLibrary : ModuleRules
 			// Hologram remoting dlls
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				string[] Dlls = { "HolographicAppRemoting.dll" , "PerceptionDevice.dll" };
+				string[] Dlls = { "Microsoft.Holographic.AppRemoting.dll", "PerceptionDevice.dll" };
 
 				foreach(var Dll in Dlls)
 				{
 					PublicDelayLoadDLLs.Add(Dll);
 					RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/Windows/x64/" + Dll);
 				}
-			}
+
+                string[] HL1Dlls = { "HolographicStreamerDesktop.dll", "Microsoft.Perception.Simulation.dll", "PerceptionSimulationManager.dll" };
+
+                foreach (var Dll in HL1Dlls)
+                {
+                    PublicDelayLoadDLLs.Add(Dll);
+                    RuntimeDependencies.Add(EngineDirectory + "/Binaries/Win64/" + Dll);
+                }
+            }
 		}
 		else if(Target.Platform == UnrealTargetPlatform.HoloLens)
 		{

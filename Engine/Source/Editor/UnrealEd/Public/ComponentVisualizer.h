@@ -6,6 +6,7 @@
 #include "InputCoreTypes.h"
 #include "Components/ActorComponent.h"
 #include "HitProxies.h"
+#include "ConvexVolume.h"
 
 class AActor;
 class FCanvas;
@@ -59,6 +60,16 @@ public:
 	virtual bool HandleInputDelta(FEditorViewportClient* ViewportClient, FViewport* Viewport, FVector& DeltaTranslate, FRotator& DeltalRotate, FVector& DeltaScale) { return false; }
 	/** */
 	virtual bool HandleInputKey(FEditorViewportClient* ViewportClient,FViewport* Viewport,FKey Key,EInputEvent Event) { return false; }
+	/** Handle click modified by Alt, Ctrl and/or Shift. The input HitProxy may not be on this component. */
+	virtual bool HandleModifiedClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) { return false; }
+	/** Handle box select input */
+	virtual bool HandleBoxSelect(const FBox& InBox, FEditorViewportClient* InViewportClient,FViewport* InViewport) { return false; }
+	/** Handle frustum select input */
+	virtual bool HandleFrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, FViewport* InViewport) { return false; }
+	/** Return whether focus on selection should focus on bounding box defined by active visualizer */
+	virtual bool HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) { return false; }
+	/** Pass snap input to active visualizer */
+	virtual bool HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination) { return false;  }
 	/** */
 	virtual TSharedPtr<SWidget> GenerateContextMenu() const { return TSharedPtr<SWidget>(); }
 	/** */

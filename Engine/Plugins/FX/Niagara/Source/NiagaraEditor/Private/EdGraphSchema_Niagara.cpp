@@ -25,6 +25,7 @@
 #include "NiagaraNodeWriteDataSet.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
+#include "NiagaraNodeParameterMapFor.h"
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraNodeOp.h"
 #include "NiagaraNodeConvert.h"
@@ -686,7 +687,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		}
 	}
 
-	// Handle parameter map get/set
+	// Handle parameter map get/set/for
 	{
 		FText MenuCat = FText::FromString("Parameter Map");
 		{
@@ -699,6 +700,14 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 			FString Name = TEXT("Parameter Map Set");
 			TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, MenuCat, FText::FromString(Name), *Name, FText::GetEmpty());
 			UNiagaraNodeParameterMapSet* BaseNode = NewObject<UNiagaraNodeParameterMapSet>(OwnerOfTemporaries);
+			Action->NodeTemplate = BaseNode;
+		}
+		static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
+		if (UseShaderStagesCVar->GetInt() == 1)
+		{
+			FString Name = TEXT("Parameter Map For");
+			TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, MenuCat, FText::FromString(Name), *Name, FText::GetEmpty());
+			UNiagaraNodeParameterMapFor* BaseNode = NewObject<UNiagaraNodeParameterMapFor>(OwnerOfTemporaries);
 			Action->NodeTemplate = BaseNode;
 		}
 	}
@@ -842,12 +851,11 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		}
 	}
 
-	const FText MenuCat = LOCTEXT("NiagaraLogicMenuCat", "Logic");
+	
 	{
+		const FText LogicMenuCat = LOCTEXT("NiagaraLogicMenuCat", "Logic");
 		const FText MenuDesc = LOCTEXT("If", "If");
-
-		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, MenuCat, MenuDesc, TEXT("If"), FText::GetEmpty());
-
+		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, LogicMenuCat, MenuDesc, TEXT("If"), FText::GetEmpty());
 		UNiagaraNodeIf* IfNode = NewObject<UNiagaraNodeIf>(OwnerOfTemporaries);
 		Action->NodeTemplate = IfNode;
 	}

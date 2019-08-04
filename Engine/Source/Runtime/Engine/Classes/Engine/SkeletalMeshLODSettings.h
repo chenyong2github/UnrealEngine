@@ -123,6 +123,18 @@ protected:
 	UPROPERTY(globalconfig, EditAnywhere, Category = LODGroups)
 	FPerPlatformBool DisableBelowMinLodStripping;
 
+	/** Whether meshes in this group stream LODs by default */
+	UPROPERTY(globalconfig, EditAnywhere, Category=LODGroups, meta=(DisplayName="Stream LODs"))
+	FPerPlatformBool bSupportLODStreaming;
+
+	/** Default maximum number of streamed LODs for meshes in this group */
+	UPROPERTY(globalconfig, EditAnywhere, Category=LODGroups)
+	FPerPlatformInt MaxNumStreamedLODs;
+
+	/** Default maximum number of optional LODs for meshes in this group (currently, need to be either 0 or > num of LODs below MinLod) */
+	UPROPERTY(globalconfig, EditAnywhere, Category=LODGroups)
+	FPerPlatformInt MaxNumOptionalLODs;
+
 	UPROPERTY(globalconfig, EditAnywhere, Category=LODGroups)
 	TArray<FSkeletalMeshLODGroupSettings> LODGroups;
 

@@ -130,6 +130,8 @@
 #include "ISerializedRecorder.h"
 #include "Features/IModularFeatures.h"
 #include "SequencerContextMenus.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -3290,6 +3292,12 @@ void FSequencer::ResetPerMovieSceneData()
 
 void FSequencer::RecordSelectedActors()
 {
+	// Keep track of how many people actually used record new sequence
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Sequencer.RecordSelectedActors"));
+	}
+
 	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
 	if (SequenceRecorder.IsRecording())
 	{
@@ -6729,20 +6737,12 @@ void FSequencer::DoPaste()
 
 bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
-	TArray<UMovieSceneCopyableBinding*> ImportedBindings;
-	ImportObjectBindingsFromText(TextToImport, ImportedBindings);
-
-	if (ImportedBindings.Num() == 0)
-	{
-		return false;
-	}
-	
 	TArray<UMovieSceneFolder*> SelectedParentFolders;
 	FString NewNodePath;
 	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
 
 	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
-	
+
 	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
 	UObject* BindingContext = GetPlaybackContext();
 
@@ -6751,68 +6751,111 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	TArray<FGuid> PossessableGuids;
 
 	TArray<FMovieSceneBinding> BindingsPasted;
-	for (UMovieSceneCopyableBinding* CopyableBinding : ImportedBindings)
+
+	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Selection.GetSelectedOutlinerNodes();
+
+	TArray<FGuid> SelectedParentGuids;
+	for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
 	{
-		// Clear transient flags on the imported tracks
-		for (UMovieSceneTrack* CopiedTrack : CopyableBinding->Tracks)
+		if (Node->GetType() != ESequencerNode::Object)
 		{
-			CopiedTrack->ClearFlags(RF_Transient);
-			TArray<UObject*> Subobjects;
-			GetObjectsWithOuter(CopiedTrack, Subobjects);
-			for (UObject* Subobject : Subobjects)
-			{
-				Subobject->ClearFlags(RF_Transient);
-			}
+			continue;
 		}
 
-		if (CopyableBinding->Possessable.GetGuid().IsValid())
+		TSharedPtr<FSequencerObjectBindingNode> ObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
+		if (ObjectNode.IsValid())
 		{
-			FGuid NewGuid = FGuid::NewGuid();
-
-			FMovieSceneBinding NewBinding(NewGuid, CopyableBinding->Binding.GetName(), CopyableBinding->Tracks);
-
-			FMovieScenePossessable NewPossessable = CopyableBinding->Possessable;
-			NewPossessable.SetGuid(NewGuid);
-
-			MovieScene->AddPossessable(NewPossessable, NewBinding);
-
-			OldToNewGuidMap.Add(CopyableBinding->Possessable.GetGuid(), NewGuid);
-
-			BindingsPasted.Add(NewBinding);
-
-			PossessableGuids.Add(NewGuid);
+			SelectedParentGuids.Add(ObjectNode->GetObjectBinding());
 		}
-		else if (CopyableBinding->Spawnable.GetGuid().IsValid())
+	}
+
+	int32 NumTargets = 1;
+	if (SelectedParentGuids.Num() > 1)
+	{
+		NumTargets = SelectedParentGuids.Num();
+	}
+
+	for (int32 TargetIndex = 0; TargetIndex < NumTargets; ++TargetIndex)
+	{
+		TArray<UMovieSceneCopyableBinding*> ImportedBindings;
+		ImportObjectBindingsFromText(TextToImport, ImportedBindings);
+
+		if (ImportedBindings.Num() == 0)
 		{
-			// We need to let the sequence create the spawnable so that it has everything set up properly internally.
-			// This is required to get spawnables with the correct references to object templates, object templates with
-			// correct owners, etc. However, making a new spawnable also creates the binding for us - this is a problem
-			// because we need to use our binding (which has tracks associated with it). To solve this, we let it create
-			// an object template based off of our (transient package owned) template, then find the newly created binding
-			// and update it.
-			FGuid NewGuid = MakeNewSpawnable(*CopyableBinding->SpawnableObjectTemplate, nullptr, false);
-			FMovieSceneBinding NewBinding(NewGuid, CopyableBinding->Binding.GetName(), CopyableBinding->Tracks);
-			FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(NewGuid);
+			return false;
+		}
 
-			// Copy the name of the original spawnable too.
-			Spawnable->SetName(CopyableBinding->Spawnable.GetName());
-
-			// Clear the transient flags on the copyable binding before assigning to the new spawnable
-			for (auto Track : NewBinding.GetTracks())
+		for (UMovieSceneCopyableBinding* CopyableBinding : ImportedBindings)
+		{
+			// Clear transient flags on the imported tracks
+			for (UMovieSceneTrack* CopiedTrack : CopyableBinding->Tracks)
 			{
-				Track->ClearFlags(RF_Transient);
-				for (auto Section : Track->GetAllSections())
+				CopiedTrack->ClearFlags(RF_Transient);
+				TArray<UObject*> Subobjects;
+				GetObjectsWithOuter(CopiedTrack, Subobjects);
+				for (UObject* Subobject : Subobjects)
 				{
-					Section->ClearFlags(RF_Transient);
+					Subobject->ClearFlags(RF_Transient);
 				}
 			}
 
-			// Replace the auto-generated binding with our deserialized bindings (which has our tracks)
-			MovieScene->ReplaceBinding(NewGuid, NewBinding);
+			if (CopyableBinding->Possessable.GetGuid().IsValid())
+			{
+				FGuid NewGuid = FGuid::NewGuid();
 
-			OldToNewGuidMap.Add(CopyableBinding->Spawnable.GetGuid(), NewGuid);
+				FMovieSceneBinding NewBinding(NewGuid, CopyableBinding->Binding.GetName(), CopyableBinding->Tracks);
 
-			BindingsPasted.Add(NewBinding);
+				FMovieScenePossessable NewPossessable = CopyableBinding->Possessable;
+				NewPossessable.SetGuid(NewGuid);
+
+				MovieScene->AddPossessable(NewPossessable, NewBinding);
+
+				OldToNewGuidMap.Add(CopyableBinding->Possessable.GetGuid(), NewGuid);
+
+				BindingsPasted.Add(NewBinding);
+
+				PossessableGuids.Add(NewGuid);
+
+				if (FMovieScenePossessable* Possessable = MovieScene->FindPossessable(NewGuid))
+				{
+					if (TargetIndex < SelectedParentGuids.Num())
+					{
+						Possessable->SetParent(SelectedParentGuids[TargetIndex]);
+					}
+				}
+			}
+			else if (CopyableBinding->Spawnable.GetGuid().IsValid())
+			{
+				// We need to let the sequence create the spawnable so that it has everything set up properly internally.
+				// This is required to get spawnables with the correct references to object templates, object templates with
+				// correct owners, etc. However, making a new spawnable also creates the binding for us - this is a problem
+				// because we need to use our binding (which has tracks associated with it). To solve this, we let it create
+				// an object template based off of our (transient package owned) template, then find the newly created binding
+				// and update it.
+				FGuid NewGuid = MakeNewSpawnable(*CopyableBinding->SpawnableObjectTemplate, nullptr, false);
+				FMovieSceneBinding NewBinding(NewGuid, CopyableBinding->Binding.GetName(), CopyableBinding->Tracks);
+				FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(NewGuid);
+
+				// Copy the name of the original spawnable too.
+				Spawnable->SetName(CopyableBinding->Spawnable.GetName());
+
+				// Clear the transient flags on the copyable binding before assigning to the new spawnable
+				for (auto Track : NewBinding.GetTracks())
+				{
+					Track->ClearFlags(RF_Transient);
+					for (auto Section : Track->GetAllSections())
+					{
+						Section->ClearFlags(RF_Transient);
+					}
+				}
+
+				// Replace the auto-generated binding with our deserialized bindings (which has our tracks)
+				MovieScene->ReplaceBinding(NewGuid, NewBinding);
+
+				OldToNewGuidMap.Add(CopyableBinding->Spawnable.GetGuid(), NewGuid);
+
+				BindingsPasted.Add(NewBinding);
+			}
 		}
 	}
 
@@ -6820,7 +6863,7 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	for (auto PossessableGuid : PossessableGuids)
 	{
 		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(PossessableGuid);
-		if (Possessable && OldToNewGuidMap.Contains(Possessable->GetParent()))
+		if (Possessable && OldToNewGuidMap.Contains(Possessable->GetParent()) && PossessableGuid != OldToNewGuidMap[Possessable->GetParent()])
 		{
 			Possessable->SetParent(OldToNewGuidMap[Possessable->GetParent()]);
 		}
@@ -6909,6 +6952,8 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 
 bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
+	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
 	TArray<UMovieSceneCopyableTrack*> ImportedTracks;
 	FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
 
@@ -6920,8 +6965,6 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 	TArray<UMovieSceneFolder*> SelectedParentFolders;
 	FString NewNodePath;
 	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
-
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
 	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
 	UObject* BindingContext = GetPlaybackContext();
@@ -7058,6 +7101,8 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 
 bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
+	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
 	TArray<UMovieSceneSection*> ImportedSections;
 	FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
 
@@ -7074,8 +7119,6 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 		PasteErrors.Add(Info);
 		return false;
 	}
-
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
 	FFrameNumber LocalTime = GetLocalTime().Time.GetFrame();
 
@@ -9901,6 +9944,12 @@ void FSequencer::BindCommands()
 		FIsActionChecked::CreateLambda( [this]{ return Settings->GetSnapSectionTimesToSections(); } ) );
 
 	SequencerCommandBindings->MapAction(
+		Commands.ToggleSnapKeysAndSectionsToPlayRange,
+		FExecuteAction::CreateLambda([this] { Settings->SetSnapKeysAndSectionsToPlayRange(!Settings->GetSnapKeysAndSectionsToPlayRange()); }),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->GetSnapKeysAndSectionsToPlayRange(); }));
+
+	SequencerCommandBindings->MapAction(
 		Commands.ToggleSnapPlayTimeToKeys,
 		FExecuteAction::CreateLambda( [this]{ Settings->SetSnapPlayTimeToKeys( !Settings->GetSnapPlayTimeToKeys() ); } ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ),
@@ -10074,9 +10123,9 @@ void FSequencer::BindCommands()
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleKeepCursorInPlaybackRangeWhileScrubbing,
-		FExecuteAction::CreateLambda( [this]{ Settings->SetKeepCursorInPlayRangeWhileScrubbing( !Settings->ShouldKeepCursorInPlayRangeWhileScrubbing() ); } ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->ShouldKeepCursorInPlayRangeWhileScrubbing(); } ) );
+		FExecuteAction::CreateLambda([this] { Settings->SetKeepCursorInPlayRangeWhileScrubbing(!Settings->ShouldKeepCursorInPlayRangeWhileScrubbing()); }),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->ShouldKeepCursorInPlayRangeWhileScrubbing(); }));
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleKeepCursorInPlaybackRange,
@@ -10176,6 +10225,32 @@ void FSequencer::BindCommands()
 
 	// Sequencer-only bindings
 	SequencerCommandBindings->MapAction(
+		Commands.TogglePlay,
+		FExecuteAction::CreateSP(this, &FSequencer::TogglePlay));
+
+	SequencerCommandBindings->MapAction(
+		Commands.PlayForward,
+		FExecuteAction::CreateLambda([this] { OnPlayForward(false); }));
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpToStart,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToStart));
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpToEnd,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToEnd));
+
+	SequencerCommandBindings->MapAction(
+		Commands.StepForward,
+		FExecuteAction::CreateSP(this, &FSequencer::StepForward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
+		Commands.StepBackward,
+		FExecuteAction::CreateSP(this, &FSequencer::StepBackward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
 		Commands.SetInterpolationCubicAuto,
 		FExecuteAction::CreateSP(this, &FSequencer::SetInterpTangentMode, ERichCurveInterpMode::RCIM_Cubic, ERichCurveTangentMode::RCTM_Auto));
 
@@ -10200,22 +10275,6 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP(this, &FSequencer::SetInterpTangentMode, ERichCurveInterpMode::RCIM_Constant, ERichCurveTangentMode::RCTM_Auto));
 
 	SequencerCommandBindings->MapAction(
-		Commands.TogglePlay,
-		FExecuteAction::CreateSP( this, &FSequencer::TogglePlay ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.PlayForward,
-		FExecuteAction::CreateLambda( [this] { OnPlayForward(false); }));
-
-	SequencerCommandBindings->MapAction(
-		Commands.JumpToStart,
-		FExecuteAction::CreateSP( this, &FSequencer::JumpToStart ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.JumpToEnd,
-		FExecuteAction::CreateSP( this, &FSequencer::JumpToEnd ));
-
-	SequencerCommandBindings->MapAction(
 		Commands.ShuttleForward,
 		FExecuteAction::CreateSP( this, &FSequencer::ShuttleForward ));
 
@@ -10226,16 +10285,6 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.Pause,
 		FExecuteAction::CreateSP( this, &FSequencer::Pause ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.StepForward,
-		FExecuteAction::CreateSP( this, &FSequencer::StepForward ),
-		EUIActionRepeatMode::RepeatEnabled );
-
-	SequencerCommandBindings->MapAction(
-		Commands.StepBackward,
-		FExecuteAction::CreateSP( this, &FSequencer::StepBackward ),
-		EUIActionRepeatMode::RepeatEnabled );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeEnd,

@@ -5,7 +5,7 @@
 
 namespace BuildPatchServices
 {
-	enum EStatFormat
+	enum class EStatFormat : uint8
 	{
 		// Using the AccumulateTimeBegin and End functions, measured in cycles
 		Timer,

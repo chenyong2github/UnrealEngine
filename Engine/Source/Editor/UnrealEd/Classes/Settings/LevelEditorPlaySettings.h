@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Layout/Margin.h"
 #include "Layout/Visibility.h"
+#include "Settings/LevelEditorPlayNetworkEmulationSettings.h"
 #include "LevelEditorPlaySettings.generated.h"
 
 class SWindow;
@@ -350,6 +351,20 @@ private:
 
 public:
 
+	/** Should network emulation settings be applied or not */
+	bool IsNetworkEmulationEnabled() const
+	{
+		return NetworkEmulationSettings.bIsNetworkEmulationEnabled;
+	}
+
+	/**
+	 * Customizable settings allowing to emulate latency and packetloss for game network transmissions
+	 */
+	UPROPERTY(config, EditAnywhere, Category = MultiplayerOptions )
+	FLevelEditorPlayNetworkEmulationSettings NetworkEmulationSettings;
+
+public:
+
 	// Accessors for fetching the values of multiplayer options, and returning whether the option is valid at this time
 	void SetPlayNetMode( const EPlayNetMode InPlayNetMode ) { PlayNetMode = InPlayNetMode; }
 	bool IsPlayNetModeActive() const { return true; }
@@ -379,6 +394,8 @@ public:
 	bool IsRouteGamepadToSecondWindowActive() const { return PlayNumberOfClients > 1; }
 	bool GetRouteGamepadToSecondWindow( bool &OutRouteGamepadToSecondWindow ) const { OutRouteGamepadToSecondWindow = RouteGamepadToSecondWindow; return IsRouteGamepadToSecondWindowActive(); }
 	EVisibility GetRouteGamepadToSecondWindowVisibility() const { return (RunUnderOneProcess ? EVisibility::Visible : EVisibility::Hidden); }
+
+	EVisibility GetNetworkEmulationVisibility() const { return (PlayNumberOfClients > 1 || PlayNetDedicated) ? EVisibility::Visible : EVisibility::Hidden; }
 
 	bool IsServerMapNameOverrideActive() const { return (PlayNetMode == PIE_StandaloneWithServer); }
 	bool GetServerMapNameOverride( FString& OutStandaloneServerMapName ) const { OutStandaloneServerMapName = ServerMapNameOverride; return IsServerMapNameOverrideActive(); }

@@ -38,7 +38,20 @@ protected:
 	template <template<typename> class TileViewT = STileView>
 	TSharedRef<TileViewT<UObject*>> ConstructTileView()
 	{
-		MyListView = MyTileView = ITypedUMGListView<UObject*>::ConstructTileView<TileViewT>(this, ListItems, TileAlignment, EntryHeight, EntryWidth, SelectionMode, bClearSelectionOnClick, bWrapHorizontalNavigation, ConsumeMouseWheel);
+		FTileViewConstructArgs Args;
+		Args.bAllowFocus = bIsFocusable;
+		Args.SelectionMode = SelectionMode;
+		Args.bClearSelectionOnClick = bClearSelectionOnClick;
+		Args.ConsumeMouseWheel = ConsumeMouseWheel;
+		Args.bReturnFocusToSelection = bReturnFocusToSelection;
+		Args.TileAlignment = TileAlignment;
+		Args.EntryHeight = EntryHeight;
+		Args.EntryWidth = EntryWidth;
+		Args.bWrapDirectionalNavigation = bWrapHorizontalNavigation;
+		Args.Orientation = Orientation;
+
+		MyListView = MyTileView = ITypedUMGListView<UObject*>::ConstructTileView<TileViewT>(this, ListItems, Args);
+		MyTileView->SetOnEntryInitialized(SListView<UObject*>::FOnEntryInitialized::CreateUObject(this, &UTileView::HandleOnEntryInitializedInternal));
 		return StaticCastSharedRef<TileViewT<UObject*>>(MyTileView.ToSharedRef());
 	}
 

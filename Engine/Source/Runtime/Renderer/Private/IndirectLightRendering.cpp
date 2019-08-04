@@ -9,6 +9,7 @@
 #include "ScreenSpaceRayTracing.h"
 #include "DeferredShadingRenderer.h"
 #include "PostProcessing.h" // for FPostProcessVS
+#include "RendererModule.h"
 
 
 static TAutoConsoleVariable<int32> CVarDiffuseIndirectDenoiser(
@@ -133,6 +134,13 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 		IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
 		if (bApplySSGI)
 		{
+			static bool bWarnExperimental = false;
+			if (!bWarnExperimental)
+			{
+				UE_LOG(LogRenderer, Warning, TEXT("SSGI is experimental."));
+				bWarnExperimental = true;
+			}
+
 			RenderScreenSpaceDiffuseIndirect(GraphBuilder, SceneTextures, SceneColor, View, /* out */ &DenoiserInputs);
 			
 			// TODO: Denoise.
@@ -218,7 +226,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 					PermutationVector.Get<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>() ? TEXT("Yes") : TEXT("No"),
 					View.ViewRect.Width(), View.ViewRect.Height()),
 				PassParameters,
-				ERenderGraphPassFlags::None,
+				ERDGPassFlags::Raster,
 				[PassParameters, &View, PixelShader, PermutationVector](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 0.0);
@@ -269,7 +277,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("AmbientCubemapComposite %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
 				PassParameters,
-				ERDGPassFlags::None,
+				ERDGPassFlags::Raster,
 				[PassParameters, &View, PixelShader](FRHICommandList& RHICmdList)
 			{
 				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);

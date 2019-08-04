@@ -610,6 +610,7 @@ void HDRSettingChangedSinkCallback()
 		
 		int32 OutputDevice = 0;
 		int32 ColorGamut = 0;
+		bool bNewValuesSet = false;
 		
 		// If we are turning HDR on we must set the appropriate OutputDevice and ColorGamut.
 		// If we are turning it off, we'll reset back to 0/0
@@ -621,12 +622,14 @@ void HDRSettingChangedSinkCallback()
 				// ScRGB, 1000 or 2000 nits, Rec2020
 				OutputDevice = (DisplayNitLevel == 1000) ? 5 : 6;
 				ColorGamut = 2;
+				bNewValuesSet = true;
 			}
 #elif PLATFORM_PS4
 			{
 				// PQ, 1000 or 2000 nits, Rec2020
 				OutputDevice = (DisplayNitLevel == 1000) ? 3 : 4;
 				ColorGamut = 2;
+				bNewValuesSet = true;
 			}
 
 #elif PLATFORM_MAC
@@ -634,22 +637,27 @@ void HDRSettingChangedSinkCallback()
 				// ScRGB, 1000 or 2000 nits, DCI-P3
 				OutputDevice = DisplayNitLevel == 1000 ? 5 : 6;
 				ColorGamut = 1;
+				bNewValuesSet = true;
 			}
 #elif PLATFORM_IOS
 			{
 				// Linear output to Apple's specific format.
 				OutputDevice = 7;
 				ColorGamut = 0;
+				bNewValuesSet = true;
 			}
 #elif PLATFORM_XBOXONE
 			{
 				// PQ, 1000 or 2000 nits, Rec2020
 				OutputDevice = (DisplayNitLevel == 1000) ? 3 : 4;
 				ColorGamut = 2;
+				bNewValuesSet = true;
 			}
 #endif
 		}
 		
+		if (bNewValuesSet)
+		{
 		static IConsoleVariable* CVarHDROutputDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
 		static IConsoleVariable* CVarHDRColorGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
 		check(CVarHDROutputDevice);
@@ -657,6 +665,7 @@ void HDRSettingChangedSinkCallback()
 		
 		CVarHDROutputDevice->Set(OutputDevice, ECVF_SetByDeviceProfile);
 		CVarHDRColorGamut->Set(ColorGamut, ECVF_SetByDeviceProfile);
+		}
 		
 		// Now set the HDR setting.
 		GRHIIsHDREnabled = CVarHDROutputEnabled->GetValueOnAnyThread() != 0;
@@ -689,7 +698,7 @@ void SystemResolutionSinkCallback()
 
 			if (GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame)
 			{
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Resizing viewport due to setres change, %d x %d"), ResX, ResY);
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Resizing viewport due to setres change, %d x %d\n"), ResX, ResY);
 				GEngine->GameViewport->ViewportFrame->ResizeFrame(ResX, ResY, WindowMode);
 			}
 		}
@@ -1154,7 +1163,7 @@ static FAutoConsoleVariableRef CVarLowMemoryTimeBetweenPurgingPendingKillObjects
 );
 
 // see also: s.ForceGCAfterLevelStreamedOut, s.ContinuouslyIncrementalGCWhileLevelsPendingPurge
-static float GLowMemoryTimeBetweenPurgingPendingLevels = 10.0f;
+static float GLowMemoryTimeBetweenPurgingPendingLevels = 15.0f;
 static FAutoConsoleVariableRef CVarLowMemoryTimeBetweenPurgingPendingLevels(
 	TEXT("gc.LowMemory.TimeBetweenPurgingPendingLevels"),
 	GLowMemoryTimeBetweenPurgingPendingLevels,
@@ -3179,7 +3188,7 @@ ULocalPlayer* UEngine::GetLocalPlayerFromControllerId( UWorld * InWorld, const i
 	return GetLocalPlayerFromControllerId_local(GamePlayers, ControllerId);
 }
 
-void UEngine::SwapControllerId(ULocalPlayer* NewPlayer, const int32 CurrentControllerId, const int32 NewControllerID) const
+void UEngine::SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentControllerId, const int32 NewControllerID) const
 {
 	for (auto It = WorldList.CreateConstIterator(); It; ++It)
 	{
@@ -3197,7 +3206,7 @@ void UEngine::SwapControllerId(ULocalPlayer* NewPlayer, const int32 CurrentContr
 			{
 				if (LocalPlayer && LocalPlayer != NewPlayer && LocalPlayer->GetControllerId() == NewControllerID)
 				{
-					LocalPlayer->SetControllerId(CurrentControllerId);
+					LocalPlayer->SetControllerId( CurrentControllerId);
 					return;
 				}
 			}
@@ -3370,6 +3379,9 @@ struct FSortedSkeletalMesh
 	int32		LodCount;
 	int32		MobileMinLOD;
 	int32		MeshDisablesMinLODStripping;
+	int32		bSupportLODStreaming;
+	int32		MaxNumStreamedLODs;
+	int32		MaxNumOptionalLODs;
 	int32		VertexCountLod0;
 	int32		VertexCountLod1;
 	int32		VertexCountLod2;
@@ -3379,7 +3391,8 @@ struct FSortedSkeletalMesh
 	FString		Name;
 
 	/** Constructor, initializing every member variable with passed in values. */
-	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD, int32 InMeshDisablesMinLODStripping, int32 InVertexCountLod0,
+	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD,
+		int32 InMeshDisablesMinLODStripping, int32 bInSupportLODStreaming, int32 InMaxNumStreamedLODs, int32 InMaxNumOptionalLODs, int32 InVertexCountLod0,
 		int32 InVertexCountLod1, int32 InVertexCountLod2, int32 InVertexCountTotal, int32 InVertexCountTotalMobile, int32 InVertexCountCollision, FString InName)
 		: NumKB(InNumKB)
 		, MaxKB(InMaxKB)
@@ -3389,6 +3402,9 @@ struct FSortedSkeletalMesh
 		, LodCount(InLodCount)
 		, MobileMinLOD(InMobileMinLOD)
 		, MeshDisablesMinLODStripping(InMeshDisablesMinLODStripping)
+		, bSupportLODStreaming(bInSupportLODStreaming)
+		, MaxNumStreamedLODs(InMaxNumStreamedLODs)
+		, MaxNumOptionalLODs(InMaxNumOptionalLODs)
 		, VertexCountLod0(InVertexCountLod0)
 		, VertexCountLod1(InVertexCountLod1)
 		, VertexCountLod2(InVertexCountLod2)
@@ -5311,6 +5327,9 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		int32 LodCount = 0;
 		int32 MobileMinLOD = -1;
 		int32 MeshDisablesMinLODStripping = 0;
+		int32 bSupportLODStreaming = -1;
+		int32 MaxNumStreamedLODs = -1;
+		int32 MaxNumOptionalLODs = -1;
 #if WITH_EDITORONLY_DATA
 		if (Mesh->MinLod.PerPlatform.Find(("Mobile")) != nullptr)
 		{
@@ -5321,6 +5340,24 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		if (Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) != nullptr)
 		{
 			MeshDisablesMinLODStripping = *Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) ? 1 : 0;
+		}
+
+		bSupportLODStreaming = Mesh->bSupportLODStreaming.Default;
+		if (const bool* Found = Mesh->bSupportLODStreaming.PerPlatform.Find("Mobile"))
+		{
+			bSupportLODStreaming = *Found;
+		}
+
+		MaxNumStreamedLODs = Mesh->MaxNumStreamedLODs.Default;
+		if (const int32* Found = Mesh->MaxNumStreamedLODs.PerPlatform.Find("Mobile"))
+		{
+			MaxNumStreamedLODs = *Found;
+		}
+
+		MaxNumOptionalLODs = Mesh->MaxNumOptionalLODs.Default;
+		if (const int32* Found = Mesh->MaxNumOptionalLODs.PerPlatform.Find("Mobile"))
+		{
+			MaxNumOptionalLODs = *Found;
 		}
 #endif
 
@@ -5369,6 +5406,9 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 			LodCount,
 			MobileMinLOD,
 			MeshDisablesMinLODStripping,
+			bSupportLODStreaming,
+			MaxNumStreamedLODs,
+			MaxNumOptionalLODs,
 			VertexCountLod0,
 			VertexCountLod1,
 			VertexCountLod2,
@@ -5392,11 +5432,11 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 	if (bCSV)
 	{
-		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, LOD Count, MobileMinLOD, DisableMinLODStripping, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, Name"));
+		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, LOD Count, MobileMinLOD, DisableMinLODStripping, bSupportLODStreaming, MaxNumStreamedLODs, MaxNumOptionalLODs, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, Name"));
 	}
 	else
 	{
-		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile    NumLODs   MobileMinLOD  DisableMinLODStripping  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  Name"));
+		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile    NumLODs   MobileMinLOD  DisableMinLODStripping  bSupportLODStreaming  MaxNumStreamedLODs  MaxNumOptionalLODs  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  Name"));
 	}
 
 	for (int32 MeshIndex = 0; MeshIndex<SortedMeshes.Num(); MeshIndex++)
@@ -5405,15 +5445,17 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 		if (bCSV)
 		{
-			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s"),
-				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD, SortedMesh.MeshDisablesMinLODStripping,
+			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s"),
+				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD,
+				SortedMesh.MeshDisablesMinLODStripping, SortedMesh.bSupportLODStreaming, SortedMesh.MaxNumStreamedLODs, SortedMesh.MaxNumOptionalLODs,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
 				*SortedMesh.Name);
 		}
 		else
 		{
-			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i %14i %23i %10i %11i %11i %12i %17i %10i  %s"),
-				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD, SortedMesh.MeshDisablesMinLODStripping,
+			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i %14i %23i %21i %19i %19i %10i %11i %11i %12i %17i %10i  %s"),
+				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD,
+				SortedMesh.MeshDisablesMinLODStripping, SortedMesh.bSupportLODStreaming, SortedMesh.MaxNumStreamedLODs, SortedMesh.MaxNumOptionalLODs,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
 				*SortedMesh.Name);
 		}
@@ -12069,9 +12111,9 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 			}
 		}
 	}
-	else if (TransitionType == TT_WaitingToConnect)
+	else if (TransitionType == ETransitionType::WaitingToConnect)
 	{
-		TransitionType = TT_None;
+		TransitionType = ETransitionType::None;
 	}
 
 	return;
@@ -12177,7 +12219,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 		if(!URL.HasOption(TEXT("quiet")) )
 		{
-			TransitionType = TT_Loading;
+			TransitionType = ETransitionType::Loading;
 			TransitionDescription = URL.Map;
 			if (URL.HasOption(TEXT("Game=")))
 			{
@@ -12196,7 +12238,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				LoadMapRedrawViewports();
 			}
 
-			TransitionType = TT_None;
+			TransitionType = ETransitionType::None;
 		}
 
 		// Clean up networking
@@ -12881,10 +12923,10 @@ void UEngine::LoadPackagesFully(UWorld * InWorld, EFullyLoadPackageType FullyLoa
 void UEngine::UpdateTransitionType(UWorld *CurrentWorld)
 {
 	// Update the transition screen.
-	if(TransitionType == TT_Connecting)
+	if(TransitionType == ETransitionType::Connecting)
 	{
 		// Check to see if all players have finished connecting.
-		TransitionType = TT_None;
+		TransitionType = ETransitionType::None;
 
 		FWorldContext &Context = GetWorldContextFromWorldChecked(CurrentWorld);
 		if (Context.OwningGameInstance != NULL)
@@ -12894,16 +12936,16 @@ void UEngine::UpdateTransitionType(UWorld *CurrentWorld)
 				if(!(*It)->PlayerController)
 				{
 					// This player has not received a PlayerController from the server yet, so leave the connecting screen up.
-					TransitionType = TT_Connecting;
+					TransitionType = ETransitionType::Connecting;
 					break;
 				}
 			}
 		}
 	}
-	else if(TransitionType == TT_None || TransitionType == TT_Paused)
+	else if(TransitionType == ETransitionType::None || TransitionType == ETransitionType::Paused)
 	{
 		// Display a paused screen if the game is paused.
-		TransitionType = (CurrentWorld->GetWorldSettings()->GetPauserPlayerState() != NULL) ? TT_Paused : TT_None;
+		TransitionType = (CurrentWorld->GetWorldSettings()->GetPauserPlayerState() != NULL) ? ETransitionType::Paused : ETransitionType::None;
 	}
 }
 

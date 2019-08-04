@@ -90,16 +90,16 @@ enum EFullyLoadPackageType
  * Enumerates transition types.
  */
 UENUM()
-enum ETransitionType
+enum class ETransitionType : uint8
 {
-	TT_None,
-	TT_Paused,
-	TT_Loading,
-	TT_Saving,
-	TT_Connecting,
-	TT_Precaching,
-	TT_WaitingToConnect,
-	TT_MAX,
+	None,
+	Paused,
+	Loading,
+	Saving,
+	Connecting,
+	Precaching,
+	WaitingToConnect,
+	MAX
 };
 
 /** Status of dynamic resolution that depends on project setting cvar, game user settings, and pause */
@@ -1441,7 +1441,7 @@ public:
 
 	/** The current transition type. */
 	UPROPERTY()
-	TEnumAsByte<enum ETransitionType> TransitionType;
+	ETransitionType TransitionType;
 
 	/** The current transition description text. */
 	UPROPERTY()

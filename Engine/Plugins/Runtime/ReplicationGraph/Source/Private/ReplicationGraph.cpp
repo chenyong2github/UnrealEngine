@@ -2462,7 +2462,7 @@ void UNetReplicationGraphConnection::NotifyClientVisibleLevelNamesAdd(FName Leve
 		TArray<AActor*>& Actors = StreamingWorld->PersistentLevel->Actors;
 		for (AActor* Actor : Actors)
 		{
-			if (Actor && Actor->GetIsReplicated() && (Actor->NetDormancy == DORM_DormantAll))
+			if (Actor && (Actor->NetDormancy == DORM_DormantAll || (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor() == false)))
 			{
 				if (FConnectionReplicationActorInfo* ActorInfo = ActorInfoMap.Find(Actor))
 				{

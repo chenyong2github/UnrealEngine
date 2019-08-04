@@ -12,6 +12,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "PicpPostProcessing.h"
+#include "TextureResource.h"
 
 class UTexture;
 class UTextureRenderTarget2D;
@@ -22,10 +23,16 @@ public:
 	//on Gamethread
 	static void ApplyBlur(UTextureRenderTarget2D* InOutRenderTarget, UTextureRenderTarget2D* TemporaryRenderTarget, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType);
 	static void ApplyCompose(UTexture* InputTexture, UTextureRenderTarget2D* OutputRenderTarget, UTextureRenderTarget2D* Result);
+	static void ExecuteCompose();
 
 	//onRenderThread
 	static void ApplyBlur_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutRT, FRHITexture2D* TempRT, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType);
 	static void ApplyCompose_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* OverlayTexture, FRHITexture2D* DstRenderTarget, FRHITexture2D* DstTexture);
+
+	// blend texture references
+	static FTextureResource* SrcTexture;
+	static FTextureRenderTargetResource* DstTexture;
+	static FTextureRenderTargetResource* ResultTexture;
 };
 
 class FDirectProjectionVS : public FGlobalShader
@@ -38,7 +45,9 @@ class FDirectProjectionVS : public FGlobalShader
 	}
 
 	/** Default constructor. */
-	FDirectProjectionVS() {}
+	FDirectProjectionVS() 
+	{
+	}
 
 
 public:
@@ -62,7 +71,9 @@ class TPicpBlurPostProcessPS : public FGlobalShader
 	}
 
 	/** Default constructor. */
-	TPicpBlurPostProcessPS() {}
+	TPicpBlurPostProcessPS() 
+	{
+	}
 
 	FShaderResourceParameter SrcTextureParameter;
 	FShaderResourceParameter BilinearClampTextureSamplerParameter;
@@ -139,7 +150,9 @@ class FDirectComposePS : public FGlobalShader
 	}
 
 	/** Default constructor. */
-	FDirectComposePS() {}
+	FDirectComposePS() 
+	{
+	}
 
 	FShaderResourceParameter SrcTextureParameter;
 	FShaderResourceParameter BilinearClampTextureSamplerParameter;

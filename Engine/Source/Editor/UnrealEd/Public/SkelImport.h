@@ -83,6 +83,9 @@ struct ExistingSkelMeshData
 	FSkeletalMeshSamplingInfo				ExistingSamplingInfo;
 	FPerPlatformInt							MinLOD;
 	FPerPlatformBool						DisableBelowMinLodStripping;
+	FPerPlatformBool						bSupportLODStreaming;
+	FPerPlatformInt							MaxNumStreamedLODs;
+	FPerPlatformInt							MaxNumOptionalLODs;
 
 	TMap<UAssetUserData*, bool>				ExistingAssetUserData;
 };

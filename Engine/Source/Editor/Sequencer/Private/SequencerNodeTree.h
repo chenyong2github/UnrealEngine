@@ -185,9 +185,10 @@ private:
 	 * @param Folder                  Pointer to the movie scene folder to create a node for
 	 * @param AllBindings             A map from guid to binding pointer for all the bindings in the sequence
 	 * @param ChildToParentBinding    Child to parent GUID map used for creating parent items
+	 * @param OutChildToParentMap     Pointer to a map that should be populated with child->parent relationships to be set up after creation of all nodes
 	 * @return A shared reference to a folder node. The resulting node's serial number will always be up-to-date, as will all its child folders, and any immediate child object bindings.
 	 */
-	TSharedRef<FSequencerFolderNode> CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding);
+	TSharedRef<FSequencerFolderNode> CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>>* OutChildToParentMap);
 
 	/**
 	 * Find an existing object binding node (or create a new one) for the specified binding ID without updating its tree serial number, creating any parent object binding nodes in the process.
@@ -196,9 +197,10 @@ private:
 	 * @param BindingID               The Guid of the object binding within UMovieScene::GetBindings
 	 * @param AllBindings             A map from guid to binding pointer for all the bindings in the sequence
 	 * @param ChildToParentBinding    Child to parent GUID map used for creating parent items
+	 * @param OutChildToParentMap     Pointer to a map that should be populated with child->parent relationships to be set up after creation of all nodes
 	 * @return A shared pointer to an object binding node or nullptr if the supplied BindingID was not valid for this sequence. The resulting node's serial number will be up-to-date if it is a child of another binding, or it was previously added to a folder.
 	 */
-	TSharedPtr<FSequencerObjectBindingNode> FindOrCreateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding);
+	TSharedPtr<FSequencerObjectBindingNode> FindOrCreateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, TMap<FSequencerDisplayNode*, TSharedPtr<FSequencerDisplayNode>>* OutChildToParentMap);
 
 	/**
 	 * Creates section handles for all the sections contained in the specified track

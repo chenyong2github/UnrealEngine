@@ -44,7 +44,7 @@ Derived data key generation.
 
 // If you want to bump this version, generate a new guid using
 // VS->Tools->Create GUID and paste it here. https://www.guidgen.com works too.
-#define STREAMEDAUDIO_DERIVEDDATA_VER		TEXT("BC6E92FBBD314E3B9B9EC6778749EA7F")
+#define STREAMEDAUDIO_DERIVEDDATA_VER		TEXT("BC6E92FBBD314E3B9B9EC6778749EB5E")
 
 /**
  * Computes the derived data key suffix for a SoundWave's Streamed Audio.
@@ -329,12 +329,11 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				if (bUseStreamCaching)
 				{
 					// Use the chunk size for this duration:
-					MaxChunkSize = FPlatformCompressionUtilities::GetChunkSizeForCookOverrides(CompressionOverrides);
+					MaxChunkSize = FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(CompressionOverrides);
 					UE_LOG(LogAudio, Display, TEXT("Chunk size for %s: %d"), *SoundWave.GetFullName(), MaxChunkSize);
 				}
-
+				
 				check(FirstChunkSize != 0 && MaxChunkSize != 0);
-				check(FirstChunkSize <= (256 * 1024) && MaxChunkSize <= (256 * 1024));
 
 				if (AudioFormat->SplitDataForStreaming(CompressedBuffer, ChunkBuffers, FirstChunkSize, MaxChunkSize))
 				{
@@ -363,7 +362,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 #endif
 
 						NewChunk->BulkData.Lock(LOCK_READ_WRITE);
-						void* NewChunkData = NewChunk->BulkData.Realloc(NewChunk->DataSize);
+						void* NewChunkData = NewChunk->BulkData.Realloc(NewChunk->AudioDataSize);
 						FMemory::Memcpy(NewChunkData, ChunkBuffers[0].GetData(), AudioDataSize);
 						NewChunk->BulkData.Unlock();
 					}
@@ -374,7 +373,6 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 						// Zero pad the reallocation if the chunk isn't precisely the max chunk size to keep the reads aligned to MaxChunkSize
 						const int32 AudioDataSize = ChunkBuffers[ChunkIndex].Num();
 						check(AudioDataSize != 0 && AudioDataSize <= MaxChunkSize);
-						int32 AlignedChunkSize = FMath::RoundUpToPowerOfTwo(MaxChunkSize);
 						const int32 ZeroPadBytes = FMath::Max(MaxChunkSize - AudioDataSize, 0);
 
 						FStreamedAudioChunk* NewChunk = new FStreamedAudioChunk();
@@ -426,7 +424,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				// Store it in the cache.
 				// @todo: This will remove the streaming bulk data, which we immediately reload below!
 				// Should ideally avoid this redundant work, but it only happens when we actually have
-				// to build the texture, which should only ever be once.
+				// to build the compressed audio, which should only ever be once.
 				this->BytesCached = PutDerivedDataInCache(DerivedData, KeySuffix);
 
 				check(this->BytesCached != 0);
@@ -663,8 +661,10 @@ bool FStreamedAudioPlatformData::TryInlineChunkData()
 			if (bLoadedFromDDC)
 			{
 				int32 ChunkSize = 0;
+				int32 AudioDataSize = 0;
 				FMemoryReader Ar(TempData, /*bIsPersistent=*/ true);
 				Ar << ChunkSize;
+				Ar << AudioDataSize; // Unused for the purposes of this function.
 
 #if WITH_EDITORONLY_DATA
 				if (Chunk.BulkData.IsLocked())
@@ -846,6 +846,7 @@ void FStreamedAudioPlatformData::Serialize(FArchive& Ar, USoundWave* Owner)
 			Chunks.Add(new FStreamedAudioChunk());
 		}
 	}
+
 	for (int32 ChunkIndex = 0; ChunkIndex < Chunks.Num(); ++ChunkIndex)
 	{
 		Chunks[ChunkIndex].Serialize(Ar, Owner, ChunkIndex);
@@ -1581,12 +1582,16 @@ void USoundWave::FinishCachePlatformData()
 	}
 
 #if DO_CHECK
-	FString DerivedDataKey;
-	FName AudioFormat = GetWaveFormatForRunningPlatform(*this);
-	const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform();
-	GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
+	// If we're allowing cooked data to be loaded then the derived data key will not have been serialized, so won't match and that's fine
+	if (!GAllowCookedDataInEditorBuilds)
+	{
+		FString DerivedDataKey;
+		FName AudioFormat = GetWaveFormatForRunningPlatform(*this);
+		const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform();
+		GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
-	check(RunningPlatformData->DerivedDataKey == DerivedDataKey);
+		check(RunningPlatformData->DerivedDataKey == DerivedDataKey);
+	}
 #endif
 }
 

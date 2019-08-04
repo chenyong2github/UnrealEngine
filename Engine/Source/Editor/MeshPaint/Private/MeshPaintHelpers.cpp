@@ -100,12 +100,12 @@ void MeshPaintHelpers::RemoveComponentInstanceVertexColors(UStaticMeshComponent*
 bool MeshPaintHelpers::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, int32 LODIndex, FStaticMeshComponentLODInfo& ComponentLODInfo)
 {
 	check(ComponentLODInfo.OverrideVertexColors);
-	check(StaticMesh->SourceModels.IsValidIndex(LODIndex));
+	check(StaticMesh->IsSourceModelValid(LODIndex));
 	check(StaticMesh->RenderData);
 	check(StaticMesh->RenderData->LODResources.IsValidIndex(LODIndex));
 
 	bool bPropagatedColors = false;
-	FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
+	FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 	FStaticMeshRenderData& RenderData = *StaticMesh->RenderData;
 	FStaticMeshLODResources& RenderModel = RenderData.LODResources[LODIndex];
 	FColorVertexBuffer& ColorVertexBuffer = *ComponentLODInfo.OverrideVertexColors;
@@ -1196,7 +1196,7 @@ void MeshPaintHelpers::ForceRenderMeshLOD(UMeshComponent* Component, int32 LODIn
 	}
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Component))
 	{
-		SkeletalMeshComponent->ForcedLodModel = LODIndex + 1;
+		SkeletalMeshComponent->SetForcedLOD(LODIndex + 1);
 	}	
 }
 

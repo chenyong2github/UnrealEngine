@@ -3278,7 +3278,13 @@ FRecastNavMeshGenerator::FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh)
 	{
 		// recreate navmesh from scratch if no data was loaded
 		ConstructTiledNavMesh();
-		// mark all the areas we need to update, which is the whole (known) navigable space
+
+		// mark all the areas we need to update, which is the whole (known) navigable space if not restricted to active tiles
+		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+		if (NavSys)
+		{
+			bRestrictBuildingToActiveTiles = NavSys->IsActiveTilesGenerationEnabled();
+		}
 		MarkNavBoundsDirty();
 	}
 	else
@@ -3548,8 +3554,17 @@ bool FRecastNavMeshGenerator::RebuildAll()
 	
 	if (MarkNavBoundsDirty() == false)
 	{
-		// There are no navigation bounds to build, probably navmesh was resized and we just need to update debug draw
-		DestNavMesh->RequestDrawingUpdate();
+		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+		if (NavSys && !NavSys->ShouldGenerateNavDataWhenNoCompatibleNavBound())
+		{
+			// There are no navigation bounds to build, no point keeping the nav mesh
+			DestNavMesh->Destroy();
+		}
+		else
+		{
+			// There are no navigation bounds to build, probably navmesh was resized and we just need to update debug draw
+			DestNavMesh->RequestDrawingUpdate();
+		}
 	}
 
 	return true;

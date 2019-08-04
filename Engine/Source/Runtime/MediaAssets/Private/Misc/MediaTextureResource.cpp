@@ -251,22 +251,8 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			}
 			else if (Sample->GetMediaTextureSampleConverter())
 			{
-				
 				CreateOutputRenderTarget(Sample, Params);
-#if MEDIATEXTURERESOURCE_TRACE_RENDER
-				const bool bDecoded = Sample->GetMediaTextureSampleConverter()->Convert(RenderTargetTextureRHI);
-				if (bDecoded == false)
-				{
-					UE_LOG(LogMediaAssets, VeryVerbose, TEXT("TextureResource %p: Unable to decode video sample using hardware acceleration with time %s at time %s"),
-						this,
-						*Sample->GetTime().ToString(TEXT("%h:%m:%s.%t")),
-						*Params.Time.ToString(TEXT("%h:%m:%s.%t"))
-					);
-				}
-#else
 				Sample->GetMediaTextureSampleConverter()->Convert(RenderTargetTextureRHI);
-#endif
-
 			}
 			else if (MediaTextureResource::RequiresConversion(Sample, Params.SrgbOutput))
 			{
@@ -337,6 +323,9 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			ClearTexture(Params.ClearColor, Params.SrgbOutput);
 		}
 	}
+	
+	//Cache next available sample time in the MediaTexture owner since we're the only one that can consume from the queue
+	CacheNextAvailableSampleTime(SampleSource);
 
 	// update external texture registration
 	if (!GSupportsImageExternal)
@@ -884,4 +873,18 @@ void FMediaTextureResource::CreateOutputRenderTarget(const TSharedPtr<IMediaText
 	}
 }
 
+void FMediaTextureResource::CacheNextAvailableSampleTime(const TSharedPtr<FMediaTextureSampleSource, ESPMode::ThreadSafe>& InSampleQueue) const
+{
+	FTimespan SampleTime(FTimespan::MinValue());
 
+	if (InSampleQueue.IsValid())
+	{
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+		if (InSampleQueue->Peek(Sample))
+		{
+			SampleTime = Sample->GetTime();
+		}
+	}
+
+	Owner.CacheNextAvailableSampleTime(SampleTime);
+}

@@ -466,6 +466,8 @@ bool IUsdPrim::HasGeometryDataOrLODVariants(const UsdPrim& Prim)
 
 int IUsdPrim::GetNumLODs(const UsdPrim& Prim)
 {
+	FScopedUsdAllocs UsdAllocs;
+
 	// 0 indicates no variant or no lods in variant. 
 	int NumLODs = 0;
 	if (Prim.HasVariantSets())
@@ -572,8 +574,10 @@ std::string IUsdPrim::GetUnrealPropertyPath(const pxr::UsdPrim& Prim)
 	return {};
 }
 
-std::vector<UsdAttribute> PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
+TUsdStore< std::vector<UsdAttribute> > PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
 {
+	FScopedUsdAllocs UsdAllocs;
+
 	std::vector<UsdAttribute> Attributes = Prim.GetAttributes();
 
 	std::vector<UsdAttribute> OutAttributes;
@@ -590,7 +594,7 @@ std::vector<UsdAttribute> PrivateGetAttributes(const pxr::UsdPrim& Prim, const T
 	return OutAttributes;
 }
 
-std::vector<UsdAttribute> IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
+TUsdStore< std::vector<UsdAttribute> > IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
 {
 	return PrivateGetAttributes(Prim, UnrealIdentifiers::PropertyPath);
 }
@@ -866,6 +870,8 @@ bool IUsdPrim::HasTransform(const pxr::UsdPrim& Prim)
 
 bool IUsdPrim::SetActiveLODIndex(const pxr::UsdPrim& Prim, int LODIndex)
 {
+	FScopedUsdAllocs UsdAllocs;
+
 	if (Prim.HasVariantSets())
 	{
 		UsdVariantSet LODVariantSet = Prim.GetVariantSet(UnrealIdentifiers::LOD);

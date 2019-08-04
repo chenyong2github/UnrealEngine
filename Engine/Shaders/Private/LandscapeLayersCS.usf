@@ -41,7 +41,7 @@ StructuredBuffer<FLandscapeLayerWeightmapPackMaterialLayersComponentData> InPack
 Buffer<float> InWeightmapWeightBlendMode;
 Buffer<float2> InWeightmapTextureOutputOffset;
 Texture2DArray<float> InAtlasPaintLayers;
-RWTexture2D<UNORM float4> OutComponentWeightMaps;
+RWTexture2D<uint> OutComponentWeightMaps;
 
 float ComputeWeightmapChannel(int ChannelIndexToProcess, uint2 TexelPosition, uint SourcePaintLayerIndex)
 {
@@ -77,27 +77,28 @@ void PackPaintLayerToWeightmap(uint3 DispatchThreadId : SV_DispatchThreadID)
 	{
 		FLandscapeLayerWeightmapPackMaterialLayersComponentData ComponentData = InPackLayersComponentsData[DispatchThreadId.z];
 
-		float4 Channels;
+		uint Channels = 0;
 
 		for (int i = 0; i < 4; ++i)
 		{
 			float ChannelResult = ComputeWeightmapChannel(ComponentData.WeightmapChannelToProcess[i], DispatchThreadId.xy + int2(ComponentData.ComponenVertexPositionX[i], ComponentData.ComponenVertexPositionY[i]), ComponentData.SourcePaintLayerIndex[i]);
 
+			// BGRA to RGBA
 			if (ComponentData.WeightmapChannelToProcess[i] == 0)
 			{ 
-				Channels.x = ChannelResult;
+				Channels |= uint(ChannelResult * 255.0) << 8;
 			}
 			else if (ComponentData.WeightmapChannelToProcess[i] == 1)
 			{
-				Channels.y = ChannelResult;
+				Channels |= uint(ChannelResult * 255.0) << 16;
 			}
 			else if (ComponentData.WeightmapChannelToProcess[i] == 2)
 			{
-				Channels.z = ChannelResult;
+				Channels |= uint(ChannelResult * 255.0) << 24;
 			}
 			else if (ComponentData.WeightmapChannelToProcess[i] == 3)
 			{
-				Channels.w = ChannelResult;
+				Channels |= uint(ChannelResult * 255.0);
 			}
 		}
 

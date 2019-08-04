@@ -36,6 +36,7 @@ public:
 
 protected:
 	friend class SWidget;
+	friend class FCombinedChildren;
 	/** @return the const reference to the slot at the specified Index */
 	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const = 0;
 
@@ -44,6 +45,69 @@ protected:
 
 protected:
 	SWidget* Owner;
+};
+
+
+/**
+ * Occasionally you may need to keep multiple descrete sets of children with differing slot requirements.
+ * This datastructure can be used to link multiple FChildren under a single accessor so you can always return
+ * all children from GetChildren, but internally manage them in their own child lists.
+ */
+class FCombinedChildren : public FChildren
+{
+public:
+	FCombinedChildren(SWidget* InOwner)
+		: FChildren(InOwner)
+	{
+	}
+
+	void AddChildren(FChildren& InLinkedChildren)
+	{
+		LinkedChildren.Add(&InLinkedChildren);
+	}
+
+	/** @return the number of children */
+	virtual int32 Num() const override
+	{
+		int32 TotalNum = 0;
+		for (const FChildren* Children : LinkedChildren)
+		{
+			TotalNum += Children->Num();
+		}
+
+		return TotalNum;
+	}
+
+	virtual TSharedRef<SWidget> GetChildAt(int32 Index) override
+	{
+		return GetSlotAt(Index).GetWidget();
+	}
+
+	virtual TSharedRef<const SWidget> GetChildAt(int32 Index) const override
+	{
+		return GetSlotAt(Index).GetWidget();
+	}
+
+protected:
+	virtual const FSlotBase& GetSlotAt(int32 ChildIndex) const override
+	{
+		int32 TotalNum = 0;
+		for (const FChildren* Children : LinkedChildren)
+		{
+			const int32 NewTotal = TotalNum + Children->Num();
+			if (NewTotal > ChildIndex)
+			{
+				return Children->GetSlotAt(ChildIndex - TotalNum);
+			}
+			TotalNum = NewTotal;
+		}
+
+		// This result should never occur users should always access a valid index for child slots.
+		static FSlotBase NullSlot; check(false); return NullSlot;
+	}
+
+protected:
+	TArray<FChildren*> LinkedChildren;
 };
 
 
@@ -169,12 +233,14 @@ public:
 	{
 		if (WidgetPtr.IsValid())
 		{
-			WidgetPtr.Reset();
+			TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
 
-			if (Owner)
+			if (Widget != SNullWidget::NullWidget)
 			{
-				Owner->Invalidate(EInvalidateWidget::ChildOrder);
+				Widget->ConditionallyDetatchParentWidget(Owner);
 			}
+
+			WidgetPtr.Reset();
 		}
 	}
 

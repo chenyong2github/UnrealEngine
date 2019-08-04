@@ -15,8 +15,8 @@ StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
 // Instantiate TRenderAssetUpdate for FStaticMeshUpdateContext
 template class TRenderAssetUpdate<FStaticMeshUpdateContext>;
 
-static constexpr uint32 GMaxNumResourceUpdatesPerLOD = 14;
-static constexpr uint32 GMaxNumResourceUpdatesPerBatch = (MAX_STATIC_MESH_LODS - 1) * GMaxNumResourceUpdatesPerLOD;
+static constexpr uint32 GStaticMeshMaxNumResourceUpdatesPerLOD = 14;
+static constexpr uint32 GStaticMeshMaxNumResourceUpdatesPerBatch = (MAX_STATIC_MESH_LODS - 1) * GStaticMeshMaxNumResourceUpdatesPerLOD;
 
 FStaticMeshUpdateContext::FStaticMeshUpdateContext(UStaticMesh* InMesh, EThreadType InCurrentThread)
 	: Mesh(InMesh)
@@ -219,7 +219,7 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 			&& PendingFirstMip < CurrentFirstLODIdx);
 		// Use a scope to flush the batcher before updating CurrentFirstLODIdx
 		{
-			TRHIResourceUpdateBatcher<GMaxNumResourceUpdatesPerBatch> Batcher;
+			TRHIResourceUpdateBatcher<GStaticMeshMaxNumResourceUpdatesPerBatch> Batcher;
 
 			for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 			{
@@ -270,7 +270,7 @@ void FStaticMeshStreamOut::DoReleaseBuffers(const FContext& Context)
 		RenderData->CurrentFirstLODIdx = PendingFirstMip;
 		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - PendingFirstMip));
 
-		TRHIResourceUpdateBatcher<GMaxNumResourceUpdatesPerBatch> Batcher;
+		TRHIResourceUpdateBatcher<GStaticMeshMaxNumResourceUpdatesPerBatch> Batcher;
 
 		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
 		{
@@ -443,6 +443,8 @@ void FStaticMeshStreamIn_IO::ClearIORequest(const FContext& Context)
 
 void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 {
+	LLM_SCOPE(ELLMTag::StaticMesh);
+
 	check(!TaskSynchronization.GetValue());
 	UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;

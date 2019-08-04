@@ -83,15 +83,25 @@ FStreamLevelAction::FStreamLevelAction(bool bIsLoading, const FName& InLevelName
 	, LevelName(InLevelName)
 	, LatentInfo(InLatentInfo)
 {
-	Level = FindAndCacheLevelStreamingObject( LevelName, World );
-	ActivateLevel( Level );
+	ULevelStreaming* LocalLevel = FindAndCacheLevelStreamingObject( LevelName, World );
+	Level = LocalLevel;
+	ActivateLevel( LocalLevel );
 }
 
 void FStreamLevelAction::UpdateOperation(FLatentResponse& Response)
 {
-	ULevelStreaming* LevelStreamingObject = Level; // to avoid confusion.
-	bool bIsOperationFinished = UpdateLevel( LevelStreamingObject );
-	Response.FinishAndTriggerIf(bIsOperationFinished, LatentInfo.ExecutionFunction, LatentInfo.Linkage, LatentInfo.CallbackTarget);
+	ULevelStreaming* LevelStreamingObject = Level.Get(); // to avoid confusion.
+	const bool bIsLevelValid = LevelStreamingObject != nullptr;
+	UE_LOG(LogLevelStreaming, Display, TEXT("FStreamLevelAction::UpdateOperation() LevelName %s, bIsLevelValid %d"), *LevelName.ToString(), (int32)bIsLevelValid);
+	if (bIsLevelValid)
+	{
+		bool bIsOperationFinished = UpdateLevel(LevelStreamingObject);
+		Response.FinishAndTriggerIf(bIsOperationFinished, LatentInfo.ExecutionFunction, LatentInfo.Linkage, LatentInfo.CallbackTarget);
+	}
+	else
+	{
+		Response.DoneIf(true);
+	}
 }
 
 #if WITH_EDITOR
@@ -1548,8 +1558,7 @@ void ULevelStreaming::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			GetWorld()->UpdateLevelStreaming();
 		}
-
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, EditorStreamingVolumes))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, EditorStreamingVolumes))
 		{
 			RemoveStreamingVolumeDuplicates();
 
@@ -1573,6 +1582,23 @@ void ULevelStreaming::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			bHasCachedWorldAssetPackageFName = false;
 			bHasCachedLoadedLevelPackageName = false;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, bIsStatic))
+		{
+			if (LoadedLevel)
+			{
+				const ELevelCollectionType NewCollectionType = bIsStatic ? ELevelCollectionType::StaticLevels : ELevelCollectionType::DynamicSourceLevels;
+				FLevelCollection* PreviousCollection = LoadedLevel->GetCachedLevelCollection();
+
+				if (PreviousCollection && PreviousCollection->GetType() != NewCollectionType)
+				{
+					PreviousCollection->RemoveLevel(LoadedLevel);
+
+					UWorld* World = GetWorld();
+					FLevelCollection& LC = World->FindOrAddCollectionByType(NewCollectionType);
+					LC.AddLevel(LoadedLevel);
+				}
+			}
 		}
 	}
 

@@ -12,7 +12,7 @@
 #include "FieldSystemComponent.generated.h"
 
 struct FFieldSystemSampleData;
-class FFieldSystemPhysicsObject;
+class FFieldSystemPhysicsProxy;
 class FChaosSolversModule;
 
 /**
@@ -189,7 +189,7 @@ protected:
 
 #if INCLUDE_CHAOS
 
-	FFieldSystemPhysicsObject* PhysicsObject;
+	FFieldSystemPhysicsProxy* PhysicsProxy;
 	FChaosSolversModule* ChaosModule;
 
 #endif

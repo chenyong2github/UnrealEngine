@@ -143,12 +143,21 @@ private:
 	
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override
 	{
+		// Grab the latest frame from ARKit
+		{
+			FScopeLock ScopeLock(&ARKitSystem.FrameLock);
+			ARKitSystem.RenderThreadFrame = ARKitSystem.LastReceivedFrame;
+		}
+
 		FDefaultXRCamera::PreRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
 	}
 	
 	virtual void PostRenderBasePass_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override
 	{
-		VideoOverlay.RenderVideoOverlay_RenderThread(RHICmdList, InView);
+		if (ARKitSystem.RenderThreadFrame.IsValid())
+		{
+			VideoOverlay.RenderVideoOverlay_RenderThread(RHICmdList, InView, *ARKitSystem.RenderThreadFrame, ARKitSystem.DeviceOrientation);
+		}
 	}
 	
 	virtual bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs) override
@@ -427,6 +436,10 @@ float FAppleARKitSystem::GetWorldToMetersScale() const
 
 void FAppleARKitSystem::OnBeginRendering_GameThread()
 {
+#if PLATFORM_MAC || PLATFORM_IOS
+    // Queue an update on the render thread
+	CameraImage->Init_RenderThread();
+#endif
 	UpdatePoses();
 }
 
@@ -1346,10 +1359,10 @@ void FAppleARKitSystem::SessionDidUpdateFrame_DelegateThread(TSharedPtr< FAppleA
 		{
 			WriteCameraImageToDisk(Frame->CameraImage);
 		}
-		// Queue an update on the render thread
+		
 		if (CameraImage != nullptr)
 		{
-			CameraImage->Init_RenderThread(Frame->CameraImage);
+			CameraImage->EnqueueNewCameraImage(Frame->CameraImage);
 		}
 #endif
 	}

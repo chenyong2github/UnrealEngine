@@ -37,11 +37,10 @@
 
 UGameInstance::UGameInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, TimerManager(new FTimerManager())
+	, TimerManager(new FTimerManager(this))
 	, LatentActionManager(new FLatentActionManager())
 	, SubsystemCollection(this)
 {
-	TimerManager->SetGameInstance(this);
 }
 
 void UGameInstance::FinishDestroy()
@@ -319,9 +318,17 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 			URLString += FString::Printf(TEXT(":%hu"), ServerPort);
 		}
 
+		if (PlayInSettings->IsNetworkEmulationEnabled())
+		{
+			if (PlayInSettings->NetworkEmulationSettings.IsEmulationEnabledForTarget(NetworkEmulationTarget::Client))
+			{
+				URLString += PlayInSettings->NetworkEmulationSettings.BuildPacketSettingsForURL();
+			}
+		}
+
 		if (EditorEngine->Browse(*WorldContext, FURL(&BaseURL, *URLString, (ETravelType)TRAVEL_Absolute), Error) == EBrowseReturnVal::Pending)
 		{
-			EditorEngine->TransitionType = TT_WaitingToConnect;
+			EditorEngine->TransitionType = ETransitionType::WaitingToConnect;
 		}
 		else
 		{
@@ -333,13 +340,26 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 		// we're going to be playing in the current world, get it ready for play
 		UWorld* const PlayWorld = GetWorld();
 
+		FString ExtraURLOptions;
+		if (PlayInSettings->IsNetworkEmulationEnabled())
+		{
+			NetworkEmulationTarget CurrentTarget = PlayNetMode == PIE_ListenServer ? NetworkEmulationTarget::Server : NetworkEmulationTarget::Client;
+			if (PlayInSettings->NetworkEmulationSettings.IsEmulationEnabledForTarget(CurrentTarget))
+			{
+				ExtraURLOptions += PlayInSettings->NetworkEmulationSettings.BuildPacketSettingsForURL();
+			}
+		}
+
 		// make a URL
 		FURL URL;
 		// If the user wants to start in spectator mode, do not use the custom play world for now
 		if (EditorEngine->UserEditedPlayWorldURL.Len() > 0 && !Params.bStartInSpectatorMode)
 		{
+			FString UserURL = EditorEngine->UserEditedPlayWorldURL;
+			UserURL += ExtraURLOptions;
+
 			// If the user edited the play world url. Verify that the map name is the same as the currently loaded map.
-			URL = FURL(NULL, *EditorEngine->UserEditedPlayWorldURL, TRAVEL_Absolute);
+			URL = FURL(NULL, *UserURL, TRAVEL_Absolute);
 			if (URL.Map != PIEMapName)
 			{
 				// Ensure the URL map name is the same as the generated play world map name.
@@ -349,7 +369,7 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 		else
 		{
 			// The user did not edit the url, just build one from scratch.
-			URL = FURL(NULL, *EditorEngine->BuildPlayWorldURL(*PIEMapName, Params.bStartInSpectatorMode), TRAVEL_Absolute);
+			URL = FURL(NULL, *EditorEngine->BuildPlayWorldURL(*PIEMapName, Params.bStartInSpectatorMode, ExtraURLOptions), TRAVEL_Absolute);
 		}
 
 		// If a start location is specified, spawn a temporary PlayerStartPIE actor at the start location and use it as the portal.

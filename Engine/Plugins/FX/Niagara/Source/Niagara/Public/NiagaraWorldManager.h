@@ -87,7 +87,8 @@ public:
 	
 	FORCEINLINE FNDI_SkeletalMesh_GeneratedData& GetSkeletalMeshGeneratedData() { return SkeletalMeshGeneratedData; }
 
-	TArrayView<const FVector> GetCachedPlayerViewLocations() const { return MakeArrayView(CachedPlayerViewLocations); }
+	bool CachedPlayerViewLocationsValid() const { return bCachedPlayerViewLocationsValid; }
+	TArrayView<const FVector> GetCachedPlayerViewLocations() const { check(bCachedPlayerViewLocationsValid); return MakeArrayView(CachedPlayerViewLocations); }
 
 private:
 	UWorld* World;
@@ -98,6 +99,7 @@ private:
 
 	int32 CachedEffectsQuality;
 
+	bool bCachedPlayerViewLocationsValid = false;
 	TArray<FVector, TInlineAllocator<8> > CachedPlayerViewLocations;
 
 	/** Generated data used by data interfaces*/
@@ -111,7 +113,7 @@ private:
 		TArray<TUniquePtr<FNiagaraSystemInstance>>	Queue;
 	};
 
-	static constexpr int NumDeferredQueues = 2;
+	static constexpr int NumDeferredQueues = 3;
 	int DeferredDeletionQueueIndex = 0;
 	FDeferredDeletionQueue DeferredDeletionQueue[NumDeferredQueues];
 };

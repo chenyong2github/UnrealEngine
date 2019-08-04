@@ -14,7 +14,7 @@ THIRD_PARTY_INCLUDES_START
 #include "vivoxclientapi/clientconnection.h"
 THIRD_PARTY_INCLUDES_END
 
-#include "VoiceChat.h"
+#include "Interfaces/VoiceChat.h"
 #include "Stats/Stats.h"
 #include "Misc/CoreMisc.h"
 #include "Logging/LogMacros.h"

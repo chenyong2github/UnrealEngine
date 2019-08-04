@@ -8,6 +8,7 @@
 #include "AndroidAudioDevice.h"
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
+#include "AudioPluginUtilities.h"
 
 DEFINE_LOG_CATEGORY(LogAndroidAudio);
 
@@ -71,71 +72,54 @@ void FSLESAudioDevice::Teardown( void )
  *
  * @return TRUE if initialization was successful, FALSE otherwise
  */
-bool FSLESAudioDevice::InitializeHardware( void )
+bool FSLESAudioDevice::InitializeHardware(void)
 {
-	UE_LOG( LogAndroidAudio, Warning, TEXT("SL Entered Init HW"));
+	UE_LOG(LogAndroidAudio, Warning, TEXT("SL Entered Init HW"));
 
 	SLresult result;
 
-	UE_LOG( LogAndroidAudio, Warning, TEXT("OpenSLES Initializing HW"));
+	UE_LOG(LogAndroidAudio, Warning, TEXT("OpenSLES Initializing HW"));
 
-	SLEngineOption EngineOption[] = { {(SLuint32) SL_ENGINEOPTION_THREADSAFE, (SLuint32) SL_BOOLEAN_TRUE} };
+	SLEngineOption EngineOption[] = { {(SLuint32)SL_ENGINEOPTION_THREADSAFE, (SLuint32)SL_BOOLEAN_TRUE} };
 
-    // create engine
-    result = slCreateEngine( &SL_EngineObject, 1, EngineOption, 0, NULL, NULL);
-    //check(SL_RESULT_SUCCESS == result);
+	// create engine
+	result = slCreateEngine(&SL_EngineObject, 1, EngineOption, 0, NULL, NULL);
+	//check(SL_RESULT_SUCCESS == result);
 	if (SL_RESULT_SUCCESS != result)
 	{
-		UE_LOG( LogAndroidAudio, Error, TEXT("Engine create failed %d"), int32(result));
+		UE_LOG(LogAndroidAudio, Error, TEXT("Engine create failed %d"), int32(result));
 	}
 
-    // realize the engine
-    result = (*SL_EngineObject)->Realize(SL_EngineObject, SL_BOOLEAN_FALSE);
-    check(SL_RESULT_SUCCESS == result);
+	// realize the engine
+	result = (*SL_EngineObject)->Realize(SL_EngineObject, SL_BOOLEAN_FALSE);
+	check(SL_RESULT_SUCCESS == result);
 
-    // get the engine interface, which is needed in order to create other objects
-    result = (*SL_EngineObject)->GetInterface(SL_EngineObject, SL_IID_ENGINE, &SL_EngineEngine);
-    check(SL_RESULT_SUCCESS == result);
+	// get the engine interface, which is needed in order to create other objects
+	result = (*SL_EngineObject)->GetInterface(SL_EngineObject, SL_IID_ENGINE, &SL_EngineEngine);
+	check(SL_RESULT_SUCCESS == result);
 
 	// create output mix, with environmental reverb specified as a non-required interface
-    result = (*SL_EngineEngine)->CreateOutputMix( SL_EngineEngine, &SL_OutputMixObject, 0, NULL, NULL );
-    check(SL_RESULT_SUCCESS == result);
+	result = (*SL_EngineEngine)->CreateOutputMix(SL_EngineEngine, &SL_OutputMixObject, 0, NULL, NULL);
+	check(SL_RESULT_SUCCESS == result);
 
-    // realize the output mix
-    result = (*SL_OutputMixObject)->Realize(SL_OutputMixObject, SL_BOOLEAN_FALSE);
-    check(SL_RESULT_SUCCESS == result);
+	// realize the output mix
+	result = (*SL_OutputMixObject)->Realize(SL_OutputMixObject, SL_BOOLEAN_FALSE);
+	check(SL_RESULT_SUCCESS == result);
 
-	UE_LOG( LogAndroidAudio, Warning, TEXT("OpenSLES Initialized"));
-    // ignore unsuccessful result codes for env
+	UE_LOG(LogAndroidAudio, Warning, TEXT("OpenSLES Initialized"));
 
-
-	// Default to sensible channel count.
-	if( MaxChannels < 1 )
+	// Initialize sources
+	const int32 MaxSoundSources = GetMaxSources();
+	for (int32 i = 0; i < MaxSoundSources; i++)
 	{
-		MaxChannels = 12;
+		FSLESSoundSource* Source = new FSLESSoundSource(this);
+		Sources.Add(Source);
+		FreeSources.Add(Source);
 	}
-
-
-	// Initialize channels.
-	for( int32 i = 0; i < FMath::Min( MaxChannels, 12 ); i++ )
-	{
-		FSLESSoundSource* Source = new FSLESSoundSource( this );
-		Sources.Add( Source );
-		FreeSources.Add( Source );
-	}
-
-	if( Sources.Num() < 1 )
-	{
-		UE_LOG( LogAndroidAudio,  Warning, TEXT( "OpenSLAudio: couldn't allocate any sources" ) );
-		return false;
-	}
-
-	// Update MaxChannels in case we couldn't create enough sources.
-	MaxChannels = Sources.Num();
-	UE_LOG( LogAndroidAudio, Warning, TEXT( "OpenSLAudioDevice: Allocated %i sources" ), MaxChannels );
+	UE_LOG(LogAndroidAudio, Warning, TEXT("OpenSLAudioDevice: Allocated %i sources"), MaxSoundSources);
 
 	// Set up a default (nop) effects manager
-	Effects = new FAudioEffectsManager( this );
+	Effects = new FAudioEffectsManager(this);
 
 	return true;
 }
@@ -200,7 +184,8 @@ class ICompressedAudioInfo* FSLESAudioDevice::CreateCompressedAudioInfo(USoundWa
 
 FAudioPlatformSettings FSLESAudioDevice::GetPlatformSettings() const
 {
-	return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"));
+	const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Android);
+	return FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
 }
 
 /** Check if any background music or sound is playing through the audio device */

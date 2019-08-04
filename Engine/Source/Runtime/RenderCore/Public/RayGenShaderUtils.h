@@ -28,7 +28,7 @@ struct RENDERCORE_API FRayGenShaderUtils
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERenderGraphPassFlags::Compute,
+			ERDGPassFlags::Compute,
 			[RayGenerationShader, Parameters, Resolution](FRHICommandList& RHICmdList)
 		{
 			FRayTracingShaderBindingsWriter GlobalResources;

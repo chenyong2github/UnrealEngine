@@ -65,18 +65,55 @@ void FSkeletalMeshVertexClothBuffer::CleanUp()
 	VertexData = nullptr;
 }
 
+void FSkeletalMeshVertexClothBuffer::ClearMetaData()
+{
+	ClothIndexMapping.Empty();
+	NumVertices = 0;
+}
+
+template <bool bRenderThread>
+FVertexBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_Internal()
+{
+	if (NumVertices)
+	{
+		FResourceArrayInterface* ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
+		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
+		FRHIResourceCreateInfo CreateInfo(ResourceArray);
+		CreateInfo.bWithoutNativeResource = !VertexData;
+
+		if (bRenderThread)
+		{
+			return RHICreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+		}
+		else
+		{
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+		}
+	}
+	return nullptr;
+}
+
+FVertexBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_RenderThread()
+{
+	return CreateRHIBuffer_Internal<true>();
+}
+
+FVertexBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_Async()
+{
+	return CreateRHIBuffer_Internal<false>();
+}
+
 /**
 * Initialize the RHI resource for this vertex buffer
 */
 void FSkeletalMeshVertexClothBuffer::InitRHI()
 {
-	check(VertexData);
-	FResourceArrayInterface* ResourceArray = VertexData->GetResourceArray();
-	if (ResourceArray->GetResourceDataSize() > 0)
+	VertexBufferRHI = CreateRHIBuffer_RenderThread();
+
+	if (VertexBufferRHI)
 	{
-		FRHIResourceCreateInfo CreateInfo(ResourceArray);
-		VertexBufferRHI = RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F);
+		VertexBufferSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, sizeof(FVector4), PF_A32B32G32R32F);
 	}
 }
 
@@ -120,6 +157,11 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshVertexClothBuffer& VertexBuffer)
 	}
 
 	return Ar;
+}
+
+void FSkeletalMeshVertexClothBuffer::SerializeMetaData(FArchive& Ar)
+{
+	Ar << ClothIndexMapping << Stride << NumVertices;
 }
 
 

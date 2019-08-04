@@ -1699,7 +1699,8 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	// Some programs might not use the taskgraph or thread pool
 	bool bCreateTaskGraphAndThreadPools = true;
-#if IS_PROGRAM
+	// If STATS is defined (via FORCE_USE_STATS or other), we have to call FTaskGraphInterface::Startup()
+#if IS_PROGRAM && !STATS
 	bCreateTaskGraphAndThreadPools = !FParse::Param(FCommandLine::Get(), TEXT("ReduceThreadUsage"));
 #endif
 	if (bCreateTaskGraphAndThreadPools)
@@ -2473,7 +2474,12 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					if (FPreLoadScreenManager::Get()->HasRegisteredPreLoadScreenType(EPreLoadScreenTypes::EarlyStartupScreen))
 					{
 						// disable the splash before playing the early startup screen
-						FPlatformMisc::PlatformHandleSplashScreen(false);
+						FPreLoadScreenManager::IsResponsibleForRenderingDelegate.AddLambda(
+							[](bool bIsPreloadScreenManResponsibleForRendering) 
+							{
+								FPlatformMisc::PlatformHandleSplashScreen(!bIsPreloadScreenManResponsibleForRendering);
+							}
+						);
 	                    FPreLoadScreenManager::Get()->PlayFirstPreLoadScreen(EPreLoadScreenTypes::EarlyStartupScreen);
 	                }
 					else

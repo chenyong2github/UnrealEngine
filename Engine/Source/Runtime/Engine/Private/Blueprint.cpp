@@ -645,6 +645,21 @@ UClass* UBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* Previous
 	}
 }
 
+void UBlueprint::RemoveChildRedirectors()
+{
+	TArray<UObject*> ChildObjects;
+	GetObjectsWithOuter(this, ChildObjects);
+	for (UObject* ChildObject : ChildObjects)
+	{
+		if (ChildObject->IsA<UObjectRedirector>())
+		{
+			ChildObject->ClearFlags(RF_Public|RF_Standalone);
+			ChildObject->SetFlags(RF_Transient);
+			ChildObject->RemoveFromRoot();
+		}
+	}
+}
+
 void UBlueprint::RemoveGeneratedClasses()
 {
 	FBlueprintEditorUtils::RemoveGeneratedClasses(this);
@@ -958,9 +973,16 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 			FAssetRegistryTag::TT_Alphabetical ) );
 
 	// Only add the FiB tags in the editor, this now gets run for standalone uncooked games
-	if ( ParentClass && GIsEditor)
+	if ( ParentClass && GIsEditor && !GetOutermost()->HasAnyPackageFlags(PKG_ForDiffing))
 	{
-		OutTags.Add( FAssetRegistryTag(FBlueprintTags::FindInBlueprintsData, FFindInBlueprintSearchManager::Get().QuerySingleBlueprint((UBlueprint*)this, false), FAssetRegistryTag::TT_Hidden) );
+		FString Value;
+		const bool bRebuildSearchData = false;
+		if (const FSearchData* SearchData = FFindInBlueprintSearchManager::Get().QuerySingleBlueprint((UBlueprint*)this, bRebuildSearchData))
+		{
+			Value = SearchData->Value;
+		}
+		
+		OutTags.Add( FAssetRegistryTag(FBlueprintTags::FindInBlueprintsData, Value, FAssetRegistryTag::TT_Hidden) );
 	}
 
 	// Only show for strict blueprints (not animation or widget blueprints)
@@ -1912,8 +1934,11 @@ EDataValidationResult UBlueprint::IsDataValid(TArray<FText>& ValidationErrors)
 	EDataValidationResult IsValid = GeneratedClass ? GeneratedClass->GetDefaultObject()->IsDataValid(ValidationErrors) : EDataValidationResult::Invalid;
 	IsValid = (IsValid == EDataValidationResult::NotValidated) ? EDataValidationResult::Valid : IsValid;
 
-	EDataValidationResult IsSCSValid = SimpleConstructionScript->IsDataValid(ValidationErrors);
-	IsValid = CombineDataValidationResults(IsValid, IsSCSValid);
+	if (SimpleConstructionScript)
+	{
+		EDataValidationResult IsSCSValid = SimpleConstructionScript->IsDataValid(ValidationErrors);
+		IsValid = CombineDataValidationResults(IsValid, IsSCSValid);
+	}
 
 	for (UActorComponent* Component : ComponentTemplates)
 	{

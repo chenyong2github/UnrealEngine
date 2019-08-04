@@ -207,7 +207,7 @@ namespace Chaos
 			}
 		}
 
-		virtual bool CHAOS_API Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal) const override;
+		virtual bool CHAOS_API Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override;
 
 		bool RaycastFast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition) const
 		{
@@ -261,7 +261,7 @@ namespace Chaos
 				return false;
 			}
 
-			OutTime = LatestStartTime * InvLength;
+			OutTime = LatestStartTime;
 			OutPosition = StartPoint + LatestStartTime * Dir;
 			return true;
 		}
@@ -389,10 +389,11 @@ namespace Chaos
 			MMax += TVector<T, d>(Thickness);
 		}
 
-		FORCEINLINE void Thicken(const TVector<T, d> Thickness)
+		//Grows (or shrinks) the box by this vector symmetrically - Changed name because previous Thicken had different semantics which caused several bugs
+		FORCEINLINE void ThickenSymmetrically(const TVector<T,d>& Thickness)
 		{
-			GrowToInclude(MMin + Thickness);
-			GrowToInclude(MMax + Thickness);
+			MMin -= Thickness;
+			MMax += Thickness;
 		}
 
 		FORCEINLINE TVector<T, d> Center() const { return (MMax - MMin) / (T)2 + MMin; }
@@ -453,6 +454,11 @@ namespace Chaos
 
 		static TBox<T, d> EmptyBox() { return TBox<T, d>(TVector<T, d>(TNumericLimits<T>::Max()), TVector<T, d>(-TNumericLimits<T>::Max())); }
 		static TBox<T, d> ZeroBox() { return TBox<T, d>(TVector<T, d>((T)0), TVector<T, d>((T)0)); }
+
+		virtual uint32 GetTypeHash() const override 
+		{
+			return HashCombine(::GetTypeHash(MMin), ::GetTypeHash(MMax));
+		}
 
 	private:
 		TVector<T, d> MMin, MMax;

@@ -165,6 +165,8 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 	/** Return all bounds related to the ref object */
 	virtual void GetObjectReferenceBounds(const UObject* RefObject, TArray<FBox>& AssetBoxes) override;
 
+	virtual void GetAssetComponents(const UStreamableRenderAsset* RenderAsset, TArray<const UPrimitiveComponent*>& OutComps, TFunction<bool(const UPrimitiveComponent*)> ShouldChoose) override;
+
 	/** Propagates a change to the active lighting scenario. */
 	void PropagateLightingScenarioChange() override;
 

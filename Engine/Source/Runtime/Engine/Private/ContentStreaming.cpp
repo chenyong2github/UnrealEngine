@@ -7,6 +7,7 @@
 #include "ContentStreaming.h"
 #include "Engine/Texture2D.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectHash.h"
@@ -952,10 +953,20 @@ bool FStreamingManagerCollection::IsStreamingEnabled() const
 
 bool FStreamingManagerCollection::IsTextureStreamingEnabled() const
 {
+	return IsRenderAssetStreamingEnabled();
+}
+
+bool FStreamingManagerCollection::IsRenderAssetStreamingEnabled() const
+{
 	return TextureStreamingManager != 0;
 }
 
 IRenderAssetStreamingManager& FStreamingManagerCollection::GetTextureStreamingManager() const
+{
+	return GetRenderAssetStreamingManager();
+}
+
+IRenderAssetStreamingManager& FStreamingManagerCollection::GetRenderAssetStreamingManager() const
 {
 	check(TextureStreamingManager != 0);
 	return *TextureStreamingManager;
@@ -1245,6 +1256,13 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 						It->LinkStreaming();
 					}
 				}
+				for (TObjectIterator<USkeletalMesh> It; It; ++It)
+				{
+					if (It->bIsStreamable)
+					{
+						It->LinkStreaming();
+					}
+				}
 			}
 		}
 	}
@@ -1271,6 +1289,13 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 				if (It->bIsStreamable)
 				{
 					// This will clear StreamingIndex
+					It->LinkStreaming();
+				}
+			}
+			for (TObjectIterator<USkeletalMesh> It; It; ++It)
+			{
+				if (It->bIsStreamable)
+				{
 					It->LinkStreaming();
 				}
 			}

@@ -62,7 +62,13 @@ extern TAutoConsoleVariable<float> CVarStreamingMaxTextureUVDensity;
 
 struct FRenderAssetStreamingSettings
 {
-	FRenderAssetStreamingSettings() { Update(); }
+	FRenderAssetStreamingSettings()
+	{
+		// Make sure padding bytes don't have random values
+		FMemory::Memset(this, 0, sizeof(FRenderAssetStreamingSettings));
+		Update();
+	}
+
 	void Update();
 
 	FORCEINLINE bool operator ==(const FRenderAssetStreamingSettings& Rhs) const { return FMemory::Memcmp(this, &Rhs, sizeof(FRenderAssetStreamingSettings)) == 0; }
@@ -90,6 +96,8 @@ struct FRenderAssetStreamingSettings
 	int32 MaterialQualityLevel;
 	int32 FramesForFullUpdate;
 	bool bMipCalculationEnablePerLevelList;
+	bool bPrioritizeMeshRetention;
+	int32 MeshRetentionPrivilegeLevel;
 
 	bool bStressTest;
 	static int32 ExtraIOLatency;
@@ -158,5 +166,13 @@ struct FRenderAssetStreamingStats
 	volatile int32 CallbacksCycles;
 	int32 SetupAsyncTaskCycles;
 	int32 UpdateStreamingDataCycles;
-	int32 StreamTexturesCycles;
+	int32 StreamRenderAssetsCycles; // CPU cycles used to process Mip/LOD load and unload requests
+
+	int32 NumStreamedMeshes;	// Number of meshes managed by the streamer
+	float AvgNumStreamedLODs;	// Average number of mesh LODs that can be streamed
+	float AvgNumResidentLODs;	// Average number of mesh LODs resident
+	float AvgNumEvictedLODs;	// Average number of mesh LODs evicted
+	int64 StreamedMeshMem;		// Total memory in bytes of mesh LODs that can be streamed
+	int64 ResidentMeshMem;		// Total memory in bytes of resident mesh LODs
+	int64 EvictedMeshMem;		// Total memory in bytes of evicted mesh LODs
 };

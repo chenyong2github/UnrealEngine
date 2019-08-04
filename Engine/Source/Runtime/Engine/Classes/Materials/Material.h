@@ -849,6 +849,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Material)
 	uint32 bUseMaterialAttributes:1;
 
+	/** when true, the material casts ray tracing shadows. */
+	UPROPERTY(EditAnywhere, Category = Material)
+	uint32 bCastRayTracedShadows : 1;
+
 	/** When true, translucent materials are fogged. Defaults to true. */
 	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Apply Fogging"))
 	uint32 bUseTranslucencyVertexFog:1;
@@ -1024,6 +1028,7 @@ public:
 	ENGINE_API virtual bool IsUIMaterial() const { return MaterialDomain == MD_UI; }
 	ENGINE_API virtual bool IsPostProcessMaterial() const { return MaterialDomain == MD_PostProcess; }
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
+	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 
 	ENGINE_API void SetShadingModel(EMaterialShadingModel NewModel) { ensure(ShadingModel < MSM_NUM); ShadingModel = NewModel; ShadingModels = FMaterialShadingModelField(ShadingModel); }
 

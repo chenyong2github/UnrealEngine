@@ -19,7 +19,7 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 	    : TImplicitObject<T, d>(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
 	    , MObjects(MoveTemp(Objects))
 		, Hierarchy(GeomParticles)
-	    , MLocalBoundingBox(MObjects[0]->BoundingBox())
+	    , MLocalBoundingBox()
 		, bHierarchyBuilt(false)
 		, MOriginalParticleLookupHack(OriginalParticleLookupHack)
 	{
@@ -28,6 +28,10 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 			if (i > 0)
 			{
 				MLocalBoundingBox.GrowToInclude(MObjects[i]->BoundingBox());
+			}
+			else
+			{
+				MLocalBoundingBox = MObjects[i]->BoundingBox();
 			}
 			check(MOriginalParticleLookupHack.Num() == 0 || MOriginalParticleLookupHack.Num() == MObjects.Num());
 			if (MOriginalParticleLookupHack.Num() > 0)
@@ -229,7 +233,7 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 		}
 	}
 
-	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal) const override
+	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 	{
 		T MinTime = 0;	//initialization not needed, but doing it to avoid warning
 		bool bFound = false;
@@ -239,7 +243,8 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 			TVector<T, d> Position;
 			TVector<T, d> Normal;
 			T Time;
-			if (Obj->Raycast(StartPoint, Dir, Length, Thickness, Time, Position, Normal))
+			int32 FaceIdx;
+			if (Obj->Raycast(StartPoint, Dir, Length, Thickness, Time, Position, Normal, FaceIdx))
 			{
 				if (!bFound || Time < MinTime)
 				{
@@ -247,6 +252,7 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 					OutTime = Time;
 					OutPosition = Position;
 					OutNormal = Normal;
+					OutFaceIndex = FaceIdx;
 					bFound = true;
 				}
 			}
@@ -276,6 +282,19 @@ class TImplicitObjectUnion : public TImplicitObject<T, d>
 	}
 
 	const TArray<TUniquePtr<TImplicitObject<T, d>>>& GetObjects() const { return MObjects; }
+
+	virtual uint32 GetTypeHash() const override
+	{
+		uint32 Result = 0;
+
+		// Union hash is just the hash of all internal objects
+		for(const TUniquePtr<TImplicitObject<T, d>>& InnerObj : MObjects)
+		{
+			Result = HashCombine(Result, InnerObj->GetTypeHash());
+		}
+
+		return Result;
+	}
 
 private:
 	virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override

@@ -3,7 +3,7 @@
 #include "OodleArchives.h"
 #include "OodleHandlerComponent.h"
 
-#if HAS_OODLE_SDK
+#if HAS_OODLE_NET_SDK
 
 // Maximum size of compress/decompress buffers (just under 2GB, due to max int32 value)
 #define MAX_COMPRESS_BUFFER (1024 * 1024 * 2047)
@@ -42,10 +42,11 @@ bool FOodleArchiveBase::SerializeOodleCompressData(FOodleCompressedData& OutData
 	{
 		OutDataInfo.DecompressedLength.Set(*this, DataBytes);
 	
-		uint32 CompressBufferLen = OodleLZ_GetCompressedBufferSizeNeeded(DataBytes);
+#if HAS_OODLE_DATA_SDK
+		uint32 CompressBufferLen = OodleLZ_GetCompressedBufferSizeNeeded(OodleLZ_Compressor_Kraken, DataBytes);
 		uint8* CompressBuffer = new uint8[CompressBufferLen];
 
-		SINTa OodleLen = OodleLZ_Compress(OodleLZ_Compressor_LZNIB, Data, (SINTa)DataBytes, CompressBuffer,
+		SINTa OodleLen = OodleLZ_Compress(OodleLZ_Compressor_Kraken, Data, (SINTa)DataBytes, CompressBuffer,
 											OodleLZ_CompressionLevel_Optimal);
 
 		bSuccess = ensure(OodleLen != OODLELZ_FAILED);
@@ -59,9 +60,22 @@ bool FOodleArchiveBase::SerializeOodleCompressData(FOodleCompressedData& OutData
 
 			InnerArchive.Serialize((void*)CompressBuffer, OodleLen);
 		}
+		else
+#endif
+		{
+			// no compression
+			OutDataInfo.CompressedLength.Set(*this, DataBytes);
 
+			uint32 OffsetPos = InnerArchive.Tell();
+			OutDataInfo.Offset.Set(*this, OffsetPos);
 
-		delete[] CompressBuffer;
+			InnerArchive.Serialize((void*)Data, DataBytes);
+		}
+
+#if HAS_OODLE_DATA_SDK
+		delete [] CompressBuffer;
+#endif
+
 	}
 
 	return bSuccess;
@@ -85,26 +99,36 @@ bool FOodleArchiveBase::SerializeOodleDecompressData(FOodleCompressedData& DataI
 	{
 		SeekPush(DataOffset);
 
-		// @todo #JohnB: Remove bOutDataSlack after Oodle update, and after checking with Luigi
-		uint8* CompressedData = new uint8[CompressedLength + (bOutDataSlack ? OODLE_DICTIONARY_SLACK : 0)];
 		uint8* DecompressedData = new uint8[DecompressedLength];
 
-		// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
-		if (bOutDataSlack)
+		if (CompressedLength == DecompressedLength)
 		{
-			FMemory::Memzero(CompressedData + CompressedLength, OODLE_DICTIONARY_SLACK);
+			InnerArchive.Serialize(DecompressedData, DecompressedLength);
 		}
-
-		InnerArchive.Serialize(CompressedData, CompressedLength);
-
-		SINTa OodleLen = OodleLZ_Decompress((void*)CompressedData, CompressedLength, (void*)DecompressedData, DecompressedLength);
-
-		bSuccess = OodleLen != 0;
+#ifdef HAS_OODLE_DATA_SDK
+		else
+		{
+			// @todo #JohnB: Remove bOutDataSlack after Oodle update, and after checking with Luigi
+			uint8* CompressedData = new uint8[CompressedLength + (bOutDataSlack ? OODLE_DICTIONARY_SLACK : 0)];
+	
+	
+			// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
+			if (bOutDataSlack)
+			{
+				FMemory::Memzero(CompressedData + CompressedLength, OODLE_DICTIONARY_SLACK);
+			}
+	
+			InnerArchive.Serialize(CompressedData, CompressedLength);
+			SINTa OodleLen = OodleLZ_Decompress((void*)CompressedData, CompressedLength, (void*)DecompressedData, DecompressedLength, OodleLZ_FuzzSafe_Yes);
+			bSuccess = OodleLen == DecompressedLength;
+	
+	
+			delete[] CompressedData;
+		}
+#endif
 
 		if (bSuccess)
 		{
-			check(OodleLen == DecompressedLength);
-
 			OutData = DecompressedData;
 			OutDataBytes = DecompressedLength;
 		}
@@ -112,8 +136,6 @@ bool FOodleArchiveBase::SerializeOodleDecompressData(FOodleCompressedData& DataI
 		{
 			delete[] DecompressedData;
 		}
-
-		delete[] CompressedData;
 
 		SeekPop();
 	}
@@ -349,7 +371,7 @@ void FOodleDictionaryArchive::FDictionaryHeader::SerializeHeader(FOodleDictionar
 
 		bSuccess = bSuccess && ensure(Magic == DICTIONARY_HEADER_MAGIC);
 		bSuccess = bSuccess && ensure(DictionaryVersion <= DICTIONARY_FILE_VERSION);
-		bSuccess = bSuccess && ensure(OodleMajorHeaderVersion == OODLE2_VERSION_MAJOR);
+		//bSuccess = bSuccess && ensure(OodleMajorHeaderVersion == OODLE2NET_VERSION_MAJOR);   //deprecated. oodle network data format has stabilised.
 	}
 
 	if (!bSuccess)
@@ -370,7 +392,7 @@ FOodleDictionaryArchive::FOodleDictionaryArchive(FArchive& InInnerArchive)
 	if (IsSaving())
 	{
 		Header.DictionaryVersion = DICTIONARY_FILE_VERSION;
-		Header.OodleMajorHeaderVersion = OODLE2_VERSION_MAJOR;
+		Header.OodleMajorHeaderVersion = OODLE2NET_VERSION_MAJOR;
 	}
 }
 

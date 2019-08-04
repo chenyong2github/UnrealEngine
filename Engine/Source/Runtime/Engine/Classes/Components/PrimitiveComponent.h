@@ -222,13 +222,17 @@ public:
 	TArray<int32> ExcludeForSpecificHLODLevels;
 
 	/** If true, and if World setting has bEnableHierarchicalLOD equal to true, then this component will be included when generating a Proxy mesh for the parent Actor */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD, meta = (DisplayName = "Include Component for HLOD Mesh generation"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = HLOD, meta = (DisplayName = "Include Component for HLOD Mesh generation"))
 	uint8 bEnableAutoLODGeneration : 1;
 #endif 
 
 	/** Use the Maximum LOD Mesh (imposter) instead of including Mesh data from this component in the Proxy Generation process */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = HLOD)
 	uint8 bUseMaxLODAsImposter : 1;
+
+	/** If true, the proxy generation process will use instancing to render this imposter */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = HLOD, meta = (EditCondition = "bUseMaxLODAsImposter"))
+	uint8 bBatchImpostersAsInstances : 1;
 
 	/**
 	 * When enabled this object will not be culled by distance. This is ignored if a child of a HLOD.

@@ -779,7 +779,8 @@ FMetalTexture FMetalDeviceContext::CreateTexture(FMetalSurface* Surface, mtlpp::
 
 FMetalBuffer FMetalDeviceContext::CreatePooledBuffer(FMetalPooledBufferArgs const& Args)
 {
-    FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, BufferOffsetAlignment, Args.Flags, FMetalCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
+	NSUInteger CpuResourceOption = ((NSUInteger)Args.CpuCacheMode) << mtlpp::ResourceCpuCacheModeShift;
+    FMetalBuffer Buffer = Heap.CreateBuffer(Args.Size, BufferOffsetAlignment, Args.Flags, FMetalCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(CpuResourceOption | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
 	check(Buffer && Buffer.GetPtr());
 #if METAL_DEBUG_OPTIONS
 	if (GMetalResourcePurgeOnDelete && !Buffer.GetHeap())
@@ -819,7 +820,7 @@ struct FMetalRHICommandUpdateFence final : public FRHICommand<FMetalRHICommandUp
 	void Execute(FRHICommandListBase& CmdList)
 	{
 		GetMetalDeviceContext().SetParallelPassFences(nil, Fence);
-		GetMetalDeviceContext().FinishFrame();
+		GetMetalDeviceContext().FinishFrame(true);
 		GetMetalDeviceContext().BeginParallelRenderCommandEncoding(Num);
 	}
 };
@@ -1085,7 +1086,7 @@ void FMetalContext::InitFrame(bool const bImmediateContext, uint32 Index, uint32
 	StateCache.InvalidateRenderTargets();
 }
 
-void FMetalContext::FinishFrame()
+void FMetalContext::FinishFrame(bool const bImmediateContext)
 {
 	// Ensure that we update the end fence for parallel contexts.
 	RenderPass.Update(EndFence);
@@ -1102,6 +1103,11 @@ void FMetalContext::FinishFrame()
 	// make sure first SetRenderTarget goes through
 	StateCache.InvalidateRenderTargets();
 	
+	if (!bImmediateContext)
+	{
+		StateCache.Reset();
+	}
+
 #if ENABLE_METAL_GPUPROFILE
 	FPlatformTLS::SetTlsValue(CurrentContextTLSSlot, nullptr);
 #endif
@@ -1733,7 +1739,7 @@ public:
 				GetMetalDeviceContext().SetParallelPassFences(Fence, nil);
 			}
 
-			CmdContext->GetInternalContext().FinishFrame();
+			CmdContext->GetInternalContext().FinishFrame(false);
 			GetMetalDeviceContext().EndParallelRenderCommandEncoding();
 
 			CmdContext->GetInternalContext().GetCommandList().Submit(Index, Num);

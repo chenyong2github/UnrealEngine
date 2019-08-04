@@ -111,7 +111,11 @@ public:
 
 	UFUNCTION(BlueprintSetter)
 	void SetWidgetStyle(const FTextBlockStyle& InWidgetStyle);
-	
+
+	//~ Begin UTextLayoutWidget Interface
+	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	//~ End UTextLayoutWidget Interface
+
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface

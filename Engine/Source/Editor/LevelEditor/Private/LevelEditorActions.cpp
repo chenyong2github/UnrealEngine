@@ -2993,7 +2993,14 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const bool InAlign, const bool
 	FScopedLevelDirtied		LevelDirtyCallback;
 
 	bool bSnappedComponents = false;
-	if( GEditor->GetSelectedComponentCount() > 0 )
+
+	// Let the component visualizers try to handle the selection.
+	if (GUnrealEd->ComponentVisManager.HandleSnapTo(InAlign, InUseLineTrace, InUseBounds, InUsePivot, InDestination))
+	{
+		bSnappedComponents = true;
+	}
+
+	if( !bSnappedComponents && GEditor->GetSelectedComponentCount() > 0 )
 	{
 		for(FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
 		{

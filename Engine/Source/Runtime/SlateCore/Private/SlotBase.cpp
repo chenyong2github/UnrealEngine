@@ -37,6 +37,16 @@ const TSharedPtr<SWidget> FSlotBase::DetachWidget()
 	}
 }
 
+void FSlotBase::Invalidate(EInvalidateWidgetReason InvalidateReason)
+{
+	// If a slot invalidates it needs to invalidate the parent of widget of its content.
+	const TSharedPtr<SWidget>& ParentWidget = Widget->GetParentWidget();
+	if (ParentWidget.IsValid())
+	{
+		ParentWidget->Invalidate(InvalidateReason);
+	}
+}
+
 void FSlotBase::DetatchParentFromContent()
 {
 	if (Widget != SNullWidget::NullWidget)

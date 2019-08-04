@@ -37,7 +37,7 @@ public:
 	/**
 	 * Inquire if this instance is connected to a server.
 	 */
-	virtual bool IsConnected() = 0;
+	virtual bool IsConnected() const = 0;
 
 	/**
 	 * Subscribe to an event

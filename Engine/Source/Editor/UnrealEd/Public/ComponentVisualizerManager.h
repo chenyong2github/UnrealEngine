@@ -34,6 +34,18 @@ public:
 	/** Pass delta input to active visualizer */
 	bool HandleInputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) const;
 
+	/** Pass box select input to active visualizer */
+	bool HandleBoxSelect(const FBox& InBox, FEditorViewportClient* InViewportClient, FViewport* InViewport) const;
+
+	/** Pass frustum select input to active visualizer */
+	bool HandleFrustumSelect(const FConvexVolume &InFrustum, FEditorViewportClient* InViewportClient, FViewport* InViewport) const;
+
+	/** Return whether focus on selection should focus on bounding box defined by active visualizer */
+	bool HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) const;
+
+	/** Pass snap input to active visualizer */
+	bool HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination);
+
 	/** Get widget location from active visualizer */
 	bool GetWidgetLocation(const FEditorViewportClient* InViewportClient, FVector& OutLocation) const;
 

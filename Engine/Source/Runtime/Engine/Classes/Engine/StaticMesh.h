@@ -450,8 +450,8 @@ enum EImportStaticMeshVersion
 	BeforeImportStaticMeshVersionWasAdded,
 	// Remove the material re-order workflow
 	RemoveStaticMeshSkinxxWorkflow,
-	VersionPlusOne,
-	LastVersion = VersionPlusOne - 1
+	StaticMeshVersionPlusOne,
+	LastVersion = StaticMeshVersionPlusOne - 1
 };
 
 USTRUCT()
@@ -572,10 +572,12 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	static const float MinimumAutoLODPixelError;
 
 	/** Imported raw mesh bulk data. */
+	UE_DEPRECATED(4.24, "Please do not access this member directly; use UStaticMesh::GetSourceModel(LOD) or UStaticMesh::GetSourceModels().")
 	UPROPERTY()
 	TArray<FStaticMeshSourceModel> SourceModels;
 
 	/** Map of LOD+Section index to per-section info. */
+	UE_DEPRECATED(4.24, "Please do not access this member directly; use UStaticMesh::GetSectionInfoMap().")
 	UPROPERTY()
 	FMeshSectionInfoMap SectionInfoMap;
 
@@ -587,6 +589,7 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 	 *
 	 * We do not update it when the user shuffle section in the staticmesh editor because the OriginalSectionInfoMap must always be in sync with the saved rawMesh bulk data.
 	 */
+	UE_DEPRECATED(4.24, "Please do not access this member directly; use UStaticMesh::GetOriginalSectionInfoMap().")
 	UPROPERTY()
 	FMeshSectionInfoMap OriginalSectionInfoMap;
 
@@ -909,6 +912,21 @@ public:
 	ENGINE_API FStaticMeshSourceModel& AddSourceModel();
 	ENGINE_API void SetNumSourceModels(int32 Num);
 	ENGINE_API void RemoveSourceModel(int32 Index);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ENGINE_API TArray<FStaticMeshSourceModel>& GetSourceModels() { return SourceModels; }
+	ENGINE_API const TArray<FStaticMeshSourceModel>& GetSourceModels() const { return SourceModels; }
+	ENGINE_API FStaticMeshSourceModel& GetSourceModel(int32 Index) { return SourceModels[Index]; }
+	ENGINE_API const FStaticMeshSourceModel& GetSourceModel(int32 Index) const { return SourceModels[Index]; }
+	ENGINE_API int32 GetNumSourceModels() const { return SourceModels.Num(); }
+	ENGINE_API bool IsSourceModelValid(int32 Index) const { return SourceModels.IsValidIndex(Index); }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ENGINE_API FMeshSectionInfoMap& GetSectionInfoMap() { return SectionInfoMap; }
+	ENGINE_API const FMeshSectionInfoMap& GetSectionInfoMap() const { return SectionInfoMap; }
+	ENGINE_API FMeshSectionInfoMap& GetOriginalSectionInfoMap() { return OriginalSectionInfoMap; }
+	ENGINE_API const FMeshSectionInfoMap& GetOriginalSectionInfoMap() const { return OriginalSectionInfoMap; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/*
 	 * Verify that a specific LOD using a material needing the adjacency buffer have the build option set to create the adjacency buffer.

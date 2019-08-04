@@ -205,7 +205,7 @@ namespace RemotePayloadSerializer
 		return true;
 	}
 
-	bool DeserializeObjectRef(TArray<uint8>& InTCHARPayload, FRCObjectReference& OutObjectRef, TPair<int32, int32>& OutPropertyBlockRange)
+	bool DeserializeObjectRef(TArray<uint8>& InTCHARPayload, FRCObjectReference& OutObjectRef, bool& OutResetToDefault, TPair<int32, int32>& OutPropertyBlockRange)
 	{
 		FMemoryReader Reader(InTCHARPayload);
 		TSharedRef<TJsonReader<PayloadCharType>> JsonReader = TJsonReader<PayloadCharType>::Create(&Reader);
@@ -258,7 +258,7 @@ namespace RemotePayloadSerializer
 					}
 					else
 					{
-						ErrorText = TEXT("property_value object improperly formatted.");
+						ErrorText = TEXT("property value object improperly formatted.");
 					}
 				}
 				else
@@ -268,6 +268,17 @@ namespace RemotePayloadSerializer
 				break;
 				// this means we should be done with the request object
 			case EJsonNotation::ObjectEnd:
+				break;
+				// read the reset to default property
+			case EJsonNotation::Boolean:
+				if (JsonReader->GetIdentifier() == TEXT("ResetToDefault"))
+				{
+					OutResetToDefault = JsonReader->GetValueAsBoolean();
+				}
+				else
+				{
+					ErrorText = TEXT("unexpected boolean field.");
+				}
 				break;
 				// any other request field should be string properties
 			case EJsonNotation::String:
@@ -389,10 +400,11 @@ public:
 				AddCORSHeaders(Response.Get());
 				AddContentTypeHeaders(Response.Get(), TEXT("application/json"));
 
+				// Initialize the request as a bad request
+				Response->Code = EHttpServerResponseCodes::BadRequest;
 
 				if (!IsRequestContentType(Request, TEXT("application/json")))
 				{
-					Response->Code = EHttpServerResponseCodes::BadRequest;
 					OnComplete(MoveTemp(Response));
 					return true;
 				}
@@ -403,7 +415,6 @@ public:
 				FRCCall Call;
 				if (!RemotePayloadSerializer::DeserializeCall(WorkingBuffer, Call))
 				{
-					Response->Code = EHttpServerResponseCodes::BadRequest;
 					OnComplete(MoveTemp(Response));
 					return true;
 				}
@@ -440,9 +451,11 @@ public:
 				AddCORSHeaders(Response.Get());
 				AddContentTypeHeaders(Response.Get(), TEXT("application/json"));
 
+				// Initialize the request as a bad request
+				Response->Code = EHttpServerResponseCodes::BadRequest;
+
 				if (!IsRequestContentType(Request, TEXT("application/json")))
 				{
-					Response->Code = EHttpServerResponseCodes::BadRequest;
 					OnComplete(MoveTemp(Response));
 					return true;
 				}
@@ -452,10 +465,10 @@ public:
 
 				
 				FRCObjectReference ObjectRef;
+				bool bResetToDefault = false;
 				TPair<int32, int32> PropertyBlockRange;
-				if (!RemotePayloadSerializer::DeserializeObjectRef(WorkingBuffer, ObjectRef, PropertyBlockRange))
+				if (!RemotePayloadSerializer::DeserializeObjectRef(WorkingBuffer, ObjectRef, bResetToDefault, PropertyBlockRange))
 				{
-					Response->Code = EHttpServerResponseCodes::BadRequest;
 					OnComplete(MoveTemp(Response));
 					return true;
 				}
@@ -485,18 +498,28 @@ public:
 				case ERCAccess::WRITE_ACCESS:
 				case ERCAccess::WRITE_TRANSACTION_ACCESS:
 				{
-					FMemoryReader Reader(WorkingBuffer);
-					Reader.Seek(PropertyBlockRange.Key);
-					Reader.SetLimitSize(PropertyBlockRange.Value + 1);
-					FJsonStructDeserializerBackend DeserializerBackend(Reader);
-					if (IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend))
+					if (bResetToDefault)
 					{
-						Response->Code = EHttpServerResponseCodes::Ok;
+						if (IRemoteControlModule::Get().ResetObjectProperties(ObjectRef))
+						{
+							Response->Code = EHttpServerResponseCodes::Ok;
+						}
+					}
+					else if (PropertyBlockRange.Key > 0)
+					{
+						FMemoryReader Reader(WorkingBuffer);
+						Reader.Seek(PropertyBlockRange.Key);
+						Reader.SetLimitSize(PropertyBlockRange.Value + 1);
+						FJsonStructDeserializerBackend DeserializerBackend(Reader);
+						if (IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend))
+						{
+							Response->Code = EHttpServerResponseCodes::Ok;
+						}
 					}
 				}
 					break;
 				default:
-					Response->Code = EHttpServerResponseCodes::BadRequest;
+					// Bad request
 					break;
 				}
 

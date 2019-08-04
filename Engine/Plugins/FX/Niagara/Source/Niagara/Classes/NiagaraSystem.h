@@ -166,9 +166,6 @@ public:
 	/** Gets editor specific data stored with this system. */
 	const UNiagaraEditorDataBase* GetEditorData() const;
 
-	/** Sets editor specific data stored with this system. */
-	void SetEditorData(UNiagaraEditorDataBase* InEditorData);
-
 	/** Internal: The thumbnail image.*/
 	UPROPERTY()
 	class UTexture2D* ThumbnailImage;
@@ -239,7 +236,7 @@ private:
 protected:
 
 	/** Handles to the emitter this System will simulate. */
-	UPROPERTY(VisibleAnywhere, Category = "Emitters")
+	UPROPERTY()
 	TArray<FNiagaraEmitterHandle> EmitterHandles;
 
 	UPROPERTY(EditAnywhere, Category="System")

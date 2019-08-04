@@ -32,6 +32,8 @@ TSharedPtr<FPreLoadScreenManager> FPreLoadScreenManager::Instance;
 FCriticalSection FPreLoadScreenManager::RenderingEnabledCriticalSection;
 bool FPreLoadScreenManager::bRenderingEnabled = true;
 
+FIsPreloadScreenResponsibleForRenderingMultiDelegate FPreLoadScreenManager::IsResponsibleForRenderingDelegate;
+
 void FPreLoadScreenManager::Initialize(FSlateRenderer& InSlateRenderer)
 {
     if (bInitialized || !ArePreLoadScreensEnabled())       
@@ -343,48 +345,65 @@ void FPreLoadScreenManager::EnableRendering(bool bEnabled)
 
 void FPreLoadScreenManager::EarlyPlayRenderFrameTick()
 {
-    if (!ShouldRender())
-    {
-        return;
-    }
+	bool bIsResponsibleForRendering_Local = true;
 
-    IPreLoadScreen* ActivePreLoadScreen = PreLoadScreens[ActivePreLoadScreenIndex].Get();
-    if (ensureAlwaysMsgf(ActivePreLoadScreen, TEXT("Invalid Active PreLoadScreen during EarlyPlayRenderFrameTick!")))
-    {
-        FSlateApplication& SlateApp = FSlateApplication::Get();
-        float SlateDeltaTime = SlateApp.GetDeltaTime();
+	if (!ShouldRender())
+	{
+		// In this case FPreLoadScreenManager is responsible for rendering but choosing not to, probably because the
+		// app is not in the fourground.
+		return;
+	}
 
-        //Setup Slate Render Command
-        ENQUEUE_RENDER_COMMAND(BeginPreLoadScreenFrame)(
-			[ActivePreLoadScreen, SlateDeltaTime](FRHICommandListImmediate& RHICmdList)
-            {
-                if (FPreLoadScreenManager::ShouldRender())
-                {
-                    GFrameNumberRenderThread++;
-                    GRHICommandList.GetImmediateCommandList().BeginFrame();
+	IPreLoadScreen* ActivePreLoadScreen = PreLoadScreens[ActivePreLoadScreenIndex].Get();
+	if (ensureAlwaysMsgf(ActivePreLoadScreen, TEXT("Invalid Active PreLoadScreen during EarlyPlayRenderFrameTick!")))
+	{
+		if (!ActivePreLoadScreen->ShouldRender())
+		{
+			bIsResponsibleForRendering_Local = false;
+		}
 
-                    ActivePreLoadScreen->RenderTick(SlateDeltaTime);
-                }
-            }
-        );
+		if (bIsResponsibleForRendering_Local != bIsResponsibleForRendering)
+		{
+			bIsResponsibleForRendering = bIsResponsibleForRendering_Local;
+			IsResponsibleForRenderingDelegate.Broadcast(bIsResponsibleForRendering);
+		}
 
-        SlateApp.Tick();
+		if (bIsResponsibleForRendering_Local)
+		{
+			FSlateApplication& SlateApp = FSlateApplication::Get();
+			float SlateDeltaTime = SlateApp.GetDeltaTime();
 
-        // Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
-        SlateApp.GetRenderer()->Sync();
+			//Setup Slate Render Command
+			ENQUEUE_RENDER_COMMAND(BeginPreLoadScreenFrame)(
+				[ActivePreLoadScreen, SlateDeltaTime](FRHICommandListImmediate& RHICmdList)
+				{
+					if (FPreLoadScreenManager::ShouldRender())
+					{
+						GFrameNumberRenderThread++;
+						GRHICommandList.GetImmediateCommandList().BeginFrame();
 
-        ENQUEUE_RENDER_COMMAND(FinishPreLoadScreenFrame)(
-            [](FRHICommandListImmediate& RHICmdList)
-        {
-            if (FPreLoadScreenManager::ShouldRender())
-            {
-                GRHICommandList.GetImmediateCommandList().EndFrame();
-                GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-            }
-        });
+						ActivePreLoadScreen->RenderTick(SlateDeltaTime);
+					}
+				});
 
-        FlushRenderingCommands();
-    }
+			SlateApp.Tick();
+
+			// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
+			SlateApp.GetRenderer()->Sync();
+
+			ENQUEUE_RENDER_COMMAND(FinishPreLoadScreenFrame)(
+				[](FRHICommandListImmediate& RHICmdList)
+				{
+					if (FPreLoadScreenManager::ShouldRender())
+					{
+						GRHICommandList.GetImmediateCommandList().EndFrame();
+						GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+					}
+				});
+
+			//FlushRenderingCommands();
+		}
+	}
 }
 
 void FPreLoadScreenManager::StopPreLoadScreen()

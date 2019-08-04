@@ -80,7 +80,7 @@ protected:
     FOnKeyDown OnKeyDownHandler;
 };
 
-void FPreLoadMoviePlayerScreenBase::Init()
+bool FPreLoadMoviePlayerScreenBase::Init()
 {
     if (!bInitialized)
     {
@@ -119,6 +119,8 @@ void FPreLoadMoviePlayerScreenBase::Init()
             FSlateApplication::Get().RegisterGameViewport(MovieViewport.ToSharedRef());
         }
     }
+
+	return true;
 }
 
 void FPreLoadMoviePlayerScreenBase::OnPlay(TWeakPtr<SWindow> TargetWindow)

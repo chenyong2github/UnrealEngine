@@ -8,6 +8,7 @@
 #include "EngineLogs.h"
 #include "EngineUtils.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
 
 #if WITH_EDITOR
@@ -71,7 +72,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 	
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
 	uint8 ClassDataStripFlags = 0;
-	ClassDataStripFlags |= (Ar.IsCooking() && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering)) ? DuplicatedVertices : 0;
+	ClassDataStripFlags |= (Ar.IsCooking() && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering)) ? DuplicatedVertices : 0;
 
 	// When data is cooked for server platform some of the
 	// variables are not serialized so that they're always
@@ -178,39 +179,38 @@ static void DivideAndConquerPermuations(const TBitArray<>& BitIndicies, TMap<TBi
 		InstantiatedNodes[NodeIndex] = true;
 	}
 }
-void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<UMorphTarget*>& InMorphTargets)
+
+void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner)
 {
-	INC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, MultiSizeIndexContainer.IsIndexBufferValid() ? (MultiSizeIndexContainer.GetIndexBuffer()->Num() * MultiSizeIndexContainer.GetDataTypeSize()) : 0);
+	IncrementMemoryStats(bNeedsVertexColors);
 
 	MorphTargetVertexInfoBuffers.Reset();
 	MultiSizeIndexContainer.InitResources();
 
-	INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.PositionVertexBuffer.GetStride() * StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
-	INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.StaticMeshVertexBuffer.GetResourceSize());
 	BeginInitResource(&StaticVertexBuffers.PositionVertexBuffer);
 	BeginInitResource(&StaticVertexBuffers.StaticMeshVertexBuffer);
 
-	INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightVertexBuffer.GetVertexDataSize());
+	if (GSkinWeightProfilesLoadByDefaultMode == 3)
+	{
+		SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(Owner, LODIndex);
+	}
 	BeginInitResource(&SkinWeightVertexBuffer);
 
 	if (bNeedsVertexColors)
 	{
 		// Only init the color buffer if the mesh has vertex colors
-		INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.ColorVertexBuffer.GetAllocatedSize());
 		BeginInitResource(&StaticVertexBuffers.ColorVertexBuffer);
 	}
 
 	if (ClothVertexBuffer.GetNumVertices() > 0)
 	{
 		// Only init the clothing buffer if the mesh has clothing data
-		INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, ClothVertexBuffer.GetVertexDataSize());
 		BeginInitResource(&ClothVertexBuffer);
 	}
 
 	if (RHISupportsTessellation(GMaxRHIShaderPlatform))
 	{
 		AdjacencyMultiSizeIndexContainer.InitResources();
-		INC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() ? (AdjacencyMultiSizeIndexContainer.GetIndexBuffer()->Num() * AdjacencyMultiSizeIndexContainer.GetDataTypeSize()) : 0);
 	}
 
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
@@ -465,15 +465,7 @@ void FMorphTargetVertexInfoBuffers::CalculateInverseAccumulatedWeights(const TAr
 
 void FSkeletalMeshLODRenderData::ReleaseResources()
 {
-	DEC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, MultiSizeIndexContainer.IsIndexBufferValid() ? (MultiSizeIndexContainer.GetIndexBuffer()->Num() * MultiSizeIndexContainer.GetDataTypeSize()) : 0);
-	DEC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() ? (AdjacencyMultiSizeIndexContainer.GetIndexBuffer()->Num() * AdjacencyMultiSizeIndexContainer.GetDataTypeSize()) : 0);
-
-	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.PositionVertexBuffer.GetStride() * StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
-	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.StaticMeshVertexBuffer.GetResourceSize());
-
-	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightVertexBuffer.GetVertexDataSize());
-	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.ColorVertexBuffer.GetAllocatedSize());
-	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, ClothVertexBuffer.GetVertexDataSize());
+	DecrementMemoryStats();
 
 	MultiSizeIndexContainer.ReleaseResources();
 	AdjacencyMultiSizeIndexContainer.ReleaseResources();
@@ -496,6 +488,42 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 	
 	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightProfilesData.GetResourcesSize());
 	SkinWeightProfilesData.ReleaseResources();
+}
+
+void FSkeletalMeshLODRenderData::IncrementMemoryStats(bool bNeedsVertexColors)
+{
+	INC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, MultiSizeIndexContainer.IsIndexBufferValid() ? (MultiSizeIndexContainer.GetIndexBuffer()->Num() * MultiSizeIndexContainer.GetDataTypeSize()) : 0);
+	INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.PositionVertexBuffer.GetStride() * StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
+	INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.StaticMeshVertexBuffer.GetResourceSize());
+	INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightVertexBuffer.GetVertexDataSize());
+
+	if (bNeedsVertexColors)
+	{
+		INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.ColorVertexBuffer.GetAllocatedSize());
+	}
+
+	if (ClothVertexBuffer.GetNumVertices() > 0)
+	{
+		INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, ClothVertexBuffer.GetVertexDataSize());
+	}
+
+	if (RHISupportsTessellation(GMaxRHIShaderPlatform))
+	{
+		INC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() ? (AdjacencyMultiSizeIndexContainer.GetIndexBuffer()->Num() * AdjacencyMultiSizeIndexContainer.GetDataTypeSize()) : 0);
+	}
+}
+
+void FSkeletalMeshLODRenderData::DecrementMemoryStats()
+{
+	DEC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, MultiSizeIndexContainer.IsIndexBufferValid() ? (MultiSizeIndexContainer.GetIndexBuffer()->Num() * MultiSizeIndexContainer.GetDataTypeSize()) : 0);
+	DEC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() ? (AdjacencyMultiSizeIndexContainer.GetIndexBuffer()->Num() * AdjacencyMultiSizeIndexContainer.GetDataTypeSize()) : 0);
+
+	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.PositionVertexBuffer.GetStride() * StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
+	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.StaticMeshVertexBuffer.GetResourceSize());
+
+	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightVertexBuffer.GetVertexDataSize());
+	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.ColorVertexBuffer.GetAllocatedSize());
+	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, ClothVertexBuffer.GetVertexDataSize());
 }
 
 #if WITH_EDITOR
@@ -595,7 +623,7 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 
 #endif // WITH_EDITOR
 
-void FSkeletalMeshLODRenderData::ReleaseCPUResources()
+void FSkeletalMeshLODRenderData::ReleaseCPUResources(bool bForStreaming)
 {
 	if (!GIsEditor && !IsRunningCommandlet())
 	{
@@ -614,6 +642,13 @@ void FSkeletalMeshLODRenderData::ReleaseCPUResources()
 
 		StaticVertexBuffers.PositionVertexBuffer.CleanUp();
 		StaticVertexBuffers.StaticMeshVertexBuffer.CleanUp();
+
+		if (bForStreaming)
+		{
+			ClothVertexBuffer.CleanUp();
+			StaticVertexBuffers.ColorVertexBuffer.CleanUp();
+			SkinWeightProfilesData.ReleaseCPUResources();
+		}
 	}
 }
 
@@ -646,135 +681,362 @@ void FSkeletalMeshLODRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeRe
 	CumulativeResourceSize.AddUnknownMemoryBytes(SkinWeightProfilesData.GetResourcesSize());	
 }
 
-void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
+int32 FSkeletalMeshLODRenderData::GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform, const USkeletalMesh* SkeletalMesh)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshLODRenderData::Serialize"), STAT_SkeletalMeshLODRenderData_Serialize, STATGROUP_LoadTime);
+#if WITH_EDITOR
+	check(TargetPlatform && SkeletalMesh);
+	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
+	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
+	return  SkeletalMesh->MinLod.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+#else
+	return 0;
+#endif
+}
 
-	// Defined class flags for possible stripping
-	const uint8 LodAdjacencyStripFlag = 1;
-	const uint8 MinLodStripFlag = 2;
-
-	// Actual flags used during serialization
-	uint8 ClassDataStripFlags = 0;
-
+uint8 FSkeletalMeshLODRenderData::GenerateClassStripFlags(FArchive& Ar, const USkeletalMesh* OwnerMesh, int32 LODIdx)
+{
+#if WITH_EDITOR
 	const bool bIsCook = Ar.IsCooking();
 	const ITargetPlatform* CookTarget = Ar.CookingTarget();
 
 	extern int32 GForceStripMeshAdjacencyDataDuringCooking;
 	const bool bWantToStripTessellation = bIsCook && ((GForceStripMeshAdjacencyDataDuringCooking != 0) || !CookTarget->SupportsFeature(ETargetPlatformFeatures::Tessellation));
 
-	USkeletalMesh* OwnerMesh = CastChecked<USkeletalMesh>(Owner);
 	int32 MinMeshLod = 0;
 	bool bMeshDisablesMinLodStrip = false;
-#if WITH_EDITOR
-	if(bIsCook)
+	if (bIsCook)
 	{
 		MinMeshLod = OwnerMesh ? OwnerMesh->MinLod.GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : 0;
 		bMeshDisablesMinLodStrip = OwnerMesh ? OwnerMesh->DisableBelowMinLodStripping.GetValueForPlatformIdentifiers(CookTarget->GetPlatformInfo().PlatformGroupName, CookTarget->GetPlatformInfo().VanillaPlatformName) : false;
 	}
+	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > LODIdx && !bMeshDisablesMinLodStrip;
+
+	uint8 ClassDataStripFlags = 0;
+	ClassDataStripFlags |= bWantToStripTessellation ? CDSF_AdjacencyData : 0;
+	ClassDataStripFlags |= bWantToStripBelowMinLod ? CDSF_MinLodData : 0;
+	return ClassDataStripFlags;
+#else
+	return 0;
 #endif
+}
 
-	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > Idx && !bMeshDisablesMinLodStrip;
+bool FSkeletalMeshLODRenderData::IsLODCookedOut(const ITargetPlatform* TargetPlatform, const USkeletalMesh* SkeletalMesh, bool bIsBelowMinLOD)
+{
+	check(SkeletalMesh);
+#if WITH_EDITOR
+	if (!bIsBelowMinLOD)
+	{
+		return false;
+	}
 
-	ClassDataStripFlags |= bWantToStripTessellation ? LodAdjacencyStripFlag : 0;
-	ClassDataStripFlags |= bWantToStripBelowMinLod ? MinLodStripFlag : 0;
+	if (!TargetPlatform)
+	{
+		TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	}
+	check(TargetPlatform);
 
-	FStripDataFlags StripFlags(Ar, ClassDataStripFlags);
+	const bool bSupportLODStreaming = SkeletalMesh->bSupportLODStreaming.GetValueForPlatformIdentifiers(
+		TargetPlatform->GetPlatformInfo().PlatformGroupName,
+		TargetPlatform->GetPlatformInfo().VanillaPlatformName);
+	
+	return !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !bSupportLODStreaming;
+#else
+	return false;
+#endif
+}
 
-	// Skeletal mesh buffers are kept in CPU memory after initialization to support merging of skeletal meshes.
-	bool bKeepBuffersInCPUMemory = true;
-	bool bNeedsCPUAccess = true;
-	USkeletalMesh* SkelMeshOwner = nullptr;
+bool FSkeletalMeshLODRenderData::IsLODInlined(const ITargetPlatform* TargetPlatform, const USkeletalMesh* SkeletalMesh, int32 LODIdx, bool bIsBelowMinLOD)
+{
+	check(SkeletalMesh);
+#if WITH_EDITOR
+	if (!TargetPlatform)
+	{
+		TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	}
+	check(TargetPlatform);
 
+	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
+	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
+	const bool bSupportLODStreaming = SkeletalMesh->bSupportLODStreaming.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+
+	if (!TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !bSupportLODStreaming)
+	{
+		return true;
+	}
+
+	if (bIsBelowMinLOD)
+	{
+		return false;
+	}
+
+	const int32 MaxNumStreamedLODs = SkeletalMesh->MaxNumStreamedLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	const int32 NumLODs = SkeletalMesh->GetLODNum();
+	const int32 NumStreamedLODs = FMath::Min(MaxNumStreamedLODs, NumLODs - 1);
+	const int32 InlinedLODStartIdx = NumStreamedLODs;
+	return LODIdx >= InlinedLODStartIdx;
+#else
+	return false;
+#endif
+}
+
+int32 FSkeletalMeshLODRenderData::GetNumOptionalLODsAllowed(const ITargetPlatform* TargetPlatform, const USkeletalMesh* SkeletalMesh)
+{
+#if WITH_EDITOR
+	check(TargetPlatform && SkeletalMesh);
+	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
+	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
+	return  SkeletalMesh->MaxNumOptionalLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+#else
+	return 0;
+#endif
+}
+
+bool FSkeletalMeshLODRenderData::ShouldForceKeepCPUResources()
+{
 #if !WITH_EDITOR
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.FreeSkeletalMeshBuffers"));
 	if (CVar)
 	{
-		bKeepBuffersInCPUMemory = !CVar->GetValueOnAnyThread();
-		bNeedsCPUAccess = bKeepBuffersInCPUMemory;
+		return !CVar->GetValueOnAnyThread();
 	}
 #endif
-	if (!StripFlags.IsDataStrippedForServer())
-	{
-		SkelMeshOwner = CastChecked<USkeletalMesh>(Owner);
+	return true;
+}
 
-		// set cpu skinning flag on the vertex buffer so that the resource arrays know if they need to be CPU accessible
-		bNeedsCPUAccess = bKeepBuffersInCPUMemory || SkelMeshOwner->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel) ||
-			SkelMeshOwner->NeedCPUData(Idx);
+bool FSkeletalMeshLODRenderData::ShouldKeepCPUResources(const USkeletalMesh* SkeletalMesh, int32 LODIdx, bool bForceKeep)
+{
+	return bForceKeep
+		|| SkeletalMesh->GetResourceForRendering()->RequiresCPUSkinning(GMaxRHIFeatureLevel)
+		|| SkeletalMesh->NeedCPUData(LODIdx);
+}
+
+class FSkeletalMeshLODSizeCounter : public FArchive
+{
+public:
+	FSkeletalMeshLODSizeCounter()
+		: Size(0)
+	{
+		SetIsSaving(true);
+		SetIsPersistent(true);
+		ArIsCountingMemory = true;
 	}
 
-	if (FPlatformProperties::RequiresCookedData())
+	virtual void Serialize(void*, int64 Length) final override
 	{
-		if (bNeedsCPUAccess && SkelMeshOwner)
-		{
-			UE_LOG(LogStaticMesh, Verbose, TEXT("[%s] Skeletal Mesh is marked for CPU read."), *SkelMeshOwner->GetName());
-		}
+		Size += Length;
 	}
 
-	if (StripFlags.IsDataStrippedForServer() || StripFlags.IsClassDataStripped(MinLodStripFlag))
+	virtual int64 TotalSize() final override
 	{
-		TArray<FSkelMeshRenderSection> DummySections;
-		Ar << DummySections;
-
-		FMultiSizeIndexContainer DummyIndexBuffer;
-		DummyIndexBuffer.Serialize(Ar, bKeepBuffersInCPUMemory);
-
-		TArray<FBoneIndexType> TempActiveBoneIndices;
-		Ar << TempActiveBoneIndices;
-	}
-	else
-	{
-		Ar << RenderSections;
-
-		MultiSizeIndexContainer.Serialize(Ar, bNeedsCPUAccess);
-
-		Ar << ActiveBoneIndices;
+		return Size;
 	}
 
-	Ar << RequiredBones;
-	
-	if (!StripFlags.IsDataStrippedForServer() && !StripFlags.IsClassDataStripped(MinLodStripFlag))
+private:
+	int64 Size;
+};
+
+void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkeletalMesh* Owner, int32 LODIdx, uint8 ClassDataStripFlags, bool bNeedsCPUAccess, bool bForceKeepCPUResources)
+{
+	FStripDataFlags StripFlags(Ar, ClassDataStripFlags);
+
+	// TODO: A lot of data in a render section is needed during initialization but maybe some can still be streamed
+	//Ar << RenderSections;
+
+	MultiSizeIndexContainer.Serialize(Ar, bNeedsCPUAccess);
+
+	if (Ar.IsLoading())
 	{
-		if (Ar.IsLoading())
-		{
-			SkinWeightVertexBuffer.SetNeedsCPUAccess(bNeedsCPUAccess);
-		}
+		SkinWeightVertexBuffer.SetNeedsCPUAccess(bNeedsCPUAccess);
+	}
 
-		StaticVertexBuffers.PositionVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		StaticVertexBuffers.StaticMeshVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		Ar << SkinWeightVertexBuffer;
+	StaticVertexBuffers.PositionVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
+	StaticVertexBuffers.StaticMeshVertexBuffer.Serialize(Ar, bNeedsCPUAccess);
+	Ar << SkinWeightVertexBuffer;
 
-		if (SkelMeshOwner && SkelMeshOwner->bHasVertexColors)
-		{
-			StaticVertexBuffers.ColorVertexBuffer.Serialize(Ar, bKeepBuffersInCPUMemory);
-		}
+	if (Owner && Owner->bHasVertexColors)
+	{
+		StaticVertexBuffers.ColorVertexBuffer.Serialize(Ar, bForceKeepCPUResources);
+	}
 
-		if (!StripFlags.IsClassDataStripped(LodAdjacencyStripFlag))
-		{
-			AdjacencyMultiSizeIndexContainer.Serialize(Ar, bKeepBuffersInCPUMemory);
-		}
+	if (!StripFlags.IsClassDataStripped(CDSF_AdjacencyData))
+	{
+		AdjacencyMultiSizeIndexContainer.Serialize(Ar, bForceKeepCPUResources);
+	}
 
-		if (HasClothData())
-		{
-			Ar << ClothVertexBuffer;
-		}
-	}	
+	if (HasClothData())
+	{
+		Ar << ClothVertexBuffer;
+	}
 
 	Ar << SkinWeightProfilesData;
 	SkinWeightProfilesData.Init(&SkinWeightVertexBuffer);
 
-	if (Ar.IsLoading() && !!GSkinWeightProfilesLoadByDefaultMode)
+	if (Ar.IsLoading() && GSkinWeightProfilesLoadByDefaultMode == 1)
 	{
 #if !WITH_EDITOR
-		if ( GSkinWeightProfilesLoadByDefaultMode == 1)
+		// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
+		SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(Owner, LODIdx);
+#endif
+	}
+}
+
+void FSkeletalMeshLODRenderData::SerializeAvailabilityInfo(FArchive& Ar, USkeletalMesh* Owner, int32 LODIdx, bool bAdjacencyDataStripped, bool bNeedsCPUAccess)
+{
+	MultiSizeIndexContainer.SerializeMetaData(Ar, bNeedsCPUAccess);
+	if (!bAdjacencyDataStripped)
+	{
+		AdjacencyMultiSizeIndexContainer.SerializeMetaData(Ar, bNeedsCPUAccess);
+	}
+	StaticVertexBuffers.StaticMeshVertexBuffer.SerializeMetaData(Ar);
+	StaticVertexBuffers.PositionVertexBuffer.SerializeMetaData(Ar);
+	StaticVertexBuffers.ColorVertexBuffer.SerializeMetaData(Ar);
+	if (Ar.IsLoading())
+	{
+		SkinWeightVertexBuffer.SetNeedsCPUAccess(bNeedsCPUAccess);
+	}
+	SkinWeightVertexBuffer.SerializeMetaData(Ar);
+	if (HasClothData())
+	{
+		ClothVertexBuffer.SerializeMetaData(Ar);
+	}
+	SkinWeightProfilesData.SerializeMetaData(Ar);
+	SkinWeightProfilesData.Init(&SkinWeightVertexBuffer);
+
+	if (Ar.IsLoading() && GSkinWeightProfilesLoadByDefaultMode == 1)
+	{
+#if !WITH_EDITOR
+		// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
+		SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(Owner, LODIdx);
+#endif
+	}
+}
+
+void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshLODRenderData::Serialize"), STAT_SkeletalMeshLODRenderData_Serialize, STATGROUP_LoadTime);
+
+	USkeletalMesh* OwnerMesh = CastChecked<USkeletalMesh>(Owner);
+	
+	// Shouldn't needed but to make some static analyzers happy
+	if (!OwnerMesh)
+	{
+		return;
+	}
+	
+	// Actual flags used during serialization
+	const uint8 ClassDataStripFlags = GenerateClassStripFlags(Ar, OwnerMesh, Idx);
+	FStripDataFlags StripFlags(Ar, ClassDataStripFlags);
+
+	const bool bIsBelowMinLOD = StripFlags.IsClassDataStripped(CDSF_MinLodData);
+	bool bIsLODCookedOut = IsLODCookedOut(Ar.CookingTarget(), OwnerMesh, bIsBelowMinLOD);
+	Ar << bIsLODCookedOut;
+
+	bool bInlined = bIsLODCookedOut || IsLODInlined(Ar.CookingTarget(), OwnerMesh, Idx, bIsBelowMinLOD);
+	Ar << bInlined;
+	bStreamedDataInlined = bInlined;
+
+	// Skeletal mesh buffers are kept in CPU memory after initialization to support merging of skeletal meshes.
+	const bool bForceKeepCPUResources = ShouldForceKeepCPUResources();
+	bool bNeedsCPUAccess = bForceKeepCPUResources;
+
+	if (!StripFlags.IsDataStrippedForServer())
+	{
+		// set cpu skinning flag on the vertex buffer so that the resource arrays know if they need to be CPU accessible
+		bNeedsCPUAccess = ShouldKeepCPUResources(OwnerMesh, Idx, bForceKeepCPUResources);
+	}
+
+	if (FPlatformProperties::RequiresCookedData())
+	{
+		if (bNeedsCPUAccess)
 		{
-			// Only allow overriding the base buffer in non-editor builds as it could otherwise be serialized into the asset
-			SkinWeightProfilesData.OverrideBaseBufferSkinWeightData(OwnerMesh, Idx);
+			UE_LOG(LogStaticMesh, Verbose, TEXT("[%s] Skeletal Mesh is marked for CPU read."), *OwnerMesh->GetName());
 		}
-#endif 	
-		if (GSkinWeightProfilesLoadByDefaultMode == 3)
+	}
+
+	Ar << RequiredBones;
+
+	if (!StripFlags.IsDataStrippedForServer() && !bIsLODCookedOut)
+	{
+		Ar << RenderSections;
+		Ar << ActiveBoneIndices;
+
+#if WITH_EDITOR
+		if (Ar.IsSaving())
 		{
-			SkinWeightProfilesData.SetDynamicDefaultSkinWeightProfile(OwnerMesh, Idx);
+			FSkeletalMeshLODSizeCounter LODSizeCounter;
+			LODSizeCounter.SetCookingTarget(Ar.CookingTarget());
+			LODSizeCounter.SetByteSwapping(Ar.IsByteSwapping());
+			SerializeStreamedData(LODSizeCounter, OwnerMesh, Idx, ClassDataStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
+			BuffersSize = LODSizeCounter.TotalSize();
+		}
+#endif
+		Ar << BuffersSize;
+
+		if (bInlined)
+		{
+			SerializeStreamedData(Ar, OwnerMesh, Idx, ClassDataStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
+			bIsLODOptional = false;
+		}
+		else if (Ar.IsCooking() || FPlatformProperties::RequiresCookedData())
+		{
+			bool bDiscardBulkData = false;
+
+#if WITH_EDITOR
+			if (Ar.IsSaving())
+			{
+				const int32 MaxNumOptionalLODs = GetNumOptionalLODsAllowed(Ar.CookingTarget(), OwnerMesh);
+				const int32 OptionalLODIdx = GetPlatformMinLODIdx(Ar.CookingTarget(), OwnerMesh) - Idx;
+				bDiscardBulkData = OptionalLODIdx > MaxNumOptionalLODs;
+
+				TArray<uint8> TmpBuff;
+				if (!bDiscardBulkData)
+				{
+					FMemoryWriter MemWriter(TmpBuff, true);
+					MemWriter.SetCookingTarget(Ar.CookingTarget());
+					MemWriter.SetByteSwapping(Ar.IsByteSwapping());
+					SerializeStreamedData(MemWriter, OwnerMesh, Idx, ClassDataStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
+				}
+
+				bIsLODOptional = bIsBelowMinLOD;
+				const uint32 BulkDataFlags = (bDiscardBulkData ? 0 : BULKDATA_Force_NOT_InlinePayload)
+					| (bIsLODOptional ? BULKDATA_OptionalPayload : 0);
+				const uint32 OldBulkDataFlags = BulkData.GetBulkDataFlags();
+				BulkData.ClearBulkDataFlags(0xffffffffu);
+				BulkData.SetBulkDataFlags(BulkDataFlags);
+				if (TmpBuff.Num() > 0)
+				{
+					BulkData.Lock(LOCK_READ_WRITE);
+					void* BulkDataMem = BulkData.Realloc(TmpBuff.Num());
+					FMemory::Memcpy(BulkDataMem, TmpBuff.GetData(), TmpBuff.Num());
+					BulkData.Unlock();
+				}
+				BulkData.Serialize(Ar, Owner, Idx);
+				BulkData.ClearBulkDataFlags(0xffffffffu);
+				BulkData.SetBulkDataFlags(OldBulkDataFlags);
+			}
+			else
+#endif
+			{
+				FByteBulkData TmpBulkData;
+				TmpBulkData.Serialize(Ar, Owner, Idx);
+
+				bIsLODOptional = !!(TmpBulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload);
+
+				int64 Tmp = TmpBulkData.GetBulkDataOffsetInFile();
+				check(Tmp >= 0 && Tmp <= 0xffffffffll);
+				OffsetInFile = static_cast<uint32>(Tmp);
+				Tmp = TmpBulkData.GetBulkDataSize();
+				check(Tmp >= 0 && Tmp <= 0xffffffffll);
+				BulkDataSize = static_cast<uint32>(Tmp);
+
+				bDiscardBulkData = !BulkDataSize;
+				BuffersSize = bDiscardBulkData ? 0 : BuffersSize;
+			}
+
+			if (!bDiscardBulkData)
+			{
+				SerializeAvailabilityInfo(Ar, OwnerMesh, Idx, StripFlags.IsClassDataStripped(CDSF_AdjacencyData), bNeedsCPUAccess);
+			}
 		}
 	}
 }

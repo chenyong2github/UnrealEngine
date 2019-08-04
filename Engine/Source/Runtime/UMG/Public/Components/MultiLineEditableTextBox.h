@@ -127,9 +127,11 @@ public:
 	//TODO UMG Add Set BackgroundColor
 	//TODO UMG Add Set ForegroundColor
 	//TODO UMG Add Set Font
-	//TODO UMG Add Set Justification
 
 public:
+	//~ Begin UTextLayoutWidget Interface
+	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	//~ End UTextLayoutWidget Interface
 
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;

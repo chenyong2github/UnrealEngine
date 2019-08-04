@@ -1396,7 +1396,7 @@ void UEditorEngine::PostUndo(bool)
 	}
 
 	// Re-instance any actors that need it
-	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(OldToNewClassMapToReinstance, false);
+	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(OldToNewClassMapToReinstance);
 
 	RedrawLevelEditingViewports();
 }
@@ -1955,6 +1955,7 @@ void UEditorEngine::BSPIntersectionHelper(UWorld* InWorld, ECsgOper Operation)
 
 void UEditorEngine::CheckForWorldGCLeaks( UWorld* NewWorld, UPackage* WorldPackage )
 {
+	int32 NumFailedToCleanup = 0;
 	// Make sure the old world is completely gone, except if the new world was one of it's sublevels
 	for(TObjectIterator<UWorld> It; It; ++It)
 	{
@@ -1964,7 +1965,8 @@ void UEditorEngine::CheckForWorldGCLeaks( UWorld* NewWorld, UPackage* WorldPacka
 		if(!bIsNewWorld && !bIsPersistantWorldType && !WorldHasValidContext(RemainingWorld))
 		{
 			FReferenceChainSearch RefChainSearch(RemainingWorld, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
-			UE_LOG(LogEditorServer, Fatal, TEXT("Old world %s not cleaned up by garbage collection while loading new map! Referenced by:") LINE_TERMINATOR TEXT("%s"), *RemainingWorld->GetPathName(), *RefChainSearch.GetRootPath());
+			UE_LOG(LogEditorServer, Error, TEXT("Old world %s not cleaned up by garbage collection while loading new map! Referenced by:") LINE_TERMINATOR TEXT("%s"), *RemainingWorld->GetPathName(), *RefChainSearch.GetRootPath());
+			NumFailedToCleanup++;
 		}
 	}
 
@@ -1978,9 +1980,15 @@ void UEditorEngine::CheckForWorldGCLeaks( UWorld* NewWorld, UPackage* WorldPacka
 			if(!bIsNewWorldPackage && RemainingPackage == WorldPackage)
 			{
 				FReferenceChainSearch RefChainSearch(RemainingPackage, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
-				UE_LOG(LogEditorServer, Fatal, TEXT("Old level package %s not cleaned up by garbage collection while loading new map! Referenced by:") LINE_TERMINATOR TEXT("%s"), *RemainingPackage->GetPathName(), *RefChainSearch.GetRootPath());
+				UE_LOG(LogEditorServer, Error, TEXT("Old level package %s not cleaned up by garbage collection while loading new map! Referenced by:") LINE_TERMINATOR TEXT("%s"), *RemainingPackage->GetPathName(), *RefChainSearch.GetRootPath());
+				NumFailedToCleanup++;
 			}
 		}
+	}
+	
+	if (NumFailedToCleanup > 0)
+	{
+		UE_LOG(LogEditorServer, Fatal, TEXT("World Memory Leaks: %d leaks objects and packages. See The output above."), NumFailedToCleanup);
 	}
 }
 
@@ -5037,33 +5045,43 @@ bool UEditorEngine::Exec_Camera( const TCHAR* Str, FOutputDevice& Ar )
 		}
 		else 
 		{
-			TArray<AActor*> Actors;
-			for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
-			{
-				AActor* Actor = static_cast<AActor*>( *It );
-				checkSlow( Actor->IsA(AActor::StaticClass()) );
-				Actors.Add( Actor );
-			}
+			FBox ComponentVisBoundingBox;
+			bool bComponentVisHasFocusOnSelectionBoundingBox = GUnrealEd && GUnrealEd->ComponentVisManager.HasFocusOnSelectionBoundingBox(ComponentVisBoundingBox);
 
-			TArray<UPrimitiveComponent*> SelectedComponents;
-			for( FSelectionIterator It( GetSelectedComponentIterator() ); It; ++It )
+			if (bComponentVisHasFocusOnSelectionBoundingBox)
 			{
-				UPrimitiveComponent* PrimitiveComp = Cast<UPrimitiveComponent>( *It );
-				if( PrimitiveComp )
-				{
-					SelectedComponents.Add( PrimitiveComp );
-				}
-			}
-
-			if( Actors.Num() || SelectedComponents.Num() )
-			{
-				MoveViewportCamerasToActor( Actors, SelectedComponents, bActiveViewportOnly );
-				return true;
+				MoveViewportCamerasToBox(ComponentVisBoundingBox, bActiveViewportOnly);
 			}
 			else
 			{
-				Ar.Log( TEXT("Can't find target actor or component.") );
-				return false;
+				TArray<AActor*> Actors;
+				for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+				{
+					AActor* Actor = static_cast<AActor*>(*It);
+					checkSlow(Actor->IsA(AActor::StaticClass()));
+					Actors.Add(Actor);
+				}
+
+				TArray<UPrimitiveComponent*> SelectedComponents;
+				for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
+				{
+					UPrimitiveComponent* PrimitiveComp = Cast<UPrimitiveComponent>(*It);
+					if (PrimitiveComp)
+					{
+						SelectedComponents.Add(PrimitiveComp);
+					}
+				}
+
+				if (Actors.Num() || SelectedComponents.Num())
+				{
+					MoveViewportCamerasToActor(Actors, SelectedComponents, bActiveViewportOnly);
+					return true;
+				}
+				else
+				{
+					Ar.Log(TEXT("Can't find target actor or component."));
+					return false;
+				}
 			}
 		}
 	}
@@ -5130,6 +5148,9 @@ bool UEditorEngine::Exec_Particle(const TCHAR* Str, FOutputDevice& Ar)
 {
 	bool bHandled = false;
 	UE_LOG(LogEditorServer, Log, TEXT("Exec Particle!"));
+	
+	// Store off the input string here, as it is adjusted by subsequent parsing commands...
+	const TCHAR* InputStr = Str;
 	if (FParse::Command(&Str,TEXT("RESET")))
 	{
 		TArray<AEmitter*> EmittersToReset;
@@ -5157,6 +5178,12 @@ bool UEditorEngine::Exec_Particle(const TCHAR* Str, FOutputDevice& Ar)
 				Emitter->ResetInLevel();
 			}
 		}
+	}
+
+	// Invoke any downstream handlers (like the Niagara editor plugin)
+	if (ExecParticleInvokedEvent.IsBound())
+	{
+		ExecParticleInvokedEvent.Broadcast(InputStr);
 	}
 	return bHandled;
 }

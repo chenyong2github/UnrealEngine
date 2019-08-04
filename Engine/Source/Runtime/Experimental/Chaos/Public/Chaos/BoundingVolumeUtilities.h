@@ -7,6 +7,7 @@
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ImplicitObject.h"
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/Particles.h"
 #include "Chaos/Sphere.h"
@@ -40,6 +41,21 @@ bool HasBoundingBox(const TPBDRigidParticles<T, d>& Objects, const int32 i)
 		return Objects.Geometry(i)->HasBoundingBox();
 	}
 	return Objects.CollisionParticles(i) != nullptr && Objects.CollisionParticles(i)->Size() > 0;
+}
+
+template<typename THandle>
+bool HasBoundingBox(const THandle& Handle)
+{
+	if (Handle.Geometry())
+	{
+		return Handle.Geometry()->HasBoundingBox();
+	}
+	
+	if (const auto PBDRigid = Handle.AsDynamic())
+	{
+		return PBDRigid->CollisionParticles() && PBDRigid->CollisionParticles()->Size() > 0;
+	}
+	return false;
 }
 
 template<class OBJECT_ARRAY, class T, int d>
@@ -94,6 +110,30 @@ TBox<T, d> ComputeWorldSpaceBoundingBox(const TPBDRigidParticles<T, d>& Objects,
 	for (uint32 j = 1; j < Objects.CollisionParticles(i)->Size(); ++j)
 	{
 		LocalBoundingBox.GrowToInclude(Objects.CollisionParticles(i)->X(j));
+	}
+	return LocalBoundingBox.TransformedBox(LocalToWorld);
+}
+
+template<typename THandle>
+TBox<typename THandle::TType, THandle::D> ComputeWorldSpaceBoundingBox(const THandle& Handle)
+{
+	using T = typename THandle::TType;
+	constexpr int d = THandle::D;
+
+	const auto PBDRigid = Handle.AsDynamic();
+	TRigidTransform<T, d> LocalToWorld = PBDRigid ? TRigidTransform<T,d>(PBDRigid->P(), PBDRigid->Q()) : TRigidTransform<T,d>(Handle.X(), Handle.R());
+	if (Handle.Geometry())
+	{
+		const auto& LocalBoundingBox = Handle.Geometry()->BoundingBox();
+		return LocalBoundingBox.TransformedBox(LocalToWorld);
+	}
+
+	check(PBDRigid);
+	check(PBDRigid->CollisionParticles() && PBDRigid->CollisionParticles()->Size());
+	TBox<T, d> LocalBoundingBox(PBDRigid->CollisionParticles()->X(0), PBDRigid->CollisionParticles()->X(0));
+	for (uint32 j = 1; j < PBDRigid->CollisionParticles()->Size(); ++j)
+	{
+		LocalBoundingBox.GrowToInclude(PBDRigid->CollisionParticles()->X(j));
 	}
 	return LocalBoundingBox.TransformedBox(LocalToWorld);
 }
@@ -221,6 +261,18 @@ TVector<T, d> ComputeThickness(const TPBDRigidParticles<T, d>& InParticles, T Dt
 	return AbsVelocity;
 }
 
+template <typename THandle, typename T>
+TVector<T, THandle::D> ComputeThickness(const THandle& PBDRigid, T Dt)
+{
+	auto AbsVelocity = PBDRigid.V().GetAbs();
+	for (int i = 0; i < THandle::D; ++i)
+	{
+		AbsVelocity[i] = FMath::Max(MinBoundsThickness, AbsVelocity[i] * Dt * BoundsThicknessMultiplier);//todo(ocohen): ignoring MThickness for now
+	}
+
+	return AbsVelocity;
+}
+
 template<class T, int d>
 void ComputeAllWorldSpaceBoundingBoxes(const TPBDRigidParticles<T, d>& Objects, const TArray<int32>& AllObjects, const bool bUseVelocity, const T Dt, TMap<int32, TBox<T, d>>& WorldSpaceBoxes)
 {
@@ -233,10 +285,31 @@ void ComputeAllWorldSpaceBoundingBoxes(const TPBDRigidParticles<T, d>& Objects, 
 		WorldSpaceBox = ComputeWorldSpaceBoundingBox(Objects, BodyIndex);
 		if (bUseVelocity)
 		{
-			WorldSpaceBox.Thicken(ComputeThickness(Objects, Dt, BodyIndex));
+			WorldSpaceBox.ThickenSymmetrically(ComputeThickness(Objects, Dt, BodyIndex));
 		}
 	}
 	//});
+}
+
+//todo: how do we protect ourselves and make it const?
+template<typename ParticleView, typename T, int d>
+void ComputeAllWorldSpaceBoundingBoxes(const ParticleView& Particles, const TArray<bool>& RequiresBounds, const bool bUseVelocity, const T Dt, TArray<TBox<T, d>>& WorldSpaceBoxes)
+{
+	WorldSpaceBoxes.AddUninitialized(Particles.Num());
+	ParticlesParallelFor(Particles, [&RequiresBounds, &WorldSpaceBoxes, bUseVelocity, Dt](const auto& Particle, int32 Index)
+	{
+		if (RequiresBounds[Index])
+		{
+			WorldSpaceBoxes[Index] = ComputeWorldSpaceBoundingBox(Particle);
+			if (bUseVelocity)
+			{
+				if (const auto PBDRigid = Particle.AsDynamic())
+				{
+					WorldSpaceBoxes.Last().ThickenSymmetrically(ComputeThickness(*PBDRigid, Dt));
+				}
+			}
+		}
+	});
 }
 
 template<class OBJECT_ARRAY>

@@ -3,6 +3,7 @@
 #include "Animation/SkinWeightProfile.h"
 #include "Engine/SkeletalMesh.h"
 #include "UObject/UObjectIterator.h"
+#include "ContentStreaming.h"
 
 #include "Components/SkinnedMeshComponent.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -22,6 +23,12 @@ static void OnDefaultProfileCVarsChanged(IConsoleVariable* Variable)
 
 		if (bClearBuffer || bSetBuffer)
 		{
+			// Make sure no pending skeletal mesh LOD updates
+			if (IStreamingManager::Get_Concurrent())
+			{
+				IStreamingManager::Get().GetRenderAssetStreamingManager().BlockTillAllRequestsFinished();
+			}
+
 			for (TObjectIterator<USkeletalMesh> It; It; ++It)
 			{
 				if (*It)
@@ -376,3 +383,63 @@ SIZE_T FSkinWeightProfilesData::GetResourcesSize() const
 
 	return SummedSize;
 }
+
+void FSkinWeightProfilesData::SerializeMetaData(FArchive& Ar)
+{
+	TArray<FName, TInlineAllocator<8>> ProfileNames;
+	if (Ar.IsSaving())
+	{
+		OverrideData.GenerateKeyArray(ProfileNames);
+		Ar << ProfileNames;
+	}
+	else
+	{
+		Ar << ProfileNames;
+		OverrideData.Empty(ProfileNames.Num());
+		for (int32 Idx = 0; Idx < ProfileNames.Num(); ++Idx)
+		{
+			OverrideData.Add(ProfileNames[Idx]);
+		}
+	}
+}
+
+void FSkinWeightProfilesData::ReleaseCPUResources()
+{
+	for (TMap<FName, FRuntimeSkinWeightProfileData>::TIterator It(OverrideData); It; ++It)
+	{
+		It->Value = FRuntimeSkinWeightProfileData();
+	}
+}
+
+template <bool bRenderThread>
+void FSkinWeightProfilesData::CreateRHIBuffers_Internal(TArray<TPair<FName, FVertexBufferRHIRef>>& OutBuffers)
+{
+	const int32 NumActiveProfiles = ProfileNameToBuffer.Num();
+	check(BaseBuffer || !NumActiveProfiles);
+	OutBuffers.Empty(NumActiveProfiles);
+	for (TMap<FName, FSkinWeightVertexBuffer*>::TIterator It(ProfileNameToBuffer); It; ++It)
+	{
+		const FName& ProfileName = It->Key;
+		FSkinWeightVertexBuffer* OverrideBuffer = It->Value;
+		ApplyOverrideProfile(OverrideBuffer, ProfileName);
+		if (bRenderThread)
+		{
+			OutBuffers.Emplace(ProfileName, OverrideBuffer->CreateRHIBuffer_RenderThread());
+		}
+		else
+		{
+			OutBuffers.Emplace(ProfileName, OverrideBuffer->CreateRHIBuffer_Async());
+		}
+	}
+}
+
+void FSkinWeightProfilesData::CreateRHIBuffers_RenderThread(TArray<TPair<FName, FVertexBufferRHIRef>>& OutBuffers)
+{
+	CreateRHIBuffers_Internal<true>(OutBuffers);
+}
+
+void FSkinWeightProfilesData::CreateRHIBuffers_Async(TArray<TPair<FName, FVertexBufferRHIRef>>& OutBuffers)
+{
+	CreateRHIBuffers_Internal<false>(OutBuffers);
+}
+

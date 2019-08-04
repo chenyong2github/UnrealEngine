@@ -8,6 +8,8 @@
 #include "Containers/Ticker.h"
 #include "UObject/StructOnScope.h"
 
+const FName ConcertServerMessageIdName("ConcertMessageId");
+
 FConcertServerSession::FConcertServerSession(const FConcertSessionInfo& InSessionInfo, const FConcertServerSettings& InSettings, TSharedPtr<IConcertLocalEndpoint> InServerSessionEndpoint, const FString& InSessionDirectory)
 	: FConcertSessionCommonImpl(InSessionInfo)
 	, ServerSessionEndpoint(MoveTemp(InServerSessionEndpoint))
@@ -105,10 +107,15 @@ void FConcertServerSession::InternalSendCustomEvent(const UScriptStruct* EventTy
 	CommonBuildCustomEvent(EventType, EventData, SessionInfo.ServerEndpointId, DestinationEndpointIds, CustomEvent);
 
 	// TODO: Optimize this so we can queue the event for multiple client endpoints at the same time
+	TMap<FName, FString> Annotations;
+	if (EnumHasAnyFlags(Flags, EConcertMessageFlags::UniqueId))
+	{
+		Annotations.Add(ConcertServerMessageIdName, FGuid::NewGuid().ToString());
+	}
 	for (const FGuid& DestinationEndpointId : DestinationEndpointIds)
 	{
 		// Send the event
-		ServerSessionEndpoint->SendEvent(CustomEvent, DestinationEndpointId, Flags);
+		ServerSessionEndpoint->SendEvent(CustomEvent, DestinationEndpointId, Flags, Annotations);
 	}
 }
 
@@ -253,7 +260,7 @@ void FConcertServerSession::HandleCustomEvent(const FConcertMessageContext& Cont
 		else if (const FSessionClient* Client = SessionClients.Find(DestinationEndpointId))
 		{
 			// Forward onto the client
-			ServerSessionEndpoint->SendEvent(*Message, Client->ClientInfo.ClientEndpointId, Message->IsReliable() ? EConcertMessageFlags::ReliableOrdered : EConcertMessageFlags::None);
+			ServerSessionEndpoint->SendEvent(*Message, Client->ClientInfo.ClientEndpointId, Message->IsReliable() ? EConcertMessageFlags::ReliableOrdered : EConcertMessageFlags::None, Context.Annotations);
 		}
 	}
 }

@@ -17,12 +17,16 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
+#include "IMeshBuilderModule.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Layers/ILayers.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/Vector2D.h"
 #include "MeshAttributeArray.h"
 #include "MeshDescription.h"
+#include "MeshDescriptionOperations.h"
 #include "MeshTypes.h"
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
@@ -143,7 +147,7 @@ namespace DataprepOperationsLibraryUtil
 
 			TArray< FMeshBuildSettings > BuildSettingsBackup;
 
-			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->SourceModels )
+			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
 			{
 				BuildSettingsBackup.Add( SourceModel.BuildSettings );
 
@@ -151,6 +155,8 @@ namespace DataprepOperationsLibraryUtil
 				SourceModel.BuildSettings.bGenerateLightmapUVs = false;
 				SourceModel.BuildSettings.bRecomputeNormals = false;
 				SourceModel.BuildSettings.bRecomputeTangents = false;
+				SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
+				SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 			}
 
 			return BuildSettingsBackup;
@@ -167,15 +173,17 @@ namespace DataprepOperationsLibraryUtil
 			for ( int32 LODIndex = 0; LODIndex < BuildSettingsBackup.Num() ; ++LODIndex )
 			{
 				// Update only LODs which were cached
-				if (StaticMesh->SourceModels.IsValidIndex( LODIndex ))
+				if (StaticMesh->IsSourceModelValid( LODIndex ))
 				{
 					const FMeshBuildSettings& CachedBuildSettings = BuildSettingsBackup[ LODIndex ];
-					FMeshBuildSettings& BuildSettings = StaticMesh->SourceModels[LODIndex].BuildSettings;
+					FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LODIndex).BuildSettings;
 
 					// Restore only the properties which were modified
 					BuildSettings.bGenerateLightmapUVs = CachedBuildSettings.bGenerateLightmapUVs;
 					BuildSettings.bRecomputeNormals = CachedBuildSettings.bRecomputeNormals;
 					BuildSettings.bRecomputeTangents = CachedBuildSettings.bRecomputeTangents;
+					BuildSettings.bBuildAdjacencyBuffer = CachedBuildSettings.bBuildAdjacencyBuffer;
+					BuildSettings.bBuildReversedIndexBuffer = CachedBuildSettings.bBuildReversedIndexBuffer;
 				}
 			}
 		}
@@ -207,13 +215,49 @@ namespace DataprepOperationsLibraryUtil
 				// Make sure adjacency information fit new material change
 				if( RequiresAdjacencyInformation( NewMaterial, nullptr, GWorld->FeatureLevel ) )
 				{
-					for( FStaticMeshSourceModel& SourceModel : StaticMesh->SourceModels )
+					for( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
 					{
 						SourceModel.BuildSettings.bBuildAdjacencyBuffer = true;
 					}
 				}
 			}
 		}
+	}
+
+	// Replacement of UStaticMesh::CacheDerivedData() which performs too much operations for our purpose
+	// And displays unwanted progress bar
+	// #ueent_todo: Work with Geometry team to find the proper replacement
+	void BuildRenderData( UStaticMesh* StaticMesh, IMeshBuilderModule& MeshBuilderModule )
+	{
+		FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(0);
+
+		FMeshBuildSettings PrevBuildSettings = SourceModel.BuildSettings;
+		SourceModel.BuildSettings.bGenerateLightmapUVs = false;
+		SourceModel.BuildSettings.bRecomputeNormals = false;
+		SourceModel.BuildSettings.bRecomputeTangents = false;
+		SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
+		SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
+
+		FMeshDescription* StaticMeshDescription = SourceModel.MeshDescription.Get();
+		check( StaticMeshDescription );
+
+		// Create render data
+		StaticMesh->RenderData.Reset( new(FMemory::Malloc(sizeof(FStaticMeshRenderData)))FStaticMeshRenderData() );
+
+		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+		ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+		check(RunningPlatform);
+		const FStaticMeshLODSettings& LODSettings = RunningPlatform->GetStaticMeshLODSettings();
+
+		const FStaticMeshLODGroup& LODGroup = LODSettings.GetLODGroup(StaticMesh->LODGroup);
+
+		if ( !MeshBuilderModule.BuildMesh( *StaticMesh->RenderData, StaticMesh, LODGroup ) )
+		{
+			UE_LOG(LogDataprep, Error, TEXT("Failed to build static mesh. See previous line(s) for details."));
+			return;
+		}
+
+		SourceModel.BuildSettings = PrevBuildSettings;
 	}
 } // ns DataprepOperationsLibraryUtil
 
@@ -237,6 +281,8 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 {
 	TArray<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
 
+	IMeshBuilderModule& MeshBuilderModule = FModuleManager::LoadModuleChecked< IMeshBuilderModule >( TEXT("MeshBuilder") );
+
 	// Create LODs but do not commit changes
 	for (UStaticMesh* StaticMesh : SelectedMeshes)
 	{
@@ -245,9 +291,37 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
 			// Remove existing simple collisions
-			UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(StaticMesh, false);
+			UEditorStaticMeshLibrary::RemoveCollisionsWithNotification( StaticMesh, false );
 
-			UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(StaticMesh, ShapeType, false);
+			// Check that render data is available if k-DOP type of collision is required
+			bool bFreeRenderData = false;
+			switch (ShapeType)
+			{
+				case EScriptingCollisionShapeType::NDOP10_X:
+				case EScriptingCollisionShapeType::NDOP10_Y:
+				case EScriptingCollisionShapeType::NDOP10_Z:
+				case EScriptingCollisionShapeType::NDOP18:
+				case EScriptingCollisionShapeType::NDOP26:
+				{
+					if( StaticMesh->RenderData == nullptr )
+					{
+						DataprepOperationsLibraryUtil::BuildRenderData( StaticMesh, MeshBuilderModule );
+						bFreeRenderData = true;
+					}
+					break;
+				}
+				default:
+				{
+					break;
+				}
+			}
+
+			UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification( StaticMesh, ShapeType, false );
+
+			if( bFreeRenderData )
+			{
+				StaticMesh->RenderData = nullptr;
+			}
 		}
 	}
 }
@@ -280,7 +354,7 @@ void UDataprepOperationsLibrary::SetGenerateLightmapUVs( const TArray< UObject* 
 
 			// 3 is the maximum that lightmass accept
 			int32 MinBiggestUVChannel = 3;
-			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->SourceModels )
+			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
 			{
 				bDidChangeSettings |= SourceModel.BuildSettings.bGenerateLightmapUVs != bGenerateLightmapUVs;
 				SourceModel.BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;

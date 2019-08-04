@@ -25,7 +25,10 @@
 #include "HAL/IConsoleManager.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITStalls);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);
 
 // Set to 1 to capture the callstack for every RHI command. Cheap & memory efficient representation: Use the 
 // value in FRHICommand::StackFrames to get the pointer to the code (ie paste on a disassembly window)
@@ -1763,6 +1766,12 @@ struct FRHIShaderResourceViewUpdateInfo_VB
 	uint8 Format;
 };
 
+struct FRHIShaderResourceViewUpdateInfo_IB
+{
+	FRHIShaderResourceView* SRV;
+	FRHIIndexBuffer* IndexBuffer;
+};
+
 struct FRHIVertexBufferUpdateInfo
 {
 	FRHIVertexBuffer* DestBuffer;
@@ -1797,6 +1806,7 @@ struct FRHIResourceUpdateInfo
 		FRHIVertexBufferUpdateInfo VertexBuffer;
 		FRHIIndexBufferUpdateInfo IndexBuffer;
 		FRHIShaderResourceViewUpdateInfo_VB VertexBufferSRV;
+		FRHIShaderResourceViewUpdateInfo_IB IndexBufferSRV;
 	};
 
 	void ReleaseRefs();
@@ -1867,6 +1877,18 @@ struct FRHICommandBuildAccelerationStructure final : public FRHICommand<FRHIComm
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
+
+struct FRHICommandClearRayTracingBindings final : public FRHICommand<FRHICommandClearRayTracingBindings>
+{
+	FRHIRayTracingScene* Scene;
+
+	explicit FRHICommandClearRayTracingBindings(FRHIRayTracingScene* InScene)
+		: Scene(InScene)
+	{}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 
 struct FRHICommandUpdateAccelerationStructures final : public FRHICommand<FRHICommandUpdateAccelerationStructures>
 {
@@ -3010,6 +3032,18 @@ public:
 		else
 		{
 			ALLOC_COMMAND(FRHICommandBuildAccelerationStructure)(Scene);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void ClearRayTracingBindings(FRHIRayTracingScene* Scene)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIClearRayTracingBindings(Scene);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandClearRayTracingBindings)(Scene);
 		}
 	}
 
@@ -4967,7 +5001,14 @@ struct TRHIResourceUpdateBatcher
 
 	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer)
 	{
-		// TODO
+		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_IndexBufferSRV;
+		UpdateInfo.IndexBufferSRV = { SRV, IndexBuffer };
+		SRV->AddRef();
+		if (IndexBuffer)
+		{
+			IndexBuffer->AddRef();
+		}
 	}
 
 private:

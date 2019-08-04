@@ -10,6 +10,7 @@
 #include "UObject/StructOnScope.h"
 #include "NiagaraGraph.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemEditorData.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScript.h"
 #include "NiagaraNodeOutput.h"
@@ -35,6 +36,7 @@
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterMapHistory.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -499,7 +501,7 @@ void FNiagaraEditorUtilities::CompileExistingEmitters(const TArray<UNiagaraEmitt
 	for (UNiagaraEmitter* Emitter : AffectedEmitters)
 	{
 		// If we've already compiled this emitter, or it's invalid skip it.
-		if (CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
+		if (Emitter == nullptr || CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
 		{
 			continue;
 		}
@@ -1080,6 +1082,65 @@ TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSy
 		}
 	}
 	return ReferencingComponents;
+}
+
+const FGuid FNiagaraEditorUtilities::AddEmitterToSystem(UNiagaraSystem& InSystem, UNiagaraEmitter& InEmitterToAdd)
+{
+	// Kill all system instances before modifying the emitter handle list to prevent accessing deleted data.
+	KillSystemInstances(InSystem);
+
+	TSet<FName> EmitterHandleNames;
+	for (const FNiagaraEmitterHandle& EmitterHandle : InSystem.GetEmitterHandles())
+	{
+		EmitterHandleNames.Add(EmitterHandle.GetName());
+	}
+
+	UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(InSystem.GetEditorData(), ECastCheckedType::NullChecked);
+	FNiagaraEmitterHandle EmitterHandle;
+	if (SystemEditorData->GetOwningSystemIsPlaceholder() == false)
+	{
+		InSystem.Modify();
+		EmitterHandle = InSystem.AddEmitterHandle(InEmitterToAdd, FNiagaraUtilities::GetUniqueName(InEmitterToAdd.GetFName(), EmitterHandleNames));
+	}
+	else
+	{
+		// When editing an emitter asset we add the emitter as a duplicate so that the parent emitter is duplicated, but it's parent emitter
+		// information is maintained.
+		checkf(InSystem.GetNumEmitters() == 0, TEXT("Can not add multiple emitters to a system being edited in emitter asset mode."));
+		FNiagaraEmitterHandle TemporaryEmitterHandle(InEmitterToAdd);
+		EmitterHandle = InSystem.DuplicateEmitterHandle(TemporaryEmitterHandle, *InEmitterToAdd.GetUniqueEmitterName());
+	}
+	
+	FNiagaraStackGraphUtilities::RebuildEmitterNodes(InSystem);
+	SystemEditorData->SynchronizeOverviewGraphWithSystem(InSystem);
+
+	return EmitterHandle.GetId();
+}
+
+void FNiagaraEditorUtilities::RemoveEmittersFromSystemByEmitterHandleId(UNiagaraSystem& InSystem, TSet<FGuid> EmitterHandleIdsToDelete)
+{
+	// Kill all system instances before modifying the emitter handle list to prevent accessing deleted data.
+	KillSystemInstances(InSystem);
+
+	const FScopedTransaction DeleteTransaction(EmitterHandleIdsToDelete.Num() == 1
+		? LOCTEXT("DeleteEmitter", "Delete emitter")
+		: LOCTEXT("DeleteEmitters", "Delete emitters"));
+
+	InSystem.Modify();
+	InSystem.RemoveEmitterHandlesById(EmitterHandleIdsToDelete);
+
+	FNiagaraStackGraphUtilities::RebuildEmitterNodes(InSystem);
+	UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(InSystem.GetEditorData(), ECastCheckedType::NullChecked);
+	SystemEditorData->SynchronizeOverviewGraphWithSystem(InSystem);
+}
+
+void FNiagaraEditorUtilities::KillSystemInstances(const UNiagaraSystem& System)
+{
+	TArray<UNiagaraComponent*> ReferencingComponents = FNiagaraEditorUtilities::GetComponentsThatReferenceSystem(System);
+	for (auto Component : ReferencingComponents)
+	{
+		Component->DestroyInstance();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

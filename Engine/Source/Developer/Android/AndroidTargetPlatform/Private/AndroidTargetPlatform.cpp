@@ -774,7 +774,6 @@ FPlatformAudioCookOverrides* FAndroidTargetPlatform::GetAudioCompressionSettings
 {
 	static FPlatformAudioCookOverrides Settings;
 
-#if !WITH_EDITOR
 	static bool bCachedPlatformSettings = false;
 
 	if (!bCachedPlatformSettings)
@@ -782,9 +781,6 @@ FPlatformAudioCookOverrides* FAndroidTargetPlatform::GetAudioCompressionSettings
 		Android::CachePlatformAudioCookOverrides(Settings);
 		bCachedPlatformSettings = true;
 	}
-#else
-	Android::CachePlatformAudioCookOverrides(Settings);
-#endif
 
 	return &Settings;
 }

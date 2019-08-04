@@ -128,10 +128,17 @@ static FAutoConsoleVariableRef CVarDX11NumGPUs(
  */
 namespace RHIConsoleVariables
 {
-	int32 FeatureSetLimit = -1;
-	static FAutoConsoleVariableRef CVarFeatureSetLimit(
+	int32 MinFeatureSetLimit = -1;
+	static FAutoConsoleVariableRef CVarMinFeatureSetLimit(
+		TEXT("RHI.MinFeatureSetLimit"),
+		MinFeatureSetLimit,
+		TEXT("If set to 11, limit D3D RHI to D3D11 and 11.1 feature levels, disallowing 10. Otherwise, it will use default. Changing this at run-time has no effect. (default is -1)")
+		);
+
+	int32 MaxFeatureSetLimit = -1;
+	static FAutoConsoleVariableRef CVarMaxFeatureSetLimit(
 		TEXT("RHI.FeatureSetLimit"),
-		FeatureSetLimit,
+		MaxFeatureSetLimit,
 		TEXT("If set to 10, limit D3D RHI to D3D10 feature level. Otherwise, it will use default. Changing this at run-time has no effect. (default is -1)")
 		);
 };
@@ -238,19 +245,36 @@ static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1)
 }
 
 /**
+ * Returns the lowest D3D feature level we are allowed to created based on
+ * command line parameters.
+ */
+static D3D_FEATURE_LEVEL GetMinAllowedD3DFeatureLevel()
+{
+	// Default to 10.0
+	D3D_FEATURE_LEVEL AllowedFeatureLevel = D3D_FEATURE_LEVEL_10_0;
+
+	if (RHIConsoleVariables::MinFeatureSetLimit == 11)
+	{
+		AllowedFeatureLevel = D3D_FEATURE_LEVEL_11_0;
+	}
+
+	return AllowedFeatureLevel;
+}
+
+/**
  * Returns the highest D3D feature level we are allowed to created based on
  * command line parameters.
  */
-static D3D_FEATURE_LEVEL GetAllowedD3DFeatureLevel()
+static D3D_FEATURE_LEVEL GetMaxAllowedD3DFeatureLevel()
 {
-	// Default to D3D11 
+	// Default to 11.0
 	D3D_FEATURE_LEVEL AllowedFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
 	// Use a feature level 10 if specified on the command line.
 	if(FParse::Param(FCommandLine::Get(),TEXT("d3d10")) || 
 		FParse::Param(FCommandLine::Get(),TEXT("dx10")) ||
 		FParse::Param(FCommandLine::Get(),TEXT("sm4")) ||
-		RHIConsoleVariables::FeatureSetLimit == 10)
+		RHIConsoleVariables::MaxFeatureSetLimit == 10)
 	{
 		AllowedFeatureLevel = D3D_FEATURE_LEVEL_10_0;
 	}
@@ -267,70 +291,13 @@ static D3D_FEATURE_LEVEL GetAllowedD3DFeatureLevel()
 }
 
 /**
-* Attempts to create a D3D11 device to test if optional debugging features are installed.
-*/
-static void SafeTestForOptionalGraphicsTools(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL& FeatureLevel, uint32& DeviceFlags, D3D_FEATURE_LEVEL& OutFeatureLevel, int32 NumAllowedFeatureLevels)
-{
-	if((DeviceFlags & D3D11_CREATE_DEVICE_DEBUG) != D3D11_CREATE_DEVICE_DEBUG)
-	{
-		return;
-	}
-
-	ID3D11Device* D3DDevice = NULL;
-	ID3D11DeviceContext* D3DDeviceContext = NULL;
-
-#if PLATFORM_HOLOLENS
-	static bool bIsWin10 = true;
-#else
-	static bool bIsWin10 = FWindowsPlatformMisc::VerifyWindowsVersion(10, 0);
-#endif
-	static bool bPrintErrorMessage = true;
-
-	// Test device creation.
-	HRESULT Result = D3D11CreateDevice(
-		Adapter,
-		D3D_DRIVER_TYPE_UNKNOWN,
-		NULL,
-		DeviceFlags,
-		& FeatureLevel,
-		NumAllowedFeatureLevels,
-		D3D11_SDK_VERSION,
-		&D3DDevice,
-		&OutFeatureLevel,
-		&D3DDeviceContext
-	);
-
-	// If Optional Graphics tools were enabled then return true.
-	if (SUCCEEDED(Result))
-	{
-		D3DDevice->Release();
-		D3DDeviceContext->Release();
-		return;
-	}
-	// If creation failed due to missing Optional Features in Windows 10.
-	else if (DXGI_ERROR_SDK_COMPONENT_MISSING == Result && bIsWin10)
-	{
-		// Only print the debug error message once and don't clutter the log.
-		if (bPrintErrorMessage) 
-		{
-			UE_LOG(LogD3D11RHI, Warning,
-				TEXT("-d3ddebug was ignored as optional Graphics Tools still need to be installed. Install them through the Manage Optional Features in windows."));
-			bPrintErrorMessage = false;
-		}
-
-		// Remove the debug option from the device flag.
-		DeviceFlags = DeviceFlags & (~D3D11_CREATE_DEVICE_DEBUG);
-	}
-}
-
-/**
  * Attempts to create a D3D11 device for the adapter using at most MaxFeatureLevel.
  * If creation is successful, true is returned and the supported feature level is set in OutFeatureLevel.
  */
-static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL MaxFeatureLevel,D3D_FEATURE_LEVEL* OutFeatureLevel)
+static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL MinFeatureLevel,D3D_FEATURE_LEVEL MaxFeatureLevel,D3D_FEATURE_LEVEL* OutFeatureLevel)
 {
-	ID3D11Device* D3DDevice = NULL;
-	ID3D11DeviceContext* D3DDeviceContext = NULL;
+	ID3D11Device* D3DDevice = nullptr;
+	ID3D11DeviceContext* D3DDeviceContext = nullptr;
 	uint32 DeviceFlags = D3D11_CREATE_DEVICE_SINGLETHREADED;
 	// Use a debug device if specified on the command line.
 	if(D3D11RHI_ShouldCreateWithD3DDebug())
@@ -348,9 +315,12 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Ma
 		D3D_FEATURE_LEVEL_11_0,
 		D3D_FEATURE_LEVEL_10_0
 	};
-
+	
+	// Trim to allowed feature levels
 	int32 FirstAllowedFeatureLevel = 0;
 	int32 NumAllowedFeatureLevels = ARRAY_COUNT(RequestedFeatureLevels);
+	int32 LastAllowedFeatureLevel = NumAllowedFeatureLevels - 1;
+	
 	while (FirstAllowedFeatureLevel < NumAllowedFeatureLevels)
 	{
 		if (RequestedFeatureLevels[FirstAllowedFeatureLevel] == MaxFeatureLevel)
@@ -359,36 +329,55 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Ma
 		}
 		FirstAllowedFeatureLevel++;
 	}
-	NumAllowedFeatureLevels -= FirstAllowedFeatureLevel;
 
-	if (NumAllowedFeatureLevels == 0)
+	while (LastAllowedFeatureLevel > 0)
+	{
+		if (RequestedFeatureLevels[LastAllowedFeatureLevel] >= MinFeatureLevel)
+		{
+			break;
+		}
+		LastAllowedFeatureLevel--;
+	}
+	
+	NumAllowedFeatureLevels = LastAllowedFeatureLevel - FirstAllowedFeatureLevel + 1;
+	if (MaxFeatureLevel < MinFeatureLevel || NumAllowedFeatureLevels <= 0)
 	{
 		return false;
 	}
-
-	SafeTestForOptionalGraphicsTools(Adapter, RequestedFeatureLevels[FirstAllowedFeatureLevel], DeviceFlags, *OutFeatureLevel, NumAllowedFeatureLevels);
 
 	__try
 	{
 		// We don't want software renderer. Ideally we specify D3D_DRIVER_TYPE_HARDWARE on creation but
 		// when we specify an adapter we need to specify D3D_DRIVER_TYPE_UNKNOWN (otherwise the call fails).
 		// We cannot check the device type later (seems this is missing functionality in D3D).
-		if(SUCCEEDED(D3D11CreateDevice(
+		HRESULT Result = D3D11CreateDevice(
 			Adapter,
 			D3D_DRIVER_TYPE_UNKNOWN,
-			NULL,
+			nullptr,
 			DeviceFlags,
 			&RequestedFeatureLevels[FirstAllowedFeatureLevel],
 			NumAllowedFeatureLevels,
 			D3D11_SDK_VERSION,
 			&D3DDevice,
 			OutFeatureLevel,
-			&D3DDeviceContext
-		))) 
+			&D3DDeviceContext);
+
+		if (SUCCEEDED(Result))
 		{
 			D3DDevice->Release();
 			D3DDeviceContext->Release();
 			return true;
+		}
+
+		// Log any reason for failure to create test device. Extra debug help.
+		VERIFYD3D11RESULT_NOEXIT(Result);
+
+		bool bIsWin10 = FWindowsPlatformMisc::VerifyWindowsVersion(10, 0);
+
+		// Fatal error on 0x887A002D
+		if (DXGI_ERROR_SDK_COMPONENT_MISSING == Result && bIsWin10)
+		{
+			UE_LOG(LogD3D11RHI, Fatal, TEXT("-d3ddebug was used but optional Graphics Tools were not found. Install them through the Manage Optional Features in windows. See: https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features"));
 		}
 	}
 	__except(IsDelayLoadException(GetExceptionInformation()))
@@ -811,7 +800,11 @@ void FD3D11DynamicRHIModule::FindAdapter()
 	const bool bFavorNonIntegrated = CVarExplicitAdapterValue == -1;
 
 	TRefCountPtr<IDXGIAdapter> TempAdapter;
-	D3D_FEATURE_LEVEL MaxAllowedFeatureLevel = GetAllowedD3DFeatureLevel();
+	D3D_FEATURE_LEVEL MinAllowedFeatureLevel = GetMinAllowedD3DFeatureLevel();
+	D3D_FEATURE_LEVEL MaxAllowedFeatureLevel = GetMaxAllowedD3DFeatureLevel();
+
+	UE_LOG(LogD3D11RHI, Log, TEXT("D3D11 min allowed feature level: %s"), GetFeatureLevelString(MinAllowedFeatureLevel));
+	UE_LOG(LogD3D11RHI, Log, TEXT("D3D11 max allowed feature level: %s"), GetFeatureLevelString(MaxAllowedFeatureLevel));
 
 	FD3D11Adapter FirstWithoutIntegratedAdapter;
 	FD3D11Adapter FirstAdapter;
@@ -837,7 +830,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 		if(TempAdapter)
 		{
 			D3D_FEATURE_LEVEL ActualFeatureLevel = (D3D_FEATURE_LEVEL)0;
-			if(SafeTestD3D11CreateDevice(TempAdapter,MaxAllowedFeatureLevel,&ActualFeatureLevel))
+			if(SafeTestD3D11CreateDevice(TempAdapter,MinAllowedFeatureLevel,MaxAllowedFeatureLevel,&ActualFeatureLevel))
 			{
 				// Log some information about the available D3D11 adapters.
 				VERIFYD3D11RESULT(TempAdapter->GetDesc(&AdapterDesc));
@@ -1572,8 +1565,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		
 		if (!bDeviceCreated)
 		{
-			SafeTestForOptionalGraphicsTools(Adapter, FeatureLevel, DeviceFlags, ActualFeatureLevel, 1);
-			
 			// Creating the Direct3D device.
 			VERIFYD3D11RESULT(D3D11CreateDevice(
 				Adapter,

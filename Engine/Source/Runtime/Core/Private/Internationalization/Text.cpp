@@ -1458,8 +1458,8 @@ FTextSnapshot::FTextSnapshot()
 
 FTextSnapshot::FTextSnapshot(const FText& InText)
 	: TextDataPtr(InText.TextData)
-	, GlobalHistoryRevision(InText.TextData->GetGlobalHistoryRevision())
-	, LocalHistoryRevision(InText.TextData->GetLocalHistoryRevision())
+	, GlobalHistoryRevision(GetGlobalHistoryRevisionForText(InText))
+	, LocalHistoryRevision(GetLocalHistoryRevisionForText(InText))
 	, Flags(InText.Flags)
 {
 }
@@ -1471,8 +1471,8 @@ bool FTextSnapshot::IdenticalTo(const FText& InText) const
 	InText.Rebuild();
 
 	return TextDataPtr == InText.TextData 
-		&& GlobalHistoryRevision == InText.TextData->GetGlobalHistoryRevision()
-		&& LocalHistoryRevision == InText.TextData->GetLocalHistoryRevision()
+		&& GlobalHistoryRevision == GetGlobalHistoryRevisionForText(InText)
+		&& LocalHistoryRevision == GetLocalHistoryRevisionForText(InText)
 		&& Flags == InText.Flags;
 }
 
@@ -1484,9 +1484,19 @@ bool FTextSnapshot::IsDisplayStringEqualTo(const FText& InText) const
 
 	// We have to assume that the display string has changed if the history of the text has changed
 	// (due to a culture change), as we no longer have the old display string to compare against
-	return GlobalHistoryRevision == InText.TextData->GetGlobalHistoryRevision()
-		&& LocalHistoryRevision == InText.TextData->GetLocalHistoryRevision()
+	return GlobalHistoryRevision == GetGlobalHistoryRevisionForText(InText)
+		&& LocalHistoryRevision == GetLocalHistoryRevisionForText(InText)
 		&& TextDataPtr.IsValid() && TextDataPtr->GetDisplayString().Equals(InText.ToString(), ESearchCase::CaseSensitive);
+}
+
+uint16 FTextSnapshot::GetGlobalHistoryRevisionForText(const FText& InText)
+{
+	return (InText.IsEmpty() || InText.IsCultureInvariant()) ? 0 : InText.TextData->GetGlobalHistoryRevision();
+}
+
+uint16 FTextSnapshot::GetLocalHistoryRevisionForText(const FText& InText)
+{
+	return (InText.IsEmpty() || InText.IsCultureInvariant()) ? 0 : InText.TextData->GetLocalHistoryRevision();
 }
 
 FScopedTextIdentityPreserver::FScopedTextIdentityPreserver(FText& InTextToPersist)

@@ -90,7 +90,7 @@ namespace UnrealGameSyncLauncher
 
 			// Attempt to sync through a modal dialog
 			string ErrorMessage;
-			ModalTaskResult Result = PerforceModalTask.Execute(this, null, ServerAndPort, UserName, SyncApplication, "Updating", "Checking for updates, please wait...", Log, out ErrorMessage);
+			ModalTaskResult Result = PerforceModalTask.Execute(this, new PerforceConnection(UserName, null, ServerAndPort), SyncApplication, "Updating", "Checking for updates, please wait...", Log, out ErrorMessage);
 			if(Result == ModalTaskResult.Succeeded)
 			{
 				Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);

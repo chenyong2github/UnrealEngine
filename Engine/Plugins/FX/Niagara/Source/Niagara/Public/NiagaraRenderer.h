@@ -114,10 +114,10 @@ public:
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) {}
 #endif
 
-	static FRWBuffer& GetDummyFloatBuffer(); 
-	static FRWBuffer& GetDummyFloat4Buffer();
-	static FRWBuffer& GetDummyIntBuffer();
-	static FRWBuffer& GetDummyUIntBuffer();
+	NIAGARA_API static FRWBuffer& GetDummyFloatBuffer();
+	NIAGARA_API static FRWBuffer& GetDummyFloat4Buffer();
+	NIAGARA_API static FRWBuffer& GetDummyIntBuffer();
+	NIAGARA_API static FRWBuffer& GetDummyUIntBuffer();
 	
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 

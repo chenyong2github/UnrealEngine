@@ -76,6 +76,11 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 				FApp::SetGraphicsRHI(TEXT("OpenGL"));
 				FPlatformApplicationMisc::UsingOpenGL();
 
+				if (!UE_BUILD_SHIPPING)
+				{
+					FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("LinuxDynamicRHI", "OpenGLDeprecated", "Warning: OpenGL is deprecated, please use Vulkan."));
+				}
+
 				FName ShaderFormatName(*TargetedShaderFormats[SfIdx]);
 				EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 				RequestedFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);

@@ -755,8 +755,8 @@ public:
 
 		Entry Result = {};
 
-		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-		const uint64 CompletedFenceValue = Adapter->GetFrameFence().GetLastCompletedFenceFast();
+		const FD3D12Fence& Fence = GetParentDevice()->GetCommandListManager().GetFence();
+		const uint64 CompletedFenceValue = Fence.GetLastCompletedFenceFast();
 
 		for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); ++EntryIndex)
 		{
@@ -840,12 +840,13 @@ public:
 	void Flush()
 	{
 		FD3D12Device* Device = GetParentDevice();
+		FD3D12Fence& Fence = Device->GetCommandListManager().GetFence();
 
 		FScopeLock Lock(&CriticalSection);
 
 		for (const Entry& It : Entries)
 		{
-			Device->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(It.Heap);
+			Device->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(It.Heap, &Fence);
 		}
 		Entries.Empty();
 	}
@@ -920,9 +921,8 @@ struct FD3D12RayTracingDescriptorHeap : public FD3D12DeviceChild
 
 	void UpdateSyncPoint()
 	{
-		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-		const uint64 FrameFenceValue = Adapter->GetFrameFence().GetCurrentFence();
-		HeapCacheEntry.FenceValue = FMath::Max(HeapCacheEntry.FenceValue, FrameFenceValue);
+		const FD3D12Fence& Fence = GetParentDevice()->GetCommandListManager().GetFence();
+		HeapCacheEntry.FenceValue = FMath::Max(HeapCacheEntry.FenceValue, Fence.GetCurrentFence());
 	}
 
 	ID3D12DescriptorHeap* D3D12Heap = nullptr;
@@ -1358,18 +1358,22 @@ public:
 	};
 	TMap<FShaderRecordCacheKey, uint32> ShaderRecordCache;
 
-#if ENABLE_RESIDENCY_MANAGEMENT
 	// A set of all resources referenced by this shader table for the purpose of updating residency before ray tracing work dispatch.
 	// #dxr_todo UE-72159: remove resources from this set when SBT slot entries are replaced
-	TSet<FD3D12Resource*> ReferencedD3D12Resources;
+	TSet<void*> ReferencedD3D12ResourceSet;
+	TArray<TRefCountPtr<FD3D12Resource>> ReferencedD3D12Resources;
 	TArray<TRefCountPtr<FRHIResource>> ReferencedResources;
 	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* Resource)
 	{
 		bool bIsAlreadyInSet = false;
-		ReferencedD3D12Resources.Add(D3D12Resource, &bIsAlreadyInSet);
-		if (!bIsAlreadyInSet && Resource)
+		ReferencedD3D12ResourceSet.Add(D3D12Resource, &bIsAlreadyInSet);
+		if (!bIsAlreadyInSet)
 		{
-			ReferencedResources.Add(Resource);
+			ReferencedD3D12Resources.Add(D3D12Resource);
+			if (Resource)
+			{
+				ReferencedResources.Add(Resource);
+			}
 		}
 	}
 	void UpdateResidency(FD3D12CommandContext& CommandContext)
@@ -1380,10 +1384,6 @@ public:
 		}
 		Buffer->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
 	}
-#else // ENABLE_RESIDENCY_MANAGEMENT
-	void AddResourceReference(FD3D12Resource* D3D12Resource, FRHIResource* Resource) {}
-	FORCEINLINE void UpdateResidency(FD3D12CommandContext&) {}
-#endif // ENABLE_RESIDENCY_MANAGEMENT
 };
 
 
@@ -2609,6 +2609,17 @@ void FD3D12CommandContext::RHIBuildAccelerationStructure(FRHIRayTracingScene* In
 	Scene->BuildAccelerationStructure(*this, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 }
 
+void FD3D12CommandContext::RHIClearRayTracingBindings(FRHIRayTracingScene* InScene)
+{
+	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
+
+	auto& Table = Scene->ShaderTables[GetGPUIndex()];
+	for (auto Item : Table)
+	{
+		delete Item.Value;
+	}
+	Table.Reset();
+}
 
 struct FD3D12RayTracingGlobalResourceBinder
 {
@@ -2985,12 +2996,9 @@ static void SetRayTracingShaderResources(
 		Binder.SetRootDescriptorTable(BindSlot, ResourceDescriptorTableBaseGPU);
 	}
 
-	if (GEnableResidencyManagement)
+	for (const FResourceEntry& Entry : ReferencedResources)
 	{
-		for (const FResourceEntry& Entry : ReferencedResources)
-		{
-			Binder.AddResourceReference(Entry.D3D12Resource, Entry.RHIResource);
-		}
+		Binder.AddResourceReference(Entry.D3D12Resource, Entry.RHIResource);
 	}
 }
 

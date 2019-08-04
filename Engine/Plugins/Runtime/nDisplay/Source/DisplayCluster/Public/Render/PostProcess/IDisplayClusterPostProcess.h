@@ -20,6 +20,14 @@ public:
 
 public:
 	/**
+	* Game thread call. Initialize postprocess from config line
+	*
+	* @param CfgLine - Configuration line for this postprocess
+	*/
+	virtual void InitializePostProcess(const FString& CfgLine)
+	{ }
+
+	/**
 	* Returns if an interface implementation processes each view region before warp&blend
 	*
 	* @example - A stereo device with 2 viewports renders 4 different regions so the corresponded function will be called 4 times (2 eyes * 2 viewports)

@@ -32,12 +32,8 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
 		[
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.GroupText")
-			.ToolTipText_UObject(Group, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(Group, &UNiagaraStackEntry::GetDisplayName)
-			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.ColorAndOpacity(this, &SNiagaraStackItemGroup::GetTextColorForSearch)
+			SNew(SNiagaraStackDisplayName, InGroup, *InStackViewModel, "NiagaraEditor.Stack.GroupText")
+			.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch)
 		]
 		// Stack issues icon
 		+ SHorizontalBox::Slot()

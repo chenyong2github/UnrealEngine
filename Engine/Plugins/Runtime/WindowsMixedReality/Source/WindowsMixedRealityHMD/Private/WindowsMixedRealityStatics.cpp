@@ -90,6 +90,18 @@ namespace WindowsMixedReality
 		return false;
 	}
 
+	bool FWindowsMixedRealityStatics::PollHandTracking()
+	{
+		FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+
+		if (hmd != nullptr)
+		{
+			return hmd->PollHandTracking();
+		}
+
+		return false;
+	}
+
 	HMDInputPressState FWindowsMixedRealityStatics::GetPressState(
 		HMDHand hand,
 		HMDInputControllerButtons button)
@@ -128,14 +140,14 @@ namespace WindowsMixedReality
 #endif
 
 	// Remoting
-	void FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate)
+	void FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate, bool isHoloLens1)
 	{
 #if !PLATFORM_HOLOLENS
 		FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
 
 		if (hmd != nullptr)
 		{
-			hmd->ConnectToRemoteHoloLens(*remoteIP, bitrate);
+			hmd->ConnectToRemoteHoloLens(*remoteIP, bitrate, isHoloLens1);
 		}
 #endif
 	}

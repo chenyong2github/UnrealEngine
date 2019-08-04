@@ -6,9 +6,7 @@
 #include "Network/Service/DisplayClusterService.h"
 #include "Network/Protocol/IPDisplayClusterClusterEventsProtocol.h"
 #include "Network/DisplayClusterMessage.h"
-
-class FJsonObject;
-
+#include "Dom/JsonObject.h"
 
 /**
  * Cluster events server
@@ -35,7 +33,7 @@ public:
 	virtual void Shutdown() override;
 
 protected:
-	virtual FDisplayClusterSessionBase* CreateSession(FSocket* InSocket, const FIPv4Endpoint& InEP) override;
+	virtual TSharedPtr<FDisplayClusterSessionBase> CreateSession(FSocket* InSocket, const FIPv4Endpoint& InEP) override;
 	virtual bool IsConnectionAllowed(FSocket* InSocket, const FIPv4Endpoint& InEP)
 	{ return true; }
 
@@ -56,8 +54,7 @@ protected:
 private:
 	FDisplayClusterClusterEvent BuildClusterEventFromJson(const FString& EventName, const FString& EventType, const FString& EventCategory, const TSharedPtr<FJsonObject>& JsonMessage) const;
 
-private:
-	TSharedPtr<FJsonObject> ResponseErrorMissedMandatoryFields;
-	TSharedPtr<FJsonObject> ResponseErrorUnknown;
-	TSharedPtr<FJsonObject> ResponseOk;
+	TSharedPtr<FJsonObject> MakeResponseErrorMissedMandatoryFields();
+	TSharedPtr<FJsonObject> MakeResponseErrorUnknown();
+	TSharedPtr<FJsonObject> MakeResponseOk();
 };

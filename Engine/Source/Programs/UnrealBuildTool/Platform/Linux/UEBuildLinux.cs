@@ -297,7 +297,8 @@ namespace UnrealBuildTool
 			// [bschaefer] 2018-08-24: disabling XGE due to a bug where XGE seems to be lower casing folders names that are headers ie. misc/Header.h vs Misc/Header.h
 			// [bschaefer] 2018-10-04: enabling XGE as an update in xgConsole seems to have fixed it for me
 			// [bschaefer] 2018-12-17: disable XGE again, as the same issue before seems to still be happening but intermittently
-			return false; // BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64;
+			// [bschaefer] 2019-6-13: enable XGE, as the bug from before is now fixed
+			return BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64;
 		}
 
 		public override bool CanUseParallelExecutor()
@@ -318,13 +319,17 @@ namespace UnrealBuildTool
 			if (FileName.StartsWith("lib"))
 			{
 				return IsBuildProductName(FileName, 3, FileName.Length - 3, NamePrefixes, NameSuffixes, ".a")
-					|| IsBuildProductName(FileName, 3, FileName.Length - 3, NamePrefixes, NameSuffixes, ".so");
+					|| IsBuildProductName(FileName, 3, FileName.Length - 3, NamePrefixes, NameSuffixes, ".so")
+					|| IsBuildProductName(FileName, 3, FileName.Length - 3, NamePrefixes, NameSuffixes, ".sym")
+					|| IsBuildProductName(FileName, 3, FileName.Length - 3, NamePrefixes, NameSuffixes, ".debug");
 			}
 			else
 			{
 				return IsBuildProductName(FileName, NamePrefixes, NameSuffixes, "")
 					|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".so")
-					|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".a");
+					|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".a")
+					|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".sym")
+					|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".debug");
 			}
 		}
 

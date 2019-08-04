@@ -24,26 +24,33 @@ WINRT_EXPORT namespace winrt::Microsoft::Holographic::AppRemoting {
 
 enum class BlitResult : int32_t
 {
-    Success = 0,
+    Success_Color = 0,
     Failed_NoRemoteFrameAvailable = 1,
     Failed_NoCamera = 2,
-};
-
-enum class CameraPoseMode : int32_t
-{
-    UseRemoteCameraPose = 0,
-    UsePlayerCameraPose = 1,
 };
 
 enum class ConnectionFailureReason : int32_t
 {
     None = 0,
     Unknown = 1,
-    Unreachable = 2,
-    AuthenticationFailed = 3,
-    HandshakeFailed = 4,
-    ProtocolVersionMismatch = 5,
-    ConnectionLost = 6,
+    NoServerCertificate = 2,
+    HandshakePortBusy = 3,
+    HandshakeUnreachable = 4,
+    HandshakeConnectionFailed = 5,
+    AuthenticationFailed = 6,
+    RemotingVersionMismatch = 7,
+    IncompatibleTransportProtocols = 8,
+    HandshakeFailed = 9,
+    TransportPortBusy = 10,
+    TransportUnreachable = 11,
+    TransportConnectionFailed = 12,
+    ProtocolVersionMismatch = 13,
+    ProtocolError = 14,
+    VideoCodecNotAvailable = 15,
+    Canceled = 16,
+    ConnectionLost = 17,
+    DeviceLost = 18,
+    DisconnectRequest = 19,
 };
 
 enum class ConnectionState : int32_t
@@ -93,6 +100,7 @@ struct DataChannelReceivedHandler;
 struct OnConnectedHandler;
 struct OnDataChannelCreatedHandler;
 struct OnDisconnectedHandler;
+struct OnListeningHandler;
 struct OnRecognizedSpeechHandler;
 struct OnSendFrameHandler;
 
@@ -119,7 +127,6 @@ template <> struct category<Microsoft::Holographic::AppRemoting::IRemoteSpeech>{
 template <> struct category<Microsoft::Holographic::AppRemoting::PlayerContext>{ using type = class_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::RemoteContext>{ using type = class_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::BlitResult>{ using type = enum_category; };
-template <> struct category<Microsoft::Holographic::AppRemoting::CameraPoseMode>{ using type = enum_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::ConnectionFailureReason>{ using type = enum_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::ConnectionState>{ using type = enum_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::DataChannelPriority>{ using type = enum_category; };
@@ -132,6 +139,7 @@ template <> struct category<Microsoft::Holographic::AppRemoting::DataChannelRece
 template <> struct category<Microsoft::Holographic::AppRemoting::OnConnectedHandler>{ using type = delegate_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::OnDataChannelCreatedHandler>{ using type = delegate_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::OnDisconnectedHandler>{ using type = delegate_category; };
+template <> struct category<Microsoft::Holographic::AppRemoting::OnListeningHandler>{ using type = delegate_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::OnRecognizedSpeechHandler>{ using type = delegate_category; };
 template <> struct category<Microsoft::Holographic::AppRemoting::OnSendFrameHandler>{ using type = delegate_category; };
 template <> struct name<Microsoft::Holographic::AppRemoting::IAuthenticationProvider>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.IAuthenticationProvider" }; };
@@ -153,7 +161,6 @@ template <> struct name<Microsoft::Holographic::AppRemoting::IRemoteSpeech>{ sta
 template <> struct name<Microsoft::Holographic::AppRemoting::PlayerContext>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.PlayerContext" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::RemoteContext>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.RemoteContext" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::BlitResult>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.BlitResult" }; };
-template <> struct name<Microsoft::Holographic::AppRemoting::CameraPoseMode>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.CameraPoseMode" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::ConnectionFailureReason>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.ConnectionFailureReason" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::ConnectionState>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.ConnectionState" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::DataChannelPriority>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.DataChannelPriority" }; };
@@ -166,6 +173,7 @@ template <> struct name<Microsoft::Holographic::AppRemoting::DataChannelReceived
 template <> struct name<Microsoft::Holographic::AppRemoting::OnConnectedHandler>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.OnConnectedHandler" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::OnDataChannelCreatedHandler>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.OnDataChannelCreatedHandler" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::OnDisconnectedHandler>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.OnDisconnectedHandler" }; };
+template <> struct name<Microsoft::Holographic::AppRemoting::OnListeningHandler>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.OnListeningHandler" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::OnRecognizedSpeechHandler>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.OnRecognizedSpeechHandler" }; };
 template <> struct name<Microsoft::Holographic::AppRemoting::OnSendFrameHandler>{ static constexpr auto & value{ L"Microsoft.Holographic.AppRemoting.OnSendFrameHandler" }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::IAuthenticationProvider>{ static constexpr guid value{ 0xAF3D4CD6,0x8484,0x445A,{ 0xB8,0xB3,0xB9,0x6D,0xA5,0x71,0x1E,0x3E } }; };
@@ -189,6 +197,7 @@ template <> struct guid_storage<Microsoft::Holographic::AppRemoting::DataChannel
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::OnConnectedHandler>{ static constexpr guid value{ 0xBD1BA158,0x486E,0x4F9A,{ 0x9A,0x56,0xE0,0x47,0x71,0x74,0xAD,0xBD } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::OnDataChannelCreatedHandler>{ static constexpr guid value{ 0xC3502D33,0x218B,0x42C8,{ 0x8B,0xFC,0x17,0x90,0xB3,0x57,0xD8,0xCB } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::OnDisconnectedHandler>{ static constexpr guid value{ 0xB3B7AD12,0xF720,0x4A49,{ 0x92,0xC3,0xF8,0x25,0x61,0x73,0x30,0xC5 } }; };
+template <> struct guid_storage<Microsoft::Holographic::AppRemoting::OnListeningHandler>{ static constexpr guid value{ 0x2FFB25E4,0xBF1C,0x403C,{ 0xB2,0xF8,0x69,0x53,0x4C,0x7F,0xF1,0x1B } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::OnRecognizedSpeechHandler>{ static constexpr guid value{ 0x46E4393B,0x301E,0x4F0C,{ 0xB0,0xFD,0x0D,0x1F,0x48,0x09,0x0E,0x6C } }; };
 template <> struct guid_storage<Microsoft::Holographic::AppRemoting::OnSendFrameHandler>{ static constexpr guid value{ 0x63858100,0x63D6,0x4509,{ 0xB5,0x66,0x1E,0xEF,0x31,0xB3,0x5B,0x77 } }; };
 template <> struct default_interface<Microsoft::Holographic::AppRemoting::PlayerContext>{ using type = Microsoft::Holographic::AppRemoting::IPlayerContext; };
@@ -275,8 +284,8 @@ template <> struct abi<Microsoft::Holographic::AppRemoting::IPlayerContext>{ str
     virtual int32_t WINRT_CALL remove_OnConnected(winrt::event_token token) noexcept = 0;
     virtual int32_t WINRT_CALL add_OnDisconnected(void* handler, winrt::event_token* token) noexcept = 0;
     virtual int32_t WINRT_CALL remove_OnDisconnected(winrt::event_token token) noexcept = 0;
-    virtual int32_t WINRT_CALL get_PoseMode(Microsoft::Holographic::AppRemoting::CameraPoseMode* value) noexcept = 0;
-    virtual int32_t WINRT_CALL put_PoseMode(Microsoft::Holographic::AppRemoting::CameraPoseMode value) noexcept = 0;
+    virtual int32_t WINRT_CALL add_OnListening(void* handler, winrt::event_token* token) noexcept = 0;
+    virtual int32_t WINRT_CALL remove_OnListening(winrt::event_token token) noexcept = 0;
     virtual int32_t WINRT_CALL BlitRemoteFrame(Microsoft::Holographic::AppRemoting::BlitResult* result) noexcept = 0;
     virtual int32_t WINRT_CALL CreateDataChannel(uint8_t channelId, Microsoft::Holographic::AppRemoting::DataChannelPriority priority) noexcept = 0;
     virtual int32_t WINRT_CALL add_OnDataChannelCreated(void* handler, winrt::event_token* token) noexcept = 0;
@@ -301,6 +310,8 @@ template <> struct abi<Microsoft::Holographic::AppRemoting::IRemoteContext>{ str
     virtual int32_t WINRT_CALL remove_OnConnected(winrt::event_token token) noexcept = 0;
     virtual int32_t WINRT_CALL add_OnDisconnected(void* handler, winrt::event_token* token) noexcept = 0;
     virtual int32_t WINRT_CALL remove_OnDisconnected(winrt::event_token token) noexcept = 0;
+    virtual int32_t WINRT_CALL add_OnListening(void* handler, winrt::event_token* token) noexcept = 0;
+    virtual int32_t WINRT_CALL remove_OnListening(winrt::event_token token) noexcept = 0;
     virtual int32_t WINRT_CALL add_OnSendFrame(void* handler, winrt::event_token* token) noexcept = 0;
     virtual int32_t WINRT_CALL remove_OnSendFrame(winrt::event_token token) noexcept = 0;
     virtual int32_t WINRT_CALL CreateDataChannel(uint8_t channelId, Microsoft::Holographic::AppRemoting::DataChannelPriority priority) noexcept = 0;
@@ -347,6 +358,11 @@ template <> struct abi<Microsoft::Holographic::AppRemoting::OnDataChannelCreated
 template <> struct abi<Microsoft::Holographic::AppRemoting::OnDisconnectedHandler>{ struct type : IUnknown
 {
     virtual int32_t WINRT_CALL Invoke(Microsoft::Holographic::AppRemoting::ConnectionFailureReason failureReason) noexcept = 0;
+};};
+
+template <> struct abi<Microsoft::Holographic::AppRemoting::OnListeningHandler>{ struct type : IUnknown
+{
+    virtual int32_t WINRT_CALL Invoke(uint16_t port) noexcept = 0;
 };};
 
 template <> struct abi<Microsoft::Holographic::AppRemoting::OnRecognizedSpeechHandler>{ struct type : IUnknown
@@ -471,8 +487,10 @@ struct consume_Microsoft_Holographic_AppRemoting_IPlayerContext
     using OnDisconnected_revoker = impl::event_revoker<Microsoft::Holographic::AppRemoting::IPlayerContext, &impl::abi_t<Microsoft::Holographic::AppRemoting::IPlayerContext>::remove_OnDisconnected>;
     OnDisconnected_revoker OnDisconnected(auto_revoke_t, Microsoft::Holographic::AppRemoting::OnDisconnectedHandler const& handler) const;
     void OnDisconnected(winrt::event_token const& token) const noexcept;
-    Microsoft::Holographic::AppRemoting::CameraPoseMode PoseMode() const;
-    void PoseMode(Microsoft::Holographic::AppRemoting::CameraPoseMode const& value) const;
+    winrt::event_token OnListening(Microsoft::Holographic::AppRemoting::OnListeningHandler const& handler) const;
+    using OnListening_revoker = impl::event_revoker<Microsoft::Holographic::AppRemoting::IPlayerContext, &impl::abi_t<Microsoft::Holographic::AppRemoting::IPlayerContext>::remove_OnListening>;
+    OnListening_revoker OnListening(auto_revoke_t, Microsoft::Holographic::AppRemoting::OnListeningHandler const& handler) const;
+    void OnListening(winrt::event_token const& token) const noexcept;
     Microsoft::Holographic::AppRemoting::BlitResult BlitRemoteFrame() const;
     void CreateDataChannel(uint8_t channelId, Microsoft::Holographic::AppRemoting::DataChannelPriority const& priority) const;
     winrt::event_token OnDataChannelCreated(Microsoft::Holographic::AppRemoting::OnDataChannelCreatedHandler const& handler) const;
@@ -507,6 +525,10 @@ struct consume_Microsoft_Holographic_AppRemoting_IRemoteContext
     using OnDisconnected_revoker = impl::event_revoker<Microsoft::Holographic::AppRemoting::IRemoteContext, &impl::abi_t<Microsoft::Holographic::AppRemoting::IRemoteContext>::remove_OnDisconnected>;
     OnDisconnected_revoker OnDisconnected(auto_revoke_t, Microsoft::Holographic::AppRemoting::OnDisconnectedHandler const& handler) const;
     void OnDisconnected(winrt::event_token const& token) const noexcept;
+    winrt::event_token OnListening(Microsoft::Holographic::AppRemoting::OnListeningHandler const& handler) const;
+    using OnListening_revoker = impl::event_revoker<Microsoft::Holographic::AppRemoting::IRemoteContext, &impl::abi_t<Microsoft::Holographic::AppRemoting::IRemoteContext>::remove_OnListening>;
+    OnListening_revoker OnListening(auto_revoke_t, Microsoft::Holographic::AppRemoting::OnListeningHandler const& handler) const;
+    void OnListening(winrt::event_token const& token) const noexcept;
     winrt::event_token OnSendFrame(Microsoft::Holographic::AppRemoting::OnSendFrameHandler const& handler) const;
     using OnSendFrame_revoker = impl::event_revoker<Microsoft::Holographic::AppRemoting::IRemoteContext, &impl::abi_t<Microsoft::Holographic::AppRemoting::IRemoteContext>::remove_OnSendFrame>;
     OnSendFrame_revoker OnSendFrame(auto_revoke_t, Microsoft::Holographic::AppRemoting::OnSendFrameHandler const& handler) const;

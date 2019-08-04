@@ -7,6 +7,7 @@
 #include "RHI.h"	// for GShaderPlatformForFeatureLevel and its friends
 
 struct FOptionalVulkanDeviceExtensions;
+class FVulkanDevice;
 
 // the platform interface, and empty implementations for platforms that don't need em
 class FVulkanGenericPlatform 
@@ -88,13 +89,16 @@ public:
 
 	static bool SupportParallelRenderingTasks() { return true; }
 
+	/** The status quo is false, so the default is chosen to not change it. As platforms opt in it may be better to flip the default. */
+	static bool SupportsDynamicResolution() { return false; }
+
 	// Allow platforms to add extension features to the DeviceInfo pNext chain
 	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo) {}
 
 	static bool RequiresSwapchainGeneralInitialLayout() { return false; }
 	
-	// Allow platforms to add extension features to the PresentInfo pNext chain
-	static void EnablePresentInfoExtensions(VkPresentInfoKHR& PresentInfo) {}
+	// Allow platforms to do extra work on present
+	static VkResult Present(VkQueue Queue, VkPresentInfoKHR& PresentInfo);
 
 	// Ensure the last frame completed on the GPU
 	static bool RequiresWaitingForFrameCompletionEvent() { return true; }
@@ -104,4 +108,13 @@ public:
 
 	// Does the platform require resolve attachments in its MSAA renderpasses
 	static bool RequiresRenderPassResolveAttachments() { return false; }
+
+	// Checks if the PSO cache matches the expected vulkan device properties
+	static bool PSOBinaryCacheMatches(FVulkanDevice* Device, const TArray<uint8>& DeviceCache);
+
+	// Will create the correct format from a generic pso filename
+	static FString CreatePSOBinaryCacheFilename(FVulkanDevice* Device, FString CacheFilename);
+
+	// Gathers a list of pso cache filenames to attempt to load
+	static TArray<FString> GetPSOCacheFilenames();
 };

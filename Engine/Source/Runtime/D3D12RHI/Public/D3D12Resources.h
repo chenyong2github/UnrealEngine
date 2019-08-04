@@ -590,6 +590,7 @@ class FD3D12DeferredDeletionQueue : public FD3D12AdapterChild
 			FD3D12Resource* RHIObject;
 			ID3D12Object*   D3DObject;
 		};
+		FD3D12Fence* Fence;
 		uint64 FenceValue;
 		EObjectType Type;
 	};
@@ -599,8 +600,8 @@ public:
 
 	inline const uint32 QueueSize() const { return DeferredReleaseQueue.GetSize(); }
 
-	void EnqueueResource(FD3D12Resource* pResource);
-	void EnqueueResource(ID3D12Object* pResource);
+	void EnqueueResource(FD3D12Resource* pResource, FD3D12Fence* Fence);
+	void EnqueueResource(ID3D12Object* pResource, FD3D12Fence* Fence);
 
 	bool ReleaseResources(bool DeleteImmediately = false);
 

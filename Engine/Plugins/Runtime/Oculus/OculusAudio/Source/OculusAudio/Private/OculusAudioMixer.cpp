@@ -19,10 +19,13 @@ OculusAudioSpatializationAudioMixer::OculusAudioSpatializationAudioMixer()
 
 OculusAudioSpatializationAudioMixer::~OculusAudioSpatializationAudioMixer()
 {
-	if (bOvrContextInitialized)
+	if (TickDelegateHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	}
 
+	if (bOvrContextInitialized)
+	{
 		// clear context from map
 		Shutdown();
 	}
@@ -30,9 +33,14 @@ OculusAudioSpatializationAudioMixer::~OculusAudioSpatializationAudioMixer()
 
 void OculusAudioSpatializationAudioMixer::SetContext(ovrAudioContext* SharedContext)
 {
+	FScopeLock ScopeLock(&ContextLock);
+
 	Context = SharedContext;
 
-	check(Context != nullptr);
+	if (SharedContext == nullptr)
+	{
+		return;
+	}
 
 	Params.AddDefaulted(InitParams.NumSources);
 
@@ -82,6 +90,7 @@ void OculusAudioSpatializationAudioMixer::Initialize(const FAudioPluginInitializ
 
 void OculusAudioSpatializationAudioMixer::ApplyOculusAudioSettings(const UOculusAudioSettings* Settings)
 {
+	FScopeLock ScopeLock(&ContextLock);
 	ovrResult Result = OVRA_CALL(ovrAudio_Enable)(*Context, ovrAudioEnable_SimpleRoomModeling, Settings->EarlyReflections);
 	OVR_AUDIO_CHECK(Result, "Failed to enable reflections");
 
@@ -119,6 +128,7 @@ bool OculusAudioSpatializationAudioMixer::IsSpatializationEffectInitialized() co
 
 void OculusAudioSpatializationAudioMixer::OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, USpatializationPluginSourceSettingsBase* InSettings)
 {
+	FScopeLock ScopeLock(&ContextLock);
 	check(bOvrContextInitialized);
 
 	if (InSettings != nullptr) 
@@ -154,6 +164,7 @@ void OculusAudioSpatializationAudioMixer::SetSpatializationParameters(uint32 Voi
 
 void OculusAudioSpatializationAudioMixer::ProcessAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
 {
+	FScopeLock ScopeLock(&ContextLock);
 	if (InputData.SpatializationParams && *Context)
 	{
 		Params[InputData.SourceId] = *InputData.SpatializationParams;
@@ -185,14 +196,22 @@ void OculusAudioSpatializationAudioMixer::ProcessAudio(const FAudioPluginSourceI
 
 bool OculusAudioSpatializationAudioMixer::Tick(float DeltaTime)
 {
-	if (Context != nullptr)
+	if (ContextLock.TryLock())
 	{
-		ovrResult Result = OVRA_CALL(ovrAudio_UpdateRoomModel)(*Context, 1.0f);
+		if (Context != nullptr && *Context == nullptr)
+		{
+			ovrResult Result = OVRA_CALL(ovrAudio_UpdateRoomModel)(*Context, 1.0f);
 
-		UOculusAudioSettings* settings = GetMutableDefault<UOculusAudioSettings>();
-		Result = OVRA_CALL(ovrAudio_SetPropagationQuality)(*Context, settings->PropagationQuality);
-		check(Result == ovrSuccess);
+			UOculusAudioSettings* settings = GetMutableDefault<UOculusAudioSettings>();
+			Result = OVRA_CALL(ovrAudio_SetPropagationQuality)(*Context, settings->PropagationQuality);
+			if (Result != ovrSuccess)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Bad Propagation Quality setting %d!"), settings->PropagationQuality);
+			}
+		}
+
+		ContextLock.Unlock();
 	}
-
+	
 	return true;
 }

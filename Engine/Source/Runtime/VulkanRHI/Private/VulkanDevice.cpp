@@ -847,17 +847,7 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 
 	PipelineStateCache = new FVulkanPipelineStateCacheManager(this);
 
-	TArray<FString> CacheFilenames;
-	FString StagedCacheDirectory = FPaths::ProjectDir() / TEXT("Build") / TEXT("ShaderCaches") / FPlatformProperties::IniPlatformName();
-
-	// look for any staged caches
-	TArray<FString> StagedCaches;
-	IFileManager::Get().FindFiles(StagedCaches, *StagedCacheDirectory, TEXT("cache"));
-	// FindFiles returns the filenames without directory, so prepend the stage directory
-	for (const FString& Filename : StagedCaches)
-	{
-		CacheFilenames.Add(StagedCacheDirectory / Filename);
-	}
+	TArray<FString> CacheFilenames = FVulkanPlatform::GetPSOCacheFilenames();
 
 	// always look in the saved directory (for the cache from previous run that wasn't moved over to stage directory)
 	CacheFilenames.Add(VulkanRHI::GetPipelineCacheFilename());

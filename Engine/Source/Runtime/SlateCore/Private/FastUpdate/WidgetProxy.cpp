@@ -50,9 +50,9 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 
 			INC_DWORD_STAT(STAT_SlateNumTickedWidgets);
 			SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
-			Widget->Tick(MyState.AllottedGeometry, PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
-		}
 
+			Widget->Tick(MyState.DesktopGeometry, PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
+		}
 	}
 
 	return OutgoingLayerId;
@@ -61,17 +61,20 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWidgetProxy>& FastWidgetPathList, FSlateInvalidationRoot& Root)
 {
 	bool bWidgetNeedsRepaint = false;
-	if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::RenderTransform))
+	if (!bInvisibleDueToParentOrSelfVisibility && ParentIndex != INDEX_NONE && !Widget->PrepassLayoutScaleMultiplier.IsSet())
 	{
-		UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
-
+		// If this widget has never been prepassed make sure the parent prepasses it to set the correct multiplier
 		FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
-		ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
-		UpdateList.Push(ParentProxy);
-
+		if (ParentProxy.Widget)
+		{
+			ParentProxy.Widget->InvalidatePrepass();
+			ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
+			//UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
+			UpdateList.Push(ParentProxy);
+		}
 		bWidgetNeedsRepaint = true;
 	}
-	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Layout|EInvalidateWidget::Visibility|EInvalidateWidget::ChildOrder))
+	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::RenderTransform | EInvalidateWidget::Layout | EInvalidateWidget::Visibility | EInvalidateWidget::ChildOrder))
 	{
 		// When layout changes compute a new desired size for this widget
 		FVector2D CurrentDesiredSize = Widget->GetDesiredSize();
@@ -80,11 +83,11 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 		{
 			if (Widget->NeedsPrepass())
 			{
-				Widget->SlatePrepass(Widget->PrepassLayoutScaleMultiplier);
+				Widget->SlatePrepass(Widget->PrepassLayoutScaleMultiplier.Get(1.0f));
 			}
 			else
 			{
-				Widget->CacheDesiredSize(Widget->PrepassLayoutScaleMultiplier);
+				Widget->CacheDesiredSize(Widget->PrepassLayoutScaleMultiplier.Get(1.0f));
 			}
 
 			NewDesiredSize = Widget->GetDesiredSize();
@@ -97,9 +100,9 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 		}
 
 		// If the desired size changed, invalidate the parent if it is visible
-		if (NewDesiredSize != CurrentDesiredSize || EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Visibility))
+		if (NewDesiredSize != CurrentDesiredSize || EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Visibility|EInvalidateWidget::RenderTransform))
 		{
-			if(ParentIndex != INDEX_NONE)
+			if (ParentIndex != INDEX_NONE)
 			{
 				FWidgetProxy& ParentProxy = FastWidgetPathList[ParentIndex];
 				if (ParentIndex == 0)
@@ -113,7 +116,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 					UpdateList.Push(ParentProxy);
 				}
 			}
-			else if(!GSlateEnableGlobalInvalidation && Widget->IsParentValid())
+			else if (!GSlateEnableGlobalInvalidation && Widget->IsParentValid())
 			{
 				TSharedPtr<SWidget> ParentWidget = Widget->GetParentWidget();
 				if (ParentWidget->Advanced_IsInvalidationRoot())
@@ -122,7 +125,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 				}
 			}
 		}
-		
+
 		bWidgetNeedsRepaint = true;
 	}
 	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Paint) && !Widget->IsVolatileIndirectly())
@@ -131,7 +134,6 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 
 		bWidgetNeedsRepaint = true;
 	}
-
 
 	CurrentInvalidateReason = EInvalidateWidget::None;
 
@@ -250,7 +252,7 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidget InvalidateReason)
 	{
 		InvalidationRoot->WidgetsNeedingUpdate.Push(Proxy);
 	}
-#if WITH_SLATE_DEBUGGING
+#if 0
 	else
 	{
 		ensure(InvalidationRoot->WidgetsNeedingUpdate.Contains(Proxy));

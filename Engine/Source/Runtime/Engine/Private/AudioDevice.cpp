@@ -199,11 +199,7 @@ FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& Au
 -----------------------------------------------------------------------------*/
 
 FAudioDevice::FAudioDevice()
-	: MaxChannels(0)
-	, MaxChannels_GameThread(0)
-	, MaxChannelsScale(1.0f)
-	, MaxChannelsScale_GameThread(1.0f)
-	, NumStoppingVoices(32)
+	: NumStoppingSources(32)
 	, SampleRate(0)
 	, NumPrecacheFrames(MONO_PCM_BUFFER_SAMPLES)
 	, CommonAudioPoolSize(0)
@@ -213,7 +209,12 @@ FAudioDevice::FAudioDevice()
 	, SpatializationPluginInterface(nullptr)
 	, ReverbPluginInterface(nullptr)
 	, OcclusionInterface(nullptr)
-	, PluginListeners()
+	, AmbisonicsMixer(nullptr)
+	, MaxSources(0)
+	, MaxChannels(0)
+	, MaxChannels_GameThread(0)
+	, MaxChannelsScale(1.0f)
+	, MaxChannelsScale_GameThread(1.0f)
 	, CurrentTick(0)
 	, TestAudioComponent(nullptr)
 	, DebugState(DEBUGSTATE_None)
@@ -270,13 +271,14 @@ FAudioEffectsManager* FAudioDevice::CreateEffectsManager()
 	return new FAudioEffectsManager(this);
 }
 
-FAudioQualitySettings FAudioDevice::GetQualityLevelSettings()
+const FAudioQualitySettings& FAudioDevice::GetQualityLevelSettings()
 {
 	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-	return AudioSettings->GetQualityLevelSettings(GEngine->GetGameUserSettings()->GetAudioQualityLevel());
+	const int32 QualityLevel = GEngine ? GEngine->GetGameUserSettings()->GetAudioQualityLevel() : 0;
+	return AudioSettings->GetQualityLevelSettings(QualityLevel);
 }
 
-bool FAudioDevice::Init(int32 InMaxChannels)
+bool FAudioDevice::Init(int32 InMaxSources)
 {
 	SCOPED_BOOT_TIMING("FAudioDevice::Init");
 
@@ -295,14 +297,20 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 	// Get a copy of the platform-specific settings (overridden by platforms)
 	PlatformSettings = GetPlatformSettings();
 
-	// Max channels is the max value supplied to Init call (quality settings), unless overwritten by the platform settings.
+	// MaxSources is the max value supplied to Init call (quality settings), unless overwritten by the platform settings.
 	// This does not have to be the minimum value in this case (nor is it desired, so platforms can potentially scale up)
-	// as the Sources array has yet to be initialized.
-	MaxChannels = PlatformSettings.MaxChannels > 0 ? PlatformSettings.MaxChannels : InMaxChannels;
-	MaxChannels_GameThread = MaxChannels;
+	// as the Sources array has yet to be initialized. If the cvar is largest, take that value to allow for testing
+	const int32 PlatformMaxSources = PlatformSettings.MaxChannels > 0 ? PlatformSettings.MaxChannels : InMaxSources;
+	MaxSources = FMath::Max(PlatformMaxSources, AudioChannelCountCVar);
+	MaxSources = FMath::Max(MaxSources, 1);
 
 	// Ensure and not assert so if in editor, user can change quality setting and re-serialize if so desired.
-	ensureMsgf(MaxChannels > 0, TEXT("Neither passed nor platform MaxChannel setting was positive value"));
+	ensureMsgf(MaxSources > 0, TEXT("Neither passed MaxSources nor platform MaxChannel setting was positive value"));
+	UE_LOG(LogAudio, Display, TEXT("AudioDevice MaxSources: %d"), MaxSources);
+
+	MaxChannels = MaxSources;
+	MaxChannels_GameThread = MaxSources;
+
 
 	// Mixed sample rate is set by the platform
 	SampleRate = PlatformSettings.SampleRate;
@@ -356,12 +364,12 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 		// create a platform specific effects manager
 		Effects = CreateEffectsManager();
 
-		NumStoppingVoices = GetDefault<UAudioSettings>()->NumStoppingSources;
+		NumStoppingSources = GetDefault<UAudioSettings>()->NumStoppingSources;
 	}
 	else
 	{
-		// In old audio engine, there are no stopping voices
-		NumStoppingVoices = 0;
+		// Stopping sources are not supported in the old audio engine
+		NumStoppingSources = 0;
 	}
 
 	// Cache any plugin settings objects we have loaded
@@ -377,7 +385,7 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 			//Set up initialization parameters for system level effect plugins:
 			FAudioPluginInitializationParams PluginInitializationParams;
 			PluginInitializationParams.SampleRate = SampleRate;
-			PluginInitializationParams.NumSources = MaxChannels;
+			PluginInitializationParams.NumSources = MaxSources;
 			PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
 			PluginInitializationParams.AudioDevicePtr = this;
 
@@ -504,28 +512,31 @@ void FAudioDevice::SetMaxChannels(int32 InMaxChannels)
 		return;
 	}
 
-	if (!IsInAudioThread())
+	if (InMaxChannels > MaxSources)
 	{
-		MaxChannels_GameThread = InMaxChannels;
+		UE_LOG(LogAudio, Warning, TEXT("Can't increase MaxChannels past MaxSources"));
+		return;
+	}
 
+	if (IsInAudioThread())
+	{
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetMaxChannelsGameThread"), STAT_AudioSetMaxChannelsGameThread, STATGROUP_AudioThreadCommands);
+		FAudioThread::RunCommandOnGameThread([this, InMaxChannels]()
+		{
+			MaxChannels_GameThread = InMaxChannels;
+
+		}, GET_STATID(STAT_AudioSetMaxChannelsGameThread));
+	}
+
+	if (IsInGameThread())
+	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetMaxChannels"), STAT_AudioSetMaxChannels, STATGROUP_AudioThreadCommands);
 
 		FAudioThread::RunCommandOnAudioThread([this, InMaxChannels]()
 		{
-			this->SetMaxChannels(InMaxChannels);
-
+			MaxChannels = InMaxChannels;
 		}, GET_STATID(STAT_AudioSetMaxChannels));
-
-		return;
 	}
-
-	if (InMaxChannels > MaxChannels)
-	{
-		UE_LOG(LogAudio, Warning, TEXT("Can't increase MaxChannels past existing setting!"));
-		return;
-	}
-
-	MaxChannels = InMaxChannels;
 }
 
 void FAudioDevice::SetMaxChannelsScaled(float InScaledChannelCount)
@@ -560,24 +571,25 @@ void FAudioDevice::SetMaxChannelsScaled(float InScaledChannelCount)
 
 int32 FAudioDevice::GetMaxChannels() const
 {
-	if (IsInAudioThread())
-	{
-		if (AudioChannelCountCVar > 0 && AudioChannelCountCVar < MaxChannels)
-		{
-			return FMath::Max(int32(AudioChannelCountCVar * MaxChannelsScale * AudioChannelCountScaleCVar), 1);
-		}
+	// Get thread-context version of channel scalar & scale by cvar scalar
+	float MaxChannelScalarToApply = IsInAudioThread() ? MaxChannelsScale : MaxChannelsScale_GameThread;
+	MaxChannelScalarToApply *= AudioChannelCountScaleCVar;
 
-		return FMath::Max(int32(MaxChannels * MaxChannelsScale * AudioChannelCountScaleCVar), 1);
-	}
-	else
+	// Get thread-context version of channel max.  Override by cvar if cvar is valid.
+	int32 OutMaxChannels = IsInAudioThread() ? MaxChannels : MaxChannels_GameThread;
+	if (AudioChannelCountCVar > 0)
 	{
-		if (AudioChannelCountCVar > 0 && AudioChannelCountCVar < MaxChannels)
-		{
-			return FMath::Max(int32(AudioChannelCountCVar * MaxChannelsScale_GameThread * AudioChannelCountScaleCVar), 1);
-		}
-
-		return FMath::Max(int32(MaxChannels_GameThread * MaxChannelsScale_GameThread * AudioChannelCountScaleCVar), 1);
+		OutMaxChannels = AudioChannelCountCVar;
 	}
+
+	// Find product of max channels and final scalar, and clamp between 1 and MaxSources.
+	check(MaxSources > 0);
+	return FMath::Clamp(static_cast<int32>(OutMaxChannels * MaxChannelScalarToApply), 1, MaxSources);
+}
+
+int32 FAudioDevice::GetMaxSources() const
+{
+	return MaxSources + NumStoppingSources;
 }
 
 void FAudioDevice::Teardown()
@@ -1958,8 +1970,8 @@ void FAudioDevice::InitSoundSources()
 	if (Sources.Num() == 0)
 	{
 		// now create platform specific sources
-		const int32 Channels = GetMaxChannels() + NumStoppingVoices;
-		for (int32 SourceIndex = 0; SourceIndex < Channels; SourceIndex++)
+		const int32 SourceMax = GetMaxSources();
+		for (int32 SourceIndex = 0; SourceIndex < SourceMax; SourceIndex++)
 		{
 			FSoundSource* Source = CreateSoundSource();
 			Source->InitializeSourceEffects(SourceIndex);
@@ -2885,6 +2897,8 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 
 		Listener.WorldID = WorldID;
 		Listener.Transform = ListenerTransformCopy;
+
+		OnListenerUpdated(AudioThreadListeners);
 
 	}, GET_STATID(STAT_AudioSetListener));
 }
@@ -4010,7 +4024,7 @@ void FAudioDevice::Update(bool bGameTicking)
 		SET_DWORD_STAT(STAT_ActiveSounds, ActiveSounds.Num());
 		SET_DWORD_STAT(STAT_AudioVirtualLoops, VirtualLoops.Num());
 		SET_DWORD_STAT(STAT_AudioMaxChannels, Channels);
-		SET_DWORD_STAT(STAT_AudioMaxStoppingSources, NumStoppingVoices);
+		SET_DWORD_STAT(STAT_AudioMaxStoppingSources, NumStoppingSources);
 	}
 
 	// now let the platform perform anything it needs to handle
@@ -4130,32 +4144,6 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
 
-	if (NewActiveSound.Sound == nullptr)
-	{
-		return;
-	}
-
-	// Don't allow buses to try to play if we're not using the audio mixer.
-	if (!IsAudioMixerEnabled())
-	{
-		USoundSourceBus* Bus = Cast<USoundSourceBus>(NewActiveSound.Sound);
-		if (Bus)
-		{
-			return;
-		}
-	}
-
-	if (NewActiveSound.Sound->GetDuration() <= FMath::Max(0.0f, SoundDistanceOptimizationLengthCVar))
-	{
-		// TODO: Determine if this check has already been completed at AudioComponent level and skip if so. Also,
-		// unify code paths determining if sound is audible.
-		if (!SoundIsAudible(NewActiveSound))
-		{
-			UE_LOG(LogAudio, Log, TEXT("New ActiveSound not created for out of range Sound %s"), *NewActiveSound.Sound->GetName());
-			return;
-		}
-	}
-
 	if (!IsInAudioThread())
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AddNewActiveSound"), STAT_AudioAddNewActiveSound, STATGROUP_AudioThreadCommands);
@@ -4167,6 +4155,37 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		}, GET_STATID(STAT_AudioAddNewActiveSound));
 
 		return;
+	}
+
+	USoundBase* Sound = NewActiveSound.GetSound();
+	if (Sound == nullptr)
+	{
+		ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
+		return;
+	}
+
+	// Don't allow buses to try to play if we're not using the audio mixer.
+	if (!IsAudioMixerEnabled())
+	{
+		USoundSourceBus* Bus = Cast<USoundSourceBus>(NewActiveSound.Sound);
+		if (Bus)
+		{
+			ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
+			return;
+		}
+	}
+
+	if (Sound->GetDuration() <= FMath::Max(0.0f, SoundDistanceOptimizationLengthCVar))
+	{
+		// TODO: Determine if this check has already been completed at AudioComponent level and skip if so. Also,
+		// unify code paths determining if sound is audible.
+		if (!SoundIsAudible(NewActiveSound))
+		{
+			UE_LOG(LogAudio, Log, TEXT("New ActiveSound not created for out of range Sound %s"), *NewActiveSound.Sound->GetName());
+
+			ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
+			return;
+		}
 	}
 
 	// Cull one-shot active sounds if we've reached our max limit of one shot active sounds before we attempt to evaluate concurrency
@@ -4181,20 +4200,21 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		NewActiveSound.Sound->GetName(SoundName);
 		if (!SoundName.Contains(DebugSound))
 		{
+			ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
 			return;
 		}
 	}
-#endif
-
-	const USoundBase* Sound = NewActiveSound.GetSound();
-	check(Sound);
+#endif // !UE_BUILD_SHIPPING
 
 	const USoundWave* SoundWave = Cast<USoundWave>(Sound);
 	if (SoundWave && SoundWave->bProcedural && SoundWave->IsGeneratingAudio())
 	{
 		FString SoundWaveName;
 		SoundWave->GetName(SoundWaveName);
-		UE_LOG(LogAudio, Warning, TEXT("Replaying a procedural sound '%s' without stopping the previous instance. Only one sound instance per procedural sound wave is supported."), *SoundWaveName)
+
+		UE_LOG(LogAudio, Warning, TEXT("Replaying a procedural sound '%s' without stopping the previous instance. Only one sound instance per procedural sound wave is supported."), *SoundWaveName);
+
+		ReportSoundFailedToStart(NewActiveSound.AudioComponentID, VirtualLoopToRetrigger);
 		return;
 	}
 
@@ -4232,6 +4252,10 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 			{
 				UE_LOG(LogAudio, Verbose, TEXT("New ActiveSound %s Virtualizing: Failed to pass concurrency"), *Sound->GetName());
 				AddVirtualLoop(VirtualLoop);
+			}
+			else
+			{
+				ReportSoundFailedToStart(NewActiveSound.GetAudioComponentID(), VirtualLoopToRetrigger);
 			}
 		}
 		return;
@@ -4295,8 +4319,26 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	}
 }
 
+void FAudioDevice::ReportSoundFailedToStart(const uint64 AudioComponentID, FAudioVirtualLoop* VirtualLoop)
+{
+	check(IsInAudioThread());
+
+	if (VirtualLoop)
+	{
+		FActiveSound& VirtualActiveSound = VirtualLoop->GetActiveSound();
+		AddSoundToStop(&VirtualActiveSound);
+	}
+	else
+	{
+		const bool bFailedToStart = true;
+		UAudioComponent::PlaybackCompleted(AudioComponentID, bFailedToStart);
+	}
+}
+
 void FAudioDevice::RetriggerVirtualLoop(FAudioVirtualLoop& VirtualLoopToRetrigger)
 {
+	check(IsInAudioThread());
+
 	AddNewActiveSoundInternal(VirtualLoopToRetrigger.GetActiveSound(), &VirtualLoopToRetrigger);
 }
 
@@ -4341,10 +4383,7 @@ bool FAudioDevice::RemoveVirtualLoop(FActiveSound& InActiveSound)
 		check(InActiveSound.bIsStopping);
 
 		const uint64 ComponentID = InActiveSound.GetAudioComponentID();
-		if (ComponentID > 0)
-		{
-			UAudioComponent::PlaybackCompleted(ComponentID, false);
-		}
+		UAudioComponent::PlaybackCompleted(ComponentID, false);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (InActiveSound.Sound)
@@ -4551,10 +4590,7 @@ void FAudioDevice::RemoveActiveSound(FActiveSound* ActiveSound)
 
 	// Perform the notification if not sound not set to re-trigger
 	const uint64 ComponentID = ActiveSound->GetAudioComponentID();
-	if (ComponentID > 0)
-	{
-		UAudioComponent::PlaybackCompleted(ComponentID, false);
-	}
+	UAudioComponent::PlaybackCompleted(ComponentID, false);
 
 	const int32 NumRemoved = ActiveSounds.RemoveSwap(ActiveSound);
 	if (!ensureMsgf(NumRemoved > 0, TEXT("Attempting to remove an already removed ActiveSound '%s'"), ActiveSound->Sound ? *ActiveSound->Sound->GetName() : TEXT("N/A")))
@@ -5727,6 +5763,8 @@ float FAudioDevice::GetGameDeltaTime() const
 
 void FAudioDevice::UpdateVirtualLoops(bool bForceUpdate)
 {
+	check(IsInAudioThread());
+
 	if (FAudioVirtualLoop::IsEnabled())
 	{
 		TArray<FAudioVirtualLoop> VirtualLoopsToRetrigger;

@@ -36,6 +36,12 @@ public final class NetworkChangedManager {
 	}
 
 	public void initNetworkCallback(@NonNull Context context) {
+		if (android.os.Build.VERSION.SDK_INT < 21)
+		{
+			// unsupported before Lollipop
+			return;
+		}
+
 		ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 		if (connectivityManager != null) {
 			NetworkRequest.Builder builder = new NetworkRequest.Builder();

@@ -237,6 +237,12 @@ struct FCachedActorLabels
 		ActorLabels.Add(InLabel);
 	}
 
+	/** Remove a label from this set */
+	FORCEINLINE void Remove(const FString& InLabel)
+	{
+		ActorLabels.Remove(InLabel);
+	}
+
 	/** Check if the specified label exists */
 	FORCEINLINE bool Contains(const FString& InLabel) const
 	{
@@ -860,10 +866,13 @@ public:
 
 	DECLARE_EVENT_TwoParams(UEngine, FHLODActorRemovedFromClusterEvent, const AActor*, const AActor*);
 	FHLODActorRemovedFromClusterEvent& OnHLODActorRemovedFromCluster() { return HLODActorRemovedFromClusterEvent; }
-
+	   
 	/** Called by internal engine systems after an Actor is removed from a cluster */
 	void BroadcastHLODActorRemovedFromCluster(const AActor* InActor, const AActor* ParentActor) { HLODActorRemovedFromClusterEvent.Broadcast(InActor, ParentActor); }
 
+	/** Called when the editor has been asked to perform an exec command on particle systems. */
+	DECLARE_EVENT_OneParam(UEditorEngine, FExecParticleInvoked, const TCHAR*);
+	FExecParticleInvoked& OnExecParticleInvoked() { return ExecParticleInvokedEvent; }
 	/**
 	 * Called before an actor or component is about to be translated, rotated, or scaled by the editor
 	 *
@@ -2952,6 +2961,9 @@ private:
 
 	/** Broadcasts after an Actor is removed from a cluster */
 	FHLODActorRemovedFromClusterEvent HLODActorRemovedFromClusterEvent;
+
+	/** Broadcasts after an Exec event on particles has been invoked.*/
+	FExecParticleInvoked ExecParticleInvokedEvent; 
 
 	/** Delegate to be called when a matinee is requested to be opened */
 	FShouldOpenMatineeCallback ShouldOpenMatineeCallback;

@@ -58,8 +58,14 @@ public:
 	virtual bool RegisterPostprocessOperation(const FString& InName, IPDisplayClusterRenderManager::FDisplayClusterPPInfo& InPPInfo) override;
 	virtual bool UnregisterPostprocessOperation(const FString& InName) override;
 	virtual TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const override;
+	// Custom Rendering Post-process
+	virtual void SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings) override;
+
 	// Camera
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
+
+	// Viewports
+	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
 
 	// Camera API
 	virtual float GetInterpupillaryDistance(const FString& CameraId) const override;
