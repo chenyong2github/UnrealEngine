@@ -204,7 +204,7 @@ void FRayTracingMeshProcessor::BuildRayTracingMeshCommands(
 
 	SharedCommand.SetShaders(PassShaders.GetUntypedShaders());
 	SharedCommand.InstanceMask = ComputeBlendModeMask(MaterialResource.GetBlendMode());
-	SharedCommand.bCastRayTracedShadows = MeshBatch.CastRayTracedShadow;
+	SharedCommand.bCastRayTracedShadows = MeshBatch.CastRayTracedShadow && MaterialResource.CastsRayTracedShadows();
 	SharedCommand.bOpaque = MaterialResource.GetBlendMode() == EBlendMode::BLEND_Opaque;
 
 	FVertexInputStreamArray VertexStreams;
