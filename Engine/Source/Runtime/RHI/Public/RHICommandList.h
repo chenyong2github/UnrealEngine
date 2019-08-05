@@ -1763,6 +1763,12 @@ struct FRHIShaderResourceViewUpdateInfo_VB
 	uint8 Format;
 };
 
+struct FRHIShaderResourceViewUpdateInfo_IB
+{
+	FShaderResourceViewRHIParamRef SRV;
+	FIndexBufferRHIParamRef IndexBuffer;
+};
+
 struct FRHIVertexBufferUpdateInfo
 {
 	FRHIVertexBuffer* DestBuffer;
@@ -1797,6 +1803,7 @@ struct FRHIResourceUpdateInfo
 		FRHIVertexBufferUpdateInfo VertexBuffer;
 		FRHIIndexBufferUpdateInfo IndexBuffer;
 		FRHIShaderResourceViewUpdateInfo_VB VertexBufferSRV;
+		FRHIShaderResourceViewUpdateInfo_IB IndexBufferSRV;
 	};
 
 	void ReleaseRefs();
@@ -4991,7 +4998,14 @@ struct TRHIResourceUpdateBatcher
 
 	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FRHIIndexBuffer* IndexBuffer)
 	{
-		// TODO
+		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_IndexBufferSRV;
+		UpdateInfo.IndexBufferSRV = { SRV, IndexBuffer };
+		SRV->AddRef();
+		if (IndexBuffer)
+		{
+			IndexBuffer->AddRef();
+		}
 	}
 
 private:

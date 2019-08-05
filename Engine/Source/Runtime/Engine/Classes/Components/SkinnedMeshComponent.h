@@ -375,6 +375,7 @@ public:
 	//
 	
 	/** If 0, auto-select LOD level. if >0, force to (ForcedLodModel-1). */
+	UE_DEPRECATED(4.24, "Direct access to ForcedLodModel is deprecated. Please use its getter and setter instead.")
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=LOD)
 	int32 ForcedLodModel;
 
@@ -523,6 +524,7 @@ public:
 	uint8 bCastCapsuleIndirectShadow:1;
 
 	/** Whether or not to CPU skin this component, requires render data refresh after changing */
+	UE_DEPRECATED(4.24, "Direct access to bCPUSkinning is deprecated. Please use its getter and setter instead.")
 	UPROPERTY(transient)
 	uint8 bCPUSkinning : 1;
 
@@ -645,12 +647,16 @@ public:
 	void SetMinLOD(int32 InNewMinLOD);
 
 	/**
-	 * Set MinLodModel of the mesh component
+	 * Set ForcedLodModel of the mesh component
 	 *
 	 * @param	InNewForcedLOD	Set new ForcedLODModel that forces to set the incoming LOD. Range from [1, Max Number of LOD]. This will affect in the next tick update. 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
 	void SetForcedLOD(int32 InNewForcedLOD);
+
+	/** Get ForcedLodModel of the mesh component. Note that the actual forced LOD level is the return value minus one and zero means no forced LOD */
+	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
+	int32 GetForcedLOD() const;
 
 #if WITH_EDITOR
 	/**
@@ -841,6 +847,21 @@ public:
 	 * @return true if should CPU skin. false otherwise
 	 */
 	virtual bool ShouldCPUSkin();
+
+	/**
+	 * Getter for bCPUSkinning member variable
+	 * May return a different value from ShouldCPUSkin()
+	 */
+	bool GetCPUSkinningEnabled() const;
+
+	/**
+	 * Set whether this component uses CPU skinning
+	 * Notes:
+	 * - If enabled, skeletal mesh referenced by this component will be removed from streaming manager
+	 * - Streaming cannot be (re)enabled as long as any component uses CPU skinning
+	 * - This function is expensive
+	 */
+	void SetCPUSkinningEnabled(bool bEnable, bool bRecreateRenderStateImmediately = false);
 
 	/** 
 	 * Function to operate on mesh object after its created, 
@@ -1451,6 +1472,7 @@ public:
 #endif
 
 	friend class FRenderStateRecreator;
+	friend class FSkeletalMeshStreamOut;
 };
 
 class FRenderStateRecreator
