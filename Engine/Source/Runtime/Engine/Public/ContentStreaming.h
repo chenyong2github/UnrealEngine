@@ -436,6 +436,12 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	/** Return all bounds related to the ref object */
 	ENGINE_API virtual void GetObjectReferenceBounds(const UObject* RefObject, TArray<FBox>& AssetBoxes) = 0;
 
+	/** Return all components referencing the asset */
+	ENGINE_API virtual void GetAssetComponents(
+		const UStreamableRenderAsset* RenderAsset,
+		TArray<const UPrimitiveComponent*>& OutComps,
+		TFunction<bool(const UPrimitiveComponent*)> ShouldChoose = [](const UPrimitiveComponent*) { return true; }) = 0;
+
 	//BEGIN: APIs for backward compatibility
 	ENGINE_API void UpdateIndividualTexture(UTexture2D* Texture);
 	ENGINE_API bool StreamOutTextureData(int64 RequiredMemorySize);
@@ -625,12 +631,22 @@ struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 	/**
 	 * Checks whether texture streaming is active
 	 */
-	virtual bool IsTextureStreamingEnabled() const;
+	ENGINE_API bool IsTextureStreamingEnabled() const;
+
+	/**
+	 * Checks whether texture/mesh streaming is active
+	 */
+	virtual bool IsRenderAssetStreamingEnabled() const;
 
 	/**
 	 * Gets a reference to the Texture Streaming Manager interface
 	 */
 	ENGINE_API IRenderAssetStreamingManager& GetTextureStreamingManager() const;
+
+	/**
+	 * Get the streaming manager for textures and meshes
+	 */
+	ENGINE_API IRenderAssetStreamingManager& GetRenderAssetStreamingManager() const;
 
 	/**
 	 * Gets a reference to the Audio Streaming Manager interface

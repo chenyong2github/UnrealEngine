@@ -822,8 +822,8 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 
 	if (InComponent)
 	{
-		CachedSkelCompForcedLodModel = InComponent->ForcedLodModel;
-		InComponent->ForcedLodModel = 1;
+		CachedSkelCompForcedLodModel = InComponent->GetForcedLOD();
+		InComponent->SetForcedLOD(1);
 
 		// turn off URO and make sure we always update even if out of view
 		bCachedEnableUpdateRateOptimizations = InComponent->bEnableUpdateRateOptimizations;
@@ -875,7 +875,7 @@ void FAnimRecorderInstance::FinishRecording(bool bShowMessage)
 	if (SkelComp.IsValid())
 	{
 		// restore force lod setting
-		SkelComp->ForcedLodModel = CachedSkelCompForcedLodModel;
+		SkelComp->SetForcedLOD(CachedSkelCompForcedLodModel);
 
 		// restore update flags
 		SkelComp->bEnableUpdateRateOptimizations = bCachedEnableUpdateRateOptimizations;
