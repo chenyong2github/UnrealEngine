@@ -51,7 +51,7 @@ struct FPlatformOpenGLContext;
 class FOpenGLBase
 {
 public:
-	enum EResourceLockMode
+	enum class EResourceLockMode : uint8
 	{
 		RLM_ReadWrite,
 		RLM_ReadOnly,

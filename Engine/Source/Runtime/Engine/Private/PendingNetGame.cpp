@@ -150,7 +150,7 @@ void UPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Context, 
 	else
 	{
 		// Show connecting message, cause precaching to occur.
-		Engine->TransitionType = TT_Connecting;
+		Engine->TransitionType = ETransitionType::Connecting;
 
 		Engine->RedrawViewports(false);
 
