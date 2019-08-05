@@ -124,6 +124,7 @@ public:
 		, _SelectionMode(ESelectionMode::Multi)
 		, _ClearSelectionOnClick(true)
 		, _ExternalScrollbar()
+		, _EnableAnimatedScrolling(false)
 		, _ScrollbarDragFocusCause(EFocusCause::Mouse)
 		, _ConsumeMouseWheel( EConsumeMouseWheel::WhenScrollingPossible )
 		, _AllowOverscroll(EAllowOverscroll::Yes)
@@ -171,6 +172,10 @@ public:
 		SLATE_ARGUMENT ( bool, ClearSelectionOnClick )
 
 		SLATE_ARGUMENT( TSharedPtr<SScrollBar>, ExternalScrollbar )
+
+		SLATE_ARGUMENT( bool, EnableAnimatedScrolling)
+
+		SLATE_ARGUMENT( TOptional<double>, FixedLineScrollOffset )
 
 		SLATE_ARGUMENT( EFocusCause, ScrollbarDragFocusCause )
 
@@ -223,6 +228,9 @@ public:
 
 		this->WheelScrollMultiplier = InArgs._WheelScrollMultiplier;
 
+		this->bEnableAnimatedScrolling = InArgs._EnableAnimatedScrolling;
+		this->FixedLineScrollOffset = InArgs._FixedLineScrollOffset;
+
 		this->OnItemToString_Debug = InArgs._OnItemToString_Debug.IsBound()
 			? InArgs._OnItemToString_Debug
 			: SListView< ItemType >::GetDefaultDebugDelegate();
@@ -266,7 +274,7 @@ public:
 		else
 		{
 			// Make the TableView
-			this->ConstructChildren( 0, InArgs._ItemHeight, EListItemAlignment::LeftAligned, InArgs._HeaderRow, InArgs._ExternalScrollbar, InArgs._OnTreeViewScrolled );
+			this->ConstructChildren( 0, InArgs._ItemHeight, EListItemAlignment::LeftAligned, InArgs._HeaderRow, InArgs._ExternalScrollbar, Orient_Vertical, InArgs._OnTreeViewScrolled );
 			if (this->ScrollBar.IsValid())
 			{
 				this->ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);

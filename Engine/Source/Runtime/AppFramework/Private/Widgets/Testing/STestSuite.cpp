@@ -6025,7 +6025,7 @@ TSharedRef<SDockTab> SpawnTestSuite1( const FSpawnTabArgs& Args )
 			//The first cell in the primary area will be occupied by a stack of tabs.
 			// They are all opened.
 			FTabManager::NewStack()
-			->SetSizeCoefficient(0.35f)
+			->SetSizeCoefficient(0.2f)
 			->AddTab("LayoutExampleTab", ETabState::OpenedTab)
 			->AddTab("DocumentsTestTab", ETabState::OpenedTab)
 		)
@@ -6034,7 +6034,7 @@ TSharedRef<SDockTab> SpawnTestSuite1( const FSpawnTabArgs& Args )
 			// We can subdivide a cell further by using an additional splitter
 			FTabManager::NewSplitter()
 			->SetOrientation( Orient_Vertical )
-			->SetSizeCoefficient(0.65f)
+			->SetSizeCoefficient(0.8f)
 			->Split
 			(
 				FTabManager::NewStack()
@@ -6050,6 +6050,7 @@ TSharedRef<SDockTab> SpawnTestSuite1( const FSpawnTabArgs& Args )
 				->SetSizeCoefficient(0.75f)
 				#if PLATFORM_SUPPORTS_MULTIPLE_NATIVE_WINDOWS
 				->AddTab("TableViewTestTab", ETabState::OpenedTab)
+				->SetForegroundTab(FName("TableViewTestTab"))
 				#endif
 				->AddTab("LayoutRoundingTab", ETabState::OpenedTab)
 				->AddTab("EditableTextTab", ETabState::OpenedTab)
@@ -6291,7 +6292,7 @@ void RestoreSlateTestSuite()
 	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout( "SlateTestSuite_Layout" )
 	->AddArea
 	(
-		FTabManager::NewArea(720, 600)
+		FTabManager::NewArea(1600, 1200)
 #if PLATFORM_MAC
 		->SetWindow( FVector2D(420, 32), false )
 #else
@@ -6304,6 +6305,7 @@ void RestoreSlateTestSuite()
 			->AddTab( "TestSuite1", ETabState::OpenedTab )
 			->AddTab("RenderTransformManipulator", ETabState::OpenedTab)
 			->AddTab("WidgetGalleryTab", ETabState::OpenedTab)
+			->SetForegroundTab(FName("TestSuite1"))
 		)		
 	)
 	#if PLATFORM_SUPPORTS_MULTIPLE_NATIVE_WINDOWS
