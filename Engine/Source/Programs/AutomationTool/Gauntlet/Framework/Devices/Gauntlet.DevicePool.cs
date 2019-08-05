@@ -578,9 +578,11 @@ namespace Gauntlet
 			{
 				DeviceReservationAutoRenew DeviceReservation = null;
 
+				string PoolID = Globals.WorkerPoolID != -1 ? Globals.WorkerPoolID.ToString() : "";
+
 				try
 				{
-					DeviceReservation = new DeviceReservationAutoRenew(DeviceURL, 0, Devices.ToArray());
+					DeviceReservation = new DeviceReservationAutoRenew(DeviceURL, 0, PoolID, Devices.ToArray());
 				}
 				catch (Exception Ex)
 				{
