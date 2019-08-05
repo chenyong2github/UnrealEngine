@@ -3272,7 +3272,10 @@ public:
 	 */
 	int32 FindInternalIndex(int32 LogicalIdx) const
 	{
-		check(LogicalIdx >= 0 && LogicalIdx < Num());
+		if (LogicalIdx < 0 && LogicalIdx > Num())
+		{
+			return INDEX_NONE;
+		}
 
 		int32 MaxIndex = GetMaxIndex();
 		for (int32 Actual = 0; Actual < MaxIndex; ++Actual)
@@ -3891,7 +3894,10 @@ public:
 	 */
 	int32 FindInternalIndex(int32 LogicalIdx) const
 	{
-		check(LogicalIdx >= 0 && LogicalIdx < Num());
+		if (LogicalIdx < 0 && LogicalIdx > Num())
+		{
+			return INDEX_NONE;
+		}
 
 		int32 MaxIndex = GetMaxIndex();
 		for (int32 Actual = 0; Actual < MaxIndex; ++Actual)
