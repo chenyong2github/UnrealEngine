@@ -592,6 +592,19 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		]
 
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(40, 2, 0, 0)
+		[
+			SNew(STextBlock)
+			.TextStyle(FEditorStyle::Get(), "Graph.ZoomText")
+			.Font(FCoreStyle::GetDefaultFontStyle(TEXT("BoldCondensed"), 14))
+			.Text(this, &SDesignerView::GetCursorPositionText)
+			.ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.25f))
+			.Visibility(this, &SDesignerView::GetCursorPositionTextVisibility)
+		]
+
+		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		[
 			SNew(SSpacer)
@@ -3245,6 +3258,23 @@ FText SDesignerView::GetDesignerOutlineText() const
 	}
 
 	return FText::GetEmpty();
+}
+
+FText SDesignerView::GetCursorPositionText() const
+{
+	if (const FArrangedWidget* CachedPreviewSurface = CachedWidgetGeometry.Find(PreviewSurface.ToSharedRef()))
+	{
+		const FGeometry& RootGeometry = CachedPreviewSurface->Geometry;
+		const FVector2D CursorPos = RootGeometry.AbsoluteToLocal(FSlateApplication::Get().GetCursorPos()) / GetPreviewDPIScale();
+
+		return FText::Format(LOCTEXT("CursorPositionFormat", "{0} x {1}"), FText::AsNumber(FMath::RoundToInt(CursorPos.X)), FText::AsNumber(FMath::RoundToInt(CursorPos.Y)));
+	}
+	return FText();
+}
+
+EVisibility SDesignerView::GetCursorPositionTextVisibility() const
+{
+	return IsHovered() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
 }
 
 FReply SDesignerView::HandleDPISettingsClicked()
