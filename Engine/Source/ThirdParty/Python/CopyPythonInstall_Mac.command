@@ -94,6 +94,32 @@ then
 		done
 	}
 	remove_obj_files "$python_bin_lib_dest_dir" ${#python_bin_lib_dest_dir}
+
+	function copy_openssl_libs()
+	{
+		# this was needed when using latest python2.7, their latest hashlib
+		# uses some of libssl and libcrypto functions (instead of their own anymore)
+		# TODO: see if this can be statically linked next time
+
+		# might need a peek at lib*.x.y.z.dylib for the actual hard coded path
+		openssl_lib_dir=/usr/local/opt/openssl/lib
+
+		# saving these instructions here on how to do this for future reference
+		cp "$openssl_lib_dir"/libssl.1.0.0.dylib "$python_bin_dest_dir"
+		cp "$openssl_lib_dir"/libcrypto.1.0.0.dylib "$python_bin_dest_dir"
+
+		install_name_tool -id "@rpath/libssl.1.0.0.dylib" "$python_bin_dest_dir"/libssl.1.0.0.dylib
+		install_name_tool -change "$openssl_lib_dir/libcrypto.1.0.0.dylib" "@executable_path/../libcrypto.1.0.0.dylib" "$python_bin_dest_dir"/libssl.1.0.0.dylib
+
+		install_name_tool -id "@rpath/libcrypto.1.0.0.dylib" "$python_bin_dest_dir"/libcrypto.1.0.0.dylib
+		
+		# finally:
+		install_name_tool -change "$openssl_lib_dir/libssl.1.0.0.dylib" "@executable_path/../libssl.1.0.0.dylib" "$python_bin_dest_dir"/lib/python2.7/lib-dynload/_hashlib.so
+		install_name_tool -change "$openssl_lib_dir/libcrypto.1.0.0.dylib" "@executable_path/../libcrypto.1.0.0.dylib" "$python_bin_dest_dir"/lib/python2.7/lib-dynload/_hashlib.so
+	}
+	# disabling this - again, for future reference
+	#copy_openssl_libs
+
 else
 	echo "Python Source Directory Missing: $python_src_dir"
 fi
