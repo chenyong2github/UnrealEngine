@@ -578,7 +578,7 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 		else
 		{
 			int32 IterationCount_DebuggingOnly = 0;
-			for (auto It = View->GetElementIterator(InAsset); It && (MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It, ++IterationCount_DebuggingOnly)
+			for (auto It = View->GetElementIterator(InAsset); It && (AssetType != FStreamingRenderAsset::AT_Texture || MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It, ++IterationCount_DebuggingOnly)
 			{
 				View->VerifyElementIdx_DebuggingOnly(It.GetCurElementIdx_ForDebuggingOnly(), IterationCount_DebuggingOnly);
 				// Only handle elements that are in bounds.

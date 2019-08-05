@@ -633,6 +633,13 @@ void FRHIResourceUpdateInfo::ReleaseRefs()
 			VertexBufferSRV.VertexBuffer->Release();
 		}
 		break;
+	case UT_IndexBufferSRV:
+		IndexBufferSRV.SRV->Release();
+		if (IndexBufferSRV.IndexBuffer)
+		{
+			IndexBufferSRV.IndexBuffer->Release();
+		}
+		break;
 	default:
 		// Unrecognized type, do nothing
 		break;
@@ -674,6 +681,11 @@ void FRHICommandUpdateRHIResources::Execute(FRHICommandListBase& CmdList)
 				Info.VertexBufferSRV.VertexBuffer,
 				Info.VertexBufferSRV.Stride,
 				Info.VertexBufferSRV.Format);
+			break;
+		case FRHIResourceUpdateInfo::UT_IndexBufferSRV:
+			GDynamicRHI->RHIUpdateShaderResourceView(
+				Info.IndexBufferSRV.SRV,
+				Info.IndexBufferSRV.IndexBuffer);
 			break;
 		default:
 			// Unrecognized type, do nothing
