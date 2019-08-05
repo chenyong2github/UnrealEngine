@@ -41,7 +41,7 @@ public final class NetworkChangedManager {
 			// unsupported before Lollipop
 			return;
 		}
-)
+
 		ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 		if (connectivityManager != null) {
 			NetworkRequest.Builder builder = new NetworkRequest.Builder();
