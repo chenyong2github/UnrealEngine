@@ -461,6 +461,11 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 					}
 				}
 			}
+			else
+			{
+				// In Layer, cumulate dirty collision region (will be used next time UpdateCollisionHeightData is called)
+				Component->UpdateDirtyCollisionHeightData(FIntRect(ComponentX1, ComponentY1, ComponentX2, ComponentY2));
+			}
 			
 			// Update GUID for Platform Data
 			FPlatformMisc::CreateGuid(Component->StateId);
