@@ -302,9 +302,14 @@ TSharedRef<SWidget> SScreenComparisonRow::BuildAddedView()
 					.AutoWidth()
 					.Padding(4.0f, 4.0f)
 					[
-						SNew(SAsyncImage)
-						.ImageFilePath(IncomingFile)
-						//.OnMouseButtonDown(this, &SScreenComparisonRow::OnImageClicked, UnapprovedBrush)
+						SNew(SBorder)
+						.BorderImage(nullptr)
+						.OnMouseButtonDown(this, &SScreenComparisonRow::OnCompareNewImage)
+						[
+							SAssignNew(UnapprovedImageWidget, SAsyncImage)
+							.ImageFilePath(IncomingFile)
+						]
+						
 					]
 				]
 			]
@@ -486,6 +491,42 @@ FReply SScreenComparisonRow::OnCompareImages(const FGeometry& InGeometry, const 
 		FSlateApplication::Get().AddWindowAsNativeChild(PopupWindow, ParentWindow, true);
 	}
 
+	return FReply::Handled();
+}
+
+FReply SScreenComparisonRow::OnCompareNewImage(const FGeometry& InGeometry, const FPointerEvent& InEvent)
+{
+	const FImageComparisonResult& ComparisonResult = Model->Report.Comparison;
+	FString IncomingFile = Model->Report.ReportFolder / ComparisonResult.ReportIncomingFile;
+
+	TSharedPtr<FSlateDynamicImageBrush> UnapprovedImage = UnapprovedImageWidget->GetDynamicBrush();
+
+	if (UnapprovedImage.IsValid())
+	{
+		TSharedRef<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared()).ToSharedRef();
+
+		TSharedRef<SWindow> PopupWindow = SNew(SWindow)
+			.IsPopupWindow(false)
+			.ClientSize(FVector2D(1280,720))
+			.SizingRule(ESizingRule::UserSized)
+			.AutoCenter(EAutoCenter::PreferredWorkArea)
+			.SupportsMaximize(true)
+			.SupportsMinimize(true)
+			.FocusWhenFirstShown(true)
+			.ActivationPolicy(EWindowActivationPolicy::Always)
+			.Content()
+			[
+				SNew(SScaleBox)
+				.Stretch(EStretch::ScaleToFit)
+				[
+					SNew(SImage)
+					.Image(UnapprovedImage.Get())
+				]
+			];
+
+		FSlateApplication::Get().AddWindowAsNativeChild(PopupWindow, ParentWindow, true);
+	}
+	
 	return FReply::Handled();
 }
 
