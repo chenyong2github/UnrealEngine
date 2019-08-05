@@ -39,6 +39,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "NiagaraMessageManager.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
+#include "Framework/Application/SlateApplication.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
 
