@@ -15,16 +15,6 @@ void SNiagaraSystemScript::Construct(const FArguments& InArgs, TSharedRef<FNiaga
 	SystemViewModel = InSystemViewModel;
 	ChildSlot
 	[
-		SNew(SSplitter)
-		+ SSplitter::Slot()
-		.Value(0.3f)
-		[
-			SNew(SNiagaraParameterCollection, SystemViewModel->GetSystemScriptViewModel()->GetInputCollectionViewModel())
-		]
-		+ SSplitter::Slot()
-		.Value(0.7f)
-		[
-			SNew(SNiagaraScriptGraph, SystemViewModel->GetSystemScriptViewModel()->GetGraphViewModel())
-		]
+		SNew(SNiagaraScriptGraph, SystemViewModel->GetSystemScriptViewModel()->GetGraphViewModel())
 	];
 }

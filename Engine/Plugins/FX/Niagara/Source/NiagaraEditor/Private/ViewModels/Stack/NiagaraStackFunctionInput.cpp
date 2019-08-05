@@ -134,7 +134,7 @@ void UNiagaraStackFunctionInput::Initialize(
 	OwningAssignmentNode = Cast<UNiagaraNodeAssignment>(OwningFunctionCallNode.Get());
 
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode.Get());
-	UNiagaraEmitter* ParentEmitter = GetEmitterViewModel()->GetEmitter();
+	UNiagaraEmitter* ParentEmitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
 	UNiagaraSystem* ParentSystem = &GetSystemViewModel()->GetSystem();
 	if (OutputNode)
 	{
@@ -201,8 +201,9 @@ void UNiagaraStackFunctionInput::Initialize(
 		AffectedScriptsNotWeak.Add(AffectedScript.Get());
 	}
 
-	EditCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName(), OwningFunctionCallNode.Get());
-	VisibleCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName(), OwningFunctionCallNode.Get());
+	FString UniqueEmitterName = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName() : FString();
+	EditCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, UniqueEmitterName, OwningFunctionCallNode.Get());
+	VisibleCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, UniqueEmitterName, OwningFunctionCallNode.Get());
 }
 
 void UNiagaraStackFunctionInput::FinalizeInternal()
@@ -492,9 +493,9 @@ FString UNiagaraStackFunctionInput::ResolveDisplayNameArgument(const FString& In
 {
 	if (InArg.StartsWith(TEXT("MaterialDynamicParam")))
 	{
-		TSharedRef<FNiagaraEmitterViewModel> ThisEmitterViewModel = GetEmitterViewModel();
+		TSharedPtr<FNiagaraEmitterViewModel> ThisEmitterViewModel = GetEmitterViewModel();
 		TArray<UMaterialExpressionDynamicParameter*> ExpressionParams;
-		if (!UNiagaraStackFunctionInputUtilities::GetMaterialExpressionDynamicParameter(ThisEmitterViewModel->GetEmitter(), ExpressionParams))
+		if (ThisEmitterViewModel.IsValid() == false || !UNiagaraStackFunctionInputUtilities::GetMaterialExpressionDynamicParameter(ThisEmitterViewModel->GetEmitter(), ExpressionParams))
 		{
 			return InArg.Replace(TEXT("MaterialDynamic"), TEXT("")) + TEXT(" (No material found using dynamic params)");
 		}
@@ -1135,7 +1136,8 @@ bool UNiagaraStackFunctionInput::CanReset() const
 					if (FNiagaraStackGraphUtilities::IsValidDefaultDynamicInput(*SourceScript, *DefaultPin))
 					{
 						UEdGraphPin* OverridePin = GetOverridePin();
-						bNewCanReset = OverridePin == nullptr || FNiagaraStackGraphUtilities::DoesDynamicInputMatchDefault(GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName(), *SourceScript,
+						FString UniqueEmitterName = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName() : FString();
+						bNewCanReset = OverridePin == nullptr || FNiagaraStackGraphUtilities::DoesDynamicInputMatchDefault(UniqueEmitterName, *SourceScript,
 							*OwningFunctionCallNode, *OverridePin, InputParameterHandle.GetName(), *DefaultPin) == false;
 					}
 					else
@@ -1380,8 +1382,8 @@ void UNiagaraStackFunctionInput::ResetToBase()
 FNiagaraVariable UNiagaraStackFunctionInput::CreateRapidIterationVariable(const FName& InName)
 {
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode.Get());
-	UNiagaraEmitter* ParentEmitter = GetEmitterViewModel()->GetEmitter();
-	return FNiagaraStackGraphUtilities::CreateRapidIterationParameter(ParentEmitter->GetUniqueEmitterName(), OutputNode->GetUsage(), InName, InputType);
+	FString UniqueEmitterName = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName() : FString();
+	return FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OutputNode->GetUsage(), InName, InputType);
 }
 
 bool UNiagaraStackFunctionInput::CanRenameInput() const
