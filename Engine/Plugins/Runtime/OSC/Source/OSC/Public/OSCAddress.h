@@ -11,8 +11,10 @@
 
 namespace OSC
 {
-	const FString BundleTag		= TEXT("#bundle");
-	const FString PathSeparator = TEXT("/");
+	const FString		BundleTag		= TEXT("#bundle");
+	const FString		PathSeparator	= TEXT("/");
+	const TArray<TCHAR>	InvalidChars	= { ' ', '#', };
+	const TArray<TCHAR>	PatternChars	= { ',', '*', '/', '?', '[', ']', '{', '}' };
 } // namespace OSC
 
 USTRUCT(BlueprintType)
@@ -20,61 +22,39 @@ struct OSC_API FOSCAddress
 {
 	GENERATED_USTRUCT_BODY()
 
+private:
+	UPROPERTY(Transient)
+	TArray<FString> Containers;
+
+	UPROPERTY(Transient)
+	FString Method;
+
+	bool bIsValidPattern;
+	bool bIsValidPath;
+	uint32 Hash;
+
+	static bool IsValidPattern(const TArray<FString>& InContainers, const FString& InMethod);
+	static bool IsValidPath(const FString& Path, bool bInvalidateSeparator);
+
 public:
-	FOSCAddress()
-	{
-		Value = OSC::PathSeparator;
-	}
+	uint32 GetHash() const;
 
-	FOSCAddress(const FString& InValue)
-		: Value(InValue)
-	{
-		if (!IsBundle())
-		{
-			if (!Value.StartsWith(OSC::PathSeparator))
-			{
-				Value = OSC::PathSeparator + Value;
-			}
-		}
-	}
+	bool IsValidPattern() const;
+	bool IsValidPath() const;
+	bool Matches(const FOSCAddress& Address) const;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Audio|OSC")
-	FString Value;
+	void PushContainer(const FString& Container);
 
-	FORCEINLINE bool IsBundle() const
-	{
-		return Value.StartsWith(OSC::BundleTag);
-	}
+	void ClearContainers(const FString& Container);
+	void SetMethod(const FString& InMethod);
+	FString PopContainer();
 
-	FORCEINLINE bool IsMessage() const
-	{
-		return Value.StartsWith(OSC::PathSeparator);
-	}
+	FString GetContainerPath() const;
+	FString GetContainer(int32 Index) const;
+	void GetContainers(TArray<FString>& OutContainers) const;
+	FString GetFullPath() const;
+	const FString& GetMethodName() const;
 
-	FORCEINLINE bool IsValid() const
-	{
-		return IsMessage() || IsBundle();
-	}
-
-	FORCEINLINE void Append(const FString& ToAppend)
-	{
-		if (!IsMessage())
-		{
-			UE_LOG(LogOSC, Warning, TEXT("Append failed for OSCAddress '%s'. Address is either invalid/non-message type."), *Value);
-			return;
-		}
-
-		Value.PathAppend(*ToAppend, ToAppend.Len());
-	}
-
-	FORCEINLINE void Split(TArray<FString>& OutArray) const
-	{
-		if (!IsMessage())
-		{
-			UE_LOG(LogOSC, Warning, TEXT("Split failed for OSCAddress '%s'. Address is invalid/non-message type."), *Value);
-			return;
-		}
-
-		Value.ParseIntoArray(OutArray, *OSC::PathSeparator, true);
-	}
+	FOSCAddress();
+	FOSCAddress(const FString& InValue);
 };
