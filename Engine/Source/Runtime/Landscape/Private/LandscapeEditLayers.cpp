@@ -5131,15 +5131,14 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>
 		NewHeightDataValue = ZeroValue;
 	}
 
-	TArray<uint8> NewHeightAlphaBlendData;
+	TArray<uint16> NewHeightAlphaBlendData;
 	TArray<uint8> NewHeightFlagsData;
 
 	if (InClearMode & ELandscapeClearMode::Clear_Heightmap)
 	{
 		if (Layer->BlendMode == LSBM_AlphaBlend)
 		{
-			NewHeightAlphaBlendData.AddZeroed(FMath::Square(ComponentSizeQuads + 1));
-			FMemory::Memset(NewHeightAlphaBlendData.GetData(), 255, NewHeightAlphaBlendData.Num());
+			NewHeightAlphaBlendData.Init(MAX_uint16, FMath::Square(ComponentSizeQuads + 1));
 			NewHeightFlagsData.AddZeroed(FMath::Square(ComponentSizeQuads + 1));
 		}
 	}

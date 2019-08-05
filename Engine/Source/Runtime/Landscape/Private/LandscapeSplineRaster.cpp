@@ -36,7 +36,7 @@ public:
 	typedef FVector InterpolantType;
 
 	/** Initialization constructor. */
-	FLandscapeSplineHeightsRasterPolicy(TArray<uint16>& InHeightData, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY, bool InbRaiseTerrain, bool InbLowerTerrain, TArray<uint8>* InHeightAlphaBlendData = nullptr, TArray<uint8>* InHeightFlagsData = nullptr) :
+	FLandscapeSplineHeightsRasterPolicy(TArray<uint16>& InHeightData, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY, bool InbRaiseTerrain, bool InbLowerTerrain, TArray<uint16>* InHeightAlphaBlendData = nullptr, TArray<uint8>* InHeightFlagsData = nullptr) :
 		HeightData(InHeightData),
 		HeightAlphaBlendData(InHeightAlphaBlendData),
 		HeightFlagsData(InHeightFlagsData),
@@ -77,9 +77,9 @@ protected:
 			float InterpValue = (NewHeight * Alpha) + (Dest * (1.f - Alpha));
 			Dest = (uint16)FMath::Clamp<float>(InterpValue, 0, (float)LandscapeDataAccess::MaxValue);
 
-			uint8& DestAlphaValue = (*HeightAlphaBlendData)[DataIndex];
+			uint16& DestAlphaValue = (*HeightAlphaBlendData)[DataIndex];
 			float InterpAlphaValue = DestAlphaValue * (1.f - Alpha);
-			DestAlphaValue = (uint8)FMath::Clamp<float>(InterpAlphaValue, 0.f, 255.f);
+			DestAlphaValue = (uint16)FMath::Clamp<float>(InterpAlphaValue, 0.f, 65535.f);
 
 			if (HeightFlagsData)
 			{
@@ -106,7 +106,7 @@ protected:
 
 private:
 	TArray<uint16>& HeightData;
-	TArray<uint8>* HeightAlphaBlendData;
+	TArray<uint16>* HeightAlphaBlendData;
 	TArray<uint8>* HeightFlagsData;
 	int32 MinX, MinY, MaxX, MaxY;
 	uint32 bRaiseTerrain : 1, bLowerTerrain : 1;
@@ -190,9 +190,9 @@ void RasterizeHeight(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandsc
 	bool bIsEditingLayerReservedForSplines = Landscape && Landscape->IsEditingLayerReservedForSplines();
 	check(!bIsEditingLayerReservedForSplines || (Landscape->GetLandscapeSplinesReservedLayer()->BlendMode == LSBM_AlphaBlend));
 
-	TArray<uint8> HeightAlphaBlendData;
+	TArray<uint16> HeightAlphaBlendData;
 	TArray<uint8> HeightFlagsData;
-	TArray<uint8>* HeightAlphaBlendDataPtr = nullptr;
+	TArray<uint16>* HeightAlphaBlendDataPtr = nullptr;
 	TArray<uint8>* HeightFlagsDataPtr = nullptr;
 
 	bool bCalculateNormals = true;
