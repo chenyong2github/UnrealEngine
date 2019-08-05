@@ -6,6 +6,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "SNiagaraOverviewStack.h"
 #include "NiagaraEditorModule.h"
+#include "Widgets/Layout/SBox.h"
 
 #include "Modules/ModuleManager.h"
 
