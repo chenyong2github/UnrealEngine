@@ -851,7 +851,7 @@ public:
 
 	/** when true, the material casts ray tracing shadows. */
 	UPROPERTY(EditAnywhere, Category = Material)
-	uint32 bCastsRayTracedShadows : 1;
+	uint32 bCastRayTracedShadows : 1;
 
 	/** When true, translucent materials are fogged. Defaults to true. */
 	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Apply Fogging"))
