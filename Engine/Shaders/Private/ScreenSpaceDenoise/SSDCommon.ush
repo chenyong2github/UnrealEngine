@@ -41,6 +41,10 @@
 	// A gray scale valued encoded into a 16bit float only have 10bits mantissa.
 	#define TARGETED_SAMPLE_COUNT 1024
 
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
+	// Polychromatic penumbra is encded into 16bit float that only have 10bits mantissa.
+	#define TARGETED_SAMPLE_COUNT 1024
+
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
 	// Indirect diffuse requires really large spatial kernel to clean the noise.
 	#define TARGETED_SAMPLE_COUNT 4096

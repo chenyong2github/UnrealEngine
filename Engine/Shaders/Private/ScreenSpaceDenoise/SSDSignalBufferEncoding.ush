@@ -160,6 +160,48 @@ void DecodeMultiplexedSignals(
 		}
 	}
 	#if COMPILE_SIGNAL_COLOR
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_INPUT)
+	{
+		// Decode diffuse harmonic
+		{
+			float Weight = RawSample[0].a < 0.0 ? 0 : 1;
+
+			OutSamples.Array[0].SampleCount = Weight;
+			OutSamples.Array[0].MissCount = RawSample[0].a * Weight;
+			OutSamples.Array[0].SceneColor.rgb = RawSample[0].rgb * Weight;
+		}
+		
+		// Decode specular harmonic
+		{
+			float Weight = RawSample[1].a < 0.0 ? 0 : 1;
+
+			OutSamples.Array[1].SampleCount = Weight;
+			OutSamples.Array[1].MissCount = RawSample[1].a * Weight;
+			OutSamples.Array[1].SceneColor.rgb = RawSample[1].rgb * Weight;
+		}
+	}
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY)
+	{
+		// Decode diffuse harmonic
+		{
+			float Weight = RawSample[2].r;
+
+			OutSamples.Array[0].SampleCount = Weight;
+			OutSamples.Array[0].MissCount = RawSample[0].a * Weight;
+			OutSamples.Array[0].SceneColor.rgb = RawSample[0].rgb * Weight;
+		}
+		
+		// Decode specular harmonic
+		{
+			float Weight = RawSample[2].g;
+
+			OutSamples.Array[1].SampleCount = Weight;
+			OutSamples.Array[1].MissCount = RawSample[1].a * Weight;
+			OutSamples.Array[1].SceneColor.rgb = RawSample[1].rgb * Weight;
+		}
+	}
+	#endif
+	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT)
 	{
 		OutSamples.Array[0].SampleCount = RawSample[1].r == DENOISER_INVALID_HIT_DISTANCE ? 0 : 1;
@@ -436,6 +478,30 @@ void EncodeMultiplexedSignals(
 				NormalizedWorldBluringRadius == WORLD_RADIUS_MISS ? -1 : NormalizedWorldBluringRadius);
 		}
 	}
+	#if COMPILE_SIGNAL_COLOR
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY)
+	{
+		// Encode diffuse harmonic
+		{
+			float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
+
+			OutRawSample[0] = ClampColorForEncoding(Sample[0].SceneColor * NormalizationFactor);
+			OutRawSample[0].a = Sample[0].MissCount * NormalizationFactor;
+			OutRawSample[2].r = Sample[0].SampleCount;
+		}
+
+		// Encode specular harmonic
+		{
+			float NormalizationFactor = SafeRcp(Sample[1].SampleCount);
+
+			OutRawSample[1] = ClampColorForEncoding(Sample[1].SceneColor * NormalizationFactor);
+			OutRawSample[1].a = Sample[1].MissCount * NormalizationFactor;
+			OutRawSample[2].g = Sample[1].SampleCount;
+		}
+
+		OutBufferCount = 3;
+	}
+	#endif
 	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION)
 	{

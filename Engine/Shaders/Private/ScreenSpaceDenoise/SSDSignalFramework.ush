@@ -53,6 +53,9 @@
 	#error Missing CONFIG_SIGNAL_PROCESSING
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+	#include "SSDPublicHarmonics.ush"
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
 	
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 	#include "../MonteCarlo.ush"
@@ -634,32 +637,18 @@ float GetSignalWorldBluringRadius(FSSDSignalSample Sample, FSSDSampleSceneInfos 
 	{
 		return DomainKnowledge.HitDistanceToWorldBluringRadius * Sample.ClosestHitDistance;
 	}
-	else if (DomainKnowledge.LightType == LIGHT_TYPE_POINT || DomainKnowledge.LightType == LIGHT_TYPE_SPOT)
+	else
 	{
-		float3 PixelToLightWorldVector = (DomainKnowledge.Light.Position + View.PreViewTranslation) - SceneMetadata.TranslatedWorldPosition;
-		float DistanceFromLight = length(PixelToLightWorldVector);
-
-		return DomainKnowledge.Light.SourceRadius * Sample.ClosestHitDistance / max(DistanceFromLight - Sample.ClosestHitDistance, ClosestLightDistance);
+		return ComputeLightSampleWorldBluringRadius(
+			SceneMetadata.TranslatedWorldPosition,
+			DomainKnowledge.LightType, DomainKnowledge.Light,
+			Sample.ClosestHitDistance);
 	}
-	else // if (DomainKnowledge.LightType == LIGHT_TYPE_RECT)
-	{
-		float3 PixelToLightWorldVector = (DomainKnowledge.Light.Position + View.PreViewTranslation) - SceneMetadata.TranslatedWorldPosition;
-		float DistanceFromLight = length(PixelToLightWorldVector);
-
-		#if CONFIG_VALU_OPTIMIZATIONS
-			float Scalar = abs(dot(PixelToLightWorldVector, DomainKnowledge.Light.Direction)) * rsqrt(length2(PixelToLightWorldVector));
-		#else
-			float Scalar = abs(dot(normalize(PixelToLightWorldVector), DomainKnowledge.Light.Direction));
-		#endif
-
-		float2 LightDimensions = GetRectLightDimensions(DomainKnowledge.Light);
-
-		// TODO: area light anysotropy.
-		float SmallestLightDimension = min(LightDimensions.x, LightDimensions.y);
-
-		// TODO: Sample.ClosestHitDistance depends on the direction of the ray, but does not DistanceFromLight, witch is bad for large area light.
-		return SmallestLightDimension * Sample.ClosestHitDistance / max(DistanceFromLight - Sample.ClosestHitDistance, ClosestLightDistance);
-	}
+}
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
+{
+	// No need to compute the world bluring radius given the hit has been classified by harmonic frequencies already.
+	return 0;
 }
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 {

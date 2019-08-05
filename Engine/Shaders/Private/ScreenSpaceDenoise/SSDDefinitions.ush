@@ -94,6 +94,13 @@
 	#define SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY 11
 
 
+	/** Buffer layout input for denoising multi polychromatic penumbra. */
+	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_INPUT 0x1000
+
+	/** Internal buffer layout for denoising multi polychromatic penumbra. */
+	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY 0x1001
+
+
 	/** Buffer layout for the reflection given by the ray generation shader. */
 	#define SIGNAL_BUFFER_LAYOUT_REFLECTIONS_INPUT 3
 
@@ -132,17 +139,20 @@
 	/** Shadow penumbra denoising. */
 	#define SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA 0
 
+	/** Shadow penumbra denoising. */
+	#define SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC 1
+
 	/** Reflection denoising. */
-	#define SIGNAL_PROCESSING_REFLECTIONS 1
+	#define SIGNAL_PROCESSING_REFLECTIONS 2
 
 	/** Ambient occlusion denoising. */
-	#define SIGNAL_PROCESSING_AO 2
+	#define SIGNAL_PROCESSING_AO 3
 
 	/** Diffuse indirect and ambient occlusion. */
-	#define SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO 3
+	#define SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO 4
 
 	/** Diffuse indirect using spherical harmonic. */
-	#define SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC 4
+	#define SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC 5
 
 
 

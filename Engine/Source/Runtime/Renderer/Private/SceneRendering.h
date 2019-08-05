@@ -783,6 +783,9 @@ struct FPreviousViewInfo
 
 	// History for shadow denoising.
 	TMap<const ULightComponent*, FScreenSpaceFilteringHistory> ShadowHistories;
+
+	// History for denoising all lights penumbra at once.
+	FScreenSpaceFilteringHistory PolychromaticPenumbraHarmonicsHistory;
 };
 
 class FViewCommands

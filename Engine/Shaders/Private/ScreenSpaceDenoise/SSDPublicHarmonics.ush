@@ -1,0 +1,71 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+
+//------------------------------------------------------- INCLUDE
+
+#include "../Common.ush"
+#include "../LightShaderParameters.ush"
+
+
+//------------------------------------------------------- DEFINES
+
+#define DENOISER_HARMONICS_COUNT 4
+
+
+//------------------------------------------------------- FUNCTIONS
+
+float ComputeLightSampleWorldBluringRadius(float3 TranslatedWorldPosition, uint LightType, FLightShaderParameters Light, float HitT)
+{
+	// Sometime, artists might put occluder very close to the area light compared to they area, that may lead to negative values.
+	// TODO: the correct way to fix this is to move this world bluring radius computation into the RGS, and have DistanceFromLight = Ray's MaxT.
+	const float ClosestLightDistance = 0.001;
+
+	BRANCH
+	if (LightType == LIGHT_TYPE_DIRECTIONAL)
+	{
+		// TODO: compute this on CPU.
+		return tan(asin(Light.SourceRadius)) * HitT;
+	}
+	else if (LightType == LIGHT_TYPE_POINT || LightType == LIGHT_TYPE_SPOT)
+	{
+		float3 PixelToLightWorldVector = (Light.Position + View.PreViewTranslation) - TranslatedWorldPosition;
+		float DistanceFromLight = length(PixelToLightWorldVector);
+
+		return Light.SourceRadius * HitT / max(DistanceFromLight - HitT, ClosestLightDistance);
+	}
+	else // if (LightType == LIGHT_TYPE_RECT)
+	{
+		float3 PixelToLightWorldVector = (Light.Position + View.PreViewTranslation) - TranslatedWorldPosition;
+		float DistanceFromLight = length(PixelToLightWorldVector);
+
+		#if CONFIG_VALU_OPTIMIZATIONS
+			float Scalar = abs(dot(PixelToLightWorldVector, Light.Direction)) * rsqrt(length2(PixelToLightWorldVector));
+		#else
+			float Scalar = abs(dot(normalize(PixelToLightWorldVector), Light.Direction));
+		#endif
+
+		float2 LightDimensions = GetRectLightDimensions(Light);
+
+		// TODO: area light anysotropy.
+		float SmallestLightDimension = min(LightDimensions.x, LightDimensions.y);
+
+		// TODO: HitT on the direction of the ray, but does not DistanceFromLight, witch is bad for large area light.
+		return SmallestLightDimension * HitT / max(DistanceFromLight - HitT, ClosestLightDistance);
+	}
+}
+
+float ProjectWorldDistanceToPixelDistance(float WorldDepth, float WorldDistance)
+{
+	return WorldDistance * View.ViewSizeAndInvSize.x * 0.5 / (WorldDepth * GetTanHalfFieldOfView().x);
+}
+
+float WorldBluringRadiusToHarmonic(float WorldDepth, float WorldBluringRadius)
+{
+	float PixelBluringRadius = ProjectWorldDistanceToPixelDistance(WorldDepth, WorldBluringRadius);
+
+	const float TemporalHistoryRejectionDiameter = 3.0;
+
+	return clamp(log2(PixelBluringRadius - (TemporalHistoryRejectionDiameter - 1.0)), 0.0, DENOISER_HARMONICS_COUNT - 1.0);
+}

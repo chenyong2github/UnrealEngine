@@ -1047,7 +1047,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									InputParameterCount,
 									View.ViewRect.Width(), View.ViewRect.Height());
 
-								DenoiserToUse->DenoiseShadows(
+								DenoiserToUse->DenoiseMonochromaticShadows(
 									GraphBuilder,
 									View,
 									&View.PrevViewInfo,
@@ -1226,7 +1226,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 									InputParameterCount,
 									View.ViewRect.Width(), View.ViewRect.Height());
 
-								DenoiserToUse->DenoiseShadows(
+								DenoiserToUse->DenoiseMonochromaticShadows(
 									GraphBuilder,
 									View,
 									&View.PrevViewInfo,

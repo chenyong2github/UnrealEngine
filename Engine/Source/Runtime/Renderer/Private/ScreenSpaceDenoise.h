@@ -104,7 +104,7 @@ public:
 
 	/** Entry point to denoise the diffuse mask of a shadow. */
 	// TODO: correct specular.
-	virtual void DenoiseShadows(
+	virtual void DenoiseMonochromaticShadows(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -112,7 +112,30 @@ public:
 		const TStaticArray<FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize>& InputParameters,
 		const int32 InputParameterCount,
 		TStaticArray<FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize>& Outputs) const = 0;
-	
+
+	// Number of harmonics to be feed when denoising multiple lights.
+	static constexpr int32 kMultiPolychromaticPenumbraHarmonics = 4;
+
+	/** All the inputs to denoise polychromatic penumbra of multiple light. */
+	BEGIN_SHADER_PARAMETER_STRUCT(FPolychromaticPenumbraHarmonics, )
+		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Diffuse, [kMultiPolychromaticPenumbraHarmonics])
+		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Specular, [kMultiPolychromaticPenumbraHarmonics])
+	END_SHADER_PARAMETER_STRUCT()
+
+	/** All the outputs when denoising polychromatic penumbra. */
+	BEGIN_SHADER_PARAMETER_STRUCT(FPolychromaticPenumbraOutputs, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Diffuse)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Specular)
+	END_SHADER_PARAMETER_STRUCT()
+
+	/** Entry point to denoise polychromatic penumbra of multiple light. */
+	virtual FPolychromaticPenumbraOutputs DenoisePolychromaticPenumbraHarmonics(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FPolychromaticPenumbraHarmonics& Inputs) const = 0;
+
 	/** All the inputs of the reflection denoiser. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FReflectionsInputs, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)

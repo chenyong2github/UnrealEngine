@@ -40,8 +40,6 @@
 
 // Configures all the pass for each individual signals.
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
-	#define COMPILE_SIGNAL_COLOR 0
-
 	//#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 5
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
@@ -119,6 +117,34 @@
 	#if defined(CONFIG_OUTPUT_MODE) && CONFIG_OUTPUT_MODE == OUTPUT_MODE_DRB
 		// Looks like shader compilers completly give up.
 		// #define CONFIG_ACCUMULATOR_VGPR_COMPRESSION ACCUMULATOR_COMPRESSION_PENUMBRA_DRB
+	#endif
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
+	#define COMPILE_SIGNAL_COLOR 1
+
+	//#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
+	#define CONFIG_VIEW_POSITION_BASED_BILATERAL 5
+	//#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
+
+	// Denoise diffuse and specular harmonics at the same time.
+	#define MAX_SIGNAL_BATCH_SIZE 2
+
+	// Any world distance depends on the harmonic being processed.
+	#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HARMONIC
+
+	#if DIM_STAGE == STAGE_RECONSTRUCTION
+		// Input and output layout.
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_INPUT
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY
+
+		#define CONFIG_INPUT_TEXTURE_COUNT 1
+		#define CONFIG_OUTPUT_TEXTURE_COUNT 3
+
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		//#define CONFIG_MAX_WITH_REF_DISTANCE 1
+
+	#else
+		#error Unexpected stage.
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
@@ -448,6 +474,8 @@ uint UpscaleFactor;
 	float KernelSpreadFactor;
 #endif
 
+float HarmonicPeriode;
+
 
 #if !defined(CONFIG_INPUT_TEXTURE_COUNT)
 	#error Missing CONFIG_INPUT_TEXTURE_COUNT
@@ -645,6 +673,7 @@ void MainCS(
 		KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
 		KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
 		KernelConfig.KernelSpreadFactor = KernelSpreadFactor;
+		KernelConfig.HarmonicPeriode = HarmonicPeriode;
 
 		// VGPRs
 		KernelConfig.BufferUV = SceneBufferUV;
