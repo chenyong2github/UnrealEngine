@@ -6,6 +6,7 @@
 #include "Misc/CoreDelegates.h"
 #include "ARSupportInterface.h"
 #include "Interfaces/IPluginManager.h"
+#include "WindowsMixedRealityAvailability.h"
 
 #define LOCTEXT_NAMESPACE "HoloLens"
 
@@ -14,7 +15,7 @@ TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> FHoloLensModuleAR::ARSystem;
 IARSystemSupport* FHoloLensModuleAR::CreateARSystem()
 {
 	IARSystemSupport* ARSystemPtr = nullptr;
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	if (!ARSystem.IsValid())
 	{
 		ARSystem = MakeShareable(new FHoloLensARSystem());
@@ -26,11 +27,11 @@ IARSystemSupport* FHoloLensModuleAR::CreateARSystem()
 
 void FHoloLensModuleAR::SetInterop(WindowsMixedReality::MixedRealityInterop* InWMRInterop)
 {
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
-	TSharedPtr<class FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = GetHoloLensARSystem();
-	if (ARSystem.IsValid())
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
+	TSharedPtr<class FHoloLensARSystem, ESPMode::ThreadSafe> LocalARSystem = GetHoloLensARSystem();
+	if (LocalARSystem.IsValid())
 	{
-		ARSystem->SetInterop(InWMRInterop);
+		LocalARSystem->SetInterop(InWMRInterop);
 	}
 #endif
 }
@@ -42,8 +43,7 @@ TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> FHoloLensModuleAR::GetHoloLen
 
 void FHoloLensModuleAR::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMode::ThreadSafe> InTrackingSystem)
 {
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
-	TSharedPtr<FHoloLensARSystem, ESPMode::ThreadSafe> ARSystem = GetHoloLensARSystem();
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	if (ARSystem.IsValid())
 	{
 		ARSystem->SetTrackingSystem(InTrackingSystem);

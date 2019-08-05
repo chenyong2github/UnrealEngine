@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "HoloLensAvailability.h"
+#include "WindowsMixedRealityAvailability.h"
 #include "ARTextures.h"
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	#include "Windows/AllowWindowsPlatformTypes.h"
 
 	THIRD_PARTY_INCLUDES_START
@@ -37,7 +37,7 @@ public:
 	virtual float GetSurfaceHeight() const override { return Size.Y; }
 	// End UTexture interface
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	/** Forces the reconstruction of the texture data and conversion from Nv12 to RGB */
 	virtual void Init(ID3D11Texture2D* InCameraImage);
 
