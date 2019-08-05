@@ -95,7 +95,9 @@
 #include "Misc/FeedbackContext.h"
 #include "Customizations/NiagaraStaticSwitchNodeDetails.h"
 #include "Customizations/NiagaraFunctionCallNodeDetails.h"
-
+#include "NiagaraNodeFunctionCall.h"
+#include "Engine/Selection.h"
+#include "NiagaraActor.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
 
@@ -489,7 +491,10 @@ void FNiagaraEditorModule::StartupModule()
 
 	UNiagaraSettings::OnSettingsChanged().AddRaw(this, &FNiagaraEditorModule::OnNiagaraSettingsChangedEvent);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FNiagaraEditorModule::OnPreGarbageCollection);
-
+	
+	// Any attempt to use GEditor right now will fail as it hasn't been initialized yet. Waiting for post engine init resolves that.
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FNiagaraEditorModule::OnPostEngineInit);
+	
 	// register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("NiagaraComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraComponentDetails::MakeInstance));
@@ -724,7 +729,12 @@ void FNiagaraEditorModule::ShutdownModule()
 	UNiagaraSettings::OnSettingsChanged().RemoveAll(this);
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
-
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	
+	if (GEditor)
+	{
+		GEditor->OnExecParticleInvoked().RemoveAll(this);
+	}
 	
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
@@ -786,6 +796,20 @@ void FNiagaraEditorModule::ShutdownModule()
 	{
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraEmitter::StaticClass());
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraSystem::StaticClass());
+	}
+}
+
+
+void FNiagaraEditorModule::OnPostEngineInit()
+{
+	// The editor should be valid at this point.. log a warning if not!
+	if (GEditor)
+	{
+		GEditor->OnExecParticleInvoked().AddRaw(this, &FNiagaraEditorModule::OnExecParticleInvoked);
+	}
+	else
+	{
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
 }
 
@@ -944,6 +968,38 @@ void FNiagaraEditorModule::OnPreGarbageCollection()
 	}
 }
 
+void FNiagaraEditorModule::OnExecParticleInvoked(const TCHAR* Str)
+{
+	// Very similar logic to UEditorEngine::Exec_Particle
+	if (FParse::Command(&Str, TEXT("RESET")))
+	{
+		TArray<AEmitter*> EmittersToReset;
+		if (FParse::Command(&Str, TEXT("SELECTED")))
+		{
+			// Reset any selected emitters in the level
+			for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+			{
+				AActor* Actor = static_cast<AActor*>(*It);
+				checkSlow(Actor->IsA(AActor::StaticClass()));
+
+				ANiagaraActor* Emitter = Cast<ANiagaraActor>(Actor);
+				if (Emitter)
+				{
+					Emitter->ResetInLevel();
+				}
+			}
+		}
+		else if (FParse::Command(&Str, TEXT("ALL")))
+		{
+			// Reset ALL emitters in the level
+			for (TObjectIterator<ANiagaraActor> It; It; ++It)
+			{
+				ANiagaraActor* Emitter = *It;
+				Emitter->ResetInLevel();
+			}
+		}
+	}
+}
 PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
