@@ -61,7 +61,9 @@ void UNiagaraStackModuleItemLinkedInputCollection::RefreshChildrenInternal(const
 	{
 		FNiagaraParameterMapHistoryBuilder Builder;
 		Builder.SetIgnoreDisabled(false);
-		Builder.ConstantResolver = FCompileConstantResolver(GetEmitterViewModel()->GetEmitter());
+		Builder.ConstantResolver = GetEmitterViewModel().IsValid() 
+			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter())
+			: FCompileConstantResolver();
 		FunctionCallNode->BuildParameterMapHistory(Builder, false);
 
 		if (ensureMsgf(Builder.Histories.Num() == 1, TEXT("Invalid Stack Graph - Function call node has invalid history count!")))

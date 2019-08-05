@@ -440,7 +440,7 @@ void FNiagaraStackGraphUtilities::ConnectStackNodeGroup(const FStackNodeGroup& C
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FInputSelector, UNiagaraStackFunctionInput*);
 
-void InitializeStackFunctionInputsInternal(TSharedRef<FNiagaraSystemViewModel> SystemViewModel, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, UNiagaraStackEditorData& StackEditorData, UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& InputFunctionCallNode, FInputSelector InputSelector)
+void InitializeStackFunctionInputsInternal(TSharedRef<FNiagaraSystemViewModel> SystemViewModel, TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel, UNiagaraStackEditorData& StackEditorData, UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& InputFunctionCallNode, FInputSelector InputSelector)
 {
 	UNiagaraStackFunctionInputCollection* FunctionInputCollection = NewObject<UNiagaraStackFunctionInputCollection>(GetTransientPackage()); 
 	UNiagaraStackEntry::FRequiredEntryData RequiredEntryData(SystemViewModel, EmitterViewModel, NAME_None, NAME_None, StackEditorData);
@@ -472,12 +472,12 @@ void InitializeStackFunctionInputsInternal(TSharedRef<FNiagaraSystemViewModel> S
 	SystemViewModel->NotifyDataObjectChanged(nullptr);
 }
 
-void FNiagaraStackGraphUtilities::InitializeStackFunctionInputs(TSharedRef<FNiagaraSystemViewModel> SystemViewModel, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, UNiagaraStackEditorData& StackEditorData, UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& InputFunctionCallNode)
+void FNiagaraStackGraphUtilities::InitializeStackFunctionInputs(TSharedRef<FNiagaraSystemViewModel> SystemViewModel, TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel, UNiagaraStackEditorData& StackEditorData, UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& InputFunctionCallNode)
 {
 	InitializeStackFunctionInputsInternal(SystemViewModel, EmitterViewModel, StackEditorData, ModuleNode, InputFunctionCallNode, FInputSelector());
 }
 
-void FNiagaraStackGraphUtilities::InitializeStackFunctionInput(TSharedRef<FNiagaraSystemViewModel> SystemViewModel, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, UNiagaraStackEditorData& StackEditorData, UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& InputFunctionCallNode, FName InputName)
+void FNiagaraStackGraphUtilities::InitializeStackFunctionInput(TSharedRef<FNiagaraSystemViewModel> SystemViewModel, TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel, UNiagaraStackEditorData& StackEditorData, UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& InputFunctionCallNode, FName InputName)
 {
 	FInputSelector InputSelector;
 	InputSelector.BindLambda([&InputName](UNiagaraStackFunctionInput* Input)
@@ -1650,7 +1650,7 @@ bool FNiagaraStackGraphUtilities::DoesDynamicInputMatchDefault(
 
 void SetInputValue(
 	TSharedRef<FNiagaraSystemViewModel> SystemViewModel,
-	TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel,
+	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel,
 	UNiagaraStackEditorData& StackEditorData,
 	UNiagaraScript& SourceScript,
 	const TArray<TWeakObjectPtr<UNiagaraScript>> AffectedScripts,
@@ -1731,7 +1731,7 @@ void SetInputValue(
 
 void FNiagaraStackGraphUtilities::ResetToDefaultDynamicInput(
 	TSharedRef<FNiagaraSystemViewModel> SystemViewModel,
-	TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel,
+	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel,
 	UNiagaraStackEditorData& StackEditorData,
 	UNiagaraScript& SourceScript,
 	const TArray<TWeakObjectPtr<UNiagaraScript>> AffectedScripts,
