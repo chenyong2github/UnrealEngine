@@ -683,6 +683,7 @@ void FVulkanDynamicRHI::InitInstance()
 
 		// Initialize the RHI capabilities.
 		GRHISupportsFirstInstance = true;
+		GRHISupportsDynamicResolution = FVulkanPlatform::SupportsDynamicResolution();
 		GSupportsDepthBoundsTest = Device->GetPhysicalFeatures().depthBounds != 0;
 		GSupportsRenderTargetFormat_PF_G8 = false;	// #todo-rco
 		GRHISupportsTextureStreaming = true;
