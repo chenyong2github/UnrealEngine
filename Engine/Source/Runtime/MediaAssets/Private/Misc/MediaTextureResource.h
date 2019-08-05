@@ -149,6 +149,13 @@ protected:
 	 */
 	void CreateOutputRenderTarget(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& InSample, const FRenderParams& InParams);
 
+	/**
+	 * Caches next available sample from queue in MediaTexture owner to keep single consumer access
+	 *
+	 * @param InSampleQueue SampleQueue to query sample information from
+	 */
+	void CacheNextAvailableSampleTime(const TSharedPtr<FMediaTextureSampleSource, ESPMode::ThreadSafe>& InSampleQueue) const;
+
 private:
 
 	/**

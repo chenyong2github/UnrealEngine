@@ -42,14 +42,15 @@ FFrameTime UMediaPlayerTimeSynchronizationSource::GetOldestSampleTime() const
 
 	if (MediaTexture && MediaTexture->GetMediaPlayer())
 	{
-		if (MediaTexture->GetAvailableSampleCount() > 0)
-		{
-			// Ideally, the MediaTexture (or more likely, the TMediaSampleQueue) would be able to track
-			// the current span of samples available. However, that's already prone to some threading issues
-			// and trying to manage more data will only exacerbate that.
+		// Ideally, the MediaTexture (or more likely, the TMediaSampleQueue) would be able to track
+		// the current span of samples available. However, that's already prone to some threading issues
+		// and trying to manage more data will only exacerbate that.
 
-			// Therefore, we can only use the next available sample time.
-			UseTimespan = MediaTexture->GetNextSampleTime();
+		// Therefore, we can only use the next available sample time.
+		const FTimespan NextAvailableTime = MediaTexture->GetNextSampleTime();
+		if (NextAvailableTime != FTimespan::MinValue())
+		{
+			UseTimespan = NextAvailableTime;
 		}
 
 		const TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe>& Player = MediaTexture->GetMediaPlayer()->GetPlayerFacade()->GetPlayer();
@@ -81,14 +82,15 @@ FFrameTime UMediaPlayerTimeSynchronizationSource::GetNewestSampleTime() const
 
 	if (MediaTexture && MediaTexture->GetMediaPlayer())
 	{
-		if (MediaTexture->GetAvailableSampleCount() > 0)
-		{
-			// Ideally, the MediaTexture (or more likely, the TMediaSampleQueue) would be able to track
-			// the current span of samples available. However, that's already prone to some threading issues
-			// and trying to manage more data will only exacerbate that.
+		// Ideally, the MediaTexture (or more likely, the TMediaSampleQueue) would be able to track
+		// the current span of samples available. However, that's already prone to some threading issues
+		// and trying to manage more data will only exacerbate that.
 
-			// Therefore, we can only use the next available sample time.
-			UseTimespan = MediaTexture->GetNextSampleTime();
+		// Therefore, we can only use the next available sample time.
+		const FTimespan NextAvailableTime = MediaTexture->GetNextSampleTime();
+		if (NextAvailableTime != FTimespan::MinValue())
+		{
+			UseTimespan = NextAvailableTime;
 		}
 
 		const TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe>& Player = MediaTexture->GetMediaPlayer()->GetPlayerFacade()->GetPlayer();
