@@ -252,6 +252,7 @@ private:
 	FCacheElement* EvictLeastRecentChunk();
 
 	void KickOffAsyncLoad(FCacheElement* CacheElement, const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted);
+	EAsyncIOPriorityAndFlags GetAsyncPriorityForChunk(const FChunkKey& InKey);
 };
 
 // This is used to sort the cache array from smallest chunk size to biggest.
