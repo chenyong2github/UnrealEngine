@@ -496,7 +496,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 
 	}
 
-	UE_LOG(LogNiagaraEditor, Log, TEXT("'%s' Precompile took %f sec."), *InObj->GetOutermost()->GetName(),
+	UE_LOG(LogNiagaraEditor, Verbose, TEXT("'%s' Precompile took %f sec."), *InObj->GetOutermost()->GetName(),
 		(float)(FPlatformTime::Seconds() - StartTime));
 
 	return BasePtr;
