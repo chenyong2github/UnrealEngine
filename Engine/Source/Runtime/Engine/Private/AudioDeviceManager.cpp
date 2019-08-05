@@ -222,9 +222,6 @@ void FAudioDeviceManager::ToggleAudioMixer()
 			{
 				USoundWave* SoundWave = *SoundWaveIt;
 				FreeResource(SoundWave);
-
-				// Flag that the sound wave needs to do a full decompress again
-				SoundWave->DecompressionType = DTYPE_Setup;
 			}
 
 			// Unload the previous audio device module
@@ -860,6 +857,10 @@ void FAudioDeviceManager::FreeResource(USoundWave* SoundWave)
 	{
 		FSoundBuffer* SoundBuffer = WaveBufferMap.FindRef(SoundWave->ResourceID);
 		FreeBufferResource(SoundBuffer);
+
+		// Flag that the sound wave needs to do a full decompress again
+		SoundWave->DecompressionType = DTYPE_Setup;
+		SoundWave->SetPrecacheState(ESoundWavePrecacheState::NotStarted);
 
 		SoundWave->ResourceID = 0;
 	}
