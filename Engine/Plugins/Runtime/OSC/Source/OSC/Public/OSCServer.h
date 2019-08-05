@@ -14,12 +14,14 @@
 
 #include "OSCServer.generated.h"
 
+// Forward Declarations
+class FSocket;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedMessageEvent, const FOSCMessage&, Message);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOSCDispatchMessageEvent, const FOSCAddress&, AddressPattern, const FOSCMessage&, Message);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedBundleEvent, const FOSCBundle&, Bundle);
 
-class FSocket;
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOSCDispatchMessageEventBP, const FOSCAddress&, AddressPattern, const FOSCMessage&, Message);
 
 
 UCLASS(BlueprintType)
@@ -56,11 +58,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Audio|OSC")
 	FOSCReceivedMessageEvent OnOscReceived;
 
-	/** Event that gets called when an OSC message is dispatched
-	  * via passing OSCMethod filter. */
-	UPROPERTY(BlueprintAssignable, Category = "Audio|OSC")
-	FOSCDispatchMessageEvent OnOscDispatched;
-
 	/** Event that gets called when an OSC bundle is received. */
 	UPROPERTY(BlueprintAssignable, Category = "Audio|OSC")
 	FOSCReceivedBundleEvent OnOscBundleReceived;
@@ -85,21 +82,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	TSet<FString> GetWhitelistedClients() const;
 
-	/** Adds OSCAddressPattern to dispatch. */
+	/** Adds event to dispatch when OSCAddressPattern is matched. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	void AddOSCAddressPattern(const FOSCAddress& OSCAddressPattern);
+	void BindEventToOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern, const FOSCDispatchMessageEventBP& Event);
 
-	/** Adds OSCAddressPattern to dispatch. */
+	/** Unbinds specific event from OSCAddress patter */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	void RemoveOSCAddressPattern(const FOSCAddress& OSCAddressPattern);
+	void UnbindEventFromOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern, const FOSCDispatchMessageEventBP& Event);
 
-	/** Returns set of OSCAddressPatterns to dispatch. */
+	/** Removes OSCAddressPattern from sending dispatch events. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	TArray<FOSCAddress> GetOSCAddressPatterns() const;
+	void UnbindAllEventsFromOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern);
 
-	/** Returns set of OSCAddressPatterns to dispatch. */
+	/** Removes all events from OSCAddressPatterns to dispatch. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	void ClearOSCAddressPatterns();
+	void UnbindAllEventsFromOnOSCAddressPatternMatching();
+
+	/** Returns set of OSCAddressPatterns currently listening for matches to dispatch. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	TArray<FOSCAddress> GetBoundOSCAddressPatterns() const;
 
 protected:
 	void BeginDestroy() override;
@@ -131,6 +132,6 @@ protected:
 	/** Whether or not to loopback if address provided is multicast */
 	bool bMulticastLoopback;
 	
-	/** Address patterns to check against when dispatching incoming messages */
-	TMap<uint32, FOSCAddress> AddressPatterns;
+	/** Address pattern hash to  to check against when dispatching incoming messages */
+	TMap<FOSCAddress, FOSCDispatchMessageEvent> AddressPatterns;
 };
