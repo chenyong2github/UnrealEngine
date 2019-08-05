@@ -23,11 +23,14 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformOutputDevices.h"
 #include "Interfaces/IPluginManager.h"
-#include "IVREditorModule.h"
-#include "Kismet2/DebuggerCommands.h"
 #include "Interfaces/IProjectManager.h"
 #include "Misc/EngineVersion.h"
 #include "RHI.h"
+
+#if WITH_EDITOR
+#include "IVREditorModule.h"
+#include "Kismet2/DebuggerCommands.h"
+#endif // WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "SessionManager"
 
@@ -287,6 +290,7 @@ void FEngineSessionManager::Tick(float DeltaTime)
 			}
 #endif
 
+#if WITH_EDITOR
 			extern ENGINE_API float GAverageFPS;
 
 			CurrentSession.AverageFPS = GAverageFPS;
@@ -304,6 +308,7 @@ void FEngineSessionManager::Tick(float DeltaTime)
 			CurrentSession.bIsInPIE = FPlayWorldCommandCallbacks::IsInPIE();
 			const FString IsInPIEString = BoolToStoredString(CurrentSession.bIsInPIE);
 			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::IsInPIEStoreKey, IsInPIEString);
+#endif
 		}
 	}
 }
