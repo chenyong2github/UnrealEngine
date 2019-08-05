@@ -1222,6 +1222,11 @@ private:
 	void AddNewActiveSoundInternal(const FActiveSound& ActiveSound, FAudioVirtualLoop* VirtualLoop);
 
 	/**
+	 * Reports if a sound fails to start when attempting to create a new active sound.
+	 */
+	void ReportSoundFailedToStart(const uint64 AudioComponentID, FAudioVirtualLoop* VirtualLoop);
+
+	/**
 	* Initializes all plugin listeners belonging to this audio device.
 	* Called in the game thread.
 	*
