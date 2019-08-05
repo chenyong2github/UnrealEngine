@@ -1314,6 +1314,13 @@ public:
 	 */
 	void UnregisterInputPreProcessor(TSharedPtr<class IInputProcessor> InputProcessor);
 
+	/**
+	 * Get the index of a registered pre-processor.
+	 * @param InputProcessor	The input pre-processor to find.
+	 * @return The index of the pre-processor, or INDEX_NONE if not registered.
+	 */
+	int32 FindInputPreProcessor(TSharedPtr<class IInputProcessor> InputProcessor) const;
+
 	/** Sets the hit detection radius of the cursor */
 	void SetCursorRadius(float NewRadius);
 
@@ -2186,6 +2193,14 @@ private:
 		 * Remove all registered input pre-processors.
 		 */
 		void RemoveAll();
+
+		/**
+		 * Get the index of an input pre-processor.
+		 * @param InputProcessor	The InputProcessor to find.
+		 * @return The index of the pre-processor, or INDEX_NONE if not registered.
+		 */
+		int32 Find(TSharedPtr<IInputProcessor> InputProcessor) const;
+
 
 	private:
 
