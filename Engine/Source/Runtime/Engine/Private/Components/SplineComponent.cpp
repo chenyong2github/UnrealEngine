@@ -1455,6 +1455,11 @@ float USplineComponent::GetFloatPropertyAtSplinePoint(int32 Index, FName Propert
 	return GetPropertyValueAtSplinePoint<float>(GetSplinePointsMetadata(), Index, PropertyName);
 }
 
+FVector USplineComponent::GetVectorPropertyAtSplinePoint(int32 Index, FName PropertyName) const
+{
+	return GetPropertyValueAtSplinePoint<FVector>(GetSplinePointsMetadata(), Index, PropertyName);
+}
+
 #if !UE_BUILD_SHIPPING
 FPrimitiveSceneProxy* USplineComponent::CreateSceneProxy()
 {
