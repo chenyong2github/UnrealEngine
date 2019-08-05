@@ -6,6 +6,14 @@
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
+namespace 
+{
+	/**
+	 * First element ID, which is assigned to the root element.
+	 */
+	static const int RootElementId = 1000;
+}
+
 //////////// FStructuredArchive::FContainer ////////////
 
 #if DO_GUARD_SLOW

@@ -357,11 +357,6 @@ private:
 #endif
 
 	/**
-	 * First element ID, which is assigned to the root element.
-	 */
-	static const int RootElementId = 1000;
-
-	/**
 	 * The next element id to be assigned
 	 */
 	int NextElementId;
