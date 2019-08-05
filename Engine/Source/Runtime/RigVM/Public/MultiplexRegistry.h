@@ -7,7 +7,7 @@
 
 typedef void (*FMultiplexFunctionPtr)(const TArrayView<FMultiplexArgument>&, FMultiplexStorage**, const TArrayView<void*>&);
 
-struct ANIMATIONCORE_API FMultiplexFunction
+struct RIGVM_API FMultiplexFunction
 {
 	const TCHAR* Name;
 	FMultiplexFunctionPtr FunctionPtr;
@@ -25,7 +25,7 @@ struct ANIMATIONCORE_API FMultiplexFunction
 	}
 };
 
-struct ANIMATIONCORE_API FMultiplexRegistry
+struct RIGVM_API FMultiplexRegistry
 {
 public:
 	static FMultiplexRegistry& Get();

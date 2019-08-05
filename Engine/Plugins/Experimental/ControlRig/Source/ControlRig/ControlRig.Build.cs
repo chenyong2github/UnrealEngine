@@ -21,7 +21,8 @@ namespace UnrealBuildTool.Rules
                     "MovieScene",
                     "MovieSceneTracks",
                     "PropertyPath",
-					"TimeManagement"
+					"TimeManagement",
+                    "RigVM"
                 }
             );
 

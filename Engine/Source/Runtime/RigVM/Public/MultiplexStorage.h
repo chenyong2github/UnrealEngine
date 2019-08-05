@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "MultiplexStorage.generated.h"
 
-struct ANIMATIONCORE_API FMultiplexArgument
+struct RIGVM_API FMultiplexArgument
 {
 public:
 
@@ -52,7 +52,7 @@ enum class EMultiplexAddressType : uint8
 };
 
 USTRUCT()
-struct ANIMATIONCORE_API FMultiplexAddress
+struct RIGVM_API FMultiplexAddress
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -131,7 +131,7 @@ struct ANIMATIONCORE_API FMultiplexAddress
 };
 
 USTRUCT()
-struct ANIMATIONCORE_API FMultiplexStorage
+struct RIGVM_API FMultiplexStorage
 {
 	GENERATED_USTRUCT_BODY()
 	

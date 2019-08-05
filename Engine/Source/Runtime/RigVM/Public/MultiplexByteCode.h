@@ -24,7 +24,7 @@ enum class EMultiplexOpCode : uint8
 	Invalid
 };
 
-struct ANIMATIONCORE_API FMultiplexBaseOp
+struct RIGVM_API FMultiplexBaseOp
 {
 	FMultiplexBaseOp(EMultiplexOpCode InOpCode = EMultiplexOpCode::Invalid)
 	: OpCode(InOpCode)
@@ -34,7 +34,7 @@ struct ANIMATIONCORE_API FMultiplexBaseOp
 	EMultiplexOpCode OpCode;
 };
 
-struct ANIMATIONCORE_API FMultiplexCopyOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexCopyOp : public FMultiplexBaseOp
 {
 	FMultiplexCopyOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Copy)
@@ -69,7 +69,7 @@ struct ANIMATIONCORE_API FMultiplexCopyOp : public FMultiplexBaseOp
 	int32 NumBytes;
 };
 
-struct ANIMATIONCORE_API FMultiplexIncrementOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexIncrementOp : public FMultiplexBaseOp
 {
 	FMultiplexIncrementOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Increment)
@@ -86,7 +86,7 @@ struct ANIMATIONCORE_API FMultiplexIncrementOp : public FMultiplexBaseOp
 	FMultiplexArgument Arg;
 };
 
-struct ANIMATIONCORE_API FMultiplexDecrementOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexDecrementOp : public FMultiplexBaseOp
 {
 	FMultiplexDecrementOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Decrement)
@@ -103,7 +103,7 @@ struct ANIMATIONCORE_API FMultiplexDecrementOp : public FMultiplexBaseOp
 	FMultiplexArgument Arg;
 };
 
-struct ANIMATIONCORE_API FMultiplexEqualsOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexEqualsOp : public FMultiplexBaseOp
 {
 	FMultiplexEqualsOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Equals)
@@ -130,7 +130,7 @@ struct ANIMATIONCORE_API FMultiplexEqualsOp : public FMultiplexBaseOp
 	FMultiplexArgument Result;
 };
 
-struct ANIMATIONCORE_API FMultiplexNotEqualsOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexNotEqualsOp : public FMultiplexBaseOp
 {
 	FMultiplexNotEqualsOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::NotEquals)
@@ -157,7 +157,7 @@ struct ANIMATIONCORE_API FMultiplexNotEqualsOp : public FMultiplexBaseOp
 	FMultiplexArgument Result;
 };
 
-struct ANIMATIONCORE_API FMultiplexJumpOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexJumpOp : public FMultiplexBaseOp
 {
 	FMultiplexJumpOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Jump)
@@ -174,7 +174,7 @@ struct ANIMATIONCORE_API FMultiplexJumpOp : public FMultiplexBaseOp
 	int32 InstructionIndex;
 };
 
-struct ANIMATIONCORE_API FMultiplexJumpIfTrueOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexJumpIfTrueOp : public FMultiplexBaseOp
 {
 	FMultiplexJumpIfTrueOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::JumpIfTrue)
@@ -194,7 +194,7 @@ struct ANIMATIONCORE_API FMultiplexJumpIfTrueOp : public FMultiplexBaseOp
 	FMultiplexArgument Condition;
 };
 
-struct ANIMATIONCORE_API FMultiplexJumpIfFalseOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexJumpIfFalseOp : public FMultiplexBaseOp
 {
 	FMultiplexJumpIfFalseOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::JumpIfFalse)
@@ -214,7 +214,7 @@ struct ANIMATIONCORE_API FMultiplexJumpIfFalseOp : public FMultiplexBaseOp
 	FMultiplexArgument Condition;
 };
 
-struct ANIMATIONCORE_API FMultiplexExecuteOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexExecuteOp : public FMultiplexBaseOp
 {
 	FMultiplexExecuteOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Execute)
@@ -234,7 +234,7 @@ struct ANIMATIONCORE_API FMultiplexExecuteOp : public FMultiplexBaseOp
 	uint16 ArgumentCount;
 };
 
-struct ANIMATIONCORE_API FMultiplexExitOp : public FMultiplexBaseOp
+struct RIGVM_API FMultiplexExitOp : public FMultiplexBaseOp
 {
 	FMultiplexExitOp()
 	: FMultiplexBaseOp(EMultiplexOpCode::Exit)
@@ -243,7 +243,7 @@ struct ANIMATIONCORE_API FMultiplexExitOp : public FMultiplexBaseOp
 };
 
 USTRUCT()
-struct ANIMATIONCORE_API FMultiplexByteCodeTableEntry
+struct RIGVM_API FMultiplexByteCodeTableEntry
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -261,7 +261,7 @@ struct ANIMATIONCORE_API FMultiplexByteCodeTableEntry
 };
 
 USTRUCT()
-struct ANIMATIONCORE_API FMultiplexByteCodeTable
+struct RIGVM_API FMultiplexByteCodeTable
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -286,7 +286,7 @@ private:
 };
 
 USTRUCT()
-struct ANIMATIONCORE_API FMultiplexByteCode
+struct RIGVM_API FMultiplexByteCode
 {
 	GENERATED_USTRUCT_BODY()
 

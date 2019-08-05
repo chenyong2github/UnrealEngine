@@ -9,7 +9,7 @@
 #include "MultiplexVM.generated.h"
 
 UCLASS()
-class ANIMATIONCORE_API UMultiplexVM : public UObject
+class RIGVM_API UMultiplexVM : public UObject
 {
 	GENERATED_BODY()
 
