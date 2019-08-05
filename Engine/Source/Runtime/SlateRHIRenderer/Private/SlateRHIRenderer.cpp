@@ -702,6 +702,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 		{
 			SCOPED_GPU_STAT(RHICmdList, SlateUI);
 			SCOPE_CYCLE_COUNTER(STAT_SlateRenderingRTTime);
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Slate);
 
 			FSlateBatchData& BatchData = WindowElementList.GetBatchData();
 
