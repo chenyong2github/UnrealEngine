@@ -102,7 +102,7 @@ void FIOSErrorReport::FindMostRecentErrorReports(TArray<FString>& ErrorReportPat
 FText FIOSErrorReport::DiagnoseReport() const
 {
 	// Should check if there are local PDBs before doing anything
-	ICrashDebugHelper* CrashDebugHelper = CrashHelperModule ? CrashHelperModule->Get() : nullptr;
+	ICrashDebugHelper* CrashDebugHelper = CrashHelperModule ? CrashHelperModule->GetNew() : nullptr;
 	if (!CrashDebugHelper)
 	{
 		// Not localized: should never be seen
