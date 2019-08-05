@@ -453,6 +453,14 @@ void UUserWidget::PostDuplicate(bool bDuplicateForPIE)
 	
 	if ( bInitializingFromWidgetTree )
 	{
+		// If this is a sub-widget of another UserWidget, default designer flags to match those of the owning widget before initialize.
+		if (UUserWidget* OwningUserWidget = GetTypedOuter<UUserWidget>())
+		{
+#if WITH_EDITOR
+			SetDesignerFlags(OwningUserWidget->GetDesignerFlags());	
+#endif
+			SetPlayerContext(OwningUserWidget->GetPlayerContext());
+		}
 		Initialize();
 	}
 }

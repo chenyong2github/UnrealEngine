@@ -88,7 +88,7 @@ public:
 	 */
 	void ShiftChild(int32 Index, UWidget* Child);
 
-	void SetDesignerFlags(EWidgetDesignFlags NewFlags);
+	virtual void SetDesignerFlags(EWidgetDesignFlags NewFlags) override;
 
 #endif
 
