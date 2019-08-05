@@ -8,21 +8,21 @@
 
 #define LOCTEXT_NAMESPACE "FractureEditorCommands"
 
-FFractureEditorCommands::FFractureEditorCommands() 
+FFractureEditorCommands::FFractureEditorCommands()
 	: TCommands<FFractureEditorCommands>("FractureEditor", LOCTEXT("Fracture", "Fracture"), NAME_None, FFractureEditorStyle::StyleName)
 {
 }
 
 void FFractureEditorCommands::RegisterCommands()
 {
-	
+
 	// Selection Commands
 	UI_COMMAND(SelectAll, "SelectAll", "Selects all Bones in the GeometryCollection", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::A));
 	UI_COMMAND(SelectNone, "SelectNone", "Deselects all Bones in the GeometryCollection", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::D));
-	UI_COMMAND(SelectNeighbors, "SelectNeighbors", "Select Neighbors", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND(SelectSiblings, "SelectSiblings", "Select Siblings", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND(SelectAllInCluster, "SelectAllInCluster", "Select All In Cluster", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND(SelectInvert, "SelectInvert", "Invert The Selection", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(SelectNeighbors, "SelectNeighbors", "Select all bones adjacent to the currently selected bones", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(SelectSiblings, "SelectSiblings", "Select all bones at the same levels as the currently selected bones", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(SelectAllInCluster, "SelectAllInCluster", "Select all bones with the same parent as selected bones", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(SelectInvert, "SelectInvert", "Invert the selected bones", EUserInterfaceActionType::Button, FInputChord() );
 
 	// View settings
 	UI_COMMAND(ToggleShowBoneColors, "ShowBoneColors", "Toggle Show Bone Colors", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::B) );
@@ -32,15 +32,15 @@ void FFractureEditorCommands::RegisterCommands()
 	UI_COMMAND(ExplodeLess, "ExplodeLess", "Explode 10% Less", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::Q) );
 
 	// Cluster Operations
-	UI_COMMAND(Flatten, "Flatten", "Flatten", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(Flatten, "Flatten", "Flattens all bones to level 1", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND(FlattenToLevel, "FlattenToLevel", "Flatten Only up to the Current View Level", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND(AutoCluster, "AutoCluster", "Auto Cluster", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND(Cluster, "Cluster", "Cluster", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(Cluster, "Cluster", "Clusters selected bones under a new parent", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND(Uncluster, "Uncluster", "Uncluster", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND(Merge, "Merge", "Merge", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND(MoveUp, "MoveUp", "Move Bones Up One Level", EUserInterfaceActionType::Button, FInputChord() );
 
-	UI_COMMAND(GenerateAsset, "GenerateAsset", "Generate Geometry Collection Asset", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(GenerateAsset, "GenerateAsset", "Generate Geometry Collection Asset from static meshes contained in selected actors", EUserInterfaceActionType::Button, FInputChord() );
 
 
 	for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
