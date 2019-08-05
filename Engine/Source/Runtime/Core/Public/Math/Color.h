@@ -64,7 +64,7 @@ struct FLinearColor
 	friend void operator<<(FStructuredArchive::FSlot Slot, FLinearColor& Color)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("R", Color.R) << NAMED_ITEM("G", Color.G) << NAMED_ITEM("B", Color.B) << NAMED_ITEM("A", Color.A);
+		Record << SA_VALUE(TEXT("R"), Color.R) << SA_VALUE(TEXT("G"), Color.G) << SA_VALUE(TEXT("B"), Color.B) << SA_VALUE(TEXT("A"), Color.A);
 	}
 
 	bool Serialize(FStructuredArchive::FSlot Slot)

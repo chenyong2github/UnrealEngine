@@ -73,10 +73,10 @@ FArchive& operator<<(FArchive& Ar,FCompressedChunk& Chunk)
 void operator<<(FStructuredArchive::FSlot Slot, FCompressedChunk& Chunk)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << NAMED_ITEM("UncompressedOffset", Chunk.UncompressedOffset);
-	Record << NAMED_ITEM("UncompressedSize", Chunk.UncompressedSize);
-	Record << NAMED_ITEM("CompressedOffset", Chunk.CompressedOffset);
-	Record << NAMED_ITEM("CompressedSize", Chunk.CompressedSize);
+	Record << SA_VALUE(TEXT("UncompressedOffset"), Chunk.UncompressedOffset);
+	Record << SA_VALUE(TEXT("UncompressedSize"), Chunk.UncompressedSize);
+	Record << SA_VALUE(TEXT("CompressedOffset"), Chunk.CompressedOffset);
+	Record << SA_VALUE(TEXT("CompressedSize"), Chunk.CompressedSize);
 }
 
 /*----------------------------------------------------------------------------
@@ -98,7 +98,7 @@ void FGenerationInfo::Serialize(FArchive& Ar, const struct FPackageFileSummary& 
 void FGenerationInfo::Serialize(FStructuredArchive::FSlot Slot, const struct FPackageFileSummary& Summary)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << NAMED_FIELD(ExportCount) << NAMED_FIELD(NameCount);
+	Record << SA_VALUE(TEXT("ExportCount"), ExportCount) << SA_VALUE(TEXT("NameCount"), NameCount);
 }
 
 #if WITH_EDITORONLY_DATA

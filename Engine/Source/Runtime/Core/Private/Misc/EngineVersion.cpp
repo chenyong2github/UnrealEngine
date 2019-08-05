@@ -214,11 +214,11 @@ void operator<<(FArchive &Ar, FEngineVersion &Version)
 void operator<<(FStructuredArchive::FSlot Slot, FEngineVersion &Version)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	Record << NAMED_ITEM("Major", Version.Major);
-	Record << NAMED_ITEM("Minor", Version.Minor);
-	Record << NAMED_ITEM("Patch", Version.Patch);
-	Record << NAMED_ITEM("Changelist", Version.Changelist);
-	Record << NAMED_ITEM("Branch", Version.Branch);
+	Record << SA_VALUE(TEXT("Major"), Version.Major);
+	Record << SA_VALUE(TEXT("Minor"), Version.Minor);
+	Record << SA_VALUE(TEXT("Patch"), Version.Patch);
+	Record << SA_VALUE(TEXT("Changelist"), Version.Changelist);
+	Record << SA_VALUE(TEXT("Branch"), Version.Branch);
 }
 
 

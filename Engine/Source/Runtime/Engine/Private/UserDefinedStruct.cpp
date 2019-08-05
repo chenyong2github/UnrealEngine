@@ -77,7 +77,7 @@ void UUserDefinedStruct::Serialize(FStructuredArchive::FRecord Record)
 			uint8* StructData = DefaultStructInstance.GetStructMemory();
 
 			FScopedPlaceholderRawContainerTracker TrackStruct(StructData);
-			SerializeItem(Record.EnterField(FIELD_NAME_TEXT("Data")), StructData, nullptr);
+			SerializeItem(Record.EnterField(SA_FIELD_NAME(TEXT("Data"))), StructData, nullptr);
 
 			// Now that defaults have been loaded we can inspect our properties
 			// and default values and set the StructFlags accordingly:

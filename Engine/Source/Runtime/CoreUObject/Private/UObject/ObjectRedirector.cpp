@@ -39,7 +39,7 @@ void UObjectRedirector::Serialize( FStructuredArchive::FRecord Record )
 {
 	Super::Serialize(Record);
 
-	Record << NAMED_FIELD(DestinationObject);
+	Record << SA_VALUE(TEXT("DestinationObject"), DestinationObject);
 }
 
 bool UObjectRedirector::NeedsLoadForEditorGame() const

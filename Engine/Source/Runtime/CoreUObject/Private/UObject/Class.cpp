@@ -940,7 +940,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 			FStructuredArchive::FRecord PropertyRecord = PropertiesStream.EnterElement().EnterRecord();
 
 			FPropertyTag Tag;
-			PropertyRecord << NAMED_FIELD(Tag);
+			PropertyRecord << SA_VALUE(TEXT("Tag"), Tag);
 
 			if( Tag.Name == NAME_None )
 			{
@@ -1091,7 +1091,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 			}
 			else
 			{
-				FStructuredArchive::FSlot ValueSlot = PropertyRecord.EnterField(FIELD_NAME_TEXT("Value"));
+				FStructuredArchive::FSlot ValueSlot = PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value")));
 
 				switch (Property->ConvertFromType(Tag, ValueSlot, Data, DefaultsStruct))
 				{
@@ -1181,7 +1181,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 
 						FStructuredArchive::FRecord PropertyRecord = PropertiesStream.EnterElement().EnterRecord();
 
-						PropertyRecord << NAMED_FIELD(Tag);
+						PropertyRecord << SA_VALUE(TEXT("Tag"), Tag);
 
 						// need to know how much data this call to SerializeTaggedProperty consumes, so mark where we are
 						int64 DataOffset = UnderlyingArchive.Tell();
@@ -1194,7 +1194,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 							UnderlyingArchive.ArCustomPropertyList = CustomPropertyNode->SubPropertyList;
 						}
 
-						FStructuredArchive::FSlot PropertyField = PropertyRecord.EnterField(FIELD_NAME_TEXT("Value"));
+						FStructuredArchive::FSlot PropertyField = PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value")));
 						Tag.SerializeTaggedProperty(PropertyField, Property, DataPtr, DefaultValue);
 						if (!PropertyField.IsFilled())
 						{
@@ -1228,7 +1228,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 		}
 
 		static FName Temp(NAME_None);
-		PropertiesStream.EnterElement().EnterRecord().EnterField(FIELD_NAME_TEXT("Tag")).EnterRecord() << NAMED_ITEM("Name", Temp);
+		PropertiesStream.EnterElement().EnterRecord().EnterField(SA_FIELD_NAME(TEXT("Tag"))).EnterRecord() << SA_VALUE(TEXT("Name"), Temp);
 	}
 }
 void UStruct::FinishDestroy()

@@ -284,7 +284,7 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 
 		// Delete any explicitly-removed keys
 		int32 NumKeysToRemove = 0;
-		FStructuredArchive::FArray KeysToRemoveArray = Record.EnterArray(FIELD_NAME_TEXT("KeysToRemove"), NumKeysToRemove);
+		FStructuredArchive::FArray KeysToRemoveArray = Record.EnterArray(SA_FIELD_NAME(TEXT("KeysToRemove")), NumKeysToRemove);
 		if (NumKeysToRemove)
 		{
 			TempKeyStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
@@ -305,7 +305,7 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		}
 
 		int32 NumEntries = 0;
-		FStructuredArchive::FArray EntriesArray = Record.EnterArray(FIELD_NAME_TEXT("Entries"), NumEntries);
+		FStructuredArchive::FArray EntriesArray = Record.EnterArray(SA_FIELD_NAME(TEXT("Entries")), NumEntries);
 
 		// Allocate temporary key space if we haven't allocated it already above
 		if (NumEntries != 0 && !TempKeyStorage)
@@ -322,7 +322,7 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 			// Read key into temporary storage
 			{
 				FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
-				KeyProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Key")), TempKeyStorage);
+				KeyProp->SerializeItem(EntryRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyStorage);
 			}
 
 			void* ValuePtr = MapHelper.FindOrAdd(TempKeyStorage);
@@ -330,7 +330,7 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 			// Deserialize value into hash map-owned memory
 			{
 				FSerializedPropertyScope SerializedProperty(UnderlyingArchive, ValueProp, this);
-				ValueProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Value")), ValuePtr);
+				ValueProp->SerializeItem(EntryRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))), ValuePtr);
 			}
 		}
 	}
@@ -362,7 +362,7 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 
 		// Write out the missing keys
 		int32 MissingKeysNum = Indices.Num();
-		FStructuredArchive::FArray KeysToRemoveArray = Record.EnterArray(FIELD_NAME_TEXT("KeysToRemove"), MissingKeysNum);
+		FStructuredArchive::FArray KeysToRemoveArray = Record.EnterArray(SA_FIELD_NAME(TEXT("KeysToRemove")), MissingKeysNum);
 		{
 			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
 			for (int32 Index : Indices)
@@ -393,7 +393,7 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 
 			// Write out differences from defaults
 			int32 Num = Indices.Num();
-			FStructuredArchive::FArray EntriesArray = Record.EnterArray(FIELD_NAME_TEXT("Entries"), Num);
+			FStructuredArchive::FArray EntriesArray = Record.EnterArray(SA_FIELD_NAME(TEXT("Entries")), Num);
 			for (int32 Index : Indices)
 			{
 				uint8* ValuePairPtr = MapHelper.GetPairPtrWithoutCheck(Index);
@@ -401,18 +401,18 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 
 				{
 					FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
-					KeyProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Key")), ValuePairPtr);
+					KeyProp->SerializeItem(EntryRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), ValuePairPtr);
 				}
 				{
 					FSerializedPropertyScope SerializedProperty(UnderlyingArchive, ValueProp, this);
-					ValueProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Value")), ValuePairPtr + MapLayout.ValueOffset);
+					ValueProp->SerializeItem(EntryRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))), ValuePairPtr + MapLayout.ValueOffset);
 				}
 			}
 		}
 		else
 		{
 			int32 Num = MapHelper.Num();
-			FStructuredArchive::FArray EntriesArray = Record.EnterArray(FIELD_NAME_TEXT("Entries"), Num);
+			FStructuredArchive::FArray EntriesArray = Record.EnterArray(SA_FIELD_NAME(TEXT("Entries")), Num);
 
 			for (int32 Index = 0; Num; ++Index)
 			{
@@ -424,11 +424,11 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 
 					{
 						FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
-						KeyProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Key")), ValuePairPtr);
+						KeyProp->SerializeItem(EntryRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), ValuePairPtr);
 					}
 					{
 						FSerializedPropertyScope SerializedProperty(UnderlyingArchive, ValueProp, this);
-						ValueProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Value")), ValuePairPtr + MapLayout.ValueOffset);
+						ValueProp->SerializeItem(EntryRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))), ValuePairPtr + MapLayout.ValueOffset);
 					}
 
 					--Num;
@@ -970,7 +970,7 @@ EConvertFromTypeResult UMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 			// instance that was being written. Presumably we were constructed from our defaults and must now remove 
 			// any of the elements that were not present when we saved this Map:
 			int32 NumKeysToRemove = 0;
-			FStructuredArchive::FArray KeysToRemoveArray = ValueRecord.EnterArray(FIELD_NAME_TEXT("KeysToRemove"), NumKeysToRemove);
+			FStructuredArchive::FArray KeysToRemoveArray = ValueRecord.EnterArray(SA_FIELD_NAME(TEXT("KeysToRemove")), NumKeysToRemove);
 
 			if( NumKeysToRemove != 0 )
 			{
@@ -1004,7 +1004,7 @@ EConvertFromTypeResult UMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 			}
 
 			int32 NumEntries = 0;
-			FStructuredArchive::FArray EntriesArray = ValueRecord.EnterArray(FIELD_NAME_TEXT("Entries"), NumEntries);
+			FStructuredArchive::FArray EntriesArray = ValueRecord.EnterArray(SA_FIELD_NAME(TEXT("Entries")), NumEntries);
 
 			if( bConversionSucceeded )
 			{
@@ -1018,7 +1018,7 @@ EConvertFromTypeResult UMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 
 					FStructuredArchive::FRecord FirstPropertyRecord = EntriesArray.EnterElement().EnterRecord();
 
-					if( SerializeOrConvert( KeyProp, KeyPropertyTag, FirstPropertyRecord.EnterField(FIELD_NAME_TEXT("Key")), TempKeyStorage, DefaultsStruct ) )
+					if( SerializeOrConvert( KeyProp, KeyPropertyTag, FirstPropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyStorage, DefaultsStruct ) )
 					{
 						// Add a new default value if the key doesn't currently exist in the map
 						bool bKeyAlreadyPresent = true;
@@ -1034,14 +1034,14 @@ EConvertFromTypeResult UMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 						KeyProp->CopyCompleteValue_InContainer(NextPairPtr, TempKeyStorage);
 
 						// Deserialize value
-						if( SerializeOrConvert( ValueProp, ValuePropertyTag, FirstPropertyRecord.EnterField(FIELD_NAME_TEXT("Value")), NextPairPtr, DefaultsStruct ) )
+						if( SerializeOrConvert( ValueProp, ValuePropertyTag, FirstPropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))), NextPairPtr, DefaultsStruct ) )
 						{
 							// first entry went fine, convert the rest:
 							for(int32 I = 1; I < NumEntries; ++I)
 							{
 								FStructuredArchive::FRecord PropertyRecord = EntriesArray.EnterElement().EnterRecord();
 
-								verify( SerializeOrConvert( KeyProp, KeyPropertyTag, PropertyRecord.EnterField(FIELD_NAME_TEXT("Key")), TempKeyStorage, DefaultsStruct ) );
+								verify( SerializeOrConvert( KeyProp, KeyPropertyTag, PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyStorage, DefaultsStruct ) );
 								NextPairIndex = MapHelper.FindMapIndexWithKey(TempKeyStorage);
 								if (NextPairIndex == INDEX_NONE)
 								{
@@ -1051,7 +1051,7 @@ EConvertFromTypeResult UMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 								NextPairPtr = MapHelper.GetPairPtrWithoutCheck(NextPairIndex);
 								// This copy is unnecessary when the key was already in the map:
 								KeyProp->CopyCompleteValue_InContainer(NextPairPtr, TempKeyStorage);
-								verify( SerializeOrConvert( ValueProp, ValuePropertyTag, PropertyRecord.EnterField(FIELD_NAME_TEXT("Value")), NextPairPtr, DefaultsStruct ) );
+								verify( SerializeOrConvert( ValueProp, ValuePropertyTag, PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))), NextPairPtr, DefaultsStruct ) );
 							}
 						}
 						else

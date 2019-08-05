@@ -1282,14 +1282,14 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		// Special info.
 		if ((!UnderlyingArchive.IsLoading() && !UnderlyingArchive.IsSaving() && !UnderlyingArchive.IsObjectReferenceCollector()))
 		{
-			Record << NAMED_FIELD(LoadName);
+			Record << SA_VALUE(TEXT("LoadName"), LoadName);
 			if (!UnderlyingArchive.IsIgnoringOuterRef())
 			{
-				Record << NAMED_FIELD(LoadOuter);
+				Record << SA_VALUE(TEXT("LoadOuter"), LoadOuter);
 			}
 			if (!UnderlyingArchive.IsIgnoringClassRef())
 			{
-				Record << NAMED_FIELD(ObjClass);
+				Record << SA_VALUE(TEXT("ObjClass"), ObjClass);
 			}
 		}
 		// Special support for supporting undo/redo of renaming and changing Archetype.
@@ -1299,7 +1299,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 			{
 				if (UnderlyingArchive.IsLoading())
 				{
-					Record << NAMED_FIELD(LoadName) << NAMED_FIELD(LoadOuter);
+					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter);
 
 					// If the name we loaded is different from the current one,
 					// unhash the object, change the name and hash it again.
@@ -1312,7 +1312,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 				}
 				else
 				{
-					Record << NAMED_FIELD(LoadName) << NAMED_FIELD(LoadOuter);
+					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter);
 				}
 			}
 		}
@@ -1321,7 +1321,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		// Handle derived UClass objects (exact UClass objects are native only and shouldn't be touched)
 		if (ObjClass != UClass::StaticClass())
 		{
-			SerializeScriptProperties(Record.EnterField(FIELD_NAME_TEXT("Properties")));
+			SerializeScriptProperties(Record.EnterField(SA_FIELD_NAME(TEXT("Properties"))));
 		}
 
 		// Keep track of pending kill
@@ -1330,7 +1330,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 			bool WasKill = IsPendingKill();
 			if (UnderlyingArchive.IsLoading())
 			{
-				Record << NAMED_FIELD(WasKill);
+				Record << SA_VALUE(TEXT("WasKill"), WasKill);
 				if (WasKill)
 				{
 					MarkPendingKill();
@@ -1342,7 +1342,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 			}
 			else if (UnderlyingArchive.IsSaving())
 			{
-				Record << NAMED_FIELD(WasKill);
+				Record << SA_VALUE(TEXT("WasKill"), WasKill);
 			}
 		}
 

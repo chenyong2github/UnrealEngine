@@ -61,23 +61,17 @@ template<typename T> FORCEINLINE TNamedAttribute<T> MakeNamedAttribute(FArchiveF
 
 /** Construct a TNamedValue given an ANSI string and value reference. */
 #if WITH_TEXT_ARCHIVE_SUPPORT
-	#define NAMED_ITEM(Name, Value) MakeNamedValue(FArchiveFieldName(TEXT(Name)), Value)
+	#define SA_VALUE(Name, Value) MakeNamedValue(FArchiveFieldName(Name), Value)
 #else
-	#define NAMED_ITEM(Name, Value) MakeNamedValue(FArchiveFieldName(), Value)
+	#define SA_VALUE(Name, Value) MakeNamedValue(FArchiveFieldName(), Value)
 #endif
 
 /** Construct a TNamedValue given an ANSI string and value reference. */
 #if WITH_TEXT_ARCHIVE_SUPPORT
-#define MAKE_NAMED_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(TEXT(Name)), Value)
+	#define SA_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(Name), Value)
 #else
-#define MAKE_NAMED_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(), Value)
+	#define SA_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(), Value)
 #endif
-
-/** Construct a TNamedValue using the name of a field or variable. */
-#define NAMED_FIELD(Field) NAMED_ITEM(#Field, Field)
-
-/** Construct a TNamedAttribute using the name of a field or variable. */
-#define NAMED_ATTRIBUTE(Field) MAKE_NAMED_ATTRIBUTE(#Field, Field)
 
 /** Typedef for which formatter type to support */
 #if WITH_TEXT_ARCHIVE_SUPPORT

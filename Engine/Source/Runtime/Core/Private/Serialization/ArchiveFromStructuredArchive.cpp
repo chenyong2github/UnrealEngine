@@ -151,7 +151,7 @@ FArchive& FArchiveFromStructuredArchiveImpl::operator<<(class UObject*& Value)
 			}
 			else
 			{
-				FStructuredArchive::FStream Stream = Pimpl->Root->EnterStream(FIELD_NAME_TEXT("Objects"));
+				FStructuredArchive::FStream Stream = Pimpl->Root->EnterStream(SA_FIELD_NAME(TEXT("Objects")));
 
 				// We know exactly which stream index we want to load here, but because of the API we need to read through them
 				// in order, consuming the string name until we reach the entry we want and then load it as a uobject reference.
@@ -258,10 +258,10 @@ void FArchiveFromStructuredArchiveImpl::SerializeInternal(FStructuredArchive::FR
 
 	if (Pimpl->bPendingSerialize)
 	{
-		FStructuredArchive::FSlot DataSlot = Record.EnterField(FIELD_NAME_TEXT("Data"));
+		FStructuredArchive::FSlot DataSlot = Record.EnterField(SA_FIELD_NAME(TEXT("Data")));
 		DataSlot.Serialize(Pimpl->Buffer);
 
-		TOptional<FStructuredArchive::FSlot> ObjectsSlot = Record.TryEnterField(FIELD_NAME_TEXT("Objects"), Pimpl->Objects.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> ObjectsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("Objects")), Pimpl->Objects.Num() > 0);
 		if (ObjectsSlot.IsSet())
 		{
 			if (IsLoading())
@@ -286,7 +286,7 @@ void FArchiveFromStructuredArchiveImpl::SerializeInternal(FStructuredArchive::FR
 			}
 		}
 
-		TOptional<FStructuredArchive::FSlot> NamesSlot = Record.TryEnterField(FIELD_NAME_TEXT("Names"), Pimpl->Names.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> NamesSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("Names")), Pimpl->Names.Num() > 0);
 		if (NamesSlot.IsSet())
 		{
 			NamesSlot.GetValue() << Pimpl->Names;

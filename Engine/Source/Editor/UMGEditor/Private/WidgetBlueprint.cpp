@@ -534,8 +534,8 @@ bool FWidgetAnimation_DEPRECATED::SerializeFromMismatchedTag(struct FPropertyTag
 	if(Tag.Type == NAME_StructProperty && Tag.Name == AnimationDataName)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_FIELD(MovieScene);
-		Record << NAMED_FIELD(AnimationBindings);
+		Record << SA_VALUE(TEXT("MovieScene"), MovieScene);
+		Record << SA_VALUE(TEXT("AnimationBindings"), AnimationBindings);
 		return true;
 	}
 

@@ -153,25 +153,25 @@ void FArchiveUObjectFromStructuredArchiveImpl::SerializeInternal(FStructuredArch
 
 	if (bPendingSerialize)
 	{
-		TOptional<FStructuredArchive::FSlot> LazyObjectPtrsSlot = Record.TryEnterField(FIELD_NAME_TEXT("LazyObjectPtrs"), LazyObjectPtrs.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> LazyObjectPtrsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("LazyObjectPtrs")), LazyObjectPtrs.Num() > 0);
 		if (LazyObjectPtrsSlot.IsSet())
 		{
 			LazyObjectPtrsSlot.GetValue() << LazyObjectPtrs;
 		}
 
-		TOptional<FStructuredArchive::FSlot> SoftObjectPtrsSlot = Record.TryEnterField(FIELD_NAME_TEXT("SoftObjectPtrs"), SoftObjectPtrs.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> SoftObjectPtrsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("SoftObjectPtrs")), SoftObjectPtrs.Num() > 0);
 		if (SoftObjectPtrsSlot.IsSet())
 		{
 			SoftObjectPtrsSlot.GetValue() << SoftObjectPtrs;
 		}
 
-		TOptional<FStructuredArchive::FSlot> SoftObjectPathsSlot = Record.TryEnterField(FIELD_NAME_TEXT("SoftObjectPaths"), SoftObjectPaths.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> SoftObjectPathsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("SoftObjectPaths")), SoftObjectPaths.Num() > 0);
 		if (SoftObjectPathsSlot.IsSet())
 		{
 			SoftObjectPathsSlot.GetValue() << SoftObjectPaths;
 		}
 
-		TOptional<FStructuredArchive::FSlot> WeakObjectPtrsSlot = Record.TryEnterField(FIELD_NAME_TEXT("WeakObjectPtrs"), WeakObjectPtrs.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> WeakObjectPtrsSlot = Record.TryEnterField(SA_FIELD_NAME(TEXT("WeakObjectPtrs")), WeakObjectPtrs.Num() > 0);
 		if (WeakObjectPtrsSlot.IsSet())
 		{
 			WeakObjectPtrsSlot.GetValue() << WeakObjectPtrs;

@@ -14,15 +14,13 @@
 		explicit FArchiveFieldName(const TCHAR* InName) : Name(InName){ }
 	};
 
-	#define FIELD_NAME_TEXT(x) FArchiveFieldName(TEXT(x))
-	#define FIELD_NAME(x) FArchiveFieldName(x)
+	#define SA_FIELD_NAME(x) FArchiveFieldName(x)
 #else
 	struct FArchiveFieldName
 	{
 	};
 
-	#define FIELD_NAME_TEXT(x) FArchiveFieldName()
-	#define FIELD_NAME(x) FArchiveFieldName()
+	#define SA_FIELD_NAME(x) FArchiveFieldName()
 #endif
 
 /**

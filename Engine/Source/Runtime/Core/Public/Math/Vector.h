@@ -993,9 +993,9 @@ public:
 		// @warning BulkSerialize: FVector is serialized as memory dump
 		// See TArray::BulkSerialize for detailed description of implied limitations.
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		Record << NAMED_ITEM("X", V.X);
-		Record << NAMED_ITEM("Y", V.Y);
-		Record << NAMED_ITEM("Z", V.Z);
+		Record << SA_VALUE(TEXT("X"), V.X);
+		Record << SA_VALUE(TEXT("Y"), V.Y);
+		Record << SA_VALUE(TEXT("Z"), V.Z);
 	}
 	
 	bool Serialize(FStructuredArchive::FSlot Slot)
