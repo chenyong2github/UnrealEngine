@@ -445,7 +445,7 @@ public:
 	}
 
 	/** Returns the quality settings used by the default audio settings. */
-	static FAudioQualitySettings GetQualityLevelSettings();
+	static const FAudioQualitySettings& GetQualityLevelSettings();
 
 	/**
 	 * Basic initialization of the platform agnostic layer of the audio system
