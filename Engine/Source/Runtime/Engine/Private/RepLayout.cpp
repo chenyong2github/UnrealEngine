@@ -6695,7 +6695,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 					ItemLayoutStart,
 					ItemLayoutEnd,
 					nullptr,
-					FastArrayHelper.GetRawPtr(0),
+					ThisElement,
 					ThisElement,
 					&GuidReferences,
 					bOutHasUnmapped,
