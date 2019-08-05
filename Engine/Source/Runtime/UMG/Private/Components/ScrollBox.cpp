@@ -98,6 +98,8 @@ TSharedRef<SWidget> UScrollBox::RebuildWidget()
 		.ConsumeMouseWheel(ConsumeMouseWheel)
 		.NavigationDestination(NavigationDestination)
 		.NavigationScrollPadding(NavigationScrollPadding)
+		.AnimateWheelScrolling(bAnimateWheelScrolling)
+		.WheelScrollMultiplier(WheelScrollMultiplier)
 		.OnUserScrolled(BIND_UOBJECT_DELEGATE(FOnUserScrolled, SlateHandleUserScrolled));
 
 	for ( UPanelSlot* PanelSlot : Slots )
@@ -126,6 +128,8 @@ void UScrollBox::SynchronizeProperties()
 	MyScrollBox->SetAllowOverscroll(AllowOverscroll ? EAllowOverscroll::Yes : EAllowOverscroll::No);
 	MyScrollBox->SetScrollBarRightClickDragAllowed(bAllowRightClickDragScrolling);
 	MyScrollBox->SetConsumeMouseWheel(ConsumeMouseWheel);
+	MyScrollBox->SetAnimateWheelScrolling(bAnimateWheelScrolling);
+	MyScrollBox->SetWheelScrollMultiplier(WheelScrollMultiplier);
 }
 
 float UScrollBox::GetScrollOffset() const
@@ -328,6 +332,24 @@ void UScrollBox::SetAllowOverscroll(bool NewAllowOverscroll)
 	if (MyScrollBox.IsValid())
 	{
 		MyScrollBox->SetAllowOverscroll(AllowOverscroll ? EAllowOverscroll::Yes : EAllowOverscroll::No);
+	}
+}
+
+void UScrollBox::SetAnimateWheelScrolling(bool bShouldAnimateWheelScrolling)
+{
+	bAnimateWheelScrolling = bShouldAnimateWheelScrolling;
+	if (MyScrollBox)
+	{
+		MyScrollBox->SetAnimateWheelScrolling(bShouldAnimateWheelScrolling);
+	}
+}
+
+void UScrollBox::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
+{
+	WheelScrollMultiplier = NewWheelScrollMultiplier;
+	if (MyScrollBox)
+	{
+		MyScrollBox->SetWheelScrollMultiplier(NewWheelScrollMultiplier);
 	}
 }
 
