@@ -1548,8 +1548,7 @@ void ULevelStreaming::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			GetWorld()->UpdateLevelStreaming();
 		}
-
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, EditorStreamingVolumes))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, EditorStreamingVolumes))
 		{
 			RemoveStreamingVolumeDuplicates();
 
@@ -1573,6 +1572,23 @@ void ULevelStreaming::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			bHasCachedWorldAssetPackageFName = false;
 			bHasCachedLoadedLevelPackageName = false;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, bIsStatic))
+		{
+			if (LoadedLevel)
+			{
+				const ELevelCollectionType NewCollectionType = bIsStatic ? ELevelCollectionType::StaticLevels : ELevelCollectionType::DynamicSourceLevels;
+				FLevelCollection* PreviousCollection = LoadedLevel->GetCachedLevelCollection();
+
+				if (PreviousCollection && PreviousCollection->GetType() != NewCollectionType)
+				{
+					PreviousCollection->RemoveLevel(LoadedLevel);
+
+					UWorld* World = GetWorld();
+					FLevelCollection& LC = World->FindOrAddCollectionByType(NewCollectionType);
+					LC.AddLevel(LoadedLevel);
+				}
+			}
 		}
 	}
 
