@@ -1096,10 +1096,11 @@ void UGeometryCollectionComponent::OnRegister()
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::OnRegister()[%p]"), this,RestCollection );
 	ResetDynamicCollection();
 
- 	FScopedColorEdit ColorEdit(this);
+#if WITH_EDITOR
+	FScopedColorEdit ColorEdit(this);
 	ColorEdit.ResetBoneSelection();
 	ColorEdit.ResetHighlightedBones();
-
+#endif
 	Super::OnRegister();
 }
 
