@@ -18,7 +18,8 @@ namespace AutomationTool
 
 		public override string GetMsBuildExe()
 		{
-			// As of 5.0 mono comes with msbuild which performs better. If that's installed then
+			// As of 5.0 mono comes with msbuild which performs better. If that's installed then we'll
+			// use it, if not then fallback to xbuild and watn
 			if (string.IsNullOrEmpty(CachedMsBuildTool))
 			{
 				bool CanUseMsBuild = false;
