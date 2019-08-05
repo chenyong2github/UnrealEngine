@@ -100,6 +100,8 @@ public:
 		XrGraphicsRequirementsOpenGLKHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR;
 		Requirements.next = nullptr;
+		Requirements.minApiVersionSupported = 0;
+		Requirements.maxApiVersionSupported = 0;
 		XR_ENSURE(xrGetOpenGLGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
 
 		XrVersion RHIVersion = XR_MAKE_VERSION(FOpenGL::GetMajorVersion(), FOpenGL::GetMinorVersion(), 0);
@@ -152,6 +154,8 @@ public:
 		XrGraphicsRequirementsVulkanKHR Requirements;
 		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR;
 		Requirements.next = nullptr;
+		Requirements.minApiVersionSupported = 0;
+		Requirements.maxApiVersionSupported = 0;
 		XR_ENSURE(xrGetVulkanGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
 
 		// The extension uses the OpenXR version format instead of the Vulkan one
