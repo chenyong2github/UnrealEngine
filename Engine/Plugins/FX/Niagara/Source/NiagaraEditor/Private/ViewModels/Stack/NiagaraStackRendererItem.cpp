@@ -136,7 +136,7 @@ FText UNiagaraStackRendererItem::GetDisplayName() const
 {
 	if (RendererProperties != nullptr)
 	{
-		return FText::FromString(RendererProperties->GetClass()->GetName());
+		return RendererProperties->GetClass()->GetDisplayNameText();
 	}
 	else
 	{

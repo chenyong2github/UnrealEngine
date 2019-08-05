@@ -364,7 +364,7 @@ void INiagaraModule::TickWorld(UWorld* World, ELevelTick TickType, float DeltaSe
 }
 
 #if WITH_EDITOR
-const INiagaraMergeManager& INiagaraModule::GetMergeManager()
+const INiagaraMergeManager& INiagaraModule::GetMergeManager() const
 {
 	checkf(MergeManager.IsValid(), TEXT("Merge manager was never registered, or was unregistered."));
 	return *MergeManager.Get();
@@ -383,24 +383,23 @@ void INiagaraModule::UnregisterMergeManager(TSharedRef<INiagaraMergeManager> InM
 	MergeManager.Reset();
 }
 
-UNiagaraScriptSourceBase* INiagaraModule::CreateDefaultScriptSource(UObject* Outer)
+const INiagaraEditorOnlyDataUtilities& INiagaraModule::GetEditorOnlyDataUtilities() const
 {
-	checkf(OnCreateDefaultScriptSourceDelegate.IsBound(), TEXT("Create default script source delegate not bound."));
-	return OnCreateDefaultScriptSourceDelegate.Execute(Outer);
+	checkf(EditorOnlyDataUtilities.IsValid(), TEXT("Editor only data utilities object was never registered, or was unregistered."));
+	return *EditorOnlyDataUtilities.Get();
 }
 
-FDelegateHandle INiagaraModule::RegisterOnCreateDefaultScriptSource(FOnCreateDefaultScriptSource OnCreateDefaultScriptSource)
+void INiagaraModule::RegisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities)
 {
-	checkf(OnCreateDefaultScriptSourceDelegate.IsBound() == false, TEXT("Only one handler is allowed for the OnCreateDefaultScriptSource delegate"));
-	OnCreateDefaultScriptSourceDelegate = OnCreateDefaultScriptSource;
-	return OnCreateDefaultScriptSourceDelegate.GetHandle();
+	checkf(EditorOnlyDataUtilities.IsValid() == false, TEXT("Only one editor only data utilities object can be registered at a time."));
+	EditorOnlyDataUtilities = InEditorOnlyDataUtilities;
 }
 
-void INiagaraModule::UnregisterOnCreateDefaultScriptSource(FDelegateHandle DelegateHandle)
+void INiagaraModule::UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities)
 {
-	checkf(OnCreateDefaultScriptSourceDelegate.IsBound(), TEXT("OnCreateDefaultScriptSource is not registered"));
-	checkf(OnCreateDefaultScriptSourceDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the OnCreateDefaultScriptSource delegate with the handle it was registered with."));
-	OnCreateDefaultScriptSourceDelegate.Unbind();
+	checkf(EditorOnlyDataUtilities.IsValid(), TEXT("Editor only data utilities object is not registered"));
+	checkf(EditorOnlyDataUtilities == InEditorOnlyDataUtilities, TEXT("Can only unregister the editor only data utilities object which was previously registered."));
+	EditorOnlyDataUtilities.Reset();
 }
 
 TSharedPtr<FNiagaraVMExecutableData> INiagaraModule::CompileScript(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions)
