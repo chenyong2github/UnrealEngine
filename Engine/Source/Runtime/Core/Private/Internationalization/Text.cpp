@@ -1462,11 +1462,6 @@ FTextSnapshot::FTextSnapshot(const FText& InText)
 	, LocalHistoryRevision(GetLocalHistoryRevisionForText(InText))
 	, Flags(InText.Flags)
 {
-	if (InText.IsEmpty())
-	{
-		GlobalHistoryRevision = 0;
-		LocalHistoryRevision = 0;
-	}
 }
 
 bool FTextSnapshot::IdenticalTo(const FText& InText) const
