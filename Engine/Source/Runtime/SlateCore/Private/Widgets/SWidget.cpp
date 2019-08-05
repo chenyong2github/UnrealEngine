@@ -1618,7 +1618,13 @@ bool SWidget::CanChildrenBeAccessible() const
 
 bool SWidget::IsChildWidgetCulled(const FSlateRect& MyCullingRect, const FArrangedWidget& ArrangedChild) const
 {
-	QUICK_SCOPE_CYCLE_COUNTER(Slate_IsChildWidgetCulled);
+	// If we've enabled global invalidation it's safe to run the culling logic and just 'stop' drawing
+	// a widget, that widget has to be given an opportunity to paint, as wlel as all its children, the
+	// only correct way is to remove the widget from the tree, or to change the visibility of it.
+	if (GSlateIsOnFastUpdatePath)
+	{
+		return false;
+	}
 
 	// We add some slack fill to the culling rect to deal with the common occurrence
 	// of widgets being larger than their root level widget is.  Happens when nested child widgets
