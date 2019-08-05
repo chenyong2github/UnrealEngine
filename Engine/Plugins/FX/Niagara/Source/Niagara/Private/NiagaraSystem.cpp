@@ -92,8 +92,10 @@ void UNiagaraSystem::PostInitProperties()
 		SystemUpdateScript = NewObject<UNiagaraScript>(this, "SystemUpdateScript", RF_Transactional);
 		SystemUpdateScript->SetUsage(ENiagaraScriptUsage::SystemUpdateScript);
 
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
 		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
+#endif
 	}
 
 	GenerateStatID();
