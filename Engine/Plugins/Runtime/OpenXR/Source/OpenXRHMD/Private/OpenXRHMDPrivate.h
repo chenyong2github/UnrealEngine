@@ -2,17 +2,34 @@
 
 #pragma once
 
-#include "Runtime/Windows/D3D11RHI/Private/D3D11RHIPrivate.h"
-
 #if PLATFORM_WINDOWS
-#define XR_USE_PLATFORM_WIN32
-#define XR_USE_GRAPHICS_API_D3D11
+#define XR_USE_PLATFORM_WIN32		1
+#define XR_USE_GRAPHICS_API_D3D11	1
+#define XR_USE_GRAPHICS_API_D3D12	1
 #endif
 
-#include <openxr/openxr.h>
-#include <openxr/openxr_platform.h>
+#define XR_USE_GRAPHICS_API_OPENGL	1
+#define XR_USE_GRAPHICS_API_VULKAN	1
 
-#define XR_ENSURE(x) ensure(XR_SUCCEEDED(x))
+#include <openxr/openxr.h>
+#include <openxr/openxr_reflection.h>
+
+#define XR_ENUM_CASE_STR(name, val) case name: return TEXT(#name);
+constexpr const TCHAR* xrResultToString(XrResult e)
+{
+	switch (e)
+	{
+		XR_LIST_ENUM_XrResult(XR_ENUM_CASE_STR)
+		default: return TEXT("Unknown");
+	}
+}
+
+inline bool LogXrResult(XrResult Result)
+{
+	return ensureMsgf(XR_SUCCEEDED(Result), TEXT("OpenXR call failed with result %s"), xrResultToString(Result));
+}
+
+#define XR_ENSURE(x) LogXrResult(x)
 
 FORCEINLINE FQuat ToFQuat(XrQuaternionf Quat)
 {

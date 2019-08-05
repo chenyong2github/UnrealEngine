@@ -2,12 +2,11 @@
 
 #include "OpenXRInput.h"
 #include "OpenXRHMD.h"
+#include "OpenXRHMDPrivate.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/InputSettings.h"
 
 #include <openxr/openxr.h>
-
-#define XR_ENSURE(x) ensure(XR_SUCCEEDED(x))
 
 // Hack to prefer emitting MotionController keys for action events
 static bool MatchKeyNamePrefix(const FKey& Key, const TCHAR* Prefix)
@@ -80,12 +79,12 @@ void FOpenXRInputPlugin::StartupModule()
 	}
 }
 
-FOpenXRInputPlugin::FOpenXRAction::FOpenXRAction(XrActionSet InSet, XrActionType InType, const FName& InName)
-	: Set(InSet)
-	, Type(InType)
+FOpenXRInputPlugin::FOpenXRAction::FOpenXRAction(XrActionSet InActionSet, XrActionType InActionType, const FName& InName)
+	: Set(InActionSet)
+	, Type(InActionType)
 	, Name(InName)
 	, ActionKey()
-	, Handle()
+	, Handle(XR_NULL_HANDLE)
 {
 	char ActionName[NAME_SIZE];
 	Name.GetPlainANSIString(ActionName);
@@ -98,25 +97,25 @@ FOpenXRInputPlugin::FOpenXRAction::FOpenXRAction(XrActionSet InSet, XrActionType
 	Info.countSubactionPaths = 0;
 	Info.subactionPaths = nullptr;
 	FCStringAnsi::Strcpy(Info.localizedActionName, XR_MAX_LOCALIZED_ACTION_NAME_SIZE, ActionName);
-	ensure(xrCreateAction(Set, &Info, &Handle) >= XR_SUCCESS);
+	XR_ENSURE(xrCreateAction(Set, &Info, &Handle));
 }
 
 FOpenXRInputPlugin::FOpenXRAction::FOpenXRAction(XrActionSet InSet, const FInputActionKeyMapping& InActionKey)
-	: FOpenXRAction(InSet, XR_INPUT_ACTION_TYPE_BOOLEAN, InActionKey.ActionName)
+	: FOpenXRAction(InSet, XR_ACTION_TYPE_BOOLEAN_INPUT, InActionKey.ActionName)
 {
 	ActionKey = InActionKey.Key.GetFName();
 }
 
 FOpenXRInputPlugin::FOpenXRAction::FOpenXRAction(XrActionSet InSet, const FInputAxisKeyMapping& InAxisKey)
-	: FOpenXRAction(InSet, XR_INPUT_ACTION_TYPE_VECTOR1F, InAxisKey.AxisName)
+	: FOpenXRAction(InSet, XR_ACTION_TYPE_VECTOR2F_INPUT, InAxisKey.AxisName)
 {
 	ActionKey = InAxisKey.Key.GetFName();
 }
 
-FOpenXRInputPlugin::FOpenXRController::FOpenXRController(FOpenXRHMD* HMD, XrActionSet InSet, const char* InName)
-	: Set(InSet)
-	, Pose(XR_NULL_HANDLE)
-	, Vibration(XR_NULL_HANDLE)
+FOpenXRInputPlugin::FOpenXRController::FOpenXRController(FOpenXRHMD* HMD, XrActionSet InActionSet, const char* InName)
+	: ActionSet(InActionSet)
+	, Action(XR_NULL_HANDLE)
+	, VibrationAction(XR_NULL_HANDLE)
 	, DeviceId(-1)
 {
 	XrActionCreateInfo Info;
@@ -125,20 +124,20 @@ FOpenXRInputPlugin::FOpenXRController::FOpenXRController(FOpenXRHMD* HMD, XrActi
 	FCStringAnsi::Strcpy(Info.localizedActionName, XR_MAX_ACTION_NAME_SIZE, InName);
 	FCStringAnsi::Strcat(Info.localizedActionName, XR_MAX_ACTION_NAME_SIZE, " Pose");
 	FilterActionName(Info.localizedActionName, Info.actionName);
-	Info.actionType = XR_INPUT_ACTION_TYPE_POSE;
+	Info.actionType = XR_ACTION_TYPE_POSE_INPUT;
 	Info.countSubactionPaths = 0;
 	Info.subactionPaths = nullptr;
-	XR_ENSURE(xrCreateAction(Set, &Info, &Pose));
+	XR_ENSURE(xrCreateAction(ActionSet, &Info, &Action));
 
 	FCStringAnsi::Strcpy(Info.localizedActionName, XR_MAX_ACTION_NAME_SIZE, InName);
 	FCStringAnsi::Strcat(Info.localizedActionName, XR_MAX_ACTION_NAME_SIZE, " Vibration");
 	FilterActionName(Info.localizedActionName, Info.actionName);
-	Info.actionType = XR_OUTPUT_ACTION_TYPE_VIBRATION;
-	XR_ENSURE(xrCreateAction(Set, &Info, &Vibration));
+	Info.actionType = XR_ACTION_TYPE_VIBRATION_OUTPUT;
+	XR_ENSURE(xrCreateAction(ActionSet, &Info, &VibrationAction));
 
 	if (HMD)
 	{
-		DeviceId = HMD->AddActionDevice(Pose);
+		DeviceId = HMD->AddActionDevice(Action);
 	}
 }
 
@@ -147,14 +146,14 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 	, ActionSets()
 	, Actions()
 	, Controllers()
+	, bActionsBound(false)
 	, MessageHandler(new FGenericApplicationMessageHandler())
 {
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 	check(OpenXRHMD);
 
-	XrSession Session = OpenXRHMD->GetSession();
 	XrInstance Instance = OpenXRHMD->GetInstance();
-	check(Session && Instance);
+	check(Instance);
 
 	XrActionSet ActionSet;
 	XrActionSetCreateInfo SetInfo;
@@ -162,18 +161,18 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 	SetInfo.next = nullptr;
 	FCStringAnsi::Strcpy(SetInfo.actionSetName, XR_MAX_ACTION_SET_NAME_SIZE, "ue4");
 	FCStringAnsi::Strcpy(SetInfo.localizedActionSetName, XR_MAX_ACTION_SET_NAME_SIZE, "Unreal Engine 4");
-	XR_ENSURE(xrCreateActionSet(Session, &SetInfo, &ActionSet));
+	XR_ENSURE(xrCreateActionSet(Instance, &SetInfo, &ActionSet));
 
 	// Controller poses
 	TArray<XrActionSuggestedBinding> Bindings;
 	Controllers.Add(EControllerHand::Left, FOpenXRController(OpenXRHMD, ActionSet, "Left Controller"));
 	Controllers.Add(EControllerHand::Right, FOpenXRController(OpenXRHMD, ActionSet, "Right Controller"));
 
-	Bindings.Add(XrActionSuggestedBinding{ Controllers[EControllerHand::Left].Pose, GetPath(Instance, "/user/hand/left/input/palm") });
-	Bindings.Add(XrActionSuggestedBinding{ Controllers[EControllerHand::Right].Pose, GetPath(Instance, "/user/hand/right/input/palm") });
+	Bindings.Add(XrActionSuggestedBinding{ Controllers[EControllerHand::Left].Action, GetPath(Instance, "/user/hand/left/input/palm") });
+	Bindings.Add(XrActionSuggestedBinding{ Controllers[EControllerHand::Right].Action, GetPath(Instance, "/user/hand/right/input/palm") });
 
-	Bindings.Add(XrActionSuggestedBinding{ Controllers[EControllerHand::Left].Vibration, GetPath(Instance, "/user/hand/left/output/haptic") });
-	Bindings.Add(XrActionSuggestedBinding{ Controllers[EControllerHand::Right].Vibration, GetPath(Instance, "/user/hand/right/output/haptic") });
+	Bindings.Add(XrActionSuggestedBinding{ Controllers[EControllerHand::Left].VibrationAction, GetPath(Instance, "/user/hand/left/output/haptic") });
+	Bindings.Add(XrActionSuggestedBinding{ Controllers[EControllerHand::Right].VibrationAction, GetPath(Instance, "/user/hand/right/output/haptic") });
 
 	InteractionMappings.Add(FGamepadKeyNames::MotionController_Left_Shoulder, GetPath(Instance, "/user/hand/left/input/menu/click"));
 	InteractionMappings.Add(FGamepadKeyNames::MotionController_Left_Trigger, GetPath(Instance, "/user/hand/left/input/trigger"));
@@ -184,7 +183,7 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 	InteractionMappings.Add(FGamepadKeyNames::MotionController_Left_Thumbstick_Y, GetPath(Instance, "/user/hand/left/input/thumbstick/y"));
 	InteractionMappings.Add(FGamepadKeyNames::MotionController_Left_Thumbstick, GetPath(Instance, "/user/hand/left/input/thumbstick/click"));
 	InteractionMappings.Add(FGamepadKeyNames::MotionController_Left_FaceButton1, GetPath(Instance, "/user/hand/left/input/x/click"));
-	InteractionMappings.Add(FGamepadKeyNames::MotionController_Left_FaceButton1, GetPath(Instance, "/user/hand/left/input/y/click"));
+	InteractionMappings.Add(FGamepadKeyNames::MotionController_Left_FaceButton2, GetPath(Instance, "/user/hand/left/input/y/click"));
 
 	InteractionMappings.Add(FGamepadKeyNames::MotionController_Right_Shoulder, GetPath(Instance, "/user/hand/right/input/menu/click"));
 	InteractionMappings.Add(FGamepadKeyNames::MotionController_Right_Trigger, GetPath(Instance, "/user/hand/right/input/trigger"));
@@ -242,12 +241,10 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 		InteractionProfile.interactionProfile = Profile;
 		InteractionProfile.countSuggestedBindings = Bindings.Num();
 		InteractionProfile.suggestedBindings = Bindings.GetData();
-		XR_ENSURE(xrSetInteractionProfileSuggestedBindings(Session, &InteractionProfile));
+		XR_ENSURE(xrSuggestInteractionProfileBindings(Instance, &InteractionProfile));
 	}
 
 	XrActiveActionSet ActiveSet;
-	ActiveSet.type = XR_TYPE_ACTIVE_ACTION_SET;
-	ActiveSet.next = nullptr;
 	ActiveSet.actionSet = ActionSet;
 	ActiveSet.subactionPath = XR_NULL_PATH;
 	ActionSets.Add(ActiveSet);
@@ -301,10 +298,38 @@ void FOpenXRInputPlugin::FOpenXRInput::AddAction(XrActionSet ActionSet, const TA
 
 void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 {
-	if (OpenXRHMD->IsRunning())
+	if (OpenXRHMD->IsRunning() && OpenXRHMD->IsRendering())
 	{
-		XR_ENSURE(xrSyncActionData(OpenXRHMD->GetSession(), ActionSets.Num(), ActionSets.GetData()));
+		XrSession Session = OpenXRHMD->GetSession();
+		if (!bActionsBound)
+		{
+			TArray<XrActionSet> BindActionSets;
+			for (auto && BindActionSet : ActionSets)
+				BindActionSets.Add(BindActionSet.actionSet);
+
+			XrSessionActionSetsAttachInfo SessionActionSetsAttachInfo;
+			SessionActionSetsAttachInfo.type = XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO;
+			SessionActionSetsAttachInfo.next = nullptr;
+			SessionActionSetsAttachInfo.countActionSets = BindActionSets.Num();
+			SessionActionSetsAttachInfo.actionSets = BindActionSets.GetData();
+			xrAttachSessionActionSets(Session, &SessionActionSetsAttachInfo);
+
+			bActionsBound = true;
+		}
+
+		XrActionsSyncInfo SyncInfo;
+		SyncInfo.type = XR_TYPE_ACTIONS_SYNC_INFO;
+		SyncInfo.next = nullptr;
+		SyncInfo.countActiveActionSets = ActionSets.Num();
+		SyncInfo.activeActionSets = ActionSets.GetData();
+ 		XR_ENSURE(xrSyncActions(Session, &SyncInfo));
 	}
+	else if (bActionsBound && !OpenXRHMD->IsRunning())
+	{
+		// If the session shut down, clean up.
+		bActionsBound = false;
+	}
+
 }
 
 void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
@@ -314,16 +339,24 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 		return;
 	}
 
+	XrSession Session = OpenXRHMD->GetSession();
+
 	for (auto& Action : Actions)
 	{
+		XrActionStateGetInfo GetInfo;
+		GetInfo.type = XR_TYPE_ACTION_STATE_GET_INFO;
+		GetInfo.next = nullptr;
+		GetInfo.subactionPath = XR_NULL_PATH;
+		GetInfo.action = Action.Handle;
+
 		switch (Action.Type)
 		{
-		case XR_INPUT_ACTION_TYPE_BOOLEAN:
+		case XR_ACTION_TYPE_BOOLEAN_INPUT:
 		{
 			XrActionStateBoolean State;
 			State.type = XR_TYPE_ACTION_STATE_BOOLEAN;
 			State.next = nullptr;
-			XrResult Result = xrGetActionStateBoolean(Action.Handle, 0, XR_NULL_PATH, &State);
+			XrResult Result = xrGetActionStateBoolean(Session, &GetInfo, &State);
 
 			if (Result >= XR_SUCCESS && State.changedSinceLastSync)
 			{
@@ -338,12 +371,12 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 			}
 		}
 		break;
-		case XR_INPUT_ACTION_TYPE_VECTOR1F:
+		case XR_ACTION_TYPE_FLOAT_INPUT:
 		{
-			XrActionStateVector1f State;
-			State.type = XR_TYPE_ACTION_STATE_VECTOR1F;
+			XrActionStateFloat State;
+			State.type = XR_TYPE_ACTION_STATE_FLOAT;
 			State.next = nullptr;
-			XrResult Result = xrGetActionStateVector1f(Action.Handle, 0, XR_NULL_PATH, &State);
+			XrResult Result = xrGetActionStateFloat(Session, &GetInfo, &State);
 			if (Result >= XR_SUCCESS && State.changedSinceLastSync)
 			{
 				MessageHandler->OnControllerAnalog(Action.ActionKey, 0, State.currentState);
@@ -428,35 +461,47 @@ ETrackingStatus FOpenXRInputPlugin::FOpenXRInput::GetControllerTrackingStatus(co
 // TODO: Refactor API to change the Hand type to EControllerHand
 void FOpenXRInputPlugin::FOpenXRInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values)
 {
-	XrHapticVibration hapticValue;
-	hapticValue.type = XR_TYPE_HAPTIC_VIBRATION;
-	hapticValue.next = nullptr;
-	hapticValue.duration = MaxFeedbackDuration;
-	hapticValue.frequency = Values.Frequency;
-	hapticValue.amplitude = Values.Amplitude;
+	XrSession Session = OpenXRHMD->GetSession();
+
+	XrHapticVibration HapticValue;
+	HapticValue.type = XR_TYPE_HAPTIC_VIBRATION;
+	HapticValue.next = nullptr;
+	HapticValue.duration = MaxFeedbackDuration;
+	HapticValue.frequency = Values.Frequency;
+	HapticValue.amplitude = Values.Amplitude;
 
 	if (ControllerId == 0)
 	{
 		if (Hand == (int32)EControllerHand::Left || Hand == (int32)EControllerHand::AnyHand)
 		{
+			XrHapticActionInfo HapticActionInfo;
+			HapticActionInfo.type = XR_TYPE_HAPTIC_ACTION_INFO;
+			HapticActionInfo.next = nullptr;
+			HapticActionInfo.subactionPath = XR_NULL_PATH;
+			HapticActionInfo.action = Controllers[EControllerHand::Left].VibrationAction;
 			if (Values.Amplitude <= 0.0f || Values.Frequency < XR_FREQUENCY_UNSPECIFIED)
 			{
-				XR_ENSURE(xrStopHapticFeedback(Controllers[EControllerHand::Left].Vibration, 0, nullptr));
+				XR_ENSURE(xrStopHapticFeedback(Session, &HapticActionInfo));
 			}
 			else
 			{
-				XR_ENSURE(xrApplyHapticFeedback(Controllers[EControllerHand::Left].Vibration, 0, nullptr, (XrHapticBaseHeader*)&hapticValue));
+				XR_ENSURE(xrApplyHapticFeedback(Session, &HapticActionInfo, (const XrHapticBaseHeader*)&HapticValue));
 			}
 		}
 		if (Hand == (int32)EControllerHand::Right || Hand == (int32)EControllerHand::AnyHand)
 		{
+			XrHapticActionInfo HapticActionInfo;
+			HapticActionInfo.type = XR_TYPE_HAPTIC_ACTION_INFO;
+			HapticActionInfo.next = nullptr;
+			HapticActionInfo.subactionPath = XR_NULL_PATH;
+			HapticActionInfo.action = Controllers[EControllerHand::Right].VibrationAction;
 			if (Values.Amplitude <= 0.0f || Values.Frequency < XR_FREQUENCY_UNSPECIFIED)
 			{
-				XR_ENSURE(xrStopHapticFeedback(Controllers[EControllerHand::Right].Vibration, 0, nullptr));
+				XR_ENSURE(xrStopHapticFeedback(Session, &HapticActionInfo));
 			}
 			else
 			{
-				XR_ENSURE(xrApplyHapticFeedback(Controllers[EControllerHand::Right].Vibration, 0, nullptr, (XrHapticBaseHeader*)&hapticValue));
+				XR_ENSURE(xrApplyHapticFeedback(Session, &HapticActionInfo, (const XrHapticBaseHeader*)&HapticValue));
 			}
 		}
 	}
