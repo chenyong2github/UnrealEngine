@@ -124,6 +124,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/HLODProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Interfaces/Interface_PostProcessVolume.h"
 
 #if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
@@ -7458,6 +7459,34 @@ FPrimaryAssetId UWorld::GetPrimaryAssetId() const
 	}
 
 	return FPrimaryAssetId();
+}
+
+void UWorld::InsertPostProcessVolume(IInterface_PostProcessVolume* InVolume)
+{
+	const int32 NumVolumes = PostProcessVolumes.Num();
+	float TargetPriority = InVolume->GetProperties().Priority;
+	int32 InsertIndex = 0;
+	// TODO: replace with binary search.
+	for (; InsertIndex < NumVolumes; InsertIndex++)
+	{
+		IInterface_PostProcessVolume* CurrentVolume = PostProcessVolumes[InsertIndex];
+		float CurrentPriority = CurrentVolume->GetProperties().Priority;
+
+		if (TargetPriority < CurrentPriority)
+		{
+			break;
+		}
+		if (CurrentVolume == InVolume)
+		{
+			return;
+		}
+	}
+	PostProcessVolumes.Insert(InVolume, InsertIndex);
+}
+
+void UWorld::RemovePostProcessVolume(IInterface_PostProcessVolume* InVolume)
+{
+	PostProcessVolumes.RemoveSingle(InVolume);
 }
 
 /**
