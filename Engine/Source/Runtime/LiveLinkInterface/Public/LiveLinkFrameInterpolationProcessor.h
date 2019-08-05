@@ -22,7 +22,8 @@ class LIVELINKINTERFACE_API ILiveLinkFrameInterpolationProcessorWorker
 {
 public:
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const = 0;
-	virtual void Interpolate(double InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame, int32& OutLastFrameIndexUsed) = 0;
+	virtual void Interpolate(double InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame) = 0;
+	virtual void Interpolate(const FQualifiedFrameTime& InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame) = 0;
 };
 
 

@@ -7,6 +7,7 @@
 
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
+#include "Tickable.h"
 #include "TimeSynchronizationSource.h"
 
 #include "Misc/QualifiedFrameTime.h"
@@ -247,7 +248,7 @@ struct TStructOpsTypeTraits<FTimecodeSynchronizerActiveTimecodedInputSource> : p
  * making sure all sources are ready, determining if sync is possible, etc.
  */
 UCLASS()
-class TIMECODESYNCHRONIZER_API UTimecodeSynchronizer : public UTimecodeProvider
+class TIMECODESYNCHRONIZER_API UTimecodeSynchronizer : public UTimecodeProvider, public FTickableGameObject
 {
 	GENERATED_BODY()
 
@@ -270,6 +271,15 @@ public:
 	virtual bool Initialize(class UEngine* InEngine) override;
 	virtual void Shutdown(class UEngine* InEngine) override;
 	//~ End TimecodeProvider Interface
+
+	//~ Begin FTickableGameObject implementation
+	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; }
+	virtual bool IsTickableWhenPaused() const override { return true; }
+	virtual bool IsTickableInEditor() const override { return true; }
+	virtual bool IsTickable() const override;
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(TimecodeSynchronizer, STATGROUP_Tickables); }
+	//~ End FTickableGameObject
 
 public:
 
@@ -386,9 +396,6 @@ private:
 	/** Registers asset to MediaModule tick */
 	void SetTickEnabled(bool bEnabled);
 
-	/** Tick method of the asset */
-	void Tick();
-
 	/** Switches on current state and ticks it */
 	void Tick_Switch();
 
@@ -473,7 +480,7 @@ public:
 	bool bUsePreRollingTimeout;
 
 	/** How long to wait for all source to be ready */
-	UPROPERTY(EditAnywhere, Category="Synchronization", Meta=(EditCondition="bUsePreRollingTimeout", ClampMin="0.0"))
+	UPROPERTY(EditAnywhere, Category="Synchronization", Meta=(EditCondition="bUsePreRollingTimeout", ClampMin="0.0", ForceUnits=s))
 	float PreRollingTimeout; 
 
 public:
@@ -529,6 +536,8 @@ private:
 	int32 ActualFrameOffset;
 
 private:
+
+	bool bIsTickEnabled;
 
 	int64 LastUpdatedSources = 0;
 

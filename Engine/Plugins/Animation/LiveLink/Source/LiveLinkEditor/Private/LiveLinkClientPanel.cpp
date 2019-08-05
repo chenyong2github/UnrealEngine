@@ -114,7 +114,7 @@ struct FLiveLinkSubjectUIEntry
 
 	bool IsSubjectEnabled() const
 	{
-		return IsSubject() ? Client->IsSubjectEnabled(SubjectKey) : false;
+		return IsSubject() ? Client->IsSubjectEnabled(SubjectKey, true) : false;
 	}
 
 	bool IsSubjectValid() const

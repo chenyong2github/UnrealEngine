@@ -28,10 +28,9 @@ DECLARE_STATS_GROUP(TEXT("Live Link"), STATGROUP_LiveLink, STATCAT_Advanced);
 struct FLiveLinkSubjectTimeSyncData
 {
 	bool bIsValid = false;
-	FGuid SkeletonGuid;
 	FFrameTime OldestSampleTime;
 	FFrameTime NewestSampleTime;
-	FLiveLinkTimeSynchronizationSettings Settings;
+	FFrameRate SampleFrameRate;
 };
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -63,19 +62,11 @@ protected:
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
-class LIVELINK_API FLiveLinkClient : public FLiveLinkClient_Base_DEPRECATED, public FTickableGameObject
+class LIVELINK_API FLiveLinkClient : public FLiveLinkClient_Base_DEPRECATED
 {
 public:
 	FLiveLinkClient();
 	virtual ~FLiveLinkClient();
-
-	//~ Begin FTickableGameObject implementation
-	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
-	virtual bool IsTickableWhenPaused() const override { return true; }
-	virtual bool IsTickableInEditor() const override { return true; }
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(LiveLinkClient, STATGROUP_Tickables); }
-	//~ End FTickableGameObject
 
 	//~ Begin ILiveLinkClient implementation
 	virtual FGuid AddSource(TSharedPtr<ILiveLinkSource> Source) override;
@@ -100,7 +91,7 @@ public:
 
 	virtual bool IsSubjectValid(const FLiveLinkSubjectKey& SubjectKey) const override;
 	virtual bool IsSubjectValid(FLiveLinkSubjectName SubjectName) const override;
-	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey) const override;
+	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bUseSnapshot) const override;
 	virtual bool IsSubjectEnabled(FLiveLinkSubjectName SubjectName) const override;
 	virtual void SetSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bEnabled) override;
 	virtual bool IsSubjectTimeSynchronized(const FLiveLinkSubjectKey& SubjectKey) const override;
@@ -125,6 +116,9 @@ public:
 	virtual bool RegisterForSubjectFrames(FLiveLinkSubjectName SubjectName, const FOnLiveLinkSubjectStaticDataReceived::FDelegate& OnStaticDataReceived, const FOnLiveLinkSubjectFrameDataReceived::FDelegate& OnFrameDataReceived, FDelegateHandle& OutStaticDataReceivedHandle, FDelegateHandle& OutFrameDataReceivedHandle, TSubclassOf<ULiveLinkRole>& OutSubjectRole, FLiveLinkStaticDataStruct* OutStaticData = nullptr) override;
 	virtual void UnregisterSubjectFramesHandle(FLiveLinkSubjectName InSubjectName, FDelegateHandle InStaticDataReceivedHandle, FDelegateHandle InFrameDataReceivedHandle) override;
 	//~ End ILiveLinkClient implementation
+
+	/** The tick callback to update the pending work and clear the subject's snapshot*/
+	void Tick();
 
 	/** Remove the specified source from the live link client */
 	void RemoveSource(FGuid InEntryGuid);
@@ -151,16 +145,6 @@ public:
 
 	FText GetSourceMachineName(FGuid EntryGuid) const;
 	FText GetSourceStatus(FGuid EntryGuid) const;
-
-	/** Called when time synchronization is starting for a subject. */
-	void OnStartSynchronization(FLiveLinkSubjectName SubjectName, const struct FTimeSynchronizationOpenData& OpenData, const int32 FrameOffset);
-
-	/** Called when time synchronization has been established for a subject. */
-	void OnSynchronizationEstablished(FLiveLinkSubjectName SubjectName, const struct FTimeSynchronizationStartData& StartData);
-
-	/** Called when time synchronization has been stopped for a subject. */
-	void OnStopSynchronization(FLiveLinkSubjectName SubjectName);
-
 	UE_DEPRECATED(4.23, "FLiveLinkClient::GetSourceTypeForEntry is deprecated. Please use GetSourceType instead!")
 	FText GetSourceTypeForEntry(FGuid EntryGuid) const { return GetSourceType(EntryGuid); }
 	UE_DEPRECATED(4.23, "FLiveLinkClient::GetMachineNameForEntry is deprecated. Please use GetSourceMachineName instead!")

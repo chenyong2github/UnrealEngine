@@ -167,15 +167,28 @@ public:
 	virtual bool IsSubjectValid(FLiveLinkSubjectName SubjectName) const = 0;
 
 	/**
-	 * Whether or not a subject from the specific source is the enabled subject
-	 * Only 1 subject with the same name can be enabled
+	 * Whether or not a subject from the specific source is the enabled subject.
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
 	 */
-	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey) const = 0;
+	virtual bool IsSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bUseSnaphot) const = 0;
 
-	/** Whether or not the client has a subject with this name enabled */
+	/**
+	 * Whether or not the client has a subject with this name enabled
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
+	 */
 	virtual bool IsSubjectEnabled(FLiveLinkSubjectName SubjectName) const = 0;
 
-	/** Set the subject's from a specific source to enabled, disabling the other in the process, or disabled */
+	/**
+	 * Set the subject's from a specific source to enabled, disabling the other in the process.
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
+	 * SetSubjectEnabled will take effect on the next frame.
+	 */
 	virtual void SetSubjectEnabled(const FLiveLinkSubjectKey& SubjectKey, bool bEnabled) = 0;
 	
 	/** Whether or not the subject's data, from a specific source, is time synchronized or not */
@@ -195,31 +208,33 @@ public:
 
 	/** Whether a subject support a particular role, either directly or through a translator */
 	virtual bool DoesSubjectSupportsRole(const FLiveLinkSubjectKey& SubjectKey, TSubclassOf<ULiveLinkRole> SupportedRole) const = 0;
-	
+
 	/**
 	 * Return the evaluated subject snapshot for a specific role.
-	 * A subject could have to go through a translator to output in the desired role.
+	 * The subject may go through a translator to get the desired role's frame data.
+	 * @return True if the snapshot is valid.
 	 * @note This will always return the same value for a specific frame.
+	 * @see ULiveLinkSourceSettings
 	 */
 	virtual bool EvaluateFrame_AnyThread(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> Role, FLiveLinkSubjectFrameData& OutFrame) = 0;
 
 	/**
 	 * Evaluates a subject for a specific role.
-	 * A subject could have to go through a translator to output in the desired role.
-	 * If it's a virtual subject EvaluateFrame_AnyThread will be return instead.
-	 * The source and subject configurations will affect which frame will be returned.
+	 * The subject may go through a translator to get the desired role's frame data.
+	 * If it's a virtual subject EvaluateFrame_AnyThread will be used instead.
+	 * @return True if a frame data was calculated.
 	 * @note This value is not cached.
-	 * @see ULiveLinkSourceSettings, ULiveLinkSubject
+	 * @see ULiveLinkSourceSettings
 	 */
 	virtual bool EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName SubjectName, double WorldTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
 
 	/**
 	 * Evaluates a subject for a specific role at a Timecode.
-	 * A subject could have to go through a translator to output in the desired role.
-	 * If it's a virtual subject EvaluateFrame_AnyThread will be return instead.
-	 * The source and subject configuration will affect the result.
+	 * The subject may go through a translator to get the desired role's frame data.
+	 * If it's a virtual subject EvaluateFrame_AnyThread will be used instead.
+	 * @return True if a frame data was calculated.
 	 * @note This value is not cached.
-	 * @see ULiveLinkSourceSettings, ULiveLinkSubject
+	 * @see ULiveLinkSourceSettings
 	 */
 	virtual bool EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName SubjectName, const FTimecode& SceneTime, TSubclassOf<ULiveLinkRole> DesiredRole, FLiveLinkSubjectFrameData& OutFrame) = 0;
 

@@ -51,6 +51,59 @@ namespace LiveLinkAnimationBlendingUtil
 
 		Blend(PreFrame.Transforms, PostFrame.Transforms, BlendedFrame->Transforms, BlendWeight);
 	}
+
+	template<class TTimeType>
+	void Interpolate(TTimeType InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame, bool bInInterpolatePropertyValues)
+	{
+		//Validate inputs
+		check(InStaticData.Cast<FLiveLinkSkeletonStaticData>());
+
+		int32 FrameDataIndexA = INDEX_NONE;
+		int32 FrameDataIndexB = INDEX_NONE;
+		if (ULiveLinkAnimationFrameInterpolateProcessor::FLiveLinkAnimationFrameInterpolateProcessorWorker::FindInterpolateIndex(InTime, InSourceFrames, FrameDataIndexA, FrameDataIndexB))
+		{
+			if (FrameDataIndexA == FrameDataIndexB)
+			{
+				// Copy over the frame directly
+				OutBlendedFrame.FrameData.InitializeWith(InSourceFrames[FrameDataIndexA]);
+			}
+			else
+			{
+				//Initialize the output frame for animation. It will be filled during blended values copied
+				OutBlendedFrame.FrameData.InitializeWith(FLiveLinkAnimationFrameData::StaticStruct(), nullptr);
+
+				const FLiveLinkFrameDataStruct& FrameDataA = InSourceFrames[FrameDataIndexA];
+				const FLiveLinkFrameDataStruct& FrameDataB = InSourceFrames[FrameDataIndexB];
+
+				const double BlendWeight = ULiveLinkAnimationFrameInterpolateProcessor::FLiveLinkAnimationFrameInterpolateProcessorWorker::GetBlendFactor(InTime, FrameDataA, FrameDataB);
+				if (FMath::IsNearlyZero(BlendWeight))
+				{
+					OutBlendedFrame.FrameData.InitializeWith(FrameDataA);
+				}
+				else if (FMath::IsNearlyEqual(1.0, BlendWeight))
+				{
+					OutBlendedFrame.FrameData.InitializeWith(FrameDataB);
+				}
+				else
+				{
+					const FLiveLinkAnimationFrameData* AnimationFrameDataPtrA = FrameDataA.Cast<FLiveLinkAnimationFrameData>();
+					const FLiveLinkAnimationFrameData* AnimationFrameDataPtrB = FrameDataB.Cast<FLiveLinkAnimationFrameData>();
+					const FLiveLinkAnimationFrameData* AnimationFrameDataPtrOutput = OutBlendedFrame.FrameData.Cast<FLiveLinkAnimationFrameData>();
+					check(AnimationFrameDataPtrA && AnimationFrameDataPtrB && AnimationFrameDataPtrOutput);
+
+					ULiveLinkAnimationFrameInterpolateProcessor::FLiveLinkAnimationFrameInterpolateProcessorWorker::FGenericInterpolateOptions InterpolationOptions;
+					InterpolationOptions.bCopyClosestFrame = false; // Do not copy all the Transforms
+					InterpolationOptions.bInterpolateInterpProperties = bInInterpolatePropertyValues;
+					ULiveLinkAnimationFrameInterpolateProcessor::FLiveLinkAnimationFrameInterpolateProcessorWorker::GenericInterpolate(BlendWeight, InterpolationOptions, FrameDataA, FrameDataB, OutBlendedFrame.FrameData);
+					LiveLinkAnimationBlendingUtil::CopyFrameDataBlended(*AnimationFrameDataPtrA, *AnimationFrameDataPtrB, BlendWeight, OutBlendedFrame);
+				}
+			}
+		}
+		else if (InSourceFrames.Num())
+		{
+			OutBlendedFrame.FrameData.InitializeWith(InSourceFrames[0].GetStruct(), InSourceFrames[0].GetBaseData());
+		}
+	}
 }
 
 
@@ -106,50 +159,14 @@ TSubclassOf<ULiveLinkRole> ULiveLinkAnimationFrameInterpolateProcessor::FLiveLin
 	return ULiveLinkAnimationRole::StaticClass();
 }
 
-void ULiveLinkAnimationFrameInterpolateProcessor::FLiveLinkAnimationFrameInterpolateProcessorWorker::Interpolate(double InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame, int32& OutLastFrameIndexUsed)
+void ULiveLinkAnimationFrameInterpolateProcessor::FLiveLinkAnimationFrameInterpolateProcessorWorker::Interpolate(double InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame)
 {
-	//Validate inputs
-	check(InStaticData.Cast<FLiveLinkSkeletonStaticData>());
+	LiveLinkAnimationBlendingUtil::Interpolate(InTime, InStaticData, InSourceFrames, OutBlendedFrame, bInterpolatePropertyValues);
+}
 
-	int32 FrameDataIndexA = INDEX_NONE;
-	int32 FrameDataIndexB = INDEX_NONE;
-	if (FindInterpolateIndex(InTime, InSourceFrames, FrameDataIndexA, FrameDataIndexB))
-	{
-		if (FrameDataIndexA == FrameDataIndexB)
-		{
-			OutLastFrameIndexUsed = FrameDataIndexA;
-			// Copy over the frame directly
-			OutBlendedFrame.FrameData.InitializeWith(InSourceFrames[FrameDataIndexA]);
-		}
-		else
-		{
-			OutLastFrameIndexUsed = FrameDataIndexA;
-
-			//Initialize the output frame for animation. It will be filled during blended values copied
-			OutBlendedFrame.FrameData.InitializeWith(FLiveLinkAnimationFrameData::StaticStruct(), nullptr);
-
-			const FLiveLinkFrameDataStruct& FrameDataA = InSourceFrames[FrameDataIndexA];
-			const FLiveLinkFrameDataStruct& FrameDataB = InSourceFrames[FrameDataIndexB];
-
-			const FLiveLinkAnimationFrameData* AnimationFrameDataPtrA = FrameDataA.Cast<FLiveLinkAnimationFrameData>();
-			const FLiveLinkAnimationFrameData* AnimationFrameDataPtrB = FrameDataB.Cast<FLiveLinkAnimationFrameData>();
-			const FLiveLinkAnimationFrameData* AnimationFrameDataPtrOutput = OutBlendedFrame.FrameData.Cast<FLiveLinkAnimationFrameData>();
-			check(AnimationFrameDataPtrA && AnimationFrameDataPtrB && AnimationFrameDataPtrOutput);
-
-			const double BlendWeight = GetBlendFactor(InTime, FrameDataA, FrameDataB);
-
-			FGenericInterpolateOptions InterpolationOptions;
-			InterpolationOptions.bCopyClosestFrame = false; // Do not copy all the Transforms
-			InterpolationOptions.bInterpolateInterpProperties = bInterpolatePropertyValues;
-			GenericInterpolate(BlendWeight, InterpolationOptions, FrameDataA, FrameDataB, OutBlendedFrame.FrameData);
-			LiveLinkAnimationBlendingUtil::CopyFrameDataBlended(*AnimationFrameDataPtrA, *AnimationFrameDataPtrB, BlendWeight, OutBlendedFrame);
-		}
-	}
-	else if (InSourceFrames.Num())
-	{
-		OutLastFrameIndexUsed = 0;
-		OutBlendedFrame.FrameData.InitializeWith(InSourceFrames[0].GetStruct(), InSourceFrames[0].GetBaseData());
-	}
+void ULiveLinkAnimationFrameInterpolateProcessor::FLiveLinkAnimationFrameInterpolateProcessorWorker::Interpolate(const FQualifiedFrameTime& InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame)
+{
+	LiveLinkAnimationBlendingUtil::Interpolate(InTime, InStaticData, InSourceFrames, OutBlendedFrame, bInterpolatePropertyValues);
 }
 
 
