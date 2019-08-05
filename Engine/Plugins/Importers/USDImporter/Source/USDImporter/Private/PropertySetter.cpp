@@ -99,6 +99,11 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 
 void FUSDPropertySetter::ApplyPropertiesToActor(AActor* SpawnedActor, const pxr::UsdPrim& Prim, const FString& StartingPropertyPath)
 {
+	if ( !SpawnedActor )
+	{
+		return;
+	}
+
 	ApplyPropertiesFromUsdAttributes(Prim, SpawnedActor, StartingPropertyPath);
 
 	// find prims that represent complicated properties 
