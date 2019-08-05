@@ -233,6 +233,11 @@ FText UK2Node_GetSequenceBinding::GetTooltipText() const
 	return LOCTEXT("NodeTooltip", "Access an identifier for any object binding within a sequence");
 }
 
+FText UK2Node_GetSequenceBinding::GetMenuCategory() const
+{
+	return LOCTEXT("NodeCategory", "Sequence");
+}
+
 FSlateIcon UK2Node_GetSequenceBinding::GetIconAndTint(FLinearColor& OutColor) const
 {
 	static FSlateIcon Icon("EditorStyle", "GraphEditor.GetSequenceBinding");
