@@ -26,7 +26,7 @@ enum class EControllerType : uint8
 
 /** Directions the trackpad can be swiped to */
 UENUM( BlueprintType )
-enum ETouchSwipeDirection
+enum class ETouchSwipeDirection : uint8
 {
 	None = 0,
 	Left = 1,

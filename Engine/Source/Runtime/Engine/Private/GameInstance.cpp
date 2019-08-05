@@ -321,7 +321,7 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 
 		if (EditorEngine->Browse(*WorldContext, FURL(&BaseURL, *URLString, (ETravelType)TRAVEL_Absolute), Error) == EBrowseReturnVal::Pending)
 		{
-			EditorEngine->TransitionType = TT_WaitingToConnect;
+			EditorEngine->TransitionType = ETransitionType::WaitingToConnect;
 		}
 		else
 		{
