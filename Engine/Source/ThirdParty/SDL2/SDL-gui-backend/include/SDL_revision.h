@@ -1,7 +1,7 @@
 /* EG BEGIN */
 #ifdef SDL_WITH_EPIC_EXTENSIONS
-#define SDL_REVISION "hg-12121:4358e537000a with EpicExtensions"
-#define SDL_REVISION_NUMBER 11184
+#define SDL_REVISION "hg-12952:bc90ce38f1e2"
+#define SDL_REVISION_NUMBER 12952
 #else
 #define SDL_REVISION "hg-0:aaaaaaaaaaah"
 #define SDL_REVISION_NUMBER 0
