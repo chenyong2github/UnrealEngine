@@ -4693,6 +4693,7 @@ bool UCookOnTheFlyServer::GetCookedIniVersionStrings(const ITargetPlatform* Targ
 
 void UCookOnTheFlyServer::OnFConfigCreated(const FConfigFile* Config)
 {
+	FScopeLock Lock(&ConfigFileCS);
 	if (IniSettingRecurse)
 	{
 		return;
@@ -4703,6 +4704,7 @@ void UCookOnTheFlyServer::OnFConfigCreated(const FConfigFile* Config)
 
 void UCookOnTheFlyServer::OnFConfigDeleted(const FConfigFile* Config)
 {
+	FScopeLock Lock(&ConfigFileCS);
 	if (IniSettingRecurse)
 	{
 		return;
