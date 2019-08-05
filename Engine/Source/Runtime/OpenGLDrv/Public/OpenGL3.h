@@ -142,23 +142,23 @@ struct FOpenGL3 : public FOpenGLBase
 		GLenum Access;
 		switch ( LockMode )
 		{
-			case RLM_ReadOnly:
+			case EResourceLockMode::RLM_ReadOnly:
 				Access = GL_MAP_READ_BIT;
 				break;
-			case RLM_WriteOnly:
+			case EResourceLockMode::RLM_WriteOnly:
 				Access = (GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT);
 #if 1
 				// Temp workaround for synchrnoization when a UBO is discarded while being referenced
 				Access |= GL_MAP_UNSYNCHRONIZED_BIT;
 #endif
 				break;
-			case RLM_WriteOnlyUnsynchronized:
+			case EResourceLockMode::RLM_WriteOnlyUnsynchronized:
 				Access = (GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
 				break;
-			case RLM_WriteOnlyPersistent:
+			case EResourceLockMode::RLM_WriteOnlyPersistent:
 				Access = (GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 				break;
-			case RLM_ReadWrite:
+			case EResourceLockMode::RLM_ReadWrite:
 			default:
 				Access = (GL_MAP_READ_BIT | GL_MAP_WRITE_BIT);
 		}

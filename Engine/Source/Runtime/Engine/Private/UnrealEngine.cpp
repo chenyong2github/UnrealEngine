@@ -8846,13 +8846,13 @@ bool UEngine::IsConsoleBuild(EConsoleType ConsoleType) const
 {
 	switch (ConsoleType)
 	{
-	case CONSOLE_Any:
+	case EConsoleType::Any:
 #if !PLATFORM_DESKTOP
 		return true;
 #else
 		return false;
 #endif
-	case CONSOLE_Mobile:
+	case EConsoleType::Mobile:
 		return false;
 	default:
 		UE_LOG(LogEngine, Warning, TEXT("Unknown ConsoleType passed to IsConsoleBuild()"));
@@ -12106,9 +12106,9 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 			}
 		}
 	}
-	else if (TransitionType == TT_WaitingToConnect)
+	else if (TransitionType == ETransitionType::WaitingToConnect)
 	{
-		TransitionType = TT_None;
+		TransitionType = ETransitionType::None;
 	}
 
 	return;
@@ -12214,7 +12214,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 		if(!URL.HasOption(TEXT("quiet")) )
 		{
-			TransitionType = TT_Loading;
+			TransitionType = ETransitionType::Loading;
 			TransitionDescription = URL.Map;
 			if (URL.HasOption(TEXT("Game=")))
 			{
@@ -12233,7 +12233,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				LoadMapRedrawViewports();
 			}
 
-			TransitionType = TT_None;
+			TransitionType = ETransitionType::None;
 		}
 
 		// Clean up networking
@@ -12918,10 +12918,10 @@ void UEngine::LoadPackagesFully(UWorld * InWorld, EFullyLoadPackageType FullyLoa
 void UEngine::UpdateTransitionType(UWorld *CurrentWorld)
 {
 	// Update the transition screen.
-	if(TransitionType == TT_Connecting)
+	if(TransitionType == ETransitionType::Connecting)
 	{
 		// Check to see if all players have finished connecting.
-		TransitionType = TT_None;
+		TransitionType = ETransitionType::None;
 
 		FWorldContext &Context = GetWorldContextFromWorldChecked(CurrentWorld);
 		if (Context.OwningGameInstance != NULL)
@@ -12931,16 +12931,16 @@ void UEngine::UpdateTransitionType(UWorld *CurrentWorld)
 				if(!(*It)->PlayerController)
 				{
 					// This player has not received a PlayerController from the server yet, so leave the connecting screen up.
-					TransitionType = TT_Connecting;
+					TransitionType = ETransitionType::Connecting;
 					break;
 				}
 			}
 		}
 	}
-	else if(TransitionType == TT_None || TransitionType == TT_Paused)
+	else if(TransitionType == ETransitionType::None || TransitionType == ETransitionType::Paused)
 	{
 		// Display a paused screen if the game is paused.
-		TransitionType = (CurrentWorld->GetWorldSettings()->GetPauserPlayerState() != NULL) ? TT_Paused : TT_None;
+		TransitionType = (CurrentWorld->GetWorldSettings()->GetPauserPlayerState() != NULL) ? ETransitionType::Paused : ETransitionType::None;
 	}
 }
 
