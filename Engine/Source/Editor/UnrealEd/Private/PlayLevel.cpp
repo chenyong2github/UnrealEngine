@@ -68,7 +68,7 @@
 #include "Slate/SceneViewport.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "ILevelViewport.h"
 #include "BlueprintEditorModule.h"
@@ -109,6 +109,7 @@
 #include "CookerSettings.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayLevel, Log, All);
@@ -408,7 +409,7 @@ void UEditorEngine::EndPlayMap()
 				Object->ClearFlags(RF_Standalone);
 			}
 			// Close any asset editors that are currently editing this object
-			FAssetEditorManager::Get().CloseAllEditorsForAsset(Object);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Object);
 		}
 	}
 
@@ -731,13 +732,13 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 
 	// Construct a list of editors that are active for objects being debugged. We will refresh these when we have cleaned up to ensure no invalid objects exist in them
 	TArray< IBlueprintEditor* > Editors;
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	const UWorld::FBlueprintToDebuggedObjectMap& EditDebugObjectsPre = PlayWorld->GetBlueprintObjectsBeingDebugged();
 	for (UWorld::FBlueprintToDebuggedObjectMap::TConstIterator EditIt(EditDebugObjectsPre); EditIt; ++EditIt)
 	{
 		if (UBlueprint* TargetBP = EditIt.Key().Get())
 		{
-			if(IBlueprintEditor* EachEditor = static_cast<IBlueprintEditor*>(AssetEditorManager.FindEditorForAsset(TargetBP, false)))
+			if(IBlueprintEditor* EachEditor = static_cast<IBlueprintEditor*>(AssetEditorSubsystem->FindEditorForAsset(TargetBP, false)))
 			{
 				Editors.AddUnique( EachEditor );
 			}

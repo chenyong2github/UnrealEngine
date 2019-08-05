@@ -48,9 +48,10 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Engine/HLODProxy.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "HLODOutliner"
 
@@ -2133,7 +2134,7 @@ namespace HLODOutliner
 								GetObjectsWithOuter(HLODPackage, Objects);
 								for(UObject* PackageObject : Objects)
 								{
-									FAssetEditorManager::Get().CloseAllEditorsForAsset(PackageObject);
+									GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(PackageObject);
 								}
 							}
 						}

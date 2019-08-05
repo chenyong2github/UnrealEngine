@@ -130,6 +130,7 @@
 #include "ISerializedRecorder.h"
 #include "Features/IModularFeatures.h"
 #include "SequencerContextMenus.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -5048,9 +5049,9 @@ void FSequencer::SaveCurrentMovieSceneAs()
 
 	if ((SavedAssets[0] != AssetsToSave[0]) && (SavedAssets[0] != nullptr))
 	{
-		FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
-		AssetEditorManager.CloseAllEditorsForAsset(AssetsToSave[0]);
-		AssetEditorManager.OpenEditorForAssets(SavedAssets, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
+		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+		AssetEditorSubsystem->CloseAllEditorsForAsset(AssetsToSave[0]);
+		AssetEditorSubsystem->OpenEditorForAssets(SavedAssets, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
 	}
 }
 
@@ -9144,13 +9145,13 @@ void FSequencer::DiscardChanges()
 		return;
 	}
 
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	UClass* SequenceClass = EditedSequence->GetClass();
 	FString SequencePath = EditedSequence->GetPathName();
 	UPackage* SequencePackage = EditedSequence->GetOutermost();
 
 	// close asset editor
-	AssetEditorManager.CloseAllEditorsForAsset(EditedSequence);
+	AssetEditorSubsystem->CloseAllEditorsForAsset(EditedSequence);
 
 	// collect objects to be unloaded
 	TMap<FString, UObject*> MovedObjects;
@@ -9234,7 +9235,7 @@ void FSequencer::DiscardChanges()
 	TArray<UObject*> AssetsToReopen;
 	AssetsToReopen.Add(ReloadedSequence);
 
-	AssetEditorManager.OpenEditorForAssets(AssetsToReopen, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
+	AssetEditorSubsystem->OpenEditorForAssets(AssetsToReopen, EToolkitMode::Standalone, MyToolkitHost.ToSharedRef());
 }
 
 

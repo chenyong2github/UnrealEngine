@@ -57,7 +57,7 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Editor/Kismet/Public/BlueprintEditorModule.h"
 #include "Editor/Kismet/Public/FindInBlueprintManager.h"
 #include "Toolkits/ToolkitManager.h"
@@ -83,6 +83,7 @@
 #include "Stats/StatsHierarchical.h"
 #include "Classes/EditorStyleSettings.h"
 #include "ToolMenus.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 DECLARE_CYCLE_STAT(TEXT("Compile Blueprint"), EKismetCompilerStats_CompileBlueprint, STATGROUP_KismetCompiler);
 DECLARE_CYCLE_STAT(TEXT("Broadcast Precompile"), EKismetCompilerStats_BroadcastPrecompile, STATGROUP_KismetCompiler);
@@ -324,7 +325,7 @@ void FBlueprintUnloader::UnloadBlueprint(const bool bResetPackage)
 		FKismetEditorUtilities::OnBlueprintUnloaded.Broadcast(UnloadingBp);
 
 		// handled in FBlueprintEditor (from the OnBlueprintUnloaded event)
-// 		IAssetEditorInstance* EditorInst = FAssetEditorManager::Get().FindEditorForAsset(UnloadingBp, /*bFocusIfOpen =*/false);
+// 		IAssetEditorInstance* EditorInst = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(UnloadingBp, /*bFocusIfOpen =*/false);
 // 		if (EditorInst != nullptr)
 // 		{
 // 			EditorInst->CloseWindow();
@@ -718,7 +719,7 @@ UBlueprint* FKismetEditorUtilities::ReloadBlueprint(UBlueprint* StaleBlueprint)
 	FSoftObjectPath BlueprintAssetRef(StaleBlueprint);
 
 	// Need to close the editor now, it won't work once it's been garbage collected during the reload
-	FAssetEditorManager::Get().CloseAllEditorsForAsset(StaleBlueprint);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(StaleBlueprint);
 
 	FBlueprintUnloader Unloader(StaleBlueprint);
 	Unloader.UnloadBlueprint(/*bResetPackage =*/true);
@@ -743,7 +744,7 @@ UBlueprint* FKismetEditorUtilities::ReplaceBlueprint(UBlueprint* Target, UBluepr
 	check(BlueprintPackage != GetTransientPackage());
 	
 	// Need to close the editor now, it won't work once it's been garbage collected during the reload
-	FAssetEditorManager::Get().CloseAllEditorsForAsset(Target);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Target);
 
 	FBlueprintUnloader Unloader(Target);
 	Unloader.UnloadBlueprint(/*bResetPackage =*/false);
@@ -1692,7 +1693,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FName Bluepri
 	if (NewBlueprint)
 	{
 		// Open the editor for the new blueprint
-		FAssetEditorManager::Get().OpenEditorForAsset(NewBlueprint);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBlueprint);
 	}
 	return NewBlueprint;
 }
@@ -1869,7 +1870,7 @@ public:
 			}
 
 			// Open the editor for the new blueprint
-			FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 
 			return Blueprint;
 		}
@@ -2021,7 +2022,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintUsingAsset(UObject* Asset, bo
 			// Open in BP editor if desired
 			if(bOpenInEditor)
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(NewBP);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBP);
 			}
 		}
 
@@ -2073,7 +2074,7 @@ TSharedPtr<class IBlueprintEditor> FKismetEditorUtilities::GetIBlueprintEditorFo
 		if (bOpenEditor)
 		{
 			// @todo toolkit major: Needs world-centric support
-			FAssetEditorManager::Get().OpenEditorForAsset(TargetBP);
+			 GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(TargetBP);
 		}
 
 		TSharedPtr< IToolkit > FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(TargetBP);
@@ -2157,7 +2158,7 @@ void FKismetEditorUtilities::ShowActorReferencesInLevelScript(const AActor* Acto
 		if (LSB != NULL)
 		{
 			// @todo toolkit major: Needs world-centric support.  Other spots, too?
-			FAssetEditorManager::Get().OpenEditorForAsset(LSB);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LSB);
 			TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(LSB);
 			if (FoundAssetEditor.IsValid())
 			{

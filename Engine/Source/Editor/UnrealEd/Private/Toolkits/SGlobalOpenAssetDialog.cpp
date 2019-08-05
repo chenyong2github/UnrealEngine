@@ -9,7 +9,8 @@
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "Toolkits/AssetEditorManager.h"
+
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SGlobalOpenAssetDialog"
 
@@ -63,7 +64,7 @@ void SGlobalOpenAssetDialog::OnAssetSelectedFromPicker(const FAssetData& AssetDa
 {
 	if (UObject* ObjectToEdit = AssetData.GetAsset())
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(ObjectToEdit);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
 	}
 }
 
@@ -73,7 +74,7 @@ void SGlobalOpenAssetDialog::OnPressedEnterOnAssetsInPicker(const TArray<FAssetD
 	{
 		if (UObject* ObjectToEdit = AssetIt->GetAsset())
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(ObjectToEdit);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
 		}
 	}
 }

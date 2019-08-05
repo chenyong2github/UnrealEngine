@@ -30,10 +30,11 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "MeshDescription.h"
 #include "ScopedTransaction.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "UnrealEdGlobals.h"
 #include "UnrealEd/Private/GeomFitUtils.h"
 #include "UnrealEd/Private/ConvexDecompTool.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "EditorStaticMeshLibrary"
 
@@ -176,10 +177,10 @@ int32 UEditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh,
 
 	// Close the mesh editor to prevent crashing. If changes are applied, reopen it after the mesh has been built.
 	bool bStaticMeshIsEdited = false;
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
-	if (AssetEditorManager.FindEditorForAsset(StaticMesh, false))
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
 	{
-		AssetEditorManager.CloseAllEditorsForAsset(StaticMesh);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
 		bStaticMeshIsEdited = true;
 	}
 
@@ -226,7 +227,7 @@ int32 UEditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh,
 		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
 		if (bStaticMeshIsEdited)
 		{
-			AssetEditorManager.OpenEditorForAsset(StaticMesh);
+			AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
 		}
 	}
 
@@ -261,11 +262,11 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 	}
 
 	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	bool bStaticMeshIsEdited = false;
-	if ( AssetEditorManager.FindEditorForAsset( DestinationStaticMesh, false ) )
+	if ( AssetEditorSubsystem->FindEditorForAsset( DestinationStaticMesh, false ) )
 	{
-		AssetEditorManager.CloseAllEditorsForAsset( DestinationStaticMesh );
+		AssetEditorSubsystem->CloseAllEditorsForAsset( DestinationStaticMesh );
 		bStaticMeshIsEdited = true;
 	}
 
@@ -423,7 +424,7 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
 	if ( bStaticMeshIsEdited )
 	{
-		AssetEditorManager.OpenEditorForAsset( DestinationStaticMesh );
+		AssetEditorSubsystem->OpenEditorForAsset( DestinationStaticMesh );
 	}
 
 	return DestinationLodIndex;
@@ -470,11 +471,11 @@ bool UEditorStaticMeshLibrary::RemoveLods(UStaticMesh* StaticMesh)
 	}
 
 	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	bool bStaticMeshIsEdited = false;
-	if (AssetEditorManager.FindEditorForAsset(StaticMesh, false))
+	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
 	{
-		AssetEditorManager.CloseAllEditorsForAsset(StaticMesh);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
 		bStaticMeshIsEdited = true;
 	}
 
@@ -488,7 +489,7 @@ bool UEditorStaticMeshLibrary::RemoveLods(UStaticMesh* StaticMesh)
 	// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
 	if (bStaticMeshIsEdited)
 	{
-		AssetEditorManager.OpenEditorForAsset(StaticMesh);
+		AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
 	}
 
 	return true;
@@ -543,11 +544,11 @@ int32 UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(UStaticMesh*
 	}
 
 	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	bool bStaticMeshIsEdited = false;
-	if (AssetEditorManager.FindEditorForAsset(StaticMesh, false))
+	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
 	{
-		AssetEditorManager.CloseAllEditorsForAsset(StaticMesh);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
 		bStaticMeshIsEdited = true;
 	}
 
@@ -610,7 +611,7 @@ int32 UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(UStaticMesh*
 		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
 		if (bStaticMeshIsEdited)
 		{
-			AssetEditorManager.OpenEditorForAsset(StaticMesh);
+			AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
 		}
 	}
 
@@ -714,11 +715,11 @@ bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(
 	}
 
 	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	bool bStaticMeshIsEdited = false;
-	if (AssetEditorManager.FindEditorForAsset(StaticMesh, false))
+	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
 	{
-		AssetEditorManager.CloseAllEditorsForAsset(StaticMesh);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
 		bStaticMeshIsEdited = true;
 	}
 
@@ -753,7 +754,7 @@ bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(
 		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
 		if (bStaticMeshIsEdited)
 		{
-			AssetEditorManager.OpenEditorForAsset(StaticMesh);
+			AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
 		}
 	}
 
@@ -782,11 +783,11 @@ bool UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* Sta
 	}
 
 	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	bool bStaticMeshIsEdited = false;
-	if (AssetEditorManager.FindEditorForAsset(StaticMesh, false))
+	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
 	{
-		AssetEditorManager.CloseAllEditorsForAsset(StaticMesh);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
 		bStaticMeshIsEdited = true;
 	}
 
@@ -809,7 +810,7 @@ bool UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* Sta
 		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
 		if (bStaticMeshIsEdited)
 		{
-			AssetEditorManager.OpenEditorForAsset(StaticMesh);
+			AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
 		}
 	}
 

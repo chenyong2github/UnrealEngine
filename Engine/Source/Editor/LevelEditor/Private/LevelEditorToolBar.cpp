@@ -26,7 +26,7 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/GameStateBase.h"
 #include "Engine/TextureStreamingTypes.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
 #include "SourceCodeNavigation.h"
@@ -60,6 +60,7 @@
 #include "RHIShaderPlatformDefinitions.inl"
 #include "LevelEditorMenuContext.h"
 #include "ToolMenus.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 namespace LevelEditorActionHelpers
 {
@@ -198,7 +199,7 @@ namespace LevelEditorActionHelpers
 			{
 				// @todo Re-enable once world centric works
 				const bool bOpenWorldCentric = false;
-				FAssetEditorManager::Get().OpenEditorForAsset(
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 					BlueprintClass,
 					bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 					InLevelEditor.Pin() );
@@ -219,7 +220,7 @@ namespace LevelEditorActionHelpers
 			{
 				// @todo Re-enable once world centric works
 				const bool bOpenWorldCentric = false;
-				FAssetEditorManager::Get().OpenEditorForAsset(
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 					BlueprintClass,
 					bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 					InLevelEditor.Pin() );
@@ -240,7 +241,7 @@ namespace LevelEditorActionHelpers
 			{
 				// @todo Re-enable once world centric works
 				const bool bOpenWorldCentric = false;
-				FAssetEditorManager::Get().OpenEditorForAsset(
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 					BlueprintClass,
 					bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 					InLevelEditor.Pin() );
@@ -261,7 +262,7 @@ namespace LevelEditorActionHelpers
 			{
 				// @todo Re-enable once world centric works
 				const bool bOpenWorldCentric = false;
-				FAssetEditorManager::Get().OpenEditorForAsset(
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 					BlueprintClass,
 					bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 					InLevelEditor.Pin() );
@@ -282,7 +283,7 @@ namespace LevelEditorActionHelpers
 			{
 				// @todo Re-enable once world centric works
 				const bool bOpenWorldCentric = false;
-				FAssetEditorManager::Get().OpenEditorForAsset(
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 					BlueprintClass,
 					bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 					InLevelEditor.Pin() );
@@ -810,7 +811,7 @@ void LevelEditorActionHelpers::OnCreateGameModeClassPicked(UClass* InChosenClass
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				InLevelEditor.Pin()  );
@@ -897,7 +898,7 @@ void LevelEditorActionHelpers::OnCreateGameStateClassPicked(UClass* InChosenClas
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				InLevelEditor.Pin()  );
@@ -971,7 +972,7 @@ void LevelEditorActionHelpers::OnCreatePawnClassPicked(UClass* InChosenClass, TW
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				InLevelEditor.Pin()  );
@@ -1045,7 +1046,7 @@ void LevelEditorActionHelpers::OnCreateHUDClassPicked(UClass* InChosenClass, TWe
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				InLevelEditor.Pin()  );
@@ -1119,7 +1120,7 @@ void LevelEditorActionHelpers::OnCreatePlayerControllerClassPicked(UClass* InCho
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				InLevelEditor.Pin()  );
@@ -2143,7 +2144,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateOpenBlueprintMenuContent( TSh
 			UBlueprint* SelectedBP = Cast<UBlueprint>(AssetData.GetAsset());
 			if(SelectedBP)
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(SelectedBP);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SelectedBP);
 			}
 		}
 
@@ -2254,7 +2255,7 @@ void FLevelEditorToolBar::OnOpenSubLevelBlueprint( ULevel* InLevel )
 
 	if( LevelScriptBlueprint )
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(LevelScriptBlueprint);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelScriptBlueprint);
 	}
 	else
 	{
@@ -2364,7 +2365,7 @@ void FLevelEditorToolBar::OnCinematicsActorPicked( AActor* Actor )
 
 		if (Asset != nullptr)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(Asset);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
 		}
 	}
 }

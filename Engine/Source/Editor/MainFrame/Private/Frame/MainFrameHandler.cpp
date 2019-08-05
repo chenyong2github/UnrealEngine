@@ -65,10 +65,6 @@ void FMainFrameHandler::ShutDownEditor()
 		MainTabPtr.Pin()->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
 	}
 
-	// Inform the AssetEditorManager that the editor is exiting so that it may save open assets
-	// and report usage stats
-	FAssetEditorManager::Get().OnExit();
-
 	if (RootWindow.IsValid())
 	{
 		RootWindow->SetRequestDestroyWindowOverride(FRequestDestroyWindowOverride());

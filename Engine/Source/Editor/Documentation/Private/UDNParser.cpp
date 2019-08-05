@@ -21,11 +21,12 @@
 #include "ISourceCodeAccessModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "DesktopPlatformModule.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Input/SHyperlink.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "IntroTutorials"
 
@@ -1344,7 +1345,7 @@ bool FUDNParser::ParseAssetLink(FString &InternalLink)
 		{
 			if (Action == TEXT("EDIT"))
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(RequiredObject);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RequiredObject);
 			}
 			else
 			{

@@ -15,9 +15,10 @@
 #include "ActorEditorUtils.h"
 
 #include "Engine/LevelScriptBlueprint.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelCollectionModel.h"
 #include "AssetRegistryModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"
 
@@ -471,7 +472,7 @@ void FLevelModel::OpenKismet()
 	ULevelScriptBlueprint* LevelScriptBlueprint = Level->GetLevelScriptBlueprint();
 	if (LevelScriptBlueprint)
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(LevelScriptBlueprint);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelScriptBlueprint);
 	}
 	else
 	{

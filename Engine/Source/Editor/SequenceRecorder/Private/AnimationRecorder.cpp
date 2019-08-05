@@ -7,7 +7,7 @@
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimCompress.h"
 #include "Animation/AnimCompress_BitwiseCompressOnly.h"
@@ -19,6 +19,7 @@
 #include "Animation/AnimationRecordingSettings.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FAnimationRecorder"
 
@@ -408,7 +409,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 				{
 					TArray<UObject*> Assets;
 					Assets.Add(ReturnObject);
-					FAssetEditorManager::Get().OpenEditorForAssets(Assets);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(Assets);
 				});
 				Info.HyperlinkText = FText::Format(LOCTEXT("OpenNewAnimationHyperlink", "Open {0}"), FText::FromString(AnimationObject->GetName()));
 				TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);

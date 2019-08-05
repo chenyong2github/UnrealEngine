@@ -33,10 +33,12 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveLinearColorAtlas.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 
 #define LOCTEXT_NAMESPACE "MaterialLayerCustomization"
@@ -1448,7 +1450,7 @@ FReply SMaterialLayersFunctionsInstanceTree::OnThumbnailDoubleClick(const FGeome
 	}
 	if (AssetToOpen != nullptr)
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(AssetToOpen);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToOpen);
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();

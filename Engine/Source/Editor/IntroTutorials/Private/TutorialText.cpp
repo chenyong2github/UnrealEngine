@@ -7,7 +7,7 @@
 #include "Framework/Text/SlateTextRun.h"
 #include "Framework/Text/TextDecorators.h"
 #include "Engine/Blueprint.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IIntroTutorials.h"
 #include "IntroTutorials.h"
 #include "IDocumentation.h"
@@ -23,6 +23,7 @@
 #include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "TutorialHyperlinkDecorator.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "TutorialText"
 
@@ -215,7 +216,7 @@ static void ParseAssetLink(const FString& InternalLink, const FString* Action)
 		}
 		else
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(RequiredObject);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RequiredObject);
 		}
 
 		if( FEngineAnalytics::IsAvailable() )

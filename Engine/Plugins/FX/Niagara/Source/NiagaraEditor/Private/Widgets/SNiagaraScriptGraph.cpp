@@ -6,7 +6,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraNode.h"
 #include "NiagaraNodeInput.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "GraphEditor.h"
 #include "EditorStyleSet.h"
 #include "Widgets/Layout/SBorder.h"
@@ -26,6 +26,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GraphEditorActions.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptGraph"
 
@@ -207,7 +208,7 @@ void SNiagaraScriptGraph::OnNodeDoubleClicked(UEdGraphNode* ClickedNode)
 		UObject* ReferencedAsset = NiagaraNode->GetReferencedAsset();
 		if (ReferencedAsset != nullptr)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(ReferencedAsset);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ReferencedAsset);
 		}
 	}
 }

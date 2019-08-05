@@ -68,7 +68,7 @@ FSwarmDebugOptions GSwarmDebugOptions;
 DEFINE_LOG_CATEGORY(LogStaticLightingSystem);
 
 #include "EngineGlobals.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 #include "Lightmass/LightmassImportanceVolume.h"
 #include "Components/LightmassPortalComponent.h"
@@ -79,6 +79,7 @@ DEFINE_LOG_CATEGORY(LogStaticLightingSystem);
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/UObjectToken.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
@@ -2425,8 +2426,8 @@ bool FStaticLightingSystem::IsAmortizedExporting() const
 void UEditorEngine::BuildLighting(const FLightingBuildOptions& Options)
 {
 	// Forcibly shut down all texture property windows as they become invalid during a light build
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
-	TArray<UObject*> EditedAssets = AssetEditorManager.GetAllEditedAssets();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets();
 
 	for (int32 AssetIdx = 0; AssetIdx < EditedAssets.Num(); AssetIdx++)
 	{
@@ -2434,7 +2435,7 @@ void UEditorEngine::BuildLighting(const FLightingBuildOptions& Options)
 
 		if (EditedAsset->IsA(UTexture2D::StaticClass()))
 		{
-			IAssetEditorInstance* Editor = AssetEditorManager.FindEditorForAsset(EditedAsset, false);
+			IAssetEditorInstance* Editor = AssetEditorSubsystem->FindEditorForAsset(EditedAsset, false);
 			if (Editor)
 			{
 				Editor->CloseWindow();

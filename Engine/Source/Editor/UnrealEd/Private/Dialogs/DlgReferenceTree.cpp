@@ -14,8 +14,9 @@
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
 
-#include "Toolkits/AssetEditorManager.h"
+
 #include "ObjectTools.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 FArchiveGenerateReferenceGraph::FArchiveGenerateReferenceGraph( FReferenceGraph& OutGraph ) 
 	: CurrentObject(NULL),
@@ -538,7 +539,7 @@ void SReferenceTree::OnMenuViewProperties( UObject* InObject )
 void SReferenceTree::OnMenuShowEditor( UObject* InObject )
 {
 	// Show the editor for this object
-	FAssetEditorManager::Get().OpenEditorForAsset(InObject);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InObject);
 }
 
 void SReferenceTree::OnShowScriptReferences()

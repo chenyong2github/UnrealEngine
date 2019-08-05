@@ -7,13 +7,14 @@
 #include "UObject/GCObject.h"
 #include "Framework/Docking/TabManager.h"
 #include "Toolkits/IToolkit.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Toolkits/BaseToolkit.h"
 #include "UnrealEdMisc.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 class FAssetEditorModeManager;
 class FMenuBuilder;

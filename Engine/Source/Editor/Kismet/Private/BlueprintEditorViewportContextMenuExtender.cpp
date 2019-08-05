@@ -12,9 +12,10 @@
 #include "Engine/Selection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Kismet2/KismetEditorUtilities.h"
 #include "CreateBlueprintFromActorDialog.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogViewportBlueprintMenu, Log, All);
 
@@ -42,7 +43,7 @@ void EditKismetCodeFor( TWeakObjectPtr<UBlueprint> BlueprintRef )
 	{
 		// Open the blueprint
 		// @todo toolkit major: Needs world-centric support (pass in LevelEditor.  See FLevelEditorActionCallbacks::OpenLevelBlueprint)
-		FAssetEditorManager::Get().OpenEditorForAsset( Blueprint );
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset( Blueprint );
 	}
 	else
 	{

@@ -33,6 +33,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Templates/UniquePtr.h"
 #include "Materials/MaterialFunctionInstance.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditorUtilities"
 
@@ -746,13 +747,13 @@ void FMaterialEditorUtilities::OpenSelectedParentEditor(UMaterialInterface* InMa
 		{
 			// Show material editor
 			UMaterial* Material = Cast<UMaterial>(InMaterialInterface);
-			FAssetEditorManager::Get().OpenEditorForAsset(Material);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Material);
 		}
 		else if (InMaterialInterface->IsA(UMaterialInstance::StaticClass()))
 		{
 			// Show material instance editor
 			UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(InMaterialInterface);
-			FAssetEditorManager::Get().OpenEditorForAsset(MaterialInstance);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(MaterialInstance);
 		}
 	}
 }
@@ -766,12 +767,12 @@ void FMaterialEditorUtilities::OpenSelectedParentEditor(UMaterialFunctionInterfa
 		{
 			// Show function instance editor
 			UMaterialFunctionInstance* FunctionInstance = Cast<UMaterialFunctionInstance>(InMaterialFunction);
-			FAssetEditorManager::Get().OpenEditorForAsset(FunctionInstance);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(FunctionInstance);
 		}
 		else
 		{
 			// Show function editor
-			FAssetEditorManager::Get().OpenEditorForAsset(InMaterialFunction);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InMaterialFunction);
 		}
 	}
 }

@@ -5,10 +5,11 @@
 #include "Widgets/SToolTip.h"
 #include "IDocumentation.h"
 #include "WidgetBlueprint.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Styling/SlateIconFinder.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "UMGEditor"
 
@@ -83,7 +84,7 @@ TSharedRef<IToolTip> FWidgetTemplateBlueprintClass::GetToolTip() const
 
 FReply FWidgetTemplateBlueprintClass::OnDoubleClicked()
 {
-	FAssetEditorManager::Get().OpenEditorForAsset( WidgetAssetData.GetAsset() );
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset( WidgetAssetData.GetAsset() );
 	return FReply::Handled();
 }
 

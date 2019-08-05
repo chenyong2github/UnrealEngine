@@ -10,10 +10,11 @@
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Animation/AnimBlueprint.h"
 #include "IAnimationBlueprintEditor.h"
 #include "AnimationGraphSchema.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintPinInfoDetails"
 
@@ -109,7 +110,7 @@ void FAnimBlueprintFunctionPinInfoDetails::HandlePinTypeChanged(const FEdGraphPi
 		TypePropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 
 		UAnimBlueprint* AnimBlueprint = WeakOuterNode->GetAnimBlueprint();
-		IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(AnimBlueprint, false);
+		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, false);
 		check(AssetEditor->GetEditorName() == "AnimationBlueprintEditor");
 
 		static_cast<IAnimationBlueprintEditor*>(AssetEditor)->SetLastGraphPinTypeUsed(InPinType);

@@ -4,7 +4,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Templates/SubclassOf.h"
 #include "Kismet/GameplayStatics.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IntroTutorials.h"
 #include "EditorTutorial.h"
 #include "SEditorTutorials.h"
@@ -17,6 +17,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "STutorialRoot"
 
@@ -133,7 +134,7 @@ void STutorialRoot::LaunchTutorial(UEditorTutorial* InTutorial, IIntroTutorials:
 		{
 			TArray<FString> AssetPaths;
 			AssetPaths.Add(InTutorial->AssetToUse.ToString());
-			FAssetEditorManager::Get().OpenEditorsForAssets(AssetPaths);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetPaths);
 
 			UObject* Asset = InTutorial->AssetToUse.ResolveObject();
 			if(Asset != nullptr)

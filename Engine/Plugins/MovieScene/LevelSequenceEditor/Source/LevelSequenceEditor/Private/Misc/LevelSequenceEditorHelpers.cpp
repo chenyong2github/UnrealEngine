@@ -24,7 +24,7 @@
 #include "EditorStyleSet.h"
 #include "LevelSequenceEditorModule.h"
 #include "Framework/Docking/TabManager.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Misc/LevelSequenceEditorSettings.h"
 #include "Widgets/Layout/SScrollBox.h"
 
@@ -33,6 +33,7 @@
 #include "MovieSceneToolsProjectSettings.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 /* LevelSequenceEditorHelpers
  *****************************************************************************/
@@ -201,7 +202,7 @@ private:
 		UObject* MasterSequenceAsset = LevelSequenceEditorHelpers::CreateLevelSequenceAsset(MasterSequenceAssetName, MasterSequencePackagePath);
 		if (MasterSequenceAsset)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(MasterSequenceAsset);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(MasterSequenceAsset);
 		
 			ILevelSequenceEditorModule& LevelSequenceEditorModule = FModuleManager::LoadModuleChecked<ILevelSequenceEditorModule>("LevelSequenceEditor");		
 			LevelSequenceEditorModule.OnMasterSequenceCreated().Broadcast(MasterSequenceAsset);

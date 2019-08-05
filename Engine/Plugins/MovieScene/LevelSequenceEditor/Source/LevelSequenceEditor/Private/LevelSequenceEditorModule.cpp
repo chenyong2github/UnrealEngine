@@ -10,7 +10,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IAssetTypeActions.h"
 #include "AssetTools/LevelSequenceActions.h"
 #include "LevelSequenceEditorCommands.h"
@@ -37,6 +37,7 @@
 #include "SequencerSettings.h"
 #include "Misc/MovieSceneSequenceEditor_LevelSequence.h"
 #include "BlueprintAssetHandler.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditor"
 
@@ -354,7 +355,7 @@ protected:
 			GEditor->MoveViewportCamerasToActor(*NewActor, false);
 		}
 
-		FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 	}
 
 	/** Callback for creating a new level sequence asset in the level. */

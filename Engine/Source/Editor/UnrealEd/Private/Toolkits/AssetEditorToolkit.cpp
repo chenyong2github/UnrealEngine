@@ -29,6 +29,7 @@
 #include "AssetToolsModule.h"
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
 #include "ToolMenus.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AssetEditorToolkit"
 
@@ -283,7 +284,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 	}
 
 	// NOTE: Currently, the AssetEditorManager will keep a hard reference to our object as we're editing it
-	FAssetEditorManager::Get().NotifyAssetsOpened( EditingObjects, this );
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetsOpened( EditingObjects, this );
 }
 
 
@@ -292,7 +293,7 @@ FAssetEditorToolkit::~FAssetEditorToolkit()
 	EditingObjects.Empty();
 
 	// We're no longer editing this object, so let the editor know
-	FAssetEditorManager::Get().NotifyEditorClosed( this );
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorClosed( this );
 }
 
 
@@ -501,14 +502,14 @@ void FAssetEditorToolkit::GetSaveableObjects(TArray<UObject*>& OutObjects) const
 void FAssetEditorToolkit::AddEditingObject(UObject* Object)
 {
 	EditingObjects.Add(Object);
-	FAssetEditorManager::Get().NotifyAssetOpened( Object, this );
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetOpened( Object, this );
 }
 
 
 void FAssetEditorToolkit::RemoveEditingObject(UObject* Object)
 {
 	EditingObjects.Remove(Object);
-	FAssetEditorManager::Get().NotifyAssetClosed( Object, this );
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetClosed( Object, this );
 }
 
 
@@ -572,7 +573,7 @@ void FAssetEditorToolkit::SaveAssetAs_Execute()
 	}
 
 	// close existing asset editors for resaved assets
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 
 	/* @todo editor: Persona does not behave well when closing specific objects
 	for (int32 Index = 0; Index < ObjectsToSave.Num(); ++Index)
@@ -601,10 +602,10 @@ void FAssetEditorToolkit::SaveAssetAs_Execute()
 	}
 	for (auto Object : EditingObjects)
 	{
-		AssetEditorManager.CloseAllEditorsForAsset(Object);
-		FAssetEditorManager::Get().NotifyAssetClosed(Object, this);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(Object);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetClosed(Object, this);
 	}
-	AssetEditorManager.OpenEditorForAssets(ObjectsToReopen, ToolkitMode, MyToolkitHost.ToSharedRef());
+	AssetEditorSubsystem->OpenEditorForAssets(ObjectsToReopen, ToolkitMode, MyToolkitHost.ToSharedRef());
 	// end hack
 }
 
@@ -739,7 +740,7 @@ void FAssetEditorToolkit::SwitchToStandaloneEditor_Execute( TWeakPtr< FAssetEdit
 
 	if( ObjectsToEdit.Num() > 0 )
 	{
-		ensure( FAssetEditorManager::Get().OpenEditorForAssets( ObjectsToEdit, EToolkitMode::Standalone, PreviousWorldCentricToolkitHost.ToSharedRef() ) );
+		ensure( GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets( ObjectsToEdit, EToolkitMode::Standalone, PreviousWorldCentricToolkitHost.ToSharedRef() ) );
 	}
 }
 
@@ -787,7 +788,7 @@ void FAssetEditorToolkit::SwitchToWorldCentricEditor_Execute( TWeakPtr< FAssetEd
 
 	if( ObjectsToEdit.Num() > 0 )
 	{
-		ensure( FAssetEditorManager::Get().OpenEditorForAssets( ObjectsToEdit, EToolkitMode::WorldCentric, WorldCentricLevelEditor ) );
+		ensure( GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets( ObjectsToEdit, EToolkitMode::WorldCentric, WorldCentricLevelEditor ) );
 	}
 }
 

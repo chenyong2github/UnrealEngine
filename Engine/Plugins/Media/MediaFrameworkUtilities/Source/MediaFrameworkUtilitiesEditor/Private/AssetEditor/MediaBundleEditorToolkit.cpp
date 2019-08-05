@@ -14,6 +14,7 @@
 #include "PropertyEditorModule.h"
 #include "UI/MediaFrameworkUtilitiesEditorStyle.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Subsystems/AssetEditorSubsystem.h"
  
 
 #define LOCTEXT_NAMESPACE "MediaBundleEditor"
@@ -215,7 +216,7 @@ void FMediaBundleEditorToolkit::ExtendToolBar()
 								IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>("MaterialEditor");
 
 								UMaterialInterface* MaterialInterface = Asset->GetMaterial();
-								IAssetEditorInstance* EditorInstance = FAssetEditorManager::Get().FindEditorForAsset(MaterialInterface, true);
+								IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(MaterialInterface, true);
 								if (EditorInstance == nullptr)
 								{
 									UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);

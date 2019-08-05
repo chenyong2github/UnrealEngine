@@ -72,7 +72,7 @@
 #include "ReferencedAssetsUtils.h"
 #include "AssetRegistryModule.h"
 #include "PackagesDialog.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "PropertyEditorModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
@@ -92,6 +92,7 @@
 #include "Engine/MapBuildDataRegistry.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
 
@@ -922,7 +923,7 @@ namespace ObjectTools
 		if ( ObjectToConsolidateTo )
 		{
 			// Close all editors to avoid changing references to temporary objects used by the editor
-			if ( !FAssetEditorManager::Get().CloseAllAssetEditors() )
+			if ( !GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors() )
 			{
 				// Failed to close at least one editor. It is possible that this editor has in-memory object references
 				// which are not prepared to be changed dynamically so it is not safe to continue
@@ -2412,7 +2413,7 @@ namespace ObjectTools
 
 		for (UObject* ObjectToDelete : InObjectsToDelete)
 		{
-			const TArray<IAssetEditorInstance*> ObjectEditors = FAssetEditorManager::Get().FindEditorsForAsset(ObjectToDelete);
+			const TArray<IAssetEditorInstance*> ObjectEditors = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorsForAsset(ObjectToDelete);
 			for (IAssetEditorInstance* ObjectEditorInstance : ObjectEditors)
 			{
 				if (!ObjectEditorInstance->CloseWindow())

@@ -8,7 +8,7 @@
 #include "EditorStyleSet.h"
 #include "Editor.h"
 #include "Containers/ArrayBuilder.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "FileMediaSource.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
@@ -22,6 +22,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "ToolMenus.h"
 #include "Shared/MediaPlayerEditorMediaContext.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SMediaPlayerEditorMedia"
 
@@ -142,7 +143,7 @@ void SMediaPlayerEditorMedia::RegisterMenus()
 				{
 					if (Context->SelectedAsset)
 					{
-						FAssetEditorManager::Get().OpenEditorForAsset(Context->SelectedAsset);
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Context->SelectedAsset);
 					}
 				}
 			})

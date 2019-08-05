@@ -13,33 +13,7 @@ class FMessageEndpoint;
 class IToolkitHost;
 struct FAssetEditorRequestOpenAsset;
 
-/**
- * This class keeps track of a currently open asset editor; allowing it to be
- * brought into focus, closed, etc..., without concern for how the editor was
- * implemented.
- */
-class UNREALED_API IAssetEditorInstance
-{
-public:
 
-	virtual FName GetEditorName() const = 0;
-	virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) = 0;
-	virtual bool CloseWindow() = 0;
-	virtual bool IsPrimaryEditor() const = 0;
-	virtual void InvokeTab(const struct FTabId& TabId) = 0;
-	virtual TSharedPtr<class FTabManager> GetAssociatedTabManager() = 0;
-	virtual double GetLastActivationTime() = 0;
-	virtual void RemoveEditingAsset(UObject* Asset) = 0;
-};
-
-/** The way that editors were requested to close */
-enum class EAssetEditorCloseReason : uint8
-{
-	CloseAllEditorsForAsset,
-	CloseOtherEditors,
-	RemoveAssetFromAllEditors,
-	CloseAllAssetEditors,
-};
 
 /**
  * Implements a manager for Editor windows that are currently open and the assets they are editing.

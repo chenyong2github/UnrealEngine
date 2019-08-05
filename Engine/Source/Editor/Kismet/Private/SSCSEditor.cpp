@@ -74,6 +74,7 @@
 #include "ToolMenus.h"
 #include "SSCSEditorMenuContext.h"
 #include "Kismet2/ComponentEditorContextMenuContex.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SSCSEditor"
 
@@ -5096,7 +5097,7 @@ UClass* SSCSEditor::CreateNewBPComponent(TSubclassOf<UActorComponent> ComponentC
 					GEditor->SyncBrowserToObjects(Objects);
 
 					// Open the editor for the new blueprint
-					FAssetEditorManager::Get().OpenEditorForAsset(NewBP);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBP);
 				}
 			}
 		}
@@ -6413,7 +6414,7 @@ void SSCSEditor::OnOpenBlueprintEditor(bool bForceCodeEditing) const
 			}
 			else
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 			}
 		}
 	}

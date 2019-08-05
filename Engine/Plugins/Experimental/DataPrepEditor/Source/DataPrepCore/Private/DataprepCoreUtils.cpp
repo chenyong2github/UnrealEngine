@@ -6,8 +6,9 @@
 
 #if WITH_EDITOR
 #include "ObjectTools.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #endif
+#include "Subsystems/AssetEditorSubsystem.h"
 
 void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> Objects)
 {
@@ -21,7 +22,7 @@ void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> Objects)
 #if WITH_EDITOR
 		if ( InObject->IsAsset() )
 		{
-			FAssetEditorManager::Get().CloseAllEditorsForAsset( InObject );
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset( InObject );
 		}
 #endif
 		if ( InObject->IsRooted() )

@@ -159,6 +159,7 @@
 #include "Preferences/BlueprintEditorOptions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 
@@ -2186,7 +2187,7 @@ FReply FBlueprintEditor::OnEditParentClassClicked()
 			UBlueprintGeneratedClass* ParentBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>( ParentClass );
 			if ( ParentBlueprintGeneratedClass != NULL )
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset( ParentBlueprintGeneratedClass->ClassGeneratedBy );
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset( ParentBlueprintGeneratedClass->ClassGeneratedBy );
 			}
 		}
 	}
@@ -3642,7 +3643,7 @@ void FBlueprintEditor::JumpToHyperlink(const UObject* ObjectReference, bool bReq
 	}
 	else if(const UBlueprintGeneratedClass* Class = Cast<const UBlueprintGeneratedClass>(ObjectReference))
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(Class->ClassGeneratedBy);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Class->ClassGeneratedBy);
 	}
 	else if (const UTimelineTemplate* Timeline = Cast<const UTimelineTemplate>(ObjectReference))
 	{
@@ -3650,7 +3651,7 @@ void FBlueprintEditor::JumpToHyperlink(const UObject* ObjectReference, bool bReq
 	}
 	else if ((ObjectReference != nullptr) && ObjectReference->IsAsset())
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(const_cast<UObject*>(ObjectReference));
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UObject*>(ObjectReference));
 	}
 	else
 	{
@@ -7357,7 +7358,7 @@ void FBlueprintEditor::Tick(float DeltaTime)
 
 	if (bPendingDeferredClose)
 	{
-		IAssetEditorInstance* EditorInst = FAssetEditorManager::Get().FindEditorForAsset(GetBlueprintObj(), /*bFocusIfOpen =*/false);
+		IAssetEditorInstance* EditorInst = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(GetBlueprintObj(), /*bFocusIfOpen =*/false);
 		check(EditorInst != nullptr);
 		EditorInst->CloseWindow();
 	}

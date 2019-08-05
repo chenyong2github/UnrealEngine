@@ -33,9 +33,10 @@
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Materials/Material.h"
 #include "EditorFontGlyphs.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "SkeletalMeshTypes.h"
 #include "IPersonaToolkit.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "PersonaViewportToolbar"
 
@@ -2187,7 +2188,7 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 		{
 			if(PreviewComponent->SkeletalMesh && PreviewComponent->SkeletalMesh->PostProcessAnimBlueprint)
 			{
-				FAssetEditorManager::Get().OpenEditorForAssets(TArray<UObject*>({ PreviewComponent->SkeletalMesh->PostProcessAnimBlueprint->ClassGeneratedBy }));
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(TArray<UObject*>({ PreviewComponent->SkeletalMesh->PostProcessAnimBlueprint->ClassGeneratedBy }));
 			}
 		}
 

@@ -6,7 +6,7 @@
 #include "MaterialGraph/MaterialGraph.h"
 #include "Engine/Texture.h"
 #include "AssetData.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 //Automation
 #include "Tests/AutomationTestSettings.h"
@@ -18,6 +18,7 @@
 //Materials
 #include "MaterialEditor.h"
 #include "Materials/MaterialExpressionTextureSample.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -50,7 +51,7 @@ namespace MaterialEditorPromotionTestUtils
 	*/
 	static bool AssignNormalToMaterial(UTexture* InNormalTexture, UMaterial* InMaterial)
 	{
-		IAssetEditorInstance* OpenEditor = FAssetEditorManager::Get().FindEditorForAsset(InMaterial, true);
+		IAssetEditorInstance* OpenEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InMaterial, true);
 		IMaterialEditor* CurrentMaterialEditor = (IMaterialEditor*)OpenEditor;
 
 		//Create the texture sample and auto assign the normal texture
@@ -163,7 +164,7 @@ namespace MaterialEditorPromotionTestHelper
 				{
 					UE_LOG(LogEditorMaterialEditorPromotionTests, Display, TEXT("Created new material (%s) from texture (%s)"), *CreatedMaterial->GetName(), *DiffuseTexture->GetName());
 					// @TODO: Break out TEST 2: Open a material
-					FAssetEditorManager::Get().OpenEditorForAsset(CreatedMaterial);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CreatedMaterial);
 					UE_LOG(LogEditorMaterialEditorPromotionTests, Display, TEXT("Opened the material editor"));
 				}
 				else
@@ -197,13 +198,13 @@ namespace MaterialEditorPromotionTestHelper
 
 				if (NormalTexture)
 				{
-					IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(CreatedMaterial, true);
+					IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(CreatedMaterial, true);
 					FMaterialEditor* MaterialEditor = (FMaterialEditor*)AssetEditor;
 
 					// @TODO: Break out TEST 3: Add normal map to a material
 					if (MaterialEditorPromotionTestUtils::AssignNormalToMaterial(NormalTexture, CreatedMaterial))
 					{
-						FAssetEditorManager::Get().FindEditorForAsset(CreatedMaterial, true);
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(CreatedMaterial, true);
 						// @TODO: Break out TEST 4: Compile a material
 						MaterialEditor->UpdateMaterialAfterGraphChange();
 						MaterialEditor->bMaterialDirty = false; // Remove dirty flag so window closes without prompt

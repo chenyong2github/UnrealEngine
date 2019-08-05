@@ -103,7 +103,7 @@
 #include "Layers/LayersSubsystem.h"
 #include "EditorLevelUtils.h"
 
-#include "Toolkits/AssetEditorManager.h"
+
 #include "PropertyEditorModule.h"
 #include "AssetSelection.h"
 
@@ -214,6 +214,8 @@
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
 #include "ToolMenus.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -793,7 +795,7 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 
 bool UEditorEngine::HandleOpenAsset(UObject* Asset)
 {
-	return FAssetEditorManager::Get().OpenEditorForAsset(Asset);
+	return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
 }
 
 void UEditorEngine::HandleSettingChanged( FName Name )
@@ -2368,8 +2370,8 @@ void UEditorEngine::CloseEditedWorldAssets(UWorld* InWorld)
 	}
 
 	// Find all assets being edited
-	FAssetEditorManager& EditorManager = FAssetEditorManager::Get();
-	TArray<UObject*> AllAssets = EditorManager.GetAllEditedAssets();
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	TArray<UObject*> AllAssets = AssetEditorSubsystem->GetAllEditedAssets();
 
 	TSet<UWorld*> ClosingWorlds;
 
@@ -2396,7 +2398,7 @@ void UEditorEngine::CloseEditedWorldAssets(UWorld* InWorld)
 
 		if (AssetWorld && ClosingWorlds.Contains(AssetWorld))
 		{
-			EditorManager.CloseAllEditorsForAsset(Asset);
+			AssetEditorSubsystem->CloseAllEditorsForAsset(Asset);
 		}
 	}
 }
@@ -3108,7 +3110,7 @@ bool UEditorEngine::HasLockedActors()
 void UEditorEngine::EditObject( UObject* ObjectToEdit )
 {
 	// @todo toolkit minor: Needs world-centric support?
-	FAssetEditorManager::Get().OpenEditorForAsset(ObjectToEdit);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
 }
 
 void UEditorEngine::SelectLevelInLevelBrowser( bool bDeselectOthers )

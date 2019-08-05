@@ -18,7 +18,7 @@
 #include "Dialogs/Dialogs.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Editor.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
@@ -26,6 +26,7 @@
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "AnimationModifierHelpers.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SAnimationModifiersTab"
 
@@ -41,7 +42,7 @@ SAnimationModifiersTab::~SAnimationModifiersTab()
 		GEditor->UnregisterForUndo(this);
 	}
 
-	FAssetEditorManager::Get().OnAssetOpenedInEditor().RemoveAll(this);	
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetOpenedInEditor().RemoveAll(this);	
 }
 
 void SAnimationModifiersTab::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -172,7 +173,7 @@ void SAnimationModifiersTab::Construct(const FArguments& InArgs)
 	{
 		GEditor->RegisterForUndo(this);
 	}
-	FAssetEditorManager::Get().OnAssetOpenedInEditor().AddSP(this, &SAnimationModifiersTab::OnAssetOpened);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetOpenedInEditor().AddSP(this, &SAnimationModifiersTab::OnAssetOpened);
 }
 
 void SAnimationModifiersTab::OnModifierPicked(UClass* PickedClass)
@@ -360,7 +361,7 @@ void SAnimationModifiersTab::OnOpenModifier(const TWeakObjectPtr<UAnimationModif
 		UBlueprint* Blueprint = Cast<UBlueprint>(BPGeneratedClass->ClassGeneratedBy);
 		if (Blueprint)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 		}
 	}
 }

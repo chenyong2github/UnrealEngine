@@ -129,6 +129,7 @@
 #include "IPropertyRowGenerator.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "UObject/TextProperty.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
@@ -5200,7 +5201,7 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 		}
 		if (ObjectToEdit)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(ObjectToEdit);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
 		}
 	}
 }

@@ -65,6 +65,7 @@
 #include "AssetToolsModule.h"
 #include "AssetSelection.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.EditorActor"
 
@@ -1033,7 +1034,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 		}
 
 		// Remove actor from all asset editors
-		FAssetEditorManager::Get().RemoveAssetFromAllEditors(Actor);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->RemoveAssetFromAllEditors(Actor);
 
 		// Mark the actor's level as dirty.
 		Actor->MarkPackageDirty();

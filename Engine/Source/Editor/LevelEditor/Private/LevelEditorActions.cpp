@@ -36,7 +36,7 @@
 #include "FileHelpers.h"
 #include "EditorModeInterpolation.h"
 #include "UnrealEdGlobals.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "Matinee/MatineeActor.h"
 #include "Engine/LevelScriptBlueprint.h"
@@ -95,6 +95,7 @@
 #if WITH_LIVE_CODING
 #include "ILiveCodingModule.h"
 #endif
+#include "Subsystems/AssetEditorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorActions, Log, All);
 
@@ -130,7 +131,7 @@ namespace LevelEditorActionsHelpers
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				InLevelEditor.Pin()  );
@@ -1241,7 +1242,7 @@ void FLevelEditorActionCallbacks::EditAsset_Clicked( const EToolkitMode::Type To
 			{
 				for (auto Asset : ReferencedAssets)
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(Asset, ToolkitMode, LevelEditorSharedPtr);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset, ToolkitMode, LevelEditorSharedPtr);
 				}
 			}
 		}
@@ -2327,7 +2328,7 @@ void FLevelEditorActionCallbacks::OpenLevelBlueprint( TWeakPtr< SLevelEditor > L
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				LevelScriptBlueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone,
 				LevelEditor.Pin()  );
@@ -2355,7 +2356,7 @@ void FLevelEditorActionCallbacks::CreateBlankBlueprintClass()
 		{
 			// @todo Re-enable once world centric works
 			const bool bOpenWorldCentric = false;
-			FAssetEditorManager::Get().OpenEditorForAsset(
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(
 				Blueprint,
 				bOpenWorldCentric ? EToolkitMode::WorldCentric : EToolkitMode::Standalone);
 		}

@@ -13,8 +13,9 @@
 #include "ISequencer.h"
 #include "MovieSceneFolder.h"
 
-#include "Toolkits/AssetEditorManager.h"
+
 #include "ILevelSequenceEditorToolkit.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 UTakeRecorderWorldSourceSettings::UTakeRecorderWorldSourceSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -126,7 +127,7 @@ void UTakeRecorderWorldSource::AutotrackActors(class ULevelSequence* InSequence,
 		return;
 	}
 
-	IAssetEditorInstance*        AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(InSequence, false);
+	IAssetEditorInstance*        AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InSequence, false);
 	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
 
 	TSharedPtr<ISequencer> SequencerPtr = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;

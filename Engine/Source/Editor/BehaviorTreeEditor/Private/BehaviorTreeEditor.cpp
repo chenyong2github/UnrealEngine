@@ -60,6 +60,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "BehaviorTreeEditor"
 
@@ -1156,9 +1157,9 @@ void FBehaviorTreeEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 		UBTTask_RunBehavior* SubtreeTask = MyNode->ParentNode ? Cast<UBTTask_RunBehavior>(MyNode->ParentNode->NodeInstance) : NULL;
 		if (SubtreeTask && SubtreeTask->GetSubtreeAsset())
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(SubtreeTask->GetSubtreeAsset());
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SubtreeTask->GetSubtreeAsset());
 
-			IBehaviorTreeEditor* ChildNodeEditor = static_cast<IBehaviorTreeEditor*>(FAssetEditorManager::Get().FindEditorForAsset(SubtreeTask->GetSubtreeAsset(), true));
+			IBehaviorTreeEditor* ChildNodeEditor = static_cast<IBehaviorTreeEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(SubtreeTask->GetSubtreeAsset(), true));
 			if (ChildNodeEditor)
 			{
 				ChildNodeEditor->InitializeDebuggerState(Debugger.Get());
@@ -1211,9 +1212,9 @@ void FBehaviorTreeEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 		{
 			if (RunTask->GetSubtreeAsset())
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(RunTask->GetSubtreeAsset());
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(RunTask->GetSubtreeAsset());
 
-				IBehaviorTreeEditor* ChildNodeEditor = static_cast<IBehaviorTreeEditor*>(FAssetEditorManager::Get().FindEditorForAsset(RunTask->GetSubtreeAsset(), true));
+				IBehaviorTreeEditor* ChildNodeEditor = static_cast<IBehaviorTreeEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(RunTask->GetSubtreeAsset(), true));
 				if (ChildNodeEditor)
 				{
 					ChildNodeEditor->InitializeDebuggerState(Debugger.Get());
@@ -1231,7 +1232,7 @@ void FBehaviorTreeEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 		UBlueprint* BlueprintOb = FindObject<UBlueprint>(Pkg, *ClassName);
 		if(BlueprintOb)
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(BlueprintOb);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(BlueprintOb);
 		}
 	}
 }
@@ -1616,9 +1617,9 @@ void FBehaviorTreeEditor::DebuggerSwitchAsset(UBehaviorTree* NewAsset)
 {
 	if (NewAsset)
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 
-		IBehaviorTreeEditor* ChildNodeEditor = static_cast<IBehaviorTreeEditor*>(FAssetEditorManager::Get().FindEditorForAsset(NewAsset, true));
+		IBehaviorTreeEditor* ChildNodeEditor = static_cast<IBehaviorTreeEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(NewAsset, true));
 		if (ChildNodeEditor)
 		{
 			ChildNodeEditor->InitializeDebuggerState(Debugger.Get());
@@ -1761,7 +1762,7 @@ void FBehaviorTreeEditor::HandleNewNodeClassPicked(UClass* InClass) const
 			// Create and init a new Blueprint
 			if (UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(InClass, Package, FName(*Name), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass()))
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(NewBP);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBP);
 
 				// Notify the asset registry
 				FAssetRegistryModule::AssetCreated(NewBP);

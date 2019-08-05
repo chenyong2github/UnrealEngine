@@ -24,7 +24,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/MovementComponent.h"
 #include "GameFramework/Character.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IAssetTools.h"
 #include "AssetData.h"
 #include "AssetToolsModule.h"

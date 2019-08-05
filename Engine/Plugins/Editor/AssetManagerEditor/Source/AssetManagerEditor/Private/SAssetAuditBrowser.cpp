@@ -9,7 +9,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "EditorStyleSet.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
@@ -32,6 +32,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "Blueprint/BlueprintSupport.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AssetManagementBrowser"
 
@@ -132,7 +133,7 @@ void SAssetAuditBrowser::EditSelectedAssets() const
 		AssetNames.Add(AssetData.ObjectPath);
 	}
 
-	FAssetEditorManager::Get().OpenEditorsForAssets(AssetNames);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetNames);
 }
 
 void SAssetAuditBrowser::OnRequestOpenAsset(const FAssetData& AssetData) const
@@ -140,7 +141,7 @@ void SAssetAuditBrowser::OnRequestOpenAsset(const FAssetData& AssetData) const
 	TArray<FName> AssetNames;
 	AssetNames.Add(AssetData.ObjectPath);
 
-	FAssetEditorManager::Get().OpenEditorsForAssets(AssetNames);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetNames);
 }
 
 void SAssetAuditBrowser::SaveSelectedAssets() const

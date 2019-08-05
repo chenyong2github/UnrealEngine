@@ -10,7 +10,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Engine/Blueprint.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -25,6 +25,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EditorClassUtils.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FGameModeInfoCustomizer"
 
@@ -275,7 +276,7 @@ public:
 		{
 			OnSetDefaultClass(Blueprint->GeneratedClass, ClassPropertyName);
 
-			FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 		}
 	}
 

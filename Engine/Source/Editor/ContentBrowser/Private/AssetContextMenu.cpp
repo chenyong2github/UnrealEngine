@@ -48,7 +48,7 @@
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "PropertyEditorModule.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "ConsolidateWindow.h"
@@ -77,6 +77,7 @@
 
 #include "PackageHelperFunctions.h"
 #include "EngineUtils.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -1195,7 +1196,7 @@ void FAssetContextMenu::ExecuteFindInAssetTree(TArray<FName> InAssets)
 
 void FAssetContextMenu::ExecuteOpenEditorsForAssets(TArray<FName> InAssets)
 {
-	FAssetEditorManager::Get().OpenEditorsForAssets(InAssets);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(InAssets);
 }
 
 bool FAssetContextMenu::AddReferenceMenuOptions(UToolMenu* Menu)
@@ -2126,7 +2127,7 @@ void FAssetContextMenu::ExecuteEditAsset()
 	for (const auto& AssetsByClassPair : SelectedAssetsByClass)
 	{
 		const auto& TypeAssets = AssetsByClassPair.Value;
-		FAssetEditorManager::Get().OpenEditorForAssets(TypeAssets);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(TypeAssets);
 	}
 }
 

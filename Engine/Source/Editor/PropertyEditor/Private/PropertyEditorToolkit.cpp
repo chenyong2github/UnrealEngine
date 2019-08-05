@@ -13,6 +13,7 @@
 #include "IPropertyTableRow.h"
 
 #include "Widgets/Docking/SDockTab.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditorToolkit"
 
@@ -55,7 +56,7 @@ FPropertyEditorToolkit::FPropertyEditorToolkit()
 TSharedPtr<FPropertyEditorToolkit> FPropertyEditorToolkit::FindExistingEditor( UObject* Object )
 {
 	// Find any existing property editor instances for this asset
-	const TArray<IAssetEditorInstance*> Editors = FAssetEditorManager::Get().FindEditorsForAsset( Object );
+	const TArray<IAssetEditorInstance*> Editors = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorsForAsset( Object );
 
 	IAssetEditorInstance* const * ExistingInstance = Editors.FindByPredicate( [&]( IAssetEditorInstance* Editor ){
 		return Editor->GetEditorName() == ToolkitFName;

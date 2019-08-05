@@ -43,7 +43,7 @@
 #include "EmptyFolderVisibilityManager.h"
 #include "Settings/EditorExperimentalSettings.h"
 
-#include "Toolkits/AssetEditorManager.h"
+
 #include "PackagesDialog.h"
 #include "PackageTools.h"
 #include "ObjectTools.h"
@@ -56,6 +56,8 @@
 #include "SAssetView.h"
 #include "SPathView.h"
 #include "ContentBrowserLog.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -308,7 +310,7 @@ bool ContentBrowserUtils::OpenEditorForAsset(UObject* Asset)
 	if( Asset != NULL )
 	{
 		// @todo toolkit minor: Needs world-centric support?
-		return FAssetEditorManager::Get().OpenEditorForAsset(Asset);
+		return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
 	}
 
 	return false;
@@ -322,7 +324,7 @@ bool ContentBrowserUtils::OpenEditorForAsset(const TArray<UObject*>& Assets)
 	}
 	else if ( Assets.Num() > 1 )
 	{
-		return FAssetEditorManager::Get().OpenEditorForAssets(Assets);
+		return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(Assets);
 	}
 	
 	return false;

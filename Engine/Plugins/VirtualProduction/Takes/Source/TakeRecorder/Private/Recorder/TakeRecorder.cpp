@@ -24,7 +24,7 @@
 
 // UnrealEd includes
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "ObjectTools.h"
 #include "UObject/GCObjectScopeGuard.h"
 
@@ -42,6 +42,7 @@
 // LevelEditor includes
 #include "ILevelViewport.h"
 #include "LevelEditor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "TakeRecorder"
 
@@ -522,9 +523,9 @@ bool UTakeRecorder::CreateDestinationAsset(const TCHAR* AssetPathFormat, ULevelS
 bool UTakeRecorder::InitializeSequencer(FText* OutError)
 {
 	// Open the sequence and set the sequencer ptr
-	FAssetEditorManager::Get().OpenEditorForAsset(SequenceAsset);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceAsset);
 
-	IAssetEditorInstance*        AssetEditor         = FAssetEditorManager::Get().FindEditorForAsset(SequenceAsset, false);
+	IAssetEditorInstance*        AssetEditor         = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(SequenceAsset, false);
 	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
 
 	WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;

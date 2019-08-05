@@ -14,6 +14,7 @@
 #include "PersonaAssetFamily.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "AnimationEditorPreviewActor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 FPersonaToolkit::FPersonaToolkit()
 	: Skeleton(nullptr)
@@ -319,8 +320,8 @@ void FPersonaToolkit::SetPreviewMesh(class USkeletalMesh* InSkeletalMesh, bool b
 			}
 			check(AssetToReopen);
 
-			FAssetEditorManager::Get().CloseAllEditorsForAsset(AssetToReopen);
-			FAssetEditorManager::Get().OpenEditorForAsset(AssetToReopen);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(AssetToReopen);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToReopen);
 			return;
 		}
 

@@ -47,7 +47,7 @@
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "PackageTools.h"
 #include "Logging/MessageLog.h"
 
@@ -76,6 +76,7 @@
 #include "SListViewSelectorDropdownMenu.h"
 #include "ClassViewerProjectSettings.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SClassViewer"
 
@@ -505,7 +506,7 @@ namespace ClassViewer
 				UBlueprint* NewBP = FKismetEditorUtilities::CreateBlueprint(InCreationClass, Package, BPName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("ClassViewer"));
 				if(NewBP)
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(NewBP);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBP);
 
 					// Notify the asset registry
 					FAssetRegistryModule::AssetCreated(NewBP);
@@ -635,7 +636,7 @@ namespace ClassViewer
 		{
 			if( InBlueprint != nullptr )
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(InBlueprint);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InBlueprint);
 			}
 		}
 

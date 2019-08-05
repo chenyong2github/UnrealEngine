@@ -13,6 +13,7 @@
 #include "CodeProjectEditorToolbar.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "CodeEditor"
@@ -204,7 +205,7 @@ void FCodeProjectEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>&
 
 void FCodeProjectEditor::InitCodeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class UCodeProject* CodeProject)
 {
-	FAssetEditorManager::Get().CloseOtherEditors(CodeProject, this);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseOtherEditors(CodeProject, this);
 	CodeProjectBeingEdited = CodeProject;
 
 	TSharedPtr<FCodeProjectEditor> ThisPtr(SharedThis(this));

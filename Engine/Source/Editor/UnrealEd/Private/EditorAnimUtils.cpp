@@ -12,11 +12,12 @@
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "ObjectEditorUtils.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "EditorAnimUtils"
 
@@ -309,7 +310,7 @@ namespace EditorAnimUtils
 
 	void OpenAssetFromNotify(UObject* AssetToOpen)
 	{
-		FAssetEditorManager::Get().OpenEditorForAsset(AssetToOpen);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToOpen);
 	}
 
 	//////////////////////////////////////////////////////////////////

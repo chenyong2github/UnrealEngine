@@ -36,7 +36,7 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include "SkelImport.h"
 #include "Animation/AnimSequence.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 #include "AbcImportUtilities.h"
 #include "Utils.h"
@@ -59,6 +59,8 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include "AnimationUtils.h"
 #include "ComponentReregisterContext.h"
 #include "GeometryCacheCodecV1.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "AbcImporter"
 
@@ -806,10 +808,10 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		GeneratedObjects.Add(Skeleton);
 		GeneratedObjects.Add(Sequence);
 
-		FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();
-		AssetEditorManager.CloseAllEditorsForAsset(Skeleton);
-		AssetEditorManager.CloseAllEditorsForAsset(SkeletalMesh);
-		AssetEditorManager.CloseAllEditorsForAsset(Sequence);
+		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+		AssetEditorSubsystem->CloseAllEditorsForAsset(Skeleton);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(SkeletalMesh);
+		AssetEditorSubsystem->CloseAllEditorsForAsset(Sequence);
 	}
 
 	if (RecreateExistingRenderStateContext)

@@ -73,6 +73,7 @@
 #include "Editor/SControlRigProfilingView.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -158,7 +159,7 @@ void FControlRigEditorModule::StartupModule()
 	SequencerModule.GetToolBarExtensibilityManager()->AddExtender(SequencerToolbarExtender);
 
 	// Register for assets being opened
-	AssetEditorOpenedHandle = FAssetEditorManager::Get().OnAssetEditorOpened().AddRaw(this, &FControlRigEditorModule::HandleAssetEditorOpened);
+	AssetEditorOpenedHandle = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorOpened().AddRaw(this, &FControlRigEditorModule::HandleAssetEditorOpened);
 
 	// Register level sequence spawner
 	ILevelSequenceModule& LevelSequenceModule = FModuleManager::LoadModuleChecked<ILevelSequenceModule>("LevelSequence");
@@ -355,7 +356,10 @@ void FControlRigEditorModule::ShutdownModule()
 		TrajectoryMaterial->RemoveFromRoot();
 	}
 
-	FAssetEditorManager::Get().OnAssetEditorOpened().Remove(AssetEditorOpenedHandle);
+	if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+	{
+		AssetEditorSubsystem->OnAssetEditorOpened().Remove(AssetEditorOpenedHandle);
+	}
 
 	FEditorModeRegistry::Get().UnregisterMode(FControlRigEditorEditMode::ModeName);
 	FEditorModeRegistry::Get().UnregisterMode(FControlRigEditMode::ModeName);

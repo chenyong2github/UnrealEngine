@@ -15,8 +15,9 @@
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "TimecodeSynchronizerEditor"
@@ -168,7 +169,7 @@ void FTimecodeSynchronizerEditorLevelToolbar::AddObjectSubMenu(FMenuBuilder& Men
 
 void FTimecodeSynchronizerEditorLevelToolbar::OpenCurrentTimecodeSynchronizer()
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(CurrentTimecodeSynchronizer.Get());
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CurrentTimecodeSynchronizer.Get());
 }
 
 void FTimecodeSynchronizerEditorLevelToolbar::CreateNewTimecodeSynchronizer()
@@ -181,7 +182,7 @@ void FTimecodeSynchronizerEditorLevelToolbar::CreateNewTimecodeSynchronizer()
 		GetMutableDefault<UTimecodeSynchronizerEditorSettings>()->UserTimecodeSynchronizer = NewAsset;
 		GetMutableDefault<UTimecodeSynchronizerEditorSettings>()->SaveConfig();
 		CurrentTimecodeSynchronizer = NewAsset;
-		FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 	}
 }
 

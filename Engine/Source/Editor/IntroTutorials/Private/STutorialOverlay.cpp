@@ -13,12 +13,13 @@
 #include "Framework/Docking/TabManager.h"
 #include "Engine/Blueprint.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IntroTutorials.h"
 #include "STutorialContent.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "LevelEditor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 static FName IntroTutorialsModuleName("IntroTutorials");
 
@@ -204,13 +205,13 @@ void STutorialOverlay::OpenBrowserForWidgetAnchor(UEditorTutorial* InTutorial, c
 			FString Name = WidgetContent.WidgetAnchor.OuterName.RightChop(Space + 1);
 			TArray<FString> AssetPaths;
 			AssetPaths.Add(Name);
-			FAssetEditorManager::Get().OpenEditorsForAssets(AssetPaths);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorsForAssets(AssetPaths);
 			UObject* Blueprint = FindObject<UObject>(ANY_PACKAGE, *Name);
 
 			// If we found a blueprint
 			if(Blueprint != nullptr)
 			{
-				IAssetEditorInstance* PotentialAssetEditor = FAssetEditorManager::Get().FindEditorForAsset(Blueprint, false);
+				IAssetEditorInstance* PotentialAssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, false);
 				if(PotentialAssetEditor != nullptr)
 				{
 					AssetEditor = PotentialAssetEditor;
@@ -225,7 +226,7 @@ void STutorialOverlay::OpenBrowserForWidgetAnchor(UEditorTutorial* InTutorial, c
 			UObject* AssetObject = InTutorial->AssetToUse.ResolveObject();
 			if(AssetObject != nullptr)
 			{
-				IAssetEditorInstance* PotentialAssetEditor = FAssetEditorManager::Get().FindEditorForAsset(AssetObject, false);
+				IAssetEditorInstance* PotentialAssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AssetObject, false);
 				if(PotentialAssetEditor != nullptr)
 				{
 					AssetEditor = PotentialAssetEditor;

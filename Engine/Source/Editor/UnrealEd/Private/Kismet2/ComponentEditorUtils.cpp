@@ -25,10 +25,11 @@
 #include "Styling/SlateIconFinder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "HAL/PlatformApplicationMisc.h"
 #include "ToolMenus.h"
 #include "Kismet2/ComponentEditorContextMenuContex.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ComponentEditorUtils"
 
@@ -1107,7 +1108,7 @@ void FComponentEditorUtils::OnOpenComponentCodeFile(const FString CodeFileName)
 
 void FComponentEditorUtils::OnEditBlueprintComponent(UObject* Blueprint)
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 }
 
 #undef LOCTEXT_NAMESPACE

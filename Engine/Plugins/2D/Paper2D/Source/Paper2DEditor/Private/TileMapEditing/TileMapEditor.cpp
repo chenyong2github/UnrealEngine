@@ -15,6 +15,7 @@
 #include "SCommonEditorViewportToolbarBase.h"
 #include "TileMapEditing/STileMapEditorViewportToolbar.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "TileMapEditor"
 
@@ -298,7 +299,7 @@ void FTileMapEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& 
 
 void FTileMapEditor::InitTileMapEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class UPaperTileMap* InitTileMap)
 {
-	FAssetEditorManager::Get().CloseOtherEditors(InitTileMap, this);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseOtherEditors(InitTileMap, this);
 	TileMapBeingEdited = InitTileMap;
 
 	FTileMapEditorCommands::Register();

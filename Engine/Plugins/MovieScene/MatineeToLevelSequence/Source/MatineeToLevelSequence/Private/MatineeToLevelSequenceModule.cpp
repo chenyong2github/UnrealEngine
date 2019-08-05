@@ -49,7 +49,7 @@
 #include "Matinee/InterpTrackMoveAxis.h"
 #include "MatineeUtils.h"
 #include "Editor.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "LevelEditor.h"
 #include "MovieScene.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
@@ -78,6 +78,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "MatineeToLevelSequence"
 
@@ -274,7 +275,7 @@ protected:
 			UObject* NewAsset = NewActors[0]->LevelSequence.TryLoad();
 			if (NewAsset)
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(NewAsset);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewAsset);
 			}
 
 			FText NotificationText;

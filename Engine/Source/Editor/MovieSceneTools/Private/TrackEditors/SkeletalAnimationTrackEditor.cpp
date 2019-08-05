@@ -38,12 +38,13 @@
 #include "Misc/MessageDialog.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/Blueprint.h"
 
 #include "CommonMovieSceneTools.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 namespace SkeletalAnimationEditorConstants
 {
@@ -344,7 +345,7 @@ bool FSkeletalAnimationSection::CreatePoseAsset(const TArray<UObject*> NewAssets
 			Info.bUseLargeFont = false;
 			Info.Hyperlink = FSimpleDelegate::CreateLambda([NewAssets]()
 			{
-				FAssetEditorManager::Get().OpenEditorForAssets(NewAssets);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(NewAssets);
 			});
 			Info.HyperlinkText = FText::Format(LOCTEXT("OpenNewPoseAssetHyperlink", "Open {0}"), FText::FromString(NewAssets[0]->GetName()));
 				

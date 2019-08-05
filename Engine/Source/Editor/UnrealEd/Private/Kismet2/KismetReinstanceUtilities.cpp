@@ -24,7 +24,7 @@
 #include "Layers/LayersSubsystem.h"
 #include "Editor.h"
 #include "Serialization/ArchiveHasReferences.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Serialization/FindObjectReferencers.h"
@@ -32,6 +32,7 @@
 #include "BlueprintEditor.h"
 #include "Engine/Selection.h"
 #include "BlueprintEditorSettings.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
 
@@ -2204,7 +2205,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		// Refresh any editors for objects that we've updated components for
 		for (UObject* BlueprintAsset : PotentialEditorsForRefreshing)
 		{
-			FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(FAssetEditorManager::Get().FindEditorForAsset(BlueprintAsset, /*bFocusIfOpen =*/false));
+			FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(BlueprintAsset, /*bFocusIfOpen =*/false));
 			if (BlueprintEditor)
 			{
 				BlueprintEditor->RefreshEditors();

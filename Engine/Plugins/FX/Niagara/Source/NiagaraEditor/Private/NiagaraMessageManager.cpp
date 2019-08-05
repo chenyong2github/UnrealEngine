@@ -7,9 +7,10 @@
 #include "Modules/ModuleManager.h"
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "NiagaraScriptToolkit.h"
 #include "../Public/NiagaraEditorModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraMessageManager"
 
@@ -497,7 +498,7 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 	{
 		if (UNiagaraScript* ScriptAsset = Cast<UNiagaraScript>(AssetData.GetAsset()))
 		{
-			FAssetEditorManager::Get().OpenEditorForAsset(ScriptAsset, EToolkitMode::Standalone);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ScriptAsset, EToolkitMode::Standalone);
 			FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 			if (InPinGUID.IsSet())
 			{

@@ -93,7 +93,7 @@
 #include "ScopedTransaction.h"
 #include "ClassViewerFilter.h"
 #include "InstancedReferenceSubobjectHelper.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "BlueprintEditorModule.h"
 #include "BlueprintEditor.h"
 #include "Kismet2/Kismet2NameValidators.h"
@@ -118,6 +118,7 @@
 #include "UObject/UObjectThreadContext.h"
 #include "AnimGraphNode_SubInput.h"
 #include "AnimGraphNode_Root.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 extern COREUOBJECT_API bool GBlueprintUseCompilationManager;
 
@@ -2157,7 +2158,7 @@ void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FProp
 		FBlueprintEditorUtils::ClearMacroCosmeticInfoCache(Blueprint);
 	}
 	
-	IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(Blueprint, false);
+	IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, false);
 	if (AssetEditor)
 	{
 		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
@@ -8131,8 +8132,8 @@ void FBlueprintEditorUtils::FindAndSetDebuggableBlueprintInstances()
 	TMap< UBlueprint*, TArray< AActor* > > BlueprintsNeedingInstancesToDebug;
 
 	// Find open blueprint editors that have no debug instances
-	FAssetEditorManager& AssetEditorManager = FAssetEditorManager::Get();	
-	TArray<UObject*> EditedAssets = AssetEditorManager.GetAllEditedAssets();		
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets();		
 	for(int32 i=0; i<EditedAssets.Num(); i++)
 	{
 		UBlueprint* Blueprint = Cast<UBlueprint>( EditedAssets[i] );

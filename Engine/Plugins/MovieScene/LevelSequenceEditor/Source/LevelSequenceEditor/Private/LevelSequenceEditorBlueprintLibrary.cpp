@@ -7,6 +7,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "LevelEditor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 namespace
 {
@@ -15,7 +16,7 @@ namespace
 
 bool ULevelSequenceEditorBlueprintLibrary::OpenLevelSequence(ULevelSequence* LevelSequence)
 {
-	return FAssetEditorManager::Get().OpenEditorForAsset(LevelSequence);
+	return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelSequence);
 }
 
 ULevelSequence* ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence()
@@ -31,7 +32,7 @@ void ULevelSequenceEditorBlueprintLibrary::CloseLevelSequence()
 {
 	if (CurrentSequencer.IsValid())
 	{
-		FAssetEditorManager::Get().CloseAllEditorsForAsset(CurrentSequencer.Pin()->GetRootMovieSceneSequence());
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(CurrentSequencer.Pin()->GetRootMovieSceneSequence());
 	}
 }
 

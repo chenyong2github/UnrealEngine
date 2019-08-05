@@ -6,7 +6,7 @@
 #include "CategoryPropertyNode.h"
 #include "ItemPropertyNode.h"
 #include "ObjectPropertyNode.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Editor/SceneOutliner/Public/SceneOutlinerFilters.h"
 #include "IDetailPropertyRow.h"
 #include "PropertyCustomizationHelpers.h"
@@ -19,6 +19,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EditConditionParser.h"
 #include "EditConditionContext.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -297,7 +298,7 @@ void FPropertyEditor::MakeNewBlueprint()
 			
 			PropertyHandle->SetValueFromFormattedString(Blueprint->GeneratedClass->GetPathName());
 
-			FAssetEditorManager::Get().OpenEditorForAsset(Blueprint);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 		}
 	}
 }

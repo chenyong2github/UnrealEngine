@@ -3,7 +3,7 @@
 #include "GameplayTagReferenceHelperDetails.h"
 #include "AssetRegistryModule.h"
 #include "Widgets/Input/SHyperlink.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "ObjectTools.h"
 #include "GameplayTagContainer.h"
 #include "UObject/UObjectHash.h"
@@ -11,6 +11,7 @@
 #include "GameplayTagsManager.h"
 #include "SGameplayTagWidget.h"
 #include "IDetailChildrenBuilder.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagReferenceHelperDetails"
 
@@ -172,7 +173,7 @@ TSharedRef<ITableRow> FGameplayTagReferenceHelperDetails::OnGenerateWidgetForGam
 				{
 					if (ObjectTools::IsObjectBrowsable(Obj))
 					{
-						FAssetEditorManager::Get().OpenEditorForAsset(Obj);
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Obj);
 					}
 				});
 			}

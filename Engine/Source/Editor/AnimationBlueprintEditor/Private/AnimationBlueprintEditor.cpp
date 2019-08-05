@@ -74,6 +74,7 @@
 #include "EdGraphNode_Comment.h"
 #include "AnimStateNodeBase.h"
 #include "AnimStateEntryNode.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintEditor"
 
@@ -1101,7 +1102,7 @@ void FAnimationBlueprintEditor::OnOpenRelatedAsset()
 				UAnimationAsset* AnimAsset = Node->GetAnimationAsset();
 				if(AnimAsset)
 				{
-					FAssetEditorManager::Get().OpenEditorForAsset(AnimAsset, Mode);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AnimAsset, Mode);
 				}
 			}
 		}
@@ -1135,7 +1136,7 @@ void FAnimationBlueprintEditor::Compile()
 		if(CurrentDebugObject)
 		{
 			// Force close any asset editors that are using the AnimScriptInstance (such as the Property Matrix), the class will be garbage collected
-			FAssetEditorManager::Get().CloseOtherEditors(CurrentDebugObject, nullptr);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseOtherEditors(CurrentDebugObject, nullptr);
 			DebuggedMeshComponent = CurrentDebugObject->GetSkelMeshComponent();
 		}
 	}
@@ -1444,7 +1445,7 @@ UObject* FAnimationBlueprintEditor::HandleGetObject()
 
 void FAnimationBlueprintEditor::HandleOpenNewAsset(UObject* InNewAsset)
 {
-	FAssetEditorManager::Get().OpenEditorForAsset(InNewAsset);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InNewAsset);
 }
 
 void FAnimationBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )

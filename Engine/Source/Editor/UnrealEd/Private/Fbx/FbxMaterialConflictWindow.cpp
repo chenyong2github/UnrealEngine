@@ -22,7 +22,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Factories/FbxSceneImportFactory.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Framework/Application/SlateApplication.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"

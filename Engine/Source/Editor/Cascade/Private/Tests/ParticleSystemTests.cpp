@@ -6,7 +6,7 @@
 #include "Factories/ParticleSystemFactoryNew.h"
 #include "Particles/ParticleSystem.h"
 #include "Distributions/DistributionVectorUniform.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 //Automation
 #include "Tests/AutomationTestSettings.h"
@@ -17,6 +17,7 @@
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/Size/ParticleModuleSize.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -158,7 +159,7 @@ namespace ParticleEditorPromotionTestHelper
 			if (CreatedPS)
 			{
 				// @TODO: Add verification that this completed successfully.
-				FAssetEditorManager::Get().OpenEditorForAsset(CreatedPS);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CreatedPS);
 				UE_LOG(LogParticleEditorPromotionTests, Display, TEXT("Opened the cascade editor"));
 			}
 			else
@@ -178,7 +179,7 @@ namespace ParticleEditorPromotionTestHelper
 			// @TODO: This should create, edit, and remove a temp asset instead of relying on a previously-created one
 			if (CreatedPS)
 			{
-				IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(CreatedPS, true);
+				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(CreatedPS, true);
 
 				bool bModifiedSize = false;
 				UParticleLODLevel* DefaultLOD = CreatedPS->Emitters[0]->LODLevels[0];
@@ -209,7 +210,7 @@ namespace ParticleEditorPromotionTestHelper
 				}
 
 				// @TODO: Close only Cascade instead of all editors
-				FAssetEditorManager::Get().CloseAllAssetEditors();
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors();
 				UE_LOG(LogParticleEditorPromotionTests, Display, TEXT("Closed the cascade editor"));
 			}
 			// @TODO: Return false if test failed after removing sequential-testing setup

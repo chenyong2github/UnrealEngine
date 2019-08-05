@@ -19,12 +19,13 @@
 #include "Sequencer/ControlRigBindingTemplate.h"
 #include "Editor.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "AssetRegistryModule.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Text/STextBlock.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigSequenceExporter"
 
@@ -307,7 +308,7 @@ void Convert(UControlRigSequence* Sequence, UAnimSequence* AnimSequence, USkelet
 				{
 					TArray<UObject*> Assets;
 					Assets.Add(WeakAnimSequence.Get());
-					FAssetEditorManager::Get().OpenEditorForAssets(Assets);
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(Assets);
 				}
 			});
 			Info.HyperlinkText = FText::Format(LOCTEXT("OpenNewAnimationHyperlink", "Open {0}"), FText::FromString(AnimSequence->GetName()));

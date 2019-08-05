@@ -16,7 +16,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include "ScopedTransaction.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 #define LOCTEXT_NAMESPACE "EmitterHandleViewModel"
 

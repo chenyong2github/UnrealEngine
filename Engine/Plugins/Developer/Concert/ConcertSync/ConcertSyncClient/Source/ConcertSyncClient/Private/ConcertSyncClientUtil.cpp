@@ -34,10 +34,11 @@
 	#include "Editor/UnrealEdEngine.h"
 	#include "PackageTools.h"
 	#include "ObjectTools.h"
-	#include "Toolkits/AssetEditorManager.h"
+	
 	#include "GameMapsSettings.h"
 	#include "FileHelpers.h"
 #endif
+#include "Subsystems/AssetEditorSubsystem.h"
 
 namespace ConcertSyncClientUtil
 {
@@ -357,7 +358,7 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 #if WITH_EDITOR
 		if (InObject->IsAsset())
 		{
-			FAssetEditorManager::Get().CloseAllEditorsForAsset(InObject);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(InObject);
 		}
 #endif
 		if (InObject->IsRooted())

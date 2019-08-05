@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Framework/Docking/TabManager.h"
-#include "Toolkits/AssetEditorManager.h"
+
 
 class FCurveOwnerInterface;
 class SCurveEditor;

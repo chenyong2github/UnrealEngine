@@ -69,7 +69,7 @@
 
 // Actor Details, Modes
 #include "SEditorViewport.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "ILevelEditor.h"
 #include "LevelEditor.h"
 
@@ -104,6 +104,7 @@
 #include "Engine/Selection.h"
 #include "VREditorFloatingCameraUI.h"
 #include "ScopedTransaction.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "VREditor"
 
@@ -292,7 +293,7 @@ void UVREditorUISystem::Shutdown()
 
 	// Remove the proxy tab manager, we don't want to steal tabs any more.
 	FGlobalTabmanager::Get()->SetProxyTabManager(TSharedPtr<FProxyTabmanager>());
-	FAssetEditorManager::Get().OnAssetEditorOpened().RemoveAll(this);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorOpened().RemoveAll(this);
 
 	VRMode = nullptr;
 	DraggingUI = nullptr;
@@ -1081,7 +1082,7 @@ void UVREditorUISystem::CreateUIs()
 			// We're going to start stealing tabs from the global tab manager inserting them into the world instead.
 			FGlobalTabmanager::Get()->SetProxyTabManager( ProxyTabManager );
 
-			FAssetEditorManager::Get().OnAssetEditorOpened().AddUObject( this, &UVREditorUISystem::OnAssetEditorOpened );
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorOpened().AddUObject( this, &UVREditorUISystem::OnAssetEditorOpened );
 		}
 		// create the world settings menu
 		{
@@ -1139,7 +1140,7 @@ void UVREditorUISystem::OnAssetEditorOpened(UObject* Asset)
 	
 	{
 		// We need to disable drag drop on the tabs spawned in VR mode.
-		TArray<IAssetEditorInstance*> Editors = FAssetEditorManager::Get().FindEditorsForAsset(Asset);
+		TArray<IAssetEditorInstance*> Editors = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorsForAsset(Asset);
 		for ( IAssetEditorInstance* Editor : Editors )
 		{
 			if (Editor->GetAssociatedTabManager().IsValid())

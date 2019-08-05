@@ -16,8 +16,9 @@
 #include "Input/Reply.h"
 #include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "Templates/SharedPointer.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #endif //WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
 
 
 ULevelSequencePlaybackController::ULevelSequencePlaybackController(const FObjectInitializer& ObjectInitializer)
@@ -307,8 +308,8 @@ bool ULevelSequencePlaybackController::SetActiveLevelSequence(ULevelSequence* In
 	if(InNewLevelSequence && !IsRunningGame())
 	{
 		const bool bDoFocusOnEditor = false;
-		FAssetEditorManager::Get().OpenEditorForAsset(InNewLevelSequence);
-		IAssetEditorInstance* AssetEditor = FAssetEditorManager::Get().FindEditorForAsset(InNewLevelSequence, bDoFocusOnEditor);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InNewLevelSequence);
+		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(InNewLevelSequence, bDoFocusOnEditor);
 		ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
 
 		WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;

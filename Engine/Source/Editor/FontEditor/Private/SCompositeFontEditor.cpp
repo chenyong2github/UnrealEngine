@@ -12,7 +12,7 @@
 #include "EditorStyleSet.h"
 #include "EditorFontGlyphs.h"
 #include "EditorDirectories.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "IFontEditor.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -27,6 +27,7 @@
 #include "Misc/FileHelper.h"
 #include "IContentBrowserSingleton.h"
 #include "FileHelpers.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FontEditor"
 
@@ -925,7 +926,7 @@ void STypefaceEntryEditor::OnTypefaceEntryFontPathPicked(const FString& InNewFon
 			if (NewFontFaceAsset)
 			{
 				OnFontFaceAssetChanged(FAssetData(NewFontFaceAsset));
-				FAssetEditorManager::Get().OpenEditorForAsset(NewFontFaceAsset);
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewFontFaceAsset);
 			}
 		}
 	}
@@ -1056,7 +1057,7 @@ FReply STypefaceEntryEditor::OnUpgradeDataClicked()
 		if (NewFontFaceAsset)
 		{
 			OnFontFaceAssetChanged(FAssetData(NewFontFaceAsset));
-			FAssetEditorManager::Get().OpenEditorForAsset(NewFontFaceAsset);
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewFontFaceAsset);
 		}
 	}
 

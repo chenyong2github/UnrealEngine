@@ -14,11 +14,12 @@
 #include "EditorStyleSet.h"
 #include "MovieSceneToolHelpers.h"
 #include "MovieSceneTimeHelpers.h"
-#include "Toolkits/AssetEditorManager.h"
+
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "CommonMovieSceneTools.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FCinematicShotSection"
 
@@ -527,7 +528,7 @@ FReply FCinematicShotSection::OnSectionDoubleClicked(const FGeometry& SectionGeo
 		{
 			if (MouseEvent.IsControlDown())
 			{
-				FAssetEditorManager::Get().OpenEditorForAsset(SectionObject.GetSequence());
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SectionObject.GetSequence());
 			}
 			else
 			{
