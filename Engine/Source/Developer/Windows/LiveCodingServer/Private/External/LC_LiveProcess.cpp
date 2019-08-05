@@ -176,7 +176,7 @@ bool LiveProcess::PrepareForRestart(void)
 }
 
 
-void LiveProcess::Restart(void)
+void LiveProcess::Restart(void* restartJob)
 {
 	if (m_restartState == RestartState::SUCCESSFUL_PREPARE)
 	{
@@ -189,7 +189,21 @@ void LiveProcess::Restart(void)
 		process::Wait(m_processHandle);
 
 		// restart the target application
-		process::Spawn(m_imagePath.c_str(), m_workingDirectory.c_str(), m_commandLine.c_str(), m_environment.GetData(), process::SpawnFlags::NONE);
+		// BEGIN EPIC MOD - Force LiveCoding to start up for child processes
+		std::wstring commandLine(m_commandLine);
+
+		const std::wstring argument(L" -LiveCoding");
+		if (commandLine.length() >= argument.length() && commandLine.compare(commandLine.length() - argument.length(), argument.length(), argument) != 0)
+		{
+			commandLine += argument;
+		}
+		// END EPIC MOD
+		// BEGIN EPIC MOD - Prevent orphaned console instances if processes fail to restart. Job object will be duplicated into child process.
+		process::Context* context = process::Spawn(m_imagePath.c_str(), m_workingDirectory.c_str(), commandLine.c_str(), m_environment.GetData(), process::SpawnFlags::SUSPENDED);
+		void* TargetHandle;
+		DuplicateHandle(GetCurrentProcess(), restartJob, context->pi.hProcess, &TargetHandle, 0, Windows::TRUE, DUPLICATE_SAME_ACCESS);
+		ResumeThread(context->pi.hThread);
+		// END EPIC MOD
 
 		m_restartState = RestartState::SUCCESSFUL;
 	}

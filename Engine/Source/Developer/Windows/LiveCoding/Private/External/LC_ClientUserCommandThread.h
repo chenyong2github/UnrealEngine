@@ -80,7 +80,7 @@ public:
 	// END EPIC MOD
 
 	// BEGIN EPIC MOD - Support for lazy-loading modules
-	void EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase);
+	void* EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase);
 	// END EPIC MOD
 
 	void ApplySettingBool(const char* settingName, int value);
