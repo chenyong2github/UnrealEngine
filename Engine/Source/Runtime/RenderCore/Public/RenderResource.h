@@ -106,12 +106,12 @@ protected:
 	ERHIFeatureLevel::Type FeatureLevel;
 
 private:
+	/** True if the resource has been initialized. */
+	bool bInitialized;
+
 	#if PLATFORM_NEEDS_RHIRESOURCELIST
 	TLinkedList<FRenderResource*> ResourceLink;
 	#endif
-
-	/** True if the resource has been initialized. */
-	bool bInitialized;
 };
 
 /**
