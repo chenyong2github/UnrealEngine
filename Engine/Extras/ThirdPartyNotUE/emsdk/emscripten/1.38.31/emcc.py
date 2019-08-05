@@ -1675,8 +1675,25 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         else:
           args.append('-emit-llvm')
         logger.debug("running: " + ' '.join(shared.Building.doublequote_spaces(args))) # NOTE: Printing this line here in this specific format is important, it is parsed to implement the "emcc --cflags" command
-        if run_process(args, check=False).returncode != 0:
-          exit_with_error('compiler frontend failed to generate LLVM bitcode, halting')
+# EPIC EDIT start -- nick.shin 2019-07-29 -- UE-78034
+# windows seems to have a problem of returning control to python after spawning process
+# - we are seening the process has already exit which give bad results upon coming back from CreateProcess()
+# - since this is just compiling -- rerun build again if this a "Access is denied.  (0x5)" condition
+        #if run_process(args, check=False).returncode != 0:
+        #  exit_with_error('compiler frontend failed to generate LLVM bitcode, halting')
+        loop_limit = 3
+        while loop_limit > 0:
+          result = run_process(args, check=False).returncode
+          if result == 0:
+            break
+          if result != 5:
+            exit_with_error('compiler frontend failed to generate LLVM bitcode, halting')
+            break
+          print('NICKNICK: emcc.py START OF CIS BUGHUNT DUMP loop:%d' % loop_limit)
+          print(args)
+          print('NICKNICK: emcc.py END OF CIS BUGHUNT DUMP')
+          loop_limit -= 1
+# EPIC EDIT end -- nick.shin 2019-07-29 -- UE-78034
         assert(os.path.exists(output_file))
 
       # First, generate LLVM bitcode. For each input file, we get base.o with bitcode
