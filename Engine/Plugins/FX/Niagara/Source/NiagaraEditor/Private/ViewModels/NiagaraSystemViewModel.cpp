@@ -23,6 +23,7 @@
 #include "NiagaraNodeInput.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeFunctionCall.h"
+#include "EdGraphSchema_NiagaraSystemOverview.h"
 
 #include "Editor.h"
 
@@ -457,6 +458,7 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 {
 	RefreshAll();
+	GetDefault<UEdGraphSchema_NiagaraSystemOverview>()->ForceVisualizationCacheClear();
 }
 
 void FNiagaraSystemViewModel::Tick(float DeltaTime)
@@ -1190,6 +1192,7 @@ void FNiagaraSystemViewModel::EmitterHandlePropertyChanged(TSharedRef<FNiagaraEm
 
 void FNiagaraSystemViewModel::EmitterHandleNameChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel)
 {
+	GetDefault<UEdGraphSchema_NiagaraSystemOverview>()->ForceVisualizationCacheClear();
 	CompileSystem(false);
 }
 

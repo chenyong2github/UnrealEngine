@@ -10,7 +10,7 @@
 
 class FNiagaraEmitterInstance;
 
-UCLASS(editinlinenew, meta = (DisplayName = "Sprite Renderer"))
+UCLASS(editinlinenew, meta = (DisplayName = "Light Renderer"))
 class UNiagaraLightRendererProperties : public UNiagaraRendererProperties
 {
 public:
