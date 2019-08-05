@@ -887,4 +887,15 @@ FSoftClassPath AWorldSettings::GetAISystemClassName() const
 	return bEnableAISystem ? UAISystemBase::GetAISystemClassName() : FSoftClassPath();
 }
 
+void AWorldSettings::RewindForReplay()
+{
+	Super::RewindForReplay();
+
+	PauserPlayerState = nullptr;
+	TimeDilation = 1.0;
+	MatineeTimeDilation = 1.0;
+	bWorldGravitySet = false;
+	bHighPriorityLoading = false;
+}
+
 #undef LOCTEXT_NAMESPACE
