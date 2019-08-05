@@ -41,7 +41,9 @@ enum EBulkDataFlags
 	/** This payload will be memory mapped, this requires alignment, no compression etc. */
 	BULKDATA_MemoryMappedPayload = 1 << 12,
 	/** Bulk data size is 64 bits long */
-	BULKDATA_Size64Bit							= 1 << 13
+	BULKDATA_Size64Bit							= 1 << 13,
+	/** Duplicate non-optional payload in optional bulk data. */
+	BULKDATA_DuplicateNonOptionalPayload		= 1 << 14
 };
 
 /**
