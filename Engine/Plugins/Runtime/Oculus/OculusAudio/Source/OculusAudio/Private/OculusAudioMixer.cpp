@@ -19,10 +19,13 @@ OculusAudioSpatializationAudioMixer::OculusAudioSpatializationAudioMixer()
 
 OculusAudioSpatializationAudioMixer::~OculusAudioSpatializationAudioMixer()
 {
-	if (bOvrContextInitialized)
+	if (TickDelegateHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	}
 
+	if (bOvrContextInitialized)
+	{
 		// clear context from map
 		Shutdown();
 	}
