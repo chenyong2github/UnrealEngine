@@ -241,11 +241,6 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidget InvalidateReason)
 
 	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::ChildOrder))
 	{
-		/*
-				CSV_EVENT_GLOBAL(TEXT("Slow Path Needed"));
-		#if WITH_SLATE_DEBUGGING
-				UE_LOG(LogSlate, Log, TEXT("Slow Widget Path Needed: %s %s"), *Proxy.Widget->ToString(), *Proxy.Widget->GetTag().ToString());
-		#endif*/
 		Proxy.bChildOrderInvalid = true;
 		InvalidationRoot->InvalidateChildOrder();
 	}
@@ -254,7 +249,7 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidget InvalidateReason)
 	{
 		InvalidationRoot->WidgetsNeedingUpdate.Push(Proxy);
 	}
-#if WITH_SLATE_DEBUGGING
+#if 0
 	else
 	{
 		ensure(InvalidationRoot->WidgetsNeedingUpdate.Contains(Proxy));
