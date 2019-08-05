@@ -271,6 +271,7 @@ private:
 	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
 	friend class FRDGBuilder;
+	friend class FRDGUserValidation;
 	friend class FRDGBarrierBatcher;
 };
 
