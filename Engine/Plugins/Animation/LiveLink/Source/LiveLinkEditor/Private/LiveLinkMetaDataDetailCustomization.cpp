@@ -15,6 +15,7 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "PropertyHandle.h"
 
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 
