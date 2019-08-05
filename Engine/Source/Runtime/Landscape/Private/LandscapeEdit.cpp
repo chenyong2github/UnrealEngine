@@ -824,6 +824,26 @@ public:
 	int32 SizeVertsSquare = 0;
 };
 
+void ULandscapeComponent::UpdateDirtyCollisionHeightData(FIntRect Region)
+{
+	// Take first value as is
+	if (LayerDirtyCollisionHeightData.IsEmpty())
+	{
+		LayerDirtyCollisionHeightData = Region;
+	}
+	else
+	{
+		// Merge min/max region
+		LayerDirtyCollisionHeightData.Include(Region.Min);
+		LayerDirtyCollisionHeightData.Include(Region.Max);
+	}
+}
+
+void ULandscapeComponent::ClearDirtyCollisionHeightData()
+{
+	LayerDirtyCollisionHeightData = FIntRect();
+}
+
 void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/, bool bInUpdateHeightfieldRegion/*=true*/)
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -853,6 +873,18 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		{
 			CollisionComp->Modify();
 		}
+	}
+	else
+	{
+		// In Landscape Layers, only update dirtied collision height data
+		if (bInUpdateHeightfieldRegion && ComponentX1 == 0 && ComponentY1 == 0 && ComponentX2 == MAX_int32 && ComponentY2 == MAX_int32 && !LayerDirtyCollisionHeightData.IsEmpty())
+		{
+			ComponentX1 = LayerDirtyCollisionHeightData.Min.X;
+			ComponentY1 = LayerDirtyCollisionHeightData.Min.Y;
+			ComponentX2 = LayerDirtyCollisionHeightData.Max.X;
+			ComponentY2 = LayerDirtyCollisionHeightData.Max.Y;
+		}
+		ClearDirtyCollisionHeightData();
 	}
 
 	// Existing collision component is same type with collision
