@@ -12,7 +12,7 @@ enum class EControlRigModifyBoneMode : uint8
 	/** Override existing local transform */
 	OverrideLocal,
 
-	/** Override existing local transform */
+	/** Override existing global transform */
 	OverrideGlobal,
 
 	/** 
