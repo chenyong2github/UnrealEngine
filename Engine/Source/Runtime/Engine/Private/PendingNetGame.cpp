@@ -470,13 +470,20 @@ void UPendingNetGame::Tick( float DeltaTime )
 	 *   ****may NULL itself via CancelPending if a disconnect/error occurs****
 	 */
 	NetDriver->TickDispatch(DeltaTime);
+
+	if (NetDriver)
+	{
+		NetDriver->PostTickDispatch();
+	}
+
 	if (NetDriver)
 	{
 		NetDriver->TickFlush(DeltaTime);
-		if (NetDriver)
-		{
-			NetDriver->PostTickFlush();
-		}
+	}
+
+	if (NetDriver)
+	{
+		NetDriver->PostTickFlush();
 	}
 }
 

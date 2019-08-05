@@ -605,7 +605,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if DO_ENABLE_NET_TEST
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("Delayed",
 			Delayed.CountBytes(Ar);
-			for (const DelayedPacket& Packet : Delayed)
+			for (const FDelayedPacket& Packet : Delayed)
 			{
 				Packet.CountBytes(Ar);
 			}
@@ -1173,6 +1173,10 @@ void UNetConnection::PostTickDispatch()
 {
 	if (!InternalAck)
 	{
+#if DO_ENABLE_NET_TEST
+		ReinjectDelayedPackets();
+#endif
+
 		FlushPacketOrderCache(/*bFlushWholeCache=*/true);
 		PacketAnalytics.Tick();
 	}
@@ -1219,6 +1223,30 @@ void UNetConnection::FlushPacketOrderCache(bool bFlushWholeCache/*=false*/)
 		bFlushingPacketOrderCache = false;
 	}
 }
+
+#if DO_ENABLE_NET_TEST
+void UNetConnection::ReinjectDelayedPackets()
+{
+	const double CurrentTime = FPlatformTime::Seconds();
+
+	TGuardValue<bool> ReinjectingGuard(bIsReinjectingDelayedPackets, true);
+
+	uint32 NbReinjected(0);
+	for (const FDelayedIncomingPacket& DelayedPacket : DelayedIncomingPackets)
+	{
+		if (DelayedPacket.ReinjectionTime > CurrentTime)
+		{
+			break;
+		}
+		
+		++NbReinjected;
+		ReceivedPacket(*DelayedPacket.PacketData.Get());
+	}
+
+	// Delete processed packets
+	DelayedIncomingPackets.RemoveAt(0, NbReinjected, false);
+}
+#endif //#if DO_ENABLE_NET_TEST
 
 uint32 GNetOutBytes = 0;
 
@@ -1290,61 +1318,17 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 
 		// Send now.
 #if DO_ENABLE_NET_TEST
+
+		bool bWasPacketEmulated(false);
+
 		// if the connection is closing/being destroyed/etc we need to send immediately regardless of settings
 		// because we won't be around to send it delayed
-		if (State == USOCK_Closed || IsGarbageCollecting() || bIgnoreSimulation || InternalAck)
+		if (State != USOCK_Closed && !IsGarbageCollecting() && !bIgnoreSimulation && !InternalAck)
 		{
-			// Checked in FlushNet() so each child class doesn't have to implement this
-			if (Driver->IsNetResourceValid())
-			{
-				LowLevelSend(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits);
-			}
+			bWasPacketEmulated = CheckOutgoingPacketEmulation(Traits);
 		}
-		else if (PacketSimulationSettings.PktOrder)
-		{
-			DelayedPacket& B = *(new(Delayed)DelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
 
-			for (int32 i=Delayed.Num() - 1; i >= 0; i--)
-			{
-				if (FMath::FRand() > 0.50)
-				{
-					if (!ShouldDropOutgoingPacketForLossSimulation(SendBuffer.GetNumBits()))
-					{
-						// Checked in FlushNet() so each child class doesn't have to implement this
-						if (Driver->IsNetResourceValid())
-						{
-							LowLevelSend((char*) &Delayed[i].Data[0], Delayed[i].SizeBits, Delayed[i].Traits);
-						}
-					}
-					Delayed.RemoveAt(i);
-				}
-			}
-		}
-		else if (PacketSimulationSettings.PktLag)
-		{
-			if (!ShouldDropOutgoingPacketForLossSimulation(SendBuffer.GetNumBits()))
-			{
-				DelayedPacket& B = *(new(Delayed)DelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
-
-				// ExtraLag goes from PktLag + [-PktLagVariance, PktLagVariance]
-				const double LagVariance = 2.0f * (FMath::FRand() - 0.5f) * double(PacketSimulationSettings.PktLagVariance);
-				const double ExtraLag = (double(PacketSimulationSettings.PktLag) + LagVariance) / 1000.f;
-				B.SendTime = FPlatformTime::Seconds() + ExtraLag;
-			}
-		}
-		else if (PacketSimulationSettings.PktLagMin > 0 && PacketSimulationSettings.PktLagMax > 0)
-		{
-			if (!ShouldDropOutgoingPacketForLossSimulation(SendBuffer.GetNumBits()))
-			{
-				DelayedPacket& B = *(new(Delayed)DelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
-
-				// ExtraLag goes from [PktLagMin, PktLagMax]
-				const double LagVariance = FMath::FRand() * double(PacketSimulationSettings.PktLagMax - PacketSimulationSettings.PktLagMin);
-				const double ExtraLag = (double(PacketSimulationSettings.PktLagMin) + LagVariance) / 1000.f;
-				B.SendTime = FPlatformTime::Seconds() + ExtraLag;
-			}
-		}
-		else if (!ShouldDropOutgoingPacketForLossSimulation(SendBuffer.GetNumBits()))
+		if (!bWasPacketEmulated)
 		{
 #endif
 			// Checked in FlushNet() so each child class doesn't have to implement this
@@ -1409,6 +1393,62 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		InitSendBuffer();
 	}
 }
+
+#if DO_ENABLE_NET_TEST
+bool UNetConnection::CheckOutgoingPacketEmulation(FOutPacketTraits& Traits)
+{
+	if (ShouldDropOutgoingPacketForLossSimulation(SendBuffer.GetNumBits()))
+	{
+		UE_LOG(LogNet, VeryVerbose, TEXT("Dropping outgoing packet at %f"), FPlatformTime::Seconds());
+		return true;
+	}
+	else if (PacketSimulationSettings.PktOrder)
+	{
+		FDelayedPacket& B = *(new(Delayed)FDelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
+
+		for (int32 i = Delayed.Num() - 1; i >= 0; i--)
+		{
+			if (FMath::FRand() > 0.50)
+			{
+				// Checked in FlushNet() so each child class doesn't have to implement this
+				if (Driver->IsNetResourceValid())
+				{
+					LowLevelSend((char*)&Delayed[i].Data[0], Delayed[i].SizeBits, Delayed[i].Traits);
+				}
+
+				Delayed.RemoveAt(i);
+			}
+		}
+
+		return true;
+	}
+	else if (PacketSimulationSettings.PktLag)
+	{
+		FDelayedPacket& B = *(new(Delayed)FDelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
+
+		// ExtraLag goes from PktLag + [-PktLagVariance, PktLagVariance]
+		const double LagVariance = 2.0f * (FMath::FRand() - 0.5f) * double(PacketSimulationSettings.PktLagVariance);
+		const double ExtraLag = (double(PacketSimulationSettings.PktLag) + LagVariance) / 1000.f;
+		B.SendTime = FPlatformTime::Seconds() + ExtraLag;
+
+		return true;
+
+	}
+	else if (PacketSimulationSettings.PktLagMin > 0 || PacketSimulationSettings.PktLagMax > 0)
+	{
+		FDelayedPacket& B = *(new(Delayed)FDelayedPacket(SendBuffer.GetData(), SendBuffer.GetNumBits(), Traits));
+
+		// ExtraLag goes from [PktLagMin, PktLagMax]
+		const double LagVariance = FMath::FRand() * double(PacketSimulationSettings.PktLagMax - PacketSimulationSettings.PktLagMin);
+		const double ExtraLag = (double(PacketSimulationSettings.PktLagMin) + LagVariance) / 1000.f;
+		B.SendTime = FPlatformTime::Seconds() + ExtraLag;
+		
+		return true;
+	}
+
+	return false;
+}
+#endif
 
 bool UNetConnection::ShouldDropOutgoingPacketForLossSimulation(int64 NumBits) const
 {
@@ -1679,6 +1719,35 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 		ensureMsgf(false, TEXT("Packet too small") );
 		return;
 	}
+
+#if DO_ENABLE_NET_TEST
+	if (!InternalAck && !bIsReinjectingDelayedPackets)
+	{
+		if (PacketSimulationSettings.PktIncomingLoss)
+		{
+			if (FMath::FRand() * 100.f < PacketSimulationSettings.PktIncomingLoss)
+			{
+				UE_LOG(LogNet, VeryVerbose, TEXT("Dropped incoming packet at %f"), FPlatformTime::Seconds());
+				return;
+			}
+
+		}
+		if (PacketSimulationSettings.PktIncomingLagMin > 0 || PacketSimulationSettings.PktIncomingLagMax > 0)
+		{
+			const double LagVariance = FMath::FRand() * double(PacketSimulationSettings.PktIncomingLagMax - PacketSimulationSettings.PktIncomingLagMin);
+			const double ExtraLag = (double(PacketSimulationSettings.PktIncomingLagMin) + LagVariance) / 1000.f;
+
+			FDelayedIncomingPacket DelayedPacket;
+			DelayedPacket.PacketData = MakeUnique<FBitReader>(Reader);
+			DelayedPacket.ReinjectionTime = FPlatformTime::Seconds() + ExtraLag;
+
+			DelayedIncomingPackets.Emplace(MoveTemp(DelayedPacket));
+
+			UE_LOG(LogNet, VeryVerbose, TEXT("Delaying incoming packet for %f seconds"), ExtraLag);
+			return;
+		}
+	}
+#endif //#if DO_ENABLE_NET_TEST
 
 
 	FBitReaderMark ResetReaderMark(Reader);
