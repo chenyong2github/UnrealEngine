@@ -5904,8 +5904,7 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 		{
 			if (FCoreDelegates::PakFileMountedCallback.IsBound())
 			{
-				// uncomment this when we have time to test 
-				// FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
+				FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
 			}
 			if (FCoreDelegates::NewFileAddedDelegate.IsBound())
 			{
