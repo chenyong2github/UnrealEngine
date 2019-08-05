@@ -739,6 +739,11 @@ void UAudioComponent::PlaybackCompleted(uint64 AudioComponentID, bool bFailedToS
 {
 	check(IsInAudioThread());
 
+	if (AudioComponentID == 0)
+	{
+		return;
+	}
+
 	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.PlaybackCompleted"), STAT_AudioPlaybackCompleted, STATGROUP_TaskGraphTasks);
 
 	FAudioThread::RunCommandOnGameThread([AudioComponentID, bFailedToStart]()
