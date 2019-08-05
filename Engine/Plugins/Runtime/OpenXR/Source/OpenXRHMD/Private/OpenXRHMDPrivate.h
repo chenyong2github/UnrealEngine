@@ -24,12 +24,14 @@ constexpr const TCHAR* xrResultToString(XrResult e)
 	}
 }
 
-inline bool LogXrResult(XrResult Result)
-{
-	return ensureMsgf(XR_SUCCEEDED(Result), TEXT("OpenXR call failed with result %s"), xrResultToString(Result));
-}
-
-#define XR_ENSURE(x) LogXrResult(x)
+#if DO_CHECK
+#define XR_ENSURE(x) [] (XrResult Result) \
+	{ \
+		return ensureMsgf(XR_SUCCEEDED(Result), TEXT("OpenXR call failed with result %s"), xrResultToString(Result)); \
+	} (x)
+#else
+#define XR_ENSURE(x) XR_SUCCEEDED(x)
+#endif
 
 FORCEINLINE FQuat ToFQuat(XrQuaternionf Quat)
 {
