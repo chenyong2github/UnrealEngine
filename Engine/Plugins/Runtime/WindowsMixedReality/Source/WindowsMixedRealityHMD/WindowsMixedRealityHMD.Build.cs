@@ -42,8 +42,8 @@ namespace UnrealBuildTool.Rules
 
 			if(Target.Platform != UnrealTargetPlatform.Win32)
             {
-				PublicDelayLoadDLLs.Add("HolographicAppRemoting.dll");
-                RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/x64/HolographicAppRemoting.dll", DllSubpath));
+				PublicDelayLoadDLLs.Add("Microsoft.Holographic.AppRemoting.dll");
+                RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/x64/Microsoft.Holographic.AppRemoting.dll", DllSubpath));
 				PublicDelayLoadDLLs.Add("PerceptionDevice.dll");
                 RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/x64/PerceptionDevice.dll", DllSubpath));
             }
