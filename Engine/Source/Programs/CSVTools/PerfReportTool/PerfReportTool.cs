@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.83";
+        private static string VersionString = "3.84";
 
         public static string Get() { return VersionString; }
     };
@@ -817,6 +817,10 @@ namespace PerfReportTool
             CsvStats csvStats = CsvStats.ReadCSVFromLines(csvFile.lines, null);
 			reportXML.ApplyDerivedMetadata(csvStats.metaData);
 
+			if ( csvStats.metaData == null )
+			{
+				csvStats.metaData = new CsvMetadata();
+			}
 			csvStats.metaData.Values.Add("csvfilename", csvFile.filename);
 
 			// Crop the stats to the range
@@ -1753,7 +1757,7 @@ namespace PerfReportTool
 
 			foreach (Summary summary in reportTypeInfo.summaries)
 			{
-				summary.PostInit(reportTypeInfo);
+				summary.PostInit(reportTypeInfo, csvFile.dummyCsvStats);
 			}
 			return reportTypeInfo;
 		} 
