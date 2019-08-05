@@ -1302,7 +1302,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 					TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshSettings.RawMeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 					// If we already have lightmap uvs generated or the lightmap coordinate index != 0 and available we can reuse those instead of having to generate new ones
 					if (InMeshProxySettings.bReuseMeshLightmapUVs
-						&& (ComponentsToMerge[MeshIndex]->GetStaticMesh()->SourceModels[0].BuildSettings.bGenerateLightmapUVs
+						&& (ComponentsToMerge[MeshIndex]->GetStaticMesh()->GetSourceModel(0).BuildSettings.bGenerateLightmapUVs
 							|| (ComponentsToMerge[MeshIndex]->GetStaticMesh()->LightMapCoordinateIndex != 0 && VertexInstanceUVs.GetNumElements() > 0 && VertexInstanceUVs.GetNumIndices() > ComponentsToMerge[MeshIndex]->GetStaticMesh()->LightMapCoordinateIndex)))
 					{
 						MeshSettings.CustomTextureCoordinates.Reset(VertexInstanceUVs.GetNumElements());
@@ -2609,8 +2609,8 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			}
 		}
 
-		StaticMesh->SectionInfoMap.CopyFrom(SectionInfoMap);
-		StaticMesh->OriginalSectionInfoMap.CopyFrom(SectionInfoMap);
+		StaticMesh->GetSectionInfoMap().CopyFrom(SectionInfoMap);
+		StaticMesh->GetOriginalSectionInfoMap().CopyFrom(SectionInfoMap);
 
 		//Set the Imported version before calling the build
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;

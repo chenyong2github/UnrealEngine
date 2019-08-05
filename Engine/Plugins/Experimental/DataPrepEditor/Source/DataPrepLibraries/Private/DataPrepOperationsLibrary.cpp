@@ -147,7 +147,7 @@ namespace DataprepOperationsLibraryUtil
 
 			TArray< FMeshBuildSettings > BuildSettingsBackup;
 
-			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->SourceModels )
+			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
 			{
 				BuildSettingsBackup.Add( SourceModel.BuildSettings );
 
@@ -173,10 +173,10 @@ namespace DataprepOperationsLibraryUtil
 			for ( int32 LODIndex = 0; LODIndex < BuildSettingsBackup.Num() ; ++LODIndex )
 			{
 				// Update only LODs which were cached
-				if (StaticMesh->SourceModels.IsValidIndex( LODIndex ))
+				if (StaticMesh->IsSourceModelValid( LODIndex ))
 				{
 					const FMeshBuildSettings& CachedBuildSettings = BuildSettingsBackup[ LODIndex ];
-					FMeshBuildSettings& BuildSettings = StaticMesh->SourceModels[LODIndex].BuildSettings;
+					FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LODIndex).BuildSettings;
 
 					// Restore only the properties which were modified
 					BuildSettings.bGenerateLightmapUVs = CachedBuildSettings.bGenerateLightmapUVs;
@@ -215,7 +215,7 @@ namespace DataprepOperationsLibraryUtil
 				// Make sure adjacency information fit new material change
 				if( RequiresAdjacencyInformation( NewMaterial, nullptr, GWorld->FeatureLevel ) )
 				{
-					for( FStaticMeshSourceModel& SourceModel : StaticMesh->SourceModels )
+					for( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
 					{
 						SourceModel.BuildSettings.bBuildAdjacencyBuffer = true;
 					}
@@ -229,7 +229,7 @@ namespace DataprepOperationsLibraryUtil
 	// #ueent_todo: Work with Geometry team to find the proper replacement
 	void BuildRenderData( UStaticMesh* StaticMesh, IMeshBuilderModule& MeshBuilderModule )
 	{
-		FStaticMeshSourceModel& SourceModel = StaticMesh->SourceModels[0];
+		FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(0);
 
 		FMeshBuildSettings PrevBuildSettings = SourceModel.BuildSettings;
 		SourceModel.BuildSettings.bGenerateLightmapUVs = false;
@@ -354,7 +354,7 @@ void UDataprepOperationsLibrary::SetGenerateLightmapUVs( const TArray< UObject* 
 
 			// 3 is the maximum that lightmass accept
 			int32 MinBiggestUVChannel = 3;
-			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->SourceModels )
+			for ( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
 			{
 				bDidChangeSettings |= SourceModel.BuildSettings.bGenerateLightmapUVs != bGenerateLightmapUVs;
 				SourceModel.BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;
