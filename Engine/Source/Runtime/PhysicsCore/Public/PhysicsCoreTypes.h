@@ -20,7 +20,7 @@ UENUM()
 enum class EChaosThreadingMode : uint8
 {
 	DedicatedThread,
-	TaskGraph UMETA(Hidden),
+	TaskGraph,
 	SingleThread,
 	Num UMETA(Hidden),
 	Invalid UMETA(Hidden)
