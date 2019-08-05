@@ -11,7 +11,7 @@
 /**
  * Actor that tick in the Editor viewport with the event EditorTick.
  */
-UCLASS(Abstract, Transient)
+UCLASS(Abstract)
 class AVPEditorTickableActorBase : public AActor
 {
 	GENERATED_BODY()
