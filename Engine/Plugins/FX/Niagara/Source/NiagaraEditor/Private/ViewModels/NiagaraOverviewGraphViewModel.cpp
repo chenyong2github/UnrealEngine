@@ -14,6 +14,7 @@
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraSystem.h"
 #include "Editor.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraphViewModel"
 

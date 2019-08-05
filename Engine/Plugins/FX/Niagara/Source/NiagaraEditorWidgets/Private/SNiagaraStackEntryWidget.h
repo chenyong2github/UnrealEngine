@@ -8,6 +8,7 @@
 
 class UNiagaraStackViewModel;
 class UNiagaraStackEntry;
+class SBox;
 
 class SNiagaraStackDisplayName : public SCompoundWidget
 {
