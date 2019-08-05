@@ -39,7 +39,7 @@ enum class ENiagaraSpriteFacingMode : uint8
 };
 
 
-UCLASS(editinlinenew)
+UCLASS(editinlinenew, meta = (DisplayName = "Sprite Renderer"))
 class NIAGARA_API UNiagaraSpriteRendererProperties : public UNiagaraRendererProperties
 {
 public:

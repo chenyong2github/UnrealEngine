@@ -20,7 +20,7 @@ class NIAGARAEDITOR_API UNiagaraStackRoot : public UNiagaraStackEntry
 public:
 	UNiagaraStackRoot();
 	
-	void Initialize(FRequiredEntryData InRequiredEntryData);
+	void Initialize(FRequiredEntryData InRequiredEntryData, bool bInIncludeSystemInformation, bool bInIncludeEmitterInformation);
 
 	virtual bool GetCanExpand() const override;
 	virtual bool GetShouldShowInStack() const override;
@@ -61,4 +61,7 @@ private:
 
 	UPROPERTY()
 	UNiagaraStackRenderItemGroup* RenderGroup;
+
+	bool bIncludeSystemInformation;
+	bool bIncludeEmitterInformation;
 };
