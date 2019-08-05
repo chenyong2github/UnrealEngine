@@ -1929,7 +1929,31 @@ UInheritableComponentHandler* UBlueprint::GetInheritableComponentHandler(bool bC
 
 EDataValidationResult UBlueprint::IsDataValid(TArray<FText>& ValidationErrors)
 {
-	return GeneratedClass ? GeneratedClass->GetDefaultObject()->IsDataValid(ValidationErrors) : EDataValidationResult::Invalid;
+	EDataValidationResult IsValid = GeneratedClass ? GeneratedClass->GetDefaultObject()->IsDataValid(ValidationErrors) : EDataValidationResult::Invalid;
+	IsValid = (IsValid == EDataValidationResult::NotValidated) ? EDataValidationResult::Valid : IsValid;
+
+	EDataValidationResult IsSCSValid = SimpleConstructionScript->IsDataValid(ValidationErrors);
+	IsValid = CombineDataValidationResults(IsValid, IsSCSValid);
+
+	for (UActorComponent* Component : ComponentTemplates)
+	{
+		if (Component)
+		{
+			EDataValidationResult IsComponentValid = Component->IsDataValid(ValidationErrors);
+			IsValid = CombineDataValidationResults(IsValid, IsComponentValid);
+		}
+	}
+
+	for (UTimelineTemplate* Timeline : Timelines)
+	{
+		if (Timeline)
+		{
+			EDataValidationResult IsTimelineValid = Timeline->IsDataValid(ValidationErrors);
+			IsValid = CombineDataValidationResults(IsValid, IsTimelineValid);
+		}
+	}
+
+	return IsValid;
 }
 
 bool UBlueprint::FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const
