@@ -1,9 +1,9 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 //
 //  AppDelegate.m
 //  FrameworkWrapper
 //
 //  Created by Ryan West on 6/13/19.
-//  Copyright © 2019 Ryan West. All rights reserved.
 //
 
 #import "AppDelegate.h"

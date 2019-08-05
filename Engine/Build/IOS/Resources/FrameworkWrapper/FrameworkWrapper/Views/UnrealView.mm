@@ -1,9 +1,9 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 //
 //  UnrealWrapper.m
 //  FrameworkWrapper
 //
 //  Created by Andrew Grant on 9/4/18.
-//  Copyright © 2018 Epic Games, Inc. All rights reserved.
 //
 
 
