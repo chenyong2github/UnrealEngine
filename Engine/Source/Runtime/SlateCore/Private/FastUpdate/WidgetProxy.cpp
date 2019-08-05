@@ -50,9 +50,11 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 
 			INC_DWORD_STAT(STAT_SlateNumTickedWidgets);
 			SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
-			Widget->Tick(MyState.AllottedGeometry, PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
-		}
 
+			FGeometry DesktopSpaceGeometry = MyState.AllottedGeometry;
+			DesktopSpaceGeometry.AppendTransform(FSlateLayoutTransform(PaintArgs.GetWindowToDesktopTransform()));
+			Widget->Tick(DesktopSpaceGeometry, PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
+		}
 	}
 
 	return OutgoingLayerId;
