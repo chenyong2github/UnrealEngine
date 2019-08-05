@@ -466,26 +466,6 @@ void UMaterialInstance::InitResources()
 		Resource->GameThread_SetParent(SafeParent);
 	}
 
-#if WITH_EDITOR
-	//recalculate any scalar params based on a curve position in an atlas in case the atlas changed
-	for (FScalarParameterValue& ScalarParam : ScalarParameterValues)
-	{
-		if (ScalarParam.AtlasData.bIsUsedAsAtlasPosition)
-		{
-			UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(ScalarParam.AtlasData.Atlas.Get());
-			UCurveLinearColor* Curve = Cast<UCurveLinearColor>(ScalarParam.AtlasData.Curve.Get());
-			if (Curve && Atlas)
-			{
-				int32 Index = Atlas->GradientCurves.Find(Curve);
-				if (Index != INDEX_NONE)
-				{
-					ScalarParam.ParameterValue = (float)Index;
-				}
-			}
-		}
-	}
-#endif
-
 	GameThread_InitMIParameters(this, ScalarParameterValues);
 	GameThread_InitMIParameters(this, VectorParameterValues);
 	GameThread_InitMIParameters(this, TextureParameterValues);
@@ -3155,6 +3135,28 @@ void UMaterialInstance::PostLoad()
 	SCOPED_LOADTIMER(MaterialInstancePostLoad);
 
 	Super::PostLoad();
+
+#if WITH_EDITOR
+	//recalculate any scalar params based on a curve position in an atlas in case the atlas changed
+	for (FScalarParameterValue& ScalarParam : ScalarParameterValues)
+	{
+		if (ScalarParam.AtlasData.bIsUsedAsAtlasPosition)
+		{
+			UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(ScalarParam.AtlasData.Atlas.Get());
+			UCurveLinearColor* Curve = Cast<UCurveLinearColor>(ScalarParam.AtlasData.Curve.Get());
+			if (Curve && Atlas)
+			{
+				Curve->ConditionalPostLoad();
+				Atlas->ConditionalPostLoad();
+				int32 Index = Atlas->GradientCurves.Find(Curve);
+				if (Index != INDEX_NONE)
+				{
+					ScalarParam.ParameterValue = (float)Index;
+				}
+			}
+		}
+	}
+#endif
 
 	if (FApp::CanEverRender())
 	{
