@@ -741,9 +741,21 @@ private:
 		{
 			FastPathProxyHandle.UpdateWidgetFlags(UpdateFlags);
 		}
+
+#if WITH_SLATE_DEBUGGING
+		if (EnumHasAnyFlags(FlagsToRemove, EWidgetUpdateFlags::NeedsRepaint))
+		{
+			Debug_UpdateLastPaintFrame();
+		}
+#endif
 	}
 
 	void UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* CacheNode);
+
+#if WITH_SLATE_DEBUGGING
+	uint32 Debug_GetLastPaintFrame() const { return LastPaintFrame; }
+	void Debug_UpdateLastPaintFrame() { LastPaintFrame = GFrameNumber; }
+#endif
 
 public:
 
@@ -1585,8 +1597,13 @@ private:
 	/** Flow direction preference */
 	EFlowDirectionPreference FlowDirectionPreference;
 
+	/** The different updates this widget needs next frame. */
 	EWidgetUpdateFlags UpdateFlags;
 
+#if WITH_SLATE_DEBUGGING
+	/** The last time this widget got painted. */
+	uint32 LastPaintFrame = 0;
+#endif
 
 	mutable FSlateWidgetPersistentState PersistentState;
 
