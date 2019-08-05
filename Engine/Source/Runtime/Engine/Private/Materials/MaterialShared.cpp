@@ -1414,7 +1414,7 @@ bool FMaterialResource::HasRuntimeVirtualTextureOutput() const
 
 bool FMaterialResource::CastsRayTracedShadows() const
 {
-	return Material->bCastsRayTracedShadows;
+	return Material->bCastRayTracedShadows;
 }
 
 UMaterialInterface* FMaterialResource::GetMaterialInterface() const 
