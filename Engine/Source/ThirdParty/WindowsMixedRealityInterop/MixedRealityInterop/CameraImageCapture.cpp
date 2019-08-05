@@ -265,14 +265,17 @@ void CameraImageCapture::StartCameraCapture(void(*FunctionPointer)(ID3D11Texture
 
 void CameraImageCapture::StopCameraCapture()
 {
-	auto StopCameraTask = create_task(CameraFrameReader->StopAsync());
-	StopCameraTask.then([=]
+	if (CameraFrameReader)
 	{
-		std::lock_guard<std::mutex> lock(RefsLock);
-		CameraCapture = nullptr;
-		CameraFrameReader = nullptr;
-		CameraFrameSource = nullptr;
+		auto StopCameraTask = create_task(CameraFrameReader->StopAsync());
+		StopCameraTask.then([=]
+		{
+			std::lock_guard<std::mutex> lock(RefsLock);
+			CameraCapture = nullptr;
+			CameraFrameReader = nullptr;
+			CameraFrameSource = nullptr;
 
-		OnReceivedFrame = nullptr;
-	});
+			OnReceivedFrame = nullptr;
+		});
+	}
 }

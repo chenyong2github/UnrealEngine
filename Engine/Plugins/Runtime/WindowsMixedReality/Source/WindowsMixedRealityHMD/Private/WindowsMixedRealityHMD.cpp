@@ -27,12 +27,10 @@
 // Originally we were supporting 1803, but there were rendering issues specific to that version so for now we only support 1809
 #define MIN_WIN_10_VERSION_FOR_WMR 1809
 
-#if PLATFORM_HOLOLENS
-	#include "HoloLensModule.h"
+#include "WindowsMixedRealityAvailability.h"
 
-	using namespace Windows::Graphics::Holographic;
-	using namespace Windows::UI::Core;
-	using namespace Windows::ApplicationModel::Core;
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
+	#include "HoloLensModule.h"
 #endif
 
 // Control logging from here so we don't have to change the interop library to enable/disable logging
@@ -219,7 +217,7 @@ namespace WindowsMixedReality
 #if WITH_WINDOWS_MIXED_REALITY
 			if (HMD)
 			{
-#if PLATFORM_HOLOLENS
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 				FHoloLensModuleAR::SetInterop(nullptr);
 #endif
 				HMD->Dispose(true);
@@ -251,13 +249,13 @@ namespace WindowsMixedReality
 		if (HMD)
 		{
 			IARSystemSupport* ARSystem = nullptr;
-#if PLATFORM_HOLOLENS
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 			ARSystem = FHoloLensModuleAR::CreateARSystem();
 #endif
 			auto WindowsMRHMD = FSceneViewExtensions::NewExtension<WindowsMixedReality::FWindowsMixedRealityHMD>(ARSystem, HMD);
 			if (WindowsMRHMD->IsInitialized())
 			{
-#if PLATFORM_HOLOLENS
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 				FHoloLensModuleAR::SetTrackingSystem(WindowsMRHMD);
 				FHoloLensModuleAR::SetInterop(HMD);
 				// Register the AR modular features
@@ -547,7 +545,12 @@ namespace WindowsMixedReality
 #endif
 
 		CachedWorldToMetersScale = WorldContext.World()->GetWorldSettings()->WorldToMeters;
-		RefreshTrackingToWorldTransform(WorldContext);
+
+		// Only refresh this based on the game world.  When remoting there is also an editor world, which we do not want to have affect the transform.
+		if (WorldContext.World()->IsGameWorld())
+		{
+			RefreshTrackingToWorldTransform(WorldContext);
+		}
 
 		return true;
 	}
@@ -798,8 +801,8 @@ namespace WindowsMixedReality
 			}
 
 			HMD->EnableStereo(stereo);
-#if PLATFORM_HOLOLENS
-			HMD->SetInteractionManager(Windows::UI::Input::Spatial::SpatialInteractionManager::GetForCurrentView());
+#if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
+			HMD->SetInteractionManagerForCurrentView();
 #endif
 
 			InitializeHolographic();
@@ -1275,6 +1278,9 @@ namespace WindowsMixedReality
 			return;
 		}
 
+		// Update currentFrame in the interop
+		HMD->UpdateCurrentFrame();
+
 		CreateHMDDepthTexture(RHICmdList);
 		if (!HMD->CreateRenderingParameters(stereoDepthTexture))
 		{
@@ -1427,7 +1433,7 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::StartSpeechRecognition()
 	{
-#if WITH_WINDOWS_MIXED_REALITY
+#if WITH_WINDOWS_MIXED_REALITY && SUPPORTS_WINDOWS_MIXED_REALITY_SPEECH_RECOGNITION
 		StopSpeechRecognition();
 
 		//get all speech keywords
@@ -1458,7 +1464,7 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::StopSpeechRecognition()
 	{
-#if WITH_WINDOWS_MIXED_REALITY
+#if WITH_WINDOWS_MIXED_REALITY && SUPPORTS_WINDOWS_MIXED_REALITY_SPEECH_RECOGNITION
 		//remove keys from "speech" namespace
 		EKeys::RemoveKeysWithCategory(FInputActionSpeechMapping::GetKeyCategory());
 #endif
@@ -1579,6 +1585,17 @@ namespace WindowsMixedReality
 		}
 
 		HMD->PollInput();
+		return true;
+	}
+
+	bool FWindowsMixedRealityHMD::PollHandTracking()
+	{
+		if (!bIsStereoEnabled)
+		{
+			return false;
+		}
+
+		HMD->PollHandTracking();
 		return true;
 	}
 
