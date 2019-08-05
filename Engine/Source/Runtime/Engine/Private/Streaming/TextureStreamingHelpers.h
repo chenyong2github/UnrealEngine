@@ -62,7 +62,13 @@ extern TAutoConsoleVariable<float> CVarStreamingMaxTextureUVDensity;
 
 struct FRenderAssetStreamingSettings
 {
-	FRenderAssetStreamingSettings() { Update(); }
+	FRenderAssetStreamingSettings()
+	{
+		// Make sure padding bytes don't have random values
+		FMemory::Memset(this, 0, sizeof(FRenderAssetStreamingSettings));
+		Update();
+	}
+
 	void Update();
 
 	FORCEINLINE bool operator ==(const FRenderAssetStreamingSettings& Rhs) const { return FMemory::Memcmp(this, &Rhs, sizeof(FRenderAssetStreamingSettings)) == 0; }
@@ -90,6 +96,8 @@ struct FRenderAssetStreamingSettings
 	int32 MaterialQualityLevel;
 	int32 FramesForFullUpdate;
 	bool bMipCalculationEnablePerLevelList;
+	bool bPrioritizeMeshRetention;
+	int32 MeshRetentionPrivilegeLevel;
 
 	bool bStressTest;
 	static int32 ExtraIOLatency;
