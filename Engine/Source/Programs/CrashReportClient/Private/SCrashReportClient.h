@@ -30,7 +30,7 @@ public:
 	 * @param InArgs Slate arguments, not used
 	 * @param Client Crash report client implementation object
 	 */
-	void Construct(const FArguments& InArgs, TSharedRef<FCrashReportClient> Client);
+	void Construct(const FArguments& InArgs, const TSharedRef<FCrashReportClient>& Client);
 
 private:
 	/**
