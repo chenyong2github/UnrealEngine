@@ -161,6 +161,7 @@ protected:
 
 	bool DoesScaleRequireNormalizingPrepass() const;
 	bool DoesScaleRequireLocalGeometry() const;
+	bool IsDesiredSizeDependentOnAreaAndScale() const;
 	float ComputeContentScale(const FGeometry& PaintGeometry) const;
 
 	void RefreshSafeZoneScale();
