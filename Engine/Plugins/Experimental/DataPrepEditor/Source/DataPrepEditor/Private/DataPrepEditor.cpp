@@ -628,7 +628,7 @@ void FDataprepEditor::CleanPreviewWorld()
 				{
 					StaticMesh->ReleaseResources();
 					StaticMesh->ClearMeshDescriptions();
-					StaticMesh->SourceModels.Empty();
+					StaticMesh->GetSourceModels().Empty();
 					StaticMesh->StaticMaterials.Empty();
 				}
 			}
