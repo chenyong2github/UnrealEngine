@@ -1668,7 +1668,7 @@ SDL_AudioStreamClear(SDL_AudioStream *stream)
 //      if (stream->reset_resampler_func) {
 
 #ifdef __EMSCRIPTEN__ // UE-71969 -- limiting only to HTML5... do not want to change/affect other platforms
-        if ( stream->packetlen > 0 )
+        if ( (stream->packetlen > 0) && stream->queue && (stream->queue != 0xffffffff) )
 #endif
         {
             SDL_ClearDataQueue(stream->queue, stream->packetlen * 2);
