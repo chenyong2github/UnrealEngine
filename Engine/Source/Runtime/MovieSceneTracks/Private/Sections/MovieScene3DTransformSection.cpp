@@ -465,7 +465,7 @@ void UMovieScene3DTransformSection::SetMask(FMovieSceneTransformMask NewMask)
 
 FMovieSceneTransformMask UMovieScene3DTransformSection::GetMaskByName(const FName& InName) const
 {
-	if (InName == TEXT("Location"))
+	if (InName.ToString() == NSLOCTEXT("MovieSceneTransformSection", "Location", "Location").ToString())
 	{
 		return EMovieSceneTransformChannel::Translation;
 	}
@@ -481,7 +481,7 @@ FMovieSceneTransformMask UMovieScene3DTransformSection::GetMaskByName(const FNam
 	{
 		return EMovieSceneTransformChannel::TranslationZ;
 	}
-	else if (InName == TEXT("Rotation"))
+	else if (InName.ToString() == NSLOCTEXT("MovieSceneTransformSection", "Rotation", "Rotation").ToString())
 	{
 		return EMovieSceneTransformChannel::Rotation;
 	}
@@ -497,7 +497,7 @@ FMovieSceneTransformMask UMovieScene3DTransformSection::GetMaskByName(const FNam
 	{
 		return EMovieSceneTransformChannel::RotationZ;
 	}
-	else if (InName == TEXT("Scale"))
+	else if (InName.ToString() == NSLOCTEXT("MovieSceneTransformSection", "Scale", "Scale").ToString())
 	{
 		return EMovieSceneTransformChannel::Scale;
 	}
