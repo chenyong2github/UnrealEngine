@@ -7,6 +7,7 @@
 #include "Containers/Ticker.h"
 #include "Framework/Docking/TabManager.h"
 #include "Toolkits/IToolkit.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 class IMessageContext;
 class FMessageEndpoint;

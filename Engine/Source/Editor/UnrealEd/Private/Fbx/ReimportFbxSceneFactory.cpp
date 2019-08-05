@@ -56,6 +56,7 @@
 
 #include "AI/Navigation/NavCollisionBase.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "FBXSceneReImportFactory"
 

@@ -6,9 +6,10 @@
 
 #if WITH_EDITOR
 #include "ObjectTools.h"
-
-#endif
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
+#endif
+
 
 void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> Objects)
 {

@@ -34,6 +34,7 @@
 #include "PropertyEditorModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 /* LevelSequenceEditorHelpers
  *****************************************************************************/

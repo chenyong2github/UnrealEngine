@@ -26,6 +26,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "SGraphActionMenu.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackModuleItem"
 

@@ -45,6 +45,7 @@
 
 #include "CommonMovieSceneTools.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 namespace SkeletalAnimationEditorConstants
 {

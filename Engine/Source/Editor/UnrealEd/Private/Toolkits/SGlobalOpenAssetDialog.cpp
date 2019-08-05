@@ -11,6 +11,7 @@
 #include "ContentBrowserModule.h"
 
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "SGlobalOpenAssetDialog"
 

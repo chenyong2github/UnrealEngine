@@ -12,6 +12,7 @@
 #include "SGameplayTagWidget.h"
 #include "IDetailChildrenBuilder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagReferenceHelperDetails"
 

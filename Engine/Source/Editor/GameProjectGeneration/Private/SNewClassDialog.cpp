@@ -39,6 +39,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "FeaturedClasses.inl"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
 

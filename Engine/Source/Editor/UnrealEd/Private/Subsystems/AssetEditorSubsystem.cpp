@@ -20,6 +20,8 @@
 #include "PackageTools.h"
 #include "UObject/PackageReload.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/ConfigCacheIni.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetEditorSubsystem"

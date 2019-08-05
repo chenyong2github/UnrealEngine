@@ -17,7 +17,9 @@
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/Size/ParticleModuleSize.h"
+
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 
 #if WITH_DEV_AUTOMATION_TESTS

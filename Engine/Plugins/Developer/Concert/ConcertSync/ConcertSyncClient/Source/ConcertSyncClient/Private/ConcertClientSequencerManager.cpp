@@ -18,9 +18,9 @@
 #if WITH_EDITOR
 	#include "ISequencerModule.h"
 	#include "ISequencer.h"
-	
+	#include "Subsystems/AssetEditorSubsystem.h"
+	#include "Editor.h"
 #endif
-#include "Subsystems/AssetEditorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogConcertSequencerSync, Warning, Log)
 
@@ -316,7 +316,9 @@ void FConcertClientSequencerManager::ApplyTransportOpenEvent(const FString& Sequ
 	TGuardValue<bool> ReentrancyGuard(bRespondingToTransportEvent, true);
 	if (IsSequencerRemoteOpenEnabled())
 	{
+#if WITH_EDITOR
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);
+#endif
 	}
 }
 

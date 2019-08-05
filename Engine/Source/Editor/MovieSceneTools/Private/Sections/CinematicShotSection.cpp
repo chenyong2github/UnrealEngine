@@ -20,6 +20,7 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "CommonMovieSceneTools.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "FCinematicShotSection"
 

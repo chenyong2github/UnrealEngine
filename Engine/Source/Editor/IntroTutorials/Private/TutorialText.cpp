@@ -24,6 +24,7 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "TutorialHyperlinkDecorator.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "TutorialText"
 
