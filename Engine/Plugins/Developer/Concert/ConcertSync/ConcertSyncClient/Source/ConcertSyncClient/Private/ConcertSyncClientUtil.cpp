@@ -351,50 +351,52 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 		return;
 	}
 
-	TArray<UObject*> ObjectsToPurge;
-	auto MakeObjectPurgeable = [&ObjectsToPurge](UObject* InObject)
-	{
 #if WITH_EDITOR
+	TArray<UObject*> ObjectsToPurge;
+	auto CollectObjectToPurge = [&ObjectsToPurge](UObject* InObject)
+	{
 		if (InObject->IsAsset())
 		{
 			FAssetEditorManager::Get().CloseAllEditorsForAsset(InObject);
 		}
-#endif
-		if (InObject->IsRooted())
-		{
-			InObject->RemoveFromRoot();
-		}
-		InObject->ClearFlags(RF_Public | RF_Standalone);
 		ObjectsToPurge.Add(InObject);
 	};
 
-	auto MakePackagePurgeable = [MakeObjectPurgeable](UPackage* InPackage)
-	{
-		// Prevent any message from the editor saying a package is not saved or doesn't exist on disk.
-		InPackage->SetDirtyFlag(false);
-
-		MakeObjectPurgeable(InPackage);
-		ForEachObjectWithOuter(InPackage, [MakeObjectPurgeable](UObject* InObject)
-		{
-			MakeObjectPurgeable(InObject);
-		});
-	};
-
-#if WITH_EDITOR
-	// Get the current edited map package to check if we are purging it
+	// Get the current edited map package to check if its going to be purged.
 	bool bEditedMapPurged = false;
 	UWorld* EditedWorld = GEditor->GetEditorWorldContext().World();
 	UPackage* EditedMapPackage = EditedWorld ? EditedWorld->GetOutermost() : nullptr;
-	
-	// Clean-up any in-memory packages that should be purged and check if we are purging the current map
+
+	// Collect any in-memory packages that should be purged and check if we are including the current map in the purge.
 	for (const FName PackageName : InPackageNames)
 	{
 		UPackage* ExistingPackage = FindPackage(nullptr, *PackageName.ToString());
 		if (ExistingPackage)
 		{
-			MakePackagePurgeable(ExistingPackage);
+			// Prevent any message from the editor saying a package is not saved or doesn't exist on disk.
+			ExistingPackage->SetDirtyFlag(false);
+
+			CollectObjectToPurge(ExistingPackage);
+			ForEachObjectWithOuter(ExistingPackage, [&CollectObjectToPurge](UObject* InObject)
+			{
+				CollectObjectToPurge(InObject);
+			});
+
 			bEditedMapPurged |= EditedMapPackage == ExistingPackage;
 		}
+	}
+
+	// Broadcast the eminent objects destruction (ex. tell BlueprintActionDatabase to release its reference(s) on Blueprint(s) right now)
+	FEditorDelegates::OnAssetsPreDelete.Broadcast(ObjectsToPurge);
+
+	// Mark objects as purgeable.
+	for (UObject* Object : ObjectsToPurge)
+	{
+		if (Object->IsRooted())
+		{
+			Object->RemoveFromRoot();
+		}
+		Object->ClearFlags(RF_Public | RF_Standalone);
 	}
 
 	// TODO: Revisit force replacing reference, current implementation is too aggressive and causes instability
@@ -412,11 +414,11 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 		FString StartupMapPackage = GetDefault<UGameMapsSettings>()->EditorStartupMap.GetLongPackageName();
 		if (FPackageName::DoesPackageExist(StartupMapPackage))
 		{
-			UEditorLoadingAndSavingUtils::NewMapFromTemplate(StartupMapPackage, /*bSaveExistingMap*/false);
+			UEditorLoadingAndSavingUtils::NewMapFromTemplate(StartupMapPackage, /*bSaveExistingMap*/false); // Expected to run GC internally.
 		}
 		else
 		{
-			UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false);
+			UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false); // Expected to run GC internally.
 		}
 	}
 	// if we have object to purge but the map isn't one of them collect garbage (if we purged the map it has already been done)
