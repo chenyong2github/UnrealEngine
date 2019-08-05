@@ -220,7 +220,7 @@ FName FEventGraphConsts::FakeRoot = TEXT("FakeRoot");
 	FEventGraphSample
 -----------------------------------------------------------------------------*/
 
-FEventProperty FEventGraphSample::Properties[ EEventPropertyIndex::InvalidOrMax ] =
+FEventProperty FEventGraphSample::Properties[ (uint32)EEventPropertyIndex::InvalidOrMax ] =
 {
 	// Properties
 	FEventProperty( EEventPropertyIndex::StatName, TEXT( "StatName" ), STRUCT_OFFSET( FEventGraphSample, _StatName ), EEventPropertyFormatters::Name ),
@@ -266,39 +266,39 @@ void FEventGraphSample::InitializePropertyManagement()
 	{
 		NamedProperties = TMapBuilder<FName,const FEventProperty*>()
 			// Properties
-			.Add( TEXT( "StatName" ), &Properties[EEventPropertyIndex::StatName] )
-			.Add( TEXT( "InclusiveTimeMS" ), &Properties[EEventPropertyIndex::InclusiveTimeMS] )
-			.Add( TEXT( "InclusiveTimePct" ), &Properties[EEventPropertyIndex::InclusiveTimePct] )
-			.Add( TEXT( "ExclusiveTimeMS" ), &Properties[EEventPropertyIndex::ExclusiveTimeMS] )
-			.Add( TEXT( "ExclusiveTimePct" ), &Properties[EEventPropertyIndex::ExclusiveTimePct] )
-			.Add( TEXT( "NumCallsPerFrame" ), &Properties[EEventPropertyIndex::NumCallsPerFrame] )
+			.Add( TEXT( "StatName" ), &Properties[(uint32)EEventPropertyIndex::StatName] )
+			.Add( TEXT( "InclusiveTimeMS" ), &Properties[(uint32)EEventPropertyIndex::InclusiveTimeMS] )
+			.Add( TEXT( "InclusiveTimePct" ), &Properties[(uint32)EEventPropertyIndex::InclusiveTimePct] )
+			.Add( TEXT( "ExclusiveTimeMS" ), &Properties[(uint32)EEventPropertyIndex::ExclusiveTimeMS] )
+			.Add( TEXT( "ExclusiveTimePct" ), &Properties[(uint32)EEventPropertyIndex::ExclusiveTimePct] )
+			.Add( TEXT( "NumCallsPerFrame" ), &Properties[(uint32)EEventPropertyIndex::NumCallsPerFrame] )
 
 			// Special none property
-			.Add( NAME_None, &Properties[EEventPropertyIndex::None] )
+			.Add( NAME_None, &Properties[(uint32)EEventPropertyIndex::None] )
 
-			.Add( TEXT( "MinInclusiveTimeMS" ), &Properties[EEventPropertyIndex::MinInclusiveTimeMS] )
-			.Add( TEXT( "MaxInclusiveTimeMS" ), &Properties[EEventPropertyIndex::MaxInclusiveTimeMS] )
-			.Add( TEXT( "AvgInclusiveTimeMS" ), &Properties[EEventPropertyIndex::AvgInclusiveTimeMS] )	
+			.Add( TEXT( "MinInclusiveTimeMS" ), &Properties[(uint32)EEventPropertyIndex::MinInclusiveTimeMS] )
+			.Add( TEXT( "MaxInclusiveTimeMS" ), &Properties[(uint32)EEventPropertyIndex::MaxInclusiveTimeMS] )
+			.Add( TEXT( "AvgInclusiveTimeMS" ), &Properties[(uint32)EEventPropertyIndex::AvgInclusiveTimeMS] )
 
-			.Add( TEXT( "MinNumCallsPerFrame" ), &Properties[EEventPropertyIndex::MinNumCallsPerFrame] )
-			.Add( TEXT( "MaxNumCallsPerFrame" ), &Properties[EEventPropertyIndex::MaxNumCallsPerFrame] )
-			.Add( TEXT( "AvgNumCallsPerFrame" ), &Properties[EEventPropertyIndex::AvgNumCallsPerFrame] )
+			.Add( TEXT( "MinNumCallsPerFrame" ), &Properties[(uint32)EEventPropertyIndex::MinNumCallsPerFrame] )
+			.Add( TEXT( "MaxNumCallsPerFrame" ), &Properties[(uint32)EEventPropertyIndex::MaxNumCallsPerFrame] )
+			.Add( TEXT( "AvgNumCallsPerFrame" ), &Properties[(uint32)EEventPropertyIndex::AvgNumCallsPerFrame] )
 
-			.Add( TEXT( "ThreadName" ), &Properties[EEventPropertyIndex::ThreadName] )
-			.Add( TEXT( "ThreadDurationMS" ), &Properties[EEventPropertyIndex::ThreadDurationMS] )
-			.Add( TEXT( "FrameDurationMS" ), &Properties[EEventPropertyIndex::FrameDurationMS] )
-			.Add( TEXT( "ThreadPct" ), &Properties[EEventPropertyIndex::ThreadPct] )
-			.Add( TEXT( "FramePct" ), &Properties[EEventPropertyIndex::FramePct] )
-			.Add( TEXT( "ThreadToFramePct" ), &Properties[EEventPropertyIndex::ThreadToFramePct] )
-			.Add( TEXT( "GroupName" ), &Properties[EEventPropertyIndex::GroupName] )
+			.Add( TEXT( "ThreadName" ), &Properties[(uint32)EEventPropertyIndex::ThreadName] )
+			.Add( TEXT( "ThreadDurationMS" ), &Properties[(uint32)EEventPropertyIndex::ThreadDurationMS] )
+			.Add( TEXT( "FrameDurationMS" ), &Properties[(uint32)EEventPropertyIndex::FrameDurationMS] )
+			.Add( TEXT( "ThreadPct" ), &Properties[(uint32)EEventPropertyIndex::ThreadPct] )
+			.Add( TEXT( "FramePct" ), &Properties[(uint32)EEventPropertyIndex::FramePct] )
+			.Add( TEXT( "ThreadToFramePct" ), &Properties[(uint32)EEventPropertyIndex::ThreadToFramePct] )
+			.Add( TEXT( "GroupName" ), &Properties[(uint32)EEventPropertyIndex::GroupName] )
 
 			// Booleans
-			.Add( TEXT( "bIsHotPath" ), &Properties[EEventPropertyIndex::bIsHotPath] )
-			.Add( TEXT( "bIsFiltered" ), &Properties[EEventPropertyIndex::bIsFiltered] )
-			.Add( TEXT( "bIsCulled" ), &Properties[EEventPropertyIndex::bIsCulled] )
+			.Add( TEXT( "bIsHotPath" ), &Properties[(uint32)EEventPropertyIndex::bIsHotPath] )
+			.Add( TEXT( "bIsFiltered" ), &Properties[(uint32)EEventPropertyIndex::bIsFiltered] )
+			.Add( TEXT( "bIsCulled" ), &Properties[(uint32)EEventPropertyIndex::bIsCulled] )
 
 			// Booleans internal
-			.Add( TEXT( "bNeedNotCulledChildrenUpdate" ), &Properties[EEventPropertyIndex::bNeedNotCulledChildrenUpdate] )
+			.Add( TEXT( "bNeedNotCulledChildrenUpdate" ), &Properties[(uint32)EEventPropertyIndex::bNeedNotCulledChildrenUpdate] )
 			;
 	
 		// Make sure that the minimal property manager has been initialized.
@@ -308,8 +308,8 @@ void FEventGraphSample::InitializePropertyManagement()
 		check( NamedProperties.FindChecked( NAME_None )->Name == NAME_None );
 		check( NamedProperties.FindChecked( NAME_None )->Offset == INDEX_NONE );
 
-		check( FEventGraphSample::Properties[ EEventPropertyIndex::None ].Name == NAME_None );
-		check( FEventGraphSample::Properties[ EEventPropertyIndex::None ].Offset == INDEX_NONE );
+		check( FEventGraphSample::Properties[ (uint32)EEventPropertyIndex::None ].Name == NAME_None );
+		check( FEventGraphSample::Properties[ (uint32)EEventPropertyIndex::None ].Offset == INDEX_NONE );
 	}
 }
 

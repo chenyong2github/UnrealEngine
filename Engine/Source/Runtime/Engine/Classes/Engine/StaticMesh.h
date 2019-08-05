@@ -449,8 +449,8 @@ enum EImportStaticMeshVersion
 	BeforeImportStaticMeshVersionWasAdded,
 	// Remove the material re-order workflow
 	RemoveStaticMeshSkinxxWorkflow,
-	VersionPlusOne,
-	LastVersion = VersionPlusOne - 1
+	StaticMeshVersionPlusOne,
+	LastVersion = StaticMeshVersionPlusOne - 1
 };
 
 USTRUCT()

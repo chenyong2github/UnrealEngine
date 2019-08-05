@@ -126,7 +126,7 @@ void FIOSInputInterface::HandleConnection(GCController* Controller)
 	static_assert(GCControllerPlayerIndex1 == 0 && GCControllerPlayerIndex4 == 3, "Apple changed the player index enums");
 
 	// is this guy a gamepad (i.e., not the Remote)
-	bool bIsGamepadType = (Controller.gamepad != nil);
+	bool bIsGamepadType = (Controller.extendedGamepad != nil);
 	// if we want to use the Remote as a separate player, then we treat it as a Gamepad for player assignment
 	bool bIsTreatedAsGamepad = bIsGamepadType || bTreatRemoteAsSeparateController;
 
@@ -344,7 +344,6 @@ void FIOSInputInterface::SendControllerEvents()
 		
 	for (GCController* Cont in [GCController controllers])
  	{
-		GCGamepad* Gamepad = Cont.gamepad;
 		GCExtendedGamepad* ExtendedGamepad = Cont.extendedGamepad;
 #if PLATFORM_TVOS
 		GCMicroGamepad* MicroGamepad = Cont.microGamepad;
@@ -352,7 +351,7 @@ void FIOSInputInterface::SendControllerEvents()
 		GCMotion* Motion = Cont.motion;
 
 		// skip over gamepads if we don't allow controllers
-		if (Gamepad != nil && !bAllowControllers)
+		if (ExtendedGamepad != nil && !bAllowControllers)
 		{
 			continue;
 		}
@@ -456,29 +455,6 @@ if ((Controller.Previous##Gamepad != nil && Gamepad.GCAxis.value != Controller.P
 			Controller.PreviousExtendedGamepad = [ExtendedGamepad saveSnapshot];
 			[Controller.PreviousExtendedGamepad retain];
 		}
-		// get basic input (extended is a superset, don't do both)
-		else if (Gamepad != nil)
-		{
-			HANDLE_BUTTON(Gamepad, buttonA,			FGamepadKeyNames::FaceButtonBottom);
-			HANDLE_BUTTON(Gamepad, buttonA,			FGamepadKeyNames::FaceButtonBottom);
-			HANDLE_BUTTON(Gamepad, buttonB,			FGamepadKeyNames::FaceButtonRight);
-			HANDLE_BUTTON(Gamepad, buttonX,			FGamepadKeyNames::FaceButtonLeft);
-			HANDLE_BUTTON(Gamepad, buttonY,			FGamepadKeyNames::FaceButtonTop);
-			HANDLE_BUTTON(Gamepad, leftShoulder,	FGamepadKeyNames::LeftShoulder);
-			HANDLE_BUTTON(Gamepad, rightShoulder,	FGamepadKeyNames::RightShoulder);
-			HANDLE_BUTTON(Gamepad, dpad.up,			FGamepadKeyNames::DPadUp);
-			HANDLE_BUTTON(Gamepad, dpad.down,		FGamepadKeyNames::DPadDown);
-			HANDLE_BUTTON(Gamepad, dpad.right,		FGamepadKeyNames::DPadRight);
-			HANDLE_BUTTON(Gamepad, dpad.left,		FGamepadKeyNames::DPadLeft);
-			
-
-			HANDLE_ANALOG(ExtendedGamepad, dpad.xAxis,	FGamepadKeyNames::LeftAnalogX);
-			HANDLE_ANALOG(ExtendedGamepad, dpad.yAxis,	FGamepadKeyNames::LeftAnalogY);
-			
-			[Controller.PreviousGamepad release];
-			Controller.PreviousGamepad = [Gamepad saveSnapshot];
-			[Controller.PreviousGamepad retain];
-        }
 #if PLATFORM_TVOS
         // get micro input (shouldn't have the other two)
         else if (MicroGamepad != nil)
