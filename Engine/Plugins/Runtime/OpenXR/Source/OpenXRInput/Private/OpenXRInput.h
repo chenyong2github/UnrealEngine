@@ -23,10 +23,10 @@ public:
 		FName			ActionKey;
 		XrAction		Handle;
 
-		FOpenXRAction(XrActionSet InSet, XrActionType InType, const FName& InName);
+		FOpenXRAction(XrActionSet InActionSet, XrActionType InActionType, const FName& InName);
 
-		FOpenXRAction(XrActionSet InSet, const FName& InName, const FName& InActionKey)
-			: FOpenXRAction(InSet, XR_INPUT_ACTION_TYPE_BOOLEAN, InName)
+		FOpenXRAction(XrActionSet InActionSet, const FName& InName, const FName& InActionKey)
+			: FOpenXRAction(InActionSet, XR_ACTION_TYPE_BOOLEAN_INPUT, InName)
 		{
 			ActionKey = InActionKey;
 		}
@@ -37,12 +37,12 @@ public:
 
 	struct FOpenXRController
 	{
-		XrActionSet		Set;
-		XrAction		Pose;
-		XrAction		Vibration;
+		XrActionSet		ActionSet;
+		XrAction		Action;
+		XrAction		VibrationAction;
 		int32			DeviceId;
 
-		FOpenXRController(FOpenXRHMD* HMD, XrActionSet InSet, const char* InName);
+		FOpenXRController(FOpenXRHMD* HMD, XrActionSet InActionSet, const char* InName);
 	};
 
 	class FOpenXRInput : public IInputDevice, public FXRMotionControllerBase, public IHapticDevice
@@ -80,6 +80,8 @@ public:
 		TArray<FOpenXRAction> Actions;
 		TMap<EControllerHand, FOpenXRController> Controllers;
 		TMap<FName, XrPath> InteractionMappings;
+
+		bool bActionsBound;
 
 		template<typename T>
 		void AddAction(XrActionSet ActionSet, const TArray<T>& Mappings, TArray<XrActionSuggestedBinding>& OutSuggestedBindings);
