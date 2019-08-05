@@ -118,7 +118,7 @@ public:
 				TLS.PartialBundle = GlobalFreeListBundles.Pop();
 				if (!TLS.PartialBundle)
 				{
-					int32 FirstIndex = FLockFreeLinkPolicy::LinkAllocator.Alloc(NUM_PER_BUNDLE);
+					int32 FirstIndex = FLockFreeLinkPolicy::GetLinkAllocator().Alloc(NUM_PER_BUNDLE);
 					for (int32 Index = 0; Index < NUM_PER_BUNDLE; Index++)
 					{
 						TLink* Event = FLockFreeLinkPolicy::IndexToLink(FirstIndex + Index);
@@ -205,19 +205,40 @@ private:
 	FLockFreePointerListLIFORoot<PLATFORM_CACHE_LINE_SIZE> GlobalFreeListBundles;
 };
 
-static LockFreeLinkAllocator_TLSCache GLockFreeLinkAllocator;
+static LockFreeLinkAllocator_TLSCache* GLockFreeLinkAllocator = nullptr;
+
+LockFreeLinkAllocator_TLSCache* InternalGetFreeLinkAllocator()
+{
+	static LockFreeLinkAllocator_TLSCache LockFreeLinkAllocator;
+	return &LockFreeLinkAllocator;
+}
+
+LockFreeLinkAllocator_TLSCache& GetLockFreeLinkAllocator()
+{
+	if (GLockFreeLinkAllocator == nullptr)
+	{
+		GLockFreeLinkAllocator = InternalGetFreeLinkAllocator();
+	}
+	return *GLockFreeLinkAllocator;
+}
 
 void FLockFreeLinkPolicy::FreeLockFreeLink(FLockFreeLinkPolicy::TLinkPtr Item)
 {
-	GLockFreeLinkAllocator.Push(Item);
+	GetLockFreeLinkAllocator().Push(Item);
 }
 
 FLockFreeLinkPolicy::TLinkPtr FLockFreeLinkPolicy::AllocLockFreeLink() TSAN_SAFE
 {
-	FLockFreeLinkPolicy::TLinkPtr Result = GLockFreeLinkAllocator.Pop();
+	FLockFreeLinkPolicy::TLinkPtr Result = GetLockFreeLinkAllocator().Pop();
 	// this can only really be a mem stomp
 	checkLockFreePointerList(Result && !FLockFreeLinkPolicy::DerefLink(Result)->DoubleNext.GetPtr() && !FLockFreeLinkPolicy::DerefLink(Result)->Payload && !FLockFreeLinkPolicy::DerefLink(Result)->SingleNext);
 	return Result;
 }
 
-FLockFreeLinkPolicy::TAllocator FLockFreeLinkPolicy::LinkAllocator;
+FLockFreeLinkPolicy::TAllocator* FLockFreeLinkPolicy::InternalGetLinkAllocator()
+{
+	static TAllocator LinkAllocator;
+	return &LinkAllocator;
+}
+
+FLockFreeLinkPolicy::TAllocator* FLockFreeLinkPolicy::LinkAllocatorPtr = nullptr;
