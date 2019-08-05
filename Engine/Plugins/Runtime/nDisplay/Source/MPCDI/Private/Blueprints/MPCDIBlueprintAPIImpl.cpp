@@ -56,7 +56,7 @@ bool UMPCDIAPIImpl::GetPFMMeshData(const FString& LocalPFMFile, FMPCDIGeometryEx
 	//! todo: Force reload
 	if (!MpcdiModule.LoadPFM(RegionLocator, LocalPFMFile, PFMScale, !bIsMPCDIAxis))
 	{
-		UE_LOG(LogMPCDI, Error, TEXT("Couldn't get load ext pfm from file: %s"), *LocalPFMFile);
+		UE_LOG(LogMPCDI, Error, TEXT("Failed to load PFM from file: %s"), *LocalPFMFile);
 		return false;
 	}
 
