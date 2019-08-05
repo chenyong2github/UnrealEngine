@@ -461,10 +461,15 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 
 	if (bRequiresInit)
 	{
+		// Set to highest max channels initially provided by any quality setting, so that
+		// setting to lower quality but potentially returning to higher quality later at
+		// runtime is supported.
 		const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-		if (OutResults.AudioDevice->Init(AudioSettings->GetHighestMaxChannels())) //-V595
+		const int32 HighestMaxChannels = AudioSettings ? AudioSettings->GetHighestMaxChannels() : 0;
+		if (OutResults.AudioDevice && OutResults.AudioDevice->Init(HighestMaxChannels))
 		{
-			OutResults.AudioDevice->SetMaxChannels(AudioSettings->GetQualityLevelSettings(GEngine->GetGameUserSettings()->GetAudioQualityLevel()).MaxChannels); //-V595
+			const FAudioQualitySettings& QualitySettings = OutResults.AudioDevice->GetQualityLevelSettings();
+			OutResults.AudioDevice->SetMaxChannels(QualitySettings.MaxChannels);
 		}
 		else
 		{
