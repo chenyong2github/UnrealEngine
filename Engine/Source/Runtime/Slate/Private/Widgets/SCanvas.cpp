@@ -115,6 +115,10 @@ int32 SCanvas::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 
 			MaxLayerId = FMath::Max(MaxLayerId, CurWidgetsMaxLayerId);
 		}
+		else
+		{
+
+		}
 	}
 
 	return MaxLayerId;
