@@ -29,9 +29,12 @@ void UEditableStaticMeshAdapter::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	if (StaticMesh)
+	// Follow up on change made by CL #5110941
+	// StaticMesh is not controlled by an EditableMesh anymore
+	// Rebuild its resources if applicable
+	if (StaticMesh && !StaticMesh->IsPendingKillOrUnreachable())
 	{
-		StaticMesh->ReleaseResources();
+		StaticMesh->Build( true );
 	}
 }
 
