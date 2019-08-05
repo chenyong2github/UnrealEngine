@@ -3,6 +3,7 @@
 #include "Animation/SkinWeightProfile.h"
 #include "Engine/SkeletalMesh.h"
 #include "UObject/UObjectIterator.h"
+#include "ContentStreaming.h"
 
 #include "Components/SkinnedMeshComponent.h"
 #include "Rendering/SkeletalMeshRenderData.h"
