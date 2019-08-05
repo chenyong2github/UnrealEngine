@@ -161,4 +161,3 @@ private:
 
 	TAttribute<FOptionalSize> MaxAspectRatio;
 };
-
