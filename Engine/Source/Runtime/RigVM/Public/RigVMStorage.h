@@ -11,35 +11,32 @@ struct RIGVM_API FRigVMArgument
 public:
 
 	FRigVMArgument()
-		:Address(INDEX_NONE)
+		: bIsLiteral(false)
+		, RegisterIndex(INDEX_NONE)
+		, ByteIndex(INDEX_NONE)
 	{
 	}
 
-	FRigVMArgument(int32 InAddress)
-		:Address(InAddress)
+	FRigVMArgument(bool InIsLiteral, int32 InRegisterIndex, int32 InByteIndex)
+		: bIsLiteral(InIsLiteral)
+		, RegisterIndex(InRegisterIndex)
+		, ByteIndex(InByteIndex)
 	{
 	}
 
-	static FRigVMArgument MakeArgument(int32 InAddress)
-	{
-		return FRigVMArgument(InAddress);
-	}
-
-	static FRigVMArgument MakeLiteral(int32 InAddress)
-	{
-		return FRigVMArgument(-1 - InAddress);
-	}
-
-	FORCEINLINE bool operator ==(int32 InOther) const { return Address == InOther; }
-
-	FORCEINLINE bool IsLiteral() const { return Address < 0; }
-	FORCEINLINE int32 StorageType() const { return Address < 0 ? 1 : 0; }
-	FORCEINLINE int32 Index() const { return Address < 0 ? -(Address + 1) : Address; }
-	FORCEINLINE int32 NativeAddress() const { return Address; }
+	FORCEINLINE bool IsLiteral() const { return bIsLiteral; }
+	FORCEINLINE int32 StorageType() const { return bIsLiteral ? 1 : 0; }
+	FORCEINLINE int32 GetRegisterIndex() const { return RegisterIndex; }
+	FORCEINLINE int32 GetByteIndex() const { return ByteIndex; }
 
 private:
-	int32 Address;
+
+	bool bIsLiteral;
+	int32 RegisterIndex;
+	int32 ByteIndex;
 };
+
+typedef TArrayView<FRigVMArgument> FRigVMArgumentArray;
 
 UENUM()
 enum class ERigVMAddressType : uint8
@@ -130,6 +127,8 @@ struct RIGVM_API FRigVMAddress
 	}
 };
 
+typedef TArrayView<FRigVMAddress> FRigVMAddressArray;
+
 USTRUCT()
 struct RIGVM_API FRigVMStorage
 {
@@ -143,12 +142,14 @@ public:
 
 	FRigVMStorage& operator= (const FRigVMStorage &InOther);
 
+	FORCEINLINE bool IsLiteralStorage() const { return bIsLiteralStorage;  }
+	FORCEINLINE void SetLiteralStorage(bool InIsLiteralStorage = true) { bIsLiteralStorage = InIsLiteralStorage; }
 	FORCEINLINE bool SupportsNames() const { return bUseNameMap;  }
 	FORCEINLINE int32 Num() const { return Addresses.Num(); }
 	FORCEINLINE const FRigVMAddress& operator[](int32 InIndex) const { return Addresses[InIndex]; }
 	FORCEINLINE FRigVMAddress& operator[](int32 InIndex) { return Addresses[InIndex]; }
-	FORCEINLINE const FRigVMAddress& operator[](const FRigVMArgument& InArg) const { return Addresses[InArg.Index()]; }
-	FORCEINLINE FRigVMAddress& operator[](const FRigVMArgument& InArg) { return Addresses[InArg.Index()]; }
+	FORCEINLINE const FRigVMAddress& operator[](const FRigVMArgument& InArg) const { return Addresses[InArg.GetRegisterIndex()]; }
+	FORCEINLINE FRigVMAddress& operator[](const FRigVMArgument& InArg) { return Addresses[InArg.GetRegisterIndex()]; }
 	FORCEINLINE const FRigVMAddress& operator[](const FName& InName) const { return Addresses[GetIndex(InName)]; }
 	FORCEINLINE FRigVMAddress& operator[](const FName& InName) { return Addresses[GetIndex(InName)]; }
 
@@ -156,6 +157,12 @@ public:
 	FORCEINLINE TArray<FRigVMAddress>::RangedForConstIteratorType begin() const { return Addresses.begin(); }
 	FORCEINLINE TArray<FRigVMAddress>::RangedForIteratorType      end() { return Addresses.end(); }
 	FORCEINLINE TArray<FRigVMAddress>::RangedForConstIteratorType end() const { return Addresses.end(); }
+
+	FORCEINLINE FRigVMArgument GetArgument(int32 InAddressIndex) const
+	{
+		ensure(Addresses.IsValidIndex(InAddressIndex));
+		return FRigVMArgument(IsLiteralStorage(), InAddressIndex, Addresses[InAddressIndex].ByteIndex);
+	}
 
 	FORCEINLINE const void* GetData(int32 InAddressIndex) const
 	{
@@ -224,7 +231,7 @@ public:
 	template<class T>
 	FORCEINLINE T& GetRef(const FRigVMArgument& InArgument)
 	{
-		return GetRef<T>(InArgument.Index());
+		return GetRef<T>(InArgument.GetRegisterIndex());
 	}
 
 	template<class T>
@@ -239,7 +246,7 @@ public:
 	template<class T>
 	FORCEINLINE TArrayView<T> GetArray(const FRigVMArgument& InArgument)
 	{
-		return GetArray<T>(InArgument.Index());
+		return GetArray<T>(InArgument.GetRegisterIndex());
 	}
 
 	FORCEINLINE UScriptStruct* GetScriptStruct(int32 InAddressIndex) const
@@ -534,6 +541,9 @@ private:
 	bool bUseNameMap;
 
 	UPROPERTY()
+	bool bIsLiteralStorage;
+
+	UPROPERTY()
 	TArray<FRigVMAddress> Addresses;
 
 	UPROPERTY()
@@ -545,3 +555,6 @@ private:
 	UPROPERTY(transient)
 	TMap<FName, int32> NameMap;
 };
+
+typedef FRigVMStorage* FRigVMStoragePtr;
+typedef TArrayView<FRigVMStoragePtr> FRigVMStoragePtrArray;

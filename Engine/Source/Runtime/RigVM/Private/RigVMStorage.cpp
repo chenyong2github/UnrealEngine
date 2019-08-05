@@ -3,7 +3,8 @@
 #include "RigVMStorage.h"
 
 FRigVMStorage::FRigVMStorage(bool bInUseNames)
-	:bUseNameMap(bInUseNames)
+	: bUseNameMap(bInUseNames)
+	, bIsLiteralStorage(false)
 {
 }
 

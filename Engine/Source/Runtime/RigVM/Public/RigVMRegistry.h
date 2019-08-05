@@ -5,7 +5,8 @@
 #include "CoreMinimal.h"
 #include "RigVMStorage.h"
 
-typedef void (*FRigVMFunctionPtr)(const TArrayView<FRigVMArgument>&, FRigVMStorage**, const TArrayView<void*>&);
+typedef TArrayView<void*> FRigVMUserDataArray;
+typedef void (*FRigVMFunctionPtr)(const FRigVMArgumentArray&, FRigVMStoragePtrArray&, const FRigVMUserDataArray&);
 
 struct RIGVM_API FRigVMFunction
 {

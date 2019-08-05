@@ -15,9 +15,12 @@ class RIGVM_API URigVM : public UObject
 
 public:
 
+	URigVM();
+	virtual ~URigVM();
+
 	void Reset();
 
-	bool Execute(FRigVMStorage** Storage = nullptr, TArrayView<void*> AdditionalArgs = TArrayView<void*>());
+	bool Execute(FRigVMStoragePtrArray Storage = FRigVMStoragePtrArray(), TArrayView<void*> AdditionalArgs = TArrayView<void*>());
 
 	UFUNCTION()
 	int32 AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InFunctionName);

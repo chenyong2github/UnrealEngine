@@ -2,6 +2,17 @@
 
 #include "RigVM.h"
 
+URigVM::URigVM()
+{
+	Literals.SetLiteralStorage(true);
+	WorkState.SetLiteralStorage(false);
+}
+
+URigVM::~URigVM()
+{
+	Reset();
+}
+
 void URigVM::Reset()
 {
 	Literals.Reset();
@@ -54,7 +65,7 @@ void URigVM::RefreshInstructionsIfRequired()
 	}
 }
 
-bool URigVM::Execute(FRigVMStorage** Storage, TArrayView<void*> AdditionalArgs)
+bool URigVM::Execute(FRigVMStoragePtrArray Storage, TArrayView<void*> AdditionalArgs)
 {
 	ResolveFunctionsIfRequired();
 	RefreshInstructionsIfRequired();
@@ -65,9 +76,9 @@ bool URigVM::Execute(FRigVMStorage** Storage, TArrayView<void*> AdditionalArgs)
 	}
 
 	FRigVMStorage* LocalStorage[] = { &WorkState, &Literals }; 
-	if (Storage == nullptr)
+	if (Storage.Num() == 0)
 	{
-		Storage = LocalStorage;
+		Storage = FRigVMStoragePtrArray(LocalStorage, 2);
 	}
 
 	int32 InstructionIndex = 0;
@@ -78,21 +89,21 @@ bool URigVM::Execute(FRigVMStorage** Storage, TArrayView<void*> AdditionalArgs)
 			case ERigVMOpCode::Copy:
 			{
 				const FRigVMCopyOp& Op = ByteCode.GetOpAt<FRigVMCopyOp>(Instructions[InstructionIndex]);
-				Storage[0]->Copy(Op.Source.Index(), Op.Target.Index(), Storage[Op.Source.StorageType()], Op.SourceOffset, Op.TargetOffset, Op.NumBytes);
+				Storage[0]->Copy(Op.Source.GetRegisterIndex(), Op.Target.GetRegisterIndex(), Storage[Op.Source.StorageType()], Op.SourceOffset, Op.TargetOffset, Op.NumBytes);
 				InstructionIndex++;
 				break;
 			}
 			case ERigVMOpCode::Increment:
 			{
 				const FRigVMIncrementOp& Op = ByteCode.GetOpAt<FRigVMIncrementOp>(Instructions[InstructionIndex]);
-				Storage[0]->GetRef<int32>(Op.Arg.Index())++;
+				Storage[0]->GetRef<int32>(Op.Arg.GetRegisterIndex())++;
 				InstructionIndex++;
 				break;
 			}
 			case ERigVMOpCode::Decrement:
 			{
 				const FRigVMDecrementOp& Op = ByteCode.GetOpAt<FRigVMDecrementOp>(Instructions[InstructionIndex]);
-				Storage[0]->GetRef<int32>(Op.Arg.Index())--;
+				Storage[0]->GetRef<int32>(Op.Arg.GetRegisterIndex())--;
 				InstructionIndex++;
 				break;
 			}
@@ -129,7 +140,7 @@ bool URigVM::Execute(FRigVMStorage** Storage, TArrayView<void*> AdditionalArgs)
 			case ERigVMOpCode::Execute:
 			{
 				const FRigVMExecuteOp& Op = ByteCode.GetOpAt<FRigVMExecuteOp>(Instructions[InstructionIndex]);
-				TArrayView<FRigVMArgument> Args = ByteCode.GetArgumentsForExecuteOp(Instructions[InstructionIndex]);
+				FRigVMArgumentArray Args = ByteCode.GetArgumentsForExecuteOp(Instructions[InstructionIndex]);
 				(*Functions[Op.FunctionIndex])(Args, Storage, AdditionalArgs);
 				InstructionIndex++;
 				break;

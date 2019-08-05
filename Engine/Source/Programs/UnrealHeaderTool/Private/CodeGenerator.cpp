@@ -3323,10 +3323,10 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		for (UProperty* Prop : TFieldRange<UProperty>(Struct))
 		{
 			FString Name = Prop->GetName();
-			FString AddressName = FString::Printf(TEXT("%s_Address"), *Name);
-			MemberMulticastProlog.Add(FString::Printf(TEXT("const FRigVMArgument& %s = RigVMAddresses[%d];"), *AddressName, MemberIndex++));
+			FString AddressName = FString::Printf(TEXT("%s_Arg"), *Name);
+			MemberMulticastProlog.Add(FString::Printf(TEXT("const FRigVMArgument& %s = RigVMArguments[%d];"), *AddressName, MemberIndex++));
 		}
-		MemberMulticastProlog.Insert(FString::Printf(TEXT("ensure(RigVMAddresses.Num() == %d);"), MemberMulticastProlog.Num()), 0);
+		MemberMulticastProlog.Insert(FString::Printf(TEXT("ensure(RigVMArguments.Num() == %d);"), MemberMulticastProlog.Num()), 0);
 		MemberMulticastProlog.Add(FString());
 
 		for (UProperty* Prop : TFieldRange<UProperty>(Struct))
@@ -3399,8 +3399,8 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			}
 
 			MemberDeclarations.Add(FString::Printf(TEXT("%s %s"), *ParameterCPPType, *Name));
-			FString AddressName = FString::Printf(TEXT("%s_Address"), *Name);
-			MemberMulticastProlog.Add(FString::Printf(TEXT("%s %s = RigVMStorage[%s.StorageType()]->%s<%s>(%s.Index());"), *ExtractedMulticastCPPType, *Name, *AddressName, *MulticastGetter, *MultiCastCPPType, *AddressName));
+			FString AddressName = FString::Printf(TEXT("%s_Arg"), *Name);
+			MemberMulticastProlog.Add(FString::Printf(TEXT("%s %s = RigVMStorage[%s.StorageType()]->%s<%s>(%s.GetRegisterIndex());"), *ExtractedMulticastCPPType, *Name, *AddressName, *MulticastGetter, *MultiCastCPPType, *AddressName));
 		}
 
 		OutGeneratedHeaderText.Log(TEXT("\n"));
@@ -3431,7 +3431,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 				FString ParamsSuffix = Info.Params.IsEmpty() ? TEXT("") : FString::Printf(TEXT(", %s"), *Info.Params);
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s);\r\n"), *Info.ReturnType, *Info.Name, *FString::Join(MemberDeclarations, TEXT(",\r\n\t\t")), *ParamsSuffix);
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(const TArrayView<FRigVMArgument>& RigVMAddresses, FRigVMStorage** RigVMStorage, const TArrayView<void*>& AdditionalArgs);\r\n"), *Info.ReturnType, *Info.Name);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(const FRigVMArgumentArray& RigVMArguments, FRigVMStoragePtrArray& RigVMStorage, const FRigVMUserDataArray& RigVMUserData);\r\n"), *Info.ReturnType, *Info.Name);
 			}
 		}
 
@@ -3681,7 +3681,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				} 
 				Params.Add(ParamPrev.TrimStartAndEnd());
 
-				ParameterExtractionProlog.Add(FString::Printf(TEXT("ensure(AdditionalArgs.Num() == %d);"), Params.Num()));
+				ParameterExtractionProlog.Add(FString::Printf(TEXT("ensure(RigVMUserData.Num() == %d);"), Params.Num()));
 
 				for (int32 ParamIndex=0;ParamIndex<Params.Num(); ParamIndex++)
 				{
@@ -3715,7 +3715,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 						ParamPointerType = ParamPointerType.LeftChop(1);
 						ParamPointerType.TrimStartAndEndInline();
 					}
-					ParameterExtractionProlog.Add(FString::Printf(TEXT("%s = *(%s*)AdditionalArgs[%d];"), *FullParam, *ParamPointerType, ParamIndex));
+					ParameterExtractionProlog.Add(FString::Printf(TEXT("%s = *(%s*)RigVMUserData[%d];"), *FullParam, *ParamPointerType, ParamIndex));
 				}
 				ParamSuffix = FString::Printf(TEXT(", %s"), *FString::Join(Params, Comma));
 			}
@@ -3731,7 +3731,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				ParamDeclarationSuffix = FString::Printf(TEXT(", %s"), *Info.Params);
 			}
 
-			Out.Logf(TEXT("%s %s::RigVM%s(const TArrayView<FRigVMArgument>& RigVMAddresses, FRigVMStorage** RigVMStorage, const TArrayView<void*>& AdditionalArgs)\r\n"), *Info.ReturnType, StructNameCPP, *Info.Name);
+			Out.Logf(TEXT("%s %s::RigVM%s(const FRigVMArgumentArray& RigVMArguments, FRigVMStoragePtrArray& RigVMStorage, const FRigVMUserDataArray& RigVMUserData)\r\n"), *Info.ReturnType, StructNameCPP, *Info.Name);
 			Out.Log(TEXT("{\r\n"));
 
 			if (ParameterExtractionProlog.Num() > 0)
