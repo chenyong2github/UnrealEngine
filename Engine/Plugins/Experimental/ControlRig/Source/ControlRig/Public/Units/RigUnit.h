@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ControlRigDefines.h"
-#include "RigVMRegistry.h"
+#include "RigVMCore/RigVMRegistry.h"
 #include "RigUnit.generated.h"
 
 struct FRigUnitContext;
