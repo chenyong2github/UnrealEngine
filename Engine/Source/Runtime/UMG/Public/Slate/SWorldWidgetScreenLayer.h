@@ -24,6 +24,7 @@ public:
 	void Construct(const FArguments& InArgs, const FLocalPlayerContext& InPlayerContext);
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	virtual FVector2D ComputeDesiredSize(float) const override;
 
 	void SetWidgetDrawSize(FVector2D DrawSize);
 
