@@ -28,7 +28,7 @@ namespace Audio
 		bool GetNumOutputDevices(uint32& OutNumOutputDevices) override;
 		bool GetOutputDeviceInfo(const uint32 InDeviceIndex, FAudioPlatformDeviceInfo& OutInfo) override;
 		bool GetDefaultOutputDeviceIndex(uint32& OutDefaultDeviceIndex) const override;
-		bool OpenAudioStream(const FAudioMixerOpenStreamParams& Params) override;
+		virtual bool OpenAudioStream(const FAudioMixerOpenStreamParams& Params) override;
 		bool CloseAudioStream() override;
 		bool StartAudioStream() override;
 		bool StopAudioStream() override;
@@ -44,6 +44,8 @@ namespace Audio
 		//~ End IAudioMixerPlatformInterface Interface
 
 		void HandleOnBufferEnd(uint8* InOutputBuffer, int32 InOutputBufferLength);
+
+		virtual FString GetCurrentDeviceName() const;
 
 	private:
 
