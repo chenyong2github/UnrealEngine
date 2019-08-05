@@ -3432,7 +3432,7 @@ bool UGameViewportClient::HandleForceSkelLODCommand( const TCHAR* Cmd, FOutputDe
 		USkeletalMeshComponent* SkelComp = *It;
 		if( SkelComp->GetScene() == InWorld->Scene && !SkelComp->IsTemplate())
 		{
-			SkelComp->ForcedLodModel = ForceLod;
+			SkelComp->SetForcedLOD(ForceLod);
 		}
 	}
 	return true;

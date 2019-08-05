@@ -487,7 +487,7 @@ void FAnimationViewportClient::DrawUVsForMesh(FViewport* InViewport, FCanvas* In
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
 
 	//use the overridden LOD level
-	const uint32 LODLevel = FMath::Clamp(PreviewMeshComponent->ForcedLodModel - 1, 0, PreviewMeshComponent->SkeletalMesh->GetLODNum() - 1);
+	const uint32 LODLevel = FMath::Clamp(PreviewMeshComponent->GetForcedLOD() - 1, 0, PreviewMeshComponent->SkeletalMesh->GetLODNum() - 1);
 
 	TArray<FVector2D> SelectedEdgeTexCoords; //No functionality in Persona for this (yet?)
 
@@ -1700,8 +1700,8 @@ void FAnimationViewportClient::ToggleCPUSkinning()
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
 	if (PreviewMeshComponent != nullptr)
 	{
-		PreviewMeshComponent->bCPUSkinning = !PreviewMeshComponent->bCPUSkinning;
-		PreviewMeshComponent->MarkRenderStateDirty();
+		const bool bCurVal = PreviewMeshComponent->GetCPUSkinningEnabled();
+		PreviewMeshComponent->SetCPUSkinningEnabled(!bCurVal);
 		Invalidate();
 	}
 }
@@ -1711,7 +1711,7 @@ bool FAnimationViewportClient::IsSetCPUSkinningChecked() const
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
 	if (PreviewMeshComponent != nullptr)
 	{
-		return PreviewMeshComponent->bCPUSkinning;
+		return PreviewMeshComponent->GetCPUSkinningEnabled();
 	}
 	return false;
 }
