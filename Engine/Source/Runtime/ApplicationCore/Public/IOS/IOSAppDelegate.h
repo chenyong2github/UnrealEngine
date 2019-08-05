@@ -215,6 +215,10 @@ APPLICATIONCORE_API
 - (void)EnableVoiceChat:(bool)bEnable;
 - (void)EnableHighQualityVoiceChat:(bool)bEnable;
 - (bool)IsVoiceChatEnabled;
+- (void)EnableSpeakerPhone:(bool)bEnable;
+- (bool)IsSpeakerPhoneEnabled;
+
+- (bool)SetInputDataSourceWithOrientation:(AVAudioSessionOrientation)PreferredOrientation error:(NSError*)ActiveError;
 
 - (void)SetFeature:(EAudioFeature)Feature Active:(bool)bIsActive;
 - (bool)IsFeatureActive:(EAudioFeature)Mode;
@@ -222,6 +226,7 @@ APPLICATIONCORE_API
 @property (atomic) bool bAudioActive;
 @property (atomic) bool bVoiceChatEnabled;
 @property (atomic) bool bHighQualityVoiceChatEnabled;
+@property (atomic) bool bSpeakerPhoneEnabled;
 
 @property (atomic) bool bIsSuspended;
 @property (atomic) bool bHasSuspended;
