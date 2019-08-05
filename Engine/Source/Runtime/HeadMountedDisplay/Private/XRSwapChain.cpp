@@ -60,11 +60,15 @@ FORCEINLINE void CheckInRHIThread()
 #endif
 }
 
-FXRSwapChain::FXRSwapChain(FRHITexture* InRHITexture, TArray<FTextureRHIRef>&& InRHITextureSwapChain)
-	: RHITexture(InRHITexture)
+FXRSwapChain::FXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef& AliasedTexture)
+	: RHITexture(AliasedTexture)
 	, RHITextureSwapChain(InRHITextureSwapChain)
 	, SwapChainIndex_RHIThread(0)
 {
+	check(RHITexture);
+	// @todo: The *correct* way to create the RHITexture object (that's just an alias over swap-chain textures)
+	//		  would be via a new RHI API to create an aliased texture. For now we just let the clients of this class
+	//		  create themselves (since they all create differently).
 	RHITexture->SetName(TEXT("XRSwapChainAliasedTexture"));
 	for (int ChainElement = 0; ChainElement < RHITextureSwapChain.Num(); ++ChainElement)
 	{
@@ -108,7 +112,7 @@ void FXRSwapChain::GenerateMips_RenderThread(FRHICommandListImmediate& RHICmdLis
 }
 
 
-void FXRSwapChain::IncrementSwapChainIndex_RHIThread()
+void FXRSwapChain::IncrementSwapChainIndex_RHIThread(int64 /* TimeoutNanoseconds */)
 {
 	CheckInRHIThread();
 
