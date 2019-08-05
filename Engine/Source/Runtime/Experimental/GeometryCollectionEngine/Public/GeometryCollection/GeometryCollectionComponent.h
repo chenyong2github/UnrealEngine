@@ -280,6 +280,7 @@ public:
 	FORCEINLINE void SetRenderStateDirty() { bRenderStateDirty = true; }
 	virtual void BeginPlay() override;
 	virtual void EndPlay(EEndPlayReason::Type ReasonEnd) override;
+
 	//~ Begin UActorComponent Interface. 
 
 
@@ -596,10 +597,10 @@ private:
 	bool IsObjectLoading;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	TArray<int32> SelectedBones;
 
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	TArray<int32> HighlightedBones;
 #endif
 
@@ -625,7 +626,7 @@ private:
 #endif
 
 	// Temporary storage for body setup in order to initialise a dummy body instance
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	UBodySetup* DummyBodySetup;
 
 #if WITH_EDITORONLY_DATA
