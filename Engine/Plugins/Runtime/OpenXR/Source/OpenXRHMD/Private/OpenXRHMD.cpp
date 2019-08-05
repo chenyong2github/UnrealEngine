@@ -237,8 +237,6 @@ bool FOpenXRHMDPlugin::PreInit()
 		return false;
 	}
 
-	EnumerateExtensions();
-
 	TArray<const char*> Extensions;
 	EnumerateExtensions();
 #ifdef XR_USE_GRAPHICS_API_D3D11
