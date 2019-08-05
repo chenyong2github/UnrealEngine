@@ -10182,6 +10182,32 @@ void FSequencer::BindCommands()
 
 	// Sequencer-only bindings
 	SequencerCommandBindings->MapAction(
+		Commands.TogglePlay,
+		FExecuteAction::CreateSP(this, &FSequencer::TogglePlay));
+
+	SequencerCommandBindings->MapAction(
+		Commands.PlayForward,
+		FExecuteAction::CreateLambda([this] { OnPlayForward(false); }));
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpToStart,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToStart));
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpToEnd,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToEnd));
+
+	SequencerCommandBindings->MapAction(
+		Commands.StepForward,
+		FExecuteAction::CreateSP(this, &FSequencer::StepForward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
+		Commands.StepBackward,
+		FExecuteAction::CreateSP(this, &FSequencer::StepBackward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
 		Commands.SetInterpolationCubicAuto,
 		FExecuteAction::CreateSP(this, &FSequencer::SetInterpTangentMode, ERichCurveInterpMode::RCIM_Cubic, ERichCurveTangentMode::RCTM_Auto));
 
@@ -10206,22 +10232,6 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP(this, &FSequencer::SetInterpTangentMode, ERichCurveInterpMode::RCIM_Constant, ERichCurveTangentMode::RCTM_Auto));
 
 	SequencerCommandBindings->MapAction(
-		Commands.TogglePlay,
-		FExecuteAction::CreateSP( this, &FSequencer::TogglePlay ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.PlayForward,
-		FExecuteAction::CreateLambda( [this] { OnPlayForward(false); }));
-
-	SequencerCommandBindings->MapAction(
-		Commands.JumpToStart,
-		FExecuteAction::CreateSP( this, &FSequencer::JumpToStart ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.JumpToEnd,
-		FExecuteAction::CreateSP( this, &FSequencer::JumpToEnd ));
-
-	SequencerCommandBindings->MapAction(
 		Commands.ShuttleForward,
 		FExecuteAction::CreateSP( this, &FSequencer::ShuttleForward ));
 
@@ -10232,16 +10242,6 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.Pause,
 		FExecuteAction::CreateSP( this, &FSequencer::Pause ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.StepForward,
-		FExecuteAction::CreateSP( this, &FSequencer::StepForward ),
-		EUIActionRepeatMode::RepeatEnabled );
-
-	SequencerCommandBindings->MapAction(
-		Commands.StepBackward,
-		FExecuteAction::CreateSP( this, &FSequencer::StepBackward ),
-		EUIActionRepeatMode::RepeatEnabled );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeEnd,
