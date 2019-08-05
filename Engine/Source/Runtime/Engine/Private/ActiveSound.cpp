@@ -162,16 +162,18 @@ void FActiveSound::AddReferencedObjects( FReferenceCollector& Collector)
 		}
 	}
 
-	Collector.AddReferencedObject(Sound);
-	Collector.AddReferencedObject(SourceEffectChain);
 	Collector.AddReferencedObject(SoundClassOverride);
 
+	Collector.AddReferencedObject(SourceEffectChain);
 	if (SourceEffectChain)
 	{
-		for (FSourceEffectChainEntry& SourceEffect : SourceEffectChain->Chain)
-		{
-			Collector.AddReferencedObject(SourceEffect.Preset);
-		}
+		SourceEffectChain->AddReferencedEffects(Collector);
+	}
+
+	Collector.AddReferencedObject(Sound);
+	if (Sound && Sound->SourceEffectChain)
+	{
+		Sound->SourceEffectChain->AddReferencedEffects(Collector);
 	}
 
 	for (USoundConcurrency* Concurrency : ConcurrencySet)
