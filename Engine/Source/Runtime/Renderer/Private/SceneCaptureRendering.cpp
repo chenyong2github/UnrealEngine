@@ -562,6 +562,8 @@ void SetupViewVamilyForSceneCapture(
 		View->bIsSceneCapture = true;
 		// Note: this has to be set before EndFinalPostprocessSettings
 		View->bIsPlanarReflection = bIsPlanarReflection;
+        // Needs to be reconfigured now that bIsPlanarReflection has changed.
+		View->SetupAntiAliasingMethod();
 
 		check(SceneCaptureComponent);
 		for (auto It = SceneCaptureComponent->HiddenComponents.CreateConstIterator(); It; ++It)
