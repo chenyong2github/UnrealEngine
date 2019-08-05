@@ -286,7 +286,7 @@ namespace AutomationTool
 
 			string BuildTool = CommandUtils.CmdEnv.MsBuildExe;
 
-			// msbuild (standard on windows, in mono >5.0 is preferred due to speed and parallel compilation)
+			// msbuild (standard on windows, in mono >= 5.0 is preferred due to speed and parallel compilation)
 			bool UseParallelMsBuild = Path.GetFileNameWithoutExtension(BuildTool).ToLower() == "msbuild";
 
 			if (UseParallelMsBuild)
