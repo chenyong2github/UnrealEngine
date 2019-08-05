@@ -1524,6 +1524,9 @@ DLLEXPORT MStatus initializePlugin(MObject MayaPluginObject)
 		GLog->TearDown(); //clean up existing output devices
 		GLog->AddOutputDevice(new FMayaOutputDevice()); //Add Maya output device
 
+		LiveLinkProvider = ILiveLinkProvider::CreateLiveLinkProvider(TEXT("Maya Live Link"));
+		ConnectionStatusChangedHandle = LiveLinkProvider->RegisterConnStatusChangedHandle(FLiveLinkProviderConnectionStatusChanged::FDelegate::CreateStatic(&OnConnectionStatusChanged));
+
 		bUEInitialized = true; // Dont redo this part if someone unloads and reloads our plugin
 	}
 
@@ -1532,9 +1535,6 @@ DLLEXPORT MStatus initializePlugin(MObject MayaPluginObject)
 		MayaPluginObject,
 		"MayaLiveLinkPlugin",
 		"v1.0");
-
-	LiveLinkProvider = ILiveLinkProvider::CreateLiveLinkProvider(TEXT("Maya Live Link"));
-	ConnectionStatusChangedHandle = LiveLinkProvider->RegisterConnStatusChangedHandle(FLiveLinkProviderConnectionStatusChanged::FDelegate::CreateStatic(&OnConnectionStatusChanged));
 
 	// We do not tick the core engine but we need to tick the ticker to make sure the message bus endpoint in LiveLinkProvider is
 	// up to date
@@ -1588,16 +1588,13 @@ DLLEXPORT MStatus initializePlugin(MObject MayaPluginObject)
 */
 DLLEXPORT MStatus uninitializePlugin(MObject MayaPluginObject)
 {
+	// Make sure the Garbage Collector does not try to remove Delete Listeners on shutdown as those will be invalid causing a crash
+	GIsRequestingExit = true;
+
 	// Get the plugin API for the plugin object
 	MFnPlugin MayaPlugin(MayaPluginObject);
 
 	// ... do stuff here ...
-
-	if (myCallbackIds.length() != 0)
-	{
-		// Make sure we remove all the callbacks we added
-		MMessage::removeCallbacks(myCallbackIds);
-	}
 
 	MayaPlugin.deregisterCommand(LiveLinkSubjectNamesCommandName);
 	MayaPlugin.deregisterCommand(LiveLinkSubjectPathsCommandName);
@@ -1609,15 +1606,32 @@ DLLEXPORT MStatus uninitializePlugin(MObject MayaPluginObject)
 	MayaPlugin.deregisterCommand(LiveLinkConnectionStatusCommandName);
 	MayaPlugin.deregisterCommand(LiveLinkChangeSubjectStreamTypeCommandName);
 
+	if (myCallbackIds.length() != 0)
+	{
+		// Make sure we remove all the callbacks we added
+		MMessage::removeCallbacks(myCallbackIds);
+	}
+
 	if (ConnectionStatusChangedHandle.IsValid())
 	{
 		LiveLinkProvider->UnregisterConnStatusChangedHandle(ConnectionStatusChangedHandle);
 		ConnectionStatusChangedHandle.Reset();
 	}
 
-	FTicker::GetCoreTicker().Tick(1.f);
+	// Maya 2016 does not clean up the address space when unloading a plugin.
+	// So if we cleaned up here it would crash in the init above when trying to load the plugin a second.
+	const MString MayaApiVersion = MayaPlugin.apiVersion();
+	if (FString(MayaApiVersion.asChar()).Compare("201700") >= 0)
+	{
+		LiveLinkProvider.Reset();
+		LiveLinkStreamManager.Reset();
 
-	LiveLinkProvider = nullptr;
+		GEngineLoop.AppPreExit();
+		FModuleManager::Get().UnloadModulesAtShutdown();
+		GEngineLoop.AppExit();
+	}
+
+	FTicker::GetCoreTicker().Tick(1.f);
 
 	const MStatus MayaStatusResult = MS::kSuccess;
 	return MayaStatusResult;
