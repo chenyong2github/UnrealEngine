@@ -117,7 +117,7 @@ struct FIndexRange
 	int32 Count;
 };
 
-struct FMultiplexMethodInfo
+struct FRigVMMethodInfo
 {
 	FString ReturnType;
 	FString Name;
@@ -427,7 +427,7 @@ protected:
 	TMap<int32, FString> RPCsNeedingHookup;
 
 	// List of all multiplex methods defined on structs
-	static TMap<UStruct*, TArray<FMultiplexMethodInfo>> StructMultiplexMethods;
+	static TMap<UStruct*, TArray<FRigVMMethodInfo>> StructRigVMMethods;
 
 	// Constructor.
 	explicit FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& InModule);
@@ -572,7 +572,7 @@ protected:
 	void CompileFunctionDeclaration(FClasses& AllClasses);
 	void CompileVariableDeclaration (FClasses& AllClasses, UStruct* Struct);
 	void CompileInterfaceDeclaration(FClasses& AllClasses);
-	void CompileMultiplexMethodDeclaration(FClasses& AllClasses, UStruct* Struct);
+	void CompileRigVMMethodDeclaration(FClasses& AllClasses, UStruct* Struct);
 
 	FClass* ParseInterfaceNameDeclaration(FClasses& AllClasses, FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
 	bool TryParseIInterfaceClass(FClasses& AllClasses);

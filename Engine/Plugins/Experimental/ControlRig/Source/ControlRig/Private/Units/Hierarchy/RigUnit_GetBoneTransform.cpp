@@ -8,7 +8,7 @@ FString FRigUnit_GetBoneTransform::GetUnitLabel() const
 	return FString::Printf(TEXT("Get Transform %s"), *Bone.ToString());
 }
 
-UE_RigUnit_GetBoneTransform_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_GetBoneTransform_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	const FRigBoneHierarchy* Hierarchy = Context.GetBones();

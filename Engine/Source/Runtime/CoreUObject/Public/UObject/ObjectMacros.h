@@ -581,7 +581,7 @@ struct COREUOBJECT_API FReferencerInformationList
 #define UPARAM(...)
 #define UENUM(...)
 #define UDELEGATE(...)
-#define MULTIPLEX_METHOD(...)
+#define RIGVM_METHOD(...)
 
 // This pair of macros is used to help implement GENERATED_BODY() and GENERATED_USTRUCT_BODY()
 #define BODY_MACRO_COMBINE_INNER(A,B,C,D) A##B##C##D

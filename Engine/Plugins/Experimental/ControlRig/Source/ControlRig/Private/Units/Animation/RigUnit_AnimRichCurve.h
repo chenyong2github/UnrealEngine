@@ -21,7 +21,7 @@ struct FRigUnit_AnimRichCurve : public FRigUnit_AnimBase
 		Curve.GetRichCurve()->AddKey(1.f, 1.f);
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input, Output, Constant))

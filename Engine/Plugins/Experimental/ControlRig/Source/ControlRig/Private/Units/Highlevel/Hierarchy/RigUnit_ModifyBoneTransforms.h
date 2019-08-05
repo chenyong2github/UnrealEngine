@@ -78,7 +78,7 @@ struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 		, Mode(EControlRigModifyBoneMode::AdditiveLocal)
 	{}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**

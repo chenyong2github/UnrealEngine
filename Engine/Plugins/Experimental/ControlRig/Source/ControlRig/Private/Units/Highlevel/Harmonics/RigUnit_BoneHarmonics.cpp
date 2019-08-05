@@ -3,7 +3,7 @@
 #include "Units/Highlevel/Harmonics/RigUnit_BoneHarmonics.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_BoneHarmonics_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_BoneHarmonics_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();

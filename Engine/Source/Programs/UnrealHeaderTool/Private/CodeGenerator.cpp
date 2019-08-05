@@ -3299,13 +3299,13 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 	const FString SingletonName = GetSingletonName(Struct);
 
-	FString MultiplexMacroPrefix(StructNameCPP);
-	MultiplexMacroPrefix = FString::Printf(TEXT("UE_%s"), *MultiplexMacroPrefix.Mid(1));
+	FString RigVMMacroPrefix(StructNameCPP);
+	RigVMMacroPrefix = FString::Printf(TEXT("UE_%s"), *RigVMMacroPrefix.Mid(1));
 
 	const TCHAR* Comma = TEXT(", ");
 	TArray<FString> MemberNames, MemberDeclarations, MemberCasts, MemberCastProlog, MemberMulticastProlog;
-	const TArray<FMultiplexMethodInfo>* StructMultiplexMethods = FHeaderParser::StructMultiplexMethods.Find(Struct);
-	if(StructMultiplexMethods)
+	const TArray<FRigVMMethodInfo>* StructRigVMMethods = FHeaderParser::StructRigVMMethods.Find(Struct);
+	if(StructRigVMMethods)
 	{
 		const TCHAR* FText = TEXT("F");
 		const TCHAR* TText = TEXT("T");
@@ -3324,9 +3324,9 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		{
 			FString Name = Prop->GetName();
 			FString AddressName = FString::Printf(TEXT("%s_Address"), *Name);
-			MemberMulticastProlog.Add(FString::Printf(TEXT("const FMultiplexArgument& %s = MultiplexAddresses[%d];"), *AddressName, MemberIndex++));
+			MemberMulticastProlog.Add(FString::Printf(TEXT("const FRigVMArgument& %s = RigVMAddresses[%d];"), *AddressName, MemberIndex++));
 		}
-		MemberMulticastProlog.Insert(FString::Printf(TEXT("ensure(MultiplexAddresses.Num() == %d);"), MemberMulticastProlog.Num()), 0);
+		MemberMulticastProlog.Insert(FString::Printf(TEXT("ensure(RigVMAddresses.Num() == %d);"), MemberMulticastProlog.Num()), 0);
 		MemberMulticastProlog.Add(FString());
 
 		for (UProperty* Prop : TFieldRange<UProperty>(Struct))
@@ -3400,11 +3400,11 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 			MemberDeclarations.Add(FString::Printf(TEXT("%s %s"), *ParameterCPPType, *Name));
 			FString AddressName = FString::Printf(TEXT("%s_Address"), *Name);
-			MemberMulticastProlog.Add(FString::Printf(TEXT("%s %s = MultiplexStorage[%s.StorageType()]->%s<%s>(%s.Index());"), *ExtractedMulticastCPPType, *Name, *AddressName, *MulticastGetter, *MultiCastCPPType, *AddressName));
+			MemberMulticastProlog.Add(FString::Printf(TEXT("%s %s = RigVMStorage[%s.StorageType()]->%s<%s>(%s.Index());"), *ExtractedMulticastCPPType, *Name, *AddressName, *MulticastGetter, *MultiCastCPPType, *AddressName));
 		}
 
 		OutGeneratedHeaderText.Log(TEXT("\n"));
-		OutGeneratedHeaderText.Logf(TEXT("#define %s_IMPLEMENT_MULTIPLEX(ReturnType, FunctionName, ...) \\\n"), *MultiplexMacroPrefix);
+		OutGeneratedHeaderText.Logf(TEXT("#define %s_IMPLEMENT_RIGVM(ReturnType, FunctionName, ...) \\\n"), *RigVMMacroPrefix);
 		OutGeneratedHeaderText.Logf(TEXT("\tReturnType %s::Static##FunctionName(\\\r\n\t\t%s, ##__VA_ARGS__)\n"), StructNameCPP, *FString::Join(MemberDeclarations, TEXT(",\\\r\n\t\t")));
 		OutGeneratedHeaderText.Log(TEXT("\n"));
 	}
@@ -3424,20 +3424,20 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		const FString StaticClassLine = FString::Printf(TEXT("\t%sstatic class UScriptStruct* StaticStruct();\r\n"), *RequiredAPI);
 		const FString PrivatePropertiesOffset = PrivatePropertiesOffsetGetters(Struct, StructNameCPP);
 		
-		FString MultiplexMethodsDeclarations;
-		if (StructMultiplexMethods)
+		FString RigVMMethodsDeclarations;
+		if (StructRigVMMethods)
 		{
-			for (const FMultiplexMethodInfo& Info : (*StructMultiplexMethods))
+			for (const FRigVMMethodInfo& Info : (*StructRigVMMethods))
 			{
 				FString ParamsSuffix = Info.Params.IsEmpty() ? TEXT("") : FString::Printf(TEXT(", %s"), *Info.Params);
-				MultiplexMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s);\r\n"), *Info.ReturnType, *Info.Name, *FString::Join(MemberDeclarations, TEXT(",\r\n\t\t")), *ParamsSuffix);
-				MultiplexMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Multiplex%s(const TArrayView<FMultiplexArgument>& MultiplexAddresses, FMultiplexStorage** MultiplexStorage, const TArrayView<void*>& AdditionalArgs);\r\n"), *Info.ReturnType, *Info.Name);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s);\r\n"), *Info.ReturnType, *Info.Name, *FString::Join(MemberDeclarations, TEXT(",\r\n\t\t")), *ParamsSuffix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(const TArrayView<FRigVMArgument>& RigVMAddresses, FRigVMStorage** RigVMStorage, const TArrayView<void*>& AdditionalArgs);\r\n"), *Info.ReturnType, *Info.Name);
 			}
 		}
 
 		const FString SuperTypedef = BaseStruct ? FString::Printf(TEXT("\ttypedef %s Super;\r\n"), NameLookupCPP.GetNameCPP(BaseStruct)) : FString();
 
-		const FString CombinedLine = FriendLine + StaticClassLine + MultiplexMethodsDeclarations + PrivatePropertiesOffset + SuperTypedef;
+		const FString CombinedLine = FriendLine + StaticClassLine + RigVMMethodsDeclarations + PrivatePropertiesOffset + SuperTypedef;
 		const FString MacroName = SourceFile.GetGeneratedBodyMacroName(Struct->StructMacroDeclaredLineNumber);
 
 		const FString Macroized = Macroize(*MacroName, *CombinedLine);
@@ -3469,11 +3469,11 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		Out.Logf(TEXT("\t\tSingleton = GetStaticStruct(%s, %s, TEXT(\"%s\"), sizeof(%s), %s());\r\n"),
 			*SingletonName.LeftChop(2), *OuterName, *ActualStructName, StructNameCPP, *GetHashName);
 
-		if (StructMultiplexMethods)
+		if (StructRigVMMethods)
 		{
-			for (const FMultiplexMethodInfo& Info : (*StructMultiplexMethods))
+			for (const FRigVMMethodInfo& Info : (*StructRigVMMethods))
 			{
-				Out.Logf(TEXT("\t\tFMultiplexRegistry::Get().Register(TEXT(\"%s::%s\"), &%s::Multiplex%s);\r\n"),
+				Out.Logf(TEXT("\t\tFRigVMRegistry::Get().Register(TEXT(\"%s::%s\"), &%s::RigVM%s);\r\n"),
 					StructNameCPP, *Info.Name, StructNameCPP, *Info.Name);
 			}
 		}
@@ -3650,9 +3650,9 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	Out.Log(GeneratedStructRegisterFunctionText);
 	Out.Logf(TEXT("\tuint32 %s() { return %uU; }\r\n"), *HashFuncName, StructHash);
 
-	if (StructMultiplexMethods)
+	if (StructRigVMMethods)
 	{
-		for (const FMultiplexMethodInfo& Info : (*StructMultiplexMethods))
+		for (const FRigVMMethodInfo& Info : (*StructRigVMMethods))
 		{
 			Out.Log(TEXT("\r\n"));
 
@@ -3731,7 +3731,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				ParamDeclarationSuffix = FString::Printf(TEXT(", %s"), *Info.Params);
 			}
 
-			Out.Logf(TEXT("%s %s::Multiplex%s(const TArrayView<FMultiplexArgument>& MultiplexAddresses, FMultiplexStorage** MultiplexStorage, const TArrayView<void*>& AdditionalArgs)\r\n"), *Info.ReturnType, StructNameCPP, *Info.Name);
+			Out.Logf(TEXT("%s %s::RigVM%s(const TArrayView<FRigVMArgument>& RigVMAddresses, FRigVMStorage** RigVMStorage, const TArrayView<void*>& AdditionalArgs)\r\n"), *Info.ReturnType, StructNameCPP, *Info.Name);
 			Out.Log(TEXT("{\r\n"));
 
 			if (ParameterExtractionProlog.Num() > 0)

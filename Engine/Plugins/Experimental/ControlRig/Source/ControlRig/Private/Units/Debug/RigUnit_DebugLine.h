@@ -19,7 +19,7 @@ struct FRigUnit_DebugLine : public FRigUnit_DebugBaseMutable
 		bEnabled = true;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

@@ -21,7 +21,7 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 	{
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** Combine Transform and Base to make the resultant transform */

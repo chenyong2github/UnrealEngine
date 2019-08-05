@@ -19,7 +19,7 @@ struct FRigUnit_Timeline : public FRigUnit_SimBase
 		Time = AccumulatedValue = 0.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

@@ -72,7 +72,7 @@ static const FName NAME_DocumentationPolicy(TEXT("DocumentationPolicy"));
 EGeneratedCodeVersion FHeaderParser::DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
 TArray<FString> FHeaderParser::StructsWithNoPrefix;
 TArray<FString> FHeaderParser::StructsWithTPrefix;
-TMap<UStruct*, TArray<FMultiplexMethodInfo>> FHeaderParser::StructMultiplexMethods;
+TMap<UStruct*, TArray<FRigVMMethodInfo>> FHeaderParser::StructRigVMMethods;
 TArray<FString> FHeaderParser::DelegateParameterCountStrings;
 TMap<FString, FString> FHeaderParser::TypeRedirectMap;
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
@@ -2495,9 +2495,9 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 		{
 			FError::Throwf(TEXT("USTRUCTs cannot contain UFUNCTIONs."));
 		}
-		else if (Token.Matches(TEXT("MULTIPLEX_METHOD"), ESearchCase::CaseSensitive))
+		else if (Token.Matches(TEXT("RIGVM_METHOD"), ESearchCase::CaseSensitive))
 		{
-			CompileMultiplexMethodDeclaration(AllClasses, Struct);
+			CompileRigVMMethodDeclaration(AllClasses, Struct);
 		}
 		else if (Token.Matches(TEXT("GENERATED_USTRUCT_BODY")) || Token.Matches(TEXT("GENERATED_BODY")))
 		{
@@ -3008,8 +3008,8 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 	CheckDocumentationPolicyForStruct(Struct, MetaData);
 
 	// check if the struct has multi plex methods, and if so perform some additional checks
-	TArray<FMultiplexMethodInfo>* MultiplexMethods = StructMultiplexMethods.Find(Struct);
-	if (MultiplexMethods)
+	TArray<FRigVMMethodInfo>* RigVMMethods = StructRigVMMethods.Find(Struct);
+	if (RigVMMethods)
 	{
 		const TCHAR* InputText = TEXT("Input");
 		const TCHAR* OutputText = TEXT("Output");
@@ -3031,7 +3031,7 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 				// we only support arrays - no maps or similar data structures
 				if (MemberCPPType != TArrayText)
 				{
-					UE_LOG_ERROR_UHT(TEXT("Multiplex Struct '%s' - Member '%s' type '%s' not supported by Multiplex."), *Struct->GetName(), *PropName, *MemberCPPType);
+					UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' type '%s' not supported by RigVM."), *Struct->GetName(), *PropName, *MemberCPPType);
 				}
 				else
 				{
@@ -3042,7 +3042,7 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 
 					if (!bIsConstant && !Prop->HasMetaData(MaxArraySizeText))
 					{
-						UE_LOG_ERROR_UHT(TEXT("Multiplex Struct '%s' - Member '%s' requires the 'MaxArraySize' meta tag."), *Struct->GetName(), *PropName);
+						UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' requires the 'MaxArraySize' meta tag."), *Struct->GetName(), *PropName);
 					}
 				}
 			}
@@ -6207,11 +6207,11 @@ void FHeaderParser::CompileInterfaceDeclaration(FClasses& AllClasses)
 	PushNest(ENestType::Interface, InterfaceClass);
 }
 
-void FHeaderParser::CompileMultiplexMethodDeclaration(FClasses& AllClasses, UStruct* Struct)
+void FHeaderParser::CompileRigVMMethodDeclaration(FClasses& AllClasses, UStruct* Struct)
 {
 	if (!MatchSymbol(TEXT("(")))
 	{
-		FError::Throwf(TEXT("Bad MULTIPLEX_METHOD definition"));
+		FError::Throwf(TEXT("Bad RIGVM_METHOD definition"));
 	}
 
 	// find the next close brace
@@ -6249,7 +6249,7 @@ void FHeaderParser::CompileMultiplexMethodDeclaration(FClasses& AllClasses, UStr
 
 	if (!MatchSymbol(TEXT("(")))
 	{
-		FError::Throwf(TEXT("Bad MULTIPLEX_METHOD definition"));
+		FError::Throwf(TEXT("Bad RIGVM_METHOD definition"));
 	}
 
 	TArray<FString> ParamsContent;
@@ -6271,12 +6271,12 @@ void FHeaderParser::CompileMultiplexMethodDeclaration(FClasses& AllClasses, UStr
 		}
 	}
 
-	FMultiplexMethodInfo Info;
+	FRigVMMethodInfo Info;
 	Info.ReturnType = ReturnTypeToken.Identifier;
 	Info.Name = NameToken.Identifier;
 	Info.Params = FString::Join(ParamsContent, TEXT(" "));
 
-	TArray<FMultiplexMethodInfo>& Infos = StructMultiplexMethods.FindOrAdd(Struct);
+	TArray<FRigVMMethodInfo>& Infos = StructRigVMMethods.FindOrAdd(Struct);
 	Infos.Add(Info);
 }
 

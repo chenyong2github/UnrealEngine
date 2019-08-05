@@ -4,30 +4,30 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "MultiplexStorage.generated.h"
+#include "RigVMStorage.generated.h"
 
-struct RIGVM_API FMultiplexArgument
+struct RIGVM_API FRigVMArgument
 {
 public:
 
-	FMultiplexArgument()
+	FRigVMArgument()
 		:Address(INDEX_NONE)
 	{
 	}
 
-	FMultiplexArgument(int32 InAddress)
+	FRigVMArgument(int32 InAddress)
 		:Address(InAddress)
 	{
 	}
 
-	static FMultiplexArgument MakeArgument(int32 InAddress)
+	static FRigVMArgument MakeArgument(int32 InAddress)
 	{
-		return FMultiplexArgument(InAddress);
+		return FRigVMArgument(InAddress);
 	}
 
-	static FMultiplexArgument MakeLiteral(int32 InAddress)
+	static FRigVMArgument MakeLiteral(int32 InAddress)
 	{
-		return FMultiplexArgument(-1 - InAddress);
+		return FRigVMArgument(-1 - InAddress);
 	}
 
 	FORCEINLINE bool operator ==(int32 InOther) const { return Address == InOther; }
@@ -42,7 +42,7 @@ private:
 };
 
 UENUM()
-enum class EMultiplexAddressType : uint8
+enum class ERigVMAddressType : uint8
 {
 	Plain,
 	String,
@@ -52,12 +52,12 @@ enum class EMultiplexAddressType : uint8
 };
 
 USTRUCT()
-struct RIGVM_API FMultiplexAddress
+struct RIGVM_API FRigVMAddress
 {
 	GENERATED_USTRUCT_BODY()
 
-		FMultiplexAddress()
-		: Type(EMultiplexAddressType::Invalid)
+		FRigVMAddress()
+		: Type(ERigVMAddressType::Invalid)
 		, Pointer(nullptr)
 		, ByteIndex(INDEX_NONE)
 		, ElementSize(0)
@@ -69,7 +69,7 @@ struct RIGVM_API FMultiplexAddress
 	}
 
 	UPROPERTY()
-	EMultiplexAddressType Type;
+	ERigVMAddressType Type;
 
 	void* Pointer;
 
@@ -131,36 +131,36 @@ struct RIGVM_API FMultiplexAddress
 };
 
 USTRUCT()
-struct RIGVM_API FMultiplexStorage
+struct RIGVM_API FRigVMStorage
 {
 	GENERATED_USTRUCT_BODY()
 	
 public:
 
-	FMultiplexStorage(bool bInUseNames = true);
-	FMultiplexStorage(const FMultiplexStorage& Other);
-	~FMultiplexStorage();
+	FRigVMStorage(bool bInUseNames = true);
+	FRigVMStorage(const FRigVMStorage& Other);
+	~FRigVMStorage();
 
-	FMultiplexStorage& operator= (const FMultiplexStorage &InOther);
+	FRigVMStorage& operator= (const FRigVMStorage &InOther);
 
 	FORCEINLINE bool SupportsNames() const { return bUseNameMap;  }
 	FORCEINLINE int32 Num() const { return Addresses.Num(); }
-	FORCEINLINE const FMultiplexAddress& operator[](int32 InIndex) const { return Addresses[InIndex]; }
-	FORCEINLINE FMultiplexAddress& operator[](int32 InIndex) { return Addresses[InIndex]; }
-	FORCEINLINE const FMultiplexAddress& operator[](const FMultiplexArgument& InArg) const { return Addresses[InArg.Index()]; }
-	FORCEINLINE FMultiplexAddress& operator[](const FMultiplexArgument& InArg) { return Addresses[InArg.Index()]; }
-	FORCEINLINE const FMultiplexAddress& operator[](const FName& InName) const { return Addresses[GetIndex(InName)]; }
-	FORCEINLINE FMultiplexAddress& operator[](const FName& InName) { return Addresses[GetIndex(InName)]; }
+	FORCEINLINE const FRigVMAddress& operator[](int32 InIndex) const { return Addresses[InIndex]; }
+	FORCEINLINE FRigVMAddress& operator[](int32 InIndex) { return Addresses[InIndex]; }
+	FORCEINLINE const FRigVMAddress& operator[](const FRigVMArgument& InArg) const { return Addresses[InArg.Index()]; }
+	FORCEINLINE FRigVMAddress& operator[](const FRigVMArgument& InArg) { return Addresses[InArg.Index()]; }
+	FORCEINLINE const FRigVMAddress& operator[](const FName& InName) const { return Addresses[GetIndex(InName)]; }
+	FORCEINLINE FRigVMAddress& operator[](const FName& InName) { return Addresses[GetIndex(InName)]; }
 
-	FORCEINLINE TArray<FMultiplexAddress>::RangedForIteratorType      begin() { return Addresses.begin(); }
-	FORCEINLINE TArray<FMultiplexAddress>::RangedForConstIteratorType begin() const { return Addresses.begin(); }
-	FORCEINLINE TArray<FMultiplexAddress>::RangedForIteratorType      end() { return Addresses.end(); }
-	FORCEINLINE TArray<FMultiplexAddress>::RangedForConstIteratorType end() const { return Addresses.end(); }
+	FORCEINLINE TArray<FRigVMAddress>::RangedForIteratorType      begin() { return Addresses.begin(); }
+	FORCEINLINE TArray<FRigVMAddress>::RangedForConstIteratorType begin() const { return Addresses.begin(); }
+	FORCEINLINE TArray<FRigVMAddress>::RangedForIteratorType      end() { return Addresses.end(); }
+	FORCEINLINE TArray<FRigVMAddress>::RangedForConstIteratorType end() const { return Addresses.end(); }
 
 	FORCEINLINE const void* GetData(int32 InAddressIndex) const
 	{
 		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		const FRigVMAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
 		return (const void*)&Data[Address.FirstByte()];
 	}
@@ -168,7 +168,7 @@ public:
 	FORCEINLINE void* GetData(int32 InAddressIndex)
 	{
 		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		const FRigVMAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
 		return (void*)&Data[Address.FirstByte()];
 	}
@@ -177,13 +177,13 @@ public:
 	FORCEINLINE const T* Get(int32 InAddressIndex) const
 	{
 		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		const FRigVMAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
 		return (const T*)&Data[Address.FirstByte()];
 	}
 
 	template<class T>
-	FORCEINLINE const T* Get(const FMultiplexArgument& InArgument) const
+	FORCEINLINE const T* Get(const FRigVMArgument& InArgument) const
 	{
 		return Get<T>(InArgument.Index());
 	}
@@ -195,7 +195,7 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE const T& GetRef(const FMultiplexArgument& InArgument) const
+	FORCEINLINE const T& GetRef(const FRigVMArgument& InArgument) const
 	{
 		return GetRef<T>(InArgument.Index());
 	}
@@ -204,13 +204,13 @@ public:
 	FORCEINLINE T* Get(int32 InAddressIndex)
 	{
 		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		const FRigVMAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
 		return (T*)&Data[Address.FirstByte()];
 	}
 
 	template<class T>
-	FORCEINLINE T* Get(const FMultiplexArgument& InArgument)
+	FORCEINLINE T* Get(const FRigVMArgument& InArgument)
 	{
 		return Get<T>(InArgument.Index());
 	}
@@ -222,7 +222,7 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE T& GetRef(const FMultiplexArgument& InArgument)
+	FORCEINLINE T& GetRef(const FRigVMArgument& InArgument)
 	{
 		return GetRef<T>(InArgument.Index());
 	}
@@ -231,13 +231,13 @@ public:
 	FORCEINLINE TArrayView<T> GetArray(int32 InAddressIndex)
 	{
 		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		const FRigVMAddress& Address = Addresses[InAddressIndex];
 		ensure(Address.ElementCount > 0);
 		return TArrayView<T>((T*)&Data[Address.FirstByte()], Address.ElementCount);
 	}
 	
 	template<class T>
-	FORCEINLINE TArrayView<T> GetArray(const FMultiplexArgument& InArgument)
+	FORCEINLINE TArrayView<T> GetArray(const FRigVMArgument& InArgument)
 	{
 		return GetArray<T>(InArgument.Index());
 	}
@@ -245,7 +245,7 @@ public:
 	FORCEINLINE UScriptStruct* GetScriptStruct(int32 InAddressIndex) const
 	{
 		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FMultiplexAddress& Address = Addresses[InAddressIndex];
+		const FRigVMAddress& Address = Addresses[InAddressIndex];
 		if (Address.ScriptStructIndex != INDEX_NONE)
 		{
 			ensure(ScriptStructs.IsValidIndex(Address.ScriptStructIndex));
@@ -257,7 +257,7 @@ public:
 	bool Copy(
 		int32 InSourceAddressIndex,
 		int32 InTargetAddressIndex,
-		const FMultiplexStorage* InSourceStorage = nullptr,
+		const FRigVMStorage* InSourceStorage = nullptr,
 		int32 InSourceByteOffset = INDEX_NONE,
 		int32 InTargetByteOffset = INDEX_NONE,
 		int32 InNumBytes = INDEX_NONE);
@@ -265,7 +265,7 @@ public:
 	bool Copy(
 		const FName& InSourceName,
 		const FName& InTargetName,
-		const FMultiplexStorage* InSourceStorage = nullptr,
+		const FRigVMStorage* InSourceStorage = nullptr,
 		int32 InSourceByteOffset = INDEX_NONE,
 		int32 InTargetByteOffset = INDEX_NONE,
 		int32 InNumBytes = INDEX_NONE);
@@ -358,7 +358,7 @@ public:
 	FORCEINLINE int32 AddNameArray(const FName& InNewName, int32 InCount, const FName* InDataPtr = nullptr)
 	{
 		int32 Address = Allocate(InNewName, sizeof(FName), InCount, nullptr);
-		Addresses[Address].Type = EMultiplexAddressType::Name;
+		Addresses[Address].Type = ERigVMAddressType::Name;
 
 		Construct(Address);
 
@@ -397,7 +397,7 @@ public:
 	FORCEINLINE int32 AddStringArray(const FName& InNewName, int32 InCount, const FString* InDataPtr = nullptr)
 	{
 		int32 Address = Allocate(InNewName, sizeof(FString), InCount, nullptr);
-		Addresses[Address].Type = EMultiplexAddressType::String;
+		Addresses[Address].Type = ERigVMAddressType::String;
 
 		Construct(Address);
 
@@ -442,7 +442,7 @@ public:
 			return INDEX_NONE;
 		}
 
-		Addresses[Address].Type = EMultiplexAddressType::Struct;
+		Addresses[Address].Type = ERigVMAddressType::Struct;
 		Addresses[Address].ScriptStructIndex = FindOrAddScriptStruct(InScriptStruct);
 
 		UpdateAddresses();
@@ -534,7 +534,7 @@ private:
 	bool bUseNameMap;
 
 	UPROPERTY()
-	TArray<FMultiplexAddress> Addresses;
+	TArray<FRigVMAddress> Addresses;
 
 	UPROPERTY()
 	TArray<uint8> Data;

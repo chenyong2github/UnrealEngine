@@ -23,7 +23,7 @@ struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 		UpperBound = 0;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */
@@ -76,7 +76,7 @@ struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 		UpperBound = 0;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */
@@ -129,7 +129,7 @@ struct FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 		UpperBound = 0;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
 	/** The value to record */

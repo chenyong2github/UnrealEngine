@@ -21,13 +21,13 @@ struct FStaticMethodStruct : public FStaticMethodStructBase
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	void Clear();
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(bool bAdditionalFlag = false, const FString& InString = TEXT("")) override;
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	void Compute(float TestFloat);
 
 	UPROPERTY(meta = (Input))

@@ -96,7 +96,7 @@ struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 		DebugSettings = FRigUnit_SpringIK_DebugSettings();
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/** 

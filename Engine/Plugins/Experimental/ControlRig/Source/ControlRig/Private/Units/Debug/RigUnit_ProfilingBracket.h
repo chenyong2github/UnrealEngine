@@ -14,7 +14,7 @@ struct FRigUnit_StartProfilingTimer : public FRigUnit_DebugBaseMutable
 	{
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -31,7 +31,7 @@ struct FRigUnit_EndProfilingTimer : public FRigUnit_DebugBaseMutable
 		Prefix = TEXT("Timer");
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input, Constant))

@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_DeltaFromPrevious.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_DeltaFromPreviousFloat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_DeltaFromPreviousFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -18,7 +18,7 @@ UE_RigUnit_DeltaFromPreviousFloat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigU
 	Cache = Value;
 }
 
-UE_RigUnit_DeltaFromPreviousVector_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_DeltaFromPreviousVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -33,7 +33,7 @@ UE_RigUnit_DeltaFromPreviousVector_IMPLEMENT_MULTIPLEX(void, Execute, const FRig
 	Cache = Value;
 }
 
-UE_RigUnit_DeltaFromPreviousQuat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_DeltaFromPreviousQuat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -48,7 +48,7 @@ UE_RigUnit_DeltaFromPreviousQuat_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUn
 	Cache = Value;
 }
 
-UE_RigUnit_DeltaFromPreviousTransform_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_DeltaFromPreviousTransform_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

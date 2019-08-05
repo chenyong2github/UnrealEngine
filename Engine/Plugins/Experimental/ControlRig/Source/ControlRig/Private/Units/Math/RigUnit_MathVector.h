@@ -56,7 +56,7 @@ USTRUCT(meta=(DisplayName="From Float", PrototypeName="FromFloat", Keywords="Mak
 struct FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	FRigUnit_MathVectorFromFloat()
@@ -80,7 +80,7 @@ struct FRigUnit_MathVectorAdd : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -92,7 +92,7 @@ struct FRigUnit_MathVectorSub : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -109,7 +109,7 @@ struct FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryOp
 		A = B = FVector::OneVector;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -127,7 +127,7 @@ struct FRigUnit_MathVectorScale : public FRigUnit_MathVectorBase
 		Factor = 1.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))
@@ -153,7 +153,7 @@ struct FRigUnit_MathVectorDiv : public FRigUnit_MathVectorBinaryOp
 		B = FVector::OneVector;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -171,7 +171,7 @@ struct FRigUnit_MathVectorMod : public FRigUnit_MathVectorBinaryOp
 		B = FVector::OneVector;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -183,7 +183,7 @@ struct FRigUnit_MathVectorMin : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -195,7 +195,7 @@ struct FRigUnit_MathVectorMax : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -207,7 +207,7 @@ struct FRigUnit_MathVectorNegate : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -219,7 +219,7 @@ struct FRigUnit_MathVectorAbs : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -231,7 +231,7 @@ struct FRigUnit_MathVectorFloor : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -243,7 +243,7 @@ struct FRigUnit_MathVectorCeil : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -255,7 +255,7 @@ struct FRigUnit_MathVectorRound : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -267,7 +267,7 @@ struct FRigUnit_MathVectorSign : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -285,7 +285,7 @@ struct FRigUnit_MathVectorClamp : public FRigUnit_MathVectorBase
 		Maximum = FVector::OneVector;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -316,7 +316,7 @@ struct FRigUnit_MathVectorLerp : public FRigUnit_MathVectorBase
 		T = 0.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -347,7 +347,7 @@ struct FRigUnit_MathVectorRemap : public FRigUnit_MathVectorBase
 		bClamp = false;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -387,7 +387,7 @@ struct FRigUnit_MathVectorEquals : public FRigUnit_MathVectorBase
 		Result = true;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -414,7 +414,7 @@ struct FRigUnit_MathVectorNotEquals : public FRigUnit_MathVectorBase
 		Result = false;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -442,7 +442,7 @@ struct FRigUnit_MathVectorIsNearlyZero : public FRigUnit_MathVectorBase
 		Result = true;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -470,7 +470,7 @@ struct FRigUnit_MathVectorIsNearlyEqual : public FRigUnit_MathVectorBase
 		Result = true;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -500,7 +500,7 @@ struct FRigUnit_MathVectorSelectBool : public FRigUnit_MathVectorBase
 		IfTrue = IfFalse = Result = FVector::ZeroVector;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -524,7 +524,7 @@ struct FRigUnit_MathVectorDeg : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -536,7 +536,7 @@ struct FRigUnit_MathVectorRad : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -554,7 +554,7 @@ struct FRigUnit_MathVectorLengthSquared : public FRigUnit_MathVectorBase
 		Result = 0.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -578,7 +578,7 @@ struct FRigUnit_MathVectorLength : public FRigUnit_MathVectorBase
 		Result = 0.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -602,7 +602,7 @@ struct FRigUnit_MathVectorDistance : public FRigUnit_MathVectorBase
 		Result = 0.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -622,7 +622,7 @@ USTRUCT(meta=(DisplayName="Cross", PrototypeName="Cross", Keywords="^"))
 struct FRigUnit_MathVectorCross : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -640,7 +640,7 @@ struct FRigUnit_MathVectorDot : public FRigUnit_MathVectorBase
 		Result = 0.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -661,7 +661,7 @@ struct FRigUnit_MathVectorUnit : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
@@ -679,7 +679,7 @@ struct FRigUnit_MathVectorMirror : public FRigUnit_MathVectorBase
 		Normal = FVector(1.f, 0.f, 0.f);
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -706,7 +706,7 @@ struct FRigUnit_MathVectorAngle : public FRigUnit_MathVectorBase
 		Result = 0.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -733,7 +733,7 @@ struct FRigUnit_MathVectorParallel : public FRigUnit_MathVectorBase
 		Result = true;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -761,7 +761,7 @@ struct FRigUnit_MathVectorOrthogonal : public FRigUnit_MathVectorBase
 		Result = true;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))
@@ -789,7 +789,7 @@ struct FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
 		Result = Tangent = FVector::ZeroVector;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta=(Input))

@@ -19,7 +19,7 @@ struct FRigUnit_RandomFloat : public FRigUnit_MathBase
 		TimeLeft = 0.f;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input, Constant))
@@ -63,7 +63,7 @@ struct FRigUnit_RandomVector: public FRigUnit_MathBase
 		Result = LastResult = FVector::ZeroVector;
 	}
 
-	MULTIPLEX_METHOD()
+	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	UPROPERTY(meta = (Input))

@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_Accumulate.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_AccumulateFloatAdd_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateFloatAdd_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -20,7 +20,7 @@ UE_RigUnit_AccumulateFloatAdd_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitC
 	}
 }
 
-UE_RigUnit_AccumulateVectorAdd_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateVectorAdd_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -37,7 +37,7 @@ UE_RigUnit_AccumulateVectorAdd_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 	}
 }
 
-UE_RigUnit_AccumulateFloatMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateFloatMul_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -55,7 +55,7 @@ UE_RigUnit_AccumulateFloatMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitC
 	}
 }
 
-UE_RigUnit_AccumulateVectorMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateVectorMul_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -73,7 +73,7 @@ UE_RigUnit_AccumulateVectorMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 	}
 }
 
-UE_RigUnit_AccumulateQuatMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateQuatMul_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -98,7 +98,7 @@ UE_RigUnit_AccumulateQuatMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitCo
 	}
 }
 
-UE_RigUnit_AccumulateTransformMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateTransformMul_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -125,7 +125,7 @@ UE_RigUnit_AccumulateTransformMul_IMPLEMENT_MULTIPLEX(void, Execute, const FRigU
 	}
 }
 
-UE_RigUnit_AccumulateFloatLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateFloatLerp_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -138,7 +138,7 @@ UE_RigUnit_AccumulateFloatLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnit
 	}
 }
 
-UE_RigUnit_AccumulateVectorLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateVectorLerp_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -151,7 +151,7 @@ UE_RigUnit_AccumulateVectorLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUni
 	}
 }
 
-UE_RigUnit_AccumulateQuatLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateQuatLerp_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -164,7 +164,7 @@ UE_RigUnit_AccumulateQuatLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitC
 	}
 }
 
-UE_RigUnit_AccumulateTransformLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateTransformLerp_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -181,7 +181,7 @@ UE_RigUnit_AccumulateTransformLerp_IMPLEMENT_MULTIPLEX(void, Execute, const FRig
 	}
 }
 
-UE_RigUnit_AccumulateFloatRange_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateFloatRange_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -195,7 +195,7 @@ UE_RigUnit_AccumulateFloatRange_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUni
 	}
 }
 
-UE_RigUnit_AccumulateVectorRange_IMPLEMENT_MULTIPLEX(void, Execute, const FRigUnitContext& Context)
+UE_RigUnit_AccumulateVectorRange_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

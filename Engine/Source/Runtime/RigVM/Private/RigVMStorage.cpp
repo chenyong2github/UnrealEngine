@@ -1,23 +1,23 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "MultiplexStorage.h"
+#include "RigVMStorage.h"
 
-FMultiplexStorage::FMultiplexStorage(bool bInUseNames)
+FRigVMStorage::FRigVMStorage(bool bInUseNames)
 	:bUseNameMap(bInUseNames)
 {
 }
 
-FMultiplexStorage::FMultiplexStorage(const FMultiplexStorage& Other)
+FRigVMStorage::FRigVMStorage(const FRigVMStorage& Other)
 {
 	*this = Other;
 }
 
-FMultiplexStorage::~FMultiplexStorage()
+FRigVMStorage::~FRigVMStorage()
 {
 	Reset();
 }
 
-FMultiplexStorage& FMultiplexStorage::operator= (const FMultiplexStorage &InOther)
+FRigVMStorage& FRigVMStorage::operator= (const FRigVMStorage &InOther)
 {
 	Reset();
 
@@ -37,7 +37,7 @@ FMultiplexStorage& FMultiplexStorage::operator= (const FMultiplexStorage &InOthe
 	return *this;
 }
 
-void FMultiplexStorage::Reset()
+void FRigVMStorage::Reset()
 {
 	for (int32 Index = 0; Index < Addresses.Num(); Index++)
 	{
@@ -50,10 +50,10 @@ void FMultiplexStorage::Reset()
 	NameMap.Reset();
 }
 
-bool FMultiplexStorage::Copy(
+bool FRigVMStorage::Copy(
 	int32 InSourceAddressIndex,
 	int32 InTargetAddressIndex,
-	const FMultiplexStorage* InSourceStorage,
+	const FRigVMStorage* InSourceStorage,
 	int32 InSourceByteOffset,
 	int32 InTargetByteOffset,
 	int32 InNumBytes)
@@ -71,8 +71,8 @@ bool FMultiplexStorage::Copy(
 		return false;
 	}
 
-	const FMultiplexAddress& Source = InSourceStorage->Addresses[InSourceAddressIndex];
-	const FMultiplexAddress& Target = Addresses[InTargetAddressIndex];
+	const FRigVMAddress& Source = InSourceStorage->Addresses[InSourceAddressIndex];
+	const FRigVMAddress& Target = Addresses[InTargetAddressIndex];
 
 	int32 SourceStartByte = Source.FirstByte();
 	int32 SourceNumBytes = Source.NumBytes(false);
@@ -105,19 +105,19 @@ bool FMultiplexStorage::Copy(
 
 	switch (Target.Type)
 	{
-		case EMultiplexAddressType::Plain:
+		case ERigVMAddressType::Plain:
 		{
 			FMemory::Memcpy(&Data[TargetStartByte], &InSourceStorage->Data[SourceStartByte], TargetNumBytes);
 			break;
 		}
-		case EMultiplexAddressType::Struct:
+		case ERigVMAddressType::Struct:
 		{
 			UScriptStruct* ScriptStruct = GetScriptStruct(InTargetAddressIndex);
 			int32 NumStructs = TargetNumBytes / ScriptStruct->GetStructureSize();
 			ScriptStruct->CopyScriptStruct(&Data[TargetStartByte], &InSourceStorage->Data[SourceStartByte], NumStructs);
 			break;
 		}
-		case EMultiplexAddressType::Name:
+		case ERigVMAddressType::Name:
 		{
 			int32 NumNames = TargetNumBytes / sizeof(FName);
 			TArrayView<FName> TargetNames((FName*)&Data[TargetStartByte], NumNames);
@@ -128,7 +128,7 @@ bool FMultiplexStorage::Copy(
 			}
 			break;
 		}
-		case EMultiplexAddressType::String:
+		case ERigVMAddressType::String:
 		{
 			int32 NumStrings = TargetNumBytes / sizeof(FString);
 			TArrayView<FString> TargetStrings((FString*)&Data[TargetStartByte], NumStrings);
@@ -139,7 +139,7 @@ bool FMultiplexStorage::Copy(
 			}
 			break;
 		}
-		case EMultiplexAddressType::Invalid:
+		case ERigVMAddressType::Invalid:
 		{
 			return false;
 		}
@@ -148,10 +148,10 @@ bool FMultiplexStorage::Copy(
 	return true;
 }
 
-bool FMultiplexStorage::Copy(
+bool FRigVMStorage::Copy(
 	const FName& InSourceName,
 	const FName& InTargetName,
-	const FMultiplexStorage* InSourceStorage,
+	const FRigVMStorage* InSourceStorage,
 	int32 InSourceByteOffset,
 	int32 InTargetByteOffset,
 	int32 InNumBytes)
@@ -169,7 +169,7 @@ bool FMultiplexStorage::Copy(
 	return Copy(SourceAddressIndex, TargetAddressIndex, InSourceStorage, InSourceByteOffset, InTargetByteOffset, InNumBytes);
 }
 
-int32 FMultiplexStorage::Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateAddresses)
+int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateAddresses)
 {
 	FName Name = InNewName;
 	if (bUseNameMap && InNewName == NAME_None)
@@ -192,7 +192,7 @@ int32 FMultiplexStorage::Allocate(const FName& InNewName, int32 InElementSize, i
 		}
 	}
 
-	FMultiplexAddress NewAddress;
+	FRigVMAddress NewAddress;
 	NewAddress.ByteIndex = Data.Num();
 	if (bUseNameMap)
 	{
@@ -200,7 +200,7 @@ int32 FMultiplexStorage::Allocate(const FName& InNewName, int32 InElementSize, i
 	}
 	NewAddress.ElementSize = InElementSize;
 	NewAddress.ElementCount = InCount;
-	NewAddress.Type = EMultiplexAddressType::Plain;
+	NewAddress.Type = ERigVMAddressType::Plain;
 
 	Data.AddZeroed(NewAddress.NumBytes());
 
@@ -219,19 +219,19 @@ int32 FMultiplexStorage::Allocate(const FName& InNewName, int32 InElementSize, i
 	return AddressIndex;
 }
 
-int32 FMultiplexStorage::Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateAddresses)
+int32 FRigVMStorage::Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateAddresses)
 {
 	return Allocate(NAME_None, InElementSize, InCount, InDataPtr, bUpdateAddresses);
 }
 
-bool FMultiplexStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
+bool FRigVMStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
 {
 	ensure(Addresses.IsValidIndex(InAddressIndex));
 
-	const FMultiplexAddress& Address = Addresses[InAddressIndex];
+	const FRigVMAddress& Address = Addresses[InAddressIndex];
 	switch (Address.Type)
 	{
-		case EMultiplexAddressType::Struct:
+		case ERigVMAddressType::Struct:
 		{
 			void* DataPtr = (void*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
 			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
@@ -240,7 +240,7 @@ bool FMultiplexStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
 			ScriptStruct->InitializeStruct(DataPtr, Count);
 			break;
 		}
-		case EMultiplexAddressType::String:
+		case ERigVMAddressType::String:
 		{
 			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
 			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
@@ -252,7 +252,7 @@ bool FMultiplexStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
 			}
 			break;
 		}
-		case EMultiplexAddressType::Name:
+		case ERigVMAddressType::Name:
 		{
 			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
 			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
@@ -273,14 +273,14 @@ bool FMultiplexStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
 	return true;
 }
 
-bool FMultiplexStorage::Destroy(int32 InAddressIndex, int32 InElementIndex)
+bool FRigVMStorage::Destroy(int32 InAddressIndex, int32 InElementIndex)
 {
 	ensure(Addresses.IsValidIndex(InAddressIndex));
 
-	const FMultiplexAddress& Address = Addresses[InAddressIndex];
+	const FRigVMAddress& Address = Addresses[InAddressIndex];
 	switch (Address.Type)
 	{
-		case EMultiplexAddressType::Struct:
+		case ERigVMAddressType::Struct:
 		{
 			void* DataPtr = (void*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
 			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
@@ -289,7 +289,7 @@ bool FMultiplexStorage::Destroy(int32 InAddressIndex, int32 InElementIndex)
 			ScriptStruct->DestroyStruct(DataPtr, Count);
 			break;
 		}
-		case EMultiplexAddressType::String:
+		case ERigVMAddressType::String:
 		{
 			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
 			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
@@ -300,7 +300,7 @@ bool FMultiplexStorage::Destroy(int32 InAddressIndex, int32 InElementIndex)
 			}
 			break;
 		}
-		case EMultiplexAddressType::Name:
+		case ERigVMAddressType::Name:
 		{
 			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
 			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
@@ -320,7 +320,7 @@ bool FMultiplexStorage::Destroy(int32 InAddressIndex, int32 InElementIndex)
 	return true;
 }
 
-bool FMultiplexStorage::Remove(int32 InAddressIndex)
+bool FRigVMStorage::Remove(int32 InAddressIndex)
 {
 	if (InAddressIndex < 0 || InAddressIndex >= Addresses.Num())
 	{
@@ -329,7 +329,7 @@ bool FMultiplexStorage::Remove(int32 InAddressIndex)
 
 	Destroy(InAddressIndex);
 
-	FMultiplexAddress AddressToRemove = Addresses[InAddressIndex];
+	FRigVMAddress AddressToRemove = Addresses[InAddressIndex];
 	Data.RemoveAt(AddressToRemove.ByteIndex, AddressToRemove.NumBytes());
 	Addresses.RemoveAt(InAddressIndex);
 
@@ -342,13 +342,13 @@ bool FMultiplexStorage::Remove(int32 InAddressIndex)
 	return true;
 }
 
-bool FMultiplexStorage::Remove(const FName& InAddressName)
+bool FRigVMStorage::Remove(const FName& InAddressName)
 {
 	ensure(bUseNameMap);
 	return Remove(GetIndex(InAddressName));
 }
 
-FName FMultiplexStorage::Rename(int32 InAddressIndex, const FName& InNewName)
+FName FRigVMStorage::Rename(int32 InAddressIndex, const FName& InNewName)
 {
 	if (Addresses[InAddressIndex].Name == InNewName)
 	{
@@ -366,7 +366,7 @@ FName FMultiplexStorage::Rename(int32 InAddressIndex, const FName& InNewName)
 	return InNewName;
 }
 
-FName FMultiplexStorage::Rename(const FName& InOldName, const FName& InNewName)
+FName FRigVMStorage::Rename(const FName& InOldName, const FName& InNewName)
 {
 	ensure(bUseNameMap);
 
@@ -379,7 +379,7 @@ FName FMultiplexStorage::Rename(const FName& InOldName, const FName& InNewName)
 	return Rename(AddressIndex, InNewName);
 }
 
-bool FMultiplexStorage::Resize(int32 InAddressIndex, int32 InNewElementCount)
+bool FRigVMStorage::Resize(int32 InAddressIndex, int32 InNewElementCount)
 {
 	if (InNewElementCount <= 0)
 	{
@@ -391,7 +391,7 @@ bool FMultiplexStorage::Resize(int32 InAddressIndex, int32 InNewElementCount)
 		return false;
 	}
 
-	FMultiplexAddress& Address = Addresses[InAddressIndex];
+	FRigVMAddress& Address = Addresses[InAddressIndex];
 
 	if (Address.ElementCount > InNewElementCount) // shrink
 	{
@@ -437,7 +437,7 @@ bool FMultiplexStorage::Resize(int32 InAddressIndex, int32 InNewElementCount)
 	return true;
 }
 
-bool FMultiplexStorage::Resize(const FName& InAddressName, int32 InNewElementCount)
+bool FRigVMStorage::Resize(const FName& InAddressName, int32 InNewElementCount)
 {
 	ensure(bUseNameMap);
 
@@ -450,12 +450,12 @@ bool FMultiplexStorage::Resize(const FName& InAddressName, int32 InNewElementCou
 	return Resize(AddressIndex, InNewElementCount);
 }
 
-void FMultiplexStorage::UpdateAddresses()
+void FRigVMStorage::UpdateAddresses()
 {
 	int32 AlignmentShift = 0;
 	for (int32 AddressIndex = 0; AddressIndex < Addresses.Num(); AddressIndex++)
 	{
-		FMultiplexAddress& Address = Addresses[AddressIndex];
+		FRigVMAddress& Address = Addresses[AddressIndex];
 		Address.ByteIndex += AlignmentShift;
 
 		UScriptStruct* ScriptStruct = GetScriptStruct(AddressIndex);
@@ -506,13 +506,13 @@ void FMultiplexStorage::UpdateAddresses()
 	}
 }
 
-void FMultiplexStorage::FillWithZeroes(int32 InAddressIndex)
+void FRigVMStorage::FillWithZeroes(int32 InAddressIndex)
 {
 	ensure(Addresses.IsValidIndex(InAddressIndex));
 	FMemory::Memzero(GetData(InAddressIndex), Addresses[InAddressIndex].NumBytes());
 }
 
-int32 FMultiplexStorage::FindOrAddScriptStruct(UScriptStruct* InScriptStruct)
+int32 FRigVMStorage::FindOrAddScriptStruct(UScriptStruct* InScriptStruct)
 {
 	int32 StructIndex = INDEX_NONE;
 	if (ScriptStructs.Find(InScriptStruct, StructIndex))
