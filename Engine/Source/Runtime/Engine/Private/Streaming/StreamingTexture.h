@@ -19,18 +19,17 @@ struct FRenderAssetStreamingSettings;
 /** Self-contained structure to manage a streaming texture/mesh, possibly on a separate thread. */
 struct FStreamingRenderAsset
 {
-private:
-	enum EOptionalMipsState : uint8
-	{
-		NotCached,
-		NoOptionalMips,
-		HasOptionalMips,
-	};
-
 	static constexpr int32 MaxNumMeshLODs = MAX_MESH_LOD_COUNT;
 	static_assert(2 * MaxNumMeshLODs >= MAX_TEXTURE_MIP_COUNT, "Failed mip count assumption");
 
-public:
+	enum EOptionalMipsState : uint8
+	{
+		OMS_NotCached,
+		OMS_NoOptionalMips,
+		OMS_HasOptionalMips,
+		OMS_Num
+	};
+
 	enum EAssetType : uint8
 	{
 		AT_Texture,
@@ -174,9 +173,9 @@ public:
 	FORCEINLINE void ClearCachedOptionalMipsState_Async()
 	{
 		// If we already have our optional mips there is no need to recache, pak files can't go away!
-		if (OptionalMipsState == EOptionalMipsState::NoOptionalMips && NumNonOptionalMips != MipCount)
+		if (OptionalMipsState == EOptionalMipsState::OMS_NoOptionalMips && NumNonOptionalMips != MipCount)
 		{
-			OptionalMipsState = EOptionalMipsState::NotCached;
+			OptionalMipsState = EOptionalMipsState::OMS_NotCached;
 		}
 	}
 
