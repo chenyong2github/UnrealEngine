@@ -272,8 +272,8 @@ struct FLockFreeLinkPolicy
 	}
 
 private:
-	static TAllocator* LinkAllocatorPtr;
-	static TAllocator* InternalGetLinkAllocator();
+	CORE_API static TAllocator* LinkAllocatorPtr;
+	CORE_API static TAllocator* InternalGetLinkAllocator();
 };
 
 template<int TPaddingForCacheContention, uint64 TABAInc = 1>
