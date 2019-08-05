@@ -1247,8 +1247,8 @@ void FPersonaMeshDetails::CustomizeSkinWeightProfiles(IDetailLayoutBuilder& Deta
 				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
 			]
 			.OnGetMenuContent(this, &FPersonaMeshDetails::CreateSkinWeightProfileMenuContent)
-			.ToolTipText(LOCTEXT("ImportSkinWeightButtonToolTip", "Import a new Skin Weight Profile, or copy Skin Weights from another Skeletal Mesh"))
-		]		
+			.ToolTipText(LOCTEXT("ImportSkinWeightButtonToolTip", "Import a new Skin Weight Profile"))
+		]
 	];	
 }
 
