@@ -1508,7 +1508,8 @@ public:
 	virtual uint32 GetStencilRefValue() const { return 0; }
 	virtual uint32 GetStencilCompare() const { return 0; }
 	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
-	
+	virtual bool CastsRayTracedShadows() const { return true; }
+
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
@@ -2251,6 +2252,7 @@ public:
 	ENGINE_API virtual bool ShouldApplyFogging() const override;
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
+	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 	ENGINE_API virtual UMaterialInterface* GetMaterialInterface() const override;
 	/**
 	 * Should shaders compiled for this material be saved to disk?
