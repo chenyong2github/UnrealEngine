@@ -477,7 +477,7 @@ bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVect
 	CurrentOrientation = FQuat::Identity;
 	CurrentPosition = FVector::ZeroVector;
 
-	if (!ActionSpaces.IsValidIndex(DeviceId) || FrameState.predictedDisplayTime <= 0)
+	if (!ActionSpaces.IsValidIndex(DeviceId) || !ActionSpaces[DeviceId].Space || FrameState.predictedDisplayTime <= 0)
 	{
 		return false;
 	}
@@ -965,6 +965,11 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		BeginInfo.next = nullptr;
 		xrBeginFrame(Session, &BeginInfo);
 		bIsRendering = true;
+
+		Swapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
+#if 0
+		DepthSwapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
+#endif
 	}
 
 	FrameStateRHI = FrameState;
@@ -972,11 +977,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	const FSceneView* MainView = ViewFamily.Views[0];
 	check(MainView);
 	BaseTransform = FTransform(MainView->BaseHmdOrientation, MainView->BaseHmdLocation);
-
-	Swapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
-#if 0
-	DepthSwapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
-#endif
 
 	ViewsRHI.SetNum(Views.Num());
 	DepthLayersRHI.SetNum(Views.Num());
@@ -1154,11 +1154,6 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 					XR_ENSURE(xrDestroySession(Session));
 
 					Session = XR_NULL_HANDLE;
-
-					Swapchain = nullptr;
-#if 0
-					DepthSwapchain = nullptr;
-#endif
 				});
 
 				FlushRenderingCommands();
@@ -1202,13 +1197,13 @@ void FOpenXRHMD::FinishRendering()
 	Layer.viewCount = ViewsRHI.Num();
 	Layer.views = ViewsRHI.GetData();
 
-	Swapchain->ReleaseCurrentImage_RHIThread();
-#if 0
-	DepthSwapchain->ReleaseCurrentImage_RHIThread();
-#endif
-
 	if (bIsRendering)
 	{
+		Swapchain->ReleaseCurrentImage_RHIThread();
+#if 0
+		DepthSwapchain->ReleaseCurrentImage_RHIThread();
+#endif
+
 		XrFrameEndInfo EndInfo;
 		XrCompositionLayerBaseHeader* Headers[1] = { reinterpret_cast<XrCompositionLayerBaseHeader*>(&Layer) };
 		EndInfo.type = XR_TYPE_FRAME_END_INFO;
