@@ -135,8 +135,6 @@ FDisplayClusterRenderSyncPolicySoftwareDX11::~FDisplayClusterRenderSyncPolicySof
 
 bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(int32& InOutSyncInterval)
 {
-	check(IsInRenderingThread());
-
 	if(!(GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport))
 	{
 		return false;
