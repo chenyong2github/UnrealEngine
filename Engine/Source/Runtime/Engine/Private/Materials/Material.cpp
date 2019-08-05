@@ -872,6 +872,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bAutomaticallySetUsageInEditor = true;
 
 	bUseMaterialAttributes = false;
+	bCastsRayTracedShadows = true;
 	bUseTranslucencyVertexFog = true;
 	BlendableLocation = BL_AfterTonemapping;
 	BlendablePriority = 0;
@@ -5685,6 +5686,11 @@ USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const
 {
 	checkSlow(IsInGameThread());
 	return SubsurfaceProfile; 
+}
+
+bool UMaterial::CastsRayTracedShadows() const
+{
+	return bCastsRayTracedShadows;
 }
 
 static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
