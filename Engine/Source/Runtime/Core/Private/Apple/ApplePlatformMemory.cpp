@@ -257,7 +257,7 @@ FPlatformMemoryStats FApplePlatformMemory::GetStats()
 {
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 	
-	FPlatformMemoryStats MemoryStats;
+	static FPlatformMemoryStats MemoryStats;
 	
 	// Gather platform memory stats.
 	vm_statistics Stats;
