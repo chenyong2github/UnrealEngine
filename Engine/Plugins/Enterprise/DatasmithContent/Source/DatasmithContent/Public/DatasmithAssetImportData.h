@@ -18,7 +18,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Asset, meta = (ShowOnlyInnerProperties))
 	FDatasmithAssetImportOptions AssetImportOptions;
 
-	UPROPERTY(BlueprintReadWrite, Category = Asset, meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Instanced, Category = Asset, meta = (ShowOnlyInnerProperties))
 	TArray<class UDatasmithAdditionalData*> AdditionalData;
 #endif		// WITH_EDITORONLY_DATA
 };
