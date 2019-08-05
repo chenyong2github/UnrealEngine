@@ -187,6 +187,13 @@ namespace AutomationTool
 
 			foreach (string Module in Modules)
 			{
+				// this project is built by the AutomationTool project that the RunUAT script builds so 
+				// it will always be newer than was last built
+				if (Module.Contains("AutomationUtils.Automation"))
+				{
+					continue;
+				}
+
 				CsProjectInfo Proj;
 
 				Dictionary<string, string> Properties = new Dictionary<string, string>();
@@ -286,7 +293,7 @@ namespace AutomationTool
 
 			string BuildTool = CommandUtils.CmdEnv.MsBuildExe;
 
-			// msbuild (standard on windows, in mono >= 5.0 is preferred due to speed and parallel compilation)
+			// msbuild (standard on windows, in mono >=5.0 is preferred due to speed and parallel compilation)
 			bool UseParallelMsBuild = Path.GetFileNameWithoutExtension(BuildTool).ToLower() == "msbuild";
 
 			if (UseParallelMsBuild)
