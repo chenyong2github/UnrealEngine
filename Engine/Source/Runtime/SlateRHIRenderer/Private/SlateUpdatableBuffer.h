@@ -27,9 +27,22 @@ private:
 	// END ISlateUpdatableInstanceBuffer
 
 	void UpdateRenderingData_RenderThread(FRHICommandListImmediate& RHICmdList, int32 BufferIndex);
+
 private:
-	TArray<FVector4> BufferData[SlateRHIConstants::NumBuffers];
-	TSlateElementVertexBuffer<FVector4> InstanceBufferResource;
+	class FInstanceData : public FDeferredCleanupInterface
+	{
+	public:
+		FInstanceData()
+		{
+		}
+
+		virtual ~FInstanceData();
+
+		TArray<FVector4> Array[SlateRHIConstants::NumBuffers];
+		TSlateElementVertexBuffer<FVector4> InstanceBufferResource;
+	};
+
+	FInstanceData* InstanceData;
 	uint32 NumInstances;
 	int32 FreeBufferIndex;
 };
