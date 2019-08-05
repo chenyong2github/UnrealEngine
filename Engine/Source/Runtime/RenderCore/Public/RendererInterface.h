@@ -448,6 +448,8 @@ struct IPooledRenderTarget
 	inline FSceneRenderTargetItem& GetRenderTargetItem() { return RenderTargetItem; }
 	/** Get the low level internals (texture/surface) */
 	inline const FSceneRenderTargetItem& GetRenderTargetItem() const { return RenderTargetItem; }
+	/** Returns if the render target is tracked by a pool. */
+	virtual bool IsTracked() const = 0;
 
 	// Refcounting
 	virtual uint32 AddRef() const = 0;
