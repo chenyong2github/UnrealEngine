@@ -377,9 +377,8 @@ public:
 	*/
 	virtual void Serialize( FArchive& Ar ) override
 	{
-		SerializeMetaData(Ar);
 		Indices.BulkSerialize(Ar);
-		check(CachedNumIndices == Indices.Num());
+		CachedNumIndices = Indices.Num();
 	}
 
 	virtual void SerializeMetaData(FArchive& Ar) override
