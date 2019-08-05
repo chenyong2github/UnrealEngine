@@ -113,10 +113,6 @@ private:
 public:
 	FLocTextConflicts() {}
 
-	/** Publicly movable */
-	FLocTextConflicts(FLocTextConflicts&&) = default;
-	FLocTextConflicts& operator=(FLocTextConflicts&&) = default;
-	
 	/**
 	 * Add a new conflict entry.
 	 *
