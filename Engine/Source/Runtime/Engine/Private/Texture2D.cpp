@@ -674,6 +674,12 @@ void UTexture2D::CancelPendingTextureStreaming()
 	// No need to call FlushResourceStreaming(), since calling CancelPendingMipChangeRequest has an immediate effect.
 }
 
+bool UTexture2D::IsReadyForAsyncPostLoad() const
+{
+	return !PlatformData || PlatformData->IsReadyForAsyncPostLoad();
+
+}
+
 void UTexture2D::PostLoad()
 {
 #if WITH_EDITOR
