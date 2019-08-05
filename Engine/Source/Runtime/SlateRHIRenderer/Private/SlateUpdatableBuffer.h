@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Rendering/RenderingCommon.h"
+#include "RenderingThread.h"
 #include "Interfaces/ISlateRHIRendererModule.h"
 #include "SlateElementVertexBuffer.h"
 
