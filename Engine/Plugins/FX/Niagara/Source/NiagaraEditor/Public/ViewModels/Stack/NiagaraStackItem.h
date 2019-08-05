@@ -16,14 +16,14 @@ class NIAGARAEDITOR_API UNiagaraStackItem : public UNiagaraStackEntry
 	GENERATED_BODY()
 
 public:
-	DECLARE_DELEGATE(FOnModifiedGroupItems);
+	DECLARE_MULTICAST_DELEGATE(FOnModifiedGroupItems);
 
 public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey);
 
 	virtual EStackRowStyle GetStackRowStyle() const override;
 
-	void SetOnModifiedGroupItems(FOnModifiedGroupItems OnModifiedGroupItems);
+	FOnModifiedGroupItems& OnModifiedGroupItems();
 
 	uint32 GetRecursiveStackIssuesCount() const;
 	EStackIssueSeverity GetHighestStackIssueSeverity() const;

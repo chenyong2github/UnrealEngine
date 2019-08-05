@@ -15,7 +15,7 @@
 #include "ContentBrowserModule.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "EdGraphSchema_Niagara.h"
-#include "NiagaraOverviewNode.h"
+#include "NiagaraEditorCommands.h"
 #include "GraphEditorActions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
@@ -68,8 +68,14 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 	TSharedRef<FUICommandList> Commands = ViewModel->GetCommands();
 	Commands->MapAction(
 		FGraphEditorCommands::Get().CreateComment,
-		FExecuteAction::CreateRaw(this, &SNiagaraOverviewGraph::OnCreateComment));
-
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnCreateComment));
+	Commands->MapAction(
+		FNiagaraEditorCommands::Get().ZoomToFit,
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::ZoomToFit));
+	Commands->MapAction(
+		FNiagaraEditorCommands::Get().ZoomToFitAll,
+		FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::ZoomToFitAll));
+	
 	GraphEditor = SNew(SGraphEditor)
 		.AdditionalCommands(Commands)
 		.Appearance(AppearanceInfo)
@@ -162,21 +168,30 @@ FActionMenuContent SNiagaraOverviewGraph::OnCreateGraphActionMenu(UEdGraph* InGr
 {
 	if (ViewModel->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		FMenuBuilder MenuBuilder(true, NULL);
+		FMenuBuilder MenuBuilder(true, ViewModel->GetCommands());
+
 		MenuBuilder.BeginSection(TEXT("NiagaraOverview_EditGraph"), LOCTEXT("EditGraph", "Edit Graph"));
+		{
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("EmitterAddLabel", "Add Emitter"),
+				LOCTEXT("EmitterAddToolTip", "Add an existing emitter"),
+				FNewMenuDelegate::CreateSP(this, &SNiagaraOverviewGraph::CreateAddEmitterMenuContent, InGraph));
 
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("EmitterAddLabel", "Add Emitter"),
-			LOCTEXT("EmitterAddToolTip", "Add an existing emitter"),
-			FNewMenuDelegate::CreateSP(this, &SNiagaraOverviewGraph::CreateAddEmitterMenuContent, InGraph));
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("CommentsLabel", "Add Comment"),
-			LOCTEXT("CommentsToolTip", "Add a comment box"),
-			FSlateIcon(),
-			FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnCreateComment));
-
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("CommentsLabel", "Add Comment"),
+				LOCTEXT("CommentsToolTip", "Add a comment box"),
+				FSlateIcon(),
+				FExecuteAction::CreateSP(this, &SNiagaraOverviewGraph::OnCreateComment));
+		}
 		MenuBuilder.EndSection();
+
+		MenuBuilder.BeginSection(TEXT("NiagaraOverview_View"), LOCTEXT("EditGraph", "View"));
+		{
+			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFit);
+			MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ZoomToFitAll);
+		}
+		MenuBuilder.EndSection();
+
 		TSharedRef<SWidget> ActionMenu = MenuBuilder.MakeWidget();
 
 		return FActionMenuContent(ActionMenu, ActionMenu);
@@ -255,6 +270,16 @@ void SNiagaraOverviewGraph::CreateAddEmitterMenuContent(FMenuBuilder& MenuBuilde
 		];
 
 	MenuBuilder.AddWidget(EmitterAddSubMenu, FText());
+}
+
+void SNiagaraOverviewGraph::ZoomToFit()
+{
+	GraphEditor->ZoomToFit(true);
+}
+
+void SNiagaraOverviewGraph::ZoomToFitAll()
+{
+	GraphEditor->ZoomToFit(false);
 }
 
 #undef LOCTEXT_NAMESPACE // "NiagaraOverviewGraph"
