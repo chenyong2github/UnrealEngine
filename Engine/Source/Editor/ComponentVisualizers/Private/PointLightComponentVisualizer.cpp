@@ -35,7 +35,7 @@ namespace TextureLightProfileVisualizerImpl
 {
 	struct FTextureLightProfileData
 	{
-		const TArray< uint8 >& Data;
+		const TArray64< uint8 >& Data;
 
 		int32 SizeX;
 		int32 SizeY;
@@ -267,7 +267,7 @@ void FTextureLightProfileVisualizer::UpdateIntensitiesCache(UTextureLightProfile
 
 	const FVector StartPos = LightTM.GetTranslation();
 
-	TArray< uint8 > MipData;
+	TArray64< uint8 > MipData;
 	TextureLightProfile->Source.GetMipData( MipData, 0 );
 
 	FTextureLightProfileData TextureLightProfileData{ MipData, TextureLightProfile->Source.GetSizeX(), TextureLightProfile->Source.GetSizeY(), TextureLightProfile->Source.GetBytesPerPixel() };

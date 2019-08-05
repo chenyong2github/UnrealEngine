@@ -55,7 +55,7 @@ private:
 		:	LockCount(0)
 		{}
 
-		TArray<uint8> MipData;
+		TArray64<uint8> MipData;
 		int32 LockCount;
 	};
 

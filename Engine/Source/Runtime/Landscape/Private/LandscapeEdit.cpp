@@ -1025,9 +1025,9 @@ void ULandscapeComponent::DestroyCollisionData()
 
 void ULandscapeComponent::UpdateCollisionData(bool bInUpdateHeightfieldRegion)
 {
-	TArray<uint8> CollisionMipData;
-	TArray<uint8> SimpleCollisionMipData;
-	TArray<uint8> XYOffsetMipData;
+	TArray64<uint8> CollisionMipData;
+	TArray64<uint8> SimpleCollisionMipData;
+	TArray64<uint8> XYOffsetMipData;
 
 	GetHeightmap()->Source.GetMipData(CollisionMipData, CollisionMipLevel);
 	if (SimpleCollisionMipLevel > CollisionMipLevel)
@@ -1428,7 +1428,7 @@ void ULandscapeComponent::UpdateCollisionLayerData()
 	WeightmapTextureMipData.Empty(ComponentWeightmapsTexture.Num());
 	for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapsTexture.Num(); ++WeightmapIdx)
 	{
-		TArray<uint8> MipData;
+		TArray64<uint8> MipData;
 		ComponentWeightmapsTexture[WeightmapIdx]->Source.GetMipData(MipData, CollisionMipLevel);
 		WeightmapTextureMipData.Add((FColor*)MipData.GetData());
 	}
@@ -1438,7 +1438,7 @@ void ULandscapeComponent::UpdateCollisionLayerData()
 	{
 		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapsTexture.Num(); ++WeightmapIdx)
 		{
-			TArray<uint8> MipData;
+			TArray64<uint8> MipData;
 			ComponentWeightmapsTexture[WeightmapIdx]->Source.GetMipData(MipData, SimpleCollisionMipLevel);
 			SimpleCollisionWeightmapMipData.Add((FColor*)MipData.GetData());
 		}
@@ -1711,7 +1711,7 @@ void ULandscapeComponent::CreateEmptyTextureMips(UTexture2D* Texture, bool bClea
 	}
 	else
 	{
-		TArray<uint8> TopMipData;
+		TArray64<uint8> TopMipData;
 		Texture->Source.GetMipData(TopMipData, 0);
 		Texture->Source.Init2DWithMipChain(SizeU, SizeV, Format);
 		int32 NumMips = Texture->Source.GetNumMips();
@@ -5803,14 +5803,14 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	float HeightmapSubsectionOffsetV = (float)(SubsectionSizeVerts) / (float)GetHeightmap()->Source.GetSizeY();
 	
 	// Get the required mip data
-	TArray<TArray<uint8>> HeightmapMipRawData;
-	TArray<FColor*> HeightmapMipData;
+	TArray<TArray64<uint8>> HeightmapMipRawData;
+	TArray64<FColor*> HeightmapMipData;
 	for (int32 MipIdx = 0; MipIdx < FMath::Min(LANDSCAPE_MAX_ES_LOD, GetHeightmap()->Source.GetNumMips()); MipIdx++)
 	{
 		int32 MipSubsectionSizeVerts = (SubsectionSizeVerts) >> MipIdx;
 		if (MipSubsectionSizeVerts > 1)
 		{
-			new(HeightmapMipRawData) TArray<uint8>();
+			new(HeightmapMipRawData) TArray64<uint8>();
 			GetHeightmap()->Source.GetMipData(HeightmapMipRawData.Last(), MipIdx);
 			HeightmapMipData.Add((FColor*)HeightmapMipRawData.Last().GetData());
 		}

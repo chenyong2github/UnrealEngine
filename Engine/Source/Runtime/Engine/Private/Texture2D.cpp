@@ -580,7 +580,7 @@ float UTexture2D::GetAverageBrightness(bool bIgnoreTrueBlack, bool bUseGrayscale
 {
 	float AvgBrightness = -1.0f;
 #if WITH_EDITOR
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	// use the source art if it exists
 	if (Source.IsValid() && Source.GetFormat() == TSF_BGRA8)
 	{
@@ -976,7 +976,7 @@ uint32 UTexture2D::CalcTextureMemorySizeEnum( ETextureMipCount Enum ) const
 bool UTexture2D::GetSourceArtCRC(uint32& OutSourceCRC)
 {
 	bool bResult = false;
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 #if WITH_EDITOR
 	// use the source art if it exists
 	if (Source.IsValid())
@@ -1002,8 +1002,8 @@ bool UTexture2D::HasSameSourceArt(UTexture2D* InTexture)
 {
 	bool bResult = false;
 #if WITH_EDITOR
-	TArray<uint8> RawData1;
-	TArray<uint8> RawData2;
+	TArray64<uint8> RawData1;
+	TArray64<uint8> RawData2;
 	int32 SizeX = 0;
 	int32 SizeY = 0;
 

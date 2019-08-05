@@ -479,7 +479,7 @@ uint8 ComputeOpacityValue(const uint8* BGRA, EOpacitySourceMode OpacitySourceMod
 }
 
 /** Counts how many neighbors have non-zero alpha. */
-int32 ComputeNeighborCount(int32 X, int32 Y, int32 GlobalX, int32 GlobalY, int32 SubImageSizeX, int32 SubImageSizeY, int32 TextureSizeX, const TArray<uint8>& MipData, uint8 AlphaThresholdByte, EOpacitySourceMode OpacitySourceMode)
+int32 ComputeNeighborCount(int32 X, int32 Y, int32 GlobalX, int32 GlobalY, int32 SubImageSizeX, int32 SubImageSizeY, int32 TextureSizeX, const TArray64<uint8>& MipData, uint8 AlphaThresholdByte, EOpacitySourceMode OpacitySourceMode)
 {
 	int32 NeighborCount = 0;
 
@@ -535,7 +535,7 @@ void FSubUVDerivedData::Build(UTexture2D* SubUVTexture, int32 SubImages_Horizont
 
 	if (SubUVTexture)
 	{
-		TArray<uint8> MipData;
+		TArray64<uint8> MipData;
 		bool bSuccess = SubUVTexture->Source.GetFormat() == TSF_BGRA8 && SubUVTexture->Source.GetMipData(MipData, 0);
 
 		const int32 TextureSizeX = SubUVTexture->Source.GetSizeX();
