@@ -24,12 +24,12 @@ FRigVMStorage& FRigVMStorage::operator= (const FRigVMStorage &InOther)
 
 	bUseNameMap = InOther.bUseNameMap;
 	Data.Append(InOther.Data);
-	Addresses.Append(InOther.Addresses);
+	Registers.Append(InOther.Registers);
 	ScriptStructs.Append(InOther.ScriptStructs);
 
-	UpdateAddresses();
+	UpdateRegisters();
 
-	for (int32 Index = 0; Index < Addresses.Num(); Index++)
+	for (int32 Index = 0; Index < Registers.Num(); Index++)
 	{
 		Construct(Index);
 		Copy(Index, Index, &InOther);
@@ -40,20 +40,20 @@ FRigVMStorage& FRigVMStorage::operator= (const FRigVMStorage &InOther)
 
 void FRigVMStorage::Reset()
 {
-	for (int32 Index = 0; Index < Addresses.Num(); Index++)
+	for (int32 Index = 0; Index < Registers.Num(); Index++)
 	{
 		Destroy(Index);
 	}
 
 	Data.Reset();
-	Addresses.Reset();
+	Registers.Reset();
 	ScriptStructs.Reset();
 	NameMap.Reset();
 }
 
 bool FRigVMStorage::Copy(
-	int32 InSourceAddressIndex,
-	int32 InTargetAddressIndex,
+	int32 InSourceRegisterIndex,
+	int32 InTargetRegisterIndex,
 	const FRigVMStorage* InSourceStorage,
 	int32 InSourceByteOffset,
 	int32 InTargetByteOffset,
@@ -64,16 +64,16 @@ bool FRigVMStorage::Copy(
 		InSourceStorage = this;
 	}
 
-	ensure(InSourceStorage->Addresses.IsValidIndex(InSourceAddressIndex));
-	ensure(Addresses.IsValidIndex(InTargetAddressIndex));
+	ensure(InSourceStorage->Registers.IsValidIndex(InSourceRegisterIndex));
+	ensure(Registers.IsValidIndex(InTargetRegisterIndex));
 
-	if (InSourceAddressIndex == InTargetAddressIndex && InSourceByteOffset == InTargetByteOffset && this == InSourceStorage)
+	if (InSourceRegisterIndex == InTargetRegisterIndex && InSourceByteOffset == InTargetByteOffset && this == InSourceStorage)
 	{
 		return false;
 	}
 
-	const FRigVMAddress& Source = InSourceStorage->Addresses[InSourceAddressIndex];
-	const FRigVMAddress& Target = Addresses[InTargetAddressIndex];
+	const FRigVMRegister& Source = InSourceStorage->Registers[InSourceRegisterIndex];
+	const FRigVMRegister& Target = Registers[InTargetRegisterIndex];
 
 	int32 SourceStartByte = Source.FirstByte();
 	int32 SourceNumBytes = Source.NumBytes(false);
@@ -106,19 +106,19 @@ bool FRigVMStorage::Copy(
 
 	switch (Target.Type)
 	{
-		case ERigVMAddressType::Plain:
+		case ERigVMRegisterType::Plain:
 		{
 			FMemory::Memcpy(&Data[TargetStartByte], &InSourceStorage->Data[SourceStartByte], TargetNumBytes);
 			break;
 		}
-		case ERigVMAddressType::Struct:
+		case ERigVMRegisterType::Struct:
 		{
-			UScriptStruct* ScriptStruct = GetScriptStruct(InTargetAddressIndex);
+			UScriptStruct* ScriptStruct = GetScriptStruct(InTargetRegisterIndex);
 			int32 NumStructs = TargetNumBytes / ScriptStruct->GetStructureSize();
 			ScriptStruct->CopyScriptStruct(&Data[TargetStartByte], &InSourceStorage->Data[SourceStartByte], NumStructs);
 			break;
 		}
-		case ERigVMAddressType::Name:
+		case ERigVMRegisterType::Name:
 		{
 			int32 NumNames = TargetNumBytes / sizeof(FName);
 			TArrayView<FName> TargetNames((FName*)&Data[TargetStartByte], NumNames);
@@ -129,7 +129,7 @@ bool FRigVMStorage::Copy(
 			}
 			break;
 		}
-		case ERigVMAddressType::String:
+		case ERigVMRegisterType::String:
 		{
 			int32 NumStrings = TargetNumBytes / sizeof(FString);
 			TArrayView<FString> TargetStrings((FString*)&Data[TargetStartByte], NumStrings);
@@ -140,7 +140,7 @@ bool FRigVMStorage::Copy(
 			}
 			break;
 		}
-		case ERigVMAddressType::Invalid:
+		case ERigVMRegisterType::Invalid:
 		{
 			return false;
 		}
@@ -159,27 +159,27 @@ bool FRigVMStorage::Copy(
 {
 	ensure(bUseNameMap);
 
-	int32 SourceAddressIndex = GetIndex(InSourceName);
-	int32 TargetAddressIndex = GetIndex(InTargetName);
+	int32 SourceRegisterIndex = GetIndex(InSourceName);
+	int32 TargetRegisterIndex = GetIndex(InTargetName);
 
-	if(SourceAddressIndex == INDEX_NONE || TargetAddressIndex == INDEX_NONE)
+	if(SourceRegisterIndex == INDEX_NONE || TargetRegisterIndex == INDEX_NONE)
 	{
 		return false;
 	}
 
-	return Copy(SourceAddressIndex, TargetAddressIndex, InSourceStorage, InSourceByteOffset, InTargetByteOffset, InNumBytes);
+	return Copy(SourceRegisterIndex, TargetRegisterIndex, InSourceStorage, InSourceByteOffset, InTargetByteOffset, InNumBytes);
 }
 
-int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateAddresses)
+int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateRegisters)
 {
 	FName Name = InNewName;
 	if (bUseNameMap && InNewName == NAME_None)
 	{
-		const TCHAR* AddressPrefix = TEXT("Address");
-		int32 AddressSuffix = 0;
+		const TCHAR* RegisterPrefix = TEXT("Register");
+		int32 RegisterSuffix = 0;
 		do
 		{
-			Name = FName(*FString::Printf(TEXT("%s_%d"), AddressPrefix, AddressSuffix++));
+			Name = FName(*FString::Printf(TEXT("%s_%d"), RegisterPrefix, RegisterSuffix++));
 		} while (!IsNameAvailable(Name));
 	}
 
@@ -193,72 +193,72 @@ int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32
 		}
 	}
 
-	FRigVMAddress NewAddress;
-	NewAddress.ByteIndex = Data.Num();
+	FRigVMRegister NewRegister;
+	NewRegister.ByteIndex = Data.Num();
 	if (bUseNameMap)
 	{
-		NewAddress.Name = Name;
+		NewRegister.Name = Name;
 	}
-	NewAddress.ElementSize = InElementSize;
-	NewAddress.ElementCount = InCount;
-	NewAddress.Type = ERigVMAddressType::Plain;
+	NewRegister.ElementSize = InElementSize;
+	NewRegister.ElementCount = InCount;
+	NewRegister.Type = ERigVMRegisterType::Plain;
 
-	Data.AddZeroed(NewAddress.NumBytes());
+	Data.AddZeroed(NewRegister.NumBytes());
 
 	if (InDataPtr != nullptr)
 	{
-		FMemory::Memcpy(&Data[NewAddress.FirstByte()], InDataPtr, NewAddress.NumBytes());
+		FMemory::Memcpy(&Data[NewRegister.FirstByte()], InDataPtr, NewRegister.NumBytes());
 	}
 
-	int32 AddressIndex = Addresses.Num();
-	Addresses.Add(NewAddress);
+	int32 RegisterIndex = Registers.Num();
+	Registers.Add(NewRegister);
 
-	if (bUpdateAddresses)
+	if (bUpdateRegisters)
 	{
-		UpdateAddresses();
+		UpdateRegisters();
 	}
-	return AddressIndex;
+	return RegisterIndex;
 }
 
-int32 FRigVMStorage::Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateAddresses)
+int32 FRigVMStorage::Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateRegisters)
 {
-	return Allocate(NAME_None, InElementSize, InCount, InDataPtr, bUpdateAddresses);
+	return Allocate(NAME_None, InElementSize, InCount, InDataPtr, bUpdateRegisters);
 }
 
-bool FRigVMStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
+bool FRigVMStorage::Construct(int32 InRegisterIndex, int32 InElementIndex)
 {
-	ensure(Addresses.IsValidIndex(InAddressIndex));
+	ensure(Registers.IsValidIndex(InRegisterIndex));
 
-	const FRigVMAddress& Address = Addresses[InAddressIndex];
-	switch (Address.Type)
+	const FRigVMRegister& Register = Registers[InRegisterIndex];
+	switch (Register.Type)
 	{
-		case ERigVMAddressType::Struct:
+		case ERigVMRegisterType::Struct:
 		{
-			void* DataPtr = (void*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
+			void* DataPtr = (void*)&Data[InElementIndex == INDEX_NONE ? Register.FirstByte() : Register.FirstByte() + InElementIndex * Register.ElementSize];
+			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
 
-			UScriptStruct* ScriptStruct = GetScriptStruct(InAddressIndex);
+			UScriptStruct* ScriptStruct = GetScriptStruct(InRegisterIndex);
 			ScriptStruct->InitializeStruct(DataPtr, Count);
 			break;
 		}
-		case ERigVMAddressType::String:
+		case ERigVMRegisterType::String:
 		{
-			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
+			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Register.FirstByte() : Register.FirstByte() + InElementIndex * Register.ElementSize];
+			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
 
-			FMemory::Memzero(DataPtr, Count * Address.ElementSize);
+			FMemory::Memzero(DataPtr, Count * Register.ElementSize);
 			for (int32 Index = 0; Index < Count; Index++)
 			{
 				DataPtr[Index] = FString();
 			}
 			break;
 		}
-		case ERigVMAddressType::Name:
+		case ERigVMRegisterType::Name:
 		{
-			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
+			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Register.FirstByte() : Register.FirstByte() + InElementIndex * Register.ElementSize];
+			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
 
-			FMemory::Memzero(DataPtr, Count * Address.ElementSize);
+			FMemory::Memzero(DataPtr, Count * Register.ElementSize);
 			for (int32 Index = 0; Index < Count; Index++)
 			{
 				DataPtr[Index] = FName();
@@ -274,26 +274,26 @@ bool FRigVMStorage::Construct(int32 InAddressIndex, int32 InElementIndex)
 	return true;
 }
 
-bool FRigVMStorage::Destroy(int32 InAddressIndex, int32 InElementIndex)
+bool FRigVMStorage::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 {
-	ensure(Addresses.IsValidIndex(InAddressIndex));
+	ensure(Registers.IsValidIndex(InRegisterIndex));
 
-	const FRigVMAddress& Address = Addresses[InAddressIndex];
-	switch (Address.Type)
+	const FRigVMRegister& Register = Registers[InRegisterIndex];
+	switch (Register.Type)
 	{
-		case ERigVMAddressType::Struct:
+		case ERigVMRegisterType::Struct:
 		{
-			void* DataPtr = (void*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
+			void* DataPtr = (void*)&Data[InElementIndex == INDEX_NONE ? Register.FirstByte() : Register.FirstByte() + InElementIndex * Register.ElementSize];
+			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
 
-			UScriptStruct* ScriptStruct = GetScriptStruct(InAddressIndex);
+			UScriptStruct* ScriptStruct = GetScriptStruct(InRegisterIndex);
 			ScriptStruct->DestroyStruct(DataPtr, Count);
 			break;
 		}
-		case ERigVMAddressType::String:
+		case ERigVMRegisterType::String:
 		{
-			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
+			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Register.FirstByte() : Register.FirstByte() + InElementIndex * Register.ElementSize];
+			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
 
 			for (int32 Index = 0; Index < Count; Index++)
 			{
@@ -301,10 +301,10 @@ bool FRigVMStorage::Destroy(int32 InAddressIndex, int32 InElementIndex)
 			}
 			break;
 		}
-		case ERigVMAddressType::Name:
+		case ERigVMRegisterType::Name:
 		{
-			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Address.FirstByte() : Address.FirstByte() + InElementIndex * Address.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Address.ElementCount : 1;
+			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Register.FirstByte() : Register.FirstByte() + InElementIndex * Register.ElementSize];
+			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
 
 			for (int32 Index = 0; Index < Count; Index++)
 			{
@@ -321,48 +321,48 @@ bool FRigVMStorage::Destroy(int32 InAddressIndex, int32 InElementIndex)
 	return true;
 }
 
-bool FRigVMStorage::Remove(int32 InAddressIndex)
+bool FRigVMStorage::Remove(int32 InRegisterIndex)
 {
-	if (InAddressIndex < 0 || InAddressIndex >= Addresses.Num())
+	if (InRegisterIndex < 0 || InRegisterIndex >= Registers.Num())
 	{
 		return false;
 	}
 
-	Destroy(InAddressIndex);
+	Destroy(InRegisterIndex);
 
-	FRigVMAddress AddressToRemove = Addresses[InAddressIndex];
-	Data.RemoveAt(AddressToRemove.ByteIndex, AddressToRemove.NumBytes());
-	Addresses.RemoveAt(InAddressIndex);
+	FRigVMRegister RegisterToRemove = Registers[InRegisterIndex];
+	Data.RemoveAt(RegisterToRemove.ByteIndex, RegisterToRemove.NumBytes());
+	Registers.RemoveAt(InRegisterIndex);
 
-	for (int32 Index = InAddressIndex; Index < Addresses.Num(); Index++)
+	for (int32 Index = InRegisterIndex; Index < Registers.Num(); Index++)
 	{
-		Addresses[Index].ByteIndex -= AddressToRemove.NumBytes();
+		Registers[Index].ByteIndex -= RegisterToRemove.NumBytes();
 	}
 
-	UpdateAddresses();
+	UpdateRegisters();
 	return true;
 }
 
-bool FRigVMStorage::Remove(const FName& InAddressName)
+bool FRigVMStorage::Remove(const FName& InRegisterName)
 {
 	ensure(bUseNameMap);
-	return Remove(GetIndex(InAddressName));
+	return Remove(GetIndex(InRegisterName));
 }
 
-FName FRigVMStorage::Rename(int32 InAddressIndex, const FName& InNewName)
+FName FRigVMStorage::Rename(int32 InRegisterIndex, const FName& InNewName)
 {
-	if (Addresses[InAddressIndex].Name == InNewName)
+	if (Registers[InRegisterIndex].Name == InNewName)
 	{
-		return Addresses[InAddressIndex].Name;
+		return Registers[InRegisterIndex].Name;
 	}
 
 	if (!IsNameAvailable(InNewName))
 	{
-		return Addresses[InAddressIndex].Name;
+		return Registers[InRegisterIndex].Name;
 	}
 
-	Addresses[InAddressIndex].Name = InNewName;
-	UpdateAddresses();
+	Registers[InRegisterIndex].Name = InNewName;
+	UpdateRegisters();
 
 	return InNewName;
 }
@@ -371,95 +371,95 @@ FName FRigVMStorage::Rename(const FName& InOldName, const FName& InNewName)
 {
 	ensure(bUseNameMap);
 
-	int32 AddressIndex = GetIndex(InOldName);
-	if (AddressIndex == INDEX_NONE)
+	int32 RegisterIndex = GetIndex(InOldName);
+	if (RegisterIndex == INDEX_NONE)
 	{
 		return NAME_None;
 	}
 
-	return Rename(AddressIndex, InNewName);
+	return Rename(RegisterIndex, InNewName);
 }
 
-bool FRigVMStorage::Resize(int32 InAddressIndex, int32 InNewElementCount)
+bool FRigVMStorage::Resize(int32 InRegisterIndex, int32 InNewElementCount)
 {
 	if (InNewElementCount <= 0)
 	{
-		return Remove(InAddressIndex);
+		return Remove(InRegisterIndex);
 	}
 
-	if (Addresses[InAddressIndex].ElementCount == InNewElementCount)
+	if (Registers[InRegisterIndex].ElementCount == InNewElementCount)
 	{
 		return false;
 	}
 
-	FRigVMAddress& Address = Addresses[InAddressIndex];
+	FRigVMRegister& Register = Registers[InRegisterIndex];
 
-	if (Address.ElementCount > InNewElementCount) // shrink
+	if (Register.ElementCount > InNewElementCount) // shrink
 	{
-		int32 ElementsToRemove = Address.ElementCount - InNewElementCount;
-		int32 NumBytesToRemove = Address.ElementSize * ElementsToRemove;
-		int32 FirstByteToRemove = Address.FirstByte() + Address.ElementSize * InNewElementCount;
+		int32 ElementsToRemove = Register.ElementCount - InNewElementCount;
+		int32 NumBytesToRemove = Register.ElementSize * ElementsToRemove;
+		int32 FirstByteToRemove = Register.FirstByte() + Register.ElementSize * InNewElementCount;
 
-		for (int32 ElementIndex = InNewElementCount; ElementIndex < Address.ElementCount; ElementIndex++)
+		for (int32 ElementIndex = InNewElementCount; ElementIndex < Register.ElementCount; ElementIndex++)
 		{
-			Destroy(InAddressIndex, ElementIndex);
+			Destroy(InRegisterIndex, ElementIndex);
 		}
 
 		Data.RemoveAt(FirstByteToRemove, NumBytesToRemove);
-		Address.ElementCount = InNewElementCount;
+		Register.ElementCount = InNewElementCount;
 
-		for (int32 AddressIndex = InAddressIndex + 1; AddressIndex < Addresses.Num(); AddressIndex++)
+		for (int32 RegisterIndex = InRegisterIndex + 1; RegisterIndex < Registers.Num(); RegisterIndex++)
 		{
-			Addresses[AddressIndex].ByteIndex -= NumBytesToRemove;
+			Registers[RegisterIndex].ByteIndex -= NumBytesToRemove;
 		}
 	}
 	else // grow
 	{
-		int32 OldElementCount = Address.ElementCount;
-		int32 ElementsToAdd = InNewElementCount - Address.ElementCount;
-		int32 NumBytesToAdd = Address.ElementSize * ElementsToAdd;
-		int32 FirstByteToAdd = Address.FirstByte() + Address.ElementSize * Address.ElementCount;
+		int32 OldElementCount = Register.ElementCount;
+		int32 ElementsToAdd = InNewElementCount - Register.ElementCount;
+		int32 NumBytesToAdd = Register.ElementSize * ElementsToAdd;
+		int32 FirstByteToAdd = Register.FirstByte() + Register.ElementSize * Register.ElementCount;
 
 		Data.InsertZeroed(FirstByteToAdd, NumBytesToAdd);
-		Address.ElementCount = InNewElementCount;
+		Register.ElementCount = InNewElementCount;
 
 		for (int32 ElementIndex = OldElementCount; ElementIndex < InNewElementCount; ElementIndex++)
 		{
-			Construct(InAddressIndex, ElementIndex);
+			Construct(InRegisterIndex, ElementIndex);
 		}
 
-		for (int32 AddressIndex = InAddressIndex + 1; AddressIndex < Addresses.Num(); AddressIndex++)
+		for (int32 RegisterIndex = InRegisterIndex + 1; RegisterIndex < Registers.Num(); RegisterIndex++)
 		{
-			Addresses[AddressIndex].ByteIndex += NumBytesToAdd;
+			Registers[RegisterIndex].ByteIndex += NumBytesToAdd;
 		}
 	}
 
-	UpdateAddresses();
+	UpdateRegisters();
 	return true;
 }
 
-bool FRigVMStorage::Resize(const FName& InAddressName, int32 InNewElementCount)
+bool FRigVMStorage::Resize(const FName& InRegisterName, int32 InNewElementCount)
 {
 	ensure(bUseNameMap);
 
-	int32 AddressIndex = GetIndex(InAddressName);
-	if (AddressIndex == INDEX_NONE)
+	int32 RegisterIndex = GetIndex(InRegisterName);
+	if (RegisterIndex == INDEX_NONE)
 	{
 		return false;
 	}
 
-	return Resize(AddressIndex, InNewElementCount);
+	return Resize(RegisterIndex, InNewElementCount);
 }
 
-void FRigVMStorage::UpdateAddresses()
+void FRigVMStorage::UpdateRegisters()
 {
 	int32 AlignmentShift = 0;
-	for (int32 AddressIndex = 0; AddressIndex < Addresses.Num(); AddressIndex++)
+	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
 	{
-		FRigVMAddress& Address = Addresses[AddressIndex];
-		Address.ByteIndex += AlignmentShift;
+		FRigVMRegister& Register = Registers[RegisterIndex];
+		Register.ByteIndex += AlignmentShift;
 
-		UScriptStruct* ScriptStruct = GetScriptStruct(AddressIndex);
+		UScriptStruct* ScriptStruct = GetScriptStruct(RegisterIndex);
 		if (ScriptStruct != nullptr)
 		{
 			UScriptStruct::ICppStructOps* TheCppStructOps = ScriptStruct->GetCppStructOps();
@@ -467,50 +467,50 @@ void FRigVMStorage::UpdateAddresses()
 			{
 				if (!TheCppStructOps->HasZeroConstructor())
 				{
-					void* Pointer = GetData(AddressIndex);
+					void* Pointer = GetData(RegisterIndex);
 
-					if (Address.AlignmentBytes > 0)
+					if (Register.AlignmentBytes > 0)
 					{
 						if (!IsAligned(Pointer, TheCppStructOps->GetAlignment()))
 						{
-							Data.RemoveAt(Address.ByteIndex, Address.AlignmentBytes);
-							AlignmentShift -= Address.AlignmentBytes;
-							Address.AlignmentBytes = 0;
-							Pointer = GetData(AddressIndex);
+							Data.RemoveAt(Register.ByteIndex, Register.AlignmentBytes);
+							AlignmentShift -= Register.AlignmentBytes;
+							Register.AlignmentBytes = 0;
+							Pointer = GetData(RegisterIndex);
 						}
 					}
 
 					while (!IsAligned(Pointer, TheCppStructOps->GetAlignment()))
 					{
-						Data.InsertZeroed(Address.ByteIndex, 1);
-						Address.AlignmentBytes++;
+						Data.InsertZeroed(Register.ByteIndex, 1);
+						Register.AlignmentBytes++;
 						AlignmentShift++;
-						Pointer = GetData(AddressIndex);
+						Pointer = GetData(RegisterIndex);
 					}
 				}
 			}
 		}
 	}
 
-	for (int32 AddressIndex = 0; AddressIndex < Addresses.Num(); AddressIndex++)
+	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
 	{
-		Addresses[AddressIndex].Pointer = GetData(AddressIndex);
+		Registers[RegisterIndex].Pointer = GetData(RegisterIndex);
 	}
 
 	if (bUseNameMap)
 	{
 		NameMap.Reset();
-		for (int32 Index = 0; Index < Addresses.Num(); Index++)
+		for (int32 Index = 0; Index < Registers.Num(); Index++)
 		{
-			NameMap.Add(Addresses[Index].Name, Index);
+			NameMap.Add(Registers[Index].Name, Index);
 		}
 	}
 }
 
-void FRigVMStorage::FillWithZeroes(int32 InAddressIndex)
+void FRigVMStorage::FillWithZeroes(int32 InRegisterIndex)
 {
-	ensure(Addresses.IsValidIndex(InAddressIndex));
-	FMemory::Memzero(GetData(InAddressIndex), Addresses[InAddressIndex].NumBytes());
+	ensure(Registers.IsValidIndex(InRegisterIndex));
+	FMemory::Memzero(GetData(InRegisterIndex), Registers[InRegisterIndex].NumBytes());
 }
 
 int32 FRigVMStorage::FindOrAddScriptStruct(UScriptStruct* InScriptStruct)

@@ -364,9 +364,9 @@ private:
 	template<class OpType>
 	FORCEINLINE uint64 AddOp(const OpType& InOp)
 	{
-		uint64 Address = (uint64)ByteCode.AddUninitialized(sizeof(OpType));
-		FMemory::Memcpy(ByteCode.GetData() + Address, &InOp, sizeof(OpType));
-		return Address;
+		uint64 ByteIndex = (uint64)ByteCode.AddUninitialized(sizeof(OpType));
+		FMemory::Memcpy(ByteCode.GetData() + ByteIndex, &InOp, sizeof(OpType));
+		return ByteIndex;
 	}
 
 	// storage for all functions

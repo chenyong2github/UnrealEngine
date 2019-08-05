@@ -39,7 +39,7 @@ private:
 typedef TArrayView<FRigVMArgument> FRigVMArgumentArray;
 
 UENUM()
-enum class ERigVMAddressType : uint8
+enum class ERigVMRegisterType : uint8
 {
 	Plain,
 	String,
@@ -49,12 +49,12 @@ enum class ERigVMAddressType : uint8
 };
 
 USTRUCT()
-struct RIGVM_API FRigVMAddress
+struct RIGVM_API FRigVMRegister
 {
 	GENERATED_USTRUCT_BODY()
 
-		FRigVMAddress()
-		: Type(ERigVMAddressType::Invalid)
+		FRigVMRegister()
+		: Type(ERigVMRegisterType::Invalid)
 		, Pointer(nullptr)
 		, ByteIndex(INDEX_NONE)
 		, ElementSize(0)
@@ -66,7 +66,7 @@ struct RIGVM_API FRigVMAddress
 	}
 
 	UPROPERTY()
-	ERigVMAddressType Type;
+	ERigVMRegisterType Type;
 
 	void* Pointer;
 
@@ -127,7 +127,7 @@ struct RIGVM_API FRigVMAddress
 	}
 };
 
-typedef TArrayView<FRigVMAddress> FRigVMAddressArray;
+typedef TArrayView<FRigVMRegister> FRigVMRegisterArray;
 
 USTRUCT()
 struct RIGVM_API FRigVMStorage
@@ -145,48 +145,48 @@ public:
 	FORCEINLINE bool IsLiteralStorage() const { return bIsLiteralStorage;  }
 	FORCEINLINE void SetLiteralStorage(bool InIsLiteralStorage = true) { bIsLiteralStorage = InIsLiteralStorage; }
 	FORCEINLINE bool SupportsNames() const { return bUseNameMap;  }
-	FORCEINLINE int32 Num() const { return Addresses.Num(); }
-	FORCEINLINE const FRigVMAddress& operator[](int32 InIndex) const { return Addresses[InIndex]; }
-	FORCEINLINE FRigVMAddress& operator[](int32 InIndex) { return Addresses[InIndex]; }
-	FORCEINLINE const FRigVMAddress& operator[](const FRigVMArgument& InArg) const { return Addresses[InArg.GetRegisterIndex()]; }
-	FORCEINLINE FRigVMAddress& operator[](const FRigVMArgument& InArg) { return Addresses[InArg.GetRegisterIndex()]; }
-	FORCEINLINE const FRigVMAddress& operator[](const FName& InName) const { return Addresses[GetIndex(InName)]; }
-	FORCEINLINE FRigVMAddress& operator[](const FName& InName) { return Addresses[GetIndex(InName)]; }
+	FORCEINLINE int32 Num() const { return Registers.Num(); }
+	FORCEINLINE const FRigVMRegister& operator[](int32 InIndex) const { return Registers[InIndex]; }
+	FORCEINLINE FRigVMRegister& operator[](int32 InIndex) { return Registers[InIndex]; }
+	FORCEINLINE const FRigVMRegister& operator[](const FRigVMArgument& InArg) const { return Registers[InArg.GetRegisterIndex()]; }
+	FORCEINLINE FRigVMRegister& operator[](const FRigVMArgument& InArg) { return Registers[InArg.GetRegisterIndex()]; }
+	FORCEINLINE const FRigVMRegister& operator[](const FName& InName) const { return Registers[GetIndex(InName)]; }
+	FORCEINLINE FRigVMRegister& operator[](const FName& InName) { return Registers[GetIndex(InName)]; }
 
-	FORCEINLINE TArray<FRigVMAddress>::RangedForIteratorType      begin() { return Addresses.begin(); }
-	FORCEINLINE TArray<FRigVMAddress>::RangedForConstIteratorType begin() const { return Addresses.begin(); }
-	FORCEINLINE TArray<FRigVMAddress>::RangedForIteratorType      end() { return Addresses.end(); }
-	FORCEINLINE TArray<FRigVMAddress>::RangedForConstIteratorType end() const { return Addresses.end(); }
+	FORCEINLINE TArray<FRigVMRegister>::RangedForIteratorType      begin() { return Registers.begin(); }
+	FORCEINLINE TArray<FRigVMRegister>::RangedForConstIteratorType begin() const { return Registers.begin(); }
+	FORCEINLINE TArray<FRigVMRegister>::RangedForIteratorType      end() { return Registers.end(); }
+	FORCEINLINE TArray<FRigVMRegister>::RangedForConstIteratorType end() const { return Registers.end(); }
 
-	FORCEINLINE FRigVMArgument GetArgument(int32 InAddressIndex) const
+	FORCEINLINE FRigVMArgument GetArgument(int32 InRegisterIndex) const
 	{
-		ensure(Addresses.IsValidIndex(InAddressIndex));
-		return FRigVMArgument(IsLiteralStorage(), InAddressIndex, Addresses[InAddressIndex].ByteIndex);
+		ensure(Registers.IsValidIndex(InRegisterIndex));
+		return FRigVMArgument(IsLiteralStorage(), InRegisterIndex, Registers[InRegisterIndex].ByteIndex);
 	}
 
-	FORCEINLINE const void* GetData(int32 InAddressIndex) const
+	FORCEINLINE const void* GetData(int32 InRegisterIndex) const
 	{
-		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FRigVMAddress& Address = Addresses[InAddressIndex];
-		ensure(Address.ElementCount > 0);
-		return (const void*)&Data[Address.FirstByte()];
+		ensure(Registers.IsValidIndex(InRegisterIndex));
+		const FRigVMRegister& Register = Registers[InRegisterIndex];
+		ensure(Register.ElementCount > 0);
+		return (const void*)&Data[Register.FirstByte()];
 	}
 
-	FORCEINLINE void* GetData(int32 InAddressIndex)
+	FORCEINLINE void* GetData(int32 InRegisterIndex)
 	{
-		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FRigVMAddress& Address = Addresses[InAddressIndex];
-		ensure(Address.ElementCount > 0);
-		return (void*)&Data[Address.FirstByte()];
+		ensure(Registers.IsValidIndex(InRegisterIndex));
+		const FRigVMRegister& Register = Registers[InRegisterIndex];
+		ensure(Register.ElementCount > 0);
+		return (void*)&Data[Register.FirstByte()];
 	}
 
 	template<class T>
-	FORCEINLINE const T* Get(int32 InAddressIndex) const
+	FORCEINLINE const T* Get(int32 InRegisterIndex) const
 	{
-		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FRigVMAddress& Address = Addresses[InAddressIndex];
-		ensure(Address.ElementCount > 0);
-		return (const T*)&Data[Address.FirstByte()];
+		ensure(Registers.IsValidIndex(InRegisterIndex));
+		const FRigVMRegister& Register = Registers[InRegisterIndex];
+		ensure(Register.ElementCount > 0);
+		return (const T*)&Data[Register.FirstByte()];
 	}
 
 	template<class T>
@@ -196,9 +196,9 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE const T& GetRef(int32 InAddressIndex) const
+	FORCEINLINE const T& GetRef(int32 InRegisterIndex) const
 	{
-		return *Get<T>(InAddressIndex);
+		return *Get<T>(InRegisterIndex);
 	}
 
 	template<class T>
@@ -208,12 +208,12 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE T* Get(int32 InAddressIndex)
+	FORCEINLINE T* Get(int32 InRegisterIndex)
 	{
-		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FRigVMAddress& Address = Addresses[InAddressIndex];
-		ensure(Address.ElementCount > 0);
-		return (T*)&Data[Address.FirstByte()];
+		ensure(Registers.IsValidIndex(InRegisterIndex));
+		const FRigVMRegister& Register = Registers[InRegisterIndex];
+		ensure(Register.ElementCount > 0);
+		return (T*)&Data[Register.FirstByte()];
 	}
 
 	template<class T>
@@ -223,9 +223,9 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE T& GetRef(int32 InAddressIndex)
+	FORCEINLINE T& GetRef(int32 InRegisterIndex)
 	{
-		return *Get<T>(InAddressIndex);
+		return *Get<T>(InRegisterIndex);
 	}
 
 	template<class T>
@@ -235,12 +235,12 @@ public:
 	}
 
 	template<class T>
-	FORCEINLINE TArrayView<T> GetArray(int32 InAddressIndex)
+	FORCEINLINE TArrayView<T> GetArray(int32 InRegisterIndex)
 	{
-		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FRigVMAddress& Address = Addresses[InAddressIndex];
-		ensure(Address.ElementCount > 0);
-		return TArrayView<T>((T*)&Data[Address.FirstByte()], Address.ElementCount);
+		ensure(Registers.IsValidIndex(InRegisterIndex));
+		const FRigVMRegister& Register = Registers[InRegisterIndex];
+		ensure(Register.ElementCount > 0);
+		return TArrayView<T>((T*)&Data[Register.FirstByte()], Register.ElementCount);
 	}
 	
 	template<class T>
@@ -249,21 +249,21 @@ public:
 		return GetArray<T>(InArgument.GetRegisterIndex());
 	}
 
-	FORCEINLINE UScriptStruct* GetScriptStruct(int32 InAddressIndex) const
+	FORCEINLINE UScriptStruct* GetScriptStruct(int32 InRegisterIndex) const
 	{
-		ensure(Addresses.IsValidIndex(InAddressIndex));
-		const FRigVMAddress& Address = Addresses[InAddressIndex];
-		if (Address.ScriptStructIndex != INDEX_NONE)
+		ensure(Registers.IsValidIndex(InRegisterIndex));
+		const FRigVMRegister& Register = Registers[InRegisterIndex];
+		if (Register.ScriptStructIndex != INDEX_NONE)
 		{
-			ensure(ScriptStructs.IsValidIndex(Address.ScriptStructIndex));
-			return ScriptStructs[Address.ScriptStructIndex];
+			ensure(ScriptStructs.IsValidIndex(Register.ScriptStructIndex));
+			return ScriptStructs[Register.ScriptStructIndex];
 		}
 		return nullptr;
 	}
 
 	bool Copy(
-		int32 InSourceAddressIndex,
-		int32 InTargetAddressIndex,
+		int32 InSourceRegisterIndex,
+		int32 InTargetRegisterIndex,
 		const FRigVMStorage* InSourceStorage = nullptr,
 		int32 InSourceByteOffset = INDEX_NONE,
 		int32 InTargetByteOffset = INDEX_NONE,
@@ -284,11 +284,11 @@ public:
 			return INDEX_NONE;
 		}
 
-		if (NameMap.Num() != Addresses.Num())
+		if (NameMap.Num() != Registers.Num())
 		{
-			for (int32 Index = 0; Index < Addresses.Num(); Index++)
+			for (int32 Index = 0; Index < Registers.Num(); Index++)
 			{
-				if (Addresses[Index].Name == InName)
+				if (Registers[Index].Name == InName)
 				{
 					return Index;
 				}
@@ -364,21 +364,21 @@ public:
 
 	FORCEINLINE int32 AddNameArray(const FName& InNewName, int32 InCount, const FName* InDataPtr = nullptr)
 	{
-		int32 Address = Allocate(InNewName, sizeof(FName), InCount, nullptr);
-		Addresses[Address].Type = ERigVMAddressType::Name;
+		int32 Register = Allocate(InNewName, sizeof(FName), InCount, nullptr);
+		Registers[Register].Type = ERigVMRegisterType::Name;
 
-		Construct(Address);
+		Construct(Register);
 
 		if(InDataPtr)
 		{
-			FName* DataPtr = (FName*)GetData(Address);
+			FName* DataPtr = (FName*)GetData(Register);
 			for (int32 Index = 0; Index < InCount; Index++)
 			{
 				DataPtr[Index] = InDataPtr[Index];
 			}
 		}
 
-		return Address;
+		return Register;
 	}
 
 	FORCEINLINE int32 AddNameArray(const FName& InNewName, const TArray<FName>& InArray)
@@ -403,21 +403,21 @@ public:
 
 	FORCEINLINE int32 AddStringArray(const FName& InNewName, int32 InCount, const FString* InDataPtr = nullptr)
 	{
-		int32 Address = Allocate(InNewName, sizeof(FString), InCount, nullptr);
-		Addresses[Address].Type = ERigVMAddressType::String;
+		int32 Register = Allocate(InNewName, sizeof(FString), InCount, nullptr);
+		Registers[Register].Type = ERigVMRegisterType::String;
 
-		Construct(Address);
+		Construct(Register);
 
 		if(InDataPtr)
 		{
-			FString* DataPtr = (FString*)GetData(Address);
+			FString* DataPtr = (FString*)GetData(Register);
 			for (int32 Index = 0; Index < InCount; Index++)
 			{
 				DataPtr[Index] = InDataPtr[Index];
 			}
 		}
 
-		return Address;
+		return Register;
 	}
 
 	FORCEINLINE int32 AddStringArray(const FName& InNewName, const TArray<FString>& InArray)
@@ -443,27 +443,27 @@ public:
 
 	FORCEINLINE int32 AddStructArray(const FName& InNewName, UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr)
 	{
-		int32 Address = Allocate(InNewName, InScriptStruct->GetStructureSize(), InCount, nullptr, false);
-		if (Address == INDEX_NONE)
+		int32 Register = Allocate(InNewName, InScriptStruct->GetStructureSize(), InCount, nullptr, false);
+		if (Register == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
 
-		Addresses[Address].Type = ERigVMAddressType::Struct;
-		Addresses[Address].ScriptStructIndex = FindOrAddScriptStruct(InScriptStruct);
+		Registers[Register].Type = ERigVMRegisterType::Struct;
+		Registers[Register].ScriptStructIndex = FindOrAddScriptStruct(InScriptStruct);
 
-		UpdateAddresses();
+		UpdateRegisters();
 
 		// construct the content
-		Construct(Address);
+		Construct(Register);
 
 		// copy values from the provided data
 		if (InDataPtr != nullptr)
 		{
-			InScriptStruct->CopyScriptStruct(GetData(Address), InDataPtr, InCount);
+			InScriptStruct->CopyScriptStruct(GetData(Register), InDataPtr, InCount);
 		}
 
-		return Address;
+		return Register;
 	}
 
 	FORCEINLINE int32 AddStructArray(UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr)
@@ -518,23 +518,23 @@ public:
 		return AddStruct<T>(NAME_None, InValue);
 	}
 
-	bool Remove(int32 InAddressIndex);
-	bool Remove(const FName& InAddressName);
-	FName Rename(int32 InAddressIndex, const FName& InNewName);
+	bool Remove(int32 InRegisterIndex);
+	bool Remove(const FName& InRegisterName);
+	FName Rename(int32 InRegisterIndex, const FName& InNewName);
 	FName Rename(const FName& InOldName, const FName& InNewName);
-	bool Resize(int32 InAddressIndex, int32 InNewElementCount);
-	bool Resize(const FName& InAddressName, int32 InNewElementCount);
+	bool Resize(int32 InRegisterIndex, int32 InNewElementCount);
+	bool Resize(const FName& InRegisterName, int32 InNewElementCount);
 
-	void UpdateAddresses();
+	void UpdateRegisters();
 
 private:
 
-	int32 Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, bool bUpdateAddresses = true);
-	int32 Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, bool bUpdateAddresses = true);
-	bool Construct(int32 InAddressIndex, int32 InElementIndex = INDEX_NONE);
-	bool Destroy(int32 InAddressIndex, int32 InElementIndex = INDEX_NONE);
+	int32 Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, bool bUpdateRegisters = true);
+	int32 Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, bool bUpdateRegisters = true);
+	bool Construct(int32 InRegisterIndex, int32 InElementIndex = INDEX_NONE);
+	bool Destroy(int32 InRegisterIndex, int32 InElementIndex = INDEX_NONE);
 
-	void FillWithZeroes(int32 InAddressIndex);
+	void FillWithZeroes(int32 InRegisterIndex);
 	int32 FindOrAddScriptStruct(UScriptStruct* InScriptStruct);
 
 	UPROPERTY()
@@ -544,7 +544,7 @@ private:
 	bool bIsLiteralStorage;
 
 	UPROPERTY()
-	TArray<FRigVMAddress> Addresses;
+	TArray<FRigVMRegister> Registers;
 
 	UPROPERTY()
 	TArray<uint8> Data;

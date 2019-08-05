@@ -8,12 +8,12 @@ FRigVMByteCodeTable::FRigVMByteCodeTable()
 
 FRigVMByteCodeTable::FRigVMByteCodeTable(const FRigVMByteCode& InByteCode)
 {
-	uint64 Address = 0;
-	while (Address < InByteCode.Num())
+	uint64 ByteIndex = 0;
+	while (ByteIndex < InByteCode.Num())
 	{
-		ERigVMOpCode OpCode = InByteCode.GetOpCodeAt(Address);
-		Entries.Add(FRigVMByteCodeTableEntry(OpCode, Address));
-		Address += InByteCode.GetOpNumBytesAt(Address);
+		ERigVMOpCode OpCode = InByteCode.GetOpCodeAt(ByteIndex);
+		Entries.Add(FRigVMByteCodeTableEntry(OpCode, ByteIndex));
+		ByteIndex += InByteCode.GetOpNumBytesAt(ByteIndex);
 	}
 }
 
@@ -147,10 +147,10 @@ uint64 FRigVMByteCode::AddJumpIfFalseOp(uint64 InByteCodeIndex, const FRigVMArgu
 uint64 FRigVMByteCode::AddExecuteOp(uint16 InFunctionIndex, const TArrayView<FRigVMArgument>& InArguments)
 {
 	FRigVMExecuteOp Op(InFunctionIndex, (uint16)InArguments.Num());
-	uint64 OpAddress = AddOp(Op);
-	uint64 ArgumentsAddress = (uint64)ByteCode.AddUninitialized(sizeof(FRigVMArgument) * InArguments.Num());
-	FMemory::Memcpy(ByteCode.GetData() + ArgumentsAddress, InArguments.GetData(), sizeof(FRigVMArgument) * InArguments.Num());
-	return OpAddress;
+	uint64 OpByteIndex = AddOp(Op);
+	uint64 ArgumentsByteIndex = (uint64)ByteCode.AddUninitialized(sizeof(FRigVMArgument) * InArguments.Num());
+	FMemory::Memcpy(ByteCode.GetData() + ArgumentsByteIndex, InArguments.GetData(), sizeof(FRigVMArgument) * InArguments.Num());
+	return OpByteIndex;
 }
 
 uint64 FRigVMByteCode::AddExitOp()
