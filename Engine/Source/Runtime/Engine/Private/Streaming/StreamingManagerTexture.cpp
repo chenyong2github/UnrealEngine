@@ -1386,7 +1386,7 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 
 		STAT(GatheredStats.SetupAsyncTaskCycles = 0);
 		STAT(GatheredStats.UpdateStreamingDataCycles = 0);
-		STAT(GatheredStats.StreamTexturesCycles = 0);
+		STAT(GatheredStats.StreamRenderAssetsCycles = 0);
 		STAT(GatheredStats.CallbacksCycles = 0);
 #if STATS
 		UpdateStats();
@@ -1453,7 +1453,7 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 	}
 	else if (AsyncWork->IsDone())
 	{
-		STAT(GatheredStats.StreamTexturesCycles = -(int32)FPlatformTime::Cycles();)
+		STAT(GatheredStats.StreamRenderAssetsCycles = -(int32)FPlatformTime::Cycles();)
 
 		// Since this step is lightweight, tick each texture inflight here, to accelerate the state changes.
 		for (int32 TextureIndex : InflightRenderAssets)
@@ -1469,7 +1469,7 @@ void FRenderAssetStreamingManager::UpdateResourceStreaming( float DeltaTime, boo
 
 		ProcessingStage = 0;
 
-		STAT(GatheredStats.StreamTexturesCycles += FPlatformTime::Cycles();)
+		STAT(GatheredStats.StreamRenderAssetsCycles += FPlatformTime::Cycles();)
 #if STATS
 			UpdateStats();
 #elif UE_BUILD_TEST

@@ -166,5 +166,13 @@ struct FRenderAssetStreamingStats
 	volatile int32 CallbacksCycles;
 	int32 SetupAsyncTaskCycles;
 	int32 UpdateStreamingDataCycles;
-	int32 StreamTexturesCycles;
+	int32 StreamRenderAssetsCycles; // CPU cycles used to process Mip/LOD load and unload requests
+
+	int32 NumStreamedMeshes;	// Number of meshes managed by the streamer
+	float AvgNumStreamedLODs;	// Average number of mesh LODs that can be streamed
+	float AvgNumResidentLODs;	// Average number of mesh LODs resident
+	float AvgNumEvictedLODs;	// Average number of mesh LODs evicted
+	int64 StreamedMeshMem;		// Total memory in bytes of mesh LODs that can be streamed
+	int64 ResidentMeshMem;		// Total memory in bytes of resident mesh LODs
+	int64 EvictedMeshMem;		// Total memory in bytes of evicted mesh LODs
 };
