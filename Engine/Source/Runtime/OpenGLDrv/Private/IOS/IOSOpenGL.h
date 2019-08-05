@@ -102,10 +102,10 @@ struct FIOSOpenGL : public FOpenGLES2
 
 	static FORCEINLINE void* MapBufferRange(GLenum Type, uint32 InOffset, uint32 InSize, EResourceLockMode LockMode)
 	{
-		checkf(LockMode == RLM_WriteOnly || LockMode == RLM_WriteOnlyUnsynchronized, TEXT("OpenGL ES 2.0 only supports write-only buffer locks"));
+		checkf(LockMode == EResourceLockMode::RLM_WriteOnly || LockMode == EResourceLockMode::RLM_WriteOnlyUnsynchronized, TEXT("OpenGL ES 2.0 only supports write-only buffer locks"));
 		check(Type == GL_ARRAY_BUFFER || Type == GL_ELEMENT_ARRAY_BUFFER);
 		GLuint Flags = GL_MAP_WRITE_BIT_EXT | GL_MAP_FLUSH_EXPLICIT_BIT_EXT;
-		if (LockMode == RLM_WriteOnlyUnsynchronized)
+		if (LockMode == EResourceLockMode::RLM_WriteOnlyUnsynchronized)
 		{
 			Flags |= GL_MAP_UNSYNCHRONIZED_BIT_EXT;
 		}
