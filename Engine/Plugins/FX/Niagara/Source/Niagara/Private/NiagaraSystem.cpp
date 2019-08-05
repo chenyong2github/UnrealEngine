@@ -15,6 +15,7 @@
 #include "AssetData.h"
 #include "NiagaraStats.h"
 #include "NiagaraEditorDataBase.h"
+#include "INiagaraEditorOnlyDataUtlities.h"
 
 #if WITH_EDITOR
 #include "NiagaraScriptDerivedData.h"
@@ -90,6 +91,9 @@ void UNiagaraSystem::PostInitProperties()
 
 		SystemUpdateScript = NewObject<UNiagaraScript>(this, "SystemUpdateScript", RF_Transactional);
 		SystemUpdateScript->SetUsage(ENiagaraScriptUsage::SystemUpdateScript);
+
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
 	}
 
 	GenerateStatID();
@@ -179,7 +183,6 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	FNiagaraSystemUpdateContext(this, true);
 
 	ThumbnailImageOutOfDate = true;
 	
@@ -248,7 +251,7 @@ void UNiagaraSystem::PostLoad()
 		SystemSpawnScript = NewObject<UNiagaraScript>(this, "SystemSpawnScript", RF_Transactional);
 		SystemSpawnScript->SetUsage(ENiagaraScriptUsage::SystemSpawnScript);
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
-		SystemScriptSource = NiagaraModule.CreateDefaultScriptSource(this);
+		SystemScriptSource = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultScriptSource(this);
 		SystemSpawnScript->SetSource(SystemScriptSource);
 	}
 	else
@@ -323,7 +326,12 @@ void UNiagaraSystem::PostLoad()
 		}
 	}
 
-	if (EditorData != nullptr)
+	if (EditorData == nullptr)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
+	}
+	else
 	{
 		EditorData->PostLoadFromOwner(this);
 	}
@@ -397,11 +405,6 @@ UNiagaraEditorDataBase* UNiagaraSystem::GetEditorData()
 const UNiagaraEditorDataBase* UNiagaraSystem::GetEditorData() const
 {
 	return EditorData;
-}
-
-void UNiagaraSystem::SetEditorData(UNiagaraEditorDataBase* InEditorData)
-{
-	EditorData = InEditorData;
 }
 
 bool UNiagaraSystem::ReferencesInstanceEmitter(UNiagaraEmitter& Emitter)

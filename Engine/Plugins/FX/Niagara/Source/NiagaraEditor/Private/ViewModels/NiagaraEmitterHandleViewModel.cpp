@@ -3,7 +3,9 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEmitterHandle.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraObjectSelection.h"
@@ -20,56 +22,67 @@
 
 #define LOCTEXT_NAMESPACE "EmitterHandleViewModel"
 
-FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel(FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation, UNiagaraSystem& InOwningSystem)
-	: EmitterHandle(InEmitterHandle)
-	, OwningSystem(InOwningSystem)
-	, EmitterViewModel(MakeShareable(new FNiagaraEmitterViewModel((InEmitterHandle ? InEmitterHandle->GetInstance() : nullptr), InSimulation)))
+FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel()
+	: EmitterHandle(nullptr)
+	, EmitterViewModel(MakeShared<FNiagaraEmitterViewModel>())
+	, EmitterStackViewModel(nullptr)
+	, bIsRenamePending(false)
 {
 }
 
 void FNiagaraEmitterHandleViewModel::Cleanup()
 {
-	if (EmitterViewModel.IsValid())
+	EmitterViewModel->Cleanup();
+	if (EmitterStackViewModel != nullptr)
 	{
-		EmitterViewModel->Cleanup();
+		EmitterStackViewModel->Finalize();
+		EmitterStackViewModel = nullptr;
 	}
-	EmitterViewModel.Reset();
 }
 
+TSharedRef<FNiagaraSystemViewModel> FNiagaraEmitterHandleViewModel::GetOwningSystemViewModel() const
+{
+	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModelPinned = OwningSystemViewModelWeak.Pin();
+	checkf(OwningSystemViewModelPinned.IsValid(), TEXT("Owning system view model was destroyed before child handle view model."));
+	return OwningSystemViewModelPinned.ToSharedRef();
+}
 
 FNiagaraEmitterHandleViewModel::~FNiagaraEmitterHandleViewModel()
 {
 	Cleanup();
 }
 
-bool FNiagaraEmitterHandleViewModel::Set(FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation, UNiagaraSystem& InOwningSystem)
-{
-	if (&OwningSystem != &InOwningSystem)
-	{
-		return false;
-	}
 
-	SetEmitterHandle(InEmitterHandle);
-	SetSimulation(InSimulation);
-	
-	UNiagaraEmitter* EmitterProperties = nullptr;
-	if (InEmitterHandle != nullptr)
-	{
-		EmitterProperties = InEmitterHandle->GetInstance();
-	}
-	check(EmitterViewModel.IsValid());
-	return EmitterViewModel->Set(EmitterProperties, InSimulation);
+void FNiagaraEmitterHandleViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InOwningSystemViewModel, FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
+{
+	OwningSystemViewModelWeak = InOwningSystemViewModel;
+	EmitterHandle = InEmitterHandle;
+	UNiagaraEmitter* Emitter = EmitterHandle != nullptr ? EmitterHandle->GetInstance() : nullptr;
+	EmitterViewModel->Initialize(Emitter, InSimulation);
 }
 
-
-void FNiagaraEmitterHandleViewModel::SetEmitterHandle(FNiagaraEmitterHandle* InEmitterHandle)
+void FNiagaraEmitterHandleViewModel::Reset()
 {
-	EmitterHandle = InEmitterHandle;
+	OwningSystemViewModelWeak.Reset();
+	EmitterHandle = nullptr;
+	EmitterViewModel->Reset();
+	if (EmitterStackViewModel != nullptr)
+	{
+		EmitterStackViewModel->Finalize();
+		EmitterStackViewModel = nullptr;
+	}
+}
+
+void FNiagaraEmitterHandleViewModel::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (EmitterStackViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(EmitterStackViewModel);
+	}
 }
 
 void FNiagaraEmitterHandleViewModel::SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
 {
-	check(EmitterViewModel.IsValid());
 	EmitterViewModel->SetSimulation(InSimulation);
 }
 
@@ -90,8 +103,6 @@ FText FNiagaraEmitterHandleViewModel::GetIdText() const
 
 FText FNiagaraEmitterHandleViewModel::GetErrorText() const
 {
-	check(EmitterViewModel.IsValid());
-
 	switch (EmitterViewModel->GetLatestCompileStatus())
 	{
 	case ENiagaraScriptCompileStatus::NCS_Unknown:
@@ -106,7 +117,6 @@ FText FNiagaraEmitterHandleViewModel::GetErrorText() const
 
 FSlateColor FNiagaraEmitterHandleViewModel::GetErrorTextColor() const
 {
-	check(EmitterViewModel.IsValid());
 	switch (EmitterViewModel->GetLatestCompileStatus())
 	{
 	case ENiagaraScriptCompileStatus::NCS_Unknown:
@@ -121,7 +131,6 @@ FSlateColor FNiagaraEmitterHandleViewModel::GetErrorTextColor() const
 
 EVisibility FNiagaraEmitterHandleViewModel::GetErrorTextVisibility() const
 {
-	check(EmitterViewModel.IsValid());
 	return EmitterViewModel->GetLatestCompileStatus() != ENiagaraScriptCompileStatus::NCS_UpToDate ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
@@ -144,10 +153,11 @@ void FNiagaraEmitterHandleViewModel::SetName(FName InName)
 	if (EmitterHandle)
 	{
 		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitterEditor", "EditEmitterNameTransaction", "Edit emitter name"));
-		OwningSystem.Modify();
-		OwningSystem.RemoveSystemParametersForEmitter(*EmitterHandle);
-		EmitterHandle->SetName(InName, OwningSystem);
-		OwningSystem.RefreshSystemParametersFromEmitter(*EmitterHandle);
+		UNiagaraSystem& System = GetOwningSystemViewModel()->GetSystem();
+		System.Modify();
+		System.RemoveSystemParametersForEmitter(*EmitterHandle);
+		EmitterHandle->SetName(InName, System);
+		System.RefreshSystemParametersFromEmitter(*EmitterHandle);
 		OnPropertyChangedDelegate.Broadcast();
 		OnNameChangedDelegate.Broadcast();
 	}
@@ -160,6 +170,11 @@ FText FNiagaraEmitterHandleViewModel::GetNameText() const
 		return FText::FromName(EmitterHandle->GetName());
 	}
 	return FText();
+}
+
+bool FNiagaraEmitterHandleViewModel::CanRenameEmitter() const
+{
+	return GetOwningSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset;
 }
 
 void FNiagaraEmitterHandleViewModel::OnNameTextComitted(const FText& InText, ETextCommit::Type CommitInfo)
@@ -192,10 +207,15 @@ void FNiagaraEmitterHandleViewModel::SetIsEnabled(bool bInIsEnabled)
 	if (EmitterHandle && EmitterHandle->GetIsEnabled() != bInIsEnabled)
 	{
 		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitterEditor", "EditEmitterEnabled", "Change emitter enabled state"));
-		OwningSystem.Modify();
+		GetOwningSystemViewModel()->GetSystem().Modify();
 		EmitterHandle->SetIsEnabled(bInIsEnabled);
 		OnPropertyChangedDelegate.Broadcast();
 	}
+}
+
+bool FNiagaraEmitterHandleViewModel::GetIsIsolated() const
+{
+	return EmitterHandle != nullptr && EmitterHandle->IsIsolated();
 }
 
 ECheckBoxState FNiagaraEmitterHandleViewModel::GetIsEnabledCheckState() const
@@ -217,9 +237,29 @@ FNiagaraEmitterHandle* FNiagaraEmitterHandleViewModel::GetEmitterHandle()
 	return EmitterHandle;
 }
 
-TSharedPtr<FNiagaraEmitterViewModel> FNiagaraEmitterHandleViewModel::GetEmitterViewModel()
+TSharedRef<FNiagaraEmitterViewModel> FNiagaraEmitterHandleViewModel::GetEmitterViewModel()
 {
 	return EmitterViewModel;
+}
+
+UNiagaraStackViewModel* FNiagaraEmitterHandleViewModel::GetEmitterStackViewModel()
+{
+	if (EmitterStackViewModel == nullptr)
+	{
+		EmitterStackViewModel = NewObject<UNiagaraStackViewModel>(GetTransientPackage());
+		EmitterStackViewModel->InitializeWithViewModels(GetOwningSystemViewModel(), this->AsShared(), FNiagaraStackViewModelOptions(false, true));
+	}
+	return EmitterStackViewModel;
+}
+
+bool FNiagaraEmitterHandleViewModel::GetIsRenamePending() const
+{
+	return bIsRenamePending;
+}
+
+void FNiagaraEmitterHandleViewModel::SetIsRenamePending(bool bInIsRenamePending)
+{
+	bIsRenamePending = bInIsRenamePending;
 }
 
 FNiagaraEmitterHandleViewModel::FOnPropertyChanged& FNiagaraEmitterHandleViewModel::OnPropertyChanged()
