@@ -15,7 +15,7 @@
 #include "ToolMenusBlueprintLibrary.generated.h"
 
 UCLASS()
-class TOOLMENUS_API UToolMenuContextExtensions : public UBlueprintFunctionLibrary
+class UToolMenuContextExtensions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -26,7 +26,7 @@ public:
 };
 
 UCLASS()
-class TOOLMENUS_API UToolMenuEntryExtensions : public UBlueprintFunctionLibrary
+class UToolMenuEntryExtensions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -73,7 +73,7 @@ public:
 };
 
 UCLASS()
-class TOOLMENUS_API UToolMenuSectionExtensions : public UBlueprintFunctionLibrary
+class UToolMenuSectionExtensions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

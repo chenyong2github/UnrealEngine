@@ -785,9 +785,19 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 
 	if (FSlateApplication::IsInitialized() && UToolMenus::IsToolMenuUIEnabled())
 	{
-		UToolMenus::Get()->SetTimerManager(TimerManager.ToSharedRef());
+		TWeakPtr<FTimerManager> WeakTimerManager;
+		UToolMenus::Get()->AssignSetTimerForNextTickDelegate(FSimpleDelegate::CreateLambda([WeakTimerManager]()
+		{
+			if (WeakTimerManager.IsValid())
+			{
+				WeakTimerManager.Pin()->SetTimerForNextTick(UToolMenus::Get(), &UToolMenus::HandleNextTick);
+			}
+		}));
+
 		UToolMenus::Get()->ShouldDisplayExtensionPoints.BindStatic(&GetDisplayMultiboxHooks);
-		UToolMenus::Get()->RegisterStringCommandHandler("Command", FToolMenuExecuteString::CreateLambda([](const FString& InString, const FToolMenuContext& InContext) {
+
+		UToolMenus::Get()->RegisterStringCommandHandler("Command", FToolMenuExecuteString::CreateLambda([](const FString& InString, const FToolMenuContext& InContext)
+		{
 			GEditor->Exec(nullptr, *InString);
 		}));
 	}

@@ -8,8 +8,7 @@
 #include "ToolMenuDelegates.h"
 #include "ToolMenuSection.h"
 #include "ToolMenuContext.h"
-
-#include "Factories/Factory.h"
+#include "UObject/Object.h"
 
 #include "ToolMenu.generated.h"
 

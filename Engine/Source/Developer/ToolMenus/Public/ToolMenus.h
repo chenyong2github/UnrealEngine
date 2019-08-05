@@ -273,8 +273,11 @@ public:
 	/** Removes a string based command handler. */
 	void UnregisterStringCommandHandler(const FName InName);
 	
-	/** Sets timer manager to be used for deferred one off ticks */
-	void SetTimerManager(const TSharedRef<class FTimerManager>& InTimerManager);
+	/** Sets delegate to setup timer for deferred one off ticks */
+	void AssignSetTimerForNextTickDelegate(const FSimpleDelegate& InDelegate);
+
+	/** Timer function used to consolidate multiple duplicate requests into a single frame. */
+	void HandleNextTick();
 
 	/** Displaying extension points is for debugging menus */
 	DECLARE_DELEGATE_RetVal(bool, FShouldDisplayExtensionPoints);
@@ -293,9 +296,6 @@ private:
 
 	/** Sets a timer to be called next engine tick so that multiple repeated actions can be combined together. */
 	void SetNextTickTimer();
-
-	/** Timer function used to consolidate multiple duplicate requests into a single frame. */
-	void HandleNextTick();
 
 	/** Release references to UObjects of widgets that have been deleted. Combines multiple requests in one frame together for improved performance. */
 	void CleanupStaleWidgetsNextTick();
@@ -372,7 +372,7 @@ private:
 
 	TMap<FName, FToolMenuExecuteString> StringCommandHandlers;
 
-	TWeakPtr<class FTimerManager> TimerManager;
+	FSimpleDelegate SetTimerForNextTickDelegate;
 
 	bool bNextTickTimerIsSet;
 	bool bRefreshWidgetsNextTick;

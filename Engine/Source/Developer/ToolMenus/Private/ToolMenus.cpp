@@ -11,7 +11,6 @@
 #include "Internationalization/Internationalization.h"
 
 #include "HAL/PlatformApplicationMisc.h" // For clipboard
-#include "TimerManager.h" // For deferred one off ticks
 
 #define LOCTEXT_NAMESPACE "ToolMenuSubsystem"
 
@@ -1190,9 +1189,9 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	return SNullWidget::NullWidget;
 }
 
-void UToolMenus::SetTimerManager(const TSharedRef<class FTimerManager>& InTimerManager)
+void UToolMenus::AssignSetTimerForNextTickDelegate(const FSimpleDelegate& InDelegate)
 {
-	TimerManager = InTimerManager;
+	SetTimerForNextTickDelegate = InDelegate;
 }
 
 void UToolMenus::SetNextTickTimer()
@@ -1201,10 +1200,7 @@ void UToolMenus::SetNextTickTimer()
 	{
 		bNextTickTimerIsSet = true;
 
-		if (TimerManager.IsValid())
-		{
-			TimerManager.Pin()->SetTimerForNextTick(this, &UToolMenus::HandleNextTick);
-		}
+		SetTimerForNextTickDelegate.ExecuteIfBound();
 	}
 }
 
