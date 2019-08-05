@@ -27,26 +27,16 @@ AStaticMeshActor::AStaticMeshActor(const FObjectInitializer& ObjectInitializer)
 {
 	bCanBeDamaged = false;
 
-	SetStaticMeshComponent(CreateOptionalDefaultSubobject<UStaticMeshComponent>(AStaticMeshActor::StaticMeshComponentName));
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(StaticMeshComponentName);
+	StaticMeshComponent->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	StaticMeshComponent->Mobility = EComponentMobility::Static;
+	StaticMeshComponent->SetGenerateOverlapEvents(false);
+	StaticMeshComponent->bUseDefaultCollision = true;
+
+	RootComponent = StaticMeshComponent;
 	
 	// Only actors that are literally static mesh actors can be placed in clusters, native subclasses or BP subclasses are not safe by default
 	bCanBeInCluster = (GetClass() == AStaticMeshActor::StaticClass());
-}
-
-void AStaticMeshActor::SetStaticMeshComponent(UStaticMeshComponent* InStaticMeshComponent)
-{
-	check(StaticMeshComponent == nullptr); // Should not have been already initialized.
-
-	StaticMeshComponent = InStaticMeshComponent;
-	if(StaticMeshComponent)
-	{
-		StaticMeshComponent->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
-		StaticMeshComponent->Mobility = EComponentMobility::Static;
-		StaticMeshComponent->SetGenerateOverlapEvents(false);
-		StaticMeshComponent->bUseDefaultCollision = true;
-
-		RootComponent = StaticMeshComponent;
-	}
 }
 
 void AStaticMeshActor::BeginPlay()
