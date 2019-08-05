@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "VulkanRHIPrivate.h"
+#include "BuildSettings.h"
 #include "HardwareInfo.h"
 #include "VulkanShaderResources.h"
 #include "VulkanResources.h"
@@ -369,7 +370,7 @@ void FVulkanDynamicRHI::CreateInstance()
 	VkApplicationInfo AppInfo;
 	ZeroVulkanStruct(AppInfo, VK_STRUCTURE_TYPE_APPLICATION_INFO);
 	AppInfo.pApplicationName = bDisableEngineRegistration ? nullptr : ProjectNameConverter.Get();
-	AppInfo.applicationVersion = 0;	// Do we want FApp::GetBuildVersion() ?
+	AppInfo.applicationVersion = static_cast<uint32>(BuildSettings::GetCurrentChangelist()) | (BuildSettings::IsLicenseeVersion() ? 0x80000000 : 0);
 	AppInfo.pEngineName = bDisableEngineRegistration ? nullptr : EngineNameConverter.Get();
 	AppInfo.engineVersion = FEngineVersion::Current().GetMinor();
 	AppInfo.apiVersion = UE_VK_API_VERSION;
@@ -683,6 +684,7 @@ void FVulkanDynamicRHI::InitInstance()
 
 		// Initialize the RHI capabilities.
 		GRHISupportsFirstInstance = true;
+		GRHISupportsDynamicResolution = FVulkanPlatform::SupportsDynamicResolution();
 		GSupportsDepthBoundsTest = Device->GetPhysicalFeatures().depthBounds != 0;
 		GSupportsRenderTargetFormat_PF_G8 = false;	// #todo-rco
 		GRHISupportsTextureStreaming = true;

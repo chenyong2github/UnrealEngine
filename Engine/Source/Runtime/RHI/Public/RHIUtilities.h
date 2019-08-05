@@ -55,6 +55,75 @@ static inline bool IsStencilFormat(EPixelFormat Format)
 	return false;
 }
 
+/** Encapsulates a GPU read/write texture with its UAV and SRV. */
+struct FTextureRWBuffer
+{
+	FTexture2DRHIRef Buffer;
+	FUnorderedAccessViewRHIRef UAV;
+	FShaderResourceViewRHIRef SRV;
+	uint32 NumBytes;
+
+	FTextureRWBuffer()
+		: NumBytes(0)
+	{}
+
+	~FTextureRWBuffer()
+	{
+		Release();
+	}
+
+	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
+	void Initialize(uint32 SizeX, uint32 SizeY)
+	{
+		check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5
+			|| IsVulkanPlatform(GMaxRHIShaderPlatform)
+			|| IsMetalPlatform(GMaxRHIShaderPlatform)
+			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
+		);		
+				
+		// #todo(dmp): hardcoded for now...
+		uint32 BlockBytes = 16;
+
+		NumBytes = SizeX * SizeY * BlockBytes;
+
+		FRHIResourceCreateInfo CreateInfo;
+		Buffer = RHICreateTexture2D(
+			SizeX, SizeY, PF_A32B32G32R32F,
+			/*NumMips=*/ 1,
+			1,
+			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
+			/*BulkData=*/ CreateInfo);
+
+							
+		UAV = RHICreateUnorderedAccessView(Buffer, 0);
+		SRV = RHICreateShaderResourceView(Buffer, 0);
+	}
+
+	void AcquireTransientResource()
+	{
+		RHIAcquireTransientResource(Buffer);
+	}
+	void DiscardTransientResource()
+	{
+		RHIDiscardTransientResource(Buffer);
+	}
+
+	void Release()
+	{
+		int32 BufferRefCount = Buffer ? Buffer->GetRefCount() : -1;
+
+		if (BufferRefCount == 1)
+		{
+			DiscardTransientResource();
+		}
+
+		NumBytes = 0;
+		Buffer.SafeRelease();
+		UAV.SafeRelease();
+		SRV.SafeRelease();
+	}
+};
+
 
 /** Encapsulates a GPU read/write buffer with its UAV and SRV. */
 struct FRWBuffer

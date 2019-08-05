@@ -22,17 +22,6 @@ UEditableStaticMeshAdapter::UEditableStaticMeshAdapter()
 {
 }
 
-void UEditableStaticMeshAdapter::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-	if (StaticMesh)
-	{
-		StaticMesh->ReleaseResources();
-	}
-}
-
-
 
 void UEditableStaticMeshAdapter::EnsureIndexBufferIs32Bit()
 {

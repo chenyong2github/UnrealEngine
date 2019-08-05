@@ -565,6 +565,31 @@ bool UNiagaraComponent::IsPaused()const
 	return false;
 }
 
+UNiagaraDataInterface * UNiagaraComponent::GetDataInterface(const FString &Name)
+{
+
+	// @todo-threadsafety Think of a better way to do this!
+	if (!SystemInstance || SystemInstance->GetEmitters().Num() == 0 || !SystemInstance->GetEmitters()[0]->GetGPUContext())
+	{
+		return nullptr;
+	}
+	
+	FNiagaraComputeExecutionContext* GPUContext = SystemInstance->GetEmitters()[0]->GetGPUContext();
+	const TArray<FNiagaraScriptDataInterfaceCompileInfo> &DataInterfaceInfo = GPUContext->GPUScript->GetVMExecutableData().DataInterfaceInfo;
+	const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
+
+	int Index = 0;
+	for (UNiagaraDataInterface* Interface : DataInterfaces)
+	{
+		if (DataInterfaceInfo[Index].Name.GetPlainNameString() == Name)
+		{			
+			return Interface;
+		}	
+		++Index;
+	}
+	return nullptr;
+}
+
 bool UNiagaraComponent::IsWorldReadyToRun() const
 {
 	// The niagara system instance assumes that a batcher exists when it is created. We need to wait until this has happened before successfully activating this system.

@@ -712,6 +712,9 @@ public:
 				.DisplayName(LOCTEXT("AdditionalLaunchOptionsLabel", "Command Line Arguments"))
 				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FLevelEditorPlaySettingsCustomization::HandleCmdLineVisibility)));
 
+			NetworkCategory.AddProperty("NetworkEmulationSettings")
+				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FLevelEditorPlaySettingsCustomization::HandleNetworkEmulationVisibility)));
+
 			NetworkCategory.AddCustomRow(LOCTEXT("PlayInNetworkViewportSize", "Multiplayer Viewport Size"), false)
 				.NameContent()
 				[
@@ -908,6 +911,12 @@ private:
 	EVisibility HandlePlayNetModeVisibility( ) const
 	{
 		return GetDefault<ULevelEditorPlaySettings>()->GetPlayNetModeVisibility();
+	}
+
+	// Callback for checking if the Network Emulation can be used
+	EVisibility HandleNetworkEmulationVisibility() const
+	{
+		return GetDefault<ULevelEditorPlaySettings>()->GetNetworkEmulationVisibility();
 	}
 
 	// Callback for getting the visibility of the StandaloneServerMapName property.

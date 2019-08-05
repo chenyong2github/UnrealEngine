@@ -23,7 +23,34 @@ namespace ListConstants
 	static const float OvershootBounceRate = 250.0f;
 }
 
-void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InHeaderRow, const TSharedPtr<SScrollBar>& InScrollBar, const FOnTableViewScrolled& InOnTableViewScrolled )
+
+FTableViewDimensions::FTableViewDimensions(EOrientation InOrientation)
+	: Orientation(InOrientation)
+{
+}
+
+
+FTableViewDimensions::FTableViewDimensions(EOrientation InOrientation, float X, float Y)
+	: FTableViewDimensions(InOrientation, FVector2D(X, Y))
+{
+}
+
+FTableViewDimensions::FTableViewDimensions(EOrientation InOrientation, const FVector2D& Size)
+	: FTableViewDimensions(InOrientation)
+{
+	if (InOrientation == Orient_Vertical)
+	{
+		LineAxis = Size.X;
+		ScrollAxis = Size.Y;
+	}
+	else
+	{
+		ScrollAxis = Size.X;
+		LineAxis = Size.Y;
+	}
+}
+
+void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InHeaderRow, const TSharedPtr<SScrollBar>& InScrollBar, EOrientation InScrollOrientation, const FOnTableViewScrolled& InOnTableViewScrolled )
 {
 	bItemsNeedRefresh = true;
 	
@@ -31,55 +58,78 @@ void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, co
 
 	OnTableViewScrolled = InOnTableViewScrolled;
 
-	// If the user provided a scrollbar, we do not need to make one of our own.
-	if (InScrollBar.IsValid())
-	{
-		ScrollBar = InScrollBar;
-		ScrollBar->SetOnUserScrolled( FOnUserScrolled::CreateSP(this, &STableViewBase::ScrollBar_OnUserScrolled) );
-	}
-	
-	TSharedRef<SWidget> ListAndScrollbar = (!ScrollBar.IsValid())
-		// We need to make our own scrollbar
-		? StaticCastSharedRef<SWidget>
-		(
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.FillWidth(1)
-			[
-				SAssignNew( ItemsPanel, SListPanel )
-				.ItemWidth( InItemWidth )
-				.ItemHeight( InItemHeight )
-				.NumDesiredItems( this, &STableViewBase::GetNumItemsBeingObserved )
-				.ItemAlignment( InItemAlignment )
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew( SBox )
-				.WidthOverride( FOptionalSize( 16 ) )
-				[
-					SAssignNew(ScrollBar, SScrollBar)
-					.OnUserScrolled( this, &STableViewBase::ScrollBar_OnUserScrolled )
-				]
-			]
-		)
-		// The user provided us with a scrollbar; we will rely on it.
-		: StaticCastSharedRef<SWidget>
-		(
-			SAssignNew( ItemsPanel, SListPanel )
-			.ItemWidth( InItemWidth )
-			.ItemHeight( InItemHeight )
-			.NumDesiredItems( this, &STableViewBase::GetNumItemsBeingObserved )
-			.ItemAlignment( InItemAlignment )
-		);
+	Orientation = InHeaderRow ? Orient_Vertical : InScrollOrientation;
+	UE_CLOG(InScrollOrientation != Orientation, LogSlate, Error, TEXT("STableViewBase does not support horizontal scrolling when displaying a header row"));
 
-	if (InHeaderRow.IsValid())
+	ItemsPanel = SNew(SListPanel)
+		.ItemWidth(InItemWidth)
+		.ItemHeight(InItemHeight)
+		.NumDesiredItems(this, &STableViewBase::GetNumItemsBeingObserved)
+		.ItemAlignment(InItemAlignment)
+		.ListOrientation(Orientation);
+
+	TSharedPtr<SWidget> ListAndScrollbar;
+	if (InScrollBar)
+	{
+		// The user provided us with a scrollbar; we will rely on it.
+		ScrollBar = InScrollBar;
+		ScrollBar->SetOnUserScrolled(FOnUserScrolled::CreateSP(this, &STableViewBase::ScrollBar_OnUserScrolled));
+		
+		ListAndScrollbar = ItemsPanel;
+	}
+	else
+	{
+		ScrollBar = SNew(SScrollBar)
+			.OnUserScrolled(this, &STableViewBase::ScrollBar_OnUserScrolled)
+			.Orientation(Orientation);
+
+		const FOptionalSize ScrollBarSize(16.f);
+
+		if (Orientation == Orient_Vertical)
+		{
+			ListAndScrollbar = SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.FillWidth(1)
+				[
+					ItemsPanel.ToSharedRef()
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride( FOptionalSize( 16 ) )
+					[
+						ScrollBar.ToSharedRef()
+					]
+				];
+		}
+		else
+		{
+			ListAndScrollbar = SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.FillHeight(1)
+				[
+					ItemsPanel.ToSharedRef()
+				]
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SBox)
+					.HeightOverride(ScrollBarSize)
+					[
+						ScrollBar.ToSharedRef()
+					]
+				];
+		}
+	}
+
+	if (InHeaderRow)
 	{
 		// Only associate the scrollbar if we created it.
 		// If the scrollbar was passed in from outside then it won't appear under our header row so doesn't need compensating for.
-		if (!InScrollBar.IsValid())
+		if (!InScrollBar)
 		{
-			InHeaderRow->SetAssociatedVerticalScrollBar( ScrollBar.ToSharedRef(), 16 );
+			InHeaderRow->SetAssociatedVerticalScrollBar(ScrollBar.ToSharedRef(), 16.f);
 		}
 
 		this->ChildSlot
@@ -93,7 +143,7 @@ void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, co
 			+SVerticalBox::Slot()
 			.FillHeight(1)
 			[
-				ListAndScrollbar
+				ListAndScrollbar.ToSharedRef()
 			]
 		];
 	}
@@ -101,7 +151,7 @@ void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, co
 	{
 		this->ChildSlot
 		[
-			ListAndScrollbar
+			ListAndScrollbar.ToSharedRef()
 		];
 	}
 	
@@ -125,49 +175,6 @@ void STableViewBase::OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEven
 	SCompoundWidget::OnMouseCaptureLost(CaptureLostEvent);
 
 	bShowSoftwareCursor = false;
-}
-
-struct FEndOfListResult
-{
-	FEndOfListResult( float InOffset, float InItemsAboveView )
-	: OffsetFromEndOfList(InOffset)
-	, ItemsAboveView(InItemsAboveView)
-	{
-
-	}
-
-	float OffsetFromEndOfList;
-	float ItemsAboveView;
-};
-
-static FEndOfListResult ComputeOffsetForEndOfList( const FGeometry& ListPanelGeometry, const FChildren& ListPanelChildren )
-{
-	float OffsetFromEndOfList = 0.0f;
-	float AvailableSpace = ListPanelGeometry.GetLocalSize().Y;
-	float ItemsAboveView = 0.0f;
-	for ( int ChildIndex=ListPanelChildren.Num()-1; ChildIndex >= 0; --ChildIndex )
-	{
-		const float CurChildHeight = ListPanelChildren.GetChildAt(ChildIndex)->GetDesiredSize().Y;
-		if (AvailableSpace == 0)
-		{
-			ItemsAboveView ++;
-		}
-
-		if ( CurChildHeight < AvailableSpace )
-		{
-			// This whole child fits
-			OffsetFromEndOfList += 1;
-			AvailableSpace -= CurChildHeight;
-		}
-		else
-		{
-			OffsetFromEndOfList += AvailableSpace / CurChildHeight;
-			ItemsAboveView += (CurChildHeight - AvailableSpace)/CurChildHeight;
-			AvailableSpace = 0;
-		}
-	}
-
-	return FEndOfListResult( OffsetFromEndOfList, ItemsAboveView );
 }
 
 EActiveTimerReturnType STableViewBase::UpdateInertialScroll(double InCurrentTime, float InDeltaTime)
@@ -241,39 +248,49 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 		if ( bItemsNeedRefresh || PanelGeometryLastTick.GetLocalSize() != PanelGeometry.GetLocalSize())
 		{
 			PanelGeometryLastTick = PanelGeometry;
+			
+			const int32 NumItemsPerLine = GetNumItemsPerLine();
+			const EScrollIntoViewResult ScrollIntoViewResult = ScrollIntoView(PanelGeometry);
 
-			// We never create the ItemsPanel if the user did not specify all the parameters required to successfully make a list.
-			const EScrollIntoViewResult ScrollIntoViewResult = ScrollIntoView( PanelGeometry );
+			double TargetScrollOffset = GetTargetScrollOffset();
+
+			if (bEnableAnimatedScrolling)
+			{
+				CurrentScrollOffset = FMath::FInterpTo(CurrentScrollOffset, TargetScrollOffset, InDeltaTime, 12.f);
+				if (FMath::IsNearlyEqual(CurrentScrollOffset, TargetScrollOffset, 0.01))
+				{
+					CurrentScrollOffset = TargetScrollOffset;
+				}
+			}
+			else
+			{
+				CurrentScrollOffset = TargetScrollOffset;
+			}
 
 			const FReGenerateResults ReGenerateResults = ReGenerateItems( PanelGeometry );
 			LastGenerateResults = ReGenerateResults;
 
 			const int32 NumItemsBeingObserved = GetNumItemsBeingObserved();
+			const int32 NumItemLines = NumItemsBeingObserved / NumItemsPerLine;
 
-			const int32 NumItemsWide = GetNumItemsWide();
-			const int32 NumItemRows = NumItemsBeingObserved / NumItemsWide;
-
-			const bool bEnoughRoomForAllItems = ReGenerateResults.ExactNumRowsOnScreen >= NumItemRows;
+			const double InitialDesiredOffset = DesiredScrollOffset;
+			const bool bEnoughRoomForAllItems = ReGenerateResults.ExactNumLinesOnScreen >= NumItemLines;
 			if (bEnoughRoomForAllItems)
 			{
 				// We can show all the items, so make sure there is no scrolling.
-				ScrollOffset = 0;
+				SetScrollOffset(0.0);
+				CurrentScrollOffset = TargetScrollOffset = DesiredScrollOffset;
 			}
-			else if ( ReGenerateResults.bGeneratedPastLastItem )
+			else if (ReGenerateResults.bGeneratedPastLastItem)
 			{
-				ScrollOffset = ReGenerateResults.NewScrollOffset;
+				SetScrollOffset(FMath::Max(0.0, ReGenerateResults.NewScrollOffset));
+				CurrentScrollOffset = TargetScrollOffset = DesiredScrollOffset;
 			}
-
-			// Compute SmoothScrollOffset before SetScrollOffset(). This is becasue SetScrollOffset() modifies the ScrollOffset (double downcast to float).
-			// We need original value in computation of SmoothScrollOffset.
-			double SmoothScrollOffset = ScrollOffset / GetNumItemsWide();
-			SmoothScrollOffset = SmoothScrollOffset - (int64)SmoothScrollOffset; // get fractional part
-
-			SetScrollOffset(FMath::Max(0.0, ScrollOffset));
-
-			// FMath::Fractional() is buggy as it casts to int32 (too small for the integer part of float).
-			//ItemsPanel->SmoothScrollOffset(FMath::Fractional(ScrollOffset / GetNumItemsWide()));
-			ItemsPanel->SmoothScrollOffset(SmoothScrollOffset);
+			
+			// FMath::Fractional() is insufficient here as it casts to int32 (too small for the integer part of a float when the scroll offset is enormous), so we do a double/int64 version here.
+			double FirstLineScrollOffset = CurrentScrollOffset / NumItemsPerLine;
+			FirstLineScrollOffset = FirstLineScrollOffset - (int64)FirstLineScrollOffset;
+			ItemsPanel->SetFirstLineScrollOffset(FirstLineScrollOffset);
 
 			if (AllowOverscroll == EAllowOverscroll::Yes)
 			{
@@ -286,20 +303,20 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 			// Update scrollbar
 			if (NumItemsBeingObserved > 0)
 			{
-				if (ReGenerateResults.ExactNumRowsOnScreen < 1.0f)
+				if (ReGenerateResults.ExactNumLinesOnScreen < 1.0f)
 				{
 					// We are be observing a single row which is larger than the available visible area, so we should calculate thumb size based on that
-					const double VisibleSizeFraction = AllottedGeometry.GetLocalSize().Y / ReGenerateResults.HeightOfGeneratedItems;
+					const double VisibleSizeFraction = AllottedGeometry.GetLocalSize().Y / ReGenerateResults.LengthOfGeneratedItems;
 					const double ThumbSizeFraction = FMath::Min(VisibleSizeFraction, 1.0);
-					const double OffsetFraction = ScrollOffset / NumItemsBeingObserved;
+					const double OffsetFraction = CurrentScrollOffset / NumItemsBeingObserved;
 					ScrollBar->SetState( OffsetFraction, ThumbSizeFraction );
 				}
 				else
 				{
 					// The thumb size is whatever fraction of the items we are currently seeing (including partially seen items).
 					// e.g. if we are seeing 0.5 of the first generated widget and 0.75 of the last widget, that's 1.25 widgets.
-					const double ThumbSizeFraction = ReGenerateResults.ExactNumRowsOnScreen / NumItemRows;
-					const double OffsetFraction = ScrollOffset / NumItemsBeingObserved;
+					const double ThumbSizeFraction = ReGenerateResults.ExactNumLinesOnScreen / NumItemLines;
+					const double OffsetFraction = CurrentScrollOffset / NumItemsBeingObserved;
 					ScrollBar->SetState( OffsetFraction, ThumbSizeFraction );
 				}
 			}
@@ -317,7 +334,7 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 
 			Invalidate(EInvalidateWidget::ChildOrder);
 
-			if (ScrollIntoViewResult == EScrollIntoViewResult::Deferred)
+			if (ScrollIntoViewResult == EScrollIntoViewResult::Deferred || CurrentScrollOffset != TargetScrollOffset)
 			{
 				// We call this rather than just leave bItemsNeedRefresh as true to ensure that EnsureTickToRefresh is registered
 				RequestLayoutRefresh();
@@ -435,7 +452,12 @@ FReply STableViewBase::OnMouseMove( const FGeometry& MyGeometry, const FPointerE
 {	
 	if( MouseEvent.IsMouseButtonDown( EKeys::RightMouseButton ) && !MouseEvent.IsTouchEvent())
 	{
-		const float ScrollByAmount = MouseEvent.GetCursorDelta().Y / MyGeometry.Scale;
+		// We only care about deltas along the scroll axis
+		FTableViewDimensions CursorDeltaDimensions(Orientation, MouseEvent.GetCursorDelta());
+		CursorDeltaDimensions.LineAxis = 0.f;
+		
+		const float ScrollByAmount = CursorDeltaDimensions.ScrollAxis / MyGeometry.Scale;
+
 		// If scrolling with the right mouse button, we need to remember how much we scrolled.
 		// If we did not scroll at all, we will bring up the context menu when the mouse is released.
 		AmountScrolledWhileRightMouseDown += FMath::Abs( ScrollByAmount );
@@ -469,7 +491,7 @@ FReply STableViewBase::OnMouseMove( const FGeometry& MyGeometry, const FPointerE
 			// Check if the mouse has moved.
 			if( AmountScrolled != 0 )
 			{
-				SoftwareCursorPosition.Y += ScrollByAmount;
+				SoftwareCursorPosition += CursorDeltaDimensions.ToVector2D();
 			}
 
 			return Reply;
@@ -517,20 +539,24 @@ FReply STableViewBase::OnMouseWheel( const FGeometry& MyGeometry, const FPointer
 		// Make sure scroll velocity is cleared so it doesn't fight with the mouse wheel input
 		this->InertialScrollManager.ClearScrollVelocity();
 
-		const float AmountScrolledInItems = this->ScrollBy( MyGeometry, -MouseEvent.GetWheelDelta() * WheelScrollMultiplier, EAllowOverscroll::No );
-
-		switch ( ConsumeMouseWheel )
+		float AmountScrolledInItems = 0.f;
+		if (FixedLineScrollOffset.IsSet())
 		{
-		case EConsumeMouseWheel::Always:
-			return FReply::Handled();
-		case EConsumeMouseWheel::WhenScrollingPossible: //default behavior
-		default:
-			if ( FMath::Abs( AmountScrolledInItems ) > 0.0f )
-			{
-				return FReply::Handled();
-			}
+			// When we need to maintain a fixed offset, we scroll by items. This prevents the list not moving or jumping unexpectedly far on an individual scroll wheel motion.
+			const double AdditionalOffset = (MouseEvent.GetWheelDelta() >= 0.f ? -1.f : 1.f) * GetNumItemsPerLine();
+			const double NewScrollOffset = FMath::Max(0., DesiredScrollOffset + AdditionalOffset);
+			AmountScrolledInItems = this->ScrollTo(NewScrollOffset);
+		}
+		else
+		{
+			// No required offset to maintain, so we scroll by units
+			AmountScrolledInItems = this->ScrollBy(MyGeometry, -MouseEvent.GetWheelDelta() * WheelScrollMultiplier, EAllowOverscroll::No);
 		}
 		
+		if (ConsumeMouseWheel == EConsumeMouseWheel::Always || (FMath::Abs(AmountScrolledInItems) > 0.0f && ConsumeMouseWheel != EConsumeMouseWheel::Never))
+		{
+			return FReply::Handled();
+		}
 	}
 	return FReply::Unhandled();
 }
@@ -543,8 +569,6 @@ FReply STableViewBase::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& 
 		ScrollToBottom();
 		return FReply::Handled();
 	}
-
-
 	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent); 
 }
 
@@ -678,7 +702,6 @@ int32 STableViewBase::OnPaint( const FPaintArgs& Args, const FGeometry& Allotted
 
 STableViewBase::STableViewBase( ETableViewMode::Type InTableViewMode )
 	: TableViewMode( InTableViewMode )
-	, ScrollOffset( 0 )
 	, bStartedTouchInteraction( false )
 	, AmountScrolledWhileRightMouseDown( 0 )
 	, TickScrollDelta( 0 )
@@ -694,12 +717,26 @@ STableViewBase::STableViewBase( ETableViewMode::Type InTableViewMode )
 	, ConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible)
 	, bItemsNeedRefresh( false )	
 {
+	FixedLineScrollOffset = 0.25f;
+}
+
+double STableViewBase::GetTargetScrollOffset() const
+{
+	if (FixedLineScrollOffset.IsSet() && !IsRightClickScrolling() && InertialScrollManager.GetScrollVelocity() == 0.f)
+	{
+		const int32 NumItemsPerLine = GetNumItemsPerLine();
+		const double DesiredLineOffset = FMath::FloorToDouble(DesiredScrollOffset / NumItemsPerLine) - FixedLineScrollOffset.GetValue();
+		
+		//return FMath::Max(0.0, FMath::CeilToDouble(DesiredScrollOffset) - AdditionalOffset);
+		return FMath::Max(0.0, DesiredLineOffset * NumItemsPerLine);
+	}
+	return DesiredScrollOffset;
 }
 
 float STableViewBase::ScrollBy(const FGeometry& MyGeometry, float ScrollByAmountInSlateUnits, EAllowOverscroll InAllowOverscroll)
 {
 	const int32 NumItemsBeingObserved = GetNumItemsBeingObserved();
-	const float FractionalScrollOffsetInItems = (ScrollOffset + GetScrollRateInItems() * ScrollByAmountInSlateUnits) / NumItemsBeingObserved;
+	const float FractionalScrollOffsetInItems = (DesiredScrollOffset + GetScrollRateInItems() * ScrollByAmountInSlateUnits) / NumItemsBeingObserved;
 	const double ClampedScrollOffsetInItems = FMath::Clamp<double>( FractionalScrollOffsetInItems*NumItemsBeingObserved, -10.0f, NumItemsBeingObserved+10.0f ) * NumItemsBeingObserved;
 	if (InAllowOverscroll == EAllowOverscroll::Yes)
 	{
@@ -711,11 +748,11 @@ float STableViewBase::ScrollBy(const FGeometry& MyGeometry, float ScrollByAmount
 float STableViewBase::ScrollTo( float InScrollOffset)
 {
 	const float NewScrollOffset = FMath::Clamp( InScrollOffset, -10.0f, GetNumItemsBeingObserved()+10.0f );
-	float AmountScrolled = FMath::Abs( ScrollOffset - NewScrollOffset );
+	float AmountScrolled = FMath::Abs( DesiredScrollOffset - NewScrollOffset );
 
 	SetScrollOffset( NewScrollOffset );
 	
-	if ( bWasAtEndOfList && NewScrollOffset >= ScrollOffset )
+	if ( bWasAtEndOfList && NewScrollOffset >= DesiredScrollOffset )
 	{
 		AmountScrolled = 0;
 	}
@@ -725,15 +762,16 @@ float STableViewBase::ScrollTo( float InScrollOffset)
 
 float STableViewBase::GetScrollOffset() const
 {
-	return ScrollOffset;
+	return DesiredScrollOffset;
 }
 
 void STableViewBase::SetScrollOffset( const float InScrollOffset )
 {
-	if ( ScrollOffset != InScrollOffset )
+	const float InValidatedOffset = FMath::Max(0.0f, InScrollOffset);
+	if (DesiredScrollOffset != InValidatedOffset)
 	{
-		ScrollOffset = InScrollOffset;
-		OnTableViewScrolled.ExecuteIfBound( ScrollOffset );
+		DesiredScrollOffset = InValidatedOffset;
+		OnTableViewScrolled.ExecuteIfBound(DesiredScrollOffset);
 		RequestLayoutRefresh();
 	}
 }
@@ -747,10 +785,10 @@ void STableViewBase::AddScrollOffset(const float InScrollOffsetDelta, bool Refre
 {
 	if (FMath::IsNearlyEqual(InScrollOffsetDelta, 0.0f) == false)
 	{
-		ScrollOffset += InScrollOffsetDelta;
+		DesiredScrollOffset += InScrollOffsetDelta;
 		if (RefreshList)
 		{
-			OnTableViewScrolled.ExecuteIfBound(ScrollOffset);
+			OnTableViewScrolled.ExecuteIfBound(DesiredScrollOffset);
 			RequestLayoutRefresh();
 		}
 	}
@@ -764,6 +802,25 @@ void STableViewBase::SetScrollbarVisibility(const EVisibility InVisibility)
 	}
 }
 
+void STableViewBase::SetFixedLineScrollOffset(TOptional<double> InFixedLineScrollOffset)
+{
+	if (FixedLineScrollOffset != InFixedLineScrollOffset)
+	{
+		FixedLineScrollOffset = InFixedLineScrollOffset;
+		RequestLayoutRefresh();
+	}
+}
+
+void STableViewBase::SetIsScrollAnimationEnabled(bool bInEnableScrollAnimation)
+{
+	bEnableAnimatedScrolling = bInEnableScrollAnimation;
+}
+
+void STableViewBase::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
+{
+	WheelScrollMultiplier = NewWheelScrollMultiplier;
+}
+
 void STableViewBase::InsertWidget( const TSharedRef<ITableRow> & WidgetToInset )
 {
 	ItemsPanel->AddSlot(0)
@@ -772,11 +829,6 @@ void STableViewBase::InsertWidget( const TSharedRef<ITableRow> & WidgetToInset )
 	];
 }
 
-/**
- * Add a widget to the view.
- *
- * @param WidgetToAppend   Widget to append to the view.
- */
 void STableViewBase::AppendWidget( const TSharedRef<ITableRow>& WidgetToAppend )
 {
 	ItemsPanel->AddSlot()
@@ -785,9 +837,6 @@ void STableViewBase::AppendWidget( const TSharedRef<ITableRow>& WidgetToAppend )
 	];
 }
 
-/**
- * Remove all the widgets from the view.
- */
 void STableViewBase::ClearWidgets()
 {
 	ItemsPanel->ClearItems();
@@ -805,7 +854,9 @@ float STableViewBase::GetItemHeight() const
 
 FVector2D STableViewBase::GetItemSize() const
 {
-	return ItemsPanel->GetItemSize(PanelGeometryLastTick) + FVector2D(ItemsPanel->GetItemPadding(PanelGeometryLastTick), 0.0f);
+	FTableViewDimensions ItemDimensions = ItemsPanel->GetItemSize(PanelGeometryLastTick);
+	ItemDimensions.LineAxis += ItemsPanel->GetItemPadding(PanelGeometryLastTick);
+	return ItemDimensions.ToVector2D();
 }
 
 void STableViewBase::SetItemHeight(TAttribute<float> Height)
@@ -823,7 +874,7 @@ float STableViewBase::GetNumLiveWidgets() const
 	return ItemsPanel->GetChildren()->Num();
 }
 
-int32 STableViewBase::GetNumItemsWide() const
+int32 STableViewBase::GetNumItemsPerLine() const
 {
 	return 1;
 }
@@ -858,9 +909,9 @@ void STableViewBase::OnRightMouseButtonUp(const FPointerEvent& MouseEvent)
 
 float STableViewBase::GetScrollRateInItems() const
 {
-	return (LastGenerateResults.HeightOfGeneratedItems != 0 && LastGenerateResults.ExactNumRowsOnScreen != 0)
+	return (LastGenerateResults.LengthOfGeneratedItems != 0 && LastGenerateResults.ExactNumLinesOnScreen != 0)
 		// Approximate a consistent scrolling rate based on the average item height.
-		? LastGenerateResults.ExactNumRowsOnScreen / LastGenerateResults.HeightOfGeneratedItems
+		? LastGenerateResults.ExactNumLinesOnScreen / LastGenerateResults.LengthOfGeneratedItems
 		// Scroll 1/2 an item at a time as a default.
 		: 0.5f;
 }

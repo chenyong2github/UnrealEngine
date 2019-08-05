@@ -21,6 +21,7 @@ public:
 
 protected:
 	// ~Begin DebugClientApiEventHandler Interface
+	virtual void InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0) override;
 	virtual void onConnectCompleted(const VivoxClientApi::Uri& Server) override;
 	virtual void onDisconnected(const VivoxClientApi::Uri& Server, const VivoxClientApi::VCSStatus& Status) override;
 	// ~End DebugClientApiEventHandler Interface

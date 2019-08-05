@@ -11,6 +11,8 @@
 #include "Chaos/UniformGrid.h"
 #include "Chaos/ISpatialAcceleration.h"
 #include "HAL/IConsoleManager.h"
+#include "Chaos/ParticleHandleFwd.h"
+#include "Templates/Models.h"
 
 #include <memory>
 #include <unordered_set>
@@ -19,6 +21,49 @@
 //#include "Engine/Engine.h"
 //#include "Engine/World.h"
 //#include "DrawDebugHelpers.h"
+
+template <typename TPayloadType>
+struct TPayloadHelper
+{
+	template <typename TParticle>
+	static TPayloadType GetPayload(TParticle& Particle, int32 Idx)
+	{
+		return Particle.Handle();
+	}
+};
+
+template <>
+struct TPayloadHelper<int32>
+{
+	template <typename TParticle>
+	static int32 GetPayload(const TParticle& Particle, int32 Idx)
+	{
+		return Idx;
+	}
+};
+
+template <typename T, bool>
+struct TSpatialAccelerationTraits
+{
+};
+
+template <typename TSOA>
+struct TSpatialAccelerationTraits<TSOA, true>
+{
+	using TPayloadType = typename TSOA::THandleType;
+};
+
+template <typename T>
+struct TSpatialAccelerationTraits<T, false>
+{
+	using TPayloadType = int32;
+};
+
+struct CParticleView
+{
+	template <typename T>
+	auto Requires(typename T::THandleType) ->void;
+};
 
 struct FBoundingVolumeCVars
 {
@@ -29,203 +74,596 @@ struct FBoundingVolumeCVars
 namespace Chaos
 {
 
-template <typename OBJECT_ARRAY, typename T, int d>
-class TBoundingVolume;
-
-template <typename OBJECT_ARRAY, typename T, int d>
-void FixupLeafObj(const OBJECT_ARRAY& Objects, TArray<TBoundingVolume<OBJECT_ARRAY, T, d>>& Leafs);
-
-template<class OBJECT_ARRAY, class T, int d>
-class TBoundingVolume final : public ISpatialAcceleration<T,d>
+template<typename TSOA, typename InPayloadType, typename T, int d>
+class TBoundingVolume final : public ISpatialAcceleration<InPayloadType, T,d>
 {
   public:
-	  static constexpr int32 DefaultMaxCells = 15;
+	using TPayloadType = InPayloadType;
+	static constexpr int32 DefaultMaxCells = 15;
 	TBoundingVolume()
-		: MObjects(nullptr)
 	{
 	}
 
-	TBoundingVolume(const OBJECT_ARRAY& Objects, const bool bUseVelocity = false, const T Dt = 0, const int32 MaxCells = DefaultMaxCells)
-	    : MObjects(&Objects)
+	template <typename ParticleView>
+	TBoundingVolume(const ParticleView& Particles, const bool bUseVelocity = false, const T Dt = 0, const int32 MaxCells = DefaultMaxCells)
 	{
-		Reinitialize(bUseVelocity, Dt, MaxCells);
+		Reinitialize(Particles, bUseVelocity, Dt, MaxCells);
 	}
 
-	TBoundingVolume(const OBJECT_ARRAY& Objects, const TArray<uint32>& ActiveIndices, const bool bUseVelocity = false, const T Dt = 0, const int32 MaxCells = DefaultMaxCells)
-	    : MObjects(&Objects)
-	{
-		check(GetObjectCount(Objects) > 0);
-		Reinitialize(ActiveIndices, bUseVelocity, Dt, MaxCells);
-	}
-
-	TBoundingVolume(TBoundingVolume<OBJECT_ARRAY, T, d>&& Other)
-		: MObjects(Other.MObjects), MGlobalObjects(MoveTemp(Other.MGlobalObjects)), MAllObjects(MoveTemp(Other.MAllObjects)), MWorldSpaceBoxes(MoveTemp(Other.MWorldSpaceBoxes)), MGrid(MoveTemp(Other.MGrid)), MElements(MoveTemp(Other.MElements)), bIsEmpty(Other.bIsEmpty)
+	TBoundingVolume(TBoundingVolume<TSOA, TPayloadType, T, d>&& Other)
+		: MGlobalPayloads(MoveTemp(Other.MGlobalPayloads)), MGrid(MoveTemp(Other.MGrid)), MElements(MoveTemp(Other.MElements)), bIsEmpty(Other.bIsEmpty)
 	{
 	}
 
 private:
-	TBoundingVolume(const TBoundingVolume<OBJECT_ARRAY, T, d>& Other)
-		: MObjects(Other.MObjects), MGlobalObjects(Other.MGlobalObjects), MAllObjects(Other.MAllObjects), MWorldSpaceBoxes(Other.MWorldSpaceBoxes), MGrid(Other.MGrid), MElements(Other.MElements.Copy()), bIsEmpty(Other.bIsEmpty)
+	TBoundingVolume(const TBoundingVolume<TSOA, TPayloadType, T, d>& Other)
+		: MGlobalPayloads(Other.MGlobalPayloads), MGrid(Other.MGrid), MElements(Other.MElements.Copy()), bIsEmpty(Other.bIsEmpty)
 	{
 	}
 
 public:
-	TBoundingVolume<OBJECT_ARRAY, T, d>& operator=(const TBoundingVolume<OBJECT_ARRAY, T, d>& Other) = delete;
-	TBoundingVolume<OBJECT_ARRAY, T, d>& operator=(TBoundingVolume<OBJECT_ARRAY, T, d>&& Other)
+	TBoundingVolume<TSOA, TPayloadType, T, d>& operator=(const TBoundingVolume<TSOA, TPayloadType, T, d>& Other) = delete;
+	TBoundingVolume<TSOA, TPayloadType, T, d>& operator=(TBoundingVolume<TSOA, TPayloadType, T, d>&& Other)
 	{
-		const_cast<OBJECT_ARRAY*&>(MObjects) = const_cast<OBJECT_ARRAY*>(Other.MObjects);
-		MGlobalObjects = MoveTemp(Other.MGlobalObjects);
-		MAllObjects = MoveTemp(Other.MAllObjects);
-		MWorldSpaceBoxes = MoveTemp(Other.MWorldSpaceBoxes);
+		MGlobalPayloads = MoveTemp(Other.MGlobalPayloads);
 		MGrid = MoveTemp(Other.MGrid);
 		MElements = MoveTemp(Other.MElements);
 		bIsEmpty = Other.bIsEmpty;
 		return *this;
 	}
 
-	TBoundingVolume<OBJECT_ARRAY, T, d> Copy() const
+	TBoundingVolume<TSOA, TPayloadType, T, d> Copy() const
 	{
-		return TBoundingVolume<OBJECT_ARRAY, T, d>(*this);
+		return TBoundingVolume<TSOA, TPayloadType, T, d>(*this);
 	}
 
-	void Reinitialize(const bool bUseVelocity = false, const T Dt = 0, const int32 MaxCells = DefaultMaxCells)
+	template <typename ParticleView>
+	void Reinitialize(const ParticleView& Particles, const bool bUseVelocity = false, const T Dt = 0, const int32 MaxCells = DefaultMaxCells)
 	{
-		MGlobalObjects.Reset();
-		MAllObjects.Reset();
-		for (int32 i = 0; i < GetObjectCount(*MObjects); ++i)
+		MGlobalPayloads.Reset();
+		bIsEmpty = true;
+		TArray<bool> ComputeBounds;
+		ComputeBounds.AddUninitialized(Particles.Num());
+		int32 Count = 0;
+
+		for (auto& Particle : Particles)
 		{
-			if (IsDisabled(*MObjects, i))
-				continue;
-			if (HasBoundingBox(*MObjects, i))
+			if (!HasBoundingBox(Particle))
 			{
-				MAllObjects.Add(i);
+				MGlobalPayloads.Add(TPayloadHelper<TPayloadType>::GetPayload(Particle, Count));
+				ComputeBounds[Count++] = false;
 			}
 			else
 			{
-				MGlobalObjects.Add(i);
+				ComputeBounds[Count++] = true;
+				bIsEmpty = false;
 			}
 		}
-		bIsEmpty = MAllObjects.Num() == 0;
-		GenerateTree(*MObjects, MAllObjects, bUseVelocity, Dt, MaxCells);
+		GenerateTree(Particles, MoveTemp(ComputeBounds), bUseVelocity, Dt, MaxCells);
 		check(bIsEmpty || MGrid.GetNumCells() > 0);
 	}
 
-	void Reinitialize(const TArray<uint32>& ActiveIndices, const bool bUseVelocity = false, const T Dt = 0, const int32 MaxCells = DefaultMaxCells)
+	template<class T_INTERSECTION>
+	TArray<TPayloadType> FindAllIntersectionsImp(const T_INTERSECTION& Intersection) const
 	{
-		MGlobalObjects.Reset();
-		MAllObjects.Reset();
-		for (const auto& Index : ActiveIndices)
+		if (bIsEmpty)
 		{
-			check(!IsDisabled(*MObjects, Index));
-			if (HasBoundingBox(*MObjects, Index))
-			{
-				MAllObjects.Add(Index);
-			}
-			else
-			{
-				MGlobalObjects.Add(Index);
-			}
+			return MGlobalPayloads;
 		}
-		bIsEmpty = MAllObjects.Num() == 0;
-		GenerateTree(*MObjects, MAllObjects, bUseVelocity, Dt, MaxCells);
-		check(bIsEmpty || MGrid.GetNumCells() > 0);
+		TArray<TPayloadType> IntersectionList = FindAllIntersectionsHelper(Intersection);
+		IntersectionList.Append(MGlobalPayloads);
+		return IntersectionList;
 	}
 
-	void GenerateTree(const OBJECT_ARRAY& Objects, const TArray<int32>& AllObjects, const bool bUseVelocity, const T Dt, const int32 MaxCells)
+	// Begin ISpatialAcceleration interface
+	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, d>& Box) const override { return FindAllIntersectionsImp(Box); }
+	virtual TArray<TPayloadType> FindAllIntersections(const TVector<T, d>& Point) const override
 	{
-		if (!AllObjects.Num())
+#if CHAOS_PARTICLEHANDLE_TODO
+		return FindAllIntersectionsImp(Box);
+#else
+		check(false);
+		return TArray<TPayloadType>();
+#endif
+	}
+
+	virtual TArray<TPayloadType> FindAllIntersections(const TSpatialRay<T, d>& Ray) const override
+	{
+#if CHAOS_PARTICLEHANDLE_TODO
+		return FindAllIntersectionsImp(Box);
+#else
+		check(false);
+		return TArray<TPayloadType>();
+#endif
+	}
+
+	virtual TArray<TPayloadType> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const override
+	{
+#if CHAOS_PARTICLEHANDLE_TODO
+		return FindAllIntersectionsImp(Box);
+#else
+		check(false);
+		return TArray<TPayloadType>();
+#endif
+	}
+	
+
+	const TArray<TPayloadType>& GlobalObjects() const
+	{
+		return MGlobalPayloads;
+	}
+
+	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<TPayloadType, T>& Visitor) const override
+	{
+		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
+		Raycast(Start, Dir, OriginalLength, ProxyVisitor);
+	}
+
+	template <typename SQVisitor, bool bPruneDuplicates = true>
+	void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, SQVisitor& Visitor) const
+	{
+		TBox<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
+		bool bParallel[d];
+		TVector<T, d> InvDir;
+
+		const T InvOriginalLength = 1 / OriginalLength;
+		for (int Axis = 0; Axis < d; ++Axis)
+		{
+			bParallel[Axis] = Dir[Axis] == 0;
+			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
+		}
+
+		T TOI;
+		TVector<T, d> NextStart;
+		TVector<int32, d> CellIdx;
+		TSet<TPayloadType> InstancesSeen;
+		bool bCellsLeft = MElements.Num() && GlobalBounds.RaycastFast(Start, Dir, InvDir, bParallel, OriginalLength, InvOriginalLength, TOI, NextStart);
+		if (bCellsLeft)
+		{
+			CellIdx = MGrid.Cell(NextStart);
+			CellIdx = MGrid.ClampIndex(CellIdx);	//raycast may have ended slightly outside of grid
+			T CurrentLength = OriginalLength;
+			T InvCurrentLength = InvOriginalLength;
+
+			do
+			{
+				//gather all instances in current cell whose bounds intersect with ray
+				const auto& Elems = MElements(CellIdx);
+				//should we let callback know about max potential?
+				TVector<T, d> TmpPosition;
+
+				for (const auto& Elem : Elems)
+				{
+					if (bPruneDuplicates)
+					{
+						if (InstancesSeen.Contains(Elem.Payload))
+						{
+							continue;
+						}
+						InstancesSeen.Add(Elem.Payload);
+					}
+					const auto& InstanceBounds = Elem.Bounds;
+					if (InstanceBounds.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, TmpPosition))
+					{
+						const bool bContinue = Visitor.VisitRaycast(Elem.Payload, CurrentLength);
+						if (!bContinue)
+						{
+							return;
+						}
+						InvCurrentLength = 1 / CurrentLength;
+					}
+				}
+
+				//find next cell
+
+				//We want to know which plane we used to cross into next cell
+				const TVector<T, d> CellCenter = MGrid.Location(CellIdx);
+				const TVector<T, d>& Dx = MGrid.Dx();
+
+				T Times[3];
+				T BestTime = CurrentLength;
+				bool bTerminate = true;
+				for (int Axis = 0; Axis < d; ++Axis)
+				{
+					if (!bParallel[Axis])
+					{
+						const T CrossPoint = Dir[Axis] > 0 ? CellCenter[Axis] + Dx[Axis] / 2 : CellCenter[Axis] - Dx[Axis] / 2;
+						const T Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
+						const T Time = Distance * InvDir[Axis];
+						Times[Axis] = Time;
+						if (Time < BestTime)
+						{
+							bTerminate = false;	//found at least one plane to pass through
+							BestTime = Time;
+						}
+					}
+					else
+					{
+						Times[Axis] = TNumericLimits<T>::Max();
+					}
+				}
+
+				if (bTerminate)
+				{
+					return;
+				}
+
+				for (int Axis = 0; Axis < d; ++Axis)
+				{
+					constexpr T Epsilon = 1e-2;	//if raycast is slightly off we still count it as hitting the cell surface
+					CellIdx[Axis] += (Times[Axis] <= BestTime + Epsilon) ? (Dir[Axis] > 0 ? 1 : -1) : 0;
+					if (CellIdx[Axis] < 0 || CellIdx[Axis] >= MGrid.Counts()[Axis])
+					{
+						return;
+					}
+				}
+
+				NextStart = NextStart + Dir * BestTime;
+			} while (true);
+		}
+	}
+
+	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const override
+	{
+		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
+		Sweep(Start, Dir, OriginalLength, QueryHalfExtents, ProxyVisitor, Scale);
+	}
+
+	template <typename SQVisitor, bool bPruneDuplicates = true>
+	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const
+	{
+		if (MElements.Num() == 0)
 		{
 			return;
 		}
-		ComputeAllWorldSpaceBoundingBoxes(Objects, AllObjects, bUseVelocity, Dt, MWorldSpaceBoxes);
-		TBox<T, d> GlobalBox = Chaos::GetWorldSpaceBoundingBox(Objects, AllObjects[0], MWorldSpaceBoxes);
-		T Dx = TVector<T, d>::DotProduct(GlobalBox.Extents(), TVector<T, d>(1)) / d;
-		for (int32 i = 1; i < AllObjects.Num(); ++i)
+
+		const TVector<T, d> ScaledMin = MGrid.MinCorner() * Scale;
+		const TVector<T, d> ScaledMax = MGrid.MaxCorner() * Scale;
+
+		TUniformGrid<T, d> ScaledGrid(ScaledMin, ScaledMax, MGrid.Counts(), 0);
+		TBox<T, d> GlobalBounds(ScaledMin - QueryHalfExtents, ScaledMax + QueryHalfExtents);
+		bool bParallel[d];
+		TVector<T, d> InvDir;
+
+		const T InvOriginalLength = 1 / OriginalLength;
+		for (int Axis = 0; Axis < d; ++Axis)
 		{
-			const auto& WorldBox = Chaos::GetWorldSpaceBoundingBox(Objects, AllObjects[i], MWorldSpaceBoxes);
-			Dx += TVector<T, d>::DotProduct(WorldBox.Extents(), TVector<T, d>(1)) / d;
-			GlobalBox.GrowToInclude(WorldBox);
+			bParallel[Axis] = Dir[Axis] == 0;
+			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 		}
-		Dx /= AllObjects.Num();
-		if (FBoundingVolumeCVars::FilterFarBodies)
+
+		struct FCellIntersection
 		{
-			TArray<int32> ObjectsToRemove;
-			for (int32 i = 1; i < AllObjects.Num(); ++i)
+			TVector<int32, d> CellIdx;
+			T TOI;
+		};
+
+		T TOI = 0;	//not needed, but fixes compiler warning
+		TVector<T, d> HitPoint;
+		TSet<TPayloadType> InstancesSeen;
+		TSet<TVector<int32, d>> IdxsSeen;
+		const bool bInitialHit = GlobalBounds.RaycastFast(Start, Dir, InvDir, bParallel, OriginalLength, InvOriginalLength, TOI, HitPoint);
+		if (bInitialHit)
+		{
+			//Flood fill from inflated cell so that we get all cells along the ray
+			TVector<int32, d> HitCellIdx = ScaledGrid.Cell(HitPoint);
+			HitCellIdx = ScaledGrid.ClampIndex(HitCellIdx);	//inflation means we likely are outside grid, just get closest cell
+			T CurrentLength = OriginalLength;
+			T InvCurrentLength = InvOriginalLength;
+
+			TArray<FCellIntersection> IdxsQueue;	//cells we need to visit
+			IdxsQueue.Add({ HitCellIdx, TOI });
+
+			int32 QueueIdx = 0;	//FIFO because early cells are more likely to block later cells we can skip
+			while (QueueIdx < IdxsQueue.Num())
 			{
-				const auto& WorldBox = Chaos::GetWorldSpaceBoundingBox(Objects, AllObjects[i], MWorldSpaceBoxes);
-				const TVector<T, d> MinToDXRatio = WorldBox.Min() / Dx;
-				for (int32 Axis = 0; Axis < d; ++Axis)
+				const FCellIntersection CellIntersection = IdxsQueue[QueueIdx++];
+				if (CellIntersection.TOI > CurrentLength)
 				{
-					if (FMath::Abs(MinToDXRatio[Axis]) > 1e7)
+					continue;
+				}
+
+				//ray still visiting this cell so check all neighbors
+				check(d == 3);
+				static const TVector<int32, 3> Neighbors[] =
+				{
+					//grid on z=-1 plane
+					{-1, -1, -1}, {0, -1, -1}, {1, -1, -1},
+					{-1, 0, -1}, {0, 0, -1}, {1, 0, -1},
+					{-1, 1, -1}, {0, 1, -1}, {1, 1, -1},
+
+					//grid on z=0 plane
+					{-1, -1, 0}, {0, -1, 0}, {1, -1, 0},
+					{-1, 0, 0},			 {1, 0, 0},
+					{-1, 1, 0}, {0, 1, 0}, {1, 0, 0},
+
+					//grid on z=1 plane
+					{-1, -1, 1}, {0, -1, 1}, {1, -1, 1},
+					{-1, 0, 1}, {0, 0, 1}, {1, 0, 1},
+					{-1, 1, 1}, {0, 1, 1}, {1, 1, 1}
+				};
+
+				for (const TVector<int32, 3>& Neighbor : Neighbors)
+				{
+					const TVector<int32, 3> NeighborIdx = Neighbor + CellIntersection.CellIdx;
+					bool bSkip = false;
+					for (int32 Axis = 0; Axis < d; ++Axis)
 					{
-						ObjectsToRemove.Add(i);
-						MGlobalObjects.Add(AllObjects[i]);
-						break;
+						if (NeighborIdx[Axis] < 0 || NeighborIdx[Axis] >= ScaledGrid.Counts()[Axis])
+						{
+							bSkip = true;
+							break;
+						}
+					}
+					if (!bSkip && !IdxsSeen.Contains(NeighborIdx))
+					{
+						IdxsSeen.Add(NeighborIdx);
+
+						const TVector<T, d> NeighborCenter = ScaledGrid.Location(NeighborIdx);
+						const TBox<T, d> InflatedNeighbor(NeighborCenter - QueryHalfExtents - ScaledGrid.Dx(), NeighborCenter + QueryHalfExtents + ScaledGrid.Dx());
+						if (InflatedNeighbor.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, HitPoint))
+						{
+							IdxsQueue.Add({ NeighborIdx, TOI });	//should we sort by TOI?
+						}
+					}
+				}
+
+				//check if any instances in the cell are hit
+				const auto& Elems = MElements(CellIntersection.CellIdx);
+				for (const auto& Elem : Elems)
+				{
+					if (bPruneDuplicates)
+					{
+						if (InstancesSeen.Contains(Elem.Payload))
+						{
+							continue;
+						}
+						InstancesSeen.Add(Elem.Payload);
+					}
+
+					const TBox<T, d>& InstanceBounds = Elem.Bounds;
+					const TBox<T, d> InflatedScaledInstanceBounds(InstanceBounds.Min() * Scale - QueryHalfExtents, InstanceBounds.Max() * Scale + QueryHalfExtents);
+					if (InflatedScaledInstanceBounds.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, HitPoint))
+					{
+						const bool bContinue = Visitor.VisitSweep(Elem.Payload, CurrentLength);
+						if (!bContinue)
+						{
+							return;
+						}
+						InvCurrentLength = 1 / CurrentLength;
 					}
 				}
 			}
-			if (ObjectsToRemove.Num())
+		}
+	}
+
+	void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const override
+	{
+		TSpatialVisitor<TPayloadType, T> ProxyVisitor(Visitor);
+		return Overlap(QueryBounds, ProxyVisitor, Scale);
+	}
+
+	template <typename SQVisitor, bool bPruneDuplicates = true>
+	void Overlap(const TBox<T, d>& QueryBounds, SQVisitor& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const
+	{
+		const TVector<T, d> ScaledMin = MGrid.MinCorner() * Scale;
+		const TVector<T, d> ScaledMax = MGrid.MaxCorner() * Scale;
+
+		TUniformGrid<T, d> ScaledGrid(ScaledMin, ScaledMax, MGrid.Counts(), 0);
+		TBox<T, d> GlobalBounds(ScaledMin, ScaledMax);
+
+		const TVector<int32, d> StartIndex = ScaledGrid.ClampIndex(ScaledGrid.Cell(QueryBounds.Min()));
+		const TVector<int32, d> EndIndex = ScaledGrid.ClampIndex(ScaledGrid.Cell(QueryBounds.Max()));
+		TSet<TPayloadType> InstancesSeen;
+
+		for (int32 X = StartIndex[0]; X <= EndIndex[0]; ++X)
+		{
+			for (int32 Y = StartIndex[1]; Y <= EndIndex[1]; ++Y)
 			{
-				for (int32 i = ObjectsToRemove.Num() - 1; i >= 0; --i)
+				for (int32 Z = StartIndex[2]; Z <= EndIndex[2]; ++Z)
 				{
-					const_cast<TArray<int32>&>(AllObjects).RemoveAtSwap(ObjectsToRemove[i]);
+					const auto& Elems = MElements(X, Y, Z);
+					for (const auto& Elem : Elems)
+					{
+						if (bPruneDuplicates)
+						{
+							if (InstancesSeen.Contains(Elem.Payload))
+							{
+								continue;
+							}
+							InstancesSeen.Add(Elem.Payload);
+						}
+						const TBox<T, d>& InstanceBounds = Elem.Bounds;
+						const TBox<T, d> InflatedScaledInstanceBounds(InstanceBounds.Min() * Scale, InstanceBounds.Max() * Scale);
+						if (QueryBounds.Intersects(InflatedScaledInstanceBounds))
+						{
+							if (Visitor.VisitOverlap(Elem.Payload) == false)
+							{
+								return;
+							}
+						}
+					}
 				}
-				GlobalBox = Chaos::GetWorldSpaceBoundingBox(Objects, AllObjects[0], MWorldSpaceBoxes);
-				Dx = TVector<T, d>::DotProduct(GlobalBox.Extents(), TVector<T, d>(1)) / d;
-				for (int32 i = 1; i < AllObjects.Num(); ++i)
-				{
-					const auto& WorldBox = Chaos::GetWorldSpaceBoundingBox(Objects, AllObjects[i], MWorldSpaceBoxes);
-					Dx += TVector<T, d>::DotProduct(WorldBox.Extents(), TVector<T, d>(1)) / d;
-					GlobalBox.GrowToInclude(WorldBox);
-				}
-				Dx /= AllObjects.Num();
 			}
 		}
+	}
+
+private:
+
+	template <typename ParticleView>
+	void GenerateTree(const ParticleView& Particles, TArray<bool>&& HasBounds, const bool bUseVelocity, const T Dt, const int32 MaxCells)
+	{
+		if (bIsEmpty)
+		{
+			return;
+		}
+		TArray<TBox<T, d>> WorldSpaceBoxes;
+		ComputeAllWorldSpaceBoundingBoxes(Particles, HasBounds, bUseVelocity, Dt, WorldSpaceBoxes);
+
+		auto ComputeBoxAndDx = [&HasBounds, &Particles, &WorldSpaceBoxes](TBox<T, d>& GlobalBox) -> T
+		{
+			T Dx = 0;
+			bool bFoundValidBounds = false;
+			T NumElements = 0;
+			//todo: add const copy
+			for (int32 Idx = 0; Idx < Particles.Num(); ++Idx)
+			{
+				if (HasBounds[Idx])
+				{
+					NumElements += 1;
+					const auto& WorldSpaceBox = WorldSpaceBoxes[Idx];
+					if (!bFoundValidBounds)
+					{
+						GlobalBox = WorldSpaceBox;
+						bFoundValidBounds = true;
+					}
+					else
+					{
+						GlobalBox.GrowToInclude(WorldSpaceBox);
+					}
+					Dx += TVector<T, d>::DotProduct(WorldSpaceBox.Extents(), TVector<T, d>(1)) / d;
+				}
+			}
+
+			Dx /= NumElements;
+			return Dx;
+		};
+
+		TBox<T, d> GlobalBox;
+		T Dx = ComputeBoxAndDx(GlobalBox);
+
+		if (FBoundingVolumeCVars::FilterFarBodies)
+		{
+			bool bRecomputeBoxAndDx = false;
+			int32 Idx = 0;
+			for (auto& Particle : Particles)
+			{
+				if (HasBounds[Idx])
+				{
+					const auto& WorldSpaceBox = WorldSpaceBoxes[Idx];
+					const TVector<T, d> MinToDXRatio = WorldSpaceBox.Min() / Dx;
+					for (int32 Axis = 0; Axis < d; ++Axis)
+					{
+						if (FMath::Abs(MinToDXRatio[Axis]) > 1e7)
+						{
+							bRecomputeBoxAndDx = true;
+							HasBounds[Idx] = false;
+							MGlobalPayloads.Add(TPayloadHelper<TPayloadType>::GetPayload(Particle, Idx));
+							break;
+						}
+					}
+				}
+				++Idx;
+			}
+
+			if (bRecomputeBoxAndDx)
+			{
+				Dx = ComputeBoxAndDx(GlobalBox);
+			}
+		}
+
 		TVector<int32, d> Cells = Dx > 0 ? GlobalBox.Extents() / Dx : TVector<int32, d>(MaxCells);
 		Cells += TVector<int32, d>(1);
 		for (int32 Axis = 0; Axis < d; ++Axis)
 		{
 			if (Cells[Axis] > MaxCells)
 				Cells[Axis] = MaxCells;
-			if (!(ensure(Cells[Axis] >=0 )))	//seeing this because GlobalBox is huge leading to int overflow. Need to investigate why bounds get so big
+			if (!(ensure(Cells[Axis] >= 0)))	//seeing this because GlobalBox is huge leading to int overflow. Need to investigate why bounds get so big
 			{
 				Cells[Axis] = MaxCells;
 			}
 		}
 		MGrid = TUniformGrid<T, d>(GlobalBox.Min(), GlobalBox.Max(), Cells);
-		MElements = TArrayND<TArray<int32>, d>(MGrid);
-		for (int32 i = 0; i < AllObjects.Num(); ++i)
+		MElements = TArrayND<TArray<FCellElement>, d>(MGrid);
+
+		T NumObjectsWithBounds = 0;
+		T NumObjectsInCells = 0;
 		{
-			const auto& ObjectBox = Chaos::GetWorldSpaceBoundingBox(Objects, AllObjects[i], MWorldSpaceBoxes);
-			const auto StartIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Min()));
-			const auto EndIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Max()));
-			for (int32 x = StartIndex[0]; x <= EndIndex[0]; ++x)
+			int32 Idx = 0;
+			for (auto& Particle : Particles)
 			{
-				for (int32 y = StartIndex[1]; y <= EndIndex[1]; ++y)
+				if (HasBounds[Idx])
 				{
-					for (int32 z = StartIndex[2]; z <= EndIndex[2]; ++z)
+					NumObjectsWithBounds += 1;
+					const auto& ObjectBox = WorldSpaceBoxes[Idx];
+					const auto StartIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Min()));
+					const auto EndIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Max()));
+					for (int32 x = StartIndex[0]; x <= EndIndex[0]; ++x)
 					{
-						MElements(x, y, z).Add(AllObjects[i]);
+						for (int32 y = StartIndex[1]; y <= EndIndex[1]; ++y)
+						{
+							for (int32 z = StartIndex[2]; z <= EndIndex[2]; ++z)
+							{
+								MElements(x, y, z).Add({ ObjectBox, TPayloadHelper<TPayloadType>::GetPayload(Particle, Idx) });
+								NumObjectsInCells += 1;
+							}
+						}
+					}
+				}
+				++Idx;
+			}
+		}
+
+		UE_LOG(LogChaos, Verbose, TEXT("Generated Tree with (%d, %d, %d) Nodes and %f Per Cell"), MGrid.Counts()[0], MGrid.Counts()[1], MGrid.Counts()[2], NumObjectsInCells / NumObjectsWithBounds);
+	}
+
+	TArray<TPayloadType> FindAllIntersectionsHelper(const TBox<T, d>& ObjectBox) const
+	{
+		TArray<TPayloadType> Intersections;
+		const auto StartIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Min()));
+		const auto EndIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Max()));
+		for (int32 x = StartIndex[0]; x <= EndIndex[0]; ++x)
+		{
+			for (int32 y = StartIndex[1]; y <= EndIndex[1]; ++y)
+			{
+				for (int32 z = StartIndex[2]; z <= EndIndex[2]; ++z)
+				{
+					const TArray<FCellElement>& CellElements = MElements(x, y, z);
+					Intersections.Reserve(Intersections.Num() + CellElements.Num());
+					for (const FCellElement& Elem : CellElements)
+					{
+						if (ObjectBox.Intersects(Elem.Bounds))
+						{
+							Intersections.Add(Elem.Payload);
+						}
 					}
 				}
 			}
 		}
-		T NumObjects = 0;
-		for (int32 i = 0; i < MGrid.GetNumCells(); ++i)
+
+
+		Algo::Sort(Intersections);
+
+		for (int32 i = Intersections.Num() - 1; i > 0; i--)
 		{
-			NumObjects += MElements(MGrid.GetIndex(i)).Num();
+			if (Intersections[i] == Intersections[i - 1])
+			{
+				Intersections.RemoveAtSwap(i, 1, false);
+			}
 		}
-		NumObjects /= AllObjects.Num();
-		UE_LOG(LogChaos, Verbose, TEXT("Generated Tree with (%d, %d, %d) Nodes and %f Per Cell"), MGrid.Counts()[0], MGrid.Counts()[1], MGrid.Counts()[2], NumObjects);
+
+		return Intersections;
 	}
 
+	struct FCellElement
+	{
+		TBox<T, d> Bounds;
+		TPayloadType Payload;
+	};
+
+	TArray<TPayloadType> MGlobalPayloads;
+	TUniformGrid<T, d> MGrid;
+	TArrayND<TArray<FCellElement>, d> MElements;
+	bool bIsEmpty;
+
+#if 0
 	void RemoveElements(const TArray<uint32>& RemovedIndices)
 	{
 		for (const auto& Index : RemovedIndices)
 		{
 			if (!HasBoundingBox(*MObjects, Index))
 			{
-				MGlobalObjects.RemoveSwap(Index);
+				MGlobalPayloads.RemoveSwap(Index);
 			}
 			else
 			{
@@ -306,7 +744,7 @@ public:
 		{
 			if (!HasBoundingBox(*MObjects, Index))
 			{
-				MGlobalObjects.Add(Index);
+				MGlobalPayloads.Add(Index);
 			}
 			else
 			{
@@ -337,10 +775,10 @@ public:
 		}
 		if (bIsEmpty)
 		{
-			return TArray<int32>(MGlobalObjects);
+			return TArray<int32>(MGlobalPayloads);
 		}
 		TArray<int32> IntersectionList = FindAllIntersectionsHelper(Intersection);
-		IntersectionList.Append(MGlobalObjects);
+		IntersectionList.Append(MGlobalPayloads);
 		return IntersectionList;
 	}
 
@@ -474,302 +912,6 @@ public:
 		bool bCellsLeft;
 	};
 
-	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<T>& Visitor) const override
-	{
-		TSpatialVisitor<T> ProxyVisitor(Visitor);
-		Raycast(Start, Dir, OriginalLength, ProxyVisitor);
-	}
-
-	template <typename SQVisitor, bool bPruneDuplicates = true>
-	void Raycast(const TVector<T,d>& Start, const TVector<T, d>& Dir, const T OriginalLength, SQVisitor& Visitor) const
-	{
-		TBox<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
-		bool bParallel[d];
-		TVector<T, d> InvDir;
-
-		const T InvOriginalLength = 1 / OriginalLength;
-		for (int Axis = 0; Axis < d; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-		T TOI;
-		TVector<T, d> NextStart;
-		TVector<int32, d> CellIdx;
-		TSet<int32> InstancesSeen;
-		bool bCellsLeft = GlobalBounds.RaycastFast(Start, Dir, InvDir, bParallel, OriginalLength, InvOriginalLength, TOI, NextStart);
-		if (bCellsLeft)
-		{
-			CellIdx = MGrid.Cell(NextStart);
-			CellIdx = MGrid.ClampIndex(CellIdx);	//raycast may have ended slightly outside of grid
-			T CurrentLength = OriginalLength;
-			T InvCurrentLength = InvOriginalLength;
-
-			do
-			{
-				//gather all instances in current cell whose bounds intersect with ray
-				const TArray<int32>& Instances = MElements(CellIdx);
-				//should we let callback know about max potential?
-				TVector<T, d> TmpPosition;
-
-				for (int32 Instance : Instances)
-				{
-					if (bPruneDuplicates)
-					{
-						if (InstancesSeen.Contains(Instance))
-						{
-							continue;
-						}
-						InstancesSeen.Add(Instance);
-					}
-					const TBox<T, d>& InstanceBounds = MWorldSpaceBoxes[Instance];
-					if (InstanceBounds.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, TmpPosition))
-					{
-						const bool bContinue = Visitor.VisitRaycast(Instance, CurrentLength);
-						if (!bContinue)
-						{
-							return;
-						}
-						InvCurrentLength = 1 / CurrentLength;
-					}
-				}
-
-				//find next cell
-
-				//We want to know which plane we used to cross into next cell
-				const TVector<T, d> CellCenter = MGrid.Location(CellIdx);
-				const TVector<T, d>& Dx = MGrid.Dx();
-
-				T Times[3];
-				T BestTime = CurrentLength;
-				bool bTerminate = true;
-				for (int Axis = 0; Axis < d; ++Axis)
-				{
-					if (!bParallel[Axis])
-					{
-						const T CrossPoint = Dir[Axis] > 0 ? CellCenter[Axis] + Dx[Axis] / 2 : CellCenter[Axis] - Dx[Axis] / 2;
-						const T Distance = CrossPoint - NextStart[Axis];	//note: CellCenter already has /2, we probably want to use the corner instead
-						const T Time = Distance * InvDir[Axis];
-						Times[Axis] = Time;
-						if (Time < BestTime)
-						{
-							bTerminate = false;	//found at least one plane to pass through
-							BestTime = Time;
-						}
-					}
-					else
-					{
-						Times[Axis] = TNumericLimits<T>::Max();
-					}
-				}
-
-				if (bTerminate)
-				{
-					return;
-				}
-
-				for (int Axis = 0; Axis < d; ++Axis)
-				{
-					constexpr T Epsilon = 1e-2;	//if raycast is slightly off we still count it as hitting the cell surface
-					CellIdx[Axis] += (Times[Axis] <= BestTime + Epsilon) ? (Dir[Axis] > 0 ? 1 : -1) : 0;
-					if (CellIdx[Axis] < 0 || CellIdx[Axis] >= MGrid.Counts()[Axis])
-					{
-						return;
-					}
-				}
-
-				NextStart = NextStart + Dir * BestTime;
-			} while (true);
-		}
-	}
-
-	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const override
-	{
-		TSpatialVisitor<T> ProxyVisitor(Visitor);
-		Sweep(Start, Dir, OriginalLength, QueryHalfExtents, ProxyVisitor, Scale);
-	}
-
-	template <typename SQVisitor, bool bPruneDuplicates = true>
-	void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, SQVisitor& Visitor, const TVector<T,d>& Scale = TVector<T,d>(1)) const
-	{
-		const TVector<T, d> ScaledMin = MGrid.MinCorner() * Scale;
-		const TVector<T, d> ScaledMax = MGrid.MaxCorner() * Scale;
-
-		TUniformGrid<T, d> ScaledGrid(ScaledMin, ScaledMax, MGrid.Counts(), 0);
-		TBox<T, d> GlobalBounds(ScaledMin - QueryHalfExtents, ScaledMax + QueryHalfExtents);
-		bool bParallel[d];
-		TVector<T, d> InvDir;
-
-		const T InvOriginalLength = 1 / OriginalLength;
-		for (int Axis = 0; Axis < d; ++Axis)
-		{
-			bParallel[Axis] = Dir[Axis] == 0;
-			InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
-		}
-
-
-		struct FCellIntersection
-		{
-			TVector<int32, d> CellIdx;
-			T TOI;
-		};
-
-		T TOI;
-		TVector<T, d> HitPoint;
-		TSet<int32> InstancesSeen;
-		TSet<TVector<int32,d>> IdxsSeen;
-		const bool bInitialHit = GlobalBounds.RaycastFast(Start, Dir, InvDir, bParallel, OriginalLength, InvOriginalLength, TOI, HitPoint);
-		if (bInitialHit)
-		{
-			//Flood fill from inflated cell so that we get all cells along the ray
-			TVector<int32, d> HitCellIdx = ScaledGrid.Cell(HitPoint);
-			HitCellIdx = ScaledGrid.ClampIndex(HitCellIdx);	//inflation means we likely are outside grid, just get closest cell
-			T CurrentLength = OriginalLength;
-			T InvCurrentLength = InvOriginalLength;
-
-			TArray<FCellIntersection> IdxsQueue;	//cells we need to visit
-			IdxsQueue.Add({ HitCellIdx, TOI });
-
-			int32 QueueIdx = 0;	//FIFO because early cells are more likely to block later cells we can skip
-			while(QueueIdx < IdxsQueue.Num())
-			{
-				const FCellIntersection CellIntersection = IdxsQueue[QueueIdx++];
-				if (CellIntersection.TOI > CurrentLength)
-				{
-					continue;
-				}
-
-				//ray still visiting this cell so check all neighbors
-				check(d == 3);
-				static const TVector<int32, 3> Neighbors[] =
-				{
-					//grid on z=-1 plane
-					{-1, -1, -1}, {0, -1, -1}, {1, -1, -1},
-					{-1, 0, -1}, {0, 0, -1}, {1, 0, -1},
-					{-1, 1, -1}, {0, 1, -1}, {1, 1, -1},
-
-					//grid on z=0 plane
-					{-1, -1, 0}, {0, -1, 0}, {1, -1, 0},
-					{-1, 0, 0},			 {1, 0, 0},
-					{-1, 1, 0}, {0, 1, 0}, {1, 0, 0},
-
-					//grid on z=1 plane
-					{-1, -1, 1}, {0, -1, 1}, {1, -1, 1},
-					{-1, 0, 1}, {0, 0, 1}, {1, 0, 1},
-					{-1, 1, 1}, {0, 1, 1}, {1, 1, 1}
-				};
-
-				for (const TVector<int32, 3>& Neighbor : Neighbors)
-				{
-					const TVector<int32, 3> NeighborIdx = Neighbor + CellIntersection.CellIdx;
-					bool bSkip = false;
-					for (int32 Axis = 0; Axis < d; ++Axis)
-					{
-						if (NeighborIdx[Axis] < 0 || NeighborIdx[Axis] >= ScaledGrid.Counts()[Axis])
-						{
-							bSkip = true;
-							break;
-						}
-					}
-					if (!bSkip && !IdxsSeen.Contains(NeighborIdx))
-					{
-						IdxsSeen.Add(NeighborIdx);
-
-						const TVector<T, d> NeighborCenter = ScaledGrid.Location(NeighborIdx);
-						const TBox<T, d> InflatedNeighbor(NeighborCenter - QueryHalfExtents - ScaledGrid.Dx(), NeighborCenter + QueryHalfExtents + ScaledGrid.Dx());
-						if (InflatedNeighbor.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, HitPoint))
-						{
-							IdxsQueue.Add({ NeighborIdx, TOI });	//should we sort by TOI?
-						}
-					}
-				}
-
-				//check if any instances in the cell are hit
-				const TArray<int32>& Instances = MElements(CellIntersection.CellIdx);
-				for (int32 Instance : Instances)
-				{
-					if (bPruneDuplicates)
-					{
-						if (InstancesSeen.Contains(Instance))
-						{
-							continue;
-						}
-						InstancesSeen.Add(Instance);
-					}
-						
-					const TBox<T,d>& InstanceBounds = MWorldSpaceBoxes[Instance];
-					const TBox<T, d> InflatedScaledInstanceBounds(InstanceBounds.Min() * Scale - QueryHalfExtents, InstanceBounds.Max() * Scale + QueryHalfExtents);
-					if (InflatedScaledInstanceBounds.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, InvCurrentLength, TOI, HitPoint))
-					{
-						const bool bContinue = Visitor.VisitSweep(Instance, CurrentLength);
-						if (!bContinue)
-						{
-							return;
-						}
-						InvCurrentLength = 1 / CurrentLength;
-					}
-				}
-			}
-		}
-	}
-
-	void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const override
-	{
-		TSpatialVisitor<T> ProxyVisitor(Visitor);
-		return Overlap(QueryBounds, ProxyVisitor, Scale);
-	}
-
-	template <typename SQVisitor, bool bPruneDuplicates = true>
-	void Overlap(const TBox<T,d>& QueryBounds, SQVisitor& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const
-	{
-		const TVector<T, d> ScaledMin = MGrid.MinCorner() * Scale;
-		const TVector<T, d> ScaledMax = MGrid.MaxCorner() * Scale;
-
-		TUniformGrid<T, d> ScaledGrid(ScaledMin, ScaledMax, MGrid.Counts(), 0);
-		TBox<T, d> GlobalBounds(ScaledMin, ScaledMax);
-		
-		const TVector<int32, d> StartIndex = ScaledGrid.ClampIndex(ScaledGrid.Cell(QueryBounds.Min()));
-		const TVector<int32, d> EndIndex = ScaledGrid.ClampIndex(ScaledGrid.Cell(QueryBounds.Max()));
-		TSet<int32> InstancesSeen;
-
-		for (int32 X = StartIndex[0]; X <= EndIndex[0]; ++X)
-		{
-			for (int32 Y = StartIndex[1]; Y <= EndIndex[1]; ++Y)
-			{
-				for (int32 Z = StartIndex[2]; Z <= EndIndex[2]; ++Z)
-				{
-					const TArray<int32>& Instances = MElements(X, Y, Z);
-					for (int32 Instance : Instances)
-					{
-						if (bPruneDuplicates)
-						{
-							if (InstancesSeen.Contains(Instance))
-							{
-								continue;
-							}
-							InstancesSeen.Add(Instance);
-						}
-						const TBox<T, d>& InstanceBounds = MWorldSpaceBoxes[Instance];
-						const TBox<T, d> InflatedScaledInstanceBounds(InstanceBounds.Min() * Scale, InstanceBounds.Max() * Scale);
-						if (QueryBounds.Intersects(InflatedScaledInstanceBounds))
-						{
-							if (Visitor.VisitOverlap(Instance) == false)
-							{
-								return;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	const TArray<int32>& GlobalObjects() const
-	{
-		return MGlobalObjects;
-	}
-
 	const TMap<int32, TBox<T, d>>& GetWorldSpaceBoxes() const
 	{
 		return MWorldSpaceBoxes;
@@ -793,16 +935,16 @@ public:
 	
 	void Serialize(FArchive& Ar)
 	{
-		Ar << MGlobalObjects << MWorldSpaceBoxes << MGrid << MElements << bIsEmpty;
+		Ar << MGlobalPayloads << MWorldSpaceBoxes << MGrid << MElements << bIsEmpty;
 	}
-
-  private:
 
 	//Needed for serialization
 	void SetObjects(const OBJECT_ARRAY& Object)
 	{
 		MObjects = &Object;
 	}
+
+  private:
 
 	template <typename OBJECT_ARRAY2, typename T2, int d2>
 	friend void FixupLeafObj(const OBJECT_ARRAY2& Objects, TArray<TBoundingVolume<OBJECT_ARRAY2, T2, d2>>& Leafs);
@@ -1064,20 +1206,34 @@ public:
 	}
 
 	const OBJECT_ARRAY* MObjects;
-	TArray<int32> MGlobalObjects;
+	TArray<int32> MGlobalPayloads;
 	TArray<int32> MAllObjects;
 	TMap<int32, TBox<T, d>> MWorldSpaceBoxes;
 	TUniformGrid<T, d> MGrid;
 	TArrayND<TArray<int32>, d> MElements;
 	bool bIsEmpty;
 	FCriticalSection CriticalSection;
+#endif
 };
 
+#if 0
 template<class OBJECT_ARRAY, class T, int d>
 FArchive& operator<<(FArchive& Ar, TBoundingVolume<OBJECT_ARRAY, T, d>& BoundingVolume)
 {
 	BoundingVolume.Serialize(Ar);
 	return Ar;
 }
+#endif
+
+template<class OBJECT_ARRAY, typename TPayloadType, class T, int d>
+FArchive& operator<<(FArchive& Ar, TBoundingVolume<OBJECT_ARRAY, TPayloadType, T, d>& BoundingVolume)
+{
+	check(false);
+#if CHAOS_PARTICLEHANDLE_TODO
+	BoundingVolume.Serialize(Ar);
+#endif
+	return Ar;
+}
 
 }
+

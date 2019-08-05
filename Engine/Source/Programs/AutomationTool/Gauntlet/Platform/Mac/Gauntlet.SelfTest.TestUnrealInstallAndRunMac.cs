@@ -23,7 +23,7 @@ namespace Gauntlet.SelfTest
 		public override void TickTest()
 		{
 			// create a new build
-			UnrealBuildSource Build = new UnrealBuildSource(this.GameName, this.UsesSharedBuildType, Environment.CurrentDirectory, this.BuildPath, new string[] { "" });
+			UnrealBuildSource Build = new UnrealBuildSource(this.ProjectFile, this.UnrealPath, this.UsesSharedBuildType, this.BuildPath, new string[] { "" });
 
 			// check it's valid
 			if (!CheckResult(Build.BuildCount > 0, "staged build was invalid"))

@@ -104,6 +104,7 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 	ShaderBindings.Add(SplineMeshScaleZParam, SplineProxy->SplineMeshScaleZ);
 
 	FVector DirMask(0, 0, 0);
+	DirMask = FVector::ZeroVector;
 	DirMask[SplineProxy->ForwardAxis] = 1;
 	ShaderBindings.Add(SplineMeshDirParam, DirMask);
 	DirMask = FVector::ZeroVector;
@@ -1017,7 +1018,8 @@ void USplineMeshComponent::RecreateCollision()
 		}
 		else
 		{
-			BodySetup->Modify();
+			const bool bDirtyPackage = false;
+			BodySetup->Modify(bDirtyPackage);
 			BodySetup->InvalidatePhysicsData();
 			BodySetup->CopyBodyPropertiesFrom(GetStaticMesh()->BodySetup);
 			BodySetup->CollisionTraceFlag = GetStaticMesh()->BodySetup->CollisionTraceFlag;

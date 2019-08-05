@@ -2153,12 +2153,18 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 	// no movement if we can't move, or if currently doing physical simulation on UpdatedComponent
 	if (MovementMode == MOVE_None || UpdatedComponent->Mobility != EComponentMobility::Movable || UpdatedComponent->IsSimulatingPhysics())
 	{
-		if (!CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion && CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh())
+		if (!CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion)
 		{
 			// Consume root motion
-			TickCharacterPose(DeltaSeconds);
-			RootMotionParams.Clear();
-			CurrentRootMotion.Clear();
+			if (CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh())
+			{
+				TickCharacterPose(DeltaSeconds);
+				RootMotionParams.Clear();
+			}
+			if (CurrentRootMotion.HasActiveRootMotionSources())
+			{
+				CurrentRootMotion.Clear();
+			}
 		}
 		// Clear pending physics forces
 		ClearAccumulatedForces();
@@ -6890,9 +6896,17 @@ void UCharacterMovementComponent::VisualizeMovement() const
 	{
 		const FColor DebugColor = FColor::Blue;
 		HeightOffset += 20.f;
-		const FVector DebugLocation = TopOfCapsule + FVector(0.f,0.f,HeightOffset);
+		FVector DebugLocation = TopOfCapsule + FVector(0.f,0.f,HeightOffset);
 		FString DebugText = FString::Printf(TEXT("MovementMode: %s"), *GetMovementName());
 		DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, DebugColor, 0.f, true);
+
+		if (IsInWater())
+		{
+			HeightOffset += 15.f;
+			DebugLocation = TopOfCapsule + FVector(0.f, 0.f, HeightOffset);
+			DebugText = FString::Printf(TEXT("ImmersionDepth: %.2f"), ImmersionDepth());
+			DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, DebugColor, 0.f, true);
+		}
 	}
 
 	// Root motion (additive)

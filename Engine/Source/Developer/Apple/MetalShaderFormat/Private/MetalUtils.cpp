@@ -3460,7 +3460,30 @@ void FMetalCodeBackend::RemovePackedVarReferences(exec_list* ir, _mesa_glsl_pars
 		}
 		else
 		{
-			OldVar->insert_after(NewVar);
+			// New variable declaration including its initialization must be inserted *after* the original variable has been initialized.
+			// So look ahead until we find the <ir_assignment> node that initializes "OldVar".
+			ir_assignment* OldVarInit = nullptr;
+			for (exec_node* Node = OldVar->next; Node && !OldVarInit; Node = Node->next)
+			{
+				ir_instruction* Instr = static_cast<ir_instruction*>(Node);
+				if (Instr->ir_type == ir_type_assignment)
+				{
+					ir_assignment* AssignStmt = static_cast<ir_assignment*>(Instr);
+					if (AssignStmt->lhs->variable_referenced() == OldVar)
+					{
+						OldVarInit = AssignStmt;
+					}
+				}
+			}
+			
+			if (OldVarInit != nullptr)
+			{
+				OldVarInit->insert_after(NewVar);
+			}
+			else
+			{
+				OldVar->insert_after(NewVar);
+			}
 		}
 	}
 

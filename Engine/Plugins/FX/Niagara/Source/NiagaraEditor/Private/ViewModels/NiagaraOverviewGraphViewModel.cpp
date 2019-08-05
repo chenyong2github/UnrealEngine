@@ -6,33 +6,47 @@
 #include "EdGraphUtilities.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "NiagaraSystemEditorData.h"
-#include "NiagaraOverviewNodeStackItem.h"
+#include "NiagaraOverviewNode.h"
 #include "NiagaraObjectSelection.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
+#include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraSystem.h"
 #include "Editor.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraphViewModel"
 
-FNiagaraOverviewGraphViewModel::FNiagaraOverviewGraphViewModel(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
-	: SystemViewModel(InSystemViewModel)
-	, Commands(MakeShareable(new FUICommandList()))
+FNiagaraOverviewGraphViewModel::FNiagaraOverviewGraphViewModel()
+	: Commands(MakeShareable(new FUICommandList()))
 	, NodeSelection(MakeShareable(new FNiagaraObjectSelection()))
+	, bUpdatingSystemSelectionFromGraph(false)
+	, bUpdatingGraphSelectionFromSystem(false)
 {
-	SetupCommands();
-	InitDisplayName();
-	GEditor->RegisterForUndo(this);
 }
 
 FNiagaraOverviewGraphViewModel::~FNiagaraOverviewGraphViewModel()
 {
-	GEditor->UnregisterForUndo(this);
+}
+
+void FNiagaraOverviewGraphViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
+{
+	SystemViewModel = InSystemViewModel;
+	OverviewGraph = InSystemViewModel->GetEditorData().GetSystemOverviewGraph();
+
+	SetupCommands();
+	NodeSelection->OnSelectedObjectsChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::GraphSelectionChanged);
+	InSystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::SystemSelectionChanged);
 }
 
 FText FNiagaraOverviewGraphViewModel::GetDisplayName() const
 {
-	return DisplayName;
+	if (DisplayNameCache.IsSet() == false)
+	{
+		DisplayNameCache = GetDisplayNameInternal();
+	}
+	return DisplayNameCache.GetValue();
 }
 
 UEdGraph* FNiagaraOverviewGraphViewModel::GetGraph() const
@@ -54,20 +68,33 @@ TSharedRef<FNiagaraObjectSelection> FNiagaraOverviewGraphViewModel::GetNodeSelec
 	return NodeSelection;
 }
 
+const FNiagaraGraphViewSettings& FNiagaraOverviewGraphViewModel::GetViewSettings() const
+{
+	return GetSystemViewModel()->GetEditorData().GetSystemOverviewGraphViewSettings();
+}
+
+void FNiagaraOverviewGraphViewModel::SetViewSettings(const FNiagaraGraphViewSettings& InOverviewGraphViewSettings)
+{
+	GetSystemViewModel()->GetEditorData().SetSystemOverviewGraphViewSettings(InOverviewGraphViewSettings);
+}
+
 FNiagaraOverviewGraphViewModel::FOnNodesPasted& FNiagaraOverviewGraphViewModel::OnNodesPasted()
 {
 	return OnNodesPastedDelegate;
 }
 
-void FNiagaraOverviewGraphViewModel::PostUndo(bool bSuccess)
+TSharedRef<FNiagaraSystemViewModel> FNiagaraOverviewGraphViewModel::GetSystemViewModel()
 {
-	// The graph may have been deleted as a result of the undo operation so make sure it's valid
-	// before using it.
-	UEdGraph* Graph = GetGraph();
-	if (Graph != nullptr)
-	{
-		Graph->NotifyGraphChanged();
-	}
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModel.Pin();
+	checkf(SystemViewModelPinned.IsValid(), TEXT("System view model destroyed before overview graph view model."));
+	return SystemViewModelPinned.ToSharedRef();
+}
+
+const TSharedRef<FNiagaraSystemViewModel> FNiagaraOverviewGraphViewModel::GetSystemViewModel() const
+{
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModel.Pin();
+	checkf(SystemViewModelPinned.IsValid(), TEXT("System view model destroyed before overview graph view model."));
+	return SystemViewModelPinned.ToSharedRef();
 }
 
 void FNiagaraOverviewGraphViewModel::SetupCommands()
@@ -129,7 +156,7 @@ void FNiagaraOverviewGraphViewModel::DeleteSelectedNodes()
 		TSet<FGuid> EmitterGuidsToDelete;
 		for (UObject* NodeToDelete : NodesToDelete)
 		{
-			UNiagaraOverviewNodeStackItem* GraphNodeToDelete = Cast<UNiagaraOverviewNodeStackItem>(NodeToDelete);
+			UNiagaraOverviewNode* GraphNodeToDelete = Cast<UNiagaraOverviewNode>(NodeToDelete);
 			if (GraphNodeToDelete != nullptr && GraphNodeToDelete->CanUserDeleteNode())
 			{
 				EmitterGuidsToDelete.Add(GraphNodeToDelete->GetEmitterHandleGuid());
@@ -293,7 +320,7 @@ bool FNiagaraOverviewGraphViewModel::CanDuplicateNodes() const
 	return CanCopyNodes();
 }
 
-void FNiagaraOverviewGraphViewModel::InitDisplayName()
+FText FNiagaraOverviewGraphViewModel::GetDisplayNameInternal() const
 {
 	ensureMsgf(SystemViewModel.IsValid(), TEXT("SystemViewModel was not initialized before InitDisplayName!"));
 	TSharedPtr<FNiagaraSystemViewModel> WeakSystemViewModel = SystemViewModel.Pin();
@@ -303,20 +330,79 @@ void FNiagaraOverviewGraphViewModel::InitDisplayName()
 		TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EditedEmitterHandleViewModels = WeakSystemViewModel->GetEmitterHandleViewModels();
 		if (ensureMsgf(EditedEmitterHandleViewModels.Num() > 0, TEXT("SystemViewModel did not have any EmitterHandleViewModels! Cannot get currently edited Emitter's Name.")))
 		{
-			DisplayName = FText::FromName(WeakSystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetName());
-			return;
+			return FText::FromName(WeakSystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetName());
 		}
 	}
 	else if (SystemEditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		DisplayName = FText::FromString(WeakSystemViewModel->GetSystem().GetName());
-		return;
+		return FText::FromString(WeakSystemViewModel->GetSystem().GetName());
 	}
 	else
 	{
 		ensureMsgf(false, TEXT("Encountered unexpected SystemViewModel edit mode!"));
 	}
-	DisplayName = LOCTEXT("NiagaraOverview_FallbackTitlebar", "Niagara");
+	return LOCTEXT("NiagaraOverview_FallbackTitlebar", "Niagara");
+}
+
+void FNiagaraOverviewGraphViewModel::GraphSelectionChanged()
+{
+	if (bUpdatingGraphSelectionFromSystem == false)
+	{
+		TGuardValue<bool> UpdateGuard(bUpdatingSystemSelectionFromGraph, true);
+
+		bool bSystemIsSelected = false;
+		TArray<FGuid> SelectedEmitterHandleGuids;
+		for (UObject* SelectedNode : NodeSelection->GetSelectedObjects())
+		{
+			UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode);
+			if (OverviewNode != nullptr)
+			{
+				if (OverviewNode->GetEmitterHandleGuid().IsValid())
+				{
+					SelectedEmitterHandleGuids.Add(OverviewNode->GetEmitterHandleGuid());
+				}
+				else
+				{
+					bSystemIsSelected = true;
+				}
+			}
+		}
+
+		bool bClearCurrentSelection = FSlateApplication::Get().GetModifierKeys().IsControlDown() == false;
+		GetSystemViewModel()->GetSelectionViewModel()->UpdateSelectionFromTopLevelObjects(bSystemIsSelected, SelectedEmitterHandleGuids, bClearCurrentSelection);
+	}
+}
+
+void FNiagaraOverviewGraphViewModel::SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+{
+	if (bUpdatingSystemSelectionFromGraph == false && 
+		SelectionChangeSource != UNiagaraSystemSelectionViewModel::ESelectionChangeSource::EntrySelection)
+	{
+		TGuardValue<bool> UpdateGuard(bUpdatingGraphSelectionFromSystem, true);
+
+		TArray<UObject*> SelectedNodes;
+		TArray<UNiagaraOverviewNode*> OverviewNodes;
+		OverviewGraph->GetNodesOfClass<UNiagaraOverviewNode>(OverviewNodes);
+		for (UNiagaraOverviewNode* OverviewNode : OverviewNodes)
+		{
+			if (OverviewNode->GetEmitterHandleGuid().IsValid())
+			{
+				if (GetSystemViewModel()->GetSelectionViewModel()->GetSelectedEmitterHandleIds().Contains(OverviewNode->GetEmitterHandleGuid()))
+				{
+					SelectedNodes.Add(OverviewNode);
+				}
+			}
+			else
+			{
+				if (GetSystemViewModel()->GetSelectionViewModel()->GetSystemIsSelected())
+				{
+					SelectedNodes.Add(OverviewNode);
+				}
+			}
+		}
+
+		NodeSelection->SetSelectedObjects(SelectedNodes);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE // NiagaraScriptGraphViewModel

@@ -457,6 +457,11 @@ USubsurfaceProfile* UMaterialInterface::GetSubsurfaceProfile_Internal() const
 	return NULL;
 }
 
+bool UMaterialInterface::CastsRayTracedShadows() const
+{
+	return true;
+}
+
 void UMaterialInterface::SetFeatureLevelToCompile(ERHIFeatureLevel::Type FeatureLevel, bool bShouldCompile)
 {
 	uint32 FeatureLevelBit = (1 << FeatureLevel);

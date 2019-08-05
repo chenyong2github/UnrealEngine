@@ -294,11 +294,16 @@ void UNetDriver::InitPacketSimulationSettings()
 		return;
 	}
 
-	PacketSimulationSettings.ResetSettings();
-
-	// read the settings from .ini and command line, with the command line taking precedence	
-	PacketSimulationSettings.LoadConfig(*NetDriverName.ToString());
 	PacketSimulationSettings.RegisterCommands();
+
+	if (bForcedPacketSettings)
+	{
+		return;
+	}
+
+	// Read the settings from .ini and command line, with the command line taking precedence	
+	PacketSimulationSettings.ResetSettings();
+	PacketSimulationSettings.LoadConfig(*NetDriverName.ToString());
 	PacketSimulationSettings.ParseSettings(FCommandLine::Get(), *NetDriverName.ToString());
 #endif
 }
@@ -1419,6 +1424,22 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 		});
 	}
 
+#if DO_ENABLE_NET_TEST
+	bool bSettingFound(false);
+	FPacketSimulationSettings PacketSettings;
+
+	for (const FString& URLOption : URL.Op)
+	{
+		bSettingFound |= PacketSettings.ParseSettings(*URLOption);
+	}
+
+	if( bSettingFound )
+	{
+		SetPacketSimulationSettings(PacketSettings);
+		bForcedPacketSettings = true;
+	}
+#endif //#if DO_ENABLE_NET_TEST
+
 	Notify = InNotify;
 
 	return bSuccess;
@@ -2246,6 +2267,11 @@ void UNetDriver::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider)
 	if (ConnectionlessHandler.IsValid())
 	{
 		ConnectionlessHandler->NotifyAnalyticsProvider(AnalyticsProvider, AnalyticsAggregator);
+	}
+
+	if (ServerConnection != nullptr)
+	{
+		ServerConnection->NotifyAnalyticsProvider();
 	}
 
 	for (UNetConnection* CurConn : ClientConnections)
@@ -3278,6 +3304,10 @@ void FPacketSimulationSettings::LoadConfig(const TCHAR* OptionalQualifier)
 	
 	ConfigHelperInt(TEXT("PktDup"), PktDup, OptionalQualifier);
 
+	ConfigHelperInt(TEXT("PktIncomingLagMin"), PktIncomingLagMin, OptionalQualifier);
+	ConfigHelperInt(TEXT("PktIncomingLagMax"), PktIncomingLagMax, OptionalQualifier);
+	ConfigHelperInt(TEXT("PktIncomingLoss"), PktIncomingLoss, OptionalQualifier);
+
 	ValidateSettings();
 }
 
@@ -3289,7 +3319,7 @@ bool FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
 	bool bSectionExists = GConfig->GetSection(*SectionName, SectionConfigs, GEngineIni);
 	if (!bSectionExists)
 	{
-		UE_LOG(LogNet, Warning, TEXT("EmulationProfile [%s] was not found in %s. Packet settings were not changed"), *SectionName, *GEngineIni);
+		UE_LOG(LogNet, Log, TEXT("EmulationProfile [%s] was not found in %s. Packet settings were not changed"), *SectionName, *GEngineIni);
 		return false;
 	}
 
@@ -3339,6 +3369,10 @@ void FPacketSimulationSettings::ValidateSettings()
 	PktLagMax = FMath::Max(PktLagMin, PktLagMax);
 
 	PktDup = FMath::Clamp<int32>(PktDup, 0, 100);
+
+	PktIncomingLagMin = FMath::Max(PktIncomingLagMin, 0);
+	PktIncomingLagMax = FMath::Max(PktIncomingLagMin, PktIncomingLagMax);
+	PktIncomingLoss = FMath::Clamp<int32>(PktIncomingLoss, 0, 100);
 }
 
 bool FPacketSimulationSettings::ConfigHelperInt(const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier)
@@ -3382,16 +3416,22 @@ void FPacketSimulationSettings::RegisterCommands()
 	IConsoleManager& ConsoleManager = IConsoleManager::Get();
 	
 	// Register exec commands with the console manager for auto-completion if they havent been registered already by another net driver
-	if (!ConsoleManager.IsNameRegistered(TEXT("Net PktLoss=")))
+	if (!ConsoleManager.IsNameRegistered(TEXT("NetEmulation PktEmulationProfile=")))
 	{
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLoss="), TEXT("PktLoss=<n> (simulates network packet loss)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktOrder="), TEXT("PktOrder=<n> (simulates network packet received out of order)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktDup="), TEXT("PktDup=<n> (simulates sending/receiving duplicate network packets)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLag="), TEXT("PktLag=<n> (simulates network packet lag)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLagVariance="), TEXT("PktLagVariance=<n> (simulates variable network packet lag)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLagMin="), TEXT("PktLagMin=<n> (minimum packet latency)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net PktLagMax="), TEXT("PktLagMax=<n> (maximum packet latency)"));
-		ConsoleManager.RegisterConsoleCommand(TEXT("Net EmulationProfile="), TEXT("EmulationProfile=<NAME> (apply an emulation profile)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktEmulationProfile="), TEXT("PktEmulationProfile=<NAME> (apply an emulation profile)"));
+
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLoss="), TEXT("PktLoss=<n> (simulates network packet loss)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktOrder="), TEXT("PktOrder=<n> (simulates network packet received out of order)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktDup="), TEXT("PktDup=<n> (simulates sending/receiving duplicate network packets)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLag="), TEXT("PktLag=<n> (simulates network packet lag)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLagVariance="), TEXT("PktLagVariance=<n> (simulates variable network packet lag)"));
+
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLagMin="), TEXT("PktLagMin=<n> (minimum outgoing packet latency)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktLagMax="), TEXT("PktLagMax=<n> (maximum outgoing packet latency)"));
+
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktIncomingLagMin="), TEXT("PktIncomingLagMin=<n> (minimum incoming packet latency)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktIncomingLagMax="), TEXT("PktIncomingLagMax=<n> (maximum incoming packet latency)"));
+		ConsoleManager.RegisterConsoleCommand(TEXT("NetEmulation PktIncomingLoss="), TEXT("PktIncomingLoss=<n> (simulates incoming packet loss)"));
 	}
 
 	// Note we never unregister the console commands since net drivers come and go, and we can sometimes have more than 1, etc. 
@@ -3405,17 +3445,15 @@ void FPacketSimulationSettings::RegisterCommands()
  */
 bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* OptionalQualifier)
 {
-	UE_LOG(LogTemp, Display, TEXT("ParseSettings for %s"), OptionalQualifier);
 	// note that each setting is tested.
 	// this is because the same function will be used to parse the command line as well
 	bool bParsed = false;
 
 	FString EmulationProfileName;
-	if (FParse::Value(Cmd, TEXT("EmulationProfile="), EmulationProfileName))
+	if (FParse::Value(Cmd, TEXT("PktEmulationProfile="), EmulationProfileName))
 	{
-		bParsed = true;
 		UE_LOG(LogNet, Log, TEXT("Applying EmulationProfile %s"), *EmulationProfileName);
-		LoadEmulationProfile(*EmulationProfileName);
+		bParsed = LoadEmulationProfile(*EmulationProfileName);
 	}
 	if( ParseHelper(Cmd, TEXT("PktLoss="), PktLoss, OptionalQualifier) )
 	{
@@ -3461,6 +3499,21 @@ bool FPacketSimulationSettings::ParseSettings(const TCHAR* Cmd, const TCHAR* Opt
 	{
 		bParsed = true;
 		UE_LOG(LogNet, Log, TEXT("PktLagMax set to %d"), PktLagMax);
+	}
+	if (ParseHelper(Cmd, TEXT("PktIncomingLagMin="), PktIncomingLagMin, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktIncomingLagMin set to %d"), PktIncomingLagMin);
+	}
+	if (ParseHelper(Cmd, TEXT("PktIncomingLagMax="), PktIncomingLagMax, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktIncomingLagMax set to %d"), PktIncomingLagMax);
+	}
+	if (ParseHelper(Cmd, TEXT("PktIncomingLoss="), PktIncomingLoss, OptionalQualifier))
+	{
+		bParsed = true;
+		UE_LOG(LogNet, Log, TEXT("PktIncomingLoss set to %d"), PktIncomingLoss);
 	}
 
 	ValidateSettings();
@@ -5620,7 +5673,7 @@ static bool NetDriverExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	bool bHandled = false;
 
 	// Ignore any execs that don't start with NET
-	if (FParse::Command(&Cmd, TEXT("NET")))
+	if (FParse::Command(&Cmd, TEXT("NET")) || FParse::Command(&Cmd, TEXT("NETEMULATION")))
 	{
 		UNetDriver* NamedDriver = NULL;
 		TCHAR TokenStr[128];

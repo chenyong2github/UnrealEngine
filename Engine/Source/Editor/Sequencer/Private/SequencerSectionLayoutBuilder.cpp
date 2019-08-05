@@ -24,7 +24,10 @@ TSharedPtr<FSequencerDisplayNode> FindAndRelocateExistingNode(TSharedRef<FSequen
 
 	const TArray<TSharedRef<FSequencerDisplayNode>>& CurrentChildren = ParentNode->GetChildNodes();
 
-	check(ExpectedIndex <= CurrentChildren.Num());
+	if (!ensureAlwaysMsgf(ExpectedIndex <= CurrentChildren.Num(), TEXT("Invalid desired index specified")))
+	{
+		ExpectedIndex = FMath::Clamp(ExpectedIndex, 0, CurrentChildren.Num());
+	}
 
 	// Common up-to-date case: check the desired insert index for an existing node that matches
 	if (CurrentChildren.IsValidIndex(ExpectedIndex) && MatchNode(CurrentChildren[ExpectedIndex]))
@@ -136,7 +139,8 @@ void FSequencerSectionLayoutBuilder::AddChannel( const FMovieSceneChannelHandle&
 	AddOrUpdateChannel(KeyAreaNode.ToSharedRef(), Channel);
 
 	// Move onto the next index at this level
-	++InsertIndexStack.Last();
+	int32& NextIndex = InsertIndexStack.Last();
+	NextIndex = FMath::Clamp(NextIndex + 1, 0, CurrentNode->GetChildNodes().Num());
 }
 
 void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode, const FMovieSceneChannelHandle& Channel)

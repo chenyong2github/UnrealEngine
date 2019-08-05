@@ -539,7 +539,7 @@ namespace Gauntlet
 				{ UnrealTargetPlatform.XboxOne , "XboxOne-DevKit" },
 				{ UnrealTargetPlatform.Android , "Android" },
 				{ UnrealTargetPlatform.Switch , "Switch" }
-		};
+			};
 
 			List<string> Devices = new List<string>();
 
@@ -578,9 +578,11 @@ namespace Gauntlet
 			{
 				DeviceReservationAutoRenew DeviceReservation = null;
 
+				string PoolID = Globals.WorkerPoolID != -1 ? Globals.WorkerPoolID.ToString() : "";
+
 				try
 				{
-					DeviceReservation = new DeviceReservationAutoRenew(DeviceURL, 0, Devices.ToArray());
+					DeviceReservation = new DeviceReservationAutoRenew(DeviceURL, 0, PoolID, Devices.ToArray());
 				}
 				catch (Exception Ex)
 				{
@@ -977,10 +979,23 @@ namespace Gauntlet
 			var TooFewTotalDevices = RequiredDevices.Where(KP => TotalDeviceTypes[KP.Key] < RequiredDevices[KP.Key]).Select(KP => KP.Key);
 			var TooFewCurrentDevices = RequiredDevices.Where(KP => AvailableDeviceTypes[KP.Key] < RequiredDevices[KP.Key]).Select(KP => KP.Key);
 
-			// Request devices from the service if we need them
-			if (UseServiceDevices && !String.IsNullOrEmpty(DeviceURL) && (TooFewTotalDevices.Count() > 0 || TooFewCurrentDevices.Count() > 0))
+			List<UnrealTargetPlatform> ServicePlatforms = new List<UnrealTargetPlatform>()
 			{
-				var Devices = TooFewTotalDevices.Concat(TooFewCurrentDevices);
+				UnrealTargetPlatform.PS4, UnrealTargetPlatform.XboxOne, UnrealTargetPlatform.Switch
+			};
+
+			// support Android over wifi, though not on workers
+			if (!Globals.IsWorker)
+			{
+				ServicePlatforms.Add(UnrealTargetPlatform.Android);
+			}
+
+			var Devices = TooFewTotalDevices.Concat(TooFewCurrentDevices);
+			var UnsupportedPlatforms = Devices.Where(D => !ServicePlatforms.Contains(D.Platform.Value));
+
+			// Request devices from the service if we need them
+			if (UseServiceDevices && !String.IsNullOrEmpty(DeviceURL) && UnsupportedPlatforms.Count() == 0 && (TooFewTotalDevices.Count() > 0 || TooFewCurrentDevices.Count() > 0))
+			{				
 
 				Dictionary<UnrealTargetConstraint, int> DeviceCounts = new Dictionary<UnrealTargetConstraint, int>();
 

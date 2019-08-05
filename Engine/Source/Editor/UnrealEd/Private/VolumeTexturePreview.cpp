@@ -84,7 +84,7 @@ public:
 		}
 		SetShaderValue(RHICmdList, GetPixelShader(),ColorWeights,ColorWeightsValue);
 
-		const int32 MipSizeZ = FMath::Max<int32>(SizeZ >> FMath::FloorToInt(MipLevel), 1);
+		const int32 MipSizeZ = MipLevel >= 0 ? FMath::Max<int32>(SizeZ >> FMath::FloorToInt(MipLevel), 1) : SizeZ;
 		FVector4 PackedParametersValue(GammaValue, MipLevel, (float)MipSizeZ, Opacity);
 		SetShaderValue(RHICmdList, GetPixelShader(), PackedParameters, PackedParametersValue);
 

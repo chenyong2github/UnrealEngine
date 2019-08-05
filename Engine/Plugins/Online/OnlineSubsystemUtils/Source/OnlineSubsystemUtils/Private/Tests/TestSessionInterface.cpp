@@ -511,8 +511,16 @@ bool FTestSessionInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevic
 				if (FParse::Token(Cmd, FriendIdStr, ARRAY_COUNT(FriendIdStr), true))
 				{
 					TSharedPtr<const FUniqueNetId> FriendId = Identity->CreateUniquePlayerId((uint8*)FriendIdStr, FCString::Strlen(FriendIdStr));
-					OnFindFriendSessionCompleteDelegateHandles.Add(LocalUserNum, SessionInt->AddOnFindFriendSessionCompleteDelegate_Handle(LocalUserNum, OnFindFriendSessionCompleteDelegate));
-					SessionInt->FindFriendSession(LocalUserNum, *FriendId);
+					if (!FriendId.IsValid())
+					{
+						FriendId = Identity->CreateUniquePlayerId(FriendIdStr);
+					}
+
+					if (FriendId.IsValid())
+					{
+						OnFindFriendSessionCompleteDelegateHandles.Add(LocalUserNum, SessionInt->AddOnFindFriendSessionCompleteDelegate_Handle(LocalUserNum, OnFindFriendSessionCompleteDelegate));
+						SessionInt->FindFriendSession(LocalUserNum, *FriendId);
+					}
 				}
 			}
 			bWasHandled = true;

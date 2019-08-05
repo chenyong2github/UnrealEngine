@@ -1429,6 +1429,15 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 		AdditionalParameters += FString::Printf(TEXT(" -port=%hu"), ServerPort);
 	}
 
+	if (PlayInSettings->IsNetworkEmulationEnabled())
+	{
+		NetworkEmulationTarget CurrentTarget = bIsServer ? NetworkEmulationTarget::Server : NetworkEmulationTarget::Client;
+		if (PlayInSettings->NetworkEmulationSettings.IsEmulationEnabledForTarget(CurrentTarget))
+		{
+			AdditionalParameters += PlayInSettings->NetworkEmulationSettings.BuildPacketSettingsForCmdLine();
+		}
+	}
+
 	// Decide if fullscreen or windowed based on what is specified in the params
 	if (!AdditionalParameters.Contains(TEXT("-fullscreen")) && !AdditionalParameters.Contains(TEXT("-windowed")))
 	{

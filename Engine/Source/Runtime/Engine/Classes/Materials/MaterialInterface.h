@@ -732,6 +732,7 @@ public:
 	ENGINE_API virtual bool IsDeferredDecal() const;
 
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const;
+	ENGINE_API virtual bool CastsRayTracedShadows() const;
 
 	/**
 	 * Force the streaming system to disregard the normal logic for the specified duration and

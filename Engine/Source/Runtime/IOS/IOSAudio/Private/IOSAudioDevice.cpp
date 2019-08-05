@@ -11,6 +11,7 @@
 #include "IOSAudioDevice.h"
 #include "AudioEffect.h"
 #include "ADPCMAudioInfo.h"
+#include "AudioPluginUtilities.h"
 
 DEFINE_LOG_CATEGORY(LogIOSAudio);
 
@@ -109,7 +110,8 @@ bool FIOSAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 
 FAudioPlatformSettings FIOSAudioDevice::GetPlatformSettings() const
 {
-	return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"));
+	const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::IOS);
+	return FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
 }
 
 bool FIOSAudioDevice::InitializeHardware()
@@ -198,7 +200,7 @@ bool FIOSAudioDevice::InitializeHardware()
 		return false;
 	}
 
-	uint32 BusCount = MaxChannels * CHANNELS_PER_BUS;
+	uint32 BusCount = GetMaxSources() * CHANNELS_PER_BUS;
 	Status = AudioUnitSetProperty(MixerUnit,
 	                              kAudioUnitProperty_ElementCount,
 	                              kAudioUnitScope_Input,

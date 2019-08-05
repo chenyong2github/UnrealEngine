@@ -9,8 +9,8 @@
 #if INCLUDE_CHAOS
 
 class AActor;
-class FSkeletalMeshPhysicsObject;
-struct FSkeletalMeshPhysicsObjectParams;
+class FSkeletalMeshPhysicsProxy;
+struct FSkeletalMeshPhysicsProxyParams;
 class UChaosPhysicalMaterial;
 class UPhysicsAsset;
 class USkeletalMeshComponent;
@@ -18,8 +18,8 @@ class USkeletalMeshComponent;
 
 struct GEOMETRYCOLLECTIONENGINE_API FPhysicsAssetSimulationUtil
 {
-	static void BuildParams(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const UPhysicsAsset* PhysicsAsset, FSkeletalMeshPhysicsObjectParams& OutParams);
-	static bool UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const float Dt, FSkeletalMeshPhysicsObjectParams& OutParams);
+	static void BuildParams(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const UPhysicsAsset* PhysicsAsset, FSkeletalMeshPhysicsProxyParams& OutParams);
+	static bool UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const float Dt, FSkeletalMeshPhysicsProxyParams& OutParams);
 };
 
 #endif

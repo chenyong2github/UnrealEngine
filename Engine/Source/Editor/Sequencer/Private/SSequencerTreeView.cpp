@@ -537,7 +537,7 @@ FReply SSequencerTreeView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 			}
 
 			int32 NumItemsInAPage = GetNumLiveWidgets();
-			int32 Remainder = NumItemsInAPage % GetNumItemsWide();
+			int32 Remainder = NumItemsInAPage % GetNumItemsPerLine();
 			NumItemsInAPage -= Remainder;
 
 			if (SelectionIndex >= NumItemsInAPage)
@@ -582,7 +582,7 @@ FReply SSequencerTreeView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 			}
 
 			int32 NumItemsInAPage = GetNumLiveWidgets();
-			int32 Remainder = NumItemsInAPage % GetNumItemsWide();
+			int32 Remainder = NumItemsInAPage % GetNumItemsPerLine();
 			NumItemsInAPage -= Remainder;
 
 

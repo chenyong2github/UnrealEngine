@@ -323,7 +323,7 @@ bool FMPCDIModule::Load(const ConfigParser& CfgData, IMPCDI::FRegionLocator& Out
 		{
 			if (!LoadPFM(OutRegionLocator, CfgData.PFMFile, CfgData.PFMFileScale, CfgData.bIsUnrealGameSpace))
 			{
-				UE_LOG(LogMPCDI, Warning, TEXT("Couldn't get load ext pfm for <buf %s, reg %s> from file: %s"), *CfgData.BufferId, *CfgData.RegionId, *CfgData.PFMFile);
+				UE_LOG(LogMPCDI, Error, TEXT("Failed to load PFM <buf %s, reg %s> from file: %s"), *CfgData.BufferId, *CfgData.RegionId, *CfgData.PFMFile);
 			}
 		}
 		// AlphaMAP

@@ -42,6 +42,9 @@ public:
 	// AActor interface
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 	// End of AActor interface
+
+	/** Reset this actor in the level.*/
+	NIAGARA_API void ResetInLevel();
 #endif // WITH_EDITOR
 
 };

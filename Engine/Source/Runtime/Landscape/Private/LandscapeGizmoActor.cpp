@@ -26,18 +26,6 @@
 #include "Components/BillboardComponent.h"
 #include "HAL/PlatformApplicationMisc.h"
 
-namespace
-{
-	enum PreviewType
-	{
-		Invalid = -1,
-		Both = 0,
-		Add = 1,
-		Sub = 2,
-	};
-}
-
-
 class FLandscapeGizmoMeshRenderProxy : public FMaterialRenderProxy
 {
 public:

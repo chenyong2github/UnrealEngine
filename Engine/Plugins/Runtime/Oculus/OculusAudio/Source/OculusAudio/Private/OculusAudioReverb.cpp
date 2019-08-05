@@ -6,8 +6,8 @@
 
 void FSubmixEffectOculusReverbPlugin::SetContext(ovrAudioContext* SharedContext)
 {
+	FScopeLock ScopeLock(&ContextLock);
 	Context = SharedContext;
-	check(Context != nullptr);
 }
 
 FSubmixEffectOculusReverbPlugin::FSubmixEffectOculusReverbPlugin()
@@ -17,6 +17,7 @@ FSubmixEffectOculusReverbPlugin::FSubmixEffectOculusReverbPlugin()
 
 void FSubmixEffectOculusReverbPlugin::OnProcessAudio(const FSoundEffectSubmixInputData& InputData, FSoundEffectSubmixOutputData& OutputData)
 {
+	FScopeLock ScopeLock(&ContextLock);
 	if (Context != nullptr && *Context != nullptr)
 	{
 		int Enabled = 0;
@@ -34,8 +35,11 @@ void FSubmixEffectOculusReverbPlugin::OnProcessAudio(const FSoundEffectSubmixInp
 
 void OculusAudioReverb::SetContext(ovrAudioContext* SharedContext)
 {
-	check(SharedContext != nullptr);
-	Context = SharedContext;
+	if (SharedContext != nullptr)
+	{
+		Context = SharedContext;
+	}
+	
 	for (FSubmixEffectOculusReverbPlugin* Submix : Submixes)
 	{
 		Submix->SetContext(SharedContext);

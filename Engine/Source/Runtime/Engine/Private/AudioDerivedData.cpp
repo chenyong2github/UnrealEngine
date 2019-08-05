@@ -329,12 +329,11 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				if (bUseStreamCaching)
 				{
 					// Use the chunk size for this duration:
-					MaxChunkSize = FPlatformCompressionUtilities::GetChunkSizeForCookOverrides(CompressionOverrides);
+					MaxChunkSize = FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(CompressionOverrides);
 					UE_LOG(LogAudio, Display, TEXT("Chunk size for %s: %d"), *SoundWave.GetFullName(), MaxChunkSize);
 				}
-
+				
 				check(FirstChunkSize != 0 && MaxChunkSize != 0);
-				check(FirstChunkSize <= (256 * 1024) && MaxChunkSize <= (256 * 1024));
 
 				if (AudioFormat->SplitDataForStreaming(CompressedBuffer, ChunkBuffers, FirstChunkSize, MaxChunkSize))
 				{
@@ -1583,12 +1582,16 @@ void USoundWave::FinishCachePlatformData()
 	}
 
 #if DO_CHECK
-	FString DerivedDataKey;
-	FName AudioFormat = GetWaveFormatForRunningPlatform(*this);
-	const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform();
-	GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
+	// If we're allowing cooked data to be loaded then the derived data key will not have been serialized, so won't match and that's fine
+	if (!GAllowCookedDataInEditorBuilds)
+	{
+		FString DerivedDataKey;
+		FName AudioFormat = GetWaveFormatForRunningPlatform(*this);
+		const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform();
+		GetStreamedAudioDerivedDataKey(*this, AudioFormat, CompressionOverrides, DerivedDataKey);
 
-	check(RunningPlatformData->DerivedDataKey == DerivedDataKey);
+		check(RunningPlatformData->DerivedDataKey == DerivedDataKey);
+	}
 #endif
 }
 

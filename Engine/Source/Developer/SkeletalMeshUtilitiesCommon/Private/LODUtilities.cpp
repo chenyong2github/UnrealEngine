@@ -319,7 +319,7 @@ void FLODUtilities::RemoveLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 D
 			USkinnedMeshComponent* SkinnedComponent = Cast<USkinnedMeshComponent>(*Iter);
 			if(SkinnedComponent)
 			{
-				SkinnedComponent->ForcedLodModel = 0;
+				SkinnedComponent->SetForcedLOD(0);
 			}
 		}
 

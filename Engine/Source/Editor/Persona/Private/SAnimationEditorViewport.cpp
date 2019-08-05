@@ -1527,7 +1527,7 @@ void SAnimationEditorViewportTabBody::PopulateUVChoices()
 	
 	if (UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent())
 	{
-		int32 CurrentLOD = FMath::Clamp(PreviewComponent->ForcedLodModel - 1, 0, NumUVChannels.Num() - 1);
+		int32 CurrentLOD = FMath::Clamp(PreviewComponent->GetForcedLOD() - 1, 0, NumUVChannels.Num() - 1);
 
 		if (NumUVChannels.IsValidIndex(CurrentLOD))
 		{
@@ -1684,13 +1684,13 @@ int32 SAnimationEditorViewportTabBody::GetLODSelection() const
 	{
 		// If we are forcing a LOD level, report the actual LOD level we are displaying
 		// as the mesh can potentially change LOD count under the viewport.
-		if(PreviewComponent->ForcedLodModel > 0)
+		if(PreviewComponent->GetForcedLOD() > 0)
 		{
 			return PreviewComponent->PredictedLODLevel + 1;
 		}
 		else
 		{
-			return PreviewComponent->ForcedLodModel;
+			return PreviewComponent->GetForcedLOD();
 		}
 	}
 	return 0;
@@ -1708,7 +1708,7 @@ void SAnimationEditorViewportTabBody::OnSetLODModel(int32 LODSelectionType)
 	if( PreviewComponent )
 	{
 		LODSelection = LODSelectionType;
-		PreviewComponent->ForcedLodModel = LODSelectionType;
+		PreviewComponent->SetForcedLOD(LODSelectionType);
 		PopulateUVChoices();
 		GetPreviewScene()->BroadcastOnSelectedLODChanged();
 	}
@@ -1718,9 +1718,9 @@ void SAnimationEditorViewportTabBody::OnLODModelChanged()
 {
 	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
 
-	if (PreviewComponent && LODSelection != PreviewComponent->ForcedLodModel)
+	if (PreviewComponent && LODSelection != PreviewComponent->GetForcedLOD())
 	{
-		LODSelection = PreviewComponent->ForcedLodModel;
+		LODSelection = PreviewComponent->GetForcedLOD();
 		PopulateUVChoices();
 	}
 }

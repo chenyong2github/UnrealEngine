@@ -3384,6 +3384,9 @@ struct FSortedSkeletalMesh
 	int32		LodCount;
 	int32		MobileMinLOD;
 	int32		MeshDisablesMinLODStripping;
+	int32		bSupportLODStreaming;
+	int32		MaxNumStreamedLODs;
+	int32		MaxNumOptionalLODs;
 	int32		VertexCountLod0;
 	int32		VertexCountLod1;
 	int32		VertexCountLod2;
@@ -3393,7 +3396,8 @@ struct FSortedSkeletalMesh
 	FString		Name;
 
 	/** Constructor, initializing every member variable with passed in values. */
-	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD, int32 InMeshDisablesMinLODStripping, int32 InVertexCountLod0,
+	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD,
+		int32 InMeshDisablesMinLODStripping, int32 bInSupportLODStreaming, int32 InMaxNumStreamedLODs, int32 InMaxNumOptionalLODs, int32 InVertexCountLod0,
 		int32 InVertexCountLod1, int32 InVertexCountLod2, int32 InVertexCountTotal, int32 InVertexCountTotalMobile, int32 InVertexCountCollision, FString InName)
 		: NumKB(InNumKB)
 		, MaxKB(InMaxKB)
@@ -3403,6 +3407,9 @@ struct FSortedSkeletalMesh
 		, LodCount(InLodCount)
 		, MobileMinLOD(InMobileMinLOD)
 		, MeshDisablesMinLODStripping(InMeshDisablesMinLODStripping)
+		, bSupportLODStreaming(bInSupportLODStreaming)
+		, MaxNumStreamedLODs(InMaxNumStreamedLODs)
+		, MaxNumOptionalLODs(InMaxNumOptionalLODs)
 		, VertexCountLod0(InVertexCountLod0)
 		, VertexCountLod1(InVertexCountLod1)
 		, VertexCountLod2(InVertexCountLod2)
@@ -5325,6 +5332,9 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		int32 LodCount = 0;
 		int32 MobileMinLOD = -1;
 		int32 MeshDisablesMinLODStripping = 0;
+		int32 bSupportLODStreaming = -1;
+		int32 MaxNumStreamedLODs = -1;
+		int32 MaxNumOptionalLODs = -1;
 #if WITH_EDITORONLY_DATA
 		if (Mesh->MinLod.PerPlatform.Find(("Mobile")) != nullptr)
 		{
@@ -5335,6 +5345,24 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		if (Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) != nullptr)
 		{
 			MeshDisablesMinLODStripping = *Mesh->DisableBelowMinLodStripping.PerPlatform.Find(("Mobile")) ? 1 : 0;
+		}
+
+		bSupportLODStreaming = Mesh->bSupportLODStreaming.Default;
+		if (const bool* Found = Mesh->bSupportLODStreaming.PerPlatform.Find("Mobile"))
+		{
+			bSupportLODStreaming = *Found;
+		}
+
+		MaxNumStreamedLODs = Mesh->MaxNumStreamedLODs.Default;
+		if (const int32* Found = Mesh->MaxNumStreamedLODs.PerPlatform.Find("Mobile"))
+		{
+			MaxNumStreamedLODs = *Found;
+		}
+
+		MaxNumOptionalLODs = Mesh->MaxNumOptionalLODs.Default;
+		if (const int32* Found = Mesh->MaxNumOptionalLODs.PerPlatform.Find("Mobile"))
+		{
+			MaxNumOptionalLODs = *Found;
 		}
 #endif
 
@@ -5383,6 +5411,9 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 			LodCount,
 			MobileMinLOD,
 			MeshDisablesMinLODStripping,
+			bSupportLODStreaming,
+			MaxNumStreamedLODs,
+			MaxNumOptionalLODs,
 			VertexCountLod0,
 			VertexCountLod1,
 			VertexCountLod2,
@@ -5406,11 +5437,11 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 	if (bCSV)
 	{
-		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, LOD Count, MobileMinLOD, DisableMinLODStripping, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, Name"));
+		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, LOD Count, MobileMinLOD, DisableMinLODStripping, bSupportLODStreaming, MaxNumStreamedLODs, MaxNumOptionalLODs, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, Name"));
 	}
 	else
 	{
-		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile    NumLODs   MobileMinLOD  DisableMinLODStripping  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  Name"));
+		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile    NumLODs   MobileMinLOD  DisableMinLODStripping  bSupportLODStreaming  MaxNumStreamedLODs  MaxNumOptionalLODs  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  Name"));
 	}
 
 	for (int32 MeshIndex = 0; MeshIndex<SortedMeshes.Num(); MeshIndex++)
@@ -5419,15 +5450,17 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 		if (bCSV)
 		{
-			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s"),
-				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD, SortedMesh.MeshDisablesMinLODStripping,
+			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s"),
+				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD,
+				SortedMesh.MeshDisablesMinLODStripping, SortedMesh.bSupportLODStreaming, SortedMesh.MaxNumStreamedLODs, SortedMesh.MaxNumOptionalLODs,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
 				*SortedMesh.Name);
 		}
 		else
 		{
-			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i %14i %23i %10i %11i %11i %12i %17i %10i  %s"),
-				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD, SortedMesh.MeshDisablesMinLODStripping,
+			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i %14i %23i %21i %19i %19i %10i %11i %11i %12i %17i %10i  %s"),
+				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.LodCount, SortedMesh.MobileMinLOD,
+				SortedMesh.MeshDisablesMinLODStripping, SortedMesh.bSupportLODStreaming, SortedMesh.MaxNumStreamedLODs, SortedMesh.MaxNumOptionalLODs,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
 				*SortedMesh.Name);
 		}
@@ -8846,13 +8879,13 @@ bool UEngine::IsConsoleBuild(EConsoleType ConsoleType) const
 {
 	switch (ConsoleType)
 	{
-	case CONSOLE_Any:
+	case EConsoleType::Any:
 #if !PLATFORM_DESKTOP
 		return true;
 #else
 		return false;
 #endif
-	case CONSOLE_Mobile:
+	case EConsoleType::Mobile:
 		return false;
 	default:
 		UE_LOG(LogEngine, Warning, TEXT("Unknown ConsoleType passed to IsConsoleBuild()"));
@@ -12106,9 +12139,9 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 			}
 		}
 	}
-	else if (TransitionType == TT_WaitingToConnect)
+	else if (TransitionType == ETransitionType::WaitingToConnect)
 	{
-		TransitionType = TT_None;
+		TransitionType = ETransitionType::None;
 	}
 
 	return;
@@ -12214,7 +12247,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 		if(!URL.HasOption(TEXT("quiet")) )
 		{
-			TransitionType = TT_Loading;
+			TransitionType = ETransitionType::Loading;
 			TransitionDescription = URL.Map;
 			if (URL.HasOption(TEXT("Game=")))
 			{
@@ -12233,7 +12266,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				LoadMapRedrawViewports();
 			}
 
-			TransitionType = TT_None;
+			TransitionType = ETransitionType::None;
 		}
 
 		// Clean up networking
@@ -12918,10 +12951,10 @@ void UEngine::LoadPackagesFully(UWorld * InWorld, EFullyLoadPackageType FullyLoa
 void UEngine::UpdateTransitionType(UWorld *CurrentWorld)
 {
 	// Update the transition screen.
-	if(TransitionType == TT_Connecting)
+	if(TransitionType == ETransitionType::Connecting)
 	{
 		// Check to see if all players have finished connecting.
-		TransitionType = TT_None;
+		TransitionType = ETransitionType::None;
 
 		FWorldContext &Context = GetWorldContextFromWorldChecked(CurrentWorld);
 		if (Context.OwningGameInstance != NULL)
@@ -12931,16 +12964,16 @@ void UEngine::UpdateTransitionType(UWorld *CurrentWorld)
 				if(!(*It)->PlayerController)
 				{
 					// This player has not received a PlayerController from the server yet, so leave the connecting screen up.
-					TransitionType = TT_Connecting;
+					TransitionType = ETransitionType::Connecting;
 					break;
 				}
 			}
 		}
 	}
-	else if(TransitionType == TT_None || TransitionType == TT_Paused)
+	else if(TransitionType == ETransitionType::None || TransitionType == ETransitionType::Paused)
 	{
 		// Display a paused screen if the game is paused.
-		TransitionType = (CurrentWorld->GetWorldSettings()->GetPauserPlayerState() != NULL) ? TT_Paused : TT_None;
+		TransitionType = (CurrentWorld->GetWorldSettings()->GetPauserPlayerState() != NULL) ? ETransitionType::Paused : ETransitionType::None;
 	}
 }
 

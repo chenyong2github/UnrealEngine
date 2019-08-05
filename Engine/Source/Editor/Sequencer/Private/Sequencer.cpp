@@ -131,6 +131,8 @@
 #include "Features/IModularFeatures.h"
 #include "SequencerContextMenus.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -3295,6 +3297,12 @@ void FSequencer::ResetPerMovieSceneData()
 
 void FSequencer::RecordSelectedActors()
 {
+	// Keep track of how many people actually used record new sequence
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Sequencer.RecordSelectedActors"));
+	}
+
 	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
 	if (SequenceRecorder.IsRecording())
 	{
@@ -7039,6 +7047,8 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 
 bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
+	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
 	TArray<UMovieSceneCopyableTrack*> ImportedTracks;
 	FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
 
@@ -7050,8 +7060,6 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 	TArray<UMovieSceneFolder*> SelectedParentFolders;
 	FString NewNodePath;
 	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
-
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
 	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
 	UObject* BindingContext = GetPlaybackContext();
@@ -7188,6 +7196,8 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 
 bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
+	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
 	TArray<UMovieSceneSection*> ImportedSections;
 	FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
 
@@ -7204,8 +7214,6 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 		PasteErrors.Add(Info);
 		return false;
 	}
-
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
 	FFrameNumber LocalTime = GetLocalTime().Time.GetFrame();
 
@@ -10325,6 +10333,32 @@ void FSequencer::BindCommands()
 
 	// Sequencer-only bindings
 	SequencerCommandBindings->MapAction(
+		Commands.TogglePlay,
+		FExecuteAction::CreateSP(this, &FSequencer::TogglePlay));
+
+	SequencerCommandBindings->MapAction(
+		Commands.PlayForward,
+		FExecuteAction::CreateLambda([this] { OnPlayForward(false); }));
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpToStart,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToStart));
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpToEnd,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToEnd));
+
+	SequencerCommandBindings->MapAction(
+		Commands.StepForward,
+		FExecuteAction::CreateSP(this, &FSequencer::StepForward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
+		Commands.StepBackward,
+		FExecuteAction::CreateSP(this, &FSequencer::StepBackward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
 		Commands.SetInterpolationCubicAuto,
 		FExecuteAction::CreateSP(this, &FSequencer::SetInterpTangentMode, ERichCurveInterpMode::RCIM_Cubic, ERichCurveTangentMode::RCTM_Auto));
 
@@ -10349,22 +10383,6 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP(this, &FSequencer::SetInterpTangentMode, ERichCurveInterpMode::RCIM_Constant, ERichCurveTangentMode::RCTM_Auto));
 
 	SequencerCommandBindings->MapAction(
-		Commands.TogglePlay,
-		FExecuteAction::CreateSP( this, &FSequencer::TogglePlay ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.PlayForward,
-		FExecuteAction::CreateLambda( [this] { OnPlayForward(false); }));
-
-	SequencerCommandBindings->MapAction(
-		Commands.JumpToStart,
-		FExecuteAction::CreateSP( this, &FSequencer::JumpToStart ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.JumpToEnd,
-		FExecuteAction::CreateSP( this, &FSequencer::JumpToEnd ));
-
-	SequencerCommandBindings->MapAction(
 		Commands.ShuttleForward,
 		FExecuteAction::CreateSP( this, &FSequencer::ShuttleForward ));
 
@@ -10375,16 +10393,6 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.Pause,
 		FExecuteAction::CreateSP( this, &FSequencer::Pause ));
-
-	SequencerCommandBindings->MapAction(
-		Commands.StepForward,
-		FExecuteAction::CreateSP( this, &FSequencer::StepForward ),
-		EUIActionRepeatMode::RepeatEnabled );
-
-	SequencerCommandBindings->MapAction(
-		Commands.StepBackward,
-		FExecuteAction::CreateSP( this, &FSequencer::StepBackward ),
-		EUIActionRepeatMode::RepeatEnabled );
 
 	SequencerCommandBindings->MapAction(
 		Commands.SetSelectionRangeEnd,

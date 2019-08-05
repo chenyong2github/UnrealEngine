@@ -669,7 +669,7 @@ void FSteamVRHMD::UpdatePoses()
 	else
 	{
 		check(IsInGameThread());
-		VRSystem->GetDeviceToAbsoluteTrackingPose(VRCompositor->GetTrackingSpace(), 0.0f, Poses, ARRAYSIZE(Poses));
+		vr::EVRCompositorError PoseError = VRCompositor->GetLastPoses(Poses, ARRAYSIZE(Poses), NULL, 0);
 	}
 
 	TrackingFrame.bHaveVisionTracking = false;

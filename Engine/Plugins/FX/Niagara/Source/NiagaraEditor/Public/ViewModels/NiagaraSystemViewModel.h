@@ -8,6 +8,7 @@
 #include "UObject/GCObject.h"
 #include "NiagaraCurveOwner.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ISequencer.h"
 
 #include "TickableEditorObject.h"
@@ -22,6 +23,8 @@ struct FNiagaraVariable;
 struct FNiagaraEmitterHandle;
 class FNiagaraEmitterHandleViewModel;
 class FNiagaraSystemScriptViewModel;
+class UNiagaraStackViewModel;
+class UNiagaraSystemSelectionViewModel;
 class FNiagaraSystemInstance;
 class ISequencer;
 struct FAssetData;
@@ -60,6 +63,9 @@ struct FNiagaraSystemViewModelOptions
 	/** Whether or not the system represented by this view model can be simulated. True by default. */
 	bool bCanSimulate;
 
+	/** An optional unique id which associates this view model with messages in the message manager. */
+	TOptional<const FGuid> MessageLogGuid;
+
 	/** Gets the current editing mode for this system. */
 	ENiagaraSystemViewModelEditMode EditMode;
 };
@@ -85,8 +91,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnEmitterHandleViewModelsChanged);
 
 	DECLARE_MULTICAST_DELEGATE(FOnCurveOwnerChanged);
-
-	DECLARE_MULTICAST_DELEGATE(FOnSelectedEmitterHandlesChanged);
 
 	DECLARE_MULTICAST_DELEGATE(FOnPostSequencerTimeChange)
 
@@ -134,15 +138,22 @@ public:
 		ResetSystem,
 	};
 	/** Creates a new view model with the supplied System and System instance. */
-	FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions, TOptional<const FGuid> InMessageLogGuid = TOptional<const FGuid>());
+	FNiagaraSystemViewModel();
+	
+	/** Initializes this system view model with the supplied system and options. */
+	void Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions);
 
 	~FNiagaraSystemViewModel();
 
+	NIAGARAEDITOR_API FText GetDisplayName() const;
+
 	/** Gets an array of the view models for the emitter handles owned by this System. */
-	const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& GetEmitterHandleViewModels();
+	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& GetEmitterHandleViewModels();
 
 	/** Gets an emitter handle view model by id.  Returns an invalid shared ptr if it can't be found. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelById(FGuid InEmitterHandleId);
+
+	TSharedPtr<FNiagaraEmitterHandleViewModel> GetEmitterHandleViewModelForEmitter(UNiagaraEmitter* InEmitter) const;
 
 	/** Gets the view model for the System script. */
 	TSharedPtr<FNiagaraSystemScriptViewModel> GetSystemScriptViewModel();
@@ -157,7 +168,7 @@ public:
 	FNiagaraCurveOwner& GetCurveOwner();
 
 	/** Get access to the underlying system*/
-	UNiagaraSystem& GetSystem() const { return System; }
+	NIAGARAEDITOR_API UNiagaraSystem& GetSystem() const;
 
 	/** Gets whether or not emitters can be added from the timeline. */
 	bool GetCanModifyEmittersFromTimeline() const;
@@ -175,13 +186,10 @@ public:
 	void DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete);
 
 	/** Gets a multicast delegate which is called any time the array of emitter handle view models changes. */
-	FOnEmitterHandleViewModelsChanged& OnEmitterHandleViewModelsChanged();
+	NIAGARAEDITOR_API FOnEmitterHandleViewModelsChanged& OnEmitterHandleViewModelsChanged();
 
 	/** Gets a delegate which is called any time the data in the curve owner is changed internally by this view model. */
 	FOnCurveOwnerChanged& OnCurveOwnerChanged();
-
-	/** Gets a multicast delegate which is called whenever the selected emitter handles changes. */
-	FOnSelectedEmitterHandlesChanged& OnSelectedEmitterHandlesChanged();
 	
 	/** Gets a multicast delegate which is called whenever we've received and handled a sequencer time update.*/
 	FOnPostSequencerTimeChange& OnPostSequencerTimeChanged();
@@ -223,23 +231,8 @@ public:
 	/* Get the latest status of this view-model's script compilation.*/
 	ENiagaraScriptCompileStatus GetLatestCompileStatus() const;
 
-	/** Gets the ids for the currently selected emitter handles. */
-	const TArray<FGuid>& GetSelectedEmitterHandleIds();
-
-	/** Sets the currently selected emitter handles by id. */
-	void SetSelectedEmitterHandlesById(TArray<FGuid> InSelectedEmitterHandleIds);
-
-	/** Sets the currently selected emitter handle by id. */
-	void SetSelectedEmitterHandleById(FGuid InSelectedEmitterHandleId);
-
-	/** Gets the currently selected emitter handles. */
-	void GetSelectedEmitterHandles(TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& OutSelectedEmitterHanldles);
-
 	/** Gets editor specific data which can be stored per system.  If this data hasn't been created the default version will be returned. */
-	const NIAGARAEDITOR_API UNiagaraSystemEditorData& GetEditorData() const;
-
-	/** Gets editor specific data which is stored per system.  If this data hasn't been created then it will be created. */
-	UNiagaraSystemEditorData& GetOrCreateEditorData();
+	NIAGARAEDITOR_API UNiagaraSystemEditorData& GetEditorData() const;
 	
 	/** Act as if the system has been fully destroyed although references might persist.*/
 	void Cleanup();
@@ -254,13 +247,10 @@ public:
 	void UpdateEmitterFixedBounds();
 
 	/** Isolates the supplied emitters.  This will remove all other emitters from isolation. */
-	void IsolateEmitters(TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> EmitterHandlesToIsolate);
+	void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
 
 	/** Toggles the isolation state of a single emitter. */
 	void ToggleEmitterIsolation(TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandle);
-
-	/** Returns whether the suplied emitter is isolated. */
-	bool IsEmitterIsolated(TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandle);
 
 	/** Export the current state of the system to text.*/
 	void DumpToText(FString& ExportText);
@@ -295,11 +285,11 @@ public:
 	/** Gets the ViewModel for the system overview graph. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraOverviewGraphViewModel> GetOverviewGraphViewModel() const;
 
-	/** Sets the ViewModel for the system overview graph. */
-	void SetOverviewGraphViewModel(TSharedRef<FNiagaraOverviewGraphViewModel> InOverviewGraphViewModel);
+	/** Gets the stack view model representing this system. */
+	NIAGARAEDITOR_API UNiagaraStackViewModel* GetSystemStackViewModel();
 
-	/** Notifies views to update displayed Emitter name that has changed. */
-	NIAGARAEDITOR_API void EmitterNameChanged(const FText& InText, FGuid ChangedEmitterGuid);
+	/** Gets the a view model representing the selected entries in the overview. */
+	NIAGARAEDITOR_API UNiagaraSystemSelectionViewModel* GetSelectionViewModel();
 
 private:
 
@@ -334,13 +324,13 @@ private:
 	void UpdateCompiledDataInterfaces(UNiagaraDataInterface* ChangedDataInterface);
 
 	/** Called whenever a property on the emitter handle changes. */
-	void EmitterHandlePropertyChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+	void EmitterHandlePropertyChanged(FGuid OwningEmitterHandleId);
 
 	/** Called whenever the name on an emitter handle changes. */
-	void EmitterHandleNameChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+	void EmitterHandleNameChanged();
 
 	/** Called whenever a property on the emitter changes. */
-	void EmitterPropertyChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+	void EmitterPropertyChanged();
 
 	/** 
 	 * Called whenever a parameter store owned by the system changes.
@@ -350,7 +340,7 @@ private:
 	void SystemParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript* OwningScript);
 
 	/** Called whenever an emitter's script graph changes. */
-	void EmitterScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript& OwningScript, const TSharedRef<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModel);
+	void EmitterScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript& OwningScript, FGuid OwningEmitterHandleId);
 
 	/** Called whenever the system script graph changes. */
 	void SystemScriptGraphChanged(const FEdGraphEditAction& InAction);
@@ -360,7 +350,7 @@ private:
 	* @param ChangedParameterStore The parameter store that changed.
 	* @param OwningScript The script that owns the parameter store, if there is one.
 	*/
-	void EmitterParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript, const TSharedRef<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModel);
+	void EmitterParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript);
 
 	/** Updates the current simulation for a parameter changing, based on the current simulation options. */
 	void UpdateSimulationFromParameterChange();
@@ -376,6 +366,9 @@ private:
 
 	/** Called whenever the global time in the sequencer is changed. */
 	void SequencerTimeChanged();
+
+	/** Called whenever the current selection in the system changes. */
+	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
 
 	/** Called whenever the track selection in sequencer changes. */
 	void SequencerTrackSelectionChanged(TArray<UMovieSceneTrack*> SelectedTracks);
@@ -421,7 +414,7 @@ private:
 
 private:
 	/** The System being viewed and edited by this view model. */
-	UNiagaraSystem& System;
+	UNiagaraSystem* System;
 
 	/** The component used for previewing the System in a viewport. */
 	UNiagaraComponent* PreviewComponent;
@@ -474,9 +467,6 @@ private:
 	/** A multicast delegate which is called when the contents of the curve owner is changed internally by this view model. */
 	FOnCurveOwnerChanged OnCurveOwnerChangedDelegate;
 
-	/** A multicast delegate which is called whenever the selected emitter changes. */
-	FOnSelectedEmitterHandlesChanged OnSelectedEmitterHandlesChangedDelegate;
-
 	/** A multicast delegate which is called whenever we've received and handled a sequencer time update.*/
 	FOnPostSequencerTimeChange OnPostSequencerTimeChangeDelegate;
 
@@ -497,9 +487,6 @@ private:
 
 	/** A curve owner implementation for curves in a niagara System. */
 	FNiagaraCurveOwner CurveOwner;
-
-	/** The ids for the currently selected emitter handles. */
-	TArray<FGuid> SelectedEmitterHandleIds;
 
 	TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::Handle RegisteredHandle;
 
@@ -543,9 +530,12 @@ private:
 	TArray<FGuid> EmitterIdsRequiringSequencerTrackUpdate;
 
 	/** GUID used when sending message jobs to FNiagaraMessageManager for notifying the FNiagaraMessageLogViewModel with the same GUID key */
-	const TOptional<const FGuid> SystemMessageLogGuidKey;
+	TOptional<const FGuid> SystemMessageLogGuidKey;
 
 	/** ViewModel for the system overview graph */
 	TSharedPtr<FNiagaraOverviewGraphViewModel> OverviewGraphViewModel;
 
+	UNiagaraStackViewModel* SystemStackViewModel;
+
+	UNiagaraSystemSelectionViewModel* SelectionViewModel;
 };

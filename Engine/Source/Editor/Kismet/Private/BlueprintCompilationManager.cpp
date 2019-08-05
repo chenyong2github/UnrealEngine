@@ -9,6 +9,7 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Components/TimelineComponent.h"
 #include "Editor.h"
+#include "Editor/UnrealEdEngine.h"
 #include "Engine/Engine.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/SCS_Node.h"
@@ -34,6 +35,8 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "BlueprintEditorModule.h"
 #include "Stats/StatsHierarchical.h"
+
+extern UNREALED_API UUnrealEdEngine* GUnrealEd;
 
 #define LOCTEXT_NAMESPACE "BlueprintCompilationManager"
 
@@ -1443,7 +1446,10 @@ void FBlueprintCompilationManagerImpl::FlushReinstancingQueueImpl()
 		FScopedDurationTimer ReinstTimer(GTimeReinstancing);
 		
 		TGuardValue<bool> ReinstancingGuard(GIsReinstancing, true);
-		FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(ClassesToReinstance, true);
+		
+		FBatchReplaceInstancesOfClassParameters Options;
+		Options.bArchetypesAreUpToDate = true;
+		FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(ClassesToReinstance, Options);
 
 		if (IsAsyncLoading())
 		{
@@ -1619,7 +1625,28 @@ void FBlueprintCompilationManagerImpl::ReparentHierarchies(const TMap<UClass*, U
 		OldClassToNewClassDerivedTypes.Add(ReinstancingJob.OldToNew);
 	}
 	TGuardValue<bool> ReinstancingGuard(GIsReinstancing, true);
-	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass( OldClassToNewClassDerivedTypes, /* bArchetypesAreUpToDate */ true );
+	FBatchReplaceInstancesOfClassParameters Options;
+	Options.bArchetypesAreUpToDate = true;
+
+	// Make sure we don't replace old instances that are in the *callers* old to new TMap!
+	TSet<UObject*> OldObjects;
+	for(TPair<UClass*, UClass*> OldToNew : OldClassToNewClassDerivedTypes)
+	{
+		TArray< UObject* > OldObjectsOfType;
+		GetObjectsOfClass(OldToNew.Key, OldObjectsOfType);
+
+		for(UObject* Obj : OldObjectsOfType)
+		{
+			if(Obj->HasAnyFlags(RF_NewerVersionExists))
+			{
+				OldObjects.Add(Obj);
+			}
+		}
+	}
+	Options.ObjectsThatShouldUseOldStuff = &OldObjects;
+	Options.InstancesThatShouldUseOldClass = &OldObjects;
+
+	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass( OldClassToNewClassDerivedTypes, Options );
 }
 
 
@@ -1840,6 +1867,14 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 	// 3. Update any remaining instances that are tagged as RF_ArchetypeObject or RF_InheritableComponentTemplate - 
 	// we may need to do further sorting to ensure that interdependent archetypes are initialized correctly:
 	TSet<UObject*> ArchetypeReferencers;
+
+	// The transaction buffer could reference archetypes, and tag serialization
+	// will be simpler if we update the instance:
+	if(GUnrealEd && GUnrealEd->Trans)
+	{
+		ArchetypeReferencers.Add(GUnrealEd->Trans);
+	}
+
 	for (const FReinstancingJob& ReinstancingJob : Reinstancers)
 	{
 		UClass* OldClass = ReinstancingJob.OldToNew.Key;

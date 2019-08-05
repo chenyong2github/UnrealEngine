@@ -265,8 +265,7 @@ FString FComponentEditorUtils::GenerateValidVariableNameFromAsset(UObject* Asset
 	int32 Counter = 1;
 	FString AssetName = Asset->GetName();
 
-	UClass* Class = Cast<UClass>(Asset);
-	if (Class)
+	if (UClass* Class = Cast<UClass>(Asset))
 	{
 		if (!Class->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
 		{
@@ -276,6 +275,10 @@ FString FComponentEditorUtils::GenerateValidVariableNameFromAsset(UObject* Asset
 		{
 			AssetName.RemoveFromEnd("_C");
 		}
+	}
+	else if (UActorComponent* Comp = Cast <UActorComponent>(Asset))
+	{
+		AssetName.RemoveFromEnd(UActorComponent::ComponentTemplateNameSuffix);
 	}
 
 	// Try to create a name without any numerical suffix first

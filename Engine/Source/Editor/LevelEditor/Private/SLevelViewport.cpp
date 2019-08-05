@@ -1325,7 +1325,7 @@ void SLevelViewport::BindOptionCommands( FUICommandList& OutCommandList )
 		}
 
 		UClass* CameraClass = FindObject<UClass>(ANY_PACKAGE, *Name.ToString());
-		if (CameraClass->HasAllClassFlags(CLASS_Abstract))
+		if (!CameraClass || CameraClass->HasAllClassFlags(CLASS_Abstract))
 		{
 			continue;
 		}

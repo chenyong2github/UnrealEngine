@@ -504,11 +504,19 @@ private:
 	}
 };
 
-bool FLinuxPlatformInstallation::LaunchEditor(const FString &RootDirName, const FString &Arguments)
+bool FLinuxPlatformInstallation::LaunchEditor(const FString& RootDirName, const FString &ExplicitFileName, const FString &Arguments)
 {
-	FString CommandLine = RootDirName / TEXT("Engine/Binaries/Linux/UE4Editor");
+	FString FileName;
+	if (ExplicitFileName.IsEmpty())
+	{
+		FileName = RootDirName / TEXT("Engine/Binaries/Linux/UE4Editor");
+	}
+	else
+	{
+		FileName = ExplicitFileName;
+	}
 
-	FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*CommandLine, *Arguments, true, false, false, nullptr, 0, nullptr, nullptr);
+	FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*FileName, *Arguments, true, false, false, nullptr, 0, nullptr, nullptr);
 
 	if (ProcessHandle.IsValid())
 	{

@@ -148,6 +148,10 @@ namespace Gauntlet
 				{
 					Flags |= BuildFlags.Bulk;
 				}
+				else
+				{
+					Flags |= BuildFlags.NotBulk;
+				}
 
 				string SourceIPAPath = Fi.FullName;
 				string PackageName = GetBundleIdentifier(SourceIPAPath);

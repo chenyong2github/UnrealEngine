@@ -2,26 +2,30 @@
 
 #pragma once
 
-#if WITH_CHAOS
+#if INCLUDE_CHAOS
 
 #include "ChaosSQTypes.h"
-#include "PhysicsInterfaceDeclaresCore.h"
-#include "PhysicsInterfaceTypesCore.h"
-#include "PhysicsInterfaceUtilsCore.h"
 #include "PhysicsInterfaceWrapperShared.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Capsule.h"
+#include "PhysicsInterfaceTypesCore.h"
+
+#if WITH_PHYSX
+#include "PhysXPublicCore.h"
+#endif
+
+namespace ChaosInterface
+{
+struct FDummyPhysType {};
+struct FDummyPhysActor {};
 
 template<typename DummyT>
-struct FCallbackDummy {};
-
-template <typename T>
-using FPhysicsHitCallback = FCallbackDummy<T>;
+struct FDummyCallback {};
 
 #if WITH_PHYSX
 using FQueryFilterData = PxQueryFilterData;
 #else
-using FQueryFilterData = FPhysTypeDummy;
+using FQueryFilterData = FDummyPhysType;
 #endif
 
 /** We use this struct so that if no conversion is needed in another API, we can avoid the copy (if we think that's critical) */
@@ -65,150 +69,100 @@ struct FPhysicsOverlapInputAdapater
 	FTransform GeomPose;
 };
 
-template<typename HitType>
-class FDynamicHitBuffer : public FCallbackDummy<HitType>
+inline ECollisionShapeType GetImplicitType(const Chaos::TImplicitObject<float, 3>& InGeometry)
 {
-public:
-	FDynamicHitBuffer()
-		: bHasBlockingHit(false)
-	{}
-
-	~FDynamicHitBuffer() {}
-
-	bool ProcessTouchBuffer(TArrayView<const HitType>& Touches)
+	switch (InGeometry.GetType())
 	{
-		Hits.Append(Touches);
-		return true;
+	case Chaos::ImplicitObjectType::Sphere: return ECollisionShapeType::Sphere;
+	case Chaos::ImplicitObjectType::Box: return ECollisionShapeType::Box;
+	case Chaos::ImplicitObjectType::Capsule: return ECollisionShapeType::Capsule;
+	case Chaos::ImplicitObjectType::Convex: return ECollisionShapeType::Convex;
+	case Chaos::ImplicitObjectType::TriangleMesh: return ECollisionShapeType::Trimesh;
+	case Chaos::ImplicitObjectType::HeightField: return ECollisionShapeType::Heightfield;
+	default: break;
 	}
 
-	void FinishQuery()
-	{
-		if(bHasBlockingHit)
-		{
-			Hits.Add(CurrentBlockingHit);
-		}
-	}
-
-	bool HasHit() const { return bHasBlockingHit || Hits.Num() == 0; }
-
-	int32 GetNumHits() const
-	{
-		return Hits.Num();
-	}
-
-	HitType* GetHits()
-	{
-		return (HitType*)Hits.GetData();
-	}
-
-	HitType* GetBlock()
-	{
-		return &CurrentBlockingHit;
-	}
-
-	bool HasBlockingHit() const
-	{
-		return bHasBlockingHit;
-	}
-
-protected:
-	HitType CurrentBlockingHit;
-	bool bHasBlockingHit;
-
-private:
-	static const int32 BufferSize = 512;
-
-	/** Hit buffer used to provide hits via ProcessTouchBuffer */
-	TTypeCompatibleBytes<HitType> HitBuffer[BufferSize];
-
-	/** Hits encountered. Can be larger than HIT_BUFFER_SIZE */
-	TArray<TTypeCompatibleBytes<HitType>, TInlineAllocator<BufferSize>> Hits;
-};
-
-
-inline ECollisionShapeType GetType(const FPhysicsGeometry& InGeometry)
-{
-	return ECollisionShapeType(InGeometry.GetType());
-}
-
-inline ECollisionShapeType GetGeometryType(const FPhysTypeDummy& Shape)
-{
 	return ECollisionShapeType::None;
 }
 
-inline float GetRadius(const FPhysicsCapsuleGeometry& InCapsule)
+inline ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& InGeometry)
+{
+	return GetImplicitType(InGeometry);
+}
+
+inline float GetRadius(const Chaos::TCapsule<float>& InCapsule)
 {
 	return InCapsule.GetRadius();
 }
 
-inline float GetHalfHeight(const FPhysicsCapsuleGeometry& InCapsule)
+inline float GetHalfHeight(const Chaos::TCapsule<float>& InCapsule)
 {
 	return InCapsule.GetHeight()/2.;
 }
 
-inline bool HadInitialOverlap(const FPhysTypeDummy& Hit)
+inline bool HadInitialOverlap(const FLocationHit& Hit)
 {
-	return false;
+	return Hit.Distance <= 0.f;
 }
 
-inline Chaos::TImplicitObject<float, 3>* GetShape(const FPhysTypeDummy& Hit)
+inline const Chaos::TPerShapeData<float, 3>* GetShape(const FActorShape& Hit)
+{
+	return Hit.Shape;
+}
+
+inline Chaos::TGeometryParticle<float,3>* GetActor(const FActorShape& Hit)
+{
+	return Hit.Actor;
+}
+
+inline float GetDistance(const FLocationHit& Hit)
+{
+	return Hit.Distance;
+}
+
+inline FVector GetPosition(const FLocationHit& Hit)
+{
+	return Hit.WorldPosition;
+}
+
+inline FVector GetNormal(const FLocationHit& Hit)
+{
+	return Hit.WorldNormal;
+}
+
+inline FDummyPhysType* GetMaterialFromInternalFaceIndex(const FDummyPhysType& Shape, uint32 InternalFaceIndex)
 {
 	return nullptr;
 }
 
-inline FPhysActorDummy* GetActor(const FPhysTypeDummy& Hit)
+inline FHitFlags GetFlags(const FLocationHit& Hit)
 {
-	return nullptr;
+	return Hit.Flags;
 }
 
-inline float GetDistance(const FPhysTypeDummy& Hit)
+FORCEINLINE void SetFlags(FLocationHit& Hit, FHitFlags Flags)
 {
-	return 0.0f;
+	Hit.Flags = Flags;
 }
 
-inline FVector GetPosition(const FPhysTypeDummy& Hit)
+inline uint32 GetInternalFaceIndex(const FQueryHit& Hit)
 {
-	return FVector::ZeroVector;
+	return Hit.FaceIndex;
 }
 
-inline FVector GetNormal(const FPhysTypeDummy& Hit)
+inline void SetInternalFaceIndex(FQueryHit& Hit, uint32 FaceIndex)
 {
-	return FVector(0.0f, 0.0f, 1.0f);
+	Hit.FaceIndex = FaceIndex;
 }
 
-inline FPhysTypeDummy* GetMaterialFromInternalFaceIndex(const FPhysTypeDummy& Shape, uint32 InternalFaceIndex)
+inline FCollisionFilterData GetQueryFilterData(const Chaos::TPerShapeData<float, 3>& Shape)
 {
-	return nullptr;
+	return Shape.QueryData;
 }
 
-inline FHitFlags GetFlags(const FPhysTypeDummy& Hit)
+inline FCollisionFilterData GetSimulationFilterData(const Chaos::TPerShapeData<float, 3>& Shape)
 {
-	return FHitFlags(EHitFlags::None);
-}
-
-FORCEINLINE void SetFlags(FPhysTypeDummy& Hit, FHitFlags Flags)
-{
-	//Hit.flags = U2PHitFlags(Flags);
-}
-
-inline uint32 GetInternalFaceIndex(const FPhysTypeDummy& Hit)
-{
-	return 0;
-}
-
-inline void SetInternalFaceIndex(FPhysTypeDummy& Hit, uint32 FaceIndex)
-{
-
-}
-
-inline FCollisionFilterData GetQueryFilterData(const Chaos::TImplicitObject<float, 3>& Shape)
-{
-	return FCollisionFilterData();
-}
-
-inline FCollisionFilterData GetSimulationFilterData(const FPhysTypeDummy& Shape)
-{
-	return FCollisionFilterData();
+	return Shape.QueryData;
 }
 
 inline uint32 GetInvalidPhysicsFaceIndex()
@@ -216,103 +170,52 @@ inline uint32 GetInvalidPhysicsFaceIndex()
 	return 0xffffffff;
 }
 
-inline uint32 GetTriangleMeshExternalFaceIndex(const FPhysTypeDummy& Shape, uint32 InternalFaceIndex)
+inline uint32 GetTriangleMeshExternalFaceIndex(const FDummyPhysType& Shape, uint32 InternalFaceIndex)
 {
 	return GetInvalidPhysicsFaceIndex();
 }
 
-inline FTransform GetGlobalPose(const FPhysActorDummy& RigidActor)
+inline FTransform GetGlobalPose(const FDummyPhysActor& RigidActor)
 {
 	return FTransform::Identity;
 }
 
-inline uint32 GetNumShapes(const FPhysActorDummy& RigidActor)
+inline uint32 GetNumShapes(const FDummyPhysActor& RigidActor)
 {
 	return 0;
 }
 
-inline void GetShapes(const FPhysActorDummy& RigidActor, Chaos::TImplicitObject<float, 3>** ShapesBuffer, uint32 NumShapes)
+inline void GetShapes(const FDummyPhysActor& RigidActor, Chaos::TImplicitObject<float, 3>** ShapesBuffer, uint32 NumShapes)
 {
 
 }
 
-inline void SetActor(FPhysTypeDummy& Hit, FPhysActorDummy* Actor)
+inline void SetActor(FDummyPhysType& Hit, FDummyPhysActor* Actor)
 {
 
 }
 
-inline void SetShape(FPhysTypeDummy& Hit, Chaos::TImplicitObject<float, 3>* Shape)
-{
-
-}
-
-template <typename HitType>
-void SetBlock(FPhysicsHitCallback<HitType>& Callback, const HitType& Hit)
+inline void SetShape(FDummyPhysType& Hit, Chaos::TImplicitObject<float, 3>* Shape)
 {
 
 }
 
 template <typename HitType>
-void SetHasBlock(FPhysicsHitCallback<HitType>& Callback, bool bHasBlock)
+HitType* GetBlock(FSQHitBuffer<HitType>& Callback)
 {
-
+	return Callback.GetBlock();
 }
 
 template <typename HitType>
-void ProcessTouches(FPhysicsHitCallback<HitType>& Callback, const TArray<HitType>& TouchingHits)
+bool GetHasBlock(const FSQHitBuffer<HitType>& Callback)
 {
-
+	return Callback.HasBlockingHit();
 }
 
-template <typename HitType>
-void FinalizeQuery(FPhysicsHitCallback<HitType>& Callback)
-{
+} // namespace ChaosInterface
 
-}
+#endif // WITH_CHAOS
 
-template <typename HitType>
-HitType* GetBlock(const FPhysicsHitCallback<HitType>& Callback)
-{
-	return nullptr;
-}
-
-template <typename HitType>
-bool GetHasBlock(const FPhysicsHitCallback<HitType>& Callback)
-{
-	return false;
-}
-
-template <typename HitType>
-FORCEINLINE_DEBUGGABLE bool Insert(FCallbackDummy<HitType>& Callback, const HitType& Hit, bool bBlocking)
-{
-	// Previous Physx implementation
-	//if(!Callback.hasBlock || GetDistance(Hit) < GetDistance(Callback.block))
-	//{
-	//	if(bBlocking)
-	//	{
-	//		Callback.block = Hit;
-	//		Callback.hasBlock = true;
-	//	}
-	//	else
-	//	{
-	//		if(Callback.maxNbTouches > 0)
-	//		{
-	//			Callback.processTouches(&Hit, 1);
-	//
-	//		}
-	//	}
-	//}
-
-	return true;
-}
-
-template <typename HitType>
-FORCEINLINE bool InsertOverlap(FCallbackDummy<HitType>& Callback, const HitType& Hit)
-{
-	// Previous Physx implementation
-	//return Callback.processTouches(&Hit, 1);
-
-	return true;
-}
-
+#if WITH_CHAOS && (!defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX)
+using namespace ChaosInterface;
 #endif

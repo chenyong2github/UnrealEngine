@@ -1396,7 +1396,7 @@ void UEditorEngine::PostUndo(bool)
 	}
 
 	// Re-instance any actors that need it
-	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(OldToNewClassMapToReinstance, false);
+	FBlueprintCompileReinstancer::BatchReplaceInstancesOfClass(OldToNewClassMapToReinstance);
 
 	RedrawLevelEditingViewports();
 }
@@ -5147,6 +5147,9 @@ bool UEditorEngine::Exec_Particle(const TCHAR* Str, FOutputDevice& Ar)
 {
 	bool bHandled = false;
 	UE_LOG(LogEditorServer, Log, TEXT("Exec Particle!"));
+	
+	// Store off the input string here, as it is adjusted by subsequent parsing commands...
+	const TCHAR* InputStr = Str;
 	if (FParse::Command(&Str,TEXT("RESET")))
 	{
 		TArray<AEmitter*> EmittersToReset;
@@ -5174,6 +5177,12 @@ bool UEditorEngine::Exec_Particle(const TCHAR* Str, FOutputDevice& Ar)
 				Emitter->ResetInLevel();
 			}
 		}
+	}
+
+	// Invoke any downstream handlers (like the Niagara editor plugin)
+	if (ExecParticleInvokedEvent.IsBound())
+	{
+		ExecParticleInvokedEvent.Broadcast(InputStr);
 	}
 	return bHandled;
 }

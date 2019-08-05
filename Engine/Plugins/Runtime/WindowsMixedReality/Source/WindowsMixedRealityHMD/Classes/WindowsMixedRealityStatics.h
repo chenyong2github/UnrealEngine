@@ -34,6 +34,7 @@ namespace WindowsMixedReality
 		static bool GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition);
 
 		static bool PollInput();
+		static bool PollHandTracking();
 
 		static HMDInputPressState GetPressState(
 			HMDHand hand,
@@ -48,7 +49,7 @@ namespace WindowsMixedReality
 			float value);
 #endif
 		// Remoting
-		static void ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate);
+		static void ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate, bool isHoloLens1);
 		static void DisconnectFromRemoteHoloLens();
 	};
 }

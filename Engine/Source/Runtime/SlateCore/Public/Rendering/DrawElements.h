@@ -400,11 +400,6 @@ struct FSlateCachedElementData
 {
 	void Empty()
 	{
-		if (CachedElementLists.Num())
-		{
-			UE_LOG(LogSlate, Log, TEXT("Resetting cached element data.  Num: %d"), CachedElementLists.Num());
-		}
-
 		CachedElementLists.Empty();
 	}
 

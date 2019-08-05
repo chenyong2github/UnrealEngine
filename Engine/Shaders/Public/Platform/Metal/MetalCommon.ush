@@ -5,8 +5,8 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Metal only shaders
-// GUID = CBA97EA3-E604-4B76-AD49-26D838AE8F3B
-  
+// GUID = cda708c4-2f08-4eb2-b045-42a269d14ed4
+
 #pragma once
 
 #if VERTEXSHADER && HULLSHADER

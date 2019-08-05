@@ -5,6 +5,11 @@
 
 class FNullInstallBundleManager : public IPlatformInstallBundleManager
 {
+	virtual bool HasBuildMetaData() const override
+	{
+		return false;
+	}
+
 	virtual void PushInitErrorCallback(FInstallBundleManagerInitErrorHandler Callback) override
 	{
 	}
@@ -45,14 +50,14 @@ class FNullInstallBundleManager : public IPlatformInstallBundleManager
 		return RetInfo;
 	}
 
-	virtual void GetContentState(FName BundleName, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
+	virtual void GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
 	{
 		FInstallBundleContentState State;
 		State.State = EInstallBundleContentState::UpToDate;
 		Callback.ExecuteIfBound(State);
 	}
 
-	virtual void GetContentState(TArrayView<FName> BundleNames, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
+	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag) override
 	{
 		FInstallBundleContentState State;
 		State.State = EInstallBundleContentState::UpToDate;

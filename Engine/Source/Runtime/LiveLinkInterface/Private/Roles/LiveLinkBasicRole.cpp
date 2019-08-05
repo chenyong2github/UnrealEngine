@@ -278,12 +278,16 @@ void ULiveLinkBasicFrameInterpolateProcessor::FLiveLinkBasicFrameInterpolateProc
 		TArray<float>& PropertiesResult = OutBlendedFrameData.GetBaseData()->PropertyValues;
 
 		int32 NumOfProperties = FMath::Min(PropertiesA.Num(), PropertiesB.Num());
-		check(PropertiesResult.Num() <= NumOfProperties);
+		PropertiesResult.SetNum(NumOfProperties);
 
 		for (int32 PropertyIndex = 0; PropertyIndex < NumOfProperties; ++PropertyIndex)
 		{
 			PropertiesResult[PropertyIndex] = FMath::Lerp(PropertiesA[PropertyIndex], PropertiesB[PropertyIndex], InBlendWeight);
 		}
+	}
+	else
+	{
+		OutBlendedFrameData.GetBaseData()->PropertyValues = FrameWhenCanNotBlend.GetBaseData()->PropertyValues;
 	}
 
 	if (Options.bInterpolateInterpProperties)

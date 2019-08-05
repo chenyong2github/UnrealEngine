@@ -30,6 +30,7 @@ public:
 	}
 private:
 	ovrAudioContext* Context;
+	FCriticalSection ContextLock;
 };
 
 /************************************************************************/

@@ -335,7 +335,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 	{
 		if (IsAborted()) break;
 
-		MemoryBudgeted += StreamingRenderAsset.UpdateRetentionPriority_Async();
+		MemoryBudgeted += StreamingRenderAsset.UpdateRetentionPriority_Async(Settings.bPrioritizeMeshRetention);
 		const int32 AssetMemUsed = StreamingRenderAsset.GetSize(StreamingRenderAsset.ResidentMips);
 		MemoryUsed += AssetMemUsed;
 
@@ -469,6 +469,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 			for (int32 NumDroppedMips = 0; NumDroppedMips < Settings.GlobalMipBias && MemoryBudgeted > MemoryBudget && !IsAborted(); ++NumDroppedMips)
 			{
 				const int64 PreviousMemoryBudgeted = MemoryBudgeted;
+				const bool bMeshPrivilegedPhase = NumDroppedMips < Settings.MeshRetentionPrivilegeLevel;
 
 				for (int32 PriorityIndex = PrioritizedRenderAssets.Num() - 1; PriorityIndex >= 0 && MemoryBudgeted > MemoryBudget && !IsAborted(); --PriorityIndex)
 				{
@@ -481,6 +482,12 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 					{
 						// Don't try this one again.
 						PrioritizedRenderAssets[PriorityIndex] = INDEX_NONE;
+						continue;
+					}
+
+					// Meshes don't drop max resolution in the first N privileged passes
+					if (bMeshPrivilegedPhase && StreamingRenderAsset.RenderAssetType != FStreamingRenderAsset::AT_Texture)
+					{
 						continue;
 					}
 
@@ -505,9 +512,11 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 		// Drop WantedMip until in budget.
 		//*************************************
 
+		int32 PassCount = 0;
 		while (MemoryBudgeted > MemoryBudget && !IsAborted())
 		{
 			const int64 PreviousMemoryBudgeted = MemoryBudgeted;
+			const bool bMeshPrivilegedPhase = PassCount < Settings.MeshRetentionPrivilegeLevel;
 
 			// Drop from the lowest priority first (starting with last elements)
 			for (int32 PriorityIndex = PrioritizedRenderAssets.Num() - 1; PriorityIndex >= 0 && MemoryBudgeted > MemoryBudget && !IsAborted(); --PriorityIndex)
@@ -521,6 +530,12 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 				{
 					// Don't try this one again.
 					PrioritizedRenderAssets[PriorityIndex] = INDEX_NONE;
+					continue;
+				}
+
+				// Don't try to drop mesh LODs in the first N privileged passes
+				if (bMeshPrivilegedPhase && StreamingRenderAsset.RenderAssetType != FStreamingRenderAsset::AT_Texture)
+				{
 					continue;
 				}
 
@@ -539,6 +554,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 			{
 				break;
 			}
+			++PassCount;
 		}
 	}
 
@@ -800,6 +816,17 @@ void FRenderAssetStreamingMipCalcTask::UpdateStats_Async()
 
 	Stats.OverBudget = 0;
 
+	Stats.NumStreamedMeshes = 0;
+	Stats.AvgNumStreamedLODs = 0.f;
+	Stats.AvgNumResidentLODs = 0.f;
+	Stats.AvgNumEvictedLODs = 0.f;
+	Stats.StreamedMeshMem = 0;
+	Stats.ResidentMeshMem = 0;
+	Stats.EvictedMeshMem = 0;
+	int32 TotalNumStreamedLODs = 0;
+	int32 TotalNumResidentLODs = 0;
+	int32 TotalNumEvictedLODs = 0;
+
 	for (FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 	{
 		if (IsAborted()) break;
@@ -866,6 +893,33 @@ void FRenderAssetStreamingMipCalcTask::UpdateStats_Async()
 		{
 			Stats.PendingRequests += StreamingRenderAsset.GetSize(StreamingRenderAsset.RequestedMips) - ResidentSize;
 		}
+
+		if (StreamingRenderAsset.RenderAssetType != FStreamingRenderAsset::AT_Texture)
+		{
+			const bool bOptLODsExist = StreamingRenderAsset.OptionalMipsState == FStreamingRenderAsset::OMS_HasOptionalMips;
+			const int32 NumLODs = bOptLODsExist ? StreamingRenderAsset.MipCount : StreamingRenderAsset.NumNonOptionalMips;
+			const int32 NumStreamedLODs = NumLODs - StreamingRenderAsset.NumNonStreamingMips;
+			const int32 NumResidentLODs = StreamingRenderAsset.ResidentMips;
+			const int32 NumEvictedLODs = NumLODs - NumResidentLODs;
+			const int64 TotalSize = StreamingRenderAsset.GetSize(NumLODs);
+			const int64 StreamedSize = TotalSize - StreamingRenderAsset.GetSize(StreamingRenderAsset.NumNonStreamingMips);
+			const int64 EvictedSize = TotalSize - ResidentSize;
+
+			++Stats.NumStreamedMeshes;
+			TotalNumStreamedLODs += NumStreamedLODs;
+			TotalNumResidentLODs += NumResidentLODs;
+			TotalNumEvictedLODs += NumEvictedLODs;
+			Stats.StreamedMeshMem += StreamedSize;
+			Stats.ResidentMeshMem += ResidentSize;
+			Stats.EvictedMeshMem += EvictedSize;
+		}
+	}
+
+	if (Stats.NumStreamedMeshes > 0)
+	{
+		Stats.AvgNumStreamedLODs = (float)TotalNumStreamedLODs / Stats.NumStreamedMeshes;
+		Stats.AvgNumResidentLODs = (float)TotalNumResidentLODs / Stats.NumStreamedMeshes;
+		Stats.AvgNumEvictedLODs = (float)TotalNumEvictedLODs / Stats.NumStreamedMeshes;
 	}
 
 	Stats.OverBudget += FMath::Max<int64>(Stats.RequiredPool - Stats.StreamingPool, 0);

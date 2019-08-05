@@ -872,6 +872,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bAutomaticallySetUsageInEditor = true;
 
 	bUseMaterialAttributes = false;
+	bCastRayTracedShadows = true;
 	bUseTranslucencyVertexFog = true;
 	BlendableLocation = BL_AfterTonemapping;
 	BlendablePriority = 0;
@@ -1155,7 +1156,6 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1186,7 +1186,6 @@ void UMaterial::OverrideVectorParameterDefault(const FMaterialParameterInfo& Par
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1218,7 +1217,6 @@ void UMaterial::OverrideScalarParameterDefault(const FMaterialParameterInfo& Par
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1237,6 +1235,11 @@ void UMaterial::RecacheUniformExpressions(bool bRecreateUniformBuffer) const
 	{
 		DefaultMaterialInstance->CacheUniformExpressions_GameThread(bRecreateUniformBuffer);
 	}
+
+#if WITH_EDITOR
+	// Need to invalidate all child material instances as well.
+	RecacheMaterialInstanceUniformExpressions(this, bRecreateUniformBuffer);
+#endif
 }
 
 bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
@@ -2913,7 +2916,6 @@ void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 
 	//Force a recompute of the DDC key
 	CacheResourceShadersForRendering(true);
-	RecacheMaterialInstanceUniformExpressions(this);
 	
 	// Ensure that the ReferencedTextureGuids array is up to date.
 	if (GIsEditor)
@@ -4257,7 +4259,6 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 		// When redirecting an object pointer, we trust that the DDC hash will detect the change and that we don't need to force a recompile.
 		const bool bRegenerateId = PropertyChangedEvent.ChangeType != EPropertyChangeType::Redirected;
 		CacheResourceShadersForRendering(bRegenerateId);
-		RecacheMaterialInstanceUniformExpressions(this);
 
 		// Ensure that the ReferencedTextureGuids array is up to date.
 		if (GIsEditor)
@@ -5795,6 +5796,11 @@ USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const
 {
 	checkSlow(IsInGameThread());
 	return SubsurfaceProfile; 
+}
+
+bool UMaterial::CastsRayTracedShadows() const
+{
+	return bCastRayTracedShadows;
 }
 
 static bool IsPropertyActive_Internal(EMaterialProperty InProperty,

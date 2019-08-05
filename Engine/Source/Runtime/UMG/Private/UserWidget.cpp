@@ -640,8 +640,6 @@ UUMGSequencePlayer* UUserWidget::PlayAnimation(UWidgetAnimation* InAnimation, fl
 	{
 		Player->Play(StartAtTime, NumberOfLoops, PlayMode, PlaybackSpeed, bRestoreState);
 
-		Invalidate(EInvalidateWidget::Volatility);
-
 		OnAnimationStartedPlaying(*Player);
 
 		UpdateCanTick();
@@ -658,8 +656,6 @@ UUMGSequencePlayer* UUserWidget::PlayAnimationTimeRange(UWidgetAnimation* InAnim
 	if (Player)
 	{
 		Player->PlayTo(StartAtTime, EndAtTime, NumberOfLoops, PlayMode, PlaybackSpeed, bRestoreState);
-
-		Invalidate(EInvalidateWidget::Volatility);
 
 		OnAnimationStartedPlaying(*Player);
 
@@ -1512,6 +1508,14 @@ void UUserWidget::TickActionsAndAnimation(const FGeometry& MyGeometry, float InD
 	}
 
 	const bool bWasPlayingAnimation = IsPlayingAnimation();
+	if(bWasPlayingAnimation)
+	{ 
+		TSharedPtr<SWidget> CachedWidget = GetCachedWidget();
+		if (CachedWidget.IsValid())
+		{
+			CachedWidget->InvalidatePrepass();
+		}
+	}
 
 	// The process of ticking the players above can stop them so we remove them after all players have ticked
 	for ( UUMGSequencePlayer* StoppedPlayer : StoppedSequencePlayers )
@@ -1520,12 +1524,6 @@ void UUserWidget::TickActionsAndAnimation(const FGeometry& MyGeometry, float InD
 	}
 
 	StoppedSequencePlayers.Empty();
-
-	// If we're no longer playing animations invalidate layout so that we recache the volatility of the widget.
-	if ( bWasPlayingAnimation && IsPlayingAnimation() == false )
-	{
-		Invalidate(EInvalidateWidget::Volatility);
-	}
 
 	UWorld* World = GetWorld();
 	if (World)

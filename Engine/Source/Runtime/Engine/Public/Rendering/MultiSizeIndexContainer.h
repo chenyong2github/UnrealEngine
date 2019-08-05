@@ -43,6 +43,8 @@ public:
 	*/
 	void Serialize(FArchive& Ar, bool bNeedsCPUAccess);
 
+	void SerializeMetaData(FArchive& Ar, bool bNeedsCPUAccess);
+
 	/**
 	* Creates a new index buffer
 	*/
@@ -91,6 +93,42 @@ public:
 #endif
 
 	friend FArchive& operator<<(FArchive& Ar, FMultiSizeIndexContainer& Buffer);
+
+	FIndexBufferRHIRef CreateRHIBuffer_RenderThread();
+	FIndexBufferRHIRef CreateRHIBuffer_Async();
+
+	template <uint32 MaxNumUpdates>
+	void InitRHIForStreaming(FRHIIndexBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		check(!((uint32)!!IntermediateBuffer ^ (uint32)!!IndexBuffer));
+		if (IntermediateBuffer)
+		{
+			if (DataTypeSize == sizeof(uint16))
+			{
+				static_cast<FRawStaticIndexBuffer16or32<uint16>*>(IndexBuffer)->InitRHIForStreaming(IntermediateBuffer, Batcher);
+			}
+			else
+			{
+				static_cast<FRawStaticIndexBuffer16or32<uint32>*>(IndexBuffer)->InitRHIForStreaming(IntermediateBuffer, Batcher);
+			}
+		}
+	}
+
+	template <uint32 MaxNumUpdates>
+	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		if (IndexBuffer)
+		{
+			if (DataTypeSize == sizeof(uint16))
+			{
+				static_cast<FRawStaticIndexBuffer16or32<uint16>*>(IndexBuffer)->ReleaseRHIForStreaming(Batcher);
+			}
+			else
+			{
+				static_cast<FRawStaticIndexBuffer16or32<uint32>*>(IndexBuffer)->ReleaseRHIForStreaming(Batcher);
+			}
+		}
+	}
 
 private:
 	/** Size of the index buffer's index type (should be 2 or 4 bytes) */

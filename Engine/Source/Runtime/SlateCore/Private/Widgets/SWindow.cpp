@@ -983,6 +983,9 @@ FSlateRect SWindow::GetFullScreenInfo() const
 void SWindow::SetCachedScreenPosition(FVector2D NewPosition)
 {
 	ScreenPosition = NewPosition;
+
+	InvalidateScreenPosition();
+
 	OnWindowMoved.ExecuteIfBound( SharedThis( this ) );
 }
 

@@ -1553,7 +1553,11 @@ void FBlueprintEditor::EnsureBlueprintIsUpToDate(UBlueprint* BlueprintObj)
 		}
 
 		// If we should have a UCS but don't yet, make it
-		if(!FBlueprintEditorUtils::FindUserConstructionScript(BlueprintObj))
+		if (UEdGraph* ExistingUCS = FBlueprintEditorUtils::FindUserConstructionScript(BlueprintObj))
+		{
+			ExistingUCS->bAllowDeletion = false;
+		}
+		else
 		{
 			UEdGraph* UCSGraph = FBlueprintEditorUtils::CreateNewGraph(BlueprintObj, UEdGraphSchema_K2::FN_UserConstructionScript, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
 			FBlueprintEditorUtils::AddFunctionGraph(BlueprintObj, UCSGraph, /*bIsUserCreated=*/ false, AActor::StaticClass());
@@ -1570,12 +1574,12 @@ void FBlueprintEditor::EnsureBlueprintIsUpToDate(UBlueprint* BlueprintObj)
 	else
 	{
 		// If we have an SCS but don't support it, then we remove it
-		if(BlueprintObj->SimpleConstructionScript)
+		if (BlueprintObj->SimpleConstructionScript)
 		{
 			// Remove any SCS variable nodes
 			for (USCS_Node* SCS_Node : BlueprintObj->SimpleConstructionScript->GetAllNodes())
 			{
-				if(SCS_Node)
+				if (SCS_Node)
 				{
 					FBlueprintEditorUtils::RemoveVariableNodes(BlueprintObj, SCS_Node->GetVariableName());
 				}
@@ -1586,6 +1590,12 @@ void FBlueprintEditor::EnsureBlueprintIsUpToDate(UBlueprint* BlueprintObj)
 
 			// Mark the Blueprint as having been structurally modified
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BlueprintObj);
+		}
+
+		// Allow deleting the UCS if we've somehow changed away from being an actor (e.g., because of C++ reparenting the parent of our native parent)
+		if (UEdGraph* ExistingUCS = FBlueprintEditorUtils::FindUserConstructionScript(BlueprintObj))
+		{
+			ExistingUCS->bAllowDeletion = true;
 		}
 	}
 
@@ -4057,6 +4067,20 @@ void FBlueprintEditor::OnAddExecutionPin()
 
 bool FBlueprintEditor::CanAddExecutionPin() const
 {
+	const FGraphPanelSelectionSet& SelectedNodes = GetSelectedNodes();
+
+	// Iterate over all nodes, and see if all can have a pin added
+	for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
+	{
+		if (UK2Node_ExecutionSequence* AddPinNode = Cast<UK2Node_ExecutionSequence>(*It))
+		{
+			if (!AddPinNode->CanAddPin())
+			{
+				return false;
+			}
+		}
+	}
+
 	return true;
 }
 
@@ -4101,17 +4125,16 @@ void FBlueprintEditor::OnInsertExecutionPin(EPinInsertPosition Position)
 
 bool FBlueprintEditor::CanInsertExecutionPin() const
 {
-	// We likely don't need to validate here, as we validated on menu population,
-	// but better to grey out the option if it is somehow created but will
-	// not execute correctly
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 	if (FocusedGraphEd.IsValid())
 	{
 		UEdGraphPin* SelectedPin = FocusedGraphEd->GetGraphPinForMenu();
 		if (SelectedPin)
 		{
-			UEdGraphNode* OwningNode = SelectedPin->GetOwningNode();
-			return Cast<UK2Node_ExecutionSequence>(OwningNode) != nullptr;
+			if (UK2Node_ExecutionSequence* ExecutionSequence = Cast<UK2Node_ExecutionSequence>(SelectedPin->GetOwningNode()))
+			{
+				return ExecutionSequence->CanAddPin();
+			}
 		}
 	}
 

@@ -40,4 +40,7 @@ public:
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Holographic Remoting", Meta = (EditCondition = "bEnableRemotingForEditor", DisplayName = "Max network transfer rate (kb/s)"))
 	unsigned int MaxBitrate = 4000;
+	
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Holographic Remoting", Meta = (DisplayName = "HoloLens 1 Remoting", Tooltip = "If True remoting connect will assume the device being connected is a HL1, if False HL2 is assumed.  If you chose wrong remoting will fail to connect."))
+	bool IsHoloLens1Remoting = false;
 };

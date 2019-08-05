@@ -4,19 +4,12 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-#if INCLUDE_CHAOS
-
-#include "ChaosLog.h"
-
-DEFINE_LOG_CATEGORY(LogChaosGeneral);
-DEFINE_LOG_CATEGORY(LogChaosThread);
-DEFINE_LOG_CATEGORY(LogChaosSimulation);
-DEFINE_LOG_CATEGORY(LogChaosDebug);
+//#if INCLUDE_CHAOS
 
 IMPLEMENT_MODULE(FChaosEngineModule, Chaos);
 
-#else
-
-IMPLEMENT_MODULE(FDefaultModuleImpl, Chaos);
-
-#endif
+//#else
+//
+//IMPLEMENT_MODULE(FDefaultModuleImpl, Chaos);
+//
+//#endif

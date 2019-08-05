@@ -9,7 +9,7 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
 #include "PBDRigidsSolver.h"
-#include "SolverObjects/SolverObjects.h"
+#include "PhysicsProxy/PhysicsProxies.h"
 #include "../Resource/FracturedGeometry.h"
 
 
@@ -37,13 +37,11 @@ namespace GeometryCollectionExample {
 	void FinalizeSolver(Chaos::FPBDRigidsSolver& InSolver)
 	{
 #if INCLUDE_CHAOS
-		FSolverObjectStorage& Objects = InSolver.GetObjectStorage();
-
-		Objects.ForEachSolverObject([](auto* Object)
+		InSolver.ForEachPhysicsProxy([](auto* Object)
 		{
-			Object->CacheResults();
-			Object->FlipCache();
-			Object->SyncToCache();
+			Object->BufferPhysicsResults();
+			Object->FlipBuffer();
+			Object->PullFromPhysicsState();
 		});
 #endif
 	}

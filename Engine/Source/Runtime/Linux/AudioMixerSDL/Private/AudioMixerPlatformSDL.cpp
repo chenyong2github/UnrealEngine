@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "AudioMixer.h"
 #include "AudioMixerDevice.h"
+#include "AudioPluginUtilities.h"
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 #include "OpusAudioInfo.h"
@@ -397,7 +398,8 @@ namespace Audio
 	FAudioPlatformSettings FMixerPlatformSDL::GetPlatformSettings() const
 	{
 #if PLATFORM_UNIX
-		return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"));
+		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Linux);
+		return FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
 #else
 		// On HTML5 and Windows, use default parameters.
 		return FAudioPlatformSettings();

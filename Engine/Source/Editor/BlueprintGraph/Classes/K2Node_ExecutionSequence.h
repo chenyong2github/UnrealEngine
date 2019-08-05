@@ -37,19 +37,13 @@ class UK2Node_ExecutionSequence : public UK2Node, public IK2Node_AddPinInterface
 	//~ End UK2Node Interface
 
 	// IK2Node_AddPinInterface interface
-	BLUEPRINTGRAPH_API virtual void AddInputPin() override;
+	virtual void AddInputPin() override;
 	// End of IK2Node_AddPinInterface interface
 
 	//~ Begin K2Node_ExecutionSequence Interface
 
 	/** Gets a unique pin name, the next in the sequence */
 	FName GetUniquePinName();
-
-	/**
-	 * Adds a new execution pin to an execution node
-	 */
-	UE_DEPRECATED(4.17, "Use AddInputPin instead.")
-	BLUEPRINTGRAPH_API void AddPinToExecutionNode() { AddInputPin(); }
 
 	/**
 	 * Inserts a new execution pin, before the specified execution pin, into an execution node

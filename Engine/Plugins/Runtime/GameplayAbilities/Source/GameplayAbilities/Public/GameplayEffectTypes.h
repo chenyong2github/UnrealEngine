@@ -1639,6 +1639,13 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 	}
 
 	int32 MapID;
+
+	/** If true, we will skip updating the Owner ASC if we replicate on a connection owned by the ASC */
+	void SetRequireNonOwningNetConnection(bool b) { bRequireNonOwningNetConnection = b; }
+
+private:
+
+	bool bRequireNonOwningNetConnection = false;
 };
 
 template<>

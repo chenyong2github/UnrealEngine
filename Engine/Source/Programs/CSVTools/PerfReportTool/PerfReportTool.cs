@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "3.83";
+        private static string VersionString = "3.84";
 
         public static string Get() { return VersionString; }
     };
@@ -817,6 +817,10 @@ namespace PerfReportTool
             CsvStats csvStats = CsvStats.ReadCSVFromLines(csvFile.lines, null);
 			reportXML.ApplyDerivedMetadata(csvStats.metaData);
 
+			if ( csvStats.metaData == null )
+			{
+				csvStats.metaData = new CsvMetadata();
+			}
 			csvStats.metaData.Values.Add("csvfilename", csvFile.filename);
 
 			// Crop the stats to the range
@@ -1187,13 +1191,14 @@ namespace PerfReportTool
 
 
 
-            string csvToolPath = GetBaseDirectory() + "\\CSVToSVG.exe";
+            string csvToolPath = GetBaseDirectory() + "/CSVToSVG.exe";
 			string binary = csvToolPath;
 
 			// run mono on non-Windows hosts
 			if (Host != HostPlatform.Windows)
 			{
-				binary = "mono";
+				// note, on Mac mono will not be on path
+				binary = Host == HostPlatform.Linux ? "mono" : "/Library/Frameworks/Mono.framework/Versions/Current/Commands/mono";
 				args = csvToolPath + " " + args;
 			}
             
@@ -1753,7 +1758,7 @@ namespace PerfReportTool
 
 			foreach (Summary summary in reportTypeInfo.summaries)
 			{
-				summary.PostInit(reportTypeInfo);
+				summary.PostInit(reportTypeInfo, csvFile.dummyCsvStats);
 			}
 			return reportTypeInfo;
 		} 

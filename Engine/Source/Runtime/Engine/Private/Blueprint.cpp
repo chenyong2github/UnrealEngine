@@ -971,9 +971,16 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 			FAssetRegistryTag::TT_Alphabetical ) );
 
 	// Only add the FiB tags in the editor, this now gets run for standalone uncooked games
-	if ( ParentClass && GIsEditor)
+	if ( ParentClass && GIsEditor && !GetOutermost()->HasAnyPackageFlags(PKG_ForDiffing))
 	{
-		OutTags.Add(FAssetRegistryTag(FBlueprintTags::FindInBlueprintsData, FFindInBlueprintSearchManager::Get().QuerySingleBlueprint((UBlueprint*)this, false), FAssetRegistryTag::TT_Hidden));
+		FString Value;
+		const bool bRebuildSearchData = false;
+		if (const FSearchData* SearchData = FFindInBlueprintSearchManager::Get().QuerySingleBlueprint((UBlueprint*)this, bRebuildSearchData))
+		{
+			Value = SearchData->Value;
+		}
+		
+		OutTags.Add( FAssetRegistryTag(FBlueprintTags::FindInBlueprintsData, Value, FAssetRegistryTag::TT_Hidden) );
 	}
 
 	// Only show for strict blueprints (not animation or widget blueprints)
@@ -1922,7 +1929,34 @@ UInheritableComponentHandler* UBlueprint::GetInheritableComponentHandler(bool bC
 
 EDataValidationResult UBlueprint::IsDataValid(TArray<FText>& ValidationErrors)
 {
-	return GeneratedClass ? GeneratedClass->GetDefaultObject()->IsDataValid(ValidationErrors) : EDataValidationResult::Invalid;
+	EDataValidationResult IsValid = GeneratedClass ? GeneratedClass->GetDefaultObject()->IsDataValid(ValidationErrors) : EDataValidationResult::Invalid;
+	IsValid = (IsValid == EDataValidationResult::NotValidated) ? EDataValidationResult::Valid : IsValid;
+
+	if (SimpleConstructionScript)
+	{
+		EDataValidationResult IsSCSValid = SimpleConstructionScript->IsDataValid(ValidationErrors);
+		IsValid = CombineDataValidationResults(IsValid, IsSCSValid);
+	}
+
+	for (UActorComponent* Component : ComponentTemplates)
+	{
+		if (Component)
+		{
+			EDataValidationResult IsComponentValid = Component->IsDataValid(ValidationErrors);
+			IsValid = CombineDataValidationResults(IsValid, IsComponentValid);
+		}
+	}
+
+	for (UTimelineTemplate* Timeline : Timelines)
+	{
+		if (Timeline)
+		{
+			EDataValidationResult IsTimelineValid = Timeline->IsDataValid(ValidationErrors);
+			IsValid = CombineDataValidationResults(IsValid, IsTimelineValid);
+		}
+	}
+
+	return IsValid;
 }
 
 bool UBlueprint::FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const

@@ -3533,16 +3533,19 @@ void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const
 			}
 			else
 			{
+				TSharedRef<SWindow> NavigationWindow = NavigationSource.GetDeepestWindow();
+
 				FNavigationEvent NavigationEvent(PlatformApplication->GetModifierKeys(), UserIndex, TheReply.GetNavigationType(), TheReply.GetNavigationGenesis());
 
 				FNavigationReply NavigationReply = FNavigationReply::Escape();
+
 				for (int32 WidgetIndex = NavigationSource.Widgets.Num() - 1; WidgetIndex >= 0; --WidgetIndex)
 				{
 					FArrangedWidget& SomeWidgetGettingEvent = NavigationSource.Widgets[WidgetIndex];
 					if (SomeWidgetGettingEvent.Widget->IsEnabled())
 					{
 						NavigationReply = SomeWidgetGettingEvent.Widget->OnNavigation(SomeWidgetGettingEvent.Geometry, NavigationEvent).SetHandler(SomeWidgetGettingEvent.Widget);
-						if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape || WidgetIndex == 0)
+						if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape || SomeWidgetGettingEvent.Widget == NavigationWindow || WidgetIndex == 0)
 						{
 							AttemptNavigation(NavigationSource, NavigationEvent, NavigationReply, SomeWidgetGettingEvent);
 							break;
@@ -4377,6 +4380,11 @@ bool FSlateApplication::RegisterInputPreProcessor(TSharedPtr<IInputProcessor> In
 void FSlateApplication::UnregisterInputPreProcessor(TSharedPtr<IInputProcessor> InputProcessor)
 {
 	InputPreProcessors.Remove(InputProcessor);
+}
+
+int32 FSlateApplication::FindInputPreProcessor(TSharedPtr<class IInputProcessor> InputProcessor) const
+{
+	return InputPreProcessors.Find(InputProcessor);
 }
 
 void FSlateApplication::SetCursorRadius(float NewRadius)
@@ -6570,7 +6578,7 @@ bool FSlateApplication::AttemptNavigation(const FWidgetPath& NavigationSource, c
 			// Switch worlds for widgets in the current path 
 			FScopedSwitchWorldHack SwitchWorld(NavigationSource);
 
-			DestinationWidget = NavigationSource.GetWindow()->GetHittestGrid().FindNextFocusableWidget(FocusedArrangedWidget, NavigationType, NavigationReply, BoundaryWidget);
+			DestinationWidget = NavigationSource.GetDeepestWindow()->GetHittestGrid().FindNextFocusableWidget(FocusedArrangedWidget, NavigationType, NavigationReply, BoundaryWidget);
 
 #if WITH_SLATE_DEBUGGING
 			NavigationMethod = ESlateDebuggingNavigationMethod::HitTestGrid;
@@ -7599,8 +7607,11 @@ void FSlateApplication::NavigateFromWidgetUnderCursor(const uint32 InUserIndex, 
 
 void FSlateApplication::InputPreProcessorsHelper::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
+	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
+
+	for (int32 ProcessorIndex = 0; ProcessorIndex < InputPreProcessorList.Num(); ProcessorIndex++)
 	{
+		TSharedPtr<IInputProcessor> InputPreProcessor = InputPreProcessorList[ProcessorIndex];
 		InputPreProcessor->Tick(DeltaTime, SlateApp, Cursor);
 	}
 }
@@ -7665,6 +7676,11 @@ bool FSlateApplication::InputPreProcessorsHelper::Add(TSharedPtr<IInputProcessor
 		bResult = true;
 	}
 
+	if (bResult)
+	{
+		ProcessorsPendingRemoval.Remove(InputProcessor);
+	}
+
 	return bResult;
 }
 
@@ -7693,6 +7709,11 @@ void FSlateApplication::InputPreProcessorsHelper::RemoveAll()
 }
 
 
+int32 FSlateApplication::InputPreProcessorsHelper::Find(TSharedPtr<IInputProcessor> InputProcessor) const
+{
+	return InputPreProcessorList.Find(InputProcessor);
+}
+
 bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun)
 {
 	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
@@ -7707,7 +7728,7 @@ bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<b
 		}
 	}
 
-	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor){ return ProcessorsPendingRemoval.Contains(Processor); });
+	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor) { return ProcessorsPendingRemoval.Contains(Processor); });
 	ProcessorsPendingRemoval.Reset();
 
 	return bShouldExit;

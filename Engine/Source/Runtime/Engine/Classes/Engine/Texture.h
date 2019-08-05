@@ -450,6 +450,9 @@ struct FTexturePlatformData
 	/** Destructor. */
 	ENGINE_API ~FTexturePlatformData();
 
+	/** Return whether TryLoadMips() would stall because async loaded mips are not yet available. */
+	bool IsReadyForAsyncPostLoad() const;
+
 	/**
 	 * Try to load mips from the derived data cache.
 	 * @param FirstMipToLoad - The first mip index to load.

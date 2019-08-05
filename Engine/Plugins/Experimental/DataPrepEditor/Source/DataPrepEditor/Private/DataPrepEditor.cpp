@@ -125,33 +125,40 @@ public:
 class FDataprepProgressReporter : public IDataprepProgressReporter
 {
 public:
-	FDataprepProgressReporter( const FText& Title )
+	FDataprepProgressReporter()
 	{
-		ProgressTask = TSharedPtr<FScopedSlowTask>( new FScopedSlowTask( 100.0f, Title, true, *GWarn ) );
-		ProgressTask->MakeDialog(true);
 	}
 
-	virtual ~FDataprepProgressReporter() {}
-
-	// Begin IDataprepProgressReporter interface
-	virtual void ReportProgress(float Progress, const UObject& InObject) override
+	virtual ~FDataprepProgressReporter()
 	{
-		ReportProgressWithMessage( Progress, ProgressTask->GetCurrentMessage(), InObject );
 	}
 
-	virtual void ReportProgressWithMessage(float Progress, const FText& InMessage, const UObject& InObject)
+	virtual void PushTask( const FText& InTitle, float InAmountOfWork ) override
 	{
-		if( ProgressTask.IsValid() )
+		ProgressTasks.Emplace( new FScopedSlowTask( InAmountOfWork, InTitle, true, *GWarn ) );
+		ProgressTasks.Last()->MakeDialog(true);
+	}
+
+	virtual void PopTask() override
+	{
+		if(ProgressTasks.Num() > 0)
 		{
-			FText ProgressMsg = FText::FromString( FString::Printf( TEXT("%s : %s ..."), *InObject.GetName(), *InMessage.ToString() ) );
-			ProgressTask->EnterProgressFrame( Progress, ProgressMsg );
-			ProgressTask->EnterProgressFrame( 0.0f, ProgressMsg );
+			ProgressTasks.Pop();
 		}
 	}
-	// End IDataprepProgressReporter interface
+
+	// Begin IDataprepProgressReporter interface
+	virtual void ReportProgress( float Progress, const FText& InMessage ) override
+	{
+		if( ProgressTasks.Num() > 0 )
+		{
+			TSharedPtr<FScopedSlowTask>& ProgressTask = ProgressTasks.Last();
+			ProgressTask->EnterProgressFrame( Progress, InMessage );
+		}
+	}
 
 private:
-	TSharedPtr< FScopedSlowTask > ProgressTask;
+	TArray< TSharedPtr< FScopedSlowTask > > ProgressTasks;
 };
 
 FDataprepEditor::FDataprepEditor()
@@ -206,9 +213,54 @@ FDataprepEditor::~FDataprepEditor()
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 
-	if (IFileManager::Get().DirectoryExists( *TempDir ))
+	auto DeleteDirectory = [&](const FString& DirectoryToDelete)
 	{
-		IFileManager::Get().DeleteDirectory( *TempDir, true, true );
+		const FString AbsolutePath = FPaths::ConvertRelativePathToFull( DirectoryToDelete );
+		IFileManager::Get().DeleteDirectory( *AbsolutePath, false, true );
+	};
+
+	// Clean up temporary directories and data created for this session
+	{
+
+		DeleteDirectory(TempDir );
+
+		FString PackagePathToDeleteOnDisk;
+		if (FPackageName::TryConvertLongPackageNameToFilename( GetTransientContentFolder(), PackagePathToDeleteOnDisk))
+		{
+			DeleteDirectory( PackagePathToDeleteOnDisk );
+		}
+
+	}
+
+	// Clean up temporary directories associated to process if no session of Dataprep editor is running
+	{
+		auto IsDirectoryEmpty = [&](const TCHAR* Directory) -> bool
+		{
+			bool bDirectoryIsEmpty = true;
+			IFileManager::Get().IterateDirectory(Directory, [&](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
+			{
+				bDirectoryIsEmpty = false;
+				return false;
+			});
+
+			return bDirectoryIsEmpty;
+		};
+
+		FString RootTempDir = FPaths::Combine( GetRootTemporaryDir(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ) );
+		if(IsDirectoryEmpty( *RootTempDir ))
+		{
+			DeleteDirectory( RootTempDir );
+		}
+
+		const FString PackagePathToDelete = FPaths::Combine( GetRootPackagePath(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ) );
+		FString PackagePathToDeleteOnDisk;
+		if (FPackageName::TryConvertLongPackageNameToFilename(PackagePathToDelete, PackagePathToDeleteOnDisk))
+		{
+			if(IsDirectoryEmpty( *PackagePathToDeleteOnDisk ))
+			{
+				DeleteDirectory( PackagePathToDeleteOnDisk );
+			}
+		}
 	}
 }
 
@@ -285,6 +337,70 @@ void FDataprepEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>&
 	// end of temp code for nodes development
 }
 
+void FDataprepEditor::CleanUpTemporaryDirectories()
+{
+	const int32 CurrentProcessID = FPlatformProcess::GetCurrentProcessId();
+
+	TSet<FString> TempDirectories;
+	IFileManager::Get().IterateDirectory( *GetRootTemporaryDir(), [&](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
+	{
+		if (bIsDirectory)
+		{
+			FString DirectoryName = FPaths::GetBaseFilename( FilenameOrDirectory );
+			if(FCString::IsNumeric( *DirectoryName ))
+			{
+
+				int32 ProcessID = FCString::Atoi( *DirectoryName );
+				if(ProcessID != CurrentProcessID)
+				{
+					FProcHandle ProcHandle = FPlatformProcess::OpenProcess( ProcessID );
+
+					// Delete directories if process is not valid
+					bool bDeleteDirectories = !ProcHandle.IsValid();
+
+					// Process is valid, check if application associated with process id is UE4 editor
+					if(!bDeleteDirectories)
+					{
+						const FString ApplicationName = FPlatformProcess::GetApplicationName( ProcessID );
+						bDeleteDirectories = !ApplicationName.StartsWith(TEXT("UE4Editor"));
+					}
+
+					if(bDeleteDirectories)
+					{
+						FString PackagePathToDelete = FPaths::Combine( GetRootPackagePath(), DirectoryName );
+						FString PackagePathToDeleteOnDisk;
+						if (FPackageName::TryConvertLongPackageNameToFilename(PackagePathToDelete, PackagePathToDeleteOnDisk))
+						{
+							TempDirectories.Add( MoveTemp(PackagePathToDeleteOnDisk) );
+						}
+
+						TempDirectories.Emplace( FilenameOrDirectory );
+					}
+				}
+			}
+		}
+		return true;
+	});
+
+	for(FString& TempDirectory : TempDirectories)
+	{
+		FString AbsolutePath = FPaths::ConvertRelativePathToFull( TempDirectory );
+		IFileManager::Get().DeleteDirectory( *AbsolutePath, false, true );
+	}
+}
+
+const FString& FDataprepEditor::GetRootTemporaryDir()
+{
+	static FString RootTemporaryDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DataprepTemp") );
+	return RootTemporaryDir;
+}
+
+const FString& FDataprepEditor::GetRootPackagePath()
+{
+	static FString RootPackagePath( TEXT("/DataprepEditor/Transient") );
+	return RootPackagePath;
+}
+
 void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UDataprepAsset* InDataprepAsset)
 {
 	DataprepAssetPtr = TWeakObjectPtr<UDataprepAsset>(InDataprepAsset);
@@ -297,8 +413,9 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	// Assign unique session identifier
 	SessionID = FGuid::NewGuid().ToString();
 
-	// Create temporary directory which will be used by UDatasmithStaticMeshCADImportData to store transient data
-	TempDir = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DataprepTemp"), SessionID);
+	// Create temporary directory to store transient data
+	CleanUpTemporaryDirectories();
+	TempDir = FPaths::Combine( GetRootTemporaryDir(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ), SessionID);
 	IFileManager::Get().MakeDirectory(*TempDir);
 
 	// Temp code for the nodes development
@@ -517,7 +634,7 @@ void FDataprepEditor::OnBuildWorld()
 	Context.SetWorld( PreviewWorld.Get() )
 		.SetRootPackage( TransientPackage )
 		.SetLogger( TSharedPtr< IDataprepLogger >( new FDataprepLogger ) )
-		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter( LOCTEXT("Dataprep_BuildWorld", "Importing ...") ) ) );
+		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter() ) );
 
 	DataprepAssetPtr->RunProducers( Context, Assets );
 
@@ -656,7 +773,7 @@ void FDataprepEditor::OnExecutePipeline()
 		RestoreFromSnapshot();
 	}
 
-	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepProgressReporter( LOCTEXT("Dataprep_ExecutePipeline", "Executing pipeline ...") ) );
+	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepProgressReporter() );
 
 	// Trigger execution of data preparation operations on world attached to recipe
 	{
@@ -670,12 +787,31 @@ void FDataprepEditor::OnExecutePipeline()
 		UEdGraphPin* StartNodePin = StartNode->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
 		if( StartNodePin && StartNodePin->LinkedTo.Num() > 0 )
 		{
-			UEdGraphPin* NextNodeInPin = StartNodePin->LinkedTo[0];
-			while( NextNodeInPin != nullptr )
+			int32 ActionNodeCount = 0;
+			for( UEdGraphPin* NextNodeInPin = StartNodePin->LinkedTo[0]; NextNodeInPin != nullptr ; )
+			{
+				UEdGraphNode* NextNode = NextNodeInPin->GetOwningNode();
+
+				if(UK2Node_DataprepAction* ActionNode = Cast<UK2Node_DataprepAction>(NextNode))
+				{
+					++ActionNodeCount;
+				}
+
+				UEdGraphPin* NextNodeOutPin = NextNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
+				NextNodeInPin = NextNodeOutPin ? ( NextNodeOutPin->LinkedTo.Num() > 0 ? NextNodeOutPin->LinkedTo[0] : nullptr ) : nullptr;
+			}
+
+			ActionNodesExecuted.Reserve( ActionNodeCount );
+
+			FDataprepProgressTask Task( *ProgressReporter, LOCTEXT( "DataprepEditor_ExecutingPipeline", "Executing pipeline ..." ), (float)ActionNodeCount, 1.0f );
+
+			for( UEdGraphPin* NextNodeInPin = StartNodePin->LinkedTo[0]; NextNodeInPin != nullptr ; )
 			{
 				UEdGraphNode* NextNode = NextNodeInPin->GetOwningNode();
 				if( UK2Node_DataprepAction* ActionNode = Cast<UK2Node_DataprepAction>( NextNode ) )
 				{
+					Task.ReportNextStep( FText::Format( LOCTEXT( "DataprepEditor_ExecutingAction", "Executing \"{0}\" ..."), ActionNode->GetNodeTitle( ENodeTitleType::FullTitle ) ) );
+
 					// Break the loop if the node had already been executed
 					if( ActionNodesExecuted.Find( ActionNode ) )
 					{
@@ -792,7 +928,7 @@ void FDataprepEditor::OnCommitWorld()
 		.SetAssets( ValidAssets )
 		.SetTransientContentFolder( GetTransientContentFolder() )
 		.SetLogger( TSharedPtr<IDataprepLogger>( new FDataprepLogger ) )
-		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter( LOCTEXT("Dataprep_CommitWorld", "Committing ...") ) ) );
+		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter() ) );
 
 	FString OutReason;
 	if( !DataprepAssetPtr->RunConsumer( Context, OutReason ) )
@@ -1006,7 +1142,7 @@ bool FDataprepEditor::CanCommitWorld()
 
 FString FDataprepEditor::GetTransientContentFolder()
 {
-	return FPaths::Combine( TEXT("/DataPrepEditor"), SessionID );
+	return FPaths::Combine( GetRootPackagePath(), FString::FromInt( FPlatformProcess::GetCurrentProcessId() ), SessionID );
 }
 
 void DataprepEditorUtil::DeleteTemporaryPackage( const FString& PathToDelete )

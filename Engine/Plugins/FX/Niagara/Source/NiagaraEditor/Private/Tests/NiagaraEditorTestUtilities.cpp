@@ -48,7 +48,8 @@ TSharedRef<FNiagaraSystemViewModel> FNiagaraEditorTestUtilities::CreateTestSyste
 	SystemViewModelOptions.bCanAutoCompile = false;
 	SystemViewModelOptions.bCanSimulate = false;
 
-	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = MakeShared<FNiagaraSystemViewModel>(*System, SystemViewModelOptions);
+	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
+	SystemViewModel->Initialize(*System, SystemViewModelOptions);
 
 	return SystemViewModel;
 }

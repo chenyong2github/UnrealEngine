@@ -529,6 +529,13 @@ FText FItemPropertyNode::GetDisplayName() const
 			
 			// Sets and maps do not have a display index.
 			UProperty* ParentProperty = ParentNode->GetProperty();
+
+			// Also handle UArray's having the ArraySizeEnum entry...
+			if (ArraySizeEnum == nullptr && Cast<UArrayProperty>(ParentProperty) != nullptr && ParentProperty->HasMetaData(NAME_ArraySizeEnum))
+			{
+				ArraySizeEnum = FindObject<UEnum>(NULL, *ParentProperty->GetMetaData(NAME_ArraySizeEnum));
+			}
+
 			if (Cast<USetProperty>(ParentProperty) == nullptr &&  Cast<UMapProperty>(ParentProperty) == nullptr)
 			{
 				// This item is a member of an array, its display name is its index 

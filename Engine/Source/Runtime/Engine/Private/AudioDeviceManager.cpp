@@ -185,6 +185,9 @@ void FAudioDeviceManager::ToggleAudioMixer()
 					// Make a new audio device using the new audio device module
 					AudioDevice = AudioDeviceModule->CreateAudioDevice();
 
+					// Set the new audio device into the slot of the old audio device in the manager
+					Devices[DeviceIndex] = AudioDevice;
+
 					// Set the new audio device handle to the old audio device handle
 					AudioDevice->DeviceHandle = Handle;
 
@@ -208,9 +211,6 @@ void FAudioDeviceManager::ToggleAudioMixer()
 
 					// Fade in the new audio device (used only in audio mixer to prevent pops on startup/shutdown)
 					AudioDevice->FadeIn();
-
-					// Set the new audio device into the slot of the old audio device in the manager
-					Devices[DeviceIndex] = AudioDevice;
 				}
 			}
 
@@ -222,9 +222,6 @@ void FAudioDeviceManager::ToggleAudioMixer()
 			{
 				USoundWave* SoundWave = *SoundWaveIt;
 				FreeResource(SoundWave);
-
-				// Flag that the sound wave needs to do a full decompress again
-				SoundWave->DecompressionType = DTYPE_Setup;
 			}
 
 			// Unload the previous audio device module
@@ -461,10 +458,15 @@ bool FAudioDeviceManager::CreateAudioDevice(bool bCreateNewDevice, FCreateAudioD
 
 	if (bRequiresInit)
 	{
+		// Set to highest max channels initially provided by any quality setting, so that
+		// setting to lower quality but potentially returning to higher quality later at
+		// runtime is supported.
 		const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-		if (OutResults.AudioDevice->Init(AudioSettings->GetHighestMaxChannels())) //-V595
+		const int32 HighestMaxChannels = AudioSettings ? AudioSettings->GetHighestMaxChannels() : 0;
+		if (OutResults.AudioDevice && OutResults.AudioDevice->Init(HighestMaxChannels))
 		{
-			OutResults.AudioDevice->SetMaxChannels(AudioSettings->GetQualityLevelSettings(GEngine->GetGameUserSettings()->GetAudioQualityLevel()).MaxChannels); //-V595
+			const FAudioQualitySettings& QualitySettings = OutResults.AudioDevice->GetQualityLevelSettings();
+			OutResults.AudioDevice->SetMaxChannels(QualitySettings.MaxChannels);
 		}
 		else
 		{
@@ -855,6 +857,10 @@ void FAudioDeviceManager::FreeResource(USoundWave* SoundWave)
 	{
 		FSoundBuffer* SoundBuffer = WaveBufferMap.FindRef(SoundWave->ResourceID);
 		FreeBufferResource(SoundBuffer);
+
+		// Flag that the sound wave needs to do a full decompress again
+		SoundWave->DecompressionType = DTYPE_Setup;
+		SoundWave->SetPrecacheState(ESoundWavePrecacheState::NotStarted);
 
 		SoundWave->ResourceID = 0;
 	}

@@ -2,6 +2,7 @@
 
 #include "DataPrepEditor.h"
 
+#include "DataprepCoreUtils.h"
 #include "DataprepEditorLogCategory.h"
 
 #include "ActorEditorUtils.h"
@@ -9,6 +10,7 @@
 #include "Async/ParallelFor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EngineUtils.h"
+#include "Engine/Texture.h"
 #include "Exporters/Exporter.h"
 #include "Factories/LevelFactory.h"
 #include "HAL/FileManager.h"
@@ -177,9 +179,11 @@ namespace DataprepSnapshotUtil
 		}
 
 		// Serialize sub-objects' outer path
-		for(UObject* SubObject : SubObjectsArray)
+		// Done in reverse order since an object can be the outer of the object
+		// it depends on. Not the opposite
+		for(int32 Index = SubObjectsArray.Num() - 1; Index >= 0; --Index)
 		{
-			FSoftObjectPath SoftPath( SubObject->GetOuter() );
+			FSoftObjectPath SoftPath( SubObjectsArray[Index]->GetOuter() );
 
 			FString SoftPathString = SoftPath.ToString();
 			MemAr << SoftPathString;
@@ -193,6 +197,12 @@ namespace DataprepSnapshotUtil
 
 		// Serialize object
 		Object->Serialize(Ar);
+
+		if(UTexture* Texture = Cast<UTexture>(Object))
+		{
+			bool bRebuildResource = !!Texture->Resource;
+			Ar << bRebuildResource;
+		}
 
 		if(bUseCompression)
 		{
@@ -215,8 +225,22 @@ namespace DataprepSnapshotUtil
 		}
 	}
 
-	void ReadSnapshotData(UObject* Object, const TArray<uint8>& InSerializedData, TMap<FString, UClass*>& InClassesMap)
+	void ReadSnapshotData(UObject* Object, const TArray<uint8>& InSerializedData, TMap<FString, UClass*>& InClassesMap, TArray<UObject*>& ObjectsToDelete)
 	{
+		// Remove all objects created by default that InObject is dependent on
+		// This method must obviously be called just after the InObject is created
+		auto RemoveDefaultDependencies = [&ObjectsToDelete](UObject* InObject)
+		{
+			TArray< UObject* > ObjectsWithOuter;
+			GetObjectsWithOuter( InObject, ObjectsWithOuter, /*bIncludeNestedObjects = */ true );
+
+			for(UObject* ObjectWithOuter : ObjectsWithOuter)
+			{
+				ObjectWithOuter->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
+				ObjectsToDelete.Add( ObjectWithOuter );
+			}
+		};
+
 		TArray<uint8> MemoryBuffer;
 		if(bUseCompression)
 		{
@@ -232,6 +256,8 @@ namespace DataprepSnapshotUtil
 			// if it failed send the data uncompressed, which we mark by setting compressed size to 0
 			checkf(bSucceeded, TEXT("zlib failed to uncompress, which is very unexpected"));
 		}
+
+		RemoveDefaultDependencies( Object );
 
 		FMemoryReader MemAr(bUseCompression ? MemoryBuffer : InSerializedData);
 		FObjectAndNameAsStringProxyArchive Ar(MemAr, false);
@@ -253,22 +279,26 @@ namespace DataprepSnapshotUtil
 			UClass** SubObjectClassPtr = InClassesMap.Find(ClassName);
 			check( SubObjectClassPtr );
 
-			// #ueent_todo: TBF: outer will not be properly updated if sub-object depends on another sub-object 
 			UObject* SubObject = NewObject<UObject>( Object, *SubObjectClassPtr, NAME_None, RF_Transient );
 			SubObjectsArray.Add( SubObject );
+
+			RemoveDefaultDependencies( SubObject );
 		}
 
 		// Restore sub-objects' outer if original outer differs from Object
-		for(UObject* SubObject : SubObjectsArray)
+		// Restoration is done in the order the serialization was done: reverse order
+		for(int32 Index = SubObjectsArray.Num() - 1; Index >= 0; --Index)
 		{
 			FString SoftPathString;
 			MemAr << SoftPathString;
 
-			FSoftObjectPath SoftPath( SoftPathString );
+			const FSoftObjectPath SoftPath( SoftPathString );
+
 			UObject* NewOuter = SoftPath.ResolveObject();
 			ensure( NewOuter );
 
-			if( NewOuter && NewOuter != SubObject->GetOuter() )
+			UObject* SubObject = SubObjectsArray[Index];
+			if( NewOuter != SubObject->GetOuter() )
 			{
 				SubObject->Rename( nullptr, NewOuter, REN_DontCreateRedirectors | REN_NonTransactional );
 			}
@@ -282,6 +312,17 @@ namespace DataprepSnapshotUtil
 
 		// Deserialize object
 		Object->Serialize(Ar);
+
+		if(UTexture* Texture = Cast<UTexture>(Object))
+		{
+			bool bRebuildResource = false;
+			Ar << bRebuildResource;
+
+			if(bRebuildResource)
+			{
+				Texture->UpdateResource();
+			}
+		}
 	}
 }
 
@@ -571,6 +612,8 @@ void FDataprepEditor::RestoreFromSnapshot()
 			PackagesCreated.Add( PackageToLoadPath, PackageCreated );
 		}
 
+		// Duplicate sub-objects to delete after all assets are read
+		TArray<UObject*> ObjectsToDelete;
 		UPackage* Package = PackagesCreated[PackageToLoadPath];
 		UObject* Asset = NewObject<UObject>( Package, DataEntry.Get<1>(), *AssetName, DataEntry.Get<2>() );
 
@@ -579,8 +622,10 @@ void FDataprepEditor::RestoreFromSnapshot()
 			FString AssetFilePath = DataprepSnapshotUtil::BuildAssetFileName( TempDir, ObjectPath.GetAssetPathString() );
 			FFileHelper::LoadFileToArray( SerializedData, *AssetFilePath );
 
-			DataprepSnapshotUtil::ReadSnapshotData( Asset, SerializedData, SnapshotClassesMap );
+			DataprepSnapshotUtil::ReadSnapshotData( Asset, SerializedData, SnapshotClassesMap, ObjectsToDelete );
 		}
+
+		FDataprepCoreUtils::PurgeObjects( MoveTemp( ObjectsToDelete ) );
 
 		Assets.Add( Asset );
 

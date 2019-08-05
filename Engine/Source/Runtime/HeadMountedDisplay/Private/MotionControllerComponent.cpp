@@ -582,15 +582,6 @@ void UMotionControllerComponent::FViewExtension::PreRenderViewFamily_RenderThrea
 	LateUpdate.Apply_RenderThread(InViewFamily.Scene, OldTransform, NewTransform);
 }
 
-void UMotionControllerComponent::FViewExtension::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
-{
-	if (!MotionControllerComponent)
-	{
-		return;
-	}
-	LateUpdate.PostRender_RenderThread();
-}
-
 bool UMotionControllerComponent::FViewExtension::IsActiveThisFrame(class FViewport* InViewport) const
 {
 	check(IsInGameThread());

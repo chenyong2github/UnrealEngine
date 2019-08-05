@@ -309,8 +309,6 @@ void USoundWave::Serialize( FArchive& Ar )
 
 	bool bShouldStreamSound = false;
 
-	if (Ar.IsSaving() || Ar.IsCooking())
-	{
 #if WITH_EDITORONLY_DATA
 		if (bVirtualizeWhenSilent_DEPRECATED)
 		{
@@ -319,6 +317,8 @@ void USoundWave::Serialize( FArchive& Ar )
 		}
 #endif // WITH_EDITORONLY_DATA
 
+	if (Ar.IsSaving() || Ar.IsCooking())
+	{
 #if WITH_ENGINE
 		// If there is an AutoStreamingThreshold set for the platform we're cooking to,
 		// we use it to determine whether this USoundWave should be streaming:
@@ -1438,6 +1438,7 @@ void USoundWave::FreeResources()
 	ResourceID = 0;
 	bDynamicResource = false;
 	DecompressionType = DTYPE_Setup;
+	SetPrecacheState(ESoundWavePrecacheState::NotStarted);
 	bDecompressedFromOgg = false;
 
 	if (ResourceState == ESoundWaveResourceState::Freeing)

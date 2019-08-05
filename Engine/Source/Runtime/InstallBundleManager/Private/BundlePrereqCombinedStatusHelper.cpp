@@ -190,7 +190,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateCombinedStatus()
 	//Otherwise start with True and override those specific cases bellow
 	CurrentCombinedStatus.bDoesCurrentStateSupportPausing = bBundleNeedsUpdate;
 	
-	if (CurrentCombinedStatus.ProgressPercent == 0.f)
+	if ((EarliestBundleState == EInstallBundleStatus::Requested) || (EarliestBundleState == EInstallBundleStatus::Count))
 	{
 		CurrentCombinedStatus.CombinedState = FCombinedBundleStatus::ECombinedBundleStateEnum::Initializing;
 	}
@@ -281,12 +281,10 @@ float FBundlePrereqCombinedStatusHelper::GetIndividualWeightedProgressPercent(FI
 			}
 			
 			float InstallWeightedPercent = 0.f;
-			if (BundleStatus.InstallDownloadProgress.IsSet())
-			{
-				//If we didn't have background download progress, just use our InstallWeight as we don't have Download Progress to use
-				const float AppliedInstallWeight = bDidHaveBackgroundDownloadProgress ? (InstallWeight / TotalWeight) : InstallWeight;
-				InstallWeightedPercent = BundleStatus.Install_Percent * AppliedInstallWeight;
-			}
+			
+			//If we didn't have background download progress, just use our InstallWeight as we don't have Download Progress to use
+			const float AppliedInstallWeight = bDidHaveBackgroundDownloadProgress ? (InstallWeight / TotalWeight) : 1.0f;
+			InstallWeightedPercent = BundleStatus.Install_Percent * AppliedInstallWeight;
 			
 			CombinedOverallProgressPercent = DownloadWeightedPercent + InstallWeightedPercent;
 			FMath::Clamp(CombinedOverallProgressPercent, 0.f, 1.0f);

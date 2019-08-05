@@ -1196,7 +1196,7 @@ void MeshPaintHelpers::ForceRenderMeshLOD(UMeshComponent* Component, int32 LODIn
 	}
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Component))
 	{
-		SkeletalMeshComponent->ForcedLodModel = LODIndex + 1;
+		SkeletalMeshComponent->SetForcedLOD(LODIndex + 1);
 	}	
 }
 

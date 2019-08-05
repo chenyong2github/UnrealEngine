@@ -3,13 +3,13 @@
 
 #include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/PBDConstraintGraph.h"
+#include "Chaos/ParticleHandle.h"
 
 // @todo(ccaulfield): can we get rid of this now?
 #define USE_CONTACT_LEVELS 1
 
 namespace Chaos
 {
-
 	/**
 	 * Generates color information for a single constraint rule in a connection graph.
 	 * Edges with the same color are non-interacting and can safely be processed in parallel.
@@ -32,7 +32,7 @@ namespace Chaos
 		/**
 		 * Calculate the color information for the specified island.
 		 */
-		void ComputeColor(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
+		void ComputeColor(const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
 
 		/**
 		 * Get the Level-Color-ConstraintList map for the specified island.
@@ -50,8 +50,8 @@ namespace Chaos
 		int GetIslandMaxLevel(int32 Island) const;
 
 	private:
-		void ComputeContactGraph(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& NodeIndices, const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
-		void ComputeIslandColoring(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
+		void ComputeContactGraph(const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
+		void ComputeIslandColoring(const int32 Island, const FConstraintGraph& ConstraintGraph, uint32 ContainerId);
 
 		struct FGraphNodeColor
 		{

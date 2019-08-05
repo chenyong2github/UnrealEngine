@@ -252,6 +252,7 @@ FAudioEffectsManager::FAudioEffectsManager( FAudioDevice* InDevice )
 	, bEQActive(false)
 	, bReverbChanged(true) // Setting to true to catch the first default reverb setting
 	, bEQChanged(false)
+	, bUseLegacyReverb(false)
 {
 	InitAudioEffects();
 }

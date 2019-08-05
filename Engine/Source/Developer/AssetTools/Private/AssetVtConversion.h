@@ -13,6 +13,10 @@ struct FScopedSlowTask;
 class FVTConversionWorker
 {
 public:
+	FVTConversionWorker(bool bInConvertBackward = false) : bConvertBackward(bInConvertBackward){}
+
+	bool bConvertBackward;
+
 	// Fill this array intially with some textures you want to see converted to vt
 	TArray<UTexture2D*> UserTextures;
 
@@ -32,10 +36,12 @@ public:
 
 	TMap<UObject*, FAuditTrail> AuditTrail;
 
+	void SetConversionDirection(bool bInConvertBackward) { bConvertBackward = bInConvertBackward; }
+
 	void FilterList(int32 SizeThreshold);
 
 	// Based on the filtered lists do the actual VT conversion
-	void DoConvert(bool backwards);
+	void DoConvert();
 private:
 	void FindAllTexturesAndMaterials_Iteration(TArray<UMaterial*>& InAffectedMaterials,
 		TArray<UMaterialFunctionInterface*>& InAffectedFunctions,

@@ -21,8 +21,8 @@ public:
 	FTransformCollection();
 	FTransformCollection(FTransformCollection &) = delete;
 	FTransformCollection& operator=(const FTransformCollection&) = delete;
-	FTransformCollection(FTransformCollection&&) = delete;
-	FTransformCollection& operator=(FTransformCollection&&) = delete;
+	FTransformCollection(FTransformCollection&&) = default;
+	FTransformCollection& operator=(FTransformCollection&&) = default;
 
 
 	/***

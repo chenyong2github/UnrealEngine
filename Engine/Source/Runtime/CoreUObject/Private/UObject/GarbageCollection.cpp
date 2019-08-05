@@ -9,6 +9,7 @@
 #include "Misc/TimeGuard.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectBase.h"
@@ -151,7 +152,7 @@ static FAutoConsoleVariableRef CIncrementalBeginDestroyEnabled(
 	ECVF_Default
 );
 
-int32 GMultithreadedDestructionEnabled = 1;
+int32 GMultithreadedDestructionEnabled = 0;
 static FAutoConsoleVariableRef CMultithreadedDestructionEnabled(
 	TEXT("gc.MultithreadedDestructionEnabled"),
 	GMultithreadedDestructionEnabled,
@@ -1449,6 +1450,11 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 		// Have we finished the first round of attempting to call FinishDestroy on unreachable objects?
 		if (GObjCurrentPurgeObjectIndex >= GUnreachableObjects.Num())
 		{
+			double MaxTimeForFinishDestroy = 10.00;
+			bool bFinishDestroyTimeExtended = false;
+			FString FirstObjectNotReadyWhenTimeExtended;
+			int32 StartObjectsPendingDestructionCount = GGCObjectsPendingDestructionCount;
+
 			// We've finished iterating over all unreachable objects, but we need still need to handle
 			// objects that were deferred.
 			int32 LastLoopObjectsPendingDestructionCount = GGCObjectsPendingDestructionCount;
@@ -1515,10 +1521,17 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 					if (FPlatformProperties::RequiresCookedData())
 					{
 						const bool bPollTimeLimit = ((FinishDestroyTimePollCounter++) % TimeLimitEnforcementGranularityForDestroy == 0);
-#if PLATFORM_IOS
-                        const double MaxTimeForFinishDestroy = 30.0;
-#else
-						const double MaxTimeForFinishDestroy = 10.0;
+#if PLATFORM_IOS || PLATFORM_ANDROID
+						if( !bFinishDestroyTimeExtended && (FPlatformTime::Seconds() - GCStartTime) > MaxTimeForFinishDestroy)
+						{
+							MaxTimeForFinishDestroy = 30.0;
+							bFinishDestroyTimeExtended = true;
+#if USE_HITCH_DETECTION
+							GHitchDetected = true;
+#endif
+							FirstObjectNotReadyWhenTimeExtended = GetFullNameSafe(GGCObjectsPendingDestruction[0]);
+						}
+						else
 #endif
 						// Check if we spent too much time on waiting for FinishDestroy without making any progress
 						if (LastLoopObjectsPendingDestructionCount == GGCObjectsPendingDestructionCount && bPollTimeLimit &&
@@ -1573,6 +1586,13 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 			// Have all objects been destroyed now?
 			if( GGCObjectsPendingDestructionCount == 0 )
 			{
+				if (bFinishDestroyTimeExtended)
+				{
+					FString Msg = FString::Printf(TEXT("Additional time was required to finish routing FinishDestroy, spent %.2fs on routing FinishDestroy to %d objects. 1st obj not ready: '%s'."), (FPlatformTime::Seconds() - GCStartTime), StartObjectsPendingDestructionCount, *FirstObjectNotReadyWhenTimeExtended);
+					UE_LOG(LogGarbage, Warning, TEXT("%s"), *Msg );
+					FCoreDelegates::OnGCFinishDestroyTimeExtended.Broadcast(Msg);
+				}
+
 				// Release memory we used for objects pending destruction, leaving some slack space
 				GGCObjectsPendingDestruction.Empty( 256 );
 
@@ -2001,6 +2021,11 @@ void UObject::AddReferencedObjects(UObject* This, FReferenceCollector& Collector
 		Collector.AddReferencedObject( Class, This );
 	}
 #endif
+}
+
+bool UObject::IsDestructionThreadSafe() const
+{
+	return true;
 }
 
 /*-----------------------------------------------------------------------------

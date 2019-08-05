@@ -106,12 +106,12 @@ void UTextBlock::SetStrikeBrush(FSlateBrush InStrikeBrush)
 	}
 }
 
-void UTextBlock::SetJustification( ETextJustify::Type InJustification )
+void UTextBlock::SetJustification(ETextJustify::Type InJustification)
 {
-	Justification = InJustification;
-	if ( MyTextBlock.IsValid() )
+	Super::SetJustification(InJustification);
+	if (MyTextBlock.IsValid())
 	{
-		MyTextBlock->SetJustification( Justification );
+		MyTextBlock->SetJustification(InJustification);
 	}
 }
 

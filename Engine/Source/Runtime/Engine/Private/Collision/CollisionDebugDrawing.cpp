@@ -6,6 +6,12 @@
 #include "DrawDebugHelpers.h"
 #include "PhysXPublic.h"
 
+#if INCLUDE_CHAOS
+#include "Chaos/Sphere.h"
+#include "Chaos/Box.h"
+#include "Chaos/Capsule.h"
+#endif
+
 
 #if ENABLE_DRAW_DEBUG
 
@@ -245,5 +251,46 @@ void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& 
 
 
 #endif // WITH_PHYSX
+
+#if INCLUDE_CHAOS
+void DrawGeomOverlaps(const UWorld* InWorld, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& GeomPose, TArray<struct FOverlapResult>& Overlaps, float Lifetime)
+{
+	using namespace Chaos;
+	FVector Pos = GeomPose.GetLocation();
+	FQuat Rot = GeomPose.GetRotation();
+
+	if (const auto Box = Geom.template GetObject<TBox<float,3>>())
+	{
+		DrawBoxOverlap(InWorld, Pos, Box->Extents() * 0.5f, Rot, Overlaps, Lifetime);
+	}
+	else if (const auto Sphere = Geom.template GetObject<TSphere<float, 3>>())
+	{
+		DrawSphereOverlap(InWorld, Pos, Sphere->GetRadius(), Overlaps, Lifetime);
+	}
+	else if (const auto Capsule = Geom.template GetObject<TCapsule<float>>())
+	{
+		// Convert here from Chaos to unreal definition of capsule height
+		DrawCapsuleOverlap(InWorld, Pos, Capsule->GetHeight() * 0.5f + Capsule->GetRadius(), Capsule->GetRadius(), Rot, Overlaps, Lifetime);
+	}
+}
+
+void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& End, const Chaos::TImplicitObject<float, 3>& Geom, const FQuat& Rotation, const TArray<FHitResult>& Hits, float Lifetime)
+{
+	using namespace Chaos;
+	if (const auto Box = Geom.template GetObject<TBox<float, 3>>())
+	{
+		DrawBoxSweeps(InWorld, Start, End, Box->Extents() * 0.5f, Rotation, Hits, Lifetime);
+	}
+	else if (const auto Sphere = Geom.template GetObject<TSphere<float, 3>>())
+	{
+		DrawSphereSweeps(InWorld, Start, End, Sphere->GetRadius(), Hits, Lifetime);
+	}
+	else if (const auto Capsule = Geom.template GetObject<TCapsule<float>>())
+	{
+		// Convert here from Chaos to unreal definition of capsule height
+		DrawCapsuleSweeps(InWorld, Start, End, Capsule->GetHeight() * 0.5f + Capsule->GetRadius(), Capsule->GetRadius(), Rotation, Hits, Lifetime);
+	}
+}
+#endif
 
 #endif // ENABLE_DRAW_DEBUG

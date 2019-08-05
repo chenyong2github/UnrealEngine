@@ -7,12 +7,12 @@ DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time"), STAT_SlateUpdateInstanceBu
 
 struct FSlateUpdateInstanceBufferCommand final : public FRHICommand<FSlateUpdateInstanceBufferCommand>
 {
-	TSlateElementVertexBuffer<FVector4>& InstanceBuffer;
-	const TArray<FVector4>& InstanceData;
+	TArray<FVector4> InstanceData;
+	FVertexBufferRHIRef VertexBufferRHI;
 
-	FSlateUpdateInstanceBufferCommand(TSlateElementVertexBuffer<FVector4>& InInstanceBuffer, const TArray<FVector4>& InInstanceData )
-		: InstanceBuffer(InInstanceBuffer)
-		, InstanceData(InInstanceData)
+	FSlateUpdateInstanceBufferCommand(TSlateElementVertexBuffer<FVector4>& InInstanceBuffer, const TArray<FVector4>& InInstanceData)
+		: InstanceData(InInstanceData)
+		, VertexBufferRHI(InInstanceBuffer.VertexBufferRHI)
 	{}
 
 	void Execute(FRHICommandListBase& CmdList)
@@ -20,12 +20,28 @@ struct FSlateUpdateInstanceBufferCommand final : public FRHICommand<FSlateUpdate
 		SCOPE_CYCLE_COUNTER( STAT_SlateUpdateInstanceBuffer );
 		const bool bIsInRenderingThread = !IsRunningRHIInSeparateThread() || CmdList.Bypass();
 
-		int32 RequiredVertexBufferSize = InstanceData.Num()*sizeof(FVector4);
-		uint8* InstanceBufferData = (uint8*)InstanceBuffer.LockBuffer(RequiredVertexBufferSize, bIsInRenderingThread);
+		uint32 RequiredBufferSize = InstanceData.Num() * sizeof(FVector4);
+		uint8* InstanceBufferData = nullptr;
 
-		FMemory::Memcpy( InstanceBufferData, InstanceData.GetData(), InstanceData.Num()*sizeof(FVector4) );
+		if (bIsInRenderingThread)
+		{
+			InstanceBufferData = static_cast<uint8*>(RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly));
+		}
+		else
+		{
+			InstanceBufferData = static_cast<uint8*>(GDynamicRHI->RHILockVertexBuffer(VertexBufferRHI, 0, RequiredBufferSize, RLM_WriteOnly));
+		}
+
+		FMemory::Memcpy(InstanceBufferData, InstanceData.GetData(), RequiredBufferSize);
 	
-		InstanceBuffer.UnlockBuffer(bIsInRenderingThread);
+		if (bIsInRenderingThread)
+		{
+			RHIUnlockVertexBuffer(VertexBufferRHI);
+		}
+		else
+		{
+			GDynamicRHI->RHIUnlockVertexBuffer(VertexBufferRHI);
+		}
 	}
 };
 

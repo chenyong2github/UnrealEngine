@@ -73,6 +73,8 @@ template <class ElementType> class TLinkedList;
 #define STORE_ONLY_ACTIVE_SHADERMAPS 0
 #endif
 
+#define MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE 1
+
 DECLARE_LOG_CATEGORY_EXTERN(LogMaterial,Log,Verbose);
 
 /** Creates a string that represents the given quality level. */
@@ -1509,7 +1511,8 @@ public:
 	virtual uint32 GetStencilRefValue() const { return 0; }
 	virtual uint32 GetStencilCompare() const { return 0; }
 	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
-	
+	virtual bool CastsRayTracedShadows() const { return true; }
+
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
@@ -2252,6 +2255,7 @@ public:
 	ENGINE_API virtual bool ShouldApplyFogging() const override;
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
+	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 	ENGINE_API virtual UMaterialInterface* GetMaterialInterface() const override;
 	/**
 	 * Should shaders compiled for this material be saved to disk?

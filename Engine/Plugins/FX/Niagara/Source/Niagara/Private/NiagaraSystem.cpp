@@ -15,6 +15,7 @@
 #include "AssetData.h"
 #include "NiagaraStats.h"
 #include "NiagaraEditorDataBase.h"
+#include "INiagaraEditorOnlyDataUtlities.h"
 
 #if WITH_EDITOR
 #include "NiagaraScriptDerivedData.h"
@@ -90,6 +91,11 @@ void UNiagaraSystem::PostInitProperties()
 
 		SystemUpdateScript = NewObject<UNiagaraScript>(this, "SystemUpdateScript", RF_Transactional);
 		SystemUpdateScript->SetUsage(ENiagaraScriptUsage::SystemUpdateScript);
+
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
+#endif
 	}
 
 	GenerateStatID();
@@ -179,7 +185,6 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	FNiagaraSystemUpdateContext(this, true);
 
 	ThumbnailImageOutOfDate = true;
 	
@@ -248,7 +253,7 @@ void UNiagaraSystem::PostLoad()
 		SystemSpawnScript = NewObject<UNiagaraScript>(this, "SystemSpawnScript", RF_Transactional);
 		SystemSpawnScript->SetUsage(ENiagaraScriptUsage::SystemSpawnScript);
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
-		SystemScriptSource = NiagaraModule.CreateDefaultScriptSource(this);
+		SystemScriptSource = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultScriptSource(this);
 		SystemSpawnScript->SetSource(SystemScriptSource);
 	}
 	else
@@ -323,7 +328,12 @@ void UNiagaraSystem::PostLoad()
 		}
 	}
 
-	if (EditorData != nullptr)
+	if (EditorData == nullptr)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(this);
+	}
+	else
 	{
 		EditorData->PostLoadFromOwner(this);
 	}
@@ -334,12 +344,12 @@ void UNiagaraSystem::PostLoad()
 		UE_LOG(LogNiagara, Log, TEXT("System %s being rebuilt because UNiagaraEmitter::GetForceCompileOnLoad() == true."), *GetPathName());
 	}
 
-	if (bSystemScriptsAreSynchronized == false)
+	if (bSystemScriptsAreSynchronized == false && GEnableVerboseNiagaraChangeIdLogging)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to a system script Change ID."), *GetPathName());
 	}
 
-	if (bEmitterScriptsAreSynchronized == false)
+	if (bEmitterScriptsAreSynchronized == false && GEnableVerboseNiagaraChangeIdLogging)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 	}
@@ -397,11 +407,6 @@ UNiagaraEditorDataBase* UNiagaraSystem::GetEditorData()
 const UNiagaraEditorDataBase* UNiagaraSystem::GetEditorData() const
 {
 	return EditorData;
-}
-
-void UNiagaraSystem::SetEditorData(UNiagaraEditorDataBase* InEditorData)
-{
-	EditorData = InEditorData;
 }
 
 bool UNiagaraSystem::ReferencesInstanceEmitter(UNiagaraEmitter& Emitter)
@@ -698,10 +703,6 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 					{
 						UE_LOG(LogNiagara, Log, TEXT("UNiagraScript \'%s\' was built locally.."), *EmitterCompiledScriptPair.CompiledScript->GetFullName());
 					}
-					else
-					{
-						UE_LOG(LogNiagara, Log, TEXT("UNiagraScript \'%s\' was pulled from DDC."), *EmitterCompiledScriptPair.CompiledScript->GetFullName());
-					}
 
 					TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
 					EmitterCompiledScriptPair.CompileResults = ExeData;
@@ -848,7 +849,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 		UpdatePostCompileDIInfo();
 
-		UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (wall time), %f sec (combined time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
+		UE_LOG(LogNiagara, Verbose, TEXT("Compiling System %s took %f sec (wall time), %f sec (combined time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
 			CombinedCompileTime);
 
 		ActiveCompilations.RemoveAt(ActiveCompileIdx);

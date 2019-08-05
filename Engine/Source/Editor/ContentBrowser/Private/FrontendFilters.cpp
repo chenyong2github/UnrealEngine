@@ -33,17 +33,31 @@ namespace FrontendFilterHelper
 	 */
 	void GetDependencies(const FARFilter& InAssetRegistryFilter, const IAssetRegistry& AssetRegistry, TSet<FName>& OutDependencySet)
 	{
-		TArray<FAssetData> FoundAssets;
-		AssetRegistry.GetAssets(InAssetRegistryFilter, FoundAssets);
-
-		for (const FAssetData& AssetData : FoundAssets)
+		TArray<FName> PackageNamesToProcess;
 		{
-			// Store all the dependencies of all the levels
-			TArray<FAssetIdentifier> AssetDependencies;
-			AssetRegistry.GetDependencies(FAssetIdentifier(AssetData.PackageName), AssetDependencies);
+			TArray<FAssetData> FoundAssets;
+			AssetRegistry.GetAssets(InAssetRegistryFilter, FoundAssets);
+			for (const FAssetData& AssetData : FoundAssets)
+			{
+				PackageNamesToProcess.Add(AssetData.PackageName);
+				OutDependencySet.Add(AssetData.PackageName);
+			}
+		}
+
+		TArray<FAssetIdentifier> AssetDependencies;
+		while (PackageNamesToProcess.Num() > 0)
+		{
+			const FName PackageName = PackageNamesToProcess.Pop(false);
+			AssetDependencies.Reset();
+			AssetRegistry.GetDependencies(FAssetIdentifier(PackageName), AssetDependencies);
 			for (const FAssetIdentifier& Dependency : AssetDependencies)
 			{
-				OutDependencySet.Add(Dependency.PackageName);
+				bool bIsAlreadyInSet = false;
+				OutDependencySet.Add(Dependency.PackageName, &bIsAlreadyInSet);
+				if (bIsAlreadyInSet == false)
+				{
+					PackageNamesToProcess.Add(Dependency.PackageName);
+				}
 			}
 		}
 	}
@@ -1092,9 +1106,9 @@ FString FFrontendFilter_ArbitraryComparisonOperation::ConvertOperationToString(E
 
 FFrontendFilter_ShowOtherDevelopers::FFrontendFilter_ShowOtherDevelopers(TSharedPtr<FFrontendFilterCategory> InCategory)
 	: FFrontendFilter(InCategory)
-	, BaseDeveloperPath(FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir()))
+	, BaseDeveloperPath(TEXT("/Game/Developers/"))
 	, BaseDeveloperPathAnsi()
-	, UserDeveloperPath(FPackageName::FilenameToLongPackageName(FPaths::GameUserDeveloperDir()))
+	, UserDeveloperPath(BaseDeveloperPath + FPaths::GameUserDeveloperFolderName() + TEXT("/"))
 	, bIsOnlyOneDeveloperPathSelected(false)
 	, bShowOtherDeveloperAssets(false)
 {

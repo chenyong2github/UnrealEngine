@@ -198,6 +198,11 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 
 #endif//#if WITH_APEX_CLOTHING
 
+	MassMode = EClothMassMode::Density;
+	UniformMass = 1.f;
+	TotalMass = 100.0f;
+	Density = 0.1f;
+	MinPerParticleMass = 0.0001f;
 	EdgeStiffness = 1.f;
 	BendingStiffness = 1.f;
 	AreaStiffness = 1.f;

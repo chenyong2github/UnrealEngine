@@ -77,7 +77,7 @@ void FStompClient::HandleDisconnectCompleted(bool bIsSuccess, const FString& Err
 	WebSocket->Close();
 }
 
-bool FStompClient::IsConnected()
+bool FStompClient::IsConnected() const
 {
 	return bIsConnected;
 }

@@ -74,14 +74,6 @@ public:
 	void SetStrikeBrush(FSlateBrush InStrikeBrush);
 
 	/**
-	 *  Set the text justification for this text block
-	 *
-	 *  @param InJustification new justification
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetJustification(ETextJustify::Type InJustification);
-	
-	/**
 	 *  Set the minimum desired width for this text block
 	 *
 	 *  @param InMinDesiredWidth new minimum desired width
@@ -168,6 +160,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetText (Text)"))
 	virtual void SetText(FText InText);
+
+	//~ Begin UTextLayoutWidget Interface
+	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	//~ End UTextLayoutWidget Interface
 
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;

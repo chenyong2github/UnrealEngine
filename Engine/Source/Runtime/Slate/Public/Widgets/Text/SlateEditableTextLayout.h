@@ -138,6 +138,12 @@ public:
 	/** Get the absolute scroll offset value */
 	FVector2D GetScrollOffset() const;
 
+	/** Returns the computed wrap location for this layout */
+	float GetComputedWrappingWidth() const;
+
+	/** Returns whether or not we are auto wrapping text */
+	bool GetAutoWrapText() const;
+
 	/** Called when our parent widget receives focus */
 	bool HandleFocusReceived(const FFocusEvent& InFocusEvent);
 

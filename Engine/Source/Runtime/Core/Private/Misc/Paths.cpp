@@ -413,18 +413,18 @@ FString FPaths::GameDevelopersDir()
 	return FPaths::ProjectContentDir() + TEXT("Developers/");
 }
 
-FString FPaths::GameUserDeveloperDir()
+FString FPaths::GameUserDeveloperFolderName()
 {
 	static FString UserFolder;
 
-	if ( UserFolder.Len() == 0 )
+	if (UserFolder.Len() == 0)
 	{
 		// The user folder is the user name without any invalid characters
 		const FString InvalidChars = INVALID_LONGPACKAGE_CHARACTERS;
 		const FString& UserName = FPlatformProcess::UserName();
-		
+
 		UserFolder = UserName;
-		
+
 		for (int32 CharIdx = 0; CharIdx < InvalidChars.Len(); ++CharIdx)
 		{
 			const FString Char = InvalidChars.Mid(CharIdx, 1);
@@ -432,7 +432,12 @@ FString FPaths::GameUserDeveloperDir()
 		}
 	}
 
-	return FPaths::GameDevelopersDir() + UserFolder + TEXT("/");
+	return UserFolder;
+}
+
+FString FPaths::GameUserDeveloperDir()
+{
+	return FPaths::GameDevelopersDir() + GameUserDeveloperFolderName() + TEXT("/");
 }
 
 FString FPaths::DiffDir()

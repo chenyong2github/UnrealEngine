@@ -5,7 +5,6 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Transform.h"
 #include "ChaosArchive.h"
-#include <type_traits>
 #include "Templates/EnableIf.h"
 
 namespace Chaos
@@ -38,7 +37,7 @@ void TImplicitObjectTransformAccumulateSerializableHelper(TArray<Pair<TSerializa
 template<class T, int d, bool bSerializable = true>
 class TImplicitObjectTransformed final : public TImplicitObject<T, d>
 {
-using ObjectType = typename std::conditional<bSerializable, TSerializablePtr<TImplicitObject<T, d>>, const TImplicitObject<T, d>*>::type;
+using ObjectType = typename TChooseClass<bSerializable, TSerializablePtr<TImplicitObject<T, d>>, const TImplicitObject<T, d>*>::Result;
 
 public:
 	IMPLICIT_OBJECT_SERIALIZER(TImplicitObjectTransformed)
@@ -89,14 +88,14 @@ public:
 		return Phi;
 	}
 
-	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal) const override
+	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 	{
 		const TVector<T, d> LocalStart = MTransform.InverseTransformPosition(StartPoint);
 		const TVector<T, d> LocalDir = MTransform.InverseTransformVector(Dir);
 		TVector<T, d> LocalPosition;
 		TVector<T, d> LocalNormal;
 
-		if (MObject->Raycast(LocalStart, LocalDir, Length, Thickness, OutTime, LocalPosition, LocalNormal))
+		if (MObject->Raycast(LocalStart, LocalDir, Length, Thickness, OutTime, LocalPosition, LocalNormal, OutFaceIndex))
 		{
 			OutPosition = MTransform.TransformPosition(LocalPosition);
 			OutNormal = MTransform.TransformVector(LocalNormal);
@@ -170,6 +169,12 @@ public:
 		TImplicitObject<T, d>::SerializeImp(Ar);
 		TImplicitObjectTransformSerializeHelper(Ar, MObject);
 		Ar << MTransform << MLocalBoundingBox;
+	}
+
+	virtual uint32 GetTypeHash() const override
+	{
+		// Combine the hash from the inner, non transformed object with our transform
+		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MTransform));
 	}
 
 private:
