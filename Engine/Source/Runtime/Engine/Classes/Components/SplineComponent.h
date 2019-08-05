@@ -521,6 +521,10 @@ public:
     /** Get a metadata property float value along the spline at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	float GetFloatPropertyAtSplinePoint(int32 Index, FName PropertyName) const;
+	
+ 	/** Get a metadata property vector value along the spline at spline point */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	FVector GetVectorPropertyAtSplinePoint(int32 Index, FName PropertyName) const;
 
 	/** Returns total length along this spline */
 	UFUNCTION(BlueprintCallable, Category=Spline) 
