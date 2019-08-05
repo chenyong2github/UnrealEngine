@@ -2810,9 +2810,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 
 	if (LandscapeActor && LandscapeActor->HasLayersContent())
 	{
-		// Force update rendering resources
-		const bool bInRequestContentUpdate = false;
-		LandscapeActor->RequestLayersInitialization(bInRequestContentUpdate);		
+		LandscapeActor->RequestLayersInitialization();		
 	}
 
 	UpdateLayerInfoMap(Proxy);
