@@ -11,7 +11,7 @@
 #endif
 
 // #dxr_todo: UE-72537 move to common.ush
-#define clip(x) (x)
+#define clip(x)
 #define ddx(x) 0
 #define ddy(x) 0
 #define fwidth(x) 0

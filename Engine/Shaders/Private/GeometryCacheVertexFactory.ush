@@ -74,7 +74,7 @@ FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
 	Input.Position.x = GeomCacheMVF.Position[VertexId * 3 + 0];
 	Input.Position.y = GeomCacheMVF.Position[VertexId * 3 + 1];
 	Input.Position.z = GeomCacheMVF.Position[VertexId * 3 + 2];
-	Input.TangentX = GeomCacheMVF.TangentX[VertexId];
+	Input.TangentX = GeomCacheMVF.TangentX[VertexId].xyz;
 	Input.TangentZ = GeomCacheMVF.TangentZ[VertexId];
 	Input.Color = GeomCacheMVF.Color[VertexId];
     Input.MotionBlurData.x = GeomCacheMVF.MotionBlurData[VertexId * 3 + 0];
