@@ -1038,6 +1038,19 @@ FTexturePlatformData::~FTexturePlatformData()
 	if (VTData) delete VTData;
 }
 
+bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
+{
+	for (int32 MipIndex = 0; MipIndex < Mips.Num(); ++MipIndex)
+	{
+		const FTexture2DMipMap& Mip = Mips[MipIndex];
+		if (!Mip.BulkData.IsAsyncLoadingComplete())
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 {
 	int32 NumMipsCached = 0;
