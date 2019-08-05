@@ -1095,6 +1095,11 @@ void UGeometryCollectionComponent::OnRegister()
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::OnRegister()[%p]"), this,RestCollection );
 	ResetDynamicCollection();
+
+ 	FScopedColorEdit ColorEdit(this);
+	ColorEdit.ResetBoneSelection();
+	ColorEdit.ResetHighlightedBones();
+
 	Super::OnRegister();
 }
 
@@ -1867,7 +1872,7 @@ void FScopedColorEdit::UpdateBoneColors()
 		}
 		TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
 
-		for (int BoneIndex = 0; BoneIndex < Parents.Num(); BoneIndex++)
+		for (int32 BoneIndex = 0, NumBones = Parents.Num() ; BoneIndex < NumBones; ++BoneIndex)
 		{
 			FLinearColor BoneColor = FLinearColor(FColor::Black);
 
