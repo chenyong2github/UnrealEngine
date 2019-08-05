@@ -402,7 +402,7 @@ FVector2D SScaleBox::ComputeDesiredSize(float InScale) const
 	// area that we need - this area is a constant scale, either by safezone or user scale.
 	else if (ComputedContentScale.IsSet())
 	{
-		SCompoundWidget::ComputeDesiredSize(InScale) * ComputedContentScale.GetValue();
+		return SCompoundWidget::ComputeDesiredSize(InScale) * ComputedContentScale.GetValue();
 	}
 	
 	return SCompoundWidget::ComputeDesiredSize(InScale);
