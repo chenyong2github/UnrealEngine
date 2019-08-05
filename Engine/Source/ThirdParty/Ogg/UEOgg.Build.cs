@@ -136,11 +136,11 @@ public class UEOgg : ModuleRules
         }
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
         {
-            PublicAdditionalLibraries.Add(OggLibPath + "ORBIS_Release" + "/libogg-1.2.2_PS4_Static.a");
+            PublicAdditionalLibraries.Add(OggLibPath + "PS4/ORBIS_Release" + "/libogg-1.2.2_PS4_Static.a");
         }
         else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
-            PublicAdditionalLibraries.Add(OggLibPath + "NX64" + "/Ogg_Switch_Static.a");
+            PublicAdditionalLibraries.Add(OggLibPath + "Switch/NX64" + "/Ogg_Switch_Static.a");
         }
     }
 }
