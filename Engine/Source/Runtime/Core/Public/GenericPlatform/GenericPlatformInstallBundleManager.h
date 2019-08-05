@@ -111,6 +111,7 @@ enum class EInstallBundleRequestFlags : uint32
 	CheckForCellularDataUsage						= (1 << 0),
 	UseBackgroundDownloads							= (1 << 1),
 	SendNotificationIfDownloadCompletesInBackground = (1 << 2),
+	ForceNoPatching									= (1 << 3),
 	Defaults = UseBackgroundDownloads,
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
@@ -236,6 +237,13 @@ struct FInstallBundleContentState
 	uint64 FreeSpace = 0;
 };
 
+enum class EInstallBundleGetContentStateFlags : uint32
+{
+	None = 0,
+	ForceNoPatching = (1 << 0),
+};
+ENUM_CLASS_FLAGS(EInstallBundleGetContentStateFlags);
+
 enum class EInstallBundleRequestInfoFlags : int32
 {
 	None							= 0,
@@ -299,8 +307,8 @@ public:
 	virtual FInstallBundleRequestInfo RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags) = 0;
 	virtual FInstallBundleRequestInfo RequestUpdateContent(TArrayView<FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;
 
-	virtual void GetContentState(FName BundleName, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
-	virtual void GetContentState(TArrayView<FName> BundleNames, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
+	virtual void GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
+	virtual void GetContentState(TArrayView<FName> BundleNames, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag = TEXT("None")) = 0;
 
     virtual void CancelAllGetContentStateRequestsForTag(FName RequestTag) = 0;
     
