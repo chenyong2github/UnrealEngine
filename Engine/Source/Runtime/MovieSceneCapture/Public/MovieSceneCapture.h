@@ -33,7 +33,7 @@ struct FCachedMetrics
 };
 
 /** Class responsible for capturing scene data */
-UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig)
+UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig, BlueprintType)
 class MOVIESCENECAPTURE_API UMovieSceneCapture : public UObject, public IMovieSceneCaptureInterface, public ICaptureProtocolHost
 {
 public:
