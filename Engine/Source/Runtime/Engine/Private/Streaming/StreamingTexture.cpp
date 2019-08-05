@@ -332,7 +332,7 @@ void FStreamingRenderAsset::SetPerfectWantedMips_Async(
  * Once the wanted mips are computed, the async task will check if everything fits in the budget.
  *  This only consider the highest mip that will be requested eventually, so that slip requests are stables.
  */
-int64 FStreamingRenderAsset::UpdateRetentionPriority_Async()
+int64 FStreamingRenderAsset::UpdateRetentionPriority_Async(bool bPrioritizeMeshes)
 {
 	// Reserve the budget for the max mip that will be loaded eventually (ignore the effect of split requests)
 	BudgetedMips = GetPerfectWantedMips();
@@ -344,11 +344,13 @@ int64 FStreamingRenderAsset::UpdateRetentionPriority_Async()
 		const bool bShouldKeep = bIsTerrainTexture || bForceFullyLoadHeuristic || (bLooksLowRes && !bIsHuge);
 		const bool bIsSmall   = GetSize(BudgetedMips) <= 200 * 1024; 
 		const bool bIsVisible = VisibleWantedMips >= HiddenWantedMips; // Whether the first mip dropped would be a visible mip or not.
+		const bool bVIPAsset = bPrioritizeMeshes && RenderAssetType != AT_Texture;
 
 		// Here we try to have a minimal amount of priority flags for last render time to be meaningless.
 		// We mostly want thing not seen from a long time to go first to avoid repeating load / unload patterns.
 
-		if (bShouldKeep)						RetentionPriority += 2048; // Keep forced fully load as much as possible.
+		if (bShouldKeep)						RetentionPriority += 4096; // Keep forced fully load as much as possible.
+		if (bVIPAsset)							RetentionPriority += 2048; // Prioritize mesh LOD retention is requested.
 		if (bIsVisible)							RetentionPriority += 1024; // Keep visible things as much as possible.
 		if (!bIsHuge)							RetentionPriority += 512; // Drop high resolution which usually target ultra close range quality.
 		if (bIsCharacterTexture || bIsSmall)	RetentionPriority += 256; // Try to keep character of small texture as they don't pay off.

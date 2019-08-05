@@ -335,7 +335,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 	{
 		if (IsAborted()) break;
 
-		MemoryBudgeted += StreamingRenderAsset.UpdateRetentionPriority_Async();
+		MemoryBudgeted += StreamingRenderAsset.UpdateRetentionPriority_Async(Settings.bPrioritizeMeshRetention);
 		const int32 AssetMemUsed = StreamingRenderAsset.GetSize(StreamingRenderAsset.ResidentMips);
 		MemoryUsed += AssetMemUsed;
 
@@ -469,6 +469,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 			for (int32 NumDroppedMips = 0; NumDroppedMips < Settings.GlobalMipBias && MemoryBudgeted > MemoryBudget && !IsAborted(); ++NumDroppedMips)
 			{
 				const int64 PreviousMemoryBudgeted = MemoryBudgeted;
+				const bool bMeshPrivilegedPhase = NumDroppedMips < Settings.MeshRetentionPrivilegeLevel;
 
 				for (int32 PriorityIndex = PrioritizedRenderAssets.Num() - 1; PriorityIndex >= 0 && MemoryBudgeted > MemoryBudget && !IsAborted(); --PriorityIndex)
 				{
@@ -481,6 +482,12 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 					{
 						// Don't try this one again.
 						PrioritizedRenderAssets[PriorityIndex] = INDEX_NONE;
+						continue;
+					}
+
+					// Meshes don't drop max resolution in the first N privileged passes
+					if (bMeshPrivilegedPhase && StreamingRenderAsset.RenderAssetType != FStreamingRenderAsset::AT_Texture)
+					{
 						continue;
 					}
 
@@ -505,9 +512,11 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 		// Drop WantedMip until in budget.
 		//*************************************
 
+		int32 PassCount = 0;
 		while (MemoryBudgeted > MemoryBudget && !IsAborted())
 		{
 			const int64 PreviousMemoryBudgeted = MemoryBudgeted;
+			const bool bMeshPrivilegedPhase = PassCount < Settings.MeshRetentionPrivilegeLevel;
 
 			// Drop from the lowest priority first (starting with last elements)
 			for (int32 PriorityIndex = PrioritizedRenderAssets.Num() - 1; PriorityIndex >= 0 && MemoryBudgeted > MemoryBudget && !IsAborted(); --PriorityIndex)
@@ -521,6 +530,12 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 				{
 					// Don't try this one again.
 					PrioritizedRenderAssets[PriorityIndex] = INDEX_NONE;
+					continue;
+				}
+
+				// Don't try to drop mesh LODs in the first N privileged passes
+				if (bMeshPrivilegedPhase && StreamingRenderAsset.RenderAssetType != FStreamingRenderAsset::AT_Texture)
+				{
 					continue;
 				}
 
@@ -539,6 +554,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async(int64& MemoryUse
 			{
 				break;
 			}
+			++PassCount;
 		}
 	}
 

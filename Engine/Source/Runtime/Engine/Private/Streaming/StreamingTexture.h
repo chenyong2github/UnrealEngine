@@ -103,7 +103,7 @@ public:
 		const FRenderAssetStreamingSettings& Settings);
 
 	/** Init BudgetedMip and update RetentionPriority. Returns the size that would be taken if all budgeted mips where loaded. */
-	int64 UpdateRetentionPriority_Async();
+	int64 UpdateRetentionPriority_Async(bool bPrioritizeMeshes);
 
 	/** Reduce the maximum allowed resolution by 1 mip. Return the size freed by doing so. */
 	int64 DropMaxResolution_Async(int32 NumDroppedMips);
