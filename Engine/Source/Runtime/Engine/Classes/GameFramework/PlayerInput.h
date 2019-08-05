@@ -622,7 +622,7 @@ public:
 	static const TArray<FInputActionKeyMapping>& GetEngineDefinedActionMappings() { return EngineDefinedActionMappings; }
 	static const TArray<FInputAxisKeyMapping>& GetEngineDefinedAxisMappings() { return EngineDefinedAxisMappings; }
 
-private:
+protected:
 
 	/**
 	* Given raw keystate value of a vector axis, returns the "massaged" value. Override for any custom behavior,
@@ -635,6 +635,8 @@ private:
 	* such as input changes dependent on a particular game state.
 	*/
 	virtual float MassageAxisInput(FKey Key, float RawValue);
+
+private:
 
 	/** Process non-axes keystates */
 	void ProcessNonAxesKeys(FKey Inkey, FKeyState* KeyState);
