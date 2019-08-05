@@ -163,6 +163,19 @@ void SWorldWidgetScreenLayer::Tick(const FGeometry& AllottedGeometry, const doub
 					continue;
 				}
 			}
+
+			// Done
+			return;
+		}
+	}
+
+	if (GSlateIsOnFastUpdatePath)
+	{
+		// Hide everything if we are unable to do any of the work.
+		for (auto It = ComponentMap.CreateIterator(); It; ++It)
+		{
+			FComponentEntry& Entry = It.Value();
+			Entry.ContainerWidget->SetVisibility(EVisibility::Collapsed);
 		}
 	}
 }
