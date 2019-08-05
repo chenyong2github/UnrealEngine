@@ -5,18 +5,58 @@ import maya
 import maya.OpenMaya as OpenMaya
 import maya.OpenMayaMPx as OpenMayaMPx
 import maya.cmds as cmds
+from pymel.core.windows import Callback, CallbackWithArgs
 
-#Populate subjects list from c++ (via command LiveLinkSubjects)
+StreamTypesPerSubjectType = {
+								"Prop": 		["Root Only", "Full Hierarchy"],
+								"Character":	["Root Only", "Full Hierarchy"],
+								"Camera":		["Root Only", "Full Hierarchy", "Camera"],
+								"Light":		["Root Only", "Full Hierarchy", "Light"],
+							}
+
+def OnRemoveSubject(SubjectPath):
+	cmds.LiveLinkRemoveSubject(SubjectPath)
+	RefreshSubjects()
+
+#Populate subjects list from c++
 def PopulateSubjects():
-	Subjects = cmds.LiveLinkSubjects()
-	if Subjects is not None:
-		for Subject in cmds.LiveLinkSubjects():
-			cmds.textScrollList("ActiveSubjects", edit = True, append = Subject)
+	cmds.rowColumnLayout("SubjectLayout", numberOfColumns=5,  adjustableColumn=2, columnWidth=[(1, 20), (2,80), (3, 100), (4, 180), (5, 120)], columnOffset=[(1, 'right', 5), (2, 'right', 10), (4, 'left', 10)], parent="SubjectWrapperLayout")
+	cmds.text(label="")
+	cmds.text(label="Subject Type", font="boldLabelFont", align="left")
+	cmds.text(label="Subject Name", font="boldLabelFont", align="left")
+	cmds.text(label="DAG Path", font="boldLabelFont", align="left")
+	cmds.text(label="Stream Type", font="boldLabelFont", align="left")
+	cmds.rowColumnLayout("SubjectLayout", edit=True, rowOffset=(1, "bottom", 10))
+
+	SubjectNames = cmds.LiveLinkSubjectNames()
+	SubjectPaths = cmds.LiveLinkSubjectPaths()
+	SubjectTypes = cmds.LiveLinkSubjectTypes()
+	SubjectRoles = cmds.LiveLinkSubjectRoles()
+	if SubjectPaths is not None:
+		RowCounter = 0
+		for (SubjectName, SubjectPath, SubjectType, SubjectRole) in zip(SubjectNames, SubjectPaths, SubjectTypes, SubjectRoles):
+			cmds.button(label="-", height=21, statusBarMessage="Remove " + SubjectType, command=Callback(OnRemoveSubject, SubjectPath), parent="SubjectLayout")
+			cmds.text(label=SubjectType, height=21, align="left", parent="SubjectLayout")
+			cmds.textField(text=SubjectName, height=21, changeCommand=CallbackWithArgs(cmds.LiveLinkChangeSubjectName, SubjectPath), parent="SubjectLayout")
+			cmds.text(label=SubjectPath, align="left", height=21, parent="SubjectLayout")
+
+			LayoutName = "ColumnLayoutRow_" + str(RowCounter) # adding a trailing index makes the name unique which is required by the api
+
+			cmds.columnLayout(LayoutName, parent="SubjectLayout")
+			cmds.optionMenu("SubjectTypeMenu", parent=LayoutName, height=21, changeCommand=CallbackWithArgs(cmds.LiveLinkChangeSubjectStreamType, SubjectPath))
+			
+			for StreamType in StreamTypesPerSubjectType[SubjectType]:
+				cmds.menuItem(label=StreamType)
+			
+			StreamTypeIndex = StreamTypesPerSubjectType[SubjectType].index(SubjectRole) + 1 # menu items are 1-indexed
+			cmds.optionMenu("SubjectTypeMenu", edit=True, select=StreamTypeIndex)
+			
+			RowCounter += 1
 
 #Refresh subjects list
 def RefreshSubjects():
 	if (cmds.window(MayaLiveLinkUI.WindowName , exists=True)):
-		cmds.textScrollList("ActiveSubjects", edit=True, removeAll=True)
+		cmds.deleteUI("SubjectLayout")
 		PopulateSubjects()
 
 #Connection UI Colours
@@ -49,11 +89,11 @@ def GetLiveLinkCommandsFromModule(ModuleItems):
 class MayaLiveLinkUI(LiveLinkCommand):
 	WindowName = "MayaLiveLinkUI"
 	Title = "Maya Live Link UI"
-	WindowSize = (500, 350)
+	WindowSize = (500, 300)
 
 	def __init__(self):
 		LiveLinkCommand.__init__(self)
-        
+		
 	# Invoked when the command is run.
 	def doIt(self,argList):
 		if (cmds.window(self.WindowName , exists=True)):
@@ -63,38 +103,31 @@ class MayaLiveLinkUI(LiveLinkCommand):
 		#Get current connection status
 		ConnectionText, ConnectedState = cmds.LiveLinkConnectionStatus()
 		
-		#Type your UI code here
 		cmds.columnLayout( "mainColumn", adjustableColumn=True )
 		cmds.rowLayout("HeaderRow", numberOfColumns=3, adjustableColumn=1, parent = "mainColumn")
 		cmds.text(label="Unreal Engine Live Link", align="left")
 		cmds.text(label="Connection:")
 		cmds.text("ConnectionStatusUI", label=ConnectionText, align="center", backgroundColor=ConnectionColourMap[ConnectedState], width=150)
-		cmds.textScrollList("ActiveSubjects", allowMultiSelection = True, parent = "mainColumn")
+		
+		cmds.separator(h=20, style="none", parent="mainColumn")
+		cmds.columnLayout("SubjectWrapperLayout", parent="mainColumn") # just used as a container that will survive refreshing, so the following controls stay in their correct place
 
 		PopulateSubjects()
 
-		cmds.rowLayout("AddSelectedAsSubject", numberOfColumns=3, parent = "mainColumn")
-		cmds.textField( "NewSubjectName", text = "Maya", parent = "AddSelectedAsSubject", width=300)
-		cmds.button( label='Add Subject', parent = "AddSelectedAsSubject", command=self.AddSubject)
-		cmds.button( label='Remove Subject', parent = "AddSelectedAsSubject", command=self.RemoveSubject)
+		cmds.separator(h=20, style="none", parent="mainColumn")
+		cmds.button( label='Add Selection', statusBarMessage="Adds all selected subjects in the Outliner to LiveLink", parent = "mainColumn", command=self.AddSelection)
 
 		cmds.showWindow( self.WindowName )
 
-	def AddSubject(self, *args):
-		Name = cmds.textField("NewSubjectName", query = True, text = True)
-		cmds.LiveLinkAddSubject(Name)
-		RefreshSubjects()
-
-	def RemoveSubject(self, *args):
-		for ItemToRemove in cmds.textScrollList("ActiveSubjects", q=1, si=1):
-			cmds.LiveLinkRemoveSubject(ItemToRemove)
+	def AddSelection(self, *args):
+		cmds.LiveLinkAddSelection()
 		RefreshSubjects()
 
 # Command to Refresh the subject UI
 class MayaLiveLinkRefreshUI(LiveLinkCommand):
 	def __init__(self):
 		LiveLinkCommand.__init__(self)
-        
+		
 	# Invoked when the command is run.
 	def doIt(self,argList):
 		RefreshSubjects()
@@ -103,7 +136,7 @@ class MayaLiveLinkRefreshUI(LiveLinkCommand):
 class MayaLiveLinkRefreshConnectionUI(LiveLinkCommand):
 	def __init__(self):
 		LiveLinkCommand.__init__(self)
-        
+		
 	# Invoked when the command is run.
 	def doIt(self,argList):
 		if (cmds.window(MayaLiveLinkUI.WindowName , exists=True)):
@@ -114,7 +147,7 @@ class MayaLiveLinkRefreshConnectionUI(LiveLinkCommand):
 class MayaLiveLinkGetActiveCamera(LiveLinkCommand):
 	def __init__(self):
 		LiveLinkCommand.__init__(self)
-        
+		
 	# Invoked when the command is run.
 	def doIt(self,argList):
 		self.clearResult()
