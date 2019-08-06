@@ -225,6 +225,7 @@ private:
 	// tmap of the Config name, Section name, Key name, to the value
 	typedef TMap<FName, TMap<FName, TMap<FName, TArray<FString>>>> FIniSettingContainer;
 
+	mutable FCriticalSection ConfigFileCS;
 	mutable bool IniSettingRecurse = false;
 	mutable FIniSettingContainer AccessedIniStrings;
 	TArray<const FConfigFile*> OpenConfigFiles;
