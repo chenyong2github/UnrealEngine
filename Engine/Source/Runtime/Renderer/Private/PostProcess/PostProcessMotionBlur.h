@@ -7,10 +7,12 @@
 #pragma once
 
 #include "ScreenPass.h"
-#include "RenderingCompositionGraph.h"
 
 // Returns whether motion blur is enabled for the requested view.
 bool IsMotionBlurEnabled(const FViewInfo& View);
+
+// Returns whether visualization of motion blur is enabled for the requested view.
+bool IsVisualizeMotionBlurEnabled(const FViewInfo& View);
 
 // The quality level of the motion blur pass.
 enum class EMotionBlurQuality : uint32
@@ -22,17 +24,14 @@ enum class EMotionBlurQuality : uint32
 	MAX
 };
 
-// Returns the motion blur quality level set by the 'r.MotionBlurQuality' cvar.
+// Returns the motion blur quality level set by the 'r.MotionBlurQuality' CVar.
 EMotionBlurQuality GetMotionBlurQuality();
 
-//////////////////////////////////////////////////////////////////////////
-//! Shim methods to hook into the legacy pipeline until the full RDG conversion is complete.
-
-FRenderingCompositeOutputRef ComputeMotionBlurShim(
-	FRenderingCompositionGraph& Graph,
-	FRenderingCompositeOutputRef ColorInput,
-	FRenderingCompositeOutputRef DepthInput,
-	FRenderingCompositeOutputRef VelocityInput,
-	bool bVisualizeMotionBlur);
-
-//////////////////////////////////////////////////////////////////////////
+FRDGTextureRef AddMotionBlurPass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FIntRect ColorViewportRect,
+	FIntRect VelocityViewportRect,
+	FRDGTextureRef ColorTexture,
+	FRDGTextureRef DepthTexture,
+	FRDGTextureRef VelocityTexture);

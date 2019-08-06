@@ -97,6 +97,12 @@ struct FPostProcessMaterialInputs
 	bool bFlipYAxis = false;
 };
 
+FRDGTextureRef AddPostProcessMaterialChain(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	const FPostProcessMaterialInputs& Inputs,
+	EBlendableLocation Location);
+
 FRDGTextureRef ComputePostProcessMaterial(
 	FRDGBuilder& GraphBuilder,
 	const FScreenPassViewInfo& ScreenPassView,

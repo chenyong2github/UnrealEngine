@@ -519,19 +519,28 @@ FRDGTextureRef ComputePostProcessMaterial(
 
 	ScreenPassDraw.Validate();
 
+	const bool bNeedsGBuffer = Material->NeedsGBuffer();
+
+	if (bNeedsGBuffer)
+	{
+		FSceneRenderTargets::Get(GraphBuilder.RHICmdList).AdjustGBufferRefCount(GraphBuilder.RHICmdList, 1);
+	}
+
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("PostProcessMaterial"),
 		PostProcessMaterialParameters,
 		ERDGPassFlags::Raster,
-		[ScreenPassView, SceneColorViewport, ScreenPassDraw, PostProcessMaterialParameters, DepthStencilTexture, DepthStencilTextureForSRV, SetupFunction, bFlipYAxis]
-		(FRHICommandListImmediate& RHICmdList)
+		[ScreenPassView, SceneColorViewport, ScreenPassDraw, PostProcessMaterialParameters, DepthStencilTexture, DepthStencilTextureForSRV, SetupFunction, bFlipYAxis, bNeedsGBuffer]
+	(FRHICommandListImmediate& RHICmdList)
 	{
+		FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
+
 		const bool bUsesDepthStencilCopy = DepthStencilTexture != DepthStencilTextureForSRV;
 
 		if (bUsesDepthStencilCopy)
 		{
 			// Swap in the new copied SRV just prior to rendering.
-			FSceneRenderTargets::Get(RHICmdList).CustomDepth = DepthStencilTextureForSRV->GetPooledRenderTarget();
+			SceneRenderTargets.CustomDepth = DepthStencilTextureForSRV->GetPooledRenderTarget();
 		}
 
 		DrawScreenPass<decltype(SetupFunction)>(
@@ -545,11 +554,127 @@ FRDGTextureRef ComputePostProcessMaterial(
 		if (bUsesDepthStencilCopy)
 		{
 			// Swap back to the up-to-date target.
-			FSceneRenderTargets::Get(RHICmdList).CustomDepth = DepthStencilTexture->GetPooledRenderTarget();
+			SceneRenderTargets.CustomDepth = DepthStencilTexture->GetPooledRenderTarget();
+		}
+
+		if (bNeedsGBuffer)
+		{
+			SceneRenderTargets.AdjustGBufferRefCount(RHICmdList, -1);
 		}
 	});
 
 	return OutputTexture;
+}
+
+static bool IsPostProcessMaterialsEnabledForView(const FViewInfo& View)
+{
+	if (!View.Family->EngineShowFlags.PostProcessing ||
+		!View.Family->EngineShowFlags.PostProcessMaterial ||
+		View.Family->EngineShowFlags.VisualizeShadingModels ||
+		CVarPostProcessingDisableMaterials.GetValueOnRenderThread() != 0)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+static FPostProcessMaterialNode* IteratePostProcessMaterialNodes(const FFinalPostProcessSettings& Dest, EBlendableLocation Location, FBlendableEntry*& Iterator)
+{
+	for (;;)
+	{
+		FPostProcessMaterialNode* DataPtr = Dest.BlendableManager.IterateBlendables<FPostProcessMaterialNode>(Iterator);
+
+		if (!DataPtr || DataPtr->GetLocation() == Location)
+		{
+			return DataPtr;
+		}
+	}
+}
+
+FRDGTextureRef AddPostProcessMaterialChain(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	const FPostProcessMaterialInputs& Inputs,
+	EBlendableLocation Location)
+{
+	const FViewInfo& View = ScreenPassView.View;
+
+	if (!IsPostProcessMaterialsEnabledForView(View))
+	{
+		FIntRect Viewport;
+		FRDGTextureRef Texture;
+		Inputs.GetInput(EPostProcessMaterialInput::SceneColor, Texture, Viewport);
+		return Texture;
+	}
+
+	const FSceneViewFamily& ViewFamily = *View.Family;
+
+	// hard coded - this should be a reasonable limit
+	const uint32 MAX_PPMATERIALNODES = 10;
+	FBlendableEntry* Iterator = nullptr;
+	FPostProcessMaterialNode Nodes[MAX_PPMATERIALNODES];
+	uint32 NodeCount = 0;
+	bool bVisualizingBuffer = false;
+
+	if (ViewFamily.EngineShowFlags.VisualizeBuffer)
+	{
+		// Apply requested material to the full screen
+		UMaterial* Material = GetBufferVisualizationData().GetMaterial(View.CurrentBufferVisualizationMode);
+
+		if (Material && Material->BlendableLocation == Location)
+		{
+			Nodes[0] = FPostProcessMaterialNode(Material, Location, Material->BlendablePriority);
+			++NodeCount;
+			bVisualizingBuffer = true;
+		}
+	}
+	for (; NodeCount < MAX_PPMATERIALNODES; ++NodeCount)
+	{
+		FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(View.FinalPostProcessSettings, Location, Iterator);
+
+		if (!Data)
+		{
+			break;
+		}
+
+		check(Data->GetMaterialInterface());
+
+		Nodes[NodeCount] = *Data;
+	}
+
+	::Sort(Nodes, NodeCount, FPostProcessMaterialNode::FCompare());
+
+	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(View.GetFeatureLevel());
+
+	FRDGTextureRef LastSceneColor = nullptr;
+	FIntRect SceneColorViewport;
+	Inputs.GetInput(EPostProcessMaterialInput::SceneColor, LastSceneColor, SceneColorViewport);
+
+	for (uint32 i = 0; i < NodeCount; ++i)
+	{
+		const UMaterialInterface* MaterialInterface = Nodes[i].GetMaterialInterface();
+
+		FPostProcessMaterialInputs LocalInputs = Inputs;
+		LocalInputs.SetInput(EPostProcessMaterialInput::SceneColor, LastSceneColor, SceneColorViewport);
+
+		// This input is only needed for visualization and frame dumping
+		if (!bVisualizingBuffer)
+		{
+			LocalInputs.SetInput(EPostProcessMaterialInput::PreTonemapHDRColor, nullptr, FIntRect());
+			LocalInputs.SetInput(EPostProcessMaterialInput::PostTonemapHDRColor, nullptr, FIntRect());
+		}
+
+		// Velocity is only available when not generated from the base pass.
+		if (bBasePassCanOutputVelocity)
+		{
+			LocalInputs.SetInput(EPostProcessMaterialInput::Velocity, nullptr, FIntRect());
+		}
+
+		LastSceneColor = ComputePostProcessMaterial(GraphBuilder, ScreenPassView, MaterialInterface, Inputs);
+	}
+
+	return LastSceneColor;
 }
 
 FRenderingCompositePass* AddPostProcessMaterialPass(
@@ -617,19 +742,6 @@ FRenderingCompositePass* AddPostProcessMaterialPass(
 	}));
 }
 
-static FPostProcessMaterialNode* IteratePostProcessMaterialNodes(const FFinalPostProcessSettings& Dest, EBlendableLocation Location, FBlendableEntry*& Iterator)
-{
-	for (;;)
-	{
-		FPostProcessMaterialNode* DataPtr = Dest.BlendableManager.IterateBlendables<FPostProcessMaterialNode>(Iterator);
-
-		if (!DataPtr || DataPtr->GetLocation() == Location)
-		{
-			return DataPtr;
-		}
-	}
-}
-
 FRenderingCompositeOutputRef AddPostProcessMaterialReplaceTonemapPass(
 	FPostprocessContext& Context,
 	FRenderingCompositeOutputRef SeparateTranslucency,
@@ -681,10 +793,7 @@ FRenderingCompositeOutputRef AddPostProcessMaterialChain(
 	FRenderingCompositeOutputRef PostTonemapHDRColor,
 	FRenderingCompositeOutputRef PreFlattenVelocity)
 {
-	if (!Context.View.Family->EngineShowFlags.PostProcessing ||
-		!Context.View.Family->EngineShowFlags.PostProcessMaterial ||
-		Context.View.Family->EngineShowFlags.VisualizeShadingModels ||
-		CVarPostProcessingDisableMaterials.GetValueOnRenderThread() != 0)
+	if (!IsPostProcessMaterialsEnabledForView(Context.View))
 	{
 		return Context.FinalOutput;
 	}

@@ -1556,8 +1556,11 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		TAAParameters.SceneColorInput = HalfResGatherInputTextures.SceneColor;
 		TAAParameters.SceneMetadataInput = HalfResGatherInputTextures.SeparateCoc;
 
-		FTAAOutputs TAAOutputs = TAAParameters.AddTemporalAAPass(
-			GraphBuilder, SceneTextures, View,
+		FTAAOutputs TAAOutputs = AddTemporalAAPass(
+			GraphBuilder,
+			SceneTextures,
+			View,
+			TAAParameters,
 			View.PrevViewInfo.DOFSetupHistory,
 			&ViewState->PrevFrameViewInfo.DOFSetupHistory);
 		

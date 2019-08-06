@@ -6,20 +6,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "SceneRendering.h"
 #include "RenderGraph.h"
 
-// TODO: kill these includes once FRCPassPostProcessTemporalAA is gone.
-#include "RendererInterface.h"
-#include "RenderingCompositionGraph.h"
-
-
-class FViewInfo;
 class FSceneTextureParameters;
 struct FTemporalAAHistory;
 
-
-/** Lists of TAA configurations. */
+/** List of TAA configurations. */
 enum class ETAAPassConfig
 {
 	// Permutations for main scene color TAA.
@@ -56,6 +49,7 @@ static FORCEINLINE bool IsDOFTAAConfig(ETAAPassConfig Pass)
 	return Pass == ETAAPassConfig::DiaphragmDOF || Pass == ETAAPassConfig::DiaphragmDOFUpsampling;
 }
 
+float GetTemporalAAHistoryUpscaleFactor(const FViewInfo& View);
 
 /** GPU Output of the TAA pass. */
 struct FTAAOutputs
@@ -142,40 +136,12 @@ struct FTAAPassParameters
 
 	/** Validate the settings of TAA, to make sure there is no issue. */
 	bool Validate() const;
-
-	
-	/** Apply a temporal AA pass. */
-	FTAAOutputs AddTemporalAAPass(
-		FRDGBuilder& GraphBuilder,
-		const FSceneTextureParameters& SceneTextures,
-		const FViewInfo& View,
-		const FTemporalAAHistory& InputHistory,
-		FTemporalAAHistory* OutputHistory) const;
-}; // struct FTAAPassParameters
-
-
-// DEPRECATED. Use FTAAPassParameters::AddTemporalAAPass() instead.
-class FRCPassPostProcessTemporalAA : public TRenderingCompositePassBase<3, 3>
-{
-public:
-	FRCPassPostProcessTemporalAA(
-		const class FPostprocessContext& Context,
-		const FTAAPassParameters& Parameters,
-		const FTemporalAAHistory& InInputHistory,
-		FTemporalAAHistory* OutOutputHistory);
-
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-	virtual FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
-
-private:
-	const FTAAPassParameters SavedParameters;
-
-	FComputeFenceRHIRef AsyncEndFence;
-
-	const FTemporalAAHistory& InputHistory;
-	FTemporalAAHistory* OutputHistory;
 };
+
+FTAAOutputs AddTemporalAAPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	const FTAAPassParameters& Inputs,
+	const FTemporalAAHistory& InputHistory,
+	FTemporalAAHistory* OutputHistory);

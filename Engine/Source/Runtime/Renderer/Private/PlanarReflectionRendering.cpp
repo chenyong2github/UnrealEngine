@@ -220,10 +220,8 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 
 	if(View.FeatureLevel >= ERHIFeatureLevel::SM4)
 	{
-		// Note: null velocity buffer, so dynamic object temporal AA will not be correct
-		TRefCountPtr<IPooledRenderTarget> VelocityRT;
 		TRefCountPtr<IPooledRenderTarget> FilteredSceneColor;
-		GPostProcessing.ProcessPlanarReflection(RHICmdList, View, VelocityRT, FilteredSceneColor);
+		GPostProcessing.ProcessPlanarReflection(RHICmdList, View, FilteredSceneColor);
 
 		if (FilteredSceneColor)
 		{

@@ -53,6 +53,8 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeDS,TEXT("/Engine/Private/DebugView
 
 ENGINE_API bool GetDebugViewMaterial(const UMaterialInterface* InMaterialInterface, EDebugViewShaderMode InDebugViewMode, ERHIFeatureLevel::Type InFeatureLevel,const FMaterialRenderProxy*& OutMaterialRenderProxy, const FMaterial*& OutMaterial);
 
+extern FRenderingCompositeOutputRef AddTemporalAADebugViewPass(FPostprocessContext& Context);
+
 void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT)
 {
 	QUICK_SCOPE_CYCLE_COUNTER( STAT_PostProcessing_Process );
@@ -109,24 +111,7 @@ void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandLis
 		}
 		case DVSM_RayTracingDebug:
 		{
-			FSceneViewState* ViewState = (FSceneViewState*)Context.View.State;
-			FTAAPassParameters Parameters(Context.View);
-			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTemporalAA(
-				Context, 
-				Parameters, 
-				Context.View.PrevViewInfo.TemporalAAHistory, 
-				&ViewState->PrevFrameViewInfo.TemporalAAHistory));
-
-			FRenderingCompositePass* VelocityNode = VelocityRT
-				? Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(VelocityRT))
-				: Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(GSystemTextures.BlackDummy));
-
-			FRenderingCompositeOutputRef VelocityRef(VelocityNode);
-
-			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-			Node->SetInput(ePId_Input2, VelocityRef);
-
-			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
+			Context.FinalOutput = AddTemporalAADebugViewPass(Context);
 
 			if (View.Family->EngineShowFlags.Tonemapper)
 			{

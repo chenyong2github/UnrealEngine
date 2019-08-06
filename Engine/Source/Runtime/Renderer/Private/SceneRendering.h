@@ -1209,7 +1209,11 @@ public:
 	* for stereo rendering, this will force the post-processing to use the same render target for both eyes*/
 	FSceneRenderTargetItem* GetTonemappingLUTRenderTarget(FRHICommandList& RHICmdList, const int32 LUTSize, const bool bUseVolumeLUT, const bool bNeedUAV, const bool bNeedFloatOutput) const;
 	
-
+	/** Returns whether this view is the last in the family. */
+	bool IsLastInFamily() const
+	{
+		return Family->Views.Last() == this;
+	}
 
 	/** Instanced stereo and multi-view only need to render the left eye. */
 	bool ShouldRenderView() const 

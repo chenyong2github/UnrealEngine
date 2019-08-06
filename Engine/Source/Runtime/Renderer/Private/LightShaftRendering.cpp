@@ -29,6 +29,7 @@
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/PostProcessTemporalAA.h"
 #include "PipelineStateCache.h"
+#include "SceneTextureParameters.h"
 
 /** Tweaked values from UE3 implementation **/
 extern const float PointLightFadeDistanceIncrease = 200;
@@ -40,6 +41,15 @@ static FAutoConsoleVariableRef CVarLightShaftQuality(
 	TEXT("r.LightShaftQuality"),
 	GLightShafts,
 	TEXT("Defines the light shaft quality (mobile and non mobile).\n")
+	TEXT("  0: off\n")
+	TEXT("  1: on (default)"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+int32 GLightShaftAllowTAA = 1;
+static FAutoConsoleVariableRef CVarLightAllowTAA(
+	TEXT("r.LightShaftAllowTAA"),
+	GLightShaftAllowTAA,
+	TEXT("Allows temporal filtering for lightshafts.\n")
 	TEXT("  0: off\n")
 	TEXT("  1: on (default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
@@ -576,41 +586,31 @@ void ApplyTemporalAA(
 	/** Output of Temporal AA for the next step in the pipeline. */
 	TRefCountPtr<IPooledRenderTarget>& HistoryOutput)
 {
-	if( View.AntiAliasingMethod == AAM_TemporalAA &&
-		HistoryState &&
-		HistoryState->RT[0] )
+	if (View.AntiAliasingMethod == AAM_TemporalAA && HistoryState && GLightShaftAllowTAA)
 	{
-		FMemMark Mark(FMemStack::Get());
-		FRenderingCompositePassContext CompositeContext(RHICmdList, View);
-		FPostprocessContext Context(RHICmdList, CompositeContext.Graph, View);
+		FRDGBuilder GraphBuilder(RHICmdList);
 
-		// Nodes for input render targets
-		FRenderingCompositePass* LightShaftSetup = Context.Graph.RegisterPass( new(FMemStack::Get()) FRCPassPostProcessInput( LightShaftsSource ) );
+		FRDGTextureRef LightShaftSetup = GraphBuilder.RegisterExternalTexture(LightShaftsSource, TEXT("LightShaftsSource"));
+
+		FSceneTextureParameters SceneTextures;
+		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 		FTAAPassParameters TAAParameters(View);
 		TAAParameters.Pass = ETAAPassConfig::LightShaft;
 		TAAParameters.SetupViewRect(View, /** ResolutionDivisor = */ 2);
+		TAAParameters.SceneColorInput = LightShaftSetup;
 
-		// Temporal AA node
-		FRenderingCompositePass* NodeTemporalAA = Context.Graph.RegisterPass( new(FMemStack::Get()) FRCPassPostProcessTemporalAA(Context, TAAParameters,
-			*HistoryState, HistoryState) );
+		FTAAOutputs Outputs = AddTemporalAAPass(
+			GraphBuilder,
+			SceneTextures,
+			View,
+			TAAParameters,
+			*HistoryState,
+			HistoryState);
 
-		// Setup inputs on Temporal AA node as the shader expects
-		NodeTemporalAA->SetInput( ePId_Input0, LightShaftSetup );
+		GraphBuilder.QueueTextureExtraction(Outputs.SceneColor, &HistoryOutput);
 
-		// Reuse a render target from the pool with a consistent name, for vis purposes
-		TRefCountPtr<IPooledRenderTarget> NewHistory;
-		AllocateOrReuseLightShaftRenderTarget(RHICmdList, NewHistory, HistoryRTName);
-
-		// Setup the output to write to the new history render target
-		Context.FinalOutput = FRenderingCompositeOutputRef(NodeTemporalAA);
-		Context.FinalOutput.GetOutput()->RenderTargetDesc = NewHistory->GetDesc();
-		Context.FinalOutput.GetOutput()->PooledRenderTarget = NewHistory;
-
-		// Execute Temporal AA
-		CompositeContext.Process(Context.FinalOutput.GetPass(), TEXT("LightShaftTemporalAA"));
-
-		HistoryOutput = NewHistory;
+		GraphBuilder.Execute();
 	}
 	else
 	{

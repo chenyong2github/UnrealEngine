@@ -5,166 +5,83 @@
 =============================================================================*/
 
 #include "PostProcess/PostProcessDownsample.h"
-#include "ClearQuad.h"
-#include "StaticBoundShaderState.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "SceneRenderTargetParameters.h"
-#include "SceneRendering.h"
-#include "PipelineStateCache.h"
 
+namespace
+{
+	
 const int32 GDownsampleTileSizeX = 8;
 const int32 GDownsampleTileSizeY = 8;
 
-/** Encapsulates the post processing down sample pixel shader. */
-template <uint32 Method, uint32 ManuallyClampUV>
-class FPostProcessDownsamplePS : public FGlobalShader
+TAutoConsoleVariable<int32> CVarDownsampleQuality(
+	TEXT("r.Downsample.Quality"),
+	1,
+	TEXT("Defines the quality in which the Downsample passes. we might add more quality levels later.\n")
+	TEXT(" 0: low quality\n")
+	TEXT(">0: high quality (default: 1)\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FDownsampleParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
+END_SHADER_PARAMETER_STRUCT()
+
+FDownsampleParameters GetDownsampleParameters(
+	const FViewInfo& View,
+	const FIntRect InputViewport,
+	FRDGTextureRef InputTexture,
+	EDownsampleQuality DownsampleMethod)
 {
-	DECLARE_SHADER_TYPE(FPostProcessDownsamplePS, Global);
+	check(InputTexture);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return Method != 2 || IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
-	}
+	const FScreenPassTextureViewportParameters InputParameters = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(InputViewport, InputTexture));
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("METHOD"), Method);
-		OutEnvironment.SetDefine(TEXT("MANUALLY_CLAMP_UV"), ManuallyClampUV);
-	}
+	FDownsampleParameters Parameters;
+	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
+	Parameters.Input = InputParameters;
+	Parameters.InputTexture = InputTexture;
+	Parameters.InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	return Parameters;
+}
 
-	/** Default constructor. */
-	FPostProcessDownsamplePS() {}
+class FDownsampleQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("DOWNSAMPLE_QUALITY", EDownsampleQuality);
+using FDownsamplePermutationDomain = TShaderPermutationDomain<FDownsampleQualityDimension>;
 
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderParameter DownsampleParams;
-	FShaderParameter BufferBilinearUVMinMax;
-
-
-	/** Initialization constructor. */
-	FPostProcessDownsamplePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-		DownsampleParams.Bind(Initializer.ParameterMap, TEXT("DownsampleParams"));
-		BufferBilinearUVMinMax.Bind(Initializer.ParameterMap, TEXT("BufferBilinearUVMinMax"));
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << DownsampleParams << BufferBilinearUVMinMax;
-		return bShaderHasOutdatedParameters;
-	}
-
-	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FPooledRenderTargetDesc* InputDesc, const FIntPoint& SrcSize, const FIntRect& SrcRect)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-
-		// filter only if needed for better performance
-		FRHISamplerState* Filter = (Method == 2) ?
-			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI():
-			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		
-		{
-			float PixelScale = (Method == 2) ? 0.5f : 1.0f;
- 
-			FVector4 DownsampleParamsValue(PixelScale / InputDesc->Extent.X, PixelScale / InputDesc->Extent.Y, 0, 0);
-			SetShaderValue(RHICmdList, ShaderRHI, DownsampleParams, DownsampleParamsValue);
-		}
-
-		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, Filter);
-
-		if (ManuallyClampUV)
-		{
-			FVector4 BufferBilinearUVMinMaxValue(
-				(SrcRect.Min.X + 0.5f) / SrcSize.X, (SrcRect.Min.Y + 0.5f) / SrcSize.Y,
-				(SrcRect.Max.X - 0.5f) / SrcSize.X, (SrcRect.Max.Y - 0.5f) / SrcSize.Y);
-			SetShaderValue(RHICmdList, ShaderRHI, BufferBilinearUVMinMax, BufferBilinearUVMinMaxValue);
-		}
-	}
-
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/PostProcessDownsample.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("MainPS");
-	}
-};
-
-// #define avoids a lot of code duplication
-#define VARIATION1(A,B) typedef FPostProcessDownsamplePS<A, B> FPostProcessDownsamplePS##A##B; \
-	IMPLEMENT_SHADER_TYPE2(FPostProcessDownsamplePS##A##B, SF_Pixel);
-
-VARIATION1(0, 0) VARIATION1(1, 0) VARIATION1(2, 0)
-VARIATION1(0, 1) VARIATION1(1, 1) VARIATION1(2, 1)
-#undef VARIATION1
-
-
-/** Encapsulates the post processing down sample vertex shader. */
-class FPostProcessDownsampleVS : public FGlobalShader
+class FDownsamplePS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessDownsampleVS,Global);
 public:
+	DECLARE_GLOBAL_SHADER(FDownsamplePS);
+	SHADER_USE_PARAMETER_STRUCT(FDownsamplePS, FGlobalShader);
+
+	using FPermutationDomain = FDownsamplePermutationDomain;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDownsampleParameters, Common)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return true;
 	}
-
-	/** Default constructor. */
-	FPostProcessDownsampleVS() {}
-	
-	/** Initialization constructor. */
-	FPostProcessDownsampleVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FGlobalShader(Initializer)
-	{
-	}
-
-	/** Serializer */
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-
-		return bShaderHasOutdatedParameters;
-	}
-
-	void SetParameters(const FRenderingCompositePassContext& Context)
-	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		const FPooledRenderTargetDesc* InputDesc = Context.Pass->GetInputDesc(ePId_Input0);
-
-		if(!InputDesc)
-		{
-			// input is not hooked up correctly
-			return;
-		}
-	}
 };
 
-IMPLEMENT_SHADER_TYPE(,FPostProcessDownsampleVS,TEXT("/Engine/Private/PostProcessDownsample.usf"),TEXT("MainDownsampleVS"),SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FDownsamplePS, "/Engine/Private/PostProcessDownsample.usf", "MainPS", SF_Pixel);
 
-/** Encapsulates the post processing down sample compute shader. */
-template <uint32 Method>
-class FPostProcessDownsampleCS : public FGlobalShader
+class FDownsampleCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FPostProcessDownsampleCS, Global);
+public:
+	DECLARE_GLOBAL_SHADER(FDownsampleCS);
+	SHADER_USE_PARAMETER_STRUCT(FDownsampleCS, FGlobalShader);
+
+	using FPermutationDomain = FDownsamplePermutationDomain;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FDownsampleParameters, Common)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutComputeTexture)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -174,304 +91,135 @@ class FPostProcessDownsampleCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("METHOD"), Method);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GDownsampleTileSizeX);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GDownsampleTileSizeY);
 	}
-
-	/** Default constructor. */
-	FPostProcessDownsampleCS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FSceneTextureShaderParameters SceneTextureParameters;
-	FShaderParameter DownsampleComputeParams;
-	FShaderParameter OutComputeTex;
-
-	/** Initialization constructor. */
-	FPostProcessDownsampleCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
-		DownsampleComputeParams.Bind(Initializer.ParameterMap, TEXT("DownsampleComputeParams"));
-		OutComputeTex.Bind(Initializer.ParameterMap, TEXT("OutComputeTex"));
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << SceneTextureParameters << DownsampleComputeParams << OutComputeTex;
-		return bShaderHasOutdatedParameters;
-	}
-
-	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, FRHIUnorderedAccessView* DestUAV)
-	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		// filter only if needed for better performance
-		FRHISamplerState* Filter = (Method == 2) ?
-			TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI():
-			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-		PostprocessParameter.SetCS(ShaderRHI, Context, RHICmdList, Filter);
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
-		RHICmdList.SetUAVParameter(ShaderRHI, OutComputeTex.GetBaseIndex(), DestUAV);
-		
-		const float PixelScale = (Method == 2) ? 0.5f : 1.0f;
-		FVector4 DownsampleComputeValues(PixelScale / SrcSize.X, PixelScale / SrcSize.Y, 2.f / SrcSize.X, 2.f / SrcSize.Y);
-		SetShaderValue(RHICmdList, ShaderRHI, DownsampleComputeParams, DownsampleComputeValues);
-	}
-
-	template <typename TRHICmdList>
-	void UnsetParameters(TRHICmdList& RHICmdList)
-	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
-		RHICmdList.SetUAVParameter(ShaderRHI, OutComputeTex.GetBaseIndex(), NULL);
-	}
 };
 
-// #define avoids a lot of code duplication
-#define VARIATION1(A) typedef FPostProcessDownsampleCS<A> FPostProcessDownsampleCS##A; \
-	IMPLEMENT_SHADER_TYPE(template<>,FPostProcessDownsampleCS##A,TEXT("/Engine/Private/PostProcessDownsample.usf"),TEXT("MainCS"),SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FDownsampleCS, "/Engine/Private/PostProcessDownsample.usf", "MainCS", SF_Compute);
 
-VARIATION1(0)			VARIATION1(1)			VARIATION1(2)
-#undef VARIATION1
+} //! namespace
 
-
-FRCPassPostProcessDownsample::FRCPassPostProcessDownsample(EPixelFormat InOverrideFormat, uint32 InQuality, bool bInIsComputePass, const TCHAR *InDebugName)
-	: OverrideFormat(InOverrideFormat)
-	, Quality(InQuality)
-	, DebugName(InDebugName)
+EDownsampleQuality GetDownsampleQuality()
 {
-	bIsComputePass = bInIsComputePass;
-	bPreferAsyncCompute = false;
+	const int32 DownsampleQuality = FMath::Clamp(CVarDownsampleQuality.GetValueOnRenderThread(), 0, 1);
+
+	return static_cast<EDownsampleQuality>(DownsampleQuality);
 }
 
-template <uint32 Method, uint32 ManuallyClampUV>
-void FRCPassPostProcessDownsample::SetShader(const FRenderingCompositePassContext& Context, const FPooledRenderTargetDesc* InputDesc, const FIntPoint& SrcSize, const FIntRect& SrcRect)
+FDownsamplePassOutputs AddDownsamplePass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	const FDownsamplePassInputs& Inputs)
 {
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+	check(Inputs.Texture);
 
-	auto ShaderMap = Context.GetShaderMap();
-	TShaderMapRef<FPostProcessDownsampleVS> VertexShader(ShaderMap);
-	TShaderMapRef<FPostProcessDownsamplePS<Method, ManuallyClampUV> > PixelShader(ShaderMap);
+	bool bIsComputePass = ScreenPassView.bUseComputePasses;
 
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-	PixelShader->SetParameters(Context.RHICmdList, Context, InputDesc, SrcSize, SrcRect);
-	VertexShader->SetParameters(Context);
-}
-
-void FRCPassPostProcessDownsample::Process(FRenderingCompositePassContext& Context)
-{
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-	AsyncEndFence = FComputeFenceRHIRef();
-
-	if (!InputDesc)
+	if ((Inputs.Flags & EDownsampleFlags::ForceRaster) == EDownsampleFlags::ForceRaster)
 	{
-		return;
+		bIsComputePass = false;
 	}
 
-	const FViewInfo& View = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
+	FRDGTextureRef OutputTexture = nullptr;
 
-	FIntPoint SrcSize = InputDesc->Extent;
-	FIntPoint DestSize = PassOutputs[0].RenderTargetDesc.Extent;
+	// Construct the output texture to be half resolution (rounded up to even) with an optional format override.
+	{
+		FRDGTextureDesc Desc = Inputs.Texture->Desc;
+		Desc.Reset();
+		Desc.Extent = FIntPoint::DivideAndRoundUp(Desc.Extent, 2);
+		Desc.Extent.X = FMath::Max(1, Desc.Extent.X);
+		Desc.Extent.Y = FMath::Max(1, Desc.Extent.Y);
+		Desc.TargetableFlags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
+		Desc.TargetableFlags |= bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable;
+		Desc.Flags |= GFastVRamConfig.Downsample;
+		Desc.AutoWritable = false;
+		Desc.DebugName = Inputs.Name;
+		Desc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 0));
 
-	// e.g. 4 means the input texture is 4x smaller than the buffer size
-	uint32 ScaleFactor = FMath::RoundUpToPowerOfTwo(FMath::DivideAndRoundUp(Context.ReferenceBufferSize.Y, SrcSize.Y));
+		if (Inputs.FormatOverride != PF_Unknown)
+		{
+			Desc.Format = Inputs.FormatOverride;
+		}
 
-	FIntRect SrcRect = FIntRect::DivideAndRoundUp(Context.SceneColorViewRect, ScaleFactor);
-	FIntRect DestRect = FIntRect::DivideAndRoundUp(Context.SceneColorViewRect, ScaleFactor * 2);
+		OutputTexture = GraphBuilder.CreateTexture(Desc, Inputs.Name);
+	}
 
-	SCOPED_DRAW_EVENTF(Context.RHICmdList, Downsample, TEXT("Downsample%s %dx%d"), bIsComputePass?TEXT("Compute"):TEXT(""), DestRect.Width(), DestRect.Height());
+	FDownsamplePermutationDomain PermutationVector;
+	PermutationVector.Set<FDownsampleQualityDimension>(Inputs.Quality);
 
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
-	const bool bIsDepthInputAvailable = (GetInputDesc(ePId_Input1) != nullptr);
-
-	bool bManuallyClampUV = !(SrcRect.Min == FIntPoint::ZeroValue && SrcRect.Max == SrcSize);
+	const FIntRect OutputViewport = FIntRect::DivideAndRoundUp(Inputs.Viewport, 2);
 
 	if (bIsComputePass)
-	{	
-		DestRect = {Context.SceneColorViewRect.Min, Context.SceneColorViewRect.Min + DestSize};
+	{
+		FDownsampleCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsampleCS::FParameters>();
+		PassParameters->Common = GetDownsampleParameters(ScreenPassView.View, Inputs.Viewport, Inputs.Texture, Inputs.Quality);
+		PassParameters->Output = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(OutputViewport, OutputTexture));
+		PassParameters->OutComputeTexture = GraphBuilder.CreateUAV(OutputTexture);
 
-		// Common setup
-		// #todo-renderpasses remove once everything is renderpasses
-		UnbindRenderTargets(Context.RHICmdList);
-		Context.SetViewportAndCallRHI(DestRect, 0.0f, 1.0f);
-		
-		static FName AsyncEndFenceName(TEXT("AsyncDownsampleEndFence"));
-		AsyncEndFence = Context.RHICmdList.CreateComputeFence(AsyncEndFenceName);
+		TShaderMapRef<FDownsampleCS> ComputeShader(ScreenPassView.View.ShaderMap, PermutationVector);
 
-		if (IsAsyncComputePass())
-		{
-			// Async path
-			FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
-			{
-	 			SCOPED_COMPUTE_EVENT(RHICmdListComputeImmediate, AsyncDownsample);
-
-				WaitForInputPassComputeFences(RHICmdListComputeImmediate);
-				RHICmdListComputeImmediate.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
-
-				if (bIsDepthInputAvailable)
-				{
-					DispatchCS<2>(RHICmdListComputeImmediate, Context, SrcSize, DestRect, DestRenderTarget.UAV);
-				}
-				else if (Quality == 0)
-				{
-					DispatchCS<0>(RHICmdListComputeImmediate, Context, SrcSize, DestRect, DestRenderTarget.UAV);
-				}
-				else
-				{
-					DispatchCS<1>(RHICmdListComputeImmediate, Context, SrcSize, DestRect, DestRenderTarget.UAV);
-				}
-
-				RHICmdListComputeImmediate.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DestRenderTarget.UAV, AsyncEndFence);
-			}
-			FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHICmdListComputeImmediate);		
-		}
-		else
-		{
-			// Direct path
-			WaitForInputPassComputeFences(Context.RHICmdList);
-			Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
-
-			if (bIsDepthInputAvailable)
-			{
-				DispatchCS<2>(Context.RHICmdList, Context, SrcSize, DestRect, DestRenderTarget.UAV);
-			}
-			else if (Quality == 0)
-			{
-				DispatchCS<0>(Context.RHICmdList, Context, SrcSize, DestRect, DestRenderTarget.UAV);
-			}
-			else
-			{
-				DispatchCS<1>(Context.RHICmdList, Context, SrcSize, DestRect, DestRenderTarget.UAV);
-			}
-
-			Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DestRenderTarget.UAV, AsyncEndFence);
-		}
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Downsample.%s %dx%d (CS)", Inputs.Name, Inputs.Viewport.Width(), Inputs.Viewport.Height()),
+			*ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(OutputViewport.Size(), FIntPoint(GDownsampleTileSizeX, GDownsampleTileSizeY)));
 	}
 	else
 	{
-		// #todo-renderpasses only clear dest rectangle if it's been computed
-		FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Clear_Store);
-		Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessDownsample"));
-		{
-			Context.SetViewportAndCallRHI(0, 0, 0.0f, DestSize.X, DestSize.Y, 1.0f);
-			// InflateSize increases the size of the source/dest rectangle to compensate for bilinear reads and UIBlur pass requirements.
-			int32 InflateSize;
-			// if second input is hooked up
+		FDownsamplePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsamplePS::FParameters>();
+		PassParameters->Common = GetDownsampleParameters(ScreenPassView.View, Inputs.Viewport, Inputs.Texture, Inputs.Quality);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
 
-			if (bManuallyClampUV)
-			{
-				if (bIsDepthInputAvailable)
-				{
-					// also put depth in alpha
-					InflateSize = 2;
-					SetShader<2, true>(Context, InputDesc, SrcSize, SrcRect);
-				}
-				else if (Quality == 0)
-				{
-					SetShader<0, true>(Context, InputDesc, SrcSize, SrcRect);
-					InflateSize = 1;
-				}
-				else
-				{
-					SetShader<1, true>(Context, InputDesc, SrcSize, SrcRect);
-					InflateSize = 2;
-				}
-			}
-			else
-			{
-				if (bIsDepthInputAvailable)
-				{
-					// also put depth in alpha
-					InflateSize = 2;
-					SetShader<2, false>(Context, InputDesc, SrcSize, SrcRect);
-				}
-				else if (Quality == 0)
-				{
-					SetShader<0, false>(Context, InputDesc, SrcSize, SrcRect);
-					InflateSize = 1;
-				}
-				else
-				{
-					SetShader<1, false>(Context, InputDesc, SrcSize, SrcRect);
-					InflateSize = 2;
-				}
-			}
+		TShaderMapRef<FDownsamplePS> PixelShader(ScreenPassView.View.ShaderMap, PermutationVector);
 
-			TShaderMapRef<FPostProcessDownsampleVS> VertexShader(Context.GetShaderMap());
-
-			SrcRect = DestRect * 2;
-			DrawRectangle(
-				Context.RHICmdList,
-				DestRect.Min.X, DestRect.Min.Y,
-				DestRect.Width(), DestRect.Height(),
-				SrcRect.Min.X, SrcRect.Min.Y,
-				SrcRect.Width(), SrcRect.Height(),
-				DestSize,
-				SrcSize,
-				*VertexShader,
-				EDRF_UseTriangleOptimization);
-		}
-		Context.RHICmdList.EndRenderPass();
-		Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
+		AddDrawScreenPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Downsample.%s %dx%d (PS)", Inputs.Name, Inputs.Viewport.Width(), Inputs.Viewport.Height()),
+			ScreenPassView,
+			FScreenPassTextureViewport(OutputViewport, OutputTexture),
+			FScreenPassTextureViewport(Inputs.Viewport, Inputs.Texture),
+			*PixelShader,
+			PassParameters);
 	}
+
+	FDownsamplePassOutputs Outputs;
+	Outputs.Texture = OutputTexture;
+	Outputs.Viewport = OutputViewport;
+	return Outputs;
 }
 
-template <uint32 Method, typename TRHICmdList>
-void FRCPassPostProcessDownsample::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV)
+FRenderingCompositeOutputRef AddDownsamplePass(
+	FRenderingCompositionGraph& Graph,
+	const TCHAR *InName,
+	FRenderingCompositeOutputRef Input,
+	EDownsampleQuality InQuality,
+	EDownsampleFlags InFlags,
+	EPixelFormat InFormatOverride)
 {
-	auto ShaderMap = Context.GetShaderMap();
-	TShaderMapRef<FPostProcessDownsampleCS<Method>> ComputeShader(ShaderMap);
-	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
-
-	ComputeShader->SetParameters(RHICmdList, Context, SrcSize, DestUAV);
-
-	uint32 GroupSizeX = FMath::DivideAndRoundUp(DestRect.Width(), GDownsampleTileSizeX);
-	uint32 GroupSizeY = FMath::DivideAndRoundUp(DestRect.Height(), GDownsampleTileSizeY);
-	DispatchComputeShader(RHICmdList, *ComputeShader, GroupSizeX, GroupSizeY, 1);
-
-	ComputeShader->UnsetParameters(RHICmdList);
-}
-
-FPooledRenderTargetDesc FRCPassPostProcessDownsample::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-
-	Ret.Reset();
-
-	Ret.Extent  = FIntPoint::DivideAndRoundUp(Ret.Extent, 2);
-
-	Ret.Extent.X = FMath::Max(1, Ret.Extent.X);
-	Ret.Extent.Y = FMath::Max(1, Ret.Extent.Y);
-
-	if(OverrideFormat != PF_Unknown)
+	FRenderingCompositePass* DownsamplePass = Graph.RegisterPass(
+		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
+			[InFormatOverride, InQuality, InFlags, InName] (FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
 	{
-		Ret.Format = OverrideFormat;
-	}
+		FRDGBuilder GraphBuilder(InContext.RHICmdList);
 
-	Ret.TargetableFlags &= ~(TexCreate_RenderTargetable | TexCreate_UAV);
-	Ret.TargetableFlags |= bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable;
-	Ret.Flags |= GFastVRamConfig.Downsample;
-	Ret.AutoWritable = false;
-	Ret.DebugName = DebugName;
+		FRDGTextureRef InputTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("DownsampleInput"));
 
-	Ret.ClearValue = FClearValueBinding(FLinearColor(0,0,0,0));
+		FDownsamplePassInputs PassInputs;
+		PassInputs.Name = InName;
+		PassInputs.Texture = InputTexture;
+		PassInputs.Viewport = InContext.SceneColorViewRect;
+		PassInputs.FormatOverride = InFormatOverride;
+		PassInputs.Quality = InQuality;
+		PassInputs.Flags = InFlags;
 
-	return Ret;
+		FDownsamplePassOutputs PassOutputs = AddDownsamplePass(GraphBuilder, FScreenPassViewInfo(InContext.View), PassInputs);
+
+		Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, PassOutputs.Texture);
+
+		GraphBuilder.Execute();
+	}));
+	DownsamplePass->SetInput(ePId_Input0, Input);
+	return DownsamplePass;
 }

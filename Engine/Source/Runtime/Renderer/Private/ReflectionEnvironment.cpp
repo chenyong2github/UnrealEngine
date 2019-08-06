@@ -739,9 +739,11 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 				TAASettings.SceneColorInput = DenoiserInputs.Color;
 				TAASettings.bOutputRenderTargetable = bComposePlanarReflections;
 				
-				FTAAOutputs TAAOutputs = TAASettings.AddTemporalAAPass(
+				FTAAOutputs TAAOutputs = AddTemporalAAPass(
 					GraphBuilder,
-					SceneTextures, View,
+					SceneTextures,
+					View,
+					TAASettings,
 					View.PrevViewInfo.SSRHistory,
 					&View.ViewState->PrevFrameViewInfo.SSRHistory);
 				

@@ -5,113 +5,92 @@
 =============================================================================*/
 
 #include "Common.ush"
-#include "PostProcessCommon.ush"
+#include "ScreenPass.ush"
 
-// vertex shader entry point
-void MainDownsampleVS(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 UV : ATTRIBUTE1,
-	out noperspective float2 OutUV : TEXCOORD0,
-	out float4 OutPosition : SV_POSITION
-	) 
+#define DOWNSAMPLE_QUALITY_LOW 0
+#define DOWNSAMPLE_QUALITY_HIGH 1
+
+#ifndef DOWNSAMPLE_QUALITY
+#error DOWNSAMPLE_QUALITY is not defined.
+#endif
+
+Texture2D InputTexture;
+
+SamplerState InputSampler;
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+
+bool IsComputeUVOutOfBounds(in float2 UV)
 {
-	DrawRectangle(InPosition, UV, OutPosition, OutUV);
+	float2 CenterDist = abs(UV - 0.5f);
+	return (max(CenterDist.x, CenterDist.y) >= 0.5f);
 }
 
-
-float4 BufferBilinearUVMinMax;
-
-float4 SampleInput0(float2 BufferUV)
+float4 SampleInput(float2 UV)
 {
-	#if MANUALLY_CLAMP_UV
-		BufferUV = clamp(BufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
-	#endif
-	return Texture2DSampleLevel(PostprocessInput0, PostprocessInput0Sampler, BufferUV, 0);
+	UV = clamp(UV, Input_UVViewportBilinearMin, Input_UVViewportBilinearMax);
+
+	return Texture2DSampleLevel(InputTexture, InputSampler, UV, 0);
 }
 
-
-float4 DownsampleCommon(in float2 InUV, in float2 Offset)
+float4 DownsampleCommon(float2 UV)
 {
 	float4 OutColor;
 
-#if METHOD == 0
+#if DOWNSAMPLE_QUALITY == DOWNSAMPLE_QUALITY_LOW
 	// Output: low quality, 1 filtered sample
-	OutColor = SampleInput0(InUV);
+	OutColor = SampleInput(UV);
+#elif DOWNSAMPLE_QUALITY == DOWNSAMPLE_QUALITY_HIGH
+	// Output: float4(RGBA), 4 filtered samples
+	float2 UVs[4];
 
-#elif METHOD == 1
-	// Output: float4(RGBA), 4 filtered samples	
-	float2 UV[4];
-
-	// blur during downsample (4x4 kernel) to get better quality especially for HDR content, can be made an option of this shader
-	UV[0] = InUV + Offset * float2(-1, -1);
-	UV[1] = InUV + Offset * float2( 1, -1);
-	UV[2] = InUV + Offset * float2(-1,  1);
-	UV[3] = InUV + Offset * float2( 1,  1);
+	// Blur during downsample (4x4 kernel) to get better quality especially for HDR content.
+	UVs[0] = UV + Input_ExtentInverse * float2(-1, -1);
+	UVs[1] = UV + Input_ExtentInverse * float2( 1, -1);
+	UVs[2] = UV + Input_ExtentInverse * float2(-1,  1);
+	UVs[3] = UV + Input_ExtentInverse * float2( 1,  1);
 
 	float4 Sample[4];
 
-	UNROLL for(uint i = 0; i < 4; ++i)
+	UNROLL
+	for(uint i = 0; i < 4; ++i)
 	{
-		Sample[i] = SampleInput0(UV[i]);
+		Sample[i] = SampleInput(UVs[i]);
 	}
 
 	OutColor = (Sample[0] + Sample[1] + Sample[2] + Sample[3]) * 0.25f;
 
-	// fixed rarely occuring yellow color tint of the whole viewport (certain view port size, need to investigate more)
+	// Fixed rarely occurring yellow color tint of the whole viewport (certain viewport size, need to investigate more)
 	OutColor.rgb = max(float3(0,0,0), OutColor.rgb);
 #else
-	// Output: float4(RGB,depth), 4 unfiltered samples (no leaking)
-	float2 UV[4];
-
-	// no filtering (2x2 kernel) to get no leaking in Depth of Field
-	UV[0] = InUV + Offset * float2(-1, -1);
-	UV[1] = InUV + Offset * float2( 1, -1);
-	UV[2] = InUV + Offset * float2(-1,  1);
-	UV[3] = InUV + Offset * float2( 1,  1);
-
-	float3 Sample[4];
-
-	UNROLL for(uint i = 0; i < 4; ++i)
-	{
-		Sample[i] = SampleInput0(UV[i]).rgb;
-	}
-
-	// todo: this still leaks as we need to mask in focus pixels
-	OutColor = float4((Sample[0] + Sample[1] + Sample[2] + Sample[3]) * 0.25f, CalcSceneDepth(UV[0]));
+#error Invalid quality level specified.
 #endif
 
 	return OutColor;
 }
 
-// xy: UV offset, zw:unused
-float4 DownsampleParams;
-
 // pixel shader entry point
 void MainPS(noperspective float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
-	float2 Offset = DownsampleParams.xy;
-	OutColor = DownsampleCommon(InUV, Offset);
+	OutColor = DownsampleCommon(InUV);
 }
 
 #if COMPUTESHADER
-// xy: UVOffset, zw: ThreadToUVScale
-float4 DownsampleComputeParams;
-RWTexture2D<float4> OutComputeTex;
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+
+RWTexture2D<float4> OutComputeTexture;
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	float2 InUV = ((float2)DispatchThreadId + View.ViewRectMin.xy + 0.5f) * DownsampleComputeParams.zw;
-	float2 Offset = DownsampleComputeParams.xy;
+	uint2 iPixelPos = DispatchThreadId + Output_ViewportMin;
+	float2 PixelPos = float2(iPixelPos);
+	float2 UV = (PixelPos + 0.5) * Output_ExtentInverse;
 
-	if (IsComputeUVOutOfBounds(InUV))
+	if (!IsComputeUVOutOfBounds(UV))
 	{
-		return;
+		OutComputeTexture[PixelPos] = DownsampleCommon(UV);
 	}
-
-	float4 OutColor = DownsampleCommon(InUV, Offset);
-
-	uint2 PixelPos = DispatchThreadId + (uint2)View.ViewRectMin.xy;
-	OutComputeTex[PixelPos] = OutColor;
 }
 #endif 

@@ -9,6 +9,13 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 #include "PostProcess/RenderingCompositionGraph.h"
+#include "ScreenPass.h"
+
+FRDGTextureRef AddVisualizeBloomSetupPass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FRDGTextureRef InputTexture,
+	FIntRect InputViewport);
 
 // ePId_Input0: Half res HDR scene color
 // ePId_Input1: EyeAdaptation
@@ -34,17 +41,6 @@ private:
 	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV, FRHITexture* EyeAdaptationTex);
 
 	FComputeFenceRHIRef AsyncEndFence;
-};
-
-// ePId_Input0: HDR SceneColor
-// derives from TRenderingCompositePassBase<InputCount, OutputCount> 
-class FRCPassPostProcessVisualizeBloomSetup : public TRenderingCompositePassBase<1, 1>
-{
-public:
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-	virtual void Release() override { delete this; }
 };
 
 // ePId_Input0: LDR SceneColor

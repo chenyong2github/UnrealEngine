@@ -6,44 +6,73 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
 #include "PostProcess/RenderingCompositionGraph.h"
+#include "ScreenPass.h"
 
-// derives from TRenderingCompositePassBase<InputCount, OutputCount>
-// ePId_Input0: Color input
-// ePId_Input1: optional depth input (then quality is ignores and it uses the a 4 sample unfiltered samples method)
-class FRCPassPostProcessDownsample : public TRenderingCompositePassBase<2, 1>
+enum class EDownsampleFlags : uint8
 {
-public:
-	// constructor
-	// @param InDebugName we store the pointer so don't release this string
-	// @param Quality only used if ePId_Input1 is not set, 0:one filtered sample, 1:four filtered samples
-	FRCPassPostProcessDownsample(EPixelFormat InOverrideFormat = PF_Unknown,
-			uint32 InQuality = 1,
-			bool bInIsComputePass = false, 
-			const TCHAR *InDebugName = TEXT("Downsample"));
+	None = 0,
 
-	// interface FRenderingCompositePass ---------
-
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-	virtual FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
-
-private:
-	template <uint32 Method, uint32 ManuallyClampUV>
-	void SetShader(const FRenderingCompositePassContext& Context, const FPooledRenderTargetDesc* InputDesc, const FIntPoint& SrcSize, const FIntRect& SrcRect);
-
-	template <uint32 Method, typename TRHICmdList>
-	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntPoint& SrcSize, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV);
-
-	FComputeFenceRHIRef AsyncEndFence;
-
-	EPixelFormat OverrideFormat;
-	// explained in constructor
-	uint32 Quality;
-	// must be a valid pointer
-	const TCHAR* DebugName;
+	// Forces the downsample pass to run on the raster pipeline, regardless of view settings.
+	ForceRaster = 0x1
 };
+ENUM_CLASS_FLAGS(EDownsampleFlags);
+
+enum class EDownsampleQuality : uint8
+{
+	// Single filtered sample (2x2 tap).
+	Low,
+
+	// Four filtered samples (4x4 tap).
+	High,
+
+	MAX
+};
+
+// Returns the global downsample quality specified by the r.Downsample.Quality CVar.
+EDownsampleQuality GetDownsampleQuality();
+
+// The set of inputs needed to add a downsample pass to RDG.
+struct FDownsamplePassInputs
+{
+	FDownsamplePassInputs() = default;
+
+	// Friendly name of the pass. Used for logging and profiling.
+	const TCHAR* Name = nullptr;
+
+	// Input RDG texture. Must not be null.
+	FRDGTextureRef Texture = nullptr;
+
+	// Input viewport to sample from.
+	FIntRect Viewport;
+
+	// The downsample method to use.
+	EDownsampleQuality Quality = EDownsampleQuality::Low;
+
+	// Flags to control how the downsample pass is run.
+	EDownsampleFlags Flags = EDownsampleFlags::None;
+
+	// The format to use for the output texture (if unknown, the input format is used).
+	EPixelFormat FormatOverride = PF_Unknown;
+};
+
+struct FDownsamplePassOutputs
+{
+	FDownsamplePassOutputs() = default;
+
+	// Half-resolution texture.
+	FRDGTextureRef Texture = nullptr;
+
+	// Half-resolution viewport.
+	FIntRect Viewport;
+};
+
+FDownsamplePassOutputs AddDownsamplePass(FRDGBuilder& GraphBuilder, const FScreenPassViewInfo& ScreenPassView, const FDownsamplePassInputs& Inputs);
+
+FRenderingCompositeOutputRef AddDownsamplePass(
+	FRenderingCompositionGraph& Graph,
+	const TCHAR *Name,
+	FRenderingCompositeOutputRef Input,
+	EDownsampleQuality Quality = EDownsampleQuality::Low,
+	EDownsampleFlags Flags = EDownsampleFlags::None,
+	EPixelFormat FormatOverride = PF_Unknown);

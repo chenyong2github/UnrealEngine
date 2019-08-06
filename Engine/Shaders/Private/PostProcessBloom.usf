@@ -7,10 +7,17 @@
 #include "Common.ush"
 #include "PostProcessCommon.ush"
 #include "EyeAdaptationCommon.ush"
+#include "ScreenPass.ush"
 
 // for VisualizeBloomOverlayPS
 // xyz:Bloom1Tint.rgb, w:unused
 float4 ColorScale1;
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+
+Texture2D InputTexture;
+
+SamplerState InputSampler;
 
 void VisualizeBloomSetupPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0,
@@ -23,7 +30,7 @@ void VisualizeBloomSetupPS(
 
 	int2 PixelPos = (int2)SvPosition.xy;
 
-	int2 ViewportCenter = (int2)(ViewportRect.xy + ViewportSize.xy / 2);
+	int2 ViewportCenter = (int2)(Input_ViewportMin + Input_ViewportSize / 2);
 
 	// cross in x and y
 //	bool bMask = ViewportCenter.x == PixelPos.x || ViewportCenter.y == PixelPos.y;
@@ -36,7 +43,7 @@ void VisualizeBloomSetupPS(
 		OutColor.g = 20;
 	}
 	
-	float3 HDRColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV).rgb;
+	float3 HDRColor = Texture2DSample(InputTexture, InputSampler, UV).rgb;
 
 	// reference is in red
 	OutColor.r = dot(HDRColor, 1/3.0f);

@@ -5,18 +5,10 @@
 =============================================================================*/
 
 #include "PostProcess/PostProcessMitchellNetravali.h"
-#include "StaticBoundShaderState.h"
 #include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "SceneRenderTargetParameters.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "CompositionLighting/PostProcessAmbientOcclusion.h"
-#include "PostProcess/PostProcessTonemap.h"
-#include "ClearQuad.h"
-#include "PipelineStateCache.h"
-#include "PostProcessing.h"
+#include "SceneTextureParameters.h"
 
 class FMitchellNetravaliDownsampleCS : public FGlobalShader
 {
@@ -50,17 +42,6 @@ FRDGTextureRef ComputeMitchellNetravaliDownsample(
 	const FIntRect InputViewport,
 	const FScreenPassTextureViewport OutputViewport)
 {
-	FRDGTextureRef EyeAdaptationTexture = nullptr;
-
-	if (ScreenPassView.View.HasValidEyeAdaptation())
-	{
-		EyeAdaptationTexture = GraphBuilder.RegisterExternalTexture(ScreenPassView.View.GetEyeAdaptation(), TEXT("EyeAdaptation"));
-	}
-	else
-	{
-		EyeAdaptationTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy, TEXT("EyeAdaptation"));
-	}
-
 	const FRDGTextureDesc OutputTextureDesc = FRDGTextureDesc::Create2DDesc(
 		OutputViewport.Extent,
 		PF_FloatRGBA,
@@ -77,7 +58,7 @@ FRDGTextureRef ComputeMitchellNetravaliDownsample(
 	PassParameters->InputTexture = InputTexture;
 	PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
-	PassParameters->EyeAdaptation = EyeAdaptationTexture;
+	PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, ScreenPassView.View);
 
 	// Scale / Bias factor to map the dispatch thread id to the input texture UV.
 	PassParameters->DispatchThreadToInputUVScale.X = InputViewport.Width()  / float(OutputViewport.Rect.Width()  * InputTexture->Desc.Extent.X);
@@ -95,32 +76,4 @@ FRDGTextureRef ComputeMitchellNetravaliDownsample(
 		FComputeShaderUtils::GetGroupCount(OutputViewport.Rect.Size(), FComputeShaderUtils::kGolden2DGroupSize));
 
 	return OutputTexture;
-}
-
-FRenderingCompositeOutputRef ComputeMitchellNetravaliDownsample(
-	FRenderingCompositionGraph& Graph,
-	FRenderingCompositeOutputRef Input,
-	FIntRect InputViewport,
-	FScreenPassTextureViewport OutputViewport)
-{
-	FRenderingCompositePass* MitchelNetravaliDownsamplePass = Graph.RegisterPass(new(FMemStack::Get()) TRCPassForRDG<1, 1>(
-		[InputViewport, OutputViewport](FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
-	{
-		FRDGBuilder GraphBuilder(InContext.RHICmdList);
-
-		FRDGTextureRef InputTexture = Pass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("Input"));
-
-		FRDGTextureRef OutputTexture = ComputeMitchellNetravaliDownsample(GraphBuilder, FScreenPassViewInfo(InContext.View), InputTexture, InputViewport, OutputViewport);
-
-		Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTexture);
-
-		InContext.SceneColorViewRect = OutputViewport.Rect;
-		InContext.ReferenceBufferSize = OutputViewport.Extent;
-
-		GraphBuilder.Execute();
-	}));
-
-	MitchelNetravaliDownsamplePass->SetInput(ePId_Input0, Input);
-
-	return FRenderingCompositeOutputRef(MitchelNetravaliDownsamplePass);
 }

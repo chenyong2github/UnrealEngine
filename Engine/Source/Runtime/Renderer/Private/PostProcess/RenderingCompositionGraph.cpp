@@ -1186,6 +1186,8 @@ FRDGTextureRef FRenderingCompositePass::CreateRDGTextureForInputWithFallback(
 
 void FRenderingCompositePass::ExtractRDGTextureForOutput(FRDGBuilder& GraphBuilder, EPassOutputId OutputId, FRDGTextureRef Texture)
 {
+	check(Texture);
+
 	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
 	{
 		Output->RenderTargetDesc = Texture->Desc;

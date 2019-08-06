@@ -7,10 +7,10 @@
 #pragma once
 
 #include "ScreenPass.h"
-#include "RenderingCompositionGraph.h"
 
-FRenderingCompositeOutputRef ComputeMitchellNetravaliDownsample(
-	FRenderingCompositionGraph& Graph,
-	FRenderingCompositeOutputRef Input,
-	FIntRect InputViewport,
-	FScreenPassTextureViewport OutputViewport);
+FRDGTextureRef ComputeMitchellNetravaliDownsample(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FRDGTextureRef InputTexture,
+	const FIntRect InputViewport,
+	const FScreenPassTextureViewport OutputViewport);

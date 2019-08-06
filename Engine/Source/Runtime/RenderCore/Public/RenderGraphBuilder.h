@@ -25,10 +25,26 @@ public:
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 		const TCHAR* Name = TEXT("External"));
 
+	/** Variant of RegisterExternalTexture which will returns null (rather than assert) if the external texture is null. */
+	inline FRDGTextureRef TryRegisterExternalTexture(
+		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+		const TCHAR* Name = TEXT("External"))
+	{
+		return ExternalPooledTexture ? RegisterExternalTexture(ExternalPooledTexture, Name) : nullptr;
+	}
+
 	/** Register a external buffer to be tracked by the render graph. */
 	FRDGBufferRef RegisterExternalBuffer(
 		const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
 		const TCHAR* Name = TEXT("External"));
+
+	/** Variant of RegisterExternalBuffer which will return null (rather than assert) if the external buffer is null. */
+	inline FRDGBufferRef TryRegisterExternalBuffer(
+		const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
+		const TCHAR* Name = TEXT("External"))
+	{
+		return ExternalPooledBuffer ? RegisterExternalBuffer(ExternalPooledBuffer, Name) : nullptr;
+	}
 
 	/** Create graph tracked resource from a descriptor with a debug name.
 	 *
