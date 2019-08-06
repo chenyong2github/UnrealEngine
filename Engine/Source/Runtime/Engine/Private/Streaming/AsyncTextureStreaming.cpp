@@ -816,6 +816,17 @@ void FRenderAssetStreamingMipCalcTask::UpdateStats_Async()
 
 	Stats.OverBudget = 0;
 
+	Stats.NumStreamedMeshes = 0;
+	Stats.AvgNumStreamedLODs = 0.f;
+	Stats.AvgNumResidentLODs = 0.f;
+	Stats.AvgNumEvictedLODs = 0.f;
+	Stats.StreamedMeshMem = 0;
+	Stats.ResidentMeshMem = 0;
+	Stats.EvictedMeshMem = 0;
+	int32 TotalNumStreamedLODs = 0;
+	int32 TotalNumResidentLODs = 0;
+	int32 TotalNumEvictedLODs = 0;
+
 	for (FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 	{
 		if (IsAborted()) break;
@@ -882,6 +893,33 @@ void FRenderAssetStreamingMipCalcTask::UpdateStats_Async()
 		{
 			Stats.PendingRequests += StreamingRenderAsset.GetSize(StreamingRenderAsset.RequestedMips) - ResidentSize;
 		}
+
+		if (StreamingRenderAsset.RenderAssetType != FStreamingRenderAsset::AT_Texture)
+		{
+			const bool bOptLODsExist = StreamingRenderAsset.OptionalMipsState == FStreamingRenderAsset::OMS_HasOptionalMips;
+			const int32 NumLODs = bOptLODsExist ? StreamingRenderAsset.MipCount : StreamingRenderAsset.NumNonOptionalMips;
+			const int32 NumStreamedLODs = NumLODs - StreamingRenderAsset.NumNonStreamingMips;
+			const int32 NumResidentLODs = StreamingRenderAsset.ResidentMips;
+			const int32 NumEvictedLODs = NumLODs - NumResidentLODs;
+			const int64 TotalSize = StreamingRenderAsset.GetSize(NumLODs);
+			const int64 StreamedSize = TotalSize - StreamingRenderAsset.GetSize(StreamingRenderAsset.NumNonStreamingMips);
+			const int64 EvictedSize = TotalSize - ResidentSize;
+
+			++Stats.NumStreamedMeshes;
+			TotalNumStreamedLODs += NumStreamedLODs;
+			TotalNumResidentLODs += NumResidentLODs;
+			TotalNumEvictedLODs += NumEvictedLODs;
+			Stats.StreamedMeshMem += StreamedSize;
+			Stats.ResidentMeshMem += ResidentSize;
+			Stats.EvictedMeshMem += EvictedSize;
+		}
+	}
+
+	if (Stats.NumStreamedMeshes > 0)
+	{
+		Stats.AvgNumStreamedLODs = (float)TotalNumStreamedLODs / Stats.NumStreamedMeshes;
+		Stats.AvgNumResidentLODs = (float)TotalNumResidentLODs / Stats.NumStreamedMeshes;
+		Stats.AvgNumEvictedLODs = (float)TotalNumEvictedLODs / Stats.NumStreamedMeshes;
 	}
 
 	Stats.OverBudget += FMath::Max<int64>(Stats.RequiredPool - Stats.StreamingPool, 0);
