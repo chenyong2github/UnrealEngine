@@ -34,6 +34,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "LandscapeInfoMap.h"
 #include "Misc/MessageDialog.h"
 #include "GameFramework/WorldSettings.h"
+#include "UObject/UObjectThreadContext.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -4195,6 +4196,12 @@ void ALandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMo
 
 void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask)
 {
+	// Ignore Update requests while in PostLoad (to avoid dirtying package on load)
+	if (FUObjectThreadContext::Get().IsRoutingPostLoad)
+	{
+		return;
+	}
+
 	if (!CanHaveLayersContent())
 	{
 		return;
