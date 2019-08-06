@@ -728,14 +728,15 @@ void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved)
 		{
 			FastPathProxyHandle.GetInvalidationRoot()->RemoveWidgetFromFastPath(Proxy);
 		}
-		else if (PersistentState.CachedElementListNode != nullptr)
-		{
-			FastPathProxyHandle.GetInvalidationRoot()->GetCachedElements().ResetCache(PersistentState.CachedElementListNode);
-		}
 	}
 	else
 	{
 		ensure(FastPathProxyHandle.GetIndex() == INDEX_NONE);
+	}
+
+	if (PersistentState.CachedElementListNode)
+	{
+		PersistentState.CachedElementListNode->GetValue().GetOwningData()->RemoveCache(PersistentState.CachedElementListNode);
 	}
 
 	FChildren* MyChildren = GetAllChildren();
