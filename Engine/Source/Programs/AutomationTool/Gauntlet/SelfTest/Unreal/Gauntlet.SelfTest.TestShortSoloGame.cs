@@ -38,7 +38,7 @@ namespace Gauntlet.SelfTest
 
 		void TestClientPlatform(UnrealTargetPlatform Platform)
 		{
-			string GameName = this.GameName;
+			string GameName = this.ProjectFile.FullName;
 			string BuildPath = this.BuildPath;
 			string DevKit = this.DevkitName;
 
@@ -50,7 +50,7 @@ namespace Gauntlet.SelfTest
 			}
 
 			// create a new build
-			UnrealBuildSource Build = new UnrealBuildSource(GameName, UsesSharedBuildType, Environment.CurrentDirectory, BuildPath);
+			UnrealBuildSource Build = new UnrealBuildSource(ProjectFile, this.UnrealPath, UsesSharedBuildType, BuildPath);
 
 			// check it's valid
 			if (!CheckResult(Build.BuildCount > 0, "staged build was invalid"))
