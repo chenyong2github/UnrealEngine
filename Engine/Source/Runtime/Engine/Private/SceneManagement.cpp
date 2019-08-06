@@ -243,8 +243,9 @@ void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)
 {
 	DEFINE_LOG_CATEGORY_STATIC(FMeshElementCollector_AddMesh, Warning, All);
 
-	//checkSlow(MeshBatch.GetNumPrimitives() > 0);
-	checkSlow(MeshBatch.VertexFactory && MeshBatch.MaterialRenderProxy);
+	checkSlow(MeshBatch.VertexFactory);
+	checkSlow(MeshBatch.VertexFactory->IsInitialized());
+	checkSlow(MeshBatch.MaterialRenderProxy);
 	checkSlow(PrimitiveSceneProxy);
 
 	PrimitiveSceneProxy->VerifyUsedMaterial(MeshBatch.MaterialRenderProxy);
@@ -273,7 +274,7 @@ void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)
 	}
 
 	// If we are maintaining primitive scene data on the GPU, copy the primitive uniform buffer data to a unified array so it can be uploaded later
-	if (UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) && MeshBatch.VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::Default) >= 0)
+	if (MeshBatch.VertexFactory->IsPrimitiveDataInGPUScene(EVertexInputStreamType::Default))
 	{
 		for (int32 Index = 0; Index < MeshBatch.Elements.Num(); ++Index)
 		{
@@ -1061,28 +1062,46 @@ void FReadOnlyCVARCache::Init()
 void FMeshBatch::PreparePrimitiveUniformBuffer(const FPrimitiveSceneProxy* PrimitiveSceneProxy, ERHIFeatureLevel::Type FeatureLevel)
 {
 	const bool bVFSupportsPrimitiveIdStream = VertexFactory->GetType()->SupportsPrimitiveIdStream();
-	checkf((PrimitiveSceneProxy->DoesVFRequirePrimitiveUniformBuffer() || bVFSupportsPrimitiveIdStream), TEXT("PrimitiveSceneProxy has bVFRequiresPrimitiveUniformBuffer disabled yet tried to draw with a vertex factory (%s) that did not support PrimitiveIdStream."), VertexFactory->GetType()->GetName());
+	checkf(
+		(PrimitiveSceneProxy->DoesVFRequirePrimitiveUniformBuffer() || bVFSupportsPrimitiveIdStream),
+		TEXT("PrimitiveSceneProxy has bVFRequiresPrimitiveUniformBuffer disabled yet tried to draw with a vertex factory (%s) ")
+		TEXT("that did not support PrimitiveIdStream."),
+		VertexFactory->GetType()->GetName());
 
-	const bool bPrimitiveShaderDataComesFromSceneBuffer = VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::Default) >= 0;
+	const bool bPrimitiveDataInGPUScene = VertexFactory->IsPrimitiveDataInGPUScene(EVertexInputStreamType::Default);
+
+	FRHIUniformBuffer* SceneProxyUniformBuffer = PrimitiveSceneProxy->GetUniformBuffer();
 
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 	{
 		FMeshBatchElement& MeshElement = Elements[ElementIndex];
 
-		if (bPrimitiveShaderDataComesFromSceneBuffer)
+		if (bPrimitiveDataInGPUScene)
 		{
-			checkf(!Elements[ElementIndex].PrimitiveUniformBuffer, 
-				TEXT("FMeshBatch was assigned a PrimitiveUniformBuffer even though Vertex Factory %s fetches primitive shader data through a Scene buffer.  The assigned PrimitiveUniformBuffer cannot be respected.  Use PrimitiveUniformBufferResource instead for dynamic primitive data, or leave both null to get FPrimitiveSceneProxy->UniformBuffer."), VertexFactory->GetType()->GetName());
+			// We are using GPU scene. If the user specified the default proxy uniform buffer, we null it out. This is to
+			// allow the user to just provide the default proxy uniform buffer by default without having to check if GPU scene
+			// is enabled for the vertex factory.
+			if (MeshElement.PrimitiveUniformBuffer == SceneProxyUniformBuffer)
+			{
+				MeshElement.PrimitiveUniformBuffer = nullptr;
+			}
+			else
+			{
+				checkf(!MeshElement.PrimitiveUniformBuffer,
+					TEXT("FMeshBatch was assigned a PrimitiveUniformBuffer even though Vertex Factory %s fetches primitive shader data through ")
+					TEXT("a Scene buffer. The assigned PrimitiveUniformBuffer cannot be respected. Use PrimitiveUniformBufferResource instead ")
+					TEXT("for dynamic primitive data, or leave both null to get FPrimitiveSceneProxy->UniformBuffer."),
+					VertexFactory->GetType()->GetName());
+			}
+		}
+		else if (!MeshElement.PrimitiveUniformBufferResource)
+		{
+			// The user did not specify a uniform buffer, and GPU scene is not enabled for this primitive, so use the scene proxy uniform buffer.
+			MeshElement.PrimitiveUniformBuffer = SceneProxyUniformBuffer;
 		}
 
-		// If we are not using GPU Scene, draws using vertex factories that do not support an explicit PrimitiveUniformBuffer on the FMeshBatch need to be setup with the FPrimitiveSceneProxy's uniform buffer
-		if (!MeshElement.PrimitiveUniformBufferResource && !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) && bVFSupportsPrimitiveIdStream)
-		{
-			MeshElement.PrimitiveUniformBuffer = PrimitiveSceneProxy->GetUniformBuffer();
-		}
-
-		checkf(bPrimitiveShaderDataComesFromSceneBuffer || Elements[ElementIndex].PrimitiveUniformBuffer || Elements[ElementIndex].PrimitiveUniformBufferResource != NULL,
-			TEXT("FMeshBatch was not properly setup.  The primitive uniform buffer must be specified."));
+		checkf(bPrimitiveDataInGPUScene || Elements[ElementIndex].PrimitiveUniformBuffer || Elements[ElementIndex].PrimitiveUniformBufferResource,
+			TEXT("FMeshBatch was not properly setup. The primitive uniform buffer must be specified."));
 	}
 }
 

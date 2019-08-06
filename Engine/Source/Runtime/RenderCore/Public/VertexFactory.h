@@ -13,6 +13,7 @@
 #include "RenderResource.h"
 #include "ShaderCore.h"
 #include "Shader.h"
+#include "RenderUtils.h"
 #include "Misc/EnumClassFlags.h"
 
 class FMaterial;
@@ -554,6 +555,16 @@ public:
 	inline int32 GetPrimitiveIdStreamIndex(EVertexInputStreamType InputStreamType) const
 	{
 		return PrimitiveIdStreamIndex[static_cast<uint8>(InputStreamType)];
+	}
+
+	inline bool HasPrimitiveIdStream(EVertexInputStreamType InputStreamType) const
+	{
+		return GetPrimitiveIdStreamIndex(InputStreamType) >= 0;
+	}
+
+	inline bool IsPrimitiveDataInGPUScene(EVertexInputStreamType InputStreamType) const
+	{
+		return UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) && GetPrimitiveIdStreamIndex(InputStreamType) >= 0;
 	}
 
 protected:
