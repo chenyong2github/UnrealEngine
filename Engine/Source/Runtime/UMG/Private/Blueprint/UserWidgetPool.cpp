@@ -32,16 +32,27 @@ void FUserWidgetPool::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FUserWidgetPool::Release(UUserWidget* Widget, bool bReleaseSlate)
 {
-	const int32 ActiveWidgetIdx = ActiveWidgets.Find(Widget);
-	if (ActiveWidgetIdx != INDEX_NONE)
+	if (Widget != nullptr)
 	{
-		InactiveWidgets.Push(Widget);
-		ActiveWidgets.RemoveAt(ActiveWidgetIdx);
-
-		if (bReleaseSlate)
+		const int32 ActiveWidgetIdx = ActiveWidgets.Find(Widget);
+		if (ActiveWidgetIdx != INDEX_NONE)
 		{
-			CachedSlateByWidgetObject.Remove(Widget);
+			InactiveWidgets.Push(Widget);
+			ActiveWidgets.RemoveAt(ActiveWidgetIdx);
+
+			if (bReleaseSlate)
+			{
+				CachedSlateByWidgetObject.Remove(Widget);
+			}
 		}
+	}
+}
+
+void FUserWidgetPool::Release(TArray<UUserWidget*> Widgets, bool bReleaseSlate)
+{
+	for (UUserWidget* Widget : Widgets)
+	{
+		Release(Widget, bReleaseSlate);
 	}
 }
 
@@ -63,7 +74,15 @@ void FUserWidgetPool::ResetPool()
 	CachedSlateByWidgetObject.Reset();
 }
 
-void FUserWidgetPool::ReleaseSlateResources()
+void FUserWidgetPool::ReleaseInactiveSlateResources()
+{
+	for (UUserWidget* InactiveWidget : InactiveWidgets)
+	{
+		CachedSlateByWidgetObject.Remove(InactiveWidget);
+	}
+}
+
+void FUserWidgetPool::ReleaseAllSlateResources()
 {
 	CachedSlateByWidgetObject.Reset();
 }

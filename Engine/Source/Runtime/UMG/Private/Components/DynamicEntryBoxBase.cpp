@@ -20,7 +20,7 @@ void UDynamicEntryBoxBase::ReleaseSlateResources(bool bReleaseChildren)
 {
 	Super::ReleaseSlateResources(bReleaseChildren);
 
-	EntryWidgetPool.ReleaseSlateResources();
+	EntryWidgetPool.ReleaseAllSlateResources();
 	MyPanelWidget.Reset();
 }
 
