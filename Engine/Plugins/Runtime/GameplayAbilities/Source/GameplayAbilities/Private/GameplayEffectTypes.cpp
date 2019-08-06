@@ -9,6 +9,7 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
+#include "Engine/PackageMapClient.h"
 
 
 #define LOCTEXT_NAMESPACE "GameplayEffectTypes"
@@ -1078,16 +1079,35 @@ bool FMinimalReplicationTagCountMap::NetSerialize(FArchive& Ar, class UPackageMa
 
 		if (Owner)
 		{
-			// Update our tags with owner tags
-			for(auto It = TagMap.CreateIterator(); It; ++It)
+			bool UpdateOwnerTagMap = true;
+			if (bRequireNonOwningNetConnection)
 			{
-				Owner->SetTagMapCount(It->Key, It->Value);
-
-				// Remove tags with a count of zero from the map. This prevents them
-				// from being replicated incorrectly when recording client replays.
-				if (It->Value == 0)
+				if (AActor* OwningActor = Owner->GetOwner())
 				{
-					It.RemoveCurrent();
+					// Note we deliberately only want to do this if the NetConnection is not null
+					if (UNetConnection* OwnerNetConnection = OwningActor->GetNetConnection())
+					{
+						if (OwnerNetConnection == CastChecked<UPackageMapClient>(Map)->GetConnection())
+						{
+							UpdateOwnerTagMap = false;
+						}
+					}
+				}
+			}
+
+			if (UpdateOwnerTagMap)
+			{
+				// Update our tags with owner tags
+				for(auto It = TagMap.CreateIterator(); It; ++It)
+				{
+					Owner->SetTagMapCount(It->Key, It->Value);
+
+					// Remove tags with a count of zero from the map. This prevents them
+					// from being replicated incorrectly when recording client replays.
+					if (It->Value == 0)
+					{
+						It.RemoveCurrent();
+					}
 				}
 			}
 		}
