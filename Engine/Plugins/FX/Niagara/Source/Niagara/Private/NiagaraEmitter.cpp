@@ -174,11 +174,11 @@ bool UNiagaraEmitter::IsSynchronizedWithParent() const
 
 INiagaraMergeManager::FMergeEmitterResults UNiagaraEmitter::MergeChangesFromParent()
 {
-	UE_LOG(LogNiagara, Log, TEXT("Emitter %s is merging changes from parent %s because its Change ID was updated."), *GetPathName(),
-		Parent != nullptr ? *Parent->GetPathName() : TEXT("(null)"));
-
 	if (GbEnableEmitterChangeIdMergeLogging)
 	{
+		UE_LOG(LogNiagara, Log, TEXT("Emitter %s is merging changes from parent %s because its Change ID was updated."), *GetPathName(),
+			Parent != nullptr ? *Parent->GetPathName() : TEXT("(null)"));
+
 		UE_LOG(LogNiagara, Log, TEXT("\nEmitter %s Id=%s \nParentAtLastMerge %s id=%s \nParent %s Id=%s."), 
 			*GetPathName(), *ChangeId.ToString(),
 			ParentAtLastMerge != nullptr ? *ParentAtLastMerge->GetPathName() : TEXT("(null)"), ParentAtLastMerge != nullptr ? *ParentAtLastMerge->GetChangeId().ToString() : TEXT("(null)"),
