@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "NetworkPredictionExtrasFlyingPawn.h"
 #include "Components/InputComponent.h"
 #include "Movement/FlyingMovement.h"
