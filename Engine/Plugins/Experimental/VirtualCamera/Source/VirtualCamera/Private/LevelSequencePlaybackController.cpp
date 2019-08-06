@@ -16,9 +16,9 @@
 #include "Input/Reply.h"
 #include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "Templates/SharedPointer.h"
-
-#endif //WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
+#endif //WITH_EDITOR
+
 
 
 ULevelSequencePlaybackController::ULevelSequencePlaybackController(const FObjectInitializer& ObjectInitializer)
