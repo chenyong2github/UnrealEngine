@@ -1125,30 +1125,19 @@ bool FLightmassMaterialRenderer::GenerateMaterialPropertyData(
 						GetRendererModule().InitializeSystemTextures(RHICmdList);
 					});
 
-				// prefetch VT textures so we have sensible content available
+				// Prefetch all virtual textures so that we have content available
+				//todo[vt]: Move this to calling function to avoid multiple prefetches
 				if (UseVirtualTexturing(GMaxRHIFeatureLevel))
 				{					
-					const FVector2D InScreenSpaceSize(InOutSizeX, InOutSizeY);
+					const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+					const FVector2D ScreenSpaceSize(InOutSizeX, InOutSizeY);
 
-					const FMaterialRenderProxy* InMaterialProxy = InMaterial.GetRenderProxy();
-					if (InMaterialProxy)
+					ENQUEUE_RENDER_COMMAND(LoadTiles)(
+						[FeatureLevel, ScreenSpaceSize](FRHICommandListImmediate& RHICmdList)
 					{
-						const ERHIFeatureLevel::Type InFeatureLevel = GMaxRHIFeatureLevel;
-						const FUniformExpressionCache& UniformExpressionCache = InMaterialProxy->UniformExpressionCache[InFeatureLevel];
-						for (IAllocatedVirtualTexture* AllocatedVT : UniformExpressionCache.AllocatedVTs)
-						{
-							if (AllocatedVT)
-							{
-								GetRendererModule().RequestVirtualTextureTilesForRegion(AllocatedVT, InScreenSpaceSize, FIntRect(), -1);
-							}
-						}
-
-						ENQUEUE_RENDER_COMMAND(LoadTiles)(
-							[InFeatureLevel](FRHICommandListImmediate& RHICmdList)
-						{
-							GetRendererModule().LoadPendingVirtualTextureTiles(RHICmdList, InFeatureLevel);
-						});
-					}
+						GetRendererModule().RequestVirtualTextureTiles(ScreenSpaceSize, -1);
+						GetRendererModule().LoadPendingVirtualTextureTiles(RHICmdList, FeatureLevel);
+					});
 
 					FlushRenderingCommands();
 				}
