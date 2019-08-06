@@ -311,7 +311,7 @@ protected:
 					FSegment2d new_seg = Graph.GetEdgeSegment(new_eid);
 					FVector2d p1 = Intr.Intr.GetSegment1().PointAt(t1);
 					double new_t1 = new_seg.Project(p1);
-					check(new_t1 <= FMath::Abs(new_seg.Extent));
+					// note: new_t1 may be outside of new_seg due to snapping; in this case the segment will just not be split
 
 					FIndex2i new_info = split_segment_at_t(new_eid, new_t1, VertexSnapTol);
 					FVector2d v = Graph.GetVertex(new_info.A);
