@@ -11,7 +11,7 @@
 class HEADMOUNTEDDISPLAY_API FXRSwapChain : public TSharedFromThis<FXRSwapChain, ESPMode::ThreadSafe>
 {
 public:
-	FXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & AliasedTexture);
+	FXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef& AliasedTexture);
 	virtual ~FXRSwapChain();
 
 	const FTextureRHIRef& GetTextureRef() const { return RHITexture; }
@@ -25,7 +25,7 @@ public:
 	uint32 GetSwapChainIndex_RHIThread() { return SwapChainIndex_RHIThread; }
 
 	virtual void IncrementSwapChainIndex_RHIThread(int64 TimeoutNanoseconds = 0); // Default to no timeout (immediate).
-	virtual void ReleaseCurrentImage_RHIThread() {}		
+	virtual void ReleaseCurrentImage_RHIThread() {}
 
 protected:
 	virtual void ReleaseResources_RHIThread();
@@ -37,8 +37,8 @@ protected:
 
 typedef TSharedPtr<FXRSwapChain, ESPMode::ThreadSafe> FXRSwapChainPtr;
 
-template<typename T = FXRSwapChain, typename ... Types>
-FXRSwapChainPtr CreateXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHIAliasedTexture, Types... InExtraParameters)
+template<typename T = FXRSwapChain, typename... Types>
+FXRSwapChainPtr CreateXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef& InRHIAliasedTexture, Types... InExtraParameters)
 {
 	check(InRHITextureSwapChain.Num() >= 1);
 	return MakeShareable(new T(MoveTemp(InRHITextureSwapChain), InRHIAliasedTexture, InExtraParameters...));

@@ -72,9 +72,9 @@ class FOpenXRHMDPlugin : public IOpenXRHMDPlugin
 public:
 	FOpenXRHMDPlugin()
 		: LoaderHandle(nullptr)
-		, RenderBridge(nullptr)
 		, Instance(XR_NULL_HANDLE)
 		, System(XR_NULL_SYSTEM_ID)
+		, RenderBridge(nullptr)
 	{ }
 
 	~FOpenXRHMDPlugin()
