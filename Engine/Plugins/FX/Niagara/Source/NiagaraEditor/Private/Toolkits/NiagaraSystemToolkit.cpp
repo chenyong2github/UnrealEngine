@@ -261,9 +261,9 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 
 	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 	SystemViewModel->Initialize(*System, SystemOptions);
+	SystemViewModel->GetEditorData().SetOwningSystemIsPlaceholder(true, *System);
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
-	SystemViewModel->GetEditorData().SetOwningSystemIsPlaceholder(true, *System);
 
 	// Adding the emitter to the system has made a copy of it and we set this to the copy's change id here instead of the original emitter's change 
 	// id because the copy's change id may have been updated from the original as part of post load and we use this id to detect if the editable 
