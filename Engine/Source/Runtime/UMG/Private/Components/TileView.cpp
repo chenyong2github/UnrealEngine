@@ -9,7 +9,6 @@ UTileView::UTileView(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bIsVariable = true;
-	EntryHeight = 128.f;
 }
 
 TSharedRef<STableViewBase> UTileView::RebuildListWidget()
