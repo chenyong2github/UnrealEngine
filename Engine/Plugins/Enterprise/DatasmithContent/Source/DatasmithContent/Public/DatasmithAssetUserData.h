@@ -28,4 +28,11 @@ public:
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PostLoad() override;
 #endif
+
+	static FString GetDatasmithUserDataValueForKey(UObject* Object, FName Key);
+	static UDatasmithAssetUserData* GetDatasmithUserData(UObject* Object);
+	static bool SetDatasmithUserDataValueForKey(UObject* Object, FName Key, const FString & Value);
+
+	// Meta data keys for Datasmith objects
+	static const TCHAR* UniqueIdMetaDataKey;
 };
