@@ -403,7 +403,7 @@ private:
 	static const int kReadbackTextureCount = 5;
 	FTexture2DRHIRef ReadbackTextures[kReadbackTextureCount];
 	FRenderQueryPoolRHIRef RenderQueryPool;
-	FRHIPooledRenderQuery ReadbackCopyQueries[kReadbackTextureCount];
+	FRHIPooledRenderQuery* ReadbackCopyQueries = nullptr;
 	FIntPoint ReadbackTextureSizes[kReadbackTextureCount];
 	int ReadbackTextureCount;
 	instant_preview::ReferencePose ReadbackReferencePoses[kReadbackTextureCount];
