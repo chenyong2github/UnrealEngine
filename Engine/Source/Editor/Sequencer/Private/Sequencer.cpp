@@ -6952,6 +6952,8 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 
 bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
+	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
 	TArray<UMovieSceneCopyableTrack*> ImportedTracks;
 	FSequencer::ImportTracksFromText(TextToImport, ImportedTracks);
 
@@ -6963,8 +6965,6 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 	TArray<UMovieSceneFolder*> SelectedParentFolders;
 	FString NewNodePath;
 	CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
-
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
 	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
 	UObject* BindingContext = GetPlaybackContext();
@@ -7101,6 +7101,8 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 
 bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors)
 {
+	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
+
 	TArray<UMovieSceneSection*> ImportedSections;
 	FSequencer::ImportSectionsFromText(TextToImport, ImportedSections);
 
@@ -7117,8 +7119,6 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 		PasteErrors.Add(Info);
 		return false;
 	}
-
-	FScopedTransaction Transaction(FGenericCommands::Get().Paste->GetDescription());
 
 	FFrameNumber LocalTime = GetLocalTime().Time.GetFrame();
 
