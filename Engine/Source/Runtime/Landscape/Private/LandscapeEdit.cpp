@@ -3281,6 +3281,14 @@ bool ULandscapeInfo::GetLandscapeExtent(int32& MinX, int32& MinY, int32& MaxX, i
 	return (MinX != MAX_int32);
 }
 
+LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(ULandscapeComponent*)> Fn) const
+{
+	for (auto& XYComponentPair : XYtoComponentMap)
+	{
+		Fn(XYComponentPair.Value);
+	}
+}
+
 bool ULandscapeInfo::GetSelectedExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const
 {
 	MinX = MinY = MAX_int32;
