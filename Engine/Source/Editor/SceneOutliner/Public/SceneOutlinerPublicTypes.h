@@ -112,7 +112,7 @@ namespace SceneOutliner
 		/** Map of column types available to the scene outliner, along with default ordering */
 		TMap<FName, FColumnInfo> ColumnMap;
 		
-		/** Whether the Scene Outliner should display parenta actors in a Tree */
+		/** Whether the Scene Outliner should display parent actors in a Tree */
 		bool bShowParentTree : 1;
 
 		/** True to only show folders in this outliner */

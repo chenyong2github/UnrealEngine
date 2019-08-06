@@ -779,7 +779,7 @@ namespace SceneOutliner
 
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("ToggleShowActorComponents", "Show Actor Components"),
-					LOCTEXT("ToggleShowActorComponentsToolTip", "When enabled, shows components beloging to actors."),
+					LOCTEXT("ToggleShowActorComponentsToolTip", "When enabled, shows components belonging to actors."),
 					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &SSceneOutliner::ToggleShowActorComponents),
