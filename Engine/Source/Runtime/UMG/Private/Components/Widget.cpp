@@ -1215,10 +1215,6 @@ void UWidget::SynchronizeProperties()
 		SafeWidget->SetToolTipText(PROPERTY_BINDING(FText, ToolTipText));
 	}
 
-#if WITH_SLATE_DEBUGGING
-	SafeWidget->AddMetadata<FReflectionMetaData>(MakeShared<FReflectionMetaData>(GetFName(), GetClass(), this, GetSourceAssetOrClass()));
-#endif
-
 #if WITH_ACCESSIBILITY
 	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();
 	if (AccessibleWidget.IsValid())
