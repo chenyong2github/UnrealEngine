@@ -797,7 +797,8 @@ void UNiagaraStackModuleItem::Delete()
 				GetSystemViewModel()->NotifyDataObjectChanged(InputNode->GetDataInterface());
 			}
 		}
-		ModifiedGroupItemsDelegate.ExecuteIfBound();
+		Finalize();
+		ModifiedGroupItemsDelegate.Broadcast();
 	}
 }
 
@@ -827,7 +828,7 @@ UNiagaraNodeOutput* UNiagaraStackModuleItem::GetOutputNode() const
 
 void UNiagaraStackModuleItem::NotifyModuleMoved()
 {
-	ModifiedGroupItemsDelegate.ExecuteIfBound();
+	ModifiedGroupItemsDelegate.Broadcast();
 }
 
 bool UNiagaraStackModuleItem::CanAddInput(FNiagaraVariable InputParameter) const
