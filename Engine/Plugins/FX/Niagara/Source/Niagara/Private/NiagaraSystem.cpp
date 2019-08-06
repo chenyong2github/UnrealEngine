@@ -344,12 +344,12 @@ void UNiagaraSystem::PostLoad()
 		UE_LOG(LogNiagara, Log, TEXT("System %s being rebuilt because UNiagaraEmitter::GetForceCompileOnLoad() == true."), *GetPathName());
 	}
 
-	if (bSystemScriptsAreSynchronized == false)
+	if (bSystemScriptsAreSynchronized == false && GEnableVerboseNiagaraChangeIdLogging)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to a system script Change ID."), *GetPathName());
 	}
 
-	if (bEmitterScriptsAreSynchronized == false)
+	if (bEmitterScriptsAreSynchronized == false && GEnableVerboseNiagaraChangeIdLogging)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 	}
@@ -703,10 +703,6 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 					{
 						UE_LOG(LogNiagara, Log, TEXT("UNiagraScript \'%s\' was built locally.."), *EmitterCompiledScriptPair.CompiledScript->GetFullName());
 					}
-					else
-					{
-						UE_LOG(LogNiagara, Log, TEXT("UNiagraScript \'%s\' was pulled from DDC."), *EmitterCompiledScriptPair.CompiledScript->GetFullName());
-					}
 
 					TSharedPtr<FNiagaraVMExecutableData> ExeData = MakeShared<FNiagaraVMExecutableData>();
 					EmitterCompiledScriptPair.CompileResults = ExeData;
@@ -853,7 +849,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 
 		UpdatePostCompileDIInfo();
 
-		UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (wall time), %f sec (combined time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
+		UE_LOG(LogNiagara, Verbose, TEXT("Compiling System %s took %f sec (wall time), %f sec (combined time)."), *GetFullName(), (float)(FPlatformTime::Seconds() - ActiveCompilations[ActiveCompileIdx].StartTime),
 			CombinedCompileTime);
 
 		ActiveCompilations.RemoveAt(ActiveCompileIdx);
