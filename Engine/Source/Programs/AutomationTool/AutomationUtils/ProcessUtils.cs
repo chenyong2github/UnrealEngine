@@ -762,6 +762,46 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Resolves the passed in name using the path environment
+		/// </summary>
+		/// <param name="App"></param>
+		/// <returns></returns>
+		public static string WhichApp(string App, bool Quiet=true)
+		{
+			if (FileExists(Quiet, App))
+			{
+				return App;
+			}
+
+			string ResolvedPath = null;
+
+			if (!App.Contains(Path.DirectorySeparatorChar) && !App.Contains(Path.AltDirectorySeparatorChar))
+			{
+				string[] PathDirectories = Environment.GetEnvironmentVariable("PATH").Split(Path.PathSeparator);
+				foreach (string PathDirectory in PathDirectories)
+				{
+					string TryApp = Path.Combine(PathDirectory, App);
+					if (FileExists(Quiet, TryApp))
+					{
+						ResolvedPath = TryApp;
+						break;
+					}
+				}
+			}
+
+			if (ResolvedPath != null)
+			{
+				Log.TraceVeryVerbose("Resolved {0} to {1}", App, ResolvedPath);
+			}
+			else
+			{
+				Log.TraceVerbose("Could not resolve app {0}", App);
+			}
+
+			return ResolvedPath;
+		}
+
+		/// <summary>
 		/// Runs external program.
 		/// </summary>
 		/// <param name="App">Program filename.</param>
@@ -780,29 +820,18 @@ namespace AutomationTool
 			{
 				Options &= ~ERunOptions.AppMustExist;
 			}
-
+			
 			// Check if the application exists, including the PATH directories.
 			if (Options.HasFlag(ERunOptions.AppMustExist) && !FileExists(Options.HasFlag(ERunOptions.NoLoggingOfRunCommand) ? true : false, App))
 			{
-				bool bExistsInPath = false;
-				if(!App.Contains(Path.DirectorySeparatorChar) && !App.Contains(Path.AltDirectorySeparatorChar))
-				{
-					string[] PathDirectories = Environment.GetEnvironmentVariable("PATH").Split(Path.PathSeparator);
-					foreach(string PathDirectory in PathDirectories)
-					{
-						string TryApp = Path.Combine(PathDirectory, App);
-						if(FileExists(Options.HasFlag(ERunOptions.NoLoggingOfRunCommand), TryApp))
-						{
-							App = TryApp;
-							bExistsInPath = true;
-							break;
-						}
-					}
-				}
-				if(!bExistsInPath)
+				string ResolvedPath = WhichApp(App);
+
+				if(string.IsNullOrEmpty(ResolvedPath))
 				{
 					throw new AutomationException("BUILD FAILED: Couldn't find the executable to run: {0}", App);
 				}
+
+				App = ResolvedPath;
 			}
 			var StartTime = DateTime.UtcNow;
 
