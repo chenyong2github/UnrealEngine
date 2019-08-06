@@ -133,14 +133,8 @@ protected:
 	void OnAddKey();
 	bool CanAddKey() const;
 
-	void OnSetMarkedKey();
-	bool CanSetMarkedKey() const;
-
-	void OnResetMarkedKey();
-	bool CanResetMarkedKey() const;
-
-	void OnSnapToMarkedKey(bool bAlign);
-	bool CanSnapToMarkedKey() const;
+	void OnSnapToNearestSplinePoint(bool bAlign);
+	bool CanSnapToNearestSplinePoint() const;
 
 	void OnSnapAll(EAxis::Type InAxis);
 	bool CanSnapAll() const;
@@ -163,16 +157,6 @@ protected:
 	void OnResetToDefault();
 	bool CanResetToDefault() const;
 
-
-	/** Returns true if specified spline component contains the marked key */
-	bool ContainsMarkedKey(const USplineComponent* InSplineComp) const;
-
-	/** Returns true if specified spline component and key index are the marked key */
-	bool IsMarkedKey(const USplineComponent* InSplineComp, int32 InKeyIdx) const;
-
-	/** Returns true if there is a valid marked key */
-	bool HasMarkedKey() const;
-
 	/** Generate the submenu containing the available point types */
 	void GenerateSplinePointTypeSubMenu(FMenuBuilder& MenuBuilder) const;
 
@@ -182,9 +166,6 @@ protected:
 	/** Generate the submenu containing the available snap/align actions */
 	void GenerateSnapAlignSubMenu(FMenuBuilder& MenuBuilder) const;
 	
-	/** Generate the submenu containing the mark key actions */
-	void GenerateMarkSubMenu(FMenuBuilder& MenuBuilder) const;
-
 	/** Generate the submenu containing the lock axis types */
 	void GenerateLockAxisSubMenu(FMenuBuilder& MenuBuilder) const;
 
@@ -230,12 +211,6 @@ protected:
 
 	/** Whether we currently allow duplication when dragging */
 	bool bAllowDuplication;
-
-	/** Spline component containing marked spline point, used for snapping. */
-	TWeakObjectPtr<USplineComponent> MarkedKeySplineComponent;
-
-	/** Index of marked spline point, used for snapping. Note: this is not necessarily in the current spline component. */
-	int32 MarkedKeyIndex;
 
 	/** Axis to fix when adding new spline points. Uses the value of the currently 
 	    selected spline point's X, Y, or Z value when fix is not equal to none. */
