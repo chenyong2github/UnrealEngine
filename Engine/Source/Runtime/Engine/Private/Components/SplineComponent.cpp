@@ -24,12 +24,6 @@ USplineMetadata::USplineMetadata(const FObjectInitializer& ObjectInitializer)
 }
 
 USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
- : USplineComponent(ObjectInitializer, nullptr)
-{
-
-}
-
-USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, USplineMetadata* Metadata)
 	: Super(ObjectInitializer)
 	, bAllowSplineEditingPerInstance_DEPRECATED(true)
 	, ReparamStepsPerSegment(10)
@@ -49,8 +43,6 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, 
 	, ScaleVisualizationWidth(30.0f)
 #endif
 {
-	SplineCurves.Metadata = Metadata;
-
 	SplineCurves.Position.Points.Reset(10);
 	SplineCurves.Rotation.Points.Reset(10);
 	SplineCurves.Scale.Points.Reset(10);
@@ -69,12 +61,6 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, 
 		EditorSelectedSplineSegmentColor = GEngine->GetSelectionOutlineColor();
 	}
 #endif
-
-	if (SplineCurves.Metadata)
-	{
-		const int32 NumPoints = GetNumberOfSplinePoints();
-		SplineCurves.Metadata->Fixup(NumPoints);
-	}
 
 	UpdateSpline();
 
@@ -162,12 +148,6 @@ void USplineComponent::Serialize(FArchive& Ar)
 void USplineComponent::PostLoad()
 {
 	Super::PostLoad();
-
-	if (USplineMetadata* MetaData = GetSplinePointsMetadata())
-	{
-		const int32 NumPoints = GetNumberOfSplinePoints();
-		MetaData->Fixup(NumPoints);
-	}
 }
 
 void FSplineCurves::UpdateSpline(bool bClosedLoop, bool bStationaryEndpoints, int32 ReparamStepsPerSegment, bool bLoopPositionOverride, float LoopPosition, const FVector& Scale3D)
