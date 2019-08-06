@@ -510,6 +510,8 @@ void SButton::SetButtonStyle(const FButtonStyle* ButtonStyle)
 
 	HoveredSound = Style->HoveredSlateSound;
 	PressedSound = Style->PressedSlateSound;
+
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 void SButton::SetClickMethod(EButtonClickMethod::Type InClickMethod)
