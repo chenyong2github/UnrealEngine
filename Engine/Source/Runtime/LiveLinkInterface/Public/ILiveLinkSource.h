@@ -19,12 +19,14 @@ public:
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) = 0;
 	virtual void InitializeSettings(ULiveLinkSourceSettings* Settings) {}
 	virtual void Update() {}
+	virtual bool IsSourceValid() const = 0;
+	virtual bool RequestSourceShutdown() = 0;
+
+	UE_DEPRECATED(4.23, "ILiveLinkSource::IsSourceStillValid is deprecated. Please use IsSourceValid instead!")
+	virtual bool IsSourceStillValid() { return IsSourceValid(); }
 
 	// Can this source be displayed in the Source UI list
 	virtual bool CanBeDisplayedInUI() const { return true; }
-
-	virtual bool IsSourceStillValid() const = 0;
-	virtual bool RequestSourceShutdown() = 0;
 
 	virtual FText GetSourceType() const = 0;
 	virtual FText GetSourceMachineName() const = 0;

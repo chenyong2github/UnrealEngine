@@ -185,7 +185,7 @@ void FLiveLinkMessageBusSource::InternalHandleMessage(const TSharedRef<IMessageC
 	}
 }
 
-bool FLiveLinkMessageBusSource::IsSourceStillValid() const
+bool FLiveLinkMessageBusSource::IsSourceValid() const
 {
 	return ConnectionAddress.IsValid() && bIsValid;
 }
@@ -196,7 +196,7 @@ FText FLiveLinkMessageBusSource::GetSourceStatus() const
 	{
 		return NSLOCTEXT("LiveLinkMessageBusSource", "InvalidConnection", "Waiting for connection");
 	}
-	else if (IsSourceStillValid())
+	else if (IsSourceValid())
 	{
 		return NSLOCTEXT("LiveLinkMessageBusSource", "ActiveStatus", "Active");
 	}

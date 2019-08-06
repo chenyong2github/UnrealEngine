@@ -20,7 +20,7 @@ void FMagicLeapHandTracking::ReceiveClient(ILiveLinkClient* InClient, FGuid InSo
 	bNewLiveLinkClient = true;
 }
 
-bool FMagicLeapHandTracking::IsSourceStillValid() const
+bool FMagicLeapHandTracking::IsSourceValid() const
 {
 	return LiveLinkClient != nullptr;
 }

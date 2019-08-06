@@ -33,7 +33,7 @@ public:
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
 	virtual void Update() override;
 
-	virtual bool IsSourceStillValid() const override;
+	virtual bool IsSourceValid() const override;
 
 	virtual bool RequestSourceShutdown() override;
 

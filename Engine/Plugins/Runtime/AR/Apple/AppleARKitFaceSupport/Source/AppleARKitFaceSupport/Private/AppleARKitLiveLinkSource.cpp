@@ -118,7 +118,7 @@ void FAppleARKitLiveLinkSource::ReceiveClient(ILiveLinkClient* InClient, FGuid I
 	SourceGuid = InSourceGuid;
 }
 
-bool FAppleARKitLiveLinkSource::IsSourceStillValid() const
+bool FAppleARKitLiveLinkSource::IsSourceValid() const
 {
 	return Client != nullptr;
 }
