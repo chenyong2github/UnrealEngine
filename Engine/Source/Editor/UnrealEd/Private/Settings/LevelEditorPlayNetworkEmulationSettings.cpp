@@ -313,10 +313,15 @@ FString FLevelEditorPlayNetworkEmulationSettings::BuildPacketSettingsForURL() co
 
 void FLevelEditorPlayNetworkEmulationSettings::OnPostInitProperties()
 {
-	if (!IsCustomProfile())
+	if (CurrentProfile.IsEmpty())
 	{
-		// For official profiles reload the settings from the configs in case some values got changed
+		CurrentProfile = NetworkEmulationSettingsHelper::GetCustomProfileName();
+	}
+	else if (!IsCustomProfile())
+	{
+		// For official profiles reload the settings from the config in case some values got changed
 		FPacketSimulationSettings NetDriverSettings;
+
 		bool bProfileFound = NetDriverSettings.LoadEmulationProfile(*CurrentProfile);
 
 		if (bProfileFound)
