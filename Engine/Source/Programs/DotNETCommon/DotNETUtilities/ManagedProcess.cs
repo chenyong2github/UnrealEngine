@@ -453,6 +453,11 @@ namespace Tools.DotNETCommon
 						}
 					}
 				}
+				catch (Exception Ex)
+				{
+					ExceptionUtils.AddContext(Ex, "while launching {0} {1}", FileName, CommandLine);
+					throw;
+				}
 				finally
 				{
 					if(EnvironmentBlock != IntPtr.Zero)
