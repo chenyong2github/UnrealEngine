@@ -262,7 +262,10 @@ int32 SScaleBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 		LastPaintGeometry = AllottedGeometry;
 		const_cast<SScaleBox*>(this)->Invalidate(EInvalidateWidgetReason::Layout);
 		const_cast<SScaleBox*>(this)->InvalidatePrepass();
-		//const_cast<SScaleBox*>(this)->SlatePrepass(GetPrepassLayoutScaleMultiplier());
+		if (Stretch.Get() == EStretch::UserSpecified)
+		{
+			const_cast<SScaleBox*>(this)->SlatePrepass(GetPrepassLayoutScaleMultiplier());
+		}
 	}
 
 	bool bClippingNeeded = false;
