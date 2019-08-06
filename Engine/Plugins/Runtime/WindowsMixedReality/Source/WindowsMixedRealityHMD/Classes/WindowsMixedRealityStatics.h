@@ -49,7 +49,7 @@ namespace WindowsMixedReality
 			float value);
 #endif
 		// Remoting
-		static void ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate);
+		static void ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate, bool isHoloLens1);
 		static void DisconnectFromRemoteHoloLens();
 	};
 }

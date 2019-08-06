@@ -48,6 +48,8 @@
 #define HOLO_STREAMING_RENDERING 1
 #include <winrt/Windows.Data.Xml.Dom.h>
 #include <winrt/Windows.Storage.h>
+// HoloLens 1 Remoting
+#include <HolographicStreamerHelpers.h>
 #else
 #define HOLO_STREAMING_RENDERING 0
 #endif
@@ -118,6 +120,7 @@ namespace WindowsMixedReality
 
 	bool bInitialized = false;
 	bool isRemoteHolographicSpace = false;
+	bool m_isHL1Remoting = false;
 
 	HolographicSpace holographicSpace = nullptr;
 	winrt::Windows::Perception::Spatial::SpatialLocator Locator = nullptr;
@@ -272,6 +275,14 @@ namespace WindowsMixedReality
     winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnConnected_revoker m_onConnectedEventRevoker;
     winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnDisconnected_revoker m_onDisconnectedEventRevoker;
     winrt::Microsoft::Holographic::AppRemoting::IRemoteSpeech::OnRecognizedSpeech_revoker m_onRecognizedSpeechRevoker;
+	
+	// HoloLens 1 Remoting
+	Microsoft::Holographic::HolographicStreamerHelpers^ m_streamerHelpers;
+	Microsoft::WRL::Wrappers::SRWLock m_connectionStateLock;
+	Windows::Foundation::EventRegistrationToken ConnectedToken;
+	Windows::Foundation::EventRegistrationToken DisconnectedToken;
+	Microsoft::Holographic::ConnectedEvent^ RemotingConnectedEvent = nullptr;
+	Microsoft::Holographic::DisconnectedEvent^ RemotingDisconnectedEvent = nullptr;
 #endif // HOLO_STREAMING_RENDERING
 #endif // !PLATFORM_HOLOLENS
 
@@ -1170,7 +1181,7 @@ namespace WindowsMixedReality
 		}
 
 		quadLayers.clear();
-		if (CameraResources != nullptr && CameraResources->GetCamera() != nullptr)
+		if (!m_isHL1Remoting && CameraResources != nullptr && CameraResources->GetCamera() != nullptr)
 		{
 			for (HolographicQuadLayer layer : CameraResources->GetCamera().QuadLayers())
 			{
@@ -1589,8 +1600,11 @@ namespace WindowsMixedReality
 		{
 #if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
 			// Wait for a frame to be ready before creating one.
-			// Do not wait for a frame if we are running on the emulator.r
-			holographicSpace.WaitForNextFrameReady();
+			// Do not wait for a frame if we are running on the emulator or HL1 Remoting.
+			if (!m_isHL1Remoting)
+			{
+				holographicSpace.WaitForNextFrameReady();
+			}
 #endif
 			
 			HolographicFrame frame = holographicSpace.CreateNextFrame();
@@ -1868,7 +1882,7 @@ namespace WindowsMixedReality
 			CurrentFrameResources->GetBackBufferTexture());
 
 		// Quad Layers
-		uint32_t maxQuadLayers = CameraResources->GetCamera().MaxQuadLayerCount();
+		uint32_t maxQuadLayers = m_isHL1Remoting ? 0 : CameraResources->GetCamera().MaxQuadLayerCount();
 		if (maxQuadLayers > 0)
 		{
 			if (quadLayers.size() > CameraResources->GetCamera().QuadLayers().Size())
@@ -2150,6 +2164,7 @@ namespace WindowsMixedReality
 				SpatialInteractionSourceLocation sourceLocation = prop.TryGetLocation(coordinateSystem);
 				if (sourceLocation != nullptr)
 				{
+					if (source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
 					{
 						float3 pos = sourceLocation.SourcePointerPose().Position();
 						float3 forward = sourceLocation.SourcePointerPose().ForwardDirection();
@@ -3174,12 +3189,19 @@ namespace WindowsMixedReality
 		return gestureRecognizerMap[id]->SubscribeNavigation(callback, settings);
 	}
 
-	void MixedRealityInterop::ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t * ip, int bitrate)
+	void MixedRealityInterop::ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t * ip, int bitrate, bool IsHoloLens1)
 	{
 #if HOLO_STREAMING_RENDERING
-		{ std::wstringstream string; string << L"ConnectToRemoteHoloLens trying to connect to " << ip; Log(string); }
+		if (IsHoloLens1)
+		{
+			{ std::wstringstream string; string << L"ConnectToRemoteHoloLens trying to connect to HoloLens1 " << ip; Log(string); }
+		}
+		else
+		{
+			{ std::wstringstream string; string << L"ConnectToRemoteHoloLens trying to connect to HoloLens2 " << ip; Log(string); }
+		}
 		
-		if (m_remoteContext != nullptr)
+		if (m_remoteContext != nullptr || m_streamerHelpers != nullptr)
 		{
 			// We are already connected to the remote device.
 			Log(L"ConnectToRemoteHoloLens: Already connected. Doing nothing.");
@@ -3192,6 +3214,67 @@ namespace WindowsMixedReality
 
 			wcsncpy_s(m_ip, ip, std::size(m_ip));
 
+			m_isHL1Remoting = IsHoloLens1;
+
+			// HoloLens 1 has a different remoting stack.
+			if (IsHoloLens1)
+			{
+				supportsHandedness = false;
+
+				// Connecting to the remote device can change the connection state.
+				auto exclusiveLock = m_connectionStateLock.LockExclusive();
+
+				m_streamerHelpers = ref new Microsoft::Holographic::HolographicStreamerHelpers();
+				m_streamerHelpers->CreateStreamer(device);
+				m_streamerHelpers->SetVideoFrameSize(1280, 720);
+				m_streamerHelpers->SetMaxBitrate(bitrate);
+
+				RemotingConnectedEvent = ref new Microsoft::Holographic::ConnectedEvent(
+					[this]()
+				{
+					isRemoteHolographicSpace = true;
+
+					winrt::check_hresult(reinterpret_cast<::IUnknown*>(m_streamerHelpers->HolographicSpace)
+						->QueryInterface(winrt::guid_of<HolographicSpace>(),
+							reinterpret_cast<void**>(winrt::put_abi(holographicSpace))));
+
+					interactionManager = SpatialInteractionManager::GetForCurrentView();
+					{
+						std::lock_guard<std::mutex> lock(gestureRecognizerLock);
+						for (auto p : gestureRecognizerMap)
+						{
+							if (p.second)
+							{
+								p.second->Init();
+							}
+						}
+					}
+
+					CreateSpatialAnchorHelper(*this);
+				});
+				ConnectedToken = m_streamerHelpers->OnConnected += RemotingConnectedEvent;
+
+				RemotingDisconnectedEvent = ref new Microsoft::Holographic::DisconnectedEvent(
+					[this](_In_ Microsoft::Holographic::HolographicStreamerConnectionFailureReason failureReason)
+				{
+					DisconnectFromDevice();
+				});
+				DisconnectedToken = m_streamerHelpers->OnDisconnected += RemotingDisconnectedEvent;
+
+				try
+				{
+					m_streamerHelpers->Connect(m_ip, 8001);
+				}
+				catch (Platform::Exception^ ex)
+				{
+					{ std::wstringstream string; string << L"Connect failed with hr =  " << ex->HResult; Log(string); }
+				}
+
+				return;
+			}
+
+			// HoloLens 2 Remoting
+			
 			// Do not use WMR api's before this call when remoting or you may get access to local machine WMR instead.
 			CreateRemoteContext(m_remoteContext, bitrate);
 			{
@@ -3312,6 +3395,34 @@ namespace WindowsMixedReality
 	void MixedRealityInterop::DisconnectFromDevice()
 	{
 #if HOLO_STREAMING_RENDERING
+		if (m_isHL1Remoting)
+		{
+			// Disconnecting from the remote device can change the connection state.
+			auto exclusiveLock = m_connectionStateLock.LockExclusive();
+
+			if (m_streamerHelpers != nullptr)
+			{
+				Log(L"DisconnectFromDevice: Disconnecting from wmr device.");
+
+				m_streamerHelpers->OnConnected -= ConnectedToken;
+				m_streamerHelpers->OnDisconnected -= DisconnectedToken;
+
+				RemotingConnectedEvent = nullptr;
+				RemotingDisconnectedEvent = nullptr;
+
+				m_streamerHelpers->Disconnect();
+
+				// Reset state
+				m_streamerHelpers = nullptr;
+
+				DestroySpatialAnchorHelper();
+
+				Dispose(true);
+			}
+
+			return;
+		}
+		
 		if (m_remoteContext != nullptr)
 		{
 			Log(L"DisconnectFromDevice: Disconnecting from wmr device.");

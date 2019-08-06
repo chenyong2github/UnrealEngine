@@ -66,16 +66,16 @@
 		<PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions);MIXEDREALITYINTEROP_EXPORTS;WITH_SCENE_UNDERSTANDING=$(WithSceneUnderstanding)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;../Include/HoloLens1Remoting</AdditionalIncludeDirectories>
       <CompileAsWinRT>true</CompileAsWinRT>
       <AdditionalUsingDirectories>$(VCIDEInstallDir)vcpackages;$(WindowsSDKDir)UnionMetadata\$(TargetPlatformVersion);$(WindowsSDKDir)UnionMetadata;</AdditionalUsingDirectories>
-      <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/await /bigobj %(AdditionalOptions)</AdditionalOptions>
       <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\Microsoft.Holographic.AppRemoting.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(ProjectDir)..\Lib\x64\d3d11.lib;$(ProjectDir)..\Lib\x64\Microsoft.Holographic.AppRemoting.lib;$(ProjectDir)..\Lib\x64\OneCore.lib;mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(ProjectDir)..\Lib\x64\d3d11.lib;$(ProjectDir)..\Lib\x64\Microsoft.Holographic.AppRemoting.lib;$(ProjectDir)..\Lib\x64\OneCore.lib;mmdevapi.lib;HolographicStreamerDesktop.lib;Microsoft.Perception.Simulation.lib;PerceptionSimulationManager.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImportLibrary>..\Lib\x64\$(TargetName).lib</ImportLibrary>
     </Link>
     <Lib>
@@ -95,7 +95,7 @@
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;../Include/HoloLens1Remoting</AdditionalIncludeDirectories>
       <CompileAsWinRT>true</CompileAsWinRT>
       <AdditionalUsingDirectories>$(VCIDEInstallDir)vcpackages;$(WindowsSDKDir)UnionMetadata\$(TargetPlatformVersion);$(WindowsSDKDir)UnionMetadata</AdditionalUsingDirectories>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
@@ -106,7 +106,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)Lib\x64\d3d11.lib;$(SolutionDir)Lib\x64\Microsoft.Holographic.AppRemoting.lib;$(SolutionDir)Lib\x64\OneCore.lib;mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)Lib\x64\d3d11.lib;$(SolutionDir)Lib\x64\Microsoft.Holographic.AppRemoting.lib;$(SolutionDir)Lib\x64\OneCore.lib;mmdevapi.lib;HolographicStreamerDesktop.lib;Microsoft.Perception.Simulation.lib;PerceptionSimulationManager.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImportLibrary>..\Lib\x64\$(TargetName).lib</ImportLibrary>
       <AdditionalOptions>/IGNORE:4264 %(AdditionalOptions)</AdditionalOptions>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
