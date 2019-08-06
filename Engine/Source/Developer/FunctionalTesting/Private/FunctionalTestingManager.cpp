@@ -64,6 +64,7 @@ UFunctionalTestingManager::UFunctionalTestingManager( const FObjectInitializer& 
 	, bFinished(false)
 	, bLooped(false)
 	, bInitialDelayApplied(false)
+    , bIsTearingDown(false)
 	, CurrentIteration(INDEX_NONE)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
@@ -223,6 +224,8 @@ void UFunctionalTestingManager::OnWorldCleanedUp(UWorld* World, bool bSessionEnd
 
 		// Clear the functional test manager once the world is removed.
 		IFunctionalTestingModule::Get().SetManager(nullptr);
+        
+        bIsTearingDown = true;
 	}
 }
 
@@ -255,7 +258,7 @@ void UFunctionalTestingManager::NotifyTestDone(AFunctionalTest* FTest)
 		}
 	}
 
-	if (TestsLeft.Num() > 0 || TestReproStrings.Num() > 0)
+	if ((TestsLeft.Num() > 0 || TestReproStrings.Num() > 0) && !bIsTearingDown)
 	{
 		bIsRunning = RunFirstValidTest();
 	}
