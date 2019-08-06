@@ -558,7 +558,6 @@ public:
 	{
 		static FPlatformAudioCookOverrides Settings;
 
-#if !WITH_EDITOR
 		static bool bCachedPlatformSettings = false;
 
 		if (!bCachedPlatformSettings)
@@ -566,9 +565,6 @@ public:
 			Windows::CachePlatformAudioCookOverrides(Settings);
 			bCachedPlatformSettings = true;
 		}
-#else
-		Windows::CachePlatformAudioCookOverrides(Settings);
-#endif
 
 		return &Settings;
 	}

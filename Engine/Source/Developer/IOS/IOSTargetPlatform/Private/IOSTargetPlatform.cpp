@@ -845,7 +845,6 @@ FPlatformAudioCookOverrides* FIOSTargetPlatform::GetAudioCompressionSettings() c
 {
 	static FPlatformAudioCookOverrides Settings;
 
-#if !WITH_EDITOR
 	static bool bCachedPlatformSettings = false;
 
 	if (!bCachedPlatformSettings)
@@ -853,9 +852,6 @@ FPlatformAudioCookOverrides* FIOSTargetPlatform::GetAudioCompressionSettings() c
 		IOS::CachePlatformAudioCookOverrides(Settings);
 		bCachedPlatformSettings = true;
 	}
-#else
-	IOS::CachePlatformAudioCookOverrides(Settings);
-#endif
 
 	return &Settings;
 }
