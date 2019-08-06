@@ -324,7 +324,7 @@ private:
 				GUnrealEd->GetPackageAutoSaver().DisableRestorePromptAndDeclinePackageRecovery();
 			}
 
-			DisasterRecoveryUtil::StartRecovery(DisasterRecoveryClient->GetConcertClient(), InSessionInfoToRestore->LastSessionName, /*bLiveDataOnly*/ false);
+			DisasterRecoveryUtil::StartRecovery(DisasterRecoveryClient.ToSharedRef(), InSessionInfoToRestore->LastSessionName, /*bLiveDataOnly*/ false);
 		}
 
 		return true;
