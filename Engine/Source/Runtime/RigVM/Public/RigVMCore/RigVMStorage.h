@@ -343,6 +343,58 @@ public:
 		return Allocate(InNewName, sizeof(T), InCount, InSliceCount, (const void*)InDataPtr);
 	}
 
+	template<>
+	FORCEINLINE int32 AddPlainArray(const FName& InNewName, int32 InCount, const FName* InDataPtr, int32 InSliceCount)
+	{
+		int32 Register = Allocate(InNewName, sizeof(FName), InCount, InSliceCount, nullptr);
+		Registers[Register].Type = ERigVMRegisterType::Name;
+
+		Construct(Register);
+
+		if (InDataPtr)
+		{
+			Registers[Register].MoveToFirstSlice();
+			for (uint16 SliceIndex = 0; SliceIndex < Registers[Register].SliceCount; SliceIndex++)
+			{
+				FName* DataPtr = (FName*)GetData(Register);
+				for (int32 Index = 0; Index < InCount; Index++)
+				{
+					DataPtr[Index] = InDataPtr[Index];
+				}
+				Registers[Register].MoveToNextSlice();
+			}
+			Registers[Register].MoveToFirstSlice();
+		}
+
+		return Register;
+	}
+
+	template<>
+	FORCEINLINE int32 AddPlainArray(const FName& InNewName, int32 InCount, const FString* InDataPtr, int32 InSliceCount)
+	{
+		int32 Register = Allocate(InNewName, sizeof(FString), InCount, InSliceCount, nullptr);
+		Registers[Register].Type = ERigVMRegisterType::String;
+
+		Construct(Register);
+
+		if (InDataPtr)
+		{
+			Registers[Register].MoveToFirstSlice();
+			for (uint16 SliceIndex = 0; SliceIndex < Registers[Register].SliceCount; SliceIndex++)
+			{
+				FString* DataPtr = (FString*)GetData(Register);
+				for (int32 Index = 0; Index < InCount; Index++)
+				{
+					DataPtr[Index] = InDataPtr[Index];
+				}
+				Registers[Register].MoveToNextSlice();
+			}
+			Registers[Register].MoveToFirstSlice();
+		}
+
+		return Register;
+	}
+
 	template<class T>
 	FORCEINLINE int32 AddPlainArray(const FName& InNewName, const TArray<T>& InArray, int32 InSliceCount = 1)
 	{
@@ -376,97 +428,6 @@ public:
 	{
 		return AddPlain<T>(NAME_None, InValue, InSliceCount);
 	}
-
-	FORCEINLINE int32 AddNameArray(const FName& InNewName, int32 InCount, const FName* InDataPtr = nullptr, int32 InSliceCount = 1)
-	{
-		int32 Register = Allocate(InNewName, sizeof(FName), InCount, InSliceCount, nullptr);
-		Registers[Register].Type = ERigVMRegisterType::Name;
-
-		Construct(Register);
-
-		if(InDataPtr)
-		{
-			Registers[Register].MoveToFirstSlice();
-			for (uint16 SliceIndex = 0; SliceIndex < Registers[Register].SliceCount; SliceIndex++)
-			{
-				FName* DataPtr = (FName*)GetData(Register);
-				for (int32 Index = 0; Index < InCount; Index++)
-				{
-					DataPtr[Index] = InDataPtr[Index];
-				}
-				Registers[Register].MoveToNextSlice();
-			}
-			Registers[Register].MoveToFirstSlice();
-		}
-
-		return Register;
-	}
-
-	FORCEINLINE int32 AddNameArray(const FName& InNewName, const TArray<FName>& InArray, int32 InSliceCount = 1)
-	{
-		return AddNameArray(InNewName, InArray.Num(), InArray.GetData(), InSliceCount);
-	}
-
-	FORCEINLINE int32 AddNameArray(const TArray<FName>& InArray, int32 InSliceCount = 1)
-	{
-		return AddNameArray(NAME_None, InArray, InSliceCount);
-	}
-
-	FORCEINLINE int32 AddName(const FName& InNewName, const FName& InValue, int32 InSliceCount = 1)
-	{
-		return AddNameArray(InNewName, 1, &InValue, InSliceCount);
-	}
-
-	FORCEINLINE int32 AddName(const FName& InValue, int32 InSliceCount = 1)
-	{
-		return AddName(NAME_None, InValue, InSliceCount);
-	}
-
-	FORCEINLINE int32 AddStringArray(const FName& InNewName, int32 InCount, const FString* InDataPtr = nullptr, int32 InSliceCount = 1)
-	{
-		int32 Register = Allocate(InNewName, sizeof(FString), InCount, InSliceCount, nullptr);
-		Registers[Register].Type = ERigVMRegisterType::String;
-
-		Construct(Register);
-
-		if(InDataPtr)
-		{
-			Registers[Register].MoveToFirstSlice();
-			for (uint16 SliceIndex = 0; SliceIndex < Registers[Register].SliceCount; SliceIndex++)
-			{
-				FString* DataPtr = (FString*)GetData(Register);
-				for (int32 Index = 0; Index < InCount; Index++)
-				{
-					DataPtr[Index] = InDataPtr[Index];
-				}
-				Registers[Register].MoveToNextSlice();
-			}
-			Registers[Register].MoveToFirstSlice();
-		}
-
-		return Register;
-	}
-
-	FORCEINLINE int32 AddStringArray(const FName& InNewName, const TArray<FString>& InArray, int32 InSliceCount = 1)
-	{
-		return AddStringArray(InNewName, InArray.Num(), InArray.GetData(), InSliceCount);
-	}
-
-	FORCEINLINE int32 AddStringArray(const TArray<FString>& InArray, int32 InSliceCount = 1)
-	{
-		return AddStringArray(NAME_None, InArray, InSliceCount);
-	}
-
-	FORCEINLINE int32 AddString(const FName& InNewName, const FString& InValue, int32 InSliceCount = 1)
-	{
-		return AddStringArray(InNewName, 1, &InValue, InSliceCount);
-	}
-
-	FORCEINLINE int32 AddString(const FString& InValue, int32 InSliceCount = 1)
-	{
-		return AddString(NAME_None, InValue, InSliceCount);
-	}
-
 
 	FORCEINLINE int32 AddStructArray(const FName& InNewName, UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr, int32 InSliceCount = 1)
 	{
