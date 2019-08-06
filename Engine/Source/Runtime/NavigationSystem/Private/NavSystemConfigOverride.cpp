@@ -79,6 +79,8 @@ void ANavSystemConfigOverride::PostLoad()
 #endif // WITH_EDITOR
 			)
 		{
+			
+			UNavigationSystemBase* PrevNavSysBase = World->GetNavigationSystem();
 			World->SetNavigationSystem(nullptr);
 
 			const FNavigationSystemRunMode RunMode = World->WorldType == EWorldType::Editor
@@ -103,6 +105,12 @@ void ANavSystemConfigOverride::PostLoad()
 			else
 			{
 				FNavigationSystem::AddNavigationSystemToWorld(*World, RunMode, NavigationSystemConfig, /*bInitializeForWorld=*/true);
+			}
+
+			UNavigationSystemBase* NewNavSys = World->GetNavigationSystem();
+			if (NewNavSys && PrevNavSysBase)
+			{
+				NewNavSys->OnNavSystemOverriden(PrevNavSysBase);
 			}
 		}
 	}
