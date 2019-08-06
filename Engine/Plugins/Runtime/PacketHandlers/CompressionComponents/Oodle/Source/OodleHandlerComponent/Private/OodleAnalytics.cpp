@@ -191,7 +191,6 @@ void FOodleNetAnalyticsData::SendAnalytics()
 		UE_LOG(OodleHandlerComponentLog, Log, TEXT(" - OutAttemptedSavingsWithOverheadPercentTotal: %i"), OutAttemptedSavingsWithOverheadPercentTotal);
 
 
-		static const FString EZEventName = TEXT("Oodle.Stats");
 		static const FString EZAttrib_InCompressedNum = TEXT("InCompressedNum");
 		static const FString EZAttrib_InNotCompressedNum = TEXT("InNotCompressedNum");
 		static const FString EZAttrib_InCompressedWithOverheadLengthTotal = TEXT("InCompressedWithOverheadLengthTotal");
@@ -258,6 +257,16 @@ void FOodleNetAnalyticsData::SendAnalytics()
 			EZAttrib_OutAttemptedSavingsWithOverheadPercentTotal, OutAttemptedSavingsWithOverheadPercentTotal
 		);
 
-		AnalyticsProvider->RecordEvent(EZEventName, EventAttributes);
+		AnalyticsProvider->RecordEvent(GetAnalyticsEventName(), EventAttributes);
 	}
+}
+
+const TCHAR* FOodleNetAnalyticsData::GetAnalyticsEventName() const
+{
+	return TEXT("Oodle.Stats");
+}
+
+const TCHAR* FClientOodleNetAnalyticsData::GetAnalyticsEventName() const
+{
+	return TEXT("Oodle.ClientStats");
 }

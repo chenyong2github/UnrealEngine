@@ -1267,7 +1267,16 @@ void OodleHandlerComponent::NotifyAnalyticsProvider()
 
 		if (Handler->GetProvider().IsValid() && Aggregator.IsValid())
 		{
-			NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FOodleNetAnalyticsData, TEXT("Oodle.Stats"));
+			const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
+
+			if (bIsServer)
+			{
+				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FOodleNetAnalyticsData, TEXT("Oodle.Stats"));
+			}
+			else
+			{
+				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FClientOodleNetAnalyticsData, TEXT("Oodle.ClientStats"));
+			}
 		}
 	}
 

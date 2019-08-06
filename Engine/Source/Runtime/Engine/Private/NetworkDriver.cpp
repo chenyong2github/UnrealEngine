@@ -2248,6 +2248,11 @@ void UNetDriver::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider)
 		ConnectionlessHandler->NotifyAnalyticsProvider(AnalyticsProvider, AnalyticsAggregator);
 	}
 
+	if (ServerConnection != nullptr)
+	{
+		ServerConnection->NotifyAnalyticsProvider();
+	}
+
 	for (UNetConnection* CurConn : ClientConnections)
 	{
 		if (CurConn != nullptr)
