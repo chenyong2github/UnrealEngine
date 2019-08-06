@@ -9,6 +9,7 @@
 #include "Math/IntPoint.h"
 #include "MediaSampleQueue.h"
 #include "Misc/Timespan.h"
+#include "Templates/Atomic.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
@@ -94,9 +95,16 @@ public:
 	void SetMediaPlayer(UMediaPlayer* NewMediaPlayer);
 
 	/**
+	 * Caches the next available sample time from the queue when last rendering was made
+	 * @see GetNextSampleTime
+	 */
+	void CacheNextAvailableSampleTime(FTimespan InNextSampleTime);
+
+	/**
 	 * Gets the next sample Time. Only valid if GetAvailableSampleCount is greater than 0
-	 * @return FTimespan of the next sample
-	 * @see GetAvailableSampleCount
+	 * @note This value is cached when last render command was executed to keep single consumer requirements.
+	 * @return FTimespan of the next sample or FTimespan::MinValue if no sample was available in the queue.
+	 * @see GetAvailableSampleCount, CacheNextAvailableSampleTime
 	 */
 	FTimespan GetNextSampleTime() const;
 
@@ -204,4 +212,7 @@ private:
 
 	/** Critical section to protect last rendered guid since it can be read from anywhere. */
 	mutable FCriticalSection CriticalSection;
+
+	/** Next available sample time when last render call was made */
+	TAtomic<FTimespan> CachedNextSampleTime;
 };
