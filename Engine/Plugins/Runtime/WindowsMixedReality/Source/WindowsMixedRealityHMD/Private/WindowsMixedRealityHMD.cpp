@@ -191,7 +191,14 @@ namespace WindowsMixedReality
 					"Windows Mixed Reality is not supported on this Windows version. \nNote: UE4 only supports Windows Mixed Reality on Windows 10 Release {0} or higher. Current version: {1}")),
 					FText::FromString(FString::FromInt(MIN_WIN_10_VERSION_FOR_WMR)), FText::FromString(OSVersionLabel));
 				FMessageDialog::Open(EAppMsgType::Ok, ErrorText);
-				UE_LOG(LogWmrHmd, Error, TEXT("%s"), *ErrorText.ToString());
+				if (IsRunningCommandlet())
+				{
+					UE_LOG(LogWmrHmd, Warning, TEXT("%s"), *ErrorText.ToString());
+				}
+				else
+				{
+					UE_LOG(LogWmrHmd, Error, TEXT("%s"), *ErrorText.ToString());
+				}
 			}
 
 #else // !PLATFORM_HOLOLENS
