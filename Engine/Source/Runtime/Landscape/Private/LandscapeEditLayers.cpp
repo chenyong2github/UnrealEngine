@@ -67,6 +67,126 @@ static TAutoConsoleVariable<int32> CVarLandscapeSimulatePhysics(
 
 DECLARE_GPU_STAT_NAMED(LandscapeLayersRender, TEXT("Landscape Layer System Render"));
 
+// Custom Resources
+
+class FLandscapeTexture2DResource : public FTextureResource
+{
+public:
+	FLandscapeTexture2DResource(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, uint32 InNumMips, bool InNeedUAV)
+		: SizeX(InSizeX)
+		, SizeY(InSizeY)
+		, Format(InFormat)
+		, NumMips(InNumMips)
+		, CreateUAV(InNeedUAV)
+	{}
+
+	virtual uint32 GetSizeX() const override
+	{
+		return SizeX;
+	}
+
+	virtual uint32 GetSizeY() const override
+	{
+		return SizeY;
+	}
+
+	/** Called when the resource is initialized. This is only called by the rendering thread. */
+	virtual void InitRHI() override
+	{
+		FTextureResource::InitRHI();
+
+		FRHIResourceCreateInfo CreateInfo;
+		uint32 Flags = TexCreate_NoTiling | TexCreate_OfflineProcessed;
+
+		if (CreateUAV)
+		{
+			Flags |= TexCreate_UAV;
+		}
+
+		TextureRHI = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, 1, Flags, CreateInfo);
+
+		if (CreateUAV)
+		{
+			TextureUAV = RHICreateUnorderedAccessView(TextureRHI, 0);
+		}
+	}
+
+	FUnorderedAccessViewRHIRef TextureUAV;
+
+private:
+	uint32 SizeX;
+	uint32 SizeY;
+	EPixelFormat Format;
+	uint32 NumMips;
+	bool CreateUAV;
+};
+
+class FLandscapeTexture2DArrayResource : public FTextureResource
+{
+public:
+	FLandscapeTexture2DArrayResource(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, EPixelFormat InFormat, uint32 InNumMips, bool InNeedUAV)
+		: SizeX(InSizeX)
+		, SizeY(InSizeY)
+		, SizeZ(InSizeZ)
+		, Format(InFormat)
+		, NumMips(InNumMips)
+		, CreateUAV(InNeedUAV)
+	{}
+
+	virtual uint32 GetSizeX() const override
+	{
+		return SizeX;
+	}
+
+	virtual uint32 GetSizeY() const override
+	{
+		return SizeY;
+	}
+
+	virtual uint32 GetSizeZ() const
+	{
+		return SizeZ;
+	}
+
+	/** Called when the resource is initialized. This is only called by the rendering thread. */
+	virtual void InitRHI() override
+	{
+		FTextureResource::InitRHI();
+
+		FRHIResourceCreateInfo CreateInfo;
+		uint32 Flags = TexCreate_NoTiling | TexCreate_OfflineProcessed;
+
+		if (CreateUAV)
+		{
+			Flags |= TexCreate_UAV;
+		}
+
+		TextureRHI = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, 1, Flags, CreateInfo);
+
+		if (CreateUAV)
+		{
+			TextureUAV = RHICreateUnorderedAccessView(TextureRHI, 0);
+		}
+	}
+
+	virtual void ReleaseRHI() override
+	{
+		FTextureResource::ReleaseRHI();
+
+		TextureUAV.SafeRelease();
+	}
+
+	FUnorderedAccessViewRHIRef TextureUAV;
+
+private:
+	uint32 SizeX;
+	uint32 SizeY;
+	uint32 SizeZ;
+	EPixelFormat Format;
+	uint32 NumMips;
+	bool CreateUAV;
+};
+
 // Vertex format and vertex buffer
 
 struct FLandscapeLayersVertex
@@ -500,125 +620,59 @@ private:
 
 IMPLEMENT_GLOBAL_SHADER(FLandscapeLayersWeightmapMipsPS, "/Engine/Private/LandscapeLayersPS.usf", "PSWeightmapMainMips", SF_Pixel);
 
-// Custom Resources
-
-class FLandscapeTexture2DResource : public FTextureResource
+struct FLandscapeLayersWeightmapConvertFormatShaderParameter
 {
-public:
-	FLandscapeTexture2DResource(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, uint32 InNumMips, bool InNeedUAV)
-		: SizeX(InSizeX)
-		, SizeY(InSizeY)
-		, Format(InFormat)
-		, NumMips(InNumMips)
-		, CreateUAV(InNeedUAV)
+	FLandscapeLayersWeightmapConvertFormatShaderParameter()
+		: ReadWeightmap(nullptr)
 	{}
 
-	virtual uint32 GetSizeX() const override
-	{
-		return SizeX;
-	}
-
-	virtual uint32 GetSizeY() const override
-	{
-		return SizeY;
-	}
-
-	/** Called when the resource is initialized. This is only called by the rendering thread. */
-	virtual void InitRHI() override
-	{
-		FTextureResource::InitRHI();
-
-		FRHIResourceCreateInfo CreateInfo;
-		uint32 Flags = TexCreate_NoTiling | TexCreate_OfflineProcessed;
-
-		if (CreateUAV)
-		{
-			Flags |= TexCreate_UAV;
-		}
-
-		TextureRHI = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, 1, Flags, CreateInfo);
-
-		if (CreateUAV)
-		{
-			TextureUAV = RHICreateUnorderedAccessView(TextureRHI, 0);
-		}
-	}
-
-	FUnorderedAccessViewRHIRef TextureUAV;
-
-private:
-	uint32 SizeX;
-	uint32 SizeY;
-	EPixelFormat Format;
-	uint32 NumMips;
-	bool CreateUAV;
+	FLandscapeTexture2DResource* ReadWeightmap;
 };
 
-class FLandscapeTexture2DArrayResource : public FTextureResource
+// This Shader exists only to support Win7 because DX11.0 doesn't support UAVs on BGRA8 Textures.
+// The Shader will convert from R32 Format to BGRA8 Format
+class FLandscapeLayersWeightmapConvertFormatPS : public FGlobalShader
 {
+	DECLARE_GLOBAL_SHADER(FLandscapeLayersWeightmapConvertFormatPS);
 public:
-	FLandscapeTexture2DArrayResource(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, EPixelFormat InFormat, uint32 InNumMips, bool InNeedUAV)
-		: SizeX(InSizeX)
-		, SizeY(InSizeY)
-		, SizeZ(InSizeZ)
-		, Format(InFormat)
-		, NumMips(InNumMips)
-		, CreateUAV(InNeedUAV)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform) && !IsMetalPlatform(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+	}
+	FLandscapeLayersWeightmapConvertFormatPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		ReadTexture1Param.Bind(Initializer.ParameterMap, TEXT("ReadTexture1"));
+		ReadTexture1SamplerParam.Bind(Initializer.ParameterMap, TEXT("ReadTexture1Sampler"));
+	}
+
+	FLandscapeLayersWeightmapConvertFormatPS()
 	{}
 
-	virtual uint32 GetSizeX() const override
+	void SetParameters(FRHICommandList& RHICmdList, const FLandscapeLayersWeightmapConvertFormatShaderParameter& InParams)
 	{
-		return SizeX;
+		SetTextureParameter(RHICmdList, GetPixelShader(), ReadTexture1Param, ReadTexture1SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadWeightmap->TextureRHI);
 	}
 
-	virtual uint32 GetSizeY() const override
+	virtual bool Serialize(FArchive& Ar) override
 	{
-		return SizeY;
+		bool bShaderHasOutdatedParameters = FShader::Serialize(Ar);
+		Ar << ReadTexture1Param;
+		Ar << ReadTexture1SamplerParam;
+
+		return bShaderHasOutdatedParameters;
 	}
 
-	virtual uint32 GetSizeZ() const
-	{
-		return SizeZ;
-	}
-
-	/** Called when the resource is initialized. This is only called by the rendering thread. */
-	virtual void InitRHI() override
-	{
-		FTextureResource::InitRHI();
-
-		FRHIResourceCreateInfo CreateInfo;
-		uint32 Flags = TexCreate_NoTiling | TexCreate_OfflineProcessed;
-
-		if (CreateUAV)
-		{
-			Flags |= TexCreate_UAV;
-		}
-
-		TextureRHI = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, 1, Flags, CreateInfo);
-
-		if (CreateUAV)
-		{
-			TextureUAV = RHICreateUnorderedAccessView(TextureRHI, 0);
-		}
-	}
-
-	virtual void ReleaseRHI() override
-	{
-		FTextureResource::ReleaseRHI();
-
-		TextureUAV.SafeRelease();
-	}
-
-	FUnorderedAccessViewRHIRef TextureUAV;
-
-private:
-	uint32 SizeX;
-	uint32 SizeY;
-	uint32 SizeZ;
-	EPixelFormat Format;
-	uint32 NumMips;
-	bool CreateUAV;
+	FShaderResourceParameter ReadTexture1Param;
+	FShaderResourceParameter ReadTexture1SamplerParam;
 };
+
+IMPLEMENT_GLOBAL_SHADER(FLandscapeLayersWeightmapConvertFormatPS, "/Engine/Private/LandscapeLayersPS.usf", "PSWeightmapConvertFormat", SF_Pixel);
 
 // Compute shaders data
 
@@ -1217,6 +1271,8 @@ private:
 
 typedef FLandscapeLayersRender_RenderThread<FLandscapeLayersHeightmapShaderParameters, FLandscapeLayersHeightmapPS, FLandscapeLayersHeightmapMipsPS> FLandscapeLayersHeightmapRender_RenderThread;
 typedef FLandscapeLayersRender_RenderThread<FLandscapeLayersWeightmapShaderParameters, FLandscapeLayersWeightmapPS, FLandscapeLayersWeightmapMipsPS> FLandscapeLayersWeightmapRender_RenderThread;
+// The Mips Param will not be used
+typedef FLandscapeLayersRender_RenderThread<FLandscapeLayersWeightmapConvertFormatShaderParameter, FLandscapeLayersWeightmapConvertFormatPS, FLandscapeLayersWeightmapConvertFormatPS> FLandscapeLayersWeightmapConvertRender_RenderThread;
 
 #if WITH_EDITOR
 
@@ -1965,6 +2021,38 @@ void ALandscape::DrawWeightmapComponentToRenderTargetMips(const TArray<FVector2D
 
 		ReadMipRT = WeightmapRTList[MipRTIndex];
 	}
+}
+
+void ALandscape::ConvertR32ToBGRA8(const TArray<FVector2D>& InWeightmapTextureOutputOffset, UTextureRenderTarget2D* InWeightmapRTWrite, const FLandscapeLayersWeightmapConvertFormatShaderParameter& InShaderParams)
+{
+	check(InShaderParams.ReadWeightmap != nullptr);
+	check(InWeightmapRTWrite != nullptr);
+
+	FIntPoint WeightmapWriteTextureSize(InWeightmapRTWrite->SizeX, InWeightmapRTWrite->SizeY);
+	FIntPoint WeightmapReadTextureSize(InShaderParams.ReadWeightmap->GetSizeX(), InShaderParams.ReadWeightmap->GetSizeY());
+
+	// Quad Setup
+	const int32 LocalComponentSizeQuad = SubsectionSizeQuads * NumSubsections;
+	const int32 LocalComponentSizeVerts = (SubsectionSizeQuads + 1) * NumSubsections;
+
+	TArray<FLandscapeLayersTriangle> TriangleList;
+	TriangleList.Reserve(InWeightmapTextureOutputOffset.Num() * 2 * NumSubsections);
+	for (const FVector2D& TexturePosition : InWeightmapTextureOutputOffset)
+	{
+		FVector2D PositionOffset(FMath::RoundToInt(TexturePosition.X / LocalComponentSizeVerts), FMath::RoundToInt(TexturePosition.Y / LocalComponentSizeVerts));
+		FIntPoint SectionBase(PositionOffset.X * LocalComponentSizeQuad, PositionOffset.Y * LocalComponentSizeQuad);
+		GenerateLayersRenderQuadsAtlas(SectionBase, FVector2D::ZeroVector, SubsectionSizeQuads, WeightmapReadTextureSize, WeightmapWriteTextureSize, TriangleList);
+	}
+
+	FMatrix ProjectionMatrix = AdjustProjectionMatrixForRHI(FTranslationMatrix(FVector(0, 0, 0)) *
+		FMatrix(FPlane(1.0f / (FMath::Max<uint32>(WeightmapWriteTextureSize.X, 1.f) / 2.0f), 0.0, 0.0f, 0.0f), FPlane(0.0f, -1.0f / (FMath::Max<uint32>(WeightmapWriteTextureSize.Y, 1.f) / 2.0f), 0.0f, 0.0f), FPlane(0.0f, 0.0f, 1.0f, 0.0f), FPlane(-1.0f, 1.0f, 0.0f, 1.0f)));
+
+	FLandscapeLayersWeightmapConvertRender_RenderThread LayersRender(FString(TEXT("ConvertR32ToBGRA8")), InWeightmapRTWrite, WeightmapWriteTextureSize, WeightmapReadTextureSize, ProjectionMatrix, InShaderParams, 0, TriangleList);
+	ENQUEUE_RENDER_COMMAND(FConvertR32ToBGRA8Command)(
+		[LayersRender](FRHICommandListImmediate& RHICmdList) mutable
+	{
+		LayersRender.Render(RHICmdList, true);
+	});
 }
 
 void ALandscape::ClearLayersWeightmapTextureResource(const FString& InDebugName, FTextureRenderTargetResource* InTextureResourceToClear) const
@@ -3344,7 +3432,7 @@ void ALandscape::InitializeLayersWeightmapResources()
 		}
 	}
 
-	WeightmapScratchPackLayerTextureResource = new FLandscapeTexture2DResource(FirstWeightmapRT->SizeX, FirstWeightmapRT->SizeY, PF_B8G8R8A8, MipCount, true);
+	WeightmapScratchPackLayerTextureResource = new FLandscapeTexture2DResource(FirstWeightmapRT->SizeX, FirstWeightmapRT->SizeY, PF_R32_UINT, MipCount, true);
 	BeginInitResource(WeightmapScratchPackLayerTextureResource);
 }
 
@@ -3763,7 +3851,12 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 
 					SourceDebugName = OutputDebugName ? TEXT("WeightmapScratchTexture") : GEmptyDebugName;
 					DestDebugName = OutputDebugName ? CurrentRT->GetName() : GEmptyDebugName;
-					CopyLayersTexture(SourceDebugName, WeightmapScratchPackLayerTextureResource, DestDebugName, CurrentRT->GameThread_GetRenderTargetResource());
+					
+					// Convert Back to BGRA8(Win7)
+					FLandscapeLayersWeightmapConvertFormatShaderParameter ShaderParams;
+					ShaderParams.ReadWeightmap = WeightmapScratchPackLayerTextureResource;
+					ConvertR32ToBGRA8(WeightmapTextureOutputOffset, CurrentRT, ShaderParams);
+					
 					DrawWeightmapComponentToRenderTargetMips(WeightmapTextureOutputOffset, CurrentRT, true, PSShaderParams);
 
 					int32 StartTextureIndex = NextTextureIndexToProcess;
