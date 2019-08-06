@@ -68,7 +68,7 @@ public class OpenSSL : ModuleRules
 			PublicDependencyModuleNames.Add("zlib");
 //			PublicAdditionalLibraries.Add("z");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Android)
+		else if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Lumin)
 		{
 			string IncludePath = OpenSSL101sPath + "/include/Android";
 			PublicIncludePaths.Add(IncludePath);
