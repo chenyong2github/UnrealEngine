@@ -84,7 +84,7 @@ namespace UnrealGameSyncLauncher
 					SyncAndRunPerforceTask SyncApplication = new SyncAndRunPerforceTask((Perforce, LogWriter) => SyncAndRun(Perforce, DepotPath, bUnstable, Args, InstanceMutex, LogWriter));
 
 					string ErrorMessage;
-					if(PerforceModalTask.Execute(null, null, ServerAndPort, UserName, SyncApplication, "Updating", "Checking for updates, please wait...", Log, out ErrorMessage) == ModalTaskResult.Succeeded)
+					if(PerforceModalTask.Execute(null, new PerforceConnection(UserName, null, ServerAndPort), SyncApplication, "Updating", "Checking for updates, please wait...", Log, out ErrorMessage) == ModalTaskResult.Succeeded)
 					{
 						return 0;
 					}
