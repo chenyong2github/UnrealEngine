@@ -30,20 +30,8 @@ private:
 	void UpdateRenderingData_RenderThread(FRHICommandListImmediate& RHICmdList, int32 BufferIndex);
 
 private:
-	class FInstanceData : public FDeferredCleanupInterface
-	{
-	public:
-		FInstanceData()
-		{
-		}
-
-		virtual ~FInstanceData();
-
-		TArray<FVector4> Array[SlateRHIConstants::NumBuffers];
-		TSlateElementVertexBuffer<FVector4> InstanceBufferResource;
-	};
-
-	FInstanceData* InstanceData;
+	TArray<FVector4> BufferData[SlateRHIConstants::NumBuffers];
+	TSlateElementVertexBuffer<FVector4> InstanceBufferResource;
 	uint32 NumInstances;
 	int32 FreeBufferIndex;
 };
