@@ -6,34 +6,42 @@
 #include "UObject/ObjectMacros.h"
 #include "RigVMStorage.generated.h"
 
+UENUM()
+enum class ERigVMStorageType: uint8
+{
+	Work,
+	Literal,
+	Invalid
+};
+
 struct RIGVM_API FRigVMArgument
 {
 public:
 
 	FRigVMArgument()
-		: bIsLiteral(false)
+		: StorageType(ERigVMStorageType::Work)
 		, RegisterIndex(INDEX_NONE)
 		, ByteIndex(INDEX_NONE)
 	{
 	}
 
-	FRigVMArgument(bool InIsLiteral, int32 InRegisterIndex, int32 InByteIndex)
-		: bIsLiteral(InIsLiteral)
+	FRigVMArgument(ERigVMStorageType InStorageType, int32 InRegisterIndex, int32 InByteIndex)
+		: StorageType(InStorageType)
 		, RegisterIndex(InRegisterIndex)
 		, ByteIndex(InByteIndex)
 	{
 	}
 
-	FORCEINLINE bool IsLiteral() const { return bIsLiteral; }
-	FORCEINLINE int32 StorageType() const { return bIsLiteral ? 1 : 0; }
-	FORCEINLINE int32 GetRegisterIndex() const { return RegisterIndex; }
-	FORCEINLINE int32 GetByteIndex() const { return ByteIndex; }
+	FORCEINLINE ERigVMStorageType GetStorageType() const { return StorageType; }
+	FORCEINLINE int32 GetStorageIndex() const { return (int32)StorageType; }
+	FORCEINLINE uint16 GetRegisterIndex() const { return RegisterIndex; }
+	FORCEINLINE uint64 GetByteIndex() const { return ByteIndex; }
 
 private:
 
-	bool bIsLiteral;
-	int32 RegisterIndex;
-	int32 ByteIndex;
+	ERigVMStorageType StorageType;
+	uint16 RegisterIndex;
+	uint64 ByteIndex;
 };
 
 typedef TArrayView<FRigVMArgument> FRigVMArgumentArray;
@@ -55,10 +63,11 @@ struct RIGVM_API FRigVMRegister
 
 		FRigVMRegister()
 		: Type(ERigVMRegisterType::Invalid)
-		, Pointer(nullptr)
 		, ByteIndex(INDEX_NONE)
 		, ElementSize(0)
 		, ElementCount(0)
+		, SliceIndex(0)
+		, SliceCount(1)
 		, AlignmentBytes(0)
 		, Name(NAME_None)
 		, ScriptStructIndex(INDEX_NONE)
@@ -68,19 +77,23 @@ struct RIGVM_API FRigVMRegister
 	UPROPERTY()
 	ERigVMRegisterType Type;
 
-	void* Pointer;
+	UPROPERTY()
+	uint32 ByteIndex;
 
 	UPROPERTY()
-	int32 ByteIndex;
+	uint16 ElementSize;
 
 	UPROPERTY()
-	int32 ElementSize;
+	uint16 ElementCount;
 
 	UPROPERTY()
-	int32 ElementCount;
+	uint16 SliceIndex;
 
 	UPROPERTY()
-	int32 AlignmentBytes;
+	uint16 SliceCount;
+
+	UPROPERTY()
+	uint8 AlignmentBytes;
 
 	UPROPERTY()
 	FName Name;
@@ -88,43 +101,16 @@ struct RIGVM_API FRigVMRegister
 	UPROPERTY()
 	int32 ScriptStructIndex;
 
-	FORCEINLINE int32 FirstByte() const { return ByteIndex + AlignmentBytes; }
+	FORCEINLINE uint64 GetWorkByteIndex() const { return ByteIndex; }
+	FORCEINLINE uint64 GetStorageByteIndex() const { return ByteIndex - (uint64)AlignmentBytes - (uint64)(SliceIndex * GetNumBytesPerSlice()); }
+	FORCEINLINE uint8 GetAlignmentBytes() const { return AlignmentBytes; }
 	FORCEINLINE bool IsArray() const { return ElementCount > 1; }
 	FORCEINLINE bool IsPlain() const { return ScriptStructIndex == INDEX_NONE;  }
-	FORCEINLINE int32 NumBytes(bool bIncludeAlignment = true) const { return ElementCount * ElementSize + (bIncludeAlignment ? AlignmentBytes : 0); }
-
-	template<class T>
-	FORCEINLINE const T* Get() const
-	{
-		ensure(ElementCount > 0);
-		return (const T*)Pointer;
-	}
-
-	template<class T>
-	FORCEINLINE const T& GetRef() const
-	{
-		return *Get<T>();
-	}
-
-	template<class T>
-	FORCEINLINE T* Get()
-	{
-		ensure(ElementCount > 0);
-		return (T*)Pointer;
-	}
-
-	template<class T>
-	FORCEINLINE T& GetRef()
-	{
-		return *Get<T>();
-	}
-
-	template<class T>
-	FORCEINLINE TArrayView<T> GetArray()
-	{
-		ensure(ElementCount > 0);
-		return TArrayView<T>((T*)Pointer, ElementCount);
-	}
+	FORCEINLINE uint16 GetAllocatedBytes() const { return ElementCount * ElementSize * SliceCount + (uint16)AlignmentBytes; }
+	FORCEINLINE uint16 GetNumBytesPerSlice() const { return ElementCount * ElementSize; }
+	FORCEINLINE uint16 GetNumBytesAllSlices() const { return ElementCount * ElementSize * SliceCount; }
+	FORCEINLINE void MoveToFirstSlice() { ByteIndex -= SliceIndex * GetNumBytesPerSlice(); SliceIndex = 0; }
+	FORCEINLINE void MoveToNextSlice() { ByteIndex += GetNumBytesPerSlice(); SliceIndex++; }
 };
 
 typedef TArrayView<FRigVMRegister> FRigVMRegisterArray;
@@ -142,8 +128,8 @@ public:
 
 	FRigVMStorage& operator= (const FRigVMStorage &InOther);
 
-	FORCEINLINE bool IsLiteralStorage() const { return bIsLiteralStorage;  }
-	FORCEINLINE void SetLiteralStorage(bool InIsLiteralStorage = true) { bIsLiteralStorage = InIsLiteralStorage; }
+	FORCEINLINE ERigVMStorageType GetStorageType() const { return StorageType;  }
+	FORCEINLINE void SetStorageType(ERigVMStorageType InStorageType) { StorageType = InStorageType; }
 	FORCEINLINE bool SupportsNames() const { return bUseNameMap;  }
 	FORCEINLINE int32 Num() const { return Registers.Num(); }
 	FORCEINLINE const FRigVMRegister& operator[](int32 InIndex) const { return Registers[InIndex]; }
@@ -161,7 +147,7 @@ public:
 	FORCEINLINE FRigVMArgument GetArgument(int32 InRegisterIndex) const
 	{
 		ensure(Registers.IsValidIndex(InRegisterIndex));
-		return FRigVMArgument(IsLiteralStorage(), InRegisterIndex, Registers[InRegisterIndex].ByteIndex);
+		return FRigVMArgument(StorageType, InRegisterIndex, Registers[InRegisterIndex].ByteIndex);
 	}
 
 	FORCEINLINE const void* GetData(int32 InRegisterIndex) const
@@ -169,7 +155,7 @@ public:
 		ensure(Registers.IsValidIndex(InRegisterIndex));
 		const FRigVMRegister& Register = Registers[InRegisterIndex];
 		ensure(Register.ElementCount > 0);
-		return (const void*)&Data[Register.FirstByte()];
+		return (const void*)&Data[Register.GetWorkByteIndex()];
 	}
 
 	FORCEINLINE void* GetData(int32 InRegisterIndex)
@@ -177,7 +163,7 @@ public:
 		ensure(Registers.IsValidIndex(InRegisterIndex));
 		const FRigVMRegister& Register = Registers[InRegisterIndex];
 		ensure(Register.ElementCount > 0);
-		return (void*)&Data[Register.FirstByte()];
+		return (void*)&Data[Register.GetWorkByteIndex()];
 	}
 
 	template<class T>
@@ -186,7 +172,7 @@ public:
 		ensure(Registers.IsValidIndex(InRegisterIndex));
 		const FRigVMRegister& Register = Registers[InRegisterIndex];
 		ensure(Register.ElementCount > 0);
-		return (const T*)&Data[Register.FirstByte()];
+		return (const T*)&Data[Register.GetWorkByteIndex()];
 	}
 
 	template<class T>
@@ -213,7 +199,7 @@ public:
 		ensure(Registers.IsValidIndex(InRegisterIndex));
 		const FRigVMRegister& Register = Registers[InRegisterIndex];
 		ensure(Register.ElementCount > 0);
-		return (T*)&Data[Register.FirstByte()];
+		return (T*)&Data[Register.GetWorkByteIndex()];
 	}
 
 	template<class T>
@@ -240,7 +226,7 @@ public:
 		ensure(Registers.IsValidIndex(InRegisterIndex));
 		const FRigVMRegister& Register = Registers[InRegisterIndex];
 		ensure(Register.ElementCount > 0);
-		return TArrayView<T>((T*)&Data[Register.FirstByte()], Register.ElementCount);
+		return TArrayView<T>((T*)&Data[Register.GetWorkByteIndex()], Register.ElementCount);
 	}
 	
 	template<class T>
@@ -522,8 +508,8 @@ public:
 	bool Remove(const FName& InRegisterName);
 	FName Rename(int32 InRegisterIndex, const FName& InNewName);
 	FName Rename(const FName& InOldName, const FName& InNewName);
-	bool Resize(int32 InRegisterIndex, int32 InNewElementCount);
-	bool Resize(const FName& InRegisterName, int32 InNewElementCount);
+	bool Resize(int32 InRegisterIndex, int32 InNewElementCount, int32 InNewSliceCount = 1);
+	bool Resize(const FName& InRegisterName, int32 InNewElementCount, int32 InNewSliceCount = 1);
 
 	void UpdateRegisters();
 
@@ -541,7 +527,7 @@ private:
 	bool bUseNameMap;
 
 	UPROPERTY()
-	bool bIsLiteralStorage;
+	ERigVMStorageType StorageType;
 
 	UPROPERTY()
 	TArray<FRigVMRegister> Registers;

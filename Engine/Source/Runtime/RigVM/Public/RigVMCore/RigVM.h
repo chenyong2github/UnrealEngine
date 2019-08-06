@@ -26,10 +26,10 @@ public:
 	int32 AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InFunctionName);
 
 	UPROPERTY()
-	FRigVMStorage Literals;
+	FRigVMStorage WorkStorage;
 
 	UPROPERTY()
-	FRigVMStorage WorkState;
+	FRigVMStorage LiteralStorage;
 
 	UPROPERTY()
 	FRigVMByteCode ByteCode;

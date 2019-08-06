@@ -4,8 +4,8 @@
 
 URigVM::URigVM()
 {
-	Literals.SetLiteralStorage(true);
-	WorkState.SetLiteralStorage(false);
+	WorkStorage.SetStorageType(ERigVMStorageType::Work);
+	LiteralStorage.SetStorageType(ERigVMStorageType::Literal);
 }
 
 URigVM::~URigVM()
@@ -15,8 +15,8 @@ URigVM::~URigVM()
 
 void URigVM::Reset()
 {
-	Literals.Reset();
-	WorkState.Reset();
+	WorkStorage.Reset();
+	LiteralStorage.Reset();
 	FunctionNames.Reset();
 	Functions.Reset();
 	ByteCode.Reset();
@@ -75,7 +75,7 @@ bool URigVM::Execute(FRigVMStoragePtrArray Storage, TArrayView<void*> Additional
 		return true;
 	}
 
-	FRigVMStorage* LocalStorage[] = { &WorkState, &Literals }; 
+	FRigVMStorage* LocalStorage[] = { &WorkStorage, &LiteralStorage }; 
 	if (Storage.Num() == 0)
 	{
 		Storage = FRigVMStoragePtrArray(LocalStorage, 2);
@@ -89,7 +89,7 @@ bool URigVM::Execute(FRigVMStoragePtrArray Storage, TArrayView<void*> Additional
 			case ERigVMOpCode::Copy:
 			{
 				const FRigVMCopyOp& Op = ByteCode.GetOpAt<FRigVMCopyOp>(Instructions[InstructionIndex]);
-				Storage[0]->Copy(Op.Source.GetRegisterIndex(), Op.Target.GetRegisterIndex(), Storage[Op.Source.StorageType()], Op.SourceOffset, Op.TargetOffset, Op.NumBytes);
+				Storage[0]->Copy(Op.Source.GetRegisterIndex(), Op.Target.GetRegisterIndex(), Storage[Op.Source.GetStorageIndex()], Op.SourceOffset, Op.TargetOffset, Op.NumBytes);
 				InstructionIndex++;
 				break;
 			}
