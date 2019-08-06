@@ -880,7 +880,7 @@ bool FOpenXRHMD::IsRunning() const
 	return bIsRunning;
 }
 
-bool FOpenXRHMD::IsRendering() const
+bool FOpenXRHMD::IsFocused() const
 {
 	return CurrentSessionState == XR_SESSION_STATE_FOCUSED;
 }
@@ -1071,14 +1071,21 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &ViewState, Views.Num(), &ViewCount, Views.GetData()));
 }
 
+bool FOpenXRHMD::ReadNextEvent(XrEventDataBuffer* buffer)
+{
+	// It is sufficient to clear just the XrEventDataBuffer header to XR_TYPE_EVENT_DATA_BUFFER
+	XrEventDataBaseHeader* baseHeader = reinterpret_cast<XrEventDataBaseHeader*>(buffer);
+	*baseHeader = { XR_TYPE_EVENT_DATA_BUFFER };
+	const XrResult xr = xrPollEvent(Instance, buffer);
+	XR_ENSURE(xr);
+	return xr == XR_SUCCESS;
+}
+
 bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 {
-	// Initialize an event buffer to hold the output.
+	// Process all pending messages.
 	XrEventDataBuffer event;
-	// Only the header needs to be initialized.
-	event.type = XR_TYPE_EVENT_DATA_BUFFER;
-	event.next = nullptr;
-	while (xrPollEvent(Instance, &event) == XR_SUCCESS) 
+	while (ReadNextEvent(&event))
 	{
 		switch (event.type) 
 		{
@@ -1143,6 +1150,12 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 			if (Session != XR_NULL_HANDLE)
 			{
+				// Clear up action spaces
+				for (auto& ActionSpace : ActionSpaces)
+				{
+					ActionSpace.DestroySpace();
+				}
+
 				// Close the session now we're allowed to.
 				ENQUEUE_RENDER_COMMAND(OpenXRDestroySession)([this](FRHICommandListImmediate& RHICmdList)
 				{
@@ -1162,12 +1175,6 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				bIsReady = false;
 				bIsRunning = false;
 				bRunRequested = false;
-
-				// Clear up action spaces
-				for (auto& ActionSpace : ActionSpaces)
-				{
-					ActionSpace.DestroySpace();
-				}
 			}
 
 			break;
@@ -1356,11 +1363,6 @@ FOpenXRHMD::FActionSpace::FActionSpace(XrAction InAction)
 {
 }
 
-FOpenXRHMD::FActionSpace::~FActionSpace()
-{
-	DestroySpace();
-}
-
 bool FOpenXRHMD::FActionSpace::CreateSpace(XrSession InSession)
 {
 	if (Action == XR_NULL_HANDLE || Space != XR_NULL_HANDLE)
@@ -1381,7 +1383,7 @@ void FOpenXRHMD::FActionSpace::DestroySpace()
 {
 	if (Space)
 	{
-		xrDestroySpace(Space);
+		XR_ENSURE(xrDestroySpace(Space));
 	}
 	Space = XR_NULL_HANDLE;
 }

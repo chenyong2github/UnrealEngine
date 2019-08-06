@@ -30,7 +30,6 @@ public:
 	{
 	public:
 		FActionSpace(XrAction InAction);
-		~FActionSpace();
 
 		bool CreateSpace(XrSession InSession);
 		void DestroySpace();
@@ -104,6 +103,7 @@ protected:
 	bool StartSession();
 	bool OnStereoStartup();
 	bool OnStereoTeardown();
+	bool ReadNextEvent(XrEventDataBuffer* buffer);
 
 public:
 	/** IHeadMountedDisplay interface */
@@ -170,7 +170,7 @@ public:
 	/** @return	True if the HMD was initialized OK */
 	OPENXRHMD_API bool IsInitialized() const;
 	OPENXRHMD_API bool IsRunning() const;
-	OPENXRHMD_API bool IsRendering() const;
+	OPENXRHMD_API bool IsFocused() const;
 	void FinishRendering();
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
