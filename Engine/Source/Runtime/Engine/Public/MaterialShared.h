@@ -73,6 +73,8 @@ template <class ElementType> class TLinkedList;
 #define STORE_ONLY_ACTIVE_SHADERMAPS 0
 #endif
 
+#define MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE 1
+
 DECLARE_LOG_CATEGORY_EXTERN(LogMaterial,Log,Verbose);
 
 /** Creates a string that represents the given quality level. */
