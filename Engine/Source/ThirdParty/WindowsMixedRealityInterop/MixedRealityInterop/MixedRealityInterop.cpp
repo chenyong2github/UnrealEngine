@@ -1551,6 +1551,24 @@ namespace WindowsMixedReality
 		}
 	}
 
+	bool MixedRealityInterop::UpdateCurrentFrame()
+	{
+		//TODO: Still experimenting with this.
+//		std::lock_guard<std::mutex> lock(poseLock);
+//
+//#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
+//		// Wait for a frame to be ready before creating one.
+//		// Do not wait for a frame if we are running on the emulator.r
+//		holographicSpace.WaitForNextFrameReady();
+//#endif
+//			
+//		HolographicFrame frame = holographicSpace.CreateNextFrame();
+//		if (frame == nullptr) { return false; }
+//
+//		currentFrame = std::make_unique<TrackingFrame>(frame);
+		return true;
+	}
+
 	bool MixedRealityInterop::GetCurrentPose(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin)
 	{
 		std::lock_guard<std::mutex> lock(poseLock);
@@ -2172,33 +2190,6 @@ namespace WindowsMixedReality
 						{
 							trackingStatus = HMDTrackingStatus::InertialOnly;
 						}
-
-						if (supportsHandTracking)
-						{
-							HandPose handPose = state.TryGetHandPose();
-							if (handPose != nullptr)
-							{
-								if (handPose.TryGetJoints(coordinateSystem, Joints, JointPoses[(int)hand]))
-								{
-									if (trackingOrigin == HMDTrackingOrigin::Eye)
-									{
-										for (int j = 0; j < NumHMDHandJoints; ++j)
-										{
-											JointPoses[(int)hand][j].Position -= float3(0, defaultPlayerHeight, 0);
-										}
-									}
-									JointPoseValid[(int)hand] = true;
-								}
-								else
-								{
-									JointPoseValid[(int)hand] = false;
-								}
-							}
-							else
-							{
-								JointPoseValid[(int)hand] = false;
-							}
-						}
 					}
 					else
 					{
@@ -2481,6 +2472,98 @@ namespace WindowsMixedReality
 			}
 
 			UpdateButtonStates(state);
+		}
+	}
+
+	void MixedRealityInterop::PollHandTracking()
+	{
+		HMDTrackingStatus trackingStatus = HMDTrackingStatus::NotTracked;
+
+		if (!IsInitialized())
+		{
+			return;
+		}
+
+		IVectorView<SpatialInteractionSourceState> sourceStates;
+		if (!GetInputSources(sourceStates))
+		{
+			return;
+		}
+
+		int sourceCount = sourceStates.Size();
+		for (int i = 0; i < sourceCount; i++)
+		{
+			SpatialInteractionSourceState state = sourceStates.GetAt(i);
+			if (state == nullptr)
+			{
+				continue;
+			}
+
+			SpatialInteractionSource source = state.Source();
+			if (source == nullptr)
+			{
+				continue;
+			}
+
+			HMDHand hand = HMDHand::AnyHand;
+			if (CheckHandedness(source, HMDHand::Left))
+			{
+				hand = HMDHand::Left;
+			}
+			else if (CheckHandedness(source, HMDHand::Right))
+			{
+				hand = HMDHand::Right;
+			}
+			else
+			{
+				continue;
+			}
+
+			HMDTrackingOrigin trackingOrigin;
+			winrt::Windows::Perception::Spatial::SpatialCoordinateSystem coordinateSystem = GetReferenceCoordinateSystem(trackingOrigin);
+			if (coordinateSystem != nullptr)
+			{
+				SpatialInteractionSourceProperties prop = state.Properties();
+				if (prop == nullptr)
+				{
+					continue;
+				}
+
+				SpatialInteractionSourceLocation sourceLocation = prop.TryGetLocation(coordinateSystem);
+				if (sourceLocation != nullptr)
+				{
+					if (supportsSourceOrientation &&
+						(sourceLocation.Orientation() != nullptr))
+					{
+						if (supportsHandTracking)
+						{
+							HandPose handPose = state.TryGetHandPose();
+							if (handPose != nullptr)
+							{
+								if (handPose.TryGetJoints(coordinateSystem, Joints, JointPoses[(int)hand]))
+								{
+									if (trackingOrigin == HMDTrackingOrigin::Eye)
+									{
+										for (int j = 0; j < NumHMDHandJoints; ++j)
+										{
+											JointPoses[(int)hand][j].Position -= float3(0, defaultPlayerHeight, 0);
+										}
+									}
+									JointPoseValid[(int)hand] = true;
+								}
+								else
+								{
+									JointPoseValid[(int)hand] = false;
+								}
+							}
+							else
+							{
+								JointPoseValid[(int)hand] = false;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -2971,9 +3054,40 @@ namespace WindowsMixedReality
 		std::lock_guard<std::mutex> lock(gestureRecognizerLock);
 
 		id = gestureRecognizerIndex;
-		gestureRecognizerMap[id] = std::make_shared<GestureRecognizer>(StationaryReferenceFrame);
 
+#if PLATFORM_HOLOLENS
+		gestureRecognizerMap[id] = std::make_shared<GestureRecognizer>(StationaryReferenceFrame);
+#else
+		gestureRecognizerMap[id] = nullptr; // Defer creation until after connect so that this will work correctly when remoting.
+#endif
 		gestureRecognizerIndex++;
+	}
+
+	void CreateSpatialRecognizers()
+	{
+		interactionManager = SpatialInteractionManager::GetForCurrentView();
+		{
+			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
+			for (auto&& p : gestureRecognizerMap)
+			{
+#if !PLATFORM_HOLOLENS
+				p.second = std::make_shared<GestureRecognizer>(StationaryReferenceFrame);
+#endif
+				p.second->Init();
+			}
+		}
+	}
+
+	void ReleaseSpatialRecognizers()
+	{
+		interactionManager = SpatialInteractionManager::GetForCurrentView();
+		{
+			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
+			for (auto&& p : gestureRecognizerMap)
+			{
+				p.second = nullptr;
+			}
+		}
 	}
 
 	GestureRecognizerInterop::~GestureRecognizerInterop()
@@ -3071,14 +3185,14 @@ namespace WindowsMixedReality
 			Log(L"ConnectToRemoteHoloLens: Already connected. Doing nothing.");
 			return;
 		}
-
-		if (bitrate < 1024) { bitrate = 1024; }
-		if (bitrate > 99999) { bitrate = 99999; }
-
-		wcsncpy_s(m_ip, ip, std::size(m_ip));
-
-		if (m_remoteContext == nullptr)
+		else
 		{
+			if (bitrate < 1024) { bitrate = 1024; }
+			if (bitrate > 99999) { bitrate = 99999; }
+
+			wcsncpy_s(m_ip, ip, std::size(m_ip));
+
+			// Do not use WMR api's before this call when remoting or you may get access to local machine WMR instead.
 			CreateRemoteContext(m_remoteContext, bitrate);
 			{
 				holographicSpace = HolographicSpace::CreateForCoreWindow(nullptr);
@@ -3092,17 +3206,7 @@ namespace WindowsMixedReality
 			{
 				Log(L"ConnectToRemoteHoloLens: Connect Succeeded.");
 
-				interactionManager = SpatialInteractionManager::GetForCurrentView();
-				{
-					std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-					for (auto p : gestureRecognizerMap)
-					{
-						if (p.second)
-						{
-							p.second->Init();
-						}
-					}
-				}
+				CreateSpatialRecognizers();
 
 				CreateSpatialAnchorHelper(*this);
 			});
@@ -3155,41 +3259,47 @@ namespace WindowsMixedReality
 	{
 		holographicSpace = from_cx<winrt::Windows::Graphics::Holographic::HolographicSpace>(inHolographicSpace);
 	}
-
-	void MixedRealityInterop::SetInteractionManager(Windows::UI::Input::Spatial::SpatialInteractionManager^ inInteractionManager)
+#endif
+	
+	void MixedRealityInterop::SetInteractionManagerForCurrentView()
 	{
-		interactionManager = from_cx<winrt::Windows::UI::Input::Spatial::SpatialInteractionManager>(inInteractionManager);
-		
+#if !PLATFORM_HOLOLENS
+		if (IsRemoting())
+#endif
 		{
-			std::lock_guard<std::mutex> lock(gestureRecognizerLock);
-			GestureRecognizer::SetInteractionManager(interactionManager);
-			for (auto p : gestureRecognizerMap)
+			interactionManager = winrt::Windows::UI::Input::Spatial::SpatialInteractionManager::GetForCurrentView();
+
 			{
-				if (p.second)
+				std::lock_guard<std::mutex> lock(gestureRecognizerLock);
+
+				GestureRecognizer::SetInteractionManager(interactionManager);
+				for (auto p : gestureRecognizerMap)
 				{
-					p.second->Init();
+					if (p.second)
+					{
+						p.second->Init();
+					}
 				}
 			}
 		}
 	}
-#endif
 
 	void MixedRealityInterop::ConnectToLocalWMRHeadset()
 	{
-#if HOLO_STREAMING_RENDERING
 		{ std::wstringstream string; string << L"ConnectToLocalWMRHeadset"; Log(string); }
 
+#if HOLO_STREAMING_RENDERING
 		if (m_remoteContext != nullptr)
 		{
 			// We are already connected to the remote device.
 			Log(L"ConnectToLocalWMRHeadset: Already connected. Doing nothing.");
 			return;
 		}
+#endif
 
 		wcsncpy_s(m_ip, L"local", std::size(m_ip));
 
 		CreateSpatialAnchorHelper(*this);
-#endif
 	}
 
 	void MixedRealityInterop::ConnectToLocalHoloLens()
@@ -3215,13 +3325,20 @@ namespace WindowsMixedReality
 
 			DestroySpatialAnchorHelper();
 
+			ReleaseSpatialRecognizers();
+
 			Dispose(true);
 		}
 		else if (m_spatialAnchorHelper != nullptr)
 		{
-			Log(L"DisconnectFromDevice: Disconnecting from HoloLens or localWMRHeadset.");
-
+#if PLATFORM_HOLOLENS
+			Log(L"DisconnectFromDevice: Disconnecting from LocalHoloLens.");
 			DestroySpatialAnchorHelper();
+			ReleaseSpatialRecognizers();
+#else
+			Log(L"DisconnectFromDevice: Disconnecting from LocalWMRHeadset.");
+			DestroySpatialAnchorHelper();
+#endif
 		}
 		else
 		{

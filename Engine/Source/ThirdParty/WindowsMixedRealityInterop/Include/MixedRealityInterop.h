@@ -358,6 +358,7 @@ namespace WindowsMixedReality
 		const wchar_t* GetDisplayName();
 
 		// Get the latest pose information from our tracking frame.
+		bool UpdateCurrentFrame();
 		bool GetCurrentPose(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin);
 		bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, HMDTrackingOrigin& trackingOrigin);
 		
@@ -419,6 +420,7 @@ namespace WindowsMixedReality
 			DirectX::XMFLOAT3& position);
 
 		void PollInput();
+		void PollHandTracking();
 		HMDInputPressState GetPressState(HMDHand hand, HMDInputControllerButtons button);
 		void ResetButtonStates();
 
@@ -488,10 +490,10 @@ namespace WindowsMixedReality
 
 #if PLATFORM_HOLOLENS
 		void SetHolographicSpace(Windows::Graphics::Holographic::HolographicSpace^ inHolographicSpace);
-		void SetInteractionManager(Windows::UI::Input::Spatial::SpatialInteractionManager^ inInteractionManager);
 #else
 		bool CreateHolographicSpace(HWND hwnd);
 #endif
+		void SetInteractionManagerForCurrentView();
 	};
 
 	class SpatialAudioClientRenderer;
