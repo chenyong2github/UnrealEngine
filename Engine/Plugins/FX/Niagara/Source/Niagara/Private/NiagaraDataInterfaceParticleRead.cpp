@@ -23,6 +23,11 @@ UNiagaraDataInterfaceParticleRead::UNiagaraDataInterfaceParticleRead(FObjectInit
 void UNiagaraDataInterfaceParticleRead::PostInitProperties()
 {
 	Super::PostInitProperties();
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
+	}
 }
 
 void UNiagaraDataInterfaceParticleRead::PostLoad()
