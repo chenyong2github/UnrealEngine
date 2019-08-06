@@ -278,6 +278,13 @@ bool FADPCMAudioInfo::ReadCompressedInfo(const uint8* InSrcBufferData, uint32 In
 
 bool FADPCMAudioInfo::ReadCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize)
 {
+	// If we've already read through this asset and we are not looping, memzero and early out.
+	if (TotalSamplesStreamed >= TotalSamplesPerChannel && !bLooping)
+	{
+		FMemory::Memzero(Destination, BufferSize);
+		return true;
+	}
+
 	const uint32 ChannelSampleSize = sizeof(uint16) * NumChannels;
 
 	// This correctly handles any BufferSize as long as its a multiple of sample size * number of channels
@@ -340,15 +347,18 @@ bool FADPCMAudioInfo::ReadCompressedData(uint8* Destination, bool bLooping, uint
 			if(TotalSamplesStreamed >= TotalSamplesPerChannel)
 			{
 				ReachedEndOfSamples = true;
-				// This is set to the max value to trigger the decompression of the first audio block
-				CurrentUncompressedBlockSampleIndex = UncompressedBlockSize / sizeof(uint16);
-				CurrentCompressedBlockIndex = 0;
-				TotalSamplesStreamed = 0;
 				if(!bLooping)
 				{
 					// Zero remaining buffer
 					FMemory::Memzero(OutData, BufferSize);
 					return true;
+				}
+				else
+				{
+					// This is set to the max value to trigger the decompression of the first audio block
+					CurrentUncompressedBlockSampleIndex = UncompressedBlockSize / sizeof(uint16);
+					CurrentCompressedBlockIndex = 0;
+					TotalSamplesStreamed = 0;
 				}
 			}
 		}
