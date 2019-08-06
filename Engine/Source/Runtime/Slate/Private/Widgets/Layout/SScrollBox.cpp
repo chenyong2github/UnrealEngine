@@ -599,7 +599,7 @@ void SScrollBox::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 	const bool bWasScrolling = bIsScrolling;
 	bIsScrolling = !FMath::IsNearlyEqual(NewPhysicalOffset, ScrollPanel->PhysicalOffset, 0.001f);
 
-	ScrollPanel->PhysicalOffset = TargetPhysicalOffset;
+	ScrollPanel->PhysicalOffset = NewPhysicalOffset;
 	
 	if (bWasScrolling && !bIsScrolling)
 	{
