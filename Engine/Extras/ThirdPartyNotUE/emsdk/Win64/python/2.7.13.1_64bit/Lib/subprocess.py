@@ -656,7 +656,7 @@ class Popen(object):
 #                    raise WindowsError(*e.args)
                     # ERROR_ACCESS_DENIED (winerror 5) is received when the
                     # process already died.
-                    print('NICKNICK: subprocess.py START OF CIS BUGHUNT DUMP')
+                    print('NICKNICK: subprocess.py START OF CIS BUGHUNT DUMP loop:%d' % loop_limit)
                     print(executable)
                     print(args)
                     print('NICKNICK: subprocess.py END OF CIS BUGHUNT DUMP')
