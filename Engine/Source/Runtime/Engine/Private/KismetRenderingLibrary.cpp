@@ -654,7 +654,7 @@ void UKismetRenderingLibrary::BreakSkinWeightInfo(FSkelMeshSkinWeightInfo InWeig
 	Weight3 = InWeight.Weights[3];
 }
 
-void UKismetRenderingLibrary::SetCastInsetShadowForAllAttachments(UObject* WorldContextObject, UPrimitiveComponent* PrimitiveComponent, bool bCastInsetShadow, bool bLightAttachmentsAsGroup)
+void UKismetRenderingLibrary::SetCastInsetShadowForAllAttachments(UPrimitiveComponent* PrimitiveComponent, bool bCastInsetShadow, bool bLightAttachmentsAsGroup)
 {
 	if (PrimitiveComponent)
 	{
