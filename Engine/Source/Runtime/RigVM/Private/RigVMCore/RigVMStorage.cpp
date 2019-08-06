@@ -170,7 +170,7 @@ bool FRigVMStorage::Copy(
 	return Copy(SourceRegisterIndex, TargetRegisterIndex, InSourceStorage, InSourceByteOffset, InTargetByteOffset, InNumBytes);
 }
 
-int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateRegisters)
+int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32 InElementCount, int32 InSliceCount, const void* InDataPtr, bool bUpdateRegisters)
 {
 	FName Name = InNewName;
 	if (bUseNameMap && InNewName == NAME_None)
@@ -183,7 +183,7 @@ int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32
 		} while (!IsNameAvailable(Name));
 	}
 
-	ensure(InElementSize > 0 && InCount > 0);
+	ensure(InElementSize > 0 && InElementCount > 0 && InSliceCount > 0);
 
 	if (bUseNameMap)
 	{
@@ -200,14 +200,21 @@ int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32
 		NewRegister.Name = Name;
 	}
 	NewRegister.ElementSize = InElementSize;
-	NewRegister.ElementCount = InCount;
+	NewRegister.ElementCount = InElementCount;
+	NewRegister.SliceCount = InSliceCount;
 	NewRegister.Type = ERigVMRegisterType::Plain;
 
 	Data.AddZeroed(NewRegister.GetAllocatedBytes());
 
 	if (InDataPtr != nullptr)
 	{
-		FMemory::Memcpy(&Data[NewRegister.GetWorkByteIndex()], InDataPtr, NewRegister.GetAllocatedBytes());
+		NewRegister.MoveToFirstSlice();
+		for (uint16 SliceIndex = 0; SliceIndex < NewRegister.SliceCount; SliceIndex++)
+		{
+			FMemory::Memcpy(&Data[NewRegister.GetWorkByteIndex()], InDataPtr, NewRegister.GetNumBytesPerSlice());
+			NewRegister.MoveToNextSlice();
+		}
+		NewRegister.MoveToFirstSlice();
 	}
 
 	int32 RegisterIndex = Registers.Num();
@@ -220,9 +227,9 @@ int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32
 	return RegisterIndex;
 }
 
-int32 FRigVMStorage::Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr, bool bUpdateRegisters)
+int32 FRigVMStorage::Allocate(int32 InElementSize, int32 InElementCount, int32 InSliceCount, const void* InDataPtr, bool bUpdateRegisters)
 {
-	return Allocate(NAME_None, InElementSize, InCount, InDataPtr, bUpdateRegisters);
+	return Allocate(NAME_None, InElementSize, InElementCount, InSliceCount, InDataPtr, bUpdateRegisters);
 }
 
 bool FRigVMStorage::Construct(int32 InRegisterIndex, int32 InElementIndex)
@@ -235,7 +242,7 @@ bool FRigVMStorage::Construct(int32 InRegisterIndex, int32 InElementIndex)
 		case ERigVMRegisterType::Struct:
 		{
 			void* DataPtr = (void*)&Data[InElementIndex == INDEX_NONE ? Register.GetWorkByteIndex() : Register.GetWorkByteIndex() + InElementIndex * Register.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
+			int32 Count = InElementIndex == INDEX_NONE ? Register.GetTotalElementCount() : 1;
 
 			UScriptStruct* ScriptStruct = GetScriptStruct(InRegisterIndex);
 			ScriptStruct->InitializeStruct(DataPtr, Count);
@@ -244,7 +251,7 @@ bool FRigVMStorage::Construct(int32 InRegisterIndex, int32 InElementIndex)
 		case ERigVMRegisterType::String:
 		{
 			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Register.GetWorkByteIndex() : Register.GetWorkByteIndex() + InElementIndex * Register.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
+			int32 Count = InElementIndex == INDEX_NONE ? Register.GetTotalElementCount() : 1;
 
 			FMemory::Memzero(DataPtr, Count * Register.ElementSize);
 			for (int32 Index = 0; Index < Count; Index++)
@@ -256,7 +263,7 @@ bool FRigVMStorage::Construct(int32 InRegisterIndex, int32 InElementIndex)
 		case ERigVMRegisterType::Name:
 		{
 			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Register.GetWorkByteIndex() : Register.GetWorkByteIndex() + InElementIndex * Register.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
+			int32 Count = InElementIndex == INDEX_NONE ? Register.GetTotalElementCount() : 1;
 
 			FMemory::Memzero(DataPtr, Count * Register.ElementSize);
 			for (int32 Index = 0; Index < Count; Index++)
@@ -284,7 +291,7 @@ bool FRigVMStorage::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 		case ERigVMRegisterType::Struct:
 		{
 			void* DataPtr = (void*)&Data[InElementIndex == INDEX_NONE ? Register.GetWorkByteIndex() : Register.GetWorkByteIndex() + InElementIndex * Register.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
+			int32 Count = InElementIndex == INDEX_NONE ? Register.GetTotalElementCount() : 1;
 
 			UScriptStruct* ScriptStruct = GetScriptStruct(InRegisterIndex);
 			ScriptStruct->DestroyStruct(DataPtr, Count);
@@ -293,7 +300,7 @@ bool FRigVMStorage::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 		case ERigVMRegisterType::String:
 		{
 			FString* DataPtr = (FString*)&Data[InElementIndex == INDEX_NONE ? Register.GetWorkByteIndex() : Register.GetWorkByteIndex() + InElementIndex * Register.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
+			int32 Count = InElementIndex == INDEX_NONE ? Register.GetTotalElementCount() : 1;
 
 			for (int32 Index = 0; Index < Count; Index++)
 			{
@@ -304,7 +311,7 @@ bool FRigVMStorage::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 		case ERigVMRegisterType::Name:
 		{
 			FName* DataPtr = (FName*)&Data[InElementIndex == INDEX_NONE ? Register.GetWorkByteIndex() : Register.GetWorkByteIndex() + InElementIndex * Register.ElementSize];
-			int32 Count = InElementIndex == INDEX_NONE ? Register.ElementCount : 1;
+			int32 Count = InElementIndex == INDEX_NONE ? Register.GetTotalElementCount() : 1;
 
 			for (int32 Index = 0; Index < Count; Index++)
 			{
@@ -382,31 +389,34 @@ FName FRigVMStorage::Rename(const FName& InOldName, const FName& InNewName)
 
 bool FRigVMStorage::Resize(int32 InRegisterIndex, int32 InNewElementCount, int32 InNewSliceCount)
 {
-	if (InNewElementCount <= 0)
+	if (InNewElementCount <= 0 || InNewSliceCount < 0)
 	{
 		return Remove(InRegisterIndex);
 	}
 
-	if (Registers[InRegisterIndex].ElementCount == InNewElementCount)
+	uint32 NewTotalCount = (uint32)InNewElementCount * (uint32)InNewSliceCount;
+	if (Registers[InRegisterIndex].GetTotalElementCount() == NewTotalCount)
 	{
 		return false;
 	}
 
 	FRigVMRegister& Register = Registers[InRegisterIndex];
+	Register.MoveToFirstSlice();
 
-	if (Register.ElementCount > InNewElementCount) // shrink
+	if (Register.GetTotalElementCount() > NewTotalCount) // shrink
 	{
-		int32 ElementsToRemove = Register.ElementCount - InNewElementCount;
+		int32 ElementsToRemove = Register.GetTotalElementCount() - NewTotalCount;
 		int32 NumBytesToRemove = Register.ElementSize * ElementsToRemove;
-		int32 FirstByteToRemove = Register.GetWorkByteIndex() + Register.ElementSize * InNewElementCount;
+		int32 FirstByteToRemove = Register.GetWorkByteIndex() + Register.ElementSize * NewTotalCount;
 
-		for (int32 ElementIndex = InNewElementCount; ElementIndex < Register.ElementCount; ElementIndex++)
+		for (uint32 ElementIndex = NewTotalCount; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
 		{
-			Destroy(InRegisterIndex, ElementIndex);
+			Destroy(InRegisterIndex, (uint32)ElementIndex);
 		}
 
 		Data.RemoveAt(FirstByteToRemove, NumBytesToRemove);
-		Register.ElementCount = InNewElementCount;
+		Register.ElementCount = (uint32)InNewElementCount;
+		Register.SliceCount = (uint32)InNewSliceCount;
 
 		for (int32 RegisterIndex = InRegisterIndex + 1; RegisterIndex < Registers.Num(); RegisterIndex++)
 		{
@@ -415,17 +425,18 @@ bool FRigVMStorage::Resize(int32 InRegisterIndex, int32 InNewElementCount, int32
 	}
 	else // grow
 	{
-		int32 OldElementCount = Register.ElementCount;
-		int32 ElementsToAdd = InNewElementCount - Register.ElementCount;
+		int32 OldElementCount = Register.GetTotalElementCount();
+		int32 ElementsToAdd = NewTotalCount - Register.GetTotalElementCount();
 		int32 NumBytesToAdd = Register.ElementSize * ElementsToAdd;
-		int32 FirstByteToAdd = Register.GetWorkByteIndex() + Register.ElementSize * Register.ElementCount;
+		int32 FirstByteToAdd = Register.GetWorkByteIndex() + Register.ElementSize * Register.GetTotalElementCount();
 
 		Data.InsertZeroed(FirstByteToAdd, NumBytesToAdd);
-		Register.ElementCount = InNewElementCount;
+		Register.ElementCount = (uint32)InNewElementCount;
+		Register.SliceCount = (uint32)InNewSliceCount;
 
-		for (int32 ElementIndex = OldElementCount; ElementIndex < InNewElementCount; ElementIndex++)
+		for (uint32 ElementIndex = OldElementCount; ElementIndex < NewTotalCount; ElementIndex++)
 		{
-			Construct(InRegisterIndex, ElementIndex);
+			Construct(InRegisterIndex, (int32)ElementIndex);
 		}
 
 		for (int32 RegisterIndex = InRegisterIndex + 1; RegisterIndex < Registers.Num(); RegisterIndex++)

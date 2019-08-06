@@ -75,42 +75,59 @@ struct RIGVM_API FRigVMRegister
 	}
 
 	UPROPERTY()
-	ERigVMRegisterType Type;
+		ERigVMRegisterType Type;
 
 	UPROPERTY()
-	uint32 ByteIndex;
+		uint32 ByteIndex;
 
 	UPROPERTY()
-	uint16 ElementSize;
+		uint16 ElementSize;
 
 	UPROPERTY()
-	uint16 ElementCount;
+		uint16 ElementCount;
 
 	UPROPERTY()
-	uint16 SliceIndex;
+		uint16 SliceIndex;
 
 	UPROPERTY()
-	uint16 SliceCount;
+		uint16 SliceCount;
 
 	UPROPERTY()
-	uint8 AlignmentBytes;
+		uint8 AlignmentBytes;
 
 	UPROPERTY()
-	FName Name;
+		FName Name;
 
 	UPROPERTY()
-	int32 ScriptStructIndex;
+		int32 ScriptStructIndex;
 
 	FORCEINLINE uint64 GetWorkByteIndex() const { return ByteIndex; }
 	FORCEINLINE uint64 GetStorageByteIndex() const { return ByteIndex - (uint64)AlignmentBytes - (uint64)(SliceIndex * GetNumBytesPerSlice()); }
 	FORCEINLINE uint8 GetAlignmentBytes() const { return AlignmentBytes; }
 	FORCEINLINE bool IsArray() const { return ElementCount > 1; }
-	FORCEINLINE bool IsPlain() const { return ScriptStructIndex == INDEX_NONE;  }
+	FORCEINLINE bool IsPlain() const { return ScriptStructIndex == INDEX_NONE; }
 	FORCEINLINE uint16 GetAllocatedBytes() const { return ElementCount * ElementSize * SliceCount + (uint16)AlignmentBytes; }
 	FORCEINLINE uint16 GetNumBytesPerSlice() const { return ElementCount * ElementSize; }
 	FORCEINLINE uint16 GetNumBytesAllSlices() const { return ElementCount * ElementSize * SliceCount; }
+	FORCEINLINE uint32 GetTotalElementCount() const { return (uint32)ElementCount * (uint32)SliceCount; }
 	FORCEINLINE void MoveToFirstSlice() { ByteIndex -= SliceIndex * GetNumBytesPerSlice(); SliceIndex = 0; }
-	FORCEINLINE void MoveToNextSlice() { ByteIndex += GetNumBytesPerSlice(); SliceIndex++; }
+	FORCEINLINE void MoveToNextSlice()
+	{
+		if(SliceCount == 1)
+		{
+			return;
+		}
+		
+		if(SliceIndex == SliceCount - 1)
+		{
+			MoveToFirstSlice();
+		}
+		else
+		{
+			ByteIndex += GetNumBytesPerSlice();
+			SliceIndex++;
+		}
+	}
 };
 
 typedef TArrayView<FRigVMRegister> FRigVMRegisterArray;
@@ -158,11 +175,15 @@ public:
 		return (const void*)&Data[Register.GetWorkByteIndex()];
 	}
 
-	FORCEINLINE void* GetData(int32 InRegisterIndex)
+	FORCEINLINE void* GetData(int32 InRegisterIndex, bool bMoveToNextSlice = false)
 	{
 		ensure(Registers.IsValidIndex(InRegisterIndex));
-		const FRigVMRegister& Register = Registers[InRegisterIndex];
+		FRigVMRegister& Register = Registers[InRegisterIndex];
 		ensure(Register.ElementCount > 0);
+		if(bMoveToNextSlice)
+		{
+			Register.MoveToNextSlice();
+		}
 		return (void*)&Data[Register.GetWorkByteIndex()];
 	}
 
@@ -178,7 +199,7 @@ public:
 	template<class T>
 	FORCEINLINE const T* Get(const FRigVMArgument& InArgument) const
 	{
-		return Get<T>(InArgument.Index());
+		return Get<T>(InArgument.GetRegisterIndex());
 	}
 
 	template<class T>
@@ -190,49 +211,57 @@ public:
 	template<class T>
 	FORCEINLINE const T& GetRef(const FRigVMArgument& InArgument) const
 	{
-		return GetRef<T>(InArgument.Index());
-	}
-
-	template<class T>
-	FORCEINLINE T* Get(int32 InRegisterIndex)
-	{
-		ensure(Registers.IsValidIndex(InRegisterIndex));
-		const FRigVMRegister& Register = Registers[InRegisterIndex];
-		ensure(Register.ElementCount > 0);
-		return (T*)&Data[Register.GetWorkByteIndex()];
-	}
-
-	template<class T>
-	FORCEINLINE T* Get(const FRigVMArgument& InArgument)
-	{
-		return Get<T>(InArgument.Index());
-	}
-
-	template<class T>
-	FORCEINLINE T& GetRef(int32 InRegisterIndex)
-	{
-		return *Get<T>(InRegisterIndex);
-	}
-
-	template<class T>
-	FORCEINLINE T& GetRef(const FRigVMArgument& InArgument)
-	{
 		return GetRef<T>(InArgument.GetRegisterIndex());
 	}
 
 	template<class T>
-	FORCEINLINE TArrayView<T> GetArray(int32 InRegisterIndex)
+	FORCEINLINE T* Get(int32 InRegisterIndex, bool bMoveToNextSlice = false)
 	{
 		ensure(Registers.IsValidIndex(InRegisterIndex));
-		const FRigVMRegister& Register = Registers[InRegisterIndex];
+		FRigVMRegister& Register = Registers[InRegisterIndex];
 		ensure(Register.ElementCount > 0);
+		if(bMoveToNextSlice)
+		{
+			Register.MoveToNextSlice();
+		}
+		return (T*)&Data[Register.GetWorkByteIndex()];
+	}
+
+	template<class T>
+	FORCEINLINE T* Get(const FRigVMArgument& InArgument, bool bMoveToNextSlice = false)
+	{
+		return Get<T>(InArgument.GetRegisterIndex(), bMoveToNextSlice);
+	}
+
+	template<class T>
+	FORCEINLINE T& GetRef(int32 InRegisterIndex, bool bMoveToNextSlice = false)
+	{
+		return *Get<T>(InRegisterIndex, bMoveToNextSlice);
+	}
+
+	template<class T>
+	FORCEINLINE T& GetRef(const FRigVMArgument& InArgument, bool bMoveToNextSlice = false)
+	{
+		return GetRef<T>(InArgument.GetRegisterIndex(), bMoveToNextSlice);
+	}
+
+	template<class T>
+	FORCEINLINE TArrayView<T> GetArray(int32 InRegisterIndex, bool bMoveToNextSlice = false)
+	{
+		ensure(Registers.IsValidIndex(InRegisterIndex));
+		FRigVMRegister& Register = Registers[InRegisterIndex];
+		ensure(Register.ElementCount > 0);
+		if(bMoveToNextSlice)
+		{
+			Register.MoveToNextSlice();
+		}
 		return TArrayView<T>((T*)&Data[Register.GetWorkByteIndex()], Register.ElementCount);
 	}
 	
 	template<class T>
-	FORCEINLINE TArrayView<T> GetArray(const FRigVMArgument& InArgument)
+	FORCEINLINE TArrayView<T> GetArray(const FRigVMArgument& InArgument, bool bMoveToNextSlice = false)
 	{
-		return GetArray<T>(InArgument.GetRegisterIndex());
+		return GetArray<T>(InArgument.GetRegisterIndex(), bMoveToNextSlice);
 	}
 
 	FORCEINLINE UScriptStruct* GetScriptStruct(int32 InRegisterIndex) const
@@ -303,133 +332,145 @@ public:
 
 	void Reset();
 
-	FORCEINLINE int32 AddPlainArray(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr)
+	FORCEINLINE int32 AddPlainArray(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, int32 InSliceCount = 1)
 	{
-		return Allocate(InNewName, InElementSize, InCount, InDataPtr);
+		return Allocate(InNewName, InElementSize, InCount, InSliceCount, InDataPtr);
 	}
 
 	template<class T>
-	FORCEINLINE int32 AddPlainArray(const FName& InNewName, int32 InCount, const T* InDataPtr = nullptr)
+	FORCEINLINE int32 AddPlainArray(const FName& InNewName, int32 InCount, const T* InDataPtr = nullptr, int32 InSliceCount = 1)
 	{
-		return Allocate(InNewName, sizeof(T), InCount, (const void*)InDataPtr);
+		return Allocate(InNewName, sizeof(T), InCount, InSliceCount, (const void*)InDataPtr);
 	}
 
 	template<class T>
-	FORCEINLINE int32 AddPlainArray(const FName& InNewName, const TArray<T>& InArray)
+	FORCEINLINE int32 AddPlainArray(const FName& InNewName, const TArray<T>& InArray, int32 InSliceCount = 1)
 	{
-		return AddPlainArray<T>(InNewName, InArray.Num(), InArray.GetData());
+		return AddPlainArray<T>(InNewName, InArray.Num(), InArray.GetData(), InSliceCount);
 	}
 
 	template<class T>
-	FORCEINLINE int32 AddPlainArray(const TArray<T>& InArray)
+	FORCEINLINE int32 AddPlainArray(const TArray<T>& InArray, int32 InSliceCount = 1)
 	{
-		return AddPlainArray<T>(NAME_None, InArray);
+		return AddPlainArray<T>(NAME_None, InArray, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddPlain(const FName& InNewName, int32 InElementSize, const void* InValuePtr)
+	FORCEINLINE int32 AddPlain(const FName& InNewName, int32 InElementSize, const void* InValuePtr, int32 InSliceCount = 1)
 	{
-		return AddPlainArray(InNewName, InElementSize, 1, InValuePtr);
+		return AddPlainArray(InNewName, InElementSize, 1, InValuePtr, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddPlain(int32 InElementSize, const void* InValuePtr)
+	FORCEINLINE int32 AddPlain(int32 InElementSize, const void* InValuePtr, int32 InSliceCount = 1)
 	{
-		return AddPlain(NAME_None, InElementSize, InValuePtr);
-	}
-
-	template<class T>
-	FORCEINLINE int32 AddPlain(const FName& InNewName, const T& InValue)
-	{
-		return AddPlainArray<T>(InNewName, 1, &InValue);
+		return AddPlain(NAME_None, InElementSize, InValuePtr, InSliceCount);
 	}
 
 	template<class T>
-	FORCEINLINE int32 AddPlain(const T& InValue)
+	FORCEINLINE int32 AddPlain(const FName& InNewName, const T& InValue, int32 InSliceCount = 1)
 	{
-		return AddPlain<T>(NAME_None, InValue);
+		return AddPlainArray<T>(InNewName, 1, &InValue, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddNameArray(const FName& InNewName, int32 InCount, const FName* InDataPtr = nullptr)
+	template<class T>
+	FORCEINLINE int32 AddPlain(const T& InValue, int32 InSliceCount = 1)
 	{
-		int32 Register = Allocate(InNewName, sizeof(FName), InCount, nullptr);
+		return AddPlain<T>(NAME_None, InValue, InSliceCount);
+	}
+
+	FORCEINLINE int32 AddNameArray(const FName& InNewName, int32 InCount, const FName* InDataPtr = nullptr, int32 InSliceCount = 1)
+	{
+		int32 Register = Allocate(InNewName, sizeof(FName), InCount, InSliceCount, nullptr);
 		Registers[Register].Type = ERigVMRegisterType::Name;
 
 		Construct(Register);
 
 		if(InDataPtr)
 		{
-			FName* DataPtr = (FName*)GetData(Register);
-			for (int32 Index = 0; Index < InCount; Index++)
+			Registers[Register].MoveToFirstSlice();
+			for (uint16 SliceIndex = 0; SliceIndex < Registers[Register].SliceCount; SliceIndex++)
 			{
-				DataPtr[Index] = InDataPtr[Index];
+				FName* DataPtr = (FName*)GetData(Register);
+				for (int32 Index = 0; Index < InCount; Index++)
+				{
+					DataPtr[Index] = InDataPtr[Index];
+				}
+				Registers[Register].MoveToNextSlice();
 			}
+			Registers[Register].MoveToFirstSlice();
 		}
 
 		return Register;
 	}
 
-	FORCEINLINE int32 AddNameArray(const FName& InNewName, const TArray<FName>& InArray)
+	FORCEINLINE int32 AddNameArray(const FName& InNewName, const TArray<FName>& InArray, int32 InSliceCount = 1)
 	{
-		return AddNameArray(InNewName, InArray.Num(), InArray.GetData());
+		return AddNameArray(InNewName, InArray.Num(), InArray.GetData(), InSliceCount);
 	}
 
-	FORCEINLINE int32 AddNameArray(const TArray<FName>& InArray)
+	FORCEINLINE int32 AddNameArray(const TArray<FName>& InArray, int32 InSliceCount = 1)
 	{
-		return AddNameArray(NAME_None, InArray);
+		return AddNameArray(NAME_None, InArray, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddName(const FName& InNewName, const FName& InValue)
+	FORCEINLINE int32 AddName(const FName& InNewName, const FName& InValue, int32 InSliceCount = 1)
 	{
-		return AddNameArray(InNewName, 1, &InValue);
+		return AddNameArray(InNewName, 1, &InValue, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddName(const FName& InValue)
+	FORCEINLINE int32 AddName(const FName& InValue, int32 InSliceCount = 1)
 	{
-		return AddName(NAME_None, InValue);
+		return AddName(NAME_None, InValue, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddStringArray(const FName& InNewName, int32 InCount, const FString* InDataPtr = nullptr)
+	FORCEINLINE int32 AddStringArray(const FName& InNewName, int32 InCount, const FString* InDataPtr = nullptr, int32 InSliceCount = 1)
 	{
-		int32 Register = Allocate(InNewName, sizeof(FString), InCount, nullptr);
+		int32 Register = Allocate(InNewName, sizeof(FString), InCount, InSliceCount, nullptr);
 		Registers[Register].Type = ERigVMRegisterType::String;
 
 		Construct(Register);
 
 		if(InDataPtr)
 		{
-			FString* DataPtr = (FString*)GetData(Register);
-			for (int32 Index = 0; Index < InCount; Index++)
+			Registers[Register].MoveToFirstSlice();
+			for (uint16 SliceIndex = 0; SliceIndex < Registers[Register].SliceCount; SliceIndex++)
 			{
-				DataPtr[Index] = InDataPtr[Index];
+				FString* DataPtr = (FString*)GetData(Register);
+				for (int32 Index = 0; Index < InCount; Index++)
+				{
+					DataPtr[Index] = InDataPtr[Index];
+				}
+				Registers[Register].MoveToNextSlice();
 			}
+			Registers[Register].MoveToFirstSlice();
 		}
 
 		return Register;
 	}
 
-	FORCEINLINE int32 AddStringArray(const FName& InNewName, const TArray<FString>& InArray)
+	FORCEINLINE int32 AddStringArray(const FName& InNewName, const TArray<FString>& InArray, int32 InSliceCount = 1)
 	{
-		return AddStringArray(InNewName, InArray.Num(), InArray.GetData());
+		return AddStringArray(InNewName, InArray.Num(), InArray.GetData(), InSliceCount);
 	}
 
-	FORCEINLINE int32 AddStringArray(const TArray<FString>& InArray)
+	FORCEINLINE int32 AddStringArray(const TArray<FString>& InArray, int32 InSliceCount = 1)
 	{
-		return AddStringArray(NAME_None, InArray);
+		return AddStringArray(NAME_None, InArray, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddString(const FName& InNewName, const FString& InValue)
+	FORCEINLINE int32 AddString(const FName& InNewName, const FString& InValue, int32 InSliceCount = 1)
 	{
-		return AddStringArray(InNewName, 1, &InValue);
+		return AddStringArray(InNewName, 1, &InValue, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddString(const FString& InValue)
+	FORCEINLINE int32 AddString(const FString& InValue, int32 InSliceCount = 1)
 	{
-		return AddString(NAME_None, InValue);
+		return AddString(NAME_None, InValue, InSliceCount);
 	}
 
 
-	FORCEINLINE int32 AddStructArray(const FName& InNewName, UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr)
+	FORCEINLINE int32 AddStructArray(const FName& InNewName, UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr, int32 InSliceCount = 1)
 	{
-		int32 Register = Allocate(InNewName, InScriptStruct->GetStructureSize(), InCount, nullptr, false);
+		int32 Register = Allocate(InNewName, InScriptStruct->GetStructureSize(), InCount, InSliceCount, nullptr, false);
 		if (Register == INDEX_NONE)
 		{
 			return INDEX_NONE;
@@ -446,19 +487,25 @@ public:
 		// copy values from the provided data
 		if (InDataPtr != nullptr)
 		{
-			InScriptStruct->CopyScriptStruct(GetData(Register), InDataPtr, InCount);
+			Registers[Register].MoveToFirstSlice();
+			for (uint16 SliceIndex = 0; SliceIndex < Registers[Register].SliceCount; SliceIndex++)
+			{
+				InScriptStruct->CopyScriptStruct(GetData(Register), InDataPtr, InCount);
+				Registers[Register].MoveToNextSlice();
+			}
+			Registers[Register].MoveToFirstSlice();
 		}
 
 		return Register;
 	}
 
-	FORCEINLINE int32 AddStructArray(UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr)
+	FORCEINLINE int32 AddStructArray(UScriptStruct* InScriptStruct, int32 InCount, const void* InDataPtr = nullptr, int32 InSliceCount = 1)
 	{
-		return AddStructArray(NAME_None, InScriptStruct, InCount, InDataPtr);
+		return AddStructArray(NAME_None, InScriptStruct, InCount, InDataPtr, InSliceCount);
 	}
 
 	template<class T>
-	FORCEINLINE int32 AddStructArray(const FName& InNewName, int32 InCount, const T* InDataPtr = nullptr)
+	FORCEINLINE int32 AddStructArray(const FName& InNewName, int32 InCount, const T* InDataPtr = nullptr, int32 InSliceCount = 1)
 	{
 		// if you are hitting this - you might need to use AddPlainArray instead!
 		UScriptStruct* Struct = T::StaticStruct();
@@ -467,41 +514,41 @@ public:
 			return INDEX_NONE;
 		}
 	
-		return AddStructArray(InNewName, Struct, InCount, InDataPtr);
+		return AddStructArray(InNewName, Struct, InCount, InDataPtr, InSliceCount);
 	}
 
 	template<class T>
-	FORCEINLINE int32 AddStructArray(const FName& InNewName, const TArray<T>& InArray)
+	FORCEINLINE int32 AddStructArray(const FName& InNewName, const TArray<T>& InArray, int32 InSliceCount = 1)
 	{
-		return AddStructArray<T>(InNewName, InArray.Num(), InArray.GetData());
+		return AddStructArray<T>(InNewName, InArray.Num(), InArray.GetData(), InSliceCount);
 	}
 
 	template<class T>
-	FORCEINLINE int32 AddStructArray(const TArray<T>& InArray)
+	FORCEINLINE int32 AddStructArray(const TArray<T>& InArray, int32 InSliceCount = 1)
 	{
-		return AddStructArray<T>(NAME_None, InArray);
+		return AddStructArray<T>(NAME_None, InArray, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddStruct(const FName& InNewName, UScriptStruct* InScriptStruct, const void* InValuePtr)
+	FORCEINLINE int32 AddStruct(const FName& InNewName, UScriptStruct* InScriptStruct, const void* InValuePtr, int32 InSliceCount = 1)
 	{
-		return AddStructArray(InNewName, InScriptStruct, 1, InValuePtr);
+		return AddStructArray(InNewName, InScriptStruct, 1, InValuePtr, InSliceCount);
 	}
 
-	FORCEINLINE int32 AddStruct(UScriptStruct* InScriptStruct, const void* InValuePtr)
+	FORCEINLINE int32 AddStruct(UScriptStruct* InScriptStruct, const void* InValuePtr, int32 InSliceCount = 1)
 	{
-		return AddStruct(NAME_None, InScriptStruct, InValuePtr);
-	}
-
-	template<class T>
-	FORCEINLINE int32 AddStruct(const FName& InNewName, const T& InValue)
-	{
-		return AddStructArray<T>(InNewName, 1, &InValue);
+		return AddStruct(NAME_None, InScriptStruct, InValuePtr, InSliceCount);
 	}
 
 	template<class T>
-	FORCEINLINE int32 AddStruct(const T& InValue)
+	FORCEINLINE int32 AddStruct(const FName& InNewName, const T& InValue, int32 InSliceCount = 1)
 	{
-		return AddStruct<T>(NAME_None, InValue);
+		return AddStructArray<T>(InNewName, 1, &InValue, InSliceCount);
+	}
+
+	template<class T>
+	FORCEINLINE int32 AddStruct(const T& InValue, int32 InSliceCount = 1)
+	{
+		return AddStruct<T>(NAME_None, InValue, InSliceCount);
 	}
 
 	bool Remove(int32 InRegisterIndex);
@@ -515,8 +562,8 @@ public:
 
 private:
 
-	int32 Allocate(const FName& InNewName, int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, bool bUpdateRegisters = true);
-	int32 Allocate(int32 InElementSize, int32 InCount, const void* InDataPtr = nullptr, bool bUpdateRegisters = true);
+	int32 Allocate(const FName& InNewName, int32 InElementSize, int32 InElementCount, int32 InSliceCount, const void* InDataPtr = nullptr, bool bUpdateRegisters = true);
+	int32 Allocate(int32 InElementSize, int32 InElementCount, int32 InSliceCount, const void* InDataPtr = nullptr, bool bUpdateRegisters = true);
 	bool Construct(int32 InRegisterIndex, int32 InElementIndex = INDEX_NONE);
 	bool Destroy(int32 InRegisterIndex, int32 InElementIndex = INDEX_NONE);
 
