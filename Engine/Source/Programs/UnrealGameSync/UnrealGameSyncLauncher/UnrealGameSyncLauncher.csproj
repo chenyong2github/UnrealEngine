@@ -118,7 +118,6 @@
     <Compile Include="Forms\SettingsWindow.Designer.cs">
       <DependentUpon>SettingsWindow.cs</DependentUpon>
     </Compile>
-    <Compile Include="SyncAndRunModalTask.cs" />
     <Compile Include="SyncAndRunPerforceTask.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -159,8 +158,8 @@
     <When Condition="Exists('..\UnrealGameSync\NotForLicensees\DeploymentSettingsInternal.cs')">
       <ItemGroup>
         <Compile Include="..\UnrealGameSync\NotForLicensees\DeploymentSettingsInternal.cs">
-			<Link>Shared\NotForLicensees\DeploymentSettingsInternal.cs</Link>
-		</Compile>
+          <Link>Shared\NotForLicensees\DeploymentSettingsInternal.cs</Link>
+        </Compile>
       </ItemGroup>
     </When>
   </Choose>
