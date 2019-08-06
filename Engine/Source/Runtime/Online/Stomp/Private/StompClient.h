@@ -45,7 +45,7 @@ public:
 	/**
 	 * Inquire if this instance is connected to a server.
 	 */
-	virtual bool IsConnected() override;
+	virtual bool IsConnected() const override;
 
 	/**
 	 * Subscribe to an event
