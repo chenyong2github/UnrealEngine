@@ -8,6 +8,7 @@
 
 #include <linux/version.h>
 #include <signal.h>
+#include "Clang/ClangPlatform.h"
 
 struct FGenericPlatformTypes;
 
@@ -75,12 +76,6 @@ typedef FUnixPlatformTypes FPlatformTypes;
 	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO 1
 #else
 	#define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO 0
-#endif
-
-#if __has_feature(cxx_if_constexpr)
-	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 1
-#else
-	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 0
 #endif
 
 // SOCK_CLOEXEC is available on Unix since 2.6.27

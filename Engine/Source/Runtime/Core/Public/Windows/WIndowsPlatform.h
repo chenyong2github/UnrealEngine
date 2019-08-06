@@ -4,6 +4,12 @@
 
 #include <sal.h>
 
+#if defined(__clang__)
+	#include "Clang/ClangPlatform.h"
+#else
+	#include "MSVC/MSVCPlatform.h"
+#endif
+
 
 /**
 * Windows specific types
@@ -67,12 +73,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define PLATFORM_COMPILER_HAS_DECLTYPE_AUTO					1
 
 #define PLATFORM_GLOBAL_LOG_CATEGORY						LogWindows
-
-#if _MSC_FULL_VER >= 191125507 && defined(_MSVC_LANG) && _MSVC_LANG >= 201402
-	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 1
-#else
-	#define PLATFORM_COMPILER_HAS_IF_CONSTEXPR 0
-#endif
 
 
 // Q: Why is there a __nop() before __debugbreak()?
