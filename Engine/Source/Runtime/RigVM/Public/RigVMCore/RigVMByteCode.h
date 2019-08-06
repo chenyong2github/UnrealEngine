@@ -11,6 +11,71 @@ struct FRigVMByteCode;
 UENUM()
 enum class ERigVMOpCode : uint8
 {
+	Execute_0_Args,
+	Execute_1_Args,
+	Execute_2_Args,
+	Execute_3_Args,
+	Execute_4_Args,
+	Execute_5_Args,
+	Execute_6_Args,
+	Execute_7_Args,
+	Execute_8_Args,
+	Execute_9_Args,
+	Execute_10_Args,
+	Execute_11_Args,
+	Execute_12_Args,
+	Execute_13_Args,
+	Execute_14_Args,
+	Execute_15_Args,
+	Execute_16_Args,
+	Execute_17_Args,
+	Execute_18_Args,
+	Execute_19_Args,
+	Execute_20_Args,
+	Execute_21_Args,
+	Execute_22_Args,
+	Execute_23_Args,
+	Execute_24_Args,
+	Execute_25_Args,
+	Execute_26_Args,
+	Execute_27_Args,
+	Execute_28_Args,
+	Execute_29_Args,
+	Execute_30_Args,
+	Execute_31_Args,
+	Execute_32_Args,
+	Execute_33_Args,
+	Execute_34_Args,
+	Execute_35_Args,
+	Execute_36_Args,
+	Execute_37_Args,
+	Execute_38_Args,
+	Execute_39_Args,
+	Execute_40_Args,
+	Execute_41_Args,
+	Execute_42_Args,
+	Execute_43_Args,
+	Execute_44_Args,
+	Execute_45_Args,
+	Execute_46_Args,
+	Execute_47_Args,
+	Execute_48_Args,
+	Execute_49_Args,
+	Execute_50_Args,
+	Execute_51_Args,
+	Execute_52_Args,
+	Execute_53_Args,
+	Execute_54_Args,
+	Execute_55_Args,
+	Execute_56_Args,
+	Execute_57_Args,
+	Execute_58_Args,
+	Execute_59_Args,
+	Execute_60_Args,
+	Execute_61_Args,
+	Execute_62_Args,
+	Execute_63_Args,
+	Execute_64_Args,
 	Copy,
 	Increment,
 	Decrement,
@@ -19,7 +84,6 @@ enum class ERigVMOpCode : uint8
 	Jump,
 	JumpIfTrue,
 	JumpIfFalse,
-	Execute,
 	Exit,
 	Invalid
 };
@@ -32,6 +96,25 @@ struct RIGVM_API FRigVMBaseOp
 	}
 
 	ERigVMOpCode OpCode;
+};
+
+struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
+{
+	FRigVMExecuteOp()
+	: FRigVMBaseOp()
+	, FunctionIndex(INDEX_NONE)
+	{
+	}
+
+	FRigVMExecuteOp(uint16 InFunctionIndex, uint8 InArgumentCount)
+	: FRigVMBaseOp((ERigVMOpCode)(uint8(ERigVMOpCode::Execute_0_Args) + InArgumentCount))
+	, FunctionIndex(InFunctionIndex)
+	{
+	}
+
+	uint16 FunctionIndex;
+
+	FORCEINLINE uint8 GetArgumentCount() const { return uint8(OpCode) - uint8(ERigVMOpCode::Execute_0_Args); }
 };
 
 struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
@@ -214,26 +297,6 @@ struct RIGVM_API FRigVMJumpIfFalseOp : public FRigVMBaseOp
 	FRigVMArgument Condition;
 };
 
-struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
-{
-	FRigVMExecuteOp()
-	: FRigVMBaseOp(ERigVMOpCode::Execute)
-	, FunctionIndex(INDEX_NONE)
-	, ArgumentCount(0)
-	{
-	}
-
-	FRigVMExecuteOp(uint16 InFunctionIndex, uint16 InArgumentCount)
-	: FRigVMBaseOp(ERigVMOpCode::Execute)
-	, FunctionIndex(InFunctionIndex)
-	, ArgumentCount(InArgumentCount)
-	{
-	}
-
-	uint16 FunctionIndex;
-	uint16 ArgumentCount;
-};
-
 struct RIGVM_API FRigVMExitOp : public FRigVMBaseOp
 {
 	FRigVMExitOp()
@@ -331,7 +394,6 @@ public:
 	template<class OpType>
 	FORCEINLINE const OpType& GetOpAt(const FRigVMByteCodeTableEntry& InEntry) const
 	{
-		ensure(OpType().OpCode == InEntry.OpCode);
 		return GetOpAt<OpType>(InEntry.ByteCodeIndex);
 	}
 
@@ -344,13 +406,13 @@ public:
 	FORCEINLINE TArrayView<FRigVMArgument> GetArgumentsForExecuteOp(uint64 InByteCodeIndex) const
 	{
 		const FRigVMExecuteOp& ExecuteOp = GetOpAt<FRigVMExecuteOp>(InByteCodeIndex);
-		return GetArgumentsAt(InByteCodeIndex + sizeof(FRigVMExecuteOp), ExecuteOp.ArgumentCount);
+		return GetArgumentsAt(InByteCodeIndex + sizeof(FRigVMExecuteOp), ExecuteOp.GetArgumentCount());
 	}
 
 	FORCEINLINE TArrayView<FRigVMArgument> GetArgumentsForExecuteOp(const FRigVMByteCodeTableEntry& InEntry) const
 	{
 		const FRigVMExecuteOp& ExecuteOp = GetOpAt<FRigVMExecuteOp>(InEntry);
-		return GetArgumentsAt(InEntry.ByteCodeIndex + sizeof(FRigVMExecuteOp), ExecuteOp.ArgumentCount);
+		return GetArgumentsAt(InEntry.ByteCodeIndex + sizeof(FRigVMExecuteOp), ExecuteOp.GetArgumentCount());
 	}
 
 	FORCEINLINE const TArrayView<uint8> GetByteCode() const

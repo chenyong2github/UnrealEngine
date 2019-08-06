@@ -3403,6 +3403,12 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			MemberMulticastProlog.Add(FString::Printf(TEXT("%s %s = RigVMStorage[%s.GetStorageIndex()]->%s<%s>(%s.GetRegisterIndex(), true);"), *ExtractedMulticastCPPType, *Name, *AddressName, *MulticastGetter, *MultiCastCPPType, *AddressName));
 		}
 
+		// we have a hard limit on the number of parameters for our function
+		if (MemberNames.Num() > 64)
+		{
+			UE_LOG_ERROR_UHT(TEXT("RIGVM_METHOD: Struct '%s' has more than 64 members (64 is the limit)."), StructNameCPP);
+		}
+
 		OutGeneratedHeaderText.Log(TEXT("\n"));
 		OutGeneratedHeaderText.Logf(TEXT("#define %s_IMPLEMENT_RIGVM(ReturnType, FunctionName, ...) \\\n"), *RigVMMacroPrefix);
 		OutGeneratedHeaderText.Logf(TEXT("\tReturnType %s::Static##FunctionName(\\\r\n\t\t%s, ##__VA_ARGS__)\n"), StructNameCPP, *FString::Join(MemberDeclarations, TEXT(",\\\r\n\t\t")));

@@ -41,6 +41,80 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeArgu
 	ERigVMOpCode OpCode = GetOpCodeAt(InByteCodeIndex);
 	switch (OpCode)
 	{
+		case ERigVMOpCode::Execute_0_Args:
+		case ERigVMOpCode::Execute_1_Args:
+		case ERigVMOpCode::Execute_2_Args:
+		case ERigVMOpCode::Execute_3_Args:
+		case ERigVMOpCode::Execute_4_Args:
+		case ERigVMOpCode::Execute_5_Args:
+		case ERigVMOpCode::Execute_6_Args:
+		case ERigVMOpCode::Execute_7_Args:
+		case ERigVMOpCode::Execute_8_Args:
+		case ERigVMOpCode::Execute_9_Args:
+		case ERigVMOpCode::Execute_10_Args:
+		case ERigVMOpCode::Execute_11_Args:
+		case ERigVMOpCode::Execute_12_Args:
+		case ERigVMOpCode::Execute_13_Args:
+		case ERigVMOpCode::Execute_14_Args:
+		case ERigVMOpCode::Execute_15_Args:
+		case ERigVMOpCode::Execute_16_Args:
+		case ERigVMOpCode::Execute_17_Args:
+		case ERigVMOpCode::Execute_18_Args:
+		case ERigVMOpCode::Execute_19_Args:
+		case ERigVMOpCode::Execute_20_Args:
+		case ERigVMOpCode::Execute_21_Args:
+		case ERigVMOpCode::Execute_22_Args:
+		case ERigVMOpCode::Execute_23_Args:
+		case ERigVMOpCode::Execute_24_Args:
+		case ERigVMOpCode::Execute_25_Args:
+		case ERigVMOpCode::Execute_26_Args:
+		case ERigVMOpCode::Execute_27_Args:
+		case ERigVMOpCode::Execute_28_Args:
+		case ERigVMOpCode::Execute_29_Args:
+		case ERigVMOpCode::Execute_30_Args:
+		case ERigVMOpCode::Execute_31_Args:
+		case ERigVMOpCode::Execute_32_Args:
+		case ERigVMOpCode::Execute_33_Args:
+		case ERigVMOpCode::Execute_34_Args:
+		case ERigVMOpCode::Execute_35_Args:
+		case ERigVMOpCode::Execute_36_Args:
+		case ERigVMOpCode::Execute_37_Args:
+		case ERigVMOpCode::Execute_38_Args:
+		case ERigVMOpCode::Execute_39_Args:
+		case ERigVMOpCode::Execute_40_Args:
+		case ERigVMOpCode::Execute_41_Args:
+		case ERigVMOpCode::Execute_42_Args:
+		case ERigVMOpCode::Execute_43_Args:
+		case ERigVMOpCode::Execute_44_Args:
+		case ERigVMOpCode::Execute_45_Args:
+		case ERigVMOpCode::Execute_46_Args:
+		case ERigVMOpCode::Execute_47_Args:
+		case ERigVMOpCode::Execute_48_Args:
+		case ERigVMOpCode::Execute_49_Args:
+		case ERigVMOpCode::Execute_50_Args:
+		case ERigVMOpCode::Execute_51_Args:
+		case ERigVMOpCode::Execute_52_Args:
+		case ERigVMOpCode::Execute_53_Args:
+		case ERigVMOpCode::Execute_54_Args:
+		case ERigVMOpCode::Execute_55_Args:
+		case ERigVMOpCode::Execute_56_Args:
+		case ERigVMOpCode::Execute_57_Args:
+		case ERigVMOpCode::Execute_58_Args:
+		case ERigVMOpCode::Execute_59_Args:
+		case ERigVMOpCode::Execute_60_Args:
+		case ERigVMOpCode::Execute_61_Args:
+		case ERigVMOpCode::Execute_62_Args:
+		case ERigVMOpCode::Execute_63_Args:
+		case ERigVMOpCode::Execute_64_Args:
+		{
+			uint64 NumBytes = (uint64)sizeof(FRigVMExecuteOp);
+			if(bIncludeArguments)
+			{
+				const FRigVMExecuteOp& ExecuteOp = GetOpAt<FRigVMExecuteOp>(InByteCodeIndex);
+				NumBytes += (uint64)ExecuteOp.GetArgumentCount() * (uint64)sizeof(FRigVMArgument);
+			}
+			return NumBytes;
+		}
 		case ERigVMOpCode::Copy:
 		{
 			return (uint64)sizeof(FRigVMCopyOp);
@@ -72,16 +146,6 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeArgu
 		case ERigVMOpCode::JumpIfFalse:
 		{
 			return (uint64)sizeof(FRigVMJumpIfFalseOp);
-		}
-		case ERigVMOpCode::Execute:
-		{
-			uint64 NumBytes = (uint64)sizeof(FRigVMExecuteOp);
-			if(bIncludeArguments)
-			{
-				const FRigVMExecuteOp& ExecuteOp = GetOpAt<FRigVMExecuteOp>(InByteCodeIndex);
-				NumBytes += (uint64)ExecuteOp.ArgumentCount * (uint64)sizeof(FRigVMArgument);
-			}
-			return NumBytes;
 		}
 		case ERigVMOpCode::Exit:
 		{
@@ -146,7 +210,7 @@ uint64 FRigVMByteCode::AddJumpIfFalseOp(uint64 InByteCodeIndex, const FRigVMArgu
 
 uint64 FRigVMByteCode::AddExecuteOp(uint16 InFunctionIndex, const TArrayView<FRigVMArgument>& InArguments)
 {
-	FRigVMExecuteOp Op(InFunctionIndex, (uint16)InArguments.Num());
+	FRigVMExecuteOp Op(InFunctionIndex, (uint8)InArguments.Num());
 	uint64 OpByteIndex = AddOp(Op);
 	uint64 ArgumentsByteIndex = (uint64)ByteCode.AddUninitialized(sizeof(FRigVMArgument) * InArguments.Num());
 	FMemory::Memcpy(ByteCode.GetData() + ArgumentsByteIndex, InArguments.GetData(), sizeof(FRigVMArgument) * InArguments.Num());
