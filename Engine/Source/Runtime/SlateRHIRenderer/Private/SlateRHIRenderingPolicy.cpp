@@ -340,12 +340,15 @@ static bool UpdateScissorRect(
 
 				const FSlateClippingZone& ScissorRect = ClipState.ScissorRect.GetValue();
 
-				const FVector2D TopLeft = ScissorRect.TopLeft + ViewTranslation2D;
-				const FVector2D BottomRight = ScissorRect.BottomRight + ViewTranslation2D;
+				const FIntPoint SizeXY = BackBuffer.GetSizeXY();
+				const FVector2D ViewSize((float) SizeXY.X, (float) SizeXY.Y);
 
+				// Clamp scissor rect to BackBuffer size
+				const FVector2D TopLeft     = FMath::Min(FMath::Max(ScissorRect.TopLeft     + ViewTranslation2D, FVector2D(0.0f, 0.0f)), ViewSize);
+				const FVector2D BottomRight = FMath::Min(FMath::Max(ScissorRect.BottomRight + ViewTranslation2D, FVector2D(0.0f, 0.0f)), ViewSize);
+				
 				if (bSwitchVerticalAxis)
 				{
-					const FIntPoint ViewSize = BackBuffer.GetSizeXY();
 					const int32 MinY = (ViewSize.Y - BottomRight.Y);
 					const int32 MaxY = (ViewSize.Y - TopLeft.Y);
 					RHICmdList.SetScissorRect(true, TopLeft.X, MinY, BottomRight.X, MaxY);
