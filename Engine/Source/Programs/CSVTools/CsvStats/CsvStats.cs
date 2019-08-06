@@ -39,9 +39,12 @@ namespace CSVStats
             return rv;
         }
 
-        public CsvMetadata() { }
+        public CsvMetadata()
+		{
+			Values = new Dictionary<string, string>();
+		}
 
-        public CsvMetadata(string[] csvLine)
+		public CsvMetadata(string[] csvLine)
         {
             Values = new Dictionary<string, string>();
             TextInfo ti = CultureInfo.CurrentCulture.TextInfo;
@@ -1030,9 +1033,13 @@ namespace CSVStats
             StatSamples[] stats = new StatSamples[headings.Length];
             for (int i = 0; i < headings.Length; i++)
             {
-                string heading = headings[i];
+                string heading = headings[i].Trim();
+				if ( heading == "")
+				{
+					continue;
+				}
                 // find the events column (if there is one)
-                if (heading.ToLower() == "events")
+                else if (heading.ToLower() == "events")
                 {
                     eventHeadingIndex = i;
                 }
