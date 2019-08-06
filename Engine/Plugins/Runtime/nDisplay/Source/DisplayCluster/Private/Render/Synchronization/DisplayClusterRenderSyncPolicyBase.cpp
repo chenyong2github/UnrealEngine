@@ -20,8 +20,6 @@ FDisplayClusterRenderSyncPolicyBase::~FDisplayClusterRenderSyncPolicyBase()
 
 void FDisplayClusterRenderSyncPolicyBase::SyncBarrierRenderThread()
 {
-	check(IsInRenderingThread());
-
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Disabled)
