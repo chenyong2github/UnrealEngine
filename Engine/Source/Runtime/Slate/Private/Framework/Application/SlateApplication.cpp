@@ -4382,6 +4382,11 @@ void FSlateApplication::UnregisterInputPreProcessor(TSharedPtr<IInputProcessor> 
 	InputPreProcessors.Remove(InputProcessor);
 }
 
+int32 FSlateApplication::FindInputPreProcessor(TSharedPtr<class IInputProcessor> InputProcessor) const
+{
+	return InputPreProcessors.Find(InputProcessor);
+}
+
 void FSlateApplication::SetCursorRadius(float NewRadius)
 {
 	CursorRadius = FMath::Max<float>(0.0f, NewRadius);
@@ -7695,6 +7700,11 @@ void FSlateApplication::InputPreProcessorsHelper::RemoveAll()
 	}
 }
 
+
+int32 FSlateApplication::InputPreProcessorsHelper::Find(TSharedPtr<IInputProcessor> InputProcessor) const
+{
+	return InputPreProcessorList.Find(InputProcessor);
+}
 
 bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun)
 {
