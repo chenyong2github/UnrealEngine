@@ -223,6 +223,12 @@ extern "C"
 	extern PFNeglQueryTimestampSupportedANDROID eglGetFrameTimestampsSupportedANDROID_p;
 }
 
+#ifndef GL_FRAMEBUFFER_FETCH_NONCOHERENT_QCOM
+#define GL_FRAMEBUFFER_FETCH_NONCOHERENT_QCOM	0x96A2
+#endif
+typedef void (GL_APIENTRYP PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC) (void);
+extern PFNGLFRAMEBUFFERFETCHBARRIERQCOMPROC	glFramebufferFetchBarrierQCOM;
+
 struct FAndroidOpenGL : public FOpenGLES2
 {
 	static FORCEINLINE bool IsES31Usable()
@@ -666,8 +672,18 @@ struct FAndroidOpenGL : public FOpenGLES2
 
 	static FORCEINLINE GLint GetMaxComputeTextureImageUnits() { check(MaxComputeTextureImageUnits != -1); return MaxComputeTextureImageUnits; }
 	static FORCEINLINE GLint GetMaxComputeUniformComponents() { check(MaxComputeUniformComponents != -1); return MaxComputeUniformComponents; }
-	
+
+	static FORCEINLINE void FrameBufferFetchBarrier()
+	{
+		if (glFramebufferFetchBarrierQCOM)
+		{
+			glFramebufferFetchBarrierQCOM();
+		}
+	}
+			
 	static void ProcessExtensions(const FString& ExtensionsString);
+	static void SetupDefaultGLContextState(const FString& ExtensionsString);
+
 
 	// whether to use ES 3.0 function glTexStorage2D to allocate storage for GL_HALF_FLOAT_OES render target textures
 	static bool bUseHalfFloatTexStorage;
