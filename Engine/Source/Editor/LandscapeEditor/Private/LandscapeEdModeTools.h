@@ -924,6 +924,8 @@ public:
 				SynchronousUpdateComponentVisibilityForHeight(AffectedComponents, NewLayerVisibility);
 				return Bounds;
 			});
+			// Release Texture Mips that will be Locked by the next SynchronousUpdateComponentVisibilityForHeight
+			CacheUpToEditingLayer.DataAccess.Flush();
 
 			CacheBottomLayers.GetDataAndCache(X1, Y1, X2, Y2, BottomLayersData, [&]() -> FIntRect
 			{
@@ -933,6 +935,8 @@ public:
 				SynchronousUpdateComponentVisibilityForHeight(AffectedComponents, NewLayerVisibility);
 				return Bounds;
 			});
+			// Do the same here for consistency
+			CacheBottomLayers.DataAccess.Flush();
 		}
 		else
 		{
