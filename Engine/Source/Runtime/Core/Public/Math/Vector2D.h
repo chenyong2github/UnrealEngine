@@ -53,7 +53,14 @@ public:
 	 * @param InY Y coordinate.
 	 */
 	FORCEINLINE FVector2D(float InX, float InY);
-
+	
+	/**
+	 * Constructor initializing both components to a single float value.
+	 *
+	 * @param InF Value to set both components to.
+	 */
+	explicit FORCEINLINE FVector2D(float InF);
+	
 	/**
 	 * Constructs a vector from an FIntPoint.
 	 *
@@ -613,6 +620,9 @@ FORCEINLINE FVector2D::FVector2D(float InX,float InY)
 	:	X(InX), Y(InY)
 { }
 
+FORCEINLINE FVector2D::FVector2D(float InF)
+	:	X(InF), Y(InF)
+{ }
 
 FORCEINLINE FVector2D::FVector2D(FIntPoint InPos)
 {
