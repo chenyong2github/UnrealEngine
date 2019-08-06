@@ -608,6 +608,10 @@ namespace Gauntlet
                     {
                         Flags |= BuildFlags.Bulk;
                     }
+					else
+					{
+						Flags |= BuildFlags.NotBulk;
+					}
 
                     var Build = GetMatchingBuilds(TargetType, TargetPlatform, TargetConfiguration, Flags).FirstOrDefault();
 
