@@ -90,6 +90,18 @@ namespace WindowsMixedReality
 		return false;
 	}
 
+	bool FWindowsMixedRealityStatics::PollHandTracking()
+	{
+		FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
+
+		if (hmd != nullptr)
+		{
+			return hmd->PollHandTracking();
+		}
+
+		return false;
+	}
+
 	HMDInputPressState FWindowsMixedRealityStatics::GetPressState(
 		HMDHand hand,
 		HMDInputControllerButtons button)

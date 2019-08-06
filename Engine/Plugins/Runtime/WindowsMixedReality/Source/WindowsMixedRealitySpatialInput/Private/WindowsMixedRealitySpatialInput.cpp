@@ -7,6 +7,7 @@
 #include "WindowsMixedRealityInteropUtility.h"
 #include "Misc/Parse.h"
 #include "WindowsMixedRealitySpatialInputTypes.h"
+#include "WindowsMixedRealityAvailability.h"
 
 #define LOCTEXT_NAMESPACE "WindowsMixedRealitySpatialInput"
 #define MotionControllerDeviceTypeName "WindowsMixedRealitySpatialInput"
@@ -47,6 +48,8 @@ namespace WindowsMixedReality
 	void FWindowsMixedRealitySpatialInput::SendControllerEvents()
 	{
 #if WITH_WINDOWS_MIXED_REALITY
+		SendQueuedButtonAndAxisEvents();
+
 		if (!FWindowsMixedRealityStatics::PollInput())
 		{
 			return;
@@ -65,6 +68,8 @@ namespace WindowsMixedReality
 		FKey button,
 		HMDInputPressState pressState) noexcept
 	{
+		check(IsInGameThread());
+
 		FName buttonName = button.GetFName();
 
 		if (pressState == HMDInputPressState::NotApplicable)
@@ -90,7 +95,6 @@ namespace WindowsMixedReality
 				false);
 		}
 	}
-#endif
 
 	void SendControllerAxisEvent(
 		TSharedPtr< FGenericApplicationMessageHandler > messageHandler,
@@ -98,6 +102,8 @@ namespace WindowsMixedReality
 		FKey axis,
 		double axisPosition) noexcept
 	{
+		check(IsInGameThread());
+
 		FName axisName = axis.GetFName();
 
 		messageHandler->OnControllerAnalog(
@@ -105,6 +111,59 @@ namespace WindowsMixedReality
 			static_cast<int32>(controllerId),
 			static_cast<float>(axisPosition));
 	}
+
+	// Gesture events come in from some microsoft thread, so we have to queue them up and send them from the game thread
+	// to avoid problems with systems that handle the events directly (UI is an example).
+	void FWindowsMixedRealitySpatialInput::EnqueueControllerButtonEvent(
+		uint32 controllerId,
+		FKey button,
+		HMDInputPressState pressState) noexcept
+	{
+		FScopeLock IndexLock(&EnqueuedContollerEventBufferWriteIndexMutex);
+		TArray<FEnqueuedControllerEvent>& WriteBuffer = EnqueuedControllerEventBuffers[EnqueuedContollerEventBufferWriteIndex];
+		WriteBuffer.Add(FEnqueuedControllerEvent(controllerId, button, pressState));
+	}
+
+	void FWindowsMixedRealitySpatialInput::EnqueueControllerAxisEvent(
+		uint32 controllerId,
+		FKey axis,
+		double axisPosition) noexcept
+	{
+		FScopeLock IndexLock(&EnqueuedContollerEventBufferWriteIndexMutex);
+		TArray<FEnqueuedControllerEvent>& WriteBuffer = EnqueuedControllerEventBuffers[EnqueuedContollerEventBufferWriteIndex];
+		WriteBuffer.Add(FEnqueuedControllerEvent(controllerId, axis, axisPosition));
+	}
+
+	void FWindowsMixedRealitySpatialInput::SendQueuedButtonAndAxisEvents()
+	{
+		check(IsInGameThread());
+
+		// Flip the buffer
+		{
+			FScopeLock IndexLock(&EnqueuedContollerEventBufferWriteIndexMutex);
+			EnqueuedContollerEventBufferWriteIndex = 1 - EnqueuedContollerEventBufferWriteIndex;
+		}
+
+		// Send any queued events FIFO
+		TArray<FEnqueuedControllerEvent>& ReadBuffer = EnqueuedControllerEventBuffers[1 - EnqueuedContollerEventBufferWriteIndex];
+
+		for (const FEnqueuedControllerEvent& Event : ReadBuffer)
+		{
+			if (Event.bIsAxis)
+			{
+				SendControllerAxisEvent(MessageHandler, Event.ControllerId, Event.Key, Event.AxisPosition);
+			}
+			else
+			{
+				SendControllerButtonEvent(MessageHandler, Event.ControllerId, Event.Key, Event.PressState);
+			}
+		}
+
+		// Clear the buffer
+		ReadBuffer.Empty();
+	}
+#endif
+
 
 #if WITH_WINDOWS_MIXED_REALITY
 	void FWindowsMixedRealitySpatialInput::SendAxisEvents(uint32 source)
@@ -264,52 +323,43 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealitySpatialInput::Exec(UWorld * InWorld, const TCHAR * Cmd, FOutputDevice & Ar)
 	{
-#if WITH_WINDOWS_MIXED_REALITY
 		if (FParse::Command(&Cmd, TEXT("windowsmr.CaptureGesture")))
 		{
-			CapturingSet = 0;
+			uint32 LocalCapturingSet = 0;
 			FString Arg;
 			while (FParse::Token(Cmd, Arg, false))
 			{
 				if (Arg.Equals(TEXT("Tap"), ESearchCase::IgnoreCase))
 				{
-					CapturingSet |= (uint32)EGestureType::TapGesture;
+					LocalCapturingSet |= (uint32)EGestureType::TapGesture;
 				}
 				else if (Arg.Equals(TEXT("Hold"), ESearchCase::IgnoreCase))
 				{
-					CapturingSet |= (uint32)EGestureType::HoldGesture;
+					LocalCapturingSet |= (uint32)EGestureType::HoldGesture;
 				}
 				else if (Arg.Equals(TEXT("Manipulation"), ESearchCase::IgnoreCase))
 				{
-					CapturingSet |= (uint32)EGestureType::ManipulationGesture;
+					LocalCapturingSet |= (uint32)EGestureType::ManipulationGesture;
 				}
 				else if (Arg.Equals(TEXT("Navigation"), ESearchCase::IgnoreCase))
 				{
-					CapturingSet |= (uint32)EGestureType::NavigationGesture;
+					LocalCapturingSet |= (uint32)EGestureType::NavigationGesture;
 				}
 				else if (Arg.Equals(TEXT("NavigationRails"), ESearchCase::IgnoreCase))
 				{
-					CapturingSet |= (uint32)EGestureType::NavigationRailsGesture;
+					LocalCapturingSet |= (uint32)EGestureType::NavigationRailsGesture;
 				}
 			}
 
-			FString errorMsg;
-			if (!UpdateGestureCallbacks(errorMsg))
-			{
-				Ar.Logf(ELogVerbosity::Error, TEXT("%s, Gesture capturing disabled"), *errorMsg);
-				CapturingSet = 0;
-				gestureRecognizer->Reset();
-				return false;
-			}
-
-			return true;
+			return CaptureGestures(LocalCapturingSet);
 		}
-#endif
+
 		return false;
 	}
 
 	bool FWindowsMixedRealitySpatialInput::CaptureGestures(uint32 capturingSet)
 	{
+#if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
 		CapturingSet = capturingSet;
 
 		FString errorMsg;
@@ -322,12 +372,17 @@ namespace WindowsMixedReality
 		}
 
 		return true;
+#else
+		UE_LOG(LogCore, Warning, TEXT("WindowsMixedReality Gesture capturing not supported on this platform or windows sdk version.  Gestures will not be detected."));
+		return false;
+#endif
 	}
 
 
 	bool FWindowsMixedRealitySpatialInput::UpdateGestureCallbacks(FString& errorMsg)
 	{
 #if WITH_WINDOWS_MIXED_REALITY
+#if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
 		using std::placeholders::_1;
 		using std::placeholders::_2;
 		using std::placeholders::_3;
@@ -419,26 +474,32 @@ namespace WindowsMixedReality
 				return false;
 			}
 		}
-
-#endif
+#else // SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
+		UE_LOG(LogCore, Warning, TEXT("WindowsMixedReality CaptureGesture called, but the current platform or interop sdk version does not support gestures."));
+		errorMsg = (TEXT("WindowsMixedReality CaptureGesture called, but the current platform or interop sdk version does not support gestures."));
+		return false;
+#endif // SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
+#endif // WITH_WINDOWS_MIXED_REALITY
 		return true;
 	}
 
 
 #if WITH_WINDOWS_MIXED_REALITY
+	// Note, these callbacks come in from a microsoft created thread.  We need to queue the events and dispatch from the game thread.
+
 	void FWindowsMixedRealitySpatialInput::TapCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Tap& desc)
 	{
 		if (stage == GestureStage::Completed)
 		{
 			if (desc.Count == 1)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::TapGesture, HMDInputPressState::Released);
-				SendControllerButtonEvent(MessageHandler, 0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftTapGesture : FSpatialInputKeys::RightTapGesture, HMDInputPressState::Released);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::TapGesture, HMDInputPressState::Released);
+				EnqueueControllerButtonEvent(0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftTapGesture : FSpatialInputKeys::RightTapGesture, HMDInputPressState::Released);
 			}
 			else if (desc.Count == 2)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::DoubleTapGesture, HMDInputPressState::Released);
-				SendControllerButtonEvent(MessageHandler, 0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftDoubleTapGesture : FSpatialInputKeys::RightDoubleTapGesture, HMDInputPressState::Released);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::DoubleTapGesture, HMDInputPressState::Released);
+				EnqueueControllerButtonEvent(0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftDoubleTapGesture : FSpatialInputKeys::RightDoubleTapGesture, HMDInputPressState::Released);
 			}
 		}
 	}
@@ -447,51 +508,50 @@ namespace WindowsMixedReality
 	{
 		if (stage == GestureStage::Started)
 		{
-			SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::HoldGesture, HMDInputPressState::Pressed);
-			SendControllerButtonEvent(MessageHandler, 0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftHoldGesture : FSpatialInputKeys::RightHoldGesture, HMDInputPressState::Pressed);
+			EnqueueControllerButtonEvent(0, FSpatialInputKeys::HoldGesture, HMDInputPressState::Pressed);
+			EnqueueControllerButtonEvent(0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftHoldGesture : FSpatialInputKeys::RightHoldGesture, HMDInputPressState::Pressed);
 		}
 		else if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
 		{
-			SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::HoldGesture, HMDInputPressState::Released);
-			SendControllerButtonEvent(MessageHandler, 0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftHoldGesture : FSpatialInputKeys::RightHoldGesture, HMDInputPressState::Released);
+			EnqueueControllerButtonEvent(0, FSpatialInputKeys::HoldGesture, HMDInputPressState::Released);
+			EnqueueControllerButtonEvent(0, desc.Hand == HMDHand::Left ? FSpatialInputKeys::LeftHoldGesture : FSpatialInputKeys::RightHoldGesture, HMDInputPressState::Released);
 		}
 	}
 
 	void FWindowsMixedRealitySpatialInput::ManipulationCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Manipulation& desc)
 	{
-		UE_LOG(LogTemp, Log, TEXT("ManipulationCallback %f %f %f"), desc.Delta.x, desc.Delta.y, desc.Delta.z);
 		FVector Delta = WMRUtility::FromMixedRealityVector(desc.Delta);
 
 		if (desc.Hand == HMDHand::Left)
 		{
 			if (stage == GestureStage::Started)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::LeftManipulationGesture, HMDInputPressState::Pressed);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::LeftManipulationGesture, HMDInputPressState::Pressed);
 			}
 
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftManipulationXGesture, Delta.X);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftManipulationYGesture, Delta.Y);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftManipulationZGesture, Delta.Z);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::LeftManipulationXGesture, Delta.X);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::LeftManipulationYGesture, Delta.Y);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::LeftManipulationZGesture, Delta.Z);
 
 			if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::LeftManipulationGesture, HMDInputPressState::Released);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::LeftManipulationGesture, HMDInputPressState::Released);
 			}
 		}
 		else if (desc.Hand == HMDHand::Right)
 		{
 			if (stage == GestureStage::Started)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::RightManipulationGesture, HMDInputPressState::Pressed);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::RightManipulationGesture, HMDInputPressState::Pressed);
 			}
 
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightManipulationXGesture, Delta.X);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightManipulationYGesture, Delta.Y);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightManipulationZGesture, Delta.Z);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::RightManipulationXGesture, Delta.X);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::RightManipulationYGesture, Delta.Y);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::RightManipulationZGesture, Delta.Z);
 
 			if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::RightManipulationGesture, HMDInputPressState::Released);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::RightManipulationGesture, HMDInputPressState::Released);
 			}
 		}
 	}
@@ -504,32 +564,32 @@ namespace WindowsMixedReality
 		{
 			if (stage == GestureStage::Started)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationGesture, HMDInputPressState::Pressed);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::LeftNavigationGesture, HMDInputPressState::Pressed);
 			}
 
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationXGesture, NormalizedOffset.X);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationYGesture, NormalizedOffset.Y);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationZGesture, NormalizedOffset.Z);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::LeftNavigationXGesture, NormalizedOffset.X);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::LeftNavigationYGesture, NormalizedOffset.Y);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::LeftNavigationZGesture, NormalizedOffset.Z);
 
 			if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::LeftNavigationGesture, HMDInputPressState::Released);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::LeftNavigationGesture, HMDInputPressState::Released);
 			}
 		}
 		else if (desc.Hand == HMDHand::Right)
 		{
 			if (stage == GestureStage::Started)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationGesture, HMDInputPressState::Pressed);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::RightNavigationGesture, HMDInputPressState::Pressed);
 			}
 
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationXGesture, NormalizedOffset.X);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationYGesture, NormalizedOffset.Y);
-			SendControllerAxisEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationZGesture, NormalizedOffset.Z);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::RightNavigationXGesture, NormalizedOffset.X);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::RightNavigationYGesture, NormalizedOffset.Y);
+			EnqueueControllerAxisEvent(0, FSpatialInputKeys::RightNavigationZGesture, NormalizedOffset.Z);
 
 			if (stage == GestureStage::Completed || stage == GestureStage::Canceled)
 			{
-				SendControllerButtonEvent(MessageHandler, 0, FSpatialInputKeys::RightNavigationGesture, HMDInputPressState::Released);
+				EnqueueControllerButtonEvent(0, FSpatialInputKeys::RightNavigationGesture, HMDInputPressState::Released);
 			}
 		}
 	}
@@ -738,7 +798,7 @@ namespace WindowsMixedReality
 
 		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 
-#if WITH_WINDOWS_MIXED_REALITY
+#if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
 		gestureRecognizer = MakeUnique<GestureRecognizerInterop>();
 #endif
 
@@ -752,7 +812,7 @@ namespace WindowsMixedReality
 			return;
 		}
 		
-#if WITH_WINDOWS_MIXED_REALITY
+#if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
 		gestureRecognizer = nullptr;
 #endif
 
