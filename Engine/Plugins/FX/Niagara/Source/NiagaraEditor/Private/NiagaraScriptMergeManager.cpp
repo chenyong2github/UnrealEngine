@@ -773,22 +773,15 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::Resolv
 		// Now go through all the nodes and set the persistent change ids if we encounter a node that needs it's change id kept.
 		bool bAnySet = false;
 		while (It)
-		{			
-			bool bFound = false;
+		{
 			for (UNiagaraNode* Node : Nodes)
 			{
 				if (Node->NodeGuid == It.Key())
 				{
 					Node->ForceChangeId(It.Value(), false);
 					bAnySet = true;
-					bFound = true;
 					break;
 				}
-			}
-
-			if (!bFound)
-			{
-				UE_LOG(LogNiagaraEditor, Log, TEXT("Looks like %s was removed.. is that expected?"), *It.Key().ToString())
 			}
 			++It;
 		}

@@ -226,7 +226,6 @@ void UNiagaraGraph::PostLoad()
 				// so this will extract "/Path/To/ScriptName"
 				PathName = PathName.Left(ColonPos);
 			}
-			UE_LOG(LogNiagaraEditor, Log, TEXT("Migrated old metadata entry for variable \"%s\" in \"%s\""), *It.Key().GetName().ToString(), *PathName);
 		}
 		VariableToMetaData_DEPRECATED.Empty();
 	}
