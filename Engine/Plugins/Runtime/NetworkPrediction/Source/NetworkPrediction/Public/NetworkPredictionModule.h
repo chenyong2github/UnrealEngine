@@ -1,30 +1,10 @@
-// Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-
-/*=============================================================================
-
-Overview of the NetworkPredictionModule and glossary of high level terms:
-
-
-
-
-Replication Proxy:
-
-Actor Component:
-
-
-
-
-
-
-
-=============================================================================*/
-
 
 class INetworkPredictionModule : public IModuleInterface
 {
