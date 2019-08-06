@@ -328,6 +328,7 @@ struct FNetworkObjectInfo;
 class UChannel;
 class IAnalyticsProvider;
 class FNetAnalyticsAggregator;
+class UNetDriver;
 
 using FConnectionMap = TMap<TSharedRef<const FInternetAddr>, UNetConnection*, FDefaultSetAllocator, FInternetAddrConstKeyMapFuncs<UNetConnection*>>;
 
@@ -373,7 +374,7 @@ DECLARE_DELEGATE_SevenParams(FOnSendRPC, AActor* /*Actor*/, UFunction* /*Functio
 USTRUCT()
 struct ENGINE_API FPacketSimulationSettings
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	/**
 	 * When set, will cause calls to FlushNet to drop packets.
@@ -449,9 +450,29 @@ struct ENGINE_API FPacketSimulationSettings
 	 */
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
 	int32	PktLagMin = 0;
-	
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
 	int32	PktLagMax = 0;
+
+	/**
+	 * Set a value to add a minimum delay in milliseconds to incoming
+	 * packets before they are processed.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktIncomingLagMin = 0;
+	
+	/**
+	 * The maximum delay in milliseconds to add to incoming
+	 * packets before they are processed.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktIncomingLagMax = 0;
+
+	/**
+	 * The ratio of incoming packets that will be dropped
+	 * to simulate packet loss
+	 */
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings")
+	int32	PktIncomingLoss = 0;
 
 	/** reads in settings from the .ini file 
 	 * @note: overwrites all previous settings
@@ -1619,4 +1640,10 @@ private:
 
 	/** Count the number of notified packets, i.e. packets that we know if they are delivered or not. Used to reliably measure outgoing packet loss */
 	uint32 OutTotalNotifiedPackets;
+
+#if DO_ENABLE_NET_TEST
+	/** Dont load packet settings from config or cmdline when true*/
+	bool bForcedPacketSettings;
+#endif 
+
 };
