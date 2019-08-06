@@ -530,6 +530,17 @@ FReply FHoloLensTargetSettingsCustomization::GenerateSigningCertificate()
 		}
 	}
 
+	//make sure the company name has required syntax
+	FString CompanyDistinguishedName = GetDefault<UGeneralProjectSettings>()->CompanyDistinguishedName;
+	if (!CompanyDistinguishedName.Contains(TEXT("CN=")))
+	{
+		FNotificationInfo Info(LOCTEXT("SigningCertificateFailed_MalformedCompanyName", "Company Distinguished Name must contain 'CN=YourCompany' syntax"));
+		Info.ExpireDuration = 5.0f;
+		FSlateNotificationManager::Get().AddNotification(Info);
+
+		return FReply::Handled();
+	}
+
 	FString WinSDKVersion;
 	if (!FPlatformMisc::QueryRegKey(HKEY_CURRENT_USER, *WinSDKSubKey, TEXT("ProductVersion"), WinSDKVersion))
 	{
