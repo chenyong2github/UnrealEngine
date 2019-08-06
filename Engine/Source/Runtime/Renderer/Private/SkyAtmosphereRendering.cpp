@@ -18,11 +18,18 @@
 //#pragma optimize( "", off )
 
 
-
+// The runtime ON/OFF toggle
 static TAutoConsoleVariable<int32> CVarSkyAtmosphere(
 	TEXT("r.SkyAtmosphere"), 1,
 	TEXT("SkyAtmosphere components are rendered when this is not 0, otherwise ignored.\n"),
 	ECVF_RenderThreadSafe);
+
+// The project settings (disable runtime and shader code)
+static TAutoConsoleVariable<int32> CVarSupportAtmosphericFog(
+	TEXT("r.SupportSkyAtmosphere"),
+	1,
+	TEXT("Enables SkyAtmosphere rendering and shader code."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 ////////////////////////////////////////////////////////////////////////// Regular sky 
 
@@ -244,13 +251,13 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters,
 static bool ShouldPipelineCompileSkyAtmosphereShader(EShaderPlatform ShaderPlatform)
 {
 	// Requires SM5 or ES3_1 (GL/Vulkan) for compute shaders and volume textures support.
-	return RHISupportsComputeShaders(ShaderPlatform); // RHISupportsVolumeTextures(GetMaxSupportedFeatureLevel(ShaderPlatform));
+	return RHISupportsComputeShaders(ShaderPlatform);
 }
 
 bool ShouldRenderSkyAtmosphere(const FSkyAtmosphereRenderSceneInfo* SkyAtmosphere, EShaderPlatform ShaderPlatform)
 {
 	const bool ShadersCompiled = ShouldPipelineCompileSkyAtmosphereShader(ShaderPlatform);
-	return SkyAtmosphere && ShadersCompiled && CVarSkyAtmosphere.GetValueOnRenderThread() > 0;
+	return FReadOnlyCVARCache::Get().bSupportSkyAtmosphere && SkyAtmosphere && ShadersCompiled && CVarSkyAtmosphere.GetValueOnRenderThread() > 0;
 	// TODO: Add new or reuse EngineShowFlags.AtmosphericFog? ALso take into account EngineShowFlags.Fog as previously?
 }
 

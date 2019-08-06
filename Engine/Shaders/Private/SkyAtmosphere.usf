@@ -382,6 +382,7 @@ float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 float3 GetMultipleScattering(float3 WorlPos, float ViewZenithCosAngle)
 {
 	float2 UV = saturate(float2(ViewZenithCosAngle*0.5f + 0.5f, (length(WorlPos) - Atmosphere.BottomRadius) / (Atmosphere.TopRadius - Atmosphere.BottomRadius)));
+	// We do no apply UV transform to sub range here as it has minimal impact.
 	float3 MultiScatteredLuminance = MultiScatteredLuminanceLutTexture.SampleLevel(MultiScatteredLuminanceLutTextureSampler, UV, 0).rgb;
 	return MultiScatteredLuminance * MULTISCATTERING_STORE_SCALE_INV;
 }
@@ -569,7 +570,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		}
 		else
 		{
-			t = tMax * SampleI / SampleCount;
+			t = tMax * (SampleI + PixelNoise) / SampleCount;
 		}
 		float3 P = WorldPos + t * WorldDir;
 		float PHeight = length(P);
@@ -765,17 +766,25 @@ void RenderSkyAtmosphereRayMarchingPS(
 #endif
 	}
 
-	float3 UpVector = normalize(WorldPos);
 	float ViewHeight = length(WorldPos);
 #if FASTSKY_ENABLED
 	if (ViewHeight < Atmosphere.TopRadius && DeviceZ == FarDepthValue)
 	{
 		float2 UV;
-		float ViewZenithCosAngle = dot(WorldDir, UpVector);
 
-		bool IntersectGround = RaySphereIntersectNearest(WorldPos, WorldDir, float3(0, 0, 0), Atmosphere.BottomRadius) >= 0.0f;
+		// The referencial used to build the Sky View lut
+		float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, View.ViewForward);
 
-		SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDir, ViewHeight, Atmosphere.BottomRadius, SkyAtmosphere.SkyViewLutSizeAndInvSize, UV);
+		// Input vectors expressed in this referencial: Up is always Z. Also note that ViewHeight is unchanged in this referencial.
+		float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
+		float3 UpVectorLocal = float3(0.0, 0.0, 1.0);
+		float3 WorldDirLocal = mul(WorldDir, LocalReferencial);
+
+		// Now evaluate inputs in the referential.
+		float ViewZenithCosAngle = dot(WorldDirLocal, UpVectorLocal);
+		bool IntersectGround = RaySphereIntersectNearest(WorldPosLocal, WorldDirLocal, float3(0, 0, 0), Atmosphere.BottomRadius) >= 0.0f;
+
+		SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDirLocal, ViewHeight, Atmosphere.BottomRadius, SkyAtmosphere.SkyViewLutSizeAndInvSize, UV);
 		float3 SkyLuminance = SkyViewLutTexture.SampleLevel(SkyViewLutTextureSampler, UV, 0).rgb;
 
 		PreExposedL += SkyLuminance * LuminanceScale;
@@ -794,7 +803,6 @@ void RenderSkyAtmosphereRayMarchingPS(
 #else
 
 	const float OneOverPreExposure = 1.0f;
-	float4 NullFog = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
 	float3 DepthBufferWorldPos = GetScreenWorldPos(SVPos, DeviceZ).xyz;
 	float4 NDCPosition = mul(float4(DepthBufferWorldPos.xyz, 1), View.WorldToClip);
@@ -807,7 +815,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 		SkyAtmosphere.CameraAerialPerspectiveVolumeStartDepth,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLength,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLengthInv,
-		OneOverPreExposure, NullFog);
+		OneOverPreExposure);
 
 	PreExposedL += AP.rgb * LuminanceScale;
 	float Transmittance = AP.a;
@@ -914,6 +922,7 @@ RWTexture2D<float3> MultiScatteredLuminanceLutUAV;
 void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 {
 	float2 PixPos = float2(ThreadId.xy) + 0.5f;
+	// We do no apply UV transform from sub range here as it has minimal impact.
 
 	float CosLightZenithAngle = (PixPos.x * SkyAtmosphere.MultiScatteredLuminanceLutSizeAndInvSize.z) * 2.0f - 1.0f;
 	float3 LightDir = float3(0.0f, sqrt(saturate(1.0f - CosLightZenithAngle * CosLightZenithAngle)), CosLightZenithAngle);
@@ -1004,15 +1013,26 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	float2 PixPos = float2(ThreadId.xy) + 0.5f;
 	float2 UV = PixPos * SkyAtmosphere.SkyViewLutSizeAndInvSize.zw;
 
-
 	float3 WorldPos = GetCameraPlanetPos();
+
+	// For the sky view lut to work, and not be distorted, we need to transform the view and light directions 
+	// into a referential with UP being perpendicular to the ground. And with origin at the planet center.
+
+	// This is the local referencial
+	float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, View.ViewForward);
+
+	// This is the LUT camera height and position in the local referential
 	float ViewHeight = length(WorldPos);
+	WorldPos = float3(0.0, 0.0, ViewHeight);
 
-
-	// TODO we need a valid local basis for lights and we need to transform them in it. 
-	// ===> Without that, the Sky lut is only valid for camera is close to the origin (at the Z-top of the planet)
+	// Get the view direction in this local referential
 	float3 WorldDir;
 	UvToSkyViewLutParams(WorldDir, ViewHeight, UV);
+	// And also both light source direction
+	float3 AtmosphereLightDirection0 = View.AtmosphereLightDirection[0].xyz;
+	AtmosphereLightDirection0 = mul(AtmosphereLightDirection0, LocalReferencial);
+	float3 AtmosphereLightDirection1 = View.AtmosphereLightDirection[1].xyz;
+	AtmosphereLightDirection1 = mul(AtmosphereLightDirection1, LocalReferencial);
 
 
 	// Move to top atmospehre
@@ -1038,7 +1058,7 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
 		float4(PixPos, 0.0f, 1.0f), WorldPos, WorldDir,
 		Ground, Sampling, DeviceZ, MieRayPhase,
-		View.AtmosphereLightDirection[0].xyz, View.AtmosphereLightDirection[1].xyz, View.AtmosphereLightColor[0].rgb, View.AtmosphereLightColor[1].rgb,
+		AtmosphereLightDirection0, AtmosphereLightDirection1, View.AtmosphereLightColor[0].rgb, View.AtmosphereLightColor[1].rgb,
 		AerialPespectiveViewDistanceScale);
 
 	SkyViewLutUAV[int2(PixPos)] = ss.L;

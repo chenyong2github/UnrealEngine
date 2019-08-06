@@ -73,7 +73,7 @@
 	#include "/Engine/Private/AtmosphereCommon.ush"
 #endif
 
-#if MATERIAL_SKY_ATMOSPHERE
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 #include "/Engine/Private/SkyAtmosphereCommon.ush"
 #endif
 
@@ -996,7 +996,7 @@ float3 MaterialExpressionAtmosphericLightColor(FMaterialPixelParameters Paramete
 
 float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters Parameters, uint LightIndex)
 {
-#if MATERIAL_SKY_ATMOSPHERE
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
 	const float3 WorldPos = GetWorldPosition(Parameters)*CM_TO_SKY_UNIT;
 	const float3 PlanetCenterToWorldPos = WorldPos - PlanetCenter;
@@ -1014,7 +1014,7 @@ float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters 
 
 float3 MaterialExpressionSkyAtmosphereLightDirection(FMaterialPixelParameters Parameters, uint LightIndex)
 {
-#if MATERIAL_SKY_ATMOSPHERE
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	return ResolvedView.AtmosphereLightDirection[LightIndex].xyz;
 #else
 	return float3(0.0f, 0.0f, 0.0f);
@@ -1023,7 +1023,7 @@ float3 MaterialExpressionSkyAtmosphereLightDirection(FMaterialPixelParameters Pa
 
 float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameters Parameters, uint LightIndex)
 {
-#if MATERIAL_SKY_ATMOSPHERE
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
 	const float3 PlanetCenterToWorldCameraPos = ResolvedView.WorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
 	const float3 ViewDir = -Parameters.CameraVector;
@@ -1038,19 +1038,25 @@ float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameter
 
 float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Parameters)
 {
-#if MATERIAL_SKY_ATMOSPHERE
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
 	const float3 PlanetCenterToWorldCameraPos = ResolvedView.WorldCameraOrigin * CM_TO_SKY_UNIT - PlanetCenter;
 	const float ViewHeight = length(PlanetCenterToWorldCameraPos);
-	const float3 UpVector = PlanetCenterToWorldCameraPos / ViewHeight;
 	const float3 ViewDir = -Parameters.CameraVector;
-	const float ViewZenithCosAngle = dot(ViewDir, UpVector);
 
-	float2 Sol = RayIntersectSphere(PlanetCenterToWorldCameraPos, ViewDir, float4(0.0f, 0.0f, 0.0f, ResolvedView.SkyAtmosphereBottomRadius));
+	// The referencial used to build the Sky View lut
+	float3x3 LocalReferencial = GetSkyViewLutReferential(PlanetCenterToWorldCameraPos, ResolvedView.ViewForward);
+	// Compute inputs in this referential
+	float3 WorldPosLocal = float3(0.0, 0.0, ViewHeight);
+	float3 UpVectorLocal = float3(0.0, 0.0, 1.0);
+	float3 WorldDirLocal = mul(ViewDir, LocalReferencial);
+	float ViewZenithCosAngle = dot(WorldDirLocal, UpVectorLocal);
+
+	float2 Sol = RayIntersectSphere(WorldPosLocal, WorldDirLocal, float4(0.0f, 0.0f, 0.0f, ResolvedView.SkyAtmosphereBottomRadius));
 	const bool IntersectGround = any(Sol > 0.0f);
 
 	float2 SkyViewLutUv;
-	SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, ViewDir, ViewHeight, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyViewLutSizeAndInvSize, SkyViewLutUv);
+	SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDirLocal, ViewHeight, ResolvedView.SkyAtmosphereBottomRadius, ResolvedView.SkyViewLutSizeAndInvSize, SkyViewLutUv);
 	float3 SkyAtmosphereViewLuminance = Texture2DSampleLevel(View.SkyViewLutTexture, View.SkyViewLutTextureSampler, SkyViewLutUv, 0.0f).rgb;
 #if USE_PREEXPOSURE
 	SkyAtmosphereViewLuminance *= ResolvedView.OneOverPreExposure;
@@ -1063,7 +1069,7 @@ float3 MaterialExpressionSkyAtmosphereViewLuminance(FMaterialPixelParameters Par
 
 float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters Parameters)
 {
-#if MATERIAL_SKY_ATMOSPHERE
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
 
 	const float3 PlanetCenter = float3(0, 0, -ResolvedView.SkyAtmosphereBottomRadius);
@@ -1081,7 +1087,7 @@ float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeStartDepth,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
-		OneOverPreExposure, FogToApplyOver);
+		OneOverPreExposure);
 	return AerialPerspective;
 #else
 	return float4(0.0f, 0.0f, 0.0f, 1.0f); // RGB= null scattering, A= null transmittance
@@ -1090,7 +1096,7 @@ float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters
 
 float3 MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(FMaterialPixelParameters Parameters)
 {
-#if MATERIAL_SKY_ATMOSPHERE
+#if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	// TODO load on platforms supporting it
 	return Texture2DSampleLevel(View.DistantSkyLightLutTexture, View.DistantSkyLightLutTextureSampler, float2(0.5f, 0.5f), 0.0f).rgb;
 #else

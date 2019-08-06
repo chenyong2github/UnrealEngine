@@ -33,7 +33,9 @@
 
 #if NEEDS_BASEPASS_PIXEL_FOGGING || NEEDS_BASEPASS_PIXEL_VOLUMETRIC_FOGGING
 	#include "HeightFogCommon.ush"
+#if PROJECT_SUPPORT_SKY_ATMOSPHERE
 	#include "SkyAtmosphereCommon.ush"
+#endif
 #endif
 
 #include "ReflectionEnvironmentShared.ush"
@@ -1129,7 +1131,7 @@ ShadingModel);
 	}
 #endif
 
-#if NEEDS_BASEPASS_PIXEL_FOGGING
+#if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
 		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
@@ -1137,10 +1139,9 @@ ShadingModel);
 		float4 NDCPosition = mul(float4(MaterialParameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
 
 		// Sample the aerial perspective (AP).
-		float4 AP = GetAerialPerspectiveLuminanceTransmittance(
+		Fogging = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 			NDCPosition, MaterialParameters.AbsoluteWorldPosition.xyz*CM_TO_SKY_UNIT, ResolvedView.WorldCameraOrigin.xyz*CM_TO_SKY_UNIT,
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeStartDepth,

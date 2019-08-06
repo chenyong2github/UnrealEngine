@@ -2913,6 +2913,7 @@ struct FReadOnlyCVARCache
 	bool bEnableAtmosphericFog;
 	bool bEnableLowQualityLightmaps;
 	bool bAllowStaticLighting;
+	bool bSupportSkyAtmosphere;
 
 	// Mobile specific
 	bool bMobileAllowMovableDirectionalLights;

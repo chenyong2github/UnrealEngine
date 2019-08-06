@@ -21,7 +21,7 @@
 #include "/Engine/Generated/VertexFactory.ush"
 #include "HeightFogCommon.ush"
 
-#if USE_VERTEX_FOG
+#if USE_VERTEX_FOG && PROJECT_SUPPORT_SKY_ATMOSPHERE
 #include "SkyAtmosphereCommon.ush"
 #endif
 
@@ -89,11 +89,12 @@ void Main(
 #if USE_VERTEX_FOG
 	float4 VertexFog = CalculateHeightFog(WorldPosition.xyz - ResolvedView.TranslatedWorldCameraOrigin);
 
+#if PROJECT_SUPPORT_SKY_ATMOSPHERE
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
 		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
 		// Sample the aerial perspective (AP). It is also blended under the VertexFog parameter.
-		float4 AP = GetAerialPerspectiveLuminanceTransmittance(
+		VertexFog = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 			Output.Position, WorldPosition.xyz*CM_TO_SKY_UNIT, ResolvedView.TranslatedWorldCameraOrigin*CM_TO_SKY_UNIT,
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
@@ -103,6 +104,8 @@ void Main(
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
 			OneOverPreExposure, VertexFog);
 	}
+#endif
+
 #if PACK_INTERPOLANTS
 	PackedInterps[0] = VertexFog;
 #else

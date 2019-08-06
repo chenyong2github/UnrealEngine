@@ -27,7 +27,7 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 	float AerialPerspectiveVolumeStartDepth,
 	float AerialPerspectiveVolumeDepthSliceLength,
 	float AerialPerspectiveVolumeDepthSliceLengthInv,
-	float OneOverExposure, inout float4 FogToApplyOver)
+	float OneOverExposure)
 {
 	float2 ScreenUv = (NDC.xy / NDC.ww) * float2(0.5f, -0.5f) + 0.5f;
 
@@ -64,17 +64,41 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 	AP.rgb *= OneOverExposure;
 #endif
 
-	// Apply any other fog OVER aerial perspective because AP is usually optically thiner.
-	FogToApplyOver.rgb = FogToApplyOver.rgb + AP.rgb * FogToApplyOver.a;
-	// And combine both transmittance.
-	FogToApplyOver.a *= AP.a;
-
 	return AP;
 }
 
 
+float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
+	float4 NDC, float3 SampledWorldPos, float3 CameraWorldPos,
+	Texture3D<float4> AerialPerspectiveVolumeTexture, SamplerState AerialPerspectiveVolumeTextureSampler,
+	float AerialPerspectiveVolumeDepthResolutionInv,
+	float AerialPerspectiveVolumeDepthResolution,
+	float AerialPerspectiveVolumeStartDepth,
+	float AerialPerspectiveVolumeDepthSliceLength,
+	float AerialPerspectiveVolumeDepthSliceLengthInv,
+	float OneOverExposure, float4 FogToApplyOver)
+{
+	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
+		NDC, SampledWorldPos, CameraWorldPos,
+		AerialPerspectiveVolumeTexture, AerialPerspectiveVolumeTextureSampler,
+		AerialPerspectiveVolumeDepthResolutionInv,
+		AerialPerspectiveVolumeDepthResolution,
+		AerialPerspectiveVolumeStartDepth,
+		AerialPerspectiveVolumeDepthSliceLength,
+		AerialPerspectiveVolumeDepthSliceLengthInv,
+		OneOverExposure);
 
-// TODO precompute those terms from resolutions (Or set resolution as #defined constants)
+	float4 FinalFog;
+	// Apply any other fog OVER aerial perspective because AP is usually optically thiner.
+	FinalFog.rgb = FogToApplyOver.rgb + AP.rgb * FogToApplyOver.a;
+	// And combine both transmittance.
+	FinalFog.a   = FogToApplyOver.a * AP.a;
+
+	return FinalFog;
+}
+
+
+
 float2 FromUnitToSubUvs(float2 uv, float4 SizeAndInvSize) { return (uv + 0.5f * SizeAndInvSize.zw) * (SizeAndInvSize.xy / (SizeAndInvSize.xy + 1.0f)); }
 float2 FromSubUvsToUnit(float2 uv, float4 SizeAndInvSize) { return (uv - 0.5f * SizeAndInvSize.zw) * (SizeAndInvSize.xy / (SizeAndInvSize.xy - 1.0f)); }
 
@@ -127,6 +151,16 @@ void SkyViewLutParamsToUv(
 
 	// Constrain uvs to valid sub texel range (avoid zenith derivative issue making LUT usage visible)
 	UV = FromUnitToSubUvs(UV, SkyViewLutSizeAndInvSize);
+}
+
+float3x3 GetSkyViewLutReferential(in float3 WorldPos, in float3 ViewForward)
+{
+	float3	Up = normalize(WorldPos);
+	float3	Forward = ViewForward;		// This can make texel visible when the camera is rotating. Use constant worl direction instead?
+	float3	Left = normalize(cross(Forward, Up));
+	Forward = normalize(cross(Up, Left));
+	float3x3 LocalReferencial = transpose(float3x3(Forward, Left, Up));
+	return LocalReferencial;
 }
 
 
