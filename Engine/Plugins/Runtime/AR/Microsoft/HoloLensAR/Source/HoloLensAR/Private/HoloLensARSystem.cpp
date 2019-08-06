@@ -227,7 +227,7 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 void FHoloLensARSystem::SetupCameraImageSupport()
 {
 	// Remoting does not support CameraCapture currently.
-	if (WMRInterop->IsRemoting())
+	//if (WMRInterop->IsRemoting()) //TEMP Disabling passthrough camera, it has d3d corruption bugs.
 	{
 		return;
 	}
