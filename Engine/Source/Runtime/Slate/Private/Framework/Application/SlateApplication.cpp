@@ -3138,9 +3138,12 @@ void FSlateApplication::CloseAllWindowsImmediately()
 		ToolTipWindow.Reset();
 	}
 
-	for (int32 WindowIndex = 0; WindowIndex < SlateWindows.Num(); ++WindowIndex)
+	// Destroy all top level windows.  
+	// ::RequestDestroyWindow will remove the window from the TArray SlateWindows so we
+	// should iterate over it backwards to make sure that the WindowIndex is still correct.
+	for (int32 WindowIndex = SlateWindows.Num() -1; WindowIndex >= 0; --WindowIndex)
 	{
-		// Destroy all top level windows.  This will also request that all children of each window be destroyed
+		// This will also request that all children of each window be destroyed
 		RequestDestroyWindow(SlateWindows[WindowIndex]);
 	}
 
