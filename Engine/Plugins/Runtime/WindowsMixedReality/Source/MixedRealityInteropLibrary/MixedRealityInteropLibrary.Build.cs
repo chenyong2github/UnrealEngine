@@ -37,7 +37,15 @@ public class MixedRealityInteropLibrary : ModuleRules
 					PublicDelayLoadDLLs.Add(Dll);
 					RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/Windows/x64/" + Dll);
 				}
-			}
+
+                string[] HL1Dlls = { "HolographicStreamerDesktop.dll", "Microsoft.Perception.Simulation.dll", "PerceptionSimulationManager.dll" };
+
+                foreach (var Dll in HL1Dlls)
+                {
+                    PublicDelayLoadDLLs.Add(Dll);
+                    RuntimeDependencies.Add(EngineDirectory + "/Binaries/Win64/" + Dll);
+                }
+            }
 		}
 		else if(Target.Platform == UnrealTargetPlatform.HoloLens)
 		{

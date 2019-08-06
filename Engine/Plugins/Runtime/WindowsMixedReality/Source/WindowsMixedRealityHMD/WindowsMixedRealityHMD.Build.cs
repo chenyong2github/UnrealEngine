@@ -19,17 +19,6 @@ namespace UnrealBuildTool.Rules
 	 
 		private void LoadMixedReality(ReadOnlyTargetRules Target)
         {
-            string DllSubpath = "undefined";
-
-            if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x86)
-            {
-                DllSubpath = "Win32";
-            }
-            else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
-            {
-                DllSubpath = "Win64";
-            }
-
             // Set a macro allowing us to switch between debuggame/development configuration
             if (Target.Configuration == UnrealTargetConfiguration.Debug)
             {
@@ -42,10 +31,19 @@ namespace UnrealBuildTool.Rules
 
 			if(Target.Platform != UnrealTargetPlatform.Win32)
             {
+				// HoloLens 2 Remoting
 				PublicDelayLoadDLLs.Add("Microsoft.Holographic.AppRemoting.dll");
-                RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/x64/Microsoft.Holographic.AppRemoting.dll", DllSubpath));
+                RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/x64/Microsoft.Holographic.AppRemoting.dll");
 				PublicDelayLoadDLLs.Add("PerceptionDevice.dll");
-                RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/x64/PerceptionDevice.dll", DllSubpath));
+                RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/x64/PerceptionDevice.dll");
+				
+				// HoloLens 1 Remoting
+				PublicDelayLoadDLLs.Add("HolographicStreamerDesktop.dll");
+                RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/HolographicStreamerDesktop.dll");
+				PublicDelayLoadDLLs.Add("Microsoft.Perception.Simulation.dll");
+                RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/Microsoft.Perception.Simulation.dll");
+				PublicDelayLoadDLLs.Add("PerceptionSimulationManager.dll");
+                RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/PerceptionSimulationManager.dll");
             }
 
             PublicDefinitions.Add("WITH_WINDOWS_MIXED_REALITY=1");

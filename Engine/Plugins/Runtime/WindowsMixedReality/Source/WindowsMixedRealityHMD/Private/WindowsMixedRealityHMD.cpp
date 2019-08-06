@@ -1654,14 +1654,14 @@ namespace WindowsMixedReality
 	}
 
 	// Remoting
-	void FWindowsMixedRealityHMD::ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate)
+	void FWindowsMixedRealityHMD::ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, bool isHoloLens1)
 	{
 #if WITH_EDITOR
 		D3D11Device = InternalGetD3D11Device();
 
 #if WITH_WINDOWS_MIXED_REALITY
 		HMD->SetLogCallback(WindowsMixedRealityHMD::LogForInterop);
-		HMD->ConnectToRemoteHoloLens(D3D11Device.GetReference(), ip, bitrate);
+		HMD->ConnectToRemoteHoloLens(D3D11Device.GetReference(), ip, bitrate, isHoloLens1);
 #endif
 #endif
 	}
