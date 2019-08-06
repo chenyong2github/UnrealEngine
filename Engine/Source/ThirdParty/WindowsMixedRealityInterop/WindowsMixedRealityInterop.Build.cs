@@ -14,6 +14,7 @@ public class WindowsMixedRealityInterop : ModuleRules
         string LibrariesPath = Path.Combine(WMRIPath, "Lib");
         bool bAddLibraries = true;
         PublicIncludePaths.Add(IncludePath);
+		PublicIncludePaths.Add(Path.Combine(IncludePath, "HoloLens1Remoting"));
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
@@ -28,6 +29,9 @@ public class WindowsMixedRealityInterop : ModuleRules
                 PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInterop.lib"));
             }
             PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "Microsoft.Holographic.AppRemoting.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "HolographicStreamerDesktop.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "Microsoft.Perception.Simulation.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "PerceptionSimulationManager.lib"));
         }
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
