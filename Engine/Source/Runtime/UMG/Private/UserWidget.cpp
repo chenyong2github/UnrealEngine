@@ -1500,6 +1500,14 @@ void UUserWidget::TickActionsAndAnimation(const FGeometry& MyGeometry, float InD
 	}
 
 	const bool bWasPlayingAnimation = IsPlayingAnimation();
+	if(bWasPlayingAnimation)
+	{ 
+		TSharedPtr<SWidget> CachedWidget = GetCachedWidget();
+		if (CachedWidget.IsValid())
+		{
+			CachedWidget->InvalidatePrepass();
+		}
+	}
 
 	// The process of ticking the players above can stop them so we remove them after all players have ticked
 	for ( UUMGSequencePlayer* StoppedPlayer : StoppedSequencePlayers )
