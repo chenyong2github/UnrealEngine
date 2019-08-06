@@ -101,7 +101,8 @@ private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
 	void OnPreGarbageCollection();
-
+	void OnExecParticleInvoked(const TCHAR* InStr);
+	void OnPostEngineInit();
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
