@@ -144,6 +144,15 @@ void UEditableText::SetIsReadOnly(bool InbIsReadyOnly)
 	}
 }
 
+void UEditableText::SetJustification(ETextJustify::Type InJustification)
+{
+	Justification = InJustification;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetJustification(InJustification);
+	}
+}
+
 void UEditableText::SetClearKeyboardFocusOnCommit(bool bInClearKeyboardFocusOnCommit)
 {
 	ClearKeyboardFocusOnCommit = bInClearKeyboardFocusOnCommit;
