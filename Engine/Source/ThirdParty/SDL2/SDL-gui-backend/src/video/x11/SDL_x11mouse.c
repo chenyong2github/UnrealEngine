@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -322,11 +322,7 @@ static void
 X11_WarpMouse(SDL_Window * window, int x, int y)
 {
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-
-    // If we have no barrier, we need to warp
-    if (data->pointer_barrier_active == SDL_FALSE) {
-        WarpMouseInternal(data->xwindow, x, y);
-    }
+    WarpMouseInternal(data->xwindow, x, y);
 }
 
 static int
