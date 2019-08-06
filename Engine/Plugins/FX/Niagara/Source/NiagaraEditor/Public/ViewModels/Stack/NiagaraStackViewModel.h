@@ -74,6 +74,8 @@ public:
 
 		FText GetDisplayName() const;
 
+		bool operator==(const FTopLevelViewModel& Other)const;
+
 		const TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 		const TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 	};

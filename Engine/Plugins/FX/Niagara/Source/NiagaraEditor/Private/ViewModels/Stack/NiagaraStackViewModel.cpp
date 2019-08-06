@@ -61,6 +61,11 @@ FText UNiagaraStackViewModel::FTopLevelViewModel::GetDisplayName() const
 	}
 }
 
+bool UNiagaraStackViewModel::FTopLevelViewModel::operator==(const FTopLevelViewModel& Other) const
+{
+	return Other.SystemViewModel == SystemViewModel && Other.EmitterHandleViewModel == EmitterHandleViewModel;
+}
+
 void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, FNiagaraStackViewModelOptions InOptions)
 {
 	Reset();
@@ -649,28 +654,29 @@ void UNiagaraStackViewModel::RefreshTopLevelViewModels()
 				[&RootChildEmitterHandleViewModel](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) { return TopLevelViewModel->EmitterHandleViewModel == RootChildEmitterHandleViewModel; });
 			if (CurrentTopLevelViewModelPtr != nullptr)
 			{
-				if (TopLevelViewModels.Contains(*CurrentTopLevelViewModelPtr) == false)
-				{
-					TopLevelViewModels.Add(*CurrentTopLevelViewModelPtr);
-				}
+				TopLevelViewModel = *CurrentTopLevelViewModelPtr;
 			}
 			else
 			{
-				TopLevelViewModels.Add(MakeShared<FTopLevelViewModel>(RootChildEmitterHandleViewModel));
+				TopLevelViewModel = MakeShared<FTopLevelViewModel>(RootChildEmitterHandleViewModel);
 			}
 		}
 		else
 		{
 			TSharedRef<FTopLevelViewModel>* CurrentTopLevelViewModelPtr = CurrentTopLevelViewModels.FindByPredicate(
 				[RootChild](const TSharedRef<FTopLevelViewModel>& TopLevelViewModel) { return TopLevelViewModel->SystemViewModel == RootChild->GetSystemViewModel(); });
-			if (CurrentTopLevelViewModelPtr != nullptr && TopLevelViewModels.Contains(*CurrentTopLevelViewModelPtr) == false)
+			if (CurrentTopLevelViewModelPtr != nullptr)
 			{
-				TopLevelViewModels.Add(*CurrentTopLevelViewModelPtr);
+				TopLevelViewModel = *CurrentTopLevelViewModelPtr;
 			}
 			else
 			{
-				TopLevelViewModels.Add(MakeShared<FTopLevelViewModel>(RootChild->GetSystemViewModel()));
+				TopLevelViewModel = MakeShared<FTopLevelViewModel>(RootChild->GetSystemViewModel());
 			}
+		}
+		if (TopLevelViewModels.ContainsByPredicate([&TopLevelViewModel](const TSharedRef<FTopLevelViewModel>& ExistingTopLevelViewModel) { return *TopLevelViewModel == *ExistingTopLevelViewModel; }) == false)
+		{
+			TopLevelViewModels.Add(TopLevelViewModel.ToSharedRef());
 		}
 	}
 }
