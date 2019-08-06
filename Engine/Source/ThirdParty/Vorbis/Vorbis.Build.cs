@@ -127,11 +127,11 @@ public class Vorbis : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
         {
-            PublicAdditionalLibraries.Add(VorbisPath + "lib/ORBIS_Release/" + "libvorbis-1.3.2_PS4_static.a");
+            PublicAdditionalLibraries.Add(VorbisPath + "lib/PS4/" + "libvorbis-1.3.2_PS4_static.a");
         }
 		else if (Target.Platform == UnrealTargetPlatform.Switch)
         {
-            PublicAdditionalLibraries.Add(VorbisPath + "lib/NX64/Release/" + "Switch_Static_Vorbis.a");
+            PublicAdditionalLibraries.Add(VorbisPath + "lib/Switch/Release/" + "Switch_Static_Vorbis.a");
         }
 	}
 }
