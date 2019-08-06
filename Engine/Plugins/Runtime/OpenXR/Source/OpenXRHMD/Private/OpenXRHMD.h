@@ -26,6 +26,18 @@ class FOpenXRRenderBridge;
 class FOpenXRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSceneViewExtensionBase
 {
 public:
+	class FActionSpace
+	{
+	public:
+		FActionSpace(XrAction InAction);
+
+		bool CreateSpace(XrSession InSession);
+		void DestroySpace();
+
+		XrAction Action;
+		XrSpace Space;
+	};
+
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
 	{
 	public:
@@ -91,6 +103,7 @@ protected:
 	bool StartSession();
 	bool OnStereoStartup();
 	bool OnStereoTeardown();
+	bool ReadNextEvent(XrEventDataBuffer* buffer);
 
 public:
 	/** IHeadMountedDisplay interface */
@@ -136,8 +149,10 @@ public:
 	/** IStereoRenderTargetManager */
 	virtual bool ShouldUseSeparateRenderTarget() const override { return true; }
 	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
+#if 0
 	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override final { return false; }
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override final;
+#endif
 
 	virtual FXRRenderBridge* GetActiveRenderBridge_GameThread(bool bUseSeparateRenderTarget) override;
 
@@ -155,13 +170,15 @@ public:
 	/** @return	True if the HMD was initialized OK */
 	OPENXRHMD_API bool IsInitialized() const;
 	OPENXRHMD_API bool IsRunning() const;
-	OPENXRHMD_API bool IsRendering() const;
+	OPENXRHMD_API bool IsFocused() const;
 	void FinishRendering();
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 
 	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
+#if 0
 	FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
+#endif
 	XrInstance GetInstance() { return Instance; }
 	XrSystemId GetSystem() { return System; }
 	XrSession GetSession() { return Session; }
@@ -171,8 +188,10 @@ public:
 	}
 
 private:
+	bool					bStereoEnabled;
 	bool					bIsRunning;
 	bool					bIsReady;
+	bool					bIsRendering;
 	bool					bRunRequested;
 	
 	XrSessionState			CurrentSessionState;
@@ -181,7 +200,6 @@ private:
 	XrInstance				Instance;
 	XrSystemId				System;
 	XrSession				Session;
-	TArray<XrSpace>			DeviceSpaces;
 	XrSpace					LocalSpace;
 	XrSpace					StageSpace;
 	XrSpace					TrackingSpaceRHI;
@@ -199,19 +217,13 @@ private:
 #if 0
 	TArray<FHMDViewMesh>	HiddenAreaMeshes;
 #endif
+	TArray<FActionSpace>	ActionSpaces;
 
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
 	IRendererModule*		RendererModule;
 
 	FXRSwapChainPtr			Swapchain;
+#if 0
 	FXRSwapChainPtr			DepthSwapchain;
-
-	enum KnownDeviceSpaces
-	{
-		DeviceSpaceHMD = 0,
-		// @todo: If we add more known (fixed) spaces, add an enum here.
-		KnownDeviceSpaceCount,
-	};
-
-	TArray<XrAction>		DeferredActionDevices;
+#endif
 };
