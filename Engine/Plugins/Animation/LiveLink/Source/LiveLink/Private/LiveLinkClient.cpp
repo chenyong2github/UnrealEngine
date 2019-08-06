@@ -348,6 +348,10 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 			Collection->RemoveSubject(SubjectStaticData.SubjectKey);
 			LiveLinkSubject = nullptr;
 		}
+		else
+		{
+			LiveLinkSubject->ClearFrames();
+		}
 	}
 	
 	if(LiveLinkSubject == nullptr)
@@ -1062,7 +1066,7 @@ FLiveLinkSkeletonStaticData* FLiveLinkClient::GetSubjectAnimationStaticData_Depr
 	{
 		if (FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(InSubjectKey))
 		{
-			if (SubjectItem->GetSubject()->GetRole() == ULiveLinkAnimationRole::StaticClass())
+			if (SubjectItem->GetSubject()->GetRole() == ULiveLinkAnimationRole::StaticClass() && !SubjectItem->bPendingKill)
 			{
 				return SubjectItem->GetSubject()->GetStaticData().Cast<FLiveLinkSkeletonStaticData>();
 			}
@@ -1097,6 +1101,7 @@ void FLiveLinkClient_Base_DEPRECATED::PushSubjectSkeleton(FGuid SourceGuid, FNam
 
 	FLiveLinkSubjectKey Key = FLiveLinkSubjectKey(SourceGuid, SubjectName);
 
+	RemoveSubject_AnyThread(Key);
 
 	FLiveLinkStaticDataStruct StaticData(FLiveLinkSkeletonStaticData::StaticStruct());
 	FLiveLinkSkeletonStaticData* SkeletonData = StaticData.Cast<FLiveLinkSkeletonStaticData>();
