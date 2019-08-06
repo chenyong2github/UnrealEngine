@@ -209,24 +209,31 @@ protected:
 	 * Use these instead of SNew-ing your owned ListView directly to get exposed events for free
 	 */
 
+	struct FListViewConstructArgs
+	{
+		bool bAllowFocus = true;
+		ESelectionMode::Type SelectionMode = ESelectionMode::Single;
+		bool bClearSelectionOnClick = false;
+		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
+		bool bReturnFocusToSelection = false;
+		EOrientation Orientation = Orient_Vertical;
+	};
+
 	template <template<typename> class ListViewT = SListView, typename UListViewBaseT>
-	static TSharedRef<ListViewT<ItemType>> ConstructListView(UListViewBaseT* Implementer,
+	static TSharedRef<ListViewT<ItemType>> ConstructListView(UListViewBaseT* Implementer, 
 		const TArray<ItemType>& ListItems,
-		bool bAllowFocus = true,
-		ESelectionMode::Type SelectionMode = ESelectionMode::Single,
-		bool bClearSelectionOnClick = false,
-		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible,
-		bool bReturnFocusToSelection = false)
+		const FListViewConstructArgs& Args = FListViewConstructArgs())
 	{
 		static_assert(TIsDerivedFrom<ListViewT<ItemType>, SListView<ItemType>>::IsDerived, "ConstructListView can only construct instances of SListView classes");
 		return SNew(ListViewT<ItemType>)
 			.HandleGamepadEvents(true)
 			.ListItemsSource(&ListItems)
-			.IsFocusable(bAllowFocus)
-			.ClearSelectionOnClick(bClearSelectionOnClick)
-			.ConsumeMouseWheel(ConsumeMouseWheel)
-			.SelectionMode(SelectionMode)
-			.ReturnFocusToSelection(bReturnFocusToSelection)
+			.IsFocusable(Args.bAllowFocus)
+			.ClearSelectionOnClick(Args.bClearSelectionOnClick)
+			.ConsumeMouseWheel(Args.ConsumeMouseWheel)
+			.SelectionMode(Args.SelectionMode)
+			.ReturnFocusToSelection(Args.bReturnFocusToSelection)
+			.Orientation(Args.Orientation)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnRowReleased_UObject(Implementer, &UListViewBaseT::HandleRowReleased)
@@ -236,28 +243,32 @@ protected:
 			.OnMouseButtonDoubleClick_UObject(Implementer, &UListViewBaseT::HandleItemDoubleClicked);
 	}
 
+	struct FTileViewConstructArgs : public FListViewConstructArgs
+	{
+		EListItemAlignment TileAlignment = EListItemAlignment::EvenlyDistributed;
+		TAttribute<float> EntryHeight;
+		TAttribute<float> EntryWidth;
+		bool bWrapDirectionalNavigation = false;
+	};
+
 	template <template<typename> class TileViewT = STileView, typename UListViewBaseT>
 	static TSharedRef<TileViewT<ItemType>> ConstructTileView(UListViewBaseT* Implementer,
 		const TArray<ItemType>& ListItems,
-		EListItemAlignment TileAlignment,
-		TAttribute<float> TileHeight,
-		TAttribute<float> TileWidth,
-		ESelectionMode::Type SelectionMode = ESelectionMode::Single,
-		bool bClearSelectionOnClick = false,
-		bool bWrapHorizontalNavigation = false,
-		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible)
+		const FTileViewConstructArgs& Args = FTileViewConstructArgs())
 	{
 		static_assert(TIsDerivedFrom<TileViewT<ItemType>, STileView<ItemType>>::IsDerived, "ConstructTileView can only construct instances of STileView classes");
 		return SNew(TileViewT<ItemType>)
 			.HandleGamepadEvents(true)
 			.ListItemsSource(&ListItems)
-			.ClearSelectionOnClick(bClearSelectionOnClick)
-			.WrapHorizontalNavigation(bWrapHorizontalNavigation)
-			.ConsumeMouseWheel(ConsumeMouseWheel)
-			.SelectionMode(SelectionMode)
-			.ItemHeight(TileHeight)
-			.ItemWidth(TileWidth)
-			.ItemAlignment(TileAlignment)
+			.IsFocusable(Args.bAllowFocus)
+			.ClearSelectionOnClick(Args.bClearSelectionOnClick)
+			.WrapHorizontalNavigation(Args.bWrapDirectionalNavigation)
+			.ConsumeMouseWheel(Args.ConsumeMouseWheel)
+			.SelectionMode(Args.SelectionMode)
+			.ItemHeight(Args.EntryHeight)
+			.ItemWidth(Args.EntryWidth)
+			.ItemAlignment(Args.TileAlignment)
+			.Orientation(Args.Orientation)
 			.OnGenerateTile_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnTileReleased_UObject(Implementer, &UListViewBaseT::HandleRowReleased)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
@@ -267,20 +278,25 @@ protected:
 			.OnMouseButtonDoubleClick_UObject(Implementer, &UListViewBaseT::HandleItemDoubleClicked);
 	}
 
+	struct FTreeViewConstructArgs
+	{
+		ESelectionMode::Type SelectionMode = ESelectionMode::Single;
+		bool bClearSelectionOnClick = false;
+		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
+	};
+
 	template <template<typename> class TreeViewT = STreeView, typename UListViewBaseT>
 	static TSharedRef<TreeViewT<ItemType>> ConstructTreeView(UListViewBaseT* Implementer,
 		const TArray<ItemType>& ListItems,
-		ESelectionMode::Type SelectionMode = ESelectionMode::Single,
-		bool bClearSelectionOnClick = false,
-		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible)
+		const FTreeViewConstructArgs& Args = FTreeViewConstructArgs())
 	{
 		static_assert(TIsDerivedFrom<TreeViewT<ItemType>, STreeView<ItemType>>::IsDerived, "ConstructTreeView can only construct instances of STreeView classes");
 		return SNew(TreeViewT<ItemType>)
 			.HandleGamepadEvents(true)
 			.TreeItemsSource(&ListItems)
-			.ClearSelectionOnClick(bClearSelectionOnClick)
-			.ConsumeMouseWheel(ConsumeMouseWheel)
-			.SelectionMode(SelectionMode)
+			.ClearSelectionOnClick(Args.bClearSelectionOnClick)
+			.ConsumeMouseWheel(Args.ConsumeMouseWheel)
+			.SelectionMode(Args.SelectionMode)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnRowReleased_UObject(Implementer, &UListViewBaseT::HandleRowReleased)
@@ -292,6 +308,71 @@ protected:
 			.OnExpansionChanged_UObject(Implementer, &UListViewBaseT::HandleExpansionChanged);
 	}
 
+	template <template<typename> class ListViewT = SListView, typename UListViewBaseT>
+	UE_DEPRECATED(4.23, "Use ConstructListView with FListViewConstructArgs instead of individual arguments.")
+	static TSharedRef<ListViewT<ItemType>> ConstructListView(UListViewBaseT* Implementer,
+		const TArray<ItemType>& ListItems,
+		bool bAllowFocus,
+		ESelectionMode::Type SelectionMode = ESelectionMode::Single,
+		bool bClearSelectionOnClick = false,
+		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible,
+		bool bReturnFocusToSelection = false,
+		EOrientation Orientation = Orient_Vertical)
+	{
+		FListViewConstructArgs Args;
+		Args.bAllowFocus = bAllowFocus;
+		Args.SelectionMode = SelectionMode;
+		Args.bClearSelectionOnClick = bClearSelectionOnClick;
+		Args.ConsumeMouseWheel = ConsumeMouseWheel;
+		Args.bReturnFocusToSelection = bReturnFocusToSelection;
+		Args.Orientation = Orientation;
+
+		return ConstructListView<ListViewT>(Implementer, ListItems, Args);
+	}
+
+	template <template<typename> class TileViewT = STileView, typename UListViewBaseT>
+	UE_DEPRECATED(4.23, "Use ConstructTileView with FTileViewConstructArgs instead of individual arguments.")
+	static TSharedRef<TileViewT<ItemType>> ConstructTileView(UListViewBaseT* Implementer,
+		const TArray<ItemType>& ListItems,
+		EListItemAlignment TileAlignment,
+		TAttribute<float> TileHeight,
+		TAttribute<float> TileWidth,
+		ESelectionMode::Type SelectionMode = ESelectionMode::Single,
+		bool bClearSelectionOnClick = false,
+		bool bWrapDirectionalNavigation = false,
+		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible,
+		EOrientation Orientation = Orient_Vertical)
+	{
+		FTileViewConstructArgs Args;
+		Args.SelectionMode = SelectionMode;
+		Args.bClearSelectionOnClick = bClearSelectionOnClick;
+		Args.ConsumeMouseWheel = ConsumeMouseWheel;
+		Args.Orientation = Orientation;
+		Args.bWrapDirectionalNavigation = bWrapDirectionalNavigation;
+		Args.TileHeight = TileHeight;
+		Args.TileWidth = TileWidth;
+		Args.TileAlignment = TileAlignment;
+
+		return ConstructTileView<TileViewT>(Implementer, ListItems, Args);
+	}
+
+	template <template<typename> class TreeViewT = STreeView, typename UListViewBaseT>
+	UE_DEPRECATED(4.23, "Use ConstructTreeView with FTreeViewConstructArgs instead of individual arguments.")
+	static TSharedRef<TreeViewT<ItemType>> ConstructTreeView(UListViewBaseT* Implementer,
+		const TArray<ItemType>& ListItems,
+		ESelectionMode::Type SelectionMode,
+		bool bClearSelectionOnClick = false,
+		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible)
+	{
+		FTreeViewConstructArgs Args;
+		Args.SelectionMode = SelectionMode;
+		Args.bClearSelectionOnClick = bClearSelectionOnClick;
+		Args.ConsumeMouseWheel = ConsumeMouseWheel;
+
+		return ConstructTreeView<TreeViewT>(Implementer, ListItems, Args);
+	}
+
+protected:
 	/** Gets the SObjectTableRow underlying the UMG EntryWidget that represents the given item (if one exists) */
 	template <template<typename> class ObjectRowT = SObjectTableRow>
 	TSharedPtr<ObjectRowT<ItemType>> GetObjectRowFromItem(const ItemType& Item) const
@@ -453,6 +534,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ListViewBase)
 	void ScrollToBottom();
 
+	UFUNCTION(BlueprintCallable, Category = ListViewBase)
+	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
+
+	UFUNCTION(BlueprintCallable, Category = ListViewBase)
+	void SetScrollbarVisibility(ESlateVisibility InVisibility);
+
 	/**
 	 * Sets the list to refresh on the next tick.
 	 *
@@ -470,8 +557,6 @@ public:
 
 	DECLARE_EVENT_OneParam(UListView, FOnEntryWidgetReleased, UUserWidget&);
 	FOnEntryWidgetReleased& OnEntryWidgetReleased() { return OnEntryWidgetReleasedEvent; }
-
-	void SetScrollbarVisibility(ESlateVisibility InVisibility);
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override final;
@@ -564,6 +649,25 @@ protected:
 	/** The type of widget to create for each entry displayed in the list. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListEntries, meta = (DesignerRebuild, AllowPrivateAccess = true, MustImplement = UserListEntry))
 	TSubclassOf<UUserWidget> EntryWidgetClass;
+
+	/** The multiplier to apply when wheel scrolling */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Scrolling)
+	float WheelScrollMultiplier = 1.f;
+
+	/** True to enable lerped animation when scrolling through the list */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Scrolling)
+	bool bEnableScrollAnimation = false;
+
+	UPROPERTY()
+	bool bEnableFixedLineOffset = false;
+
+	/** 
+	 * Optional fixed offset (in lines) to always apply to the top/left (depending on orientation) of the list.
+	 * If provided, all non-inertial means of scrolling will settle with exactly this offset of the topmost entry.
+	 * Ex: A value of 0.25 would cause the topmost full entry to be offset down by a quarter length of the preceeding entry.
+	 */
+	UPROPERTY(EditAnywhere, Category = Scrolling, meta = (EditCondition = bEnableFixedLineOffset, ClampMin = 0.0f, ClampMax = 0.5f))
+	float FixedLineScrollOffset = 0.f;
 
 private:
 	void FinishGeneratingEntry(UUserWidget& GeneratedEntry);

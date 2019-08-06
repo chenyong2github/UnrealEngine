@@ -108,8 +108,7 @@ UObject* UListView::BP_GetSelectedItem() const
 
 void UListView::HandleOnEntryInitializedInternal(UObject* Item, const TSharedRef<ITableRow>& TableRow)
 {
-	UUserWidget* const RowWidget = GetEntryWidgetFromItem(Item);
-	BP_OnEntryInitialized.Broadcast(Item, RowWidget);
+	BP_OnEntryInitialized.Broadcast(Item, GetEntryWidgetFromItem(Item));
 }
 
 bool UListView::BP_GetSelectedItems(TArray<UObject*>& Items) const
