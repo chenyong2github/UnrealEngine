@@ -427,6 +427,10 @@ float FAppleARKitSystem::GetWorldToMetersScale() const
 
 void FAppleARKitSystem::OnBeginRendering_GameThread()
 {
+#if PLATFORM_MAC || PLATFORM_IOS
+    // Queue an update on the render thread
+	CameraImage->Init_RenderThread();
+#endif
 	UpdatePoses();
 }
 
@@ -1346,10 +1350,10 @@ void FAppleARKitSystem::SessionDidUpdateFrame_DelegateThread(TSharedPtr< FAppleA
 		{
 			WriteCameraImageToDisk(Frame->CameraImage);
 		}
-		// Queue an update on the render thread
+		
 		if (CameraImage != nullptr)
 		{
-			CameraImage->Init_RenderThread(Frame->CameraImage);
+			CameraImage->EnqueueNewCameraImage(Frame->CameraImage);
 		}
 #endif
 	}
