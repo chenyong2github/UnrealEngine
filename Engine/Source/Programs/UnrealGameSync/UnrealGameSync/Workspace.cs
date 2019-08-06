@@ -558,11 +558,6 @@ namespace UnrealGameSync
 					// Create a filter for all the files we don't want
 					FileFilter Filter = new FileFilter(UserFilter);
 					Filter.Exclude(BuildVersionFileName);
-					if (!ProjectConfigFile.GetValue("Options.UseFastModularVersioningV2", false))
-					{
-						Filter.Exclude(VersionHeaderFileName);
-						Filter.Exclude(ObjectVersionFileName);
-					}
 					if (Context.Options.HasFlag(WorkspaceUpdateOptions.ContentOnly))
 					{
 						Filter.Exclude("*.usf");
@@ -1412,7 +1407,19 @@ namespace UnrealGameSync
 				Log.WriteLine("Failed to query records for {0}", ClientPath);
 				return false;
 			}
-			if(Records.Count == 0)
+			if (Records.Count > 1)
+			{
+				// Attempt to remove any existing file which is synced
+				Perforce.ForceSync(String.Format("{0}#0", ClientPath), Log);
+
+				// Try to get the mapped files again
+				if (!Perforce.Stat(ClientPath, out Records, Log))
+				{
+					Log.WriteLine("Failed to query records for {0}", ClientPath);
+					return false;
+				}
+			}
+			if (Records.Count == 0)
 			{
 				Log.WriteLine("Ignoring {0}; not found on server.", ClientPath);
 				return true;
