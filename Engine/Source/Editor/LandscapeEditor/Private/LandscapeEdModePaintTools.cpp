@@ -799,6 +799,8 @@ public:
 				this->Cache.DataAccess.GetDataFast(FlattenHeightX + 1, FlattenHeightY,     FlattenHeightX + 1, FlattenHeightY,     &P10);
 				this->Cache.DataAccess.GetDataFast(FlattenHeightX,     FlattenHeightY + 1, FlattenHeightX,     FlattenHeightY + 1, &P01);
 				this->Cache.DataAccess.GetDataFast(FlattenHeightX + 1, FlattenHeightY + 1, FlattenHeightX + 1, FlattenHeightY + 1, &P11);
+				// Release Texture Mips that will be Locked by the next SynchronousUpdateComponentVisibilityForHeight (inside the LayerDataCache.Read call)
+				this->Cache.DataAccess.Flush();
 				V00 = P00;
 				V10 = P10;
 				V01 = P01;
