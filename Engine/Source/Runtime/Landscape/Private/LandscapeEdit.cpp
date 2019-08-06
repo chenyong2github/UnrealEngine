@@ -1316,7 +1316,10 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 
 	if (CollisionComp)
 	{
-		CollisionComp->Modify();
+		if (!Proxy->HasLayersContent())
+		{
+			CollisionComp->Modify();
+		}
 
 		// Simple collision is not currently supported with mesh collision components
 		const bool bUsingSimpleCollision = (SimpleCollisionMipLevel > CollisionMipLevel && SimpleCollisionWeightmapTextureMipData && !XYOffsetmapTexture);

@@ -1018,7 +1018,8 @@ void USplineMeshComponent::RecreateCollision()
 		}
 		else
 		{
-			BodySetup->Modify();
+			const bool bDirtyPackage = false;
+			BodySetup->Modify(bDirtyPackage);
 			BodySetup->InvalidatePhysicsData();
 			BodySetup->CopyBodyPropertiesFrom(GetStaticMesh()->BodySetup);
 			BodySetup->CollisionTraceFlag = GetStaticMesh()->BodySetup->CollisionTraceFlag;
