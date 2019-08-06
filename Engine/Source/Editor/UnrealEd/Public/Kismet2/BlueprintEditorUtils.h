@@ -1268,6 +1268,14 @@ public:
 
 	/** Remove an implemented interface, and its associated member function graphs.  If bPreserveFunctions is true, then the interface will move its functions to be normal implemented blueprint functions */
 	static void RemoveInterface(UBlueprint* Blueprint, const FName& InterfaceClassName, bool bPreserveFunctions = false);
+	
+	/**
+	* Attempt to remove a function from an interfaces list of function graphs.
+	* Note that this will NOT remove interface events (i.e. functions with no outputs)
+	* 
+	* @return	True if the function was removed from the blueprint
+	*/
+	static bool RemoveInterfaceFunction(class UBlueprint* Blueprint, struct FBPInterfaceDescription& Interface, class UFunction* Function, bool bPreserveFunction);
 
 	/**
 	* Promotes a Graph from being an Interface Override to a full member function
