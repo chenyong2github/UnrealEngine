@@ -35,7 +35,7 @@ def PopulateSubjects():
 	if SubjectPaths is not None:
 		RowCounter = 0
 		for (SubjectName, SubjectPath, SubjectType, SubjectRole) in zip(SubjectNames, SubjectPaths, SubjectTypes, SubjectRoles):
-			cmds.button(label="-", height=21, statusBarMessage="Remove " + SubjectType, command=Callback(OnRemoveSubject, SubjectPath), parent="SubjectLayout")
+			cmds.button(label="-", height=21, command=Callback(OnRemoveSubject, SubjectPath), parent="SubjectLayout")
 			cmds.text(label=SubjectType, height=21, align="left", parent="SubjectLayout")
 			cmds.textField(text=SubjectName, height=21, changeCommand=CallbackWithArgs(cmds.LiveLinkChangeSubjectName, SubjectPath), parent="SubjectLayout")
 			cmds.text(label=SubjectPath, align="left", height=21, parent="SubjectLayout")
@@ -115,7 +115,7 @@ class MayaLiveLinkUI(LiveLinkCommand):
 		PopulateSubjects()
 
 		cmds.separator(h=20, style="none", parent="mainColumn")
-		cmds.button( label='Add Selection', statusBarMessage="Adds all selected subjects in the Outliner to LiveLink", parent = "mainColumn", command=self.AddSelection)
+		cmds.button( label='Add Selection', parent = "mainColumn", command=self.AddSelection)
 
 		cmds.showWindow( self.WindowName )
 
