@@ -869,7 +869,8 @@ namespace LandscapeSplineRaster
 	void Pointify(const FInterpCurveVector& SplineInfo, TArray<FLandscapeSplineInterpPoint>& Points, int32 NumSubdivisions,
 		float StartFalloffFraction, float EndFalloffFraction,
 		const float StartWidth, const float EndWidth,
-		const float StartSideFalloff, const float EndSideFalloff,
+		const float StartLeftSideFalloff, const float EndLeftSideFalloff,
+		const float StartRightSideFalloff, const float EndRightSideFalloff,
 		const float StartRollDegrees, const float EndRollDegrees)
 	{
 		// Stop the start and end fall-off overlapping
@@ -889,15 +890,16 @@ namespace LandscapeSplineRaster
 			const float NewKeyTime = SplineInfo.Points[i].InVal;
 			const float NewKeyCosInterp = 0.5f - 0.5f * FMath::Cos(NewKeyTime * PI);
 			const float NewKeyWidth = FMath::Lerp(StartWidth, EndWidth, NewKeyCosInterp);
-			const float NewKeyFalloff = FMath::Lerp(StartSideFalloff, EndSideFalloff, NewKeyCosInterp);
+			const float NewKeyLeftFalloff = FMath::Lerp(StartLeftSideFalloff, EndLeftSideFalloff, NewKeyCosInterp);
+			const float NewKeyRightFalloff = FMath::Lerp(StartRightSideFalloff, EndRightSideFalloff, NewKeyCosInterp);
 			const float NewKeyRoll = FMath::Lerp(StartRoll, EndRoll, NewKeyCosInterp);
 			const FVector NewKeyPos = SplineInfo.Eval(NewKeyTime, FVector::ZeroVector);
 			const FVector NewKeyTangent = SplineInfo.EvalDerivative(NewKeyTime, FVector::ZeroVector).GetSafeNormal();
 			const FVector NewKeyBiNormal = FQuat(NewKeyTangent, -NewKeyRoll).RotateVector((NewKeyTangent ^ FVector(0, 0, -1)).GetSafeNormal());
 			const FVector NewKeyLeftPos = NewKeyPos - NewKeyBiNormal * NewKeyWidth;
 			const FVector NewKeyRightPos = NewKeyPos + NewKeyBiNormal * NewKeyWidth;
-			const FVector NewKeyFalloffLeftPos = NewKeyPos - NewKeyBiNormal * (NewKeyWidth + NewKeyFalloff);
-			const FVector NewKeyFalloffRightPos = NewKeyPos + NewKeyBiNormal * (NewKeyWidth + NewKeyFalloff);
+			const FVector NewKeyFalloffLeftPos = NewKeyPos - NewKeyBiNormal * (NewKeyWidth + NewKeyLeftFalloff);
+			const FVector NewKeyFalloffRightPos = NewKeyPos + NewKeyBiNormal * (NewKeyWidth + NewKeyRightFalloff);
 			const float NewKeyStartEndFalloff = FMath::Min((StartFalloffFraction > 0 ? NewKeyTime / StartFalloffFraction : 1.0f), (EndFalloffFraction > 0 ? (1 - NewKeyTime) / EndFalloffFraction : 1.0f));
 
 			// If not the first keypoint, interp from the last keypoint.
@@ -912,15 +914,16 @@ namespace LandscapeSplineRaster
 					const float NewTime = OldKeyTime + j*DrawSubstep;
 					const float NewCosInterp = 0.5f - 0.5f * FMath::Cos(NewTime * PI);
 					const float NewWidth = FMath::Lerp(StartWidth, EndWidth, NewCosInterp);
-					const float NewFalloff = FMath::Lerp(StartSideFalloff, EndSideFalloff, NewCosInterp);
+					const float NewLeftFalloff = FMath::Lerp(StartLeftSideFalloff, EndLeftSideFalloff, NewCosInterp);
+					const float NewRightFalloff = FMath::Lerp(StartRightSideFalloff, EndRightSideFalloff, NewCosInterp);
 					const float NewRoll = FMath::Lerp(StartRoll, EndRoll, NewCosInterp);
 					const FVector NewPos = SplineInfo.Eval(NewTime, FVector::ZeroVector);
 					const FVector NewTangent = SplineInfo.EvalDerivative(NewTime, FVector::ZeroVector).GetSafeNormal();
 					const FVector NewBiNormal = FQuat(NewTangent, -NewRoll).RotateVector((NewTangent ^ FVector(0, 0, -1)).GetSafeNormal());
 					const FVector NewLeftPos = NewPos - NewBiNormal * NewWidth;
 					const FVector NewRightPos = NewPos + NewBiNormal * NewWidth;
-					const FVector NewFalloffLeftPos = NewPos - NewBiNormal * (NewWidth + NewFalloff);
-					const FVector NewFalloffRightPos = NewPos + NewBiNormal * (NewWidth + NewFalloff);
+					const FVector NewFalloffLeftPos = NewPos - NewBiNormal * (NewWidth + NewLeftFalloff);
+					const FVector NewFalloffRightPos = NewPos + NewBiNormal * (NewWidth + NewRightFalloff);
 					const float NewStartEndFalloff = FMath::Min((StartFalloffFraction > 0 ? NewTime / StartFalloffFraction : 1.0f), (EndFalloffFraction > 0 ? (1 - NewTime) / EndFalloffFraction : 1.0f));
 
 					Points.Emplace(NewPos, NewLeftPos, NewRightPos, NewFalloffLeftPos, NewFalloffRightPos, NewStartEndFalloff);
