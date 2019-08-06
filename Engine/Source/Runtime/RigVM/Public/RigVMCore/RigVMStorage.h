@@ -69,51 +69,55 @@ struct RIGVM_API FRigVMRegister
 		, SliceIndex(0)
 		, SliceCount(1)
 		, AlignmentBytes(0)
+		, TrailingBytes(0)
 		, Name(NAME_None)
 		, ScriptStructIndex(INDEX_NONE)
 	{
 	}
 
 	UPROPERTY()
-		ERigVMRegisterType Type;
+	ERigVMRegisterType Type;
 
 	UPROPERTY()
-		uint32 ByteIndex;
+	uint32 ByteIndex;
 
 	UPROPERTY()
-		uint16 ElementSize;
+	uint16 ElementSize;
 
 	UPROPERTY()
-		uint16 ElementCount;
+	uint16 ElementCount;
 
 	UPROPERTY()
-		uint16 SliceIndex;
+	uint16 SliceIndex;
 
 	UPROPERTY()
-		uint16 SliceCount;
+	uint16 SliceCount;
 
 	UPROPERTY()
-		uint8 AlignmentBytes;
+	uint8 AlignmentBytes;
 
 	UPROPERTY()
-		FName Name;
+	uint16 TrailingBytes;
 
 	UPROPERTY()
-		int32 ScriptStructIndex;
+	FName Name;
+
+	UPROPERTY()
+	int32 ScriptStructIndex;
 
 	FORCEINLINE uint64 GetWorkByteIndex() const { return ByteIndex; }
 	FORCEINLINE uint64 GetStorageByteIndex() const { return ByteIndex - (uint64)AlignmentBytes - (uint64)(SliceIndex * GetNumBytesPerSlice()); }
 	FORCEINLINE uint8 GetAlignmentBytes() const { return AlignmentBytes; }
 	FORCEINLINE bool IsArray() const { return ElementCount > 1; }
 	FORCEINLINE bool IsPlain() const { return ScriptStructIndex == INDEX_NONE; }
-	FORCEINLINE uint16 GetAllocatedBytes() const { return ElementCount * ElementSize * SliceCount + (uint16)AlignmentBytes; }
+	FORCEINLINE uint16 GetAllocatedBytes() const { return ElementCount * ElementSize * SliceCount + (uint16)AlignmentBytes + TrailingBytes; }
 	FORCEINLINE uint16 GetNumBytesPerSlice() const { return ElementCount * ElementSize; }
 	FORCEINLINE uint16 GetNumBytesAllSlices() const { return ElementCount * ElementSize * SliceCount; }
 	FORCEINLINE uint32 GetTotalElementCount() const { return (uint32)ElementCount * (uint32)SliceCount; }
 	FORCEINLINE void MoveToFirstSlice() { ByteIndex -= SliceIndex * GetNumBytesPerSlice(); SliceIndex = 0; }
 	FORCEINLINE void MoveToNextSlice()
 	{
-		if(SliceCount == 1)
+		if(SliceCount <= 1)
 		{
 			return;
 		}
@@ -518,6 +522,66 @@ public:
 	FName Rename(const FName& InOldName, const FName& InNewName);
 	bool Resize(int32 InRegisterIndex, int32 InNewElementCount, int32 InNewSliceCount = 1);
 	bool Resize(const FName& InRegisterName, int32 InNewElementCount, int32 InNewSliceCount = 1);
+
+	bool ChangeRegisterType(int32 InRegisterIndex, ERigVMRegisterType InNewType, int32 InElementSize, const void* InDataPtr = nullptr, int32 InNewElementCount = 1, int32 InNewSliceCount = 1);
+
+	template<class T>
+	FORCEINLINE bool ChangeRegisterType(int32 InRegisterIndex, const T* InDataPtr = nullptr, int32 InNewElementCount = 1, int32 InNewSliceCount = 1)
+	{
+		return ChangeRegisterType(InRegisterIndex, ERigVMRegisterType::Plain, sizeof(T), InDataPtr, InNewElementCount, InNewSliceCount);
+	}
+
+	template<>
+	FORCEINLINE bool ChangeRegisterType(int32 InRegisterIndex, const FName* InDataPtr, int32 InNewElementCount, int32 InNewSliceCount)
+	{
+		if (!ChangeRegisterType(InRegisterIndex, ERigVMRegisterType::Name, sizeof(FName), nullptr, InNewElementCount, InNewSliceCount))
+		{
+			return false;
+		}
+
+		if (InDataPtr)
+		{
+			Registers[InRegisterIndex].MoveToFirstSlice();
+			for (uint16 SliceIndex = 0; SliceIndex < Registers[InRegisterIndex].SliceCount; SliceIndex++)
+			{
+				FName* DataPtr = (FName*)GetData(InRegisterIndex);
+				for (int32 Index = 0; Index < InNewElementCount; Index++)
+				{
+					DataPtr[Index] = InDataPtr[Index];
+				}
+				Registers[InRegisterIndex].MoveToNextSlice();
+			}
+			Registers[InRegisterIndex].MoveToFirstSlice();
+		}
+
+		return true;
+	}
+
+	template<>
+	FORCEINLINE bool ChangeRegisterType(int32 InRegisterIndex, const FString* InDataPtr, int32 InNewElementCount, int32 InNewSliceCount)
+	{
+		if (!ChangeRegisterType(InRegisterIndex, ERigVMRegisterType::String, sizeof(FString), nullptr, InNewElementCount, InNewSliceCount))
+		{
+			return false;
+		}
+
+		if (InDataPtr)
+		{
+			Registers[InRegisterIndex].MoveToFirstSlice();
+			for (uint16 SliceIndex = 0; SliceIndex < Registers[InRegisterIndex].SliceCount; SliceIndex++)
+			{
+				FString* DataPtr = (FString*)GetData(InRegisterIndex);
+				for (int32 Index = 0; Index < InNewElementCount; Index++)
+				{
+					DataPtr[Index] = InDataPtr[Index];
+				}
+				Registers[InRegisterIndex].MoveToNextSlice();
+			}
+			Registers[InRegisterIndex].MoveToFirstSlice();
+		}
+
+		return true;
+	}
 
 	void UpdateRegisters();
 

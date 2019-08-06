@@ -199,9 +199,9 @@ int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32
 	{
 		NewRegister.Name = Name;
 	}
-	NewRegister.ElementSize = InElementSize;
-	NewRegister.ElementCount = InElementCount;
-	NewRegister.SliceCount = InSliceCount;
+	NewRegister.ElementSize = (uint16)InElementSize;
+	NewRegister.ElementCount = (uint16)InElementCount;
+	NewRegister.SliceCount = (uint16)InSliceCount;
 	NewRegister.Type = ERigVMRegisterType::Plain;
 
 	Data.AddZeroed(NewRegister.GetAllocatedBytes());
@@ -285,7 +285,13 @@ bool FRigVMStorage::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 {
 	ensure(Registers.IsValidIndex(InRegisterIndex));
 
-	const FRigVMRegister& Register = Registers[InRegisterIndex];
+	FRigVMRegister& Register = Registers[InRegisterIndex];
+
+	if (InElementIndex == INDEX_NONE)
+	{
+		Register.MoveToFirstSlice();
+	}
+
 	switch (Register.Type)
 	{
 		case ERigVMRegisterType::Struct:
@@ -304,7 +310,7 @@ bool FRigVMStorage::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 
 			for (int32 Index = 0; Index < Count; Index++)
 			{
-				DataPtr[Index].Empty();
+				DataPtr[Index] = FString();
 			}
 			break;
 		}
@@ -389,6 +395,9 @@ FName FRigVMStorage::Rename(const FName& InOldName, const FName& InNewName)
 
 bool FRigVMStorage::Resize(int32 InRegisterIndex, int32 InNewElementCount, int32 InNewSliceCount)
 {
+	ensure(Registers.IsValidIndex(InRegisterIndex));
+	ensure(Registers[InRegisterIndex].TrailingBytes == 0);
+
 	if (InNewElementCount <= 0 || InNewSliceCount < 0)
 	{
 		return Remove(InRegisterIndex);
@@ -460,6 +469,49 @@ bool FRigVMStorage::Resize(const FName& InRegisterName, int32 InNewElementCount,
 	}
 
 	return Resize(RegisterIndex, InNewElementCount, InNewSliceCount);
+}
+
+bool FRigVMStorage::ChangeRegisterType(int32 InRegisterIndex, ERigVMRegisterType InNewType, int32 InElementSize, const void* InDataPtr, int32 InNewElementCount, int32 InNewSliceCount)
+{
+	ensure(Registers.IsValidIndex(InRegisterIndex));
+	
+	FRigVMRegister& Register = Registers[InRegisterIndex];
+	ensure(Register.ScriptStructIndex == INDEX_NONE);
+	ensure(Register.AlignmentBytes == 0);
+	ensure(InNewType == ERigVMRegisterType::Name || InNewType == ERigVMRegisterType::String || InNewType == ERigVMRegisterType::Plain);
+
+	Register.MoveToFirstSlice();
+
+	if (Register.Type == InNewType && Register.ElementSize == InElementSize && Register.ElementCount == InNewElementCount && Register.SliceCount == InNewSliceCount)
+	{
+		return false;
+	}
+
+	Destroy(InRegisterIndex);
+
+	uint16 OldAllocatedBytes = Register.GetAllocatedBytes();
+	uint16 NewAllocatedBytes = (uint16)InElementSize * (uint16)InNewElementCount * (uint16)InNewSliceCount;
+	ensure(NewAllocatedBytes <= OldAllocatedBytes);
+
+	Register.Type = InNewType;
+	Register.ElementSize = (uint16)InElementSize;
+	Register.ElementCount = (uint16)InNewElementCount;
+	Register.SliceCount = (uint16)InNewSliceCount;
+	Register.TrailingBytes = OldAllocatedBytes - NewAllocatedBytes;
+
+	Construct(InRegisterIndex);
+
+	if (InDataPtr != nullptr)
+	{
+		for (int32 SliceIndex = 0; SliceIndex < Register.SliceCount; SliceIndex++)
+		{
+			FMemory::Memcpy(GetData(InRegisterIndex), InDataPtr, Register.GetNumBytesPerSlice());
+			Register.MoveToNextSlice();
+		}
+		Register.MoveToFirstSlice();
+	}
+
+	return true;
 }
 
 void FRigVMStorage::UpdateRegisters()
