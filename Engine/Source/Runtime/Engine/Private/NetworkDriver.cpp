@@ -3319,7 +3319,7 @@ bool FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
 	bool bSectionExists = GConfig->GetSection(*SectionName, SectionConfigs, GEngineIni);
 	if (!bSectionExists)
 	{
-		UE_LOG(LogNet, Warning, TEXT("EmulationProfile [%s] was not found in %s. Packet settings were not changed"), *SectionName, *GEngineIni);
+		UE_LOG(LogNet, Log, TEXT("EmulationProfile [%s] was not found in %s. Packet settings were not changed"), *SectionName, *GEngineIni);
 		return false;
 	}
 
