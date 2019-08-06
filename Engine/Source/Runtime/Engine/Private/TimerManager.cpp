@@ -246,7 +246,7 @@ struct FTimerHeapOrder
 	int32 NumTimers;
 };
 
-FTimerManager::FTimerManager()
+FTimerManager::FTimerManager(UGameInstance* GameInstance)
 	: InternalTime(0.0)
 	, LastTickedFrame(static_cast<uint64>(-1))
 	, OwningGameInstance(nullptr)
@@ -255,6 +255,11 @@ FTimerManager::FTimerManager()
 	{
 		// Off by default, renable if needed
 		//FCoreDelegates::OnHandleSystemError.AddRaw(this, &FTimerManager::OnCrash);
+	}
+
+	if (GameInstance)
+	{
+		SetGameInstance(GameInstance);
 	}
 }
 
@@ -954,9 +959,6 @@ TStatId FTimerManager::GetStatId() const
 
 void FTimerManager::SetGameInstance(UGameInstance* InGameInstance)
 {
-	// not currently threadsafe
-	check(IsInGameThread());
-
 	OwningGameInstance = InGameInstance;
 
 #if UE_ENABLE_TRACKING_TIMER_SOURCES

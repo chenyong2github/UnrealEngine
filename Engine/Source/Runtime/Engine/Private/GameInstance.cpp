@@ -37,11 +37,10 @@
 
 UGameInstance::UGameInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, TimerManager(new FTimerManager())
+	, TimerManager(new FTimerManager(this))
 	, LatentActionManager(new FLatentActionManager())
 	, SubsystemCollection(this)
 {
-	TimerManager->SetGameInstance(this);
 }
 
 void UGameInstance::FinishDestroy()
