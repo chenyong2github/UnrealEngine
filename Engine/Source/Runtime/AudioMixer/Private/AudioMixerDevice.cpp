@@ -162,7 +162,7 @@ namespace Audio
 			OpenStreamParams.OutputDeviceIndex = AUDIO_MIXER_DEFAULT_DEVICE_INDEX; // TODO: Support overriding which audio device user wants to open, not necessarily default.
 			OpenStreamParams.SampleRate = SampleRate;
 			OpenStreamParams.AudioMixer = this;
-			OpenStreamParams.MaxChannels = GetMaxChannels();
+			OpenStreamParams.MaxSources = GetMaxSources();
 
 			FString DefaultDeviceName = AudioMixerPlatform->GetDefaultDeviceName();
 
@@ -203,11 +203,10 @@ namespace Audio
 				// Initialize some data that depends on speaker configuration, etc.
 				InitializeChannelAzimuthMap(PlatformInfo.NumChannels);
 
-				// We initialize the number of sources to be 2 times the max channels
-				// This extra source count is used for "stopping sources", which are sources
-				// which are fading out (very quickly) to avoid discontinuities when stopping sounds
 				FSourceManagerInitParams SourceManagerInitParams;
-				SourceManagerInitParams.NumSources = GetMaxChannels() + NumStoppingVoices;
+				SourceManagerInitParams.NumSources = GetMaxSources();
+
+				// TODO: Migrate this to project settings properly
 				SourceManagerInitParams.NumSourceWorkers = 4;
 
 				SourceManager.Init(SourceManagerInitParams);
