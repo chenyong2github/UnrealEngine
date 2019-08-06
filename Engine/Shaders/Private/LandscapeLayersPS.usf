@@ -347,6 +347,15 @@ void PSHeightmapMainMips(float2 InTextureCoordinates : TEXCOORD0, out float4 Out
 
 float4 WeightmapLayerWeightBlend; // each xyzw == 1 texture channel
 
+void PSWeightmapConvertFormat(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColor : SV_Target0)
+{
+	uint SourceColor = asuint(ReadTexture1.SampleLevel(ReadTexture1Sampler, InTextureCoordinates, 0).r);
+	OutColor.b = float((SourceColor >> 24) & 0x000000FF) / 255.0;
+	OutColor.g = float((SourceColor >> 16) & 0x000000FF) / 255.0;
+	OutColor.r = float((SourceColor >> 8)  & 0x000000FF) / 255.0;
+	OutColor.a = float(SourceColor & 0x000000FF) / 255.0;
+}
+
 void PSWeightmapMain(float2 InTextureCoordinates : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
 	float4 SourceColor = ReadTexture1.Sample(ReadTexture1Sampler, InTextureCoordinates);
