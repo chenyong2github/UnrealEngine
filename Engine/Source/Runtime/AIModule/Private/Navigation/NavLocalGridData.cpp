@@ -4,24 +4,8 @@
 #include "Navigation/NavLocalGridManager.h"
 #include "GraphAStar.h"
 #include "NavigationPath.h"
+#include "GeomTools.h"
 
-namespace FGridMathHelpers
-{
-	// copy & paste from PaperGeomTools.cpp
-	bool IsPointInPolygon(const FVector2D& TestPoint, const TArray<FVector2D>& PolygonPoints)
-	{
-		const int NumPoints = PolygonPoints.Num();
-		float AngleSum = 0.0f;
-		for (int PointIndex = 0; PointIndex < NumPoints; ++PointIndex)
-		{
-			const FVector2D& VecAB = PolygonPoints[PointIndex] - TestPoint;
-			const FVector2D& VecAC = PolygonPoints[(PointIndex + 1) % NumPoints] - TestPoint;
-			const float Angle = FMath::Sign(FVector2D::CrossProduct(VecAB, VecAC)) * FMath::Acos(FMath::Clamp(FVector2D::DotProduct(VecAB, VecAC) / (VecAB.Size() * VecAC.Size()), -1.0f, 1.0f));
-			AngleSum += Angle;
-		}
-		return (FMath::Abs(AngleSum) > 0.001f);
-	}
-}
 
 FNavLocalGridData::FNavLocalGridData(const FVector& Center, float Extent2D) : GridId(0)
 {
@@ -132,7 +116,7 @@ void FNavLocalGridData::MarkBoxObstacle(const FVector& Center, const FVector& Ex
 			for (int32 IdxY = 0; IdxY < (int32)GridSize.Height; IdxY++)
 			{
 				const FVector GridCellLocation = GetWorldCellCenter(IdxX, IdxY);
-				const bool bIsInside = FGridMathHelpers::IsPointInPolygon(FVector2D(GridCellLocation), Verts2D);
+				const bool bIsInside = FGeomTools2D::IsPointInPolygon(FVector2D(GridCellLocation), Verts2D);
 				if (bIsInside)
 				{
 					const int32 CellIndex = GetCellIndexUnsafe(IdxX, IdxY);
