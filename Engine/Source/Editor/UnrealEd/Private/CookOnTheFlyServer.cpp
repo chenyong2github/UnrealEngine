@@ -7667,7 +7667,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 									GIsCookerLoadingPackage = false;
 								}
 
-								if (!bIsTexture)
+								if (!bIsTexture || bSaveConcurrent)
 								{
 									SCOPE_TIMER(FullLoadAndSave_BeginCache);
 									Obj->BeginCacheForCookedPlatformData(TargetPlatform);
@@ -7747,6 +7747,21 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	} while (PackagesToLoad.Num() > 0);
 
 	ProcessedPackages.Empty();
+
+	// When saving concurrently, flush async loading since that is normally done internally in SavePackage
+	if (bSaveConcurrent)
+	{
+		UE_LOG(LogCook, Display, TEXT("Flushing async loading..."));
+		SCOPE_TIMER(FullLoadAndSave_FlushAsyncLoading);
+		FlushAsyncLoading();
+	}
+
+	if (bSaveConcurrent)
+	{
+		UE_LOG(LogCook, Display, TEXT("Waiting for async tasks..."));
+		SCOPE_TIMER(FullLoadAndSave_ProcessThreadUntilIdle);
+		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+	}
 
 	// Wait for all shaders to finish compiling
 	if (GShaderCompilingManager)
@@ -7910,6 +7925,14 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						GIsCookerLoadingPackage = true;
 						FSavePackageResultStruct SaveResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), false);
 						GIsCookerLoadingPackage = false;
+
+						if (SaveResult == ESavePackageResult::Success && UAssetManager::IsValid())
+						{
+							if (!UAssetManager::Get().VerifyCanCookPackage(Package->GetFName()))
+							{
+								SaveResult = ESavePackageResult::Error;
+							}
+						}
 
 						const bool bSucceededSavePackage = (SaveResult == ESavePackageResult::Success || SaveResult == ESavePackageResult::GenerateStub || SaveResult == ESavePackageResult::ReplaceCompletely);
 						if (bSucceededSavePackage)
