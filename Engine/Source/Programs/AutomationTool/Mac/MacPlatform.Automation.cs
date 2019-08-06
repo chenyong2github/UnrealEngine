@@ -313,7 +313,12 @@ public class MacPlatform : Platform
 	{
 		// package up the program, potentially with an installer for Mac
 		PrintRunTime();
-		RemoveExtraRPaths(Params, SC);
+
+		if (Params.Archive)
+		{
+			// Remove extra RPATHs if we will be archiving the project
+			RemoveExtraRPaths(Params, SC);
+		}
 	}
 
 	public override void ProcessArchivedProject(ProjectParams Params, DeploymentContext SC)
