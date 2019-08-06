@@ -22,6 +22,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Runtime/Core/Public/Algo/Transform.h"
+#include "SCurveEditor.h" // for access to LogCurveEditor
 
 #define LOCTEXT_NAMESPACE "CurveEditor"
 
@@ -933,31 +934,29 @@ void FCurveEditor::SetBufferedCurves(const TSet<FCurveModelID>& InCurves)
 		FCurveModel* CurveModel = FindCurve(CurveID);
 		check(CurveModel);
 
-
-		// We loop through the key data on the curve and apply it to the copy, since there's no copy constructors for Curve Models (for good reason!)
-		FBufferedCurve& BufferedCurve = BufferedCurves.Emplace_GetRef();
-		
-		int32 NumKeys = CurveModel->GetNumKeys();
-		BufferedCurve.KeyPositions.SetNumUninitialized(NumKeys);
-		BufferedCurve.KeyAttributes.SetNumUninitialized(NumKeys);
-
-		// Copy all of the from the curve into our cached buffer
-		TArray<FKeyHandle> KeyHandles;
-
-		CurveModel->GetKeys(*this, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
-		CurveModel->GetKeyPositions(KeyHandles, BufferedCurve.KeyPositions);
-		CurveModel->GetKeyAttributes(KeyHandles, BufferedCurve.KeyAttributes);
-		BufferedCurve.IntentionName = CurveModel->GetIntentionName();
+		// Add a buffered curve copy if the curve model supports buffered curves
+		TUniquePtr<IBufferedCurveModel> CurveModelCopy = CurveModel->CreateBufferedCurveCopy();
+		if (CurveModelCopy) 
+		{ 
+			BufferedCurves.Add(MoveTemp(CurveModelCopy)); 
+		}
+		else
+		{
+			UE_LOG(LogCurveEditor, Warning, TEXT("Failed to buffer curve, curve model did not provide a copy."))
+		}
 	}
 }
 
 
-void FCurveEditor::ApplyBufferedCurveToTarget(const FBufferedCurve& BufferedCurve, FCurveModel* TargetCurve)
+void FCurveEditor::ApplyBufferedCurveToTarget(const IBufferedCurveModel* BufferedCurve, FCurveModel* TargetCurve)
 {
 	check(TargetCurve);
+	check(BufferedCurve);
 
 	TArray<FKeyPosition> KeyPositions;
 	TArray<FKeyAttributes> KeyAttributes;
+	BufferedCurve->GetKeyPositions(KeyPositions);
+	BufferedCurve->GetKeyAttributes(KeyAttributes);
 
 
 	// Copy the data from the Buffered curve into the target curve. This just does wholesale replacement.
@@ -968,7 +967,7 @@ void FCurveEditor::ApplyBufferedCurveToTarget(const FBufferedCurve& BufferedCurv
 	TargetCurve->RemoveKeys(TargetKeyHandles);
 
 	// Now put our buffered keys into the target curve
-	TargetCurve->AddKeys(BufferedCurve.KeyPositions, BufferedCurve.KeyAttributes);
+	TargetCurve->AddKeys(KeyPositions, KeyAttributes);
 }
 
 bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToApplyTo)
@@ -1020,7 +1019,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 		int32 MatchedBufferedCurveIndex = -1;
 		for (int32 BufferedCurveIndex = BufferedCurveSearchIndexStart; BufferedCurveIndex < BufferedCurves.Num(); BufferedCurveIndex++)
 		{
-			if (BufferedCurves[BufferedCurveIndex].IntentionName == TargetIntent)
+			if (BufferedCurves[BufferedCurveIndex]->GetIntentionName() == TargetIntent)
 			{
 				MatchedBufferedCurveIndex = BufferedCurveIndex;
 
@@ -1045,7 +1044,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 			NumCurvesMatchedByIntent++;
 			bFoundAnyMatchedIntent = true;
 
-			const FBufferedCurve& BufferedCurve = BufferedCurves[MatchedBufferedCurveIndex];
+			const IBufferedCurveModel* BufferedCurve = BufferedCurves[MatchedBufferedCurveIndex].Get();
 			ApplyBufferedCurveToTarget(BufferedCurve, TargetCurve);
 
 		}
@@ -1097,7 +1096,7 @@ bool FCurveEditor::ApplyBufferedCurves(const TSet<FCurveModelID>& InCurvesToAppl
 		
 		for (int32 CurveIndex = 0; CurveIndex < InCurvesToApplyTo.Num(); CurveIndex++)
 		{
-			ApplyBufferedCurveToTarget(BufferedCurves[CurveIndex], FindCurve(CurvesToApplyTo[CurveIndex]));
+			ApplyBufferedCurveToTarget(BufferedCurves[CurveIndex].Get(), FindCurve(CurvesToApplyTo[CurveIndex]));
 		}
 
 		FText NotificationText;

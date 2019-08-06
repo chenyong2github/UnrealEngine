@@ -40,6 +40,85 @@ void SCurveEditorViewNormalized::GetGridLinesY(TSharedRef<const FCurveEditor> Cu
 	MinorGridLines.Add(ViewSpace.ValueToScreen(0.75));
 }
 
+FTransform2D CalculateViewToCurveTransform(const double InCurveOutputMin, const double InCurveOutputMax)
+{
+	const double Scale = (InCurveOutputMax - InCurveOutputMin);
+	if (InCurveOutputMax > InCurveOutputMin)
+	{
+		return FTransform2D(FScale2D(1.f, Scale), FVector2D(0.f, InCurveOutputMin));
+	}
+	else
+	{
+		return FVector2D(0.f, InCurveOutputMin - 0.5);
+	}
+}
+
+void SCurveEditorViewNormalized::DrawBufferedCurves(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (!CurveEditor)
+	{
+		return;
+	}
+
+	const float BufferedCurveThickness = 1.f;
+	const bool  bAntiAliasCurves = true;
+	const FLinearColor CurveColor = CurveViewConstants::BufferedCurveColor;
+	const int32 CurveLayerId = BaseLayerId + CurveViewConstants::ELayerOffset::Curves;
+
+	const double ValuePerPixel = 1.0 / AllottedGeometry.GetLocalSize().Y;
+	const double ValueSpacePadding = NormalizedPadding * ValuePerPixel;
+
+	// Calculate the normalized view to curve transform for each buffered curve, then draw
+	const TArray<TUniquePtr<IBufferedCurveModel>>& BufferedCurves = CurveEditor->GetBufferedCurves();
+	for (const TUniquePtr<IBufferedCurveModel>& BufferedCurve : BufferedCurves)
+	{
+		FTransform2D ViewToBufferedCurveTransform;
+		double CurveOutputMin = BufferedCurve->GetValueMin(), CurveOutputMax = BufferedCurve->GetValueMax();
+
+		ViewToBufferedCurveTransform = CalculateViewToCurveTransform(CurveOutputMin, CurveOutputMax);
+
+		TArray<TTuple<double, double>> CurveSpaceInterpolatingPoints;
+		FCurveEditorScreenSpace CurveSpace = GetViewSpace().ToCurveSpace(ViewToBufferedCurveTransform);
+
+		BufferedCurve->DrawCurve(*CurveEditor, CurveSpace, CurveSpaceInterpolatingPoints);
+
+		TArray<FVector2D> ScreenSpaceInterpolatingPoints;
+		for (TTuple<double, double> Point : CurveSpaceInterpolatingPoints)
+		{
+			ScreenSpaceInterpolatingPoints.Add(FVector2D(
+				CurveSpace.SecondsToScreen(Point.Get<0>()),
+				CurveSpace.ValueToScreen(Point.Get<1>())
+			));
+		}
+
+		FSlateDrawElement::MakeLines(
+			OutDrawElements,
+			CurveLayerId,
+			AllottedGeometry.ToPaintGeometry(),
+			ScreenSpaceInterpolatingPoints,
+			DrawEffects,
+			CurveColor,
+			bAntiAliasCurves,
+			BufferedCurveThickness
+		);
+	}
+}
+
+void SCurveEditorViewNormalized::PaintView(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (CurveEditor)
+	{
+		const ESlateDrawEffect DrawEffects = ShouldBeEnabled(bParentEnabled) ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
+
+		DrawBackground(AllottedGeometry, OutDrawElements, BaseLayerId, DrawEffects);
+		DrawGridLines(CurveEditor.ToSharedRef(), AllottedGeometry, OutDrawElements, BaseLayerId, DrawEffects);
+		DrawBufferedCurves(AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, DrawEffects);
+		DrawCurves(CurveEditor.ToSharedRef(), AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, InWidgetStyle, DrawEffects);
+	}
+}
+
 void SCurveEditorViewNormalized::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
@@ -67,15 +146,7 @@ void SCurveEditorViewNormalized::Tick(const FGeometry& AllottedGeometry, const d
 			double CurveOutputMin = 0, CurveOutputMax = 1;
 			Curve->GetValueRange(CurveOutputMin, CurveOutputMax);
 
-			const double Scale = (CurveOutputMax - CurveOutputMin);
-			if (CurveOutputMax > CurveOutputMin)
-			{
-				It->Value.ViewToCurveTransform = FTransform2D(FScale2D(1.f, Scale), FVector2D(0.f, CurveOutputMin));
-			}
-			else
-			{
-				It->Value.ViewToCurveTransform = FVector2D(0.f, CurveOutputMin-0.5);
-			}
+			It->Value.ViewToCurveTransform = CalculateViewToCurveTransform(CurveOutputMin, CurveOutputMax);
 		}
 	}
 

@@ -22,6 +22,8 @@ namespace CurveViewConstants
 	constexpr float CurveLabelOffsetX = 15.f;
 	constexpr float CurveLabelOffsetY = 10.f;
 
+	constexpr FLinearColor BufferedCurveColor = FLinearColor(.4f, .4f, .4f);
+
 	/**
 	 * Pre-defined layer offsets for specific curve view elements. Fixed values are used to decouple draw order and layering
 	 * Some elements deliberately leave some spare layers as a buffer for slight tweaks to layering within that element
@@ -99,6 +101,7 @@ protected:
 	void DrawBackground(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const;
 	void DrawGridLines(TSharedRef<FCurveEditor> CurveEditor, const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const;
 	void DrawCurves(TSharedRef<FCurveEditor> CurveEditor, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, ESlateDrawEffect DrawEffects) const;
+	void DrawBufferedCurves(TSharedRef<FCurveEditor> CurveEditor, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, ESlateDrawEffect DrawEffects) const;
 
 	FSlateColor GetCurveCaptionColor() const;
 	FText GetCurveCaption() const;

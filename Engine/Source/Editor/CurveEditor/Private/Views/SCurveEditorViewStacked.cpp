@@ -57,15 +57,17 @@ void SCurveEditorViewStacked::GetGridLinesY(TSharedRef<const FCurveEditor> Curve
 	{
 		TArray<FCurveModelID> CurveIDs;
 		CurveInfoByID.GetKeys(CurveIDs);
-		for (int32 Index = 0; Index < CurveInfoByID.Num(); ++Index)
+		for (auto It = CurveInfoByID.CreateConstIterator(); It; ++It)
 		{
+			const int32 Index = CurveInfoByID.Num() - It->Value.CurveIndex - 1;
+
 			double Padding = (Index + 1)*ValueSpacePadding;
 			double LowerValue = Index + Padding;
 
 			double ViewSpaceMax = GetViewSpace().ValueToScreen(LowerValue);
 			double ViewSpaceMin = GetViewSpace().ValueToScreen(LowerValue + 1.0);
 
-			FCurveEditorScreenSpace CurveSpace = GetCurveSpace(CurveIDs[CurveInfoByID.Num() - Index - 1]);
+			FCurveEditorScreenSpace CurveSpace = GetCurveSpace(CurveIDs[Index]);
 			TArray<float> TempMajorGridLines, TempMinorGridLines;
 			CurveEditor::ConstructFixedYGridLines(CurveSpace, 4, GridLineSpacing.GetValue(), MajorGridLines, MinorGridLines, CurveEditor->GetGridLineLabelFormatYAttribute().Get(), 
 				MajorGridLabels, CurveSpace.ScreenToValue(ViewSpaceMax), CurveSpace.ScreenToValue(ViewSpaceMin));
@@ -83,6 +85,7 @@ void SCurveEditorViewStacked::PaintView(const FPaintArgs& Args, const FGeometry&
 		DrawBackground(AllottedGeometry, OutDrawElements, BaseLayerId, DrawEffects);
 		DrawViewGrids(AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, DrawEffects);
 		DrawLabels(AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, DrawEffects);
+		DrawBufferedCurves(AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, DrawEffects);
 		DrawCurves(CurveEditor.ToSharedRef(), AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, InWidgetStyle, DrawEffects);
 	}
 }
@@ -134,7 +137,6 @@ void SCurveEditorViewStacked::DrawViewGrids(const FGeometry& AllottedGeometry, c
 
 		double PixelBottom = ViewSpace.ValueToScreen(LowerValue);
 		double PixelTop    = ViewSpace.ValueToScreen(LowerValue + 1.0);
-
 		if (!FSlateRect::DoRectanglesIntersect(MyCullingRect, TransformRect(AllottedGeometry.GetAccumulatedLayoutTransform(), FSlateRect(0, PixelTop, Width, PixelBottom))))
 		{
 			continue;
@@ -256,6 +258,88 @@ void SCurveEditorViewStacked::DrawLabels(const FGeometry& AllottedGeometry, cons
 	}
 }
 
+FTransform2D CalculateViewToCurveTransform(const double InCurveOutputMin, double const InCurveOutputMax, const double InValueOffset)
+{
+	if (InCurveOutputMax > InCurveOutputMin)
+	{
+		return Concatenate(FVector2D(0.f, InValueOffset), Concatenate(FScale2D(1.f, (InCurveOutputMax - InCurveOutputMin)), FVector2D(0.f, InCurveOutputMin)));
+	}
+	else
+	{
+		return Concatenate(FVector2D(0.f, InValueOffset - 0.5), FVector2D(0.f, InCurveOutputMin));
+	}
+}
+
+void SCurveEditorViewStacked::DrawBufferedCurves(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (!CurveEditor)
+	{
+		return;
+	}
+
+	const TArray<TUniquePtr<IBufferedCurveModel>>& BufferedCurves = CurveEditor->GetBufferedCurves();
+
+	const float BufferedCurveThickness = 1.f;
+	const bool  bAntiAliasCurves = true;
+	const FLinearColor CurveColor = CurveViewConstants::BufferedCurveColor;
+	const int32 CurveLayerId = BaseLayerId + CurveViewConstants::ELayerOffset::Curves;
+
+	const double ValuePerPixel = 1.0 / StackedHeight;
+	const double ValueSpacePadding = StackedPadding * ValuePerPixel;
+
+
+	// draw the buffered curves for each view
+	for (auto It = CurveInfoByID.CreateConstIterator(); It; ++It)
+	{
+		FCurveModel* Curve = CurveEditor->FindCurve(It.Key());
+		if (!ensureAlways(Curve))
+		{
+			continue;
+		}
+
+		FTransform2D ViewToBufferedCurveTransform;
+
+		const int32  CurveIndexFromBottom = CurveInfoByID.Num() - It->Value.CurveIndex - 1;
+		const double PaddingToBottomOfView = (CurveIndexFromBottom + 1)*ValueSpacePadding;
+		const double ValueOffset = -CurveIndexFromBottom - PaddingToBottomOfView;
+
+		// Calculate the view to curve transform for each buffered curve, then draw
+		for (const TUniquePtr<IBufferedCurveModel>& BufferedCurve : BufferedCurves)
+		{
+			double CurveOutputMin = BufferedCurve->GetValueMin(), CurveOutputMax = BufferedCurve->GetValueMax();
+
+			ViewToBufferedCurveTransform = CalculateViewToCurveTransform(CurveOutputMin, CurveOutputMax, ValueOffset);
+
+			TArray<TTuple<double, double>> CurveSpaceInterpolatingPoints;
+			FCurveEditorScreenSpace CurveSpace = GetViewSpace().ToCurveSpace(ViewToBufferedCurveTransform);
+
+			BufferedCurve->DrawCurve(*CurveEditor, CurveSpace, CurveSpaceInterpolatingPoints);
+
+			TArray<FVector2D> ScreenSpaceInterpolatingPoints;
+			for (TTuple<double, double> Point : CurveSpaceInterpolatingPoints)
+			{
+				ScreenSpaceInterpolatingPoints.Add(FVector2D(
+					CurveSpace.SecondsToScreen(Point.Get<0>()),
+					CurveSpace.ValueToScreen(Point.Get<1>())
+				));
+			}
+
+			FSlateDrawElement::MakeLines(
+				OutDrawElements,
+				CurveLayerId,
+				AllottedGeometry.ToPaintGeometry(),
+				ScreenSpaceInterpolatingPoints,
+				DrawEffects,
+				CurveColor,
+				bAntiAliasCurves,
+				BufferedCurveThickness
+			);
+		}
+
+	}
+}
+
 void SCurveEditorViewStacked::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
@@ -284,14 +368,7 @@ void SCurveEditorViewStacked::Tick(const FGeometry& AllottedGeometry, const doub
 			double CurveOutputMin = 0, CurveOutputMax = 1;
 			Curve->GetValueRange(CurveOutputMin, CurveOutputMax);
 
-			if (CurveOutputMax > CurveOutputMin)
-			{
-				It->Value.ViewToCurveTransform = Concatenate(FVector2D(0.f, ValueOffset), Concatenate(FScale2D(1.f, (CurveOutputMax - CurveOutputMin)), FVector2D(0.f, CurveOutputMin)));
-			}
-			else
-			{
-				It->Value.ViewToCurveTransform = Concatenate(FVector2D(0.f, ValueOffset-0.5), FVector2D(0.f, CurveOutputMin));
-			}
+			It->Value.ViewToCurveTransform = CalculateViewToCurveTransform(CurveOutputMin, CurveOutputMax, ValueOffset);
 		}
 
 		OutputMax = FMath::Max(OutputMin + CurveInfoByID.Num() + ValueSpacePadding*(CurveInfoByID.Num()+1), 1.0);

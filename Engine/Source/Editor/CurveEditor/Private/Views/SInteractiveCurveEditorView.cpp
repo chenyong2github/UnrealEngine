@@ -186,6 +186,7 @@ void SInteractiveCurveEditorView::PaintView(const FPaintArgs& Args, const FGeome
 
 		DrawBackground(AllottedGeometry, OutDrawElements, BaseLayerId, DrawEffects);
 		DrawGridLines(CurveEditor.ToSharedRef(), AllottedGeometry, OutDrawElements, BaseLayerId, DrawEffects);
+		DrawBufferedCurves(CurveEditor.ToSharedRef(), AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, InWidgetStyle, DrawEffects);
 		DrawCurves(CurveEditor.ToSharedRef(), AllottedGeometry, MyCullingRect, OutDrawElements, BaseLayerId, InWidgetStyle, DrawEffects);
 	}
 }
@@ -439,6 +440,45 @@ void SInteractiveCurveEditorView::DrawCurves(TSharedRef<FCurveEditor> CurveEdito
 
 			FSlateDrawElement::MakeBox(OutDrawElements, KeyLayerId, PointGeometry, PointDrawInfo.Brush, DrawEffects, PointTint);
 		}
+	}
+}
+
+void SInteractiveCurveEditorView::DrawBufferedCurves(TSharedRef<FCurveEditor> CurveEditor, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, ESlateDrawEffect DrawEffects) const
+{
+	const float BufferedCurveThickness = 1.f;
+	const bool  bAntiAliasCurves = true;
+	const FLinearColor CurveColor = CurveViewConstants::BufferedCurveColor;
+	const TArray<TUniquePtr<IBufferedCurveModel>>& BufferedCurves = CurveEditor->GetBufferedCurves();
+
+	const int32 CurveLayerId = BaseLayerId + CurveViewConstants::ELayerOffset::Curves;
+
+	// Draw each buffered curve using the view space transform since the curve space for all curves is the same
+	for (const TUniquePtr<IBufferedCurveModel>& BufferedCurve : BufferedCurves)
+	{
+		TArray<TTuple<double, double>> CurveSpaceInterpolatingPoints;
+		FCurveEditorScreenSpace CurveSpace = GetViewSpace();
+
+		BufferedCurve->DrawCurve(*CurveEditor, CurveSpace, CurveSpaceInterpolatingPoints);
+
+		TArray<FVector2D> ScreenSpaceInterpolatingPoints;
+		for (TTuple<double, double> Point : CurveSpaceInterpolatingPoints)
+		{
+			ScreenSpaceInterpolatingPoints.Add(FVector2D(
+				CurveSpace.SecondsToScreen(Point.Get<0>()),
+				CurveSpace.ValueToScreen(Point.Get<1>())
+			));
+		}
+
+		FSlateDrawElement::MakeLines(
+			OutDrawElements,
+			CurveLayerId,
+			AllottedGeometry.ToPaintGeometry(),
+			ScreenSpaceInterpolatingPoints,
+			DrawEffects,
+			CurveColor,
+			bAntiAliasCurves,
+			BufferedCurveThickness
+		);
 	}
 }
 

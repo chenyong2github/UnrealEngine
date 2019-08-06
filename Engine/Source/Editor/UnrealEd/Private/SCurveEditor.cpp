@@ -38,8 +38,8 @@
 #include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "SCurveEditor"
-
-DEFINE_LOG_CATEGORY_STATIC(LogCurveEditor, Log, All);
+ 
+DEFINE_LOG_CATEGORY(LogCurveEditor);
 
 const static FVector2D	CONST_KeySize		= FVector2D(11,11);
 const static FVector2D	CONST_TangentSize	= FVector2D(7,7);
