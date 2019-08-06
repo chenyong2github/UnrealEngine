@@ -92,7 +92,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 		}
 
 		NumNonOptionalMips = MipCount - RenderAsset->CalcNumOptionalMips();
-		OptionalMipsState = (NumNonOptionalMips == MipCount) ? EOptionalMipsState::NoOptionalMips : EOptionalMipsState::NotCached;
+		OptionalMipsState = (NumNonOptionalMips == MipCount) ? EOptionalMipsState::OMS_NoOptionalMips : EOptionalMipsState::OMS_NotCached;
 
 		const int32 MaxNumMips = RenderAssetType == AT_Texture ? MAX_TEXTURE_MIP_COUNT : MaxNumMeshLODs;
 		for (int32 MipIndex = 0; MipIndex < MaxNumMips; ++MipIndex)
@@ -116,7 +116,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 		BudgetMipBias = 0;
 		BoostFactor = 1.f;
 		NumNonOptionalMips = MipCount;
-		OptionalMipsState = EOptionalMipsState::NoOptionalMips;
+		OptionalMipsState = EOptionalMipsState::OMS_NoOptionalMips;
 
 		bIsCharacterTexture = false;
 		bIsTerrainTexture = false;
@@ -132,9 +132,9 @@ void FStreamingRenderAsset::UpdateOptionalMipsState_Async()
 {
 	// Here we do a lazy update where we check if the highres mip file exists only if it could be useful to do so.
 	// This requires texture to be at max resolution before the optional mips .
-	if (OptionalMipsState == EOptionalMipsState::NotCached && !OptionalBulkDataFilename.IsEmpty())
+	if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && !OptionalBulkDataFilename.IsEmpty())
 	{
-		OptionalMipsState = IFileManager::Get().FileExists(*OptionalBulkDataFilename) ? EOptionalMipsState::HasOptionalMips : EOptionalMipsState::NoOptionalMips;
+		OptionalMipsState = IFileManager::Get().FileExists(*OptionalBulkDataFilename) ? EOptionalMipsState::OMS_HasOptionalMips : EOptionalMipsState::OMS_NoOptionalMips;
 	}
 
 }
@@ -180,7 +180,7 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 				// If the optional mips are not available, or if we shouldn't load them now, clamp the possible mips requested. 
 				// (when the non-optional mips are not yet loaded, loading optional mips generates cross files requests).
 				// This is not bullet proof though since the texture/mesh could have a pending stream-out request.
-				if (OptionalMipsState != EOptionalMipsState::HasOptionalMips || ResidentMips < NumNonOptionalMips)
+				if (OptionalMipsState != EOptionalMipsState::OMS_HasOptionalMips || ResidentMips < NumNonOptionalMips)
 				{
 					TempMaxAllowedMips = FMath::Min(TempMaxAllowedMips, NumNonOptionalMips);
 				}
@@ -209,7 +209,7 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 		MinAllowedMips = 0;
 		MaxAllowedMips = 0;
 		NumNonOptionalMips = 0;
-		OptionalMipsState = EOptionalMipsState::NotCached;
+		OptionalMipsState = EOptionalMipsState::OMS_NotCached;
 		LastRenderTime = FLT_MAX;	
 	}
 }
