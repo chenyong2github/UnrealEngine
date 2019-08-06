@@ -145,10 +145,17 @@ namespace Gauntlet
 
 			//@todo: for bulk/packaged builds, we should mark the platform as capable of these as we're catching global and not test specific flags
 			// where we may be running parallel tests on multiple platforms
-			if (Globals.Params.ParseParam("bulk") && (InPlatform == UnrealTargetPlatform.Android || InPlatform == UnrealTargetPlatform.IOS))
-            {
-                RequiredBuildFlags |= BuildFlags.Bulk;
-            }
+			if (InPlatform == UnrealTargetPlatform.Android || InPlatform == UnrealTargetPlatform.IOS)
+			{
+				if (Globals.Params.ParseParam("notbulk"))
+				{
+					RequiredBuildFlags |= BuildFlags.NotBulk;
+				}
+				else if (Globals.Params.ParseParam("bulk"))
+				{
+					RequiredBuildFlags |= BuildFlags.Bulk;
+				}
+			}
 
 			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch || InPlatform == UnrealTargetPlatform.XboxOne))
 			{
