@@ -281,7 +281,9 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	}
 
 #endif
-	
+
+	SpecularIBL*= View.IndirectLightingColorScale;
+		
 #if WEBGL
 	// need a rgb swizzle instead of the existing rgba swizzle, we should add it if another use case comes up. 
 	return SpecularIBL.bgr;
