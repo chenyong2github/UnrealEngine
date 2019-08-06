@@ -87,8 +87,11 @@ namespace UnrealBuildTool.Rules
 						"UtilityShaders",
 						"Projects",
                         "WindowsMixedRealityHandTracking",
+						"AugmentedReality",
+						"HoloLensAR"
 					}
 					);
+
 
 				if (Target.bBuildEditor == true)
 				{

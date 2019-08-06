@@ -360,6 +360,9 @@ bool FWindowsMixedRealityHandTracking::GetKeypointTransform(EControllerHand Hand
 void FWindowsMixedRealityHandTracking::UpdateTrackerData()
 {
 #if WITH_WINDOWS_MIXED_REALITY
+	// Pump the interop update of the hand.
+	WindowsMixedReality::FWindowsMixedRealityStatics::PollHandTracking();
+
 	if (bIsHandTrackingStateValid && IWindowsMixedRealityHMDPlugin::Get().IsAvailable())
 	{
 		// Get all the bones for each hand
