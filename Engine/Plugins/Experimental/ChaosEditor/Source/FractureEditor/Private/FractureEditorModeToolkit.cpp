@@ -949,16 +949,12 @@ TSharedRef<SWidget> FFractureEditorModeToolkit::GetLevelViewMenuContent()
 
 TSharedRef<SWidget> FFractureEditorModeToolkit::GetViewMenuContent()
 {
-
 	const FFractureEditorCommands& Commands = FFractureEditorCommands::Get();
 
 	FMenuBuilder MenuBuilder(false, GetToolkitCommands());
-// 	MenuBuilder.AddMenuEntry(Commands.ToggleShowBoneColors, NAME_None, TEXT("Key"), TEXT("Key tooltip"));
-	MenuBuilder.AddMenuEntry(Commands.ToggleShowBoneColors, NAME_None, LOCTEXT("AAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBB"), LOCTEXT("CCCCCCCCCCCC", "DDDDDDDDDDDDDDDDDD"), FSlateIcon(FEditorStyle::GetStyleSetName(), "WorldBrowser.DirectionXNegative"));
-
+ 	MenuBuilder.AddMenuEntry(Commands.ToggleShowBoneColors);
 
 	return MenuBuilder.MakeWidget();
-
 }
 
 void FFractureEditorModeToolkit::SetActiveTool(UFractureTool* InActiveTool)
