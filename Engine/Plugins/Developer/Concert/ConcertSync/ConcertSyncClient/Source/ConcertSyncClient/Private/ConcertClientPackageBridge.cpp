@@ -109,6 +109,13 @@ bool& FConcertClientPackageBridge::GetIgnoreLocalDiscardRef()
 
 void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package)
 {
+	// Ignore package operations fired by the cooker (cook on the fly).
+	if (GIsCookerLoadingPackage)
+	{
+		check(IsInGameThread()); // We expect the cooker to call us on the game thread otherwise, we can have concurrency issues.
+		return;
+	}
+
 	// Ignore unwanted saves
 	if (bIgnoreLocalSave)
 	{
@@ -143,6 +150,13 @@ void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package)
 void FConcertClientPackageBridge::HandlePackageSaved(const FString& PackageFilename, UObject* Outer)
 {
 	UPackage* Package = CastChecked<UPackage>(Outer);
+
+	// Ignore package operations fired by the cooker (cook on the fly).
+	if (GIsCookerLoadingPackage)
+	{
+		check(IsInGameThread()); // We expect the cooker to call us on the game thread otherwise, we can have concurrency issues.
+		return;
+	}
 
 	// Ignore unwanted saves
 	if (bIgnoreLocalSave)
