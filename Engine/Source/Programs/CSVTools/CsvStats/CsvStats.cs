@@ -93,8 +93,17 @@ namespace CSVStats
                     {
                         value = entry;
                     }
-                    Values.Add(key, value);
-                    bIsKey = false;
+
+					if (Values.ContainsKey(key))
+					{
+						// If we're still writing to the current key, append the data onto the end
+						Values[key] += "," + value;
+					}
+					else
+					{
+						Values.Add(key, value);
+					}
+					bIsKey = false;
                 }
 
             }
