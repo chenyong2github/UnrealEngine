@@ -450,7 +450,7 @@ bool FMagicLeapScreensPlugin::GetScreensTransforms(TArray<FScreenTransform>& Scr
 	if (Result == MLResult_Ok)
 	{
 		// TODO: Param to GetTrackingToWorldTransform is unused (?)
-		FTransform PoseTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
+		const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(nullptr);
 		for (uint32 i = 0; i < ScreensInfoList.count; ++i)
 		{
 			MLScreensScreenInfoEx& Entry = ScreensInfoList.entries[i];
@@ -473,8 +473,7 @@ bool FMagicLeapScreensPlugin::GetScreensTransforms(TArray<FScreenTransform>& Scr
 				rotation.Normalize();
 				EntryTransform.SetRotation(rotation);
 			}
-			EntryTransform.AddToTranslation(PoseTransform.GetLocation());
-			EntryTransform.ConcatenateRotation(PoseTransform.Rotator().Quaternion());
+			EntryTransform = EntryTransform * TrackingToWorld;
 
 			ScreenTransform.ScreenPosition = EntryTransform.GetLocation();
 			ScreenTransform.ScreenOrientation = EntryTransform.Rotator();

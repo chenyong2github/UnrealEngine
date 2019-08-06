@@ -122,12 +122,12 @@ void URaycastComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
 
 			// TODO: Should we apply this transform here or expect the user to use the result as a child of the XRPawn like the other features?
 			// This being for raycast, we should probably apply the transform since the result might be used for other than just placing objects.
-			FTransform Pose = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this);
+			const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this);
 
 			FRaycastHitResult hitResult;
 			hitResult.HitState = MLToUnrealRaycastResultState(result.state);
-			hitResult.HitPoint = Pose.TransformPosition(MagicLeap::ToFVector(result.hitpoint, WorldToMetersScale));
-			hitResult.Normal = Pose.TransformVectorNoScale(MagicLeap::ToFVector(result.normal, 1.0f));
+			hitResult.HitPoint = TrackingToWorld.TransformPosition(MagicLeap::ToFVector(result.hitpoint, WorldToMetersScale));
+			hitResult.Normal = TrackingToWorld.TransformVectorNoScale(MagicLeap::ToFVector(result.normal, 1.0f));
 			hitResult.Confidence = result.confidence;
 			hitResult.UserData = pair.Value.UserData;
 
@@ -169,12 +169,12 @@ bool URaycastComponent::RequestRaycast(const FRaycastQueryParams& RequestParams,
 	const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
 	float WorldToMetersScale = AppFramework.IsInitialized() ? AppFramework.GetWorldToMetersScale() : 100.0f;
 
-	FTransform PoseInverse = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse();
+	const FTransform WorldToTracking = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse();
 
 	MLRaycastQuery query;
-	query.position = MagicLeap::ToMLVector(PoseInverse.TransformPosition(RequestParams.Position), WorldToMetersScale);
-	query.direction = MagicLeap::ToMLVectorNoScale(PoseInverse.TransformVectorNoScale(RequestParams.Direction));
-	query.up_vector = MagicLeap::ToMLVectorNoScale(PoseInverse.TransformVectorNoScale(RequestParams.UpVector));
+	query.position = MagicLeap::ToMLVector(WorldToTracking.TransformPosition(RequestParams.Position), WorldToMetersScale);
+	query.direction = MagicLeap::ToMLVectorNoScale(WorldToTracking.TransformVectorNoScale(RequestParams.Direction));
+	query.up_vector = MagicLeap::ToMLVectorNoScale(WorldToTracking.TransformVectorNoScale(RequestParams.UpVector));
 	query.width = static_cast<uint32>(RequestParams.Width);
 	query.height = static_cast<uint32>(RequestParams.Height);
 	query.collide_with_unobserved = RequestParams.CollideWithUnobserved;

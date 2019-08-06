@@ -146,8 +146,8 @@ public:
 			{
 				const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->GetAppFrameworkConst();
 				const float WorldToMetersScale = AppFramework.GetWorldToMetersScale();
-				FTransform PoseInverse = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld).Inverse();
-				MLVec3f Target = MagicLeap::ToMLVector(PoseInverse.TransformPosition(SearchPoint), WorldToMetersScale);
+				const FTransform WorldToTracking = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld).Inverse();
+				MLVec3f Target = MagicLeap::ToMLVector(WorldToTracking.TransformPosition(SearchPoint), WorldToMetersScale);
 				MLResult Result = MLPersistentCoordinateFrameGetClosest(GetHandle(), &Target, reinterpret_cast<MLCoordinateFrameUID*>(&PinID));
 				UE_CLOG(MLResult_Ok != Result, LogMagicLeap, Error, TEXT("MLPersistentCoordinateFrameGetClosest failed with error %s"), UTF8_TO_TCHAR(MLPersistentCoordinateFrameGetResultString(Result)));
 				ErrorReturn = MLToUnrealPassableWorldError(Result);
@@ -360,8 +360,7 @@ bool UMagicLeapARPinFunctionLibrary::GetARPinPositionAndOrientation(const FGuid&
 	if (AppFramework.GetTransform(*MLCFUID, Pose, FailReason))
 	{
 		FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
-		Pose.AddToTranslation(TrackingToWorld.GetLocation());
-		Pose.ConcatenateRotation(TrackingToWorld.Rotator().Quaternion());
+		Pose = Pose * TrackingToWorld;
 		Position = Pose.GetLocation();
 		Orientation = Pose.Rotator();
 		PinFoundInEnvironment = true;

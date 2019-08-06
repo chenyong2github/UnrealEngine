@@ -115,16 +115,14 @@ bool FMagicLeapVREyeTracker::Tick(float DeltaTime)
 			const FAppFramework& AppFramework = static_cast<FMagicLeapHMD*>(GEngine->XRSystem->GetHMDDevice())->GetAppFramework();
 			if (AppFramework.IsInitialized())
 			{
-				FTransform PoseTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
+				const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(GWorld);
 
 				//harvest the 3 transforms
 				EFailReason FailReason;
 				FTransform FixationTransform;
 				if (AppFramework.GetTransform(EyeTrackingStaticData.fixation, FixationTransform, FailReason))
 				{
-					FixationTransform.AddToTranslation(PoseTransform.GetLocation());
-					FixationTransform.ConcatenateRotation(PoseTransform.Rotator().Quaternion());
-
+					FixationTransform = FixationTransform * TrackingToWorld;
 					//get focal point
 					UnfilteredEyeTrackingData.WorldAverageGazeConvergencePoint = FixationTransform.GetTranslation();
 				}
@@ -133,8 +131,7 @@ bool FMagicLeapVREyeTracker::Tick(float DeltaTime)
 				FTransform LeftCenterTransform;
 				if (AppFramework.GetTransform(EyeTrackingStaticData.left_center, LeftCenterTransform, FailReason))
 				{
-					LeftCenterTransform.AddToTranslation(PoseTransform.GetLocation());
-					LeftCenterTransform.ConcatenateRotation(PoseTransform.Rotator().Quaternion());
+					LeftCenterTransform = LeftCenterTransform * TrackingToWorld;
 					bLeftTransformValid = true;
 				}
 
@@ -142,8 +139,7 @@ bool FMagicLeapVREyeTracker::Tick(float DeltaTime)
 				FTransform RightCenterTransform;
 				if (AppFramework.GetTransform(EyeTrackingStaticData.right_center, RightCenterTransform, FailReason))
 				{
-					RightCenterTransform.AddToTranslation(PoseTransform.GetLocation());
-					RightCenterTransform.ConcatenateRotation(PoseTransform.Rotator().Quaternion());
+					RightCenterTransform = RightCenterTransform * TrackingToWorld;
 					bRightTransformValid = true;
 				}
 

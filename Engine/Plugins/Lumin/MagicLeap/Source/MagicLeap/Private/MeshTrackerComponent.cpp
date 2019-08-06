@@ -73,8 +73,7 @@ void MLToUnrealBlockInfo(const MLMeshingBlockInfo& MLBlockInfo, const FTransform
 		BlockTransform.SetRotation(rotation);
 	}
 
-	BlockTransform.AddToTranslation(TrackingToWorld.GetLocation());
-	BlockTransform.ConcatenateRotation(TrackingToWorld.Rotator().Quaternion());
+	BlockTransform = BlockTransform * TrackingToWorld;
 	UEBlockInfo.BlockPosition = BlockTransform.GetLocation();
 	UEBlockInfo.BlockOrientation = BlockTransform.Rotator();
 	UEBlockInfo.BlockDimensions = MagicLeap::ToFVectorExtents(MLBlockInfo.extents.extents, WorldToMetersScale);
@@ -505,9 +504,9 @@ void UMeshTrackerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 	}
 
 	// Update the bounding box.
-	FTransform PoseInverse = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse();
-	Impl->BoundsCenter = PoseInverse.TransformPosition(BoundingVolume->GetComponentLocation());
-	Impl->BoundsRotation = PoseInverse.TransformRotation(BoundingVolume->GetComponentQuat());
+	const FTransform WorldToTracking = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse();
+	Impl->BoundsCenter = WorldToTracking.TransformPosition(BoundingVolume->GetComponentLocation());
+	Impl->BoundsRotation = WorldToTracking.TransformRotation(BoundingVolume->GetComponentQuat());
 
 	// Potentially update for changed component parameters
 	if (Impl->Update(*this))
@@ -787,7 +786,7 @@ bool UMeshTrackerComponent::GetMeshResult()
 		}
 		else
 		{
-			FVector VertexOffset = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse().GetLocation();
+			const FVector VertexOffset = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse().GetLocation();
 			for (uint32_t MeshIndex = 0; MeshIndex < Mesh.data_count; ++ MeshIndex)
 			{
 				const auto &MeshData = Mesh.data[MeshIndex];

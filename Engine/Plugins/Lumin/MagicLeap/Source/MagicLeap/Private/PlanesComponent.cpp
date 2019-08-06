@@ -205,7 +205,7 @@ void UPlanesComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 		return;
 	}
 
-	FTransform PoseTransform = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this);
+	const FTransform TrackingToWorld = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this);
 
 	for (auto& pair : PendingRequests)
 	{
@@ -213,7 +213,7 @@ void UPlanesComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 		TArray<MLPlane> resultMLPlanes;
 		resultMLPlanes.AddDefaulted(pair.Value.MaxResults);
 
-		MLResult result = MLPlanesQueryGetResults(Impl->Tracker, pair.Key, resultMLPlanes.GetData(), &outNumResults);
+		MLResult result = MLPlanesQueryGetResultsWithBoundaries(Impl->Tracker, pair.Key, resultMLPlanes.GetData(), &outNumResults, nullptr);
 		switch (result)
 		{
 		case MLResult_Pending:
@@ -254,8 +254,7 @@ void UPlanesComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				}
 
 				planeTransform.ConcatenateRotation(FQuat(FVector(0, 0, 1), PI));
-				planeTransform.AddToTranslation(PoseTransform.GetLocation());
-				planeTransform.ConcatenateRotation(PoseTransform.Rotator().Quaternion());
+				planeTransform = planeTransform * TrackingToWorld;
 				resultPlane.PlanePosition = planeTransform.GetLocation();
 				resultPlane.PlaneOrientation = planeTransform.Rotator();
 				// The plane orientation has the forward axis (X) pointing in the direction of the plane's normal.
@@ -301,7 +300,7 @@ bool UPlanesComponent::RequestPlanes(int32 UserData, const FPlaneResultDelegate&
 	float WorldToMetersScale = AppFramework.GetWorldToMetersScale();
 	check(WorldToMetersScale != 0);
 
-	FTransform PoseInverse = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse();
+	const FTransform WorldToTracking = UHeadMountedDisplayFunctionLibrary::GetTrackingToWorldTransform(this).Inverse();
 	FPlane plane;
 
 	MLPlanesQuery query;
@@ -309,8 +308,8 @@ bool UPlanesComponent::RequestPlanes(int32 UserData, const FPlaneResultDelegate&
 	query.flags = UnrealToMLPlanesQueryFlags(QueryFlags);
 	query.min_hole_length = MinHolePerimeter / WorldToMetersScale;
 	query.min_plane_area = MinPlaneArea / (WorldToMetersScale * WorldToMetersScale);
-	query.bounds_center = MagicLeap::ToMLVector(PoseInverse.TransformPosition(SearchVolume->GetComponentLocation()), WorldToMetersScale);
-	query.bounds_rotation = MagicLeap::ToMLQuat(PoseInverse.TransformRotation(SearchVolume->GetComponentQuat()));
+	query.bounds_center = MagicLeap::ToMLVector(WorldToTracking.TransformPosition(SearchVolume->GetComponentLocation()), WorldToMetersScale);
+	query.bounds_rotation = MagicLeap::ToMLQuat(WorldToTracking.TransformRotation(SearchVolume->GetComponentQuat()));
 	query.bounds_extents = MagicLeap::ToMLVectorExtents(SearchVolume->GetScaledBoxExtent(), WorldToMetersScale);
 
 	MLHandle handle;
