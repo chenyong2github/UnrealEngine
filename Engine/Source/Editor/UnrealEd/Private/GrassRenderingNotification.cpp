@@ -5,6 +5,7 @@
 #include "LandscapeProxy.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Application/SlateApplication.h"
+#include "UnrealEdGlobals.h"
 
 /** Notification class for grassmmap rendering. */
 class FGrassRenderingNotificationImpl : public FGlobalEditorNotification
