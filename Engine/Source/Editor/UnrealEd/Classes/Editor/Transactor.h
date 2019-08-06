@@ -489,7 +489,7 @@ protected:
 
 	// Transaction variables.
 	/** List of object records in this transaction */
-	TArray<FObjectRecord>	Records;
+	TIndirectArray<FObjectRecord>	Records;
 	
 	/** Unique identifier for this transaction, used to track it during its lifetime */
 	FGuid		Id;
