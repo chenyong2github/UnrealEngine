@@ -63,7 +63,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			static FString NAME_DX11(TEXT("DefaultGraphicsRHI_DX11"));
 			static FString NAME_DX12(TEXT("DefaultGraphicsRHI_DX12"));
 			static FString NAME_VULKAN(TEXT("DefaultGraphicsRHI_Vulkan"));
-			static FString NAME_OPENGL(TEXT("DefaultGraphicsRHI_OpenGL"));
 			if(DefaultGraphicsRHI == NAME_DX11)
 			{
 				bForceD3D11 = true;
@@ -75,10 +74,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			else if (DefaultGraphicsRHI == NAME_VULKAN)
 			{
 				bForceVulkan = true;
-			}
-			else if (DefaultGraphicsRHI == NAME_OPENGL)
-			{
-				bForceOpenGL = true;
 			}
 		}
 	}
