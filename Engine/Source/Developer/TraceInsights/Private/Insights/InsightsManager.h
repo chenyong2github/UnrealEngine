@@ -24,6 +24,7 @@ struct FInsightsManagerTabs
 	static const FName StartPageTabId;
 	static const FName TimingProfilerTabId;
 	static const FName LoadingProfilerTabId;
+	static const FName NetworkingProfilerTabId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

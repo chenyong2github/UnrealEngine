@@ -16,6 +16,8 @@
 #include "Insights/IUnrealInsightsModule.h"
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
+#include "Insights/NetworkingProfiler/NetworkingProfilerManager.h"
+#include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -48,6 +50,9 @@ protected:
 	/** Callback called when the Loading Profiler major tab is closed. */
 	void OnLoadingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
 
+	/** Callback called when the Networking Profiler major tab is closed. */
+	void OnNetworkingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
+
 	/** Start Page */
 	TSharedRef<SDockTab> SpawnStartPageTab(const FSpawnTabArgs& Args);
 
@@ -56,6 +61,9 @@ protected:
 
 	/** Loading Profiler */
 	TSharedRef<SDockTab> SpawnLoadingProfilerTab(const FSpawnTabArgs& Args);
+
+	/** Networking Profiler */
+	TSharedRef<SDockTab> SpawnNetworkingProfilerTab(const FSpawnTabArgs& Args);
 
 protected:
 	TSharedPtr<Trace::IAnalysisService> TraceAnalysisService;
@@ -86,6 +94,7 @@ void FTraceInsightsModule::StartupModule()
 	FInsightsManager::Initialize(TraceAnalysisService.ToSharedRef(), TraceSessionService.ToSharedRef(), TraceModuleService.ToSharedRef());
 	FTimingProfilerManager::Initialize();
 	FLoadingProfilerManager::Initialize();
+	FNetworkingProfilerManager::Initialize();
 
 	// Register tab spawner for the Start Page.
 	auto& StartPageTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(FInsightsManagerTabs::StartPageTabId,
@@ -119,6 +128,19 @@ void FTraceInsightsModule::StartupModule()
 //#else
 //	LoadingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
 //#endif
+
+	// Register tab spawner for the Networking Insights.
+	auto& NetworkingProfilerTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId,
+		FOnSpawnTab::CreateRaw(this, &FTraceInsightsModule::SpawnNetworkingProfilerTab))
+		.SetDisplayName(NSLOCTEXT("FTraceInsightsModule", "NetworkingProfilerTabTitle", "Networking Insights"))
+		.SetTooltipText(NSLOCTEXT("FTraceInsightsModule", "NetworkingProfilerTooltipText", "Open the Networking Insights tab."))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "NetworkingProfiler.Icon.Small"));
+
+//#if WITH_EDITOR
+//	NetworkingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
+//#else
+//	NetworkingProfilerTabSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
+//#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,20 +149,27 @@ void FTraceInsightsModule::ShutdownModule()
 {
 	TraceSessionService->StopRecorderServer();
 
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId);
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::NetworkingProfilerTabId);
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::LoadingProfilerTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId);
 
-	if (FTimingProfilerManager::Get().IsValid())
+	if (FNetworkingProfilerManager::Get().IsValid())
 	{
-		// Shutdown the TimingProfiler (Timing Insights) manager.
-		FTimingProfilerManager::Get()->Shutdown();
+		// Shutdown the NetworkingProfiler (Networking Insights) manager.
+		FNetworkingProfilerManager::Get()->Shutdown();
 	}
 
 	if (FLoadingProfilerManager::Get().IsValid())
 	{
 		// Shutdown the LoadingProfiler (Asset Loading Insights) manager.
 		FLoadingProfilerManager::Get()->Shutdown();
+	}
+
+	if (FTimingProfilerManager::Get().IsValid())
+	{
+		// Shutdown the TimingProfiler (Timing Insights) manager.
+		FTimingProfilerManager::Get()->Shutdown();
 	}
 
 	if (FInsightsManager::Get().IsValid())
@@ -164,6 +193,7 @@ void FTraceInsightsModule::OnNewLayout(TSharedRef<FTabManager::FLayout> NewLayou
 			->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::OpenedTab)
 			->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab)
 			->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::ClosedTab)
+			->AddTab(FInsightsManagerTabs::NetworkingProfilerTabId, ETabState::ClosedTab)
 			->SetForegroundTab(FTabId(FInsightsManagerTabs::StartPageTabId))
 		)
 	);
@@ -236,6 +266,32 @@ TSharedRef<SDockTab> FTraceInsightsModule::SpawnLoadingProfilerTab(const FSpawnT
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FTraceInsightsModule::OnLoadingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	// Disable TabClosed delegate.
+	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> FTraceInsightsModule::SpawnNetworkingProfilerTab(const FSpawnTabArgs& Args)
+{
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab);
+
+	// Register OnTabClosed to handle I/O profiler manager shutdown.
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FTraceInsightsModule::OnNetworkingProfilerTabBeingClosed));
+
+	// Create the SNetworkingProfilerWindow widget.
+	TSharedRef<SNetworkingProfilerWindow> Window = SNew(SNetworkingProfilerWindow, DockTab, Args.GetOwnerWindow());
+	FNetworkingProfilerManager::Get()->AssignProfilerWindow(Window);
+	DockTab->SetContent(Window);
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTraceInsightsModule::OnNetworkingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
 	// Disable TabClosed delegate.
 	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
