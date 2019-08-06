@@ -10,6 +10,7 @@
 #include "XRSwapChain.h"
 #include "SceneViewExtension.h"
 #include "DefaultSpectatorScreenController.h"
+#include "IHeadMountedDisplayVulkanExtensions.h"
 
 #include <openxr/openxr.h>
 
@@ -17,6 +18,7 @@ class APlayerController;
 class FSceneView;
 class FSceneViewFamily;
 class UCanvas;
+class FOpenXRRenderBridge;
 
 /**
  * Simple Head Mounted Display
@@ -24,38 +26,19 @@ class UCanvas;
 class FOpenXRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSceneViewExtensionBase
 {
 public:
-	class FOpenXRSwapchain : public FXRSwapChain
+	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
 	{
 	public:
-		FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle);
-		virtual ~FOpenXRSwapchain() {}
+		FVulkanExtensions(XrInstance InInstance, XrSystemId InSystem) : Instance(InInstance), System(InSystem) {}
+		virtual ~FVulkanExtensions() {}
 
-		virtual void IncrementSwapChainIndex_RHIThread(int64 Timeout) override final;
-		virtual void ReleaseCurrentImage_RHIThread() override final;
-
-		XrSwapchain GetHandle() { return Handle; }
-		
-	protected:
-		virtual void ReleaseResources_RHIThread() override final;
-
-		FXRSwapChainPtr mSwapChain;
-		XrSwapchain Handle;
-
-		bool IsAcquired;
-	};
-
-	class D3D11Bridge : public FXRRenderBridge
-	{
-	public:
-		D3D11Bridge(FOpenXRHMD* HMD)
-			: OpenXRHMD(HMD)
-		{}
-
-		/** FRHICustomPresent */
-		virtual bool Present(int32& InOutSyncInterval);
+		/** IHeadMountedDisplayVulkanExtensions */
+		virtual bool GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out) override;
+		virtual bool GetVulkanDeviceExtensionsRequired(VkPhysicalDevice_T *pPhysicalDevice, TArray<const ANSICHAR*>& Out) override;
 
 	private:
-		FOpenXRHMD* OpenXRHMD;
+		XrInstance Instance;
+		XrSystemId System;
 	};
 
 	/** IXRTrackingSystem interface */
@@ -96,7 +79,9 @@ protected:
 	/** FXRTrackingSystemBase protected interface */
 	virtual float GetWorldToMetersScale() const override;
 
-	bool AllocateDepthSwapChain(uint32 Index, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples);
+	bool StartSession();
+	bool OnStereoStartup();
+	bool OnStereoTeardown();
 
 public:
 	/** IHeadMountedDisplay interface */
@@ -153,7 +138,7 @@ public:
 
 public:
 	/** Constructor */
-	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem);
+	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge);
 
 	/** Destructor */
 	virtual ~FOpenXRHMD();
@@ -161,12 +146,13 @@ public:
 	/** @return	True if the HMD was initialized OK */
 	OPENXRHMD_API bool IsInitialized() const;
 	OPENXRHMD_API bool IsRunning() const;
+	OPENXRHMD_API bool IsRendering() const;
 	void FinishRendering();
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 
 	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
-	FXRSwapChain* GetDepthSwapchain() { return DepthSwapChain.Get(); }
+	FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
 	XrInstance GetInstance() { return Instance; }
 	XrSystemId GetSystem() { return System; }
 	XrSession GetSession() { return Session; }
@@ -177,6 +163,10 @@ public:
 
 private:
 	bool					bIsRunning;
+	bool					bIsReady;
+	bool					bRunRequested;
+	
+	XrSessionState			CurrentSessionState;
 
 	FTransform				BaseTransform;
 	XrInstance				Instance;
@@ -187,6 +177,7 @@ private:
 	XrSpace					StageSpace;
 	XrSpace					TrackingSpaceRHI;
 	XrReferenceSpaceType	TrackingSpaceType;
+	XrViewConfigurationType SelectedViewConfigurationType;
 
 	XrFrameState			FrameState;
 	XrFrameState			FrameStateRHI;
@@ -200,9 +191,18 @@ private:
 	TArray<FHMDViewMesh>	HiddenAreaMeshes;
 #endif
 
-	TRefCountPtr<FXRRenderBridge> RenderBridge;
+	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
 	IRendererModule*		RendererModule;
 
 	FXRSwapChainPtr			Swapchain;
-	FXRSwapChainPtr			DepthSwapChain;
+	FXRSwapChainPtr			DepthSwapchain;
+
+	enum KnownDeviceSpaces
+	{
+		DeviceSpaceHMD = 0,
+		// @todo: If we add more known (fixed) spaces, add an enum here.
+		KnownDeviceSpaceCount,
+	};
+
+	TArray<XrAction>		DeferredActionDevices;
 };
