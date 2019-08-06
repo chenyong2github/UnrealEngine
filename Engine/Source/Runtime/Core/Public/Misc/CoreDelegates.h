@@ -549,6 +549,10 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldLaunchUrl, const TCHAR* /* URL */);
 	static FShouldLaunchUrl ShouldLaunchUrl;
 
+	/** Sent when GC finish destroy takes more time than expected */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGCFinishDestroyTimeExtended, const FString&);
+	static FOnGCFinishDestroyTimeExtended OnGCFinishDestroyTimeExtended;
+
 private:
 
 	// Callbacks for hotfixes
