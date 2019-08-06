@@ -16,7 +16,8 @@ namespace LandscapeSplineRaster
 	void Pointify(const FInterpCurveVector& SplineInfo, TArray<FLandscapeSplineInterpPoint>& OutPoints, int32 NumSubdivisions,
 		float StartFalloffFraction, float EndFalloffFraction,
 		const float StartWidth, const float EndWidth,
-		const float StartSideFalloff, const float EndSideFalloff,
+		const float StartLeftSideFalloff, const float EndLeftSideFalloff, 
+		const float StartRightSideFalloff, const float EndRightSideFalloff,
 		const float StartRollDegrees, const float EndRollDegrees);
 
 	void RasterizeSegmentPoints(ULandscapeInfo* LandscapeInfo, TArray<FLandscapeSplineInterpPoint> Points, const FTransform& SplineToWorld, bool bRaiseTerrain, bool bLowerTerrain, ULandscapeLayerInfoObject* LayerInfo);
