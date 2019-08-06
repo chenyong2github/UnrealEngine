@@ -75,13 +75,6 @@ public:
 	void SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush);
 
 	/**
-	 *  Set the text justification for this rich text block
-	 *  @param InJustification new justification
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetJustification(ETextJustify::Type InJustification);
-	
-	/**
 	 *  Set the minimum desired width for this rich text block
 	 *  @param InMinDesiredWidth new minimum desired width
 	 */
@@ -151,6 +144,8 @@ public:
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
+
+	virtual void SetJustification(ETextJustify::Type InJustification) override;
 	
 	virtual void UpdateStyleData();
 	void RebuildStyleInstance();

@@ -74,14 +74,6 @@ public:
 	void SetStrikeBrush(FSlateBrush InStrikeBrush);
 
 	/**
-	 *  Set the text justification for this text block
-	 *
-	 *  @param InJustification new justification
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetJustification(ETextJustify::Type InJustification);
-	
-	/**
 	 *  Set the minimum desired width for this text block
 	 *
 	 *  @param InMinDesiredWidth new minimum desired width
@@ -206,6 +198,8 @@ protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void OnBindingChanged(const FName& Property) override;
 	//~ End UWidget Interface
+
+	virtual void SetJustification(ETextJustify::Type InJustification) override;
 
 	/** Get the text that should be displayed in the internal Slate widget (allows flags to mutate the display text without modifying the persistent designer property data) */
 	virtual TAttribute<FText> GetDisplayText();
