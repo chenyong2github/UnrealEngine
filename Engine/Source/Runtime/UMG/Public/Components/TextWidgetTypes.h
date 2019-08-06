@@ -62,6 +62,9 @@ public:
 	bool GetAutoWrapText() const { return AutoWrapText; }
 	float GetWrapTextAt() const { return WrapTextAt; }
 
+	UFUNCTION(BlueprintSetter)
+	virtual void SetJustification(ETextJustify::Type InJustification) { Justification = InJustification; }
+
 protected:
 	/** Synchronize the properties with the given widget. A template as the Slate widgets conform to the same API, but don't derive from a common base. */
 	template <typename TWidgetType>
@@ -104,7 +107,4 @@ protected:
 	/** The amount to scale each lines height by. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, AdvancedDisplay)
 	float LineHeightPercentage;
-
-	UFUNCTION(BlueprintSetter)
-	virtual void SetJustification(ETextJustify::Type InJustification) { Justification = InJustification; }
 };
