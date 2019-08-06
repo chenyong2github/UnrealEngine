@@ -69,14 +69,23 @@ public:
 	/** Return a widget object to the pool, allowing it to be reused in the future */
 	void Release(UUserWidget* Widget, bool bReleaseSlate = false);
 
+	/** Return a widget object to the pool, allowing it to be reused in the future */
+	void Release(TArray<UUserWidget*> Widgets, bool bReleaseSlate = false);
+
 	/** Returns all active widget objects to the inactive pool and optionally destroys all cached underlying slate widgets. */
 	void ReleaseAll(bool bReleaseSlate = false);
 
 	/** Full reset of all created widget objects (and any cached underlying slate) */
 	void ResetPool();
 
+	/** Reset of all cached underlying Slate widgets, only for inactive widgets in the pool. */
+	void ReleaseInactiveSlateResources();
+
+	UE_DEPRECATED(4.24, "Use ReleaseAllSlateResources instead.")
+	void ReleaseSlateResources() { ReleaseAllSlateResources(); }
+
 	/** Reset of all cached underlying Slate widgets, but not the active UUserWidget objects */
-	void ReleaseSlateResources();
+	void ReleaseAllSlateResources();
 
 private:
 	template <typename UserWidgetT = UUserWidget>
