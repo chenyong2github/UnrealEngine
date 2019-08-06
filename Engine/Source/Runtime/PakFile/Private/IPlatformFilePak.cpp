@@ -227,7 +227,10 @@ void FPakPlatformFile::GetPakEncryptionKey(FAES::FAESKey& OutKey, const FGuid& I
 
 	if (InEncryptionKeyGuid.IsValid())
 	{
-		verify(GetRegisteredEncryptionKeys().GetKey(InEncryptionKeyGuid, OutKey));
+		if (!GetRegisteredEncryptionKeys().GetKey(InEncryptionKeyGuid, OutKey))
+		{
+			UE_LOG(LogPakFile, Fatal, TEXT("Failed to find requested encryption key %s"), *InEncryptionKeyGuid.ToString());
+		}
 	}
 	else
 	{
