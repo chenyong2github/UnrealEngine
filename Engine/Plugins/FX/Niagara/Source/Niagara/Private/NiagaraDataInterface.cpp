@@ -79,7 +79,7 @@ void UNiagaraDataInterface::ValidateFunction(const FNiagaraFunctionSignature& Fu
 	TArray<FNiagaraFunctionSignature> DIFuncs;
 	GetFunctions(DIFuncs);
 
-	if (!DIFuncs.Contains(Function))
+	if (!DIFuncs.ContainsByPredicate([&](const FNiagaraFunctionSignature& Sig) { return Sig.EqualsIgnoringSpecifiers(Function); }))
 	{
 		//We couldn't find this signature in the list of available functions.
 		//Lets try to find one with the same name whose parameters may have changed.

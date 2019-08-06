@@ -95,6 +95,17 @@ struct NDI_FUNC_BINDER(ClassName, FuncName)\
 	}\
 };
 
+#define DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(ClassName, FuncName)\
+struct NDI_FUNC_BINDER(ClassName, FuncName)\
+{\
+	template <typename ... VarTypes>\
+	static void Bind(UNiagaraDataInterface* Interface, FVMExternalFunction &OutFunc, VarTypes... Var)\
+	{\
+		auto Lambda = [Interface, Var...](FVectorVMContext& Context) { static_cast<ClassName*>(Interface)->FuncName(Context, Var...); };\
+		OutFunc = FVMExternalFunction::CreateLambda(Lambda);\
+	}\
+};
+
 #if WITH_EDITOR
 // Helper class for GUI error handling
 DECLARE_DELEGATE_RetVal(bool, FNiagaraDataInterfaceFix);
@@ -271,6 +282,8 @@ public:
 	{
 //		checkf(false, TEXT("Unefined HLSL in data interface. Interfaces need to define HLSL for uniforms their functions access."));
 	}
+
+	virtual void PostExecute() {}
 
 #if WITH_EDITOR	
 	/** Refreshes and returns the errors detected with the corresponding data, if any.*/

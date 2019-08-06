@@ -70,6 +70,9 @@ public:
 	UPROPERTY()
 	FNiagaraFunctionSignature Signature;
 
+	UPROPERTY(VisibleAnywhere, Category = "Function")
+	TMap<FName, FName> FunctionSpecifiers;
+
 	/** All the input values the function propagates to the next higher caller instead of forcing the user to set them directly. */
 	UPROPERTY()
 	TArray<FNiagaraPropagatedVariable> PropagatedStaticSwitchParameters;
@@ -128,6 +131,8 @@ public:
 
 	/** Does any automated data manipulated required to update DI function call nodes to the current version. */
 	void UpgradeDIFunctionCalls();
+
+	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 protected:
 
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const;
