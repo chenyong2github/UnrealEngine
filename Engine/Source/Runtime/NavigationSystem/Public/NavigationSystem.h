@@ -142,6 +142,13 @@ protected:
 	UPROPERTY()
 	uint32 bSupportRebuilding : 1; 
 
+	/** When set to TRUE, navigation data will be generated even if no navigation bounds is compatible to build it */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	uint32 bGenerateNavDataWhenNoCompatibleNavBound : 1;
+
+	/** When set to TRUE, if there conflicting navigation data using same NavConfig, the last one loaded (via the additional level) will be used when rebuild navmesh */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	uint32 bUseNavDataInAdditionalLevelWhenDuplicatedAgent : 1;
 public:
 	/** if set to true will result navigation system not rebuild navigation until 
 	 *	a call to ReleaseInitialBuildingLock() is called. Does not influence 
@@ -487,6 +494,8 @@ public:
 	bool ShouldAllowClientSideNavigation() const { return bAllowClientSideNavigation; }
 	virtual bool ShouldLoadNavigationOnClient(ANavigationData* NavData = nullptr) const { return bAllowClientSideNavigation; }
 	virtual bool ShouldDiscardSubLevelNavData(ANavigationData* NavData = nullptr) const { return bShouldDiscardSubLevelNavData; }
+	bool ShouldGenerateNavDataWhenNoCompatibleNavBound() const { return bGenerateNavDataWhenNoCompatibleNavBound; }
+	bool ShouldUseNavDataInAdditionalLevelWhenDuplicatedAgent() const { return bUseNavDataInAdditionalLevelWhenDuplicatedAgent; }
 
 	FBox GetWorldBounds() const;
 	
@@ -791,6 +800,9 @@ public:
 	
 	virtual void InitializeForWorld(UWorld& World, FNavigationSystemRunMode Mode) override;
 
+	/** Called after a NavSystemConfigOverride has finished overriding the old NavSystem */
+	virtual void OnNavSystemOverriden(UNavigationSystemBase* PreviousNavSystem) override;
+
 	// Fetch the array of all nav-agent properties.
 	void GetNavAgentPropertiesArray(TArray<FNavAgentProperties>& OutNavAgentProperties) const;
 
@@ -1075,6 +1087,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Navigation)
 	uint32 bSpawnNavDataInNavBoundsLevel : 1;
 
+	/** When set to TRUE, navigation data will be generated even if no navigation bounds is compatible to build it */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	uint32 bGenerateNavDataWhenNoCompatibleNavBound : 1;
+
+	/** When set to TRUE, if there conflicting navigation data using same NavConfig, the last one loaded (via the additional level) will be used when rebuild navmesh */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	uint32 bUseNavDataInAdditionalLevelWhenDuplicatedAgent : 1;
 public:
 	UNavigationSystemModuleConfig(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
