@@ -6,6 +6,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Application/SlateApplication.h"
 #include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
 
 /** Notification class for grassmmap rendering. */
 class FGrassRenderingNotificationImpl : public FGlobalEditorNotification
