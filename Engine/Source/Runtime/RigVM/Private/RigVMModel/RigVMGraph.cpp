@@ -25,6 +25,11 @@ bool URigVMGraph::IsNodeSelected(const FName& InNodeName) const
 	return SelectedNodes.Contains(InNodeName);
 }
 
+const TArray<FName>& URigVMGraph::GetSelectNodes() const
+{
+	return SelectedNodes;
+}
+
 FRigVMGraphModifiedEvent& URigVMGraph::OnModified()
 {
 	return ModifiedEvent;

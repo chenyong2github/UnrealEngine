@@ -17,6 +17,7 @@ public:
 	URigVMNode* FindNode(const FName& InNodeName);
 
 	bool IsNodeSelected(const FName& InNodeName) const;
+	const TArray<FName>& GetSelectNodes() const;
 
 	FRigVMGraphModifiedEvent& OnModified();
 
