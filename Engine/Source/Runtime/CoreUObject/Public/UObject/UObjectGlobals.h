@@ -2686,3 +2686,13 @@ enum class EDataValidationResult : uint8
 	/** Asset has not yet been validated */
 	NotValidated
 };
+
+/**
+ * Combines two different data validation results and returns the combined result.
+ *
+ * @param	Result1			One of the data validation results to be combined
+ * @param	Result2			One of the data validation results to be combined
+ *
+ * @return	Returns the combined data validation result
+ */
+COREUOBJECT_API EDataValidationResult CombineDataValidationResults(EDataValidationResult Result1, EDataValidationResult Result2);
