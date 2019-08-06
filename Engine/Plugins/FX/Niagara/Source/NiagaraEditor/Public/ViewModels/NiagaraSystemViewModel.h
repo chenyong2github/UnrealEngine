@@ -324,13 +324,13 @@ private:
 	void UpdateCompiledDataInterfaces(UNiagaraDataInterface* ChangedDataInterface);
 
 	/** Called whenever a property on the emitter handle changes. */
-	void EmitterHandlePropertyChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+	void EmitterHandlePropertyChanged(FGuid OwningEmitterHandleId);
 
 	/** Called whenever the name on an emitter handle changes. */
-	void EmitterHandleNameChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+	void EmitterHandleNameChanged();
 
 	/** Called whenever a property on the emitter changes. */
-	void EmitterPropertyChanged(TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel);
+	void EmitterPropertyChanged();
 
 	/** 
 	 * Called whenever a parameter store owned by the system changes.
@@ -340,7 +340,7 @@ private:
 	void SystemParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript* OwningScript);
 
 	/** Called whenever an emitter's script graph changes. */
-	void EmitterScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript& OwningScript, const TSharedRef<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModel);
+	void EmitterScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript& OwningScript, FGuid OwningEmitterHandleId);
 
 	/** Called whenever the system script graph changes. */
 	void SystemScriptGraphChanged(const FEdGraphEditAction& InAction);
@@ -350,7 +350,7 @@ private:
 	* @param ChangedParameterStore The parameter store that changed.
 	* @param OwningScript The script that owns the parameter store, if there is one.
 	*/
-	void EmitterParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript, const TSharedRef<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModel);
+	void EmitterParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript);
 
 	/** Updates the current simulation for a parameter changing, based on the current simulation options. */
 	void UpdateSimulationFromParameterChange();
