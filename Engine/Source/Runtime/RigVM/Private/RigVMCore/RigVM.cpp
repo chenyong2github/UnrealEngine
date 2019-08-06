@@ -81,7 +81,7 @@ bool URigVM::Execute(FRigVMStoragePtrArray Storage, TArrayView<void*> Additional
 		Storage = FRigVMStoragePtrArray(LocalStorage, 2);
 	}
 
-	int32 InstructionIndex = 0;
+	uint16 InstructionIndex = 0;
 	while (Instructions[InstructionIndex].OpCode != ERigVMOpCode::Exit)
 	{
 		switch (Instructions[InstructionIndex].OpCode)
@@ -158,55 +158,179 @@ bool URigVM::Execute(FRigVMStoragePtrArray Storage, TArrayView<void*> Additional
 				InstructionIndex++;
 				break;
 			}
+			case ERigVMOpCode::Zero:
+			{
+				const FRigVMZeroOp& Op = ByteCode.GetOpAt<FRigVMZeroOp>(Instructions[InstructionIndex]);
+				Storage[Op.Arg.GetStorageIndex()]->GetRef<int32>(Op.Arg.GetRegisterIndex()) = 0;
+				InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::BoolFalse:
+			{
+				const FRigVMFalseOp& Op = ByteCode.GetOpAt<FRigVMFalseOp>(Instructions[InstructionIndex]);
+				Storage[Op.Arg.GetStorageIndex()]->GetRef<bool>(Op.Arg.GetRegisterIndex()) = false;
+				InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::BoolTrue:
+			{
+				const FRigVMTrueOp& Op = ByteCode.GetOpAt<FRigVMTrueOp>(Instructions[InstructionIndex]);
+				Storage[Op.Arg.GetStorageIndex()]->GetRef<bool>(Op.Arg.GetRegisterIndex()) = false;
+				InstructionIndex++;
+				break;
+			}
 			case ERigVMOpCode::Copy:
 			{
 				const FRigVMCopyOp& Op = ByteCode.GetOpAt<FRigVMCopyOp>(Instructions[InstructionIndex]);
-				Storage[0]->Copy(Op.Source.GetRegisterIndex(), Op.Target.GetRegisterIndex(), Storage[Op.Source.GetStorageIndex()], Op.SourceOffset, Op.TargetOffset, Op.NumBytes);
+				Storage[Op.Target.GetStorageIndex()]->Copy(Op.Source.GetRegisterIndex(), Op.Target.GetRegisterIndex(), Storage[Op.Source.GetStorageIndex()], Op.SourceOffset, Op.TargetOffset, Op.NumBytes);
 				InstructionIndex++;
 				break;
 			}
 			case ERigVMOpCode::Increment:
 			{
 				const FRigVMIncrementOp& Op = ByteCode.GetOpAt<FRigVMIncrementOp>(Instructions[InstructionIndex]);
-				Storage[0]->GetRef<int32>(Op.Arg.GetRegisterIndex())++;
+				Storage[Op.Arg.GetStorageIndex()]->GetRef<int32>(Op.Arg.GetRegisterIndex())++;
 				InstructionIndex++;
 				break;
 			}
 			case ERigVMOpCode::Decrement:
 			{
 				const FRigVMDecrementOp& Op = ByteCode.GetOpAt<FRigVMDecrementOp>(Instructions[InstructionIndex]);
-				Storage[0]->GetRef<int32>(Op.Arg.GetRegisterIndex())--;
+				Storage[Op.Arg.GetStorageIndex()]->GetRef<int32>(Op.Arg.GetRegisterIndex())--;
 				InstructionIndex++;
 				break;
 			}
 			case ERigVMOpCode::Equals:
-			{
-				const FRigVMEqualsOp& Op = ByteCode.GetOpAt<FRigVMEqualsOp>(Instructions[InstructionIndex]);
-				ensureMsgf(false, TEXT("TO BE IMPLEMENTED"));
-				break;
-			}
 			case ERigVMOpCode::NotEquals:
 			{
-				const FRigVMNotEqualsOp& Op = ByteCode.GetOpAt<FRigVMNotEqualsOp>(Instructions[InstructionIndex]);
-				ensureMsgf(false, TEXT("TO BE IMPLEMENTED"));
+				const FRigVMEqualsOp& Op = ByteCode.GetOpAt<FRigVMEqualsOp>(Instructions[InstructionIndex]);
+				const FRigVMRegister& RegisterA = (*Storage[Op.A.GetStorageIndex()])[Op.A.GetRegisterIndex()];
+				const FRigVMRegister& RegisterB = (*Storage[Op.B.GetStorageIndex()])[Op.B.GetRegisterIndex()];
+				uint16 BytesA = RegisterA.GetNumBytesPerSlice();
+				uint16 BytesB = RegisterB.GetNumBytesPerSlice();
+				
+				bool Result = false;
+				if (BytesA == BytesB && RegisterA.Type == RegisterB.Type && RegisterA.ScriptStructIndex == RegisterB.ScriptStructIndex)
+				{
+					switch (RegisterA.Type)
+					{
+						case ERigVMRegisterType::Plain:
+						case ERigVMRegisterType::Name:
+						{
+							void * DataA = Storage[Op.A.GetStorageIndex()]->GetData(Op.A.GetRegisterIndex());
+							void * DataB = Storage[Op.B.GetStorageIndex()]->GetData(Op.B.GetRegisterIndex());
+							Result = FMemory::Memcmp(DataA, DataB, BytesA) == 0;
+							break;
+						}
+						case ERigVMRegisterType::String:
+						{
+							TArrayView<FString> StringsA = Storage[Op.A.GetStorageIndex()]->GetArray<FString>(Op.A.GetRegisterIndex());
+							TArrayView<FString> StringsB = Storage[Op.B.GetStorageIndex()]->GetArray<FString>(Op.B.GetRegisterIndex());
+
+							Result = true;
+							for (int32 StringIndex = 0; StringIndex < StringsA.Num(); StringIndex++)
+							{
+								if (StringsA[StringIndex] != StringsB[StringIndex])
+								{
+									Result = false;
+									break;
+								}
+							}
+							break;
+						}
+						case ERigVMRegisterType::Struct:
+						{
+							UScriptStruct* ScriptStruct = Storage[Op.A.GetStorageIndex()]->GetScriptStruct(RegisterA.ScriptStructIndex);
+
+							uint8* DataA = (uint8*)Storage[Op.A.GetStorageIndex()]->GetData(Op.A.GetRegisterIndex());
+							uint8* DataB = (uint8*)Storage[Op.B.GetStorageIndex()]->GetData(Op.B.GetRegisterIndex());
+							
+							Result = true;
+							for (int32 ElementIndex = 0; ElementIndex < RegisterA.ElementCount; ElementIndex++)
+							{
+								if (!ScriptStruct->CompareScriptStruct(DataA, DataB, 0))
+								{
+									Result = false;
+									break;
+								}
+								DataA += RegisterA.ElementSize;
+								DataB += RegisterB.ElementSize;
+							}
+
+							break;
+						}
+						case ERigVMRegisterType::Invalid:
+						{
+							break;
+						}
+					}
+				}
+				if (Instructions[InstructionIndex].OpCode == ERigVMOpCode::NotEquals)
+				{
+					Result = !Result;
+				}
+				Storage[Op.Result.GetStorageIndex()]->GetRef<bool>(Op.Result.GetRegisterIndex()) = Result;
+				InstructionIndex++;
 				break;
 			}
-			case ERigVMOpCode::Jump:
+			case ERigVMOpCode::JumpAbsolute:
 			{
 				const FRigVMJumpOp& Op = ByteCode.GetOpAt<FRigVMJumpOp>(Instructions[InstructionIndex]);
-				ensureMsgf(false, TEXT("TO BE IMPLEMENTED"));
+				InstructionIndex = Op.InstructionIndex;
 				break;
 			}
-			case ERigVMOpCode::JumpIfTrue:
+			case ERigVMOpCode::JumpForward:
 			{
-				const FRigVMJumpIfTrueOp& Op = ByteCode.GetOpAt<FRigVMJumpIfTrueOp>(Instructions[InstructionIndex]);
-				ensureMsgf(false, TEXT("TO BE IMPLEMENTED"));
+				const FRigVMJumpOp& Op = ByteCode.GetOpAt<FRigVMJumpOp>(Instructions[InstructionIndex]);
+				InstructionIndex += Op.InstructionIndex;
 				break;
 			}
-			case ERigVMOpCode::JumpIfFalse:
+			case ERigVMOpCode::JumpBackward:
 			{
-				const FRigVMJumpIfFalseOp& Op = ByteCode.GetOpAt<FRigVMJumpIfFalseOp>(Instructions[InstructionIndex]);
-				ensureMsgf(false, TEXT("TO BE IMPLEMENTED"));
+				const FRigVMJumpOp& Op = ByteCode.GetOpAt<FRigVMJumpOp>(Instructions[InstructionIndex]);
+				InstructionIndex -= Op.InstructionIndex;
+				break;
+			}
+			case ERigVMOpCode::JumpAbsoluteIf:
+			{
+				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instructions[InstructionIndex]);
+				const bool Condition = Storage[0]->GetRef<bool>(Op.ConditionArg.GetRegisterIndex());
+				if (Condition == Op.Condition)
+				{
+					InstructionIndex = Op.InstructionIndex;
+				}
+				else
+				{
+					InstructionIndex++;
+				}
+				break;
+			}
+			case ERigVMOpCode::JumpForwardIf:
+			{
+				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instructions[InstructionIndex]);
+				const bool Condition = Storage[0]->GetRef<bool>(Op.ConditionArg.GetRegisterIndex());
+				if (Condition == Op.Condition)
+				{
+					InstructionIndex += Op.InstructionIndex;
+				}
+				else
+				{
+					InstructionIndex++;
+				}
+				break;
+			}
+			case ERigVMOpCode::JumpBackwardIf:
+			{
+				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instructions[InstructionIndex]);
+				const bool Condition = Storage[0]->GetRef<bool>(Op.ConditionArg.GetRegisterIndex());
+				if (Condition == Op.Condition)
+				{
+					InstructionIndex -= Op.InstructionIndex;
+				}
+				else
+				{
+					InstructionIndex++;
+				}
 				break;
 			}
 			case ERigVMOpCode::Exit:

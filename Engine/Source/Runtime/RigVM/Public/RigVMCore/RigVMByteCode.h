@@ -76,14 +76,20 @@ enum class ERigVMOpCode : uint8
 	Execute_62_Args,
 	Execute_63_Args,
 	Execute_64_Args,
+	Zero,
+	BoolFalse,
+	BoolTrue,
 	Copy,
 	Increment,
 	Decrement,
 	Equals,
 	NotEquals,
-	Jump,
-	JumpIfTrue,
-	JumpIfFalse,
+	JumpAbsolute,
+	JumpForward,
+	JumpBackward,
+	JumpAbsoluteIf,
+	JumpForwardIf,
+	JumpBackwardIf,
 	Exit,
 	Invalid
 };
@@ -115,6 +121,57 @@ struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
 	uint16 FunctionIndex;
 
 	FORCEINLINE uint8 GetArgumentCount() const { return uint8(OpCode) - uint8(ERigVMOpCode::Execute_0_Args); }
+};
+
+struct RIGVM_API FRigVMZeroOp : public FRigVMBaseOp
+{
+	FRigVMZeroOp()
+		: FRigVMBaseOp(ERigVMOpCode::Zero)
+		, Arg()
+	{
+	}
+
+	FRigVMZeroOp(FRigVMArgument InArg)
+		: FRigVMBaseOp(ERigVMOpCode::Zero)
+		, Arg(InArg)
+	{
+	}
+
+	FRigVMArgument Arg;
+};
+
+struct RIGVM_API FRigVMFalseOp : public FRigVMBaseOp
+{
+	FRigVMFalseOp()
+		: FRigVMBaseOp(ERigVMOpCode::BoolFalse)
+		, Arg()
+	{
+	}
+
+	FRigVMFalseOp(FRigVMArgument InArg)
+		: FRigVMBaseOp(ERigVMOpCode::BoolFalse)
+		, Arg(InArg)
+	{
+	}
+
+	FRigVMArgument Arg;
+};
+
+struct RIGVM_API FRigVMTrueOp : public FRigVMBaseOp
+{
+	FRigVMTrueOp()
+		: FRigVMBaseOp(ERigVMOpCode::BoolTrue)
+		, Arg()
+	{
+	}
+
+	FRigVMTrueOp(FRigVMArgument InArg)
+		: FRigVMBaseOp(ERigVMOpCode::BoolTrue)
+		, Arg(InArg)
+	{
+	}
+
+	FRigVMArgument Arg;
 };
 
 struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
@@ -243,58 +300,45 @@ struct RIGVM_API FRigVMNotEqualsOp : public FRigVMBaseOp
 struct RIGVM_API FRigVMJumpOp : public FRigVMBaseOp
 {
 	FRigVMJumpOp()
-	: FRigVMBaseOp(ERigVMOpCode::Jump)
+	: FRigVMBaseOp(ERigVMOpCode::Invalid)
 	, InstructionIndex(INDEX_NONE)
 	{
 	}
 
-	FRigVMJumpOp(int32 InInstructionIndex)
-	: FRigVMBaseOp(ERigVMOpCode::Jump)
+	FRigVMJumpOp(ERigVMOpCode InOpCode, int32 InInstructionIndex)
+	: FRigVMBaseOp(InOpCode)
 	, InstructionIndex(InInstructionIndex)
 	{
+		ensure(uint8(InOpCode) >= uint8(ERigVMOpCode::JumpAbsolute));
+		ensure(uint8(InOpCode) <= uint8(ERigVMOpCode::JumpBackward));
 	}
 
 	int32 InstructionIndex;
 };
 
-struct RIGVM_API FRigVMJumpIfTrueOp : public FRigVMBaseOp
+struct RIGVM_API FRigVMJumpIfOp : public FRigVMBaseOp
 {
-	FRigVMJumpIfTrueOp()
-	: FRigVMBaseOp(ERigVMOpCode::JumpIfTrue)
-	, InstructionIndex(INDEX_NONE)
-	, Condition()
+	FRigVMJumpIfOp()
+		: FRigVMBaseOp(ERigVMOpCode::Invalid)
+		, InstructionIndex(INDEX_NONE)
+		, ConditionArg()
+		, Condition(true)
 	{
 	}
 
-	FRigVMJumpIfTrueOp(int32 InInstructionIndex, FRigVMArgument InCondition)
-	: FRigVMBaseOp(ERigVMOpCode::JumpIfTrue)
-	, InstructionIndex(InInstructionIndex)
-	, Condition(InCondition)
+	FRigVMJumpIfOp(ERigVMOpCode InOpCode, int32 InInstructionIndex, FRigVMArgument InConditionArg, bool InCondition = false)
+		: FRigVMBaseOp(InOpCode)
+		, InstructionIndex(InInstructionIndex)
+		, ConditionArg(InConditionArg)
+		, Condition(InCondition)
 	{
+		ensure(uint8(InOpCode) >= uint8(ERigVMOpCode::JumpAbsoluteIf));
+		ensure(uint8(InOpCode) <= uint8(ERigVMOpCode::JumpBackwardIf));
 	}
 
 	int32 InstructionIndex;
-	FRigVMArgument Condition;
-};
-
-struct RIGVM_API FRigVMJumpIfFalseOp : public FRigVMBaseOp
-{
-	FRigVMJumpIfFalseOp()
-	: FRigVMBaseOp(ERigVMOpCode::JumpIfFalse)
-	, InstructionIndex(INDEX_NONE)
-	, Condition()
-	{
-	}
-
-	FRigVMJumpIfFalseOp(int32 InInstructionIndex, FRigVMArgument InCondition)
-	: FRigVMBaseOp(ERigVMOpCode::JumpIfFalse)
-	, InstructionIndex(InInstructionIndex)
-	, Condition(InCondition)
-	{
-	}
-
-	int32 InstructionIndex;
-	FRigVMArgument Condition;
+	FRigVMArgument ConditionArg;
+	bool Condition;
 };
 
 struct RIGVM_API FRigVMExitOp : public FRigVMBaseOp
@@ -360,15 +404,17 @@ public:
 	void Reset();
 	uint64 Num() const;
 
+	uint64 AddExecuteOp(uint16 InFunctionIndex, const TArrayView<FRigVMArgument>& InArguments);
+	uint64 AddZeroOp(const FRigVMArgument& InArg);
+	uint64 AddFalseOp(const FRigVMArgument& InArg);
+	uint64 AddTrueOp(const FRigVMArgument& InArg);
 	uint64 AddCopyOp(const FRigVMArgument& InSource, const FRigVMArgument& InTarget, int32 InSourceOffset = INDEX_NONE, int32 InTargetOffset = INDEX_NONE, int32 InNumBytes = INDEX_NONE);
 	uint64 AddIncrementOp(const FRigVMArgument& InArg);
 	uint64 AddDecrementOp(const FRigVMArgument& InArg);
 	uint64 AddEqualsOp(const FRigVMArgument& InA, const FRigVMArgument& InB, const FRigVMArgument& InResult);
 	uint64 AddNotEqualsOp(const FRigVMArgument& InA, const FRigVMArgument& InB, const FRigVMArgument& InResult);
-	uint64 AddJumpOp(uint64 InByteCodeIndex);
-	uint64 AddJumpIfTrueOp(uint64 InByteCodeIndex, const FRigVMArgument& InCondition);
-	uint64 AddJumpIfFalseOp(uint64 InByteCodeIndex, const FRigVMArgument& InCondition);
-	uint64 AddExecuteOp(uint16 InFunctionIndex, const TArrayView<FRigVMArgument>& InArguments);
+	uint64 AddJumpOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex);
+	uint64 AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex, const FRigVMArgument& InConditionArg, bool bInCondition = false);
 	uint64 AddExitOp();
 
 	FORCEINLINE FRigVMByteCodeTable GetTable() const
