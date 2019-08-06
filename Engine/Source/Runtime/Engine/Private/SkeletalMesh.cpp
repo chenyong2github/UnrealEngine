@@ -635,6 +635,7 @@ void USkeletalMesh::InitResources()
 	const int32 NumLODs = GetLODNum();
 	bIsStreamable = !NeverStream
 		&& NumLODs > 1
+		&& SkelMeshRenderData
 		&& !SkelMeshRenderData->LODRenderData[0].bStreamedDataInlined;
 
 	UnlinkStreaming();
