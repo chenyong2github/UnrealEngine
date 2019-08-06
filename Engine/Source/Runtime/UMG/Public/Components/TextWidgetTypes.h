@@ -82,7 +82,7 @@ protected:
 	FShapedTextOptions ShapedTextOptions;
 
 	/** How the text should be aligned with the margin. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetJustification, Category=Appearance)
 	TEnumAsByte<ETextJustify::Type> Justification;
 
 	/** The wrapping policy to use. */
@@ -104,4 +104,7 @@ protected:
 	/** The amount to scale each lines height by. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, AdvancedDisplay)
 	float LineHeightPercentage;
+
+	UFUNCTION(BlueprintSetter)
+	virtual void SetJustification(ETextJustify::Type InJustification) { Justification = InJustification; }
 };
