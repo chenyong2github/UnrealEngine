@@ -38,6 +38,9 @@ struct CORE_API FDebug
 	/** Logs final assert message and exits the program. */
 	static void VARARGS AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format = TEXT(""), ...);
 
+	/** Triggers a fatal error, using the error formatted to GErrorHist via a previous call to FMsg*/
+	static void ProcessFatalError();
+
 	// returns true if an assert has occurred
 	static bool HasAsserted();
 
@@ -373,6 +376,6 @@ CORE_API void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line
 		static_assert(TIsArrayOrRefOfType<decltype(Format), TCHAR>::Value, "Formatting string must be a TCHAR array."); \
 		LowLevelFatalErrorHandler(__FILE__, __LINE__, Format, ##__VA_ARGS__); \
 		_DebugBreakAndPromptForRemote(); \
-		FDebug::AssertFailed("", __FILE__, __LINE__, Format, ##__VA_ARGS__); \
+		FDebug::ProcessFatalError(); \
 	}
 
