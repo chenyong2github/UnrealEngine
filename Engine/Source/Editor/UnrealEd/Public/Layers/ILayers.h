@@ -32,7 +32,7 @@ namespace ELayersAction
 	};
 }
 
-class UE_DEPRECATED(4.24, "ILayers and GEditor->Layers have been deprecated, use ULayersSubsystem and GEditor->GetEditorSubsystem<ULayersSubsystem>() instead.") ILayers
+class UE_DEPRECATED(4.24, "ILayers and GEditor->Layers have been deprecated, use ULayersSubsystem (rather than ILayers) and GEditor->GetEditorSubsystem<ULayersSubsystem>() (rather than GEditor->Layers) instead.") ILayers
 {
 
 public:
