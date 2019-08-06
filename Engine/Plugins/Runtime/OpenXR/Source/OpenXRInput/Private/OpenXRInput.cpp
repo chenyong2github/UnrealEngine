@@ -298,9 +298,10 @@ void FOpenXRInputPlugin::FOpenXRInput::AddAction(XrActionSet ActionSet, const TA
 
 void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 {
-	if (OpenXRHMD->IsRunning() && OpenXRHMD->IsRendering())
+	XrSession Session = OpenXRHMD->GetSession();
+
+	if (OpenXRHMD->IsRunning())
 	{
-		XrSession Session = OpenXRHMD->GetSession();
 		if (!bActionsBound)
 		{
 			TArray<XrActionSet> BindActionSets;
@@ -312,29 +313,31 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 			SessionActionSetsAttachInfo.next = nullptr;
 			SessionActionSetsAttachInfo.countActionSets = BindActionSets.Num();
 			SessionActionSetsAttachInfo.actionSets = BindActionSets.GetData();
-			xrAttachSessionActionSets(Session, &SessionActionSetsAttachInfo);
+			XR_ENSURE(xrAttachSessionActionSets(Session, &SessionActionSetsAttachInfo));
 
 			bActionsBound = true;
 		}
-
-		XrActionsSyncInfo SyncInfo;
-		SyncInfo.type = XR_TYPE_ACTIONS_SYNC_INFO;
-		SyncInfo.next = nullptr;
-		SyncInfo.countActiveActionSets = ActionSets.Num();
-		SyncInfo.activeActionSets = ActionSets.GetData();
- 		XR_ENSURE(xrSyncActions(Session, &SyncInfo));
 	}
-	else if (bActionsBound && !OpenXRHMD->IsRunning())
+	else if (bActionsBound)
 	{
 		// If the session shut down, clean up.
 		bActionsBound = false;
 	}
 
+	if (OpenXRHMD->IsFocused())
+	{
+		XrActionsSyncInfo SyncInfo;
+		SyncInfo.type = XR_TYPE_ACTIONS_SYNC_INFO;
+		SyncInfo.next = nullptr;
+		SyncInfo.countActiveActionSets = ActionSets.Num();
+		SyncInfo.activeActionSets = ActionSets.GetData();
+		XR_ENSURE(xrSyncActions(Session, &SyncInfo));
+	}
 }
 
 void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 {
-	if (!OpenXRHMD->IsRunning())
+	if (!bActionsBound)
 	{
 		return;
 	}
