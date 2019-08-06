@@ -14,6 +14,7 @@
 
 UListView::UListView(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, Orientation(EOrientation::Orient_Vertical)
 {
 }
 
