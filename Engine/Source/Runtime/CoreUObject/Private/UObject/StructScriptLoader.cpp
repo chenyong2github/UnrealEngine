@@ -5,6 +5,7 @@
 #include "Misc/CoreMisc.h"
 #include "UObject/LinkerLoad.h"
 #include "Serialization/ArchiveScriptReferenceCollector.h"
+#include "UObject/Package.h"
 
 /*******************************************************************************
  * FDeferredScriptTracker
