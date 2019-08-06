@@ -27,8 +27,7 @@ public class WindowsMixedRealityInterop : ModuleRules
             {
                 PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInterop.lib"));
             }
-            PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "HolographicAppRemoting.lib"));
-            PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "PerceptionDevice.lib"));
+            PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "Microsoft.Holographic.AppRemoting.lib"));
         }
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
