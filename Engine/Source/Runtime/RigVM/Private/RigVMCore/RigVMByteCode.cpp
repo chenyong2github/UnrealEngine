@@ -159,6 +159,10 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeArgu
 		{
 			return (uint64)sizeof(FRigVMJumpIfOp);
 		}
+		case ERigVMOpCode::ChangeType:
+		{
+			return (uint64)sizeof(FRigVMChangeTypeOp);
+		}
 		case ERigVMOpCode::Exit:
 		{
 			return (uint64)sizeof(FRigVMExitOp);
@@ -229,6 +233,12 @@ uint64 FRigVMByteCode::AddJumpOp(ERigVMOpCode InOpCode, uint16 InInstructionInde
 uint64 FRigVMByteCode::AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex, const FRigVMArgument& InConditionArg, bool bInCondition)
 {
 	FRigVMJumpIfOp Op(InOpCode, InInstructionIndex, InConditionArg, bInCondition);
+	return AddOp(Op);
+}
+
+uint64 FRigVMByteCode::AddChangeTypeOp(FRigVMArgument InArg, ERigVMRegisterType InType, uint16 InElementSize, uint16 InElementCount, uint16 InSliceCount)
+{
+	FRigVMChangeTypeOp Op(InArg, InType, InElementSize, InElementCount, InSliceCount);
 	return AddOp(Op);
 }
 

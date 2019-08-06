@@ -333,6 +333,13 @@ bool URigVM::Execute(FRigVMStoragePtrArray Storage, TArrayView<void*> Additional
 				}
 				break;
 			}
+			case ERigVMOpCode::ChangeType:
+			{
+				const FRigVMChangeTypeOp& Op = ByteCode.GetOpAt<FRigVMChangeTypeOp>(Instructions[InstructionIndex]);
+				Storage[Op.Arg.GetStorageIndex()]->ChangeRegisterType(Op.Arg.GetRegisterIndex(), Op.Type, Op.ElementSize, nullptr, Op.ElementCount, Op.SliceCount);
+				InstructionIndex++;
+				break;
+			}
 			case ERigVMOpCode::Exit:
 			case ERigVMOpCode::Invalid:
 			{

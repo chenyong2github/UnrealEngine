@@ -90,6 +90,7 @@ enum class ERigVMOpCode : uint8
 	JumpAbsoluteIf,
 	JumpForwardIf,
 	JumpBackwardIf,
+	ChangeType,
 	Exit,
 	Invalid
 };
@@ -341,6 +342,35 @@ struct RIGVM_API FRigVMJumpIfOp : public FRigVMBaseOp
 	bool Condition;
 };
 
+struct RIGVM_API FRigVMChangeTypeOp : public FRigVMBaseOp
+{
+	FRigVMChangeTypeOp()
+		: FRigVMBaseOp(ERigVMOpCode::Invalid)
+		, Arg()
+		, Type(ERigVMRegisterType::Invalid)
+		, ElementSize(0)
+		, ElementCount(0)
+		, SliceCount(0)
+	{
+	}
+
+	FRigVMChangeTypeOp(FRigVMArgument InArg, ERigVMRegisterType InType, uint16 InElementSize, uint16 InElementCount, uint16 InSliceCount)
+		: FRigVMBaseOp(ERigVMOpCode::ChangeType)
+		, Arg(InArg)
+		, Type(InType)
+		, ElementSize(InElementSize)
+		, ElementCount(InElementCount)
+		, SliceCount(InSliceCount)
+	{
+	}
+
+	FRigVMArgument Arg;
+	ERigVMRegisterType Type;
+	uint16 ElementSize;
+	uint16 ElementCount;
+	uint16 SliceCount;
+};
+
 struct RIGVM_API FRigVMExitOp : public FRigVMBaseOp
 {
 	FRigVMExitOp()
@@ -415,6 +445,7 @@ public:
 	uint64 AddNotEqualsOp(const FRigVMArgument& InA, const FRigVMArgument& InB, const FRigVMArgument& InResult);
 	uint64 AddJumpOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex);
 	uint64 AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex, const FRigVMArgument& InConditionArg, bool bInCondition = false);
+	uint64 AddChangeTypeOp(FRigVMArgument InArg, ERigVMRegisterType InType, uint16 InElementSize, uint16 InElementCount, uint16 InSliceCount = 1);
 	uint64 AddExitOp();
 
 	FORCEINLINE FRigVMByteCodeTable GetTable() const
