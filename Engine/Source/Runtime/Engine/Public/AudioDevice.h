@@ -553,6 +553,10 @@ public:
 	/** Returns the max channels used by the audio device. */
 	int32 GetMaxChannels() const;
 
+	/** Returns the maximum sources used by the audio device set on initialization,
+	  * including the number of stopping voices reserved. */
+	int32 GetMaxSources() const;
+
 	/**
 	* Stops any sound sources which are using the given buffer.
 	*
@@ -1584,7 +1588,7 @@ public:
 public:
 
 	/** The number of sources to reserve for stopping sounds. */
-	int32 NumStoppingVoices;
+	int32 NumStoppingSources;
 
 	/** The sample rate of all the audio devices */
 	int32 SampleRate;

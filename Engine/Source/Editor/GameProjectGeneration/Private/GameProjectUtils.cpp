@@ -138,9 +138,13 @@ namespace
 		DefaultProjectSettings.Add(TEXT("Mac"), MacSettings);
 
 		FAudioDefaultPlatformSettings PS4Settings(EAudioPlatform::Playstation4);
+		PS4Settings.Settings.CallbackBufferFrameSize = 256;
+		PS4Settings.Settings.NumBuffers = 7;
+		PS4Settings.Settings.NumSourceWorkers = 4;
 		DefaultProjectSettings.Add(TEXT("PS4"), PS4Settings);
 
 		FAudioDefaultPlatformSettings SwitchSettings(EAudioPlatform::Switch);
+		SwitchSettings.Settings.MaxChannels = 16;
 		DefaultProjectSettings.Add(TEXT("Switch"), SwitchSettings);
 
 		FAudioDefaultPlatformSettings WindowsSettings(EAudioPlatform::Windows);
