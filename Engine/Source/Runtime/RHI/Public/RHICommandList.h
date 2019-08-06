@@ -25,7 +25,10 @@
 #include "HAL/IConsoleManager.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITStalls);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);
 
 // Set to 1 to capture the callstack for every RHI command. Cheap & memory efficient representation: Use the 
 // value in FRHICommand::StackFrames to get the pointer to the code (ie paste on a disassembly window)
