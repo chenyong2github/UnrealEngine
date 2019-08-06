@@ -4,13 +4,8 @@
 
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsDeclares.h"
 #include "AnimNode_RigidBody.generated.h"
-
-namespace ImmediatePhysics
-{
-	struct FSimulation;
-	struct FActorHandle;
-}
 
 struct FBodyInstance;
 struct FConstraintInstance;
@@ -120,7 +115,7 @@ private:
 	ETeleportType ResetSimulatedTeleportType;
 
 public:
-	UPROPERTY(EditAnywhere, Category = Settings, meta=(InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (InlineEditConditionToggle))
 	uint8 bEnableWorldGeometry : 1;
 
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (InlineEditConditionToggle))

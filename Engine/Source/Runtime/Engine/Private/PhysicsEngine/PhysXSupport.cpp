@@ -163,7 +163,7 @@ PxFilterFlags PhysXSimFilterShader(	PxFilterObjectAttributes attributes0, PxFilt
 	}
 	
 	// if these bodies are from the same component, use the disable table to see if we should disable collision. This case should only happen for things like skeletalmesh and destruction. The table is only created for skeletal mesh components at the moment
-#if !WITH_CHAOS && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS
 	if(filterData0.word2 == filterData1.word2)
 	{
 		check(constantBlockSize == sizeof(FPhysSceneShaderInfo));
@@ -228,7 +228,7 @@ PxFilterFlags PhysXSimFilterShader(	PxFilterObjectAttributes attributes0, PxFilt
 	return PxFilterFlags();
 }
 
-#if !WITH_CHAOS && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS
 
 /** Figures out the new FCollisionNotifyInfo needed for pending notification. It adds it, and then returns an array that goes from pair index to notify collision index */
 TArray<int32> AddCollisionNotifyInfo(const FBodyInstance* Body0, const FBodyInstance* Body1, const physx::PxContactPair * Pairs, uint32 NumPairs, TArray<FCollisionNotifyInfo> & PendingNotifyInfos)
@@ -569,7 +569,7 @@ void AddToCollection(PxCollection* PCollection, PxBase* PBase)
 
 PxCollection* MakePhysXCollection(const TArray<UPhysicalMaterial*>& PhysicalMaterials, const TArray<UBodySetup*>& BodySetups, uint64 BaseId)
 {
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
     ensure(false);
     return nullptr;
 #else

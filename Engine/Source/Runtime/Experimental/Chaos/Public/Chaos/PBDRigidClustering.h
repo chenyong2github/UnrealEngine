@@ -1,60 +1,17 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/PBDRigidParticles.h"
+#include "Chaos/PBDRigidClusteredParticles.h"
 #include "Chaos/Transform.h"
 #include "Chaos/PBDCollisionTypes.h"
 #include "Framework/BufferedData.h"
 #include "BoundingVolume.h"
 #include "ImplicitObjectUnion.h"
 
+#define TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS 0
+
 namespace Chaos
 {
-
-// ClusterId 
-//    Used within the clustering system to describe the clustering hierarchy. The ID will
-//  store the children IDs, and a Parent ID. When Id==NONE_INDEX the cluster is not
-//  controlled by another body. 
-struct ClusterId
-{
-	ClusterId() : Id(INDEX_NONE), NumChildren(0) {}
-	ClusterId(int32 NewId, int NumChildrenIn)
-	    : Id(NewId)
-		, NumChildren(NumChildrenIn) {}
-	int32 Id;
-	int32 NumChildren;
-};
-
-/** When multiple children are active and can share one collision proxy. Only valid if all original children are still in the cluster*/
-template <typename T, int d>
-struct CHAOS_API TMultiChildProxyData
-{
-	TRigidTransform<T, d> RelativeToKeyChild;	//Use one child's transform to determine where to place the geometry. Needed for partial fracture where all children are still present and can therefore use proxy
-	uint32 KeyChild;
-};
-
-/** Used with TMultiChildProxyData. INDEX_NONE indicates no proxy data available */
-struct FMultiChildProxyId
-{
-	FMultiChildProxyId() : Id(INDEX_NONE) {}
-	int32 Id;
-};
-
-template <typename T>
-struct TConnectivityEdge
-{
-	TConnectivityEdge() {}
-	TConnectivityEdge(uint32 InSibling, T InStrain)
-	: Sibling(InSibling)
-	, Strain(InStrain) {}
-
-	TConnectivityEdge(const TConnectivityEdge& Other)
-	: Sibling(Other.Sibling)
-	, Strain(Other.Strain) {}
-
-	uint32 Sibling;
-	T Strain;
-};
 
 template <typename T>
 struct FClusterCreationParameters
@@ -117,10 +74,10 @@ class CHAOS_API TPBDRigidClustering
 	typedef typename FPBDCollisionConstraint::FRigidBodyContactConstraint FRigidBodyContactConstraint;
 
 public:
-	typedef TMap<uint32, TUniquePtr<TArray<uint32>> > FClusterMap;
+	typedef TMap<TGeometryParticleHandle<T,d>*, TArray<uint32> > FClusterMap;
 
-	TPBDRigidClustering(FPBDRigidEvolution& InEvolution, TPBDRigidParticles<T, d>& InParticles);
-	~TPBDRigidClustering() {}
+	TPBDRigidClustering(FPBDRigidEvolution& InEvolution, TPBDRigidClusteredParticles<T, d>& InParticles);
+	~TPBDRigidClustering();
 
 	//
 	// Initialization
@@ -133,7 +90,7 @@ public:
 	*    ProxyGeometry : Collision default for the cluster, automatically generated otherwise.
 	*    ForceMassOrientation : Inertial alignment into mass space.
 	*/
-	int32 CreateClusterParticle(int32 ClusterGroupIndex, const TArray<uint32>& Children,
+	int32 CreateClusterParticle(int32 ClusterGroupIndex, TArray<uint32>&& Children,
 		TSerializablePtr<TImplicitObject<T, d>> ProxyGeometry = TSerializablePtr<TImplicitObject<T, 3>>(),
 		const TRigidTransform<T, d>* ForceMassOrientation = nullptr, const FClusterCreationParameters<T>& Parameters = FClusterCreationParameters<T>());
 
@@ -141,7 +98,7 @@ public:
 	*  CreateClusterParticleFromClusterChildren
 	*    Children : Rigid body ID to include in the cluster.
 	*/
-	int32 CreateClusterParticleFromClusterChildren(const TArray<uint32>& Children, const int32 ParentIndex,
+	int32 CreateClusterParticleFromClusterChildren(TArray<uint32>&& Children, TPBDRigidClusteredParticleHandle<T,d>* Parent,
 		const TRigidTransform<T, d>& ClusterWorldTM, const FClusterCreationParameters<T>& Parameters = FClusterCreationParameters<T>());
 
 	/*
@@ -159,7 +116,7 @@ public:
 	*  DeactivateClusterParticle
 	*    Release all the particles within the cluster particle
 	*/
-	TSet<uint32> DeactivateClusterParticle(const uint32 ClusterIndex);
+	TSet<uint32> DeactivateClusterParticle(TPBDRigidClusteredParticleHandle<T,d>* ClusteredParticle);
 
 
 	/*
@@ -168,7 +125,7 @@ public:
 	*    have a MStrain value less than its entry in the StrainArray will be
 	*    released from the cluster.
 	*/
-	TSet<uint32> ReleaseClusterParticles(const uint32 ClusterIndex, const TArrayView<T>& StrainArray);
+	TSet<uint32> ReleaseClusterParticles(TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle, const TArrayView<T>& StrainArray);
 
 	/*
 	*  ReleaseClusterParticles
@@ -197,7 +154,7 @@ public:
 	*    encoded strain. The remainder strains are propagated back down to
 	*    the children clusters.
 	*/
-	TMap<uint32, TSet<uint32>> BreakingModel(TArrayView<T> ExternalStrain);
+	TMap<TPBDRigidClusteredParticleHandle<T, d>*, TSet<uint32>> BreakingModel(TArrayView<T> ExternalStrain);
 
 	/**
 	*  PromoteStrains
@@ -240,21 +197,21 @@ public:
 	*    active id, see the GetActiveClusterIndex to find the active cluster.
 	*    INDEX_NONE represents a non-clustered body.
 	*/
-	TArrayCollectionArray<ClusterId>&             GetClusterIdsArray() { return MClusterIds; }
-	const TArrayCollectionArray<ClusterId>&             GetClusterIdsArray() const { return MClusterIds; }
+	TArrayCollectionArray<ClusterId>&             GetClusterIdsArray() { return MParticles.ClusterIdsArray(); }
+	const TArrayCollectionArray<ClusterId>&             GetClusterIdsArray() const { return MParticles.ClusterIdsArray(); }
 
 	/*
 	*  GetInternalClusterArray
 	*    The internal cluster array indicates if this cluster was generated internally
 	*    and would no be owned by an external source.
 	*/
-	const TArrayCollectionArray<bool>&                  GetInternalClusterArray() const { return MInternalCluster; }
+	const TArrayCollectionArray<bool>&                  GetInternalClusterArray() const { return MParticles.InternalClusterArray(); }
 
 	/*
 	*  GetChildToParentMap
 	*    This map stores the relative transform from a child to its cluster parent.
 	*/
-	const TArrayCollectionArray<TRigidTransform<T, d>>& GetChildToParentMap() const { return MChildToParent; }
+	const TArrayCollectionArray<TRigidTransform<T, d>>& GetChildToParentMap() const { return MParticles.ChildToParentArray(); }
 
 	/*
 	*  GetStrainArray
@@ -262,7 +219,7 @@ public:
 	*    body in the simulation. This attribute is initialized during the creation of
 	*    the cluster body, can be updated during the evaluation of the simulation.
 	*/
-	TArrayCollectionArray<T>&                           GetStrainArray() { return MStrains; }
+	TArrayCollectionArray<T>&                           GetStrainArray() { return MParticles.StrainsArray(); }
 
 	/**
 	*  GetParentToChildren
@@ -281,13 +238,13 @@ public:
 	*    is called during AdvanceClustering) the positive bodies are joined with a negative pre-existing
 	*    body, then set negative. Zero entries are ignored within the union.
 	*/
-	TArrayCollectionArray<int32>&                       GetClusterGroupIndexArray() { return MClusterGroupIndex; }
+	TArrayCollectionArray<int32>&                       GetClusterGroupIndexArray() { return MParticles.ClusterGroupIndexArray(); }
 
 	/** Indicates if the child geometry is approximated by a single proxy */
-	const TArrayCollectionArray<FMultiChildProxyId>& GetMultiChildProxyIdArray() const { return MMultiChildProxyId; }
+	const TArrayCollectionArray<FMultiChildProxyId>& GetMultiChildProxyIdArray() const { return MParticles.MultiChildProxyIdArray(); }
 
 	/** If multi child proxy is used, this is the data needed */
-	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>>& GetMultiChildProxyDataArray() const { return MMultiChildProxyData; }
+	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>>& GetMultiChildProxyDataArray() const { return MParticles.MultiChildProxyDataArray(); }
 
 	/*
 	*  GetClusterGroupIndexArray
@@ -310,7 +267,9 @@ public:
 	* GetConnectivityEdges
 	*    Provides a list of each rigid body's current siblings and associated strain within the cluster.
 	*/
-	const TArrayCollectionArray<TArray<TConnectivityEdge<T>>>& GetConnectivityEdges() const { return MConnectivityEdges; }
+//#if CHAOS_PARTICLEHANDLE_TODO: is this really needed?
+	const TArrayCollectionArray<TArray<TConnectivityEdge<T>>>& GetConnectivityEdges() const { return MParticles.ConnectivityEdgesArray(); }
+//#endif
 
 	/**
 	* GenerateConnectionGraph
@@ -331,7 +290,7 @@ public:
 		}
 		for (uint32 i = StartIndex; i < MParticles.Size(); ++i)
 		{
-			if (MClusterIds[i].Id == INDEX_NONE && !MParticles.Disabled(i))
+			if (MParticles.ClusterIds(i).Id == INDEX_NONE && !MParticles.Disabled(i))
 			{
 				TopLevelClusterParents.Add(i);
 			}
@@ -346,7 +305,7 @@ public:
 	void UpdateGeometry(const TArray<uint32>& Children, const uint32 NewIndex, TSerializablePtr<TImplicitObject<T, d>> ProxyGeometry, const FClusterCreationParameters<T>& Parameters);
 	void ComputeStrainFromCollision(const FPBDCollisionConstraint& CollisionRule);
 	void ResetCollisionImpulseArray();
-	void DisableCluster(uint32 ClusterIndex);
+	void DisableCluster(TPBDRigidClusteredParticleHandle<T, d>* ClusteredParticle);
 	void DisableParticleWithBreakEvent(uint32 ClusterIndex);
 
 	/*
@@ -362,7 +321,7 @@ public:
 private:
 
 	FPBDRigidEvolution& MEvolution;
-	TPBDRigidParticles<T, d>& MParticles;
+	TPBDRigidClusteredParticles<T, d>& MParticles;
 	TSet<int32> TopLevelClusterParents;
 	TSet<int32> MActiveRemovalIndices;
 
@@ -370,34 +329,22 @@ private:
 	mutable FRWLock ResourceLock;
 	TClusterBuffer<T, d> BufferResource;
 	FClusterMap MChildren;
-	TArrayCollectionArray<ClusterId> MClusterIds;
 	TMap<int32, int32> PendingClusterCounter;
 
-	TArrayCollectionArray<TRigidTransform<T, d>> MChildToParent;
-	TArrayCollectionArray<int32> MClusterGroupIndex;
-	TArrayCollectionArray<bool> MInternalCluster;
-	TArrayCollectionArray<TUniquePtr<TImplicitObjectUnion<T,d>>> MChildrenSpatial;
-	TArrayCollectionArray<FMultiChildProxyId> MMultiChildProxyId;
-	TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>> MMultiChildProxyData;
 
 	// Collision Impulses
 	bool MCollisionImpulseArrayDirty;
-	TArrayCollectionArray<T> MCollisionImpulses;
-
-	// User set parameters
-	TArrayCollectionArray<T> MStrains;
-
+	
 	// Breaking data
 	bool DoGenerateBreakingData;
 	TArray<TBreakingData<float, 3>> MAllClusterBreakings;
 
 	float MClusterConnectionFactor;
 	typename FClusterCreationParameters<T>::EConnectionMethod MClusterUnionConnectionType;
-	TArrayCollectionArray<TArray<TConnectivityEdge<T>>> MConnectivityEdges;
 };
 
 template <typename T, int d>
-void UpdateClusterMassProperties(TPBDRigidParticles<T, d>& Particles, const TArray<uint32>& Children,
+void UpdateClusterMassProperties(TPBDRigidClusteredParticles<T, d>& Particles, const TArray<uint32>& Children,
 	const uint32 NewIndex, const TRigidTransform<T, d>* ForceMassOrientation = nullptr,
 	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<T, d>>>* MMultiChildProxyData = nullptr,
 	const TArrayCollectionArray<FMultiChildProxyId>* MMultiChildProxyId = nullptr);

@@ -431,6 +431,18 @@ public:
 	static void FillUpComponentSpaceTransforms(const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> &BoneSpaceTransforms, TArray<FTransform> &ComponentSpaceTransforms);
 	static void MakeSkeletonRefPoseFromMesh(const USkeletalMesh* InMesh, const USkeleton* InSkeleton, TArray<FTransform>& OutBoneBuffer);
 
+	/**
+	 * Calculate the component-space bone transform for the specified bone. This is similar to GetComponentSpaceTransform(), but uses a cached array of 
+	 * transforms to prevent re-calculations when requesting transforms for multiple bones with shared parents. This is only likely to be more efficient than
+	 * FillUpComponentSpaceTransforms if you only need a relatively small number of bone transforms.
+	 * @param	InRefSkeleton			The bone hierarchy
+	 * @param	InBoneSpaceTransforms	Bone-space transforms for all bones in the hierarchy
+	 * @param	BoneIndex				We calculate the component-space transform of this bone
+	 * @param	CachedTransforms		An array of transforms which holds the transforms of any bones whose transforms have been previously calculated. Should be initialized with CachedTransforms.SetNumUninitialized(BoneSpaceTransforms.Num()) before first use.
+	 * @param	CachedTransformReady	An array of flags indicating which bone transforms have been cached. Should be initialized with CachedTransformReady.SetNumZeroed(BoneSpaceTransforms.Num()) before first use.
+	 */
+	static const FTransform& GetComponentSpaceTransformWithCache(const FReferenceSkeleton& InRefSkeleton, const TArray<FTransform> &InBoneSpaceTransforms, int32 BoneIndex, TArray<FTransform>& CachedTransforms, TArray<bool>& CachedTransformReady);
+
 #if WITH_EDITOR
 	static void FillUpComponentSpaceTransformsRefPose(const USkeleton* Skeleton, TArray<FTransform> &ComponentSpaceTransforms);
 	static void FillUpComponentSpaceTransformsRetargetBasePose(const USkeleton* Skeleton, TArray<FTransform> &ComponentSpaceTransforms);

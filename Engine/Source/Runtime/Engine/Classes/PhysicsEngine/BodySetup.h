@@ -39,6 +39,21 @@ namespace physx
 	class PxTriangleMeshGeometry;
 }
 
+#if WITH_CHAOS
+namespace Chaos
+{
+	template<typename T, int d>
+	class TImplicitObject;
+
+	template <typename T>
+	class TTriangleMeshImplicitObject;
+}
+
+template<typename T, int d>
+class FChaosDerivedDataReader;
+
+#endif
+
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PhysX Cooking"), STAT_PhysXCooking, STATGROUP_Physics, );
 
 
@@ -126,6 +141,10 @@ UCLASS(collapseCategories, MinimalAPI)
 class UBodySetup : public UObject
 {
 	GENERATED_UCLASS_BODY()
+
+	/** Needs implementation in BodySetup.cpp to compile UniquePtr for forward declared class */
+	UBodySetup(FVTableHelper& Helper);
+	virtual ~UBodySetup();
 
 	/** Simplified collision representation of this  */
 	UPROPERTY(EditAnywhere, Category = BodySetup, meta=(DisplayName = "Primitives", NoResetToDefault))
@@ -243,6 +262,11 @@ public:
 	TArray<physx::PxTriangleMesh*> TriMeshes;
 #endif
 
+#if WITH_CHAOS
+	//FBodySetupTriMeshes* TriMeshWrapper;
+	TArray<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>> ChaosTriMeshes;
+#endif
+
 	/** Additional UV info, if available. Used for determining UV for a line trace impact. */
 	FBodySetupUVInfo UVInfo;
 
@@ -298,10 +322,21 @@ public:
 	ENGINE_API void AbortPhysicsMeshAsyncCreation();
 
 private:
-#if WITH_PHYSX
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+	bool ProcessFormatData_PhysX(FByteBulkData* FormatData);
+	bool RuntimeCookPhysics_PhysX();
+
+	// #TODO MRMesh for some reason needs to be able to call this - that case needs fixed to correctly use the create meshes flow
+	friend class UMRMeshComponent;
+	/** Finish creating the physics meshes and update the body setup data with cooked data */
+	ENGINE_API void FinishCreatingPhysicsMeshes_PhysX(const TArray<physx::PxConvexMesh*>& ConvexMeshes, const TArray<physx::PxConvexMesh*>& ConvexMeshesNegX, const TArray<physx::PxTriangleMesh*>& TriMeshes);
 	/** Finalize game thread data before calling back user's delegate */
 	void FinishCreatePhysicsMeshesAsync(FPhysXCookHelper* AsyncPhysicsCookHelper, FOnAsyncPhysicsCookFinished OnAsyncPhysicsCookFinished);
-#endif // WITH_PHYSX
+#elif WITH_CHAOS
+	bool ProcessFormatData_Chaos(FByteBulkData* FormatData);
+	bool RuntimeCookPhysics_Chaos();
+	void FinishCreatingPhysicsMeshes_Chaos(FChaosDerivedDataReader<float, 3>& InReader);
+#endif
 
 	/**
 	* Given a format name returns its cooked data.
@@ -314,10 +349,12 @@ private:
 
 public:
 
-#if WITH_PHYSX
-	/** Finish creating the physics meshes and update the body setup data with cooked data */
-	ENGINE_API void FinishCreatingPhysicsMeshes(const TArray<physx::PxConvexMesh*>& ConvexMeshes, const TArray<physx::PxConvexMesh*>& ConvexMeshesNegX, const TArray<physx::PxTriangleMesh*>& TriMeshes);
-#endif // WITH_PHYSX
+	/**
+	 * Generate a string to uniquely describe the state of the geometry in this setup to populate the DDC
+	 *
+	 * @param OutString The generated string will be place in this FString
+	 */
+	void GetGeometryDDCKey(FString& OutString) const;
 
 	/** Returns the volume of this element */
 	ENGINE_API virtual float GetVolume(const FVector& Scale) const;

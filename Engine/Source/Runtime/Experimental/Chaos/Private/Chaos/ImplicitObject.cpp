@@ -10,6 +10,7 @@
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/DestructionObjectVersion.h"
 
@@ -309,6 +310,7 @@ void TImplicitObject<T, d>::StaticSerialize(FChaosArchive& Ar, TSerializablePtr<
 		case ImplicitObjectType::LevelSet: { ImplicitObject = new TLevelSet<T, d>(); break; }
 		case ImplicitObjectType::Convex: { ImplicitObject = new TConvex<T, d>(); break; }
 		case ImplicitObjectType::TaperedCylinder: { ImplicitObject = new TTaperedCylinder<T>(); break; }
+		case ImplicitObjectType::TriangleMesh: { ImplicitObject = new TTriangleMeshImplicitObject<T>(); break; }
 		default:
 			check(false);
 		}
@@ -328,6 +330,7 @@ void TImplicitObject<T, d>::StaticSerialize(FChaosArchive& Ar, TSerializablePtr<
 		case ImplicitObjectType::LevelSet:
 		case ImplicitObjectType::Convex:
 		case ImplicitObjectType::TaperedCylinder:
+		case ImplicitObjectType::TriangleMesh:
 			break;
 		default:
 			check(false);

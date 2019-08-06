@@ -934,7 +934,7 @@ namespace UnrealBuildTool
 			PublicIncludePathModuleNames.Add("PhysicsCore");
 			PublicDependencyModuleNames.Add("PhysicsCore");
 
-			bool bUseNonPhysXInterface = Target.bUseChaos == true || Target.bCompileImmediatePhysics == true;
+			bool bUseNonPhysXInterface = Target.bUseChaos == true;
 
             // 
             if (Target.bCompileChaos == true || Target.bUseChaos == true)
@@ -987,8 +987,6 @@ namespace UnrealBuildTool
 				// have been fixed across the different builds. 
 				//
 				PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
-
-				PublicDefinitions.Add("PHYSICS_INTERFACE_LLIMMEDIATE=0");
 
 				if (Target.bCompilePhysX)
 				{
@@ -1080,16 +1078,6 @@ namespace UnrealBuildTool
 				{
 					PublicDefinitions.Add("WITH_CHAOS=0");
 					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
-				}
-
-				if(Target.bCompileImmediatePhysics)
-				{
-					PublicDefinitions.Add("PHYSICS_INTERFACE_LLIMMEDIATE=1");
-					PublicDependencyModuleNames.Add("PhysX");
-				}
-				else
-				{
-					PublicDefinitions.Add("PHYSICS_INTERFACE_LLIMMEDIATE=0");
 				}
 			}
 

@@ -41,6 +41,11 @@ class TPerParticleEtherDrag : public TPerParticleRule<T, d>
 		InParticles.W(Index) -= MAngularCoefficient * InParticles.W(Index);
 	}
 
+	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override
+	{
+		Particle.V() -= MCoefficient * Particle.V();
+	}
+
   private:
 	T MCoefficient;
 	T MAngularCoefficient;

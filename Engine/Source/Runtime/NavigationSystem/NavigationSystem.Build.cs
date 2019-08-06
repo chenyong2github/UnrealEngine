@@ -25,8 +25,6 @@ namespace UnrealBuildTool.Rules
                     "Core",
                     "CoreUObject",
                     "Engine",
-					"GeometryCollectionCore",
-					"GeometryCollectionEngine",
                 }
                 );
 
@@ -50,6 +48,16 @@ namespace UnrealBuildTool.Rules
             }
 
             SetupModulePhysicsSupport(Target);
+
+			if (Target.bCompileChaos || Target.bUseChaos)
+            {
+                PublicDependencyModuleNames.AddRange(
+                    new string[] {
+                        "GeometryCollectionCore",
+                        "GeometryCollectionEngine",
+                    }
+					);
+            }
 
             if (Target.bCompileRecast)
             {

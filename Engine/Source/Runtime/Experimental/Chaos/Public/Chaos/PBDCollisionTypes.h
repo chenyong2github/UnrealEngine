@@ -1,9 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
-
 #include "Chaos/Vector.h"
 #include "CoreMinimal.h"
 #include "Box.h"
+#include "Chaos/ParticleHandle.h"
 
 class UPhysicalMaterial;
 
@@ -15,7 +15,8 @@ template<class T, int d>
 struct TRigidBodyContactConstraint
 {
 	TRigidBodyContactConstraint() : AccumulatedImpulse(0.f) {}
-	int32 ParticleIndex, LevelsetIndex;
+	TGeometryParticleHandle<T, d>* Particle;
+	TGeometryParticleHandle<T, d>* Levelset;
 	TVector<T, d> Normal;
 	TVector<T, d> Location;
 	T Phi;
@@ -23,7 +24,7 @@ struct TRigidBodyContactConstraint
 
 	FString ToString() const
 	{
-		return FString::Printf(TEXT("ParticleIndex:%d, LevelsetIndex:%d, Normal:%s, Location:%s, Phi:%f, AccumulatedImpulse:%s"), ParticleIndex, LevelsetIndex, *Normal.ToString(), *Location.ToString(), Phi, *AccumulatedImpulse.ToString());
+		return FString::Printf(TEXT("Particle:%s, Levelset:%s, Normal:%s, Location:%s, Phi:%f, AccumulatedImpulse:%s"), *Particle->ToString(), *Levelset->ToString(), *Normal.ToString(), *Location.ToString(), Phi, *AccumulatedImpulse.ToString());
 	}
 };
 
@@ -31,7 +32,8 @@ template<class T, int d>
 struct TRigidBodyContactConstraintPGS
 {
 	TRigidBodyContactConstraintPGS() : AccumulatedImpulse(0.f) {}
-	int32 ParticleIndex, LevelsetIndex;
+	TGeometryParticleHandle<T, d>* Particle;
+	TGeometryParticleHandle<T, d>* Levelset;
 	TArray<TVector<T, d>> Normal;
 	TArray<TVector<T, d>> Location;
 	TArray<T> Phi;
@@ -55,8 +57,8 @@ struct TCollisionData
 		, Mass1((T)0.0)
 		, Mass2((T)0.0)
 		, PenetrationDepth((T)0.0)
-		, ParticleIndex(INDEX_NONE)
-		, LevelsetIndex(INDEX_NONE)
+		, Particle(nullptr)
+		, Levelset(nullptr)
 		, ParticleIndexMesh(INDEX_NONE)
 		, LevelsetIndexMesh(INDEX_NONE)
 	{}
@@ -71,8 +73,8 @@ struct TCollisionData
 		, T InMass1
 		, T InMass2
 		, T InPenetrationDepth
-		, int32 InParticleIndex
-		, int32 InLevelsetIndex
+		, TGeometryParticle<T, d>* InParticle
+		, TGeometryParticle<T, d>* InLevelset
 		, int32 InParticleIndexMesh
 		, int32 InLevelsetIndexMesh)
 		: Location(InLocation)
@@ -85,8 +87,8 @@ struct TCollisionData
 		, Mass1(InMass1)
 		, Mass2(InMass2)
 		, PenetrationDepth(InPenetrationDepth)
-		, ParticleIndex(InParticleIndex)
-		, LevelsetIndex(InLevelsetIndex)
+		, Particle(InParticle)
+		, Levelset(InLevelset)
 		, ParticleIndexMesh(InParticleIndexMesh)
 		, LevelsetIndexMesh(InLevelsetIndexMesh)
 	{}
@@ -98,11 +100,14 @@ struct TCollisionData
 	TVector<T, d> AngularVelocity1, AngularVelocity2;
 	T Mass1, Mass2;
 	T PenetrationDepth;
-	int32 ParticleIndex, LevelsetIndex;
+	TGeometryParticle<T, d>* Particle;
+	TGeometryParticle<T, d>* Levelset;
+	// @todo(ccaulfield): CHAOS_PARTICLEHANDLE_TODO
 	int32 ParticleIndexMesh, LevelsetIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 												// It is important to be able to get extra data from the component
 
 };
+
 
 /*
 CollisionData used in the subsystems
@@ -120,8 +125,8 @@ struct TCollisionDataExt
 		, AngularVelocity2(TVector<T, d>((T)0.0))
 		, Mass1((T)0.0)
 		, Mass2((T)0.0)
-		, ParticleIndex(INDEX_NONE)
-		, LevelsetIndex(INDEX_NONE)
+		, Particle(nullptr)
+		, Levelset(nullptr)
 		, ParticleIndexMesh(INDEX_NONE)
 		, LevelsetIndexMesh(INDEX_NONE)
 		, BoundingboxVolume((T)-1.0)
@@ -139,8 +144,8 @@ struct TCollisionDataExt
 		, TVector<T, d> InAngularVelocity2
 		, T InMass1
 		, T InMass2
-		, int32 InParticleIndex
-		, int32 InLevelsetIndex
+		, TGeometryParticle<T, d>* InParticle
+		, TGeometryParticle<T, d>* InLevelset
 		, int32 InParticleIndexMesh
 		, int32 InLevelsetIndexMesh
 		, float InBoundingboxVolume
@@ -156,8 +161,8 @@ struct TCollisionDataExt
 		, AngularVelocity2(InAngularVelocity2)
 		, Mass1(InMass1)
 		, Mass2(InMass2)
-		, ParticleIndex(InParticleIndex)
-		, LevelsetIndex(InLevelsetIndex)
+		, Particle(InParticle)
+		, Levelset(InLevelset)
 		, ParticleIndexMesh(InParticleIndexMesh)
 		, LevelsetIndexMesh(InLevelsetIndexMesh)
 		, BoundingboxVolume(InBoundingboxVolume)
@@ -176,8 +181,8 @@ struct TCollisionDataExt
 		, AngularVelocity2(InCollisionData.AngularVelocity2)
 		, Mass1(InCollisionData.Mass1)
 		, Mass2(InCollisionData.Mass2)
-		, ParticleIndex(InCollisionData.ParticleIndex)
-		, LevelsetIndex(InCollisionData.LevelsetIndex)
+		, Particle(InCollisionData.Particle)
+		, Levelset(InCollisionData.Levelset)
 		, ParticleIndexMesh(InCollisionData.ParticleIndexMesh)
 		, LevelsetIndexMesh(InCollisionData.LevelsetIndexMesh)
 		, BoundingboxVolume((T)-1.0)
@@ -192,7 +197,8 @@ struct TCollisionDataExt
 	TVector<T, d> Velocity1, Velocity2;
 	TVector<T, d> AngularVelocity1, AngularVelocity2;
 	T Mass1, Mass2;
-	int32 ParticleIndex, LevelsetIndex;
+	TGeometryParticle<T, d>* Particle;
+	TGeometryParticle<T, d>* Levelset;
 	int32 ParticleIndexMesh, LevelsetIndexMesh;
 	float BoundingboxVolume;
 	float BoundingboxExtentMin, BoundingboxExtentMax;
@@ -210,32 +216,18 @@ struct TBreakingData
 		, Velocity(TVector<T, d>((T)0.0))
 		, AngularVelocity(TVector<T, d>((T)0.0))
 		, Mass((T)0.0)
+		, Particle(nullptr)
 		, ParticleIndex(INDEX_NONE)
 		, ParticleIndexMesh(INDEX_NONE)
 		, BoundingBox(TBox<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
-	{}
-
-	TBreakingData(TVector<T, d> InLocation
-		, TVector<T, d> InVelocity
-		, TVector<T, d> InAngularVelocity
-		, T InMass
-		, int32 InParticleIndex
-		, int32 InParticleIndexMesh
-		, Chaos::TBox<T, d>& InBoundingBox)
-		: Location(InLocation)
-		, Velocity(InVelocity)
-		, AngularVelocity(InAngularVelocity)
-		, Mass(InMass)
-		, ParticleIndex(InParticleIndex)
-		, ParticleIndexMesh(InParticleIndexMesh)
-	    , BoundingBox(InBoundingBox)
 	{}
 
 	TVector<T, d> Location;
 	TVector<T, d> Velocity;
 	TVector<T, d> AngularVelocity;
 	T Mass;
-	int32 ParticleIndex;
+	TGeometryParticle<T, d>* Particle;
+	int32 ParticleIndex; //#todo: remove this in favor of TGeometryParticle?
 	int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 							 // It is important to be able to get extra data from the component
 	Chaos::TBox<T, d> BoundingBox;
@@ -331,7 +323,7 @@ struct TTrailingData
 		, Velocity(TVector<T, d>((T)0.0))
 		, AngularVelocity(TVector<T, d>((T)0.0))
 		, Mass((T)0.0)
-		, ParticleIndex(INDEX_NONE)
+		, Particle(nullptr)
 		, ParticleIndexMesh(INDEX_NONE)
 		, BoundingBox(TBox<T, d>(TVector<T, d>((T)0.0), TVector<T, d>((T)0.0)))
 	{}
@@ -340,7 +332,7 @@ struct TTrailingData
 		, TVector<T, d> InVelocity
 		, TVector<T, d> InAngularVelocity
 		, T InMass
-		, int32 InParticleIndex
+		, TGeometryParticle<T, d>* InParticle
 		, int32 InParticleIndexMesh
 		, float InBoundingboxVolume
 		, float InBoundingboxExtentMin
@@ -351,7 +343,7 @@ struct TTrailingData
 		, Velocity(InVelocity)
 		, AngularVelocity(InAngularVelocity)
 		, Mass(InMass)
-		, ParticleIndex(InParticleIndex)
+		, Particle(InParticle)
 		, ParticleIndexMesh(InParticleIndexMesh)
 		, BoundingBox(InBoundingBox)
 	{}
@@ -360,19 +352,19 @@ struct TTrailingData
 	TVector<T, d> Velocity;
 	TVector<T, d> AngularVelocity;
 	T Mass;
-	int32 ParticleIndex;
+	TGeometryParticle<T, d>* Particle;
 	int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 							 // It is important to be able to get extra data from the component
 	Chaos::TBox<T, d> BoundingBox;
 
 	friend inline uint32 GetTypeHash(const TTrailingData& Other)
 	{
-		return ::GetTypeHash(Other.ParticleIndex);
+		return ::GetTypeHash(Other.Particle);
 	}
 
 	friend bool operator==(const TTrailingData& A, const TTrailingData& B)
 	{
-		return A.ParticleIndex == B.ParticleIndex;
+		return A.Particle == B.Particle;
 	}
 };
 
@@ -387,7 +379,7 @@ struct TTrailingDataExt
 		, Velocity(TVector<T, d>((T)0.0))
 		, AngularVelocity(TVector<T, d>((T)0.0))
 		, Mass((T)0.0)
-		, ParticleIndex(INDEX_NONE)
+		, Particle(nullptr)
 		, ParticleIndexMesh(INDEX_NONE)
 		, BoundingboxVolume((T)-1.0)
 		, BoundingboxExtentMin((T)-1.0)
@@ -399,7 +391,7 @@ struct TTrailingDataExt
 		, TVector<T, d> InVelocity
 		, TVector<T, d> InAngularVelocity
 		, T InMass
-		, int32 InParticleIndex
+		, TGeometryParticle<T, d>* InParticle
 		, int32 InParticleIndexMesh
 		, float InBoundingboxVolume
 		, float InBoundingboxExtentMin
@@ -409,7 +401,7 @@ struct TTrailingDataExt
 		, Velocity(InVelocity)
 		, AngularVelocity(InAngularVelocity)
 		, Mass(InMass)
-		, ParticleIndex(InParticleIndex)
+		, Particle(InParticle)
 		, ParticleIndexMesh(InParticleIndexMesh)
 		, BoundingboxVolume(InBoundingboxVolume)
 		, BoundingboxExtentMin(InBoundingboxExtentMin)
@@ -422,7 +414,7 @@ struct TTrailingDataExt
 		, Velocity(InTrailingData.Velocity)
 		, AngularVelocity(InTrailingData.AngularVelocity)
 		, Mass(InTrailingData.Mass)
-		, ParticleIndex(InTrailingData.ParticleIndex)
+		, Particle(InTrailingData.Particle)
 		, ParticleIndexMesh(InTrailingData.ParticleIndexMesh)
 		, BoundingboxVolume((T)-1.0)
 		, BoundingboxExtentMin((T)-1.0)
@@ -434,7 +426,7 @@ struct TTrailingDataExt
 	TVector<T, d> Velocity;
 	TVector<T, d> AngularVelocity;
 	T Mass;
-	int32 ParticleIndex;
+	TGeometryParticle<T, d>* Particle;
 	int32 ParticleIndexMesh; // If ParticleIndex points to a cluster then this index will point to an actual mesh in the cluster
 							 // It is important to be able to get extra data from the component
 	float BoundingboxVolume;
@@ -443,12 +435,12 @@ struct TTrailingDataExt
 
 	friend inline uint32 GetTypeHash(const TTrailingDataExt& Other)
 	{
-		return ::GetTypeHash(Other.ParticleIndex);
+		return ::GetTypeHash(Other.Particle);
 	}
 
 	friend bool operator==(const TTrailingDataExt& A, const TTrailingDataExt& B)
 	{
-		return A.ParticleIndex == B.ParticleIndex;
+		return A.Particle == B.Particle;
 	}
 };
 
