@@ -30,7 +30,7 @@ void FStaticMeshAdapter::RetrieveMeshSections(int32 LODIndex, TArray<FSectionInf
 
 int32 FStaticMeshAdapter::GetMaterialIndex(int32 LODIndex, int32 SectionIndex) const
 {
-	return StaticMesh->SectionInfoMap.Get(LODIndex, SectionIndex).MaterialIndex;
+	return StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex).MaterialIndex;
 }
 
 void FStaticMeshAdapter::ApplySettings(int32 LODIndex, FMeshData& InOutMeshData) const
@@ -55,9 +55,9 @@ void FStaticMeshAdapter::SetMaterial(int32 MaterialIndex, UMaterialInterface* Ma
 
 void FStaticMeshAdapter::RemapMaterialIndex(int32 LODIndex, int32 SectionIndex, int32 NewMaterialIndex)
 {
-	FMeshSectionInfo SectionInfo = StaticMesh->SectionInfoMap.Get(LODIndex, SectionIndex);
+	FMeshSectionInfo SectionInfo = StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex);
 	SectionInfo.MaterialIndex = NewMaterialIndex;
-	StaticMesh->SectionInfoMap.Set(LODIndex, SectionIndex, SectionInfo);
+	StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, SectionInfo);
 }
 
 int32 FStaticMeshAdapter::AddMaterial(UMaterialInterface* Material)

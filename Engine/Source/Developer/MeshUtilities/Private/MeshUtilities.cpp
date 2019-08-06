@@ -579,11 +579,11 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 				int32 SectionIndex = 0;
 				for (int32 UniqueMaterialIndex : UniqueMaterialIndices)
 				{
-					StaticMesh->SectionInfoMap.Set(RawMeshLODIndex, SectionIndex, FMeshSectionInfo(UniqueMaterialIndex));
+					StaticMesh->GetSectionInfoMap().Set(RawMeshLODIndex, SectionIndex, FMeshSectionInfo(UniqueMaterialIndex));
 					SectionIndex++;
 				}
 			}
-			StaticMesh->OriginalSectionInfoMap.CopyFrom(StaticMesh->SectionInfoMap);
+			StaticMesh->GetOriginalSectionInfoMap().CopyFrom(StaticMesh->GetSectionInfoMap());
 
 			// Build mesh from source
 			StaticMesh->Build(false);
@@ -2425,7 +2425,7 @@ public:
 	{
 		check(Stage == EStage::Uninit);
 		check(StaticMesh != nullptr);
-		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->SourceModels;
+		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
 		ELightmapUVVersion LightmapUVVersion = (ELightmapUVVersion)StaticMesh->LightmapUVVersion;
 
 		FMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<FMeshUtilities>("MeshUtilities");
@@ -2541,12 +2541,12 @@ public:
 				LODBuildSettings[LODIndex] = LODBuildSettings[BaseRawMeshIndex];
 				HasRawMesh[LODIndex] = false;
 				//Make sure the SectionInfoMap is taken from the Base RawMesh
-				int32 SectionNumber = StaticMesh->OriginalSectionInfoMap.GetSectionNumber(BaseRawMeshIndex);
+				int32 SectionNumber = StaticMesh->GetOriginalSectionInfoMap().GetSectionNumber(BaseRawMeshIndex);
 				for (int32 SectionIndex = 0; SectionIndex < SectionNumber; ++SectionIndex)
 				{
-					FMeshSectionInfo Info = StaticMesh->OriginalSectionInfoMap.Get(BaseRawMeshIndex, SectionIndex);
-					StaticMesh->SectionInfoMap.Set(LODIndex, SectionIndex, Info);
-					StaticMesh->OriginalSectionInfoMap.Set(LODIndex, SectionIndex, Info);
+					FMeshSectionInfo Info = StaticMesh->GetOriginalSectionInfoMap().Get(BaseRawMeshIndex, SectionIndex);
+					StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
+					StaticMesh->GetOriginalSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 				}
 			}
 		}
@@ -2573,7 +2573,7 @@ public:
 	{
 		check(Stage == EStage::Gathered);
 		check(StaticMesh != nullptr);
-		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->SourceModels;
+		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
 		if (SourceModels.Num() == 0)
 		{
 			UE_LOG(LogMeshUtilities, Error, TEXT("Mesh contains zero source models."));
@@ -2628,7 +2628,7 @@ public:
 					if (DestMesh.IsValid())
 					{
 						//Set the new SectionInfoMap for this reduced LOD base on the ReductionSettings.BaseLODModel SectionInfoMap
-						const FMeshSectionInfoMap& BaseLODModelSectionInfoMap = StaticMesh->SectionInfoMap;
+						const FMeshSectionInfoMap& BaseLODModelSectionInfoMap = StaticMesh->GetSectionInfoMap();
 						TArray<int32> UniqueMaterialIndex;
 						//Find all unique Material in used order
 						int32 NumFaces = DestMesh.FaceMaterialIndices.Num();
@@ -2657,7 +2657,7 @@ public:
 									}
 								}
 								//Copy the BaseLODModel section info to the reduce LODIndex.
-								StaticMesh->SectionInfoMap.Set(LODIndex, SectionIndex, SectionInfo);
+								StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, SectionInfo);
 							}
 						}
 					}
@@ -2684,7 +2684,7 @@ public:
 		check(Stage == EStage::Reduce);
 		check(StaticMesh != nullptr);
 
-		TArray<FStaticMeshSourceModel>& InOutModels = StaticMesh->SourceModels;
+		TArray<FStaticMeshSourceModel>& InOutModels = StaticMesh->GetSourceModels();
 		int32 ImportVersion = StaticMesh->ImportVersion;
 
 		// Generate per-LOD rendering data.
@@ -2907,7 +2907,7 @@ public:
 		check(Stage == EStage::Reduce);
 		check(StaticMesh != nullptr);
 
-		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->SourceModels;
+		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
 
 		check(HasRawMesh[0]);
 		check(SourceModels.Num() >= NumValidLODs);
@@ -2949,7 +2949,7 @@ private:
 
 bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
 {
-	TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->SourceModels;
+	TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
 	int32 LightmapUVVersion = StaticMesh->LightmapUVVersion;
 	int32 ImportVersion = StaticMesh->ImportVersion;
 
@@ -2972,7 +2972,7 @@ bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStat
 
 bool FMeshUtilities::GenerateStaticMeshLODs(UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
 {
-	TArray<FStaticMeshSourceModel>& Models = StaticMesh->SourceModels;
+	TArray<FStaticMeshSourceModel>& Models = StaticMesh->GetSourceModels();
 	int32 LightmapUVVersion = StaticMesh->LightmapUVVersion;
 
 	FStaticMeshUtilityBuilder Builder(StaticMesh);
@@ -6256,7 +6256,7 @@ void FMeshUtilities::MergeActors(
 		UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(PrimComponent);
 		if (MeshComponent && 
 			MeshComponent->GetStaticMesh() != nullptr &&
-			MeshComponent->GetStaticMesh()->SourceModels.Num() > 0)
+			MeshComponent->GetStaticMesh()->GetNumSourceModels() > 0)
 		{
 			ComponentsToMerge.Add(MeshComponent);
 		}

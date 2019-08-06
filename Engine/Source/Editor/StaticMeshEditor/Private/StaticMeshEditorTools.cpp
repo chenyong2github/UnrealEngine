@@ -1768,7 +1768,10 @@ void FMeshSectionSettingsLayout::OnPasteSectionList(int32 CurrentLODIndex)
 
 		if (RenderData != nullptr && RenderData->LODResources.IsValidIndex(CurrentLODIndex))
 		{
+			// @todo: When SectionInfoMap moves location, this will need to be fixed up.
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			GetStaticMesh().PreEditChange(Property);
 
@@ -1790,12 +1793,12 @@ void FMeshSectionSettingsLayout::OnPasteSectionList(int32 CurrentLODIndex)
 					(*JSonSection)->TryGetBoolField(TEXT("CastShadow"), Section.bCastShadow);
 
 					// Update the section info
-					FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+					FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 					Info.MaterialIndex = Section.MaterialIndex;
 					Info.bCastShadow = Section.bCastShadow;
 					Info.bEnableCollision = Section.bEnableCollision;
 
-					StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+					StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 				}
 			}
 
@@ -1869,7 +1872,10 @@ void FMeshSectionSettingsLayout::OnPasteSectionItem(int32 CurrentLODIndex, int32
 
 		if (RenderData != nullptr && RenderData->LODResources.IsValidIndex(CurrentLODIndex))
 		{
+			// @todo: When SectionInfoMap moves location, this will need to be fixed up
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			GetStaticMesh().PreEditChange(Property);
 
@@ -1887,12 +1893,12 @@ void FMeshSectionSettingsLayout::OnPasteSectionItem(int32 CurrentLODIndex, int32
 				RootJsonObject->TryGetBoolField(TEXT("CastShadow"), Section.bCastShadow);
 
 				// Update the section info
-				FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+				FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 				Info.MaterialIndex = Section.MaterialIndex;
 				Info.bCastShadow = Section.bCastShadow;
 				Info.bEnableCollision = Section.bEnableCollision;
 
-				StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+				StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 			}
 
 			CallPostEditChange(Property);
@@ -1912,7 +1918,7 @@ void FMeshSectionSettingsLayout::OnGetSectionsForView(ISectionListBuilder& OutSe
 		
 		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 		{
-			FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+			FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 			int32 MaterialIndex = Info.MaterialIndex;
 			if (StaticMesh.StaticMaterials.IsValidIndex(MaterialIndex))
 			{
@@ -1962,23 +1968,25 @@ void FMeshSectionSettingsLayout::OnSectionChanged(int32 ForLODIndex, int32 Secti
 		FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
 		if (LOD.Sections.IsValidIndex(SectionIndex))
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			GetStaticMesh().PreEditChange(Property);
 
 			FScopedTransaction Transaction(LOCTEXT("StaticMeshOnSectionChangedTransaction", "Staticmesh editor: Section material slot changed"));
 			GetStaticMesh().Modify();
-			FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+			FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 			int32 CancelOldValue = Info.MaterialIndex;
 			Info.MaterialIndex = NewStaticMaterialIndex;
-			StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+			StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 			bool bUserCancel = false;
 			bRefreshAll = StaticMesh.FixLODRequiresAdjacencyInformation(ForLODIndex, false, true, &bUserCancel);
 			if (bUserCancel)
 			{
 				//Revert the section info map change
 				Info.MaterialIndex = CancelOldValue;
-				StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+				StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 			}
 			CallPostEditChange();
 		}
@@ -2061,7 +2069,7 @@ TSharedRef<SWidget> FMeshSectionSettingsLayout::OnGenerateCustomSectionWidgetsFo
 ECheckBoxState FMeshSectionSettingsLayout::DoesSectionCastShadow(int32 SectionIndex) const
 {
 	UStaticMesh& StaticMesh = GetStaticMesh();
-	FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 	return Info.bCastShadow ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
@@ -2076,13 +2084,16 @@ void FMeshSectionSettingsLayout::OnSectionCastShadowChanged(ECheckBoxState NewSt
 	}
 	FScopedTransaction Transaction(TransactionTest);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	StaticMesh.PreEditChange(Property);
 	StaticMesh.Modify();
 	
-	FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 	Info.bCastShadow = (NewState == ECheckBoxState::Checked) ? true : false;
-	StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+	StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 	CallPostEditChange();
 }
 
@@ -2112,7 +2123,7 @@ FText FMeshSectionSettingsLayout::GetCollisionEnabledToolTip() const
 ECheckBoxState FMeshSectionSettingsLayout::DoesSectionCollide(int32 SectionIndex) const
 {
 	UStaticMesh& StaticMesh = GetStaticMesh();
-	FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 	return Info.bEnableCollision ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
@@ -2127,13 +2138,16 @@ void FMeshSectionSettingsLayout::OnSectionCollisionChanged(ECheckBoxState NewSta
 	}
 	FScopedTransaction Transaction(TransactionTest);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UProperty* Property = UStaticMesh::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UStaticMesh, SectionInfoMap));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	StaticMesh.PreEditChange(Property);
 	StaticMesh.Modify();
 
-	FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+	FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 	Info.bEnableCollision = (NewState == ECheckBoxState::Checked) ? true : false;
-	StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+	StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 	CallPostEditChange();
 }
 
@@ -2753,13 +2767,13 @@ void FMeshMaterialsLayout::OnDeleteMaterialSlot(int32 MaterialIndex)
 		{
 			for (int32 SectionIndex = 0; SectionIndex < StaticMesh.GetNumSections(LodIndex); ++SectionIndex)
 			{
-				if (StaticMesh.SectionInfoMap.IsValidSection(LodIndex, SectionIndex))
+				if (StaticMesh.GetSectionInfoMap().IsValidSection(LodIndex, SectionIndex))
 				{
-					FMeshSectionInfo SectionInfo = StaticMesh.SectionInfoMap.Get(LodIndex, SectionIndex);
+					FMeshSectionInfo SectionInfo = StaticMesh.GetSectionInfoMap().Get(LodIndex, SectionIndex);
 					if (SectionInfo.MaterialIndex > MaterialIndex)
 					{
 						SectionInfo.MaterialIndex -= 1;
-						StaticMesh.SectionInfoMap.Set(LodIndex, SectionIndex, SectionInfo);
+						StaticMesh.GetSectionInfoMap().Set(LodIndex, SectionIndex, SectionInfo);
 					}
 				}
 			}
@@ -2817,7 +2831,7 @@ bool FMeshMaterialsLayout::OnMaterialListDirty()
 		{
 			for (int32 SectionIndex = 0; SectionIndex < StaticMesh.GetNumSections(LODIndex); ++SectionIndex)
 			{
-				FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+				FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 
 				if (Info.MaterialIndex == MaterialIndex)
 				{
@@ -2875,7 +2889,7 @@ ECheckBoxState FMeshMaterialsLayout::IsShadowCastingEnabled(int32 SlotIndex) con
 	{
 		for (int32 SectionIndex = 0; SectionIndex < StaticMesh.GetNumSections(LODIndex); ++SectionIndex)
 		{
-			FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+			FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 			if (Info.MaterialIndex == SlotIndex)
 			{
 				if (!FirstEvalDone)
@@ -2910,11 +2924,11 @@ void FMeshMaterialsLayout::OnShadowCastingChanged(ECheckBoxState NewState, int32
 	{
 		for (int32 SectionIndex = 0; SectionIndex < StaticMesh.GetNumSections(LODIndex); ++SectionIndex)
 		{
-			FMeshSectionInfo Info = StaticMesh.SectionInfoMap.Get(LODIndex, SectionIndex);
+			FMeshSectionInfo Info = StaticMesh.GetSectionInfoMap().Get(LODIndex, SectionIndex);
 			if (Info.MaterialIndex == SlotIndex)
 			{
 				Info.bCastShadow = CastShadow;
-				StaticMesh.SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+				StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 				SomethingChange = true;
 			}
 		}
@@ -3328,9 +3342,9 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 				ReductionSettingsWidgets[LODIndex] = MakeShareable( new FMeshReductionSettingsLayout(AsShared(), LODIndex, StaticMesh->IsMeshDescriptionValid(LODIndex)));
 			}
 
-			if (LODIndex < StaticMesh->SourceModels.Num())
+			if (LODIndex < StaticMesh->GetNumSourceModels())
 			{
-				FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
+				const FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 				if (ReductionSettingsWidgets[LODIndex].IsValid())
 				{
 					ReductionSettingsWidgets[LODIndex]->UpdateSettings(SrcModel.ReductionSettings);
@@ -3549,27 +3563,27 @@ FLevelOfDetailSettingsLayout::~FLevelOfDetailSettingsLayout()
 FString FLevelOfDetailSettingsLayout::GetSourceImportFilename(int32 LODIndex) const
 {
 	UStaticMesh* Mesh = StaticMeshEditor.GetStaticMesh();
-	if (!Mesh->SourceModels.IsValidIndex(LODIndex) || Mesh->SourceModels[LODIndex].SourceImportFilename.IsEmpty())
+	if (!Mesh->IsSourceModelValid(LODIndex) || Mesh->GetSourceModel(LODIndex).SourceImportFilename.IsEmpty())
 	{
 		return FString(TEXT(""));
 	}
-	return UAssetImportData::ResolveImportFilename(Mesh->SourceModels[LODIndex].SourceImportFilename, nullptr);
+	return UAssetImportData::ResolveImportFilename(Mesh->GetSourceModel(LODIndex).SourceImportFilename, nullptr);
 }
 
 void FLevelOfDetailSettingsLayout::SetSourceImportFilename(const FString& SourceFileName, int32 LODIndex) const
 {
 	UStaticMesh* Mesh = StaticMeshEditor.GetStaticMesh();
-	if (!Mesh->SourceModels.IsValidIndex(LODIndex))
+	if (!Mesh->IsSourceModelValid(LODIndex))
 	{
 		return;
 	}
 	if (SourceFileName.IsEmpty())
 	{
-		Mesh->SourceModels[LODIndex].SourceImportFilename = SourceFileName;
+		Mesh->GetSourceModel(LODIndex).SourceImportFilename = SourceFileName;
 	}
 	else
 	{
-		Mesh->SourceModels[LODIndex].SourceImportFilename = UAssetImportData::SanitizeImportFilename(SourceFileName, nullptr);
+		Mesh->GetSourceModel(LODIndex).SourceImportFilename = UAssetImportData::SanitizeImportFilename(SourceFileName, nullptr);
 	}
 	Mesh->Modify();
 }
@@ -3598,10 +3612,10 @@ float FLevelOfDetailSettingsLayout::GetLODScreenSize(FName PlatformGroupName, in
 	{
 		ScreenSize = Mesh->RenderData->ScreenSize[LODIndex].Default;
 	}
-	else if(Mesh->SourceModels.IsValidIndex(LODIndex))
+	else if(Mesh->IsSourceModelValid(LODIndex))
 	{
-		ScreenSize = Mesh->SourceModels[LODIndex].ScreenSize.Default;
-		const float* PlatformScreenSize = Mesh->SourceModels[LODIndex].ScreenSize.PerPlatform.Find(PlatformGroupName);
+		ScreenSize = Mesh->GetSourceModel(LODIndex).ScreenSize.Default;
+		const float* PlatformScreenSize = Mesh->GetSourceModel(LODIndex).ScreenSize.PerPlatform.Find(PlatformGroupName);
 		if (PlatformScreenSize != nullptr)
 		{
 			ScreenSize = *PlatformScreenSize;
@@ -3653,11 +3667,11 @@ bool FLevelOfDetailSettingsLayout::AddLODScreenSizePlatformOverride(FName Platfo
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	if (LODScreenSizes[LODIndex].PerPlatform.Find(PlatformGroupName) == nullptr)
 	{
-		if(!StaticMesh->bAutoComputeLODScreenSize && StaticMesh->SourceModels.IsValidIndex(LODIndex))
+		if(!StaticMesh->bAutoComputeLODScreenSize && StaticMesh->IsSourceModelValid(LODIndex))
 		{
 			StaticMesh->Modify();
-			float Value = StaticMesh->SourceModels[LODIndex].ScreenSize.Default;
-			StaticMesh->SourceModels[LODIndex].ScreenSize.PerPlatform.Add(PlatformGroupName, Value);
+			float Value = StaticMesh->GetSourceModel(LODIndex).ScreenSize.Default;
+			StaticMesh->GetSourceModel(LODIndex).ScreenSize.PerPlatform.Add(PlatformGroupName, Value);
 			OnLODScreenSizeChanged(Value, PlatformGroupName, LODIndex);
 			return true;
 		}
@@ -3669,12 +3683,12 @@ bool FLevelOfDetailSettingsLayout::RemoveLODScreenSizePlatformOverride(FName Pla
 {
 	FScopedTransaction Transaction(LOCTEXT("RemoveLODScreenSizePlatformOverride", "Remove LOD Screen Size Platform Override"));
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
-	if (!StaticMesh->bAutoComputeLODScreenSize && StaticMesh->SourceModels.IsValidIndex(LODIndex))
+	if (!StaticMesh->bAutoComputeLODScreenSize && StaticMesh->IsSourceModelValid(LODIndex))
 	{
 		StaticMesh->Modify();
-		if (StaticMesh->SourceModels[LODIndex].ScreenSize.PerPlatform.Remove(PlatformGroupName) != 0)
+		if (StaticMesh->GetSourceModel(LODIndex).ScreenSize.PerPlatform.Remove(PlatformGroupName) != 0)
 		{
-			OnLODScreenSizeChanged(StaticMesh->SourceModels[LODIndex].ScreenSize.Default, PlatformGroupName, LODIndex);
+			OnLODScreenSizeChanged(StaticMesh->GetSourceModel(LODIndex).ScreenSize.Default, PlatformGroupName, LODIndex);
 			return true;
 		}
 	}
@@ -3688,9 +3702,9 @@ void FLevelOfDetailSettingsLayout::OnLODScreenSizeChanged( float NewValue, FName
 	if (!StaticMesh->bAutoComputeLODScreenSize)
 	{
 		// First propagate any changes from the source models to our local scratch.
-		for (int32 i = 0; i < StaticMesh->SourceModels.Num(); ++i)
+		for (int32 i = 0; i < StaticMesh->GetNumSourceModels(); ++i)
 		{
-			LODScreenSizes[i] = StaticMesh->SourceModels[i].ScreenSize;
+			LODScreenSizes[i] = StaticMesh->GetSourceModel(i).ScreenSize;
 		}
 
 		// Update Display factors for further LODs
@@ -3720,9 +3734,9 @@ void FLevelOfDetailSettingsLayout::OnLODScreenSizeChanged( float NewValue, FName
 		// Push changes immediately.
 		for (int32 i = 0; i < MAX_STATIC_MESH_LODS; ++i)
 		{
-			if (StaticMesh->SourceModels.IsValidIndex(i))
+			if (StaticMesh->IsSourceModelValid(i))
 			{
-				StaticMesh->SourceModels[i].ScreenSize = LODScreenSizes[i];
+				StaticMesh->GetSourceModel(i).ScreenSize = LODScreenSizes[i];
 			}
 			if (StaticMesh->RenderData
 				&& StaticMesh->RenderData->LODResources.IsValidIndex(i))
@@ -3793,7 +3807,7 @@ void FLevelOfDetailSettingsLayout::OnLODGroupChanged(TSharedPtr<FString> NewValu
 			{
 				StaticMesh->SetLODGroup(NewGroup);
 				// update the internal count
-				LODCount = StaticMesh->SourceModels.Num();
+				LODCount = StaticMesh->GetNumSourceModels();
 				StaticMeshEditor.RefreshTool();
 			}
 			else
@@ -3833,13 +3847,13 @@ void FLevelOfDetailSettingsLayout::OnAutoLODChanged(ECheckBoxState NewState)
 	StaticMesh->bAutoComputeLODScreenSize = (NewState == ECheckBoxState::Checked) ? true : false;
 	if (!StaticMesh->bAutoComputeLODScreenSize)
 	{
-		if (StaticMesh->SourceModels.IsValidIndex(0))
+		if (StaticMesh->GetNumSourceModels() > 0)
 		{
-			StaticMesh->SourceModels[0].ScreenSize.Default = 1.0f;
+			StaticMesh->GetSourceModel(0).ScreenSize.Default = 1.0f;
 		}
-		for (int32 LODIndex = 1; LODIndex < StaticMesh->SourceModels.Num(); ++LODIndex)
+		for (int32 LODIndex = 1; LODIndex < StaticMesh->GetNumSourceModels(); ++LODIndex)
 		{
-			StaticMesh->SourceModels[LODIndex].ScreenSize.Default = StaticMesh->RenderData->ScreenSize[LODIndex].Default;
+			StaticMesh->GetSourceModel(LODIndex).ScreenSize.Default = StaticMesh->RenderData->ScreenSize[LODIndex].Default;
 		}
 	}
 	StaticMesh->PostEditChange();
@@ -3854,7 +3868,7 @@ void FLevelOfDetailSettingsLayout::OnImportLOD(TSharedPtr<FString> NewValue, ESe
 		UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 		check(StaticMesh);
 
-		if (StaticMesh->LODGroup != NAME_None && StaticMesh->SourceModels.IsValidIndex(LODIndex))
+		if (StaticMesh->LODGroup != NAME_None && StaticMesh->IsSourceModelValid(LODIndex))
 		{
 			// Cache derived data for the running platform.
 			ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
@@ -3886,14 +3900,14 @@ void FLevelOfDetailSettingsLayout::OnImportLOD(TSharedPtr<FString> NewValue, ESe
 
 		//Are we a new imported LOD, we want to set some value for new imported LOD.
 		//This boolean prevent changing the value when the LOD is reimport
-		bool bImportCustomLOD = (LODIndex >= StaticMesh->SourceModels.Num());
+		bool bImportCustomLOD = (LODIndex >= StaticMesh->GetNumSourceModels());
 
 		bool bResult = FbxMeshUtils::ImportMeshLODDialog(StaticMesh, LODIndex);
 
-		if (bImportCustomLOD && bResult && StaticMesh->SourceModels.IsValidIndex(LODIndex))
+		if (bImportCustomLOD && bResult && StaticMesh->IsSourceModelValid(LODIndex))
 		{
 			//Custom LOD should reduce base on them self when they get imported.
-			StaticMesh->SourceModels[LODIndex].ReductionSettings.BaseLODModel = LODIndex;
+			StaticMesh->GetSourceModel(LODIndex).ReductionSettings.BaseLODModel = LODIndex;
 		}
 		
 		StaticMesh->PostEditChange();
@@ -3907,14 +3921,14 @@ bool FLevelOfDetailSettingsLayout::IsApplyNeeded() const
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	check(StaticMesh);
 
-	if (StaticMesh->SourceModels.Num() != LODCount)
+	if (StaticMesh->GetNumSourceModels() != LODCount)
 	{
 		return true;
 	}
 
 	for (int32 LODIndex = 0; LODIndex < LODCount; ++LODIndex)
 	{
-		FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
+		FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 		if (BuildSettingsWidgets[LODIndex].IsValid()
 			&& SrcModel.BuildSettings != BuildSettingsWidgets[LODIndex]->GetSettings())
 		{
@@ -3948,7 +3962,7 @@ void FLevelOfDetailSettingsLayout::ApplyChanges()
 
 	for (int32 LODIndex = 0; LODIndex < LODCount; ++LODIndex)
 	{
-		FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
+		FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 		if (BuildSettingsWidgets[LODIndex].IsValid())
 		{
 			SrcModel.BuildSettings = BuildSettingsWidgets[LODIndex]->GetSettings();
@@ -3965,7 +3979,7 @@ void FLevelOfDetailSettingsLayout::ApplyChanges()
 		else
 		{
 			SrcModel.ScreenSize = LODScreenSizes[LODIndex];
-			FStaticMeshSourceModel& PrevModel = StaticMesh->SourceModels[LODIndex-1];
+			FStaticMeshSourceModel& PrevModel = StaticMesh->GetSourceModel(LODIndex-1);
 			if(SrcModel.ScreenSize.Default >= PrevModel.ScreenSize.Default)
 			{
 				const float DefaultScreenSizeDifference = 0.01f;

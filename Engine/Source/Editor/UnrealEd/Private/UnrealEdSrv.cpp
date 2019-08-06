@@ -1023,13 +1023,13 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 				{
 					UStaticMesh* Mesh = SelectedMeshes[MeshIndex];
 
-					if (Mesh && Mesh->SourceModels.Num() > 0)
+					if (Mesh && Mesh->GetNumSourceModels() > 0)
 					{
 						Mesh->Modify();
 
 						GWarn->StatusUpdate(MeshIndex + 1, SelectedMeshes.Num(), FText::Format(NSLOCTEXT("UnrealEd", "ScalingStaticMeshes_Value", "Static Mesh: {0}"), FText::FromString(Mesh->GetName())));
 
-						FStaticMeshSourceModel& Model = Mesh->SourceModels[0];
+						FStaticMeshSourceModel& Model = Mesh->GetSourceModel(0);
 
 						FVector ScaleVec(Scale, Scale, Scale);	// bScale
 						if ( bScaleVec )
