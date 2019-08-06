@@ -2781,7 +2781,7 @@ FVector2D FTextLayout::FRunModel::Measure(int32 BeginIndex, int32 EndIndex, floa
 	FVector2D Size = Run->Measure(BeginIndex, EndIndex, InScale, InTextContext);
 
 	MeasuredRanges.Add( FTextRange( BeginIndex, EndIndex ) );
-	MeasuredRangeSizes.Add(FVector4(Size, FVector2D::ZeroVector));
+	MeasuredRangeSizes.Add(Size);
 
 	return Size;
 }

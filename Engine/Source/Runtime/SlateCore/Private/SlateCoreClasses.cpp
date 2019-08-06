@@ -17,7 +17,7 @@ float GSlateContrast = 1;
 FAutoConsoleVariableRef CVarSlateContrast(
 	TEXT("Slate.Contrast"),
 	GSlateContrast,
-	TEXT("The amount of contrast to apply to the UI.")
+	TEXT("The amount of contrast to apply to the UI (default 1).")
 );
 
 
