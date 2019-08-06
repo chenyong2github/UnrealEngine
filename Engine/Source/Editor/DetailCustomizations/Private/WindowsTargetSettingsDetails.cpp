@@ -56,21 +56,13 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	{
 		FriendlyRHIName = LOCTEXT("DirectX11", "DirectX 11 & 12 (SM5)");
 	}
-	else if (InRHIName == TEXT("PCD3D_SM4"))
-	{
-		FriendlyRHIName = LOCTEXT("DirectX10", "DirectX 10 (SM4)");
-	}
 	else if (InRHIName == TEXT("PCD3D_ES31"))
 	{
 		FriendlyRHIName = LOCTEXT("DirectXES31", "DirectX Mobile Emulation (ES3.1)");
 	}
-	else if (InRHIName == TEXT("GLSL_430"))
-	{
-		FriendlyRHIName = LOCTEXT("OpenGL4", "OpenGL 4 (SM5, Experimental)");
-	}
 	else if (InRHIName == TEXT("SF_VULKAN_SM5"))
 	{
-		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5, Experimental)");
+		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");
 	}
 	else if (InRHIName == TEXT("GLSL_SWITCH"))
 	{
@@ -82,7 +74,8 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	}
 	else if (InRHIName == TEXT("GLSL_150_ES2") || InRHIName == TEXT("GLSL_150_ES31") || InRHIName == TEXT("GLSL_150")
 		|| InRHIName == TEXT("SF_VULKAN_ES31_ANDROID") || InRHIName == TEXT("SF_VULKAN_ES31")
-		|| InRHIName == TEXT("SF_VULKAN_SM4") || InRHIName == TEXT("PCD3D_ES2"))
+		|| InRHIName == TEXT("SF_VULKAN_SM4") || InRHIName == TEXT("PCD3D_ES2")
+		|| InRHIName == TEXT("GLSL_430") || InRHIName == TEXT("PCD3D_SM4"))
 	{
 		// Explicitly remove these formats as they are obsolete/not quite supported; users can still target them by adding them as +TargetedRHIs in the TargetPlatform ini.
 		FriendlyRHIName = FText::GetEmpty();
