@@ -108,6 +108,12 @@ public:
 	FOnlinePartyData() = default;
 	virtual ~FOnlinePartyData() = default;
 
+	FOnlinePartyData(const FOnlinePartyData&) = default;
+	FOnlinePartyData& operator=(const FOnlinePartyData&) = default;
+
+	FOnlinePartyData(FOnlinePartyData&&) = default;
+	FOnlinePartyData& operator=(FOnlinePartyData&&) = default;
+
 	/**
 	 * Equality operator
 	 *
