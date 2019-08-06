@@ -2,13 +2,14 @@
 
 #pragma once
 
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+
 class UPhysicalMaterial;
 
-namespace ImmediatePhysics
+namespace ImmediatePhysics_PhysX
 {
 	struct ENGINE_API FMaterialHandle
 	{
-		friend class FPhysInterface_LLImmediate;
 
 	public:
 
@@ -42,3 +43,5 @@ namespace ImmediatePhysics
 		FMaterialHandle& operator=(FMaterialHandle&& Other) = delete;
 	};
 }
+
+#endif // WITH_PHYSX

@@ -2,17 +2,19 @@
 
 #pragma once
 
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Containers/SparseArray.h"
-#include "Physics/ImmediatePhysics/ImmediatePhysicsMaterial.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsPhysX/ImmediatePhysicsMaterial_PhysX.h"
 
-namespace ImmediatePhysics
+namespace ImmediatePhysics_PhysX
 {
 	struct FMaterial;
 }
 
-namespace ImmediatePhysics
+namespace ImmediatePhysics_PhysX
 {
 	/* List of available resource types managed here */
 	enum class EResourceType : uint8
@@ -116,7 +118,7 @@ namespace ImmediatePhysics
 		FSharedResourceManager& operator=(FSharedResourceManager&& Other) = delete;
 
 		/** Storage for managed resources */
-		TSparseArray<TResourceWithId<ImmediatePhysics::FMaterial>> Materials;
+		TSparseArray<TResourceWithId<FMaterial>> Materials;
 
 		/** Locking primitive. Should be used in the desired mode whenever manipulated. Simulations will read lock this
 		 *  so user code cannot write to shared resources while a simulation is in flight
@@ -186,3 +188,5 @@ namespace ImmediatePhysics
 	}
 
 }
+
+#endif // WITH_PHYSX

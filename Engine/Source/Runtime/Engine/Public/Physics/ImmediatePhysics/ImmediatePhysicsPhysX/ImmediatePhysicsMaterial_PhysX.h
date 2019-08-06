@@ -1,6 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 #include "PhysicsEngine/PhysicsSettingsEnums.h"
 
 namespace physx
@@ -8,7 +10,7 @@ namespace physx
 	class PxMaterial;
 }
 
-namespace ImmediatePhysics
+namespace ImmediatePhysics_PhysX
 {
 	struct FMaterial
 	{
@@ -31,3 +33,5 @@ namespace ImmediatePhysics
 		static FMaterial Default;
 	};
 }
+
+#endif // WITH_PHYSX
