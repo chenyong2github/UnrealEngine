@@ -472,7 +472,7 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 		if (Sequence && CurrentWorld)
 		{
 			Player = NewObject<ULevelSequencePlayer>((UObject*)GetTransientPackage(), FName("ConcertSequencePlayer"));
-			Player->Initialize(Sequence, CurrentWorld->PersistentLevel, FMovieSceneSequencePlaybackSettings());
+			Player->Initialize(Sequence, CurrentWorld->PersistentLevel, FMovieSceneSequencePlaybackSettings(), FLevelSequenceCameraSettings());
 		}
 		SequencePlayers.Add(*EventState.SequenceObjectPath, Player);
 	}

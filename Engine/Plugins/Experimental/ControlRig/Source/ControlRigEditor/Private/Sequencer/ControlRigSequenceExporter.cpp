@@ -214,7 +214,7 @@ void Convert(UControlRigSequence* Sequence, UAnimSequence* AnimSequence, USkelet
 			LevelSequenceActor->LevelSequence = Sequence;
 			LevelSequenceActor->PlaybackSettings.bRestoreState = true;
 			LevelSequenceActor->SequencePlayer = NewObject<ULevelSequencePlayer>(LevelSequenceActor, "AnimationPlayer");
-			LevelSequenceActor->SequencePlayer->Initialize(Sequence, LevelSequenceActor->GetLevel(), LevelSequenceActor->PlaybackSettings);
+			LevelSequenceActor->SequencePlayer->Initialize(Sequence, LevelSequenceActor->GetLevel(), LevelSequenceActor->PlaybackSettings, LevelSequenceActor->CameraSettings);
 
 			// Now set up our animation sequence
 			AnimSequence->RecycleAnimSequence();

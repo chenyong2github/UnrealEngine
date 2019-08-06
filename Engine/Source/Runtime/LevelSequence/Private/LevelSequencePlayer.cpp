@@ -73,13 +73,14 @@ ULevelSequencePlayer* ULevelSequencePlayer::CreateLevelSequencePlayer(UObject* W
 /* ULevelSequencePlayer implementation
  *****************************************************************************/
 
-void ULevelSequencePlayer::Initialize(ULevelSequence* InLevelSequence, ULevel* InLevel, const FMovieSceneSequencePlaybackSettings& Settings)
+void ULevelSequencePlayer::Initialize(ULevelSequence* InLevelSequence, ULevel* InLevel, const FMovieSceneSequencePlaybackSettings& Settings, const FLevelSequenceCameraSettings& InCameraSettings)
 {
 	// Never use the level to resolve bindings unless we're playing back within a streamed or instanced level
 	StreamedLevelAssetPath = NAME_None;
 
 	World = InLevel->OwningWorld;
 	Level = InLevel;
+	CameraSettings = InCameraSettings;
 
 	// Construct the path to the level asset that the streamed level relates to
 	ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(InLevel);
@@ -184,16 +185,6 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 	// skip same view target
 	AActor* ViewTarget = PC->GetViewTarget();
 
-	// save the last view target so that it can be restored when the camera object is null
-	if (!LastViewTarget.IsValid())
-	{
-		LastViewTarget = ViewTarget;
-		if (PC->GetLocalPlayer())
-		{
-			LastAspectRatioAxisConstraint = PC->GetLocalPlayer()->AspectRatioAxisConstraint;
-		}
-	}
-
 	UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(CameraObject);
 	if (CameraComponent && CameraComponent->GetOwner() != CameraObject)
 	{
@@ -237,9 +228,11 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 	AActor* CameraActor = Cast<AActor>(CameraObject);
 
 	// if the camera object is null, use the last view target so that it is restored to the state before the sequence takes control
+	bool bRestoreAspectRatioConstraint = false;
 	if (CameraActor == nullptr)
 	{
 		CameraActor = LastViewTarget.Get();
+		bRestoreAspectRatioConstraint = true;
 
 		// Skip if the last view target is the same as the current view target so that there's no additional camera cut
 		if (CameraActor == ViewTarget)
@@ -248,12 +241,39 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 		}
 	}
 
+	// Save the last view target/aspect ratio constraint/etc. so that it can all be restored when the camera object is null.
+	ULocalPlayer* LocalPlayer = PC->GetLocalPlayer();
+
+	if (!LastViewTarget.IsValid())
+	{
+		LastViewTarget = ViewTarget;
+	}
+	if (!LastAspectRatioAxisConstraint.IsSet())
+	{
+		if (LocalPlayer != nullptr)
+		{
+			LastAspectRatioAxisConstraint = LocalPlayer->AspectRatioAxisConstraint;
+		}
+	}
+
 	FViewTargetTransitionParams TransitionParams;
 	PC->SetViewTarget(CameraActor, TransitionParams);
 
-	if (PC->GetLocalPlayer())
+	// Set or restore the aspect ratio constraint if we were overriding it for this sequence.
+	if (LocalPlayer != nullptr && CameraSettings.bOverrideAspectRatioAxisConstraint)
 	{
-		PC->GetLocalPlayer()->AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainXFOV;
+		if (bRestoreAspectRatioConstraint)
+		{
+			check(LastAspectRatioAxisConstraint.IsSet());
+			if (LastAspectRatioAxisConstraint.IsSet())
+			{
+				LocalPlayer->AspectRatioAxisConstraint = LastAspectRatioAxisConstraint.GetValue();
+			}
+		}
+		else
+		{
+			LocalPlayer->AspectRatioAxisConstraint = CameraSettings.AspectRatioAxisConstraint;
+		}
 	}
 
 	if (CameraComponent)
