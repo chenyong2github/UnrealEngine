@@ -2365,8 +2365,8 @@ float FLandscapeComponentSceneProxy::GetNeighborLOD(const FSceneView& InView, fl
 			if (NeighborComponent != nullptr && NeighborComponent->SceneProxy != nullptr)
 			{
 				NeighborSceneProxy = (FLandscapeComponentSceneProxy*)NeighborComponent->SceneProxy;
-				NeighborBounds = NeighborSceneProxy->GetBounds();
-				NeighborMaxExtends = NeighborSceneProxy->SubsectionSizeQuads * FMath::Max(NeighborSceneProxy->GetLocalToWorld().GetScaleVector().X, NeighborSceneProxy->GetLocalToWorld().GetScaleVector().Y);
+				NeighborBounds = NeighborComponent->Bounds;
+				NeighborMaxExtends = NeighborSceneProxy->SubsectionSizeQuads * FMath::Max(NeighborComponent->GetRenderMatrix().GetScaleVector().X, NeighborComponent->GetRenderMatrix().GetScaleVector().Y);
 			}
 		}
 
