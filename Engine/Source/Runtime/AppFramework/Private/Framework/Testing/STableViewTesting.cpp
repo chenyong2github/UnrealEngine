@@ -29,10 +29,10 @@
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #if !UE_BUILD_SHIPPING
-
-#include "Widgets/Input/SNumericEntryBox.h"
 
 #define LOCTEXT_NAMESPACE "STableViewTesting"
 
@@ -1469,42 +1469,6 @@ protected:
 			? GetSelectedModeText(Mode)
 			: FText::GetEmpty();
 	}
-
-	/** 
-	+SHorizontalBox::Slot() .AutoWidth()
-				[
-					SNew(SCheckBox)
-					.IsChecked(this, &STableViewTesting::IsScrollAnimChecked)
-					.OnCheckStateChanged(this, &STableViewTesting::HandleScrollAnimCheckStateChanged)
-				]
-				+SHorizontalBox::Slot().AutoWidth() .Padding(2,0,0,0) .VAlign(VAlign_Center)
-				[
-					SNew(STextBlock).Text( LOCTEXT("AnimateScrollingLabel", "Animate Scrolling") )
-				]
-				+SHorizontalBox::Slot() .AutoWidth() .Padding(10, 0, 0, 0)
-				[
-					SNew(SCheckBox)
-					.IsChecked(this, &STableViewTesting::IsFixedItemOffsetChecked)
-					.OnCheckStateChanged(this, &STableViewTesting::HandleFixedItemOffsetCheckStateChanged)
-				]
-				+SHorizontalBox::Slot().AutoWidth()
-				[
-					SNew(SHorizontalBox)
-					.IsEnabled(this, &STableViewTesting::GetIsFixedItemOffsetEnabled)
-					+SHorizontalBox::Slot().AutoWidth()
-					[
-						SNew(STextBlock).Text(LOCTEXT("FixedLineScrollOffsetLabel", "Fixed Item Scroll Offset: "))
-					]
-					+SHorizontalBox::Slot().AutoWidth()
-					[
-						// We set how many data items we want in our test case.
-						SNew(SNumericEntryBox<float>)
-						.MinValue(0.f)
-						.MaxValue(1.f)
-						.Value(this, &STableViewTesting::GetFixedLineScrollOffsetValue)
-						.OnValueChanged(this, &STableViewTesting::HandleFixedLineScrollOffsetValueChanged)
-					]
-	*/
 
 	ECheckBoxState IsScrollAnimChecked() const
 	{
