@@ -62,6 +62,9 @@ public:
 	UCineCameraComponent* CineCamera;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
+	float FieldOfViewMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	FString RTTViewportId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")

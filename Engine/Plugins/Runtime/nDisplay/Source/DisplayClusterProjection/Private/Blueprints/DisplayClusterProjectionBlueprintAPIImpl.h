@@ -23,5 +23,5 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	/** Sets active camera component for camera policy */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set camera"), Category = "DisplayClusterProjection|Camera")
-	virtual void CameraPolicySetCamera(const FString& ViewportId, UCameraComponent* NewCamera) override;
+	virtual void CameraPolicySetCamera(const FString& ViewportId, UCameraComponent* NewCamera, float FOVMultiplier = 1.f) override;
 };

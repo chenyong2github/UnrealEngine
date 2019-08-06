@@ -49,19 +49,6 @@ struct OutputPS
 	float4 Color : SV_Target0;
 };
 
-float3 ApplyPicpTextureGammaCorrection(float3 Color)
-{
-	//float3 OutColor = ApplyGammaCorrection(Color, 2.2);
-	       //OutColor = LinearToSrgb(OutColor);
-
-	return Color;
-}
-
-float4 ApplyPicpTextureGammaCorrection(float4 Color)
-{
-	return Color;
-	//return float4(ApplyPicpTextureGammaCorrection(Color.xyz), Color.w);
-}
 
 /** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
 void DrawRectangle(in float4 InPosition, in float2 InTexCoord, out float4 OutPosition, out float2 OutTexCoord)
@@ -169,7 +156,7 @@ OutputPS PicpMPCDIWarpAndBlendOverlay_PS(OutputVS IN)
 #if RENDER_CASE_VIEWPORT_OVERLAY
 	float4 ViewportOverlayUVW = mul(WarpedUV, TextureProjectionMatrix);
 	float2 ViewportOverlayUV = ViewportOverlayUVW.xy / ViewportOverlayUVW.w;
-	float4 ViewportOverlayColor = ApplyPicpTextureGammaCorrection(ViewportOverlayMap.Sample(ViewportOverlayMapSampler, ViewportOverlayUV).rgba);
+	float4 ViewportOverlayColor = ViewportOverlayMap.Sample(ViewportOverlayMapSampler, ViewportOverlayUV).rgba;
 #endif
 
 #if RENDER_CASE_CAMERA
@@ -177,7 +164,7 @@ OutputPS PicpMPCDIWarpAndBlendOverlay_PS(OutputVS IN)
 	float4 CameraUVW = mul(WarpedUV, CameraProjectionMatrix);
 	float2 CameraUV = CameraUVW.xy / CameraUVW.w;
 	// Load from Cameramap
-	float3 CameraBaseColor        = ApplyPicpTextureGammaCorrection(CameraMap.Sample(CameraMapSampler, CameraUV).rgb);
+	float3 CameraBaseColor        = CameraMap.Sample(CameraMapSampler, CameraUV).rgb;
 
 	float4 CameraColor = float4(CameraBaseColor, 0);
 
@@ -239,7 +226,7 @@ OutputPS PicpMPCDIWarpAndBlendViewportOverlay_PS(OutputVS IN)
 	float4 OverlayUVW = mul(WarpedUV, TextureProjectionMatrix);
 	float2 OverlayUV = OverlayUVW.xy / OverlayUVW.w;
 	
-	float4 ViewportOverlayColor = ApplyPicpTextureGammaCorrection(ViewportOverlayMap.Sample(ViewportOverlayMapSampler, OverlayUV).rgba);
+	float4 ViewportOverlayColor = ViewportOverlayMap.Sample(ViewportOverlayMapSampler, OverlayUV).rgba;
 
 	//!fixme: add LUT here
 
@@ -305,13 +292,13 @@ OutputPS PicpMPCDIWarpAndBlendOneCameraFull_PS(OutputVS IN)
 	float4 OutColor = ViewportBaseColor;
 	
 #if USE_OVERLAY_BACK	
-	OutColor.xyz = lerp(OutColor.xyz, ApplyPicpTextureGammaCorrection(ViewportOverlayBackColor.xyz), saturate(1.0f - ViewportOverlayBackColor.w));
+	OutColor.xyz = lerp(OutColor.xyz, ViewportOverlayBackColor.xyz, saturate(1.0f - ViewportOverlayBackColor.w));
 #endif
 
-	OutColor.xyz = lerp(OutColor.xyz, ApplyPicpTextureGammaCorrection(CameraColor.xyz),  CameraColor.w);
+	OutColor.xyz = lerp(OutColor.xyz, CameraColor.xyz,  CameraColor.w);
 
 #if USE_OVERLAY_FRONT
-	OutColor.xyz = lerp(OutColor.xyz, ApplyPicpTextureGammaCorrection(ViewportOverlayColor.xyz), saturate(1.0f - ViewportOverlayColor.w));
+	OutColor.xyz = lerp(OutColor.xyz, ViewportOverlayColor.xyz, saturate(1.0f - ViewportOverlayColor.w));
 #endif
 
 	//!fixme: add LUT here

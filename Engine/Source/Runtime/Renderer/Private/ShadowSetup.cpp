@@ -3339,15 +3339,15 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 		FadeAlphas.Init(0.0f, Views.Num());
 		FadeAlphas[ViewIndex] = 1.0f;
 
-		if (View.StereoPass == eSSP_LEFT_EYE
+		if (IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice)
 			&& Views.IsValidIndex(ViewIndex + 1)
-			&& Views[ViewIndex + 1].StereoPass == eSSP_RIGHT_EYE)
+			&& IStereoRendering::IsASecondaryView(View.StereoPass, GEngine->StereoRenderingDevice))
 		{
 			FadeAlphas[ViewIndex + 1] = 1.0f;
 		}		
-
+		
 		// If rendering in stereo mode we render shadow depths only for the left eye, but project for both eyes!
-		if (View.StereoPass != eSSP_RIGHT_EYE)
+		if (IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice))
 		{
 			const bool bExtraDistanceFieldCascade = LightSceneInfo.Proxy->ShouldCreateRayTracedCascade(View.GetFeatureLevel(), LightSceneInfo.IsPrecomputedLightingValid(), View.MaxShadowCascades);
 

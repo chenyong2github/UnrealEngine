@@ -580,6 +580,9 @@ public:
 protected:
 
 	bool GetUseMouseForTouch() const;
+	void SetCurrentBufferVisualizationMode(FName NewBufferVisualizationMode) { CurrentBufferVisualizationMode = NewBufferVisualizationMode; }
+	FName GetCurrentBufferVisualizationMode() const { return CurrentBufferVisualizationMode; }
+	bool HasAudioFocus() const { return bHasAudioFocus; }
 
 protected:
 	/** FCommonViewportClient interface */

@@ -28,8 +28,14 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Viewport Count"), Category = "PICP")
 	virtual int GetViewportCount() override;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Projection Data Listener"), Category = "PICP")
-	virtual void SetProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> Listener) override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Add Projection Data Listener"), Category = "PICP")
+	virtual void AddProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> Listener) override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Remove Projection Data Listener"), Category = "PICP")
+	virtual void RemoveProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> Listener) override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Clean Projection Data Listener"), Category = "PICP")
+	virtual void CleanProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> Listener) override;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Blend Frames"), Category = "PICP")
 	virtual void BlendCameraFrameCaptures(UTexture* SrcFrame, UTextureRenderTarget2D* DstFrame, UTextureRenderTarget2D* Result) override;

@@ -15,6 +15,8 @@
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Misc/DisplayClusterHelpers.h"
 
+#include "DisplayClusterGlobals.h"
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // DisplayCluster module API
@@ -138,7 +140,7 @@ void UDisplayClusterBlueprintAPIImpl::EmitClusterEvent(const FDisplayClusterClus
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Config API
 //////////////////////////////////////////////////////////////////////////////////////////////
-void UDisplayClusterBlueprintAPIImpl::GetViewports(bool IsRTT, TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes)
+void UDisplayClusterBlueprintAPIImpl::GetLocalViewports(bool IsRTT, TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
@@ -584,14 +586,36 @@ void UDisplayClusterBlueprintAPIImpl::SetViewportCamera(const FString& InCameraI
 	return;
 }
 
-void UDisplayClusterBlueprintAPIImpl::SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings)
+void UDisplayClusterBlueprintAPIImpl::SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings)
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
 
 	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 	if (Manager)
 	{
-		Manager->SetCustomPostProcessing(ViewportID, PostProcessingSettings);
+		Manager->SetStartPostProcessingSettings(ViewportID, StartPostProcessingSettings);
+	}
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->SetOverridePostProcessingSettings(ViewportID, OverridePostProcessingSettings, BlendWeight);
+	}
+}
+
+void UDisplayClusterBlueprintAPIImpl::SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterBlueprint);
+
+	IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
+	if (Manager)
+	{
+		Manager->SetFinalPostProcessingSettings(ViewportID, FinalPostProcessingSettings);
 	}
 }
 

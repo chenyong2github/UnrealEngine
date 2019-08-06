@@ -39,7 +39,9 @@ public:
 	virtual bool Initialize() override;
 	virtual void InitializeWorldContent(UWorld* InWorld) override;
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
-	virtual void SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings) override;
+	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
+	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
+	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) override;
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
 
 public:
@@ -84,6 +86,15 @@ protected:
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1)
 	{ return false; }
 
+	virtual bool DeviceIsAPrimaryView(EStereoscopicPass Pass) override
+	{ return true; }
+	
+	virtual bool DeviceIsASecondaryView(EStereoscopicPass Pass) override
+	{ return false; }
+
+	virtual bool DeviceIsAnAdditionalView(EStereoscopicPass Pass) override
+	{ return false; }
+
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// FRHICustomPresent
@@ -126,10 +137,19 @@ protected:
 	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, bool IsRTT = false);
 	// Performs copying of render target data to the back buffer
 	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const;
+	
 	// Checks if custom post processing settings is assigned for specific viewport and assign them to be used
-	virtual void UpdatePostProcessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
+	virtual void StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
+	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight) override;
+	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
 
 protected:
+	struct FOverridePostProcessingSettings
+	{
+		float BlendWeight = 1.0f;
+		FPostProcessSettings PostProcessingSettings;
+	};
+
 	// Viewports
 	mutable TArray<FDisplayClusterRenderViewport> RenderViewports;
 	// Views per viewport (render passes)
@@ -137,7 +157,9 @@ protected:
 	// UE4 main viewport
 	FViewport* MainViewport = nullptr;
 	// custom post processing settings
-	TMap<int, FPostProcessSettings> ViewportFinalPostProcessingSettingsOverride;	 
+	TMap<int, FPostProcessSettings> ViewportStartPostProcessingSettings;	 
+	TMap<int, FOverridePostProcessingSettings> ViewportOverridePostProcessingSettings;
+	TMap<int, FPostProcessSettings> ViewportFinalPostProcessingSettings;
 
 	// Data access synchronization
 	mutable FCriticalSection InternalsSyncScope;

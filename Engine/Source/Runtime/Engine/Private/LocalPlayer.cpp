@@ -871,6 +871,17 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 			PlayerController->PlayerCameraManager->UpdatePhotographyPostProcessing(View->FinalPostProcessSettings);
 		}
 
+		if (GEngine->StereoRenderingDevice.IsValid())
+		{
+			FPostProcessSettings StereoDeviceOverridePostProcessinSettings;
+			float BlendWeight = 1.0f;
+			bool StereoSettingsAvailable = GEngine->StereoRenderingDevice->OverrideFinalPostprocessSettings(&StereoDeviceOverridePostProcessinSettings, StereoPass, BlendWeight);
+			if (StereoSettingsAvailable)
+			{
+				View->OverridePostProcessSettings(StereoDeviceOverridePostProcessinSettings, BlendWeight);
+			}
+		}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		ADebugCameraController* DebugCameraController = Cast<ADebugCameraController>(PlayerController);
 		if (DebugCameraController != nullptr)

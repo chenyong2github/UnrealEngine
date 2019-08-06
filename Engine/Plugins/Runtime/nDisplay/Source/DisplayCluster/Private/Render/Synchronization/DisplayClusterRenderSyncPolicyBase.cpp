@@ -20,7 +20,7 @@ FDisplayClusterRenderSyncPolicyBase::~FDisplayClusterRenderSyncPolicyBase()
 
 void FDisplayClusterRenderSyncPolicyBase::SyncBarrierRenderThread()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRenderSync);
 
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Disabled)
 	{
@@ -36,5 +36,5 @@ void FDisplayClusterRenderSyncPolicyBase::SyncBarrierRenderThread()
 		pController->WaitForSwapSync(&tTime, &bTime);
 	}
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Render barrier wait: t=%lf b=%lf"), tTime, bTime);
+	UE_LOG(LogDisplayClusterRenderSync, Verbose, TEXT("Render barrier wait: t=%lf b=%lf"), tTime, bTime);
 }

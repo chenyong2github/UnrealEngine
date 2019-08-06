@@ -14,4 +14,5 @@ DEFINE_LOG_CATEGORY(LogDisplayClusterInputVRPN);
 DEFINE_LOG_CATEGORY(LogDisplayClusterNetwork);
 DEFINE_LOG_CATEGORY(LogDisplayClusterNetworkMsg);
 DEFINE_LOG_CATEGORY(LogDisplayClusterRender);
+DEFINE_LOG_CATEGORY(LogDisplayClusterRenderSync);
 DEFINE_LOG_CATEGORY(LogDisplayClusterBlueprint);

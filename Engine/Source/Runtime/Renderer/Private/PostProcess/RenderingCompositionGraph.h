@@ -175,23 +175,7 @@ struct FRenderingCompositePassContext
 	}
 
 	/** Returns the LoadAction that should be use for a given render target. */
-	ERenderTargetLoadAction GetLoadActionForRenderTarget(const FSceneRenderTargetItem& DestRenderTarget) const
-	{
-		ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
-		
-		if (IsViewFamilyRenderTarget(DestRenderTarget))
-		{
-			// If rendering the final view family's render target, must clear first view, and load subsequent views.
-			LoadAction = (&View != View.Family->Views[0]) ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear;
-		}
-		else if (HasHmdMesh())
-		{
-			// Clears render target because going to have unrendered pixels inside view rect.
-			LoadAction = ERenderTargetLoadAction::EClear;
-		}
-
-		return LoadAction;
-	}
+	ERenderTargetLoadAction GetLoadActionForRenderTarget(const FSceneRenderTargetItem& DestRenderTarget) const;
 
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
 	EShaderPlatform GetShaderPlatform() const { return GShaderPlatformForFeatureLevel[FeatureLevel]; }

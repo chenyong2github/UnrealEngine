@@ -13,6 +13,7 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 #include "RenderCore/Public/ShaderCore.h"
 
+#include "ShaderCore.h"
 #include "D3D11RHI/Private/Windows/D3D11RHIBasePrivate.h"
 
 #include "D3D11State.h"
@@ -21,10 +22,25 @@
 
 #include "NVIDIA/nvapi/nvapi.h"
 
+
 static TAutoConsoleVariable<int32> CVarAdvancedSyncEnabled(
 	TEXT("nDisplay.render.softsync.AdvancedSyncEnabled"),
 	0,
 	TEXT("Advanced DWM based render synchronization (0 = disabled)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarUseCustomRefreshRate(
+	TEXT("nDisplay.render.softsync.UseCustomRefreshRate"),
+	0,
+	TEXT("Force custom refresh rate to be used in synchronization math (0 = disabled)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarCustomRefreshRate(
+	TEXT("nDisplay.render.softsync.CustomRefreshRate"),
+	60.f,
+	TEXT("Custom refresh rate for synchronization math (Hz)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -89,37 +105,37 @@ FDisplayClusterRenderSyncPolicySoftwareDX11::FDisplayClusterRenderSyncPolicySoft
 		const int Result = NvAPI_Initialize();
 		if (Result != NVAPI_OK)
 		{
-			UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't initialize NvAPI. Error code: %d"), Result);
+			UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't initialize NvAPI. Error code: %d"), Result);
 			return;
 		}
 
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("NvAPI has been initialized"));
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("NvAPI has been initialized"));
 
 		bNvApiInitialized = (Result == NVAPI_OK);
 		if (bNvApiInitialized)
 		{
 			if (NvAPI_GSync_EnumSyncDevices(GSyncDeviceHandles, &GSyncDeviceAmount) != NVAPI_OK)
 			{
-				UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't enumerate GSync devices or no devices found"));
+				UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Couldn't enumerate GSync devices or no devices found"));
 			}
 			else
 			{
-				UE_LOG(LogDisplayClusterRender, Log, TEXT("Found sync devices: %u"), GSyncDeviceAmount);
+				UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("Found sync devices: %u"), GSyncDeviceAmount);
 			}
 
 			if (NvAPI_EnumPhysicalGPUs(PhysGPUHandles, &PhysGPUAmount) != NVAPI_OK)
 			{
-				UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't enumerate physical GPU devices"));
+				UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't enumerate physical GPU devices"));
 			}
 			else
 			{
-				UE_LOG(LogDisplayClusterRender, Log, TEXT("Found physical GPUs: %u"), PhysGPUAmount);
+				UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("Found physical GPUs: %u"), PhysGPUAmount);
 			}
 
 			while (NvAPI_EnumNvidiaDisplayHandle(DisplayAmount, &DisplayHandles[DisplayAmount]) != NVAPI_END_ENUMERATION)
 			{
 				++DisplayAmount;
-				UE_LOG(LogDisplayClusterRender, Log, TEXT("Found displays: %u"), DisplayAmount);
+				UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("Found display: %u"), DisplayAmount);
 			}
 		}
 	}
@@ -127,7 +143,7 @@ FDisplayClusterRenderSyncPolicySoftwareDX11::FDisplayClusterRenderSyncPolicySoft
 
 FDisplayClusterRenderSyncPolicySoftwareDX11::~FDisplayClusterRenderSyncPolicySoftwareDX11()
 {
-	if (bUseAdvancedSynchronization)
+	if (bNvApiInitialized)
 	{
 		NvAPI_Unload();
 	}
@@ -137,7 +153,9 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 {
 	if(!(GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport))
 	{
-		return false;
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't get a D3D11 viewport."));
+		// Tell a caller to present the frame by himself
+		return true;
 	}
 
 	FD3D11Viewport* const Viewport = static_cast<FD3D11Viewport*>(GEngine->GameViewport->Viewport->GetViewportRHI().GetReference());
@@ -163,11 +181,6 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 	//////////////////////////////////////////////////////
 	SCOPE_CYCLE_COUNTER(STAT_nDisplayPresent_SoftSwapSync);
 
-	if (!GEngine || !GEngine->GameViewport || !GEngine->GameViewport->Viewport)
-	{
-		return false;
-	}
-
 	double B1B = 0.f;  // Barrier 1 before
 	double B1A = 0.f;  // Barrier 1 after
 	double TToB = 0.f; // Time to VBlank
@@ -178,13 +191,12 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 	double PB = 0.f;   // Present before
 	double PA = 0.f;   // Present after
 
-	++FrameCounter;
-
-	IDXGISwapChain* const SwapChain = (IDXGISwapChain*)GEngine->GameViewport->Viewport->GetViewportRHI()->GetNativeSwapChain();
+	IDXGISwapChain* const SwapChain = static_cast<IDXGISwapChain*>(Viewport->GetNativeSwapChain());
 	check(SwapChain);
 	if (!SwapChain)
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't get a swap chain. Native present will be performed."));
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't get a swap chain."));
+		// Tell a caller that he still needs to present a frame
 		return true;
 	}
 
@@ -193,13 +205,16 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 	check(DXOutput);
 	if (!DXOutput)
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't get a DX output device. Native present will be performed."));
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't get a DX output device."));
+		// Tell a caller that he still needs to present a frame
 		return true;
 	}
 
 	// Get dynamic values from console variables
 	const float VBlankThreshold = CVarVBlankThreshold.GetValueOnRenderThread();
 	const float VBlankThresholdSleepMultiplier = CVarVBlankThresholdSleepMultiplier.GetValueOnRenderThread();
+	const int32 VBlankBasisUpdate = CVarVBlankBasisUpdate.GetValueOnRenderThread();
+	const float VBlankBasisUpdatePeriod = CVarVBlankBasisUpdatePeriod.GetValueOnRenderThread();
 
 	if (!bTimersInitialized)
 	{
@@ -208,18 +223,18 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 		VBlankBasis = GetVBlankTimestamp(DXOutput);
 		RefreshPeriod = GetRefreshPeriod();
 
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: Refresh period:     %lf"), RefreshPeriod);
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank basis:       %lf"), VBlankBasis);
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank threshold:   %lf"), VBlankThreshold);
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank sleep mult:  %lf"), VBlankThresholdSleepMultiplier);
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank sleep:       %lf"), VBlankThreshold * VBlankThresholdSleepMultiplier);
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##SYNC_LOG: Refresh period:     %lf"), RefreshPeriod);
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##SYNC_LOG: VBlank basis:       %lf"), VBlankBasis);
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##SYNC_LOG: VBlank threshold:   %lf"), VBlankThreshold);
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##SYNC_LOG: VBlank sleep mult:  %lf"), VBlankThresholdSleepMultiplier);
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##SYNC_LOG: VBlank sleep:       %lf"), VBlankThreshold * VBlankThresholdSleepMultiplier);
 
 #ifdef UE_BUILD_DEBUG
 		const int SamplesCount = 25;
 		for (int i = 0; i < SamplesCount; ++i)
 		{
 			DXOutput->WaitForVBlank();
-			UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank Sample #%2d: %lf"), i, FPlatformTime::Seconds());
+			UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##SYNC_LOG: VBlank Sample #%2d: %lf"), i, FPlatformTime::Seconds());
 		}
 #endif
 
@@ -227,8 +242,9 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 	}
 
 	{
-		// Align render threads with a barrier
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_nDisplayPresent_SoftSync_WaitBarrier);
+
+		// Align render threads with a barrier
 		B1B = FPlatformTime::Seconds();
 		SyncBarrierRenderThread();
 		B1A = FPlatformTime::Seconds();
@@ -240,26 +256,29 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 		// Here we calculate how much time left before the next VBlank
 		const double CurTime = FPlatformTime::Seconds();
 		const double DiffTime = CurTime - VBlankBasis;
-		const double TimeRem = ::fmodl(DiffTime, RefreshPeriod);
-		const double LeftToVBlankTime = RefreshPeriod - TimeRem;
+		const double TimeRemainder    = ::fmodl(DiffTime, RefreshPeriod);
+		const double TimeLeftToVBlank = RefreshPeriod - TimeRemainder;
 
-		TToB = TimeRem;
+		TToB = TimeLeftToVBlank;
 
 		// Skip upcoming VBlank if we're in red zone
 		SB = FPlatformTime::Seconds();
-		if (LeftToVBlankTime < VBlankThreshold)
+		if (TimeLeftToVBlank < VBlankThreshold)
 		{
 			const double SleepTime = VBlankThreshold * VBlankThresholdSleepMultiplier;
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("FDisplayClusterNativePresentHandler::Present_SoftSwapSync - Skipped VBlank. Sleeping %f"), SleepTime);
-			FPlatformProcess::Sleep(SleepTime);
+			UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("DX11 advanced soft sync - Skipped VBlank. Sleeping %f"), SleepTime);
+			//! FPlatformProcess::Sleep(SleepTime);
+			VBlankBasis = GetVBlankTimestamp(DXOutput);
+			FPlatformProcess::Sleep(0.005);
 		}
 		SA = FPlatformTime::Seconds();
 	}
 
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_nDisplayPresent_SoftSync_WaitBarrier_Second);
+
 		// Align render threads again. After that, all render threads we'll be either before VBlank or after. The threshold,
 		// sleep, this barrier and MaxFrameLatency==1 (for blocking Present calls) guarantee it.
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_nDisplayPresent_SoftSync_WaitBarrier_Second);
 		B2B = FPlatformTime::Seconds();
 		SyncBarrierRenderThread();
 		B2A = FPlatformTime::Seconds();
@@ -267,10 +286,6 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_nDisplayPresent_SoftSync_SwapChainPresent);
-
-		// Get dynamic values from console variables
-		const int32 VBlankBasisUpdate = CVarVBlankBasisUpdate.GetValueOnRenderThread();
-		const float VBlankBasisUpdatePeriod = CVarVBlankBasisUpdatePeriod.GetValueOnRenderThread();
 
 		// Regardless of where we are, it's safe to present a frame now. If we need to update the VBlank basis,
 		// we have to wait for a VBlank and store the time. We don't want to miss a frame presentation so we
@@ -287,7 +302,7 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 		PA = FPlatformTime::Seconds();
 	}
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("##SYNC_LOG - %d:%lf:%lf:%lf:%lf:%lf:%lf:%lf:%lf:%lf"), FrameCounter, B1B, B1A, TToB, SB, SA, B2B, B2A, PB, PA);
+	UE_LOG(LogDisplayClusterRenderSync, Verbose, TEXT("##SYNC_LOG - %d:%lf:%lf:%lf:%lf:%lf:%lf:%lf:%lf:%lf"), FrameCounter, B1B, B1A, TToB, SB, SA, B2B, B2A, PB, PA);
 
 	const bool LogDwmStats = (CVarLogDwmStats.GetValueOnRenderThread() != 0);
 	if (LogDwmStats)
@@ -295,7 +310,9 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 		PrintDwmStats(FrameCounter);
 	}
 
-	// No need to perform native present
+	++FrameCounter;
+
+	// Tell a caller there is no need to present the frame
 	return false;
 }
 
@@ -312,12 +329,24 @@ double FDisplayClusterRenderSyncPolicySoftwareDX11::GetVBlankTimestamp(IDXGIOutp
 
 double FDisplayClusterRenderSyncPolicySoftwareDX11::GetRefreshPeriod() const
 {
-	// Obtain frame interval from the DWM
-	DWM_TIMING_INFO TimingInfo;
-	FMemory::Memzero(TimingInfo);
-	TimingInfo.cbSize = sizeof(DWM_TIMING_INFO);
-	DwmGetCompositionTimingInfo(nullptr, &TimingInfo);
-	return FPlatformTime::ToSeconds(TimingInfo.qpcRefreshPeriod);
+	const bool  bUseCustomRefreshRate = !!CVarUseCustomRefreshRate.GetValueOnRenderThread();
+
+	// Sometimes the DWM returns a refresh rate value that doesn't correspond to the real system.
+	// Use custom refresh rate for the synchronization algorithm below if required.
+	if (bUseCustomRefreshRate)
+	{
+		const float CustomRefreshRate = FMath::Abs(CVarCustomRefreshRate.GetValueOnRenderThread());
+		return 1.L / CustomRefreshRate;
+	}
+	else
+	{
+		// Obtain frame interval from the DWM
+		DWM_TIMING_INFO TimingInfo;
+		FMemory::Memzero(TimingInfo);
+		TimingInfo.cbSize = sizeof(DWM_TIMING_INFO);
+		DwmGetCompositionTimingInfo(nullptr, &TimingInfo);
+		return FPlatformTime::ToSeconds(TimingInfo.qpcRefreshPeriod);
+	}
 }
 
 void FDisplayClusterRenderSyncPolicySoftwareDX11::PrintDwmStats(uint32 FrameNum)
@@ -327,27 +356,27 @@ void FDisplayClusterRenderSyncPolicySoftwareDX11::PrintDwmStats(uint32 FrameNum)
 	TimingInfo.cbSize = sizeof(DWM_TIMING_INFO);
 	DwmGetCompositionTimingInfo(nullptr, &TimingInfo);
 
-	UE_LOG(LogDisplayClusterRender, Log, TEXT(">>>>>>>>>>>>>>>>>>>>>>> DWM"));
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cRefresh:               %llu"), FrameNum, TimingInfo.cRefresh);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cDXRefresh:             %u"),   FrameNum, TimingInfo.cDXRefresh);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) qpcRefreshPeriod:       %lf"),  FrameNum, FPlatformTime::ToSeconds(TimingInfo.qpcRefreshPeriod));
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) qpcVBlank:              %lf"),  FrameNum, FPlatformTime::ToSeconds(TimingInfo.qpcVBlank));
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFrame:                 %llu"), FrameNum, TimingInfo.cFrame);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cDXPresent:             %u"),   FrameNum, TimingInfo.cDXPresent);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cRefreshFrame:          %llu"), FrameNum, TimingInfo.cRefreshFrame);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cDXRefreshConfirmed:    %llu"), FrameNum, TimingInfo.cDXRefreshConfirmed);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFramesLate:            %llu"), FrameNum, TimingInfo.cFramesLate);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFramesOutstanding:     %u"),   FrameNum, TimingInfo.cFramesOutstanding);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFrameDisplayed:        %llu"), FrameNum, TimingInfo.cFrameDisplayed);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cRefreshFrameDisplayed: %llu"), FrameNum, TimingInfo.cRefreshFrameDisplayed);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFrameComplete:         %llu"), FrameNum, TimingInfo.cFrameComplete);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) qpcFrameComplete:       %lf"),  FrameNum, FPlatformTime::ToSeconds(TimingInfo.qpcFrameComplete));
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFramePending:          %llu"), FrameNum, TimingInfo.cFramePending);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) qpcFramePending:        %lf"),  FrameNum, FPlatformTime::ToSeconds(TimingInfo.qpcFramePending));
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFramesDisplayed:       %llu"), FrameNum, TimingInfo.cFramesDisplayed);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFramesComplete:        %llu"), FrameNum, TimingInfo.cFramesComplete);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFramesPending:         %llu"), FrameNum, TimingInfo.cFramesPending);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFramesDropped:         %llu"), FrameNum, TimingInfo.cFramesDropped);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("##DWM_STAT(%d) cFramesMissed:          %llu"), FrameNum, TimingInfo.cFramesMissed);
-	UE_LOG(LogDisplayClusterRender, Log, TEXT(">>>>>>"));
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT(">>>>>>>>>>>>>>>>>>>>>>> DWM"));
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cRefresh:               %llu"), FrameNum, TimingInfo.cRefresh);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cDXRefresh:             %u"),   FrameNum, TimingInfo.cDXRefresh);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) qpcRefreshPeriod:       %lf"),  FrameNum, FPlatformTime::ToSeconds(TimingInfo.qpcRefreshPeriod));
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) qpcVBlank:              %lf"),  FrameNum, FPlatformTime::ToSeconds(TimingInfo.qpcVBlank));
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFrame:                 %llu"), FrameNum, TimingInfo.cFrame);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cDXPresent:             %u"),   FrameNum, TimingInfo.cDXPresent);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cRefreshFrame:          %llu"), FrameNum, TimingInfo.cRefreshFrame);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cDXRefreshConfirmed:    %llu"), FrameNum, TimingInfo.cDXRefreshConfirmed);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFramesLate:            %llu"), FrameNum, TimingInfo.cFramesLate);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFramesOutstanding:     %u"),   FrameNum, TimingInfo.cFramesOutstanding);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFrameDisplayed:        %llu"), FrameNum, TimingInfo.cFrameDisplayed);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cRefreshFrameDisplayed: %llu"), FrameNum, TimingInfo.cRefreshFrameDisplayed);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFrameComplete:         %llu"), FrameNum, TimingInfo.cFrameComplete);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) qpcFrameComplete:       %lf"),  FrameNum, FPlatformTime::ToSeconds(TimingInfo.qpcFrameComplete));
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFramePending:          %llu"), FrameNum, TimingInfo.cFramePending);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) qpcFramePending:        %lf"),  FrameNum, FPlatformTime::ToSeconds(TimingInfo.qpcFramePending));
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFramesDisplayed:       %llu"), FrameNum, TimingInfo.cFramesDisplayed);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFramesComplete:        %llu"), FrameNum, TimingInfo.cFramesComplete);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFramesPending:         %llu"), FrameNum, TimingInfo.cFramesPending);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFramesDropped:         %llu"), FrameNum, TimingInfo.cFramesDropped);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("##DWM_STAT(%d) cFramesMissed:          %llu"), FrameNum, TimingInfo.cFramesMissed);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT(">>>>>>"));
 }

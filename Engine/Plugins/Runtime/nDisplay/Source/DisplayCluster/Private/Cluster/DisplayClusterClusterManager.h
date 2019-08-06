@@ -88,6 +88,9 @@ public:
 	virtual void SyncInput()   override;
 	virtual void SyncEvents()  override;
 
+	virtual void ClearSyncObjects() override;
+
+
 private:
 	bool GetResolvedNodeId(FString& id) const;
 

@@ -203,24 +203,43 @@ void FDisplayClusterDeviceBase::SetViewportCamera(const FString& InCameraId /* =
 	UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't assign '%s' camera. Viewport '%s' not found"), *InCameraId, *InViewportId);
 }
 
-void FDisplayClusterDeviceBase::SetCustomPostProcessing(const FString& ViewportID, const FPostProcessSettings& PostProcessingSettings)
+void FDisplayClusterDeviceBase::SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings)
 {	
-	// find viewport index 
-	int ViewportIdx = -1;
-	for(int i = 0; i < RenderViewports.Num(); i++)
+	for(int ViewportIndex = 0; ViewportIndex < RenderViewports.Num(); ViewportIndex++)
 	{
-		if (RenderViewports[i].GetId() == ViewportID)
+		if (RenderViewports[ViewportIndex].GetId() == ViewportID)
 		{
-			ViewportIdx = i;
+			ViewportStartPostProcessingSettings.Emplace(ViewportIndex, StartPostProcessingSettings);
 			break;
 		}
 	}
+}
 
-	// check if post processing settings assigned then override or add
-	if (ViewportIdx != -1)
+void FDisplayClusterDeviceBase::SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight)
+{
+	for (int ViewportIndex = 0; ViewportIndex < RenderViewports.Num(); ViewportIndex++)
 	{
-		ViewportFinalPostProcessingSettingsOverride.Remove(ViewportIdx);
-		ViewportFinalPostProcessingSettingsOverride.Emplace(ViewportIdx, PostProcessingSettings);
+		if (RenderViewports[ViewportIndex].GetId() == ViewportID)
+		{
+			FOverridePostProcessingSettings OverrideSettings;
+			OverrideSettings.BlendWeight = BlendWeight;
+			OverrideSettings.PostProcessingSettings = OverridePostProcessingSettings;
+			ViewportOverridePostProcessingSettings.Emplace(ViewportIndex, OverrideSettings);
+			break;
+		}
+	}
+}
+
+
+void FDisplayClusterDeviceBase::SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings)
+	{
+	for (int ViewportIndex = 0; ViewportIndex < RenderViewports.Num(); ViewportIndex++)
+	{
+		if (RenderViewports[ViewportIndex].GetId() == ViewportID)
+		{
+			ViewportFinalPostProcessingSettings.Emplace(ViewportIndex, FinalPostProcessingSettings);
+			break;
+		}
 	}
 }
 
@@ -769,13 +788,39 @@ void FDisplayClusterDeviceBase::CopyTextureToBackBuffer_RenderThread(FRHICommand
 	RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, copyParams);
 }
 
-void FDisplayClusterDeviceBase::UpdatePostProcessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType)
+void FDisplayClusterDeviceBase::StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType)
 {
 	int ViewportNumber = DecodeViewportIndex(StereoPassType);
-	auto CustomPostProcessAvailable = ViewportFinalPostProcessingSettingsOverride.Find(ViewportNumber);
+	auto CustomPostProcessAvailable = ViewportStartPostProcessingSettings.Find(ViewportNumber);
 	if (CustomPostProcessAvailable)
 	{
-		*FinalPostProcessingSettings = ViewportFinalPostProcessingSettingsOverride[ViewportNumber];
-		//ViewportFinalPostProcessingSettingsOverride.Remove(ViewportNumber);
+		*StartPostProcessingSettings = ViewportStartPostProcessingSettings[ViewportNumber];
+		ViewportStartPostProcessingSettings.Remove(ViewportNumber);
+	}
+}
+
+bool FDisplayClusterDeviceBase::OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight)
+{
+	int ViewportNumber = DecodeViewportIndex(StereoPassType);
+	auto CustomPostProcessAvailable = ViewportOverridePostProcessingSettings.Find(ViewportNumber);
+	if (CustomPostProcessAvailable)
+	{
+		*OverridePostProcessingSettings = ViewportOverridePostProcessingSettings[ViewportNumber].PostProcessingSettings;
+		BlendWeight = ViewportOverridePostProcessingSettings[ViewportNumber].BlendWeight;
+		ViewportOverridePostProcessingSettings.Remove(ViewportNumber);
+		return true;
+	}
+
+	return false;
+}
+
+void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType)
+{
+	int ViewportNumber = DecodeViewportIndex(StereoPassType);
+	auto CustomPostProcessAvailable = ViewportFinalPostProcessingSettings.Find(ViewportNumber);
+	if (CustomPostProcessAvailable)
+	{
+		*FinalPostProcessingSettings = ViewportFinalPostProcessingSettings[ViewportNumber];
+		ViewportFinalPostProcessingSettings.Remove(ViewportNumber);
 	}		
 }

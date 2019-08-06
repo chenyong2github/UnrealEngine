@@ -36,6 +36,13 @@ static TAutoConsoleVariable<int32> CVarCompositionGraphOrder(
 	TEXT(" 1: RegisterPass() call order, unless the dependencies (input and additional) require a different order (might become new default as it provides more control, executes all registered nodes)"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarCompositionForceRenderTargetLoad(
+	TEXT("r.CompositionForceRenderTargetLoad"),
+	0,
+	TEXT("0: default engine behaviour\n")
+	TEXT("1: force ERenderTargetLoadAction::ELoad for all render targets"),
+	ECVF_RenderThreadSafe);
+
 #if !UE_BUILD_SHIPPING
 FAutoConsoleCommand CmdCompositionGraphDebug(
 	TEXT("r.CompositionGraphDebug"),
@@ -285,6 +292,33 @@ void FRenderingCompositePassContext::Process(const TArray<FRenderingCompositePas
 		GGMLFileWriter.CloseGMLFile();
 	}
 }
+
+ERenderTargetLoadAction FRenderingCompositePassContext::GetLoadActionForRenderTarget(const FSceneRenderTargetItem& DestRenderTarget) const
+{
+	ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
+
+	if (IsViewFamilyRenderTarget(DestRenderTarget))
+	{
+		const bool bForceLoad = !!CVarCompositionForceRenderTargetLoad.GetValueOnAnyThread();
+		if (bForceLoad)
+		{
+			LoadAction = ERenderTargetLoadAction::ELoad;
+		}
+		else
+		{
+			// If rendering the final view family's render target, must clear first view, and load subsequent views.
+			LoadAction = (&View != View.Family->Views[0]) ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear;
+		}
+	}
+	else if (HasHmdMesh())
+	{
+		// Clears render target because going to have unrendered pixels inside view rect.
+		LoadAction = ERenderTargetLoadAction::EClear;
+	}
+
+	return LoadAction;
+}
+
 
 // --------------------------------------------------------------------------
 

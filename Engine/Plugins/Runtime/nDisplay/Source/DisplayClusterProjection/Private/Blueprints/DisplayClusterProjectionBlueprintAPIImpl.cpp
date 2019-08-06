@@ -16,8 +16,11 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Policy: CAMERA
 //////////////////////////////////////////////////////////////////////////////////////////////
-void UDisplayClusterProjectionBlueprintAPIImpl::CameraPolicySetCamera(const FString& ViewportId, UCameraComponent* NewCamera)
+void UDisplayClusterProjectionBlueprintAPIImpl::CameraPolicySetCamera(const FString& ViewportId, UCameraComponent* NewCamera, float FOVMultiplier)
 {
+	check(NewCamera);
+	check(FOVMultiplier >= 0.1f);
+
 	IDisplayClusterProjection& Module = IDisplayClusterProjection::Get();
 	
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory = Module.GetProjectionFactory(DisplayClusterStrings::projection::Camera);
@@ -32,7 +35,7 @@ void UDisplayClusterProjectionBlueprintAPIImpl::CameraPolicySetCamera(const FStr
 				TSharedPtr<FDisplayClusterProjectionCameraPolicy> CameraPolicyInstance = StaticCastSharedPtr<FDisplayClusterProjectionCameraPolicy>(PolicyInstance);
 				if (CameraPolicyInstance)
 				{
-					CameraPolicyInstance->SetCamera(NewCamera);
+					CameraPolicyInstance->SetCamera(NewCamera, FOVMultiplier);
 				}
 			}
 		}
