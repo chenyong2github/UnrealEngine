@@ -73,8 +73,8 @@ struct ENGINE_API FSplineCurves
 	UPROPERTY()
 	FInterpCurveFloat ReparamTable;
 
-	UPROPERTY(Instanced)
-	USplineMetadata* Metadata;
+	UPROPERTY()
+	USplineMetadata* Metadata_DEPRECATED;
 
 	bool operator==(const FSplineCurves& Other) const
 	{
@@ -188,12 +188,12 @@ UCLASS(ClassGroup=Utility, ShowCategories = (Mobility), HideCategories = (Physic
 class ENGINE_API USplineComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
-    
-    /** Child class can optionally provide their metadata object through this constructor */
-	USplineComponent(const FObjectInitializer& ObjectInitializer, USplineMetadata* Metadata);
 
 	UPROPERTY(EditAnywhere, Category=Points)
 	FSplineCurves SplineCurves;
+
+	UPROPERTY()
+	USplineMetadata* SplineMetadata;
 
 	/** Deprecated - please use GetSplinePointsPosition() to fetch this FInterpCurve */
 	UPROPERTY()
@@ -316,8 +316,10 @@ public:
 	const FInterpCurveQuat& GetSplinePointsRotation() const { return SplineCurves.Rotation; }
 	FInterpCurveVector& GetSplinePointsScale() { return SplineCurves.Scale; }
 	const FInterpCurveVector& GetSplinePointsScale() const { return SplineCurves.Scale; }
-	USplineMetadata* GetSplinePointsMetadata() { return SplineCurves.Metadata; }
-	const USplineMetadata* GetSplinePointsMetadata() const { return SplineCurves.Metadata; }
+	USplineMetadata* GetSplinePointsMetadata() { return SplineMetadata; }
+	const USplineMetadata* GetSplinePointsMetadata() const { return SplineMetadata; }
+
+	void SetSplineMetadata(USplineMetadata* InMetadata) { SplineMetadata = InMetadata; }
 
 	void ApplyComponentInstanceData(struct FSplineInstanceData* ComponentInstanceData, const bool bPostUCS);
 
