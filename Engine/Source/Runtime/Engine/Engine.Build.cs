@@ -86,8 +86,7 @@ public class Engine : ModuleRules
                 "NetworkReplayStreaming",
 				"PhysicsCore",
 				"PhysicsSQ",
-				"ChaosSolvers",
-				"RigVM"
+				"ChaosSolvers"
 			}
 		);
 
