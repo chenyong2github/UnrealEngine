@@ -88,7 +88,6 @@ namespace UnrealBuildTool.Rules
 						"Projects",
                         "WindowsMixedRealityHandTracking",
 						"AugmentedReality",
-						"HoloLensAR"
 					}
 					);
 
