@@ -199,7 +199,7 @@ FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& Au
 -----------------------------------------------------------------------------*/
 
 FAudioDevice::FAudioDevice()
-	: NumStoppingVoices(32)
+	: NumStoppingSources(32)
 	, SampleRate(0)
 	, NumPrecacheFrames(MONO_PCM_BUFFER_SAMPLES)
 	, CommonAudioPoolSize(0)
@@ -302,11 +302,15 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	// as the Sources array has yet to be initialized. If the cvar is largest, take that value to allow for testing
 	const int32 PlatformMaxSources = PlatformSettings.MaxChannels > 0 ? PlatformSettings.MaxChannels : InMaxSources;
 	MaxSources = FMath::Max(PlatformMaxSources, AudioChannelCountCVar);
-	MaxChannels = MaxSources;
-	MaxChannels_GameThread = MaxSources;
+	MaxSources = FMath::Max(MaxSources, 1);
 
 	// Ensure and not assert so if in editor, user can change quality setting and re-serialize if so desired.
 	ensureMsgf(MaxSources > 0, TEXT("Neither passed MaxSources nor platform MaxChannel setting was positive value"));
+	UE_LOG(LogAudio, Display, TEXT("AudioDevice MaxSources: %d"), MaxSources);
+
+	MaxChannels = MaxSources;
+	MaxChannels_GameThread = MaxSources;
+
 
 	// Mixed sample rate is set by the platform
 	SampleRate = PlatformSettings.SampleRate;
@@ -360,12 +364,12 @@ bool FAudioDevice::Init(int32 InMaxSources)
 		// create a platform specific effects manager
 		Effects = CreateEffectsManager();
 
-		NumStoppingVoices = GetDefault<UAudioSettings>()->NumStoppingSources;
+		NumStoppingSources = GetDefault<UAudioSettings>()->NumStoppingSources;
 	}
 	else
 	{
-		// In old audio engine, there are no stopping voices
-		NumStoppingVoices = 0;
+		// Stopping sources are not supported in the old audio engine
+		NumStoppingSources = 0;
 	}
 
 	// Cache any plugin settings objects we have loaded
@@ -508,29 +512,31 @@ void FAudioDevice::SetMaxChannels(int32 InMaxChannels)
 		return;
 	}
 
-	if (IsInGameThread())
-	{
-		MaxChannels_GameThread = InMaxChannels;
-	}
-
-	if (!IsInAudioThread())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetMaxChannels"), STAT_AudioSetMaxChannels, STATGROUP_AudioThreadCommands);
-
-		FAudioThread::RunCommandOnAudioThread([this, InMaxChannels]()
-		{
-			this->SetMaxChannels(InMaxChannels);
-
-		}, GET_STATID(STAT_AudioSetMaxChannels));
-	}
-
 	if (InMaxChannels > MaxSources)
 	{
 		UE_LOG(LogAudio, Warning, TEXT("Can't increase MaxChannels past MaxSources"));
 		return;
 	}
 
-	MaxChannels = InMaxChannels;
+	if (IsInAudioThread())
+	{
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetMaxChannelsGameThread"), STAT_AudioSetMaxChannelsGameThread, STATGROUP_AudioThreadCommands);
+		FAudioThread::RunCommandOnGameThread([this, InMaxChannels]()
+		{
+			MaxChannels_GameThread = InMaxChannels;
+
+		}, GET_STATID(STAT_AudioSetMaxChannelsGameThread));
+	}
+
+	if (IsInGameThread())
+	{
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetMaxChannels"), STAT_AudioSetMaxChannels, STATGROUP_AudioThreadCommands);
+
+		FAudioThread::RunCommandOnAudioThread([this, InMaxChannels]()
+		{
+			MaxChannels = InMaxChannels;
+		}, GET_STATID(STAT_AudioSetMaxChannels));
+	}
 }
 
 void FAudioDevice::SetMaxChannelsScaled(float InScaledChannelCount)
@@ -577,7 +583,13 @@ int32 FAudioDevice::GetMaxChannels() const
 	}
 
 	// Find product of max channels and final scalar, and clamp between 1 and MaxSources.
+	check(MaxSources > 0);
 	return FMath::Clamp(static_cast<int32>(OutMaxChannels * MaxChannelScalarToApply), 1, MaxSources);
+}
+
+int32 FAudioDevice::GetMaxSources() const
+{
+	return MaxSources + NumStoppingSources;
 }
 
 void FAudioDevice::Teardown()
@@ -1958,8 +1970,8 @@ void FAudioDevice::InitSoundSources()
 	if (Sources.Num() == 0)
 	{
 		// now create platform specific sources
-		const int32 Channels = GetMaxChannels() + NumStoppingVoices;
-		for (int32 SourceIndex = 0; SourceIndex < Channels; SourceIndex++)
+		const int32 SourceMax = GetMaxSources();
+		for (int32 SourceIndex = 0; SourceIndex < SourceMax; SourceIndex++)
 		{
 			FSoundSource* Source = CreateSoundSource();
 			Source->InitializeSourceEffects(SourceIndex);
@@ -4012,7 +4024,7 @@ void FAudioDevice::Update(bool bGameTicking)
 		SET_DWORD_STAT(STAT_ActiveSounds, ActiveSounds.Num());
 		SET_DWORD_STAT(STAT_AudioVirtualLoops, VirtualLoops.Num());
 		SET_DWORD_STAT(STAT_AudioMaxChannels, Channels);
-		SET_DWORD_STAT(STAT_AudioMaxStoppingSources, NumStoppingVoices);
+		SET_DWORD_STAT(STAT_AudioMaxStoppingSources, NumStoppingSources);
 	}
 
 	// now let the platform perform anything it needs to handle
