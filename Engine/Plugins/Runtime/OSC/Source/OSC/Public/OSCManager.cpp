@@ -1,284 +1,374 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "OSCManager.h"
+
+#include "IPAddress.h"
 #include "OSCMessage.h"
 #include "OSCBundle.h"
 #include "OSCLog.h"
+#include "SocketSubsystem.h"
 
-UOSCServer* UOSCManager::CreateOSCServer(FString ReceiveAddress, int32 Port)
+
+namespace
+{
+	// Returns true if provided address was null and was able to
+	// override with local host address, false if not.
+	bool GetLocalHostAddress(FString& Address)
+	{
+		if (!Address.IsEmpty() && Address != TEXT("0"))
+		{
+			return false;
+		}
+
+		bool bCanBind = false;
+		bool bAppendPort = false;
+		if (ISocketSubsystem* SocketSys = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM))
+		{
+			const TSharedPtr<FInternetAddr> Addr = SocketSys->GetLocalHostAddr(*GLog, bCanBind);
+			if (Addr.IsValid())
+			{
+				Address = Addr->ToString(bAppendPort);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	const FOSCType* GetOSCTypeAtIndex(const FOSCMessage& Message, const int32 Index)
+	{
+		const TSharedPtr<FOSCMessagePacket>& Packet = Message.GetPacket();
+		if (Packet.IsValid())
+		{
+			TArray<FOSCType>& Args = Packet->GetArguments();
+			if (Index >= Args.Num())
+			{
+				UE_LOG(LogOSC, Error, TEXT("Index '%d' out-of-bounds.  Message argument size = '%d'"), Index, Args.Num());
+				return nullptr;
+			}
+
+			return &Args[Index];
+		}
+
+		return nullptr;
+	}
+} // namespace <>
+
+UOSCServer* UOSCManager::CreateOSCServer(FString ReceiveIPAddress, int32 Port, bool bMulticastLoopback, bool bStartListening)
 {
 	UOSCServer* NewOSCServer = NewObject<UOSCServer>();
 
-	FIPv4Address ipAddr;
-	if (FIPv4Address::Parse(ReceiveAddress, ipAddr))
+	if (GetLocalHostAddress(ReceiveIPAddress))
 	{
-		NewOSCServer->Listen(ipAddr, Port, false);
+		UE_LOG(LogOSC, Display, TEXT("OSCServer ReceiveAddress not specified. Using LocalHost IP: '%s'"), *ReceiveIPAddress);
+	}
+
+	NewOSCServer->SetMulticastLoopback(bMulticastLoopback);
+	if (NewOSCServer->SetAddress(ReceiveIPAddress, Port))
+	{
+		if (bStartListening)
+		{
+			NewOSCServer->Listen();
+		}
+	}
+	else
+	{
+		UE_LOG(LogOSC, Warning, TEXT("Failed to parse ReceiveAddress '%s' for OSCServer."), *ReceiveIPAddress);
 	}
 
 	return NewOSCServer;
 }
 
-UOSCClient* UOSCManager::CreateOSCClient(FString SendAddress, int32 Port)
+UOSCClient* UOSCManager::CreateOSCClient(FString SendIPAddress, int32 Port)
 {
 	UOSCClient* NewOSCClient = NewObject<UOSCClient>();
 
-	FIPv4Address ipAddr;
-	if (FIPv4Address::Parse(SendAddress, ipAddr))
+	if (GetLocalHostAddress(SendIPAddress))
 	{
-		NewOSCClient->SetTarget(ipAddr, Port);
+		UE_LOG(LogOSC, Display, TEXT("OSCClient SendAddress not specified. Using LocalHost IP: '%s'"), *SendIPAddress);
+	}
+
+	if (!NewOSCClient->SetSendIPAddress(SendIPAddress, Port))
+	{
+		UE_LOG(LogOSC, Warning, TEXT("Failed to parse SendAddress '%s' for OSCClient. Client unable to send new messages."), *SendIPAddress);
 	}
 
 	return NewOSCClient;
 }
 
-void UOSCManager::CreateOSCMessage(UPARAM(ref) FOSCMessage& Message)
+void UOSCManager::ClearMessage(FOSCMessage& Message)
 {
-	Message.SetPacket(MakeShareable(new FOSCMessagePacket()));
-}
-
-void UOSCManager::CreateOSCBundle(UPARAM(ref) FOSCBundle& Bundle)
-{
-	Bundle.SetPacket(MakeShareable(new FOSCBundlePacket()));
-}
-
-void UOSCManager::ClearMessage(UPARAM(ref) FOSCMessage& Message)
-{
-	if (Message.IsValid())
+	if (Message.GetPacket().IsValid())
 	{
-		Message.GetPacket()->Clear();
+		Message.GetPacket()->GetArguments().Reset();
 	}
 }
 
-void UOSCManager::ClearBundle(UPARAM(ref) FOSCBundle& Bundle)
+void UOSCManager::ClearBundle(FOSCBundle& Bundle)
 {
-	if (Bundle.IsValid())
+	if (Bundle.GetPacket().IsValid())
 	{
-		Bundle.GetPacket()->Clear();
+		Bundle.GetPacket()->GetPackets().Reset();
 	}
 }
 
-void UOSCManager::AddMessageToBundle(const FOSCMessage& Message, UPARAM(ref) FOSCBundle& Bundle)
+FOSCBundle& UOSCManager::AddMessageToBundle(const FOSCMessage& Message, FOSCBundle& Bundle)
 {
-	if (Message.IsValid() && Bundle.IsValid())
+	if (Message.GetPacket().IsValid() && Bundle.GetPacket().IsValid())
 	{
-		Bundle.GetPacket()->AddPacket(Message.GetPacket());
+		Bundle.GetPacket()->GetPackets().Add(Message.GetPacket());
 	}
+
+	return Bundle;
 }
 
-void UOSCManager::AddBundleToBundle(const FOSCBundle& inBundle, UPARAM(ref) FOSCBundle& outBundle)
+FOSCBundle& UOSCManager::AddBundleToBundle(const FOSCBundle& InBundle, FOSCBundle& OutBundle)
 {
-	if (inBundle.IsValid() && outBundle.IsValid())
+	if (InBundle.GetPacket().IsValid() && OutBundle.GetPacket().IsValid())
 	{
-		outBundle.GetPacket()->AddPacket(inBundle.GetPacket());
+		OutBundle.GetPacket()->GetPackets().Add(InBundle.GetPacket());
 	}
+
+	return OutBundle;
 }
 
-void UOSCManager::SetAddress(UPARAM(ref) FOSCMessage& Message, const FString& Address)
+FOSCMessage& UOSCManager::AddFloat(FOSCMessage& Message, float Value)
 {
-	Message.GetOrCreatePacket()->SetAddress(Address);
+	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	return Message;
 }
 
-void UOSCManager::AddFloat(UPARAM(ref) FOSCMessage& Message, float Value)
+FOSCMessage& UOSCManager::AddInt32(FOSCMessage& Message, int32 Value)
 {
-	Message.GetOrCreatePacket()->AddArgument(FOSCType(Value));
+	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	return Message;
 }
 
-void UOSCManager::AddInt32(UPARAM(ref) FOSCMessage& Message, int32 Value)
+FOSCMessage& UOSCManager::AddInt64(FOSCMessage& Message, int64 Value)
 {
-	Message.GetOrCreatePacket()->AddArgument(FOSCType(Value));
+	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	return Message;
 }
 
-void UOSCManager::AddInt64(UPARAM(ref) FOSCMessage& Message, int64 Value)
+FOSCMessage& UOSCManager::AddString(FOSCMessage& Message, FString Value)
 {
-	Message.GetOrCreatePacket()->AddArgument(FOSCType(Value));
+	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	return Message;
 }
 
-void UOSCManager::AddString(UPARAM(ref) FOSCMessage& Message, FString Value)
+FOSCMessage& UOSCManager::AddBlob(FOSCMessage& Message, TArray<uint8>& Value)
 {
-	Message.GetOrCreatePacket()->AddArgument(FOSCType(Value));
+	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	return Message;
 }
 
-void UOSCManager::AddBlob(UPARAM(ref) FOSCMessage& Message, TArray<uint8>& Value)
+FOSCMessage& UOSCManager::AddBool(FOSCMessage& Message, bool Value)
 {
-	Message.GetOrCreatePacket()->AddArgument(FOSCType(Value));
-}
-
-void UOSCManager::AddBool(UPARAM(ref) FOSCMessage& Message, bool Value)
-{
-	Message.GetOrCreatePacket()->AddArgument(FOSCType(Value));
+	Message.GetPacket()->GetArguments().Add(FOSCType(Value));
+	return Message;
 }
 
 void UOSCManager::GetMessagesFromBundle(const FOSCBundle& Bundle, TArray<FOSCMessage>& Messages)
 {
-	if (Bundle.IsValid())
+	if (Bundle.GetPacket().IsValid())
 	{
-		const TSharedPtr<FOSCBundlePacket> bundlePacket = Bundle.GetPacket();
-
-		const int32 num = bundlePacket->GetNumPackets();
-		for (int32 i = 0; i < num; i++)
+		const TSharedPtr<FOSCBundlePacket> BundlePacket = Bundle.GetPacket();
+		for (int32 i = 0; i < BundlePacket->GetPackets().Num(); i++)
 		{
-			TSharedPtr<FOSCPacket> packet = bundlePacket->GetPacket(i);
-
-			if (packet->IsMessage())
+			const TSharedPtr<FOSCPacket>& Packet = BundlePacket->GetPackets()[i];
+			if (Packet->IsMessage())
 			{
-				FOSCMessage message;
-
-				message.SetPacket(StaticCastSharedPtr<FOSCMessagePacket>(packet));
-
-				Messages.Add(message);
+				Messages.Emplace(StaticCastSharedPtr<FOSCMessagePacket>(Packet));
 			}
 		}
 	}
 }
 
-void UOSCManager::GetFloat(const FOSCMessage& Message, const int index, float& Value)
+void UOSCManager::GetFloat(const FOSCMessage& Message, const int32 Index, float& Value)
 {
-	if (Message.IsValid())
+	if (const FOSCType* OSCType = GetOSCTypeAtIndex(Message, Index))
 	{
-		const FOSCType& t = Message.GetPacket()->GetArgument(index);
-
-		if (t.IsFloat())
+		if (OSCType->IsFloat())
 		{
-			Value = t.GetFloat();
+			Value = OSCType->GetFloat();
 		}
 	}
 }
 
-void UOSCManager::GetAllFloat(const FOSCMessage& Message, TArray<float>& Values)
+void UOSCManager::GetAllFloats(const FOSCMessage& Message, TArray<float>& Values)
 {
-	if (Message.IsValid())
+	if (Message.GetPacket().IsValid())
 	{
-		for (int i = 0; i < Message.GetPacket()->GetNumArguments(); i++)
+		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		for (int32 i = 0; i < Args.Num(); i++)
 		{
-			const FOSCType& t = Message.GetPacket()->GetArgument(i);
-			if (t.IsFloat())
+			const FOSCType& OSCType = Args[i];
+			if (OSCType.IsFloat())
 			{
-				Values.Add(t.GetFloat());
+				Values.Add(OSCType.GetFloat());
 			}
 		}
 	}
 }
 
-void UOSCManager::GetInt32(const FOSCMessage& Message, const int index, int32& Value)
+void UOSCManager::GetInt32(const FOSCMessage& Message, const int32 Index, int32& Value)
 {
-	if (Message.IsValid())
+	if (const FOSCType* OSCType = GetOSCTypeAtIndex(Message, Index))
 	{
-		const FOSCType& t = Message.GetPacket()->GetArgument(index);
-
-		if (t.IsInt32())
+		if (OSCType->IsInt32())
 		{
-			Value = t.GetInt32();
+			Value = OSCType->GetInt32();
 		}
 	}
 }
 
-void UOSCManager::GetAllInt32(const FOSCMessage& Message, TArray<int32>& Values)
+void UOSCManager::GetAllInt32s(const FOSCMessage& Message, TArray<int32>& Values)
 {
-	if (Message.IsValid())
+	if (Message.GetPacket().IsValid())
 	{
-		for (int i = 0; i < Message.GetPacket()->GetNumArguments(); i++)
+		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		for (int32 i = 0; i < Args.Num(); i++)
 		{
-			const FOSCType& t = Message.GetPacket()->GetArgument(i);
-			if (t.IsInt32())
+			const FOSCType& OSCType = Args[i];
+			if (OSCType.IsInt32())
 			{
-				Values.Add(t.GetInt32());
+				Values.Add(OSCType.GetInt32());
 			}
 		}
 	}
 }
 
-void UOSCManager::GetInt64(const FOSCMessage& Message, const int index, int64& Value)
+void UOSCManager::GetInt64(const FOSCMessage& Message, const int32 Index, int64& Value)
 {
-	if (Message.IsValid())
+	if (const FOSCType* OSCType = GetOSCTypeAtIndex(Message, Index))
 	{
-		const FOSCType& t = Message.GetPacket()->GetArgument(index);
-
-		if (t.IsInt64())
+		if (OSCType->IsInt64())
 		{
-			Value = t.GetInt64();
+			Value = OSCType->GetInt64();
 		}
 	}
 }
 
-void UOSCManager::GetAllInt64(const FOSCMessage& Message, TArray<int64>& Values)
+void UOSCManager::GetAllInt64s(const FOSCMessage& Message, TArray<int64>& Values)
 {
-	if (Message.IsValid())
+	if (Message.GetPacket().IsValid())
 	{
-		for (int i = 0; i < Message.GetPacket()->GetNumArguments(); i++)
+		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		for (int32 i = 0; i < Args.Num(); i++)
 		{
-			const FOSCType& t = Message.GetPacket()->GetArgument(i);
-			if (t.IsInt64())
+			const FOSCType& OSCType = Args[i];
+			if (OSCType.IsInt64())
 			{
-				Values.Add(t.GetInt64());
+				Values.Add(OSCType.GetInt64());
 			}
 		}
 	}
 }
 
-void UOSCManager::GetString(const FOSCMessage& Message, const int index, FString& Value)
+void UOSCManager::GetString(const FOSCMessage& Message, const int32 Index, FString& Value)
 {
-	if (Message.IsValid())
+	if (const FOSCType* OSCType = GetOSCTypeAtIndex(Message, Index))
 	{
-		const FOSCType& t = Message.GetPacket()->GetArgument(index);
-
-		if (t.IsString())
+		if (OSCType->IsString())
 		{
-			Value = t.GetString();
+			Value = OSCType->GetString();
 		}
 	}
 }
 
-void UOSCManager::GetAllString(const FOSCMessage& Message, TArray<FString>& Values)
+void UOSCManager::GetAllStrings(const FOSCMessage& Message, TArray<FString>& Values)
 {
-	if (Message.IsValid())
+	if (Message.GetPacket().IsValid())
 	{
-		for (int i = 0; i < Message.GetPacket()->GetNumArguments(); i++)
+		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		for (int32 i = 0; i < Args.Num(); i++)
 		{
-			const FOSCType& t = Message.GetPacket()->GetArgument(i);
-			if (t.IsString())
+			const FOSCType& OSCType = Args[i];
+			if (OSCType.IsString())
 			{
-				Values.Add(t.GetString());
+				Values.Add(OSCType.GetString());
 			}
 		}
 	}
 }
 
-void UOSCManager::GetBool(const FOSCMessage& Message, const int index, bool& Value)
+void UOSCManager::GetBool(const FOSCMessage& Message, const int32 Index, bool& Value)
 {
-	if (Message.IsValid())
+	if (const FOSCType* OSCType = GetOSCTypeAtIndex(Message, Index))
 	{
-		const FOSCType& t = Message.GetPacket()->GetArgument(index);
-
-		if (t.IsBool())
+		if (OSCType->IsBool())
 		{
-			Value = t.GetBool();
+			Value = OSCType->GetBool();
 		}
 	}
 }
 
-void UOSCManager::GetAllBool(const FOSCMessage& Message, TArray<bool>& Values)
+void UOSCManager::GetAllBools(const FOSCMessage& Message, TArray<bool>& Values)
 {
-	if (Message.IsValid())
+	if (Message.GetPacket().IsValid())
 	{
-		for (int i = 0; i < Message.GetPacket()->GetNumArguments(); i++)
+		const TArray<FOSCType>& Args = Message.GetPacket()->GetArguments();
+		for (int32 i = 0; i < Args.Num(); i++)
 		{
-			const FOSCType& t = Message.GetPacket()->GetArgument(i);
-			if (t.IsBool())
+			const FOSCType& OSCType = Args[i];
+			if (OSCType.IsBool())
 			{
-				Values.Add(t.GetBool());
+				Values.Add(OSCType.GetBool());
 			}
 		}
 	}
 }
 
-void UOSCManager::GetBlob(const FOSCMessage& Message, const int index, TArray<uint8>& Value)
+void UOSCManager::GetBlob(const FOSCMessage& Message, const int32 Index, TArray<uint8>& Value)
 {
-	if (Message.IsValid())
+	if (const FOSCType* OSCType = GetOSCTypeAtIndex(Message, Index))
 	{
-		const FOSCType& t = Message.GetPacket()->GetArgument(index);
-
-		if (t.IsBlob())
+		if (OSCType->IsBlob())
 		{
-			Value = t.GetBlob();
+			Value = OSCType->GetBlob();
 		}
 	}
+}
+
+bool UOSCManager::OSCAddressIsBundle(const FOSCAddress& Address)
+{
+	return Address.IsBundle();
+}
+
+bool UOSCManager::OSCAddressIsMessage(const FOSCAddress& Address)
+{
+	return Address.IsBundle();
+}
+
+bool UOSCManager::OSCAddressIsValid(const FOSCAddress& Address)
+{
+	return Address.IsValid();
+}
+
+FOSCAddress UOSCManager::StringToOSCAddress(const FString& String)
+{
+	return FOSCAddress(String);
+}
+
+FOSCAddress& UOSCManager::OSCAddressAppend(FOSCAddress& Address, const FString& ToAppend)
+{
+	Address.Append(ToAppend);
+	return Address;
+}
+
+FOSCAddress UOSCManager::GetOSCMessageAddress(const FOSCMessage& Message)
+{
+	return Message.GetAddress();
+}
+
+FOSCMessage& UOSCManager::SetOSCMessageAddress(FOSCMessage& Message, const FOSCAddress& Address)
+{
+	Message.SetAddress(Address);
+	return Message;
+}
+
+TArray<FString> UOSCManager::SplitOSCAddress(const FOSCAddress& Address)
+{
+	TArray<FString> OutArray;
+	Address.Split(OutArray);
+	return MoveTemp(OutArray);
 }

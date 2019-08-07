@@ -1,13 +1,18 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "OSCBundle.h"
+#include "OSCLog.h"
 #include "OSCStream.h"
 
-FOSCBundlePacket::FOSCBundlePacket() 
-: FOSCPacket(), TimeTag(0) 
-{}
 
-FOSCBundlePacket::~FOSCBundlePacket() 
-{}
+FOSCBundlePacket::FOSCBundlePacket()
+	: FOSCPacket()
+	, TimeTag(0)
+{
+}
+
+FOSCBundlePacket::~FOSCBundlePacket()
+{
+}
 
 void FOSCBundlePacket::SetTimeTag(uint64 NewTimeTag) 
 { 
@@ -19,65 +24,66 @@ uint64 FOSCBundlePacket::GetTimeTag() const
 	return TimeTag.GetTimeTag(); 
 }
 
-void FOSCBundlePacket::AddPacket(TSharedPtr<FOSCPacket> Packet)
-{
-	Packets.Add(Packet);
-}
-
 void FOSCBundlePacket::WriteData(FOSCStream& Stream)
 {
-	// Write bundle
-	Stream.WriteString(FString("#bundle"));
+	if (!GetAddress().IsBundle())
+	{
+		UE_LOG(LogOSC, Warning, TEXT("Failed to write OSCBundlePacket. Invalid OSCAddress '%s'"), *GetAddress().Value);
+		return;
+	}
 
-	// Write bundle time tag
+	// Write bundle & time tag
+	Stream.WriteString(GetAddress().Value);
 	Stream.WriteUInt64(GetTimeTag());
 
-	// for each packet
-	for (auto& packet : Packets)
+	for (TSharedPtr<FOSCPacket>& Packet : Packets)
 	{
-		int sizePosition = Stream.GetPosition();
+		int32 StreamPos = Stream.GetPosition();
 		Stream.WriteInt32(0);
 
-		int prePos = Stream.GetPosition();
-		packet->WriteData(Stream);
-		int postPos = Stream.GetPosition();
+		int32 InitPos = Stream.GetPosition();
+		Packet->WriteData(Stream);
+		int32 NewPos = Stream.GetPosition();
 
-		Stream.SetPosition(sizePosition);
-		Stream.WriteInt32(postPos - prePos);
-		Stream.SetPosition(postPos);
+		Stream.SetPosition(StreamPos);
+		Stream.WriteInt32(NewPos - InitPos);
+		Stream.SetPosition(NewPos);
 	}
 }
 
 void FOSCBundlePacket::ReadData(FOSCStream& Stream)
 {
-	// Read address
-	FString address = Stream.ReadString();
-
-	// read time tag
 	TimeTag = FOSCType(Stream.ReadUInt64());
 
-	// While we still have data
 	while (!Stream.HasReachedEnd())
 	{
-		int32 sizeOfPacket = Stream.ReadInt32();
+		TSharedPtr<FOSCPacket> Packet = FOSCPacket::CreatePacket(Stream.GetData());
 
-		TSharedPtr<FOSCPacket> packet = FOSCPacket::CreatePacket(Stream.GetBuffer());
-
-		if (packet.IsValid())
+		if (Packet.IsValid())
 		{
-			packet->ReadData(Stream);
-			Packets.Add(packet);
-		}		
+			Packet->ReadData(Stream);
+			Packets.Add(Packet);
+		}
 	}
 }
 
-const TSharedPtr<FOSCBundlePacket> FOSCBundle::GetOrCreatePacket()
+FOSCBundlePacket::FPacketBundle& FOSCBundlePacket::GetPackets()
 {
-	if (!Packet.IsValid())
-	{
-		Packet = MakeShareable(new FOSCBundlePacket());
-	}
-
-	return Packet;
+	return Packets;
 }
 
+bool FOSCBundlePacket::IsBundle()
+{
+	return true;
+}
+
+bool FOSCBundlePacket::IsMessage()
+{
+	return false;
+}
+
+const FOSCAddress& FOSCBundlePacket::GetAddress() const
+{
+	const static FOSCAddress BundleIdentifier = TEXT("#bundle");
+	return BundleIdentifier;
+}

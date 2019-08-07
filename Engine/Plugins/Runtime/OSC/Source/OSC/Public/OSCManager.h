@@ -14,25 +14,22 @@ class OSC_API UOSCManager : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-	//////////////////////////////////////////////////////////////////////////
-	// Audio|OSC functions
+	// Creates an OSC Server.  If left empty (or '0'),
+	// attempts to use LocalHost IP address. If StartListening set,
+	// immediately begins listening on creation.
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static class UOSCServer* CreateOSCServer(FString ReceiveAddress, int32 Port);
+	static class UOSCServer* CreateOSCServer(FString ReceiveIPAddress, int32 Port, bool bMulticastLoopback, bool bStartListening);
+
+	// Creates an OSC Client.  If left empty (or '0'), attempts to use
+	// attempts to use LocalHost IP address.
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static class UOSCClient* CreateOSCClient(FString SendIPAddress, int32 Port);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static class UOSCClient* CreateOSCClient(FString SendAddress, int32 Port);
+	static UPARAM(DisplayName = "Bundle") FOSCBundle& AddMessageToBundle(const FOSCMessage& Message, UPARAM(ref) FOSCBundle& Bundle);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void CreateOSCMessage(UPARAM(ref) FOSCMessage& Message);
-
-	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void CreateOSCBundle(UPARAM(ref) FOSCBundle& Bundle);
-
-	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void AddMessageToBundle(const FOSCMessage& Message, UPARAM(ref) FOSCBundle& Bundle);
-
-	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void AddBundleToBundle(const FOSCBundle& inBundle, UPARAM(ref) FOSCBundle& outBundle);
+	static UPARAM(DisplayName = "OutBundle") FOSCBundle& AddBundleToBundle(const FOSCBundle& InBundle, UPARAM(ref) FOSCBundle& OutBundle);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	static void GetMessagesFromBundle(const FOSCBundle& Bundle, TArray<FOSCMessage>& Messages);
@@ -44,58 +41,77 @@ public:
 	static void ClearBundle(UPARAM(ref) FOSCBundle& Bundle);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void SetAddress(UPARAM(ref) FOSCMessage& Message, const FString& Address);
+	static UPARAM(DisplayName = "Message") FOSCMessage& AddFloat(UPARAM(ref) FOSCMessage& Message, float Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void AddFloat(UPARAM(ref) FOSCMessage& Message, float Value);
+	static UPARAM(DisplayName = "Message") FOSCMessage& AddInt32(UPARAM(ref) FOSCMessage& Message, int32 Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void AddInt32(UPARAM(ref) FOSCMessage& Message, int32 Value);
+	static UPARAM(DisplayName = "Message") FOSCMessage& AddInt64(UPARAM(ref) FOSCMessage& Message, int64 Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void AddInt64(UPARAM(ref) FOSCMessage& Message, int64 Value);
+	static UPARAM(DisplayName = "Message") FOSCMessage& AddString(UPARAM(ref) FOSCMessage& Message, FString Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void AddString(UPARAM(ref) FOSCMessage& Message, FString Value);
+	static UPARAM(DisplayName = "Message") FOSCMessage& AddBlob(UPARAM(ref) FOSCMessage& Message, TArray<uint8>& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void AddBlob(UPARAM(ref) FOSCMessage& Message, TArray<uint8>& Value);
+	static UPARAM(DisplayName = "Message") FOSCMessage& AddBool(UPARAM(ref) FOSCMessage& Message, bool Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void AddBool(UPARAM(ref) FOSCMessage& Message, bool Value);
-
-	//////////////////////////////////////////////////////////////////////////
-	// Audio|OSC functions
-	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetFloat(const FOSCMessage& Message, const int index, float& Value);
+	static void GetFloat(const FOSCMessage& Message, const int32 Index, float& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetAllFloat(const FOSCMessage& Message, TArray<float>& Values);
+	static void GetAllFloats(const FOSCMessage& Message, TArray<float>& Values);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetInt32(const FOSCMessage& Message, const int index, int32& Value);
+	static void GetInt32(const FOSCMessage& Message, const int32 Index, int32& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetAllInt32(const FOSCMessage& Message, TArray<int32>& Values);
+	static void GetAllInt32s(const FOSCMessage& Message, TArray<int32>& Values);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetInt64(const FOSCMessage& Message, const int index, int64& Value);
+	static void GetInt64(const FOSCMessage& Message, const int32 Index, int64& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetAllInt64(const FOSCMessage& Message, TArray<int64>& Values);
+	static void GetAllInt64s(const FOSCMessage& Message, TArray<int64>& Values);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetString(const FOSCMessage& Message, const int index, FString& Value);
+	static void GetString(const FOSCMessage& Message, const int32 Index, FString& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetAllString(const FOSCMessage& Message, TArray<FString>& Values);
+	static void GetAllStrings(const FOSCMessage& Message, TArray<FString>& Values);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetBool(const FOSCMessage& Message, const int index, bool& Value);
+	static void GetBool(const FOSCMessage& Message, const int32 Index, bool& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetAllBool(const FOSCMessage& Message, TArray<bool>& Values);
+	static void GetAllBools(const FOSCMessage& Message, TArray<bool>& Values);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static void GetBlob(const FOSCMessage& Message, const int index, TArray<uint8>& Value);
+	static void GetBlob(const FOSCMessage& Message, const int32 Index, TArray<uint8>& Value);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static bool OSCAddressIsBundle(const FOSCAddress& Address);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static bool OSCAddressIsMessage(const FOSCAddress& Address);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static bool OSCAddressIsValid(const FOSCAddress& Address);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static FOSCAddress StringToOSCAddress(const FString& String);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static UPARAM(DisplayName = "Address") FOSCAddress& OSCAddressAppend(UPARAM(ref) FOSCAddress& Address, const FString& ToAppend);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static FOSCAddress GetOSCMessageAddress(const FOSCMessage& Message);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static UPARAM(DisplayName = "Message") FOSCMessage& SetOSCMessageAddress(UPARAM(ref) FOSCMessage& Message, const FOSCAddress& Address);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static TArray<FString> SplitOSCAddress(const FOSCAddress& Address);
 };
