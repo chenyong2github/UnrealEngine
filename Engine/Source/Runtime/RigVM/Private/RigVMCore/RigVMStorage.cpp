@@ -1,6 +1,31 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMStorage.h"
+#include "Uobject/RigVMObjectVersion.h"
+#include "UObject/PropertyPortFlags.h"
+
+bool FRigVMRegister::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FRigVMObjectVersion::GUID);
+
+	if (Ar.CustomVer(FRigVMObjectVersion::GUID) < FRigVMObjectVersion::FirstVersionOfCustomDataSerialization)
+	{
+		return false;
+	}
+
+	Ar << Type;
+	Ar << ByteIndex;
+	Ar << ElementSize;
+	Ar << ElementCount;
+	Ar << SliceIndex;
+	Ar << SliceCount;
+	Ar << AlignmentBytes;
+	Ar << TrailingBytes;
+	Ar << Name;
+	Ar << ScriptStructIndex;
+
+	return true;
+}
 
 FRigVMStorage::FRigVMStorage(bool bInUseNames)
 	: bUseNameMap(bInUseNames)
@@ -36,6 +61,176 @@ FRigVMStorage& FRigVMStorage::operator= (const FRigVMStorage &InOther)
 	}
 
 	return *this;
+}
+
+bool FRigVMStorage::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FRigVMObjectVersion::GUID);
+
+ 	if (Ar.CustomVer(FRigVMObjectVersion::GUID) < FRigVMObjectVersion::FirstVersionOfCustomDataSerialization)
+ 	{
+ 		return false;
+ 	}
+
+	if (Ar.IsLoading())
+	{
+		for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
+		{
+			Registers[RegisterIndex].MoveToFirstSlice();
+			Destroy(RegisterIndex);
+		}
+	}
+	else
+	{
+		for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
+		{
+			Registers[RegisterIndex].MoveToFirstSlice();
+		}
+	}
+
+	Ar << bUseNameMap;
+	Ar << StorageType;
+	Ar << Registers;
+
+	if (Ar.IsLoading())
+	{
+		ScriptStructs.Reset();
+		TArray<FString> ScriptStructPaths;
+		Ar << ScriptStructPaths;
+		
+		for (const FString& ScriptStructPath : ScriptStructPaths)
+		{
+			UScriptStruct* ScriptStruct = FindObject<UScriptStruct>(nullptr, *ScriptStructPath);
+			ensure(ScriptStruct != nullptr);
+			ScriptStructs.Add(ScriptStruct);
+		}
+
+		uint64 TotalBytes = 0;
+		Ar << TotalBytes;
+		
+		Data.SetNumZeroed(TotalBytes);
+
+		for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
+		{
+			Registers[RegisterIndex].MoveToFirstSlice();
+			Construct(RegisterIndex);
+		}
+
+		for (const FRigVMRegister& Register : Registers)
+		{
+			switch (Register.Type)
+			{
+				case ERigVMRegisterType::Plain:
+				{
+					TArray<uint8> View;
+					Ar << View;
+					ensure(View.Num() == Register.GetAllocatedBytes());
+					FMemory::Memcpy(&Data[Register.GetStorageByteIndex()], View.GetData(), View.Num());
+					break;
+				}
+				case ERigVMRegisterType::Name:
+				{
+					TArray<FName> View;
+					Ar << View;
+					ensure(View.Num() == Register.GetTotalElementCount());
+					for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
+					{
+						*((FName*)&Data[Register.GetWorkByteIndex() + Register.ElementSize * ElementIndex]) = View[ElementIndex];
+					}
+					break;
+				}
+				case ERigVMRegisterType::String:
+				{
+					TArray<FString> View;
+					Ar << View;
+					ensure(View.Num() == Register.GetTotalElementCount());
+					for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
+					{
+						*((FString*)&Data[Register.GetWorkByteIndex() + Register.ElementSize * ElementIndex]) = View[ElementIndex];
+					}
+					break;
+				}
+				case ERigVMRegisterType::Struct:
+				{
+					TArray<FString> View;
+					Ar << View;
+					ensure(View.Num() == Register.GetTotalElementCount());
+
+					uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
+					UScriptStruct* ScriptStruct = ScriptStructs[Register.ScriptStructIndex];
+					for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
+					{
+						ScriptStruct->ImportText(*View[ElementIndex], DataPtr, nullptr, PPF_None, nullptr, ScriptStruct->GetName());
+						DataPtr += Register.ElementSize;
+					}
+					break;
+				}
+			}
+		}
+
+		UpdateRegisters();
+	}
+	else
+	{
+		TArray<FString> ScriptStructPaths;
+		for (UScriptStruct* ScriptStruct : ScriptStructs)
+		{
+			ScriptStructPaths.Add(ScriptStruct->GetPathName());
+		}
+		Ar << ScriptStructPaths;
+
+		uint64 TotalBytes = Data.Num();
+		Ar << TotalBytes;
+
+		for (FRigVMRegister& Register : Registers)
+		{
+			Register.MoveToFirstSlice();
+
+			switch(Register.Type)
+			{
+				case ERigVMRegisterType::Plain:
+				{
+					TArray<uint8> View;
+					View.Append(&Data[Register.GetStorageByteIndex()], Register.GetAllocatedBytes());
+					Ar << View;
+					break;
+				}
+				case ERigVMRegisterType::Name:
+				{
+					TArray<FName> View;
+					View.Append((FName*)&Data[Register.GetWorkByteIndex()], Register.GetTotalElementCount());
+					Ar << View;
+					break;
+				}
+				case ERigVMRegisterType::String:
+				{
+					TArray<FString> View;
+					View.Append((FString*)&Data[Register.GetWorkByteIndex()], Register.GetTotalElementCount());
+					Ar << View;
+					break;
+				}
+				case ERigVMRegisterType::Struct:
+				{
+					uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
+					UScriptStruct* ScriptStruct = ScriptStructs[Register.ScriptStructIndex];
+
+					TArray<FString> View;
+					for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
+					{
+						FString Value;
+						ScriptStruct->ExportText(Value, DataPtr, nullptr, nullptr, PPF_None, nullptr);
+						View.Add(Value);
+						DataPtr += Register.ElementSize;
+					}
+
+					Ar << View;
+					break;
+				}
+			}
+		}
+	}
+
+	return true;
 }
 
 void FRigVMStorage::Reset()

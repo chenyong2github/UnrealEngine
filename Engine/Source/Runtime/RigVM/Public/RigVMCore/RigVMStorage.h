@@ -59,9 +59,9 @@ enum class ERigVMRegisterType : uint8
 USTRUCT()
 struct RIGVM_API FRigVMRegister
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-		FRigVMRegister()
+	FRigVMRegister()
 		: Type(ERigVMRegisterType::Invalid)
 		, ByteIndex(INDEX_NONE)
 		, ElementSize(0)
@@ -105,6 +105,13 @@ struct RIGVM_API FRigVMRegister
 	UPROPERTY()
 	int32 ScriptStructIndex;
 
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMRegister& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+
 	FORCEINLINE uint64 GetWorkByteIndex() const { return ByteIndex; }
 	FORCEINLINE uint64 GetStorageByteIndex() const { return ByteIndex - (uint64)AlignmentBytes - (uint64)(SliceIndex * GetNumBytesPerSlice()); }
 	FORCEINLINE uint8 GetAlignmentBytes() const { return AlignmentBytes; }
@@ -139,7 +146,7 @@ typedef TArrayView<FRigVMRegister> FRigVMRegisterArray;
 USTRUCT()
 struct RIGVM_API FRigVMStorage
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 	
 public:
 
@@ -164,6 +171,13 @@ public:
 	FORCEINLINE TArray<FRigVMRegister>::RangedForConstIteratorType begin() const { return Registers.begin(); }
 	FORCEINLINE TArray<FRigVMRegister>::RangedForIteratorType      end() { return Registers.end(); }
 	FORCEINLINE TArray<FRigVMRegister>::RangedForConstIteratorType end() const { return Registers.end(); }
+
+	bool Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMStorage& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
 
 	FORCEINLINE FRigVMArgument GetArgument(int32 InRegisterIndex) const
 	{
@@ -500,7 +514,7 @@ private:
 	UPROPERTY()
 	TArray<FRigVMRegister> Registers;
 
-	UPROPERTY()
+	UPROPERTY(transient)
 	TArray<uint8> Data;
 
 	UPROPERTY()
