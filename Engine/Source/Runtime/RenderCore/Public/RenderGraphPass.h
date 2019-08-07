@@ -22,13 +22,33 @@ public:
 		return IsRDGResourceReferenceShaderParameterType(MemberType);
 	}
 
-	bool IsTrackedResource() const
+	bool IsSRV() const
+	{
+		return MemberType == UBMT_RDG_TEXTURE_SRV || MemberType == UBMT_RDG_BUFFER_SRV;
+	}
+
+	bool IsUAV() const
+	{
+		return MemberType == UBMT_RDG_TEXTURE_UAV || MemberType == UBMT_RDG_BUFFER_UAV;
+	}
+
+	bool IsParentResource() const
 	{
 		return
 			MemberType == UBMT_RDG_TEXTURE ||
 			MemberType == UBMT_RDG_TEXTURE_COPY_DEST ||
 			MemberType == UBMT_RDG_BUFFER ||
 			MemberType == UBMT_RDG_BUFFER_COPY_DEST;
+	}
+
+	bool IsChildResource() const
+	{
+		return IsSRV() || IsUAV();
+	}
+
+	bool IsRenderTargetBindingSlots() const
+	{
+		return MemberType == UBMT_RENDER_TARGET_BINDING_SLOTS;
 	}
 
 	EUniformBufferBaseType GetType() const
@@ -42,10 +62,28 @@ public:
 		return *GetAs<FRDGResourceRef>();
 	}
 
-	FRDGTrackedResourceRef GetAsTrackedResource() const
+	FRDGParentResourceRef GetAsParentResource() const
 	{
-		check(IsTrackedResource());
-		return *GetAs<FRDGTrackedResourceRef>();
+		check(IsParentResource());
+		return *GetAs<FRDGParentResourceRef>();
+	}
+
+	FRDGChildResourceRef GetAsChildResource() const
+	{
+		check(IsChildResource());
+		return *GetAs<FRDGChildResourceRef>();
+	}
+
+	FRDGShaderResourceViewRef GetAsSRV() const
+	{
+		check(IsSRV());
+		return *GetAs<FRDGShaderResourceViewRef>();
+	}
+
+	FRDGUnorderedAccessViewRef GetAsUAV() const
+	{
+		check(IsUAV());
+		return *GetAs<FRDGUnorderedAccessViewRef>();
 	}
 
 	FRDGTextureRef GetAsTexture() const
@@ -86,7 +124,7 @@ public:
 
 	const FRenderTargetBindingSlots& GetAsRenderTargetBindingSlots() const
 	{
-		check(MemberType == UBMT_RENDER_TARGET_BINDING_SLOTS);
+		check(IsRenderTargetBindingSlots());
 		return *GetAs<FRenderTargetBindingSlots>();
 	}
 

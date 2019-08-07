@@ -273,52 +273,21 @@ void FRDGBuilder::WalkGraphDependencies()
 		{
 			FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-			switch (Parameter.GetType())
+			if (Parameter.IsParentResource())
 			{
-			case UBMT_RDG_TEXTURE:
-			case UBMT_RDG_TEXTURE_COPY_DEST:
-			case UBMT_RDG_BUFFER:
-			case UBMT_RDG_BUFFER_COPY_DEST:
-			{
-				if (FRDGTrackedResourceRef Resource = Parameter.GetAsTrackedResource())
+				if (FRDGParentResourceRef Resource = Parameter.GetAsParentResource())
 				{
 					Resource->ReferenceCount++;
 				}
 			}
-			break;
-			case UBMT_RDG_TEXTURE_SRV:
+			else if (Parameter.IsChildResource())
 			{
-				if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
+				if (FRDGChildResourceRef Resource = Parameter.GetAsChildResource())
 				{
-					SRV->Desc.Texture->ReferenceCount++;
+					Resource->GetParent()->ReferenceCount++;
 				}
 			}
-			break;
-			case UBMT_RDG_TEXTURE_UAV:
-			{
-				if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
-				{
-					UAV->Desc.Texture->ReferenceCount++;
-				}
-			}
-			break;
-			case UBMT_RDG_BUFFER_SRV:
-			{
-				if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
-				{
-					SRV->Desc.Buffer->ReferenceCount++;
-				}
-			}
-			break;
-			case UBMT_RDG_BUFFER_UAV:
-			{
-				if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
-				{
-					UAV->Desc.Buffer->ReferenceCount++;
-				}
-			}
-			break;
-			case UBMT_RENDER_TARGET_BINDING_SLOTS:
+			else if (Parameter.IsRenderTargetBindingSlots())
 			{
 				const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
 				const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
@@ -343,10 +312,6 @@ void FRDGBuilder::WalkGraphDependencies()
 				{
 					Texture->ReferenceCount++;
 				}
-			}
-			break;
-			default:
-				break;
 			}
 		}
 	} 

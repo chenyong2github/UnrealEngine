@@ -54,7 +54,7 @@ public:
 	void ValidateAllocPassParameters(const void* Parameters);
 
 	/** Validates a resource extraction operation. */
-	void ValidateExtractResource(FRDGTrackedResourceRef Resource);
+	void ValidateExtractResource(FRDGParentResourceRef Resource);
 
 	/** Tracks and validates the addition of a new pass to the graph. */
 	void ValidateAddPass(const FRDGPass* Pass);
@@ -68,7 +68,7 @@ public:
 	void ValidateExecuteEnd();
 
 	/** Removes the 'produced but not used' warning from the requested resource. */
-	void RemoveUnusedWarning(FRDGTrackedResourceRef Resource);
+	void RemoveUnusedWarning(FRDGParentResourceRef Resource);
 
 private:
 	/** Traverses all resources in the pass and marks whether they are externally accessible by user pass implementations. */

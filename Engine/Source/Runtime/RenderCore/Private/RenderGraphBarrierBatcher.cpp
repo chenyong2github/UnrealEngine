@@ -155,20 +155,20 @@ void FRDGBarrierBatcher::QueueTransitionTexture(FRDGTexture* Texture, FRDGResour
 
 void FRDGBarrierBatcher::QueueTransitionUAV(
 	FRHIUnorderedAccessView* UAV,
-	FRDGTrackedResource* UnderlyingResource,
+	FRDGParentResource* ParentResource,
 	FRDGResourceState::EAccess AccessAfter)
 {
 	check(UAV);
-	check(UnderlyingResource);
+	check(ParentResource);
 
-	const FRDGResourceState StateBefore = UnderlyingResource->State;
+	const FRDGResourceState StateBefore = ParentResource->State;
 	const FRDGResourceState StateAfter(Pass, Pipeline, AccessAfter);
 
-	ValidateTransition(UnderlyingResource, StateBefore, StateAfter);
+	ValidateTransition(ParentResource, StateBefore, StateAfter);
 
 	if (StateBefore != StateAfter)
 	{
-		const bool bIsMultiFrameResource = (UnderlyingResource->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
+		const bool bIsMultiFrameResource = (ParentResource->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
 
 		if (bIsMultiFrameResource && IsWriteAccessBegin(StateBefore.Access, StateAfter.Access))
 		{
@@ -199,11 +199,11 @@ void FRDGBarrierBatcher::QueueTransitionUAV(
 			UAVUpdateMultiFrameEnds.AddUnique(UAV);
 		}
 
-		UnderlyingResource->State = StateAfter;
+		ParentResource->State = StateAfter;
 	}
 }
 
-void FRDGBarrierBatcher::ValidateTransition(const FRDGTrackedResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter)
+void FRDGBarrierBatcher::ValidateTransition(const FRDGParentResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter)
 {
 #if RDG_ENABLE_DEBUG
 	check(StateAfter.Pipeline != FRDGResourceState::EPipeline::MAX);

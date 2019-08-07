@@ -214,7 +214,7 @@ void FRDGUserValidation::ValidateCreateExternalBuffer(FRDGBufferRef Buffer)
 	Buffer->MarkAsExternal();
 }
 
-void FRDGUserValidation::ValidateExtractResource(FRDGTrackedResourceRef Resource)
+void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 {
 	check(Resource);
 
@@ -230,7 +230,7 @@ void FRDGUserValidation::ValidateExtractResource(FRDGTrackedResourceRef Resource
 	Resource->PassAccessCount++;
 }
 
-void FRDGUserValidation::RemoveUnusedWarning(FRDGTrackedResourceRef Resource)
+void FRDGUserValidation::RemoveUnusedWarning(FRDGParentResourceRef Resource)
 {
 	check(Resource);
 
@@ -323,7 +323,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		{
 			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
 			{
-				FRDGTextureRef Texture = SRV->Desc.Texture;
+				FRDGTextureRef Texture = SRV->GetParent();
 
 				PassResourceValidator.Read(Texture, SRV->Desc.MipLevel);
 
@@ -339,7 +339,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		{
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
-				FRDGTextureRef Texture = UAV->Desc.Texture;
+				FRDGTextureRef Texture = UAV->GetParent();
 
 				PassResourceValidator.Write(Texture, UAV->Desc.MipLevel);
 
@@ -366,7 +366,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		{
 			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 			{
-				FRDGBufferRef Buffer = SRV->Desc.Buffer;
+				FRDGBufferRef Buffer = SRV->GetParent();
 
 				PassResourceValidator.Read(Buffer);
 
@@ -382,7 +382,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 		{
 			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
 			{
-				FRDGBufferRef Buffer = UAV->Desc.Buffer;
+				FRDGBufferRef Buffer = UAV->GetParent();
 
 				PassResourceValidator.Write(Buffer);
 
@@ -577,7 +577,7 @@ void FRDGUserValidation::ValidateExecuteEnd()
 
 	if (IsRDGDebugEnabled())
 	{
-		auto ValidateResourceAtExecuteEnd = [](const FRDGTrackedResourceRef Resource)
+		auto ValidateResourceAtExecuteEnd = [](const FRDGParentResourceRef Resource)
 		{
 			check(Resource->ReferenceCount == 0);
 
@@ -753,72 +753,46 @@ void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAcce
 	{
 		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-		switch (Parameter.GetType())
+		if (Parameter.IsParentResource())
 		{
-		case UBMT_RDG_TEXTURE:
-		case UBMT_RDG_TEXTURE_COPY_DEST:
-		case UBMT_RDG_BUFFER:
-		case UBMT_RDG_BUFFER_COPY_DEST:
-			if (FRDGResourceRef Resource = Parameter.GetAsResource())
+			if (FRDGParentResourceRef Resource = Parameter.GetAsParentResource())
 			{
 				Resource->bAllowRHIAccess = bAllowAccess;
 			}
-			break;
-		case UBMT_RDG_BUFFER_SRV:
-			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
+		}
+		else if (Parameter.IsChildResource())
+		{
+			if (FRDGChildResourceRef Resource = Parameter.GetAsChildResource())
 			{
-				SRV->bAllowRHIAccess = bAllowAccess;
-				SRV->GetParent()->bAllowRHIAccess = bAllowAccess;
+				Resource->bAllowRHIAccess = bAllowAccess;
+				Resource->GetParent()->bAllowRHIAccess = bAllowAccess;
 			}
-			break;
-		case UBMT_RDG_BUFFER_UAV:
-			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
-			{
-				UAV->bAllowRHIAccess = bAllowAccess;
-				UAV->GetParent()->bAllowRHIAccess = bAllowAccess;
-			}
-			break;
-		case UBMT_RDG_TEXTURE_SRV:
-			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
-			{
-				SRV->bAllowRHIAccess = bAllowAccess;
-				SRV->GetParent()->bAllowRHIAccess = bAllowAccess;
-			}
-			break;
-		case UBMT_RDG_TEXTURE_UAV:
-			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
-			{
-				UAV->bAllowRHIAccess = bAllowAccess;
-				UAV->GetParent()->bAllowRHIAccess = bAllowAccess;
-			}
-			break;
-		case UBMT_RENDER_TARGET_BINDING_SLOTS:
-			{
-				const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
-				const auto& RenderTargets = RenderTargetBindingSlots.Output;
-				const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
-				const uint32 RenderTargetCount = RenderTargets.Num();
+		}
+		else if (Parameter.IsRenderTargetBindingSlots())
+		{
+			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+			const auto& RenderTargets = RenderTargetBindingSlots.Output;
+			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+			const uint32 RenderTargetCount = RenderTargets.Num();
 
-				for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
-				{
-					const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+			{
+				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
 
-					if (FRDGTextureRef Texture = RenderTarget.GetTexture())
-					{
-						Texture->bAllowRHIAccess = bAllowAccess;
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
 				{
 					Texture->bAllowRHIAccess = bAllowAccess;
 				}
+				else
+				{
+					break;
+				}
 			}
-			break;
+
+			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+			{
+				Texture->bAllowRHIAccess = bAllowAccess;
+			}
 		}
 	}
 }

@@ -23,7 +23,7 @@ public:
 	 */
 	void QueueTransitionUAV(
 		FRHIUnorderedAccessView* UAV,
-		FRDGTrackedResource* UnderlyingResource,
+		FRDGParentResource* ParentResource,
 		FRDGResourceState::EAccess AccessAfter);
 
 private:
@@ -70,7 +70,7 @@ private:
 	FUAVBatch UAVUpdateMultiFrameEnds;
 	FUAVBatchMap UAVBatchMap;
 
-	void ValidateTransition(const FRDGTrackedResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter);
+	void ValidateTransition(const FRDGParentResource* Resource, FRDGResourceState StateBefore, FRDGResourceState StateAfter);
 
 	EResourceTransitionAccess GetResourceTransitionAccess(FRDGResourceState::EAccess AccessAfter) const;
 	EResourceTransitionAccess GetResourceTransitionAccessForUAV(FRDGResourceState::EAccess AccessBefore, FRDGResourceState::EAccess AccessAfter) const;
