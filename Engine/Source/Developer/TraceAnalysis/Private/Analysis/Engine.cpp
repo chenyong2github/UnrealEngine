@@ -512,17 +512,32 @@ bool FAnalysisEngine::EstablishTransport(FStreamReader::FData& Data)
 		return false;
 	}
 
-	Data.Advance(sizeof(*Header));
+	// Check for the magic uint32. Early traces did not include this as it was
+	// used to validate a inbound socket connection and then discarded.
+	if (Header->Format == 'E')
+	{
+		const uint32* Magic = (const uint32*)(Data.GetPointer(sizeof(*Magic)));
+
+		if (*Magic == 'TRCE')
+		{
+			Data.Advance(sizeof(*Magic));
+			return EstablishTransport(Data);
+		}
+
+		return false;
+	}
 
 	switch (Header->Format)
 	{
-	case 1:		Transport = new FTransportReader();						break;
+	case 1:		Transport = new FTransportReader(); break;
+	default:	return false;
+	//case 'E':	/* See the magic above */ break;
 #if 0
 	case 4:		Transport = new FLz4TransportReader(Header->Parameter); break;
 #endif // 0
-	default:	return false;
 	}
 
+	Data.Advance(sizeof(*Header));
 	return true;
 }
 

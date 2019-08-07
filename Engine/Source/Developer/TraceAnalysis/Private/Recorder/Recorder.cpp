@@ -105,10 +105,10 @@ FRecorder::~FRecorder()
 ////////////////////////////////////////////////////////////////////////////////
 FRecorder::FSession* FRecorder::AcceptSession(FSocket& Socket)
 {
+	uint32 Magic;
 	bool bAcceptable = false;
 	if (Socket.Wait(ESocketWaitConditions::WaitForRead, FTimespan(ETimespan::TicksPerSecond / 3)))
 	{
-		uint32 Magic;
 		int32 RecvSize;
 		if (Socket.Recv((uint8*)&Magic, sizeof(Magic), RecvSize))
 		{
@@ -127,6 +127,8 @@ FRecorder::FSession* FRecorder::AcceptSession(FSocket& Socket)
 	{
 		return nullptr;
 	}
+
+	OutStream->Write(&Magic, sizeof(Magic));
 
 	TSharedRef<FInternetAddr> PeerAddress = ISocketSubsystem::Get()->CreateInternetAddr();
 	Socket.GetPeerAddress(*PeerAddress);
