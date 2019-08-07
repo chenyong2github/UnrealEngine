@@ -6100,10 +6100,11 @@ bool FBlueprintEditorUtils::RemoveInterfaceFunction(class UBlueprint* Blueprint,
 				const FName TempFuncGraphName = FBlueprintEditorUtils::GenerateUniqueGraphName(Blueprint, TempName);
 				UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(Blueprint);
 				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-				EventGraph->Modify();
 
 				if (EventGraph)
 				{
+					EventGraph->Modify();
+
 					NewGraph = FBlueprintEditorUtils::CreateNewGraph(
 						Blueprint,
 						TempFuncGraphName,
