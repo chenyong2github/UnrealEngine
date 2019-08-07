@@ -125,7 +125,7 @@ void FTargetDeviceProxyManager::RemoveDeadProxies()
 
 	for (auto ProxyIter = Proxies.CreateIterator(); ProxyIter; ++ProxyIter)
 	{
-		if (ProxyIter.Value()->GetLastUpdateTime() + FTimespan::FromSeconds(3.0 * TARGET_DEVICE_SERVICES_PING_INTERVAL) < CurrentTime)
+		if (ProxyIter.Value()->HasTimedOut(CurrentTime))
 		{
 			TSharedPtr<ITargetDeviceProxy> RemovedProxy = ProxyIter.Value();
 			ProxyIter.RemoveCurrent();
@@ -141,9 +141,16 @@ void FTargetDeviceProxyManager::SendPing()
 
 	if (MessageEndpoint.IsValid())
 	{
+		// Add a timeout to all known devices
+		const FDateTime Timeout = FDateTime::UtcNow() + FTimespan:: FromSeconds(3 * TARGET_DEVICE_SERVICES_PING_INTERVAL);
+		for (const TPair<FString, TSharedPtr<FTargetDeviceProxy>>& Proxy : Proxies)
+		{
+			Proxy.Value->AddTimeout(Timeout);
+		}
+
 		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceServicePing));
-		MessageEndpoint->Publish(new FTargetDeviceServicePing(FPlatformProcess::UserName(false)), EMessageScope::Network);
+		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceServicePing), alignof(FTargetDeviceServicePing));
+		MessageEndpoint->Publish(new (Memory) FTargetDeviceServicePing(FPlatformProcess::UserName(false)), EMessageScope::Network);
 	}
 }
 
