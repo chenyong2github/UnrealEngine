@@ -39,7 +39,7 @@ public:
 
 
 	bool PrepareForRestart(void);
-	void Restart(void);
+	void Restart(void* restartJob);
 	bool WasSuccessfulRestart(void) const;
 
 
