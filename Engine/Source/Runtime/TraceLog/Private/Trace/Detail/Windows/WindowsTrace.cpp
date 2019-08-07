@@ -190,21 +190,36 @@ UPTRINT TcpSocketListen(uint16 Port)
 		return 0;
 	}
 
+	unsigned long NonBlockingMode = 1;
+	if (ioctlsocket(Socket, FIONBIO, &NonBlockingMode) == SOCKET_ERROR)
+	{
+		closesocket(Socket);
+		return 0;
+	}
+
 	return UPTRINT(Socket + 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-UPTRINT TcpSocketAccept(UPTRINT Socket)
+int32 TcpSocketAccept(UPTRINT Socket, UPTRINT& Out)
 {
 	SOCKET Inner = Socket - 1;
 
 	Inner = accept(Inner, nullptr, nullptr);
 	if (Inner == INVALID_SOCKET)
 	{
+		return (WSAGetLastError() == WSAEWOULDBLOCK) - 1;
+	}
+
+	unsigned long NonBlockingMode = 0;
+	if (ioctlsocket(Socket, FIONBIO, &NonBlockingMode) == SOCKET_ERROR)
+	{
+		closesocket(Socket);
 		return 0;
 	}
 
-	return UPTRINT(Inner + 1);
+	Out = UPTRINT(Inner + 1);
+	return 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

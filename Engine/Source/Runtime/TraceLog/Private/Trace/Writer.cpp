@@ -20,7 +20,7 @@ void	MemoryFree(void*, SIZE_T);
 void	MemoryMap(void*, SIZE_T);
 UPTRINT	TcpSocketConnect(const ANSICHAR*, uint16);
 UPTRINT	TcpSocketListen(uint16);
-UPTRINT	TcpSocketAccept(UPTRINT);
+int32	TcpSocketAccept(UPTRINT, UPTRINT&);
 void	TcpSocketClose(UPTRINT);
 bool	TcpSocketSelect(UPTRINT);
 int32	TcpSocketRecv(UPTRINT, void*, uint32);
@@ -582,14 +582,16 @@ static bool Writer_ControlListen()
 ////////////////////////////////////////////////////////////////////////////////
 static bool Writer_ControlAccept()
 {
-	if (!TcpSocketSelect(GControlListen))
+	UPTRINT Socket;
+	int Return = TcpSocketAccept(GControlListen, Socket);
+	if (Return <= 0)
 	{
-		return false;
-	}
-
-	UPTRINT Socket = TcpSocketAccept(GControlListen);
-	if (!Socket)
-	{
+		if (Return == -1)
+		{
+			TcpSocketClose(GControlListen);
+			GControlListen = 0;
+			GControlState = EControlState::Failed;
+		}
 		return false;
 	}
 

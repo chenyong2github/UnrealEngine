@@ -1,10 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include <pthread.h>
-#include <unistd.h>
-
 #include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 namespace Trace
 {
@@ -107,21 +108,41 @@ UPTRINT TcpSocketListen(uint16 Port)
 		return 0;
 	}
 
+	int Flags = fcntl(Socket, F_GETFL, 0);
+	if (Flags < 0 || !fcntl(Socket, F_SETFL, Flags|O_NONBLOCK))
+	{
+		close(Socket);
+		return 0;
+	}
+
 	return UPTRINT(Socket + 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-UPTRINT TcpSocketAccept(UPTRINT Socket)
+int TcpSocketAccept(UPTRINT Socket, UPTRINT& Out)
 {
 	int Inner = int(Socket - 1);
 
 	Inner = accept(Inner, nullptr, nullptr);
 	if (Inner < 0)
 	{
+		if (Inner == EWOULDBLOCK || Inner == EAGAIN)
+		{
+			return 0;
+		}
+
+		return -1;
+	}
+
+	int Flags = fcntl(Inner, F_GETFL, 0);
+	if (Flags < 0 || !fcntl(Inner, F_SETFL, Flags & ~O_NONBLOCK))
+	{
+		close(Socket);
 		return 0;
 	}
 
-	return UPTRINT(Inner + 1);
+	Out = UPTRINT(Inner + 1);
+	return 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
