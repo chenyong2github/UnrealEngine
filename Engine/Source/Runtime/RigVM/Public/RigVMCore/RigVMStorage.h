@@ -6,6 +6,9 @@
 #include "UObject/ObjectMacros.h"
 #include "RigVMStorage.generated.h"
 
+/**
+ * 
+ */
 UENUM()
 enum class ERigVMStorageType: uint8
 {

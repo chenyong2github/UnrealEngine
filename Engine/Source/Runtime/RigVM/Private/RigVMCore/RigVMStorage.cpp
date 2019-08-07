@@ -1,14 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMStorage.h"
-#include "Uobject/RigVMObjectVersion.h"
+#include "Uobject/AnimObjectVersion.h"
 #include "UObject/PropertyPortFlags.h"
 
 bool FRigVMRegister::Serialize(FArchive& Ar)
 {
-	Ar.UsingCustomVersion(FRigVMObjectVersion::GUID);
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
-	if (Ar.CustomVer(FRigVMObjectVersion::GUID) < FRigVMObjectVersion::FirstVersionOfCustomDataSerialization)
+	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
 		return false;
 	}
@@ -65,9 +65,9 @@ FRigVMStorage& FRigVMStorage::operator= (const FRigVMStorage &InOther)
 
 bool FRigVMStorage::Serialize(FArchive& Ar)
 {
-	Ar.UsingCustomVersion(FRigVMObjectVersion::GUID);
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
- 	if (Ar.CustomVer(FRigVMObjectVersion::GUID) < FRigVMObjectVersion::FirstVersionOfCustomDataSerialization)
+ 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
  	{
  		return false;
  	}
