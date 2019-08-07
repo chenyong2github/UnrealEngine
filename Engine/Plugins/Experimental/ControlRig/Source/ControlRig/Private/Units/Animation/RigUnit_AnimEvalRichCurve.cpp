@@ -3,7 +3,7 @@
 #include "Units/Animation/RigUnit_AnimEvalRichCurve.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_AnimEvalRichCurve_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_AnimEvalRichCurve_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (FMath::IsNearlyEqual(SourceMinimum, SourceMaximum))

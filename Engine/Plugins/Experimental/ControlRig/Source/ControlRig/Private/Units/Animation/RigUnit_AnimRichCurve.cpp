@@ -3,7 +3,7 @@
 #include "Units/Animation/RigUnit_AnimRichCurve.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_AnimRichCurve_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_AnimRichCurve_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 }

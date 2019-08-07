@@ -4,37 +4,37 @@
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 
-UE_RigUnit_MathVectorFromFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorFromFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FVector(Value, Value, Value);
 }
 
-UE_RigUnit_MathVectorAdd_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorAdd_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A + B;
 }
 
-UE_RigUnit_MathVectorSub_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorSub_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A - B;
 }
 
-UE_RigUnit_MathVectorMul_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorMul_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A * B;
 }
 
-UE_RigUnit_MathVectorScale_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorScale_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value * Factor;
 }
 
-UE_RigUnit_MathVectorDiv_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorDiv_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(FMath::IsNearlyZero(B.X) || FMath::IsNearlyZero(B.Y) || FMath::IsNearlyZero(B.Z))
@@ -57,7 +57,7 @@ UE_RigUnit_MathVectorDiv_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& C
 	Result = A / B;
 }
 
-UE_RigUnit_MathVectorMod_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorMod_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(FMath::IsNearlyZero(B.X) || FMath::IsNearlyZero(B.Y) || FMath::IsNearlyZero(B.Z) || B.X < 0.f || B.Y < 0.f || B.Z < 0.f)
@@ -83,7 +83,7 @@ UE_RigUnit_MathVectorMod_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& C
 	Result.Z = FMath::Fmod(A.Z, B.Z);
 }
 
-UE_RigUnit_MathVectorMin_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorMin_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::Min<float>(A.X, B.X);
@@ -91,7 +91,7 @@ UE_RigUnit_MathVectorMin_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& C
 	Result.Z = FMath::Min<float>(A.Z, B.Z);
 }
 
-UE_RigUnit_MathVectorMax_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorMax_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::Max<float>(A.X, B.X);
@@ -99,13 +99,13 @@ UE_RigUnit_MathVectorMax_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& C
 	Result.Z = FMath::Max<float>(A.Z, B.Z);
 }
 
-UE_RigUnit_MathVectorNegate_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorNegate_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = -Value;
 }
 
-UE_RigUnit_MathVectorAbs_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorAbs_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::Abs(Value.X);
@@ -113,7 +113,7 @@ UE_RigUnit_MathVectorAbs_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& C
 	Result.Z = FMath::Abs(Value.Z);
 }
 
-UE_RigUnit_MathVectorFloor_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorFloor_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::FloorToFloat(Value.X);
@@ -121,7 +121,7 @@ UE_RigUnit_MathVectorFloor_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext&
 	Result.Z = FMath::FloorToFloat(Value.Z);
 }
 
-UE_RigUnit_MathVectorCeil_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorCeil_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::CeilToFloat(Value.X);
@@ -129,7 +129,7 @@ UE_RigUnit_MathVectorCeil_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& 
 	Result.Z = FMath::CeilToFloat(Value.Z);
 }
 
-UE_RigUnit_MathVectorRound_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorRound_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::RoundToFloat(Value.X);
@@ -137,13 +137,13 @@ UE_RigUnit_MathVectorRound_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext&
 	Result.Z = FMath::RoundToFloat(Value.Z);
 }
 
-UE_RigUnit_MathVectorSign_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorSign_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.GetSignVector();
 }
 
-UE_RigUnit_MathVectorClamp_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorClamp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result.X = FMath::Clamp<float>(Value.X, Minimum.X, Maximum.X);
@@ -151,13 +151,13 @@ UE_RigUnit_MathVectorClamp_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext&
 	Result.Z = FMath::Clamp<float>(Value.Z, Minimum.Z, Maximum.Z);
 }
 
-UE_RigUnit_MathVectorLerp_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorLerp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::Lerp<FVector>(A, B, T);
 }
 
-UE_RigUnit_MathVectorRemap_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorRemap_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FVector Ratio(0.f, 0.f, 0.f);
@@ -189,19 +189,19 @@ UE_RigUnit_MathVectorRemap_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext&
 	Result = FMath::Lerp<FVector>(TargetMinimum, TargetMaximum, Ratio);
 }
 
-UE_RigUnit_MathVectorEquals_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A == B;
 }
 
-UE_RigUnit_MathVectorNotEquals_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorNotEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
 }
 
-UE_RigUnit_MathVectorIsNearlyZero_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorIsNearlyZero_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(Tolerance < 0.f)
@@ -211,7 +211,7 @@ UE_RigUnit_MathVectorIsNearlyZero_IMPLEMENT_RIGVM(void, Execute, const FRigUnitC
 	Result = Value.IsNearlyZero(FMath::Max<float>(Tolerance, SMALL_NUMBER));
 }
 
-UE_RigUnit_MathVectorIsNearlyEqual_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorIsNearlyEqual_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(Tolerance < 0.f)
@@ -221,55 +221,55 @@ UE_RigUnit_MathVectorIsNearlyEqual_IMPLEMENT_RIGVM(void, Execute, const FRigUnit
 	Result = (A - B).IsNearlyZero(FMath::Max<float>(Tolerance, SMALL_NUMBER));
 }
 
-UE_RigUnit_MathVectorSelectBool_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorSelectBool_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
-UE_RigUnit_MathVectorDeg_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorDeg_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::RadiansToDegrees(Value);
 }
 
-UE_RigUnit_MathVectorRad_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorRad_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::DegreesToRadians(Value);
 }
 
-UE_RigUnit_MathVectorLengthSquared_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorLengthSquared_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.SizeSquared();
 }
 
-UE_RigUnit_MathVectorLength_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorLength_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.Size();
 }
 
-UE_RigUnit_MathVectorDistance_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorDistance_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FVector::Distance(A, B);
 }
 
-UE_RigUnit_MathVectorCross_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorCross_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A ^ B;
 }
 
-UE_RigUnit_MathVectorDot_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorDot_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A | B;
 }
 
-UE_RigUnit_MathVectorUnit_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorUnit_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Value.IsNearlyZero())
@@ -281,7 +281,7 @@ UE_RigUnit_MathVectorUnit_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& 
 	Result = Value.GetUnsafeNormal();
 }
 
-UE_RigUnit_MathVectorMirror_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorMirror_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Normal.IsNearlyZero())
@@ -293,7 +293,7 @@ UE_RigUnit_MathVectorMirror_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext
 	Result = Value.MirrorByVector(Normal.GetSafeNormal());
 }
 
-UE_RigUnit_MathVectorAngle_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorAngle_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -312,7 +312,7 @@ UE_RigUnit_MathVectorAngle_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext&
 	Result = FQuat::FindBetween(A, B).GetAngle();
 }
 
-UE_RigUnit_MathVectorParallel_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorParallel_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -331,7 +331,7 @@ UE_RigUnit_MathVectorParallel_IMPLEMENT_RIGVM(void, Execute, const FRigUnitConte
 	Result = FVector::Parallel(A, B);
 }
 
-UE_RigUnit_MathVectorOrthogonal_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorOrthogonal_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -350,7 +350,7 @@ UE_RigUnit_MathVectorOrthogonal_IMPLEMENT_RIGVM(void, Execute, const FRigUnitCon
 	Result = FVector::Orthogonal(A, B);
 }
 
-UE_RigUnit_MathVectorBezierFourPoint_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathVectorBezierFourPoint_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FControlRigMathLibrary::FourPointBezier(Bezier, T, Result, Tangent);

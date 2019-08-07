@@ -3,7 +3,7 @@
 #include "RigUnit_FABRIK.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_FABRIK_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_FABRIK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();

@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_DeltaFromPrevious.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_DeltaFromPreviousFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_DeltaFromPreviousFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -18,7 +18,7 @@ UE_RigUnit_DeltaFromPreviousFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitC
 	Cache = Value;
 }
 
-UE_RigUnit_DeltaFromPreviousVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_DeltaFromPreviousVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -33,7 +33,7 @@ UE_RigUnit_DeltaFromPreviousVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnit
 	Cache = Value;
 }
 
-UE_RigUnit_DeltaFromPreviousQuat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_DeltaFromPreviousQuat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -48,7 +48,7 @@ UE_RigUnit_DeltaFromPreviousQuat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitCo
 	Cache = Value;
 }
 
-UE_RigUnit_DeltaFromPreviousTransform_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_DeltaFromPreviousTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

@@ -4,7 +4,7 @@
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 
-UE_RigUnit_TwoBoneIKSimple_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_TwoBoneIKSimple_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();

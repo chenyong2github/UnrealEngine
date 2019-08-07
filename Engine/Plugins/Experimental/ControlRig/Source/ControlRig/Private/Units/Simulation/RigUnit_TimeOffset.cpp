@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_TimeOffset.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_TimeOffsetFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_TimeOffsetFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
@@ -108,7 +108,7 @@ UE_RigUnit_TimeOffsetFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext&
 	}
 }
 
-UE_RigUnit_TimeOffsetVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_TimeOffsetVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;
@@ -213,7 +213,7 @@ UE_RigUnit_TimeOffsetVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext
 	}
 }
 
-UE_RigUnit_TimeOffsetTransform_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_TimeOffsetTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value;

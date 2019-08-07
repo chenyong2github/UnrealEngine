@@ -3,7 +3,7 @@
 #include "Units/Math/RigUnit_Noise.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_NoiseFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_NoiseFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -17,7 +17,7 @@ UE_RigUnit_NoiseFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Cont
 	Time = Time + Speed * Context.DeltaTime;
 }
 
-UE_RigUnit_NoiseVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_NoiseVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

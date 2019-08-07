@@ -3,7 +3,7 @@
 #include "Units/Animation/RigUnit_GetWorldTime.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_GetWorldTime_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_GetWorldTime_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FDateTime Now = FDateTime::Now();

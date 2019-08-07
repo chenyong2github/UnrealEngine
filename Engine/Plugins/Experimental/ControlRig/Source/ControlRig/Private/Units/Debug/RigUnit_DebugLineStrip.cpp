@@ -3,7 +3,7 @@
 #include "Units/Debug/RigUnit_DebugLineStrip.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_DebugLineStrip_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_DebugLineStrip_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

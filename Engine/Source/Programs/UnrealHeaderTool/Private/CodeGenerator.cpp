@@ -3349,8 +3349,12 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
 
 		OutGeneratedHeaderText.Log(TEXT("\n"));
-		OutGeneratedHeaderText.Logf(TEXT("#define %s_IMPLEMENT_RIGVM(ReturnType, FunctionName, ...) \\\r\n"), *RigVMMacroPrefix);
-		OutGeneratedHeaderText.Logf(TEXT("\tReturnType %s::Static##FunctionName(\\\r\n\t\t%s,\\\r\n\t\t##__VA_ARGS__ \\\r\n\t)\n"), StructNameCPP, *StructMembers);
+		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
+		{
+			FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(", \\\r\n\t\t"));
+			OutGeneratedHeaderText.Logf(TEXT("#define %s_%s() \\\r\n"), StructNameCPP, *MethodInfo.Name);
+			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s \\\r\n\t)\n"), *MethodInfo.ReturnType, StructNameCPP, *MethodInfo.Name, *StructMembers, *ParameterSuffix);
+		}
 		OutGeneratedHeaderText.Log(TEXT("\n"));
 	}
 
@@ -3602,7 +3606,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 	// if this struct has RigVM methods we need to implement both the 
 	// virtual function as well as the stub method here.
-	// The static method is implemented by the user using the IMPLEMENT_RIGVM macro.
+	// The static method is implemented by the user using a macro.
 	if (StructRigVMInfo)
 	{
 		FString StructMembersForVirtualFunc = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t"), true);

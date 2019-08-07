@@ -3,7 +3,7 @@
 #include "Units/Simulation/RigUnit_Kalman.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_KalmanFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_KalmanFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
@@ -52,7 +52,7 @@ UE_RigUnit_KalmanFloat_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Con
 	}
 }
 
-UE_RigUnit_KalmanVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_KalmanVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)
@@ -101,7 +101,7 @@ UE_RigUnit_KalmanVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Co
 	}
 }
 
-UE_RigUnit_KalmanTransform_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_KalmanTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if(BufferSize <= 0)

@@ -3,7 +3,7 @@
 #include "Units/Debug/RigUnit_DebugTransform.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_DebugTransform_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_DebugTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -43,7 +43,7 @@ UE_RigUnit_DebugTransform_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& 
 	}
 }
 
-UE_RigUnit_DebugTransformMutable_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_DebugTransformMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -83,7 +83,7 @@ UE_RigUnit_DebugTransformMutable_IMPLEMENT_RIGVM(void, Execute, const FRigUnitCo
 	}
 }
 
-UE_RigUnit_DebugTransformArrayMutable_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_DebugTransformArrayMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)

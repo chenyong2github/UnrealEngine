@@ -3,7 +3,7 @@
 #include "Units/Math/RigUnit_MathQuaternion.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_MathQuaternionFromAxisAndAngle_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionFromAxisAndAngle_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Axis.IsNearlyZero())
@@ -15,19 +15,19 @@ UE_RigUnit_MathQuaternionFromAxisAndAngle_IMPLEMENT_RIGVM(void, Execute, const F
 	Result = FQuat(Axis.GetUnsafeNormal(), Angle);
 }
 
-UE_RigUnit_MathQuaternionFromEuler_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionFromEuler_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FControlRigMathLibrary::QuatFromEuler(Euler, RotationOrder);
 }
 
-UE_RigUnit_MathQuaternionFromRotator_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionFromRotator_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FQuat(Rotator);
 }
 
-UE_RigUnit_MathQuaternionFromTwoVectors_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionFromTwoVectors_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (A.IsNearlyZero() || B.IsNearlyZero())
@@ -46,79 +46,79 @@ UE_RigUnit_MathQuaternionFromTwoVectors_IMPLEMENT_RIGVM(void, Execute, const FRi
 	Result = FQuat::FindBetweenVectors(A, B).GetNormalized();
 }
 
-UE_RigUnit_MathQuaternionToAxisAndAngle_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionToAxisAndAngle_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Value.ToAxisAndAngle(Axis, Angle);
 }
 
-UE_RigUnit_MathQuaternionToEuler_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionToEuler_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FControlRigMathLibrary::EulerFromQuat(Value, RotationOrder);
 }
 
-UE_RigUnit_MathQuaternionToRotator_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionToRotator_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.Rotator();
 }
 
-UE_RigUnit_MathQuaternionMul_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionMul_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A * B;
 }
 
-UE_RigUnit_MathQuaternionInverse_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionInverse_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.Inverse();
 }
 
-UE_RigUnit_MathQuaternionSlerp_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionSlerp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FQuat::Slerp(A, B, T);
 }
 
-UE_RigUnit_MathQuaternionEquals_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A == B;
 }
 
-UE_RigUnit_MathQuaternionNotEquals_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionNotEquals_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A != B;
 }
 
-UE_RigUnit_MathQuaternionSelectBool_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionSelectBool_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
-UE_RigUnit_MathQuaternionDot_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionDot_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = A | B;
 }
 
-UE_RigUnit_MathQuaternionUnit_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionUnit_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Value.GetNormalized();
 }
 
-UE_RigUnit_MathQuaternionRotateVector_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionRotateVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = Quaternion.RotateVector(Vector);
 }
 
-UE_RigUnit_MathQuaternionGetAxis_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionGetAxis_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	switch (Axis)
@@ -143,7 +143,7 @@ UE_RigUnit_MathQuaternionGetAxis_IMPLEMENT_RIGVM(void, Execute, const FRigUnitCo
 }
 
 
-UE_RigUnit_MathQuaternionSwingTwist_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_MathQuaternionSwingTwist_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (TwistAxis.IsNearlyZero())

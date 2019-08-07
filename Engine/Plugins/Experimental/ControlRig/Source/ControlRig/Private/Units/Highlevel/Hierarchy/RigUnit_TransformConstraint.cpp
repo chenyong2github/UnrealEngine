@@ -5,7 +5,7 @@
 #include "HelperUtil.h"
 #include "AnimationCoreLibrary.h"
 
-UE_RigUnit_TransformConstraint_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_TransformConstraint_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 

@@ -3,7 +3,7 @@
 #include "RigUnit_CCDIK.h"
 #include "Units/RigUnitContext.h"
 
-UE_RigUnit_CCDIK_IMPLEMENT_RIGVM(void, Execute, const FRigUnitContext& Context)
+FRigUnit_CCDIK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
