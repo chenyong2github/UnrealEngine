@@ -54,10 +54,11 @@ class TPlane final : public TImplicitObject<T, d>
 		return x - TVector<T, d>(Dist * MNormal);
 	}
 
-	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal) const override
+	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 	{
 		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(),1, KINDA_SMALL_NUMBER));
 		ensure(Length > 0);
+		OutFaceIndex = INDEX_NONE;
 
 		const T SignedDist = TVector<T, d>::DotProduct(StartPoint - MX, MNormal);
 		if (FMath::Abs(SignedDist) < Thickness)
@@ -86,7 +87,7 @@ class TPlane final : public TImplicitObject<T, d>
 			return false;	//never reach
 		}
 
-		OutTime = LengthAlongRay / Length;
+		OutTime = LengthAlongRay;
 		OutPosition = StartPoint + (LengthAlongRay + Thickness) * Dir;
 		OutNormal = -DirTowardsPlane;
 		return true;
@@ -136,6 +137,11 @@ class TPlane final : public TImplicitObject<T, d>
 	virtual void Serialize(FArchive& Ar) override
 	{
 		SerializeImp(Ar);
+	}
+
+	virtual uint32 GetTypeHash() const override
+	{
+		return HashCombine(::GetTypeHash(MX), ::GetTypeHash(MNormal));
 	}
 
   private:

@@ -5,7 +5,7 @@
 #include "Framework/DebugSolverTasks.h"
 
 #if CHAOS_DEBUG_SUBSTEP
-#include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"
 #include "ChaosLog.h"
 
 namespace Chaos
@@ -38,7 +38,7 @@ namespace Chaos
 		DebugSubstep.Add(true, TEXT("Debug thread exit"));
 	}
 
-	void FDebugSolverTasks::DebugStep(FPBDRigidsSolver* Solver, TFunction<void()> StepFunction)
+	void FDebugSolverTasks::DebugStep(FPhysicsSolver* Solver, TFunction<void()> StepFunction)
 	{
 		// Retrieve debug thread pointer for this solver.
 		// It must have been already added unless the single thread mode has just been switched on.
@@ -48,6 +48,7 @@ namespace Chaos
 			DebugSolverTask = &SolverToTaskMap.Add(Solver, nullptr);
 		}
 
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 		// Sync/advance debug substep system for this solver
 		FDebugSubstep& DebugSubstep = Solver->GetDebugSubstep();
 		const bool bNeedsDebugThreadRunning = DebugSubstep.SyncAdvance(Solver->Enabled());
@@ -79,20 +80,24 @@ namespace Chaos
 		{
 			StepFunction();
 		}
+#endif
 	}
 
-	void FDebugSolverTasks::Add(FPBDRigidsSolver* Solver)
+	void FDebugSolverTasks::Add(FPhysicsSolver* Solver)
 	{
 		// Add solver to task map
 		SolverToTaskMap.Add(Solver, nullptr);
 
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 		// Reinit debug substep
 		UE_LOG(LogChaosThread, Verbose, TEXT("[Physics Thread] Initializing debug thread"));
 		Solver->GetDebugSubstep().Initialize();
+#endif
 	}
 
-	void FDebugSolverTasks::Remove(FPBDRigidsSolver* Solver)
+	void FDebugSolverTasks::Remove(FPhysicsSolver* Solver)
 	{
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 		// Remove the debug advance task for this solver, if any was created
 		FAsyncTask<FDebugSolverTask>* DebugSolverTask;
 		const bool bFound = SolverToTaskMap.RemoveAndCopyValue(Solver, DebugSolverTask);
@@ -107,10 +112,12 @@ namespace Chaos
 			DebugSolverTask->EnsureCompletion(false);
 			delete DebugSolverTask;
 		}
+#endif
 	}
 
 	void FDebugSolverTasks::Shutdown()
 	{
+#if TODO_REIMPLEMENT_DEBUG_SUBSTEP
 		// Iterate through all solver tasks in the map
 		for (auto& SolverTask: SolverToTaskMap)
 		{
@@ -127,6 +134,7 @@ namespace Chaos
 				SolverTask.Value = nullptr;
 			}
 		}
+#endif
 	}
 
 }  // namespace Chaos

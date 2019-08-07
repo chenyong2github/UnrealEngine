@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if INCLUDE_CHAOS
 #include "Chaos/PBDRigidParticles.h"
+#endif
 
 #include "PhysicsCoreTypes.generated.h"
 
@@ -35,5 +38,6 @@ enum class EChaosBufferMode : uint8
 	Invalid UMETA(Hidden)
 };
 
+#if INCLUDE_CHAOS
 typedef Chaos::TPBDRigidParticles<float, 3> FParticlesType;
-
+#endif

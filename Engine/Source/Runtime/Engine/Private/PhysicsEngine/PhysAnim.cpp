@@ -588,7 +588,7 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 					FPhysicsActorHandle& ActorHandle = BodyInst->ActorHandle;
 					const bool bIsRigidBody = FPhysicsInterface::IsRigidBody(ActorHandle);
 
-					if(ActorHandle.IsValid() && bIsRigidBody && (bTeleport || !BodyInst->IsInstanceSimulatingPhysics()))	//If we have a body and it's kinematic, or we are teleporting a simulated body
+					if (FPhysicsInterface::IsValid(ActorHandle) && bIsRigidBody && (bTeleport || !BodyInst->IsInstanceSimulatingPhysics()))	//If we have a body and it's kinematic, or we are teleporting a simulated body
 					{
 						const int32 BoneIndex = BodyInst->InstanceBoneIndex;
 

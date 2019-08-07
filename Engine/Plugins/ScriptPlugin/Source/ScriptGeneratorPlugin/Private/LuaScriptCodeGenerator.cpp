@@ -4,6 +4,8 @@
 #include "ScriptGeneratorLog.h"
 #include "UObject/ErrorException.h"
 #include "UObject/Class.h"
+#include "UObject/UnrealType.h"
+#include "Misc/Paths.h"
 
 // Supported structs
 static FName Name_Vector2D("Vector2D");

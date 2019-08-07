@@ -15,6 +15,11 @@
 #include "Engine/Polys.h"
 #include "PhysXIncludes.h"
 
+#if WITH_CHAOS
+#include "Chaos/ImplicitObject.h"
+#endif
+
+
 #define MIN_HULL_VERT_DISTANCE		(0.1f)
 #define MIN_HULL_VALID_DIMENSION	(0.5f)
 
@@ -697,6 +702,9 @@ FArchive& operator<<(FArchive& Ar,FKConvexElem& Elem)
 		FMemory::Memzero(&Elem.ElemBox, sizeof(Elem.ElemBox));
 		Elem.ConvexMesh = NULL;
 		Elem.ConvexMeshNegX = NULL;
+#if WITH_CHAOS
+		Elem.ChaosConvex.Reset();
+#endif
 	}
 	return Ar;
 }

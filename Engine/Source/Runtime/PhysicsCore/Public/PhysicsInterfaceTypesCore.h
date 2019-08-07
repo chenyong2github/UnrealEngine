@@ -4,11 +4,17 @@
 #include "CoreMinimal.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
+#if INCLUDE_CHAOS
+#include "Chaos/CollisionFilterData.h"
+#endif
+
+struct FBodyInstance;
 
 struct FActorCreationParams
 {
 	FActorCreationParams()
 		: Scene(nullptr)
+		, BodyInstance(nullptr)
 		, InitialTM(FTransform::Identity)
 		, bStatic(false)
 		, bQueryOnly(false)
@@ -17,6 +23,7 @@ struct FActorCreationParams
 	{}
 
 	FPhysScene* Scene;
+	FBodyInstance* BodyInstance;
 	FTransform InitialTM;
 	bool bStatic;
 	bool bQueryOnly;
@@ -24,6 +31,7 @@ struct FActorCreationParams
 	char* DebugName;
 };
 
+#if !INCLUDE_CHAOS
 struct FCollisionFilterData
 {
 	uint32 Word0;
@@ -36,6 +44,7 @@ struct FCollisionFilterData
 		Word0 = Word1 = Word2 = Word3 = 0;
 	}
 };
+#endif
 
 /**
 * Type of query for object type or trace type

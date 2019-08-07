@@ -2,7 +2,7 @@
 
 #pragma once
 
-#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX
 
 #include "EngineGlobals.h"
 #include "Engine/EngineTypes.h"
@@ -55,6 +55,7 @@ struct ENGINE_API FPhysicsActorHandle_PhysX
 
 	bool IsValid() const;
 	bool Equals(const FPhysicsActorHandle_PhysX& Other) const;
+	bool operator==(const FPhysicsActorHandle_PhysX& Other) const { return Equals(Other); }
 
 	physx::PxRigidActor* SyncActor;
 
@@ -121,12 +122,18 @@ struct ENGINE_API FPhysicsGeometryCollection_PhysX
 	~FPhysicsGeometryCollection_PhysX();
 
 	ECollisionShapeType GetType() const;
-	physx::PxGeometry& GetGeometry() const;
-	bool GetBoxGeometry(physx::PxBoxGeometry& OutGeom) const;
-	bool GetSphereGeometry(physx::PxSphereGeometry& OutGeom) const;
-	bool GetCapsuleGeometry(physx::PxCapsuleGeometry& OutGeom) const;
-	bool GetConvexGeometry(physx::PxConvexMeshGeometry& OutGeom) const;
-	bool GetTriMeshGeometry(physx::PxTriangleMeshGeometry& OutGeom) const;
+	const physx::PxGeometry& GetGeometry() const;
+	physx::PxGeometry& GetGeometry();
+	const physx::PxBoxGeometry& GetBoxGeometry() const;
+	physx::PxBoxGeometry& GetBoxGeometry();
+	const physx::PxSphereGeometry& GetSphereGeometry() const;
+	physx::PxSphereGeometry& GetSphereGeometry();
+	const physx::PxCapsuleGeometry& GetCapsuleGeometry() const;
+	physx::PxCapsuleGeometry& GetCapsuleGeometry();
+	const physx::PxConvexMeshGeometry& GetConvexGeometry() const;
+	physx::PxConvexMeshGeometry& GetConvexGeometry();
+	const physx::PxTriangleMeshGeometry& GetTriMeshGeometry() const;
+	physx::PxTriangleMeshGeometry& GetTriMeshGeometry();
 
 private:
 	friend struct FPhysicsInterface_PhysX;
@@ -237,6 +244,9 @@ struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface
 	static void CreateActor(const FActorCreationParams& Params, FPhysicsActorHandle& Handle);
 	static void ReleaseActor(FPhysicsActorHandle_PhysX& InHandle, FPhysScene* InScene = nullptr, bool bNeverDeferRelease = false);
 	//////////////////////////////////////////////////////////////////////////
+
+	// NOTE: Adding this temporarily, until we phase out Handle.IsValid().
+	static bool IsValid(const FPhysicsActorHandle& Handle) { return Handle.IsValid(); }
 
 	template<typename AllocatorType>
 	static int32 GetAllShapes_AssumedLocked(const FPhysicsActorHandle_PhysX& InHandle, TArray<FPhysicsShapeHandle_PhysX, AllocatorType>& OutShapes);

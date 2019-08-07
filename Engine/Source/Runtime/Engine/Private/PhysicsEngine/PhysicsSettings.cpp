@@ -5,9 +5,8 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "UObject/Package.h"
 
-#include "Framework/Threading.h"
-
 #if INCLUDE_CHAOS
+#include "Framework/Threading.h"
 #include "ChaosSolversModule.h"
 #endif
 

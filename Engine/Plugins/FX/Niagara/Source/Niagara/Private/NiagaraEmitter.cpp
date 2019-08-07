@@ -107,6 +107,7 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , bUseMaxDetailLevel(false)
 , bRequiresPersistentIDs(false)
 , MaxDeltaTimePerTick(0.125)
+, MaxUpdateIterations(1)
 , bLimitDeltaTime(true)
 #if WITH_EDITORONLY_DATA
 , ThumbnailImageOutOfDate(true)

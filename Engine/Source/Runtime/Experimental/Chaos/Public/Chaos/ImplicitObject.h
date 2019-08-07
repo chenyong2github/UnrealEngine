@@ -88,6 +88,20 @@ public:
 		return nullptr;
 	}
 
+	template<class T_DERIVED>
+	const T_DERIVED& GetObjectChecked() const
+	{
+		check(T_DERIVED::GetType() == Type);
+		return static_cast<const T_DERIVED&>(*this);
+	}
+
+	template<class T_DERIVED>
+	T_DERIVED& GetObjectChecked()
+	{
+		check(T_DERIVED::GetType() == Type);
+		return static_cast<const T_DERIVED&>(*this);
+	}
+
 	ImplicitObjectType GetType(bool bGetTrueType = false) const
 	{
 		if (bIgnoreAnalyticCollisions && !bGetTrueType)
@@ -128,18 +142,30 @@ public:
 	Pair<TVector<T, d>, bool> FindClosestIntersection(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const;
 
 	//This gives derived types a way to avoid calling PhiWithNormal todo: this api is confusing
-	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T,d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T,d>& OutPosition, TVector<T,d>& OutNormal) const
+	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T,d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T,d>& OutPosition, TVector<T,d>& OutNormal, int32& OutFaceIndex) const
 	{
+		OutFaceIndex = INDEX_NONE;
 		const TVector<T, d> EndPoint = StartPoint + Dir * Length;
 		Pair<TVector<T,d>, bool> Result = FindClosestIntersection(StartPoint, EndPoint, Thickness);
 		if (Result.Second)
 		{
 			OutPosition = Result.First;
 			OutNormal = Normal(Result.First);
-			OutTime = Length > 0 ? (OutPosition - StartPoint).Size() / Length : 0.f;
+			OutTime = Length > 0 ? (OutPosition - StartPoint).Size() : 0.f;
 			return true;
 		}
 		return false;
+	}
+
+	/** Returns the most opposing face.
+		@param Position - local position to search around (for example an edge of a convex hull)
+		@param UnitDir - the direction we want to oppose (for example a ray moving into the edge of a convex hull would get the face with the most negative dot(FaceNormal, UnitDir)
+		@param HintFaceIndex - for certain geometry we can use this to accelerate the search.
+	*/
+	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex) const
+	{
+		//Many objects have no concept of a face
+		return INDEX_NONE;
 	}
 
 	//This gives derived types a way to do an overlap check without calling PhiWithNormal todo: this api is confusing
@@ -176,6 +202,8 @@ public:
 	
 	static FArchive& SerializeLegacyHelper(FArchive& Ar, TUniquePtr<TImplicitObject<T, d>>& Value);
 
+	virtual uint32 GetTypeHash() const = 0;
+
 protected:
 	ImplicitObjectType Type;
 	bool bIsConvex;
@@ -204,6 +232,12 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, TImplicitObject<T, d>& Value)
 static void StaticSerialize(FChaosArchive& Ar, TSerializablePtr<Type>& Obj)\
 {\
 	TImplicitObject<T, d>::StaticSerialize(Ar, (TSerializablePtr<TImplicitObject<T, d>>&)Obj);\
+}
+
+#define IMPLICIT_OBJECT_SERIALIZER_DIM(Type, Dim)\
+static void StaticSerialize(FChaosArchive& Ar, TSerializablePtr<Type>& Obj)\
+{\
+	TImplicitObject<T, Dim>::StaticSerialize(Ar, (TSerializablePtr<TImplicitObject<T, Dim>>&)Obj);\
 }
 
 typedef TImplicitObject<float, 3> FImplicitObject3;

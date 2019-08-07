@@ -40,6 +40,16 @@ static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
 );
 
 /**
+Use Shader Stages CVar.
+Enable the custom dispatch for multiple shader stages 
+*/
+static TAutoConsoleVariable<int32> CVarUseShaderStages(
+	TEXT("fx.UseShaderStages"), 
+	0, 
+	TEXT("Enable or not the shader stages within Niagara (WIP feature only there for temporary testing)."),
+	ECVF_Default);
+
+/**
 Detail Level CVar.
 Effectively replaces the DetaiMode feature but allows for a rolling range of new hardware and emitters to target them.
 TODO: Possible that this might be more broadly useful across the engine as a replacement for DetailMode so placing in "r." rather than "fx."

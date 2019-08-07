@@ -4,7 +4,7 @@
 #include "ChaosSolversModule.h"
 #include "Chaos/Serializable.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
-#include "SolverObjects/GeometryCollectionPhysicsObject.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Templates/SharedPointer.h"
 
 class FGeometryCollection;

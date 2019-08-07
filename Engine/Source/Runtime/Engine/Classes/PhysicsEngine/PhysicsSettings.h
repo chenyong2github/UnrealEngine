@@ -16,8 +16,6 @@
 #include "GameFramework/WorldSettings.h"
 #include "PhysicsCoreTypes.h"
 
-#include "Framework/Threading.h"
-
 #include "PhysicsSettings.generated.h"
 
 /**
