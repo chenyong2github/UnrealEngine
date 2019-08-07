@@ -27,6 +27,22 @@ FAutoConsoleVariableRef CVarDebugDisplayCaches(
 	TEXT("n: Number of elements to display on screen."),
 	ECVF_Default);
 
+static int32 ForceBlockForLoadCVar = 0;
+FAutoConsoleVariableRef CVarForceBlockForLoad(
+	TEXT("au.streamcaching.ForceBlockForLoad"),
+	ForceBlockForLoadCVar,
+	TEXT("when set to a nonzero value, blocks GetLoadedChunk until the disk read is complete.\n")
+	TEXT("n: Number of elements to display on screen."),
+	ECVF_Default);
+
+static int32 TrimCacheWhenOverBudgetCVar = 1;
+FAutoConsoleVariableRef CVarTrimCacheWhenOverBudget(
+	TEXT("au.streamcaching.TrimCacheWhenOverBudget"),
+	TrimCacheWhenOverBudgetCVar,
+	TEXT("when set to a nonzero value, TrimMemory will be called in AddOrTouchChunk to ensure we never go over budget.\n")
+	TEXT("n: Number of elements to display on screen."),
+	ECVF_Default);
+
 FCachedAudioStreamingManager::FCachedAudioStreamingManager(const FCachedAudioStreamingManagerParams& InitParams)
 {
 	check(FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching());
@@ -35,7 +51,7 @@ FCachedAudioStreamingManager::FCachedAudioStreamingManager(const FCachedAudioStr
 	// const FAudioStreamCachingSettings& CacheSettings = FPlatformCompressionUtilities::GetStreamCachingSettingsForCurrentPlatform();
 	for (const FCachedAudioStreamingManagerParams::FCacheDimensions& CacheDimensions : InitParams.Caches)
 	{
-		CacheArray.Emplace(CacheDimensions.MaxChunkSize, CacheDimensions.NumElements);
+		CacheArray.Emplace(CacheDimensions.MaxChunkSize, CacheDimensions.NumElements, CacheDimensions.MaxMemoryInBytes);
 	}
 
 	// Here we make sure our CacheArray is sorted from smallest MaxChunkSize to biggest, so that GetCacheForWave can scan through these caches to find the appropriate cache for the chunk size.
@@ -158,6 +174,8 @@ bool FCachedAudioStreamingManager::IsManagedStreamingSoundSource(const FSoundSou
 
 FAudioChunkHandle FCachedAudioStreamingManager::GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad) const
 {
+	bBlockForLoad |= (ForceBlockForLoadCVar != 0);
+
 	// If this sound wave is managed by a cache, use that to get the chunk:
 	FAudioChunkCache* Cache = GetCacheForWave(SoundWave);
 	if (Cache)
@@ -301,11 +319,13 @@ bool FCachedAudioStreamingManager::RequestChunk(USoundWave* SoundWave, uint32 Ch
 	}
 }
 
-FAudioChunkCache::FAudioChunkCache(uint32 InMaxChunkSize, uint32 NumChunks)
+FAudioChunkCache::FAudioChunkCache(uint32 InMaxChunkSize, uint32 NumChunks, uint64 InMemoryLimitInBytes)
 	: MaxChunkSize(InMaxChunkSize)
 	, MostRecentElement(nullptr)
 	, LeastRecentElement(nullptr)
 	, ChunksInUse(0)
+	, MemoryCounterBytes(0)
+	, MemoryLimitBytes(InMemoryLimitInBytes)
 	, bLogCacheMisses(false)
 {
 	CachePool.Reset(NumChunks);
@@ -358,6 +378,12 @@ bool FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EA
 		}
 
 		KickOffAsyncLoad(CacheElement, InKey, OnLoadCompleted);
+
+		if (TrimCacheWhenOverBudgetCVar != 0 && MemoryCounterBytes > MemoryLimitBytes)
+		{
+			TrimMemory(MemoryCounterBytes - MemoryLimitBytes);
+		}
+
 		return true;
 	}
 }
@@ -473,7 +499,7 @@ uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree)
 		if (CurrentElement->CanEvictChunk())
 		{
 			BytesFreed += CurrentElement->ChunkData.Num();
-
+			MemoryCounterBytes -= CurrentElement->ChunkData.Num();
 			// Empty the chunk data and invalidate the key.
 			CurrentElement->ChunkData.Empty();
 			CurrentElement->ChunkDataSize = 0;
@@ -655,6 +681,11 @@ void FAudioChunkCache::TouchElement(FCacheElement* InElement)
 	}
 }
 
+bool FAudioChunkCache::ShouldAddNewChunk() const
+{
+	return (ChunksInUse < CachePool.Num()) && (MemoryCounterBytes.Load() < MemoryLimitBytes);
+}
+
 FAudioChunkCache::FCacheElement* FAudioChunkCache::InsertChunk(const FChunkKey& InKey)
 {
 	FCacheElement* CacheElement = nullptr;
@@ -662,7 +693,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::InsertChunk(const FChunkKey& 
 	{
 		FScopeLock ScopeLock(&CacheMutationCriticalSection);
 
-		if (ChunksInUse < CachePool.Num())
+		if (ShouldAddNewChunk())
 		{
 			// We haven't filled up the pool yet, so we don't need to evict anything.
 			CacheElement = &CachePool[ChunksInUse];
@@ -777,8 +808,10 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 
 	EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_High;
 
+	MemoryCounterBytes -= CacheElement->ChunkData.Num();
 	// Reallocate our chunk data This allows us to shrink if possible.
 	CacheElement->ChunkData.SetNumUninitialized(Chunk.AudioDataSize, true);
+	MemoryCounterBytes += CacheElement->ChunkData.Num();
 
 #if DEBUG_STREAM_CACHE
 	CacheElement->DebugInfo.NumTotalChunks = InKey.SoundWave->GetNumChunks() - 1;
@@ -967,9 +1000,9 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 	
 	// Convert to megabytes and print the total size:
 	const double NumMegabytesInUse = (double)NumBytesCounter / (1024 * 1024);
-	const double MaxCacheSizeMB = ((double)MaxChunkSize * CachePool.Num()) / (1024 * 1024);
+	const double MaxCacheSizeMB = ((double)MemoryLimitBytes) / (1024 * 1024);
 
-	FString CacheMemoryUsage = *FString::Printf(TEXT("Using: %.4f Megabytes. Max Potential Usage: %.4f Megabytes."), NumMegabytesInUse, MaxCacheSizeMB);
+	FString CacheMemoryUsage = *FString::Printf(TEXT("Using: %.4f Megabytes (%lu bytes). Max Potential Usage: %.4f Megabytes."), NumMegabytesInUse, MemoryCounterBytes.Load(),  MaxCacheSizeMB);
 
 	// We're going to align this horizontally with the number of elements right above it.
 	Canvas->DrawShadowedString(X + CacheTitleOffsetX, Y, *CacheMemoryUsage, UEngine::GetSmallFont(), FLinearColor::Green);
@@ -1047,4 +1080,3 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 
 	return TPair<int, int>(X + CacheTitleOffsetX + CacheMemoryTextOffsetX - InitialX, Y - InitialY);
 }
-
