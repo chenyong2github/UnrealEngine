@@ -527,8 +527,6 @@ private:
 	bool bReconcileFaultDetected = false;	// A fault was detected: we received state from the server that we are unable to reconcile with locally predicted state
 };
 
-
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //	TNetworkedSimulationModel
 //	
@@ -724,11 +722,15 @@ public:
 			}
 		}
 
+		// FIXME: this needs to be sorted out. We really want to check if there is new sync state and then call this here.
 		// Call into the driver to sync to the latest state if we processed any input
-		if (NumProcessed > 0)
+		//if (NumProcessed > 0)
 		{
-			check(SyncBuffer.GetNumValidElements() > 0);
-			Driver->SyncTo(*SyncBuffer.GetElementFromHead(0));
+			//check(SyncBuffer.GetNumValidElements() > 0);
+			if (SyncBuffer.GetNumValidElements() > 0)
+			{
+				Driver->SyncTo(*SyncBuffer.GetElementFromHead(0));
+			}
 		}
 
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -751,7 +753,7 @@ public:
 		}
 	}	
 	
-	void InitializeForNetworkRole(const ENetRole Role, const bool IsLocallyControleld, const FNetworkSimulationModelInitParameters& Parameters)
+	void InitializeForNetworkRole(const ENetRole Role, const bool IsLocallyControlled, const FNetworkSimulationModelInitParameters& Parameters)
 	{
 		InputBuffer.SetBufferSize(Parameters.InputBufferSize);
 		SyncBuffer.SetBufferSize(Parameters.SyncedBufferSize);
@@ -769,8 +771,9 @@ public:
 			MyHistoricBuffers->AuxBuffer.SetBufferSize(Parameters.HistoricBufferSize);
 		}
 
-		if (IsLocallyControleld)
+		if (IsLocallyControlled)
 		{
+			check(Parameters.InputBufferSize > 0); // If you tell me this is locally controlled, you need to have an input buffer.
 			InitLocalInputBuffer();
 		}
 	}
