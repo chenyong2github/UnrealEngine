@@ -185,10 +185,6 @@ public:
 	// Callback when an error (crash) has occurred
 	static FOnHandleSystemError OnHandleSystemError;
 
-	// Callback when an error (crash) has occurred. Runs before the crash reporter.
-	// This should be used very carefully.
-	static FOnHandleSystemError OnBeforeHandleSystemError;
-
 	// Called when an actor label is changed
 	static FOnActorLabelChanged OnActorLabelChanged;
 
