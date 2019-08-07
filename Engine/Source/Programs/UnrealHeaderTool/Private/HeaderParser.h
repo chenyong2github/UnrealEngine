@@ -126,6 +126,10 @@ struct FRigVMParameter
 		, bInput(false)
 		, bOutput(false)
 		, MaxArraySize()
+		, Getter()
+		, CastName()
+		, CastType()
+		, bEditorOnly(false)
 	{
 	}
 
@@ -138,6 +142,7 @@ struct FRigVMParameter
 	FString Getter;
 	FString CastName;
 	FString CastType;
+	bool bEditorOnly;
 
 	const FString& NameOriginal(bool bCastName = false) const
 	{
@@ -244,7 +249,7 @@ public:
 		return Parameters.Add(InParameter);
 	}
 
-	FString Names(bool bLeadingSeparator = false, TCHAR* Separator = TEXT(", "), bool bCastType = false) const
+	FString Names(bool bLeadingSeparator = false, TCHAR* Separator = TEXT(", "), bool bCastType = false, bool bIncludeEditorOnly = true) const
 	{
 		if (Parameters.Num() == 0)
 		{
@@ -253,8 +258,18 @@ public:
 		TArray<FString> NameArray;
 		for (const FRigVMParameter& Parameter : Parameters)
 		{
+			if (!bIncludeEditorOnly && Parameter.bEditorOnly)
+			{
+				continue;
+			}
 			NameArray.Add(Parameter.NameOriginal(bCastType));
 		}
+
+		if (NameArray.Num() == 0)
+		{
+			return FString();
+		}
+
 		FString Joined = FString::Join(NameArray, Separator);
 		if (bLeadingSeparator)
 		{
@@ -263,7 +278,7 @@ public:
 		return Joined;
 	}
 
-	FString Declarations(bool bLeadingSeparator = false, TCHAR* Separator = TEXT(", "), bool bCastType = false, bool bCastName = false) const
+	FString Declarations(bool bLeadingSeparator = false, TCHAR* Separator = TEXT(", "), bool bCastType = false, bool bCastName = false, bool bIncludeEditorOnly = true) const
 	{
 		if (Parameters.Num() == 0)
 		{
@@ -272,8 +287,18 @@ public:
 		TArray<FString> DeclarationArray;
 		for (const FRigVMParameter& Parameter : Parameters)
 		{
+			if (!bIncludeEditorOnly && Parameter.bEditorOnly)
+			{
+				continue;
+			}
 			DeclarationArray.Add(Parameter.Variable(bCastType, bCastName));
 		}
+
+		if (DeclarationArray.Num() == 0)
+		{
+			return FString();
+		}
+
 		FString Joined = FString::Join(DeclarationArray, Separator);
 		if (bLeadingSeparator)
 		{

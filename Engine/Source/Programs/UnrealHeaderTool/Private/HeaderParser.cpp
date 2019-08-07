@@ -6322,6 +6322,12 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 		Parameter.bOutput = Prop->HasMetaData(OutputText);
 		Parameter.MaxArraySize = Prop->GetMetaData(MaxArraySizeText);
 		Parameter.Getter = GetRefText;
+		Parameter.bEditorOnly = Prop->IsEditorOnlyProperty();
+
+		if (Parameter.bEditorOnly)
+		{
+			UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' is editor only - WITH_EDITORONLY_DATA not allowed on structs with RIGVM_METHOD."), *Struct->GetName(), *Parameter.Name, *MemberCPPType);
+		}
 
 		if (!ExtendedCPPType.IsEmpty())
 		{
