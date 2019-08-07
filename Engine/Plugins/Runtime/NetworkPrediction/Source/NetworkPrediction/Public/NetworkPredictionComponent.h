@@ -13,6 +13,9 @@
 //
 //	This is an abstract component and cannot function on its own. It must be subclassed and InstantiateNetworkSimulation must be implemented.
 //	The subclass is responsible for running the network simulation. This at a bare minimum would mean ticking the simulation and supplying it with input.
+//
+//	Its also worth pointing out that nothing about being a UActorComponent is essential here. All that this component does could be done within an AActor itself.
+//	An actor component makes sense for flexible/reusable code provided by the plugin. But there is nothing stopping you from copying this directly into an actor if you had reason to.
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 UCLASS(Abstract)
 class NETWORKPREDICTION_API UNetworkPredictionComponent : public UActorComponent
@@ -41,10 +44,13 @@ protected:
 
 	// Child classes must allocate and manage lifetime of their own NetworkSim (E.g, TNetworkedSimulationModel). Recommend to just store in a TUniquePtr.
 	// Child classes must also register with Network Sim debugger here (FNetworkSimulationModelDebuggerManager RegisterNetworkSimulationModel)
-	virtual IReplicationProxy* InstantiateNetworkSimulation() { return nullptr; }
+	virtual IReplicationProxy* InstantiateNetworkSimulation() { check(false); return nullptr; }
 
-	// Child classes should override this an initialize their NetworkSim here
-	virtual void InitializeForNetworkRole(ENetRole Role) { }
+	// Child must override this an initialize their NetworkSim here (call 
+	virtual void InitializeForNetworkRole(ENetRole Role) { check(false); }
+
+	// Doesn't need to be overridden. Expected to be used in ::InitializeForNetworkRole implementation
+	virtual FNetworkSimulationModelInitParameters GetSimulationInitParameters(ENetRole Role);
 
 	// Attempts to determine if the component is locally controlled or not, meaning we expect input cmds to be generated locally (and hence need to prepare the input buffer for that)
 	virtual bool IsLocallyControlled();
@@ -76,4 +82,9 @@ private:
 
 	UPROPERTY(Replicated, transient)
 	FReplicationProxy ReplicationProxy_Debug;
+
+protected:
+
+	UFUNCTION()
+	virtual void OnRep_SimulatedProxy() { }
 };
