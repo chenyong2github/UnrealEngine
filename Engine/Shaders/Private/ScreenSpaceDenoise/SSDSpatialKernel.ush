@@ -117,6 +117,9 @@ struct FSSDKernelConfig
 	
 	// The color space of the accumulation.
 	uint AccumulatorColorSpace[MAX_SIGNAL_MULTIPLEXING];
+	
+	// The color space of the accumulation.
+	uint BilateralSettings[MAX_SIGNAL_MULTIPLEXING];
 
 	
 	// --------------------------- Per wave.
@@ -186,6 +189,7 @@ FSSDKernelConfig CreateKernelConfig()
 		{
 			KernelConfig.BufferColorSpace[MultiplexId] = STANDARD_BUFFER_COLOR_SPACE;
 			KernelConfig.AccumulatorColorSpace[MultiplexId] = STANDARD_BUFFER_COLOR_SPACE;
+			KernelConfig.BilateralSettings[MultiplexId] = 0x0000;
 		}
 	}
 	
@@ -214,6 +218,65 @@ FSSDKernelConfig CreateKernelConfig()
 	}
 
 	return KernelConfig;
+}
+
+
+void SetBilateralPreset(uint BilateralPresetId, inout FSSDKernelConfig KernelConfig)
+{
+	if (BilateralPresetId == BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA)
+	{
+		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
+		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+		{
+			// Shadow masks are normal invarient, so only reject based on position.
+			KernelConfig.BilateralSettings[MultiplexId] = BILATERAL_POSITION_BASED(5);
+		}
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA)
+	{
+		// Diffuse.
+		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(5) | BILATERAL_NORMAL;
+
+		// Specular.
+		KernelConfig.BilateralSettings[1] = BILATERAL_POSITION_BASED(5) | BILATERAL_TOKOYASHI;
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_REFLECTIONS)
+	{
+		// Specular.
+		// Can only be done using tokoyashi because have more than one sample at a time.
+		KernelConfig.BilateralSettings[0] = BILATERAL_TOKOYASHI;
+
+		// Specular variance for sampling rejection pre convolution.
+		KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_REFLECTIONS_1SPP)
+	{
+		// Specular.
+		// Use specular ratio estomator, so no need to to reject based on the axis of the lobe.
+		KernelConfig.BilateralSettings[0] = BILATERAL_TOKOYASHI_LOBE;
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_REFLECTIONS_TAA)
+	{
+		// Specular.
+		// Can only be done using tokoyashi because have more than one sample at a time.
+		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(1) | BILATERAL_TOKOYASHI;
+
+		// Specular variance for sampling rejection pre convolution.
+		KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_DIFFUSE)
+	{
+		// Diffuse depends on world position, but also the normal of the surface given it doesn't store any directionality.
+		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(2) | BILATERAL_NORMAL;
+		
+		// Variance for sampling rejection pre convolution.
+		KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_SPHERICAL_HARMONIC)
+	{
+		// Spherical harmonic encode directionality, so only reject based on world position.
+		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(2);
+	}
 }
 
 
@@ -474,6 +537,7 @@ void AccumulateSampledMultiplexedSignals(
 
 		// Compute the weight to be applied to do bilateral rejection.
 		float BilateralWeight = ComputeBilateralWeight(
+			KernelConfig.BilateralSettings[SignalMultiplexId],
 			FinalWorldBluringDistance,
 			KernelConfig.RefSceneMetadata,
 			SampleSceneMetadata,
