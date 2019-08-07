@@ -96,6 +96,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Move the location of water metadata
 		MoveWaterMetadataToActor,
 
+		// Replaced lake collision component
+		ReplaceLakeCollision,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
