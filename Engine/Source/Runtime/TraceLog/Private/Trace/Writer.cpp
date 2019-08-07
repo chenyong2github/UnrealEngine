@@ -21,10 +21,10 @@ void	MemoryMap(void*, SIZE_T);
 UPTRINT	TcpSocketConnect(const ANSICHAR*, uint16);
 UPTRINT	TcpSocketListen(uint16);
 int32	TcpSocketAccept(UPTRINT, UPTRINT&);
-void	TcpSocketClose(UPTRINT);
 bool	TcpSocketHasData(UPTRINT);
-int32	TcpSocketRecv(UPTRINT, void*, uint32);
-bool	TcpSocketSend(UPTRINT, const void*, uint32);
+int32	IoRead(UPTRINT, void*, uint32);
+bool	IoWrite(UPTRINT, const void*, uint32);
+void	IoClose(UPTRINT);
 UPTRINT	ThreadCreate(const ANSICHAR*, void (*)());
 uint32	ThreadGetCurrentId();
 void	ThreadSleep(uint32 Milliseconds);
@@ -411,7 +411,7 @@ static void Writer_UpdateData()
 	{
 		if (GDataHandle)
 		{
-			TcpSocketClose(GPendingDataHandle);
+			IoClose(GPendingDataHandle);
 			GPendingDataHandle = 0;
 		}
 		else
@@ -421,17 +421,17 @@ static void Writer_UpdateData()
 
 			// Handshake.
 			const uint32 Magic = 'TRCE';
-			bool bOk = TcpSocketSend(GDataHandle, &Magic, sizeof(Magic));
+			bool bOk = IoWrite(GDataHandle, &Magic, sizeof(Magic));
 
 			// Stream header
 			const struct {
 				uint8 Format;
 				uint8 Parameter;
 			} TransportHeader = { 1 };
-			bOk &= TcpSocketSend(GDataHandle, &TransportHeader, sizeof(TransportHeader));
+			bOk &= IoWrite(GDataHandle, &TransportHeader, sizeof(TransportHeader));
 
 			// Passively collected data
-			bOk &= TcpSocketSend(GDataHandle, GHoldBuffer.GetData(), GHoldBuffer.GetSize());
+			bOk &= IoWrite(GDataHandle, GHoldBuffer.GetData(), GHoldBuffer.GetSize());
 
 			if (bOk)
 			{
@@ -440,7 +440,7 @@ static void Writer_UpdateData()
 			}
 			else
 			{
-				TcpSocketClose(GDataHandle);
+				IoClose(GDataHandle);
 				GDataHandle = 0;
 			}
 		}
@@ -454,9 +454,9 @@ static void Writer_UpdateData()
 		{
 			Writer_UpdateBuffers([] (const uint8* Data, uint32 Size)
 			{
-				if (GDataHandle && !TcpSocketSend(GDataHandle, Data, Size))
+				if (GDataHandle && !IoWrite(GDataHandle, Data, Size))
 				{
-					TcpSocketClose(GDataHandle);
+					IoClose(GDataHandle);
 					GDataHandle = 0;
 				}
 			});
@@ -588,7 +588,7 @@ static bool Writer_ControlAccept()
 	{
 		if (Return == -1)
 		{
-			TcpSocketClose(GControlListen);
+			IoClose(GControlListen);
 			GControlListen = 0;
 			GControlState = EControlState::Failed;
 		}
@@ -611,10 +611,10 @@ static void Writer_ControlRecv()
 	while (TcpSocketHasData(GControlSocket))
 	{
 		int32 ReadSize = int32(UPTRINT(Buffer + sizeof(Buffer) - Head));
-		int32 Recvd = TcpSocketRecv(GControlSocket, Head, ReadSize);
+		int32 Recvd = IoRead(GControlSocket, Head, ReadSize);
 		if (Recvd <= 0)
 		{
-			TcpSocketClose(GControlSocket);
+			IoClose(GControlSocket);
 			GControlSocket = 0;
 			GControlState = EControlState::Listening;
 			break;
@@ -755,7 +755,7 @@ static void Writer_ShutdownControl()
 {
 	if (GControlListen)
 	{
-		TcpSocketClose(GControlListen);
+		IoClose(GControlListen);
 		GControlListen = 0;
 	}
 }

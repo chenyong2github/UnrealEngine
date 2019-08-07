@@ -223,13 +223,6 @@ int32 TcpSocketAccept(UPTRINT Socket, UPTRINT& Out)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void TcpSocketClose(UPTRINT Socket)
-{
-	SOCKET Inner = Socket - 1;
-	closesocket(Inner);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 bool TcpSocketHasData(UPTRINT Socket)
 {
 	SOCKET Inner = Socket - 1;
@@ -238,18 +231,41 @@ bool TcpSocketHasData(UPTRINT Socket)
 	return (select(0, &FdSet, nullptr, nullptr, &TimeVal) != 0);
 }
 
+
+
 ////////////////////////////////////////////////////////////////////////////////
-bool TcpSocketSend(UPTRINT Socket, const void* Data, uint32 Size)
+bool IoWrite(UPTRINT Handle, const void* Data, uint32 Size)
 {
-	SOCKET Inner = Socket - 1;
-	return send(Inner, (const char*)Data, Size, 0) == Size;
+	HANDLE Inner = HANDLE(Handle - 1);
+
+	DWORD BytesWritten = 0;
+	if (!WriteFile(Inner, (const char*)Data, Size, &BytesWritten, nullptr))
+	{
+		return false;
+	}
+
+	return (BytesWritten == Size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 TcpSocketRecv(UPTRINT Socket, void* Data, uint32 Size)
+int32 IoRead(UPTRINT Handle, void* Data, uint32 Size)
 {
-	SOCKET Inner = Socket - 1;
-	return recv(Inner, (char*)Data, Size, 0);
+	HANDLE Inner = HANDLE(Handle - 1);
+
+	DWORD BytesRead = 0;
+	if (!ReadFile(Inner, (char*)Data, Size, &BytesRead, nullptr))
+	{
+		return -1;
+	}
+
+	return BytesRead;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void IoClose(UPTRINT Handle)
+{
+	HANDLE Inner = HANDLE(Handle - 1);
+	CloseHandle(Inner);
 }
 
 } // namespace Trace
