@@ -1006,7 +1006,7 @@ public:
 
 public:
 	// #PHYS2 Rename, not just for physx now.
-	FPhysxUserData PhysxUserData;
+	FPhysicsUserData PhysicsUserData;
 
 	struct FWeldInfo
 	{

@@ -5,25 +5,26 @@
 #include "BoneControllers/AnimNode_RigidBody.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "GeometryCollection/GeometryCollectionSimulationTypes.h"
-#include "GeometryCollection/PhysicsAssetSimulation.h"
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsDeclares.h"
 
 #include "AnimNode_RigidBody_Chaos.generated.h"
 
-
-#if INCLUDE_CHAOS
-namespace Chaos
-{
-	class FPBDRigidsSolver;
-}
-class FBoneHierarchy;
-class FSkeletalMeshPhysicsObject;
-struct FSkeletalMeshPhysicsObjectInputs;
-struct FSkeletalMeshPhysicsObjectOutputs;
-#endif
+struct FBodyInstance;
+struct FConstraintInstance;
 
 extern ANIMGRAPHRUNTIME_API TAutoConsoleVariable<int32> CVarEnableChaosRigidBodyNode;
+
+///** Determines in what space the simulation should run */
+//UENUM()
+//enum class ESimulationSpace : uint8
+//{
+//	/** Simulate in component space. Moving the entire skeletal mesh will have no affect on velocities */
+//	ComponentSpace,
+//	/** Simulate in world space. Moving the skeletal mesh will generate velocity changes */
+//	WorldSpace,
+//	/** Simulate in another bone space. Moving the entire skeletal mesh and individually modifying the base bone will have no affect on velocities */
+//	BaseBoneSpace,
+//};
 
 /**
  *	Controller that simulates physics based on the physics asset of the skeletal mesh component
@@ -33,6 +34,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_RigidBody_Chaos : public FAnimNode_Skeleta
 {
 	GENERATED_USTRUCT_BODY()
 
+public:
 	FAnimNode_RigidBody_Chaos();
 	~FAnimNode_RigidBody_Chaos();
 
@@ -48,122 +50,18 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_RigidBody_Chaos : public FAnimNode_Skeleta
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
 	virtual bool HasPreUpdate() const override { return true; }
-	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override { return true; }
+	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
 	virtual bool NeedsDynamicReset() const override;
 	virtual void ResetDynamics(ETeleportType InTeleportType) override;
 	virtual int32 GetLODThreshold() const override;
 	// End of FAnimNode_SkeletalControlBase interface
 
-public:
-	//
-	// ChaosPhysics
-	//
+	void PostSerialize(const FArchive& Ar);
 
 	/** Physics asset to use. If empty use the skeletal mesh's default physics asset */
 	UPROPERTY(EditAnywhere, Category = Settings)
-		UPhysicsAsset* OverridePhysicsAsset;
+	UPhysicsAsset* OverridePhysicsAsset;
 
-	/** Physical Properties */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics")
-		const UChaosPhysicalMaterial* PhysicalMaterial;
-
-	//
-	// ChaosPhysics | General
-	//
-
-	/** When Simulating is enabled the Component will initialize its rigid bodies within the solver. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
-		bool bSimulating;
-
-	/** Number of solver interations. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
-		int32 NumIterations;
-
-	/** If true, this component will get collision notification events (@see IChaosNotifyHandlerInterface) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
-		bool bNotifyCollisions;
-
-	/** ObjectType defines how to initialize the rigid collision structures. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
-		EObjectStateTypeEnum ObjectType;
-
-	/** Density / mass.
-	 *
-	 * Common densities in g/cm^3:
-	 *     gold: 19.3
-	 *     lead: 11.3
-	 *     copper: 8.3 - 9.0
-	 *     steel: 8.03
-	 *     iron: 7.8
-	 *     aluminum: 2.7
-	 *     glass: 2.4 - 2.8
-	 *     brick: 1.4 - 2.4
-	 *     concrete: 0.45 - 2.4
-	 *     bone: 1.7 - 2.0
-	 *     muscle: 1.06
-	 *     water: 1.0
-	 *     fat: 0.9196
-	 *     gasoline: 0.7
-	 *     wood: 0.67
-	 *     tree bark: 0.24
-	 *     air: 0.001293
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
-		float Density;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
-		float MinMass;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
-		float MaxMass;
-
-	//
-	// ChaosPhysics | Collisions
-	//
-
-	/** CollisionType defines how to initialize the rigid collision structures.  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
-		ECollisionTypeEnum CollisionType;
-
-	/** Number of particles to generate per unit area (square cm). 0.1 would generate 1 collision particle per 10 cm^2. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
-		float ImplicitShapeParticlesPerUnitArea;
-	/** Minimum number of particles for each implicit shape. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
-		int ImplicitShapeMinNumParticles;
-	/** Maximum number of particles for each implicit shape. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
-		int ImplicitShapeMaxNumParticles;
-
-	/** Resolution on the smallest axes for the level set. (def: 5) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
-		int32 MinLevelSetResolution;
-	/** Resolution on the smallest axes for the level set. (def: 10) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Collisions")
-		int32 MaxLevelSetResolution;
-
-	/** Collision group - 0 = collides with all, -1 = none */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
-		int32 CollisionGroup;
-
-	//
-	// ChaosPhysics | Initial Velocity
-	//
-
-	/** Where to pull initial velocity from - user defined or animation. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
-		EInitialVelocityTypeEnum InitialVelocityType;
-	/** Initial linear velocity. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
-		FVector InitialLinearVelocity;
-	/** Initial angular velocity. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
-		FVector InitialAngularVelocity;
-
-private:
-	FTransform PreviousCompWorldSpaceTM;
-	FTransform CurrentTransform;
-	FTransform PreviousTransform;
-
-public:
 	/** Override gravity*/
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, editcondition = "bOverrideWorldGravity"))
 	FVector OverrideWorldGravity;
@@ -208,12 +106,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bForceDisableCollisionBetweenConstraintBodies;
 
-
-private:
-	ETeleportType ResetSimulatedTeleportType;
-
-public:
-	UPROPERTY(EditAnywhere, Category = Settings, meta=(InlineEditConditionToggle))
+	// @todo(ccaulfield): Inline toggles don't seem to be working in our branch
+	//UPROPERTY(EditAnywhere, Category = Settings, meta = (InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = Settings)
 	uint8 bEnableWorldGeometry : 1;
 
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (InlineEditConditionToggle))
@@ -242,13 +137,12 @@ public:
 	uint8 bClampLinearTranslationLimitToRefPose : 1;
 
 private:
-	uint8 bSimulationStarted : 1;
-	uint8 bCheckForBodyTransformInit : 1;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bComponentSpaceSimulation_DEPRECATED;	//use SimulationSpace
+#endif
 
-public:
-	void PostSerialize(const FArchive& Ar);
-
-private:
+#if INCLUDE_CHAOS
 
 	// FAnimNode_SkeletalControlBase interface
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
@@ -260,12 +154,24 @@ private:
 
 	void InitializeNewBodyTransformsDuringSimulation(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform, const FTransform& BaseBoneTM);
 
-private:
+	ETeleportType ResetSimulatedTeleportType;
+
+	uint8 bSimulationStarted : 1;
+	uint8 bCheckForBodyTransformInit : 1;
+
+	FTransform PreviousCompWorldSpaceTM;
+	FTransform CurrentTransform;
+	FTransform PreviousTransform;
+
 
 	float AccumulatedDeltaTime;
+	float AnimPhysicsMinDeltaTime;
+	bool bSimulateAnimPhysicsAfterReset;
 
 	/** This should only be used for removing the delegate during termination. Do NOT use this for any per frame work */
 	TWeakObjectPtr<USkeletalMeshComponent> SkelMeshCompWeakPtr;
+
+	ImmediatePhysics_Chaos::FSimulation* PhysicsSimulation;
 
 	struct FOutputBoneData
 	{
@@ -311,29 +217,12 @@ private:
 	};
 
 	TArray<FOutputBoneData> OutputBoneData;
-	//TArray<int32> SkeletonBoneIndexToBodyIndex;
+	TArray<ImmediatePhysics_Chaos::FActorHandle*> Bodies;
+	TArray<int32> SkeletonBoneIndexToBodyIndex;
 	TArray<FBodyAnimData> BodyAnimData;
 
-#if INCLUDE_CHAOS
-	/** Called by the Physics Object to get its set up parameters. */
-	void PhysicsObjectInitCallback(const USkeletalMeshComponent* InSkelMeshComponent, const UAnimInstance* InAnimInstance, FSkeletalMeshPhysicsObjectParams& OutPhysicsParams);
-
-	/** Called by the Physics Object to get the lastest pose from the animation */
-	bool UpdatePhysicsInputs(FComponentSpacePoseContext& PoseContext, const float Dt, FBoneHierarchy& OutBoneHierarchy);
-
-	void UpdateAnimNodeOutputs(const FBoneHierarchy& InBoneHierarchy, const FSkeletalMeshPhysicsObjectOutputs& InPhysicsOutputs, FComponentSpacePoseContext& PoseContext, TArray<FBoneTransform>& OutBoneTransforms);
-
-	Chaos::FPBDRigidsSolver* Solver;
-	FSkeletalMeshPhysicsObject* PhysicsObject;
-	//TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> PhysicsMaterial;	//@todo(mlentine): Don't have one per static mesh
-
-	//ImmediatePhysics::FSimulation* PhysicsSimulation;
-	//TArray<ImmediatePhysics::FActorHandle*> Bodies;
-	//TArray<FPhysicsConstraintHandle*> Constraints;
-	//TArray<USkeletalMeshComponent::FPendingRadialForces> PendingRadialForces;
-	//FPhysScene* PhysScene;
-	//FCollisionQueryParams QueryParams;
-#endif
+	TArray<FPhysicsConstraintHandle*> Constraints;
+	TArray<USkeletalMeshComponent::FPendingRadialForces> PendingRadialForces;
 
 	TSet<UPrimitiveComponent*> ComponentsInSim;
 
@@ -345,6 +234,9 @@ private:
 
 	FSphere CachedBounds;
 
+	FCollisionQueryParams QueryParams;
+
+	FPhysScene* PhysScene;
 
 	// Evaluation counter, to detect when we haven't be evaluated in a while.
 	FGraphTraversalCounter EvalCounter;
@@ -359,7 +251,45 @@ private:
 	FBlendedHeapCurve CapturedFrozenCurves;
 
 	FVector PreviousComponentLinearVelocity;
+#endif
 };
+
+#if !INCLUDE_CHAOS
+// Stub out public API and safe-initialize all public properties if Chaos is not compiled.
+inline FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos()
+	: OverridePhysicsAsset(nullptr)
+	, OverrideWorldGravity(FVector::ZeroVector)
+	, ExternalForce(FVector::ZeroVector)
+	, ComponentLinearAccScale(FVector::ZeroVector)
+	, ComponentLinearVelScale(FVector::ZeroVector)
+	, ComponentAppliedLinearAccClamp(FVector::ZeroVector)
+	, CachedBoundsScale(false)
+	, BaseBoneRef()
+	, OverlapChannel(ECollisionChannel::ECC_WorldStatic)
+	, SimulationSpace(ESimulationSpace::ComponentSpace)
+	, bForceDisableCollisionBetweenConstraintBodies(false)
+	, bEnableWorldGeometry(false)
+	, bOverrideWorldGravity(false)
+	, bTransferBoneVelocities(0)
+	, bFreezeIncomingPoseOnStart(0)
+	, bClampLinearTranslationLimitToRefPose(0)
+#if WITH_EDITORONLY_DATA
+	, bComponentSpaceSimulation_DEPRECATED(false)
+#endif
+{}
+inline FAnimNode_RigidBody_Chaos::~FAnimNode_RigidBody_Chaos() {}
+inline void FAnimNode_RigidBody_Chaos::FAnimNode_RigidBody_Chaos::GatherDebugData(FNodeDebugData& DebugData) { Super::GatherDebugData(DebugData); }
+inline void FAnimNode_RigidBody_Chaos::UpdateComponentPose_AnyThread(const FAnimationUpdateContext& Context) { Super::UpdateComponentPose_AnyThread(Context); }
+inline void FAnimNode_RigidBody_Chaos::EvaluateComponentPose_AnyThread(FComponentSpacePoseContext& Output) { Super::EvaluateComponentPose_AnyThread(Output); }
+inline void FAnimNode_RigidBody_Chaos::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) { Super::EvaluateSkeletalControl_AnyThread(Output, OutBoneTransforms); }
+inline void FAnimNode_RigidBody_Chaos::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) { Super::OnInitializeAnimInstance(InProxy, InAnimInstance); }
+inline void FAnimNode_RigidBody_Chaos::PreUpdate(const UAnimInstance* InAnimInstance) { Super::PreUpdate(InAnimInstance); }
+inline void FAnimNode_RigidBody_Chaos::UpdateInternal(const FAnimationUpdateContext& Context) { Super::UpdateInternal(Context); }
+inline bool FAnimNode_RigidBody_Chaos::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) { return true; }
+inline bool FAnimNode_RigidBody_Chaos::NeedsDynamicReset() const { return false; }
+inline void FAnimNode_RigidBody_Chaos::ResetDynamics(ETeleportType InTeleportType) {}
+inline int32 FAnimNode_RigidBody_Chaos::GetLODThreshold() const { return 0; }
+#endif
 
 #if WITH_EDITORONLY_DATA
 template<>

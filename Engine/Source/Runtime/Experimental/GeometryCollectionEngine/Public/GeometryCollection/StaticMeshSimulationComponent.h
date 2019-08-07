@@ -12,7 +12,7 @@
 
 #include "StaticMeshSimulationComponent.generated.h"
 
-class FStaticMeshPhysicsObject;
+class FStaticMeshPhysicsProxy;
 
 /**
 *	UStaticMeshSimulationComponent
@@ -109,9 +109,9 @@ public:
 private : 
 
 	/** List of physics objects this simulation component created. */
-	TArray<FStaticMeshPhysicsObject*> PhysicsObjects;
+	TArray<FStaticMeshPhysicsProxy*> PhysicsProxies;
 
-	/** List of component for which this simulation component created a physics object. Parallel array to PhysicsObjects, so PhysicsObjects[i] corresponds to SimulatedComponents[i] */
+	/** List of component for which this simulation component created a physics object. Parallel array to PhysicsProxy, so PhysicsProxies[i] corresponds to SimulatedComponents[i] */
 	UPROPERTY()
 	TArray<UPrimitiveComponent*> SimulatedComponents;
 

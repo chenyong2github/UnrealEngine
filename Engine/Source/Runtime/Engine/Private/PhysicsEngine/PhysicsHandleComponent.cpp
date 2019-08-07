@@ -80,7 +80,7 @@ void UPhysicsHandleComponent::GrabComponent(class UPrimitiveComponent* InCompone
 	FRotator GrabbedRotation = FRotator::ZeroRotator;
 
 #if WITH_PHYSX
-	if(BodyInstance->ActorHandle.IsValid())
+	if(FPhysicsInterface::IsValid(BodyInstance->ActorHandle))
 	{
 		FPhysicsCommand::ExecuteRead(BodyInstance->ActorHandle, [&](const FPhysicsActorHandle& Actor)
 		{

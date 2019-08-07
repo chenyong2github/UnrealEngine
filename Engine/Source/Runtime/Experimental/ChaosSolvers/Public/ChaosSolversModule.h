@@ -11,7 +11,8 @@
 #include "UObject/ObjectMacros.h"
 #include "Framework/Threading.h"
 #include "PhysicsCoreTypes.h"
-#include "MultiBufferResource.h"
+#include "Chaos/Framework/MultiBufferResource.h"
+#include "Chaos/Declares.h"
 
 /** Classes that want to set the solver actor class can implement this. */
 class IChaosSolverActorClassProvider
@@ -40,7 +41,6 @@ namespace Chaos
 {
 	class FPersistentPhysicsTask;
 	class FPhysicsProxy;
-	class FPBDRigidsSolver;
 }
 
 // Default settings implementation
@@ -66,7 +66,7 @@ struct FSolverStateStorage
 {
 	friend class FChaosSolversModule;
 
-	Chaos::FPBDRigidsSolver* Solver;
+	Chaos::FPhysicsSolver* Solver;
 	TArray<Chaos::FPhysicsProxy*> ActiveProxies;
 	TArray<Chaos::FPhysicsProxy*> ActiveProxies_GameThread;
 
@@ -99,6 +99,7 @@ public:
 
 	void ShutdownThreadingMode();
 	void InitializeThreadingMode(Chaos::EThreadingMode InNewMode);
+	void ChangeThreadingMode(Chaos::EThreadingMode InNewMode);
 
 	/**
 	 * Queries for multithreaded configurations
@@ -152,7 +153,7 @@ public:
 	 *
 	 * @param bStandalone Whether the solver is standalone (not sent to physics thread - updating left to caller)
 	 */
-	Chaos::FPBDRigidsSolver* CreateSolver(bool bStandalone = false);
+	Chaos::FPhysicsSolver* CreateSolver(bool bStandalone = false);
 
 	Chaos::EMultiBufferMode GetBufferModeFromThreadingModel(Chaos::EThreadingMode ThreadingMode)
 	{
@@ -217,13 +218,13 @@ public:
 	 *
 	 * Should be called on whichever thread currently owns the solver state
 	 */
-	void DestroySolver(Chaos::FPBDRigidsSolver* InState);
+	void DestroySolver(Chaos::FPhysicsSolver* InState);
 
 	/**
 	 * Read access to the current solver-state objects, be aware which thread owns this data when
 	 * attempting to use this. Physics thread will query when spinning up to get current world state
 	 */
-	const TArray<Chaos::FPBDRigidsSolver*>& GetSolvers() const { return Solvers; }
+	const TArray<Chaos::FPhysicsSolver*>& GetSolvers() const { return Solvers; }
 
 	/**
 	 * Outputs statistics for the solver hierarchies. Currently engine calls into this
@@ -314,7 +315,7 @@ private:
 	// Where these objects are valid for interaction depends on the current threading mode. Use IsPersistentTaskRunning to
 	// check whether the physics thread owns these before manipulating. When adding/removing solver or proxy items in
 	// multi threaded mode the physics thread must also be notified of the change.
-	TArray<Chaos::FPBDRigidsSolver*> Solvers;
+	TArray<Chaos::FPhysicsSolver*> Solvers;
 
 	// Lock for the above list to ensure we don't delete solvers out from underneath other threads
 	// or mess up the solvers array during use.

@@ -182,13 +182,18 @@ FNiagaraDataBuffer& FNiagaraDataSet::BeginSimulate()
 	return GetDestinationDataChecked();
 }
 
-void FNiagaraDataSet::EndSimulate()
+void FNiagaraDataSet::EndSimulate(bool SetCurrentData)
 {
 	//CheckCorrectThread();
 	//Destination is now complete so make it the current simulation state.
 	DestinationData->Unlock();
 	check(!DestinationData->IsInUse());
-	CurrentData = DestinationData;
+
+	if (SetCurrentData)
+	{
+		CurrentData = DestinationData;
+	}
+
 	DestinationData = nullptr;
 }
 

@@ -9,7 +9,6 @@ public class PhysicsSQ: ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"Chaos",
 				"PhysicsCore"
 			}
 		);

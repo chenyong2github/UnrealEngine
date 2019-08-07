@@ -4,13 +4,9 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "Dispatcher.h"
+#include "Chaos/Declares.h"
 
 class FChaosSolversModule;
-
-namespace Chaos
-{
-	class FPBDRigidsSolver;
-}
 
 /**
  * Task responsible for handling a full frame update for physics under the TaskGraph threading
@@ -52,7 +48,7 @@ public:
 private:
 
 	FChaosSolversModule* Module;
-	Chaos::FDispatcher<EChaosThreadingMode::TaskGraph>* Dispatcher;
+	Chaos::IDispatcher* Dispatcher;
 };
 
 /**
@@ -63,7 +59,7 @@ class CHAOSSOLVERS_API FPhysicsSolverAdvanceTask
 {
 public:
 
-	FPhysicsSolverAdvanceTask(Chaos::FPBDRigidsSolver* InSolver, float InDt);
+	FPhysicsSolverAdvanceTask(Chaos::FPhysicsSolver* InSolver, float InDt);
 
 	TStatId GetStatId() const;
 	static ENamedThreads::Type GetDesiredThread();
@@ -72,9 +68,9 @@ public:
 
 private:
 
-	void StepSolver(Chaos::FPBDRigidsSolver* InSolver, float InDt);
+	void StepSolver(Chaos::FPhysicsSolver* InSolver, float InDt);
 
-	Chaos::FPBDRigidsSolver* Solver;
+	Chaos::FPhysicsSolver* Solver;
 	float Dt;
 };
 
@@ -86,7 +82,7 @@ class CHAOSSOLVERS_API FPhysicsSolverAdvanceSubsteppingTask
 {
 public:
 
-	FPhysicsSolverAdvanceSubsteppingTask(Chaos::FPBDRigidsSolver* InSolver, int32 NumIterations, float InDtPerIteration);
+	FPhysicsSolverAdvanceSubsteppingTask(Chaos::FPhysicsSolver* InSolver, int32 NumIterations, float InDtPerIteration);
 
 	TStatId GetStatId() const;
 	static ENamedThreads::Type GetDesiredThread();
@@ -95,7 +91,7 @@ public:
 
 private:
 
-	void StepSolver(Chaos::FPBDRigidsSolver* InSolver, float Dt);
+	void StepSolver(Chaos::FPhysicsSolver* InSolver, float Dt);
 
 	FGraphEventRef CompletionEvent;
 	FChaosSolversModule* Module;
