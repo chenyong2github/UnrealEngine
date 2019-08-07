@@ -82,6 +82,9 @@
 
 	<!-- Architectures that we build for Android -->
 	<Property Name="AndroidArchitectures" Value="armv7+arm64"/>
+	
+	<!-- Hololens Architectures -->
+	<Property Name="HoloLensArchitectures" Value="x64+arm64+multi"/>
 
 	<Property Name="AndroidGPUArchitectures" Value="es2"/>
 	<Property Name="LuminGPUArchitectures" Value="es2"/>
@@ -352,7 +355,7 @@
 
 		</Node>
 	</Agent>
-	<Agent Name="Target HoloLens" Type="CompileWin64;Win64">
+	<Agent Name="Target HoloLens" Type="HoloLens">
 		<Node Name="Compile UE4Game HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UE4Game HoloLens">
 
 			<ForEach Name="Configuration" Values="$(GameConfigurations)">
@@ -361,7 +364,6 @@
 				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -allmodules -nolink -architecture=x64 $(TargetDebugInfoArg)"/>
 				<Compile Target="UE4Game" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UE4Game HoloLens" Arguments="-precompile -architecture=x64 $(TargetDebugInfoArg)" Clean="false"/>
 			</ForEach>
-
 		</Node>
 	</Agent>
 	<Agent Name="Target Lumin" Type="CompileWin64;Win64">
@@ -867,6 +869,7 @@
 			<!-- Create command line arguments for any platforms that were built with additional architectures -->
 			<Property Name="ArchitectureCommands" Value=""/>
 			<Property Name="ArchitectureCommands" Value="$(ArchitectureCommands) -AndroidArchitectures=$(AndroidArchitectures) -AndroidGPUArchitectures=$(AndroidGPUArchitectures)" If="'$(WithAndroid)' == true"/>
+			<Property Name="ArchitectureCommands" Value="$(ArchitectureCommands) -HoloLensArchitectures=$(HoloLensArchitectures)" If="'$(WithHoloLens)' == true"/>
 
 			<!-- Finalize the build and then tag the text file that this process creates -->
 			<Command Name="FinalizeInstalledBuild" Arguments="-OutputDir=&quot;$(LocalInstalledDir)&quot; -ContentOnlyPlatforms=$(ContentOnlyPlatforms) $(ArchitectureCommands) -AnalyticsTypeOverride=$(AnalyticsTypeOverride)"/>
