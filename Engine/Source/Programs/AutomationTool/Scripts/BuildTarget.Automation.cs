@@ -117,8 +117,8 @@ namespace AutomationTool
 					string TargetScript = TargetScripts.Where(S => S.IndexOf(TargetName, StringComparison.OrdinalIgnoreCase) >= 0).FirstOrDefault();
 
 					if (TargetScript == null && (
-							!TargetName.Equals("Client", StringComparison.OrdinalIgnoreCase) ||
-							!TargetName.Equals("Game", StringComparison.OrdinalIgnoreCase)
+							TargetName.Equals("Client", StringComparison.OrdinalIgnoreCase) ||
+							TargetName.Equals("Game", StringComparison.OrdinalIgnoreCase)
 							)
 						)
 					{
