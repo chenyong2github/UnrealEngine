@@ -562,6 +562,14 @@ public:
 	UFUNCTION(exec)
 	virtual void LocalTravel(const FString& URL);
 
+	/** RPC used by ServerExec. Not intended to be called directly */
+	UFUNCTION(Reliable, Server, WithValidation)
+	void ServerExecRPC(const FString& Msg);
+
+	/** Executes command on server (non shipping builds only) */
+	UFUNCTION(exec)
+	void ServerExec(const FString& Msg);
+
 	/** Return the client to the main menu gracefully */
 	UE_DEPRECATED(4.19, "As an FString, the ReturnReason parameter is not easily localized. Please use ClientReturnToMainMenuWithTextReason instead.")
 	UFUNCTION(Reliable, Client)
