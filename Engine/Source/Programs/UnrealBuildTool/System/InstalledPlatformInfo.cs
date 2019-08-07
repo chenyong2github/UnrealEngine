@@ -183,7 +183,7 @@ namespace UnrealBuildTool
 
 			string PlatformTypeName;
 			TargetType PlatformType = TargetType.Game;
-			if (ParseSubValue(PlatformConfiguration, "PlatformTypeName=", out PlatformTypeName))
+			if (ParseSubValue(PlatformConfiguration, "PlatformType=", out PlatformTypeName))
 			{
 				if (!Enum.TryParse(PlatformTypeName, out PlatformType))
 				{
