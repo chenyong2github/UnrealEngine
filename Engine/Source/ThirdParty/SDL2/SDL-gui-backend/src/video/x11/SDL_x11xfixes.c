@@ -124,8 +124,10 @@ X11_ConfineCursor(_THIS, SDL_Window * window, const SDL_Rect * rect, int flags)
             /** Negative values are not allowed. Clip values relative to the specified window. */
             x1 = rect->x >= 0 ? rect->x : 0;
             y1 = rect->y >= 0 ? rect->y : 0;
+/* EG BEGIN */
             x2 = (x1 + rect->w) <= bounds.x + bounds.w ? (x1 + rect->w) : bounds.x + bounds.w; /* Do we have to do this? */
             y2 = (y1 + rect->h) <= bounds.y + bounds.h ? (y1 + rect->h) : bounds.y + bounds.h; /* Do we have to do this? */
+/* EG END */
 
             if ((wdata->barrier_rect.x != rect->x) ||
                 (wdata->barrier_rect.y != rect->y) ||
@@ -133,6 +135,7 @@ X11_ConfineCursor(_THIS, SDL_Window * window, const SDL_Rect * rect, int flags)
                 (wdata->barrier_rect.h != rect->h)) {
                 wdata->barrier_rect = *rect;
             }
+/* EG BEGIN */
             /** Create the left barrier */
             wdata->barrier[0] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
                                                  x1, bounds.y,
@@ -157,6 +160,7 @@ X11_ConfineCursor(_THIS, SDL_Window * window, const SDL_Rect * rect, int flags)
                                                  bounds.x + bounds.w, y2,
                                                  BarrierNegativeY,
                                                  0, NULL);
+/* EG END */
             X11_XFlush(data->display);
 
             /* Lets remember current active confined window. */
