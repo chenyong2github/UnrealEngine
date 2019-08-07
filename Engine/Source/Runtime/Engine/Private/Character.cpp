@@ -263,11 +263,7 @@ bool ACharacter::CanJumpInternal_Implementation() const
 	bool bCanJump = !bIsCrouched;
 
 	// Ensure that the CharacterMovement state is valid
-	bCanJump &= CharacterMovement &&
-				CharacterMovement->IsJumpAllowed() &&
-				!CharacterMovement->bWantsToCrouch &&
-				// Can only jump from the ground, or multi-jump if already falling.
-				(CharacterMovement->IsMovingOnGround() || CharacterMovement->IsFalling());
+	bCanJump &= CharacterMovement->CanAttemptJump();
 
 	if (bCanJump)
 	{

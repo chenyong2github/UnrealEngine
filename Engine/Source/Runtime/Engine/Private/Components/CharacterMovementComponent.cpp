@@ -864,6 +864,14 @@ bool UCharacterMovementComponent::DoJump(bool bReplayingMoves)
 	return false;
 }
 
+bool UCharacterMovementComponent::CanAttemptJump() const
+{
+	return IsJumpAllowed() &&
+		   !bWantsToCrouch &&
+		   (IsMovingOnGround() || IsFalling()); // Falling included for double-jump and non-zero jump hold time, but validated by character.
+}
+
+
 FVector UCharacterMovementComponent::GetImpartedMovementBaseVelocity() const
 {
 	FVector Result = FVector::ZeroVector;
