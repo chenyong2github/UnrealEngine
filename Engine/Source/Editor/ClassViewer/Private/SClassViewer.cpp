@@ -1058,8 +1058,10 @@ void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOu
 {
 	UClass* RootClass = UObject::StaticClass();
 
-	ObjectClassRoot = MakeShareable(new FClassViewerNode(RootClass->GetName(), RootClass->GetDisplayNameText().ToString()));
+	ObjectClassRoot = MakeShareable(new FClassViewerNode(RootClass));
 	ObjectClassRoot->Class = RootClass;
+
+	InOutClassPathToNode.Add(ObjectClassRoot->ClassPath, ObjectClassRoot);
 
 	TMap< UClass*, TSharedPtr< FClassViewerNode > > Nodes;
 
