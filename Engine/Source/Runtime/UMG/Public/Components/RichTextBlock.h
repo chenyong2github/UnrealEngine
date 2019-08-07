@@ -101,7 +101,11 @@ public:
 
 public:
 	URichTextBlock(const FObjectInitializer& ObjectInitializer);
-	
+
+	//~ Begin UTextLayoutWidget Interface
+	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	//~ End UTextLayoutWidget Interface
+
 	// UWidget interface
 	virtual void SynchronizeProperties() override;
 	// End of UWidget interface
@@ -144,8 +148,6 @@ public:
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
-
-	virtual void SetJustification(ETextJustify::Type InJustification) override;
 	
 	virtual void UpdateStyleData();
 	void RebuildStyleInstance();
