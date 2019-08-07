@@ -271,6 +271,7 @@ namespace commands
 		unsigned int processId;
 		wchar_t fileName[260];
 		Windows::HMODULE moduleBase;
+		void* token;
 	};
 
 	struct FinishedLazyLoadingModules

@@ -362,7 +362,7 @@ void FLiveCodingModule::UpdateModules()
 					}
 					else
 					{
-						LppEnableLazyLoadedModule(*FullFilePath);
+						LppWaitForToken(LppEnableLazyLoadedModule(*FullFilePath));
 					}
 					ConfiguredModules.Add(ModuleName);
 				}
@@ -376,7 +376,7 @@ void FLiveCodingModule::UpdateModules()
 			{
 				EnableModuleFileNames.Add(*EnableModule);
 			}
-			LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num());
+			LppWaitForToken(LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num()));
 		}
 #endif
 	}

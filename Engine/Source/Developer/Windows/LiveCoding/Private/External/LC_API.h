@@ -44,7 +44,7 @@ LPP_DLL_API(void) LppShowConsole();
 LPP_DLL_API(void) LppSetVisible(bool visible);
 LPP_DLL_API(void) LppSetActive(bool active);
 LPP_DLL_API(void) LppSetBuildArguments(const wchar_t* arguments);
-LPP_DLL_API(void) LppEnableLazyLoadedModule(const wchar_t* nameOfExeOrDll);
+LPP_DLL_API(void*) LppEnableLazyLoadedModule(const wchar_t* nameOfExeOrDll);
 // END EPIC MOD
 LPP_DLL_API(void) LppApplySettingBool(const char* settingName, int value);
 LPP_DLL_API(void) LppApplySettingInt(const char* settingName, int value);
