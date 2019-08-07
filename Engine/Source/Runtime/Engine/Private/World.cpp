@@ -2446,12 +2446,15 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		// notify server that the client has finished making this level visible
 		if (!Level->bClientOnlyVisible)
 		{
+			FUpdateLevelVisibilityLevelInfo LevelVisibility(Level, true);
+			const FName UnmappedPackageName = LevelVisibility.PackageName;
+			
 			for (FLocalPlayerIterator It(GEngine, this); It; ++It)
 			{
-				APlayerController* LocalPlayerController = It->GetPlayerController(this);
-				if (LocalPlayerController != NULL)
+				if (APlayerController* LocalPlayerController = It->GetPlayerController(this))
 				{
-					LocalPlayerController->ServerUpdateLevelVisibility(LocalPlayerController->NetworkRemapPath(Level->GetOutermost()->GetFName(), false), true);
+					LevelVisibility.PackageName = LocalPlayerController->NetworkRemapPath(UnmappedPackageName, false);
+					LocalPlayerController->ServerUpdateLevelVisibility(LevelVisibility);
 				}
 			}
 		}
@@ -2613,12 +2616,15 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 			// notify server that the client has removed this level
 			if (!Level->bClientOnlyVisible)
 			{
+				FUpdateLevelVisibilityLevelInfo LevelVisibility(Level, false);
+				const FName UnmappedPackageName = LevelVisibility.PackageName;
+
 				for (FLocalPlayerIterator It(GEngine, this); It; ++It)
 				{
-					APlayerController* LocalPlayerController = It->GetPlayerController(this);
-					if (LocalPlayerController != NULL)
+					if (APlayerController* LocalPlayerController = It->GetPlayerController(this))
 					{
-						LocalPlayerController->ServerUpdateLevelVisibility(LocalPlayerController->NetworkRemapPath(Level->GetOutermost()->GetFName(), false), false);
+						LevelVisibility.PackageName = LocalPlayerController->NetworkRemapPath(UnmappedPackageName, false);
+						LocalPlayerController->ServerUpdateLevelVisibility(LevelVisibility);
 					}
 				}
 			}
@@ -3982,22 +3988,20 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 		{
 			for (FLocalPlayerIterator It(GEngine, this); It; ++It)
 			{
-				APlayerController* LocalPlayerController = It->GetPlayerController(this);
-				if (LocalPlayerController != NULL)
+				if (APlayerController* LocalPlayerController = It->GetPlayerController(this))
 				{
 					TArray<FUpdateLevelVisibilityLevelInfo> LevelVisibilities;
 					for (int32 LevelIndex = 1; LevelIndex < Levels.Num(); LevelIndex++)
 					{
 						ULevel*	SubLevel = Levels[LevelIndex];
 
-						FUpdateLevelVisibilityLevelInfo& LevelVisibility = *new( LevelVisibilities ) FUpdateLevelVisibilityLevelInfo();
-						LevelVisibility.PackageName = LocalPlayerController->NetworkRemapPath(SubLevel->GetOutermost()->GetFName(), false);
-						LevelVisibility.bIsVisible = SubLevel->bIsVisible;
+						FUpdateLevelVisibilityLevelInfo& LevelVisibility = *new (LevelVisibilities) FUpdateLevelVisibilityLevelInfo(SubLevel, SubLevel->bIsVisible);
+						LevelVisibility.PackageName = LocalPlayerController->NetworkRemapPath(LevelVisibility.PackageName, false);
 					}
 
-					if( LevelVisibilities.Num() > 0 )
+					if(LevelVisibilities.Num() > 0)
 					{
-						LocalPlayerController->ServerUpdateMultipleLevelsVisibility( LevelVisibilities );
+						LocalPlayerController->ServerUpdateMultipleLevelsVisibility(LevelVisibilities);
 					}
 				}
 			}
