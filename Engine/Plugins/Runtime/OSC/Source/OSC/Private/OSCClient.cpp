@@ -7,12 +7,14 @@
 #include "OSCStream.h"
 #include "OSCBundle.h"
 #include "OSCLog.h"
+#include "OSCPacket.h"
 
 
 namespace
 {
 	static const int32 OUTPUT_BUFFER_SIZE = 1024;
 } // namespace <>
+
 
 UOSCClient::UOSCClient()
 	: Socket(FUdpSocketBuilder(*GetName()).Build())
@@ -50,7 +52,7 @@ void UOSCClient::GetSendIPAddress(FString& InIPAddress, int32& Port)
 	Port = IPAddress->GetPort();
 }
 
-void UOSCClient::SendPacket(FOSCPacket& Packet)
+void UOSCClient::SendPacket(IOSCPacket& Packet)
 {
 	const FOSCAddress& OSCAddress = Packet.GetAddress();
 	if (!OSCAddress.IsValid())
@@ -105,14 +107,14 @@ void UOSCClient::BeginDestroy()
 
 void UOSCClient::SendOSCMessage(FOSCMessage& Message)
 {
-	const TSharedPtr<FOSCMessagePacket>& Packet = Message.GetPacket();
+	const TSharedPtr<IOSCPacket>& Packet = Message.GetPacket();
 	check(Packet.IsValid());
 	SendPacket(*Packet.Get());
 }
 
 void UOSCClient::SendOSCBundle(FOSCBundle& Bundle)
 {
-	const TSharedPtr<FOSCBundlePacket>& Packet = Bundle.GetPacket();
+	const TSharedPtr<IOSCPacket>& Packet = Bundle.GetPacket();
 	check(Packet.IsValid());
 	SendPacket(*Packet.Get());
 }

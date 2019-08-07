@@ -8,18 +8,23 @@
 
 #include "OSCStream.h"
 #include "OSCMessage.h"
+#include "OSCMessagePacket.h"
 #include "OSCBundle.h"
+#include "OSCBundlePacket.h"
 #include "OSCLog.h"
 
-#define OSC_BUFFER_FREE 0
-#define OSC_BUFFER_LOCKED 1
+#define OSC_SERVER_BUFFER_FREE 0
+#define OSC_SERVER_BUFFER_LOCKED 1
 
 
 UOSCServer::UOSCServer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer) 
 	, bWhitelistClients(false)
-	, OSCPackets(1024)
+	, Socket(nullptr)
+	, SocketReceiver(nullptr)
 	, OSCBufferLock(0)
+	, Port(0)
+	, bMulticastLoopback(false)
 {
 }
 
@@ -31,47 +36,46 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 		return;
 	}
 
-	TSharedPtr<FOSCPacket> Packet = FOSCPacket::CreatePacket(Data->GetData());
+	TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Data->GetData());
 	if (Packet.IsValid())
 	{
 		FOSCStream Stream = FOSCStream(Data->GetData(), Data->Num());
 
 		Packet->ReadData(Stream);
-		OSCPackets.Buffer.Enqueue(MoveTemp(Packet));
+		OSCPackets.Enqueue(MoveTemp(Packet));
 	}
 
-	if (!FPlatformAtomics::InterlockedCompareExchange(&OSCBufferLock, OSC_BUFFER_LOCKED, OSC_BUFFER_FREE) &&
-		!OSCPackets.Buffer.IsEmpty())
+	if (!FPlatformAtomics::InterlockedCompareExchange(&OSCBufferLock, OSC_SERVER_BUFFER_LOCKED, OSC_SERVER_BUFFER_FREE) &&
+		!OSCPackets.IsEmpty())
 	{
-		check(OSCBufferLock == OSC_BUFFER_LOCKED);
-		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-			FSimpleDelegateGraphTask::FDelegate::CreateLambda([this]() {
-			check(OSCBufferLock == OSC_BUFFER_LOCKED);
-			FPlatformAtomics::InterlockedCompareExchange(&OSCBufferLock, OSC_BUFFER_FREE, OSC_BUFFER_LOCKED);
+		check(OSCBufferLock == OSC_SERVER_BUFFER_LOCKED);
+		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(FSimpleDelegateGraphTask::FDelegate::CreateLambda([this]()
+		{
+			check(OSCBufferLock == OSC_SERVER_BUFFER_LOCKED);
+			FPlatformAtomics::InterlockedCompareExchange(&OSCBufferLock, OSC_SERVER_BUFFER_FREE, OSC_SERVER_BUFFER_LOCKED);
 				
-				TSharedPtr<FOSCPacket> Packet;
-				while (OSCPackets.Buffer.Dequeue(Packet))
+			TSharedPtr<IOSCPacket> Packet;
+			while (OSCPackets.Dequeue(Packet))
+			{
+				if (Packet->IsMessage())
 				{
-					if (Packet->IsMessage())
-					{
-						FOSCMessage Message(FOSCMessage(StaticCastSharedPtr<FOSCMessagePacket>(Packet)));
-						OnOscReceived.Broadcast(Message);
-					}
-					else if (Packet->IsBundle())
-					{
-						FOSCBundle Bundle(StaticCastSharedPtr<FOSCBundlePacket>(Packet));
-						OnOscBundleReceived.Broadcast(Bundle);
-					}
-					else
-					{
-						UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. OSCAddress '%s' is invalid."), *Packet->GetAddress().Value);
-					}
+					FOSCMessage Message(FOSCMessage(StaticCastSharedPtr<FOSCMessagePacket>(Packet)));
+					OnOscReceived.Broadcast(Message);
 				}
-				OSCPackets.Buffer.Empty();
-			}),
-			TStatId(),
-			nullptr,
-			ENamedThreads::GameThread);
+				else if (Packet->IsBundle())
+				{
+					FOSCBundle Bundle(StaticCastSharedPtr<FOSCBundlePacket>(Packet));
+					OnOscBundleReceived.Broadcast(Bundle);
+				}
+				else
+				{
+					UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. OSCAddress '%s' is invalid."), *Packet->GetAddress().Value);
+				}
+			}
+		}),
+		TStatId(),
+		nullptr,
+		ENamedThreads::GameThread);
 	}
 }
 
