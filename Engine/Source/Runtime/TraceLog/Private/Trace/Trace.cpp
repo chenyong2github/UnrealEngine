@@ -12,9 +12,10 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-void			Writer_Flush();
-bool			Writer_Connect(const ANSICHAR*);
-uint32			Writer_EventToggle(const ANSICHAR*, bool);
+void	Writer_Flush();
+bool	Writer_Connect(const ANSICHAR*);
+bool	Writer_Open(const ANSICHAR*);
+uint32	Writer_EventToggle(const ANSICHAR*, bool);
 
 } // namespace Private
 
@@ -41,6 +42,14 @@ bool Connect(const TCHAR* InHost)
 	ToAnsiCheap(Host, InHost);
 
 	return Private::Writer_Connect(Host);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool Open(const TCHAR* InPath)
+{
+	char Path[512];
+	ToAnsiCheap(Path, InPath);
+	return Private::Writer_Open(Path);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -145,7 +145,10 @@ UPTRINT TcpSocketConnect(const ANSICHAR* Host, uint16 Port)
 	auto* SockAddr = (sockaddr_in*)Info->ai_addr;
 	SockAddr->sin_port = htons(Port);
 
-	SOCKET Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	// socket() will create a socket with overlapped IO support which we don't
+	// want as it complicates sharing Io*() API with FileOpen(). So we use
+	// WSASocket instead which affords us more control over socket properties
+	SOCKET Socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, 0);
 	if (Socket == INVALID_SOCKET)
 	{
 		return 0;
@@ -166,7 +169,8 @@ UPTRINT TcpSocketListen(uint16 Port)
 {
 	TcpSocketInitialize();
 
-	SOCKET Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	// See TcpSocketConnect() for why WSASocket() is used here.
+	SOCKET Socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, 0);
 	if (Socket == INVALID_SOCKET)
 	{
 		return 0;
@@ -266,6 +270,37 @@ void IoClose(UPTRINT Handle)
 {
 	HANDLE Inner = HANDLE(Handle - 1);
 	CloseHandle(Inner);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+UPTRINT FileOpen(const ANSICHAR* Path, const ANSICHAR* Mode)
+{
+	DWORD Access = GENERIC_READ;
+	DWORD Disposition = OPEN_EXISTING;
+	switch (*Mode)
+	{
+	case 'a':
+	case 'w':
+		Access |= GENERIC_WRITE;
+		Disposition = (*Mode == 'a') ? OPEN_ALWAYS : CREATE_ALWAYS;
+		break;
+	}
+
+	DWORD Flags = FILE_ATTRIBUTE_NORMAL;
+	HANDLE Out = CreateFileA(Path, Access, FILE_SHARE_READ|FILE_SHARE_WRITE, nullptr, Disposition, Flags, nullptr);
+	if (Out == INVALID_HANDLE_VALUE)
+	{
+		return 0;
+	}
+
+	if (*Mode == 'a')
+	{
+		SetFilePointer(Out, 0, nullptr, FILE_END);
+	}
+
+	return UPTRINT(Out) + 1;
 }
 
 } // namespace Trace

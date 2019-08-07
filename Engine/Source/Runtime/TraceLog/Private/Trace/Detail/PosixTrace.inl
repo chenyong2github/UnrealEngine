@@ -178,4 +178,24 @@ void IoClose(UPTRINT Handle)
 	close(Inner);
 }
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+UPTRINT FileOpen(const ANSICHAR* Path, const ANSICHAR* Mode)
+{
+	int Flags = (*Mode == 'a' || *Mode == 'w') ? O_RDWR : O_RDONLY;
+	int Out = open(Path, Flags);
+	if (Out < 0)
+	{
+		return 0;
+	}
+
+	if (*Mode == '0')
+	{
+		lseek(Out, 0, SEEK_END);
+	}
+
+	return UPTRINT(Out) + 1;
+}
+
 } // namespace Trace

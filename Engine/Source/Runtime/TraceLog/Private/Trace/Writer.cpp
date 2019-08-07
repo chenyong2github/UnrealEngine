@@ -25,6 +25,7 @@ bool	TcpSocketHasData(UPTRINT);
 int32	IoRead(UPTRINT, void*, uint32);
 bool	IoWrite(UPTRINT, const void*, uint32);
 void	IoClose(UPTRINT);
+UPTRINT	FileOpen(const ANSICHAR*, const ANSICHAR*);
 UPTRINT	ThreadCreate(const ANSICHAR*, void (*)());
 uint32	ThreadGetCurrentId();
 void	ThreadSleep(uint32 Milliseconds);
@@ -508,6 +509,7 @@ struct FControlCommands
 
 ////////////////////////////////////////////////////////////////////////////////
 bool	Writer_Connect(const ANSICHAR*);
+bool	Writer_Open(const ANSICHAR*);
 uint32	Writer_EventToggle(const ANSICHAR*, bool);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -736,6 +738,16 @@ static void Writer_InitializeControl()
 		}
 	);
 
+	Writer_ControlAddCommand("Open", nullptr,
+		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
+		{
+			if (ArgC > 0)
+			{
+				Writer_Open(ArgV[0]);
+			}
+		}
+	);
+
 	Writer_ControlAddCommand("ToggleEvent", nullptr,
 		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
 		{
@@ -871,6 +883,21 @@ bool Writer_Connect(const ANSICHAR* Host)
 	Writer_Initialize();
 
 	UPTRINT DataHandle = TcpSocketConnect(Host, 1980);
+	if (!DataHandle)
+	{
+		return false;
+	}
+
+	GPendingDataHandle = DataHandle;
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool Writer_Open(const ANSICHAR* Path)
+{
+	Writer_Initialize();
+
+	UPTRINT DataHandle = FileOpen(Path, "w");
 	if (!DataHandle)
 	{
 		return false;
