@@ -1219,10 +1219,15 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	}
 
 	{
-		FString TraceHost;
-		if (FParse::Value(CmdLine, TEXT("-tracehost="), TraceHost))
+		FString Parameter;
+		if (FParse::Value(CmdLine, TEXT("-tracehost="), Parameter))
 		{
-			Trace::Connect(*TraceHost);
+			Trace::Connect(*Parameter);
+		}
+
+		else if (FParse::Value(CmdLine, TEXT("-tracefile="), Parameter))
+		{
+			Trace::Open(*Parameter);
 		}
 
 #if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
