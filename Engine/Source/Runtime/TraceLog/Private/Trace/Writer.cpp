@@ -22,7 +22,7 @@ UPTRINT	TcpSocketConnect(const ANSICHAR*, uint16);
 UPTRINT	TcpSocketListen(uint16);
 int32	TcpSocketAccept(UPTRINT, UPTRINT&);
 void	TcpSocketClose(UPTRINT);
-bool	TcpSocketSelect(UPTRINT);
+bool	TcpSocketHasData(UPTRINT);
 int32	TcpSocketRecv(UPTRINT, void*, uint32);
 bool	TcpSocketSend(UPTRINT, const void*, uint32);
 UPTRINT	ThreadCreate(const ANSICHAR*, void (*)());
@@ -608,7 +608,7 @@ static void Writer_ControlRecv()
 
 	ANSICHAR Buffer[512];
 	ANSICHAR* __restrict Head = Buffer;
-	while (TcpSocketSelect(GControlSocket))
+	while (TcpSocketHasData(GControlSocket))
 	{
 		int32 ReadSize = int32(UPTRINT(Buffer + sizeof(Buffer) - Head));
 		int32 Recvd = TcpSocketRecv(GControlSocket, Head, ReadSize);

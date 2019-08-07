@@ -153,7 +153,7 @@ void TcpSocketClose(UPTRINT Socket)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool TcpSocketSelect(UPTRINT Socket)
+bool TcpSocketHasData(UPTRINT Socket)
 {
 	int Inner = int(Socket - 1);
 	fd_set FdSet;
