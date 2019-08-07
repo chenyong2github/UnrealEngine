@@ -158,7 +158,7 @@ UPTRINT TcpSocketConnect(const ANSICHAR* Host, uint16 Port)
 		return 0;
 	}
 
-	return UPTRINT(Socket + 1);
+	return UPTRINT(Socket) + 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -197,7 +197,7 @@ UPTRINT TcpSocketListen(uint16 Port)
 		return 0;
 	}
 
-	return UPTRINT(Socket + 1);
+	return UPTRINT(Socket) + 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,7 +218,7 @@ int32 TcpSocketAccept(UPTRINT Socket, UPTRINT& Out)
 		return 0;
 	}
 
-	Out = UPTRINT(Inner + 1);
+	Out = UPTRINT(Inner) + 1;
 	return 1;
 }
 
