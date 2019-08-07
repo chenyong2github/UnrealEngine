@@ -12,7 +12,6 @@ namespace Private
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-extern UPTRINT	GPendingDataHandle;
 void			Writer_Flush();
 bool			Writer_Connect(const ANSICHAR*);
 uint32			Writer_EventToggle(const ANSICHAR*, bool);
