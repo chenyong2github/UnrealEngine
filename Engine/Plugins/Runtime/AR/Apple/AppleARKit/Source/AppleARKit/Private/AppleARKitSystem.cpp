@@ -1148,11 +1148,8 @@ void FAppleARKitSystem::SetDeviceOrientation(EDeviceScreenOrientation InOrientat
 		InOrientation = EDeviceScreenOrientation::LandscapeLeft;
 	}
 
-	if (DeviceOrientation != InOrientation)
-	{
-		DeviceOrientation = InOrientation;
-		CalcTrackingToWorldRotation();
-	}
+	DeviceOrientation = InOrientation;
+	CalcTrackingToWorldRotation();
 }
 
 void FAppleARKitSystem::ClearTrackedGeometries()
@@ -1197,14 +1194,6 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 		GameThreadFrame = TSharedPtr<FAppleARKitFrame, ESPMode::ThreadSafe>();
 		LastReceivedFrame = TSharedPtr<FAppleARKitFrame, ESPMode::ThreadSafe>();
 	}
-
-	// Make sure this is set at session start, because there are timing issues with using only the delegate approach
-	if (DeviceOrientation == EDeviceScreenOrientation::Unknown)
-	{
-		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
-		SetDeviceOrientation( ScreenOrientation );
-	}
-
 
 #if SUPPORTS_ARKIT_1_0
 	// Don't do the conversion work if they don't want this
@@ -1284,7 +1273,12 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 	}
 	
 #endif
-	
+
+	// Make sure this is set at session start, because there are timing issues with using only the delegate approach
+	// Also this needs to be set each time a new session is started in case we switch tracking modes (gravity vs face)
+	EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
+	SetDeviceOrientation( ScreenOrientation );
+
 	// @todo arkit Add support for relocating ARKit space to Unreal World Origin? BaseTransform = FTransform::Identity;
 	
 	// Set running state
