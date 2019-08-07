@@ -14,68 +14,30 @@
 #define OSC_BUFFER_FREE 0
 #define OSC_BUFFER_LOCKED 1
 
-UOSCServer::UOSCServer()
-: OSCPackets(1024)
-, OSCBufferLock(0)
+
+UOSCServer::UOSCServer(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer) 
+	, bWhitelistClients(false)
+	, OSCPackets(1024)
+	, OSCBufferLock(0)
 {
-}
-
-UOSCServer::~UOSCServer()
-{
-	delete SocketReceiver;
-	SocketReceiver = nullptr;
-
-	if (Socket)
-	{
-		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Socket);
-		Socket = nullptr;
-	}
-}
-
-void UOSCServer::Listen(FIPv4Address IPAddress, uint32_t Port, bool MulticastLoopback)
-{
-	FUdpSocketBuilder builder(TEXT("OscListener"));
-	builder.BoundToPort(Port);
-	if (IPAddress.IsMulticastAddress())
-	{
-		builder.JoinedToGroup(IPAddress);
-		if (MulticastLoopback)
-		{
-			builder.WithMulticastLoopback();
-		}
-	}
-	else
-	{
-		builder.BoundToAddress(IPAddress);
-	}
-
-	Socket = builder.Build();
-	if (Socket)
-	{
-		SocketReceiver = new FUdpSocketReceiver(Socket, FTimespan::FromMilliseconds(100), TEXT("OSCListener"));
-		SocketReceiver->OnDataReceived().BindUObject(this, &UOSCServer::Callback);
-		SocketReceiver->Start();
-
-		UE_LOG(OSCLog, Display, TEXT("Listening to port %d"), Port);
-	}
-	else
-	{
-		UE_LOG(OSCLog, Warning, TEXT("Cannot listen to port %d"), Port);
-	}
 }
 
 void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint)
 {
-	TSharedPtr <FOSCPacket> packet = FOSCPacket::CreatePacket((char *)Data->GetData());
-
-	if (packet.IsValid())
+	// Throw request on the ground if not endpoint address not whitelisted.
+	if (bWhitelistClients && !ClientWhitelist.Contains(Endpoint.Address.Value))
 	{
-		// create OSC stream
-		FOSCStream stream = FOSCStream((char *)Data->GetData(), Data->Num());
+		return;
+	}
 
-		packet->ReadData(stream);
+	TSharedPtr<FOSCPacket> Packet = FOSCPacket::CreatePacket(Data->GetData());
+	if (Packet.IsValid())
+	{
+		FOSCStream Stream = FOSCStream(Data->GetData(), Data->Num());
 
-		OSCPackets.Buffer.Enqueue(MoveTemp(packet));
+		Packet->ReadData(Stream);
+		OSCPackets.Buffer.Enqueue(MoveTemp(Packet));
 	}
 
 	if (!FPlatformAtomics::InterlockedCompareExchange(&OSCBufferLock, OSC_BUFFER_LOCKED, OSC_BUFFER_FREE) &&
@@ -87,20 +49,22 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 			check(OSCBufferLock == OSC_BUFFER_LOCKED);
 			FPlatformAtomics::InterlockedCompareExchange(&OSCBufferLock, OSC_BUFFER_FREE, OSC_BUFFER_LOCKED);
 				
-				TSharedPtr<FOSCPacket> packet;
-				while (OSCPackets.Buffer.Dequeue(packet))
+				TSharedPtr<FOSCPacket> Packet;
+				while (OSCPackets.Buffer.Dequeue(Packet))
 				{
-					if (packet->IsMessage())
+					if (Packet->IsMessage())
 					{
-						FOSCMessage message;
-						message.SetPacket(StaticCastSharedPtr<FOSCMessagePacket>(packet));
-						OnOscReceived.Broadcast(message.GetPacket()->GetAddress(), message);
+						FOSCMessage Message(FOSCMessage(StaticCastSharedPtr<FOSCMessagePacket>(Packet)));
+						OnOscReceived.Broadcast(Message);
 					}
-					else if (packet->IsBundle())
+					else if (Packet->IsBundle())
 					{
-						FOSCBundle bundle;
-						bundle.SetPacket(StaticCastSharedPtr<FOSCBundlePacket>(packet));
-						OnOscBundleReceived.Broadcast(bundle);
+						FOSCBundle Bundle(StaticCastSharedPtr<FOSCBundlePacket>(Packet));
+						OnOscBundleReceived.Broadcast(Bundle);
+					}
+					else
+					{
+						UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. OSCAddress '%s' is invalid."), *Packet->GetAddress().Value);
 					}
 				}
 				OSCPackets.Buffer.Empty();
@@ -111,13 +75,98 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 	}
 }
 
+bool UOSCServer::GetMulticastLoopback() const
+{
+	return bMulticastLoopback;
+}
+
+bool UOSCServer::IsActive() const
+{
+	return SocketReceiver != nullptr;
+}
+
+void UOSCServer::Listen()
+{
+	if (IsActive())
+	{
+		UE_LOG(LogOSC, Error, TEXT("OSCServer currently listening: %s:%d. Failed to start new service prior to calling stop."), *GetName(), *ReceiveIPAddress.ToString(), Port);
+		return;
+	}
+
+	FUdpSocketBuilder Builder(*GetName());
+	Builder.BoundToPort(Port);
+	if (ReceiveIPAddress.IsMulticastAddress())
+	{
+		Builder.JoinedToGroup(ReceiveIPAddress);
+		if (bMulticastLoopback)
+		{
+			Builder.WithMulticastLoopback();
+		}
+	}
+	else
+	{
+		if (bMulticastLoopback)
+		{
+			UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' ReceiveIPAddress provided is not a multicast address.  Not respecting MulticastLoopback boolean."), *GetName());
+		}
+		Builder.BoundToAddress(ReceiveIPAddress);
+	}
+
+	Socket = Builder.Build();
+	if (Socket)
+	{
+		SocketReceiver = new FUdpSocketReceiver(Socket, FTimespan::FromMilliseconds(100), *GetName().Append(TEXT("_ListenerThread")));
+		SocketReceiver->OnDataReceived().BindUObject(this, &UOSCServer::Callback);
+		SocketReceiver->Start();
+
+		UE_LOG(LogOSC, Display, TEXT("OSCServer '%s' Listening: %s:%d."), *GetName(), *ReceiveIPAddress.ToString(), Port);
+	}
+	else
+	{
+		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to bind to socket on %s:%d."), *GetName(), *ReceiveIPAddress.ToString(), Port);
+	}
+}
+
+bool UOSCServer::SetAddress(const FString& InReceiveIPAddress, int32 InPort)
+{
+	if (IsActive())
+	{
+		UE_LOG(LogOSC, Error, TEXT("Cannot set address while OSCServer is active."));
+		return false;
+	}
+
+	if (!FIPv4Address::Parse(InReceiveIPAddress, ReceiveIPAddress))
+	{
+		UE_LOG(LogOSC, Error, TEXT("Invalid ReceiveIPAddress when attempting to set on OSCServer '%s'. Address not updated."), *GetName());
+		return false;
+	}
+
+	Port = InPort;
+	return true;
+}
+
+void UOSCServer::SetMulticastLoopback(bool bInMulticastLoopback)
+{
+	if (bInMulticastLoopback != bMulticastLoopback && IsActive())
+	{
+		UE_LOG(LogOSC, Error, TEXT("Cannot update MulticastLoopback while OSCServer '%s' is active."), *GetName());
+		return;
+	}
+
+	bMulticastLoopback = bInMulticastLoopback;
+}
+
 void UOSCServer::Stop()
 {
-	delete SocketReceiver;
-	SocketReceiver = nullptr;
+	if (SocketReceiver)
+	{
+		delete SocketReceiver;
+		SocketReceiver = nullptr;
+	}
 
 	if (Socket)
 	{
+		Socket->Close();
 		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Socket);
 		Socket = nullptr;
 	}
@@ -127,4 +176,44 @@ void UOSCServer::BeginDestroy()
 {
 	Stop();
 	Super::BeginDestroy();
+}
+
+void UOSCServer::AddWhitelistedClient(const FString& IPAddress)
+{
+	FIPv4Address OutAddress;
+	if (!FIPv4Address::Parse(IPAddress, OutAddress))
+	{
+		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to whitelist IP Address '%s'. Address is invalid."), *IPAddress);
+		return;
+	}
+
+	ClientWhitelist.Add(OutAddress.Value);
+}
+
+void UOSCServer::RemoveWhitelistedClient(const FString& IPAddress)
+{
+	FIPv4Address OutAddress;
+	if (!FIPv4Address::Parse(IPAddress, OutAddress))
+	{
+		UE_LOG(LogOSC, Warning, TEXT("OSCServer '%s' failed to remove whitelisted IP Address '%s'. Address is invalid."), *IPAddress);
+		return;
+	}
+
+	ClientWhitelist.Remove(OutAddress.Value);
+}
+
+void UOSCServer::ClearWhitelistedClients()
+{
+	ClientWhitelist.Reset();
+}
+
+TSet<FString> UOSCServer::GetWhitelistedClients() const
+{
+	TSet<FString> OutWhitelist;
+	for (uint32 Client : ClientWhitelist)
+	{
+		OutWhitelist.Add(FIPv4Address(Client).ToString());
+	}
+
+	return OutWhitelist;
 }
