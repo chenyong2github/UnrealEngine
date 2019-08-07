@@ -552,6 +552,12 @@ bool FAnalysisEngine::OnData(FStreamReader::FData& Data)
 {
 	if (Transport == nullptr)
 	{
+		// Ensure we've a reasonable amount of data to establish the transport with
+		if (Data.GetPointer(32) == nullptr)
+		{
+			return true;
+		}
+
 		if (!EstablishTransport(Data))
 		{
 			return false;
