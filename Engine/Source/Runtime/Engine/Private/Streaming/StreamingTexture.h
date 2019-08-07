@@ -63,7 +63,7 @@ struct FStreamingRenderAsset
 	int32 GetSize( int32 InMipCount ) const
 	{
 		check(InMipCount > 0);
-		check(InMipCount <= RenderAssetType == AT_Texture ? MAX_TEXTURE_MIP_COUNT : MaxNumMeshLODs);
+		check(InMipCount <= (IsTexture() ? MAX_TEXTURE_MIP_COUNT : MaxNumMeshLODs));
 		return CumulativeLODSizes[InMipCount - 1];
 	}
 
@@ -102,7 +102,7 @@ struct FStreamingRenderAsset
 		const FRenderAssetStreamingSettings& Settings);
 
 	/** Init BudgetedMip and update RetentionPriority. Returns the size that would be taken if all budgeted mips where loaded. */
-	int64 UpdateRetentionPriority_Async(bool bPrioritizeMeshes);
+	int64 UpdateRetentionPriority_Async(bool bPrioritizeMesh);
 
 	/** Reduce the maximum allowed resolution by 1 mip. Return the size freed by doing so. */
 	int64 DropMaxResolution_Async(int32 NumDroppedMips);
@@ -113,14 +113,20 @@ struct FStreamingRenderAsset
 	/** Increase BudgetedMip by 1, up to resident mips, and return the size taken. */
 	int64 KeepOneMip_Async();
 
+	/** Return the memory delta in bytes caused by max resolution change. Actual memory reduction is smaller or equal. **/
+	int64 GetDropMaxResMemDelta(int32 NumDroppedMips) const;
+
+	/** Return the memory delta in bytes if a mip is successfully dropped. */
+	int64 GetDropOneMipMemDelta() const;
+
 	float GetMaxAllowedSize(float MaxScreenSizeOverAllViews) const
 	{
-		return RenderAssetType == AT_Texture ? (float)(0x1 << (MaxAllowedMips - 1)) : MaxScreenSizeOverAllViews;
+		return IsTexture() ? (float)(0x1 << (MaxAllowedMips - 1)) : MaxScreenSizeOverAllViews;
 	}
 
 	float GetNormalizedScreenSize(int32 NumMips) const
 	{
-		check(RenderAssetType == AT_StaticMesh || RenderAssetType == AT_SkeletalMesh);
+		check(IsMesh());
 		check(NumMips > 0 && NumMips <= MipCount);
 		return LODScreenSizes[NumMips - 1];
 	}
@@ -128,7 +134,7 @@ struct FStreamingRenderAsset
 	float GetLODScreenSize(int32 NumMips, float MaxScreenSizeOverAllViews) const
 	{
 		check(NumMips > 0 && NumMips <= MipCount);
-		return RenderAssetType == AT_Texture ?
+		return IsTexture() ?
 			static_cast<float>(1 << (NumMips - 1)) :
 			GetNormalizedScreenSize(NumMips) * MaxScreenSizeOverAllViews;
 	}
@@ -148,6 +154,17 @@ struct FStreamingRenderAsset
 	// This allows streaming to happen in parallel with the async update task
 	void StreamWantedMipsUsingCachedData(FRenderAssetStreamingManager& Manager);
 
+	bool IsTexture() const
+	{
+		return RenderAssetType == AT_Texture;
+	}
+
+	bool IsMesh() const
+	{
+		// FRenderAssetStreamingManager only handles textures and meshes currently
+		return RenderAssetType != AT_Texture;
+	}
+
 	FORCEINLINE int32 GetPerfectWantedMips() const { return FMath::Max<int32>(VisibleWantedMips,  HiddenWantedMips); }
 
 	// Whether this texture/mesh can be affected by Global Bias and Budget Bias per texture/mesh.
@@ -155,7 +172,7 @@ struct FStreamingRenderAsset
 	FORCEINLINE bool IsMaxResolutionAffectedByGlobalBias() const 
 	{
 		// In editor, forced stream in should never have reduced mips as they can be edited.
-		return (RenderAssetType != AT_Texture || LODGroup != TEXTUREGROUP_HierarchicalLOD)
+		return (IsMesh() || LODGroup != TEXTUREGROUP_HierarchicalLOD)
 			&& !bIsTerrainTexture
 			&& !bIgnoreStreamingMipBias
 			&& !(GIsEditor && bForceFullyLoadHeuristic); 
@@ -292,4 +309,6 @@ struct FStreamingRenderAsset
 
 private:
 	FORCEINLINE_DEBUGGABLE void StreamWantedMips_Internal(FRenderAssetStreamingManager& Manager, bool bUseCachedData);
+
+	FORCEINLINE_DEBUGGABLE int32 ClampMaxResChange_Internal(int32 NumMipDropRequested) const;
 };

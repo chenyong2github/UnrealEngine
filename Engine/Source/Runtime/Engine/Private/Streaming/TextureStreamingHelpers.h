@@ -96,8 +96,7 @@ struct FRenderAssetStreamingSettings
 	int32 MaterialQualityLevel;
 	int32 FramesForFullUpdate;
 	bool bMipCalculationEnablePerLevelList;
-	bool bPrioritizeMeshRetention;
-	int32 MeshRetentionPrivilegeLevel;
+	bool bPrioritizeMeshLODRetention;
 
 	bool bStressTest;
 	static int32 ExtraIOLatency;
