@@ -295,7 +295,7 @@ void RayTracingReflectionsRGS()
 				{
 					if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER)
 					{
-						uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+						uint RayFlags = 0;
 						DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 						TraceRay(
 							TLAS,								// AccelerationStructure
