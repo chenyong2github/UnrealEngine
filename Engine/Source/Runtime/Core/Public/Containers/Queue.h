@@ -204,6 +204,34 @@ public:
 	}
 
 	/**
+	 * Peek at the queue's tail item without removing it.
+	 *
+	 * This version of Peek allows peeking at a queue of items that do not allow
+	 * copying, such as TUniquePtr.
+	 *
+	 * @return Pointer to the item, or nullptr if queue is empty
+	 */
+	ItemType* Peek()
+	{
+		if (Tail->NextNode == nullptr)
+		{
+			return nullptr;
+		}
+
+		return &Tail->NextNode->Item;
+	}
+
+	const ItemType* Peek() const
+	{
+		if (Tail->NextNode == nullptr)
+		{
+			return nullptr;
+		}
+
+		return &Tail->NextNode->Item;
+	}
+
+	/**
 	 * Removes the item from the tail of the queue.
 	 *
 	 * @return true if a value was removed, false if the queue was empty.
