@@ -27,8 +27,11 @@ FLiveLinkSubjectRepresentation SLiveLinkSubjectNameGraphPin::GetValue() const
 {
 	FLiveLinkSubjectRepresentation SubjectRepresentation;
 
-	FLiveLinkSubjectName::StaticStruct()->ImportText(*GraphPinObj->GetDefaultAsString(), &SubjectRepresentation.Subject, nullptr, EPropertyPortFlags::PPF_None, GLog, FLiveLinkSubjectName::StaticStruct()->GetName());
-	SubjectRepresentation.Role = Cast<UClass>(GraphPinObj->DefaultObject);
+	if (!GraphPinObj->GetDefaultAsString().IsEmpty())
+	{
+		FLiveLinkSubjectName::StaticStruct()->ImportText(*GraphPinObj->GetDefaultAsString(), &SubjectRepresentation.Subject, nullptr, EPropertyPortFlags::PPF_None, GLog, FLiveLinkSubjectName::StaticStruct()->GetName());
+		SubjectRepresentation.Role = Cast<UClass>(GraphPinObj->DefaultObject);
+	}
 
 	return SubjectRepresentation;
 }
