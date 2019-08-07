@@ -672,6 +672,7 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
   opts.SpirvOptions.useGlLayout = Args.hasFlag(OPT_fvk_use_gl_layout, OPT_INVALID, false);
   opts.SpirvOptions.useDxLayout = Args.hasFlag(OPT_fvk_use_dx_layout, OPT_INVALID, false);
   opts.SpirvOptions.useScalarLayout = Args.hasFlag(OPT_fvk_use_scalar_layout, OPT_INVALID, false);
+  opts.SpirvOptions.ue4Layout = Args.hasFlag(OPT_fvk_ue4_layout, OPT_INVALID, false);
   opts.SpirvOptions.enableReflect = Args.hasFlag(OPT_fspv_reflect, OPT_INVALID, false);
   /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
   opts.SpirvOptions.enableFMAPass = Args.hasFlag(OPT_fspv_fusemuladd, OPT_INVALID, false);
