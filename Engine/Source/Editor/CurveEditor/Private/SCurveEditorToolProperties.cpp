@@ -59,15 +59,10 @@ void SCurveEditorToolProperties::RebuildProperties()
 	if (CurveEditor)
 	{
 		TSharedPtr<FStructOnScope> ToolOptions;
-		if (CurveEditor->GetToolExtensions().Contains(ToolId) &&
-			(ToolOptions = CurveEditor->GetToolExtensions()[ToolId]->GetToolOptions()))
+		if (CurveEditor->GetToolExtensions().Contains(ToolId))
 		{
-			DetailsView->GetWidget()->SetVisibility(EVisibility::Visible);
+			ToolOptions = CurveEditor->GetToolExtensions()[ToolId]->GetToolOptions();
 			DetailsView->SetStructureData(ToolOptions);
-		}
-		else
-		{
-			DetailsView->GetWidget()->SetVisibility(EVisibility::Hidden);
 		}
 	}
 }

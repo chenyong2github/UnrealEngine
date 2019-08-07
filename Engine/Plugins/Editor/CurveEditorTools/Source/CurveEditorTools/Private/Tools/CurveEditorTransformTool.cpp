@@ -523,18 +523,21 @@ void FCurveEditorTransformTool::DrawMarqueeWidget(const FCurveEditorTransformWid
 		FGeometry TopLeftFalloffGeometry, TopRightFalloffGeometry, LeftFalloffGeometry, RightFalloffGeometry;
 		InTransformWidget.GetFalloffGeometry(InAllottedGeometry, FalloffHeight, FalloffWidth, TopLeftFalloffGeometry, TopRightFalloffGeometry, LeftFalloffGeometry, RightFalloffGeometry);
 
-		// fixed logic to set bools correctly
-		const bool bTopLeft = InTransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::FalloffTopLeft || InTransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::FalloffTopRight;
-		const bool bTopRight = InTransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::FalloffTopLeft || InTransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::FalloffTopRight;
-		const bool bBottomLeft = InTransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::FalloffLeft || InTransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::FalloffRight;
-		const bool bBottomRight = InTransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::FalloffLeft || InTransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::FalloffRight;
+		const bool bTopLeft = (InTransformWidget.SelectedAnchorFlags & ECurveEditorAnchorFlags::FalloffTopLeft)  != ECurveEditorAnchorFlags::None || 
+			(InTransformWidget.SelectedAnchorFlags & ECurveEditorAnchorFlags::FalloffTopRight) != ECurveEditorAnchorFlags::None;
+		const bool bTopRight = (InTransformWidget.SelectedAnchorFlags & ECurveEditorAnchorFlags::FalloffTopLeft) != ECurveEditorAnchorFlags::None ||
+			(InTransformWidget.SelectedAnchorFlags & ECurveEditorAnchorFlags::FalloffTopRight) != ECurveEditorAnchorFlags::None;
+		const bool bBottomLeft = (InTransformWidget.SelectedAnchorFlags & ECurveEditorAnchorFlags::FalloffLeft) != ECurveEditorAnchorFlags::None || 
+			(InTransformWidget.SelectedAnchorFlags & ECurveEditorAnchorFlags::FalloffRight) != ECurveEditorAnchorFlags::None;
+		const bool bBottomRight = (InTransformWidget.SelectedAnchorFlags & ECurveEditorAnchorFlags::FalloffLeft) != ECurveEditorAnchorFlags::None ||
+			(InTransformWidget.SelectedAnchorFlags & ECurveEditorAnchorFlags::FalloffRight) != ECurveEditorAnchorFlags::None;
 
 		FLinearColor TopLeftHighlightColor = bTopLeft ? FLinearColor::White.CopyWithNewOpacity(CurveEditorTransformTool::EdgeHighlightAlpha) : FLinearColor::Transparent;
 		FLinearColor TopRightHighlightColor = bTopRight ? FLinearColor::White.CopyWithNewOpacity(CurveEditorTransformTool::EdgeHighlightAlpha) : FLinearColor::Transparent;
 		FLinearColor BottomLeftHighlightColor = bBottomLeft ? FLinearColor::White.CopyWithNewOpacity(CurveEditorTransformTool::EdgeHighlightAlpha) : FLinearColor::Transparent;
 		FLinearColor BottomRightHighlightColor = bBottomRight ? FLinearColor::White.CopyWithNewOpacity(CurveEditorTransformTool::EdgeHighlightAlpha) : FLinearColor::Transparent;
 
-		const float Rotate = 180.0f;
+		const float Rotate = FMath::DegreesToRadians(45.f);
 		// Top Left (Highlight, Corner Icon)
 		FSlateDrawElement::MakeRotatedBox(OutDrawElements, InPaintOnLayerId, TopLeftFalloffGeometry.ToPaintGeometry(), FEditorStyle::GetBrush(TEXT("WhiteBrush")), ESlateDrawEffect::None, Rotate,
 			TOptional<FVector2D>(), FSlateDrawElement::RelativeToElement, TopLeftHighlightColor);
