@@ -9,7 +9,8 @@
 #include "Misc/Paths.h"
 #include "UObject/StructOnScope.h"
 
-// TODO: change ptr to ref
+const FName ConcertClientMessageIdName("ConcertMessageId");
+
 FConcertClientSession::FConcertClientSession(const FConcertSessionInfo& InSessionInfo, const FConcertClientInfo& InClientInfo, const FConcertClientSettings& InSettings, TSharedPtr<IConcertLocalEndpoint> InClientSessionEndpoint, const FString& InSessionDirectory)
 	: FConcertSessionCommonImpl(InSessionInfo)
 	, ClientInfo(InClientInfo)
@@ -174,8 +175,15 @@ void FConcertClientSession::InternalSendCustomEvent(const UScriptStruct* EventTy
 	FConcertSession_CustomEvent CustomEvent;
 	CommonBuildCustomEvent(EventType, EventData, GetSessionClientEndpointId(), DestinationEndpointIds, CustomEvent);
 
+	// If the message is sent with the UniqueId flag, add an annotations so that we can uniquely identify multiple message bus copies of that message.
+	TMap<FName, FString> Annotations;
+	if (EnumHasAnyFlags(Flags, EConcertMessageFlags::UniqueId))
+	{
+		Annotations.Add(ConcertClientMessageIdName, FGuid::NewGuid().ToString());
+	}
+
 	// Send the event
-	ClientSessionEndpoint->SendEvent(CustomEvent, SessionInfo.ServerEndpointId, Flags);
+	ClientSessionEndpoint->SendEvent(CustomEvent, SessionInfo.ServerEndpointId, Flags, Annotations);
 }
 
 void FConcertClientSession::InternalSendCustomRequest(const UScriptStruct* RequestType, const void* RequestData, const FGuid& DestinationEndpointId, const TSharedRef<IConcertSessionCustomResponseHandler>& Handler)
