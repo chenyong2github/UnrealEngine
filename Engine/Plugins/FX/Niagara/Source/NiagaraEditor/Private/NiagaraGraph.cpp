@@ -1036,8 +1036,7 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		FSHA1 HashState;
 		for (UNiagaraNode* Node : NewUsageCache[i].Traversal)
 		{
-			FGuid Guid = Node->GetChangeId();
-			HashState.Update((const uint8*)&Guid, sizeof(FGuid));
+			Node->UpdateCompileHashForNode(HashState);
 		}
 		HashState.Final();
 
@@ -1125,8 +1124,7 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		FSHA1 HashState;
 		for (UNiagaraNode* Node : GpuUsageInfo.Traversal)
 		{
-			FGuid Guid = Node->GetChangeId();
-			HashState.Update((const uint8*)&Guid, sizeof(FGuid));
+			Node->UpdateCompileHashForNode(HashState);
 		}
 		HashState.Final();
 
