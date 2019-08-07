@@ -112,7 +112,8 @@ FRecorder::FSession* FRecorder::AcceptSession(FSocket& Socket)
 		int32 RecvSize;
 		if (Socket.Recv((uint8*)&Magic, sizeof(Magic), RecvSize))
 		{
-			bAcceptable = (RecvSize == sizeof(Magic)) & (Magic == 'TRCE');
+			bAcceptable = (RecvSize == sizeof(Magic));
+			bAcceptable |= ((Magic == 'TRCE') | (Magic == 'ECRT'));
 		}
 	}
 
