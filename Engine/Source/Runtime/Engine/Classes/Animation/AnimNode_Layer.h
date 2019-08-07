@@ -47,4 +47,7 @@ public:
 	{
 		return *Interface;
 	}
+
+protected:
+	void InitializeSelfLayer(const UAnimInstance* SelfAnimInstance);
 };
