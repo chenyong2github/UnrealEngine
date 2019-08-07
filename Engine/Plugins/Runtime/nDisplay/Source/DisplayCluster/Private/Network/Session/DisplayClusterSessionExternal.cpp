@@ -35,7 +35,6 @@ uint32 FDisplayClusterSessionExternal::Run()
 		if (Response.IsValid())
 		{
 			UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Json based message has been processed"), *GetName());
-			SendJson(Response);
 		}
 	}
 
