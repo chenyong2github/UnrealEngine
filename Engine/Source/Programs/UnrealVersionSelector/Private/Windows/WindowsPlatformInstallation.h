@@ -8,7 +8,7 @@
 struct FWindowsPlatformInstallation : FGenericPlatformInstallation
 {
 	// Launches the editor application
-	static bool LaunchEditor(const FString &RootDirName, const FString &Arguments);
+	static bool LaunchEditor(const FString &RootDirName, const FString& ExplicitFileName, const FString &Arguments);
 
 	// Select an engine installation
 	static bool SelectEngineInstallation(FString &Identifier);
