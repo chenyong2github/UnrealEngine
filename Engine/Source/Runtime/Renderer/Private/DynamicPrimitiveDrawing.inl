@@ -199,27 +199,24 @@ inline int32 FViewElementPDI::DrawMesh(const FMeshBatch& Mesh)
 			ENQUEUE_RENDER_COMMAND(FCopyDynamicPrimitiveShaderData)(
 				[NewMesh, DynamicPrimitiveShaderDataForRT, FeatureLevel](FRHICommandListImmediate& RHICmdList)
 				{
-					const bool bPrimitiveDataInGPUScene = NewMesh->VertexFactory->IsPrimitiveDataInGPUScene(EVertexInputStreamType::Default);
+					const bool bPrimitiveShaderDataComesFromSceneBuffer = NewMesh->VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::Default) >= 0;
 
 					for (int32 ElementIndex = 0; ElementIndex < NewMesh->Elements.Num(); ElementIndex++)
 					{
 						FMeshBatchElement& MeshElement = NewMesh->Elements[ElementIndex];
 
-						if (bPrimitiveDataInGPUScene)
+						if (bPrimitiveShaderDataComesFromSceneBuffer)
 						{
 							checkf(!NewMesh->Elements[ElementIndex].PrimitiveUniformBuffer,
-								TEXT("FMeshBatch was assigned a PrimitiveUniformBuffer even though Vertex Factory %s fetches primitive shader data through ")
-								TEXT("a Scene buffer. The assigned PrimitiveUniformBuffer cannot be respected. Use PrimitiveUniformBufferResource instead for ")
-								TEXT("dynamic primitive data, or leave both null to get FPrimitiveSceneProxy->UniformBuffer."),
-								NewMesh->VertexFactory->GetType()->GetName());
+								TEXT("FMeshBatch was assigned a PrimitiveUniformBuffer even though Vertex Factory %s fetches primitive shader data through a Scene buffer.  The assigned PrimitiveUniformBuffer cannot be respected.  Use PrimitiveUniformBufferResource instead for dynamic primitive data, or leave both null to get FPrimitiveSceneProxy->UniformBuffer."), NewMesh->VertexFactory->GetType()->GetName());
 						}
 
-						checkf(bPrimitiveDataInGPUScene || NewMesh->Elements[ElementIndex].PrimitiveUniformBufferResource,
+						checkf(bPrimitiveShaderDataComesFromSceneBuffer || NewMesh->Elements[ElementIndex].PrimitiveUniformBufferResource != NULL,
 							TEXT("FMeshBatch was not properly setup.  The primitive uniform buffer must be specified."));
 					}
 
 					// If we are maintaining primitive scene data on the GPU, copy the primitive uniform buffer data to a unified array so it can be uploaded later
-					if (bPrimitiveDataInGPUScene)
+					if (UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) && bPrimitiveShaderDataComesFromSceneBuffer)
 					{
 						for (int32 Index = 0; Index < NewMesh->Elements.Num(); ++Index)
 						{
