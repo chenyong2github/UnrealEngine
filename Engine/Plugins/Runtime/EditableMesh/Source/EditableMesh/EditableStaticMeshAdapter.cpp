@@ -25,20 +25,6 @@ UEditableStaticMeshAdapter::UEditableStaticMeshAdapter()
 {
 }
 
-void UEditableStaticMeshAdapter::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-	// Follow up on change made by CL #5110941
-	// StaticMesh is not controlled by an EditableMesh anymore
-	// Rebuild its resources if applicable
-	if (StaticMesh && !StaticMesh->IsPendingKillOrUnreachable())
-	{
-		StaticMesh->Build( true );
-	}
-}
-
-
 
 inline void UEditableStaticMeshAdapter::EnsureIndexBufferIs32Bit()
 {
