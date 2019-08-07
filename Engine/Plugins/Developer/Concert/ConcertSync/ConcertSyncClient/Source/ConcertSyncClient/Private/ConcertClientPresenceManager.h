@@ -87,14 +87,21 @@ public:
 	/** Gets the container for all the assets of Concert clients. */
 	const class UConcertAssetContainer& GetAssetContainer() const;
 
+	/** Returns true if current session is in Game (i.e. !GIsEditor) */
+	bool IsInGame() const;
+
 	/** Returns true if current session is in PIE */
 	bool IsInPIE() const;
 
 	/** Returns true if current session is in SIE */
 	bool IsInSIE() const;
 
-	/** Get the current world */
-	UWorld* GetWorld() const;
+	/** 
+	 * Get the current world
+	 * @param bIgnorePIE if bIgnorePIE is true will still return the editor world even if an PIE world exists.
+	 * @return the current world
+	 */
+	UWorld* GetWorld(bool bIgnorePIE = false) const;
 
 	/** Get the active perspective viewport */
 	FLevelEditorViewportClient * GetPerspectiveViewport() const;
@@ -147,6 +154,9 @@ private:
 
 	/** Is presence visible for the given state? */
 	bool IsPresenceVisible(const FConcertClientPresenceState& InPresenceState) const;
+
+	/** Return if PIE presence is potentially visible for a state. */
+	bool IsPIEPresenceEnabled(const FConcertClientPresenceState& InPresenceState) const;
 
 	/** Is presence visible for the given endpoint id? */
 	bool IsPresenceVisible(const FGuid& InEndpointId) const;
