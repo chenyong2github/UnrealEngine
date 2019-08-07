@@ -207,7 +207,7 @@ void UMockNetworkSimulationComponent::InitSyncState(FMockSyncState& OutSyncState
 	OutSyncState.Total = MockValue;
 }
 
-void UMockNetworkSimulationComponent::SyncTo(const FMockSyncState& SyncState)
+void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState)
 {
 	MockValue = SyncState.Total;
 }

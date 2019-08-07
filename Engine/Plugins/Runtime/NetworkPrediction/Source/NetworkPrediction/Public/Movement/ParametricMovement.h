@@ -146,7 +146,7 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 
 	// Base TNetworkModelSimulation driver
 	void InitSyncState(ParametricMovement::FMoveState& OutSyncState) const override;
-	void SyncTo(const ParametricMovement::FMoveState& SyncState) override;
+	void FinalizeFrame(const ParametricMovement::FMoveState& SyncState) override;
 
 	// Base Movement Driver
 	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }

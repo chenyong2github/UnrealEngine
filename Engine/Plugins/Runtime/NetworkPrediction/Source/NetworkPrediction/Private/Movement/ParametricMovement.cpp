@@ -19,6 +19,10 @@ static float DrawDebugDefaultLifeTime = 30.f;
 static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("parametricmover.Debug.UseDrawDebug.DefaultLifeTime"),
 	DrawDebugDefaultLifeTime, TEXT("Use built in DrawDebug* functions for visual logging"), ECVF_Default);
 
+static int32 ForceNetUpdate = 0;
+static FAutoConsoleVariableRef CVarForceNetUpdate(TEXT("parametricmover.ForceNetUpdate"),
+	DrawDebugDefaultLifeTime, TEXT("Toggles calling ForceNetUpdate each tick on Parametric movers. This is only meant for testing/debugging."), ECVF_Default);
+
 }
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -141,7 +145,7 @@ void UParametricMovementComponent::InitSyncState(ParametricMovement::FMoveState&
 	OutSyncState.PlayRate = 0.f;
 }
 
-void UParametricMovementComponent::SyncTo(const ParametricMovement::FMoveState& SyncState)
+void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState)
 {
 	FTransform NewTransform;
 	GetTransformForTime(SyncState.Position, NewTransform);
@@ -207,5 +211,8 @@ void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 	}
 
 	// TEMP
-	GetOwner()->ForceNetUpdate();
+	if (ParametricMoverCVars::ForceNetUpdate)
+	{
+		GetOwner()->ForceNetUpdate();
+	}
 }

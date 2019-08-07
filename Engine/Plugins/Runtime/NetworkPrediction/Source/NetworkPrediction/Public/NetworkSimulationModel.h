@@ -123,6 +123,19 @@ struct FVisualLoggingParameters
 	static NETWORKPREDICTION_API FColor DebugColors[(int32)EVisualLoggingContext::MAX];
 };
 
+UENUM()
+enum class ESimulatedUpdateMode : uint8
+{
+	Interpolate,		// Update from previous to current known states from the server. This puts the simulation further "behind" due to having to buffer the known state (but is never "wrong" and doesn't require a simulation update)
+	Extrapolate,		// Extrapolate the simulation once per local frame, by synthesizing (guessing) input commands
+	ForwardPredict		// Predict the simulation ahead. For a simulated proxy to do this, it must be tied to an autonomous proxy
+};
+
+inline FString LexToString(ESimulatedUpdateMode A)
+{
+	return *UEnum::GetValueAsString(TEXT("NetworkPrediction.ESimulatedUpdateMode"), A);
+}
+
 // -------------------------------------------------------------------------------------------------------------------------------
 // Interface that the proxy talks to. This is what will implement the replication.
 // -------------------------------------------------------------------------------------------------------------------------------

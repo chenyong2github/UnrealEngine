@@ -182,7 +182,7 @@ namespace FlyingMovement
 
 		// After the rotation is known, we need to sync our driver to this state. This is unfortunate and probably not best for perf, but since the Driver owned
 		// primitive component is ultimately what does our scene queries, we have no choice: we must get the primitive component in the state we say it should be in.
-		Driver->SyncTo(OutputState);
+		Driver->PreSimSync(OutputState);
 
 		const FVector LocalSpaceMovementInput = OutputState.Rotation.RotateVector( InputCmd.MovementInput );
 	   	
