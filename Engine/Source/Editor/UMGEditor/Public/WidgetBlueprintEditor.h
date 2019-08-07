@@ -108,6 +108,9 @@ public:
 	/** Sets the currently selected set of objects */
 	void SelectObjects(const TSet<UObject*>& Objects);
 
+	/** Called to determine whether a binding is selected in the tree view */
+	bool IsBindingSelected(const FMovieSceneBinding& InBinding);
+
 	/** Sets the selected named slot */
 	void SetSelectedNamedSlot(TOptional<FNamedSlotSelection> SelectedNamedSlot);
 
@@ -293,6 +296,9 @@ private:
 
 	/** Fire off when sequencer selection changed */
 	void SyncSelectedWidgetsWithSequencerSelection(TArray<FGuid> ObjectGuids);
+
+	/** Tell sequencer the selected widgets changed */
+	void SyncSequencerSelectionToSelectedWidgets();
 
 	/** Get the animation playback context */
 	UObject* GetAnimationPlaybackContext() const { return GetPreview(); }

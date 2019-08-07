@@ -296,6 +296,32 @@ void FWidgetBlueprintEditor::SelectObjects(const TSet<UObject*>& Objects)
 	OnSelectedWidgetsChanged.Broadcast();
 }
 
+bool FWidgetBlueprintEditor::IsBindingSelected(const FMovieSceneBinding& InBinding)
+{
+	TSet<FWidgetReference> Widgets = GetSelectedWidgets();
+	if (Widgets.Num() == 0)
+	{
+		return true;
+	}
+
+	UMovieSceneSequence* AnimationSequence = GetSequencer().Get()->GetFocusedMovieSceneSequence();
+	UObject* BindingContext = GetAnimationPlaybackContext();
+	TArray<UObject*, TInlineAllocator<1>> BoundObjects = AnimationSequence->LocateBoundObjects(InBinding.GetObjectGuid(), BindingContext);
+
+	if (BoundObjects.Num() == 0)
+	{
+		return false;
+	}
+	else if (Cast<UPanelSlot>(BoundObjects[0]))
+	{
+		return Widgets.Contains(GetReferenceFromPreview(Cast<UPanelSlot>(BoundObjects[0])->Content));
+	}
+	else
+	{
+		return Widgets.Contains(GetReferenceFromPreview(Cast<UWidget>(BoundObjects[0])));
+	}
+}
+
 void FWidgetBlueprintEditor::SetSelectedNamedSlot(TOptional<FNamedSlotSelection> InSelectedNamedSlot)
 {
 	OnSelectedWidgetsChanging.Broadcast();
@@ -810,6 +836,11 @@ TSharedPtr<ISequencer>& FWidgetBlueprintEditor::GetSequencer()
 		Sequencer->OnMovieSceneBindingsPasted().AddSP( this, &FWidgetBlueprintEditor::OnMovieSceneBindingsPasted );
 		// Change selected widgets in the sequencer tree view
 		Sequencer->GetSelectionChangedObjectGuids().AddSP(this, &FWidgetBlueprintEditor::SyncSelectedWidgetsWithSequencerSelection);
+		OnSelectedWidgetsChanged.AddSP(this, &FWidgetBlueprintEditor::SyncSequencerSelectionToSelectedWidgets);
+		
+		// Allow sequencer to test which bindings are selected
+		Sequencer->OnGetIsBindingVisible().BindRaw(this, &FWidgetBlueprintEditor::IsBindingSelected);
+
 		ChangeViewedAnimation(*UWidgetAnimation::GetNullAnimation());
 	}
 
@@ -1816,6 +1847,11 @@ void FWidgetBlueprintEditor::SyncSelectedWidgetsWithSequencerSelection(TArray<FG
 	{
 		SelectWidgets(SequencerSelectedWidgets, false);
 	}
+}
+
+void FWidgetBlueprintEditor::SyncSequencerSelectionToSelectedWidgets()
+{
+	GetSequencer()->ExternalSelectionHasChanged();
 }
 
 void FWidgetBlueprintEditor::UpdateTrackName(FGuid ObjectId)
