@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
+
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionParticlesData.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -24,9 +25,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDrawActor, Log, All);
 
+// Constants
 namespace GeometryCollectionDebugDrawActorConstants
 {
-	// Constants
+	// Invariables
 	static const bool bPersistent = true;  // Debug draw needs persistency to work well within the editor.
 	static const float LifeTime = -1.0f;  // Lifetime is infinite.
 	static const uint8 DepthPriority = 0;
@@ -38,6 +40,15 @@ namespace GeometryCollectionDebugDrawActorConstants
 		FIntPoint(4, 5), FIntPoint(5, 6), FIntPoint(6, 7), FIntPoint(7, 4),
 		FIntPoint(0, 4), FIntPoint(1, 5), FIntPoint(2, 6), FIntPoint(3, 7)
 	});
+
+	// Base colors
+	static const FLinearColor DarkerTintFactor(1.0f, 1.0f, 0.7f);  // Darker HSV multiplier
+	static const FLinearColor LighterTintFactor(1.0f, 1.0f, 2.0f);  // Lighter HSV multiplier
+	static const FLinearColor RigidBodyTint(0.8f, 0.1f, 0.1f);  // Red
+	static const FLinearColor ClusteringTint(0.6, 0.4f, 0.2f);  // Orange
+	static const FLinearColor GeometryTint(0.4f, 0.2f, 0.6f);  // Purple
+	static const FLinearColor SingleFaceTint(0.6, 0.2f, 0.4f);  // Pink
+	static const FLinearColor VertexTint(0.2f, 0.4f, 0.6f);  // Blue
 
 	// Defaults
 	static const FString SelectedRigidBodySolverDefault = FName(NAME_None).ToString();
@@ -76,8 +87,27 @@ namespace GeometryCollectionDebugDrawActorConstants
 	static const int32 TextShadowDefault = 1;
 	static const float TextScaleDefault = 1.0f;
 	static const float NormalScaleDefault = 10.0f;
-	static const float TransformScaleDefault = 20.0f;
+	static const float AxisScaleDefault = 20.0f;
 	static const float ArrowScaleDefault = 2.5f;
+	static const float TransformScaleDefault = 1.f;
+	static const FColor RigidBodyIdsColorDefault = (RigidBodyTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor RigidBodyCollisionColorDefault = RigidBodyTint.ToFColor(true);
+	static const FColor RigidBodyInertiaColorDefault = (RigidBodyTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor RigidBodyVelocityColorDefault = (RigidBodyTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor RigidBodyForceColorDefault = (RigidBodyTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor RigidBodyInfoColorDefault = (RigidBodyTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor TransformIndexColorDefault = (ClusteringTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor LevelColorDefault = (ClusteringTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor ParentColorDefault = ClusteringTint.ToFColor(true);
+	static const FColor GeometryIndexColorDefault = (GeometryTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor BoundingBoxColorDefault = (GeometryTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor FaceColorDefault = GeometryTint.ToFColor(true);
+	static const FColor FaceIndexColorDefault = (GeometryTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor FaceNormalColorDefault = (GeometryTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor SingleFaceColorDefault = (SingleFaceTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor VertexColorDefault = VertexTint.ToFColor(true);
+	static const FColor VertexIndexColorDefault = (VertexTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
+	static const FColor VertexNormalColorDefault = (VertexTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
 }
 
 namespace GeometryCollectionDebugDrawActorCVars
@@ -119,7 +149,7 @@ namespace GeometryCollectionDebugDrawActorCVars
 	static TAutoConsoleVariable<int32  > TextShadow              (TEXT("p.gc.TextShadow"              ), GeometryCollectionDebugDrawActorConstants::TextShadowDefault              , TEXT("Geometry Collection debug draw, text shadow under indices for better readability.\nDefault = 1."), ECVF_Cheat);
 	static TAutoConsoleVariable<float  > TextScale               (TEXT("p.gc.TextScale"               ), GeometryCollectionDebugDrawActorConstants::TextScaleDefault               , TEXT("Geometry Collection debug draw, text scale.\nDefault = 1."), ECVF_Cheat);
 	static TAutoConsoleVariable<float  > NormalScale             (TEXT("p.gc.NormalScale"             ), GeometryCollectionDebugDrawActorConstants::NormalScaleDefault             , TEXT("Geometry Collection debug draw, normal size.\nDefault = 10."), ECVF_Cheat);
-	static TAutoConsoleVariable<float  > TransformScale          (TEXT("p.gc.TransformScale"          ), GeometryCollectionDebugDrawActorConstants::TransformScaleDefault          , TEXT("Geometry Collection debug draw, transform size.\nDefault = 20."), ECVF_Cheat);
+	static TAutoConsoleVariable<float  > AxisScale               (TEXT("p.gc.AxisScale"               ), GeometryCollectionDebugDrawActorConstants::AxisScaleDefault               , TEXT("Geometry Collection debug draw, size of the axis used for visualizing all transforms.\nDefault = 20."), ECVF_Cheat);
 	static TAutoConsoleVariable<float  > ArrowScale              (TEXT("p.gc.ArrowScale"              ), GeometryCollectionDebugDrawActorConstants::ArrowScaleDefault              , TEXT("Geometry Collection debug draw, arrow size for normals.\nDefault = 2.5."), ECVF_Cheat);
 }
 
@@ -192,8 +222,30 @@ AGeometryCollectionDebugDrawActor::AGeometryCollectionDebugDrawActor(const FObje
 	, bTextShadow              (!!GeometryCollectionDebugDrawActorConstants::TextShadowDefault              )
 	, TextScale                (  GeometryCollectionDebugDrawActorConstants::TextScaleDefault               )
 	, NormalScale              (  GeometryCollectionDebugDrawActorConstants::NormalScaleDefault             )
-	, TransformScale           (  GeometryCollectionDebugDrawActorConstants::TransformScaleDefault          )
+	, AxisScale                (  GeometryCollectionDebugDrawActorConstants::AxisScaleDefault               )
 	, ArrowScale               (  GeometryCollectionDebugDrawActorConstants::ArrowScaleDefault              )
+	, RigidBodyIdColor         (  GeometryCollectionDebugDrawActorConstants::RigidBodyIdsColorDefault       )
+	, RigidBodyTransformScale  (  GeometryCollectionDebugDrawActorConstants::TransformScaleDefault          )
+	, RigidBodyCollisionColor  (  GeometryCollectionDebugDrawActorConstants::RigidBodyCollisionColorDefault )
+	, RigidBodyInertiaColor    (  GeometryCollectionDebugDrawActorConstants::RigidBodyInertiaColorDefault   )
+	, RigidBodyVelocityColor   (  GeometryCollectionDebugDrawActorConstants::RigidBodyVelocityColorDefault  )
+	, RigidBodyForceColor      (  GeometryCollectionDebugDrawActorConstants::RigidBodyForceColorDefault     )
+	, RigidBodyInfoColor       (  GeometryCollectionDebugDrawActorConstants::RigidBodyInfoColorDefault      )
+	, TransformIndexColor      (  GeometryCollectionDebugDrawActorConstants::TransformIndexColorDefault     )
+	, TransformScale           (  GeometryCollectionDebugDrawActorConstants::TransformScaleDefault          )
+	, LevelColor               (  GeometryCollectionDebugDrawActorConstants::LevelColorDefault              )
+	, ParentColor              (  GeometryCollectionDebugDrawActorConstants::ParentColorDefault             )
+	, ConnectivityEdgeThickness(  GeometryCollectionDebugDrawActorConstants::LineThicknessDefault           )
+	, GeometryIndexColor       (  GeometryCollectionDebugDrawActorConstants::GeometryIndexColorDefault      )
+	, GeometryTransformScale   (  GeometryCollectionDebugDrawActorConstants::TransformScaleDefault          )
+	, BoundingBoxColor         (  GeometryCollectionDebugDrawActorConstants::BoundingBoxColorDefault        )
+	, FaceColor                (  GeometryCollectionDebugDrawActorConstants::FaceColorDefault               )
+	, FaceIndexColor           (  GeometryCollectionDebugDrawActorConstants::FaceIndexColorDefault          )
+	, FaceNormalColor          (  GeometryCollectionDebugDrawActorConstants::FaceNormalColorDefault         )
+	, SingleFaceColor          (  GeometryCollectionDebugDrawActorConstants::SingleFaceColorDefault         )
+	, VertexColor              (  GeometryCollectionDebugDrawActorConstants::VertexColorDefault             )
+	, VertexIndexColor         (  GeometryCollectionDebugDrawActorConstants::VertexIndexColorDefault        )
+	, VertexNormalColor        (  GeometryCollectionDebugDrawActorConstants::VertexNormalColorDefault       )
 	, SpriteComponent()
 	, ConsoleVariableSinkHandle()
 	, DebugDrawTextDelegateHandle()
@@ -383,7 +435,7 @@ void AGeometryCollectionDebugDrawActor::PostLoad()
 	GeometryCollectionDebugDrawActorCVars::TextShadow              ->Set(int32(bTextShadow                ), SetBy);
 	GeometryCollectionDebugDrawActorCVars::TextScale               ->Set(      TextScale                   , SetBy);
 	GeometryCollectionDebugDrawActorCVars::NormalScale             ->Set(      NormalScale                 , SetBy);
-	GeometryCollectionDebugDrawActorCVars::TransformScale          ->Set(      TransformScale              , SetBy);
+	GeometryCollectionDebugDrawActorCVars::AxisScale               ->Set(      AxisScale                   , SetBy);
 	GeometryCollectionDebugDrawActorCVars::ArrowScale              ->Set(      ArrowScale                  , SetBy);
 
 	Super::PostLoad();
@@ -515,7 +567,7 @@ void AGeometryCollectionDebugDrawActor::OnCVarsChanged()
 	UpdatePropertyValue(bTextShadow              , GeometryCollectionDebugDrawActorCVars::TextShadow              , bHavePropertiesChanged);
 	UpdatePropertyValue(TextScale                , GeometryCollectionDebugDrawActorCVars::TextScale               , bHavePropertiesChanged);
 	UpdatePropertyValue(NormalScale              , GeometryCollectionDebugDrawActorCVars::NormalScale             , bHavePropertiesChanged);
-	UpdatePropertyValue(TransformScale           , GeometryCollectionDebugDrawActorCVars::TransformScale          , bHavePropertiesChanged);
+	UpdatePropertyValue(AxisScale                , GeometryCollectionDebugDrawActorCVars::AxisScale               , bHavePropertiesChanged);
 	UpdatePropertyValue(ArrowScale               , GeometryCollectionDebugDrawActorCVars::ArrowScale              , bHavePropertiesChanged);
 
 	// Update geometry collection component, but only if this actor has begun play
@@ -566,16 +618,18 @@ void AGeometryCollectionDebugDrawActor::PostEditChangeProperty(FPropertyChangedE
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertices            )) { GeometryCollectionDebugDrawActorCVars::ShowVertices            ->Set(int32(bShowVertices              ), SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertexIndices       )) { GeometryCollectionDebugDrawActorCVars::ShowVertexIndices       ->Set(int32(bShowVertexIndices         ), SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertexNormals       )) { GeometryCollectionDebugDrawActorCVars::ShowVertexNormals       ->Set(int32(bShowVertexNormals         ), SetBy); }
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bUseActiveVisualization  )) { GeometryCollectionDebugDrawActorCVars::UseActiveVisualization  ->Set(int32(bUseActiveVisualization    ), SetBy); }
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, PointThickness           )) { GeometryCollectionDebugDrawActorCVars::PointThickness          ->Set(      PointThickness              , SetBy); }
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, LineThickness            )) { GeometryCollectionDebugDrawActorCVars::LineThickness           ->Set(      LineThickness               , SetBy); }
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bTextShadow              )) { GeometryCollectionDebugDrawActorCVars::TextShadow              ->Set(int32(bTextShadow                ), SetBy); }
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, TextScale                )) { GeometryCollectionDebugDrawActorCVars::TextScale               ->Set(      TextScale                   , SetBy); }
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, NormalScale              )) { GeometryCollectionDebugDrawActorCVars::NormalScale             ->Set(      NormalScale                 , SetBy); }
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, TransformScale           )) { GeometryCollectionDebugDrawActorCVars::TransformScale          ->Set(      TransformScale              , SetBy); }
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, ArrowScale               )) { GeometryCollectionDebugDrawActorCVars::ArrowScale              ->Set(      ArrowScale                  , SetBy); }
 	else
 	{
+		// These properties are cosmetic changes and don't require visibility updates or enabling the component tick
+		if      (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bUseActiveVisualization  )) { GeometryCollectionDebugDrawActorCVars::UseActiveVisualization  ->Set(int32(bUseActiveVisualization    ), SetBy); }
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, PointThickness           )) { GeometryCollectionDebugDrawActorCVars::PointThickness          ->Set(      PointThickness              , SetBy); }
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, LineThickness            )) { GeometryCollectionDebugDrawActorCVars::LineThickness           ->Set(      LineThickness               , SetBy); }
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bTextShadow              )) { GeometryCollectionDebugDrawActorCVars::TextShadow              ->Set(int32(bTextShadow                ), SetBy); }
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, TextScale                )) { GeometryCollectionDebugDrawActorCVars::TextScale               ->Set(      TextScale                   , SetBy); }
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, NormalScale              )) { GeometryCollectionDebugDrawActorCVars::NormalScale             ->Set(      NormalScale                 , SetBy); }
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, AxisScale                )) { GeometryCollectionDebugDrawActorCVars::AxisScale               ->Set(      AxisScale                   , SetBy); }
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, ArrowScale               )) { GeometryCollectionDebugDrawActorCVars::ArrowScale              ->Set(      ArrowScale                  , SetBy); }
+
 		Super::PostEditChangeProperty(PropertyChangedEvent);
 		return;  // Don't call OnPropertyChanged()
 	}
@@ -704,7 +758,7 @@ void AGeometryCollectionDebugDrawActor::DrawVertices(const TArray<FTransform>& G
 #if ENABLE_DRAW_DEBUG
 	check(GeometryCollectionComponent);
 	check(GeometryCollectionComponent->RestCollection);
-	check(TransformIndex >= 0);
+	check(TransformIndex >= INDEX_NONE);
 
 	const UWorld* const World = GetWorld();
 	check(World);
@@ -1433,7 +1487,7 @@ void AGeometryCollectionDebugDrawActor::DrawGeometryIndex(const TArray<FTransfor
 void AGeometryCollectionDebugDrawActor::DrawTransforms(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, float Scale)
 {
 #if ENABLE_DRAW_DEBUG
-	Scale *= TransformScale;
+	Scale *= AxisScale;
 
 	check(GeometryCollectionComponent);
 	check(GeometryCollectionComponent->RestCollection);
@@ -1500,7 +1554,7 @@ void AGeometryCollectionDebugDrawActor::DrawTransform(const TArray<FTransform>& 
 		const FVector Position = Transform.GetLocation();
 		const FRotator Rotator = Transform.Rotator();
 
-		DrawDebugCoordinateSystem(World, Position, Rotator, Scale * TransformScale, GeometryCollectionDebugDrawActorConstants::bPersistent, GeometryCollectionDebugDrawActorConstants::LifeTime, GeometryCollectionDebugDrawActorConstants::DepthPriority, LineThickness);
+		DrawDebugCoordinateSystem(World, Position, Rotator, Scale * AxisScale, GeometryCollectionDebugDrawActorConstants::bPersistent, GeometryCollectionDebugDrawActorConstants::LifeTime, GeometryCollectionDebugDrawActorConstants::DepthPriority, LineThickness);
 		bNeedsDebugLinesFlush = true;
 	}
 
@@ -2109,7 +2163,7 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyTransform(const UGeometryCo
 void AGeometryCollectionDebugDrawActor::DrawRigidBodyTransformNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, float Scale)
 {
 #if ENABLE_DRAW_DEBUG
-	Scale *= TransformScale;
+	Scale *= AxisScale;
 
 	// Retrieve particle transform
 	const FTransform Transform = GetParticleTransformNoChecks(GeometryCollectionComponent, TransformIndex, ParticlesData);
@@ -2507,7 +2561,7 @@ void AGeometryCollectionDebugDrawActor::DrawRigidBodyInfoNoChecks(const UGeometr
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, float Thickness)
+void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray)
 {
 #if ENABLE_DRAW_DEBUG
 	check(GeometryCollectionComponent);
@@ -2535,14 +2589,14 @@ void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCol
 				Hue = (Hue + 157) % 256;  // 157 is a prime number that gives a good spread of colors without getting too similar as a rand might do.
 				const FColor RandomColor = FLinearColor::MakeFromHSV8(Hue, 160, 128).ToFColor(true);
 				const FColor ActiveColor = bUseActiveVisualization ? MakeDarker(RandomColor, GetLevel(TransformIndex, ParentArray)) : RandomColor;
-				DrawConnectivityEdgesNoChecks(GeometryCollectionComponent, TransformIndex, ParticlesData, RigidBodyIdArray, Thickness, ActiveColor);
+				DrawConnectivityEdgesNoChecks(GeometryCollectionComponent, TransformIndex, ParticlesData, RigidBodyIdArray, ActiveColor);
 			}
 		}
 	}
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, float Thickness, FColor HSVColor)
+void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, FColor HSVColor)
 {
 #if ENABLE_DRAW_DEBUG
 	check(GeometryCollectionComponent);
@@ -2564,7 +2618,7 @@ void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCol
 		if (bHasParent)
 		{
 			const FLinearColor LinearColor = FLinearColor::MakeFromHSV8(HSVColor.R, HSVColor.G, HSVColor.B);  // HSV stored as RGB values
-			DrawConnectivityEdgesNoChecks(GeometryCollectionComponent, TransformIndex, ParticlesData, RigidBodyIdArray, Thickness, LinearColor.ToFColor(true));
+			DrawConnectivityEdgesNoChecks(GeometryCollectionComponent, TransformIndex, ParticlesData, RigidBodyIdArray, LinearColor.ToFColor(true));
 		}
 
 		// Debug draw children if the cluster mode is on
@@ -2575,14 +2629,14 @@ void AGeometryCollectionDebugDrawActor::DrawConnectivityEdges(const UGeometryCol
 			for (int32 ChildTransformIndex : ChildrenArrayRest[TransformIndex])
 			{
 				HSVColor.R = (HSVColor.R + 157) % 256;   // HSV stored as RGB values, this moves to the next "random" hue
-				DrawConnectivityEdges(GeometryCollectionComponent, ChildTransformIndex, ParticlesData, RigidBodyIdArray, Thickness, HSVColor);
+				DrawConnectivityEdges(GeometryCollectionComponent, ChildTransformIndex, ParticlesData, RigidBodyIdArray, HSVColor);
 			}
 		}
 	}
 #endif  // #if ENABLE_DRAW_DEBUG
 }
 
-void AGeometryCollectionDebugDrawActor::DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, float Thickness, const FColor& Color)
+void AGeometryCollectionDebugDrawActor::DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color)
 {
 #if ENABLE_DRAW_DEBUG
 	const UWorld* const World = GetWorld();
@@ -2609,8 +2663,8 @@ void AGeometryCollectionDebugDrawActor::DrawConnectivityEdgesNoChecks(const UGeo
 	// Retrieve connectivity edges information
 	const TArray<Chaos::TConnectivityEdge<float>>& ConnectivityEdges = ParticlesData.GetConnectivityEdges(TransformIndex);
 
-	// Line thickness
-	Thickness *= LineThickness;
+	// Edge thickness
+	const float Thickness = ConnectivityEdgeThickness * LineThickness;
 
 	// Draw connectivity information
 	for (const auto& ConnectivityEdge: ConnectivityEdges)
