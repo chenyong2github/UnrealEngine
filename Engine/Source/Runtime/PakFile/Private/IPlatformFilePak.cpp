@@ -1378,11 +1378,11 @@ public:
 
 			UE_LOG(LogPakFile, Log, TEXT("New pak file %s added to pak precacher."), *PakFilename);
 
+			// Load signature data
+			Pak.Signatures = FPakPlatformFile::GetPakSignatureFile(*PakFilename);
+
 			if (Pak.Signatures.IsValid())
 			{
-				// Load signature data
-				Pak.Signatures = FPakPlatformFile::GetPakSignatureFile(*PakFilename);
-				
 				// We should never get here unless the signature file exists and is validated. The original FPakFile creation
 				// on the main thread would have failed and the pak would never have been mounted otherwise, and then we would
 				// never have issued read requests to the pak precacher.
