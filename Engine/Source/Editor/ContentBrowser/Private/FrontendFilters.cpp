@@ -1106,9 +1106,9 @@ FString FFrontendFilter_ArbitraryComparisonOperation::ConvertOperationToString(E
 
 FFrontendFilter_ShowOtherDevelopers::FFrontendFilter_ShowOtherDevelopers(TSharedPtr<FFrontendFilterCategory> InCategory)
 	: FFrontendFilter(InCategory)
-	, BaseDeveloperPath(FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir()))
+	, BaseDeveloperPath(TEXT("/Game/Developers/"))
 	, BaseDeveloperPathAnsi()
-	, UserDeveloperPath(FPackageName::FilenameToLongPackageName(FPaths::GameUserDeveloperDir()))
+	, UserDeveloperPath(BaseDeveloperPath + FPaths::GameUserDeveloperFolderName() + TEXT("/"))
 	, bIsOnlyOneDeveloperPathSelected(false)
 	, bShowOtherDeveloperAssets(false)
 {
