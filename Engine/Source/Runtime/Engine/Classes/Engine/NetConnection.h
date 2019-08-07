@@ -616,6 +616,9 @@ public:
 	TSet<FName> ClientVisibleLevelNames;
 
 	/** Called by PlayerController to tell connection about client level visiblity change */
+	ENGINE_API void UpdateLevelVisibility(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
+	
+	UE_DEPRECATED(4.24, "This method will be removed. Use UpdateLevelVisibility that takes an FUpdateLevelVisibilityLevelInfo")
 	ENGINE_API void UpdateLevelVisibility(const FName& PackageName, bool bIsVisible);
 
 #if DO_ENABLE_NET_TEST
