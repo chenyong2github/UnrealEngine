@@ -2,13 +2,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/CircularQueue.h"
+
 #include "UObject/Object.h"
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Common/UdpSocketReceiver.h"
 #include "OSCMessage.h"
 #include "OSCBundle.h"
+#include "OSCPacket.h"
 #include "OSCServer.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedMessageEvent, const FOSCMessage &, Message);
@@ -20,21 +21,6 @@ UCLASS(BlueprintType)
 class OSC_API UOSCServer : public UObject
 {
 	GENERATED_UCLASS_BODY()
-
-	struct OscCircularBuffer
-	{
-	public:
-
-		OscCircularBuffer(uint32 CircularQueueSize)
-			: Buffer(CircularQueueSize)
-		{}
-
-		OscCircularBuffer()
-			: Buffer(1)
-		{ }
-
-		TCircularQueue<TSharedPtr<FOSCPacket>> Buffer;
-	};
 
 public:
 	/** Gets whether or not to loopback if ReceiveIPAddress provided is multicast. */
@@ -73,28 +59,31 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Audio|OSC")
 	bool bWhitelistClients;
 
+	/** Adds client to whitelist of clients to listen for. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	void AddWhitelistedClient(const FString& IPAddress);
 
+	/** Removes whitelisted client to listen for. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	void RemoveWhitelistedClient(const FString& IPAddress);
 
+	/** Clears client whitelist to listen for. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	void ClearWhitelistedClients();
 
+	/** Returns set of whitelisted clients. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	TSet<FString> GetWhitelistedClients() const;
 
 protected:
-
 	void BeginDestroy() override;
 	
 	/** Callback that receives data from a socket. */
 	void Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint);
 	
 	/** Circular buffer that stores OSC packets. */
-	OscCircularBuffer OSCPackets;
-	
+	TQueue<TSharedPtr<IOSCPacket>> OSCPackets;
+
 	/** Socket used to listen for OSC packets. */
 	FSocket* Socket;
 

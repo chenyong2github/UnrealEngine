@@ -1,13 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "OSCMessage.h"
+
+#include "OSCMessagePacket.h"
 #include "OSCStream.h"
+
 
 FOSCMessage::FOSCMessage()
 	: Packet(MakeShareable(new FOSCMessagePacket()))
 {
 }
 
-FOSCMessage::FOSCMessage(const TSharedPtr<FOSCMessagePacket>& InPacket)
+FOSCMessage::FOSCMessage(const TSharedPtr<IOSCPacket>& InPacket)
 	: Packet(InPacket)
 {
 }
@@ -17,12 +20,12 @@ FOSCMessage::~FOSCMessage()
 	Packet.Reset();
 }
 
-void FOSCMessage::SetPacket(TSharedPtr<FOSCMessagePacket>& InPacket)
+void FOSCMessage::SetPacket(TSharedPtr<IOSCPacket>& InPacket)
 {
 	Packet = InPacket;
 }
 
-const TSharedPtr<FOSCMessagePacket>& FOSCMessage::GetPacket() const
+const TSharedPtr<IOSCPacket>& FOSCMessage::GetPacket() const
 {
 	return Packet;
 }
