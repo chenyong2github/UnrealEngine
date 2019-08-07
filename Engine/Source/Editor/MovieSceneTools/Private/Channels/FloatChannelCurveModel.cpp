@@ -266,6 +266,11 @@ void FFloatChannelCurveModel::GetKeyDrawInfo(ECurvePointType PointType, const FK
 			OutDrawInfo.Tint = FLinearColor::White;
 			break;
 		}
+
+		if (IsReadOnly())
+		{
+			OutDrawInfo.Tint = OutDrawInfo.Tint * 0.5f;
+		}
 	}
 }
 

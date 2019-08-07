@@ -55,6 +55,8 @@ void FCurveEditor::InitCurveEditor(const FCurveEditorInitParams& InInitParams)
 {
 	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
 
+	Selection = FCurveEditorSelection(SharedThis(this));
+
 	// Editor Extensions can be registered in the Curve Editor module. To allow users to derive from FCurveEditor
 	// we have to manually reach out to the module and get a list of extensions to create an instance of them.
 	// If none of your extensions are showing up, it's because you forgot to call this function after construction
