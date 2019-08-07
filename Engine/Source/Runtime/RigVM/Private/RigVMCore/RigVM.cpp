@@ -50,7 +50,7 @@ void URigVM::ResolveFunctionsIfRequired()
 		Functions.Reset();
 		Functions.SetNumZeroed(FunctionNames.Num());
 
-		for (int32 FunctionIndex = 0; FunctionIndex < FunctionNames.Num(); FunctionIndex)
+		for (int32 FunctionIndex = 0; FunctionIndex < FunctionNames.Num(); FunctionIndex++)
 		{
 			Functions[FunctionIndex] = FRigVMRegistry::Get().Find(*FunctionNames[FunctionIndex]);
 		}

@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "RigVMNotifications.generated.h"
 
+class URigVMGraph;
+
 UENUM()
 enum class ERigVMGraphNotifType : uint8
 {
