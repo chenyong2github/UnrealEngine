@@ -1615,7 +1615,7 @@ public:
 	}
 
 	/**
-	 * Adds a new uninitialized value or destroys the existing value for a given key.
+	 * Constructs a new key-value pair if key didn't exist
 	 *
 	 * No need to rehash after calling. The hash table must be properly hashed before calling.
 	 *
@@ -1628,29 +1628,18 @@ public:
 		TFunctionRef<bool(const void*, const void*)> KeyEqualityFn,
 		TFunctionRef<void(void*, void*)> ConstructPairFn)
 	{
-		void* OutPair = nullptr;
-		bool bCreatePair = true;
 		const int32 ValueOffset = Layout.ValueOffset;
-				
-		Pairs.Add(
+		int32 PairIndex = Pairs.FindOrAdd(
 			Key,
 			Layout.SetLayout,
 			GetKeyHash,
 			KeyEqualityFn,
-			[ConstructPairFn, &bCreatePair, &OutPair, ValueOffset](void* NewPair)
+			[ConstructPairFn, ValueOffset](void* NewPair)
 			{
-				if (bCreatePair)
-				{
-					ConstructPairFn(NewPair, (uint8*)NewPair + ValueOffset);
-				}
+				ConstructPairFn(NewPair, (uint8*)NewPair + ValueOffset);
+			});
 
-				OutPair = NewPair;
-			},
-			[&bCreatePair](void* NewPair) {	bCreatePair = false; }
-		);
-
-		checkSlow(OutPair);
-		return (uint8*)OutPair + ValueOffset;
+		return (uint8*)Pairs.GetData(PairIndex, Layout.SetLayout) + ValueOffset;
 	}
 
 private:
