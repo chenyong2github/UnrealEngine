@@ -255,7 +255,7 @@ void FMovieSceneLiveLinkSectionTemplate::FillFrameInterpolated(const FFrameTime&
 void FMovieSceneLiveLinkSectionTemplate::EvaluateSwept(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const TRange<FFrameNumber>& SweptRange, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
 	FMovieSceneLiveLinkSectionTemplatePersistentData* Data = PersistentData.FindSectionData<FMovieSceneLiveLinkSectionTemplatePersistentData>();
-	if (Data && Data->LiveLinkSource.IsValid() && Data->LiveLinkSource->IsSourceValid())
+	if (Data && Data->LiveLinkSource.IsValid() && Data->LiveLinkSource->IsSourceStillValid())
 	{
 		TArray<FLiveLinkFrameDataStruct>  LiveLinkFrameDataArray;
 		GetLiveLinkFrameArray(Context.GetTime(), SweptRange.GetLowerBoundValue(), SweptRange.GetUpperBoundValue(), LiveLinkFrameDataArray, Context.GetFrameRate());
@@ -267,7 +267,7 @@ void FMovieSceneLiveLinkSectionTemplate::EvaluateSwept(const FMovieSceneEvaluati
 void FMovieSceneLiveLinkSectionTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
 	FMovieSceneLiveLinkSectionTemplatePersistentData* Data = PersistentData.FindSectionData<FMovieSceneLiveLinkSectionTemplatePersistentData>();
-	if (Data && Data->LiveLinkSource.IsValid() && Data->LiveLinkSource->IsSourceValid())
+	if (Data && Data->LiveLinkSource.IsValid() && Data->LiveLinkSource->IsSourceStillValid())
 	{
 		TArray<FLiveLinkFrameDataStruct>  LiveLinkFrameDataArray;
 		FFrameTime FrameTime = Context.GetTime();
@@ -290,7 +290,7 @@ void FMovieSceneLiveLinkSectionTemplate::TearDown(FPersistentEvaluationData& Per
 
 	if (Data && Data->LiveLinkSource.IsValid())
 	{
-		if (Data->LiveLinkSource->IsSourceValid())
+		if (Data->LiveLinkSource->IsSourceStillValid())
 		{
 			FMovieSceneLiveLinkSource::RemoveLiveLinkSource(Data->LiveLinkSource);
 		}

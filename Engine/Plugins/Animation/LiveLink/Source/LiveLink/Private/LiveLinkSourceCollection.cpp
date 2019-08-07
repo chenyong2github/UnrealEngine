@@ -12,7 +12,7 @@ struct FLiveLinkVirtualSubjectSource : public ILiveLinkSource
 {
 	virtual bool CanBeDisplayedInUI() const override { return false; }
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override {}
-	virtual bool IsSourceValid() const override { return true; }
+	virtual bool IsSourceStillValid() const override { return true; }
 	virtual bool RequestSourceShutdown() override { return true; }
 
 	virtual FText GetSourceType() const override { return NSLOCTEXT("TempLocTextLiveLink", "LiveLinkVirtualSubjectName", "Virtual Subjects"); }

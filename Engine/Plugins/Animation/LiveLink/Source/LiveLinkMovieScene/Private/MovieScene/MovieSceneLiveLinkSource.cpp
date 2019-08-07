@@ -67,7 +67,7 @@ void FMovieSceneLiveLinkSource::ReceiveClient(ILiveLinkClient* InClient, FGuid I
 	Client->CreateSubject(SubjectPreset);
 }
 
-bool FMovieSceneLiveLinkSource::IsSourceValid() const
+bool FMovieSceneLiveLinkSource::IsSourceStillValid() const
 {
 	return Client != nullptr;
 }
