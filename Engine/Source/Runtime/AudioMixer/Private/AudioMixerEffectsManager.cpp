@@ -97,7 +97,9 @@ namespace Audio
 
 	FAudioMixerEffectsManager::FAudioMixerEffectsManager(FAudioDevice* InDevice)
 		: FAudioEffectsManager(InDevice)
-	{}
+	{
+		bUseLegacyReverb = GetDefault<UAudioSettings>()->bEnableLegacyReverb;
+	}
 
 	FAudioMixerEffectsManager::~FAudioMixerEffectsManager()
 	{}
@@ -115,7 +117,7 @@ namespace Audio
 			if (SoundEffectSubmix)
 			{
 				// Choose correct reverb based upon ini settings.
-				if (GetDefault<UAudioSettings>()->bEnableLegacyReverb)
+				if (bUseLegacyReverb)
 				{
 					FSubmixEffectReverb* SoundEffectReverb = static_cast<FSubmixEffectReverb*>(SoundEffectSubmix);
 					SoundEffectReverb->SetEffectParameters(ReverbEffectParameters);
