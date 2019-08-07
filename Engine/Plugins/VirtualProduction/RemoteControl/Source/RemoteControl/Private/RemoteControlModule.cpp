@@ -213,7 +213,7 @@ public:
 
 	virtual bool GetObjectProperties(const FRCObjectReference& ObjectAccess, IStructSerializerBackend& Backend) override
 	{
-		if (ObjectAccess.IsValid())
+		if (ObjectAccess.IsValid() && ObjectAccess.Access == ERCAccess::READ_ACCESS)
 		{
 			UObject* Object = ObjectAccess.Object.Get();
 			FStructSerializerPolicies Policies;
@@ -241,7 +241,7 @@ public:
 
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend) override
 	{
-		if (ObjectAccess.IsValid())
+		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
 		{
 			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
 #if WITH_EDITOR
@@ -283,6 +283,36 @@ public:
 		}
 		return false;
 	}
+
+	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess) override
+	{
+		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
+		{
+			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+#if WITH_EDITOR
+			FScopedTransaction Transaction(LOCTEXT("RemoteResetPropertyTransaction", "Remote Reset Object Property"), bGenerateTransaction);
+#endif
+			UObject* Object = ObjectAccess.Object.Get();
+			if (bGenerateTransaction)
+			{
+				Object->Modify();
+				Object->PreEditChange(ObjectAccess.Property.Get());
+			}
+					
+			ObjectAccess.Property->InitializeValue(ObjectAccess.Property->template ContainerPtrToValuePtr<void>(ObjectAccess.Object.Get()));
+
+			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
+			// this is to match the pre edit change call that can unregister components for example
+			if (bGenerateTransaction)
+			{
+				FPropertyChangedEvent PropertyEvent(ObjectAccess.Property.Get());
+				Object->PostEditChangeProperty(PropertyEvent);
+			}
+			return true;
+		}
+		return false;
+	}
+
 
 private:
 };
