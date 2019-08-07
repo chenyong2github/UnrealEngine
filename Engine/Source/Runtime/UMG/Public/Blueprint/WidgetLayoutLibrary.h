@@ -16,6 +16,11 @@ class UOverlaySlot;
 class UUniformGridSlot;
 class UVerticalBoxSlot;
 class UScrollBoxSlot;
+class USafeZoneSlot;
+class UScaleBoxSlot;
+class USizeBoxSlot;
+class UWrapBoxSlot;
+class UWidgetSwitcherSlot;
 class UWidget;
 
 UCLASS()
@@ -156,6 +161,40 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Slot")
 	static UScrollBoxSlot* SlotAsScrollBoxSlot(UWidget* Widget);
 
+	/**
+	 * Gets the slot object on the child widget as a Safe Box Slot, allowing you to manipulate its information.
+	 * @param Widget The child widget of a Safe Box.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Slot")
+	static USafeZoneSlot* SlotAsSafeBoxSlot(UWidget* Widget);
+
+	/**
+	 * Gets the slot object on the child widget as a Scale Box Slot, allowing you to manipulate its information.
+	 * @param Widget The child widget of a Scale Box.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Slot")
+	static UScaleBoxSlot* SlotAsScaleBoxSlot(UWidget* Widget);
+
+	/**
+	 * Gets the slot object on the child widget as a Size Box Slot, allowing you to manipulate its information.
+	 * @param Widget The child widget of a Size Box.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Slot")
+	static USizeBoxSlot* SlotAsSizeBoxSlot(UWidget* Widget);
+
+	/**
+	 * Gets the slot object on the child widget as a Wrap Box Slot, allowing you to manipulate its information.
+	 * @param Widget The child widget of a Wrap Box.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Slot")
+	static UWrapBoxSlot* SlotAsWrapBoxSlot(UWidget* Widget);
+
+	/**
+	 * Gets the slot object on the child widget as a Widget Switcher Slot, allowing you to manipulate its information.
+	 * @param Widget The child widget of a Widget Switcher Slot.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Slot")
+	static UWidgetSwitcherSlot* SlotAsWidgetSwitcherSlot(UWidget* Widget);
 
 	/**
 	 * Removes all widgets from the viewport.
