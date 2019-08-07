@@ -456,11 +456,37 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 		const float Interp = bInterpolated::Value ? InterpParam.GetAndAdvance() : 1.0f;
 
 		// Determine bone or socket
-		int32 Bone = FMath::Clamp(BoneParam.GetAndAdvance(), 0, BoneAndSocketMax);
+		int32 RawBone = BoneParam.GetAndAdvance();
+		int32 Bone = FMath::Clamp(RawBone, 0, BoneAndSocketMax);
 		const bool bIsSocket = Bone > BoneMax;
-		if ( bIsSocket )
+		const int32 Socket = Bone - SpecificSocketBoneOffset;
+
+		// Handle edge cases first...
+		if ((!bIsSocket && Bone >= BoneMax) ||
+			(bIsSocket && (Socket >= SpecificSocketCurrTransforms.Num() || Socket < 0)))
 		{
-			const int32 Socket = Bone - SpecificSocketBoneOffset;
+			Pos = FVector::ZeroVector;
+			TransformHandler.TransformPosition(Pos, Transform);
+
+			if (Output.bNeedsVelocity || bInterpolated::Value)
+			{
+				Prev = FVector::ZeroVector;
+				TransformHandler.TransformPosition(Prev, PrevTransform);
+			}
+			if (Output.bNeedsRotation)
+			{
+				FQuat Rotation = FQuat::Identity;
+				if (bInterpolated::Value)
+				{
+					FQuat PrevRotation = FQuat::Identity;
+					Rotation = FQuat::Identity;
+				}
+
+				Output.SetRotation(Rotation);
+			}
+		}
+		else if ( bIsSocket )
+		{
 			FTransform CurrSocketTransform = SpecificSocketCurrTransforms[Socket];
 			FTransform PrevSocketTransform = SpecificSocketPrevTransforms[Socket];
 
