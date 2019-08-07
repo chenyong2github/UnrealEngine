@@ -149,13 +149,10 @@ void FConcertSyncClient::RegisterConcertSyncHandlers(TSharedRef<IConcertClientSe
 	{
 		CreateWorkspace(LiveSession.ToSharedRef());
 #if WITH_EDITOR
-		if (GIsEditor)
+		PresenceManager.Reset();
+		if (EnumHasAnyFlags(SessionFlags, EConcertSyncSessionFlags::EnablePresence))
 		{
-			PresenceManager.Reset();
-			if (EnumHasAnyFlags(SessionFlags, EConcertSyncSessionFlags::EnablePresence))
-			{
-				PresenceManager = MakeShared<FConcertClientPresenceManager>(InSession); // TODO: Use LiveSession?
-			}
+			PresenceManager = MakeShared<FConcertClientPresenceManager>(InSession); // TODO: Use LiveSession?
 		}
 		if (EnumHasAnyFlags(SessionFlags, EConcertSyncSessionFlags::EnableSequencer))
 		{
