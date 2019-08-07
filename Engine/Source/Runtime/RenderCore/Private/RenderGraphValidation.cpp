@@ -233,7 +233,12 @@ void FRDGUserValidation::ValidateExtractResource(FRDGTrackedResourceRef Resource
 void FRDGUserValidation::RemoveUnusedWarning(FRDGTrackedResourceRef Resource)
 {
 	check(Resource);
+
+    // Removes 'produced but not used' warning.
 	Resource->PassAccessCount++;
+
+    // Removes 'not used' warning.
+	Resource->bIsActuallyUsedByPass = true;
 }
 
 void FRDGUserValidation::ValidateAllocPassParameters(const void* Parameters)
@@ -613,7 +618,7 @@ void FRDGUserValidation::ValidateExecuteEnd()
 		{
 			ValidateResourceAtExecuteEnd(Buffer);
 		}
-	} // if (IsRDGDebugEnabled())
+	}
 
 	TrackedTextures.Empty();
 	TrackedBuffers.Empty();
@@ -667,8 +672,8 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 					Texture->bHasBeenBoundAsRenderTarget = true;
 				}
 			}
-		} // for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
-	} // if (IsRDGDebugEnabled())
+		}
+	} 
 }
 
 void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
@@ -701,7 +706,7 @@ void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
 		if (TrackedResourceCount != UsedResourceCount)
 		{
 			FString WarningMessage = FString::Printf(
-				TEXT("'%d' of the '%d' resources of the pass '%s' where not actually used."),
+				TEXT("'%d' of the '%d' resources of the pass '%s' were not actually used."),
 				TrackedResourceCount - UsedResourceCount, TrackedResourceCount, Pass->GetName());
 
 			for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
@@ -748,38 +753,72 @@ void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAcce
 	{
 		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-		if (Parameter.IsResource())
+		switch (Parameter.GetType())
 		{
+		case UBMT_RDG_TEXTURE:
+		case UBMT_RDG_TEXTURE_COPY_DEST:
+		case UBMT_RDG_BUFFER:
+		case UBMT_RDG_BUFFER_COPY_DEST:
 			if (FRDGResourceRef Resource = Parameter.GetAsResource())
 			{
 				Resource->bAllowRHIAccess = bAllowAccess;
 			}
-		}
-		else if (Parameter.GetType() == UBMT_RENDER_TARGET_BINDING_SLOTS)
-		{
-			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
-			const auto& RenderTargets = RenderTargetBindingSlots.Output;
-			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
-			const uint32 RenderTargetCount = RenderTargets.Num();
-
-			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+			break;
+		case UBMT_RDG_BUFFER_SRV:
+			if (FRDGBufferSRVRef SRV = Parameter.GetAsBufferSRV())
 			{
-				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+				SRV->bAllowRHIAccess = bAllowAccess;
+				SRV->GetParent()->bAllowRHIAccess = bAllowAccess;
+			}
+			break;
+		case UBMT_RDG_BUFFER_UAV:
+			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
+			{
+				UAV->bAllowRHIAccess = bAllowAccess;
+				UAV->GetParent()->bAllowRHIAccess = bAllowAccess;
+			}
+			break;
+		case UBMT_RDG_TEXTURE_SRV:
+			if (FRDGTextureSRVRef SRV = Parameter.GetAsTextureSRV())
+			{
+				SRV->bAllowRHIAccess = bAllowAccess;
+				SRV->GetParent()->bAllowRHIAccess = bAllowAccess;
+			}
+			break;
+		case UBMT_RDG_TEXTURE_UAV:
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
+			{
+				UAV->bAllowRHIAccess = bAllowAccess;
+				UAV->GetParent()->bAllowRHIAccess = bAllowAccess;
+			}
+			break;
+		case UBMT_RENDER_TARGET_BINDING_SLOTS:
+			{
+				const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+				const auto& RenderTargets = RenderTargetBindingSlots.Output;
+				const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+				const uint32 RenderTargetCount = RenderTargets.Num();
 
-				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+				for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; RenderTargetIndex++)
+				{
+					const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+					if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+					{
+						Texture->bAllowRHIAccess = bAllowAccess;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if (FRDGTextureRef Texture = DepthStencil.GetTexture())
 				{
 					Texture->bAllowRHIAccess = bAllowAccess;
 				}
-				else
-				{
-					break;
-				}
 			}
-
-			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
-			{
-				Texture->bAllowRHIAccess = bAllowAccess;
-			}
+			break;
 		}
 	}
 }

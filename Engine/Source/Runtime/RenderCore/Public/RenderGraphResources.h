@@ -381,6 +381,11 @@ public:
 	/** Descriptor of the graph tracked SRV. */
 	const FRDGTextureSRVDesc Desc;
 
+	FRDGTextureRef GetParent() const
+	{
+		return Desc.Texture;
+	}
+
 private:
 	FRDGTextureSRV(
 		const TCHAR* InName,
@@ -416,6 +421,11 @@ class RENDERCORE_API FRDGTextureUAV final
 public:
 	/** Descriptor of the graph tracked UAV. */
 	const FRDGTextureUAVDesc Desc;
+
+	FRDGTextureRef GetParent() const
+	{
+		return Desc.Texture;
+	}
 
 private:
 	FRDGTextureUAV(
@@ -715,6 +725,11 @@ public:
 	/** Descriptor of the graph tracked SRV. */
 	const FRDGBufferSRVDesc Desc;
 
+	FRDGBufferRef GetParent() const
+	{
+		return Desc.Buffer;
+	}
+
 private:
 	FRDGBufferSRV(const TCHAR* InName, const FRDGBufferSRVDesc& InDesc)
 		: FRDGShaderResourceView(InName)
@@ -731,6 +746,11 @@ class RENDERCORE_API FRDGBufferUAV final
 public:
 	/** Descriptor of the graph tracked UAV. */
 	const FRDGBufferUAVDesc Desc;
+
+	FRDGBufferRef GetParent() const
+	{
+		return Desc.Buffer;
+	}
 
 private:
 	FRDGBufferUAV(const TCHAR* InName, const FRDGBufferUAVDesc& InDesc)

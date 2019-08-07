@@ -73,36 +73,6 @@ FAutoConsoleVariableRef CVarLightCullingQuality(
 	ECVF_RenderThreadSafe
 );
 
-
-// TODO move to render graph utils
-BEGIN_SHADER_PARAMETER_STRUCT(FClearUAVParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(	RWTexture2D,	TextureUAV)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(	RWBuffer<uint>,	BufferUAV)
-END_SHADER_PARAMETER_STRUCT()
-
-void AddPass_ClearUAV(
-	FRDGBuilder& GraphBuilder,
-	FRDGEventName&& PassName,
-	FRDGBufferUAVRef BufferUAV,
-	uint32 Value)
-{
-	FClearUAVParameters* Parameters = GraphBuilder.AllocParameters< FClearUAVParameters >();
-	Parameters->BufferUAV = BufferUAV;
-
-	GraphBuilder.AddPass(
-		Forward<FRDGEventName>(PassName),
-		Parameters,
-		ERDGPassFlags::Compute,
-		[&Parameters, BufferUAV, Value](FRHICommandList& RHICmdList)
-		{
-			BufferUAV->MarkResourceAsUsed();
-			ClearUAV( RHICmdList, BufferUAV->GetRHI(), BufferUAV->Desc.Buffer->Desc.GetTotalNumBytes(), Value );
-		} );
-}
-
-
-
-
 /** A minimal forwarding lighting setup. */
 class FMinimalDummyForwardLightingResources : public FRenderResource
 {
@@ -754,9 +724,9 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 
 					if (GLightLinkedListCulling != 0)
 					{
-						AddPass_ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:StartOffsetGrid"), PassParameters->RWStartOffsetGrid, 0xFFFFFFFF);
-						AddPass_ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:NextCulledLightLink"), PassParameters->RWNextCulledLightLink, 0);
-						AddPass_ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:NextCulledLightData"), GraphBuilder.CreateUAV(NextCulledLightDataBuffer, PF_R32_UINT), 0);
+						ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:StartOffsetGrid"), PassParameters->RWStartOffsetGrid, 0xFFFFFFFF);
+						ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:NextCulledLightLink"), PassParameters->RWNextCulledLightLink, 0);
+						ClearUAV(GraphBuilder, RDG_EVENT_NAME("Clear:NextCulledLightData"), GraphBuilder.CreateUAV(NextCulledLightDataBuffer, PF_R32_UINT), 0);
 						FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("LightGridInject:LinkedList"), *ComputeShader, PassParameters, NumGroups);
 
 

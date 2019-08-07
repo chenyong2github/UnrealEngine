@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RHIDefinitions.h"
 #include "RenderResource.h"
+#include "RenderGraphBuilder.h"
 
 class FRHICommandList;
 struct FRWBufferStructured;
@@ -57,7 +58,6 @@ extern UTILITYSHADERS_API void ClearUAV(FRHICommandList& RHICmdList, const FScen
 
 extern UTILITYSHADERS_API void ClearTexture2DUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UAV, int32 Width, int32 Height, const FLinearColor& ClearColor);
 
-
 extern UTILITYSHADERS_API void DrawClearQuadMRT( FRHICommandList& RHICmdList, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil );
 extern UTILITYSHADERS_API void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil, FClearQuadCallbacks ClearQuadCallbacks);
 extern UTILITYSHADERS_API void DrawClearQuadMRT( FRHICommandList& RHICmdList, bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil, FIntPoint ViewSize, FIntRect ExcludeRect );
@@ -81,3 +81,8 @@ inline void DrawClearQuad(FRHICommandList& RHICmdList, const FLinearColor& Color
 {
 	DrawClearQuadMRT(RHICmdList, true, 1, &Color, false, 0, false, 0, ClearQuadCallbacks);
 }
+
+extern UTILITYSHADERS_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGEventName&& PassName, FRDGBufferUAVRef BufferUAV, uint32 Value);
+extern UTILITYSHADERS_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGEventName&& PassName, FRDGTextureUAVRef TextureUAV, const float(&ClearValues)[4]);
+extern UTILITYSHADERS_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGEventName&& PassName, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4]);
+extern UTILITYSHADERS_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGEventName&& PassName, FRDGTextureUAVRef TextureUAV, const FLinearColor& ClearColor);

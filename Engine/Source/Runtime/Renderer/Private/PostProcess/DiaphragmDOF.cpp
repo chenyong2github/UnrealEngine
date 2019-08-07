@@ -20,14 +20,6 @@
 #include "PostProcessTemporalAA.h"
 #include "SceneTextureParameters.h"
 
-
-void AddPass_ClearUAV(
-	FRDGBuilder& GraphBuilder,
-	FRDGEventName&& PassName,
-	FRDGBufferUAVRef BufferUAV,
-	uint32 Value);
-
-
 // ---------------------------------------------------- Cvars
 
 namespace
@@ -1901,7 +1893,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				if (BackgroundScatterDrawListBuffer)
 					PassParameters->OutBackgroundScatterDrawList = GraphBuilder.CreateUAV(BackgroundScatterDrawListBuffer);
 
-				AddPass_ClearUAV(GraphBuilder, RDG_EVENT_NAME("ClearIndirectDraw"), PassParameters->OutScatterDrawIndirectParameters, 0);
+				ClearUAV(GraphBuilder, RDG_EVENT_NAME("ClearIndirectDraw"), PassParameters->OutScatterDrawIndirectParameters, 0);
 			}
 
 			TShaderMapRef<FDiaphragmDOFReduceCS> ComputeShader(View.ShaderMap, PermutationVector);
