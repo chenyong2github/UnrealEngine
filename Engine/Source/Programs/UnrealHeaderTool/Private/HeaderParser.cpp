@@ -72,7 +72,7 @@ static const FName NAME_DocumentationPolicy(TEXT("DocumentationPolicy"));
 EGeneratedCodeVersion FHeaderParser::DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
 TArray<FString> FHeaderParser::StructsWithNoPrefix;
 TArray<FString> FHeaderParser::StructsWithTPrefix;
-TMap<UStruct*, TArray<FRigVMMethodInfo>> FHeaderParser::StructRigVMMethods;
+FRigVMStructMap FHeaderParser::StructRigVMMap;
 TArray<FString> FHeaderParser::DelegateParameterCountStrings;
 TMap<FString, FString> FHeaderParser::TypeRedirectMap;
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
@@ -3007,47 +3007,7 @@ void FHeaderParser::FixupDelegateProperties( FClasses& AllClasses, UStruct* Stru
 	MetaData.Add(NAME_ToolTip, Struct->GetMetaData(NAME_ToolTip));
 	CheckDocumentationPolicyForStruct(Struct, MetaData);
 
-	// check if the struct has multi plex methods, and if so perform some additional checks
-	TArray<FRigVMMethodInfo>* RigVMMethods = StructRigVMMethods.Find(Struct);
-	if (RigVMMethods)
-	{
-		const TCHAR* InputText = TEXT("Input");
-		const TCHAR* OutputText = TEXT("Output");
-		const TCHAR* ConstantText = TEXT("Constant");
-		const TCHAR* MaxArraySizeText = TEXT("MaxArraySize");
-		const TCHAR* TArrayText = TEXT("TArray");
-
-		// validate the property types for this struct
-		for (TFieldIterator<UProperty> It(Struct); It; ++It)
-		{
-			UProperty const* const Prop = *It;
-			FString PropName = Prop->GetName();
-			FString MemberCPPType;
-			FString ExtendedCPPType;
-			MemberCPPType = Prop->GetCPPType(&ExtendedCPPType);
-
-			if (!ExtendedCPPType.IsEmpty())
-			{
-				// we only support arrays - no maps or similar data structures
-				if (MemberCPPType != TArrayText)
-				{
-					UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' type '%s' not supported by RigVM."), *Struct->GetName(), *PropName, *MemberCPPType);
-				}
-				else
-				{
-					bool bIsInput = Prop->HasMetaData(InputText);
-					bool bIsOutput = Prop->HasMetaData(OutputText);
-					bool bIsConstant = Prop->HasMetaData(ConstantText);
-					bIsConstant = bIsConstant || (bIsInput && !bIsOutput);
-
-					if (!bIsConstant && !Prop->HasMetaData(MaxArraySizeText))
-					{
-						UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' requires the 'MaxArraySize' meta tag."), *Struct->GetName(), *PropName);
-					}
-				}
-			}
-		}
-	}
+	ParseRigVMMethodParameters(Struct);
 }
 
 void FHeaderParser::VerifyBlueprintPropertyGetter(UProperty* Prop, UFunction* TargetFunc)
@@ -6271,13 +6231,131 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FClasses& AllClasses, UStruct*
 		}
 	}
 
-	FRigVMMethodInfo Info;
-	Info.ReturnType = ReturnTypeToken.Identifier;
-	Info.Name = NameToken.Identifier;
-	Info.Params = FString::Join(ParamsContent, TEXT(" "));
+	FRigVMMethodInfo MethodInfo;
+	MethodInfo.ReturnType = ReturnTypeToken.Identifier;
+	MethodInfo.Name = NameToken.Identifier;
+	
+	FString ParamString = FString::Join(ParamsContent, TEXT(" "));
+	if (!ParamString.IsEmpty())
+	{
+		FString ParamPrev, ParamLeft, ParamRight;
+		ParamPrev = ParamString;
+		while (ParamPrev.Contains(TEXT(",")))
+		{
+			ParamPrev.Split(TEXT(","), &ParamLeft, &ParamRight);
+			FRigVMParameter Parameter;
+			Parameter.Name = ParamLeft.TrimStartAndEnd();
+			MethodInfo.Parameters.Add(Parameter);
+			ParamPrev = ParamRight;
+		}
 
-	TArray<FRigVMMethodInfo>& Infos = StructRigVMMethods.FindOrAdd(Struct);
-	Infos.Add(Info);
+		ParamPrev = ParamPrev.TrimStartAndEnd();
+		if (!ParamPrev.IsEmpty())
+		{
+			FRigVMParameter Parameter;
+			Parameter.Name = ParamPrev.TrimStartAndEnd();
+			MethodInfo.Parameters.Add(Parameter);
+		}
+	}
+
+	for (FRigVMParameter& Parameter : MethodInfo.Parameters)
+	{
+		FString FullParameter = Parameter.Name;
+
+		int32 LastEqual = INDEX_NONE;
+		if (FullParameter.FindLastChar(TCHAR('='), LastEqual))
+		{
+			FullParameter = FullParameter.Mid(0, LastEqual);
+		}
+
+		FullParameter.TrimStartAndEndInline();
+
+		FString ParameterType = FullParameter;
+		FString ParameterName = FullParameter;
+
+		int32 LastSpace = INDEX_NONE;
+		if (FullParameter.FindLastChar(TCHAR(' '), LastSpace))
+		{
+			Parameter.Type = FullParameter.Mid(0, LastSpace);
+			Parameter.Name = FullParameter.Mid(LastSpace + 1);
+			Parameter.Type.TrimStartAndEndInline();
+			Parameter.Name.TrimStartAndEndInline();
+		}
+	}
+
+	FRigVMStructInfo& StructRigVMInfo = StructRigVMMap.FindOrAdd(Struct);
+	StructRigVMInfo.Name = Struct->GetName();
+	StructRigVMInfo.Methods.Add(MethodInfo);
+}
+
+void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
+{
+	FRigVMStructInfo* StructRigVMInfo = StructRigVMMap.Find(Struct);
+	if (StructRigVMInfo == nullptr)
+	{
+		return;
+	}
+
+	const TCHAR* InputText = TEXT("Input");
+	const TCHAR* OutputText = TEXT("Output");
+	const TCHAR* ConstantText = TEXT("Constant");
+	const TCHAR* MaxArraySizeText = TEXT("MaxArraySize");
+	const TCHAR* TArrayText = TEXT("TArray");
+	const TCHAR* TArrayViewText = TEXT("TArrayView");
+	const TCHAR* GetRefText = TEXT("GetRef");
+	const TCHAR* GetArrayText = TEXT("GetArray");
+
+	// validate the property types for this struct
+	for (TFieldIterator<UProperty> It(Struct); It; ++It)
+	{
+		UProperty const* const Prop = *It;
+		FString PropName = Prop->GetName();
+		FString MemberCPPType;
+		FString ExtendedCPPType;
+		MemberCPPType = Prop->GetCPPType(&ExtendedCPPType);
+
+		FRigVMParameter Parameter;
+		Parameter.Name = Prop->GetName();
+		Parameter.Type = MemberCPPType + ExtendedCPPType;
+		Parameter.bConstant = Prop->HasMetaData(ConstantText);
+		Parameter.bInput = Prop->HasMetaData(InputText);
+		Parameter.bOutput = Prop->HasMetaData(OutputText);
+		Parameter.MaxArraySize = Prop->GetMetaData(MaxArraySizeText);
+		Parameter.Getter = GetRefText;
+
+		if (!ExtendedCPPType.IsEmpty())
+		{
+			// we only support arrays - no maps or similar data structures
+			if (MemberCPPType != TArrayText)
+			{
+				UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' type '%s' not supported by RigVM."), *Struct->GetName(), *Parameter.Name, *MemberCPPType);
+				continue;
+			}
+
+			if (!Parameter.IsConst() && Parameter.MaxArraySize.IsEmpty())
+			{
+				UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' requires the 'MaxArraySize' meta tag."), *Struct->GetName(), *Parameter.Name);
+				continue;
+			}
+		}
+
+		if (MemberCPPType.StartsWith(TArrayText))
+		{
+			if (Parameter.IsConst() || !Parameter.MaxArraySize.IsEmpty())
+			{
+				Parameter.CastName = FString::Printf(TEXT("%s_%d_View"), *Parameter.Name, StructRigVMInfo->Members.Num());
+				Parameter.CastType = FString::Printf(TEXT("%s%s"), TArrayViewText, *ExtendedCPPType);
+				Parameter.Getter = GetArrayText;
+			}
+		}
+
+		StructRigVMInfo->Members.Add(Parameter);
+	}
+
+	if (StructRigVMInfo->Members.Num() > 64)
+	{
+		UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - has %d members (64 is the limit)."), *Struct->GetName(), StructRigVMInfo->Members.Num());
+	}
 }
 
 // Returns true if the token is a dynamic delegate declaration

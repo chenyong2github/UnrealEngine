@@ -3301,117 +3301,56 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 	FString RigVMMacroPrefix(StructNameCPP);
 	RigVMMacroPrefix = FString::Printf(TEXT("UE_%s"), *RigVMMacroPrefix.Mid(1));
+	TArray<FString> RigVMVirtualFuncProlog, RigVMStubProlog;
 
-	const TCHAR* Comma = TEXT(", ");
-	TArray<FString> MemberNames, MemberDeclarations, MemberCasts, MemberCastProlog, MemberMulticastProlog;
-	const TArray<FRigVMMethodInfo>* StructRigVMMethods = FHeaderParser::StructRigVMMethods.Find(Struct);
-	if(StructRigVMMethods)
+	// for RigVM methods we need to generated a macro used for implementing the static method
+	// and prepare two prologs: one for the virtual function implementation, and one for the stub
+	// invoking the static method.
+	const FRigVMStructInfo* StructRigVMInfo = FHeaderParser::StructRigVMMap.Find(Struct);
+	if(StructRigVMInfo)
 	{
-		const TCHAR* FText = TEXT("F");
-		const TCHAR* TText = TEXT("T");
-		const TCHAR* EText = TEXT("E");
-		const TCHAR* InputText = TEXT("Input");
-		const TCHAR* OutputText = TEXT("Output");
-		const TCHAR* ConstantText = TEXT("Constant");
-		const TCHAR* MaxArraySizeText = TEXT("MaxArraySize");
-		const TCHAR* TArrayText = TEXT("TArray");
-		const TCHAR* TArrayViewText = TEXT("TArrayView");
-
-		int32 MemberCastSuffix = 0;
-
-		int32 MemberIndex = 0;
-		for (UProperty* Prop : TFieldRange<UProperty>(Struct))
+		RigVMStubProlog.Add(FString::Printf(TEXT("ensure(RigVMArguments.Num() == %d);"), StructRigVMInfo->Members.Num()));
+		for (int32 ParameterIndex = 0; ParameterIndex < StructRigVMInfo->Members.Num(); ParameterIndex++)
 		{
-			FString Name = Prop->GetName();
-			FString AddressName = FString::Printf(TEXT("%s_Arg"), *Name);
-			MemberMulticastProlog.Add(FString::Printf(TEXT("const FRigVMArgument& %s = RigVMArguments[%d];"), *AddressName, MemberIndex++));
+			const FRigVMParameter& Parameter = StructRigVMInfo->Members[ParameterIndex];
+			RigVMStubProlog.Add(FString::Printf(TEXT("const FRigVMArgument& %s_Arg = RigVMArguments[%d];"), *Parameter.Name, ParameterIndex));
 		}
-		MemberMulticastProlog.Insert(FString::Printf(TEXT("ensure(RigVMArguments.Num() == %d);"), MemberMulticastProlog.Num()), 0);
-		MemberMulticastProlog.Add(FString());
+		RigVMStubProlog.Add(FString());
 
-		for (UProperty* Prop : TFieldRange<UProperty>(Struct))
+		for (int32 ParameterIndex = 0; ParameterIndex < StructRigVMInfo->Members.Num(); ParameterIndex++)
 		{
-			++MemberCastSuffix;
-
-			bool bIsInput = Prop->HasMetaData(InputText);
-			bool bIsOutput = Prop->HasMetaData(OutputText);
-			bool bIsConstant = Prop->HasMetaData(ConstantText);
-			bIsConstant = bIsConstant || (bIsInput && !bIsOutput);
-
-			FString Name = Prop->GetName();
-			MemberNames.Add(Name);
-
-			FString MemberCPPType;
-			FString ExtendedCPPType;
-			MemberCPPType = Prop->GetCPPType(&ExtendedCPPType);
-			MemberCPPType += ExtendedCPPType;
-			
-			FString ParameterCPPType = MemberCPPType;
-			FString MultiCastCPPType = MemberCPPType;
-			FString MulticastGetter = TEXT("GetRef");
-			FString ExtractedMulticastCPPType;
-			FString MemberCast = Name;
-
-			if (MemberCPPType.StartsWith(TArrayText))
+			const FRigVMParameter& Parameter = StructRigVMInfo->Members[ParameterIndex];
+			if(Parameter.RequiresCast())
 			{
-				if (bIsConstant || Prop->HasMetaData(MaxArraySizeText))
+				if (Parameter.IsArray() && !Parameter.IsConst() && !Parameter.MaxArraySize.IsEmpty())
 				{
-					ParameterCPPType = FString::Printf(TEXT("%s%s"), TArrayViewText, *ExtendedCPPType);
-					if (!bIsConstant && Prop->HasMetaData(MaxArraySizeText))
-					{
-						MemberCast = FString::Printf(TEXT("%s_%d_View"), *Name, MemberCastSuffix);
-						MemberCastProlog.Add(FString::Printf(TEXT("%s.SetNumUninitialized( %s );"), *Name, *Prop->GetMetaData(MaxArraySizeText)));
-						MemberCastProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *ParameterCPPType, *MemberCast, *Name));
-						MultiCastCPPType = ExtendedCPPType.LeftChop(1).RightChop(1);
-						MulticastGetter = TEXT("GetArray");
-						ExtractedMulticastCPPType = FString::Printf(TEXT("TArrayView<%s>"), *MultiCastCPPType);
-					}
+					RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s.SetNumUninitialized( %s );"), *Parameter.Name, *Parameter.MaxArraySize));
 				}
+				RigVMVirtualFuncProlog.Add(FString::Printf(TEXT("%s %s(%s);"), *Parameter.CastType, *Parameter.CastName, *Parameter.Name));
 			}
 
-			if (ParameterCPPType.StartsWith(FText, ESearchCase::CaseSensitive) ||
-				ParameterCPPType.StartsWith(TText, ESearchCase::CaseSensitive) ||
-				ParameterCPPType.StartsWith(EText, ESearchCase::CaseSensitive))
+			FString VariableType = Parameter.TypeVariableRef(true);
+			FString ExtractedType = Parameter.TypeOriginal();
+			if (Parameter.TypeOriginal(true).StartsWith(TEXT("TArrayView")))
 			{
-				if (bIsConstant)
-				{
-					ParameterCPPType = FString::Printf(TEXT("const %s&"), *ParameterCPPType);
-				}
-				else
-				{
-					ParameterCPPType = FString::Printf(TEXT("%s&"), *ParameterCPPType);
-				}
-			}
-			else if (bIsConstant)
-			{
-				ParameterCPPType = FString::Printf(TEXT("const %s"), *ParameterCPPType);
-			}
-			else
-			{
-				ParameterCPPType = FString::Printf(TEXT("%s&"), *ParameterCPPType);
+				ExtractedType = Parameter.ExtendedType().LeftChop(1).RightChop(1);
+				VariableType = Parameter.TypeOriginal(true);
 			}
 
-			MemberCasts.Add(MemberCast);
-
-			if (ExtractedMulticastCPPType.IsEmpty())
-			{
-				ExtractedMulticastCPPType = ParameterCPPType;
-			}
-
-			MemberDeclarations.Add(FString::Printf(TEXT("%s %s"), *ParameterCPPType, *Name));
-			FString AddressName = FString::Printf(TEXT("%s_Arg"), *Name);
-			MemberMulticastProlog.Add(FString::Printf(TEXT("%s %s = RigVMStorage[%s.GetStorageIndex()]->%s<%s>(%s.GetRegisterIndex(), true);"), *ExtractedMulticastCPPType, *Name, *AddressName, *MulticastGetter, *MultiCastCPPType, *AddressName));
+			RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = RigVMStorage[%s_Arg.GetStorageIndex()]->%s<%s>(%s_Arg.GetRegisterIndex(), true);"),
+				*VariableType,
+				*Parameter.NameOriginal(false),
+				*Parameter.NameOriginal(false),
+				*Parameter.Getter,
+				*ExtractedType,
+				*Parameter.NameOriginal(false)));
 		}
 
-		// we have a hard limit on the number of parameters for our function
-		if (MemberNames.Num() > 64)
-		{
-			UE_LOG_ERROR_UHT(TEXT("RIGVM_METHOD: Struct '%s' has more than 64 members (64 is the limit)."), StructNameCPP);
-		}
+		FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
 
 		OutGeneratedHeaderText.Log(TEXT("\n"));
-		OutGeneratedHeaderText.Logf(TEXT("#define %s_IMPLEMENT_RIGVM(ReturnType, FunctionName, ...) \\\n"), *RigVMMacroPrefix);
-		OutGeneratedHeaderText.Logf(TEXT("\tReturnType %s::Static##FunctionName(\\\r\n\t\t%s, ##__VA_ARGS__)\n"), StructNameCPP, *FString::Join(MemberDeclarations, TEXT(",\\\r\n\t\t")));
+		OutGeneratedHeaderText.Logf(TEXT("#define %s_IMPLEMENT_RIGVM(ReturnType, FunctionName, ...) \\\r\n"), *RigVMMacroPrefix);
+		OutGeneratedHeaderText.Logf(TEXT("\tReturnType %s::Static##FunctionName(\\\r\n\t\t%s,\\\r\n\t\t##__VA_ARGS__ \\\r\n\t)\n"), StructNameCPP, *StructMembers);
 		OutGeneratedHeaderText.Log(TEXT("\n"));
 	}
 
@@ -3430,14 +3369,17 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		const FString StaticClassLine = FString::Printf(TEXT("\t%sstatic class UScriptStruct* StaticStruct();\r\n"), *RequiredAPI);
 		const FString PrivatePropertiesOffset = PrivatePropertiesOffsetGetters(Struct, StructNameCPP);
 		
+		// if we have RigVM methods on this struct we need to 
+		// declare the static method as well as the stub method
 		FString RigVMMethodsDeclarations;
-		if (StructRigVMMethods)
+		if (StructRigVMInfo)
 		{
-			for (const FRigVMMethodInfo& Info : (*StructRigVMMethods))
+			FString StructMembers = StructRigVMInfo->Members.Declarations(false, TEXT(",\r\n\t\t"), true, false);
+			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
 			{
-				FString ParamsSuffix = Info.Params.IsEmpty() ? TEXT("") : FString::Printf(TEXT(", %s"), *Info.Params);
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s);\r\n"), *Info.ReturnType, *Info.Name, *FString::Join(MemberDeclarations, TEXT(",\r\n\t\t")), *ParamsSuffix);
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(const FRigVMArgumentArray& RigVMArguments, FRigVMStoragePtrArray& RigVMStorage, const FRigVMUserDataArray& RigVMUserData);\r\n"), *Info.ReturnType, *Info.Name);
+				FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(",\r\n\t\t"));
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *StructMembers, *ParameterSuffix);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(\r\n\t\tconst FRigVMArgumentArray& RigVMArguments,\r\n\t\tFRigVMStoragePtrArray& RigVMStorage,\r\n\t\tconst FRigVMUserDataArray& RigVMUserData\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name);
 			}
 		}
 
@@ -3475,12 +3417,14 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		Out.Logf(TEXT("\t\tSingleton = GetStaticStruct(%s, %s, TEXT(\"%s\"), sizeof(%s), %s());\r\n"),
 			*SingletonName.LeftChop(2), *OuterName, *ActualStructName, StructNameCPP, *GetHashName);
 
-		if (StructRigVMMethods)
+		// if this struct has RigVM methods - we need to register the method to our central
+		// registry on construction of the static struct
+		if (StructRigVMInfo)
 		{
-			for (const FRigVMMethodInfo& Info : (*StructRigVMMethods))
+			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
 			{
 				Out.Logf(TEXT("\t\tFRigVMRegistry::Get().Register(TEXT(\"%s::%s\"), &%s::RigVM%s);\r\n"),
-					StructNameCPP, *Info.Name, StructNameCPP, *Info.Name);
+					StructNameCPP, *MethodInfo.Name, StructNameCPP, *MethodInfo.Name);
 			}
 		}
 
@@ -3656,107 +3600,65 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	Out.Log(GeneratedStructRegisterFunctionText);
 	Out.Logf(TEXT("\tuint32 %s() { return %uU; }\r\n"), *HashFuncName, StructHash);
 
-	if (StructRigVMMethods)
+	// if this struct has RigVM methods we need to implement both the 
+	// virtual function as well as the stub method here.
+	// The static method is implemented by the user using the IMPLEMENT_RIGVM macro.
+	if (StructRigVMInfo)
 	{
-		for (const FRigVMMethodInfo& Info : (*StructRigVMMethods))
+		FString StructMembersForVirtualFunc = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t"), true);
+		FString StructMembersForStub = StructRigVMInfo->Members.Names(false, TEXT(",\r\n\t\t"), false);
+
+		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo->Methods)
 		{
 			Out.Log(TEXT("\r\n"));
 
+			FString ParameterDeclaration = MethodInfo.Parameters.Declarations(false, TEXT(",\r\n\t\t"));
+			FString ParameterSuffix = MethodInfo.Parameters.Names(true, TEXT(",\r\n\t\t"));
+
 			// implement the virtual function body.
-			Out.Logf(TEXT("%s %s::%s(%s)\r\n"), *Info.ReturnType, StructNameCPP, *Info.Name, *Info.Params);
-			Out.Log(TEXT("{\r\n"));
-			for (const FString& MemberCastPrologLine : MemberCastProlog)
-			{
-				Out.Logf(TEXT("\t%s\r\n"), *MemberCastPrologLine);
-			}
-
-			FString ReturnPrefix = (Info.ReturnType.IsEmpty() || (Info.ReturnType == TEXT("void"))) ? TEXT("") : TEXT("return ");
-			FString ParamSuffix;
-
-			TArray<FString> ParameterExtractionProlog;
-			if (!Info.Params.IsEmpty())
-			{
-				TArray<FString> Params;
-				FString ParamPrev, ParamLeft, ParamRight;
-				ParamPrev = Info.Params;
-				while (ParamPrev.Contains(TEXT(",")))
-				{
-					ParamPrev.Split(TEXT(","), &ParamLeft, &ParamRight);
-					Params.Add(ParamLeft.TrimStartAndEnd());
-					ParamPrev = ParamRight;
-				} 
-				Params.Add(ParamPrev.TrimStartAndEnd());
-
-				ParameterExtractionProlog.Add(FString::Printf(TEXT("ensure(RigVMUserData.Num() == %d);"), Params.Num()));
-
-				for (int32 ParamIndex=0;ParamIndex<Params.Num(); ParamIndex++)
-				{
-					FString FullParam = Params[ParamIndex];
-					int32 LastEqual = INDEX_NONE;
-					if (FullParam.FindLastChar(TCHAR('='), LastEqual))
-					{
-						FullParam = FullParam.Mid(0, LastEqual);
-					}
-
-					FullParam.TrimStartAndEndInline();
-
-					FString ParamType = FullParam;
-					FString ParamName = FullParam;
-
-					int32 LastSpace = INDEX_NONE;
-					if (ParamName.FindLastChar(TCHAR(' '), LastSpace))
-					{
-						ParamType = ParamType.Mid(0, LastSpace);
-						ParamName = ParamName.Mid(LastSpace + 1);
-					}
-
-					ParamType.TrimStartAndEndInline();
-					ParamName.TrimStartAndEndInline();
-
-					Params[ParamIndex] = ParamName;
-
-					FString ParamPointerType = ParamType;
-					if (ParamPointerType.EndsWith(TEXT("&")))
-					{
-						ParamPointerType = ParamPointerType.LeftChop(1);
-						ParamPointerType.TrimStartAndEndInline();
-					}
-					ParameterExtractionProlog.Add(FString::Printf(TEXT("%s = *(%s*)RigVMUserData[%d];"), *FullParam, *ParamPointerType, ParamIndex));
-				}
-				ParamSuffix = FString::Printf(TEXT(", %s"), *FString::Join(Params, Comma));
-			}
-
-			Out.Logf(TEXT("    %sStatic%s(%s%s);\n"), *ReturnPrefix, *Info.Name, *FString::Join(MemberCasts, Comma), *ParamSuffix);
-			Out.Log(TEXT("}\r\n"));
-
-			Out.Log(TEXT("\r\n"));
-
-			FString ParamDeclarationSuffix;
-			if (!Info.Params.IsEmpty())
-			{
-				ParamDeclarationSuffix = FString::Printf(TEXT(", %s"), *Info.Params);
-			}
-
-			Out.Logf(TEXT("%s %s::RigVM%s(const FRigVMArgumentArray& RigVMArguments, FRigVMStoragePtrArray& RigVMStorage, const FRigVMUserDataArray& RigVMUserData)\r\n"), *Info.ReturnType, StructNameCPP, *Info.Name);
+			Out.Logf(TEXT("%s %s::%s(%s)\r\n"), *MethodInfo.ReturnType, StructNameCPP, *MethodInfo.Name, *ParameterDeclaration);
 			Out.Log(TEXT("{\r\n"));
 
-			if (ParameterExtractionProlog.Num() > 0)
+			if(RigVMVirtualFuncProlog.Num() > 0)
 			{
-				for (const FString& ParameterExtractionPrologLine : ParameterExtractionProlog)
+				for (const FString& RigVMVirtualFuncPrologLine : RigVMVirtualFuncProlog)
 				{
-					Out.Logf(TEXT("\t%s\r\n"), *ParameterExtractionPrologLine);
+					Out.Logf(TEXT("\t%s\r\n"), *RigVMVirtualFuncPrologLine);
 				}
 				Out.Log(TEXT("\t\r\n"));
 			}
 
-			for (const FString& MemberMulticastPrologLine : MemberMulticastProlog)
-			{
-				Out.Logf(TEXT("\t%s\r\n"), *MemberMulticastPrologLine);
-			}
-
-			Out.Logf(TEXT("\t%sStatic%s(%s%s);\r\n"), *ReturnPrefix, *Info.Name, *FString::Join(MemberNames, Comma), *ParamSuffix);
+			Out.Logf(TEXT("    %sStatic%s(\r\n\t\t%s%s\r\n\t);\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *StructMembersForVirtualFunc, *ParameterSuffix);
 			Out.Log(TEXT("}\r\n"));
 
+			Out.Log(TEXT("\r\n"));
+
+			// implement stub method body
+			Out.Logf(TEXT("%s %s::RigVM%s(const FRigVMArgumentArray& RigVMArguments, FRigVMStoragePtrArray& RigVMStorage, const FRigVMUserDataArray& RigVMUserData)\r\n"), *MethodInfo.ReturnType, StructNameCPP, *MethodInfo.Name);
+			Out.Log(TEXT("{\r\n"));
+
+			if (MethodInfo.Parameters.Num() > 0)
+			{
+				Out.Logf(TEXT("\tensure(RigVMUserData.Num() == %d);\r\n"), MethodInfo.Parameters.Num());
+				for (int32 ParameterIndex = 0; ParameterIndex < MethodInfo.Parameters.Num(); ParameterIndex++)
+				{
+					const FRigVMParameter& Parameter = MethodInfo.Parameters[ParameterIndex];
+					Out.Logf(TEXT("\t%s = *(%s*)RigVMUserData[%d];\r\n"), *Parameter.Declaration(), *Parameter.TypeNoRef(), ParameterIndex);
+				}
+				Out.Log(TEXT("\t\r\n"));
+			}
+
+			if(RigVMStubProlog.Num() > 0)
+			{
+				for (const FString& RigVMStubPrologLine : RigVMStubProlog)
+				{
+					Out.Logf(TEXT("\t%s\r\n"), *RigVMStubPrologLine);
+				}
+				Out.Log(TEXT("\t\r\n"));
+			}
+
+			Out.Logf(TEXT("\t%sStatic%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *StructMembersForStub, *ParameterSuffix);
+			Out.Log(TEXT("}\r\n"));
 		}
 
 		Out.Log(TEXT("\r\n"));

@@ -35,7 +35,7 @@
 				".\\UHTDebugging\\StructOnlyHeader.h",
 				".\\UHTDebugging\\EnumOnlyHeader.h",
 				".\\UHTDebugging\\TestObjectSerializers.h",
-				".\\UHTDebugging\\StaticMethodStructHeader.h"
+				".\\UHTDebugging\\RigVMStructHeader.h"
 			],
 			"PublicHeaders": [
 			],

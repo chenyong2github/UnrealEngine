@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "StaticMethodStructHeader.generated.h"
+#include "RigVMStructHeader.generated.h"
 
 USTRUCT()
-struct FStaticMethodStructBase
+struct FRigVMStructBase
 {
 	GENERATED_BODY()
 		
@@ -17,7 +17,7 @@ struct FStaticMethodStructBase
 };
 
 USTRUCT()
-struct FStaticMethodStruct : public FStaticMethodStructBase
+struct FRigVMMethodStruct : public FRigVMStructBase
 {
 	GENERATED_BODY()
 
