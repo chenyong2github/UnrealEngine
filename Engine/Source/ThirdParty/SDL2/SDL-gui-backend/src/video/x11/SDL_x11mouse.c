@@ -322,7 +322,17 @@ static void
 X11_WarpMouse(SDL_Window * window, int x, int y)
 {
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
+
+/* EG BEGIN */
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+    // If we have no barrier, we need to warp
+    if (data->pointer_barrier_active == SDL_FALSE) {
+        WarpMouseInternal(data->xwindow, x, y);
+    }
+#else
     WarpMouseInternal(data->xwindow, x, y);
+#endif
+/* EG END */
 }
 
 static int
