@@ -328,6 +328,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	bool IsPaused()const;
 
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	UNiagaraDataInterface * GetDataInterface(const FString &Name);
+
 	//~ Begin UObject Interface.
 	virtual void PostLoad();
 #if WITH_EDITOR

@@ -73,11 +73,11 @@ public:
 		return ScaledPhi;
 	}
 
-	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal) const override
+	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 	{
 		ensure(Length > 0);
 		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
-		ensure(Thickness == 0 || (MScale[0] == MScale[1] && MScale[0] == MScale[2]));	//non uniform turns sphere into an ellipsoid so no longer a raycast and requires a more expensive sweep
+		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));	//non uniform turns sphere into an ellipsoid so no longer a raycast and requires a more expensive sweep
 
 		const TVector<T, d> UnscaledStart = MInvScale * StartPoint;
 		TVector<T, d> UnscaledDir = MInvScale * Dir * Length;
@@ -86,8 +86,9 @@ public:
 		TVector<T, d> UnscaledPosition;
 		TVector<T, d> UnscaledNormal;
 
-		if (MObject->Raycast(UnscaledStart, UnscaledDir, UnscaledLength, Thickness * MInvScale[0], OutTime, UnscaledPosition, UnscaledNormal))
+		if (MObject->Raycast(UnscaledStart, UnscaledDir, UnscaledLength, Thickness * MInvScale[0], OutTime, UnscaledPosition, UnscaledNormal, OutFaceIndex))
 		{
+			OutTime = UnscaledLength ? OutTime * (Length / UnscaledLength) : 0;	//is this needed? SafeNormalize above seems bad
 			OutPosition = MScale * UnscaledPosition;
 			OutNormal = (MScale * UnscaledNormal).GetSafeNormal();
 			return true;
@@ -154,6 +155,11 @@ public:
 	{
 		TImplicitObject<T, d>::SerializeImp(Ar);
 		Ar << MObject << MScale << MInvScale << MLocalBoundingBox;
+	}
+
+	virtual uint32 GetTypeHash() const override
+	{
+		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MScale));
 	}
 
 private:

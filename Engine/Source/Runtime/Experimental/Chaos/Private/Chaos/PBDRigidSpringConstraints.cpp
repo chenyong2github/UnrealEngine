@@ -6,5 +6,5 @@ using namespace Chaos;
 
 namespace Chaos
 {
-	template class TPBDRigidSpringConstraints<float, 3>;
+	template class TPBDRigidSpringConstraints2<float, 3>;
 }

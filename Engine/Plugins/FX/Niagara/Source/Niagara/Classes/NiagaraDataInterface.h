@@ -157,12 +157,32 @@ private:
 
 struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>
 {
-	virtual ~FNiagaraDataInterfaceProxy() {check(IsInRenderingThread());}
+	virtual ~FNiagaraDataInterfaceProxy() {/*check(IsInRenderingThread());*/}
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const = 0;
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) { check(false); }
 
 	virtual void DeferredDestroy() {}
+
+	// #todo(dmp): move all of this stuff to the RW interface to keep it out of here?
+
+	// a set of the shader stages that require the data interface for data output
+	TSet<int> OutputShaderStages;
+
+	// a set of the shader stages that require the data interface for setting number of output elements
+	TSet<int> IterationShaderStages;
+	
+	// number of elements to output to
+	uint32 ElementCount;
+
+	void SetElementCount(uint32 Count) { ElementCount = Count;  }
+	virtual bool IsOutputStage(uint32 CurrentStage) const { return OutputShaderStages.Contains(CurrentStage); }
+	virtual bool IsIterationStage(uint32 CurrentStage) const { return IterationShaderStages.Contains(CurrentStage); }
+
+	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) { }
+
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}	
+	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}
 };
 
 struct FNiagaraDataInterfaceProxyCurveBase : public FNiagaraDataInterfaceProxy

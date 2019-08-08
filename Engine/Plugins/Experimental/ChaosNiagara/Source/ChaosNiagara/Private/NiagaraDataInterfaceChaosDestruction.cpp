@@ -5,10 +5,10 @@
 #include "Misc/FileHelper.h"
 #include "NiagaraShader.h"
 #include "ShaderParameterUtils.h"
-#include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"
 #include "Niagara/Private/NiagaraStats.h"
 #include "Chaos/PBDCollisionConstraintUtil.h"
-#include "SolverObjects/GeometryCollectionPhysicsObject.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Chaos/PBDCollisionTypes.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NiagaraComponent.h"
@@ -37,14 +37,14 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("NumBreakingsToSpawnParticles"), STAT_NiagaraNum
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumParticlesSpawnedFromCollisions"), STAT_NiagaraNumParticlesSpawnedFromCollisions, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumParticlesSpawnedFromTrailings"), STAT_NiagaraNumParticlesSpawnedFromTrailings, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumParticlesSpawnedFromBreaking"), STAT_NiagaraNumParticlesSpawnedFromBreakings, STATGROUP_Niagara);
-DECLARE_MEMORY_STAT(TEXT("SolverObjectReverseMapping"), STAT_SolverObjectReverseMappingMemory, STATGROUP_Niagara);
+DECLARE_MEMORY_STAT(TEXT("PhysicsProxyReverseMapping"), STAT_PhysicsProxyReverseMappingMemory, STATGROUP_Niagara);
 DECLARE_MEMORY_STAT(TEXT("ParticleIndexReverseMapping"), STAT_ParticleIndexReverseMappingMemory, STATGROUP_Niagara);
 DECLARE_MEMORY_STAT(TEXT("AllCollisionsData"), STAT_AllCollisionsDataMemory, STATGROUP_Niagara);
-DECLARE_MEMORY_STAT(TEXT("AllCollisionsIndicesBySolverObject"), STAT_AllCollisionsIndicesBySolverObjectMemory, STATGROUP_Niagara);
+DECLARE_MEMORY_STAT(TEXT("AllCollisionsIndicesByPhysicsProxy"), STAT_AllCollisionsIndicesByPhysicsProxyMemory, STATGROUP_Niagara);
 DECLARE_MEMORY_STAT(TEXT("AllBreakingsData"), STAT_AllBreakingsDataMemory, STATGROUP_Niagara);
-DECLARE_MEMORY_STAT(TEXT("AllBreakingsIndicesBySolverObject"), STAT_AllBreakingsIndicesBySolverObjectMemory, STATGROUP_Niagara);
+DECLARE_MEMORY_STAT(TEXT("AllBreakingsIndicesByPhysicsProxy"), STAT_AllBreakingsIndicesByPhysicsProxyMemory, STATGROUP_Niagara);
 DECLARE_MEMORY_STAT(TEXT("AllTrailingsData"), STAT_AllTrailingsDataMemory, STATGROUP_Niagara);
-DECLARE_MEMORY_STAT(TEXT("AllTrailingsIndicesBySolverObject"), STAT_AllTrailingsIndicesBySolverObjectMemory, STATGROUP_Niagara);
+DECLARE_MEMORY_STAT(TEXT("AllTrailingsIndicesByPhysicsProxy"), STAT_AllTrailingsIndicesByPhysicsProxyMemory, STATGROUP_Niagara);
 
 // Name of all the functions available in the data interface
 static const FName GetPositionName("GetPosition");
@@ -111,7 +111,7 @@ UNiagaraDataInterfaceChaosDestruction::UNiagaraDataInterfaceChaosDestruction(FOb
 	, FinalVelocityMagnitudeMinMax(FVector2D(-1.f, -1.f))
 	, MaxLatency(1.f)
 	, DebugType(EDebugTypeEnum::ChaosNiagara_DebugType_NoDebug)
-	, ParticleIndexToProcess(-1)
+//	, ParticleIndexToProcess(-1)
 	, LastSpawnedPointID(-1)
 	, LastSpawnTime(-1.f)
 	, SolverTime(0.f)
@@ -171,7 +171,30 @@ void UNiagaraDataInterfaceChaosDestruction::PostLoad()
 	LastSpawnedPointID = -1;
 	LastSpawnTime = -1.f;
 	TimeStampOfLastProcessedData = -1.f;
+
+#if WITH_CHAOS
+	FPhysScene* Scene = GetWorld()->GetPhysicsScene();
+	Scene->RegisterEventHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents);
+	Scene->RegisterEventHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents);
+	Scene->RegisterEventHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
+#endif
+
 	PushToRenderThread();
+}
+
+void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+#if WITH_CHAOS
+	FPhysScene* Scene = GetWorld()->GetPhysicsScene();
+	if (Scene)
+	{
+		Scene->UnregisterEventHandler(Chaos::EEventType::Collision, this);
+		Scene->UnregisterEventHandler(Chaos::EEventType::Breaking, this);
+		Scene->UnregisterEventHandler(Chaos::EEventType::Trailing, this);
+	}
+#endif
 }
 
 #if WITH_EDITOR
@@ -313,7 +336,7 @@ bool UNiagaraDataInterfaceChaosDestruction::CopyToInternal(UNiagaraDataInterface
 		DestinationChaosDestruction->FinalVelocityMagnitudeMinMax = FinalVelocityMagnitudeMinMax;
 		DestinationChaosDestruction->MaxLatency = MaxLatency;
 		DestinationChaosDestruction->DebugType = DebugType;
-		DestinationChaosDestruction->ParticleIndexToProcess = ParticleIndexToProcess;
+		//DestinationChaosDestruction->ParticleIndexToProcess = ParticleIndexToProcess;
 		DestinationChaosDestruction->LastSpawnedPointID = LastSpawnedPointID;
 		DestinationChaosDestruction->LastSpawnTime = LastSpawnTime;
 		DestinationChaosDestruction->TimeStampOfLastProcessedData = TimeStampOfLastProcessedData;
@@ -394,8 +417,8 @@ bool UNiagaraDataInterfaceChaosDestruction::Equals(const UNiagaraDataInterface* 
 		&& OtherChaosDestruction->VelocityOffsetMax == VelocityOffsetMax
 		&& OtherChaosDestruction->FinalVelocityMagnitudeMinMax == FinalVelocityMagnitudeMinMax
 		&& OtherChaosDestruction->MaxLatency == MaxLatency
-		&& OtherChaosDestruction->DebugType == DebugType
-		&& OtherChaosDestruction->ParticleIndexToProcess == ParticleIndexToProcess;
+		&& OtherChaosDestruction->DebugType == DebugType;
+		//&& OtherChaosDestruction->ParticleIndexToProcess == ParticleIndexToProcess;
 }
 
 int32 UNiagaraDataInterfaceChaosDestruction::PerInstanceDataSize()const
@@ -436,7 +459,7 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 		{
 			if (SolverActor)
 			{
-				if (Chaos::FPBDRigidsSolver* Solver = SolverActor->GetSolver())
+				if (Chaos::FPhysicsSolver* Solver = SolverActor->GetSolver())
 				{
 					int32 NewIdx = Solvers.Add(FSolverData());
 
@@ -481,7 +504,7 @@ void UNiagaraDataInterfaceChaosDestruction::DestroyPerInstanceData(void* PerInst
 #if INCLUDE_CHAOS
 void GetMeshExtData(FSolverData SolverData,
 					const int32 ParticleIndex,
-					const TArray<SolverObjectWrapper>& SolverObjectReverseMapping,
+					const TArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping,
 					const TArray<int32>& ParticleIndexReverseMapping,
 					float& BoundingboxVolume,
 					float& BoundingboxExtentMin,
@@ -499,13 +522,13 @@ void GetMeshExtData(FSolverData SolverData,
 		BoundingboxExtentMax = 100.f;
 		SurfaceType = 0;
 	}
-	else if (SolverObjectReverseMapping[ParticleIndex].Type == ESolverObjectType::GeometryCollectionType)
+	else if (PhysicsProxyReverseMapping[ParticleIndex].Type == EPhysicsProxyType::GeometryCollectionType)
 	{
 		// Since we are touching game objects below, I want to make sure that we're not off in some random thread.
 		ensure(IsInGameThread());
-		if (ISolverObjectBase* SolverObject = SolverObjectReverseMapping[ParticleIndex].SolverObject)
+		if (IPhysicsProxyBase* PhysicsProxy = PhysicsProxyReverseMapping[ParticleIndex].PhysicsProxy)
 		{
-			if (UGeometryCollectionComponent* GeometryCollectionComponent = SolverData.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(SolverObject))
+			if (UGeometryCollectionComponent* GeometryCollectionComponent = SolverData.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(PhysicsProxy))
 			{
 				if (const UGeometryCollection* GeometryCollection = GeometryCollectionComponent->GetRestCollection())
 				{
@@ -551,9 +574,9 @@ void GetMeshExtData(FSolverData SolverData,
 						}
 					}
 				}
-				if (const FGeometryCollectionPhysicsObject* PhysicsObject = GeometryCollectionComponent->GetPhysicsObject())
+				if (const FGeometryCollectionPhysicsProxy* GeomCollectionPhysicsProxy = GeometryCollectionComponent->GetPhysicsProxy())
 				{
-					const FGeometryCollectionResults& PhysResult = PhysicsObject->GetPhysicsResults().GetGameDataForRead();
+					const FGeometryCollectionResults& PhysResult = GeomCollectionPhysicsProxy->GetPhysicsResults().GetGameDataForRead();
 					Transform = PhysResult.ParticleToWorldTransforms[ParticleIndex - PhysResult.BaseIndex];
 				}
 			}
@@ -563,7 +586,7 @@ void GetMeshExtData(FSolverData SolverData,
 
 void GetMesPhysicalData(FSolverData SolverData,
 						const int32 ParticleIndex,
-						const TArray<SolverObjectWrapper>& SolverObjectReverseMapping,
+						const TArray<PhysicsProxyWrapper>& PhysicsProxyReverseMapping,
 						const TArray<int32>& ParticleIndexReverseMapping,
 						FLinearColor& Color,
 						float& Friction,
@@ -582,14 +605,14 @@ void GetMesPhysicalData(FSolverData SolverData,
 		Restitution = 0.3f;
 		Density = 1.0f;
 	}
-	else if (SolverObjectReverseMapping[ParticleIndex].Type == ESolverObjectType::GeometryCollectionType)
+	else if (PhysicsProxyReverseMapping[ParticleIndex].Type == EPhysicsProxyType::GeometryCollectionType)
 	{
 		// Since we are touching game objects below, I want to make sure that we're not off in some random thread.
 		ensure(IsInGameThread());
 
-		if (ISolverObjectBase* SolverObject = SolverObjectReverseMapping[ParticleIndex].SolverObject)
+		if (IPhysicsProxyBase* PhysicsProxy = PhysicsProxyReverseMapping[ParticleIndex].PhysicsProxy)
 		{
-			if (UGeometryCollectionComponent* GeometryCollectionComponent = SolverData.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(SolverObject))
+			if (UGeometryCollectionComponent* GeometryCollectionComponent = SolverData.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(PhysicsProxy))
 			{
 				if (const UGeometryCollection* GeometryCollection = GeometryCollectionComponent->GetRestCollection())
 				{
@@ -656,118 +679,46 @@ void GetMesPhysicalData(FSolverData SolverData,
 #endif
 
 #if INCLUDE_CHAOS
-bool UNiagaraDataInterfaceChaosDestruction::GetAllCollisionsAndMaps(FSolverData SolverData,
-																	TArray<Chaos::TCollisionDataExt<float, 3>>& AllCollisionsArray,
-																	TArray<SolverObjectWrapper>& SolverObjectReverseMappingArray,
-																	TArray<int32>& ParticleIndexReverseMappingArray,
-																	TMap<ISolverObjectBase*, TArray<int32>>& AllCollisionsIndicesBySolverObjectMap,
-																	float& TimeData_MapsCreated)
+
+void UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_GetAllCollisionsAndMaps);
+	ensure(IsInGameThread());
+	
+	// Copy data from Event into AllCollisionsArray
+	// Also get Boundingbox related data and SurfaceType and save it as well
+	CollisionEvents.AddUninitialized(Event.CollisionData.AllCollisionsArray.Num());
 
-	// ----------------------------------------------------------------------------------------------------------
-	// GETTING DATA FROM PBDRIGIDSOLVER
-	// ----------------------------------------------------------------------------------------------------------
-	Chaos::FPBDRigidsSolver::FScopedGetEventsData ScopedAccess = SolverData.Solver->ScopedGetEventsData();
-
-	const Chaos::FPBDRigidsSolver::FAllCollisionDataMaps& AllCollisionData_Maps = ScopedAccess.GetAllCollisions_Maps();
-	if (AllCollisionData_Maps.IsValid())
+	int32 Idx = 0;
+	for (Chaos::TCollisionDataExt<float, 3>& Collision : CollisionEvents)
 	{
-		if ((*AllCollisionData_Maps.AllCollisionData).TimeCreated == TimeStampOfLastProcessedData)
-		{
-			return false;
-		}
+		Collision = Event.CollisionData.AllCollisionsArray[Idx];
 
-		if (bGetExternalCollisionData)
-		{
-			// NOTE: TODO: These arrays and maps are not used due to GetMeshExtData and GetMesPhysicalData not currently being used due perf concerns
-			if (AllCollisionData_Maps.SolverObjectReverseMapping)
-			{
-				SolverObjectReverseMappingArray = (*AllCollisionData_Maps.SolverObjectReverseMapping).SolverObjectReverseMappingArray;
-			}
-			else
-			{
-				return false;
-			}
-			if (AllCollisionData_Maps.ParticleIndexReverseMapping)
-			{
-				ParticleIndexReverseMappingArray = (*AllCollisionData_Maps.ParticleIndexReverseMapping).ParticleIndexReverseMappingArray;
-			}
-			else
-			{
-				return false;
-			}
-			if (AllCollisionData_Maps.AllCollisionsIndicesBySolverObject)
-			{
-				AllCollisionsIndicesBySolverObjectMap = (*AllCollisionData_Maps.AllCollisionsIndicesBySolverObject).AllCollisionsIndicesBySolverObjectMap;
-			}
-			else
-			{
-				return false;
-			}
-		}
-		
-		if (AllCollisionData_Maps.AllCollisionData)
-		{
-			// Copy data from *AllCollisionData_Maps.AllCollisionData into AllCollisionsArray
-			// Also get Boundingbox related data and SurfaceType and save it as well
-			AllCollisionsArray.AddUninitialized((*AllCollisionData_Maps.AllCollisionData).AllCollisionsArray.Num());
+		// #GM: Disable this for now for perf
+		/*
+		GetMeshExtData(SolverData,
+			AllCollisionsArray[Idx].ParticleIndexMesh == INDEX_NONE ? AllCollisionsArray[Idx].ParticleIndex : AllCollisionsArray[Idx].ParticleIndexMesh,
+			PhysicsProxyReverseMappingArray,
+			ParticleIndexReverseMappingArray,
+			AllCollisionsArray[Idx].BoundingboxVolume,
+			AllCollisionsArray[Idx].BoundingboxExtentMin,
+			AllCollisionsArray[Idx].BoundingboxExtentMax,
+			AllCollisionsArray[Idx].SurfaceType);
+		*/
+		CollisionEvents[Idx].BoundingboxVolume = 1000000.f;
+		CollisionEvents[Idx].BoundingboxExtentMin = 100.f;
+		CollisionEvents[Idx].BoundingboxExtentMax = 100.f;
+		CollisionEvents[Idx].SurfaceType = 0;
 
-			int32 Idx = 0;
-			for (Chaos::TCollisionDataExt<float, 3>& Collision : AllCollisionsArray)
-			{
-				Collision = (*AllCollisionData_Maps.AllCollisionData).AllCollisionsArray[Idx];
-
-				// #GM: Disable this for now for perf
-				/*
-				GetMeshExtData(SolverData,
-					AllCollisionsArray[Idx].ParticleIndexMesh == INDEX_NONE ? AllCollisionsArray[Idx].ParticleIndex : AllCollisionsArray[Idx].ParticleIndexMesh,
-					SolverObjectReverseMappingArray,
-					ParticleIndexReverseMappingArray,
-					AllCollisionsArray[Idx].BoundingboxVolume,
-					AllCollisionsArray[Idx].BoundingboxExtentMin,
-					AllCollisionsArray[Idx].BoundingboxExtentMax,
-					AllCollisionsArray[Idx].SurfaceType);
-				*/
-				AllCollisionsArray[Idx].BoundingboxVolume = 1000000.f;
-				AllCollisionsArray[Idx].BoundingboxExtentMin = 100.f;
-				AllCollisionsArray[Idx].BoundingboxExtentMax = 100.f;
-				AllCollisionsArray[Idx].SurfaceType = 0;
-
-				Idx++;
-			}
-		}
-		else
-		{
-			return false;
-		}
+		Idx++;
 	}
-	else
-	{
-		return false;
-	}
-
-	TimeData_MapsCreated = (*AllCollisionData_Maps.AllCollisionData).TimeCreated;
-	TimeStampOfLastProcessedData = TimeData_MapsCreated;
-	// ----------------------------------------------------------------------------------------------------------
-	// END OF GETTING DATA FROM PBDRIGIDSOLVER
-	// ----------------------------------------------------------------------------------------------------------
-
-	// Option one:
-	// - deep copy the data and release after deep copy
-	//
-	// Option two:
-	// - reference the data and release it at the end of processing it
-	// ----------------------------------------------------------------------------------------------------------
-
-	return true;
 }
+
 
 void UNiagaraDataInterfaceChaosDestruction::FilterAllCollisions(TArray<Chaos::TCollisionDataExt<float, 3>>& AllCollisionsArray)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FilterAllCollisions);
 
-	if (ParticleIndexToProcess != -1 ||
+	if (/*ParticleToProcess != nullptr ||*/
 		ImpulseToSpawnMinMax.X > 0.f ||
 		ImpulseToSpawnMinMax.Y > 0.f ||
 		SpeedToSpawnMinMax.X > 0.f ||
@@ -802,7 +753,7 @@ void UNiagaraDataInterfaceChaosDestruction::FilterAllCollisions(TArray<Chaos::TC
 			float CollisionAccumulatedImpulseSquared = AllCollisionsArray[IdxCollision].AccumulatedImpulse.SizeSquared();
 			float CollisionSpeedSquared = AllCollisionsArray[IdxCollision].Velocity1.SizeSquared();
 
-			if ((ParticleIndexToProcess != -1 && AllCollisionsArray[IdxCollision].ParticleIndex != ParticleIndexToProcess) ||
+			if (/*(ParticleToProcess != nullptr && AllCollisionsArrayInOut[IdxCollision].Particle != ParticleToProcess) ||*/
 				(ImpulseToSpawnMinMax.X > 0.f && ImpulseToSpawnMinMax.Y < 0.f && CollisionAccumulatedImpulseSquared < MinImpulseToSpawnSquared) ||
 				(ImpulseToSpawnMinMax.X < 0.f && ImpulseToSpawnMinMax.Y > 0.f && CollisionAccumulatedImpulseSquared > MaxImpulseToSpawnSquared) ||
 				(ImpulseToSpawnMinMax.X > 0.f && ImpulseToSpawnMinMax.Y > 0.f && (CollisionAccumulatedImpulseSquared < MinImpulseToSpawnSquared || CollisionAccumulatedImpulseSquared > MaxImpulseToSpawnSquared)) ||
@@ -1111,7 +1062,7 @@ int32 UNiagaraDataInterfaceChaosDestruction::SpawnParticlesFromCollision(FSolver
 			}
 			else if (DebugType == EDebugTypeEnum::ChaosNiagara_DebugType_ColorByParticleIndex)
 			{
-				ParticleColor = ColorArray[Collision.ParticleIndex % ColorArray.Num()];
+				//ParticleColor = ColorArray[Collision.ParticleIndex % ColorArray.Num()];
 			}
 
 			// Store principal data
@@ -1139,7 +1090,6 @@ int32 UNiagaraDataInterfaceChaosDestruction::SpawnParticlesFromCollision(FSolver
 	
 		return NumParticles;
 	}
-
 	return 0;
 }
 
@@ -1148,40 +1098,16 @@ bool UNiagaraDataInterfaceChaosDestruction::CollisionCallback(FNDIChaosDestructi
 	int32 IdxSolver = 0;
 	for (FSolverData SolverData : Solvers)
 	{
-		if (SolverData.Solver->GetGenerateCollisionData() && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
+		if (SolverData.Solver->GetEventFilters()->IsCollisionEventEnabled() && CollisionEvents.Num() > 0 && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
 		{
-			TArray<Chaos::TCollisionDataExt<float, 3>> AllCollisionsArray;
-			TArray<SolverObjectWrapper> SolverObjectReverseMappingArray;
-			TArray<int32> ParticleIndexReverseMappingArray;
-			TMap<ISolverObjectBase*, TArray<int32>> AllCollisionsIndicesBySolverObjectMap;
-			float TimeData_MapsCreated;
-
-			if (!GetAllCollisionsAndMaps(SolverData,
-										 AllCollisionsArray,
-										 SolverObjectReverseMappingArray,
-										 ParticleIndexReverseMappingArray,
-										 AllCollisionsIndicesBySolverObjectMap,
-										 TimeData_MapsCreated))
-			{
-				return false;
-			}
+			TArray<Chaos::TCollisionDataExt<float, 3>>& AllCollisionsArray = CollisionEvents;
+			float TimeData_MapsCreated = 0.0f;
 
 #if STATS
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_GatherMemoryStats);
 				size_t SizeOfAllCollisions = sizeof(Chaos::TCollisionData<float, 3>) * AllCollisionsArray.Num();
-				size_t SizeOfSolverObjectReverseMapping = sizeof(SolverObjectWrapper) * SolverObjectReverseMappingArray.Num();
-				size_t SizeOfParticleIndexReverseMapping = sizeof(int32) * ParticleIndexReverseMappingArray.Num();
-
-				size_t SizeOfAllCollisionsIndicesBySolverObject = 0;
-				for (auto& Elem : AllCollisionsIndicesBySolverObjectMap)
-				{
-					SizeOfAllCollisionsIndicesBySolverObject += sizeof(int32) * (Elem.Value).Num();
-				}
 				SET_MEMORY_STAT(STAT_AllCollisionsDataMemory, SizeOfAllCollisions);
-				SET_MEMORY_STAT(STAT_SolverObjectReverseMappingMemory, SizeOfSolverObjectReverseMapping);
-				SET_MEMORY_STAT(STAT_ParticleIndexReverseMappingMemory, SizeOfParticleIndexReverseMapping);
-				SET_MEMORY_STAT(STAT_AllCollisionsIndicesBySolverObjectMemory, SizeOfAllCollisionsIndicesBySolverObject);
 			}
 
 			INC_DWORD_STAT_BY(STAT_NiagaraNumAllCollisions, AllCollisionsArray.Num());
@@ -1220,7 +1146,7 @@ bool UNiagaraDataInterfaceChaosDestruction::CollisionCallback(FNDIChaosDestructi
 						/*
 						GetMesPhysicalData(SolverData,
 							CollisionsToSpawnArray[IdxCollision].ParticleIndexMesh == INDEX_NONE ? CollisionsToSpawnArray[IdxCollision].ParticleIndex : CollisionsToSpawnArray[IdxCollision].ParticleIndexMesh,
-							SolverObjectReverseMappingArray,
+							PhysicsProxyReverseMappingArray,
 							ParticleIndexReverseMappingArray,
 							Color,
 							Friction,
@@ -1250,145 +1176,71 @@ bool UNiagaraDataInterfaceChaosDestruction::CollisionCallback(FNDIChaosDestructi
 	return false;
 }
 
-bool UNiagaraDataInterfaceChaosDestruction::GetAllBreakingsAndMaps(FSolverData SolverData,
-																   TArray<Chaos::TBreakingDataExt<float, 3>>& AllBreakingsArray,
-																   TArray<SolverObjectWrapper>& SolverObjectReverseMappingArray,
-																   TArray<int32>& ParticleIndexReverseMappingArray,
-																   TMap<ISolverObjectBase*, TArray<int32>>& AllBreakingIndicesBySolverObjectMap,
-																   float& TimeData_MapsCreated)
+void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
 {
-	// ----------------------------------------------------------------------------------------------------------
-	// GETTING DATA FROM PBDRIGIDSOLVER
-	// ----------------------------------------------------------------------------------------------------------
-	Chaos::FPBDRigidsSolver::FScopedGetEventsData ScopedAccess = SolverData.Solver->ScopedGetEventsData();
-	Chaos::FPBDRigidsSolver::FAllBreakingDataMaps AllBreakingData_Maps = ScopedAccess.GetAllBreakings_Maps();
-	if (AllBreakingData_Maps.IsValid())
+	ensure(IsInGameThread());
+
+	// Copy data from *AllBreakingData_Maps.AllBreakingData into AllBreakingsArray
+	// Also get Boundingbox related data and SurfaceType and save it as well
+	BreakingEvents.InsertZeroed(0, Event.BreakingData.AllBreakingsArray.Num());
+	//UE_LOG(LogScript, Warning, TEXT("(*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray.Num() = %d"), (*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray.Num());
+	int32 Idx = 0;
+	for (Chaos::TBreakingDataExt<float, 3>& Breaking : BreakingEvents)
 	{
-		if (bGetExternalBreakingData) 
-		{
-			if ((*AllBreakingData_Maps.AllBreakingData).TimeCreated == TimeStampOfLastProcessedData)
-			{
-				return false;
-			}
+		Breaking = Event.BreakingData.AllBreakingsArray[Idx];
 
-			if (AllBreakingData_Maps.SolverObjectReverseMapping)
-			{
-				SolverObjectReverseMappingArray = (*AllBreakingData_Maps.SolverObjectReverseMapping).SolverObjectReverseMappingArray;
-			}
-			else
-			{
-				return false;
-			}
-			if (AllBreakingData_Maps.ParticleIndexReverseMapping)
-			{
-				ParticleIndexReverseMappingArray = (*AllBreakingData_Maps.ParticleIndexReverseMapping).ParticleIndexReverseMappingArray;
-			}
-			else
-			{
-				return false;
-			}
-			if (AllBreakingData_Maps.AllBreakingsIndicesBySolverObject)
-			{
-				AllBreakingIndicesBySolverObjectMap = (*AllBreakingData_Maps.AllBreakingsIndicesBySolverObject).AllBreakingsIndicesBySolverObjectMap;
-			}
-			else
-			{
-				return false;
-			}
-		}
-			
-		if (AllBreakingData_Maps.AllBreakingData)
+		// #GM: Disable this for now for perf
+		// TODO(mv): Temporarily re-enable this for Jon to get materials, transform and bounding box. Will optimize in the coming week. 
+		if (bGetExternalBreakingData)
 		{
-			ensure(IsInGameThread());
-			
-			// Copy data from *AllBreakingData_Maps.AllBreakingData into AllBreakingsArray
-			// Also get Boundingbox related data and SurfaceType and save it as well
-			AllBreakingsArray.InsertZeroed(0, (*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray.Num());
-			//UE_LOG(LogScript, Warning, TEXT("(*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray.Num() = %d"), (*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray.Num());
-			int32 Idx = 0;
-			for (Chaos::TBreakingDataExt<float, 3>& Breaking : AllBreakingsArray)
-			{	
-				if (!ensure(AllBreakingsArray.Num() == (*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray.Num())) {
-					continue;
-				}
-				Breaking = (*AllBreakingData_Maps.AllBreakingData).AllBreakingsArray[Idx];
-
-				// #GM: Disable this for now for perf
-				// TODO(mv): Temporarily re-enable this for Jon to get materials, transform and bounding box. Will optimize in the coming week. 
-				if (bGetExternalBreakingData)
-				{
-					Chaos::TRigidTransform<float, 3> Transform;
-					UPhysicalMaterial* Material = nullptr;
-					GetMeshExtData(SolverData,
-						AllBreakingsArray[Idx].ParticleIndexMesh == INDEX_NONE ? AllBreakingsArray[Idx].ParticleIndex : AllBreakingsArray[Idx].ParticleIndexMesh,
-						SolverObjectReverseMappingArray,
-						ParticleIndexReverseMappingArray,
-						AllBreakingsArray[Idx].BoundingboxVolume,
-						AllBreakingsArray[Idx].BoundingboxExtentMin,
-						AllBreakingsArray[Idx].BoundingboxExtentMax,
-						AllBreakingsArray[Idx].BoundingBox,
-						AllBreakingsArray[Idx].SurfaceType,
-						Transform,
-						Material);
-					//UE_LOG(LogScript, Warning, TEXT("GetAllBreakingsAndMaps[%d]: SurfaceType = %d"), Idx, AllBreakingsArray[Idx].SurfaceType);
-					AllBreakingsArray[Idx].TransformTranslation = Transform.GetTranslation();
-					AllBreakingsArray[Idx].TransformRotation = Transform.GetRotation();
-					AllBreakingsArray[Idx].TransformScale = Transform.GetScale3D();
-					if (Material)
-					{
-						AllBreakingsArray[Idx].PhysicalMaterialName = Material->GetFName();
-					}
-					else
-					{
-						AllBreakingsArray[Idx].PhysicalMaterialName = FName();
-					}
-				}
-				else
-				{
-					AllBreakingsArray[Idx].BoundingboxVolume = 1000000.f;
-					AllBreakingsArray[Idx].BoundingboxExtentMin = 100.0f;
-					AllBreakingsArray[Idx].BoundingboxExtentMax = 100.0f;
-					AllBreakingsArray[Idx].BoundingBox = FBox(FVector(-100.0f, -100.0f, -100.0f), FVector(100.0f, 100.0f, 100.0f));
-					AllBreakingsArray[Idx].SurfaceType = 0;
-					AllBreakingsArray[Idx].TransformTranslation = FVector(0.0f, 0.0f, 0.0f);
-					AllBreakingsArray[Idx].TransformRotation = FQuat(0.0f, 0.0f, 0.0f, 1.0f);
-					AllBreakingsArray[Idx].TransformScale = FVector(1.0f, 1.0f, 1.0f);
-					AllBreakingsArray[Idx].PhysicalMaterialName = FName();
-				}
-				
-				Idx++;
-			}
+			//Chaos::TRigidTransform<float, 3> Transform;
+			//UPhysicalMaterial* Material = nullptr;
+			//GetMeshExtData(SolverData,
+			//	AllBreakingsArray[Idx].ParticleIndexMesh == INDEX_NONE ? AllBreakingsArray[Idx].ParticleIndex : AllBreakingsArray[Idx].ParticleIndexMesh,
+			//	PhysicsProxyReverseMappingArray,
+			//	ParticleIndexReverseMappingArray,
+			//	AllBreakingsArray[Idx].BoundingboxVolume,
+			//	AllBreakingsArray[Idx].BoundingboxExtentMin,
+			//	AllBreakingsArray[Idx].BoundingboxExtentMax,
+			//	AllBreakingsArray[Idx].BoundingBox,
+			//	AllBreakingsArray[Idx].SurfaceType,
+			//	Transform,
+			//	Material);
+			////UE_LOG(LogScript, Warning, TEXT("GetAllBreakingsAndMaps[%d]: SurfaceType = %d"), Idx, AllBreakingsArray[Idx].SurfaceType);
+			//AllBreakingsArray[Idx].TransformTranslation = Transform.GetTranslation();
+			//AllBreakingsArray[Idx].TransformRotation = Transform.GetRotation();
+			//AllBreakingsArray[Idx].TransformScale = Transform.GetScale3D();
+			//if (Material)
+			//{
+			//	AllBreakingsArray[Idx].PhysicalMaterialName = Material->GetFName();
+			//}
+			//else
+			//{
+			//	AllBreakingsArray[Idx].PhysicalMaterialName = FName();
+			//}
 		}
 		else
 		{
-			return false;
+			BreakingEvents[Idx].BoundingboxVolume = 1000000.f;
+			BreakingEvents[Idx].BoundingboxExtentMin = 100.0f;
+			BreakingEvents[Idx].BoundingboxExtentMax = 100.0f;
+			BreakingEvents[Idx].BoundingBox = FBox(FVector(-100.0f, -100.0f, -100.0f), FVector(100.0f, 100.0f, 100.0f));
+			BreakingEvents[Idx].SurfaceType = 0;
+			BreakingEvents[Idx].TransformTranslation = FVector(0.0f, 0.0f, 0.0f);
+			BreakingEvents[Idx].TransformRotation = FQuat(0.0f, 0.0f, 0.0f, 1.0f);
+			BreakingEvents[Idx].TransformScale = FVector(1.0f, 1.0f, 1.0f);
+			BreakingEvents[Idx].PhysicalMaterialName = FName();
 		}
+
+		Idx++;
 	}
-	else
-	{
-		return false;
-	}
-
-	TimeData_MapsCreated = (*AllBreakingData_Maps.AllBreakingData).TimeCreated;
-	TimeStampOfLastProcessedData = TimeData_MapsCreated;
-	// ----------------------------------------------------------------------------------------------------------
-	// END OF GETTING DATA FROM PBDRIGIDSOLVER
-	// ----------------------------------------------------------------------------------------------------------
-
-	// Option one:
-	// - deep copy the data and release after deep copy
-	//
-	// Option two:
-	// - reference the data and release it at the end of processing it
-	// ----------------------------------------------------------------------------------------------------------
-
-	return true;
 }
+
 
 void UNiagaraDataInterfaceChaosDestruction::FilterAllBreakings(TArray<Chaos::TBreakingDataExt<float, 3>>& AllBreakingsArray)
 {
 	if (bApplyMaterialsFilter || 
-		ParticleIndexToProcess != -1 ||
+	//	ParticleIndexToProcess != -1 ||
 		SpeedToSpawnMinMax.X > 0.f ||
 		SpeedToSpawnMinMax.Y > 0.f ||
 		MassToSpawnMinMax.X > 0.f ||
@@ -1441,7 +1293,7 @@ void UNiagaraDataInterfaceChaosDestruction::FilterAllBreakings(TArray<Chaos::TBr
 			float BreakingSpeedSquared = AllBreakingsArray[IdxBreaking].Velocity.SizeSquared();
 
 			if (!(bApplyMaterialsFilter && IsMaterialInFilter(AllBreakingsArray[IdxBreaking].PhysicalMaterialName)) ||
-				(ParticleIndexToProcess != -1 && AllBreakingsArray[IdxBreaking].ParticleIndex != ParticleIndexToProcess) ||
+				//(ParticleIndexToProcess != -1 && AllBreakingsArray[IdxBreaking].ParticleIndex != ParticleIndexToProcess) ||
 				(SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y < 0.f && BreakingSpeedSquared < MinSpeedToSpawnSquared) ||
 				(SpeedToSpawnMinMax.X < 0.f && SpeedToSpawnMinMax.Y > 0.f && BreakingSpeedSquared > MaxSpeedToSpawnSquared) ||
 				(SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y > 0.f && (BreakingSpeedSquared < MinSpeedToSpawnSquared || BreakingSpeedSquared > MaxSpeedToSpawnSquared)) ||
@@ -1774,38 +1626,28 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 	int32 IdxSolver = 0;
 	for (FSolverData SolverData : Solvers)
 	{
-		if (SolverData.Solver->GetGenerateBreakingData() && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
+		if (SolverData.Solver->GetEventFilters()->IsBreakingEventEnabled() && BreakingEvents.Num() > 0 && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
 		{
-			TArray<Chaos::TBreakingDataExt<float, 3>> AllBreakingsArray;
-			TArray<SolverObjectWrapper> SolverObjectReverseMappingArray;
+			TArray<Chaos::TBreakingDataExt<float, 3>>& AllBreakingsArray = BreakingEvents;
+			TArray<PhysicsProxyWrapper> PhysicsProxyReverseMappingArray;
 			TArray<int32> ParticleIndexReverseMappingArray;
-			TMap<ISolverObjectBase*, TArray<int32>> AllBreakingsIndicesBySolverObjectMap;
-			float TimeData_MapsCreated;
-
-			if (!GetAllBreakingsAndMaps(SolverData,
-										AllBreakingsArray,
-										SolverObjectReverseMappingArray,
-										ParticleIndexReverseMappingArray,
-										AllBreakingsIndicesBySolverObjectMap,
-										TimeData_MapsCreated))
-			{
-				return false;
-			}
+			TMap<IPhysicsProxyBase*, TArray<int32>> AllBreakingsIndicesByPhysicsProxyMap;
+			float TimeData_MapsCreated = 0.0f;
 
 			{
 				size_t SizeOfAllBreakings = sizeof(Chaos::TBreakingData<float, 3>) * AllBreakingsArray.Num();
-				size_t SizeOfSolverObjectReverseMapping = sizeof(SolverObjectWrapper) * SolverObjectReverseMappingArray.Num();
+				size_t SizeOfPhysicsProxyReverseMapping = sizeof(PhysicsProxyWrapper) * PhysicsProxyReverseMappingArray.Num();
 				size_t SizeOfParticleIndexReverseMapping = sizeof(int32) * ParticleIndexReverseMappingArray.Num();
 
-				size_t SizeOfAllBreakingsIndicesBySolverObject = 0;
-				for (auto& Elem : AllBreakingsIndicesBySolverObjectMap)
+				size_t SizeOfAllBreakingsIndicesByPhysicsProxy = 0;
+				for (auto& Elem : AllBreakingsIndicesByPhysicsProxyMap)
 				{
-					SizeOfAllBreakingsIndicesBySolverObject += sizeof(int32) * (Elem.Value).Num();
+					SizeOfAllBreakingsIndicesByPhysicsProxy += sizeof(int32) * (Elem.Value).Num();
 				}
 				SET_MEMORY_STAT(STAT_AllBreakingsDataMemory, SizeOfAllBreakings);
-				SET_MEMORY_STAT(STAT_SolverObjectReverseMappingMemory, SizeOfSolverObjectReverseMapping);
+				SET_MEMORY_STAT(STAT_PhysicsProxyReverseMappingMemory, SizeOfPhysicsProxyReverseMapping);
 				SET_MEMORY_STAT(STAT_ParticleIndexReverseMappingMemory, SizeOfParticleIndexReverseMapping);
-				SET_MEMORY_STAT(STAT_AllBreakingsIndicesBySolverObjectMemory, SizeOfAllBreakingsIndicesBySolverObject);
+				SET_MEMORY_STAT(STAT_AllBreakingsIndicesByPhysicsProxyMemory, SizeOfAllBreakingsIndicesByPhysicsProxy);
 			}
 
 			INC_DWORD_STAT_BY(STAT_NiagaraNumAllBreakings, AllBreakingsArray.Num());
@@ -1845,7 +1687,7 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 							// #GM: Disable this for now for perf
 							GetMesPhysicalData(SolverData,
 											   BreakingsToSpawnArray[IdxBreaking].ParticleIndexMesh == INDEX_NONE ? BreakingsToSpawnArray[IdxBreaking].ParticleIndex : BreakingsToSpawnArray[IdxBreaking].ParticleIndexMesh,
-											   SolverObjectReverseMappingArray,
+											   PhysicsProxyReverseMappingArray,
 											   ParticleIndexReverseMappingArray,
 											   Color,
 											   Friction,
@@ -1878,106 +1720,42 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 
 }
 
-bool UNiagaraDataInterfaceChaosDestruction::GetAllTrailingsAndMaps(FSolverData SolverData,
-																   TArray<Chaos::TTrailingDataExt<float, 3>>& AllTrailingsArray,
-																   TArray<SolverObjectWrapper>& SolverObjectReverseMappingArray,
-																   TArray<int32>& ParticleIndexReverseMappingArray,
-																   TMap<ISolverObjectBase*, TArray<int32>>& AllTrailingsIndicesBySolverObjectMap,
-																   float& TimeData_MapsCreated)
+void UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents(const Chaos::FTrailingEventData& Event)
 {
-	// ----------------------------------------------------------------------------------------------------------
-	// GETTING DATA FROM PBDRIGIDSOLVER
-	// ----------------------------------------------------------------------------------------------------------
-	Chaos::FPBDRigidsSolver::FScopedGetEventsData ScopedAccess = SolverData.Solver->ScopedGetEventsData();
-	Chaos::FPBDRigidsSolver::FAllTrailingDataMaps AllTrailingData_Maps = ScopedAccess.GetAllTrailings_Maps();
+	ensure(IsInGameThread());
 
-	if (AllTrailingData_Maps.IsValid())
+	// Copy data from *AllTrailingData_Maps.AllTrailingData into AllTrailingsArray
+	// Also get Boundingbox related data and SurfaceType and save it as well
+	TrailingEvents.AddUninitialized(Event.TrailingData.AllTrailingsArray.Num());
+
+	int32 Idx = 0;
+	for (Chaos::TTrailingDataExt<float, 3>& Trailing : TrailingEvents)
 	{
-		if (bGetExternalTrailingData) 
-		{
-			if ((*AllTrailingData_Maps.AllTrailingData).TimeCreated == TimeStampOfLastProcessedData)
-			{
-				return false;
-			}
+		Trailing = Event.TrailingData.AllTrailingsArray[Idx];
 
-			if (AllTrailingData_Maps.SolverObjectReverseMapping)
-			{
-				SolverObjectReverseMappingArray = (*AllTrailingData_Maps.SolverObjectReverseMapping).SolverObjectReverseMappingArray;
-			}
-			else
-			{
-				return false;
-			}
-			if (AllTrailingData_Maps.ParticleIndexReverseMapping)
-			{
-				ParticleIndexReverseMappingArray = (*AllTrailingData_Maps.ParticleIndexReverseMapping).ParticleIndexReverseMappingArray;
-			}
-			else
-			{
-				return false;
-			}
-			if (AllTrailingData_Maps.AllTrailingsIndicesBySolverObject)
-			{
-				AllTrailingsIndicesBySolverObjectMap = (*AllTrailingData_Maps.AllTrailingsIndicesBySolverObject).AllTrailingsIndicesBySolverObjectMap;
-			}
-			else
-			{
-				return false;
-			}
-		}
+		// #GM: Disable this for now for perf
+		/*
+		GetMeshExtData(SolverData,
+			AllTrailingsArray[Idx].ParticleIndexMesh == INDEX_NONE ? AllTrailingsArray[Idx].ParticleIndex : AllTrailingsArray[Idx].ParticleIndexMesh,
+			PhysicsProxyReverseMappingArray,
+			ParticleIndexReverseMappingArray,
+			AllTrailingsArray[Idx].BoundingboxVolume,
+			AllTrailingsArray[Idx].BoundingboxExtentMin,
+			AllTrailingsArray[Idx].BoundingboxExtentMax,
+			AllTrailingsArray[Idx].SurfaceType);
+		*/
+		TrailingEvents[Idx].BoundingboxVolume = 1000000.f;
+		TrailingEvents[Idx].BoundingboxExtentMin = 100.f;
+		TrailingEvents[Idx].BoundingboxExtentMax = 100.f;
+		TrailingEvents[Idx].SurfaceType = 0;
 
-		if (AllTrailingData_Maps.AllTrailingData)
-		{
-			// Copy data from *AllTrailingData_Maps.AllTrailingData into AllTrailingsArray
-			// Also get Boundingbox related data and SurfaceType and save it as well
-			AllTrailingsArray.AddUninitialized((*AllTrailingData_Maps.AllTrailingData).AllTrailingsArray.Num());
-
-			int32 Idx = 0;
-			for (Chaos::TTrailingDataExt<float, 3>& Trailing : AllTrailingsArray)
-			{
-				Trailing = (*AllTrailingData_Maps.AllTrailingData).AllTrailingsArray[Idx];
-
-				// #GM: Disable this for now for perf
-				/*
-				GetMeshExtData(SolverData,
-					AllTrailingsArray[Idx].ParticleIndexMesh == INDEX_NONE ? AllTrailingsArray[Idx].ParticleIndex : AllTrailingsArray[Idx].ParticleIndexMesh,
-					SolverObjectReverseMappingArray,
-					ParticleIndexReverseMappingArray,
-					AllTrailingsArray[Idx].BoundingboxVolume,
-					AllTrailingsArray[Idx].BoundingboxExtentMin,
-					AllTrailingsArray[Idx].BoundingboxExtentMax,
-					AllTrailingsArray[Idx].SurfaceType);
-				*/
-				AllTrailingsArray[Idx].BoundingboxVolume = 1000000.f;
-				AllTrailingsArray[Idx].BoundingboxExtentMin = 100.f;
-				AllTrailingsArray[Idx].BoundingboxExtentMax = 100.f;
-				AllTrailingsArray[Idx].SurfaceType = 0;
-
-				Idx++;
-			}
-		}
-		else
-		{
-			return false;
-		}
+		Idx++;
 	}
-	else
-	{
-		return false;
-	}
-
-	TimeData_MapsCreated = (*AllTrailingData_Maps.AllTrailingData).TimeCreated;
-	TimeStampOfLastProcessedData = TimeData_MapsCreated;
-	// ----------------------------------------------------------------------------------------------------------
-	// END OF GETTING DATA FROM PBDRIGIDSOLVER
-	// ----------------------------------------------------------------------------------------------------------
-
-	return true;
 }
 
 void UNiagaraDataInterfaceChaosDestruction::FilterAllTrailings(TArray<Chaos::TTrailingDataExt<float, 3>>& AllTrailingsArray)
 {
-	if (ParticleIndexToProcess != -1 ||
+	if (/*ParticleIndexToProcess != -1 ||*/
 		SpeedToSpawnMinMax.X > 0.f ||
 		SpeedToSpawnMinMax.Y > 0.f ||
 		MassToSpawnMinMax.X > 0.f ||
@@ -2007,7 +1785,7 @@ void UNiagaraDataInterfaceChaosDestruction::FilterAllTrailings(TArray<Chaos::TTr
 		{
 			float TrailingSpeedSquared = AllTrailingsArray[IdxTrailing].Velocity.SizeSquared();
 
-			if ((ParticleIndexToProcess != -1 && AllTrailingsArray[IdxTrailing].ParticleIndex != ParticleIndexToProcess) ||
+			if (/*(ParticleIndexToProcess != -1 && AllTrailingsArray[IdxTrailing].ParticleIndex != ParticleIndexToProcess) ||*/
 				(SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y < 0.f && TrailingSpeedSquared < MinSpeedToSpawnSquared) ||
 				(SpeedToSpawnMinMax.X < 0.f && SpeedToSpawnMinMax.Y > 0.f && TrailingSpeedSquared > MaxSpeedToSpawnSquared) ||
 				(SpeedToSpawnMinMax.X > 0.f && SpeedToSpawnMinMax.Y > 0.f && (TrailingSpeedSquared < MinSpeedToSpawnSquared || TrailingSpeedSquared > MaxSpeedToSpawnSquared)) ||
@@ -2205,7 +1983,7 @@ int32 UNiagaraDataInterfaceChaosDestruction::SpawnParticlesFromTrailing(FSolverD
 			}
 			else if (DebugType == EDebugTypeEnum::ChaosNiagara_DebugType_ColorByParticleIndex)
 			{
-				ParticleColor = ColorArray[Trailing.ParticleIndex % ColorArray.Num()];
+				//ParticleColor = ColorArray[Trailing.ParticleIndex % ColorArray.Num()];
 			}
 
 			// Store principal data
@@ -2244,38 +2022,28 @@ bool UNiagaraDataInterfaceChaosDestruction::TrailingCallback(FNDIChaosDestructio
 	int32 IdxSolver = 0;
 	for (FSolverData SolverData : Solvers)
 	{
-		if (SolverData.Solver->GetGenerateTrailingData() && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
+		if (SolverData.Solver->GetEventFilters()->IsTrailingEventEnabled() && TrailingEvents.Num() > 0 && SolverData.Solver->GetSolverTime() > 0.f && MaxNumberOfDataEntriesToSpawn > 0)
 		{
-			TArray<Chaos::TTrailingDataExt<float, 3>> AllTrailingsArray;
-			TArray<SolverObjectWrapper> SolverObjectReverseMappingArray;
+			TArray<Chaos::TTrailingDataExt<float, 3>>& AllTrailingsArray = TrailingEvents;
+			TArray<PhysicsProxyWrapper> PhysicsProxyReverseMappingArray;
 			TArray<int32> ParticleIndexReverseMappingArray;
-			TMap<ISolverObjectBase*, TArray<int32>> AllTrailingsIndicesBySolverObjectMap;
-			float TimeData_MapsCreated;
-
-			if (!GetAllTrailingsAndMaps(SolverData,
-				AllTrailingsArray,
-				SolverObjectReverseMappingArray,
-				ParticleIndexReverseMappingArray,
-				AllTrailingsIndicesBySolverObjectMap,
-				TimeData_MapsCreated))
-			{
-				return false;
-			}
+			TMap<IPhysicsProxyBase*, TArray<int32>> AllTrailingsIndicesByPhysicsProxyMap;
+			float TimeData_MapsCreated = 0.0f;
 
 			{
 				size_t SizeOfAllTrailings = sizeof(Chaos::TTrailingData<float, 3>) * AllTrailingsArray.Num();
-				size_t SizeOfSolverObjectReverseMapping = sizeof(SolverObjectWrapper) * SolverObjectReverseMappingArray.Num();
+				size_t SizeOfPhysicsProxyReverseMapping = sizeof(PhysicsProxyWrapper) * PhysicsProxyReverseMappingArray.Num();
 				size_t SizeOfParticleIndexReverseMapping = sizeof(int32) * ParticleIndexReverseMappingArray.Num();
 
-				size_t SizeOfAllTrailingsIndicesBySolverObject = 0;
-				for (auto& Elem : AllTrailingsIndicesBySolverObjectMap)
+				size_t SizeOfAllTrailingsIndicesByPhysicsProxy = 0;
+				for (auto& Elem : AllTrailingsIndicesByPhysicsProxyMap)
 				{
-					SizeOfAllTrailingsIndicesBySolverObject += sizeof(int32) * (Elem.Value).Num();
+					SizeOfAllTrailingsIndicesByPhysicsProxy += sizeof(int32) * (Elem.Value).Num();
 				}
 				SET_MEMORY_STAT(STAT_AllTrailingsDataMemory, SizeOfAllTrailings);
-				SET_MEMORY_STAT(STAT_SolverObjectReverseMappingMemory, SizeOfSolverObjectReverseMapping);
+				SET_MEMORY_STAT(STAT_PhysicsProxyReverseMappingMemory, SizeOfPhysicsProxyReverseMapping);
 				SET_MEMORY_STAT(STAT_ParticleIndexReverseMappingMemory, SizeOfParticleIndexReverseMapping);
-				SET_MEMORY_STAT(STAT_AllTrailingsIndicesBySolverObjectMemory, SizeOfAllTrailingsIndicesBySolverObject);
+				SET_MEMORY_STAT(STAT_AllTrailingsIndicesByPhysicsProxyMemory, SizeOfAllTrailingsIndicesByPhysicsProxy);
 			}
 
 			INC_DWORD_STAT_BY(STAT_NiagaraNumAllTrailings, AllTrailingsArray.Num());
@@ -2312,7 +2080,7 @@ bool UNiagaraDataInterfaceChaosDestruction::TrailingCallback(FNDIChaosDestructio
 						/*
 						GetMesPhysicalData(SolverData,
 										   TrailingsToSpawnArray[IdxTrailing].ParticleIndexMesh == INDEX_NONE ? TrailingsToSpawnArray[IdxTrailing].ParticleIndex : TrailingsToSpawnArray[IdxTrailing].ParticleIndexMesh,
-										   SolverObjectReverseMappingArray,
+										   PhysicsProxyReverseMappingArray,
 										   ParticleIndexReverseMappingArray,
 										   Color,
 										   Friction,

@@ -2,7 +2,7 @@
 #pragma once
 #if INCLUDE_CHAOS
 
-#include "SolverObjects/AnalyticImplicitGroup.h"
+#include "PhysicsProxy/AnalyticImplicitGroup.h"
 
 DEFINE_LOG_CATEGORY_STATIC(USkeletalMeshSimulationComponentLogging, NoLogging, All);
 //DEFINE_LOG_CATEGORY_STATIC(USkeletalMeshSimulationComponentLogging, Log, All);
@@ -301,7 +301,7 @@ protected:
 		check(Roots.Num() != 0);
 		check(NumTransforms == ImplicitGroups.Num());
 		UE_LOG(USkeletalMeshSimulationComponentLogging, Log,
-			TEXT("USkeletalMeshPhysicsObject::InitHierarchy() - this: %p - "
+			TEXT("USkeletalMeshPhysicsProxy::InitHierarchy() - this: %p - "
 				"Implicit groups: %d, num transforms: %d, num roots: %d"),
 			this,
 			ImplicitGroups.Num(),

@@ -7,7 +7,7 @@
 #include "Chaos/ErrorReporter.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
-#include "SolverObjects/GeometryCollectionPhysicsObject.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Templates/SharedPointer.h"
 
 #if INCLUDE_CHAOS
@@ -51,7 +51,7 @@ namespace GeometryCollectionExample {
 			, RestCollection(RestCollectionIn)
 			, DynamicCollection(GeometryCollectionToGeometryDynamicCollection(RestCollection.Get()))
 			, PhysicalMaterial(new Chaos::TChaosPhysicsMaterial<T>())
-			, PhysicsObject(new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), [&](FSimulationParameters& P) {Init(P); }, nullptr, nullptr))
+			, PhysicsProxy(new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), [&](FSimulationParameters& P) {Init(P); }, nullptr, nullptr))
 		{
 			PhysicalMaterial->Friction = 0;
 			PhysicalMaterial->Restitution = 0;
@@ -70,13 +70,13 @@ namespace GeometryCollectionExample {
 			, RestCollection(InRestCollection)
 			, DynamicCollection(InDynamicCollection)
 			, PhysicalMaterial(InPhysicalMaterial)
-			, PhysicsObject(new FGeometryCollectionPhysicsObject(nullptr, DynamicCollection.Get(), [&](FSimulationParameters& P) {Init(P); }, nullptr, nullptr))
+			, PhysicsProxy(new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), [&](FSimulationParameters& P) {Init(P); }, nullptr, nullptr))
 		{
 		}
 
 		void Init(FSimulationParameters& InParams)
 		{
-			PhysicsObject->SetCollisionParticlesPerObjectFraction(1.0);
+			PhysicsProxy->SetCollisionParticlesPerObjectFraction(1.0);
 			InParams.RestCollection = RestCollection.Get();
 			InParams.DynamicCollection = DynamicCollection.Get();
 			InParams.PhysicalMaterial = MakeSerializable(PhysicalMaterial);
@@ -99,7 +99,7 @@ namespace GeometryCollectionExample {
 		TSharedPtr<FGeometryCollection> RestCollection;
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection;
 		TUniquePtr<Chaos::TChaosPhysicsMaterial<T>> PhysicalMaterial;
-		TSharedPtr<FGeometryCollectionPhysicsObject> PhysicsObject;
+		TSharedPtr<FGeometryCollectionPhysicsProxy> PhysicsProxy;
 		FSharedSimulationSizeSpecificData SimulationData;
 	};
 

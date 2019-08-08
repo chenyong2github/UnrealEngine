@@ -12,13 +12,14 @@
 #include "Framework/PersistentTask.h"
 #include "Misc/CoreDelegates.h"
 #include "HAL/IConsoleManager.h"
-#include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"
 #include "FramePro/FramePro.h"
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/UniformGrid.h"
 #include "UObject/Class.h"
 #include "Framework/Dispatcher.h"
+#include "Framework/DispatcherImpl.h"
 
 TAutoConsoleVariable<int32> CVarChaosThreadEnabled(
 	TEXT("p.Chaos.DedicatedThreadEnabled"),
@@ -44,16 +45,7 @@ namespace Chaos
 	{
 		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 
-		EThreadingMode CurrentMode = ChaosModule->GetDispatcher()->GetMode();
-
-		if(InMode != EThreadingMode::Invalid && InMode != CurrentMode)
-		{
-			// Handle shutdown of current threading model
-			ChaosModule->ShutdownThreadingMode();
-			
-			// Handle entering new threading model
-			ChaosModule->InitializeThreadingMode(InMode);
-		}
+		ChaosModule->ChangeThreadingMode(InMode);
 	}
 
 	void ChangeBufferingMode()
@@ -103,7 +95,7 @@ namespace Chaos
 
 	Chaos::EThreadingMode FInternalDefaultSettings::GetDefaultThreadingMode() const
 	{
-		return Chaos::EThreadingMode::DedicatedThread;
+		return Chaos::EThreadingMode::TaskGraph;
 	}
 
 	EChaosSolverTickMode FInternalDefaultSettings::GetDedicatedThreadTickMode() const
@@ -131,7 +123,7 @@ void FChaosConsoleSinks::OnCVarsChanged()
 		if(ChaosModule->IsPersistentTaskRunning())
 		{
 			float NewHz = CVarDedicatedThreadDesiredHz.GetValueOnGameThread();
-			ChaosModule->GetDispatcher()->EnqueueCommand([NewHz](Chaos::FPersistentPhysicsTask* Thread)
+			ChaosModule->GetDispatcher()->EnqueueCommandImmediate([NewHz](Chaos::FPersistentPhysicsTask* Thread)
 			{
 				if(Thread)
 				{
@@ -199,6 +191,7 @@ void FChaosSolversModule::StartupModule()
 	{
 		FModuleManager::Get().LoadModule("FieldSystemEngine");
 	}
+	Initialize();
 }
 
 void FChaosSolversModule::ShutdownModule()
@@ -214,26 +207,22 @@ void FChaosSolversModule::Initialize()
 	{
 		const Chaos::EThreadingMode DefaultThreadingMode = GetSettingsProvider().GetDefaultThreadingMode();
 
-		if(DefaultThreadingMode == Chaos::EThreadingMode::DedicatedThread)
+		switch(DefaultThreadingMode)
 		{
+		case Chaos::EThreadingMode::DedicatedThread:
 			StartPhysicsTask();
-		}
-		else
-		{
-			switch(DefaultThreadingMode)
-			{
-			case Chaos::EThreadingMode::SingleThread:
-				Dispatcher = new Chaos::FDispatcher<Chaos::EThreadingMode::SingleThread>(this);
-				break;
-			case Chaos::EThreadingMode::TaskGraph:
-				Dispatcher = new Chaos::FDispatcher<Chaos::EThreadingMode::TaskGraph>(this);
-				break;
+			break;
+		case Chaos::EThreadingMode::SingleThread:
+			Dispatcher = new Chaos::FDispatcher<Chaos::EThreadingMode::SingleThread>(this);
+			break;
+		case Chaos::EThreadingMode::TaskGraph:
+			Dispatcher = new Chaos::FDispatcher<Chaos::EThreadingMode::TaskGraph>(this);
+			break;
 
-			default:
-				// Must have a dispatcher! Add handling for new threading models above
-				check(false);
-				break;
-			}
+		default:
+			// Must have a dispatcher! Add handling for new threading models above
+			check(false);
+			break;
 		}
 
 		bModuleInitialized = true;
@@ -284,8 +273,31 @@ void FChaosSolversModule::ShutdownThreadingMode()
 	}
 	break;
 	
-	case EThreadingMode::SingleThread:
 	case EThreadingMode::TaskGraph:
+	{
+		if(Dispatcher)
+		{
+			// we need to flush out any commands currently waiting in the taskgraph dispatcher.
+			// Dedicated will wait for execution to end, and single thread runs immediately so we only
+			// need to handle this for task graph dispatchers
+			Dispatcher->Execute();
+
+			for(FPBDRigidsSolver* Solver : Solvers)
+			{
+				IDispatcher::FSolverCommand Command;
+				while(Solver->CommandQueue.Dequeue(Command))
+				{
+					Command(Solver);
+				}
+			}
+
+			delete Dispatcher;
+			Dispatcher = nullptr;
+		}
+	}
+	break;
+
+	case EThreadingMode::SingleThread:
 	{
 		if(Dispatcher)
 		{
@@ -329,6 +341,23 @@ void FChaosSolversModule::InitializeThreadingMode(Chaos::EThreadingMode InNewMod
 
 	default:
 		break;
+	}
+}
+
+void FChaosSolversModule::ChangeThreadingMode(Chaos::EThreadingMode InNewMode)
+{
+	EChaosThreadingMode CurrentMode = GetDispatcher()->GetMode();
+
+	if(InNewMode != EChaosThreadingMode::Invalid && InNewMode != CurrentMode)
+	{
+		// Handle shutdown of current threading model
+		ShutdownThreadingMode();
+
+		// Handle entering new threading model
+		InitializeThreadingMode(InNewMode);
+
+		// Buffering mode may change when the threading mode changes
+		//ChangeBufferingMode();
 	}
 }
 
@@ -415,7 +444,7 @@ void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 	UpdateStats();
 }
 
-Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= false*/)
+Chaos::FPhysicsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= false*/)
 {
 	FChaosScopeSolverLock SolverScopeLock;
 	
@@ -425,13 +454,13 @@ Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(bool bStandalone /*= 
 		SolverBufferMode = GetBufferModeFromThreadingModel(GetDispatcher()->GetMode());
 	}
 
-	Solvers.Add(Chaos::FPBDRigidsSolver::FAccessor::CreateSolver(SolverBufferMode));
-	Chaos::FPBDRigidsSolver* NewSolver = Solvers.Last();
+	Solvers.Add(new Chaos::FPhysicsSolver(SolverBufferMode));
+	Chaos::FPhysicsSolver* NewSolver = Solvers.Last();
 
 	if(!bStandalone && IsPersistentTaskRunning() && Dispatcher)
 	{
 		// Need to let the thread know there's a new solver to care about
-		Dispatcher->EnqueueCommand([NewSolver](Chaos::FPersistentPhysicsTask* PhysThread)
+		Dispatcher->EnqueueCommandImmediate([NewSolver](Chaos::FPersistentPhysicsTask* PhysThread)
 		{
 			PhysThread->AddSolver(NewSolver);
 		});
@@ -455,7 +484,7 @@ void FChaosSolversModule::SetDedicatedThreadTickMode(EChaosSolverTickMode InTick
 {
 	check(Dispatcher);
 
-	Dispatcher->EnqueueCommand([InTickMode](Chaos::FPersistentPhysicsTask* InThread)
+	Dispatcher->EnqueueCommandImmediate([InTickMode](Chaos::FPersistentPhysicsTask* InThread)
 	{
 		if(InThread)
 		{
@@ -464,7 +493,7 @@ void FChaosSolversModule::SetDedicatedThreadTickMode(EChaosSolverTickMode InTick
 	});
 }
 
-void FChaosSolversModule::DestroySolver(Chaos::FPBDRigidsSolver* InSolver)
+void FChaosSolversModule::DestroySolver(Chaos::FPhysicsSolver* InSolver)
 {
 	FChaosScopeSolverLock SolverScopeLock;
 
@@ -472,7 +501,7 @@ void FChaosSolversModule::DestroySolver(Chaos::FPBDRigidsSolver* InSolver)
 	{
 		if(Dispatcher)
 		{
-			Dispatcher->EnqueueCommand([InSolver](Chaos::FPersistentPhysicsTask* PhysThread)
+			Dispatcher->EnqueueCommandImmediate([InSolver](Chaos::FPersistentPhysicsTask* PhysThread)
 			{
 				if(PhysThread)
 				{
@@ -527,7 +556,8 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 	const int32 NumSolvers = Solvers.Num();
 	for(int32 SolverIndex = 0; SolverIndex < NumSolvers; ++SolverIndex)
 	{
-		Chaos::FPBDRigidsSolver* Solver = Solvers[SolverIndex];
+		Chaos::FPhysicsSolver* Solver = Solvers[SolverIndex];
+#if TODO_REIMPLEMENT_SPATIAL_ACCELERATION_ACCESS
 		if(const Chaos::ISpatialAcceleration<float,3>* SpatialAcceleration = Solver->GetSpatialAcceleration())
 		{
 #if !UE_BUILD_SHIPPING
@@ -535,6 +565,7 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 #endif
 			Solver->ReleaseSpatialAcceleration();
 		}
+#endif
 #if 0
 
 		const TArray<Chaos::TBox<float, 3>>& Boxes = Hierarchy->GetWorldSpaceBoxes();
@@ -644,8 +675,11 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 			
 			UE_LOG(LogChaos, Warning, TEXT("%s"), *OutputString);
 		}
-		#endif
+#endif
+
+#if TODO_REIMPLEMENT_SPATIAL_ACCELERATION_ACCESS
 		Solver->ReleaseSpatialAcceleration();
+#endif
 
 #if !UE_BUILD_SHIPPING
 		Chaos::PendingHierarchyDump = 1;	//mark solver pending dump to get more info
@@ -791,12 +825,12 @@ bool FChaosSolversModule::ShouldStepSolver(int32& InOutSingleStepCounter) const
 
 void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
 {
-	for (Chaos::FPBDRigidsSolver* Solver : Solvers)
+	for (Chaos::FPhysicsSolver* Solver : Solvers)
 	{
 		if (Dispatcher)
 		{
-			Dispatcher->EnqueueCommand(Solver, [InBufferMode = BufferMode]
-			(Chaos::FPBDRigidsSolver* InSolver)
+			Dispatcher->EnqueueCommandImmediate(Solver, [InBufferMode = BufferMode]
+			(Chaos::FPhysicsSolver* InSolver)
 			{
 				InSolver->ChangeBufferMode(InBufferMode);
 			});
@@ -836,7 +870,7 @@ FChaosScopedPhysicsThreadLock::FChaosScopedPhysicsThreadLock(uint32 InMsToWait)
 		PTStallEvent = FPlatformProcess::GetSynchEventFromPool(false);
 
 		// Request a halt on the physics thread
-		PhysDispatcher->EnqueueCommand([PTStall = PTStallEvent, GTSync = CompleteEvent](Chaos::FPersistentPhysicsTask* PhysThread)
+		PhysDispatcher->EnqueueCommandImmediate([PTStall = PTStallEvent, GTSync = CompleteEvent](Chaos::FPersistentPhysicsTask* PhysThread)
 		{
 			PTStall->Trigger();
 			GTSync->Wait();

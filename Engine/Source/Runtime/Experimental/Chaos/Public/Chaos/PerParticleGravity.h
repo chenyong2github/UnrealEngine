@@ -3,6 +3,7 @@
 
 #include "Chaos/DynamicParticles.h"
 #include "Chaos/PerParticleRule.h"
+#include "Chaos/ParticleHandle.h"
 
 namespace Chaos
 {
@@ -28,6 +29,11 @@ class PerParticleGravity : public TPerParticleRule<T, d>
 	inline void Apply(TRigidParticles<T, d>& InParticles, const T Dt, const int Index) const override //-V762
 	{
 		ApplyHelper(InParticles, Dt, Index);
+	}
+
+	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
+	{
+		Particle.F() += MAcceleration * Particle.M();
 	}
 
 	void SetAcceleration(const TVector<T, d>& Acceleration)

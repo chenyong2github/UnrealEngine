@@ -22,5 +22,11 @@ class TPerParticleInitForce : public TPerParticleRule<T, d>
 		InParticles.F(Index) = TVector<T,d>(0);
 		InParticles.Torque(Index) = TVector<T,d>(0);
 	}
+
+	inline void Apply(TTransientPBDRigidParticleHandle<T, d>& Particle, const T Dt) const override //-V762
+	{
+		Particle.F() = TVector<T, d>(0);
+		Particle.Torque() = TVector<T, d>(0);
+	}
 };
 }

@@ -9,7 +9,7 @@
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
 #include "GeometryCollection/GeometryCollection.h"
 #if INCLUDE_CHAOS
-#include "SolverObjects/GeometryCollectionPhysicsObject.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #endif  // #if INCLUDE_CHAOS
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 #include "HAL/IConsoleManager.h"
@@ -877,10 +877,10 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawChaosTick()
 
 	// Retrieve synced particle and clustering data
 	const TManagedArray<int32>& RigidBodyIds = GeometryCollectionComponent->RigidBodyIds;
-	const FGeometryCollectionPhysicsObject* const PhysicsObject = GeometryCollectionComponent->GetPhysicsObject();
-	if (PhysicsObject)
+	const FGeometryCollectionPhysicsProxy* const PhysicsProxy = GeometryCollectionComponent->GetPhysicsProxy();
+	if (PhysicsProxy)
 	{
-		ParticlesData.Sync(PhysicsObject->GetSolver(), RigidBodyIds);
+		ParticlesData.Sync(PhysicsProxy->GetSolver(), RigidBodyIds);
 	}
 
 	// Visualize single rigid body

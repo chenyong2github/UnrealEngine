@@ -13,6 +13,9 @@ public:
 	explicit TSerializablePtr(const TUniquePtr<T>& Unique) : Ptr(Unique.Get()) {}
 	explicit TSerializablePtr(TUniquePtr<T>&& Unique) = delete;
 	
+	template<ESPMode TESPMode>
+	explicit TSerializablePtr(const TSharedPtr<T, TESPMode>& Shared) : Ptr(Shared.Get()) {}
+	
 	const T* operator->() const { return Ptr; }
 	const T* Get() const { return Ptr; }
 	const T& operator*() const { return *Ptr; }
@@ -44,7 +47,6 @@ private:
 template <typename T>
 inline uint32 GetTypeHash(const TSerializablePtr<T>& Ptr) { return ::GetTypeHash(Ptr.Get()); }
 
-
 template <typename T>
 TSerializablePtr<T> MakeSerializable(const TUniquePtr<T>& Unique)
 {
@@ -53,6 +55,12 @@ TSerializablePtr<T> MakeSerializable(const TUniquePtr<T>& Unique)
 
 template <typename T>
 TSerializablePtr<T> MakeSerializable(const TUniquePtr<T>&& Unique) = delete;
+
+template<typename T, ESPMode TESPMode>
+TSerializablePtr<T> MakeSerializable(const TSharedPtr<T, TESPMode>& Shared)
+{
+	return TSerializablePtr<T>(Shared);
+}
 
 class FChaosArchive;
 

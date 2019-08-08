@@ -5,6 +5,7 @@
 #include "Misc/Paths.h"
 #include "UObject/Class.h"
 #include "ScriptGeneratorLog.h"
+#include "UObject/UnrealType.h"
 
 FScriptCodeGeneratorBase::FScriptCodeGeneratorBase(const FString& InRootLocalPath, const FString& InRootBuildPath, const FString& InOutputDirectory, const FString& InIncludeBase)
 {

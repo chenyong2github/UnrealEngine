@@ -14,9 +14,10 @@
 #include "Field/FieldSystemNodes.h"
 #include "GeometryCollection/GeometryDynamicCollection.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
-#include "SolverObjects/SolverObjects.h"
+#include "PhysicsProxy/PhysicsProxies.h"
 #include "Chaos/ErrorReporter.h"
 #include "ChaosSolversModule.h"
+#include "PBDRigidsSolver.h"
 
 #define SMALL_THRESHOLD 1e-4
 
@@ -31,6 +32,7 @@ namespace GeometryCollectionExample
 		Solver->SetEnabled(true);
 
 		Solver->AdvanceSolverBy(1 / 24.);
+#if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
 
 		TArray< SimulationObjects<T>* > Collections;
@@ -40,9 +42,9 @@ namespace GeometryCollectionExample
 			if (Frame % 100 == 0)
 			{
 				Collections.Add(new SimulationObjects<T>());
-				Solver->RegisterObject(Collections.Last()->PhysicsObject.Get());
-				Collections.Last()->PhysicsObject.Get()->Initialize();
-				Collections.Last()->PhysicsObject.Get()->ActivateBodies();
+				Solver->RegisterObject(Collections.Last()->PhysicsProxy.Get());
+				Collections.Last()->PhysicsProxy.Get()->Initialize();
+				Collections.Last()->PhysicsProxy.Get()->ActivateBodies();
 			}
 		}
 
@@ -53,6 +55,7 @@ namespace GeometryCollectionExample
 		// cleanup
 		for (auto Obj : Collections)
 			delete Obj;
+#endif
 		delete Solver;
 #endif
 		return !R.HasError();
@@ -71,6 +74,7 @@ namespace GeometryCollectionExample
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		Solver->AdvanceSolverBy(1 / 24.);
+#if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
 
 		TArray< SimulationObjects<T>* > Collections;
@@ -80,12 +84,12 @@ namespace GeometryCollectionExample
 			if (Frame % 100 == 0)
 			{
 				Collections.Add(new SimulationObjects<T>(P));
-				Solver->RegisterObject(Collections.Last()->PhysicsObject.Get());
-				Collections.Last()->PhysicsObject.Get()->Initialize();
+				Solver->RegisterObject(Collections.Last()->PhysicsProxy.Get());
+				Collections.Last()->PhysicsProxy.Get()->Initialize();
 			}
 		}
 		for (auto Obj : Collections)
-			Obj->PhysicsObject->ActivateBodies();
+			Obj->PhysicsProxy->ActivateBodies();
 
 		for (int32 Frame = 1; Frame < 100; Frame++)
 		{
@@ -100,6 +104,7 @@ namespace GeometryCollectionExample
 		// cleanup
 		for (auto Obj : Collections)
 			delete Obj;
+#endif
 		delete Solver;
 #endif
 		return !R.HasError();
@@ -121,6 +126,7 @@ namespace GeometryCollectionExample
 		Solver->SetHasFloor(false);
 		Solver->SetEnabled(true);
 		Solver->AdvanceSolverBy(1 / 24.);
+#if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		Chaos::TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();
 
 		TArray< SimulationObjects<T>* > Collections;
@@ -130,8 +136,8 @@ namespace GeometryCollectionExample
 			if (Frame % 100 == 0)
 			{
 				Collections.Add(new SimulationObjects<T>(P, GeometryCollection::MakeCubeElement(FTransform(FQuat(ForceInit), FVector(Frame)), FVector(1.0))));
-				Solver->RegisterObject(Collections.Last()->PhysicsObject.Get());
-				Collections.Last()->PhysicsObject.Get()->Initialize();
+				Solver->RegisterObject(Collections.Last()->PhysicsProxy.Get());
+				Collections.Last()->PhysicsProxy.Get()->Initialize();
 			}
 		}
 
@@ -143,7 +149,7 @@ namespace GeometryCollectionExample
 		}
 
 		for (auto Obj : Collections)
-			Obj->PhysicsObject->ActivateBodies();
+			Obj->PhysicsProxy->ActivateBodies();
 
 		// all particles should be enabled
 		R.ExpectTrue(Particles.Size() == 9);
@@ -166,10 +172,10 @@ namespace GeometryCollectionExample
 		R.ExpectTrue(Particles.Disabled(Particles.Size()-1) == false);
 		R.ExpectTrue(Particles.X(Particles.Size() - 1).Z < -1.f);
 
-
 		// cleanup
 		for (auto Obj : Collections)
 			delete Obj;
+#endif
 		delete Solver;
 #endif
 		return !R.HasError();

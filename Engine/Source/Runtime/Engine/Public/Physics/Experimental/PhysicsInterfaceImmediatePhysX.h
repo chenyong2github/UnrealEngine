@@ -44,6 +44,7 @@ struct ENGINE_API FPhysicsActorReference_ImmediatePhysX
 
 	bool IsValid() const;
 	bool Equals(const FPhysicsActorReference_ImmediatePhysX& Other) const;
+	bool operator==(const FPhysicsActorReference_ImmediatePhysX& Other) const { return Equals(Other); }
 
 	FPhysScene_ImmediatePhysX* Scene;
 	uint32 Index;
@@ -130,6 +131,7 @@ struct ENGINE_API FPhysicsGeometryCollection_ImmediatePhysX
         }
         return ECollisionShapeType::None;
     }
+#if 0	//Not sure if this is needed, refactoring this code for Chaos usage so leaving as is for now
     physx::PxGeometry& GetGeometry() const { return *Geometry; }
     bool GetBoxGeometry(physx::PxBoxGeometry& OutGeom) const
     {
@@ -151,6 +153,7 @@ struct ENGINE_API FPhysicsGeometryCollection_ImmediatePhysX
     {
         return GPhysXSDK->createShape(GetGeometry(), nullptr, 0)->getTriangleMeshGeometry(OutGeom);
     }
+#endif
 };
 
 // @todo(mlentine): Once we finalize the format of this we need to redo this

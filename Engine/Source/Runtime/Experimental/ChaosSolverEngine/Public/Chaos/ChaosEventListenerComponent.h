@@ -10,9 +10,9 @@
 // #include "UObject/ObjectMacros.h"
 
 #include "Components/ActorComponent.h"
+#include "Chaos/Declares.h"
 #include "ChaosEventListenerComponent.generated.h"
 
-namespace Chaos { class FPBDRigidsSolver; }
 class FPhysScene_Chaos;
 class AChaosSolverActor;
 
@@ -37,7 +37,7 @@ public:
 protected:
 
 #if INCLUDE_CHAOS
-	const Chaos::FPBDRigidsSolver* GetSolver() const;
+	const Chaos::FPhysicsSolver* GetSolver() const;
 	const TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const;
 #endif
 

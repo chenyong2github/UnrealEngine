@@ -13,6 +13,8 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 {
 	using TArray<T>::SetNum;
 	using TArray<T>::RemoveAt;
+	using TArray<T>::RemoveAtSwap;
+	using TArray<T>::Emplace;
 
   public:
 	TArrayCollectionArray()
@@ -25,6 +27,12 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 		TArray<T>::operator=(MoveTemp(Other));
 		return *this;
 	}
+
+	TArrayCollectionArray(TArray<T>&& Other)
+	: TArray<T>(MoveTemp(Other))
+	{
+	}
+
 	virtual ~TArrayCollectionArray() {}
 
 	TArrayCollectionArray<T> Clone()
@@ -39,46 +47,27 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 		SetNum(Num);
 	}
 
-	void RemoveAt(const int Num, const int Count) override
+	void RemoveAt(const int Idx, const int Count) override
 	{
-		TArray<T>::RemoveAt(Num, Count);
+		TArray<T>::RemoveAt(Idx, Count);
+	}
+
+	void RemoveAtSwap(const int Idx) override
+	{
+		TArray<T>::RemoveAtSwap(Idx);
+	}
+
+	void MoveToOtherArray(const int Idx, TArrayCollectionArrayBase& Other)
+	{
+		//todo: add developer check to make sure this is ok?
+		auto& OtherTArray = static_cast<TArrayCollectionArray<T>&>(Other);
+		OtherTArray.Emplace(MoveTemp(TArray<T>::operator [](Idx)));
+		TArray<T>::RemoveAtSwap(Idx);
 	}
 
 	uint64 SizeOfElem() const override
 	{
 		return sizeof(T);
-	}
-};
-
-template<class T>
-class TArrayCollectionArrayView : public TArrayCollectionArrayBase, public TArrayView<T>
-{
-  public:
-	TArrayCollectionArrayView(T* BasePtr, const int32 Num)
-	    : TArrayView<T>(BasePtr, Num) {}
-	TArrayCollectionArrayView(const TArrayCollectionArrayView<T>& Other) = delete;
-	TArrayCollectionArrayView(TArrayCollectionArrayView<T>&& Other)
-	    : TArrayView<T>(MoveTemp(Other)) {}
-	TArrayCollectionArrayView& operator=(TArrayCollectionArrayView<T>&& Other)
-	{
-		TArrayView<T>::operator=(MoveTemp(Other));
-		return *this;
-	}
-	virtual ~TArrayCollectionArrayView() {}
-
-	void Resize(const int Num) override
-	{
-		check(Num == TArrayView<T>::Num());
-	}
-
-	void RemoveAt(const int Num, const int Count) override
-	{
-		check(Count == 0);
-	}
-
-	uint64 SizeOfElem() const override
-	{
-		return 0;
 	}
 };
 }

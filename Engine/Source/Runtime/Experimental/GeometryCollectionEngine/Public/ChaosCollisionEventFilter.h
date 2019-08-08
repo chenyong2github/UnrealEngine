@@ -3,9 +3,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "PBDRigidsSolver.h"
 #include "Chaos/ChaosSolver.h"
 #include "ChaosFilter.h"
+#include "EventsData.h"
 #include "ChaosCollisionEventFilter.generated.h"
 
 using namespace Chaos;
@@ -44,13 +44,13 @@ struct FChaosCollisionEventData
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
 	FVector Impulse;
 
-	// The particle index of the collision event
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
-	int32 ParticleIndex;
+	// The particle of the collision event
+	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
+	Chaos::TGeometryParticle<float, 3>* Particle;
 
-	// The level set index of the collision event
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
-	int32 LevelsetIndex;
+	// The level set of the collision event
+	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Data")
+	Chaos::TGeometryParticle<float, 3>* Levelset;
 
 	FChaosCollisionEventData()
 		: Location(FVector::ZeroVector)
@@ -60,8 +60,8 @@ struct FChaosCollisionEventData
 		, Mass1(0.0f)
 		, Mass2(0.0f)
 		, Impulse(FVector::ZeroVector)
-		, ParticleIndex(INDEX_NONE)
-		, LevelsetIndex(INDEX_NONE)
+		, Particle(nullptr)
+		, Levelset(nullptr)
 	{
 	}
 };
@@ -121,13 +121,13 @@ struct FChaosCollisionEventRequestSettings
 
 #if INCLUDE_CHAOS
 
-class GEOMETRYCOLLECTIONENGINE_API FChaosCollisionEventFilter : public IChaosEventFilter<FPBDRigidsSolver::FCollisionDataArray, TArray<FChaosCollisionEventData>, EChaosCollisionSortMethod>
+class GEOMETRYCOLLECTIONENGINE_API FChaosCollisionEventFilter : public IChaosEventFilter<Chaos::FCollisionDataArray, TArray<FChaosCollisionEventData>, EChaosCollisionSortMethod>
  {
 public:
 
 	FChaosCollisionEventFilter(FChaosCollisionEventRequestSettings* FilterSettingsIn) : CollisionEventRequestSettings(FilterSettingsIn) {}
 
-	virtual void FilterEvents(const FTransform& ChaosComponentTransform, const FPBDRigidsSolver::FCollisionDataArray& RawCollisionDataArray) override;
+	virtual void FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FCollisionDataArray& RawCollisionDataArray) override;
 	virtual void SortEvents(TArray<FChaosCollisionEventData>& InOutCollisionEvents, EChaosCollisionSortMethod SortMethod, const FTransform& InTransform) override;
 
 private:

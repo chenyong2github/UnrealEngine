@@ -1,0 +1,238 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#define WRAP_SIZE 32
+
+struct FDIHairStrandsContext
+{
+	RWBuffer<float4>	PointsPositionsBuffer;
+	Buffer<uint>		CurvesOffsetsBuffer;
+	Buffer<float4>		NodesPositionsBuffer;
+	Buffer<uint>		PointsNodesBuffer;
+	Buffer<float>		PointsWeightsBuffer;
+	float4x4			WorldTransform;
+	int					NumStrands;
+	int					StrandSize;
+	float				StrandDensity;
+	float				RootThickness;
+	float				TipThickness;
+}; 
+
+#define DIHAIRSTRANDS_DECLARE_CONSTANTS(NAME)\
+RWBuffer<float4> PointsPositionsBuffer_##NAME;\
+Buffer<uint> CurvesOffsetsBuffer_##NAME;\
+Buffer<float4> NodesPositionsBuffer_##NAME;\
+Buffer<uint> PointsNodesBuffer_##NAME;\
+Buffer<float> PointsWeightsBuffer_##NAME;\
+float4x4 WorldTransform_##NAME;\
+int NumStrands_##NAME;\
+int StrandSize_##NAME;\
+float StrandDensity_##NAME;\
+float RootThickness_##NAME;\
+float TipThickness_##NAME;
+
+#define DIHAIRSTRANDS_MAKE_CONTEXT(NAME)\
+FDIHairStrandsContext DIContext;\
+DIContext.PointsPositionsBuffer = PointsPositionsBuffer_##NAME;\
+DIContext.CurvesOffsetsBuffer = CurvesOffsetsBuffer_##NAME;\
+DIContext.NodesPositionsBuffer = NodesPositionsBuffer_##NAME;\
+DIContext.PointsNodesBuffer = PointsNodesBuffer_##NAME;\
+DIContext.PointsWeightsBuffer = PointsWeightsBuffer_##NAME;\
+DIContext.WorldTransform = WorldTransform_##NAME;\
+DIContext.NumStrands = NumStrands_##NAME;\
+DIContext.StrandSize = StrandSize_##NAME;\
+DIContext.StrandDensity = StrandDensity_##NAME;\
+DIContext.RootThickness = RootThickness_##NAME;\
+DIContext.TipThickness = TipThickness_##NAME;
+
+groupshared float3 NodesGlobalPosition[WRAP_SIZE];
+groupshared float4 NodesGlobalQuaternion[WRAP_SIZE];
+
+groupshared float NodesInverseMass[WRAP_SIZE];
+groupshared float NodesInverseInertia[WRAP_SIZE];
+
+// Given a node index return the strand index and the local index within the strand
+int DIHairStrands_GetNumNodes(in FDIHairStrandsContext DIContext)
+{
+	return DIContext.NumStrands * DIContext.StrandSize;
+}
+
+// Given a node index return the strand index and the local index within the strand
+bool DIHairStrands_IsRootNode(in FDIHairStrandsContext DIContext)
+{
+	return (GGroupThreadId.x % DIContext.StrandSize) != 0;
+}
+
+// Given a node index return the strand index and the local index within the strand
+void DIHairStrands_ComputeNodeIndices(in FDIHairStrandsContext DIContext, in int NodeIndex, out int StrandIndex, out int LocalIndex)
+{
+	if (NodeIndex < DIHairStrands_GetNumNodes(DIContext))
+	{
+		StrandIndex = (DIContext.StrandSize>0) ? NodeIndex / DIContext.StrandSize : 0;
+		LocalIndex = NodeIndex - StrandIndex * DIContext.StrandSize;
+	}
+	else
+	{
+		StrandIndex = 0;
+		LocalIndex = 0;
+	}
+}
+
+// Given a strand index return the corresponding strand length
+float DIHairStrands_ComputeStrandLength(in FDIHairStrandsContext DIContext, in int StrandIndex)
+{
+	float StrandLength = 0.0;
+	if( StrandIndex < DIContext.NumStrands )
+	{
+		int PointOffset = DIContext.CurvesOffsetsBuffer[StrandIndex];
+		const int EdgeCount = DIContext.CurvesOffsetsBuffer[StrandIndex+1]-PointOffset-1;
+
+		float3 PointNext = DIContext.PointsPositionsBuffer[PointOffset++].xyz;
+		float3 PointPrev = PointNext;
+
+		for (int EdgeIndex = 0; EdgeIndex < EdgeCount; ++EdgeIndex)
+		{
+			PointPrev = PointNext;
+			PointNext = DIContext.PointsPositionsBuffer[PointOffset++].xyz;
+			StrandLength += length(PointNext-PointPrev);
+		}
+	}
+	return StrandLength;
+}
+
+/*void DIHairStrands_ReportNodePosition(in FDIHairStrandsContext DIContext, in int NodeIndex, out float3 Out_NodePosition)
+{
+	int StrandIndex = 0;
+	int LocalIndex = 0;
+	DIHairStrands_ComputeNodeIndices(DIContext,NodeIndex,StrandIndex,LocalIndex);
+
+	const int PointBegin = DIContext.CurvesOffsetsBuffer[StrandIndex];
+	const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex+1];
+
+	for (int PointIndex = PointBegin; PointIndex < PointEnd; ++PointIndex)
+	{
+		const float Weight = (DIContext.PointsNodesBuffer[PointIndex] == NodeIndex) ? 1.0 : 0.0;
+		DIContext.PointsPositionsBuffer[PointIndex] += Weight * Out_NodePosition * DIContext.PointsWeightsBuffer[PointIndex];
+	}
+	DeviceMemoryBarrier();
+
+	for (int PointIndex = PointBegin; PointIndex < PointEnd; ++PointIndex)
+	{
+		const float Weight = (DIContext.PointsNodesBuffer[PointIndex] == NodeIndex-1) ? 1.0 : 0.0;
+		DIContext.PointsPositionsBuffer[PointIndex] -= Weight * Out_NodePosition * (1.0-DIContext.PointsWeightsBuffer[PointIndex]);
+	}
+	DeviceMemoryBarrier();
+}*/
+
+// Compute the strand position by linear interpolation over the points
+/*void DIHairStrands_ReportNodeVelocity(in FDIHairStrandsContext DIContext, in int NodeIndex, in float3 NodeVelocity, in float DeltaTime)
+{
+	NodesGlobalPosition[GGroupThreadId.x] = NodeVelocity * DeltaTime;
+	GroupMemoryBarrier(); 
+
+	if(DIHairStrands_IsRootNode(DIContext))
+	{
+		int StrandIndex = 0;
+		int LocalIndex = 0;
+		DIHairStrands_ComputeNodeIndices(DIContext,NodeIndex,StrandIndex,LocalIndex);
+
+		const int PointBegin = DIContext.CurvesOffsetsBuffer[StrandIndex];
+		const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex+1]; 
+		const int PointCount = PointEnd - PointBegin;
+
+		for (int PointIndex = 0; PointIndex < PointCount; ++PointIndex)
+		{
+			const float PointCoord = (float)(PointIndex) / (PointCount-1.0);
+			const float PointNode = PointCoord * (DIContext.StrandSize-1.0);
+
+			const int NodePrev = (PointIndex==0) ? 0 : (PointIndex==(PointCount-1.0)) ? DIContext.StrandSize-2 : floor(PointNode);
+			const int NodeNext = NodePrev+1;
+
+			const float PointAlpha = PointNode - (float)NodePrev;
+			DIContext.PointsPositionsBuffer[PointBegin+PointIndex].xyz = NodesGlobalPosition[GGroupThreadId.x]
+
+
+		}
+	}
+}*/
+
+// Compute the strand orientation with parallel transport along the curve
+void DIHairStrands_ComputeNodeOrientation(in FDIHairStrandsContext DIContext, 
+						in float3 NodePosition, out float4 OutNodeQuaternion)
+{
+	NodesGlobalPosition[GGroupThreadId.x] = NodePosition;
+	GroupMemoryBarrier(); 
+
+	if(DIHairStrands_IsRootNode(DIContext))
+	{
+		float4 Quaternion = QUATERNION_IDENTITY;
+		float3 TangentNext = float3(0.0,0.0,1.0);
+		float3 TangentPrev = TangentNext;
+
+		NodesGlobalQuaternion[GGroupThreadId.x] = Quaternion;
+
+		for (int EdgeIndex = GGroupThreadId.x+1, EdgeEnd = GGroupThreadId.x+DIContext.StrandSize; 
+				EdgeIndex < EdgeEnd; ++EdgeIndex)
+		{
+			TangentNext = normalize(NodesGlobalPosition[EdgeIndex] - NodesGlobalPosition[EdgeIndex-1]);
+			Quaternion = NormalizeQuat( MultiplyQuat( FindQuatBetweenNormals(TangentPrev,TangentNext), Quaternion ) );
+			TangentPrev = TangentNext;
+
+			NodesGlobalQuaternion[EdgeIndex] = Quaternion;
+		}
+	}
+	GroupMemoryBarrier();
+	OutNodeQuaternion = NodesGlobalQuaternion[GGroupThreadId.x];
+}
+
+// Compute the node mass
+void DIHairStrands_ComputeNodeMass(in FDIHairStrandsContext DIContext, in int NodeIndex, out float3 OutNodeMass)
+{
+	const float CoordScale = 1.0 / (DIContext.StrandSize-1.0);
+
+	int StrandIndex = 0, LocalIndex = 0;
+	DIHairStrands_ComputeNodeIndices(DIContext,NodeIndex,StrandIndex,LocalIndex);
+	const float EdgeLength = DIHairStrands_ComputeStrandLength(DIContext,StrandIndex) * CoordScale;
+
+	const bool IsFirst = (LocalIndex == 0);
+	const bool IsLast  = (LocalIndex == (DIContext.StrandSize-1));
+
+	const float EdgeScale = (IsFirst || IsLast) ? 0.5 : 1.0;
+	
+	const float PrevCoord = IsFirst ? 0.0 : (LocalIndex-0.5) * CoordScale;
+	const float NextCoord = IsLast ? 1.0  : (LocalIndex+0.5) * CoordScale;
+
+	const float PrevThick = DIContext.RootThickness * ( 1.0 - PrevCoord ) + DIContext.TipThickness * PrevCoord;
+	const float NextThick = DIContext.RootThickness * ( 1.0 - NextCoord ) + DIContext.TipThickness * NextCoord;
+
+	OutNodeMass = DIContext.StrandDensity * EdgeLength * EdgeScale * M_PI * (PrevThick * PrevThick + NextThick * PrevThick + NextThick * NextThick) / 12.0;
+}
+
+// Compute the node position by linear interpolation over the points
+void DIHairStrands_ComputeNodePosition(in FDIHairStrandsContext DIContext, in int NodeIndex, out float3 OutNodePosition)
+{
+	int StrandIndex = 0, LocalIndex = 0;
+	DIHairStrands_ComputeNodeIndices(DIContext,NodeIndex,StrandIndex,LocalIndex);
+
+	const int PointOffset = DIContext.CurvesOffsetsBuffer[StrandIndex];
+
+	const float NodeCoord = (float)(LocalIndex) / (DIContext.StrandSize-1.0);
+	const float PointCount = DIContext.CurvesOffsetsBuffer[StrandIndex+1]-PointOffset-1;
+
+	const float NodePoint = NodeCoord * PointCount;
+	const int PointPrev = (LocalIndex==0) ? 0 : (LocalIndex==(DIContext.StrandSize-1)) ? PointCount-1 : floor(NodePoint);
+	const int PointNext = PointPrev+1;
+
+	const float NodeAlpha = NodePoint - (float)PointPrev;
+	OutNodePosition =  DIContext.PointsPositionsBuffer[PointOffset+PointPrev].xyz * (1.0-NodeAlpha) + 
+					   DIContext.PointsPositionsBuffer[PointOffset+PointNext].xyz * NodeAlpha;
+	OutNodePosition = mul(float4( OutNodePosition, 1.0), DIContext.WorldTransform).xyz;
+}
+
+
+
+
+
+
+
